@@ -26,6 +26,7 @@ function startGame(save) {
   game.target = null;
   game.running = true;
   game.zoneId = null;
+  keepScreenOn();
   ui.closePanels();
   ui.enterGame();
   const c = CLASSES[game.player.classId];
@@ -125,9 +126,32 @@ function boot() {
   ui.init();
   setupInput();
   ui.showStart();
-  document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) saveGame();
+    else if (game.running) keepScreenOn();
+  });
   window.addEventListener('pagehide', saveGame);
+  registerApp();
   requestAnimationFrame(frame);
+}
+
+// Als App installiert: Dateien für den Offline-Start speichern
+function registerApp() {
+  if (!document.querySelector('link[rel="manifest"]')) return;
+  try {
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+  } catch {
+    // nicht erlaubt, das Spiel läuft trotzdem
+  }
+}
+
+// Bildschirm beim Spielen nicht abschalten (wo das Gerät es erlaubt)
+function keepScreenOn() {
+  try {
+    if ('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(() => {});
+  } catch {
+    // nicht unterstützt
+  }
 }
 
 boot();

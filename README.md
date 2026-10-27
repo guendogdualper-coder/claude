@@ -10,6 +10,15 @@ python3 -m http.server 8000
 
 Dann <http://localhost:8000> öffnen. Es gibt keine Abhängigkeiten und keinen Build-Schritt. Der Spielstand wird im Browser gespeichert.
 
+## Als App aufs Handy
+
+Seelenstein ist eine installierbare Web-App (PWA). Auf einem Webserver mit HTTPS (z. B. GitHub Pages) lässt es sich auf den Startbildschirm legen und startet dann im Vollbild, mit eigenem Icon und auch ohne Internet.
+
+- **Android (Chrome):** Seite öffnen, Menü ⋮, „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.
+- **iPhone (Safari):** Seite öffnen, Teilen-Knopf, „Zum Home-Bildschirm“.
+
+Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, damit installierte Apps die neuen Dateien laden.
+
 ## Was schon drin ist (Etappe 1 und 2)
 
 - **4 Klassen** mit je 5 Fertigkeiten: Krieger, Ninja, Schamane, Nekromant
@@ -51,6 +60,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |
 | `js/eingabe.js` | Tastatur, Maus, Touch |
 | `js/spiel.js` | Spielzustand und Hauptschleife |
+| `manifest.webmanifest`, `sw.js`, `icons/` | Installation als App, Offline-Betrieb, App-Icons |
 
 Neue Monster, Zonen oder Fertigkeiten lassen sich meist allein in den Dateien unter `js/daten/` ergänzen.
 

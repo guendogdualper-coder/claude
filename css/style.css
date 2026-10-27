@@ -39,6 +39,8 @@ body {
   font-size: 15px;
   line-height: 1.45;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
 }
