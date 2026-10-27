@@ -18,15 +18,16 @@ function createMonster(typeId, x, y, opts = {}) {
   };
 }
 
-function createStone(zone) {
-  const spot = randomSpotInZone(zone);
+function createStone(zone, level, from = 0, to = 1) {
+  const spot = randomSpotInZone(zone, from, to);
   if (!spot) return null;
-  const st = monsterStats(zone.stoneLevel, STONE.hpMul);
+  const type = stoneType(level);
+  const st = monsterStats(level, STONE.hpMul);
   return {
-    id: nextMonsterId++, isStone: true, name: STONE.name, level: zone.stoneLevel,
-    x: spot.x, y: spot.y, homeX: spot.x, homeY: spot.y, r: 18,
+    id: nextMonsterId++, isStone: true, stoneType: type, name: type.name, level,
+    x: spot.x, y: spot.y, homeX: spot.x, homeY: spot.y, r: 18, area: [from, to],
     maxHp: st.maxHp, hp: st.maxHp, atk: 0, def: st.def,
-    xp: Math.round(monsterStats(zone.stoneLevel).xp * STONE.xpMul),
+    xp: Math.round(monsterStats(level).xp * STONE.xpMul),
     gold: st.gold.map((g) => g * STONE.goldMul),
     wave: 0, zone, respawn: true, dead: false, respawnAt: 0, hitFlash: 0, stun: 0, kx: 0, ky: 0,
     phase: Math.random() * 6
@@ -51,9 +52,11 @@ function populateWorld() {
         groupId++;
       }
     }
-    for (let s = 0; s < zone.stones; s++) {
-      const stone = createStone(zone);
-      if (stone) game.monsters.push(stone);
+    for (const [level, count, from, to] of zone.stones || []) {
+      for (let s = 0; s < count; s++) {
+        const stone = createStone(zone, level, from, to);
+        if (stone) game.monsters.push(stone);
+      }
     }
   }
 }
@@ -69,10 +72,10 @@ function spotNear(c, radius) {
 
 function reviveMonster(m) {
   if (m.isStone) {
-    const spot = randomSpotInZone(m.zone);
+    const spot = randomSpotInZone(m.zone, m.area[0], m.area[1]);
     if (spot) { m.x = m.homeX = spot.x; m.y = m.homeY = spot.y; }
     m.wave = 0;
-    if (dist(m, game.player) < 900) ui.log('In der Nähe ist ein Seelenstein erschienen.', 'info');
+    if (dist(m, game.player) < 900) ui.log(`In der Nähe ist ein ${m.name} (Stufe ${m.level}) erschienen.`, 'info');
   } else {
     m.x = m.homeX;
     m.y = m.homeY;
@@ -105,11 +108,14 @@ function aggro(m, source) {
 // Seelenstein ruft bei bestimmten Lebensanteilen Verstärkung
 function checkStoneWaves(stone) {
   const zone = stone.zone;
+  // Verstärkung passend zur Stufe des Steins: Monster der Zone, die nicht viel stärker sind
+  const pool = zone.groups.map((g) => g[0]).filter((id) => MONSTER_TYPES[id].level <= stone.level + 2);
+  const types = pool.length ? pool : [zone.groups[0][0]];
   while (stone.wave < STONE.waves.length && stone.hp / stone.maxHp <= STONE.waves[stone.wave]) {
     stone.wave++;
     const count = randInt(3, 4);
     for (let k = 0; k < count; k++) {
-      const typeId = zone.groups[randInt(0, zone.groups.length - 1)][0];
+      const typeId = types[randInt(0, types.length - 1)];
       const pos = spotNear(stone, 70);
       const m = createMonster(typeId, pos.x, pos.y, { respawn: false, zone });
       m.homeX = stone.x;
@@ -117,7 +123,7 @@ function checkStoneWaves(stone) {
       m.state = 'chase';
       m.target = game.player;
       game.monsters.push(m);
-      addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.5, color: '#c58cff', count: 8 });
+      addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.5, color: stone.stoneType.look.glow, count: 8 });
     }
     if (stone.wave === 1) ui.log('Der Seelenstein ruft Monster zu Hilfe!', 'warn');
   }
@@ -158,9 +164,9 @@ function monsterAttack(m, target) {
   if (m.type.shape === 'beast' || m.type.shape === 'boar') addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
   else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 30, w: 5, dur: 0.22, color: '#ff8a6a' });
   if (target === p) {
-    damagePlayer(calcDamage(m.atk, 1, game.stats.def, 0.03).amount, m);
+    damagePlayer(calcDamage(m.atk, 1, game.stats.def, 0.03, m.level).amount, m);
   } else {
-    damageAlly(target, calcDamage(m.atk, 1, target.def, 0).amount);
+    damageAlly(target, calcDamage(m.atk, 1, target.def, 0, m.level).amount);
   }
 }
 

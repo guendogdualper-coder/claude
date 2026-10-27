@@ -10,12 +10,14 @@ function aliveEnemies() {
   return game.monsters.filter((m) => !m.dead);
 }
 
-// Grundformel: Angriff × Faktor, ±10 % Zufall, Verteidigung zieht prozentual ab
-function calcDamage(atk, mul, def, critChance) {
+// Grundformel: Angriff × Faktor, ±10 % Zufall, Verteidigung zieht prozentual ab.
+// Je höher die Stufe des Angreifers, desto weniger hilft die gleiche Verteidigung,
+// damit Rüstung auf hohen Stufen nicht jeden Treffer schluckt.
+function calcDamage(atk, mul, def, critChance, level = 1) {
   let raw = atk * mul * (0.9 + Math.random() * 0.2);
   const crit = Math.random() < critChance;
   if (crit) raw *= 1.8;
-  const amount = Math.max(1, Math.round(raw * (1 - def / (def + 40))));
+  const amount = Math.max(1, Math.round(raw * (1 - def / (def + 40 + 5 * (level - 1)))));
   return { amount, crit };
 }
 
@@ -87,7 +89,7 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.basic) factor *= 1 + (s.basicDmg || 0);
   }
   const atk = opts.atk != null ? opts.atk : s.atk;
-  const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit);
+  const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit, p.level);
   if (!m.isStone) {
     if (opts.stun) m.stun = Math.max(m.stun, opts.stun);
     if (opts.knockback) {
@@ -139,8 +141,9 @@ function killMonster(m) {
   if (game.target === m) game.target = null;
   const bc = bodyCenter(m);
   if (m.isStone) {
-    particles(bc.x, bc.y, { count: 40, color: ['#c58cff', '#8a5ad0', '#ffffff'], speed: [80, 260], life: [0.4, 0.9], size: [2, 4], shape: 'square', drag: 2.5 });
-    addEffect({ type: 'ring', x: m.x, y: m.y, r: 70, dur: 0.6, color: '#c58cff', width: 10, grow: true });
+    const look = m.stoneType.look;
+    particles(bc.x, bc.y, { count: 46, color: [look.glow, look.top, look.rune, '#ffffff'], speed: [80, 260], life: [0.4, 0.9], size: [2, 4.5], shape: 'square', drag: 2.5 });
+    addEffect({ type: 'ring', x: m.x, y: m.y, r: 70, dur: 0.6, color: look.glow, width: 10, grow: true });
     shakeScreen(7);
     hitStop(0.08);
   } else {
@@ -149,21 +152,26 @@ function killMonster(m) {
   }
 
   const xp = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
-  const gold = randInt(m.gold[0], m.gold[1]);
+  const drops = m.isStone ? stoneDrops(m.stoneType) : null;
+  const gold = Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : 1));
   p.gold += gold;
   p.kills++;
   // Belohnung erscheint über der eigenen Figur, nicht zwischen den Schadenszahlen
   addText(p.x, feetY(p) - 72, '+' + xp + ' EP  +' + gold + ' Gold', 'xp');
 
   if (m.isStone) {
-    const splinters = randInt(2, 4);
+    const splinters = randInt(drops.splinters[0], drops.splinters[1]);
+    const potHp = randInt(drops.potions[0], drops.potions[1]);
+    const potMp = Math.max(1, Math.round(potHp * 0.7));
     p.splinters += splinters;
     p.stones++;
-    p.potions.hp += randInt(1, 3);
-    p.potions.mp += randInt(1, 2);
-    ui.log('Seelenstein zerstört! +' + xp + ' EP, +' + gold + ' Gold, +' + splinters + ' Seelensplitter und Tränke.', 'loot');
+    p.potions.hp += potHp;
+    p.potions.mp += potMp;
+    ui.log(`${m.name} zerstört! +${xp} EP, +${gold.toLocaleString('de-DE')} Gold, +${splinters} Seelensplitter, ${potHp + potMp} Tränke.`, 'loot');
+    questEvent('stone', m);
     m.respawnAt = game.time + randInt(STONE.respawn[0], STONE.respawn[1]);
   } else {
+    questEvent('kill', m);
     if (Math.random() < 0.06) { p.potions.hp++; ui.log(m.name + ' hat einen Roten Trank fallen lassen.', 'loot'); }
     if (Math.random() < 0.04) { p.potions.mp++; ui.log(m.name + ' hat einen Blauen Trank fallen lassen.', 'loot'); }
     m.respawnAt = game.time + 12 + Math.random() * 8;
@@ -279,7 +287,7 @@ function tryBasicAttack() {
 function useSkill(i) {
   const p = game.player;
   if (!p || p.dead || p.dash) return;
-  const sk = CLASSES[p.classId].skills[i];
+  const sk = classSkills(p)[i];
   if (!sk) return;
   if (p.level < sk.unlock) {
     ui.log(sk.name + ' wird ab Stufe ' + sk.unlock + ' freigeschaltet.', 'warn');
@@ -406,11 +414,12 @@ const SKILL_TYPES = {
     }
     faceTowards(t.x, t.y);
     const bc = bodyCenter(t);
-    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.75, len: 58, w: 9, dur: 0.3, color: '#b48cff' });
-    later(0.07, () => addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.75, len: 58, w: 9, dur: 0.3, color: '#b48cff' }));
-    particles(bc.x, bc.y, { count: 14, color: ['#b48cff', '#e0d0ff'], speed: [60, 160], life: [0.3, 0.5], size: [2, 3], shape: 'square' });
+    const col = sk.color || '#b48cff';
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.75, len: 58, w: 9, dur: 0.3, color: col });
+    later(0.07, () => addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.75, len: 58, w: 9, dur: 0.3, color: col }));
+    particles(bc.x, bc.y, { count: 14, color: [col, '#ffffff'], speed: [60, 160], life: [0.3, 0.5], size: [2, 3], shape: 'square' });
     hitStop(0.05);
-    hitMonster(t, sk.dmg * pw, { skill: sk.id, critBonus: sk.critBonus, heavy: true, vfxColor: '#d6c4ff' });
+    hitMonster(t, sk.dmg * pw, { skill: sk.id, critBonus: sk.critBonus, stun: sk.stun, knockback: sk.knockback, poison: sk.poison, heavy: true, vfxColor: sk.color ? lighter(sk.color, 0.3) : '#d6c4ff' });
   },
 
   projectile(sk, pw) {
@@ -423,7 +432,7 @@ const SKILL_TYPES = {
       owner: 'player', x: p.x, y: p.y, target: sk.pierce ? null : t, dir: t ? null : p.facing,
       aimAt: sk.pierce && t ? { x: t.x, y: t.y } : null,
       speed: sk.speed, range: sk.range + 40, mul: sk.dmg * pw, color: sk.color, radius: sk.pierce ? 8 : 7,
-      pierce: sk.pierce, chain: sk.chain || 0, poison: sk.poison, style: sk.style, skill: sk.id
+      pierce: sk.pierce, chain: sk.chain || 0, poison: sk.poison, stun: sk.stun, style: sk.style, skill: sk.id
     });
   },
 
@@ -434,11 +443,24 @@ const SKILL_TYPES = {
     const x = t ? t.x : p.x + p.facing.x * 120;
     const y = t ? t.y : p.y + p.facing.y * 120;
     if (t) faceTowards(t.x, t.y);
-    addEffect({ type: 'bolt', x, y, dur: 0.45, color: '#cfe8ff' });
+    if (sk.fx === 'poison') {
+      // Giftwolke statt Blitz
+      later(0.1, () => {
+        addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.5, color: '#8fd16a', width: 8, grow: true });
+        addEffect({ type: 'decal', kind: 'splash', x, y, r: sk.radius * 0.7, dur: 3, color: '#3a6a2a' });
+        particles(x, y - 8, { count: 36, color: ['#8fd16a', '#5a8a3a', '#c6f08a'], speed: [30, 120], life: [0.8, 1.4], size: [5, 10], drag: 2, glow: false, jitter: sk.radius * 0.5 });
+        for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, poison: sk.poison, vfxColor: '#c6f08a' });
+      });
+      return;
+    }
+    const bolts = sk.fx === 'storm' ? 6 : 1;
+    for (let k = 0; k < bolts; k++) {
+      later(k * 0.08, () => addEffect({ type: 'bolt', x: x + (k ? rand(-sk.radius, sk.radius) * 0.7 : 0), y: y + (k ? rand(-sk.radius, sk.radius) * 0.4 : 0), dur: 0.45, color: '#cfe8ff' }));
+    }
     later(0.12, () => {
       addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.4, color: '#9fd0ff', width: 8 });
-      particles(x, y - 10, { count: 30, color: ['#cfe8ff', '#9fd0ff', '#ffffff'], speed: [120, 300], life: [0.15, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 5 });
-      shakeScreen(6);
+      particles(x, y - 10, { count: 30 * Math.min(2, bolts), color: ['#cfe8ff', '#9fd0ff', '#ffffff'], speed: [120, 300], life: [0.15, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+      shakeScreen(bolts > 1 ? 8 : 6);
       hitStop(0.05);
       for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
     });
@@ -519,13 +541,15 @@ const SKILL_TYPES = {
   curse(sk, pw, lvl) {
     const p = game.player;
     const scale = buffScale(lvl);
-    addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: '#a774e0' });
+    const col = sk.color || '#a774e0';
+    addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: col });
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
       m.vulnerable = { mul: 1 + sk.vulnerable * scale, until: game.time + sk.duration };
       const bc = bodyCenter(m);
-      particles(bc.x, bc.y - 20, { count: 8, color: ['#a774e0', '#5a2a8a'], angle: Math.PI / 2, spread: 0.3, speed: [40, 90], life: [0.4, 0.6], size: [2, 3] });
+      particles(bc.x, bc.y - 20, { count: 8, color: [col, darker(col, 0.4)], angle: Math.PI / 2, spread: 0.3, speed: [40, 90], life: [0.4, 0.6], size: [2, 3] });
       if (!m.isStone) {
         m.slow = { mul: 1 - sk.slow, until: game.time + sk.duration };
+        if (sk.stun) m.stun = Math.max(m.stun, sk.stun);
         aggro(m, p);
       }
     }
@@ -540,7 +564,7 @@ function updateDash(dt) {
   const moved = moveEntity(p, d.dx * step, d.dy * step, false);
   d.left -= step;
   const dir = facingDir(p.facing);
-  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3, tint: '#ff7a2a' });
+  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3, tint: d.sk.tint || '#ff7a2a' });
   skillPhaseFx(d.sk.id, 'trail');
   particles(p.x, feetY(p), { count: 2, color: ['#a88f62', '#c9b28a'], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false });
   for (const m of enemiesInCircle(p.x, p.y, d.sk.radius)) {
@@ -599,7 +623,7 @@ function updateProjectiles(dt) {
         if (m.dead || pr.hit.has(m.id)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
-        hitMonster(m, pr.mul, { poison: pr.poison, vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
+        hitMonster(m, pr.mul, { poison: pr.poison, stun: pr.stun, vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
         if (pr.poison) particles(m.x, feetY(m) - 16, { count: 12, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2 });
         if (pr.chain > 0) {
           const next = aliveEnemies()
@@ -624,9 +648,9 @@ function updateProjectiles(dt) {
         pr.done = true;
         particles(v.x, feetY(v) - 18, { count: 8, color: [pr.color, '#ffffff'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
         if (v === p) {
-          if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, 1, game.stats.def, 0.03).amount, pr.source);
+          if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, 1, game.stats.def, 0.03, pr.source.level).amount, pr.source);
         } else {
-          damageAlly(v, calcDamage(pr.atk, 1, v.def, 0).amount);
+          damageAlly(v, calcDamage(pr.atk, 1, v.def, 0, pr.source.level).amount);
         }
         break;
       }

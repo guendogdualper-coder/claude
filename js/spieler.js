@@ -5,8 +5,8 @@ const MAX_LEVEL = 99;
 const MAX_SKILL_LEVEL = 20;
 
 // Diese Felder landen im Spielstand
-const SAVE_FIELDS = ['name', 'classId', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials'];
+const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -30,14 +30,15 @@ function xpFactor(playerLevel, monsterLevel) {
   return Math.max(0.05, 1 + diff * 0.12);
 }
 
-function newCharacter(name, classId) {
+function newCharacter(name, classId, path = 0) {
   return {
-    name, classId, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
+    name, classId, path, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
     hp: null, mp: null, x: null, y: null, playTime: 0,
     equipment: starterEquipment(), inventory: [], scrolls: 0, itemsVersion: 2,
     attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
-    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 }
+    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 },
+    worldVersion: WORLD_VERSION, quests: null
   };
 }
 
@@ -80,6 +81,19 @@ function makePlayer(save) {
     p.attrs = { str: 0, vit: 0, int: 0, dex: 0, ...save.attrs };
     p.statPoints = save.statPoints || 0;
   }
+  // Spielstände vor den zwei Wegen: Fertigkeitspunkte zurückgeben, der Weg wird beim Start gewählt
+  if (save.path == null) {
+    p.path = 0;
+    p.needsPath = true;
+    p.skillPoints += (p.skillLevels || []).reduce((a, v) => a + Math.max(0, v - 1), 0);
+    p.skillLevels = [1, 1, 1, 1, 1];
+  }
+  // Die Welt ist größer geworden: alte Positionen passen nicht mehr, es geht im Dorf weiter
+  if ((save.worldVersion || 1) < WORLD_VERSION) {
+    p.x = null;
+    p.y = null;
+  }
+  p.worldVersion = WORLD_VERSION;
   const stats = playerStats(p);
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
@@ -111,6 +125,7 @@ function playerStats(p) {
     invisible: false
   };
   let atkMul = 1;
+  let defMul = 1;
   let speedMul = 1;
   // Boni der Ausrüstung
   const bonus = {};
@@ -161,6 +176,9 @@ function playerStats(p) {
   for (const b of p.buffs) {
     const e = b.effects;
     if (e.atk) atkMul += e.atk;
+    if (e.def) defMul += e.def;
+    if (e.skillDmg) s.skillDmg += e.skillDmg;
+    if (e.hpSteal) s.hpSteal += e.hpSteal;
     if (e.speed) speedMul += e.speed;
     if (e.atkSpeed) s.atkSpeed += e.atkSpeed;
     if (e.damageTaken) s.damageTaken += e.damageTaken;
@@ -172,7 +190,7 @@ function playerStats(p) {
   }
   s.atk = Math.round(s.atk * atkMul);
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
-  s.def = Math.round(s.def);
+  s.def = Math.round(s.def * defMul);
   s.speed *= speedMul;
   s.damageTaken = Math.max(0.2, s.damageTaken);
   return s;
@@ -192,7 +210,7 @@ function gainXp(amount) {
     p.mp = s.maxMp;
     vfxLevelUp(p);
     ui.log('Stufenaufstieg! Du bist jetzt Stufe ' + p.level + '. Du hast einen Fertigkeitspunkt erhalten.', 'level');
-    const unlocked = CLASSES[p.classId].skills.find((sk) => sk.unlock === p.level);
+    const unlocked = classSkills(p).find((sk) => sk.unlock === p.level);
     if (unlocked) ui.log('Neue Fertigkeit freigeschaltet: ' + unlocked.name + '.', 'level');
     const tier = ITEM_TIERS.findIndex((t) => t.level === p.level);
     ui.log(`${STAT_POINTS_PER_LEVEL} neue Statuspunkte. Verteile sie im Charakterfenster.`, 'level');
@@ -220,7 +238,7 @@ function raiseAttr(id, n = 1) {
 
 function upgradeSkill(i) {
   const p = game.player;
-  const sk = CLASSES[p.classId].skills[i];
+  const sk = classSkills(p)[i];
   if (p.skillPoints <= 0 || p.level < sk.unlock || p.skillLevels[i] >= MAX_SKILL_LEVEL) return;
   p.skillLevels[i]++;
   p.skillPoints--;

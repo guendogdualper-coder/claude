@@ -340,3 +340,60 @@ Set of four item icons for a 2D fantasy MMORPG, East Asian style, square with so
 ```
 Set of six faint ghost silhouette icons for empty equipment slots in a 2D fantasy MMORPG, East Asian style: sword, chest armor, helmet, round shield, pair of boots, belt with buckle. Each in pale grey at low opacity inside a dark square slot with a dashed brass border and a tiny uppercase label below (WAFFE, RÜSTUNG, HELM, SCHILD, SCHUHE, GÜRTEL). Minimal, subtle, no color.
 ```
+
+## Seelensteine, Gebiete, Dorf, Aufträge und Klassenwege (Version 2.0)
+
+### Die 14 Seelensteine (Stufe 5 bis 70)
+```
+2D game sprite sheet of 14 magical soul stones for a fantasy MMORPG, three-quarter top-down view, each standing on a small pile of rubble with a soft colored glow, arranged in two rows of seven, from small to large: Stone of Sorrow (grey-blue crystal spire with pale blue runes), Stone of Rage (red-brown obelisk with glowing red runes), Stone of Greed (dark green crystal cluster with golden runes), Stone of Thorns (brown spire wrapped in thorny vines, green runes), Stone of Blackness (black boulder with purple runes), Stone of Ash (grey obelisk with orange runes), Stone of Embers (dark red boulder with lava cracks), Stone of Shadows (two leaning violet spires with smoke), Stone of Frost (translucent ice crystal cluster), Stone of Silence (white marble monolith with cyan runes and floating shards), Stone of Decay (two sick green-brown spires with toxic mist), Stone of Pain (blood-red crystal spire with black runes), Stone of Flame (obsidian monolith with fire cracks), Stone of Doom (huge black monolith with golden runes and a floating crown of shards). Bold dark outline, cel shading, glowing runes, plain white background, no text.
+```
+
+### Gebiete bis Stufe 70
+```
+2D fantasy MMORPG world map concept in East Asian style, top-down, concentric regions around a walled village in the center: sunny meadows with cherry trees (level 1-9), dark pine forest (10-19), orange orc valley with dead trees (20-29), grey ash wasteland with dark bog water (30-39), snowy frost peaks with frozen lakes and snow-covered pines (40-49), misty undead swamp with mossy dead trees (50-59), black basalt volcano land with lava rivers in the corners (60-70). Four dirt roads lead from the village gates to the edges. Hand-painted game art, soft colors, small labels for each region.
+```
+
+### Neue Monster
+```
+2D game monster sprite sheet in cute chibi fantasy style, side view facing right, each with a soft ground shadow, fourteen monsters: forest spider with red markings, big brown bear, desert scorpion with glowing green stinger, orc captain with horned helmet and red cape, hellhound with flaming mane, ice wolf with glowing blue eyes, white yeti with blue face, floating frost ghost with an icicle crown, undead warrior in rusty armor with green glowing eye, swamp witch with pointed hat and skull staff, hunched ghoul with claws, lava golem with glowing cracks, fire demon with flaming hair and wings, red fire dragon with wings and horns. Big expressive angry eyes, bold dark outline, cel shading, plain white background, evenly spaced grid, no text.
+```
+
+### Dorf mit Mauer und Toren
+```
+2D game environment of an East Asian fantasy village seen from a three-quarter top-down view: a square village wall of cream plaster with dark wooden beams, small arrow slits and a slate-blue tiled roof cap, watchtowers with curved red roofs and red lanterns at every corner and on both sides of each gate, a red wooden gate arch with a curved roof and a golden name plate "HAYAN" over the north and south road. Inside: cobblestone plaza with a well, eight houses with curved roofs, colorful market stalls with striped awnings, stone lanterns, barrels and crates. Clean hand-painted game art, bold dark outline, soft cel shading, no text except the name plate.
+```
+
+### Neue Dorfbewohner
+```
+2D game character sprite sheet, cute chibi style, front view, standing pose, East Asian fantasy village people: village elder with long white beard, brown robe and a staff with a blue gem; huntress in a green tunic with bow and quiver and a red ponytail; teleport guide woman in a blue robe holding a glowing blue orb; alchemist in a purple robe with round golden glasses and potion bottles on his belt; town guard with red lamellar armor, round helmet and spear; farmer with a straw hat and hoe; small child with hair buns; old woman with grey bun and walking stick; monk in an orange robe with prayer beads. Small floating icons above some of them: scroll (quests), target (hunting), blue swirl (travel), green flask (alchemy). Bold dark outline, cel shading, plain white background, no text.
+```
+
+### Aufträge und Belohnungen
+```
+2D fantasy MMORPG quest window UI mockup in East Asian style, dark lacquered wood panel with thin brass borders: title "Dorfältester Bao", small line "Auftrag 3 von 20", quest name, a short story text in quotes, a goal line "15 × Wolf besiegen", and a reward list with small icons (experience, gold coins, a helmet with +1, blue crystal materials), a big golden button "Belohnung abholen". Next to it a small HUD quest tracker under a round minimap showing "Wolfsplage 12/15" and "Jagd: Wildschwein 4/20". A yellow exclamation mark floating above the elder's head in the game world. Clean readable layout, no clutter.
+```
+
+### Reisen mit der Wegweiserin
+```
+2D fantasy MMORPG travel window UI mockup in East Asian style: list of regions with level ranges and gold prices (Sonnenwiesen, Dunkelwald, Orktal, Ödland, Frostgipfel, Totenmoor, Feuerberg), each row with a small brass button. In the game world next to it a stone circle teleport gate with a glowing blue rune and a pillar of blue light as the hero vanishes. Dark lacquer and brass style.
+```
+
+### Zwei Wege je Klasse
+```
+2D fantasy MMORPG character creation UI mockup in landscape: four class cards on the left (warrior, ninja, shaman, necromancer), on the right two path cards for the selected class side by side, e.g. "Weg der Klinge – PvE · Flächenschaden" and "Weg des Leibes – PvP · Verteidigung und Kontrolle", each with a short description, below a list of five round skill icons with names and unlock levels. Dark lacquered wood, brass borders, readable fonts, no clutter.
+```
+
+### Symbole der 20 neuen Fertigkeiten
+```
+Set of 20 round skill icons for a 2D fantasy MMORPG, East Asian style, 4 rows of 5, background red for attacks, blue for buffs, purple for curses and summoning. Warrior: glowing sword aura in rings, shield bash with speed lines, earthquake stomp with cracks, blue mind strike with burst, war cry sound waves. Ninja: spinning twin blades, poison cloud with skull, shadow dash with afterimages, crippling blade with poison drop, shadow cloak with glowing eyes. Shaman: dragon head with golden glow, thunder cloud with three bolts, glowing spirit fist, wind ribbons binding, guardian spirit in a golden ring. Necromancer: whirl of three green souls around a skull, dark power star, bone spear, paralyzing green rune circle, blood drop sacrifice. Bold dark outline, soft gradients, glossy round frame, no text.
+```
+
+### Effekte der Buffs (2 bis 3 Minuten)
+```
+2D game VFX loop frames around a small chibi hero, three-quarter top-down view, additive glow, plain black background: golden sword aura with sparks running along the blade, red ember flames rising (battle rage), dark violet smoke cloak, orange dragon fire embers, cyan guardian spirit halo with soft light dots, purple-green dark power embers, red blood droplets orbiting. Each with a rotating dashed ring under the feet in the matching color.
+```
+
+### Stimmung in den Gebieten
+```
+2D game ambient particle overlays for six regions, three-quarter top-down fantasy game: floating pollen over sunny meadows, glowing yellow-green fireflies in a dark forest, warm dust blowing through an orange valley, grey ash and orange sparks drifting over a wasteland, snowflakes falling diagonally over snowy peaks, green will-o'-the-wisps rising from a misty swamp, glowing embers rising over a lava field. Each shown as a soft tinted screen overlay with particles, no text.
+```

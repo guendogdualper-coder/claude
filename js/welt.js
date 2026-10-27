@@ -3,17 +3,22 @@
 // bei jedem Start gleich aus – wichtig, sobald später mehrere Spieler darin unterwegs sind.
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
-const MAP_W = 120;        // Breite in Kacheln
-const MAP_H = 120;
+const MAP_W = 200;        // Breite in Kacheln
+const MAP_H = 200;
 const CENTER_X = MAP_W / 2;
 const CENTER_Y = MAP_H / 2;
-const VILLAGE_RADIUS = 9; // in Kacheln; hier greifen Monster nicht an
+const VILLAGE_HALF = 14;  // Dorfmauer: Quadrat 14 Kacheln um die Mitte; drinnen greifen Monster nicht an
+const SAFE_RING = 24;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
+const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
+const WORLD_VERSION = 2;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 
 // Bodenarten
-const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7 };
+const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13 };
+// Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
+const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG]);
 // Objekte auf dem Boden (alle blockieren den Weg)
-const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5, BLOSSOM: 6 };
+const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5, BLOSSOM: 6, WALL: 7 };
 // Verzierungen ohne Kollision
 const DECO = { NONE: 0, TUFT: 1, FLOWER_RED: 2, FLOWER_YELLOW: 3, FLOWER_WHITE: 4, PEBBLE: 5, CRACK: 6, BRIDGE: 7 };
 
@@ -51,11 +56,27 @@ function makeNoise(rng, cell) {
   };
 }
 
-function zoneIndexForDistance(d) {
-  for (let i = 0; i < ZONES.length; i++) {
-    if (d >= ZONES[i].minDist && d < ZONES[i].maxDist) return i;
+// Das Dorf ist ein Quadrat innerhalb der Mauer, die Jagdzonen sind Ringe darum
+function zoneIndexAt(x, y) {
+  const dx = Math.abs(x + 0.5 - CENTER_X);
+  const dy = Math.abs(y + 0.5 - CENTER_Y);
+  if (Math.max(dx, dy) < VILLAGE_HALF + 0.5) return 0;
+  const d = Math.hypot(dx, dy);
+  for (let i = 1; i < ZONES.length; i++) {
+    if (d < ZONES[i].maxDist) return i;
   }
   return ZONES.length - 1;
+}
+
+// Liegt die Kachel auf der Dorfmauer? (Tore ausgenommen)
+function isWallTile(x, y) {
+  const dx = x - CENTER_X;
+  const dy = y - CENTER_Y;
+  const onH = (dy === -VILLAGE_HALF || dy === VILLAGE_HALF) && dx >= -VILLAGE_HALF && dx <= VILLAGE_HALF;
+  const onV = (dx === -VILLAGE_HALF || dx === VILLAGE_HALF) && dy >= -VILLAGE_HALF && dy <= VILLAGE_HALF;
+  if (!onH && !onV) return false;
+  const along = onH ? dx : dy;
+  return along < -GATE_HALF || along >= GATE_HALF;
 }
 
 function generateWorld() {
@@ -73,7 +94,8 @@ function generateWorld() {
     for (let x = 0; x < MAP_W; x++) {
       const i = y * MAP_W + x;
       const d = Math.hypot(x + 0.5 - CENTER_X, y + 0.5 - CENTER_Y);
-      const zi = zoneIndexForDistance(d);
+      const cheb = Math.max(Math.abs(x + 0.5 - CENTER_X), Math.abs(y + 0.5 - CENTER_Y));
+      const zi = zoneIndexAt(x, y);
       const zone = ZONES[zi];
       zoneIdx[i] = zi;
 
@@ -81,22 +103,23 @@ function generateWorld() {
       ground[i] = GROUND[zone.ground];
       if (zone.alt && bloom(x, y) > 0.6) ground[i] = GROUND[zone.alt];
 
-      if (d < VILLAGE_RADIUS) {
+      if (zi === 0) {
         if (d < 6.5) ground[i] = GROUND.PLAZA;
+        if (isWallTile(x, y)) obj[i] = OBJ.WALL;
         continue;
       }
-      // Übergang zum Dorf frei halten
-      if (d < VILLAGE_RADIUS + 1.5) continue;
+      // Rund um die Mauer bleibt das Land frei
+      if (cheb < VILLAGE_HALF + 4) continue;
 
       if (zone.water && v < zone.water) {
-        ground[i] = GROUND.WATER;
+        ground[i] = zone.liquid === 'ICE' ? GROUND.ICE : GROUND[zone.liquid || 'WATER'];
         continue;
       }
       const cluster = v > 0.55 ? 1.8 : 0.5;
       const r = rng();
       if (r < zone.trees * cluster) {
         obj[i] = OBJ[zone.treeObj];
-        if (zone.treeObj === 'PINE' && rng() < 0.3) obj[i] = OBJ.TREE;
+        if (zone.id === 'wald' && rng() < 0.3) obj[i] = OBJ.TREE;
       } else if (r < zone.trees * cluster + zone.rocks) {
         obj[i] = OBJ.ROCK;
       }
@@ -125,19 +148,20 @@ function generateWorld() {
         const y = Math.floor(CENTER_Y + dy * s + (dx ? w + wobble : 0));
         if (x < 2 || y < 2 || x >= MAP_W - 2 || y >= MAP_H - 2) continue;
         const i = y * MAP_W + x;
-        if (ground[i] === GROUND.WATER) deco[i] = DECO.BRIDGE;
+        if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
         if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
         obj[i] = OBJ.NONE;
       }
     }
   });
 
-  // Häuser im Dorf (x, y, Breite, Höhe in Kacheln)
+  // Häuser im Dorf (x, y, Breite, Höhe in Kacheln), je zwei pro Viertel
+  const C = CENTER_X;
   const houses = [
-    [CENTER_X - 7, CENTER_Y - 6, 4, 3, '#7c3a2c'],
-    [CENTER_X + 3, CENTER_Y - 7, 4, 3, '#5b4a6b'],
-    [CENTER_X - 7, CENTER_Y + 3, 4, 3, '#4f5f3a'],
-    [CENTER_X + 3, CENTER_Y + 4, 5, 3, '#7c3a2c']
+    [C - 12, C - 12, 5, 3, '#7c3a2c'], [C - 12, C - 7, 4, 3, '#4f5f3a'],
+    [C + 4, C - 12, 5, 3, '#5b4a6b'], [C + 9, C - 7, 4, 3, '#7c3a2c'],
+    [C - 12, C + 4, 4, 3, '#5b4a6b'], [C - 8, C + 9, 5, 3, '#7c3a2c'],
+    [C + 5, C + 5, 4, 3, '#4f5f3a'], [C + 8, C + 9, 5, 3, '#8a4a2a']
   ].map(([x, y, w, h, roof]) => ({ x, y, w, h, roof }));
   for (const h of houses) {
     for (let y = h.y; y < h.y + h.h; y++) {
@@ -151,17 +175,30 @@ function generateWorld() {
     const r = rng();
     const g = ground[i];
     if (g === GROUND.MEADOW && r < 0.3) deco[i] = DECO.FLOWER_RED + Math.floor(rng() * 3);
-    else if ((g === GROUND.GRASS || g === GROUND.FOREST || g === GROUND.MEADOW) && r < 0.14) deco[i] = DECO.TUFT;
-    else if ((g === GROUND.PATH || g === GROUND.SAND) && r < 0.12) deco[i] = DECO.PEBBLE;
-    else if (g === GROUND.ASH && r < 0.16) deco[i] = DECO.CRACK;
+    else if ((g === GROUND.GRASS || g === GROUND.FOREST || g === GROUND.MEADOW || g === GROUND.SWAMP) && r < 0.14) deco[i] = DECO.TUFT;
+    else if ((g === GROUND.PATH || g === GROUND.SAND || g === GROUND.SNOW) && r < 0.12) deco[i] = DECO.PEBBLE;
+    else if ((g === GROUND.ASH || g === GROUND.BASALT) && r < 0.16) deco[i] = DECO.CRACK;
   }
 
+  // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher
+  const npc = (id, name, x, y, extra = {}) => ({ id, name, x: x * TILE, y: y * TILE, r: 11, ...extra });
   const npcs = [
-    { id: 'haendler', name: 'Händlerin Ayla', x: (CENTER_X + 2.5) * TILE, y: (CENTER_Y - 2) * TILE, color: '#6d3f7d', r: 11 },
-    { id: 'schmied', name: 'Schmied Doran', x: (CENTER_X - 3) * TILE, y: (CENTER_Y + 2.5) * TILE, color: '#6b4a2e', r: 12 },
-    { id: 'waffen', name: 'Waffenhändler Goro', x: (CENTER_X - 4.5) * TILE, y: (CENTER_Y - 1.5) * TILE, color: '#9a3a2a', r: 12 },
-    { id: 'ruestung', name: 'Rüstungshändlerin Mei', x: (CENTER_X + 3) * TILE, y: (CENTER_Y + 2.6) * TILE, color: '#5a6a7a', r: 11 }
+    npc('haendler', 'Händlerin Ayla', C + 2.5, C - 2),
+    npc('schmied', 'Schmied Doran', C - 3, C + 2.5),
+    npc('waffen', 'Waffenhändler Goro', C - 4.5, C - 1.5),
+    npc('ruestung', 'Rüstungshändlerin Mei', C + 3, C + 2.6),
+    npc('aeltester', 'Dorfältester Bao', C + 0.5, C - 4.8),
+    npc('jaegerin', 'Jägerin Rin', C - 5.5, C + 5.6),
+    npc('teleport', 'Wegweiserin Lian', C + 5.6, C - 4.4),
+    npc('alchemist', 'Alchemist Yun', C + 6.2, C + 2.4)
   ];
+  for (const [x, y] of [[C - 3.3, C - 12.6], [C + 3.3, C - 12.6], [C - 3.3, C + 13.4], [C + 3.3, C + 13.4],
+    [C - 12.6, C - 3.2], [C - 12.6, C + 3.6], [C + 13.4, C - 3.2], [C + 13.4, C + 3.6]]) {
+    npcs.push(npc('wache', 'Torwache', x, y, { silent: true }));
+  }
+  for (const [id, x, y] of [['bauer', C - 8, C - 2.5], ['kind', C + 2, C + 7], ['alte', C - 2, C - 9], ['moench', C + 9, C - 1.5]]) {
+    npcs.push(npc(id, '', x, y, { wander: true, homeX: x * TILE, homeY: y * TILE, wx: x * TILE, wy: y * TILE, wanderAt: 0, facing: 1, moving: false }));
+  }
 
   // Kirschbäume in den Sonnenwiesen (fest aus der Position berechnet, damit die Welt gleich bleibt)
   for (let y = 0; y < MAP_H; y++) {
@@ -181,19 +218,38 @@ function generateWorld() {
     }
   }
 
-  // Schmuck im Dorf (ohne Kollision): Steinlaternen an den Eingängen, Brunnen, Fässer und Kisten
+  // Schmuck im Dorf (ohne Kollision): Türme und Tore der Mauer, Laternen, Brunnen, Marktstände, Fässer und Kisten
   const T = (x, y) => ({ x: x * TILE, y: y * TILE });
+  const H = VILLAGE_HALF;
   const props = [
-    { type: 'well', ...T(CENTER_X - 1.6, CENTER_Y - 1.4) },
-    ...[[57.6, 52.4], [62.4, 52.4], [57.6, 67.8], [62.4, 67.8], [52.2, 57.6], [52.2, 62.6], [67.8, 57.6], [67.8, 62.6]]
+    { type: 'well', ...T(C - 1.6, C - 1.4) },
+    ...[[C - 2.4, C - 7.6], [C + 2.4, C - 7.6], [C - 2.4, C + 7.8], [C + 2.4, C + 7.8], [C - 7.8, C - 2.4], [C - 7.8, C + 2.6], [C + 7.8, C - 2.4], [C + 7.8, C + 2.6]]
       .map(([x, y]) => ({ type: 'lantern', ...T(x, y) })),
-    { type: 'barrel', ...T(CENTER_X - 5.6, CENTER_Y - 1.2) },
-    { type: 'barrel', ...T(CENTER_X - 5.1, CENTER_Y - 0.7) },
-    { type: 'crate', ...T(CENTER_X + 4.2, CENTER_Y + 3.4) },
-    { type: 'crate', ...T(CENTER_X + 4.6, CENTER_Y + 2.7) },
-    { type: 'barrel', ...T(CENTER_X - 4.2, CENTER_Y + 3.4) }
+    { type: 'stall', roof: '#9a2f2a', ...T(C - 5, C - 2.6) },
+    { type: 'stall', roof: '#2f5a7a', ...T(C + 3.4, C + 1.4) },
+    { type: 'stall', roof: '#6d3f7d', ...T(C + 3.2, C - 3.2) },
+    { type: 'stall', roof: '#3a6a4a', ...T(C + 6.6, C + 1.2) },
+    { type: 'barrel', ...T(C - 6.6, C - 1.4) },
+    { type: 'barrel', ...T(C - 6.1, C - 0.9) },
+    { type: 'crate', ...T(C + 4.4, C + 3.8) },
+    { type: 'barrel', ...T(C - 4.2, C + 3.4) },
+    { type: 'anvil', ...T(C - 2.2, C + 3.2) },
+    { type: 'board', ...T(C - 0.8, C - 5.2) },
+    { type: 'portal', ...T(C + 6.8, C - 5.4) },
+    { type: 'targets', ...T(C - 7, C + 6.2) },
+    { type: 'herbs', ...T(C + 7.4, C + 3.4) }
   ];
+  // Türme an den Ecken und links und rechts jedes Tores, dazu Torbögen im Norden und Süden
+  for (const [x, y] of [[-H, -H], [H, -H], [-H, H], [H, H]]) props.push({ type: 'tower', ...T(C + x + 0.5, C + y + 1) });
+  for (const s of [-1, 1]) {
+    for (const g of [-GATE_HALF - 1, GATE_HALF]) {
+      props.push({ type: 'tower', ...T(C + g + 0.5, C + s * H + 1) });
+      props.push({ type: 'tower', ...T(C + s * H + 0.5, C + g + 1) });
+    }
+    props.push({ type: 'gate', ...T(C, C + s * H + 1) });
+  }
 
+  // Hinter jedem Turm steht die Mauer; die Türme selbst blockieren über die Mauerkacheln
   return { ground, obj, deco, zoneIdx, houses, npcs, shade, props };
 }
 
@@ -206,13 +262,13 @@ function tileIndex(tx, ty) {
 function tileBlocked(tx, ty) {
   if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
   const i = tileIndex(tx, ty);
-  return game.world.ground[i] === GROUND.WATER && game.world.deco[i] !== DECO.BRIDGE
+  return LIQUID.has(game.world.ground[i]) && game.world.deco[i] !== DECO.BRIDGE
     ? true
     : game.world.obj[i] !== OBJ.NONE;
 }
 
 function inVillage(x, y) {
-  return Math.hypot(x / TILE - CENTER_X, y / TILE - CENTER_Y) < VILLAGE_RADIUS;
+  return Math.max(Math.abs(x / TILE - CENTER_X), Math.abs(y / TILE - CENTER_Y)) < VILLAGE_HALF + 0.5;
 }
 
 function zoneAt(x, y) {
@@ -243,7 +299,7 @@ function moveEntity(e, dx, dy, isMonster) {
 // Zufälliger begehbarer Punkt in einer Zone (in Pixeln).
 // from/to grenzen den Ring ein: 0 = dorfnaher Rand, 1 = äußerer Rand.
 function randomSpotInZone(zone, from = 0, to = 1) {
-  const inner = zone.minDist + 2;
+  const inner = Math.max(zone.minDist + 2, SAFE_RING);
   const outer = Math.min(zone.maxDist - 2, MAP_W / 2 * 1.38);
   const minD = inner + (outer - inner) * from;
   const maxD = inner + (outer - inner) * to;
@@ -253,6 +309,7 @@ function randomSpotInZone(zone, from = 0, to = 1) {
     const tx = Math.floor(CENTER_X + Math.cos(ang) * d);
     const ty = Math.floor(CENTER_Y + Math.sin(ang) * d);
     if (tx < 3 || ty < 3 || tx >= MAP_W - 3 || ty >= MAP_H - 3) continue;
+    if (Math.hypot(tx + 0.5 - CENTER_X, ty + 0.5 - CENTER_Y) < SAFE_RING) continue;
     if (tileBlocked(tx, ty)) continue;
     if (ZONES[game.world.zoneIdx[tileIndex(tx, ty)]] !== zone) continue;
     if (game.world.ground[tileIndex(tx, ty)] === GROUND.PATH) continue;

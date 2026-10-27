@@ -1,4 +1,4 @@
-// Fertigkeiten: gemalte Symbole für die Leiste und eigene Effekte für jede der 20 Fertigkeiten.
+// Fertigkeiten: gemalte Symbole für die Leiste und eigene Effekte für jede der 40 Fertigkeiten.
 // Die Spielmechanik steht in kampf.js; hier geht es nur ums Aussehen.
 
 // --- Symbole ------------------------------------------------------------------------------
@@ -219,6 +219,205 @@ const SKILL_ICONS = {
   }
 };
 
+// Symbole der zweiten Wege (und der Aura des Schwertes)
+Object.assign(SKILL_ICONS, {
+  schwertaura(ctx) {
+    for (let k = 0; k < 3; k++) {
+      ctx.strokeStyle = `rgba(255,214,120,${0.35 + k * 0.2})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, 18 - k * 4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-2.5, 14); ctx.lineTo(-2.5, -12); ctx.lineTo(0, -18); ctx.lineTo(2.5, -12); ctx.lineTo(2.5, 14); ctx.closePath(); }, '#ffffff', '#ffd38a', 2);
+    iconLine(ctx, '#c9a35a', 3, [[-8, 8], [8, 8]]);
+    iconLine(ctx, '#6a2a24', 3, [[0, 10], [0, 17]]);
+  },
+  schildstoss(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, -12); ctx.lineTo(4, -12); ctx.lineTo(4, 2); ctx.quadraticCurveTo(3, 12, -5, 16); ctx.quadraticCurveTo(-13, 12, -14, 2); ctx.closePath(); }, '#e6eef8', '#7a8a9a');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-5, 0, 3.5, 0, Math.PI * 2); }, '#ffe9a0', '#b88a2a', 1.5);
+    for (const y of [-8, 0, 8]) iconLine(ctx, '#ffd38a', 2.5, [[9, y], [18, y * 1.3]]);
+  },
+  erdbeben(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, 8, 19, 8, 0, 0, Math.PI * 2); }, '#c9a878', '#6a4a2a');
+    iconLine(ctx, '#2a1a10', 2, [[-12, 6], [-4, 9], [0, 4], [6, 10], [13, 7]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -18); ctx.lineTo(6, -18); ctx.lineTo(8, -4); ctx.lineTo(-8, -4); ctx.closePath(); }, '#e9c6a1', '#a87a52', 2);
+    for (const x of [-15, 15]) iconLine(ctx, '#ffd38a', 2, [[x, -6], [x * 1.1, -14]]);
+  },
+  geistesschlag(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); }, '#e0f2ff', '#3a6ab8');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 14); ctx.lineTo(10, -10); ctx.lineTo(14, -14); ctx.lineTo(12, -6); ctx.lineTo(-10, 16); ctx.closePath(); }, '#ffffff', '#9fd0ff', 2);
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI / 3;
+      iconLine(ctx, '#cfe8ff', 1.5, [[Math.cos(a) * 15, Math.sin(a) * 15], [Math.cos(a) * 20, Math.sin(a) * 20]]);
+    }
+  },
+  kriegsschrei(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-6, 0, 10, 0, Math.PI * 2); }, '#e9c6a1', '#a87a52');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-1, 3, 4, 5, 0, 0, Math.PI * 2); }, '#5a1a10', '#2a0a06', 1.5);
+    ctx.strokeStyle = '#120c08';
+    for (let k = 0; k < 3; k++) {
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.arc(2, 2, 10 + k * 5, -0.7, 0.7);
+      ctx.stroke();
+      ctx.strokeStyle = '#ff9a4a';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#120c08';
+    }
+  },
+  wirbelklinge(ctx) {
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 1.6);
+    ctx.stroke();
+    ctx.strokeStyle = '#c9b8ff';
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    for (const a of [0, Math.PI]) {
+      ctx.save();
+      ctx.rotate(a + 0.5);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(2, -2); ctx.lineTo(16, -1); ctx.lineTo(13, 2.5); ctx.lineTo(2, 2); ctx.closePath(); }, '#ffffff', '#8a7aa8', 2);
+      ctx.restore();
+    }
+  },
+  giftnebel(ctx) {
+    for (const [x, y, r] of [[-8, 4, 9], [7, 3, 10], [0, -6, 10], [-2, 9, 8]]) {
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }, '#c6f08a', '#3a8a2a', 2.5);
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); }, '#ffffff', '#8fd16a', 1.5);
+    ctx.fillStyle = '#1a3a12';
+    ctx.fillRect(-2.5, -1.5, 1.6, 1.6);
+    ctx.fillRect(1, -1.5, 1.6, 1.6);
+  },
+  schattensprung(ctx) {
+    for (let k = 0; k < 3; k++) {
+      ctx.globalAlpha = 0.35 + k * 0.3;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-12 + k * 9, 2, 5, 9, 0, 0, Math.PI * 2); }, '#c9b8ff', '#3a2a5a', 2);
+    }
+    ctx.globalAlpha = 1;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(8, -12); ctx.lineTo(19, -2); ctx.lineTo(9, 6); ctx.closePath(); }, '#ffffff', '#8a6ad8', 2);
+  },
+  laehmklinge(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-15, 15); ctx.lineTo(9, -9); ctx.lineTo(15, -15); ctx.lineTo(11, -7); ctx.lineTo(-13, 17); ctx.closePath(); }, '#ffffff', '#b8c8d8', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(6, 2); ctx.quadraticCurveTo(12, 10, 6, 14); ctx.quadraticCurveTo(0, 10, 6, 2); ctx.closePath(); }, '#c6f08a', '#3a8a2a', 2);
+    iconLine(ctx, '#ffe9a0', 2, [[-10, -6], [-6, -12], [-2, -6], [2, -12]]);
+  },
+  schattenmantel(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(0, -17);
+      ctx.quadraticCurveTo(14, -12, 15, 16);
+      ctx.lineTo(7, 12); ctx.lineTo(0, 17); ctx.lineTo(-7, 12); ctx.lineTo(-15, 16);
+      ctx.quadraticCurveTo(-14, -12, 0, -17);
+      ctx.closePath();
+    }, '#8a7aa8', '#1a1426');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, -4, 3, 1.6, 0, 0, Math.PI * 2); ctx.ellipse(4, -4, 3, 1.6, 0, 0, Math.PI * 2); }, '#ffffff', '#c9b8ff', 1.2);
+  },
+  drachenkraft(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-14, 10);
+      ctx.quadraticCurveTo(-16, -8, -2, -14);
+      ctx.lineTo(4, -19); ctx.lineTo(5, -12);
+      ctx.quadraticCurveTo(16, -8, 14, 4);
+      ctx.lineTo(8, 2); ctx.lineTo(4, 10);
+      ctx.quadraticCurveTo(-4, 6, -14, 10);
+      ctx.closePath();
+    }, '#ffe08a', '#c8402f');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(2, -6, 3, 2, 0, 0, Math.PI * 2); }, '#ffffff', '#ffd34d', 1.2);
+    iconLine(ctx, '#ffd34d', 2, [[-6, 14], [0, 18], [6, 14]]);
+  },
+  donnersturm(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-6, -9, 10, 7, 0, 0, Math.PI * 2); ctx.ellipse(6, -10, 11, 8, 0, 0, Math.PI * 2); }, '#d8e0ee', '#5a6478', 2.5);
+    for (const x of [-9, 1, 10]) iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(x, -2); ctx.lineTo(x - 4, 7); ctx.lineTo(x, 7); ctx.lineTo(x - 3, 17); ctx.lineTo(x + 5, 4); ctx.lineTo(x + 1, 4); ctx.lineTo(x + 3, -2); ctx.closePath(); }, '#ffffff', '#9fd0ff', 1.8);
+  },
+  geisterfaust(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(3, 0, 12, 10, 0, 0, Math.PI * 2); }, '#e8fffb', '#4aa8a0');
+    for (const y of [-5, 0, 5]) iconLine(ctx, '#2a6a64', 1.6, [[8, y], [14, y]]);
+    for (const y of [-9, 0, 9]) iconLine(ctx, '#8fe3d8', 2.5, [[-19, y], [-11, y * 0.8]]);
+  },
+  windfessel(ctx) {
+    ctx.strokeStyle = '#120c08';
+    for (let k = 0; k < 3; k++) {
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.ellipse(0, -8 + k * 8, 16 - k * 3, 4, 0, 0.2, Math.PI * 1.8);
+      ctx.stroke();
+      ctx.strokeStyle = '#d8fff8';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.strokeStyle = '#120c08';
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#ffffff', '#4aa8a0', 1.5);
+  },
+  schutzgeist(ctx) {
+    iconShape(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(0, -6, 10, Math.PI, 0);
+      ctx.lineTo(10, 10); ctx.lineTo(6, 6); ctx.lineTo(2, 12); ctx.lineTo(-2, 6); ctx.lineTo(-6, 12); ctx.lineTo(-10, 6);
+      ctx.closePath();
+    }, '#ffffff', '#8fe3d8');
+    ctx.fillStyle = '#1a3a3a';
+    ctx.beginPath();
+    ctx.ellipse(-3.5, -6, 2, 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(3.5, -6, 2, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,233,160,0.9)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, -1, 19, 0, Math.PI * 2);
+    ctx.stroke();
+  },
+  seelensturm(ctx) {
+    for (let k = 0; k < 3; k++) {
+      ctx.save();
+      ctx.rotate(k * Math.PI * 2 / 3);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -4); ctx.quadraticCurveTo(14, -10, 16, 4); ctx.quadraticCurveTo(10, -2, 0, 2); ctx.closePath(); }, '#e0ffd0', '#5aa83a', 2);
+      ctx.restore();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); }, '#f4f0e0', '#a8a080', 1.5);
+    ctx.fillStyle = '#1a3a12';
+    ctx.fillRect(-2.6, -1.6, 1.6, 1.8);
+    ctx.fillRect(1, -1.6, 1.6, 1.8);
+  },
+  dunklemacht(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(5, -5); ctx.lineTo(18, 0); ctx.lineTo(5, 5); ctx.lineTo(0, 18); ctx.lineTo(-5, 5); ctx.lineTo(-18, 0); ctx.lineTo(-5, -5); ctx.closePath(); }, '#d6a8ff', '#3a1250');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); }, '#a7e37f', '#1a3a12', 1.5);
+  },
+  knochenspeer(ctx) {
+    ctx.save();
+    ctx.rotate(-Math.PI / 4);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(20, 0); ctx.lineTo(9, -4); ctx.lineTo(-14, -2); ctx.lineTo(-14, 2); ctx.lineTo(9, 4); ctx.closePath(); }, '#fffbe6', '#c8c0a8', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-16, -3, 3.2, 0, Math.PI * 2); ctx.arc(-16, 3, 3.2, 0, Math.PI * 2); }, '#fffbe6', '#c8c0a8', 1.5);
+    ctx.restore();
+  },
+  laehmung(ctx) {
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#7ad36a';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    for (let k = 0; k < 4; k++) {
+      ctx.save();
+      ctx.rotate(k * Math.PI / 2 + Math.PI / 4);
+      iconLine(ctx, '#c6f08a', 2.5, [[4, 0], [10, 0], [12, -3], [14, 3]]);
+      ctx.restore();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#e0ffd0', '#3a8a2a', 1.5);
+  },
+  blutopfer(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -17); ctx.quadraticCurveTo(15, 2, 0, 16); ctx.quadraticCurveTo(-15, 2, 0, -17); ctx.closePath(); }, '#ff8a9a', '#7a0a1a');
+    iconLine(ctx, '#ffe0e4', 2, [[-4, 2], [0, 8], [6, -4]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, -2, 2, 3, -0.4, 0, Math.PI * 2); }, '#ffffff', '#ffd0d6', 1);
+  }
+});
+
 const skillIconCache = new Map();
 
 function skillIconUrl(sk) {
@@ -436,6 +635,184 @@ const SKILL_FX = {
     orbit: true
   }
 };
+
+// Effekte der zweiten Wege
+Object.assign(SKILL_FX, {
+  schwertaura: {
+    cast(p) {
+      vfxPillar(p, '#ffd38a', 1);
+      addEffect({ type: 'halo', follow: p, dur: 1, color: '#ffe9a0' });
+      flashScreen('#ffd38a', 0.2);
+    },
+    aura: { every: 0.08, color: ['#fff2c0', '#ffd38a', '#ffffff'], shape: 'spark', up: true },
+    ring: '#ffd38a',
+    weaponGlow: '#ffd38a'
+  },
+  schildstoss: {
+    color: '#ffd38a',
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#ffe9a0', big: true });
+      addEffect({ type: 'ring', x: c.x, y: c.y, r: 30, dur: 0.35, color: '#ffd38a', width: 5, grow: true });
+    }
+  },
+  erdbeben: {
+    color: '#c9a878',
+    cast(p, sk) {
+      addEffect({ type: 'decal', kind: 'crack', x: p.x, y: feetY(p), r: sk.radius * 0.8, dur: 2.4, color: '#2a1a10' });
+      addEffect({ type: 'ring', x: p.x, y: feetY(p), r: sk.radius, dur: 0.5, color: '#c9a878', width: 12, grow: true });
+      particles(p.x, feetY(p), { count: 40, color: ['#8a6a44', '#c9a878', '#5a4030'], speed: [80, 260], life: [0.4, 0.8], size: [2.5, 5], shape: 'square', drag: 3, glow: false, gravity: 400 });
+      shakeScreen(9);
+    },
+    hit(m) {
+      particles(m.x, feetY(m), { count: 8, color: ['#8a6a44', '#c9a878'], angle: -Math.PI / 2, spread: 0.5, speed: [80, 160], life: [0.3, 0.5], size: [2, 4], shape: 'square', glow: false, gravity: 500 });
+    }
+  },
+  geistesschlag: {
+    color: '#9fd0ff',
+    cast() { flashScreen('#9fd0ff', 0.22); },
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'pillar', x: m.x, y: feetY(m), dur: 0.45, color: '#9fd0ff' });
+      particles(c.x, c.y, { count: 20, color: ['#cfe8ff', '#ffffff', '#5a8ad8'], speed: [100, 280], life: [0.2, 0.5], size: [1.5, 3], shape: 'spark', drag: 5 });
+    }
+  },
+  kriegsschrei: {
+    cast(p, sk) {
+      for (let k = 0; k < 3; k++) later(k * 0.12, () => addEffect({ type: 'ring', follow: p, ox: 0, oy: -20, r: sk.radius * (0.5 + k * 0.25), dur: 0.5, color: '#ff9a4a', width: 6, grow: true }));
+      flashScreen('#ff7a3a', 0.2);
+      shakeScreen(5);
+    }
+  },
+  wirbelklinge: {
+    color: '#c9b8ff',
+    cast(p, sk) {
+      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.7, dur: 0.5, color: '#c9b8ff' });
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: Math.random() * Math.PI, len: 32, w: 4, dur: 0.18, color: '#d8c4ff' });
+    }
+  },
+  giftnebel: {
+    hit(m) {
+      particles(m.x, feetY(m) - 16, { count: 6, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2, glow: false });
+    }
+  },
+  schattensprung: {
+    color: '#8a6ad8',
+    cast(p) {
+      particles(p.x, feetY(p) - 14, { count: 24, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [30, 100], life: [0.5, 0.9], size: [5, 9], drag: 2.5, glow: false });
+    },
+    trail(p) {
+      particles(p.x, feetY(p) - 14, { count: 2, color: ['#5a5466', '#8a7aa8'], speed: [10, 40], life: [0.3, 0.6], size: [4, 7], drag: 2, glow: false });
+    },
+    end(p) {
+      const c = bodyCenter(p);
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: 0.8, len: 50, w: 7, dur: 0.25, color: '#c9b8ff' });
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: -0.8, len: 50, w: 7, dur: 0.25, color: '#c9b8ff' });
+    }
+  },
+  laehmklinge: {
+    color: '#8fd16a',
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y - 18, { count: 10, color: ['#ffe9a0', '#ffffff'], speed: [30, 70], life: [0.5, 0.8], size: [1.5, 2.5], shape: 'spark', drag: 2 });
+    }
+  },
+  schattenmantel: {
+    cast(p) {
+      particles(p.x, feetY(p) - 14, { count: 30, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [20, 70], life: [0.6, 1], size: [5, 9], jitter: 12, drag: 2, glow: false });
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 40, dur: 0.6, color: '#8a7aa8', width: 6, grow: true });
+    },
+    aura: { every: 0.14, color: ['#3d3848', '#5a5466'], shape: 'dot', up: true, glow: false, size: [4, 7] },
+    ring: '#8a7aa8'
+  },
+  drachenkraft: {
+    cast(p) {
+      vfxPillar(p, '#ff9a4a', 1);
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 70, dur: 0.6, color: '#ffd34d', width: 8, grow: true });
+      flashScreen('#ff9a4a', 0.2);
+    },
+    aura: { every: 0.07, color: ['#ffd34d', '#ff9a4a', '#ffe08a'], shape: 'ember', up: true },
+    ring: '#ff9a4a'
+  },
+  donnersturm: {
+    cast() {
+      flashScreen('#cfe8ff', 0.4);
+      const t = game.target;
+      if (t) later(0.15, () => addEffect({ type: 'decal', kind: 'scorch', x: t.x, y: feetY(t), r: 60, dur: 2.6, color: '#141820' }));
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 8, color: ['#cfe8ff', '#ffffff'], speed: [100, 260], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
+    }
+  },
+  geisterfaust: {
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#8fe3d8', big: true });
+    }
+  },
+  windfessel: {
+    cast(p, sk) {
+      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.6, dur: 0.7, color: '#d8fff8' });
+    }
+  },
+  schutzgeist: {
+    cast(p) {
+      vfxPillar(p, '#8fe3d8', 1);
+      addEffect({ type: 'halo', follow: p, dur: 1.2, color: '#d8fff8' });
+    },
+    aura: { every: 0.16, color: ['#d8fff8', '#8fe3d8'], shape: 'dot', up: true },
+    ring: '#8fe3d8'
+  },
+  seelensturm: {
+    color: '#a7e37f',
+    cast(p, sk) {
+      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.75, dur: 0.6, color: '#a7e37f' });
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.8, dur: 1.4, color: '#7ad36a' });
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2;
+        particles(p.x + Math.cos(a) * 30, feetY(p) - 14 + Math.sin(a) * 12, { count: 1, color: ['#e0ffd0', '#a7e37f'], angle: a + Math.PI / 2, spread: 0.1, speed: [160, 240], life: [0.4, 0.6], size: [3, 5], drag: 2 });
+      }
+    },
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 8, color: ['#a7e37f', '#e0ffd0'], speed: [40, 140], life: [0.3, 0.6], size: [2, 4], drag: 3, gravity: -60 });
+    }
+  },
+  dunklemacht: {
+    cast(p) {
+      vfxPillar(p, '#b48cff', 1);
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: 50, dur: 1.6, color: '#a774e0' });
+      flashScreen('#6a3aa8', 0.2);
+    },
+    aura: { every: 0.09, color: ['#b48cff', '#a7e37f', '#5a2a8a'], shape: 'ember', up: true },
+    ring: '#a774e0'
+  },
+  knochenspeer: {
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 12, color: ['#ddd5bb', '#ffffff'], speed: [80, 200], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 300 });
+    }
+  },
+  laehmung: {
+    cast(p, sk) {
+      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.9, dur: 1.8, color: '#7ad36a' });
+      flashScreen('#3a8a2a', 0.2);
+    }
+  },
+  blutopfer: {
+    cast(p) {
+      vfxPillar(p, '#c43a5a', 1);
+      particles(p.x, feetY(p) - 20, { count: 24, color: ['#ff6a7a', '#c43a5a', '#7a0a1a'], speed: [60, 160], life: [0.4, 0.8], size: [2, 4], drag: 2, gravity: 200 });
+      flashScreen('#c43a5a', 0.2);
+    },
+    aura: { every: 0.12, color: ['#ff6a7a', '#c43a5a'], shape: 'dot', up: true },
+    ring: '#c43a5a'
+  }
+});
 
 function skillColor(sk, fallback) {
   const fx = SKILL_FX[sk.id];

@@ -4,6 +4,7 @@ const $ = (id) => document.getElementById(id);
 
 const ui = {
   selectedClass: 'krieger',
+  selectedPath: 0,
   cache: {},
   logTimer: null,
 
@@ -20,6 +21,10 @@ const ui = {
     document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => this.closePanels()));
 
     $('zoneList').innerHTML = ZONES.map((z) => `<li>${z.name} <span>· ${z.levels}</span></li>`).join('');
+    $('stoneList').innerHTML = STONE_TYPES.map((t) => {
+      const zone = ZONES.find((z) => (z.stones || []).some(([lv]) => lv === t.level));
+      return `<li><b style="color:${t.look.glow}">■</b> Stufe ${t.level} · ${t.name} <span>· ${zone ? zone.name : ''} · ${t.drop}</span></li>`;
+    }).join('');
 
     // Startbildschirm
     $('btnContinue').addEventListener('click', () => {
@@ -40,7 +45,7 @@ const ui = {
         $('createError').hidden = false;
         return;
       }
-      const save = newCharacter(name, this.selectedClass);
+      const save = newCharacter(name, this.selectedClass, this.selectedPath);
       startGame(save);
       saveGame();
     });
@@ -56,7 +61,8 @@ const ui = {
     if (save) {
       $('continueBox').hidden = false;
       $('createForm').hidden = true;
-      $('btnContinue').textContent = `Weiterspielen: ${save.name} · ${CLASSES[save.classId].name} · Stufe ${save.level}`;
+      const way = save.path != null ? ' · ' + classPath(save.classId, save.path).name : '';
+      $('btnContinue').textContent = `Weiterspielen: ${save.name} · ${CLASSES[save.classId].name}${way} · Stufe ${save.level}`;
     } else {
       $('continueBox').hidden = true;
       $('createForm').hidden = false;
@@ -86,6 +92,7 @@ const ui = {
       btn.append(cv, strong, small);
       btn.addEventListener('click', () => {
         this.selectedClass = id;
+        this.selectedPath = 0;
         grid.querySelectorAll('.class-card').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.classId === id)));
         this.renderClassDetail();
       });
@@ -96,7 +103,41 @@ const ui = {
 
   renderClassDetail() {
     const c = CLASSES[this.selectedClass];
-    $('classDetail').innerHTML = `<p>${c.description}</p>` + skillListHtml(c, null);
+    $('classDetail').innerHTML = `<p>${c.description}</p>` + pathChoiceHtml(c, this.selectedPath) +
+      skillListHtml(c.paths[this.selectedPath].skills, null);
+    $('classDetail').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
+      this.selectedPath = Number(b.dataset.path);
+      this.renderClassDetail();
+    }));
+  },
+
+  // Ältere Spielstände: Weg einmalig auswählen
+  showPathChoice() {
+    const p = game.player;
+    const c = CLASSES[p.classId];
+    let pick = p.path || 0;
+    const render = () => {
+      $('pathBody').innerHTML = `<p>Jede Klasse hat jetzt zwei Wege mit eigenen Fertigkeiten. Wähle deinen Weg als ${c.name}. ` +
+        `Deine Fertigkeitspunkte bekommst du zurück und kannst sie neu verteilen.</p>` +
+        pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) +
+        `<button id="btnPathOk" class="btn btn-primary" type="button">${c.paths[pick].name} wählen</button>`;
+      $('pathBody').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
+        pick = Number(b.dataset.path);
+        render();
+      }));
+      $('btnPathOk').addEventListener('click', () => {
+        p.path = pick;
+        p.needsPath = false;
+        p.buffs = [];
+        $('panelPath').hidden = true;
+        this.buildSkillBar();
+        ui.log(`Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine Fertigkeitspunkte im Charakterfenster.`, 'level');
+        saveGame();
+      });
+    };
+    render();
+    this.closePanels();
+    $('panelPath').hidden = false;
   },
 
   enterGame() {
@@ -110,15 +151,16 @@ const ui = {
     const c = CLASSES[game.player.classId];
     $('hudName').textContent = game.player.name;
     $('hudClass').textContent = c.name;
+    this.renderQuestTrack();
+    if (game.player.needsPath) this.showPathChoice();
   },
 
   buildSkillBar() {
     const p = game.player;
     if (!p) return;
-    const c = CLASSES[p.classId];
     const bar = $('skillBar');
     bar.innerHTML = '';
-    c.skills.forEach((sk, i) => {
+    classSkills(p).forEach((sk, i) => {
       const wrap = document.createElement('div');
       wrap.className = 'skill-wrap';
       const btn = document.createElement('button');
@@ -195,8 +237,7 @@ const ui = {
     });
 
     // Abklingzeiten
-    const c = CLASSES[p.classId];
-    c.skills.forEach((sk, i) => {
+    classSkills(p).forEach((sk, i) => {
       const left = p.skillCd[i];
       const key = 'cd' + i;
       const shown = left > 0 ? left.toFixed(left < 1 ? 1 : 0) : '';
@@ -225,14 +266,14 @@ const ui = {
       $('targetFrame').hidden = !t;
       if (!t) return;
       $('targetName').textContent = `Lv ${t.level} ${t.name}`;
-      $('targetName').style.color = t.isStone ? '#d9b8ff' : levelColor(t.level);
+      $('targetName').style.color = t.isStone ? lighter(t.stoneType.look.glow, 0.45) : levelColor(t.level);
       $('targetFill').style.transform = `scaleX(${t.hp / t.maxHp})`;
       $('targetText').textContent = `${Math.ceil(t.hp).toLocaleString('de-DE')} / ${t.maxHp.toLocaleString('de-DE')}`;
     });
 
     this.set('talk', game.nearNpc ? game.nearNpc.id : '', (v) => {
       $('btnTalk').hidden = !v || !input.touchUi;
-      if (v) $('btnTalk').textContent = game.nearNpc.id === 'schmied' ? 'Schmieden' : 'Handeln';
+      if (v) $('btnTalk').textContent = NPC_TALK_LABEL[v] || 'Sprechen';
     });
   },
 
@@ -279,11 +320,11 @@ const ui = {
   },
 
   closePanels() {
-    ['panelChar', 'panelHelp', 'panelNpc', 'panelInv'].forEach((id) => { $(id).hidden = true; });
+    ['panelChar', 'panelHelp', 'panelNpc', 'panelInv', 'panelPath'].forEach((id) => { $(id).hidden = true; });
   },
 
   anyPanelOpen() {
-    return !$('panelChar').hidden || !$('panelHelp').hidden || !$('panelNpc').hidden || !$('panelInv').hidden;
+    return !$('panelChar').hidden || !$('panelHelp').hidden || !$('panelNpc').hidden || !$('panelInv').hidden || !$('panelPath').hidden;
   },
 
   renderCharPanel() {
@@ -294,7 +335,7 @@ const ui = {
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     const pct = (v) => Math.round(v * 100) + ' %';
     $('charBody').innerHTML =
-      `<p><strong>${escapeHtml(p.name)}</strong> · ${c.name} · Stufe ${p.level}</p>` +
+      `<p><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</p>` +
       `<dl class="stats">` +
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
       row('Angriff', s.atk) + row('Verteidigung', s.def) +
@@ -316,7 +357,7 @@ const ui = {
       }).join('') + `</div>` +
       `<h3>Fertigkeiten</h3>` +
       `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span></p>` +
-      skillListHtml(c, p);
+      skillListHtml(classSkills(p), p);
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade)));
     });
@@ -330,9 +371,15 @@ const ui = {
     const p = game.player;
     $('npcTitle').textContent = npc.name;
     gear.sellArmedIndex = null;
+    $('npcTitle').textContent = npc.name || 'Dorfbewohner';
     if (npc.id === 'haendler') this.renderShop();
     else if (npc.id === 'schmied') gear.openSmith($('npcBody'));
-    else gear.openMerchant(npc.id, $('npcBody'));
+    else if (npc.id === 'waffen' || npc.id === 'ruestung') gear.openMerchant(npc.id, $('npcBody'));
+    else if (npc.id === 'aeltester') this.renderElder();
+    else if (npc.id === 'jaegerin') this.renderHunter();
+    else if (npc.id === 'teleport') this.renderTravel();
+    else if (npc.id === 'alchemist') this.renderAlchemist();
+    else this.renderTalk(npc);
     $('panelNpc').hidden = false;
   },
 
@@ -405,8 +452,16 @@ const ui = {
   }
 };
 
-function skillListHtml(c, p) {
-  return '<ul class="skill-list">' + c.skills.map((sk, i) => {
+// Zwei Karten für die Wege einer Klasse
+function pathChoiceHtml(c, selected) {
+  return '<div class="path-grid">' + c.paths.map((pt, i) =>
+    `<button type="button" class="path-card" data-path="${i}" aria-pressed="${i === selected}">` +
+    `<strong>${pt.name}</strong><small class="path-role">${pt.role}</small><span>${pt.description}</span></button>`
+  ).join('') + '</div>';
+}
+
+function skillListHtml(skills, p) {
+  return '<ul class="skill-list">' + skills.map((sk, i) => {
     let meta = `ab Stufe ${sk.unlock}<br>${sk.mp} Mana · ${sk.cooldown} s`;
     if (p) {
       const unlocked = p.level >= sk.unlock;
@@ -420,6 +475,9 @@ function skillListHtml(c, p) {
       `<span class="meta">${meta}</span></li>`;
   }).join('') + '</ul>';
 }
+
+// Beschriftung des Knopfes zum Ansprechen am Handy
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen' };
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '1.9';
+const GAME_VERSION = '2.0';
 
 const game = {
   world: null,
@@ -38,7 +38,7 @@ function startGame(save) {
   const c = CLASSES[game.player.classId];
   ui.log(`Willkommen, ${game.player.name}! Drücke H für die Steuerung.`, 'info');
   if (game.player.level === 1 && game.player.xp === 0) {
-    ui.log(`Als ${c.name} nutzt du Taste 1 für ${c.skills[0].name}. Jage zuerst Wilde Hunde vor dem Dorf.`, 'info');
+    ui.log(`Als ${c.name} nutzt du Taste 1 für ${classSkills(game.player)[0].name}. Jage zuerst Wilde Hunde vor dem Dorf.`, 'info');
   }
 }
 
@@ -110,6 +110,8 @@ function update(dt) {
   updatePlayer(dt);
   updateMonsters(dt);
   updateAllies(dt);
+  updateVillagers(dt);
+  updateAmbient(dt);
   updateProjectiles(dt);
   updateEffects(dt);
   if (game.target && game.target.dead) game.target = null;

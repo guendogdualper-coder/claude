@@ -47,6 +47,7 @@
       <span>Gold <b id="goldText">0</b></span>
       <span>Splitter <b id="splinterText">0</b></span>
     </div>
+    <div id="questTrack" class="quest-track" hidden></div>
   </section>
 
   <div id="log" class="log" aria-live="polite"></div>
@@ -138,7 +139,7 @@
       <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Fertigkeiten</dd>
       <dt><kbd>Q</kbd> / <kbd>E</kbd></dt><dd>Roter Trank (Leben) / Blauer Trank (Mana)</dd>
       <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
-      <dt><kbd>F</kbd></dt><dd>Mit Händlern oder dem Schmied sprechen</dd>
+      <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
       <dt><kbd>I</kbd></dt><dd>Inventar: Ausrüstung anlegen, ablegen, verkaufen</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
     </dl>
@@ -147,16 +148,21 @@
     <ul>
       <li>Jedes besiegte Monster gibt Erfahrung und Gold. Monster, die viel schwächer sind als du, geben kaum noch Erfahrung. Zieh dann in die nächste Zone weiter.</li>
       <li>Pro Stufe bekommst du einen Fertigkeitspunkt und drei Statuspunkte. Verteile sie im Charakterfenster: Stärke (Angriff), Vitalität (Leben und Rüstung), Intelligenz (Mana und Fertigkeitsschaden), Geschick (kritische Treffer, Ausweichen, Angriffstempo). Ein roter Punkt am Charakter-Knopf zeigt freie Punkte an.</li>
-      <li>Seelensteine (lila auf der Karte) rufen beim Angreifen Monster herbei und belohnen dich mit viel Erfahrung, Gold, Tränken und Seelensplittern.</li>
+      <li>Bei der Erstellung wählst du einen von zwei Wegen deiner Klasse: einen für Monster in Massen (PvE) und einen für Zweikämpfe (PvP). Jeder Weg hat fünf eigene Fertigkeiten. Buffs halten zwei bis drei Minuten.</li>
+      <li>Seelensteine (farbige Quadrate auf der Karte) gibt es von Stufe 5 bis 70 in Fünferschritten. Jeder sieht anders aus, ruft beim Angreifen Monster herbei und lässt eigene Beute fallen, siehe Liste unten.</li>
+      <li>Dorfältester Bao vergibt Aufträge mit Belohnungen, Jägerin Rin wiederholbare Jagden. Ein gelbes Ausrufezeichen zeigt, dass es etwas abzuholen gibt. Den aktuellen Auftrag siehst du unter der Karte.</li>
+      <li>Wegweiserin Lian bringt dich gegen Gold an den Rand jedes Gebiets. Alchemist Yun verkauft Materialien.</li>
       <li>Im Dorf verkauft Waffenhändler Goro Waffen für deine Klasse, Rüstungshändlerin Mei Rüstung, Helm, Schild, Schuhe und Gürtel, jeweils ab Stufe 1, 5, 10 und 15. Händlerin Ayla hat Tränke und Segensschriftrollen.</li>
       <li>Bei jedem Händler kannst du Gegenstände aus deinem Inventar verkaufen: unten im Fenster einmal antippen, zum Bestätigen nochmal tippen.</li>
       <li>Seelensteine lassen Materialien und Ausrüstung bis +2 fallen, die automatisch aufgehoben werden. Im Inventar fügt „Boni +“ die Boni 1 bis 4 hinzu, „5. Bonus“ den fünften, der Switcher würfelt alle Boni neu und der Sternenstein gibt die besonderen Boni 6 und 7.</li>
-      <li>Die Grundausrüstung (Stufe 1) gibt nur Rüstung, Waffen nur Angriff. Ab Stufe 5 hat jede Ausrüstung eigene Effekte: Rüstung, Vitalität (mehr Leben), Intelligenz (mehr Mana), Blocken, Ausweichen, Lauftempo, Regeneration oder kritische Treffer. Legendäre Ausrüstung ab Stufe 22 gibt es nur als Beute.</li>
+      <li>Die Grundausrüstung (Stufe 1) gibt nur Rüstung, Waffen nur Angriff. Ab Stufe 5 hat jede Ausrüstung eigene Effekte: Rüstung, Vitalität (mehr Leben), Intelligenz (mehr Mana), Blocken, Ausweichen, Lauftempo, Regeneration oder kritische Treffer. Ausrüstung ab Stufe 22, 30, 45 und 60 gibt es nur als Beute.</li>
       <li>Der Schmied verbessert Ausrüstung bis +9 mit Gold und Seelensplittern. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 kann der Gegenstand zerbrechen. Eine Segensschriftrolle verhindert das.</li>
-      <li>Im Dorf bist du sicher. Monster folgen dir nicht hinein.</li>
+      <li>Innerhalb der Dorfmauer bist du sicher. Monster folgen dir nicht durch die Tore.</li>
     </ul>
-    <h3>Zonen</h3>
+    <h3>Gebiete</h3>
     <ul id="zoneList" class="zone-list"></ul>
+    <h3>Seelensteine</h3>
+    <ul id="stoneList" class="zone-list"></ul>
   </div>
 </div>
 
@@ -168,6 +174,11 @@
 <div id="panelNpc" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="npcTitle">
   <header class="panel-head"><h2 id="npcTitle"></h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="npcBody" class="panel-body"></div>
+</div>
+
+<div id="panelPath" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="pathTitle">
+  <header class="panel-head"><h2 id="pathTitle">Wähle deinen Weg</h2></header>
+  <div id="pathBody" class="panel-body"></div>
 </div>
 
 <div id="panelDeath" class="panel frame panel-death" hidden role="dialog" aria-labelledby="deathTitle">
@@ -189,6 +200,7 @@
 <script src="js/daten/monster.js"></script>
 <script src="js/daten/zonen.js"></script>
 <script src="js/daten/gegenstaende.js"></script>
+<script src="js/daten/quests.js"></script>
 <script src="js/welt.js"></script>
 <script src="js/spieler.js"></script>
 <script src="js/kampf.js"></script>
@@ -200,6 +212,7 @@
 <script src="js/fertigkeiten.js"></script>
 <script src="js/zeichnen.js"></script>
 <script src="js/oberflaeche.js"></script>
+<script src="js/quests.js"></script>
 <script src="js/eingabe.js"></script>
 <script src="js/spiel.js"></script>
 </body>

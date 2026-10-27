@@ -1,6 +1,6 @@
-// Ausrüstung: sechs Plätze, fünf Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +9.
+// Ausrüstung: sechs Plätze, acht Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +9.
 // Die Stufen 1 bis 4 (ab Lv 1, 5, 10, 15) verkaufen Waffen- und Rüstungshändler,
-// die legendäre Stufe 5 (ab Lv 22) gibt es nur als Beute.
+// ab der legendären Stufe (Lv 22, 30, 45, 60) gibt es Ausrüstung nur als Beute.
 
 const EQUIP_SLOTS = [
   { id: 'waffe', name: 'Waffe' },
@@ -17,27 +17,30 @@ const ITEM_TIERS = [
   { level: 5, label: 'Solide' },
   { level: 10, label: 'Gut' },
   { level: 15, label: 'Selten' },
-  { level: 22, label: 'Legendär' }
+  { level: 22, label: 'Legendär' },
+  { level: 30, label: 'Mythisch' },
+  { level: 45, label: 'Himmlisch' },
+  { level: 60, label: 'Göttlich' }
 ];
 
 // Namen: Waffen und Rüstungen je Klasse, alles andere für alle gleich
 const ITEM_NAMES = {
   waffe: {
-    krieger: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer'],
-    ninja: ['Kurzdolche', 'Zwillingsdolche', 'Schattendolche', 'Viperzähne', 'Nachtklingen'],
-    schamane: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer'],
-    nekromant: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab']
+    krieger: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer', 'Aschenklinge', 'Himmelsschwert', 'Götterklinge'],
+    ninja: ['Kurzdolche', 'Zwillingsdolche', 'Schattendolche', 'Viperzähne', 'Nachtklingen', 'Aschendolche', 'Sternendolche', 'Götterzähne'],
+    schamane: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer'],
+    nekromant: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab', 'Aschenstab', 'Sternenstab', 'Götterstab']
   },
   ruestung: {
-    krieger: ['Lederpanzer', 'Kettenhemd', 'Lamellenpanzer', 'Drachenpanzer', 'Seelenpanzer'],
-    ninja: ['Leinenwams', 'Lederwams', 'Schattenwams', 'Viperngewand', 'Nachtgewand'],
-    schamane: ['Leinenrobe', 'Seidenrobe', 'Kranichrobe', 'Phönixrobe', 'Drachenrobe'],
-    nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe']
+    krieger: ['Lederpanzer', 'Kettenhemd', 'Lamellenpanzer', 'Drachenpanzer', 'Seelenpanzer', 'Aschenpanzer', 'Himmelspanzer', 'Götterpanzer'],
+    ninja: ['Leinenwams', 'Lederwams', 'Schattenwams', 'Viperngewand', 'Nachtgewand', 'Aschengewand', 'Sternengewand', 'Göttergewand'],
+    schamane: ['Leinenrobe', 'Seidenrobe', 'Kranichrobe', 'Phönixrobe', 'Drachenrobe', 'Glutrobe', 'Himmelsrobe', 'Götterrobe'],
+    nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe', 'Schattenrobe', 'Sternenrobe', 'Götterrobe']
   },
-  helm: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenkrone'],
-  schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild'],
-  schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel'],
-  guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel']
+  helm: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenkrone', 'Aschenhelm', 'Himmelshelm', 'Götterkrone'],
+  schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild', 'Aschenschild', 'Himmelsschild', 'Götterschild'],
+  schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel', 'Aschenstiefel', 'Himmelsstiefel', 'Götterstiefel'],
+  guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel']
 };
 
 // Grundwerte je Stufe. Die Grundausrüstung (Stufe 1) gibt nur Rüstung bzw. bei Waffen nur Angriff,
@@ -46,21 +49,21 @@ const ITEM_NAMES = {
 //   crit kritische Treffer · speed Lauftempo · dodge Ausweichen · block Blocken
 //   regen Lebensregeneration pro Sekunde (Anteil am maximalen Leben)
 const BASE_STATS = {
-  waffe: [{ atk: 5 }, { atk: 10 }, { atk: 17 }, { atk: 26 }, { atk: 42 }],
-  ruestung: [{ def: 4 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }],
-  helm: [{ def: 2 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }],
-  schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }],
-  schuhe: [{ def: 2 }, { def: 2, speed: 0.04 }, { def: 3, speed: 0.05, dodge: 0.02 }, { def: 4, speed: 0.07, dodge: 0.03 }, { def: 6, speed: 0.09, dodge: 0.05 }],
-  guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }]
+  waffe: [{ atk: 5 }, { atk: 10 }, { atk: 17 }, { atk: 26 }, { atk: 42 }, { atk: 62 }, { atk: 92 }, { atk: 130 }],
+  ruestung: [{ def: 4 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }, { def: 32, hp: 240 }, { def: 46, hp: 360 }, { def: 64, hp: 520 }],
+  helm: [{ def: 2 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }, { def: 16, mp: 80 }, { def: 23, mp: 115 }, { def: 32, mp: 160 }],
+  schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }, { def: 22, block: 0.14 }, { def: 31, block: 0.16 }, { def: 43, block: 0.18 }],
+  schuhe: [{ def: 2 }, { def: 2, speed: 0.04 }, { def: 3, speed: 0.05, dodge: 0.02 }, { def: 4, speed: 0.07, dodge: 0.03 }, { def: 6, speed: 0.09, dodge: 0.05 }, { def: 9, speed: 0.1, dodge: 0.06 }, { def: 13, speed: 0.11, dodge: 0.07 }, { def: 18, speed: 0.12, dodge: 0.08 }],
+  guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }]
 };
 
 // Zusatzwerte der Waffen je Klasse: Dolche treffen öfter kritisch, Fächer und Stäbe geben Intelligenz
 // (Stufe 1 ohne Zusatzwert, siehe oben)
 const WEAPON_EXTRA = {
-  krieger: [{}, {}, {}, {}, {}],
-  ninja: [{}, { crit: 0.02 }, { crit: 0.03 }, { crit: 0.04 }, { crit: 0.06 }],
-  schamane: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }],
-  nekromant: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }]
+  krieger: [{}, {}, {}, {}, {}, {}, {}, {}],
+  ninja: [{}, { crit: 0.02 }, { crit: 0.03 }, { crit: 0.04 }, { crit: 0.06 }, { crit: 0.07 }, { crit: 0.08 }, { crit: 0.1 }],
+  schamane: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }, { mp: 110 }, { mp: 160 }, { mp: 220 }],
+  nekromant: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }, { mp: 110 }, { mp: 160 }, { mp: 220 }]
 };
 
 const MAX_PLUS = 9;
@@ -159,12 +162,5 @@ const MATERIALS = [
   { id: 'star', name: 'Sternenstein', tag: 'Bonus 6/7', text: 'Fügt den 6. Bonus hinzu, danach den 7. Besondere Boni wie Fertigkeitsschaden oder weniger erlittener Schaden.' }
 ];
 
-// Was ein Seelenstein fallen lässt: [Chance, min, max]
-const STONE_MATERIAL_DROPS = {
-  boniPlus: [0.75, 1, 3],
-  switcher: [0.5, 1, 2],
-  boni5: [0.18, 1, 1],
-  star: [0.12, 1, 1]
-};
-const STONE_GEAR_CHANCE = 0.55;
-const STONE_GEAR_MAX_PLUS = 2;
+// Was ein Seelenstein fallen lässt, steht bei den Steinen in monster.js (stoneDrops).
+// Ausrüstung von Seelensteinen hat höchstens +2.

@@ -261,10 +261,10 @@ function eyes(ctx, dir, cx, cy, o = {}) {
 // --- Waffen (werden als eigenes Sprite gedreht gezeichnet; Griff liegt bei 0,0) --------------
 
 // Farben je Gegenstandsstufe: Stahl, Bronze, Mondsilber, Drachengold, Seelenviolett
-const TIER_METAL = ['#c7ccd3', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff'];
-const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350'];
-const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a'];
-const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff'];
+const TIER_METAL = ['#c7ccd3', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0'];
+const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350', '#3a1a10', '#1a3a5a', '#7a5a10'];
+const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a', '#e0602a', '#5ab0e0', '#e8c46a'];
+const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff', '#ff6a2a', '#bff4ff', '#fff2b0'];
 
 function weaponArt(ctx, kind, tier = 0) {
   switch (kind) {
@@ -706,6 +706,152 @@ const NPC_ICONS = {
   }
 };
 
+// Weitere Dorfbewohner -------------------------------------------------------------------
+
+// Einfache Figur von vorn mit Haaren bzw. Kopfbedeckung (head) und Dingen in der Hand (extra)
+function villagerArt(ctx, o) {
+  const w = WALK[0];
+  if (o.scale) ctx.scale(o.scale, o.scale);
+  if (o.behind) o.behind(ctx);
+  hLegs(ctx, 'down', w, o);
+  const half = hBody(ctx, 'down', w, o);
+  if (o.body) o.body(ctx, half);
+  hArms(ctx, 'down', w, o);
+  const { cx, cy } = hHead(ctx, 'down', w, o);
+  eyes(ctx, 'down', cx, cy, o.eyes || {});
+  if (o.head) o.head(ctx, cx, cy);
+  if (o.extra) o.extra(ctx);
+}
+
+const hairCap = (ctx, cx, cy, color, long) => {
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.quadraticCurveTo(cx, cy - 7, cx - 11.3, cy - 1.5);
+    ctx.closePath();
+  }, color, cx - 11.4, cy - 12, 22.8, 10);
+  if (long) {
+    box(ctx, cx - 11.6, cy - 4, 3.2, long, 1.5, color);
+    box(ctx, cx + 8.4, cy - 4, 3.2, long, 1.5, color);
+  }
+};
+
+Object.assign(NPC_ART, {
+  // Dorfältester Bao: weißer Bart, Robe, Stab
+  aeltester: (ctx) => villagerArt(ctx, {
+    skin: '#e6c4a0', boots: '#3a2c24', robe: '#7a5a2a', sleeve: '#7a5a2a', cuff: '#e0c36a', wideSleeves: true,
+    behind: (ctx) => { box(ctx, 11, -44, 2.6, 44, 1, '#6b4a2e'); oval(ctx, 12.3, -46, 3.4, 3.4, '#9be2ff'); },
+    body: (ctx) => box(ctx, -9.25, -13.5, 18.5, 3, 1, '#e0c36a'),
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 8, cy + 3); ctx.quadraticCurveTo(cx - 6, cy + 18, cx, cy + 20); ctx.quadraticCurveTo(cx + 6, cy + 18, cx + 8, cy + 3); ctx.quadraticCurveTo(cx, cy + 7, cx - 8, cy + 3); ctx.closePath(); }, '#f4f0e8', cx - 8, cy + 3, 16, 17);
+      stroke(ctx, '#f4f0e8', 2.4, [[cx - 7, cy - 2], [cx - 3, cy - 3]]);
+      stroke(ctx, '#f4f0e8', 2.4, [[cx + 3, cy - 3], [cx + 7, cy - 2]]);
+      oval(ctx, cx, cy - 12, 5, 4, '#f4f0e8');
+      box(ctx, cx - 1.2, cy - 18, 2.4, 6, 1, '#6b4a2e');
+    }
+  }),
+  // Jägerin Rin: grüne Tunika, Bogen, Pferdeschwanz
+  jaegerin: (ctx) => villagerArt(ctx, {
+    skin: '#ecc9a5', pants: '#3a3a2a', boots: '#4a3424', torso: '#3e6a3a', sleeve: '#3e6a3a', gloves: '#6b4a2e', eyes: { blush: true },
+    behind: (ctx) => { box(ctx, -15, -40, 5, 18, 1.5, '#6b4a2e'); for (const x of [-14, -12]) stroke(ctx, '#e8e0cc', 0.8, [[x, -40], [x, -44]]); },
+    body: (ctx, half) => { stroke(ctx, '#6b4a2e', 1.4, [[-half + 2, -23], [half - 2, -11]]); box(ctx, -half, -12.5, half * 2, 2.6, 1, '#6b4a2e'); },
+    head: (ctx, cx, cy) => {
+      hairCap(ctx, cx, cy, '#7a3a1a', 0);
+      poly(ctx, [[cx + 6, cy - 10], [cx + 16, cy - 4], [cx + 13, cy + 10], [cx + 9, cy - 4]], '#7a3a1a');
+      box(ctx, cx - 10, cy - 7, 20, 2.4, 1, '#3e6a3a');
+    },
+    extra: (ctx) => heldWeapon(ctx, 'bow', 13, -12, -1.57)
+  }),
+  // Wegweiserin Lian: blaue Robe, leuchtende Kugel
+  teleport: (ctx) => villagerArt(ctx, {
+    skin: '#ecc9a5', boots: '#2a2c3a', robe: '#2f4f7a', sleeve: '#2f4f7a', cuff: '#9fd0ff', wideSleeves: true, eyes: { blush: true },
+    body: (ctx) => { box(ctx, -9.25, -13.5, 18.5, 3, 1, '#9fd0ff'); poly(ctx, [[-2.5, -23], [2.5, -23], [3.6, -3], [-3.6, -3]], '#e9e2cf'); },
+    head: (ctx, cx, cy) => {
+      hairCap(ctx, cx, cy, '#1a1a2a', 12);
+      oval(ctx, cx, cy - 12, 4.5, 4, '#1a1a2a');
+      stroke(ctx, '#9fd0ff', 1.2, [[cx - 3, cy - 15], [cx + 3, cy - 15]]);
+    },
+    extra: (ctx) => { oval(ctx, 12, -15, 4, 4, '#bfe8ff'); dot(ctx, 11, -16.2, 1.3, 1.3, '#ffffff'); }
+  }),
+  // Alchemist Yun: violette Robe, Fläschchen am Gürtel
+  alchemist: (ctx) => villagerArt(ctx, {
+    skin: '#e9c6a1', boots: '#2a2420', robe: '#5a3a6a', sleeve: '#5a3a6a', cuff: '#c9a35a', wideSleeves: true,
+    body: (ctx) => {
+      box(ctx, -9.25, -13.5, 18.5, 3, 1, '#c9a35a');
+      for (const [x, c] of [[-6, '#7fb8ff'], [-1, '#9fe08f'], [4, '#ff8a7a']]) { box(ctx, x, -11, 3, 4, 1, c); box(ctx, x + 0.8, -12.4, 1.4, 1.6, 0.4, '#6b4a2e'); }
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI, 0); ctx.closePath(); }, '#3a2a4a', cx - 11.4, cy - 12, 22.8, 11.4);
+      box(ctx, cx - 12, cy - 4, 24, 2.6, 1, '#c9a35a');
+      for (const x of [-4.2, 4.2]) { ctx.strokeStyle = '#c9a35a'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(cx + x, cy + 1.5, 3, 0, Math.PI * 2); ctx.stroke(); }
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 5, cy + 6); ctx.lineTo(cx, cy + 13); ctx.lineTo(cx + 5, cy + 6); ctx.closePath(); }, '#2a2a2a', cx - 5, cy + 6, 10, 7);
+    },
+    extra: (ctx) => { box(ctx, 10, -18, 5, 7, 2, '#9fe08f'); box(ctx, 11.4, -20, 2.2, 2.4, 0.5, '#6b4a2e'); }
+  }),
+  // Torwache mit Speer und Helm
+  wache: (ctx) => villagerArt(ctx, {
+    skin: '#e0b896', pants: '#3a2d25', boots: '#2a1e18', torso: '#8a2a24', sleeve: '#6a2a24', gloves: '#5a4030',
+    behind: (ctx) => { box(ctx, 12, -58, 2.4, 58, 1, '#6b4a2e'); poly(ctx, [[11, -58], [13.2, -66], [15.4, -58]], '#c7ccd3'); },
+    body: (ctx, half) => {
+      for (let k = 0; k < 3; k++) stroke(ctx, 'rgba(201,163,90,0.8)', 0.7, [[-half + 1.5, -20.5 + k * 3], [half - 1.5, -20.5 + k * 3]]);
+      box(ctx, -half, -12.5, half * 2, 3, 1, '#c9a35a');
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.8, Math.PI, 0); ctx.closePath(); }, '#7a828c', cx - 11.8, cy - 12.8, 23.6, 11.8);
+      box(ctx, cx - 12.5, cy - 2.6, 25, 3.2, 1.5, '#c9a35a');
+      oval(ctx, cx, cy - 13.5, 2.2, 2.2, '#c8402f');
+    }
+  }),
+  bauer: (ctx) => villagerArt(ctx, {
+    skin: '#d9a982', pants: '#5a4a32', boots: '#3a2a1c', torso: '#8a7a5a', sleeve: '#8a7a5a',
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 17, cy - 3); ctx.lineTo(cx, cy - 16); ctx.lineTo(cx + 17, cy - 3); ctx.closePath(); }, '#d8b86a', cx - 17, cy - 16, 34, 13);
+      stroke(ctx, '#a8884a', 0.7, [[cx - 9, cy - 7], [cx + 9, cy - 7]]);
+    },
+    extra: (ctx) => { box(ctx, 11.5, -34, 2, 30, 1, '#6b4a2e'); poly(ctx, [[9, -36], [16, -36], [17, -32], [8, -32]], '#9aa1a8'); }
+  }),
+  kind: (ctx) => villagerArt(ctx, {
+    scale: 0.72, skin: '#f0cfaa', pants: '#3a4a6a', boots: '#3a2a1c', torso: '#c8602a', sleeve: '#c8602a', eyes: { blush: true },
+    head: (ctx, cx, cy) => { hairCap(ctx, cx, cy, '#2a1c14', 0); oval(ctx, cx - 8, cy - 9, 3.4, 3.4, '#2a1c14'); oval(ctx, cx + 8, cy - 9, 3.4, 3.4, '#2a1c14'); }
+  }),
+  alte: (ctx) => villagerArt(ctx, {
+    skin: '#e0c0a0', boots: '#2a2420', robe: '#5a4a5a', sleeve: '#5a4a5a', wideSleeves: true,
+    head: (ctx, cx, cy) => { hairCap(ctx, cx, cy, '#cfcac4', 6); oval(ctx, cx, cy - 12.5, 5, 4.2, '#cfcac4'); stroke(ctx, '#c9a35a', 1, [[cx - 4, cy - 14], [cx + 5, cy - 11]]); },
+    extra: (ctx) => box(ctx, -15, -16, 2.2, 16, 1, '#6b4a2e')
+  }),
+  moench: (ctx) => villagerArt(ctx, {
+    skin: '#e0b48a', boots: '#3a2a1c', robe: '#d8782a', sleeve: '#d8782a', wideSleeves: true,
+    body: (ctx) => stroke(ctx, '#9a3a1a', 2.4, [[-7, -23], [6, -6]]),
+    head: (ctx, cx, cy) => { oval(ctx, cx - 3, cy - 7, 3, 1.5, lighter('#e0b48a', 0.25)); for (let k = 0; k < 5; k++) oval(ctx, -8 + k * 4, -23.5, 1.6, 1.6, '#6b2a1a'); }
+  })
+});
+
+Object.assign(NPC_ICONS, {
+  aeltester(ctx) {
+    box(ctx, -6, -8, 12, 16, 1.5, '#efe6cc');
+    for (const y of [-4, 0, 4]) stroke(ctx, '#8a7a5a', 0.8, [[-3.5, y], [3.5, y]]);
+    oval(ctx, 0, -8, 7, 1.8, '#c9a35a');
+    oval(ctx, 0, 8, 7, 1.8, '#c9a35a');
+  },
+  jaegerin(ctx) {
+    oval(ctx, 0, 0, 7.5, 7.5, '#e8d8a8');
+    oval(ctx, 0, 0, 5, 5, '#c8402f');
+    oval(ctx, 0, 0, 2.2, 2.2, '#e8d8a8');
+    stroke(ctx, '#6b4a2e', 1.2, [[2, -2], [9, -9]]);
+  },
+  teleport(ctx) {
+    oval(ctx, 0, 0, 7, 7, '#5a8ab0');
+    oval(ctx, 0, 0, 4.4, 4.4, '#bfe8ff');
+    stroke(ctx, '#2f4f7a', 1.1, [[-2.5, -2.5], [2, 0], [-2.5, 2.5]]);
+  },
+  alchemist(ctx) {
+    oval(ctx, 0, 3, 6.5, 6, '#9fe08f');
+    box(ctx, -2.5, -9, 5, 7, 1, '#c9e8d0');
+    box(ctx, -3.2, -10, 6.4, 2, 0.6, '#6b4a2e');
+    dot(ctx, -2, 2, 1.4, 1.4, '#ffffff');
+  }
+});
+
 function npcIconSprite(id) {
   return getSprite('ni:' + id, { x: -12, y: -12, w: 24, h: 24 }, (ctx) => NPC_ICONS[id](ctx));
 }
@@ -861,6 +1007,11 @@ function humanoidMonsterArt(ctx, f, o) {
     for (const [x, y] of [[-5, -22], [4, -9], [-2, -13]]) stroke(ctx, darker(o.skin, 0.35), 0.8, [[x, y + w.bob], [x + 2, y + 2 + w.bob], [x + 1, y + 4 + w.bob]]);
     box(ctx, -10, -11 + w.bob, 20, 5, 2, o.pants);
     stroke(ctx, '#8a7a5a', 1, [[-10, -10 + w.bob], [10, -10 + w.bob]]);
+    if (o.cracks) {
+      for (const pts of [[[-6, -24], [-2, -19], [-5, -14]], [[3, -22], [6, -16], [3, -12]], [[-1, -10], [2, -7]]]) {
+        stroke(ctx, o.cracks, 1.4, pts.map(([x, y]) => [x, y + w.bob]));
+      }
+    }
   } else {
     hBody(ctx, 'side', w, o);
     if (o.straps) stroke(ctx, o.straps, 1.3, [[-5, -23 + w.bob], [5, -13 + w.bob]]);
@@ -986,6 +1137,195 @@ const MONSTER_ART = {
   }
 };
 
+// Spinne von der Seite: großer Hinterleib, acht Beine, Augenreihe
+function spiderArt(ctx, f, o) {
+  const sw = [0, 1.8, 0, -1.8][f];
+  const legC = darker(o.body, 0.25);
+  for (let k = 0; k < 4; k++) {
+    const x = -4 + k * 4.5;
+    const ph = (k % 2 ? sw : -sw);
+    stroke(ctx, legC, 1.8, [[x, -10], [x - 4 + ph, -17], [x - 7 + ph, 0]]);
+    stroke(ctx, o.body, 2, [[x + 1, -10], [x + 5 - ph, -18], [x + 8 - ph, 0]]);
+  }
+  oval(ctx, -9, -13, 10.5, 8.5, o.body);
+  for (let k = 0; k < 3; k++) dot(ctx, -11 + k * 3.5, -16 + (k % 2) * 3, 1.8, 1.2, o.mark);
+  oval(ctx, 5, -11, 7, 5.6, lighter(o.body, 0.08));
+  poly(ctx, [[10, -9], [13, -4], [11, -8.5]], '#2a2018');
+  poly(ctx, [[9, -8], [11.5, -3.5], [9.5, -7.5]], '#2a2018');
+  for (const [x, y, r] of [[7.5, -14, 1.3], [10, -13, 1.5], [9, -11, 1], [11.5, -11, 1]]) dot(ctx, x, y, r, r, o.eye);
+  ctx.globalAlpha = 0.4;
+  dot(ctx, 9.5, -12.5, 4, 3, o.eye);
+  ctx.globalAlpha = 1;
+}
+
+// Skorpion: Scheren vorn, Stachelschwanz über dem Rücken
+function scorpionArt(ctx, f, o) {
+  const sw = [0, 1.6, 0, -1.6][f];
+  for (let k = 0; k < 3; k++) {
+    const x = -6 + k * 5;
+    stroke(ctx, darker(o.body, 0.3), 1.6, [[x, -8], [x - 3 + (k % 2 ? sw : -sw), -1]]);
+    stroke(ctx, o.body, 1.8, [[x + 1, -8], [x + 4 - (k % 2 ? sw : -sw), 0]]);
+  }
+  // Schwanz aus Gliedern
+  const seg = [[-11, -11], [-16, -16], [-17, -23], [-13, -29], [-6, -31]];
+  seg.forEach(([x, y], i) => oval(ctx, x, y + (i > 2 ? sw * 0.4 : 0), 4 - i * 0.4, 3.6 - i * 0.4, i % 2 ? darker(o.body, 0.12) : o.body));
+  poly(ctx, [[-4, -33 + sw * 0.4], [2, -30 + sw * 0.4], [-4, -28 + sw * 0.4]], o.sting);
+  ctx.globalAlpha = 0.5;
+  dot(ctx, -2, -30.5 + sw * 0.4, 4, 4, o.sting);
+  ctx.globalAlpha = 1;
+  oval(ctx, -2, -9, 11, 5.5, o.body);
+  for (const x of [-8, -3, 2]) stroke(ctx, darker(o.body, 0.35), 0.8, [[x, -14], [x + 1, -4.5]]);
+  oval(ctx, 9, -9, 5, 4.4, lighter(o.body, 0.08));
+  // Scheren
+  stroke(ctx, o.body, 2.2, [[10, -8], [15, -5 - sw * 0.5]]);
+  poly(ctx, [[14, -8 - sw * 0.5], [21, -9 - sw * 0.5], [22, -5 - sw * 0.5], [18, -5.5 - sw * 0.5], [21, -2 - sw * 0.5], [15, -2 - sw * 0.5]], darker(o.body, 0.1));
+  monsterEye(ctx, 11, -11.5, 1.2, '#2a1a0a', true);
+}
+
+// Geist: schwebt, unten ausgefranst, durchscheinend
+function ghostArt(ctx, f, o) {
+  const sw = [0, 1, 0, -1][f];
+  ctx.globalAlpha = 0.88;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-11, -28);
+    ctx.quadraticCurveTo(-12, -44, 0, -46);
+    ctx.quadraticCurveTo(13, -44, 12, -28);
+    ctx.lineTo(13, -8);
+    for (let k = 0; k < 5; k++) ctx.lineTo(13 - (k + 0.5) * 5.2, -2 - ((k + f) % 2) * 4);
+    ctx.lineTo(-13, -8);
+    ctx.closePath();
+  }, o.body, -13, -46, 26, 44);
+  ctx.globalAlpha = 1;
+  // Arme
+  poly(ctx, [[8, -26], [17, -20 + sw], [15, -17 + sw], [7, -21]], o.body);
+  poly(ctx, [[-8, -26], [-15, -18 - sw], [-12, -16 - sw], [-7, -21]], darker(o.body, 0.1));
+  // Eiszapfen-Krone
+  for (const [x, h] of [[-6, 6], [0, 9], [6, 6]]) poly(ctx, [[x - 2.5, -42], [x, -42 - h], [x + 2.5, -42]], o.crown);
+  dot(ctx, 3, -34, 2.2, 3, '#0d1a2a');
+  dot(ctx, 9, -34, 2, 2.8, '#0d1a2a');
+  ctx.globalAlpha = 0.6;
+  dot(ctx, 3, -34, 3.4, 3.8, o.eye);
+  dot(ctx, 9, -34, 3, 3.4, o.eye);
+  ctx.globalAlpha = 1;
+  dot(ctx, 6, -27, 3, 1.4, '#0d1a2a');
+}
+
+// Flügel hinter einem Vierbeiner (Feuerdrache)
+function dragonWings(ctx, f, color) {
+  const flap = [0, -3, 0, 3][f];
+  poly(ctx, [[-2, -18], [-10, -40 + flap], [-20, -44 + flap], [-16, -34 + flap], [-26, -32 + flap], [-18, -26], [-24, -20 + flap * 0.5], [-8, -14]], color);
+  stroke(ctx, darker(color, 0.5), 1.1, [[-2, -18], [-10, -40 + flap], [-16, -34 + flap]]);
+  stroke(ctx, darker(color, 0.5), 1, [[-10, -40 + flap], [-18, -26]]);
+}
+
+Object.assign(MONSTER_ART, {
+  waldspinne: { h: 26, draw: (ctx, f) => { ctx.scale(1.15, 1.15); spiderArt(ctx, f, { body: '#3a3328', mark: '#b8402a', eye: '#ff4a3a' }); } },
+  braunbaer: { h: 42, draw: (ctx, f) => { ctx.scale(1.55, 1.55); beastArt(ctx, f, { fur: '#6a4a30', belly: '#9a7a58', snout: '#b89a78', bulky: true, tail: false, eye: '#3a2010', angry: true, fangs: true }); } },
+  skorpion: { h: 32, draw: (ctx, f) => { ctx.scale(1.2, 1.2); scorpionArt(ctx, f, { body: '#b07a3a', sting: '#9be07a' }); } },
+  orkhauptmann: {
+    h: 60, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.28, skin: '#5a7a38', pants: '#2e261c', boots: '#1e1810', torso: '#3e3a40', sleeve: '#5a7a38', gloves: '#3e3a40', belt: '#c9a35a', pauldron: '#c9a35a', spikes: true, cape: '#8a1a14', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.6, Math.PI, 0); ctx.closePath(); }, '#6e7680', cx - 11.6, cy - 12.6, 23.2, 11.6);
+        poly(ctx, [[cx - 8, cy - 9], [cx - 15, cy - 20], [cx - 6, cy - 12]], '#e0d6bc');
+        poly(ctx, [[cx + 4, cy - 11], [cx + 6, cy - 23], [cx + 9, cy - 10]], '#e0d6bc');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffb04a', true);
+        stroke(ctx, '#e0c0b0', 0.9, [[cx + 2, cy - 4], [cx + 5, cy + 3]]);
+      }
+    })
+  },
+  hoellenhund: { h: 36, draw: (ctx, f) => { ctx.scale(1.3, 1.3); beastArt(ctx, f, { fur: '#2e2222', belly: '#4a3030', mane: '#d8402a', bushy: true, eye: '#ffb04a', angry: true, glow: true, fangs: true, ridge: true }); } },
+  eiswolf: { h: 32, draw: (ctx, f) => { ctx.scale(1.2, 1.2); beastArt(ctx, f, { fur: '#c8d8e8', belly: '#f4f8fc', ruff: '#ffffff', bushy: true, eye: '#3ab0ff', glow: true, angry: true, fangs: true }); } },
+  yeti: {
+    h: 68, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.5, belly: true, skin: '#e8eef4', pants: '#c8d4e0', boots: '#a8b8c8', sleeve: '#e8eef4', gloves: '#9aa8b8', claws: true,
+      head: (ctx, cx, cy) => {
+        oval(ctx, cx + 4, cy + 1, 6.5, 5.5, '#8aa8c8');
+        poly(ctx, [[cx - 4, cy - 9], [cx - 8, cy - 16], [cx - 1, cy - 10]], '#f4f8fc');
+        monsterEye(ctx, cx + 5.5, cy - 0.5, 1.5, '#3a6ab8', true);
+        poly(ctx, [[cx + 5, cy + 5], [cx + 6, cy + 2.5], [cx + 7, cy + 5]], '#ffffff');
+        poly(ctx, [[cx + 8, cy + 5], [cx + 9, cy + 2.5], [cx + 10, cy + 5]], '#ffffff');
+      }
+    })
+  },
+  frostgeist: { h: 46, draw: (ctx, f) => ghostArt(ctx, f, { body: '#cfeeff', crown: '#ffffff', eye: '#3ab0ff' }) },
+  untoter: {
+    h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1, skin: '#cfc8b0', pants: '#3a3428', boots: '#2a241c', torso: '#5a5448', sleeve: '#cfc8b0', gloves: '#cfc8b0', belt: '#3a2a1c', pauldron: '#6e6a60', straps: '#3a2a1c', weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        dot(ctx, cx + 5.5, cy - 0.5, 2.6, 2.8, '#1a1210');
+        dot(ctx, cx + 5.5, cy - 0.5, 1, 1, '#a7e37f');
+        ctx.globalAlpha = 0.5;
+        dot(ctx, cx + 5.5, cy - 0.5, 3.6, 3.6, '#a7e37f');
+        ctx.globalAlpha = 1;
+        box(ctx, cx + 2, cy + 4, 8, 3.4, 1, '#ddd5bb');
+        for (let k = 0; k < 4; k++) stroke(ctx, '#1a1210', 0.5, [[cx + 3 + k * 2, cy + 4], [cx + 3 + k * 2, cy + 7.4]]);
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.4, Math.PI * 0.95, Math.PI * 2.05); ctx.closePath(); }, '#6e6a60', cx - 11.4, cy - 12.4, 22.8, 11.4);
+      }
+    })
+  },
+  sumpfhexe: {
+    h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.02, skin: '#8aa070', boots: '#2a2018', robe: '#3a4a2e', sleeve: '#3a4a2e', gloves: '#8aa070', wideSleeves: true, tattered: true, necklace: true, weapon: 'skullstaff', weaponAngle: -1.35,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 15, cy - 4], [cx + 15, cy - 5], [cx + 6, cy - 9], [cx - 2, cy - 27], [cx - 6, cy - 9]], '#2a2a22');
+        box(ctx, cx - 6, cy - 11, 13, 3, 1, '#7a2a6a');
+        poly(ctx, [[cx + 9, cy + 1], [cx + 14, cy + 3], [cx + 9, cy + 4]], '#7a9060');
+        monsterEye(ctx, cx + 5.6, cy - 0.5, 1.7, '#c6f08a', true);
+        box(ctx, cx - 12, cy - 3, 4, 12, 1.5, '#4a4a3a');
+      }
+    })
+  },
+  ghul: {
+    h: 58, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.35, belly: true, skin: '#6a7a5a', pants: '#3a3428', boots: '#2a241c', sleeve: '#6a7a5a', gloves: '#6a7a5a', claws: true,
+      head: (ctx, cx, cy) => {
+        dot(ctx, cx + 5, cy - 2.6, 4.6, 1.4, darker('#6a7a5a', 0.4));
+        monsterEye(ctx, cx + 5.4, cy - 0.4, 1.6, '#e8e04a', true);
+        box(ctx, cx + 2, cy + 4, 9, 3.5, 1.5, '#3a1a14');
+        for (let k = 0; k < 4; k++) poly(ctx, [[cx + 3 + k * 2, cy + 4], [cx + 4 + k * 2, cy + 6.5], [cx + 5 + k * 2, cy + 4]], '#ece4cc');
+        for (const x of [-6, -2]) stroke(ctx, '#3a4a2a', 0.8, [[cx + x, cy - 8], [cx + x + 1, cy - 4]]);
+      }
+    })
+  },
+  lavagolem: {
+    h: 72, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.6, belly: true, skin: '#3a2a26', pants: '#2a1e1a', boots: '#1e1614', sleeve: '#3a2a26', gloves: '#4a3430', cracks: '#ff8a2a',
+      head: (ctx, cx, cy) => {
+        stroke(ctx, '#ff8a2a', 1.3, [[cx - 6, cy - 8], [cx - 2, cy - 3], [cx - 5, cy + 2]]);
+        dot(ctx, cx + 5.5, cy - 0.5, 2.2, 1.6, '#ffd34d');
+        ctx.globalAlpha = 0.55;
+        dot(ctx, cx + 5.5, cy - 0.5, 4.4, 4, '#ff7a2a');
+        ctx.globalAlpha = 1;
+        box(ctx, cx + 3, cy + 4, 7, 2.6, 1, '#ff7a2a');
+      }
+    })
+  },
+  feuerdaemon: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.18, skin: '#c8402f', pants: '#2a1010', boots: '#1a0a0a', torso: '#a82a1a', sleeve: '#c8402f', gloves: '#1a0a0a', wings: '#6a1a10', belt: '#ffd34d', tail: true, claws: true, runes: '#ffd34d',
+      head: (ctx, cx, cy) => {
+        for (const [x, h] of [[-8, 10], [-3, 15], [2, 12], [7, 9]]) poly(ctx, [[cx + x - 3, cy - 8], [cx + x, cy - 8 - h], [cx + x + 3, cy - 8]], x % 2 ? '#ffb04a' : '#ff6a1a');
+        poly(ctx, [[cx - 4, cy - 8], [cx - 11, cy - 16], [cx - 1, cy - 10]], '#1a0a0a');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffd34d', true);
+        ctx.globalAlpha = 0.6;
+        dot(ctx, cx + 6.3, cy - 0.6, 4.2, 4.2, '#ffb04a');
+        ctx.globalAlpha = 1;
+        poly(ctx, [[cx + 4, cy + 5], [cx + 10.5, cy + 4.5], [cx + 7.5, cy + 7.5]], '#1a0a0a');
+      }
+    })
+  },
+  feuerdrache: {
+    h: 58, draw: (ctx, f) => {
+      ctx.scale(1.55, 1.55);
+      dragonWings(ctx, f, '#7a1a10');
+      beastArt(ctx, f, { fur: '#a82a1a', belly: '#e8a050', snout: '#c84a2a', ridge: true, eye: '#ffd34d', angry: true, glow: true, fangs: true, tusk: true });
+    }
+  }
+});
+
 function monsterSprite(typeId, frame) {
   const art = MONSTER_ART[typeId];
   const k = art.h / 30;
@@ -995,7 +1335,7 @@ function monsterSprite(typeId, frame) {
 
 // Höhe einer Figur über ihren Füßen, für Namen und Lebensbalken
 function figureHeight(e) {
-  if (e.isStone) return 52;
+  if (e.isStone) return stoneHeight(e);
   if (e.typeId && MONSTER_ART[e.typeId]) return MONSTER_ART[e.typeId].h;
   return 47;
 }

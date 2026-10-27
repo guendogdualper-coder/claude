@@ -153,13 +153,14 @@ function rollLoot(m) {
     p.splinters++;
     ui.log(m.name + ' hat einen Seelensplitter fallen lassen.', 'loot');
   }
-  if (m.isStone && Math.random() < 0.25) {
+  const drops = m.isStone ? stoneDrops(m.stoneType) : null;
+  if (drops && Math.random() < drops.scroll) {
     p.scrolls++;
     ui.log('Du hast eine Segensschriftrolle gefunden!', 'loot');
   }
-  if (m.isStone) {
+  if (drops) {
     const got = [];
-    for (const [id, [chance, min, max]] of Object.entries(STONE_MATERIAL_DROPS)) {
+    for (const [id, [chance, min, max]] of Object.entries(drops.mats)) {
       if (Math.random() >= chance) continue;
       const n = randInt(min, max);
       p.materials[id] = (p.materials[id] || 0) + n;
@@ -169,11 +170,12 @@ function rollLoot(m) {
     }
     if (got.length) ui.log('Aufgehoben: ' + got.join(', ') + '.', 'loot');
   }
-  if (Math.random() < (m.isStone ? STONE_GEAR_CHANCE : 0.025)) {
+  if (Math.random() < (drops ? drops.gear : 0.025)) {
     let tier = 0;
     ITEM_TIERS.forEach((t, i) => { if (m.level >= t.level) tier = i; });
-    const slot = EQUIP_SLOTS[Math.floor(Math.random() * EQUIP_SLOTS.length)].id;
-    const plus = m.isStone ? randInt(0, STONE_GEAR_MAX_PLUS) : Math.random() < 0.25 ? 1 : 0;
+    const slots = drops && drops.slots ? drops.slots : EQUIP_SLOTS.map((sl) => sl.id);
+    const slot = slots[Math.floor(Math.random() * slots.length)];
+    const plus = drops ? randInt(drops.plus[0], drops.plus[1]) : Math.random() < 0.25 ? 1 : 0;
     const item = makeItem(slot, tier, plus);
     if (addToBag(item)) {
       ui.log('Beute: ' + itemFullName(item) + '. Öffne das Inventar mit I.', 'loot');
@@ -281,9 +283,9 @@ function upgradeItem(ref, useScroll) {
 }
 
 // --- Symbole für Gegenstände (aus dem Zeichencode der Figuren) ---------------------------------
-// Farben je Stufe: Leder, Bronze, Eisen, Drache, Seele
+// Farben je Stufe: Leder, Bronze, Eisen, Drache, Seele, Asche, Himmel, Götter
 
-const ARMOR_COLORS = ['#7a5a3c', '#8a6a3a', '#5a6a7a', '#9a2f2a', '#4a2f6a'];
+const ARMOR_COLORS = ['#7a5a3c', '#8a6a3a', '#5a6a7a', '#9a2f2a', '#4a2f6a', '#4a2a22', '#2a4a7a', '#c8a03a'];
 const iconCache = new Map();
 
 // Schild, auch für die Figur im Spiel (Mitte bei 0,0, etwa 22 Einheiten hoch)

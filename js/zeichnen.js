@@ -95,6 +95,7 @@ function render() {
   for (const e of list) if (!e.worldObj) drawLabel(ctx, e);
   drawTexts(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  drawZoneTint(ctx, r.w, r.h);
   drawHurtVignette(ctx, r.w, r.h);
   drawScreenFlash(ctx, r.w, r.h);
 
@@ -272,6 +273,13 @@ function drawPlayer(ctx, p) {
       const pulse = 0.55 + 0.25 * Math.sin(game.time * 6);
       glow(ctx, hand.x + Math.cos(angle) * reach, hand.y + Math.sin(angle) * reach, 10 + band * 3, PLUS_COLORS[band], pulse * (0.3 + band * 0.12));
     }
+    // Aura des Schwertes: die ganze Klinge leuchtet
+    const aura = p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
+    if (aura) {
+      const col = SKILL_FX[aura.id].weaponGlow;
+      const pulse = 0.6 + 0.3 * Math.sin(game.time * 8);
+      for (const f of [0.35, 0.65, 0.95]) glow(ctx, hand.x + Math.cos(angle) * 24 * f, hand.y + Math.sin(angle) * 24 * f, 9, col, pulse * 0.55);
+    }
   };
   if (dir === 'up') drawWeapons();
   if (dir !== 'down') drawShield();
@@ -364,10 +372,22 @@ function drawSkeleton(ctx, a) {
 
 function drawNpc(ctx, n) {
   const fy = feetY(n);
-  drawShadow(ctx, n.x, fy, 12);
-  blitSprite(ctx, npcSprite(n.id), n.x, fy, false);
+  drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
+  const step = n.moving ? Math.abs(Math.sin(game.time * 9)) * 1.5 : 0;
+  blitSprite(ctx, npcSprite(n.id), n.x, fy - step, n.facing < 0);
+  if (!NPC_ICONS[n.id]) return;
   const bob = Math.sin(game.time * 3) * 2;
   blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
+  // Ausrufezeichen, wenn ein Auftrag abgegeben werden kann
+  if (questMarker(n.id)) {
+    ctx.font = '800 16px "Alegreya Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#1a1210';
+    ctx.strokeText('!', n.x + 13, fy - 64 + bob);
+    ctx.fillStyle = '#ffd34d';
+    ctx.fillText('!', n.x + 13, fy - 64 + bob);
+  }
 }
 
 function drawMonster(ctx, m) {
@@ -386,7 +406,9 @@ function drawMonster(ctx, m) {
   // Im Stand atmen die Monster sichtbar
   const breathe = m.moving ? 1 : 1 + Math.sin(game.time * 3 + m.id) * 0.025;
   ctx.save();
-  ctx.translate(m.x + lunge, fy);
+  // Geister schweben über dem Boden
+  const float = m.type.shape === 'ghost' ? -6 + Math.sin(game.time * 2.5 + m.id) * 3 : 0;
+  ctx.translate(m.x + lunge, fy + float);
   ctx.scale(1, breathe);
   blitSprite(ctx, monsterSprite(m.typeId, frame), 0, 0, m.facing < 0, m.hitFlash);
   ctx.restore();
@@ -405,53 +427,192 @@ function drawMonster(ctx, m) {
   }
 }
 
+// --- Seelensteine ---------------------------------------------------------------------
+// Sechs Grundformen; Farben und Zusätze (Dornen, Lava, Eis, Krone) kommen aus STONE_TYPES.
+// body: Umriss, face: hellere Lichtseite, runes: leuchtende Zeichen (je eine Linie)
+const STONE_SHAPES = {
+  spire: {
+    body: [[-14, 8], [-18, -14], [-9, -40], [5, -46], [17, -18], [14, 8]],
+    face: [[-9, -40], [5, -46], [2, -10], [-12, -6]],
+    runes: [[[-4, -30], [3, -24], [-3, -18], [4, -12]], [[8, -20], [10, -8]], [[-10, -4], [-6, 2]]],
+    h: 46
+  },
+  obelisk: {
+    body: [[-17, 8], [-17, 1], [-11, 0], [-10, -44], [0, -56], [10, -44], [11, 0], [17, 1], [17, 8]],
+    face: [[-10, -44], [0, -56], [0, 0], [-11, 0]],
+    runes: [[[0, -44], [0, -36]], [[-5, -30], [5, -30]], [[-4, -22], [0, -16], [4, -22]], [[-5, -9], [5, -9]]],
+    h: 56
+  },
+  cluster: {
+    body: [[-20, 8], [-22, -10], [-16, -30], [-9, -14], [-7, -44], [0, -52], [7, -42], [8, -18], [14, -36], [20, -24], [19, 8]],
+    face: [[-7, -44], [0, -52], [0, -6], [-8, -8]],
+    runes: [[[0, -40], [0, -24]], [[-15, -22], [-13, -10]], [[14, -26], [13, -12]]],
+    h: 52
+  },
+  boulder: {
+    body: [[-22, 8], [-25, -8], [-20, -26], [-6, -36], [10, -34], [22, -22], [25, -4], [21, 8]],
+    face: [[-20, -26], [-6, -36], [10, -34], [4, -20], [-14, -16]],
+    runes: [[[-16, -6], [-8, -14], [-2, -6], [6, -16]], [[10, -2], [16, -12]], [[-4, -26], [2, -22]]],
+    h: 36
+  },
+  twin: {
+    body: [[-20, 8], [-22, -12], [-14, -46], [-6, -30], [-1, -22], [6, -42], [12, -48], [20, -16], [18, 8]],
+    face: [[-14, -46], [-6, -30], [-10, -4], [-18, -8]],
+    runes: [[[-14, -34], [-12, -20], [-15, -10]], [[10, -36], [12, -24], [9, -12]]],
+    h: 48
+  },
+  monolith: {
+    body: [[-16, 8], [-16, 0], [-13, -2], [-13, -50], [-8, -58], [8, -58], [13, -50], [13, -2], [16, 0], [16, 8]],
+    face: [[-13, -50], [-8, -58], [0, -58], [0, -2], [-13, -2]],
+    runes: [[[-6, -46], [6, -46]], [[0, -42], [0, -30]], [[-6, -26], [0, -20], [6, -26]], [[-6, -12], [6, -12]]],
+    h: 58
+  }
+};
+
+function stoneScale(level) {
+  return 0.95 + level / 140;
+}
+
+function stoneHeight(s) {
+  return STONE_SHAPES[s.stoneType.look.shape].h * stoneScale(s.level) + (s.stoneType.look.crown ? 14 : 0);
+}
+
+function stonePath(ctx, pts) {
+  ctx.beginPath();
+  pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+}
+
+// Fester Teil des Steins, einmal gebacken
+function stoneArt(ctx, type) {
+  const look = type.look;
+  const sh = STONE_SHAPES[look.shape];
+  const k = stoneScale(type.level);
+  ctx.scale(k, k);
+  if (look.thorns) {
+    // Dornenranken um den Fuß
+    ctx.strokeStyle = '#3a5a2a';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-20, 6);
+    ctx.bezierCurveTo(-24, -14, 10, -20, 18, -30);
+    ctx.moveTo(20, 6);
+    ctx.bezierCurveTo(24, -10, -12, -16, -16, -34);
+    ctx.stroke();
+  }
+  const g = ctx.createLinearGradient(0, -sh.h, 0, 8);
+  g.addColorStop(0, look.top);
+  g.addColorStop(1, look.base);
+  ctx.fillStyle = g;
+  stonePath(ctx, sh.body);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.14)';
+  stonePath(ctx, sh.face);
+  ctx.fill();
+  if (look.ice || look.crystal) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.2;
+    for (const [x0, y0, x1, y1] of [[-8, -34, -4, -14], [6, -30, 8, -20], [-14, -12, -12, -4]]) {
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+    }
+  }
+  if (look.thorns) {
+    ctx.fillStyle = '#4a6a2a';
+    for (const [x, y] of [[-17, -8], [8, -22], [-6, -24], [13, -12]]) {
+      ctx.beginPath();
+      ctx.moveTo(x - 2.5, y);
+      ctx.lineTo(x, y - 5);
+      ctx.lineTo(x + 2.5, y);
+      ctx.fill();
+    }
+  }
+  // Sockel aus Geröll
+  for (const [x, y, r] of [[-18, 6, 4], [16, 7, 3.5], [-6, 9, 3], [8, 9, 2.5]]) dot(ctx, x, y, r, r * 0.7, darker(look.base, 0.2));
+}
+
+function stoneSprite(type) {
+  return getSprite('stone:' + type.level, { x: -40, y: -90, w: 80, h: 104 }, (ctx) => stoneArt(ctx, type));
+}
+
 function drawStone(ctx, s) {
+  const type = s.stoneType;
+  const look = type.look;
+  const sh = STONE_SHAPES[look.shape];
+  const k = stoneScale(s.level);
   const pulse = 0.5 + 0.5 * Math.sin(game.time * 2 + s.phase);
   ctx.save();
   ctx.translate(s.x, s.y);
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ellipse(ctx, 0, 10, 24, 9);
-  ctx.fillStyle = `rgba(170,110,240,${0.12 + pulse * 0.12})`;
-  circle(ctx, 0, -12, 34);
-  const shape = [[-14, 8], [-18, -14], [-9, -40], [5, -46], [17, -18], [14, 8]];
-  ctx.fillStyle = '#3a3346';
-  ctx.beginPath();
-  shape.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-  ctx.closePath();
-  ctx.fill();
-  ctx.strokeStyle = '#17121e';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.fillStyle = '#4b425a';
-  ctx.beginPath();
-  ctx.moveTo(-9, -40);
-  ctx.lineTo(5, -46);
-  ctx.lineTo(2, -10);
-  ctx.lineTo(-12, -6);
-  ctx.closePath();
-  ctx.fill();
+  ellipse(ctx, 0, 10, 26 * k, 9 * k);
+  glow(ctx, 0, -sh.h * k * 0.4, 40 * k, look.glow, 0.18 + pulse * 0.14);
+  const sp = stoneSprite(type);
+  ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  if (s.hitFlash > 0) {
+    ctx.globalAlpha = 0.6;
+    ctx.drawImage(flashOf(sp), sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+    ctx.globalAlpha = 1;
+  }
+  ctx.scale(k, k);
   // leuchtende Runen
-  ctx.strokeStyle = `rgba(205,150,255,${0.55 + pulse * 0.45})`;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = look.rune;
+  ctx.globalAlpha = 0.55 + pulse * 0.45;
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(-4, -30); ctx.lineTo(3, -24); ctx.lineTo(-3, -18); ctx.lineTo(4, -12);
-  ctx.moveTo(8, -20); ctx.lineTo(10, -8);
-  ctx.moveTo(-10, -4); ctx.lineTo(-6, 2);
-  ctx.stroke();
+  for (const line of sh.runes) {
+    ctx.beginPath();
+    line.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.stroke();
+  }
+  // Glutrisse
+  if (look.lava) {
+    ctx.strokeStyle = '#ffb04a';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(-12, 4); ctx.lineTo(-6, -8); ctx.lineTo(-9, -18);
+    ctx.moveTo(10, 2); ctx.lineTo(6, -10); ctx.lineTo(11, -20);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
   // Risse, je weniger Leben, desto mehr
   const dmg = 1 - s.hp / s.maxHp;
-  ctx.strokeStyle = 'rgba(10,8,14,0.8)';
+  ctx.strokeStyle = 'rgba(10,8,14,0.85)';
   ctx.lineWidth = 1.5;
   if (dmg > 0.25) { ctx.beginPath(); ctx.moveTo(-12, -14); ctx.lineTo(-4, -8); ctx.lineTo(-8, 2); ctx.stroke(); }
-  if (dmg > 0.5) { ctx.beginPath(); ctx.moveTo(12, -16); ctx.lineTo(4, -26); ctx.lineTo(8, -36); ctx.stroke(); }
-  if (dmg > 0.75) { ctx.beginPath(); ctx.moveTo(-6, -38); ctx.lineTo(0, -30); ctx.lineTo(-2, -20); ctx.stroke(); }
-  if (s.hitFlash > 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.beginPath();
-    shape.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.fill();
+  if (dmg > 0.5) { ctx.beginPath(); ctx.moveTo(12, -16); ctx.lineTo(4, -26); ctx.lineTo(8, -34); ctx.stroke(); }
+  if (dmg > 0.75) { ctx.beginPath(); ctx.moveTo(-6, -36); ctx.lineTo(0, -28); ctx.lineTo(-2, -18); ctx.stroke(); }
+  // Schwebende Splitter um die Spitze (Stein des Untergangs und Monolithen)
+  if (look.crown || look.shape === 'monolith') {
+    const n = look.crown ? 6 : 3;
+    for (let i = 0; i < n; i++) {
+      const a = game.time * 1.2 + (i / n) * Math.PI * 2 + s.phase;
+      const x = Math.cos(a) * 18;
+      const y = -sh.h - 8 + Math.sin(a) * 5;
+      ctx.fillStyle = Math.sin(a) > 0 ? look.rune : look.top;
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.lineTo(x + 2.5, y);
+      ctx.lineTo(x, y + 4);
+      ctx.lineTo(x - 2.5, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+    glow(ctx, 0, -sh.h - 8, 16, look.rune, 0.25 + pulse * 0.2);
   }
   ctx.restore();
+  // Rauch und Funken steigen auf
+  if ((look.smoke || look.lava) && Math.random() < 0.12) {
+    particles(s.x + rand(-12, 12) * k, s.y - sh.h * k * 0.6, {
+      count: 1, color: look.smoke ? [look.base, look.top] : ['#ffb04a', '#ff6a1a'], angle: -Math.PI / 2, spread: 0.3,
+      speed: [15, 40], life: [0.8, 1.4], size: look.smoke ? [4, 8] : [1.5, 2.5], shape: look.smoke ? 'dot' : 'ember', drag: 1, glow: !look.smoke
+    });
+  }
+  if (look.ice && Math.random() < 0.08) {
+    particles(s.x + rand(-16, 16) * k, s.y - rand(10, sh.h) * k, { count: 1, color: ['#ffffff', '#bfe8ff'], speed: [5, 15], life: [0.5, 0.9], size: [1.2, 2], shape: 'spark', drag: 1 });
+  }
 }
 
 // Name und Lebensbalken über Figuren
@@ -490,6 +651,7 @@ function drawLabel(ctx, e) {
     return;
   }
   if (!e.type && !e.isStone) {
+    if (!e.name) return;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     ctx.strokeText(e.name, e.x, feetY(e) + 15);
     ctx.fillStyle = '#f0cf6a';
@@ -499,16 +661,16 @@ function drawLabel(ctx, e) {
   if (!p || !game.running) return;
   // Name nur beim Ziel und bei Seelensteinen, sonst nur ein Lebensbalken bei Verletzten
   const targeted = game.target === e;
-  const top = e.isStone ? e.y - 58 : feetY(e) - figureHeight(e) - 10;
+  const top = e.isStone ? e.y - stoneHeight(e) - 14 : feetY(e) - figureHeight(e) - 10;
   if (targeted || e.isStone) {
     ctx.font = (e.isStone ? '600 12px' : '600 11px') + ' "Alegreya Sans", sans-serif';
     const label = 'Lv ' + e.level + ' ' + e.name;
     ctx.strokeText(label, e.x, top);
-    ctx.fillStyle = e.isStone ? '#d9b8ff' : levelColor(e.level);
+    ctx.fillStyle = e.isStone ? lighter(e.stoneType.look.glow, 0.45) : levelColor(e.level);
     ctx.fillText(label, e.x, top);
   }
   if (e.hp < e.maxHp || targeted || e.isStone) {
-    drawBar(ctx, e.x, top + 4, e.isStone ? 50 : 34, e.hp / e.maxHp, e.isStone ? '#a774e0' : '#c8402f');
+    drawBar(ctx, e.x, top + 4, e.isStone ? 50 : 34, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#c8402f');
   }
 }
 
@@ -523,7 +685,8 @@ function buildMinimapBase() {
   const colors = {
     [GROUND.GRASS]: [88, 128, 58], [GROUND.MEADOW]: [98, 137, 63], [GROUND.FOREST]: [59, 85, 48],
     [GROUND.PATH]: [176, 151, 106], [GROUND.WATER]: [47, 95, 126], [GROUND.PLAZA]: [170, 160, 140],
-    [GROUND.SAND]: [179, 148, 98], [GROUND.ASH]: [93, 82, 77]
+    [GROUND.SAND]: [179, 148, 98], [GROUND.ASH]: [93, 82, 77], [GROUND.SNOW]: [226, 234, 242],
+    [GROUND.SWAMP]: [70, 86, 60], [GROUND.LAVA]: [230, 90, 30], [GROUND.BOG]: [40, 66, 52], [GROUND.ICE]: [170, 208, 232], [GROUND.BASALT]: [58, 46, 46]
   };
   const w = game.world;
   for (let i = 0; i < MAP_W * MAP_H; i++) {
@@ -535,30 +698,50 @@ function buildMinimapBase() {
     else if (o === OBJ.ROCK) col = [110, 106, 100];
     else if (o === OBJ.DEADTREE) col = [74, 53, 39];
     else if (o === OBJ.HOUSE) col = [124, 58, 44];
+    else if (o === OBJ.WALL) col = [62, 70, 86];
     img.data.set([col[0], col[1], col[2], 255], i * 4);
   }
   cx.putImageData(img, 0, 0);
   return c;
 }
 
+// Die Minikarte zeigt einen Ausschnitt um die Figur (die Welt ist dafür zu groß)
+const MINIMAP_TILES = 72;
+
 function renderMinimap() {
   const ctx = renderer.miniCtx;
   const W = renderer.mini.width;
-  const scale = W / MAP_W;
+  const scale = W / MINIMAP_TILES;
+  const p = game.player;
+  const cx = p && game.running ? p.x / TILE : CENTER_X;
+  const cy = p && game.running ? p.y / TILE : CENTER_Y;
+  const ox = Math.max(0, Math.min(MAP_W - MINIMAP_TILES, cx - MINIMAP_TILES / 2));
+  const oy = Math.max(0, Math.min(MAP_H - MINIMAP_TILES, cy - MINIMAP_TILES / 2));
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(renderer.miniBase, 0, 0, W, W);
+  ctx.drawImage(renderer.miniBase, ox, oy, MINIMAP_TILES, MINIMAP_TILES, 0, 0, W, W);
   for (const m of game.monsters) {
     if (!m.isStone || m.dead) continue;
-    ctx.fillStyle = '#c58cff';
-    ctx.fillRect(m.x / TILE * scale - 2, m.y / TILE * scale - 2, 4, 4);
+    const mx = (m.x / TILE - ox) * scale;
+    const my = (m.y / TILE - oy) * scale;
+    if (mx < 0 || my < 0 || mx > W || my > W) continue;
+    ctx.fillStyle = m.stoneType.look.glow;
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.fillRect(mx - 2.5, my - 2.5, 5, 5);
+    ctx.strokeRect(mx - 2.5, my - 2.5, 5, 5);
   }
-  const p = game.player;
+  // Händler und Helfer im Dorf als gelbe Punkte
+  ctx.fillStyle = '#ffd34d';
+  for (const n of game.world.npcs) {
+    if (n.silent || n.wander) continue;
+    ctx.fillRect((n.x / TILE - ox) * scale - 1, (n.y / TILE - oy) * scale - 1, 2.5, 2.5);
+  }
   if (p && game.running) {
     ctx.fillStyle = '#ffffff';
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(p.x / TILE * scale, p.y / TILE * scale, 3, 0, Math.PI * 2);
+    ctx.arc((cx - ox) * scale, (cy - oy) * scale, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }

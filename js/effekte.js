@@ -686,6 +686,47 @@ function drawProjectile(ctx, pr) {
       ctx.closePath();
       ctx.fill();
       break;
+    case 'fist':
+      // Geisterfaust: leuchtende Faust mit Wirbel
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 0, 0, 18, pr.color, 0.7);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.rotate(ang);
+      ctx.fillStyle = '#e8fffb';
+      ctx.strokeStyle = '#2a6a64';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(2, 0, 7, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      for (let k = -1; k <= 1; k++) {
+        ctx.beginPath();
+        ctx.moveTo(5, k * 2.6);
+        ctx.lineTo(8.5, k * 2.6);
+        ctx.stroke();
+      }
+      ctx.fillRect(-7, -3, 4, 6);
+      break;
+    case 'bone':
+      // Knochenspeer
+      ctx.rotate(ang);
+      ctx.fillStyle = '#ece4cc';
+      ctx.strokeStyle = '#5a5240';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(6, -3);
+      ctx.lineTo(-14, -1.6);
+      ctx.lineTo(-14, 1.6);
+      ctx.lineTo(6, 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(-15, -2, 2.4, 0, Math.PI * 2);
+      ctx.arc(-15, 2, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      break;
     case 'skull': {
       ctx.globalCompositeOperation = 'lighter';
       glow(ctx, 0, 0, 16, pr.color, 0.7);

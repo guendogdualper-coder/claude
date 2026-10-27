@@ -19,15 +19,17 @@ Seelenstein ist eine installierbare Web-App (PWA). Auf einem Webserver mit HTTPS
 
 Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, damit installierte Apps die neuen Dateien laden.
 
-## Was schon drin ist (Etappe 1 und 2)
+## Was schon drin ist
 
-- **4 Klassen** mit je 5 Fertigkeiten: Krieger, Ninja, Schamane, Nekromant
-- **Welt** mit Dorf (Friedenszone) und vier Jagdzonen von Stufe 1 bis 27+
-- **10 Monsterarten**: passive und aggressive, Nah- und Fernkämpfer, Gruppen helfen sich gegenseitig
-- **Seelensteine**: rufen beim Angreifen Monsterwellen herbei und geben viel Erfahrung, Gold, Tränke und Seelensplitter
+- **4 Klassen mit je 2 Wegen**: Krieger, Ninja, Schamane, Nekromant. Bei der Erstellung wählst du einen Weg für Monster in Massen (PvE) oder für Zweikämpfe (PvP), jeder mit fünf eigenen Fertigkeiten, also 40 insgesamt. Buffs wie Aura des Schwertes oder Starker Körper halten zwei bis drei Minuten
+- **Welt bis Stufe 70**: Dorf mit Mauer, Türmen und Toren, darum sieben Gebiete (Sonnenwiesen, Dunkelwald, Orktal, Ödland, Frostgipfel, Totenmoor, Feuerberg) mit eigenem Boden, Gewässern (Sumpf, Lava, Eis) und Stimmung (Schnee, Glühwürmchen, Asche, Funken). Monster erscheinen erst ein Stück vor der Mauer
+- **24 Monsterarten**: passive und aggressive, Nah- und Fernkämpfer, Spinnen, Skorpione, Geister, Golems und Drachen, Gruppen helfen sich gegenseitig
+- **14 Seelensteine** von Stufe 5 bis 70 in Fünferschritten, jeder mit eigenem Namen, Aussehen und eigener Beute (z. B. Stein der Gier: viel Gold, Stein der Stille: Sternensteine). Sie rufen beim Angreifen Monsterwellen herbei und geben viel Erfahrung, Gold, Tränke und Seelensplitter
+- **Aufträge**: 20 Aufträge des Dorfältesten von Stufe 1 bis 70 mit Erfahrung, Gold, Ausrüstung und Materialien, dazu wiederholbare Jagden bei der Jägerin
+- **Dorfbewohner**: Wegweiserin (Reisen in jedes Gebiet), Alchemist (Materialien), Wachen an den Toren und Leute, die umherlaufen
 - **Fortschritt**: Erfahrung, Stufen bis 99, Fertigkeitspunkte (Fertigkeiten bis Stufe 20), 3 Statuspunkte pro Stufe für Stärke, Vitalität, Intelligenz und Geschick, Erfahrungsverlust beim Tod
 - **Händler im Dorf**: Waffenhändler Goro (Waffen je Klasse), Rüstungshändlerin Mei (Rüstung, Helm, Schild, Schuhe, Gürtel), jeweils ab Lv 1, 5, 10 und 15; Händlerin Ayla für Tränke und Segensschriftrollen
-- **Ausrüstung**: sechs Plätze in fünf Stufen (ab Lv 1, 5, 10, 15, 22). Die Grundausrüstung (Lv 1) gibt nur Rüstung bzw. Angriff, ab Lv 5 kommen eigene Effekte dazu: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. Legendäre Stufe nur als Beute, Inventar mit 20 Plätzen
+- **Ausrüstung**: sechs Plätze in acht Stufen (ab Lv 1, 5, 10, 15, 22, 30, 45, 60). Die Grundausrüstung (Lv 1) gibt nur Rüstung bzw. Angriff, ab Lv 5 kommen eigene Effekte dazu: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. ab Lv 22 nur als Beute, Inventar mit 20 Plätzen
 - **Schmied**: verbessert Ausrüstung von +0 bis +9 mit Gold und Seelensplittern. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 zerbricht der Gegenstand. Die Segensschriftrolle schützt davor. Bessere Waffen ändern ihre Farbe, ab +4 leuchten sie
 - **Inventar** mit Figur, die Waffe und Schild trägt; leere Ausrüstungsplätze zeigen ein blasses Symbol
 - **Verkaufen** bei jedem Händler direkt aus dem Inventar, mit Bestätigung durch zweites Antippen
@@ -59,9 +61,10 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 
 | Datei | Inhalt |
 | --- | --- |
-| `js/daten/klassen.js` | Klassen, Grundwerte, alle 20 Fertigkeiten |
-| `js/daten/monster.js` | Monsterarten und Seelensteine |
+| `js/daten/klassen.js` | Klassen, Grundwerte, zwei Wege mit je fünf Fertigkeiten |
+| `js/daten/monster.js` | Monsterarten, die 14 Seelensteine und ihre Beute |
 | `js/daten/zonen.js` | Zonen mit Stufenbereichen und Monstergruppen, Waren der Händlerin |
+| `js/daten/quests.js` | Aufträge des Dorfältesten, Waren des Alchemisten, Gespräche |
 | `js/daten/gegenstaende.js` | Ausrüstungsplätze, Gegenstandsstufen, Namen, Werte und Effekte, Boni, Materialien, Händler, Schmied-Tabelle |
 | `js/welt.js` | Karte erzeugen, Kollision, Zonen abfragen |
 | `js/spieler.js` | Figur, Werte, Erfahrung, Tränke, Speichern |
@@ -74,6 +77,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/umgebung.js` | Boden (vorgezeichnet in Blöcken), Bäume, Felsen, Häuser, Dorfschmuck und Tiefensortierung |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |
+| `js/quests.js` | Aufträge, Jagden, Reisen, Alchemist, umherlaufende Dorfbewohner |
 | `js/eingabe.js` | Tastatur, Maus, Touch |
 | `js/spiel.js` | Spielzustand und Hauptschleife |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installation als App, Offline-Betrieb, App-Icons |
@@ -84,6 +88,6 @@ Prompts für Bildgeneratoren, mit denen sich Figuren und Monster im Stil des Spi
 
 ## Nächste Etappen
 
-1. Quests und Bossmonster
-2. Mehrspieler: Server mit Node.js und WebSockets, andere Spieler sehen, Chat, Gruppen
+1. Bossmonster
+2. Mehrspieler und echte Zweikämpfe für die PvP-Wege: Server mit Node.js und WebSockets, andere Spieler sehen, Chat, Gruppen
 3. Accounts und Speichern auf dem Server
