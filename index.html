@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Pixelschlange</title>
+  <meta name="description" content="Snake im Stil alter Handy-Displays – spielbar mit Tastatur, Wischen oder Steuerkreuz.">
+  <meta name="theme-color" content="#1a2026">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600&family=Silkscreen:wght@400;700&display=swap">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- app:start -->
+<main class="device">
+  <header class="brand">
+    <h1>Pixelschlange</h1>
+    <span class="tag">Taschenspiel</span>
+  </header>
+
+  <section class="lcd" aria-label="Spielfeld">
+    <div class="hud">
+      <span>Punkte <b id="score">0000</b></span>
+      <span>Rekord <b id="best">0000</b></span>
+    </div>
+    <div class="board">
+      <canvas id="board" width="360" height="360" aria-label="Schlange auf einem 18 mal 18 Felder großen Raster"></canvas>
+      <div class="overlay" id="overlay">
+        <h2 id="overlayTitle">Pixelschlange</h2>
+        <p id="overlayText">Friss Futter, werde länger und beiß dich nicht selbst.</p>
+        <button class="lcd-btn" id="overlayBtn" type="button">Spiel starten</button>
+      </div>
+    </div>
+    <div class="hud">
+      <span id="level">Stufe 1</span>
+      <span id="modeLabel">Mit Wänden</span>
+    </div>
+  </section>
+
+  <div class="controls">
+    <div class="side">
+      <span class="label">Spielfeld</span>
+      <div class="modes">
+        <button class="pill" id="modeWalls" type="button" data-mode="walls" aria-pressed="true">Mit Wänden</button>
+        <button class="pill" id="modeWrap" type="button" data-mode="wrap" aria-pressed="false">Ohne Wände</button>
+      </div>
+      <button class="pill" id="soundBtn" type="button" aria-pressed="true">Ton: an</button>
+    </div>
+
+    <div class="pad" aria-label="Steuerkreuz">
+      <button class="key" id="keyUp" type="button" data-dir="up" aria-label="Hoch"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2 9 8H1z"/></svg></button>
+      <button class="key" id="keyLeft" type="button" data-dir="left" aria-label="Links"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5 8 1v8z"/></svg></button>
+      <button class="key ok" id="okBtn" type="button" aria-label="Start oder Pause">OK</button>
+      <button class="key" id="keyRight" type="button" data-dir="right" aria-label="Rechts"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M8 5 2 9V1z"/></svg></button>
+      <button class="key" id="keyDown" type="button" data-dir="down" aria-label="Runter"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8 1 2h8z"/></svg></button>
+    </div>
+  </div>
+
+  <p class="hint">
+    <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> oder <kbd>WASD</kbd> steuern,
+    <kbd>Leertaste</kbd> startet und pausiert. Auf dem Handy übers Feld wischen oder das Steuerkreuz nutzen.
+  </p>
+</main>
+<!-- app:end -->
+<script src="game.js"></script>
+</body>
+</html>

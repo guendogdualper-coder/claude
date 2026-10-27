@@ -1,0 +1,278 @@
+/* Layout: ein Taschenspielgerät in der Mitte – LCD oben, Steuerkreuz darunter */
+:root {
+  --room: #1a2026;
+  --shell: #2b3540;
+  --shell-edge: #3a4754;
+  --lcd: #b3c193;
+  --lcd-shade: #9dac7d;
+  --ink: #243019;
+  --key: #d5d9c9;
+  --key-press: #b9bea9;
+  --key-ink: #27313b;
+  --amber: #e2a447;
+  --text: #e6e9de;
+  --muted: #98a59f;
+
+  --font-pixel: "Silkscreen", "Courier New", monospace;
+  --font-ui: "Chakra Petch", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  color-scheme: dark;
+}
+
+[hidden] { display: none !important; }
+
+html, body { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--room);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+  display: flex;
+  justify-content: center;
+  padding-block: 24px 32px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+
+.device {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--shell);
+  border: 1px solid var(--shell-edge);
+  border-radius: 28px 28px 44px 44px;
+  padding: 22px 20px 28px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .45), inset 0 1px 0 rgba(255, 255, 255, .06);
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand h1 {
+  margin: 0;
+  font-family: var(--font-pixel);
+  font-weight: 400;
+  font-size: 1.35rem;
+  letter-spacing: .04em;
+  color: var(--text);
+}
+
+.brand .tag {
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--muted);
+}
+
+/* LCD */
+.lcd {
+  background: var(--lcd);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 10px 10px 8px;
+  box-shadow: inset 0 0 0 3px var(--lcd-shade), inset 0 6px 18px rgba(36, 48, 25, .25);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--font-pixel);
+}
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+  padding-inline: 2px;
+}
+
+.hud b { font-weight: 700; }
+
+.board {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#board {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+  outline: 2px solid var(--ink);
+  outline-offset: 0;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  background: rgba(179, 193, 147, .78);
+}
+
+.overlay h2 {
+  margin: 0;
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.overlay p {
+  margin: 0;
+  max-width: 26ch;
+  font-size: .78rem;
+  line-height: 1.5;
+  text-wrap: balance;
+}
+
+.overlay .record {
+  background: var(--ink);
+  color: var(--lcd);
+  padding: 2px 8px;
+}
+
+.lcd-btn {
+  font: inherit;
+  font-size: .85rem;
+  color: var(--lcd);
+  background: var(--ink);
+  border: 0;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+
+.lcd-btn:focus-visible { outline: 2px dashed var(--ink); outline-offset: 3px; }
+
+/* Bedienteil */
+.controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.label {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+  color: var(--muted);
+}
+
+.modes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pill {
+  font: inherit;
+  font-size: .85rem;
+  text-align: left;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--shell-edge);
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.pill[aria-pressed="true"] {
+  background: var(--key);
+  border-color: var(--key);
+  color: var(--key-ink);
+  font-weight: 600;
+}
+
+.pill:disabled { opacity: .45; cursor: not-allowed; }
+
+.pill:focus-visible, .key:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, 52px);
+  grid-template-rows: repeat(3, 52px);
+  gap: 4px;
+}
+
+.key {
+  font: inherit;
+  font-size: 1.1rem;
+  color: var(--key-ink);
+  background: var(--key);
+  border: 0;
+  border-radius: 12px;
+  box-shadow: 0 3px 0 #8f9584;
+  cursor: pointer;
+  touch-action: manipulation;
+  display: grid;
+  place-items: center;
+}
+
+.key:active, .key.is-down { background: var(--key-press); box-shadow: 0 1px 0 #8f9584; transform: translateY(2px); }
+
+.key[data-dir="up"] { grid-area: 1 / 2; }
+.key[data-dir="left"] { grid-area: 2 / 1; }
+.key[data-dir="right"] { grid-area: 2 / 3; }
+.key[data-dir="down"] { grid-area: 3 / 2; }
+
+.key.ok {
+  grid-area: 2 / 2;
+  background: var(--amber);
+  box-shadow: 0 3px 0 #a87425;
+  border-radius: 50%;
+  font-family: var(--font-pixel);
+  font-size: .7rem;
+}
+
+.key svg { width: 18px; height: 18px; fill: currentColor; }
+
+.hint {
+  margin: 0;
+  font-size: .8rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.hint kbd {
+  font-family: var(--font-pixel);
+  font-size: .7rem;
+  color: var(--text);
+  border: 1px solid var(--shell-edge);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+@media (max-width: 360px) {
+  .pad { grid-template-columns: repeat(3, 44px); grid-template-rows: repeat(3, 44px); }
+  .device { padding-inline: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .key:active, .key.is-down { transform: none; }
+}
