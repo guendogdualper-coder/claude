@@ -450,6 +450,27 @@ Object.assign(ui, {
     });
   },
 
+  // Weltentor: Reise zwischen Map 1 (Hayan), Map 2 und Map 3, kostenlos
+  renderWorldGate() {
+    const p = game.player;
+    const here = mapOfTile(p.x / TILE, p.y / TILE).id;
+    const body = $('npcBody');
+    body.innerHTML = '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p><div class="travel-list">' +
+      WORLD_MAPS.map((wm) => {
+        const low = p.level < wm.minLevel;
+        const cur = wm.id === here;
+        return `<div class="travel-item"><strong>Map ${wm.id} · ${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +
+          `<button type="button" class="mini-btn" data-map="${wm.id}" ${cur || low ? 'disabled' : ''}>${cur ? 'Du bist hier' : low ? `ab Stufe ${wm.minLevel}` : 'Reisen'}</button></div>`;
+      }).join('') + '</div>';
+    body.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
+      const id = Number(b.dataset.map);
+      const wm = WORLD_MAPS.find((m) => m.id === id);
+      const spot = id === 1 ? { x: (CENTER_X + 6.8) * TILE, y: (CENTER_Y - 4) * TILE } : { ...game.world.maps.find((m) => m.id === id).spawn };
+      moveThrough(spot, '#7ab8ff');
+      ui.banner(`Map ${wm.id} · ${wm.name}`, wm.levels);
+    }));
+  },
+
   renderDungeon(npc) {
     const p = game.player;
     const dg = game.world.dungeons[npc.dungeon];

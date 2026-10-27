@@ -6,14 +6,15 @@ const TILE = 32;          // Größe einer Kachel in Pixeln
 const WORLD_W = 200;      // Breite der Oberwelt in Kacheln
 const DUNGEON_W = 60;     // östlich davon liegt ein Streifen mit den Dungeons (nur per Eingang erreichbar)
 const MAP_W = WORLD_W + DUNGEON_W;
-const MAP_H = 200;
+const WORLD_H = 200;      // Höhe der Oberwelt; darunter liegen Map 2 und Map 3 (nur über das Weltentor)
+const MAP_H = WORLD_H + 132;
 const CENTER_X = WORLD_W / 2;
-const CENTER_Y = MAP_H / 2;
+const CENTER_Y = WORLD_H / 2;
 const VILLAGE_HALF = 14;  // Dorfmauer: Quadrat 14 Kacheln um die Mitte; drinnen greifen Monster nicht an
 const SAFE_RING = 24;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 3;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 4;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 
 // Bodenarten
 const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15 };
@@ -38,13 +39,13 @@ function mulberry32(seed) {
 // Weiches Rauschen für natürlich wirkende Seen und Wälder
 function makeNoise(rng, cell) {
   const gw = Math.ceil(WORLD_W / cell) + 2;
-  const gh = Math.ceil(MAP_H / cell) + 2;
+  const gh = Math.ceil(WORLD_H / cell) + 2;
   const grid = new Float32Array(gw * gh);
   for (let i = 0; i < grid.length; i++) grid[i] = rng();
   const smooth = (t) => t * t * (3 - 2 * t);
   return (x, y) => {
     const gx = (x % WORLD_W) / cell;
-    const gy = y / cell;
+    const gy = (y % WORLD_H) / cell;
     const x0 = Math.floor(gx);
     const y0 = Math.floor(gy);
     const fx = smooth(gx - x0);
@@ -61,6 +62,7 @@ function makeNoise(rng, cell) {
 
 // Das Dorf ist ein Quadrat innerhalb der Mauer, die Jagdzonen sind Ringe darum
 function zoneIndexAt(x, y) {
+  if (y >= WORLD_H) return mapZoneAt(x, y);
   if (x >= WORLD_W) return dungeonZoneAt(y);
   const dx = Math.abs(x + 0.5 - CENTER_X);
   const dy = Math.abs(y + 0.5 - CENTER_Y);
@@ -72,8 +74,25 @@ function zoneIndexAt(x, y) {
   return RING_ZONES - 1;
 }
 
+// Map 2 und 3: Ringe um die Mitte der jeweiligen Map
+function mapOfTile(x, y) {
+  if (y < WORLD_H) return WORLD_MAPS[0];
+  return WORLD_MAPS.find((m) => m.region && x >= m.region[0] && x < m.region[0] + m.region[2]) || WORLD_MAPS[1];
+}
+function mapZoneAt(x, y) {
+  const wm = mapOfTile(x, y);
+  const d = Math.hypot(x + 0.5 - wm.cx, y + 0.5 - wm.cy);
+  let last = 0;
+  for (let i = RING_ZONES; i < ZONES.length; i++) {
+    if (ZONES[i].map !== wm.id) continue;
+    last = i;
+    if (d < ZONES[i].maxDist) return i;
+  }
+  return last;
+}
+
 // Der Dungeon-Streifen ist von oben nach unten in gleich hohe Blöcke geteilt, einer je Dungeon
-const DUNGEON_BLOCK = Math.floor(MAP_H / 4);
+const DUNGEON_BLOCK = Math.floor(WORLD_H / 4);
 function dungeonZoneAt(y) {
   return RING_ZONES + Math.min(DUNGEONS.length - 1, Math.floor(y / DUNGEON_BLOCK));
 }
@@ -100,7 +119,7 @@ function generateWorld() {
   const deco = new Uint8Array(size);
   const zoneIdx = new Uint8Array(size);
 
-  for (let y = 0; y < MAP_H; y++) {
+  for (let y = 0; y < WORLD_H; y++) {
     for (let x = 0; x < WORLD_W; x++) {
       const i = y * MAP_W + x;
       const d = Math.hypot(x + 0.5 - CENTER_X, y + 0.5 - CENTER_Y);
@@ -137,9 +156,9 @@ function generateWorld() {
   }
 
   // Rand der Welt: dichter Bewuchs bzw. Felsen
-  for (let y = 0; y < MAP_H; y++) {
+  for (let y = 0; y < WORLD_H; y++) {
     for (let x = 0; x < WORLD_W; x++) {
-      if (x < 2 || y < 2 || x >= WORLD_W - 2 || y >= MAP_H - 2) {
+      if (x < 2 || y < 2 || x >= WORLD_W - 2 || y >= WORLD_H - 2) {
         const i = y * MAP_W + x;
         const zone = ZONES[zoneIdx[i]];
         obj[i] = zone.treeObj === 'DEADTREE' ? OBJ.ROCK : OBJ[zone.treeObj];
@@ -156,7 +175,7 @@ function generateWorld() {
       for (let w = -1; w <= 0; w++) {
         const x = Math.floor(CENTER_X + dx * s + (dy ? w + wobble : 0));
         const y = Math.floor(CENTER_Y + dy * s + (dx ? w + wobble : 0));
-        if (x < 2 || y < 2 || x >= WORLD_W - 2 || y >= MAP_H - 2) continue;
+        if (x < 2 || y < 2 || x >= WORLD_W - 2 || y >= WORLD_H - 2) continue;
         const i = y * MAP_W + x;
         if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
         if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
@@ -180,7 +199,7 @@ function generateWorld() {
   }
 
   // Verzierungen (nur in der Oberwelt, in derselben Reihenfolge wie früher, damit die Welt gleich bleibt)
-  for (let i = 0; i < size; i++) {
+  for (let i = 0; i < WORLD_H * MAP_W; i++) {
     if (i % MAP_W >= WORLD_W) continue;
     if (obj[i] || deco[i]) continue;
     const r = rng();
@@ -191,8 +210,9 @@ function generateWorld() {
     else if ((g === GROUND.ASH || g === GROUND.BASALT) && r < 0.16) deco[i] = DECO.CRACK;
   }
 
-  // Dungeons im Streifen östlich der Welt
+  // Dungeons im Streifen östlich der Welt, darunter Map 2 und Map 3
   const dungeons = buildDungeons(ground, obj, zoneIdx);
+  const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom);
 
   // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher
   const npc = (id, name, x, y, extra = {}) => ({ id, name, x: x * TILE, y: y * TILE, r: 11, ...extra });
@@ -205,8 +225,11 @@ function generateWorld() {
     npc('jaegerin', 'Jägerin Rin', C - 5.5, C + 5.6),
     npc('teleport', 'Wegweiserin Lian', C + 5.6, C - 4.4),
     npc('alchemist', 'Alchemist Yun', C + 6.2, C + 2.4),
-    npc('stallmeister', 'Stallmeister Jun', C - 10, C + 2.2)
+    npc('stallmeister', 'Stallmeister Jun', C - 10, C + 2.2),
+    npc('weltentor', 'Weltentor', C + 6.8, C - 5.6)
   ];
+  // In jedem Lager der anderen Maps ein Weltentor zurück
+  for (const mp of maps) npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5, mp.cy - 1.5));
   // Eingänge zu den Dungeons neben den Wegen, innen je ein Ausgang am Start und im Bossraum
   dungeons.forEach((dg, k) => {
     const e = placeDungeonEntrance(dg.def.entry, ground, obj, deco, zoneIdx);
@@ -260,7 +283,6 @@ function generateWorld() {
     { type: 'barrel', ...T(C - 4.2, C + 3.4) },
     { type: 'anvil', ...T(C - 2.2, C + 3.2) },
     { type: 'board', ...T(C - 0.8, C - 5.2) },
-    { type: 'portal', ...T(C + 6.8, C - 5.4) },
     { type: 'targets', ...T(C - 7, C + 6.2) },
     { type: 'herbs', ...T(C + 7.4, C + 3.4) }
   ];
@@ -285,7 +307,13 @@ function generateWorld() {
   });
 
   // Hinter jedem Turm steht die Mauer; die Türme selbst blockieren über die Mauerkacheln
-  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons };
+  // Lager in Map 2 und 3: Laternen und Feuerbecken
+  for (const mp of maps) {
+    for (const [dx, dy] of [[-4, -3], [4, -3], [-4, 4], [4, 4]]) props.push({ type: 'lantern', ...T(mp.cx + dx, mp.cy + dy) });
+    props.push({ type: 'brazier', roof: '#ffb04a', ...T(mp.cx - 2, mp.cy + 1.5) }, { type: 'brazier', roof: '#ffb04a', ...T(mp.cx + 3, mp.cy + 1.5) });
+  }
+
+  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps };
 }
 
 // --- Dungeons ------------------------------------------------------------------------------
@@ -296,7 +324,7 @@ const DUNGEON_ROOMS = [[3, 4, 9, 9], [18, 3, 12, 11], [38, 4, 14, 12], [39, 26, 
 
 function buildDungeons(ground, obj, zoneIdx) {
   const rng = mulberry32(WORLD_SEED + 99);
-  for (let y = 0; y < MAP_H; y++) {
+  for (let y = 0; y < WORLD_H; y++) {
     for (let x = WORLD_W; x < MAP_W; x++) {
       const i = y * MAP_W + x;
       const zi = dungeonZoneAt(y);
@@ -346,6 +374,65 @@ function buildDungeons(ground, obj, zoneIdx) {
   });
 }
 
+// --- Map 2 und Map 3 ------------------------------------------------------------------------
+// Wie die Oberwelt, nur kleiner: Ringe um ein sicheres Lager in der Mitte, Gewässer und
+// Bewuchs aus Rauschen, vier Wege vom Lager zum Rand und ein Rand aus Felsen.
+function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
+  const rng = mulberry32(WORLD_SEED + 202);
+  const out = [];
+  for (const wm of WORLD_MAPS) {
+    if (!wm.region) continue;
+    const [rx, ry, rw, rh] = wm.region;
+    for (let y = ry; y < ry + rh; y++) {
+      for (let x = rx; x < rx + rw; x++) {
+        const i = y * MAP_W + x;
+        const d = Math.hypot(x + 0.5 - wm.cx, y + 0.5 - wm.cy);
+        const zi = mapZoneAt(x, y);
+        const zone = ZONES[zi];
+        zoneIdx[i] = zi;
+        ground[i] = GROUND[zone.ground];
+        if (zone.alt && bloom(x, y) > 0.6) ground[i] = GROUND[zone.alt];
+        if (x < rx + 2 || y < ry + 2 || x >= rx + rw - 2 || y >= ry + rh - 2) {
+          obj[i] = OBJ.ROCK;
+          continue;
+        }
+        if (zone.safe) {
+          if (d < 5.5) ground[i] = GROUND.PLAZA;
+          continue;
+        }
+        if (d < 11) continue;
+        const v = shape(x, y) * 0.65 + detail(x, y) * 0.35;
+        if (zone.water && v < zone.water) {
+          ground[i] = GROUND[zone.liquid || 'WATER'];
+          continue;
+        }
+        const cluster = v > 0.55 ? 1.8 : 0.5;
+        const r = rng();
+        if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
+        else if (r < zone.trees * cluster + zone.rocks) obj[i] = OBJ.ROCK;
+        else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT ? DECO.CRACK : DECO.TUFT;
+      }
+    }
+    // Wege vom Lager zum Rand
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      for (let s = 0; s < 64; s++) {
+        for (let w = -1; w <= 0; w++) {
+          const x = Math.floor(wm.cx + dx * s + (dy ? w : 0));
+          const y = Math.floor(wm.cy + dy * s + (dx ? w : 0));
+          if (x < rx + 2 || y < ry + 2 || x >= rx + rw - 2 || y >= ry + rh - 2) continue;
+          const i = y * MAP_W + x;
+          if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
+          else deco[i] = DECO.NONE;
+          if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+          obj[i] = OBJ.NONE;
+        }
+      }
+    }
+    out.push({ id: wm.id, cx: wm.cx, cy: wm.cy, spawn: { x: wm.cx * TILE, y: (wm.cy + 1.5) * TILE } });
+  }
+  return out;
+}
+
 // Eingang neben dem Weg: Kachel suchen, Platz und einen kurzen Pfad zum Weg freiräumen
 function placeDungeonEntrance(entry, ground, obj, deco, zoneIdx) {
   const [dx, dy] = entry.dir;
@@ -354,7 +441,7 @@ function placeDungeonEntrance(entry, ground, obj, deco, zoneIdx) {
   const x = Math.round(CENTER_X + dx * entry.dist + px * entry.side);
   const y = Math.round(CENTER_Y + dy * entry.dist + py * entry.side);
   const free = (tx, ty) => {
-    if (tx < 2 || ty < 2 || tx >= WORLD_W - 2 || ty >= MAP_H - 2) return;
+    if (tx < 2 || ty < 2 || tx >= WORLD_W - 2 || ty >= WORLD_H - 2) return;
     const i = ty * MAP_W + tx;
     obj[i] = OBJ.NONE;
     if (LIQUID.has(ground[i])) ground[i] = GROUND[ZONES[zoneIdx[i]].ground];
@@ -384,8 +471,16 @@ function tileBlocked(tx, ty) {
     : game.world.obj[i] !== OBJ.NONE;
 }
 
+// Sicher: das Dorf Hayan und die Lager in Map 2 und 3
+const CAMP_HALF = 7;
 function inVillage(x, y) {
-  return Math.max(Math.abs(x / TILE - CENTER_X), Math.abs(y / TILE - CENTER_Y)) < VILLAGE_HALF + 0.5;
+  const tx = x / TILE;
+  const ty = y / TILE;
+  if (ty >= WORLD_H) {
+    const wm = mapOfTile(tx, ty);
+    return Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < CAMP_HALF;
+  }
+  return Math.max(Math.abs(tx - CENTER_X), Math.abs(ty - CENTER_Y)) < VILLAGE_HALF + 0.5;
 }
 
 function zoneAt(x, y) {
@@ -416,17 +511,23 @@ function moveEntity(e, dx, dy, isMonster) {
 // Zufälliger begehbarer Punkt in einer Zone (in Pixeln).
 // from/to grenzen den Ring ein: 0 = dorfnaher Rand, 1 = äußerer Rand.
 function randomSpotInZone(zone, from = 0, to = 1) {
-  const inner = Math.max(zone.minDist + 2, SAFE_RING);
-  const outer = Math.min(zone.maxDist - 2, WORLD_W / 2 * 1.38);
+  // Zonen der Maps 2 und 3 liegen um die Mitte ihrer Map, alle anderen um das Dorf
+  const wm = zone.map ? WORLD_MAPS.find((m) => m.id === zone.map) : null;
+  const cx = wm ? wm.cx : CENTER_X;
+  const cy = wm ? wm.cy : CENTER_Y;
+  const safe = wm ? CAMP_HALF + 7 : SAFE_RING;
+  const [bx0, by0, bx1, by1] = wm ? [wm.region[0] + 3, wm.region[1] + 3, wm.region[0] + wm.region[2] - 3, wm.region[1] + wm.region[3] - 3] : [3, 3, WORLD_W - 3, WORLD_H - 3];
+  const inner = Math.max(zone.minDist + 2, safe);
+  const outer = Math.min(zone.maxDist - 2, wm ? wm.region[2] / 2 * 1.38 : WORLD_W / 2 * 1.38);
   const minD = inner + (outer - inner) * from;
   const maxD = inner + (outer - inner) * to;
   for (let tries = 0; tries < 300; tries++) {
     const ang = Math.random() * Math.PI * 2;
     const d = minD + Math.random() * (maxD - minD);
-    const tx = Math.floor(CENTER_X + Math.cos(ang) * d);
-    const ty = Math.floor(CENTER_Y + Math.sin(ang) * d);
-    if (tx < 3 || ty < 3 || tx >= WORLD_W - 3 || ty >= MAP_H - 3) continue;
-    if (Math.hypot(tx + 0.5 - CENTER_X, ty + 0.5 - CENTER_Y) < SAFE_RING) continue;
+    const tx = Math.floor(cx + Math.cos(ang) * d);
+    const ty = Math.floor(cy + Math.sin(ang) * d);
+    if (tx < bx0 || ty < by0 || tx >= bx1 || ty >= by1) continue;
+    if (Math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) < safe) continue;
     if (tileBlocked(tx, ty)) continue;
     if (ZONES[game.world.zoneIdx[tileIndex(tx, ty)]] !== zone) continue;
     if (game.world.ground[tileIndex(tx, ty)] === GROUND.PATH) continue;
@@ -435,6 +536,12 @@ function randomSpotInZone(zone, from = 0, to = 1) {
   return null;
 }
 
-function villageSpawn() {
+// Wiederbeleben: in Map 2 und 3 im Lager der Map, sonst im Dorf
+function villageSpawn(p) {
+  if (p && p.y / TILE >= WORLD_H && game.world.maps) {
+    const wm = mapOfTile(p.x / TILE, p.y / TILE);
+    const mp = game.world.maps.find((m) => m.id === wm.id);
+    if (mp) return { ...mp.spawn };
+  }
   return { x: CENTER_X * TILE, y: (CENTER_Y + 1) * TILE };
 }

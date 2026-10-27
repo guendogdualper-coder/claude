@@ -446,11 +446,17 @@ const ROCK_STYLES = {
   oedland: ['#454048', '#5c5660', null],
   frost: ['#8a96a4', '#eef4fa', null],
   moor: ['#4a4e40', '#626a52', '#4a6a3a'],
-  vulkan: ['#2a2224', '#3e3436', null]
+  vulkan: ['#2a2224', '#3e3436', null],
+  oasenlager: ['#b08a5a', '#d0aa7a', null],
+  sandwueste: ['#b08a5a', '#d0aa7a', null],
+  nagadschungel: ['#5a6a52', '#76866a', '#4a7a3a'],
+  klammwacht: ['#7a5a48', '#9a7a62', null],
+  donnerklamm: ['#7a5a48', '#9a7a62', null],
+  titanenkamm: ['#2e2628', '#443a3c', null]
 };
 
 function rockArt(ctx, style, v) {
-  const [base, top, moss] = ROCK_STYLES[style];
+  const [base, top, moss] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
   const s = [1, 0.85, 1.15][v];
   ctx.scale(s, s);
   poly(ctx, [[-14, 0], [-15, -9], [-9, -18], [2, -21], [12, -15], [15, -5], [13, 0]], base);
@@ -461,7 +467,7 @@ function rockArt(ctx, style, v) {
     dot(ctx, 4, -19, 3, 1.6, moss);
   }
   if (v === 2) poly(ctx, [[10, 1], [11, -5], [16, -7], [20, -2], [19, 1]], base);
-  if (style === 'vulkan') stroke(ctx, '#ff7a2a', 1.1, [[-8, -6], [-3, -9], [1, -4]]);
+  if (style === 'vulkan' || style === 'titanenkamm') stroke(ctx, '#ff7a2a', 1.1, [[-8, -6], [-3, -9], [1, -4]]);
 }
 
 const TREE_BOUNDS = { x: -34, y: -82, w: 68, h: 90 };

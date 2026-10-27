@@ -189,7 +189,7 @@ function killMonster(m) {
   m.burn = null;
   if (game.target === m) game.target = null;
   monsterDeathFx(m);
-  if (m.isStone) m.respawnAt = game.time + randInt(STONE.respawn[0], STONE.respawn[1]);
+  if (m.isStone) m.respawnAt = game.time + randInt(...(m.stoneRespawn || STONE.respawn));
   else m.respawnAt = game.time + (m.respawnDelay || 12 + Math.random() * 8);
   if (net.mode === 'host') netBroadcastKill(m);
   // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
@@ -225,20 +225,26 @@ function rewardKill(m) {
     const splinters = randInt(drops.splinters[0], drops.splinters[1]);
     const potHp = randInt(drops.potions[0], drops.potions[1]);
     const potMp = Math.max(1, Math.round(potHp * 0.7));
+    const size = potionSizeFor(m.level);
     p.splinters += splinters;
     p.stones++;
-    p.potions.hp += potHp;
-    p.potions.mp += potMp;
+    p.potions[potKey('hp', size.id)] = (p.potions[potKey('hp', size.id)] || 0) + potHp;
+    p.potions[potKey('mp', size.id)] = (p.potions[potKey('mp', size.id)] || 0) + potMp;
     ui.log(`${m.name} zerstört! +${xp.toLocaleString('de-DE')} EP.`, 'level');
     ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
     ui.loot('Seelensplitter', splinters, lootIconUrl('splinter'), '#c9a8ff');
-    ui.loot(potionInfo('hp').name, potHp, lootIconUrl('potHp'), potionInfo('hp').color);
-    ui.loot(potionInfo('mp').name, potMp, lootIconUrl('potMp'), potionInfo('mp').color);
+    ui.loot(`${potionInfo('hp').name} (${size.id})`, potHp, potionIconUrl('hp', size.id), potionInfo('hp').color);
+    ui.loot(`${potionInfo('mp').name} (${size.id})`, potMp, potionIconUrl('mp', size.id), potionInfo('mp').color);
     questEvent('stone', m);
   } else {
     questEvent('kill', m);
-    if (Math.random() < 0.06) { p.potions.hp++; ui.loot(potionInfo('hp').name, 1, lootIconUrl('potHp'), potionInfo('hp').color); }
-    if (Math.random() < 0.04) { p.potions.mp++; ui.loot(potionInfo('mp').name, 1, lootIconUrl('potMp'), potionInfo('mp').color); }
+    const sz = potionSizeFor(m.level).id;
+    for (const [kind, chance] of [['hp', 0.06], ['mp', 0.04]]) {
+      if (Math.random() >= chance) continue;
+      const key = potKey(kind, sz);
+      p.potions[key] = (p.potions[key] || 0) + 1;
+      ui.loot(`${potionInfo(kind).name} (${sz})`, 1, potionIconUrl(kind, sz), potionInfo(kind).color);
+    }
   }
   if (m.type && m.type.boss) bossLoot(m);
   rollLoot(m);
@@ -304,7 +310,7 @@ function playerDie() {
 
 function revivePlayer() {
   const p = game.player;
-  const spawn = villageSpawn();
+  const spawn = villageSpawn(p);
   const s = playerStats(p);
   p.x = spawn.x;
   p.y = spawn.y;

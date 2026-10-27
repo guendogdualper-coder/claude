@@ -18,8 +18,8 @@ function createMonster(typeId, x, y, opts = {}) {
   };
 }
 
-function createStone(zone, level, from = 0, to = 1) {
-  const spot = randomSpotInZone(zone, from, to);
+function createStone(zone, level, from = 0, to = 1, at = null) {
+  const spot = at || randomSpotInZone(zone, from, to);
   if (!spot) return null;
   const type = stoneType(level);
   const st = monsterStats(level, STONE.hpMul);
@@ -85,6 +85,14 @@ function populateDungeons(groupId) {
         groupId++;
       });
     }
+    // Seelensteine in Raum 2 und 4, an fester Stelle, kommen nach 25–40 s wieder
+    dg.def.stones.forEach((level, k) => {
+      const r = dg.rooms[k ? 3 : 1];
+      const stone = createStone(zone, level, 0, 1, { x: (r.x + r.w * 0.5) * TILE, y: (r.y + 2.2) * TILE });
+      stone.fixedSpot = true;
+      stone.stoneRespawn = [25, 40];
+      game.monsters.push(stone);
+    });
     const rb = dg.rooms[dg.rooms.length - 1];
     const boss = createMonster(dg.def.boss, (rb.cx + 0.5) * TILE, (rb.cy + 0.5) * TILE, { zone });
     boss.respawnDelay = BOSS_RESPAWN;
@@ -169,7 +177,7 @@ function spotNear(c, radius) {
 }
 
 function reviveMonster(m) {
-  if (m.isStone) {
+  if (m.isStone && !m.fixedSpot) {
     const spot = randomSpotInZone(m.zone, m.area[0], m.area[1]);
     if (spot) { m.x = m.homeX = spot.x; m.y = m.homeY = spot.y; }
     m.wave = 0;
@@ -207,8 +215,9 @@ function aggro(m, source) {
 function checkStoneWaves(stone) {
   const zone = stone.zone;
   // Verstärkung passend zur Stufe des Steins: Monster der Zone, die nicht viel stärker sind
-  const pool = zone.groups.map((g) => g[0]).filter((id) => MONSTER_TYPES[id].level <= stone.level + 2);
-  const types = pool.length ? pool : [zone.groups[0][0]];
+  const all = zone.dungeon ? zone.dungeon.mobs : zone.groups.map((g) => g[0]);
+  const pool = all.filter((id) => MONSTER_TYPES[id].level <= stone.level + 2);
+  const types = pool.length ? pool : [all[0]];
   while (stone.wave < STONE.waves.length && stone.hp / stone.maxHp <= STONE.waves[stone.wave]) {
     stone.wave++;
     const count = randInt(3, 4);

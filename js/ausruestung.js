@@ -109,6 +109,63 @@ function sortedStats(stats) {
   return STAT_ORDER.filter((k) => stats[k] != null).map((k) => [k, stats[k]]);
 }
 
+// --- Vergleich mit der angelegten Ausrüstung ----------------------------------------------
+// Rechnet die eigenen Werte einmal mit dem Gegenstand angelegt und vergleicht sie mit jetzt.
+// So zählen Boni, Statuspunkte und auch ein Schild, der bei Zweihandwaffen wegfällt, mit.
+// Ergebnis: [[Name, Unterschied als Text, +1 besser / -1 schlechter], ...]
+const COMPARE_STATS = [
+  ['atk', 'Angriff', 'flat'], ['def', 'Verteidigung', 'flat'], ['maxHp', 'Leben', 'flat'], ['maxMp', 'Mana', 'flat'],
+  ['crit', 'Kritisch', 'pct'], ['atkSpeed', 'Angriffstempo', 'pct'], ['skillDmg', 'Fertigkeitsschaden', 'pct'],
+  ['dodge', 'Ausweichen', 'pct'], ['block', 'Blocken', 'pct'], ['hpSteal', 'Lebensraub', 'pct'],
+  ['monsterDmg', 'Gegen Monster', 'pct'], ['regen', 'Regeneration', 'pct1'], ['speed', 'Lauftempo', 'speed'],
+  ['damageTaken', 'Erlittener Schaden', 'lessPct']
+];
+function compareItem(item) {
+  const p = game.player;
+  if (!item || isBook(item) || !canWear(item, p.classId)) return null;
+  const now = playerStats(p);
+  const eq = { ...p.equipment, [item.slot]: item };
+  if (item.slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded) eq.schild = null;
+  if (item.slot === 'schild' && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind].twoHanded) eq.waffe = null;
+  const test = playerStats({ ...p, equipment: eq });
+  const out = [];
+  for (const [k, name, fmt] of COMPARE_STATS) {
+    const a = now[k] || 0;
+    const b = test[k] || 0;
+    let d = b - a;
+    if (fmt === 'speed') d = a ? d / a : 0;
+    if (Math.abs(d) < (fmt === 'flat' ? 0.5 : 0.0005)) continue;
+    const better = fmt === 'lessPct' ? d < 0 : d > 0;
+    const sign = d > 0 ? '+' : '−';
+    const abs = Math.abs(d);
+    const val = fmt === 'flat' ? Math.round(abs) : fmt === 'pct1' ? (abs * 100).toFixed(1).replace('.', ',') + ' %/s' : (abs * 100).toFixed(1).replace('.', ',').replace(',0', '') + ' %';
+    out.push([name, `${sign}${val}`, better ? 1 : -1]);
+  }
+  return out;
+}
+
+// Grobe Gesamtbewertung für die Pfeile auf den Kacheln: >0 besser, <0 schlechter
+function compareScore(item) {
+  const diff = compareItem(item);
+  if (!diff || !diff.length) return 0;
+  const up = diff.filter((d) => d[2] > 0).length;
+  const down = diff.length - up;
+  const core = diff.filter(([n]) => n === 'Angriff' || n === 'Verteidigung' || n === 'Leben');
+  const coreScore = core.reduce((s, d) => s + d[2], 0);
+  return coreScore !== 0 ? coreScore : up - down;
+}
+
+function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung') {
+  const p = game.player;
+  if (!item || isBook(item)) return '';
+  if (!canWear(item, p.classId)) return '';
+  const diff = compareItem(item);
+  const worn = p.equipment[item.slot];
+  const head = `<small class="cmp-head">${title}${worn && worn !== item ? ` (angelegt: ${itemFullName(worn)})` : worn === item ? '' : ' (Platz ist leer)'}:</small>`;
+  if (!diff.length) return `<div class="cmp-box">${head}<span class="cmp same">gleich gut</span></div>`;
+  return `<div class="cmp-box">${head}${diff.map(([n, v, b]) => `<span class="cmp ${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲' : '▼'} ${v} ${n}</span>`).join('')}</div>`;
+}
+
 function sellValue(item) {
   if (isBook(item)) return BOOK_PRICE * item.count;
   const bonuses = (item.bonuses || []).length + (item.specials || []).length * 2;
@@ -341,8 +398,10 @@ function rollLoot(m) {
     addBooks(1, m);
   }
   if (m.isStone) {
-    const pool = m.zone.groups.map((g) => g[0]).filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
-    for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || m.zone.groups[0][0], 1, m);
+    // Dungeon-Steine geben die Teile, die auch ihr Boss fallen lässt
+    const all = m.zone.dungeon ? [MONSTER_TYPES[m.zone.dungeon.boss].boss.mat] : m.zone.groups.map((g) => g[0]).filter((id) => MOB_MATS[id]);
+    const pool = all.filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
+    for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || all[0], 1, m);
   }
   if (Math.random() < (drops ? drops.gear : 0.025)) {
     // Seelensteine ab Stufe 20 lassen schon Ausrüstung der nächsthöheren Gebiete fallen (Lv 30 ab Stein 20)
@@ -969,6 +1028,32 @@ const LOOT_ICON_ART = {
   potMp(ctx) { drawPotion(ctx, 'mp'); }
 };
 
+// Trank in einer Größe: S ist das normale Symbol, größere Flaschen werden größer und tragen ihr Zeichen
+function potionIconUrl(kind, size = 'S') {
+  const base = kind === 'hp' ? 'potHp' : 'potMp';
+  if (size === 'S') return lootIconUrl(base);
+  const key = 'pot:' + kind + size;
+  if (!iconCache.has(key)) {
+    const k = 1 + POTION_SIZES.findIndex((sz) => sz.id === size) * 0.07;
+    const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
+      ctx.save();
+      ctx.translate(0, 2);
+      ctx.scale(k * 0.92, k * 0.92);
+      LOOT_ICON_ART[base](ctx);
+      ctx.restore();
+      // Größenzeichen unten rechts
+      ctx.font = '900 9px sans-serif';
+      ctx.textAlign = 'center';
+      const w = size.length * 6 + 4;
+      box(ctx, 19 - w, 10, w, 10, 3, size === 'XXL' ? '#ffd34d' : '#f4ecd8');
+      ctx.fillStyle = '#1a1210';
+      ctx.fillText(size, 19 - w / 2, 18.5);
+    });
+    iconCache.set(key, sp.img.toDataURL());
+  }
+  return iconCache.get(key);
+}
+
 function lootIconUrl(kind) {
   const key = 'loot:' + kind;
   if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx)).img.toDataURL());
@@ -1012,8 +1097,12 @@ const gear = {
         `<span class="item-count">${item.count}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
     }
     const band = plusBand(item.plus);
+    // Pfeil: besser oder schlechter als das Angelegte (nur für Gegenstände in der Tasche)
+    const worn = Object.values(game.player.equipment).includes(item);
+    const score = worn ? 0 : compareScore(item);
+    const arrow = score > 0 ? '<span class="tile-cmp up">▲</span>' : score < 0 ? '<span class="tile-cmp down">▼</span>' : '';
     return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}>` +
-      `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` +
+      `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       `<span class="item-plus" style="color:${itemColor(item)}">+${item.plus}</span>` +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
   },
@@ -1232,6 +1321,7 @@ const gear = {
       (canWear(item, p.classId) ? '' : `<small class="need">Nur für ${CLASSES[item.cls].name}. Du kannst es verkaufen.</small>`) +
       `<span>${this.statsList(item)}</span>` +
       (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
+      (this.selected.where === 'bag' ? compareHtml(item) : '') +
       `</div><div class="item-actions">${actions}</div></div>` +
       `<div class="mat-row" id="matRow">${matBtns}</div>`;
     el.querySelectorAll('[data-mat]').forEach((b) => b.addEventListener('click', () => {
@@ -1299,7 +1389,7 @@ const gear = {
           `<img src="${itemIconUrl(item)}" alt="">` +
           `<div class="mi-info"><strong>${itemName(item)}</strong>` +
           `<small class="${tooLow ? 'need' : ''}">ab Stufe ${need} · ${ITEM_TIERS[tier].label}</small>` +
-          `<span class="mi-stats">${stats}</span></div>` +
+          `<span class="mi-stats">${stats}</span>${tooLow ? '' : compareHtml(item, 'Gegenüber jetzt')}</div>` +
           `<div class="mi-buy"><span class="price">${price.toLocaleString('de-DE')} Gold</span>` +
           `<button type="button" class="mini-btn" data-buy-gear="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen</button>` +
           (tooLow ? '' : `<button type="button" class="mini-btn primary" data-buy-equip="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen &amp; anlegen</button>`) +
@@ -1365,6 +1455,7 @@ const gear = {
     this.renderSmith(body);
   },
 
+  // Schmied: links die Figur mit der angelegten Ausrüstung, daneben die Tasche, rechts der Amboss
   renderSmith(body = document.getElementById('npcBody')) {
     const p = game.player;
     const refs = [];
@@ -1372,20 +1463,22 @@ const gear = {
     p.inventory.forEach((it, i) => { if (!isBook(it)) refs.push({ where: 'bag', key: i }); });
     if (this.smithRef && !itemAt(this.smithRef)) this.smithRef = null;
     if (!this.smithRef && refs.length) this.smithRef = refs[0];
-    const list = refs.map((r) => {
-      const it = itemAt(r);
-      const sel = this.smithRef && r.where === this.smithRef.where && r.key === this.smithRef.key;
-      return this.tile(it, `data-ref="${r.where}:${r.key}" class-sel="${sel}"`, r.where === 'equip' ? 'angelegt' : '');
-    }).join('');
+    const isSel = (where, key) => this.smithRef && this.smithRef.where === where && this.smithRef.key === key;
+    const equip = EQUIP_SLOTS.map((sl) => this.tile(p.equipment[sl.id], `data-ref="equip:${sl.id}" class-sel="${isSel('equip', sl.id)}"`, sl.name, sl.id)).join('');
+    const bag = p.inventory.map((it, i) => (isBook(it) ? '' : this.tile(it, `data-ref="bag:${i}" class-sel="${isSel('bag', i)}"`))).join('');
     body.innerHTML =
       `<p>„Zeig mir, was ich schmieden soll. Bis +3 passiert nichts Schlimmes, ab +7 kann es zerbrechen. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +
-      `<div class="smith"><div class="smith-list">${list || '<p class="hint-text">Du hast keine Ausrüstung.</p>'}</div>` +
+      `<div class="smith smith3">` +
+      `<section class="smith-equip"><h3>Angelegt</h3><div class="equip-doll"><canvas id="smithDoll" class="doll"></canvas><div class="equip-grid">${equip}</div></div></section>` +
+      `<section class="smith-bag"><h3>Tasche</h3><div class="smith-list">${bag || '<p class="hint-text">Keine Ausrüstung in der Tasche.</p>'}</div></section>` +
       `<div id="smithWork" class="smith-work"></div></div><p id="smithMsg" class="gear-msg"></p>`;
+    drawDoll(document.getElementById('smithDoll'));
     body.querySelectorAll('[data-ref]').forEach((b) => {
       if (b.getAttribute('class-sel') === 'true') b.classList.add('selected');
       b.addEventListener('click', () => {
         if (this.forging) return;
         const [where, key] = b.dataset.ref.split(':');
+        if (where === 'equip' && !p.equipment[key]) return;
         this.smithRef = { where, key: where === 'bag' ? Number(key) : key };
         this.renderSmith(body);
       });
@@ -1419,8 +1512,10 @@ const gear = {
       : step.fail === 'down' ? `Bei Fehlschlag fällt der Gegenstand auf +${item.plus - 1} zurück.`
         : 'Bei Fehlschlag zerbricht der Gegenstand!';
     const next = { ...item, plus: item.plus + 1 };
+    const where = this.smithRef.where === 'equip' ? '<span class="smith-where on">angelegt</span>' : '<span class="smith-where">in der Tasche</span>';
     el.innerHTML = this.anvil(item) +
-      `<p class="smith-step"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong> → <strong style="color:${itemColor(next)}">+${next.plus}</strong></p>` +
+      `<p class="smith-step">${where} <strong style="color:${itemColor(item)}">${itemFullName(item)}</strong> → <strong style="color:${itemColor(next)}">+${next.plus}</strong></p>` +
+      (this.smithRef.where === 'bag' ? compareHtml(item) : '') +
       `<p class="smith-stats">${this.statsList(item)}<br>→ ${this.statsList(item, item.plus + 1)}</p>` +
       `<div class="chance"><i style="width:${step.chance * 100}%"></i><span>Erfolgschance ${Math.round(step.chance * 100)} %</span></div>` +
       `<p class="smith-cost">Kosten: <b class="${p.gold >= cost.gold ? '' : 'lack'}">${cost.gold.toLocaleString('de-DE')} Gold</b> und ` +

@@ -380,28 +380,33 @@ function toggleRide(on) {
   ui.updateHorseButton();
 }
 
+// Trinken: nimmt die kleinste Größe, die das Fehlende auffüllt, sonst die größte vorhandene
 function usePotion(kind) {
   const p = game.player;
   if (!p || p.dead || p.potionCd > 0) return;
   const s = game.stats;
   const name = potionInfo(kind).plural;
-  if (p.potions[kind] <= 0) {
+  if (potionTotal(p, kind) <= 0) {
     ui.log('Keine ' + name + ' mehr. Die Händlerin im Dorf verkauft neue.', 'warn');
     return;
   }
-  if (kind === 'hp' && p.hp >= s.maxHp) return;
-  if (kind === 'mp' && p.mp >= s.maxMp) return;
-  p.potions[kind]--;
+  const hp = kind === 'hp';
+  if (hp && p.hp >= s.maxHp) return;
+  if (!hp && p.mp >= s.maxMp) return;
+  const missing = hp ? 1 - p.hp / s.maxHp : 1 - p.mp / s.maxMp;
+  const have = POTION_SIZES.filter((sz) => (p.potions[potKey(kind, sz.id)] || 0) > 0);
+  const size = have.find((sz) => (hp ? sz.heal : sz.mana) >= missing - 0.02) || have[have.length - 1];
+  p.potions[potKey(kind, size.id)]--;
   p.potionCd = 0.5;
   vfxPotion(p, kind);
-  if (kind === 'hp') {
-    const amount = Math.round(s.maxHp * 0.35);
+  if (hp) {
+    const amount = Math.round(s.maxHp * size.heal);
     p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 30, '+' + amount, 'heal');
+    addText(p.x, p.y - 30, `+${amount} (${size.id})`, 'heal');
   } else {
-    const amount = Math.round(s.maxMp * 0.4);
+    const amount = Math.round(s.maxMp * size.mana);
     p.mp = Math.min(s.maxMp, p.mp + amount);
-    addText(p.x, p.y - 30, '+' + amount + ' MP', 'mana');
+    addText(p.x, p.y - 30, `+${amount} MP (${size.id})`, 'mana');
   }
 }
 

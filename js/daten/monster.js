@@ -37,6 +37,21 @@ const MONSTER_TYPES = {
   feuerdaemon: { name: 'Feuerdämon', level: 66, shape: 'demon', color: '#c8402f', size: 15, speed: 125, range: 30, cooldown: 1.2, aggressive: true, hpMul: 1.2, atkMul: 1.35 },
   feuerdrache: { name: 'Feuerdrache', level: 69, shape: 'beast', color: '#a82a1a', size: 20, speed: 105, range: 170, cooldown: 1.8, aggressive: true, ranged: true, hpMul: 2.2, atkMul: 1.4, shot: '#ff9a4a' },
 
+  // Map 2: Schlangental, Stufe 30–50
+  sandviper: { name: 'Sandviper', level: 31, shape: 'snake', color: '#c8a060', size: 13, speed: 115, range: 28, cooldown: 1.3, aggressive: true, hpMul: 1.1, atkMul: 1.1 },
+  klapperschlange: { name: 'Klapperschlange', level: 34, shape: 'snake', color: '#a07a4a', size: 14, speed: 105, range: 30, cooldown: 1.4, aggressive: true, hpMul: 1.3, atkMul: 1.15 },
+  kobra: { name: 'Königskobra', level: 37, shape: 'snake', color: '#3a4a2a', size: 15, speed: 100, range: 200, cooldown: 1.9, aggressive: true, ranged: true, hpMul: 1.1, atkMul: 1.25, shot: '#c6f08a' },
+  riesenpython: { name: 'Riesenpython', level: 42, shape: 'snake', color: '#4a6a3a', size: 20, speed: 85, range: 36, cooldown: 1.8, aggressive: true, hpMul: 2.2, atkMul: 1.3 },
+  naga: { name: 'Naga-Krieger', level: 46, shape: 'snake', color: '#2a7a6a', size: 16, speed: 105, range: 34, cooldown: 1.4, aggressive: true, hpMul: 1.5, atkMul: 1.3 },
+  nagapriesterin: { name: 'Naga-Priesterin', level: 49, shape: 'snake', color: '#6a3a8a', size: 15, speed: 95, range: 230, cooldown: 2, aggressive: true, ranged: true, hpMul: 1.1, atkMul: 1.35, shot: '#c89aff' },
+  // Map 3: Donnerklamm, Stufe 50–75
+  trollkrieger: { name: 'Trollkrieger', level: 52, shape: 'brute', color: '#5a8a6a', size: 19, speed: 95, range: 34, cooldown: 1.7, aggressive: true, hpMul: 1.9, atkMul: 1.3 },
+  harpyie: { name: 'Harpyie', level: 55, shape: 'demon', color: '#8a6a9a', size: 14, speed: 130, range: 220, cooldown: 1.7, aggressive: true, ranged: true, hpMul: 1, atkMul: 1.3, shot: '#e0c8ff' },
+  minotaurus: { name: 'Minotaurus', level: 58, shape: 'brute', color: '#7a4a2a', size: 21, speed: 110, range: 36, cooldown: 1.6, aggressive: true, hpMul: 2.1, atkMul: 1.4 },
+  steintitan: { name: 'Steintitan', level: 64, shape: 'brute', color: '#8a8478', size: 24, speed: 70, range: 40, cooldown: 2.2, aggressive: true, hpMul: 2.6, atkMul: 1.4 },
+  gargoyle: { name: 'Gargoyle', level: 68, shape: 'demon', color: '#6a6a72', size: 15, speed: 125, range: 30, cooldown: 1.2, aggressive: true, hpMul: 1.3, atkMul: 1.4 },
+  donnerriese: { name: 'Donnerriese', level: 72, shape: 'brute', color: '#7a8aa8', size: 25, speed: 80, range: 200, cooldown: 2.2, aggressive: true, ranged: true, hpMul: 2.4, atkMul: 1.45, shot: '#9fd0ff' },
+
   // Dungeons (dungeon: kommen nur dort vor). Bosse haben eigene Fähigkeiten (boss):
   //   slam    Radius eines Stampfers, der vorher als roter Kreis am Boden angekündigt wird
   //   volley  Zahl der Geschosse einer Salve (0 = keine), shot: ihre Farbe

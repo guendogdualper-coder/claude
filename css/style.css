@@ -1745,3 +1745,25 @@ kbd {
 .ch-dot.busy { background: #ffd34d; box-shadow: 0 0 6px rgba(255, 211, 77, 0.8); }
 .ch-dot.here { background: #5ae05a; box-shadow: 0 0 8px rgba(90, 224, 90, 0.9); }
 .ch-btn { min-width: 96px; }
+
+/* Schmied: Figur mit angelegter Ausrüstung | Tasche | Amboss */
+.smith.smith3 { grid-template-columns: auto minmax(0, 0.9fr) minmax(0, 1.2fr); gap: 12px; }
+.smith3 h3 { margin: 0 0 6px; }
+.smith-bag .smith-list { max-height: 210px; overflow-y: auto; padding: 2px; }
+.smith-where { display: inline-block; padding: 0 6px; border-radius: 6px; font-size: 11px; font-weight: 700; background: #3a3024; color: var(--muted); margin-right: 4px; }
+.smith-where.on { background: #2a5a2a; color: #c8ffc0; }
+@media (max-width: 700px) {
+  .smith.smith3 { grid-template-columns: auto minmax(0, 1fr); }
+  .smith3 .smith-work { grid-column: 1 / -1; }
+}
+
+/* Vergleich mit der angelegten Ausrüstung: grün besser, rot schlechter */
+.cmp-box { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; align-items: center; }
+.cmp-head { width: 100%; color: var(--muted); font-size: 11px; }
+.cmp { padding: 1px 6px; border-radius: 6px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.cmp.up { color: #b8ffb0; background: rgba(60, 160, 60, 0.28); border: 1px solid rgba(110, 220, 110, 0.5); }
+.cmp.down { color: #ffb8a8; background: rgba(180, 50, 40, 0.28); border: 1px solid rgba(230, 100, 90, 0.5); }
+.cmp.same { color: var(--muted); }
+.item-tile .tile-cmp { position: absolute; left: 3px; bottom: 1px; font-size: 12px; font-weight: 900; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+.item-tile .tile-cmp.up { color: #6aff6a; }
+.item-tile .tile-cmp.down { color: #ff6a5a; }

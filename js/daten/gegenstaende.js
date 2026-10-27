@@ -189,7 +189,19 @@ const MOB_MATS = {
   ghul: { name: 'Ghulkralle', art: 'claw', color: '#8a9a70' },
   lavagolem: { name: 'Lavakern', art: 'core', color: '#ff5a1a' },
   feuerdaemon: { name: 'Feuerschwinge', art: 'feather', color: '#e0402a' },
-  feuerdrache: { name: 'Drachenschuppe', art: 'scale', color: '#c8302a' }
+  feuerdrache: { name: 'Drachenschuppe', art: 'scale', color: '#c8302a' },
+  sandviper: { name: 'Vipernschuppe', art: 'scale', color: '#c8a060' },
+  klapperschlange: { name: 'Klapperrassel', art: 'horn', color: '#d8c090' },
+  kobra: { name: 'Kobragift', art: 'core', color: '#8fd16a' },
+  riesenpython: { name: 'Pythonhaut', art: 'fur', color: '#4a6a3a' },
+  naga: { name: 'Nagaperle', art: 'crystal', color: '#7ad8c8' },
+  nagapriesterin: { name: 'Priesterinnensiegel', art: 'badge', color: '#9a5ac8' },
+  trollkrieger: { name: 'Trollhauer', art: 'fang', color: '#d8e0b0' },
+  harpyie: { name: 'Harpyienfeder', art: 'feather', color: '#9a7ab8' },
+  minotaurus: { name: 'Minotaurushorn', art: 'horn', color: '#e8d8b8' },
+  steintitan: { name: 'Titanenkern', art: 'core', color: '#c8b8a0' },
+  gargoyle: { name: 'Gargoylekralle', art: 'claw', color: '#7a7a82' },
+  donnerriese: { name: 'Donnerstein', art: 'crystal', color: '#9fd0ff' }
 };
 
 

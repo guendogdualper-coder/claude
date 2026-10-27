@@ -704,3 +704,40 @@ Mobile game HUD close-up: the round minimap in the top right corner with the zon
 ```
 2D fantasy illustration for a loading moment: a glowing golden channel crystal labelled "Kanal 1" passing from one chibi hero who waves goodbye and fades out to another chibi hero who catches it, small text "Der Kanal wird übernommen …", the village and monsters in the background keep moving. Cute game art, bold outlines, soft glow.
 ```
+
+## Schmied mit Figur, Vergleich, Tränke S–XXL, Map 2 und 3, Dungeon-Steine (Version 3.1)
+
+### Schmied mit Figur und Tasche
+```
+Mobile game blacksmith window in landscape, dark leather and gold East Asian fantasy style: on the left a framed chibi warrior doll wearing his equipment with six equipment slots around it labelled Waffe, Rüstung, Helm, Schild, Schuhe, Gürtel; in the middle the bag grid with items, each with a small green up-arrow or red down-arrow in the corner; on the right a glowing anvil with the selected sword, a label "in der Tasche", the upgrade "+0 → +1", a success chance bar and the cost in gold and soul splinters. Clean readable UI.
+```
+
+### Vergleich mit der angelegten Ausrüstung
+```
+Mobile game item detail card, dark fantasy style: a two-handed fire sword icon, its name and level, and below it a row of comparison chips against the currently equipped gear: green chips "▲ +30 Angriff" and red chips "▼ −19 Verteidigung", "▼ −17 % Angriffstempo", "▼ −14 % Blocken"; above the card a bag grid where better items have a bright green triangle and worse items a red triangle in the lower left corner. Clean game UI, clear color coding.
+```
+
+### Tränke in fünf Größen
+```
+Game item icon sheet for a 2D fantasy MMORPG: two rows of potions, top row red "Drachenblut" round-bellied flasks with wax seals, bottom row blue "Mondtau" crystal bottles with crescent stoppers, each row growing in five sizes from small to huge, every bottle with a small cream badge "S", "M", "L", "XL" and a golden badge "XXL"; the biggest bottles glow stronger. Bold dark outline, cel shading, plain dark background.
+```
+
+### Das Weltentor in Hayan
+```
+2D fantasy MMORPG scene, three-quarter top-down view: in an East Asian village square a large stone ring portal with golden studs and a swirling blue light inside stands next to a travel guide woman; a travel window shows "Map 1 · Hayan", "Map 2 · Schlangental (ab Stufe 30)" and "Map 3 · Donnerklamm (ab Stufe 50)" with "Reisen" buttons. Cute game art, bold outlines, soft blue glow.
+```
+
+### Map 2: Schlangental
+```
+2D fantasy MMORPG environment, three-quarter top-down view: a hot sandy desert with dunes, sandstone rocks, dead trees and a small oasis lake; sand vipers, rattlesnakes with rattles and king cobras with spread golden hoods slither in groups; in the distance the edge of a lush green jungle swamp where a giant green python, naga warriors with golden crowns and tridents and purple naga priestesses with glowing staves lurk. In the middle a safe oasis camp with flagstones, lanterns and a portal ring. Cute game art, bold outlines, warm light.
+```
+
+### Map 3: Donnerklamm
+```
+2D fantasy MMORPG environment, three-quarter top-down view: a deep grey-brown rocky canyon full of boulders with green troll warriors with red mohawks and tusks, purple feathered harpies and brown minotaurs with huge horns and a gold nose ring; further out a black basalt ridge with lava cracks where giant stone titans with glowing orange cracks, grey winged gargoyles and blue-skinned thunder giants with white beards roam. A safe camp in the middle with lanterns, braziers and a portal ring. Cute but dangerous game art, bold outlines.
+```
+
+### Seelensteine in den Dungeons
+```
+2D fantasy MMORPG dungeon room, three-quarter top-down view: a dark cave room with raised rock walls and violet braziers, a glowing soul stone obelisk in the middle with its name and level above it, cave spiders swarming out of it as reinforcements, a chibi warrior attacking it; small text "kommt nach 30 Sekunden wieder". Cute game art, bold outlines, moody glow.
+```

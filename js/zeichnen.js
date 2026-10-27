@@ -533,9 +533,10 @@ function drawSkeleton(ctx, a) {
 function drawNpc(ctx, n) {
   const fy = feetY(n);
   const portal = n.id === 'eingang' || n.id === 'ausgang';
-  if (!portal) drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
+  if (!portal && n.id !== 'weltentor') drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
   const step = n.moving ? Math.abs(Math.sin(game.time * 9)) * 1.5 : 0;
   blitSprite(ctx, npcSprite(n.id), n.x, fy - step, n.facing < 0);
+  if (n.id === 'weltentor') glow(ctx, n.x, fy - 30, 30, '#7ab8ff', 0.45 + 0.15 * Math.sin(game.time * 2.5));
   // Dungeon-Eingänge und -Ausgänge leuchten in der Farbe ihres Dungeons
   if (portal) {
     const col = DUNGEONS[n.dungeon].portal;

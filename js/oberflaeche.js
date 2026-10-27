@@ -444,8 +444,8 @@ const ui = {
     });
     this.set('gold', p.gold, (v) => { $('goldText').textContent = v.toLocaleString('de-DE'); });
     this.set('splinter', p.splinters, (v) => { $('splinterText').textContent = v; });
-    this.set('potHp', p.potions.hp, (v) => { $('potHpCount').textContent = v; });
-    this.set('potMp', p.potions.mp, (v) => { $('potMpCount').textContent = v; });
+    this.set('potHp', potionTotal(p, 'hp'), (v) => { $('potHpCount').textContent = v; });
+    this.set('potMp', potionTotal(p, 'mp'), (v) => { $('potMpCount').textContent = v; });
 
     const zone = zoneAt(p.x, p.y);
     this.set('zone', zone.id, () => {
@@ -608,8 +608,10 @@ const ui = {
       `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
       `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
       `<span title="Fertigkeitsbücher in der Tasche"><img src="${lootIconUrl('book')}" alt=""> ${totalBooks(p)}</span>` +
-      `<span title="${potionInfo('hp').name}"><img src="${lootIconUrl('potHp')}" alt=""> ${p.potions.hp}</span>` +
-      `<span title="${potionInfo('mp').name}"><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
+      POTION_SIZES.flatMap((sz) => ['hp', 'mp'].map((kind) => {
+        const n = p.potions[potKey(kind, sz.id)] || 0;
+        return n ? `<span title="${potionInfo(kind).name} (${sz.id})"><img src="${potionIconUrl(kind, sz.id)}" alt=""> ${n}</span>` : '';
+      })).join('') +
       MATERIALS.map((m) => `<span><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
       `</div>` +
       // Monster-Teile für den Schmied
@@ -726,6 +728,7 @@ const ui = {
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
     else if (npc.id === 'eingang' || npc.id === 'ausgang') this.renderDungeon(npc);
+    else if (npc.id === 'weltentor') this.renderWorldGate();
     else this.renderTalk(npc);
     $('panelNpc').hidden = false;
   },
@@ -736,12 +739,17 @@ const ui = {
       `<p>„Tränke und Schriftrollen für unterwegs. Waffen gibt es bei Goro, Rüstungen bei Mei.“</p>` +
       `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
       `<h3>Tränke und Schriftrollen</h3><div class="shop">` +
-      SHOP.map((item) =>
-        `<div class="shop-item"><img class="shop-icon potion-icon" src="${lootIconUrl(item.id === 'hp' ? 'potHp' : 'potMp')}" alt=""><strong>${item.name} <span class="price">${item.price} Gold</span></strong>` +
-        `<small>${item.text} Im Gepäck: <b id="have-${item.id}">${p.potions[item.id]}</b></small>` +
-        `<div class="buy"><button class="mini-btn" type="button" data-buy="${item.id}" data-n="1">1 kaufen</button>` +
-        `<button class="mini-btn" type="button" data-buy="${item.id}" data-n="10">10 kaufen</button></div></div>`
-      ).join('') +
+      SHOP.map((item) => POTION_SIZES.map((sz) => {
+        const key = potKey(item.id, sz.id);
+        const price = item.price * sz.price;
+        const low = p.level < sz.level;
+        const pct = Math.round((item.id === 'hp' ? sz.heal : sz.mana) * 100);
+        return `<div class="shop-item${low ? ' locked' : ''}"><img class="shop-icon potion-icon" src="${potionIconUrl(item.id, sz.id)}" alt="">` +
+          `<strong>${item.name} ${sz.id} <span class="price">${price.toLocaleString('de-DE')} Gold</span></strong>` +
+          `<small>${item.kind} (${sz.name}): ${pct} % ${item.id === 'hp' ? 'Leben' : 'Mana'}${low ? ` · ab Stufe ${sz.level}` : ''}. Im Gepäck: <b id="have-${key}">${p.potions[key] || 0}</b></small>` +
+          `<div class="buy"><button class="mini-btn" type="button" data-buy="${key}" data-n="1" ${low ? 'disabled' : ''}>1 kaufen</button>` +
+          `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10 kaufen</button></div></div>`;
+      }).join('')).join('') +
       `<div class="shop-item"><img class="shop-icon" src="${scrollIconUrl()}" alt=""><strong>${BLESSING.name} <span class="price">${BLESSING.price} Gold</span></strong>` +
       `<small>${BLESSING.text} Im Gepäck: <b id="have-scroll">${p.scrolls}</b></small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-scroll="1">Kaufen</button></div></div>` +
@@ -760,19 +768,23 @@ const ui = {
     msg.hidden = false;
   },
 
-  buy(id, n) {
+  // key: hp, hpM, hpL, hpXL, hpXXL bzw. mp…
+  buy(key, n) {
     const p = game.player;
-    const item = SHOP.find((s) => s.id === id);
-    const cost = item.price * n;
+    const kind = key.slice(0, 2);
+    const size = POTION_SIZES.find((sz) => potKey(kind, sz.id) === key);
+    const item = SHOP.find((s) => s.id === kind);
+    if (!size || !item || p.level < size.level) return;
+    const cost = item.price * size.price * n;
     if (p.gold < cost) {
-      this.shopMessage(`Dir fehlen ${cost - p.gold} Gold für ${n} × ${item.name}.`);
+      this.shopMessage(`Dir fehlen ${(cost - p.gold).toLocaleString('de-DE')} Gold für ${n} × ${item.name} ${size.id}.`);
       return;
     }
     p.gold -= cost;
-    p.potions[id] += n;
+    p.potions[key] = (p.potions[key] || 0) + n;
     $('shopMsg').hidden = true;
     $('shopGold').textContent = p.gold.toLocaleString('de-DE');
-    $('have-' + id).textContent = p.potions[id];
+    $('have-' + key).textContent = p.potions[key];
     saveGame();
   },
 
@@ -867,7 +879,7 @@ function skillListHtml(skills, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', ausgang: 'Verlassen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;

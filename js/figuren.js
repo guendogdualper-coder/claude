@@ -985,6 +985,23 @@ Object.assign(NPC_ART, {
       ctx.stroke();
     }
   },
+  // Weltentor: großer Steinring mit leuchtendem Wirbel (bringt zu Map 1, 2 und 3)
+  weltentor(ctx) {
+    oval(ctx, 0, -2, 26, 7, '#5a544c');
+    oval(ctx, 0, -3, 21, 5, '#7a746a');
+    box(ctx, -22, -10, 8, 9, 2, '#6e685e');
+    box(ctx, 14, -10, 8, 9, 2, '#6e685e');
+    paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, -30, 20, 26, 0, 0, Math.PI * 2); ctx.ellipse(0, -30, 13.5, 19.5, 0, 0, Math.PI * 2, true); }, '#8a8478', -20, -56, 40, 52);
+    oval(ctx, 0, -30, 13.5, 19.5, '#3a6ab8');
+    oval(ctx, 0, -30, 9, 14, '#7ab8ff');
+    oval(ctx, 0, -30, 4.5, 8, '#e8f6ff');
+    for (const [x, y] of [[0, -56], [-19, -38], [19, -38], [-19, -20], [19, -20]]) oval(ctx, x, y, 3.2, 3.2, '#c9a35a');
+    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, -30, 7, 0.5, 3.6);
+    ctx.stroke();
+  },
   // Ausgang im Dungeon: leuchtender Steinkreis am Boden
   ausgang(ctx) {
     oval(ctx, 0, -2, 18, 7, '#4a4440');
@@ -1594,6 +1611,82 @@ Object.assign(MONSTER_ART, {
     }
   },
 
+  // Map 2: Schlangen und Nagas
+  sandviper: { h: 34, draw: (ctx, f) => serpentArt(ctx, f, { body: '#c8a060', belly: '#f0dca8', mark: '#8a6a3a', eye: '#ffd34d' }) },
+  klapperschlange: { h: 36, draw: (ctx, f) => serpentArt(ctx, f, { scale: 1.1, body: '#a07a4a', belly: '#e8d0a0', mark: '#4a3018', eye: '#ffb04a', rattle: true }) },
+  kobra: { h: 44, draw: (ctx, f) => serpentArt(ctx, f, { scale: 1.2, body: '#3a4a2a', belly: '#c8b060', mark: '#1e2814', eye: '#ff3a2a', hood: '#c8b060' }) },
+  riesenpython: { h: 56, draw: (ctx, f) => serpentArt(ctx, f, { scale: 1.65, body: '#4a6a3a', belly: '#c8c890', mark: '#22341a', eye: '#ffd34d' }) },
+  naga: { h: 58, draw: (ctx, f) => nagaArt(ctx, f, { scale: 1.15, body: '#2a7a6a', belly: '#a8e0c8', mark: '#154a40', skin: '#5aa890', armor: '#c9a35a', trim: '#7a5a2a', hair: '#1a3a4a', eye: '#ffd34d' }) },
+  nagapriesterin: { h: 58, draw: (ctx, f) => nagaArt(ctx, f, { scale: 1.12, body: '#6a3a8a', belly: '#d8b8f0', mark: '#3a1a5a', skin: '#b890c8', armor: '#3a2a5a', trim: '#e8c84a', hair: '#e8e0f0', eye: '#c89aff', staff: '#c89aff' }) },
+
+  // Map 3: Donnerklamm
+  trollkrieger: {
+    h: 64, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.45, belly: true, skin: '#5a8a6a', pants: '#4a3a2a', boots: '#2a2018', sleeve: '#5a8a6a', gloves: '#4a7a5a', claws: true,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 9], [cx - 2, cy - 17], [cx + 2, cy - 9]], '#c8302a');
+        oval(ctx, cx + 8, cy + 1, 3.6, 3, '#4a7a5a');
+        poly(ctx, [[cx + 5, cy + 6], [cx + 6.5, cy - 1], [cx + 8, cy + 6]], '#f4ecd8');
+        monsterEye(ctx, cx + 5, cy - 2, 1.6, '#ffd34d', true);
+      }
+    })
+  },
+  harpyie: {
+    h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.05, skin: '#d8b8a8', pants: '#5a3a6a', boots: '#3a2a3a', torso: '#6a4a7a', sleeve: '#8a6a9a', gloves: '#3a2a3a', wings: '#8a6a9a', claws: true,
+      head: (ctx, cx, cy) => {
+        for (const [dx, h] of [[-6, 14], [-2, 17], [2, 13]]) poly(ctx, [[cx + dx - 2, cy - 8], [cx + dx, cy - 8 - h], [cx + dx + 2, cy - 8]], '#c89ad8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.7, '#ff4aff', true);
+        poly(ctx, [[cx + 9, cy + 1], [cx + 13, cy + 2.5], [cx + 9, cy + 4]], '#e8c84a');
+      }
+    })
+  },
+  minotaurus: {
+    h: 72, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.6, belly: true, skin: '#7a4a2a', pants: '#3a2a1a', boots: '#1e1610', sleeve: '#7a4a2a', gloves: '#5a3418', claws: false,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 4, cy - 8], [cx - 14, cy - 12], [cx - 16, cy - 20], [cx - 10, cy - 13], [cx - 1, cy - 10]], '#e8dcc0');
+        poly(ctx, [[cx + 3, cy - 9], [cx + 10, cy - 15], [cx + 9, cy - 22], [cx + 13, cy - 14], [cx + 6, cy - 7]], '#e8dcc0');
+        oval(ctx, cx + 8, cy + 3, 5, 3.8, '#9a6a4a');
+        stroke(ctx, '#e8c84a', 1.2, [[cx + 11, cy + 4], [cx + 11, cy + 7]]);
+        monsterEye(ctx, cx + 5, cy - 2, 1.7, '#ff3a2a', true);
+      }
+    })
+  },
+  steintitan: {
+    h: 82, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.85, belly: true, skin: '#8a8478', pants: '#5a544a', boots: '#3a3630', sleeve: '#8a8478', gloves: '#6a6458', cracks: '#ffb04a',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 9, cy - 8], [cx - 4, cy - 12], [cx + 4, cy - 12], [cx + 9, cy - 7]], '#6a6458');
+        monsterEye(ctx, cx + 5, cy - 1, 2, '#ffb04a', true);
+        ctx.globalAlpha = 0.6;
+        dot(ctx, cx + 5, cy - 1, 4, 4, '#ff8a2a');
+        ctx.globalAlpha = 1;
+      }
+    })
+  },
+  gargoyle: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.12, skin: '#6a6a72', pants: '#3a3a40', boots: '#2a2a30', torso: '#5a5a62', sleeve: '#6a6a72', gloves: '#3a3a40', wings: '#4a4a52', tail: true, claws: true, runes: '#9fd0ff',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 8], [cx - 11, cy - 19], [cx - 2, cy - 10]], '#3a3a40');
+        poly(ctx, [[cx + 2, cy - 9.5], [cx + 4, cy - 20], [cx + 7, cy - 9]], '#3a3a40');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#9fd0ff', true);
+        poly(ctx, [[cx + 6, cy + 5], [cx + 6.8, cy + 7], [cx + 7.4, cy + 5]], '#ffffff');
+      }
+    })
+  },
+  donnerriese: {
+    h: 86, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.95, belly: true, skin: '#7a8aa8', pants: '#3a4a6a', boots: '#2a3248', sleeve: '#7a8aa8', gloves: '#5a6a88', cracks: '#bfe8ff',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 2, cy + 2], [cx + 10, cy + 2], [cx + 6, cy + 13], [cx + 1, cy + 10]], '#f4f8fc');
+        poly(ctx, [[cx - 9, cy - 8], [cx - 2, cy - 15], [cx + 6, cy - 14], [cx + 10, cy - 7]], '#e8eef8');
+        monsterEye(ctx, cx + 5.5, cy - 1.5, 1.7, '#9fd0ff', true);
+      }
+    })
+  },
+
   // Dungeon-Monster und Bosse
   hoehlenspinne: { h: 30, draw: (ctx, f) => { ctx.scale(1.3, 1.3); spiderArt(ctx, f, { body: '#4a3a5a', mark: '#b48cff', eye: '#ff4aff' }); } },
   giftspinne: { h: 29, draw: (ctx, f) => { ctx.scale(1.25, 1.25); spiderArt(ctx, f, { body: '#2e4a24', mark: '#c6f08a', eye: '#d8ff6a' }); } },
@@ -1660,6 +1753,78 @@ Object.assign(MONSTER_ART, {
     }
   }
 });
+
+// Schlange von der Seite (Kopf rechts): Körper als Kette von Ringen, die sich schlängeln,
+// der Hals richtet sich auf. o: body, belly, mark (Muster), eye, hood (Kobra), rattle, noHead
+function serpentArt(ctx, f, o) {
+  ctx.save();
+  if (o.scale) ctx.scale(o.scale, o.scale);
+  const belly = o.belly || lighter(o.body, 0.35);
+  const mark = o.mark || darker(o.body, 0.35);
+  const ph = f * 1.4;
+  const pts = [];
+  for (let k = 0; k <= 14; k++) {
+    const t = k / 14;
+    pts.push([-21 + t * 26, -4 - Math.sin(t * 6.5 + ph) * 3 * (1 - t * 0.5), 1.6 + t * 4.4]);
+  }
+  if (o.rattle) for (let k = 0; k < 3; k++) oval(ctx, -23 - k * 2.6, pts[0][1] - 1 - k, 1.9, 1.5, k % 2 ? '#c8b080' : '#e8d8a8');
+  for (const [x, y, r] of pts) oval(ctx, x, y, r, r * 0.85, o.body);
+  for (const [x, y, r] of pts) dot(ctx, x, y + r * 0.4, r * 0.75, r * 0.32, belly);
+  pts.forEach(([x, y, r], k) => { if (k % 2 === 0 && k > 1) dot(ctx, x, y - r * 0.35, r * 0.45, r * 0.3, mark); });
+  if (!o.noHead) {
+    const sway = [0, 1, 0, -1][f];
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = o.body;
+    ctx.lineWidth = 8.5;
+    ctx.beginPath();
+    ctx.moveTo(4, -6);
+    ctx.quadraticCurveTo(17, -12, 13 + sway, -24);
+    ctx.stroke();
+    ctx.strokeStyle = belly;
+    ctx.lineWidth = 3.2;
+    ctx.beginPath();
+    ctx.moveTo(7, -5);
+    ctx.quadraticCurveTo(19, -11, 16 + sway, -22);
+    ctx.stroke();
+    if (o.hood) {
+      oval(ctx, 13 + sway, -26, 8.5, 11, o.hood);
+      dot(ctx, 10 + sway, -27, 1.8, 2.4, '#1a1a10');
+      dot(ctx, 16 + sway, -27, 1.8, 2.4, '#1a1a10');
+    }
+    paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(17 + sway, -28, 7.2, 4.6, -0.15, 0, Math.PI * 2); }, o.body, 10, -33, 15, 10);
+    dot(ctx, 21 + sway, -26.5, 3.2, 1.6, belly);
+    monsterEye(ctx, 18.5 + sway, -29.5, 1.5, o.eye || '#ffd34d', true);
+    if (f % 2 === 1) stroke(ctx, '#d8303a', 0.9, [[24 + sway, -26.5], [28 + sway, -26], [30 + sway, -28]]);
+    if (f % 2 === 1) stroke(ctx, '#d8303a', 0.9, [[28 + sway, -26], [30 + sway, -24.5]]);
+  }
+  ctx.restore();
+}
+
+// Naga: Schlangenleib mit Oberkörper, Krone und Dreizack bzw. Stab
+function nagaArt(ctx, f, o) {
+  ctx.save();
+  ctx.scale(o.scale || 1, o.scale || 1);
+  serpentArt(ctx, f, { body: o.body, belly: o.belly, mark: o.mark, noHead: true });
+  const bob = [0, -0.6, 0, 0.6][f];
+  poly(ctx, [[0, -8], [10, -8], [9, -30 + bob], [1, -30 + bob]], o.skin);
+  box(ctx, -0.5, -24 + bob, 11, 9, 2, o.armor);
+  stroke(ctx, o.trim, 1.2, [[-0.5, -20 + bob], [10.5, -20 + bob]]);
+  oval(ctx, 5.5, -36 + bob, 6.5, 6.5, o.skin);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.arc(5.5, -37 + bob, 7, Math.PI * 0.9, Math.PI * 2.1); ctx.closePath(); }, o.hair, -1.5, -44 + bob, 14, 8);
+  monsterEye(ctx, 8.5, -36 + bob, 1.4, o.eye, true);
+  poly(ctx, [[0.5, -42 + bob], [2, -47 + bob], [4, -43 + bob], [5.5, -48 + bob], [7, -43 + bob], [9, -47 + bob], [10.5, -42 + bob]], '#e8c84a');
+  // Arm und Waffe
+  stroke(ctx, o.skin, 3, [[8, -26 + bob], [14, -20 + bob]]);
+  if (o.staff) {
+    stroke(ctx, '#6b4a2e', 1.8, [[15, -6], [15, -40 + bob]]);
+    oval(ctx, 15, -42 + bob, 3.6, 3.6, o.staff);
+  } else {
+    stroke(ctx, '#c9a35a', 1.6, [[15, -4], [15, -42 + bob]]);
+    for (const dx of [-3, 0, 3]) stroke(ctx, '#d9dde2', 1.3, [[15 + dx, -42 + bob], [15 + dx, -47 + bob]]);
+    stroke(ctx, '#d9dde2', 1.3, [[12, -42 + bob], [18, -42 + bob]]);
+  }
+  ctx.restore();
+}
 
 // Pferd von der Seite (Füße bei y = 0, Kopf nach rechts). frame 0–3: Galopp
 function horseArt(ctx, frame, o = {}) {
