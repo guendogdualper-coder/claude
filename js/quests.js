@@ -100,7 +100,7 @@ function rewardHtml(reward, xp) {
   const li = [];
   if (xp) li.push(`${xp.toLocaleString('de-DE')} Erfahrung`);
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
-  if (reward.potions) li.push(`${reward.potions} rote und ${reward.potions} blaue Tränke`);
+  if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
   if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch`);
   for (const [id, n] of Object.entries(reward.mats || {})) {

@@ -238,6 +238,14 @@ function vfxPillar(p, color, dur = 0.8) {
   particles(p.x, feetY(p), { count: 18, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.35, speed: [60, 160], life: [0.4, 0.8], size: [1.5, 3], jitter: 12, drag: 1.5 });
 }
 
+// Trinken: Drachenblut lässt rote Funken und kleine Herzen aufsteigen, Mondtau blaue Sterne
+function vfxPotion(p, kind) {
+  const hp = kind === 'hp';
+  const col = hp ? ['#ff5a3a', '#ffb48a', '#ffd96a'] : ['#7ad8ff', '#d8f4ff', '#2f7ae8'];
+  addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 34, dur: 0.5, color: hp ? '#ff6a4a' : '#6ab8ff', width: 3, grow: true });
+  particles(p.x, feetY(p) - 4, { count: 22, color: col, angle: -Math.PI / 2, spread: 0.6, speed: [40, 120], life: [0.5, 0.9], size: [1.5, 3.2], shape: hp ? 'ember' : 'spark', jitter: 14, drag: 1.2 });
+}
+
 // --- Effekte zeichnen ---------------------------------------------------------------------
 
 function addEffect(e) {

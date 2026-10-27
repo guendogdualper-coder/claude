@@ -62,8 +62,9 @@ const ZONES = [
   }
 ];
 
-// Waren der Händlerin im Dorf
+// Waren der Händlerin im Dorf: die beiden Tränke
 const SHOP = [
-  { id: 'hp', name: 'Roter Trank', text: 'Stellt 35 % Leben wieder her. Taste Q.', price: 15 },
-  { id: 'mp', name: 'Blauer Trank', text: 'Stellt 40 % Mana wieder her. Taste E.', price: 20 }
+  { id: 'hp', name: 'Drachenblut', plural: 'Drachenblut-Tränke', kind: 'Lebenstrank', color: '#ff9a8a', text: 'Lebenstrank: Stellt 35 % Leben wieder her. Taste Q.', price: 15 },
+  { id: 'mp', name: 'Mondtau', plural: 'Mondtau-Tränke', kind: 'Manatrank', color: '#9ac0ff', text: 'Manatrank: Stellt 40 % Mana wieder her. Taste E.', price: 20 }
 ];
+const potionInfo = (kind) => SHOP.find((x) => x.id === kind);

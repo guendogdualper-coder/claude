@@ -13,6 +13,8 @@ const ui = {
     $('btnHelp').addEventListener('click', () => this.toggle('panelHelp'));
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
     onPress($('potHp'), () => usePotion('hp'));
+    $('potHp').querySelector('.flask').src = lootIconUrl('potHp');
+    $('potMp').querySelector('.flask').src = lootIconUrl('potMp');
     onPress($('potMp'), () => usePotion('mp'));
     $('btnLoot').addEventListener('click', () => this.toggle('panelLoot'));
     $('lootFeed').addEventListener('click', () => this.toggle('panelLoot'));
@@ -173,25 +175,28 @@ const ui = {
       const rank = skillRank(p.skillLevels[i]);
       btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
-      btn.title = `${sk.name} (${i + 1}) – ${sk.text} Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s`;
+      btn.title = `${sk.name} (${i + 1}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s`;
       btn.innerHTML = `<span class="key">${i + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
       onPress(btn, () => useSkill(i));
       wrap.append(btn);
-      // Plus-Knopf, wenn etwas geht: unter Stufe 15 direkt verbessern, sonst das Charakterfenster öffnen
+      // Plus-Knopf, wenn etwas geht: Punkt setzen, auf 17 direkt erwecken, Buch lesen.
+      // Nur der Schritt in einen höheren Rang (kostet mehrere Bücher) läuft über das Charakterfenster.
       const acts = skillActions(p, i).filter((a) => a.ok);
       if (acts.length) {
+        const act = acts.find((a) => a.type === 'point') || acts.find((a) => a.type === 'rankup' && rank < 0) || acts.find((a) => a.type === 'book');
+        const awaken = act && act.type === 'rankup';
         const plus = document.createElement('button');
         plus.type = 'button';
-        plus.className = 'plus';
-        plus.title = sk.name + ' verbessern';
-        plus.textContent = '+';
+        plus.className = 'plus' + (awaken ? ' awaken' : '');
+        plus.title = awaken ? sk.name + ' erwecken' : sk.name + ' verbessern';
+        plus.textContent = awaken ? 'E' : '+';
         plus.addEventListener('pointerdown', (e) => e.stopPropagation());
         plus.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (acts.length === 1 && acts[0].type === 'point') upgradeSkill(i, 'point');
+          if (act) upgradeSkill(i, act.type);
           else this.toggle('panelChar');
         });
         wrap.append(plus);
@@ -382,8 +387,8 @@ const ui = {
       `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
       `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
       `<span title="Fertigkeitsbücher"><img src="${lootIconUrl('book')}" alt=""> ${p.books}</span>` +
-      `<span><img src="${lootIconUrl('potHp')}" alt=""> ${p.potions.hp}</span>` +
-      `<span><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
+      `<span title="${potionInfo('hp').name}"><img src="${lootIconUrl('potHp')}" alt=""> ${p.potions.hp}</span>` +
+      `<span title="${potionInfo('mp').name}"><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
       MATERIALS.map((m) => `<span><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
       `</div>` +
       // Monster-Teile für den Schmied
@@ -503,7 +508,7 @@ const ui = {
       `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
       `<h3>Tränke und Schriftrollen</h3><div class="shop">` +
       SHOP.map((item) =>
-        `<div class="shop-item"><span class="shop-icon potion-icon ${item.id}"></span><strong>${item.name} <span class="price">${item.price} Gold</span></strong>` +
+        `<div class="shop-item"><img class="shop-icon potion-icon" src="${lootIconUrl(item.id === 'hp' ? 'potHp' : 'potMp')}" alt=""><strong>${item.name} <span class="price">${item.price} Gold</span></strong>` +
         `<small>${item.text} Im Gepäck: <b id="have-${item.id}">${p.potions[item.id]}</b></small>` +
         `<div class="buy"><button class="mini-btn" type="button" data-buy="${item.id}" data-n="1">1 kaufen</button>` +
         `<button class="mini-btn" type="button" data-buy="${item.id}" data-n="10">10 kaufen</button></div></div>`
@@ -573,6 +578,47 @@ function pathChoiceHtml(c, selected) {
   ).join('') + '</div>';
 }
 
+// Werte einer Fertigkeit auf einer Stufe, z. B. [['Angriff', '+29,6 %'], ['Dauer', '238 s']]
+const SKILL_EFFECT_LABELS = {
+  atk: 'Angriff', crit: 'Krit', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', damageTaken: 'Erlittener Schaden',
+  def: 'Verteidigung', dodge: 'Ausweichen', skillDmg: 'Fertigkeitsschaden', regen: 'Leben je s', reflect: 'Rückwurf', hpSteal: 'Lebensraub'
+};
+function skillPct(v) {
+  const n = Math.round(v * 1000) / 10;
+  return String(n).replace('.', ',') + ' %';
+}
+function skillStats(sk, lvl) {
+  const out = [];
+  const scale = buffScale(lvl);
+  if (sk.dmg) out.push(['Schaden', skillPct(sk.dmg * dmgScale(lvl)) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  if (sk.type === 'heal') out.push(['Heilung', skillPct(sk.amount * scale) + ' Leben']);
+  if (sk.shield) out.push(['Schild', skillPct(sk.shield * scale) + ' Leben']);
+  if (sk.type === 'summon') {
+    out.push(['Skelette', sk.count + ' × ' + skillPct(sk.hp * scale) + ' Leben']);
+    out.push(['Skelett-Angriff', skillPct(sk.atk * dmgScale(lvl))]);
+  }
+  if (sk.vulnerable) out.push(['Verwundbar', '+' + skillPct(sk.vulnerable * scale)]);
+  for (const [k, v] of Object.entries(sk.effects || {})) {
+    if (typeof v !== 'number' || !SKILL_EFFECT_LABELS[k]) continue;
+    out.push([SKILL_EFFECT_LABELS[k], (v < 0 ? '−' : '+') + skillPct(Math.abs(v * scale))]);
+  }
+  if (sk.duration) out.push(['Dauer', skillDuration(sk, lvl) + ' s']);
+  return out;
+}
+
+// Aktuelle Werte, darunter die nächste Stufe mit den Zuwächsen
+function skillStatsHtml(sk, lvl) {
+  const now = skillStats(sk, lvl);
+  if (!now.length) return '';
+  let html = '<span class="sk-stats">' + now.map(([k, v]) => `${k} <b>${v}</b>`).join(' · ') + '</span>';
+  if (lvl < MAX_SKILL_LEVEL) {
+    const next = skillStats(sk, lvl + 1);
+    html += `<span class="sk-next">Stufe ${skillLevelText(lvl + 1)}: ` +
+      next.map(([k, v], j) => `${k} <b${now[j] && now[j][1] !== v ? ' class="up"' : ''}>${v}</b>`).join(' · ') + '</span>';
+  }
+  return html;
+}
+
 function skillListHtml(skills, p) {
   return '<ul class="skill-list">' + skills.map((sk, i) => {
     let meta = `ab Stufe ${sk.unlock}<br>${sk.mp} Mana · ${sk.cooldown} s`;
@@ -586,7 +632,7 @@ function skillListHtml(skills, p) {
         : `ab Stufe ${sk.unlock}`;
     }
     return `<li><img class="icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
-      `<span class="info"><strong>${i + 1}. ${sk.name}</strong><span>${sk.text}</span></span>` +
+      `<span class="info"><strong>${i + 1}. ${sk.name}</strong><span>${sk.text}</span>${p && p.level >= sk.unlock ? skillStatsHtml(sk, p.skillLevels[i]) : ''}</span>` +
       `<span class="meta">${meta}</span></li>`;
   }).join('') + '</ul>';
 }

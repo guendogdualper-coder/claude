@@ -535,3 +535,37 @@ Small item icon for a 2D fantasy MMORPG: a thick purple leather skill book with 
 ```
 Mobile game HUD layout in landscape: system messages like "Stein der Wut zerstört! +2.417 EP" and "Aura des Schwertes ist aktiv" stacked on the middle of the left edge in small dark translucent pills, the bottom left kept free for a future chat window marked with a dashed outline, loot notifications at the bottom right next to the skill arc. Clean dark fantasy style.
 ```
+
+## Erwecken auf 17, Werte je Stufe und neue Tränke (Version 2.5)
+
+Fertigkeiten werden mit jedem Punkt spürbar stärker, Erwecken direkt auf 17, neue Tränke.
+
+### Erwecken auf Stufe 17
+```
+Mobile game HUD close-up in landscape, dark fantasy style: a round skill button with a sword aura icon and a small "17" level badge; above it a glowing light-blue round button with a bold white letter "E" pulsing with a soft blue halo, inviting to awaken the skill. Second panel: the same skill button after awakening, now with a light-blue rank ring, a "E1" badge and a burst of blue light particles, banner text "Aura des Schwertes: Erwacht" at the top. Clean game UI, bold outlines.
+```
+
+### Werte je Stufe im Charakterfenster
+```
+Mobile game character window, dark leather and gold fantasy style, list of skills: each row has a round skill icon, the skill name, a short description, a line with the current values in warm gold ("Angriff +29,6 % · Krit +7,4 % · Dauer 238 s") and below it the next level preview in muted text where every value that increases is highlighted in bright green ("Stufe E1: Angriff +31,5 % · Krit +7,9 % · Dauer 248 s"), with buttons "Verbessern" or a glowing purple "Erwecken → E1" on the right. Clean readable UI.
+```
+
+### Buff wird mit jeder Stufe stärker
+```
+2D game illustration, three-quarter top-down view, four chibi warriors in a row showing the Sword Aura buff at levels 1, 17, E1 and V: the golden rune circle on the ground grows bigger and brighter from left to right, more golden motes rise, the sword glows stronger, and at V the aura turns red-gold with flames. Small value tags under each: "+20 %", "+29,6 %", "+31,5 %", "+47,9 %". Cute fantasy game art, bold outlines, cel shading, plain green background.
+```
+
+### Drachenblut (Lebenstrank)
+```
+Game item icon for a 2D fantasy MMORPG: a round-bellied glass potion flask filled with glowing crimson-red liquid called "Drachenblut", short neck with a golden collar, cork sealed with dripping red wax, a golden band around the belly with a small golden heart emblem, tiny bubbles and a warm orange inner glow, white glass highlights on the left. Bold dark outline, cel shading, plain dark background, no text.
+```
+
+### Mondtau (Manatrank)
+```
+Game item icon for a 2D fantasy MMORPG: a faceted crystal potion bottle shaped like a gem with a pointed bottom, filled with glowing sky-blue to deep-blue liquid called "Mondtau", small white four-pointed star sparkles floating inside, silver neck and a silver crescent-moon stopper, visible cut facet lines and a cool blue halo. Bold dark outline, cel shading, plain dark background, no text.
+```
+
+### Trinken
+```
+2D game effect sheet, three-quarter top-down view: a chibi hero drinking a red potion with a red ring expanding at the feet and red-orange embers rising, and the same hero drinking a blue potion with a blue ring and white-blue sparkles rising. Next to it the HUD potion buttons: round dark slots with the red Drachenblut flask and the blue Mondtau crystal bottle and small counters. Cute fantasy game art, additive glow.
+```

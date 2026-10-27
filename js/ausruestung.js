@@ -665,7 +665,136 @@ function mobMatIconUrl(id) {
   return iconCache.get(key);
 }
 
-// Kleine Symbole für die Beuteanzeige: Gold, Seelensplitter, rote und blaue Tränke
+// Tränke: Drachenblut (Leben) in einer bauchigen Flasche mit Wachssiegel,
+// Mondtau (Mana) in einer geschliffenen Kristallflasche mit Mondsichel-Stöpsel.
+function drawPotion(ctx, kind) {
+  if (kind === 'hp') {
+    const body = () => { ctx.beginPath(); ctx.arc(0, 5, 11.5, 0, Math.PI * 2); };
+    // Glühen hinter der Flasche
+    let g = ctx.createRadialGradient(0, 5, 2, 0, 5, 18);
+    g.addColorStop(0, 'rgba(255, 90, 60, 0.45)');
+    g.addColorStop(1, 'rgba(255, 90, 60, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-20, -14, 40, 38);
+    // Glas
+    box(ctx, -4, -11, 8, 9, 1.5, '#9a8a8a');
+    body();
+    ctx.fillStyle = '#4a2028';
+    ctx.fill();
+    // Flüssigkeit mit Wölbung
+    ctx.save();
+    body();
+    ctx.clip();
+    g = ctx.createLinearGradient(0, -2, 0, 17);
+    g.addColorStop(0, '#ff5a3a');
+    g.addColorStop(0.5, '#d01e22');
+    g.addColorStop(1, '#6a0a16');
+    ctx.fillStyle = g;
+    ctx.fillRect(-12, -1, 24, 19);
+    dot(ctx, 0, -1, 11.5, 2.4, '#ff8a5a');
+    dot(ctx, 0, -1, 8, 1.3, '#ffb48a');
+    g = ctx.createRadialGradient(-2, 8, 1, 0, 8, 10);
+    g.addColorStop(0, 'rgba(255, 200, 120, 0.7)');
+    g.addColorStop(1, 'rgba(255, 200, 120, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-12, -2, 24, 20);
+    for (const [x, y, r] of [[3, 11, 1.4], [-4, 6, 1], [5, 4, 0.8], [-1, 13, 0.9]]) dot(ctx, x, y, r, r, 'rgba(255, 220, 180, 0.85)');
+    ctx.restore();
+    // Goldener Ring um den Bauch und Herz-Siegel
+    ctx.strokeStyle = '#e8b83a';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(0, 6, 11.4, 3.2, 0, 0.15, Math.PI - 0.15);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd96a';
+    ctx.beginPath();
+    ctx.moveTo(0, 12.5);
+    ctx.bezierCurveTo(-4.5, 9.5, -3.5, 5.5, 0, 7.5);
+    ctx.bezierCurveTo(3.5, 5.5, 4.5, 9.5, 0, 12.5);
+    ctx.fill();
+    // Glanz
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(0, 5, 8.5, Math.PI * 1.05, Math.PI * 1.45);
+    ctx.stroke();
+    dot(ctx, 6, -0.5, 1.2, 1.2, 'rgba(255, 255, 255, 0.8)');
+    stroke(ctx, 'rgba(255, 255, 255, 0.6)', 1, [[-2.5, -10], [-2.5, -3]]);
+    // Halsring, Korken und rotes Wachssiegel
+    box(ctx, -5.5, -12.5, 11, 2.6, 1.2, '#e8b83a');
+    box(ctx, -3.5, -17.5, 7, 5.5, 1.5, '#8a5a32');
+    poly(ctx, [[-5, -17], [5, -17], [5.5, -14], [3, -13.2], [2, -11.5], [0.6, -13.5], [-3, -13.4], [-5.5, -14.5]], '#b81a24');
+    dot(ctx, -1.5, -15.8, 1.6, 0.8, 'rgba(255, 160, 150, 0.8)');
+    return;
+  }
+  // Mondtau
+  const shape = [[-4, -6], [4, -6], [10.5, 0], [9, 11], [0, 17], [-9, 11], [-10.5, 0]];
+  const path = () => {
+    ctx.beginPath();
+    shape.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+  };
+  let g = ctx.createRadialGradient(0, 5, 2, 0, 5, 19);
+  g.addColorStop(0, 'rgba(90, 170, 255, 0.5)');
+  g.addColorStop(1, 'rgba(90, 170, 255, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-20, -14, 40, 38);
+  path();
+  ctx.fillStyle = '#3a4a7a';
+  ctx.fill();
+  ctx.save();
+  path();
+  ctx.clip();
+  g = ctx.createLinearGradient(0, 0, 0, 17);
+  g.addColorStop(0, '#7ad8ff');
+  g.addColorStop(0.45, '#2f7ae8');
+  g.addColorStop(1, '#1a2a8a');
+  ctx.fillStyle = g;
+  ctx.fillRect(-11, 1, 22, 17);
+  dot(ctx, 0, 1, 10.5, 2, '#b8ecff');
+  g = ctx.createRadialGradient(0, 9, 1, 0, 9, 9);
+  g.addColorStop(0, 'rgba(220, 245, 255, 0.85)');
+  g.addColorStop(1, 'rgba(220, 245, 255, 0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(-11, 0, 22, 18);
+  // Sternenfunken im Trank
+  ctx.fillStyle = '#ffffff';
+  for (const [x, y, r] of [[-4, 7, 2.2], [4, 11, 1.6], [2, 4, 1.2], [-2, 13, 1]]) {
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(x + r * 0.3, y - r * 0.3);
+    ctx.lineTo(x + r, y);
+    ctx.lineTo(x + r * 0.3, y + r * 0.3);
+    ctx.lineTo(x, y + r);
+    ctx.lineTo(x - r * 0.3, y + r * 0.3);
+    ctx.lineTo(x - r, y);
+    ctx.lineTo(x - r * 0.3, y - r * 0.3);
+    ctx.fill();
+  }
+  ctx.restore();
+  // Schliffkanten
+  ctx.strokeStyle = 'rgba(200, 235, 255, 0.55)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  ctx.moveTo(-4, -6); ctx.lineTo(-3, 0); ctx.lineTo(0, 17);
+  ctx.moveTo(4, -6); ctx.lineTo(3, 0); ctx.lineTo(0, 17);
+  ctx.moveTo(-10.5, 0); ctx.lineTo(-3, 0); ctx.moveTo(10.5, 0); ctx.lineTo(3, 0);
+  ctx.stroke();
+  stroke(ctx, 'rgba(255, 255, 255, 0.85)', 1.6, [[-8.5, 1], [-7.5, 9]]);
+  dot(ctx, 7, 2, 1.1, 1.1, 'rgba(255, 255, 255, 0.85)');
+  // Silberner Hals und Mondsichel-Stöpsel
+  box(ctx, -3, -10, 6, 4.5, 1, '#b8c4d8');
+  box(ctx, -4.5, -7, 9, 2, 1, '#e8eef8');
+  ctx.fillStyle = '#e8eef8';
+  ctx.beginPath();
+  ctx.arc(0, -14.5, 5, 0, Math.PI * 2);
+  ctx.moveTo(6.4, -15.6);
+  ctx.arc(2.2, -15.6, 4.2, 0, Math.PI * 2, true);
+  ctx.fill();
+  dot(ctx, -2.8, -14, 0.9, 1.3, '#ffffff');
+}
+
+// Kleine Symbole für die Beuteanzeige: Gold, Seelensplitter, Bücher und Tränke
 const LOOT_ICON_ART = {
   gold(ctx) {
     for (const [x, y] of [[-5, 4], [5, 4], [0, -3]]) {
@@ -679,11 +808,7 @@ const LOOT_ICON_ART = {
     poly(ctx, [[0, -14], [3, 13], [-5, 6], [-7, -4]], '#c9a8ff');
     stroke(ctx, '#f0e0ff', 1, [[-2, -6], [0, 4]]);
   },
-  potHp(ctx) {
-    box(ctx, -3, -13, 6, 6, 1, '#d8cfb8');
-    oval(ctx, 0, 2, 9.5, 10, '#d4402f');
-    oval(ctx, -3, -1, 3, 3.6, '#ff9a8a');
-  },
+  potHp(ctx) { drawPotion(ctx, 'hp'); },
   book(ctx) {
     box(ctx, -10, -12, 20, 24, 2, '#5a2a8a');
     box(ctx, -8, -10, 16, 20, 1.5, '#7a3aaa');
@@ -692,11 +817,7 @@ const LOOT_ICON_ART = {
     stroke(ctx, '#5a2a8a', 1, [[-2, 0], [2, 0]]);
     stroke(ctx, '#5a2a8a', 1, [[0, -2], [0, 2]]);
   },
-  potMp(ctx) {
-    box(ctx, -3, -13, 6, 6, 1, '#d8cfb8');
-    oval(ctx, 0, 2, 9.5, 10, '#3a6ad8');
-    oval(ctx, -3, -1, 3, 3.6, '#9ac0ff');
-  }
+  potMp(ctx) { drawPotion(ctx, 'mp'); }
 };
 
 function lootIconUrl(kind) {

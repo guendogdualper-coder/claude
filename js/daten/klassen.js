@@ -38,7 +38,7 @@ const CLASSES = {
           {
             id: 'kampfrausch', name: 'Kampfrausch', short: 'KR', kind: 'buff', unlock: 5, mp: 20, cooldown: 45,
             type: 'buff', duration: 150, effects: { atkSpeed: 0.3, speed: 0.15 },
-            text: 'Buff, 150 s: +30 % Angriffstempo und +15 % Lauftempo.'
+            text: 'Buff: Blitze zucken um dich. Mehr Angriffstempo und Lauftempo.'
           },
           {
             id: 'sturmangriff', name: 'Sturmangriff', short: 'SA', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
@@ -48,7 +48,7 @@ const CLASSES = {
           {
             id: 'schwertaura', name: 'Aura des Schwertes', short: 'AS', kind: 'buff', unlock: 10, mp: 30, cooldown: 60,
             type: 'buff', duration: 180, effects: { atk: 0.2, crit: 0.05 },
-            text: 'Buff, 180 s: Eine leuchtende Aura umgibt dein Schwert. +20 % Angriff und +5 % kritische Treffer.'
+            text: 'Buff: Eine leuchtende Aura umgibt dein Schwert. Mehr Angriff und mehr kritische Treffer.'
           }
         ]
       },
@@ -69,7 +69,7 @@ const CLASSES = {
           {
             id: 'starkerkoerper', name: 'Starker Körper', short: 'SK', kind: 'buff', unlock: 5, mp: 25, cooldown: 60,
             type: 'buff', duration: 180, effects: { damageTaken: -0.3, def: 0.3 },
-            text: 'Buff, 180 s: +30 % Verteidigung und 30 % weniger erlittener Schaden.'
+            text: 'Buff: Dein Körper wird hart wie Stein. Mehr Verteidigung und weniger erlittener Schaden.'
           },
           {
             id: 'geistesschlag', name: 'Geistesschlag', short: 'GS', kind: 'angriff', unlock: 7, mp: 18, cooldown: 7,
@@ -79,7 +79,7 @@ const CLASSES = {
           {
             id: 'kriegsschrei', name: 'Kriegsschrei', short: 'KS', kind: 'fluch', unlock: 10, mp: 22, cooldown: 18,
             type: 'curse', radius: 170, duration: 10, vulnerable: 0.25, slow: 0.5, color: '#ff7a3a',
-            text: 'Ein Schrei, der Gegner lähmt: 10 s lang sind sie 50 % langsamer und nehmen 25 % mehr Schaden.'
+            text: 'Ein Schrei, der Gegner lähmt: Sie werden langsamer und nehmen mehr Schaden.'
           }
         ]
       }
@@ -124,7 +124,7 @@ const CLASSES = {
           {
             id: 'leichtfuessigkeit', name: 'Leichtfüßigkeit', short: 'LF', kind: 'buff', unlock: 10, mp: 20, cooldown: 60,
             type: 'buff', duration: 180, effects: { speed: 0.2, atkSpeed: 0.25, dodge: 0.15 },
-            text: 'Buff, 180 s: +20 % Lauftempo, +25 % Angriffstempo, 15 % Chance auszuweichen.'
+            text: 'Buff: Leicht wie eine Feder. Mehr Lauftempo, Angriffstempo und Chance auszuweichen.'
           }
         ]
       },
@@ -150,12 +150,12 @@ const CLASSES = {
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
             type: 'buff', duration: 120, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
-            text: 'Buff, bis 120 s: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, der erste Treffer macht dreifachen Schaden.'
+            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, der erste Treffer macht dreifachen Schaden.'
           },
           {
             id: 'schattenmantel', name: 'Schattenmantel', short: 'SM', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,
             type: 'buff', duration: 180, effects: { dodge: 0.2, crit: 0.12 },
-            text: 'Buff, 180 s: Schatten hüllen dich ein. +20 % Ausweichen und +12 % kritische Treffer.'
+            text: 'Buff: Schatten hüllen dich ein. Mehr Ausweichen und mehr kritische Treffer.'
           }
         ]
       }
@@ -190,7 +190,7 @@ const CLASSES = {
           {
             id: 'drachenkraft', name: 'Drachenkraft', short: 'DK', kind: 'buff', unlock: 5, mp: 24, cooldown: 60,
             type: 'buff', duration: 180, effects: { atk: 0.15, skillDmg: 0.15 },
-            text: 'Buff, 180 s: Drachenkraft fließt in dich. +15 % Angriff und +15 % Fertigkeitsschaden.'
+            text: 'Buff: Drachenkraft fließt in dich. Mehr Angriff und mehr Fertigkeitsschaden.'
           },
           {
             id: 'blitzschlag', name: 'Blitzschlag', short: 'BS', kind: 'angriff', unlock: 7, mp: 24, cooldown: 9,
@@ -216,22 +216,22 @@ const CLASSES = {
           {
             id: 'windfessel', name: 'Windfessel', short: 'WF', kind: 'fluch', unlock: 3, mp: 14, cooldown: 12,
             type: 'curse', radius: 160, duration: 8, vulnerable: 0.1, slow: 0.6, color: '#8fe3d8',
-            text: 'Wirbelnder Wind fesselt Gegner um dich: 8 s lang sind sie 60 % langsamer.'
+            text: 'Wirbelnder Wind fesselt Gegner um dich: Sie werden langsamer und verwundbar.'
           },
           {
             id: 'segen', name: 'Segen', short: 'SG', kind: 'buff', unlock: 5, mp: 22, cooldown: 60,
             type: 'buff', duration: 180, effects: { damageTaken: -0.2, regen: 0.008, crit: 0.08 },
-            text: 'Buff, 180 s: 20 % weniger Schaden, regeneriert Leben, +8 % kritische Treffer.'
+            text: 'Buff: Weniger erlittener Schaden, Leben regeneriert sich, mehr kritische Treffer.'
           },
           {
             id: 'heilung', name: 'Heilung', short: 'HE', kind: 'heilung', unlock: 7, mp: 30, cooldown: 20,
             type: 'heal', amount: 0.45, duration: 120, effects: { atk: 0.12 },
-            text: 'Heilt 45 % deines Lebens und gibt 120 s lang +12 % Angriff.'
+            text: 'Heilt einen Teil deines Lebens und gibt dir danach mehr Angriff.'
           },
           {
             id: 'schutzgeist', name: 'Schutzgeist', short: 'SG', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
             type: 'buff', duration: 180, effects: { reflect: 0.25, def: 0.25 },
-            text: 'Buff, 180 s: Ein Schutzgeist wacht über dich. +25 % Verteidigung, 25 % des Schadens gehen an den Angreifer zurück.'
+            text: 'Buff: Ein Schutzgeist wacht über dich. Mehr Verteidigung, ein Teil des Schadens geht an den Angreifer zurück.'
           }
         ]
       }
@@ -266,17 +266,17 @@ const CLASSES = {
           {
             id: 'totenbeschwoerung', name: 'Totenbeschwörung', short: 'TB', kind: 'beschwörung', unlock: 5, mp: 30, cooldown: 45,
             type: 'summon', count: 2, duration: 90, hp: 0.4, atk: 0.5,
-            text: 'Beschwört 90 s lang zwei Skelette, die an deiner Seite kämpfen.'
+            text: 'Beschwört zwei Skelette, die an deiner Seite kämpfen.'
           },
           {
             id: 'fluch', name: 'Fluch der Schwäche', short: 'FS', kind: 'fluch', unlock: 7, mp: 18, cooldown: 15,
             type: 'curse', radius: 150, duration: 8, vulnerable: 0.3, slow: 0.4,
-            text: 'Verflucht Gegner um dich: 8 s lang nehmen sie 30 % mehr Schaden und sind 40 % langsamer.'
+            text: 'Verflucht Gegner um dich: Sie nehmen mehr Schaden und werden langsamer.'
           },
           {
             id: 'dunklemacht', name: 'Dunkle Macht', short: 'DM', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
             type: 'buff', duration: 180, effects: { atk: 0.2, atkSpeed: 0.1 },
-            text: 'Buff, 180 s: Dunkle Macht durchströmt dich. +20 % Angriff und +10 % Angriffstempo.'
+            text: 'Buff: Dunkle Macht durchströmt dich. Mehr Angriff und Angriffstempo.'
           }
         ]
       },
@@ -297,17 +297,17 @@ const CLASSES = {
           {
             id: 'knochenpanzer', name: 'Knochenpanzer', short: 'KP', kind: 'buff', unlock: 5, mp: 25, cooldown: 60,
             type: 'buff', duration: 180, shield: 0.3, effects: { reflect: 0.2 },
-            text: 'Buff, 180 s: Ein Schild fängt Schaden in Höhe von 30 % deines Lebens ab und wirft 20 % zurück. Der Schild erneuert sich bei jedem Einsatz.'
+            text: 'Buff: Ein Schild aus Knochen fängt Schaden ab und wirft einen Teil zurück. Er erneuert sich bei jedem Einsatz.'
           },
           {
             id: 'laehmung', name: 'Lähmender Fluch', short: 'LF', kind: 'fluch', unlock: 7, mp: 20, cooldown: 16,
             type: 'curse', radius: 150, duration: 6, vulnerable: 0.2, slow: 0.8, stun: 1.5, color: '#7ad36a',
-            text: 'Ein Fluch, der Gegner um dich 1,5 s erstarren lässt. Danach sind sie 6 s lang 80 % langsamer.'
+            text: 'Ein Fluch, der Gegner um dich 1,5 s erstarren lässt. Danach sind sie stark verlangsamt.'
           },
           {
             id: 'blutopfer', name: 'Blutopfer', short: 'BO', kind: 'buff', unlock: 10, mp: 26, cooldown: 60,
             type: 'buff', duration: 150, effects: { hpSteal: 0.05, atk: 0.12 },
-            text: 'Buff, 150 s: Du opferst Blut für Macht. 5 % Lebensraub und +12 % Angriff.'
+            text: 'Buff: Du opferst Blut für Macht. Lebensraub und mehr Angriff.'
           }
         ]
       }

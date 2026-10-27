@@ -1,15 +1,19 @@
 // Kampf: Schaden berechnen, normale Angriffe, Fertigkeiten, Geschosse, Effekte.
 
-// Bis Stufe 17: +8 % Schaden und +3 % Buff-Wirkung je Stufe. In den Rängen +5 % bzw. +1,2 % je Stufe,
-// dazu ein Sprung beim Erreichen jedes Rangs.
+// Jede Stufe macht eine Fertigkeit stärker:
+// Schaden bis Stufe 17 +8 % je Stufe, in den Rängen +5 % je Stufe, dazu ein Sprung bei jedem neuen Rang.
+// Buffs, Heilung, Schilde und Flüche: +3 % Wirkung je Stufe (in den Rängen +1,5 %), dazu ein Rangsprung.
+// Die Dauer wächst mit: +2 % je Stufe (in den Rängen +1 %), dazu ein Rangsprung.
 const RANK_JUMP = [0.1, 0.25, 0.45, 0.75];
-function dmgScale(lvl) {
+const BUFF_JUMP = [0.08, 0.16, 0.28, 0.45];
+const DUR_JUMP = [0.05, 0.1, 0.15, 0.25];
+function levelCurve(lvl, base, ranked, jumps) {
   const r = skillRank(lvl);
-  return 1 + 0.08 * (Math.min(lvl, SKILL_BASE_MAX) - 1) + 0.05 * Math.max(0, lvl - SKILL_BASE_MAX) + (r >= 0 ? RANK_JUMP[r] : 0);
+  return 1 + base * (Math.min(lvl, SKILL_BASE_MAX) - 1) + ranked * Math.max(0, lvl - SKILL_BASE_MAX) + (r >= 0 ? jumps[r] : 0);
 }
-function buffScale(lvl) {
-  return 1 + 0.03 * (Math.min(lvl, SKILL_BASE_MAX) - 1) + 0.012 * Math.max(0, lvl - SKILL_BASE_MAX);
-}
+const dmgScale = (lvl) => levelCurve(lvl, 0.08, 0.05, RANK_JUMP);
+const buffScale = (lvl) => levelCurve(lvl, 0.03, 0.015, BUFF_JUMP);
+const skillDuration = (sk, lvl) => Math.round(sk.duration * levelCurve(lvl, 0.02, 0.01, DUR_JUMP));
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -202,14 +206,14 @@ function killMonster(m) {
     ui.log(`${m.name} zerstört! +${xp.toLocaleString('de-DE')} EP.`, 'level');
     ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
     ui.loot('Seelensplitter', splinters, lootIconUrl('splinter'), '#c9a8ff');
-    ui.loot('Roter Trank', potHp, lootIconUrl('potHp'), '#ff9a8a');
-    ui.loot('Blauer Trank', potMp, lootIconUrl('potMp'), '#9ac0ff');
+    ui.loot(potionInfo('hp').name, potHp, lootIconUrl('potHp'), potionInfo('hp').color);
+    ui.loot(potionInfo('mp').name, potMp, lootIconUrl('potMp'), potionInfo('mp').color);
     questEvent('stone', m);
     m.respawnAt = game.time + randInt(STONE.respawn[0], STONE.respawn[1]);
   } else {
     questEvent('kill', m);
-    if (Math.random() < 0.06) { p.potions.hp++; ui.loot('Roter Trank', 1, lootIconUrl('potHp'), '#ff9a8a'); }
-    if (Math.random() < 0.04) { p.potions.mp++; ui.loot('Blauer Trank', 1, lootIconUrl('potMp'), '#9ac0ff'); }
+    if (Math.random() < 0.06) { p.potions.hp++; ui.loot(potionInfo('hp').name, 1, lootIconUrl('potHp'), potionInfo('hp').color); }
+    if (Math.random() < 0.04) { p.potions.mp++; ui.loot(potionInfo('mp').name, 1, lootIconUrl('potMp'), potionInfo('mp').color); }
     m.respawnAt = game.time + 12 + Math.random() * 8;
   }
   rollLoot(m);
@@ -396,8 +400,21 @@ function applyBuff(sk, lvl) {
   const scale = buffScale(lvl);
   const effects = {};
   for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = typeof v === 'number' ? v * scale : v;
+  const duration = skillDuration(sk, lvl);
   p.buffs = p.buffs.filter((b) => b.id !== sk.id);
-  p.buffs.push({ id: sk.id, name: sk.name, short: sk.short, until: game.time + sk.duration, duration: sk.duration, effects });
+  p.buffs.push({ id: sk.id, name: sk.name, short: sk.short, until: game.time + duration, duration, effects, lvl });
+}
+
+// Nach dem Verbessern einer Fertigkeit gilt ein laufender Buff sofort mit den neuen Werten
+function refreshBuff(sk, lvl) {
+  const p = game.player;
+  const b = p.buffs.find((x) => x.id === sk.id);
+  if (!b) return;
+  const left = b.until - game.time;
+  applyBuff(sk, lvl);
+  const nb = p.buffs.find((x) => x.id === sk.id);
+  nb.until = game.time + left + (nb.duration - b.duration);
+  game.stats = playerStats(p);
 }
 
 const SKILL_TYPES = {
@@ -539,7 +556,7 @@ const SKILL_TYPES = {
     if (sk.nextHitMul) p.nextHitMul = sk.nextHitMul;
     if (sk.shield) {
       p.shield = Math.round(game.stats.maxHp * sk.shield * buffScale(lvl));
-      p.shieldUntil = game.time + sk.duration;
+      p.shieldUntil = game.time + skillDuration(sk, lvl);
       particles(p.x, feetY(p) - 20, { count: 16, color: '#ddd5bb', speed: [60, 140], life: [0.4, 0.7], size: [2, 4], shape: 'square', glow: false });
     }
     if (sk.effects && sk.effects.invisible) {
@@ -550,7 +567,7 @@ const SKILL_TYPES = {
     } else {
       vfxPillar(p, c.trim);
     }
-    ui.log(sk.name + ' ist aktiv (' + sk.duration + ' s).', 'info');
+    ui.log(sk.name + ' ist aktiv (' + skillDuration(sk, lvl) + ' s).', 'info');
   },
 
   heal(sk, pw, lvl) {
@@ -596,25 +613,26 @@ const SKILL_TYPES = {
       game.allies.push({
         id: 'ally' + k, x, y, r: 10,
         hp: maxHp, maxHp, atk: Math.round(s.atk * sk.atk * pw), def: Math.round(s.def * 0.5),
-        until: game.time + sk.duration, target: null, cd: 0, facing: 1, swing: 0
+        until: game.time + skillDuration(sk, lvl), target: null, cd: 0, facing: 1, swing: 0
       });
       addEffect({ type: 'runes', x, y: y + 8, r: 22, dur: 0.9, color: '#a7e37f' });
       particles(x, y + 6, { count: 14, color: ['#ddd5bb', '#a7e37f'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 140], life: [0.4, 0.7], size: [2, 3.5], shape: 'square', gravity: 200 });
     }
-    ui.log('Zwei Skelette erheben sich aus dem Boden.', 'info');
+    ui.log(sk.count + ' Skelette erheben sich aus dem Boden.', 'info');
   },
 
   curse(sk, pw, lvl) {
     const p = game.player;
     const scale = buffScale(lvl);
+    const dur = skillDuration(sk, lvl);
     const col = sk.color || '#a774e0';
     addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: col });
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
-      m.vulnerable = { mul: 1 + sk.vulnerable * scale, until: game.time + sk.duration };
+      m.vulnerable = { mul: 1 + sk.vulnerable * scale, until: game.time + dur };
       const bc = bodyCenter(m);
       particles(bc.x, bc.y - 20, { count: 8, color: [col, darker(col, 0.4)], angle: Math.PI / 2, spread: 0.3, speed: [40, 90], life: [0.4, 0.6], size: [2, 3] });
       if (!m.isStone) {
-        m.slow = { mul: 1 - sk.slow, until: game.time + sk.duration };
+        m.slow = { mul: 1 - sk.slow, until: game.time + dur };
         if (sk.stun) m.stun = Math.max(m.stun, sk.stun);
         aggro(m, p);
       }

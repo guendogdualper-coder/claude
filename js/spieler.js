@@ -4,11 +4,12 @@ const SAVE_KEY = 'seelenstein.spielstand.v1';
 const MAX_LEVEL = 99;
 // Fertigkeiten: Stufe 1–17 mit Fertigkeitspunkten, danach vier Ränge.
 // Ab Stufe 15 kann man eine Fertigkeit erwecken (Rang Erwacht, kostet einen Punkt).
+// Auf Stufe 17 macht der nächste Fertigkeitspunkt die Fertigkeit direkt zu E1.
 // In den Rängen steigt man mit Fertigkeitsbüchern; aus den letzten drei Stufen eines Rangs
 // geht es mit mehreren Büchern in den nächsten Rang.
 const SKILL_BASE_MAX = 17;
 const SKILL_RANKS = [
-  { id: 'E', name: 'Erwacht', from: 18, levels: 10, minLevel: 20, books: 0, color: '#9fd0ff' },
+  { id: 'E', name: 'Erwacht', from: 18, levels: 10, minLevel: 1, books: 0, color: '#9fd0ff' },
   { id: 'H', name: 'Heroisch', from: 28, levels: 10, minLevel: 35, books: 3, color: '#c58cff' },
   { id: 'L', name: 'Legendär', from: 38, levels: 10, minLevel: 50, books: 5, color: '#ffd34d' },
   { id: 'V', name: 'Vollendet', from: 48, levels: 1, minLevel: 65, books: 10, color: '#ff6a4a' }
@@ -40,7 +41,7 @@ function skillActions(p, i) {
     if (lvl < SKILL_BASE_MAX) out.push({ type: 'point', label: 'Verbessern', ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
     if (lvl >= SKILL_BASE_MAX - 2) {
       const next = SKILL_RANKS[0];
-      out.push({ type: 'rankup', label: `Erwecken → ${next.id}1`, ok: p.skillPoints > 0 && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : 'Kein Fertigkeitspunkt frei' });
+      out.push({ type: 'rankup', label: `Erwecken → ${next.id}1`, ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
     }
     return out;
   }
@@ -261,7 +262,11 @@ function playerStats(p) {
   s.atk = Math.round(s.atk * atkMul);
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def * defMul);
-  s.speed *= speedMul;
+  // Obergrenzen, damit hohe Ränge und viele Buffs zusammen nicht ausufern
+  s.speed *= Math.min(1.9, speedMul);
+  s.atkSpeed = Math.min(2.5, s.atkSpeed);
+  s.dodge = Math.min(0.6, s.dodge);
+  s.reflect = Math.min(0.8, s.reflect);
   s.damageTaken = Math.max(0.2, s.damageTaken);
   return s;
 }
@@ -329,6 +334,7 @@ function upgradeSkill(i, type = 'point') {
     rankCastFx(p, skillRank(next.from), next.color);
   }
   ui.log(`${sk.name} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');
+  refreshBuff(sk, p.skillLevels[i]);
   ui.buildSkillBar();
   ui.renderCharPanel();
   saveGame();
@@ -338,7 +344,7 @@ function usePotion(kind) {
   const p = game.player;
   if (!p || p.dead || p.potionCd > 0) return;
   const s = game.stats;
-  const name = kind === 'hp' ? 'Rote Tränke' : 'Blaue Tränke';
+  const name = potionInfo(kind).plural;
   if (p.potions[kind] <= 0) {
     ui.log('Keine ' + name + ' mehr. Die Händlerin im Dorf verkauft neue.', 'warn');
     return;
@@ -347,6 +353,7 @@ function usePotion(kind) {
   if (kind === 'mp' && p.mp >= s.maxMp) return;
   p.potions[kind]--;
   p.potionCd = 0.5;
+  vfxPotion(p, kind);
   if (kind === 'hp') {
     const amount = Math.round(s.maxHp * 0.35);
     p.hp = Math.min(s.maxHp, p.hp + amount);
