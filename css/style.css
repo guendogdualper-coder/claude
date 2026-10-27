@@ -1442,3 +1442,29 @@ kbd {
     radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.38) 100%),
     linear-gradient(135deg, rgba(255, 236, 190, 0.13), rgba(255, 236, 190, 0) 45%, rgba(20, 10, 40, 0.1));
 }
+.item-info small.need { color: #ff9a7a; }
+.item-tile.band-5 { border-color: #e0503a; box-shadow: 0 0 14px rgba(255, 106, 74, 0.6); }
+.item-tile.band-6 { border-color: #ffffff; box-shadow: 0 0 16px rgba(255, 255, 255, 0.75), 0 0 6px rgba(255, 211, 77, 0.8); }
+.smith-mat { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.smith-mat small { color: var(--muted); }
+.mob-mats span { font-weight: 600; } .mob-mats b { color: #ffe9a0; }
+
+/* Buffs als Symbole mit Restzeit unter den Balken */
+.buffs { gap: 5px; margin-top: 1px; }
+.buff-ico { position: relative; width: 26px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.buff-ico img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  padding: 2px;
+  background: conic-gradient(#ffe9a0 calc(var(--p, 1) * 1turn), rgba(0, 0, 0, 0.6) 0);
+  box-shadow: 0 0 0 1px #120c08, 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+.buff-ico span { font-size: 9.5px; font-weight: 800; line-height: 1; color: #fff3d0; font-variant-numeric: tabular-nums; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+.buff-ico em { position: absolute; top: -4px; right: -8px; font-style: normal; font-size: 8.5px; font-weight: 800; padding: 0 3px; border-radius: 6px; background: #ddd5bb; color: #1b130a; }
+.buff-ico.ending img { animation: buff-end 0.6s ease-in-out infinite; }
+@keyframes buff-end { 50% { opacity: 0.35; } }
+#hud.touch .buff-ico { width: 22px; }
+#hud.touch .buff-ico img { width: 20px; height: 20px; }
+#hud.touch .buff-ico span { font-size: 8.5px; }
+#hud.touch.has-buffs .log { top: calc(var(--edge-t) + 96px); }

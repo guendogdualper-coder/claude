@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '2.2';
+const GAME_VERSION = '2.3';
 
 const game = {
   world: null,
@@ -73,7 +73,7 @@ function updatePlayer(dt) {
       // Angriff gedrückt, aber nichts in Reichweite: zum Ziel laufen
       const c = CLASSES[p.classId];
       const t = (game.target && !game.target.dead && dist(game.target, p) < 420) ? game.target : nearestEnemy(p, 260);
-      if (t && (dist(t, p) - t.r > c.basic.range || inVillage(p.x, p.y))) {
+      if (t && (dist(t, p) - t.r > basicAttack(p).range || inVillage(p.x, p.y))) {
         game.target = t;
         p.moving = moveToward(p, t.x, t.y, s.speed * dt, false);
         faceTowards(t.x, t.y);

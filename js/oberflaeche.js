@@ -237,10 +237,17 @@ const ui = {
       $('zoneLevels').textContent = zone.levels;
     });
 
-    const buffs = p.buffs.map((b) => `${b.name} ${Math.ceil(b.until - game.time)}s`)
-      .concat(p.shield > 0 ? ['Schild ' + Math.ceil(p.shield)] : []);
-    this.set('buffs', buffs.join('|'), () => {
-      $('buffList').innerHTML = buffs.map((b) => `<span class="buff">${b}</span>`).join('');
+    // Buffs als Symbole mit Restzeit; der Ring zeigt, wie viel noch übrig ist
+    const buffs = p.buffs.map((b) => ({ b, left: Math.max(0, Math.ceil(b.until - game.time)) }));
+    const shield = p.shield > 0 ? Math.ceil(p.shield) : 0;
+    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield, () => {
+      $('buffList').innerHTML = buffs.map(({ b, left }) => {
+        const sk = skillById(b.id);
+        const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
+        return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" title="${b.name}">` +
+          `<img src="${sk ? skillIconUrl(sk) : ''}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
+      }).join('');
+      $('hud').classList.toggle('has-buffs', buffs.length > 0);
     });
 
     // Abklingzeiten
@@ -374,6 +381,12 @@ const ui = {
       `<span><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
       MATERIALS.map((m) => `<span><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
       `</div>` +
+      // Monster-Teile für den Schmied
+      (Object.entries(p.upmats || {}).some(([, n]) => n > 0)
+        ? `<h3>Teile für den Schmied <small>ab +6, bei Ausrüstung ab Stufe 30 schon ab +4</small></h3><div class="loot-purse mob-mats">` +
+          Object.entries(p.upmats).filter(([, n]) => n > 0).map(([id, n]) =>
+            `<span title="von ${MONSTER_TYPES[id].name}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${n}</b></span>`).join('') + `</div>`
+        : '') +
       `<button type="button" class="btn btn-primary" id="btnOpenBag">Rucksack öffnen <small>(${p.inventory.length}/${BAG_SIZE})</small></button>` +
       (this.lootLog.length
         ? `<div class="loot-cols"><section><h3>Zuletzt aufgehoben</h3><ul class="loot-list">${this.lootLog.slice(0, 15).map((e) => row(e, ago(e.time))).join('')}</ul></section>` +
@@ -433,6 +446,7 @@ const ui = {
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
       row('Angriff', s.atk) + row('Verteidigung', s.def) +
       row('Kritische Treffer', pct(s.crit)) + row('Lauftempo', Math.round(s.speed)) +
+      row('Angriffstempo', pct(s.atkSpeed)) + row('Magiestärke', '+' + pct(s.magic || 0)) +
       row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
       row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
       row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
@@ -571,6 +585,21 @@ function skillListHtml(skills, p) {
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
 const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen' };
+
+// Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
+let skillIndex = null;
+function skillById(id) {
+  if (!skillIndex) {
+    skillIndex = new Map();
+    for (const c of Object.values(CLASSES)) for (const pt of c.paths) for (const sk of pt.skills) skillIndex.set(sk.id, sk);
+  }
+  return skillIndex.get(id);
+}
+
+// 2:45 bzw. 9s
+function formatBuffTime(t) {
+  return t >= 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}` : `${t}s`;
+}
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));

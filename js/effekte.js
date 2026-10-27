@@ -208,7 +208,7 @@ function drawPhantomBlade(ctx, e, x, y, a) {
 // Klinge der Figur für Wirbel- und Schwungangriffe
 function playerBlade(p) {
   const w = p.equipment && p.equipment.waffe;
-  return { kind: CLASS_WEAPON[p.classId], tier: w ? w.tier : 0 };
+  return { kind: weaponKindOf(p), tier: w ? w.tier : 0 };
 }
 
 // Beute fliegt in einem Bogen vom Seelenstein zur Figur

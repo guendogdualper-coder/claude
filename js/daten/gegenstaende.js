@@ -1,4 +1,5 @@
-// Ausrüstung: sechs Plätze, acht Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +9.
+// Ausrüstung: sechs Plätze, acht Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +20.
+// Waffe, Rüstung und Helm gehören immer zu einer Klasse; Schild, Schuhe und Gürtel kann jeder tragen.
 // Die Stufen 1 bis 4 (ab Lv 1, 5, 10, 15) verkaufen Waffen- und Rüstungshändler,
 // ab der legendären Stufe (Lv 22, 30, 45, 60) gibt es Ausrüstung nur als Beute.
 
@@ -23,13 +24,37 @@ const ITEM_TIERS = [
   { level: 60, label: 'Göttlich' }
 ];
 
-// Namen: Waffen und Rüstungen je Klasse, alles andere für alle gleich
+// Plätze, deren Ausrüstung nur eine Klasse tragen kann
+const CLASS_SLOTS = ['waffe', 'ruestung', 'helm'];
+
+// Waffenarten. Jede Klasse hat ihre eigenen; sie unterscheiden sich in Schaden und Tempo.
+//   atkMul    Faktor auf den Angriffswert der Stufe
+//   atkSpeed  Angriffstempo (+ schneller, − langsamer)
+//   ranged    normale Angriffe als Fernschuss
+//   magic     Magiestärke: erhöht den Schaden der Fertigkeiten
+const WEAPON_KINDS = {
+  sword: { name: 'Schwert', cls: 'krieger', atkMul: 1, atkSpeed: 0, text: 'ausgewogen' },
+  greatsword: { name: 'Zweihänder', cls: 'krieger', atkMul: 1.35, atkSpeed: -0.18, text: 'viel Schaden, langsam' },
+  dagger: { name: 'Dolche', cls: 'ninja', atkMul: 0.88, atkSpeed: 0.15, text: 'schnell, oft kritisch' },
+  bow: { name: 'Bogen', cls: 'ninja', atkMul: 1, atkSpeed: -0.05, ranged: true, text: 'greift aus der Ferne an' },
+  fan: { name: 'Fächer', cls: 'schamane', atkMul: 0.85, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
+  bell: { name: 'Glocke', cls: 'schamane', atkMul: 0.7, atkSpeed: -0.1, magic: true, magicMul: 1.6, text: 'sehr viel Magiestärke, langsam' },
+  staff: { name: 'Stab', cls: 'nekromant', atkMul: 0.9, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
+  scythe: { name: 'Sense', cls: 'nekromant', atkMul: 1.15, atkSpeed: -0.12, magic: true, magicMul: 0.6, text: 'mehr Schaden, weniger Magie' }
+};
+const CLASS_WEAPON_KINDS = { krieger: ['sword', 'greatsword'], ninja: ['dagger', 'bow'], schamane: ['fan', 'bell'], nekromant: ['staff', 'scythe'] };
+
+// Namen je Stufe. Waffen nach Art, Rüstungen und Helme nach Klasse, der Rest für alle gleich.
 const ITEM_NAMES = {
   waffe: {
-    krieger: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer', 'Aschenklinge', 'Himmelsschwert', 'Götterklinge'],
-    ninja: ['Kurzdolche', 'Zwillingsdolche', 'Schattendolche', 'Viperzähne', 'Nachtklingen', 'Aschendolche', 'Sternendolche', 'Götterzähne'],
-    schamane: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer'],
-    nekromant: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab', 'Aschenstab', 'Sternenstab', 'Götterstab']
+    sword: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer', 'Aschenklinge', 'Himmelsschwert', 'Götterklinge'],
+    greatsword: ['Holzfällerklinge', 'Langschwert', 'Sichelzweihänder', 'Drachentöter', 'Seelenspalter', 'Aschenbrecher', 'Himmelsrichter', 'Götterzorn'],
+    dagger: ['Kurzdolche', 'Zwillingsdolche', 'Schattendolche', 'Viperzähne', 'Nachtklingen', 'Aschendolche', 'Sternendolche', 'Götterzähne'],
+    bow: ['Jagdbogen', 'Kurzbogen', 'Schattenbogen', 'Viperbogen', 'Nachtbogen', 'Aschenbogen', 'Sternenbogen', 'Götterbogen'],
+    fan: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer'],
+    bell: ['Bronzeglocke', 'Tempelglocke', 'Kranichglocke', 'Phönixglocke', 'Drachenglocke', 'Glutglocke', 'Himmelsglocke', 'Götterglocke'],
+    staff: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab', 'Aschenstab', 'Sternenstab', 'Götterstab'],
+    scythe: ['Rostsense', 'Grabsense', 'Knochensense', 'Seelensense', 'Totenkönigssense', 'Aschensense', 'Sternensense', 'Göttersense']
   },
   ruestung: {
     krieger: ['Lederpanzer', 'Kettenhemd', 'Lamellenpanzer', 'Drachenpanzer', 'Seelenpanzer', 'Aschenpanzer', 'Himmelspanzer', 'Götterpanzer'],
@@ -37,7 +62,12 @@ const ITEM_NAMES = {
     schamane: ['Leinenrobe', 'Seidenrobe', 'Kranichrobe', 'Phönixrobe', 'Drachenrobe', 'Glutrobe', 'Himmelsrobe', 'Götterrobe'],
     nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe', 'Schattenrobe', 'Sternenrobe', 'Götterrobe']
   },
-  helm: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenkrone', 'Aschenhelm', 'Himmelshelm', 'Götterkrone'],
+  helm: {
+    krieger: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenhelm', 'Aschenhelm', 'Himmelshelm', 'Götterhelm'],
+    ninja: ['Stoffkapuze', 'Lederkapuze', 'Schattenkapuze', 'Viperkapuze', 'Nachtmaske', 'Aschenmaske', 'Sternenmaske', 'Göttermaske'],
+    schamane: ['Stirnband', 'Seidenhaube', 'Kranichhaube', 'Phönixkrone', 'Drachenkrone', 'Glutkrone', 'Himmelskrone', 'Götterdiadem'],
+    nekromant: ['Grabkapuze', 'Aschenkapuze', 'Knochenhelm', 'Seelenhaube', 'Totenkönigskrone', 'Schattenkrone', 'Sternenkapuze', 'Götterschädel']
+  },
   schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild', 'Aschenschild', 'Himmelsschild', 'Götterschild'],
   schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel', 'Aschenstiefel', 'Himmelsstiefel', 'Götterstiefel'],
   guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel']
@@ -57,16 +87,23 @@ const BASE_STATS = {
   guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }]
 };
 
-// Zusatzwerte der Waffen je Klasse: Dolche treffen öfter kritisch, Fächer und Stäbe geben Intelligenz
-// (Stufe 1 ohne Zusatzwert, siehe oben)
-const WEAPON_EXTRA = {
-  krieger: [{}, {}, {}, {}, {}, {}, {}, {}],
-  ninja: [{}, { crit: 0.02 }, { crit: 0.03 }, { crit: 0.04 }, { crit: 0.06 }, { crit: 0.07 }, { crit: 0.08 }, { crit: 0.1 }],
-  schamane: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }, { mp: 110 }, { mp: 160 }, { mp: 220 }],
-  nekromant: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }, { mp: 110 }, { mp: 160 }, { mp: 220 }]
+// Zusatzwerte je Waffenart und Stufe: Dolche und Bögen treffen öfter kritisch,
+// Fächer, Glocken, Stäbe und Sensen geben Mana und Magiestärke (Stufe 1 ohne Zusatzwert)
+const CRIT_BY_TIER = [0, 0.02, 0.03, 0.04, 0.06, 0.07, 0.08, 0.1];
+const MP_BY_TIER = [0, 20, 35, 50, 75, 110, 160, 220];
+const MAGIC_BY_TIER = [0, 0.04, 0.06, 0.09, 0.12, 0.16, 0.21, 0.27];
+// Bessere Waffen werden auch etwas schneller
+const SPEED_BY_TIER = [0, 0, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08];
+
+// Rüstung und Helm je Klasse: Krieger halten mehr aus, Ninjas weichen aus, Magier bekommen Mana
+const CLASS_ARMOR = {
+  krieger: { def: 1.25, hp: 1.15 },
+  ninja: { def: 1, hp: 1, dodge: 0.008 },
+  schamane: { def: 0.85, hp: 0.85, mp: 0.5 },
+  nekromant: { def: 0.85, hp: 0.85, mp: 0.5 }
 };
 
-const MAX_PLUS = 9;
+const MAX_PLUS = 20;
 const PLUS_BONUS = 0.1; // jedes Plus gibt +10 % der Grundwerte (mindestens +1)
 const MAX_BLOCK = 0.4;
 
@@ -82,14 +119,86 @@ const UPGRADE_STEPS = [
   { chance: 0.6, gold: 1000, splinters: 3, fail: 'down' },
   { chance: 0.45, gold: 1500, splinters: 3, fail: 'down' },
   { chance: 0.3, gold: 2200, splinters: 4, fail: 'break' },
-  { chance: 0.2, gold: 3000, splinters: 5, fail: 'break' }
+  { chance: 0.2, gold: 3000, splinters: 5, fail: 'break' },
+  { chance: 0.3, gold: 4000, splinters: 6, fail: 'break' },
+  { chance: 0.28, gold: 5000, splinters: 6, fail: 'break' },
+  { chance: 0.26, gold: 6500, splinters: 7, fail: 'break' },
+  { chance: 0.24, gold: 8000, splinters: 7, fail: 'break' },
+  { chance: 0.22, gold: 10000, splinters: 8, fail: 'break' },
+  { chance: 0.2, gold: 12500, splinters: 8, fail: 'break' },
+  { chance: 0.18, gold: 15000, splinters: 9, fail: 'break' },
+  { chance: 0.16, gold: 18000, splinters: 10, fail: 'break' },
+  { chance: 0.14, gold: 22000, splinters: 11, fail: 'break' },
+  { chance: 0.12, gold: 26000, splinters: 12, fail: 'break' },
+  { chance: 0.1, gold: 32000, splinters: 14, fail: 'break' }
 ];
 
-// Farben der Plus-Stufen: +1–3 grün, +4–6 blau, +7–8 violett, +9 gold
-const PLUS_COLORS = [null, '#9fe08f', '#7fb8ff', '#c58cff', '#ffd34d'];
+// Ab diesem Plus braucht der Schmied zusätzlich Teile von Monstern (Ausrüstung ab Lv 30 schon ab +4)
+function upgradeMatStart(tier) {
+  return ITEM_TIERS[tier].level >= 30 ? 4 : 6;
+}
+
+// Welche Monster-Teile eine Gegenstandsstufe braucht: zuerst die Monster des passenden Gebiets,
+// für höhere Plus-Stufen die stärkeren Monster dort
+const UPGRADE_MAT_MONSTERS = [
+  ['hund', 'wolf', 'alphawolf', 'wildschwein'],
+  ['hund', 'wolf', 'alphawolf', 'wildschwein'],
+  ['bandit', 'banditschuetze', 'waldspinne', 'braunbaer'],
+  ['bandit', 'banditschuetze', 'waldspinne', 'braunbaer'],
+  ['ork', 'orkschamane', 'skorpion', 'orkhauptmann'],
+  ['oger', 'daemon', 'hoellenhund'],
+  ['eiswolf', 'yeti', 'frostgeist'],
+  ['untoter', 'sumpfhexe', 'ghul', 'lavagolem', 'feuerdaemon', 'feuerdrache']
+];
+
+// Monster-Teil und Anzahl für den Schritt von +plus auf +plus+1 (oder null)
+function upgradeMaterial(item) {
+  const start = upgradeMatStart(item.tier);
+  if (item.plus < start) return null;
+  const list = UPGRADE_MAT_MONSTERS[item.tier];
+  const span = Math.ceil((MAX_PLUS - start) / list.length);
+  const id = list[Math.min(list.length - 1, Math.floor((item.plus - start) / span))];
+  return { id, count: Math.min(5, 1 + Math.floor((item.plus - start) / 3)) };
+}
+
+// Monster-Teile: jedes Monster lässt mit kleiner Chance sein eigenes Teil fallen
+// art: Form des Symbols (siehe MOB_MAT_ART in ausruestung.js)
+const MOB_MAT_CHANCE = 0.05;
+const MOB_MATS = {
+  hund: { name: 'Hundezahn', art: 'fang', color: '#f4ecd8' },
+  wolf: { name: 'Wolfspelz', art: 'fur', color: '#8a8e96' },
+  alphawolf: { name: 'Alphafell', art: 'fur', color: '#3a3e46' },
+  wildschwein: { name: 'Keilerhauer', art: 'horn', color: '#e8dcc0' },
+  bandit: { name: 'Banditenabzeichen', art: 'badge', color: '#9a2f2a' },
+  banditschuetze: { name: 'Pfeilspitze', art: 'arrow', color: '#a8b0b8' },
+  waldspinne: { name: 'Spinnenseide', art: 'silk', color: '#e8e8f0' },
+  braunbaer: { name: 'Bärenkralle', art: 'claw', color: '#6a4a30' },
+  ork: { name: 'Orkzahn', art: 'fang', color: '#c8d0a0' },
+  orkschamane: { name: 'Schamanenfeder', art: 'feather', color: '#3a8ab0' },
+  skorpion: { name: 'Giftstachel', art: 'claw', color: '#9be07a' },
+  orkhauptmann: { name: 'Kriegsbanner', art: 'badge', color: '#c8a03a' },
+  oger: { name: 'Ogerhorn', art: 'horn', color: '#a89c80' },
+  daemon: { name: 'Dämonenhorn', art: 'horn', color: '#a8343f' },
+  hoellenhund: { name: 'Höllenglut', art: 'core', color: '#ff7a2a' },
+  eiswolf: { name: 'Eiswolfsfell', art: 'fur', color: '#d8e8f4' },
+  yeti: { name: 'Yetifell', art: 'fur', color: '#f4f8fc' },
+  frostgeist: { name: 'Frostkristall', art: 'crystal', color: '#bfe8ff' },
+  untoter: { name: 'Grabstaub', art: 'dust', color: '#a8a088' },
+  sumpfhexe: { name: 'Hexenkraut', art: 'herb', color: '#7ab04a' },
+  ghul: { name: 'Ghulkralle', art: 'claw', color: '#8a9a70' },
+  lavagolem: { name: 'Lavakern', art: 'core', color: '#ff5a1a' },
+  feuerdaemon: { name: 'Feuerschwinge', art: 'feather', color: '#e0402a' },
+  feuerdrache: { name: 'Drachenschuppe', art: 'scale', color: '#c8302a' }
+};
+
+
+// Farben der Plus-Stufen: +1–3 grün, +4–6 blau, +7–9 violett, +10–14 gold, +15–19 rot, +20 weiß
+const PLUS_COLORS = [null, '#9fe08f', '#7fb8ff', '#c58cff', '#ffd34d', '#ff6a4a', '#ffffff'];
 
 function plusBand(plus) {
-  if (plus >= 9) return 4;
+  if (plus >= 20) return 6;
+  if (plus >= 15) return 5;
+  if (plus >= 10) return 4;
   if (plus >= 7) return 3;
   if (plus >= 4) return 2;
   if (plus >= 1) return 1;

@@ -6,7 +6,7 @@ const MAX_SKILL_LEVEL = 20;
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -35,10 +35,10 @@ function newCharacter(name, classId, path = 0) {
     name, classId, path, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
     hp: null, mp: null, x: null, y: null, playTime: 0,
-    equipment: starterEquipment(), inventory: [], scrolls: 0, itemsVersion: 2,
+    equipment: starterEquipment(classId), inventory: [], scrolls: 0, itemsVersion: 2,
     attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
     materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 },
-    worldVersion: WORLD_VERSION, quests: null
+    worldVersion: WORLD_VERSION, quests: null, upmats: {}
   };
 }
 
@@ -64,7 +64,7 @@ function makePlayer(save) {
   };
   p.potions = { hp: 0, mp: 0, ...save.potions };
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
-  p.equipment = { ...starterEquipment(), helm: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment()) };
+  p.equipment = { ...starterEquipment(save.classId), helm: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
   p.scrolls = save.scrolls || 0;
   if (save.equipment && (save.itemsVersion || 1) < 2) {
@@ -72,6 +72,10 @@ function makePlayer(save) {
     p.inventory.forEach(migrateItem);
   }
   p.itemsVersion = 2;
+  // Waffe, Rüstung und Helm gehören jetzt einer Klasse; alte Gegenstände bekommen die eigene
+  Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
+  p.inventory.forEach((it) => assignClass(it, p.classId));
+  p.upmats = { ...(save.upmats || {}) };
   p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, ...(save.materials || {}) };
   // Spielstände ohne Statuswerte bekommen die Punkte aller bisherigen Stufen nachträglich
   if (!save.attrs) {
@@ -147,9 +151,12 @@ function playerStats(p) {
   s.hpSteal = bonus.hpSteal || 0;
   s.basicDmg = bonus.basicDmg || 0;
   s.damageTaken -= (bonus.dmgReduce || 0) + (bonus.resist || 0);
+  let magic = 0;
   for (const item of Object.values(p.equipment || {})) {
-    if (!item) continue;
-    const st = itemStats(item, item.plus, p.classId);
+    if (!item || !canWear(item, p.classId)) continue;
+    const st = itemStats(item);
+    s.atkSpeed += st.atkSpeed || 0;
+    magic += st.magic || 0;
     s.atk += st.atk || 0;
     s.def += st.def || 0;
     s.maxHp += st.hp || 0;
@@ -168,7 +175,8 @@ function playerStats(p) {
   s.maxHp += (a.vit || 0) * 6;
   s.def += (a.vit || 0) * 0.3;
   s.maxMp += (a.int || 0) * 5;
-  s.skillDmg = 1 + (a.int || 0) * 0.01 + (bonus.skillDmg || 0);
+  s.skillDmg = 1 + (a.int || 0) * 0.01 + (bonus.skillDmg || 0) + magic;
+  s.magic = magic;
   s.crit += (a.dex || 0) * 0.003;
   s.dodge += (a.dex || 0) * 0.0025;
   s.atkSpeed += (a.dex || 0) * 0.005;

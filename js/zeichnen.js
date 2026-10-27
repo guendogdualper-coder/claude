@@ -208,8 +208,6 @@ function facingDir(f) {
   return f.y < 0 ? 'up' : 'down';
 }
 
-const CLASS_WEAPON = { krieger: 'sword', ninja: 'dagger', schamane: 'fan', nekromant: 'staff' };
-
 // Ruhehaltung der Waffe je Blickrichtung (Bogenmaß; Figur schaut nach rechts bzw. zum Betrachter)
 const WEAPON_IDLE = { side: -0.9, down: -1.1, up: -2.1 };
 
@@ -222,8 +220,10 @@ function swingProgress(p, ago = 0) {
 
 function weaponAngle(kind, dir, p, ago = 0) {
   const t = swingProgress(p, ago);
-  if (kind === 'staff' || (kind === 'fan' && p.swingKind === 'cast')) {
-    const base = kind === 'staff' ? -1.45 : WEAPON_IDLE[dir] + 0.5;
+  // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
+  if (kind === 'bow') return localFacingAngle(dir) + (dir === 'side' ? 0 : 0.35) + (t >= 0 ? -Math.sin(t * Math.PI) * 0.15 : 0);
+  if (kind === 'staff' || kind === 'bell' || (kind === 'fan' && p.swingKind === 'cast')) {
+    const base = kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : -1.45;
     return base + (t >= 0 ? Math.sin(t * Math.PI) * 0.9 : 0);
   }
   if (t < 0) return kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : WEAPON_IDLE[dir];
@@ -249,8 +249,8 @@ function drawPlayer(ctx, p) {
   const flip = dir === 'side' && facing.x < 0;
   const frame = p.moving ? Math.floor(game.time * 9) % 4 : 0;
   const fy = feetY(p);
-  const kind = CLASS_WEAPON[p.classId];
-  const melee = kind === 'sword' || kind === 'dagger';
+  const kind = weaponKindOf(p);
+  const melee = MELEE_KINDS.has(kind);
   const weapon = p.equipment ? p.equipment.waffe : { tier: 0, plus: 0 };
   const tier = weapon ? weapon.tier : 0;
   const band = weapon ? plusBand(weapon.plus) : 0;
@@ -333,7 +333,7 @@ function drawPlayer(ctx, p) {
   };
   if (dir === 'up') drawWeapons();
   if (dir !== 'down') drawShield();
-  const sp = characterSprite(p.classId, dir, frame);
+  const sp = characterSprite(p.classId, dir, frame, playerLook(p));
   ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
   // Nach dem Stufenaufstieg leuchtet die Figur hell auf
   if (p.glowUntil > game.time) {

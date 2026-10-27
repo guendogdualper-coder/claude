@@ -1,14 +1,20 @@
 // Ausrüstung: Gegenstände, Inventar, Beute, Händler, Schmied und die zugehörigen Fenster.
 
 // --- Gegenstände -------------------------------------------------------------------
-// Ein Gegenstand ist { uid, slot, tier, plus }; tier ist der Index in ITEM_TIERS.
+// Ein Gegenstand ist { uid, slot, tier, plus, cls, kind }; tier ist der Index in ITEM_TIERS.
+// cls: Klasse, die ihn tragen kann (nur Waffe, Rüstung, Helm); kind: Waffenart (siehe WEAPON_KINDS).
 
-function makeItem(slot, tier, plus = 0) {
-  return { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus };
+function makeItem(slot, tier, plus = 0, cls = null, kind = null) {
+  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus };
+  if (CLASS_SLOTS.includes(slot)) {
+    item.cls = cls || (game.player ? game.player.classId : 'krieger');
+    if (slot === 'waffe') item.kind = kind || CLASS_WEAPON_KINDS[item.cls][0];
+  }
+  return item;
 }
 
-function starterEquipment() {
-  return { waffe: makeItem('waffe', 0), ruestung: makeItem('ruestung', 0), helm: null, schild: null, schuhe: null, guertel: null };
+function starterEquipment(classId = 'krieger') {
+  return { waffe: makeItem('waffe', 0, 0, classId), ruestung: makeItem('ruestung', 0, 0, classId), helm: null, schild: null, schuhe: null, guertel: null };
 }
 
 // Spielstände vor Version 1.4 kannten nur vier Stufen (Lv 1, 8, 15, 22).
@@ -18,9 +24,29 @@ function migrateItem(item) {
   return item;
 }
 
-function itemName(item, classId = game.player.classId) {
+// Gegenstände von vor Version 2.3 gehören noch keiner Klasse: sie werden der eigenen zugeordnet
+function assignClass(item, classId) {
+  if (!item || !CLASS_SLOTS.includes(item.slot)) return item;
+  if (!item.cls) item.cls = classId;
+  if (item.slot === 'waffe' && !item.kind) item.kind = CLASS_WEAPON_KINDS[item.cls][0];
+  return item;
+}
+
+function canWear(item, classId) {
+  return !item.cls || item.cls === classId;
+}
+
+function itemName(item) {
   const names = ITEM_NAMES[item.slot];
-  return Array.isArray(names) ? names[item.tier] : names[classId][item.tier];
+  if (Array.isArray(names)) return names[item.tier];
+  return item.slot === 'waffe' ? names[item.kind][item.tier] : names[item.cls][item.tier];
+}
+
+// Kurzbeschreibung: Waffenart bzw. Klasse
+function itemKindText(item) {
+  if (item.slot === 'waffe') return `${WEAPON_KINDS[item.kind].name} · ${CLASSES[item.cls].name}`;
+  if (item.cls) return CLASSES[item.cls].name;
+  return 'alle Klassen';
 }
 
 function itemFullName(item) {
@@ -33,26 +59,47 @@ function itemColor(item) {
 
 // Werte inklusive Verbesserung. Anteile (Prozentwerte) wachsen um 10 % je Plus,
 // ganze Zahlen um 10 % des Grundwerts, mindestens aber um 1.
-function itemStats(item, plus = item.plus, classId = game.player.classId) {
-  const base = { ...BASE_STATS[item.slot][item.tier] };
-  if (item.slot === 'waffe') Object.assign(base, WEAPON_EXTRA[classId][item.tier]);
+function itemStats(item, plus = item.plus) {
+  const t = item.tier;
+  const base = { ...BASE_STATS[item.slot][t] };
+  let speed = null;
+  if (item.slot === 'waffe') {
+    const k = WEAPON_KINDS[item.kind];
+    base.atk = Math.round(base.atk * k.atkMul);
+    if ((item.kind === 'dagger' || item.kind === 'bow') && CRIT_BY_TIER[t]) base.crit = CRIT_BY_TIER[t] * (item.kind === 'bow' ? 0.7 : 1);
+    if (k.magic && t) {
+      base.mp = MP_BY_TIER[t];
+      base.magic = MAGIC_BY_TIER[t] * (k.magicMul || 1);
+    }
+    speed = k.atkSpeed + SPEED_BY_TIER[t];
+  } else if (item.cls) {
+    const c = CLASS_ARMOR[item.cls];
+    if (base.def) base.def = Math.max(1, Math.round(base.def * c.def));
+    if (base.hp) base.hp = Math.round(base.hp * c.hp);
+    if (c.mp && base.hp) base.mp = (base.mp || 0) + Math.round(base.hp * c.mp);
+    if (c.dodge && t) base.dodge = c.dodge * t;
+  }
   const out = {};
   for (const [k, v] of Object.entries(base)) {
     out[k] = v < 1 ? v * (1 + PLUS_BONUS * plus) : v + plus * Math.max(1, Math.round(v * PLUS_BONUS));
   }
+  // Das Tempo einer Waffe hängt von ihrer Art ab und wächst nicht mit dem Plus
+  if (speed) out.atkSpeed = speed;
   return out;
 }
 
 const STAT_LABELS = {
   atk: 'Angriff', def: 'Rüstung', hp: 'Vitalität', mp: 'Intelligenz', crit: 'Kritisch',
-  speed: 'Lauftempo', dodge: 'Ausweichen', block: 'Blocken', regen: 'Regeneration'
+  speed: 'Lauftempo', dodge: 'Ausweichen', block: 'Blocken', regen: 'Regeneration',
+  atkSpeed: 'Angriffstempo', magic: 'Magiestärke'
 };
-const STAT_ORDER = ['atk', 'def', 'hp', 'mp', 'crit', 'block', 'dodge', 'speed', 'regen'];
+const STAT_ORDER = ['atk', 'atkSpeed', 'magic', 'def', 'hp', 'mp', 'crit', 'block', 'dodge', 'speed', 'regen'];
 
 function statText(k, v) {
   const pct = (x, d = 0) => (x * 100).toFixed(d).replace('.', ',');
   if (k === 'regen') return `${STAT_LABELS[k]} +${pct(v, 1)} %/s`;
-  if (k === 'crit' || k === 'speed' || k === 'dodge' || k === 'block') return `${STAT_LABELS[k]} +${pct(v)} %`;
+  if (k === 'atkSpeed') return `${STAT_LABELS[k]} ${v >= 0 ? '+' : '−'}${pct(Math.abs(v))} %`;
+  if (k === 'crit' || k === 'speed' || k === 'dodge' || k === 'block' || k === 'magic') return `${STAT_LABELS[k]} +${pct(v)} %`;
   if (k === 'hp') return `${STAT_LABELS[k]} +${v} Leben`;
   if (k === 'mp') return `${STAT_LABELS[k]} +${v} Mana`;
   return `${STAT_LABELS[k]} +${v}`;
@@ -146,6 +193,14 @@ function addToBag(item) {
   return true;
 }
 
+function addMobMat(id, n, from) {
+  const p = game.player;
+  p.upmats[id] = (p.upmats[id] || 0) + n;
+  const mat = MOB_MATS[id];
+  ui.loot(mat.name, n, mobMatIconUrl(id), mat.color);
+  if (from) later(0.15, () => vfxLootFly(from, mobMatSprite(id).img));
+}
+
 // Beute: normale Monster selten, Seelensteine oft
 function rollLoot(m) {
   const p = game.player;
@@ -170,13 +225,25 @@ function rollLoot(m) {
       for (let k = 0; k < n; k++) later(0.1 + got.length * 0.12 + k * 0.08, () => vfxLootFly(m, materialIconCanvas(id)));
     }
   }
+  // Monster-Teile für den Schmied: jedes Monster lässt selten sein eigenes Teil fallen,
+  // Seelensteine einige Teile der Monster ihres Gebiets
+  if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < MOB_MAT_CHANCE) addMobMat(m.typeId, 1, m);
+  if (m.isStone) {
+    const pool = m.zone.groups.map((g) => g[0]).filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
+    for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || m.zone.groups[0][0], 1, m);
+  }
   if (Math.random() < (drops ? drops.gear : 0.025)) {
+    // Seelensteine ab Stufe 20 lassen schon Ausrüstung der nächsthöheren Gebiete fallen (Lv 30 ab Stein 20)
+    const lootLevel = m.isStone && m.level >= 20 ? m.level + 10 : m.level;
     let tier = 0;
-    ITEM_TIERS.forEach((t, i) => { if (m.level >= t.level) tier = i; });
+    ITEM_TIERS.forEach((t, i) => { if (lootLevel >= t.level) tier = i; });
     const slots = drops && drops.slots ? drops.slots : EQUIP_SLOTS.map((sl) => sl.id);
     const slot = slots[Math.floor(Math.random() * slots.length)];
     const plus = drops ? randInt(drops.plus[0], drops.plus[1]) : Math.random() < 0.25 ? 1 : 0;
-    const item = makeItem(slot, tier, plus);
+    // meist für die eigene Klasse, manchmal für eine andere (zum Verkaufen)
+    const cls = Math.random() < 0.7 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
+    const kinds = CLASS_WEAPON_KINDS[cls];
+    const item = makeItem(slot, tier, plus, cls, kinds[randInt(0, kinds.length - 1)]);
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       later(0.2, () => vfxLootFly(m, itemIconCanvas(item)));
@@ -193,6 +260,10 @@ function equipFromBag(index) {
   const item = p.inventory[index];
   if (!item) return false;
   const need = ITEM_TIERS[item.tier].level;
+  if (!canWear(item, p.classId)) {
+    gear.message(`${itemName(item)} kann nur ein ${CLASSES[item.cls].name} tragen.`, 'warn');
+    return false;
+  }
   if (p.level < need) {
     gear.message(`${itemName(item)} kannst du ab Stufe ${need} tragen.`, 'warn');
     return false;
@@ -249,7 +320,12 @@ function itemAt(ref) {
 
 function upgradeCost(item) {
   const step = UPGRADE_STEPS[item.plus];
-  return { gold: step.gold * (item.tier + 1), splinters: step.splinters };
+  return { gold: step.gold * (item.tier + 1), splinters: step.splinters, mat: upgradeMaterial(item) };
+}
+
+function canPayUpgrade(cost) {
+  const p = game.player;
+  return p.gold >= cost.gold && p.splinters >= cost.splinters && (!cost.mat || (p.upmats[cost.mat.id] || 0) >= cost.mat.count);
 }
 
 // Gibt das Ergebnis zurück: success, fail (nur Kosten weg), down (Plus sinkt), break (zerbrochen)
@@ -258,10 +334,11 @@ function upgradeItem(ref, useScroll) {
   const item = itemAt(ref);
   if (!item || item.plus >= MAX_PLUS) return null;
   const cost = upgradeCost(item);
-  if (p.gold < cost.gold || p.splinters < cost.splinters) return null;
+  if (!canPayUpgrade(cost)) return null;
   if (useScroll && p.scrolls <= 0) return null;
   p.gold -= cost.gold;
   p.splinters -= cost.splinters;
+  if (cost.mat) p.upmats[cost.mat.id] -= cost.mat.count;
   if (useScroll) p.scrolls--;
   const step = UPGRADE_STEPS[item.plus];
   let result;
@@ -305,11 +382,13 @@ function shieldArt(ctx, tier) {
   else oval(ctx, 0, -1, 2.4, 2.4, metal);
 }
 
-function drawItemArt(ctx, slot, tier, classId) {
+function drawItemArt(ctx, item) {
+  const { slot, tier } = item;
   const metal = TIER_METAL[tier];
   const c = ARMOR_COLORS[tier];
   if (slot === 'waffe') {
-    const kind = CLASS_WEAPON[classId];
+    const kind = item.kind || 'sword';
+    const long = kind === 'staff' || kind === 'scythe' || kind === 'greatsword' || kind === 'bell';
     ctx.save();
     ctx.rotate(-Math.PI / 4);
     if (kind === 'dagger') {
@@ -318,26 +397,82 @@ function drawItemArt(ctx, slot, tier, classId) {
     } else if (kind === 'fan') {
       ctx.translate(-6, 0);
       ctx.scale(1.3, 1.3);
+    } else if (kind === 'bow') {
+      ctx.rotate(Math.PI / 4);
+      ctx.translate(-2, 0);
+      ctx.scale(1.35, 1.35);
+    } else if (long) {
+      ctx.translate(-15, 0);
+      ctx.scale(0.85, 0.85);
     } else {
       ctx.translate(-12, 0);
     }
     weaponArt(ctx, kind, tier);
     ctx.restore();
+  } else if (slot === 'ruestung' && (item.cls === 'schamane' || item.cls === 'nekromant')) {
+    // Robe mit weiten Ärmeln
+    const L = ARMOR_LOOK[item.cls];
+    const robe = L.robe[tier];
+    const trim = item.cls === 'schamane' ? L.gold[tier] : L.glow[tier];
+    poly(ctx, [[-6, -12], [6, -12], [9, 13], [-9, 13]], robe);
+    poly(ctx, [[-6, -12], [-15, 2], [-11, 5], [-5, -4]], darker(robe, 0.15));
+    poly(ctx, [[6, -12], [15, 2], [11, 5], [5, -4]], darker(robe, 0.15));
+    stroke(ctx, trim, 1.2, [[-3, -12], [0, -5], [3, -12]]);
+    box(ctx, -8, 1, 16, 2.4, 1, trim);
+    stroke(ctx, trim, 1, [[-9, 12.5], [9, 12.5]]);
+  } else if (slot === 'ruestung' && item.cls === 'ninja') {
+    // Wams mit Schal und Kreuzgurten
+    const L = ARMOR_LOOK.ninja;
+    poly(ctx, [[-9, -10], [9, -10], [10, 10], [-10, 10]], L.torso[tier]);
+    stroke(ctx, '#5a4030', 1.6, [[-8, -9], [8, 8]]);
+    stroke(ctx, '#5a4030', 1.6, [[8, -9], [-8, 8]]);
+    box(ctx, -10, -13, 20, 4.5, 2, L.scarf[tier]);
+    poly(ctx, [[5, -10], [9, -10], [12, 2], [8, 2]], L.scarf[tier]);
+    box(ctx, -10, 7, 20, 3, 1, L.scarf[tier]);
   } else if (slot === 'ruestung') {
-    poly(ctx, [[-9, -10], [9, -10], [11, 12], [-11, 12]], c);
-    for (let k = 0; k < 3; k++) stroke(ctx, metal, 0.9, [[-8.5, -4 + k * 4.5], [8.5, -4 + k * 4.5]]);
-    box(ctx, -10.5, 6, 21, 3, 1, metal);
-    oval(ctx, -11, -9, 6, 4.5, c);
-    oval(ctx, 11, -9, 6, 4.5, c);
-    stroke(ctx, metal, 1, [[-15, -7], [-7, -7]]);
-    stroke(ctx, metal, 1, [[7, -7], [15, -7]]);
-    poly(ctx, [[-4, -10], [4, -10], [0, -5]], darker(c, 0.3));
+    const k = ARMOR_LOOK.krieger;
+    const body = k.torso[tier];
+    const trim = k.trim[tier];
+    poly(ctx, [[-9, -10], [9, -10], [11, 12], [-11, 12]], body);
+    for (let i = 0; i < 3; i++) stroke(ctx, trim, 0.9, [[-8.5, -4 + i * 4.5], [8.5, -4 + i * 4.5]]);
+    box(ctx, -10.5, 6, 21, 3, 1, trim);
+    oval(ctx, -11, -9, 6, 4.5, body);
+    oval(ctx, 11, -9, 6, 4.5, body);
+    stroke(ctx, trim, 1, [[-15, -7], [-7, -7]]);
+    stroke(ctx, trim, 1, [[7, -7], [15, -7]]);
+    poly(ctx, [[-4, -10], [4, -10], [0, -5]], darker(body, 0.3));
+    if (tier >= 4) for (const x of [-11, 11]) poly(ctx, [[x - 3, -12], [x, -18], [x + 3, -12]], trim);
+  } else if (slot === 'helm' && item.cls === 'ninja') {
+    // Kapuze mit Augenschlitz
+    const L = ARMOR_LOOK.ninja;
+    oval(ctx, 0, 0, 12, 12, L.hood[tier]);
+    box(ctx, -9, -3, 18, 6, 2.5, '#e9c6a1');
+    for (const x of [-4, 4]) dot(ctx, x, 0, 1.6, 1.2, tier >= 6 ? '#9fe8ff' : '#21160f');
+    if (tier >= 4) box(ctx, -10, -8, 20, 3, 1, L.scarf[tier]);
+    poly(ctx, [[8, 4], [17, 12], [12, 13]], L.hood[tier]);
+  } else if (slot === 'helm' && item.cls === 'schamane') {
+    // Stirnband bzw. Krone mit Juwel
+    const L = ARMOR_LOOK.schamane;
+    const band = L.band[tier];
+    box(ctx, -13, -2, 26, 6, 2.5, band);
+    stroke(ctx, darker(band, 0.35), 0.8, [[-12, 1], [12, 1]]);
+    if (tier >= 3) for (const x of [-9, -3, 3, 9]) poly(ctx, [[x - 2.5, -2], [x, -10 - (tier >= 5 ? 3 : 0)], [x + 2.5, -2]], band);
+    oval(ctx, 0, 1, 2.6, 2.6, tier >= 4 ? '#ffffff' : '#c8402f');
+    if (tier < 3) for (const x of [-13, 13]) poly(ctx, [[x, 2], [x + (x < 0 ? -3 : 3), 12], [x + (x < 0 ? 1 : -1), 12]], band);
+  } else if (slot === 'helm' && item.cls === 'nekromant') {
+    // Spitze Kapuze, ab Stufe 5 mit Knochenkrone
+    const L = ARMOR_LOOK.nekromant;
+    poly(ctx, [[-12, 12], [-13, -2], [-4, -11], [2, -18], [6, -10], [13, -2], [12, 12]], L.hood[tier]);
+    dot(ctx, 0, 4, 7, 7, '#0d120c');
+    for (const x of [-3, 3]) dot(ctx, x, 3, 1.4, 1, L.glow[tier]);
+    if (tier >= 4) for (const [x, h] of [[-6, 5], [0, 8], [6, 5]]) poly(ctx, [[x - 1.6, -10], [x, -10 - h], [x + 1.6, -10]], '#ddd5bb');
   } else if (slot === 'helm') {
-    paintShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 4, 13, Math.PI, 0); ctx.closePath(); }, metal, -13, -9, 26, 13);
+    const hm = ARMOR_LOOK.krieger.helm[tier];
+    paintShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 4, 13, Math.PI, 0); ctx.closePath(); }, hm, -13, -9, 26, 13);
     box(ctx, -14.5, 2.5, 29, 4, 1.8, c);
-    box(ctx, -13, 6, 4, 8, 1.5, metal);
-    box(ctx, 9, 6, 4, 8, 1.5, metal);
-    if (tier >= 2) poly(ctx, [[-2, -9], [2, -9], [1.4, -16], [-1.4, -16]], tier >= 3 ? '#c8402f' : c);
+    box(ctx, -13, 6, 4, 8, 1.5, hm);
+    box(ctx, 9, 6, 4, 8, 1.5, hm);
+    if (tier >= 2) poly(ctx, [[-2, -9], [2, -9], [1.4, -16], [-1.4, -16]], ARMOR_LOOK.krieger.crest[tier]);
     if (tier >= 4) {
       poly(ctx, [[-9, -6], [-13, -14], [-6, -8]], '#b48cff');
       poly(ctx, [[9, -6], [13, -14], [6, -8]], '#b48cff');
@@ -391,11 +526,11 @@ function drawDoll(canvas) {
   drawPlayer(ctx, pose);
 }
 
-function itemIconUrl(item, classId = game.player.classId) {
+function itemIconUrl(item) {
   const band = plusBand(item.plus);
-  const key = `${item.slot}:${item.tier}:${classId}:${band}`;
+  const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:${band}`;
   if (iconCache.has(key)) return iconCache.get(key);
-  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item.slot, item.tier, classId));
+  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item));
   const size = 96;
   const c = newCanvas(size, size);
   const ctx = c.getContext('2d');
@@ -460,7 +595,7 @@ function materialIconUrl(id) {
 }
 
 function itemIconCanvas(item) {
-  return bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item.slot, item.tier, game.player.classId)).img;
+  return bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item)).img;
 }
 
 function scrollIconUrl() {
@@ -477,6 +612,34 @@ function scrollIconUrl() {
   const url = sp.img.toDataURL();
   iconCache.set('scroll', url);
   return url;
+}
+
+// Symbole der Monster-Teile: wenige Grundformen in der Farbe des Teils
+const MOB_MAT_ART = {
+  fang(ctx, c) { poly(ctx, [[-6, -10], [6, -10], [3, 4], [0, 13], [-3, 4]], c); stroke(ctx, darker(c, 0.3), 0.8, [[-3, -6], [0, 8]]); },
+  fur(ctx, c) { poly(ctx, [[-12, -6], [-6, -11], [0, -8], [6, -12], [12, -6], [10, 4], [12, 10], [4, 8], [0, 12], [-5, 8], [-12, 10], [-10, 2]], c); for (const x of [-6, 0, 6]) stroke(ctx, darker(c, 0.3), 0.8, [[x, -5], [x - 2, 4]]); },
+  horn(ctx, c) { poly(ctx, [[-8, 10], [-3, 10], [6, -2], [9, -12], [2, -4]], c); stroke(ctx, darker(c, 0.3), 0.8, [[-4, 6], [0, 6]]); stroke(ctx, darker(c, 0.3), 0.8, [[0, 2], [3, 2]]); },
+  badge(ctx, c) { poly(ctx, [[-9, -11], [9, -11], [9, 4], [0, 12], [-9, 4]], c); oval(ctx, 0, -2, 4, 4, '#e8c46a'); },
+  arrow(ctx, c) { stroke(ctx, '#8a6a44', 2, [[-11, 11], [6, -6]]); poly(ctx, [[11, -11], [3, -8], [8, -3]], c); poly(ctx, [[-11, 11], [-12, 5], [-8, 8]], '#e8e0cc'); },
+  silk(ctx, c) { oval(ctx, 0, 0, 10, 10, c); for (let k = 0; k < 4; k++) stroke(ctx, darker(c, 0.25), 0.8, [[-9, -6 + k * 4], [9, -4 + k * 4]]); },
+  claw(ctx, c) { for (const x of [-6, 0, 6]) poly(ctx, [[x - 2.5, -8], [x + 2.5, -8], [x + 1, 10], [x - 1, 6]], c); },
+  feather(ctx, c) { poly(ctx, [[-2, 12], [-6, 2], [-4, -8], [2, -13], [6, -4], [3, 6]], c); stroke(ctx, '#f4ecd8', 0.9, [[-2, 12], [2, -11]]); },
+  core(ctx, c) { oval(ctx, 0, 0, 9, 9, darker(c, 0.4)); oval(ctx, 0, 0, 6, 6, c); oval(ctx, -2, -2, 2.4, 2.4, '#ffe9a0'); },
+  crystal(ctx, c) { poly(ctx, [[0, -13], [7, -3], [4, 12], [-4, 12], [-7, -3]], c); poly(ctx, [[0, -13], [4, 12], [-4, 12]], lighter(c, 0.35)); },
+  dust(ctx, c) { box(ctx, -8, -2, 16, 12, 3, '#8a6a44'); box(ctx, -6, -8, 12, 6, 2, '#a07a4a'); oval(ctx, 0, -4, 5, 2, c); },
+  herb(ctx, c) { stroke(ctx, '#4a6a2a', 1.4, [[0, 12], [0, -6]]); for (const [x, y] of [[-6, -6], [6, -4], [-5, 2], [5, 4]]) oval(ctx, x, y, 4, 2.4, c); },
+  scale(ctx, c) { poly(ctx, [[0, -12], [10, -4], [8, 8], [0, 12], [-8, 8], [-10, -4]], c); stroke(ctx, lighter(c, 0.35), 1, [[-5, -3], [0, -8], [5, -3]]); stroke(ctx, lighter(c, 0.35), 1, [[-5, 4], [0, -1], [5, 4]]); }
+};
+
+function mobMatSprite(id) {
+  const m = MOB_MATS[id];
+  return getSprite('mm:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MOB_MAT_ART[m.art](ctx, m.color));
+}
+
+function mobMatIconUrl(id) {
+  const key = 'mm:' + id;
+  if (!iconCache.has(key)) iconCache.set(key, mobMatSprite(id).img.toDataURL());
+  return iconCache.get(key);
 }
 
 // Kleine Symbole für die Beuteanzeige: Gold, Seelensplitter, rote und blaue Tränke
@@ -538,7 +701,7 @@ const gear = {
   tile(item, attrs, label, slot) {
     if (!item) {
       // Leere Ausrüstungsplätze zeigen ein blasses Symbol, was dort hingehört
-      const ghost = slot ? `<img class="ghost" src="${itemIconUrl({ slot, tier: 0, plus: 0 })}" alt="">` : '';
+      const ghost = slot ? `<img class="ghost" src="${itemIconUrl(makeItem(slot, 0))}" alt="">` : '';
       return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
     }
     const band = plusBand(item.plus);
@@ -609,7 +772,7 @@ const gear = {
     const slotName = EQUIP_SLOTS.find((s) => s.id === item.slot).name;
     const actions = this.selected.where === 'equip'
       ? `<button type="button" class="mini-btn" data-act="unequip">Ablegen</button>`
-      : `<button type="button" class="mini-btn" data-act="equip" ${p.level < need ? 'disabled' : ''}>Anlegen</button>` +
+      : `<button type="button" class="mini-btn" data-act="equip" ${p.level < need || !canWear(item, p.classId) ? 'disabled' : ''}>Anlegen</button>` +
         `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell">${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item) + ' Gold)'}</button>`;
     const bonuses = (item.bonuses || []).map((b, i) => `<li><span class="bn">${i + 1}</span>${bonusText(b)}</li>`).join('') +
       (item.specials || []).map((b, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(b, true)}</li>`).join('');
@@ -626,7 +789,8 @@ const gear = {
     }).join('');
     el.innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
       `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
-      `<small>${slotName} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${need}</small>` +
+      `<small>${slotName} · ${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${need}</small>` +
+      (canWear(item, p.classId) ? '' : `<small class="need">Nur für ${CLASSES[item.cls].name}. Du kannst es verkaufen.</small>`) +
       `<span>${this.statsList(item)}</span>` +
       (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
       `</div><div class="item-actions">${actions}</div></div>` +
@@ -674,14 +838,16 @@ const gear = {
   renderMerchant(body = document.getElementById('npcBody'), keepMsg) {
     const p = game.player;
     const m = MERCHANTS[this.merchant];
-    const kinds = { krieger: 'Schwerter', ninja: 'Dolche', schamane: 'Fächer', nekromant: 'Stäbe' };
-    const groups = m.slots.map((slot) => {
+    // Waffen: jede Art der eigenen Klasse als eigene Liste; Rüstung und Helm nur für die eigene Klasse
+    const lists = m.slots.flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].map((kind) => ({ slot, kind })) : [{ slot }]));
+    const groups = lists.map(({ slot, kind }) => {
       const slotName = EQUIP_SLOTS.find((x) => x.id === slot).name;
-      const title = slot === 'waffe' ? `${kinds[p.classId]} für ${CLASSES[p.classId].name}` : slotName;
+      const title = kind ? `${WEAPON_KINDS[kind].name} für ${CLASSES[p.classId].name} <small>${WEAPON_KINDS[kind].text}</small>`
+        : CLASS_SLOTS.includes(slot) ? `${slotName} für ${CLASSES[p.classId].name}` : slotName;
       const equipped = p.equipment[slot];
       const eqStats = equipped ? itemStats(equipped) : {};
       const rows = m.prices.map((price, tier) => {
-        const item = makeItem(slot, tier);
+        const item = makeItem(slot, tier, 0, p.classId, kind);
         const need = ITEM_TIERS[tier].level;
         const tooLow = p.level < need;
         // Grün: besser als das, was gerade angelegt ist; rot: schlechter
@@ -696,11 +862,11 @@ const gear = {
           `<small class="${tooLow ? 'need' : ''}">ab Stufe ${need} · ${ITEM_TIERS[tier].label}</small>` +
           `<span class="mi-stats">${stats}</span></div>` +
           `<div class="mi-buy"><span class="price">${price.toLocaleString('de-DE')} Gold</span>` +
-          `<button type="button" class="mini-btn" data-buy-gear="${slot}:${tier}" ${p.gold < price ? 'disabled' : ''}>Kaufen</button>` +
-          (tooLow ? '' : `<button type="button" class="mini-btn primary" data-buy-equip="${slot}:${tier}" ${p.gold < price ? 'disabled' : ''}>Kaufen &amp; anlegen</button>`) +
+          `<button type="button" class="mini-btn" data-buy-gear="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen</button>` +
+          (tooLow ? '' : `<button type="button" class="mini-btn primary" data-buy-equip="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen &amp; anlegen</button>`) +
           `</div></div>`;
       }).join('');
-      return `<h3>${title} <small>angelegt: ${equipped ? itemFullName(equipped) : 'nichts'}</small></h3><div class="merchant-list">${rows}</div>`;
+      return `<h3>${title} <small>· angelegt: ${equipped ? itemFullName(equipped) : 'nichts'}</small></h3><div class="merchant-list">${rows}</div>`;
     }).join('');
     const msg = keepMsg ? document.getElementById('merchantMsg') : null;
     const text = msg ? msg.textContent : '';
@@ -710,12 +876,12 @@ const gear = {
       `<p id="merchantMsg" class="${cls}">${text}</p>` + groups + this.sellSectionHtml();
     this.wireSell(body, () => this.renderMerchant(body, true));
     body.querySelectorAll('[data-buy-gear]').forEach((b) => b.addEventListener('click', () => {
-      const [slot, tier] = b.dataset.buyGear.split(':');
-      this.buyGear(slot, Number(tier), false);
+      const [slot, tier, kind] = b.dataset.buyGear.split(':');
+      this.buyGear(slot, Number(tier), false, kind);
     }));
     body.querySelectorAll('[data-buy-equip]').forEach((b) => b.addEventListener('click', () => {
-      const [slot, tier] = b.dataset.buyEquip.split(':');
-      this.buyGear(slot, Number(tier), true);
+      const [slot, tier, kind] = b.dataset.buyEquip.split(':');
+      this.buyGear(slot, Number(tier), true, kind);
     }));
   },
 
@@ -752,10 +918,10 @@ const gear = {
     }));
   },
 
-  buyGear(slot, tier, equip) {
+  buyGear(slot, tier, equip, kind) {
     const p = game.player;
     const price = MERCHANTS[this.merchant].prices[tier];
-    const item = makeItem(slot, tier);
+    const item = makeItem(slot, tier, 0, p.classId, kind || null);
     if (p.gold < price) {
       this.message(`Dir fehlen ${(price - p.gold).toLocaleString('de-DE')} Gold.`, 'warn');
       return;
@@ -794,7 +960,7 @@ const gear = {
       return this.tile(it, `data-ref="${r.where}:${r.key}" class-sel="${sel}"`, r.where === 'equip' ? 'angelegt' : '');
     }).join('');
     body.innerHTML =
-      `<p>„Zeig mir, was ich schmieden soll. Bis +3 passiert nichts Schlimmes. Danach wird es gefährlich, ab +7 kann es zerbrechen.“</p>` +
+      `<p>„Zeig mir, was ich schmieden soll. Bis +3 passiert nichts Schlimmes, ab +7 kann es zerbrechen. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +
       `<div class="smith"><div class="smith-list">${list || '<p class="hint-text">Du hast keine Ausrüstung.</p>'}</div>` +
       `<div id="smithWork" class="smith-work"></div></div><p id="smithMsg" class="gear-msg"></p>`;
     body.querySelectorAll('[data-ref]').forEach((b) => {
@@ -824,7 +990,13 @@ const gear = {
     }
     const step = UPGRADE_STEPS[item.plus];
     const cost = upgradeCost(item);
-    const enough = p.gold >= cost.gold && p.splinters >= cost.splinters;
+    const enough = canPayUpgrade(cost);
+    const mat = cost.mat;
+    const have = mat ? p.upmats[mat.id] || 0 : 0;
+    const matLine = mat
+      ? `<p class="smith-cost smith-mat"><img class="mini-icon" src="${mobMatIconUrl(mat.id)}" alt=""> Dazu: <b class="${have >= mat.count ? '' : 'lack'}">${mat.count} × ${MOB_MATS[mat.id].name}</b> (du hast ${have}) ` +
+        `<small>von: ${MONSTER_TYPES[mat.id].name}, Stufe ${MONSTER_TYPES[mat.id].level}</small></p>`
+      : (item.plus + 1 >= upgradeMatStart(item.tier) ? '' : `<p class="hint-text">Ab +${upgradeMatStart(item.tier)} braucht der Schmied zusätzlich Teile von Monstern.</p>`);
     const risk = step.fail === 'none' ? 'Bei Fehlschlag sind nur die Kosten weg.'
       : step.fail === 'down' ? `Bei Fehlschlag fällt der Gegenstand auf +${item.plus - 1} zurück.`
         : 'Bei Fehlschlag zerbricht der Gegenstand!';
@@ -834,7 +1006,7 @@ const gear = {
       `<p class="smith-stats">${this.statsList(item)}<br>→ ${this.statsList(item, item.plus + 1)}</p>` +
       `<div class="chance"><i style="width:${step.chance * 100}%"></i><span>Erfolgschance ${Math.round(step.chance * 100)} %</span></div>` +
       `<p class="smith-cost">Kosten: <b class="${p.gold >= cost.gold ? '' : 'lack'}">${cost.gold.toLocaleString('de-DE')} Gold</b> und ` +
-      `<b class="${p.splinters >= cost.splinters ? '' : 'lack'}">${cost.splinters} Seelensplitter</b> (du hast ${p.splinters})</p>` +
+      `<b class="${p.splinters >= cost.splinters ? '' : 'lack'}">${cost.splinters} Seelensplitter</b> (du hast ${p.splinters})</p>` + matLine +
       `<p class="smith-risk ${step.fail}">${risk}</p>` +
       (step.fail !== 'none' ? `<label class="scroll-opt" for="useScroll"><input id="useScroll" type="checkbox" ${p.scrolls ? '' : 'disabled'}>` +
         `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrolle verwenden (${p.scrolls} vorhanden)</label>` : '') +

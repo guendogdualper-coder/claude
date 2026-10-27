@@ -451,3 +451,45 @@ Mobile game HUD in landscape, bottom right corner: a large round red attack butt
 ```
 2D fantasy MMORPG game screen, three-quarter top-down view of a meadow with cherry trees and a small village wall: soft blurred shadows under every character, tree and house, large soft cloud shadows drifting slowly over the grass, warm sunlight from the top left and gently darkened screen edges like a vignette, small floating pollen in the air. Cute hand-painted style, cozy and atmospheric.
 ```
+
+## Buff-Symbole, Ausrüstung je Klasse, Bögen, +20 und Monster-Teile (Version 2.3)
+
+### Buffs als Symbole mit Restzeit
+```
+Mobile game HUD detail, top left player frame of a 2D fantasy MMORPG: under the health and mana bars a row of small round skill icons for active buffs (golden sword aura, blue feather of agility, red flame of rage, bone shield), each icon framed by a thin golden ring that empties clockwise as the buff runs out, the remaining time in tiny bold white text below each icon ("2:45", "1:10", "9s"), a small badge with the shield amount on the bone shield, an icon blinking softly when it is about to run out. Dark lacquer style, readable on a phone.
+```
+
+### Waffen, die sich je Stufe unterscheiden
+```
+2D game weapon sprite sheet for a fantasy MMORPG, eight upgrade tiers per row from left to right (iron, bronze, moon, dragon, soul, ash, sky, divine), rows: one-handed swords (straight, broad, curved moon saber, serrated dragon blade with red gem, purple soul blade with runes and spiked guard, dark ash blade with glowing orange edge, white-blue sky blade with winged guard, golden divine blade with white gem), two-handed greatswords (same styles, much longer and wider), twin daggers, bows (wooden, recurved, colored limbs, gem in the grip), war fans with crane and flame motifs, temple bells on a handle with ribbons, necromancer staffs with skull, crystal and star heads, scythes with curved blades. Bold dark outline, cel shading, plain dark background, no text.
+```
+
+### Rüstung und Helm an der Figur
+```
+2D game character sprite sheet, cute chibi style, front view, four classes in four rows, each in eight armor tiers from left to right: warrior from brown leather and no helmet to iron plate with breastplate, crimson dragon armor with horned helmet, purple soul armor with spiked shoulders, sky-blue armor with winged helmet and golden divine armor; ninja from brown cloth to dark violet, green, crimson-black and blue outfits with colored scarf and a forehead plate mask, glowing eyes at the highest tier; shaman from plain linen robe to purple, teal, red and white-gold robes with golden trim, headband turning into a spiked crown and a halo; necromancer from grey shroud to dark robes with red, purple or golden glowing eyes and a bone crown on the hood. Bold dark outline, cel shading, plain green background, no text.
+```
+
+### Ninja mit Bogen
+```
+2D game action frame, three-quarter top-down view: a chibi ninja in a dark hood with a purple scarf holding a red recurve bow, shooting a white-feathered arrow with a light trail at a grey wolf far away, the wolf flinching with a hit spark. Cute fantasy game style, bold outlines, soft cel shading.
+```
+
+### Ausrüstung nur für die eigene Klasse
+```
+2D fantasy MMORPG inventory detail mockup in East Asian style: a selected item "Lamellenpanzer" with the line "Rüstung · Krieger · Gut · ab Stufe 10" and a red warning "Nur für Krieger. Du kannst es verkaufen." while the player is a ninja; the button "Anlegen" is greyed out, the button "Verkaufen (120 Gold)" is active. Next to it the weapon merchant window showing two lists for the ninja: "Dolche für Ninja – schnell, oft kritisch" and "Bogen für Ninja – greift aus der Ferne an", each item with attack, attack speed and crit values in green or red compared to the equipped weapon.
+```
+
+### Schmied bis +20 mit Monster-Teilen
+```
+2D fantasy MMORPG blacksmith window UI in East Asian style: an anvil with a glowing dagger "+8 → +9", the stats before and after, a red-to-green success bar "Erfolgschance 20 %", the costs in gold and soul splinters and an extra line with a small icon "Dazu: 1 × Banditenabzeichen (du hast 1), von: Bandit, Stufe 11", a warning "Bei Fehlschlag zerbricht der Gegenstand!", a checkbox for a blessing scroll and a big golden button "Verbessern". Item tiles show plus values in green, blue, purple, gold (+10 to +14), red (+15 to +19) and white (+20) with matching glow borders.
+```
+
+### Monster-Teile als Beute
+```
+Set of 24 small item icons for a 2D fantasy MMORPG, crafting materials dropped by monsters, arranged in a grid: dog tooth, grey wolf pelt, black alpha pelt, boar tusk, red bandit badge, iron arrowhead, white spider silk, brown bear claw, orc tooth, blue shaman feather, green glowing scorpion stinger, golden war banner, ogre horn, red demon horn, glowing hell ember, white ice wolf fur, snowy yeti fur, frost crystal, bag of grave dust, green witch herb, ghoul claw, glowing lava core, burning fire wing feather, red dragon scale. Bold dark outline, soft gradients, plain dark background, no text.
+```
+
+### Ausrüstung ab Stufe 30 aus hohen Gebieten
+```
+2D fantasy MMORPG loot moment, three-quarter top-down view: a destroyed level 20 soul stone in an orange orc valley bursting into shards, a glowing mythic chest armor and a dark ash blade with orange edge floating above it with an orange-gold glow, a small label "Mythisch · ab Stufe 30". In the background the grey ash wasteland where such gear also drops from ogres and demons. Cute chibi game art, bold outlines, warm glow.
+```

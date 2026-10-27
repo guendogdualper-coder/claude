@@ -266,31 +266,88 @@ const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350', '#3a
 const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a', '#e0602a', '#5ab0e0', '#e8c46a'];
 const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff', '#ff6a2a', '#bff4ff', '#fff2b0'];
 
+// Formen je Stufe: Leder/Eisen, Bronze, Mond, Drache, Seele, Asche, Himmel, Götter
+const BLADE_SHAPES = [
+  { len: 21, w: 2.3, curve: 0, guard: 'bar' },
+  { len: 22, w: 3.1, curve: 0, guard: 'bar' },
+  { len: 22, w: 2.6, curve: 0.45, guard: 'round' },
+  { len: 24, w: 3, curve: 0, guard: 'wings', serrated: true, gem: '#c8302a' },
+  { len: 25, w: 2.8, curve: 0.15, guard: 'spikes', gem: '#d6a8ff', runes: true },
+  { len: 25, w: 3.2, curve: 0, guard: 'spikes', serrated: true, gem: '#ff7a2a', edge: '#ff9a4a' },
+  { len: 26, w: 2.9, curve: 0.1, guard: 'wings', gem: '#9fe8ff', edge: '#e8f8ff' },
+  { len: 27, w: 3.4, curve: 0, guard: 'wings', gem: '#ffffff', edge: '#fff2b0', runes: true }
+];
+
+// Klinge von x0 bis zur Spitze; curve biegt sie wie einen Säbel, serrated gibt Zacken am Rücken
+function bladeArt(ctx, x0, len, w, curve, serrated, color, edge) {
+  const bend = (x) => -curve * 6 * Math.sin(((x - x0) / len) * Math.PI);
+  const top = [];
+  const bottom = [];
+  for (let k = 0; k <= 8; k++) {
+    const x = x0 + (len * k) / 8;
+    const taper = k === 8 ? 0 : 1 - (k / 8) * 0.25;
+    const zig = serrated && k > 1 && k < 8 && k % 2 ? -1.4 : 0;
+    top.push([x, bend(x) - w * taper + zig]);
+    bottom.push([x, bend(x) + w * taper]);
+  }
+  const tip = [x0 + len + 4.5, bend(x0 + len) - curve * 3];
+  poly(ctx, [...top, tip, ...bottom.reverse()], color);
+  stroke(ctx, edge || '#f4f6f8', 0.8, top.slice(1, 8).map(([x, y]) => [x, y + w * 0.55]));
+}
+
+function guardArt(ctx, x, style, metal) {
+  if (style === 'round') {
+    oval(ctx, x, 0, 2.6, 4.6, metal);
+  } else if (style === 'wings') {
+    poly(ctx, [[x - 1, -2.5], [x - 4, -8], [x + 2.2, -4], [x + 2.2, 4], [x - 4, 8], [x - 1, 2.5]], metal);
+  } else if (style === 'spikes') {
+    poly(ctx, [[x - 1.2, -4.5], [x + 3.5, -7], [x + 1.5, -3], [x + 1.5, 3], [x + 3.5, 7], [x - 1.2, 4.5]], metal);
+  } else {
+    box(ctx, x - 1.2, -4.2, 2.4, 8.4, 1, metal);
+  }
+}
+
+function swordArt(ctx, tier, big) {
+  const sh = BLADE_SHAPES[tier] || BLADE_SHAPES[0];
+  const k = big ? 1.4 : 1;
+  const grip = big ? 9 : 5.5;
+  box(ctx, -3.5 - (grip - 5.5), -1.5, grip, 3, 1, TIER_ACCENT[tier]);
+  if (big) for (let x = -8; x < 1; x += 2.5) stroke(ctx, darker(TIER_ACCENT[tier], 0.4), 0.6, [[x, -1.5], [x + 1, 1.5]]);
+  oval(ctx, -4 - (grip - 5.5), 0, 1.9, 1.9, '#c9a35a');
+  guardArt(ctx, 2.7, sh.guard, tier >= 3 ? TIER_METAL[tier] : '#c9a35a');
+  bladeArt(ctx, 3.8, sh.len * k - 3.8, sh.w * (big ? 1.35 : 1), sh.curve, sh.serrated, TIER_METAL[tier], sh.edge);
+  if (sh.gem) oval(ctx, 2.7, 0, 1.4, 1.4, sh.gem);
+  if (sh.runes) for (let x = 8; x < sh.len * k - 4; x += 5) stroke(ctx, sh.gem, 0.8, [[x, -0.6], [x + 2, 0.6]]);
+}
+
 function weaponArt(ctx, kind, tier = 0) {
   switch (kind) {
     case 'sword':
-      box(ctx, -3.5, -1.5, 5.5, 3, 1, TIER_ACCENT[tier]);
-      oval(ctx, -4, 0, 1.9, 1.9, '#c9a35a');
-      box(ctx, 1.5, -4.2, 2.4, 8.4, 1, '#c9a35a');
-      poly(ctx, [[3.8, -2.3], [21, -2.3], [25.5, 0], [21, 2.3], [3.8, 2.3]], TIER_METAL[tier]);
-      stroke(ctx, '#f4f6f8', 0.8, [[5, -0.6], [21, -0.6]]);
+      swordArt(ctx, tier, false);
       break;
-    case 'dagger':
+    case 'greatsword':
+      swordArt(ctx, tier, true);
+      break;
+    case 'dagger': {
+      const sh = BLADE_SHAPES[tier] || BLADE_SHAPES[0];
       box(ctx, -2.8, -1.3, 4.2, 2.6, 1, '#2a2420');
-      box(ctx, 1.2, -2.8, 1.6, 5.6, 0.8, '#8a8f96');
-      poly(ctx, [[2.8, -1.7], [11, -1.4], [14.5, 0.6], [2.8, 1.7]], TIER_METAL[tier]);
+      box(ctx, 1.2, -2.8 - (tier >= 3 ? 1 : 0), 1.6, 5.6 + (tier >= 3 ? 2 : 0), 0.8, tier >= 3 ? TIER_METAL[tier] : '#8a8f96');
+      bladeArt(ctx, 2.8, 9 + tier * 0.6, 1.6 + (tier % 2) * 0.3, Math.min(0.35, sh.curve * 0.8), sh.serrated, TIER_METAL[tier], sh.edge);
+      if (sh.gem) oval(ctx, -1, 0, 1, 1, sh.gem);
       break;
+    }
     case 'fan': {
       paintShape(ctx, () => {
         ctx.beginPath();
         ctx.moveTo(0, 0);
-        ctx.arc(0, 0, 14, -0.8, 0.8);
+        ctx.arc(0, 0, 14 + tier * 0.4, -0.8, 0.8);
         ctx.closePath();
       }, FAN_LEAF[tier], 0, -10, 14, 20);
-      ctx.strokeStyle = '#e0c36a';
+      ctx.strokeStyle = tier >= 4 ? TIER_METAL[tier] : '#e0c36a';
       ctx.lineWidth = 0.8;
-      for (let k = -3; k <= 3; k++) {
-        const a = k * 0.25;
+      const ribs = 5 + Math.min(4, tier);
+      for (let k = 0; k <= ribs; k++) {
+        const a = -0.75 + (1.5 * k) / ribs;
         ctx.beginPath();
         ctx.moveTo(1, 0);
         ctx.lineTo(Math.cos(a) * 14, Math.sin(a) * 14);
@@ -300,21 +357,80 @@ function weaponArt(ctx, kind, tier = 0) {
       ctx.beginPath();
       ctx.arc(0, 0, 13.6, -0.8, 0.8);
       ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, 0, 7, -0.8, 0.8);
-      ctx.stroke();
+      // Muster auf dem Blatt: Kranich, Flamme, Wolke
+      if (tier >= 2) oval(ctx, 9, 0, 2.2, 3.2, tier >= 5 ? '#ffb04a' : '#f4f0e0');
+      if (tier >= 3) poly(ctx, [[7, -5], [11, -7], [9, -3]], lighter(FAN_LEAF[tier], 0.4));
+      if (tier >= 6) for (const a of [-0.5, 0.5]) oval(ctx, Math.cos(a) * 11, Math.sin(a) * 11, 1.2, 1.2, '#ffffff');
       oval(ctx, Math.cos(0.8) * 14 + 1, Math.sin(0.8) * 14 + 2, 1.6, 1.6, '#e0c36a');
       oval(ctx, Math.cos(-0.8) * 14 + 1, Math.sin(-0.8) * 14 + 2, 1.6, 1.6, '#e0c36a');
       box(ctx, -2.5, -1.3, 4, 2.6, 1, '#e0c36a');
+      if (tier >= 4) stroke(ctx, '#c8402f', 1, [[-2, 1], [-5, 5], [-4, 8]]);
       break;
     }
-    case 'staff':
-      box(ctx, -14, -1.4, 35, 2.8, 1.2, '#5c4230');
-      for (let k = -10; k < 18; k += 5) stroke(ctx, '#3e2c1f', 0.9, [[k, -1.4], [k + 2, 1.4]]);
-      poly(ctx, [[19, -1.5], [23, -5], [24, -3], [21.5, 0], [24, 3], [23, 5], [19, 1.5]], '#3e2c1f');
-      oval(ctx, 25, 0, 3.6, 3.6, STAFF_ORB[tier]);
-      dot(ctx, 24, -1.2, 1.1, 1.1, '#efffe0');
+    case 'bell': {
+      // Stiel mit Glocke am Ende, ab Stufe 3 mit Bändern
+      box(ctx, -6, -1.2, 18, 2.4, 1, '#6b4a2e');
+      box(ctx, 11, -2.2, 3, 4.4, 1, TIER_METAL[tier]);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(14, -3); ctx.quadraticCurveTo(22, -4, 24, -8); ctx.lineTo(24, 8); ctx.quadraticCurveTo(22, 4, 14, 3); ctx.closePath(); }, TIER_METAL[tier], 14, -8, 10, 16);
+      oval(ctx, 25, 0, 1.4, 1.4, STAFF_ORB[tier]);
+      stroke(ctx, darker(TIER_METAL[tier], 0.35), 0.8, [[18, -4], [18, 4]]);
+      if (tier >= 3) {
+        stroke(ctx, FAN_LEAF[tier], 1.2, [[12, 2], [9, 7], [11, 11]]);
+        stroke(ctx, lighter(FAN_LEAF[tier], 0.3), 1.2, [[13, 2], [12, 8], [15, 11]]);
+      }
       break;
+    }
+    case 'staff': {
+      const wood = tier >= 5 ? '#2a2024' : tier >= 3 ? '#4a3a3a' : '#5c4230';
+      box(ctx, -14, -1.4, 35, 2.8, 1.2, wood);
+      for (let k = -10; k < 18; k += 5) stroke(ctx, darker(wood, 0.35), 0.9, [[k, -1.4], [k + 2, 1.4]]);
+      const head = tier % 4;
+      if (head === 0) poly(ctx, [[19, -1.5], [23, -5], [24, -3], [21.5, 0], [24, 3], [23, 5], [19, 1.5]], '#3e2c1f');
+      else if (head === 1) { stroke(ctx, wood, 1.6, [[19, 0], [24, -5], [27, -6]]); stroke(ctx, wood, 1.6, [[19, 0], [24, 5], [27, 6]]); }
+      else if (head === 2) { oval(ctx, 21, 0, 4, 3.6, '#ddd5bb'); dot(ctx, 22, -1.2, 0.9, 0.9, '#1a1210'); dot(ctx, 22, 1.2, 0.9, 0.9, '#1a1210'); }
+      else poly(ctx, [[19, -2], [24, -7], [23, -2], [28, 0], [23, 2], [24, 7], [19, 2]], TIER_METAL[tier]);
+      if (tier >= 4) for (const y of [-5, 5]) poly(ctx, [[20, y * 0.4], [24, y * 1.4], [22, y * 0.3]], '#2a1416');
+      oval(ctx, 25.5, 0, 3.6 + tier * 0.15, 3.6 + tier * 0.15, STAFF_ORB[tier]);
+      dot(ctx, 24.5, -1.2, 1.1, 1.1, '#efffe0');
+      if (tier >= 6) for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; stroke(ctx, STAFF_ORB[tier], 0.8, [[25.5 + Math.cos(a) * 5, Math.sin(a) * 5], [25.5 + Math.cos(a) * 7, Math.sin(a) * 7]]); }
+      break;
+    }
+    case 'scythe': {
+      // langer Schaft, gebogene Klinge am Ende
+      box(ctx, -12, -1.3, 34, 2.6, 1.2, tier >= 5 ? '#2a2024' : '#4a3a2a');
+      box(ctx, 20, -2.4, 3.4, 4.8, 1, TIER_METAL[tier]);
+      paintShape(ctx, () => {
+        ctx.beginPath();
+        ctx.moveTo(22, -2);
+        ctx.quadraticCurveTo(26, -16, 10 - tier * 0.6, -19 - tier * 0.4);
+        ctx.quadraticCurveTo(21, -13, 21.5, -2);
+        ctx.closePath();
+      }, TIER_METAL[tier], 10, -20, 16, 18);
+      stroke(ctx, '#f4f6f8', 0.7, [[24, -6], [20, -14], [13, -17.5]]);
+      if (tier >= 3) oval(ctx, 21.7, 0, 1.4, 1.4, STAFF_ORB[tier]);
+      break;
+    }
+    case 'bow': {
+      // Bogen mit gefüllten Wurfarmen, ab Stufe 2 mit geschwungenen Enden
+      const wood = tier >= 3 ? TIER_ACCENT[tier] : '#6b4a2e';
+      const r = 12 + Math.min(3, tier * 0.5);
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#120c08';
+      ctx.lineWidth = 3.6;
+      ctx.beginPath();
+      ctx.arc(-6, 0, r, -1.15, 1.15);
+      ctx.stroke();
+      ctx.strokeStyle = wood;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      const tipX = -6 + Math.cos(1.15) * r;
+      const tipY = Math.sin(1.15) * r;
+      if (tier >= 2) for (const sgn of [-1, 1]) stroke(ctx, TIER_METAL[tier], 1.4, [[tipX, tipY * sgn], [tipX - 2.5, (tipY + 2.5) * sgn]]);
+      stroke(ctx, '#e8e0cc', 0.5, [[tipX, -tipY], [tipX, tipY]]);
+      box(ctx, -6 + r - 1.8, -2.2, 3, 4.4, 1, tier >= 4 ? TIER_METAL[tier] : '#3a2a1c');
+      if (tier >= 4) oval(ctx, -6 + r - 0.3, 0, 1.2, 1.2, STAFF_ORB[tier]);
+      break;
+    }
     case 'axe':
       box(ctx, -4, -1.2, 22, 2.4, 1, '#5a4030');
       poly(ctx, [[12, -2], [17, -9], [21, -7], [19.5, 0], [21, 7], [17, 9], [12, 2]], '#9aa1a8');
@@ -324,14 +440,6 @@ function weaponArt(ctx, kind, tier = 0) {
       poly(ctx, [[-3, -1.6], [14, -3.6], [20, -4.6], [22.5, 0], [20, 4.6], [14, 3.6], [-3, 1.6]], '#6b4f34');
       dot(ctx, 15, -1.5, 0.9, 0.9, '#3e2c1f');
       dot(ctx, 18, 1.8, 0.9, 0.9, '#3e2c1f');
-      break;
-    case 'bow':
-      ctx.strokeStyle = '#6b4a2e';
-      ctx.lineWidth = 1.8;
-      ctx.beginPath();
-      ctx.arc(-6, 0, 12, -1.15, 1.15);
-      ctx.stroke();
-      stroke(ctx, '#e8e0cc', 0.5, [[-6 + Math.cos(1.15) * 12, -Math.sin(1.15) * 12], [-6 + Math.cos(1.15) * 12, Math.sin(1.15) * 12]]);
       break;
     case 'skullstaff':
       box(ctx, -12, -1.3, 30, 2.6, 1.2, '#4a3a2a');
@@ -343,49 +451,102 @@ function weaponArt(ctx, kind, tier = 0) {
   }
 }
 
-const WEAPON_BOUNDS = { x: -8, y: -12, w: 38, h: 24 };
+const WEAPON_BOUNDS = { x: -14, y: -22, w: 58, h: 44 };
 
 function weaponSprite(kind, tier = 0) {
   return getSprite(`w:${kind}:${tier}`, WEAPON_BOUNDS, (ctx) => weaponArt(ctx, kind, tier));
 }
 
-function heldWeapon(ctx, kind, x, y, angle) {
+function heldWeapon(ctx, kind, x, y, angle, tier = 0) {
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
-  weaponArt(ctx, kind);
+  weaponArt(ctx, kind, tier);
   ctx.restore();
 }
 
 // --- Die vier Klassen -------------------------------------------------------------------
+// Aussehen je Rüstungs- und Helmstufe. Index -1 (keine Ausrüstung, z. B. Vorschau) = Grundfarben,
+// -2 beim Helm = kein Helm. Stufen: Leder, Bronze, Eisen, Drache, Seele, Asche, Himmel, Götter
+const ARMOR_LOOK = {
+  krieger: {
+    torso: ['#7a5a3c', '#8a6a3a', '#6a7480', '#9c3b33', '#4a2f6a', '#3a2a26', '#2a4a7a', '#c8a03a'],
+    trim: ['#a88a5a', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0'],
+    helm: ['#8a6a44', '#c08a4a', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a'],
+    crest: ['#c8402f', '#c8402f', '#c8402f', '#2a1416', '#d6a8ff', '#ff7a2a', '#ffffff', '#c8402f']
+  },
+  ninja: {
+    torso: ['#5a5040', '#4a3a2a', '#312c3d', '#203a24', '#2a1a3a', '#3a1a14', '#1a2a4a', '#3a3010'],
+    scarf: ['#8a6a4a', '#9a3a2a', '#6b4f9a', '#3a8a4a', '#9a2a4a', '#e0602a', '#4a9ae0', '#e8c46a'],
+    hood: ['#4a4038', '#5a4030', '#2a2633', '#1e3a24', '#2a1440', '#2a1410', '#14203a', '#3a3010']
+  },
+  schamane: {
+    robe: ['#7a7a6a', '#8a5a7a', '#2c6f6a', '#9a3a2a', '#3a3a8a', '#8a3a1a', '#2a6aa8', '#f0e0b0'],
+    gold: ['#c8b890', '#e0c36a', '#e0c36a', '#ffd34d', '#d6a8ff', '#ffb04a', '#bfe8ff', '#ffe9a0'],
+    band: ['#8a6a44', '#c8402f', '#e0c36a', '#ffd34d', '#b48cff', '#ff7a2a', '#9fe8ff', '#ffffff']
+  },
+  nekromant: {
+    robe: ['#4a4438', '#3a3a30', '#334a31', '#4a2a2a', '#2a1a3a', '#1e1a1a', '#2a3a4a', '#3a2a10'],
+    hood: ['#3a3428', '#2e2a24', '#2a3b28', '#3a1e1e', '#24143a', '#141010', '#1e2a3a', '#2e2410'],
+    glow: ['#a7e37f', '#a7e37f', '#a7e37f', '#ff6a5a', '#d6a8ff', '#ff9a4a', '#9fe8ff', '#ffe9a0']
+  }
+};
+
+// Welche Stufen die Figur gerade trägt
+function playerLook(p) {
+  const eq = p.equipment;
+  if (!eq) return { a: -1, h: -1 };
+  return { a: eq.ruestung ? eq.ruestung.tier : -1, h: eq.helm ? eq.helm.tier : -2 };
+}
+
+// Farbe aus der Tabelle, sonst die Grundfarbe
+const lookColor = (list, i, fallback) => (i >= 0 ? list[i] : fallback);
 
 const CHARACTER_ART = {
-  krieger(ctx, dir, w) {
-    const o = { skin: '#e9c6a1', pants: '#3b2d25', boots: '#4d3527', torso: '#9c3b33', sleeve: '#7f2f29', gloves: '#5a4030' };
+  krieger(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.krieger;
+    const crimson = lookColor(A.torso, L.a, '#9c3b33');
+    const brass = lookColor(A.trim, L.a, '#c9a35a');
+    const o = { skin: '#e9c6a1', pants: '#3b2d25', boots: '#4d3527', torso: crimson, sleeve: darker(crimson, 0.18), gloves: '#5a4030' };
     const ty = -24 + w.bob;
-    const crimson = '#9c3b33';
-    const brass = '#c9a35a';
     hLegs(ctx, dir, w, o);
     // Panzerrock
     const sw = dir === 'side' ? 8 : 11.5;
-    poly(ctx, [[-sw + 1.5, ty + 12], [sw - 1.5, ty + 12], [sw, ty + 18.5], [-sw, ty + 18.5]], '#8a332c');
-    stroke(ctx, 'rgba(201,163,90,0.7)', 0.6, [[-sw + 1, ty + 15.5], [sw - 1, ty + 15.5]]);
+    poly(ctx, [[-sw + 1.5, ty + 12], [sw - 1.5, ty + 12], [sw, ty + 18.5], [-sw, ty + 18.5]], darker(crimson, 0.1));
+    stroke(ctx, brass, 0.6, [[-sw + 1, ty + 15.5], [sw - 1, ty + 15.5]]);
     const half = hBody(ctx, dir, w, o);
-    for (let k = 0; k < 3; k++) stroke(ctx, 'rgba(201,163,90,0.75)', 0.7, [[-half + 1.5, ty + 3.5 + k * 3], [half - 1.5, ty + 3.5 + k * 3]]);
+    for (let k = 0; k < 3; k++) stroke(ctx, brass, 0.7, [[-half + 1.5, ty + 3.5 + k * 3], [half - 1.5, ty + 3.5 + k * 3]]);
     box(ctx, -half, ty + 11.5, half * 2, 3, 1, brass);
-    if (dir === 'down') oval(ctx, 0, ty + 13, 2.3, 2, '#e0c36a');
+    if (dir === 'down') oval(ctx, 0, ty + 13, 2.3, 2, L.a >= 4 ? lookColor(A.crest, L.a, '#e0c36a') : '#e0c36a');
+    // Brustplatte ab Stufe Eisen, Schuppen ab Stufe Drache
+    if (dir === 'down' && L.a >= 2) {
+      box(ctx, -5, ty + 2, 10, 8, 2.5, lighter(crimson, 0.12));
+      if (L.a >= 3) for (let k = 0; k < 3; k++) stroke(ctx, brass, 0.6, [[-3.5 + k * 3.5, ty + 4], [-2 + k * 3.5, ty + 8]]);
+    }
     hArms(ctx, dir, w, o);
-    // Schulterpanzer
+    // Schulterpanzer, ab Stufe Seele mit Dornen
     const pad = (x) => {
       oval(ctx, x, ty + 2, 6.2, 4.6, crimson);
       stroke(ctx, brass, 0.9, [[x - 5, ty + 4.5], [x + 5, ty + 4.5]]);
+      if (L.a >= 4) {
+        poly(ctx, [[x - 3, ty - 1], [x - 2, ty - 6], [x - 0.5, ty - 1.5]], brass);
+        poly(ctx, [[x + 0.5, ty - 1.5], [x + 2, ty - 6], [x + 3, ty - 1]], brass);
+      }
     };
     if (dir === 'side') pad(w.arm);
     else { pad(-11.5); pad(11.5); }
     const { cx, cy } = hHead(ctx, dir, w, o);
     if (dir !== 'up') eyes(ctx, dir, cx, cy, { blush: true });
+    // Ohne Helm sieht man die Haare
+    if (L.h === -2) {
+      if (dir === 'up') oval(ctx, cx, cy - 0.5, 11.4, 11, '#3a2418');
+      else paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98); ctx.quadraticCurveTo(cx, cy - 6, cx - 11.3, cy - 1.5); ctx.closePath(); }, '#3a2418', cx - 11.4, cy - 12, 22.8, 10);
+      oval(ctx, cx, cy - 11.5, 3.6, 3, '#3a2418');
+      return;
+    }
     // Helm
-    const steel = '#8f98a3';
+    const steel = lookColor(A.helm, L.h, '#8f98a3');
+    const plume = lookColor(A.crest, L.h, '#c8402f');
     if (dir === 'up') {
       oval(ctx, cx, cy - 1, 11.8, 11.2, steel);
       box(ctx, cx - 10.5, cy + 3, 21, 6.5, 2, darker(steel, 0.12));
@@ -400,15 +561,25 @@ const CHARACTER_ART = {
         box(ctx, cx - 11.5, cy - 0.5, 6, 8.5, 1.5, steel);
       }
     }
-    // Helmbusch
-    if (dir === 'side') poly(ctx, [[cx - 2, cy - 11.8], [cx + 2.5, cy - 12.4], [cx - 2, cy - 18.5], [cx - 9.5, cy - 15.5]], '#c8402f');
-    else poly(ctx, [[cx - 2.2, cy - 12], [cx + 2.2, cy - 12], [cx + 1.4, cy - 19], [cx - 1.4, cy - 19]], '#c8402f');
+    // Helmbusch, ab Stufe Drache Hörner, ab Stufe Himmel Flügel
+    if (dir === 'side') poly(ctx, [[cx - 2, cy - 11.8], [cx + 2.5, cy - 12.4], [cx - 2, cy - 18.5], [cx - 9.5, cy - 15.5]], plume);
+    else poly(ctx, [[cx - 2.2, cy - 12], [cx + 2.2, cy - 12], [cx + 1.4, cy - 19], [cx - 1.4, cy - 19]], plume);
+    if (L.h >= 3 && L.h < 6 && dir !== 'up') {
+      poly(ctx, [[cx - 8, cy - 8], [cx - 13, cy - 16], [cx - 6, cy - 10]], '#e0d6bc');
+      if (dir === 'down') poly(ctx, [[cx + 8, cy - 8], [cx + 13, cy - 16], [cx + 6, cy - 10]], '#e0d6bc');
+    }
+    if (L.h >= 6) {
+      poly(ctx, [[cx - 9, cy - 6], [cx - 17, cy - 13], [cx - 15, cy - 7], [cx - 18, cy - 6], [cx - 10, cy - 3]], '#ffffff');
+      if (dir !== 'side') poly(ctx, [[cx + 9, cy - 6], [cx + 17, cy - 13], [cx + 15, cy - 7], [cx + 18, cy - 6], [cx + 10, cy - 3]], '#ffffff');
+    }
   },
 
-  ninja(ctx, dir, w, f) {
-    const o = { skin: '#e9c6a1', pants: '#2c2935', boots: '#3d3848', torso: '#312c3d', sleeve: '#2c2935', gloves: '#3d3848' };
-    const scarf = '#6b4f9a';
-    const hood = '#2a2633';
+  ninja(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.ninja;
+    const torso = lookColor(A.torso, L.a, '#312c3d');
+    const o = { skin: '#e9c6a1', pants: darker(torso, 0.1), boots: '#3d3848', torso, sleeve: darker(torso, 0.1), gloves: '#3d3848' };
+    const scarf = lookColor(A.scarf, L.a, '#6b4f9a');
+    const hood = lookColor(A.hood, L.h, '#2a2633');
     const ty = -24 + w.bob;
     const sway = [0, 1.6, 0, -1.6][f];
     // Schalenden hinter dem Körper
@@ -450,11 +621,19 @@ const CHARACTER_ART = {
     if (dir === 'side') box(ctx, cx + 1.5, cy - 2, 10, 5.8, 2.6, o.skin);
     else box(ctx, cx - 8.5, cy - 2, 17, 5.8, 2.6, o.skin);
     eyes(ctx, dir, cx, cy - 0.5, { narrow: true });
+    // Ab Stufe Nacht ein Stirnband mit Platte, ab Stufe Himmel leuchtende Augen
+    if (L.h >= 4) {
+      box(ctx, dir === 'side' ? cx - 1 : cx - 9, cy - 6, dir === 'side' ? 11 : 18, 2.4, 1, lookColor(A.scarf, L.h, scarf));
+      if (dir === 'down') oval(ctx, cx, cy - 4.8, 1.6, 1.6, '#e8c46a');
+    }
+    if (L.h >= 6) eyes(ctx, dir, cx, cy - 0.5, { narrow: true, color: '#bfe8ff', glow: '#9fe8ff' });
   },
 
-  schamane(ctx, dir, w) {
-    const o = { skin: '#ecc9a5', boots: '#3a2c24', robe: '#2c6f6a', sleeve: '#2c6f6a', cuff: '#e0c36a', wideSleeves: true };
-    const gold = '#e0c36a';
+  schamane(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.schamane;
+    const robe = lookColor(A.robe, L.a, '#2c6f6a');
+    const gold = lookColor(A.gold, L.a, '#e0c36a');
+    const o = { skin: '#ecc9a5', boots: '#3a2c24', robe, sleeve: robe, cuff: gold, wideSleeves: true };
     const hair = '#231c1c';
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
@@ -520,17 +699,34 @@ const CHARACTER_ART = {
       }, hair, cx - 11.4, cy - 12, 20, 19);
     }
     oval(ctx, cx + (dir === 'side' ? -3.5 : 0), cy - 12, 4.6, 4, hair);
-    if (dir === 'up') box(ctx, cx - 11.2, cy - 6.2, 22.4, 2.6, 1.2, gold);
+    if (L.h === -2) return;
+    const band = lookColor(A.band, L.h, gold);
+    if (dir === 'up') box(ctx, cx - 11.2, cy - 6.2, 22.4, 2.6, 1.2, band);
     else if (dir === 'down') {
-      box(ctx, cx - 11.2, cy - 7, 22.4, 2.6, 1.2, gold);
-      oval(ctx, cx, cy - 5.7, 1.5, 1.5, '#c8402f');
-    } else box(ctx, cx - 9.5, cy - 7, 20.5, 2.6, 1.2, gold);
+      box(ctx, cx - 11.2, cy - 7, 22.4, 2.6, 1.2, band);
+      oval(ctx, cx, cy - 5.7, 1.5, 1.5, L.h >= 4 ? '#ffffff' : '#c8402f');
+    } else box(ctx, cx - 9.5, cy - 7, 20.5, 2.6, 1.2, band);
+    // Ab Stufe Phönix eine Krone mit Zacken, ab Stufe Himmel ein Heiligenschein
+    if (L.h >= 3 && dir !== 'up') {
+      const xs = dir === 'side' ? [cx - 6, cx - 1, cx + 4] : [cx - 7, cx - 2.5, cx + 2.5, cx + 7];
+      for (const x of xs) poly(ctx, [[x - 2, cy - 7], [x, cy - 12 - (L.h >= 5 ? 2 : 0)], [x + 2, cy - 7]], band);
+    }
+    if (L.h >= 6) {
+      ctx.strokeStyle = band;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy - 16, 8, 2.4, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   },
 
-  nekromant(ctx, dir, w) {
+  nekromant(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.nekromant;
     const bone = '#ddd5bb';
-    const o = { skin: '#c9c4b0', boots: '#2a2420', robe: '#334a31', sleeve: '#2c402a', wideSleeves: true, tattered: true, gloves: '#c9c4b0' };
-    const hood = '#2a3b28';
+    const robe = lookColor(A.robe, L.a, '#334a31');
+    const o = { skin: '#c9c4b0', boots: '#2a2420', robe, sleeve: darker(robe, 0.12), wideSleeves: true, tattered: true, gloves: '#c9c4b0' };
+    const hood = lookColor(A.hood, L.h, '#2a3b28');
+    const eyeGlow = lookColor(A.glow, L.h, '#a7e37f');
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
     const wb = hBody(ctx, dir, w, o);
@@ -553,22 +749,25 @@ const CHARACTER_ART = {
       poly(ctx, [[cx - 12, cy + 7.5], [cx - 12.5, cy - 3], [cx - 9, cy - 10], [cx - 17, cy - 16], [cx - 2, cy - 12.5], [cx + 10, cy - 5.5], [cx + 11.8, cy + 6.5]], hood);
       dot(ctx, cx + 5.8, cy + 1.5, 5, 6.5, '#0d120c');
       oval(ctx, cx + 6.5, cy + 6.4, 3, 1.8, o.skin);
-      eyes(ctx, 'side', cx, cy - 1, { color: '#d6ffb0', glow: '#a7e37f', narrow: true });
+      eyes(ctx, 'side', cx, cy - 1, { color: lighter(eyeGlow, 0.5), glow: eyeGlow, narrow: true });
+      if (L.h >= 4) for (const [x, h] of [[cx - 4, 6], [cx + 1, 8], [cx + 6, 6]]) poly(ctx, [[x - 1.5, cy - 11], [x, cy - 11 - h], [x + 1.5, cy - 11]], bone);
       return;
     }
     poly(ctx, [[cx - 12, cy + 7.5], [cx - 12.8, cy - 4], [cx - 5, cy - 13], [cx + 1, cy - 20], [cx + 6, cy - 12.5], [cx + 12.8, cy - 4], [cx + 12, cy + 7.5]], hood);
     if (dir === 'down') {
       dot(ctx, cx, cy + 1.6, 7.6, 7.2, '#0d120c');
       oval(ctx, cx, cy + 6.6, 4, 2, o.skin);
-      eyes(ctx, 'down', cx, cy - 1, { color: '#d6ffb0', glow: '#a7e37f', narrow: true });
+      eyes(ctx, 'down', cx, cy - 1, { color: lighter(eyeGlow, 0.5), glow: eyeGlow, narrow: true });
     }
+    // Ab Stufe Totenkönig eine Knochenkrone auf der Kapuze
+    if (L.h >= 4) for (const [x, h] of [[cx - 7, 5], [cx - 3.5, 7], [cx, 9], [cx + 3.5, 7], [cx + 7, 5]]) poly(ctx, [[x - 1.4, cy - 12], [x, cy - 12 - h], [x + 1.4, cy - 12]], bone);
   }
 };
 
 const FIGURE_BOUNDS = { x: -30, y: -60, w: 60, h: 66 };
 
-function characterSprite(classId, dir, frame) {
-  return getSprite(`c:${classId}:${dir}:${frame}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame));
+function characterSprite(classId, dir, frame, look = { a: -1, h: -1 }) {
+  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look));
 }
 
 // Wo die Waffenhand sitzt (relativ zu den Füßen, Figur nach rechts bzw. zum Betrachter)

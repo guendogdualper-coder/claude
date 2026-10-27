@@ -282,20 +282,40 @@ function startSwing(p, kind, duration) {
   p.swing = duration;
 }
 
+// Art der getragenen Waffe; ohne Waffe die erste Art der Klasse
+function weaponKindOf(p) {
+  const w = p.equipment && p.equipment.waffe;
+  return w && w.kind ? w.kind : CLASS_WEAPON_KINDS[p.classId][0];
+}
+
+const MELEE_KINDS = new Set(['sword', 'greatsword', 'dagger', 'scythe']);
+
+// Normaler Angriff je Waffenart: der Bogen schießt, Zweihänder und Sense schlagen weiter
+const KIND_BASIC = {
+  bow: { range: 250, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
+  greatsword: { range: 62, cooldown: 0.8, ranged: false },
+  scythe: { range: 62, cooldown: 0.85, ranged: false }
+};
+
+function basicAttack(p) {
+  return KIND_BASIC[weaponKindOf(p)] || CLASSES[p.classId].basic;
+}
+
 function tryBasicAttack() {
   const p = game.player;
   const c = CLASSES[p.classId];
+  const basic = basicAttack(p);
   if (p.attackCd > 0 || p.dead || p.dash) return false;
   if (inVillage(p.x, p.y)) return false; // im Dorf wird nicht gekämpft
-  const target = pickTarget(c.basic.range);
+  const target = pickTarget(basic.range);
   if (!target) return false;
   faceTowards(target.x, target.y);
-  p.attackCd = c.basic.cooldown / game.stats.atkSpeed;
-  if (c.basic.ranged) {
+  p.attackCd = basic.cooldown / game.stats.atkSpeed;
+  if (basic.ranged) {
     startSwing(p, 'cast', 0.28);
     const hand = bodyCenter(p);
-    particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: c.basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: 480, range: c.basic.range + 60, mul: 1, color: c.basic.color, radius: 5, style: c.basic.style, basic: true });
+    particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, basic: true });
   } else {
     p.combo = ((p.combo || 0) + 1) % 3;
     startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
@@ -391,7 +411,7 @@ const SKILL_TYPES = {
           const from = h % 2 ? ang + spread / 2 : ang - spread / 2;
           const to = h % 2 ? ang - spread / 2 : ang + spread / 2;
           vfxSweep(p, sk.radius * 0.85, from, to, h === hits - 1 ? '#ffe9a0' : skillColor(sk, c.trim), 0.3, 30);
-          if (CLASS_WEAPON[p.classId] === 'sword' || CLASS_WEAPON[p.classId] === 'dagger') {
+          if (MELEE_KINDS.has(weaponKindOf(p))) {
             addEffect({ type: 'bladearc', follow: p, ox: 0, oy: -14, len: sk.radius * 0.8, a0: from, a1: to, dur: 0.28, ...playerBlade(p) });
           }
           p.combo = h % 3;
@@ -595,7 +615,7 @@ function updateDash(dt) {
   const moved = moveEntity(p, d.dx * step, d.dy * step, false);
   d.left -= step;
   const dir = facingDir(p.facing);
-  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3, tint: d.sk.tint || '#ff7a2a' });
+  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1, playerLook(p)), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3, tint: d.sk.tint || '#ff7a2a' });
   skillPhaseFx(d.sk.id, 'trail');
   particles(p.x, feetY(p), { count: 2, color: ['#a88f62', '#c9b28a'], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false });
   for (const m of enemiesInCircle(p.x, p.y, d.sk.radius)) {
