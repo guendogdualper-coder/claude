@@ -328,3 +328,15 @@ Set of four item icons for a 2D fantasy MMORPG, East Asian style, square with so
 ```
 2D fantasy MMORPG loot illustration, three-quarter top-down view: a shattered soul stone on the ground with three floating equipment pieces above it, a helmet labeled "+0" with white glow, boots "+1" with light green glow, a sword "+2" with blue glow, small sparkles around them. Cute chibi game art style, bold dark outline, soft cel shading, plain white background.
 ```
+
+## Figur und Symbole im Inventar (Version 1.9)
+
+### Figur mit angelegter Ausrüstung
+```
+2D fantasy MMORPG inventory UI mockup in East Asian style, dark lacquered wood panel with thin brass borders. Section "Angelegt": on the left a tall framed portrait card with the player's small chibi character standing front-facing on a soft glowing spotlight, holding the equipped sword and shield. Next to it a 3x2 grid of square equipment slots (weapon, armor, helmet, shield, boots, belt), filled slots show the item icon with a colored plus value like "+2" or "+7" and a matching glow border. Clean readable layout, no clutter.
+```
+
+### Blasse Symbole für leere Plätze
+```
+Set of six faint ghost silhouette icons for empty equipment slots in a 2D fantasy MMORPG, East Asian style: sword, chest armor, helmet, round shield, pair of boots, belt with buckle. Each in pale grey at low opacity inside a dark square slot with a dashed brass border and a tiny uppercase label below (WAFFE, RÜSTUNG, HELM, SCHILD, SCHUHE, GÜRTEL). Minimal, subtle, no color.
+```

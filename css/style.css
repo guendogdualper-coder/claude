@@ -1124,3 +1124,24 @@ kbd {
 .si-info strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .si-info small { color: var(--muted); font-size: 11px; }
 @media (prefers-reduced-motion: reduce) { .item-detail.enchanted { animation: none; } }
+
+/* Figur mit angelegter Ausrüstung und blasse Symbole für leere Plätze */
+.equip-doll { display: flex; gap: 8px; align-items: stretch; }
+.doll {
+  width: 76px;
+  border-radius: 8px;
+  border: 1px solid var(--brass-dim);
+  background: radial-gradient(ellipse at 50% 85%, #3a2e20, #120d09 75%);
+}
+.item-tile.has-ghost .ghost {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  filter: grayscale(1) brightness(1.4);
+  opacity: 0.22;
+}
+.item-tile.has-ghost .slot-label { position: absolute; font-size: 9px; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .doll { width: 64px; }
+  .item-tile.has-ghost .slot-label { font-size: 8px; }
+}

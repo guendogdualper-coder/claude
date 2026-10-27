@@ -365,6 +365,30 @@ function drawItemArt(ctx, slot, tier, classId) {
     boot(2);
   }
 }
+// Figur im Inventar: die eigene Spielfigur von vorn mit Waffe und Schild, die gerade angelegt sind
+function drawDoll(canvas) {
+  if (!canvas) return;
+  const w = canvas.clientWidth || 76;
+  const h = canvas.clientHeight || 100;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const p = game.player;
+  const g = ctx.createRadialGradient(w / 2, h * 0.55, 4, w / 2, h * 0.55, h * 0.6);
+  g.addColorStop(0, `rgba(${hexRgb(CLASSES[p.classId].trim)},0.35)`);
+  g.addColorStop(1, `rgba(${hexRgb(CLASSES[p.classId].trim)},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  const pose = { ...p, x: 0, y: 0, facing: { x: 0, y: 1 }, moving: false, spin: 0, swing: 0, buffs: [], shield: 0, glowUntil: 0 };
+  const scale = h / 82;
+  ctx.translate(w / 2, h - 8 * scale);
+  ctx.scale(scale, scale);
+  ctx.translate(0, -feetY(pose));
+  drawPlayer(ctx, pose);
+}
+
 function itemIconUrl(item, classId = game.player.classId) {
   const band = plusBand(item.plus);
   const key = `${item.slot}:${item.tier}:${classId}:${band}`;
@@ -477,8 +501,12 @@ const gear = {
     }
   },
 
-  tile(item, attrs, label) {
-    if (!item) return `<button type="button" class="item-tile empty" ${attrs}><span class="slot-label">${label || 'leer'}</span></button>`;
+  tile(item, attrs, label, slot) {
+    if (!item) {
+      // Leere Ausrüstungsplätze zeigen ein blasses Symbol, was dort hingehört
+      const ghost = slot ? `<img class="ghost" src="${itemIconUrl({ slot, tier: 0, plus: 0 })}" alt="">` : '';
+      return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
+    }
     const band = plusBand(item.plus);
     return `<button type="button" class="item-tile band-${band}" ${attrs}>` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` +
@@ -502,12 +530,12 @@ const gear = {
   renderInventory() {
     const p = game.player;
     const s = playerStats(p);
-    const equip = EQUIP_SLOTS.map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, sl.name)).join('');
+    const equip = EQUIP_SLOTS.map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, sl.name, sl.id)).join('');
     let bag = '';
     for (let i = 0; i < BAG_SIZE; i++) bag += this.tile(p.inventory[i], `data-bag="${i}"`);
     document.getElementById('invBody').innerHTML =
       `<div class="inv-layout">` +
-      `<section class="inv-equip"><h3>Angelegt</h3><div class="equip-grid">${equip}</div>` +
+      `<section class="inv-equip"><h3>Angelegt</h3><div class="equip-doll"><canvas id="invDoll" class="doll"></canvas><div class="equip-grid">${equip}</div></div>` +
       `<p class="inv-sum">Angriff ${s.atk} · Verteidigung ${s.def}<br>Leben ${s.maxHp} · Mana ${s.maxMp}</p></section>` +
       `<section class="inv-bag"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small></h3><div class="bag-grid">${bag}</div>` +
       `<p class="inv-sum">Gold ${p.gold.toLocaleString('de-DE')} · Seelensplitter ${p.splinters} · ` +
@@ -515,6 +543,7 @@ const gear = {
       MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
       `</p></section>` +
       `</div><div id="invDetail" class="item-detail-wrap"></div><p id="invMsg" class="gear-msg"></p>`;
+    drawDoll(document.getElementById('invDoll'));
     const body = document.getElementById('invBody');
     body.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('click', () => {
       this.selected = { where: 'equip', key: b.dataset.equip };

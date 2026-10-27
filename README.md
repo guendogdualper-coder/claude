@@ -29,6 +29,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Händler im Dorf**: Waffenhändler Goro (Waffen je Klasse), Rüstungshändlerin Mei (Rüstung, Helm, Schild, Schuhe, Gürtel), jeweils ab Lv 1, 5, 10 und 15; Händlerin Ayla für Tränke und Segensschriftrollen
 - **Ausrüstung**: sechs Plätze in fünf Stufen (ab Lv 1, 5, 10, 15, 22). Die Grundausrüstung (Lv 1) gibt nur Rüstung bzw. Angriff, ab Lv 5 kommen eigene Effekte dazu: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. Legendäre Stufe nur als Beute, Inventar mit 20 Plätzen
 - **Schmied**: verbessert Ausrüstung von +0 bis +9 mit Gold und Seelensplittern. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 zerbricht der Gegenstand. Die Segensschriftrolle schützt davor. Bessere Waffen ändern ihre Farbe, ab +4 leuchten sie
+- **Inventar** mit Figur, die Waffe und Schild trägt; leere Ausrüstungsplätze zeigen ein blasses Symbol
 - **Verkaufen** bei jedem Händler direkt aus dem Inventar, mit Bestätigung durch zweites Antippen
 - **Boni**: Seelensteine lassen Materialien fallen, die automatisch aufgehoben werden. „Verstärkung“ fügt Ausrüstung die Boni 1 bis 4 hinzu, „Seltene Verstärkung“ den 5. Bonus, der Switcher würfelt die Boni neu, der Sternenstein gibt die besonderen Boni 6 und 7 (Fertigkeitsschaden, Grundangriffe, Leben in Prozent, Widerstand). Dazu fällt Ausrüstung bis +2
 - **Stufenaufstieg** mit Lichtsäule, Ringen und aufleuchtender Figur
