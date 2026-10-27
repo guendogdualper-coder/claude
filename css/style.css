@@ -1645,3 +1645,71 @@ kbd {
   transition: transform 0.2s ease-out;
 }
 .boss-bar span { font-size: 10px; opacity: 0.85; }
+
+/* Mehrspieler */
+.net-badge {
+  margin-top: 3px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-align: center;
+  color: #0a2a0a;
+  background: linear-gradient(#b8f8a8, #5ad05a);
+  border: 1px solid #1a3a1a;
+}
+.net-badge[hidden] { display: none; }
+#btnNet.on { box-shadow: 0 0 0 2px #5ae05a, 0 0 12px rgba(90, 224, 90, 0.6); }
+.net-code { font-size: 34px; font-weight: 900; letter-spacing: 0.25em; text-align: center; color: #ffd34d; margin: 6px 0; }
+.net-link { font-size: 12px; word-break: break-all; text-align: center; color: var(--muted); }
+.net-row, .net-join { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.net-join input, .chat-bar input {
+  flex: 1;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--brass-dim);
+  background: #120e0a;
+  color: #fff3d8;
+  font: inherit;
+  font-size: 16px;
+}
+.net-join input { text-transform: uppercase; letter-spacing: 0.15em; }
+.net-list { margin: 4px 0 10px; padding-left: 18px; }
+.net-list small { color: var(--muted); }
+.chat-log {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left));
+  bottom: 74px;
+  z-index: 4;
+  width: min(320px, 42vw);
+  pointer-events: none;
+  display: grid;
+  gap: 2px;
+}
+.chat-log p {
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #fff6e0;
+  background: rgba(10, 30, 12, 0.62);
+  transition: opacity 6s;
+}
+.chat-log p b { color: #a8f0a0; }
+.chat-log p.old { opacity: 0; }
+.chat-bar {
+  position: fixed;
+  top: max(52px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 90vw);
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  background: rgba(24, 19, 14, 0.94);
+  border: 1px solid var(--brass);
+}
+.chat-bar[hidden] { display: none; }

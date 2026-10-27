@@ -106,6 +106,7 @@ function updateBoss(m, dt) {
     const c = m.cast;
     m.cast = null;
     if (c.kind === 'slam') {
+      if (net.mode === 'host') netBroadcast({ t: 'slam', id: m.id, r: b.slam, atk: m.atk, lvl: m.level });
       shakeScreen(9);
       addEffect({ type: 'ring', x: m.x, y: feetY(m), r: b.slam, dur: 0.5, color: b.color, width: 12, grow: true });
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: b.slam * 0.6, dur: 2.5, color: '#1a1210' });
@@ -127,7 +128,7 @@ function updateBoss(m, dt) {
       add.homeX = m.homeX;
       add.homeY = m.homeY;
       add.state = 'chase';
-      add.target = p;
+      add.target = m.target || p;
       game.monsters.push(add);
       addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.6, color: b.color, count: 10 });
     }
@@ -138,7 +139,8 @@ function updateBoss(m, dt) {
   m.bossTurn = (m.bossTurn || 0) + 1;
   if (b.volley && m.bossTurn % 2 === 0) {
     // Salve: fächerförmig auf den Spieler, beim Eiskönig ringsum
-    const base = Math.atan2(p.y - m.y, p.x - m.x);
+    const tgt = m.target || p;
+    const base = Math.atan2(tgt.y - m.y, tgt.x - m.x);
     const all = b.volley >= 8;
     for (let k = 0; k < b.volley; k++) {
       const a = all ? (k / b.volley) * Math.PI * 2 : base + (k - (b.volley - 1) / 2) * 0.22;
@@ -146,12 +148,14 @@ function updateBoss(m, dt) {
         owner: 'monster', x: m.x, y: m.y - 10, vx: Math.cos(a), vy: Math.sin(a), speed: 260, range: 520, traveled: 0,
         radius: 7, atk: Math.round(m.atk * 0.8), source: m, color: b.shot, hit: new Set(), trail: []
       });
+      if (net.mode === 'host') netBroadcastProjectile(game.projectiles[game.projectiles.length - 1], m);
     }
     m.attackAnim = 0.25;
     return false;
   }
   m.cast = { kind: 'slam', at: game.time + 1.1 };
   addEffect({ type: 'warn', x: m.x, y: feetY(m), r: b.slam, dur: 1.1, color: '#ff3a2a' });
+  if (net.mode === 'host') netBroadcast({ t: 'warn', x: Math.round(m.x), y: Math.round(feetY(m)), r: b.slam });
   return true;
 }
 
@@ -215,7 +219,7 @@ function checkStoneWaves(stone) {
       m.homeX = stone.x;
       m.homeY = stone.y;
       m.state = 'chase';
-      m.target = game.player;
+      m.target = stone.lastAttacker && !stone.lastAttacker.gone ? stone.lastAttacker : game.player;
       game.monsters.push(m);
       addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.5, color: stone.stoneType.look.glow, count: 8 });
     }
@@ -231,7 +235,7 @@ function tickDots(m, dt) {
     d.tick += dt;
     if (d.tick >= 1) {
       d.tick -= 1;
-      damageMonster(m, Math.max(1, Math.round(d.dps)), false, game.player, true);
+      damageMonster(m, Math.max(1, Math.round(d.dps)), false, m.lastAttacker && !m.lastAttacker.gone ? m.lastAttacker : game.player, true);
       if (m.dead) return;
     }
   }
@@ -252,12 +256,16 @@ function monsterAttack(m, target) {
         return { vx: dx / len, vy: dy / len };
       })()
     });
+    if (net.mode === 'host') netBroadcastProjectile(game.projectiles[game.projectiles.length - 1], m);
     return;
   }
   const bc = bodyCenter(target);
   if (m.type.shape === 'beast' || m.type.shape === 'boar') addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
   else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 30, w: 5, dur: 0.22, color: '#ff8a6a' });
-  if (target === p) {
+  if (target.remote) {
+    // Ein Mitspieler wird getroffen: den Schaden rechnet sein Gerät mit seiner Rüstung aus
+    netSendTo(target.peerId, { t: 'mhit', id: m.id, atk: m.atk, lvl: m.level, mul: levelBonus(m.level, target.level) });
+  } else if (target === p) {
     damagePlayer(calcDamage(m.atk, levelBonus(m.level, p.level), game.stats.def, 0.03, m.level).amount, m);
   } else {
     damageAlly(target, calcDamage(m.atk, 1, target.def, 0, m.level).amount);
@@ -274,16 +282,31 @@ function moveToward(e, tx, ty, step, isMonster) {
   return moveEntity(e, dx / len * s, dy / len * s, isMonster);
 }
 
+// Spieler, die Monster jagen können: man selbst und beim Host auch die Mitspieler
+function huntablePlayers() {
+  const list = [game.player];
+  if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead) list.push(rp);
+  return list;
+}
+const isPlayerLike = (t) => t === game.player || !!(t && t.remote);
+const playerHidden = (t) => (t === game.player ? game.stats.invisible : t.invisible) || inVillage(t.x, t.y);
+
 function updateMonsters(dt) {
   const p = game.player;
-  const s = game.stats;
+  const players = huntablePlayers();
   for (const m of game.monsters) {
     if (m.dead) {
       if (m.respawn && game.time >= m.respawnAt) reviveMonster(m);
       continue;
     }
     if (m.hitFlash > 0) m.hitFlash -= dt;
-    const distP = dist(m, p);
+    // nächster Spieler
+    let distP = Infinity;
+    let near = p;
+    for (const pl of players) {
+      const d = dist(m, pl);
+      if (d < distP) { distP = d; near = pl; }
+    }
     if (distP > 1400 && m.state === 'idle') continue;
 
     tickDots(m, dt);
@@ -307,8 +330,8 @@ function updateMonsters(dt) {
     m.moving = false;
 
     if (m.state === 'idle') {
-      if (m.type.aggressive && !p.dead && !s.invisible && distP < AGGRO_RANGE && !inVillage(p.x, p.y)) {
-        aggro(m, p);
+      if (m.type.aggressive && !near.dead && distP < AGGRO_RANGE && !playerHidden(near)) {
+        aggro(m, near);
       } else {
         if (game.time >= m.wanderAt) {
           m.wx = m.homeX + (Math.random() - 0.5) * 120;
@@ -325,9 +348,9 @@ function updateMonsters(dt) {
     if (m.state === 'chase') {
       const t = m.target;
       const leash = m.respawn ? LEASH : LEASH * 2;
-      const lost = !t || t.dead || t.hp <= 0
-        || (t === p && (s.invisible || inVillage(p.x, p.y)))
-        || (t !== p && !game.allies.includes(t))
+      const lost = !t || t.dead || t.hp <= 0 || t.gone
+        || (isPlayerLike(t) && playerHidden(t))
+        || (!isPlayerLike(t) && !game.allies.includes(t))
         || Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash;
       if (lost) {
         m.state = 'return';

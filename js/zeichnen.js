@@ -77,6 +77,7 @@ function render() {
   for (const a of game.allies) list.push(a);
   for (const n of game.world.npcs) if (inView(n)) list.push(n);
   if (game.player && game.running && !game.player.dead) list.push(game.player);
+  for (const rp of net.players.values()) if (!rp.dead && inView(rp)) list.push(rp);
   collectWorldObjects(list, x0, y0, x1, y1);
   // Alles nach der Fußlinie sortieren: was weiter unten steht, wird später (also davor) gezeichnet
   const baseY = (e) => (e.worldObj ? e.y : e.isStone ? e.y + 9 : feetY(e));
@@ -87,7 +88,7 @@ function render() {
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   for (const e of list) {
     if (e.worldObj) drawWorldObject(ctx, e);
-    else if (e === game.player) drawPlayer(ctx, e);
+    else if (e === game.player || e.remote) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
     else if (e.until) drawSkeleton(ctx, e);
     else if (e.type) drawMonster(ctx, e);
@@ -266,7 +267,7 @@ function horseSprite(frame, saddle) {
 }
 
 function drawPlayer(ctx, p) {
-  const invisible = p === game.player && game.stats && game.stats.invisible;
+  const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible);
   // Beim Schwertwirbel dreht sich die Figur einmal im Kreis
   const facing = p.spin > 0 ? { x: Math.cos(game.time * 28), y: Math.sin(game.time * 28) } : p.facing;
   // Auf dem Pferd sieht man Pferd und Reiter immer von der Seite
@@ -831,19 +832,44 @@ function drawBar(ctx, x, y, w, frac, color) {
   }
 }
 
+// Sprechblase über einer Figur (Chat)
+function drawSpeech(ctx, x, y, text) {
+  ctx.font = '600 11px "Alegreya Sans", sans-serif';
+  const t = text.length > 42 ? text.slice(0, 40) + '…' : text;
+  const w = ctx.measureText(t).width + 14;
+  ctx.fillStyle = 'rgba(250,244,228,0.95)';
+  ctx.strokeStyle = 'rgba(40,30,20,0.9)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.roundRect(x - w / 2, y - 16, w, 18, 6);
+  ctx.moveTo(x - 4, y + 2);
+  ctx.lineTo(x, y + 7);
+  ctx.lineTo(x + 4, y + 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#2a1e14';
+  ctx.textAlign = 'center';
+  ctx.fillText(t, x, y - 3);
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(10,8,6,0.85)';
+}
+
 function drawLabel(ctx, e) {
   ctx.textAlign = 'center';
   ctx.lineWidth = 3;
   ctx.strokeStyle = 'rgba(10,8,6,0.85)';
   const p = game.player;
-  if (e === p) {
-    if (game.stats.invisible) return;
+  if (e === p || e.remote) {
+    if (e === p ? game.stats.invisible : e.invisible) return;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    const label = 'Lv ' + p.level + '  ' + p.name;
-    const y = feetY(p) - 60 - (p.riding ? RIDE_HEIGHT : 0);
-    ctx.strokeText(label, p.x, y);
-    ctx.fillStyle = '#9fe0ff';
-    ctx.fillText(label, p.x, y);
+    const label = 'Lv ' + e.level + '  ' + e.name;
+    const y = feetY(e) - 60 - (e.riding ? RIDE_HEIGHT : 0);
+    ctx.strokeText(label, e.x, y);
+    ctx.fillStyle = e.remote ? '#a8f0a0' : '#9fe0ff';
+    ctx.fillText(label, e.x, y);
+    // Mitspieler zeigen ihr Leben unter dem Namen
+    if (e.remote) drawBar(ctx, e.x, y + 4, 34, e.hp / Math.max(1, e.maxHp), '#4ad04a');
+    if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - 14, e.say);
     return;
   }
   if (e.until) {
@@ -949,6 +975,16 @@ function renderMinimap() {
     const mark = questMarker(n.id);
     ctx.fillStyle = mark === 'main' ? '#ffd34d' : mark === 'side' ? '#6ae86a' : '#e8d8a8';
     ctx.fillRect(mx - 1, my - 1, mark ? 3.5 : 2.5, mark ? 3.5 : 2.5);
+  }
+  // Mitspieler als grüne Punkte
+  for (const rp of net.players.values()) {
+    ctx.fillStyle = '#5ae05a';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc((rp.x / TILE - ox) * scale, (rp.y / TILE - oy) * scale, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
   }
   if (p && game.running) {
     ctx.fillStyle = '#ffffff';

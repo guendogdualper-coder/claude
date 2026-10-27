@@ -49,6 +49,8 @@ function setupInput() {
       case 'KeyH': if (!e.repeat) ui.toggle('panelHelp'); break;
       case 'KeyI': if (!e.repeat) ui.toggle('panelInv'); break;
       case 'KeyR': if (!e.repeat) toggleRide(); break;
+      case 'KeyN': if (!e.repeat) ui.toggle('panelNet'); break;
+      case 'Enter': if (net.mode === 'host' || net.mode === 'client') { ui.openChat(); e.preventDefault(); } break;
       case 'KeyB': if (!e.repeat) ui.toggle('panelLoot'); break;
       case 'Tab':
         e.preventDefault();

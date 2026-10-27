@@ -13,6 +13,16 @@ const ui = {
     $('btnHelp').addEventListener('click', () => this.toggle('panelHelp'));
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
     $('btnHorse').addEventListener('click', () => toggleRide());
+    $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
+    $('btnChat').addEventListener('click', () => this.openChat());
+    $('chatClose').addEventListener('click', () => { $('chatBar').hidden = true; });
+    $('chatBar').addEventListener('submit', (e) => {
+      e.preventDefault();
+      netChat($('chatInput').value);
+      $('chatInput').value = '';
+      $('chatBar').hidden = true;
+      $('chatInput').blur();
+    });
     onPress($('potHp'), () => usePotion('hp'));
     $('potHp').querySelector('.flask').src = lootIconUrl('potHp');
     $('potMp').querySelector('.flask').src = lootIconUrl('potMp');
@@ -161,6 +171,8 @@ const ui = {
     drawPortrait($('hudPortrait'), game.player);
     this.renderQuestTrack();
     this.updateHorseButton();
+    this.updateNetBadge();
+    netAutoJoin();
     if (game.player.needsPath) this.showPathChoice();
   },
 
@@ -293,6 +305,84 @@ const ui = {
     if (this.cache[key] === value) return;
     this.cache[key] = value;
     fn(value);
+  },
+
+  // --- Mehrspieler ----------------------------------------------------------------------
+  renderNet() {
+    const body = $('netBody');
+    if (!body) return;
+    const p = game.player;
+    const list = () => {
+      const names = [];
+      if (net.mode === 'host') names.push(`${p.name} <small>(du, Host)</small>`);
+      else if (net.mode === 'client') names.push(`${p.name} <small>(du)</small>`);
+      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>Lv ${rp.level} · ${CLASSES[rp.classId].name}${rp.peerId === 'host' ? ' · Host' : ''}</small>`);
+      return '<ul class="net-list">' + names.map((n) => `<li>${n}</li>`).join('') + '</ul>';
+    };
+    let html;
+    if (net.mode === 'off') {
+      html = '<p>Spiel mit Freunden in derselben Welt: Einer öffnet sein Spiel, die anderen treten mit dem Code oder dem Link bei. Jeder spielt mit seiner eigenen Figur, Monster und Bosse sind für alle dieselben. Erfahrung und Beute bekommt jeder, der mitkämpft oder in der Nähe ist.</p>' +
+        '<button type="button" class="btn btn-primary" data-net="host">Mein Spiel öffnen</button>' +
+        '<h3>Einem Spiel beitreten</h3><div class="net-join"><input id="netCode" type="text" maxlength="6" autocomplete="off" placeholder="Code, z. B. K7QXM" aria-label="Code"><button type="button" class="btn btn-primary" data-net="join">Beitreten</button></div>' +
+        '<p class="hint-text">Wer das Spiel öffnet, ist der Host: Seine Welt läuft für alle. Lass die App dabei geöffnet, sonst stoppt die Welt für die anderen. Höchstens 4 Spieler.</p>';
+    } else if (net.mode === 'opening' || net.mode === 'joining') {
+      html = `<p>${net.mode === 'opening' ? 'Spiel wird geöffnet …' : `Verbinde mit ${escapeHtml(net.code)} …`}</p><button type="button" class="btn btn-ghost" data-net="stop">Abbrechen</button>`;
+    } else if (net.mode === 'host') {
+      html = `<p>Dein Spiel ist offen. Schick deinen Freunden diesen Code oder Link:</p><p class="net-code">${net.code}</p>` +
+        `<p class="net-link">${escapeHtml(netLink())}</p>` +
+        '<div class="net-row"><button type="button" class="btn btn-primary" data-net="share">Link teilen</button><button type="button" class="btn btn-ghost" data-net="copy">Link kopieren</button></div>' +
+        `<h3>Spieler (${net.players.size + 1}/${NET_MAX})</h3>${list()}` +
+        '<button type="button" class="btn btn-ghost" data-net="stop">Spiel schließen</button>';
+    } else {
+      html = `<p>Du spielst in der Welt von <b>${escapeHtml(net.hostName)}</b> (Code ${escapeHtml(net.code)}).</p>` +
+        `<h3>Spieler</h3>${list()}<button type="button" class="btn btn-ghost" data-net="stop">Verlassen</button>`;
+    }
+    body.innerHTML = html + '<p id="netMsg" class="hint-text"></p>';
+    body.querySelectorAll('[data-net]').forEach((b) => b.addEventListener('click', async () => {
+      const act = b.dataset.net;
+      if (act === 'host') netHost();
+      else if (act === 'join') netJoin($('netCode').value);
+      else if (act === 'stop') netStop();
+      else if (act === 'share' || act === 'copy') {
+        const link = netLink();
+        try {
+          if (act === 'share' && navigator.share) await navigator.share({ title: 'Seelenstein', text: `Spiel mit mir Seelenstein! Code: ${net.code}`, url: link });
+          else {
+            await navigator.clipboard.writeText(link);
+            $('netMsg').textContent = 'Link kopiert.';
+          }
+        } catch (e) {
+          $('netMsg').textContent = 'Kopieren ging nicht. Schick einfach den Code: ' + net.code;
+        }
+      }
+    }));
+  },
+
+  updateNetBadge() {
+    const on = net.mode === 'host' || net.mode === 'client';
+    $('btnChat').hidden = !on;
+    $('netBadge').hidden = !on;
+    if (on) $('netBadge').textContent = `Online ${net.players.size + 1}/${NET_MAX}${net.mode === 'host' ? ' · ' + net.code : ''}`;
+    $('btnNet').classList.toggle('on', on);
+  },
+
+  openChat() {
+    if (net.mode !== 'host' && net.mode !== 'client') return;
+    $('chatBar').hidden = false;
+    $('chatInput').focus();
+  },
+
+  // Chat unten links: die letzten Nachrichten, verblassen nach einer Weile
+  chat(name, text) {
+    const box = $('chatLog');
+    const row = document.createElement('p');
+    const b = document.createElement('b');
+    b.textContent = name + ': ';
+    row.append(b, document.createTextNode(text));
+    box.append(row);
+    while (box.children.length > 5) box.firstChild.remove();
+    setTimeout(() => row.classList.add('old'), 20000);
+    setTimeout(() => row.remove(), 26000);
   },
 
   updateHorseButton() {
@@ -550,6 +640,7 @@ const ui = {
         return;
       }
       if (id === 'panelLoot') this.renderLoot();
+      if (id === 'panelNet') this.renderNet();
       el.hidden = false;
     }
   },

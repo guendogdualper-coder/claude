@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '2.8';
+const GAME_VERSION = '2.9';
 
 const game = {
   world: null,
@@ -111,7 +111,9 @@ function update(dt) {
   game.stats = playerStats(game.player);
   updateTimers();
   updatePlayer(dt);
-  updateMonsters(dt);
+  // Beim Mitspieler führt der Host die Monster (netUpdate zieht sie nur nach)
+  if (net.mode !== 'client') updateMonsters(dt);
+  netUpdate(dt);
   updateAllies(dt);
   updateVillagers(dt);
   updateAmbient(dt);

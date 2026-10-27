@@ -160,6 +160,13 @@ function showLifeSteal() {
 }
 
 function damageMonster(m, amount, crit, source, isDot) {
+  // Im Mehrspieler entscheidet der Host über Leben und Tod der Monster
+  if (net.mode === 'client') {
+    netClientDamage(m, amount, crit, isDot);
+    return;
+  }
+  if (source && (source === game.player || source.remote)) m.lastAttacker = source;
+  if (source && !source.remote) m.hostHitAt = game.time;
   m.hp -= amount;
   m.hitFlash = 0.12;
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
@@ -175,12 +182,21 @@ function damageMonster(m, amount, crit, source, isDot) {
 }
 
 function killMonster(m) {
-  const p = game.player;
+  if (net.mode === 'client') return;
   m.dead = true;
   m.hp = 0;
   m.poison = null;
   m.burn = null;
   if (game.target === m) game.target = null;
+  monsterDeathFx(m);
+  if (m.isStone) m.respawnAt = game.time + randInt(STONE.respawn[0], STONE.respawn[1]);
+  else m.respawnAt = game.time + (m.respawnDelay || 12 + Math.random() * 8);
+  if (net.mode === 'host') netBroadcastKill(m);
+  // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
+  if (net.mode !== 'host' || netShares(m, m.hostHitAt)) rewardKill(m);
+}
+
+function monsterDeathFx(m) {
   const bc = bodyCenter(m);
   if (m.isStone) {
     const look = m.stoneType.look;
@@ -192,7 +208,11 @@ function killMonster(m) {
     vfxCorpse(m);
     particles(bc.x, bc.y, { count: 12, color: ['#e8e0cc', '#a8997c'], speed: [40, 120], life: [0.3, 0.6], size: [2, 3.5], drag: 3, glow: false });
   }
+}
 
+// Erfahrung, Gold, Beute und Aufträge für ein besiegtes Monster
+function rewardKill(m) {
+  const p = game.player;
   const xp = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   const gold = Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : 1));
@@ -215,12 +235,10 @@ function killMonster(m) {
     ui.loot(potionInfo('hp').name, potHp, lootIconUrl('potHp'), potionInfo('hp').color);
     ui.loot(potionInfo('mp').name, potMp, lootIconUrl('potMp'), potionInfo('mp').color);
     questEvent('stone', m);
-    m.respawnAt = game.time + randInt(STONE.respawn[0], STONE.respawn[1]);
   } else {
     questEvent('kill', m);
     if (Math.random() < 0.06) { p.potions.hp++; ui.loot(potionInfo('hp').name, 1, lootIconUrl('potHp'), potionInfo('hp').color); }
     if (Math.random() < 0.04) { p.potions.mp++; ui.loot(potionInfo('mp').name, 1, lootIconUrl('potMp'), potionInfo('mp').color); }
-    m.respawnAt = game.time + (m.respawnDelay || 12 + Math.random() * 8);
   }
   if (m.type && m.type.boss) bossLoot(m);
   rollLoot(m);
@@ -301,6 +319,7 @@ function revivePlayer() {
 // Nahkämpfer schlagen eine Kombo aus drei Schlägen: Hieb, Rückhand, Stich.
 
 function startSwing(p, kind, duration) {
+  p.swingSeq = (p.swingSeq || 0) + 1;
   p.swingKind = kind;
   p.swingDur = duration;
   p.swing = duration;
@@ -647,6 +666,7 @@ const SKILL_TYPES = {
         if (sk.stun) m.stun = Math.max(m.stun, sk.stun);
         aggro(m, p);
       }
+      if (net.mode === 'client') netClientDamage(m, 0, false, false);
     }
   }
 };

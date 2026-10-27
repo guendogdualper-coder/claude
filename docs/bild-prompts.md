@@ -665,3 +665,25 @@ Mobile game HUD close-up in landscape, dark fantasy style: a quest window titled
 ```
 2D game combat scene, three-quarter top-down view: a chibi warrior quickly running out of a large red dashed warning circle on the ground that is filling up around the Ice King boss; a wide boss health bar at the top center with the name "Lv 52 Eiskönig Hrim" and the numbers below; ice shards flying outward in all directions; three frost ghosts appearing in bursts of light as reinforcements. Cute game art, bold outlines, additive glow.
 ```
+
+## Zusammen spielen (Version 2.9)
+
+### Spiel öffnen und Code teilen
+```
+Mobile game window in landscape, dark leather and gold East Asian fantasy style, titled "Zusammen spielen": a big golden five-letter room code "K7QXM" in the center, below it a small share link, two buttons "Link teilen" and "Link kopieren", a player list "Kaito (du, Host)" and "Mira · Lv 38 · Schamane", and a green pill badge "Online 2/4" on the minimap frame. Clean readable UI.
+```
+
+### Zwei Freunde in derselben Welt
+```
+2D fantasy MMORPG scene, three-quarter top-down view in an orc valley: a chibi warrior with a glowing sword and a chibi shaman with a fan fighting a group of green orcs together, the warrior's name in blue and the friend's name "Lv 38 Mira" in green with a small green health bar under it, a white speech bubble "Ich heile dich!" above the shaman, purple "+63 EP +71 Gold" floating for both, on the minimap a white dot and a green dot side by side. Cute game art, bold outlines, cel shading.
+```
+
+### Chat
+```
+Mobile game HUD close-up in landscape: a chat input bar at the top center with a text field "Nachricht an alle …" and a gold "Senden" button; at the bottom left a few chat lines on dark green translucent pills, names in light green ("Mira: Lass uns den Stein zerstören!", "Kaito: Bin unterwegs!"); a round speech bubble button in the top menu next to a glowing green two-people button. Clean dark fantasy UI.
+```
+
+### Beitreten über einen Link
+```
+Smartphone in landscape showing a messenger chat with a link "Spiel mit mir Seelenstein! Code: K7QXM" and a preview card of the game; next to it the same phone after tapping: the game opens, a banner "Zusammen spielen · Welt von Kaito" appears over a cozy East Asian village. Clean illustration, soft colors.
+```

@@ -28,6 +28,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Aufträge**: 20 Aufträge des Dorfältesten von Stufe 1 bis 70 mit Erfahrung, Gold, Ausrüstung und Materialien, dazu wiederholbare Jagden bei der Jägerin
 - **Dorfbewohner**: Wegweiserin (Reisen in jedes Gebiet), Alchemist (Materialien), Wachen an den Toren und Leute, die umherlaufen
 - **Schwierigkeit**: Monster werden ab Stufe 2 schrittweise zäher und stärker, ab Stufe 15 mit jeder Stufe weiter. Monster über der eigenen Stufe nehmen 8 % weniger Schaden je Stufe (bis −75 %) und treffen 7 % härter (bis +80 %), höhere Gebiete brauchen also gute Ausrüstung. Ab Stufe 10 braucht jede Stufe 40 % mehr Erfahrung
+- **Zusammen spielen (online)**: Ein Spieler öffnet sein Spiel und bekommt einen Code und Link (`?raum=CODE`), bis zu drei Freunde treten mit ihrer eigenen Figur bei. Die Geräte verbinden sich direkt per WebRTC (PeerJS, mit öffentlichem Vermittlungs- und Relay-Server, kein eigener Server nötig). Der Host führt Monster, Steine und Bosse; Mitspieler schicken Position und Treffer und bekommen zehnmal pro Sekunde den Stand in ihrer Nähe. Erfahrung und Beute für jeden, der mitkämpft oder in der Nähe ist. Mitspieler mit Namen, Lebensbalken und grünem Punkt auf der Minikarte, Chat mit Sprechblasen
 - **Missionen**: Hauptmissionen golden, Nebenmissionen grün (Ausrufezeichen über Personen, Auftragsliste, Minikarte)
 - **Stallmeister Jun** (ab Stufe 30): Hauptmission mit Zeitlimit, 120 Monster ab Stufe 25 in 20 Minuten; Belohnung ein eigenes Pferd (60 % schneller, Taste R oder Pferdeknopf, man steigt beim Angreifen ab)
 - **Dungeons mit Bossen**: Spinnenhöhle (ab 18), Orkfestung (ab 28), Eisgrotte (ab 45), Drachenhort (ab 63) in einem eigenen Kartenstreifen, Eingänge neben den Wegen und auf der Minikarte. Je drei Räume mit eigenen Monstern und ein Boss (Spinnenkönigin, Kriegsherr Gor'thak, Eiskönig Hrim, Urdrache Vharak) mit angekündigtem Stampfer, Geschoss-Salven und Verstärkung; Bossbalken oben, Beute: zwei Teile +3 bis +6, Bücher, Schmiede-Teile, Materialien, Gold; Boss kommt nach 10 Minuten wieder
@@ -90,6 +91,8 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/spieler.js` | Figur, Werte, Erfahrung, Tränke, Speichern |
 | `js/kampf.js` | Schadensformel, Angriffe, alle Fertigkeitsarten, Geschosse, Effekte |
 | `js/gegner.js` | Monster-KI, Respawn, Seelenstein-Wellen, Skelette |
+| `js/netz.js` | Mehrspieler: Spiel öffnen, beitreten, Abgleich von Spielern und Monstern, Chat |
+| `js/peerjs.min.js` | PeerJS (MIT-Lizenz) für die Verbindung, wird erst beim Mehrspieler geladen |
 | `js/ausruestung.js` | Gegenstände, Beute, Inventar, Händler, Schmied, Symbole und die zugehörigen Fenster |
 | `js/figuren.js` | Aussehen aller Figuren und Monster: Klassen in drei Blickrichtungen mit Laufanimation, Waffen, Händler, Skelette |
 | `js/effekte.js` | Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse, Bildschirmwackeln |
