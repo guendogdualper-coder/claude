@@ -741,3 +741,80 @@ Game item icon sheet for a 2D fantasy MMORPG: two rows of potions, top row red "
 ```
 2D fantasy MMORPG dungeon room, three-quarter top-down view: a dark cave room with raised rock walls and violet braziers, a glowing soul stone obelisk in the middle with its name and level above it, cave spiders swarming out of it as reinforcements, a chibi warrior attacking it; small text "kommt nach 30 Sekunden wieder". Cute game art, bold outlines, moody glow.
 ```
+
+## Schild nur Krieger, Beidhändig, Ultimative Attacken, Schultern und Umhang, Grafik (Version 3.2)
+
+### Schild nur für den Krieger
+```
+2D fantasy MMORPG character lineup, three-quarter view, cute chibi style with bold dark outlines: a red-armored warrior holding a one-handed sword and a heater shield with a golden gem, next to him a ninja with twin daggers, a shaman with a silk fan and a necromancer with a bone staff, none of the three carrying a shield. Above the warrior a small shield icon labelled "nur Krieger". Plain warm background, cel shading.
+```
+
+### Zweihänder nur für den Weg des Leibes
+```
+2D fantasy MMORPG character art, cute chibi style: a broad-shouldered warrior in heavy stone-grey plate ("Weg des Leibes") holding a huge two-handed greatsword over his shoulder, no shield, dust at his feet; beside him a small UI badge "Zweihänder · nur Weg des Leibes · viel Schaden, langsam". Bold outlines, cel shading, warm light from the top left.
+```
+
+### Beidhändig: zwei Schwerter ab Stufe 30
+```
+2D fantasy MMORPG character art, cute chibi style: an agile warrior in crimson armor ("Weg der Klinge") wielding two glowing one-handed swords, one in each hand, mid-swing with crossed light trails; a weapon merchant behind a stall offers a scroll labelled "Beidhändigkeit · ab Stufe 30 · 20.000 Gold". Inventory slot below labelled "Nebenhand" with a sword icon. Bold outlines, dynamic pose, warm light.
+```
+
+### Ultimative Attacke: Klingenhimmel (Krieger, Weg der Klinge)
+```
+2D fantasy MMORPG skill effect, three-quarter top-down view: ten giant ghostly white-gold swords fall from the sky and stab into the ground in a wide circle around a chibi warrior, a golden rune circle glows on the ground, monsters are hurled back, the swords then burst in a white shockwave. Big golden title "Klingenhimmel – Ultimative Attacke". Cute game art, bold outlines, strong glow.
+```
+
+### Ultimative Attacke: Titanenzorn (Krieger, Weg des Leibes)
+```
+2D fantasy MMORPG skill effect, three-quarter top-down view: a chibi warrior leaps into the air and slams down with both fists, the ground cracks in glowing orange lines in all directions, rocks and dust fly, a huge shock ring knocks monsters away and stuns them with yellow stars; afterwards a stone-like aura "Titanenhaut" surrounds him. Cute game art, bold outlines, heavy screen shake feeling.
+```
+
+### Ultimative Attacke: Schattentanz (Ninja, Weg des Dolches)
+```
+2D fantasy MMORPG skill effect: a chibi ninja blinks from enemy to enemy in a chain of purple afterimages, crossing violet slashes appear on eight monsters at once, a dark smoke puff marks the starting point where he reappears. Title "Schattentanz". Cute game art, bold outlines, purple and white light.
+```
+
+### Ultimative Attacke: Todesmal (Ninja, Weg des Schattens)
+```
+2D fantasy MMORPG skill effect: a glowing blood-red X mark hovers over a large monster, the chibi ninja appears behind it out of black smoke and strikes with one long crimson slash, a red light pillar rises from the target, critical damage number. Title "Todesmal". Cute but menacing game art, bold outlines.
+```
+
+### Ultimative Attacke: Drachensturm (Schamane, Weg des Drachen)
+```
+2D fantasy MMORPG skill effect, top-down three-quarter view: nine burning meteors with long fiery tails crash into a golden rune circle where monsters stand, scorch marks and embers everywhere, a final dragon roar shockwave. A chibi shaman with a silk fan points at the sky. Title "Drachensturm". Cute game art, bold outlines, orange and gold light.
+```
+
+### Ultimative Attacke: Himmelssegen (Schamane, Weg der Heilung)
+```
+2D fantasy MMORPG skill effect: a warm golden light beam falls on a chibi shaman and heals her, a golden rune circle under her feet, at the same time slim pillars of holy light strike down on up to eight monsters around her and stun them; green heal number "+60 %". Title "Himmelssegen". Cute game art, bold outlines, soft golden glow.
+```
+
+### Ultimative Attacke: Seelenernte (Nekromant, Weg der Seelen)
+```
+2D fantasy MMORPG skill effect: a swirling green-white soul vortex spins around a hooded chibi necromancer and pulls all monsters toward the center, green soul beams flow from the monsters back to him and heal him, final bright green burst. Title "Seelenernte". Cute but eerie game art, bold outlines.
+```
+
+### Ultimative Attacke: Knochenkerker (Nekromant, Weg der Knochen)
+```
+2D fantasy MMORPG skill effect: three expanding rings of sharp pale bone spikes break out of the ground around a chibi necromancer, monsters are caught between the spikes and held in place, a dark red rune circle on the ground, green life-steal numbers rise. Title "Knochenkerker". Cute but dark game art, bold outlines.
+```
+
+### Knopf der Ultimativen Attacke
+```
+Mobile game HUD close-up in landscape, dark fantasy East Asian style: the round red attack button with crossed swords at the bottom right, around it five round skill buttons with brass rings, and right above the attack button a slightly larger skill button with a thick pulsing golden ring and the icon of falling swords; on another version the same button greyed with a clock overlay "2:45". Clean readable UI.
+```
+
+### Schultern und Umhang als neue Ausrüstung
+```
+Game item icon sheet for a 2D fantasy MMORPG: top row eight pairs of shoulder pauldrons from simple leather to bronze, iron, red dragon plates with spikes, violet soul plates with a gem, black ash plates, white-feathered sky pauldrons and golden god pauldrons; bottom row eight capes from a plain wool cape to a red dragon cape with an emblem, a violet soul cape, a blue sky cape and a golden god cape with a white gem. Bold dark outline, cel shading, plain dark background.
+```
+
+### Jedes Ausrüstungsteil an der Figur sichtbar
+```
+2D fantasy MMORPG character turnaround, cute chibi style, front, side and back view of the same warrior: tall iron boots with cuffs and toe caps, a leather belt with a big buckle and a pouch, spiked dragon shoulder pauldrons, a red cape with a golden hem and an emblem on the back that flutters behind him while walking, helmet with plume, chest armor, sword and shield. Bold outlines, cel shading, light from the top left, soft cast shadow to the lower right.
+```
+
+### Bessere Grafik: Schatten, Licht und Bewegung
+```
+2D fantasy MMORPG gameplay screenshot, three-quarter top-down view, East Asian village and forest: every character and monster casts a soft slanted shadow toward the lower right, characters are lit from the top left with a thin bright rim on their edges, an idle warrior gently breathes, a walking ninja leans forward and his cape flutters. Cute game art, bold outlines, warm afternoon light.
+```

@@ -48,6 +48,7 @@ function bakeSprite(bounds, draw) {
   b.lineJoin = 'round';
   b.lineCap = 'round';
   draw(b);
+  shadeSprite(base, b, w, h);
   // Umriss: Silhouette in alle Richtungen versetzt hinter die Figur legen
   const sil = newCanvas(w, h);
   const s = sil.getContext('2d');
@@ -61,6 +62,32 @@ function bakeSprite(bounds, draw) {
   for (let a = 0; a < 8; a++) o.drawImage(sil, Math.cos(a * Math.PI / 4) * d, Math.sin(a * Math.PI / 4) * d);
   o.drawImage(base, 0, 0);
   return { img: out, bounds, flash: null };
+}
+
+// Licht von oben links: ein Verlauf über die ganze Figur (oben warm, unten kühl und dunkler)
+// und ein heller Saum an den Kanten oben links. Wird nur einmal beim Backen gerechnet.
+function shadeSprite(base, b, w, h) {
+  b.save();
+  b.setTransform(1, 0, 0, 1, 0, 0);
+  b.globalCompositeOperation = 'source-atop';
+  const g = b.createLinearGradient(0, 0, w * 0.3, h);
+  g.addColorStop(0, 'rgba(255,244,220,0.12)');
+  g.addColorStop(0.5, 'rgba(0,0,0,0)');
+  g.addColorStop(1, 'rgba(18,10,30,0.24)');
+  b.fillStyle = g;
+  b.fillRect(0, 0, w, h);
+  const rim = newCanvas(w, h);
+  const r = rim.getContext('2d');
+  r.drawImage(base, 0, 0);
+  r.globalCompositeOperation = 'source-in';
+  r.fillStyle = '#fff6e0';
+  r.fillRect(0, 0, w, h);
+  r.globalCompositeOperation = 'destination-out';
+  const d = SPRITE_SCALE * 0.9;
+  r.drawImage(base, d, d);
+  b.globalAlpha = 0.3;
+  b.drawImage(rim, 0, 0);
+  b.restore();
 }
 
 function getSprite(key, bounds, draw) {
@@ -527,11 +554,195 @@ const ARMOR_LOOK = {
   }
 };
 
-// Welche Stufen die Figur gerade trägt
+// Welche Stufen die Figur gerade trägt: Rüstung, Helm, Schuhe, Gürtel, Schultern (der Umhang wird
+// erst beim Zeichnen dazugemalt, weil er im Wind flattert)
 function playerLook(p) {
   const eq = p.equipment;
   if (!eq) return { a: -1, h: -1 };
-  return { a: eq.ruestung ? eq.ruestung.tier : -1, h: eq.helm ? eq.helm.tier : -2 };
+  const t = (it) => (it ? it.tier : -1);
+  return { a: t(eq.ruestung), h: eq.helm ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern) };
+}
+
+// --- Sichtbare Ausrüstung: Schuhe, Gürtel, Schultern, Umhang ------------------------------------
+// Je Stufe eigene Farben; ab Drache Dornen und Edelsteine, ab Himmel leuchtende Federn.
+const GEAR_LOOK = {
+  boots: ['#5a3e2a', '#6e4a2a', '#4a4c52', '#7a2a24', '#3a2a4a', '#2a2020', '#30507a', '#b88a2a'],
+  belt: ['#6a4a30', '#7a5030', '#3e3a36', '#6a1e1a', '#2e2040', '#2a1a14', '#1e3050', '#8a6a1a'],
+  plate: ['#7a5a3c', '#b07a40', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a'],
+  cape: ['#6a5a48', '#7a3a2a', '#2f5a3a', '#8a1f1f', '#3a2a6a', '#2a2220', '#2a4a8a', '#d0a63a'],
+  lining: ['#4a3e30', '#a88a5a', '#c9b48a', '#2a1214', '#b48cff', '#ff7a2a', '#e6f2ff', '#fff2b0']
+};
+const gearTier = (t) => (t == null ? -1 : t);
+
+// Stiefel über den Beinen aus hLegs: Schaft, Stulpe und Kappe
+function gearBoots(ctx, dir, w, tier, robe) {
+  tier = gearTier(tier);
+  if (tier < 0) return;
+  const c = GEAR_LOOK.boots[tier];
+  const m = TIER_METAL[tier];
+  const boot = (x, lift, wide) => {
+    if (robe) {
+      box(ctx, x, -3.6 - lift, wide, 3.8, 1.6, c);
+      stroke(ctx, m, 0.8, [[x + 0.6, -2.6 - lift], [x + wide - 0.6, -2.6 - lift]]);
+      return;
+    }
+    box(ctx, x + 0.4, -8.2 - lift, wide - 0.8, 5, 1.4, darker(c, 0.08));
+    box(ctx, x, -4.8 - lift, wide, 4.8, 1.8, c);
+    box(ctx, x - 0.2, -8.8 - lift, wide + 0.4, 1.8, 0.8, tier >= 2 ? m : lighter(c, 0.2));
+    if (tier >= 1) stroke(ctx, m, 0.7, [[x + 1, -5.6 - lift], [x + wide - 1, -5.6 - lift]]);
+    if (tier >= 3) poly(ctx, [[x + wide * 0.3, -9 - lift], [x + wide * 0.5, -12 - lift], [x + wide * 0.7, -9 - lift]], m);
+    if (tier >= 6) poly(ctx, [[x + wide - 0.5, -8 - lift], [x + wide + 3.5, -11 - lift], [x + wide + 1.5, -6.5 - lift]], '#ffffff');
+  };
+  if (dir === 'side') {
+    const s = w.l * (robe ? 2 : 2.6);
+    if (robe) {
+      boot(-2 + s, 0, 6.5);
+      return;
+    }
+    boot(-3.2 - s, 0, 7);
+    boot(-3 + s, 0, 7.5);
+  } else {
+    boot(-6.6, w.l > 0 ? (robe ? 0.8 : 1.2) : 0, robe ? 5.6 : 6.2);
+    boot(robe ? 1 : 0.4, w.r > 0 ? (robe ? 0.8 : 1.2) : 0, robe ? 5.6 : 6.2);
+  }
+}
+
+// Gürtel über der Hüfte, von vorn mit Schnalle, von der Seite mit Tasche
+function gearBelt(ctx, dir, y, half, tier) {
+  tier = gearTier(tier);
+  if (tier < 0) return;
+  const c = GEAR_LOOK.belt[tier];
+  const m = TIER_METAL[tier];
+  box(ctx, -half - 0.3, y, half * 2 + 0.6, 3.4, 1, c);
+  stroke(ctx, darker(c, 0.35), 0.5, [[-half + 0.5, y + 1.7], [half - 0.5, y + 1.7]]);
+  if (dir === 'down') {
+    box(ctx, -2.6, y - 0.6, 5.2, 4.6, 1, m);
+    box(ctx, -1.3, y + 0.5, 2.6, 2.4, 0.6, darker(c, 0.2));
+    if (tier >= 3) oval(ctx, 0, y + 1.7, 1.1, 1.1, tier >= 4 ? '#d6a8ff' : '#c8402f');
+    if (tier >= 2) for (const x of [-half + 2.5, half - 2.5]) oval(ctx, x, y + 1.7, 0.9, 0.9, m);
+  } else if (dir === 'side') {
+    box(ctx, -half + 0.5, y + 1.5, 4, 4.2, 1.2, darker(c, 0.1));
+    stroke(ctx, m, 0.6, [[-half + 0.8, y + 2.6], [-half + 4.2, y + 2.6]]);
+  }
+}
+
+// Schulterpanzer: gestufte Platten, ab Drache Dornen, ab Seele ein Juwel, ab Himmel Federn
+function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
+  tier = gearTier(tier);
+  if (tier < 0) return false;
+  const c = GEAR_LOOK.plate[tier];
+  const m = TIER_METAL[tier];
+  const pad = (x, mirror) => {
+    if (tier >= 6) {
+      for (let k = 0; k < 3; k++) poly(ctx, [[x - 2 * mirror, y - 1], [x + (6 + k * 2.5) * mirror, y - 7 - k * 2], [x + (4 + k * 2) * mirror, y + 1]], k === 2 ? '#e6f2ff' : '#ffffff');
+    }
+    oval(ctx, x, y + 3.4, 6.2, 3.6, darker(c, 0.12));
+    oval(ctx, x, y + 1.4, 7, 4.8, c);
+    stroke(ctx, m, 1, [[x - 5.8, y + 3.6], [x + 5.8, y + 3.6]]);
+    if (tier >= 1) stroke(ctx, lighter(c, 0.3), 0.6, [[x - 3.5, y - 1.6], [x + 2, y - 2.4]]);
+    if (tier >= 2) for (const dx of [-3.5, 3.5]) oval(ctx, x + dx, y + 1.6, 0.8, 0.8, m);
+    if (tier >= 3 && tier < 6) {
+      poly(ctx, [[x - 3.2, y - 1.5], [x - 1.8 + mirror * 0.5, y - 8 - (tier >= 5 ? 2 : 0)], [x - 0.4, y - 2]], m);
+      poly(ctx, [[x + 0.4, y - 2], [x + 2 + mirror * 0.5, y - 7 - (tier >= 5 ? 2 : 0)], [x + 3.2, y - 1.5]], m);
+    }
+    if (tier >= 4) oval(ctx, x, y + 1, 1.5, 1.5, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
+  };
+  if (dir === 'side') pad(w.arm, 1);
+  else {
+    pad(-spread, -1);
+    pad(spread, 1);
+  }
+  return true;
+}
+
+// Umhang: wird jedes Bild neu gezeichnet und weht beim Laufen. layer 'back' (hinter der Figur)
+// oder 'front' (von hinten gesehen liegt er über dem Rücken). Koordinaten wie im Sprite.
+function drawCape(ctx, tier, dir, w, moving, t, layer) {
+  if (tier < 0) return;
+  if ((dir === 'up') !== (layer === 'front')) return;
+  const cloth = GEAR_LOOK.cape[tier];
+  const lining = GEAR_LOOK.lining[tier];
+  const m = TIER_METAL[tier];
+  const y0 = -24.5 + w.bob;
+  const y1 = -1.5;
+  const flap = moving ? 1 : 0.35;
+  const wave = (k) => Math.sin(t * (moving ? 9 : 2.6) + k * 1.7) * (moving ? 2.2 : 1.1);
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  if (dir === 'side') {
+    // weht nach hinten (links), je schneller, desto weiter
+    const back = 4 + flap * 7;
+    ctx.moveTo(-1.5, y0);
+    ctx.lineTo(3, y0 + 0.5);
+    ctx.quadraticCurveTo(1 - back * 0.3, (y0 + y1) / 2, -back * 0.6 + wave(0), y1 + 1);
+    ctx.lineTo(-back - 4 + wave(1), y1 - 2 + wave(2) * 0.6);
+    ctx.quadraticCurveTo(-back * 0.5 - 3, (y0 + y1) / 2 - 2, -5, y0 + 1.5);
+    ctx.closePath();
+  } else {
+    const top = 7.5;
+    const bot = 12 + flap * 1.5;
+    ctx.moveTo(-top, y0);
+    ctx.lineTo(top, y0);
+    ctx.quadraticCurveTo(top + 3, (y0 + y1) / 2, bot + wave(0) * 0.5, y1);
+    const n = 4;
+    for (let k = n; k >= 0; k--) {
+      const x = -bot + (2 * bot) * k / n;
+      ctx.lineTo(x + wave(k) * 0.3, y1 + (k % 2 ? 1.2 : -0.3) + wave(k + 2) * 0.4);
+    }
+    ctx.quadraticCurveTo(-top - 3, (y0 + y1) / 2, -top, y0);
+    ctx.closePath();
+  }
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, lighter(cloth, 0.12));
+  g.addColorStop(0.55, cloth);
+  g.addColorStop(1, darker(cloth, 0.35));
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = OUTLINE;
+  ctx.lineWidth = OUTLINE_W;
+  ctx.stroke();
+  ctx.clip();
+  // Falten
+  ctx.strokeStyle = darker(cloth, 0.3);
+  ctx.lineWidth = 0.9;
+  for (const fx of dir === 'side' ? [-3, -7] : [-6, -1.5, 3, 7.5]) {
+    ctx.beginPath();
+    ctx.moveTo(fx * 0.5, y0 + 3);
+    ctx.quadraticCurveTo(fx + wave(fx) * 0.4, (y0 + y1) / 2, fx * 1.2 + wave(fx + 1) * 0.6, y1 + 2);
+    ctx.stroke();
+  }
+  // Innenfutter blitzt an der Kante auf, ab Eisen ein Saum
+  ctx.strokeStyle = lining;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  if (dir === 'side') {
+    ctx.moveTo(-1.5, y0 + 1);
+    ctx.quadraticCurveTo(-2, (y0 + y1) / 2, -4 + wave(0), y1);
+  } else {
+    ctx.moveTo(-14, y1 - 0.5);
+    ctx.lineTo(14, y1 - 0.5);
+  }
+  ctx.stroke();
+  if (tier >= 2) {
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-16, y1 - 2.2);
+    ctx.lineTo(16, y1 - 2.2);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Wappen auf dem Rücken, Spange an den Schultern
+  if (dir === 'up' && tier >= 3) {
+    const ey = (y0 + y1) / 2 - 1;
+    poly(ctx, [[0, ey - 5], [4, ey], [0, ey + 5], [-4, ey]], m);
+    oval(ctx, 0, ey, 1.6, 1.6, tier >= 6 ? '#ffffff' : lining);
+  }
+  if (dir !== 'side') {
+    oval(ctx, -7, y0 + 0.8, 1.6, 1.6, m);
+    oval(ctx, 7, y0 + 0.8, 1.6, 1.6, m);
+  }
 }
 
 // Farbe aus der Tabelle, sonst die Grundfarbe
@@ -545,6 +756,7 @@ const CHARACTER_ART = {
     const o = { skin: '#e9c6a1', pants: '#3b2d25', boots: '#4d3527', torso: crimson, sleeve: darker(crimson, 0.18), gloves: '#5a4030' };
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b);
     // Panzerrock
     const sw = dir === 'side' ? 8 : 11.5;
     poly(ctx, [[-sw + 1.5, ty + 12], [sw - 1.5, ty + 12], [sw, ty + 18.5], [-sw, ty + 18.5]], darker(crimson, 0.1));
@@ -553,6 +765,7 @@ const CHARACTER_ART = {
     for (let k = 0; k < 3; k++) stroke(ctx, brass, 0.7, [[-half + 1.5, ty + 3.5 + k * 3], [half - 1.5, ty + 3.5 + k * 3]]);
     box(ctx, -half, ty + 11.5, half * 2, 3, 1, brass);
     if (dir === 'down') oval(ctx, 0, ty + 13, 2.3, 2, L.a >= 4 ? lookColor(A.crest, L.a, '#e0c36a') : '#e0c36a');
+    gearBelt(ctx, dir, ty + 11.3, half, L.g);
     // Brustplatte ab Stufe Eisen, Schuppen ab Stufe Drache
     if (dir === 'down' && L.a >= 2) {
       box(ctx, -5, ty + 2, 10, 8, 2.5, lighter(crimson, 0.12));
@@ -568,8 +781,10 @@ const CHARACTER_ART = {
         poly(ctx, [[x + 0.5, ty - 1.5], [x + 2, ty - 6], [x + 3, ty - 1]], brass);
       }
     };
-    if (dir === 'side') pad(w.arm);
-    else { pad(-11.5); pad(11.5); }
+    if (!gearShoulders(ctx, dir, w, L.s, ty)) {
+      if (dir === 'side') pad(w.arm);
+      else { pad(-11.5); pad(11.5); }
+    }
     const { cx, cy } = hHead(ctx, dir, w, o);
     if (dir !== 'up') eyes(ctx, dir, cx, cy, { blush: true });
     // Ohne Helm sieht man die Haare
@@ -624,7 +839,7 @@ const CHARACTER_ART = {
       poly(ctx, [[1, ty - 1], [4, ty - 1], [8.5 + sway, ty + 11], [5.5 + sway, ty + 12.5]], darker(scarf, 0.12));
     }
     hLegs(ctx, dir, w, o);
-    // Beinwickel
+    // Beinwickel, mit Stiefeln verdeckt
     const wrap = 'rgba(205,200,220,0.55)';
     if (dir === 'side') {
       stroke(ctx, wrap, 0.7, [[-2 + w.l * 2.6, -7.5], [2.2 + w.l * 2.6, -6.5]]);
@@ -632,6 +847,7 @@ const CHARACTER_ART = {
       stroke(ctx, wrap, 0.7, [[-5.6, -7.5], [-1.4, -6.6]]);
       stroke(ctx, wrap, 0.7, [[1.4, -7.5], [5.6, -6.6]]);
     }
+    gearBoots(ctx, dir, w, L.b);
     const half = hBody(ctx, dir, w, o);
     // Kreuzgurte
     if (dir === 'side') stroke(ctx, '#5a4030', 1.4, [[-4.5, ty + 1], [4.5, ty + 10.5]]);
@@ -641,7 +857,9 @@ const CHARACTER_ART = {
     }
     box(ctx, -half, ty + 11, half * 2, 3.2, 1, scarf);
     if (dir === 'down') poly(ctx, [[3, ty + 13], [5, ty + 13], [6.5 + sway * 0.4, ty + 18.5], [4, ty + 18.5]], scarf);
+    gearBelt(ctx, dir, ty + 10.8, half, L.g);
     hArms(ctx, dir, w, o);
+    gearShoulders(ctx, dir, w, L.s, ty, 11);
     // Schal am Hals
     if (dir === 'side') box(ctx, -6, ty - 2.5, 12, 4.8, 2, scarf);
     else box(ctx, -8.5, ty - 2.5, 17, 4.8, 2, scarf);
@@ -672,6 +890,7 @@ const CHARACTER_ART = {
     const hair = '#231c1c';
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b, true);
     const wb = hBody(ctx, dir, w, o);
     stroke(ctx, gold, 1.2, [[-wb + 1, -3.8], [wb - 1, -3.8]]);
     if (dir === 'down') {
@@ -698,6 +917,7 @@ const CHARACTER_ART = {
     }
     const bw = dir === 'side' ? 13 : 18.5;
     box(ctx, -bw / 2, ty + 10.5, bw, 3, 1, gold);
+    gearBelt(ctx, dir, ty + 10.3, bw / 2, L.g);
     if (dir !== 'up') {
       const talisman = (x) => {
         box(ctx, x, ty + 13.3, 3.4, 6.2, 0.5, '#efe6cc');
@@ -707,6 +927,7 @@ const CHARACTER_ART = {
       else { talisman(-7); talisman(3.6); }
     }
     hArms(ctx, dir, w, o);
+    gearShoulders(ctx, dir, w, L.s, ty, 10.5);
     const { cx, cy } = hHead(ctx, dir, w, o);
     if (dir === 'up') {
       oval(ctx, cx, cy - 0.5, 11.4, 11, hair);
@@ -764,11 +985,13 @@ const CHARACTER_ART = {
     const eyeGlow = lookColor(A.glow, L.h, '#a7e37f');
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b, true);
     const wb = hBody(ctx, dir, w, o);
     if (dir === 'down') poly(ctx, [[-2.5, ty + 2], [2.5, ty + 2], [3.6, -3.5], [-3.6, -3.5]], '#1d281c');
     stroke(ctx, 'rgba(167,227,127,0.35)', 0.7, [[-wb + 2, -5.5], [wb - 2, -5.5]]);
     const bw = dir === 'side' ? 13 : 18.5;
     box(ctx, -bw / 2, ty + 10.5, bw, 2.6, 1, '#4a3a2a');
+    gearBelt(ctx, dir, ty + 10.2, bw / 2, L.g);
     const skull = (x, y, s = 1) => {
       oval(ctx, x, y, 3.6 * s, 3.2 * s, bone);
       dot(ctx, x - 1.3 * s, y, 0.85 * s, 0.85 * s, '#1a1210');
@@ -776,8 +999,10 @@ const CHARACTER_ART = {
     };
     if (dir !== 'up') skull(dir === 'side' ? 4 : 0, ty + 11.8, 0.7);
     hArms(ctx, dir, w, o);
-    if (dir === 'side') skull(w.arm * 1.5, ty + 1.5);
-    else { skull(-10.5, ty + 1); skull(10.5, ty + 1); }
+    if (!gearShoulders(ctx, dir, w, L.s, ty, 10.5)) {
+      if (dir === 'side') skull(w.arm * 1.5, ty + 1.5);
+      else { skull(-10.5, ty + 1); skull(10.5, ty + 1); }
+    }
     const cx = dir === 'side' ? 1.5 : 0;
     const cy = -34.5 + w.bob;
     if (dir === 'side') {
@@ -802,7 +1027,7 @@ const CHARACTER_ART = {
 const FIGURE_BOUNDS = { x: -30, y: -60, w: 60, h: 66 };
 
 function characterSprite(classId, dir, frame, look = { a: -1, h: -1 }) {
-  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look));
+  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look));
 }
 
 // Wo die Waffenhand sitzt (relativ zu den Füßen, Figur nach rechts bzw. zum Betrachter)

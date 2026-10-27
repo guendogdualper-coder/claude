@@ -67,7 +67,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -126,7 +126,7 @@ function makePlayer(save) {
   };
   p.potions = { hp: 0, mp: 0, ...save.potions };
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
-  p.equipment = { ...starterEquipment(save.classId), helm: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
+  p.equipment = { ...starterEquipment(save.classId), helm: null, schultern: null, umhang: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
   p.scrolls = save.scrolls || 0;
   if (save.equipment && (save.itemsVersion || 1) < 2) {
@@ -137,6 +137,8 @@ function makePlayer(save) {
   // Waffe, Rüstung und Helm gehören jetzt einer Klasse; alte Gegenstände bekommen die eigene
   Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
   p.inventory.forEach((it) => { if (!isBook(it)) assignClass(it, p.classId); });
+  // Seit Version 3.2: Schild nur Krieger, Zweihänder nur Weg des Leibes. Was nicht mehr passt, kommt in die Tasche.
+  p.gearMoved = enforceGearRules(p);
   p.upmats = { ...(save.upmats || {}) };
   // Bis Version 2.5 waren Bücher eine einfache Zahl: jetzt Bücher zu den eigenen Fertigkeiten.
   // books bleibt als 0 im Spielstand und zeigt, dass der Stand die Ränge schon kennt.
@@ -210,9 +212,13 @@ function playerStats(p) {
   let speedMul = 1;
   // Boni der Ausrüstung
   const bonus = {};
-  for (const item of Object.values(p.equipment || {})) {
-    if (!item) continue;
-    for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v;
+  const eq = p.equipment || {};
+  // Ein zweites Schwert in der Nebenhand zählt nur zum Teil
+  const offhand = isOffhand(eq.schild) ? eq.schild : null;
+  for (const item of Object.values(eq)) {
+    if (!item || !canWear(item, p)) continue;
+    const share = item === offhand ? DUAL_WIELD.bonus : 1;
+    for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v * share;
   }
   s.atk += bonus.atk || 0;
   s.def += bonus.def || 0;
@@ -230,8 +236,14 @@ function playerStats(p) {
   s.basicDmg = bonus.basicDmg || 0;
   s.damageTaken -= (bonus.dmgReduce || 0) + (bonus.resist || 0);
   let magic = 0;
-  for (const item of Object.values(p.equipment || {})) {
-    if (!item || !canWear(item, p.classId)) continue;
+  for (const item of Object.values(eq)) {
+    if (!item || !canWear(item, p)) continue;
+    if (item === offhand) {
+      if (!canDualWield(p)) continue;
+      s.atk += Math.round((itemStats(item).atk || 0) * DUAL_WIELD.atk);
+      s.atkSpeed += DUAL_WIELD.atkSpeed;
+      continue;
+    }
     const st = itemStats(item);
     s.atkSpeed += st.atkSpeed || 0;
     magic += st.magic || 0;
@@ -245,10 +257,9 @@ function playerStats(p) {
     s.regen += st.regen || 0;
     speedMul += st.speed || 0;
   }
-  // Blocken nur mit Schild (und nicht mit einer Zweihandwaffe)
-  const eq = p.equipment || {};
+  // Blocken nur mit Schild (und nicht mit einer Zweihandwaffe oder zweitem Schwert)
   const twoHand = eq.waffe && WEAPON_KINDS[eq.waffe.kind] && WEAPON_KINDS[eq.waffe.kind].twoHanded;
-  s.block = eq.schild && !twoHand ? Math.min(MAX_BLOCK, s.block) : 0;
+  s.block = eq.schild && !offhand && !twoHand ? Math.min(MAX_BLOCK, s.block) : 0;
   // Statuswerte (eigene Punkte plus Boni auf der Ausrüstung)
   const own = p.attrs || {};
   const a = { str: (own.str || 0) + (bonus.str || 0), vit: (own.vit || 0) + (bonus.vit || 0), int: (own.int || 0) + (bonus.int || 0), dex: (own.dex || 0) + (bonus.dex || 0) };

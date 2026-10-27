@@ -39,6 +39,9 @@ function setupInput() {
         input.attack = true;
         e.preventDefault();
         break;
+      case 'Digit6':
+        useUltimate();
+        break;
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5':
         if (game.player) useSkill(skillOrder(game.player)[Number(e.code.slice(5)) - 1]);
         break;

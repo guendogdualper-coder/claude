@@ -252,6 +252,9 @@ function vfxPotion(p, kind) {
 
 // --- Effekte zeichnen ---------------------------------------------------------------------
 
+// Weitere Effektarten aus anderen Dateien (z. B. ultimativ.js): type -> (ctx, e, k, x, y)
+const EXTRA_EFFECTS = {};
+
 function addEffect(e) {
   e.start = game.time;
   if (e.type === 'burst') {
@@ -718,6 +721,8 @@ function drawEffect(ctx, e) {
         ctx.stroke();
       }
       break;
+    default:
+      if (EXTRA_EFFECTS[e.type]) EXTRA_EFFECTS[e.type](ctx, e, k, x, y);
   }
   ctx.restore();
 }

@@ -40,7 +40,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Fortschritt**: Erfahrung, Stufen bis 99, Fertigkeitspunkte (Fertigkeiten bis Stufe 20), 3 Statuspunkte pro Stufe für Stärke, Vitalität, Intelligenz und Geschick, Erfahrungsverlust beim Tod
 - **Händler im Dorf**: Waffenhändler Goro (Waffen je Klasse), Rüstungshändlerin Mei (Rüstung, Helm, Schild, Schuhe, Gürtel), jeweils ab Lv 1, 5, 10 und 15; Händlerin Ayla für Tränke und Segensschriftrollen
 - **Ausrüstung je Klasse**: Waffe, Rüstung und Helm gehören immer zu einer Klasse, Schild, Schuhe und Gürtel kann jeder tragen. Zwei Waffenarten je Klasse mit eigenem Schaden und Tempo: Schwert oder Zweihänder, Dolche oder Bogen (Fernkampf), Fächer oder Glocke, Stab oder Sense; Fächer, Glocken, Stäbe und Sensen geben Magiestärke für Fertigkeiten. Jede Stufe sieht anders aus, auch an der Figur (Rüstungsfarbe, Brustplatte, Hörner, Flügelhelm, Kronen)
-- **Ausrüstung**: sechs Plätze in acht Stufen (ab Lv 1, 5, 10, 15, 22, 30, 45, 60). Ab Lv 30 gibt es sie nur in den hohen Gebieten oder von Seelensteinen ab Stufe 20 Die Grundausrüstung (Lv 1) gibt nur Rüstung bzw. Angriff, ab Lv 5 kommen eigene Effekte dazu: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. ab Lv 22 nur als Beute, Tasche mit vier Seiten zu je 20 Plätzen
+- **Ausrüstung**: acht Plätze in acht Stufen (ab Lv 1, 5, 10, 15, 22, 30, 45, 60). Ab Lv 30 gibt es sie nur in den hohen Gebieten oder von Seelensteinen ab Stufe 20 Die Grundausrüstung (Lv 1) gibt nur Rüstung bzw. Angriff, ab Lv 5 kommen eigene Effekte dazu: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. ab Lv 22 nur als Beute, Tasche mit vier Seiten zu je 20 Plätzen
 - **Schmied**: verbessert Ausrüstung von +0 bis +20 mit Gold und Seelensplittern. Ab +6 (bei Ausrüstung ab Lv 30 schon ab +4) braucht er zusätzlich Teile von Monstern, die sie selten fallen lassen: Hundezahn, Wolfspelz, Banditenabzeichen bis zur Drachenschuppe. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 zerbricht der Gegenstand. Die Segensschriftrolle schützt davor. Bessere Waffen ändern ihre Farbe, ab +4 leuchten sie
 - **Inventar** mit Figur, die Waffe und Schild trägt; leere Ausrüstungsplätze zeigen ein blasses Symbol
 - **Verkaufen** nur bei einem Händler (auch Schmied und Alchemist): „Mehrere verkaufen“ in der Tasche, Sachen antippen oder mit „Ganze Seite“ bzw. „Nicht nutzbar“ automatisch auswählen und auf einmal verkaufen
@@ -58,7 +58,11 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Laufende Buffs** sind an ihrer Fertigkeit markiert: ein Lichtring läuft um den Knopf, darüber steht die Restzeit
 - **Buffs je Rang**: Kampfrausch zeigt bis Stufe 17 nur einzelne kurze Blitze, mit jedem Rang mehr und längere; die Aura des Schwertes legt eine leuchtende Energieklinge um das Schwert, die mit jedem Rang wächst
 - **Tränke**: Drachenblut (Leben, bauchige Flasche mit Wachssiegel) und Mondtau (Mana, Kristallflasche mit Mondsichel), mit eigenem Effekt beim Trinken
-- **Schild oder Zweihand**: Zweihänder, Bogen und Sense brauchen beide Hände; Blocken gibt es nur mit Schild
+- **Schild oder Zweihand**: Zweihänder, Bogen und Sense brauchen beide Hände; Blocken gibt es nur mit Schild. Schilde trägt nur der Krieger, Zweihänder nur der Weg des Leibes
+- **Beidhändig** (Krieger, Weg der Klinge, ab Stufe 30, bei Goro für 20.000 Gold): zweites Schwert in der Nebenhand, 30 % seines Angriffs, +5 % Tempo, Boni zur Hälfte, kein Blocken
+- **Ultimative Attacken** ab Stufe 30, eine je Weg, 3 Minuten Abklingzeit, goldener Knopf und Taste 6: Klingenhimmel (Geisterschwerter fallen vom Himmel), Titanenzorn (Sprung mit Erdriss und Titanenhaut), Schattentanz (Sprünge zu bis zu 8 Gegnern), Todesmal (Hinrichtung eines Ziels), Drachensturm (Meteorregen), Himmelssegen (Heilung, Schutz und Lichtsäulen), Seelenernte (Seelenstrudel, der Gegner zusammenzieht), Knochenkerker (drei Ringe aus Knochenspießen mit Lebensraub). Mitspieler sehen sie auch
+- **Acht Ausrüstungsplätze**: dazu Schultern und Umhang. Jedes Teil ist an der Figur zu sehen: Stiefel, Gürtel mit Schnalle, Schulterpanzer (ab Drache mit Dornen, ab Himmel mit Federn), der Umhang weht beim Laufen und trägt ab Drache ein Wappen
+- **Grafik 3.2**: Schlagschatten aller Figuren nach unten rechts, Licht von oben links mit hellem Saum an jeder Figur, Atmen im Stand, Vorlehnen beim Laufen
 - **Glitzern ab +8**: starke Ausrüstung funkelt an der Figur und im Inventar
 - **Lebensbalken** mit rundem Bild der Figur, schrägem Messingrahmen, Herz und Tropfen, flüssiger Füllung mit wanderndem Glanz; bei wenig Leben schlägt das Herz. Lebensraub erscheint als grüne Zahl
 - **Attacken**: Schwertwirbel und Wirbelklinge lassen die eigene Waffe als leuchtende Riesenklinge um die Figur kreisen, Schwünge haben spitz zulaufende Leuchtschweife und eine Geisterklinge
@@ -73,6 +77,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 | WASD / Pfeile | Laufen |
 | Leertaste halten | Angreifen, läuft automatisch zum nächsten Monster |
 | 1–5 | Fertigkeiten |
+| 6 | Ultimative Attacke (ab Stufe 30) |
 | Q / E | Drachenblut (Leben) / Mondtau (Mana) |
 | Tab, Mausklick | Ziel wählen |
 | I | Inventar |
@@ -101,6 +106,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/figuren.js` | Aussehen aller Figuren und Monster: Klassen in drei Blickrichtungen mit Laufanimation, Waffen, Händler, Skelette |
 | `js/effekte.js` | Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse, Bildschirmwackeln |
 | `js/fertigkeiten.js` | Symbole der Fertigkeiten, Effekte je Fertigkeit, Auren aktiver Buffs |
+| `js/ultimativ.js` | Ultimative Attacken ab Stufe 30: Ablauf, Symbole und Effekte |
 | `js/umgebung.js` | Boden (vorgezeichnet in Blöcken), Bäume, Felsen, Häuser, Dorfschmuck und Tiefensortierung |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |

@@ -157,7 +157,7 @@ function stoneDrops(type) {
     case 'potions': d.potions = [4, 8]; break;
     case 'weapons': d.slots = ['waffe']; d.gear = 0.75; break;
     case 'gold': d.gold = 3; break;
-    case 'armor': d.slots = ['ruestung', 'helm', 'schild', 'schuhe', 'guertel']; d.gear = 0.75; break;
+    case 'armor': d.slots = ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel']; d.gear = 0.75; break;
     case 'scrolls': d.scroll = 0.8; break;
     case 'boniPlus': boost('boniPlus', 1.5); break;
     case 'splinters': d.splinters = d.splinters.map((n) => n * 2); break;

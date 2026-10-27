@@ -84,7 +84,7 @@ function render() {
   list.sort((a, b) => baseY(a) - baseY(b));
 
   // Effekte am Boden liegen unter den Figuren
-  const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
+  const ground = (e) => e.ground || e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   for (const e of list) {
     if (e.worldObj) drawWorldObject(ctx, e);
@@ -151,6 +151,48 @@ function softShadow(ctx, x, y, rx, ry, alpha = 0.34) {
 
 function drawShadow(ctx, x, y, rx) {
   softShadow(ctx, x, y, rx, rx * 0.42, 0.4);
+}
+
+// Schlagschatten: die Silhouette der Figur fällt flach nach unten rechts (Licht von oben links).
+// Einmal je Sprite und Blickrichtung schräg und klein vorgebacken: beim Zeichnen nur noch kopieren,
+// das Vergrößern macht die Kanten weich.
+const SHADOW_SKEW = -0.55;
+const SHADOW_FLAT = -0.3;
+function shadowOf(sp, flip) {
+  const key = flip ? 'shadowL' : 'shadowR';
+  if (!sp[key]) {
+    const b = sp.bounds;
+    const xs = [];
+    const ys = [];
+    for (const u of [b.x, b.x + b.w]) {
+      for (const v of [b.y, b.y + b.h]) {
+        xs.push((flip ? -u : u) + SHADOW_SKEW * v);
+        ys.push(SHADOW_FLAT * v);
+      }
+    }
+    const ox = Math.floor(Math.min(...xs));
+    const oy = Math.floor(Math.min(...ys));
+    const w = Math.ceil(Math.max(...xs)) - ox;
+    const h = Math.ceil(Math.max(...ys)) - oy;
+    const c = newCanvas(Math.max(1, w), Math.max(1, h));
+    const x = c.getContext('2d');
+    x.setTransform(1, 0, SHADOW_SKEW, SHADOW_FLAT, -ox, -oy);
+    if (flip) x.scale(-1, 1);
+    x.drawImage(sp.img, b.x, b.y, b.w, b.h);
+    x.setTransform(1, 0, 0, 1, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = '#000000';
+    x.fillRect(0, 0, c.width, c.height);
+    sp[key] = { img: c, x: ox, y: oy, w, h };
+  }
+  return sp[key];
+}
+function castShadow(ctx, sp, x, fy, flip, alpha = 0.22) {
+  const sh = shadowOf(sp, !!flip);
+  const a = ctx.globalAlpha;
+  ctx.globalAlpha = a * alpha;
+  ctx.drawImage(sh.img, x + sh.x, fy + sh.y, sh.w, sh.h);
+  ctx.globalAlpha = a;
 }
 
 // Wolkenschatten ziehen langsam über das Land
@@ -272,7 +314,14 @@ function drawPlayer(ctx, p) {
   const facing = p.spin > 0 ? { x: Math.cos(game.time * 28), y: Math.sin(game.time * 28) } : p.facing;
   // Auf dem Pferd sieht man Pferd und Reiter immer von der Seite
   if (p.riding && Math.abs(facing.x) > 0.15) p.rideFlip = facing.x < 0;
-  const ride = p.riding ? RIDE_HEIGHT : 0;
+  // Sprung (Titanenzorn): die Figur hebt kurz ab, der Schatten bleibt am Boden
+  let leapH = 0;
+  if (p.leap) {
+    const lk = (game.time - p.leap.start) / p.leap.dur;
+    if (lk >= 1) p.leap = null;
+    else leapH = Math.sin(lk * Math.PI) * p.leap.h;
+  }
+  const ride = (p.riding ? RIDE_HEIGHT : 0) + leapH;
   const dir = p.riding ? 'side' : facingDir(facing);
   const flip = p.riding ? !!p.rideFlip : dir === 'side' && facing.x < 0;
   const frame = p.moving ? Math.floor(game.time * 9) % 4 : 0;
@@ -286,6 +335,15 @@ function drawPlayer(ctx, p) {
   // Schild am anderen Arm: von vorn vor dem Körper, sonst dahinter
   const drawShield = () => {
     if (!shield) return;
+    // Beidhändig: das zweite Schwert in der linken Hand, gegengleich zum ersten geschwungen
+    if (isOffhand(shield)) {
+      const left = handPosition(dir, frame, 'left');
+      const offAngle = dir === 'side' ? angle + 0.5 + (t >= 0 ? Math.sin(t * Math.PI) * 0.6 : 0) : Math.PI - angle;
+      drawWeaponSprite(ctx, shield.kind, left.x + (dir === 'side' ? -4 : 0), left.y, offAngle, shield.tier);
+      const ob = plusBand(shield.plus);
+      if (ob >= 2) glow(ctx, left.x + Math.cos(offAngle) * 16, left.y + Math.sin(offAngle) * 16, 10 + ob * 3, PLUS_COLORS[ob], 0.3 + ob * 0.08);
+      return;
+    }
     const sp = shieldSprite(shield.tier);
     const b = sp.bounds;
     const sx = dir === 'side' ? 5 : -10.5;
@@ -308,8 +366,11 @@ function drawPlayer(ctx, p) {
     hand.y += Math.sin(fa) * lunge * 0.8;
   }
 
+  const sp = characterSprite(p.classId, dir, frame, playerLook(p));
+  const cape = p.equipment && p.equipment.umhang ? p.equipment.umhang.tier : -1;
   ctx.save();
   if (invisible) ctx.globalAlpha = 0.35;
+  if (!p.riding) castShadow(ctx, sp, p.x, fy, flip);
   drawShadow(ctx, p.x, fy, 12);
 
   if (p.buffs.length) {
@@ -333,6 +394,11 @@ function drawPlayer(ctx, p) {
   ctx.translate(p.x, fy - ride);
   if (flip) ctx.scale(-1, 1);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
+  // Im Stand atmet die Figur, beim Laufen lehnt sie sich leicht nach vorn
+  if (!p.riding) {
+    if (!p.moving && t < 0) ctx.scale(1, 1 + 0.02 * Math.sin(game.time * 2.4 + (p.x % 5)));
+    else if (p.moving && dir === 'side') ctx.rotate(0.06);
+  }
   const drawWeapons = () => {
     if (!weapon) return;
     // Nachbilder der Waffe zeigen den Schwung
@@ -438,10 +504,11 @@ function drawPlayer(ctx, p) {
       ctx.restore();
     }
   };
+  drawCape(ctx, cape, dir, WALK[frame], p.moving, game.time, 'back');
   if (dir === 'up') drawWeapons();
   if (dir !== 'down') drawShield();
-  const sp = characterSprite(p.classId, dir, frame, playerLook(p));
   ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  drawCape(ctx, cape, dir, WALK[frame], p.moving, game.time, 'front');
   // Nach dem Stufenaufstieg leuchtet die Figur hell auf
   if (p.glowUntil > game.time) {
     const left = (p.glowUntil - game.time) / 1.5;
@@ -533,7 +600,10 @@ function drawSkeleton(ctx, a) {
 function drawNpc(ctx, n) {
   const fy = feetY(n);
   const portal = n.id === 'eingang' || n.id === 'ausgang';
-  if (!portal && n.id !== 'weltentor') drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
+  if (!portal && n.id !== 'weltentor') {
+    castShadow(ctx, npcSprite(n.id), n.x, fy, n.facing < 0, 0.2);
+    drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
+  }
   const step = n.moving ? Math.abs(Math.sin(game.time * 9)) * 1.5 : 0;
   blitSprite(ctx, npcSprite(n.id), n.x, fy - step, n.facing < 0);
   if (n.id === 'weltentor') glow(ctx, n.x, fy - 30, 30, '#7ab8ff', 0.45 + 0.15 * Math.sin(game.time * 2.5));
@@ -574,6 +644,7 @@ function drawMonster(ctx, m) {
     ctx.stroke();
   }
   const frame = m.moving ? Math.floor(game.time * 9 + m.id * 0.37) % 4 : 0;
+  if (m.type.shape !== 'ghost') castShadow(ctx, monsterSprite(m.typeId, frame), m.x, fy, m.facing < 0, 0.2);
   const lunge = m.attackAnim > 0 ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 * m.facing : 0;
   // Im Stand atmen die Monster sichtbar
   const breathe = m.moving ? 1 : 1 + Math.sin(game.time * 3 + m.id) * 0.025;

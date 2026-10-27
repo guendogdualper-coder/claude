@@ -1,5 +1,6 @@
-// Ausrüstung: sechs Plätze, acht Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +20.
-// Waffe, Rüstung und Helm gehören immer zu einer Klasse; Schild, Schuhe und Gürtel kann jeder tragen.
+// Ausrüstung: acht Plätze, acht Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +20.
+// Waffe, Rüstung und Helm gehören immer zu einer Klasse, den Schild trägt nur der Krieger;
+// Schultern, Umhang, Schuhe und Gürtel kann jeder tragen.
 // Die Stufen 1 bis 4 (ab Lv 1, 5, 10, 15) verkaufen Waffen- und Rüstungshändler,
 // ab der legendären Stufe (Lv 22, 30, 45, 60) gibt es Ausrüstung nur als Beute.
 
@@ -7,10 +8,23 @@ const EQUIP_SLOTS = [
   { id: 'waffe', name: 'Waffe' },
   { id: 'ruestung', name: 'Rüstung' },
   { id: 'helm', name: 'Helm' },
+  { id: 'schultern', name: 'Schultern' },
+  { id: 'umhang', name: 'Umhang' },
   { id: 'schild', name: 'Schild' },
   { id: 'schuhe', name: 'Schuhe' },
   { id: 'guertel', name: 'Gürtel' }
 ];
+
+// Plätze, die eine Klasse sieht: den Schild (oder als Klinge-Krieger die zweite Waffe) hat nur der Krieger
+function equipSlotsFor(classId) {
+  return EQUIP_SLOTS.filter((sl) => sl.id !== 'schild' || classId === 'krieger');
+}
+
+// Beidhändig: Krieger auf dem Weg der Klinge lernen ab Stufe 30 beim Waffenhändler,
+// ein zweites Schwert in der Nebenhand zu führen. Die Nebenhand gibt einen Teil des Angriffs
+// und etwas Tempo, aber kein Blocken. Zweihänder führt nur der Weg des Leibes.
+const DUAL_WIELD = { level: 30, path: 0, price: 20000, atk: 0.3, atkSpeed: 0.05, bonus: 0.5 };
+const GREATSWORD_PATH = 1;
 
 // Ab welcher Spielerstufe ein Gegenstand getragen werden kann
 const ITEM_TIERS = [
@@ -35,7 +49,7 @@ const CLASS_SLOTS = ['waffe', 'ruestung', 'helm'];
 //   twoHanded braucht beide Hände: kein Schild möglich (Blocken gibt es nur mit Schild)
 const WEAPON_KINDS = {
   sword: { name: 'Schwert', cls: 'krieger', atkMul: 1, atkSpeed: 0, text: 'ausgewogen' },
-  greatsword: { name: 'Zweihänder', cls: 'krieger', atkMul: 1.35, atkSpeed: -0.18, twoHanded: true, text: 'viel Schaden, langsam, kein Schild' },
+  greatsword: { name: 'Zweihänder', cls: 'krieger', path: GREATSWORD_PATH, atkMul: 1.45, atkSpeed: -0.15, twoHanded: true, text: 'nur Weg des Leibes: viel Schaden, langsam, kein Schild' },
   dagger: { name: 'Dolche', cls: 'ninja', atkMul: 0.88, atkSpeed: 0.15, text: 'schnell, oft kritisch' },
   bow: { name: 'Bogen', cls: 'ninja', atkMul: 1, atkSpeed: -0.05, ranged: true, twoHanded: true, text: 'greift aus der Ferne an, kein Schild' },
   fan: { name: 'Fächer', cls: 'schamane', atkMul: 0.85, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
@@ -70,6 +84,8 @@ const ITEM_NAMES = {
     nekromant: ['Grabkapuze', 'Aschenkapuze', 'Knochenhelm', 'Seelenhaube', 'Totenkönigskrone', 'Schattenkrone', 'Sternenkapuze', 'Götterschädel']
   },
   schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild', 'Aschenschild', 'Himmelsschild', 'Götterschild'],
+  schultern: ['Lederschultern', 'Bronzeschultern', 'Eisenschultern', 'Drachenschultern', 'Seelenschultern', 'Aschenschultern', 'Himmelsschultern', 'Götterschultern'],
+  umhang: ['Wollumhang', 'Reiseumhang', 'Jägerumhang', 'Drachenumhang', 'Seelenumhang', 'Aschenumhang', 'Himmelsumhang', 'Götterumhang'],
   schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel', 'Aschenstiefel', 'Himmelsstiefel', 'Götterstiefel'],
   guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel']
 };
@@ -84,6 +100,8 @@ const BASE_STATS = {
   ruestung: [{ def: 4 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }, { def: 32, hp: 240 }, { def: 46, hp: 360 }, { def: 64, hp: 520 }],
   helm: [{ def: 2 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }, { def: 16, mp: 80 }, { def: 23, mp: 115 }, { def: 32, mp: 160 }],
   schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }, { def: 22, block: 0.14 }, { def: 31, block: 0.16 }, { def: 43, block: 0.18 }],
+  schultern: [{ def: 2 }, { def: 3, hp: 20 }, { def: 5, hp: 35 }, { def: 7, hp: 55 }, { def: 10, hp: 80 }, { def: 14, hp: 120 }, { def: 20, hp: 180 }, { def: 28, hp: 260 }],
+  umhang: [{ def: 1 }, { def: 2, mp: 15, dodge: 0.01 }, { def: 3, mp: 25, dodge: 0.015 }, { def: 5, mp: 35, dodge: 0.02 }, { def: 7, mp: 50, dodge: 0.025 }, { def: 10, mp: 75, dodge: 0.03 }, { def: 14, mp: 110, dodge: 0.035 }, { def: 19, mp: 150, dodge: 0.04 }],
   schuhe: [{ def: 2 }, { def: 2, speed: 0.04 }, { def: 3, speed: 0.05, dodge: 0.02 }, { def: 4, speed: 0.07, dodge: 0.03 }, { def: 6, speed: 0.09, dodge: 0.05 }, { def: 9, speed: 0.1, dodge: 0.06 }, { def: 13, speed: 0.11, dodge: 0.07 }, { def: 18, speed: 0.12, dodge: 0.08 }],
   guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }]
 };
@@ -237,7 +255,7 @@ const MERCHANTS = {
     greeting: 'Jede Klasse kämpft anders. Hier findest du die Waffe, die zu dir passt, von der ersten Klinge bis zum Meisterstück.'
   },
   ruestung: {
-    slots: ['ruestung', 'helm', 'schild', 'schuhe', 'guertel'],
+    slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'],
     prices: [60, 300, 900, 2200],
     greeting: 'Rüstung hält dich am Leben, Vitalität auch. Such dir aus, was du brauchst.'
   }
@@ -247,12 +265,12 @@ const MERCHANTS = {
 // Jeder Gegenstand kann bis zu 5 normale Boni und 2 besondere Boni (6 und 7) tragen.
 // fmt: flat = ganze Zahl, pct = Prozent, pct1 = Prozent mit einer Nachkommastelle.
 // range: Spanne auf Gegenstandsstufe 1; höhere Stufen erhöhen die Werte um 35 % je Stufe.
-const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schild', 'schuhe', 'guertel'];
+const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'];
 const BONUS_TYPES = {
   hp: { name: 'Max. Leben', fmt: 'flat', range: [20, 90], slots: ALL_SLOTS },
-  mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'guertel'] },
-  atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'guertel'] },
-  def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schild', 'schuhe', 'guertel'] },
+  mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'umhang', 'guertel'] },
+  atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'schultern', 'guertel'] },
+  def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'] },
   str: { name: 'Stärke', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
   vit: { name: 'Vitalität', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
   int: { name: 'Intelligenz', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
@@ -260,11 +278,11 @@ const BONUS_TYPES = {
   crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.06], slots: ['waffe', 'helm', 'guertel'] },
   atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.08], slots: ['waffe', 'schuhe', 'guertel'] },
   speed: { name: 'Lauftempo', fmt: 'pct', range: [0.02, 0.08], slots: ['schuhe'] },
-  dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'schild', 'schuhe'] },
+  dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'umhang', 'schild', 'schuhe'] },
   block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.05], slots: ['schild'] },
-  regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.005], slots: ['ruestung', 'helm', 'guertel'] },
+  regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.005], slots: ['ruestung', 'helm', 'schultern', 'guertel'] },
   monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.1], slots: ['waffe', 'helm', 'guertel'] },
-  dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'helm', 'schild'] },
+  dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild'] },
   hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.04], slots: ['waffe'] }
 };
 

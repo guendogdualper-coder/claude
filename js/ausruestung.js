@@ -10,11 +10,12 @@ function makeItem(slot, tier, plus = 0, cls = null, kind = null) {
     item.cls = cls || (game.player ? game.player.classId : 'krieger');
     if (slot === 'waffe') item.kind = kind || CLASS_WEAPON_KINDS[item.cls][0];
   }
+  if (slot === 'schild') item.cls = 'krieger';
   return item;
 }
 
 function starterEquipment(classId = 'krieger') {
-  return { waffe: makeItem('waffe', 0, 0, classId), ruestung: makeItem('ruestung', 0, 0, classId), helm: null, schild: null, schuhe: null, guertel: null };
+  return { waffe: makeItem('waffe', 0, 0, classId), ruestung: makeItem('ruestung', 0, 0, classId), helm: null, schultern: null, umhang: null, schild: null, schuhe: null, guertel: null };
 }
 
 // Spielstände vor Version 1.4 kannten nur vier Stufen (Lv 1, 8, 15, 22).
@@ -26,14 +27,69 @@ function migrateItem(item) {
 
 // Gegenstände von vor Version 2.3 gehören noch keiner Klasse: sie werden der eigenen zugeordnet
 function assignClass(item, classId) {
+  if (item && item.slot === 'schild') item.cls = 'krieger'; // Schilde gehören seit Version 3.2 dem Krieger
   if (!item || !CLASS_SLOTS.includes(item.slot)) return item;
   if (!item.cls) item.cls = classId;
   if (item.slot === 'waffe' && !item.kind) item.kind = CLASS_WEAPON_KINDS[item.cls][0];
   return item;
 }
 
-function canWear(item, classId) {
-  return !item.cls || item.cls === classId;
+// who: die Figur (prüft auch den Weg) oder nur eine Klasse
+function canWear(item, who) {
+  return !wearProblem(item, who);
+}
+
+// Warum ein Gegenstand nicht passt, als Text; leer, wenn er passt
+function wearProblem(item, who) {
+  const classId = typeof who === 'string' ? who : who.classId;
+  if (item.cls && item.cls !== classId) {
+    return item.slot === 'schild' ? 'Schilde trägt nur der Krieger.' : `Nur für ${CLASSES[item.cls].name}.`;
+  }
+  const k = item.slot === 'waffe' && WEAPON_KINDS[item.kind];
+  if (k && k.path != null && typeof who === 'object' && (who.path || 0) !== k.path) {
+    return `${k.name} führt nur der ${CLASSES[classId].paths[k.path].name}.`;
+  }
+  return '';
+}
+
+// Kann die Figur ein zweites Schwert in der Nebenhand (Platz des Schildes) führen?
+function canDualWield(p) {
+  return p.classId === 'krieger' && !!p.dualWield && (p.path || 0) === DUAL_WIELD.path;
+}
+
+// Schwert in der Nebenhand
+function isOffhand(item) {
+  return !!item && item.slot === 'waffe';
+}
+
+// Name des Schildplatzes: mit Beidhändigkeit auch für ein zweites Schwert
+function slotLabel(slotId, p = game.player) {
+  if (slotId === 'schild' && p && canDualWield(p)) return 'Nebenhand';
+  return EQUIP_SLOTS.find((s) => s.id === slotId).name;
+}
+
+// Hält die Ausrüstung bei den Regeln: kein Schild ohne Krieger, kein Zweihänder ohne Weg des Leibes,
+// keine zweite Waffe ohne Beidhändigkeit. Was nicht passt, wandert in die Tasche (notfalls über die Größe).
+function enforceGearRules(p) {
+  const moved = [];
+  const eq = p.equipment;
+  const off = (slot) => {
+    const it = eq[slot];
+    eq[slot] = null;
+    p.inventory.push(it);
+    moved.push(it);
+  };
+  if (p.classId !== 'krieger' && eq.schild) off('schild');
+  // Ein angelegter Zweihänder wird für den Weg der Klinge zum Schwert gleicher Stufe (Plus und Boni bleiben)
+  if (eq.waffe && eq.waffe.kind === 'greatsword' && eq.waffe.cls === p.classId && !canWear(eq.waffe, p)) {
+    eq.waffe.kind = 'sword';
+    moved.push(eq.waffe);
+  }
+  if (eq.waffe && !canWear(eq.waffe, p)) off('waffe');
+  if (isOffhand(eq.schild) && (!canDualWield(p) || eq.schild.kind !== 'sword')) off('schild');
+  if (eq.schild && !isOffhand(eq.schild) && !canWear(eq.schild, p)) off('schild');
+  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind].twoHanded && eq.schild) off('schild');
+  return moved;
 }
 
 function itemName(item) {
@@ -44,7 +100,11 @@ function itemName(item) {
 
 // Kurzbeschreibung: Waffenart bzw. Klasse
 function itemKindText(item) {
-  if (item.slot === 'waffe') return `${WEAPON_KINDS[item.kind].name}${WEAPON_KINDS[item.kind].twoHanded ? ' (Zweihand)' : ''} · ${CLASSES[item.cls].name}`;
+  if (item.slot === 'waffe') {
+    const k = WEAPON_KINDS[item.kind];
+    const who = k.path != null ? CLASSES[item.cls].paths[k.path].name : CLASSES[item.cls].name;
+    return `${k.name}${k.twoHanded ? ' (Zweihand)' : ''} · ${who}`;
+  }
   if (item.cls) return CLASSES[item.cls].name;
   return 'alle Klassen';
 }
@@ -72,7 +132,7 @@ function itemStats(item, plus = item.plus) {
       base.magic = MAGIC_BY_TIER[t] * (k.magicMul || 1);
     }
     speed = k.atkSpeed + SPEED_BY_TIER[t];
-  } else if (item.cls) {
+  } else if (item.cls && CLASS_SLOTS.includes(item.slot)) {
     const c = CLASS_ARMOR[item.cls];
     if (base.def) base.def = Math.max(1, Math.round(base.def * c.def));
     if (base.hp) base.hp = Math.round(base.hp * c.hp);
@@ -120,13 +180,14 @@ const COMPARE_STATS = [
   ['monsterDmg', 'Gegen Monster', 'pct'], ['regen', 'Regeneration', 'pct1'], ['speed', 'Lauftempo', 'speed'],
   ['damageTaken', 'Erlittener Schaden', 'lessPct']
 ];
-function compareItem(item) {
+function compareItem(item, hand) {
   const p = game.player;
-  if (!item || isBook(item) || !canWear(item, p.classId)) return null;
+  if (!item || isBook(item) || !canWear(item, p)) return null;
   const now = playerStats(p);
-  const eq = { ...p.equipment, [item.slot]: item };
-  if (item.slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded) eq.schild = null;
-  if (item.slot === 'schild' && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind].twoHanded) eq.waffe = null;
+  const slot = hand === 'off' ? 'schild' : item.slot;
+  const eq = { ...p.equipment, [slot]: item };
+  if (slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded) eq.schild = null;
+  if (slot === 'schild' && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind].twoHanded) eq.waffe = null;
   const test = playerStats({ ...p, equipment: eq });
   const out = [];
   for (const [k, name, fmt] of COMPARE_STATS) {
@@ -155,12 +216,12 @@ function compareScore(item) {
   return coreScore !== 0 ? coreScore : up - down;
 }
 
-function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung') {
+function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung', hand) {
   const p = game.player;
   if (!item || isBook(item)) return '';
-  if (!canWear(item, p.classId)) return '';
-  const diff = compareItem(item);
-  const worn = p.equipment[item.slot];
+  if (!canWear(item, p)) return '';
+  const diff = compareItem(item, hand);
+  const worn = p.equipment[hand === 'off' ? 'schild' : item.slot];
   const head = `<small class="cmp-head">${title}${worn && worn !== item ? ` (angelegt: ${itemFullName(worn)})` : worn === item ? '' : ' (Platz ist leer)'}:</small>`;
   if (!diff.length) return `<div class="cmp-box">${head}<span class="cmp same">gleich gut</span></div>`;
   return `<div class="cmp-box">${head}${diff.map(([n, v, b]) => `<span class="cmp ${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲' : '▼'} ${v} ${n}</span>`).join('')}</div>`;
@@ -408,13 +469,11 @@ function rollLoot(m) {
     const lootLevel = m.isStone && m.level >= 20 ? m.level + 10 : m.level;
     let tier = 0;
     ITEM_TIERS.forEach((t, i) => { if (lootLevel >= t.level) tier = i; });
-    const slots = drops && drops.slots ? drops.slots : EQUIP_SLOTS.map((sl) => sl.id);
-    const slot = slots[Math.floor(Math.random() * slots.length)];
     const plus = drops ? randInt(drops.plus[0], drops.plus[1]) : Math.random() < 0.25 ? 1 : 0;
     // meist für die eigene Klasse, manchmal für eine andere (zum Verkaufen)
     const cls = Math.random() < 0.7 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
-    const kinds = CLASS_WEAPON_KINDS[cls];
-    const item = makeItem(slot, tier, plus, cls, kinds[randInt(0, kinds.length - 1)]);
+    const slots = lootSlots(drops && drops.slots ? drops.slots : EQUIP_SLOTS.map((sl) => sl.id), cls);
+    const item = makeItem(slots[randInt(0, slots.length - 1)], tier, plus, cls, lootKind(p, cls));
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       later(0.2, () => vfxLootFly(m, itemIconCanvas(item)));
@@ -426,6 +485,19 @@ function rollLoot(m) {
   }
 }
 
+// Schilde fallen nur für Krieger
+function lootSlots(slots, cls) {
+  const out = cls === 'krieger' ? slots : slots.filter((s) => s !== 'schild');
+  return out.length ? out : ['ruestung'];
+}
+
+// Waffenart der Beute: für die eigene Klasse meist eine, die der eigene Weg führen kann
+function lootKind(p, cls) {
+  const kinds = CLASS_WEAPON_KINDS[cls];
+  const own = cls === p.classId && Math.random() < 0.8 ? kinds.filter((k) => WEAPON_KINDS[k].path == null || WEAPON_KINDS[k].path === (p.path || 0)) : kinds;
+  return own[randInt(0, own.length - 1)];
+}
+
 // Bosse: zwei Teile Ausrüstung über der eigenen Stufe (+3 bis +6), Bücher, Schmiede-Teile,
 // Materialien, eine Segensschriftrolle und viel Gold
 function bossLoot(m) {
@@ -433,11 +505,10 @@ function bossLoot(m) {
   const b = m.type.boss;
   let tier = 0;
   ITEM_TIERS.forEach((t, i) => { if (m.level + 8 >= t.level) tier = i; });
-  const slots = EQUIP_SLOTS.map((sl) => sl.id);
   for (let k = 0; k < 2; k++) {
     const cls = Math.random() < 0.85 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
-    const kinds = CLASS_WEAPON_KINDS[cls];
-    const item = makeItem(slots[randInt(0, slots.length - 1)], tier, randInt(3, 6), cls, kinds[randInt(0, kinds.length - 1)]);
+    const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), cls);
+    const item = makeItem(slots[randInt(0, slots.length - 1)], tier, randInt(3, 6), cls, lootKind(p, cls));
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       later(0.2 + k * 0.25, () => vfxLootFly(m, itemIconCanvas(item)));
@@ -465,30 +536,38 @@ function bossLoot(m) {
   shakeScreen(10);
 }
 
-function equipFromBag(index) {
+// hand 'off': ein Schwert in die Nebenhand (nur mit Beidhändigkeit)
+function equipFromBag(index, hand) {
   const p = game.player;
   const item = p.inventory[index];
   if (!item || isBook(item)) return false;
   const need = ITEM_TIERS[item.tier].level;
-  if (!canWear(item, p.classId)) {
-    gear.message(`${itemName(item)} kann nur ein ${CLASSES[item.cls].name} tragen.`, 'warn');
+  const problem = wearProblem(item, p);
+  if (problem) {
+    gear.message(`${itemName(item)}: ${problem}`, 'warn');
     return false;
   }
   if (p.level < need) {
     gear.message(`${itemName(item)} kannst du ab Stufe ${need} tragen.`, 'warn');
     return false;
   }
-  // Schild oder Zweihandwaffe: beides zusammen geht nicht
-  const weapon = p.equipment.waffe;
-  if (item.slot === 'schild' && weapon && WEAPON_KINDS[weapon.kind].twoHanded) {
-    gear.message(`Mit ${itemName(weapon)} hast du keine Hand frei für einen Schild. Lege zuerst eine einhändige Waffe an.`, 'warn');
+  const off = hand === 'off';
+  if (off && (!canDualWield(p) || item.kind !== 'sword')) {
+    gear.message('Ein zweites Schwert führt nur ein Krieger der Klinge, der Beidhändigkeit gelernt hat.', 'warn');
     return false;
   }
-  const old = p.equipment[item.slot];
+  // Schild oder Zweihandwaffe: beides zusammen geht nicht
+  const weapon = p.equipment.waffe;
+  if ((item.slot === 'schild' || off) && weapon && WEAPON_KINDS[weapon.kind].twoHanded) {
+    gear.message(`Mit ${itemName(weapon)} hast du keine Hand frei. Lege zuerst eine einhändige Waffe an.`, 'warn');
+    return false;
+  }
+  const slot = off ? 'schild' : item.slot;
+  const old = p.equipment[slot];
   p.inventory.splice(index, 1);
   if (old) p.inventory.splice(index, 0, old);
-  p.equipment[item.slot] = item;
-  if (item.slot === 'waffe' && WEAPON_KINDS[item.kind].twoHanded && p.equipment.schild) {
+  p.equipment[slot] = item;
+  if (item.slot === 'waffe' && !off && WEAPON_KINDS[item.kind].twoHanded && p.equipment.schild) {
     const shield = p.equipment.schild;
     if (addToBag(shield)) {
       p.equipment.schild = null;
@@ -496,7 +575,7 @@ function equipFromBag(index) {
     }
   }
   afterGearChange();
-  gear.selected = { where: 'equip', key: item.slot };
+  gear.selected = { where: 'equip', key: slot };
   return true;
 }
 
@@ -713,6 +792,32 @@ function drawItemArt(ctx, item) {
     ctx.scale(1.35, 1.35);
     shieldArt(ctx, tier);
     ctx.restore();
+  } else if (slot === 'schultern') {
+    // zwei Schulterpanzer mit gestuften Platten
+    const pc = GEAR_LOOK.plate[tier];
+    for (const x of [-9, 9]) {
+      const mir = x < 0 ? -1 : 1;
+      if (tier >= 6) for (let k = 0; k < 3; k++) poly(ctx, [[x - 2 * mir, -4], [x + (6 + k * 2.5) * mir, -11 - k * 2], [x + (4 + k * 2) * mir, -2]], '#ffffff');
+      oval(ctx, x, 3, 8, 5, darker(pc, 0.15));
+      oval(ctx, x, 0, 9, 6.5, pc);
+      stroke(ctx, metal, 1.4, [[x - 7.5, 3], [x + 7.5, 3]]);
+      if (tier >= 3 && tier < 6) {
+        poly(ctx, [[x - 4, -4], [x - 2, -12], [x, -5]], metal);
+        poly(ctx, [[x, -5], [x + 2.5, -11], [x + 4, -4]], metal);
+      }
+      if (tier >= 4) oval(ctx, x, -0.5, 2, 2, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
+    }
+  } else if (slot === 'umhang') {
+    // Umhang mit Spange und Saum
+    const cl = GEAR_LOOK.cape[tier];
+    poly(ctx, [[-7, -13], [7, -13], [13, 12], [6, 14], [0, 12], [-6, 14], [-13, 12]], cl);
+    poly(ctx, [[-7, -13], [-3, -13], [-7, 12], [-13, 12]], darker(cl, 0.2));
+    stroke(ctx, GEAR_LOOK.lining[tier], 1.4, [[-12, 11], [12, 11]]);
+    stroke(ctx, darker(cl, 0.35), 0.8, [[-1, -10], [-3, 10]]);
+    stroke(ctx, darker(cl, 0.35), 0.8, [[4, -10], [6, 10]]);
+    box(ctx, -9, -15, 18, 3.5, 1.5, darker(cl, 0.1));
+    oval(ctx, 0, -13, 2.8, 2.8, metal);
+    if (tier >= 3) poly(ctx, [[0, -3], [3, 1], [0, 5], [-3, 1]], metal);
   } else if (slot === 'guertel') {
     box(ctx, -15, -3.5, 30, 7, 2.5, c);
     stroke(ctx, darker(c, 0.35), 0.8, [[-14, -1.5], [14, -1.5]]);
@@ -1134,7 +1239,7 @@ const gear = {
     // Ausgewählter Gegenstand auf einer anderen Seite: dorthin blättern
     if (this.selected && this.selected.where === 'bag' && p.inventory[this.selected.key]) this.page = Math.floor(this.selected.key / BAG_PAGE);
     this.page = Math.max(0, Math.min(BAG_PAGES - 1, this.page));
-    const equip = EQUIP_SLOTS.map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, sl.name, sl.id)).join('');
+    const equip = equipSlotsFor(p.classId).map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, slotLabel(sl.id, p), sl.id)).join('');
     let bag = '';
     for (let i = this.page * BAG_PAGE; i < (this.page + 1) * BAG_PAGE; i++) {
       const picked = this.multi && this.multi.has(i);
@@ -1216,7 +1321,7 @@ const gear = {
       ids.forEach((i) => (all ? this.multi.delete(i) : this.multi.add(i)));
     } else if (act === 'useless') {
       p.inventory.forEach((it, i) => {
-        if (isBook(it) ? !ownBook(p, it.book) : !canWear(it, p.classId)) this.multi.add(i);
+        if (isBook(it) ? !ownBook(p, it.book) : !canWear(it, p)) this.multi.add(i);
       });
     } else if (act === 'sell') {
       if (!this.multiArmed) {
@@ -1297,10 +1402,14 @@ const gear = {
     }
     const trader = nearTrader();
     const need = ITEM_TIERS[item.tier].level;
-    const slotName = EQUIP_SLOTS.find((s) => s.id === item.slot).name;
+    const inOff = this.selected.where === 'equip' && this.selected.key === 'schild' && isOffhand(item);
+    const slotName = inOff ? 'Nebenhand' : EQUIP_SLOTS.find((s) => s.id === item.slot).name;
+    const blocked = p.level < need || !canWear(item, p);
+    const offOk = this.selected.where === 'bag' && item.kind === 'sword' && canDualWield(p);
     const actions = this.selected.where === 'equip'
       ? `<button type="button" class="mini-btn" data-act="unequip">Ablegen</button>`
-      : `<button type="button" class="mini-btn" data-act="equip" ${p.level < need || !canWear(item, p.classId) ? 'disabled' : ''}>Anlegen</button>` +
+      : `<button type="button" class="mini-btn" data-act="equip" ${blocked ? 'disabled' : ''}>${offOk ? 'Haupthand' : 'Anlegen'}</button>` +
+        (offOk ? `<button type="button" class="mini-btn" data-act="equipOff" ${blocked ? 'disabled' : ''}>Nebenhand</button>` : '') +
         `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell" ${trader ? '' : 'disabled title="Nur bei einem Händler"'}>${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item).toLocaleString('de-DE') + ' Gold)'}</button>`;
     const bonuses = (item.bonuses || []).map((b, i) => `<li><span class="bn">${i + 1}</span>${bonusText(b)}</li>`).join('') +
       (item.specials || []).map((b, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(b, true)}</li>`).join('');
@@ -1318,10 +1427,11 @@ const gear = {
     el.innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
       `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
       `<small>${slotName} · ${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${need}</small>` +
-      (canWear(item, p.classId) ? '' : `<small class="need">Nur für ${CLASSES[item.cls].name}. Du kannst es verkaufen.</small>`) +
+      (canWear(item, p) ? '' : `<small class="need">${wearProblem(item, p)} Du kannst es verkaufen.</small>`) +
+      (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(DUAL_WIELD.atk * 100)} % des Angriffs, +${Math.round(DUAL_WIELD.atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       `<span>${this.statsList(item)}</span>` +
       (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
-      (this.selected.where === 'bag' ? compareHtml(item) : '') +
+      (this.selected.where === 'bag' ? compareHtml(item) + (offOk ? compareHtml(item, 'In der Nebenhand', 'off') : '') : '') +
       `</div><div class="item-actions">${actions}</div></div>` +
       `<div class="mat-row" id="matRow">${matBtns}</div>`;
     el.querySelectorAll('[data-mat]').forEach((b) => b.addEventListener('click', () => {
@@ -1339,6 +1449,7 @@ const gear = {
     el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
       const act = b.dataset.act;
       if (act === 'equip') equipFromBag(this.selected.key);
+      if (act === 'equipOff') equipFromBag(this.selected.key, 'off');
       if (act === 'unequip') unequip(this.selected.key);
       if (act === 'sell') {
         if (!this.sellArmed) {
@@ -1368,7 +1479,8 @@ const gear = {
     const p = game.player;
     const m = MERCHANTS[this.merchant];
     // Waffen: jede Art der eigenen Klasse als eigene Liste; Rüstung und Helm nur für die eigene Klasse
-    const lists = m.slots.flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].map((kind) => ({ slot, kind })) : [{ slot }]));
+    const lists = m.slots.filter((slot) => slot !== 'schild' || p.classId === 'krieger')
+      .flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].filter((kind) => canWear(makeItem('waffe', 0, 0, p.classId, kind), p)).map((kind) => ({ slot, kind })) : [{ slot }]));
     const groups = lists.map(({ slot, kind }) => {
       const slotName = EQUIP_SLOTS.find((x) => x.id === slot).name;
       const title = kind ? `${WEAPON_KINDS[kind].name} für ${CLASSES[p.classId].name} <small>${WEAPON_KINDS[kind].text}</small>`
@@ -1402,8 +1514,10 @@ const gear = {
     const cls = msg ? msg.className : 'gear-msg';
     body.innerHTML = `<p>„${m.greeting}“</p>` +
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span> · Tasche ${p.inventory.length}/${BAG_SIZE}</p>` +
-      `<p id="merchantMsg" class="${cls}">${text}</p>` + groups + this.sellSectionHtml();
+      `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + groups + this.sellSectionHtml();
     this.wireSell(body, () => this.renderMerchant(body, true));
+    const learn = body.querySelector('[data-learn-dual]');
+    if (learn) learn.addEventListener('click', () => this.learnDualWield());
     body.querySelectorAll('[data-buy-gear]').forEach((b) => b.addEventListener('click', () => {
       const [slot, tier, kind] = b.dataset.buyGear.split(':');
       this.buyGear(slot, Number(tier), false, kind);
@@ -1412,6 +1526,36 @@ const gear = {
       const [slot, tier, kind] = b.dataset.buyEquip.split(':');
       this.buyGear(slot, Number(tier), true, kind);
     }));
+  },
+
+  // Beidhändigkeit: nur Krieger der Klinge, ab Stufe 30, einmalig gegen Gold
+  dualWieldHtml() {
+    const p = game.player;
+    if (p.classId !== 'krieger') return '';
+    const path = CLASSES.krieger.paths[DUAL_WIELD.path].name;
+    const info = `Ein zweites Schwert in der Nebenhand statt Schild: +${Math.round(DUAL_WIELD.atk * 100)} % seines Angriffs, ` +
+      `+${Math.round(DUAL_WIELD.atkSpeed * 100)} % Angriffstempo, seine Boni zur Hälfte. Dafür kein Blocken.`;
+    let state;
+    if (p.dualWield) state = canDualWield(p) ? '<b class="up">Gelernt.</b> Lege ein Schwert im Inventar mit „Nebenhand“ an.' : `<b>Gelernt</b>, wirkt aber nur auf dem ${path}.`;
+    else if ((p.path || 0) !== DUAL_WIELD.path) state = `<span class="need">Nur für den ${path}.</span> Zweihänder bleiben dem Weg des Leibes.`;
+    else if (p.level < DUAL_WIELD.level) state = `<span class="need">Ab Stufe ${DUAL_WIELD.level}.</span>`;
+    else state = `<button type="button" class="mini-btn primary" data-learn-dual ${p.gold < DUAL_WIELD.price ? 'disabled' : ''}>Lernen für ${DUAL_WIELD.price.toLocaleString('de-DE')} Gold</button>`;
+    return `<div class="learn-box"><h3>Beidhändigkeit <small>· ${path} · ab Stufe ${DUAL_WIELD.level}</small></h3><p>${info}</p><p>${state}</p></div>`;
+  },
+
+  learnDualWield() {
+    const p = game.player;
+    if (p.dualWield || p.classId !== 'krieger' || (p.path || 0) !== DUAL_WIELD.path || p.level < DUAL_WIELD.level) return;
+    if (p.gold < DUAL_WIELD.price) {
+      this.message(`Dir fehlen ${(DUAL_WIELD.price - p.gold).toLocaleString('de-DE')} Gold.`, 'warn');
+      return;
+    }
+    p.gold -= DUAL_WIELD.price;
+    p.dualWield = true;
+    saveGame();
+    ui.banner('Beidhändigkeit gelernt', 'Ein zweites Schwert passt jetzt in die Nebenhand');
+    this.renderMerchant(undefined, true);
+    this.message('Du kannst jetzt ein zweites Schwert in der Nebenhand führen.', 'success');
   },
 
   // Verkaufen: öffnet die Tasche gleich zum Auswählen
@@ -1459,12 +1603,12 @@ const gear = {
   renderSmith(body = document.getElementById('npcBody')) {
     const p = game.player;
     const refs = [];
-    EQUIP_SLOTS.forEach((sl) => { if (p.equipment[sl.id]) refs.push({ where: 'equip', key: sl.id }); });
+    equipSlotsFor(p.classId).forEach((sl) => { if (p.equipment[sl.id]) refs.push({ where: 'equip', key: sl.id }); });
     p.inventory.forEach((it, i) => { if (!isBook(it)) refs.push({ where: 'bag', key: i }); });
     if (this.smithRef && !itemAt(this.smithRef)) this.smithRef = null;
     if (!this.smithRef && refs.length) this.smithRef = refs[0];
     const isSel = (where, key) => this.smithRef && this.smithRef.where === where && this.smithRef.key === key;
-    const equip = EQUIP_SLOTS.map((sl) => this.tile(p.equipment[sl.id], `data-ref="equip:${sl.id}" class-sel="${isSel('equip', sl.id)}"`, sl.name, sl.id)).join('');
+    const equip = equipSlotsFor(p.classId).map((sl) => this.tile(p.equipment[sl.id], `data-ref="equip:${sl.id}" class-sel="${isSel('equip', sl.id)}"`, slotLabel(sl.id, p), sl.id)).join('');
     const bag = p.inventory.map((it, i) => (isBook(it) ? '' : this.tile(it, `data-ref="bag:${i}" class-sel="${isSel('bag', i)}"`))).join('');
     body.innerHTML =
       `<p>„Zeig mir, was ich schmieden soll. Bis +3 passiert nichts Schlimmes, ab +7 kann es zerbrechen. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +

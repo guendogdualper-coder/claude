@@ -119,7 +119,7 @@ const ui = {
   renderClassDetail() {
     const c = CLASSES[this.selectedClass];
     $('classDetail').innerHTML = `<p>${c.description}</p>` + pathChoiceHtml(c, this.selectedPath) +
-      skillListHtml(c.paths[this.selectedPath].skills, null);
+      skillListHtml(c.paths[this.selectedPath].skills, null) + ultHtml(ULTIMATES[c.paths[this.selectedPath].id], null);
     $('classDetail').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
       this.selectedPath = Number(b.dataset.path);
       this.renderClassDetail();
@@ -134,7 +134,7 @@ const ui = {
     const render = () => {
       $('pathBody').innerHTML = `<p>Jede Klasse hat jetzt zwei Wege mit eigenen Fertigkeiten. Wähle deinen Weg als ${c.name}. ` +
         `Deine Fertigkeitspunkte bekommst du zurück und kannst sie neu verteilen.</p>` +
-        pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) +
+        pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) + ultHtml(ULTIMATES[c.paths[pick].id], null) +
         `<button id="btnPathOk" class="btn btn-primary" type="button">${c.paths[pick].name} wählen</button>`;
       $('pathBody').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
         pick = Number(b.dataset.path);
@@ -144,6 +144,8 @@ const ui = {
         p.path = pick;
         p.needsPath = false;
         p.buffs = [];
+        enforceGearRules(p);
+        game.stats = playerStats(p);
         $('panelPath').hidden = true;
         this.buildSkillBar();
         ui.log(`Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine Fertigkeitspunkte im Charakterfenster.`, 'level');
@@ -173,6 +175,11 @@ const ui = {
     this.updateHorseButton();
     this.updateNetBadge();
     netAutoJoin();
+    const moved = game.player.gearMoved || [];
+    if (moved.length) {
+      this.log(`Neu in Version 3.2: Schilde trägt nur der Krieger, Zweihänder nur der Weg des Leibes. Angepasst: ${moved.map(itemName).join(', ')}.`, 'warn');
+      game.player.gearMoved = [];
+    }
     if (game.player.needsPath) this.showPathChoice();
   },
 
@@ -222,6 +229,25 @@ const ui = {
       }
       bar.append(wrap);
     });
+    // Ultimative Attacke des Weges: eigener großer Knopf, Taste 6
+    const u = ultimateOf(p);
+    if (u) {
+      const wrap = document.createElement('div');
+      wrap.className = 'skill-wrap ult-wrap';
+      const locked = p.level < u.unlock;
+      wrap.innerHTML = `<button type="button" id="skillUlt" class="slot skill ult${locked ? ' locked' : ''}" title="${u.name} (6) – ${u.text} ${u.stats}. Abklingzeit: 3 Minuten.">` +
+        `<span class="key">6</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
+        `<span class="cd" hidden></span>${locked ? `<span class="lock">ab Lv ${u.unlock}</span>` : ''}</button>`;
+      const btn = wrap.firstChild;
+      btn.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        useUltimate();
+      });
+      btn.addEventListener('click', (e) => { if (e.detail === 0) useUltimate(); });
+      bar.append(wrap);
+    }
+    if (this.cache) this.cache.ult = null;
   },
 
   // Antippen löst die Fertigkeit aus, langes Drücken hebt sie an: dann auf einen anderen Platz
@@ -510,6 +536,24 @@ const ui = {
       });
     });
 
+    // Abklingzeit der Ultimativen Attacke (Minuten:Sekunden)
+    const ultLeft = p.ultCd > 0 ? Math.ceil(p.ultCd) : 0;
+    this.set('ult', ultLeft, (v) => {
+      const btn = $('skillUlt');
+      if (!btn) return;
+      const el = btn.querySelector('.cd');
+      if (!v && btn.classList.contains('on-cd')) {
+        btn.classList.remove('ready');
+        void btn.offsetWidth;
+        btn.classList.add('ready');
+      }
+      btn.classList.toggle('on-cd', !!v);
+      btn.classList.toggle('charged', !v && p.level >= ULT_UNLOCK);
+      el.hidden = !v;
+      el.textContent = v ? formatBuffTime(v) : '';
+      el.style.setProperty('--p', String(v / ULT_COOLDOWN));
+    });
+
     // Ziel
     const t = game.target && !game.target.dead ? game.target : null;
     const tKey = t ? t.id + ':' + Math.ceil(t.hp) : '';
@@ -704,7 +748,7 @@ const ui = {
       `<h3>Fertigkeiten</h3>` +
       `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Bücher für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
       `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Büchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
-      skillListHtml(classSkills(p), p);
+      skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p);
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
     });
@@ -878,6 +922,17 @@ function skillListHtml(skills, p) {
   }).join('') + '</ul>';
 }
 
+// Ultimative Attacke unter der Fertigkeitsliste
+function ultHtml(u, p) {
+  if (!u) return '';
+  const meta = p && p.level >= u.unlock
+    ? (p.ultCd > 0 ? `bereit in ${formatBuffTime(Math.ceil(p.ultCd))}` : '<b class="up">bereit</b>') + '<br>Taste 6'
+    : `ab Stufe ${u.unlock}`;
+  return `<ul class="skill-list ult-list"><li><img class="icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
+    `<span class="info"><strong>Ultimativ: ${u.name}</strong><span>${u.text}</span><span class="sk-stats">${u.stats} · Abklingzeit 3 Minuten · kein Mana</span></span>` +
+    `<span class="meta">${meta}</span></li></ul>`;
+}
+
 // Beschriftung des Knopfes zum Ansprechen am Handy
 const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
@@ -887,6 +942,11 @@ function skillById(id) {
   if (!skillIndex) {
     skillIndex = new Map();
     for (const c of Object.values(CLASSES)) for (const pt of c.paths) for (const sk of pt.skills) skillIndex.set(sk.id, sk);
+    // Buffs der Ultimativen Attacken zeigen das Symbol ihrer Attacke
+    for (const u of Object.values(ULTIMATES)) {
+      skillIndex.set(u.id, u);
+      if (u.buff) skillIndex.set(u.buff.id, u);
+    }
   }
   return skillIndex.get(id);
 }

@@ -265,7 +265,10 @@ function netOnHostData(conn, d) {
   if (!rp) return;
   if (d.t === 'st') netApplyState(rp, d.s);
   else if (d.t === 'dmg') netHostDamage(rp, d);
-  else if (d.t === 'chat') {
+  else if (d.t === 'ult') {
+    ultRemoteFx(d.u, d.x, d.y);
+    netBroadcast({ t: 'ult', u: d.u, x: d.x, y: d.y }, id);
+  } else if (d.t === 'chat') {
     netShowChat(rp.name, d.x, rp);
     netBroadcast({ t: 'chat', n: rp.name, x: d.x, from: id }, id);
   }
@@ -402,6 +405,9 @@ function netOnClientData(d) {
       }
       break;
     }
+    case 'ult':
+      ultRemoteFx(d.u, d.x, d.y);
+      break;
     case 'chat':
       if (d.n) netShowChat(d.n, d.x, d.from ? net.players.get(d.from) : (d.n === net.hostName ? net.players.get('host') : null));
       else ui.log(d.x, 'info');
@@ -540,14 +546,21 @@ function netBroadcast(d, except) {
   for (const [id, c] of net.conns) if (id !== except && c.open) c.send(d);
 }
 
+// Ultimative Attacke: Mitspieler sehen das Schauspiel an der Stelle
+function netUltimateFx(id, x, y) {
+  const d = { t: 'ult', u: id, x: Math.round(x), y: Math.round(y) };
+  if (net.mode === 'host') netBroadcast(d);
+  else if (net.mode === 'client') netSend(d);
+}
+
 // Die eigene Figur in kurzer Form
 function netPlayerState() {
   const p = game.player;
   const s = game.stats;
   const eq = {};
-  for (const sl of ['waffe', 'ruestung', 'helm', 'schild']) {
+  for (const { id: sl } of EQUIP_SLOTS) {
     const it = p.equipment[sl];
-    if (it) eq[sl] = { slot: sl, tier: it.tier, plus: it.plus, kind: it.kind, cls: it.cls };
+    if (it) eq[sl] = { slot: it.slot, tier: it.tier, plus: it.plus, kind: it.kind, cls: it.cls };
   }
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
