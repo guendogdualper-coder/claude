@@ -96,13 +96,25 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
+  if (!opts.dot) {
+    vfxImpact(m, isCrit, opts.ally ? '#cfd8b0' : opts.vfxColor);
+    if (isCrit && !opts.ally) {
+      hitStop(0.06);
+      shakeScreen(5);
+    } else if (opts.heavy) {
+      shakeScreen(2);
+    }
+  }
   return amount;
 }
 
 function damageMonster(m, amount, crit, source, isDot) {
   m.hp -= amount;
   m.hitFlash = 0.12;
-  addText(m.x + (Math.random() - 0.5) * 14, feetY(m) - figureHeight(m) * 0.8, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+  // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
+  m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
+  m.lastText = game.time;
+  addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 20, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
   if (m.isStone) {
     checkStoneWaves(m);
   } else {
@@ -118,14 +130,23 @@ function killMonster(m) {
   m.poison = null;
   m.burn = null;
   if (game.target === m) game.target = null;
-  addEffect({ type: 'burst', x: m.x, y: m.y, dur: 0.6, color: m.isStone ? '#c58cff' : '#d8d0c0', count: m.isStone ? 26 : 10 });
+  const bc = bodyCenter(m);
+  if (m.isStone) {
+    particles(bc.x, bc.y, { count: 40, color: ['#c58cff', '#8a5ad0', '#ffffff'], speed: [80, 260], life: [0.4, 0.9], size: [2, 4], shape: 'square', drag: 2.5 });
+    addEffect({ type: 'ring', x: m.x, y: m.y, r: 70, dur: 0.6, color: '#c58cff', width: 10, grow: true });
+    shakeScreen(7);
+    hitStop(0.08);
+  } else {
+    vfxCorpse(m);
+    particles(bc.x, bc.y, { count: 12, color: ['#e8e0cc', '#a8997c'], speed: [40, 120], life: [0.3, 0.6], size: [2, 3.5], drag: 3, glow: false });
+  }
 
   const xp = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
   const gold = randInt(m.gold[0], m.gold[1]);
   p.gold += gold;
   p.kills++;
-  addText(m.x, feetY(m) - figureHeight(m) - 14, '+' + xp + ' EP', 'xp');
-  addText(m.x, feetY(m) - figureHeight(m), '+' + gold + ' Gold', 'gold');
+  // Belohnung erscheint über der eigenen Figur, nicht zwischen den Schadenszahlen
+  addText(p.x, feetY(p) - 72, '+' + xp + ' EP  +' + gold + ' Gold', 'xp');
 
   if (m.isStone) {
     const splinters = randInt(2, 4);
@@ -165,7 +186,9 @@ function damagePlayer(amount, attacker) {
   }
   if (dmg > 0) {
     p.hp -= dmg;
-    addText(p.x + (Math.random() - 0.5) * 12, p.y - 30, '-' + dmg, 'hurt');
+    addText(p.x + (Math.random() - 0.5) * 16, p.y - 34, '-' + dmg, 'hurt');
+    game.hurtFlash = 0.35;
+    shakeScreen(2.5);
   }
   if (s.reflect > 0 && attacker && !attacker.dead) {
     damageMonster(attacker, Math.max(1, Math.round(amount * s.reflect)), false, p, false);
@@ -206,6 +229,13 @@ function revivePlayer() {
 }
 
 // --- Normaler Angriff --------------------------------------------------------
+// Nahkämpfer schlagen eine Kombo aus drei Schlägen: Hieb, Rückhand, Stich.
+
+function startSwing(p, kind, duration) {
+  p.swingKind = kind;
+  p.swingDur = duration;
+  p.swing = duration;
+}
 
 function tryBasicAttack() {
   const p = game.player;
@@ -216,12 +246,16 @@ function tryBasicAttack() {
   if (!target) return false;
   faceTowards(target.x, target.y);
   p.attackCd = c.basic.cooldown / game.stats.atkSpeed;
-  p.swing = 0.25;
   if (c.basic.ranged) {
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: 460, range: c.basic.range + 60, mul: 1, color: c.basic.color, radius: 5 });
+    startSwing(p, 'cast', 0.28);
+    const hand = bodyCenter(p);
+    particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: c.basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: 480, range: c.basic.range + 60, mul: 1, color: c.basic.color, radius: 5, style: c.basic.style });
   } else {
-    hitMonster(target, 1);
-    addEffect({ type: 'slash', x: target.x, y: target.y, dur: 0.2, color: '#f4ecd8', ang: Math.random() * Math.PI });
+    p.combo = ((p.combo || 0) + 1) % 3;
+    startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
+    vfxSwing(p, c.trim);
+    hitMonster(target, p.combo === 2 ? 1.25 : 1, { vfxColor: c.trim });
   }
   return true;
 }
@@ -251,7 +285,7 @@ function useSkill(i) {
   if (ok === false) return;
   p.mp -= sk.mp;
   p.skillCd[i] = sk.cooldown;
-  p.swing = 0.3;
+  startSwing(p, 'skill', 0.34);
   if (sk.kind === 'angriff' || sk.kind === 'fluch') p.lastCombat = game.time;
 }
 
@@ -286,30 +320,57 @@ function applyBuff(sk, lvl) {
 }
 
 const SKILL_TYPES = {
-  // Halbkreis vor dem Spieler, optional mehrere Treffer hintereinander
+  // Fächer vor der Figur, optional mehrere Treffer hintereinander
   cone(sk, pw) {
     const p = game.player;
+    const c = CLASSES[p.classId];
     const dir = aim(sk.radius + 30);
     const hits = sk.hits || 1;
+    const ang = Math.atan2(dir.y, dir.x);
+    const spread = sk.angle * Math.PI / 180;
     for (let h = 0; h < hits; h++) {
-      later(h * (hits > 3 ? 0.18 : 0.13), () => {
+      later(h * (hits > 3 ? 0.17 : 0.13), () => {
         if (p.dead) return;
-        const ang = Math.atan2(dir.y, dir.x);
-        addEffect({ type: 'arc', x: p.x, y: p.y, r: sk.radius, ang: ang + (h % 2 ? 0.25 : -0.25), spread: sk.angle * Math.PI / 180, dur: 0.25, color: sk.color || '#f4ecd8', fill: !!sk.burn });
+        if (sk.burn) {
+          // Drachenfeuer
+          const b = bodyCenter(p);
+          particles(b.x + dir.x * 10, b.y + dir.y * 6, {
+            count: 46, color: ['#ffd34d', '#ff9a4a', '#ff5a2a', '#c8402f'], angle: ang, spread: spread / 2,
+            speed: [sk.radius * 1.4, sk.radius * 3], life: [0.25, 0.5], size: [2.5, 5], shape: 'ember', drag: 3
+          });
+          shakeScreen(2.5);
+        } else if (hits > 3) {
+          vfxSweep(p, sk.radius * 0.7, ang - spread / 2 + Math.random() * 0.4, ang + spread / 2, c.trim, 0.2, 14);
+        } else {
+          const from = h % 2 ? ang + spread / 2 : ang - spread / 2;
+          const to = h % 2 ? ang - spread / 2 : ang + spread / 2;
+          vfxSweep(p, sk.radius * 0.85, from, to, h === hits - 1 ? '#ffd9a0' : c.trim, 0.26, 26);
+          p.combo = h % 3;
+          startSwing(p, 'combo', 0.13);
+        }
         for (const m of enemiesInCone(p.x, p.y, dir, sk.radius, sk.angle)) {
-          hitMonster(m, sk.dmg * pw, { knockback: h === hits - 1 ? sk.knockback : 0, burn: sk.burn, stun: sk.stun });
+          if (hits > 3) {
+            const bc = bodyCenter(m);
+            addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: Math.random() * Math.PI, len: 34, w: 5, dur: 0.18, color: '#c9b8ff' });
+          }
+          hitMonster(m, sk.dmg * pw, { knockback: h === hits - 1 ? sk.knockback : 0, burn: sk.burn, stun: sk.stun, heavy: h === hits - 1 });
         }
       });
     }
   },
 
-  // Kreis um den Spieler
+  // Wirbel um die Figur
   circle(sk, pw) {
     const p = game.player;
-    addEffect({ type: 'ring', x: p.x, y: p.y, r: sk.radius, dur: 0.35, color: '#f4ecd8', width: 8 });
-    addEffect({ type: 'spin', x: p.x, y: p.y, r: sk.radius * 0.8, dur: 0.35, color: '#f4ecd8', follow: p });
+    const c = CLASSES[p.classId];
+    const a = Math.random() * Math.PI * 2;
+    vfxSweep(p, sk.radius * 0.85, a, a + Math.PI * 4, c.trim, 0.45, 30);
+    addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
+    particles(p.x, feetY(p), { count: 26, color: ['#a88f62', '#c9b28a'], speed: [80, 200], life: [0.3, 0.6], size: [2, 4], drag: 4, glow: false });
+    p.spin = 0.45;
+    shakeScreen(3.5);
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
-      hitMonster(m, sk.dmg * pw, { stun: sk.stun });
+      hitMonster(m, sk.dmg * pw, { stun: sk.stun, heavy: true });
     }
   },
 
@@ -318,6 +379,7 @@ const SKILL_TYPES = {
     const p = game.player;
     const dir = aim(sk.distance);
     p.dash = { dx: dir.x, dy: dir.y, left: sk.distance, speed: sk.distance / 0.22, hit: new Set(), sk, pw };
+    shakeScreen(2);
   },
 
   // Einzelner starker Treffer im Nahkampf
@@ -328,24 +390,29 @@ const SKILL_TYPES = {
       return false;
     }
     faceTowards(t.x, t.y);
-    hitMonster(t, sk.dmg * pw, { critBonus: sk.critBonus });
-    addEffect({ type: 'slash', x: t.x, y: t.y, dur: 0.3, color: '#c9b8ff', ang: 0.6, big: true });
-    addEffect({ type: 'slash', x: t.x, y: t.y, dur: 0.3, color: '#c9b8ff', ang: -0.6, big: true });
+    const bc = bodyCenter(t);
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.75, len: 58, w: 9, dur: 0.3, color: '#b48cff' });
+    later(0.07, () => addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.75, len: 58, w: 9, dur: 0.3, color: '#b48cff' }));
+    particles(bc.x, bc.y, { count: 14, color: ['#b48cff', '#e0d0ff'], speed: [60, 160], life: [0.3, 0.5], size: [2, 3], shape: 'square' });
+    hitStop(0.05);
+    hitMonster(t, sk.dmg * pw, { critBonus: sk.critBonus, heavy: true, vfxColor: '#d6c4ff' });
   },
 
   projectile(sk, pw) {
     const p = game.player;
     const t = pickTarget(sk.range);
     if (t) faceTowards(t.x, t.y);
+    const b = bodyCenter(p);
+    particles(b.x + p.facing.x * 14, b.y, { count: 10, color: sk.color, speed: [40, 110], life: [0.2, 0.4], size: [1.5, 3] });
     spawnProjectile({
       owner: 'player', x: p.x, y: p.y, target: sk.pierce ? null : t, dir: t ? null : p.facing,
       aimAt: sk.pierce && t ? { x: t.x, y: t.y } : null,
-      speed: sk.speed, range: sk.range + 40, mul: sk.dmg * pw, color: sk.color, radius: 7,
-      pierce: sk.pierce, chain: sk.chain || 0, poison: sk.poison, glow: true
+      speed: sk.speed, range: sk.range + 40, mul: sk.dmg * pw, color: sk.color, radius: sk.pierce ? 8 : 7,
+      pierce: sk.pierce, chain: sk.chain || 0, poison: sk.poison, style: sk.style
     });
   },
 
-  // Flächenschaden beim Ziel nach kurzer Verzögerung
+  // Blitz schlägt beim Ziel ein
   blast(sk, pw) {
     const p = game.player;
     const t = pickTarget(sk.range);
@@ -353,26 +420,33 @@ const SKILL_TYPES = {
     const y = t ? t.y : p.y + p.facing.y * 120;
     if (t) faceTowards(t.x, t.y);
     addEffect({ type: 'bolt', x, y, dur: 0.45, color: '#cfe8ff' });
-    later(0.15, () => {
-      addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.4, color: '#9fd0ff', width: 6 });
-      for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { stun: sk.stun });
+    later(0.12, () => {
+      addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.4, color: '#9fd0ff', width: 8 });
+      particles(x, y - 10, { count: 30, color: ['#cfe8ff', '#9fd0ff', '#ffffff'], speed: [120, 300], life: [0.15, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+      shakeScreen(6);
+      hitStop(0.05);
+      for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
     });
   },
 
   buff(sk, pw, lvl) {
     const p = game.player;
+    const c = CLASSES[p.classId];
     applyBuff(sk, lvl);
     if (sk.nextHitMul) p.nextHitMul = sk.nextHitMul;
     if (sk.shield) {
       p.shield = Math.round(game.stats.maxHp * sk.shield * buffScale(lvl));
       p.shieldUntil = game.time + sk.duration;
+      particles(p.x, feetY(p) - 20, { count: 16, color: '#ddd5bb', speed: [60, 140], life: [0.4, 0.7], size: [2, 4], shape: 'square', glow: false });
     }
     if (sk.effects && sk.effects.invisible) {
       for (const m of game.monsters) {
         if (m.target === p) { m.state = 'return'; m.target = null; }
       }
+      particles(p.x, feetY(p) - 14, { count: 30, color: ['#5a5466', '#3d3848', '#8a8496'], speed: [20, 70], life: [0.5, 0.9], size: [5, 9], jitter: 10, drag: 2, glow: false });
+    } else {
+      vfxPillar(p, c.trim);
     }
-    addEffect({ type: 'ring', x: p.x, y: p.y, r: 40, dur: 0.5, color: CLASSES[p.classId].trim, width: 4, follow: p, grow: true });
     ui.log(sk.name + ' ist aktiv (' + sk.duration + ' s).', 'info');
   },
 
@@ -381,12 +455,13 @@ const SKILL_TYPES = {
     const s = game.stats;
     const amount = Math.round(s.maxHp * sk.amount * buffScale(lvl));
     p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 34, '+' + amount, 'heal');
-    addEffect({ type: 'ring', x: p.x, y: p.y, r: 46, dur: 0.6, color: '#9be59b', width: 5, follow: p, grow: true });
+    addText(p.x, p.y - 40, '+' + amount, 'heal');
+    vfxPillar(p, '#9be59b', 1);
+    addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50, dur: 0.6, color: '#9be59b', width: 5, grow: true });
     if (sk.effects) applyBuff(sk, lvl);
   },
 
-  // Lebensentzug: sofortiger Treffer, heilt den Spieler
+  // Lebensentzug: sofortiger Treffer, heilt die Figur
   drain(sk, pw) {
     const p = game.player;
     const t = pickTarget(sk.range);
@@ -395,11 +470,15 @@ const SKILL_TYPES = {
       return false;
     }
     faceTowards(t.x, t.y);
-    const dmg = hitMonster(t, sk.dmg * pw);
+    const dmg = hitMonster(t, sk.dmg * pw, { vfxColor: '#ff6a7a' });
     const heal = Math.round(dmg * sk.heal);
     p.hp = Math.min(game.stats.maxHp, p.hp + heal);
-    addText(p.x, p.y - 34, '+' + heal, 'heal');
-    addEffect({ type: 'beam', x: t.x, y: t.y, x2: p.x, y2: p.y, dur: 0.4, color: '#c43a5a' });
+    addText(p.x, p.y - 40, '+' + heal, 'heal');
+    const bc = bodyCenter(t);
+    addEffect({ type: 'beam', x: bc.x, y: bc.y, follow2: p, dur: 0.45, color: '#c43a5a' });
+    const pc = bodyCenter(p);
+    const ang = Math.atan2(pc.y - bc.y, pc.x - bc.x);
+    particles(bc.x, bc.y, { count: 16, color: ['#ff6a7a', '#c43a5a'], angle: ang, spread: 0.3, speed: [dist(t, p) * 1.6, dist(t, p) * 2.6], life: [0.3, 0.45], size: [2, 3.5], drag: 0.5 });
   },
 
   summon(sk, pw, lvl) {
@@ -408,13 +487,16 @@ const SKILL_TYPES = {
     game.allies = [];
     for (let k = 0; k < sk.count; k++) {
       const ang = Math.PI * 2 * k / sk.count;
+      const x = p.x + Math.cos(ang) * 34;
+      const y = p.y + Math.sin(ang) * 20;
       const maxHp = Math.round(s.maxHp * sk.hp * buffScale(lvl));
       game.allies.push({
-        id: 'ally' + k, x: p.x + Math.cos(ang) * 30, y: p.y + Math.sin(ang) * 30, r: 10,
+        id: 'ally' + k, x, y, r: 10,
         hp: maxHp, maxHp, atk: Math.round(s.atk * sk.atk * pw), def: Math.round(s.def * 0.5),
         until: game.time + sk.duration, target: null, cd: 0, facing: 1, swing: 0
       });
-      addEffect({ type: 'burst', x: p.x + Math.cos(ang) * 30, y: p.y + Math.sin(ang) * 30, dur: 0.5, color: '#cfd8b0', count: 10 });
+      addEffect({ type: 'runes', x, y: y + 8, r: 22, dur: 0.9, color: '#a7e37f' });
+      particles(x, y + 6, { count: 14, color: ['#ddd5bb', '#a7e37f'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 140], life: [0.4, 0.7], size: [2, 3.5], shape: 'square', gravity: 200 });
     }
     ui.log('Zwei Skelette erheben sich aus dem Boden.', 'info');
   },
@@ -422,9 +504,11 @@ const SKILL_TYPES = {
   curse(sk, pw, lvl) {
     const p = game.player;
     const scale = buffScale(lvl);
-    addEffect({ type: 'ring', x: p.x, y: p.y, r: sk.radius, dur: 0.6, color: '#a774e0', width: 10 });
+    addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: '#a774e0' });
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
       m.vulnerable = { mul: 1 + sk.vulnerable * scale, until: game.time + sk.duration };
+      const bc = bodyCenter(m);
+      particles(bc.x, bc.y - 20, { count: 8, color: ['#a774e0', '#5a2a8a'], angle: Math.PI / 2, spread: 0.3, speed: [40, 90], life: [0.4, 0.6], size: [2, 3] });
       if (!m.isStone) {
         m.slow = { mul: 1 - sk.slow, until: game.time + sk.duration };
         aggro(m, p);
@@ -440,13 +524,18 @@ function updateDash(dt) {
   const step = Math.min(d.left, d.speed * dt);
   const moved = moveEntity(p, d.dx * step, d.dy * step, false);
   d.left -= step;
-  addEffect({ type: 'ghost', x: p.x, y: p.y, dur: 0.25, color: CLASSES[p.classId].color });
+  const dir = facingDir(p.facing);
+  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3 });
+  particles(p.x, feetY(p), { count: 2, color: ['#a88f62', '#c9b28a'], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false });
   for (const m of enemiesInCircle(p.x, p.y, d.sk.radius)) {
     if (d.hit.has(m.id)) continue;
     d.hit.add(m.id);
-    hitMonster(m, d.sk.dmg * d.pw, { stun: d.sk.stun, knockback: 60 });
+    hitMonster(m, d.sk.dmg * d.pw, { stun: d.sk.stun, knockback: 60, heavy: true });
   }
-  if (d.left <= 0 || !moved) p.dash = null;
+  if (d.left <= 0 || !moved) {
+    p.dash = null;
+    shakeScreen(3);
+  }
 }
 
 // --- Geschosse --------------------------------------------------------------------
@@ -464,7 +553,7 @@ function spawnProjectile(o) {
   }
   const len = Math.hypot(dx, dy) || 1;
   game.projectiles.push({
-    hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6,
+    hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6, trail: [],
     ...o,
     vx: dx / len, vy: dy / len
   });
@@ -484,6 +573,8 @@ function updateProjectiles(dt) {
     pr.x += pr.vx * step;
     pr.y += pr.vy * step;
     pr.traveled += step;
+    pr.trail.push({ x: pr.x, y: pr.y });
+    if (pr.trail.length > 9) pr.trail.shift();
     if (pr.traveled > pr.range) { pr.done = true; continue; }
 
     if (pr.owner === 'player') {
@@ -491,13 +582,16 @@ function updateProjectiles(dt) {
         if (m.dead || pr.hit.has(m.id)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
-        hitMonster(m, pr.mul, { poison: pr.poison });
-        addEffect({ type: 'burst', x: pr.x, y: pr.y, dur: 0.3, color: pr.color, count: 6 });
+        hitMonster(m, pr.mul, { poison: pr.poison, vfxColor: pr.color });
+        if (pr.poison) particles(m.x, feetY(m) - 16, { count: 12, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2 });
         if (pr.chain > 0) {
           const next = aliveEnemies()
             .filter((o) => !pr.hit.has(o.id) && dist(o, m) < 180)
             .sort((a, b) => dist(a, m) - dist(b, m))[0];
           if (next) {
+            const a = bodyCenter(m);
+            const b = bodyCenter(next);
+            addEffect({ type: 'chain', x: a.x, y: a.y, x2: b.x, y2: b.y, dur: 0.25, color: pr.color });
             pr.chain--;
             pr.target = next;
             pr.traveled = 0;
@@ -511,6 +605,7 @@ function updateProjectiles(dt) {
       for (const v of victims) {
         if (Math.hypot(v.x - pr.x, v.y - pr.y) > v.r + pr.radius) continue;
         pr.done = true;
+        particles(v.x, feetY(v) - 18, { count: 8, color: [pr.color, '#ffffff'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
         if (v === p) {
           if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, 1, game.stats.def, 0.03).amount, pr.source);
         } else {
@@ -521,38 +616,4 @@ function updateProjectiles(dt) {
     }
   }
   game.projectiles = game.projectiles.filter((pr) => !pr.done);
-}
-
-// --- Effekte und schwebende Zahlen ---------------------------------------------------
-
-function addEffect(e) {
-  e.start = game.time;
-  if (e.type === 'burst') {
-    e.parts = Array.from({ length: e.count || 10 }, () => {
-      const a = Math.random() * Math.PI * 2;
-      const s = 20 + Math.random() * 40;
-      return { x: Math.cos(a) * s, y: Math.sin(a) * s };
-    });
-  }
-  if (e.type === 'bolt') {
-    e.points = [];
-    for (let k = 0; k <= 7; k++) e.points.push({ x: e.x + (k && k < 7 ? (Math.random() - 0.5) * 30 : 0), y: e.y - 220 + k * (220 / 7) });
-  }
-  game.effects.push(e);
-}
-
-function addText(x, y, text, style) {
-  game.texts.push({ x, y, text, style, start: game.time, dur: style === 'level' ? 1.6 : 0.9 });
-}
-
-function updateEffects() {
-  game.effects = game.effects.filter((e) => game.time - e.start < e.dur);
-  game.texts = game.texts.filter((t) => game.time - t.start < t.dur);
-  if (game.texts.length > 80) game.texts.splice(0, game.texts.length - 80);
-}
-
-function updateTimers() {
-  const due = game.timers.filter((t) => t.at <= game.time);
-  game.timers = game.timers.filter((t) => t.at > game.time);
-  for (const t of due) t.fn();
 }

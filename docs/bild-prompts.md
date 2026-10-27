@@ -119,3 +119,27 @@ Monster sprite sheet of exactly this creature, same design and colors in every f
 ```
 2D game character sprite of a burly village blacksmith, East Asian fantasy style. Bald head, thick brown beard, strong bare arms, rolled-up linen shirt under a heavy leather apron, holding a smithing hammer, proud friendly stance. Full body, top-down three-quarter view (camera about 45 degrees above), facing toward the viewer, idle pose. Slightly chibi proportions (large head, about one third of body height). Clean hand-painted game art, bold dark outline, soft cel shading, warm light from the top left. Centered, isolated on a plain white background, no shadow on the ground, no text, no frame.
 ```
+
+## Querformat, Schadenszahlen und Angriffe
+
+Diese Prompts beschreiben das Aussehen, das seit Version 1.2 direkt im Spiel umgesetzt ist. Mit einem Bildgenerator lassen sich daraus Vorlagen oder echte Grafiken erzeugen.
+
+### Handy-Oberfläche im Querformat
+```
+Mobile game UI mockup in landscape orientation, 2D fantasy MMORPG with East Asian style. Dark lacquered wood panels with thin brass borders. Top left: character portrait panel with name, level, red health bar and blue mana bar. Top right: round minimap with brass ring and zone name below. Bottom left: translucent virtual joystick. Bottom right: large round red attack button, five round skill buttons arranged in a quarter circle around it, two round potion buttons (red and blue) beside them. Thin purple experience bar along the very bottom edge. Clean readable layout, game world visible in the middle, no text other than labels.
+```
+
+### Schadenszahlen
+```
+Floating damage number style sheet for a 2D fantasy action game. Large bold rounded numbers with a thick dark outline. Normal hits: warm white. Critical hits: much larger, golden yellow to orange gradient with an orange glow and a slight tilt, popping out. Damage taken by the player: red. Healing: green. Experience gain: soft violet. Plain dark background, numbers only, no other text.
+```
+
+### Schwungspuren und Treffer
+```
+2D game VFX sprite sheet, slash and impact effects for a fantasy action game. Row 1: crescent sword swoosh trails in 4 frames, bright white core fading into warm gold. Row 2: X-shaped double dagger slashes in violet. Row 3: 360-degree spinning sword whirl ring with dust. Row 4: hit impact star bursts with sparks, normal (white) and critical (gold, larger). Additive glow look, clean shapes, transparent or plain black background, evenly spaced grid, no text.
+```
+
+### Magie und Geschosse
+```
+2D game VFX sprite sheet for magic attacks in East Asian fantasy style. Row 1: teal wind crescent projectile. Row 2: spinning paper talisman with golden glow and a chain lightning arc. Row 3: cone of dragon fire with embers. Row 4: lightning bolt strike from the sky with a blue shockwave ring. Row 5: green soul orb with long glowing trail and a red life-drain beam. Row 6: purple curse rune circle on the ground. Additive glow look, plain black background, evenly spaced grid, no text.
+```

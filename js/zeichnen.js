@@ -14,19 +14,6 @@ const GROUND_COLORS = [
   ['#5d524d', '#615650', '#594f49', '#655a54']  // ASH
 ];
 
-const TEXT_STYLES = {
-  dmg: { color: '#fff7e6', size: 13 },
-  dot: { color: '#c6e8a0', size: 11 },
-  crit: { color: '#ffd34d', size: 18 },
-  hurt: { color: '#ff6b5b', size: 14 },
-  heal: { color: '#8ff08f', size: 14 },
-  mana: { color: '#8fb8ff', size: 13 },
-  xp: { color: '#d6b8ff', size: 12 },
-  gold: { color: '#f0cf6a', size: 11 },
-  info: { color: '#e8e0cc', size: 12 },
-  level: { color: '#ffd34d', size: 22 }
-};
-
 const tileHash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
 
 function setupRenderer() {
@@ -46,7 +33,7 @@ function resizeRenderer() {
   r.h = window.innerHeight;
   r.canvas.width = Math.round(r.w * r.dpr);
   r.canvas.height = Math.round(r.h * r.dpr);
-  r.zoom = Math.max(0.8, Math.min(1.6, Math.min(r.w, r.h) / 460));
+  r.zoom = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410));
 }
 
 // Bildschirmkoordinaten → Weltkoordinaten (für Mausklicks)
@@ -74,8 +61,10 @@ function render() {
     fy = CENTER_Y * TILE + Math.sin(t * 0.05) * 300;
   }
   const z = r.zoom * r.dpr;
-  r.camX = Math.round((fx - r.w / 2 / r.zoom) * z) / z;
-  r.camY = Math.round((fy - r.h / 2 / r.zoom) * z) / z;
+  const shakeX = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
+  const shakeY = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
+  r.camX = Math.round((fx + shakeX - r.w / 2 / r.zoom) * z) / z;
+  r.camY = Math.round((fy + shakeY - r.h / 2 / r.zoom) * z) / z;
   ctx.setTransform(z, 0, 0, z, -r.camX * z, -r.camY * z);
 
   const x0 = Math.max(0, Math.floor(r.camX / TILE) - 1);
@@ -98,7 +87,9 @@ function render() {
   if (game.player && game.running && !game.player.dead) list.push(game.player);
   list.sort((a, b) => a.y - b.y);
 
-  for (const e of game.effects) if (e.type === 'ghost') drawEffect(ctx, e);
+  // Effekte am Boden liegen unter den Figuren
+  const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes';
+  for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   for (const e of list) {
     if (e === game.player) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
@@ -107,9 +98,12 @@ function render() {
     else drawNpc(ctx, e);
   }
   for (const pr of game.projectiles) drawProjectile(ctx, pr);
-  for (const e of game.effects) if (e.type !== 'ghost') drawEffect(ctx, e);
+  for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
+  drawParticles(ctx);
   for (const e of list) drawLabel(ctx, e);
   drawTexts(ctx);
+  ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  drawHurtVignette(ctx, r.w, r.h);
 
   r.miniTimer -= 1;
   if (r.miniTimer <= 0) {
@@ -375,19 +369,25 @@ function facingDir(f) {
 
 const CLASS_WEAPON = { krieger: 'sword', ninja: 'dagger', schamane: 'fan', nekromant: 'staff' };
 
-// Waffenhaltung je Blickrichtung: Ruhewinkel und Schwung beim Angriff (in Bogenmaß)
-const WEAPON_POSE = {
-  side: { idle: -0.9, from: -2.1, to: 0.8 },
-  down: { idle: -1.1, from: -0.5, to: 2.3 },
-  up: { idle: -2.1, from: -0.7, to: -2.7 }
-};
+// Ruhehaltung der Waffe je Blickrichtung (Bogenmaß; Figur schaut nach rechts bzw. zum Betrachter)
+const WEAPON_IDLE = { side: -0.9, down: -1.1, up: -2.1 };
 
-function weaponAngle(kind, dir, p) {
-  const t = p.swing > 0 ? 1 - p.swing / 0.3 : -1;
-  if (kind === 'staff') return -1.45 + (t >= 0 ? Math.sin(t * Math.PI) * 0.9 : 0);
-  const pose = WEAPON_POSE[dir];
-  if (t < 0) return kind === 'fan' ? pose.idle + 0.5 : pose.idle;
-  return pose.from + (pose.to - pose.from) * t;
+// Fortschritt des laufenden Schlags von 0 bis 1, sonst -1. "ago" blickt zurück (für Nachbilder).
+function swingProgress(p, ago = 0) {
+  if (!(p.swing > 0)) return -1;
+  const t = 1 - p.swing / (p.swingDur || 0.3) - ago;
+  return t < 0 ? -1 : t;
+}
+
+function weaponAngle(kind, dir, p, ago = 0) {
+  const t = swingProgress(p, ago);
+  if (kind === 'staff' || (kind === 'fan' && p.swingKind === 'cast')) {
+    const base = kind === 'staff' ? -1.45 : WEAPON_IDLE[dir] + 0.5;
+    return base + (t >= 0 ? Math.sin(t * Math.PI) * 0.9 : 0);
+  }
+  if (t < 0) return kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : WEAPON_IDLE[dir];
+  const { a0, a1 } = swingArc(p, dir);
+  return a0 + (a1 - a0) * easeOut(t);
 }
 
 function drawWeaponSprite(ctx, kind, x, y, angle) {
@@ -402,13 +402,25 @@ function drawWeaponSprite(ctx, kind, x, y, angle) {
 
 function drawPlayer(ctx, p) {
   const invisible = p === game.player && game.stats && game.stats.invisible;
-  const dir = facingDir(p.facing);
-  const flip = dir === 'side' && p.facing.x < 0;
+  // Beim Schwertwirbel dreht sich die Figur einmal im Kreis
+  const facing = p.spin > 0 ? { x: Math.cos(game.time * 28), y: Math.sin(game.time * 28) } : p.facing;
+  const dir = facingDir(facing);
+  const flip = dir === 'side' && facing.x < 0;
   const frame = p.moving ? Math.floor(game.time * 9) % 4 : 0;
   const fy = feetY(p);
   const kind = CLASS_WEAPON[p.classId];
+  const melee = kind === 'sword' || kind === 'dagger';
   const angle = weaponAngle(kind, dir, p);
-  const hand = handPosition(dir, frame, 'right');
+  const hand = { ...handPosition(dir, frame, 'right') };
+  // Ausfallschritt beim Schlag, beim Stich weiter nach vorn
+  const t = swingProgress(p);
+  const fa = localFacingAngle(dir);
+  const thrust = p.swingKind === 'combo' && p.combo === 2;
+  const lunge = t >= 0 && melee ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
+  if (thrust) {
+    hand.x += Math.cos(fa) * lunge * 1.3;
+    hand.y += Math.sin(fa) * lunge * 0.8;
+  }
 
   ctx.save();
   if (invisible) ctx.globalAlpha = 0.35;
@@ -429,7 +441,18 @@ function drawPlayer(ctx, p) {
   ctx.save();
   ctx.translate(p.x, fy);
   if (flip) ctx.scale(-1, 1);
+  ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
   const drawWeapons = () => {
+    // Nachbilder der Waffe zeigen den Schwung
+    if (melee && t >= 0 && !thrust) {
+      for (const ago of [0.24, 0.12]) {
+        if (swingProgress(p, ago) < 0) continue;
+        ctx.save();
+        ctx.globalAlpha *= ago > 0.2 ? 0.18 : 0.38;
+        drawWeaponSprite(ctx, kind, hand.x, hand.y, weaponAngle(kind, dir, p, ago));
+        ctx.restore();
+      }
+    }
     drawWeaponSprite(ctx, kind, hand.x, hand.y, angle);
     if (kind === 'dagger' && dir !== 'side') {
       const left = handPosition(dir, frame, 'left');
@@ -631,119 +654,6 @@ function drawLabel(ctx, e) {
   if (e.hp < e.maxHp || targeted || e.isStone) {
     drawBar(ctx, e.x, top + 4, e.isStone ? 50 : 34, e.hp / e.maxHp, e.isStone ? '#a774e0' : '#c8402f');
   }
-}
-
-function drawProjectile(ctx, pr) {
-  ctx.fillStyle = pr.color;
-  ctx.globalAlpha = 0.35;
-  circle(ctx, pr.x - pr.vx * 8, pr.y - pr.vy * 8, pr.radius * 0.8);
-  ctx.globalAlpha = 1;
-  circle(ctx, pr.x, pr.y, pr.radius * 0.7);
-  if (pr.glow || pr.owner === 'monster') {
-    ctx.globalAlpha = 0.25;
-    circle(ctx, pr.x, pr.y, pr.radius * 1.8);
-    ctx.globalAlpha = 1;
-  }
-}
-
-function drawEffect(ctx, e) {
-  const k = Math.min(1, (game.time - e.start) / e.dur);
-  const x = e.follow ? e.follow.x : e.x;
-  const y = e.follow ? e.follow.y : e.y;
-  ctx.save();
-  ctx.globalAlpha = 1 - k;
-  ctx.strokeStyle = e.color;
-  ctx.fillStyle = e.color;
-  switch (e.type) {
-    case 'arc':
-      ctx.lineWidth = 7 * (1 - k) + 1;
-      ctx.beginPath();
-      ctx.arc(x, y, e.r * (0.55 + 0.45 * k), e.ang - e.spread / 2, e.ang + e.spread / 2);
-      ctx.stroke();
-      if (e.fill) {
-        ctx.globalAlpha = (1 - k) * 0.35;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-        ctx.arc(x, y, e.r * (0.4 + 0.6 * k), e.ang - e.spread / 2, e.ang + e.spread / 2);
-        ctx.closePath();
-        ctx.fill();
-      }
-      break;
-    case 'ring':
-      ctx.lineWidth = (e.width || 4) * (1 - k) + 1;
-      ctx.beginPath();
-      ctx.arc(x, y, e.r * (e.grow ? 0.3 + 0.9 * k : 0.4 + 0.6 * k), 0, Math.PI * 2);
-      ctx.stroke();
-      break;
-    case 'spin':
-      ctx.lineWidth = 3;
-      for (let a = 0; a < 3; a++) {
-        const ang = k * Math.PI * 4 + a * 2.09;
-        ctx.beginPath();
-        ctx.arc(x, y, e.r, ang, ang + 0.9);
-        ctx.stroke();
-      }
-      break;
-    case 'slash':
-      ctx.lineWidth = e.big ? 4 : 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x - Math.cos(e.ang) * 14, y - Math.sin(e.ang) * 14);
-      ctx.lineTo(x + Math.cos(e.ang) * 14, y + Math.sin(e.ang) * 14);
-      ctx.stroke();
-      break;
-    case 'beam':
-      ctx.lineWidth = 5 * (1 - k) + 1;
-      ctx.beginPath();
-      ctx.moveTo(e.x, e.y);
-      ctx.quadraticCurveTo((e.x + e.x2) / 2 + Math.sin(game.time * 30) * 10, (e.y + e.y2) / 2 - 20, e.x2, e.y2);
-      ctx.stroke();
-      break;
-    case 'bolt':
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      e.points.forEach((pt, i) => (i ? ctx.lineTo(pt.x, pt.y) : ctx.moveTo(pt.x, pt.y)));
-      ctx.stroke();
-      ctx.globalAlpha = (1 - k) * 0.4;
-      ctx.lineWidth = 9;
-      ctx.stroke();
-      break;
-    case 'burst':
-      for (const part of e.parts) circle(ctx, x + part.x * k, y + part.y * k - 8, 2.5 * (1 - k) + 0.5);
-      break;
-    case 'ghost':
-      ctx.globalAlpha = (1 - k) * 0.4;
-      circle(ctx, x, y, 11);
-      break;
-    case 'levelup':
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#ffd34d';
-      for (let a = 0; a < 3; a++) {
-        const kk = (k + a * 0.2) % 1;
-        ctx.globalAlpha = 1 - kk;
-        ctx.beginPath();
-        ctx.ellipse(x, y + 8 - kk * 50, 22, 8, 0, 0, Math.PI * 2);
-        ctx.stroke();
-      }
-      break;
-  }
-  ctx.restore();
-}
-
-function drawTexts(ctx) {
-  ctx.textAlign = 'center';
-  ctx.lineWidth = 3;
-  for (const t of game.texts) {
-    const k = (game.time - t.start) / t.dur;
-    const st = TEXT_STYLES[t.style] || TEXT_STYLES.info;
-    ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-    ctx.font = `700 ${st.size}px "Alegreya Sans", sans-serif`;
-    const y = t.y - k * 28;
-    ctx.strokeStyle = 'rgba(10,8,6,0.85)';
-    ctx.strokeText(t.text, t.x, y);
-    ctx.fillStyle = st.color;
-    ctx.fillText(t.text, t.x, y);
-  }
-  ctx.globalAlpha = 1;
 }
 
 // --- Minikarte ----------------------------------------------------------------------

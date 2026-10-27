@@ -44,6 +44,7 @@ const ui = {
       saveGame();
     });
     this.buildClassGrid();
+    $('versionText').textContent = 'Version ' + GAME_VERSION;
   },
 
   showStart() {
@@ -101,6 +102,7 @@ const ui = {
     $('startScreen').hidden = true;
     $('hud').hidden = false;
     $('touchControls').hidden = !input.touchUi;
+    $('hud').classList.toggle('touch', input.touchUi);
     $('log').innerHTML = '';
     this.cache = {};
     this.buildSkillBar();
@@ -199,6 +201,7 @@ const ui = {
         if (!el) return;
         el.hidden = !shown;
         el.textContent = shown;
+        el.parentElement.classList.toggle('on-cd', !!shown);
         el.style.setProperty('--p', String(left / sk.cooldown));
       });
       if (left > 0) {

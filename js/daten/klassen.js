@@ -66,7 +66,7 @@ const CLASSES = {
       },
       {
         id: 'giftpfeil', name: 'Giftpfeil', short: 'GP', kind: 'angriff', unlock: 3, mp: 10, cooldown: 4,
-        type: 'projectile', range: 360, speed: 560, dmg: 1.3, color: '#8fd16a', poison: { dps: 0.35, duration: 5 },
+        type: 'projectile', range: 360, speed: 560, dmg: 1.3, color: '#8fd16a', style: 'dart', poison: { dps: 0.35, duration: 5 },
         text: 'Fernangriff. Vergiftet das Ziel 5 Sekunden lang.'
       },
       {
@@ -96,11 +96,11 @@ const CLASSES = {
     weapon: 'fan',
     base: { hp: 115, mp: 80, atk: 13, def: 3, crit: 0.06, speed: 150 },
     perLevel: { hp: 18, mp: 10, atk: 3.8, def: 1 },
-    basic: { range: 230, cooldown: 0.9, ranged: true, color: '#8fe3d8' },
+    basic: { range: 230, cooldown: 0.9, ranged: true, color: '#8fe3d8', style: 'wind' },
     skills: [
       {
         id: 'talisman', name: 'Fliegender Talisman', short: 'FT', kind: 'angriff', unlock: 1, mp: 9, cooldown: 2.5,
-        type: 'projectile', range: 340, speed: 430, dmg: 1.6, color: '#f0d27a', chain: 2,
+        type: 'projectile', range: 340, speed: 430, dmg: 1.6, color: '#f0d27a', style: 'talisman', chain: 2,
         text: 'Ein Talisman, der vom Ziel auf zwei weitere Gegner überspringt.'
       },
       {

@@ -145,7 +145,10 @@ function setupTouch() {
   window.addEventListener('touchstart', () => {
     if (input.touchUi) return;
     input.touchUi = true;
-    if (game.running) $('touchControls').hidden = false;
+    if (game.running) {
+      $('touchControls').hidden = false;
+      $('hud').classList.add('touch');
+    }
   }, { once: true, passive: true });
 }
 

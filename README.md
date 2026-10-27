@@ -28,6 +28,8 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Fortschritt**: Erfahrung, Stufen bis 99, Fertigkeitspunkte (Fertigkeiten bis Stufe 20), Erfahrungsverlust beim Tod
 - **Händlerin** im Dorf für Rote und Blaue Tränke
 - Gezeichnete Figuren im Chibi-Stil mit Umriss und Schattierung, Laufanimation und Waffenschwung
+- Kampfeffekte: Dreier-Kombo, Schwungspuren, Funken, große Schadenszahlen, Bildschirmwackeln und kurzes Einfrieren bei kritischen Treffern, eigene Effekte für jede Fertigkeit
+- Querformat mit Handy-Layout: Fertigkeiten im Bogen um den Angriffsknopf, im Hochformat erscheint ein Hinweis zum Drehen
 - Steuerung per Tastatur oder Touch (Steuerknüppel und Knöpfe)
 
 ## Steuerung
@@ -56,6 +58,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/kampf.js` | Schadensformel, Angriffe, alle Fertigkeitsarten, Geschosse, Effekte |
 | `js/gegner.js` | Monster-KI, Respawn, Seelenstein-Wellen, Skelette |
 | `js/figuren.js` | Aussehen aller Figuren und Monster: Klassen in drei Blickrichtungen mit Laufanimation, Waffen, Händler, Skelette |
+| `js/effekte.js` | Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse, Bildschirmwackeln |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |
 | `js/eingabe.js` | Tastatur, Maus, Touch |

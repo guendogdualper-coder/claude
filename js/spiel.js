@@ -1,5 +1,7 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
+const GAME_VERSION = '1.2';
+
 const game = {
   world: null,
   player: null,
@@ -8,7 +10,11 @@ const game = {
   allies: [],
   projectiles: [],
   effects: [],
+  particles: [],
   texts: [],
+  shake: 0,
+  hitStop: 0,
+  hurtFlash: 0,
   timers: [],
   time: 0,
   running: false,
@@ -43,6 +49,7 @@ function updatePlayer(dt) {
   p.attackCd = Math.max(0, p.attackCd - dt);
   p.potionCd = Math.max(0, p.potionCd - dt);
   p.swing = Math.max(0, p.swing - dt);
+  p.spin = Math.max(0, (p.spin || 0) - dt);
   for (let i = 0; i < 5; i++) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt);
 
   // abgelaufene Buffs entfernen
@@ -91,6 +98,11 @@ function updatePlayer(dt) {
 }
 
 function update(dt) {
+  // Kurzes Einfrieren bei harten Treffern
+  if (game.hitStop > 0) {
+    game.hitStop -= dt;
+    return;
+  }
   game.time += dt;
   game.stats = playerStats(game.player);
   updateTimers();
@@ -98,7 +110,7 @@ function update(dt) {
   updateMonsters(dt);
   updateAllies(dt);
   updateProjectiles(dt);
-  updateEffects();
+  updateEffects(dt);
   if (game.target && game.target.dead) game.target = null;
 
   game.saveTimer += dt;
@@ -109,12 +121,16 @@ function update(dt) {
   ui.update();
 }
 
+// Auf Touch-Geräten wird nur im Querformat gespielt; im Hochformat pausiert das Spiel
+const portraitQuery = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
+
 let lastFrame = 0;
 function frame(ts) {
   const dt = Math.min(0.05, (ts - lastFrame) / 1000 || 0);
   lastFrame = ts;
-  if (game.running) update(dt);
-  else game.time += dt;
+  updateScreenEffects(dt);
+  if (game.running && !portraitQuery.matches) update(dt);
+  else if (!game.running) game.time += dt;
   render();
   requestAnimationFrame(frame);
 }
@@ -132,6 +148,12 @@ function boot() {
   });
   window.addEventListener('pagehide', saveGame);
   registerApp();
+  lockLandscape();
+  portraitQuery.addEventListener('change', () => {
+    input.keys.clear();
+    input.attack = false;
+    if (portraitQuery.matches) saveGame();
+  });
   requestAnimationFrame(frame);
 }
 
@@ -142,6 +164,15 @@ function registerApp() {
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
   } catch {
     // nicht erlaubt, das Spiel läuft trotzdem
+  }
+}
+
+// Android: Querformat festhalten (auf dem iPhone übernimmt das der Hinweis zum Drehen)
+function lockLandscape() {
+  try {
+    if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(() => {});
+  } catch {
+    // nicht unterstützt
   }
 }
 

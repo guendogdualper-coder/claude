@@ -15,7 +15,7 @@
   <meta name="apple-mobile-web-app-title" content="Seelenstein">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Marcellus+SC&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Marcellus+SC&display=swap">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -111,6 +111,7 @@
       <p id="createError" class="form-error" hidden></p>
       <button class="btn btn-primary" type="submit">Abenteuer beginnen</button>
     </form>
+    <p id="versionText" class="version"></p>
   </div>
 </div>
 
@@ -157,6 +158,12 @@
 </div>
 
 <div id="banner" class="banner" hidden></div>
+
+<div class="rotate-hint" aria-live="polite">
+  <div class="rotate-phone"></div>
+  <p>Dreh dein Handy ins Querformat</p>
+  <small>Seelenstein wird quer gespielt. Das Spiel ist so lange pausiert.</small>
+</div>
 <!-- app:end -->
 
 <script src="js/daten/klassen.js"></script>
@@ -165,6 +172,7 @@
 <script src="js/welt.js"></script>
 <script src="js/spieler.js"></script>
 <script src="js/kampf.js"></script>
+<script src="js/effekte.js"></script>
 <script src="js/gegner.js"></script>
 <script src="js/figuren.js"></script>
 <script src="js/zeichnen.js"></script>

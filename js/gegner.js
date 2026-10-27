@@ -143,7 +143,8 @@ function monsterAttack(m, target) {
   if (m.type.ranged) {
     game.projectiles.push({
       owner: 'monster', x: m.x, y: m.y, vx: 0, vy: 0, speed: 300, range: m.type.range + 80, traveled: 0,
-      radius: 5, atk: m.atk, source: m, color: m.type.shot || '#e8d6a0', hit: new Set(),
+      radius: 5, atk: m.atk, source: m, color: m.type.shot || '#e8d6a0', hit: new Set(), trail: [],
+      style: m.type.bow ? 'arrow' : undefined,
       ...(() => {
         const dx = target.x - m.x;
         const dy = target.y - m.y;
@@ -153,6 +154,9 @@ function monsterAttack(m, target) {
     });
     return;
   }
+  const bc = bodyCenter(target);
+  if (m.type.shape === 'beast' || m.type.shape === 'boar') addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
+  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 30, w: 5, dur: 0.22, color: '#ff8a6a' });
   if (target === p) {
     damagePlayer(calcDamage(m.atk, 1, game.stats.def, 0.03).amount, m);
   } else {

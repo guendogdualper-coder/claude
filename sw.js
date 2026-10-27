@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v1';
+const VERSION = 'seelenstein-v2';
 const FILES = [
   './',
   'index.html',
@@ -12,6 +12,7 @@ const FILES = [
   'js/welt.js',
   'js/spieler.js',
   'js/kampf.js',
+  'js/effekte.js',
   'js/gegner.js',
   'js/figuren.js',
   'js/zeichnen.js',
@@ -35,19 +36,20 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Erst aus dem Speicher antworten (schneller Start, offline), im Hintergrund aktualisieren
+// Erst aus dem Netz laden, damit Updates sofort ankommen. Ohne Internet aus dem Speicher.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const sameOrigin = new URL(e.request.url).origin === self.location.origin;
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
-      const cached = await cache.match(e.request, { ignoreSearch: true });
-      const fresh = fetch(e.request)
-        .then((res) => {
-          if (res.ok || res.type === 'opaque') cache.put(e.request, res.clone());
-          return res;
-        })
-        .catch(() => cached);
-      return cached || fresh;
+      try {
+        const res = await fetch(sameOrigin ? new Request(e.request.url, { cache: 'no-cache' }) : e.request);
+        if (res.ok || res.type === 'opaque') cache.put(e.request, res.clone());
+        return res;
+      } catch {
+        const cached = await cache.match(e.request, { ignoreSearch: true });
+        return cached || Response.error();
+      }
     })
   );
 });

@@ -674,3 +674,139 @@ kbd {
   .banner { animation: none; }
   .log p { transition: none; }
 }
+
+/* --- Version auf dem Startbildschirm ---------------------------------------------- */
+.version { margin: 0; font-size: 11px; color: var(--muted); text-align: right; }
+
+/* --- Hinweis zum Drehen (Touch-Geräte im Hochformat) --------------------------------- */
+.rotate-hint {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px;
+  text-align: center;
+  background: var(--night);
+}
+.rotate-hint p { margin: 0; font-family: var(--font-display); font-size: 22px; color: var(--brass); max-width: 20ch; text-wrap: balance; }
+.rotate-hint small { color: var(--muted); max-width: 30ch; }
+.rotate-phone {
+  width: 44px;
+  height: 76px;
+  border: 3px solid var(--brass);
+  border-radius: 9px;
+  position: relative;
+  animation: turn-phone 2.2s ease-in-out infinite;
+}
+.rotate-phone::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 5px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  border-radius: 50%;
+  background: var(--brass-dim);
+}
+@keyframes turn-phone {
+  0%, 25% { transform: rotate(0deg); }
+  55%, 85% { transform: rotate(-90deg); }
+  100% { transform: rotate(0deg); }
+}
+@media (orientation: portrait) and (pointer: coarse) {
+  .rotate-hint { display: flex; }
+}
+
+/* --- Handy-Layout im Querformat ---------------------------------------------------
+   Steuerknüppel links unten, Angriffsknopf rechts unten, Fertigkeiten im Bogen darum,
+   Erfahrungsbalken ganz unten über die volle Breite. */
+#hud.touch .hud-char { width: 210px; padding: 6px 8px 7px; gap: 4px; }
+#hud.touch .char-class { display: none; }
+#hud.touch .bar { height: 15px; }
+#hud.touch .bar span { line-height: 13px; }
+
+#hud.touch .hud-target { top: var(--edge-t); left: 50%; transform: translateX(-50%); width: min(230px, 30vw); padding: 4px 8px 6px; }
+
+#hud.touch .hud-map { width: 104px; padding: 5px; gap: 1px; }
+#hud.touch #minimap { width: 76px; height: 76px; }
+#hud.touch .zone-name { font-size: 12px; margin-top: 2px; }
+#hud.touch .zone-levels { font-size: 10px; }
+#hud.touch .purse { flex-direction: column; gap: 0; align-items: center; font-size: 11px; }
+
+#hud.touch .menu { top: var(--edge-t); bottom: auto; right: calc(var(--edge-r) + 112px); }
+#hud.touch .menu-btn { font-size: 12px; padding: 4px 9px; }
+#hud.touch .menu-btn kbd { display: none; }
+
+#hud.touch .log {
+  top: calc(var(--edge-t) + 80px);
+  bottom: auto;
+  width: min(300px, 34vw);
+  font-size: 12px;
+}
+#hud.touch .log p:nth-last-child(n + 5) { display: none; }
+
+#hud.touch .hud-bottom { inset: 0; left: 0; transform: none; width: auto; display: block; }
+#hud.touch .xp {
+  position: absolute;
+  left: var(--edge-l);
+  right: var(--edge-r);
+  bottom: calc(var(--edge-b) - 4px);
+  width: auto;
+  height: 9px;
+}
+#hud.touch .xp span { font-size: 8px; line-height: 7px; }
+
+/* Container rechts unten; der Angriffsknopf sitzt in seiner Ecke (Mitte bei 214 | 182) */
+#hud.touch .action-row {
+  position: absolute;
+  right: var(--edge-r);
+  bottom: calc(var(--edge-b) + 14px);
+  width: 270px;
+  height: 230px;
+  display: block;
+}
+#hud.touch .skillbar { position: absolute; inset: 0; display: block; }
+#hud.touch .skill-wrap { position: absolute; width: 50px; height: 50px; }
+#hud.touch .skill-wrap:nth-child(1) { left: 61px; top: 157px; }
+#hud.touch .skill-wrap:nth-child(2) { left: 71px; top: 108px; }
+#hud.touch .skill-wrap:nth-child(3) { left: 98px; top: 66px; }
+#hud.touch .skill-wrap:nth-child(4) { left: 140px; top: 39px; }
+#hud.touch .skill-wrap:nth-child(5) { left: 189px; top: 29px; }
+#hud.touch .slot { width: 50px; height: 50px; border-radius: 50%; }
+#hud.touch .slot .key { display: none; }
+#hud.touch .slot .slvl { right: 50%; transform: translateX(50%); bottom: 2px; }
+#hud.touch .slot .lock { font-size: 10px; line-height: 1.1; text-align: center; }
+#hud.touch .potion { position: absolute; width: 44px; height: 44px; border-radius: 50%; }
+#hud.touch #potHp { left: 4px; top: 160px; }
+#hud.touch #potMp { left: 8px; top: 108px; }
+
+#hud.touch .stick { left: calc(var(--edge-l) + 14px); bottom: calc(var(--edge-b) + 16px); }
+#hud.touch .touch-attack { right: calc(var(--edge-r) + 12px); bottom: calc(var(--edge-b) + 18px); width: 88px; height: 88px; }
+#hud.touch .touch-talk { right: auto; left: calc(var(--edge-l) + 150px); bottom: calc(var(--edge-b) + 26px); width: 68px; height: 68px; }
+
+/* Startbildschirm und Fenster im Querformat auf dem Handy */
+@media (orientation: landscape) and (max-height: 520px) {
+  .start-card { width: min(920px, 100%); padding: 14px 18px; gap: 10px; }
+  .start-head h1 { font-size: 2rem; }
+  .start-head p { margin-top: 4px; font-size: 13px; }
+  .create { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 18px; align-items: start; }
+  .create > .field, .create > .classes, .create > .btn, .create > .form-error { grid-column: 1; }
+  .class-detail { grid-column: 2; grid-row: 1 / span 4; max-height: calc(100vh - 150px); overflow-y: auto; }
+  .class-detail p { font-size: 13px; }
+  .class-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .class-card { padding: 6px 4px; gap: 2px; }
+  .class-card canvas { width: 42px; height: 42px; }
+  .class-card small { display: none; }
+  .field input { padding: 7px 10px; }
+  .panel { max-height: calc(100% - 16px); }
+  .banner { top: 14%; }
+  .banner strong { font-size: 24px; }
+  .banner span { font-size: 12px; }
+}
+#hud.touch .slot .cd { font-size: 18px; text-shadow: 0 1px 3px #000; }
+#hud.touch .slot.on-cd .abbr { opacity: 0.35; }
