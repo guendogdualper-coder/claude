@@ -41,7 +41,10 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - Fertigkeiten mit gemalten Symbolen und eigenen Effekten je Klasse (Feuer und Gold, Schatten, Türkis und Blitz, Seelengrün), Bodenspuren und Auren aktiver Buffs
 - Querformat mit kompaktem Handy-Layout: alles in den Ecken, Fertigkeiten im engen Bogen um den Angriffsknopf (mit Ring, Stufenplakette, Abklingzeit als Zeiger und Aufleuchten, sobald sie bereit sind), Menü als Symbolknöpfe, im Hochformat erscheint ein Hinweis zum Drehen
 - **Beute**: alles Aufgehobene erscheint unten rechts mit Symbol und Anzahl; der Beute-Knopf (Taste B) öffnet ein Fenster mit allem, was du aufgehoben hast, und den Weg in den Rucksack
-- **Buffs** als Symbole unter den Balken, mit Ring und Restzeit
+- **Buffs** als Symbole unter den Balken, mit Ring und Restzeit; jeder Buff ist auch an der Figur zu erkennen (Blitze beim Kampfrausch, goldener Kreis bei der Aura des Schwertes, Heiligenschein beim Segen und so weiter)
+- **Fertigkeitsränge**: Stufe 1–17 mit Punkten, ab Stufe 15 Erwecken (E1–E10), danach mit Fertigkeitsbüchern Heroisch (H1–H10), Legendär (L1–L10) und Vollendet (V). Jeder Rang macht stärker und sieht wuchtiger aus
+- **Schild oder Zweihand**: Zweihänder, Bogen und Sense brauchen beide Hände; Blocken gibt es nur mit Schild
+- **Glitzern ab +8**: starke Ausrüstung funkelt an der Figur und im Inventar
 - **Lebensbalken** mit rundem Bild der Figur, schrägem Messingrahmen, Herz und Tropfen, flüssiger Füllung mit wanderndem Glanz; bei wenig Leben schlägt das Herz. Lebensraub erscheint als grüne Zahl
 - **Attacken**: Schwertwirbel und Wirbelklinge lassen die eigene Waffe als leuchtende Riesenklinge um die Figur kreisen, Schwünge haben spitz zulaufende Leuchtschweife und eine Geisterklinge
 - **Grafik**: weiche Schatten, ziehende Wolkenschatten, warmes Licht von oben links und dunklere Bildränder

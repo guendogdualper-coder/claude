@@ -1,7 +1,15 @@
 // Kampf: Schaden berechnen, normale Angriffe, Fertigkeiten, Geschosse, Effekte.
 
-const dmgScale = (lvl) => 1 + 0.08 * (lvl - 1);   // +8 % Schaden pro Fertigkeitsstufe
-const buffScale = (lvl) => 1 + 0.03 * (lvl - 1);  // +3 % Buff-Wirkung pro Fertigkeitsstufe
+// Bis Stufe 17: +8 % Schaden und +3 % Buff-Wirkung je Stufe. In den Rängen +5 % bzw. +1,2 % je Stufe,
+// dazu ein Sprung beim Erreichen jedes Rangs.
+const RANK_JUMP = [0.1, 0.25, 0.45, 0.75];
+function dmgScale(lvl) {
+  const r = skillRank(lvl);
+  return 1 + 0.08 * (Math.min(lvl, SKILL_BASE_MAX) - 1) + 0.05 * Math.max(0, lvl - SKILL_BASE_MAX) + (r >= 0 ? RANK_JUMP[r] : 0);
+}
+function buffScale(lvl) {
+  return 1 + 0.03 * (Math.min(lvl, SKILL_BASE_MAX) - 1) + 0.012 * Math.max(0, lvl - SKILL_BASE_MAX);
+}
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -116,7 +124,12 @@ function hitMonster(m, mul, opts = {}) {
   }
   if (!opts.dot) {
     vfxImpact(m, isCrit, opts.ally ? '#cfd8b0' : opts.vfxColor);
-    if (opts.skill) skillHitFx(opts.skill, m, isCrit, opts.heavy);
+    if (opts.skill) {
+      skillHitFx(opts.skill, m, isCrit, opts.heavy);
+      const idx = classSkills(p).findIndex((x) => x.id === opts.skill);
+      const rank = idx >= 0 ? skillRank(p.skillLevels[idx]) : -1;
+      if (rank >= 0) rankHitFx(m, rank);
+    }
     if (isCrit && !opts.ally) {
       hitStop(0.06);
       shakeScreen(5);
@@ -216,8 +229,8 @@ function damagePlayer(amount, attacker) {
   }
   // Ein Schild kann Treffer ganz abblocken
   if (s.block > 0 && Math.random() < s.block) {
-    addText(p.x, p.y - 30, 'Geblockt', 'info');
-    particles(p.x - 8, feetY(p) - 18, { count: 8, color: ['#e6eef8', '#ffd34d'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
+    addText(p.x, p.y - 30, 'Geblockt', 'block');
+    vfxBlock(p, attacker);
     return;
   }
   let dmg = Math.max(1, Math.round(amount * s.damageTaken));
@@ -349,6 +362,8 @@ function useSkill(i) {
   const ok = SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1), lvl);
   if (ok === false) return;
   skillCastFx(sk);
+  const rank = skillRank(lvl);
+  if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   p.mp -= sk.mp;
   p.skillCd[i] = sk.cooldown;
   startSwing(p, 'skill', 0.34);

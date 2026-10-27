@@ -170,16 +170,19 @@ const ui = {
       wrap.className = 'skill-wrap';
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'slot skill kind-' + sk.kind;
+      const rank = skillRank(p.skillLevels[i]);
+      btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
       btn.title = `${sk.name} (${i + 1}) – ${sk.text} Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s`;
       btn.innerHTML = `<span class="key">${i + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
-        `<span class="slvl">${p.level >= sk.unlock ? p.skillLevels[i] : ''}</span>` +
+        `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
       onPress(btn, () => useSkill(i));
       wrap.append(btn);
-      if (p.skillPoints > 0 && p.level >= sk.unlock && p.skillLevels[i] < MAX_SKILL_LEVEL) {
+      // Plus-Knopf, wenn etwas geht: unter Stufe 15 direkt verbessern, sonst das Charakterfenster öffnen
+      const acts = skillActions(p, i).filter((a) => a.ok);
+      if (acts.length) {
         const plus = document.createElement('button');
         plus.type = 'button';
         plus.className = 'plus';
@@ -188,7 +191,8 @@ const ui = {
         plus.addEventListener('pointerdown', (e) => e.stopPropagation());
         plus.addEventListener('click', (e) => {
           e.stopPropagation();
-          upgradeSkill(i);
+          if (acts.length === 1 && acts[0].type === 'point') upgradeSkill(i, 'point');
+          else this.toggle('panelChar');
         });
         wrap.append(plus);
       }
@@ -377,6 +381,7 @@ const ui = {
       `<span><img src="${lootIconUrl('gold')}" alt=""> ${p.gold.toLocaleString('de-DE')}</span>` +
       `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
       `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
+      `<span title="Fertigkeitsbücher"><img src="${lootIconUrl('book')}" alt=""> ${p.books}</span>` +
       `<span><img src="${lootIconUrl('potHp')}" alt=""> ${p.potions.hp}</span>` +
       `<span><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
       MATERIALS.map((m) => `<span><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
@@ -463,10 +468,11 @@ const ui = {
           `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="5" ${can && p.statPoints >= 5 ? '' : 'disabled'}>+5</button></span></div>`;
       }).join('') + `</div>` +
       `<h3>Fertigkeiten</h3>` +
-      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span></p>` +
+      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Fertigkeitsbücher: <span class="points">${p.books}</span></p>` +
+      `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Fertigkeitsbüchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Bücher geben Seelensteine.</p>` +
       skillListHtml(classSkills(p), p);
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
-      b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade)));
+      b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
     });
     $('charBody').querySelectorAll('[data-attr]').forEach((b) => {
       b.addEventListener('click', () => raiseAttr(b.dataset.attr, Number(b.dataset.n)));
@@ -571,10 +577,12 @@ function skillListHtml(skills, p) {
   return '<ul class="skill-list">' + skills.map((sk, i) => {
     let meta = `ab Stufe ${sk.unlock}<br>${sk.mp} Mana · ${sk.cooldown} s`;
     if (p) {
-      const unlocked = p.level >= sk.unlock;
-      const canUp = unlocked && p.skillPoints > 0 && p.skillLevels[i] < MAX_SKILL_LEVEL;
-      meta = unlocked
-        ? `Stufe ${p.skillLevels[i]}/${MAX_SKILL_LEVEL}<br><button class="mini-btn" type="button" data-upgrade="${i}" ${canUp ? '' : 'disabled'}>Verbessern</button>`
+      const lvl = p.skillLevels[i];
+      const r = skillRank(lvl);
+      const acts = skillActions(p, i);
+      const title = r < 0 ? `Stufe ${lvl}/${SKILL_BASE_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
+      meta = p.level >= sk.unlock
+        ? title + '<br>' + (acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${a.ok ? '' : a.why}">${a.label}</button>`).join('') || (r === SKILL_RANKS.length - 1 ? 'Höchste Stufe' : ''))
         : `ab Stufe ${sk.unlock}`;
     }
     return `<li><img class="icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +

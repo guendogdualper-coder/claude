@@ -76,6 +76,10 @@ function giveReward(reward, xp) {
     p.scrolls += reward.scrolls;
     parts.push(`${reward.scrolls} × ${BLESSING.name}`);
   }
+  if (reward.books) {
+    p.books += reward.books;
+    parts.push(`${reward.books} × Fertigkeitsbuch`);
+  }
   for (const [id, n] of Object.entries(reward.mats || {})) {
     p.materials[id] = (p.materials[id] || 0) + n;
     parts.push(`${n} × ${MATERIALS.find((m) => m.id === id).name}`);
@@ -98,6 +102,7 @@ function rewardHtml(reward, xp) {
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
   if (reward.potions) li.push(`${reward.potions} rote und ${reward.potions} blaue Tränke`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
+  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
     li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   }
@@ -305,9 +310,11 @@ Object.assign(ui, {
     body.innerHTML = '<p>„Seelensteine geben diese Materialien umsonst. Wer es eilig hat, kauft bei mir.“</p>' +
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="shop">` +
       ALCHEMIST_WARES.map((w) => {
-        const m = MATERIALS.find((x) => x.id === w.id);
-        return `<div class="shop-item"><img class="shop-icon" src="${materialIconUrl(m.id)}" alt=""><strong>${m.name} <span class="price">${w.price.toLocaleString('de-DE')} Gold</span></strong>` +
-          `<small>${m.text} Im Gepäck: <b>${p.materials[m.id] || 0}</b></small>` +
+        const book = w.id === 'book';
+        const m = book ? { id: 'book', name: 'Fertigkeitsbuch', text: 'Hebt eine erweckte Fertigkeit um eine Stufe oder hilft beim Aufstieg in den nächsten Rang.' } : MATERIALS.find((x) => x.id === w.id);
+        const have = book ? p.books : p.materials[m.id] || 0;
+        return `<div class="shop-item"><img class="shop-icon" src="${book ? lootIconUrl('book') : materialIconUrl(m.id)}" alt=""><strong>${m.name} <span class="price">${w.price.toLocaleString('de-DE')} Gold</span></strong>` +
+          `<small>${m.text} Im Gepäck: <b>${have}</b></small>` +
           `<div class="buy"><button class="mini-btn" type="button" data-mat="${m.id}" ${p.gold < w.price ? 'disabled' : ''}>Kaufen</button></div></div>`;
       }).join('') + '</div><p id="shopMsg" class="form-error" hidden></p>' + gear.sellSectionHtml();
     gear.wireSell(body, () => this.renderAlchemist());
@@ -315,7 +322,12 @@ Object.assign(ui, {
       const w = ALCHEMIST_WARES.find((x) => x.id === b.dataset.mat);
       if (p.gold < w.price) return;
       p.gold -= w.price;
-      p.materials[w.id] = (p.materials[w.id] || 0) + 1;
+      if (w.id === 'book') {
+        p.books++;
+        ui.buildSkillBar();
+      } else {
+        p.materials[w.id] = (p.materials[w.id] || 0) + 1;
+      }
       saveGame();
       this.renderAlchemist();
     }));

@@ -32,15 +32,16 @@ const CLASS_SLOTS = ['waffe', 'ruestung', 'helm'];
 //   atkSpeed  Angriffstempo (+ schneller, − langsamer)
 //   ranged    normale Angriffe als Fernschuss
 //   magic     Magiestärke: erhöht den Schaden der Fertigkeiten
+//   twoHanded braucht beide Hände: kein Schild möglich (Blocken gibt es nur mit Schild)
 const WEAPON_KINDS = {
   sword: { name: 'Schwert', cls: 'krieger', atkMul: 1, atkSpeed: 0, text: 'ausgewogen' },
-  greatsword: { name: 'Zweihänder', cls: 'krieger', atkMul: 1.35, atkSpeed: -0.18, text: 'viel Schaden, langsam' },
+  greatsword: { name: 'Zweihänder', cls: 'krieger', atkMul: 1.35, atkSpeed: -0.18, twoHanded: true, text: 'viel Schaden, langsam, kein Schild' },
   dagger: { name: 'Dolche', cls: 'ninja', atkMul: 0.88, atkSpeed: 0.15, text: 'schnell, oft kritisch' },
-  bow: { name: 'Bogen', cls: 'ninja', atkMul: 1, atkSpeed: -0.05, ranged: true, text: 'greift aus der Ferne an' },
+  bow: { name: 'Bogen', cls: 'ninja', atkMul: 1, atkSpeed: -0.05, ranged: true, twoHanded: true, text: 'greift aus der Ferne an, kein Schild' },
   fan: { name: 'Fächer', cls: 'schamane', atkMul: 0.85, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
   bell: { name: 'Glocke', cls: 'schamane', atkMul: 0.7, atkSpeed: -0.1, magic: true, magicMul: 1.6, text: 'sehr viel Magiestärke, langsam' },
   staff: { name: 'Stab', cls: 'nekromant', atkMul: 0.9, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
-  scythe: { name: 'Sense', cls: 'nekromant', atkMul: 1.15, atkSpeed: -0.12, magic: true, magicMul: 0.6, text: 'mehr Schaden, weniger Magie' }
+  scythe: { name: 'Sense', cls: 'nekromant', atkMul: 1.15, atkSpeed: -0.12, magic: true, magicMul: 0.6, twoHanded: true, text: 'mehr Schaden, weniger Magie, kein Schild' }
 };
 const CLASS_WEAPON_KINDS = { krieger: ['sword', 'greatsword'], ninja: ['dagger', 'bow'], schamane: ['fan', 'bell'], nekromant: ['staff', 'scythe'] };
 

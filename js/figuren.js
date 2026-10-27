@@ -278,46 +278,66 @@ const BLADE_SHAPES = [
   { len: 27, w: 3.4, curve: 0, guard: 'wings', gem: '#ffffff', edge: '#fff2b0', runes: true }
 ];
 
-// Klinge von x0 bis zur Spitze; curve biegt sie wie einen Säbel, serrated gibt Zacken am Rücken
+// Klinge von x0 bis zur Spitze; curve biegt sie wie einen Säbel, serrated gibt Zacken am Rücken.
+// Die obere Schliffseite ist hell, die untere dunkler, in der Mitte läuft eine Blutrinne.
 function bladeArt(ctx, x0, len, w, curve, serrated, color, edge) {
   const bend = (x) => -curve * 6 * Math.sin(((x - x0) / len) * Math.PI);
   const top = [];
   const bottom = [];
+  const mid = [];
   for (let k = 0; k <= 8; k++) {
     const x = x0 + (len * k) / 8;
-    const taper = k === 8 ? 0 : 1 - (k / 8) * 0.25;
-    const zig = serrated && k > 1 && k < 8 && k % 2 ? -1.4 : 0;
+    const taper = 1 - (k / 8) * 0.3;
+    const zig = serrated && k > 1 && k < 8 && k % 2 ? -1.5 : 0;
     top.push([x, bend(x) - w * taper + zig]);
     bottom.push([x, bend(x) + w * taper]);
+    mid.push([x, bend(x)]);
   }
-  const tip = [x0 + len + 4.5, bend(x0 + len) - curve * 3];
-  poly(ctx, [...top, tip, ...bottom.reverse()], color);
-  stroke(ctx, edge || '#f4f6f8', 0.8, top.slice(1, 8).map(([x, y]) => [x, y + w * 0.55]));
+  const tip = [x0 + len + w * 2.2, bend(x0 + len) - curve * 3];
+  poly(ctx, [...top, tip, ...bottom.slice().reverse()], darker(color, 0.18));
+  poly(ctx, [...top, tip, ...mid.slice().reverse()], lighter(color, 0.22));
+  // Blutrinne
+  stroke(ctx, darker(color, 0.4), Math.max(0.7, w * 0.32), mid.slice(0, 6).map(([x, y]) => [x + 1.5, y + w * 0.12]));
+  // Glanz an der Schneide und an der Spitze
+  stroke(ctx, edge || '#ffffff', 0.7, top.slice(1, 8).map(([x, y]) => [x, y + 0.5]));
+  dot(ctx, tip[0] - w * 1.4, tip[1] - w * 0.3, 0.8, 0.5, '#ffffff');
 }
 
+// Parierstange: Bügel, deren Enden sich zur Klinge biegen; Flügel und Dornen für höhere Stufen
 function guardArt(ctx, x, style, metal) {
+  const dark = darker(metal, 0.3);
   if (style === 'round') {
-    oval(ctx, x, 0, 2.6, 4.6, metal);
+    oval(ctx, x, 0, 2.8, 5, metal);
+    oval(ctx, x + 0.3, 0, 1.4, 2.6, dark);
   } else if (style === 'wings') {
-    poly(ctx, [[x - 1, -2.5], [x - 4, -8], [x + 2.2, -4], [x + 2.2, 4], [x - 4, 8], [x - 1, 2.5]], metal);
+    poly(ctx, [[x - 1.2, -2.5], [x - 4, -9], [x + 1, -7], [x + 3, -9.5], [x + 2.4, -3], [x + 2.4, 3], [x + 3, 9.5], [x + 1, 7], [x - 4, 9], [x - 1.2, 2.5]], metal);
+    stroke(ctx, dark, 0.6, [[x - 2.5, -7], [x + 1, -3.5]]);
+    stroke(ctx, dark, 0.6, [[x - 2.5, 7], [x + 1, 3.5]]);
   } else if (style === 'spikes') {
-    poly(ctx, [[x - 1.2, -4.5], [x + 3.5, -7], [x + 1.5, -3], [x + 1.5, 3], [x + 3.5, 7], [x - 1.2, 4.5]], metal);
+    poly(ctx, [[x - 1.5, -4.5], [x + 4.5, -8], [x + 1.8, -3], [x + 1.8, 3], [x + 4.5, 8], [x - 1.5, 4.5]], metal);
+    poly(ctx, [[x - 1.5, -2], [x - 4, -5], [x - 1.5, -4.5]], dark);
+    poly(ctx, [[x - 1.5, 2], [x - 4, 5], [x - 1.5, 4.5]], dark);
   } else {
-    box(ctx, x - 1.2, -4.2, 2.4, 8.4, 1, metal);
+    poly(ctx, [[x - 1.3, -2], [x - 1.3, -5.2], [x + 2.6, -6.4], [x + 1.4, -4.2], [x + 1.4, 4.2], [x + 2.6, 6.4], [x - 1.3, 5.2], [x - 1.3, 2]], metal);
   }
+  // Mittelstück
+  poly(ctx, [[x - 1.6, 0], [x + 0.6, -2.4], [x + 2.6, 0], [x + 0.6, 2.4]], lighter(metal, 0.25));
 }
 
 function swordArt(ctx, tier, big) {
   const sh = BLADE_SHAPES[tier] || BLADE_SHAPES[0];
-  const k = big ? 1.4 : 1;
-  const grip = big ? 9 : 5.5;
-  box(ctx, -3.5 - (grip - 5.5), -1.5, grip, 3, 1, TIER_ACCENT[tier]);
-  if (big) for (let x = -8; x < 1; x += 2.5) stroke(ctx, darker(TIER_ACCENT[tier], 0.4), 0.6, [[x, -1.5], [x + 1, 1.5]]);
-  oval(ctx, -4 - (grip - 5.5), 0, 1.9, 1.9, '#c9a35a');
-  guardArt(ctx, 2.7, sh.guard, tier >= 3 ? TIER_METAL[tier] : '#c9a35a');
-  bladeArt(ctx, 3.8, sh.len * k - 3.8, sh.w * (big ? 1.35 : 1), sh.curve, sh.serrated, TIER_METAL[tier], sh.edge);
-  if (sh.gem) oval(ctx, 2.7, 0, 1.4, 1.4, sh.gem);
-  if (sh.runes) for (let x = 8; x < sh.len * k - 4; x += 5) stroke(ctx, sh.gem, 0.8, [[x, -0.6], [x + 2, 0.6]]);
+  const k = big ? 1.42 : 1.08;
+  const grip = big ? 10 : 6;
+  const wrap = TIER_ACCENT[tier];
+  // Griff mit Lederwicklung und Knauf
+  box(ctx, 1 - grip, -1.6, grip, 3.2, 1, wrap);
+  for (let x = 2 - grip; x < 0.5; x += 2) stroke(ctx, lighter(wrap, 0.3), 0.6, [[x, -1.6], [x + 1.2, 1.6]]);
+  oval(ctx, -grip, 0, 2.3, 2.3, '#c9a35a');
+  oval(ctx, -grip, 0, 1.1, 1.1, sh.gem || '#8a6a3a');
+  guardArt(ctx, 2.6, sh.guard, tier >= 3 ? TIER_METAL[tier] : '#c9a35a');
+  bladeArt(ctx, 4.4, sh.len * k - 4.4, sh.w * (big ? 1.4 : 1.12), sh.curve, sh.serrated, TIER_METAL[tier], sh.edge);
+  if (sh.gem) oval(ctx, 2.9, 0, 1.3, 1.3, sh.gem);
+  if (sh.runes) for (let x = 9; x < sh.len * k - 5; x += 5) stroke(ctx, sh.gem, 0.8, [[x, -0.7], [x + 2, 0.5]]);
 }
 
 function weaponArt(ctx, kind, tier = 0) {

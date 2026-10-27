@@ -1468,3 +1468,39 @@ kbd {
 #hud.touch .buff-ico img { width: 20px; height: 20px; }
 #hud.touch .buff-ico span { font-size: 8.5px; }
 #hud.touch.has-buffs .log { top: calc(var(--edge-t) + 96px); }
+
+/* Ränge der Fertigkeiten: Ringfarbe und Leuchten */
+.slot.skill.rank-E { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #9fd0ff, 0 0 0 5px #120c08, 0 0 10px rgba(159, 208, 255, 0.6); }
+.slot.skill.rank-H { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #c58cff, 0 0 0 5px #120c08, 0 0 12px rgba(197, 140, 255, 0.7); }
+.slot.skill.rank-L { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #ffd34d, 0 0 0 5px #120c08, 0 0 14px rgba(255, 211, 77, 0.75); }
+.slot.skill.rank-V { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #ff6a4a, 0 0 0 5px #120c08, 0 0 16px rgba(255, 106, 74, 0.85); animation: rank-v 2s ease-in-out infinite; }
+@keyframes rank-v { 50% { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #ffd34d, 0 0 0 5px #120c08, 0 0 22px rgba(255, 211, 77, 0.95); } }
+.slot.skill.rank-E .slvl { background: linear-gradient(#e0f0ff, #6a9ac8); }
+.slot.skill.rank-H .slvl { background: linear-gradient(#ead8ff, #8a5ac0); color: #fff; }
+.slot.skill.rank-L .slvl { background: linear-gradient(#fff2b0, #d8a02a); }
+.slot.skill.rank-V .slvl { background: linear-gradient(#ffd0a0, #c8302a); color: #fff; }
+.rank-text { font-weight: 800; }
+.mini-btn.rank-btn { border-color: #c58cff; box-shadow: 0 0 8px rgba(197, 140, 255, 0.5); }
+.skill-list .meta .mini-btn { margin: 2px 2px 0 0; }
+
+/* Glitzern ab +8 auch im Inventar */
+.item-tile.sparkle::before, .item-tile.sparkle::after {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+  background: radial-gradient(circle, #ffffff 0 1.5px, transparent 2px),
+    conic-gradient(from 45deg, transparent 0 10%, rgba(255, 255, 255, 0.95) 12.5%, transparent 15% 35%, rgba(255, 255, 255, 0.95) 37.5%, transparent 40% 60%, rgba(255, 255, 255, 0.95) 62.5%, transparent 65% 85%, rgba(255, 255, 255, 0.95) 87.5%, transparent 90%);
+  border-radius: 50%;
+  animation: twinkle 1.6s ease-in-out infinite;
+}
+.item-tile.sparkle::before { left: 6px; top: 8px; }
+.item-tile.sparkle::after { right: 8px; bottom: 10px; animation-delay: 0.8s; }
+@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(0.3) rotate(0deg); } 50% { opacity: 1; transform: scale(1.1) rotate(45deg); } }
+
+/* Meldungen mittig links (unten bleibt Platz für einen späteren Chat) */
+.log { top: 38%; bottom: auto; }
+#hud.touch .log { top: 36%; width: min(260px, 32vw); }
+#hud.touch.has-buffs .log { top: 36%; }

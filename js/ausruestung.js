@@ -44,7 +44,7 @@ function itemName(item) {
 
 // Kurzbeschreibung: Waffenart bzw. Klasse
 function itemKindText(item) {
-  if (item.slot === 'waffe') return `${WEAPON_KINDS[item.kind].name} · ${CLASSES[item.cls].name}`;
+  if (item.slot === 'waffe') return `${WEAPON_KINDS[item.kind].name}${WEAPON_KINDS[item.kind].twoHanded ? ' (Zweihand)' : ''} · ${CLASSES[item.cls].name}`;
   if (item.cls) return CLASSES[item.cls].name;
   return 'alle Klassen';
 }
@@ -193,6 +193,14 @@ function addToBag(item) {
   return true;
 }
 
+function addBooks(n, from) {
+  const p = game.player;
+  p.books += n;
+  ui.loot('Fertigkeitsbuch', n, lootIconUrl('book'), '#c58cff');
+  if (from) later(0.2, () => vfxLootFly(from, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART.book(ctx)).img));
+  ui.buildSkillBar();
+}
+
 function addMobMat(id, n, from) {
   const p = game.player;
   p.upmats[id] = (p.upmats[id] || 0) + n;
@@ -228,6 +236,8 @@ function rollLoot(m) {
   // Monster-Teile für den Schmied: jedes Monster lässt selten sein eigenes Teil fallen,
   // Seelensteine einige Teile der Monster ihres Gebiets
   if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < MOB_MAT_CHANCE) addMobMat(m.typeId, 1, m);
+  // Fertigkeitsbücher: von Seelensteinen (höhere Steine öfter), selten von Monstern ab Stufe 20
+  if (Math.random() < (m.isStone ? 0.1 + m.level * 0.004 : m.level >= 20 ? 0.003 : 0)) addBooks(1, m);
   if (m.isStone) {
     const pool = m.zone.groups.map((g) => g[0]).filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
     for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || m.zone.groups[0][0], 1, m);
@@ -268,10 +278,23 @@ function equipFromBag(index) {
     gear.message(`${itemName(item)} kannst du ab Stufe ${need} tragen.`, 'warn');
     return false;
   }
+  // Schild oder Zweihandwaffe: beides zusammen geht nicht
+  const weapon = p.equipment.waffe;
+  if (item.slot === 'schild' && weapon && WEAPON_KINDS[weapon.kind].twoHanded) {
+    gear.message(`Mit ${itemName(weapon)} hast du keine Hand frei für einen Schild. Lege zuerst eine einhändige Waffe an.`, 'warn');
+    return false;
+  }
   const old = p.equipment[item.slot];
   p.inventory.splice(index, 1);
   if (old) p.inventory.splice(index, 0, old);
   p.equipment[item.slot] = item;
+  if (item.slot === 'waffe' && WEAPON_KINDS[item.kind].twoHanded && p.equipment.schild) {
+    const shield = p.equipment.schild;
+    if (addToBag(shield)) {
+      p.equipment.schild = null;
+      gear.message(`${itemName(item)} braucht beide Hände. ${itemName(shield)} liegt jetzt in der Tasche.`, 'info');
+    }
+  }
   afterGearChange();
   gear.selected = { where: 'equip', key: item.slot };
   return true;
@@ -661,6 +684,14 @@ const LOOT_ICON_ART = {
     oval(ctx, 0, 2, 9.5, 10, '#d4402f');
     oval(ctx, -3, -1, 3, 3.6, '#ff9a8a');
   },
+  book(ctx) {
+    box(ctx, -10, -12, 20, 24, 2, '#5a2a8a');
+    box(ctx, -8, -10, 16, 20, 1.5, '#7a3aaa');
+    box(ctx, 8, -11, 3, 22, 1, '#efe6cc');
+    oval(ctx, 0, 0, 4.5, 4.5, '#ffd34d');
+    stroke(ctx, '#5a2a8a', 1, [[-2, 0], [2, 0]]);
+    stroke(ctx, '#5a2a8a', 1, [[0, -2], [0, 2]]);
+  },
   potMp(ctx) {
     box(ctx, -3, -13, 6, 6, 1, '#d8cfb8');
     oval(ctx, 0, 2, 9.5, 10, '#3a6ad8');
@@ -705,7 +736,7 @@ const gear = {
       return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
     }
     const band = plusBand(item.plus);
-    return `<button type="button" class="item-tile band-${band}" ${attrs}>` +
+    return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}>` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` +
       `<span class="item-plus" style="color:${itemColor(item)}">+${item.plus}</span>` +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;

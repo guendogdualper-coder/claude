@@ -296,6 +296,7 @@ function drawPlayer(ctx, p) {
     ctx.restore();
   }
 
+  drawBuffLooks(ctx, p, fy, 'back');
   ctx.save();
   ctx.translate(p.x, fy);
   if (flip) ctx.scale(-1, 1);
@@ -353,6 +354,9 @@ function drawPlayer(ctx, p) {
     if (weapon) glow(ctx, hand.x + Math.cos(angle) * 25, hand.y + Math.sin(angle) * 25, 12, STAFF_ORB[tier], 0.7 * pulse);
   }
   ctx.restore();
+
+  drawBuffLooks(ctx, p, fy, 'front');
+  drawGearSparkles(ctx, p, fy, { x: (flip ? -1 : 1) * hand.x, y: hand.y }, flip ? Math.PI - angle : angle, kind);
 
   if (p.classId === 'nekromant') {
     // Seelenfunken steigen auf
@@ -824,5 +828,64 @@ function renderMinimap() {
     ctx.arc((cx - ox) * scale, (cy - oy) * scale, 3, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+  }
+}
+
+// --- Glitzern ab +8 ---------------------------------------------------------------------------
+// Vierzackige Sterne funkeln an Waffe, Rüstung, Helm und Schild, damit jeder starke Ausrüstung erkennt.
+
+function twinkle(ctx, x, y, size, color, alpha) {
+  if (alpha <= 0.02) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.globalAlpha *= alpha;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x, y - size);
+  ctx.quadraticCurveTo(x, y, x + size, y);
+  ctx.quadraticCurveTo(x, y, x, y + size);
+  ctx.quadraticCurveTo(x, y, x - size, y);
+  ctx.quadraticCurveTo(x, y, x, y - size);
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(x, y, size * 0.25, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Anzahl funkelnder Sterne je Plus: +8/+9 zwei, +10–14 drei, +15–19 vier, +20 sechs
+function sparkleCount(plus) {
+  if (plus >= 20) return 6;
+  if (plus >= 15) return 4;
+  if (plus >= 10) return 3;
+  if (plus >= 8) return 2;
+  return 0;
+}
+
+function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
+  const eq = p.equipment;
+  if (!eq) return;
+  const t = game.time;
+  const spots = {
+    waffe: (k, n) => {
+      const reach = kind === 'dagger' ? 6 + (k / n) * 8 : kind === 'bow' ? 4 : 8 + (k / n) * 20;
+      return { x: p.x + hand.x + Math.cos(angle) * reach, y: fy + hand.y + Math.sin(angle) * reach };
+    },
+    ruestung: (k) => ({ x: p.x + Math.sin(k * 2.4) * 9, y: fy - 14 - (k % 3) * 4 }),
+    helm: (k) => ({ x: p.x + Math.sin(k * 2.1) * 9, y: fy - 40 - (k % 2) * 4 }),
+    schild: (k) => ({ x: p.x - 10 + Math.sin(k * 2.7) * 4, y: fy - 14 + Math.cos(k * 2.7) * 5 })
+  };
+  for (const [slot, place] of Object.entries(spots)) {
+    const item = eq[slot];
+    if (!item || item.plus < 8) continue;
+    const n = sparkleCount(item.plus);
+    const color = PLUS_COLORS[plusBand(item.plus)] || '#ffffff';
+    for (let k = 0; k < n; k++) {
+      const phase = (t * 1.6 + k * 0.37 + slot.length * 0.21) % 1;
+      const pos = place(k, n);
+      twinkle(ctx, pos.x, pos.y, 2.5 + (item.plus >= 15 ? 1.5 : 0), color, Math.sin(phase * Math.PI));
+    }
+    if (item.plus >= 20) glow(ctx, spots[slot](0, 1).x, spots[slot](0, 1).y, 14, '#ffffff', 0.25 + 0.1 * Math.sin(t * 4));
   }
 }

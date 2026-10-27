@@ -2,11 +2,61 @@
 
 const SAVE_KEY = 'seelenstein.spielstand.v1';
 const MAX_LEVEL = 99;
-const MAX_SKILL_LEVEL = 20;
+// Fertigkeiten: Stufe 1–17 mit Fertigkeitspunkten, danach vier Ränge.
+// Ab Stufe 15 kann man eine Fertigkeit erwecken (Rang Erwacht, kostet einen Punkt).
+// In den Rängen steigt man mit Fertigkeitsbüchern; aus den letzten drei Stufen eines Rangs
+// geht es mit mehreren Büchern in den nächsten Rang.
+const SKILL_BASE_MAX = 17;
+const SKILL_RANKS = [
+  { id: 'E', name: 'Erwacht', from: 18, levels: 10, minLevel: 20, books: 0, color: '#9fd0ff' },
+  { id: 'H', name: 'Heroisch', from: 28, levels: 10, minLevel: 35, books: 3, color: '#c58cff' },
+  { id: 'L', name: 'Legendär', from: 38, levels: 10, minLevel: 50, books: 5, color: '#ffd34d' },
+  { id: 'V', name: 'Vollendet', from: 48, levels: 1, minLevel: 65, books: 10, color: '#ff6a4a' }
+];
+const MAX_SKILL_LEVEL = 48;
+
+// Rang einer Fertigkeitsstufe: -1 = normal, sonst Index in SKILL_RANKS
+function skillRank(lvl) {
+  for (let r = SKILL_RANKS.length - 1; r >= 0; r--) if (lvl >= SKILL_RANKS[r].from) return r;
+  return -1;
+}
+
+// Anzeige: 12, E3, H10, L1, V
+function skillLevelText(lvl) {
+  const r = skillRank(lvl);
+  if (r < 0) return String(lvl);
+  const rank = SKILL_RANKS[r];
+  return rank.levels === 1 ? rank.id : rank.id + (lvl - rank.from + 1);
+}
+
+// Was mit einer Fertigkeit gerade möglich ist (für Knöpfe im Charakterfenster)
+function skillActions(p, i) {
+  const sk = classSkills(p)[i];
+  const lvl = p.skillLevels[i];
+  const out = [];
+  if (p.level < sk.unlock) return out;
+  const r = skillRank(lvl);
+  if (r < 0) {
+    if (lvl < SKILL_BASE_MAX) out.push({ type: 'point', label: 'Verbessern', ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
+    if (lvl >= SKILL_BASE_MAX - 2) {
+      const next = SKILL_RANKS[0];
+      out.push({ type: 'rankup', label: `Erwecken → ${next.id}1`, ok: p.skillPoints > 0 && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : 'Kein Fertigkeitspunkt frei' });
+    }
+    return out;
+  }
+  const rank = SKILL_RANKS[r];
+  const pos = lvl - rank.from + 1;
+  if (pos < rank.levels) out.push({ type: 'book', label: 'Buch lesen', ok: p.books > 0, why: 'Kein Fertigkeitsbuch' });
+  const next = SKILL_RANKS[r + 1];
+  if (next && pos >= rank.levels - 2) {
+    out.push({ type: 'rankup', label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} (${next.books} Bücher)`, ok: p.books >= next.books && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : `${next.books} Fertigkeitsbücher nötig` });
+  }
+  return out;
+}
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -38,7 +88,7 @@ function newCharacter(name, classId, path = 0) {
     equipment: starterEquipment(classId), inventory: [], scrolls: 0, itemsVersion: 2,
     attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
     materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 },
-    worldVersion: WORLD_VERSION, quests: null, upmats: {}
+    worldVersion: WORLD_VERSION, quests: null, upmats: {}, books: 0
   };
 }
 
@@ -76,6 +126,15 @@ function makePlayer(save) {
   Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
   p.inventory.forEach((it) => assignClass(it, p.classId));
   p.upmats = { ...(save.upmats || {}) };
+  p.books = save.books || 0;
+  // Fertigkeiten über Stufe 17 aus älteren Spielständen: Punkte zurück, Stufe auf 17
+  p.skillLevels = (p.skillLevels || [1, 1, 1, 1, 1]).map((lvl) => {
+    if (save.books == null && lvl > SKILL_BASE_MAX) {
+      p.skillPoints += lvl - SKILL_BASE_MAX;
+      return SKILL_BASE_MAX;
+    }
+    return lvl;
+  });
   p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, ...(save.materials || {}) };
   // Spielstände ohne Statuswerte bekommen die Punkte aller bisherigen Stufen nachträglich
   if (!save.attrs) {
@@ -167,7 +226,10 @@ function playerStats(p) {
     s.regen += st.regen || 0;
     speedMul += st.speed || 0;
   }
-  s.block = Math.min(MAX_BLOCK, s.block);
+  // Blocken nur mit Schild (und nicht mit einer Zweihandwaffe)
+  const eq = p.equipment || {};
+  const twoHand = eq.waffe && WEAPON_KINDS[eq.waffe.kind] && WEAPON_KINDS[eq.waffe.kind].twoHanded;
+  s.block = eq.schild && !twoHand ? Math.min(MAX_BLOCK, s.block) : 0;
   // Statuswerte (eigene Punkte plus Boni auf der Ausrüstung)
   const own = p.attrs || {};
   const a = { str: (own.str || 0) + (bonus.str || 0), vit: (own.vit || 0) + (bonus.vit || 0), int: (own.int || 0) + (bonus.int || 0), dex: (own.dex || 0) + (bonus.dex || 0) };
@@ -244,13 +306,29 @@ function raiseAttr(id, n = 1) {
   saveGame();
 }
 
-function upgradeSkill(i) {
+function upgradeSkill(i, type = 'point') {
   const p = game.player;
   const sk = classSkills(p)[i];
-  if (p.skillPoints <= 0 || p.level < sk.unlock || p.skillLevels[i] >= MAX_SKILL_LEVEL) return;
-  p.skillLevels[i]++;
-  p.skillPoints--;
-  ui.log(sk.name + ' ist jetzt auf Stufe ' + p.skillLevels[i] + '.', 'info');
+  const act = skillActions(p, i).find((a) => a.type === type);
+  if (!act || !act.ok) return;
+  const lvl = p.skillLevels[i];
+  if (type === 'point') {
+    p.skillLevels[i]++;
+    p.skillPoints--;
+  } else if (type === 'book') {
+    p.skillLevels[i]++;
+    p.books--;
+  } else {
+    // in den nächsten Rang
+    const next = SKILL_RANKS[skillRank(lvl) + 1];
+    if (next.books) p.books -= next.books;
+    else p.skillPoints--;
+    p.skillLevels[i] = next.from;
+    ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
+    vfxLevelUp(p);
+    rankCastFx(p, skillRank(next.from), next.color);
+  }
+  ui.log(`${sk.name} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');
   ui.buildSkillBar();
   ui.renderCharPanel();
   saveGame();

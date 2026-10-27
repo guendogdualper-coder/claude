@@ -11,6 +11,7 @@ const TEXT_STYLES = {
   xp: { color: '#d6b8ff', size: 19 },
   gold: { color: '#f0cf6a', size: 17 },
   info: { color: '#e8e0cc', size: 17 },
+  block: { color: '#e6eef8', size: 22, glow: '#7fb8ff' },
   level: { color: '#ffd34d', size: 38, glow: '#ff9a1a' }
 };
 
@@ -211,6 +212,17 @@ function playerBlade(p) {
   return { kind: weaponKindOf(p), tier: w ? w.tier : 0 };
 }
 
+// Block: der Schild leuchtet auf, Funken springen zum Angreifer hin ab
+function vfxBlock(p, attacker) {
+  const shield = p.equipment && p.equipment.schild;
+  const ang = attacker ? Math.atan2(attacker.y - p.y, attacker.x - p.x) : 0;
+  const x = p.x + Math.cos(ang) * 14;
+  const y = feetY(p) - 18 + Math.sin(ang) * 6;
+  addEffect({ type: 'blockflash', x, y, dur: 0.4, tier: shield ? shield.tier : 0, color: '#ffe9a0' });
+  particles(x, y, { count: 14, color: ['#ffffff', '#ffe9a0', '#e6eef8'], angle: ang, spread: 0.9, speed: [80, 200], life: [0.15, 0.35], size: [1.5, 2.8], shape: 'spark', drag: 6 });
+  shakeScreen(1.5);
+}
+
 // Beute fliegt in einem Bogen vom Seelenstein zur Figur
 function vfxLootFly(from, img) {
   const c = bodyCenter(from);
@@ -318,6 +330,20 @@ function drawEffect(ctx, e) {
       ctx.lineWidth = 2.4;
       ctx.beginPath();
       ctx.arc(x, y, e.r, tail + (head - tail) * 0.45, head, ccw);
+      ctx.stroke();
+      break;
+    }
+    case 'blockflash': {
+      // vergrößerter Schild mit hellem Rand, schnell ausblendend
+      const sp = shieldSprite(e.tier || 0);
+      const s = 1.2 + k * 0.6;
+      ctx.globalAlpha = 1 - k;
+      ctx.drawImage(sp.img, x + sp.bounds.x * s, y + sp.bounds.y * s, sp.bounds.w * s, sp.bounds.h * s);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = (1 - k) * 0.8;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(x, y, 14 + k * 16, 0, Math.PI * 2);
       ctx.stroke();
       break;
     }

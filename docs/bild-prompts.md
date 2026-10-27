@@ -493,3 +493,45 @@ Set of 24 small item icons for a 2D fantasy MMORPG, crafting materials dropped b
 ```
 2D fantasy MMORPG loot moment, three-quarter top-down view: a destroyed level 20 soul stone in an orange orc valley bursting into shards, a glowing mythic chest armor and a dark ash blade with orange edge floating above it with an orange-gold glow, a small label "Mythisch · ab Stufe 30". In the background the grey ash wasteland where such gear also drops from ogres and demons. Cute chibi game art, bold outlines, warm glow.
 ```
+
+## Fertigkeitsränge, Schild oder Zweihand, Schwerter, Buffs und Glitzern (Version 2.4)
+
+### Ränge der Fertigkeiten: Erwacht, Heroisch, Legendär, Vollendet
+```
+2D fantasy MMORPG skill window UI mockup in East Asian style, dark lacquered wood panel with brass borders: a list of five skills with round painted icons; on the right of each row the skill level and rank in colored text: "Stufe 17/17" with a glowing violet button "Erwecken → E1", "Erwacht E5" in ice blue with a button "Buch lesen", "Heroisch H6" in violet, "Legendär L2" in gold, "Vollendet V" in crimson-gold with "Höchste Stufe". In the corner a counter "Fertigkeitsbücher: 4" with a small purple book icon. Below the window the skill buttons around the attack button with ring colors per rank (silver-blue, violet, gold, pulsing crimson-gold) and small level plaques "E5", "H6", "V".
+```
+
+### Fertigkeiten werden je Rang wuchtiger
+```
+2D game VFX sheet, three-quarter top-down view, the same sword skill cast four times by a chibi warrior, from left to right with growing power: rank Erwacht with an ice-blue ring burst and sparks, rank Heroisch adding a violet rune circle on the ground, rank Legendär adding a golden pillar of light and a bright flash, rank Vollendet adding a huge golden shockwave ring, crimson and gold embers rising and screen shake lines. Additive glow, plain dark background, no text.
+```
+
+### Fertigkeitsbuch
+```
+Small item icon for a 2D fantasy MMORPG: a thick purple leather skill book with a golden circular emblem with a cross on the cover, cream pages visible on the side, soft magical glow. Bold dark outline, cel shading, plain dark background, no text.
+```
+
+### Schild oder Zweihandwaffe
+```
+2D fantasy MMORPG character comparison, three-quarter top-down view, two chibi warriors side by side: the left one with a one-handed sword and a blue-silver shield raised, a bright shield flash and blue-white sparks as an enemy claw is blocked, the word "Geblockt" in pale blue above; the right one holding a huge two-handed greatsword with both hands and no shield, a small note icon showing a crossed-out shield. Cute fantasy game art, bold outlines, cel shading.
+```
+
+### Neu gezeichnete Schwerter
+```
+2D game weapon sprite sheet: sixteen fantasy swords in two rows (one-handed and two-handed), eight tiers each from left to right: plain iron, bronze, curved moon saber, serrated dragon blade with red gem, purple soul blade with runes and spiked guard, dark ash blade with orange edge, sky-blue blade with winged guard, golden divine blade with white gem. Each blade with a light upper bevel and a darker lower bevel, a fuller groove down the middle, a bright edge line and tip shine, ornate crossguard with curved quillons, leather-wrapped grip and a round pommel with a gem. Bold dark outline, cel shading, plain dark background, no text.
+```
+
+### Buffs, die man an der Figur erkennt
+```
+2D game character sheet, three-quarter top-down view, chibi heroes each showing one active buff clearly: Battle Rage with jagged red-orange lightning bolts crackling around the body and a red glow; Sword Aura with a rotating golden dashed rune circle on the ground, golden motes rising and a glowing blade; Strong Body as a translucent golden scale-pattern shell around the body; Agility with white wind ribbons swirling around the legs; Shadow Cloak as dark violet smoke around the figure; Dragon Power as a ribbon of orange fire circling like a small dragon; Blessing as a golden halo above the head; Guardian Spirit as a tiny cyan ghost orbiting; Dark Power as violet and green flames licking up at the feet; Blood Sacrifice as red blood drops orbiting with a red aura. Cute game art, additive glow effects, plain green background.
+```
+
+### Glitzern ab +8
+```
+2D game close-up, three-quarter top-down view: a chibi warrior whose +12 golden sword, +15 crimson armor and +20 helmet sparkle with small four-pointed twinkling stars in the color of their upgrade level (gold for +10 to +14, red for +15 to +19, white with a soft halo for +20), so other players can see the strong equipment from afar. Next to it inventory tiles with the same twinkling stars on items +8 and higher. Cute fantasy game art, bold outlines.
+```
+
+### Meldungen mittig links
+```
+Mobile game HUD layout in landscape: system messages like "Stein der Wut zerstört! +2.417 EP" and "Aura des Schwertes ist aktiv" stacked on the middle of the left edge in small dark translucent pills, the bottom left kept free for a future chat window marked with a dashed outline, loot notifications at the bottom right next to the skill arc. Clean dark fantasy style.
+```

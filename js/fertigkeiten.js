@@ -858,3 +858,267 @@ function updateBuffAuras(dt) {
     }
   }
 }
+
+// --- Ränge: je höher der Rang, desto wuchtiger sieht eine Fertigkeit aus -------------------------
+
+function rankCastFx(p, rank, color) {
+  const fy = feetY(p);
+  addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });
+  particles(p.x, fy - 14, { count: 14 + rank * 10, color: [color, '#ffffff'], speed: [80, 200 + rank * 40], life: [0.3, 0.6], size: [1.5, 3], shape: 'spark', drag: 4 });
+  if (rank >= 1) addEffect({ type: 'decal', kind: 'rune', x: p.x, y: fy, r: 42 + rank * 8, dur: 1.4, color });
+  if (rank >= 2) {
+    vfxPillar(p, color, 0.7);
+    flashScreen(color, 0.18);
+  }
+  if (rank >= 3) {
+    later(0.1, () => addEffect({ type: 'ring', x: p.x, y: fy, r: 130, dur: 0.6, color: '#ffd34d', width: 12, grow: true }));
+    particles(p.x, fy, { count: 30, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 260], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
+    shakeScreen(5);
+  }
+}
+
+function rankHitFx(m, rank) {
+  const color = SKILL_RANKS[rank].color;
+  const c = bodyCenter(m);
+  particles(c.x, c.y, { count: 4 + rank * 4, color: [color, '#ffffff'], speed: [100, 220], life: [0.2, 0.4], size: [1.5, 2.8], shape: 'spark', drag: 5 });
+  if (rank >= 2) addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color, big: true });
+}
+
+// --- Sichtbare Buffs: jeder Buff hat ein eigenes Erscheinungsbild an der Figur ---------------------
+// back wird vor der Figur gezeichnet (liegt dahinter), front danach. t = Spielzeit, fy = Fußlinie.
+
+// Gezackter Blitz zwischen zwei Punkten, wechselt alle paar Hundertstel die Form
+function zigzag(ctx, x0, y0, x1, y1, seed, jag = 5) {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  for (let k = 1; k < 5; k++) {
+    const f = k / 5;
+    const r = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453;
+    const off = ((r - Math.floor(r)) - 0.5) * 2 * jag;
+    ctx.lineTo(x0 + (x1 - x0) * f + off, y0 + (y1 - y0) * f + off * 0.6);
+  }
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+
+function orbit(t, speed, r, k, n, ry = 0.4) {
+  const a = t * speed + (k / n) * Math.PI * 2;
+  return { x: Math.cos(a) * r, y: Math.sin(a) * r * ry, front: Math.sin(a) > 0 };
+}
+
+const BUFF_LOOKS = {
+  // Kampfrausch: rote Blitze zucken um die Figur, roter Schein
+  kampfrausch(ctx, p, fy, t, layer) {
+    if (layer === 'back') {
+      glow(ctx, p.x, fy - 20, 30, '#ff3a1a', 0.35 + 0.1 * Math.sin(t * 12));
+      return;
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.lineCap = 'round';
+    const seed = Math.floor(t * 14);
+    for (let k = 0; k < 4; k++) {
+      const a = seed * 1.7 + k * 1.6;
+      const x0 = p.x + Math.cos(a) * 12;
+      const y0 = fy - 24 + Math.sin(a) * 14;
+      const x1 = p.x + Math.cos(a) * 36;
+      const y1 = fy - 24 + Math.sin(a * 1.3) * 30;
+      ctx.strokeStyle = 'rgba(255,70,30,0.55)';
+      ctx.lineWidth = 5;
+      zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
+      ctx.strokeStyle = 'rgba(255,150,80,0.95)';
+      ctx.lineWidth = 2.4;
+      zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
+      ctx.strokeStyle = 'rgba(255,245,215,1)';
+      ctx.lineWidth = 1;
+      zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
+      glow(ctx, x1, y1, 7, '#ff7a3a', 0.7);
+    }
+    ctx.restore();
+  },
+  // Aura des Schwertes: goldener Kreis am Boden mit Runen, aufsteigende Lichtfunken
+  schwertaura(ctx, p, fy, t, layer) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    if (layer === 'back') {
+      ctx.strokeStyle = 'rgba(255,214,120,0.7)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([10, 6]);
+      ctx.lineDashOffset = -t * 40;
+      ctx.beginPath();
+      ctx.ellipse(p.x, fy, 26, 10, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (let k = 0; k < 6; k++) {
+        const o = orbit(t, 1.2, 26, k, 6);
+        ctx.fillStyle = 'rgba(255,233,160,0.9)';
+        ctx.fillRect(p.x + o.x - 1.5, fy + o.y - 1.5, 3, 3);
+      }
+      glow(ctx, p.x, fy - 6, 28, '#ffd38a', 0.25);
+    } else {
+      for (let k = 0; k < 4; k++) {
+        const u = (t * 0.7 + k / 4) % 1;
+        glow(ctx, p.x + Math.sin(t * 2 + k * 1.6) * 14, fy - 4 - u * 46, 5, '#ffe9a0', 0.8 * (1 - u));
+      }
+    }
+    ctx.restore();
+  },
+  // Starker Körper: goldene Schuppenschale um den Körper
+  starkerkoerper(ctx, p, fy, t, layer) {
+    if (layer !== 'front') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const a = 0.25 + 0.12 * Math.sin(t * 4);
+    ctx.strokeStyle = `rgba(255,211,77,${a + 0.2})`;
+    ctx.fillStyle = `rgba(255,211,77,${a * 0.35})`;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy - 21, 19, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.lineWidth = 0.8;
+    for (let y = -40; y <= -4; y += 9) {
+      ctx.beginPath();
+      for (let x = -15; x <= 15; x += 6) {
+        const yy = fy + y + ((x / 6) % 2 ? 3 : 0);
+        if (x === -15) ctx.moveTo(p.x + x, yy);
+        else ctx.lineTo(p.x + x, yy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  // Leichtfüßigkeit: weiße Windbänder wirbeln um die Beine
+  leichtfuessigkeit(ctx, p, fy, t, layer) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(230,245,255,0.7)';
+    ctx.lineWidth = 1.6;
+    for (let k = 0; k < 2; k++) {
+      const a0 = t * 8 + k * Math.PI;
+      const front = Math.sin(a0 + 0.6) > 0;
+      if ((layer === 'front') !== front) continue;
+      ctx.beginPath();
+      ctx.ellipse(p.x, fy - 6 - k * 10, 17, 6, 0, a0, a0 + 1.6);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  // Schattenmantel: dunkler Schleier und violette Glut
+  schattenmantel(ctx, p, fy, t, layer) {
+    if (layer === 'back') {
+      ctx.save();
+      ctx.globalAlpha *= 0.45;
+      ctx.fillStyle = '#1a1426';
+      for (let k = 0; k < 3; k++) ellipse(ctx, p.x + Math.sin(t * 2 + k * 2) * 6, fy - 16 - k * 6, 18 - k * 3, 20 - k * 4);
+      ctx.restore();
+    } else {
+      glow(ctx, p.x, fy - 24, 22, '#8a5ad0', 0.25 + 0.1 * Math.sin(t * 5));
+    }
+  },
+  // Drachenkraft: ein Feuerband kreist wie ein Drache um die Figur
+  drachenkraft(ctx, p, fy, t, layer) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 14; k++) {
+      const o = orbit(t, 3, 24, -k * 0.09, 1, 0.45);
+      if ((layer === 'front') !== o.front) continue;
+      const y = fy - 20 + o.y + Math.sin(t * 3 - k * 0.4) * 9;
+      glow(ctx, p.x + o.x, y, 12 - k * 0.6, k < 2 ? '#fff2b0' : k < 6 ? '#ffb04a' : '#ff5a1a', 0.95 - k * 0.05);
+    }
+    if (layer === 'back') glow(ctx, p.x, fy - 18, 30, '#ff7a2a', 0.22);
+    ctx.restore();
+  },
+  // Segen: goldener Heiligenschein über dem Kopf
+  segen(ctx, p, fy, t, layer) {
+    if (layer !== 'front') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(255,233,160,0.95)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy - 54 + Math.sin(t * 3) * 1.5, 10, 3.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    glow(ctx, p.x, fy - 54, 16, '#ffe9a0', 0.35);
+    ctx.restore();
+  },
+  // Schutzgeist: ein kleiner türkiser Geist kreist um die Figur
+  schutzgeist(ctx, p, fy, t, layer) {
+    const o = orbit(t, 2, 24, 0, 1, 0.45);
+    if ((layer === 'front') !== o.front) return;
+    const x = p.x + o.x;
+    const y = fy - 30 + o.y + Math.sin(t * 4) * 3;
+    ctx.save();
+    glow(ctx, x, y, 12, '#8fe3d8', 0.55);
+    ctx.fillStyle = 'rgba(220,255,250,0.9)';
+    ctx.beginPath();
+    ctx.arc(x, y, 4.5, Math.PI, 0);
+    ctx.lineTo(x + 4.5, y + 5);
+    ctx.lineTo(x + 1.5, y + 3);
+    ctx.lineTo(x - 1.5, y + 5);
+    ctx.lineTo(x - 4.5, y + 3);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#1a3a3a';
+    ctx.fillRect(x - 2.2, y - 1, 1.3, 1.6);
+    ctx.fillRect(x + 0.9, y - 1, 1.3, 1.6);
+    ctx.restore();
+  },
+  // Dunkle Macht: violett-grüne Flammen am Boden
+  dunklemacht(ctx, p, fy, t, layer) {
+    if (layer !== 'back') return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 8; k++) {
+      const x = p.x - 21 + k * 6;
+      const h = 18 + Math.abs(Math.sin(t * 6 + k * 1.3)) * 22;
+      const g = ctx.createLinearGradient(0, fy, 0, fy - h);
+      g.addColorStop(0, k % 2 ? 'rgba(200,140,255,0.95)' : 'rgba(170,240,120,0.9)');
+      g.addColorStop(0.6, 'rgba(140,70,220,0.5)');
+      g.addColorStop(1, 'rgba(90,40,160,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.moveTo(x - 5, fy + 3);
+      ctx.quadraticCurveTo(x - 3, fy - h * 0.6, x + Math.sin(t * 5 + k) * 2, fy - h);
+      ctx.quadraticCurveTo(x + 3, fy - h * 0.6, x + 5, fy + 3);
+      ctx.fill();
+    }
+    glow(ctx, p.x, fy - 8, 28, '#a774e0', 0.3);
+    ctx.restore();
+  },
+  // Blutopfer: Blutstropfen kreisen, roter Schein
+  blutopfer(ctx, p, fy, t, layer) {
+    ctx.save();
+    for (let k = 0; k < 5; k++) {
+      const o = orbit(t, 2.4, 20, k, 5, 0.45);
+      if ((layer === 'front') !== o.front) continue;
+      const x = p.x + o.x;
+      const y = fy - 22 + o.y;
+      ctx.fillStyle = '#c8202a';
+      ctx.beginPath();
+      ctx.moveTo(x, y - 4);
+      ctx.quadraticCurveTo(x + 3, y, x, y + 2.5);
+      ctx.quadraticCurveTo(x - 3, y, x, y - 4);
+      ctx.fill();
+    }
+    if (layer === 'back') glow(ctx, p.x, fy - 20, 26, '#c43a5a', 0.3);
+    ctx.restore();
+  },
+  // Heilung (Angriffsbuff danach): grüne Blätter kreisen
+  heilung(ctx, p, fy, t, layer) {
+    for (let k = 0; k < 3; k++) {
+      const o = orbit(t, 1.6, 20, k, 3, 0.45);
+      if ((layer === 'front') !== o.front) continue;
+      ctx.fillStyle = '#7ad36a';
+      ellipse(ctx, p.x + o.x, fy - 16 + o.y, 3.2, 1.8);
+    }
+  }
+};
+
+function drawBuffLooks(ctx, p, fy, layer) {
+  if (!p.buffs || !p.buffs.length) return;
+  for (const b of p.buffs) {
+    const look = BUFF_LOOKS[b.id];
+    if (look) look(ctx, p, fy, game.time, layer);
+  }
+}
