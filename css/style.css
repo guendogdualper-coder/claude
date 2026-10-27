@@ -526,7 +526,25 @@ kbd {
   border-bottom: 1px solid var(--brass-dim);
 }
 .panel-head h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 20px; color: var(--brass); }
-.close { background: none; border: 0; font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; color: var(--muted); }
+/* Schließen-Knopf: großes Tippfeld (44 × 44), damit man ihn am Handy sicher trifft */
+.close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  margin: -10px -10px -10px 0;
+  background: none;
+  border: 0;
+  border-radius: 50%;
+  font-size: 30px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  color: var(--muted);
+  touch-action: manipulation;
+}
+.close:active { background: rgba(255, 255, 255, 0.08); }
 .close:hover { color: var(--parchment); }
 .panel-body { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
 .panel-body h3 { margin: 6px 0 0; font-family: var(--font-display); font-weight: 400; font-size: 16px; color: var(--brass); }

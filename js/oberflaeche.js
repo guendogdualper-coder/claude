@@ -660,12 +660,14 @@ const ui = {
     }
   },
 
+  // Alle Fenster schließen (auch neu hinzugekommene); nur das Fenster nach dem Tod bleibt,
+  // bis man wiederbelebt wird
   closePanels() {
-    ['panelChar', 'panelHelp', 'panelNpc', 'panelInv', 'panelPath', 'panelLoot'].forEach((id) => { $(id).hidden = true; });
+    document.querySelectorAll('.panel').forEach((el) => { if (el.id !== 'panelDeath') el.hidden = true; });
   },
 
   anyPanelOpen() {
-    return ['panelChar', 'panelHelp', 'panelNpc', 'panelInv', 'panelPath', 'panelLoot'].some((id) => !$(id).hidden);
+    return [...document.querySelectorAll('.panel')].some((el) => el.id !== 'panelDeath' && !el.hidden);
   },
 
   renderCharPanel() {

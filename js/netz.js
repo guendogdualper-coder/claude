@@ -131,7 +131,7 @@ function netClaimChannel(srv, ch, attempt) {
     netRemember();
     ui.log(`${serverName(srv)} · Kanal ${ch}: Du bist online. Wer dazukommt, spielt in deiner Welt.`, 'level');
     ui.banner(`${serverName(srv)} · Kanal ${ch}`, 'Du bist online');
-    ui.closePanels();
+    $('panelNet').hidden = true;
     ui.renderNet();
     ui.updateNetBadge();
   });
@@ -348,7 +348,7 @@ function netOnClientData(d) {
       netRemember();
       ui.log(`${serverName(net.server)} · Kanal ${net.channel}: Du bist online.`, 'level');
       ui.banner(`${serverName(net.server)} · Kanal ${net.channel}`, 'Du bist online');
-      ui.closePanels();
+      $('panelNet').hidden = true;
       ui.renderNet();
       ui.updateNetBadge();
       break;
