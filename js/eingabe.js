@@ -77,15 +77,17 @@ function setupInput() {
     let bestD = 40;
     for (const m of game.monsters) {
       if (m.dead) continue;
-      const d = Math.hypot(m.x - w.x, m.y - (w.y + (m.isStone ? 18 : 0)));
-      if (d < m.r + 14 && d < bestD) { best = m; bestD = d; }
+      const h = figureHeight(m);
+      const cy = m.isStone ? m.y - 18 : feetY(m) - h / 2;
+      const d = Math.hypot(m.x - w.x, cy - w.y);
+      if (d < Math.max(m.r + 10, h * 0.5) && d < bestD + h * 0.2) { best = m; bestD = d; }
     }
     if (best) {
       game.target = best;
       return;
     }
     for (const n of game.world.npcs) {
-      if (Math.hypot(n.x - w.x, n.y - w.y) < 24 && dist(n, game.player) < 90) ui.openNpc(n);
+      if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90) ui.openNpc(n);
     }
   });
 

@@ -102,7 +102,7 @@ function hitMonster(m, mul, opts = {}) {
 function damageMonster(m, amount, crit, source, isDot) {
   m.hp -= amount;
   m.hitFlash = 0.12;
-  addText(m.x + (Math.random() - 0.5) * 14, m.y - m.r - 14, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+  addText(m.x + (Math.random() - 0.5) * 14, feetY(m) - figureHeight(m) * 0.8, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
   if (m.isStone) {
     checkStoneWaves(m);
   } else {
@@ -124,8 +124,8 @@ function killMonster(m) {
   const gold = randInt(m.gold[0], m.gold[1]);
   p.gold += gold;
   p.kills++;
-  addText(m.x, m.y - m.r - 30, '+' + xp + ' EP', 'xp');
-  addText(m.x, m.y - m.r - 16, '+' + gold + ' Gold', 'gold');
+  addText(m.x, feetY(m) - figureHeight(m) - 14, '+' + xp + ' EP', 'xp');
+  addText(m.x, feetY(m) - figureHeight(m), '+' + gold + ' Gold', 'gold');
 
   if (m.isStone) {
     const splinters = randInt(2, 4);

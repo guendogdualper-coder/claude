@@ -381,7 +381,7 @@ function formatTime(sec) {
 // Kleine Vorschau der Klasse für die Auswahlkarten
 function drawClassPreview(cv, classId) {
   const ctx = cv.getContext('2d');
-  ctx.setTransform(2.4, 0, 0, 2.4, cv.width / 2, cv.height / 2 + 8);
+  ctx.setTransform(1.9, 0, 0, 1.9, cv.width / 2, cv.height / 2 + 30);
   const fake = { classId, x: 0, y: 0, r: 11, facing: { x: 0.45, y: 0.89 }, buffs: [], swing: 0, moving: false, shield: 0 };
   drawPlayer(ctx, fake);
 }

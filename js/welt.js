@@ -207,12 +207,15 @@ function moveEntity(e, dx, dy, isMonster) {
   return moved;
 }
 
-// Zufälliger begehbarer Punkt in einer Zone (in Pixeln)
-function randomSpotInZone(zone) {
+// Zufälliger begehbarer Punkt in einer Zone (in Pixeln).
+// from/to grenzen den Ring ein: 0 = dorfnaher Rand, 1 = äußerer Rand.
+function randomSpotInZone(zone, from = 0, to = 1) {
+  const inner = zone.minDist + 2;
+  const outer = Math.min(zone.maxDist - 2, MAP_W / 2 * 1.38);
+  const minD = inner + (outer - inner) * from;
+  const maxD = inner + (outer - inner) * to;
   for (let tries = 0; tries < 300; tries++) {
     const ang = Math.random() * Math.PI * 2;
-    const minD = zone.minDist + 2;
-    const maxD = Math.min(zone.maxDist - 2, MAP_W / 2 * 1.38);
     const d = minD + Math.random() * (maxD - minD);
     const tx = Math.floor(CENTER_X + Math.cos(ang) * d);
     const ty = Math.floor(CENTER_Y + Math.sin(ang) * d);

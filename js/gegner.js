@@ -39,9 +39,9 @@ function populateWorld() {
   let groupId = 1;
   for (const zone of ZONES) {
     if (!zone.groups) continue;
-    for (const [typeId, count] of zone.groups) {
+    for (const [typeId, count, from, to] of zone.groups) {
       for (let g = 0; g < count; g++) {
-        const center = randomSpotInZone(zone);
+        const center = randomSpotInZone(zone, from, to);
         if (!center) continue;
         const size = randInt(zone.groupSize[0], zone.groupSize[1]);
         for (let k = 0; k < size; k++) {
@@ -290,14 +290,15 @@ function updateAllies(dt) {
     if (a.target) {
       const t = a.target;
       const d = dist(a, t);
-      if (d > t.r + a.r + 10) moveToward(a, t.x, t.y, 150 * dt, false);
+      a.moving = false;
+      if (d > t.r + a.r + 10) a.moving = moveToward(a, t.x, t.y, 150 * dt, false);
       else if (a.cd <= 0) {
         a.cd = 1;
         a.swing = 0.25;
         hitMonster(t, 1, { atk: a.atk, ally: true, source: t.isStone ? p : a });
       }
-    } else if (dist(a, p) > 60) {
-      moveToward(a, p.x, p.y, 170 * dt, false);
+    } else {
+      a.moving = dist(a, p) > 60 && moveToward(a, p.x, p.y, 170 * dt, false);
     }
   }
   const before = game.allies.length;

@@ -18,6 +18,7 @@ Dann <http://localhost:8000> öffnen. Es gibt keine Abhängigkeiten und keinen B
 - **Seelensteine**: rufen beim Angreifen Monsterwellen herbei und geben viel Erfahrung, Gold, Tränke und Seelensplitter
 - **Fortschritt**: Erfahrung, Stufen bis 99, Fertigkeitspunkte (Fertigkeiten bis Stufe 20), Erfahrungsverlust beim Tod
 - **Händlerin** im Dorf für Rote und Blaue Tränke
+- Gezeichnete Figuren im Chibi-Stil mit Umriss und Schattierung, Laufanimation und Waffenschwung
 - Steuerung per Tastatur oder Touch (Steuerknüppel und Knöpfe)
 
 ## Steuerung
@@ -45,6 +46,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/spieler.js` | Figur, Werte, Erfahrung, Tränke, Speichern |
 | `js/kampf.js` | Schadensformel, Angriffe, alle Fertigkeitsarten, Geschosse, Effekte |
 | `js/gegner.js` | Monster-KI, Respawn, Seelenstein-Wellen, Skelette |
+| `js/figuren.js` | Aussehen aller Figuren und Monster: Klassen in drei Blickrichtungen mit Laufanimation, Waffen, Händler, Skelette |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |
 | `js/eingabe.js` | Tastatur, Maus, Touch |

@@ -337,146 +337,135 @@ function drawWell(ctx, x, y) {
 }
 
 // --- Figuren ------------------------------------------------------------------
+// Die Zeichnungen selbst stehen in figuren.js, hier werden sie platziert.
 
-function drawShadow(ctx, x, y, r) {
+function drawShadow(ctx, x, y, rx) {
   ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ellipse(ctx, x, y + r * 0.8, r * 1.1, r * 0.45);
+  ellipse(ctx, x, y, rx, rx * 0.4);
+}
+
+function glow(ctx, x, y, r, hex, alpha) {
+  const n = parseInt(hex.slice(1), 16);
+  const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, `rgba(${rgb},${alpha})`);
+  g.addColorStop(1, `rgba(${rgb},0)`);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function drawTargetRing(ctx, t) {
+  const fy = t.isStone ? t.y + 9 : feetY(t);
+  const rx = t.isStone ? 26 : Math.max(t.r * 1.5, 15);
   ctx.strokeStyle = 'rgba(230,70,50,0.85)';
   ctx.lineWidth = 2;
   ctx.setLineDash([5, 4]);
   ctx.beginPath();
-  ctx.ellipse(t.x, t.y + t.r * 0.8, t.r * 1.5, t.r * 0.7, 0, 0, Math.PI * 2);
+  ctx.ellipse(t.x, fy, rx, rx * 0.42, 0, 0, Math.PI * 2);
   ctx.stroke();
   ctx.setLineDash([]);
 }
 
-function drawWeapon(ctx, kind, ang, len, color) {
+function facingDir(f) {
+  if (Math.abs(f.x) > Math.abs(f.y) * 1.1) return 'side';
+  return f.y < 0 ? 'up' : 'down';
+}
+
+const CLASS_WEAPON = { krieger: 'sword', ninja: 'dagger', schamane: 'fan', nekromant: 'staff' };
+
+// Waffenhaltung je Blickrichtung: Ruhewinkel und Schwung beim Angriff (in Bogenmaß)
+const WEAPON_POSE = {
+  side: { idle: -0.9, from: -2.1, to: 0.8 },
+  down: { idle: -1.1, from: -0.5, to: 2.3 },
+  up: { idle: -2.1, from: -0.7, to: -2.7 }
+};
+
+function weaponAngle(kind, dir, p) {
+  const t = p.swing > 0 ? 1 - p.swing / 0.3 : -1;
+  if (kind === 'staff') return -1.45 + (t >= 0 ? Math.sin(t * Math.PI) * 0.9 : 0);
+  const pose = WEAPON_POSE[dir];
+  if (t < 0) return kind === 'fan' ? pose.idle + 0.5 : pose.idle;
+  return pose.from + (pose.to - pose.from) * t;
+}
+
+function drawWeaponSprite(ctx, kind, x, y, angle) {
+  const sp = weaponSprite(kind);
+  const b = sp.bounds;
   ctx.save();
-  ctx.rotate(ang);
-  if (kind === 'sword') {
-    ctx.strokeStyle = '#d9dde2';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(10, 0);
-    ctx.lineTo(10 + len, 0);
-    ctx.stroke();
-    ctx.strokeStyle = '#8a6a2c';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(10, -4);
-    ctx.lineTo(10, 4);
-    ctx.stroke();
-  } else if (kind === 'daggers') {
-    ctx.strokeStyle = '#cfd3da';
-    ctx.lineWidth = 2.5;
-    for (const off of [-0.55, 0.55]) {
-      ctx.save();
-      ctx.rotate(off);
-      ctx.beginPath();
-      ctx.moveTo(9, 0);
-      ctx.lineTo(9 + len * 0.55, 0);
-      ctx.stroke();
-      ctx.restore();
-    }
-  } else if (kind === 'fan') {
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.moveTo(9, 0);
-    ctx.arc(9, 0, 13, -0.6, 0.6);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  } else if (kind === 'staff') {
-    ctx.strokeStyle = '#5c4230';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(4, 0);
-    ctx.lineTo(10 + len, 0);
-    ctx.stroke();
-    ctx.fillStyle = color;
-    circle(ctx, 12 + len, 0, 4.5);
-    ctx.fillStyle = 'rgba(180,240,140,0.3)';
-    circle(ctx, 12 + len, 0, 8);
-  }
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.drawImage(sp.img, b.x, b.y, b.w, b.h);
   ctx.restore();
 }
 
 function drawPlayer(ctx, p) {
-  const c = CLASSES[p.classId];
   const invisible = p === game.player && game.stats && game.stats.invisible;
+  const dir = facingDir(p.facing);
+  const flip = dir === 'side' && p.facing.x < 0;
+  const frame = p.moving ? Math.floor(game.time * 9) % 4 : 0;
+  const fy = feetY(p);
+  const kind = CLASS_WEAPON[p.classId];
+  const angle = weaponAngle(kind, dir, p);
+  const hand = handPosition(dir, frame, 'right');
+
   ctx.save();
-  ctx.translate(p.x, p.y);
   if (invisible) ctx.globalAlpha = 0.35;
-  drawShadow(ctx, 0, 0, p.r);
+  drawShadow(ctx, p.x, fy, 12);
 
   if (p.buffs.length) {
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 4);
-    ctx.strokeStyle = c.trim;
-    ctx.globalAlpha *= 0.35 + pulse * 0.3;
+    ctx.save();
+    ctx.strokeStyle = CLASSES[p.classId].trim;
+    ctx.globalAlpha *= 0.35 + pulse * 0.35;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(0, p.r * 0.8, p.r * 1.6, p.r * 0.7, 0, 0, Math.PI * 2);
+    ctx.ellipse(p.x, fy, 20, 8, 0, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(p.x, fy);
+  if (flip) ctx.scale(-1, 1);
+  const drawWeapons = () => {
+    drawWeaponSprite(ctx, kind, hand.x, hand.y, angle);
+    if (kind === 'dagger' && dir !== 'side') {
+      const left = handPosition(dir, frame, 'left');
+      drawWeaponSprite(ctx, kind, left.x, left.y, Math.PI - angle);
+    }
+  };
+  if (dir === 'up') drawWeapons();
+  const sp = characterSprite(p.classId, dir, frame);
+  ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  if (dir !== 'up') drawWeapons();
+  const pulse = 0.6 + 0.4 * Math.sin(game.time * 5);
+  if (p.classId === 'schamane') {
+    glow(ctx, hand.x, hand.y, 9, '#8fe3d8', 0.55 * pulse);
+    if (dir !== 'side') glow(ctx, -hand.x, hand.y, 7, '#8fe3d8', 0.4 * pulse);
+  } else if (p.classId === 'nekromant') {
+    glow(ctx, hand.x + Math.cos(angle) * 25, hand.y + Math.sin(angle) * 25, 12, '#a7e37f', 0.7 * pulse);
+  }
+  ctx.restore();
+
+  if (p.classId === 'nekromant') {
+    // Seelenfunken steigen auf
+    for (let k = 0; k < 3; k++) {
+      const t = (game.time * 0.6 + k / 3) % 1;
+      ctx.globalAlpha = (invisible ? 0.35 : 1) * (1 - t) * 0.8;
+      ctx.fillStyle = '#a7e37f';
+      circle(ctx, p.x + Math.sin(game.time * 2 + k * 2.1) * 10, fy - 6 - t * 40, 1.6);
+    }
     ctx.globalAlpha = invisible ? 0.35 : 1;
   }
 
-  const ang = Math.atan2(p.facing.y, p.facing.x);
-  const swing = p.swing > 0 ? Math.sin((1 - p.swing / 0.3) * Math.PI) * 1.4 - 0.7 : 0.5;
-  const bob = p.moving ? Math.sin(game.time * 14) * 1.2 : 0;
-  const weaponBehind = p.facing.y < 0;
-  if (weaponBehind) drawWeapon(ctx, c.weapon, ang + swing, 16, c.trim);
-
-  ctx.fillStyle = c.color;
-  circle(ctx, 0, bob, p.r);
-  ctx.strokeStyle = 'rgba(15,10,8,0.8)';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
-  ctx.fillStyle = c.trim;
-  ctx.fillRect(-p.r + 3, bob - 1, p.r * 2 - 6, 3);
-
-  const hx = p.facing.x * 3;
-  const hy = p.facing.y * 2 - 7 + bob;
-  ctx.fillStyle = '#e2c4a2';
-  circle(ctx, hx, hy, 6.5);
-  // Kopfbedeckung je Klasse
-  if (p.classId === 'krieger') {
-    ctx.fillStyle = '#8d939b';
-    ctx.beginPath();
-    ctx.arc(hx, hy, 6.8, Math.PI, 0);
-    ctx.fill();
-  } else if (p.classId === 'ninja') {
-    ctx.fillStyle = '#211c2e';
-    ctx.beginPath();
-    ctx.arc(hx, hy, 6.8, Math.PI * 0.9, Math.PI * 2.1);
-    ctx.fill();
-    ctx.fillRect(hx - 6.5, hy + 1, 13, 3);
-  } else if (p.classId === 'schamane') {
-    ctx.fillStyle = c.trim;
-    ctx.fillRect(hx - 6.5, hy - 3, 13, 2.5);
-  } else {
-    ctx.fillStyle = '#26351f';
-    ctx.beginPath();
-    ctx.arc(hx, hy - 1, 7.5, Math.PI * 0.85, Math.PI * 2.15);
-    ctx.fill();
-  }
-  if (p.facing.y > -0.5) {
-    ctx.fillStyle = '#1b130d';
-    ctx.fillRect(hx - 3 + p.facing.x * 2, hy, 1.6, 1.6);
-    ctx.fillRect(hx + 1.5 + p.facing.x * 2, hy, 1.6, 1.6);
-  }
-  if (!weaponBehind) drawWeapon(ctx, c.weapon, ang + swing, 16, c.trim);
-
   if (p.shield > 0) {
-    ctx.strokeStyle = 'rgba(220,230,200,0.55)';
+    ctx.strokeStyle = 'rgba(220,230,200,0.6)';
     ctx.fillStyle = 'rgba(220,230,200,0.1)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(0, -2, p.r + 8, 0, Math.PI * 2);
+    ctx.ellipse(p.x, fy - 21, 20, 27, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
@@ -484,207 +473,56 @@ function drawPlayer(ctx, p) {
 }
 
 function drawSkeleton(ctx, a) {
+  const fy = feetY(a);
   ctx.save();
-  ctx.translate(a.x, a.y);
-  const fade = Math.min(1, (a.until - game.time) / 1.5);
-  ctx.globalAlpha = Math.max(0.2, fade);
-  drawShadow(ctx, 0, 0, a.r);
-  ctx.fillStyle = '#d9d4c2';
-  ellipse(ctx, 0, 0, a.r * 0.8, a.r);
-  ctx.strokeStyle = '#6a6555';
-  ctx.lineWidth = 1.5;
-  for (let k = -1; k <= 1; k++) {
-    ctx.beginPath();
-    ctx.moveTo(-5, k * 4);
-    ctx.lineTo(5, k * 4);
-    ctx.stroke();
-  }
-  ctx.fillStyle = '#ece8da';
-  circle(ctx, 0, -a.r, 6);
-  ctx.fillStyle = '#2a2a22';
-  ctx.fillRect(-3, -a.r - 1, 2, 2);
-  ctx.fillRect(1, -a.r - 1, 2, 2);
-  const sw = a.swing > 0 ? -0.8 : 0.3;
-  drawWeapon(ctx, 'sword', (a.facing > 0 ? 0 : Math.PI) + sw * a.facing, 12, '#ccc');
+  ctx.globalAlpha = Math.max(0.2, Math.min(1, (a.until - game.time) / 1.5));
+  drawShadow(ctx, a.x, fy, 10);
+  const frame = a.moving ? Math.floor(game.time * 9) % 4 : 0;
+  blitSprite(ctx, skeletonSprite(frame), a.x, fy, a.facing < 0);
   ctx.restore();
 }
 
 function drawNpc(ctx, n) {
-  ctx.save();
-  ctx.translate(n.x, n.y);
-  drawShadow(ctx, 0, 0, n.r);
-  ctx.fillStyle = n.color;
-  circle(ctx, 0, 0, n.r);
-  ctx.fillStyle = '#e2c4a2';
-  circle(ctx, 0, -8, 6.5);
-  ctx.fillStyle = n.id === 'schmied' ? '#3a2a1c' : '#c9a35a';
-  ctx.beginPath();
-  ctx.arc(0, -9, 7, Math.PI, 0);
-  ctx.fill();
-  if (n.id === 'schmied') {
-    ctx.fillStyle = '#6b6b6b';
-    ctx.fillRect(10, -4, 8, 5);
-    ctx.fillStyle = '#4a3527';
-    ctx.fillRect(13, 1, 2, 8);
-  }
-  // Ausrufezeichen über dem Kopf
+  const fy = feetY(n);
+  drawShadow(ctx, n.x, fy, 12);
+  blitSprite(ctx, npcSprite(n.id), n.x, fy, false);
   const bob = Math.sin(game.time * 3) * 2;
   ctx.fillStyle = '#f0cf4a';
+  ctx.strokeStyle = 'rgba(10,8,6,0.85)';
+  ctx.lineWidth = 3;
   ctx.font = '700 16px "Marcellus SC", serif';
   ctx.textAlign = 'center';
-  ctx.fillText(n.id === 'haendler' ? '$' : '⚒', 0, -26 + bob);
-  ctx.restore();
-}
-
-function drawLegs(ctx, r, moving) {
-  const step = moving ? Math.sin(game.time * 16) * 3 : 0;
-  ctx.fillStyle = 'rgba(25,18,12,0.85)';
-  ctx.fillRect(-r * 0.8 + step, r * 0.45, 3, 6);
-  ctx.fillRect(-r * 0.3 - step, r * 0.45, 3, 6);
-  ctx.fillRect(r * 0.3 + step, r * 0.45, 3, 6);
-  ctx.fillRect(r * 0.8 - step, r * 0.45, 3, 6);
+  const icon = n.id === 'haendler' ? '$' : '⚒';
+  ctx.strokeText(icon, n.x, fy - 58 + bob);
+  ctx.fillText(icon, n.x, fy - 58 + bob);
 }
 
 function drawMonster(ctx, m) {
-  const t = m.type;
-  const r = m.r;
-  ctx.save();
-  ctx.translate(m.x, m.y);
-  drawShadow(ctx, 0, 0, r);
+  const fy = feetY(m);
+  const h = figureHeight(m);
+  drawShadow(ctx, m.x, fy, Math.max(10, m.r * 1.2));
   if (m.vulnerable && m.vulnerable.until > game.time) {
-    ctx.strokeStyle = 'rgba(167,116,224,0.8)';
+    ctx.strokeStyle = 'rgba(167,116,224,0.85)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.ellipse(0, r * 0.8, r * 1.4, r * 0.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(m.x, fy, m.r * 1.6, m.r * 0.65, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  ctx.scale(m.facing, 1);
-  const lunge = m.attackAnim > 0 ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 : 0;
-  ctx.translate(lunge, 0);
-
-  if (t.shape === 'beast' || t.shape === 'boar') {
-    drawLegs(ctx, r, m.moving);
-    ctx.fillStyle = t.color;
-    ellipse(ctx, 0, 0, r * 1.2, r * 0.72);
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ellipse(ctx, -2, r * 0.25, r, r * 0.35);
-    ctx.fillStyle = t.color;
-    circle(ctx, r * 1.05, -r * 0.3, r * 0.55);
-    if (t.shape === 'beast') {
-      ctx.beginPath();
-      ctx.moveTo(r * 0.75, -r * 0.65);
-      ctx.lineTo(r * 0.9, -r * 1.15);
-      ctx.lineTo(r * 1.1, -r * 0.7);
-      ctx.fill();
-      ctx.strokeStyle = t.color;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(-r * 1.1, -r * 0.1);
-      ctx.quadraticCurveTo(-r * 1.6, -r * 0.6, -r * 1.5, -r * 0.9);
-      ctx.stroke();
-    } else {
-      ctx.strokeStyle = '#efe6d0';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(r * 1.4, -r * 0.1);
-      ctx.lineTo(r * 1.65, -r * 0.45);
-      ctx.stroke();
-      ctx.fillStyle = 'rgba(20,12,8,0.5)';
-      ctx.fillRect(-r * 0.9, -r * 0.75, r * 1.6, 3);
-    }
-    ctx.fillStyle = '#1a0f0a';
-    circle(ctx, r * 1.25, -r * 0.4, 1.6);
-  } else {
-    // aufrechte Gestalten: Banditen, Orks, Oger, Dämonen
-    const step = m.moving ? Math.sin(game.time * 14) * 2 : 0;
-    ctx.fillStyle = 'rgba(25,18,12,0.85)';
-    ctx.fillRect(-5, r * 0.6 + step, 4, 6);
-    ctx.fillRect(2, r * 0.6 - step, 4, 6);
-    ctx.fillStyle = t.color;
-    circle(ctx, 0, 0, r);
-    ctx.strokeStyle = 'rgba(15,10,8,0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-    const headR = t.shape === 'brute' ? r * 0.45 : r * 0.58;
-    const hy = -r * 0.85;
-    const skin = t.shape === 'orc' ? '#7f9a52' : t.shape === 'demon' ? '#b0434d' : t.shape === 'brute' ? '#8f897b' : '#d9b896';
-    ctx.fillStyle = skin;
-    circle(ctx, 2, hy, headR);
-    if (t.shape === 'humanoid') {
-      ctx.fillStyle = t.accent;
-      ctx.fillRect(-headR + 2, hy - 3, headR * 2, 3);
-    }
-    if (t.shape === 'orc') {
-      ctx.fillStyle = '#efe6d0';
-      ctx.fillRect(headR - 2, hy + 2, 2, 4);
-      ctx.fillRect(headR - 6, hy + 2, 2, 4);
-    }
-    if (t.shape === 'demon') {
-      ctx.fillStyle = '#2a1416';
-      ctx.beginPath();
-      ctx.moveTo(-4, hy - headR + 2);
-      ctx.lineTo(-7, hy - headR - 8);
-      ctx.lineTo(0, hy - headR + 1);
-      ctx.moveTo(6, hy - headR + 2);
-      ctx.lineTo(9, hy - headR - 8);
-      ctx.lineTo(2, hy - headR + 1);
-      ctx.fill();
-    }
-    ctx.fillStyle = t.shape === 'demon' ? '#ffd34d' : '#1a0f0a';
-    ctx.fillRect(headR * 0.5, hy - 1, 2, 2);
-    // Waffe
-    if (t.bow) {
-      ctx.strokeStyle = '#6b4a2e';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(r * 0.9, 0, r * 0.8, -1.2, 1.2);
-      ctx.stroke();
-    } else if (t.ranged) {
-      ctx.strokeStyle = '#5c4230';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(r * 0.8, r * 0.5);
-      ctx.lineTo(r * 1.1, -r * 1.3);
-      ctx.stroke();
-      ctx.fillStyle = t.shot;
-      circle(ctx, r * 1.1, -r * 1.4, 3.5);
-    } else if (t.shape === 'brute') {
-      ctx.fillStyle = '#5a4634';
-      ctx.save();
-      ctx.rotate(m.attackAnim > 0 ? 0.6 : -0.3);
-      ctx.fillRect(r * 0.6, -r * 0.4, r * 1.1, 6);
-      ctx.fillRect(r * 1.4, -r * 0.6, 8, 10);
-      ctx.restore();
-    } else {
-      ctx.strokeStyle = '#c9ccd1';
-      ctx.lineWidth = 2.5;
-      ctx.save();
-      ctx.rotate(m.attackAnim > 0 ? 0.8 : -0.4);
-      ctx.beginPath();
-      ctx.moveTo(r * 0.7, 0);
-      ctx.lineTo(r * 0.7 + 14, 0);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-
-  if (m.hitFlash > 0) {
-    ctx.fillStyle = 'rgba(255,255,255,0.45)';
-    circle(ctx, 0, -2, r * 1.05);
-  }
-  ctx.restore();
+  const frame = m.moving ? Math.floor(game.time * 9 + m.id * 0.37) % 4 : 0;
+  const lunge = m.attackAnim > 0 ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 * m.facing : 0;
+  blitSprite(ctx, monsterSprite(m.typeId, frame), m.x + lunge, fy, m.facing < 0, m.hitFlash);
 
   if (m.stun > 0) {
     ctx.fillStyle = '#ffe27a';
     for (let k = 0; k < 3; k++) {
       const a = game.time * 6 + k * 2.1;
-      circle(ctx, m.x + Math.cos(a) * 9, m.y - r - 12 + Math.sin(a) * 3, 2);
+      circle(ctx, m.x + Math.cos(a) * 9, fy - h - 2 + Math.sin(a) * 3, 2);
     }
   }
   if (m.poison || m.burn) {
-    ctx.fillStyle = m.burn ? 'rgba(255,140,60,0.8)' : 'rgba(140,220,90,0.8)';
+    ctx.fillStyle = m.burn ? 'rgba(255,140,60,0.85)' : 'rgba(140,220,90,0.85)';
     const k = (game.time * 2) % 1;
-    circle(ctx, m.x - 5 + Math.sin(game.time * 5) * 3, m.y - r * k - 4, 2);
+    circle(ctx, m.x - 5 + Math.sin(game.time * 5) * 3, fy - h * 0.4 - k * h * 0.5, 2);
   }
 }
 
@@ -762,32 +600,34 @@ function drawLabel(ctx, e) {
     if (game.stats.invisible) return;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     const label = 'Lv ' + p.level + '  ' + p.name;
-    ctx.strokeText(label, p.x, p.y - 26);
+    const y = feetY(p) - 60;
+    ctx.strokeText(label, p.x, y);
     ctx.fillStyle = '#9fe0ff';
-    ctx.fillText(label, p.x, p.y - 26);
+    ctx.fillText(label, p.x, y);
     return;
   }
   if (e.until) {
-    drawBar(ctx, e.x, e.y - 30, 26, e.hp / e.maxHp, '#cfd8b0');
+    drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0');
     return;
   }
   if (!e.type && !e.isStone) {
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    ctx.strokeText(e.name, e.x, e.y + 26);
+    ctx.strokeText(e.name, e.x, feetY(e) + 15);
     ctx.fillStyle = '#f0cf6a';
-    ctx.fillText(e.name, e.x, e.y + 26);
+    ctx.fillText(e.name, e.x, feetY(e) + 15);
     return;
   }
   if (!p || !game.running) return;
-  const near = dist(e, p) < 120;
+  // Name nur beim Ziel und bei Seelensteinen, sonst nur ein Lebensbalken bei Verletzten
   const targeted = game.target === e;
-  if (!near && !targeted && e.hp >= e.maxHp && !e.isStone) return;
-  const top = e.isStone ? e.y - 58 : e.y - e.r - 24;
-  ctx.font = (e.isStone ? '600 12px' : '600 11px') + ' "Alegreya Sans", sans-serif';
-  const label = 'Lv ' + e.level + ' ' + e.name;
-  ctx.strokeText(label, e.x, top);
-  ctx.fillStyle = e.isStone ? '#d9b8ff' : levelColor(e.level);
-  ctx.fillText(label, e.x, top);
+  const top = e.isStone ? e.y - 58 : feetY(e) - figureHeight(e) - 10;
+  if (targeted || e.isStone) {
+    ctx.font = (e.isStone ? '600 12px' : '600 11px') + ' "Alegreya Sans", sans-serif';
+    const label = 'Lv ' + e.level + ' ' + e.name;
+    ctx.strokeText(label, e.x, top);
+    ctx.fillStyle = e.isStone ? '#d9b8ff' : levelColor(e.level);
+    ctx.fillText(label, e.x, top);
+  }
   if (e.hp < e.maxHp || targeted || e.isStone) {
     drawBar(ctx, e.x, top + 4, e.isStone ? 50 : 34, e.hp / e.maxHp, e.isStone ? '#a774e0' : '#c8402f');
   }
