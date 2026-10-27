@@ -220,8 +220,9 @@ function killMonster(m) {
     questEvent('kill', m);
     if (Math.random() < 0.06) { p.potions.hp++; ui.loot(potionInfo('hp').name, 1, lootIconUrl('potHp'), potionInfo('hp').color); }
     if (Math.random() < 0.04) { p.potions.mp++; ui.loot(potionInfo('mp').name, 1, lootIconUrl('potMp'), potionInfo('mp').color); }
-    m.respawnAt = game.time + 12 + Math.random() * 8;
+    m.respawnAt = game.time + (m.respawnDelay || 12 + Math.random() * 8);
   }
+  if (m.type && m.type.boss) bossLoot(m);
   rollLoot(m);
   gainXp(xp);
 }
@@ -330,6 +331,7 @@ function tryBasicAttack() {
   const basic = basicAttack(p);
   if (p.attackCd > 0 || p.dead || p.dash) return false;
   if (inVillage(p.x, p.y)) return false; // im Dorf wird nicht gekämpft
+  if (p.riding) toggleRide(false);
   // Angreifen geht immer: mit Gegner in Reichweite auf ihn, sonst ein Schlag oder Schuss
   // in Blickrichtung (später auch für Kämpfe gegen andere Spieler)
   const target = pickTarget(basic.range);
@@ -369,6 +371,7 @@ function useSkill(i) {
     addText(p.x, p.y - 34, 'Zu wenig Mana', 'info');
     return;
   }
+  if (p.riding) toggleRide(false);
   const lvl = p.skillLevels[i];
   const ok = SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1), lvl);
   if (ok === false) return;

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '2.7';
+const GAME_VERSION = '2.8';
 
 const game = {
   world: null,
@@ -117,6 +117,7 @@ function update(dt) {
   updateAmbient(dt);
   updateProjectiles(dt);
   updateEffects(dt);
+  questTick();
   if (game.target && game.target.dead) game.target = null;
 
   game.saveTimer += dt;

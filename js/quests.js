@@ -4,6 +4,7 @@
 function questState() {
   const p = game.player;
   if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
+  if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
   return p.quests;
 }
 
@@ -34,6 +35,15 @@ function questEvent(kind, m) {
       ui.log(`Auftrag „${main.title}“ erfüllt. Hol dir deine Belohnung bei Bao im Dorf.`, 'level');
     }
   }
+  const st = q.stable;
+  if (st.state === 'active' && kind === 'kill' && m.level >= STABLE_QUEST.minLevel) {
+    st.progress++;
+    if (st.progress >= STABLE_QUEST.count) {
+      st.state = 'done';
+      ui.banner('Prüfung bestanden', 'Kehre zu Stallmeister Jun zurück');
+      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd im Dorf.', 'level');
+    }
+  }
   const h = q.hunt;
   if (h && h.progress < h.count && kind === 'kill' && m.typeId === h.monster) {
     h.progress++;
@@ -45,18 +55,61 @@ function questEvent(kind, m) {
   ui.renderQuestTrack();
 }
 
-// Ausrufezeichen über Bao und Rin, wenn es etwas zu holen gibt
+// Ausrufezeichen über Auftraggebern, wenn es etwas zu holen gibt:
+// 'main' (golden) für Hauptmissionen, 'side' (grün) für Nebenmissionen
 function questMarker(npcId) {
   if (!game.player || !game.running) return false;
   const q = questState();
   if (npcId === 'aeltester') {
     const main = currentMainQuest();
     if (!main) return false;
-    if (!q.accepted) return game.player.level >= main.level;
-    return goalDone(main.goal, q.progress);
+    if (!q.accepted) return game.player.level >= main.level && 'main';
+    return goalDone(main.goal, q.progress) && 'main';
   }
-  if (npcId === 'jaegerin') return !q.hunt || q.hunt.progress >= q.hunt.count;
+  if (npcId === 'stallmeister') {
+    const st = q.stable;
+    return ((st.state === 'open' && game.player.level >= STABLE_QUEST.level) || st.state === 'done') && 'main';
+  }
+  if (npcId === 'jaegerin') return (!q.hunt || q.hunt.progress >= q.hunt.count) && 'side';
   return false;
+}
+
+// Zeitlimit der Stallmeister-Prüfung (läuft über die Spielzeit, auch nach dem Neuladen)
+function questTick() {
+  const p = game.player;
+  const st = questState().stable;
+  if (st.state !== 'active' || p.playTime < st.deadline) return;
+  st.state = 'open';
+  st.progress = 0;
+  ui.banner('Zeit abgelaufen', STABLE_QUEST.title);
+  ui.log('Die 20 Minuten sind um. Sprich mit Stallmeister Jun, um es noch einmal zu versuchen.', 'warn');
+  ui.renderQuestTrack();
+  saveGame();
+}
+
+// Dungeons betreten und verlassen
+function enterDungeon(k) {
+  const p = game.player;
+  const dg = game.world.dungeons[k];
+  if (p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
+  moveThrough(dg.start, dg.def.portal);
+  ui.banner(dg.def.name, `Boss: ${MONSTER_TYPES[dg.def.boss].name} (Stufe ${MONSTER_TYPES[dg.def.boss].level})`);
+  return null;
+}
+function leaveDungeon(k) {
+  moveThrough(game.world.dungeons[k].entrance, '#9fd0ff');
+}
+function moveThrough(spot, color) {
+  const p = game.player;
+  addEffect({ type: 'ring', x: p.x, y: feetY(p), r: 40, dur: 0.5, color, width: 8, grow: true });
+  p.x = spot.x;
+  p.y = spot.y;
+  game.target = null;
+  game.allies.forEach((a) => { a.x = p.x; a.y = p.y; });
+  ui.closePanels();
+  vfxPillar(p, color, 1);
+  flashScreen(color, 0.4);
+  saveGame();
 }
 
 function giveReward(reward, xp) {
@@ -75,6 +128,10 @@ function giveReward(reward, xp) {
   if (reward.scrolls) {
     p.scrolls += reward.scrolls;
     parts.push(`${reward.scrolls} × ${BLESSING.name}`);
+  }
+  if (reward.horse) {
+    p.horse = true;
+    parts.push('ein eigenes Pferd');
   }
   if (reward.books) {
     // Aufträge geben Bücher zu den eigenen Fertigkeiten
@@ -103,6 +160,7 @@ function rewardHtml(reward, xp) {
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
   if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
+  if (reward.horse) li.push('<b class="reward-horse">Ein eigenes Pferd</b> (60 % schneller laufen, Taste R oder Pferdeknopf)');
   if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Buch zu deinen Fertigkeiten`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
     li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
@@ -118,7 +176,7 @@ function rewardHtml(reward, xp) {
 function huntOffers() {
   const p = game.player;
   const types = Object.entries(MONSTER_TYPES)
-    .filter(([, t]) => t.level <= p.level + 3 && t.level >= p.level - 6)
+    .filter(([, t]) => !t.dungeon && t.level <= p.level + 3 && t.level >= p.level - 6)
     .sort((a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level));
   const pool = types.length ? types : [['hund', MONSTER_TYPES.hund]];
   return pool.slice(0, 3).map(([id, t]) => {
@@ -133,9 +191,9 @@ let travelSpots = null;
 
 function travelTargets() {
   if (travelSpots) return travelSpots;
-  travelSpots = ZONES.slice(1).map((zone) => {
+  travelSpots = ZONES.slice(1, RING_ZONES).map((zone) => {
     // entlang des Weges nach Osten, der Feuerberg liegt in den Ecken der Welt
-    const far = zone.minDist + 4 > MAP_W / 2 - 4;
+    const far = zone.minDist + 4 > WORLD_W / 2 - 4;
     const d = zone.minDist + 4;
     const tx = far ? CENTER_X + 74 : CENTER_X + d;
     const ty = far ? CENTER_Y + 74 : CENTER_Y;
@@ -181,13 +239,20 @@ Object.assign(ui, {
     const q = questState();
     const main = currentMainQuest();
     const rows = [];
+    // Hauptmissionen golden, Nebenmissionen grün
     if (main && q.accepted) {
       const done = goalDone(main.goal, q.progress);
-      rows.push(`<span class="${done ? 'done' : ''}">${main.title} ${Math.min(q.progress, main.goal.count)}/${main.goal.count}</span>`);
+      rows.push(`<span class="main${done ? ' done' : ''}">${main.title} ${Math.min(q.progress, main.goal.count)}/${main.goal.count}</span>`);
+    }
+    const st = q.stable;
+    if (st.state === 'active' || st.state === 'done') {
+      const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
+      const time = st.state === 'active' ? ` · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
+      rows.push(`<span class="main${st.state === 'done' ? ' done' : ''}">${STABLE_QUEST.title} ${Math.min(st.progress, STABLE_QUEST.count)}/${STABLE_QUEST.count}${time}</span>`);
     }
     if (q.hunt) {
       const done = q.hunt.progress >= q.hunt.count;
-      rows.push(`<span class="${done ? 'done' : ''}">Jagd: ${MONSTER_TYPES[q.hunt.monster].name} ${Math.min(q.hunt.progress, q.hunt.count)}/${q.hunt.count}</span>`);
+      rows.push(`<span class="side${done ? ' done' : ''}">Jagd: ${MONSTER_TYPES[q.hunt.monster].name} ${Math.min(q.hunt.progress, q.hunt.count)}/${q.hunt.count}</span>`);
     }
     el.innerHTML = rows.join('');
     el.hidden = !rows.length;
@@ -336,6 +401,78 @@ Object.assign(ui, {
       saveGame();
       this.renderAlchemist();
     }));
+  },
+
+  renderStable() {
+    const p = game.player;
+    const st = questState().stable;
+    const body = $('npcBody');
+    const xp = questXp(STABLE_QUEST.level, 0.8);
+    let html;
+    if (st.state === 'finished') {
+      html = '<p>„Dein Pferd ist gut genährt und wartet auf dich. Steig mit dem Pferdeknopf oder Taste R auf.“</p>';
+    } else if (p.level < STABLE_QUEST.level) {
+      html = `<p>„Pferde sind nichts für Anfänger. Komm wieder, wenn du Stufe ${STABLE_QUEST.level} erreicht hast.“</p>`;
+    } else {
+      let action;
+      if (st.state === 'open') action = '<button type="button" class="btn btn-primary" data-stable="start">Prüfung beginnen</button>';
+      else if (st.state === 'active') {
+        const left = Math.max(0, Math.ceil(st.deadline - p.playTime));
+        action = `<p class="hint-text">Fortschritt: ${st.progress} / ${STABLE_QUEST.count} · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} Minuten</p>` +
+          '<button type="button" class="btn btn-ghost" data-stable="drop">Prüfung abbrechen</button>';
+      } else action = '<button type="button" class="btn btn-primary" data-stable="reward">Pferd abholen</button>';
+      html = `<p class="quest-step main-quest">Hauptmission · ab Stufe ${STABLE_QUEST.level}</p><h3>${STABLE_QUEST.title}</h3><p>„${STABLE_QUEST.text}“</p>` +
+        `<p><strong>Ziel:</strong> ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in ${STABLE_QUEST.time / 60} Minuten besiegen</p>` +
+        `<p><strong>Belohnung:</strong></p>${rewardHtml(STABLE_QUEST.reward, xp)}${action}`;
+    }
+    body.innerHTML = html;
+    const btn = body.querySelector('[data-stable]');
+    if (btn) btn.addEventListener('click', () => {
+      const act = btn.dataset.stable;
+      if (act === 'start') {
+        st.state = 'active';
+        st.progress = 0;
+        st.deadline = p.playTime + STABLE_QUEST.time;
+        ui.log(`Die Prüfung läuft: ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in 20 Minuten.`, 'info');
+        ui.banner(STABLE_QUEST.title, 'Die Zeit läuft!');
+      } else if (act === 'drop') {
+        st.state = 'open';
+        st.progress = 0;
+      } else {
+        giveReward(STABLE_QUEST.reward, xp);
+        st.state = 'finished';
+        ui.banner('Ein eigenes Pferd!', 'Pferdeknopf oder Taste R zum Aufsteigen');
+        ui.updateHorseButton();
+      }
+      saveGame();
+      this.renderQuestTrack();
+      this.renderStable();
+    });
+  },
+
+  renderDungeon(npc) {
+    const p = game.player;
+    const dg = game.world.dungeons[npc.dungeon];
+    const boss = MONSTER_TYPES[dg.def.boss];
+    const body = $('npcBody');
+    if (npc.id === 'ausgang') {
+      body.innerHTML = `<p>Ein Steinkreis leuchtet sanft. Er bringt dich zurück zum Eingang von ${dg.def.name}.</p>` +
+        '<button type="button" class="btn btn-primary" data-dg="leave">Dungeon verlassen</button>';
+      body.querySelector('[data-dg]').addEventListener('click', () => leaveDungeon(npc.dungeon));
+      return;
+    }
+    const mobs = dg.def.mobs.map((id) => `${MONSTER_TYPES[id].name} (Stufe ${MONSTER_TYPES[id].level})`).join(', ');
+    const alive = game.monsters.find((m) => m.typeId === dg.def.boss);
+    const bossInfo = alive && alive.dead ? `ist besiegt und kehrt in ${Math.max(1, Math.ceil((alive.respawnAt - game.time) / 60))} Min. zurück` : 'wartet im letzten Raum';
+    const low = p.level < dg.def.minLevel;
+    body.innerHTML = `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
+      `<p>Drei Räume voller Monster: ${mobs}. Am Ende ${boss.name} (Stufe ${boss.level}), der ${bossInfo}.</p>` +
+      '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +3 bis +6, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
+      `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Betreten'}</button>`;
+    body.querySelector('[data-dg]').addEventListener('click', () => {
+      const err = enterDungeon(npc.dungeon);
+      if (err) ui.log(err, 'warn');
+    });
   },
 
   renderTalk(npc) {

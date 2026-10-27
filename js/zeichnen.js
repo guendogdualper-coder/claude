@@ -83,7 +83,7 @@ function render() {
   list.sort((a, b) => baseY(a) - baseY(b));
 
   // Effekte am Boden liegen unter den Figuren
-  const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal';
+  const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   for (const e of list) {
     if (e.worldObj) drawWorldObject(ctx, e);
@@ -259,12 +259,21 @@ function drawWeaponSprite(ctx, kind, x, y, angle, tier = 0) {
   ctx.restore();
 }
 
+// Reiter sitzt so viel höher, Pferd als gebackenes Bild je Galopp-Schritt und Sattelfarbe
+const RIDE_HEIGHT = 20;
+function horseSprite(frame, saddle) {
+  return getSprite(`horse:${frame}:${saddle}`, { x: -34, y: -58, w: 68, h: 62 }, (ctx) => horseArt(ctx, frame, { saddle }));
+}
+
 function drawPlayer(ctx, p) {
   const invisible = p === game.player && game.stats && game.stats.invisible;
   // Beim Schwertwirbel dreht sich die Figur einmal im Kreis
   const facing = p.spin > 0 ? { x: Math.cos(game.time * 28), y: Math.sin(game.time * 28) } : p.facing;
-  const dir = facingDir(facing);
-  const flip = dir === 'side' && facing.x < 0;
+  // Auf dem Pferd sieht man Pferd und Reiter immer von der Seite
+  if (p.riding && Math.abs(facing.x) > 0.15) p.rideFlip = facing.x < 0;
+  const ride = p.riding ? RIDE_HEIGHT : 0;
+  const dir = p.riding ? 'side' : facingDir(facing);
+  const flip = p.riding ? !!p.rideFlip : dir === 'side' && facing.x < 0;
   const frame = p.moving ? Math.floor(game.time * 9) % 4 : 0;
   const fy = feetY(p);
   const kind = weaponKindOf(p);
@@ -315,8 +324,12 @@ function drawPlayer(ctx, p) {
   }
 
   drawBuffLooks(ctx, p, fy, 'back');
+  if (p.riding) {
+    drawShadow(ctx, p.x, fy, 22);
+    blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim), p.x, fy, flip);
+  }
   ctx.save();
-  ctx.translate(p.x, fy);
+  ctx.translate(p.x, fy - ride);
   if (flip) ctx.scale(-1, 1);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
   const drawWeapons = () => {
@@ -518,21 +531,30 @@ function drawSkeleton(ctx, a) {
 
 function drawNpc(ctx, n) {
   const fy = feetY(n);
-  drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
+  const portal = n.id === 'eingang' || n.id === 'ausgang';
+  if (!portal) drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
   const step = n.moving ? Math.abs(Math.sin(game.time * 9)) * 1.5 : 0;
   blitSprite(ctx, npcSprite(n.id), n.x, fy - step, n.facing < 0);
-  if (!NPC_ICONS[n.id]) return;
+  // Dungeon-Eingänge und -Ausgänge leuchten in der Farbe ihres Dungeons
+  if (portal) {
+    const col = DUNGEONS[n.dungeon].portal;
+    glow(ctx, n.x, fy - (n.id === 'eingang' ? 20 : 4), n.id === 'eingang' ? 26 : 22, col, 0.45 + 0.15 * Math.sin(game.time * 3));
+  }
   const bob = Math.sin(game.time * 3) * 2;
-  blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
-  // Ausrufezeichen, wenn ein Auftrag abgegeben werden kann
-  if (questMarker(n.id)) {
-    ctx.font = '800 16px "Alegreya Sans", sans-serif';
+  if (NPC_ICONS[n.id]) blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
+  // Ausrufezeichen: golden bei Hauptmissionen, grün bei Nebenmissionen
+  const mark = questMarker(n.id);
+  if (mark) {
+    const x = n.x + (NPC_ICONS[n.id] ? 13 : 0);
+    const y = fy - 64 + bob;
+    glow(ctx, x, y - 5, 13, mark === 'main' ? '#ffc93a' : '#5ae05a', 0.55);
+    ctx.font = '900 20px "Alegreya Sans", sans-serif';
     ctx.textAlign = 'center';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 3.5;
     ctx.strokeStyle = '#1a1210';
-    ctx.strokeText('!', n.x + 13, fy - 64 + bob);
-    ctx.fillStyle = '#ffd34d';
-    ctx.fillText('!', n.x + 13, fy - 64 + bob);
+    ctx.strokeText('!', x, y);
+    ctx.fillStyle = mark === 'main' ? '#ffd34d' : '#6ae86a';
+    ctx.fillText('!', x, y);
   }
 }
 
@@ -540,6 +562,8 @@ function drawMonster(ctx, m) {
   const fy = feetY(m);
   const h = figureHeight(m);
   drawShadow(ctx, m.x, fy, Math.max(10, m.r * 1.2));
+  // Bosse stehen in einem pulsierenden Schein ihrer Farbe
+  if (m.type.boss) glow(ctx, m.x, fy - 6, m.r * 2.6, m.type.boss.color, 0.3 + 0.12 * Math.sin(game.time * 3));
   if (m.vulnerable && m.vulnerable.until > game.time) {
     ctx.strokeStyle = 'rgba(167,116,224,0.85)';
     ctx.lineWidth = 2;
@@ -816,7 +840,7 @@ function drawLabel(ctx, e) {
     if (game.stats.invisible) return;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     const label = 'Lv ' + p.level + '  ' + p.name;
-    const y = feetY(p) - 60;
+    const y = feetY(p) - 60 - (p.riding ? RIDE_HEIGHT : 0);
     ctx.strokeText(label, p.x, y);
     ctx.fillStyle = '#9fe0ff';
     ctx.fillText(label, p.x, y);
@@ -838,8 +862,9 @@ function drawLabel(ctx, e) {
   // Name nur beim Ziel und bei Seelensteinen, sonst nur ein Lebensbalken bei Verletzten
   const targeted = game.target === e;
   const top = e.isStone ? e.y - stoneHeight(e) - 14 : feetY(e) - figureHeight(e) - 10;
-  if (targeted || e.isStone) {
-    ctx.font = (e.isStone ? '600 12px' : '600 11px') + ' "Alegreya Sans", sans-serif';
+  const boss = e.type && e.type.boss;
+  if (targeted || e.isStone || boss) {
+    ctx.font = (e.isStone || boss ? '700 12px' : '600 11px') + ' "Alegreya Sans", sans-serif';
     const label = 'Lv ' + e.level + ' ' + e.name;
     ctx.strokeText(label, e.x, top);
     ctx.fillStyle = e.isStone ? lighter(e.stoneType.look.glow, 0.45) : levelColor(e.level);
@@ -862,7 +887,8 @@ function buildMinimapBase() {
     [GROUND.GRASS]: [88, 128, 58], [GROUND.MEADOW]: [98, 137, 63], [GROUND.FOREST]: [59, 85, 48],
     [GROUND.PATH]: [176, 151, 106], [GROUND.WATER]: [47, 95, 126], [GROUND.PLAZA]: [170, 160, 140],
     [GROUND.SAND]: [179, 148, 98], [GROUND.ASH]: [93, 82, 77], [GROUND.SNOW]: [226, 234, 242],
-    [GROUND.SWAMP]: [70, 86, 60], [GROUND.LAVA]: [230, 90, 30], [GROUND.BOG]: [40, 66, 52], [GROUND.ICE]: [170, 208, 232], [GROUND.BASALT]: [58, 46, 46]
+    [GROUND.SWAMP]: [70, 86, 60], [GROUND.LAVA]: [230, 90, 30], [GROUND.BOG]: [40, 66, 52], [GROUND.ICE]: [170, 208, 232], [GROUND.BASALT]: [58, 46, 46],
+    [GROUND.CAVE]: [74, 60, 52], [GROUND.FLAGSTONE]: [120, 114, 102]
   };
   const w = game.world;
   for (let i = 0; i < MAP_W * MAP_H; i++) {
@@ -875,6 +901,7 @@ function buildMinimapBase() {
     else if (o === OBJ.DEADTREE) col = [74, 53, 39];
     else if (o === OBJ.HOUSE) col = [124, 58, 44];
     else if (o === OBJ.WALL) col = [62, 70, 86];
+    else if (o === OBJ.CAVEWALL) col = [18, 14, 14];
     img.data.set([col[0], col[1], col[2], 255], i * 4);
   }
   cx.putImageData(img, 0, 0);
@@ -907,10 +934,21 @@ function renderMinimap() {
     ctx.strokeRect(mx - 2.5, my - 2.5, 5, 5);
   }
   // Händler und Helfer im Dorf als gelbe Punkte
-  ctx.fillStyle = '#ffd34d';
   for (const n of game.world.npcs) {
     if (n.silent || n.wander) continue;
-    ctx.fillRect((n.x / TILE - ox) * scale - 1, (n.y / TILE - oy) * scale - 1, 2.5, 2.5);
+    const mx = (n.x / TILE - ox) * scale;
+    const my = (n.y / TILE - oy) * scale;
+    if (n.id === 'eingang' || n.id === 'ausgang') {
+      // Dungeons als Torbogen in ihrer Farbe
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(mx - 4, my - 4, 8, 8);
+      ctx.fillStyle = DUNGEONS[n.dungeon].portal;
+      ctx.fillRect(mx - 3, my - 3, 6, 6);
+      continue;
+    }
+    const mark = questMarker(n.id);
+    ctx.fillStyle = mark === 'main' ? '#ffd34d' : mark === 'side' ? '#6ae86a' : '#e8d8a8';
+    ctx.fillRect(mx - 1, my - 1, mark ? 3.5 : 2.5, mark ? 3.5 : 2.5);
   }
   if (p && game.running) {
     ctx.fillStyle = '#ffffff';

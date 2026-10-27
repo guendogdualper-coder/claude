@@ -1597,3 +1597,51 @@ kbd {
 .item-tile.book-tile.own { border-color: #e0b84a; box-shadow: 0 0 10px rgba(255, 211, 77, 0.5); }
 /* Langes Drücken auf dem Handy: kein Textmenü, keine Auswahl */
 .slot.skill, .skill-wrap { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+
+/* Missionen: Hauptmissionen golden, Nebenmissionen grün */
+.quest-track .main { color: #ffd98a; }
+.quest-track .main::before { content: "! "; color: #ffc93a; font-weight: 900; }
+.quest-track .side { color: #a8f0a0; }
+.quest-track .side::before { content: "! "; color: #5ae05a; font-weight: 900; }
+.quest-track .main.done { color: #ffd34d; }
+.quest-track .side.done { color: #7aff7a; font-weight: 700; }
+.quest-step.main-quest { color: #ffd34d; font-weight: 700; }
+.reward-horse { color: #ffd34d; }
+
+/* Pferdeknopf: leuchtet, solange man reitet */
+#btnHorse.on { box-shadow: 0 0 0 2px #ffd34d, 0 0 12px rgba(255, 211, 77, 0.7); }
+
+/* Lebensbalken eines Bosses oben in der Mitte */
+.boss-bar {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px, 46vw);
+  z-index: 6;
+  pointer-events: none;
+  text-align: center;
+  font-size: 12px;
+  color: #fff3d8;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+}
+.boss-bar[hidden] { display: none; }
+.boss-bar strong { display: block; font-size: 13px; letter-spacing: 0.04em; color: #ffb08a; }
+.boss-bar .bb {
+  position: relative;
+  height: 12px;
+  margin: 3px 0 2px;
+  border: 1px solid #c9a35a;
+  border-radius: 3px;
+  background: #1a0e0a;
+  overflow: hidden;
+  box-shadow: 0 0 10px rgba(255, 80, 40, 0.45);
+}
+.boss-bar .bb i {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  background: linear-gradient(#ff7a5a, #b8200e 60%, #6a0a04);
+  transition: transform 0.2s ease-out;
+}
+.boss-bar span { font-size: 10px; opacity: 0.85; }

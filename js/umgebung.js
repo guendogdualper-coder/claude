@@ -18,7 +18,9 @@ const GROUND_SHADES = [
   ['#b8320e', '#ff8a2a'], // LAVA
   ['#22362a', '#34503e'], // BOG
   ['#9cc8e4', '#d4ecfa'], // ICE
-  ['#2c2224', '#463838']  // BASALT
+  ['#2c2224', '#463838'], // BASALT
+  ['#4a3e36', '#62544a'], // CAVE (Höhlenboden)
+  ['#4e4a42', '#6e685c']  // FLAGSTONE (Steinplatten der Orkfestung)
 ];
 const GROUND_PALETTE = GROUND_SHADES.map(([a, b]) => Array.from({ length: 8 }, (_, i) => mixColor(a, b, i / 7)));
 
@@ -78,19 +80,86 @@ function renderGroundChunk(cx, cy) {
       const h = tileHash(x, y);
       const px = x * TILE;
       const py = y * TILE;
-      if (g === GROUND.PATH || g === GROUND.PLAZA || LIQUID.has(g) || g === GROUND.ICE) {
+      if (w.obj[i] === OBJ.CAVEWALL) {
+        drawCaveWall(ctx, x, y, px, py, h, ZONES[w.zoneIdx[i]].dungeon);
+        continue;
+      }
+      if (g === GROUND.PATH || g === GROUND.PLAZA || LIQUID.has(g) || g === GROUND.ICE || g === GROUND.FLAGSTONE) {
         ctx.fillStyle = GROUND_PALETTE[g][Math.min(7, (w.shade[i] >> 6) + 3)];
         ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
       }
       if (LIQUID.has(g) && w.deco[i] !== DECO.BRIDGE) drawShore(ctx, x, y, px, py, g);
       else if (g === GROUND.ICE) drawIceTile(ctx, px, py, h);
-      else if (g === GROUND.PLAZA) drawPlazaTile(ctx, px, py, h);
+      else if (g === GROUND.PLAZA || g === GROUND.FLAGSTONE) drawPlazaTile(ctx, px, py, h);
+      // Schatten unter Dungeon-Wänden
+      if (wallAt(x, y - 1)) {
+        const sg = ctx.createLinearGradient(0, py, 0, py + 14);
+        sg.addColorStop(0, 'rgba(0,0,0,0.5)');
+        sg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = sg;
+        ctx.fillRect(px, py, TILE + 0.6, 14);
+      }
       if (g === GROUND.PATH || g === GROUND.PLAZA) drawGrassFringe(ctx, x, y, px, py, h);
       const d = w.deco[i];
       if (d) drawDeco(ctx, d, g, px, py, h);
     }
   }
   return c;
+}
+
+// Dungeon-Wände: Oberseite mit Fugen bzw. Rissen, zur offenen Seite hin eine dunklere Vorderseite
+const wallAt = (x, y) => x >= 0 && y >= 0 && x < MAP_W && y < MAP_H && game.world.obj[y * MAP_W + x] === OBJ.CAVEWALL;
+function drawCaveWall(ctx, x, y, px, py, h, dg) {
+  const c = dg ? dg.wall : { top: '#3a3430', face: '#1e1a18', line: '#4a4440' };
+  const open = { down: !wallAt(x, y + 1), up: !wallAt(x, y - 1), left: !wallAt(x - 1, y), right: !wallAt(x + 1, y) };
+  ctx.fillStyle = (h % 7) < 3 ? lighter(c.top, 0.06) : c.top;
+  ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
+  // Fugen bzw. Risse (im Drachenhort glühend)
+  ctx.strokeStyle = c.line;
+  ctx.globalAlpha = dg && dg.id === 'drachenhort' ? 0.55 : 0.45;
+  ctx.lineWidth = dg && dg.id === 'orkfestung' ? 1.2 : 1;
+  ctx.beginPath();
+  if (dg && dg.id === 'orkfestung') {
+    ctx.moveTo(px, py + 11); ctx.lineTo(px + TILE, py + 11);
+    ctx.moveTo(px, py + 22); ctx.lineTo(px + TILE, py + 22);
+    const o = h % 2 ? 8 : 20;
+    ctx.moveTo(px + o, py); ctx.lineTo(px + o, py + 11);
+    ctx.moveTo(px + (o + 12) % TILE, py + 11); ctx.lineTo(px + (o + 12) % TILE, py + 22);
+  } else {
+    const a = h % 23;
+    const b = (h >> 5) % 19;
+    ctx.moveTo(px + 4 + a * 0.6, py + 6 + b * 0.5);
+    ctx.lineTo(px + 12 + b * 0.5, py + 14 + a * 0.3);
+    ctx.lineTo(px + 10 + a * 0.4, py + 24);
+  }
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  if (open.up) {
+    ctx.fillStyle = lighter(c.top, 0.22);
+    ctx.fillRect(px, py, TILE + 0.6, 3);
+  }
+  if (open.left) { ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(px, py, 3, TILE); }
+  if (open.right) { ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(px + TILE - 3, py, 3.6, TILE); }
+  if (open.down) {
+    // Vorderseite der Wand
+    const fh = 15;
+    const g = ctx.createLinearGradient(0, py + TILE - fh, 0, py + TILE);
+    g.addColorStop(0, c.face);
+    g.addColorStop(1, darker(c.face, 0.35));
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py + TILE - fh, TILE + 0.6, fh + 0.6);
+    ctx.fillStyle = lighter(c.top, 0.15);
+    ctx.fillRect(px, py + TILE - fh - 1.5, TILE + 0.6, 1.5);
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) {
+      const sx = px + 5 + ((h >> (k * 3)) % 7) + k * 9;
+      ctx.moveTo(sx, py + TILE - fh + 2);
+      ctx.lineTo(sx - 1, py + TILE - 1);
+    }
+    ctx.stroke();
+  }
 }
 
 function drawGround(ctx, x0, y0, x1, y1) {
@@ -649,6 +718,29 @@ Object.assign(PROP_ART, {
     oval(ctx, 0, -24, 7, 7, '#9fd0ff');
     stroke(ctx, '#ffffff', 1, [[-3, -27], [3, -24], [-3, -21]]);
   },
+  // Feuerbecken in den Dungeons, die Flamme in der Farbe des Dungeons
+  brazier(ctx, pr) {
+    const col = pr.roof || '#ff8a4a';
+    box(ctx, -2.5, -16, 5, 16, 1, '#4a4440');
+    box(ctx, -7, -2, 14, 3, 1, '#3a3430');
+    poly(ctx, [[-11, -20], [11, -20], [7, -13], [-7, -13]], '#5a544c');
+    box(ctx, -11.5, -21.5, 23, 3, 1.2, '#7a7468');
+    poly(ctx, [[-8, -21], [-4, -33], [-1, -26], [2, -38], [5, -27], [8, -21]], col);
+    poly(ctx, [[-4, -21], [-1, -29], [1, -25], [3, -31], [5, -21]], '#fff2c0');
+  },
+  // Pferd beim Stall im Dorf
+  horse(ctx) {
+    horseArt(ctx, 0, { saddle: '#8a2a1a' });
+  },
+  hay(ctx) {
+    for (const [x, y] of [[-9, 0], [9, 0], [0, -10]]) {
+      box(ctx, x - 9, y - 10, 18, 10, 2, '#d8b45a');
+      stroke(ctx, '#a8843a', 1, [[x - 7, y - 7], [x + 7, y - 7]]);
+      stroke(ctx, '#a8843a', 1, [[x - 7, y - 3.5], [x + 7, y - 3.5]]);
+      stroke(ctx, '#7a5a2a', 1.2, [[x - 3, y - 10], [x - 3, y]]);
+      stroke(ctx, '#7a5a2a', 1.2, [[x + 3, y - 10], [x + 3, y]]);
+    }
+  },
   targets(ctx) {
     box(ctx, -1.5, -24, 3, 24, 1, '#5a3a22');
     oval(ctx, 0, -26, 11, 11, '#e8d8a8');
@@ -668,7 +760,8 @@ Object.assign(PROP_ART, {
 const PROP_BOUNDS = {
   tower: { x: -34, y: -106, w: 68, h: 110 },
   gate: { x: -90, y: -108, w: 180, h: 112 },
-  stall: { x: -32, y: -54, w: 64, h: 58 }
+  stall: { x: -32, y: -54, w: 64, h: 58 },
+  horse: { x: -34, y: -58, w: 68, h: 62 }
 };
 
 function propSprite(pr) {
@@ -756,6 +849,7 @@ function drawWorldObject(ctx, o) {
   if (type === 'lantern') glow(ctx, o.x, o.y - 24, 16, '#ffcf6a', 0.35 + 0.08 * Math.sin(game.time * 3 + o.x));
   if (type === 'tower') for (const lx of [-24, 24]) glow(ctx, o.x + lx, o.y - 62, 11, '#ff8a4a', 0.3);
   if (type === 'portal') glow(ctx, o.x, o.y - 24, 22, '#9fd0ff', 0.35 + 0.15 * Math.sin(game.time * 2.5));
+  if (type === 'brazier') glow(ctx, o.x, o.y - 30, 34, o.prop.roof || '#ff8a4a', 0.4 + 0.12 * Math.sin(game.time * 9 + o.x));
   if (o.worldObj === 'house') {
     const W = o.house.w * TILE;
     const eave = -o.house.h * TILE * 0.52 + 8;

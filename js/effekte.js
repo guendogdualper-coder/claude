@@ -446,6 +446,25 @@ function drawEffect(ctx, e) {
       }
       break;
     }
+    // Warnkreis am Boden vor einem Boss-Stampfer: füllt sich, bis der Schlag kommt
+    case 'warn': {
+      const ry = e.r / 1.2;
+      ctx.globalAlpha = 0.85;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([10, 6]);
+      ctx.lineDashOffset = -game.time * 40;
+      ctx.beginPath();
+      ctx.ellipse(x, y, e.r, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.18 + 0.1 * Math.sin(game.time * 20);
+      ctx.fill();
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      ctx.ellipse(x, y, e.r * k, ry * k, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
     case 'ring':
       ctx.lineWidth = (e.width || 4) * (1 - k) + 1;
       ctx.beginPath();

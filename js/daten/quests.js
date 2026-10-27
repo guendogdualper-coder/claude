@@ -68,6 +68,14 @@ const MAIN_QUESTS = [
     reward: { books: 8, gold: 250000, scrolls: 5, mats: { star: 3, boni5: 3 } } }
 ];
 
+// Hauptmission des Stallmeisters ab Stufe 30: in 20 Minuten 120 Monster ab Stufe 25 besiegen.
+// Belohnung: ein eigenes Pferd (schneller laufen), Gold und Erfahrung.
+const STABLE_QUEST = {
+  level: 30, count: 120, minLevel: 25, time: 1200, title: 'Prüfung des Stallmeisters',
+  text: 'Ein Pferd trägt nur, wem es vertraut. Zeig mir, dass du draußen bestehen kannst: Besiege in 20 Minuten 120 Monster ab Stufe 25. Schaffst du es, gehört dir eines meiner besten Pferde.',
+  reward: { gold: 30000, horse: true }
+};
+
 // Erfahrung für einen Auftrag: ein Teil der Erfahrung, die auf dieser Stufe für den Aufstieg nötig ist
 function questXp(level, factor = 0.5) {
   return Math.round(xpToNext(level) * factor);

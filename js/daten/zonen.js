@@ -62,6 +62,44 @@ const ZONES = [
   }
 ];
 
+// Ringe um das Dorf; danach folgen in ZONES die Dungeons
+const RING_ZONES = ZONES.length;
+
+// Dungeons: abgeschlossene Höhlen und Festungen in einem eigenen Streifen östlich der Welt.
+// Man betritt sie über einen Eingang in ihrem Gebiet. Drei Räume mit Monstern, am Ende ein Boss.
+// entry   Lage des Eingangs: Richtung des Weges vom Dorf, Abstand vom Dorf, Versatz neben dem Weg
+// floor   Boden; wall: Farben der Wände (Oberseite, Vorderseite, Fugen bzw. Glut)
+// mobs    Monsterarten in den Räumen; boss: Bossart (siehe MONSTER_TYPES)
+const DUNGEONS = [
+  {
+    id: 'spinnenhoehle', name: 'Spinnenhöhle', minLevel: 18, entry: { dir: [0, -1], dist: 43, side: 4 }, floor: 'CAVE',
+    wall: { top: '#1c1520', face: '#0c080e', line: '#4a3a52' }, portal: '#b48cff',
+    mobs: ['hoehlenspinne', 'giftspinne'], boss: 'spinnenkoenigin',
+    ambient: { kind: 'wisps', tint: [30, 10, 50, 0.32] }
+  },
+  {
+    id: 'orkfestung', name: 'Orkfestung', minLevel: 28, entry: { dir: [-1, 0], dist: 56, side: 4 }, floor: 'FLAGSTONE',
+    wall: { top: '#3c3832', face: '#1e1b18', line: '#55504a' }, portal: '#ff8a4a',
+    mobs: ['orkelite', 'orkberserker'], boss: 'kriegsherr',
+    ambient: { kind: 'dust', tint: [50, 25, 5, 0.28] }
+  },
+  {
+    id: 'eisgrotte', name: 'Eisgrotte', minLevel: 45, entry: { dir: [0, 1], dist: 79, side: 4 }, floor: 'ICE',
+    wall: { top: '#f4fbff', face: '#4a7aa8', line: '#b8d8f0' }, portal: '#9fe8ff',
+    mobs: ['eisgolem', 'frostgeist'], boss: 'eiskoenig',
+    ambient: { kind: 'snow', tint: [40, 80, 150, 0.3] }
+  },
+  {
+    id: 'drachenhort', name: 'Drachenhort', minLevel: 63, entry: { dir: [1, 0], dist: 97, side: -4 }, floor: 'BASALT',
+    wall: { top: '#1a1210', face: '#080404', line: '#ff6a2a' }, portal: '#ff6a3a',
+    mobs: ['drachenbrut', 'feuerdaemon'], boss: 'urdrache',
+    ambient: { kind: 'embers', tint: [90, 20, 0, 0.3] }
+  }
+];
+for (const d of DUNGEONS) {
+  ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
+}
+
 // Waren der Händlerin im Dorf: die beiden Tränke
 const SHOP = [
   { id: 'hp', name: 'Drachenblut', plural: 'Drachenblut-Tränke', kind: 'Lebenstrank', color: '#ff9a8a', text: 'Lebenstrank: Stellt 35 % Leben wieder her. Taste Q.', price: 15 },

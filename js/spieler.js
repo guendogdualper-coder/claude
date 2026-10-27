@@ -67,7 +67,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -224,6 +224,7 @@ function playerStats(p) {
   s.block += bonus.block || 0;
   s.regen += bonus.regen || 0;
   speedMul += bonus.speed || 0;
+  if (p.riding) speedMul += RIDE_SPEED;
   s.monsterDmg = bonus.monsterDmg || 0;
   s.hpSteal = bonus.hpSteal || 0;
   s.basicDmg = bonus.basicDmg || 0;
@@ -355,6 +356,28 @@ function upgradeSkill(i, type = 'point') {
   ui.buildSkillBar();
   ui.renderCharPanel();
   saveGame();
+}
+
+// Pferd: Belohnung der Stallmeister-Prüfung. Reiten macht 60 % schneller;
+// wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
+const RIDE_SPEED = 0.6;
+function toggleRide(on) {
+  const p = game.player;
+  if (!p || p.dead || !p.horse) {
+    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Stallmeister Jun im Dorf hat eine Prüfung für dich (ab Stufe 30).', 'warn');
+    return;
+  }
+  const next = on == null ? !p.riding : on;
+  if (next === !!p.riding) return;
+  if (next && game.time - p.lastCombat < 3) {
+    addText(p.x, p.y - 34, 'Nicht mitten im Kampf', 'info');
+    return;
+  }
+  p.riding = next;
+  game.stats = playerStats(p);
+  particles(p.x, feetY(p), { count: 16, color: ['#c9b28a', '#a88f62'], speed: [30, 90], life: [0.3, 0.6], size: [2, 4], drag: 3, glow: false });
+  ui.log(next ? 'Du sitzt auf deinem Pferd.' : 'Du steigst ab.', 'info');
+  ui.updateHorseButton();
 }
 
 function usePotion(kind) {

@@ -971,6 +971,41 @@ const hairCap = (ctx, cx, cy, color, long) => {
 };
 
 Object.assign(NPC_ART, {
+  // Dungeon-Eingang: Felsbogen mit dunklem Wirbel (die Farbe des Dungeons leuchtet beim Zeichnen darüber)
+  eingang(ctx) {
+    oval(ctx, 0, -2, 24, 6, '#3a3430');
+    paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(-20, -34); ctx.quadraticCurveTo(0, -60, 20, -34); ctx.lineTo(22, 0); ctx.closePath(); }, '#6a625a', -22, -56, 44, 56);
+    paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(-13, -30); ctx.quadraticCurveTo(0, -48, 13, -30); ctx.lineTo(14, 0); ctx.closePath(); }, '#120c14', -14, -46, 28, 46);
+    for (const [x, y, r] of [[-19, -10, 5], [18, -16, 6], [-16, -38, 5], [12, -44, 5], [-4, -50, 4.5]]) oval(ctx, x, y, r, r * 0.8, '#7e766c');
+    ctx.strokeStyle = 'rgba(200,180,255,0.5)';
+    ctx.lineWidth = 1.4;
+    for (let k = 0; k < 3; k++) {
+      ctx.beginPath();
+      ctx.arc(0, -20, 4 + k * 3.5, k, k + 4);
+      ctx.stroke();
+    }
+  },
+  // Ausgang im Dungeon: leuchtender Steinkreis am Boden
+  ausgang(ctx) {
+    oval(ctx, 0, -2, 18, 7, '#4a4440');
+    oval(ctx, 0, -3, 14, 5, '#9fd0ff');
+    oval(ctx, 0, -3.5, 9, 3, '#e8f6ff');
+    for (const [x, y] of [[-16, -3], [16, -3], [0, -9], [0, 3]]) box(ctx, x - 2, y - 6, 4, 7, 1, '#7e766c');
+  },
+  stallmeister: (ctx) => villagerArt(ctx, {
+    skin: '#e2b98f', pants: '#4a3a2a', boots: '#2a1e16', torso: '#7a5a3a', sleeve: '#7a5a3a', gloves: '#5a3a22', belt: '#2a1e16',
+    body: (ctx, half) => { box(ctx, -half, -12.5, half * 2, 2.6, 1, '#2a1e16'); box(ctx, -3, -22, 6, 9, 1.5, '#c9a35a'); },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(cx, cy - 7, 17, 4, 0, 0, Math.PI * 2); }, '#c8a060', cx - 17, cy - 11, 34, 8);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 8, 9, Math.PI, 0); ctx.closePath(); }, '#c8a060', cx - 9, cy - 17, 18, 9);
+      box(ctx, cx - 9, cy - 10, 18, 2, 0.8, '#7a2a1a');
+      stroke(ctx, '#5a3a22', 1.2, [[cx - 4, cy + 6], [cx + 4, cy + 6]]);
+    },
+    extra: (ctx) => {
+      // Zügel in der Hand
+      stroke(ctx, '#5a3a22', 1.4, [[11, -14], [16, -4], [13, 6]]);
+    }
+  }),
   // Dorfältester Bao: weißer Bart, Robe, Stab
   aeltester: (ctx) => villagerArt(ctx, {
     skin: '#e6c4a0', boots: '#3a2c24', robe: '#7a5a2a', sleeve: '#7a5a2a', cuff: '#e0c36a', wideSleeves: true,
@@ -1557,8 +1592,110 @@ Object.assign(MONSTER_ART, {
       dragonWings(ctx, f, '#7a1a10');
       beastArt(ctx, f, { fur: '#a82a1a', belly: '#e8a050', snout: '#c84a2a', ridge: true, eye: '#ffd34d', angry: true, glow: true, fangs: true, tusk: true });
     }
+  },
+
+  // Dungeon-Monster und Bosse
+  hoehlenspinne: { h: 30, draw: (ctx, f) => { ctx.scale(1.3, 1.3); spiderArt(ctx, f, { body: '#4a3a5a', mark: '#b48cff', eye: '#ff4aff' }); } },
+  giftspinne: { h: 29, draw: (ctx, f) => { ctx.scale(1.25, 1.25); spiderArt(ctx, f, { body: '#2e4a24', mark: '#c6f08a', eye: '#d8ff6a' }); } },
+  spinnenkoenigin: { h: 62, draw: (ctx, f) => { ctx.scale(2.7, 2.7); spiderArt(ctx, f, { body: '#3a2450', mark: '#ffd34d', eye: '#ff3aff' }); } },
+  orkelite: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.2, skin: '#5a7a38', pants: '#2e261c', boots: '#1e1810', torso: '#6e7680', sleeve: '#5a7a38', gloves: '#6e7680', belt: '#2a2018', pauldron: '#9aa1a8', spikes: true, cape: '#2a3a6a', weapon: 'sword',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.6, Math.PI, 0); ctx.closePath(); }, '#9aa1a8', cx - 11.6, cy - 12.6, 23.2, 11.6);
+        box(ctx, cx - 1.5, cy - 16, 3, 7, 1, '#2a3a6a');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffd34d', true);
+      }
+    })
+  },
+  orkberserker: {
+    h: 56, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.2, skin: '#7a8a40', pants: '#4a2a1a', boots: '#2a1810', torso: '#7a8a40', sleeve: '#7a8a40', gloves: '#7a8a40', belt: '#8a2a1a', straps: '#5a2a1a', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 6, cy - 9], [cx - 2, cy - 18], [cx + 2, cy - 9]], '#c8302a');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        stroke(ctx, '#c8302a', 1.2, [[cx + 1, cy - 4], [cx + 8, cy - 2]]);
+        monsterEye(ctx, cx + 6, cy - 0.6, 2, '#ff3a2a', true);
+      }
+    })
+  },
+  kriegsherr: {
+    h: 84, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.8, skin: '#4a6a30', pants: '#2a2018', boots: '#1a140e', torso: '#2a2a30', sleeve: '#4a6a30', gloves: '#c9a35a', belt: '#c9a35a', pauldron: '#ffd34d', spikes: true, cape: '#a81a14', necklace: true, weapon: 'axe',
+      head: (ctx, cx, cy) => {
+        paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 11.8, Math.PI, 0); ctx.closePath(); }, '#c9a35a', cx - 11.8, cy - 12.8, 23.6, 11.8);
+        poly(ctx, [[cx - 9, cy - 9], [cx - 17, cy - 23], [cx - 6, cy - 12]], '#f4ecd8');
+        poly(ctx, [[cx + 4, cy - 11], [cx + 7, cy - 26], [cx + 10, cy - 10]], '#f4ecd8');
+        poly(ctx, [[cx - 3, cy - 12], [cx, cy - 19], [cx + 3, cy - 12]], '#ff6a3a');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 2, '#ff6a2a', true);
+        stroke(ctx, '#e0c0b0', 1, [[cx + 1, cy - 5], [cx + 5, cy + 3]]);
+      }
+    })
+  },
+  eisgolem: {
+    h: 68, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
+      scale: 1.5, belly: true, skin: '#a8cce6', pants: '#7aa4c8', boots: '#5a84a8', sleeve: '#a8cce6', gloves: '#d4eaf8', claws: true,
+      head: (ctx, cx, cy) => {
+        poly(ctx, [[cx - 8, cy - 8], [cx - 5, cy - 18], [cx - 1, cy - 9]], '#e8f6ff');
+        poly(ctx, [[cx + 1, cy - 10], [cx + 5, cy - 20], [cx + 8, cy - 8]], '#e8f6ff');
+        monsterEye(ctx, cx + 5.5, cy - 0.5, 1.8, '#3ab0ff', true);
+      }
+    })
+  },
+  eiskoenig: { h: 100, draw: (ctx, f) => { ctx.scale(2.2, 2.2); ghostArt(ctx, f, { body: '#9fd8ff', crown: '#ffd34d', eye: '#1a6aff' }); } },
+  drachenbrut: {
+    h: 40, draw: (ctx, f) => {
+      ctx.scale(1.2, 1.2);
+      dragonWings(ctx, f, '#a8401a');
+      beastArt(ctx, f, { fur: '#c8501a', belly: '#f0b060', snout: '#d86a2a', ridge: true, eye: '#ffd34d', angry: true, fangs: true });
+    }
+  },
+  urdrache: {
+    h: 96, draw: (ctx, f) => {
+      ctx.scale(2.6, 2.6);
+      dragonWings(ctx, f, '#3a1a3a');
+      beastArt(ctx, f, { fur: '#2a1a2a', belly: '#c8902a', snout: '#4a2a3a', ridge: true, eye: '#ff6a2a', angry: true, glow: true, fangs: true, tusk: true, scar: true });
+    }
   }
 });
+
+// Pferd von der Seite (Füße bei y = 0, Kopf nach rechts). frame 0–3: Galopp
+function horseArt(ctx, frame, o = {}) {
+  const coat = o.coat || '#8a5a36';
+  const dark = darker(coat, 0.35);
+  const mane = o.mane || '#3a2418';
+  const hoof = '#241a14';
+  const t = frame * Math.PI / 2;
+  const leg = (x, phase, back) => {
+    const sw = frame ? Math.sin(t + phase) * 5 : 0;
+    box(ctx, x - 2 + sw * 0.4, -17, 4.2, 9, 1.8, back ? dark : coat);
+    box(ctx, x - 1.6 + sw, -9, 3.4, 8, 1.4, back ? dark : coat);
+    box(ctx, x - 2 + sw, -2, 4, 2.5, 1, hoof);
+  };
+  leg(-11, 0, true);
+  leg(9, Math.PI, true);
+  // Schweif
+  paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-17, -27); ctx.quadraticCurveTo(-27, -22, -24, -8 + (frame ? Math.sin(t) * 2 : 0)); ctx.quadraticCurveTo(-21, -18, -16, -22); ctx.closePath(); }, mane, -27, -27, 11, 20);
+  oval(ctx, 0, -23, 18, 9.5, coat);
+  oval(ctx, 2, -20, 13, 5, lighter(coat, 0.12));
+  // Hals und Kopf
+  poly(ctx, [[9, -30], [16, -42], [22, -42], [19, -27], [13, -18]], coat);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.ellipse(24, -40, 8, 4.6, 0.45, 0, Math.PI * 2); }, coat, 16, -46, 16, 12);
+  oval(ctx, 29.5, -36.5, 2.6, 2.2, lighter(coat, 0.2));
+  poly(ctx, [[18, -45], [19, -51], [21.5, -45]], coat);
+  dot(ctx, 22.5, -41.5, 1.2, 1.2, '#1a120c');
+  poly(ctx, [[8, -31], [15, -44], [19, -45], [12, -30]], mane);
+  leg(-8, Math.PI / 2, false);
+  leg(12, Math.PI * 1.5, false);
+  if (o.saddle) {
+    box(ctx, -7, -33, 14, 6, 2.5, o.saddle);
+    box(ctx, -5.5, -27.5, 11, 5, 1.5, darker(o.saddle, 0.25));
+    stroke(ctx, '#2a1a10', 1, [[0, -27], [0, -15]]);
+    stroke(ctx, '#2a1a10', 1, [[26, -40], [14, -33]]);
+  }
+}
 
 function monsterSprite(typeId, frame) {
   const art = MONSTER_ART[typeId];

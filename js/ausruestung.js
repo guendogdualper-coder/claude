@@ -367,6 +367,45 @@ function rollLoot(m) {
   }
 }
 
+// Bosse: zwei Teile Ausrüstung über der eigenen Stufe (+3 bis +6), Bücher, Schmiede-Teile,
+// Materialien, eine Segensschriftrolle und viel Gold
+function bossLoot(m) {
+  const p = game.player;
+  const b = m.type.boss;
+  let tier = 0;
+  ITEM_TIERS.forEach((t, i) => { if (m.level + 8 >= t.level) tier = i; });
+  const slots = EQUIP_SLOTS.map((sl) => sl.id);
+  for (let k = 0; k < 2; k++) {
+    const cls = Math.random() < 0.85 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
+    const kinds = CLASS_WEAPON_KINDS[cls];
+    const item = makeItem(slots[randInt(0, slots.length - 1)], tier, randInt(3, 6), cls, kinds[randInt(0, kinds.length - 1)]);
+    if (addToBag(item)) {
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+      later(0.2 + k * 0.25, () => vfxLootFly(m, itemIconCanvas(item)));
+    } else {
+      ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
+    }
+  }
+  addBooks(randInt(2, 3), m);
+  if (b.mat) addMobMat(b.mat, randInt(3, 5), m);
+  const mats = { boniPlus: 2, switcher: 1, ...(Math.random() < 0.5 ? { boni5: 1 } : {}), ...(Math.random() < 0.25 ? { star: 1 } : {}) };
+  for (const [id, n] of Object.entries(mats)) {
+    p.materials[id] = (p.materials[id] || 0) + n;
+    ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
+  }
+  p.scrolls++;
+  ui.loot(BLESSING.name, 1, scrollIconUrl(), '#f3e2b0');
+  const gold = m.level * 300;
+  p.gold += gold;
+  ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
+  ui.banner(`${m.name} besiegt!`, 'Die Beute gehört dir');
+  ui.log(`${m.name} ist gefallen. In 10 Minuten kehrt er zurück.`, 'level');
+  addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 160, dur: 0.9, color: b.color, width: 14, grow: true });
+  particles(m.x, feetY(m) - 30, { count: 60, color: [b.color, '#ffffff', '#ffd34d'], speed: [80, 300], life: [0.5, 1.1], size: [2, 5], drag: 2 });
+  flashScreen(b.color, 0.35);
+  shakeScreen(10);
+}
+
 function equipFromBag(index) {
   const p = game.player;
   const item = p.inventory[index];

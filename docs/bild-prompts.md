@@ -623,3 +623,45 @@ Mobile game HUD close-up: a round skill button with a sword aura icon and a purp
 ```
 2D fantasy MMORPG character sheet, three-quarter top-down view: four chibi heroes attacking into empty space with no enemy nearby, each facing right: a warrior swinging a sword with an orange arc trail, a ninja shooting an arrow that flies straight forward, a shaman casting a teal energy orb forward with a fan, a necromancer firing a green soul bolt from a staff. Small hint text "Angriff in Blickrichtung". Cute game art, bold outlines, plain green background.
 ```
+
+## Stallmeister, Pferd, Missionszeichen und Dungeons (Version 2.8)
+
+### Hauptmission golden, Nebenmission grün
+```
+2D fantasy MMORPG village scene, three-quarter top-down view: three chibi quest givers, an old village elder with a white beard and a stable master with a straw hat each with a big bouncing golden exclamation mark with a warm glow above the head, and a huntress with a bow with a bright green exclamation mark above her head; in the top right corner a quest list with golden lines for main quests and green lines for side quests, each starting with a small exclamation mark. Cute game art, bold outlines, cel shading.
+```
+
+### Stallmeister Jun und sein Stall
+```
+2D fantasy MMORPG NPC, three-quarter top-down view: a friendly chibi stable master in a brown leather vest with a golden buckle, a wide straw hat with a red band, holding reins in one hand; next to him a saddled brown horse with a dark mane and a red saddle, stacked golden hay bales and a wooden fence, at the edge of an East Asian village with a stone wall. Cute game art, bold outlines, cel shading, plain grass background.
+```
+
+### Prüfung des Stallmeisters mit Zeitlimit
+```
+Mobile game HUD close-up in landscape, dark fantasy style: a quest window titled "Prüfung des Stallmeisters" with a golden "Hauptmission · ab Stufe 30" label, the goal "120 Monster ab Stufe 25 in 20 Minuten besiegen" and rewards with a horse icon; in the top right of the HUD a golden tracker line "Prüfung des Stallmeisters 60/120 · 14:22" with a ticking hourglass. Clean game UI, warm gold accents.
+```
+
+### Reiten
+```
+2D fantasy MMORPG character sprite sheet, side view and three-quarter view: a chibi warrior riding a brown horse with a dark mane and a saddle in the warrior's class color, four galloping frames with legs stretching and tucking, dust puffs behind the hooves, the rider holding a sword; next to it a round HUD button with a horse head icon glowing gold while riding. Cute game art, bold outlines, cel shading, plain background.
+```
+
+### Dungeon-Eingänge auf der Karte
+```
+2D fantasy MMORPG scene, three-quarter top-down view: a rocky stone arch cave entrance with a swirling violet portal inside beside a dirt path in a dark pine forest, the name "Spinnenhöhle" in gold below it; inset: a round minimap with small colored square markers for four dungeons (violet, orange, ice blue, fiery red). Cute game art, bold outlines, soft glow.
+```
+
+### Die vier Dungeons
+```
+2D fantasy MMORPG environment sheet, three-quarter top-down view, four dungeon rooms with raised walls that show a lit top and a dark front face: a purple-black spider cave with violet braziers and spider webs, an orc fortress with grey stone brick walls, flagstone floor and orange braziers, an ice grotto with bright white ice walls, blue-white floor and pale blue flames, a dragon lair with black basalt walls with glowing orange cracks and lava pools. Each room has small monsters: purple cave spiders, armored orc guards, ice golems, young fire dragons. Cute game art, bold outlines, moody lighting.
+```
+
+### Bosse
+```
+2D fantasy MMORPG boss sheet, three-quarter top-down view, four huge chibi bosses each standing in a pulsing aura of its color: the Spider Queen, a giant dark purple spider with golden markings and magenta eyes; Warlord Gor'thak, a massive orc in black armor with golden pauldrons, a crimson cape, bone horns and a great axe; Ice King Hrim, a towering pale blue ghost with a golden crown; the ancient dragon Vharak, a black-purple dragon with golden belly, huge wings and fiery eyes. Each with a name plate and level. Cute but menacing game art, bold outlines, cel shading.
+```
+
+### Boss-Stampfer und Bossbalken
+```
+2D game combat scene, three-quarter top-down view: a chibi warrior quickly running out of a large red dashed warning circle on the ground that is filling up around the Ice King boss; a wide boss health bar at the top center with the name "Lv 52 Eiskönig Hrim" and the numbers below; ice shards flying outward in all directions; three frost ghosts appearing in bursts of light as reinforcements. Cute game art, bold outlines, additive glow.
+```

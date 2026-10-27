@@ -59,6 +59,100 @@ function populateWorld() {
       }
     }
   }
+  populateDungeons(groupId);
+}
+
+// Dungeons: in Raum 2–4 je zwei Gruppen, im letzten Raum der Boss.
+// Monster kommen erst nach 90 s wieder, der Boss nach 10 Minuten.
+const DUNGEON_RESPAWN = 90;
+const BOSS_RESPAWN = 600;
+function populateDungeons(groupId) {
+  for (const dg of game.world.dungeons) {
+    const zone = ZONES[RING_ZONES + DUNGEONS.indexOf(dg.def)];
+    const [a, b] = dg.def.mobs;
+    const plan = [[1, [a, a]], [2, [a, b]], [3, [b, b]]];
+    for (const [ri, types] of plan) {
+      const r = dg.rooms[ri];
+      types.forEach((typeId, k) => {
+        const c = { x: (r.x + r.w * (k ? 0.7 : 0.3)) * TILE, y: (r.y + r.h * 0.5) * TILE };
+        const n = randInt(3, 4);
+        for (let j = 0; j < n; j++) {
+          const pos = spotNear(c, 50);
+          const m = createMonster(typeId, pos.x, pos.y, { groupId, zone });
+          m.respawnDelay = DUNGEON_RESPAWN;
+          game.monsters.push(m);
+        }
+        groupId++;
+      });
+    }
+    const rb = dg.rooms[dg.rooms.length - 1];
+    const boss = createMonster(dg.def.boss, (rb.cx + 0.5) * TILE, (rb.cy + 0.5) * TILE, { zone });
+    boss.respawnDelay = BOSS_RESPAWN;
+    boss.bossCd = 4;
+    boss.summoned = 0;
+    game.monsters.push(boss);
+  }
+}
+
+// --- Bosse ------------------------------------------------------------------------------
+// Abwechselnd Stampfer (roter Kreis am Boden, nach 1,1 s Schaden für alle darin) und Salve.
+// Bei 66 % und 33 % Leben ruft der Boss Verstärkung. Unter 25 % wird er schneller.
+function updateBoss(m, dt) {
+  const p = game.player;
+  const b = m.type.boss;
+  if (m.cast) {
+    m.moving = false;
+    if (game.time < m.cast.at) return true;
+    const c = m.cast;
+    m.cast = null;
+    if (c.kind === 'slam') {
+      shakeScreen(9);
+      addEffect({ type: 'ring', x: m.x, y: feetY(m), r: b.slam, dur: 0.5, color: b.color, width: 12, grow: true });
+      addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: b.slam * 0.6, dur: 2.5, color: '#1a1210' });
+      particles(m.x, feetY(m), { count: 40, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'square', drag: 3, glow: false });
+      if (!p.dead && Math.hypot(p.x - m.x, (p.y - m.y) * 1.2) < b.slam) {
+        damagePlayer(calcDamage(m.atk, 2.2 * levelBonus(m.level, p.level), game.stats.def, 0.05, m.level).amount, m);
+      }
+    }
+    return true;
+  }
+  m.bossCd -= dt * (m.hp < m.maxHp * 0.25 ? 1.5 : 1);
+  // Verstärkung
+  const step = m.summoned === 0 ? 0.66 : m.summoned === 1 ? 0.33 : -1;
+  if (m.hp < m.maxHp * step) {
+    m.summoned++;
+    for (let k = 0; k < 3; k++) {
+      const pos = spotNear(m, 80);
+      const add = createMonster(b.summon, pos.x, pos.y, { respawn: false, zone: m.zone });
+      add.homeX = m.homeX;
+      add.homeY = m.homeY;
+      add.state = 'chase';
+      add.target = p;
+      game.monsters.push(add);
+      addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.6, color: b.color, count: 10 });
+    }
+    ui.banner(m.name, 'ruft Verstärkung!');
+  }
+  if (m.bossCd > 0 || m.state !== 'chase') return false;
+  m.bossCd = 5.5;
+  m.bossTurn = (m.bossTurn || 0) + 1;
+  if (b.volley && m.bossTurn % 2 === 0) {
+    // Salve: fächerförmig auf den Spieler, beim Eiskönig ringsum
+    const base = Math.atan2(p.y - m.y, p.x - m.x);
+    const all = b.volley >= 8;
+    for (let k = 0; k < b.volley; k++) {
+      const a = all ? (k / b.volley) * Math.PI * 2 : base + (k - (b.volley - 1) / 2) * 0.22;
+      game.projectiles.push({
+        owner: 'monster', x: m.x, y: m.y - 10, vx: Math.cos(a), vy: Math.sin(a), speed: 260, range: 520, traveled: 0,
+        radius: 7, atk: Math.round(m.atk * 0.8), source: m, color: b.shot, hit: new Set(), trail: []
+      });
+    }
+    m.attackAnim = 0.25;
+    return false;
+  }
+  m.cast = { kind: 'slam', at: game.time + 1.1 };
+  addEffect({ type: 'warn', x: m.x, y: feetY(m), r: b.slam, dur: 1.1, color: '#ff3a2a' });
+  return true;
 }
 
 function spotNear(c, radius) {
@@ -202,7 +296,11 @@ function updateMonsters(dt) {
       if (Math.abs(m.kx) + Math.abs(m.ky) < 5) m.kx = m.ky = 0;
     }
     if (m.attackAnim > 0) m.attackAnim -= dt;
-    if (m.stun > 0) { m.stun -= dt; m.moving = false; continue; }
+    if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; continue; }
+    if (m.type.boss) {
+      m.stun = 0;
+      if (updateBoss(m, dt)) continue;
+    }
     m.cd -= dt;
     const slowMul = m.slow && m.slow.until > game.time ? m.slow.mul : 1;
     const speed = m.type.speed * slowMul;

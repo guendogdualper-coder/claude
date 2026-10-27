@@ -12,6 +12,7 @@ const ui = {
     $('btnChar').addEventListener('click', () => this.toggle('panelChar'));
     $('btnHelp').addEventListener('click', () => this.toggle('panelHelp'));
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
+    $('btnHorse').addEventListener('click', () => toggleRide());
     onPress($('potHp'), () => usePotion('hp'));
     $('potHp').querySelector('.flask').src = lootIconUrl('potHp');
     $('potMp').querySelector('.flask').src = lootIconUrl('potMp');
@@ -159,6 +160,7 @@ const ui = {
     this.lootRows = [];
     drawPortrait($('hudPortrait'), game.player);
     this.renderQuestTrack();
+    this.updateHorseButton();
     if (game.player.needsPath) this.showPathChoice();
   },
 
@@ -293,10 +295,32 @@ const ui = {
     fn(value);
   },
 
+  updateHorseButton() {
+    const p = game.player;
+    $('btnHorse').hidden = !p || !p.horse;
+    $('btnHorse').classList.toggle('on', !!(p && p.riding));
+  },
+
+  // Lebensbalken eines Bosses oben in der Mitte, sobald man in seiner Nähe ist
+  updateBossBar() {
+    const p = game.player;
+    const boss = game.monsters.find((m) => m.type && m.type.boss && !m.dead && dist(m, p) < 560);
+    this.set('boss', boss ? boss.id + ':' + Math.ceil(boss.hp) : '', () => {
+      $('bossBar').hidden = !boss;
+      if (!boss) return;
+      $('bossName').textContent = `Lv ${boss.level} ${boss.name}`;
+      $('bossFill').style.transform = `scaleX(${Math.max(0, boss.hp / boss.maxHp)})`;
+      $('bossHp').textContent = `${Math.ceil(boss.hp).toLocaleString('de-DE')} / ${boss.maxHp.toLocaleString('de-DE')}`;
+    });
+  },
+
   update() {
     const p = game.player;
     const s = game.stats;
     if (!p) return;
+    if ((this.frame = (this.frame || 0) + 1) % 6 === 0) this.updateBossBar();
+    // Restzeit der Stallmeister-Prüfung einmal pro Sekunde
+    if (questState().stable.state === 'active') this.set('qtime', Math.floor(p.playTime), () => this.renderQuestTrack());
     this.set('hp', `${Math.ceil(p.hp)}/${s.maxHp}`, (v) => {
       $('hpText').textContent = v;
       setBar('hp', p.hp / s.maxHp);
@@ -592,6 +616,8 @@ const ui = {
     else if (npc.id === 'jaegerin') this.renderHunter();
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();
+    else if (npc.id === 'stallmeister') this.renderStable();
+    else if (npc.id === 'eingang' || npc.id === 'ausgang') this.renderDungeon(npc);
     else this.renderTalk(npc);
     $('panelNpc').hidden = false;
   },
@@ -733,7 +759,7 @@ function skillListHtml(skills, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', ausgang: 'Verlassen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;

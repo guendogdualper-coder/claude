@@ -35,7 +35,35 @@ const MONSTER_TYPES = {
   // Feuerberg, Stufe 60–70
   lavagolem: { name: 'Lavagolem', level: 62, shape: 'brute', color: '#3a2a26', size: 22, speed: 70, range: 36, cooldown: 2.1, aggressive: true, hpMul: 2.3, atkMul: 1.35 },
   feuerdaemon: { name: 'Feuerdämon', level: 66, shape: 'demon', color: '#c8402f', size: 15, speed: 125, range: 30, cooldown: 1.2, aggressive: true, hpMul: 1.2, atkMul: 1.35 },
-  feuerdrache: { name: 'Feuerdrache', level: 69, shape: 'beast', color: '#a82a1a', size: 20, speed: 105, range: 170, cooldown: 1.8, aggressive: true, ranged: true, hpMul: 2.2, atkMul: 1.4, shot: '#ff9a4a' }
+  feuerdrache: { name: 'Feuerdrache', level: 69, shape: 'beast', color: '#a82a1a', size: 20, speed: 105, range: 170, cooldown: 1.8, aggressive: true, ranged: true, hpMul: 2.2, atkMul: 1.4, shot: '#ff9a4a' },
+
+  // Dungeons (dungeon: kommen nur dort vor). Bosse haben eigene Fähigkeiten (boss):
+  //   slam    Radius eines Stampfers, der vorher als roter Kreis am Boden angekündigt wird
+  //   volley  Zahl der Geschosse einer Salve (0 = keine), shot: ihre Farbe
+  //   summon  ruft bei 66 % und 33 % Leben Verstärkung dieser Art
+//   mat     welche Monster-Teile für den Schmied der Boss fallen lässt
+  hoehlenspinne: { name: 'Höhlenspinne', level: 20, shape: 'beast', color: '#4a3a5a', size: 14, speed: 120, range: 28, cooldown: 1.3, aggressive: true, hpMul: 1.1, dungeon: true },
+  giftspinne: { name: 'Giftspeierin', level: 22, shape: 'beast', color: '#3a5a2a', size: 14, speed: 100, range: 210, cooldown: 2, aggressive: true, ranged: true, hpMul: 0.9, atkMul: 1.1, shot: '#8fd16a', dungeon: true },
+  spinnenkoenigin: {
+    name: 'Spinnenkönigin', level: 25, shape: 'beast', color: '#5a3a7a', size: 28, speed: 95, range: 46, cooldown: 1.5, aggressive: true, hpMul: 22, atkMul: 1.5, dungeon: true,
+    boss: { color: '#b48cff', slam: 120, volley: 6, shot: '#c6f08a', summon: 'hoehlenspinne', mat: 'waldspinne' }
+  },
+  orkelite: { name: 'Ork-Elitewache', level: 31, shape: 'orc', color: '#4a5a3a', size: 16, speed: 100, range: 32, cooldown: 1.5, aggressive: true, hpMul: 1.6, atkMul: 1.2, dungeon: true },
+  orkberserker: { name: 'Ork-Berserker', level: 33, shape: 'orc', color: '#7a3a2a', size: 16, speed: 125, range: 30, cooldown: 1.1, aggressive: true, hpMul: 1.3, atkMul: 1.3, dungeon: true },
+  kriegsherr: {
+    name: 'Kriegsherr Gor\'thak', level: 36, shape: 'orc', color: '#3a4a2a', size: 26, speed: 105, range: 50, cooldown: 1.6, aggressive: true, hpMul: 24, atkMul: 1.6, dungeon: true,
+    boss: { color: '#ff8a4a', slam: 140, volley: 3, shot: '#e8dcc0', summon: 'orkelite', mat: 'orkhauptmann' }
+  },
+  eisgolem: { name: 'Eisgolem', level: 47, shape: 'brute', color: '#a8cce6', size: 21, speed: 75, range: 36, cooldown: 2, aggressive: true, hpMul: 2.2, atkMul: 1.35, dungeon: true },
+  eiskoenig: {
+    name: 'Eiskönig Hrim', level: 52, shape: 'ghost', color: '#9fe8ff', size: 26, speed: 90, range: 60, cooldown: 1.7, aggressive: true, hpMul: 26, atkMul: 1.6, dungeon: true,
+    boss: { color: '#9fe8ff', slam: 150, volley: 10, shot: '#bfe8ff', summon: 'frostgeist', mat: 'yeti' }
+  },
+  drachenbrut: { name: 'Drachenbrut', level: 65, shape: 'beast', color: '#c8501a', size: 16, speed: 120, range: 30, cooldown: 1.3, aggressive: true, hpMul: 1.3, atkMul: 1.3, dungeon: true },
+  urdrache: {
+    name: 'Urdrache Vharak', level: 72, shape: 'beast', color: '#2a1a2a', size: 34, speed: 100, range: 64, cooldown: 1.8, aggressive: true, hpMul: 30, atkMul: 1.7, dungeon: true,
+    boss: { color: '#ff6a3a', slam: 170, volley: 7, shot: '#ff9a4a', summon: 'drachenbrut', mat: 'feuerdrache' }
+  }
 };
 
 // Schwierigkeit: Bis Stufe 15 werden Monster schrittweise zäher und stärker als die Grundformel,
