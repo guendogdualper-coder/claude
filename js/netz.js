@@ -1,6 +1,8 @@
-// Mehrspieler: Ein Spieler öffnet sein Spiel (Host), andere treten mit einem Code oder Link bei.
+// Mehrspieler mit Servern und Kanälen wie bei Metin2: Server ERFOO mit Kanal 1 und Kanal 2.
 // Die Geräte verbinden sich direkt über WebRTC (PeerJS, mit öffentlichem Vermittlungs- und
-// Relay-Server, damit es auch im Mobilfunknetz klappt).
+// Relay-Server, damit es auch im Mobilfunknetz klappt). Einen eigenen Rechner gibt es nicht:
+// Wer einen leeren Kanal betritt, führt dessen Welt (Host), alle anderen verbinden sich mit ihm.
+// Geht der Host, übernimmt automatisch ein anderer Spieler den Kanal, so ist er immer erreichbar.
 //
 // Der Host führt die Welt: Monster, Seelensteine und Bosse laufen nur bei ihm. Mitspieler
 // schicken ihm zehnmal pro Sekunde ihre Figur und jeden Treffer und bekommen den Stand der
@@ -8,24 +10,35 @@
 // Erfahrung und Beute, der mitgekämpft hat oder in der Nähe war. Jeder spielt mit seiner
 // eigenen, auf seinem Gerät gespeicherten Figur.
 
+const SERVERS = [{ id: 'erfoo', name: 'ERFOO', note: 'Testserver', channels: 2 }];
 const NET_PREFIX = 'seelenstein-';
-const NET_RATE = 0.1;    // Sekunden zwischen zwei Zustandsmeldungen
-const NET_VIEW = 1200;   // Monster in diesem Umkreis bekommt ein Mitspieler geschickt
-const NET_SHARE = 700;   // wer so nah ist, bekommt Erfahrung und Beute mit
+const NET_RATE = 0.1;      // Sekunden zwischen zwei Zustandsmeldungen
+const NET_VIEW = 1200;     // Monster in diesem Umkreis bekommt ein Mitspieler geschickt
+const NET_SHARE = 700;     // wer so nah ist, bekommt Erfahrung und Beute mit
 const NET_SHARE_TIME = 60; // ... oder wer in den letzten 60 s getroffen hat
-const NET_MAX = 4;       // höchstens so viele Spieler insgesamt
+const NET_MAX = 8;         // höchstens so viele Spieler pro Kanal
+const NET_STALL = 8000;    // so lange (ms) ohne Nachricht vom Host gilt er als weg
+const NET_KEY = 'seelenstein.kanal';
 
 const net = {
-  mode: 'off',          // 'off' | 'opening' | 'host' | 'joining' | 'client'
+  mode: 'off',          // 'off' | 'joining' | 'host' | 'client'
+  server: '',
+  channel: 0,
   peer: null,
-  code: '',
   hostConn: null,       // beim Mitspieler: Verbindung zum Host
   conns: new Map(),     // beim Host: Kennung -> Verbindung
   players: new Map(),   // andere Spieler: Kennung -> Figur
   mons: new Map(),      // beim Mitspieler: Monster nach Kennung
   hostName: '',
+  probes: {},           // Spielerzahl je Kanal (Server-Auswahl)
+  lastSnapAt: 0,
+  resume: null,
   timer: 0
 };
+
+const channelId = (srv, ch) => `${NET_PREFIX}${srv}-k${ch}`;
+const serverName = (srv) => (SERVERS.find((x) => x.id === srv) || { name: srv }).name;
+const netOnline = () => net.mode === 'host' || net.mode === 'client';
 
 // PeerJS wird erst geladen, wenn jemand Mehrspieler nutzt
 function netLoadLib() {
@@ -39,32 +52,34 @@ function netLoadLib() {
   });
 }
 
-// fünf Zeichen ohne leicht verwechselbare Buchstaben
-function netNewCode() {
-  const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({ length: 5 }, () => A[Math.floor(Math.random() * A.length)]).join('');
-}
-
-function netLink(code = net.code) {
-  return location.origin + location.pathname + '?raum=' + code;
+function netLink(srv = net.server, ch = net.channel) {
+  return location.origin + location.pathname + `?server=${srv}&kanal=${ch}`;
 }
 
 function netError(e) {
   const type = e && e.type;
-  const text = type === 'peer-unavailable' ? 'Kein offenes Spiel mit diesem Code gefunden.'
-    : type === 'unavailable-id' ? 'Dieser Code ist gerade belegt, versuch es noch einmal.'
-      : type === 'network' || type === 'server-error' || type === 'socket-error' ? 'Keine Verbindung zum Mehrspieler-Dienst. Bist du online?'
-        : 'Mehrspieler-Fehler: ' + ((e && e.message) || type || 'unbekannt');
+  const text = type === 'network' || type === 'server-error' || type === 'socket-error' || type === 'browser-incompatible'
+    ? 'Keine Verbindung zum Server. Bist du online?'
+    : 'Verbindungsfehler: ' + ((e && e.message) || type || 'unbekannt');
   ui.log(text, 'warn');
-  if (net.mode === 'opening' || net.mode === 'joining') netStop(true);
+  if (net.mode === 'joining') netStop(true);
   ui.renderNet();
 }
 
-// --- Host --------------------------------------------------------------------------------
+// --- Kanal betreten ---------------------------------------------------------------------------
+// Erst versuchen, sich mit dem Host des Kanals zu verbinden. Gibt es keinen (oder antwortet er
+// nicht), übernimmt man den Kanal selbst. War jemand anderes gleichzeitig schneller, verbindet
+// man sich eben mit ihm.
 
-async function netHost() {
-  if (net.mode !== 'off' || !game.player) return;
-  net.mode = 'opening';
+async function netJoinChannel(srv, ch, attempt = 0) {
+  if (!game.player) return;
+  if (net.mode !== 'off' && !(net.mode === 'joining' && attempt > 0)) {
+    if (net.server === srv && net.channel === ch && netOnline()) return;
+    netStop(true);
+  }
+  net.server = srv;
+  net.channel = ch;
+  net.mode = 'joining';
   ui.renderNet();
   try {
     await netLoadLib();
@@ -73,18 +88,147 @@ async function netHost() {
     netError(e);
     return;
   }
-  net.code = netNewCode();
-  net.peer = new Peer(NET_PREFIX + net.code);
-  net.peer.on('open', () => {
+  if (net.mode !== 'joining' || net.server !== srv || net.channel !== ch) return;
+  const peer = new Peer();
+  net.peer = peer;
+  let done = false;
+  let timer = 0;
+  const claim = () => {
+    if (done || net.peer !== peer) return;
+    done = true;
+    clearTimeout(timer);
+    try { peer.destroy(); } catch (e) { /* schon zu */ }
+    netClaimChannel(srv, ch, attempt);
+  };
+  peer.on('error', (e) => {
+    if (e.type === 'peer-unavailable') claim();
+    else if (!done && net.peer === peer) { done = true; netError(e); }
+  });
+  peer.on('open', () => {
+    if (net.peer !== peer) return;
+    const conn = peer.connect(channelId(srv, ch), { reliable: true });
+    net.hostConn = conn;
+    timer = setTimeout(claim, 7000);
+    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState() }));
+    conn.on('data', (d) => {
+      if (d && d.t === 'welcome') { done = true; clearTimeout(timer); }
+      netOnClientData(d);
+    });
+    conn.on('close', () => {
+      clearTimeout(timer);
+      if (net.hostConn === conn && net.mode === 'client') netMigrate();
+    });
+  });
+}
+
+function netClaimChannel(srv, ch, attempt) {
+  const peer = new Peer(channelId(srv, ch));
+  net.peer = peer;
+  peer.on('open', () => {
+    if (net.peer !== peer) return;
     net.mode = 'host';
-    ui.log(`Dein Spiel ist offen. Code: ${net.code}`, 'level');
+    netTakeOverWorld();
+    netRemember();
+    ui.log(`${serverName(srv)} · Kanal ${ch}: Du bist online. Wer dazukommt, spielt in deiner Welt.`, 'level');
+    ui.banner(`${serverName(srv)} · Kanal ${ch}`, 'Du bist online');
+    ui.closePanels();
     ui.renderNet();
     ui.updateNetBadge();
   });
-  net.peer.on('connection', netAccept);
-  net.peer.on('error', netError);
-  net.peer.on('disconnected', () => { try { net.peer.reconnect(); } catch (e) { /* schon getrennt */ } });
+  peer.on('connection', netAccept);
+  peer.on('error', (e) => {
+    if (net.peer !== peer) return;
+    if (e.type === 'unavailable-id' && net.mode !== 'host') {
+      // jemand anderes hat den Kanal gerade übernommen: dann zu ihm
+      try { peer.destroy(); } catch (x) { /* schon zu */ }
+      if (attempt < 8) {
+        net.mode = 'joining';
+        setTimeout(() => { if (net.mode === 'joining') netJoinChannel(srv, ch, attempt + 1); }, 800 + Math.random() * 1500);
+      } else {
+        netStop(true, null, true);
+        ui.log('Der Kanal antwortet gerade nicht. Versuch es gleich noch einmal.', 'warn');
+      }
+      return;
+    }
+    if (net.mode === 'host' && (e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error' || e.type === 'disconnected')) return;
+    netError(e);
+  });
+  // Verbindung zum Vermittlungsdienst verloren: neu verbinden, die Mitspieler bleiben verbunden
+  peer.on('disconnected', () => {
+    if (net.peer === peer && net.mode === 'host') { try { peer.reconnect(); } catch (x) { /* später */ } }
+  });
 }
+
+// Der Host ist weg: Kanal neu betreten (verbinden oder selbst übernehmen), Welt behalten
+function netMigrate() {
+  const srv = net.server;
+  const ch = net.channel;
+  net.mode = 'joining';
+  try { if (net.peer) net.peer.destroy(); } catch (e) { /* schon zu */ }
+  net.peer = null;
+  net.hostConn = null;
+  for (const rp of net.players.values()) rp.gone = true;
+  net.players.clear();
+  ui.log('Der Host ist gegangen, der Kanal wird übernommen …', 'info');
+  ui.updateNetBadge();
+  setTimeout(() => { if (net.mode === 'joining') netJoinChannel(srv, ch, 1); }, 200 + Math.random() * 1200);
+}
+
+// Wer den Kanal übernimmt, führt die Welt weiter, die er gerade sieht
+function netTakeOverWorld() {
+  let max = 0;
+  for (const m of game.monsters) {
+    max = Math.max(max, m.id);
+    if (m.dead) m.respawnAt = game.time + 10 + Math.random() * 15;
+    if (m.type && m.type.boss && m.bossCd == null) { m.bossCd = 4; m.summoned = 0; }
+    if (!m.isStone && m.state !== 'idle') { m.state = 'return'; m.target = null; }
+  }
+  nextMonsterId = Math.max(nextMonsterId, max + 1);
+  net.mons.clear();
+  for (const rp of net.players.values()) rp.gone = true;
+  net.players.clear();
+}
+
+function netRemember() {
+  try { localStorage.setItem(NET_KEY, net.server + ':' + net.channel); } catch (e) { /* egal */ }
+}
+
+// Spielerzahl je Kanal für die Server-Auswahl: kurz anklopfen und fragen
+async function netProbe() {
+  if (net.probing && performance.now() - net.probing < 8000) return;
+  net.probing = performance.now();
+  try {
+    await netLoadLib();
+  } catch (e) {
+    return;
+  }
+  for (const sv of SERVERS) {
+    for (let ch = 1; ch <= sv.channels; ch++) {
+      const key = sv.id + ch;
+      if (net.server === sv.id && net.channel === ch && netOnline()) continue;
+      net.probes[key] = '…';
+      const peer = new Peer();
+      let ended = false;
+      const finish = (v) => {
+        if (ended) return;
+        ended = true;
+        net.probes[key] = v;
+        try { peer.destroy(); } catch (e) { /* schon zu */ }
+        if (!$('panelNet').hidden) ui.renderNet();
+      };
+      const t = setTimeout(() => finish('?'), 6000);
+      peer.on('error', (e) => { clearTimeout(t); finish(e.type === 'peer-unavailable' ? 0 : '?'); });
+      peer.on('open', () => {
+        const c = peer.connect(channelId(sv.id, ch));
+        c.on('open', () => c.send({ t: 'ping' }));
+        c.on('data', (d) => { if (d && d.t === 'pong') { clearTimeout(t); finish(d.n); } });
+      });
+    }
+  }
+  if (!$('panelNet').hidden) ui.renderNet();
+}
+
+// --- Host --------------------------------------------------------------------------------
 
 function netAccept(conn) {
   conn.on('open', () => {
@@ -103,6 +247,10 @@ function netAccept(conn) {
 function netOnHostData(conn, d) {
   if (!d || !game.player) return;
   const id = conn.peer;
+  if (d.t === 'ping') {
+    conn.send({ t: 'pong', n: net.players.size + 1 });
+    return;
+  }
   if (d.t === 'hello') {
     const rp = netRemote(id);
     netApplyState(rp, d.s);
@@ -186,53 +334,38 @@ function netSnapshotFor(id, rp) {
 
 // --- Mitspieler --------------------------------------------------------------------------
 
-async function netJoin(code) {
-  code = String(code || '').trim().toUpperCase();
-  if (net.mode !== 'off' || !game.player || code.length < 4) return;
-  net.mode = 'joining';
-  net.code = code;
-  ui.renderNet();
-  try {
-    await netLoadLib();
-  } catch (e) {
-    net.mode = 'off';
-    netError(e);
-    return;
-  }
-  net.peer = new Peer();
-  net.peer.on('error', netError);
-  net.peer.on('open', () => {
-    const conn = net.peer.connect(NET_PREFIX + code, { reliable: true });
-    net.hostConn = conn;
-    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState() }));
-    conn.on('data', netOnClientData);
-    conn.on('close', () => netStop(false, 'Die Verbindung zum Host ist getrennt. Du spielst jetzt wieder allein.'));
-    conn.on('error', () => netStop(false, 'Die Verbindung zum Host ist abgebrochen.'));
-  });
-}
-
 function netOnClientData(d) {
   if (!d || !game.player) return;
   switch (d.t) {
     case 'welcome': {
       net.mode = 'client';
       net.hostName = d.host;
+      net.lastSnapAt = performance.now();
       game.monsters = d.mons.map(netBuildMonster);
       net.mons = new Map(game.monsters.map((m) => [m.id, m]));
       game.target = null;
       game.projectiles = [];
-      ui.log(`Du spielst jetzt in der Welt von ${d.host}.`, 'level');
-      ui.banner('Zusammen spielen', `Welt von ${d.host}`);
+      netRemember();
+      ui.log(`${serverName(net.server)} · Kanal ${net.channel}: Du bist online.`, 'level');
+      ui.banner(`${serverName(net.server)} · Kanal ${net.channel}`, 'Du bist online');
       ui.closePanels();
       ui.renderNet();
       ui.updateNetBadge();
       break;
     }
     case 'full':
-      ui.log('Das Spiel ist voll (höchstens 4 Spieler).', 'warn');
+      ui.log(`Kanal ${net.channel} ist voll (höchstens ${NET_MAX} Spieler). Versuch den anderen Kanal.`, 'warn');
+      net.hostConn = null;
       netStop(true);
       break;
-    case 'snap': netApplySnapshot(d); break;
+    case 'bye':
+      // Der Host geht (z. B. App im Hintergrund): sofort übernehmen
+      if (net.mode === 'client') netMigrate();
+      break;
+    case 'snap':
+      net.lastSnapAt = performance.now();
+      netApplySnapshot(d);
+      break;
     case 'kill': {
       const m = net.mons.get(d.id);
       if (m && !m.dead) netClientKill(m);
@@ -292,7 +425,11 @@ function netBuildMonster(e) {
   } else {
     m = createMonster(type, x, y, { zone, respawn: !!respawn });
   }
-  return Object.assign(m, { id, x, y, tx: x, ty: y, homeX: hx, homeY: hy, hp, maxHp, dead: !!dead, zone, respawn: !!respawn });
+  Object.assign(m, { id, x, y, tx: x, ty: y, homeX: hx, homeY: hy, hp, maxHp, dead: !!dead, zone, respawn: !!respawn });
+  // falls dieser Spieler später den Kanal übernimmt
+  if (m.type && m.type.dungeon) m.respawnDelay = m.type.boss ? BOSS_RESPAWN : DUNGEON_RESPAWN;
+  if (m.type && m.type.boss) { m.bossCd = 4; m.summoned = 0; }
+  return m;
 }
 
 function netApplySnapshot(d) {
@@ -476,7 +613,13 @@ function netUpdate(dt) {
     if (rp.spin > 0) rp.spin = Math.max(0, rp.spin - dt);
     if (rp.riding && Math.abs(rp.facing.x) > 0.15) rp.rideFlip = rp.facing.x < 0;
   }
-  if (net.mode === 'client') netMirrorMonsters(dt);
+  if (net.mode === 'client') {
+    netMirrorMonsters(dt);
+    if (performance.now() - net.lastSnapAt > NET_STALL) {
+      netMigrate();
+      return;
+    }
+  }
   // Anzeige und Fenster auffrischen, wenn jemand kommt oder geht
   if (net.players.size !== net.shownCount) {
     net.shownCount = net.players.size;
@@ -493,8 +636,9 @@ function netUpdate(dt) {
   }
 }
 
-// Spiel schließen bzw. verlassen. Der Mitspieler bekommt danach wieder eigene Monster.
-function netStop(silent, reason) {
+// Kanal verlassen. Ohne keepWorld bekommt ein Mitspieler wieder eine eigene, frische Welt,
+// mit keepWorld läuft die zuletzt gesehene Welt allein weiter.
+function netStop(silent, reason, keepWorld) {
   const was = net.mode;
   net.mode = 'off';
   for (const c of net.conns.values()) { try { c.close(); } catch (e) { /* schon zu */ } }
@@ -506,12 +650,13 @@ function netStop(silent, reason) {
   net.mons.clear();
   net.peer = null;
   net.hostConn = null;
-  if (was === 'client' && game.player) {
-    populateWorld();
+  if ((was === 'client' || was === 'joining') && game.player) {
+    if (keepWorld) netTakeOverWorld();
+    else if (was === 'client') populateWorld();
     game.target = null;
     game.projectiles = [];
   }
-  if (!silent) ui.log(reason || (was === 'host' ? 'Dein Spiel ist geschlossen.' : 'Du spielst wieder allein.'), 'info');
+  if (!silent) ui.log(reason || 'Du spielst jetzt allein.', 'info');
   ui.renderNet();
   ui.updateNetBadge();
 }
@@ -536,11 +681,33 @@ function netShowChat(name, text, who) {
   }
 }
 
-// Beim Start über einen Link mit ?raum=CODE automatisch beitreten
+// Beim Start: über einen Link mit ?server=…&kanal=… direkt beitreten, sonst die Server-Auswahl
+// zeigen (nicht in automatischen Tests)
 function netAutoJoin() {
-  const code = new URLSearchParams(location.search).get('raum');
-  if (!code || net.mode !== 'off' || net.autoTried) return;
+  if (net.autoTried || net.mode !== 'off') return;
   net.autoTried = true;
-  ui.log(`Trete dem Spiel ${code.toUpperCase()} bei …`, 'info');
-  netJoin(code);
+  const q = new URLSearchParams(location.search);
+  const srv = (q.get('server') || '').toLowerCase();
+  const ch = Number(q.get('kanal'));
+  const sv = SERVERS.find((x) => x.id === srv);
+  if (sv && ch >= 1 && ch <= sv.channels) {
+    netJoinChannel(sv.id, ch);
+    return;
+  }
+  if (!navigator.webdriver) ui.toggle('panelNet');
 }
+
+// App im Hintergrund (Handy gesperrt, anderes Programm): Kanal verlassen, damit sofort ein
+// anderer übernimmt, und beim Zurückkommen wieder beitreten
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (!netOnline()) return;
+    net.resume = { srv: net.server, ch: net.channel };
+    if (net.mode === 'host') netBroadcast({ t: 'bye' });
+    setTimeout(() => { if (document.hidden && netOnline()) netStop(true, null, true); }, 150);
+  } else if (net.resume && game.player) {
+    const r = net.resume;
+    net.resume = null;
+    if (net.mode === 'off') netJoinChannel(r.srv, r.ch);
+  }
+});

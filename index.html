@@ -89,9 +89,9 @@
     <button id="btnHorse" class="menu-btn" type="button" aria-label="Pferd" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20l1-6c-1-2-1-4 1-6l3-3 2 1 4-2 1 3 3 2-1 2-3-1-2 3 1 7"/><path d="M8 14h6"/></svg>
       <span class="menu-text">Pferd</span> <kbd>R</kbd></button>
-    <button id="btnNet" class="menu-btn" type="button" aria-label="Zusammen spielen">
+    <button id="btnNet" class="menu-btn" type="button" aria-label="Server und Kanal">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M3 20c.8-3.6 3.2-5.6 6-5.6s5.2 2 6 5.6"/><path d="M15 14.6c2.6-.4 4.8 1.2 5.6 4.6"/></svg>
-      <span class="menu-text">Zusammen</span> <kbd>N</kbd></button>
+      <span class="menu-text">Server</span> <kbd>N</kbd></button>
     <button id="btnChat" class="menu-btn" type="button" aria-label="Chat" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
       <span class="menu-text">Chat</span> <kbd>Enter</kbd></button>
@@ -175,7 +175,7 @@
       <dt><kbd>Q</kbd> / <kbd>E</kbd></dt><dd>Drachenblut (Leben) / Mondtau (Mana)</dd>
       <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
-      <dt><kbd>N</kbd> / <kbd>Enter</kbd></dt><dd>Zusammen spielen / Chat</dd>
+      <dt><kbd>N</kbd> / <kbd>Enter</kbd></dt><dd>Server und Kanal / Chat</dd>
       <dt><kbd>I</kbd></dt><dd>Inventar: Ausrüstung anlegen, ablegen, bei Händlern verkaufen</dd>
       <dt><kbd>B</kbd></dt><dd>Beute: alles, was du aufgehoben hast, und der Weg in den Rucksack</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
@@ -184,7 +184,7 @@
     <h3>So kommst du voran</h3>
     <ul>
       <li>Jedes besiegte Monster gibt Erfahrung und Gold. Monster, die viel schwächer sind als du, geben kaum noch Erfahrung. Zieh dann in die nächste Zone weiter.</li>
-      <li>Zusammen spielen: Über den Knopf „Zusammen“ (Taste N) öffnest du dein Spiel und bekommst einen Code und einen Link. Wer den Link öffnet oder den Code eingibt, spielt mit seiner eigenen Figur in deiner Welt (höchstens 4 Spieler). Monster, Steine und Bosse sind für alle dieselben, Erfahrung und Beute bekommt jeder, der mitkämpft oder in der Nähe ist. Mit dem Sprechblasen-Knopf (oder Enter) schreibst du im Chat. Wer das Spiel geöffnet hat, muss die App offen lassen, sonst steht die Welt für die anderen still.</li>
+      <li>Server: Beim Start wählst du den Server ERFOO und Kanal 1 oder 2 (oder „Allein spielen“). Alle im selben Kanal spielen in derselben Welt, jeder mit seiner eigenen Figur, höchstens 8 pro Kanal. Wer einen leeren Kanal betritt, führt dessen Welt für alle; geht er (oder sperrt sein Handy), übernimmt automatisch ein anderer, der Kanal bleibt also immer offen. Den Kanal wechselst du über den Server-Knopf (Taste N). Mit „Freunde einladen“ schickst du einen Link direkt in deinen Kanal. Chat über den Sprechblasen-Knopf oder Enter.</li>
       <li>Ausrufezeichen über Personen: golden = Hauptmission (Dorfältester Bao, Stallmeister Jun), grün = Nebenmission (Jägerin Rin). Auch in der Auftragsliste oben rechts sind Hauptmissionen golden und Nebenmissionen grün.</li>
       <li>Ab Stufe 30 hat Stallmeister Jun eine Hauptmission: 120 Monster ab Stufe 25 in 20 Minuten. Belohnung ist ein eigenes Pferd (60 % schneller). Aufsteigen mit dem Pferdeknopf oder Taste R, wer angreift, steigt ab.</li>
       <li>Dungeons: Spinnenhöhle (ab Stufe 18, Dunkelwald), Orkfestung (ab 28, Orktal), Eisgrotte (ab 45, Frostgipfel) und Drachenhort (ab 63, Feuerberg). Die Eingänge stehen neben den Wegen und sind auf der Minikarte als farbige Quadrate zu sehen. Drei Räume voller Monster, am Ende ein Boss: Sein Stampfer wird mit einem roten Kreis angekündigt, bei zwei Dritteln und einem Drittel Leben ruft er Verstärkung. Bosse kommen nach 10 Minuten wieder.</li>
@@ -218,7 +218,7 @@
 </div>
 
 <div id="panelNet" class="panel frame" hidden role="dialog" aria-labelledby="netTitle">
-  <header class="panel-head"><h2 id="netTitle">Zusammen spielen</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <header class="panel-head"><h2 id="netTitle">Server wählen</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="netBody" class="panel-body"></div>
 </div>
 

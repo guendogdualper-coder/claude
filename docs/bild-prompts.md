@@ -687,3 +687,20 @@ Mobile game HUD close-up in landscape: a chat input bar at the top center with a
 ```
 Smartphone in landscape showing a messenger chat with a link "Spiel mit mir Seelenstein! Code: K7QXM" and a preview card of the game; next to it the same phone after tapping: the game opens, a banner "Zusammen spielen · Welt von Kaito" appears over a cozy East Asian village. Clean illustration, soft colors.
 ```
+
+## Server ERFOO mit zwei Kanälen (Version 3.0)
+
+### Server-Auswahl
+```
+Mobile game server selection window in landscape, dark lacquered wood and brass East Asian fantasy style, titled "Server wählen": a server card "ERFOO · Testserver" with two channel rows, "Kanal 1 · 5/8 Spieler" with a glowing yellow dot and "Kanal 2 · leer" with a grey dot, each with a golden "Betreten" button; the current channel highlighted in soft green with "du bist hier"; below a list "Im Kanal" with player names and levels and buttons "Freunde einladen" and "Allein spielen". Clean, readable game UI.
+```
+
+### Kanal-Anzeige im Spiel
+```
+Mobile game HUD close-up: the round minimap in the top right corner with the zone name, gold and splinters, and under it a small green pill badge "ERFOO K1 · 3/8"; on the minimap three green dots for other players around a white dot. Clean dark fantasy UI.
+```
+
+### Übergabe des Kanals
+```
+2D fantasy illustration for a loading moment: a glowing golden channel crystal labelled "Kanal 1" passing from one chibi hero who waves goodbye and fades out to another chibi hero who catches it, small text "Der Kanal wird übernommen …", the village and monsters in the background keep moving. Cute game art, bold outlines, soft glow.
+```

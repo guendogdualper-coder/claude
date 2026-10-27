@@ -1713,3 +1713,17 @@ kbd {
   border: 1px solid var(--brass);
 }
 .chat-bar[hidden] { display: none; }
+
+/* Server-Auswahl */
+.server-card { margin: 6px 0 10px; padding: 8px 10px; border: 1px solid var(--brass-dim); border-radius: 8px; background: rgba(0, 0, 0, 0.18); }
+.server-card h3 { margin: 0 0 6px; }
+.server-card h3 small { font-size: 12px; color: var(--muted); font-weight: 400; letter-spacing: 0; }
+.channel { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-top: 1px solid rgba(201, 163, 90, 0.18); }
+.channel:first-of-type { border-top: 0; }
+.channel.here { background: rgba(90, 224, 90, 0.08); border-radius: 6px; }
+.ch-name { flex: 1; display: grid; }
+.ch-name small { color: var(--muted); font-size: 12px; }
+.ch-dot { width: 11px; height: 11px; border-radius: 50%; border: 1px solid #000; background: #8a8478; }
+.ch-dot.busy { background: #ffd34d; box-shadow: 0 0 6px rgba(255, 211, 77, 0.8); }
+.ch-dot.here { background: #5ae05a; box-shadow: 0 0 8px rgba(90, 224, 90, 0.9); }
+.ch-btn { min-width: 96px; }

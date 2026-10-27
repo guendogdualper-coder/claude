@@ -308,66 +308,78 @@ const ui = {
   },
 
   // --- Mehrspieler ----------------------------------------------------------------------
+  // Server-Auswahl: Server mit ihren Kanälen, Spielerzahl, Betreten und Verlassen
   renderNet() {
     const body = $('netBody');
     if (!body) return;
     const p = game.player;
-    const list = () => {
-      const names = [];
-      if (net.mode === 'host') names.push(`${p.name} <small>(du, Host)</small>`);
-      else if (net.mode === 'client') names.push(`${p.name} <small>(du)</small>`);
-      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>Lv ${rp.level} · ${CLASSES[rp.classId].name}${rp.peerId === 'host' ? ' · Host' : ''}</small>`);
-      return '<ul class="net-list">' + names.map((n) => `<li>${n}</li>`).join('') + '</ul>';
-    };
-    let html;
-    if (net.mode === 'off') {
-      html = '<p>Spiel mit Freunden in derselben Welt: Einer öffnet sein Spiel, die anderen treten mit dem Code oder dem Link bei. Jeder spielt mit seiner eigenen Figur, Monster und Bosse sind für alle dieselben. Erfahrung und Beute bekommt jeder, der mitkämpft oder in der Nähe ist.</p>' +
-        '<button type="button" class="btn btn-primary" data-net="host">Mein Spiel öffnen</button>' +
-        '<h3>Einem Spiel beitreten</h3><div class="net-join"><input id="netCode" type="text" maxlength="6" autocomplete="off" placeholder="Code, z. B. K7QXM" aria-label="Code"><button type="button" class="btn btn-primary" data-net="join">Beitreten</button></div>' +
-        '<p class="hint-text">Wer das Spiel öffnet, ist der Host: Seine Welt läuft für alle. Lass die App dabei geöffnet, sonst stoppt die Welt für die anderen. Höchstens 4 Spieler.</p>';
-    } else if (net.mode === 'opening' || net.mode === 'joining') {
-      html = `<p>${net.mode === 'opening' ? 'Spiel wird geöffnet …' : `Verbinde mit ${escapeHtml(net.code)} …`}</p><button type="button" class="btn btn-ghost" data-net="stop">Abbrechen</button>`;
-    } else if (net.mode === 'host') {
-      html = `<p>Dein Spiel ist offen. Schick deinen Freunden diesen Code oder Link:</p><p class="net-code">${net.code}</p>` +
-        `<p class="net-link">${escapeHtml(netLink())}</p>` +
-        '<div class="net-row"><button type="button" class="btn btn-primary" data-net="share">Link teilen</button><button type="button" class="btn btn-ghost" data-net="copy">Link kopieren</button></div>' +
-        `<h3>Spieler (${net.players.size + 1}/${NET_MAX})</h3>${list()}` +
-        '<button type="button" class="btn btn-ghost" data-net="stop">Spiel schließen</button>';
+    const online = netOnline();
+    const servers = SERVERS.map((sv) => {
+      const chans = Array.from({ length: sv.channels }, (_, k) => k + 1).map((ch) => {
+        const mine = net.server === sv.id && net.channel === ch;
+        const here = mine && online;
+        const busy = mine && net.mode === 'joining';
+        const n = net.probes[sv.id + ch];
+        const info = here ? `${net.players.size + 1}/${NET_MAX} Spieler · du bist hier${net.mode === 'host' ? ' (deine Welt)' : ''}`
+          : busy ? 'verbinde …'
+            : n === 0 ? 'leer · du eröffnest ihn'
+              : typeof n === 'number' ? `${n}/${NET_MAX} Spieler`
+                : n === '?' ? 'online' : 'prüfe …';
+        const dot = here ? 'here' : typeof n === 'number' && n > 0 ? 'busy' : 'free';
+        return `<div class="channel${here ? ' here' : ''}"><span class="ch-dot ${dot}"></span>` +
+          `<span class="ch-name"><strong>Kanal ${ch}</strong><small>${info}</small></span>` +
+          (here ? '' : `<button type="button" class="btn btn-primary ch-btn" data-ch="${sv.id}:${ch}" ${busy ? 'disabled' : ''}>Betreten</button>`) + '</div>';
+      }).join('');
+      return `<section class="server-card"><h3>${sv.name} <small>${sv.note}</small></h3>${chans}</section>`;
+    }).join('');
+    let players = '';
+    if (online) {
+      const names = [`${escapeHtml(p.name)} <small>(du${net.mode === 'host' ? ', deine Welt' : ''})</small>`];
+      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>Lv ${rp.level} · ${CLASSES[rp.classId].name}</small>`);
+      players = `<h3>Im Kanal</h3><ul class="net-list">${names.map((n) => `<li>${n}</li>`).join('')}</ul>` +
+        '<div class="net-row"><button type="button" class="btn btn-ghost" data-net="share">Freunde einladen</button><button type="button" class="btn btn-ghost" data-net="solo">Allein spielen</button></div>';
     } else {
-      html = `<p>Du spielst in der Welt von <b>${escapeHtml(net.hostName)}</b> (Code ${escapeHtml(net.code)}).</p>` +
-        `<h3>Spieler</h3>${list()}<button type="button" class="btn btn-ghost" data-net="stop">Verlassen</button>`;
+      players = '<div class="net-row"><button type="button" class="btn btn-ghost" data-net="solo">Allein spielen</button></div>';
     }
-    body.innerHTML = html + '<p id="netMsg" class="hint-text"></p>';
+    body.innerHTML = '<p>Wähle einen Kanal. Alle im selben Kanal spielen in derselben Welt, jeder mit seiner eigenen Figur.</p>' +
+      servers + players +
+      '<p class="hint-text">Wer einen leeren Kanal betritt, führt dessen Welt für alle. Geht er, übernimmt automatisch ein anderer Spieler, der Kanal bleibt also immer offen. Erfahrung und Beute bekommt jeder, der mitkämpft oder in der Nähe ist.</p>' +
+      '<p id="netMsg" class="hint-text"></p>';
+    body.querySelectorAll('[data-ch]').forEach((b) => b.addEventListener('click', () => {
+      const [srv, ch] = b.dataset.ch.split(':');
+      netJoinChannel(srv, Number(ch));
+    }));
     body.querySelectorAll('[data-net]').forEach((b) => b.addEventListener('click', async () => {
       const act = b.dataset.net;
-      if (act === 'host') netHost();
-      else if (act === 'join') netJoin($('netCode').value);
-      else if (act === 'stop') netStop();
-      else if (act === 'share' || act === 'copy') {
+      if (act === 'solo') {
+        net.resume = null;
+        if (net.mode !== 'off') netStop();
+        this.closePanels();
+      } else if (act === 'share') {
         const link = netLink();
         try {
-          if (act === 'share' && navigator.share) await navigator.share({ title: 'Seelenstein', text: `Spiel mit mir Seelenstein! Code: ${net.code}`, url: link });
+          if (navigator.share) await navigator.share({ title: 'Seelenstein', text: `Komm zu mir auf ${serverName(net.server)}, Kanal ${net.channel}!`, url: link });
           else {
             await navigator.clipboard.writeText(link);
             $('netMsg').textContent = 'Link kopiert.';
           }
         } catch (e) {
-          $('netMsg').textContent = 'Kopieren ging nicht. Schick einfach den Code: ' + net.code;
+          $('netMsg').textContent = `Sag deinen Freunden einfach: ${serverName(net.server)}, Kanal ${net.channel}.`;
         }
       }
     }));
   },
 
   updateNetBadge() {
-    const on = net.mode === 'host' || net.mode === 'client';
+    const on = netOnline();
     $('btnChat').hidden = !on;
     $('netBadge').hidden = !on;
-    if (on) $('netBadge').textContent = `Online ${net.players.size + 1}/${NET_MAX}${net.mode === 'host' ? ' · ' + net.code : ''}`;
+    if (on) $('netBadge').textContent = `${serverName(net.server)} K${net.channel} · ${net.players.size + 1}/${NET_MAX}`;
     $('btnNet').classList.toggle('on', on);
   },
 
   openChat() {
-    if (net.mode !== 'host' && net.mode !== 'client') return;
+    if (!netOnline()) return;
     $('chatBar').hidden = false;
     $('chatInput').focus();
   },
@@ -640,7 +652,10 @@ const ui = {
         return;
       }
       if (id === 'panelLoot') this.renderLoot();
-      if (id === 'panelNet') this.renderNet();
+      if (id === 'panelNet') {
+        this.renderNet();
+        netProbe();
+      }
       el.hidden = false;
     }
   },
