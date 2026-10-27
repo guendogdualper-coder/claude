@@ -176,6 +176,12 @@ function damagePlayer(amount, attacker) {
     addText(p.x, p.y - 30, 'Ausgewichen', 'info');
     return;
   }
+  // Ein Schild kann Treffer ganz abblocken
+  if (s.block > 0 && Math.random() < s.block) {
+    addText(p.x, p.y - 30, 'Geblockt', 'info');
+    particles(p.x - 8, feetY(p) - 18, { count: 8, color: ['#e6eef8', '#ffd34d'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
+    return;
+  }
   let dmg = Math.max(1, Math.round(amount * s.damageTaken));
   if (p.shield > 0) {
     const absorbed = Math.min(p.shield, dmg);

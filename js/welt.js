@@ -158,7 +158,9 @@ function generateWorld() {
 
   const npcs = [
     { id: 'haendler', name: 'Händlerin Ayla', x: (CENTER_X + 2.5) * TILE, y: (CENTER_Y - 2) * TILE, color: '#6d3f7d', r: 11 },
-    { id: 'schmied', name: 'Schmied Doran', x: (CENTER_X - 3) * TILE, y: (CENTER_Y + 2.5) * TILE, color: '#6b4a2e', r: 12 }
+    { id: 'schmied', name: 'Schmied Doran', x: (CENTER_X - 3) * TILE, y: (CENTER_Y + 2.5) * TILE, color: '#6b4a2e', r: 12 },
+    { id: 'waffen', name: 'Waffenhändler Goro', x: (CENTER_X - 4.5) * TILE, y: (CENTER_Y - 1.5) * TILE, color: '#9a3a2a', r: 12 },
+    { id: 'ruestung', name: 'Rüstungshändlerin Mei', x: (CENTER_X + 3) * TILE, y: (CENTER_Y + 2.6) * TILE, color: '#5a6a7a', r: 11 }
   ];
 
   return { ground, obj, deco, zoneIdx, houses, npcs };

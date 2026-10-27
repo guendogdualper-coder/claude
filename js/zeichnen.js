@@ -414,6 +414,20 @@ function drawPlayer(ctx, p) {
   const weapon = p.equipment ? p.equipment.waffe : { tier: 0, plus: 0 };
   const tier = weapon ? weapon.tier : 0;
   const band = weapon ? plusBand(weapon.plus) : 0;
+  const shield = p.equipment ? p.equipment.schild : null;
+  // Schild am anderen Arm: von vorn vor dem Körper, sonst dahinter
+  const drawShield = () => {
+    if (!shield) return;
+    const sp = shieldSprite(shield.tier);
+    const b = sp.bounds;
+    const sx = dir === 'side' ? 5 : -10.5;
+    const sy = -13 + (dir === 'side' ? 0 : WALK[frame].bob);
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.scale(0.78, 0.78);
+    ctx.drawImage(sp.img, b.x, b.y, b.w, b.h);
+    ctx.restore();
+  };
   const angle = weaponAngle(kind, dir, p);
   const hand = { ...handPosition(dir, frame, 'right') };
   // Ausfallschritt beim Schlag, beim Stich weiter nach vorn
@@ -459,7 +473,7 @@ function drawPlayer(ctx, p) {
       }
     }
     drawWeaponSprite(ctx, kind, hand.x, hand.y, angle, tier);
-    if (kind === 'dagger' && dir !== 'side') {
+    if (kind === 'dagger' && dir !== 'side' && !shield) {
       const left = handPosition(dir, frame, 'left');
       drawWeaponSprite(ctx, kind, left.x, left.y, Math.PI - angle, tier);
     }
@@ -471,6 +485,7 @@ function drawPlayer(ctx, p) {
     }
   };
   if (dir === 'up') drawWeapons();
+  if (dir !== 'down') drawShield();
   const sp = characterSprite(p.classId, dir, frame);
   ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
   // Nach dem Stufenaufstieg leuchtet die Figur hell auf
@@ -481,6 +496,7 @@ function drawPlayer(ctx, p) {
     ctx.drawImage(flashOf(sp), sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
     ctx.restore();
   }
+  if (dir === 'down') drawShield();
   if (dir !== 'up') drawWeapons();
   const pulse = 0.6 + 0.4 * Math.sin(game.time * 5);
   if (p.classId === 'schamane') {
@@ -529,14 +545,7 @@ function drawNpc(ctx, n) {
   drawShadow(ctx, n.x, fy, 12);
   blitSprite(ctx, npcSprite(n.id), n.x, fy, false);
   const bob = Math.sin(game.time * 3) * 2;
-  ctx.fillStyle = '#f0cf4a';
-  ctx.strokeStyle = 'rgba(10,8,6,0.85)';
-  ctx.lineWidth = 3;
-  ctx.font = '700 16px "Marcellus SC", serif';
-  ctx.textAlign = 'center';
-  const icon = n.id === 'haendler' ? '$' : '⚒';
-  ctx.strokeText(icon, n.x, fy - 58 + bob);
-  ctx.fillText(icon, n.x, fy - 58 + bob);
+  blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
 }
 
 function drawMonster(ctx, m) {

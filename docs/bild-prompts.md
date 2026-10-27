@@ -189,3 +189,32 @@ Item upgrade glow examples for a 2D fantasy MMORPG: the same sword icon shown fi
 ```
 2D game VFX of a level-up effect seen from a three-quarter top-down view: a bright pillar of white and golden light falling from the sky onto a small chibi character, three golden rings expanding on the ground, golden sparkles spiraling upward, the character glowing white. Additive glow look, sprite sheet with 6 frames from start to fade out, plain black background, evenly spaced, no text.
 ```
+
+## Waffen- und Rüstungshändler (Version 1.4)
+
+Im Dorf verkaufen Waffenhändler Goro und Rüstungshändlerin Mei Ausrüstung für Stufe 1, 5, 10 und 15. Die fünfte, legendäre Stufe (ab 22) gibt es nur als Beute.
+
+### Waffenhändler Goro (`waffen`)
+```
+2D game character sprite of a burly village weapon merchant, East Asian fantasy style. Tanned skin, short black beard, red headband with loose tails, dark leather vest over a red shirt, strong bare arms, holding a polished sword, proud grin. Full body, top-down three-quarter view (camera about 45 degrees above), facing toward the viewer, idle pose. Slightly chibi proportions (large head, about one third of body height). Clean hand-painted game art, bold dark outline, soft cel shading, warm light from the top left. Centered, isolated on a plain white background, no shadow on the ground, no text, no frame.
+```
+
+### Rüstungshändlerin Mei (`ruestung`)
+```
+2D game character sprite of a village armor merchant woman, East Asian fantasy style. Dark hair in a high ponytail with a golden clasp, steel-blue tunic with gold cuffs, leather apron with a riveted metal plate, holding a kite shield in front of her, confident smile. Full body, top-down three-quarter view (camera about 45 degrees above), facing toward the viewer, idle pose. Slightly chibi proportions (large head, about one third of body height). Clean hand-painted game art, bold dark outline, soft cel shading, warm light from the top left. Centered, isolated on a plain white background, no shadow on the ground, no text, no frame.
+```
+
+### Waffen je Klasse (Lv 1, 5, 10, 15)
+```
+Item icons for four classes in a grid, rows are classes, columns are quality tiers from left to right (steel, bronze, moon silver, dragon gold). Row 1 swords: iron sword, broadsword, moon blade, dragon sword. Row 2 twin daggers: short daggers, twin daggers, shadow daggers, viper fangs. Row 3 folding fans: paper fan, pink silk fan, crane fan, phoenix fan. Row 4 staffs: bone staff with green orb, ash staff with pale orb, grave staff with icy blue orb, soul staff with fiery orb. East Asian fantasy MMORPG style, 2D game item icons, bold dark outline, soft cel shading, plain dark background, evenly spaced grid, no text.
+```
+
+### Rüstungsteile (Lv 1, 5, 10, 15): Rüstung, Helm, Schild, Schuhe, Gürtel
+```
+Item icons for armor pieces in a grid, rows are item types, columns are quality tiers from left to right (leather, bronze, iron, dragon). Row 1 body armor: leather vest, chain shirt, lamellar armor, red dragon-scale armor. Row 2 helmets: leather cap, bronze helmet, iron helmet with crest, dragon helmet with red crest. Row 3 shields: round wooden shield, bronze kite shield, iron kite shield, dragon shield with golden emblem. Row 4 boots: cloth shoes, leather boots, travel boots, dragon boots. Row 5 belts: cloth belt, leather belt, chain belt with studs, dragon belt with red gem pendant. East Asian fantasy MMORPG style, 2D game item icons, bold dark outline, soft cel shading, plain dark background, evenly spaced grid, no text.
+```
+
+### Händlerfenster
+```
+2D fantasy mobile game shop UI mockup in landscape orientation, dark lacquered wood panel with thin brass border, title with the merchant's name at the top. A vertical list of items, each row with a square item icon on the left, item name and required level in the middle, colored stat lines below the name (green for better than equipped, red for worse), price in gold and two buttons on the right ("Kaufen" and a golden "Kaufen & anlegen"). Clean readable layout, East Asian fantasy style.
+```

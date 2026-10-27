@@ -1011,3 +1011,32 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   .anvil.forging .hammer, .anvil.forging .spark, .anvil.success .anvil-item, .anvil.fail .anvil-item { animation: none; }
 }
+
+/* --- Waffen- und Rüstungshändler ----------------------------------------------------- */
+.merchant-list { display: grid; gap: 6px; }
+.merchant-item {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.merchant-item img { width: 48px; height: 48px; }
+.merchant-item.locked img { filter: grayscale(0.6) brightness(0.75); }
+.mi-info { display: flex; flex-direction: column; min-width: 0; }
+.mi-info small { color: var(--muted); }
+.mi-info small.need { color: #ff9a7a; }
+.mi-stats { font-size: 12px; }
+.mi-stats .up { color: #9fe08f; }
+.mi-stats .down { color: #ff9a7a; }
+.mi-buy { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: right; }
+.mi-buy .price { font-size: 13px; font-variant-numeric: tabular-nums; }
+.mini-btn.primary { background: linear-gradient(#d2ae66, #a9833d); color: #1b130a; border-color: #e5c582; }
+.equip-grid { grid-template-columns: repeat(3, 56px); }
+@media (orientation: landscape) and (max-height: 520px) {
+  .equip-grid { grid-template-columns: repeat(3, 46px); }
+  .merchant-item { grid-template-columns: 40px minmax(0, 1fr) auto; padding: 4px 8px; gap: 8px; }
+  .merchant-item img { width: 40px; height: 40px; }
+}

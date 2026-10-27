@@ -260,11 +260,11 @@ function eyes(ctx, dir, cx, cy, o = {}) {
 
 // --- Waffen (werden als eigenes Sprite gedreht gezeichnet; Griff liegt bei 0,0) --------------
 
-// Farben je Gegenstandsstufe: Stahl, Mondsilber, Drachengold, Seelenviolett
-const TIER_METAL = ['#c7ccd3', '#d4e2f2', '#e8c46a', '#b48cff'];
-const TIER_ACCENT = ['#6a2a24', '#2f4f7a', '#9a2f2a', '#3a2350'];
-const FAN_LEAF = ['#2f7f78', '#3a6fa8', '#c8402f', '#5a3a8a'];
-const STAFF_ORB = ['#a7e37f', '#9be2ff', '#ff9a4a', '#d6a8ff'];
+// Farben je Gegenstandsstufe: Stahl, Bronze, Mondsilber, Drachengold, Seelenviolett
+const TIER_METAL = ['#c7ccd3', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff'];
+const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350'];
+const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a'];
+const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff'];
 
 function weaponArt(ctx, kind, tier = 0) {
   switch (kind) {
@@ -628,6 +628,91 @@ const NPC_ART = {
     heldWeapon(ctx, 'club', 12.5, -10.5, -1.2);
   }
 };
+
+// Waffenhändler Goro: kräftig, Lederweste, Stirnband, hält ein Schwert
+NPC_ART.waffen = (ctx) => {
+  const w = WALK[0];
+  const o = { skin: '#d9a982', pants: '#3b2d25', boots: '#2f2419', torso: '#9a3a2a', sleeve: '#d9a982', wide: 1.12 };
+  hLegs(ctx, 'down', w, o);
+  const half = hBody(ctx, 'down', w, o);
+  poly(ctx, [[-half + 1, -23], [-3, -23], [-2, -9], [-half + 2, -9]], '#5a4030');
+  poly(ctx, [[half - 1, -23], [3, -23], [2, -9], [half - 2, -9]], '#5a4030');
+  box(ctx, -half, -12.5, half * 2, 3, 1, '#3a2a1c');
+  heldWeapon(ctx, 'sword', 12.5, -10.5, -1.25);
+  hArms(ctx, 'down', w, o);
+  const { cx, cy } = hHead(ctx, 'down', w, o);
+  eyes(ctx, 'down', cx, cy);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98); ctx.closePath(); }, '#2a1c14', cx - 11.4, cy - 12, 22.8, 11);
+  box(ctx, cx - 11.4, cy - 6.5, 22.8, 3, 1.2, '#c8402f');
+  poly(ctx, [[cx + 10, cy - 5], [cx + 15, cy - 1], [cx + 13, cy - 6]], '#c8402f');
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - 7, cy + 4);
+    ctx.quadraticCurveTo(cx, cy + 12, cx + 7, cy + 4);
+    ctx.quadraticCurveTo(cx, cy + 7, cx - 7, cy + 4);
+    ctx.closePath();
+  }, '#2a1c14', cx - 7, cy + 4, 14, 7);
+};
+
+// Rüstungshändlerin Mei: Lederschürze mit Metallplatten, Pferdeschwanz, hält einen Schild
+NPC_ART.ruestung = (ctx) => {
+  const w = WALK[0];
+  const o = { skin: '#ecc9a5', pants: '#3a3f48', boots: '#2a2420', torso: '#5a6a7a', sleeve: '#5a6a7a', cuff: '#c9a35a' };
+  hLegs(ctx, 'down', w, o);
+  const half = hBody(ctx, 'down', w, o);
+  box(ctx, -half + 3, -20, half * 2 - 6, 16, 3, '#6b4a2e');
+  box(ctx, -4, -18, 8, 5, 1, '#c7ccd3');
+  box(ctx, -half, -12.5, half * 2, 2.6, 1, '#c9a35a');
+  hArms(ctx, 'down', w, o);
+  ctx.save();
+  ctx.translate(-11, -11);
+  ctx.scale(0.8, 0.8);
+  shieldArt(ctx, 2);
+  ctx.restore();
+  const { cx, cy } = hHead(ctx, 'down', w, o);
+  eyes(ctx, 'down', cx, cy, { blush: true });
+  const hair = '#3a2a2a';
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+    ctx.quadraticCurveTo(cx, cy - 7, cx - 11.3, cy - 1.5);
+    ctx.closePath();
+  }, hair, cx - 11.4, cy - 12, 22.8, 10);
+  box(ctx, cx + 8.4, cy - 4, 3.2, 9, 1.5, hair);
+  poly(ctx, [[cx + 6, cy - 10], [cx + 15, cy - 6], [cx + 13, cy + 8], [cx + 9, cy - 4]], hair);
+  box(ctx, cx + 7, cy - 9, 3, 3, 1, '#c9a35a');
+};
+
+// Symbole über den Köpfen der Dorfbewohner
+const NPC_ICONS = {
+  haendler(ctx) {
+    oval(ctx, 0, 0, 6.5, 6.5, '#e8c46a');
+    oval(ctx, 0, 0, 3.8, 3.8, '#c9a35a');
+  },
+  waffen(ctx) {
+    ctx.rotate(-Math.PI / 4);
+    ctx.scale(0.6, 0.6);
+    ctx.translate(-11, 0);
+    weaponArt(ctx, 'sword', 3);
+  },
+  ruestung(ctx) {
+    ctx.scale(0.62, 0.62);
+    shieldArt(ctx, 3);
+  },
+  schmied(ctx) {
+    ctx.rotate(-0.6);
+    box(ctx, -1.2, -2, 2.4, 13, 1, '#6b4a2e');
+    box(ctx, -6, -7, 12, 6, 1.5, '#9aa1a8');
+  }
+};
+
+function npcIconSprite(id) {
+  return getSprite('ni:' + id, { x: -12, y: -12, w: 24, h: 24 }, (ctx) => NPC_ICONS[id](ctx));
+}
+
+function shieldSprite(tier) {
+  return getSprite('sh:' + tier, { x: -12, y: -13, w: 24, h: 26 }, (ctx) => shieldArt(ctx, tier));
+}
 
 function npcSprite(id) {
   return getSprite('n:' + id, FIGURE_BOUNDS, (ctx) => NPC_ART[id](ctx));

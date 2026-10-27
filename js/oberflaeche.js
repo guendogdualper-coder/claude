@@ -229,7 +229,7 @@ const ui = {
 
     this.set('talk', game.nearNpc ? game.nearNpc.id : '', (v) => {
       $('btnTalk').hidden = !v || !input.touchUi;
-      if (v) $('btnTalk').textContent = game.nearNpc.id === 'haendler' ? 'Handeln' : 'Sprechen';
+      if (v) $('btnTalk').textContent = game.nearNpc.id === 'schmied' ? 'Schmieden' : 'Handeln';
     });
   },
 
@@ -294,6 +294,7 @@ const ui = {
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
       row('Angriff', s.atk) + row('Verteidigung', s.def) +
       row('Kritische Treffer', pct(s.crit)) + row('Lauftempo', Math.round(s.speed)) +
+      row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
       row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
       row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
       `</dl>` +
@@ -309,25 +310,16 @@ const ui = {
     this.closePanels();
     const p = game.player;
     $('npcTitle').textContent = npc.name;
-    if (npc.id === 'haendler') {
-      this.renderShop();
-    } else {
-      gear.openSmith($('npcBody'));
-    }
+    if (npc.id === 'haendler') this.renderShop();
+    else if (npc.id === 'schmied') gear.openSmith($('npcBody'));
+    else gear.openMerchant(npc.id, $('npcBody'));
     $('panelNpc').hidden = false;
   },
 
   renderShop() {
     const p = game.player;
-    const gearRows = GEAR_SHOP.flatMap((g) => EQUIP_SLOTS.map((sl) => {
-      const item = makeItem(sl.id, g.tier);
-      return `<div class="shop-item"><img class="shop-icon" src="${itemIconUrl(item)}" alt="">` +
-        `<strong>${itemName(item)} <span class="price">${g.price.toLocaleString('de-DE')} Gold</span></strong>` +
-        `<small>${gear.statsList(item)} · ab Stufe ${ITEM_TIERS[g.tier].level}</small>` +
-        `<div class="buy"><button class="mini-btn" type="button" data-gear="${sl.id}:${g.tier}:${g.price}">Kaufen</button></div></div>`;
-    })).join('');
     $('npcBody').innerHTML =
-      `<p>„Tränke und Ausrüstung für unterwegs. Ohne gute Ausrüstung überlebst du da draußen nicht lange.“</p>` +
+      `<p>„Tränke und Schriftrollen für unterwegs. Waffen gibt es bei Goro, Rüstungen bei Mei.“</p>` +
       `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
       `<h3>Tränke und Schriftrollen</h3><div class="shop">` +
       SHOP.map((item) =>
@@ -339,17 +331,11 @@ const ui = {
       `<div class="shop-item"><img class="shop-icon" src="${scrollIconUrl()}" alt=""><strong>${BLESSING.name} <span class="price">${BLESSING.price} Gold</span></strong>` +
       `<small>${BLESSING.text} Im Gepäck: <b id="have-scroll">${p.scrolls}</b></small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-scroll="1">Kaufen</button></div></div>` +
-      `</div><h3>Ausrüstung</h3><div class="shop">${gearRows}</div><p id="shopMsg" class="form-error" hidden></p>`;
+      `</div><p id="shopMsg" class="form-error" hidden></p>`;
     $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
       b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
     });
     $('npcBody').querySelector('[data-scroll]').addEventListener('click', () => this.buyScroll());
-    $('npcBody').querySelectorAll('[data-gear]').forEach((b) => {
-      b.addEventListener('click', () => {
-        const [slot, tier, price] = b.dataset.gear.split(':');
-        this.buyGear(slot, Number(tier), Number(price));
-      });
-    });
   },
 
   shopMessage(text, ok) {
@@ -386,23 +372,6 @@ const ui = {
     $('shopGold').textContent = p.gold.toLocaleString('de-DE');
     $('have-scroll').textContent = p.scrolls;
     this.shopMessage(`${BLESSING.name} gekauft.`, true);
-    saveGame();
-  },
-
-  buyGear(slot, tier, price) {
-    const p = game.player;
-    if (p.gold < price) {
-      this.shopMessage(`Dir fehlen ${(price - p.gold).toLocaleString('de-DE')} Gold.`);
-      return;
-    }
-    const item = makeItem(slot, tier);
-    if (!addToBag(item)) {
-      this.shopMessage('Dein Inventar ist voll.');
-      return;
-    }
-    p.gold -= price;
-    $('shopGold').textContent = p.gold.toLocaleString('de-DE');
-    this.shopMessage(`${itemName(item)} gekauft. Du findest es im Inventar (I).`, true);
     saveGame();
   },
 

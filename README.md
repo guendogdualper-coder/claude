@@ -26,8 +26,8 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **10 Monsterarten**: passive und aggressive, Nah- und Fernkämpfer, Gruppen helfen sich gegenseitig
 - **Seelensteine**: rufen beim Angreifen Monsterwellen herbei und geben viel Erfahrung, Gold, Tränke und Seelensplitter
 - **Fortschritt**: Erfahrung, Stufen bis 99, Fertigkeitspunkte (Fertigkeiten bis Stufe 20), Erfahrungsverlust beim Tod
-- **Händlerin** im Dorf für Tränke, Segensschriftrollen und Ausrüstung
-- **Ausrüstung**: Waffe, Rüstung, Helm und Schuhe in vier Stufen (ab Lv 1, 8, 15, 22), klassenspezifische Waffen und Rüstungen, Beute von Monstern und Seelensteinen, Inventar mit 20 Plätzen
+- **Händler im Dorf**: Waffenhändler Goro (Waffen je Klasse), Rüstungshändlerin Mei (Rüstung, Helm, Schild, Schuhe, Gürtel), jeweils ab Lv 1, 5, 10 und 15; Händlerin Ayla für Tränke und Segensschriftrollen
+- **Ausrüstung**: sechs Plätze in fünf Stufen (ab Lv 1, 5, 10, 15, 22) mit eigenen Effekten: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. Legendäre Stufe nur als Beute, Inventar mit 20 Plätzen
 - **Schmied**: verbessert Ausrüstung von +0 bis +9 mit Gold und Seelensplittern. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 zerbricht der Gegenstand. Die Segensschriftrolle schützt davor. Bessere Waffen ändern ihre Farbe, ab +4 leuchten sie
 - **Stufenaufstieg** mit Lichtsäule, Ringen und aufleuchtender Figur
 - Gezeichnete Figuren im Chibi-Stil mit Umriss und Schattierung, Laufanimation und Waffenschwung
@@ -45,7 +45,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 | Q / E | Roter / Blauer Trank |
 | Tab, Mausklick | Ziel wählen |
 | I | Inventar |
-| F | Mit Händlerin oder Schmied sprechen |
+| F | Mit Händlern oder dem Schmied sprechen |
 | C / H / Esc | Charakter, Hilfe, Fenster schließen |
 
 ## Aufbau des Codes
@@ -57,12 +57,12 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/daten/klassen.js` | Klassen, Grundwerte, alle 20 Fertigkeiten |
 | `js/daten/monster.js` | Monsterarten und Seelensteine |
 | `js/daten/zonen.js` | Zonen mit Stufenbereichen und Monstergruppen, Waren der Händlerin |
-| `js/daten/gegenstaende.js` | Ausrüstungsplätze, Gegenstandsstufen, Namen, Werte, Schmied-Tabelle |
+| `js/daten/gegenstaende.js` | Ausrüstungsplätze, Gegenstandsstufen, Namen, Werte und Effekte, Händler, Schmied-Tabelle |
 | `js/welt.js` | Karte erzeugen, Kollision, Zonen abfragen |
 | `js/spieler.js` | Figur, Werte, Erfahrung, Tränke, Speichern |
 | `js/kampf.js` | Schadensformel, Angriffe, alle Fertigkeitsarten, Geschosse, Effekte |
 | `js/gegner.js` | Monster-KI, Respawn, Seelenstein-Wellen, Skelette |
-| `js/ausruestung.js` | Gegenstände, Beute, Inventar, Schmied, Symbole und die zugehörigen Fenster |
+| `js/ausruestung.js` | Gegenstände, Beute, Inventar, Händler, Schmied, Symbole und die zugehörigen Fenster |
 | `js/figuren.js` | Aussehen aller Figuren und Monster: Klassen in drei Blickrichtungen mit Laufanimation, Waffen, Händler, Skelette |
 | `js/effekte.js` | Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse, Bildschirmwackeln |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |

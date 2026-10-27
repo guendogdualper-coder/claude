@@ -6,7 +6,7 @@ const MAX_SKILL_LEVEL = 20;
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion'];
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
 function xpToNext(level) {
@@ -25,7 +25,7 @@ function newCharacter(name, classId) {
     name, classId, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
     hp: null, mp: null, x: null, y: null, playTime: 0,
-    equipment: starterEquipment(), inventory: [], scrolls: 0
+    equipment: starterEquipment(), inventory: [], scrolls: 0, itemsVersion: 2
   };
 }
 
@@ -51,9 +51,14 @@ function makePlayer(save) {
   };
   p.potions = { hp: 0, mp: 0, ...save.potions };
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
-  p.equipment = { waffe: null, ruestung: null, helm: null, schuhe: null, ...(save.equipment || starterEquipment()) };
+  p.equipment = { ...starterEquipment(), helm: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment()) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
   p.scrolls = save.scrolls || 0;
+  if (save.equipment && (save.itemsVersion || 1) < 2) {
+    Object.values(p.equipment).forEach(migrateItem);
+    p.inventory.forEach(migrateItem);
+  }
+  p.itemsVersion = 2;
   const stats = playerStats(p);
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
@@ -81,19 +86,25 @@ function playerStats(p) {
     dodge: 0,
     regen: 0,
     reflect: 0,
+    block: 0,
     invisible: false
   };
   let atkMul = 1;
   let speedMul = 1;
   for (const item of Object.values(p.equipment || {})) {
     if (!item) continue;
-    const st = itemStats(item);
+    const st = itemStats(item, item.plus, p.classId);
     s.atk += st.atk || 0;
     s.def += st.def || 0;
     s.maxHp += st.hp || 0;
     s.maxMp += st.mp || 0;
+    s.crit += st.crit || 0;
+    s.dodge += st.dodge || 0;
+    s.block += st.block || 0;
+    s.regen += st.regen || 0;
     speedMul += st.speed || 0;
   }
+  s.block = Math.min(MAX_BLOCK, s.block);
   for (const b of p.buffs) {
     const e = b.effects;
     if (e.atk) atkMul += e.atk;
