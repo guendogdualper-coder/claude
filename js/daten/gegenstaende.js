@@ -13,7 +13,7 @@ const EQUIP_SLOTS = [
 
 // Ab welcher Spielerstufe ein Gegenstand getragen werden kann
 const ITEM_TIERS = [
-  { level: 1, label: 'Einfach' },
+  { level: 1, label: 'Grundausrüstung' },
   { level: 5, label: 'Solide' },
   { level: 10, label: 'Gut' },
   { level: 15, label: 'Selten' },
@@ -40,25 +40,27 @@ const ITEM_NAMES = {
   guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel']
 };
 
-// Grundwerte je Stufe. Bedeutung der Werte:
+// Grundwerte je Stufe. Die Grundausrüstung (Stufe 1) gibt nur Rüstung bzw. bei Waffen nur Angriff,
+// Zusatzeffekte gibt es erst ab Stufe 5. Bedeutung der Werte:
 //   atk Angriff · def Rüstung · hp Vitalität (mehr Leben) · mp Intelligenz (mehr Mana)
 //   crit kritische Treffer · speed Lauftempo · dodge Ausweichen · block Blocken
 //   regen Lebensregeneration pro Sekunde (Anteil am maximalen Leben)
 const BASE_STATS = {
   waffe: [{ atk: 5 }, { atk: 10 }, { atk: 17 }, { atk: 26 }, { atk: 42 }],
-  ruestung: [{ def: 3, hp: 20 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }],
-  helm: [{ def: 2, mp: 10 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }],
-  schild: [{ def: 2, block: 0.03 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }],
-  schuhe: [{ def: 1, speed: 0.03 }, { def: 2, speed: 0.04 }, { def: 3, speed: 0.05, dodge: 0.02 }, { def: 4, speed: 0.07, dodge: 0.03 }, { def: 6, speed: 0.09, dodge: 0.05 }],
-  guertel: [{ hp: 15 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }]
+  ruestung: [{ def: 4 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }],
+  helm: [{ def: 2 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }],
+  schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }],
+  schuhe: [{ def: 2 }, { def: 2, speed: 0.04 }, { def: 3, speed: 0.05, dodge: 0.02 }, { def: 4, speed: 0.07, dodge: 0.03 }, { def: 6, speed: 0.09, dodge: 0.05 }],
+  guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }]
 };
 
 // Zusatzwerte der Waffen je Klasse: Dolche treffen öfter kritisch, Fächer und Stäbe geben Intelligenz
+// (Stufe 1 ohne Zusatzwert, siehe oben)
 const WEAPON_EXTRA = {
   krieger: [{}, {}, {}, {}, {}],
-  ninja: [{ crit: 0.01 }, { crit: 0.02 }, { crit: 0.03 }, { crit: 0.04 }, { crit: 0.06 }],
-  schamane: [{ mp: 10 }, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }],
-  nekromant: [{ mp: 10 }, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }]
+  ninja: [{}, { crit: 0.02 }, { crit: 0.03 }, { crit: 0.04 }, { crit: 0.06 }],
+  schamane: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }],
+  nekromant: [{}, { mp: 20 }, { mp: 35 }, { mp: 50 }, { mp: 75 }]
 };
 
 const MAX_PLUS = 9;

@@ -218,3 +218,17 @@ Item icons for armor pieces in a grid, rows are item types, columns are quality 
 ```
 2D fantasy mobile game shop UI mockup in landscape orientation, dark lacquered wood panel with thin brass border, title with the merchant's name at the top. A vertical list of items, each row with a square item icon on the left, item name and required level in the middle, colored stat lines below the name (green for better than equipped, red for worse), price in gold and two buttons on the right ("Kaufen" and a golden "Kaufen & anlegen"). Clean readable layout, East Asian fantasy style.
 ```
+
+## Grundausrüstung (Version 1.5)
+
+Die Gegenstände der Stufe 1 geben nur Rüstung (Waffen nur Angriff), ohne Zusatzeffekte. Sie sehen deshalb schlicht aus: keine Edelsteine, keine Runen, kein Leuchten. Zusatzeffekte wie Vitalität, Intelligenz, Blocken, Lauftempo oder Regeneration gibt es erst ab Stufe 5 und sind dort an Verzierungen zu erkennen.
+
+### Grundausrüstung als Symbole
+```
+Set of plain starter equipment icons for a 2D fantasy MMORPG, East Asian style, arranged in one row: simple iron sword, two plain short daggers, plain teal paper fan, plain bone staff with a dull green orb, brown leather armor, brown leather cap, round wooden shield with an iron boss, simple cloth shoes, plain cloth belt. Worn, practical and unadorned: no gems, no runes, no glow, no magic effects. 2D game item icons, bold dark outline, soft cel shading, plain dark background, evenly spaced, no text.
+```
+
+### Vergleich: Grundausrüstung und ab Stufe 5
+```
+Side-by-side comparison of 2D game item icons in East Asian fantasy style. Left column: plain starter items (leather armor, leather cap, wooden shield, cloth shoes, cloth belt) with no decoration and no glow. Right column: the same item types one quality level higher (chain shirt, bronze helmet, bronze kite shield, leather boots, leather belt) with small bronze rivets and trims, still without glow. Bold dark outline, soft cel shading, plain dark background, evenly spaced grid, no text.
+```
