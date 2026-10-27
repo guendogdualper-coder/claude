@@ -110,6 +110,7 @@ function sortedStats(stats) {
 }
 
 function sellValue(item) {
+  if (isBook(item)) return BOOK_PRICE * item.count;
   const bonuses = (item.bonuses || []).length + (item.specials || []).length * 2;
   return Math.round(12 * Math.pow(item.tier + 1, 2) * (1 + item.plus * 0.6) * (1 + bonuses * 0.25));
 }
@@ -193,12 +194,108 @@ function addToBag(item) {
   return true;
 }
 
-function addBooks(n, from) {
+// --- Fertigkeitsbücher --------------------------------------------------------------------
+// Jedes Buch gehört zu genau einer Fertigkeit, aus allen Klassen und Wegen. Seelensteine lassen
+// Bücher zu zufälligen Fertigkeiten fallen: Oft ist es nicht das eigene, dann verkauft man es.
+// In der Tasche liegen Bücher gestapelt: { book: 'schwertaura', count: 3 }
+const BOOK_STACK = 99;
+const BOOK_PRICE = 2500;
+let allSkillsCache = null;
+function allSkills() {
+  if (!allSkillsCache) {
+    allSkillsCache = [];
+    for (const [cls, c] of Object.entries(CLASSES)) c.paths.forEach((pt, path) => pt.skills.forEach((sk) => allSkillsCache.push({ sk, cls, path })));
+  }
+  return allSkillsCache;
+}
+const skillEntry = (id) => allSkills().find((e) => e.sk.id === id);
+const isBook = (item) => !!(item && item.book);
+const ownBook = (p, id) => classSkills(p).some((sk) => sk.id === id);
+
+function bookCount(p, id) {
+  return p.inventory.reduce((n, it) => n + (it.book === id ? it.count : 0), 0);
+}
+function totalBooks(p, ownOnly) {
+  return p.inventory.reduce((n, it) => n + (isBook(it) && (!ownOnly || ownBook(p, it.book)) ? it.count : 0), 0);
+}
+function takeBooks(p, id, n) {
+  for (let k = p.inventory.length - 1; k >= 0 && n > 0; k--) {
+    const it = p.inventory[k];
+    if (it.book !== id) continue;
+    const take = Math.min(n, it.count);
+    it.count -= take;
+    n -= take;
+    if (!it.count) p.inventory.splice(k, 1);
+  }
+}
+// force: auch bei voller Tasche (nur beim Umwandeln alter Spielstände)
+function addBookItem(p, id, n = 1, force = false) {
+  const stack = p.inventory.find((it) => it.book === id && it.count + n <= BOOK_STACK);
+  if (stack) {
+    stack.count += n;
+    return true;
+  }
+  if (!force && p.inventory.length >= BAG_SIZE) return false;
+  p.inventory.push({ book: id, count: n });
+  return true;
+}
+
+// n Bücher zu zufälligen Fertigkeiten; pool schränkt die Auswahl ein (z. B. eigene Fertigkeiten)
+function addBooks(n, from, pool) {
   const p = game.player;
-  p.books += n;
-  ui.loot('Fertigkeitsbuch', n, lootIconUrl('book'), '#c58cff');
-  if (from) later(0.2, () => vfxLootFly(from, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART.book(ctx)).img));
-  ui.buildSkillBar();
+  const ids = pool || allSkills().map((e) => e.sk.id);
+  const got = [];
+  for (let k = 0; k < n; k++) {
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    const sk = skillEntry(id).sk;
+    if (!addBookItem(p, id, 1)) {
+      ui.log(`Deine Tasche ist voll: Buch „${sk.name}“ bleibt liegen.`, 'warn');
+      continue;
+    }
+    got.push(sk.name);
+    const own = ownBook(p, id);
+    ui.loot('Buch: ' + sk.name, 1, bookIconUrl(id), own ? '#ffd34d' : '#c58cff');
+    if (own) ui.log(`Ein Buch für deine Fertigkeit ${sk.name}!`, 'level');
+    if (from) later(0.2 + k * 0.12, () => vfxLootFly(from, bookSprite(id).img));
+  }
+  if (got.length) ui.buildSkillBar();
+  return got;
+}
+
+// Buchdeckel in der Farbe der Klasse, vorn das Symbol der Fertigkeit
+const BOOK_COVERS = { krieger: ['#8a2a1a', '#c8502a'], ninja: ['#3a2a5a', '#6a4a9a'], schamane: ['#145a5a', '#2a8a8a'], nekromant: ['#2a4a1a', '#4a7a2a'] };
+function bookSprite(id) {
+  return getSprite('book:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
+    const e = skillEntry(id);
+    const [dark, light] = BOOK_COVERS[e.cls] || BOOK_COVERS.krieger;
+    box(ctx, -11, -14, 22, 28, 2.5, dark);
+    box(ctx, 8, -13, 3.5, 26, 1, '#efe6cc');
+    stroke(ctx, '#cfc4a8', 0.6, [[9, -9], [9, 9]]);
+    box(ctx, -9, -12, 16, 24, 1.5, light);
+    box(ctx, -11, -14, 3.5, 28, 1.5, '#e8b83a');
+    // Symbol der Fertigkeit im goldenen Ring
+    oval(ctx, -0.5, 0, 8.6, 8.6, '#e8b83a');
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(-0.5, 0, 7.4, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.translate(-0.5, 0);
+    ctx.scale(0.31, 0.31);
+    const [l, d] = SKILL_ICON_BG[e.sk.kind] || SKILL_ICON_BG.angriff;
+    ctx.fillStyle = d;
+    ctx.fillRect(-24, -24, 48, 48);
+    ctx.fillStyle = l;
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(-24, -24, 48, 20);
+    ctx.globalAlpha = 1;
+    (SKILL_ICONS[id] || (() => {}))(ctx);
+    ctx.restore();
+  });
+}
+function bookIconUrl(id) {
+  const key = 'bookicon:' + id;
+  if (!iconCache.has(key)) iconCache.set(key, bookSprite(id).img.toDataURL());
+  return iconCache.get(key);
 }
 
 function addMobMat(id, n, from) {
@@ -236,8 +333,13 @@ function rollLoot(m) {
   // Monster-Teile für den Schmied: jedes Monster lässt selten sein eigenes Teil fallen,
   // Seelensteine einige Teile der Monster ihres Gebiets
   if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < MOB_MAT_CHANCE) addMobMat(m.typeId, 1, m);
-  // Fertigkeitsbücher: von Seelensteinen (höhere Steine öfter), selten von Monstern ab Stufe 20
-  if (Math.random() < (m.isStone ? 0.1 + m.level * 0.004 : m.level >= 20 ? 0.003 : 0)) addBooks(1, m);
+  // Fertigkeitsbücher zu zufälligen Fertigkeiten aller Klassen: aus jedem Seelenstein
+  // (höhere Steine öfter, ab Stufe 40 manchmal zwei), sehr selten von Monstern ab Stufe 20
+  if (m.isStone) {
+    if (Math.random() < Math.min(0.95, 0.4 + m.level * 0.008)) addBooks(m.level >= 40 && Math.random() < 0.3 ? 2 : 1, m);
+  } else if (m.level >= 20 && Math.random() < 0.003) {
+    addBooks(1, m);
+  }
   if (m.isStone) {
     const pool = m.zone.groups.map((g) => g[0]).filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
     for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || m.zone.groups[0][0], 1, m);
@@ -268,7 +370,7 @@ function rollLoot(m) {
 function equipFromBag(index) {
   const p = game.player;
   const item = p.inventory[index];
-  if (!item) return false;
+  if (!item || isBook(item)) return false;
   const need = ITEM_TIERS[item.tier].level;
   if (!canWear(item, p.classId)) {
     gear.message(`${itemName(item)} kann nur ein ${CLASSES[item.cls].name} tragen.`, 'warn');
@@ -316,11 +418,11 @@ function unequip(slot) {
 function sellFromBag(index) {
   const p = game.player;
   const item = p.inventory[index];
-  if (!item) return;
+  if (!item || !nearTrader()) return;
   const value = sellValue(item);
   p.inventory.splice(index, 1);
   p.gold += value;
-  gear.message(`${itemFullName(item)} für ${value} Gold verkauft.`, 'info');
+  gear.message(`${isBook(item) ? 'Buch: ' + skillEntry(item.book).sk.name : itemFullName(item)} für ${value.toLocaleString('de-DE')} Gold verkauft.`, 'info');
   gear.selected = null;
   saveGame();
 }
@@ -331,6 +433,14 @@ function afterGearChange() {
   p.hp = Math.min(p.hp, game.stats.maxHp);
   p.mp = Math.min(p.mp, game.stats.maxMp);
   saveGame();
+}
+
+// Verkaufen geht nur in der Nähe eines Händlers (auch Schmied und Alchemist kaufen an)
+const TRADERS = ['haendler', 'waffen', 'ruestung', 'alchemist', 'schmied'];
+function nearTrader() {
+  const p = game.player;
+  if (!p || !game.world) return null;
+  return game.world.npcs.find((n) => TRADERS.includes(n.id) && dist(n, p) < 130) || null;
 }
 
 function itemAt(ref) {
@@ -856,6 +966,12 @@ const gear = {
       const ghost = slot ? `<img class="ghost" src="${itemIconUrl(makeItem(slot, 0))}" alt="">` : '';
       return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
     }
+    if (isBook(item)) {
+      const own = ownBook(game.player, item.book);
+      return `<button type="button" class="item-tile book-tile${own ? ' own' : ''}" ${attrs}>` +
+        `<img src="${bookIconUrl(item.book)}" alt="Buch: ${skillEntry(item.book).sk.name}">` +
+        `<span class="item-count">${item.count}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
+    }
     const band = plusBand(item.plus);
     return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}>` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` +
@@ -868,25 +984,57 @@ const gear = {
   },
 
   // Inventar ------------------------------------------------------------------------
-  openInventory() {
+  openInventory(sellMode = false) {
     ui.closePanels();
     this.selected = null;
     this.sellArmed = false;
+    this.multi = sellMode && nearTrader() ? new Set() : null;
+    this.multiArmed = false;
     this.renderInventory();
     document.getElementById('panelInv').hidden = false;
   },
 
+  page: 0,
+  multi: null,
+  multiArmed: false,
+
   renderInventory() {
     const p = game.player;
     const s = playerStats(p);
+    const trader = nearTrader();
+    if (this.multi && !trader) this.multi = null;
+    // Ausgewählter Gegenstand auf einer anderen Seite: dorthin blättern
+    if (this.selected && this.selected.where === 'bag' && p.inventory[this.selected.key]) this.page = Math.floor(this.selected.key / BAG_PAGE);
+    this.page = Math.max(0, Math.min(BAG_PAGES - 1, this.page));
     const equip = EQUIP_SLOTS.map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, sl.name, sl.id)).join('');
     let bag = '';
-    for (let i = 0; i < BAG_SIZE; i++) bag += this.tile(p.inventory[i], `data-bag="${i}"`);
+    for (let i = this.page * BAG_PAGE; i < (this.page + 1) * BAG_PAGE; i++) {
+      const picked = this.multi && this.multi.has(i);
+      bag += this.tile(p.inventory[i], `data-bag="${i}"${picked ? ' data-picked="1"' : ''}`);
+    }
+    const tabs = Array.from({ length: BAG_PAGES }, (_, k) => {
+      const used = p.inventory.slice(k * BAG_PAGE, (k + 1) * BAG_PAGE).length;
+      return `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}" data-page="${k}">${['I', 'II', 'III', 'IV'][k]}<small>${used}</small></button>`;
+    }).join('');
+    // Mehrere verkaufen: nur bei einem Händler
+    let sellBar;
+    if (this.multi) {
+      const value = [...this.multi].reduce((n, i) => n + (p.inventory[i] ? sellValue(p.inventory[i]) : 0), 0);
+      sellBar = `<div class="multi-bar"><span><b>${this.multi.size}</b> ausgewählt · <span class="price">${value.toLocaleString('de-DE')} Gold</span></span>` +
+        `<button type="button" class="mini-btn" data-multi="page">Ganze Seite</button>` +
+        `<button type="button" class="mini-btn" data-multi="useless">Nicht nutzbar</button>` +
+        `<button type="button" class="mini-btn ${this.multiArmed ? 'danger' : 'btn-sell'}" data-multi="sell" ${this.multi.size ? '' : 'disabled'}>${this.multiArmed ? 'Wirklich verkaufen?' : 'Verkaufen'}</button>` +
+        `<button type="button" class="mini-btn" data-multi="cancel">Fertig</button></div>`;
+    } else {
+      sellBar = `<div class="multi-bar"><button type="button" class="mini-btn" data-multi="start" ${trader ? '' : 'disabled'}>Mehrere verkaufen</button>` +
+        `<small class="hint-text">${trader ? `${trader.name} kauft deine Sachen.` : 'Verkaufen geht nur bei einem Händler im Dorf.'}</small></div>`;
+    }
     document.getElementById('invBody').innerHTML =
       `<div class="inv-layout">` +
       `<section class="inv-equip"><h3>Angelegt</h3><div class="equip-doll"><canvas id="invDoll" class="doll"></canvas><div class="equip-grid">${equip}</div></div>` +
       `<p class="inv-sum">Angriff ${s.atk} · Verteidigung ${s.def}<br>Leben ${s.maxHp} · Mana ${s.maxMp}</p></section>` +
-      `<section class="inv-bag"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small></h3><div class="bag-grid">${bag}</div>` +
+      `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs}</span></h3>` +
+      sellBar + `<div class="bag-grid">${bag}</div>` +
       `<p class="inv-sum">Gold ${p.gold.toLocaleString('de-DE')} · Seelensplitter ${p.splinters} · ` +
       `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}<br>` +
       MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
@@ -900,11 +1048,106 @@ const gear = {
       this.renderDetail();
     }));
     body.querySelectorAll('[data-bag]').forEach((b) => b.addEventListener('click', () => {
-      this.selected = { where: 'bag', key: Number(b.dataset.bag) };
+      const i = Number(b.dataset.bag);
+      if (this.multi) {
+        if (!p.inventory[i]) return;
+        if (this.multi.has(i)) this.multi.delete(i);
+        else this.multi.add(i);
+        this.multiArmed = false;
+        this.renderInventory();
+        return;
+      }
+      this.selected = { where: 'bag', key: i };
       this.sellArmed = false;
       this.renderDetail();
     }));
+    body.querySelectorAll('[data-page]').forEach((b) => b.addEventListener('click', () => {
+      this.page = Number(b.dataset.page);
+      this.selected = null;
+      this.renderInventory();
+    }));
+    body.querySelectorAll('[data-multi]').forEach((b) => b.addEventListener('click', () => this.multiAction(b.dataset.multi)));
+    if (this.multi) {
+      document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Bücher, die nicht zu deinen Fertigkeiten gehören.</p>';
+      return;
+    }
     this.renderDetail();
+  },
+
+  multiAction(act) {
+    const p = game.player;
+    if (act === 'start') {
+      if (!nearTrader()) return;
+      this.multi = new Set();
+    } else if (act === 'cancel') {
+      this.multi = null;
+    } else if (act === 'page') {
+      const ids = [];
+      for (let i = this.page * BAG_PAGE; i < Math.min(p.inventory.length, (this.page + 1) * BAG_PAGE); i++) ids.push(i);
+      const all = ids.every((i) => this.multi.has(i));
+      ids.forEach((i) => (all ? this.multi.delete(i) : this.multi.add(i)));
+    } else if (act === 'useless') {
+      p.inventory.forEach((it, i) => {
+        if (isBook(it) ? !ownBook(p, it.book) : !canWear(it, p.classId)) this.multi.add(i);
+      });
+    } else if (act === 'sell') {
+      if (!this.multiArmed) {
+        this.multiArmed = true;
+        this.renderInventory();
+        return;
+      }
+      const ids = [...this.multi].sort((a, b) => b - a);
+      let gold = 0;
+      for (const i of ids) {
+        const it = p.inventory[i];
+        if (!it) continue;
+        gold += sellValue(it);
+        p.inventory.splice(i, 1);
+      }
+      p.gold += gold;
+      this.multi = new Set();
+      this.selected = null;
+      saveGame();
+      this.multiArmed = false;
+      this.renderInventory();
+      this.message(`${ids.length} Sachen für ${gold.toLocaleString('de-DE')} Gold verkauft.`, 'success');
+      return;
+    }
+    this.multiArmed = false;
+    this.renderInventory();
+  },
+
+  renderBookDetail(el, item) {
+    const p = game.player;
+    const e = skillEntry(item.book);
+    const own = ownBook(p, item.book);
+    const idx = classSkills(p).findIndex((sk) => sk.id === item.book);
+    const read = idx >= 0 ? skillActions(p, idx).find((a) => a.type === 'book') : null;
+    const trader = nearTrader();
+    const owner = `${CLASSES[e.cls].name} · ${CLASSES[e.cls].paths[e.path].name}`;
+    const info = own
+      ? (read ? `Gehört zu deiner Fertigkeit, die auf ${skillLevelText(p.skillLevels[idx])} steht.` : `Gehört zu deiner Fertigkeit. Lesen kannst du es, sobald sie erweckt ist (ab E1), für den Rangaufstieg zählen die Bücher automatisch.`)
+      : 'Gehört nicht zu deinen Fertigkeiten. Verkaufe es beim Händler.';
+    el.innerHTML = `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt="">` +
+      `<div class="item-info"><strong style="color:${own ? '#ffd34d' : '#c58cff'}">Buch: ${e.sk.name} × ${item.count}</strong>` +
+      `<small>Fertigkeitsbuch · ${owner}</small><span>${info}</span></div>` +
+      `<div class="item-actions">` +
+      (read ? `<button type="button" class="mini-btn" data-act="read" ${read.ok ? '' : 'disabled'}>Lesen</button>` : '') +
+      `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell" ${trader ? '' : 'disabled title="Nur bei einem Händler"'}>${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item).toLocaleString('de-DE') + ' Gold)'}</button>` +
+      `</div></div>`;
+    el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
+      if (b.dataset.act === 'read') upgradeSkill(idx, 'book');
+      if (b.dataset.act === 'sell') {
+        if (!this.sellArmed) {
+          this.sellArmed = true;
+          this.renderDetail();
+          return;
+        }
+        sellFromBag(this.selected.key);
+      }
+      this.selected = itemAt(this.selected) ? this.selected : null;
+      this.renderInventory();
+    }));
   },
 
   renderDetail() {
@@ -920,12 +1163,17 @@ const gear = {
     const tileEl = document.querySelector('#invBody ' + sel);
     if (tileEl) tileEl.classList.add('selected');
     const p = game.player;
+    if (isBook(item)) {
+      this.renderBookDetail(el, item);
+      return;
+    }
+    const trader = nearTrader();
     const need = ITEM_TIERS[item.tier].level;
     const slotName = EQUIP_SLOTS.find((s) => s.id === item.slot).name;
     const actions = this.selected.where === 'equip'
       ? `<button type="button" class="mini-btn" data-act="unequip">Ablegen</button>`
       : `<button type="button" class="mini-btn" data-act="equip" ${p.level < need || !canWear(item, p.classId) ? 'disabled' : ''}>Anlegen</button>` +
-        `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell">${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item) + ' Gold)'}</button>`;
+        `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell" ${trader ? '' : 'disabled title="Nur bei einem Händler"'}>${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item).toLocaleString('de-DE') + ' Gold)'}</button>`;
     const bonuses = (item.bonuses || []).map((b, i) => `<li><span class="bn">${i + 1}</span>${bonusText(b)}</li>`).join('') +
       (item.specials || []).map((b, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(b, true)}</li>`).join('');
     const can = {
@@ -1037,37 +1285,16 @@ const gear = {
     }));
   },
 
-  // Verkaufsbereich, der in jedem Händlerfenster steht
+  // Verkaufen: öffnet die Tasche gleich zum Auswählen
   sellSectionHtml() {
     const p = game.player;
-    if (!p.inventory.length) return `<h3>Verkaufen</h3><p class="hint-text">Deine Tasche ist leer.</p>`;
-    return `<h3>Verkaufen <small>aus deiner Tasche</small></h3><div class="sell-grid">` +
-      p.inventory.map((item, i) => {
-        const armed = this.sellArmedIndex === i;
-        return `<div class="sell-item">${this.tile(item, `data-sellinfo="${i}"`)}` +
-          `<div class="si-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
-          `<small>${(item.bonuses || []).length + (item.specials || []).length} Boni</small></div>` +
-          `<button type="button" class="mini-btn ${armed ? 'danger' : ''}" data-sell="${i}">${armed ? 'Sicher?' : sellValue(item).toLocaleString('de-DE') + ' Gold'}</button></div>`;
-      }).join('') + `</div>`;
+    return `<h3>Verkaufen</h3><p class="hint-text">Tippe in der Tasche alles an, was weg soll, und verkaufe es auf einmal. Tasche ${p.inventory.length}/${BAG_SIZE}.</p>` +
+      `<button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button>`;
   },
 
-  wireSell(body, rerender) {
-    body.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => {
-      const i = Number(b.dataset.sell);
-      if (this.sellArmedIndex !== i) {
-        this.sellArmedIndex = i;
-        rerender();
-        return;
-      }
-      this.sellArmedIndex = null;
-      const item = game.player.inventory[i];
-      const value = sellValue(item);
-      game.player.inventory.splice(i, 1);
-      game.player.gold += value;
-      saveGame();
-      rerender();
-      this.message(`${itemFullName(item)} für ${value.toLocaleString('de-DE')} Gold verkauft.`, 'success');
-    }));
+  wireSell(body) {
+    const b = body.querySelector('[data-open-sell]');
+    if (b) b.addEventListener('click', () => this.openInventory(true));
   },
 
   buyGear(slot, tier, equip, kind) {
@@ -1103,7 +1330,7 @@ const gear = {
     const p = game.player;
     const refs = [];
     EQUIP_SLOTS.forEach((sl) => { if (p.equipment[sl.id]) refs.push({ where: 'equip', key: sl.id }); });
-    p.inventory.forEach((it, i) => refs.push({ where: 'bag', key: i }));
+    p.inventory.forEach((it, i) => { if (!isBook(it)) refs.push({ where: 'bag', key: i }); });
     if (this.smithRef && !itemAt(this.smithRef)) this.smithRef = null;
     if (!this.smithRef && refs.length) this.smithRef = refs[0];
     const list = refs.map((r) => {

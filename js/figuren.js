@@ -86,6 +86,21 @@ function flashOf(sp) {
   return sp.flash;
 }
 
+// Einfarbige Silhouette eines Sprites, z. B. für leuchtende Auren
+function tintOf(sp, color) {
+  sp.tints = sp.tints || {};
+  if (!sp.tints[color]) {
+    const c = newCanvas(sp.img.width, sp.img.height);
+    const x = c.getContext('2d');
+    x.drawImage(sp.img, 0, 0);
+    x.globalCompositeOperation = 'source-in';
+    x.fillStyle = color;
+    x.fillRect(0, 0, c.width, c.height);
+    sp.tints[color] = c;
+  }
+  return sp.tints[color];
+}
+
 function blitSprite(ctx, sp, x, y, flip, flash = 0) {
   const b = sp.bounds;
   ctx.save();

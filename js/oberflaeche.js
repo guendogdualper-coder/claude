@@ -167,7 +167,11 @@ const ui = {
     if (!p) return;
     const bar = $('skillBar');
     bar.innerHTML = '';
-    classSkills(p).forEach((sk, i) => {
+    bar.classList.remove('swapping');
+    this.swapFrom = null;
+    // Die Reihenfolge der Plätze kann man per langem Drücken ändern (p.skillOrder)
+    skillOrder(p).forEach((i, slot) => {
+      const sk = classSkills(p)[i];
       const wrap = document.createElement('div');
       wrap.className = 'skill-wrap';
       const btn = document.createElement('button');
@@ -175,13 +179,14 @@ const ui = {
       const rank = skillRank(p.skillLevels[i]);
       btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
-      btn.title = `${sk.name} (${i + 1}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s`;
-      btn.innerHTML = `<span class="key">${i + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
+      btn.title = `${sk.name} (${slot + 1}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s. Lange drücken zum Tauschen.`;
+      btn.innerHTML = `<span class="key">${slot + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
-      onPress(btn, () => useSkill(i));
+      this.pressSkill(btn, i);
       wrap.append(btn);
+      wrap.insertAdjacentHTML('beforeend', '<span class="runring" hidden></span><span class="run" hidden></span>');
       // Plus-Knopf, wenn etwas geht: Punkt setzen, auf 17 direkt erwecken, Buch lesen.
       // Nur der Schritt in einen höheren Rang (kostet mehrere Bücher) läuft über das Charakterfenster.
       const acts = skillActions(p, i).filter((a) => a.ok);
@@ -203,6 +208,82 @@ const ui = {
       }
       bar.append(wrap);
     });
+  },
+
+  // Antippen löst die Fertigkeit aus, langes Drücken hebt sie an: dann auf einen anderen Platz
+  // ziehen oder einen anderen Platz antippen, um die beiden zu tauschen.
+  pressSkill(btn, i) {
+    let timer = null;
+    let lifted = false;
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      lifted = false;
+      if (this.swapFrom != null) {
+        timer = null;
+        this.finishSwap(i);
+        return;
+      }
+      try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ältere Browser */ }
+      timer = setTimeout(() => {
+        timer = null;
+        lifted = true;
+        this.startSwap(i);
+      }, SKILL_HOLD_MS);
+    });
+    btn.addEventListener('pointerup', (e) => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+        useSkill(i);
+        return;
+      }
+      if (!lifted) return;
+      lifted = false;
+      const el = document.elementFromPoint(e.clientX, e.clientY);
+      const target = el && el.closest('.slot.skill');
+      if (target && target !== btn) this.finishSwap(Number(target.id.slice(5)));
+    });
+    btn.addEventListener('pointercancel', () => {
+      clearTimeout(timer);
+      timer = null;
+    });
+    // Tastatur (Enter/Leertaste auf dem Knopf)
+    btn.addEventListener('click', (e) => { if (e.detail === 0) useSkill(i); });
+  },
+
+  startSwap(i) {
+    this.swapFrom = i;
+    $('skillBar').classList.add('swapping');
+    $('skill' + i).parentElement.classList.add('swap-pick');
+    if (navigator.vibrate) navigator.vibrate(25);
+    ui.log(`${classSkills(game.player)[i].name} angehoben: auf einen anderen Platz ziehen oder tippen.`, 'info');
+    // Tippen irgendwo anders bricht ab
+    const cancel = (e) => {
+      if (e.target.closest && e.target.closest('#skillBar .slot.skill')) return;
+      document.removeEventListener('pointerdown', cancel, true);
+      if (this.swapFrom != null) this.buildSkillBar();
+    };
+    this.swapCancel = cancel;
+    setTimeout(() => document.addEventListener('pointerdown', cancel, true), 0);
+  },
+
+  finishSwap(j) {
+    const p = game.player;
+    const from = this.swapFrom;
+    if (this.swapCancel) document.removeEventListener('pointerdown', this.swapCancel, true);
+    this.swapFrom = null;
+    if (from != null && j !== from) {
+      const order = skillOrder(p);
+      const a = order.indexOf(from);
+      const b = order.indexOf(j);
+      [order[a], order[b]] = [order[b], order[a]];
+      p.skillOrder = order;
+      saveGame();
+      const sks = classSkills(p);
+      ui.log(`${sks[from].name} und ${sks[j].name} haben die Plätze getauscht.`, 'info');
+    }
+    this.buildSkillBar();
   },
 
   // Schreibt nur geänderte Werte ins DOM
@@ -259,8 +340,19 @@ const ui = {
       $('hud').classList.toggle('has-buffs', buffs.length > 0);
     });
 
-    // Abklingzeiten
+    // Abklingzeiten, und laufende Buffs an ihrer Fertigkeit markieren
     classSkills(p).forEach((sk, i) => {
+      const running = p.buffs.find((b) => b.id === sk.id);
+      const runLeft = running ? Math.ceil(running.until - game.time) : 0;
+      this.set('run' + i, runLeft > 0 ? formatBuffTime(runLeft) : '', (v) => {
+        const btn = $('skill' + i);
+        if (!btn) return;
+        btn.classList.toggle('buff-run', !!v);
+        btn.parentElement.querySelector('.runring').hidden = !v;
+        const el = btn.parentElement.querySelector('.run');
+        el.hidden = !v;
+        el.textContent = v;
+      });
       const left = p.skillCd[i];
       const key = 'cd' + i;
       const shown = left > 0 ? left.toFixed(left < 1 ? 1 : 0) : '';
@@ -386,7 +478,7 @@ const ui = {
       `<span><img src="${lootIconUrl('gold')}" alt=""> ${p.gold.toLocaleString('de-DE')}</span>` +
       `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
       `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
-      `<span title="Fertigkeitsbücher"><img src="${lootIconUrl('book')}" alt=""> ${p.books}</span>` +
+      `<span title="Fertigkeitsbücher in der Tasche"><img src="${lootIconUrl('book')}" alt=""> ${totalBooks(p)}</span>` +
       `<span title="${potionInfo('hp').name}"><img src="${lootIconUrl('potHp')}" alt=""> ${p.potions.hp}</span>` +
       `<span title="${potionInfo('mp').name}"><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
       MATERIALS.map((m) => `<span><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
@@ -473,8 +565,8 @@ const ui = {
           `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="5" ${can && p.statPoints >= 5 ? '' : 'disabled'}>+5</button></span></div>`;
       }).join('') + `</div>` +
       `<h3>Fertigkeiten</h3>` +
-      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Fertigkeitsbücher: <span class="points">${p.books}</span></p>` +
-      `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Fertigkeitsbüchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Bücher geben Seelensteine.</p>` +
+      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Bücher für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
+      `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Büchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
       skillListHtml(classSkills(p), p);
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));

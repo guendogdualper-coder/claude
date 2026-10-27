@@ -40,7 +40,7 @@ function setupInput() {
         e.preventDefault();
         break;
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5':
-        useSkill(Number(e.code.slice(5)) - 1);
+        if (game.player) useSkill(skillOrder(game.player)[Number(e.code.slice(5)) - 1]);
         break;
       case 'KeyQ': usePotion('hp'); break;
       case 'KeyE': usePotion('mp'); break;

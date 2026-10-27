@@ -324,12 +324,86 @@ function drawPlayer(ctx, p) {
       const pulse = 0.55 + 0.25 * Math.sin(game.time * 6);
       glow(ctx, hand.x + Math.cos(angle) * reach, hand.y + Math.sin(angle) * reach, 10 + band * 3, PLUS_COLORS[band], pulse * (0.3 + band * 0.12));
     }
-    // Aura des Schwertes: die ganze Klinge leuchtet
+    // Aura des Schwertes: die Klinge steckt in einer leuchtenden Hülle, Flammen steigen von ihr auf.
+    // Mit jedem Rang wird die Hülle größer und heller, ab Erwacht fliegen Funken in der Rangfarbe.
     const aura = p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
     if (aura) {
       const col = SKILL_FX[aura.id].weaponGlow;
-      const pulse = 0.6 + 0.3 * Math.sin(game.time * 8);
-      for (const f of [0.35, 0.65, 0.95]) glow(ctx, hand.x + Math.cos(angle) * 24 * f, hand.y + Math.sin(angle) * 24 * f, 9, col, pulse * 0.55);
+      const r = skillRank(aura.lvl || 1);
+      const power = 1 + (r + 1) * 0.3;
+      const pulse = 0.65 + 0.35 * Math.sin(game.time * 8);
+      const reach = kind === 'greatsword' ? 34 : kind === 'dagger' ? 12 : 26;
+      const sp = weaponSprite(kind, tier);
+      const b = sp.bounds;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(hand.x, hand.y);
+      ctx.rotate(angle);
+      // leuchtende Hülle: die Silhouette der Waffe, etwas größer und zweimal versetzt
+      for (const [sc, a] of [[1.08 + 0.05 * power, 0.55], [1.2 + 0.08 * power, 0.3]]) {
+        ctx.save();
+        ctx.globalAlpha *= a * pulse;
+        ctx.scale(sc, sc);
+        ctx.drawImage(tintOf(sp, col), b.x, b.y, b.w, b.h);
+        ctx.restore();
+      }
+      ctx.globalAlpha *= 0.5 * pulse;
+      ctx.drawImage(tintOf(sp, '#ffffff'), b.x, b.y, b.w, b.h);
+      ctx.restore();
+      for (const f of [0.3, 0.55, 0.8, 1]) glow(ctx, hand.x + Math.cos(angle) * reach * f, hand.y + Math.sin(angle) * reach * f, 7 + 3 * power, col, pulse * 0.45);
+      // Energieklinge um die echte Klinge: mit jedem Rang länger und breiter, Kante in der Rangfarbe
+      const len = reach * (1.15 + 0.15 * (r + 1));
+      const wdt = 3.5 + 1.5 * power;
+      const edge = r >= 0 ? SKILL_RANKS[r].color : '#fff3c0';
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.translate(hand.x, hand.y);
+      ctx.rotate(angle);
+      const eg = ctx.createLinearGradient(3, 0, len + 6, 0);
+      eg.addColorStop(0, 'rgba(255,230,160,0)');
+      eg.addColorStop(0.3, col);
+      eg.addColorStop(1, '#ffffff');
+      ctx.globalAlpha *= (0.45 + 0.08 * (r + 1)) * pulse;
+      ctx.fillStyle = eg;
+      ctx.beginPath();
+      ctx.moveTo(3, -wdt);
+      ctx.quadraticCurveTo(len * 0.75, -wdt * 1.15, len + 6, 0);
+      ctx.quadraticCurveTo(len * 0.75, wdt * 1.15, 3, wdt);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = edge;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+      // ab Erwacht wirbeln Funken in der Rangfarbe um die Klinge
+      if (r >= 0) {
+        const n = 2 + r * 2;
+        for (let k = 0; k < n; k++) {
+          const u = (game.time * 0.9 + k / n) % 1;
+          const off = Math.sin(game.time * 9 + k * 2.1) * wdt * 1.7;
+          ctx.globalAlpha = (invisible ? 0.35 : 1) * (0.5 + 0.5 * Math.sin(u * Math.PI));
+          ctx.fillStyle = k % 2 ? edge : '#ffffff';
+          circle(ctx, 6 + u * len, off, 1.3 + r * 0.25);
+        }
+      }
+      ctx.restore();
+      // Flammenzungen, die von der Klinge aufsteigen
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const n = 4 + (r + 1) * 2;
+      for (let k = 0; k < n; k++) {
+        const u = (game.time * 1.4 + k * 0.618) % 1;
+        const f = ((k * 0.37) % 1) * 0.8 + 0.25;
+        const x = hand.x + Math.cos(angle) * reach * f + Math.sin(game.time * 5 + k) * 2;
+        const y = hand.y + Math.sin(angle) * reach * f - u * (10 + 4 * power);
+        ctx.globalAlpha = (invisible ? 0.35 : 1) * (1 - u) * 0.9;
+        ctx.fillStyle = k % 3 === 0 ? '#ffffff' : col;
+        circle(ctx, x, y, (1.6 + power * 0.4) * (1 - u * 0.5));
+        if (r >= 0 && k % 2 === 0) {
+          ctx.fillStyle = SKILL_RANKS[r].color;
+          circle(ctx, x + 3, y - 2, 1.2);
+        }
+      }
+      ctx.restore();
     }
   };
   if (dir === 'up') drawWeapons();

@@ -569,3 +569,40 @@ Game item icon for a 2D fantasy MMORPG: a faceted crystal potion bottle shaped l
 ```
 2D game effect sheet, three-quarter top-down view: a chibi hero drinking a red potion with a red ring expanding at the feet and red-orange embers rising, and the same hero drinking a blue potion with a blue ring and white-blue sparkles rising. Next to it the HUD potion buttons: round dark slots with the red Drachenblut flask and the blue Mondtau crystal bottle and small counters. Cute fantasy game art, additive glow.
 ```
+
+## Fertigkeiten tauschen, Bücher je Fertigkeit, Tasche mit 4 Seiten und Buffs je Rang (Version 2.6)
+
+### Fertigkeiten per langem Drücken tauschen
+```
+Mobile game HUD close-up in landscape, dark fantasy style: five round skill buttons in an arc around a big red attack button; one skill button is lifted and enlarged with a bright white ring and a golden glow, a finger holds it and a dotted arrow shows it being dragged onto another slot, the other skill buttons gently wiggle; a small toast "Dreifachschlag angehoben: auf einen anderen Platz ziehen oder tippen". Clean game UI, bold outlines.
+```
+
+### Fertigkeitsbücher für jede Fertigkeit
+```
+Game item icon set for a 2D fantasy MMORPG: twelve small leather skill books, each cover in the color of its class (crimson red for warrior, deep violet for ninja, teal for shaman, dark green for necromancer) with a golden spine band and a round golden medallion showing the painted icon of one skill (sword aura, lightning, poison cloud, skull, wind, heart, flame, dagger, eye, shield, fist, bolt), cream pages on the side, small stack counter numbers in the corner. Bold dark outline, cel shading, plain dark background, no text.
+```
+
+### Seelenstein lässt Bücher fallen
+```
+2D game scene, three-quarter top-down view: a shattered soul stone in a dark forest clearing releasing glowing loot that arcs toward a chibi warrior: several colored skill books of different classes, one golden-glowing book marked as the warrior's own skill, others in violet; loot notifications at the bottom right "Buch: Schattenmantel ×1", "Buch: Aura des Schwertes ×1" in gold. Cute fantasy game art, bold outlines, additive glow.
+```
+
+### Tasche mit vier Seiten und Mehrfachverkauf
+```
+Mobile game inventory window, dark leather and gold fantasy style: left the character doll with equipment slots, right a bag grid of 20 slots with page tabs "I 20", "II 20", "III 20", "IV 10" on top; a bar with "45 ausgewählt · 103.806 Gold" and buttons "Ganze Seite", "Nicht nutzbar", "Verkaufen", "Fertig"; selected items have an orange outline and a small orange check badge; items include stacked skill books with counters and curved swords +1. Below a hint "Verkaufen geht nur bei einem Händler im Dorf". Clean readable UI.
+```
+
+### Laufender Buff an der Fertigkeit
+```
+Mobile game HUD close-up: a round skill button with a sword aura icon and a purple rank ring "H1"; a bright cyan light streak runs around the button like a spinning comet ring, and a small cyan pill above it shows the remaining time "4:34"; next to it a lightning buff skill with "2:29" and a cooldown number "43" over a darkened clock wipe. Clean game UI, bold outlines, glow.
+```
+
+### Kampfrausch je Rang
+```
+2D game VFX sheet, three-quarter top-down view, the same chibi warrior four times with the Battle Rage buff: at level 17 only one tiny short red spark bolt flickering now and then; at rank Erwacht two short red-orange lightning bolts; at rank Legendär four long crackling bolts and a red glow; at rank Vollendet six long bolts around the whole body plus lightning striking into the ground at the feet. Additive glow, plain green background, no text.
+```
+
+### Aura des Schwertes an der Klinge
+```
+2D game VFX sheet, three-quarter top-down view, a chibi warrior holding a sword with the Sword Aura active at four levels: the real blade is wrapped in a glowing golden-white energy blade that extends beyond the tip, longer and wider with each rank; flame tongues rise from the blade; from rank Erwacht small sparks in the rank color (ice blue, violet, gold, crimson) spiral along the blade; a golden dashed rune circle on the ground. Additive glow, plain green background, no text.
+```

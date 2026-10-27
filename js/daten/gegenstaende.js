@@ -212,7 +212,10 @@ const BLESSING = {
   text: 'Schützt beim Schmied: Schlägt die Verbesserung fehl, passiert dem Gegenstand nichts. Nur die Kosten sind weg.'
 };
 
-const BAG_SIZE = 20;
+// Tasche: vier Seiten mit je 20 Plätzen
+const BAG_PAGE = 20;
+const BAG_PAGES = 4;
+const BAG_SIZE = BAG_PAGE * BAG_PAGES;
 
 // Händler im Dorf: was sie verkaufen und zu welchem Preis je Stufe (Lv 1, 5, 10, 15)
 const MERCHANTS = {

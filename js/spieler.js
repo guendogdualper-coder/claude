@@ -47,17 +47,27 @@ function skillActions(p, i) {
   }
   const rank = SKILL_RANKS[r];
   const pos = lvl - rank.from + 1;
-  if (pos < rank.levels) out.push({ type: 'book', label: 'Buch lesen', ok: p.books > 0, why: 'Kein Fertigkeitsbuch' });
+  const have = bookCount(p, sk.id);
+  if (pos < rank.levels) out.push({ type: 'book', label: `Buch lesen (${have})`, ok: have > 0, why: `Kein Buch „${sk.name}“` });
   const next = SKILL_RANKS[r + 1];
   if (next && pos >= rank.levels - 2) {
-    out.push({ type: 'rankup', label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} (${next.books} Bücher)`, ok: p.books >= next.books && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : `${next.books} Fertigkeitsbücher nötig` });
+    out.push({ type: 'rankup', label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} (${have}/${next.books} Bücher)`, ok: have >= next.books && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : `${next.books} Bücher „${sk.name}“ nötig` });
   }
   return out;
 }
 
+// Reihenfolge der Fertigkeiten in der Leiste: Platz -> Fertigkeit
+const SKILL_HOLD_MS = 500;
+function skillOrder(p) {
+  const o = p.skillOrder;
+  const ok = Array.isArray(o) && o.length === 5 && [0, 1, 2, 3, 4].every((k) => o.includes(k));
+  if (!ok) p.skillOrder = [0, 1, 2, 3, 4];
+  return p.skillOrder.slice();
+}
+
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -120,14 +130,20 @@ function makePlayer(save) {
   p.scrolls = save.scrolls || 0;
   if (save.equipment && (save.itemsVersion || 1) < 2) {
     Object.values(p.equipment).forEach(migrateItem);
-    p.inventory.forEach(migrateItem);
+    p.inventory.filter((it) => !isBook(it)).forEach(migrateItem);
   }
   p.itemsVersion = 2;
   // Waffe, Rüstung und Helm gehören jetzt einer Klasse; alte Gegenstände bekommen die eigene
   Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
-  p.inventory.forEach((it) => assignClass(it, p.classId));
+  p.inventory.forEach((it) => { if (!isBook(it)) assignClass(it, p.classId); });
   p.upmats = { ...(save.upmats || {}) };
-  p.books = save.books || 0;
+  // Bis Version 2.5 waren Bücher eine einfache Zahl: jetzt Bücher zu den eigenen Fertigkeiten.
+  // books bleibt als 0 im Spielstand und zeigt, dass der Stand die Ränge schon kennt.
+  p.books = 0;
+  if (save.books > 0) {
+    const own = CLASSES[p.classId].paths[p.path || 0].skills;
+    for (let k = 0; k < save.books; k++) addBookItem(p, own[k % own.length].id, 1, true);
+  }
   // Fertigkeiten über Stufe 17 aus älteren Spielständen: Punkte zurück, Stufe auf 17
   p.skillLevels = (p.skillLevels || [1, 1, 1, 1, 1]).map((lvl) => {
     if (save.books == null && lvl > SKILL_BASE_MAX) {
@@ -322,11 +338,11 @@ function upgradeSkill(i, type = 'point') {
     p.skillPoints--;
   } else if (type === 'book') {
     p.skillLevels[i]++;
-    p.books--;
+    takeBooks(p, sk.id, 1);
   } else {
     // in den nächsten Rang
     const next = SKILL_RANKS[skillRank(lvl) + 1];
-    if (next.books) p.books -= next.books;
+    if (next.books) takeBooks(p, sk.id, next.books);
     else p.skillPoints--;
     p.skillLevels[i] = next.from;
     ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);

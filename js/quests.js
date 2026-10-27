@@ -77,8 +77,9 @@ function giveReward(reward, xp) {
     parts.push(`${reward.scrolls} × ${BLESSING.name}`);
   }
   if (reward.books) {
-    p.books += reward.books;
-    parts.push(`${reward.books} × Fertigkeitsbuch`);
+    // Aufträge geben Bücher zu den eigenen Fertigkeiten
+    const got = addBooks(reward.books, null, classSkills(p).map((sk) => sk.id));
+    if (got.length) parts.push('Bücher: ' + got.join(', '));
   }
   for (const [id, n] of Object.entries(reward.mats || {})) {
     p.materials[id] = (p.materials[id] || 0) + n;
@@ -102,7 +103,7 @@ function rewardHtml(reward, xp) {
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
   if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
-  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch`);
+  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Buch zu deinen Fertigkeiten`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
     li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   }
@@ -311,8 +312,8 @@ Object.assign(ui, {
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="shop">` +
       ALCHEMIST_WARES.map((w) => {
         const book = w.id === 'book';
-        const m = book ? { id: 'book', name: 'Fertigkeitsbuch', text: 'Hebt eine erweckte Fertigkeit um eine Stufe oder hilft beim Aufstieg in den nächsten Rang.' } : MATERIALS.find((x) => x.id === w.id);
-        const have = book ? p.books : p.materials[m.id] || 0;
+        const m = book ? { id: 'book', name: 'Unbekanntes Fertigkeitsbuch', text: 'Ein Buch zu einer zufälligen Fertigkeit irgendeiner Klasse. Mit Glück eines von deinen.' } : MATERIALS.find((x) => x.id === w.id);
+        const have = book ? totalBooks(p, true) : p.materials[m.id] || 0;
         return `<div class="shop-item"><img class="shop-icon" src="${book ? lootIconUrl('book') : materialIconUrl(m.id)}" alt=""><strong>${m.name} <span class="price">${w.price.toLocaleString('de-DE')} Gold</span></strong>` +
           `<small>${m.text} Im Gepäck: <b>${have}</b></small>` +
           `<div class="buy"><button class="mini-btn" type="button" data-mat="${m.id}" ${p.gold < w.price ? 'disabled' : ''}>Kaufen</button></div></div>`;
@@ -323,8 +324,12 @@ Object.assign(ui, {
       if (p.gold < w.price) return;
       p.gold -= w.price;
       if (w.id === 'book') {
-        p.books++;
-        ui.buildSkillBar();
+        if (p.inventory.length >= BAG_SIZE) {
+          p.gold += w.price;
+          ui.log('Deine Tasche ist voll.', 'warn');
+          return;
+        }
+        addBooks(1);
       } else {
         p.materials[w.id] = (p.materials[w.id] || 0) + 1;
       }

@@ -647,7 +647,7 @@ Object.assign(SKILL_FX, {
     },
     aura: { every: 0.08, color: ['#fff2c0', '#ffd38a', '#ffffff'], shape: 'spark', up: true },
     ring: '#ffd38a',
-    weaponGlow: '#ffd38a'
+    weaponGlow: '#ffd36a'
   },
   schildstoss: {
     color: '#ffd38a',
@@ -907,32 +907,49 @@ function orbit(t, speed, r, k, n, ry = 0.4) {
 }
 
 const BUFF_LOOKS = {
-  // Kampfrausch: rote Blitze zucken um die Figur, roter Schein
-  kampfrausch(ctx, p, fy, t, layer) {
+  // Kampfrausch: rote Blitze zucken um die Figur. Bis Stufe 17 nur ein einzelner, kurzer Blitz,
+  // mit jedem Rang mehr und längere Blitze, ab Legendär knistert die ganze Figur.
+  kampfrausch(ctx, p, fy, t, layer, b) {
+    const r = skillRank(b.lvl || 1);
     if (layer === 'back') {
-      glow(ctx, p.x, fy - 20, 30, '#ff3a1a', 0.35 + 0.1 * Math.sin(t * 12));
+      glow(ctx, p.x, fy - 20, 24 + r * 4, '#ff3a1a', (0.18 + 0.06 * r) + 0.08 * Math.sin(t * 12));
       return;
     }
+    const count = [1, 2, 3, 4, 6][r + 1];
+    const len = 22 + 6 * (r + 1);
+    const seed = Math.floor(t * (r < 0 ? 9 : 14));
+    // ohne Rang flackert der Blitz nur ab und zu auf
+    if (r < 0 && seed % 3 !== 0) return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     ctx.lineCap = 'round';
-    const seed = Math.floor(t * 14);
-    for (let k = 0; k < 4; k++) {
-      const a = seed * 1.7 + k * 1.6;
-      const x0 = p.x + Math.cos(a) * 12;
-      const y0 = fy - 24 + Math.sin(a) * 14;
-      const x1 = p.x + Math.cos(a) * 36;
-      const y1 = fy - 24 + Math.sin(a * 1.3) * 30;
-      ctx.strokeStyle = 'rgba(255,70,30,0.55)';
-      ctx.lineWidth = 5;
+    const wide = r >= 2 ? 1.4 : 1;
+    for (let k = 0; k < count; k++) {
+      const a = seed * 1.7 + k * (Math.PI * 2 / count);
+      const x0 = p.x + Math.cos(a) * 10;
+      const y0 = fy - 24 + Math.sin(a) * 12;
+      const x1 = p.x + Math.cos(a) * len;
+      const y1 = fy - 24 + Math.sin(a * 1.3) * (len - 6);
+      ctx.strokeStyle = 'rgba(255,70,30,0.5)';
+      ctx.lineWidth = (r < 0 ? 3 : 5) * wide;
       zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
       ctx.strokeStyle = 'rgba(255,150,80,0.95)';
-      ctx.lineWidth = 2.4;
+      ctx.lineWidth = (r < 0 ? 1.4 : 2.4) * wide;
       zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
       ctx.strokeStyle = 'rgba(255,245,215,1)';
       ctx.lineWidth = 1;
       zigzag(ctx, x0, y0, x1, y1, seed + k, 7);
-      glow(ctx, x1, y1, 7, '#ff7a3a', 0.7);
+      glow(ctx, x1, y1, 4 + r * 1.5 + 2, '#ff7a3a', 0.4 + 0.1 * r);
+    }
+    // Legendär und Vollendet: Blitze schlagen bis in den Boden
+    if (r >= 2) {
+      for (let k = 0; k < r - 1; k++) {
+        const x = p.x + Math.sin(seed * 2.3 + k * 3) * 22;
+        ctx.strokeStyle = 'rgba(255,200,140,0.9)';
+        ctx.lineWidth = 1.6;
+        zigzag(ctx, x, fy - 52, x + Math.sin(seed + k) * 8, fy, seed + k * 7, 6);
+        glow(ctx, x, fy, 9, '#ff5a2a', 0.6);
+      }
     }
     ctx.restore();
   },
@@ -1119,6 +1136,6 @@ function drawBuffLooks(ctx, p, fy, layer) {
   if (!p.buffs || !p.buffs.length) return;
   for (const b of p.buffs) {
     const look = BUFF_LOOKS[b.id];
-    if (look) look(ctx, p, fy, game.time, layer);
+    if (look) look(ctx, p, fy, game.time, layer, b);
   }
 }
