@@ -371,9 +371,12 @@ const ui = {
         btn.classList.toggle('on-cd', !!shown);
         el.style.setProperty('--p', String(left / sk.cooldown));
       });
+      // Die Uhr der Abklingzeit in 48 Schritten statt in jedem Bild neu setzen
       if (left > 0) {
-        const el = document.querySelector('#skill' + i + ' .cd');
-        if (el) el.style.setProperty('--p', String(left / sk.cooldown));
+        this.set('cdp' + i, Math.ceil(left / sk.cooldown * 48), (v) => {
+          const el = document.querySelector('#skill' + i + ' .cd');
+          if (el) el.style.setProperty('--p', String(v / 48));
+        });
       }
       this.set('mana' + i, p.mp < sk.mp, (v) => {
         const el = $('skill' + i);

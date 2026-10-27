@@ -7,7 +7,8 @@ const tileHash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
 
 function setupRenderer() {
   renderer.canvas = document.getElementById('welt');
-  renderer.ctx = renderer.canvas.getContext('2d');
+  // undurchsichtig: der Browser muss die Spielfläche nicht mit der Seite darunter mischen
+  renderer.ctx = renderer.canvas.getContext('2d', { alpha: false });
   renderer.mini = document.getElementById('minimap');
   renderer.miniCtx = renderer.mini.getContext('2d');
   renderer.miniBase = buildMinimapBase();
@@ -15,9 +16,11 @@ function setupRenderer() {
   resizeRenderer();
 }
 
+// Auflösung der Spielfläche: höchstens 2-fach. Läuft das Spiel zu langsam, senkt adaptQuality
+// die Auflösung in Schritten (renderer.maxDpr), damit es wieder flüssig wird.
 function resizeRenderer() {
   const r = renderer;
-  r.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
   r.w = window.innerWidth;
   r.h = window.innerHeight;
   r.canvas.width = Math.round(r.w * r.dpr);
@@ -179,16 +182,31 @@ function drawCloudShadows(ctx, view) {
 }
 
 
+// Leuchtpunkt: ein fertig gemalter Verlauf je Farbe, der nur noch skaliert gezeichnet wird.
+// Ein neuer Verlauf in jedem Bild kostet gerade auf dem iPhone viel mehr Zeit.
+const glowCache = new Map();
+function glowSprite(hex) {
+  let c = glowCache.get(hex);
+  if (!c) {
+    c = newCanvas(64, 64);
+    const x = c.getContext('2d');
+    const n = parseInt(hex.slice(1), 16);
+    const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, `rgba(${rgb},1)`);
+    g.addColorStop(1, `rgba(${rgb},0)`);
+    x.fillStyle = g;
+    x.fillRect(0, 0, 64, 64);
+    glowCache.set(hex, c);
+  }
+  return c;
+}
 function glow(ctx, x, y, r, hex, alpha) {
-  const n = parseInt(hex.slice(1), 16);
-  const rgb = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
-  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, `rgba(${rgb},${alpha})`);
-  g.addColorStop(1, `rgba(${rgb},0)`);
-  ctx.fillStyle = g;
-  ctx.beginPath();
-  ctx.arc(x, y, r, 0, Math.PI * 2);
-  ctx.fill();
+  if (alpha <= 0.01 || r <= 0) return;
+  const a = ctx.globalAlpha;
+  ctx.globalAlpha = a * Math.min(1, alpha);
+  ctx.drawImage(glowSprite(hex), x - r, y - r, r * 2, r * 2);
+  ctx.globalAlpha = a;
 }
 
 function drawTargetRing(ctx, t) {
@@ -961,5 +979,24 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
       twinkle(ctx, pos.x, pos.y, 2.5 + (item.plus >= 15 ? 1.5 : 0), color, Math.sin(phase * Math.PI));
     }
     if (item.plus >= 20) glow(ctx, spots[slot](0, 1).x, spots[slot](0, 1).y, 14, '#ffffff', 0.25 + 0.1 * Math.sin(t * 4));
+  }
+}
+
+// Ruckelt das Spiel über mehrere Sekunden (Median der Bildzeiten über 22 ms), wird die Auflösung
+// etwas gesenkt. Das passiert höchstens zweimal und nur während des Spielens.
+const quality = { frames: [], at: 0, steps: 0 };
+function adaptQuality(dtMs) {
+  if (!game.running || dtMs > 120 || document.hidden) return;
+  quality.frames.push(dtMs);
+  if (quality.frames.length < 180) return;
+  const sorted = quality.frames.slice().sort((a, b) => a - b);
+  quality.frames.length = 0;
+  const median = sorted[sorted.length >> 1];
+  const r = renderer;
+  const cur = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
+  if (median > 22 && quality.steps < 2 && cur > 1.25) {
+    quality.steps++;
+    r.maxDpr = Math.max(1.25, cur - 0.35);
+    resizeRenderer();
   }
 }

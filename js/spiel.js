@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '2.6';
+const GAME_VERSION = '2.6.1';
 
 const game = {
   world: null,
@@ -129,8 +129,10 @@ const portraitQuery = window.matchMedia('(orientation: portrait) and (pointer: c
 
 let lastFrame = 0;
 function frame(ts) {
-  const dt = Math.min(0.05, (ts - lastFrame) / 1000 || 0);
+  const raw = ts - lastFrame;
+  const dt = Math.min(0.05, raw / 1000 || 0);
   lastFrame = ts;
+  adaptQuality(raw);
   updateScreenEffects(dt);
   if (game.running && !portraitQuery.matches) update(dt);
   else if (!game.running) game.time += dt;

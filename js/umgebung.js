@@ -108,7 +108,8 @@ function drawGround(ctx, x0, y0, x1, y1) {
     }
   }
   // Nur die ältesten Blöcke verwerfen, die gerade sicher nicht zu sehen sind
-  while (chunkCache.size > 40) chunkCache.delete(chunkCache.keys().next().value);
+  // (jeder Block ist ein großes Bild im Grafikspeicher, deshalb nicht zu viele behalten)
+  while (chunkCache.size > 28) chunkCache.delete(chunkCache.keys().next().value);
   // Bewegtes Wasser
   const t = game.time;
   for (let y = y0; y <= y1; y++) {
