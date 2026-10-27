@@ -114,3 +114,57 @@ const MERCHANTS = {
     greeting: 'Rüstung hält dich am Leben, Vitalität auch. Such dir aus, was du brauchst.'
   }
 };
+
+// --- Boni -----------------------------------------------------------------------------
+// Jeder Gegenstand kann bis zu 5 normale Boni und 2 besondere Boni (6 und 7) tragen.
+// fmt: flat = ganze Zahl, pct = Prozent, pct1 = Prozent mit einer Nachkommastelle.
+// range: Spanne auf Gegenstandsstufe 1; höhere Stufen erhöhen die Werte um 35 % je Stufe.
+const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schild', 'schuhe', 'guertel'];
+const BONUS_TYPES = {
+  hp: { name: 'Max. Leben', fmt: 'flat', range: [20, 90], slots: ALL_SLOTS },
+  mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'guertel'] },
+  atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'guertel'] },
+  def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schild', 'schuhe', 'guertel'] },
+  str: { name: 'Stärke', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
+  vit: { name: 'Vitalität', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
+  int: { name: 'Intelligenz', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
+  dex: { name: 'Geschick', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
+  crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.06], slots: ['waffe', 'helm', 'guertel'] },
+  atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.08], slots: ['waffe', 'schuhe', 'guertel'] },
+  speed: { name: 'Lauftempo', fmt: 'pct', range: [0.02, 0.08], slots: ['schuhe'] },
+  dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'schild', 'schuhe'] },
+  block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.05], slots: ['schild'] },
+  regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.005], slots: ['ruestung', 'helm', 'guertel'] },
+  monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.1], slots: ['waffe', 'helm', 'guertel'] },
+  dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'helm', 'schild'] },
+  hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.04], slots: ['waffe'] }
+};
+
+// Besondere Boni 6 und 7, nur über den Sternenstein
+const SPECIAL_BONUS_TYPES = {
+  skillDmg: { name: 'Fertigkeitsschaden', fmt: 'pct', range: [0.02, 0.08] },
+  basicDmg: { name: 'Normaler Schaden', fmt: 'pct', range: [0.02, 0.08] },
+  hpPct: { name: 'Max. Leben', fmt: 'pct', range: [0.02, 0.06] },
+  resist: { name: 'Erlittener Schaden', fmt: 'neg', range: [0.01, 0.04] }
+};
+
+const MAX_NORMAL_BONUS = 5;
+const MAX_SPECIAL_BONUS = 2;
+
+// Materialien zum Verzaubern, Beute von Seelensteinen (werden automatisch aufgehoben)
+const MATERIALS = [
+  { id: 'boniPlus', name: 'Verstärkung', tag: 'Boni +', text: 'Fügt einen zufälligen Bonus hinzu, bis zum 4. Bonus.' },
+  { id: 'boni5', name: 'Seltene Verstärkung', tag: '5. Bonus', text: 'Fügt den 5. Bonus hinzu. Der Gegenstand braucht dafür genau 4 Boni.' },
+  { id: 'switcher', name: 'Switcher', tag: 'Switcher', text: 'Würfelt die Boni 1 bis 5 komplett neu aus. Die Anzahl bleibt gleich.' },
+  { id: 'star', name: 'Sternenstein', tag: 'Bonus 6/7', text: 'Fügt den 6. Bonus hinzu, danach den 7. Besondere Boni wie Fertigkeitsschaden oder weniger erlittener Schaden.' }
+];
+
+// Was ein Seelenstein fallen lässt: [Chance, min, max]
+const STONE_MATERIAL_DROPS = {
+  boniPlus: [0.75, 1, 3],
+  switcher: [0.5, 1, 2],
+  boni5: [0.18, 1, 1],
+  star: [0.12, 1, 1]
+};
+const STONE_GEAR_CHANCE = 0.55;
+const STONE_GEAR_MAX_PLUS = 2;

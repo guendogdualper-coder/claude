@@ -82,6 +82,10 @@ function hitMonster(m, mul, opts = {}) {
     p.lastCombat = game.time;
   }
   if (m.vulnerable && m.vulnerable.until > game.time) factor *= m.vulnerable.mul;
+  if (!opts.ally) {
+    factor *= 1 + (s.monsterDmg || 0);
+    if (opts.basic) factor *= 1 + (s.basicDmg || 0);
+  }
   const atk = opts.atk != null ? opts.atk : s.atk;
   const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit);
   if (!m.isStone) {
@@ -96,6 +100,8 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
+  // Lebensraub heilt um einen Teil des Schadens
+  if (!opts.ally && !opts.dot && s.hpSteal > 0 && !p.dead) p.hp = Math.min(s.maxHp, p.hp + amount * s.hpSteal);
   if (!opts.dot) {
     vfxImpact(m, isCrit, opts.ally ? '#cfd8b0' : opts.vfxColor);
     if (opts.skill) skillHitFx(opts.skill, m, isCrit, opts.heavy);
@@ -258,12 +264,12 @@ function tryBasicAttack() {
     startSwing(p, 'cast', 0.28);
     const hand = bodyCenter(p);
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: c.basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: 480, range: c.basic.range + 60, mul: 1, color: c.basic.color, radius: 5, style: c.basic.style });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: 480, range: c.basic.range + 60, mul: 1, color: c.basic.color, radius: 5, style: c.basic.style, basic: true });
   } else {
     p.combo = ((p.combo || 0) + 1) % 3;
     startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
     vfxSwing(p, c.trim);
-    hitMonster(target, p.combo === 2 ? 1.25 : 1, { vfxColor: c.trim });
+    hitMonster(target, p.combo === 2 ? 1.25 : 1, { vfxColor: c.trim, basic: true });
   }
   return true;
 }
@@ -593,7 +599,7 @@ function updateProjectiles(dt) {
         if (m.dead || pr.hit.has(m.id)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
-        hitMonster(m, pr.mul, { poison: pr.poison, vfxColor: pr.color, skill: pr.skill });
+        hitMonster(m, pr.mul, { poison: pr.poison, vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
         if (pr.poison) particles(m.x, feetY(m) - 16, { count: 12, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2 });
         if (pr.chain > 0) {
           const next = aliveEnemies()

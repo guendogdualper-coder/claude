@@ -1097,3 +1097,30 @@ kbd {
 .slot.no-mana .skill-icon { filter: saturate(0.3) brightness(0.65); }
 #hud.touch .slot.on-cd .skill-icon { filter: brightness(0.55); }
 .skill-list img.icon { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--brass-dim); }
+
+/* --- Boni, Materialien und Verkaufen ---------------------------------------------------- */
+.bonus-list { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 1px; font-size: 12.5px; color: #9fd0ff; }
+.bonus-list li { display: flex; align-items: center; gap: 6px; }
+.bonus-list li.special { color: #ffcf4a; }
+.bonus-list .bn { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 800; background: rgba(159, 208, 255, 0.18); }
+.bonus-list li.special .bn { background: rgba(255, 207, 74, 0.2); }
+.mat-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mat-btn { display: flex; align-items: center; gap: 5px; padding: 4px 9px 4px 4px; border-radius: 999px; border: 1px solid var(--brass-dim); background: var(--lacquer-2); cursor: pointer; font-size: 12px; }
+.mat-btn img { width: 24px; height: 24px; }
+.mat-btn b { color: var(--brass); }
+.mat-btn:disabled { opacity: 0.4; cursor: default; }
+.mat-btn:not(:disabled):hover { border-color: var(--brass); }
+.mat-count { white-space: nowrap; }
+.item-detail.enchanted { animation: enchant 0.7s ease-out; }
+@keyframes enchant {
+  0% { box-shadow: 0 0 0 0 rgba(159, 208, 255, 0.9); background: rgba(159, 208, 255, 0.25); }
+  100% { box-shadow: 0 0 0 14px rgba(159, 208, 255, 0); }
+}
+.sell-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+.sell-item { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 4px 8px; border-radius: 6px; background: rgba(0, 0, 0, 0.28); }
+.sell-item .item-tile { width: 46px; height: 46px; }
+.sell-item .item-tile img { width: 40px; height: 40px; }
+.si-info { display: flex; flex-direction: column; min-width: 0; }
+.si-info strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.si-info small { color: var(--muted); font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { .item-detail.enchanted { animation: none; } }

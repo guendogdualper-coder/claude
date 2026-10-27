@@ -383,7 +383,13 @@ function drawMonster(ctx, m) {
   }
   const frame = m.moving ? Math.floor(game.time * 9 + m.id * 0.37) % 4 : 0;
   const lunge = m.attackAnim > 0 ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 * m.facing : 0;
-  blitSprite(ctx, monsterSprite(m.typeId, frame), m.x + lunge, fy, m.facing < 0, m.hitFlash);
+  // Im Stand atmen die Monster sichtbar
+  const breathe = m.moving ? 1 : 1 + Math.sin(game.time * 3 + m.id) * 0.025;
+  ctx.save();
+  ctx.translate(m.x + lunge, fy);
+  ctx.scale(1, breathe);
+  blitSprite(ctx, monsterSprite(m.typeId, frame), 0, 0, m.facing < 0, m.hitFlash);
+  ctx.restore();
 
   if (m.stun > 0) {
     ctx.fillStyle = '#ffe27a';

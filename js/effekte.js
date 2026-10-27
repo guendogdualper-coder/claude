@@ -192,6 +192,12 @@ function vfxImpact(target, crit, color = '#fff2d0') {
   });
 }
 
+// Beute fliegt in einem Bogen vom Seelenstein zur Figur
+function vfxLootFly(from, img) {
+  const c = bodyCenter(from);
+  addEffect({ type: 'lootfly', x: c.x + rand(-12, 12), y: c.y + rand(-8, 8), img, dur: 0.7, arc: rand(50, 90) });
+}
+
 function vfxCorpse(m) {
   addEffect({ type: 'corpse', typeId: m.typeId, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 });
 }
@@ -548,6 +554,23 @@ function drawEffect(ctx, e) {
       ctx.beginPath();
       ctx.ellipse(x, y, 70 * grow + 10, (70 * grow + 10) * 0.4, 0, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+    case 'lootfly': {
+      const p = game.player;
+      const tx = p.x;
+      const ty = feetY(p) - 24;
+      const e2 = easeOut(k);
+      const px = e.x + (tx - e.x) * e2;
+      const py = e.y + (ty - e.y) * e2 - Math.sin(k * Math.PI) * e.arc;
+      const size = 22 * (1 - k * 0.4);
+      ctx.globalAlpha = k > 0.85 ? (1 - k) / 0.15 : 1;
+      glow(ctx, px, py, size, '#fff2c0', 0.5);
+      ctx.drawImage(e.img, px - size / 2, py - size / 2, size, size);
+      if (k > 0.97 && !e.done) {
+        e.done = true;
+        particles(tx, ty, { count: 8, color: ['#fff2c0', '#ffffff'], speed: [40, 100], life: [0.2, 0.4], size: [1.5, 2.5] });
+      }
       break;
     }
     case 'levelup':

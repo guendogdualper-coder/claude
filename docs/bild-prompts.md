@@ -296,3 +296,35 @@ Set of 20 round skill icons for a 2D fantasy MMORPG, East Asian style, arranged 
 ```
 2D game VFX loop frames of buff auras around a small chibi character, three-quarter top-down view: rising red embers (rage), rotating golden dashed ring under the feet with gold sparkles (strong body, blessing), drifting violet smoke (stealth), white wind streaks trailing behind while running (agility), six bone shards orbiting the body (bone armor). Additive glow look, plain black background, evenly spaced, no text.
 ```
+
+## Verkaufen, Monster und Boni aus Seelensteinen (Version 1.8)
+
+### Verkaufen bei jedem Händler
+```
+2D fantasy MMORPG merchant window UI mockup in East Asian style, dark lacquered wood panel with thin brass borders. Upper part shows the merchant's wares, lower part a section titled "Verkaufen" with a compact grid of the player's bag items: small square item icons with colored plus value, a tiny gold coin price below each. One item is selected and glows red with a confirm label "Nochmal tippen zum Verkaufen". A short gold message line at the bottom: "Bronzehelm +2 für 106 Gold verkauft." Clean readable layout, no clutter.
+```
+
+### Bessere Monster
+```
+2D game monster sprite sheet in cute chibi fantasy style, three-quarter top-down view, each monster standing on its own with a soft ground shadow, ten monsters: a wild dog with bushy tail and bared fangs, a grey wolf with a thick neck mane, a black alpha wolf with a scar over the eye and glowing red eyes, a hunched goblin with a leather pouch and dagger, an orc warrior with spiked shoulder pads and a bone necklace, a desert scorpion with a glowing stinger, a bat-winged imp with bone-lined wings, a hooded dark cultist with a torn cape and glowing runes, an armored skeleton knight, a horned fire demon with claws and ember glow. Big expressive eyes with angry brows, fur strands and small details, bold dark outline, soft cel shading with light from the top left, plain white background, evenly spaced grid, no text.
+```
+
+### Materialien aus Seelensteinen
+```
+Set of four item icons for a 2D fantasy MMORPG, East Asian style, square with soft glow: "Verstärkung" a small blue crystal shard with a white plus sign (adds bonus 1 to 4), "Seltene Verstärkung" a larger violet crystal with five tiny stars (adds the fifth bonus), "Switcher" a round green orb with two curved arrows swirling around it (rerolls bonuses), "Sternenstein" a golden star-shaped gem with radiant rays (adds special bonus 6 and 7). Bold dark outline, glossy highlights, soft gradients, plain dark background, evenly spaced, no text.
+```
+
+### Beute fliegt automatisch zur Figur
+```
+2D game VFX frames, three-quarter top-down view: a destroyed purple soul stone crumbles into shards, small glowing item icons (blue crystal, green orb, golden star, a helmet) burst out in an arc and fly in curved paths with sparkling trails into a small chibi hero, each item shrinking and flashing when it arrives. Additive glow look, plain black background, no text.
+```
+
+### Boni und Verzaubern im Inventar
+```
+2D fantasy MMORPG item tooltip and enchant UI mockup in East Asian style, dark lacquer panel with brass border. Item "Eisenschwert +2" with base stats, then a list of five blue bonus lines (e.g. "Max. Leben +320", "Stark gegen Monster +8%", "Kritische Treffer +5%", "Angriffstempo +6%", "Lebensraub +2%") and two golden special bonus lines below a thin divider ("Fertigkeitsschaden +6%", "Schaden durch Grundangriffe +5%"). Under it a row of four material buttons with counters: blue crystal "Boni +", violet crystal "5. Bonus", green orb "Switcher", golden star "Bonus 6/7". The item frame pulses with a short blue-gold enchant shine. Clean readable layout, no clutter.
+```
+
+### Ausrüstung aus Seelensteinen bis +2
+```
+2D fantasy MMORPG loot illustration, three-quarter top-down view: a shattered soul stone on the ground with three floating equipment pieces above it, a helmet labeled "+0" with white glow, boots "+1" with light green glow, a sword "+2" with blue glow, small sparkles around them. Cute chibi game art style, bold dark outline, soft cel shading, plain white background.
+```

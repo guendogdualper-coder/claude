@@ -6,7 +6,7 @@ const MAX_SKILL_LEVEL = 20;
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -36,7 +36,8 @@ function newCharacter(name, classId) {
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
     hp: null, mp: null, x: null, y: null, playTime: 0,
     equipment: starterEquipment(), inventory: [], scrolls: 0, itemsVersion: 2,
-    attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0
+    attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
+    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 }
   };
 }
 
@@ -70,6 +71,7 @@ function makePlayer(save) {
     p.inventory.forEach(migrateItem);
   }
   p.itemsVersion = 2;
+  p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, ...(save.materials || {}) };
   // Spielstände ohne Statuswerte bekommen die Punkte aller bisherigen Stufen nachträglich
   if (!save.attrs) {
     p.attrs = { str: 0, vit: 0, int: 0, dex: 0 };
@@ -110,6 +112,26 @@ function playerStats(p) {
   };
   let atkMul = 1;
   let speedMul = 1;
+  // Boni der Ausrüstung
+  const bonus = {};
+  for (const item of Object.values(p.equipment || {})) {
+    if (!item) continue;
+    for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v;
+  }
+  s.atk += bonus.atk || 0;
+  s.def += bonus.def || 0;
+  s.maxHp += bonus.hp || 0;
+  s.maxMp += bonus.mp || 0;
+  s.crit += bonus.crit || 0;
+  s.atkSpeed += bonus.atkSpeed || 0;
+  s.dodge += bonus.dodge || 0;
+  s.block += bonus.block || 0;
+  s.regen += bonus.regen || 0;
+  speedMul += bonus.speed || 0;
+  s.monsterDmg = bonus.monsterDmg || 0;
+  s.hpSteal = bonus.hpSteal || 0;
+  s.basicDmg = bonus.basicDmg || 0;
+  s.damageTaken -= (bonus.dmgReduce || 0) + (bonus.resist || 0);
   for (const item of Object.values(p.equipment || {})) {
     if (!item) continue;
     const st = itemStats(item, item.plus, p.classId);
@@ -124,13 +146,14 @@ function playerStats(p) {
     speedMul += st.speed || 0;
   }
   s.block = Math.min(MAX_BLOCK, s.block);
-  // Statuswerte
-  const a = p.attrs || {};
+  // Statuswerte (eigene Punkte plus Boni auf der Ausrüstung)
+  const own = p.attrs || {};
+  const a = { str: (own.str || 0) + (bonus.str || 0), vit: (own.vit || 0) + (bonus.vit || 0), int: (own.int || 0) + (bonus.int || 0), dex: (own.dex || 0) + (bonus.dex || 0) };
   s.atk += (a.str || 0) * 1;
   s.maxHp += (a.vit || 0) * 6;
   s.def += (a.vit || 0) * 0.3;
   s.maxMp += (a.int || 0) * 5;
-  s.skillDmg = 1 + (a.int || 0) * 0.01;
+  s.skillDmg = 1 + (a.int || 0) * 0.01 + (bonus.skillDmg || 0);
   s.crit += (a.dex || 0) * 0.003;
   s.dodge += (a.dex || 0) * 0.0025;
   s.atkSpeed += (a.dex || 0) * 0.005;
@@ -148,6 +171,7 @@ function playerStats(p) {
     if (e.invisible) s.invisible = true;
   }
   s.atk = Math.round(s.atk * atkMul);
+  s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def);
   s.speed *= speedMul;
   s.damageTaken = Math.max(0.2, s.damageTaken);

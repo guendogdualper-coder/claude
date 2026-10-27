@@ -300,6 +300,7 @@ const ui = {
       row('Angriff', s.atk) + row('Verteidigung', s.def) +
       row('Kritische Treffer', pct(s.crit)) + row('Lauftempo', Math.round(s.speed)) +
       row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
+      row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
       row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
       row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
       `</dl>` +
@@ -328,6 +329,7 @@ const ui = {
     this.closePanels();
     const p = game.player;
     $('npcTitle').textContent = npc.name;
+    gear.sellArmedIndex = null;
     if (npc.id === 'haendler') this.renderShop();
     else if (npc.id === 'schmied') gear.openSmith($('npcBody'));
     else gear.openMerchant(npc.id, $('npcBody'));
@@ -349,7 +351,8 @@ const ui = {
       `<div class="shop-item"><img class="shop-icon" src="${scrollIconUrl()}" alt=""><strong>${BLESSING.name} <span class="price">${BLESSING.price} Gold</span></strong>` +
       `<small>${BLESSING.text} Im Gepäck: <b id="have-scroll">${p.scrolls}</b></small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-scroll="1">Kaufen</button></div></div>` +
-      `</div><p id="shopMsg" class="form-error" hidden></p>`;
+      `</div><p id="shopMsg" class="form-error" hidden></p>` + gear.sellSectionHtml();
+    gear.wireSell($('npcBody'), () => this.renderShop());
     $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
       b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
     });

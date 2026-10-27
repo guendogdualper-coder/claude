@@ -63,7 +63,80 @@ function sortedStats(stats) {
 }
 
 function sellValue(item) {
-  return Math.round(12 * Math.pow(item.tier + 1, 2) * (1 + item.plus * 0.6));
+  const bonuses = (item.bonuses || []).length + (item.specials || []).length * 2;
+  return Math.round(12 * Math.pow(item.tier + 1, 2) * (1 + item.plus * 0.6) * (1 + bonuses * 0.25));
+}
+
+// --- Boni ---------------------------------------------------------------------------------
+
+function bonusValue(def, tier) {
+  const [lo, hi] = def.range;
+  const v = (lo + Math.random() * (hi - lo)) * (1 + tier * 0.35);
+  if (def.fmt === 'flat') return Math.max(1, Math.round(v));
+  if (def.fmt === 'pct1') return Math.round(v * 10000) / 10000;
+  return Math.round(v * 1000) / 1000;
+}
+
+// Zufälliger Bonus, der auf diesem Gegenstand noch nicht vorkommt
+function rollBonus(item, special) {
+  const pool = special ? SPECIAL_BONUS_TYPES : BONUS_TYPES;
+  const taken = new Set((special ? item.specials : item.bonuses || []).map((b) => b.t));
+  const ids = Object.keys(pool).filter((id) => !taken.has(id) && (special || pool[id].slots.includes(item.slot)));
+  const t = ids[Math.floor(Math.random() * ids.length)];
+  return { t, v: bonusValue(pool[t], item.tier) };
+}
+
+function bonusText(b, special) {
+  const def = (special ? SPECIAL_BONUS_TYPES : BONUS_TYPES)[b.t];
+  const pct = (x, d) => (x * 100).toFixed(d).replace('.', ',');
+  if (def.fmt === 'flat') return `${def.name} +${b.v}`;
+  if (def.fmt === 'pct1') return `${def.name} +${pct(b.v, 1)} %/s`;
+  if (def.fmt === 'neg') return `${def.name} −${pct(b.v, 0)} %`;
+  return `${def.name} +${pct(b.v, 0)} %`;
+}
+
+// Wendet ein Material auf einen Gegenstand an. Rückgabe: Meldung oder Fehler.
+function applyMaterial(ref, matId) {
+  const p = game.player;
+  const item = itemAt(ref);
+  if (!item) return { error: 'Kein Gegenstand gewählt.' };
+  item.bonuses = item.bonuses || [];
+  item.specials = item.specials || [];
+  if (!(p.materials[matId] > 0)) return { error: 'Davon hast du nichts mehr.' };
+  let text;
+  if (matId === 'boniPlus') {
+    if (item.bonuses.length >= 4) return { error: 'Boni + reicht bis zum 4. Bonus. Für den 5. brauchst du eine Seltene Verstärkung.' };
+    const b = rollBonus(item, false);
+    item.bonuses.push(b);
+    text = `Neuer Bonus ${item.bonuses.length}: ${bonusText(b)}`;
+  } else if (matId === 'boni5') {
+    if (item.bonuses.length !== 4) return { error: 'Die Seltene Verstärkung braucht genau 4 Boni.' };
+    const b = rollBonus(item, false);
+    item.bonuses.push(b);
+    text = `5. Bonus: ${bonusText(b)}`;
+  } else if (matId === 'switcher') {
+    if (!item.bonuses.length) return { error: 'Der Gegenstand hat noch keine Boni zum Umwürfeln.' };
+    const n = item.bonuses.length;
+    item.bonuses = [];
+    for (let k = 0; k < n; k++) item.bonuses.push(rollBonus(item, false));
+    text = 'Boni neu ausgewürfelt.';
+  } else if (matId === 'star') {
+    if (item.specials.length >= MAX_SPECIAL_BONUS) return { error: 'Der Gegenstand hat schon Bonus 6 und 7.' };
+    const b = rollBonus(item, true);
+    item.specials.push(b);
+    text = `Bonus ${5 + item.specials.length}: ${bonusText(b, true)}`;
+  }
+  p.materials[matId]--;
+  afterGearChange();
+  return { text };
+}
+
+// Summe aller Boni eines Gegenstands
+function itemBonusStats(item) {
+  const out = {};
+  for (const b of item.bonuses || []) out[b.t] = (out[b.t] || 0) + b.v;
+  for (const b of item.specials || []) out[b.t] = (out[b.t] || 0) + b.v;
+  return out;
 }
 
 function addToBag(item) {
@@ -84,14 +157,27 @@ function rollLoot(m) {
     p.scrolls++;
     ui.log('Du hast eine Segensschriftrolle gefunden!', 'loot');
   }
-  if (Math.random() < (m.isStone ? 0.4 : 0.025)) {
+  if (m.isStone) {
+    const got = [];
+    for (const [id, [chance, min, max]] of Object.entries(STONE_MATERIAL_DROPS)) {
+      if (Math.random() >= chance) continue;
+      const n = randInt(min, max);
+      p.materials[id] = (p.materials[id] || 0) + n;
+      const mat = MATERIALS.find((x) => x.id === id);
+      got.push(`${n}× ${mat.name} (${mat.tag})`);
+      for (let k = 0; k < n; k++) later(0.1 + got.length * 0.12 + k * 0.08, () => vfxLootFly(m, materialIconCanvas(id)));
+    }
+    if (got.length) ui.log('Aufgehoben: ' + got.join(', ') + '.', 'loot');
+  }
+  if (Math.random() < (m.isStone ? STONE_GEAR_CHANCE : 0.025)) {
     let tier = 0;
     ITEM_TIERS.forEach((t, i) => { if (m.level >= t.level) tier = i; });
     const slot = EQUIP_SLOTS[Math.floor(Math.random() * EQUIP_SLOTS.length)].id;
-    const plus = Math.random() < 0.25 ? 1 + Math.floor(Math.random() * 2) : 0;
+    const plus = m.isStone ? randInt(0, STONE_GEAR_MAX_PLUS) : Math.random() < 0.25 ? 1 : 0;
     const item = makeItem(slot, tier, plus);
     if (addToBag(item)) {
       ui.log('Beute: ' + itemFullName(item) + '. Öffne das Inventar mit I.', 'loot');
+      later(0.2, () => vfxLootFly(m, itemIconCanvas(item)));
       const c = bodyCenter(m);
       particles(c.x, c.y, { count: 14, color: [itemColor(item), '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 150], life: [0.5, 0.9], size: [2, 3.5] });
     } else {
@@ -300,6 +386,57 @@ function itemIconUrl(item, classId = game.player.classId) {
   return url;
 }
 
+const MATERIAL_ART = {
+  boniPlus(ctx) {
+    poly(ctx, [[0, -14], [10, -4], [6, 12], [-6, 12], [-10, -4]], '#4a8ad8');
+    poly(ctx, [[0, -14], [10, -4], [0, -1], [-10, -4]], '#9fd0ff');
+    stroke(ctx, '#ffffff', 2, [[0, -6], [0, 6]]);
+    stroke(ctx, '#ffffff', 2, [[-5, 0], [5, 0]]);
+  },
+  boni5(ctx) {
+    poly(ctx, [[0, -15], [11, -5], [8, 12], [-8, 12], [-11, -5]], '#9a5ad8');
+    poly(ctx, [[0, -15], [11, -5], [0, -1], [-11, -5]], '#e0c0ff');
+    dot(ctx, 0, 4, 3.5, 3.5, '#fff2c0');
+  },
+  switcher(ctx) {
+    box(ctx, -11, -8, 22, 16, 2, '#efe6cc');
+    oval(ctx, -11, 0, 3, 8.5, '#5a8a3a');
+    oval(ctx, 11, 0, 3, 8.5, '#5a8a3a');
+    stroke(ctx, '#2a6a2a', 1.6, [[-5, -3], [4, -3]]);
+    stroke(ctx, '#2a6a2a', 1.6, [[1, -6], [4, -3], [1, 0]]);
+    stroke(ctx, '#2a6a2a', 1.6, [[5, 3], [-4, 3]]);
+    stroke(ctx, '#2a6a2a', 1.6, [[-1, 0], [-4, 3], [-1, 6]]);
+  },
+  star(ctx) {
+    const pts = [];
+    for (let k = 0; k < 10; k++) {
+      const a = -Math.PI / 2 + k * Math.PI / 5;
+      const r = k % 2 ? 6 : 15;
+      pts.push([Math.cos(a) * r, Math.sin(a) * r + 1]);
+    }
+    poly(ctx, pts, '#ffcf4a');
+    dot(ctx, -2, -2, 3, 3, '#fff6d0');
+  }
+};
+
+function materialSprite(id) {
+  return getSprite('mat:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MATERIAL_ART[id](ctx));
+}
+
+function materialIconCanvas(id) {
+  return materialSprite(id).img;
+}
+
+function materialIconUrl(id) {
+  const key = 'mat:' + id;
+  if (!iconCache.has(key)) iconCache.set(key, materialSprite(id).img.toDataURL());
+  return iconCache.get(key);
+}
+
+function itemIconCanvas(item) {
+  return bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item.slot, item.tier, game.player.classId)).img;
+}
+
 function scrollIconUrl() {
   if (iconCache.has('scroll')) return iconCache.get('scroll');
   const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
@@ -324,8 +461,14 @@ const gear = {
   smithRef: null,
   forging: false,
 
+  sellArmedIndex: null,
+
   message(text, type = 'info') {
-    const el = document.getElementById('invMsg') || document.getElementById('smithMsg') || document.getElementById('merchantMsg');
+    // Meldung im gerade sichtbaren Fenster anzeigen
+    const el = ['invMsg', 'smithMsg', 'merchantMsg', 'shopMsg']
+      .map((id) => document.getElementById(id))
+      .find((x) => x && !x.closest('.panel').hidden);
+    if (el) el.hidden = false;
     if (el) {
       el.textContent = text;
       el.className = 'gear-msg ' + type;
@@ -368,7 +511,9 @@ const gear = {
       `<p class="inv-sum">Angriff ${s.atk} · Verteidigung ${s.def}<br>Leben ${s.maxHp} · Mana ${s.maxMp}</p></section>` +
       `<section class="inv-bag"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small></h3><div class="bag-grid">${bag}</div>` +
       `<p class="inv-sum">Gold ${p.gold.toLocaleString('de-DE')} · Seelensplitter ${p.splinters} · ` +
-      `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}</p></section>` +
+      `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}<br>` +
+      MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
+      `</p></section>` +
       `</div><div id="invDetail" class="item-detail-wrap"></div><p id="invMsg" class="gear-msg"></p>`;
     const body = document.getElementById('invBody');
     body.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('click', () => {
@@ -403,10 +548,38 @@ const gear = {
       ? `<button type="button" class="mini-btn" data-act="unequip">Ablegen</button>`
       : `<button type="button" class="mini-btn" data-act="equip" ${p.level < need ? 'disabled' : ''}>Anlegen</button>` +
         `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell">${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item) + ' Gold)'}</button>`;
+    const bonuses = (item.bonuses || []).map((b, i) => `<li><span class="bn">${i + 1}</span>${bonusText(b)}</li>`).join('') +
+      (item.specials || []).map((b, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(b, true)}</li>`).join('');
+    const can = {
+      boniPlus: (item.bonuses || []).length < 4,
+      boni5: (item.bonuses || []).length === 4,
+      switcher: (item.bonuses || []).length > 0,
+      star: (item.specials || []).length < MAX_SPECIAL_BONUS
+    };
+    const matBtns = MATERIALS.map((m) => {
+      const have = p.materials[m.id] || 0;
+      return `<button type="button" class="mat-btn" data-mat="${m.id}" title="${m.name}: ${m.text}" ${have && can[m.id] ? '' : 'disabled'}>` +
+        `<img src="${materialIconUrl(m.id)}" alt=""><span>${m.tag}</span><b>${have}</b></button>`;
+    }).join('');
     el.innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
       `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
       `<small>${slotName} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${need}</small>` +
-      `<span>${this.statsList(item)}</span></div><div class="item-actions">${actions}</div></div>`;
+      `<span>${this.statsList(item)}</span>` +
+      (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
+      `</div><div class="item-actions">${actions}</div></div>` +
+      `<div class="mat-row" id="matRow">${matBtns}</div>`;
+    el.querySelectorAll('[data-mat]').forEach((b) => b.addEventListener('click', () => {
+      const res = applyMaterial(this.selected, b.dataset.mat);
+      const text = res.error || res.text;
+      this.renderInventory();
+      this.message(text, res.error ? 'warn' : 'success');
+      if (!res.error) {
+        const row = document.querySelector('#invDetail .item-detail');
+        if (row) row.classList.add('enchanted');
+        const pl = game.player;
+        particles(pl.x, feetY(pl) - 24, { count: 18, color: ['#9fd0ff', '#e0c0ff', '#ffffff'], speed: [40, 120], life: [0.4, 0.8], size: [1.5, 3] });
+      }
+    }));
     el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
       const act = b.dataset.act;
       if (act === 'equip') equipFromBag(this.selected.key);
@@ -471,7 +644,8 @@ const gear = {
     const cls = msg ? msg.className : 'gear-msg';
     body.innerHTML = `<p>„${m.greeting}“</p>` +
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span> · Tasche ${p.inventory.length}/${BAG_SIZE}</p>` +
-      `<p id="merchantMsg" class="${cls}">${text}</p>` + groups;
+      `<p id="merchantMsg" class="${cls}">${text}</p>` + groups + this.sellSectionHtml();
+    this.wireSell(body, () => this.renderMerchant(body, true));
     body.querySelectorAll('[data-buy-gear]').forEach((b) => b.addEventListener('click', () => {
       const [slot, tier] = b.dataset.buyGear.split(':');
       this.buyGear(slot, Number(tier), false);
@@ -479,6 +653,39 @@ const gear = {
     body.querySelectorAll('[data-buy-equip]').forEach((b) => b.addEventListener('click', () => {
       const [slot, tier] = b.dataset.buyEquip.split(':');
       this.buyGear(slot, Number(tier), true);
+    }));
+  },
+
+  // Verkaufsbereich, der in jedem Händlerfenster steht
+  sellSectionHtml() {
+    const p = game.player;
+    if (!p.inventory.length) return `<h3>Verkaufen</h3><p class="hint-text">Deine Tasche ist leer.</p>`;
+    return `<h3>Verkaufen <small>aus deiner Tasche</small></h3><div class="sell-grid">` +
+      p.inventory.map((item, i) => {
+        const armed = this.sellArmedIndex === i;
+        return `<div class="sell-item">${this.tile(item, `data-sellinfo="${i}"`)}` +
+          `<div class="si-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
+          `<small>${(item.bonuses || []).length + (item.specials || []).length} Boni</small></div>` +
+          `<button type="button" class="mini-btn ${armed ? 'danger' : ''}" data-sell="${i}">${armed ? 'Sicher?' : sellValue(item).toLocaleString('de-DE') + ' Gold'}</button></div>`;
+      }).join('') + `</div>`;
+  },
+
+  wireSell(body, rerender) {
+    body.querySelectorAll('[data-sell]').forEach((b) => b.addEventListener('click', () => {
+      const i = Number(b.dataset.sell);
+      if (this.sellArmedIndex !== i) {
+        this.sellArmedIndex = i;
+        rerender();
+        return;
+      }
+      this.sellArmedIndex = null;
+      const item = game.player.inventory[i];
+      const value = sellValue(item);
+      game.player.inventory.splice(i, 1);
+      game.player.gold += value;
+      saveGame();
+      rerender();
+      this.message(`${itemFullName(item)} für ${value.toLocaleString('de-DE')} Gold verkauft.`, 'success');
     }));
   },
 

@@ -759,118 +759,198 @@ function faceCloth(ctx, cx, cy, color) {
 // --- Monster -------------------------------------------------------------------------------
 // Alle Monster sind von der Seite gezeichnet und schauen nach rechts; links wird gespiegelt.
 
+// Auge mit Weiß, Pupille und Glanzpunkt (Blick nach rechts)
+function monsterEye(ctx, x, y, r, iris, angry) {
+  dot(ctx, x, y, r, r * (angry ? 0.7 : 1), '#f4efe2');
+  dot(ctx, x + r * 0.25, y + (angry ? r * 0.05 : 0), r * 0.62, r * (angry ? 0.5 : 0.7), iris);
+  dot(ctx, x + r * 0.35, y, r * 0.3, r * 0.34, '#120c08');
+  dot(ctx, x - r * 0.05, y - r * 0.3, r * 0.22, r * 0.22, '#ffffff');
+  if (angry) stroke(ctx, '#120c08', 1.2, [[x - r * 1.1, y - r * 1.1], [x + r * 0.9, y - r * 0.45]]);
+}
+
+// Vierbeiner von der Seite: Hund, Wolf, Alpha-Wolf, Wildschwein
 function beastArt(ctx, f, o) {
-  const swing = [0, 1.8, 0, -1.8][f];
+  const swing = [0, 2.2, 0, -2.2][f];
+  const fur = o.fur;
+  const dark = darker(fur, 0.28);
   const leg = (x, phase, back) => {
-    const c = back ? darker(o.fur, 0.2) : o.fur;
-    box(ctx, x + phase, -8, 3.2, 8, 1.4, c);
-    box(ctx, x + phase - 0.3, -1.8, 4, 1.8, 0.8, darker(o.fur, 0.45));
+    const c = back ? darker(fur, 0.22) : fur;
+    oval(ctx, x + phase * 0.4, -7.5, 3.2, 3.6, c);
+    box(ctx, x + phase - 1.5, -8, 3.2, 7.4, 1.4, c);
+    oval(ctx, x + phase + 0.6, -0.9, 2.8, 1.6, darker(fur, 0.45));
+    stroke(ctx, '#f4efe2', 0.6, [[x + phase + 2.4, -0.4], [x + phase + 3.2, 0.3]]);
   };
+  // Schwanz
+  if (o.tail !== false) {
+    if (o.bushy) poly(ctx, [[-10, -13], [-12, -9], [-17, -12 + swing * 0.4], [-21, -18 + swing * 0.4], [-18, -21 + swing * 0.4], [-14, -17]], fur);
+    else poly(ctx, [[-10, -13], [-11, -10.5], [-17, -15 + swing * 0.5], [-17, -19 + swing * 0.5]], fur);
+    if (o.bushy) dot(ctx, -19, -19 + swing * 0.4, 2.2, 1.8, o.belly);
+  }
   leg(-8, -swing, true);
   leg(5, swing, true);
-  // Schwanz
-  if (o.tail !== false) poly(ctx, [[-10, -13], [-11, -10.5], [-17, -15 + swing * 0.5], [-17, -19 + swing * 0.5]], o.fur);
-  oval(ctx, 0, -12, 12, o.bulky ? 8 : 6.5, o.fur);
-  dot(ctx, 1, -8.4, 8.5, 2.6, o.belly);
+  leg(-6, swing, false);
+  leg(7, -swing, false);
+  // Körper mit hellerem Bauch und dunklem Rücken
+  oval(ctx, 0, -12, 12.5, o.bulky ? 8.5 : 7, fur);
+  dot(ctx, 1, -8.2, 9, 2.8, o.belly);
+  dot(ctx, -1, -17.2, 9, 2.2, dark);
+  // Fellsträhnen
+  for (const [x, y] of [[-6, -14], [-1, -15], [4, -14]]) stroke(ctx, dark, 0.8, [[x, y], [x - 2, y + 3]]);
   if (o.ridge) {
-    ctx.fillStyle = darker(o.fur, 0.35);
+    ctx.fillStyle = darker(fur, 0.45);
     ctx.beginPath();
-    ctx.moveTo(-10, -15);
-    for (let k = 0; k <= 8; k++) ctx.lineTo(-10 + k * 2.4, -19.5 + (k % 2 ? 2.5 : 0));
-    ctx.lineTo(9, -15);
+    ctx.moveTo(-11, -16);
+    for (let k = 0; k <= 9; k++) ctx.lineTo(-11 + k * 2.4, -21.5 + (k % 2 ? 3 : 0));
+    ctx.lineTo(10, -16);
     ctx.closePath();
     ctx.fill();
   }
-  leg(-6, swing, false);
-  leg(7, -swing, false);
-  if (o.ruff) poly(ctx, [[5, -19], [8, -22], [9, -18.5], [12, -21], [11.5, -10], [5, -8]], o.ruff);
+  if (o.scar) stroke(ctx, '#e0c0b0', 0.9, [[-4, -15], [0, -10]]);
+  // Halskrause bzw. Mähne
+  if (o.ruff) poly(ctx, [[4, -20], [7, -24], [8.5, -19.5], [11, -23.5], [12.5, -18], [12, -9], [5, -7]], o.ruff);
+  if (o.mane) poly(ctx, [[1, -21], [4, -27], [6.5, -21], [9, -27], [11, -21], [14, -25], [13.5, -13], [3, -9]], o.mane);
   // Kopf
-  const hx = o.bulky ? 12 : 11;
-  oval(ctx, hx, -15.5, 6.2, 5.6, o.fur);
-  if (o.ears !== false) poly(ctx, [[hx - 3, -19.5], [hx - 1, -26], [hx + 1.8, -20]], darker(o.fur, 0.1));
-  box(ctx, hx + 2.5, -16, 7, 4.6, 2.2, o.snout || o.belly);
-  dot(ctx, hx + 9, -14.8, 1.3, 1.1, '#1a1210');
-  if (o.tusk) poly(ctx, [[hx + 6, -12], [hx + 8.5, -16], [hx + 7.5, -11.5]], '#efe6d0');
-  dot(ctx, hx + 2, -17, 1.2, o.angry ? 0.8 : 1.2, o.eye || '#1a1210');
-  if (!o.angry) dot(ctx, hx + 1.6, -17.5, 0.45, 0.45, '#ffffff');
+  const hx = o.bulky ? 12.5 : 11.5;
+  oval(ctx, hx, -15.5, 6.6, 6, fur);
+  if (o.ears !== false) {
+    poly(ctx, [[hx - 3.5, -19.5], [hx - 1.5, -27], [hx + 2, -20]], darker(fur, 0.1));
+    poly(ctx, [[hx - 2.6, -20.5], [hx - 1.5, -25], [hx + 0.8, -20.6]], '#d89a8a');
+  }
+  // Schnauze mit Maul und Nase
+  box(ctx, hx + 2.5, -16.5, 8, 5.4, 2.4, o.snout || o.belly);
+  stroke(ctx, darker(o.snout || o.belly, 0.5), 0.8, [[hx + 4, -12.6], [hx + 9.8, -13]]);
+  if (o.fangs) {
+    poly(ctx, [[hx + 6, -12.8], [hx + 6.8, -10.6], [hx + 7.4, -12.9]], '#ffffff');
+    poly(ctx, [[hx + 8.4, -13], [hx + 9, -11], [hx + 9.5, -13]], '#ffffff');
+  }
+  dot(ctx, hx + 10, -15.6, 1.5, 1.2, '#1a1210');
+  dot(ctx, hx + 9.6, -16.1, 0.5, 0.4, '#ffffff');
+  if (o.tusk) {
+    poly(ctx, [[hx + 6, -12], [hx + 9.5, -18], [hx + 8, -11.5]], '#f4ecd8');
+    stroke(ctx, '#c8b898', 0.6, [[hx + 7, -12.5], [hx + 8.8, -16]]);
+  }
+  monsterEye(ctx, hx + 2, -17.6, o.small ? 1.3 : 1.7, o.eye || '#6a4a2a', o.angry);
+  if (o.glow) {
+    ctx.globalAlpha = 0.45;
+    dot(ctx, hx + 2.3, -17.6, 3.6, 3.6, o.eye);
+    ctx.globalAlpha = 1;
+  }
 }
 
+// Menschengestalten von der Seite: Banditen, Orks, Oger, Dämon
 function humanoidMonsterArt(ctx, f, o) {
   const w = WALK[f];
   ctx.save();
   ctx.scale(o.scale || 1, o.scale || 1);
+  if (o.tail) {
+    const sw = [0, 1.5, 0, -1.5][f];
+    stroke(ctx, o.skin, 2.6, [[-4, -12], [-12, -10 + sw], [-17, -15 + sw]]);
+    poly(ctx, [[-17, -15 + sw], [-21, -19 + sw], [-15, -20 + sw]], darker(o.skin, 0.3));
+  }
   if (o.wings) {
     const flap = [0, -1.5, 0, 1.5][f];
-    poly(ctx, [[-2, -24 + w.bob], [-14, -36 + flap], [-22, -28 + flap], [-17, -26], [-20, -18 + flap], [-12, -20], [-4, -14 + w.bob]], o.wings);
+    poly(ctx, [[-2, -24 + w.bob], [-15, -38 + flap], [-24, -30 + flap], [-18, -27], [-22, -19 + flap], [-13, -21], [-4, -14 + w.bob]], o.wings);
+    stroke(ctx, darker(o.wings, 0.5), 1.2, [[-2, -24 + w.bob], [-15, -38 + flap], [-18, -27]]);
+    stroke(ctx, darker(o.wings, 0.5), 1, [[-15, -38 + flap], [-22, -19 + flap]]);
   }
+  if (o.cape) poly(ctx, [[-4, -24 + w.bob], [3, -24 + w.bob], [0, -4], [-9, -3 - w.arm * 1.5]], o.cape);
+  hLegs(ctx, 'side', w, o);
   if (o.belly) {
-    hLegs(ctx, 'side', w, o);
     oval(ctx, 0, -17 + w.bob, 11, 10.5, o.skin);
     dot(ctx, 2, -14 + w.bob, 7, 6, lighter(o.skin, 0.12));
+    for (const [x, y] of [[-5, -22], [4, -9], [-2, -13]]) stroke(ctx, darker(o.skin, 0.35), 0.8, [[x, y + w.bob], [x + 2, y + 2 + w.bob], [x + 1, y + 4 + w.bob]]);
     box(ctx, -10, -11 + w.bob, 20, 5, 2, o.pants);
+    stroke(ctx, '#8a7a5a', 1, [[-10, -10 + w.bob], [10, -10 + w.bob]]);
   } else {
-    hLegs(ctx, 'side', w, o);
     hBody(ctx, 'side', w, o);
-    if (o.belt) box(ctx, -6.5, -13.5 + w.bob, 13, 2.6, 1, o.belt);
-    if (o.pauldron) oval(ctx, w.arm, -21 + w.bob, 5.5, 4, o.pauldron);
+    if (o.straps) stroke(ctx, o.straps, 1.3, [[-5, -23 + w.bob], [5, -13 + w.bob]]);
+    if (o.belt) {
+      box(ctx, -6.5, -13.5 + w.bob, 13, 2.6, 1, o.belt);
+      if (o.pouch) box(ctx, -6, -12 + w.bob, 4, 4, 1, o.pouch);
+    }
+    if (o.necklace) for (let k = 0; k < 3; k++) poly(ctx, [[k * 2.5 - 1, -23 + w.bob], [k * 2.5 + 0.2, -20 + w.bob], [k * 2.5 + 1.2, -23 + w.bob]], '#f4ecd8');
+    if (o.pauldron) {
+      oval(ctx, w.arm, -21 + w.bob, 5.8, 4.2, o.pauldron);
+      if (o.spikes) {
+        poly(ctx, [[w.arm - 3, -24 + w.bob], [w.arm - 2, -29 + w.bob], [w.arm, -24.5 + w.bob]], '#d9dde2');
+        poly(ctx, [[w.arm + 1, -24.5 + w.bob], [w.arm + 3, -28.5 + w.bob], [w.arm + 3.5, -23.5 + w.bob]], '#d9dde2');
+      }
+    }
+    if (o.runes) {
+      ctx.globalAlpha = 0.8;
+      stroke(ctx, o.runes, 1, [[-1, -21 + w.bob], [2, -18 + w.bob], [-1, -15 + w.bob]]);
+      ctx.globalAlpha = 1;
+    }
   }
-  // Waffe in der vorderen Hand
   const hand = handPosition('side', f);
   if (o.weapon) heldWeapon(ctx, o.weapon, hand.x + 1, hand.y, o.weaponAngle != null ? o.weaponAngle : -1);
   hArms(ctx, 'side', w, o);
+  if (o.claws) for (let k = 0; k < 3; k++) stroke(ctx, '#f4ecd8', 0.8, [[hand.x + 1 + k, hand.y + 2], [hand.x + 2 + k, hand.y + 4.2]]);
   const { cx, cy } = hHead(ctx, 'side', w, o);
   if (o.head) o.head(ctx, cx, cy, w);
   ctx.restore();
 }
 
 const MONSTER_ART = {
-  hund: { h: 26, draw: (ctx, f) => beastArt(ctx, f, { fur: '#8a6748', belly: '#b89a78' }) },
-  wolf: { h: 28, draw: (ctx, f) => { ctx.scale(1.08, 1.08); beastArt(ctx, f, { fur: '#7d8188', belly: '#b9bcc0', ruff: '#a4a8ad' }); } },
-  alphawolf: { h: 34, draw: (ctx, f) => { ctx.scale(1.3, 1.3); beastArt(ctx, f, { fur: '#4d525a', belly: '#8d9196', ruff: '#2f3338', eye: '#e04a3a', angry: true }); } },
-  wildschwein: { h: 30, draw: (ctx, f) => { ctx.scale(1.15, 1.15); beastArt(ctx, f, { fur: '#5a3f2e', belly: '#7a5a44', snout: '#b0806a', bulky: true, ridge: true, tusk: true, tail: false }); } },
+  hund: { h: 26, draw: (ctx, f) => beastArt(ctx, f, { fur: '#8a6748', belly: '#c8a47e', eye: '#7a4a1a' }) },
+  wolf: { h: 28, draw: (ctx, f) => { ctx.scale(1.08, 1.08); beastArt(ctx, f, { fur: '#7d8188', belly: '#c4c7cb', ruff: '#a4a8ad', bushy: true, eye: '#d8a03a', fangs: true }); } },
+  alphawolf: { h: 35, draw: (ctx, f) => { ctx.scale(1.32, 1.32); beastArt(ctx, f, { fur: '#43484f', belly: '#8d9196', mane: '#25292e', bushy: true, eye: '#ff3a2a', angry: true, glow: true, fangs: true, scar: true }); } },
+  wildschwein: { h: 30, draw: (ctx, f) => { ctx.scale(1.15, 1.15); beastArt(ctx, f, { fur: '#5a3f2e', belly: '#7a5a44', snout: '#c09080', bulky: true, ridge: true, tusk: true, tail: false, small: true, eye: '#3a1a0a', angry: true }); } },
   bandit: {
     h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
-      scale: 0.95, skin: '#d9b896', pants: '#4a3b2a', boots: '#2f2419', torso: '#6d5a3e', sleeve: '#5c4b33', belt: '#2f2419', weapon: 'sword',
+      scale: 0.95, skin: '#d9b896', pants: '#4a3b2a', boots: '#2f2419', torso: '#6d5a3e', sleeve: '#5c4b33', belt: '#2f2419', pouch: '#8a6a44', straps: '#3a2a1c', cape: '#7a2a24', weapon: 'sword',
       head: (ctx, cx, cy) => {
         paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.9, Math.PI * 2.02); ctx.closePath(); }, '#5a3a22', cx - 11.4, cy - 12, 22.8, 12);
         box(ctx, cx - 10.5, cy - 6, 21.5, 3, 1.4, '#9a2f2a');
-        poly(ctx, [[cx - 10, cy - 5], [cx - 16, cy - 2], [cx - 15, cy - 6]], '#9a2f2a');
+        poly(ctx, [[cx - 10, cy - 5], [cx - 17, cy - 1], [cx - 15, cy - 6]], '#9a2f2a');
         faceCloth(ctx, cx, cy, '#9a2f2a');
-        eyes(ctx, 'side', cx, cy - 1.5, { narrow: true });
+        monsterEye(ctx, cx + 5.6, cy - 0.8, 1.8, '#4a3a22', true);
       }
     })
   },
   banditschuetze: {
     h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
-      scale: 0.95, skin: '#d9b896', pants: '#3e4a2e', boots: '#2f2419', torso: '#4f6a3e', sleeve: '#435a35', belt: '#2f2419', weapon: 'bow', weaponAngle: 0,
+      scale: 0.95, skin: '#d9b896', pants: '#3e4a2e', boots: '#2f2419', torso: '#4f6a3e', sleeve: '#435a35', belt: '#2f2419', pouch: '#8a6a44', weapon: 'bow', weaponAngle: 0,
       head: (ctx, cx, cy) => {
         poly(ctx, [[cx - 12, cy + 6], [cx - 12, cy - 4], [cx - 4, cy - 12.5], [cx + 7, cy - 10], [cx + 11.5, cy - 2], [cx + 3, cy - 3], [cx - 2, cy + 6]], '#3e5530');
         faceCloth(ctx, cx, cy, '#9a2f2a');
-        eyes(ctx, 'side', cx, cy - 1.5, { narrow: true });
+        monsterEye(ctx, cx + 5.6, cy - 0.8, 1.8, '#3a4a22', true);
+        // Köcher auf dem Rücken
+        box(ctx, cx - 16, cy + 4, 5, 14, 1.5, '#6b4a2e');
+        stroke(ctx, '#e8e0cc', 0.8, [[cx - 15, cy + 4], [cx - 16.5, cy + 0.5]]);
+        stroke(ctx, '#e8e0cc', 0.8, [[cx - 13, cy + 4], [cx - 12.5, cy + 0.5]]);
       }
     })
   },
   ork: {
     h: 52, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
-      scale: 1.12, skin: '#6f8f45', pants: '#3e3226', boots: '#2a2018', torso: '#5a4632', sleeve: '#6f8f45', gloves: '#6f8f45', belt: '#2a2018', pauldron: '#7d848c', weapon: 'axe',
+      scale: 1.12, skin: '#6f8f45', pants: '#3e3226', boots: '#2a2018', torso: '#5a4632', sleeve: '#6f8f45', gloves: '#6f8f45', belt: '#2a2018', pauldron: '#7d848c', spikes: true, straps: '#2a2018', necklace: true, weapon: 'axe',
       head: (ctx, cx, cy) => {
-        poly(ctx, [[cx - 3, cy - 6], [cx - 8, cy - 12], [cx - 1, cy - 9]], '#6f8f45');
+        poly(ctx, [[cx - 3, cy - 6], [cx - 9, cy - 13], [cx - 1, cy - 9]], '#6f8f45');
         box(ctx, cx - 10, cy - 10, 20, 4, 1.8, '#3e3226');
-        poly(ctx, [[cx + 7, cy + 7], [cx + 8.2, cy + 2.5], [cx + 9.2, cy + 7]], '#efe6d0');
-        eyes(ctx, 'side', cx, cy - 1.2, { color: '#3a0d08', narrow: true });
-        stroke(ctx, '#2a3a1a', 1, [[cx + 3, cy - 3.5], [cx + 9, cy - 2]]);
+        dot(ctx, cx + 6, cy - 3.2, 4.5, 1.6, darker('#6f8f45', 0.3));
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        poly(ctx, [[cx + 3.5, cy + 7.5], [cx + 4.5, cy + 3.5], [cx + 5.8, cy + 7.5]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#c8302a', true);
+        stroke(ctx, '#2a3a1a', 0.8, [[cx - 4, cy + 1], [cx - 1, cy + 4]]);
       }
     })
   },
   orkschamane: {
     h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
-      scale: 1.05, skin: '#5d8a73', boots: '#2a2018', robe: '#3e5a4f', sleeve: '#3e5a4f', gloves: '#5d8a73', wideSleeves: true, tattered: true, weapon: 'skullstaff', weaponAngle: -1.35,
+      scale: 1.05, skin: '#5d8a73', boots: '#2a2018', robe: '#3e5a4f', sleeve: '#3e5a4f', gloves: '#5d8a73', wideSleeves: true, tattered: true, necklace: true, weapon: 'skullstaff', weaponAngle: -1.35,
       head: (ctx, cx, cy) => {
-        poly(ctx, [[cx - 8, cy - 9], [cx - 14, cy - 20], [cx - 9, cy - 19]], '#c9a35a');
-        poly(ctx, [[cx - 5, cy - 10], [cx - 8, cy - 23], [cx - 3, cy - 21]], '#b33a2c');
+        poly(ctx, [[cx - 8, cy - 9], [cx - 15, cy - 21], [cx - 9, cy - 19]], '#c9a35a');
+        poly(ctx, [[cx - 5, cy - 10], [cx - 9, cy - 25], [cx - 3, cy - 22]], '#b33a2c');
+        poly(ctx, [[cx - 2, cy - 10], [cx - 3, cy - 23], [cx + 2, cy - 20]], '#3a6a8a');
         box(ctx, cx - 10, cy - 9.5, 20, 3.4, 1.5, '#4a3a2a');
-        poly(ctx, [[cx + 7, cy + 7], [cx + 8.2, cy + 2.5], [cx + 9.2, cy + 7]], '#efe6d0');
-        eyes(ctx, 'side', cx, cy - 1.2, { color: '#0d2a3a', glow: '#9be2ff', narrow: true });
+        for (let k = 0; k < 3; k++) dot(ctx, cx - 6 + k * 5, cy - 7.8, 1, 1, '#f4ecd8');
+        poly(ctx, [[cx + 6.5, cy + 7], [cx + 8, cy + 1.5], [cx + 9.5, cy + 7]], '#f4ecd8');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#5ac8ff', false);
+        ctx.globalAlpha = 0.5;
+        dot(ctx, cx + 6.3, cy - 0.6, 3.6, 3.6, '#9be2ff');
+        ctx.globalAlpha = 1;
+        stroke(ctx, '#e8e0cc', 0.9, [[cx - 1, cy + 3], [cx + 3, cy + 5]]);
       }
     })
   },
@@ -878,21 +958,29 @@ const MONSTER_ART = {
     h: 66, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
       scale: 1.45, belly: true, skin: '#8f897b', pants: '#4a3a2a', boots: '#3a3328', sleeve: '#8f897b', gloves: '#8f897b', weapon: 'club', weaponAngle: -1.3,
       head: (ctx, cx, cy) => {
-        poly(ctx, [[cx - 2, cy - 9], [cx + 1, cy - 17], [cx + 3, cy - 9]], '#d9d0b8');
-        poly(ctx, [[cx + 6, cy + 7], [cx + 7.5, cy + 2], [cx + 9, cy + 7]], '#efe6d0');
-        eyes(ctx, 'side', cx, cy - 1, { narrow: true });
-        stroke(ctx, '#4a443a', 1.2, [[cx + 2, cy - 3], [cx + 9, cy - 3]]);
+        poly(ctx, [[cx - 2, cy - 9], [cx + 1, cy - 18], [cx + 3.5, cy - 9]], '#e0d6bc');
+        stroke(ctx, '#a89c80', 0.7, [[cx - 0.5, cy - 12], [cx + 2.5, cy - 12.5]]);
+        poly(ctx, [[cx + 5.5, cy + 7], [cx + 7.5, cy + 1], [cx + 9, cy + 7]], '#f4ecd8');
+        dot(ctx, cx + 5, cy - 3.2, 4.6, 1.5, darker('#8f897b', 0.35));
+        monsterEye(ctx, cx + 5.2, cy - 0.4, 1.5, '#d8a03a', true);
+        for (const [x, y] of [[-6, -4], [-3, 4]]) stroke(ctx, darker('#8f897b', 0.4), 0.8, [[cx + x, cy + y], [cx + x + 2, cy + y + 2]]);
       }
     })
   },
   daemon: {
     h: 52, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
-      scale: 1.1, skin: '#a8343f', pants: '#1f1214', boots: '#2a1416', torso: '#8e2f3a', sleeve: '#a8343f', gloves: '#2a1416', wings: '#4a1a20', belt: '#1f1214',
+      scale: 1.1, skin: '#a8343f', pants: '#1f1214', boots: '#2a1416', torso: '#8e2f3a', sleeve: '#a8343f', gloves: '#2a1416', wings: '#4a1a20', belt: '#1f1214', tail: true, claws: true, runes: '#ffb04a',
       head: (ctx, cx, cy) => {
-        poly(ctx, [[cx - 6, cy - 8], [cx - 13, cy - 19], [cx - 2, cy - 10]], '#2a1416');
-        poly(ctx, [[cx + 2, cy - 9.5], [cx + 1, cy - 21], [cx + 7, cy - 9]], '#2a1416');
-        eyes(ctx, 'side', cx, cy - 1, { color: '#ffd34d', glow: '#ff9a4a', narrow: true });
-        stroke(ctx, '#2a1416', 0.9, [[cx + 4, cy + 5.5], [cx + 10, cy + 5]]);
+        poly(ctx, [[cx - 6, cy - 8], [cx - 13, cy - 16], [cx - 11, cy - 22], [cx - 2, cy - 10]], '#2a1416');
+        poly(ctx, [[cx + 2, cy - 9.5], [cx + 1, cy - 19], [cx + 4, cy - 23], [cx + 7, cy - 9]], '#2a1416');
+        stroke(ctx, '#4a2a2a', 0.7, [[cx - 9, cy - 13], [cx - 7, cy - 12]]);
+        dot(ctx, cx + 5.6, cy - 3, 4.8, 1.4, '#5a141a');
+        monsterEye(ctx, cx + 6, cy - 0.6, 1.8, '#ffd34d', true);
+        ctx.globalAlpha = 0.55;
+        dot(ctx, cx + 6.3, cy - 0.6, 4, 4, '#ff9a4a');
+        ctx.globalAlpha = 1;
+        poly(ctx, [[cx + 4, cy + 5], [cx + 10.5, cy + 4.5], [cx + 7.5, cy + 7.5]], '#2a1416');
+        poly(ctx, [[cx + 6, cy + 5], [cx + 6.8, cy + 6.8], [cx + 7.4, cy + 5]], '#ffffff');
       }
     })
   }

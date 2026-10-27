@@ -29,8 +29,10 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Händler im Dorf**: Waffenhändler Goro (Waffen je Klasse), Rüstungshändlerin Mei (Rüstung, Helm, Schild, Schuhe, Gürtel), jeweils ab Lv 1, 5, 10 und 15; Händlerin Ayla für Tränke und Segensschriftrollen
 - **Ausrüstung**: sechs Plätze in fünf Stufen (ab Lv 1, 5, 10, 15, 22). Die Grundausrüstung (Lv 1) gibt nur Rüstung bzw. Angriff, ab Lv 5 kommen eigene Effekte dazu: Rüstung, Vitalität, Intelligenz, Blocken, Ausweichen, Lauftempo, Regeneration, kritische Treffer. Legendäre Stufe nur als Beute, Inventar mit 20 Plätzen
 - **Schmied**: verbessert Ausrüstung von +0 bis +9 mit Gold und Seelensplittern. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 zerbricht der Gegenstand. Die Segensschriftrolle schützt davor. Bessere Waffen ändern ihre Farbe, ab +4 leuchten sie
+- **Verkaufen** bei jedem Händler direkt aus dem Inventar, mit Bestätigung durch zweites Antippen
+- **Boni**: Seelensteine lassen Materialien fallen, die automatisch aufgehoben werden. „Verstärkung“ fügt Ausrüstung die Boni 1 bis 4 hinzu, „Seltene Verstärkung“ den 5. Bonus, der Switcher würfelt die Boni neu, der Sternenstein gibt die besonderen Boni 6 und 7 (Fertigkeitsschaden, Grundangriffe, Leben in Prozent, Widerstand). Dazu fällt Ausrüstung bis +2
 - **Stufenaufstieg** mit Lichtsäule, Ringen und aufleuchtender Figur
-- Gezeichnete Figuren im Chibi-Stil mit Umriss und Schattierung, Laufanimation und Waffenschwung
+- Gezeichnete Figuren im Chibi-Stil mit Umriss und Schattierung, Laufanimation und Waffenschwung; Monster mit Mähnen, Reißzähnen, Flügeln, Umhängen und Runen, die im Stand atmen
 - Kampfeffekte: Dreier-Kombo, Schwungspuren, Funken, große Schadenszahlen, Bildschirmwackeln und kurzes Einfrieren bei kritischen Treffern
 - Fertigkeiten mit gemalten Symbolen und eigenen Effekten je Klasse (Feuer und Gold, Schatten, Türkis und Blitz, Seelengrün), Bodenspuren und Auren aktiver Buffs
 - Querformat mit kompaktem Handy-Layout: alles in den Ecken, Fertigkeiten im Bogen um den Angriffsknopf, Menü als Symbolknöpfe, im Hochformat erscheint ein Hinweis zum Drehen
@@ -59,7 +61,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/daten/klassen.js` | Klassen, Grundwerte, alle 20 Fertigkeiten |
 | `js/daten/monster.js` | Monsterarten und Seelensteine |
 | `js/daten/zonen.js` | Zonen mit Stufenbereichen und Monstergruppen, Waren der Händlerin |
-| `js/daten/gegenstaende.js` | Ausrüstungsplätze, Gegenstandsstufen, Namen, Werte und Effekte, Händler, Schmied-Tabelle |
+| `js/daten/gegenstaende.js` | Ausrüstungsplätze, Gegenstandsstufen, Namen, Werte und Effekte, Boni, Materialien, Händler, Schmied-Tabelle |
 | `js/welt.js` | Karte erzeugen, Kollision, Zonen abfragen |
 | `js/spieler.js` | Figur, Werte, Erfahrung, Tränke, Speichern |
 | `js/kampf.js` | Schadensformel, Angriffe, alle Fertigkeitsarten, Geschosse, Effekte |
