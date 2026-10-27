@@ -13,7 +13,7 @@ const WORLD_SEED = 20261027;
 // Bodenarten
 const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7 };
 // Objekte auf dem Boden (alle blockieren den Weg)
-const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5 };
+const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5, BLOSSOM: 6 };
 // Verzierungen ohne Kollision
 const DECO = { NONE: 0, TUFT: 1, FLOWER_RED: 2, FLOWER_YELLOW: 3, FLOWER_WHITE: 4, PEBBLE: 5, CRACK: 6, BRIDGE: 7 };
 
@@ -163,7 +163,38 @@ function generateWorld() {
     { id: 'ruestung', name: 'Rüstungshändlerin Mei', x: (CENTER_X + 3) * TILE, y: (CENTER_Y + 2.6) * TILE, color: '#5a6a7a', r: 11 }
   ];
 
-  return { ground, obj, deco, zoneIdx, houses, npcs };
+  // Kirschbäume in den Sonnenwiesen (fest aus der Position berechnet, damit die Welt gleich bleibt)
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      const i = y * MAP_W + x;
+      if (obj[i] === OBJ.TREE && ZONES[zoneIdx[i]].id === 'wiesen' && (((x * 92821) ^ (y * 68917)) >>> 0) % 10 < 3) obj[i] = OBJ.BLOSSOM;
+    }
+  }
+
+  // Helligkeit des Bodens: weiche Verläufe statt einzelner Kacheln
+  const shadeNoise = makeNoise(mulberry32(WORLD_SEED + 7), 5);
+  const shadeFine = makeNoise(mulberry32(WORLD_SEED + 11), 2);
+  const shade = new Uint8Array(size);
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      shade[y * MAP_W + x] = Math.max(0, Math.min(255, Math.round((shadeNoise(x, y) * 0.7 + shadeFine(x, y) * 0.3) * 255)));
+    }
+  }
+
+  // Schmuck im Dorf (ohne Kollision): Steinlaternen an den Eingängen, Brunnen, Fässer und Kisten
+  const T = (x, y) => ({ x: x * TILE, y: y * TILE });
+  const props = [
+    { type: 'well', ...T(CENTER_X - 1.6, CENTER_Y - 1.4) },
+    ...[[57.6, 52.4], [62.4, 52.4], [57.6, 67.8], [62.4, 67.8], [52.2, 57.6], [52.2, 62.6], [67.8, 57.6], [67.8, 62.6]]
+      .map(([x, y]) => ({ type: 'lantern', ...T(x, y) })),
+    { type: 'barrel', ...T(CENTER_X - 5.6, CENTER_Y - 1.2) },
+    { type: 'barrel', ...T(CENTER_X - 5.1, CENTER_Y - 0.7) },
+    { type: 'crate', ...T(CENTER_X + 4.2, CENTER_Y + 3.4) },
+    { type: 'crate', ...T(CENTER_X + 4.6, CENTER_Y + 2.7) },
+    { type: 'barrel', ...T(CENTER_X - 4.2, CENTER_Y + 3.4) }
+  ];
+
+  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props };
 }
 
 // --- Abfragen auf die Welt ---------------------------------------------

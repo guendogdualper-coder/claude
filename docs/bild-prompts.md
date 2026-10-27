@@ -232,3 +232,35 @@ Set of plain starter equipment icons for a 2D fantasy MMORPG, East Asian style, 
 ```
 Side-by-side comparison of 2D game item icons in East Asian fantasy style. Left column: plain starter items (leather armor, leather cap, wooden shield, cloth shoes, cloth belt) with no decoration and no glow. Right column: the same item types one quality level higher (chain shirt, bronze helmet, bronze kite shield, leather boots, leather belt) with small bronze rivets and trims, still without glow. Bold dark outline, soft cel shading, plain dark background, evenly spaced grid, no text.
 ```
+
+## Kompaktes HUD und neue Umgebung (Version 1.6)
+
+### Kompaktes HUD im Querformat
+```
+Mobile game HUD mockup in landscape orientation for a 2D fantasy MMORPG, minimal and compact, everything pushed into the screen corners so the center stays free. Top left: small translucent panel with level, name, thin red health bar and thin blue mana bar. Top right: small round minimap with brass ring, zone name and gold below, three small round icon buttons (character, bag, help) to its left. Bottom left: translucent virtual joystick. Bottom right: round red attack button with five small round skill buttons in a quarter circle and two small potion buttons. A very thin purple experience bar along the bottom edge. Dark lacquer with thin brass borders, semi-transparent panels, no clutter.
+```
+
+### Bäume
+```
+2D game environment sprite sheet of trees in East Asian fantasy style, seen from a three-quarter top-down view, each standing on its own: a round deciduous tree with a full crown of overlapping leaf clusters, a pink cherry blossom tree with a slightly crooked trunk, a dark green layered pine tree, a bare gnarled dead tree with twisted branches. Three size variants of each. Clean hand-painted game art, bold dark outline, soft cel shading with light from the top left, plain white background, evenly spaced, no text.
+```
+
+### Felsen je Zone
+```
+2D game environment sprites of boulders in a three-quarter top-down view for four regions: grey meadow stones, mossy forest rocks, warm orange sandstone, dark volcanic basalt. Faceted shapes with a lighter top face and a small crack, two or three sizes each. Clean hand-painted game art, bold dark outline, soft cel shading, plain white background, evenly spaced grid, no text.
+```
+
+### Häuser im Dorf
+```
+2D game environment sprite of a small East Asian village house seen from a three-quarter top-down view: large curved tiled roof with upturned eaves and a decorated ridge, dark wooden posts and beams, cream plaster walls, paper lattice windows with warm light, a dark wooden double door in the center, stone foundation, two red paper lanterns hanging at the roof corners. Four color variants of the roof: terracotta red, slate purple, moss green, deep red. Clean hand-painted game art, bold dark outline, soft cel shading, plain white background, no text.
+```
+
+### Dorfschmuck
+```
+2D game environment props for an East Asian fantasy village, three-quarter top-down view: stone lantern with a warm glowing light box and small roof, stone well with a wooden frame and red tiled roof, wooden barrel with iron bands, wooden crate. Clean hand-painted game art, bold dark outline, soft cel shading, plain white background, evenly spaced, no text.
+```
+
+### Bodenkacheln
+```
+Seamless 2D game ground tiles in a three-quarter top-down fantasy style, 32x32 pixels each, arranged in a grid: lush meadow grass with small blades and tiny flowers, darker forest floor, dirt path with jagged grass edges, grey cobblestone plaza in offset rows, calm blue water with a sandy shore and white foam line, warm desert sand with pebbles, dark cracked ash ground. Soft natural color variation, no visible grid lines, hand-painted look, no text.
+```

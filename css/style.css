@@ -367,6 +367,7 @@ kbd {
   justify-content: space-between;
 }
 .menu-btn:hover { border-color: var(--brass); }
+.menu-icon { width: 15px; height: 15px; fill: none; stroke: var(--brass); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 
 /* --- Startbildschirm ----------------------------------------------------------------- */
 .screen {
@@ -723,71 +724,93 @@ kbd {
 }
 
 /* --- Handy-Layout im Querformat ---------------------------------------------------
-   Steuerknüppel links unten, Angriffsknopf rechts unten, Fertigkeiten im Bogen darum,
-   Erfahrungsbalken ganz unten über die volle Breite. */
-#hud.touch .hud-char { width: 210px; padding: 6px 8px 7px; gap: 4px; }
+   Alles sitzt eng in den Ecken, damit die Mitte frei für das Spiel bleibt:
+   oben links Figur, oben rechts Karte und Menü, unten links Steuerknüppel,
+   unten rechts Angriff mit den Fertigkeiten im Bogen, ganz unten die Erfahrung. */
+#hud.touch {
+  --edge-t: max(6px, env(safe-area-inset-top, 0px));
+  --edge-r: max(8px, env(safe-area-inset-right, 0px));
+  --edge-b: max(6px, env(safe-area-inset-bottom, 0px));
+  --edge-l: max(8px, env(safe-area-inset-left, 0px));
+}
+#hud.touch .frame { background: rgba(24, 19, 14, 0.72); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35); }
+
+#hud.touch .hud-char { width: 170px; padding: 4px 6px 5px; gap: 3px; border-radius: 5px; }
+#hud.touch .char-line { gap: 6px; font-size: 12px; }
+#hud.touch .lvl { font-size: 13px; }
 #hud.touch .char-class { display: none; }
-#hud.touch .bar { height: 15px; }
-#hud.touch .bar span { line-height: 13px; }
+#hud.touch .bar { height: 11px; border-radius: 2px; }
+#hud.touch .bar span { font-size: 9px; line-height: 9px; }
+#hud.touch .buff { font-size: 9px; padding: 0 4px; }
 
-#hud.touch .hud-target { top: var(--edge-t); left: 50%; transform: translateX(-50%); width: min(230px, 30vw); padding: 4px 8px 6px; }
+#hud.touch .hud-target { top: var(--edge-t); width: min(170px, 24vw); padding: 3px 6px 5px; }
+#hud.touch .target-name { font-size: 11px; margin-bottom: 2px; }
 
-#hud.touch .hud-map { width: 104px; padding: 5px; gap: 1px; }
-#hud.touch #minimap { width: 76px; height: 76px; }
-#hud.touch .zone-name { font-size: 12px; margin-top: 2px; }
-#hud.touch .zone-levels { font-size: 10px; }
-#hud.touch .purse { flex-direction: column; gap: 0; align-items: center; font-size: 11px; }
+#hud.touch .hud-map { width: 78px; padding: 4px; gap: 0; border-radius: 5px; }
+#hud.touch #minimap { width: 64px; height: 64px; }
+#hud.touch .zone-name { font-size: 10px; margin-top: 1px; line-height: 1.2; }
+#hud.touch .zone-levels { display: none; }
+#hud.touch .purse { flex-direction: column; gap: 0; align-items: center; font-size: 9.5px; margin-top: 0; line-height: 1.3; }
 
-#hud.touch .menu { top: var(--edge-t); bottom: auto; right: calc(var(--edge-r) + 112px); }
-#hud.touch .menu-btn { font-size: 12px; padding: 4px 9px; }
-#hud.touch .menu-btn kbd { display: none; }
+#hud.touch .menu { top: var(--edge-t); bottom: auto; right: calc(var(--edge-r) + 84px); flex-direction: row; gap: 5px; }
+#hud.touch .menu-btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; justify-content: center; background: rgba(24, 19, 14, 0.72); }
+#hud.touch .menu-btn .menu-text, #hud.touch .menu-btn kbd { display: none; }
+#hud.touch .menu-btn .menu-icon { display: block; width: 18px; height: 18px; }
 
 #hud.touch .log {
-  top: calc(var(--edge-t) + 80px);
+  top: calc(var(--edge-t) + 54px);
   bottom: auto;
-  width: min(300px, 34vw);
-  font-size: 12px;
+  width: min(240px, 30vw);
+  font-size: 11px;
+  gap: 1px;
+  opacity: 0.85;
 }
-#hud.touch .log p:nth-last-child(n + 5) { display: none; }
+#hud.touch .log p:nth-last-child(n + 4) { display: none; }
 
 #hud.touch .hud-bottom { inset: 0; left: 0; transform: none; width: auto; display: block; }
 #hud.touch .xp {
   position: absolute;
   left: var(--edge-l);
   right: var(--edge-r);
-  bottom: calc(var(--edge-b) - 4px);
+  bottom: max(2px, calc(var(--edge-b) - 4px));
   width: auto;
-  height: 9px;
+  height: 6px;
+  border-radius: 3px;
 }
-#hud.touch .xp span { font-size: 8px; line-height: 7px; }
+#hud.touch .xp span { display: none; }
 
-/* Container rechts unten; der Angriffsknopf sitzt in seiner Ecke (Mitte bei 214 | 182) */
+/* Container rechts unten; Mitte des Angriffsknopfs bei 187 | 153, Fertigkeiten im Bogen mit Radius 114 */
 #hud.touch .action-row {
   position: absolute;
   right: var(--edge-r);
-  bottom: calc(var(--edge-b) + 14px);
-  width: 270px;
-  height: 230px;
+  bottom: var(--edge-b);
+  width: 230px;
+  height: 200px;
   display: block;
 }
 #hud.touch .skillbar { position: absolute; inset: 0; display: block; }
-#hud.touch .skill-wrap { position: absolute; width: 50px; height: 50px; }
-#hud.touch .skill-wrap:nth-child(1) { left: 61px; top: 157px; }
-#hud.touch .skill-wrap:nth-child(2) { left: 71px; top: 108px; }
-#hud.touch .skill-wrap:nth-child(3) { left: 98px; top: 66px; }
-#hud.touch .skill-wrap:nth-child(4) { left: 140px; top: 39px; }
-#hud.touch .skill-wrap:nth-child(5) { left: 189px; top: 29px; }
-#hud.touch .slot { width: 50px; height: 50px; border-radius: 50%; }
+#hud.touch .skill-wrap { position: absolute; width: 44px; height: 44px; }
+#hud.touch .skill-wrap:nth-child(1) { left: 51px; top: 131px; }
+#hud.touch .skill-wrap:nth-child(2) { left: 60px; top: 87px; }
+#hud.touch .skill-wrap:nth-child(3) { left: 84px; top: 50px; }
+#hud.touch .skill-wrap:nth-child(4) { left: 121px; top: 26px; }
+#hud.touch .skill-wrap:nth-child(5) { left: 165px; top: 17px; }
+#hud.touch .slot { width: 44px; height: 44px; border-radius: 50%; }
+#hud.touch .slot .abbr { font-size: 14px; }
 #hud.touch .slot .key { display: none; }
-#hud.touch .slot .slvl { right: 50%; transform: translateX(50%); bottom: 2px; }
-#hud.touch .slot .lock { font-size: 10px; line-height: 1.1; text-align: center; }
-#hud.touch .potion { position: absolute; width: 44px; height: 44px; border-radius: 50%; }
-#hud.touch #potHp { left: 4px; top: 160px; }
-#hud.touch #potMp { left: 8px; top: 108px; }
+#hud.touch .slot .slvl { right: 50%; transform: translateX(50%); bottom: 1px; font-size: 9px; }
+#hud.touch .slot .lock { font-size: 9px; line-height: 1.1; text-align: center; }
+#hud.touch .plus { width: 18px; height: 18px; font-size: 13px; top: -6px; right: -4px; }
+#hud.touch .potion { position: absolute; width: 38px; height: 38px; border-radius: 50%; }
+#hud.touch .potion .flask { width: 14px; height: 18px; }
+#hud.touch .potion .count { font-size: 10px; }
+#hud.touch #potHp { left: 7px; top: 134px; }
+#hud.touch #potMp { left: 15px; top: 89px; }
 
-#hud.touch .stick { left: calc(var(--edge-l) + 14px); bottom: calc(var(--edge-b) + 16px); }
-#hud.touch .touch-attack { right: calc(var(--edge-r) + 12px); bottom: calc(var(--edge-b) + 18px); width: 88px; height: 88px; }
-#hud.touch .touch-talk { right: auto; left: calc(var(--edge-l) + 150px); bottom: calc(var(--edge-b) + 26px); width: 68px; height: 68px; }
+#hud.touch .stick { left: calc(var(--edge-l) + 4px); bottom: calc(var(--edge-b) + 8px); width: 100px; height: 100px; background: rgba(24, 19, 14, 0.25); }
+#hud.touch .stick-knob { width: 44px; height: 44px; margin: -22px 0 0 -22px; }
+#hud.touch .touch-attack { right: calc(var(--edge-r) + 6px); bottom: calc(var(--edge-b) + 10px); width: 74px; height: 74px; font-size: 13px; }
+#hud.touch .touch-talk { right: auto; left: calc(var(--edge-l) + 114px); bottom: calc(var(--edge-b) + 14px); width: 56px; height: 56px; font-size: 11px; }
 
 /* Startbildschirm und Fenster im Querformat auf dem Handy */
 @media (orientation: landscape) and (max-height: 520px) {
@@ -808,7 +831,7 @@ kbd {
   .banner strong { font-size: 24px; }
   .banner span { font-size: 12px; }
 }
-#hud.touch .slot .cd { font-size: 18px; text-shadow: 0 1px 3px #000; }
+#hud.touch .slot .cd { font-size: 15px; text-shadow: 0 1px 3px #000; }
 #hud.touch .slot.on-cd .abbr { opacity: 0.35; }
 
 /* --- Inventar, Laden und Schmied --------------------------------------------------- */
@@ -982,7 +1005,6 @@ kbd {
   75% { transform: translateX(6px); }
 }
 
-#hud.touch .menu { flex-direction: column; gap: 4px; }
 
 @media (max-width: 560px) {
   .inv-layout, .smith { grid-template-columns: 1fr; }

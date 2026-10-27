@@ -3,17 +3,6 @@
 
 const renderer = { canvas: null, ctx: null, w: 0, h: 0, dpr: 1, zoom: 1, camX: 0, camY: 0, mini: null, miniCtx: null, miniBase: null, miniTimer: 0 };
 
-const GROUND_COLORS = [
-  ['#58803a', '#5b843c', '#557c38', '#5f873f'], // GRASS
-  ['#62893f', '#668d42', '#5e853c', '#6a9145'], // MEADOW
-  ['#3b5530', '#3e5933', '#38512d', '#405c34'], // FOREST
-  ['#a88f62', '#ad9466', '#a38a5e', '#b0976a'], // PATH
-  ['#2f5f7e', '#316282', '#2d5b7a', '#33658a'], // WATER
-  ['#9b9282', '#a09787', '#958c7c', '#a59c8c'], // PLAZA
-  ['#b39462', '#b89966', '#ae8f5e', '#bb9c6a'], // SAND
-  ['#5d524d', '#615650', '#594f49', '#655a54']  // ASH
-];
-
 const tileHash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
 
 function setupRenderer() {
@@ -73,7 +62,6 @@ function render() {
   const y1 = Math.min(MAP_H - 1, Math.ceil((r.camY + r.h / r.zoom) / TILE) + 1);
 
   drawGround(ctx, x0, y0, x1, y1);
-  drawObjects(ctx, x0, y0, x1, y1);
 
   const view = { x0: r.camX - 80, y0: r.camY - 80, x1: r.camX + r.w / r.zoom + 80, y1: r.camY + r.h / r.zoom + 80 };
   const inView = (e) => e.x > view.x0 && e.x < view.x1 && e.y > view.y0 && e.y < view.y1;
@@ -85,13 +73,17 @@ function render() {
   for (const a of game.allies) list.push(a);
   for (const n of game.world.npcs) if (inView(n)) list.push(n);
   if (game.player && game.running && !game.player.dead) list.push(game.player);
-  list.sort((a, b) => a.y - b.y);
+  collectWorldObjects(list, x0, y0, x1, y1);
+  // Alles nach der Fußlinie sortieren: was weiter unten steht, wird später (also davor) gezeichnet
+  const baseY = (e) => (e.worldObj ? e.y : e.isStone ? e.y + 9 : feetY(e));
+  list.sort((a, b) => baseY(a) - baseY(b));
 
   // Effekte am Boden liegen unter den Figuren
   const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes';
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   for (const e of list) {
-    if (e === game.player) drawPlayer(ctx, e);
+    if (e.worldObj) drawWorldObject(ctx, e);
+    else if (e === game.player) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
     else if (e.until) drawSkeleton(ctx, e);
     else if (e.type) drawMonster(ctx, e);
@@ -100,7 +92,7 @@ function render() {
   for (const pr of game.projectiles) drawProjectile(ctx, pr);
   for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
   drawParticles(ctx);
-  for (const e of list) drawLabel(ctx, e);
+  for (const e of list) if (!e.worldObj) drawLabel(ctx, e);
   drawTexts(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   drawHurtVignette(ctx, r.w, r.h);
@@ -113,101 +105,8 @@ function render() {
   }
 }
 
-// --- Boden und Objekte ---------------------------------------------------------
-
-function drawGround(ctx, x0, y0, x1, y1) {
-  const w = game.world;
-  const t = game.time;
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
-      const i = y * MAP_W + x;
-      const g = w.ground[i];
-      const h = tileHash(x, y);
-      const px = x * TILE;
-      const py = y * TILE;
-      ctx.fillStyle = GROUND_COLORS[g][h & 3];
-      ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
-
-      if (g === GROUND.WATER) {
-        ctx.fillStyle = 'rgba(200,230,255,0.18)';
-        const off = Math.sin(t * 1.5 + x * 0.7 + y * 0.4) * 4;
-        ctx.fillRect(px + 6 + off, py + 10 + (h % 7), 10, 2);
-        ctx.fillRect(px + 16 - off, py + 22 - (h % 5), 8, 2);
-      } else if (g === GROUND.PLAZA) {
-        ctx.strokeStyle = 'rgba(60,52,40,0.25)';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(px + 0.5, py + 0.5, TILE - 1, TILE - 1);
-        ctx.beginPath();
-        ctx.moveTo(px + ((h >> 3) % 2 ? 16 : 10), py);
-        ctx.lineTo(px + ((h >> 3) % 2 ? 16 : 10), py + 16);
-        ctx.stroke();
-      }
-
-      const d = w.deco[i];
-      if (!d) continue;
-      const ox = (h >> 4) % 20 + 4;
-      const oy = (h >> 9) % 20 + 4;
-      switch (d) {
-        case DECO.TUFT:
-          ctx.fillStyle = g === GROUND.FOREST ? 'rgba(20,40,15,0.45)' : 'rgba(30,60,20,0.4)';
-          ctx.fillRect(px + ox, py + oy, 2, 5);
-          ctx.fillRect(px + ox + 3, py + oy + 1, 2, 4);
-          ctx.fillRect(px + ox - 3, py + oy + 2, 2, 3);
-          break;
-        case DECO.FLOWER_RED:
-        case DECO.FLOWER_YELLOW:
-        case DECO.FLOWER_WHITE:
-          ctx.fillStyle = d === DECO.FLOWER_RED ? '#d9584a' : d === DECO.FLOWER_YELLOW ? '#f0cf4a' : '#f2efe6';
-          ctx.fillRect(px + ox, py + oy, 3, 3);
-          ctx.fillRect(px + ox + 7, py + oy + 5, 3, 3);
-          break;
-        case DECO.PEBBLE:
-          ctx.fillStyle = 'rgba(70,58,40,0.35)';
-          ctx.fillRect(px + ox, py + oy, 3, 2);
-          ctx.fillRect(px + ox + 9, py + oy + 6, 2, 2);
-          break;
-        case DECO.CRACK:
-          ctx.strokeStyle = 'rgba(30,20,18,0.45)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(px + ox, py + oy);
-          ctx.lineTo(px + ox + 6, py + oy + 4);
-          ctx.lineTo(px + ox + 4, py + oy + 10);
-          ctx.stroke();
-          break;
-        case DECO.BRIDGE:
-          ctx.fillStyle = '#8a6a44';
-          ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
-          ctx.fillStyle = 'rgba(40,25,10,0.35)';
-          for (let k = 0; k < 4; k++) ctx.fillRect(px, py + k * 8, TILE, 1.5);
-          break;
-      }
-    }
-  }
-}
-
-function drawObjects(ctx, x0, y0, x1, y1) {
-  const w = game.world;
-  for (let y = y0; y <= y1; y++) {
-    for (let x = x0; x <= x1; x++) {
-      const o = w.obj[y * MAP_W + x];
-      if (!o || o === OBJ.HOUSE) continue;
-      const cx = x * TILE + 16;
-      const cy = y * TILE + 16;
-      const h = tileHash(x, y);
-      const s = 0.85 + (h % 30) / 100;
-      if (o === OBJ.TREE) drawTree(ctx, cx, cy, s);
-      else if (o === OBJ.PINE) drawPine(ctx, cx, cy, s);
-      else if (o === OBJ.ROCK) drawRock(ctx, cx, cy, s, h);
-      else if (o === OBJ.DEADTREE) drawDeadTree(ctx, cx, cy, s, h);
-    }
-  }
-  for (const house of w.houses) {
-    if (house.x + house.w < x0 || house.x > x1 || house.y + house.h < y0 || house.y > y1) continue;
-    drawHouse(ctx, house);
-  }
-  drawWell(ctx, (CENTER_X - 2) * TILE, (CENTER_Y - 2) * TILE);
-}
+// --- Hilfsfunktionen ------------------------------------------------------------
+// Boden, Bäume und Häuser zeichnet umgebung.js.
 
 function circle(ctx, x, y, r) {
   ctx.beginPath();
@@ -219,116 +118,6 @@ function ellipse(ctx, x, y, rx, ry) {
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
   ctx.fill();
-}
-
-function drawTree(ctx, x, y, s) {
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ellipse(ctx, x + 4, y + 10, 16 * s, 7 * s);
-  ctx.fillStyle = '#2f4a22';
-  circle(ctx, x, y - 2, 18 * s);
-  ctx.fillStyle = '#3f6a2c';
-  circle(ctx, x - 3, y - 5, 14 * s);
-  ctx.fillStyle = '#5a8a3c';
-  circle(ctx, x - 6, y - 9, 7 * s);
-}
-
-function drawPine(ctx, x, y, s) {
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ellipse(ctx, x + 4, y + 10, 14 * s, 6 * s);
-  const layers = [['#1f3a2a', 18], ['#29493a', 13], ['#35594a', 8]];
-  layers.forEach(([c, r], k) => {
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    for (let a = 0; a < 8; a++) {
-      const ang = a / 8 * Math.PI * 2 + k * 0.4;
-      const rr = (a % 2 ? r * 0.7 : r) * s;
-      ctx.lineTo(x + Math.cos(ang) * rr, y - 4 - k * 2 + Math.sin(ang) * rr);
-    }
-    ctx.closePath();
-    ctx.fill();
-  });
-}
-
-function drawRock(ctx, x, y, s, h) {
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ellipse(ctx, x + 3, y + 8, 14 * s, 6 * s);
-  ctx.fillStyle = '#6f6b66';
-  ctx.beginPath();
-  ctx.moveTo(x - 13 * s, y + 6);
-  ctx.lineTo(x - 10 * s, y - 8 * s);
-  ctx.lineTo(x + (h % 2 ? 2 : -2), y - 13 * s);
-  ctx.lineTo(x + 12 * s, y - 5 * s);
-  ctx.lineTo(x + 13 * s, y + 6);
-  ctx.closePath();
-  ctx.fill();
-  ctx.fillStyle = '#8b8781';
-  ctx.beginPath();
-  ctx.moveTo(x - 10 * s, y - 8 * s);
-  ctx.lineTo(x + (h % 2 ? 2 : -2), y - 13 * s);
-  ctx.lineTo(x + 4 * s, y - 3 * s);
-  ctx.lineTo(x - 6 * s, y);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function drawDeadTree(ctx, x, y, s, h) {
-  ctx.fillStyle = 'rgba(0,0,0,0.22)';
-  ellipse(ctx, x + 3, y + 9, 10 * s, 4 * s);
-  ctx.strokeStyle = '#4a3527';
-  ctx.lineCap = 'round';
-  ctx.lineWidth = 5 * s;
-  ctx.beginPath();
-  ctx.moveTo(x, y + 8);
-  ctx.lineTo(x, y - 12 * s);
-  ctx.stroke();
-  ctx.lineWidth = 2.5 * s;
-  const dir = h % 2 ? 1 : -1;
-  ctx.beginPath();
-  ctx.moveTo(x, y - 4 * s);
-  ctx.lineTo(x + 10 * s * dir, y - 14 * s);
-  ctx.moveTo(x, y - 9 * s);
-  ctx.lineTo(x - 8 * s * dir, y - 18 * s);
-  ctx.moveTo(x, y - 12 * s);
-  ctx.lineTo(x + 3 * dir, y - 20 * s);
-  ctx.stroke();
-  ctx.lineCap = 'butt';
-}
-
-function drawHouse(ctx, h) {
-  const x = h.x * TILE;
-  const y = h.y * TILE;
-  const w = h.w * TILE;
-  const hh = h.h * TILE;
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(x + 6, y + 8, w, hh);
-  ctx.fillStyle = '#8c7356';
-  ctx.fillRect(x, y + hh * 0.55, w, hh * 0.45);
-  ctx.fillStyle = h.roof;
-  ctx.fillRect(x - 4, y - 4, w + 8, hh * 0.62 + 4);
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  for (let k = 0; k < 5; k++) ctx.fillRect(x - 4, y - 4 + k * hh * 0.124, w + 8, 1.5);
-  ctx.fillStyle = 'rgba(255,255,255,0.12)';
-  ctx.fillRect(x - 4, y - 4, w + 8, 4);
-  ctx.fillStyle = '#3a2a1c';
-  ctx.fillRect(x + w / 2 - 7, y + hh - 18, 14, 18);
-  ctx.fillStyle = '#e8c66a';
-  ctx.fillRect(x + 10, y + hh - 16, 10, 8);
-  ctx.fillRect(x + w - 20, y + hh - 16, 10, 8);
-}
-
-function drawWell(ctx, x, y) {
-  ctx.fillStyle = 'rgba(0,0,0,0.25)';
-  ellipse(ctx, x + 3, y + 5, 15, 7);
-  ctx.fillStyle = '#7d7468';
-  circle(ctx, x, y, 13);
-  ctx.fillStyle = '#2b4f66';
-  circle(ctx, x, y, 8);
-  ctx.strokeStyle = '#4a3527';
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(x - 14, y - 2);
-  ctx.lineTo(x + 14, y - 2);
-  ctx.stroke();
 }
 
 // --- Figuren ------------------------------------------------------------------
@@ -703,6 +492,7 @@ function buildMinimapBase() {
     if (w.deco[i] === DECO.BRIDGE) col = [138, 106, 68];
     const o = w.obj[i];
     if (o === OBJ.TREE || o === OBJ.PINE) col = [36, 60, 30];
+    else if (o === OBJ.BLOSSOM) col = [214, 130, 160];
     else if (o === OBJ.ROCK) col = [110, 106, 100];
     else if (o === OBJ.DEADTREE) col = [74, 53, 39];
     else if (o === OBJ.HOUSE) col = [124, 58, 44];

@@ -240,6 +240,8 @@ const ui = {
     p.textContent = text;
     log.append(p);
     while (log.children.length > 6) log.firstChild.remove();
+    // Nachrichten verschwinden nach einer Weile von selbst
+    setTimeout(() => p.remove(), 12000);
     // ältere Nachrichten verblassen
     [...log.children].forEach((el, i) => el.classList.toggle('old', i < log.children.length - 3));
   },
