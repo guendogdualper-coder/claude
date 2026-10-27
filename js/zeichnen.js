@@ -104,6 +104,7 @@ function render() {
   drawTexts(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   drawHurtVignette(ctx, r.w, r.h);
+  drawScreenFlash(ctx, r.w, r.h);
 
   r.miniTimer -= 1;
   if (r.miniTimer <= 0) {
@@ -390,8 +391,8 @@ function weaponAngle(kind, dir, p, ago = 0) {
   return a0 + (a1 - a0) * easeOut(t);
 }
 
-function drawWeaponSprite(ctx, kind, x, y, angle) {
-  const sp = weaponSprite(kind);
+function drawWeaponSprite(ctx, kind, x, y, angle, tier = 0) {
+  const sp = weaponSprite(kind, tier);
   const b = sp.bounds;
   ctx.save();
   ctx.translate(x, y);
@@ -410,6 +411,9 @@ function drawPlayer(ctx, p) {
   const fy = feetY(p);
   const kind = CLASS_WEAPON[p.classId];
   const melee = kind === 'sword' || kind === 'dagger';
+  const weapon = p.equipment ? p.equipment.waffe : { tier: 0, plus: 0 };
+  const tier = weapon ? weapon.tier : 0;
+  const band = weapon ? plusBand(weapon.plus) : 0;
   const angle = weaponAngle(kind, dir, p);
   const hand = { ...handPosition(dir, frame, 'right') };
   // Ausfallschritt beim Schlag, beim Stich weiter nach vorn
@@ -443,32 +447,47 @@ function drawPlayer(ctx, p) {
   if (flip) ctx.scale(-1, 1);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
   const drawWeapons = () => {
+    if (!weapon) return;
     // Nachbilder der Waffe zeigen den Schwung
     if (melee && t >= 0 && !thrust) {
       for (const ago of [0.24, 0.12]) {
         if (swingProgress(p, ago) < 0) continue;
         ctx.save();
         ctx.globalAlpha *= ago > 0.2 ? 0.18 : 0.38;
-        drawWeaponSprite(ctx, kind, hand.x, hand.y, weaponAngle(kind, dir, p, ago));
+        drawWeaponSprite(ctx, kind, hand.x, hand.y, weaponAngle(kind, dir, p, ago), tier);
         ctx.restore();
       }
     }
-    drawWeaponSprite(ctx, kind, hand.x, hand.y, angle);
+    drawWeaponSprite(ctx, kind, hand.x, hand.y, angle, tier);
     if (kind === 'dagger' && dir !== 'side') {
       const left = handPosition(dir, frame, 'left');
-      drawWeaponSprite(ctx, kind, left.x, left.y, Math.PI - angle);
+      drawWeaponSprite(ctx, kind, left.x, left.y, Math.PI - angle, tier);
+    }
+    // Ab +4 leuchtet die Waffe in der Farbe ihrer Plus-Stufe
+    if (band >= 2) {
+      const reach = kind === 'dagger' ? 9 : 16;
+      const pulse = 0.55 + 0.25 * Math.sin(game.time * 6);
+      glow(ctx, hand.x + Math.cos(angle) * reach, hand.y + Math.sin(angle) * reach, 10 + band * 3, PLUS_COLORS[band], pulse * (0.3 + band * 0.12));
     }
   };
   if (dir === 'up') drawWeapons();
   const sp = characterSprite(p.classId, dir, frame);
   ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  // Nach dem Stufenaufstieg leuchtet die Figur hell auf
+  if (p.glowUntil > game.time) {
+    const left = (p.glowUntil - game.time) / 1.5;
+    ctx.save();
+    ctx.globalAlpha *= left * (0.55 + 0.3 * Math.sin(game.time * 18));
+    ctx.drawImage(flashOf(sp), sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+    ctx.restore();
+  }
   if (dir !== 'up') drawWeapons();
   const pulse = 0.6 + 0.4 * Math.sin(game.time * 5);
   if (p.classId === 'schamane') {
     glow(ctx, hand.x, hand.y, 9, '#8fe3d8', 0.55 * pulse);
     if (dir !== 'side') glow(ctx, -hand.x, hand.y, 7, '#8fe3d8', 0.4 * pulse);
   } else if (p.classId === 'nekromant') {
-    glow(ctx, hand.x + Math.cos(angle) * 25, hand.y + Math.sin(angle) * 25, 12, '#a7e37f', 0.7 * pulse);
+    if (weapon) glow(ctx, hand.x + Math.cos(angle) * 25, hand.y + Math.sin(angle) * 25, 12, STAFF_ORB[tier], 0.7 * pulse);
   }
   ctx.restore();
 

@@ -6,7 +6,7 @@ const MAX_SKILL_LEVEL = 20;
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls'];
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
 function xpToNext(level) {
@@ -24,7 +24,8 @@ function newCharacter(name, classId) {
   return {
     name, classId, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
-    hp: null, mp: null, x: null, y: null, playTime: 0
+    hp: null, mp: null, x: null, y: null, playTime: 0,
+    equipment: starterEquipment(), inventory: [], scrolls: 0
   };
 }
 
@@ -49,6 +50,10 @@ function makePlayer(save) {
     moving: false
   };
   p.potions = { hp: 0, mp: 0, ...save.potions };
+  // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
+  p.equipment = { waffe: null, ruestung: null, helm: null, schuhe: null, ...(save.equipment || starterEquipment()) };
+  p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
+  p.scrolls = save.scrolls || 0;
   const stats = playerStats(p);
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
@@ -80,6 +85,15 @@ function playerStats(p) {
   };
   let atkMul = 1;
   let speedMul = 1;
+  for (const item of Object.values(p.equipment || {})) {
+    if (!item) continue;
+    const st = itemStats(item);
+    s.atk += st.atk || 0;
+    s.def += st.def || 0;
+    s.maxHp += st.hp || 0;
+    s.maxMp += st.mp || 0;
+    speedMul += st.speed || 0;
+  }
   for (const b of p.buffs) {
     const e = b.effects;
     if (e.atk) atkMul += e.atk;
@@ -110,12 +124,13 @@ function gainXp(amount) {
     const s = playerStats(p);
     p.hp = s.maxHp;
     p.mp = s.maxMp;
-    addEffect({ type: 'levelup', x: p.x, y: p.y, dur: 1.2, follow: p });
-    addText(p.x, p.y - 40, 'Stufe ' + p.level + '!', 'level');
+    vfxLevelUp(p);
     ui.log('Stufenaufstieg! Du bist jetzt Stufe ' + p.level + '. Du hast einen Fertigkeitspunkt erhalten.', 'level');
-    CLASSES[p.classId].skills.forEach((sk) => {
-      if (sk.unlock === p.level) ui.log('Neue Fertigkeit freigeschaltet: ' + sk.name + '.', 'level');
-    });
+    const unlocked = CLASSES[p.classId].skills.find((sk) => sk.unlock === p.level);
+    if (unlocked) ui.log('Neue Fertigkeit freigeschaltet: ' + unlocked.name + '.', 'level');
+    const tier = ITEM_TIERS.findIndex((t) => t.level === p.level);
+    ui.banner('Stufe ' + p.level, unlocked ? 'Neue Fertigkeit: ' + unlocked.name
+      : tier > 0 ? 'Du kannst jetzt Ausrüstung der Stufe ' + p.level + ' tragen' : 'Neuer Fertigkeitspunkt');
     ui.buildSkillBar();
     saveGame();
   }

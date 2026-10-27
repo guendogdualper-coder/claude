@@ -260,19 +260,25 @@ function eyes(ctx, dir, cx, cy, o = {}) {
 
 // --- Waffen (werden als eigenes Sprite gedreht gezeichnet; Griff liegt bei 0,0) --------------
 
-function weaponArt(ctx, kind) {
+// Farben je Gegenstandsstufe: Stahl, Mondsilber, Drachengold, Seelenviolett
+const TIER_METAL = ['#c7ccd3', '#d4e2f2', '#e8c46a', '#b48cff'];
+const TIER_ACCENT = ['#6a2a24', '#2f4f7a', '#9a2f2a', '#3a2350'];
+const FAN_LEAF = ['#2f7f78', '#3a6fa8', '#c8402f', '#5a3a8a'];
+const STAFF_ORB = ['#a7e37f', '#9be2ff', '#ff9a4a', '#d6a8ff'];
+
+function weaponArt(ctx, kind, tier = 0) {
   switch (kind) {
     case 'sword':
-      box(ctx, -3.5, -1.5, 5.5, 3, 1, '#6a2a24');
+      box(ctx, -3.5, -1.5, 5.5, 3, 1, TIER_ACCENT[tier]);
       oval(ctx, -4, 0, 1.9, 1.9, '#c9a35a');
       box(ctx, 1.5, -4.2, 2.4, 8.4, 1, '#c9a35a');
-      poly(ctx, [[3.8, -2.3], [21, -2.3], [25.5, 0], [21, 2.3], [3.8, 2.3]], '#c7ccd3');
+      poly(ctx, [[3.8, -2.3], [21, -2.3], [25.5, 0], [21, 2.3], [3.8, 2.3]], TIER_METAL[tier]);
       stroke(ctx, '#f4f6f8', 0.8, [[5, -0.6], [21, -0.6]]);
       break;
     case 'dagger':
       box(ctx, -2.8, -1.3, 4.2, 2.6, 1, '#2a2420');
       box(ctx, 1.2, -2.8, 1.6, 5.6, 0.8, '#8a8f96');
-      poly(ctx, [[2.8, -1.7], [11, -1.4], [14.5, 0.6], [2.8, 1.7]], '#cfd3da');
+      poly(ctx, [[2.8, -1.7], [11, -1.4], [14.5, 0.6], [2.8, 1.7]], TIER_METAL[tier]);
       break;
     case 'fan': {
       paintShape(ctx, () => {
@@ -280,7 +286,7 @@ function weaponArt(ctx, kind) {
         ctx.moveTo(0, 0);
         ctx.arc(0, 0, 14, -0.8, 0.8);
         ctx.closePath();
-      }, '#2f7f78', 0, -10, 14, 20);
+      }, FAN_LEAF[tier], 0, -10, 14, 20);
       ctx.strokeStyle = '#e0c36a';
       ctx.lineWidth = 0.8;
       for (let k = -3; k <= 3; k++) {
@@ -306,7 +312,7 @@ function weaponArt(ctx, kind) {
       box(ctx, -14, -1.4, 35, 2.8, 1.2, '#5c4230');
       for (let k = -10; k < 18; k += 5) stroke(ctx, '#3e2c1f', 0.9, [[k, -1.4], [k + 2, 1.4]]);
       poly(ctx, [[19, -1.5], [23, -5], [24, -3], [21.5, 0], [24, 3], [23, 5], [19, 1.5]], '#3e2c1f');
-      oval(ctx, 25, 0, 3.6, 3.6, '#a7e37f');
+      oval(ctx, 25, 0, 3.6, 3.6, STAFF_ORB[tier]);
       dot(ctx, 24, -1.2, 1.1, 1.1, '#efffe0');
       break;
     case 'axe':
@@ -339,8 +345,8 @@ function weaponArt(ctx, kind) {
 
 const WEAPON_BOUNDS = { x: -8, y: -12, w: 38, h: 24 };
 
-function weaponSprite(kind) {
-  return getSprite('w:' + kind, WEAPON_BOUNDS, (ctx) => weaponArt(ctx, kind));
+function weaponSprite(kind, tier = 0) {
+  return getSprite(`w:${kind}:${tier}`, WEAPON_BOUNDS, (ctx) => weaponArt(ctx, kind, tier));
 }
 
 function heldWeapon(ctx, kind, x, y, angle) {

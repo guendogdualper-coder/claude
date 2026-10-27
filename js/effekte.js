@@ -43,6 +43,28 @@ function updateScreenEffects(realDt) {
   game.shake *= Math.pow(0.0004, realDt);
   if (game.shake < 0.15) game.shake = 0;
   game.hurtFlash = Math.max(0, game.hurtFlash - realDt);
+  game.screenFlash = Math.max(0, (game.screenFlash || 0) - realDt);
+}
+
+// Heller Schein über den ganzen Bildschirm (Stufenaufstieg)
+function drawScreenFlash(ctx, w, h) {
+  if (!(game.screenFlash > 0)) return;
+  ctx.fillStyle = `rgba(255,240,200,${Math.min(0.45, game.screenFlash * 0.7)})`;
+  ctx.fillRect(0, 0, w, h);
+}
+
+// Stufenaufstieg: Lichtsäule vom Himmel, Ringe am Boden, aufsteigende Funken, Figur leuchtet
+function vfxLevelUp(p) {
+  addEffect({ type: 'lightbeam', follow: p, dur: 1.7, color: '#ffe9a0' });
+  for (let i = 0; i < 3; i++) {
+    later(0.15 + i * 0.2, () => addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 70, dur: 0.9, color: '#ffd34d', width: 6, grow: true }));
+  }
+  particles(p.x, feetY(p), { count: 60, color: ['#ffd34d', '#fff2c0', '#ffffff'], angle: -Math.PI / 2, spread: 0.5, speed: [80, 260], life: [0.8, 1.5], size: [1.5, 3.5], jitter: 18, drag: 1.2 });
+  later(0.3, () => particles(p.x, feetY(p) - 30, { count: 30, color: ['#ffd34d', '#ffffff'], speed: [40, 120], life: [0.6, 1], size: [1.5, 3] }));
+  addText(p.x, feetY(p) - 76, 'Stufe ' + p.level + '!', 'level');
+  game.screenFlash = 0.55;
+  p.glowUntil = game.time + 1.5;
+  shakeScreen(3);
 }
 
 // Roter Rand, wenn die Figur getroffen wird (in Bildschirmkoordinaten)
@@ -405,6 +427,29 @@ function drawEffect(ctx, e) {
       ctx.drawImage(flashOf(sp), b.x, b.y, b.w, b.h);
       ctx.globalAlpha = (1 - k) * 0.6;
       ctx.drawImage(sp.img, b.x, b.y, b.w, b.h);
+      break;
+    }
+    case 'lightbeam': {
+      ctx.globalCompositeOperation = 'lighter';
+      const grow = k < 0.12 ? k / 0.12 : 1 - (k - 0.12) / 0.88;
+      const w = 54 * grow;
+      const top = y - 460;
+      const gh = ctx.createLinearGradient(x - w / 2, 0, x + w / 2, 0);
+      gh.addColorStop(0, 'rgba(255,233,160,0)');
+      gh.addColorStop(0.35, 'rgba(255,233,160,0.55)');
+      gh.addColorStop(0.5, 'rgba(255,255,255,0.95)');
+      gh.addColorStop(0.65, 'rgba(255,233,160,0.55)');
+      gh.addColorStop(1, 'rgba(255,233,160,0)');
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = gh;
+      ctx.fillRect(x - w / 2, top, w, y - top);
+      const gg = ctx.createRadialGradient(x, y, 0, x, y, 70 * grow + 10);
+      gg.addColorStop(0, 'rgba(255,255,230,0.9)');
+      gg.addColorStop(1, 'rgba(255,210,90,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 70 * grow + 10, (70 * grow + 10) * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
       break;
     }
     case 'levelup':

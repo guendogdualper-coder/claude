@@ -10,6 +10,7 @@ const ui = {
   init() {
     $('btnChar').addEventListener('click', () => this.toggle('panelChar'));
     $('btnHelp').addEventListener('click', () => this.toggle('panelHelp'));
+    $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
     $('potHp').addEventListener('click', () => usePotion('hp'));
     $('potMp').addEventListener('click', () => usePotion('mp'));
     $('btnRevive').addEventListener('click', () => {
@@ -264,16 +265,20 @@ const ui = {
     this.closePanels();
     if (open) {
       if (id === 'panelChar') this.renderCharPanel();
+      if (id === 'panelInv') {
+        gear.openInventory();
+        return;
+      }
       el.hidden = false;
     }
   },
 
   closePanels() {
-    ['panelChar', 'panelHelp', 'panelNpc'].forEach((id) => { $(id).hidden = true; });
+    ['panelChar', 'panelHelp', 'panelNpc', 'panelInv'].forEach((id) => { $(id).hidden = true; });
   },
 
   anyPanelOpen() {
-    return !$('panelChar').hidden || !$('panelHelp').hidden || !$('panelNpc').hidden;
+    return !$('panelChar').hidden || !$('panelHelp').hidden || !$('panelNpc').hidden || !$('panelInv').hidden;
   },
 
   renderCharPanel() {
@@ -305,44 +310,99 @@ const ui = {
     const p = game.player;
     $('npcTitle').textContent = npc.name;
     if (npc.id === 'haendler') {
-      $('npcBody').innerHTML =
-        `<p>„Tränke für unterwegs? Ohne sie überlebst du da draußen nicht lange.“</p>` +
-        `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
-        `<div class="shop">` +
-        SHOP.map((item) =>
-          `<div class="shop-item"><strong>${item.name} <span class="price">${item.price} Gold</span></strong>` +
-          `<small>${item.text} Im Gepäck: <b id="have-${item.id}">${p.potions[item.id]}</b></small>` +
-          `<div class="buy"><button class="mini-btn" type="button" data-buy="${item.id}" data-n="1">1 kaufen</button>` +
-          `<button class="mini-btn" type="button" data-buy="${item.id}" data-n="10">10 kaufen</button></div></div>`
-        ).join('') +
-        `</div><p id="shopMsg" class="form-error" hidden></p>`;
-      $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
-        b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
-      });
+      this.renderShop();
     } else {
-      $('npcBody').innerHTML =
-        `<p>„Meine Esse ist noch kalt. Bring mir Seelensplitter von den Seelensteinen draußen in der Wildnis. ` +
-        `Bald kann ich damit deine Ausrüstung verbessern.“</p>` +
-        `<p>Deine Seelensplitter: <span class="price">${p.splinters}</span></p>`;
+      gear.openSmith($('npcBody'));
     }
     $('panelNpc').hidden = false;
+  },
+
+  renderShop() {
+    const p = game.player;
+    const gearRows = GEAR_SHOP.flatMap((g) => EQUIP_SLOTS.map((sl) => {
+      const item = makeItem(sl.id, g.tier);
+      return `<div class="shop-item"><img class="shop-icon" src="${itemIconUrl(item)}" alt="">` +
+        `<strong>${itemName(item)} <span class="price">${g.price.toLocaleString('de-DE')} Gold</span></strong>` +
+        `<small>${gear.statsList(item)} · ab Stufe ${ITEM_TIERS[g.tier].level}</small>` +
+        `<div class="buy"><button class="mini-btn" type="button" data-gear="${sl.id}:${g.tier}:${g.price}">Kaufen</button></div></div>`;
+    })).join('');
+    $('npcBody').innerHTML =
+      `<p>„Tränke und Ausrüstung für unterwegs. Ohne gute Ausrüstung überlebst du da draußen nicht lange.“</p>` +
+      `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
+      `<h3>Tränke und Schriftrollen</h3><div class="shop">` +
+      SHOP.map((item) =>
+        `<div class="shop-item"><span class="shop-icon potion-icon ${item.id}"></span><strong>${item.name} <span class="price">${item.price} Gold</span></strong>` +
+        `<small>${item.text} Im Gepäck: <b id="have-${item.id}">${p.potions[item.id]}</b></small>` +
+        `<div class="buy"><button class="mini-btn" type="button" data-buy="${item.id}" data-n="1">1 kaufen</button>` +
+        `<button class="mini-btn" type="button" data-buy="${item.id}" data-n="10">10 kaufen</button></div></div>`
+      ).join('') +
+      `<div class="shop-item"><img class="shop-icon" src="${scrollIconUrl()}" alt=""><strong>${BLESSING.name} <span class="price">${BLESSING.price} Gold</span></strong>` +
+      `<small>${BLESSING.text} Im Gepäck: <b id="have-scroll">${p.scrolls}</b></small>` +
+      `<div class="buy"><button class="mini-btn" type="button" data-scroll="1">Kaufen</button></div></div>` +
+      `</div><h3>Ausrüstung</h3><div class="shop">${gearRows}</div><p id="shopMsg" class="form-error" hidden></p>`;
+    $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
+      b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
+    });
+    $('npcBody').querySelector('[data-scroll]').addEventListener('click', () => this.buyScroll());
+    $('npcBody').querySelectorAll('[data-gear]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const [slot, tier, price] = b.dataset.gear.split(':');
+        this.buyGear(slot, Number(tier), Number(price));
+      });
+    });
+  },
+
+  shopMessage(text, ok) {
+    const msg = $('shopMsg');
+    msg.textContent = text;
+    msg.className = ok ? 'gear-msg success' : 'form-error';
+    msg.hidden = false;
   },
 
   buy(id, n) {
     const p = game.player;
     const item = SHOP.find((s) => s.id === id);
     const cost = item.price * n;
-    const msg = $('shopMsg');
     if (p.gold < cost) {
-      msg.textContent = `Dir fehlen ${cost - p.gold} Gold für ${n} × ${item.name}.`;
-      msg.hidden = false;
+      this.shopMessage(`Dir fehlen ${cost - p.gold} Gold für ${n} × ${item.name}.`);
       return;
     }
     p.gold -= cost;
     p.potions[id] += n;
-    msg.hidden = true;
+    $('shopMsg').hidden = true;
     $('shopGold').textContent = p.gold.toLocaleString('de-DE');
     $('have-' + id).textContent = p.potions[id];
+    saveGame();
+  },
+
+  buyScroll() {
+    const p = game.player;
+    if (p.gold < BLESSING.price) {
+      this.shopMessage(`Dir fehlen ${BLESSING.price - p.gold} Gold für eine ${BLESSING.name}.`);
+      return;
+    }
+    p.gold -= BLESSING.price;
+    p.scrolls++;
+    $('shopGold').textContent = p.gold.toLocaleString('de-DE');
+    $('have-scroll').textContent = p.scrolls;
+    this.shopMessage(`${BLESSING.name} gekauft.`, true);
+    saveGame();
+  },
+
+  buyGear(slot, tier, price) {
+    const p = game.player;
+    if (p.gold < price) {
+      this.shopMessage(`Dir fehlen ${(price - p.gold).toLocaleString('de-DE')} Gold.`);
+      return;
+    }
+    const item = makeItem(slot, tier);
+    if (!addToBag(item)) {
+      this.shopMessage('Dein Inventar ist voll.');
+      return;
+    }
+    p.gold -= price;
+    $('shopGold').textContent = p.gold.toLocaleString('de-DE');
+    this.shopMessage(`${itemName(item)} gekauft. Du findest es im Inventar (I).`, true);
     saveGame();
   },
 

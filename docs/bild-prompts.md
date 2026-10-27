@@ -143,3 +143,49 @@ Floating damage number style sheet for a 2D fantasy action game. Large bold roun
 ```
 2D game VFX sprite sheet for magic attacks in East Asian fantasy style. Row 1: teal wind crescent projectile. Row 2: spinning paper talisman with golden glow and a chain lightning arc. Row 3: cone of dragon fire with embers. Row 4: lightning bolt strike from the sky with a blue shockwave ring. Row 5: green soul orb with long glowing trail and a red life-drain beam. Row 6: purple curse rune circle on the ground. Additive glow look, plain black background, evenly spaced grid, no text.
 ```
+
+## Ausrüstung, Schmied und Stufenaufstieg
+
+Seit Version 1.3 im Spiel umgesetzt. Gemeinsamer Stil für alle Gegenstands-Symbole:
+```
+2D game item icon, East Asian fantasy MMORPG style, single object centered, slightly angled, clean hand-painted game art, bold dark outline, soft cel shading, light from the top left, plain dark background, no text, no frame.
+```
+
+### Waffen je Klasse und Stufe (Stahl → Mondsilber → Drachengold → Seelenviolett)
+```
+Item icons for a warrior's swords in four quality tiers, side by side: 1. plain steel sword with dark red grip; 2. "Moon Blade" with pale silver-blue blade and blue grip; 3. "Dragon Sword" with golden blade and red dragon-scale grip; 4. "Soul Reaver" with glowing violet crystal blade and dark purple grip. Same shape language, increasing ornament and glow per tier. 2D game item icons, East Asian fantasy style, bold dark outline, soft cel shading, plain dark background, no text.
+```
+```
+Item icons for a ninja's twin daggers in four quality tiers, side by side: plain short daggers, shadow daggers with silver-blue blades, viper fangs with golden curved blades, night blades with glowing violet edges. 2D game item icons, East Asian fantasy style, bold dark outline, soft cel shading, plain dark background, no text.
+```
+```
+Item icons for a shaman's folding fans in four quality tiers, side by side: paper fan in teal, crane fan in blue with white crane pattern, phoenix fan in red and gold, dragon fan in violet with gold dragon. Small golden bells at the ends. 2D game item icons, East Asian fantasy style, bold dark outline, soft cel shading, plain dark background, no text.
+```
+```
+Item icons for a necromancer's staffs in four quality tiers, side by side: bone staff with green orb, grave staff with icy blue orb, soul staff with fiery orange orb, lich king staff with glowing violet orb, each held by a dark wooden claw. 2D game item icons, dark fantasy style, bold dark outline, soft cel shading, plain dark background, no text.
+```
+
+### Rüstung, Helm und Schuhe je Stufe (Leder → Eisen → Drache → Seele)
+```
+Item icons for armor pieces in four quality tiers, arranged in a grid with rows for body armor, helmet and boots and columns for the tiers: brown leather, grey iron, red dragon scale with gold trim, dark violet soul armor with glowing runes. Helmets gain a crest from tier 2 and horns at tier 4. East Asian fantasy MMORPG style, 2D game item icons, bold dark outline, soft cel shading, plain dark background, evenly spaced grid, no text.
+```
+
+### Leuchten der Plus-Stufen
+```
+Item upgrade glow examples for a 2D fantasy MMORPG: the same sword icon shown five times with increasing aura. +0 no glow, +1 to +3 soft green glow, +4 to +6 blue glow, +7 and +8 purple glow with sparkles, +9 bright golden glow with light rays. Small "+N" number in the top right corner of each. Plain dark background, evenly spaced, bold dark outline style.
+```
+
+### Segensschriftrolle
+```
+2D game item icon of a blessing scroll: rolled parchment with wooden ends, red calligraphy lines and a red wax seal, faint golden holy glow. East Asian fantasy style, bold dark outline, soft cel shading, plain dark background, no text.
+```
+
+### Schmied: Amboss, Erfolg und Fehlschlag
+```
+2D game UI illustration of a blacksmith upgrade station in East Asian fantasy style: dark iron anvil on a stone base, a glowing weapon lying on it, a hammer mid-swing with orange sparks flying, warm forge glow from behind. Three variants side by side: forging in progress, success with golden light bursting from the item, failure with the item cracked and dark red smoke. Bold dark outline, soft cel shading, plain dark background, no text.
+```
+
+### Stufenaufstieg
+```
+2D game VFX of a level-up effect seen from a three-quarter top-down view: a bright pillar of white and golden light falling from the sky onto a small chibi character, three golden rings expanding on the ground, golden sparkles spiraling upward, the character glowing white. Additive glow look, sprite sheet with 6 frames from start to fade out, plain black background, evenly spaced, no text.
+```

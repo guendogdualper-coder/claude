@@ -161,6 +161,7 @@ function killMonster(m) {
     if (Math.random() < 0.04) { p.potions.mp++; ui.log(m.name + ' hat einen Blauen Trank fallen lassen.', 'loot'); }
     m.respawnAt = game.time + 12 + Math.random() * 8;
   }
+  rollLoot(m);
   gainXp(xp);
 }
 
