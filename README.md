@@ -54,6 +54,8 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 
 Neue Monster, Zonen oder Fertigkeiten lassen sich meist allein in den Dateien unter `js/daten/` ergänzen.
 
+Prompts für Bildgeneratoren, mit denen sich Figuren und Monster im Stil des Spiels erzeugen lassen, stehen in [`docs/bild-prompts.md`](docs/bild-prompts.md).
+
 ## Nächste Etappen
 
 3. Ausrüstung: Waffen und Rüstungen als Beute, Inventar, Schmied verbessert Gegenstände (+0 bis +9) mit Seelensplittern und Fehlschlagrisiko
