@@ -151,12 +151,12 @@ function rollLoot(m) {
   const p = game.player;
   if (!m.isStone && Math.random() < 0.03) {
     p.splinters++;
-    ui.log(m.name + ' hat einen Seelensplitter fallen lassen.', 'loot');
+    ui.loot('Seelensplitter', 1, lootIconUrl('splinter'), '#c9a8ff');
   }
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   if (drops && Math.random() < drops.scroll) {
     p.scrolls++;
-    ui.log('Du hast eine Segensschriftrolle gefunden!', 'loot');
+    ui.loot(BLESSING.name, 1, scrollIconUrl(), '#f3e2b0');
   }
   if (drops) {
     const got = [];
@@ -165,10 +165,10 @@ function rollLoot(m) {
       const n = randInt(min, max);
       p.materials[id] = (p.materials[id] || 0) + n;
       const mat = MATERIALS.find((x) => x.id === id);
-      got.push(`${n}× ${mat.name} (${mat.tag})`);
+      got.push(id);
+      ui.loot(mat.name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
       for (let k = 0; k < n; k++) later(0.1 + got.length * 0.12 + k * 0.08, () => vfxLootFly(m, materialIconCanvas(id)));
     }
-    if (got.length) ui.log('Aufgehoben: ' + got.join(', ') + '.', 'loot');
   }
   if (Math.random() < (drops ? drops.gear : 0.025)) {
     let tier = 0;
@@ -178,7 +178,7 @@ function rollLoot(m) {
     const plus = drops ? randInt(drops.plus[0], drops.plus[1]) : Math.random() < 0.25 ? 1 : 0;
     const item = makeItem(slot, tier, plus);
     if (addToBag(item)) {
-      ui.log('Beute: ' + itemFullName(item) + '. Öffne das Inventar mit I.', 'loot');
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       later(0.2, () => vfxLootFly(m, itemIconCanvas(item)));
       const c = bodyCenter(m);
       particles(c.x, c.y, { count: 14, color: [itemColor(item), '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 150], life: [0.5, 0.9], size: [2, 3.5] });
@@ -477,6 +477,38 @@ function scrollIconUrl() {
   const url = sp.img.toDataURL();
   iconCache.set('scroll', url);
   return url;
+}
+
+// Kleine Symbole für die Beuteanzeige: Gold, Seelensplitter, rote und blaue Tränke
+const LOOT_ICON_ART = {
+  gold(ctx) {
+    for (const [x, y] of [[-5, 4], [5, 4], [0, -3]]) {
+      oval(ctx, x, y, 7.5, 5.5, '#e8b83a');
+      oval(ctx, x, y - 1, 5.5, 3.6, '#ffd96a');
+      stroke(ctx, '#a87a1a', 0.8, [[x - 2, y - 1], [x + 2, y - 1]]);
+    }
+  },
+  splinter(ctx) {
+    poly(ctx, [[0, -14], [7, -2], [3, 13], [-5, 6], [-7, -4]], '#9a6ad8');
+    poly(ctx, [[0, -14], [3, 13], [-5, 6], [-7, -4]], '#c9a8ff');
+    stroke(ctx, '#f0e0ff', 1, [[-2, -6], [0, 4]]);
+  },
+  potHp(ctx) {
+    box(ctx, -3, -13, 6, 6, 1, '#d8cfb8');
+    oval(ctx, 0, 2, 9.5, 10, '#d4402f');
+    oval(ctx, -3, -1, 3, 3.6, '#ff9a8a');
+  },
+  potMp(ctx) {
+    box(ctx, -3, -13, 6, 6, 1, '#d8cfb8');
+    oval(ctx, 0, 2, 9.5, 10, '#3a6ad8');
+    oval(ctx, -3, -1, 3, 3.6, '#9ac0ff');
+  }
+};
+
+function lootIconUrl(kind) {
+  const key = 'loot:' + kind;
+  if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx)).img.toDataURL());
+  return iconCache.get(key);
 }
 
 // --- Fenster: Inventar und Schmied -------------------------------------------------------

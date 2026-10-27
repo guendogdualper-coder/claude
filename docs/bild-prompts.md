@@ -397,3 +397,25 @@ Set of 20 round skill icons for a 2D fantasy MMORPG, East Asian style, 4 rows of
 ```
 2D game ambient particle overlays for six regions, three-quarter top-down fantasy game: floating pollen over sunny meadows, glowing yellow-green fireflies in a dark forest, warm dust blowing through an orange valley, grey ash and orange sparks drifting over a wasteland, snowflakes falling diagonally over snowy peaks, green will-o'-the-wisps rising from a misty swamp, glowing embers rising over a lava field. Each shown as a soft tinted screen overlay with particles, no text.
 ```
+
+## Beute, Fertigkeitsbogen und Lebensbalken (Version 2.1)
+
+### Beute-Fenster mit Rucksack
+```
+2D fantasy MMORPG loot window UI mockup in East Asian style, dark lacquered wood panel with thin brass borders, title "Beute". Top row: small icons with counters for gold coins, purple soul splinters, a blessing scroll, red and blue potions and four enchant materials (blue crystal, violet crystal, green swirl orb, golden star). Below a wide golden button "Rucksack öffnen (12/20)". Two columns: "Zuletzt aufgehoben" with rows of item icon, colored item name, amount "× 3" and "vor 5 s", and "Gesamt seit dem Start" with summed amounts. Clean readable layout, no clutter.
+```
+
+### Beuteanzeige unten rechts
+```
+Mobile game HUD detail in landscape, bottom right area next to the skill buttons: a vertical stack of small pill-shaped loot notifications sliding in from the right, each with a dark translucent background, thin brass border, a small item icon, a colored item name and a golden amount, for example "Gold × 397", "Seelensplitter × 3", "Verstärkung × 2", "Mondklinge +1 × 1". The newest entry pops briefly, older ones fade out. Next to the potions a round leather backpack button with a red counter badge.
+```
+
+### Fertigkeiten im engen Bogen um den Angriffsknopf
+```
+Mobile game HUD in landscape, bottom right corner: a large round red attack button with crossed silver swords, golden ring and the word "Angriff", surrounded closely by an arc of five round skill buttons with painted skill icons, each in a thin metal ring colored by type (brass for attacks, blue for buffs, green for healing, purple for curses), a glossy highlight on top, a small golden level plaque at the bottom, and a clockwise dark cooldown sweep with a bright edge and big white seconds in the middle. A skill that becomes ready flashes brightly once. To the left a vertical column of three smaller round buttons: backpack, blue potion, red potion. Dark fantasy style, readable on a phone.
+```
+
+### Schönere Lebensbalken
+```
+2D fantasy MMORPG HUD detail: top left player frame with a round portrait of a chibi warrior in a brass ring and a golden level badge "12", next to it a red health bar and a blue mana bar with dark frames, glossy highlight stripe, faint tick marks every 10 percent, centered white numbers, and a pale golden trailing segment that shows the damage just taken and shrinks after a short delay. When health is low, the health bar pulses with a red glow. Above monsters small rounded health bars with dark outline, gradient fill and the same golden damage trail.
+```

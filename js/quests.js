@@ -85,7 +85,7 @@ function giveReward(reward, xp) {
     if (addToBag(item)) parts.push(itemFullName(item));
     else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
   }
-  ui.log('Belohnung: ' + parts.join(', ') + '.', 'loot');
+  ui.log('Belohnung: ' + parts.join(', ') + '.', 'level');
   vfxLevelUp(p);
   if (xp) gainXp(xp);
   saveGame();

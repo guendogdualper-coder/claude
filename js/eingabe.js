@@ -48,6 +48,7 @@ function setupInput() {
       case 'KeyC': if (!e.repeat) ui.toggle('panelChar'); break;
       case 'KeyH': if (!e.repeat) ui.toggle('panelHelp'); break;
       case 'KeyI': if (!e.repeat) ui.toggle('panelInv'); break;
+      case 'KeyB': if (!e.repeat) ui.toggle('panelLoot'); break;
       case 'Tab':
         e.preventDefault();
         cycleTarget();

@@ -23,21 +23,25 @@
 <canvas id="welt" aria-label="Spielwelt"></canvas>
 
 <div id="hud" hidden>
-  <section class="hud-char frame" aria-label="Deine Figur">
-    <div class="char-line">
-      <span id="hudLevel" class="lvl">Lv 1</span>
-      <span id="hudName" class="char-name"></span>
-      <span id="hudClass" class="char-class"></span>
+  <section id="hudChar" class="hud-char frame" aria-label="Deine Figur">
+    <div class="portrait"><canvas id="hudPortrait" width="96" height="96"></canvas><span id="hudLevel" class="lvl">1</span></div>
+    <div class="char-main">
+      <div class="char-line">
+        <span id="hudName" class="char-name"></span>
+        <span id="hudClass" class="char-class"></span>
+      </div>
+      <div class="bar bar-hp"><b id="hpTrail" class="trail"></b><i id="hpFill"></i><em class="ticks"></em><span id="hpText"></span></div>
+      <div class="bar bar-mp"><b id="mpTrail" class="trail"></b><i id="mpFill"></i><em class="ticks"></em><span id="mpText"></span></div>
+      <div id="buffList" class="buffs"></div>
     </div>
-    <div class="bar bar-hp"><i id="hpFill"></i><span id="hpText"></span></div>
-    <div class="bar bar-mp"><i id="mpFill"></i><span id="mpText"></span></div>
-    <div id="buffList" class="buffs"></div>
   </section>
 
   <section id="targetFrame" class="hud-target frame" hidden aria-label="Ziel">
     <div id="targetName" class="target-name"></div>
-    <div class="bar bar-target"><i id="targetFill"></i><span id="targetText"></span></div>
+    <div class="bar bar-target"><b id="targetTrail" class="trail"></b><i id="targetFill"></i><em class="ticks"></em><span id="targetText"></span></div>
   </section>
+
+  <div id="lootFeed" class="loot-feed" aria-live="polite"></div>
 
   <section class="hud-map frame" aria-label="Karte">
     <canvas id="minimap" width="120" height="120"></canvas>
@@ -60,6 +64,11 @@
       <div id="skillBar" class="skillbar"></div>
       <button class="slot potion potion-mp" id="potMp" type="button" title="Blauer Trank (E)">
         <span class="key">E</span><span class="flask"></span><span class="count" id="potMpCount">0</span>
+      </button>
+      <button class="slot loot-btn" id="btnLoot" type="button" title="Beute und Rucksack (B)" aria-label="Beute und Rucksack">
+        <span class="key">B</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10l1.5 12.5H5.5z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M8 13h8"/></svg>
+        <span id="lootBadge" class="loot-badge" hidden></span>
       </button>
     </div>
     <div class="xp" title="Erfahrung">
@@ -84,7 +93,14 @@
     <div id="stickZone" class="stick-zone" aria-hidden="true"></div>
     <div id="stick" class="stick"><div id="stickKnob" class="stick-knob"></div></div>
     <button id="btnTalk" class="touch-talk" type="button" hidden>Sprechen</button>
-    <button id="btnAttack" class="touch-attack" type="button" aria-label="Angreifen">Angriff</button>
+    <button id="btnAttack" class="touch-attack" type="button" aria-label="Angreifen">
+      <svg viewBox="0 0 48 48" aria-hidden="true">
+        <path class="blade" d="M6 5h6l22 22-6 6L6 11z"/><path class="blade" d="M42 5h-6L14 27l6 6 22-22z"/>
+        <path class="guard" d="M24 36l12-12M12 24l12 12"/><path class="grip" d="M33 33l7 7M15 33l-7 7"/>
+        <circle class="pommel" cx="41.5" cy="41.5" r="2.6"/><circle class="pommel" cx="6.5" cy="41.5" r="2.6"/>
+      </svg>
+      <span>Angriff</span>
+    </button>
   </div>
 </div>
 
@@ -141,6 +157,7 @@
       <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
       <dt><kbd>I</kbd></dt><dd>Inventar: Ausrüstung anlegen, ablegen, verkaufen</dd>
+      <dt><kbd>B</kbd></dt><dd>Beute: alles, was du aufgehoben hast, und der Weg in den Rucksack</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
     </dl>
     <p>Am Handy: Berühre die linke Bildschirmhälfte an einer beliebigen Stelle und ziehe, um zu laufen. Rechts den Angriffsknopf gedrückt halten. Fertigkeiten und Tränke kannst du gleichzeitig antippen.</p>
@@ -169,6 +186,11 @@
 <div id="panelInv" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="invTitle">
   <header class="panel-head"><h2 id="invTitle">Inventar</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="invBody" class="panel-body"></div>
+</div>
+
+<div id="panelLoot" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="lootTitle">
+  <header class="panel-head"><h2 id="lootTitle">Beute</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="lootBody" class="panel-body"></div>
 </div>
 
 <div id="panelNpc" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="npcTitle">

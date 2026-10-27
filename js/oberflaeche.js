@@ -14,6 +14,8 @@ const ui = {
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
     onPress($('potHp'), () => usePotion('hp'));
     onPress($('potMp'), () => usePotion('mp'));
+    $('btnLoot').addEventListener('click', () => this.toggle('panelLoot'));
+    $('lootFeed').addEventListener('click', () => this.toggle('panelLoot'));
     $('btnRevive').addEventListener('click', () => {
       $('panelDeath').hidden = true;
       revivePlayer();
@@ -151,6 +153,9 @@ const ui = {
     const c = CLASSES[game.player.classId];
     $('hudName').textContent = game.player.name;
     $('hudClass').textContent = c.name;
+    $('lootFeed').innerHTML = '';
+    this.lootRows = [];
+    drawPortrait($('hudPortrait'), game.player);
     this.renderQuestTrack();
     if (game.player.needsPath) this.showPathChoice();
   },
@@ -204,13 +209,15 @@ const ui = {
     if (!p) return;
     this.set('hp', `${Math.ceil(p.hp)}/${s.maxHp}`, (v) => {
       $('hpText').textContent = v;
-      $('hpFill').style.transform = `scaleX(${Math.max(0, p.hp / s.maxHp)})`;
+      setBar('hp', p.hp / s.maxHp);
     });
     this.set('mp', `${Math.floor(p.mp)}/${s.maxMp}`, (v) => {
       $('mpText').textContent = v;
-      $('mpFill').style.transform = `scaleX(${Math.max(0, p.mp / s.maxMp)})`;
+      setBar('mp', p.mp / s.maxMp);
     });
-    this.set('lvl', p.level, (v) => { $('hudLevel').textContent = 'Lv ' + v; });
+    // Bei wenig Leben pulsiert der Balken rot
+    this.set('lowHp', !p.dead && p.hp / s.maxHp < 0.3, (v) => { $('hudChar').classList.toggle('low', v); });
+    this.set('lvl', p.level, (v) => { $('hudLevel').textContent = v; });
     // Roter Punkt am Charakter-Knopf, solange Punkte zu verteilen sind
     this.set('points', (p.statPoints || 0) + p.skillPoints > 0, (v) => { $('btnChar').classList.toggle('has-points', v); });
     const need = xpToNext(p.level);
@@ -246,7 +253,14 @@ const ui = {
         if (!el) return;
         el.hidden = !shown;
         el.textContent = shown;
-        el.parentElement.classList.toggle('on-cd', !!shown);
+        const btn = el.parentElement;
+        // kurz aufleuchten, sobald die Fertigkeit wieder bereit ist
+        if (!shown && btn.classList.contains('on-cd')) {
+          btn.classList.remove('ready');
+          void btn.offsetWidth;
+          btn.classList.add('ready');
+        }
+        btn.classList.toggle('on-cd', !!shown);
         el.style.setProperty('--p', String(left / sk.cooldown));
       });
       if (left > 0) {
@@ -267,7 +281,7 @@ const ui = {
       if (!t) return;
       $('targetName').textContent = `Lv ${t.level} ${t.name}`;
       $('targetName').style.color = t.isStone ? lighter(t.stoneType.look.glow, 0.45) : levelColor(t.level);
-      $('targetFill').style.transform = `scaleX(${t.hp / t.maxHp})`;
+      setBar('target', t.hp / t.maxHp);
       $('targetText').textContent = `${Math.ceil(t.hp).toLocaleString('de-DE')} / ${t.maxHp.toLocaleString('de-DE')}`;
     });
 
@@ -288,6 +302,84 @@ const ui = {
     setTimeout(() => p.remove(), 12000);
     // ältere Nachrichten verblassen
     [...log.children].forEach((el, i) => el.classList.toggle('old', i < log.children.length - 3));
+  },
+
+  // Beute unten rechts: Symbol, Name und Anzahl. Gleiche Beute kurz hintereinander wird zusammengezählt.
+  lootRows: [],
+  lootLog: [],
+
+  loot(name, count, icon, color) {
+    if (!count) return;
+    const now = game.time;
+    const last = this.lootLog[0];
+    if (last && last.name === name && now - last.time < 30) {
+      last.count += count;
+      last.time = now;
+    } else {
+      this.lootLog.unshift({ name, count, icon, color, time: now });
+      if (this.lootLog.length > 40) this.lootLog.pop();
+    }
+    const feed = $('lootFeed');
+    let row = this.lootRows.find((r) => r.name === name && performance.now() - r.at < 4000);
+    if (row) {
+      row.count += count;
+      row.el.querySelector('b').textContent = '× ' + row.count.toLocaleString('de-DE');
+      row.el.classList.remove('bump');
+      void row.el.offsetWidth;
+      row.el.classList.add('bump');
+    } else {
+      const el = document.createElement('div');
+      el.className = 'loot-row';
+      el.innerHTML = `<img src="${icon}" alt=""><span></span><b>× ${count.toLocaleString('de-DE')}</b>`;
+      el.querySelector('span').textContent = name;
+      el.querySelector('span').style.color = color || '';
+      feed.append(el);
+      row = { name, count, el };
+      this.lootRows.push(row);
+      while (feed.children.length > 5) feed.firstChild.remove();
+    }
+    row.at = performance.now();
+    clearTimeout(row.timer);
+    row.timer = setTimeout(() => {
+      row.el.classList.add('out');
+      setTimeout(() => row.el.remove(), 600);
+      this.lootRows = this.lootRows.filter((r) => r !== row);
+    }, 6000);
+    this.lootUnseen = (this.lootUnseen || 0) + 1;
+    $('lootBadge').hidden = false;
+    $('lootBadge').textContent = this.lootUnseen > 99 ? '99+' : this.lootUnseen;
+  },
+
+  renderLoot() {
+    const p = game.player;
+    this.lootUnseen = 0;
+    $('lootBadge').hidden = true;
+    const totals = new Map();
+    for (const e of this.lootLog) {
+      const t = totals.get(e.name) || { ...e, count: 0 };
+      t.count += e.count;
+      totals.set(e.name, t);
+    }
+    const ago = (t) => {
+      const s = Math.max(0, Math.round(game.time - t));
+      return s < 60 ? `vor ${s} s` : `vor ${Math.round(s / 60)} min`;
+    };
+    const row = (e, right) => `<li><img src="${e.icon}" alt=""><span style="color:${e.color || ''}">${escapeHtml(e.name)}</span><b>× ${e.count.toLocaleString('de-DE')}</b><small>${right}</small></li>`;
+    $('lootBody').innerHTML =
+      `<div class="loot-purse">` +
+      `<span><img src="${lootIconUrl('gold')}" alt=""> ${p.gold.toLocaleString('de-DE')}</span>` +
+      `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
+      `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
+      `<span><img src="${lootIconUrl('potHp')}" alt=""> ${p.potions.hp}</span>` +
+      `<span><img src="${lootIconUrl('potMp')}" alt=""> ${p.potions.mp}</span>` +
+      MATERIALS.map((m) => `<span><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
+      `</div>` +
+      `<button type="button" class="btn btn-primary" id="btnOpenBag">Rucksack öffnen <small>(${p.inventory.length}/${BAG_SIZE})</small></button>` +
+      (this.lootLog.length
+        ? `<div class="loot-cols"><section><h3>Zuletzt aufgehoben</h3><ul class="loot-list">${this.lootLog.slice(0, 15).map((e) => row(e, ago(e.time))).join('')}</ul></section>` +
+          `<section><h3>Gesamt seit dem Start</h3><ul class="loot-list">${[...totals.values()].sort((a, b) => b.count - a.count).map((e) => row(e, '')).join('')}</ul></section></div>`
+        : '<p class="hint-text">Noch keine Beute. Besiege Monster und zerstöre Seelensteine, alles wird automatisch aufgehoben.</p>');
+    $('btnOpenBag').addEventListener('click', () => this.toggle('panelInv'));
   },
 
   banner(title, sub) {
@@ -315,16 +407,17 @@ const ui = {
         gear.openInventory();
         return;
       }
+      if (id === 'panelLoot') this.renderLoot();
       el.hidden = false;
     }
   },
 
   closePanels() {
-    ['panelChar', 'panelHelp', 'panelNpc', 'panelInv', 'panelPath'].forEach((id) => { $(id).hidden = true; });
+    ['panelChar', 'panelHelp', 'panelNpc', 'panelInv', 'panelPath', 'panelLoot'].forEach((id) => { $(id).hidden = true; });
   },
 
   anyPanelOpen() {
-    return !$('panelChar').hidden || !$('panelHelp').hidden || !$('panelNpc').hidden || !$('panelInv').hidden || !$('panelPath').hidden;
+    return ['panelChar', 'panelHelp', 'panelNpc', 'panelInv', 'panelPath', 'panelLoot'].some((id) => !$(id).hidden);
   },
 
   renderCharPanel() {
@@ -487,6 +580,27 @@ function formatTime(sec) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   return h ? `${h} h ${m} min` : `${m} min`;
+}
+
+// Lebens-, Mana- und Zielbalken: der helle Rest (trail) folgt verzögert und zeigt den eben verlorenen Teil
+function setBar(id, frac) {
+  const k = Math.max(0, Math.min(1, frac));
+  $(id + 'Fill').style.transform = `scaleX(${k})`;
+  $(id + 'Trail').style.transform = `scaleX(${k})`;
+}
+
+// Kopf der eigenen Figur im runden Rahmen oben links
+function drawPortrait(cv, p) {
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  const g = ctx.createRadialGradient(cv.width / 2, cv.height * 0.4, 4, cv.width / 2, cv.height / 2, cv.width / 2);
+  g.addColorStop(0, CLASSES[p.classId].color);
+  g.addColorStop(1, '#120c08');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.setTransform(2.6, 0, 0, 2.6, cv.width / 2, cv.height + 20);
+  drawPlayer(ctx, { classId: p.classId, x: 0, y: 0, r: 11, facing: { x: 0, y: 1 }, buffs: [], swing: 0, moving: false, shield: 0, equipment: null });
 }
 
 // Kleine Vorschau der Klasse für die Auswahlkarten

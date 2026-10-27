@@ -1186,3 +1186,238 @@ kbd {
 }
 .hunt-item span, .hunt-item small, .travel-item small { font-size: 12px; color: var(--muted); }
 .hunt-item .mini-btn, .travel-item .mini-btn { grid-row: 1 / span 2; grid-column: 2; }
+
+/* --- Version 2.1: Lebensbalken, Beute, Fertigkeitsbogen ------------------------------- */
+
+/* Figur oben links mit rundem Bild und Stufe */
+.hud-char { flex-direction: row; align-items: center; gap: 8px; }
+.char-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.portrait { position: relative; flex: none; width: 46px; height: 46px; }
+.portrait canvas { width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--brass); box-shadow: 0 0 0 1px #120c08, inset 0 0 8px rgba(0, 0, 0, 0.6); }
+.portrait .lvl {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 800;
+  color: #1b130a;
+  background: linear-gradient(#f2d48a, #b8913f);
+  border: 1px solid #120c08;
+}
+
+/* Balken: Rahmen, Glanz, Zehntel-Striche und ein verzögerter heller Rest */
+.bar {
+  border: 1px solid #0c0907;
+  box-shadow: 0 0 0 1px rgba(201, 163, 90, 0.35), inset 0 2px 4px rgba(0, 0, 0, 0.7);
+  background: linear-gradient(#1a1410, #2a201a);
+}
+.bar i { transition: transform 0.12s ease-out; }
+.bar i::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 1px;
+  height: 35%;
+  border-radius: 2px;
+  background: linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+}
+.bar .trail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 100%;
+  transform-origin: left;
+  background: linear-gradient(#fff2c0, #e8b84a);
+  transition: transform 0.7s ease-in 0.35s;
+}
+.bar .ticks {
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(0, 0, 0, 0.35) calc(10% - 1px) 10%);
+  pointer-events: none;
+}
+.bar span { z-index: 1; }
+.bar-hp i, .bar-target i { background: linear-gradient(#ff7a5a, #d4402f 45%, #8a1e14); }
+.bar-mp i { background: linear-gradient(#7ab0ff, #3a6ad8 45%, #1e3a8a); }
+.hud-char.low .bar-hp { animation: low-hp 0.9s ease-in-out infinite; }
+@keyframes low-hp {
+  50% { box-shadow: 0 0 0 1px #ff5a4a, 0 0 12px rgba(255, 70, 50, 0.85), inset 0 2px 4px rgba(0, 0, 0, 0.7); }
+}
+.hud-char.low .portrait canvas { border-color: #ff5a4a; }
+
+#hud.touch .hud-char { width: 200px; gap: 6px; padding: 4px 6px 5px 5px; }
+#hud.touch .portrait { width: 38px; height: 38px; }
+#hud.touch .portrait .lvl { min-width: 17px; height: 17px; font-size: 10px; right: -4px; bottom: -3px; }
+#hud.touch .char-main { gap: 3px; }
+#hud.touch .bar { height: 12px; }
+#hud.touch .bar span { font-size: 9px; line-height: 10px; }
+
+/* Beute unten rechts, neben dem Fertigkeitsbogen */
+.loot-feed {
+  position: absolute;
+  right: calc(var(--edge-r) + 300px);
+  bottom: calc(var(--edge-b) + 100px);
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: auto;
+}
+.loot-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 9px 3px 4px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, rgba(24, 19, 14, 0.55), rgba(24, 19, 14, 0.92));
+  border: 1px solid rgba(201, 163, 90, 0.55);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--parchment);
+  text-shadow: 0 1px 2px #000;
+  animation: loot-in 0.25s ease-out;
+  transition: opacity 0.6s, transform 0.6s;
+  cursor: pointer;
+}
+.loot-row img { width: 24px; height: 24px; flex: none; }
+.loot-row span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loot-row b { flex: none; color: #ffe9a0; font-variant-numeric: tabular-nums; }
+.loot-row.bump { animation: loot-bump 0.3s ease-out; }
+.loot-row.out { opacity: 0; transform: translateX(20px); }
+@keyframes loot-in { from { opacity: 0; transform: translateX(30px); } }
+@keyframes loot-bump { 40% { transform: scale(1.08); box-shadow: 0 0 12px rgba(255, 211, 77, 0.6); } }
+#hud.touch .loot-feed { right: calc(var(--edge-r) + 262px); bottom: calc(var(--edge-b) + 12px); width: min(200px, 26vw); }
+#hud.touch .loot-row { font-size: 11.5px; padding: 2px 8px 2px 3px; }
+#hud.touch .loot-row img { width: 20px; height: 20px; }
+
+/* Knopf für das Beute-Fenster */
+.loot-btn { display: grid; place-items: center; background: radial-gradient(circle at 40% 35%, #6e5a34, #2a2219); }
+.loot-btn svg { width: 24px; height: 24px; fill: rgba(240, 207, 106, 0.25); stroke: #f0cf6a; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; position: relative; z-index: 1; }
+.loot-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  z-index: 3;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 3px;
+  border-radius: 8px;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 16px;
+  color: #fff;
+  background: #c8402f;
+  box-shadow: 0 0 6px rgba(200, 64, 47, 0.8);
+}
+
+/* Beute-Fenster */
+.loot-purse { display: flex; flex-wrap: wrap; gap: 6px 14px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.loot-purse span { display: inline-flex; align-items: center; gap: 4px; }
+.loot-purse img { width: 24px; height: 24px; }
+#lootBody > .btn { justify-self: start; }
+#lootBody > .btn small { font-family: var(--font-body); font-weight: 600; opacity: 0.75; }
+.loot-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.loot-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+.loot-list li { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; align-items: center; gap: 6px; padding: 2px 6px; border-radius: 4px; background: rgba(0, 0, 0, 0.25); font-size: 13px; }
+.loot-list img { width: 24px; height: 24px; }
+.loot-list span { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loot-list b { color: #ffe9a0; font-variant-numeric: tabular-nums; }
+.loot-list small { color: var(--muted); font-size: 11px; }
+@media (max-width: 560px) { .loot-cols { grid-template-columns: 1fr; } }
+
+/* Nachrichten oben links besser lesbar */
+#hud.touch .log { opacity: 1; gap: 2px; }
+#hud.touch .log p { width: fit-content; max-width: 100%; padding: 1px 6px; border-radius: 4px; background: rgba(12, 9, 7, 0.6); }
+
+/* Fertigkeiten: Messingring, Glanz, Stufe als Plakette, Abklingzeit als heller Zeiger */
+.slot.skill {
+  border: 0;
+  box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #c9a35a, 0 0 0 5px #120c08, 0 4px 10px rgba(0, 0, 0, 0.55);
+}
+.slot.skill::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 18%, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0) 55%);
+}
+.slot.skill:active { transform: scale(0.92); }
+.slot.skill.kind-buff { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #7fb8ff, 0 0 0 5px #120c08, 0 4px 10px rgba(0, 0, 0, 0.55); }
+.slot.skill.kind-heilung { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #9fe08f, 0 0 0 5px #120c08, 0 4px 10px rgba(0, 0, 0, 0.55); }
+.slot.skill.kind-fluch, .slot.skill.kind-beschwörung { box-shadow: 0 0 0 2px #120c08, 0 0 0 3.5px #c58cff, 0 0 0 5px #120c08, 0 4px 10px rgba(0, 0, 0, 0.55); }
+.slot.skill .cd {
+  border-radius: 50%;
+  background: conic-gradient(rgba(5, 4, 3, 0.78) calc(var(--p, 0) * 1turn), rgba(255, 233, 160, 0.9) 0 calc(var(--p, 0) * 1turn + 0.008turn), transparent 0);
+  color: #fff6d8;
+  font-size: 16px;
+  text-shadow: 0 1px 3px #000, 0 0 6px #000;
+}
+.slot.skill .slvl {
+  min-width: 15px;
+  height: 13px;
+  padding: 0 3px;
+  border-radius: 7px;
+  line-height: 13px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #1b130a;
+  background: linear-gradient(#f2d48a, #b8913f);
+  border: 1px solid #120c08;
+}
+.slot.skill .slvl:empty { display: none; }
+.slot.skill.ready { animation: skill-ready 0.6s ease-out; }
+@keyframes skill-ready {
+  0% { filter: brightness(1.8); }
+  100% { filter: brightness(1); }
+}
+.slot.skill.no-mana::before { content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: 2; background: rgba(40, 70, 160, 0.4); }
+
+/* Angriffsknopf mit gekreuzten Schwertern */
+.touch-attack {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0;
+  color: #fff3d0;
+  background: radial-gradient(circle at 40% 30%, #c8503a, #7a2418 55%, #3a0e08);
+  border: 0;
+  box-shadow: 0 0 0 2px #120c08, 0 0 0 4px #d8b46a, 0 0 0 6px #120c08, 0 6px 16px rgba(0, 0, 0, 0.6), inset 0 -6px 12px rgba(0, 0, 0, 0.45), inset 0 6px 10px rgba(255, 200, 160, 0.3);
+}
+.touch-attack svg { width: 48px; height: 48px; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.7)); }
+.touch-attack .blade { fill: #f4f0e6; stroke: #3a0e08; stroke-width: 1.6; }
+.touch-attack .guard { fill: none; stroke: #e8c46a; stroke-width: 4; }
+.touch-attack .grip { fill: none; stroke: #6b3a1a; stroke-width: 4; }
+.touch-attack .pommel { fill: #e8c46a; stroke: #3a0e08; stroke-width: 1; }
+.touch-attack span { font-size: 9.5px; letter-spacing: 0.08em; margin-top: -2px; text-shadow: 0 1px 2px #000; }
+.touch-attack.active { filter: brightness(1.25); transform: scale(0.95); box-shadow: 0 0 0 2px #120c08, 0 0 0 4px #ffe9a0, 0 0 0 6px #120c08, 0 0 18px rgba(255, 180, 90, 0.7); }
+
+/* Bogen enger um den Angriffsknopf: Mitte bei 200 | 140 im Kasten, Radius 86, Fertigkeiten 46 px */
+#hud.touch .action-row { width: 260px; height: 200px; }
+#hud.touch .touch-attack { right: calc(var(--edge-r) + 20px); bottom: calc(var(--edge-b) + 20px); width: 80px; height: 80px; }
+#hud.touch .touch-attack svg { width: 40px; height: 40px; }
+#hud.touch .skill-wrap { width: 46px; height: 46px; }
+#hud.touch .slot { width: 46px; height: 46px; }
+#hud.touch .skill-wrap:nth-child(1) { left: 96px; top: 146px; }
+#hud.touch .skill-wrap:nth-child(2) { left: 93px; top: 98px; }
+#hud.touch .skill-wrap:nth-child(3) { left: 116px; top: 56px; }
+#hud.touch .skill-wrap:nth-child(4) { left: 158px; top: 33px; }
+#hud.touch .skill-wrap:nth-child(5) { left: 206px; top: 36px; }
+#hud.touch .potion, #hud.touch .loot-btn { position: absolute; width: 40px; height: 40px; border-radius: 50%; }
+#hud.touch #potHp { left: 32px; top: 150px; }
+#hud.touch #potMp { left: 32px; top: 103px; }
+#hud.touch #btnLoot { left: 32px; top: 56px; }
+#hud.touch .loot-btn .key { display: none; }
+#hud.touch .loot-btn svg { width: 22px; height: 22px; }

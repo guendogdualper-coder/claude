@@ -624,11 +624,47 @@ function levelColor(level) {
   return '#ff6b5b';
 }
 
-function drawBar(ctx, x, y, w, frac, color) {
-  ctx.fillStyle = 'rgba(10,8,6,0.75)';
-  ctx.fillRect(x - w / 2 - 1, y - 1, w + 2, 6);
-  ctx.fillStyle = color;
-  ctx.fillRect(x - w / 2, y, w * Math.max(0, frac), 4);
+// Lebensbalken über Figuren: dunkler Rahmen, Verlauf mit Glanz, heller Rest für eben verlorenes Leben
+function drawBar(ctx, x, y, w, frac, color, trail = frac) {
+  const h = 5;
+  const x0 = x - w / 2;
+  ctx.fillStyle = 'rgba(12,9,7,0.85)';
+  roundRect(ctx, x0 - 1.5, y - 1.5, w + 3, h + 3, 3);
+  ctx.fill();
+  if (trail > frac) {
+    ctx.fillStyle = '#ffe9a0';
+    ctx.fillRect(x0, y, w * Math.min(1, trail), h);
+  }
+  const f = Math.max(0, frac);
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, lighter(color, 0.35));
+  g.addColorStop(0.5, color);
+  g.addColorStop(1, darker(color, 0.35));
+  ctx.fillStyle = g;
+  ctx.fillRect(x0, y, w * f, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.fillRect(x0, y + 0.5, w * f, 1.2);
+  // Viertel-Striche
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  for (let k = 1; k < 4; k++) ctx.fillRect(x0 + (w * k) / 4, y, 0.8, h);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Der helle Rest folgt dem Leben nach einer kurzen Pause
+function barTrail(e) {
+  const frac = Math.max(0, e.hp / e.maxHp);
+  if (e.hpTrail == null || frac > e.hpTrail) e.hpTrail = frac;
+  if (frac < e.hpTrail && game.time - (e.lastHit || 0) > 0.35) e.hpTrail = Math.max(frac, e.hpTrail - 0.012);
+  return e.hpTrail;
 }
 
 function drawLabel(ctx, e) {
@@ -647,7 +683,7 @@ function drawLabel(ctx, e) {
     return;
   }
   if (e.until) {
-    drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0');
+    drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0', barTrail(e));
     return;
   }
   if (!e.type && !e.isStone) {
@@ -670,7 +706,7 @@ function drawLabel(ctx, e) {
     ctx.fillText(label, e.x, top);
   }
   if (e.hp < e.maxHp || targeted || e.isStone) {
-    drawBar(ctx, e.x, top + 4, e.isStone ? 50 : 34, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#c8402f');
+    drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#d4402f', barTrail(e));
   }
 }
 

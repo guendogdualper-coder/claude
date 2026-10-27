@@ -162,5 +162,8 @@ const MATERIALS = [
   { id: 'star', name: 'Sternenstein', tag: 'Bonus 6/7', text: 'Fügt den 6. Bonus hinzu, danach den 7. Besondere Boni wie Fertigkeitsschaden oder weniger erlittener Schaden.' }
 ];
 
+// Farben der Materialien in der Beuteanzeige
+const MATERIAL_COLORS = { boniPlus: '#9fd0ff', boni5: '#d6a8ff', switcher: '#9fe08f', star: '#ffd34d' };
+
 // Was ein Seelenstein fallen lässt, steht bei den Steinen in monster.js (stoneDrops).
 // Ausrüstung von Seelensteinen hat höchstens +2.

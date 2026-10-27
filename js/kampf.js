@@ -119,6 +119,7 @@ function hitMonster(m, mul, opts = {}) {
 
 function damageMonster(m, amount, crit, source, isDot) {
   m.hp -= amount;
+  m.lastHit = game.time;
   m.hitFlash = 0.12;
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
   m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
@@ -167,13 +168,17 @@ function killMonster(m) {
     p.stones++;
     p.potions.hp += potHp;
     p.potions.mp += potMp;
-    ui.log(`${m.name} zerstört! +${xp} EP, +${gold.toLocaleString('de-DE')} Gold, +${splinters} Seelensplitter, ${potHp + potMp} Tränke.`, 'loot');
+    ui.log(`${m.name} zerstört! +${xp.toLocaleString('de-DE')} EP.`, 'level');
+    ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
+    ui.loot('Seelensplitter', splinters, lootIconUrl('splinter'), '#c9a8ff');
+    ui.loot('Roter Trank', potHp, lootIconUrl('potHp'), '#ff9a8a');
+    ui.loot('Blauer Trank', potMp, lootIconUrl('potMp'), '#9ac0ff');
     questEvent('stone', m);
     m.respawnAt = game.time + randInt(STONE.respawn[0], STONE.respawn[1]);
   } else {
     questEvent('kill', m);
-    if (Math.random() < 0.06) { p.potions.hp++; ui.log(m.name + ' hat einen Roten Trank fallen lassen.', 'loot'); }
-    if (Math.random() < 0.04) { p.potions.mp++; ui.log(m.name + ' hat einen Blauen Trank fallen lassen.', 'loot'); }
+    if (Math.random() < 0.06) { p.potions.hp++; ui.loot('Roter Trank', 1, lootIconUrl('potHp'), '#ff9a8a'); }
+    if (Math.random() < 0.04) { p.potions.mp++; ui.loot('Blauer Trank', 1, lootIconUrl('potMp'), '#9ac0ff'); }
     m.respawnAt = game.time + 12 + Math.random() * 8;
   }
   rollLoot(m);

@@ -38,7 +38,9 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - Gezeichnete Figuren im Chibi-Stil mit Umriss und Schattierung, Laufanimation und Waffenschwung; Monster mit Mähnen, Reißzähnen, Flügeln, Umhängen und Runen, die im Stand atmen
 - Kampfeffekte: Dreier-Kombo, Schwungspuren, Funken, große Schadenszahlen, Bildschirmwackeln und kurzes Einfrieren bei kritischen Treffern
 - Fertigkeiten mit gemalten Symbolen und eigenen Effekten je Klasse (Feuer und Gold, Schatten, Türkis und Blitz, Seelengrün), Bodenspuren und Auren aktiver Buffs
-- Querformat mit kompaktem Handy-Layout: alles in den Ecken, Fertigkeiten im Bogen um den Angriffsknopf, Menü als Symbolknöpfe, im Hochformat erscheint ein Hinweis zum Drehen
+- Querformat mit kompaktem Handy-Layout: alles in den Ecken, Fertigkeiten im engen Bogen um den Angriffsknopf (mit Ring, Stufenplakette, Abklingzeit als Zeiger und Aufleuchten, sobald sie bereit sind), Menü als Symbolknöpfe, im Hochformat erscheint ein Hinweis zum Drehen
+- **Beute**: alles Aufgehobene erscheint unten rechts mit Symbol und Anzahl; der Beute-Knopf (Taste B) öffnet ein Fenster mit allem, was du aufgehoben hast, und den Weg in den Rucksack
+- **Lebensbalken** mit rundem Bild der Figur, Glanz, Zehntel-Strichen und einem hellen Rest, der den eben verlorenen Teil zeigt; bei wenig Leben pulsiert der Balken rot
 - Umgebung im ostasiatischen Stil: Laubbäume, Kirschbäume, Tannen, tote Bäume und Felsen je Zone, Häuser mit geschwungenen Dächern und Laternen, Steinlaternen und Brunnen im Dorf, weiche Bodenübergänge, Ufer mit Gischt. Figuren können hinter Bäume und Dächer laufen, die dann durchsichtig werden
 - Steuerung per Tastatur oder Touch: schwebender Steuerknüppel auf der ganzen linken Hälfte, Knöpfe lösen beim Aufsetzen aus, damit Angriff, Tränke und Fertigkeiten gleichzeitig gehen
 
@@ -52,6 +54,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 | Q / E | Roter / Blauer Trank |
 | Tab, Mausklick | Ziel wählen |
 | I | Inventar |
+| B | Beute |
 | F | Mit Händlern oder dem Schmied sprechen |
 | C / H / Esc | Charakter, Hilfe, Fenster schließen |
 
