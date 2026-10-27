@@ -38,10 +38,20 @@ const MONSTER_TYPES = {
   feuerdrache: { name: 'Feuerdrache', level: 69, shape: 'beast', color: '#a82a1a', size: 20, speed: 105, range: 170, cooldown: 1.8, aggressive: true, ranged: true, hpMul: 2.2, atkMul: 1.4, shot: '#ff9a4a' }
 };
 
+// Schwierigkeit: Bis Stufe 15 werden Monster schrittweise zäher und stärker als die Grundformel,
+// danach wächst der Abstand mit jeder Stufe weiter. Die ersten Stufen bleiben leicht.
+// Erfahrung und Gold hängen nicht davon ab.
+function monsterPower(level) {
+  const ramp = Math.min(1, (level - 1) / 14);
+  const extra = Math.max(0, level - 15);
+  return { hp: 1 + ramp * 1.1 + extra * 0.014, atk: 1 + ramp * 1.15 + extra * 0.012 };
+}
+
 function monsterStats(level, hpMul = 1, atkMul = 1) {
+  const pw = monsterPower(level);
   return {
-    maxHp: Math.round((40 + 18 * Math.pow(level - 1, 1.1)) * hpMul),
-    atk: Math.round((3 + 2 * (level - 1)) * atkMul),
+    maxHp: Math.round((40 + 18 * Math.pow(level - 1, 1.1)) * hpMul * pw.hp),
+    atk: Math.round((3 + 2 * (level - 1)) * atkMul * pw.atk),
     def: Math.round(1 + (level - 1)),
     xp: Math.round((10 * Math.pow(level, 1.5) + 2) * hpMul),
     gold: [level * 2, level * 4 + 2]

@@ -80,8 +80,9 @@ const ATTRS = [
 ];
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
+// Ab Stufe 10 braucht jede Stufe 40 % mehr Erfahrung als die Grundformel (davor steigt es langsam an)
 function xpToNext(level) {
-  return Math.round(80 * Math.pow(level, 2.1) + 50 * level);
+  return Math.round((80 * Math.pow(level, 2.1) + 50 * level) * (1 + 0.4 * Math.min(1, (level - 1) / 9)));
 }
 
 // Zu schwache Monster geben kaum noch Erfahrung, stärkere etwas mehr

@@ -33,10 +33,16 @@ function calcDamage(atk, mul, def, critChance, level = 1) {
   return { amount, crit };
 }
 
-// Höherstufige Monster nehmen weniger Schaden (max. −50 %)
+// Höherstufige Monster nehmen weniger Schaden: −8 % je Stufe Unterschied, höchstens −75 %
 function levelPenalty(attackerLevel, targetLevel) {
   const diff = targetLevel - attackerLevel;
-  return diff > 0 ? Math.max(0.5, 1 - 0.05 * diff) : 1;
+  return diff > 0 ? Math.max(0.25, 1 - 0.08 * diff) : 1;
+}
+
+// Und sie treffen härter: +7 % je Stufe über dir, höchstens +80 %
+function levelBonus(attackerLevel, targetLevel) {
+  const diff = attackerLevel - targetLevel;
+  return diff > 0 ? 1 + Math.min(0.8, 0.07 * diff) : 1;
 }
 
 // --- Ziele ----------------------------------------------------------------
@@ -324,20 +330,21 @@ function tryBasicAttack() {
   const basic = basicAttack(p);
   if (p.attackCd > 0 || p.dead || p.dash) return false;
   if (inVillage(p.x, p.y)) return false; // im Dorf wird nicht gekämpft
+  // Angreifen geht immer: mit Gegner in Reichweite auf ihn, sonst ein Schlag oder Schuss
+  // in Blickrichtung (später auch für Kämpfe gegen andere Spieler)
   const target = pickTarget(basic.range);
-  if (!target) return false;
-  faceTowards(target.x, target.y);
+  if (target) faceTowards(target.x, target.y);
   p.attackCd = basic.cooldown / game.stats.atkSpeed;
   if (basic.ranged) {
     startSwing(p, 'cast', 0.28);
     const hand = bodyCenter(p);
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, basic: true });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, basic: true });
   } else {
     p.combo = ((p.combo || 0) + 1) % 3;
     startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
     vfxSwing(p, c.trim);
-    hitMonster(target, p.combo === 2 ? 1.25 : 1, { vfxColor: c.trim, basic: true });
+    if (target) hitMonster(target, p.combo === 2 ? 1.25 : 1, { vfxColor: c.trim, basic: true });
   }
   return true;
 }
@@ -490,17 +497,16 @@ const SKILL_TYPES = {
 
   // Einzelner starker Treffer im Nahkampf
   strike(sk, pw) {
+    const p = game.player;
     const t = pickTarget(sk.range);
-    if (!t) {
-      ui.log('Kein Gegner in Reichweite für ' + sk.name + '.', 'warn');
-      return false;
-    }
-    faceTowards(t.x, t.y);
-    const bc = bodyCenter(t);
+    if (t) faceTowards(t.x, t.y);
+    // ohne Ziel trifft der Schlag die Stelle vor der Figur
+    const bc = t ? bodyCenter(t) : { x: p.x + p.facing.x * 40, y: bodyCenter(p).y + p.facing.y * 24 };
     const col = sk.color || '#b48cff';
     addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.75, len: 58, w: 9, dur: 0.3, color: col });
     later(0.07, () => addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.75, len: 58, w: 9, dur: 0.3, color: col }));
     particles(bc.x, bc.y, { count: 14, color: [col, '#ffffff'], speed: [60, 160], life: [0.3, 0.5], size: [2, 3], shape: 'square' });
+    if (!t) return;
     hitStop(0.05);
     hitMonster(t, sk.dmg * pw, { skill: sk.id, critBonus: sk.critBonus, stun: sk.stun, knockback: sk.knockback, poison: sk.poison, heavy: true, vfxColor: sk.color ? lighter(sk.color, 0.3) : '#d6c4ff' });
   },
@@ -586,8 +592,10 @@ const SKILL_TYPES = {
     const p = game.player;
     const t = pickTarget(sk.range);
     if (!t) {
-      ui.log('Kein Gegner in Reichweite für ' + sk.name + '.', 'warn');
-      return false;
+      // ohne Ziel: ein roter Strahl ins Leere
+      const b = bodyCenter(p);
+      particles(b.x + p.facing.x * 20, b.y + p.facing.y * 12, { count: 14, color: ['#ff6a7a', '#c43a5a'], angle: Math.atan2(p.facing.y, p.facing.x), spread: 0.35, speed: [120, 260], life: [0.25, 0.45], size: [2, 3.5], drag: 2 });
+      return;
     }
     faceTowards(t.x, t.y);
     const dmg = hitMonster(t, sk.dmg * pw, { skill: sk.id, vfxColor: '#ff6a7a' });
@@ -732,7 +740,7 @@ function updateProjectiles(dt) {
         pr.done = true;
         particles(v.x, feetY(v) - 18, { count: 8, color: [pr.color, '#ffffff'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
         if (v === p) {
-          if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, 1, game.stats.def, 0.03, pr.source.level).amount, pr.source);
+          if (!game.stats.invisible) damagePlayer(calcDamage(pr.atk, levelBonus(pr.source.level, p.level), game.stats.def, 0.03, pr.source.level).amount, pr.source);
         } else {
           damageAlly(v, calcDamage(pr.atk, 1, v.def, 0, pr.source.level).amount);
         }

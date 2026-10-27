@@ -606,3 +606,20 @@ Mobile game HUD close-up: a round skill button with a sword aura icon and a purp
 ```
 2D game VFX sheet, three-quarter top-down view, a chibi warrior holding a sword with the Sword Aura active at four levels: the real blade is wrapped in a glowing golden-white energy blade that extends beyond the tip, longer and wider with each rank; flame tongues rise from the blade; from rank Erwacht small sparks in the rank color (ice blue, violet, gold, crimson) spiral along the blade; a golden dashed rune circle on the ground. Additive glow, plain green background, no text.
 ```
+
+## Stärkere Monster und freier Angriff (Version 2.7)
+
+### Monster über der eigenen Stufe
+```
+2D fantasy MMORPG scene, three-quarter top-down view: a chibi level 20 warrior with simple iron gear standing at the edge of a scorched wasteland, facing a towering red demon marked "Lv 35" with a skull icon next to its name, its health bar barely scratched while the warrior's own red health bar is almost empty; small damage numbers "-12" on the demon and big red numbers "-240" on the warrior; behind the warrior the greener orc valley with orcs marked "Lv 21" looks much safer. Cute game art with a dangerous mood, bold outlines, cel shading.
+```
+
+### Gleiche Stufe: ein harter, fairer Kampf
+```
+2D fantasy MMORPG combat scene, three-quarter top-down view: a chibi warrior with a +7 glowing sword fighting a group of three orcs "Lv 21" in a rocky valley; the warrior uses a whirling sword skill with orange arcs, one orc is stunned with stars, the warrior's health bar at 60 percent, a red potion being drunk with rising embers, orange and white damage numbers. Cute game art, bold outlines, additive glow effects.
+```
+
+### Freier Angriff ohne Ziel
+```
+2D fantasy MMORPG character sheet, three-quarter top-down view: four chibi heroes attacking into empty space with no enemy nearby, each facing right: a warrior swinging a sword with an orange arc trail, a ninja shooting an arrow that flies straight forward, a shaman casting a teal energy orb forward with a fan, a necromancer firing a green soul bolt from a staff. Small hint text "Angriff in Blickrichtung". Cute game art, bold outlines, plain green background.
+```

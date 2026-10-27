@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '2.6.1';
+const GAME_VERSION = '2.7';
 
 const game = {
   world: null,
@@ -65,6 +65,7 @@ function updatePlayer(dt) {
     updateDash(dt);
   } else {
     const mv = moveVector();
+    let approaching = false;
     if (mv.x || mv.y) {
       p.moving = moveEntity(p, mv.x * s.speed * dt, mv.y * s.speed * dt, false);
       const len = Math.hypot(mv.x, mv.y);
@@ -77,9 +78,11 @@ function updatePlayer(dt) {
         game.target = t;
         p.moving = moveToward(p, t.x, t.y, s.speed * dt, false);
         faceTowards(t.x, t.y);
+        approaching = true;
       }
     }
-    if (input.attack) tryBasicAttack();
+    // Läuft die Figur gerade zu einem Gegner, schlägt sie erst bei ihm zu; sonst auch ins Leere
+    if (input.attack && !approaching) tryBasicAttack();
   }
 
   // Regeneration: außerhalb des Kampfes deutlich schneller

@@ -164,7 +164,7 @@ function monsterAttack(m, target) {
   if (m.type.shape === 'beast' || m.type.shape === 'boar') addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
   else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 30, w: 5, dur: 0.22, color: '#ff8a6a' });
   if (target === p) {
-    damagePlayer(calcDamage(m.atk, 1, game.stats.def, 0.03, m.level).amount, m);
+    damagePlayer(calcDamage(m.atk, levelBonus(m.level, p.level), game.stats.def, 0.03, m.level).amount, m);
   } else {
     damageAlly(target, calcDamage(m.atk, 1, target.def, 0, m.level).amount);
   }
