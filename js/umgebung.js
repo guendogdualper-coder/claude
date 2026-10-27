@@ -745,8 +745,7 @@ function drawWorldObject(ctx, o) {
   const type = o.worldObj === 'prop' ? o.prop.type : '';
   if (o.worldObj !== 'wall' && type !== 'gate') {
     const shadowW = o.worldObj === 'house' ? o.house.w * TILE * 0.55 : type === 'tower' ? 24 : type === 'stall' ? 26 : o.worldObj === 'prop' ? 10 : o.worldObj === 'rock' ? 15 : 17;
-    ctx.fillStyle = 'rgba(0,0,0,0.24)';
-    ellipse(ctx, o.x + 3, o.y, shadowW, shadowW * (o.worldObj === 'house' ? 0.18 : 0.38));
+    softShadow(ctx, o.x + 3, o.y, shadowW, shadowW * (o.worldObj === 'house' ? 0.2 : 0.38), 0.32);
   }
   ctx.save();
   if (occludesPlayer(o)) ctx.globalAlpha = 0.45;

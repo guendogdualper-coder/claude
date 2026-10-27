@@ -582,11 +582,9 @@ function formatTime(sec) {
   return h ? `${h} h ${m} min` : `${m} min`;
 }
 
-// Lebens-, Mana- und Zielbalken: der helle Rest (trail) folgt verzögert und zeigt den eben verlorenen Teil
+// Lebens-, Mana- und Zielbalken
 function setBar(id, frac) {
-  const k = Math.max(0, Math.min(1, frac));
-  $(id + 'Fill').style.transform = `scaleX(${k})`;
-  $(id + 'Trail').style.transform = `scaleX(${k})`;
+  $(id + 'Fill').style.transform = `scaleX(${Math.max(0, Math.min(1, frac))})`;
 }
 
 // Kopf der eigenen Figur im runden Rahmen oben links

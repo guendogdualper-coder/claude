@@ -419,3 +419,35 @@ Mobile game HUD in landscape, bottom right corner: a large round red attack butt
 ```
 2D fantasy MMORPG HUD detail: top left player frame with a round portrait of a chibi warrior in a brass ring and a golden level badge "12", next to it a red health bar and a blue mana bar with dark frames, glossy highlight stripe, faint tick marks every 10 percent, centered white numbers, and a pale golden trailing segment that shows the damage just taken and shrinks after a short delay. When health is low, the health bar pulses with a red glow. Above monsters small rounded health bars with dark outline, gradient fill and the same golden damage trail.
 ```
+
+## Neue Lebensanzeige, Lebensraub, Schwertwirbel und Grafik (Version 2.2)
+
+### Lebens- und Manabalken
+```
+2D fantasy MMORPG HUD detail, top left: round portrait of a chibi warrior in a golden ring with a small golden level badge, next to it two slanted parallelogram bars with a polished brass frame: a glossy liquid red health bar with a red heart icon at its left end and a glossy blue mana bar with a blue drop icon. A soft white shine sweeps slowly across the liquid, white numbers with dark outline in the middle. When health is low the heart beats and the bar glows brighter. No golden damage trail, the bar simply shrinks. Dark lacquer style, crisp and readable on a phone.
+```
+
+### Lebensbalken über Monstern
+```
+2D game UI sprite sheet of small slanted health bars above monsters: dark parallelogram frame with a thin brass outline, red gradient fill with a glossy top stripe, a purple and a blue variant for soul stones, shown at full, half and almost empty. Clean, readable, plain dark background.
+```
+
+### Grüne Zahlen bei Lebensraub
+```
+2D game VFX frame, three-quarter top-down view: a chibi warrior hits a wolf with his sword, small green glowing particles fly from the wolf back to the warrior, above the warrior's head a bold green number "+64" with dark outline rises, next to white damage numbers above the wolf. Cute fantasy game style.
+```
+
+### Schwertwirbel mit sichtbarer Klinge
+```
+2D game VFX sequence, three-quarter top-down view: a chibi warrior spins on the spot while a huge glowing phantom copy of his own sword whirls around him in a flat ellipse, two full turns, with five fading afterimages of the blade behind it, a bright golden ring on the ground, sparks flying from the blade tip and dust kicked up. Variant for a ninja: two glowing daggers on opposite sides. Additive glow, cel-shaded sword sprite, plain dark background.
+```
+
+### Schwungspuren und Geisterklingen der Attacken
+```
+2D game VFX sprite sheet: crescent sword trails that are wide and bright at the leading edge and taper to a thin point at the tail, with a white hot core line and a soft outer glow, in fiery orange, gold, violet and white. Next to them a giant translucent phantom sword that sweeps once along each crescent with fading afterimages. Additive glow look, plain black background.
+```
+
+### Stimmungsvollere Grafik
+```
+2D fantasy MMORPG game screen, three-quarter top-down view of a meadow with cherry trees and a small village wall: soft blurred shadows under every character, tree and house, large soft cloud shadows drifting slowly over the grass, warm sunlight from the top left and gently darkened screen edges like a vignette, small floating pollen in the air. Cute hand-painted style, cozy and atmospheric.
+```

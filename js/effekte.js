@@ -192,6 +192,25 @@ function vfxImpact(target, crit, color = '#fff2d0') {
   });
 }
 
+// Waffe der Figur, vergrößert und in der Ebene des Bodens gedreht (Griff in der Mitte)
+function drawPhantomBlade(ctx, e, x, y, a) {
+  const sp = weaponSprite(e.kind, e.tier || 0);
+  const sc = e.len / 26;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, 0.55);
+  ctx.rotate(a);
+  ctx.scale(sc, sc);
+  ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  ctx.restore();
+}
+
+// Klinge der Figur für Wirbel- und Schwungangriffe
+function playerBlade(p) {
+  const w = p.equipment && p.equipment.waffe;
+  return { kind: CLASS_WEAPON[p.classId], tier: w ? w.tier : 0 };
+}
+
 // Beute fliegt in einem Bogen vom Seelenstein zur Figur
 function vfxLootFly(from, img) {
   const c = bodyCenter(from);
@@ -270,22 +289,80 @@ function drawEffect(ctx, e) {
   ctx.fillStyle = e.color;
   switch (e.type) {
     case 'swoosh': {
+      // Leuchtschweif: vorn breit und hell, nach hinten spitz auslaufend
       const head = e.a0 + (e.a1 - e.a0) * easeOut(Math.min(1, k * 2.2));
       const tail = e.a0 + (head - e.a0) * clamp01((k - 0.12) / 0.88);
       const ccw = e.a1 < e.a0;
+      const fade = 1 - k * 0.75;
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.65 * (1 - k * 0.7);
+      const n = 12;
+      for (let i = 0; i < n; i++) {
+        const t0 = i / n;
+        const t1 = (i + 1) / n;
+        const w = e.width * Math.pow(t1, 0.8);
+        ctx.globalAlpha = 0.75 * fade * (0.25 + 0.75 * t1);
+        ctx.beginPath();
+        ctx.arc(x, y, e.r, tail + (head - tail) * t0, tail + (head - tail) * t1, ccw);
+        ctx.arc(x, y, Math.max(1, e.r - w), tail + (head - tail) * t1, tail + (head - tail) * t0, !ccw);
+        ctx.closePath();
+        ctx.fill();
+      }
+      // äußerer Schimmer und weißer Kern an der Schneide
+      ctx.globalAlpha = 0.25 * fade;
+      ctx.lineWidth = 6;
       ctx.beginPath();
-      ctx.arc(x, y, e.r, tail, head, ccw);
-      ctx.arc(x, y, Math.max(1, e.r - e.width), head, tail, !ccw);
-      ctx.closePath();
-      ctx.fill();
+      ctx.arc(x, y, e.r + 2, tail + (head - tail) * 0.5, head, ccw);
+      ctx.stroke();
       ctx.globalAlpha = 0.95 * (1 - k);
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.6;
+      ctx.lineWidth = 2.4;
       ctx.beginPath();
-      ctx.arc(x, y, e.r, tail + (head - tail) * 0.35, head, ccw);
+      ctx.arc(x, y, e.r, tail + (head - tail) * 0.45, head, ccw);
       ctx.stroke();
+      break;
+    }
+    case 'bladespin': {
+      // Die Waffe selbst wirbelt als leuchtende Riesenklinge um die Figur, mit Nachbildern
+      const turn = e.a0 + e.turns * Math.PI * 2 * easeOut(k) * (e.dir || 1);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = e.color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 0.35 * (1 - k);
+      ctx.beginPath();
+      ctx.ellipse(x, y, e.len, e.len * 0.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let b = 0; b < (e.count || 1); b++) {
+        const base = turn + (b * Math.PI * 2) / (e.count || 1);
+        for (let j = 5; j >= 0; j--) {
+          const a = base - j * 0.32 * (e.dir || 1);
+          ctx.globalCompositeOperation = j ? 'lighter' : 'source-over';
+          ctx.globalAlpha = (j ? 0.45 * (1 - j / 6) : 1) * Math.min(1, (1 - k) * 2.5);
+          drawPhantomBlade(ctx, e, x, y, a);
+          if (!j) {
+            // heller Schein entlang der Klinge
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha = 0.5 * (1 - k);
+            for (const f of [0.45, 0.75, 1]) glow(ctx, x + Math.cos(a) * e.len * f, y + Math.sin(a) * e.len * f * 0.55, 12, e.color, 0.6);
+          }
+        }
+        // Funken an der Spitze
+        if (Math.random() < 0.5) {
+          const tip = { x: x + Math.cos(base) * e.len, y: y + Math.sin(base) * e.len * 0.5 };
+          particles(tip.x, tip.y, { count: 1, color: [e.color, '#ffffff'], speed: [40, 120], life: [0.15, 0.3], size: [1.2, 2], shape: 'spark', drag: 5 });
+        }
+      }
+      break;
+    }
+    case 'bladearc': {
+      // Riesige Geisterklinge, die den Schlag einmal sichtbar mitführt
+      const head = e.a0 + (e.a1 - e.a0) * easeOut(Math.min(1, k * 2.2));
+      for (let j = 4; j >= 0; j--) {
+        const a = head - (e.a1 - e.a0) * j * 0.07;
+        ctx.globalCompositeOperation = j ? 'lighter' : 'source-over';
+        ctx.globalAlpha = (j ? 0.35 * (1 - j / 5) : 0.95) * Math.min(1, (1 - k) * 2);
+        drawPhantomBlade(ctx, e, x, y, a);
+      }
       break;
     }
     case 'slash': {

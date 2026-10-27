@@ -102,8 +102,18 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
-  // Lebensraub heilt um einen Teil des Schadens
-  if (!opts.ally && !opts.dot && s.hpSteal > 0 && !p.dead) p.hp = Math.min(s.maxHp, p.hp + amount * s.hpSteal);
+  // Lebensraub heilt um einen Teil des Schadens; die Heilung erscheint als grüne Zahl
+  if (!opts.ally && !opts.dot && s.hpSteal > 0 && !p.dead) {
+    const gain = Math.min(s.maxHp - p.hp, amount * s.hpSteal);
+    if (gain > 0) {
+      p.hp += gain;
+      p.stealSum = (p.stealSum || 0) + gain;
+      later(0.08, showLifeSteal);
+      later(0.3, showLifeSteal);
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 3, color: ['#8ff08f', '#c6ffb0'], angle: Math.atan2(p.y - m.y, p.x - m.x), spread: 0.4, speed: [dist(m, p) * 1.5, dist(m, p) * 2.2], life: [0.35, 0.5], size: [2, 3], drag: 1 });
+    }
+  }
   if (!opts.dot) {
     vfxImpact(m, isCrit, opts.ally ? '#cfd8b0' : opts.vfxColor);
     if (opts.skill) skillHitFx(opts.skill, m, isCrit, opts.heavy);
@@ -117,9 +127,17 @@ function hitMonster(m, mul, opts = {}) {
   return amount;
 }
 
+// Mehrere kleine Heilungen kurz hintereinander werden zu einer Zahl zusammengefasst
+function showLifeSteal() {
+  const p = game.player;
+  if (!p || !(p.stealSum >= 1) || game.time - (p.stealShown || 0) < 0.2) return;
+  addText(p.x + rand(-6, 6), feetY(p) - 58, '+' + Math.round(p.stealSum), 'heal');
+  p.stealSum = 0;
+  p.stealShown = game.time;
+}
+
 function damageMonster(m, amount, crit, source, isDot) {
   m.hp -= amount;
-  m.lastHit = game.time;
   m.hitFlash = 0.12;
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
   m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
@@ -373,6 +391,9 @@ const SKILL_TYPES = {
           const from = h % 2 ? ang + spread / 2 : ang - spread / 2;
           const to = h % 2 ? ang - spread / 2 : ang + spread / 2;
           vfxSweep(p, sk.radius * 0.85, from, to, h === hits - 1 ? '#ffe9a0' : skillColor(sk, c.trim), 0.3, 30);
+          if (CLASS_WEAPON[p.classId] === 'sword' || CLASS_WEAPON[p.classId] === 'dagger') {
+            addEffect({ type: 'bladearc', follow: p, ox: 0, oy: -14, len: sk.radius * 0.8, a0: from, a1: to, dur: 0.28, ...playerBlade(p) });
+          }
           p.combo = h % 3;
           startSwing(p, 'combo', 0.13);
         }
@@ -393,9 +414,14 @@ const SKILL_TYPES = {
     const c = CLASSES[p.classId];
     const a = Math.random() * Math.PI * 2;
     vfxSweep(p, sk.radius * 0.85, a, a + Math.PI * 4, skillColor(sk, c.trim), 0.45, 34);
+    const fx = SKILL_FX[sk.id] || {};
+    if (fx.bladeSpin) {
+      addEffect({ type: 'bladespin', follow: p, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: fx.bladeSpin.turns, count: fx.bladeSpin.count, dir: 1, dur: 0.6, color: skillColor(sk, c.trim), ...playerBlade(p) });
+      p.spin = 0.6;
+    }
     addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
     particles(p.x, feetY(p), { count: 26, color: ['#a88f62', '#c9b28a'], speed: [80, 200], life: [0.3, 0.6], size: [2, 4], drag: 4, glow: false });
-    p.spin = 0.45;
+    p.spin = Math.max(p.spin, 0.45);
     shakeScreen(3.5);
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
       hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true });

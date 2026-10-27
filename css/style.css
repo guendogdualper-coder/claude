@@ -767,7 +767,7 @@ kbd {
 #hud.touch .menu-btn .menu-icon { display: block; width: 18px; height: 18px; }
 
 #hud.touch .log {
-  top: calc(var(--edge-t) + 54px);
+  top: calc(var(--edge-t) + 66px);
   bottom: auto;
   width: min(240px, 30vw);
   font-size: 11px;
@@ -1212,52 +1212,63 @@ kbd {
   border: 1px solid #120c08;
 }
 
-/* Balken: Rahmen, Glanz, Zehntel-Striche und ein verzögerter heller Rest */
+/* Balken: schräger Metallrahmen, flüssige Füllung mit wanderndem Glanz, Herz und Tropfen davor */
+.bar-row { display: flex; align-items: center; gap: 0; }
+.bar-ico { flex: none; width: 20px; height: 20px; margin-right: -7px; position: relative; z-index: 2; stroke: #120c08; stroke-width: 1.6; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8)); }
+.ico-hp { fill: #e8402f; }
+.ico-mp { fill: #4a8ae8; }
 .bar {
-  border: 1px solid #0c0907;
-  box-shadow: 0 0 0 1px rgba(201, 163, 90, 0.35), inset 0 2px 4px rgba(0, 0, 0, 0.7);
-  background: linear-gradient(#1a1410, #2a201a);
+  flex: 1;
+  height: 16px;
+  padding: 2px 3px;
+  border: 0;
+  border-radius: 0;
+  background: linear-gradient(#e8d2a0, #8a6a34 45%, #3a2a14 55%, #b8944a);
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  box-shadow: none;
+  overflow: visible;
 }
-.bar i { transition: transform 0.12s ease-out; }
+.bar::before {
+  content: "";
+  position: absolute;
+  inset: 2px 3px;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  background: linear-gradient(#0c0907, #2a1c16);
+}
+.bar i {
+  inset: 2px 3px;
+  width: auto;
+  clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  transition: transform 0.18s ease-out;
+  overflow: hidden;
+}
 .bar i::after {
   content: "";
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 1px;
-  height: 35%;
-  border-radius: 2px;
-  background: linear-gradient(rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
-}
-.bar .trail {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 100%;
-  transform-origin: left;
-  background: linear-gradient(#fff2c0, #e8b84a);
-  transition: transform 0.7s ease-in 0.35s;
-}
-.bar .ticks {
-  position: absolute;
   inset: 0;
-  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(0, 0, 0, 0.35) calc(10% - 1px) 10%);
-  pointer-events: none;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.25)),
+    linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.45) 48%, transparent 60%) 0 0 / 300% 100% no-repeat;
+  animation: bar-sheen 3.2s linear infinite;
 }
-.bar span { z-index: 1; }
-.bar-hp i, .bar-target i { background: linear-gradient(#ff7a5a, #d4402f 45%, #8a1e14); }
-.bar-mp i { background: linear-gradient(#7ab0ff, #3a6ad8 45%, #1e3a8a); }
-.hud-char.low .bar-hp { animation: low-hp 0.9s ease-in-out infinite; }
-@keyframes low-hp {
-  50% { box-shadow: 0 0 0 1px #ff5a4a, 0 0 12px rgba(255, 70, 50, 0.85), inset 0 2px 4px rgba(0, 0, 0, 0.7); }
-}
+@keyframes bar-sheen { from { background-position: 0 0, 150% 0; } to { background-position: 0 0, -150% 0; } }
+.bar span { z-index: 1; line-height: 12px; font-size: 10.5px; letter-spacing: 0.02em; text-shadow: 0 0 2px #000, 0 1px 2px #000, 0 0 4px #000; }
+.bar-hp i, .bar-target i { background: linear-gradient(90deg, #8a1410, #e0302a 55%, #ff6a4a); }
+.bar-mp i { background: linear-gradient(90deg, #142a8a, #2a6ae0 55%, #6ab0ff); }
+.hud-char.low .ico-hp { animation: heartbeat 0.8s ease-in-out infinite; }
+.hud-char.low .bar-hp i { animation: low-hp 0.8s ease-in-out infinite; }
+@keyframes heartbeat { 20% { transform: scale(1.3); } 40% { transform: scale(1); } 60% { transform: scale(1.18); } }
+@keyframes low-hp { 50% { filter: brightness(1.6) saturate(1.3); } }
 .hud-char.low .portrait canvas { border-color: #ff5a4a; }
+.portrait canvas { border-color: #d8b46a; box-shadow: 0 0 0 1px #120c08, 0 0 0 3px rgba(216, 180, 106, 0.35), inset 0 0 8px rgba(0, 0, 0, 0.6); }
 
 #hud.touch .hud-char { width: 200px; gap: 6px; padding: 4px 6px 5px 5px; }
 #hud.touch .portrait { width: 38px; height: 38px; }
 #hud.touch .portrait .lvl { min-width: 17px; height: 17px; font-size: 10px; right: -4px; bottom: -3px; }
 #hud.touch .char-main { gap: 3px; }
-#hud.touch .bar { height: 12px; }
-#hud.touch .bar span { font-size: 9px; line-height: 10px; }
+#hud.touch .bar { height: 14px; }
+#hud.touch .bar span { font-size: 9.5px; line-height: 10px; }
+#hud.touch .bar-ico { width: 17px; height: 17px; margin-right: -6px; }
 
 /* Beute unten rechts, neben dem Fertigkeitsbogen */
 .loot-feed {
@@ -1421,3 +1432,13 @@ kbd {
 #hud.touch #btnLoot { left: 32px; top: 56px; }
 #hud.touch .loot-btn .key { display: none; }
 #hud.touch .loot-btn svg { width: 22px; height: 22px; }
+
+/* Sonnenlicht von oben links und dunklere Bildränder, als Ebene über der Spielwelt */
+.light-fx {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.38) 100%),
+    linear-gradient(135deg, rgba(255, 236, 190, 0.13), rgba(255, 236, 190, 0) 45%, rgba(20, 10, 40, 0.1));
+}

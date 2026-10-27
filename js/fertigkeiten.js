@@ -459,6 +459,7 @@ const SKILL_FX = {
   },
   schwertwirbel: {
     color: '#ffb05a',
+    bladeSpin: { turns: 2, count: 1 },
     cast(p, sk) {
       addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.75, dur: 0.6, color: '#ffc87a' });
       addEffect({ type: 'decal', kind: 'ring', x: p.x, y: feetY(p), r: sk.radius * 0.85, dur: 1.4, color: '#5a3a1a' });
@@ -686,6 +687,7 @@ Object.assign(SKILL_FX, {
   },
   wirbelklinge: {
     color: '#c9b8ff',
+    bladeSpin: { turns: 2.5, count: 2 },
     cast(p, sk) {
       addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.7, dur: 0.5, color: '#c9b8ff' });
     },

@@ -66,6 +66,7 @@ function render() {
   const view = { x0: r.camX - 80, y0: r.camY - 80, x1: r.camX + r.w / r.zoom + 80, y1: r.camY + r.h / r.zoom + 80 };
   const inView = (e) => e.x > view.x0 && e.x < view.x1 && e.y > view.y0 && e.y < view.y1;
 
+  drawCloudShadows(ctx, view);
   if (game.target && !game.target.dead) drawTargetRing(ctx, game.target);
 
   const list = [];
@@ -124,10 +125,59 @@ function ellipse(ctx, x, y, rx, ry) {
 // --- Figuren ------------------------------------------------------------------
 // Die Zeichnungen selbst stehen in figuren.js, hier werden sie platziert.
 
-function drawShadow(ctx, x, y, rx) {
-  ctx.fillStyle = 'rgba(0,0,0,0.28)';
-  ellipse(ctx, x, y, rx, rx * 0.4);
+// Weicher Schatten mit verlaufendem Rand (einmal vorgezeichnet, dann nur skaliert)
+let softShadowImg = null;
+
+function softShadow(ctx, x, y, rx, ry, alpha = 0.34) {
+  if (!softShadowImg) {
+    softShadowImg = newCanvas(64, 64);
+    const c = softShadowImg.getContext('2d');
+    const g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.55, 'rgba(0,0,0,0.75)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, 64, 64);
+  }
+  const a = ctx.globalAlpha;
+  ctx.globalAlpha = a * alpha;
+  ctx.drawImage(softShadowImg, x - rx * 1.25, y - ry * 1.25, rx * 2.5, ry * 2.5);
+  ctx.globalAlpha = a;
 }
+
+function drawShadow(ctx, x, y, rx) {
+  softShadow(ctx, x, y, rx, rx * 0.42, 0.4);
+}
+
+// Wolkenschatten ziehen langsam über das Land
+const CLOUDS = [[0, 0, 1], [640, 380, 0.85], [1040, -180, 1.15]];
+let cloudImg = null;
+
+function drawCloudShadows(ctx, view) {
+  if (!cloudImg) {
+    cloudImg = newCanvas(256, 160);
+    const c = cloudImg.getContext('2d');
+    for (const [x, y, r] of [[90, 80, 60], [150, 70, 55], [120, 100, 50], [190, 95, 40], [60, 95, 38]]) {
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, 'rgba(10,20,30,0.55)');
+      g.addColorStop(1, 'rgba(10,20,30,0)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, 256, 160);
+    }
+  }
+  const span = 1400;
+  const t = game.time * 14;
+  ctx.save();
+  ctx.globalAlpha = 0.5;
+  for (const [cx, cy, s] of CLOUDS) {
+    // Wolken wandern schräg und tauchen am anderen Rand des Ausschnitts wieder auf
+    const x = view.x0 + ((((cx + t) - view.x0) % span) + span) % span - 300;
+    const y = view.y0 + ((((cy + t * 0.45) - view.y0) % span) + span) % span - 300;
+    ctx.drawImage(cloudImg, x, y, 512 * s, 320 * s);
+  }
+  ctx.restore();
+}
+
 
 function glow(ctx, x, y, r, hex, alpha) {
   const n = parseInt(hex.slice(1), 16);
@@ -545,8 +595,7 @@ function drawStone(ctx, s) {
   const pulse = 0.5 + 0.5 * Math.sin(game.time * 2 + s.phase);
   ctx.save();
   ctx.translate(s.x, s.y);
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ellipse(ctx, 0, 10, 26 * k, 9 * k);
+  softShadow(ctx, 0, 10, 26 * k, 9 * k, 0.45);
   glow(ctx, 0, -sh.h * k * 0.4, 40 * k, look.glow, 0.18 + pulse * 0.14);
   const sp = stoneSprite(type);
   ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
@@ -624,47 +673,42 @@ function levelColor(level) {
   return '#ff6b5b';
 }
 
-// Lebensbalken über Figuren: dunkler Rahmen, Verlauf mit Glanz, heller Rest für eben verlorenes Leben
-function drawBar(ctx, x, y, w, frac, color, trail = frac) {
-  const h = 5;
-  const x0 = x - w / 2;
-  ctx.fillStyle = 'rgba(12,9,7,0.85)';
-  roundRect(ctx, x0 - 1.5, y - 1.5, w + 3, h + 3, 3);
-  ctx.fill();
-  if (trail > frac) {
-    ctx.fillStyle = '#ffe9a0';
-    ctx.fillRect(x0, y, w * Math.min(1, trail), h);
-  }
-  const f = Math.max(0, frac);
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, lighter(color, 0.35));
-  g.addColorStop(0.5, color);
-  g.addColorStop(1, darker(color, 0.35));
-  ctx.fillStyle = g;
-  ctx.fillRect(x0, y, w * f, h);
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.fillRect(x0, y + 0.5, w * f, 1.2);
-  // Viertel-Striche
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  for (let k = 1; k < 4; k++) ctx.fillRect(x0 + (w * k) / 4, y, 0.8, h);
-}
-
-function roundRect(ctx, x, y, w, h, r) {
+// Lebensbalken über Figuren: schräger Rahmen in Messing, Verlauf und Glanzstreifen
+function slantPath(ctx, x, y, w, h, k) {
   ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
+  ctx.moveTo(x + k, y);
+  ctx.lineTo(x + w, y);
+  ctx.lineTo(x + w - k, y + h);
+  ctx.lineTo(x, y + h);
   ctx.closePath();
 }
 
-// Der helle Rest folgt dem Leben nach einer kurzen Pause
-function barTrail(e) {
-  const frac = Math.max(0, e.hp / e.maxHp);
-  if (e.hpTrail == null || frac > e.hpTrail) e.hpTrail = frac;
-  if (frac < e.hpTrail && game.time - (e.lastHit || 0) > 0.35) e.hpTrail = Math.max(frac, e.hpTrail - 0.012);
-  return e.hpTrail;
+function drawBar(ctx, x, y, w, frac, color) {
+  const h = 6;
+  const x0 = x - w / 2;
+  ctx.fillStyle = '#120c08';
+  slantPath(ctx, x0 - 2.5, y - 2, w + 5, h + 4, 4);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(216,180,106,0.85)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  const f = Math.max(0, Math.min(1, frac));
+  if (f > 0) {
+    const g = ctx.createLinearGradient(x0, 0, x0 + w, 0);
+    g.addColorStop(0, darker(color, 0.45));
+    g.addColorStop(0.6, color);
+    g.addColorStop(1, lighter(color, 0.3));
+    ctx.save();
+    slantPath(ctx, x0, y, w, h, 3);
+    ctx.clip();
+    ctx.fillStyle = g;
+    ctx.fillRect(x0, y, w * f, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(x0, y, w * f, 2);
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillRect(x0, y + h - 1.5, w * f, 1.5);
+    ctx.restore();
+  }
 }
 
 function drawLabel(ctx, e) {
@@ -683,7 +727,7 @@ function drawLabel(ctx, e) {
     return;
   }
   if (e.until) {
-    drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0', barTrail(e));
+    drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0');
     return;
   }
   if (!e.type && !e.isStone) {
@@ -706,7 +750,7 @@ function drawLabel(ctx, e) {
     ctx.fillText(label, e.x, top);
   }
   if (e.hp < e.maxHp || targeted || e.isStone) {
-    drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#d4402f', barTrail(e));
+    drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
   }
 }
 
