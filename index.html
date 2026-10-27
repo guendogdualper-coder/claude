@@ -2,70 +2,166 @@
 <html lang="de">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Pixelschlange</title>
-  <meta name="description" content="Snake im Stil alter Handy-Displays – spielbar mit Tastatur, Wischen oder Steuerkreuz.">
-  <meta name="theme-color" content="#1a2026">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Seelenstein</title>
+  <meta name="description" content="Ein Rollenspiel im Browser: Klasse wählen, Monster farmen, Seelensteine zerstören, aufsteigen.">
+  <meta name="theme-color" content="#14110d">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600&family=Silkscreen:wght@400;700&display=swap">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700&family=Marcellus+SC&display=swap">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 <!-- app:start -->
-<main class="device">
-  <header class="brand">
-    <h1>Pixelschlange</h1>
-    <span class="tag">Taschenspiel</span>
-  </header>
+<canvas id="welt" aria-label="Spielwelt"></canvas>
 
-  <section class="lcd" aria-label="Spielfeld">
-    <div class="hud">
-      <span>Punkte <b id="score">0000</b></span>
-      <span>Rekord <b id="best">0000</b></span>
+<div id="hud" hidden>
+  <section class="hud-char frame" aria-label="Deine Figur">
+    <div class="char-line">
+      <span id="hudLevel" class="lvl">Lv 1</span>
+      <span id="hudName" class="char-name"></span>
+      <span id="hudClass" class="char-class"></span>
     </div>
-    <div class="board">
-      <canvas id="board" width="360" height="360" aria-label="Schlange auf einem 18 mal 18 Felder großen Raster"></canvas>
-      <div class="overlay" id="overlay">
-        <h2 id="overlayTitle">Pixelschlange</h2>
-        <p id="overlayText">Friss Futter, werde länger und beiß dich nicht selbst.</p>
-        <button class="lcd-btn" id="overlayBtn" type="button">Spiel starten</button>
-      </div>
-    </div>
-    <div class="hud">
-      <span id="level">Stufe 1</span>
-      <span id="modeLabel">Mit Wänden</span>
+    <div class="bar bar-hp"><i id="hpFill"></i><span id="hpText"></span></div>
+    <div class="bar bar-mp"><i id="mpFill"></i><span id="mpText"></span></div>
+    <div id="buffList" class="buffs"></div>
+  </section>
+
+  <section id="targetFrame" class="hud-target frame" hidden aria-label="Ziel">
+    <div id="targetName" class="target-name"></div>
+    <div class="bar bar-target"><i id="targetFill"></i><span id="targetText"></span></div>
+  </section>
+
+  <section class="hud-map frame" aria-label="Karte">
+    <canvas id="minimap" width="120" height="120"></canvas>
+    <div id="zoneName" class="zone-name"></div>
+    <div id="zoneLevels" class="zone-levels"></div>
+    <div class="purse">
+      <span>Gold <b id="goldText">0</b></span>
+      <span>Splitter <b id="splinterText">0</b></span>
     </div>
   </section>
 
-  <div class="controls">
-    <div class="side">
-      <span class="label">Spielfeld</span>
-      <div class="modes">
-        <button class="pill" id="modeWalls" type="button" data-mode="walls" aria-pressed="true">Mit Wänden</button>
-        <button class="pill" id="modeWrap" type="button" data-mode="wrap" aria-pressed="false">Ohne Wände</button>
-      </div>
-      <button class="pill" id="soundBtn" type="button" aria-pressed="true">Ton: an</button>
-    </div>
+  <div id="log" class="log" aria-live="polite"></div>
 
-    <div class="pad" aria-label="Steuerkreuz">
-      <button class="key" id="keyUp" type="button" data-dir="up" aria-label="Hoch"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 2 9 8H1z"/></svg></button>
-      <button class="key" id="keyLeft" type="button" data-dir="left" aria-label="Links"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5 8 1v8z"/></svg></button>
-      <button class="key ok" id="okBtn" type="button" aria-label="Start oder Pause">OK</button>
-      <button class="key" id="keyRight" type="button" data-dir="right" aria-label="Rechts"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M8 5 2 9V1z"/></svg></button>
-      <button class="key" id="keyDown" type="button" data-dir="down" aria-label="Runter"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 8 1 2h8z"/></svg></button>
+  <section class="hud-bottom">
+    <div class="action-row">
+      <button class="slot potion potion-hp" id="potHp" type="button" title="Roter Trank (Q)">
+        <span class="key">Q</span><span class="flask"></span><span class="count" id="potHpCount">0</span>
+      </button>
+      <div id="skillBar" class="skillbar"></div>
+      <button class="slot potion potion-mp" id="potMp" type="button" title="Blauer Trank (E)">
+        <span class="key">E</span><span class="flask"></span><span class="count" id="potMpCount">0</span>
+      </button>
     </div>
+    <div class="xp" title="Erfahrung">
+      <i id="xpFill"></i>
+      <span id="xpText"></span>
+    </div>
+  </section>
+
+  <nav class="menu">
+    <button id="btnChar" class="menu-btn" type="button">Charakter <kbd>C</kbd></button>
+    <button id="btnHelp" class="menu-btn" type="button">Hilfe <kbd>H</kbd></button>
+  </nav>
+
+  <div id="touchControls" class="touch" hidden>
+    <div id="stick" class="stick"><div id="stickKnob" class="stick-knob"></div></div>
+    <button id="btnTalk" class="touch-talk" type="button" hidden>Sprechen</button>
+    <button id="btnAttack" class="touch-attack" type="button" aria-label="Angreifen">Angriff</button>
   </div>
+</div>
 
-  <p class="hint">
-    <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> oder <kbd>WASD</kbd> steuern,
-    <kbd>Leertaste</kbd> startet und pausiert. Auf dem Handy übers Feld wischen oder das Steuerkreuz nutzen.
-  </p>
-</main>
+<div id="startScreen" class="screen">
+  <div class="start-card frame">
+    <header class="start-head">
+      <h1>Seelenstein</h1>
+      <p>Monster farmen, Seelensteine brechen, Stufe um Stufe stärker werden.</p>
+    </header>
+
+    <div id="continueBox" class="continue" hidden>
+      <button id="btnContinue" class="btn btn-primary" type="button"></button>
+      <button id="btnNewChar" class="btn btn-ghost" type="button">Neuen Charakter erstellen</button>
+      <div id="confirmNew" class="confirm" hidden>
+        <p>Dein bisheriger Charakter wird dabei gelöscht.</p>
+        <div class="confirm-row">
+          <button id="btnConfirmNew" class="btn btn-danger" type="button">Löschen und neu anfangen</button>
+          <button id="btnCancelNew" class="btn btn-ghost" type="button">Abbrechen</button>
+        </div>
+      </div>
+    </div>
+
+    <form id="createForm" class="create" hidden>
+      <label class="field" for="charName">
+        <span>Name deiner Figur</span>
+        <input id="charName" name="charName" type="text" maxlength="14" autocomplete="off" spellcheck="false" placeholder="z. B. Kaito" required>
+      </label>
+      <fieldset class="classes">
+        <legend>Klasse</legend>
+        <div id="classGrid" class="class-grid"></div>
+      </fieldset>
+      <div id="classDetail" class="class-detail"></div>
+      <p id="createError" class="form-error" hidden></p>
+      <button class="btn btn-primary" type="submit">Abenteuer beginnen</button>
+    </form>
+  </div>
+</div>
+
+<div id="panelChar" class="panel frame" hidden role="dialog" aria-labelledby="charTitle">
+  <header class="panel-head"><h2 id="charTitle">Charakter</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="charBody" class="panel-body"></div>
+</div>
+
+<div id="panelHelp" class="panel frame" hidden role="dialog" aria-labelledby="helpTitle">
+  <header class="panel-head"><h2 id="helpTitle">Hilfe</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div class="panel-body help">
+    <h3>Steuerung</h3>
+    <dl class="keys">
+      <dt><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> / Pfeile</dt><dd>Laufen</dd>
+      <dt><kbd>Leertaste</kbd> halten</dt><dd>Angreifen. Ist kein Monster in Reichweite, läufst du zum nächsten.</dd>
+      <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Fertigkeiten</dd>
+      <dt><kbd>Q</kbd> / <kbd>E</kbd></dt><dd>Roter Trank (Leben) / Blauer Trank (Mana)</dd>
+      <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
+      <dt><kbd>F</kbd></dt><dd>Mit Händlerin oder Schmied sprechen</dd>
+      <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
+    </dl>
+    <p>Am Handy: links mit dem Steuerknüppel laufen, rechts den Angriffsknopf gedrückt halten, Fertigkeiten und Tränke antippen.</p>
+    <h3>So kommst du voran</h3>
+    <ul>
+      <li>Jedes besiegte Monster gibt Erfahrung und Gold. Monster, die viel schwächer sind als du, geben kaum noch Erfahrung. Zieh dann in die nächste Zone weiter.</li>
+      <li>Pro Stufe bekommst du einen Fertigkeitspunkt. Verteile ihn im Charakterfenster oder mit dem kleinen Plus an der Fertigkeitsleiste.</li>
+      <li>Seelensteine (lila auf der Karte) rufen beim Angreifen Monster herbei und belohnen dich mit viel Erfahrung, Gold, Tränken und Seelensplittern.</li>
+      <li>Im Dorf bist du sicher. Monster folgen dir nicht hinein.</li>
+    </ul>
+    <h3>Zonen</h3>
+    <ul id="zoneList" class="zone-list"></ul>
+  </div>
+</div>
+
+<div id="panelNpc" class="panel frame" hidden role="dialog" aria-labelledby="npcTitle">
+  <header class="panel-head"><h2 id="npcTitle"></h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="npcBody" class="panel-body"></div>
+</div>
+
+<div id="panelDeath" class="panel frame panel-death" hidden role="dialog" aria-labelledby="deathTitle">
+  <h2 id="deathTitle">Du wurdest besiegt</h2>
+  <p id="deathText"></p>
+  <button id="btnRevive" class="btn btn-primary" type="button">Im Dorf wiederbeleben</button>
+</div>
+
+<div id="banner" class="banner" hidden></div>
 <!-- app:end -->
-<script src="game.js"></script>
+
+<script src="js/daten/klassen.js"></script>
+<script src="js/daten/monster.js"></script>
+<script src="js/daten/zonen.js"></script>
+<script src="js/welt.js"></script>
+<script src="js/spieler.js"></script>
+<script src="js/kampf.js"></script>
+<script src="js/gegner.js"></script>
+<script src="js/zeichnen.js"></script>
+<script src="js/oberflaeche.js"></script>
+<script src="js/eingabe.js"></script>
+<script src="js/spiel.js"></script>
 </body>
 </html>

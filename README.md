@@ -1,28 +1,60 @@
-# Pixelschlange
+# Seelenstein
 
-Snake im Stil alter Handy-Displays, als Web-App für Handy und PC. Keine Abhängigkeiten, kein Build-Schritt.
+Ein Rollenspiel im Browser nach dem Vorbild klassischer Grind-MMORPGs: Klasse wählen, Monster farmen, Seelensteine zerstören, Stufe um Stufe stärker werden.
 
-## Spielen
-
-- **Tastatur:** Pfeiltasten oder WASD steuern, Leertaste oder Enter startet und pausiert, Esc pausiert.
-- **Handy:** Übers Spielfeld wischen oder das Steuerkreuz benutzen, die OK-Taste startet und pausiert.
-- Jedes Futter macht die Schlange länger und schneller. Jedes fünfte Futter lockt einen Käfer, der Extrapunkte bringt, solange der Balken am unteren Rand läuft.
-- **Mit Wänden:** Der Rand ist tödlich. **Ohne Wände:** Die Schlange kommt auf der anderen Seite wieder heraus.
-- Der Rekord wird pro Spielfeld-Variante im Browser gespeichert.
-
-## Lokal starten
+## Starten
 
 ```sh
 python3 -m http.server 8000
 ```
 
-Dann <http://localhost:8000> öffnen. Über HTTP(S) ausgeliefert lässt sich das Spiel im Browser als App installieren („Zum Startbildschirm hinzufügen“) und läuft danach auch offline.
+Dann <http://localhost:8000> öffnen. Es gibt keine Abhängigkeiten und keinen Build-Schritt. Der Spielstand wird im Browser gespeichert.
 
-## Dateien
+## Was schon drin ist (Etappe 1 und 2)
+
+- **4 Klassen** mit je 5 Fertigkeiten: Krieger, Ninja, Schamane, Nekromant
+- **Welt** mit Dorf (Friedenszone) und vier Jagdzonen von Stufe 1 bis 27+
+- **10 Monsterarten**: passive und aggressive, Nah- und Fernkämpfer, Gruppen helfen sich gegenseitig
+- **Seelensteine**: rufen beim Angreifen Monsterwellen herbei und geben viel Erfahrung, Gold, Tränke und Seelensplitter
+- **Fortschritt**: Erfahrung, Stufen bis 99, Fertigkeitspunkte (Fertigkeiten bis Stufe 20), Erfahrungsverlust beim Tod
+- **Händlerin** im Dorf für Rote und Blaue Tränke
+- Steuerung per Tastatur oder Touch (Steuerknüppel und Knöpfe)
+
+## Steuerung
+
+| Taste | Aktion |
+| --- | --- |
+| WASD / Pfeile | Laufen |
+| Leertaste halten | Angreifen, läuft automatisch zum nächsten Monster |
+| 1–5 | Fertigkeiten |
+| Q / E | Roter / Blauer Trank |
+| Tab, Mausklick | Ziel wählen |
+| F | Mit Händlerin oder Schmied sprechen |
+| C / H / Esc | Charakter, Hilfe, Fenster schließen |
+
+## Aufbau des Codes
+
+Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 
 | Datei | Inhalt |
 | --- | --- |
-| `index.html` | Seitenaufbau |
-| `style.css` | Gestaltung |
-| `game.js` | Spiellogik, Zeichnen, Steuerung |
-| `manifest.webmanifest`, `sw.js`, `icon.svg` | Installation als App und Offline-Betrieb |
+| `js/daten/klassen.js` | Klassen, Grundwerte, alle 20 Fertigkeiten |
+| `js/daten/monster.js` | Monsterarten und Seelensteine |
+| `js/daten/zonen.js` | Zonen mit Stufenbereichen und Monstergruppen, Waren der Händlerin |
+| `js/welt.js` | Karte erzeugen, Kollision, Zonen abfragen |
+| `js/spieler.js` | Figur, Werte, Erfahrung, Tränke, Speichern |
+| `js/kampf.js` | Schadensformel, Angriffe, alle Fertigkeitsarten, Geschosse, Effekte |
+| `js/gegner.js` | Monster-KI, Respawn, Seelenstein-Wellen, Skelette |
+| `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
+| `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |
+| `js/eingabe.js` | Tastatur, Maus, Touch |
+| `js/spiel.js` | Spielzustand und Hauptschleife |
+
+Neue Monster, Zonen oder Fertigkeiten lassen sich meist allein in den Dateien unter `js/daten/` ergänzen.
+
+## Nächste Etappen
+
+3. Ausrüstung: Waffen und Rüstungen als Beute, Inventar, Schmied verbessert Gegenstände (+0 bis +9) mit Seelensplittern und Fehlschlagrisiko
+4. Quests und Bossmonster
+5. Mehrspieler: Server mit Node.js und WebSockets, andere Spieler sehen, Chat, Gruppen
+6. Accounts und Speichern auf dem Server

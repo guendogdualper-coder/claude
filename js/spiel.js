@@ -1,0 +1,133 @@
+// Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
+
+const game = {
+  world: null,
+  player: null,
+  stats: null,
+  monsters: [],
+  allies: [],
+  projectiles: [],
+  effects: [],
+  texts: [],
+  timers: [],
+  time: 0,
+  running: false,
+  target: null,
+  nearNpc: null,
+  zoneId: null,
+  saveTimer: 0
+};
+
+function startGame(save) {
+  game.player = makePlayer(save);
+  game.stats = playerStats(game.player);
+  game.allies = [];
+  game.projectiles = [];
+  game.target = null;
+  game.running = true;
+  game.zoneId = null;
+  ui.closePanels();
+  ui.enterGame();
+  const c = CLASSES[game.player.classId];
+  ui.log(`Willkommen, ${game.player.name}! Drücke H für die Steuerung.`, 'info');
+  if (game.player.level === 1 && game.player.xp === 0) {
+    ui.log(`Als ${c.name} nutzt du Taste 1 für ${c.skills[0].name}. Jage zuerst Wilde Hunde vor dem Dorf.`, 'info');
+  }
+}
+
+function updatePlayer(dt) {
+  const p = game.player;
+  if (p.dead) return;
+  p.playTime += dt;
+  p.attackCd = Math.max(0, p.attackCd - dt);
+  p.potionCd = Math.max(0, p.potionCd - dt);
+  p.swing = Math.max(0, p.swing - dt);
+  for (let i = 0; i < 5; i++) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt);
+
+  // abgelaufene Buffs entfernen
+  const before = p.buffs.length;
+  p.buffs = p.buffs.filter((b) => b.until > game.time);
+  if (p.buffs.length < before) game.stats = playerStats(p);
+  if (p.shield > 0 && game.time > p.shieldUntil) p.shield = 0;
+
+  const s = game.stats;
+  p.moving = false;
+  if (p.dash) {
+    updateDash(dt);
+  } else {
+    const mv = moveVector();
+    if (mv.x || mv.y) {
+      p.moving = moveEntity(p, mv.x * s.speed * dt, mv.y * s.speed * dt, false);
+      const len = Math.hypot(mv.x, mv.y);
+      p.facing = { x: mv.x / len, y: mv.y / len };
+    } else if (input.attack) {
+      // Angriff gedrückt, aber nichts in Reichweite: zum Ziel laufen
+      const c = CLASSES[p.classId];
+      const t = (game.target && !game.target.dead && dist(game.target, p) < 420) ? game.target : nearestEnemy(p, 260);
+      if (t && (dist(t, p) - t.r > c.basic.range || inVillage(p.x, p.y))) {
+        game.target = t;
+        p.moving = moveToward(p, t.x, t.y, s.speed * dt, false);
+        faceTowards(t.x, t.y);
+      }
+    }
+    if (input.attack) tryBasicAttack();
+  }
+
+  // Regeneration: außerhalb des Kampfes deutlich schneller
+  const calm = game.time - p.lastCombat > 5;
+  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * ((calm ? 0.02 : 0.003) + s.regen) * dt);
+  p.mp = Math.min(s.maxMp, p.mp + s.maxMp * (calm ? 0.03 : 0.012) * dt);
+
+  // Händlerin oder Schmied in der Nähe?
+  game.nearNpc = game.world.npcs.find((n) => dist(n, p) < 70) || null;
+
+  // Zonenwechsel ankündigen
+  const zone = zoneAt(p.x, p.y);
+  if (zone.id !== game.zoneId) {
+    if (game.zoneId !== null) ui.banner(zone.name, zone.levels);
+    game.zoneId = zone.id;
+  }
+}
+
+function update(dt) {
+  game.time += dt;
+  game.stats = playerStats(game.player);
+  updateTimers();
+  updatePlayer(dt);
+  updateMonsters(dt);
+  updateAllies(dt);
+  updateProjectiles(dt);
+  updateEffects();
+  if (game.target && game.target.dead) game.target = null;
+
+  game.saveTimer += dt;
+  if (game.saveTimer > 10) {
+    game.saveTimer = 0;
+    saveGame();
+  }
+  ui.update();
+}
+
+let lastFrame = 0;
+function frame(ts) {
+  const dt = Math.min(0.05, (ts - lastFrame) / 1000 || 0);
+  lastFrame = ts;
+  if (game.running) update(dt);
+  else game.time += dt;
+  render();
+  requestAnimationFrame(frame);
+}
+
+function boot() {
+  game.world = generateWorld();
+  populateWorld();
+  setupRenderer();
+  ui.init();
+  setupInput();
+  ui.showStart();
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveGame(); });
+  window.addEventListener('pagehide', saveGame);
+  requestAnimationFrame(frame);
+}
+
+boot();
