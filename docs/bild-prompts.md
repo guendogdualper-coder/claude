@@ -264,3 +264,35 @@ Mobile game HUD mockup in landscape orientation for a 2D fantasy MMORPG, minimal
 ```
 Seamless 2D game ground tiles in a three-quarter top-down fantasy style, 32x32 pixels each, arranged in a grid: lush meadow grass with small blades and tiny flowers, darker forest floor, dirt path with jagged grass edges, grey cobblestone plaza in offset rows, calm blue water with a sandy shore and white foam line, warm desert sand with pebbles, dark cracked ash ground. Soft natural color variation, no visible grid lines, hand-painted look, no text.
 ```
+
+## Statuswerte, Steuerung und Fertigkeiten (Version 1.7)
+
+### Statuswerte im Charakterfenster
+```
+2D fantasy MMORPG character window UI mockup in East Asian style, dark lacquered wood panel with thin brass borders. Section "Statuswerte" with free points counter and four rows: STR (Stärke, red round badge), VIT (Vitalität, green), INT (Intelligenz, blue), DEX (Geschick, gold). Each row shows the current value, a short effect description and small "+1" and "+5" buttons. A small red notification dot on the character button when points are unspent. Clean readable layout, no clutter.
+```
+
+### Karte in der Ecke
+```
+Mobile game HUD detail in landscape: a small round minimap with a brass ring tucked flush into the top right corner of the screen, attached to the edge with a rounded inner corner, zone name and gold in tiny text below, three small round icon buttons (character, bag, help) directly to its left. Dark translucent lacquer style.
+```
+
+### Schwebender Steuerknüppel und Mehrfingerbedienung
+```
+Mobile game control scheme illustration in landscape: the left half of the screen is a touch area where a translucent virtual joystick appears wherever the thumb touches down; the right side has a large round attack button held by the right thumb while a second finger taps a round red potion button at the same time. Hand silhouettes show both thumbs in use. Simple diagram style with soft highlights, fantasy game screen faded in the background.
+```
+
+### Symbole der 20 Fertigkeiten
+```
+Set of 20 round skill icons for a 2D fantasy MMORPG, East Asian style, arranged in 4 rows of 5. Background color by type: red for attacks, blue for buffs, green for healing, purple for summoning and curses. Row 1 warrior: three fiery crescent slashes, circular sword whirl with arrow, flame of rage, charging arrow with speed lines, golden shield with cross. Row 2 ninja: dagger with blood drop, poison arrow with green drop, four crossed blades, violet crescent moon with eye, white feather. Row 3 shaman: paper talisman with red glyph, cone of dragon fire, golden sun halo, lightning bolt, green leaf with plus. Row 4 necromancer: green flying skull, heart with drain beam, skull with crossed bones, purple cursed eye in a rune circle, bone shield. Bold dark outline, soft gradients, glossy round frame, no text.
+```
+
+### Effekte der Fertigkeiten je Klasse
+```
+2D game VFX sprite sheet for four character classes, three-quarter top-down view, additive glow look, plain black background, no text. Warrior in fire and gold: triple fiery sword crescents with embers, a spinning blade tornado with dust ring, a red flame aura pillar, a charging dash with burning afterimages ending in an explosion and scorched ground, a golden protective shell. Ninja in shadow violet: a big X-shaped double slash with dark smoke, a green poison dart with toxic cloud, a storm of many small violet blade slashes, a smoke cloud of invisibility, white wind streaks. Shaman in teal and gold: a spinning paper talisman with golden chain lightning, a cone of dragon fire with smoke, a golden halo with falling feathers, multiple lightning strikes with scorched ground, a green healing rune circle with rising leaves. Necromancer in soul green and purple: a glowing green skull projectile with ghostly trail, a red life-drain beam, a green summoning pentagram with rising flames, a purple curse rune circle, orbiting bone shards around the caster.
+```
+
+### Auren aktiver Buffs
+```
+2D game VFX loop frames of buff auras around a small chibi character, three-quarter top-down view: rising red embers (rage), rotating golden dashed ring under the feet with gold sparkles (strong body, blessing), drifting violet smoke (stealth), white wind streaks trailing behind while running (agility), six bone shards orbiting the body (bone armor). Additive glow look, plain black background, evenly spaced, no text.
+```

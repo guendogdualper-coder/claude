@@ -46,10 +46,15 @@ function updateScreenEffects(realDt) {
   game.screenFlash = Math.max(0, (game.screenFlash || 0) - realDt);
 }
 
-// Heller Schein über den ganzen Bildschirm (Stufenaufstieg)
+// Heller Schein über den ganzen Bildschirm (Stufenaufstieg, starke Fertigkeiten)
+function flashScreen(color, amount) {
+  game.flashColor = color;
+  game.screenFlash = Math.max(game.screenFlash || 0, amount);
+}
+
 function drawScreenFlash(ctx, w, h) {
   if (!(game.screenFlash > 0)) return;
-  ctx.fillStyle = `rgba(255,240,200,${Math.min(0.45, game.screenFlash * 0.7)})`;
+  ctx.fillStyle = `rgba(${hexRgb(game.flashColor || '#fff0c8')},${Math.min(0.45, game.screenFlash * 0.7)})`;
   ctx.fillRect(0, 0, w, h);
 }
 
@@ -62,7 +67,7 @@ function vfxLevelUp(p) {
   particles(p.x, feetY(p), { count: 60, color: ['#ffd34d', '#fff2c0', '#ffffff'], angle: -Math.PI / 2, spread: 0.5, speed: [80, 260], life: [0.8, 1.5], size: [1.5, 3.5], jitter: 18, drag: 1.2 });
   later(0.3, () => particles(p.x, feetY(p) - 30, { count: 30, color: ['#ffd34d', '#ffffff'], speed: [40, 120], life: [0.6, 1], size: [1.5, 3] }));
   addText(p.x, feetY(p) - 76, 'Stufe ' + p.level + '!', 'level');
-  game.screenFlash = 0.55;
+  flashScreen('#fff0c8', 0.55);
   p.glowUntil = game.time + 1.5;
   shakeScreen(3);
 }
@@ -416,6 +421,99 @@ function drawEffect(ctx, e) {
       ctx.translate(e.x, e.y);
       if (e.flip) ctx.scale(-1, 1);
       ctx.drawImage(e.sprite.img, b.x, b.y, b.w, b.h);
+      if (e.tint) {
+        // getönter Schein über dem Nachbild
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = (1 - k) * 0.35;
+        ctx.filter = 'none';
+        ctx.drawImage(flashOf(e.sprite), b.x, b.y, b.w, b.h);
+      }
+      break;
+    }
+    case 'decal': {
+      // Spuren am Boden, verblassen langsam
+      ctx.globalAlpha = Math.pow(1 - k, 0.6) * 0.75;
+      const r = e.r;
+      if (e.kind === 'scorch' || e.kind === 'splash') {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, `rgba(${hexRgb(e.color)},0.85)`);
+        g.addColorStop(0.7, `rgba(${hexRgb(e.color)},0.45)`);
+        g.addColorStop(1, `rgba(${hexRgb(e.color)},0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
+        if (e.kind === 'scorch' && k < 0.5) {
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = `rgba(255,140,50,${0.5 * (1 - k * 2)})`;
+          for (let i = 0; i < 5; i++) circle(ctx, x + Math.cos(i * 1.3 + e.start) * r * 0.5, y + Math.sin(i * 1.3 + e.start) * r * 0.2, 1.6);
+        }
+      } else if (e.kind === 'crack') {
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const a = i / 6 * Math.PI * 2 + e.start;
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.22 + 2);
+          ctx.lineTo(x + Math.cos(a + 0.3) * r, y + Math.sin(a + 0.3) * r * 0.45);
+          ctx.stroke();
+        }
+      } else if (e.kind === 'ring') {
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * 0.42, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        // Runenkreis, leuchtend
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 2.5;
+        const rr = r * (0.7 + 0.3 * easeOut(Math.min(1, k * 4)));
+        ctx.beginPath();
+        ctx.ellipse(x, y, rr, rr * 0.42, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.ellipse(x, y, rr * 0.72, rr * 0.3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        for (let i = 0; i < 5; i++) {
+          const a = -Math.PI / 2 + (i * 4 * Math.PI) / 5 + k * 1.5;
+          const px = x + Math.cos(a) * rr * 0.72;
+          const py = y + Math.sin(a) * rr * 0.3;
+          if (i) ctx.lineTo(px, py); else ctx.moveTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'tornado': {
+      // drei gedrehte Ringe übereinander, wie ein Wirbelsturm aus Klingen
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = e.color;
+      for (let i = 0; i < 3; i++) {
+        const rr = e.r * (1 - i * 0.22) * (0.6 + 0.4 * easeOut(Math.min(1, k * 3)));
+        const yy = y - 6 - i * 16;
+        const rot = game.time * 14 + i * 1.7;
+        ctx.lineWidth = 5 - i;
+        ctx.beginPath();
+        ctx.ellipse(x, yy, rr, rr * 0.34, 0, rot, rot + Math.PI * 1.3);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'halo': {
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = e.color;
+      ctx.lineWidth = 3;
+      const yy = y - 54 - Math.sin(k * Math.PI) * 6;
+      ctx.beginPath();
+      ctx.ellipse(x, yy, 14, 5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      glow(ctx, x, yy, 22, '#ffe9a0', 0.4 * (1 - k));
       break;
     }
     case 'corpse': {
@@ -565,6 +663,23 @@ function drawProjectile(ctx, pr) {
       ctx.closePath();
       ctx.fill();
       break;
+    case 'skull': {
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 0, 0, 16, pr.color, 0.7);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.rotate(ang);
+      ctx.fillStyle = '#e8f6d8';
+      ctx.beginPath();
+      ctx.arc(1, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-4, -3, 4, 6);
+      ctx.fillStyle = '#1a3a12';
+      ctx.beginPath();
+      ctx.arc(3, -2.2, 1.6, 0, Math.PI * 2);
+      ctx.arc(3, 2.2, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
     case 'talisman':
       ctx.rotate(game.time * 14);
       ctx.globalCompositeOperation = 'lighter';

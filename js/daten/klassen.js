@@ -139,7 +139,7 @@ const CLASSES = {
     skills: [
       {
         id: 'seelenpfeil', name: 'Seelenpfeil', short: 'SP', kind: 'angriff', unlock: 1, mp: 8, cooldown: 2,
-        type: 'projectile', range: 380, speed: 500, dmg: 1.5, color: '#b7f08c', pierce: true,
+        type: 'projectile', range: 380, speed: 500, dmg: 1.5, color: '#b7f08c', style: 'skull', pierce: true,
         text: 'Ein Geschoss aus Seelenenergie, das durch alle Gegner in einer Linie fliegt.'
       },
       {

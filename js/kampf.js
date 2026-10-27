@@ -98,6 +98,7 @@ function hitMonster(m, mul, opts = {}) {
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
   if (!opts.dot) {
     vfxImpact(m, isCrit, opts.ally ? '#cfd8b0' : opts.vfxColor);
+    if (opts.skill) skillHitFx(opts.skill, m, isCrit, opts.heavy);
     if (isCrit && !opts.ally) {
       hitStop(0.06);
       shakeScreen(5);
@@ -288,8 +289,9 @@ function useSkill(i) {
     return;
   }
   const lvl = p.skillLevels[i];
-  const ok = SKILL_TYPES[sk.type](sk, dmgScale(lvl), lvl);
+  const ok = SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1), lvl);
   if (ok === false) return;
+  skillCastFx(sk);
   p.mp -= sk.mp;
   p.skillCd[i] = sk.cooldown;
   startSwing(p, 'skill', 0.34);
@@ -347,11 +349,11 @@ const SKILL_TYPES = {
           });
           shakeScreen(2.5);
         } else if (hits > 3) {
-          vfxSweep(p, sk.radius * 0.7, ang - spread / 2 + Math.random() * 0.4, ang + spread / 2, c.trim, 0.2, 14);
+          vfxSweep(p, sk.radius * 0.7, ang - spread / 2 + Math.random() * 0.4, ang + spread / 2, skillColor(sk, c.trim), 0.2, 14);
         } else {
           const from = h % 2 ? ang + spread / 2 : ang - spread / 2;
           const to = h % 2 ? ang - spread / 2 : ang + spread / 2;
-          vfxSweep(p, sk.radius * 0.85, from, to, h === hits - 1 ? '#ffd9a0' : c.trim, 0.26, 26);
+          vfxSweep(p, sk.radius * 0.85, from, to, h === hits - 1 ? '#ffe9a0' : skillColor(sk, c.trim), 0.3, 30);
           p.combo = h % 3;
           startSwing(p, 'combo', 0.13);
         }
@@ -360,7 +362,7 @@ const SKILL_TYPES = {
             const bc = bodyCenter(m);
             addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: Math.random() * Math.PI, len: 34, w: 5, dur: 0.18, color: '#c9b8ff' });
           }
-          hitMonster(m, sk.dmg * pw, { knockback: h === hits - 1 ? sk.knockback : 0, burn: sk.burn, stun: sk.stun, heavy: h === hits - 1 });
+          hitMonster(m, sk.dmg * pw, { skill: sk.id, knockback: h === hits - 1 ? sk.knockback : 0, burn: sk.burn, stun: sk.stun, heavy: h === hits - 1 });
         }
       });
     }
@@ -371,13 +373,13 @@ const SKILL_TYPES = {
     const p = game.player;
     const c = CLASSES[p.classId];
     const a = Math.random() * Math.PI * 2;
-    vfxSweep(p, sk.radius * 0.85, a, a + Math.PI * 4, c.trim, 0.45, 30);
+    vfxSweep(p, sk.radius * 0.85, a, a + Math.PI * 4, skillColor(sk, c.trim), 0.45, 34);
     addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
     particles(p.x, feetY(p), { count: 26, color: ['#a88f62', '#c9b28a'], speed: [80, 200], life: [0.3, 0.6], size: [2, 4], drag: 4, glow: false });
     p.spin = 0.45;
     shakeScreen(3.5);
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
-      hitMonster(m, sk.dmg * pw, { stun: sk.stun, heavy: true });
+      hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true });
     }
   },
 
@@ -402,7 +404,7 @@ const SKILL_TYPES = {
     later(0.07, () => addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.75, len: 58, w: 9, dur: 0.3, color: '#b48cff' }));
     particles(bc.x, bc.y, { count: 14, color: ['#b48cff', '#e0d0ff'], speed: [60, 160], life: [0.3, 0.5], size: [2, 3], shape: 'square' });
     hitStop(0.05);
-    hitMonster(t, sk.dmg * pw, { critBonus: sk.critBonus, heavy: true, vfxColor: '#d6c4ff' });
+    hitMonster(t, sk.dmg * pw, { skill: sk.id, critBonus: sk.critBonus, heavy: true, vfxColor: '#d6c4ff' });
   },
 
   projectile(sk, pw) {
@@ -415,7 +417,7 @@ const SKILL_TYPES = {
       owner: 'player', x: p.x, y: p.y, target: sk.pierce ? null : t, dir: t ? null : p.facing,
       aimAt: sk.pierce && t ? { x: t.x, y: t.y } : null,
       speed: sk.speed, range: sk.range + 40, mul: sk.dmg * pw, color: sk.color, radius: sk.pierce ? 8 : 7,
-      pierce: sk.pierce, chain: sk.chain || 0, poison: sk.poison, style: sk.style
+      pierce: sk.pierce, chain: sk.chain || 0, poison: sk.poison, style: sk.style, skill: sk.id
     });
   },
 
@@ -432,7 +434,7 @@ const SKILL_TYPES = {
       particles(x, y - 10, { count: 30, color: ['#cfe8ff', '#9fd0ff', '#ffffff'], speed: [120, 300], life: [0.15, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 5 });
       shakeScreen(6);
       hitStop(0.05);
-      for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
+      for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
     });
   },
 
@@ -477,7 +479,7 @@ const SKILL_TYPES = {
       return false;
     }
     faceTowards(t.x, t.y);
-    const dmg = hitMonster(t, sk.dmg * pw, { vfxColor: '#ff6a7a' });
+    const dmg = hitMonster(t, sk.dmg * pw, { skill: sk.id, vfxColor: '#ff6a7a' });
     const heal = Math.round(dmg * sk.heal);
     p.hp = Math.min(game.stats.maxHp, p.hp + heal);
     addText(p.x, p.y - 40, '+' + heal, 'heal');
@@ -532,16 +534,18 @@ function updateDash(dt) {
   const moved = moveEntity(p, d.dx * step, d.dy * step, false);
   d.left -= step;
   const dir = facingDir(p.facing);
-  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3 });
+  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.3, tint: '#ff7a2a' });
+  skillPhaseFx(d.sk.id, 'trail');
   particles(p.x, feetY(p), { count: 2, color: ['#a88f62', '#c9b28a'], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false });
   for (const m of enemiesInCircle(p.x, p.y, d.sk.radius)) {
     if (d.hit.has(m.id)) continue;
     d.hit.add(m.id);
-    hitMonster(m, d.sk.dmg * d.pw, { stun: d.sk.stun, knockback: 60, heavy: true });
+    hitMonster(m, d.sk.dmg * d.pw, { skill: d.sk.id, stun: d.sk.stun, knockback: 60, heavy: true });
   }
   if (d.left <= 0 || !moved) {
     p.dash = null;
-    shakeScreen(3);
+    shakeScreen(4);
+    skillPhaseFx(d.sk.id, 'end');
   }
 }
 
@@ -589,7 +593,7 @@ function updateProjectiles(dt) {
         if (m.dead || pr.hit.has(m.id)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
-        hitMonster(m, pr.mul, { poison: pr.poison, vfxColor: pr.color });
+        hitMonster(m, pr.mul, { poison: pr.poison, vfxColor: pr.color, skill: pr.skill });
         if (pr.poison) particles(m.x, feetY(m) - 16, { count: 12, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2 });
         if (pr.chain > 0) {
           const next = aliveEnemies()

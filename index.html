@@ -80,6 +80,7 @@
   </nav>
 
   <div id="touchControls" class="touch" hidden>
+    <div id="stickZone" class="stick-zone" aria-hidden="true"></div>
     <div id="stick" class="stick"><div id="stickKnob" class="stick-knob"></div></div>
     <button id="btnTalk" class="touch-talk" type="button" hidden>Sprechen</button>
     <button id="btnAttack" class="touch-attack" type="button" aria-label="Angreifen">Angriff</button>
@@ -141,11 +142,11 @@
       <dt><kbd>I</kbd></dt><dd>Inventar: Ausrüstung anlegen, ablegen, verkaufen</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
     </dl>
-    <p>Am Handy: links mit dem Steuerknüppel laufen, rechts den Angriffsknopf gedrückt halten, Fertigkeiten und Tränke antippen.</p>
+    <p>Am Handy: Berühre die linke Bildschirmhälfte an einer beliebigen Stelle und ziehe, um zu laufen. Rechts den Angriffsknopf gedrückt halten. Fertigkeiten und Tränke kannst du gleichzeitig antippen.</p>
     <h3>So kommst du voran</h3>
     <ul>
       <li>Jedes besiegte Monster gibt Erfahrung und Gold. Monster, die viel schwächer sind als du, geben kaum noch Erfahrung. Zieh dann in die nächste Zone weiter.</li>
-      <li>Pro Stufe bekommst du einen Fertigkeitspunkt. Verteile ihn im Charakterfenster oder mit dem kleinen Plus an der Fertigkeitsleiste.</li>
+      <li>Pro Stufe bekommst du einen Fertigkeitspunkt und drei Statuspunkte. Verteile sie im Charakterfenster: Stärke (Angriff), Vitalität (Leben und Rüstung), Intelligenz (Mana und Fertigkeitsschaden), Geschick (kritische Treffer, Ausweichen, Angriffstempo). Ein roter Punkt am Charakter-Knopf zeigt freie Punkte an.</li>
       <li>Seelensteine (lila auf der Karte) rufen beim Angreifen Monster herbei und belohnen dich mit viel Erfahrung, Gold, Tränken und Seelensplittern.</li>
       <li>Im Dorf verkauft Waffenhändler Goro Waffen für deine Klasse, Rüstungshändlerin Mei Rüstung, Helm, Schild, Schuhe und Gürtel, jeweils ab Stufe 1, 5, 10 und 15. Händlerin Ayla hat Tränke und Segensschriftrollen.</li>
       <li>Die Grundausrüstung (Stufe 1) gibt nur Rüstung, Waffen nur Angriff. Ab Stufe 5 hat jede Ausrüstung eigene Effekte: Rüstung, Vitalität (mehr Leben), Intelligenz (mehr Mana), Blocken, Ausweichen, Lauftempo, Regeneration oder kritische Treffer. Legendäre Ausrüstung ab Stufe 22 gibt es nur als Beute.</li>
@@ -194,6 +195,7 @@
 <script src="js/ausruestung.js"></script>
 <script src="js/figuren.js"></script>
 <script src="js/umgebung.js"></script>
+<script src="js/fertigkeiten.js"></script>
 <script src="js/zeichnen.js"></script>
 <script src="js/oberflaeche.js"></script>
 <script src="js/eingabe.js"></script>

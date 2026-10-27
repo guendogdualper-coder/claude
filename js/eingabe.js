@@ -71,9 +71,16 @@ function setupInput() {
   });
 
   // Mausklick oder Tippen auf ein Monster wählt es als Ziel
-  renderer.canvas.addEventListener('pointerdown', (e) => {
-    if (!game.running) return;
-    const w = screenToWorld(e.clientX, e.clientY);
+  renderer.canvas.addEventListener('pointerdown', (e) => selectAt(e.clientX, e.clientY));
+
+  setupTouch();
+}
+
+// Mausklick oder Tippen: Monster als Ziel wählen oder mit einem Dorfbewohner sprechen
+function selectAt(clientX, clientY) {
+  if (!game.running) return;
+  {
+    const w = screenToWorld(clientX, clientY);
     let best = null;
     let bestD = 40;
     for (const m of game.monsters) {
@@ -90,41 +97,72 @@ function setupInput() {
     for (const n of game.world.npcs) {
       if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90) ui.openNpc(n);
     }
-  });
+  }
+}
 
-  setupTouch();
+// Knopf, der schon beim Aufsetzen des Fingers auslöst. Ein normaler Klick kommt auf dem
+// iPhone nicht an, solange ein zweiter Finger (z. B. auf dem Angriffsknopf) liegt.
+function onPress(el, fn) {
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    fn(e);
+  });
+  // Tastatur (Enter/Leertaste auf dem Knopf) löst weiterhin über click aus
+  el.addEventListener('click', (e) => { if (e.detail === 0) fn(e); });
 }
 
 function setupTouch() {
+  // Schwebender Steuerknüppel: erscheint dort, wo der Daumen die linke Bildschirmhälfte berührt
+  const zone = $('stickZone');
   const stick = $('stick');
   const knob = $('stickKnob');
-  let stickId = null;
   const RADIUS = 46;
+  let stickId = null;
+  let origin = null;
+  let moved = false;
+  let downAt = 0;
 
+  const placeStick = (x, y) => {
+    stick.style.left = x - stick.offsetWidth / 2 + 'px';
+    stick.style.top = y - stick.offsetHeight / 2 + 'px';
+    stick.style.bottom = 'auto';
+  };
   const moveStick = (e) => {
-    const r = stick.getBoundingClientRect();
-    let dx = e.clientX - (r.left + r.width / 2);
-    let dy = e.clientY - (r.top + r.height / 2);
+    let dx = e.clientX - origin.x;
+    let dy = e.clientY - origin.y;
     const len = Math.hypot(dx, dy);
+    if (len > 10) moved = true;
     if (len > RADIUS) { dx = dx / len * RADIUS; dy = dy / len * RADIUS; }
     knob.style.transform = `translate(${dx}px, ${dy}px)`;
     input.stick.x = dx / RADIUS;
     input.stick.y = dy / RADIUS;
   };
-  const releaseStick = () => {
+  const releaseStick = (e) => {
+    if (e.pointerId !== stickId) return;
+    // Kurzes Antippen ohne Ziehen wählt wie gewohnt ein Monster aus
+    if (!moved && performance.now() - downAt < 250) selectAt(e.clientX, e.clientY);
     stickId = null;
     knob.style.transform = '';
     input.stick.x = 0;
     input.stick.y = 0;
+    stick.classList.remove('active');
+    stick.removeAttribute('style');
   };
-  stick.addEventListener('pointerdown', (e) => {
+  zone.addEventListener('pointerdown', (e) => {
+    if (stickId !== null) return;
     stickId = e.pointerId;
-    stick.setPointerCapture(e.pointerId);
+    zone.setPointerCapture(e.pointerId);
+    origin = { x: e.clientX, y: e.clientY };
+    moved = false;
+    downAt = performance.now();
+    placeStick(e.clientX, e.clientY);
+    stick.classList.add('active');
     moveStick(e);
   });
-  stick.addEventListener('pointermove', (e) => { if (e.pointerId === stickId) moveStick(e); });
-  stick.addEventListener('pointerup', releaseStick);
-  stick.addEventListener('pointercancel', releaseStick);
+  zone.addEventListener('pointermove', (e) => { if (e.pointerId === stickId) moveStick(e); });
+  zone.addEventListener('pointerup', releaseStick);
+  zone.addEventListener('pointercancel', releaseStick);
 
   const atk = $('btnAttack');
   atk.addEventListener('pointerdown', (e) => {
@@ -140,7 +178,7 @@ function setupTouch() {
   atk.addEventListener('pointercancel', stopAttack);
   atk.addEventListener('contextmenu', (e) => e.preventDefault());
 
-  $('btnTalk').addEventListener('click', interact);
+  onPress($('btnTalk'), interact);
 
   // Wer den Bildschirm berührt, bekommt die Touch-Steuerung
   window.addEventListener('touchstart', () => {

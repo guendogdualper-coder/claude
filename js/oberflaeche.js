@@ -11,8 +11,8 @@ const ui = {
     $('btnChar').addEventListener('click', () => this.toggle('panelChar'));
     $('btnHelp').addEventListener('click', () => this.toggle('panelHelp'));
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
-    $('potHp').addEventListener('click', () => usePotion('hp'));
-    $('potMp').addEventListener('click', () => usePotion('mp'));
+    onPress($('potHp'), () => usePotion('hp'));
+    onPress($('potMp'), () => usePotion('mp'));
     $('btnRevive').addEventListener('click', () => {
       $('panelDeath').hidden = true;
       revivePlayer();
@@ -126,11 +126,11 @@ const ui = {
       btn.className = 'slot skill kind-' + sk.kind;
       btn.id = 'skill' + i;
       btn.title = `${sk.name} (${i + 1}) – ${sk.text} Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s`;
-      btn.innerHTML = `<span class="key">${i + 1}</span><span class="abbr">${sk.short}</span>` +
+      btn.innerHTML = `<span class="key">${i + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? p.skillLevels[i] : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
-      btn.addEventListener('click', () => useSkill(i));
+      onPress(btn, () => useSkill(i));
       wrap.append(btn);
       if (p.skillPoints > 0 && p.level >= sk.unlock && p.skillLevels[i] < MAX_SKILL_LEVEL) {
         const plus = document.createElement('button');
@@ -138,6 +138,7 @@ const ui = {
         plus.className = 'plus';
         plus.title = sk.name + ' verbessern';
         plus.textContent = '+';
+        plus.addEventListener('pointerdown', (e) => e.stopPropagation());
         plus.addEventListener('click', (e) => {
           e.stopPropagation();
           upgradeSkill(i);
@@ -168,6 +169,8 @@ const ui = {
       $('mpFill').style.transform = `scaleX(${Math.max(0, p.mp / s.maxMp)})`;
     });
     this.set('lvl', p.level, (v) => { $('hudLevel').textContent = 'Lv ' + v; });
+    // Roter Punkt am Charakter-Knopf, solange Punkte zu verteilen sind
+    this.set('points', (p.statPoints || 0) + p.skillPoints > 0, (v) => { $('btnChar').classList.toggle('has-points', v); });
     const need = xpToNext(p.level);
     this.set('xp', p.xp + '/' + need, () => {
       const pct = p.level >= MAX_LEVEL ? 100 : (p.xp / need) * 100;
@@ -300,11 +303,24 @@ const ui = {
       row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
       row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
       `</dl>` +
+      `<h3>Statuswerte</h3>` +
+      `<p>Freie Statuspunkte: <span class="points">${p.statPoints}</span> <small class="hint-text">(${STAT_POINTS_PER_LEVEL} pro Stufe)</small></p>` +
+      `<div class="attr-list">` + ATTRS.map((a) => {
+        const v = p.attrs[a.id] || 0;
+        const can = p.statPoints > 0 && v < MAX_ATTR;
+        return `<div class="attr-row attr-${a.id}"><span class="attr-badge">${a.short}</span>` +
+          `<span class="attr-info"><strong>${a.name} <b>${v}</b></strong><small>${a.text}</small></span>` +
+          `<span class="attr-btns"><button type="button" class="mini-btn" data-attr="${a.id}" data-n="1" ${can ? '' : 'disabled'}>+1</button>` +
+          `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="5" ${can && p.statPoints >= 5 ? '' : 'disabled'}>+5</button></span></div>`;
+      }).join('') + `</div>` +
       `<h3>Fertigkeiten</h3>` +
       `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span></p>` +
       skillListHtml(c, p);
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade)));
+    });
+    $('charBody').querySelectorAll('[data-attr]').forEach((b) => {
+      b.addEventListener('click', () => raiseAttr(b.dataset.attr, Number(b.dataset.n)));
     });
   },
 
@@ -396,7 +412,7 @@ function skillListHtml(c, p) {
         ? `Stufe ${p.skillLevels[i]}/${MAX_SKILL_LEVEL}<br><button class="mini-btn" type="button" data-upgrade="${i}" ${canUp ? '' : 'disabled'}>Verbessern</button>`
         : `ab Stufe ${sk.unlock}`;
     }
-    return `<li><span class="icon kind-${sk.kind}">${sk.short}</span>` +
+    return `<li><img class="icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
       `<span class="info"><strong>${i + 1}. ${sk.name}</strong><span>${sk.text}</span></span>` +
       `<span class="meta">${meta}</span></li>`;
   }).join('') + '</ul>';

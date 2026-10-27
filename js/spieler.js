@@ -6,7 +6,17 @@ const MAX_SKILL_LEVEL = 20;
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints'];
+
+// Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
+const STAT_POINTS_PER_LEVEL = 3;
+const MAX_ATTR = 90;
+const ATTRS = [
+  { id: 'str', name: 'Stärke', short: 'STR', text: '+1 Angriff je Punkt' },
+  { id: 'vit', name: 'Vitalität', short: 'VIT', text: '+6 Leben und +0,3 Rüstung je Punkt' },
+  { id: 'int', name: 'Intelligenz', short: 'INT', text: '+5 Mana und +1 % Fertigkeitsschaden je Punkt' },
+  { id: 'dex', name: 'Geschick', short: 'DEX', text: '+0,3 % kritische Treffer, +0,25 % Ausweichen und +0,5 % Angriffstempo je Punkt' }
+];
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
 function xpToNext(level) {
@@ -25,7 +35,8 @@ function newCharacter(name, classId) {
     name, classId, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
     hp: null, mp: null, x: null, y: null, playTime: 0,
-    equipment: starterEquipment(), inventory: [], scrolls: 0, itemsVersion: 2
+    equipment: starterEquipment(), inventory: [], scrolls: 0, itemsVersion: 2,
+    attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0
   };
 }
 
@@ -59,6 +70,14 @@ function makePlayer(save) {
     p.inventory.forEach(migrateItem);
   }
   p.itemsVersion = 2;
+  // Spielstände ohne Statuswerte bekommen die Punkte aller bisherigen Stufen nachträglich
+  if (!save.attrs) {
+    p.attrs = { str: 0, vit: 0, int: 0, dex: 0 };
+    p.statPoints = (p.level - 1) * STAT_POINTS_PER_LEVEL;
+  } else {
+    p.attrs = { str: 0, vit: 0, int: 0, dex: 0, ...save.attrs };
+    p.statPoints = save.statPoints || 0;
+  }
   const stats = playerStats(p);
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
@@ -105,6 +124,17 @@ function playerStats(p) {
     speedMul += st.speed || 0;
   }
   s.block = Math.min(MAX_BLOCK, s.block);
+  // Statuswerte
+  const a = p.attrs || {};
+  s.atk += (a.str || 0) * 1;
+  s.maxHp += (a.vit || 0) * 6;
+  s.def += (a.vit || 0) * 0.3;
+  s.maxMp += (a.int || 0) * 5;
+  s.skillDmg = 1 + (a.int || 0) * 0.01;
+  s.crit += (a.dex || 0) * 0.003;
+  s.dodge += (a.dex || 0) * 0.0025;
+  s.atkSpeed += (a.dex || 0) * 0.005;
+  s.def = Math.round(s.def);
   for (const b of p.buffs) {
     const e = b.effects;
     if (e.atk) atkMul += e.atk;
@@ -132,6 +162,7 @@ function gainXp(amount) {
     p.xp -= xpToNext(p.level);
     p.level++;
     p.skillPoints++;
+    p.statPoints = (p.statPoints || 0) + STAT_POINTS_PER_LEVEL;
     const s = playerStats(p);
     p.hp = s.maxHp;
     p.mp = s.maxMp;
@@ -140,11 +171,27 @@ function gainXp(amount) {
     const unlocked = CLASSES[p.classId].skills.find((sk) => sk.unlock === p.level);
     if (unlocked) ui.log('Neue Fertigkeit freigeschaltet: ' + unlocked.name + '.', 'level');
     const tier = ITEM_TIERS.findIndex((t) => t.level === p.level);
+    ui.log(`${STAT_POINTS_PER_LEVEL} neue Statuspunkte. Verteile sie im Charakterfenster.`, 'level');
     ui.banner('Stufe ' + p.level, unlocked ? 'Neue Fertigkeit: ' + unlocked.name
       : tier > 0 ? 'Du kannst jetzt Ausrüstung der Stufe ' + p.level + ' tragen' : 'Neuer Fertigkeitspunkt');
     ui.buildSkillBar();
     saveGame();
   }
+}
+
+function raiseAttr(id, n = 1) {
+  const p = game.player;
+  const add = Math.min(n, p.statPoints, MAX_ATTR - (p.attrs[id] || 0));
+  if (add <= 0) return;
+  p.attrs[id] += add;
+  p.statPoints -= add;
+  const before = game.stats;
+  game.stats = playerStats(p);
+  // Mehr Leben oder Mana füllt den neuen Teil gleich auf
+  p.hp += Math.max(0, game.stats.maxHp - before.maxHp);
+  p.mp += Math.max(0, game.stats.maxMp - before.maxMp);
+  ui.renderCharPanel();
+  saveGame();
 }
 
 function upgradeSkill(i) {

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '1.6';
+const GAME_VERSION = '1.7';
 
 const game = {
   world: null,
@@ -50,6 +50,7 @@ function updatePlayer(dt) {
   p.potionCd = Math.max(0, p.potionCd - dt);
   p.swing = Math.max(0, p.swing - dt);
   p.spin = Math.max(0, (p.spin || 0) - dt);
+  updateBuffAuras(dt);
   for (let i = 0; i < 5; i++) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt);
 
   // abgelaufene Buffs entfernen

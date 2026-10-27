@@ -79,7 +79,7 @@ function render() {
   list.sort((a, b) => baseY(a) - baseY(b));
 
   // Effekte am Boden liegen unter den Figuren
-  const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes';
+  const ground = (e) => e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal';
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   for (const e of list) {
     if (e.worldObj) drawWorldObject(ctx, e);
@@ -307,6 +307,39 @@ function drawPlayer(ctx, p) {
     ctx.globalAlpha = invisible ? 0.35 : 1;
   }
 
+  // Ringe aktiver Buffs unter den Füßen
+  for (const b of p.buffs) {
+    const fx = SKILL_FX[b.id];
+    if (!fx || !fx.ring) continue;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = fx.ring;
+    ctx.globalAlpha = (invisible ? 0.35 : 1) * (0.45 + 0.2 * Math.sin(game.time * 5));
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 5]);
+    ctx.lineDashOffset = -game.time * 30;
+    ctx.beginPath();
+    ctx.ellipse(p.x, fy, 22, 9, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Knochenpanzer: Knochensplitter kreisen um die Figur
+  if (p.shield > 0) {
+    for (let k = 0; k < 6; k++) {
+      const a = game.time * 2.4 + k * Math.PI / 3;
+      const bx = p.x + Math.cos(a) * 22;
+      const by = fy - 20 + Math.sin(a) * 9;
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate(a * 2);
+      ctx.fillStyle = '#ddd5bb';
+      ctx.strokeStyle = '#4a4434';
+      ctx.lineWidth = 1;
+      ctx.fillRect(-4, -1.2, 8, 2.4);
+      ctx.strokeRect(-4, -1.2, 8, 2.4);
+      ctx.restore();
+    }
+  }
   if (p.shield > 0) {
     ctx.strokeStyle = 'rgba(220,230,200,0.6)';
     ctx.fillStyle = 'rgba(220,230,200,0.1)';
