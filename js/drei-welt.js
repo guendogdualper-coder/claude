@@ -312,6 +312,55 @@ const tplPebble = (v, style) => bakeTemplate(`pebble:${v}:${style}`, (b) => {
   const [base, top] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
   b.add(rockGeo(v), base, { s: [0.1, 0.07, 0.08], p: [0, 0.03, 0], top, topK: 0.5, mat: 'grass' });
 });
+// Schmuck ohne Kollision (seit 6.5): Baumstumpf, umgefallener Stamm, Pilze, Knochen, Busch, Kristalle, toter Baum
+const DECO_COLORS = {
+  frost: { wood: '#7a6a5a', crystal: '#bfe8ff', glow: false, cap: '#c84a3a', bush: '#5a7a6a' },
+  vulkan: { wood: '#2a1a14', crystal: '#ff7a2a', glow: true, cap: '#8a3a2a', bush: '#4a3a2a' },
+  titanenkamm: { wood: '#2a1a14', crystal: '#ffb04a', glow: true, cap: '#8a3a2a', bush: '#4a3a2a' },
+  oedland: { wood: '#4a3a34', crystal: '#c8303a', glow: true, cap: '#6a4a3a', bush: '#5a4a3a' },
+  moor: { wood: '#3a3428', crystal: '#8fe36a', glow: true, cap: '#7ad86a', capGlow: true, bush: '#3a4a2a' },
+  donnerklamm: { wood: '#4a4440', crystal: '#9fd0ff', glow: true, cap: '#8a6a4a', bush: '#5a5a4a' },
+  nagadschungel: { wood: '#5a3f2a', crystal: '#7ad8c8', glow: true, cap: '#e0a03a', bush: '#2f6a3a' }
+};
+const tplDeco = (d, style, v) => bakeTemplate(`deco:${d}:${style}:${v}`, (b) => {
+  const c = Object.assign({ wood: '#6b4a2e', crystal: '#bfe8ff', glow: false, cap: '#c84a3a', bush: '#3f7a32' }, DECO_COLORS[style] || {});
+  const bark = c.wood;
+  if (d === DECO.STUMP) {
+    b.add(lathe3('stump', [[0.2, 0], [0.17, 0.08], [0.15, 0.22], [0, 0.23]], 10), bark, { top: '#c8a070', topK: 0.25, shade: 0.3 });
+    for (let k = 0; k < 3; k++) b.add(horn3(0.22, 0.05, 5), darker(bark, 0.1), { p: [Math.cos(k * 2.1) * 0.15, 0.03, Math.sin(k * 2.1) * 0.15], r: [Math.sin(k * 2.1) * 1.4, 0, -Math.cos(k * 2.1) * 1.4] });
+    if (style === 'frost') b.add(sphere3(0.15, 8, 6), '#f4fbff', { p: [0, 0.23, 0], s: [1, 0.35, 1] });
+  } else if (d === DECO.LOG) {
+    b.add(limb3(1.0, 0.13, 0.11, 8), bark, { p: [-0.5, 0.12, 0], r: [0, 0, -Math.PI / 2], shade: 0.3 });
+    b.add(cyl3(0.12, 0.12, 0.02, 10), '#c8a070', { p: [0.5, 0.12, 0], r: [0, 0, Math.PI / 2] });
+    b.add(sphere3(0.12, 8, 6), style === 'moor' ? '#5a6a2a' : '#4f7a32', { p: [-0.1, 0.22, 0.02], s: [1.4, 0.4, 0.8] });
+  } else if (d === DECO.MUSHROOM) {
+    for (let k = 0; k < 3; k++) {
+      const s = 0.7 + (k + v) % 3 * 0.25;
+      const x = [-0.12, 0.1, 0.02][k];
+      const z = [0.05, -0.06, 0.14][k];
+      b.add(limb3(0.12 * s, 0.025 * s, 0.03 * s, 6), '#efe6cc', { p: [x, 0, z] });
+      b.add(sphere3(0.09 * s, 10, 6), c.cap, { p: [x, 0.12 * s, z], s: [1, 0.7, 1], mat: c.capGlow ? 'glow' : 'lit' });
+    }
+  } else if (d === DECO.BONES) {
+    b.add(sphere3(0.1, 10, 8), '#e8e0c8', { p: [0, 0.08, 0], s: [1, 0.85, 1.1] });
+    for (const sx of [-1, 1]) b.add(sphere3(0.025, 6, 4), '#2a2018', { p: [sx * 0.04, 0.1, 0.09] });
+    for (let k = 0; k < 3; k++) b.add(limb3(0.3, 0.025, 0.025, 5), '#e0d8c0', { p: [0.15 + k * 0.05, 0.03, -0.1 + k * 0.08], r: [0, k * 0.8, Math.PI / 2] });
+    b.add(torus3(0.12, 0.02, Math.PI, 4, 10), '#e0d8c0', { p: [-0.18, 0.05, -0.1], r: [0, 0.5, 0] });
+  } else if (d === DECO.SHRUB) {
+    for (let k = 0; k < 4; k++) b.add(sphere3(0.16 - k * 0.02, 9, 7), k % 2 ? lighter(c.bush, 0.1) : c.bush, { p: [Math.cos(k * 1.7) * 0.14, 0.13 + (k % 2) * 0.06, Math.sin(k * 1.7) * 0.14], mat: 'grass', shade: 0.3 });
+    if (style === 'wiesen') for (let k = 0; k < 3; k++) b.add(sphere3(0.03, 6, 4), '#e04a3a', { p: [Math.cos(k * 2) * 0.15, 0.26, Math.sin(k * 2) * 0.15] });
+  } else if (d === DECO.CRYSTAL) {
+    for (let k = 0; k < 4; k++) b.add(horn3(0.28 + (k % 2) * 0.16, 0.07, 5), k % 2 ? lighter(c.crystal, 0.2) : c.crystal, { p: [Math.cos(k * 1.6) * 0.1, 0, Math.sin(k * 1.6) * 0.1], r: [Math.sin(k * 1.6) * 0.4, 0, -Math.cos(k * 1.6) * 0.4], mat: c.glow ? 'glow' : 'lit', shine: 1 });
+    b.add(rockGeo(v), '#5a5a62', { s: [0.18, 0.08, 0.16], p: [0, 0.02, 0] });
+  } else if (d === DECO.DEADTREE) {
+    // abgebrochener toter Baum: kurzer Stamm, zwei kahle Äste, gesplitterte Spitze
+    b.add(limb3(0.7, 0.11, 0.07, 7), bark, { p: [0, 0, 0], shade: 0.35 });
+    b.add(horn3(0.3, 0.07, 5), darker(bark, 0.1), { p: [0, 0.68, 0], r: [0.2, 0, 0.3] });
+    b.add(limb3(0.35, 0.035, 0.015, 5), bark, { p: [0.04, 0.45, 0], r: [0, 0, -0.9] });
+    b.add(limb3(0.28, 0.03, 0.012, 5), bark, { p: [-0.04, 0.35, 0.02], r: [0.3, 0, 1.0] });
+    if (c.glow && style !== 'moor') b.add(limb3(0.25, 0.018, 0.012, 4), c.crystal, { p: [0.02, 0.2, 0.09], mat: 'glow' });
+  }
+});
 const tplProp = (pr) => bakeTemplate(`prop:${pr.type}:${pr.roof || ''}`, (b) => PROP3[pr.type](b, null, pr));
 
 // Ein Block mit allen Objekten, als Bauauftrag in Zeitscheiben (siehe v3UpdateChunks)
@@ -335,7 +384,7 @@ function* objectJob(cx, cy) {
       const rot = ((h >> 3) % 628) / 100;
       const sc = 0.9 + ((h >> 12) % 20) / 100;
       if (o === OBJ.WALL) {
-        const vertical = Math.abs(x - CENTER_X) === VILLAGE_HALF && Math.abs(y - CENTER_Y) !== VILLAGE_HALF;
+        const vertical = wallVertical(w, i);
         if (!towerTiles.has(i)) b.addTemplate(tplWall(), placeAt(x + 0.5, y + 0.5, vertical ? Math.PI / 2 : 0));
         continue;
       }
@@ -353,6 +402,10 @@ function* objectJob(cx, cy) {
         const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || (w.deco[ty * MAP_W + tx] === DECO.BRIDGE);
         const horiz = way(x - 1, y) || way(x + 1, y);
         b.addTemplate(tplBridge(), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+        continue;
+      }
+      if (d >= DECO.STUMP) {
+        b.addTemplate(tplDeco(d, style, h % 3), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, sc * (d === DECO.DEADTREE ? 2 : 1.4)));
         continue;
       }
       if (lowGfx) continue;

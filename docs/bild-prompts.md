@@ -1502,3 +1502,40 @@ Five-panel comparison of the same sword-whirl skill in a stylized 3D toon MMORPG
 ```
 Fantasy MMORPG blacksmith window in dark wood and brass: the anvil with a glowing sword, the success chance bar, the cost line "Dazu: 3 × Spinnenseide (du hast 1)" with a small tooltip bubble floating in front of the window that says "Spinnenseide: fällt von Höhlenspinne (Stufe 18). Fundort: Dunkelwald · Spinnenhöhle", a checked box "Segensschriftrolle verwenden" and the big golden button "Verbessern" directly below, no long material list. Clean, readable.
 ```
+
+## Endbosse, Monster-Schmuck und Wanderer (Version 6.5)
+
+### Endboss-Tor
+```
+Huge dark stone gate in a stylized 3D toon MMORPG, standing on a snowy plain just south of a walled camp: two tall black stone pillars with glowing ice-blue runes and flaming braziers on top, an arch with a horned skull keystone, a swirling vortex portal inside, wide stone steps and a glowing rune circle on the ground. A golden floating label "Endboss: Frostriese Ymir". Dramatic, readable from a phone screen.
+```
+
+### Endboss-Kampf für fünf Spieler
+```
+Epic raid boss fight in a stylized 3D toon MMORPG: a gigantic frost giant (four times the size of the heroes) with a crown of golden horns, glowing eyes and a double rune ring under his feet, in a round icy stone hall lit by blue braziers. Five chibi heroes around him: a warrior tank in front with a shield, a shaman healer casting green light, three damage dealers with swords, daggers and fire magic. Red warning circles on the floor where meteors are about to strike, one meteor falling from the sky, a huge boss health bar at the top. Dynamic composition, glowing effects.
+```
+
+### Monster mit Schmuck je Gebiet
+```
+Lineup of stylized 3D toon MMORPG monsters, more detailed and menacing than before: a frost wolf with ice crystal spikes along its back and glowing blue eyes, a hellhound with glowing ember spikes and a fiery maw, an orc captain with bone trophies, shoulder spikes and a chest plate, a forest spider with thorny back and a glowing marking, a lava golem with glowing crystals growing from its shoulders, a ghost wrapped in floating chains with soul lights, elite monsters with a glowing ring on the ground. Thin dark outlines, soft cel shading.
+```
+
+### Wanderer mit Nebenaufgabe
+```
+A lone huntress with a bow standing next to a small campfire in a snowy landscape, a green exclamation mark floating above her head, talking to a chibi hero. A quest window shows "Ich brauche 6 × Yetifell" with the item icon and rewards. Stylized 3D toon MMORPG look.
+```
+
+### Beute am Boden
+```
+Close-up of loot dropping from a defeated yeti in a stylized 3D toon MMORPG: three items bounce onto the snow – a white fur pelt with the label "Yetifell ×2", a violet soul splinter "Seelensplitter ×3", a red potion "Drachenblut (L)" – each with a soft colored glow on the ground, a moment later they fly to the hero.
+```
+
+### Lager mit Mauer
+```
+Top-down three-quarter view of a small fortified camp on a snowy map in a stylized 3D toon MMORPG: a square stone wall with four gates on the roads and red-roofed towers at the corners and beside each gate, inside the plaza the world gate, merchants, blacksmith, elder, huntress and stable master. Outside only a few pine trees, snowy stumps and ice crystals, a frost wolf pack in the distance.
+```
+
+### Großer Dungeon-Riss
+```
+A large jagged rift hanging in the air above a grey ash plain in a stylized 3D toon MMORPG: a frame of black stone shards around a swirling violet vortex, glowing cracks spreading on the ground, floating rock fragments circling it, a small label below "Totengruft · 4:31". Mysterious and dangerous.
+```

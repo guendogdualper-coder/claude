@@ -233,6 +233,14 @@ function stoneTooLow(m, p) {
 
 // Erfahrung, Gold, Beute und Aufträge für ein besiegtes Monster
 function rewardKill(m) {
+  ui.dropAt = { x: m.x, y: feetY(m) };
+  try {
+    rewardKillInner(m);
+  } finally {
+    ui.dropAt = null;
+  }
+}
+function rewardKillInner(m) {
   const p = game.player;
   if (stoneTooLow(m, p)) {
     // Nur noch die (ohnehin kleine) Erfahrung, kein Gold und keine Beute
@@ -285,7 +293,8 @@ function rewardKill(m) {
       ui.loot(`${potionInfo(kind).name} (${sz})`, 1, potionIconUrl(kind, sz), potionInfo(kind).color);
     }
   }
-  if (m.type && m.type.boss) bossLoot(m);
+  if (m.type && m.type.raid) raidLoot(m);
+  else if (m.type && m.type.boss) bossLoot(m);
   rollLoot(m);
   gainXp(xp);
 }

@@ -117,8 +117,10 @@ function fx3Mat(map, vertexColors) {
 const FX3_STRIP_N = 18;
 function fx3Make(kind) {
   let o;
-  if (kind === 'plane') {
+  if (kind === 'plane' || kind === 'planeN') {
     o = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fx3Mat(fx3Texture('ring')));
+    // planeN: normal gemischt – Warnkreise bleiben auch auf hellem Schnee und Eis sichtbar
+    if (kind === 'planeN') o.material.blending = THREE.NormalBlending;
     o.rotation.x = -Math.PI / 2;
   } else if (kind === 'wall') {
     o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28, 1, true), fx3Mat(fx3Texture('beam')));
@@ -306,12 +308,21 @@ const FX3_DRAW = {
   warn(h, e, k) {
     const f = fx3Foot(e);
     const r = e.r * U3;
-    const o = fx3Take(h, 'plane');
+    const o = fx3Take(h, 'planeN');
     fx3Ground(o, f.x, f.z, r, 0.05, 'ring', game.time);
     fx3Color(o, e.color, 0.9);
-    const fill = fx3Take(h, 'plane');
+    const fill = fx3Take(h, 'planeN');
     fx3Ground(fill, f.x, f.z, r * Math.max(0.05, k), 0.04, 'disc');
     fx3Color(fill, e.color, 0.5 + 0.2 * Math.sin(game.time * 20));
+    if (e.inner) {
+      // sicherer Bereich direkt beim Boss
+      const safe = fx3Take(h, 'planeN');
+      fx3Ground(safe, f.x, f.z, e.inner * U3, 0.06, 'disc');
+      fx3Color(safe, '#3aff6a', 0.55);
+      const edge = fx3Take(h, 'planeN');
+      fx3Ground(edge, f.x, f.z, e.inner * U3 * 1.05, 0.07, 'ring');
+      fx3Color(edge, '#7aff8a', 1);
+    }
   },
   pillar(h, e, k) {
     const f = fx3Foot(e);

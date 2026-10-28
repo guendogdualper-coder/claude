@@ -2461,3 +2461,6 @@ function figureHeight(e) {
 function feetY(e) {
   return e.y + e.r * 0.8;
 }
+
+// Endbosse (seit 6.5) sehen aus wie ihre Vorlage, nur riesig und geschmückt
+for (const [id, t] of Object.entries(MONSTER_TYPES)) if (t.raid && !MONSTER_ART[id]) MONSTER_ART[id] = MONSTER_ART[t.raid.art];

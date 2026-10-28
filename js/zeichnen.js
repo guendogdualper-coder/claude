@@ -698,11 +698,11 @@ function drawNpc(ctx, n) {
   const fy = feetY(n);
   const portal = n.id === 'eingang' || n.id === 'ausgang';
   if (!portal && n.id !== 'weltentor') {
-    castShadow(ctx, npcSprite(n.id), n.x, fy, n.facing < 0, 0.2);
+    castShadow(ctx, npcSprite(n.art || n.id), n.x, fy, n.facing < 0, 0.2);
     drawShadow(ctx, n.x, fy, n.id === 'kind' ? 9 : 12);
   }
   const step = n.moving ? Math.abs(Math.sin(game.time * 9)) * 1.5 : 0;
-  blitSprite(ctx, npcSprite(n.id), n.x, fy - step, n.facing < 0);
+  blitSprite(ctx, npcSprite(n.art || n.id), n.x, fy - step, n.facing < 0);
   if (n.id === 'weltentor') glow(ctx, n.x, fy - 30, 30, '#7ab8ff', 0.45 + 0.15 * Math.sin(game.time * 2.5));
   // Dungeon-Eingänge und -Ausgänge leuchten in der Farbe ihres Dungeons
   if (portal) {
@@ -718,7 +718,7 @@ function drawNpcMarks(ctx, n) {
   const bob = Math.sin(game.time * 3) * 2;
   if (NPC_ICONS[n.id]) blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
   // Ausrufezeichen: golden bei Hauptmissionen, grün bei Nebenmissionen
-  const mark = questMarker(n.id);
+  const mark = questMarker(n.id, n);
   if (mark) {
     const x = n.x + (NPC_ICONS[n.id] ? 13 : 0);
     const y = fy - 64 + bob;
@@ -1175,6 +1175,19 @@ function drawLabel(ctx, e) {
     if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - (guild ? 26 : 14), e.say);
     return;
   }
+  if (e.id === 'riss') {
+    // Riss: Name des Dungeons und Restzeit statt eines Balkens
+    const left = Math.max(0, Math.ceil(e.until - game.time));
+    const label = `${DUNGEONS[e.dungeon].name} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    ctx.font = '700 12px "Alegreya Sans", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.strokeText(label, e.x, feetY(e) + 16);
+    ctx.fillStyle = lighter(DUNGEONS[e.dungeon].portal, 0.35);
+    ctx.fillText(label, e.x, feetY(e) + 16);
+    return;
+  }
   if (e.until) {
     drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0');
     return;
@@ -1290,7 +1303,7 @@ function renderMinimap() {
       ctx.fillRect(mx - 3, my - 3, 6, 6);
       continue;
     }
-    const mark = questMarker(n.id);
+    const mark = questMarker(n.id, n);
     ctx.fillStyle = mark === 'main' ? '#ffd34d' : mark === 'side' ? '#6ae86a' : '#e8d8a8';
     ctx.fillRect(mx - 1, my - 1, mark ? 3.5 : 2.5, mark ? 3.5 : 2.5);
   }

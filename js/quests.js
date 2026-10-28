@@ -8,6 +8,29 @@ function questState() {
   return p.quests;
 }
 
+// Nebenaufgaben der Wanderer: Zustand je Wanderer (open, active), Fortschritt und wie oft schon erledigt
+function sideState(key) {
+  const q = questState();
+  if (!q.side) q.side = {};
+  if (!q.side[key]) q.side[key] = { state: 'open', progress: 0, times: 0 };
+  return q.side[key];
+}
+function sideCount(n, s) {
+  return n.side.kind === 'collect' ? SIDE_COLLECT + Math.min(4, s.times) : SIDE_KILL + Math.min(10, s.times * 2);
+}
+function sideHave(n, s) {
+  return n.side.kind === 'collect' ? (game.player.upmats[n.side.monster] || 0) : s.progress;
+}
+function sideDone(n, s) {
+  return s.state === 'active' && sideHave(n, s) >= sideCount(n, s);
+}
+// Läuft eine Sammel-Aufgabe für dieses Monster? Dann fallen seine Teile viel öfter
+function sideCollecting(typeId) {
+  if (!game.player || !game.world) return false;
+  const q = questState();
+  return !!q.side && game.world.npcs.some((n) => n.id === 'wanderer' && n.side.kind === 'collect' && n.side.monster === typeId && q.side[n.key] && q.side[n.key].state === 'active');
+}
+
 function currentMainQuest() {
   return MAIN_QUESTS[questState().main] || null;
 }
@@ -69,6 +92,15 @@ function questEvent(kind, m) {
       ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Vlotho oder beim Stallmeister in jedem Lager.', 'level');
     }
   }
+  if (kind === 'kill' && q.side) {
+    for (const n of game.world.npcs) {
+      if (n.id !== 'wanderer' || n.side.kind !== 'kill' || n.side.monster !== m.typeId) continue;
+      const s = q.side[n.key];
+      if (!s || s.state !== 'active' || s.progress >= sideCount(n, s)) continue;
+      s.progress++;
+      if (s.progress >= sideCount(n, s)) ui.banner('Aufgabe erfüllt', `Kehre zu ${n.name} zurück`);
+    }
+  }
   const h = q.hunt;
   if (h && h.progress < h.count && kind === 'kill' && m.typeId === h.monster) {
     h.progress++;
@@ -82,9 +114,13 @@ function questEvent(kind, m) {
 
 // Ausrufezeichen über Auftraggebern, wenn es etwas zu holen gibt:
 // 'main' (golden) für Hauptmissionen, 'side' (grün) für Nebenmissionen
-function questMarker(npcId) {
+function questMarker(npcId, n) {
   if (!game.player || !game.running) return false;
   const q = questState();
+  if (npcId === 'wanderer' && n) {
+    const s = sideState(n.key);
+    return (s.state === 'open' || sideDone(n, s)) && 'side';
+  }
   if (npcId === 'aeltester') {
     const main = currentMainQuest();
     if (!main) return false;
@@ -130,8 +166,8 @@ function enterDungeon(k, viaParty = false) {
 const RIFT = { first: 75, every: [140, 240], life: 300, minLevel: 10 };
 
 function riftDungeon(level) {
-  const ok = DUNGEONS.map((d, k) => k).filter((k) => DUNGEONS[k].minLevel <= level && DUNGEONS[k].minLevel >= level - 28);
-  const fallback = DUNGEONS.map((d, k) => k).filter((k) => DUNGEONS[k].minLevel <= level);
+  const ok = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && DUNGEONS[k].minLevel <= level && DUNGEONS[k].minLevel >= level - 28);
+  const fallback = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && DUNGEONS[k].minLevel <= level);
   const list = ok.length ? ok : fallback;
   return list.length ? list[randInt(0, list.length - 1)] : -1;
 }
@@ -330,6 +366,13 @@ Object.assign(ui, {
       const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
       row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time);
     }
+    if (q.side) for (const n of game.world.npcs) {
+      if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
+      const s = q.side[n.key];
+      const t = MONSTER_TYPES[n.side.monster];
+      const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[n.side.monster].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`;
+      row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(n.side.monster));
+    }
     if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster));
     el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
       (this.questLogClosed ? '' : `<ul class="ql-list">${rows.join('')}</ul>`) : '';
@@ -379,6 +422,49 @@ Object.assign(ui, {
       saveGame();
       this.renderQuestTrack();
       this.renderElder();
+    });
+  },
+
+  renderWanderer(n) {
+    const p = game.player;
+    const s = sideState(n.key);
+    const t = MONSTER_TYPES[n.side.monster];
+    const mat = MOB_MATS[n.side.monster];
+    const need = sideCount(n, s);
+    const collect = n.side.kind === 'collect';
+    const xp = questXp(t.level, 0.25);
+    const reward = { gold: t.level * 45, potions: 2 };
+    const body = $('npcBody');
+    const ask = collect
+      ? `„Ich brauche ${need} × ${mat.name} (fällt von ${t.name}). Solange du für mich sammelst, findest du es viel öfter.“`
+      : `„${t.name} machen die Gegend unsicher. Besiege ${need} von ihnen, dann kann ich weiterziehen.“`;
+    let action;
+    if (s.state === 'open') action = '<button type="button" class="btn btn-primary" data-side="accept">Aufgabe annehmen</button>';
+    else if (sideDone(n, s)) action = '<button type="button" class="btn btn-primary" data-side="reward">' + (collect ? `${need} × ${mat.name} abgeben` : 'Belohnung abholen') + '</button>';
+    else action = `<p class="hint-text">Fortschritt: ${Math.min(sideHave(n, s), need)} / ${need}</p><button type="button" class="btn btn-ghost" data-side="drop">Aufgabe abbrechen</button>`;
+    body.innerHTML = `<p class="quest-step">Nebenaufgabe · ${t.name} (Stufe ${t.level})${s.times ? ` · schon ${s.times}× erledigt` : ''}</p>` +
+      `<p>${ask}</p><p><strong>Ziel:</strong> ${collect ? `${need} × ${mat.name}` : `${need} × ${t.name} besiegen`} <small>📍 ${monsterWhere(n.side.monster)}</small></p>` +
+      `<p><strong>Belohnung:</strong></p>${rewardHtml(reward, xp)}${action}`;
+    const btn = body.querySelector('[data-side]');
+    if (btn) btn.addEventListener('click', () => {
+      if (btn.dataset.side === 'accept') {
+        s.state = 'active';
+        s.progress = 0;
+        ui.log(`Neue Nebenaufgabe von ${n.name}.`, 'info');
+      } else if (btn.dataset.side === 'drop') {
+        s.state = 'open';
+        s.progress = 0;
+      } else {
+        if (collect) p.upmats[n.side.monster] -= need;
+        giveReward(reward, xp);
+        s.state = 'open';
+        s.progress = 0;
+        s.times++;
+        ui.banner('Nebenaufgabe erledigt', n.name);
+      }
+      saveGame();
+      this.renderQuestTrack();
+      this.renderWanderer(n);
     });
   },
 
@@ -572,6 +658,25 @@ Object.assign(ui, {
     const alive = game.monsters.find((m) => m.typeId === dg.def.boss);
     const bossInfo = alive && alive.dead ? `ist besiegt und kehrt in ${Math.max(1, Math.ceil((alive.respawnAt - game.time) / 60))} Min. zurück` : 'wartet im letzten Raum';
     const low = p.level < dg.def.minLevel;
+    if (dg.def.raid) {
+      // Endboss der Map
+      const alive2 = game.monsters.find((m) => m.typeId === dg.def.boss);
+      const state = alive2 && alive2.dead ? `ist besiegt und kehrt in ${Math.max(1, Math.ceil((alive2.respawnAt - game.time) / 60))} Min. zurück.` : 'wartet in seiner Halle.';
+      const party = game.party ? game.party.members.length : 1;
+      body.innerHTML = `<p class="quest-step raid-step">Endboss dieser Map · Stufe ${boss.level} · für 5 Spieler</p><h3>${boss.name}</h3>` +
+        `<p>Ein riesiger Gegner in der ${dg.def.name}. Er ${state}</p>` +
+        '<ul class="raid-roles"><li><b>Tank</b> hält den Boss und fängt den Tank-Schlag (rotes Zeichen über dem Kopf).</li>' +
+        '<li><b>Heiler</b> hält alle am Leben (Schamane: Heilung).</li><li><b>Schaden</b> (2–3 Spieler) bringen ihn zu Fall.</li></ul>' +
+        '<p class="hint-text">Mechaniken: rote Kreise am Boden = gleich schlägt es dort ein, raus da! Meteore fallen auf jeden Spieler. Der Linienangriff fährt zum Ziel. Bei der Nova ist nur der grüne Kreis direkt am Boss sicher. Bei 70 % und 35 % Leben schreit er, ruft Helfer und wird schneller. Ohne Kampf heilt er sich voll.</p>' +
+        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei legendäre Teile (+7 bis +9, vier Boni, darunter eine Waffe), Fertigkeitsbücher, Seltene Verstärkungen, Sternensteine und sehr viel Gold.</p>' +
+        (party < 5 ? `<p class="form-error">Deine Gruppe hat ${party} von 5 Spielern – zu wenige ist es sehr gefährlich.</p>` : '') +
+        `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Halle betreten'}</button>`;
+      body.querySelector('[data-dg]').addEventListener('click', () => {
+        const err = enterDungeon(npc.dungeon);
+        if (err) ui.log(err, 'warn');
+      });
+      return;
+    }
     const rift = npc.id === 'riss';
     const left = rift ? Math.max(0, Math.ceil(npc.until - game.time)) : 0;
     body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name}. Allein schließt er sich, sobald du hindurchgehst; in einer Gruppe bleibt er offen, bis seine Zeit um ist.</p>` : '') +

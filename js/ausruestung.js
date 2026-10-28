@@ -120,10 +120,11 @@ function itemKindText(item) {
 }
 
 function itemFullName(item) {
-  return itemName(item) + ' +' + item.plus;
+  return (item.legend ? 'Legendär: ' : '') + itemName(item) + ' +' + item.plus;
 }
 
 function itemColor(item) {
+  if (item.legend) return '#ff9a2a';
   return PLUS_COLORS[plusBand(item.plus)] || '#ece2cb';
 }
 
@@ -397,7 +398,7 @@ function addBooks(n, from, pool) {
     const own = ownBook(p, id);
     ui.loot('Buch: ' + sk.name, 1, bookIconUrl(id), own ? '#ffd34d' : '#c58cff');
     if (own) ui.log(`Ein Buch für deine Fertigkeit ${sk.name}!`, 'level');
-    if (from) later(0.2 + k * 0.12, () => vfxLootFly(from, bookSprite(id).img));
+    if (from && !ui.dropAt) later(0.2 + k * 0.12, () => vfxLootFly(from, bookSprite(id).img));
   }
   if (got.length) ui.buildSkillBar();
   return got;
@@ -444,7 +445,7 @@ function addMobMat(id, n, from) {
   p.upmats[id] = (p.upmats[id] || 0) + n;
   const mat = MOB_MATS[id];
   ui.loot(mat.name, n, mobMatIconUrl(id), mat.color);
-  if (from) later(0.15, () => vfxLootFly(from, mobMatSprite(id).img));
+  if (from && !ui.dropAt) later(0.15, () => vfxLootFly(from, mobMatSprite(id).img));
 }
 
 // Beute: normale Monster selten, Seelensteine oft
@@ -470,12 +471,12 @@ function rollLoot(m) {
       const mat = MATERIALS.find((x) => x.id === id);
       got.push(id);
       ui.loot(mat.name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
-      for (let k = 0; k < n; k++) later(0.1 + got.length * 0.12 + k * 0.08, () => vfxLootFly(m, materialIconCanvas(id)));
+      if (!ui.dropAt) for (let k = 0; k < n; k++) later(0.1 + got.length * 0.12 + k * 0.08, () => vfxLootFly(m, materialIconCanvas(id)));
     }
   }
   // Monster-Teile für den Schmied: jedes Monster lässt selten sein eigenes Teil fallen,
   // Seelensteine einige Teile der Monster ihres Gebiets
-  if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < MOB_MAT_CHANCE) addMobMat(m.typeId, 1, m);
+  if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < (sideCollecting(m.typeId) ? SIDE_DROP : MOB_MAT_CHANCE)) addMobMat(m.typeId, 1, m);
   // Fertigkeitsbücher zu zufälligen Fertigkeiten aller Klassen: aus jedem Seelenstein
   // (höhere Steine öfter, ab Stufe 40 manchmal zwei), sehr selten von Monstern ab Stufe 20
   if (m.isStone) {
@@ -512,6 +513,40 @@ function rollLoot(m) {
 }
 
 // Schilde fallen nur für Krieger
+// Endboss-Beute (seit 6.5): drei legendäre Teile für die eigene Klasse (eine Waffe, zwei andere Teile),
+// +7 bis +9 mit gleich vier Boni; dazu Bücher, viele Verstärkungen, Schmiede-Teile und sehr viel Gold
+function raidLoot(m) {
+  const p = game.player;
+  const b = m.type.boss;
+  let tier = 0;
+  ITEM_TIERS.forEach((t, i) => { if (m.level + 4 >= t.level) tier = i; });
+  const others = lootSlots(EQUIP_SLOTS.map((sl) => sl.id).filter((s) => s !== 'waffe'), p.classId);
+  const slots = ['waffe', others[randInt(0, others.length - 1)], others[randInt(0, others.length - 1)]];
+  for (const slot of slots) {
+    const item = makeItem(slot, tier, randInt(7, 9), p.classId, lootKind(p, p.classId));
+    item.legend = true;
+    item.bonuses = [];
+    for (let k = 0; k < 4; k++) item.bonuses.push(rollBonus(item, false));
+    clampItemBonuses(item);
+    if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
+  }
+  addBooks(randInt(3, 5), m);
+  if (b.mat) addMobMat(b.mat, randInt(6, 10), m);
+  const mats = { boniPlus: 4, switcher: 3, boni5: 2, star: randInt(1, 2) };
+  for (const [id, n] of Object.entries(mats)) {
+    p.materials[id] = (p.materials[id] || 0) + n;
+    ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
+  }
+  p.scrolls += 3;
+  ui.loot(BLESSING.name, 3, scrollIconUrl(), '#f3e2b0');
+  const gold = m.level * 1500;
+  p.gold += gold;
+  ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
+  ui.banner('Endboss besiegt!', m.name);
+  flashScreen('#ffd34d', 0.5);
+}
+
 function lootSlots(slots, cls) {
   const out = cls === 'krieger' ? slots : slots.filter((s) => s !== 'schild');
   return out.length ? out : ['ruestung'];

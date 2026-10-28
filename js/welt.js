@@ -8,7 +8,7 @@ const TILE = 32;          // Größe einer Kachel in Pixeln
 const WORLD_W = 900;      // Breite des Map-Bereichs in Kacheln
 const WORLD_H = 480;      // Höhe des Map-Bereichs in Kacheln
 const DUNGEON_COL = 60;   // Breite einer Dungeon-Spalte in Kacheln
-const DUNGEON_W = DUNGEON_COL * 2; // östlich davon liegen zwei Spalten mit je vier Dungeons (nur per Eingang erreichbar)
+const DUNGEON_W = DUNGEON_COL * Math.ceil(DUNGEONS.length / 4); // östlich davon Spalten mit je vier Dungeons und Endboss-Arenen (nur per Eingang)
 const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
 const MAP_W = WORLD_W + DUNGEON_W;
 const MAP_H = WORLD_H;
@@ -29,7 +29,20 @@ const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG]);
 // CAVEWALL: Wände der Dungeons, werden mit dem Boden vorgezeichnet
 const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5, BLOSSOM: 6, WALL: 7, CAVEWALL: 8 };
 // Verzierungen ohne Kollision
-const DECO = { NONE: 0, TUFT: 1, FLOWER_RED: 2, FLOWER_YELLOW: 3, FLOWER_WHITE: 4, PEBBLE: 5, CRACK: 6, BRIDGE: 7 };
+const DECO = { NONE: 0, TUFT: 1, FLOWER_RED: 2, FLOWER_YELLOW: 3, FLOWER_WHITE: 4, PEBBLE: 5, CRACK: 6, BRIDGE: 7,
+  STUMP: 8, LOG: 9, MUSHROOM: 10, BONES: 11, SHRUB: 12, CRYSTAL: 13, DEADTREE: 14 };
+// Seit 6.5 deutlich weniger Bäume und Felsen, dafür Schmuck je Gebiet, durch den man hindurchläuft
+const ZONE_DECO = {
+  wiesen: ['SHRUB', 'STUMP', 'SHRUB'], wald: ['STUMP', 'MUSHROOM', 'LOG', 'SHRUB'], orktal: ['BONES', 'DEADTREE', 'BONES'],
+  oedland: ['DEADTREE', 'BONES', 'DEADTREE', 'CRYSTAL'], frost: ['CRYSTAL', 'STUMP', 'CRYSTAL'], moor: ['MUSHROOM', 'BONES', 'LOG', 'DEADTREE'],
+  vulkan: ['CRYSTAL', 'BONES', 'DEADTREE'], sandwueste: ['BONES', 'DEADTREE'], nagadschungel: ['SHRUB', 'MUSHROOM', 'LOG'],
+  donnerklamm: ['BONES', 'DEADTREE', 'CRYSTAL'], titanenkamm: ['CRYSTAL', 'BONES']
+};
+const DECO_RATE = 0.022;
+function zoneDeco(zone, r) {
+  const list = ZONE_DECO[zone.id];
+  return list ? DECO[list[Math.floor(r * list.length) % list.length]] : DECO.NONE;
+}
 
 // Zufallsgenerator mit Startwert: gleiche Zahl → gleiche Welt
 function mulberry32(seed) {
@@ -96,22 +109,26 @@ function mapZoneAt(x, y) {
 // Der Dungeon-Streifen hat zwei Spalten, jede von oben nach unten in vier gleich hohe Blöcke geteilt
 const DUNGEON_BLOCK = Math.floor(DUNGEON_H / 4);
 function dungeonIndexAt(x, y) {
-  const col = Math.max(0, Math.min(1, Math.floor((x - WORLD_W) / DUNGEON_COL)));
+  const col = Math.max(0, Math.min(Math.ceil(DUNGEONS.length / 4) - 1, Math.floor((x - WORLD_W) / DUNGEON_COL)));
   return Math.min(DUNGEONS.length - 1, col * 4 + Math.min(3, Math.floor(y / DUNGEON_BLOCK)));
 }
 function dungeonZoneAt(x, y) {
   return RING_ZONES + dungeonIndexAt(x, y);
 }
 
-// Liegt die Kachel auf der Dorfmauer? (Tore ausgenommen)
-function isWallTile(x, y) {
-  const dx = x - CENTER_X;
-  const dy = y - CENTER_Y;
-  const onH = (dy === -VILLAGE_HALF || dy === VILLAGE_HALF) && dx >= -VILLAGE_HALF && dx <= VILLAGE_HALF;
-  const onV = (dx === -VILLAGE_HALF || dx === VILLAGE_HALF) && dy >= -VILLAGE_HALF && dy <= VILLAGE_HALF;
+// Liegt die Kachel auf der Dorfmauer? (Tore ausgenommen) – seit 6.5 auch für die Mauern der Lager und Städte
+function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
+  const dx = x - cx;
+  const dy = y - cy;
+  const onH = (dy === -half || dy === half) && dx >= -half && dx <= half;
+  const onV = (dx === -half || dx === half) && dy >= -half && dy <= half;
   if (!onH && !onV) return false;
   const along = onH ? dx : dy;
   return along < -GATE_HALF || along >= GATE_HALF;
+}
+// Mauerstück senkrecht, wenn darüber oder darunter auch Mauer ist
+function wallVertical(w, i) {
+  return w.obj[i - MAP_W] === OBJ.WALL || w.obj[i + MAP_W] === OBJ.WALL;
 }
 
 function generateWorld() {
@@ -162,6 +179,7 @@ function generateWorld() {
       const r = rng();
       if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
       else if (r < zone.trees * cluster + zone.rocks) obj[i] = OBJ.ROCK;
+      else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = zoneDeco(zone, rng());
     }
   }
 
@@ -175,7 +193,7 @@ function generateWorld() {
         const y = Math.floor(CENTER_Y + dy * s + (dx ? w + wobble : 0));
         if (x < m1x0 + MAP_BORDER || y < m1y0 + MAP_BORDER || x >= m1x1 - MAP_BORDER || y >= m1y1 - MAP_BORDER) continue;
         const i = y * MAP_W + x;
-        if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
+        deco[i] = LIQUID.has(ground[i]) ? DECO.BRIDGE : DECO.NONE;
         if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
         obj[i] = OBJ.NONE;
       }
@@ -264,6 +282,38 @@ function generateWorld() {
     for (const [id, [dx, dy]] of Object.entries(mp.small ? CAMP_SPOTS : TOWN_SPOTS)) npcs.push(npc(id, personName(mp.id, id), mp.cx + dx, mp.cy + dy));
     houses.push(...mp.houses);
   }
+  // Wanderer mit Nebenaufgaben: je Map drei, an freien Plätzen zwischen Lager und Rand
+  const wrng = mulberry32(WORLD_SEED + 505);
+  const wandererFires = [];
+  let wk = 0;
+  for (const wm of WORLD_MAPS) {
+    const zones = ZONES.filter((z) => z.map === wm.id && z.groups && !z.safe);
+    const mons = [...new Set(zones.flatMap((z) => z.groups.map((g) => g[0])))].sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
+    if (!mons.length) continue;
+    const [rx, ry, rw, rh] = wm.region;
+    for (let k = 0; k < 3; k++) {
+      const monster = mons[Math.min(mons.length - 1, Math.round((k / 2) * (mons.length - 1)))];
+      for (let tries = 0; tries < 200; tries++) {
+        const ang = wrng() * Math.PI * 2;
+        const d = 22 + (k * 0.33 + wrng() * 0.3) * (rw / 2 - 30);
+        const tx = Math.round(wm.cx + Math.cos(ang) * d);
+        const ty = Math.round(wm.cy + Math.sin(ang) * d * 0.4);
+        if (tx < rx + 8 || ty < ry + 8 || tx >= rx + rw - 8 || ty >= ry + rh - 8) continue;
+        let free = true;
+        for (let yy = ty - 1; yy <= ty + 1 && free; yy++) for (let xx = tx - 1; xx <= tx + 1; xx++) {
+          const i = yy * MAP_W + xx;
+          if (obj[i] || LIQUID.has(ground[i])) free = false;
+        }
+        if (!free) continue;
+        const [name, art] = WANDERERS[wk % WANDERERS.length];
+        wk++;
+        npcs.push(npc('wanderer', name, tx + 0.5, ty + 0.5, { art, key: `w${wm.id}-${k}`, side: { monster, kind: k === 1 ? 'collect' : 'kill' } }));
+        // kleines Lagerfeuer daneben
+        wandererFires.push({ type: 'brazier', roof: '#ffb04a', x: (tx + 1.6) * TILE, y: (ty + 1.2) * TILE });
+        break;
+      }
+    }
+  }
   // Weltportale draußen (oben links und unten rechts jeder Map): bringen in die Stadt der Ziel-Map
   for (const wm of WORLD_MAPS) {
     const [cx, cy] = [wm.cx, wm.cy];
@@ -284,11 +334,12 @@ function generateWorld() {
   dungeons.forEach((dg, k) => {
     const e = placeDungeonEntrance(dg.def.entry, ground, obj, deco, zoneIdx);
     dg.entrance = { x: (e.x + 0.5) * TILE, y: (e.y + 1.4) * TILE };
-    npcs.push(npc('eingang', dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k }));
+    npcs.push(npc('eingang', dg.def.raid ? `Endboss: ${MONSTER_TYPES[dg.def.boss].name}` : dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k }));
     const r0 = dg.rooms[0];
     const rb = dg.rooms[dg.rooms.length - 1];
     npcs.push(npc('ausgang', 'Ausgang', r0.x + 1.5, r0.y + 1.2, { dungeon: k }));
-    npcs.push(npc('ausgang', 'Ausgang', rb.x + rb.w - 2, rb.y + 1.2, { dungeon: k }));
+    if (dg.def.raid) npcs.push(npc('ausgang', 'Ausgang', rb.cx + 0.5, rb.y + rb.h - 4, { dungeon: k }));
+    else npcs.push(npc('ausgang', 'Ausgang', rb.x + rb.w - 2, rb.y + 1.2, { dungeon: k }));
   });
   for (const [x, y] of [[C - 3.3, C - 12.6], [C + 3.3, C - 12.6], [C - 3.3, C + 13.4], [C + 3.3, C + 13.4],
     [C - 12.6, C - 3.2], [C - 12.6, C + 3.6], [C + 13.4, C - 3.2], [C + 13.4, C + 3.6]]) {
@@ -346,19 +397,38 @@ function generateWorld() {
     props.push({ type: 'gate', ...T(C, C + s * H + 1) });
   }
 
+  props.push(...wandererFires);
   // Stall des Stallmeisters: ein Pferd und Heuballen
   props.push({ type: 'horse', ...T(C - 11.8, C + 3.4) }, { type: 'hay', ...T(C - 8.6, C + 3.6) });
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
-    for (const r of dg.rooms) {
+    for (const r of dg.def.raid ? dg.rooms.slice(0, 1) : dg.rooms) {
       props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + 1.5, r.y + r.h - 0.6) });
       props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + r.w - 1.5, r.y + r.h - 0.6) });
+    }
+    // Endboss-Halle: ein Ring aus Feuerbecken am Rand
+    if (dg.def.raid) {
+      const r = dg.rooms[1];
+      for (let k = 0; k < 12; k++) {
+        const a = (k / 12) * Math.PI * 2;
+        props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + r.w / 2 + Math.cos(a) * (r.w / 2 - 3), r.y + r.h / 2 + Math.sin(a) * (r.h / 2 - 3)) });
+      }
     }
   });
 
   // Hinter jedem Turm steht die Mauer; die Türme selbst blockieren über die Mauerkacheln
   // Städte in Map 2 und 3: Laternen, Feuerbecken, Marktstände, Brunnen, Fässer
   for (const mp of maps) {
+    // Türme an den Ecken und an jedem Tor, Torbögen im Norden und Süden
+    const H2 = mp.small ? WORLD_MAPS.find((m) => m.id === mp.id).camp : CAMP_HALF;
+    for (const [x, y] of [[-H2, -H2], [H2, -H2], [-H2, H2], [H2, H2]]) props.push({ type: 'tower', ...T(mp.cx + x + 0.5, mp.cy + y + 1) });
+    for (const s of [-1, 1]) {
+      for (const g of [-GATE_HALF - 1, GATE_HALF]) {
+        props.push({ type: 'tower', ...T(mp.cx + g + 0.5, mp.cy + s * H2 + 1) });
+        props.push({ type: 'tower', ...T(mp.cx + s * H2 + 0.5, mp.cy + g + 1) });
+      }
+      props.push({ type: 'gate', ...T(mp.cx, mp.cy + s * H2 + 1) });
+    }
     if (mp.small) {
       // kleines Lager: Laternen an den Ecken, Feuerbecken, Brunnen und ein Stand
       for (const [dx, dy] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) props.push({ type: 'lantern', ...T(mp.cx + dx, mp.cy + dy) });
@@ -386,6 +456,8 @@ function generateWorld() {
 // drei Kacheln breiten Gängen verbunden sind. Der letzte Raum ist der Bossraum.
 // Räume: [x, y, Breite, Höhe] innerhalb des Blocks
 const DUNGEON_ROOMS = [[3, 4, 9, 9], [18, 3, 12, 11], [38, 4, 14, 12], [39, 26, 13, 12], [8, 25, 22, 17]];
+// Endboss-Arena: kleiner Vorraum, dann eine große Halle (fast der ganze Block)
+const RAID_ROOMS = [[3, 32, 8, 8], [16, 5, 38, 63]];
 
 function buildDungeons(ground, obj, zoneIdx) {
   const rng = mulberry32(WORLD_SEED + 99);
@@ -418,7 +490,7 @@ function buildDungeons(ground, obj, zoneIdx) {
       if (x <= x0 || x >= x0 + DUNGEON_COL - 1 || y <= row * DUNGEON_BLOCK || y >= (row + 1) * DUNGEON_BLOCK - 1) return;
       obj[y * MAP_W + x] = OBJ.NONE;
     };
-    const rooms = DUNGEON_ROOMS.map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2) }));
+    const rooms = (def.raid ? RAID_ROOMS : DUNGEON_ROOMS).map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2) }));
     for (const r of rooms) {
       for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y);
       // unregelmäßige Ränder, damit es wie eine Höhle wirkt
@@ -431,6 +503,15 @@ function buildDungeons(ground, obj, zoneIdx) {
           if (rng() < 0.4) carve(r.x - 1, y);
           if (rng() < 0.4) carve(r.x + r.w, y);
         }
+      }
+    }
+    // Endboss-Halle: Ecken wieder zuschütten, damit sie rund wirkt
+    if (def.raid) {
+      const r = rooms[1];
+      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+        const nx = (x + 0.5 - (r.x + r.w / 2)) / (r.w / 2);
+        const ny = (y + 0.5 - (r.y + r.h / 2)) / (r.h / 2);
+        if (nx * nx + ny * ny > 1) obj[y * MAP_W + x] = OBJ.CAVEWALL;
       }
     }
     // Gänge: erst waagrecht, dann senkrecht
@@ -489,6 +570,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
         const r = rng();
         if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
         else if (r < zone.trees * cluster + zone.rocks) obj[i] = OBJ.ROCK;
+        else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = zoneDeco(zone, rng());
         else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT ? DECO.CRACK : DECO.TUFT;
       }
     }
@@ -505,6 +587,15 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
           if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
           obj[i] = OBJ.NONE;
         }
+      }
+    }
+    // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Vlotho)
+    for (let y = wm.cy - camp; y <= wm.cy + camp; y++) {
+      for (let x = wm.cx - camp; x <= wm.cx + camp; x++) {
+        if (!isWallTile(x, y, wm.cx, wm.cy, camp)) continue;
+        const i = y * MAP_W + x;
+        obj[i] = OBJ.WALL;
+        deco[i] = DECO.NONE;
       }
     }
     // Häuser der Stadt in den vier Ecken des Platzes (kleine Lager haben keine)

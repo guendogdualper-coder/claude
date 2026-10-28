@@ -2527,3 +2527,19 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 /* --- Version 6.1: Hinweis auf eine neue Version ----------------------------------------- */
 .update-bar { position: fixed; z-index: 2000; top: max(8px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px); padding: 8px 10px 8px 14px; border-radius: 12px; background: rgba(20, 14, 9, 0.96); color: #fff3d8; font-size: 14px; box-shadow: 0 0 0 1px #120c08, 0 0 0 2.5px #ffd34d, 0 8px 18px rgba(0, 0, 0, 0.6); }
 .update-bar .btn { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+
+/* Version 6.5: Chat am PC größer (Handy bleibt kompakt) */
+#hud:not(.touch) .chat-box { width: min(460px, 36vw); height: 170px; padding-right: 36px; }
+#hud:not(.touch) .chat-box .chat-log p { font-size: 14px; line-height: 1.38; }
+#hud:not(.touch) .chat-box .chat-log p.hint { font-size: 13px; }
+#hud:not(.touch) .chat-tabs button { font-size: 13px; padding: 3px 10px; }
+#hud:not(.touch) .chat-open { width: 32px; height: 32px; }
+#hud:not(.touch) .chat-open svg { width: 18px; height: 18px; }
+#hud:not(.touch) .chat-bar input { font-size: 15px; }
+
+/* Version 6.5: Endboss-Fenster */
+.raid-step { color: #ff9a6a; font-weight: 700; }
+.raid-roles { margin: 6px 0; padding-left: 18px; }
+.raid-roles li { margin: 2px 0; }
+.raid-roles b { color: #ffd34d; }
+.legend-text { color: #ff9a2a; }

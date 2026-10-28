@@ -347,6 +347,73 @@ function drawDeco(ctx, d, g, px, py, h) {
       ctx.fillStyle = 'rgba(255,255,255,0.15)';
       ctx.fillRect(px + ox - 1, py + oy - 1, 1.5, 1);
       break;
+    case DECO.STUMP:
+      ctx.fillStyle = '#5a3f2a';
+      ctx.beginPath();
+      ctx.ellipse(px + ox, py + oy, 6, 3.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#c8a070';
+      ctx.beginPath();
+      ctx.ellipse(px + ox, py + oy - 2, 5, 2.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case DECO.LOG:
+      ctx.fillStyle = '#5a3f2a';
+      ctx.fillRect(px + ox - 10, py + oy - 3, 20, 6);
+      ctx.fillStyle = '#c8a070';
+      ctx.beginPath();
+      ctx.ellipse(px + ox + 10, py + oy, 2, 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case DECO.MUSHROOM:
+      for (const [fx, fy] of [[0, 0], [6, 3], [-5, 4]]) {
+        ctx.fillStyle = '#efe6cc';
+        ctx.fillRect(px + ox + fx - 0.8, py + oy + fy - 3, 1.6, 4);
+        ctx.fillStyle = g === GROUND.SWAMP ? '#7ad86a' : '#c84a3a';
+        ctx.beginPath();
+        ctx.arc(px + ox + fx, py + oy + fy - 3, 2.6, Math.PI, 0);
+        ctx.fill();
+      }
+      break;
+    case DECO.BONES:
+      ctx.strokeStyle = '#e0d8c0';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(px + ox - 6, py + oy); ctx.lineTo(px + ox + 4, py + oy + 2);
+      ctx.moveTo(px + ox - 3, py + oy + 4); ctx.lineTo(px + ox + 6, py + oy - 2);
+      ctx.stroke();
+      ctx.fillStyle = '#e8e0c8';
+      ctx.beginPath();
+      ctx.arc(px + ox + 8, py + oy - 4, 3, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case DECO.SHRUB:
+      ctx.fillStyle = '#3f7a32';
+      for (const [fx, fy, r] of [[0, 0, 5], [5, 1, 4], [-4, 2, 4], [1, -3, 4]]) {
+        ctx.beginPath();
+        ctx.arc(px + ox + fx, py + oy + fy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    case DECO.CRYSTAL:
+      ctx.fillStyle = g === GROUND.SNOW || g === GROUND.ICE ? '#bfe8ff' : g === GROUND.BASALT ? '#ff7a2a' : '#9fd0ff';
+      for (const [fx, h2] of [[0, 9], [4, 6], [-4, 5]]) {
+        ctx.beginPath();
+        ctx.moveTo(px + ox + fx - 2, py + oy);
+        ctx.lineTo(px + ox + fx, py + oy - h2);
+        ctx.lineTo(px + ox + fx + 2, py + oy);
+        ctx.fill();
+      }
+      break;
+    case DECO.DEADTREE:
+      ctx.strokeStyle = '#3a2a20';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(px + ox, py + oy); ctx.lineTo(px + ox, py + oy - 14);
+      ctx.moveTo(px + ox, py + oy - 8); ctx.lineTo(px + ox + 6, py + oy - 13);
+      ctx.moveTo(px + ox, py + oy - 5); ctx.lineTo(px + ox - 5, py + oy - 9);
+      ctx.stroke();
+      break;
     case DECO.CRACK:
       ctx.strokeStyle = g === GROUND.BASALT ? 'rgba(255,120,40,0.55)' : 'rgba(28,18,16,0.5)';
       ctx.lineWidth = 1;
@@ -792,7 +859,7 @@ function collectWorldObjects(list, x0, y0, x1, y1) {
       const i = y * MAP_W + x;
       if (w.obj[i] === OBJ.WALL) {
         if (!towerTiles.has(i)) {
-          const vertical = Math.abs(x - CENTER_X) === VILLAGE_HALF && Math.abs(y - CENTER_Y) !== VILLAGE_HALF;
+          const vertical = wallVertical(w, i);
           list.push({ worldObj: 'wall', dir: vertical ? 'v' : 'h', x: x * TILE + 16, y: (y + 1) * TILE });
         }
         continue;

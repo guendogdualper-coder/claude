@@ -695,7 +695,7 @@ function humanoid3(b, c, P) {
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
-  return { rig, height: top, family: 'human', shY, hipY };
+  return { rig, height: top, family: 'human', shY, hipY, shX, hc, hr, belly };
 }
 
 // Haltung der Waffe in der Hand (Drehung des Griffs)
@@ -927,7 +927,7 @@ function beast3(b, o, P) {
   A(roundBox(0.08, 0.008, muz * 0.6, 0.004), '#3a1a14', { bone: BQ.head, p: [0, hp[1] - 0.075, hp[2] + 0.12 + muz * 0.4] });
   for (const sx of [-1, 1]) {
     // Ohren: rund beim Bären, sonst spitz mit hellem Inneren
-    if (bulky && !o.wings) A(ball(10), dark, { bone: BQ.head, p: [sx * 0.13, hp[1] + 0.14, hp[2] - 0.05], s: [0.06, 0.06, 0.035] });
+    if (bulky && !o.wings && !boar) A(ball(10), dark, { bone: BQ.head, p: [sx * 0.13, hp[1] + 0.14, hp[2] - 0.05], s: [0.06, 0.06, 0.035] });
     else if (!o.noEars) {
       A(horn3(o.small ? 0.11 : 0.16, 0.06, 6), dark, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.12, hp[2] - 0.04], r: [-0.25, 0, -sx * 0.35], s: [1, 1, 0.6] });
       A(horn3(o.small ? 0.07 : 0.11, 0.035, 5), '#d8a8a0', { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.025], r: [-0.25, 0, -sx * 0.35], s: [1, 1, 0.4] });
@@ -945,7 +945,7 @@ function beast3(b, o, P) {
     // Backenfell
     if (!boar) A(horn3(0.1, 0.045, 5), lighter(fur, 0.1), { bone: BQ.head, p: [sx * 0.15 * bw, hp[1] - 0.05, hp[2] + 0.02], r: [0, 0, -sx * 1.9], s: [1, 1, 0.6] });
     if (o.fangs) A(horn3(0.07, 0.018, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.13 + muz * 0.6], r: [Math.PI, 0, 0] });
-    if (o.tusk) A(horn3(0.16, 0.03, 6), '#f4ecd8', { bone: BQ.head, p: [sx * 0.07, hp[1] - 0.07, hp[2] + 0.1 + muz * 0.7], r: [-0.5, 0, -sx * 0.4], shine: 0.4 });
+    if (o.tusk) A(horn3(boar ? 0.22 : 0.16, boar ? 0.04 : 0.03, 6), '#f4ecd8', { bone: BQ.head, p: [sx * 0.07, hp[1] - 0.07, hp[2] + 0.1 + muz * 0.7], r: [-0.7, 0, -sx * 0.45], shine: 0.4 });
     if (o.horns) A(horn3(0.36, 0.06, 8), o.horns, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.08], r: [-1.0, 0, -sx * 0.35], shine: 0.4 });
   }
   if (o.scar) A(roundBox(0.02, 0.15, 0.02, 0.008), '#d8a0a0', { bone: BQ.head, p: [0.08, hp[1] + 0.06, hp[2] + 0.16], r: [0, 0, 0.4] });
@@ -1248,7 +1248,7 @@ function golem3(b, c) {
   for (const sx of [-1, 1]) A(ball(8), glow, { bone: BH.head, p: [sx * 0.085, shY + 0.33, 0.27], s: [0.05, 0.035, 0.03], mat: 'glow' });
   A(roundBox(0.12, 0.025, 0.02, 0.01), glow, { bone: BH.head, p: [0, shY + 0.22, 0.27], mat: 'glow' });
   if (c.crown) for (let k = -2; k <= 2; k++) A(horn3(0.16, 0.04, 5), c.crown, { bone: BH.head, p: [k * 0.08, shY + 0.48, 0.06], mat: 'glow' });
-  return { rig: res.rig, height: shY + 0.45, family: 'human', shY, hipY };
+  return { rig: res.rig, height: shY + 0.45, family: 'human', shY, hipY, shX: res.shX, hc: [0, shY + 0.3, 0.08], hr: 0.21, belly: true, golem: true };
 }
 
 // --- Monsterfarben aus den 2D-Zeichnungen auslesen ---------------------------------------------------
@@ -1370,7 +1370,7 @@ function buildMonster3(b, id) {
     case 'serpentArt': res = serpent3(b, o, false); break;
     case 'nagaArt': res = serpent3(b, o, true); break;
     default: {
-      const h = HEAD3[id] || {};
+      const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || {};
       const c = {
         skin: o.skin || t.color, torso: o.torso || o.robe || o.skin || t.color, sleeve: o.sleeve, pants: o.pants, boots: o.boots, gloves: o.gloves,
         belt: o.belt, pouch: o.pouch, straps: o.straps, robe: o.robe, wideSleeves: o.wideSleeves, belly: o.belly, pads: o.pauldron, padTrim: o.pauldron ? '#c9a35a' : null, spikes: o.spikes,
@@ -1388,8 +1388,164 @@ function buildMonster3(b, id) {
       res = humanoid3(b, c);
     }
   }
-  res.scale = def.scale;
+  monsterFlair3(b, res, id, def);
+  // etwas größer als früher, damit man die Einzelheiten sieht
+  res.scale = def.scale * 1.15 * (t && t.raid ? t.raid.scale : 1);
   return res;
+}
+
+// --- Monster-Schmuck (seit 6.5): passend zum Gebiet Stacheln, Kristalle, Knochen oder Glut,
+// dazu Krallen, Fänge, leuchtende Augen; je höher die Stufe, desto mehr; starke Monster mit Rüstung und Leuchtkreis.
+const MON3_THEMES = {
+  wild: { spike: '#5a4632', glow: '#ffcc4a' },
+  forest: { spike: '#3e4a2a', glow: '#c8ff6a', leaf: '#4f7a32' },
+  desert: { spike: '#d8b878', glow: '#ffd34d', metal: '#8a6a44' },
+  war: { spike: '#6a6f78', glow: '#ff8a4a', metal: '#5a5e66' },
+  hell: { spike: '#2a1414', glow: '#ff4a2a', hot: true },
+  frost: { spike: '#bfe8ff', glow: '#7fd8ff', ice: true },
+  rot: { spike: '#d8d0b8', glow: '#8fe36a', bone: true },
+  fire: { spike: '#3a1a10', glow: '#ffb04a', hot: true },
+  jungle: { spike: '#2f6a4a', glow: '#7ad8c8' },
+  storm: { spike: '#8a8f9a', glow: '#9fd0ff', metal: '#6a6f78' },
+  cave: { spike: '#3a2a40', glow: '#b48cff' }
+};
+const MON3_ZONE_THEME = {
+  wiesen: 'wild', wald: 'forest', orktal: 'desert', oedland: 'hell', frost: 'frost', moor: 'rot', vulkan: 'fire',
+  sandwueste: 'desert', nagadschungel: 'jungle', donnerklamm: 'storm', titanenkamm: 'fire',
+  spinnenhoehle: 'cave', orkfestung: 'war', eisgrotte: 'frost', drachenhort: 'fire', banditenkeller: 'war', totengruft: 'rot',
+  schlangentempel: 'jungle', titanenschmiede: 'fire'
+};
+let mon3ThemeOf = null;
+function monsterTheme3(id) {
+  if (!mon3ThemeOf) {
+    mon3ThemeOf = {};
+    for (const z of ZONES) {
+      const th = MON3_ZONE_THEME[z.id];
+      if (!th) continue;
+      for (const g of z.groups || []) if (!mon3ThemeOf[g[0]]) mon3ThemeOf[g[0]] = th;
+      if (z.dungeon) for (const m of [...(z.dungeon.mobs || []), z.dungeon.boss]) if (!mon3ThemeOf[m]) mon3ThemeOf[m] = th;
+    }
+  }
+  const t = MONSTER_TYPES[id];
+  return MON3_THEMES[mon3ThemeOf[id] || (t && t.raid && mon3ThemeOf[t.raid.art]) || 'wild'];
+}
+
+function monsterFlair3(b, res, id, def) {
+  const t = MONSTER_TYPES[id];
+  if (!t || !res) return;
+  const th = monsterTheme3(id);
+  const A = adder(b, null);
+  const tier = Math.min(1, (t.level || 1) / 70);
+  const elite = (t.hpMul || 1) >= 1.6 || t.boss;
+  const spikeMat = th.hot ? 'glow' : 'lit';
+  const spikeCol = th.ice ? '#d8f2ff' : th.hot ? th.glow : th.spike;
+  const nSpikes = Math.round(2 + tier * 6);
+  const o = def ? def.o || {} : {};
+  if (res.family === 'beast') {
+    const bodyY = res.bodyY;
+    const bulky = !!o.bulky;
+    const boar = !!o.tusk && !o.wings && o.small;
+    const bw = bulky ? 1.3 : boar ? 1.15 : 1;
+    const len = o.long || 0.44;
+    const hp = [0, bodyY + 0.2, len + 0.2];
+    // Rückenstacheln bzw. Eiskristalle / Glutzacken
+    if (t.level >= 6) for (let k = 0; k < nSpikes; k++) {
+      const z = len * 0.5 - (k / Math.max(1, nSpikes - 1)) * len * 1.1;
+      const h = (0.1 + 0.12 * tier) * (1 - Math.abs(k - nSpikes / 2) / nSpikes * 0.6);
+      A(horn3(h, 0.035 + 0.02 * tier, 6), spikeCol, { bone: BQ.body, p: [0, bodyY + 0.2 * bw, z], r: [-0.35, 0, 0], mat: spikeMat, shine: th.ice ? 1 : 0.4 });
+      if (th.ice && k % 2 === 0) A(horn3(h * 0.7, 0.03, 5), '#9fdcff', { bone: BQ.body, p: [0.07 * bw, bodyY + 0.17 * bw, z], r: [-0.3, 0, -0.5], shine: 1 });
+    }
+    // Krallen an allen Pfoten
+    for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
+      for (const dx of [-0.035, 0, 0.035]) A(horn3(0.05 + 0.02 * tier, 0.012, 4), '#f0e8d4', { bone, p: [sx * 0.16 * bw + dx * bw, 0.025, sz * len * 0.62 + 0.115], r: [Math.PI / 2 + 0.4, 0, 0], shine: 0.5 });
+      // Fellbüschel am Ellbogen
+      A(horn3(0.07, 0.03, 5), darker(o.fur || t.color, 0.1), { bone, p: [sx * 0.19 * bw, bodyY * 0.55, sz * len * 0.62 - 0.05], r: [-2.2, 0, sx * 0.3] });
+    }
+    // Leuchtende Augen (über den gemalten Augen), Atemwolke bei Eis, Glut im Maul bei Feuer
+    for (const sx of [-1, 1]) A(sphere3(0.022, 7, 5), th.glow, { bone: BQ.head, p: [sx * 0.095, hp[1] + 0.045, hp[2] + 0.165], mat: 'glow' });
+    if (!o.fangs && !boar) for (const sx of [-1, 1]) A(horn3(0.06, 0.016, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.17], r: [Math.PI, 0, 0] });
+    if (th.hot) A(ball(8), th.glow, { bone: BQ.head, p: [0, hp[1] - 0.08, hp[2] + 0.2], s: [0.05, 0.02, 0.06], mat: 'glow' });
+    // starke Tiere: Knochenplatten oder Rüstung auf den Schultern, Halsband mit Dornen
+    if (elite) {
+      for (const sx of [-1, 1]) A(cap3(0.12 * bw, Math.PI * 0.5), th.metal || darker(th.spike, 0.1), { bone: BQ.body, p: [sx * 0.17 * bw, bodyY + 0.12, len * 0.45], r: [0, 0, -sx * 0.7], shine: 0.7 });
+      A(torus3(0.15 * bw, 0.025, Math.PI * 2, 4, 14), th.metal || '#3a2a1a', { bone: BQ.neck, p: [0, bodyY + 0.12, len * 0.68], r: [0.5, 0, 0], shine: 0.6 });
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        A(horn3(0.05, 0.015, 4), '#d9dde2', { bone: BQ.neck, p: [Math.cos(a) * 0.16 * bw, bodyY + 0.12 + Math.sin(a) * 0.08, len * 0.68 + Math.sin(a) * 0.06], r: [Math.sin(a) * 1.5 + 0.5, 0, -Math.cos(a) * 1.5], shine: 1 });
+      }
+    }
+  } else if (res.family === 'human') {
+    const { shY, hipY, shX = 0.25, hc = [0, shY + 0.3, 0.02], hr = 0.3 } = res;
+    // Schulterstacheln ab Stufe 20 (Glutzacken, Eis, Knochen, Metall)
+    if (t.level >= 20) for (const [sx, bone] of [[1, BH.armL], [-1, BH.armR]]) {
+      const n = Math.round(1 + tier * 3);
+      for (let k = 0; k < n; k++) A(horn3(0.08 + 0.08 * tier, 0.03, 6), th.bone ? '#e8e0c8' : spikeCol, { bone, p: [sx * (shX + 0.02), shY + 0.08, 0.05 - k * 0.07], r: [-0.2, 0, -sx * (0.5 + k * 0.15)], mat: spikeMat, shine: 0.7 });
+    }
+    // Rückenzacken oder Kristalle zwischen den Schultern
+    if (t.level >= 30 && !res.golem) for (let k = 0; k < Math.round(1 + tier * 3); k++) A(horn3(0.12 + 0.06 * tier, 0.035, 6), spikeCol, { bone: BH.chest, p: [(k - 1) * 0.08, shY - 0.04, -0.2], r: [-0.9, 0, (k - 1) * 0.25], mat: spikeMat, shine: 0.8 });
+    // glühende Augen bei allem, was nicht wie ein Mensch aussieht
+    if (t.shape !== 'humanoid' || t.level >= 50) for (const sx of [-1, 1]) A(sphere3(0.026, 7, 5), th.glow, { bone: BH.head, p: [hc[0] + sx * hr * 0.32, hc[1] + hr * 0.08, hc[2] + hr * 0.92], mat: 'glow' });
+    // Gürtel mit Schädel (Moder), Trophäen-Zähne (Orks), Brustplatte (starke Krieger)
+    if (th.bone || t.shape === 'orc') {
+      A(sphere3(0.07, 8, 6), '#e8e0c8', { bone: BH.hips, p: [0.12, hipY + 0.02, 0.17], shine: 0.3 });
+      for (let k = 0; k < 5; k++) A(horn3(0.06, 0.014, 4), '#f0e8d4', { bone: BH.chest, p: [-0.12 + k * 0.06, shY - 0.1 - Math.abs(k - 2) * 0.02, 0.2], r: [Math.PI, 0, 0] });
+    }
+    if (elite && !res.golem) {
+      A(roundBox(0.34, 0.2, 0.06, 0.03), th.metal || darker(t.color, 0.35), { bone: BH.chest, p: [0, shY - 0.14, 0.17], shine: 0.8, top: lighter(th.metal || t.color, 0.2), topK: 0.4 });
+      A(sphere3(0.035, 8, 6), th.glow, { bone: BH.chest, p: [0, shY - 0.13, 0.21], mat: 'glow' });
+    }
+    if (res.golem) {
+      // Kristalle wachsen aus Schultern und Rücken
+      for (let k = 0; k < 3 + Math.round(tier * 3); k++) {
+        const sx = k % 2 ? 1 : -1;
+        A(horn3(0.18 + (k % 3) * 0.06, 0.06, 5), th.ice ? '#bfe8ff' : th.glow, { bone: BH.chest, p: [sx * (0.15 + (k % 3) * 0.1), shY + 0.05, -0.15 - (k % 2) * 0.08], r: [-0.6, 0, -sx * 0.5], mat: th.ice ? 'lit' : 'glow', shine: 1 });
+      }
+    }
+  } else if (res.family === 'spider') {
+    const bodyY = res.bodyY;
+    // Dornen auf dem Hinterleib, leuchtende Zeichnung, große Kieferklauen, Haare an den Beinen
+    for (let k = 0; k < nSpikes; k++) {
+      const a = -0.9 + (k / Math.max(1, nSpikes - 1)) * 1.8;
+      A(horn3(0.1 + 0.08 * tier, 0.03, 5), spikeCol, { bone: 1, p: [Math.sin(a) * 0.22, bodyY + 0.36, -0.34 + Math.cos(a) * 0.12], r: [-0.3, 0, -Math.sin(a) * 0.8], mat: spikeMat, shine: 0.5 });
+    }
+    A(ball(10), th.glow, { bone: 1, p: [0, bodyY + 0.385, -0.42], s: [0.07, 0.02, 0.1], mat: 'glow' });
+    for (const sx of [-1, 1]) A(horn3(0.13, 0.03, 6), '#1a120c', { bone: 2, p: [sx * 0.045, bodyY - 0.04, 0.42], r: [Math.PI - 0.9, 0, sx * 0.2], shine: 0.6 });
+  } else if (res.family === 'scorpion') {
+    const bodyY = res.bodyY;
+    for (let k = 0; k < 4; k++) A(horn3(0.07 + 0.05 * tier, 0.025, 5), spikeCol, { bone: 1, p: [0, bodyY + 0.14, 0.18 - k * 0.14], r: [-0.4, 0, 0], mat: spikeMat, shine: 0.6 });
+    for (const sx of [-1, 1]) A(sphere3(0.02, 7, 5), th.glow, { bone: 1, p: [sx * 0.06, bodyY + 0.13, 0.29], mat: 'glow' });
+  } else if (res.family === 'ghost') {
+    // Ketten um den Leib und schwebende Seelenlichter
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      A(torus3(0.035, 0.01, Math.PI * 2, 4, 8), '#8a8f9a', { bone: 1, p: [Math.cos(a) * 0.32, 0.55 + Math.sin(a * 2) * 0.04, Math.sin(a) * 0.32], r: [0, a, k % 2 ? 0 : Math.PI / 2], shine: 1 });
+    }
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2;
+      A(sphere3(0.05, 8, 6), th.glow, { bone: 3, p: [Math.cos(a) * 0.45, 1.05 + k * 0.08, Math.sin(a) * 0.45], mat: 'glow' });
+    }
+  } else if (res.family === 'serpent') {
+    // Rückenflossen / Stacheln entlang des Körpers, Fänge
+    for (let k = 1; k < 7; k++) A(horn3(0.08 + 0.06 * tier, 0.03, 5), res.naga ? th.spike : spikeCol, { bone: k, p: [Math.sin(k * 0.9) * 0.08, 0.26, 0.42 - k * 0.16], r: [-0.5, 0, 0], mat: spikeMat, shine: 0.6 });
+    if (!res.naga) for (const sx of [-1, 1]) A(horn3(0.06, 0.012, 4), '#f4ecd8', { bone: 1, p: [sx * 0.04, 0.46, 0.66], r: [Math.PI, 0, 0] });
+  }
+  // Leuchtkreis am Boden unter starken Monstern
+  if (elite) A(torus3(0.42, 0.018, Math.PI * 2, 4, 28), th.glow, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
+  // Endbosse: Krone aus Hörnern, schwebende Runensteine, doppelter Runenring
+  if (t.raid) {
+    const col = t.boss.color;
+    const top = res.height || 1;
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2;
+      A(sphere3(0.05, 8, 6), col, { bone: 0, p: [Math.cos(a) * 0.7, top * 0.6 + (k % 2) * 0.15, Math.sin(a) * 0.7], mat: 'glow' });
+      A(roundBox(0.06, 0.12, 0.02, 0.01), col, { bone: 0, p: [Math.cos(a) * 0.62, 0.04, Math.sin(a) * 0.62], r: [-Math.PI / 2, 0, a], mat: 'glow' });
+    }
+    A(torus3(0.62, 0.02, Math.PI * 2, 4, 36), col, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
+    A(torus3(0.75, 0.012, Math.PI * 2, 4, 36), col, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+    const headBone = res.family === 'beast' ? BQ.head : res.family === 'human' ? BH.head : 1;
+    const hp = res.family === 'beast' ? [0, res.bodyY + 0.33, (o.long || 0.44) + 0.14] : res.family === 'human' ? [res.hc[0], res.hc[1] + res.hr * 0.95, res.hc[2]] : [0, top * 0.95, 0.2];
+    for (let k = -2; k <= 2; k++) A(horn3(0.16 - Math.abs(k) * 0.025, 0.035, 6), '#ffd34d', { bone: headBone, p: [hp[0] + k * 0.06, hp[1], hp[2] - Math.abs(k) * 0.02], r: [-0.2, 0, -k * 0.25], mat: 'glow' });
+  }
 }
 
 // --- Bewohner -----------------------------------------------------------------------------------------
@@ -1466,13 +1622,44 @@ function buildPortal3(b, id, color) {
     }
     return { rig, height: 1.7, family: 'portal' };
   }
-  if (id === 'eingang') {
-    A(geo3('cavearch', () => new THREE.TorusGeometry(0.62, 0.22, 10, 22, Math.PI)), '#6a625a', { p: [0, 0.35, 0], shade: 0.2 });
-    for (const sx of [-1, 1]) A(roundBox(0.42, 0.5, 0.42, 0.14), '#6a625a', { p: [sx * 0.62, 0.25, 0] });
-    for (const [x, y, s] of [[-0.7, 0.9, 0.2], [0.6, 1.0, 0.24], [0, 1.05, 0.18]]) A(sphere3(s, 10, 8), '#7e766c', { p: [x, y, 0.05] });
-    A(new THREE.CircleGeometry(0.52, 22, 0, Math.PI), color, { p: [0, 0.35, 0.02], mat: 'aura' });
-    A(roundBox(1.0, 0.36, 0.06, 0.03), color, { p: [0, 0.18, 0.02], mat: 'aura' });
-    return { rig, height: 1.3, family: 'portal' };
+  if (id === 'eingang' || id === 'raid') {
+    // Großes Steintor (seit 6.5): zwei Säulen mit Feuerschalen, Bogen mit Schlussstein, wirbelndes Portal,
+    // Stufen davor und Runenkreis am Boden. Endboss-Tor dunkler, mit Schädel und Hörnern.
+    const raid = id === 'raid';
+    const stone = raid ? '#3a3034' : '#7a7268';
+    const top = raid ? '#5a4a50' : '#a49a8c';
+    A(roundBox(1.9, 0.12, 0.9, 0.04), darker(stone, 0.1), { p: [0, 0.06, 0.18], top, topK: 0.4 });
+    A(roundBox(1.6, 0.1, 0.7, 0.04), stone, { p: [0, 0.16, 0.12], top, topK: 0.4 });
+    for (const sx of [-1, 1]) {
+      A(roundBox(0.34, 1.5, 0.34, 0.06), stone, { p: [sx * 0.72, 0.9, 0], top, topK: 0.5, shade: 0.3 });
+      A(roundBox(0.44, 0.12, 0.44, 0.04), darker(stone, 0.15), { p: [sx * 0.72, 0.2, 0] });
+      A(roundBox(0.44, 0.1, 0.44, 0.04), darker(stone, 0.15), { p: [sx * 0.72, 1.62, 0] });
+      // Feuerschale oben auf der Säule
+      A(cyl3(0.16, 0.1, 0.12, 12), '#3a2a20', { p: [sx * 0.72, 1.74, 0], shine: 0.5 });
+      A(horn3(0.32, 0.13, 8), color, { p: [sx * 0.72, 1.8, 0], mat: 'glow' });
+      A(horn3(0.2, 0.07, 8), '#fff2c0', { p: [sx * 0.72, 1.82, 0], mat: 'glow' });
+      // Runenband an der Säule
+      for (let k = 0; k < 3; k++) A(roundBox(0.05, 0.14, 0.02, 0.01), color, { p: [sx * 0.72, 0.6 + k * 0.32, 0.18], mat: 'glow' });
+    }
+    A(geo3('gatearch2', () => new THREE.TorusGeometry(0.72, 0.17, 10, 26, Math.PI)), stone, { p: [0, 1.55, 0], top, topK: 0.4, shade: 0.2 });
+    A(roundBox(0.26, 0.3, 0.26, 0.05), raid ? '#e8e0c8' : top, { p: [0, 2.28, 0.04] });
+    if (raid) {
+      for (const sx of [-1, 1]) A(horn3(0.5, 0.09, 8), '#e8dcc0', { p: [sx * 0.24, 2.35, 0.04], r: [0, 0, -sx * 0.9], shine: 0.5 });
+      for (const sx of [-1, 1]) A(sphere3(0.04, 8, 6), color, { p: [sx * 0.06, 2.3, 0.18], mat: 'glow' });
+    }
+    // Portalfläche: Rand, Wirbel, heller Kern (Knochen 1 dreht sich)
+    A(new THREE.CircleGeometry(0.55, 30), darker(color, 0.55), { p: [0, 1.55, 0.04], mat: 'aura' });
+    A(geo3('portalbody', () => new THREE.PlaneGeometry(1.1, 1.35)), darker(color, 0.55), { p: [0, 0.9, 0.04], mat: 'aura' });
+    for (let k = 0; k < 3; k++) A(geo3('swirl' + k, () => new THREE.TorusGeometry(0.16 + k * 0.13, 0.035, 6, 28, Math.PI * 1.4)), k % 2 ? '#ffffff' : color, { bone: 1, p: [0, 1.2, 0.08 + k * 0.005], r: [0, 0, k * 2.1], mat: 'glow' });
+    A(new THREE.CircleGeometry(0.14, 18), '#ffffff', { bone: 1, p: [0, 1.2, 0.1], mat: 'aura' });
+    // Runenkreis am Boden
+    A(geo3('gatering2', () => new THREE.RingGeometry(1.05, 1.18, 40).rotateX(-Math.PI / 2)), color, { p: [0, 0.03, 0.2], mat: 'aura' });
+    for (let k = 0; k < 10; k++) {
+      const a2 = (k / 10) * Math.PI * 2;
+      A(roundBox(0.06, 0.01, 0.12, 0.004), color, { p: [Math.cos(a2) * 1.25, 0.03, 0.2 + Math.sin(a2) * 1.25], r: [0, -a2, 0], mat: 'glow' });
+    }
+    const rig2 = rigOf([[[0, 0, 0], -1], [[0, 1.2, 0.08], 0]]);
+    return { rig: rig2, height: 2.4, family: 'portal' };
   }
   // Ausgang: leuchtender Kreis mit vier Steinen
   A(new THREE.CircleGeometry(0.48, 24).rotateX(-Math.PI / 2), color, { p: [0, 0.04, 0], mat: 'aura' });
@@ -1484,16 +1671,34 @@ function buildPortal3(b, id, color) {
   return { rig, height: 0.6, family: 'portal' };
 }
 
-// Riss: zerklüfteter, leuchtender Spalt in der Luft
-function buildRift3(b) {
+// Riss (seit 6.5): großer gezackter Spalt aus schwarzem Stein in der Luft, darin ein Wirbel in der
+// Farbe des Dungeons, ringsum schwebende Felssplitter und leuchtende Risse im Boden
+function buildRift3(b, color = '#b48cff') {
   const A = adder(b, null);
-  const rig = rigOf([[[0, 0, 0], -1], [[0, 0.9, 0], 0]]);
+  const rig = rigOf([[[0, 0, 0], -1], [[0, 1.25, 0], 0], [[0, 0.9, 0], 0]]);
+  // Bodenrisse
   for (let k = 0; k < 7; k++) {
-    const y = 0.25 + k * 0.17;
-    A(roundBox(0.1 + Math.sin(k * 1.7) * 0.05 + 0.08, 0.2, 0.05, 0.03), k % 2 ? '#d8a0ff' : '#9a5aff', { bone: 1, p: [Math.sin(k * 2.1) * 0.12, y, 0], r: [0, 0, Math.sin(k) * 0.5], mat: 'glow' });
+    const a = (k / 7) * Math.PI * 2;
+    A(roundBox(0.06, 0.012, 0.7 + (k % 3) * 0.2, 0.005), color, { p: [Math.cos(a) * 0.55, 0.02, Math.sin(a) * 0.55], r: [0, -a + Math.PI / 2, 0], mat: 'glow' });
   }
-  A(geo3('riftaura', () => new THREE.SphereGeometry(1, 16, 12).scale(0.45, 0.8, 0.12)), '#7a3aff', { bone: 1, p: [0, 0.85, 0], mat: 'aura' });
-  return { rig, height: 1.5, family: 'rift' };
+  A(geo3('riftfloor', () => new THREE.CircleGeometry(1.2, 28).rotateX(-Math.PI / 2)), darker(color, 0.5), { p: [0, 0.015, 0], mat: 'aura' });
+  // gezackter Rahmen aus dunklen Steinzacken um einen hohen Spalt
+  for (let k = 0; k < 16; k++) {
+    const a = (k / 16) * Math.PI * 2;
+    const len = 0.28 + (k % 3) * 0.12;
+    A(horn3(len, 0.09, 5), k % 2 ? '#1a1220' : '#2a1e34', { bone: 1, p: [Math.cos(a) * 0.62, 1.25 + Math.sin(a) * 1.0, 0], r: [0, 0, a - Math.PI / 2], shine: 0.4 });
+    if (k % 2 === 0) A(horn3(len * 0.6, 0.03, 4), color, { bone: 1, p: [Math.cos(a) * 0.6, 1.25 + Math.sin(a) * 0.98, 0.04], r: [0, 0, a - Math.PI / 2], mat: 'glow' });
+  }
+  A(geo3('riftvoid', () => new THREE.CircleGeometry(1, 30).scale(0.6, 1, 1)), '#0a0612', { bone: 1, p: [0, 1.25, -0.01] });
+  for (let k = 0; k < 4; k++) A(geo3('riftswirl' + k, () => new THREE.TorusGeometry(0.16 + k * 0.11, 0.03, 6, 28, Math.PI * 1.3).scale(1, 1.6, 1)), k % 2 ? '#ffffff' : color, { bone: 1, p: [0, 1.25, 0.02], r: [0, 0, k * 1.7], mat: 'glow' });
+  A(geo3('riftaura2', () => new THREE.SphereGeometry(1, 16, 12).scale(0.8, 1.3, 0.2)), color, { bone: 1, p: [0, 1.25, 0], mat: 'aura' });
+  // schwebende Felssplitter (Knochen 2 kreist)
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    A(rockGeo(k % 3), '#3a3040', { bone: 2, p: [Math.cos(a) * 1.1, 0.6 + (k % 3) * 0.35, Math.sin(a) * 1.1], s: [0.13, 0.11, 0.12], top: '#5a4a60', topK: 0.5 });
+    A(sphere3(0.035, 6, 4), color, { bone: 2, p: [Math.cos(a) * 1.1, 0.75 + (k % 3) * 0.35, Math.sin(a) * 1.1], mat: 'glow' });
+  }
+  return { rig, height: 2.4, family: 'rift' };
 }
 
 // Seelenstein: Grundform, hellere Spitze, leuchtende Runen
@@ -2310,6 +2515,8 @@ function animateCreature(a, e, dt, moving, atk, flash) {
     } else B[BQ.body].scale.y = 1 + Math.sin(t * 3) * 0.02;
     B[BQ.tail].rotation.y = Math.sin(t * (moving ? 9 : 3)) * 0.35;
     B[BQ.head].rotation.x = lunge > 0 ? -0.3 * lunge : Math.sin(t * 1.3) * 0.05;
+    // vor dem Biss ducken, dann nach vorn schnellen
+    if (atk > 0.6) B[BQ.body].position.y -= (atk - 0.6) * 0.15;
     B[BQ.head].rotation.y = lunge > 0 ? 0 : Math.sin(t * 0.7) * 0.15;
     B[BQ.body].position.z += lunge * 0.22;
     B[BQ.wingL].rotation.z = Math.sin(t * 5) * 0.35;
@@ -2330,6 +2537,8 @@ function animateCreature(a, e, dt, moving, atk, flash) {
     B[5].rotation.z = -0.3 - Math.sin(t * 3) * 0.2;
     B[1].position.z += lunge * 0.2;
   }
+  // Leuchtende Teile (Augen, Glut, Kristalle) pulsieren
+  if (a.mats.glow) a.mats.glow.color.setScalar(0.75 + 0.25 * Math.sin(t * 4));
   const mat = a.mats.lit;
   if (mat) {
     if (flash > 0) mat.emissive.setRGB(flash * 0.9, flash * 0.85, flash * 0.8);
@@ -2367,12 +2576,18 @@ function syncAlly3(al, dt) {
 
 function syncNpc3(n, dt) {
   let a;
-  if (n.id === 'riss') a = actorFor(entityKey(n), 'rift', (b) => Object.assign(buildRift3(b), { blob: 0.3 }));
+  if (n.id === 'riss') {
+    const col = DUNGEONS[n.dungeon].portal;
+    a = actorFor(entityKey(n), 'rift:' + col, (b) => Object.assign(buildRift3(b, col), { blob: 0.3, scale: 1.25 }));
+  }
   else if (n.id === 'eingang' || n.id === 'ausgang' || n.id === 'weltentor') {
     const col = n.id === 'weltentor' ? '#7ab8ff' : DUNGEONS[n.dungeon].portal;
-    a = actorFor(entityKey(n), 'portal:' + n.id + col, (b) => Object.assign(buildPortal3(b, n.id, col), { blob: 0.01, scale: n.id === 'eingang' ? 1.7 : n.id === 'weltentor' ? 1.25 : 1.1 }));
-  } else a = actorFor(entityKey(n), 'npc:' + n.id, (b) => {
-    const r = buildNpc3(b, n.id);
+    // Endboss-Tor: dunkler, mit Schädel und Hörnern, größer
+    const raid = n.id === 'eingang' && DUNGEONS[n.dungeon].raid;
+    const kind = raid ? 'raid' : n.id;
+    a = actorFor(entityKey(n), 'portal:' + kind + col, (b) => Object.assign(buildPortal3(b, kind, col), { blob: 0.01, scale: raid ? 2.0 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
+  } else a = actorFor(entityKey(n), 'npc:' + (n.art || n.id), (b) => {
+    const r = buildNpc3(b, n.art || n.id);
     if (r) r.blob = 0.42;
     return r;
   });
@@ -2397,9 +2612,13 @@ function syncNpc3(n, dt) {
     resetBones(a);
     placeActor(a, n, n.id === 'eingang' ? n.y : feetY(n));
     if (fam === 'rift') {
-      a.bones[1].rotation.y = game.time * 0.8;
-      a.bones[1].scale.setScalar(1 + Math.sin(game.time * 4) * 0.05);
+      // Spalt zur Kamera gedreht und pulsierend, Wirbel dreht sich, Splitter kreisen
+      a.bones[1].rotation.z = Math.sin(game.time * 0.7) * 0.06;
+      a.bones[1].scale.setScalar(1 + Math.sin(game.time * 4) * 0.04);
+      a.bones[2].rotation.y = game.time * 0.6;
+      a.bones[2].position.y += Math.sin(game.time * 1.5) * 0.06;
     }
+    if (fam === 'portal' && a.bones[1]) a.bones[1].rotation.z = -game.time * 1.6;
   }
 }
 

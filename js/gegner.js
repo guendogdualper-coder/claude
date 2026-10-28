@@ -82,9 +82,18 @@ function populateWorld() {
 // Monster kommen erst nach 90 s wieder, der Boss nach 10 Minuten.
 const DUNGEON_RESPAWN = 90;
 const BOSS_RESPAWN = 600;
+const RAID_RESPAWN = 900;
 function populateDungeons(groupId) {
   for (const dg of game.world.dungeons) {
     const zone = ZONES[RING_ZONES + DUNGEONS.indexOf(dg.def)];
+    if (dg.def.raid) {
+      // Endboss-Halle: nur der Boss in der Mitte
+      const rb = dg.rooms[1];
+      const boss = createMonster(dg.def.boss, (rb.cx + 0.5) * TILE, (rb.cy + 0.5) * TILE, { zone });
+      boss.respawnDelay = RAID_RESPAWN;
+      game.monsters.push(boss);
+      continue;
+    }
     const [a, b] = dg.def.mobs;
     const plan = [[1, [a, a]], [2, [a, b]], [3, [b, b]]];
     for (const [ri, types] of plan) {
@@ -181,6 +190,135 @@ function updateBoss(m, dt) {
   addEffect({ type: 'warn', x: m.x, y: feetY(m), r: b.slam, dur: 1.1, color: '#ff3a2a' });
   if (net.mode === 'host') netBroadcast({ t: 'warn', x: Math.round(m.x), y: Math.round(feetY(m)), r: b.slam });
   return true;
+}
+
+// --- Endbosse (seit 6.5) ------------------------------------------------------------------------
+// Fünf Angriffe im Wechsel, jeder mit Warnzeichen am Boden: Stampfer um den Boss, Meteorregen auf alle
+// Spieler, Linienangriff, Tank-Schlag aufs Ziel (Heiler gefragt), Nova (nur direkt beim Boss sicher).
+// Bei 70 % und 35 % Leben: Wutschrei, Helfer, danach schneller. Den Schaden rechnet jeder Spieler für sich.
+const RAID_MOVES = ['slam', 'meteor', 'line', 'buster', 'nova', 'meteor'];
+const RAID_MUL = { slam: 3, meteor: 2.6, line: 3.2, buster: 6, nova: 3.4 };
+
+function raidPlayers() {
+  const list = [];
+  const p = game.player;
+  if (p && !p.dead) list.push(p);
+  if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead) list.push(rp);
+  return list;
+}
+
+function updateRaidBoss(m, dt) {
+  const b = m.type.boss;
+  if (!m.raid) m.raid = { next: 3, step: 0, phase: 0 };
+  const R = m.raid;
+  if (m.state !== 'chase') {
+    // ohne Kampf heilt der Boss vollständig und beginnt von vorn
+    if (m.hp < m.maxHp && !m.cast) { m.hp = m.maxHp; R.phase = 0; R.step = 0; }
+    return false;
+  }
+  if (m.cast) {
+    m.moving = false;
+    if (game.time < m.cast.at) return true;
+    const c = m.cast;
+    m.cast = null;
+    raidResolve(m, c.kind, c.circles, c.inner);
+    return true;
+  }
+  const hpk = m.hp / m.maxHp;
+  const phase = hpk < 0.35 ? 2 : hpk < 0.7 ? 1 : 0;
+  if (phase > R.phase) {
+    R.phase = phase;
+    raidRoar(m, phase);
+    return true;
+  }
+  R.next -= dt * (1 + R.phase * 0.35);
+  if (R.next > 0) return false;
+  R.next = 6.5 - R.phase * 1.2;
+  const kind = RAID_MOVES[R.step++ % RAID_MOVES.length];
+  const tgt = m.target && !m.target.dead ? m.target : game.player;
+  const fy = (e) => feetY(e);
+  let circles = [];
+  let inner = 0;
+  let delay = 1.7;
+  if (kind === 'slam') circles = [{ x: m.x, y: fy(m), r: b.slam }];
+  else if (kind === 'meteor') {
+    // ein Meteor auf jeden Spieler, dazu ein paar zufällige
+    for (const pl of raidPlayers()) circles.push({ x: pl.x, y: fy(pl), r: 95 });
+    for (let k = 0; k < 3 + R.phase * 2; k++) { const s = spotNear(m, 360); circles.push({ x: s.x, y: s.y + 10, r: 85 }); }
+    delay = 1.9;
+  } else if (kind === 'line') {
+    const a = Math.atan2(tgt.y - m.y, tgt.x - m.x);
+    for (let k = 1; k <= 6; k++) circles.push({ x: m.x + Math.cos(a) * k * 75, y: fy(m) + Math.sin(a) * k * 75, r: 70 });
+    delay = 1.5;
+  } else if (kind === 'buster') {
+    circles = [{ x: tgt.x, y: fy(tgt), r: 70 }];
+    addEffect({ type: 'ultmark', follow: tgt, ox: 0, oy: 0, dur: 1.6, color: b.color });
+    delay = 1.6;
+  } else if (kind === 'nova') {
+    circles = [{ x: m.x, y: fy(m), r: 420 }];
+    inner = 130;
+    delay = 2.2;
+  }
+  m.cast = { kind, circles, inner, at: game.time + delay };
+  m.attackAnim = 0.25;
+  raidTelegraph(m, kind, circles, inner, delay);
+  if (net.mode === 'host') netBroadcast({ t: 'raid', id: m.id, k: kind, c: circles.map((c) => [Math.round(c.x), Math.round(c.y), c.r]), in: inner, d: delay, atk: m.atk, lvl: m.level });
+  return true;
+}
+
+// Warnzeichen am Boden (auch beim Mitspieler)
+function raidTelegraph(m, kind, circles, inner, delay) {
+  const col = kind === 'buster' ? '#ff2a2a' : '#ff3a2a';
+  for (const c of circles) addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, inner, dur: delay, color: col });
+  if (kind === 'meteor') for (const c of circles) later(Math.max(0, delay - 0.45), () => addEffect({ type: 'ultfall', kind: 'meteor', x: c.x, y: c.y, fall: 0.45, dur: 0.9, color: m.type.boss.color }));
+  if (kind === 'nova') addEffect({ type: 'ultsigil', ground: true, x: m.x, y: feetY(m), r: inner, dur: delay, color: '#7aff8a' });
+  if (kind === 'slam' || kind === 'nova') addEffect({ type: 'pillar', follow: m, dur: delay, color: m.type.boss.color });
+}
+
+// Einschlag: Wirkung zeigen, eigener Spieler nimmt Schaden, wenn er in einem Kreis steht
+function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
+  const p = game.player;
+  const b = m.type.boss;
+  shakeScreen(kind === 'nova' ? 12 : 8);
+  for (const c of circles) {
+    addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.5, color: b.color, width: 12, grow: true });
+    addEffect({ type: 'decal', kind: kind === 'meteor' ? 'scorch' : 'crack', x: c.x, y: c.y, r: c.r * 0.6, dur: 3, color: '#1a1210' });
+    if (kind === 'meteor' || kind === 'buster') addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.35, color: b.color });
+    particles(c.x, c.y - 6, { count: 26, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'ember', drag: 3 });
+  }
+  if (kind === 'nova') flashScreen(b.color, 0.35);
+  if (p.dead) return;
+  const fyp = feetY(p);
+  const hit = circles.some((c) => {
+    const d = Math.hypot(p.x - c.x, (fyp - c.y) * 1.2);
+    return d < c.r && d >= (inner || 0);
+  });
+  if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
+}
+
+// Phasenwechsel: Wutschrei mit Druckwelle und Helfer
+function raidRoarFx(m, phase) {
+  const b = m.type.boss;
+  ui.banner(m.name, phase === 2 ? 'rast vor Wut!' : 'ruft seine Brut!');
+  shakeScreen(14);
+  flashScreen(b.color, 0.4);
+  addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 380, dur: 0.9, color: b.color, width: 18, grow: true });
+  addEffect({ type: 'ultbeam', x: m.x, y: feetY(m), w: 140, dur: 1.2, color: b.color });
+}
+function raidRoar(m, phase) {
+  const b = m.type.boss;
+  raidRoarFx(m, phase);
+  for (let k = 0; k < 3 + phase; k++) {
+    const pos = spotNear(m, 160);
+    const add = createMonster(b.summon, pos.x, pos.y, { respawn: false, zone: m.zone, level: m.level - 4 });
+    add.homeX = m.homeX;
+    add.homeY = m.homeY;
+    add.state = 'chase';
+    add.target = m.target || game.player;
+    game.monsters.push(add);
+    addEffect({ type: 'pillar', x: pos.x, y: pos.y + 9, dur: 0.8, color: b.color });
+  }
+  if (net.mode === 'host') netBroadcast({ t: 'roar', id: m.id, ph: phase });
 }
 
 function spotNear(c, radius) {
@@ -385,7 +523,7 @@ function updateMonsters(dt) {
     if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; continue; }
     if (m.type.boss) {
       m.stun = 0;
-      if (updateBoss(m, dt)) continue;
+      if (m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
     }
     m.cd -= dt;
     const slowMul = m.slow && m.slow.until > game.time ? m.slow.mul : 1;

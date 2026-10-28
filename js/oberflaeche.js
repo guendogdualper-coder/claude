@@ -829,8 +829,19 @@ const ui = {
   lootRows: [],
   lootLog: [],
 
+  // Seit 6.5: Beute eines besiegten Monsters liegt kurz sichtbar am Boden (Symbol, Name, Anzahl) und fliegt
+  // dann zur Figur; erst dann erscheint sie in der Beuteliste. Im Gepäck ist sie sofort (nichts geht verloren).
+  dropAt: null,
   loot(name, count, icon, color) {
     if (!count) return;
+    if (this.dropAt) {
+      groundLoot(this.dropAt, name, count, icon, color, () => this.lootNow(name, count, icon, color));
+      return;
+    }
+    this.lootNow(name, count, icon, color);
+  },
+
+  lootNow(name, count, icon, color) {
     const now = game.time;
     const last = this.lootLog[0];
     if (last && last.name === name && now - last.time < 30) {
@@ -1052,6 +1063,7 @@ const ui = {
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
+    else if (npc.id === 'wanderer') this.renderWanderer(npc);
     else if (npc.id === 'eingang' || npc.id === 'ausgang' || npc.id === 'riss') this.renderDungeon(npc);
     else if (npc.id === 'weltentor') this.renderWorldGate(npc);
     else this.renderTalk(npc);
@@ -1214,7 +1226,7 @@ function ultHtml(u, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;

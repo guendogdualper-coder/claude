@@ -268,6 +268,31 @@ function vfxLootFly(from, img) {
   addEffect({ type: 'lootfly', x: c.x + rand(-12, 12), y: c.y + rand(-8, 8), img, dur: 0.7, arc: rand(50, 90) });
 }
 
+// Beute am Boden: springt aus dem Monster, liegt 1,6 s mit Namen und Anzahl da, fliegt dann zur Figur
+const lootImgs = new Map();
+function lootImg(src) {
+  let img = lootImgs.get(src);
+  if (!img) {
+    img = new Image();
+    img.src = src;
+    lootImgs.set(src, img);
+  }
+  return img;
+}
+function groundLoot(at, name, count, icon, color, done) {
+  at.n = (at.n || 0) + 1;
+  const ang = at.n * 2.4 + Math.random() * 0.5;
+  const r = 14 + at.n * 7;
+  const x = at.x + Math.cos(ang) * r;
+  const y = at.y + Math.sin(ang) * r * 0.6;
+  const img = lootImg(icon);
+  addEffect({ type: 'grounditem', x, y, sx: at.x, sy: at.y, img, name, count, color: color || '#fff2c0', dur: 1.6 });
+  later(1.6, () => {
+    addEffect({ type: 'lootfly', x, y: y - 12, img, dur: 0.5, arc: 36 });
+    later(0.45, done);
+  });
+}
+
 function vfxCorpse(m) {
   addEffect({ type: 'corpse', typeId: m.typeId, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 });
 }
@@ -547,6 +572,17 @@ function drawEffect(ctx, e) {
       ctx.beginPath();
       ctx.ellipse(x, y, e.r * k, ry * k, 0, 0, Math.PI * 2);
       ctx.fill();
+      // sicherer Bereich in der Mitte (Nova der Endbosse): grün
+      if (e.inner) {
+        ctx.globalAlpha = 0.9;
+        ctx.fillStyle = 'rgba(90,230,110,0.35)';
+        ctx.strokeStyle = '#7aff8a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.ellipse(x, y, e.inner, e.inner / 1.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
       break;
     }
     case 'ring':
@@ -772,6 +808,25 @@ function drawEffect(ctx, e) {
       ctx.beginPath();
       ctx.ellipse(x, y, 70 * grow + 10, (70 * grow + 10) * 0.4, 0, 0, Math.PI * 2);
       ctx.fill();
+      break;
+    }
+    case 'grounditem': {
+      const t = game.time - e.start;
+      const land = Math.min(1, t / 0.35);
+      const px = e.sx + (e.x - e.sx) * land;
+      const py = e.sy + (e.y - e.sy) * land - Math.sin(land * Math.PI) * 26 - (land >= 1 ? Math.abs(Math.sin(t * 5)) * 2 : 0);
+      ctx.globalAlpha = k > 0.9 ? (1 - k) / 0.1 : 1;
+      // Lichtschein am Boden in der Farbe des Fundes
+      glow(ctx, e.x, e.y + 3, 16, e.color, 0.45);
+      if (e.img.complete && e.img.naturalWidth) ctx.drawImage(e.img, px - 11, py - 22, 22, 22);
+      const label = e.count > 1 ? `${e.name} ×${e.count.toLocaleString('de-DE')}` : e.name;
+      ctx.font = '700 10px "Alegreya Sans", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+      ctx.strokeText(label, px, py - 26);
+      ctx.fillStyle = e.color;
+      ctx.fillText(label, px, py - 26);
       break;
     }
     case 'lootfly': {

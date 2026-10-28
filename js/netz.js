@@ -422,6 +422,20 @@ function netOnClientData(d) {
     case 'warn':
       addEffect({ type: 'warn', x: d.x, y: d.y, r: d.r, dur: 1.1, color: '#ff3a2a' });
       break;
+    case 'raid': {
+      // Endboss-Angriff: Warnzeichen zeigen, beim Einschlag selbst prüfen, ob man getroffen wurde
+      const m = net.mons.get(d.id);
+      if (!m) break;
+      const circles = d.c.map(([x, y, r]) => ({ x, y, r }));
+      raidTelegraph(m, d.k, circles, d.in || 0, d.d);
+      later(d.d, () => raidResolve(m, d.k, circles, d.in || 0, d.atk, d.lvl));
+      break;
+    }
+    case 'roar': {
+      const m = net.mons.get(d.id);
+      if (m) raidRoarFx(m, d.ph);
+      break;
+    }
     case 'slam': {
       const m = net.mons.get(d.id);
       if (!m) break;

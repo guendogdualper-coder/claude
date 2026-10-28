@@ -99,6 +99,44 @@ const MONSTER_TYPES = {
   titanenkoenig: {
     name: 'Titanenkönig Kroth', level: 70, shape: 'brute', color: '#6a6458', size: 34, speed: 80, range: 66, cooldown: 2, aggressive: true, hpMul: 30, atkMul: 1.7, dungeon: true,
     boss: { color: '#ffb04a', slam: 190, volley: 6, shot: '#ffb04a', summon: 'gargoyle', mat: 'steintitan' }
+  },
+  // Version 6.5: Endbosse der Maps – riesig, mit Mechaniken, gebaut für fünf Spieler (Tank, Heiler, Schaden).
+  // raid.art: Aussehen (vergrößert und geschmückt), raid.scale: Größe in 3D, raid.adds: Helfer bei Phasenwechseln
+  fenris: {
+    name: 'Fenris, der Urwolf', level: 14, shape: 'beast', color: '#3a3e46', size: 60, speed: 95, range: 90, cooldown: 2.2, aggressive: true, hpMul: 150, atkMul: 2.4, raidBoss: true,
+    boss: { color: '#ffcc4a', slam: 190, volley: 8, shot: '#ffe08a', summon: 'alphawolf', mat: 'alphawolf' }, raid: { art: 'alphawolf', scale: 3.4, map: 1 }
+  },
+  ursus: {
+    name: 'Ursus, der Waldtyrann', level: 24, shape: 'beast', color: '#4a3220', size: 64, speed: 85, range: 95, cooldown: 2.3, aggressive: true, hpMul: 155, atkMul: 2.4, raidBoss: true,
+    boss: { color: '#9be07a', slam: 200, volley: 8, shot: '#c8ff6a', summon: 'braunbaer', mat: 'braunbaer' }, raid: { art: 'braunbaer', scale: 3.0, map: 4 }
+  },
+  gorbag: {
+    name: 'Großkhan Gorbag', level: 34, shape: 'orc', color: '#3a5a22', size: 64, speed: 90, range: 95, cooldown: 2.2, aggressive: true, hpMul: 160, atkMul: 2.4, raidBoss: true,
+    boss: { color: '#ff8a4a', slam: 210, volley: 6, shot: '#e8dcc0', summon: 'orkhauptmann', mat: 'orkhauptmann' }, raid: { art: 'orkhauptmann', scale: 3.0, map: 5 }
+  },
+  azaroth: {
+    name: 'Höllenfürst Azaroth', level: 44, shape: 'demon', color: '#6a1a24', size: 64, speed: 100, range: 95, cooldown: 2.1, aggressive: true, hpMul: 165, atkMul: 2.5, raidBoss: true,
+    boss: { color: '#ff4a2a', slam: 220, volley: 10, shot: '#ff7a3a', summon: 'hoellenhund', mat: 'daemon' }, raid: { art: 'daemon', scale: 3.4, map: 6 }
+  },
+  ymir: {
+    name: 'Frostriese Ymir', level: 54, shape: 'brute', color: '#d8e8f4', size: 68, speed: 80, range: 100, cooldown: 2.4, aggressive: true, hpMul: 170, atkMul: 2.5, raidBoss: true,
+    boss: { color: '#9fe8ff', slam: 230, volley: 12, shot: '#bfe8ff', summon: 'eiswolf', mat: 'yeti' }, raid: { art: 'yeti', scale: 2.6, map: 7 }
+  },
+  vritra: {
+    name: 'Schlangengöttin Vritra', level: 55, shape: 'snake', color: '#1a5a4a', size: 64, speed: 95, range: 95, cooldown: 2.2, aggressive: true, hpMul: 170, atkMul: 2.5, raidBoss: true,
+    boss: { color: '#7ad8c8', slam: 220, volley: 10, shot: '#9fe8d8', summon: 'naga', mat: 'naga' }, raid: { art: 'nagakoenigin', scale: 2.4, map: 2 }
+  },
+  morrak: {
+    name: 'Lichkönig Morrak', level: 64, shape: 'humanoid', color: '#3a3a30', size: 64, speed: 90, range: 100, cooldown: 2.2, aggressive: true, hpMul: 175, atkMul: 2.6, raidBoss: true,
+    boss: { color: '#8fe36a', slam: 230, volley: 12, shot: '#c6f08a', summon: 'ghul', mat: 'untoter' }, raid: { art: 'gruftkoenig', scale: 2.6, map: 8 }
+  },
+  ignar: {
+    name: 'Weltendrache Ignar', level: 76, shape: 'beast', color: '#3a1010', size: 72, speed: 100, range: 110, cooldown: 2.3, aggressive: true, hpMul: 185, atkMul: 2.7, raidBoss: true,
+    boss: { color: '#ff6a2a', slam: 250, volley: 12, shot: '#ffb04a', summon: 'drachenbrut', mat: 'feuerdrache' }, raid: { art: 'urdrache', scale: 2.6, map: 9 }
+  },
+  tarkon: {
+    name: 'Donnertitan Tarkon', level: 78, shape: 'brute', color: '#5a5a66', size: 72, speed: 80, range: 110, cooldown: 2.4, aggressive: true, hpMul: 190, atkMul: 2.7, raidBoss: true,
+    boss: { color: '#9fd0ff', slam: 250, volley: 10, shot: '#cfe8ff', summon: 'gargoyle', mat: 'donnerriese' }, raid: { art: 'donnerriese', scale: 2.4, map: 3 }
   }
 };
 

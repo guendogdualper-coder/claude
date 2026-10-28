@@ -103,3 +103,14 @@ const NPC_LINES = {
   alte: ['Früher war Vlotho eine ruhige Stadt. Dann kamen die Steine.', 'Der Stein der Gier lässt viel Gold fallen, sagt man. Aber Gier hat noch keinem gutgetan.'],
   moench: ['Jeder Stein hat seine eigene Seele. Und jeder lässt etwas anderes zurück.', 'Wer den Stein des Untergangs bricht, braucht die besten Boni auf jeder Rüstung.']
 };
+
+// Wanderer draußen auf den Maps (seit 6.5): je Map drei Leute mit Nebenaufgaben –
+// „Besiege …“ oder „Bring mir …“ (Monster-Teile wie Yetifell, die auch der Schmied braucht)
+const WANDERERS = [
+  ['Fallensteller Hob', 'bauer'], ['Kräutersammlerin Mira', 'alte'], ['Wandermönch Ren', 'moench'],
+  ['Kundschafterin Aiko', 'jaegerin'], ['Pilger Taro', 'moench'], ['Kürschner Ole', 'bauer'],
+  ['Heilerin Sana', 'alte'], ['Späherin Kiri', 'jaegerin'], ['Einsiedler Gen', 'moench']
+];
+const SIDE_KILL = 14;
+const SIDE_COLLECT = 6;
+const SIDE_DROP = 0.35;

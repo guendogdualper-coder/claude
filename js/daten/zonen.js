@@ -15,49 +15,49 @@ const ZONES = [
   },
   {
     id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 999,
-    ground: 'GRASS', alt: 'MEADOW', trees: 0.02, treeObj: 'TREE', rocks: 0.008, water: 0.22, liquid: 'WATER',
+    ground: 'GRASS', alt: 'MEADOW', trees: 0.006, treeObj: 'TREE', rocks: 0.0024, water: 0.22, liquid: 'WATER',
     groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1]], groupSize: [3, 5],
     stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
     ambient: { kind: 'pollen' }
   },
   {
     id: 'wald', map: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, minDist: 8, maxDist: 999,
-    ground: 'FOREST', trees: 0.1, treeObj: 'PINE', rocks: 0.012, water: 0.2, liquid: 'WATER',
+    ground: 'FOREST', trees: 0.03, treeObj: 'PINE', rocks: 0.0036, water: 0.2, liquid: 'WATER',
     groups: [['bandit', 10, 0, 0.6], ['banditschuetze', 8, 0.2, 0.8], ['waldspinne', 10, 0.35, 1], ['braunbaer', 8, 0.6, 1]], groupSize: [3, 4],
     stones: [[15, 4, 0, 0.6], [20, 3, 0.5, 1]],
     ambient: { kind: 'fireflies', tint: [10, 42, 20, 0.12] }
   },
   {
     id: 'orktal', map: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999,
-    ground: 'SAND', trees: 0.015, treeObj: 'DEADTREE', rocks: 0.06, water: 0.12, liquid: 'WATER',
+    ground: 'SAND', trees: 0.0045, treeObj: 'DEADTREE', rocks: 0.018, water: 0.12, liquid: 'WATER',
     groups: [['ork', 12, 0, 0.6], ['orkschamane', 9, 0.3, 0.9], ['skorpion', 10, 0.2, 1], ['orkhauptmann', 6, 0.65, 1]], groupSize: [3, 5],
     stones: [[25, 4, 0, 0.6], [30, 3, 0.55, 1]],
     ambient: { kind: 'dust', tint: [80, 70, 10, 0.08] }
   },
   {
     id: 'oedland', map: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, minDist: 8, maxDist: 999,
-    ground: 'ASH', trees: 0.018, treeObj: 'DEADTREE', rocks: 0.07, water: 0.1, liquid: 'BOG',
+    ground: 'ASH', trees: 0.0054, treeObj: 'DEADTREE', rocks: 0.021, water: 0.1, liquid: 'BOG',
     groups: [['oger', 12, 0, 0.6], ['daemon', 13, 0.3, 1], ['hoellenhund', 12, 0.5, 1]], groupSize: [2, 4],
     stones: [[35, 4, 0, 0.6], [40, 3, 0.55, 1]],
     ambient: { kind: 'ash', tint: [40, 28, 20, 0.12] }
   },
   {
     id: 'frost', map: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999,
-    ground: 'SNOW', trees: 0.05, treeObj: 'PINE', rocks: 0.04, water: 0.16, liquid: 'ICE',
+    ground: 'SNOW', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.16, liquid: 'ICE',
     groups: [['eiswolf', 14, 0, 0.7], ['yeti', 12, 0.3, 1], ['frostgeist', 12, 0.45, 1]], groupSize: [2, 4],
     stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
     ambient: { kind: 'snow', tint: [120, 224, 220, 0.1] }
   },
   {
     id: 'moor', map: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, minDist: 8, maxDist: 999,
-    ground: 'SWAMP', trees: 0.04, treeObj: 'DEADTREE', rocks: 0.02, water: 0.28, liquid: 'BOG',
+    ground: 'SWAMP', trees: 0.012, treeObj: 'DEADTREE', rocks: 0.006, water: 0.28, liquid: 'BOG',
     groups: [['untoter', 14, 0, 0.7], ['sumpfhexe', 12, 0.3, 1], ['ghul', 13, 0.45, 1]], groupSize: [2, 4],
     stones: [[55, 4, 0, 0.6], [60, 3, 0.55, 1]],
     ambient: { kind: 'wisps', tint: [20, 70, 30, 0.16] }
   },
   {
     id: 'vulkan', map: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, minDist: 8, maxDist: 999,
-    ground: 'BASALT', trees: 0.01, treeObj: 'DEADTREE', rocks: 0.08, water: 0.2, liquid: 'LAVA',
+    ground: 'BASALT', trees: 0.003, treeObj: 'DEADTREE', rocks: 0.024, water: 0.2, liquid: 'LAVA',
     groups: [['lavagolem', 13, 0, 0.6], ['feuerdaemon', 14, 0.2, 1], ['feuerdrache', 10, 0.4, 1]], groupSize: [2, 4],
     stones: [[65, 6, 0, 0.6], [70, 4, 0.4, 1]],
     ambient: { kind: 'embers', tint: [120, 42, 0, 0.12] }
@@ -124,6 +124,27 @@ const DUNGEONS = [
     ambient: { kind: 'embers', tint: [70, 30, 0, 0.12] }
   }
 ];
+// Version 6.5: Endboss-Arenen, eine je Map. Ein Vorraum, dann eine große runde Halle mit dem Boss.
+// Gebaut für fünf Spieler: einer hält den Boss (Tank), einer heilt, die anderen machen Schaden.
+const RAID_DEFS = [
+  ['fenris', 'Höhle des Urwolfs', null, 'FLAGSTONE', '#ffcc4a', { top: '#5a5048', face: '#2a241e', line: '#8a7a5a' }, 'pollen'],
+  ['ursus', 'Thron des Waldtyrannen', 4, 'CAVE', '#9be07a', { top: '#2a3a24', face: '#121a10', line: '#5a7a3a' }, 'fireflies'],
+  ['gorbag', 'Kriegsarena des Großkhans', 5, 'FLAGSTONE', '#ff8a4a', { top: '#5a4632', face: '#21180f', line: '#c8a03a' }, 'dust'],
+  ['azaroth', 'Höllenschlund', 6, 'BASALT', '#ff4a2a', { top: '#1a1010', face: '#080404', line: '#ff4a2a' }, 'embers'],
+  ['ymir', 'Halle des Frostriesen', 7, 'FLAGSTONE', '#9fe8ff', { top: '#f4fbff', face: '#4a7aa8', line: '#b8d8f0' }, 'snow'],
+  ['vritra', 'Tempel der Schlangengöttin', 2, 'FLAGSTONE', '#7ad8c8', { top: '#3a5a4a', face: '#142a22', line: '#c9a35a' }, 'fireflies'],
+  ['morrak', 'Gruft des Lichkönigs', 8, 'CAVE', '#8fe36a', { top: '#2e2a34', face: '#100e14', line: '#7a9a5a' }, 'wisps'],
+  ['ignar', 'Hort des Weltendrachen', 9, 'BASALT', '#ff6a2a', { top: '#1a1210', face: '#080404', line: '#ff6a2a' }, 'embers'],
+  ['tarkon', 'Gipfel des Donnertitans', 3, 'BASALT', '#9fd0ff', { top: '#3a3a44', face: '#14141a', line: '#9fd0ff' }, 'dust']
+];
+for (const [boss, name, map, floor, portal, wall, amb] of RAID_DEFS) {
+  const lvl = MONSTER_TYPES[boss].level;
+  DUNGEONS.push({
+    id: 'raid_' + boss, name, minLevel: Math.max(1, lvl - 6), raid: true, floor, wall, portal, mobs: [], boss, stones: [],
+    entry: map ? { map, dir: [0, 1], dist: 16, side: 6 } : { dir: [0, 1], dist: 24, side: 6 },
+    ambient: { kind: amb, tint: [40, 20, 20, 0.08] }
+  });
+}
 for (const d of DUNGEONS) {
   ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
 }
@@ -149,14 +170,14 @@ const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'SAND' },
   {
     id: 'sandwueste', map: 2, name: 'Sandschlangenwüste', levels: 'Stufe 30–39', minLevel: 30, minDist: 12, maxDist: 55,
-    ground: 'SAND', trees: 0.012, treeObj: 'DEADTREE', rocks: 0.04, water: 0.1, liquid: 'WATER',
+    ground: 'SAND', trees: 0.0036, treeObj: 'DEADTREE', rocks: 0.012, water: 0.1, liquid: 'WATER',
     groups: [['sandviper', 9, 0, 0.6], ['klapperschlange', 8, 0.3, 1], ['kobra', 7, 0.55, 1]], groupSize: [3, 5],
     stones: [[30, 3, 0, 0.6], [35, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [90, 60, 10, 0.08] }
   },
   {
     id: 'nagadschungel', map: 2, name: 'Nagadschungel', levels: 'Stufe 40–50', minLevel: 40, minDist: 55, maxDist: 999,
-    ground: 'FOREST', alt: 'SWAMP', trees: 0.07, treeObj: 'TREE', rocks: 0.01, water: 0.22, liquid: 'BOG',
+    ground: 'FOREST', alt: 'SWAMP', trees: 0.021, treeObj: 'TREE', rocks: 0.003, water: 0.22, liquid: 'BOG',
     groups: [['riesenpython', 9, 0, 0.6], ['naga', 9, 0.3, 1], ['nagapriesterin', 7, 0.5, 1]], groupSize: [2, 4],
     stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
     ambient: { kind: 'fireflies', tint: [10, 40, 20, 0.14] }
@@ -170,14 +191,14 @@ const MAP_ZONES = [
   { id: 'klammwacht', map: 3, name: 'Klammfeste', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'ASH' },
   {
     id: 'donnerklamm', map: 3, name: 'Donnerklamm', levels: 'Stufe 50–61', minLevel: 50, minDist: 12, maxDist: 55,
-    ground: 'ASH', trees: 0.008, treeObj: 'DEADTREE', rocks: 0.09, water: 0.08, liquid: 'WATER',
+    ground: 'ASH', trees: 0.0024, treeObj: 'DEADTREE', rocks: 0.027, water: 0.08, liquid: 'WATER',
     groups: [['trollkrieger', 10, 0, 0.6], ['harpyie', 8, 0.3, 1], ['minotaurus', 8, 0.5, 1]], groupSize: [2, 4],
     stones: [[55, 3, 0, 0.6], [60, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [60, 40, 30, 0.1] }
   },
   {
     id: 'titanenkamm', map: 3, name: 'Titanenkamm', levels: 'Stufe 62–75', minLevel: 62, minDist: 55, maxDist: 999,
-    ground: 'BASALT', trees: 0.006, treeObj: 'DEADTREE', rocks: 0.08, water: 0.14, liquid: 'LAVA',
+    ground: 'BASALT', trees: 0.0018, treeObj: 'DEADTREE', rocks: 0.024, water: 0.14, liquid: 'LAVA',
     groups: [['steintitan', 9, 0, 0.6], ['gargoyle', 9, 0.3, 1], ['donnerriese', 7, 0.5, 1]], groupSize: [2, 4],
     stones: [[65, 3, 0, 0.6], [70, 3, 0.4, 1]],
     ambient: { kind: 'embers', tint: [80, 30, 10, 0.12] }
