@@ -150,7 +150,7 @@ const CLASSES = {
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
             type: 'buff', duration: 120, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
-            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, der erste Treffer macht dreifachen Schaden.'
+            text: 'Buff: unsichtbar. Monster verlieren dich aus den Augen, der erste Treffer macht dreifachen Schaden. Nach dem ersten Angriff bleibst du noch 8 s (mit der Stufe länger) unsichtbar.'
           },
           {
             id: 'schattenmantel', name: 'Schattenmantel', short: 'SM', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,

@@ -2446,3 +2446,7 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 /* Meldungen im Chat: Erfolge golden, Warnungen rötlich */
 .chat-box .chat-log p.lg-level { color: #ffd34d; font-style: normal; font-weight: 600; }
 .chat-box .chat-log p.lg-warn { color: #ff9a7a; font-style: normal; }
+/* Tod: hier neu starten (kostet EP) oder in der Stadt (ohne Verlust) */
+.death-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.death-btns .btn { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 150px; }
+.death-btns small { font-size: 11px; font-weight: 400; opacity: 0.85; }

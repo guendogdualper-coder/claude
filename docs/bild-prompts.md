@@ -1320,3 +1320,15 @@ Mobile MMORPG screenshot on a modern iPhone in landscape with the Dynamic Island
 ```
 Close-up of the small translucent chat box in the bottom-left corner of a mobile fantasy MMORPG HUD, dark brown glass with a thin gold border, tabs "Global", "Gilde", "Ort" on top and a round speech-bubble button on the right; inside, system messages as short lines: a golden bold line "Stein der Wut zerstört! +1.250 EP.", a soft red line "Keine Mondtau mehr.", a grey italic line "ERFOO · Kanal 1: Du bist online.", and a player message "Mira: hi!". Above the hero in the game world a floating golden "+1.250 EP" number. The rest of the screen is free game view.
 ```
+
+## Tarnung und Neustart (Version 5.1)
+
+### Tarnung im Kampf
+```
+Stylized 3D chibi ninja in a dark wrapped outfit with a long scarf, half-transparent like smoke, striking a wolf from behind with twin daggers; dark grey-purple shadow wisps and small dots rising from the body, a faint purple ring on the ground, the wolf looking around confused. Soft toon shading, thin dark outline, sunny meadow background.
+```
+
+### Neustart-Fenster
+```
+Mobile fantasy MMORPG death dialog in the center of the screen, dark brown wooden panel with a thin gold rim, title "Du wurdest besiegt" in red-orange carved fantasy letters, a short line of text, two large buttons side by side: left a grey stone button "Hier neu starten" with a small line "−1.855 EP · halbes Leben", right a golden button "In der Stadt neu starten" with "kein EP-Verlust". Behind it the village plaza, slightly dimmed.
+```

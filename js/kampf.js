@@ -15,6 +15,15 @@ const dmgScale = (lvl) => levelCurve(lvl, 0.08, 0.05, RANK_JUMP);
 const buffScale = (lvl) => levelCurve(lvl, 0.03, 0.015, BUFF_JUMP);
 const skillDuration = (sk, lvl) => Math.round(sk.duration * levelCurve(lvl, 0.02, 0.01, DUR_JUMP));
 
+// Tarnung: Wer aus dem Schatten angreift, bleibt danach noch eine Weile unsichtbar (mit der Stufe länger)
+const STEALTH_FIGHT_TIME = 8;
+function breakStealth(p) {
+  const b = p.buffs.find((x) => x.effects.invisible);
+  if (!b || b.broken) return;
+  b.broken = true;
+  b.until = Math.min(b.until, game.time + Math.round(STEALTH_FIGHT_TIME * levelCurve(b.lvl, 0.02, 0.01, DUR_JUMP)));
+}
+
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
@@ -102,7 +111,7 @@ function hitMonster(m, mul, opts = {}) {
       p.nextHitMul = 1;
       crit = 1;
     }
-    if (s.invisible) p.buffs = p.buffs.filter((b) => !b.effects.invisible);
+    if (s.invisible) breakStealth(p);
     p.lastCombat = game.time;
   }
   if (m.vulnerable && m.vulnerable.until > game.time) factor *= m.vulnerable.mul;
@@ -269,6 +278,7 @@ function damagePlayer(amount, attacker) {
   const s = game.stats;
   if (p.dead) return;
   p.lastCombat = game.time;
+  if (p.protectUntil > game.time) return;
   if (Math.random() < s.dodge) {
     addText(p.x, p.y - 30, 'Ausgewichen', 'info');
     return;
@@ -317,23 +327,34 @@ function playerDie() {
   p.deaths++;
   game.target = null;
   game.allies = [];
-  const lost = Math.min(p.xp, Math.round(xpToNext(p.level) * 0.03));
-  p.xp -= lost;
+  // EP kostet nur das Wiederbeleben an Ort und Stelle
+  p.deathXpLoss = Math.min(p.xp, Math.round(xpToNext(p.level) * 0.03));
   for (const m of game.monsters) {
     if (m.target === p) { m.state = 'return'; m.target = null; }
   }
   saveGame();
-  ui.showDeath(lost);
+  ui.showDeath(p.deathXpLoss);
 }
 
-function revivePlayer() {
+// here: an Ort und Stelle mit halbem Leben und kurzem Schutz, kostet EP; sonst in der Stadt ohne Verlust
+const REVIVE_PROTECT = 3;
+function revivePlayer(here) {
   const p = game.player;
-  const spawn = villageSpawn(p);
   const s = playerStats(p);
-  p.x = spawn.x;
-  p.y = spawn.y;
-  p.hp = s.maxHp;
-  p.mp = s.maxMp;
+  if (here) {
+    p.xp -= Math.min(p.xp, p.deathXpLoss || 0);
+    p.hp = Math.round(s.maxHp * 0.5);
+    p.mp = Math.round(s.maxMp * 0.5);
+    p.protectUntil = game.time + REVIVE_PROTECT;
+    vfxPillar(p, '#ffe7a0');
+  } else {
+    const spawn = villageSpawn(p);
+    p.x = spawn.x;
+    p.y = spawn.y;
+    p.hp = s.maxHp;
+    p.mp = s.maxMp;
+  }
+  p.deathXpLoss = 0;
   p.dead = false;
   p.skillCd = [0, 0, 0, 0, 0];
   saveGame();

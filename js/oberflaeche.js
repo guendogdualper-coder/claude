@@ -71,7 +71,11 @@ const ui = {
     $('lootFeed').addEventListener('click', () => this.toggle('panelLoot'));
     $('btnRevive').addEventListener('click', () => {
       $('panelDeath').hidden = true;
-      revivePlayer();
+      revivePlayer(false);
+    });
+    $('btnReviveHere').addEventListener('click', () => {
+      $('panelDeath').hidden = true;
+      revivePlayer(true);
     });
     document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => this.closePanels()));
 
@@ -1118,9 +1122,8 @@ const ui = {
 
   showDeath(lostXp) {
     this.closePanels();
-    $('deathText').textContent = lostXp > 0
-      ? `Du verlierst ${lostXp.toLocaleString('de-DE')} Erfahrungspunkte.`
-      : 'Du hast keine Erfahrung verloren.';
+    $('deathText').textContent = 'Starte hier neu, um gleich weiterzukämpfen, oder sicher in der Stadt ohne Verlust.';
+    $('reviveHereCost').textContent = lostXp > 0 ? `−${lostXp.toLocaleString('de-DE')} EP · halbes Leben` : 'halbes Leben';
     $('panelDeath').hidden = false;
   }
 };
