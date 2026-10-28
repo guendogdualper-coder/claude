@@ -72,12 +72,39 @@ const ui = {
         $('createError').hidden = false;
         return;
       }
-      const save = newCharacter(name, this.selectedClass, this.selectedPath);
+      const save = newCharacter(name, this.selectedClass, this.selectedPath, this.createLook || DEFAULT_LOOKS[this.selectedClass]);
       startGame(save);
       saveGame();
     });
     this.buildClassGrid();
+    this.createLook = { ...DEFAULT_LOOKS[this.selectedClass] };
+    this.renderCreateLook();
+    $('btnLookSave').addEventListener('click', () => {
+      const p = game.player;
+      p.look = { ...this.editLook };
+      saveGame();
+      drawPortrait($('hudPortrait'), p);
+      this.closePanels();
+      ui.log('Dein neues Aussehen steht dir gut.', 'level');
+    });
     $('versionText').textContent = 'Version ' + GAME_VERSION;
+  },
+
+  // Aussehen bei der Erstellung
+  renderCreateLook() {
+    lookEditor($('lookEditor'), this.selectedClass, this.createLook, (look) => {
+      this.createLook = look;
+      this.lookTouched = true;
+    });
+  },
+
+  // Aussehen später im Charakterfenster ändern
+  openLookPanel() {
+    const p = game.player;
+    this.closePanels();
+    this.editLook = { ...DEFAULT_LOOKS[p.classId], ...(p.look || {}) };
+    lookEditor($('lookPanelEditor'), p.classId, this.editLook, (look) => { this.editLook = look; }, p.equipment);
+    $('panelLook').hidden = false;
   },
 
   showStart() {
@@ -120,6 +147,8 @@ const ui = {
       btn.addEventListener('click', () => {
         this.selectedClass = id;
         this.selectedPath = 0;
+        if (!this.lookTouched) this.createLook = { ...DEFAULT_LOOKS[id] };
+        this.renderCreateLook();
         grid.querySelectorAll('.class-card').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.classId === id)));
         this.renderClassDetail();
       });
@@ -482,13 +511,25 @@ const ui = {
     this.set('clock', now.getHours() * 60 + now.getMinutes(), () => {
       $('stClock').textContent = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
     });
-    const ms = netOnline() && net.ping ? Math.round(net.ping) : -1;
-    const shown = ms < 0 ? (netOnline() ? 'misst' : 'allein') : ms;
+    // Ping: im Kanal zum Host, allein zum Spielserver (alle 10 Sekunden eine kleine Anfrage)
+    if (!netOnline() && performance.now() - (this.webPingAt || -1e9) > 10000) this.measureWebPing();
+    const offline = navigator.onLine === false;
+    const raw = netOnline() && net.ping ? net.ping : this.webPing;
+    const ms = offline ? -1 : raw ? Math.round(raw) : 0;
+    const shown = offline ? 'offline' : ms ? ms + ' ms' : '– ms';
     this.set('ping', shown, () => {
-      $('stPingText').textContent = ms < 0 ? shown : ms + ' ms';
-      const q = ms < 0 ? 0 : ms < 120 ? 3 : ms < 300 ? 2 : 1;
-      $('stPing').dataset.q = q;
+      $('stPingText').textContent = shown;
+      $('stPing').dataset.q = ms <= 0 ? 0 : ms < 120 ? 3 : ms < 300 ? 2 : 1;
     });
+  },
+
+  measureWebPing() {
+    this.webPingAt = performance.now();
+    if (navigator.onLine === false) return;
+    const t0 = performance.now();
+    fetch('manifest.webmanifest?ping=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
+      .then(() => { const rtt = performance.now() - t0; this.webPing = this.webPing ? this.webPing * 0.5 + rtt * 0.5 : rtt; })
+      .catch(() => { this.webPing = 0; });
   },
 
   updateHorseButton() {
@@ -796,7 +837,8 @@ const ui = {
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     const pct = (v) => Math.round(v * 100) + ' %';
     $('charBody').innerHTML =
-      `<p><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</p>` +
+      `<p class="char-head"><span><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</span>` +
+      `<button type="button" class="mini-btn" id="btnLook">✂ Aussehen ändern</button></p>` +
       this.attrHtml(p) +
       `<dl class="stats">` +
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
@@ -812,6 +854,7 @@ const ui = {
       `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Bücher für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
       `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Büchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
       skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p);
+    $('btnLook').addEventListener('click', () => this.openLookPanel());
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
     });
@@ -1085,7 +1128,7 @@ function drawPortrait(cv, p) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(2.6, 0, 0, 2.6, cv.width / 2, cv.height + 20);
-  drawPlayer(ctx, { classId: p.classId, x: 0, y: 0, r: 11, facing: { x: 0, y: 1 }, buffs: [], swing: 0, moving: false, shield: 0, equipment: null });
+  drawPlayer(ctx, { classId: p.classId, x: 0, y: 0, r: 11, facing: { x: 0, y: 1 }, buffs: [], swing: 0, moving: false, shield: 0, equipment: p.equipment || null, look: p.look || null });
 }
 
 // Kleine Vorschau der Klasse für die Auswahlkarten
@@ -1094,4 +1137,57 @@ function drawClassPreview(cv, classId) {
   ctx.setTransform(1.9, 0, 0, 1.9, cv.width / 2, cv.height / 2 + 30);
   const fake = { classId, x: 0, y: 0, r: 11, facing: { x: 0.45, y: 0.89 }, buffs: [], swing: 0, moving: false, shield: 0 };
   drawPlayer(ctx, fake);
+}
+
+// Editor für das Aussehen: Vorschau (dreht sich beim Antippen) und Auswahl für Frisur, Haarfarbe,
+// Haut, Augenform, Augenfarbe und Gesichtszeichen. onChange bekommt jedes Mal das neue Aussehen.
+function lookEditor(box, classId, start, onChange, equipment = null) {
+  const look = { ...DEFAULT_LOOKS[classId], ...(start || {}) };
+  let dir = 0;
+  const dirs = [{ x: 0, y: 1 }, { x: 1, y: 0 }, { x: 0, y: -1 }];
+  const cycle = (key, list, label) => `<div class="lk-row"><span>${label}</span><button type="button" class="lk-arrow" data-cyc="${key}:-1">‹</button>` +
+    `<b>${list[look[key]]}</b><button type="button" class="lk-arrow" data-cyc="${key}:1">›</button></div>`;
+  const swatches = (key, colors, label) => `<div class="lk-row"><span>${label}</span><div class="lk-swatches">` +
+    colors.map((c, i) => `<button type="button" class="lk-sw${look[key] === i ? ' on' : ''}" style="--c:${c}" data-sw="${key}:${i}" aria-label="${label} ${i + 1}"></button>`).join('') + `</div></div>`;
+  const render = () => {
+    box.innerHTML = `<div class="lk"><canvas class="lk-preview" width="180" height="210" title="Antippen zum Drehen"></canvas><div class="lk-opts">` +
+      cycle('hair', LOOKS.hair, 'Frisur') + swatches('hc', LOOKS.hairColor, 'Haare') + swatches('skin', LOOKS.skin, 'Haut') +
+      cycle('eyes', LOOKS.eyes, 'Augen') + swatches('ec', LOOKS.eyeColor, 'Augenfarbe') + cycle('mark', LOOKS.mark, 'Gesicht') +
+      `<button type="button" class="mini-btn lk-random">🎲 Zufällig</button></div></div>`;
+    const cv = box.querySelector('canvas');
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const g = ctx.createRadialGradient(90, 130, 10, 90, 120, 110);
+    g.addColorStop(0, `rgba(${hexRgb(CLASSES[classId].trim)},0.4)`);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, cv.width, cv.height);
+    ctx.setTransform(3.3, 0, 0, 3.3, 90, 200);
+    // ohne eigene Ausrüstung: Grundausrüstung ohne Helm, damit man die Haare sieht
+    const fig = { classId, x: 0, y: 0, r: 11, facing: dirs[dir], buffs: [], swing: 0, moving: false, shield: 0, equipment: equipment || starterEquipment(classId), look };
+    ctx.translate(0, -feetY(fig));
+    drawPlayer(ctx, fig);
+    cv.addEventListener('click', () => { dir = (dir + 1) % 3; render(); });
+    box.querySelectorAll('[data-cyc]').forEach((b) => b.addEventListener('click', () => {
+      const [key, step] = b.dataset.cyc.split(':');
+      const n = { hair: LOOKS.hair, eyes: LOOKS.eyes, mark: LOOKS.mark }[key].length;
+      look[key] = (look[key] + Number(step) + n) % n;
+      onChange({ ...look });
+      render();
+    }));
+    box.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
+      const [key, i] = b.dataset.sw.split(':');
+      look[key] = Number(i);
+      onChange({ ...look });
+      render();
+    }));
+    box.querySelector('.lk-random').addEventListener('click', () => {
+      const r = (n) => Math.floor(Math.random() * n);
+      Object.assign(look, { hair: r(LOOKS.hair.length), hc: r(LOOKS.hairColor.length), skin: r(LOOKS.skin.length), eyes: r(LOOKS.eyes.length), ec: r(LOOKS.eyeColor.length), mark: r(LOOKS.mark.length) });
+      onChange({ ...look });
+      render();
+    });
+  };
+  render();
 }

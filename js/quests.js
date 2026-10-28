@@ -318,7 +318,7 @@ Object.assign(ui, {
     const main = currentMainQuest();
     const body = $('npcBody');
     if (!main) {
-      body.innerHTML = '<p>„Du hast alles getan, worum ich dich bitten konnte. Hayan steht in deiner Schuld, Held.“</p>';
+      body.innerHTML = '<p>„Du hast alles getan, worum ich dich bitten konnte. Vlotho steht in deiner Schuld, Held.“</p>';
       return;
     }
     const xp = questXp(main.level);
@@ -504,7 +504,7 @@ Object.assign(ui, {
     });
   },
 
-  // Weltentor: Reise zwischen Map 1 (Hayan), Map 2 und Map 3, kostenlos
+  // Weltentor: Reise zwischen Map 1 (Vlotho), Map 2 und Map 3, kostenlos
   renderWorldGate() {
     const p = game.player;
     const here = mapOfTile(p.x / TILE, p.y / TILE).id;

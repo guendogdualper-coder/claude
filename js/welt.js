@@ -492,7 +492,7 @@ function tileBlocked(tx, ty) {
     : game.world.obj[i] !== OBJ.NONE;
 }
 
-// Sicher: das Dorf Hayan und die Lager in Map 2 und 3
+// Sicher: das Dorf Vlotho und die Lager in Map 2 und 3
 const CAMP_HALF = 7;
 function inVillage(x, y) {
   const tx = x / TILE;

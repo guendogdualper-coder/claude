@@ -301,7 +301,18 @@ function hHead(ctx, dir, w, o) {
 
 function eyes(ctx, dir, cx, cy, o = {}) {
   const xs = dir === 'side' ? [cx + 6] : [cx - 4.2, cx + 4.2];
-  for (const x of xs) {
+  if (o.style === 2 && !o.glow) {
+    // fröhlich: geschlossene Bögen
+    ctx.strokeStyle = o.color || '#21160f';
+    ctx.lineWidth = 1.1;
+    for (const x of xs) {
+      ctx.beginPath();
+      ctx.arc(x, cy + 2.4, 1.8, Math.PI * 1.1, Math.PI * 1.9);
+      ctx.stroke();
+    }
+  }
+  if (o.style === 1) o = { ...o, narrow: true };
+  for (const x of (o.style === 2 && !o.glow ? [] : xs)) {
     if (o.glow) {
       ctx.globalAlpha = 0.4;
       dot(ctx, x, cy + 1.5, 3, 3, o.glow);
@@ -322,8 +333,15 @@ function eyes(ctx, dir, cx, cy, o = {}) {
     ctx.lineWidth = 0.9;
     for (const x of xs) {
       ctx.beginPath();
-      ctx.moveTo(x - 1.6, cy - 2.4);
-      ctx.quadraticCurveTo(x, cy - 3.3, x + 1.6, cy - 2.4);
+      if (o.style === 3) {
+        // entschlossen: schräge Brauen zur Mitte hin
+        const inward = x < cx || dir === 'side' ? 1 : -1;
+        ctx.moveTo(x - 1.8, cy - 3.2 + inward * 0.6);
+        ctx.lineTo(x + 1.8, cy - 3.2 - inward * 0.6);
+      } else {
+        ctx.moveTo(x - 1.6, cy - 2.4);
+        ctx.quadraticCurveTo(x, cy - 3.3, x + 1.6, cy - 2.4);
+      }
       ctx.stroke();
     }
   }
@@ -593,9 +611,9 @@ const ARMOR_LOOK = {
 // erst beim Zeichnen dazugemalt, weil er im Wind flattert)
 function playerLook(p) {
   const eq = p.equipment;
-  if (!eq) return { a: -1, h: -1 };
+  if (!eq) return { a: -1, h: -1, ap: p.look || null };
   const t = (it) => (it ? it.tier : -1);
-  return { a: t(eq.ruestung), h: eq.helm ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern) };
+  return { a: t(eq.ruestung), h: eq.helm ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern), ap: p.look || null };
 }
 
 // --- Sichtbare Ausrüstung: Schuhe, Gürtel, Schultern, Umhang ------------------------------------
@@ -780,6 +798,118 @@ function drawCape(ctx, tier, dir, w, moving, t, layer) {
   }
 }
 
+// --- Aussehen (bei der Erstellung gewählt) ------------------------------------------------------
+const LOOKS = {
+  hair: ['Kurz', 'Dutt', 'Lang', 'Stachelig', 'Pferdeschwanz', 'Glatze'],
+  hairColor: ['#3a2418', '#1e1818', '#7a4a24', '#d0a040', '#ece0b8', '#b0382a', '#4a5aa8', '#dcdce6'],
+  skin: ['#f6dcc0', '#e9c6a1', '#d8a576', '#b27a50', '#7c4e30', '#c9c4b0', '#a8c4a0'],
+  eyes: ['Rund', 'Schmal', 'Fröhlich', 'Entschlossen'],
+  eyeColor: ['#21160f', '#2f63b0', '#2a7a3a', '#8a5a24', '#8a3ab0', '#b82a2a'],
+  mark: ['Keine', 'Sommersprossen', 'Narbe', 'Kriegsbemalung']
+};
+const DEFAULT_LOOKS = {
+  krieger: { hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0 },
+  ninja: { hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0 },
+  schamane: { hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0 },
+  nekromant: { hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0 }
+};
+function lookOf(L, classId) {
+  return { ...DEFAULT_LOOKS[classId], ...((L && L.ap) || {}) };
+}
+function lookKey(ap) {
+  return ap ? [ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark].join('.') : '';
+}
+const skinOf = (ap) => LOOKS.skin[ap.skin] || LOOKS.skin[1];
+const hairOf = (ap) => LOOKS.hairColor[ap.hc] || LOOKS.hairColor[0];
+function eyeOpts(ap) {
+  return { color: LOOKS.eyeColor[ap.ec] || '#21160f', style: ap.eyes };
+}
+
+// Frisur. layer 'back': hinter dem Kopf (lange Haare, Zopf, Dutt von der Seite), 'front': Kappe und Rest
+function drawHair(ctx, dir, cx, cy, ap, layer) {
+  const style = ap.hair;
+  const c = hairOf(ap);
+  const dark = darker(c, 0.25);
+  if (layer === 'back') {
+    if (style === 2) {
+      if (dir === 'down') poly(ctx, [[cx - 11, cy - 5], [cx - 13.5, cy + 6], [cx - 12, cy + 14], [cx - 6, cy + 12], [cx + 6, cy + 12], [cx + 12, cy + 14], [cx + 13.5, cy + 6], [cx + 11, cy - 5]], dark);
+      else if (dir === 'side') poly(ctx, [[cx - 6, cy - 9], [cx - 12, cy - 4], [cx - 13.5, cy + 13], [cx - 3, cy + 12], [cx - 2, cy + 2]], dark);
+    } else if (style === 4 && dir === 'side') {
+      poly(ctx, [[cx - 9, cy - 7], [cx - 15, cy - 2], [cx - 17, cy + 11], [cx - 13, cy + 10], [cx - 11.5, cy - 1], [cx - 7, cy - 3]], c);
+    } else if (style === 1 && dir === 'side') {
+      oval(ctx, cx - 10, cy - 8, 4.6, 4.2, c);
+    }
+    return;
+  }
+  if (style === 5) {
+    // Glatze: nur ein Glanzpunkt
+    if (dir !== 'up') {
+      ctx.globalAlpha = 0.35;
+      dot(ctx, cx - 3.5, cy - 7, 3, 1.8, '#ffffff');
+      ctx.globalAlpha = 1;
+    }
+    return;
+  }
+  if (dir === 'up') {
+    oval(ctx, cx, cy - 0.5, 11.4, 11, c);
+    stroke(ctx, dark, 0.7, [[cx - 4, cy - 9], [cx - 6, cy + 6]]);
+    stroke(ctx, dark, 0.7, [[cx + 3, cy - 9], [cx + 5, cy + 6]]);
+    if (style === 2) box(ctx, cx - 11, cy + 2, 22, 13, 4, c);
+    if (style === 4) {
+      box(ctx, cx - 2.2, cy + 4, 4.4, 13, 2, c);
+      box(ctx, cx - 2.6, cy + 4, 5.2, 2, 1, '#c8402f');
+    }
+  } else if (dir === 'down') {
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
+      if (style === 3) ctx.quadraticCurveTo(cx + 4, cy - 4, cx, cy - 6);
+      else ctx.quadraticCurveTo(cx + 3, cy - 6.5, cx, cy - 4.5);
+      ctx.quadraticCurveTo(cx - 3, cy - 6.5, cx - 11.3, cy - 1.5);
+      ctx.closePath();
+    }, c, cx - 11.4, cy - 12, 22.8, 10);
+    stroke(ctx, dark, 0.6, [[cx - 5, cy - 10], [cx - 3, cy - 5.5]]);
+    stroke(ctx, dark, 0.6, [[cx + 4, cy - 10], [cx + 3, cy - 5.5]]);
+    if (style === 2) {
+      box(ctx, cx - 11.8, cy - 4, 3.4, 13, 1.5, c);
+      box(ctx, cx + 8.4, cy - 4, 3.4, 13, 1.5, c);
+    }
+  } else {
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.75, Math.PI * 1.9);
+      ctx.quadraticCurveTo(cx + 2, cy - 5, cx - 3, cy - 1);
+      ctx.lineTo(cx - 5, cy + (style === 0 || style === 3 ? 3 : 7));
+      ctx.closePath();
+    }, c, cx - 11.4, cy - 12, 20, 19);
+    stroke(ctx, dark, 0.6, [[cx - 6, cy - 8], [cx - 8, cy + 2]]);
+  }
+  if (style === 0) oval(ctx, cx + (dir === 'side' ? -2 : 0), cy - 11.5, 3.6, 3, c);
+  if (style === 1) oval(ctx, cx + (dir === 'side' ? -3.5 : 0), cy - 12, 4.6, 4, c);
+  if (style === 3) {
+    const xs = dir === 'side' ? [-8, -4, 0, 4] : [-8, -4, 0, 4, 8];
+    for (const x of xs) poly(ctx, [[cx + x - 3, cy - 8], [cx + x + (dir === 'side' ? -2.5 : 0), cy - 17 + Math.abs(x) * 0.3], [cx + x + 3, cy - 8]], c);
+  }
+  if (style === 4 && dir !== 'up') box(ctx, cx + (dir === 'side' ? -11 : -2), cy - 11.5, dir === 'side' ? 3 : 4, 2.2, 1, '#c8402f');
+}
+
+// Zeichen im Gesicht: Sommersprossen, Narbe, Kriegsbemalung
+function faceMarks(ctx, dir, cx, cy, ap) {
+  if (!ap.mark || dir === 'up') return;
+  const xs = dir === 'side' ? [cx + 6] : [cx - 4.2, cx + 4.2];
+  if (ap.mark === 1) {
+    ctx.fillStyle = 'rgba(150,80,40,0.55)';
+    for (const x of xs) for (const [dx, dy] of [[-1.5, 4.2], [0.5, 4.8], [2, 4], [-0.2, 3.6]]) dot(ctx, x + dx, cy + dy, 0.45, 0.45, 'rgba(150,80,40,0.6)');
+  } else if (ap.mark === 2) {
+    stroke(ctx, '#9a4a3a', 0.9, [[xs[xs.length - 1] - 2, cy - 3.5], [xs[xs.length - 1] + 1.5, cy + 5]]);
+  } else if (ap.mark === 3) {
+    for (const x of xs) {
+      stroke(ctx, '#c83a2a', 1, [[x - 2, cy + 3.6], [x + 2, cy + 3.6]]);
+      stroke(ctx, '#c83a2a', 1, [[x - 1.6, cy + 5], [x + 1.6, cy + 5]]);
+    }
+  }
+}
+
 // Farbe aus der Tabelle, sonst die Grundfarbe
 const lookColor = (list, i, fallback) => (i >= 0 ? list[i] : fallback);
 
@@ -788,7 +918,8 @@ const CHARACTER_ART = {
     const A = ARMOR_LOOK.krieger;
     const crimson = lookColor(A.torso, L.a, '#9c3b33');
     const brass = lookColor(A.trim, L.a, '#c9a35a');
-    const o = { skin: '#e9c6a1', pants: '#3b2d25', boots: '#4d3527', torso: crimson, sleeve: darker(crimson, 0.18), gloves: '#5a4030' };
+    const ap = lookOf(L, 'krieger');
+    const o = { skin: skinOf(ap), pants: '#3b2d25', boots: '#4d3527', torso: crimson, sleeve: darker(crimson, 0.18), gloves: '#5a4030' };
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
     gearBoots(ctx, dir, w, L.b);
@@ -820,13 +951,15 @@ const CHARACTER_ART = {
       if (dir === 'side') pad(w.arm);
       else { pad(-11.5); pad(11.5); }
     }
+    drawHair(ctx, dir, dir === 'side' ? 1.5 : 0, -34.5 + w.bob, ap, 'back');
     const { cx, cy } = hHead(ctx, dir, w, o);
-    if (dir !== 'up') eyes(ctx, dir, cx, cy, { blush: true });
+    if (dir !== 'up') {
+      eyes(ctx, dir, cx, cy, { blush: true, ...eyeOpts(ap) });
+      faceMarks(ctx, dir, cx, cy, ap);
+    }
     // Ohne Helm sieht man die Haare
     if (L.h === -2) {
-      if (dir === 'up') oval(ctx, cx, cy - 0.5, 11.4, 11, '#3a2418');
-      else paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98); ctx.quadraticCurveTo(cx, cy - 6, cx - 11.3, cy - 1.5); ctx.closePath(); }, '#3a2418', cx - 11.4, cy - 12, 22.8, 10);
-      oval(ctx, cx, cy - 11.5, 3.6, 3, '#3a2418');
+      drawHair(ctx, dir, cx, cy, ap, 'front');
       return;
     }
     // Helm
@@ -862,7 +995,8 @@ const CHARACTER_ART = {
   ninja(ctx, dir, w, f, L = { a: -1, h: -1 }) {
     const A = ARMOR_LOOK.ninja;
     const torso = lookColor(A.torso, L.a, '#312c3d');
-    const o = { skin: '#e9c6a1', pants: darker(torso, 0.1), boots: '#3d3848', torso, sleeve: darker(torso, 0.1), gloves: '#3d3848' };
+    const ap = lookOf(L, 'ninja');
+    const o = { skin: skinOf(ap), pants: darker(torso, 0.1), boots: '#3d3848', torso, sleeve: darker(torso, 0.1), gloves: '#3d3848' };
     const scarf = lookColor(A.scarf, L.a, '#6b4f9a');
     const hood = lookColor(A.hood, L.h, '#2a2633');
     const ty = -24 + w.bob;
@@ -898,6 +1032,8 @@ const CHARACTER_ART = {
     // Schal am Hals
     if (dir === 'side') box(ctx, -6, ty - 2.5, 12, 4.8, 2, scarf);
     else box(ctx, -8.5, ty - 2.5, 17, 4.8, 2, scarf);
+    // lange Haare und Zopf schauen hinten aus der Kapuze
+    if (ap.hair === 2 || ap.hair === 4) drawHair(ctx, dir === 'up' ? 'down' : dir, dir === 'side' ? 1.5 : 0, -34.5 + w.bob, ap, 'back');
     const { cx, cy } = hHead(ctx, dir, w, o);
     if (dir === 'side') poly(ctx, [[cx - 9.5, cy - 4], [cx - 8.5, cy - 0.5], [cx - 17, cy + 3 + sway], [cx - 18, cy - 1.5 + sway]], hood);
     oval(ctx, cx, cy - 0.5, 11.8, 11.2, hood);
@@ -908,7 +1044,7 @@ const CHARACTER_ART = {
     // Augenschlitz in der Kapuze
     if (dir === 'side') box(ctx, cx + 1.5, cy - 2, 10, 5.8, 2.6, o.skin);
     else box(ctx, cx - 8.5, cy - 2, 17, 5.8, 2.6, o.skin);
-    eyes(ctx, dir, cx, cy - 0.5, { narrow: true });
+    eyes(ctx, dir, cx, cy - 0.5, { narrow: true, color: eyeOpts(ap).color });
     // Ab Stufe Nacht ein Stirnband mit Platte, ab Stufe Himmel leuchtende Augen
     if (L.h >= 4) {
       box(ctx, dir === 'side' ? cx - 1 : cx - 9, cy - 6, dir === 'side' ? 11 : 18, 2.4, 1, lookColor(A.scarf, L.h, scarf));
@@ -921,8 +1057,8 @@ const CHARACTER_ART = {
     const A = ARMOR_LOOK.schamane;
     const robe = lookColor(A.robe, L.a, '#2c6f6a');
     const gold = lookColor(A.gold, L.a, '#e0c36a');
-    const o = { skin: '#ecc9a5', boots: '#3a2c24', robe, sleeve: robe, cuff: gold, wideSleeves: true };
-    const hair = '#231c1c';
+    const ap = lookOf(L, 'schamane');
+    const o = { skin: skinOf(ap), boots: '#3a2c24', robe, sleeve: robe, cuff: gold, wideSleeves: true };
     const ty = -24 + w.bob;
     hLegs(ctx, dir, w, o);
     gearBoots(ctx, dir, w, L.b, true);
@@ -963,33 +1099,17 @@ const CHARACTER_ART = {
     }
     hArms(ctx, dir, w, o);
     gearShoulders(ctx, dir, w, L.s, ty, 10.5);
+    drawHair(ctx, dir, dir === 'side' ? 1.5 : 0, -34.5 + w.bob, ap, 'back');
     const { cx, cy } = hHead(ctx, dir, w, o);
-    if (dir === 'up') {
-      oval(ctx, cx, cy - 0.5, 11.4, 11, hair);
-    } else if (dir === 'down') {
-      eyes(ctx, dir, cx, cy, { blush: true });
-      paintShape(ctx, () => {
-        ctx.beginPath();
-        ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.02, Math.PI * 1.98);
-        ctx.quadraticCurveTo(cx + 3, cy - 6.5, cx, cy - 4.5);
-        ctx.quadraticCurveTo(cx - 3, cy - 6.5, cx - 11.3, cy - 1.5);
-        ctx.closePath();
-      }, hair, cx - 11.4, cy - 12, 22.8, 10);
-      box(ctx, cx - 11.6, cy - 4, 3.2, 10.5, 1.5, hair);
-      box(ctx, cx + 8.4, cy - 4, 3.2, 10.5, 1.5, hair);
+    if (dir !== 'up') {
+      eyes(ctx, dir, cx, cy, { blush: true, ...eyeOpts(ap) });
+      faceMarks(ctx, dir, cx, cy, ap);
+    }
+    drawHair(ctx, dir, cx, cy, ap, 'front');
+    if (dir === 'down') {
       oval(ctx, cx - 11, cy + 4, 1.1, 1.1, gold);
       oval(ctx, cx + 11, cy + 4, 1.1, 1.1, gold);
-    } else {
-      eyes(ctx, dir, cx, cy);
-      paintShape(ctx, () => {
-        ctx.beginPath();
-        ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 0.75, Math.PI * 1.9);
-        ctx.quadraticCurveTo(cx + 2, cy - 5, cx - 3, cy - 1);
-        ctx.lineTo(cx - 5, cy + 7);
-        ctx.closePath();
-      }, hair, cx - 11.4, cy - 12, 20, 19);
     }
-    oval(ctx, cx + (dir === 'side' ? -3.5 : 0), cy - 12, 4.6, 4, hair);
     if (L.h === -2) return;
     const band = lookColor(A.band, L.h, gold);
     if (dir === 'up') box(ctx, cx - 11.2, cy - 6.2, 22.4, 2.6, 1.2, band);
@@ -1015,7 +1135,8 @@ const CHARACTER_ART = {
     const A = ARMOR_LOOK.nekromant;
     const bone = '#ddd5bb';
     const robe = lookColor(A.robe, L.a, '#334a31');
-    const o = { skin: '#c9c4b0', boots: '#2a2420', robe, sleeve: darker(robe, 0.12), wideSleeves: true, tattered: true, gloves: '#c9c4b0' };
+    const ap = lookOf(L, 'nekromant');
+    const o = { skin: skinOf(ap), boots: '#2a2420', robe, sleeve: darker(robe, 0.12), wideSleeves: true, tattered: true, gloves: skinOf(ap) };
     const hood = lookColor(A.hood, L.h, '#2a3b28');
     const eyeGlow = lookColor(A.glow, L.h, '#a7e37f');
     const ty = -24 + w.bob;
@@ -1051,6 +1172,8 @@ const CHARACTER_ART = {
     poly(ctx, [[cx - 12, cy + 7.5], [cx - 12.8, cy - 4], [cx - 5, cy - 13], [cx + 1, cy - 20], [cx + 6, cy - 12.5], [cx + 12.8, cy - 4], [cx + 12, cy + 7.5]], hood);
     if (dir === 'down') {
       dot(ctx, cx, cy + 1.6, 7.6, 7.2, '#0d120c');
+      // lange Haare fallen vorn aus der Kapuze
+      if (ap.hair === 2 || ap.hair === 4) for (const x of [cx - 7.4, cx + 4.6]) box(ctx, x, cy - 3, 2.8, 12, 1.2, hairOf(ap));
       oval(ctx, cx, cy + 6.6, 4, 2, o.skin);
       eyes(ctx, 'down', cx, cy - 1, { color: lighter(eyeGlow, 0.5), glow: eyeGlow, narrow: true });
     }
@@ -1063,7 +1186,7 @@ const FIGURE_BOUNDS = { x: -30, y: -60, w: 60, h: 66 };
 
 function characterSprite(classId, dir, frame, look = { a: -1, h: -1 }) {
   // Spielfiguren in höherer Auflösung (4 Pixel je Einheit), damit sie auch nah scharf bleiben
-  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look), 4);
+  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}:${lookKey(look.ap)}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look), 4);
 }
 
 // Wo die Waffenhand sitzt (relativ zu den Füßen, Figur nach rechts bzw. zum Betrachter)

@@ -8,7 +8,7 @@
 // ambient           Stimmung: schwebende Teilchen (kind) und eine leichte Färbung des Bildes (tint, RGBA)
 const ZONES = [
   {
-    id: 'dorf', name: 'Dorf Hayan', levels: 'Sicherer Ort', minDist: 0, maxDist: 15, safe: true,
+    id: 'dorf', name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 15, safe: true,
     ground: 'GRASS'
   },
   {
@@ -128,11 +128,11 @@ for (const d of DUNGEONS) {
 
 // --- Weitere Maps ---------------------------------------------------------------------------
 // Map 2 und Map 3 liegen in eigenen Bereichen der Karte (unter der Oberwelt) und sind nur über
-// das Weltentor in Hayan erreichbar. In der Mitte jeder Map steht ein sicheres Lager mit
+// das Weltentor in Vlotho erreichbar. In der Mitte jeder Map steht ein sicheres Lager mit
 // Weltentor, darum liegen die Gebiete als Ringe (minDist/maxDist wie oben, ab der Mitte der Map).
 // region: [x, y, Breite, Höhe] in Kacheln
 const WORLD_MAPS = [
-  { id: 1, name: 'Hayan', levels: 'Stufe 1–70', minLevel: 1, text: 'Das Dorf Hayan und alle Gebiete drumherum.' },
+  { id: 1, name: 'Vlotho', levels: 'Stufe 1–70', minLevel: 1, text: 'Die Stadt Vlotho und alle Gebiete drumherum.' },
   { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [0, 200, 130, 132], text: 'Eine heiße Wüste voller Schlangen, dahinter der Dschungel der Nagas.' },
   { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [130, 200, 130, 132], text: 'Eine tiefe Felsschlucht mit Trollen und Minotauren, oben der Kamm der Titanen.' }
 ];

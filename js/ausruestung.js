@@ -609,6 +609,9 @@ function afterGearChange() {
   game.stats = playerStats(p);
   p.hp = Math.min(p.hp, game.stats.maxHp);
   p.mp = Math.min(p.mp, game.stats.maxMp);
+  // das Bild oben links zeigt die angelegte Ausrüstung (Helm, Rüstung)
+  const portrait = document.getElementById('hudPortrait');
+  if (portrait && game.running) drawPortrait(portrait, p);
   saveGame();
 }
 

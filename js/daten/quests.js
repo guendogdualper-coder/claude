@@ -7,7 +7,7 @@
 //         Die Erfahrung wird aus der Stufe berechnet (questXp).
 const MAIN_QUESTS = [
   { id: 'q1', level: 1, title: 'Wilde Hunde', goal: { type: 'kill', monster: 'hund', count: 10 },
-    text: 'Vor dem Südtor streunen wilde Hunde und reißen unsere Hühner. Zeig ihnen, dass Hayan nicht wehrlos ist.',
+    text: 'Vor dem Südtor streunen wilde Hunde und reißen unsere Hühner. Zeig ihnen, dass Vlotho nicht wehrlos ist.',
     reward: { gold: 120, potions: 5 } },
   { id: 'q2', level: 3, title: 'Der erste Seelenstein', goal: { type: 'stone', level: 5, count: 1 },
     text: 'In den Sonnenwiesen ist ein Stein der Trauer aus der Erde gebrochen. Zerstöre ihn, bevor er noch mehr Monster ruft.',
@@ -34,7 +34,7 @@ const MAIN_QUESTS = [
     text: 'Ein Rudel Braunbären hat den Holzfällerpfad besetzt. Sie sind stark, sei vorsichtig.',
     reward: { gold: 6000, items: [['ruestung', 3, 2]] } },
   { id: 'q10', level: 20, title: 'Orks vor den Toren', goal: { type: 'kill', monster: 'ork', count: 25 },
-    text: 'Im Orktal sammelt sich ein Heer. Schwäche es, bevor es gegen Hayan zieht.',
+    text: 'Im Orktal sammelt sich ein Heer. Schwäche es, bevor es gegen Vlotho zieht.',
     reward: { gold: 9000, mats: { boni5: 1, switcher: 3 } } },
   { id: 'q11', level: 24, title: 'Stein der Schwärze', goal: { type: 'stone', level: 25, count: 2 },
     text: 'Die Orks beten schwarze Steine an. Nimm ihnen ihre Götzen.',
@@ -64,7 +64,7 @@ const MAIN_QUESTS = [
     text: 'Am Feuerberg nisten Drachen. Wenn sie flügge werden, ist kein Dorf mehr sicher.',
     reward: { books: 5, gold: 160000, items: [['waffe', 7, 2]] } },
   { id: 'q20', level: 68, title: 'Stein des Untergangs', goal: { type: 'stone', level: 70, count: 1 },
-    text: 'Der letzte und mächtigste aller Seelensteine. Zerstöre ihn und Hayan ist für immer frei.',
+    text: 'Der letzte und mächtigste aller Seelensteine. Zerstöre ihn und Vlotho ist für immer frei.',
     reward: { books: 8, gold: 250000, scrolls: 5, mats: { star: 3, boni5: 3 } } }
 ];
 
@@ -100,6 +100,6 @@ const NPC_LINES = {
   ],
   bauer: ['Seit die Seelensteine aus der Erde brechen, wächst kaum noch etwas auf den Feldern.', 'Die Wildschweine fressen mir die Rüben weg. Wenn du welche siehst, jag sie!'],
   kind: ['Wenn ich groß bin, werde ich auch Abenteurer!', 'Hast du schon mal einen Drachen gesehen? Lian sagt, am Feuerberg gibt es welche.'],
-  alte: ['Früher war Hayan ein ruhiges Dorf. Dann kamen die Steine.', 'Der Stein der Gier lässt viel Gold fallen, sagt man. Aber Gier hat noch keinem gutgetan.'],
+  alte: ['Früher war Vlotho eine ruhige Stadt. Dann kamen die Steine.', 'Der Stein der Gier lässt viel Gold fallen, sagt man. Aber Gier hat noch keinem gutgetan.'],
   moench: ['Jeder Stein hat seine eigene Seele. Und jeder lässt etwas anderes zurück.', 'Wer den Stein des Untergangs bricht, braucht die besten Boni auf jeder Rüstung.']
 };

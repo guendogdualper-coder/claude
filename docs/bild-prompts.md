@@ -907,3 +907,30 @@ Mobile game trade window, dark leather and gold fantasy style: two panels side b
 ```
 Mobile game inspect window, dark fantasy style: a framed chibi warrior doll wearing purple soul armor, helmet, shoulders and a cape, eight equipment slots around it with +5 badges, small green and red arrows comparing them to your own gear, and on the right the detail card of his sword with stats and bonuses. Clean readable UI.
 ```
+
+## Vlotho, Ping, neue Symbole und Aussehen (Version 3.5)
+
+### Die Stadt Vlotho
+```
+2D fantasy MMORPG town square, three-quarter top-down view, cozy East Asian inspired style: a walled town with stone gates, curved roofs, lanterns, market stalls, a well and a portal ring; a wooden sign and a golden banner text "Vlotho" floating over the square, chibi heroes and merchants walking around. Cute game art, bold outlines, warm afternoon light.
+```
+
+### Ping unter der Karte
+```
+Mobile game minimap corner, fantasy style: a round minimap with the town name "Vlotho", below it a tiny status line with a battery, the time "14:32" and green signal bars with "68 ms"; a second variant shows grey bars and "offline". Small, crisp, readable on a phone.
+```
+
+### Rucksack und Beutesack
+```
+Game UI icon pair, dark fantasy style with golden line art on round lacquered coin buttons: left a leather backpack with a flap, a front pocket and a buckle (inventory), right a brown loot sack tied with a cord with shiny gold coins spilling out (loot). Bold readable shapes, warm gold accents.
+```
+
+### Aussehen bei der Charaktererstellung
+```
+Mobile game character creation screen in landscape, dark leather and gold fantasy style: four class cards (warrior, ninja, shaman, necromancer), below an "Aussehen" section with a framed rotating chibi preview and rows "Frisur ‹ Lang ›", hair color swatches, skin tone swatches, "Augen ‹ Rund ›", eye color swatches, "Gesicht ‹ Kriegsbemalung ›" and a dice button "Zufällig"; on the right the class description and skills; a big golden button "Abenteuer beginnen". Clean, inviting UI.
+```
+
+### Frisuren und Gesichter
+```
+2D fantasy MMORPG character sheet, cute chibi style with bold outlines: the same young hero shown six times with different hairstyles – short with a tuft, top bun, long flowing hair, spiky, ponytail with a red tie, bald with a shine – in different hair colors (black, brown, blond, platinum, red, blue, silver) and skin tones, with round, narrow, happy closed or determined eyes, freckles, a scar or red war paint. Front, side and back view. Plain background, cel shading.
+```
