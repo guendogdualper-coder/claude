@@ -57,6 +57,24 @@ function buzz(pattern) {
   if (opts.vibrate && navigator.vibrate) navigator.vibrate(pattern);
 }
 
+// Vollbild (PC und Android; das iPhone kann es im Browser nicht – dort hilft „Zum Home-Bildschirm“)
+const FS_OK = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+const isFullscreen = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+function toggleFullscreen() {
+  const d = document;
+  const el = d.documentElement;
+  try {
+    if (isFullscreen()) (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+    else {
+      const r = (el.requestFullscreen || el.webkitRequestFullscreen).call(el, { navigationUI: 'hide' });
+      if (r && r.catch) r.catch(() => {});
+    }
+  } catch (e) { /* nicht erlaubt */ }
+}
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
+  document.addEventListener(ev, () => { if (!$('panelOpts').hidden) options.render(); });
+}
+
 const options = {
   render() {
     const body = $('optsBody');
@@ -72,12 +90,15 @@ const options = {
       `<section class="opt-group"><h3>Grafik</h3>` +
       seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
       seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Hoch ist empfohlen, Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger.`) +
-      seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit der Maus ziehen, Mausrad zoomt.') +
+      seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
       sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
       sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +
-      sw('names', 'Namen der Bewohner', 'Namen unter Händlern und Helfern im Dorf.') + `</section>` +
+      sw('names', 'Namen der Bewohner', 'Namen unter Händlern und Helfern im Dorf.') +
+      (FS_OK ? `<div class="opt-row"><div class="opt-text"><strong>Vollbild</strong><small>Das Spiel füllt den ganzen Bildschirm. Esc beendet das Vollbild.</small></div>` +
+        `<button type="button" class="opt-switch${isFullscreen() ? ' on' : ''}" id="optFull" role="switch" aria-checked="${isFullscreen()}" aria-label="Vollbild"><i></i></button></div>` : '') + `</section>` +
       `<section class="opt-group"><h3>Steuerung</h3>` +
-      sw('vibrate', 'Vibration', 'Kurzes Rütteln beim Schmieden und Tauschen (wo das Gerät es kann).') + `</section>` +
+      sw('vibrate', 'Vibration', 'Kurzes Rütteln beim Schmieden und Tauschen (wo das Gerät es kann).') +
+      (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. Im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera, das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
       `<section class="opt-group"><h3>Figur und Spiel</h3><div class="opt-btns">` +
       `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
       `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
@@ -97,6 +118,7 @@ const options = {
       setOpt(k, v);
       this.render();
     }));
+    if ($('optFull')) $('optFull').addEventListener('click', toggleFullscreen);
     $('optSound').addEventListener('click', () => {
       sfx.toggle();
       this.render();

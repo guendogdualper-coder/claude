@@ -1370,3 +1370,9 @@ Desktop version of the same MMORPG HUD at 1920×1080: in the top-left corner a l
 ```
 Desktop MMORPG HUD at 1920×1080, stylized 3D toon fantasy world: top-left a large portrait with level badge, the player name and wide HP/MP bars, directly below a party list of two larger dark rows ("Mira  Lv 24", "Shaolin  Lv 31") with names flush left and thick red HP bars; top-right the round minimap with region name, gold and status, and directly under it on the right edge a wider quest panel "Aufträge" with golden main quest and green hunt quest, larger text, progress bars and location hints; bottom-right a vertical column of menu buttons, bottom center the skill bar with potions. Clean, readable, spacious.
 ```
+
+## Maus und Vollbild am PC (Version 5.6)
+
+```
+Desktop fantasy MMORPG in fullscreen, no browser bars visible: a stylized 3D toon world fills the whole monitor; a golden mouse cursor shaped like a small gauntlet clicks on the grass and a thin golden ring pulses where the hero will walk; another click on a wolf shows a red target ring under it while the hero swings his sword. Settings window in the corner with a glowing toggle "Vollbild" switched on. Soft toon shading, thin dark outlines.
+```

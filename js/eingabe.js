@@ -17,6 +17,10 @@ const input = {
   attackAt: -99,
   attackWalk: false,
   stick: { x: 0, y: 0 },
+  // Maus am PC: walkTo Laufziel, mouseWalk/mouseAttack linke Taste gedrückt
+  walkTo: null,
+  mouseWalk: false,
+  mouseAttack: false,
   touchUi: window.matchMedia('(pointer: coarse)').matches
 };
 
@@ -97,14 +101,23 @@ function setupInput() {
   // Beim Wechsel in einen anderen Tab keine Tasten "festhalten"
   window.addEventListener('blur', () => {
     input.keys.clear();
+    input.mouseAttack = false;
+    input.mouseWalk = false;
     clearAttack();
   });
 
-  // Mausklick oder Tippen auf ein Monster wählt es als Ziel. Im Schulterblick dreht Ziehen die Kamera
-  // (Finger auf der rechten Bildhälfte oder Maus), kurzes Tippen wählt weiter aus.
+  // Tippen auf ein Monster wählt es als Ziel. Im Schulterblick dreht Ziehen die Kamera
+  // (Finger auf der rechten Bildhälfte), kurzes Tippen wählt weiter aus.
+  // Maus am PC: Linksklick auf ein Monster greift an (gedrückt halten = weiter angreifen), Linksklick auf
+  // den Boden läuft dorthin (gedrückt halten = dem Mauszeiger folgen), Rechtsklick wählt nur aus,
+  // im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera.
   const cv = renderer.canvas;
   let camDrag = null;
   cv.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse') {
+      mouseDown(e);
+      return;
+    }
     if (!v3Shoulder()) {
       selectAt(e.clientX, e.clientY);
       return;
@@ -112,7 +125,26 @@ function setupInput() {
     camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     cv.setPointerCapture(e.pointerId);
   });
+  const mouseDown = (e) => {
+    cv.setPointerCapture(e.pointerId);
+    if (e.button === 2) {
+      if (v3Shoulder()) camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, right: true };
+      else selectAt(e.clientX, e.clientY);
+      return;
+    }
+    if (e.button !== 0 || !game.running) return;
+    const hit = selectAt(e.clientX, e.clientY);
+    if (hit === 'monster') {
+      input.walkTo = null;
+      input.mouseAttack = true;
+      tapAttack();
+    } else if (!hit) {
+      input.mouseWalk = true;
+      walkToScreen(e.clientX, e.clientY, true);
+    }
+  };
   cv.addEventListener('pointermove', (e) => {
+    if (input.mouseWalk && e.pointerType === 'mouse') walkToScreen(e.clientX, e.clientY, false);
     if (!camDrag || e.pointerId !== camDrag.id) return;
     const dx = e.clientX - camDrag.x;
     if (!camDrag.moved && Math.abs(dx) < 8) return;
@@ -121,12 +153,20 @@ function setupInput() {
     camDrag.x = e.clientX;
   });
   const endCamDrag = (e) => {
+    if (e.pointerType === 'mouse') {
+      input.mouseAttack = false;
+      input.mouseWalk = false;
+    }
     if (!camDrag || e.pointerId !== camDrag.id) return;
     if (!camDrag.moved) selectAt(e.clientX, e.clientY);
     camDrag = null;
   };
   cv.addEventListener('pointerup', endCamDrag);
   cv.addEventListener('pointercancel', endCamDrag);
+  // Kein Browser-Menü (Bild speichern, Untersuchen …) im Spiel: die rechte Maustaste gehört dem Spiel
+  document.addEventListener('contextmenu', (e) => {
+    if (game.running && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) e.preventDefault();
+  });
   // Mausrad: näher oder weiter weg (3D)
   cv.addEventListener('wheel', (e) => {
     if (!V3.on) return;
@@ -137,17 +177,29 @@ function setupInput() {
   setupTouch();
 }
 
-// Mausklick oder Tippen: Monster als Ziel wählen oder mit einem Dorfbewohner sprechen
+// Mausklick am PC auf den Boden: Ziel zum Hinlaufen setzen (mit kleinem Ring beim ersten Klick)
+function walkToScreen(clientX, clientY, mark) {
+  const w = screenToWorld(clientX, clientY);
+  if (!w || !isFinite(w.x) || !isFinite(w.y)) return;
+  input.walkTo = { x: w.x, y: w.y };
+  if (mark) addEffect({ type: 'ring', x: w.x, y: w.y, r: 16, dur: 0.45, color: '#ffe08a', width: 3, grow: true });
+}
+
+// Mausklick oder Tippen: Monster als Ziel wählen oder mit einem Dorfbewohner sprechen.
+// Gibt zurück, was getroffen wurde: 'monster', 'player', 'npc' oder nichts.
 function selectAt(clientX, clientY) {
-  if (!game.running) return;
+  if (!game.running) return null;
   {
     const w = screenToWorld(clientX, clientY);
     // Mitspieler antippen: im Duell als Ziel, sonst öffnet sich oben die Spielerkarte
     const pid = remotePlayerAt(w.x, w.y);
     if (pid) {
-      if (duelFighting() && game.duel.pid === pid) game.target = game.duel.proxy;
-      else pcard.open(pid);
-      return;
+      if (duelFighting() && game.duel.pid === pid) {
+        game.target = game.duel.proxy;
+        return 'monster';
+      }
+      pcard.open(pid);
+      return 'player';
     }
     let best = null;
     let bestD = 40;
@@ -160,12 +212,16 @@ function selectAt(clientX, clientY) {
     }
     if (best) {
       game.target = best;
-      return;
+      return 'monster';
     }
     for (const n of game.world.npcs) {
-      if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90) ui.openNpc(n);
+      if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90) {
+        ui.openNpc(n);
+        return 'npc';
+      }
     }
   }
+  return null;
 }
 
 // Knopf, der schon beim Aufsetzen des Fingers auslöst. Ein normaler Klick kommt auf dem
