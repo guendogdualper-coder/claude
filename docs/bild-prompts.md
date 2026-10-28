@@ -1314,3 +1314,9 @@ Mobile MMORPG gameplay screenshot in landscape (iPhone, 19.5:9), stylized 3D too
 ```
 Mobile MMORPG screenshot on a modern iPhone in landscape with the Dynamic Island on the left edge: the stylized 3D toon game world fills the whole screen edge to edge; HUD elements hug the screen corners – on the free right side the tiny round minimap sits in the top-right corner and the big red attack button with its tight arc of skill buttons sits deep in the bottom-right corner just inside the rounded screen corner; on the island side the portrait and the small chat box keep a little more distance. System messages like "ERFOO · Kanal 1: Du bist online" appear as grey italic lines inside the chat box instead of floating over the game. A thin XP line spans almost the full bottom edge. Clean, minimal, lots of free view.
 ```
+
+## Meldungen im Chat (Version 5.0)
+
+```
+Close-up of the small translucent chat box in the bottom-left corner of a mobile fantasy MMORPG HUD, dark brown glass with a thin gold border, tabs "Global", "Gilde", "Ort" on top and a round speech-bubble button on the right; inside, system messages as short lines: a golden bold line "Stein der Wut zerstört! +1.250 EP.", a soft red line "Keine Mondtau mehr.", a grey italic line "ERFOO · Kanal 1: Du bist online.", and a player message "Mira: hi!". Above the hero in the game world a floating golden "+1.250 EP" number. The rest of the screen is free game view.
+```

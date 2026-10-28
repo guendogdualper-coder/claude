@@ -55,7 +55,6 @@ function onSocial(pid, d) {
     }
     social.addPending({ type: 'friend', pid, name, c: d.c, l: d.l });
     ui.log(`${name} möchte dein Freund sein. Öffne Freunde & Gilde (G).`, 'level');
-    ui.chat('', `${name} hat dir eine Freundschaftsanfrage geschickt.`);
   } else if (d.k === 'fa') {
     addFriend({ n: name, c: d.c, l: d.l });
     ui.log(`${name} ist jetzt dein Freund.`, 'level');
@@ -63,12 +62,10 @@ function onSocial(pid, d) {
     if (p.guild) return;
     social.addPending({ type: 'guild', pid, name, g: d.g });
     ui.log(`${name} lädt dich in die Gilde „${d.g.name}“ ein. Öffne Freunde & Gilde (G).`, 'level');
-    ui.chat('', `Gildeneinladung von ${name}: ${d.g.name}`);
   } else if (d.k === 'ga') {
     if (!p.guild) return;
     addGuildMember({ n: name, c: d.c, l: d.l, r: 'Mitglied' });
     ui.log(`${name} ist der Gilde beigetreten.`, 'level');
-    ui.chat('', `${name} ist jetzt in der Gilde ${p.guild.name}.`);
     netSocial(pid, { k: 'gs', g: p.guild });
   } else if (d.k === 'gs') {
     if (!p.guild || !d.g || d.g.name !== p.guild.name) return;

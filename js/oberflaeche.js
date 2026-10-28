@@ -520,9 +520,9 @@ const ui = {
   chatChan: 'g',
   chatLines: [],
 
-  chat(name, text, c) {
+  chat(name, text, c, type) {
     c = c || (name ? 'g' : 'sys');
-    this.chatLines.push({ name, text, c });
+    this.chatLines.push({ name, text, c, type });
     if (this.chatLines.length > 60) this.chatLines.shift();
     if (this.chatShows(c)) this.renderChat();
     else {
@@ -557,6 +557,7 @@ const ui = {
       const row = document.createElement('p');
       row.classList.add('ch-' + l.c);
       if (l.c === 'sys') row.classList.add('sys');
+      if (l.type) row.classList.add('lg-' + l.type);
       if (this.chatChan === 'g' && tags[l.c]) {
         const t = document.createElement('i');
         t.textContent = '[' + tags[l.c] + '] ';
@@ -813,17 +814,9 @@ const ui = {
     });
   },
 
+  // Meldungen stehen im Chat (Reiter Global) statt mitten im Bild; type färbt sie (info, level, warn)
   log(text, type = 'info') {
-    const log = $('log');
-    const p = document.createElement('p');
-    p.className = type;
-    p.textContent = text;
-    log.append(p);
-    while (log.children.length > 6) log.firstChild.remove();
-    // Nachrichten verschwinden nach einer Weile von selbst
-    setTimeout(() => p.remove(), 12000);
-    // ältere Nachrichten verblassen
-    [...log.children].forEach((el, i) => el.classList.toggle('old', i < log.children.length - 3));
+    this.chat('', text, 'sys', type);
   },
 
   // Beute unten rechts: Symbol, Name und Anzahl. Gleiche Beute kurz hintereinander wird zusammengezählt.

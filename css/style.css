@@ -2443,3 +2443,6 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 #hud.touch .touch-attack { right: calc(var(--arc-r) + 12px); }
 #hud.touch .loot-feed { right: calc(var(--arc-r) + 236px); }
 #hud.touch .xp { left: 24px; right: 24px; }
+/* Meldungen im Chat: Erfolge golden, Warnungen rötlich */
+.chat-box .chat-log p.lg-level { color: #ffd34d; font-style: normal; font-weight: 600; }
+.chat-box .chat-log p.lg-warn { color: #ff9a7a; font-style: normal; }
