@@ -636,6 +636,12 @@ function itemAt(ref) {
 
 // --- Schmied --------------------------------------------------------------------------
 
+// Text für den Hinweis an einem Monster-Teil: von welchem Monster und auf welcher Map
+function mobMatTip(id) {
+  const t = MONSTER_TYPES[id];
+  return `${MOB_MATS[id].name}: fällt von ${t.name} (Stufe ${t.level}). Fundort: ${monsterWhere(id)}`.replace(/"/g, '&quot;');
+}
+
 function upgradeCost(item) {
   const step = UPGRADE_STEPS[item.plus];
   return { gold: step.gold * (item.tier + 1), splinters: step.splinters, mat: upgradeMaterial(item) };
@@ -1668,8 +1674,8 @@ const gear = {
     const mat = cost.mat;
     const have = mat ? p.upmats[mat.id] || 0 : 0;
     const matLine = mat
-      ? `<p class="smith-cost smith-mat"><img class="mini-icon" src="${mobMatIconUrl(mat.id)}" alt=""> Dazu: <b class="${have >= mat.count ? '' : 'lack'}">${mat.count} × ${MOB_MATS[mat.id].name}</b> (du hast ${have}) ` +
-        `<small>von: ${MONSTER_TYPES[mat.id].name}, Stufe ${MONSTER_TYPES[mat.id].level}</small></p>`
+      ? `<p class="smith-cost smith-mat" data-tip="${mobMatTip(mat.id)}"><img class="mini-icon" src="${mobMatIconUrl(mat.id)}" alt=""> Dazu: <b class="${have >= mat.count ? '' : 'lack'}">${mat.count} × ${MOB_MATS[mat.id].name}</b> (du hast ${have}) ` +
+        `<small>von: ${MONSTER_TYPES[mat.id].name}, Stufe ${MONSTER_TYPES[mat.id].level} · 📍 ${monsterWhere(mat.id)}</small></p>`
       : (item.plus + 1 >= upgradeMatStart(item.tier) ? '' : `<p class="hint-text">Ab +${upgradeMatStart(item.tier)} braucht der Schmied zusätzlich Teile von Monstern.</p>`);
     const risk = step.fail === 'none' ? 'Bei Fehlschlag sind nur die Kosten weg.'
       : step.fail === 'down' ? `Bei Fehlschlag fällt der Gegenstand auf +${item.plus - 1} zurück.`
@@ -1683,7 +1689,7 @@ const gear = {
       `<div class="chance"><i style="width:${step.chance * 100}%"></i><span>Erfolgschance ${Math.round(step.chance * 100)} %</span></div>` +
       `<p class="smith-cost">Kosten: <b class="${p.gold >= cost.gold ? '' : 'lack'}">${cost.gold.toLocaleString('de-DE')} Gold</b> und ` +
       `<b class="${p.splinters >= cost.splinters ? '' : 'lack'}">${cost.splinters} Seelensplitter</b> (du hast ${p.splinters})</p>` + matLine +
-      `<p class="smith-risk ${step.fail}">${risk}</p>` +
+      `<p class="smith-risk ${step.fail}">${risk}</p>` + this.smithMatsHtml(mat ? mat.id : null) +
       (step.fail !== 'none' ? `<label class="scroll-opt" for="useScroll"><input id="useScroll" type="checkbox" ${p.scrolls ? '' : 'disabled'}>` +
         `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrolle verwenden (${p.scrolls} vorhanden)</label>` : '') +
       `<div class="forge-row"><button id="btnForge" type="button" class="btn btn-primary" ${enough ? '' : 'disabled'}>Verbessern</button>` +
@@ -1692,6 +1698,17 @@ const gear = {
     document.getElementById('btnSound').addEventListener('click', (e) => {
       e.target.textContent = sfx.toggle() ? '🔊 Ton an' : '🔇 Ton aus';
     });
+  },
+
+  // Alle Teile für den Schmied, die man hat (und das gerade nötige): Antippen oder Zeigen verrät, wo es sie gibt
+  smithMatsHtml(need) {
+    const p = game.player;
+    const ids = Object.keys(p.upmats || {}).filter((id) => p.upmats[id] > 0 && MOB_MATS[id]);
+    if (need && !ids.includes(need)) ids.unshift(need);
+    if (!ids.length) return '';
+    return `<div class="smith-mats"><h4>Teile für den Schmied <small>antippen: wo es sie gibt</small></h4><div class="loot-purse mob-mats">` +
+      ids.map((id) => `<span class="mat-chip${id === need ? ' need' : ''}" tabindex="0" data-tip="${mobMatTip(id)}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${p.upmats[id] || 0}</b></span>`).join('') +
+      `</div></div>`;
   },
 
   anvil(item) {

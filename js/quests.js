@@ -16,6 +16,30 @@ function goalDone(goal, progress) {
   return progress >= goal.count;
 }
 
+// --- Fundorte: wo ein Monster oder ein Seelenstein zu finden ist (Gebiet und Map) ---------------
+
+function zoneMapName(z) {
+  const map = z.map || (z.dungeon && z.dungeon.entry && z.dungeon.entry.map) || 1;
+  return (WORLD_MAPS.find((m) => m.id === map) || WORLD_MAPS[0]).name;
+}
+function zonePlaceText(z) {
+  return `${z.name}${z.dungeon ? ' (Dungeon)' : ''} · Map ${zoneMapName(z)}`;
+}
+function monsterPlaces(id) {
+  return ZONES.filter((z) => (z.groups && z.groups.some((g) => g[0] === id)) || (z.dungeon && (z.dungeon.mobs.includes(id) || z.dungeon.boss === id)));
+}
+function monsterWhere(id) {
+  const zs = monsterPlaces(id);
+  return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
+}
+function stoneWhere(level) {
+  const zs = ZONES.filter((z) => (z.stones && z.stones.some((s) => s[0] === level)) || (z.dungeon && z.dungeon.stones.includes(level)));
+  return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
+}
+function goalWhere(goal) {
+  return goal.type === 'kill' ? monsterWhere(goal.monster) : stoneWhere(goal.level);
+}
+
 function goalText(goal) {
   if (goal.type === 'kill') return `${goal.count} × ${MONSTER_TYPES[goal.monster].name} besiegen`;
   return `${goal.count} × ${stoneType(goal.level).name} (Stufe ${goal.level}) zerstören`;
@@ -287,29 +311,35 @@ function travelTo(spot) {
 // --- Fenster der Dorfbewohner ------------------------------------------------------------
 
 Object.assign(ui, {
+  // Auftragsliste rechts am Rand: jeder angenommene Auftrag mit Ziel, Fortschrittsbalken und Ort.
+  // Antippen der Überschrift klappt die Liste ein und aus.
   renderQuestTrack() {
     const el = $('questTrack');
     if (!el || !game.player) return;
     const q = questState();
     const main = currentMainQuest();
     const rows = [];
+    const row = (cls, title, goal, have, need, where, extra = '') => {
+      const done = have >= need;
+      rows.push(`<li class="ql-q ${cls}${done ? ' done' : ''}"><b>${title}</b>` +
+        `<span class="ql-goal">${done ? 'Erfüllt – zurück zum Auftraggeber' : goal}${extra}</span>` +
+        `<span class="ql-bar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><em>${Math.min(have, need)}/${need}</em></span>` +
+        (done ? '' : `<span class="ql-where">📍 ${where}</span>`) + `</li>`);
+    };
     // Hauptmissionen golden, Nebenmissionen grün
-    if (main && q.accepted) {
-      const done = goalDone(main.goal, q.progress);
-      rows.push(`<span class="main${done ? ' done' : ''}">${main.title} ${Math.min(q.progress, main.goal.count)}/${main.goal.count}</span>`);
-    }
+    if (main && q.accepted) row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal));
     const st = q.stable;
     if (st.state === 'active' || st.state === 'done') {
       const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
-      const time = st.state === 'active' ? ` · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
-      rows.push(`<span class="main${st.state === 'done' ? ' done' : ''}">${STABLE_QUEST.title} ${Math.min(st.progress, STABLE_QUEST.count)}/${STABLE_QUEST.count}${time}</span>`);
+      const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
+      row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time);
     }
-    if (q.hunt) {
-      const done = q.hunt.progress >= q.hunt.count;
-      rows.push(`<span class="side${done ? ' done' : ''}">Jagd: ${MONSTER_TYPES[q.hunt.monster].name} ${Math.min(q.hunt.progress, q.hunt.count)}/${q.hunt.count}</span>`);
-    }
-    el.innerHTML = rows.join('');
+    if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster));
+    el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
+      (this.questLogClosed ? '' : `<ul class="ql-list">${rows.join('')}</ul>`) : '';
     el.hidden = !rows.length;
+    const head = el.querySelector('.ql-head');
+    if (head) head.addEventListener('click', () => { this.questLogClosed = !this.questLogClosed; this.renderQuestTrack(); });
   },
 
   renderElder() {

@@ -2293,3 +2293,61 @@ body.has-target { --target-h: 46px; }
 #hud.touch .chat-box { height: 86px; }
 #hud.touch .chat-tabs button { font-size: 10px; padding: 0 6px; }
 #hud.touch > .loot-btn { bottom: calc(var(--edge-b) + 106px); }
+
+/* --- Version 4.4: Auftragsliste rechts, Hinweise mit Fundort, Schmied-Teile ------------------ */
+.quest-log {
+  position: absolute;
+  right: calc(var(--edge-r, 12px) + 140px);
+  top: calc(var(--edge-t, 10px) + 50px);
+  width: min(210px, 26vw);
+  z-index: 4;
+  pointer-events: auto;
+  border-radius: 9px;
+  border: 1px solid rgba(201, 163, 90, 0.5);
+  background: linear-gradient(rgba(14, 10, 7, 0.55), rgba(14, 10, 7, 0.38));
+  color: var(--parchment);
+  font-size: 11px;
+  line-height: 1.25;
+}
+#hud.touch .quest-log { right: calc(var(--map-r, 4px) + 80px); top: calc(max(4px, env(safe-area-inset-top, 0px)) + 42px); width: min(190px, 24vw); }
+.ql-head { display: flex; width: 100%; align-items: center; gap: 6px; padding: 3px 8px; border: 0; background: none; color: #ffd98a; font: 700 11.5px/1.3 inherit; font-family: inherit; text-align: left; cursor: pointer; }
+.ql-head small { color: var(--muted); font-weight: 400; }
+.ql-head span { margin-left: auto; color: var(--muted); }
+.ql-list { list-style: none; margin: 0; padding: 0 7px 6px; display: grid; gap: 5px; }
+.ql-q { display: grid; gap: 1px; }
+.ql-q b { font-size: 11px; }
+.ql-q.main b { color: #ffd98a; }
+.ql-q.main b::before { content: "! "; color: #ffc93a; font-weight: 900; }
+.ql-q.side b { color: #a8f0a0; }
+.ql-q.side b::before { content: "! "; color: #5ae05a; font-weight: 900; }
+.ql-q.done b { color: #ffd34d; }
+.ql-goal { color: #e8dcc0; font-size: 10.5px; }
+.ql-where { color: #9fc8ff; font-size: 10px; }
+.ql-bar { position: relative; height: 9px; border-radius: 5px; background: rgba(0, 0, 0, 0.45); overflow: hidden; box-shadow: inset 0 0 0 1px rgba(201, 163, 90, 0.35); }
+.ql-bar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, #c9a35a, #ffd34d); }
+.ql-q.side .ql-bar i { background: linear-gradient(90deg, #4a9a4a, #8fe07a); }
+.ql-bar em { position: relative; display: block; text-align: center; font: 700 8.5px/9px inherit; font-family: inherit; color: #fff; text-shadow: 0 1px 1px #000; font-style: normal; }
+#hud.touch .ql-goal { font-size: 9.5px; }
+#hud.touch .ql-where { font-size: 9px; }
+.tip-box {
+  position: fixed;
+  z-index: 1000;
+  padding: 6px 9px;
+  border-radius: 7px;
+  border: 1px solid var(--brass);
+  background: rgba(20, 15, 10, 0.96);
+  color: #fff3d8;
+  font-size: 12px;
+  line-height: 1.35;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+.tip-box[hidden] { display: none; }
+.mat-chip, [data-tip] { cursor: help; }
+.mat-chip.need { box-shadow: 0 0 0 1.5px #ffd34d; border-radius: 6px; }
+.smith-mats h4 { margin: 6px 0 3px; font-size: 12px; color: #ffd98a; }
+.smith-mats h4 small { color: var(--muted); font-weight: 400; }
+#hud.touch .ql-goal { display: none; }
+#hud.touch .ql-q.done .ql-goal { display: block; }
+#hud.touch .ql-list { gap: 3px; padding-bottom: 4px; }
+.quest-log { max-height: calc(100vh - 230px); overflow: auto; }

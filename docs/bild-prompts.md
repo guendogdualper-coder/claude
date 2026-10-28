@@ -1138,3 +1138,20 @@ Style: soft toon shading with cool shadows, rim light, small metal highlights, t
 ```
 Weapon sheet for a stylized fantasy warrior, eight tiers each: one-handed bearded axe (wrapped haft, back spike from tier 3, glowing gem from tier 5), two-handed double-bladed battle axe (long haft, top spike, glowing edge runes on high tiers), sword with fuller and ornate guard, greatsword. Tier colors: iron, bronze, steel, dragon gold, soul violet, ember ash, sky white-blue, radiant gold. Clean toon shading, white background.
 ```
+
+## Männlich und weiblich, Auftragsliste und Fundorte (Version 4.4)
+
+### Klassen in beiden Geschlechtern
+```
+Character sheet of four stylized 3D chibi fantasy classes, each shown as a male and a female version side by side in matching gear: Krieger in plate armor with fur collar (male broader with thick brows and short spiky hair, female slimmer waist with long hair or a braid out of the helmet), Ninja in cloth and leather with hood and mask (female with a braid hanging out of the hood and long lashes), Schamane in a flowing robe with cloth mantle (male short hair, female with bun and red lips), Nekromant in a hooded tattered robe with skull pauldrons (female with a pale braid). Same proportions and readable silhouettes, big expressive eyes, female faces with longer lashes and soft blush, male faces with stronger brows and no blush. Soft toon shading, thin dark outline, white background.
+```
+
+### Auftragsliste
+```
+Compact quest tracker for a landscape mobile MMORPG UI on the right side next to the minimap: dark translucent wood-brown panel with brass border, header "Aufträge" with a count and a fold arrow. Each quest: a golden (main) or green (side) exclamation mark and title, a thin progress bar with "3/10", and a small blue location line with a pin icon "Sonnenwiesen · Map Vlotho". Clean, readable at phone size.
+```
+
+### Schmied-Teile mit Fundort
+```
+Blacksmith upgrade materials UI: a row of small material chips (wolf fur, orc tooth, frost crystal) with counts; tapping one opens a dark tooltip with a brass border: "Wolfspelz: fällt von Wolf (Stufe 3). Fundort: Sonnenwiesen · Map Vlotho". Cozy East-Asian fantasy style.
+```

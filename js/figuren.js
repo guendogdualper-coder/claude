@@ -365,17 +365,29 @@ function eyes(ctx, dir, cx, cy, o = {}) {
     ctx.beginPath();
     ctx.ellipse(x, cy + 1.5, ew + 0.15, eh + 0.1, 0, Math.PI * 1.08, Math.PI * 1.92);
     ctx.stroke();
+    if (o.female) {
+      // Wimpern: zwei Schwünge am äußeren Lidrand
+      const out = dir === 'side' ? 1 : x < cx ? -1 : 1;
+      ctx.lineWidth = 0.75;
+      ctx.beginPath();
+      ctx.moveTo(x + out * ew * 0.85, cy + 1.5 - eh * 0.55);
+      ctx.lineTo(x + out * (ew + 1.3), cy + 1.5 - eh * 0.95);
+      ctx.moveTo(x + out * ew * 0.5, cy + 1.5 - eh * 0.85);
+      ctx.lineTo(x + out * (ew + 0.6), cy + 1.5 - eh * 1.3);
+      ctx.stroke();
+    }
   }
   // Mund und Augenbrauen bei offenen Gesichtern
   if (o.blush) {
-    ctx.strokeStyle = '#6a3a2a';
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = o.female ? '#b8404e' : '#6a3a2a';
+    ctx.lineWidth = o.female ? 1.05 : 0.8;
     ctx.beginPath();
     if (dir === 'down') ctx.arc(cx, cy + 4.6, 1.5, 0.25 * Math.PI, 0.75 * Math.PI);
     else ctx.arc(cx + 7.6, cy + 4.6, 1.2, 0.3 * Math.PI, 0.8 * Math.PI);
     ctx.stroke();
+    // Brauen: bei Männern kräftiger, bei Frauen feiner
     ctx.strokeStyle = 'rgba(58,36,24,0.7)';
-    ctx.lineWidth = 0.9;
+    ctx.lineWidth = o.male ? 1.25 : o.female ? 0.7 : 0.9;
     for (const x of xs) {
       ctx.beginPath();
       if (o.style === 3) {
@@ -390,7 +402,7 @@ function eyes(ctx, dir, cx, cy, o = {}) {
       ctx.stroke();
     }
   }
-  if (o.blush && dir === 'down') {
+  if (o.blush && dir === 'down' && !o.male) {
     ctx.globalAlpha = 0.35;
     dot(ctx, cx - 6.5, cy + 4.6, 1.9, 1, '#e0786e');
     dot(ctx, cx + 6.5, cy + 4.6, 1.9, 1, '#e0786e');
@@ -867,6 +879,7 @@ function drawCape(ctx, tier, dir, w, moving, t, layer) {
 
 // --- Aussehen (bei der Erstellung gewählt) ------------------------------------------------------
 const LOOKS = {
+  sex: ['Männlich', 'Weiblich'],
   hair: ['Kurz', 'Dutt', 'Lang', 'Stachelig', 'Pferdeschwanz', 'Glatze'],
   hairColor: ['#3a2418', '#1e1818', '#7a4a24', '#d0a040', '#ece0b8', '#b0382a', '#4a5aa8', '#dcdce6'],
   skin: ['#f6dcc0', '#e9c6a1', '#d8a576', '#b27a50', '#7c4e30', '#c9c4b0', '#a8c4a0'],
@@ -875,21 +888,21 @@ const LOOKS = {
   mark: ['Keine', 'Sommersprossen', 'Narbe', 'Kriegsbemalung']
 };
 const DEFAULT_LOOKS = {
-  krieger: { hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0 },
-  ninja: { hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0 },
-  schamane: { hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0 },
-  nekromant: { hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0 }
+  krieger: { sex: 0, hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0 },
+  ninja: { sex: 1, hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0 },
+  schamane: { sex: 1, hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0 },
+  nekromant: { sex: 0, hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0 }
 };
 function lookOf(L, classId) {
   return { ...DEFAULT_LOOKS[classId], ...((L && L.ap) || {}) };
 }
 function lookKey(ap) {
-  return ap ? [ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark].join('.') : '';
+  return ap ? [ap.sex, ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark].join('.') : '';
 }
 const skinOf = (ap) => LOOKS.skin[ap.skin] || LOOKS.skin[1];
 const hairOf = (ap) => LOOKS.hairColor[ap.hc] || LOOKS.hairColor[0];
 function eyeOpts(ap) {
-  return { color: LOOKS.eyeColor[ap.ec] || '#21160f', style: ap.eyes };
+  return { color: LOOKS.eyeColor[ap.ec] || '#21160f', style: ap.eyes, female: ap.sex === 1, male: ap.sex === 0 };
 }
 
 // Frisur. layer 'back': hinter dem Kopf (lange Haare, Zopf, Dutt von der Seite), 'front': Kappe und Rest

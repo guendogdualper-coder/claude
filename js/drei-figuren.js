@@ -319,15 +319,20 @@ function face3(A0, hb, hc, hr, o) {
       // Lidstrich mit Schwung nach außen
       A(torus3(hr * 0.18, hr * 0.032, Math.PI * 0.82, 4, 10), ink, { bone: hb, p: [ex, eyeY + hr * 0.02 * sy, ez + hr * 0.035], r: [0, 0, Math.PI * 0.09], s: [1, sy * 1.25, 1] });
       A(horn3(hr * 0.12, hr * 0.03, 5), ink, { bone: hb, p: [ex + sx * hr * 0.17, eyeY + hr * 0.1 * sy, ez + hr * 0.02], r: [0, 0, -sx * 2.2] });
+      if (o.female) {
+        // längere Wimpern: zweiter Schwung und ein feiner unterer Lidstrich
+        A(horn3(hr * 0.1, hr * 0.024, 5), ink, { bone: hb, p: [ex + sx * hr * 0.12, eyeY + hr * 0.19 * sy, ez + hr * 0.03], r: [0, 0, -sx * 2.6] });
+        A(torus3(hr * 0.13, hr * 0.012, Math.PI * 0.5, 3, 8), ink, { bone: hb, p: [ex, eyeY - hr * 0.02, ez + hr * 0.03], r: [0, 0, Math.PI * 1.25] });
+      }
     }
     // Brauen: entschlossen oder grimmig schräg, sonst sanft gebogen
     const stern = shape === 3 || o.angry;
-    A(roundBox(hr * 0.26, hr * 0.045, hr * 0.05, hr * 0.02), stern ? ink : brow, { bone: hb, p: [ex, eyeY + hr * (stern ? 0.3 : 0.36), ez + hr * 0.0], r: [0, 0, stern ? sx * 0.42 : -sx * 0.12] });
+    A(roundBox(hr * 0.26, hr * (o.male ? 0.065 : o.female ? 0.035 : 0.045), hr * 0.05, hr * 0.02), stern ? ink : brow, { bone: hb, p: [ex, eyeY + hr * (stern ? 0.3 : 0.36), ez + hr * 0.0], r: [0, 0, stern ? sx * 0.42 : -sx * 0.12] });
   }
   if (o.blush !== false && !o.glowEyes) for (const sx of [-1, 1]) A(ball(8), '#f2988a', { bone: hb, p: [hc[0] + sx * hr * 0.58, eyeY - hr * 0.3, hc[2] + f * 0.84], s: [hr * 0.14, hr * 0.07, hr * 0.05] });
   if (!o.noMouth) {
     if (o.angry) A(roundBox(hr * 0.2, hr * 0.045, hr * 0.05, hr * 0.02), '#4a1a14', { bone: hb, p: [hc[0], hc[1] - hr * 0.45, hc[2] + f * 0.97] });
-    else A(torus3(hr * 0.08, hr * 0.022, Math.PI * 0.8, 4, 8), '#6a2a24', { bone: hb, p: [hc[0], hc[1] - hr * 0.38, hc[2] + f * 0.98], r: [0, 0, Math.PI + Math.PI * 0.1] });
+    else A(torus3(hr * 0.08, hr * (o.female ? 0.03 : 0.022), Math.PI * 0.8, 4, 8), o.female ? '#c0485a' : '#6a2a24', { bone: hb, p: [hc[0], hc[1] - hr * 0.38, hc[2] + f * 0.98], r: [0, 0, Math.PI + Math.PI * 0.1] });
   }
   if (!o.noNose) A(sphere3(hr * 0.055, 8, 6), darker(o.skin || '#e9c6a1', 0.1), { bone: hb, p: [hc[0], hc[1] - hr * 0.24, hc[2] + f * 1.03] });
   // Gesichtszeichen: 1 Sommersprossen, 2 Narbe, 3 Kriegsbemalung
@@ -465,7 +470,11 @@ function humanoid3(b, c, P) {
     A(ball(12), c.skin, { bone: BH.chest, p: [0, shY - 0.04, 0.0], s: [0.4, 0.2, 0.3] });
     A(lathe3('bellypants', [[0.36, 0], [0.43, 0.02], [0.42, 0.16], [0, 0.17]], 18), pants, { bone: BH.hips, p: [0, hipY - 0.1, 0.03] });
   } else {
-    A(lathe3('torso2', [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]], 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
+    // Frauen: schmalere Taille und Schultern
+    const torsoPts = c.female
+      ? [[0, 0], [0.18, 0], [0.2, 0.05], [0.165, 0.15], [0.185, 0.26], [0.195, 0.31], [0.17, 0.38], [0.11, 0.43], [0, 0.44]]
+      : [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]];
+    A(lathe3(c.female ? 'torsoF' : 'torso2', torsoPts, 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
     A(cyl3(0.055, 0.06, 0.1, 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02, 0.0] });
     A(torus3(0.12, 0.032, Math.PI * 2, 5, 16), c.collar || trim, { bone: BH.chest, p: [0, neckY - 0.02, 0], r: [Math.PI / 2 - 0.15, 0, 0], s: [1, 0.86, 1] });
     if (c.robe) {
@@ -496,6 +505,8 @@ function humanoid3(b, c, P) {
       A(roundBox(0.012, 0.09, 0.01, 0.004), '#b33a2c', { bone: BH.hips, p: [x, hipY - 0.06, 0.206], r: [0.1, 0, x * 2] });
     }
   }
+  // weibliche Figur: angedeutete Brust (in der Farbe dessen, was darüber liegt)
+  if (c.female && !belly) for (const sx of [-1, 1]) A(ball(10), c.cuirass || c.torso, { bone: BH.chest, p: [sx * 0.07, chestY + 0.07, 0.15 * bk], s: [0.075, 0.066, 0.06], shine: c.cuirass ? 0.8 : 0 });
   // Lamellenrüstung: Reihen überlappender Platten, Brustplatte mit Nieten
   if (c.lamellar) {
     for (let k = 0; k < 3; k++) A(torus3(0.205 - k * 0.006, 0.026, Math.PI * 2, 4, 18), k % 2 ? c.lamellar : lighter(c.lamellar, 0.12), { bone: BH.chest, p: [0, hipY + 0.07 + k * 0.075, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.84 * bk, 1], shine: 0.4 });
@@ -628,6 +639,18 @@ function humanoid3(b, c, P) {
   if (c.beard) A(ball(12), c.beard, { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + hr * 0.42], s: [hr * 0.64, hr * 0.52, hr * 0.44], shade: 0.2, mat: c.beardGlow ? 'glow' : 'lit' });
   if (c.tusks) for (const sx of [-1, 1]) A(horn3(hr * 0.34, hr * 0.085, 6), '#f4ecd8', { bone: hb, p: [hc[0] + sx * hr * 0.3, hc[1] - hr * 0.6, hc[2] + hr * 0.78], r: [-0.25, 0, sx * 0.15], shine: 0.4 });
   if (c.hair) hair3(A, hb, hc, hr, c.hair.style, c.hair.color, c.covered === 'hood' ? 'hood' : !!c.covered);
+  // Frauen unter Kapuze oder Helm: geflochtener Zopf hängt hinten heraus
+  if (c.braid) {
+    const b0 = [hc[0], hc[1] - hr * 0.2, hc[2] - hr * 0.85];
+    let prev = b0;
+    for (let k = 1; k <= 4; k++) {
+      const next = [hc[0] + Math.sin(k * 1.3) * 0.015, b0[1] - k * hr * 0.32, b0[2] - hr * 0.12 - k * 0.012];
+      A(ball(8), k % 2 ? c.braid : darker(c.braid, 0.12), { bone: BH.cape, p: next, s: [hr * 0.17, hr * 0.2, hr * 0.17], shine: 0.25 });
+      prev = next;
+    }
+    A(torus3(hr * 0.12, hr * 0.04, Math.PI * 2, 4, 10), '#c8402f', { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.14, prev[2]], r: [Math.PI / 2, 0, 0] });
+    A(horn3(hr * 0.3, hr * 0.13, 6), c.braid, { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.16, prev[2]], r: [Math.PI, 0, 0] });
+  }
   if (c.headgear) c.headgear(A, hb, hc, hr);
   // Umhang gebogen, mit Futter und Saum
   if (c.cape) {
@@ -760,7 +783,7 @@ function playerConfig3(p) {
   const wtier = eq.waffe ? eq.waffe.tier : 0;
   const gt = (k) => (L[k] == null ? -1 : L[k]);
   const c = {
-    skin: skinOf(ap), eyeColor: eyeOpts(ap).color, eyeShape: ap.eyes || 0, mark: ap.mark || 0,
+    skin: skinOf(ap), eyeColor: eyeOpts(ap).color, eyeShape: ap.eyes || 0, mark: ap.mark || 0, female: ap.sex === 1, male: ap.sex === 0,
     hair: { style: ap.hair || 0, color: hairOf(ap) },
     weapon: { kind, tier: wtier }, boots: gt('b') >= 0 ? GEAR_LOOK.boots[gt('b')] : '#4d3527',
     bootTrim: gt('b') >= 3 ? TIER_METAL[gt('b')] : null,
@@ -783,6 +806,8 @@ function playerConfig3(p) {
     else c.shield = eq.schild.tier;
   }
   if (kind === 'dagger' && !eq.schild) c.offhand = { kind: 'dagger', tier: wtier };
+  // Männer ohne Wangenröte und etwas breiter, Frauen mit Zopf unter Kapuze und Helm
+  if (ap.sex === 0) { c.blush = false; c.bulk = 1.05; }
   if (p.classId === 'krieger') {
     const A0 = ARMOR_LOOK.krieger;
     const crimson = lookColor(A0.torso, L.a, '#9c3b33');
@@ -792,7 +817,7 @@ function playerConfig3(p) {
     const rim = L.a >= 0 ? TIER_METAL[L.a] : '#c9a35a';
     const fur = L.a >= 5 ? '#3a3230' : L.a >= 3 ? '#5a4030' : '#8a6a4a';
     Object.assign(c, {
-      bulk: 1.1, torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030',
+      bulk: ap.sex === 1 ? 1.03 : 1.1, torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030',
       buckle: brass, collar: brass, cuff: brass, rivet: brass, padStyle: 'plate', furCollar: fur, furBoots: fur, wideBelt: true,
       tassets: plate, tassetRim: rim, kneePads: L.a >= 1 ? rim : null, armBands: '#4a3020'
     });
@@ -801,6 +826,7 @@ function playerConfig3(p) {
     if (L.a >= 3) { c.gauntlets = plate; c.greaveSpike = rim; }
     if (!c.pads) { c.pads = plate; c.padTrim = rim; c.spikes = L.a >= 3; }
     if (L.h !== -2) { c.headgear = kriegerHelm(L); c.covered = true; }
+    if (ap.sex === 1 && c.covered) c.braid = hairOf(ap);
   } else if (p.classId === 'ninja') {
     const A0 = ARMOR_LOOK.ninja;
     const torso = lookColor(A0.torso, L.a, '#312c3d');
@@ -816,6 +842,7 @@ function playerConfig3(p) {
     if (kind === 'bow') c.quiver = '#6b4a2e';
     c.headgear = ninjaHood(L, scarf);
     c.covered = true;
+    if (ap.sex === 1) c.braid = hairOf(ap);
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;
     if (L.h >= 6) c.glowEyes = '#9fe8ff';
   } else if (p.classId === 'schamane') {
@@ -833,6 +860,7 @@ function playerConfig3(p) {
     else c.bonePads = true;
     c.headgear = nekroHood(L);
     c.covered = 'hood';
+    if (ap.sex === 1) c.braid = hairOf(ap);
     c.glowEyes = lookColor(A0.glow, L.h, '#a7e37f');
     c.angry = false;
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;

@@ -48,6 +48,9 @@
 
   <div id="lootFeed" class="loot-feed" aria-live="polite"></div>
 
+  <section id="questTrack" class="quest-log" hidden aria-label="Aufträge"></section>
+  <div id="tipBox" class="tip-box" hidden role="tooltip"></div>
+
   <section class="hud-map frame" aria-label="Karte">
     <canvas id="minimap" width="120" height="120"></canvas>
     <div id="zoneName" class="zone-name"></div>
@@ -63,7 +66,6 @@
       <span id="stPing" class="st-ping"><i class="sig"><i></i><i></i><i></i></i><b id="stPingText">– ms</b></span>
     </div>
     <div id="netBadge" class="net-badge" hidden></div>
-    <div id="questTrack" class="quest-track" hidden></div>
   </section>
 
   <div id="log" class="log" aria-live="polite"></div>
@@ -259,6 +261,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 4.4: Jede Klasse gibt es männlich und weiblich (bei der Erstellung und im Zahnrad unter „Aussehen“ wählbar; Frauen mit Wimpern, rotem Mund und Zopf unter Kapuze oder Helm, Männer etwas kräftiger mit dichteren Brauen). Angenommene Aufträge stehen rechts neben der Karte mit Ziel, Fortschrittsbalken und Ort (📍 Gebiet und Map); antippen der Überschrift klappt die Liste ein. Beim Schmied siehst du alle Monster-Teile; antippen oder mit der Maus darauf zeigen verrät, von welchem Monster sie fallen und auf welcher Map es lebt – auch im Beutel.</li>
       <li>Version 4.3: Seelensteine sind jetzt glühende Eier in einer steinernen Wiege; bei 75, 50 und 25 % Leben bricht die Schale weiter auf. Nach jeweils 10–15 % Schaden ruft ein Stein 2–3 Monster mit seiner eigenen Stufe (höchstens 9 gleichzeitig). Zerbricht der Stein, vergehen alle seine Monster mit ihm – mit Erfahrung und Beute; sie lassen außerdem etwas von der Beute ihres Steins fallen (mehr Tränke, Gold, Splitter, Ausrüstung je Steinsorte). In der Welt sind deutlich weniger Monster unterwegs. Monster, die 10 oder mehr Stufen unter dir sind, greifen nicht mehr von selbst an. Krieger tragen Plattenrüstung mit schweren Schultern, Beintaschen, Beinschienen, Fellkragen und Fellstulpen und können Äxte (mit Schild) und Streitäxte (Weg des Leibes) führen; Ninja tragen nur Stoff und Leder (weite gebundene Hose, Wickelbänder, Wurfmesser), Schamanen Stoffumhänge mit Quasten, Nekromanten Schädel-Schultern.</li>
       <li>Version 4.2: Schadenszahlen sind kleiner und steigen rechts oben neben Figur und Gegnern auf, damit man das Kampfgeschehen sieht. Chat mit den Kanälen Global, Gilde und Ort.</li>
       <li>Version 4.1 – flüssiger und schöner: Figuren werden wiederverwendet statt neu gebaut, alle Shader werden beim Start einmal vorbereitet (kein Ruckeln, wenn im Kampf zum ersten Mal ein Effekt auftaucht), Modelle für Monster in der Nähe entstehen schon vorher, die Welt braucht rund 40 % weniger Grafikspeicher und weniger als die Hälfte Arbeitsspeicher, Schatten der Landschaft sind fest eingebacken. Figuren mit Gesichtern (Iris, Pupille, Glanzpunkte, Lidstrich), Haaren aus Strähnen, geschichteter Kleidung und Rüstung je Klasse; Monster mit Schnauze, Fell, Gelenken, Schlangen als biegsamer Körper, Golems aus Felsbrocken mit glühenden Rissen. Farbige Schatten, Randlicht und Glanz auf Metall.</li>

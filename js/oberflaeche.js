@@ -28,6 +28,7 @@ const ui = {
     });
     this.chatHint();
     this.initBattery();
+    this.initTips();
     $('chatClose').addEventListener('click', () => { $('chatBar').hidden = true; });
     for (const b of document.querySelectorAll('#chatTabs button, #chatChan button')) {
       b.addEventListener('click', (e) => {
@@ -555,6 +556,37 @@ const ui = {
     box.scrollTop = box.scrollHeight;
   },
 
+  // Hinweise an Elementen mit data-tip: mit der Maus beim Darüberfahren, auf dem Handy beim Antippen
+  initTips() {
+    const box = $('tipBox');
+    let cur = null;
+    const show = (el) => {
+      cur = el;
+      box.textContent = el.dataset.tip;
+      box.hidden = false;
+      const r = el.getBoundingClientRect();
+      const w = Math.min(280, window.innerWidth - 16);
+      box.style.maxWidth = w + 'px';
+      const bw = box.offsetWidth;
+      const bh = box.offsetHeight;
+      box.style.left = Math.max(8, Math.min(window.innerWidth - bw - 8, r.left + r.width / 2 - bw / 2)) + 'px';
+      box.style.top = (r.top - bh - 6 > 4 ? r.top - bh - 6 : r.bottom + 6) + 'px';
+    };
+    const hide = () => { cur = null; box.hidden = true; };
+    document.addEventListener('pointerover', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      const el = e.target.closest && e.target.closest('[data-tip]');
+      if (el) show(el);
+      else if (cur) hide();
+    });
+    document.addEventListener('click', (e) => {
+      const el = e.target.closest && e.target.closest('[data-tip]');
+      // Antippen zeigt immer (die Maus hat ihn evtl. schon geöffnet), woanders hin tippen schließt
+      if (el) show(el);
+      else hide();
+    }, true);
+  },
+
   chatHint() {
     const box = $('chatLog');
     if (box.children.length) return;
@@ -852,7 +884,7 @@ const ui = {
       (Object.entries(p.upmats || {}).some(([, n]) => n > 0)
         ? `<h3>Teile für den Schmied <small>ab +6, bei Ausrüstung ab Stufe 30 schon ab +4</small></h3><div class="loot-purse mob-mats">` +
           Object.entries(p.upmats).filter(([, n]) => n > 0).map(([id, n]) =>
-            `<span title="von ${MONSTER_TYPES[id].name}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${n}</b></span>`).join('') + `</div>`
+            `<span class="mat-chip" tabindex="0" data-tip="${mobMatTip(id)}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${n}</b></span>`).join('') + `</div>`
         : '') +
       `<button type="button" class="btn btn-primary" id="btnOpenBag">Rucksack öffnen <small>(${p.inventory.length}/${BAG_SIZE})</small></button>` +
       (this.lootLog.length
@@ -1231,7 +1263,7 @@ function lookEditor(box, classId, start, onChange, equipment = null) {
     colors.map((c, i) => `<button type="button" class="lk-sw${look[key] === i ? ' on' : ''}" style="--c:${c}" data-sw="${key}:${i}" aria-label="${label} ${i + 1}"></button>`).join('') + `</div></div>`;
   const render = () => {
     box.innerHTML = `<div class="lk"><canvas class="lk-preview" width="180" height="210" title="Antippen zum Drehen"></canvas><div class="lk-opts">` +
-      cycle('hair', LOOKS.hair, 'Frisur') + swatches('hc', LOOKS.hairColor, 'Haare') + swatches('skin', LOOKS.skin, 'Haut') +
+      cycle('sex', LOOKS.sex, 'Geschlecht') + cycle('hair', LOOKS.hair, 'Frisur') + swatches('hc', LOOKS.hairColor, 'Haare') + swatches('skin', LOOKS.skin, 'Haut') +
       cycle('eyes', LOOKS.eyes, 'Augen') + swatches('ec', LOOKS.eyeColor, 'Augenfarbe') + cycle('mark', LOOKS.mark, 'Gesicht') +
       `<button type="button" class="mini-btn lk-random">🎲 Zufällig</button></div></div>`;
     const cv = box.querySelector('canvas');
@@ -1251,8 +1283,10 @@ function lookEditor(box, classId, start, onChange, equipment = null) {
     cv.addEventListener('click', () => { dir = (dir + 1) % 3; render(); });
     box.querySelectorAll('[data-cyc]').forEach((b) => b.addEventListener('click', () => {
       const [key, step] = b.dataset.cyc.split(':');
-      const n = { hair: LOOKS.hair, eyes: LOOKS.eyes, mark: LOOKS.mark }[key].length;
+      const n = { sex: LOOKS.sex, hair: LOOKS.hair, eyes: LOOKS.eyes, mark: LOOKS.mark }[key].length;
       look[key] = (look[key] + Number(step) + n) % n;
+      // passende Frisur beim Wechsel des Geschlechts (danach frei wählbar)
+      if (key === 'sex') look.hair = look.sex === 1 ? (look.hair === 0 || look.hair === 3 || look.hair === 5 ? 2 : look.hair) : (look.hair === 1 || look.hair === 2 || look.hair === 4 ? 0 : look.hair);
       onChange({ ...look });
       render();
     }));
@@ -1264,7 +1298,7 @@ function lookEditor(box, classId, start, onChange, equipment = null) {
     }));
     box.querySelector('.lk-random').addEventListener('click', () => {
       const r = (n) => Math.floor(Math.random() * n);
-      Object.assign(look, { hair: r(LOOKS.hair.length), hc: r(LOOKS.hairColor.length), skin: r(LOOKS.skin.length), eyes: r(LOOKS.eyes.length), ec: r(LOOKS.eyeColor.length), mark: r(LOOKS.mark.length) });
+      Object.assign(look, { sex: r(2), hair: r(LOOKS.hair.length), hc: r(LOOKS.hairColor.length), skin: r(LOOKS.skin.length), eyes: r(LOOKS.eyes.length), ec: r(LOOKS.eyeColor.length), mark: r(LOOKS.mark.length) });
       onChange({ ...look });
       render();
     });
