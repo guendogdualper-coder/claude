@@ -2238,3 +2238,25 @@ kbd {
 .install-help { max-width: 560px; padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; background: rgba(255, 240, 210, 0.06); border: 1px solid rgba(201, 163, 90, 0.35); }
 .install-help p { margin: 4px 0; }
 .ios-share { display: inline-block; padding: 0 6px; border-radius: 5px; color: #9fd0ff; border: 1px solid #5a8ad8; }
+
+/* --- Version 3.9: Bossbalken, Ziel und Spielerkarte stapeln sich unter der Knopfleiste --------------
+   Nichts liegt mehr über dem Figurenkasten oder den Menüknöpfen, auch auf kleinen iPhones. */
+body { --boss-h: 0px; --target-h: 0px; }
+body.has-boss { --boss-h: 58px; }
+body.has-target { --target-h: 46px; }
+#hud { --top-row: var(--edge-t); }
+#hud.touch { --top-row: calc(max(4px, env(safe-area-inset-top, 0px)) + 42px); }
+#hud .boss-bar { top: var(--top-row); }
+#hud .hud-target, #hud.touch .hud-target {
+  top: calc(var(--top-row) + var(--boss-h));
+  left: 50%;
+  transform: translateX(-50%);
+  transition: top 0.15s ease-out;
+}
+#hud.touch .hud-target { width: min(190px, 28vw); }
+#hud .player-card { top: calc(var(--top-row) + var(--boss-h) + var(--target-h)); transition: top 0.15s ease-out; }
+#hud .invite-toasts { top: calc(var(--top-row) + var(--boss-h) + var(--target-h) + 100px); }
+/* Gebietsname beim Betreten auf dem Handy unter Bossbalken und Ziel statt darüber */
+@media (orientation: landscape) and (max-height: 520px) {
+  .banner { top: calc(max(4px, env(safe-area-inset-top, 0px)) + 46px + var(--boss-h) + var(--target-h)); }
+}

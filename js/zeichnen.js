@@ -1011,6 +1011,44 @@ function drawSpeech(ctx, x, y, text) {
   ctx.strokeStyle = 'rgba(10,8,6,0.85)';
 }
 
+// Monsterbeschriftung einmal als kleines Bild vorbereiten statt jedes Bild neu zu schreiben;
+// bei vielen Monstern spart das spürbar Zeit. Schlüssel: Text, Größe und Farben.
+const LABEL_CACHE = new Map();
+const LABEL_SCALE = 3;
+function monsterLabel(lv, name, big, lvColor, nameColor) {
+  const key = lv + '|' + name + '|' + big + '|' + lvColor + '|' + nameColor;
+  let lab = LABEL_CACHE.get(key);
+  if (lab) return lab;
+  if (LABEL_CACHE.size > 400) LABEL_CACHE.clear();
+  const size = big ? 12 : 10;
+  const font = (big ? '700 ' : '600 ') + size + 'px "Alegreya Sans", sans-serif';
+  const m = document.createElement('canvas').getContext('2d');
+  m.font = font;
+  const lw = m.measureText(lv + ' ').width;
+  const pad = 3;
+  const w = Math.ceil(lw + m.measureText(name).width) + pad * 2;
+  const h = size + pad * 2 + 3;
+  const c = document.createElement('canvas');
+  c.width = w * LABEL_SCALE;
+  c.height = h * LABEL_SCALE;
+  const x = c.getContext('2d');
+  x.scale(LABEL_SCALE, LABEL_SCALE);
+  x.font = font;
+  x.lineJoin = 'round';
+  x.lineWidth = big ? 3 : 2.5;
+  x.strokeStyle = 'rgba(10,8,6,0.85)';
+  const base = pad + size;
+  x.strokeText(lv, pad, base);
+  x.strokeText(name, pad + lw, base);
+  x.fillStyle = lvColor;
+  x.fillText(lv, pad, base);
+  x.fillStyle = nameColor;
+  x.fillText(name, pad + lw, base);
+  lab = { c, w, h, base };
+  LABEL_CACHE.set(key, lab);
+  return lab;
+}
+
 function drawLabel(ctx, e) {
   ctx.textAlign = 'center';
   ctx.lineWidth = 3;
@@ -1052,17 +1090,16 @@ function drawLabel(ctx, e) {
     return;
   }
   if (!p || !game.running) return;
-  // Name nur beim Ziel und bei Seelensteinen, sonst nur ein Lebensbalken bei Verletzten
+  // Stufe und Name stehen immer über jedem Monster: die Stufe in der Stufenfarbe, der Name hell.
+  // Ziel, Bosse und Seelensteine etwas größer; der Lebensbalken sitzt darunter, sobald verletzt.
   const targeted = game.target === e;
   const top = e.isStone ? e.y - stoneHeight(e) - 14 : feetY(e) - figureHeight(e) - 10;
   const boss = e.type && e.type.boss;
-  if (targeted || e.isStone || boss) {
-    ctx.font = (e.isStone || boss ? '700 12px' : '600 11px') + ' "Alegreya Sans", sans-serif';
-    const label = 'Lv ' + e.level + ' ' + e.name;
-    ctx.strokeText(label, e.x, top);
-    ctx.fillStyle = e.isStone ? lighter(e.stoneType.look.glow, 0.45) : levelColor(e.level);
-    ctx.fillText(label, e.x, top);
-  }
+  const big = targeted || e.isStone || boss;
+  const lvColor = e.isStone ? lighter(e.stoneType.look.glow, 0.45) : levelColor(e.level);
+  const nameColor = e.isStone || targeted ? '#fff3d8' : boss ? '#ffb08a' : 'rgba(240,232,214,0.92)';
+  const lab = monsterLabel('Lv ' + e.level, e.name, big, lvColor, nameColor);
+  ctx.drawImage(lab.c, e.x - lab.w / 2, top - lab.base, lab.w, lab.h);
   if (e.hp < e.maxHp || targeted || e.isStone) {
     drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
   }

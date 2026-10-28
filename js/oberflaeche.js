@@ -567,6 +567,7 @@ const ui = {
     const boss = game.monsters.find((m) => m.type && m.type.boss && !m.dead && dist(m, p) < 560);
     this.set('boss', boss ? boss.id + ':' + Math.ceil(boss.hp) : '', () => {
       $('bossBar').hidden = !boss;
+      document.body.classList.toggle('has-boss', !!boss);
       if (!boss) return;
       $('bossName').textContent = `Lv ${boss.level} ${boss.name}`;
       $('bossFill').style.transform = `scaleX(${Math.max(0, boss.hp / boss.maxHp)})`;
@@ -689,10 +690,13 @@ const ui = {
     });
 
     // Ziel
-    const t = game.target && !game.target.dead ? game.target : null;
+    // Ein Boss in der Nähe steht schon im Bossbalken, dann kein zweites Zielfenster
+    const tt = game.target && !game.target.dead ? game.target : null;
+    const t = tt && !(tt.type && tt.type.boss && dist(tt, p) < 560) ? tt : null;
     const tKey = t ? t.id + ':' + Math.ceil(t.hp) : '';
     this.set('target', tKey, () => {
       $('targetFrame').hidden = !t;
+      document.body.classList.toggle('has-target', !!t);
       if (!t) return;
       $('targetName').textContent = `Lv ${t.level} ${t.name}`;
       $('targetName').style.color = t.isStone ? lighter(t.stoneType.look.glow, 0.45) : levelColor(t.level);

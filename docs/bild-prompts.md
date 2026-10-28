@@ -985,3 +985,15 @@ Mobile phone mockup in landscape: the Seelenstein start screen with a button "�
 ```
 2D fantasy MMORPG screenshot, three-quarter top-down view in a dark pine forest: two chibi players fight bandits side by side, the warrior spins with a glowing giant sword whirl while the ninja throws a green poison dart; damage numbers of both players float above the bandits, the other player's numbers in pale blue-white. Cute game art, bold outlines.
 ```
+
+## Monsterstufen und aufgeräumte Anzeige oben (Version 3.9)
+
+### Stufe und Name über jedem Monster
+```
+2D fantasy MMORPG screenshot, three-quarter top-down view on a grey wasteland: a pack of monsters (stone ogre, demon, hellhound, ice wolf, yeti) each with a small label above the head "Lv 32 Steinoger", "Lv 41 Eiswolf", "Lv 45 Yeti"; the level part colored by danger (grey = much weaker, white = fair, yellow = stronger, red = dangerous) and the name in soft cream, thin dark outline; a slanted red health bar under the label of a wounded monster. Cute chibi game art, bold outlines.
+```
+
+### Ziel und Bossbalken unter der Knopfleiste
+```
+Mobile game HUD in landscape, dark leather and gold fantasy style: top left the character box with portrait, level badge and slim red and blue bars; top right a row of round golden menu icons and the minimap; directly below the icon row in the center a wide fiery boss health bar "Lv 25 Spinnenkönigin 31.225 / 31.225", and below it a small target window "Lv 35 Dämon" with its own red bar. Nothing overlaps, clean spacing.
+```
