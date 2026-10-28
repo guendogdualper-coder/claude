@@ -1625,7 +1625,7 @@ const gear = {
     const equip = equipSlotsFor(p.classId).map((sl) => this.tile(p.equipment[sl.id], `data-ref="equip:${sl.id}" class-sel="${isSel('equip', sl.id)}"`, slotLabel(sl.id, p), sl.id)).join('');
     const bag = p.inventory.map((it, i) => (isBook(it) ? '' : this.tile(it, `data-ref="bag:${i}" class-sel="${isSel('bag', i)}"`))).join('');
     body.innerHTML =
-      `<p>„Zeig mir, was ich schmieden soll. Bis +3 passiert nichts Schlimmes, ab +7 kann es zerbrechen. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +
+      `<p>„Zeig mir, was ich schmieden soll. Bis +6 geht nichts kaputt, ab +7 kann es zerbrechen. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +
       `<div class="smith smith3">` +
       `<section class="smith-equip"><h3>Angelegt</h3><div class="equip-doll"><canvas id="smithDoll" class="doll"></canvas><div class="equip-grid">${equip}</div></div></section>` +
       `<section class="smith-bag"><h3>Tasche</h3><div class="smith-list">${bag || '<p class="hint-text">Keine Ausrüstung in der Tasche.</p>'}</div></section>` +
@@ -1681,8 +1681,12 @@ const gear = {
       `<p class="smith-risk ${step.fail}">${risk}</p>` +
       (step.fail !== 'none' ? `<label class="scroll-opt" for="useScroll"><input id="useScroll" type="checkbox" ${p.scrolls ? '' : 'disabled'}>` +
         `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrolle verwenden (${p.scrolls} vorhanden)</label>` : '') +
-      `<button id="btnForge" type="button" class="btn btn-primary" ${enough ? '' : 'disabled'}>Verbessern</button>`;
+      `<div class="forge-row"><button id="btnForge" type="button" class="btn btn-primary" ${enough ? '' : 'disabled'}>Verbessern</button>` +
+      `<button id="btnSound" type="button" class="mini-btn" title="Klänge an oder aus">${sfx.on ? '🔊 Ton an' : '🔇 Ton aus'}</button></div>`;
     document.getElementById('btnForge').addEventListener('click', () => this.forge());
+    document.getElementById('btnSound').addEventListener('click', (e) => {
+      e.target.textContent = sfx.toggle() ? '🔊 Ton an' : '🔇 Ton aus';
+    });
   },
 
   anvil(item) {
@@ -1697,6 +1701,8 @@ const gear = {
     const before = itemAt(this.smithRef);
     const name = itemName(before);
     const from = before.plus;
+    const step = UPGRADE_STEPS[from];
+    const iconBefore = itemIconUrl(before);
     const res = upgradeItem(this.smithRef, useScroll);
     if (!res) return;
     this.forging = true;
@@ -1705,7 +1711,8 @@ const gear = {
     anvil.classList.add('forging');
     const smith = game.world.npcs.find((n) => n.id === 'schmied');
     particles(smith.x + 12, feetY(smith) - 14, { count: 24, color: ['#ffd34d', '#ff9a3a', '#ffffff'], speed: [80, 200], life: [0.3, 0.6], size: [1.5, 2.5], shape: 'spark', drag: 4, gravity: 300 });
-    setTimeout(() => {
+    const kind = res.result === 'success' ? 'ok' : res.result === 'break' ? 'break' : useScroll && step.fail !== 'none' ? 'saved' : 'fail';
+    forgeScene(iconBefore, kind, { name, from, to: res.result === 'success' ? res.item.plus : from, color: itemColor(res.item) }, () => {
       this.forging = false;
       const msg = document.getElementById('smithMsg');
       if (!msg || !document.getElementById('anvil')) return; // Fenster wurde inzwischen geschlossen
@@ -1733,7 +1740,93 @@ const gear = {
         const m2 = document.getElementById('smithMsg');
         m2.textContent = text;
         m2.className = cls;
-      }, 1100);
-    }, 950);
+      }, 300);
+    });
   }
 };
+
+// Schmiede-Szene über dem ganzen Bildschirm: drei Hammerschläge mit Funken und Klang, der
+// Gegenstand glüht immer stärker, kurze Spannung, dann das Ergebnis mit eigenem Bild und Klang.
+// kind: 'ok' (Erfolg), 'fail' (nur Kosten weg), 'saved' (Schriftrolle hat geschützt), 'break' (zerbrochen)
+function forgeScene(icon, kind, info, done) {
+  const fx = document.getElementById('forgeFx');
+  const item = fx.querySelector('.ff-item');
+  const halves = fx.querySelectorAll('.ff-half');
+  const sparks = fx.querySelector('.ff-sparks');
+  const title = fx.querySelector('.ff-text strong');
+  const sub = fx.querySelector('.ff-text span');
+  item.src = icon;
+  halves.forEach((h) => { h.src = icon; });
+  sparks.innerHTML = '';
+  title.textContent = '';
+  sub.textContent = '';
+  fx.className = 'forge-fx';
+  fx.style.setProperty('--heat', '0');
+  fx.style.setProperty('--res', info.color);
+  fx.hidden = false;
+  const timers = [];
+  const at = (ms, fn) => timers.push(setTimeout(fn, ms));
+  const burst = (n, spread) => {
+    for (let i = 0; i < n; i++) {
+      const s = document.createElement('i');
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * spread;
+      const d = 50 + Math.random() * 90;
+      s.style.setProperty('--dx', Math.cos(a) * d + 'px');
+      s.style.setProperty('--dy', Math.sin(a) * d + 'px');
+      s.style.animationDelay = Math.random() * 0.05 + 's';
+      sparks.append(s);
+      setTimeout(() => s.remove(), 800);
+    }
+  };
+  [300, 700, 1100].forEach((ms, i) => at(ms, () => {
+    fx.classList.remove('strike');
+    void fx.offsetWidth;
+    fx.classList.add('strike');
+    fx.style.setProperty('--heat', String((i + 1) / 3));
+    burst(10 + i * 4, 2.4);
+    sfx.clang(i);
+    if (navigator.vibrate) navigator.vibrate(18);
+  }));
+  at(1350, () => {
+    fx.classList.add('suspense');
+    sfx.riser();
+  });
+  at(1850, () => {
+    fx.classList.remove('suspense');
+    fx.classList.add('res-' + kind);
+    if (kind === 'ok') {
+      title.textContent = `+${info.to}`;
+      sub.textContent = `${info.name} ist jetzt +${info.to}`;
+      burst(36, 6.3);
+      sfx.success();
+    } else if (kind === 'break') {
+      title.textContent = 'Zerbrochen!';
+      sub.textContent = `${info.name} +${info.from} ist zersprungen`;
+      burst(26, 6.3);
+      sfx.shatter();
+      shakeScreen(9);
+      if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
+    } else if (kind === 'saved') {
+      title.textContent = 'Geschützt';
+      sub.textContent = `Fehlgeschlagen, die Segensschriftrolle hat ${info.name} gerettet`;
+      sfx.saved();
+    } else {
+      title.textContent = 'Fehlgeschlagen';
+      sub.textContent = `${info.name} bleibt +${info.from}`;
+      sfx.fail();
+    }
+  });
+  let closed = false;
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    timers.forEach(clearTimeout);
+    fx.hidden = true;
+    fx.removeEventListener('click', skip);
+    done();
+  };
+  // Antippen nach dem Ergebnis schließt sofort
+  const skip = () => { if (fx.className.includes('res-')) close(); };
+  fx.addEventListener('click', skip);
+  at(kind === 'ok' || kind === 'break' ? 4000 : 3500, close);
+}

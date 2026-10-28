@@ -934,3 +934,25 @@ Mobile game character creation screen in landscape, dark leather and gold fantas
 ```
 2D fantasy MMORPG character sheet, cute chibi style with bold outlines: the same young hero shown six times with different hairstyles – short with a tuft, top bun, long flowing hair, spiky, ponytail with a red tie, bald with a shine – in different hair colors (black, brown, blond, platinum, red, blue, silver) and skin tones, with round, narrow, happy closed or determined eyes, freckles, a scar or red war paint. Front, side and back view. Plain background, cel shading.
 ```
+
+## Schmied: Schmiede-Szene und Klänge (Version 3.6)
+
+### Hammerschlag
+```
+2D fantasy game forge close-up, dark background with warm orange glow: a glowing magic sword lies on a heavy iron anvil, a big steel hammer with a wooden handle strikes it, bright yellow sparks fly in all directions, the blade glows hotter with each strike. Cute game art, bold outlines, dramatic lighting.
+```
+
+### Erfolg
+```
+2D fantasy game upgrade success screen: a sword rises above an anvil, surrounded by rotating golden light rays, glowing in a bright color, a huge glowing number "+7" pops up below with the text "Seelenreißer ist jetzt +7", golden sparks raining down. Cute game art, bold outlines, triumphant mood.
+```
+
+### Fehlschlag und Schutz
+```
+2D fantasy game upgrade fail screen, two variants side by side: left a greyed-out sword on an anvil with a puff of grey smoke and the text "Fehlgeschlagen"; right the same sword wrapped in a soft blue shield of light with the text "Geschützt" and a glowing blessing scroll. Cute game art, bold outlines.
+```
+
+### Zerbrochen
+```
+2D fantasy game upgrade break screen: a red flash over the forge, a sword cracks along a jagged line and its two halves fly apart, red-hot shards scatter, a big red text "Zerbrochen!" with "Seelenreißer +9 ist zersprungen" below. Cute game art, bold outlines, dramatic.
+```

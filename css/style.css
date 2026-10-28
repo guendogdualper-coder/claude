@@ -2132,3 +2132,76 @@ kbd {
 @media (orientation: landscape) and (max-height: 520px) {
   .class-detail { grid-row: 1 / span 5; }
 }
+
+/* --- Version 3.6: Schmiede-Szene beim Verbessern ------------------------------------------ */
+.forge-fx {
+  --heat: 0;
+  --res: #ffd34d;
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: radial-gradient(circle at 50% 45%, rgba(60, 30, 10, 0.75), rgba(5, 3, 2, 0.92) 70%);
+  animation: ff-in 0.2s ease-out;
+  -webkit-tap-highlight-color: transparent;
+}
+.forge-fx[hidden] { display: none; }
+@keyframes ff-in { from { opacity: 0; } }
+.ff-stage { position: relative; width: 240px; height: 200px; }
+.ff-glow { position: absolute; left: 50%; top: 46%; width: 220px; height: 220px; margin: -110px 0 0 -110px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 150, 50, calc(0.15 + var(--heat) * 0.45)), transparent 65%); transition: background 0.3s; }
+.ff-anvil { position: absolute; left: 50%; bottom: 18px; width: 170px; height: 46px; margin-left: -85px; clip-path: polygon(0 0, 100% 0, 88% 40%, 70% 45%, 66% 100%, 34% 100%, 30% 45%, 12% 40%); background: linear-gradient(#5a636c, #2a2f34 55%, #15181b); box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.25); }
+.ff-item, .ff-half { position: absolute; left: 50%; bottom: 58px; width: 96px; height: 96px; margin-left: -48px; filter: drop-shadow(0 0 calc(4px + var(--heat) * 14px) rgba(255, 140, 40, calc(0.3 + var(--heat) * 0.6))) brightness(calc(1 + var(--heat) * 0.35)); }
+.ff-half { opacity: 0; }
+.ff-l { clip-path: polygon(0 0, 54% 0, 46% 38%, 56% 62%, 44% 100%, 0 100%); }
+.ff-r { clip-path: polygon(54% 0, 100% 0, 100% 100%, 44% 100%, 56% 62%, 46% 38%); }
+.ff-hammer { position: absolute; left: calc(50% + 34px); top: 4px; width: 56px; height: 26px; border-radius: 5px; background: linear-gradient(#c0c7ce, #6a7078); box-shadow: 0 0 0 2px #1a1210; transform-origin: 70px 84px; transform: rotate(-40deg); }
+.ff-hammer::after { content: ""; position: absolute; left: 40px; top: 20px; width: 9px; height: 64px; border-radius: 3px; background: linear-gradient(90deg, #8a5a32, #5a3a1e); box-shadow: 0 0 0 2px #1a1210; }
+.forge-fx.strike .ff-hammer { animation: ff-hammer 0.32s ease-in; }
+.forge-fx.strike .ff-item { animation: ff-hit 0.32s ease-out; }
+@keyframes ff-hammer { 0% { transform: rotate(-40deg); } 55% { transform: rotate(28deg); } 100% { transform: rotate(-40deg); } }
+@keyframes ff-hit { 50% { transform: scale(0.92, 1.06); } 60% { transform: scale(1.08, 0.94); } }
+.ff-sparks { position: absolute; left: 50%; bottom: 96px; }
+.ff-sparks i { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #fff2b0; box-shadow: 0 0 8px #ff9a3a, 0 0 2px #fff; animation: ff-spark 0.7s ease-out forwards; }
+@keyframes ff-spark { 0% { transform: translate(0, 0) scale(1.2); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; } }
+.forge-fx.suspense .ff-item { animation: ff-tremble 0.08s linear infinite; }
+@keyframes ff-tremble { 25% { transform: translate(-1.5px, 0.5px); } 75% { transform: translate(1.5px, -0.5px); } }
+.ff-rays { position: absolute; left: 50%; top: 42%; width: 320px; height: 320px; margin: -160px 0 0 -160px; border-radius: 50%; opacity: 0; background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--res) 75%, transparent) 0 10deg, transparent 10deg 24deg); mask: radial-gradient(circle, #000 20%, transparent 68%); -webkit-mask: radial-gradient(circle, #000 20%, transparent 68%); }
+.ff-smoke { position: absolute; left: 50%; bottom: 70px; width: 120px; height: 80px; margin-left: -60px; border-radius: 50%; opacity: 0; background: radial-gradient(circle, rgba(120, 110, 100, 0.8), transparent 70%); }
+.ff-text { min-height: 54px; text-align: center; text-shadow: 0 2px 4px #000; }
+.ff-text strong { display: block; font-family: var(--font-display); font-size: 34px; line-height: 1.1; color: #fff3d8; }
+.ff-text span { font-size: 14px; color: #e8dcc0; }
+/* Erfolg: Strahlen, Gegenstand wächst und leuchtet in seiner neuen Farbe */
+.forge-fx.res-ok .ff-rays { opacity: 1; animation: ff-rays 3s linear infinite, ff-fade-in 0.3s ease-out; }
+.forge-fx.res-ok .ff-item { animation: ff-win 0.7s cubic-bezier(.2, 1.6, .4, 1) forwards; filter: drop-shadow(0 0 18px var(--res)) drop-shadow(0 0 30px var(--res)) brightness(1.25); }
+.forge-fx.res-ok .ff-text strong { color: var(--res); font-size: 48px; animation: ff-pop 0.5s cubic-bezier(.2, 1.8, .4, 1); }
+@keyframes ff-rays { to { transform: rotate(360deg); } }
+@keyframes ff-fade-in { from { opacity: 0; } }
+@keyframes ff-win { 0% { transform: scale(1); } 50% { transform: translateY(-26px) scale(1.35); } 100% { transform: translateY(-18px) scale(1.2); } }
+@keyframes ff-pop { 0% { transform: scale(2.2); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+/* Fehlschlag: grau, Rauch */
+.forge-fx.res-fail .ff-item { filter: grayscale(0.8) brightness(0.6); animation: ff-shake 0.4s; }
+.forge-fx.res-fail .ff-smoke, .forge-fx.res-saved .ff-smoke { animation: ff-smoke 1.4s ease-out forwards; }
+.forge-fx.res-fail .ff-text strong { color: #c8b8a0; }
+@keyframes ff-smoke { 0% { opacity: 0.9; transform: scale(0.5); } 100% { opacity: 0; transform: translateY(-60px) scale(1.8); } }
+@keyframes ff-shake { 25% { transform: translateX(-8px); } 50% { transform: translateX(7px); } 75% { transform: translateX(-4px); } }
+/* Geschützt: blauer Schild aus Licht */
+.forge-fx.res-saved .ff-item { filter: drop-shadow(0 0 14px #7fb8ff) drop-shadow(0 0 4px #ffffff); animation: ff-shake 0.4s; }
+.forge-fx.res-saved .ff-glow { background: radial-gradient(circle, rgba(120, 180, 255, 0.5), transparent 60%); }
+.forge-fx.res-saved .ff-text strong { color: #9fd0ff; }
+/* Zerbrochen: roter Blitz, zwei Hälften fliegen auseinander */
+.forge-fx.res-break { animation: ff-red 0.6s ease-out; }
+.forge-fx.res-break .ff-item { opacity: 0; }
+.forge-fx.res-break .ff-half { opacity: 1; filter: grayscale(0.4) drop-shadow(0 0 10px #ff3a2a); }
+.forge-fx.res-break .ff-l { animation: ff-split-l 1.2s cubic-bezier(.2, .8, .4, 1) forwards; }
+.forge-fx.res-break .ff-r { animation: ff-split-r 1.2s cubic-bezier(.2, .8, .4, 1) forwards; }
+.forge-fx.res-break .ff-sparks i { background: #ffb0a0; box-shadow: 0 0 8px #ff3a2a; border-radius: 1px; }
+.forge-fx.res-break .ff-text strong { color: #ff5a4a; font-size: 42px; animation: ff-pop 0.4s ease-out; }
+@keyframes ff-red { 0% { background-color: rgba(255, 40, 20, 0.5); } 100% { background-color: transparent; } }
+@keyframes ff-split-l { to { transform: translate(-70px, 40px) rotate(-38deg); opacity: 0.2; } }
+@keyframes ff-split-r { to { transform: translate(70px, 46px) rotate(42deg); opacity: 0.2; } }
+.forge-row { display: flex; gap: 8px; align-items: center; }
+@media (prefers-reduced-motion: reduce) { .ff-rays { animation: none !important; } }

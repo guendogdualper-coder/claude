@@ -232,7 +232,7 @@
       <li>Halte eine Fertigkeit lange gedrückt, um sie auf einen anderen Platz zu ziehen oder einen anderen Platz anzutippen: Die beiden tauschen. Läuft ein Buff, läuft ein Lichtring um seine Fertigkeit und die Restzeit steht darüber.</li>
       <li>Seelensteine lassen Materialien und Ausrüstung bis +2 fallen, die automatisch aufgehoben werden. Im Inventar fügt „Boni +“ die Boni 1 bis 4 hinzu, „5. Bonus“ den fünften, der Switcher würfelt alle Boni neu und der Sternenstein gibt die besonderen Boni 6 und 7.</li>
       <li>Die Grundausrüstung (Stufe 1) gibt nur Rüstung, Waffen nur Angriff. Ab Stufe 5 hat jede Ausrüstung eigene Effekte: Rüstung, Vitalität (mehr Leben), Intelligenz (mehr Mana), Blocken, Ausweichen, Lauftempo, Regeneration oder kritische Treffer. Ausrüstung ab Stufe 22, 30, 45 und 60 gibt es nur als Beute.</li>
-      <li>Der Schmied verbessert Ausrüstung bis +20 mit Gold und Seelensplittern. Bis +3 kostet ein Fehlschlag nur das Material, +4 bis +6 fallen um eine Stufe zurück, ab +7 kann der Gegenstand zerbrechen. Eine Segensschriftrolle verhindert das. Ab +6 (Ausrüstung ab Stufe 30 schon ab +4) braucht er zusätzlich Teile von Monstern, zum Beispiel Hundezahn oder Wolfspelz. Monster lassen sie selten fallen, Seelensteine öfter.</li>
+      <li>Der Schmied verbessert Ausrüstung bis +20 mit Gold und Seelensplittern. Bis +6 kostet ein Fehlschlag nur das Material, nichts geht kaputt; ab +7 kann der Gegenstand zerbrechen. Eine Segensschriftrolle verhindert das. Beim Verbessern zeigt eine Schmiede-Szene drei Hammerschläge und das Ergebnis mit eigenem Klang (Erfolg, Fehlschlag, geschützt, zerbrochen); antippen schließt sie. Den Ton schaltest du beim Schmied mit „Ton an/aus“, der Stummschalter des iPhones schaltet ihn ebenfalls stumm. Ab +6 (Ausrüstung ab Stufe 30 schon ab +4) braucht er zusätzlich Teile von Monstern, zum Beispiel Hundezahn oder Wolfspelz. Monster lassen sie selten fallen, Seelensteine öfter.</li>
       <li>Fertigkeiten steigen mit Punkten bis Stufe 17. Ab Stufe 15 kannst du sie erwecken (E1–E10): Auf Stufe 17 leuchtet ein blaues „E“ an der Fertigkeit, ein Tipp darauf macht sie mit einem Punkt zu E1. Jede Stufe macht die Fertigkeit stärker und Buffs halten länger, im Charakterfenster siehst du die Werte jetzt und für die nächste Stufe. Danach geht es mit Fertigkeitsbüchern weiter: Heroisch (H, ab Stufe 35), Legendär (L, ab Stufe 50) und Vollendet (V, ab Stufe 65). Jedes Buch gehört zu einer Fertigkeit: Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, oft also fremde, die du verkaufen kannst. Aufträge geben Bücher zu deinen Fertigkeiten.</li>
       <li>Schilde trägt nur der Krieger. Zweihänder führt nur der Krieger auf dem Weg des Leibes. Zweihänder, Bogen und Sense brauchen beide Hände, dann gibt es keinen Schild. Blocken kannst du nur mit Schild.</li>
       <li>Beidhändig: Krieger auf dem Weg der Klinge lernen ab Stufe 30 bei Waffenhändler Goro (20.000 Gold), ein zweites Schwert in der Nebenhand zu führen. Im Inventar ein Schwert antippen und „Nebenhand“ wählen. Die Nebenhand gibt 30 % ihres Angriffs, +5 % Angriffstempo und ihre Boni zur Hälfte, dafür kein Blocken.</li>
@@ -315,6 +315,22 @@
 </div>
 <!-- app:end -->
 
+<!-- Schmiede-Szene beim Verbessern -->
+<div id="forgeFx" class="forge-fx" hidden aria-live="polite">
+  <div class="ff-stage">
+    <div class="ff-rays"></div>
+    <div class="ff-glow"></div>
+    <div class="ff-anvil"></div>
+    <img class="ff-item" alt="">
+    <img class="ff-half ff-l" alt="">
+    <img class="ff-half ff-r" alt="">
+    <div class="ff-hammer"></div>
+    <div class="ff-sparks"></div>
+    <div class="ff-smoke"></div>
+  </div>
+  <div class="ff-text"><strong></strong><span></span></div>
+</div>
+
 <!-- Chat-Eingabe im Mehrspieler -->
 <form id="chatBar" class="chat-bar" hidden>
   <input id="chatInput" type="text" maxlength="120" autocomplete="off" enterkeyhint="send" placeholder="Nachricht an alle …" aria-label="Chat-Nachricht">
@@ -335,6 +351,7 @@
 <script src="js/ausruestung.js"></script>
 <script src="js/figuren.js"></script>
 <script src="js/umgebung.js"></script>
+<script src="js/klang.js"></script>
 <script src="js/fertigkeiten.js"></script>
 <script src="js/ultimativ.js"></script>
 <script src="js/zeichnen.js"></script>
