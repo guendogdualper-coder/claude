@@ -128,7 +128,7 @@ const STONE = {
   hpMul: 9,
   xpMul: 10,
   goldMul: 10,
-  waves: [0.95, 0.7, 0.45, 0.2], // bei diesen Lebensanteilen kommt Verstärkung
+  // Verstärkung: nach jeweils 10–15 % Schaden eine Welle mit der Stufe des Steins (stoneWaveMarks)
   respawn: [60, 90]
 };
 

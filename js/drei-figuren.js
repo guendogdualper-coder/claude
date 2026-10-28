@@ -223,18 +223,40 @@ function weapon3(A, kind, tier, bone, at, rot, wg) {
       shell(roundBox(0.8, 0.22, 0.08, 0.04), { p: [-0.35, 0.98, 0] });
       return;
     }
-    case 'axe': {
-      W(limb3(0.78, 0.032, 0.028, 7), '#5a3f2a', { p: [0, 0.6, 0] });
-      W(geo3('axehead', () => {
-        const s = new THREE.Shape();
-        s.moveTo(0, -0.08);
-        s.quadraticCurveTo(0.12, -0.16, 0.24, -0.18);
-        s.quadraticCurveTo(0.3, 0, 0.24, 0.18);
-        s.quadraticCurveTo(0.12, 0.16, 0, 0.08);
-        s.lineTo(0, -0.08);
-        return smoothGeo(new THREE.ExtrudeGeometry(s, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 1, curveSegments: 6 }).translate(0, 0, -0.015));
-      }), '#9aa1a8', { p: [0.02, 0.5, 0], shine: 1, top: '#d9dde2', topK: 0.3 });
-      W(roundBox(0.06, 0.12, 0.06, 0.02), '#5a5e66', { p: [0, 0.5, 0] });
+    case 'axe':
+    case 'greataxe': {
+      // Äxte: Schaft mit Wicklung, Bartklinge (Streitaxt: doppelt), Dorn hinten, Spitze oben
+      const big = kind === 'greataxe';
+      const shaft = big ? 1.25 : 0.78;
+      const wood = tier >= 5 ? '#2a2024' : tier >= 3 ? accent : '#5a3f2a';
+      W(limb3(shaft, 0.032, 0.028, 7), wood, { p: [0, shaft * 0.78, 0], shade: 0.2 });
+      for (let k = 0; k < 3; k++) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), darker(accent, 0.25), { p: [0, 0.02 - k * 0.07, 0], r: [Math.PI / 2, 0, 0] });
+      W(sphere3(0.04, 8, 6), gem || darker(metal, 0.2), { p: [0, -shaft * 0.22 - 0.02, 0], mat: gem ? 'glow' : 'lit', shine: 1 });
+      const headY = shaft * 0.66;
+      const s = big ? 1.35 + tier * 0.03 : 1 + tier * 0.03;
+      const blade = geo3('axeblade2', () => {
+        const sh = new THREE.Shape();
+        sh.moveTo(0, -0.07);
+        sh.quadraticCurveTo(0.1, -0.1, 0.17, -0.2);
+        sh.quadraticCurveTo(0.28, -0.08, 0.27, 0);
+        sh.quadraticCurveTo(0.28, 0.1, 0.19, 0.2);
+        sh.quadraticCurveTo(0.1, 0.12, 0, 0.07);
+        sh.lineTo(0, -0.07);
+        return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.032, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.014, bevelSegments: 1, curveSegments: 6 }).translate(0, 0, -0.016));
+      });
+      const sides = big ? [1, -1] : [1];
+      for (const sx of sides) {
+        // zweite Klinge gedreht statt gespiegelt (gespiegelte Flächen wären innen nach außen)
+        W(blade, metal, { p: [sx * 0.03, headY, 0], s: [s, s, 1], r: [0, sx > 0 ? 0 : Math.PI, 0], shine: 1, top: lighter(metal, 0.35), topK: 0.3 });
+        // helle Schneide
+        W(roundBox(0.02, 0.32 * s, 0.05, 0.008), lighter(metal, 0.45), { p: [sx * (0.03 + 0.265 * s), headY, 0], shine: 1 });
+        if (tier >= 4) W(roundBox(0.1 * s, 0.025, 0.05, 0.008), lighter(gem, 0.2), { p: [sx * (0.03 + 0.12 * s), headY, 0], mat: 'glow' });
+      }
+      if (!big && tier >= 2) W(horn3(0.13, 0.03, 6), metal, { p: [-0.03, headY, 0], r: [0, 0, Math.PI / 2], shine: 1 });
+      W(roundBox(0.08, 0.16 * s, 0.07, 0.025), darker(metal, 0.3), { p: [0, headY, 0], shine: 0.6 });
+      if (big || tier >= 3) W(horn3(big ? 0.2 : 0.12, 0.03, 6), metal, { p: [0, headY + 0.08 * s, 0], shine: 1 });
+      if (gem) W(sphere3(0.028, 8, 6), gem, { p: [0, headY, 0.04], mat: 'glow' });
+      shell(roundBox(big ? 0.75 : 0.42, 0.5 * s, 0.09, 0.045), { p: [big ? 0 : 0.14, headY, 0] });
       return;
     }
     case 'club': {
@@ -276,7 +298,9 @@ function face3(A0, hb, hc, hr, o) {
     const ex = hc[0] + sx * hr * 0.37;
     const ez = hc[2] + f * 0.96;
     if (o.glowEyes) {
-      A(ball(10), o.glowEyes, { bone: hb, p: [ex, eyeY, ez], s: [hr * 0.16, hr * 0.12, hr * 0.07], mat: 'glow' });
+      // dunkle Augenhöhle, darin das Glühen
+      A(ball(10), '#1a1416', { bone: hb, p: [ex, eyeY + hr * 0.01, ez - hr * 0.02], s: [hr * 0.21, hr * 0.17, hr * 0.07] });
+      A(ball(10), o.glowEyes, { bone: hb, p: [ex, eyeY, ez + hr * 0.02], s: [hr * 0.14, hr * 0.1, hr * 0.06], mat: 'glow' });
       if (o.angry !== false) A(roundBox(hr * 0.32, hr * 0.06, hr * 0.06, hr * 0.025), ink, { bone: hb, p: [ex, eyeY + hr * 0.2, ez + hr * 0.02], r: [0, 0, sx * 0.45] });
       continue;
     }
@@ -339,8 +363,8 @@ function hair3(A, hb, hc, hr, style, color, covered) {
         lock(A, hb, [x + Math.sin(a) * hr * 0.6, y + hr * 0.55, z - hr * 0.1 + Math.cos(a) * hr * 0.1], hr * 0.85, hr * 0.22, [-0.5, 0, -a * 0.75], k % 2 ? color : lighter(color, 0.08));
       }
     }
-  } else {
-    // unter Helm oder Kapuze schauen ein paar Strähnen hervor
+  } else if (covered !== 'hood') {
+    // unter dem Helm schauen ein paar Strähnen hervor (unter Kapuzen nicht)
     for (const u of [-0.3, 0, 0.3]) lock(A, hb, [x + u * hr, y + hr * 0.48, z + hr * 0.8], hr * 0.24, hr * 0.11, [2.6, 0, -u * 1.2], color);
   }
   // Seitensträhnen um die Wangen
@@ -376,15 +400,17 @@ function humanoid3(b, c, P) {
   const A = adder(b, P);
   const seg = (a, z, r1, r2, color, o) => limbBetween(A, a, z, r1, r2, color, o);
   const belly = !!c.belly;
+  // bk: kräftiger Körperbau (Krieger), breitere Schultern, Arme und Beine
+  const bk = c.bulk || 1;
   const legLen = belly ? 0.3 : 0.34;
-  const hipX = belly ? 0.16 : 0.105;
-  const legR = belly ? 0.12 : 0.082;
+  const hipX = (belly ? 0.16 : 0.105) * bk;
+  const legR = (belly ? 0.12 : 0.082) * bk;
   const hipY = legLen + 0.06;
   const chestY = hipY + 0.26;
   const shY = hipY + (belly ? 0.48 : 0.37);
-  const shX = belly ? 0.42 : 0.25;
+  const shX = (belly ? 0.42 : 0.25) * bk;
   const armLen = belly ? 0.46 : 0.31;
-  const armR = belly ? 0.11 : 0.062;
+  const armR = (belly ? 0.11 : 0.062) * bk;
   const neckY = hipY + (belly ? 0.6 : 0.44);
   const hr = c.headR || (belly ? 0.26 : 0.33);
   const hc = [0, neckY + hr * 0.84, belly ? 0.1 : 0.02];
@@ -410,6 +436,27 @@ function humanoid3(b, c, P) {
     A(roundBox(legR * 1.95, 0.1, legR * 3.1, legR * 0.85), boots, { bone, p: [sx * hipX, 0.06, legR * 0.5], top: lighter(boots, 0.15), topK: 0.4 });
     A(roundBox(legR * 2.05, 0.035, legR * 3.2, 0.015), darker(boots, 0.45), { bone, p: [sx * hipX, 0.018, legR * 0.5] });
     if (c.shin) A(roundBox(legR * 1.6, 0.16, 0.04, 0.02), c.shin, { bone, p: [sx * hipX, 0.24, legR * 0.85], shine: 0.7 });
+    // Beinschienen aus Platten mit Kniekachel
+    if (c.greaves) {
+      A(cap3(legR * 1.18, Math.PI * 0.62, -Math.PI * 0.5, Math.PI, 10, 6), c.greaves, { bone, p: [sx * hipX, 0.2, 0.0], s: [1, 2.2, 1.1], r: [Math.PI / 2, 0, 0], shine: 0.8, top: lighter(c.greaves, 0.25), topK: 0.3 });
+      A(roundBox(0.018, 0.17, 0.02, 0.008), lighter(c.greaves, 0.3), { bone, p: [sx * hipX, 0.25, legR * 1.12], shine: 1 });
+      A(ball(10), c.greaves, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 0.7], s: [legR * 1.05, legR * 0.95, legR * 0.7], shine: 0.9 });
+      if (c.greaveSpike) A(horn3(0.07, 0.022, 5), c.greaveSpike, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 1.2], r: [Math.PI / 2, 0, 0], shine: 1 });
+    }
+    // Wickelbänder über Kreuz (Barbar, Ninja)
+    if (c.legWraps) for (let k = 0; k < 4; k++) A(torus3(legR * (c.baggy ? 1.02 : 0.9), 0.012, Math.PI * 2, 4, 12), c.legWraps, { bone, p: [sx * hipX, 0.24 + k * 0.04, 0.005], r: [Math.PI / 2 + (k % 2 ? 0.28 : -0.28), 0, 0] });
+    // weite Hakama-Hose, unten gebunden
+    if (c.baggy) {
+      seg(top, knee, legR * 1.22, legR * 1.3, pants, { bone, shade: 0.15 });
+      seg(knee, [ankle[0], 0.24, 0], legR * 1.3, legR * 1.15, pants, { bone, shade: 0.15 });
+    }
+    // Fellstulpen über den Stiefeln
+    if (c.furBoots) for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      A(horn3(0.07, 0.035, 5), k % 2 ? c.furBoots : lighter(c.furBoots, 0.12), { bone, p: [sx * hipX + Math.cos(a) * legR * 1.05, 0.2, Math.sin(a) * legR * 1.05], r: [Math.sin(a) * 2.4, 0, -Math.cos(a) * 2.4] });
+    }
+    // Tabi: geteilte Zehenkappe
+    if (c.tabi) A(roundBox(0.008, 0.06, 0.05, 0.004), darker(boots, 0.5), { bone, p: [sx * hipX, 0.07, legR * 1.75] });
   }
   // Rumpf
   if (belly) {
@@ -418,7 +465,7 @@ function humanoid3(b, c, P) {
     A(ball(12), c.skin, { bone: BH.chest, p: [0, shY - 0.04, 0.0], s: [0.4, 0.2, 0.3] });
     A(lathe3('bellypants', [[0.36, 0], [0.43, 0.02], [0.42, 0.16], [0, 0.17]], 18), pants, { bone: BH.hips, p: [0, hipY - 0.1, 0.03] });
   } else {
-    A(lathe3('torso2', [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]], 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [1, 1, 0.84], shade: 0.18 });
+    A(lathe3('torso2', [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]], 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
     A(cyl3(0.055, 0.06, 0.1, 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02, 0.0] });
     A(torus3(0.12, 0.032, Math.PI * 2, 5, 16), c.collar || trim, { bone: BH.chest, p: [0, neckY - 0.02, 0], r: [Math.PI / 2 - 0.15, 0, 0], s: [1, 0.86, 1] });
     if (c.robe) {
@@ -429,7 +476,7 @@ function humanoid3(b, c, P) {
         A(horn3(0.12 + (k % 3) * 0.04, 0.05, 5), darker(c.robe, 0.15), { bone: BH.hips, p: [Math.cos(a) * 0.29, 0.06, Math.sin(a) * 0.26], r: [Math.PI, 0, 0] });
       }
     } else {
-      A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [1, 1, 0.84], shade: 0.2 });
+      A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [bk, 1, 0.84 * bk], shade: 0.2 });
       // Stoffbahnen vorn und hinten
       for (const sz of [1, -1]) A(roundBox(0.17, 0.22, 0.025, 0.012), c.flap || c.skirt || darker(c.torso, 0.18), { bone: BH.hips, p: [0, hipY - 0.17, sz * 0.21], r: [sz * 0.12, 0, 0], shade: 0.25 });
     }
@@ -437,8 +484,9 @@ function humanoid3(b, c, P) {
   // Gürtel mit Schnalle und Tasche
   if (c.belt) {
     const by = hipY + (belly ? 0.06 : 0.02);
-    A(torus3(belly ? 0.41 : 0.21, 0.03, Math.PI * 2, 5, 20), c.belt, { bone: BH.hips, p: [0, by, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.86, 1] });
-    A(roundBox(0.08, 0.065, 0.03, 0.012), c.buckle || '#c9a35a', { bone: BH.hips, p: [0, by, belly ? 0.36 : 0.185], shine: 1 });
+    A(torus3(belly ? 0.41 : 0.21, 0.03 * (c.wideBelt ? 1.6 : 1), Math.PI * 2, 5, 20), c.belt, { bone: BH.hips, p: [0, by, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.86 * bk, c.wideBelt ? 1.4 : 1] });
+    A(roundBox(c.wideBelt ? 0.12 : 0.08, c.wideBelt ? 0.1 : 0.065, 0.03, 0.012), c.buckle || '#c9a35a', { bone: BH.hips, p: [0, by, (belly ? 0.36 : 0.185) * bk], shine: 1 });
+    if (c.wideBelt) A(ball(8), darker(c.buckle || '#c9a35a', 0.2), { bone: BH.hips, p: [0, by, 0.2 * bk], s: [0.035, 0.035, 0.02], shine: 1 });
     if (c.pouch !== false) A(roundBox(0.085, 0.09, 0.06, 0.025), c.pouch || darker(c.belt, 0.1), { bone: BH.hips, p: [-0.15, by - 0.06, 0.12], r: [0, 0.6, 0] });
   }
   if (c.sash) {
@@ -450,7 +498,36 @@ function humanoid3(b, c, P) {
   }
   // Lamellenrüstung: Reihen überlappender Platten, Brustplatte mit Nieten
   if (c.lamellar) {
-    for (let k = 0; k < 3; k++) A(torus3(0.205 - k * 0.006, 0.026, Math.PI * 2, 4, 18), k % 2 ? c.lamellar : lighter(c.lamellar, 0.12), { bone: BH.chest, p: [0, hipY + 0.07 + k * 0.075, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.84, 1], shine: 0.4 });
+    for (let k = 0; k < 3; k++) A(torus3(0.205 - k * 0.006, 0.026, Math.PI * 2, 4, 18), k % 2 ? c.lamellar : lighter(c.lamellar, 0.12), { bone: BH.chest, p: [0, hipY + 0.07 + k * 0.075, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.84 * bk, 1], shine: 0.4 });
+  }
+  // Plattenharnisch über Brust und Rücken mit Mittelgrat und Nieten
+  if (c.cuirass) {
+    A(lathe3('cuirass', [[0.2, 0], [0.215, 0.02], [0.228, 0.1], [0.232, 0.18], [0.205, 0.26], [0.14, 0.31], [0, 0.315]], 18), c.cuirass, { bone: BH.chest, p: [0, hipY + 0.11, 0], s: [bk, 1, 0.88 * bk], shine: 0.85, top: lighter(c.cuirass, 0.28), topK: 0.35 });
+    A(roundBox(0.03, 0.24, 0.03, 0.012), lighter(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + 0.24, 0.2 * bk], shine: 1 });
+    A(torus3(0.215, 0.016, Math.PI * 2, 4, 20), c.cuirassRim || lighter(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + 0.115, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.88 * bk, 1], shine: 1 });
+    for (const sx of [-1, 1]) for (const y of [0.15, 0.25]) A(sphere3(0.013, 6, 4), c.cuirassRim || '#e8c46a', { bone: BH.chest, p: [sx * 0.13 * bk, hipY + y, 0.17 * bk], shine: 1 });
+  }
+  // Beintaschen: Platten, die vom Gürtel über den Rock hängen
+  if (c.tassets) for (const [x, z, ry] of [[-0.09, 0.19, 0.25], [0.09, 0.19, -0.25], [-0.2, 0.02, 1.4], [0.2, 0.02, -1.4]]) {
+    A(roundBox(0.12, 0.17, 0.025, 0.012), c.tassets, { bone: BH.hips, p: [x * bk, hipY - 0.1, z * bk], r: [0.14, ry, 0], shine: 0.7, top: lighter(c.tassets, 0.25), topK: 0.3 });
+    A(roundBox(0.125, 0.02, 0.03, 0.008), c.tassetRim || lighter(c.tassets, 0.3), { bone: BH.hips, p: [x * bk, hipY - 0.18, z * bk + 0.004], r: [0.14, ry, 0], shine: 1 });
+  }
+  // Fellkragen (barbarisch): dicker Wulst mit Büscheln
+  if (c.furCollar) {
+    A(torus3(0.15 * bk, 0.05, Math.PI * 2, 6, 16), c.furCollar, { bone: BH.chest, p: [0, neckY - 0.04, -0.01], r: [Math.PI / 2 - 0.15, 0, 0], shade: 0.15 });
+    for (let k = 0; k < 12; k++) {
+      const a = (k / 12) * Math.PI * 2;
+      A(horn3(0.08, 0.035, 5), k % 2 ? c.furCollar : lighter(c.furCollar, 0.15), { bone: BH.chest, p: [Math.cos(a) * 0.17 * bk, neckY - 0.06, Math.sin(a) * 0.15 * bk], r: [Math.sin(a) * 2.2, 0, -Math.cos(a) * 2.2] });
+    }
+  }
+  // Ninja: Wurfmesser am Brustgurt und Halfter am Oberschenkel
+  if (c.kunai) for (const [x, y] of [[-0.06, 0.13], [-0.1, 0.06], [-0.14, -0.01]]) {
+    A(horn3(0.08, 0.016, 4), c.kunai, { bone: BH.chest, p: [x, chestY + y, 0.2], r: [0, 0, 0.7 + Math.PI], shine: 1 });
+    A(torus3(0.012, 0.004, Math.PI * 2, 3, 8), c.kunai, { bone: BH.chest, p: [x + 0.035, chestY + y + 0.035, 0.2], shine: 1 });
+  }
+  if (c.holster) {
+    A(roundBox(0.06, 0.13, 0.04, 0.015), c.holster, { bone: BH.legL, p: [hipX + legR * 0.95, hipY - 0.1, 0.02], r: [0, 0, 0.1] });
+    A(torus3(legR * 1.15, 0.01, Math.PI * 2, 4, 12), c.holster, { bone: BH.legL, p: [hipX, hipY - 0.1, 0], r: [Math.PI / 2, 0, 0] });
   }
   if (c.chestPlate) {
     A(roundBox(0.28, 0.2, 0.06, 0.04), c.chestPlate, { bone: BH.chest, p: [0, chestY + 0.07, 0.165], top: lighter(c.chestPlate, 0.25), topK: 0.3, shine: 0.8 });
@@ -489,17 +566,45 @@ function humanoid3(b, c, P) {
       if (c.wraps) for (let k = 0; k < 3; k++) A(torus3(armR * 0.95, 0.011, Math.PI * 2, 4, 12), c.wraps, { bone: ab, p: [wrist[0], wrist[1] + 0.08 + k * 0.045, wrist[2]], r: [Math.PI / 2 + 0.2 * (k % 2 ? 1 : -1), 0, 0] });
       if (c.bracer) A(lathe3('bracer', [[armR * 1.0, 0], [armR * 1.08, 0.06], [armR * 1.02, 0.12], [0, 0.121]], 10), c.bracer, { bone: ab, p: [wrist[0], wrist[1] + 0.03, wrist[2]], shine: 0.8 });
     }
+    if (c.armBands) for (const t of [0.3, 0.42]) A(torus3(armR * 1.05, 0.014, Math.PI * 2, 4, 12), c.armBands, { bone: ab, p: [sh[0], sh[1] - armLen * t, 0.003], r: [Math.PI / 2, 0, 0] });
     const hand = [sx * shX, shY - armLen - armR * 0.5, 0.02];
-    const hs = belly ? 1.9 : 1;
+    const hs = (belly ? 1.9 : 1) * (c.gauntlets ? 1.12 : 1);
     A(ball(10), c.gloves || c.skin, { bone: hb, p: hand, s: [0.068 * hs, 0.075 * hs, 0.062 * hs] });
     A(ball(8), c.gloves || c.skin, { bone: hb, p: [hand[0] - sx * 0.05 * hs, hand[1] + 0.01, hand[2] + 0.035 * hs], s: [0.026 * hs, 0.034 * hs, 0.026 * hs] });
+    if (c.gauntlets) {
+      A(lathe3('gauntlet', [[armR * 1.05, 0], [armR * 1.25, 0.05], [armR * 1.15, 0.13], [0, 0.131]], 10), c.gauntlets, { bone: ab, p: [wrist[0], wrist[1] - 0.01, wrist[2]], shine: 0.9 });
+      A(roundBox(0.1, 0.03, 0.05, 0.012), lighter(c.gauntlets, 0.2), { bone: hb, p: [hand[0], hand[1] + 0.03, hand[2] + 0.045], shine: 1 });
+    }
     if (c.claws) for (let k = -1; k <= 1; k++) A(horn3(0.08 * hs, 0.018 * hs, 5), '#f4ecd8', { bone: hb, p: [hand[0] + k * 0.03 * hs, hand[1] - 0.06 * hs, hand[2] + 0.04], r: [Math.PI + 0.3, 0, 0] });
-    if (c.pads) {
-      // geschichtete Schulterteile mit Metallrand
+    if (c.pads && c.padStyle === 'leather') {
+      // Ninja: kleine Lederkappe mit Naht und Riemen
+      const pp = [sx * shX * 1.02, shY + 0.03, 0];
+      A(cap3(0.1, Math.PI * 0.5, 0, Math.PI * 2, 12, 5), c.pads, { bone: ab, p: pp, s: [1, 0.8, 1.05], r: [0, 0, -sx * 0.4], shine: 0.15 });
+      A(torus3(0.098, 0.008, Math.PI * 2, 3, 14), c.padTrim || lighter(c.pads, 0.3), { bone: ab, p: [pp[0], pp[1] - 0.005, pp[2]], r: [Math.PI / 2, -sx * 0.4, 0] });
+      A(torus3(armR * 1.08, 0.012, Math.PI * 2, 4, 12), darker(c.pads, 0.2), { bone: ab, p: [sh[0], sh[1] - 0.08, 0], r: [Math.PI / 2, 0, 0] });
+    } else if (c.pads && c.padStyle === 'cloth') {
+      // Schamane: Stoffumhang über der Schulter mit Quasten
+      const pp = [sx * shX * 1.0, shY + 0.02, 0];
+      A(cap3(0.14, Math.PI * 0.62, 0, Math.PI * 2, 14, 6), c.pads, { bone: ab, p: pp, s: [1, 0.75, 1.1], r: [0, 0, -sx * 0.45], shade: 0.2 });
+      if (c.padTrim) A(torus3(0.13, 0.012, Math.PI * 2, 4, 16), c.padTrim, { bone: ab, p: [pp[0] + sx * 0.03, pp[1] - 0.05, pp[2]], r: [Math.PI / 2, -sx * 0.45, 0], shine: 0.6 });
+      for (const dz of [-0.06, 0, 0.06]) {
+        A(limb3(0.08, 0.006, 0.006, 3), c.padTrim || '#e0c36a', { bone: ab, p: [pp[0] + sx * 0.12, pp[1] - 0.06, dz] });
+        A(sphere3(0.016, 6, 4), '#c8402f', { bone: ab, p: [pp[0] + sx * 0.12, pp[1] - 0.15, dz] });
+      }
+    } else if (c.pads && c.padStyle === 'bone') {
+      // Nekromant: Schädel als Schulterstück, Knochendornen
+      const pp = [sx * shX * 1.05, shY + 0.05, 0];
+      A(ball(10), '#e8e0cc', { bone: ab, p: pp, s: [0.1, 0.09, 0.1], shade: 0.2 });
+      for (const dx of [-0.03, 0.03]) A(sphere3(0.02, 6, 4), c.padTrim || '#1a1210', { bone: ab, p: [pp[0] + dx, pp[1] + 0.01, pp[2] + 0.085], mat: c.padTrim ? 'glow' : 'lit' });
+      for (const dz of [-0.05, 0.05]) A(horn3(0.12, 0.025, 5), '#ddd5bb', { bone: ab, p: [pp[0] + sx * 0.03, pp[1] + 0.06, dz], r: [0, 0, -sx * 0.6] });
+    } else if (c.pads) {
+      // Krieger: schwere geschichtete Plattenschultern mit Metallrand (mit Fell darunter)
+      const ps = (belly ? 1.45 : 1) * (c.padStyle === 'plate' ? 1.22 : 1);
       const pp = [sx * shX * 1.04, shY + 0.03, 0];
-      const ps = belly ? 1.45 : 1;
-      A(cap3(0.13 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), c.pads, { bone: ab, p: pp, s: [1, 0.85, 1.05], r: [0, 0, -sx * 0.35], shine: 0.5 });
-      A(cap3(0.115 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), lighter(c.pads, 0.1), { bone: ab, p: [pp[0] + sx * 0.03, pp[1] - 0.06, pp[2]], s: [1, 0.7, 1.05], r: [0, 0, -sx * 0.55], shine: 0.5 });
+      if (c.furCollar && c.padStyle === 'plate') A(ball(10), c.furCollar, { bone: ab, p: [pp[0] - sx * 0.01, pp[1] - 0.05, pp[2]], s: [0.12 * ps, 0.07, 0.13 * ps], shade: 0.2 });
+      A(cap3(0.13 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), c.pads, { bone: ab, p: pp, s: [1, 0.85, 1.05], r: [0, 0, -sx * 0.35], shine: 0.7 });
+      A(cap3(0.115 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), lighter(c.pads, 0.1), { bone: ab, p: [pp[0] + sx * 0.03, pp[1] - 0.06, pp[2]], s: [1, 0.7, 1.05], r: [0, 0, -sx * 0.55], shine: 0.7 });
+      if (c.padStyle === 'plate') A(cap3(0.1 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), lighter(c.pads, 0.18), { bone: ab, p: [pp[0] + sx * 0.06, pp[1] - 0.11, pp[2]], s: [1, 0.6, 1.05], r: [0, 0, -sx * 0.7], shine: 0.7 });
       if (c.padTrim) A(torus3(0.128 * ps, 0.013, Math.PI * 2, 4, 16), c.padTrim, { bone: ab, p: pp, r: [Math.PI / 2, -sx * 0.35, 0], shine: 1 });
       if (c.spikes) for (const dz of [-0.05, 0.05]) A(horn3(0.13 * ps, 0.035 * ps, 6), '#d9dde2', { bone: ab, p: [pp[0] + sx * 0.04, pp[1] + 0.08, dz], r: [0, 0, -sx * 0.45], shine: 1 });
       if (c.padGem) A(sphere3(0.028, 8, 6), c.padGem, { bone: ab, p: [pp[0] + sx * 0.08, pp[1] + 0.02, 0.06], mat: 'glow' });
@@ -522,7 +627,7 @@ function humanoid3(b, c, P) {
   face3(A, hb, hc, hr, Object.assign({ hairColor: c.hair ? c.hair.color : null }, c));
   if (c.beard) A(ball(12), c.beard, { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + hr * 0.42], s: [hr * 0.64, hr * 0.52, hr * 0.44], shade: 0.2, mat: c.beardGlow ? 'glow' : 'lit' });
   if (c.tusks) for (const sx of [-1, 1]) A(horn3(hr * 0.34, hr * 0.085, 6), '#f4ecd8', { bone: hb, p: [hc[0] + sx * hr * 0.3, hc[1] - hr * 0.6, hc[2] + hr * 0.78], r: [-0.25, 0, sx * 0.15], shine: 0.4 });
-  if (c.hair) hair3(A, hb, hc, hr, c.hair.style, c.hair.color, !!c.covered);
+  if (c.hair) hair3(A, hb, hc, hr, c.hair.style, c.hair.color, c.covered === 'hood' ? 'hood' : !!c.covered);
   if (c.headgear) c.headgear(A, hb, hc, hr);
   // Umhang gebogen, mit Futter und Saum
   if (c.cape) {
@@ -573,7 +678,7 @@ function humanoid3(b, c, P) {
 // Haltung der Waffe in der Hand (Drehung des Griffs)
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [0.8, 0, 0.35], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
-  bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], club: [0.6, 0, 0.45]
+  bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45]
 };
 
 // --- Kopfbedeckungen der vier Klassen -------------------------------------------------------------
@@ -682,16 +787,32 @@ function playerConfig3(p) {
     const A0 = ARMOR_LOOK.krieger;
     const crimson = lookColor(A0.torso, L.a, '#9c3b33');
     const brass = lookColor(A0.trim, L.a, '#c9a35a');
-    Object.assign(c, { torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030', buckle: brass, collar: brass, cuff: brass, lamellar: darker(crimson, 0.05), kneePads: L.a >= 1 ? brass : null, rivet: brass });
-    if (L.a >= 2) c.chestPlate = lighter(crimson, 0.15);
-    if (L.a >= 2) c.bracer = brass;
-    if (!c.pads) { c.pads = crimson; c.padTrim = brass; c.spikes = L.a >= 4; }
+    // Krieger: kräftig, Platte über Brust und Beinen, schwere Schultern, Fell und Wickelbänder (barbarisch)
+    const plate = L.a >= 0 ? GEAR_LOOK.plate[L.a] : '#8a6a4a';
+    const rim = L.a >= 0 ? TIER_METAL[L.a] : '#c9a35a';
+    const fur = L.a >= 5 ? '#3a3230' : L.a >= 3 ? '#5a4030' : '#8a6a4a';
+    Object.assign(c, {
+      bulk: 1.1, torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030',
+      buckle: brass, collar: brass, cuff: brass, rivet: brass, padStyle: 'plate', furCollar: fur, furBoots: fur, wideBelt: true,
+      tassets: plate, tassetRim: rim, kneePads: L.a >= 1 ? rim : null, armBands: '#4a3020'
+    });
+    if (L.a >= 1) { c.cuirass = plate; c.cuirassRim = rim; } else c.lamellar = darker(crimson, 0.05);
+    if (L.a >= 2) { c.greaves = plate; c.bracer = rim; } else c.legWraps = '#5a4030';
+    if (L.a >= 3) { c.gauntlets = plate; c.greaveSpike = rim; }
+    if (!c.pads) { c.pads = plate; c.padTrim = rim; c.spikes = L.a >= 3; }
     if (L.h !== -2) { c.headgear = kriegerHelm(L); c.covered = true; }
   } else if (p.classId === 'ninja') {
     const A0 = ARMOR_LOOK.ninja;
     const torso = lookColor(A0.torso, L.a, '#312c3d');
     const scarf = lookColor(A0.scarf, L.a, '#6b4f9a');
-    Object.assign(c, { torso, sleeve: darker(torso, 0.1), skirt: darker(torso, 0.15), flap: scarf, pants: darker(torso, 0.1), gloves: '#3d3848', scarf, straps: '#5a4030', crossStraps: true, eyeShape: 1, narrow: true, blush: false, noMouth: true, wraps: '#cdc8dc', shin: L.a >= 2 ? '#7a7f8a' : null, collar: scarf, cuff: scarf, pouch: '#4a3a2a' });
+    // Ninja: nur Stoff und Leder – weite gebundene Hose, Wickelbänder, Ledergurte mit Wurfmessern, keine Platten
+    const leather = L.a >= 4 ? '#2a2026' : '#4a3a2a';
+    Object.assign(c, {
+      torso, sleeve: darker(torso, 0.1), skirt: darker(torso, 0.15), flap: scarf, pants: darker(torso, 0.1), gloves: '#3d3848', scarf, straps: leather, crossStraps: true,
+      eyeShape: 1, narrow: true, blush: false, noMouth: true, wraps: '#cdc8dc', collar: scarf, cuff: scarf, pouch: leather,
+      baggy: true, legWraps: '#cdc8dc', tabi: true, kunai: L.a >= 0 ? TIER_METAL[Math.max(0, L.a)] : '#c7ccd3', holster: leather, padStyle: 'leather'
+    });
+    if (c.pads) { c.pads = mixColor(c.pads, leather, 0.6); c.padTrim = scarf; }
     if (kind === 'bow') c.quiver = '#6b4a2e';
     c.headgear = ninjaHood(L, scarf);
     c.covered = true;
@@ -701,15 +822,17 @@ function playerConfig3(p) {
     const A0 = ARMOR_LOOK.schamane;
     const robe = lookColor(A0.robe, L.a, '#2c6f6a');
     const gold = lookColor(A0.gold, L.a, '#e0c36a');
-    Object.assign(c, { torso: robe, sleeve: robe, robe, hemTrim: gold, wideSleeves: true, cuff: gold, collar: gold, gloves: c.skin, buckle: gold, sash: '#c8402f', beads: '#7a3a2a', belt: null });
+    Object.assign(c, { torso: robe, sleeve: robe, robe, hemTrim: gold, wideSleeves: true, cuff: gold, collar: gold, gloves: c.skin, buckle: gold, sash: '#c8402f', beads: '#7a3a2a', belt: null, padStyle: 'cloth' });
+    if (c.pads) { c.pads = mixColor(c.pads, robe, 0.55); c.padTrim = gold; }
     c.headgear = shamanBand(L, gold);
   } else {
     const A0 = ARMOR_LOOK.nekromant;
     const robe = lookColor(A0.robe, L.a, '#334a31');
-    Object.assign(c, { torso: robe, sleeve: darker(robe, 0.12), robe, tattered: true, wideSleeves: true, gloves: c.skin, runes: '#a7e37f', blush: false, skullBelt: true, collar: darker(robe, 0.3) });
-    if (!c.pads) c.bonePads = true;
+    Object.assign(c, { torso: robe, sleeve: darker(robe, 0.12), robe, tattered: true, wideSleeves: true, gloves: c.skin, runes: '#a7e37f', blush: false, skullBelt: true, collar: darker(robe, 0.3), padStyle: 'bone' });
+    if (c.pads) c.padTrim = gt('s') >= 3 ? lookColor(A0.glow, L.h, '#a7e37f') : null;
+    else c.bonePads = true;
     c.headgear = nekroHood(L);
-    c.covered = true;
+    c.covered = 'hood';
     c.glowEyes = lookColor(A0.glow, L.h, '#a7e37f');
     c.angry = false;
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;
@@ -1346,55 +1469,151 @@ function buildRift3(b) {
 }
 
 // Seelenstein: Grundform, hellere Spitze, leuchtende Runen
+// --- Seelenstein (Version 4.3): stumpfes Ei in einer Krallen-Wiege -----------------------------------
+
+function eggPts(R, H, k = 0.14, n = 16) {
+  const pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = (i / n) * Math.PI;
+    pts.push([R * Math.sin(t) * (1 + k * Math.cos(t)), H * (1 - Math.cos(t)) / 2]);
+  }
+  return pts;
+}
+function eggGeo(R, H, k) {
+  return lathe3(`egg${R},${H},${k}`, eggPts(R, H, k), 24);
+}
+// Punkt auf der Eioberfläche (Höhe 0..1, Winkel) – für Adern und Platten
+function eggAt(R, H, k, u, a, out = 1) {
+  const t = Math.acos(1 - 2 * u);
+  const r = R * Math.sin(t) * (1 + k * Math.cos(t)) * out;
+  return [Math.sin(a) * r, H * u, Math.cos(a) * r];
+}
+
 function buildStone3(b, st) {
   const A = adder(b, null);
   const L = st.look;
-  const rig = rigOf([[[0, 0, 0], -1], [[0, 0, 0], 0]]);
-  const rune = (x, y, z, h, r = 0) => A(roundBox(0.05, h, 0.04, 0.015), L.rune, { bone: 1, p: [x, y, z], r: [0, 0, r], mat: 'glow' });
-  A(lathe3('stonebase', [[0.6, 0], [0.62, 0.06], [0.5, 0.14], [0, 0.15]], 16), darker(L.base, 0.2), { bone: 1 });
-  let h = 1.6;
-  switch (L.shape) {
-    case 'spire':
-      A(lathe3('spire', [[0.34, 0], [0.32, 0.4], [0.24, 1.0], [0.1, 1.5], [0, 1.7]], 7), L.base, { bone: 1, top: L.top, topK: 0.5, shade: 0.2 });
-      rune(0, 0.7, 0.28, 0.5);
-      h = 1.7;
-      break;
-    case 'obelisk':
-      A(roundBox(0.5, 1.5, 0.5, 0.08), L.base, { bone: 1, p: [0, 0.8, 0], shade: 0.2 });
-      A(horn3(0.35, 0.36, 4), L.top, { bone: 1, p: [0, 1.55, 0], r: [0, Math.PI / 4, 0] });
-      rune(0, 0.9, 0.26, 0.7);
-      rune(0, 0.9, -0.26, 0.7);
-      h = 1.9;
-      break;
-    case 'cluster':
-      for (const [x, z, s, r] of [[0, 0, 1.3, 0], [0.32, 0.1, 0.9, 0.35], [-0.3, 0.05, 0.85, -0.4], [0.05, -0.28, 0.75, 0.2]]) A(lathe3('crystal', [[0.16, 0], [0.18, 0.6], [0.1, 0.85], [0, 0.95]], 6), L.base, { bone: 1, p: [x, 0.05, z], s: [s, s, s], r: [r * 0.4, 0, r], top: L.top, topK: 0.7, shine: 0.6 });
-      rune(0, 0.6, 0.22, 0.4);
-      h = 1.3;
-      break;
-    case 'boulder':
-      A(rockGeo(2), L.base, { bone: 1, p: [0, 0.55, 0], s: [0.75, 0.75, 0.65], top: L.top, topK: 0.5, shade: 0.2 });
-      rune(-0.15, 0.7, 0.45, 0.4, 0.3);
-      rune(0.18, 0.6, 0.45, 0.35, -0.3);
-      h = 1.2;
-      break;
-    case 'twin':
-      for (const sx of [-1, 1]) {
-        A(lathe3('twin', [[0.22, 0], [0.22, 0.8], [0.14, 1.25], [0, 1.4]], 8), L.base, { bone: 1, p: [sx * 0.28, 0.1, 0], r: [0, 0, -sx * 0.1], top: L.top, topK: 0.5 });
-        rune(sx * 0.28, 0.75, 0.2, 0.4);
-      }
-      h = 1.6;
-      break;
-    default:
-      A(roundBox(0.9, 1.6, 0.4, 0.12), L.base, { bone: 1, p: [0, 0.85, 0], top: L.top, topK: 0.5, shade: 0.2 });
-      for (const x of [-0.2, 0.2]) rune(x, 0.95, 0.21, 0.8);
-      h = 1.7;
+  const sh = L.shape;
+  // Form des Eis je Stein (alle stumpf und rund, aber unterscheidbar)
+  const R = sh === 'spire' ? 0.44 : sh === 'boulder' ? 0.6 : sh === 'monolith' ? 0.5 : 0.5;
+  const H = sh === 'spire' ? 1.95 : sh === 'boulder' ? 1.5 : sh === 'monolith' ? 1.95 : 1.75;
+  const k = sh === 'boulder' ? 0.16 : 0.12;
+  const stone = mixColor('#8c867c', L.base, 0.35);
+  const dark = new THREE.Color(L.base).getHSL({}).l < 0.14;
+  const shell = lighter(L.base, dark ? 0.24 : 0.12);
+  const y0 = 0.3;
+  // Knochen: 0 Sockel, 1 Ei, 2 Runenring, 3–5 Risse, die bei 75/50/25 % Leben erscheinen
+  const mid = [0, y0 - 0.3 + H * 0.5, 0];
+  const rig = rigOf([[[0, 0, 0], -1], [[0, 0.3, 0], 0], [[0, 0.3, 0], 0], [mid, 1], [mid, 1], [mid, 1]]);
+  const vein = L.rune;
+  // Sockel: flacher Felsring und Krallen, die das Ei halten
+  A(lathe3('stbase3', [[0.72, 0], [0.74, 0.06], [0.66, 0.14], [0.68, 0.18], [0.5, 0.3], [0, 0.31]], 24), stone, { bone: 0, top: lighter(stone, 0.12), topK: 0.6 });
+  A(torus3(0.69, 0.025, Math.PI * 2, 4, 32), L.rune, { bone: 0, p: [0, 0.16, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.3;
+    A(rockGeo(i % 3), darker(stone, 0.12), { bone: 0, p: [Math.sin(a) * 0.86, 0.05, Math.cos(a) * 0.86], s: [0.1, 0.08 + (i % 2) * 0.04, 0.1], top: stone, topK: 0.5 });
   }
-  if (L.thorns) for (let k = 0; k < 6; k++) A(horn3(0.3, 0.06, 6), '#3a2a1a', { bone: 1, p: [Math.cos(k) * 0.42, 0.25 + (k % 3) * 0.2, Math.sin(k) * 0.42], r: [Math.sin(k) * 0.8, 0, -Math.cos(k) * 0.8] });
-  if (L.lava) A(torus3(0.42, 0.04, Math.PI * 2, 4, 20), '#ff7a2a', { bone: 1, p: [0, 0.2, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
-  if (L.ice) for (let k = 0; k < 4; k++) A(lathe3('icespike', [[0.08, 0], [0.06, 0.3], [0, 0.42]], 5), '#e8f6ff', { bone: 1, p: [Math.cos(k * 1.6) * 0.5, 0.05, Math.sin(k * 1.6) * 0.5], r: [0, 0, Math.cos(k * 1.6) * -0.4], shine: 0.8 });
-  if (L.crystal) A(lathe3('crystal', [[0.16, 0], [0.18, 0.6], [0.1, 0.85], [0, 0.95]], 6), '#ff8a9a', { bone: 1, p: [0, h - 0.2, 0], s: 0.6, mat: 'glow' });
-  A(new THREE.CircleGeometry(0.95, 28).rotateX(-Math.PI / 2), L.glow, { bone: 1, p: [0, 0.03, 0], mat: 'aura' });
-  return { rig, height: h, family: 'stone' };
+  const claws = sh === 'twin' ? 3 : 4;
+  for (let i = 0; i < claws; i++) {
+    const a = (i / claws) * Math.PI * 2 + Math.PI / claws;
+    const p0 = [Math.sin(a) * 0.58, 0.24, Math.cos(a) * 0.58];
+    const p1 = eggAt(R, H, k, 0.28, a, 1.12); p1[1] += y0;
+    const p2 = eggAt(R, H, k, 0.52, a, 0.98); p2[1] += y0;
+    limbBetween(A, p0, p1, 0.075, 0.06, stone, { bone: 0, seg: 8 });
+    limbBetween(A, p1, p2, 0.06, 0.02, stone, { bone: 0, seg: 8 });
+    A(ball(8), L.rune, { bone: 0, p: [p1[0] * 1.02, p1[1], p1[2] * 1.02], s: 0.045, mat: 'glow' });
+  }
+  // Das Ei (bei "twin" zwei verschmolzene Eier)
+  const eggs = sh === 'twin' ? [[-0.24, 0.85, -0.12], [0.26, 0.75, 0.12]] : [[0, 1, 0]];
+  for (const [ex, es, er] of eggs) {
+    A(eggGeo(R, H, k), shell, { bone: 1, p: [ex, y0 - 0.3, 0], s: es, r: [0, 0, er], top: lighter(L.top, 0.15), topK: 0.4, shade: 0.3, shine: 0.6, ao: 0.05 });
+  }
+  // glühende Naht, wo das Ei in der Wiege sitzt, und weicher Schein um die Schale
+  if (sh !== 'twin') {
+    const q = eggAt(R, H, k, 0.1, 0, 1.0);
+    A(torus3(Math.hypot(q[0], q[2]) + 0.01, 0.03, Math.PI * 2, 4, 32), L.rune, { bone: 1, p: [0, q[1] + y0 - 0.3, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+    A(eggGeo(R, H, k), darker(L.glow, 0.72), { bone: 1, p: [0, y0 - 0.3 - H * 0.03, 0], s: 1.07, mat: 'aura' });
+  }
+  // Glühende Adern: verzweigte Risse von unten nach oben über die Schale
+  const rnd = mulberry32(7 + STONE_TYPES.indexOf(st) * 13);
+  const veins = sh === 'twin' ? 3 : 5;
+  for (let v = 0; v < veins; v++) {
+    let a = (v / veins) * Math.PI * 2 + rnd() * 0.5;
+    let u = 0.12 + rnd() * 0.1;
+    let prev = eggAt(R, H, k, u, a, 1.005);
+    const steps = 4 + Math.floor(rnd() * 3);
+    for (let s = 0; s < steps; s++) {
+      u = Math.min(0.92, u + 0.1 + rnd() * 0.08);
+      a += (rnd() - 0.5) * 0.7;
+      const next = eggAt(R, H, k, u, a, 1.005);
+      limbBetween(A, [prev[0], prev[1] + y0 - 0.3, prev[2]], [next[0], next[1] + y0 - 0.3, next[2]], 0.032, 0.022, vein, { bone: 1, mat: 'glow', seg: 5 });
+      if (rnd() < 0.35) {
+        const side = eggAt(R, H, k, u - 0.05, a + (rnd() < 0.5 ? -0.45 : 0.45), 1.005);
+        limbBetween(A, [next[0], next[1] + y0 - 0.3, next[2]], [side[0], side[1] + y0 - 0.3, side[2]], 0.016, 0.008, vein, { bone: 1, mat: 'glow', seg: 5 });
+      }
+      prev = next;
+    }
+  }
+  // Risse, die mit dem Schaden wachsen (hell glühend, breiter als die Adern)
+  for (let stage = 0; stage < 3; stage++) {
+    for (let v = 0; v < 2 + stage; v++) {
+      let a = rnd() * Math.PI * 2;
+      let u = 0.35 + rnd() * 0.35;
+      let prev = eggAt(R, H, k, u, a, 1.01);
+      for (let s = 0; s < 4; s++) {
+        u = Math.max(0.08, Math.min(0.94, u + (rnd() - 0.5) * 0.3));
+        a += (rnd() - 0.5) * 0.6;
+        const next = eggAt(R, H, k, u, a, 1.01);
+        limbBetween(A, [prev[0], prev[1] + y0 - 0.3, prev[2]], [next[0], next[1] + y0 - 0.3, next[2]], 0.045, 0.03, lighter(L.rune, 0.35), { bone: 3 + stage, mat: 'glow', seg: 5 });
+        prev = next;
+      }
+    }
+  }
+  // Rune vorn: glühendes Auge / Zeichen im Ei
+  const front = eggAt(R, H, k, 0.5, 0, 1.0);
+  A(torus3(0.13, 0.022, Math.PI * 2, 4, 18), vein, { bone: 1, p: [front[0], front[1] + y0 - 0.3, front[2] + 0.005], mat: 'glow' });
+  A(ball(10), lighter(L.glow, 0.3), { bone: 1, p: [front[0], front[1] + y0 - 0.3, front[2] - 0.01], s: [0.08, 0.1, 0.03], mat: 'glow' });
+  // Schwebender Runenring (dreht sich)
+  const ringY = y0 + H * 0.55;
+  A(torus3(R + 0.32, 0.012, Math.PI * 2, 3, 40), L.glow, { bone: 2, p: [0, ringY - 0.3, 0], r: [Math.PI / 2 + 0.25, 0, 0], mat: 'aura' });
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    A(lathe3('shard', [[0, 0], [0.06, 0.08], [0.04, 0.18], [0, 0.24]], 5), vein, { bone: 2, p: [Math.sin(a) * (R + 0.32), ringY - 0.3 + Math.cos(a) * 0.08, Math.cos(a) * (R + 0.32)], mat: 'glow' });
+  }
+  // Besonderheiten je Stein
+  if (L.thorns) for (let i = 0; i < 9; i++) {
+    const a = i * 0.7, u = 0.15 + (i % 4) * 0.18;
+    const p = eggAt(R, H, k, u, a, 0.98);
+    A(horn3(0.22, 0.05, 6), '#4a3220', { bone: 1, p: [p[0], p[1] + y0 - 0.3, p[2]], r: [Math.cos(a) * 1.2, 0, -Math.sin(a) * 1.2] });
+  }
+  if (L.lava) {
+    A(new THREE.CircleGeometry(0.75, 28).rotateX(-Math.PI / 2), '#ff6a1a', { bone: 0, p: [0, 0.32, 0], mat: 'glow' });
+    for (let i = 0; i < 6; i++) { const a = i * 1.05; A(ball(8), '#ffb04a', { bone: 0, p: [Math.sin(a) * 0.7, 0.33, Math.cos(a) * 0.7], s: [0.06, 0.03, 0.06], mat: 'glow' }); }
+  }
+  if (L.ice) for (let i = 0; i < 7; i++) {
+    const a = i * 0.9;
+    A(lathe3('icespike2', [[0.09, 0], [0.07, 0.35], [0, 0.55]], 6), '#e8f6ff', { bone: 0, p: [Math.sin(a) * 0.78, 0.15, Math.cos(a) * 0.78], s: 0.7 + (i % 3) * 0.25, r: [Math.cos(a) * 0.45, 0, -Math.sin(a) * 0.45], shine: 0.9 });
+  }
+  if (L.crystal || sh === 'cluster') for (let i = 0; i < 4; i++) {
+    const a = i * 1.6 + 0.4;
+    const p = eggAt(R, H, k, 0.75 + (i % 2) * 0.1, a, 0.85);
+    A(lathe3('crystal2', [[0.08, 0], [0.1, 0.25], [0.05, 0.38], [0, 0.44]], 6), L.crystal ? '#ff8a9a' : L.top, { bone: 1, p: [p[0], p[1] + y0 - 0.3, p[2]], r: [Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7], mat: L.crystal ? 'glow' : 'lit', shine: 0.8 });
+  }
+  if (sh === 'obelisk' || sh === 'monolith') for (const u of [0.3, 0.68]) {
+    const p = eggAt(R, H, k, u, 0, 1.0);
+    const rr = Math.hypot(p[0], p[2]);
+    A(torus3(rr + 0.01, 0.035, Math.PI * 2, 5, 32), sh === 'monolith' ? '#c9a35a' : darker(L.base, 0.3), { bone: 1, p: [0, p[1] + y0 - 0.3, 0], r: [Math.PI / 2, 0, 0], shine: 0.7 });
+  }
+  if (L.crown) for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const p = eggAt(R, H, k, 0.88, a, 1.0);
+    A(horn3(0.32, 0.06, 6), '#e8c46a', { bone: 1, p: [p[0], p[1] + y0 - 0.3, p[2]], r: [Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5], shine: 0.8 });
+  }
+  if (L.smoke) for (let i = 0; i < 5; i++) {
+    const a = i * 1.3;
+    A(ball(10), darker(L.base, 0.4), { bone: 2, p: [Math.sin(a) * 0.75, 0.45 + (i % 3) * 0.25, Math.cos(a) * 0.75], s: [0.22, 0.14, 0.22], mat: 'aura' });
+  }
+  A(new THREE.CircleGeometry(1.15, 32).rotateX(-Math.PI / 2), L.glow, { bone: 0, p: [0, 0.03, 0], mat: 'aura' });
+  return { rig, height: y0 + H + 0.1, family: 'stone' };
 }
 
 // Beschworene Skelette
@@ -1843,12 +2062,12 @@ function syncPlayer3(p, dt) {
       B[BH.armR].rotation.set(sw < 0.3 ? -2.7 * raise : -2.7 + (sw - 0.3) / 0.7 * 2.4, 0, -0.2);
       B[BH.chest].rotation.y = 0.3 - e * 0.6;
       B[BH.chest].rotation.x = sw < 0.3 ? -0.1 : 0.15;
-      if (kind === 'greatsword' || kind === 'scythe') B[BH.armL].rotation.set(B[BH.armR].rotation.x * 0.8, 0, 0.5);
+      if (kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe') B[BH.armL].rotation.set(B[BH.armR].rotation.x * 0.8, 0, 0.5);
     }
     if (kind === 'dagger' && !(p.equipment && p.equipment.schild && !isOffhand(p.equipment.schild))) B[BH.armL].rotation.set(sw < 0.5 ? -1.2 : -2.0 + sw, 0, 0.2);
   } else if (!p.moving && !p.riding) {
     // Ruhehaltung mit der Waffe
-    if (kind === 'greatsword' || kind === 'scythe') B[BH.armL].rotation.set(-0.5, 0, 0.35);
+    if (kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe') B[BH.armL].rotation.set(-0.5, 0, 0.35);
     if (kind === 'bow') B[BH.armR].rotation.set(-0.3, 0, 0);
   }
   // Treffer: kurz nach hinten zucken, rot aufblitzen
@@ -1998,15 +2217,23 @@ function animateCreature(a, e, dt, moving, atk, flash) {
 
 function syncStone3(s, dt) {
   const idx = STONE_TYPES.indexOf(s.stoneType);
-  const a = actorFor(entityKey(s), 'st:' + idx, (b) => Object.assign(buildStone3(b, s.stoneType), { blob: 0.8 }));
+  const a = actorFor(entityKey(s), 'st2:' + idx, (b) => Object.assign(buildStone3(b, s.stoneType), { blob: 0.9 }));
   if (!a) return;
   resetBones(a);
+  const B = a.bones;
   a.group.position.set(s.x * U3, 0, s.y * U3);
-  a.group.scale.setScalar(Math.max(0.8, stoneHeight(s) * U3 / a.model.height));
-  a.bones[1].rotation.y = Math.sin(game.time * 0.5) * 0.08;
+  a.group.scale.setScalar(Math.max(0.8, stoneHeight(s) * U3 / a.model.height) * 1.05);
+  // Ei schwebt leicht, pocht kurz, wenn eine Welle kommt; Runenring dreht sich
+  const pulse = s.crackFx ? Math.max(0, 1 - (game.time - s.crackFx) / 0.4) : 0;
+  B[1].position.y = a.rest[1].y + Math.sin(game.time * 1.6 + s.x) * 0.03;
+  B[1].scale.setScalar(1 + pulse * 0.08);
+  B[2].rotation.y = game.time * 0.6 + s.x;
+  // Risse nach Leben
+  const hp = s.maxHp ? s.hp / s.maxHp : 1;
+  [0.75, 0.5, 0.25].forEach((t, k) => B[3 + k].scale.setScalar(hp <= t ? 1 : 0.001));
   const flash = s.hitFlash || 0;
-  if (a.mats.lit) a.mats.lit.emissive.setRGB(flash * 0.8, flash * 0.75, flash * 0.7);
-  if (a.mats.glow) a.mats.glow.color.setScalar(0.75 + 0.25 * Math.sin(game.time * 3 + s.x));
+  if (a.mats.lit) a.mats.lit.emissive.setRGB(flash * 0.8 + pulse * 0.3, flash * 0.75 + pulse * 0.25, flash * 0.7 + pulse * 0.3);
+  if (a.mats.glow) a.mats.glow.color.setScalar(0.75 + 0.25 * Math.sin(game.time * 3 + s.x) + (1 - hp) * 0.3);
 }
 
 function syncAlly3(al, dt) {

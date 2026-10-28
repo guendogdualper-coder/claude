@@ -80,9 +80,11 @@ function enforceGearRules(p) {
     moved.push(it);
   };
   if (p.classId !== 'krieger' && eq.schild) off('schild');
-  // Ein angelegter Zweihänder wird für den Weg der Klinge zum Schwert gleicher Stufe (Plus und Boni bleiben)
-  if (eq.waffe && eq.waffe.kind === 'greatsword' && eq.waffe.cls === p.classId && !canWear(eq.waffe, p)) {
-    eq.waffe.kind = 'sword';
+  // Ein angelegter Zweihänder (Streitaxt) wird für den Weg der Klinge zum Schwert (zur Axt) gleicher Stufe;
+  // Plus und Boni bleiben
+  const ONE_HAND = { greatsword: 'sword', greataxe: 'axe' };
+  if (eq.waffe && ONE_HAND[eq.waffe.kind] && eq.waffe.cls === p.classId && !canWear(eq.waffe, p)) {
+    eq.waffe.kind = ONE_HAND[eq.waffe.kind];
     moved.push(eq.waffe);
   }
   if (eq.waffe && !canWear(eq.waffe, p)) off('waffe');
@@ -427,7 +429,9 @@ function addMobMat(id, n, from) {
 // Beute: normale Monster selten, Seelensteine oft
 function rollLoot(m) {
   const p = game.player;
-  if (!m.isStone && Math.random() < 0.03) {
+  // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
+  const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
+  if (!m.isStone && Math.random() < (sd ? 0.1 : 0.03)) {
     p.splinters++;
     ui.loot('Seelensplitter', 1, lootIconUrl('splinter'), '#c9a8ff');
   }
@@ -436,11 +440,11 @@ function rollLoot(m) {
     p.scrolls++;
     ui.loot(BLESSING.name, 1, scrollIconUrl(), '#f3e2b0');
   }
-  if (drops) {
+  if (drops || sd) {
     const got = [];
-    for (const [id, [chance, min, max]] of Object.entries(drops.mats)) {
-      if (Math.random() >= chance) continue;
-      const n = randInt(min, max);
+    for (const [id, [chance, min, max]] of Object.entries((drops || sd).mats)) {
+      if (Math.random() >= (drops ? chance : chance * 0.12)) continue;
+      const n = drops ? randInt(min, max) : 1;
       p.materials[id] = (p.materials[id] || 0) + n;
       const mat = MATERIALS.find((x) => x.id === id);
       got.push(id);
@@ -464,7 +468,7 @@ function rollLoot(m) {
     const pool = all.filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
     for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || all[0], 1, m);
   }
-  if (Math.random() < (drops ? drops.gear : 0.025)) {
+  if (Math.random() < (drops ? drops.gear : sd ? sd.gear * 0.12 : 0.025)) {
     // Seelensteine ab Stufe 20 lassen schon Ausrüstung der nächsthöheren Gebiete fallen (Lv 30 ab Stein 20)
     const lootLevel = m.isStone && m.level >= 20 ? m.level + 10 : m.level;
     let tier = 0;
@@ -472,7 +476,8 @@ function rollLoot(m) {
     const plus = drops ? randInt(drops.plus[0], drops.plus[1]) : Math.random() < 0.25 ? 1 : 0;
     // meist für die eigene Klasse, manchmal für eine andere (zum Verkaufen)
     const cls = Math.random() < 0.7 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
-    const slots = lootSlots(drops && drops.slots ? drops.slots : EQUIP_SLOTS.map((sl) => sl.id), cls);
+    const slotList = (drops || sd || {}).slots;
+    const slots = lootSlots(slotList || EQUIP_SLOTS.map((sl) => sl.id), cls);
     const item = makeItem(slots[randInt(0, slots.length - 1)], tier, plus, cls, lootKind(p, cls));
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
@@ -701,7 +706,7 @@ function drawItemArt(ctx, item) {
   const c = ARMOR_COLORS[tier];
   if (slot === 'waffe') {
     const kind = item.kind || 'sword';
-    const long = kind === 'staff' || kind === 'scythe' || kind === 'greatsword' || kind === 'bell';
+    const long = kind === 'staff' || kind === 'scythe' || kind === 'greatsword' || kind === 'greataxe' || kind === 'bell';
     ctx.save();
     ctx.rotate(-Math.PI / 4);
     if (kind === 'dagger') {

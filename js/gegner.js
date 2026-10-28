@@ -1,14 +1,17 @@
 // Monster: Erscheinen, Verhalten (KI), Seelensteine und Skelett-Diener.
 
 const LEASH = 420;        // so weit verfolgen Monster dich von ihrem Platz weg
+const AGGRO_LEVEL_GAP = 10; // so viele Stufen unter dem Spieler: kein Angriff von selbst
 const AGGRO_RANGE = 150;  // ab dieser Nähe greifen aggressive Monster an
 let nextMonsterId = 1;
 
 function createMonster(typeId, x, y, opts = {}) {
   const t = MONSTER_TYPES[typeId];
-  const st = monsterStats(t.level, t.hpMul, t.atkMul);
+  // opts.level: z. B. Monster aus einem Seelenstein haben dessen Stufe
+  const level = opts.level || t.level;
+  const st = monsterStats(level, t.hpMul, t.atkMul);
   return {
-    id: nextMonsterId++, typeId, type: t, name: t.name, level: t.level,
+    id: nextMonsterId++, typeId, type: t, name: t.name, level,
     x, y, homeX: x, homeY: y, r: t.size,
     maxHp: st.maxHp, hp: st.maxHp, atk: st.atk, def: st.def, xp: st.xp, gold: st.gold,
     state: 'idle', target: null, cd: Math.random(), wanderAt: Math.random() * 4, wx: x, wy: y,
@@ -29,10 +32,20 @@ function createStone(zone, level, from = 0, to = 1, at = null) {
     maxHp: st.maxHp, hp: st.maxHp, atk: 0, def: st.def,
     xp: Math.round(monsterStats(level).xp * STONE.xpMul),
     gold: st.gold.map((g) => g * STONE.goldMul),
-    wave: 0, zone, respawn: true, dead: false, respawnAt: 0, hitFlash: 0, stun: 0, kx: 0, ky: 0,
+    wave: 0, waveMarks: stoneWaveMarks(), zone, respawn: true, dead: false, respawnAt: 0, hitFlash: 0, stun: 0, kx: 0, ky: 0,
     phase: Math.random() * 6
   };
 }
+
+// Ein Seelenstein ruft nach jeweils 10–15 % verlorenem Leben eine Welle Monster
+function stoneWaveMarks() {
+  const marks = [];
+  for (let h = 1 - (0.1 + Math.random() * 0.05); h > 0.04; h -= 0.1 + Math.random() * 0.05) marks.push(h);
+  return marks;
+}
+
+// Weniger Monster in der Welt (weniger Gedränge, flüssigeres Bild): Anteil der Gruppen aus den Zonendaten
+const MOB_DENSITY = 0.6;
 
 // Füllt alle Jagdzonen mit Monstergruppen und Seelensteinen
 function populateWorld() {
@@ -41,10 +54,10 @@ function populateWorld() {
   for (const zone of ZONES) {
     if (!zone.groups) continue;
     for (const [typeId, count, from, to] of zone.groups) {
-      for (let g = 0; g < count; g++) {
+      for (let g = Math.max(2, Math.round(count * MOB_DENSITY)); g > 0; g--) {
         const center = randomSpotInZone(zone, from, to);
         if (!center) continue;
-        const size = randInt(zone.groupSize[0], zone.groupSize[1]);
+        const size = randInt(Math.max(2, zone.groupSize[0] - 1), Math.max(2, zone.groupSize[1] - 1));
         for (let k = 0; k < size; k++) {
           const pos = spotNear(center, 46);
           game.monsters.push(createMonster(typeId, pos.x, pos.y, { groupId, zone }));
@@ -75,7 +88,7 @@ function populateDungeons(groupId) {
       const r = dg.rooms[ri];
       types.forEach((typeId, k) => {
         const c = { x: (r.x + r.w * (k ? 0.7 : 0.3)) * TILE, y: (r.y + r.h * 0.5) * TILE };
-        const n = randInt(3, 4);
+        const n = randInt(2, 3);
         for (let j = 0; j < n; j++) {
           const pos = spotNear(c, 50);
           const m = createMonster(typeId, pos.x, pos.y, { groupId, zone });
@@ -181,10 +194,15 @@ function reviveMonster(m) {
     const spot = randomSpotInZone(m.zone, m.area[0], m.area[1]);
     if (spot) { m.x = m.homeX = spot.x; m.y = m.homeY = spot.y; }
     m.wave = 0;
+    m.waveMarks = stoneWaveMarks();
     if (dist(m, game.player) < 900) ui.log(`In der Nähe ist ein ${m.name} (Stufe ${m.level}) erschienen.`, 'info');
   } else {
     m.x = m.homeX;
     m.y = m.homeY;
+  }
+  if (m.isStone) {
+    m.wave = 0;
+    m.waveMarks = stoneWaveMarks();
   }
   m.hp = m.maxHp;
   m.dead = false;
@@ -211,20 +229,24 @@ function aggro(m, source) {
   }
 }
 
-// Seelenstein ruft bei bestimmten Lebensanteilen Verstärkung
+// Seelenstein ruft nach jeweils 10–15 % Schaden eine Welle: Monster der Zone mit der Stufe des Steins.
+// Sie gehören zum Stein (m.stone) und sterben mit ihm.
+const STONE_MINIONS_MAX = 9;
 function checkStoneWaves(stone) {
   const zone = stone.zone;
-  // Verstärkung passend zur Stufe des Steins: Monster der Zone, die nicht viel stärker sind
   const all = zone.dungeon ? zone.dungeon.mobs : zone.groups.map((g) => g[0]);
   const pool = all.filter((id) => MONSTER_TYPES[id].level <= stone.level + 2);
   const types = pool.length ? pool : [all[0]];
-  while (stone.wave < STONE.waves.length && stone.hp / stone.maxHp <= STONE.waves[stone.wave]) {
+  const marks = stone.waveMarks || (stone.waveMarks = stoneWaveMarks());
+  while (stone.wave < marks.length && stone.hp / stone.maxHp <= marks[stone.wave]) {
     stone.wave++;
-    const count = randInt(3, 4);
+    const alive = game.monsters.filter((o) => o.stone === stone && !o.dead).length;
+    const count = Math.min(randInt(2, 3), STONE_MINIONS_MAX - alive);
     for (let k = 0; k < count; k++) {
       const typeId = types[randInt(0, types.length - 1)];
       const pos = spotNear(stone, 70);
-      const m = createMonster(typeId, pos.x, pos.y, { respawn: false, zone });
+      const m = createMonster(typeId, pos.x, pos.y, { respawn: false, zone, level: stone.level });
+      m.stone = stone;
       m.homeX = stone.x;
       m.homeY = stone.y;
       m.state = 'chase';
@@ -232,7 +254,25 @@ function checkStoneWaves(stone) {
       game.monsters.push(m);
       addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.5, color: stone.stoneType.look.glow, count: 8 });
     }
+    if (count > 0) {
+      stone.crackFx = game.time;
+      addEffect({ type: 'ring', x: stone.x, y: stone.y, r: 60, dur: 0.45, color: stone.stoneType.look.glow, width: 6, grow: true });
+    }
     if (stone.wave === 1) ui.log('Der Seelenstein ruft Monster zu Hilfe!', 'warn');
+  }
+}
+
+// Zerbricht der Stein, vergehen alle Monster, die er gerufen hat (mit Beute und Erfahrung)
+function killStoneMinions(stone) {
+  let k = 0;
+  for (const o of game.monsters) {
+    if (o.stone !== stone || o.dead) continue;
+    later(0.12 + k++ * 0.07, () => {
+      if (o.dead) return;
+      const c = bodyCenter(o);
+      particles(c.x, c.y, { count: 14, color: [stone.stoneType.look.glow, stone.stoneType.look.rune, '#ffffff'], speed: [60, 180], life: [0.3, 0.7], size: [2, 3.5], drag: 2 });
+      killMonster(o);
+    });
   }
 }
 
@@ -339,7 +379,8 @@ function updateMonsters(dt) {
     m.moving = false;
 
     if (m.state === 'idle') {
-      if (m.type.aggressive && !near.dead && distP < AGGRO_RANGE && !playerHidden(near)) {
+      // Monster, die 10 oder mehr Stufen unter dem Spieler sind, greifen nicht mehr von selbst an
+      if (m.type.aggressive && !near.dead && distP < AGGRO_RANGE && !playerHidden(near) && (near.level || 1) - m.level < AGGRO_LEVEL_GAP) {
         aggro(m, near);
       } else {
         if (game.time >= m.wanderAt) {

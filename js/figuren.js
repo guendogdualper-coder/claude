@@ -591,11 +591,32 @@ function weaponArt(ctx, kind, tier = 0) {
       if (tier >= 4) oval(ctx, -6 + r - 0.3, 0, 1.2, 1.2, STAFF_ORB[tier]);
       break;
     }
-    case 'axe':
-      box(ctx, -4, -1.2, 22, 2.4, 1, '#5a4030');
-      poly(ctx, [[12, -2], [17, -9], [21, -7], [19.5, 0], [21, 7], [17, 9], [12, 2]], '#9aa1a8');
-      stroke(ctx, '#d9dde2', 0.8, [[19.6, -5.5], [18.5, 0], [19.6, 5.5]]);
+    case 'axe': {
+      // Einhandaxt: Bartklinge, ab Stufe 2 mit Dorn hinten, ab 4 mit Edelstein
+      const metal = TIER_METAL[tier];
+      box(ctx, -4, -1.3, 23, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -3; x < 6; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.3], [x + 1, 1.3]]);
+      poly(ctx, [[12, -2], [15, -10 - tier * 0.3], [21, -9 - tier * 0.3], [19.5, 0], [21, 8 + tier * 0.3], [15, 9 + tier * 0.3], [12, 2]], metal);
+      stroke(ctx, lighter(metal, 0.45), 0.9, [[20.4, -7], [19, 0], [20.4, 7]]);
+      if (tier >= 2) poly(ctx, [[12, -1.5], [8, -4], [12, 1.5]], metal);
+      box(ctx, 11, -2.6, 3, 5.2, 0.8, darker(metal, 0.3));
+      if (tier >= 4) oval(ctx, 12.5, 0, 1.2, 1.2, STAFF_ORB[tier]);
       break;
+    }
+    case 'greataxe': {
+      // Streitaxt: langer Schaft, Doppelklinge, ab Stufe 3 mit Spitze oben
+      const metal = TIER_METAL[tier];
+      box(ctx, -12, -1.4, 36, 2.8, 1.2, tier >= 5 ? '#2a2024' : tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -11; x < -2; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.4], [x + 1, 1.4]]);
+      for (const sg of [-1, 1]) {
+        poly(ctx, [[18, sg * 2], [20, sg * (12 + tier * 0.3)], [26, sg * (13 + tier * 0.3)], [27.5, sg * 6], [26, sg * 2]], metal);
+        stroke(ctx, lighter(metal, 0.45), 0.9, [[26.5, sg * 11], [27.2, sg * 4]]);
+      }
+      box(ctx, 17, -3, 10, 6, 1, darker(metal, 0.25));
+      if (tier >= 3) poly(ctx, [[27, -1.5], [33, 0], [27, 1.5]], metal);
+      if (tier >= 4) oval(ctx, 22, 0, 1.5, 1.5, STAFF_ORB[tier]);
+      break;
+    }
     case 'club':
       poly(ctx, [[-3, -1.6], [14, -3.6], [20, -4.6], [22.5, 0], [20, 4.6], [14, 3.6], [-3, 1.6]], '#6b4f34');
       dot(ctx, 15, -1.5, 0.9, 0.9, '#3e2c1f');

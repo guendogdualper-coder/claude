@@ -467,7 +467,7 @@ function netBuildMonster(e) {
     m = {
       isStone: true, stoneType: t, name: t.name, level, r: 18, area: [0, 1], atk: 0, def: st.def,
       xp: Math.round(monsterStats(level).xp * STONE.xpMul), gold: st.gold.map((g) => g * STONE.goldMul),
-      wave: 0, hitFlash: 0, stun: 0, kx: 0, ky: 0, phase: Math.random() * 6
+      wave: 0, waveMarks: stoneWaveMarks(), hitFlash: 0, stun: 0, kx: 0, ky: 0, phase: Math.random() * 6
     };
   } else {
     m = createMonster(type, x, y, { zone, respawn: !!respawn });
@@ -484,7 +484,7 @@ function netApplySnapshot(d) {
     let m = net.mons.get(e[0]);
     if (!m) {
       if (e.length < 8) continue;
-      m = createMonster(e[5], e[1], e[2], { respawn: false, zone: zoneAt(e[1], e[2]) });
+      m = createMonster(e[5], e[1], e[2], { respawn: false, zone: zoneAt(e[1], e[2]), level: e[6] });
       Object.assign(m, { id: e[0], maxHp: e[7] });
       game.monsters.push(m);
       net.mons.set(m.id, m);

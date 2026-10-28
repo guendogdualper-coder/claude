@@ -49,7 +49,9 @@ const CLASS_SLOTS = ['waffe', 'ruestung', 'helm'];
 //   twoHanded braucht beide Hände: kein Schild möglich (Blocken gibt es nur mit Schild)
 const WEAPON_KINDS = {
   sword: { name: 'Schwert', cls: 'krieger', atkMul: 1, atkSpeed: 0, text: 'ausgewogen' },
+  axe: { name: 'Axt', cls: 'krieger', atkMul: 1.08, atkSpeed: -0.06, text: 'wuchtiger als das Schwert, etwas langsamer, mit Schild' },
   greatsword: { name: 'Zweihänder', cls: 'krieger', path: GREATSWORD_PATH, atkMul: 1.45, atkSpeed: -0.15, twoHanded: true, text: 'nur Weg des Leibes: viel Schaden, langsam, kein Schild' },
+  greataxe: { name: 'Streitaxt', cls: 'krieger', path: GREATSWORD_PATH, atkMul: 1.55, atkSpeed: -0.22, twoHanded: true, text: 'nur Weg des Leibes: der härteste Schlag, sehr langsam, kein Schild' },
   dagger: { name: 'Dolche', cls: 'ninja', atkMul: 0.88, atkSpeed: 0.15, text: 'schnell, oft kritisch' },
   bow: { name: 'Bogen', cls: 'ninja', atkMul: 1, atkSpeed: -0.05, ranged: true, twoHanded: true, text: 'greift aus der Ferne an, kein Schild' },
   fan: { name: 'Fächer', cls: 'schamane', atkMul: 0.85, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
@@ -57,12 +59,14 @@ const WEAPON_KINDS = {
   staff: { name: 'Stab', cls: 'nekromant', atkMul: 0.9, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
   scythe: { name: 'Sense', cls: 'nekromant', atkMul: 1.15, atkSpeed: -0.12, magic: true, magicMul: 0.6, twoHanded: true, text: 'mehr Schaden, weniger Magie, kein Schild' }
 };
-const CLASS_WEAPON_KINDS = { krieger: ['sword', 'greatsword'], ninja: ['dagger', 'bow'], schamane: ['fan', 'bell'], nekromant: ['staff', 'scythe'] };
+const CLASS_WEAPON_KINDS = { krieger: ['sword', 'axe', 'greatsword', 'greataxe'], ninja: ['dagger', 'bow'], schamane: ['fan', 'bell'], nekromant: ['staff', 'scythe'] };
 
 // Namen je Stufe. Waffen nach Art, Rüstungen und Helme nach Klasse, der Rest für alle gleich.
 const ITEM_NAMES = {
   waffe: {
     sword: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer', 'Aschenklinge', 'Himmelsschwert', 'Götterklinge'],
+    axe: ['Beil', 'Bartaxt', 'Wolfsaxt', 'Drachenaxt', 'Seelenhacker', 'Aschenaxt', 'Himmelsaxt', 'Götteraxt'],
+    greataxe: ['Holzfälleraxt', 'Doppelaxt', 'Barbarenaxt', 'Drachenspalter', 'Seelenschlächter', 'Aschenhenker', 'Himmelsbrecher', 'Götterhammer'],
     greatsword: ['Holzfällerklinge', 'Langschwert', 'Sichelzweihänder', 'Drachentöter', 'Seelenspalter', 'Aschenbrecher', 'Himmelsrichter', 'Götterzorn'],
     dagger: ['Kurzdolche', 'Zwillingsdolche', 'Schattendolche', 'Viperzähne', 'Nachtklingen', 'Aschendolche', 'Sternendolche', 'Götterzähne'],
     bow: ['Jagdbogen', 'Kurzbogen', 'Schattenbogen', 'Viperbogen', 'Nachtbogen', 'Aschenbogen', 'Sternenbogen', 'Götterbogen'],

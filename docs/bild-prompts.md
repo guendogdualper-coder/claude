@@ -1111,3 +1111,30 @@ Mobile MMORPG combat UI detail: small floating damage numbers in a bold rounded 
 ```
 Compact semi-transparent chat window for a landscape mobile MMORPG, bottom left corner, dark wood-brown glass with a thin brass border. At the top three small pill tabs: "Global" (gold when active), "Gilde" (leaf green when active), "Ort" (sky blue when active); an inactive tab with new messages shows a tiny red dot. Messages in the global view carry small colored tags [Gilde] and [Ort]. The input bar above has the same three channel pills next to the text field and a golden "Senden" button. Readable, cozy East-Asian fantasy style.
 ```
+
+## Seelensteine als Ei und klar unterscheidbare Klassen (Version 4.3)
+
+### Seelenstein
+```
+Stylized 3D soul stone for a cozy East-Asian fantasy MMORPG, seen from a three-quarter top-down camera: a large blunt, smooth egg (taller than wide, wider at the bottom, softly rounded top) resting in a cradle of three to four curved stone claws on a low round carved pedestal with a glowing rune ring and a few pebbles. Branching glowing veins in the stone's color run from the bottom up over the shell, a glowing rune eye sits on the front, a thin halo surrounds the shell and a ring of small floating rune shards slowly circles above. When damaged, bright cracks open at 75, 50 and 25 percent health; at zero the shell bursts into glowing shards. Variants: slim tall egg (Trauer, Dornen, Pein), squat egg (Glut, Schwärze), twin fused eggs (Schatten, Fäulnis), gold-banded egg with a crown of spikes (Untergang); accents thorns, lava pool, ice spikes, crystal shards, smoke. Soft toon shading, thin dark outline, premium mobile-game quality.
+```
+
+### Klassen-Gesamt-Prompt
+```
+Four clearly distinct chibi hero classes for a stylized 3D fantasy MMORPG, readable from a top-down three-quarter camera at phone size. Each class has its own silhouette, materials and weapons; equipment tiers change color and ornaments, never the class identity.
+
+KRIEGER (warrior / barbarian): broad sturdy build, heavy metal plate everywhere – a domed cuirass with a center ridge and rivets, three-layered round pauldrons with metal rims and spikes from the dragon tier, plate tassets hanging over a cloth skirt, plate greaves with knee cops and spikes, gauntlets, a wide leather belt with a big buckle and a boss. Barbaric touches: a thick fur collar under the pauldrons, fur cuffs over the boots, leather wraps around arms and legs on low tiers. Kabuto-style helmet with crest plume and horns. Weapons: sword and round shield, one-handed bearded axe with back spike (with shield), huge two-handed double-bladed battle axe, greatsword. Colors per tier: leather brown, bronze, iron grey-blue, crimson dragon scale with gold, violet soul plate with glowing runes, charcoal ash plate with ember cracks, white-blue sky enamel, radiant gold.
+
+NINJA (assassin): slim agile build, only cloth and leather, no metal plates: wrapped dark tunic, wide hakama trousers tied at the shins with white cloth wraps, split-toe tabi boots, crossed leather chest straps carrying three kunai, a thigh holster, small stitched leather shoulder caps, wrapped forearms, a hood with long tails, a face mask and a long trailing scarf. Weapons: twin daggers or a recurve bow with quiver.
+
+SCHAMANE (mystic): flowing layered robe with golden hem, very wide sleeves with golden cuffs, a cloth shoulder mantle with tassels and red beads, sash with paper talismans, bead necklace, feather headband. Weapons: folding fan or ritual bell with ribbons. No armor plates.
+
+NEKROMANT (necromancer): hooded tattered robe with a zigzag hem, skull shoulder pieces with glowing eye sockets and bone spikes, a skull at the belt, a glowing chest rune, glowing eyes in dark sockets under the hood. Weapons: skull staff with glowing orb or a large curved scythe.
+
+Style: soft toon shading with cool shadows, rim light, small metal highlights, thin dark outline, cute but heroic proportions.
+```
+
+### Waffenbogen Krieger
+```
+Weapon sheet for a stylized fantasy warrior, eight tiers each: one-handed bearded axe (wrapped haft, back spike from tier 3, glowing gem from tier 5), two-handed double-bladed battle axe (long haft, top spike, glowing edge runes on high tiers), sword with fuller and ornate guard, greatsword. Tier colors: iron, bronze, steel, dragon gold, soul violet, ember ash, sky white-blue, radiant gold. Clean toon shading, white background.
+```

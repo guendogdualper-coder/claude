@@ -454,7 +454,7 @@ function drawPlayer(ctx, p) {
       const r = skillRank(aura.lvl || 1);
       const power = 1 + (r + 1) * 0.3;
       const pulse = 0.65 + 0.35 * Math.sin(game.time * 8);
-      const reach = kind === 'greatsword' ? 34 : kind === 'dagger' ? 12 : 26;
+      const reach = kind === 'greatsword' || kind === 'greataxe' ? 34 : kind === 'dagger' ? 12 : 26;
       const sp = weaponSprite(kind, tier);
       const b = sp.bounds;
       ctx.save();
@@ -781,44 +781,17 @@ function drawMonsterStatus(ctx, m) {
 // --- Seelensteine ---------------------------------------------------------------------
 // Sechs Grundformen; Farben und Zusätze (Dornen, Lava, Eis, Krone) kommen aus STONE_TYPES.
 // body: Umriss, face: hellere Lichtseite, runes: leuchtende Zeichen (je eine Linie)
+// Seelensteine (Version 4.3): ein stumpfes Ei in einer steinernen Wiege mit Krallen.
+// eggs: [x, halbe Breite, Höhe] je Ei (der Doppelstein hat zwei), h: Gesamthöhe für Namen und 3D-Größe
 const STONE_SHAPES = {
-  spire: {
-    body: [[-14, 8], [-18, -14], [-9, -40], [5, -46], [17, -18], [14, 8]],
-    face: [[-9, -40], [5, -46], [2, -10], [-12, -6]],
-    runes: [[[-4, -30], [3, -24], [-3, -18], [4, -12]], [[8, -20], [10, -8]], [[-10, -4], [-6, 2]]],
-    h: 46
-  },
-  obelisk: {
-    body: [[-17, 8], [-17, 1], [-11, 0], [-10, -44], [0, -56], [10, -44], [11, 0], [17, 1], [17, 8]],
-    face: [[-10, -44], [0, -56], [0, 0], [-11, 0]],
-    runes: [[[0, -44], [0, -36]], [[-5, -30], [5, -30]], [[-4, -22], [0, -16], [4, -22]], [[-5, -9], [5, -9]]],
-    h: 56
-  },
-  cluster: {
-    body: [[-20, 8], [-22, -10], [-16, -30], [-9, -14], [-7, -44], [0, -52], [7, -42], [8, -18], [14, -36], [20, -24], [19, 8]],
-    face: [[-7, -44], [0, -52], [0, -6], [-8, -8]],
-    runes: [[[0, -40], [0, -24]], [[-15, -22], [-13, -10]], [[14, -26], [13, -12]]],
-    h: 52
-  },
-  boulder: {
-    body: [[-22, 8], [-25, -8], [-20, -26], [-6, -36], [10, -34], [22, -22], [25, -4], [21, 8]],
-    face: [[-20, -26], [-6, -36], [10, -34], [4, -20], [-14, -16]],
-    runes: [[[-16, -6], [-8, -14], [-2, -6], [6, -16]], [[10, -2], [16, -12]], [[-4, -26], [2, -22]]],
-    h: 36
-  },
-  twin: {
-    body: [[-20, 8], [-22, -12], [-14, -46], [-6, -30], [-1, -22], [6, -42], [12, -48], [20, -16], [18, 8]],
-    face: [[-14, -46], [-6, -30], [-10, -4], [-18, -8]],
-    runes: [[[-14, -34], [-12, -20], [-15, -10]], [[10, -36], [12, -24], [9, -12]]],
-    h: 48
-  },
-  monolith: {
-    body: [[-16, 8], [-16, 0], [-13, -2], [-13, -50], [-8, -58], [8, -58], [13, -50], [13, -2], [16, 0], [16, 8]],
-    face: [[-13, -50], [-8, -58], [0, -58], [0, -2], [-13, -2]],
-    runes: [[[-6, -46], [6, -46]], [[0, -42], [0, -30]], [[-6, -26], [0, -20], [6, -26]], [[-6, -12], [6, -12]]],
-    h: 58
-  }
+  spire: { eggs: [[0, 12, 46]], h: 50 },
+  obelisk: { eggs: [[0, 14, 48]], h: 52, bands: true },
+  cluster: { eggs: [[0, 14, 44]], h: 48, shards: true },
+  boulder: { eggs: [[0, 18, 36]], h: 40 },
+  twin: { eggs: [[-8, 10, 42], [9, 10, 36]], h: 46 },
+  monolith: { eggs: [[0, 14, 52]], h: 56, bands: true }
 };
+const STONE_BASE_Y = -4;
 
 function stoneScale(level) {
   return 0.95 + level / 140;
@@ -828,10 +801,42 @@ function stoneHeight(s) {
   return STONE_SHAPES[s.stoneType.look.shape].h * stoneScale(s.level) + (s.stoneType.look.crown ? 14 : 0);
 }
 
-function stonePath(ctx, pts) {
+// Eiform: unten breiter, oben stumpf gerundet; Fuß bei y = 0
+function eggPath(ctx, x, w, h) {
   ctx.beginPath();
-  pts.forEach(([x, y], k) => (k ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.moveTo(x, -h);
+  ctx.bezierCurveTo(x + w * 0.62, -h, x + w * 1.02, -h * 0.5, x + w, -h * 0.28);
+  ctx.bezierCurveTo(x + w * 0.98, -h * 0.04, x + w * 0.6, 0, x, 0);
+  ctx.bezierCurveTo(x - w * 0.6, 0, x - w * 0.98, -h * 0.04, x - w, -h * 0.28);
+  ctx.bezierCurveTo(x - w * 1.02, -h * 0.5, x - w * 0.62, -h, x, -h);
   ctx.closePath();
+}
+
+// Adern und Risse eines Steins: feste Zufallslinien über die Schale (je Sorte gleich)
+const stoneVeinCache = new Map();
+function stoneVeins(type, count, seed) {
+  const key = type.level + ':' + seed;
+  if (stoneVeinCache.has(key)) return stoneVeinCache.get(key);
+  let r = (type.level * 97 + seed * 31) % 2147483647 || 7;
+  const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+  const lines = [];
+  for (const [ex, w, h] of STONE_SHAPES[type.look.shape].eggs) {
+    for (let v = 0; v < count; v++) {
+      let u = seed ? 0.3 + rnd() * 0.4 : 0.08 + rnd() * 0.1;
+      let a = (rnd() - 0.5) * 1.6;
+      const pts = [];
+      for (let k = 0; k < 5; k++) {
+        // u: Höhe 0..1, a: seitlich −1..1 (sichtbare Vorderseite)
+        const half = Math.sin(Math.acos(1 - 2 * Math.min(0.98, u)));
+        pts.push([ex + a * w * 0.85 * half, STONE_BASE_Y - u * h]);
+        u = Math.min(0.95, u + (seed ? (rnd() - 0.5) * 0.3 : 0.12 + rnd() * 0.08));
+        a = Math.max(-1, Math.min(1, a + (rnd() - 0.5) * 0.6));
+      }
+      lines.push(pts);
+    }
+  }
+  stoneVeinCache.set(key, lines);
+  return lines;
 }
 
 // Fester Teil des Steins, einmal gebacken
@@ -839,49 +844,108 @@ function stoneArt(ctx, type) {
   const look = type.look;
   const sh = STONE_SHAPES[look.shape];
   const k = stoneScale(type.level);
+  const stone = mixColor('#8c867c', look.base, 0.35);
   ctx.scale(k, k);
-  if (look.thorns) {
-    // Dornenranken um den Fuß
-    ctx.strokeStyle = '#3a5a2a';
-    ctx.lineWidth = 2.2;
-    ctx.beginPath();
-    ctx.moveTo(-20, 6);
-    ctx.bezierCurveTo(-24, -14, 10, -20, 18, -30);
-    ctx.moveTo(20, 6);
-    ctx.bezierCurveTo(24, -10, -12, -16, -16, -34);
-    ctx.stroke();
-  }
-  const g = ctx.createLinearGradient(0, -sh.h, 0, 8);
-  g.addColorStop(0, look.top);
-  g.addColorStop(1, look.base);
-  ctx.fillStyle = g;
-  stonePath(ctx, sh.body);
-  ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.14)';
-  stonePath(ctx, sh.face);
-  ctx.fill();
-  if (look.ice || look.crystal) {
-    ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-    ctx.lineWidth = 1.2;
-    for (const [x0, y0, x1, y1] of [[-8, -34, -4, -14], [6, -30, 8, -20], [-14, -12, -12, -4]]) {
+  // Wiege: flacher Sockel mit Geröll
+  dot(ctx, 0, 4, 24, 8, darker(stone, 0.2));
+  dot(ctx, 0, 1, 21, 6.5, stone);
+  if (look.lava) dot(ctx, 0, 1, 16, 4.5, '#ff7a2a');
+  for (const [x, y, r] of [[-22, 6, 4], [20, 7, 3.5], [-10, 9, 3], [11, 9, 3]]) dot(ctx, x, y, r, r * 0.7, darker(stone, 0.12));
+  if (look.ice) {
+    ctx.fillStyle = '#e8f6ff';
+    for (const [x, hgt] of [[-20, 14], [-14, 9], [16, 12], [21, 8]]) {
       ctx.beginPath();
-      ctx.moveTo(x0, y0);
-      ctx.lineTo(x1, y1);
-      ctx.stroke();
-    }
-  }
-  if (look.thorns) {
-    ctx.fillStyle = '#4a6a2a';
-    for (const [x, y] of [[-17, -8], [8, -22], [-6, -24], [13, -12]]) {
-      ctx.beginPath();
-      ctx.moveTo(x - 2.5, y);
-      ctx.lineTo(x, y - 5);
-      ctx.lineTo(x + 2.5, y);
+      ctx.moveTo(x - 3, 4);
+      ctx.lineTo(x + (x < 0 ? -2 : 2), 4 - hgt);
+      ctx.lineTo(x + 3, 4);
       ctx.fill();
     }
   }
-  // Sockel aus Geröll
-  for (const [x, y, r] of [[-18, 6, 4], [16, 7, 3.5], [-6, 9, 3], [8, 9, 2.5]]) dot(ctx, x, y, r, r * 0.7, darker(look.base, 0.2));
+  // Eier mit Verlauf, Umriss und Glanz
+  for (const [ex, w, h] of sh.eggs) {
+    ctx.save();
+    ctx.translate(0, STONE_BASE_Y);
+    const shell = lighter(look.base, 0.12);
+    const g = ctx.createLinearGradient(ex - w, -h, ex + w, 0);
+    g.addColorStop(0, lighter(look.top, 0.2));
+    g.addColorStop(0.55, shell);
+    g.addColorStop(1, darker(look.base, 0.15));
+    ctx.fillStyle = g;
+    eggPath(ctx, ex, w, h);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(20,12,10,0.75)';
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath();
+    ctx.ellipse(ex - w * 0.38, -h * 0.68, w * 0.22, h * 0.16, -0.35, 0, Math.PI * 2);
+    ctx.fill();
+    if (sh.bands) {
+      ctx.strokeStyle = look.shape === 'monolith' ? '#c9a35a' : darker(look.base, 0.3);
+      ctx.lineWidth = 2.2;
+      for (const u of [0.32, 0.68]) {
+        const half = Math.sin(Math.acos(1 - 2 * u)) * w;
+        ctx.beginPath();
+        ctx.ellipse(ex, -u * h, half, half * 0.22, 0, 0, Math.PI);
+        ctx.stroke();
+      }
+    }
+    if (look.thorns) {
+      ctx.fillStyle = '#4a3220';
+      for (const [u, a] of [[0.25, -0.9], [0.5, 0.95], [0.7, -0.7], [0.4, 0.2]]) {
+        const half = Math.sin(Math.acos(1 - 2 * u)) * w;
+        const x = ex + a * half;
+        ctx.beginPath();
+        ctx.moveTo(x - 2.5, -u * h);
+        ctx.lineTo(x + a * 5, -u * h - 5);
+        ctx.lineTo(x + 2.5, -u * h);
+        ctx.fill();
+      }
+    }
+    if (look.crystal || sh.shards) {
+      ctx.fillStyle = look.crystal ? '#ff8a9a' : look.top;
+      for (const [dx, ang] of [[-0.4, -0.5], [0.35, 0.45]]) {
+        ctx.save();
+        ctx.translate(ex + dx * w, -h * 0.82);
+        ctx.rotate(ang);
+        ctx.beginPath();
+        ctx.moveTo(-2.5, 0);
+        ctx.lineTo(0, -9);
+        ctx.lineTo(2.5, 0);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+    if (look.crown) {
+      ctx.fillStyle = '#e8c46a';
+      for (let c = -2; c <= 2; c++) {
+        const x = ex + c * w * 0.32;
+        const y = -h * (0.9 - Math.abs(c) * 0.06);
+        ctx.beginPath();
+        ctx.moveTo(x - 2.5, y);
+        ctx.lineTo(x + c * 1.2, y - 9 + Math.abs(c) * 1.5);
+        ctx.lineTo(x + 2.5, y);
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+  // Krallen der Wiege, vorn über dem Ei
+  ctx.strokeStyle = darker(stone, 0.35);
+  ctx.lineCap = 'round';
+  const [ex0, w0, h0] = sh.eggs[0];
+  for (const side of [-1, 1]) {
+    const x0 = ex0 + side * (w0 + 4);
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(x0, 2);
+    ctx.quadraticCurveTo(x0 + side * 2, STONE_BASE_Y - h0 * 0.3, ex0 + side * w0 * 0.55, STONE_BASE_Y - h0 * 0.5);
+    ctx.stroke();
+    ctx.strokeStyle = stone;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.strokeStyle = darker(stone, 0.35);
+  }
 }
 
 function stoneSprite(type) {
@@ -906,41 +970,44 @@ function drawStone(ctx, s) {
     ctx.globalAlpha = 1;
   }
   ctx.scale(k, k);
-  // leuchtende Runen
+  // leuchtende Adern und das Runen-Auge vorn
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.strokeStyle = look.rune;
   ctx.globalAlpha = 0.55 + pulse * 0.45;
-  ctx.lineWidth = 2;
-  for (const line of sh.runes) {
+  ctx.lineWidth = 1.6;
+  for (const line of stoneVeins(type, 3, 0)) {
     ctx.beginPath();
     line.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
     ctx.stroke();
   }
-  // Glutrisse
-  if (look.lava) {
-    ctx.strokeStyle = '#ffb04a';
-    ctx.lineWidth = 1.4;
-    ctx.beginPath();
-    ctx.moveTo(-12, 4); ctx.lineTo(-6, -8); ctx.lineTo(-9, -18);
-    ctx.moveTo(10, 2); ctx.lineTo(6, -10); ctx.lineTo(11, -20);
-    ctx.stroke();
-  }
+  const [ex0, , h0] = sh.eggs[0];
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.arc(ex0, STONE_BASE_Y - h0 * 0.42, 4.5, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.globalAlpha = 1;
-  // Risse, je weniger Leben, desto mehr
-  const dmg = 1 - s.hp / s.maxHp;
-  ctx.strokeStyle = 'rgba(10,8,14,0.85)';
-  ctx.lineWidth = 1.5;
-  if (dmg > 0.25) { ctx.beginPath(); ctx.moveTo(-12, -14); ctx.lineTo(-4, -8); ctx.lineTo(-8, 2); ctx.stroke(); }
-  if (dmg > 0.5) { ctx.beginPath(); ctx.moveTo(12, -16); ctx.lineTo(4, -26); ctx.lineTo(8, -34); ctx.stroke(); }
-  if (dmg > 0.75) { ctx.beginPath(); ctx.moveTo(-6, -36); ctx.lineTo(0, -28); ctx.lineTo(-2, -18); ctx.stroke(); }
+  glow(ctx, ex0, STONE_BASE_Y - h0 * 0.42, 8, look.glow, 0.3 + pulse * 0.25);
+  // Risse: bei 75, 50 und 25 % Leben bricht die Schale weiter auf und glüht
+  const hpk = s.hp / s.maxHp;
+  const stage = hpk <= 0.25 ? 3 : hpk <= 0.5 ? 2 : hpk <= 0.75 ? 1 : 0;
+  if (stage) {
+    ctx.strokeStyle = lighter(look.rune, 0.35);
+    ctx.lineWidth = 2.4;
+    const cracks = stoneVeins(type, 3, 1);
+    for (let c = 0; c < Math.min(cracks.length, stage * 2); c++) {
+      ctx.beginPath();
+      cracks[c].forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.stroke();
+    }
+  }
   // Schwebende Splitter um die Spitze (Stein des Untergangs und Monolithen)
   if (look.crown || look.shape === 'monolith') {
     const n = look.crown ? 6 : 3;
     for (let i = 0; i < n; i++) {
       const a = game.time * 1.2 + (i / n) * Math.PI * 2 + s.phase;
       const x = Math.cos(a) * 18;
-      const y = -sh.h - 8 + Math.sin(a) * 5;
+      const y = -sh.h - 4 + Math.sin(a) * 5;
       ctx.fillStyle = Math.sin(a) > 0 ? look.rune : look.top;
       ctx.beginPath();
       ctx.moveTo(x, y - 4);

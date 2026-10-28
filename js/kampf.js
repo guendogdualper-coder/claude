@@ -198,6 +198,7 @@ function killMonster(m) {
   if (net.mode === 'host') netBroadcastKill(m);
   // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
   if (net.mode !== 'host' || netShares(m, m.hostHitAt)) rewardKill(m);
+  if (m.isStone) killStoneMinions(m);
 }
 
 function monsterDeathFx(m) {
@@ -219,7 +220,9 @@ function rewardKill(m) {
   const p = game.player;
   const xp = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
-  const gold = Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : 1));
+  // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
+  const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
+  const gold = Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : sd ? Math.max(1.2, sd.gold * 0.7) : 1));
   p.gold += gold;
   p.kills++;
   // Gold erscheint klein beim Monster, die Erfahrung groß über der eigenen Figur (gainXp)
@@ -246,7 +249,8 @@ function rewardKill(m) {
   } else {
     questEvent('kill', m);
     const sz = potionSizeFor(m.level).id;
-    for (const [kind, chance] of [['hp', 0.06], ['mp', 0.04]]) {
+    const potMul = sd ? (sd.potions[0] >= 3 ? 5 : 3) : 1;
+    for (const [kind, chance] of [['hp', 0.06 * potMul], ['mp', 0.04 * potMul]]) {
       if (Math.random() >= chance) continue;
       const key = potKey(kind, sz);
       p.potions[key] = (p.potions[key] || 0) + 1;
@@ -351,12 +355,13 @@ function weaponKindOf(p) {
   return w && w.kind ? w.kind : CLASS_WEAPON_KINDS[p.classId][0];
 }
 
-const MELEE_KINDS = new Set(['sword', 'greatsword', 'dagger', 'scythe']);
+const MELEE_KINDS = new Set(['sword', 'axe', 'greatsword', 'greataxe', 'dagger', 'scythe']);
 
 // Normaler Angriff je Waffenart: der Bogen schießt, Zweihänder und Sense schlagen weiter
 const KIND_BASIC = {
   bow: { range: 250, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
+  greataxe: { range: 60, cooldown: 0.88, ranged: false },
   scythe: { range: 62, cooldown: 0.85, ranged: false }
 };
 
