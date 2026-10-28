@@ -381,6 +381,7 @@ function tryBasicAttack() {
     const hand = bodyCenter(p);
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
     spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, basic: true });
+    netSkillFx('_shot', basic.range, { c: basic.color, st: basic.style });
   } else {
     p.combo = ((p.combo || 0) + 1) % 3;
     startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
@@ -419,6 +420,7 @@ function useSkill(i) {
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   p.mp -= sk.mp;
   p.skillCd[i] = sk.cooldown;
+  netSkillFx(sk.id);
   // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
   if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
     startSwing(p, 'pose', 0.7);
@@ -760,6 +762,16 @@ function updateProjectiles(dt) {
     if (pr.trail.length > 9) pr.trail.shift();
     if (pr.traveled > pr.range) { pr.done = true; continue; }
 
+    // Geschosse von Mitspielern: nur zum Ansehen, sie enden am ersten Monster
+    if (pr.owner === 'remote') {
+      for (const m of game.monsters) {
+        if (m.dead || Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
+        pr.done = true;
+        vfxImpact(m, false, pr.color);
+        break;
+      }
+      continue;
+    }
     if (pr.owner === 'player') {
       // Duellgegner: Geschosse treffen auch ihn
       const foe = duelFighting() ? game.duel.proxy : null;

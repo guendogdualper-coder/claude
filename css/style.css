@@ -2230,3 +2230,11 @@ kbd {
 .opt-val { flex: 0 0 44px; text-align: right; font-size: 13px; color: #f0cf6a; }
 .opt-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 @media (max-width: 560px) { .opt-btns { grid-template-columns: 1fr; } .opt-row { flex-wrap: wrap; } }
+
+/* --- Version 3.8: kein Zoomen beim Doppeltippen, Installationshilfe ------------------------ */
+*, *::before, *::after { touch-action: manipulation; }
+#welt, .stick-zone, .stick, .touch-attack { touch-action: none; }
+.install-box { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
+.install-help { max-width: 560px; padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; background: rgba(255, 240, 210, 0.06); border: 1px solid rgba(201, 163, 90, 0.35); }
+.install-help p { margin: 4px 0; }
+.ios-share { display: inline-block; padding: 0 6px; border-radius: 5px; color: #9fd0ff; border: 1px solid #5a8ad8; }

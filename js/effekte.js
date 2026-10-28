@@ -9,6 +9,7 @@ const TEXT_STYLES = {
   heal: { color: '#8ff08f', size: 24 },
   mana: { color: '#8fb8ff', size: 21 },
   xp: { color: '#d6b8ff', size: 19 },
+  other: { color: '#d8e8f0', size: 19 },
   xpgain: { color: '#e8d4ff', size: 24, glow: '#9a5ae8' },
   gold: { color: '#f0cf6a', size: 17 },
   info: { color: '#e8e0cc', size: 17 },

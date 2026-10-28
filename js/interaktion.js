@@ -514,3 +514,85 @@ function remotePlayerAt(wx, wy) {
   }
   return best;
 }
+
+// --- Angriffe der Mitspieler sichtbar machen ------------------------------------------------------
+// Nur Bild und Bewegung: Schaden machen sie auf ihrem eigenen Gerät, der Host verrechnet ihn.
+function remoteSkillFx(rp, d) {
+  if (!rp || !d) return;
+  rp.facing = { x: d.fx, y: d.fy };
+  const ang = Math.atan2(d.fy, d.fx);
+  const trim = CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff';
+  const target = { x: d.tx, y: d.ty };
+  if (d.s === '_shot') {
+    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? 620 : 480, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st });
+    return;
+  }
+  const sk = skillById(d.s);
+  if (!sk) return;
+  const col = skillColor(sk, trim);
+  const blade = MELEE_KINDS.has(weaponKindOf(rp)) ? playerBlade(rp) : null;
+  switch (sk.type) {
+    case 'cone': {
+      const spread = (sk.angle || 90) * Math.PI / 180;
+      const hits = sk.hits || 1;
+      for (let h = 0; h < Math.min(hits, 5); h++) {
+        later(h * (hits > 3 ? 0.17 : 0.13), () => {
+          const from = h % 2 ? ang + spread / 2 : ang - spread / 2;
+          const to = h % 2 ? ang - spread / 2 : ang + spread / 2;
+          if (sk.burn) {
+            const b = bodyCenter(rp);
+            particles(b.x + d.fx * 10, b.y + d.fy * 6, { count: 30, color: ['#ffd34d', '#ff9a4a', '#ff5a2a'], angle: ang, spread: spread / 2, speed: [sk.radius * 1.4, sk.radius * 3], life: [0.25, 0.5], size: [2.5, 5], shape: 'ember', drag: 3 });
+          } else {
+            vfxSweep(rp, sk.radius * 0.85, from, to, col, 0.3, 30);
+            if (blade) addEffect({ type: 'bladearc', follow: rp, ox: 0, oy: -14, len: sk.radius * 0.8, a0: from, a1: to, dur: 0.28, ...blade });
+          }
+        });
+      }
+      break;
+    }
+    case 'circle': {
+      const a = Math.random() * Math.PI * 2;
+      vfxSweep(rp, sk.radius * 0.85, a, a + Math.PI * 4, col, 0.45, 34);
+      if (blade) addEffect({ type: 'bladespin', follow: rp, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: 2, count: 2, dir: 1, dur: 0.6, color: col, ...blade });
+      addEffect({ type: 'ring', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
+      rp.spin = 0.5;
+      break;
+    }
+    case 'dash':
+      addEffect({ type: 'ring', x: rp.x, y: feetY(rp), r: 40, dur: 0.4, color: col, width: 6, grow: true });
+      for (let k = 1; k <= 5; k++) later(k * 0.04, () => particles(rp.x, feetY(rp), { count: 3, color: ['#a88f62', col], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false }));
+      break;
+    case 'strike': {
+      const c = sk.color || col;
+      addEffect({ type: 'slash', x: target.x, y: target.y - 18, ang: 0.75, len: 58, w: 9, dur: 0.3, color: c });
+      later(0.07, () => addEffect({ type: 'slash', x: target.x, y: target.y - 18, ang: -0.75, len: 58, w: 9, dur: 0.3, color: c }));
+      break;
+    }
+    case 'projectile':
+      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce });
+      break;
+    case 'blast': {
+      const bolts = sk.fx === 'storm' ? 6 : 1;
+      if (sk.fx === 'poison') {
+        addEffect({ type: 'ring', x: target.x, y: target.y, r: sk.radius, dur: 0.5, color: '#8fd16a', width: 8, grow: true });
+        particles(target.x, target.y - 8, { count: 24, color: ['#8fd16a', '#5a8a3a'], speed: [30, 120], life: [0.8, 1.4], size: [5, 10], drag: 2, glow: false, jitter: sk.radius * 0.5 });
+        break;
+      }
+      for (let k = 0; k < bolts; k++) later(k * 0.08, () => addEffect({ type: 'bolt', x: target.x + (k ? rand(-sk.radius, sk.radius) * 0.7 : 0), y: target.y + (k ? rand(-sk.radius, sk.radius) * 0.4 : 0), dur: 0.45, color: '#cfe8ff' }));
+      later(0.12, () => addEffect({ type: 'ring', x: target.x, y: target.y, r: sk.radius, dur: 0.4, color: '#9fd0ff', width: 8 }));
+      break;
+    }
+    case 'drain':
+      addEffect({ type: 'beam', x: target.x, y: target.y - 18, follow2: rp, dur: 0.45, color: '#c43a5a' });
+      break;
+    case 'summon':
+      addEffect({ type: 'runes', follow: rp, ox: 0, oy: 8, r: 40, dur: 0.9, color: '#a7e37f' });
+      break;
+    case 'curse':
+      addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: sk.color || '#a774e0' });
+      break;
+    default:
+      // Buffs und Heilung: Lichtsäule (die Kraftpose kommt schon über den Zustand)
+      vfxPillar(rp, col);
+  }
+}

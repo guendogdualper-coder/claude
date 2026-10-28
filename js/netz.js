@@ -279,7 +279,10 @@ function netOnHostData(conn, d) {
   if (!rp) return;
   if (d.t === 'st') netApplyState(rp, d.s);
   else if (d.t === 'dmg') netHostDamage(rp, d);
-  else if (d.t === 'rel') {
+  else if (d.t === 'fx') {
+    remoteSkillFx(rp, d);
+    netBroadcast({ ...d, from: id }, id);
+  } else if (d.t === 'rel') {
     // Nachricht an einen Spieler: an den Host selbst oder weiter an den Empfänger
     if (d.to === 'host') onSocial(id, d.d);
     else netSendTo(d.to, { t: 'rel', from: id, d: d.d });
@@ -432,6 +435,9 @@ function netOnClientData(d) {
     case 'pi':
       netSend({ t: 'po', s: d.s });
       break;
+    case 'fx':
+      remoteSkillFx(net.players.get(d.from), d);
+      break;
     case 'rel':
       onSocial(d.from, d.d);
       break;
@@ -490,6 +496,13 @@ function netApplySnapshot(d) {
     m.ty = e[2];
     // Eigene Treffer, die der Host noch nicht verrechnet hat, bleiben kurz abgezogen
     const pending = game.time - (m.pendAt || -9) < 0.4 ? m.pend || 0 : 0;
+    // Treffer anderer Spieler: Zahl und Aufblitzen auch bei mir
+    const lost = (m.hostHp != null ? m.hostHp : e[3]) - e[3];
+    if (lost > 0 && !m.dead && game.time - (m.myHitAt || -9) > 0.35 && opts.numbers) {
+      m.hitFlash = 0.1;
+      addText(m.x, feetY(m) - figureHeight(m) * 0.85, String(lost), 'other');
+    }
+    m.hostHp = e[3];
     m.hp = Math.max(flags & 1 ? 0 : 1, e[3] - pending);
     m.dead = !!(flags & 1);
     m.moving = !!(flags & 2);
@@ -581,6 +594,20 @@ function netBroadcast(d, except) {
   for (const [id, c] of net.conns) if (id !== except && c.open) c.send(d);
 }
 
+// Fertigkeiten und Fernschüsse: Mitspieler sehen sie als Effekt (ohne eigenen Schaden).
+// Ziel ist das gewählte Monster, sonst ein Punkt in Blickrichtung.
+function netSkillFx(id, range = 160, extra = {}) {
+  if (!netOnline()) return;
+  const p = game.player;
+  const t = game.target && !game.target.dead && dist(game.target, p) < 520 ? game.target : null;
+  const d = {
+    t: 'fx', s: id, x: Math.round(p.x), y: Math.round(p.y), fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2),
+    tx: Math.round(t ? t.x : p.x + p.facing.x * range), ty: Math.round(t ? t.y : p.y + p.facing.y * range), ...extra
+  };
+  if (net.mode === 'host') netBroadcast({ ...d, from: 'host' });
+  else netSend(d);
+}
+
 // Ultimative Attacke: Mitspieler sehen das Schauspiel an der Stelle
 function netUltimateFx(id, x, y) {
   const d = { t: 'ult', u: id, x: Math.round(x), y: Math.round(y) };
@@ -649,6 +676,7 @@ function netApplyState(rp, s) {
       rp.combo = s.sw[2];
       rp.swingDur = s.sw[3];
       rp.swing = s.sw[3];
+      if (rp.swingKind === 'combo' && MELEE_KINDS.has(weaponKindOf(rp))) vfxSwing(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff');
       if (rp.swingKind === 'pose') vfxPowerUp(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffd34d');
     }
     rp.seq = s.sw[0];

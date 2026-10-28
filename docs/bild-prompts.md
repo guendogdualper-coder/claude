@@ -973,3 +973,15 @@ Mobile game settings window in landscape, dark leather and gold fantasy style: a
 ```
 2D fantasy MMORPG character lineup, cute chibi style: a ninja with split-toe tabi boots and crossed straps, a shaman in a teal robe with embroidered golden zigzag hem and soft cloth folds, a hooded necromancer with a faintly glowing green rune on the chest and stitched patches on the robe, each with detailed eyes and hands. Bold outlines, cel shading.
 ```
+
+## Als App und Angriffe der Mitspieler (Version 3.8)
+
+### Als App installieren
+```
+Mobile phone mockup in landscape: the Seelenstein start screen with a button "📲 Als App installieren" and a small help card showing the Safari share icon and "Zum Home-Bildschirm"; next to it the home screen of an iPhone with a new app icon "Seelenstein" (a glowing soul stone on a dark background). Clean, friendly style.
+```
+
+### Mitspieler kämpfen gemeinsam
+```
+2D fantasy MMORPG screenshot, three-quarter top-down view in a dark pine forest: two chibi players fight bandits side by side, the warrior spins with a glowing giant sword whirl while the ninja throws a green poison dart; damage numbers of both players float above the bandits, the other player's numbers in pale blue-white. Cute game art, bold outlines.
+```

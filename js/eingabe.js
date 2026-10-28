@@ -218,3 +218,8 @@ function cycleTarget() {
 function interact() {
   if (game.nearNpc) ui.openNpc(game.nearNpc);
 }
+
+// Kein Zoomen mit zwei Fingern oder per Doppelklick; das Doppeltippen sperrt touch-action: manipulation im CSS
+// (Safari ignoriert user-scalable=no)
+document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });

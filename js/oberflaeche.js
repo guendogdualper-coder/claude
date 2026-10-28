@@ -77,6 +77,7 @@ const ui = {
       startGame(save);
       saveGame();
     });
+    this.setupInstall();
     this.buildClassGrid();
     this.createLook = { ...DEFAULT_LOOKS[this.selectedClass] };
     this.renderCreateLook();
@@ -89,6 +90,27 @@ const ui = {
       ui.log('Dein neues Aussehen steht dir gut.', 'level');
     });
     $('versionText').textContent = 'Version ' + GAME_VERSION;
+  },
+
+  // Als App installieren: Android fragt selbst (beforeinstallprompt), am iPhone zeigen wir den Weg.
+  // Läuft das Spiel schon als App (Home-Bildschirm), bleibt der Knopf weg.
+  setupInstall() {
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    if (standalone) return;
+    $('installBox').hidden = false;
+    let prompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      prompt = e;
+    });
+    $('btnInstall').addEventListener('click', () => {
+      if (prompt) {
+        prompt.prompt();
+        prompt.userChoice.finally(() => { prompt = null; });
+        return;
+      }
+      $('installHelp').hidden = !$('installHelp').hidden;
+    });
   },
 
   // Aussehen bei der Erstellung
