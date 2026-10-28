@@ -1431,3 +1431,25 @@ Mobile MMORPG minimap and world view: a flickering violet dungeon rift in a mead
 ```
 Small dark game notification bar with a golden rim at the top center of a mobile fantasy MMORPG: text "Der Host spielt schon Version 6.1. Bitte neu laden." and a glowing golden button "Jetzt neu laden". Clean, readable.
 ```
+
+## Eigene Maps statt Ringe (Version 6.2)
+
+### Weltkarte mit getrennten Maps
+```
+Illustrated world map overview for a cozy East-Asian fantasy MMORPG, drawn like an atlas page on aged parchment: nine separate island-like map panels floating apart from each other, connected only by thin glowing blue teleport lines between their central camps – Vlotho (walled city with green Sonnenwiesen meadows and cherry trees, level 1–9), Dunkelwald (dark pine forest, 10–19), Orktal (dusty ochre canyon with orc camps, 20–29), Ödland (grey ash plain, 30–39), Schlangental (desert oasis city with naga jungle, 30–50), Frostgipfel (snowy peaks, 40–49), Totenmoor (misty swamp, 50–59), Donnerklamm (storm canyon fortress, 50–75), Feuerberg (black basalt with lava rivers, 60–70). Each panel has a small safe camp in the center with a ring-shaped world gate, a rocky border, dungeon entrances marked with colored arches. Clear labels and level ranges, hand-painted, warm colors.
+```
+
+### Lager mit Weltentor
+```
+Top-down three-quarter view of a small safe camp in the middle of a dark pine forest map in a stylized 3D toon MMORPG: a square cobblestone plaza, a glowing white-blue ring-shaped world gate at the north edge, two warm braziers, a wooden well, a merchant stall with a red-and-white awning and a friendly trader, barrels and crates, four lanterns at the corners; dense pine trees and spiders lurking just outside the plaza. Cozy, readable, thin dark outlines.
+```
+
+### Weltentor-Fenster
+```
+Fantasy game travel window "Weltentor" in dark wood with gold trim: a list of map cards sorted by level – Vlotho (Stufe 1–9), Dunkelwald (10–19), Orktal (20–29), Ödland (30–39), Schlangental (30–50), Frostgipfel (40–49), Totenmoor (50–59), Donnerklamm (50–75), Feuerberg (60–70) – each with a short description and a button "Reisen", "Du bist hier" or a greyed "ab Stufe 40". Clean, readable.
+```
+
+### Ausgewogener Kampf
+```
+Stylized 3D chibi MMORPG combat comparison in three panels: a level-40 hero fighting a same-level frost yeti in a fair, tense fight with a half-empty health bar; the same hero barely surviving against a level-50 monster while drinking a glowing red potion; and fleeing from a towering level-60 lava golem whose single hit takes a third of the health bar. Thin dark outlines, soft toon shading, readable UI numbers.
+```

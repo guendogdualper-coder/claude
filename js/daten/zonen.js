@@ -1,5 +1,7 @@
-// Die Welt besteht aus Ringen um das Dorf. Je weiter weg, desto stärker die Monster.
-// minDist/maxDist   Abstand vom Dorfzentrum in Kacheln
+// Seit Version 6.2 ist jedes Gebiet eine eigene Map (WORLD_MAPS), erreichbar nur über das Weltentor im
+// Lager der Map. Map 1 ist Vlotho mit den Sonnenwiesen; jede andere Map hat in der Mitte ein kleines Lager.
+// map               Map, zu der das Gebiet gehört
+// minDist/maxDist   Abstand von der Mitte der Map in Kacheln
 // groups            [Monsterart, Anzahl Gruppen, von, bis] – von/bis: Bereich innerhalb des Rings,
 //                   0 = innerer Rand (dorfnah), 1 = äußerer Rand
 // groupSize         [min, max] Monster pro Gruppe
@@ -8,53 +10,53 @@
 // ambient           Stimmung: schwebende Teilchen (kind) und eine leichte Färbung des Bildes (tint, RGBA)
 const ZONES = [
   {
-    id: 'dorf', name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 15, safe: true,
+    id: 'dorf', map: 1, name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 15, safe: true,
     ground: 'GRASS'
   },
   {
-    id: 'wiesen', name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 49,
+    id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 999,
     ground: 'GRASS', alt: 'MEADOW', trees: 0.02, treeObj: 'TREE', rocks: 0.008, water: 0.22, liquid: 'WATER',
     groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1]], groupSize: [3, 5],
     stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
     ambient: { kind: 'pollen' }
   },
   {
-    id: 'wald', name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, minDist: 49, maxDist: 71,
+    id: 'wald', map: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, minDist: 8, maxDist: 999,
     ground: 'FOREST', trees: 0.1, treeObj: 'PINE', rocks: 0.012, water: 0.2, liquid: 'WATER',
     groups: [['bandit', 8, 0, 0.6], ['banditschuetze', 6, 0.2, 0.8], ['waldspinne', 8, 0.35, 1], ['braunbaer', 6, 0.6, 1]], groupSize: [3, 4],
     stones: [[15, 3, 0, 0.6], [20, 2, 0.5, 1]],
     ambient: { kind: 'fireflies', tint: [10, 30, 20, 0.12] }
   },
   {
-    id: 'orktal', name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, minDist: 71, maxDist: 90,
+    id: 'orktal', map: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999,
     ground: 'SAND', trees: 0.015, treeObj: 'DEADTREE', rocks: 0.06, water: 0.12, liquid: 'WATER',
     groups: [['ork', 9, 0, 0.6], ['orkschamane', 7, 0.3, 0.9], ['skorpion', 8, 0.2, 1], ['orkhauptmann', 5, 0.65, 1]], groupSize: [3, 5],
     stones: [[25, 3, 0, 0.6], [30, 2, 0.55, 1]],
     ambient: { kind: 'dust', tint: [80, 50, 10, 0.08] }
   },
   {
-    id: 'oedland', name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, minDist: 90, maxDist: 109,
+    id: 'oedland', map: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, minDist: 8, maxDist: 999,
     ground: 'ASH', trees: 0.018, treeObj: 'DEADTREE', rocks: 0.07, water: 0.1, liquid: 'BOG',
     groups: [['oger', 9, 0, 0.6], ['daemon', 10, 0.3, 1], ['hoellenhund', 9, 0.5, 1]], groupSize: [2, 4],
     stones: [[35, 3, 0, 0.6], [40, 2, 0.55, 1]],
     ambient: { kind: 'ash', tint: [40, 20, 20, 0.12] }
   },
   {
-    id: 'frost', name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 109, maxDist: 127,
+    id: 'frost', map: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999,
     ground: 'SNOW', trees: 0.05, treeObj: 'PINE', rocks: 0.04, water: 0.16, liquid: 'ICE',
     groups: [['eiswolf', 11, 0, 0.7], ['yeti', 9, 0.3, 1], ['frostgeist', 9, 0.45, 1]], groupSize: [2, 4],
     stones: [[45, 3, 0, 0.6], [50, 2, 0.55, 1]],
     ambient: { kind: 'snow', tint: [120, 160, 220, 0.1] }
   },
   {
-    id: 'moor', name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, minDist: 127, maxDist: 145,
+    id: 'moor', map: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, minDist: 8, maxDist: 999,
     ground: 'SWAMP', trees: 0.04, treeObj: 'DEADTREE', rocks: 0.02, water: 0.28, liquid: 'BOG',
     groups: [['untoter', 11, 0, 0.7], ['sumpfhexe', 9, 0.3, 1], ['ghul', 10, 0.45, 1]], groupSize: [2, 4],
     stones: [[55, 3, 0, 0.6], [60, 2, 0.55, 1]],
     ambient: { kind: 'wisps', tint: [20, 50, 30, 0.16] }
   },
   {
-    id: 'vulkan', name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, minDist: 145, maxDist: 999,
+    id: 'vulkan', map: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, minDist: 8, maxDist: 999,
     ground: 'BASALT', trees: 0.01, treeObj: 'DEADTREE', rocks: 0.08, water: 0.2, liquid: 'LAVA',
     groups: [['lavagolem', 10, 0, 0.6], ['feuerdaemon', 11, 0.2, 1], ['feuerdrache', 8, 0.4, 1]], groupSize: [2, 4],
     stones: [[65, 4, 0, 0.6], [70, 3, 0.4, 1]],
@@ -62,49 +64,49 @@ const ZONES = [
   }
 ];
 
-// Ringe um das Dorf; danach folgen in ZONES die Dungeons
+// Gebiete von Map 1 und den neuen Maps 4–9; danach folgen in ZONES die Dungeons und die Gebiete der Maps 2 und 3
 const RING_ZONES = ZONES.length;
 
 // Dungeons: abgeschlossene Höhlen und Festungen in einem eigenen Streifen östlich der Welt.
 // Man betritt sie über einen Eingang in ihrem Gebiet. Drei Räume mit Monstern, am Ende ein Boss.
-// entry   Lage des Eingangs: Richtung des Weges vom Dorf, Abstand vom Dorf, Versatz neben dem Weg
+// entry   Lage des Eingangs: Map, Richtung des Weges vom Lager, Abstand vom Lager, Versatz neben dem Weg
 // floor   Boden; wall: Farben der Wände (Oberseite, Vorderseite, Fugen bzw. Glut)
 // mobs    Monsterarten in den Räumen; boss: Bossart (siehe MONSTER_TYPES)
 // stones  Stufen der beiden Seelensteine im Dungeon (kommen schneller wieder als draußen)
 const DUNGEONS = [
   {
-    id: 'spinnenhoehle', name: 'Spinnenhöhle', minLevel: 18, entry: { dir: [0, -1], dist: 60, side: 4 }, floor: 'CAVE',
+    id: 'spinnenhoehle', name: 'Spinnenhöhle', minLevel: 18, entry: { map: 4, dir: [0, -1], dist: 28, side: 4 }, floor: 'CAVE',
     wall: { top: '#1c1520', face: '#0c080e', line: '#4a3a52' }, portal: '#b48cff',
     mobs: ['hoehlenspinne', 'giftspinne'], boss: 'spinnenkoenigin', stones: [20, 20],
     ambient: { kind: 'wisps', tint: [30, 10, 50, 0.13] }
   },
   {
-    id: 'orkfestung', name: 'Orkfestung', minLevel: 28, entry: { dir: [-1, 0], dist: 81, side: 4 }, floor: 'FLAGSTONE',
+    id: 'orkfestung', name: 'Orkfestung', minLevel: 28, entry: { map: 5, dir: [-1, 0], dist: 30, side: 4 }, floor: 'FLAGSTONE',
     wall: { top: '#3c3832', face: '#1e1b18', line: '#55504a' }, portal: '#ff8a4a',
     mobs: ['orkelite', 'orkberserker'], boss: 'kriegsherr', stones: [30, 30],
     ambient: { kind: 'dust', tint: [50, 25, 5, 0.11] }
   },
   {
-    id: 'eisgrotte', name: 'Eisgrotte', minLevel: 45, entry: { dir: [0, 1], dist: 117, side: 4 }, floor: 'ICE',
+    id: 'eisgrotte', name: 'Eisgrotte', minLevel: 45, entry: { map: 7, dir: [0, 1], dist: 28, side: 4 }, floor: 'ICE',
     wall: { top: '#f4fbff', face: '#4a7aa8', line: '#b8d8f0' }, portal: '#9fe8ff',
     mobs: ['eisgolem', 'frostgeist'], boss: 'eiskoenig', stones: [45, 50],
     ambient: { kind: 'snow', tint: [40, 80, 150, 0.12] }
   },
   {
-    id: 'drachenhort', name: 'Drachenhort', minLevel: 63, entry: { dir: [1, 0], dist: 146, side: -4 }, floor: 'BASALT',
+    id: 'drachenhort', name: 'Drachenhort', minLevel: 63, entry: { map: 9, dir: [1, 0], dist: 30, side: -4 }, floor: 'BASALT',
     wall: { top: '#1a1210', face: '#080404', line: '#ff6a2a' }, portal: '#ff6a3a',
     mobs: ['drachenbrut', 'feuerdaemon'], boss: 'urdrache', stones: [65, 70],
     ambient: { kind: 'embers', tint: [90, 20, 0, 0.12] }
   },
   // Version 3.3: vier weitere Dungeons, zwei davon in Map 2 und Map 3 (entry.map)
   {
-    id: 'banditenkeller', name: 'Banditenkeller', minLevel: 10, entry: { dir: [1, 0], dist: 58, side: 4 }, floor: 'FLAGSTONE',
+    id: 'banditenkeller', name: 'Banditenkeller', minLevel: 10, entry: { map: 4, dir: [1, 0], dist: 30, side: 4 }, floor: 'FLAGSTONE',
     wall: { top: '#5a4632', face: '#21180f', line: '#8a6a44' }, portal: '#ffb04a',
     mobs: ['kellerwache', 'armbrustschuetze'], boss: 'banditenfuerst', stones: [10, 15],
     ambient: { kind: 'dust', tint: [40, 25, 10, 0.1] }
   },
   {
-    id: 'totengruft', name: 'Totengruft', minLevel: 38, entry: { dir: [0, -1], dist: 100, side: -4 }, floor: 'CAVE',
+    id: 'totengruft', name: 'Totengruft', minLevel: 38, entry: { map: 6, dir: [0, -1], dist: 28, side: -4 }, floor: 'CAVE',
     wall: { top: '#2e2a34', face: '#100e14', line: '#7a6a9a' }, portal: '#a774e0',
     mobs: ['grabwaechter', 'seelenfresser'], boss: 'gruftkoenig', stones: [40, 40],
     ambient: { kind: 'wisps', tint: [20, 10, 40, 0.14] }
@@ -126,18 +128,22 @@ for (const d of DUNGEONS) {
   ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
 }
 
-// --- Weitere Maps ---------------------------------------------------------------------------
-// Map 2 und Map 3 liegen in eigenen Bereichen der Karte (unter der Oberwelt) und sind nicht zu Fuß
-// erreichbar, nur über das Weltentor in den Städten oder über die Weltportale draußen. In der Mitte
-// jeder Map liegt eine Stadt, darum die Gebiete als Ringe (minDist/maxDist wie oben, ab der Stadt):
-// nah an der Stadt schwache Monster, nach außen immer stärkere.
-// region: [x, y, Breite, Höhe] in Kacheln
-// portals: Weltportale [Richtung x, Richtung y, Abstand von der Stadt, Ziel-Map] – oben links und unten
-// rechts, jeweils in einem Gebiet, dessen Stufe zur Ziel-Map passt; man landet in der Stadt der Ziel-Map
+// --- Maps ---------------------------------------------------------------------------------
+// Jedes Gebiet ist eine eigene Map, nicht zu Fuß erreichbar, nur über das Weltentor im Lager (bzw. in
+// der Stadt). In der Mitte jeder Map liegt ein sicherer Ort; die Gebiete liegen als Ringe darum
+// (minDist/maxDist ab der Mitte): nah am Lager schwächere Monster, nach außen stärkere.
+// region: [x, y, Breite, Höhe] in Kacheln; camp: halbe Breite des sicheren Platzes (Standard CAMP_HALF)
+// portals: Weltportale draußen (seit Version 6.2 keine mehr – nur noch das Weltentor)
 const WORLD_MAPS = [
-  { id: 1, name: 'Vlotho', levels: 'Stufe 1–70', minLevel: 1, text: 'Die große Stadt Vlotho in der Mitte, ringsum Gebiete von Stufe 1 bis 70.', portals: [[-1, -1, 100, 2], [1, 1, 136, 3]] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [0, 300, 200, 200], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [[-1, -1, 40, 1], [1, 1, 82, 3]] },
-  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [200, 300, 200, 200], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [[-1, -1, 40, 2], [1, 1, 82, 1]] }
+  { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 90, 300, 120], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
+  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [0, 0, 100, 90], camp: 7, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
+  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [100, 0, 100, 90], camp: 7, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
+  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [200, 0, 100, 90], camp: 7, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
+  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [0, 300, 200, 200], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
+  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [0, 210, 100, 90], camp: 7, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
+  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [100, 210, 100, 90], camp: 7, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
+  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [200, 300, 200, 200], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [200, 210, 100, 90], camp: 7, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'SAND' },
@@ -155,6 +161,12 @@ const MAP_ZONES = [
     stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
     ambient: { kind: 'fireflies', tint: [10, 40, 20, 0.14] }
   },
+  { id: 'waldlager', map: 4, name: 'Waldlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'FOREST' },
+  { id: 'orklager', map: 5, name: 'Talwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'SAND' },
+  { id: 'aschelager', map: 6, name: 'Aschenlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'ASH' },
+  { id: 'frostlager', map: 7, name: 'Frostlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'SNOW' },
+  { id: 'moorlager', map: 8, name: 'Moorwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'SWAMP' },
+  { id: 'feuerlager', map: 9, name: 'Glutlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'BASALT' },
   { id: 'klammwacht', map: 3, name: 'Klammfeste', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'ASH' },
   {
     id: 'donnerklamm', map: 3, name: 'Donnerklamm', levels: 'Stufe 50–61', minLevel: 50, minDist: 12, maxDist: 55,
@@ -172,7 +184,6 @@ const MAP_ZONES = [
   }
 ];
 for (const wm of WORLD_MAPS) {
-  if (!wm.region) continue;
   const [x, y, w, h] = wm.region;
   wm.cx = x + w / 2;
   wm.cy = y + h / 2;
@@ -180,6 +191,11 @@ for (const wm of WORLD_MAPS) {
 for (const z of MAP_ZONES) {
   const wm = WORLD_MAPS.find((m) => m.id === z.map);
   ZONES.push({ ...z, cx: wm.cx, cy: wm.cy });
+}
+// Gebiete jeder Map, von innen nach außen (für zoneIndexAt)
+const MAP_ZONE_LIST = {};
+for (const wm of WORLD_MAPS) {
+  MAP_ZONE_LIST[wm.id] = ZONES.map((z, i) => i).filter((i) => ZONES[i].map === wm.id).sort((a, b) => ZONES[a].maxDist - ZONES[b].maxDist);
 }
 
 // Waren der Händlerin im Dorf: die beiden Tränke

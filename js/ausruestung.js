@@ -40,11 +40,19 @@ function canWear(item, who) {
 }
 
 // Warum ein Gegenstand nicht passt, als Text; leer, wenn er passt
+// Mindeststufe eines Gegenstands: die Stufe seiner Gegenstandsstufe
+function itemLevelReq(item) {
+  return item && !isBook(item) && ITEM_TIERS[item.tier] ? ITEM_TIERS[item.tier].level : 1;
+}
+
 function wearProblem(item, who) {
   const classId = typeof who === 'string' ? who : who.classId;
   if (item.cls && item.cls !== classId) {
     return item.slot === 'schild' ? 'Schilde trägt nur der Krieger.' : `Nur für ${CLASSES[item.cls].name}.`;
   }
+  // Seit Version 6.2: Ausrüstung erst ab der Stufe ihrer Gegenstandsstufe (z. B. Göttlich ab 60)
+  const need = itemLevelReq(item);
+  if (typeof who === 'object' && who.level < need) return `Erst ab Stufe ${need}.`;
   const k = item.slot === 'waffe' && WEAPON_KINDS[item.kind];
   if (k && k.path != null && typeof who === 'object' && (who.path || 0) !== k.path) {
     return `${k.name} führt nur der ${CLASSES[classId].paths[k.path].name}.`;

@@ -23,7 +23,8 @@ function zoneMapName(z) {
   return (WORLD_MAPS.find((m) => m.id === map) || WORLD_MAPS[0]).name;
 }
 function zonePlaceText(z) {
-  return `${z.name}${z.dungeon ? ' (Dungeon)' : ''} · Map ${zoneMapName(z)}`;
+  const map = zoneMapName(z);
+  return `${z.name}${z.dungeon ? ' (Dungeon)' : ''}${map !== z.name ? ` · Map ${map}` : ''}`;
 }
 function monsterPlaces(id) {
   return ZONES.filter((z) => (z.groups && z.groups.some((g) => g[0] === id)) || (z.dungeon && (z.dungeon.mobs.includes(id) || z.dungeon.boss === id)));
@@ -269,25 +270,15 @@ function huntOffers() {
   });
 }
 
-// Reiseziele der Wegweiserin: Eingang jeder Jagdzone
+// Reiseziele der Wegweiserin: das Lager jeder Map (seit Version 6.2 ist jedes Gebiet eine eigene Map)
 let travelSpots = null;
 
 function travelTargets() {
   if (travelSpots) return travelSpots;
   travelSpots = ZONES.slice(1, RING_ZONES).map((zone) => {
-    // entlang des Weges nach Osten; Gebiete, die nur in den Ecken liegen, schräg dorthin
-    const d = zone.minDist + 5;
-    const far = d > WORLD_W / 2 - 6;
-    const tx = far ? Math.round(CENTER_X + d / Math.SQRT2 + 2) : CENTER_X + d;
-    const ty = far ? Math.round(CENTER_Y + d / Math.SQRT2 + 2) : CENTER_Y;
-    for (let r = 0; r < 12; r++) {
-      for (let k = 0; k < 16; k++) {
-        const x = Math.round(tx + Math.cos(k / 16 * Math.PI * 2) * r);
-        const y = Math.round(ty + Math.sin(k / 16 * Math.PI * 2) * r);
-        if (!tileBlocked(x, y) && zoneAt(x * TILE, y * TILE) === zone) return { zone, x: (x + 0.5) * TILE, y: (y + 0.5) * TILE };
-      }
-    }
-    return { zone, x: tx * TILE, y: ty * TILE };
+    if (zone.map === 1) return { zone, x: (CENTER_X + VILLAGE_HALF + 6) * TILE, y: (CENTER_Y + 0.5) * TILE };
+    const mp = game.world.maps.find((m) => m.id === zone.map);
+    return { zone, x: mp.spawn.x, y: mp.spawn.y };
   });
   return travelSpots;
 }
@@ -539,13 +530,14 @@ Object.assign(ui, {
     });
   },
 
-  // Weltentor: Reise zwischen Map 1 (Vlotho), Map 2 und Map 3, kostenlos
+  // Weltentor: Reise zwischen allen Maps, kostenlos. Jedes Gebiet ist eine eigene Map.
   // Weltportal draußen (npc.to): führt nur in die Stadt einer Map
   renderWorldGate(npc) {
     const p = game.player;
-    const here = mapOfTile(p.x / TILE, p.y / TILE).id;
+    const hm = mapOfTile(p.x / TILE, p.y / TILE);
+    const here = hm ? hm.id : 0;
     const body = $('npcBody');
-    const list = npc && npc.to ? WORLD_MAPS.filter((m) => m.id === npc.to) : WORLD_MAPS;
+    const list = npc && npc.to ? WORLD_MAPS.filter((m) => m.id === npc.to) : WORLD_MAPS.slice().sort((a, b) => a.minLevel - b.minLevel || a.id - b.id);
     const intro = npc && npc.to
       ? `<p>Ein uralter Steinring voller Licht. Er führt nach Map ${npc.to} · ${list[0].name}, direkt in die Stadt.</p>`
       : '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p>';
@@ -553,7 +545,7 @@ Object.assign(ui, {
       list.map((wm) => {
         const low = p.level < wm.minLevel;
         const cur = wm.id === here;
-        return `<div class="travel-item"><strong>Map ${wm.id} · ${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +
+        return `<div class="travel-item"><strong>${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +
           `<button type="button" class="mini-btn" data-map="${wm.id}" ${cur || low ? 'disabled' : ''}>${cur ? 'Du bist hier' : low ? `ab Stufe ${wm.minLevel}` : 'Reisen'}</button></div>`;
       }).join('') + '</div>';
     body.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
@@ -561,7 +553,7 @@ Object.assign(ui, {
       const wm = WORLD_MAPS.find((m) => m.id === id);
       const spot = id === 1 ? { x: (CENTER_X + 6.8) * TILE, y: (CENTER_Y - 4) * TILE } : { ...game.world.maps.find((m) => m.id === id).spawn };
       moveThrough(spot, '#7ab8ff');
-      ui.banner(`Map ${wm.id} · ${wm.name}`, wm.levels);
+      ui.banner(wm.name, wm.levels);
     }));
   },
 
