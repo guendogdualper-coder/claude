@@ -45,7 +45,7 @@ body {
   -webkit-user-select: none;
 }
 
-#welt {
+#welt, #welt3d {
   position: fixed;
   inset: 0;
   width: 100%;
@@ -2260,3 +2260,7 @@ body.has-target { --target-h: 46px; }
 @media (orientation: landscape) and (max-height: 520px) {
   .banner { top: calc(max(4px, env(safe-area-inset-top, 0px)) + 46px + var(--boss-h) + var(--target-h)); }
 }
+
+/* --- Version 4.0: 3D-Szene unter dem durchsichtigen 2D-Canvas ---------------------------------- */
+#welt3d { pointer-events: none; background: #9ec8e0; }
+#welt3d[hidden] { display: none; }

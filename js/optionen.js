@@ -2,7 +2,7 @@
 // Vibration, Schadenszahlen und Namen. Gespeichert im Browser, gilt für alle Figuren auf dem Gerät.
 
 const OPT_KEY = 'seelenstein.optionen';
-const OPT_DEFAULTS = { volume: 0.7, graphics: 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, graphics: 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
 
 // Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln
 const GRAPHICS = {
@@ -28,6 +28,16 @@ function applyOpts() {
   if (sfx.master) sfx.master.gain.value = 0.8 * opts.volume;
   renderer.maxDpr = gfx().dpr;
   if (renderer.canvas) resizeRenderer();
+  if (V3.on) v3ApplyGraphics();
+}
+
+// 2D oder 3D: braucht ein frisches Zeichenfeld, darum kurz neu laden (Spielstand bleibt)
+const VIEWS = { '3d': { label: '3D' }, '2d': { label: '2D' } };
+function switchView(v) {
+  if (opts.view === v) return;
+  setOpt('view', v);
+  if (game.running) saveGame();
+  location.reload();
 }
 
 // Vibration nur, wenn erlaubt und vom Gerät unterstützt
@@ -48,6 +58,7 @@ const options = {
       `<button type="button" class="opt-switch${sfx.on ? ' on' : ''}" id="optSound" role="switch" aria-checked="${sfx.on}" aria-label="Klänge"><i></i></button></div>` +
       `<div class="opt-row"><div class="opt-text"><strong>Lautstärke</strong></div><input type="range" id="optVolume" min="0" max="1" step="0.05" value="${opts.volume}" aria-label="Lautstärke"><b class="opt-val">${Math.round(opts.volume * 100)} %</b></div></section>` +
       `<section class="opt-group"><h3>Grafik</h3>` +
+      seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
       seg('graphics', GRAPHICS, 'Qualität', 'Niedrig spart Akku und läuft auf älteren Handys flüssiger.') +
       seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist.') +
       sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
@@ -67,6 +78,10 @@ const options = {
     }));
     body.querySelectorAll('[data-seg]').forEach((b) => b.addEventListener('click', () => {
       const [k, v] = b.dataset.seg.split(':');
+      if (k === 'view') {
+        switchView(v);
+        return;
+      }
       setOpt(k, v);
       this.render();
     }));

@@ -131,6 +131,7 @@ function updateParticles(dt) {
 function drawParticles(ctx) {
   ctx.save();
   for (const q of game.particles) {
+    if (V3.on) v3Anchor(ctx, q.x, q.y);
     const k = q.life / q.max;
     ctx.globalCompositeOperation = q.glow ? 'lighter' : 'source-over';
     ctx.globalAlpha = Math.min(1, k * 1.5);
@@ -789,6 +790,7 @@ function drawTexts(ctx) {
     const scale = age < popTime ? popFrom - (popFrom - 1) * easeOut(age / popTime) : 1;
     const y = t.y - easeOut(Math.min(1, k * 1.3)) * 42;
     ctx.save();
+    if (V3.on) v3Anchor(ctx, t.x, t.y);
     ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
     ctx.translate(t.x, y);
     if (st.glow && age < 0.3) ctx.rotate(Math.sin(age * 60) * 0.06 * (1 - age / 0.3));

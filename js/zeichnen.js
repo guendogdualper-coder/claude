@@ -7,8 +7,12 @@ const tileHash = (x, y) => ((x * 73856093) ^ (y * 19349663)) >>> 0;
 
 function setupRenderer() {
   renderer.canvas = document.getElementById('welt');
-  // undurchsichtig: der Browser muss die Spielfläche nicht mit der Seite darunter mischen
-  renderer.ctx = renderer.canvas.getContext('2d', { alpha: false });
+  // 3D (Standard): darunter liegt die 3D-Szene, das 2D-Canvas ist durchsichtig und malt nur
+  // Namen, Zahlen und Effekte darüber. In 2D ist es undurchsichtig (schneller).
+  const want3d = opts.view !== '2d' && v3Supported();
+  renderer.ctx = renderer.canvas.getContext('2d', { alpha: want3d });
+  renderer.maxDpr = gfx().dpr;
+  if (want3d && !v3Init()) document.getElementById('welt3d').hidden = true;
   renderer.mini = document.getElementById('minimap');
   renderer.miniCtx = renderer.mini.getContext('2d');
   renderer.miniBase = buildMinimapBase();
@@ -27,14 +31,20 @@ function resizeRenderer() {
   r.canvas.width = Math.round(r.w * r.dpr);
   r.canvas.height = Math.round(r.h * r.dpr);
   r.zoom = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410)) * (CAMERA[opts.camera] || CAMERA.normal).zoom;
+  if (V3.on) v3Resize();
 }
 
 // Bildschirmkoordinaten → Weltkoordinaten (für Mausklicks)
 function screenToWorld(sx, sy) {
+  if (V3.on) return v3ScreenToWorld(sx, sy);
   return { x: renderer.camX + sx / renderer.zoom, y: renderer.camY + sy / renderer.zoom };
 }
 
 function render() {
+  if (V3.on) {
+    renderDrei();
+    return;
+  }
   const r = renderer;
   const ctx = r.ctx;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -697,6 +707,12 @@ function drawNpc(ctx, n) {
     const col = DUNGEONS[n.dungeon].portal;
     glow(ctx, n.x, fy - (n.id === 'eingang' ? 20 : 4), n.id === 'eingang' ? 26 : 22, col, 0.45 + 0.15 * Math.sin(game.time * 3));
   }
+  drawNpcMarks(ctx, n);
+}
+
+// Symbol über Händlern und Ausrufezeichen bei offenen Missionen
+function drawNpcMarks(ctx, n) {
+  const fy = feetY(n);
   const bob = Math.sin(game.time * 3) * 2;
   if (NPC_ICONS[n.id]) blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
   // Ausrufezeichen: golden bei Hauptmissionen, grün bei Nebenmissionen
@@ -741,6 +757,13 @@ function drawMonster(ctx, m) {
   blitSprite(ctx, monsterSprite(m.typeId, frame), 0, 0, m.facing < 0, m.hitFlash);
   ctx.restore();
 
+  drawMonsterStatus(ctx, m);
+}
+
+// Betäubt: kreisende Sterne; vergiftet oder brennend: aufsteigende Tropfen
+function drawMonsterStatus(ctx, m) {
+  const fy = feetY(m);
+  const h = figureHeight(m);
   if (m.stun > 0) {
     ctx.fillStyle = '#ffe27a';
     for (let k = 0; k < 3; k++) {
@@ -1289,5 +1312,6 @@ function adaptQuality(dtMs) {
     quality.steps++;
     r.maxDpr = Math.max(1.25, cur - 0.35);
     resizeRenderer();
+    if (V3.on) v3ApplyGraphics();
   }
 }

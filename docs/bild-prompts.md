@@ -997,3 +997,67 @@ Mobile phone mockup in landscape: the Seelenstein start screen with a button "�
 ```
 Mobile game HUD in landscape, dark leather and gold fantasy style: top left the character box with portrait, level badge and slim red and blue bars; top right a row of round golden menu icons and the minimap; directly below the icon row in the center a wide fiery boss health bar "Lv 25 Spinnenkönigin 31.225 / 31.225", and below it a small target window "Lv 35 Dämon" with its own red bar. Nothing overlaps, clean spacing.
 ```
+
+## Seelenstein in 3D – Gesamt-Prompt und Stilvorgabe (Version 4.0)
+
+Dieser Prompt ist die Bauanleitung für die 3D-Grafik. Er beschreibt Stil, Formen, Licht, Farben und jede Gruppe von Objekten so genau, dass Bilder, 3D-Modelle (z. B. aus einem KI-Modellgenerator) und das Spiel selbst gleich aussehen. Die Teil-Prompts darunter lassen sich einzeln verwenden.
+
+### Gesamt-Prompt
+```
+Stylized 3D fantasy MMORPG in the spirit of classic East-Asian online RPGs (Metin2-like world, Korean village architecture), rendered as a cozy, readable, hand-crafted toy world. Camera: three-quarter top-down view, about 55° from the ground, looking north, slightly zoomed so a character fills about one seventh of the screen height; landscape 16:9 phone screen.
+
+SHAPES – everything has soft, smooth, rounded edges: no sharp polygon corners, every box is bevelled with a visible rounded edge (bevel about 15–25 % of the thickness), spheres and cylinders are smooth and high-segment, roofs are curved with upturned eaves, rocks are rounded pebble-like blobs, trees have soft round or layered conical crowns. Mid-poly look with smooth shading, never faceted. Silhouettes are clean and readable from far away.
+
+CHARACTERS – chibi proportions: head about 40 % of the body height, big friendly anime eyes (dark pupil, colored iris, two white highlights, thin upper lid line), small nose, rosy cheeks, short limbs with rounded hands and boots. Every outfit piece is a separate soft shape: tunic, belt with buckle, shoulder pads, cape, boots, helmet. Equipment tier is visible through color and trim: leather brown, bronze, iron grey-blue, dragon red with gold, soul purple with glowing runes, ash black with ember-orange cracks, sky white-blue with glowing feathers, god gold with white light.
+
+OUTLINE AND SHADING – thin dark-brown outline (#1a1210) around every object, like a cel-shaded cartoon; soft three- to four-step toon shading with a smooth falloff instead of hard bands; a warm rim light from the sun side; ambient occlusion under arms, roofs and tree crowns; soft round contact shadows plus real cast shadows from a warm afternoon sun in the south-east.
+
+LIGHT AND COLOR – warm, saturated but not neon. Sky light pale blue from above, bounce light from the ground. Each region has its own mood: Sonnenwiesen sunny green with flowers and pollen, Dunkelwald deep green with fireflies and blue fog, Orktal dusty ochre, Ödland grey-brown ash, Frostgipfel white-blue snow with sparkling ice, Totenmoor murky green with will-o'-wisps, Feuerberg black basalt with glowing lava rivers and embers, Schlangental golden sand with oases, Donnerklamm grey canyon with storm-blue light. Dungeons are dark caves lit by colored braziers.
+
+MATERIALS – plaster walls cream, dark timber posts, glazed roof tiles in red, teal, plum and moss green, polished metal with a soft highlight, cloth with soft folds, water translucent blue-green with gentle waves and a bright shoreline foam, lava glowing orange with dark crust, ice glossy pale blue.
+
+MOOD – friendly, adventurous, clean. No horror gore, no realism, no photo textures, no noisy details. Everything looks like a beautifully painted miniature diorama that is fun to explore on a phone.
+```
+
+### Figuren der vier Klassen
+```
+Character sheet, stylized 3D chibi fantasy heroes, smooth rounded shapes, thin dark outline, soft toon shading, front / side / back view, T-pose and idle pose:
+1) Krieger – sturdy young warrior, leather-and-plate tunic with rounded shoulder pads, red crest helmet, round shield on the back arm, one-handed sword or (path "Weg des Leibes") a broad two-handed greatsword; cape flowing behind.
+2) Ninja – slim agile fighter, dark wrapped outfit with a long scarf, hood, split-toe boots with crossed straps, twin daggers or a recurve bow, quiver on the back.
+3) Schamane – calm healer in a flowing teal robe with golden zigzag hem, headband with a feather, a folding fan or a ritual bell, glowing turquoise orbs around the hands.
+4) Nekromant – mysterious mage in a hooded dark robe with stitched patches, pale skin, a glowing green rune on the chest, a skull staff with a glowing orb or a large scythe, small green soul sparks rising.
+Customizable: hairstyle (short, bun, long, spiky, ponytail, bald), hair color, skin tone, eye shape and color, face marks (freckles, scar, war paint).
+```
+
+### Ausrüstung in acht Stufen
+```
+Equipment progression sheet for one stylized 3D chibi warrior, 8 columns from weakest to strongest, same pose: Leder (worn brown leather), Bronze (warm bronze with copper rivets), Eisen (cool iron with blue cloth), Drache (crimson scales, gold trim, small horns on the helmet), Seele (deep purple with softly glowing violet runes), Asche (charcoal black plates with ember-orange cracks), Himmel (white-blue enamel with glowing feather ornaments), Götter (radiant gold with white light and a halo of sparkles). Matching sword, shoulder pads, belt, boots and cape in each column. Weapons from +4 glow in green, +7 blue, +10 purple, +15 gold, +20 white. Smooth bevelled shapes, thin dark outline, soft toon shading.
+```
+
+### Monsterfamilien
+```
+Monster lineup, stylized 3D chibi fantasy creatures, rounded friendly-but-dangerous shapes, thin dark outline, soft toon shading, each with expressive glowing eyes, on a neutral grey background with a level tag above each head:
+Beasts on four legs – wild dog, grey wolf, black alpha wolf with red eyes and a scar, bristly boar with tusks, brown bear, hellhound with a burning mane, frost wolf with icy fur, red fire drake with horns and a spiked ridge.
+Humanoids – bandit with a red scarf mask and a short sword, bandit archer in green, green orc warrior with tusks and a spiked pauldron and an axe, orc shaman with feathers and a skull staff, orc captain with golden armor and a red cape, undead warrior with bone-white skin, swamp witch, harpy with purple wings, demon with horns, bat wings and a tail, gargoyle of grey stone.
+Brutes – stone ogre with a single horn and a club, white furry yeti, ghoul, lava golem with glowing cracks, troll warrior, minotaur with big horns, stone titan, thunder giant with blue lightning cracks, ice golem.
+Others – forest spider, cave spider, poison spider, giant spider queen with a golden mark; desert scorpion; ghost-like frost spirit with a crown; sand viper, rattlesnake, king cobra with a hood, giant python; naga warrior and naga priestess with a snake body and armored human torso.
+Bosses are two to three times larger, with a pulsing colored aura on the ground.
+```
+
+### Welt und Gebiete
+```
+Stylized 3D fantasy landscape diorama, three-quarter top-down view, smooth rounded shapes, soft toon shading, warm sunlight with long soft shadows:
+the walled village Vlotho in the center – square palisade/stone wall with four corner towers, two gate arches with red roofs, a cobblestone plaza with a well, market stalls with striped awnings, paper lanterns, cream plaster houses with dark timber posts and curved glazed-tile roofs with upturned corners, barrels, crates, training targets, herb garden, a stable with a horse and hay bales.
+Around it the regions: flower meadows with cherry blossom trees, a dark pine forest, an ochre orc valley with rocks, a grey ash wasteland with dead trees, snowy frost peaks with frozen lakes, a misty swamp with bog pools, a volcano with glowing lava rivers. Four dirt roads lead from the village gates to the edges; small wooden bridges cross rivers. Ground types blend softly into each other, no visible tile grid. Water has gentle animated waves and light foam at the shore.
+```
+
+### Dungeons
+```
+Stylized 3D dungeon interior, top-down three-quarter view: rough rounded cave walls with soft bevels, flagstone or rock floor, five rooms connected by wide corridors, colored fire braziers (blue, green, violet, orange) casting warm pools of light, glowing portal ring at the entrance, a large boss arena with cracks in the floor. Soft toon shading, thin outlines, dark mood but readable.
+```
+
+### Seelensteine, Portale und Effekte
+```
+Stylized 3D magical props: soul stones as tall rounded obelisks, spires, twin pillars, boulders and crystal clusters made of dark stone with glowing carved runes (blue, red, gold, green, violet, orange), floating sparks around them; a world gate as a stone ring with a swirling blue portal; dungeon entrances as rock arches with a glowing colored veil; random rifts as cracks in the air with purple light.
+Combat effects: bright slash arcs following the weapon, spinning sword whirl rings, shockwaves on the ground, arrows with light trails, fan wind gusts, green poison clouds, purple curses, lightning chains, healing light pillars, level-up golden column of light. Soft glow, additive light, never covering the characters completely.
+```
