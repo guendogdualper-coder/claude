@@ -1341,3 +1341,9 @@ Skill icon for a mobile fantasy MMORPG, round slot with a purple rim: a hooded n
 ```
 Stylized 3D chibi ninja with twin daggers fading into transparent shadow smoke, creeping behind a grey wolf in a sunny meadow, then reappearing in a burst of purple sparks with a huge critical stab (big golden damage number with "!"); thin dark outline, soft toon shading.
 ```
+
+## Hauptwert im Charakterfenster (Version 5.3)
+
+```
+Character attribute panel of a fantasy mobile MMORPG: a glowing purple orb on the left with the number of free stat points, four cards for Stärke (red, sword icon), Vitalität (green, heart icon), Intelligenz (blue, crystal icon) and Geschick (gold, feather icon), each with a value, a thin progress bar and round golden "+" buttons; the class main stat card carries a small golden badge "Hauptwert" and lists "+1,5 % Fertigkeitsschaden · +1 % Angriffsschaden · +1 % Buff-Stärke". Dark brown wood frame with gold trim, clean readable layout.
+```

@@ -78,6 +78,12 @@ const ATTRS = [
   { id: 'int', name: 'Intelligenz', short: 'INT', text: '+5 Mana und +1 % Fertigkeitsschaden je Punkt' },
   { id: 'dex', name: 'Geschick', short: 'DEX', text: '+0,3 % kritische Treffer, +0,25 % Ausweichen und +0,5 % Angriffstempo je Punkt' }
 ];
+// Hauptwert jeder Klasse: stärkt je Punkt zusätzlich Fertigkeiten, normale Angriffe und Buffs (Auren, Heilung, Schilde).
+// Bei Intelligenz als Hauptwert ersetzt das den allgemeinen Fertigkeitsschaden der Intelligenz.
+const MAIN_ATTR = { krieger: 'str', ninja: 'dex', schamane: 'int', nekromant: 'int' };
+const MAIN_SKILL = 0.015;
+const MAIN_BASIC = 0.01;
+const MAIN_BUFF = 0.01;
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
 // Ab Stufe 10 braucht jede Stufe 40 % mehr Erfahrung als die Grundformel (davor steigt es langsam an)
@@ -268,7 +274,11 @@ function playerStats(p) {
   s.maxHp += (a.vit || 0) * 6;
   s.def += (a.vit || 0) * 0.3;
   s.maxMp += (a.int || 0) * 5;
-  s.skillDmg = 1 + (a.int || 0) * 0.01 + (bonus.skillDmg || 0) + magic;
+  const mainId = MAIN_ATTR[p.classId];
+  const main = a[mainId] || 0;
+  s.skillDmg = 1 + (mainId === 'int' ? 0 : (a.int || 0) * 0.01) + main * MAIN_SKILL + (bonus.skillDmg || 0) + magic;
+  s.basicDmg += main * MAIN_BASIC;
+  s.buffPower = 1 + main * MAIN_BUFF;
   s.magic = magic;
   s.crit += (a.dex || 0) * 0.003;
   s.dodge += (a.dex || 0) * 0.0025;

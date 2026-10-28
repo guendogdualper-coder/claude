@@ -12,7 +12,8 @@ function levelCurve(lvl, base, ranked, jumps) {
   return 1 + base * (Math.min(lvl, SKILL_BASE_MAX) - 1) + ranked * Math.max(0, lvl - SKILL_BASE_MAX) + (r >= 0 ? jumps[r] : 0);
 }
 const dmgScale = (lvl) => levelCurve(lvl, 0.08, 0.05, RANK_JUMP);
-const buffScale = (lvl) => levelCurve(lvl, 0.03, 0.015, BUFF_JUMP);
+// Buffs, Heilung und Schilde wachsen mit der Fertigkeitsstufe und dem Hauptwert der Klasse
+const buffScale = (lvl) => levelCurve(lvl, 0.03, 0.015, BUFF_JUMP) * ((game.stats && game.stats.buffPower) || 1);
 const skillDuration = (sk, lvl) => Math.round(sk.duration * levelCurve(lvl, 0.02, 0.01, DUR_JUMP));
 
 // Tarnung endet mit dem nächsten Angriff. Ein Schlag, der beim Tarnen schon unterwegs war, zählt noch nicht.

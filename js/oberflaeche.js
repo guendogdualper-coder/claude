@@ -999,12 +999,17 @@ const ui = {
   // bis zum Höchstwert, was der Wert gerade bringt und Knöpfe für +1, +5 und alle Punkte
   attrHtml(p) {
     const fmt = (v, d = 0) => v.toFixed(d).replace('.', ',');
+    const mainId = MAIN_ATTR[p.classId];
     const effects = {
       str: (a) => [`+${a} Angriff`],
       vit: (a) => [`+${a * 6} Leben`, `+${fmt(a * 0.3, 1)} Rüstung`],
       int: (a) => [`+${a * 5} Mana`, `+${a} % Fertigkeitsschaden`],
       dex: (a) => [`+${fmt(a * 0.3, 1)} % Kritisch`, `+${fmt(a * 0.25, 2)} % Ausweichen`, `+${fmt(a * 0.5, 1)} % Tempo`]
     };
+    // Hauptwert der Klasse: zuerst die Schadens- und Buff-Boni
+    const base = effects[mainId];
+    effects[mainId] = (a) => [`+${fmt(a * MAIN_SKILL * 100, 1)} % Fertigkeitsschaden`, `+${fmt(a * MAIN_BASIC * 100)} % Angriffsschaden`, `+${fmt(a * MAIN_BUFF * 100)} % Buff-Stärke`,
+      ...base(a).filter((t) => !t.includes('Fertigkeitsschaden'))];
     const icons = {
       str: '<path d="M5 19l9-9"/><path class="f" d="M13 5l6 0 0 6-3.2-.6L9 17.2 6.8 15z"/><path d="M4 16l4 4"/>',
       vit: '<path class="f" d="M12 20s-7-4.3-8.9-8.7C1.7 8 3.6 4.5 7 4.5c1.9 0 3.3 1 5 2.8 1.7-1.8 3.1-2.8 5-2.8 3.4 0 5.3 3.5 3.9 6.8C19 15.7 12 20 12 20z"/><path d="M7 11h3l1.5-2.5L13 13l1.5-2H17"/>',
@@ -1021,9 +1026,9 @@ const ui = {
         const next = effects[a.id](1)[0];
         return `<div class="attr-card attr-${a.id}${this.lastAttr === a.id ? ' pop' : ''}">` +
           `<svg class="attr-ico" viewBox="0 0 24 24" aria-hidden="true">${icons[a.id]}</svg>` +
-          `<div class="attr-main"><div class="attr-top"><strong>${a.name}</strong><b class="attr-val">${v}</b></div>` +
+          `<div class="attr-main"><div class="attr-top"><strong>${a.name}${a.id === mainId ? ' <em class="attr-mainstat">Hauptwert</em>' : ''}</strong><b class="attr-val">${v}</b></div>` +
           `<div class="attr-prog"><i style="width:${(v / MAX_ATTR * 100).toFixed(1)}%"></i></div>` +
-          `<small>${v ? now : a.text}</small>` +
+          `<small>${v ? now : a.id === mainId ? effects[a.id](1).join(' · ') + ' je Punkt' : a.text}</small>` +
           (can ? `<small class="attr-next">Nächster Punkt: ${next}</small>` : '') + `</div>` +
           `<div class="attr-btns"><button type="button" class="attr-plus" data-attr="${a.id}" data-n="1" ${can ? '' : 'disabled'} aria-label="${a.name} +1">+</button>` +
           `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="5" ${can && pts >= 5 ? '' : 'disabled'}>+5</button>` +
