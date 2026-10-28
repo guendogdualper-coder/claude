@@ -1302,3 +1302,9 @@ STYLE: stylized 3D toy-like fantasy MMORPG in the spirit of classic East-Asian o
 ```
 [STYLE] Loading screen, landscape: four chibi heroes (Krieger, Ninja, Schamane, Nekromant) standing on a hill at sunset, a huge glowing soul stone in the valley below, the walled city Vlotho in the distance, title "Seelenstein" in gold.
 ```
+
+## Schlanke Handy-Anzeige (Version 4.8)
+
+```
+Mobile MMORPG gameplay screenshot in landscape (iPhone, 19.5:9), stylized 3D toon fantasy world filling almost the whole screen, with a minimal, compact HUD pushed into the corners: top left a small round portrait with level badge and two thin HP/MP bars; top right a tiny round minimap with only the region name below it and a row of six small round brown-gold menu buttons beside it; bottom left a small translucent chat box with tabs Global / Gilde / Ort and a small loot-bag button above it; bottom right a big red attack button tucked deep into the corner with five small round skill buttons in a tight arc around it and two small potion buttons; a very thin XP line along the bottom edge. Clock, battery, ping and gold are hidden and only appear in a small dropdown under the minimap when tapped. Clean, unobtrusive, lots of free view of the game world.
+```

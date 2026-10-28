@@ -26,6 +26,13 @@ const ui = {
         this.log('Chat gibt es im Kanal: wähle Server ERFOO und einen Kanal.', 'info');
       }
     });
+    // Handy: Karte antippen klappt Gold, Splitter, Akku, Uhr und Ping auf oder zu
+    const map = document.querySelector('.hud-map');
+    try { map.classList.toggle('open', localStorage.getItem('seelenstein.kartendetails') === '1'); } catch (e) {}
+    map.addEventListener('click', () => {
+      const open = map.classList.toggle('open');
+      try { localStorage.setItem('seelenstein.kartendetails', open ? '1' : '0'); } catch (e) {}
+    });
     this.chatHint();
     this.initBattery();
     this.initTips();
