@@ -328,6 +328,12 @@ function netHostDamage(rp, d) {
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
   }
   m.lastAttacker = rp;
+  // Hält der Mitspieler den Treffer für tödlich und fehlt nur wenig (Zeitversatz, kurzes Erholen),
+  // stirbt das Monster trotzdem – es bleibt nie mit ein paar Lebenspunkten stehen
+  if (d.k && d.a > 0 && m.hp - d.a < m.maxHp * 0.08) {
+    damageMonster(m, Math.max(d.a, Math.ceil(m.hp)), !!d.c, rp, false);
+    return;
+  }
   if (d.a > 0) damageMonster(m, d.a, !!d.c, rp, false);
   else aggro(m, rp);
 }
@@ -393,7 +399,7 @@ function netOnClientData(d) {
       break;
     case 'kill': {
       const m = net.mons.get(d.id);
-      if (m && !m.dead) netClientKill(m);
+      if (m && (!m.dead || m.predictedDead)) netClientKill(m);
       break;
     }
     case 'mhit': {
@@ -498,6 +504,9 @@ function netApplySnapshot(d) {
       addText(m.x, feetY(m) - figureHeight(m) * 0.85, String(lost), 'other');
     }
     m.hostHp = e[3];
+    // Eben selbst besiegt: kurz auf die Bestätigung des Hosts warten statt es wieder aufstehen zu lassen
+    if (m.predictedDead && !(flags & 1) && game.time - m.predictedDead < 1.5) continue;
+    if (m.predictedDead && !(flags & 1)) m.predictedDead = null;
     m.hp = Math.max(flags & 1 ? 0 : 1, e[3] - pending);
     m.dead = !!(flags & 1);
     m.moving = !!(flags & 2);
@@ -536,17 +545,30 @@ function netClientDamage(m, amount, crit, isDot) {
     addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
     m.pend = (game.time - (m.pendAt || -9) < 0.4 ? m.pend || 0 : 0) + amount;
     m.pendAt = game.time;
-    m.hp = Math.max(1, m.hp - amount);
+    m.hp -= amount;
   }
-  netSend({ t: 'dmg', id: m.id, a: amount, c: crit ? 1 : 0, st });
+  // Fällt das Leben auf 0, stirbt das Monster sofort (nicht erst bei 1 HP stehen bleiben). Der Host
+  // bestätigt den Tod und schickt die Belohnung; er erkennt den tödlichen Treffer auch bei kleinen Abweichungen.
+  const lethal = m.hp <= 0;
+  netSend({ t: 'dmg', id: m.id, a: amount, c: crit ? 1 : 0, st, k: lethal ? 1 : 0 });
+  if (lethal) {
+    m.hp = 0;
+    m.dead = true;
+    m.predictedDead = game.time;
+    m.poison = m.burn = null;
+    if (game.target === m) game.target = null;
+    monsterDeathFx(m);
+  }
 }
 
 function netClientKill(m) {
+  const shown = !!m.predictedDead;
+  m.predictedDead = null;
   m.dead = true;
   m.hp = 0;
   m.poison = m.burn = null;
   if (game.target === m) game.target = null;
-  monsterDeathFx(m);
+  if (!shown) monsterDeathFx(m);
   if (netShares(m, m.myHitAt)) rewardKill(m);
   if (!m.respawn) {
     game.monsters = game.monsters.filter((x) => x !== m);

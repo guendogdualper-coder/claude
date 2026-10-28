@@ -1408,3 +1408,9 @@ A dangerous high-level monster pack (three armored orc brutes with glowing eyes)
 ```
 Item tooltip of a fantasy MMORPG on dark parchment with a gold frame: "Drachenklinge +9", base attack in large numbers, five bonus lines in light blue ("Stark gegen Monster +10 %" marked with a small "max" badge, "Kritische Treffer +8 %", "Angriffswert +38", "Geschick +8", "Angriffstempo +12 %"), two golden special lines ("Fertigkeitsschaden +10 %", "Normaler Schaden +9 %"), each value with a thin bar showing how close it is to its maximum. Clean, readable game UI.
 ```
+
+## Sofortiger Tod der Monster (Version 6.0)
+
+```
+Stylized 3D chibi MMORPG combat moment: a hero's sword strike lands on a grey wolf whose health bar drops from a sliver to empty, the wolf instantly bursts into a puff of dust and pale sparks with a golden "+EP" number rising, a second player in the background attacking the next wolf. Crisp, snappy feeling, soft toon shading, thin dark outlines.
+```
