@@ -87,8 +87,9 @@ const MAIN_BUFF = 0.01;
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
 // Ab Stufe 10 braucht jede Stufe 40 % mehr Erfahrung als die Grundformel (davor steigt es langsam an)
+// Seit Version 5.7 wächst der Bedarf mit jeder Stufe zusätzlich um 6 %: hohe Stufen dauern spürbar länger
 function xpToNext(level) {
-  return Math.round((80 * Math.pow(level, 2.1) + 50 * level) * (1 + 0.4 * Math.min(1, (level - 1) / 9)));
+  return Math.round((80 * Math.pow(level, 2.1) + 50 * level) * (1 + 0.4 * Math.min(1, (level - 1) / 9)) * (1 + 0.06 * (level - 1)));
 }
 
 // Zu schwache Monster geben kaum noch Erfahrung, stärkere etwas mehr

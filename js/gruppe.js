@@ -12,6 +12,8 @@ const PARTY_MODES = {
 };
 
 const partyMe = () => game.player.name;
+// Mitspieler in der eigenen Gruppe: grün und größer im Spiel und auf der Karte
+const inMyParty = (name) => !!game.party && name !== partyMe() && game.party.members.includes(name);
 const partyLead = () => !!game.party && game.party.leader === partyMe();
 
 // Mitglied online im Kanal? (man selbst immer)

@@ -1376,3 +1376,20 @@ Desktop MMORPG HUD at 1920×1080, stylized 3D toon fantasy world: top-left a lar
 ```
 Desktop fantasy MMORPG in fullscreen, no browser bars visible: a stylized 3D toon world fills the whole monitor; a golden mouse cursor shaped like a small gauntlet clicks on the grass and a thin golden ring pulses where the hero will walk; another click on a wolf shows a red target ring under it while the hero swings his sword. Settings window in the corner with a glowing toggle "Vollbild" switched on. Soft toon shading, thin dark outlines.
 ```
+
+## Gruppe auf der Karte und härtere Monster (Version 5.7)
+
+### Gruppenmitglied im Spiel
+```
+Stylized 3D chibi MMORPG scene: a party member ninja next to the player, above her head a large glowing bright-green name "Lv 24 Mira" with a thick dark outline and a wide green health bar below it; another non-party player nearby with a smaller pale name. Sunny meadow, soft toon shading, thin dark outlines.
+```
+
+### Minikarte mit Gruppe
+```
+Round fantasy minimap with parchment-green terrain and a brass rim: the player as a white dot in the center, a party member as a large bright-green dot with a pulsing green glow ring, another party member outside the view shown as a green triangle arrow on the edge pointing toward them, other players as small light-blue dots, soul stones as small colored squares.
+```
+
+### Starke Monster
+```
+Stylized 3D toon fantasy: a hulking high-level storm troll with glowing runes and heavy stone armor towering over a well-equipped chibi warrior in shining +9 dragon armor with sparkling weapon; health bars above both show a long, hard fight. Dramatic but readable, thin dark outlines.
+```

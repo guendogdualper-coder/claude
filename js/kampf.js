@@ -219,9 +219,27 @@ function monsterDeathFx(m) {
   }
 }
 
+// Seelensteine (und ihre Wellen), die so viele Stufen unter dir sind, lassen keine Beute mehr fallen
+const STONE_LOOT_GAP = 15;
+function stoneTooLow(m, p) {
+  const lvl = m.isStone ? m.level : m.stone ? m.stone.level : null;
+  return lvl != null && p.level - lvl >= STONE_LOOT_GAP;
+}
+
 // Erfahrung, Gold, Beute und Aufträge für ein besiegtes Monster
 function rewardKill(m) {
   const p = game.player;
+  if (stoneTooLow(m, p)) {
+    // Nur noch die (ohnehin kleine) Erfahrung, kein Gold und keine Beute
+    p.kills++;
+    if (m.isStone) {
+      p.stones++;
+      ui.log(`${m.name} ist ${STONE_LOOT_GAP} oder mehr Stufen unter dir – keine Beute.`, 'warn');
+      questEvent('stone', m);
+    } else questEvent('kill', m);
+    gainXp(partyXp(Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level))), m));
+    return;
+  }
   // in einer Gruppe teilen sich die Mitglieder in der Nähe die Erfahrung (gruppe.js)
   const xp = partyXp(Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level))), m);
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;

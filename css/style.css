@@ -2509,3 +2509,17 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 #hud:not(.touch) .ql-where { font-size: 13px; }
 #hud:not(.touch) .ql-bar { height: 13px; border-radius: 7px; }
 #hud:not(.touch) .ql-bar em { font-size: 10.5px; line-height: 13px; }
+
+/* --- Version 5.7: größere Karte am PC ------------------------------------------------------ */
+#hud:not(.touch) .hud-map { width: 214px; }
+#hud:not(.touch) #minimap { width: 196px; height: 196px; image-rendering: auto; }
+#hud:not(.touch) .zone-name { font-size: 16px; }
+#hud:not(.touch) .zone-levels { font-size: 12.5px; }
+#hud:not(.touch) .purse { font-size: 13px; }
+#hud:not(.touch) .status-line { font-size: 12px; }
+#hud:not(.touch) .quest-log { top: calc(var(--edge-t) + 336px); max-height: max(110px, calc(100vh - 620px)); }
+/* Gruppenliste auf dem Handy etwas größer */
+#hud.touch .party-frame { width: 140px; }
+#hud.touch .pt-name { font-size: 11px; }
+#hud.touch .pt-lvl { font-size: 10px; }
+#hud.touch .pt-hp { height: 5px; }

@@ -14,6 +14,7 @@ function setupRenderer() {
   renderer.maxDpr = gfx().dpr;
   if (want3d && !v3Init()) document.getElementById('welt3d').hidden = true;
   renderer.mini = document.getElementById('minimap');
+  if (IS_PC) renderer.mini.width = renderer.mini.height = 200;
   renderer.miniCtx = renderer.mini.getContext('2d');
   renderer.miniBase = buildMinimapBase();
   window.addEventListener('resize', resizeRenderer);
@@ -1159,11 +1160,17 @@ function drawLabel(ctx, e) {
       ctx.fillText(gl, e.x, y - 12);
       ctx.font = '600 11px "Alegreya Sans", sans-serif';
     }
+    // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
+    const mate = e.remote && inMyParty(e.name);
+    if (mate) {
+      ctx.font = '800 15px "Alegreya Sans", sans-serif';
+      ctx.lineWidth = 4;
+    }
     ctx.strokeText(label, e.x, y);
-    ctx.fillStyle = e.remote ? '#a8f0a0' : '#9fe0ff';
+    ctx.fillStyle = mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
     ctx.fillText(label, e.x, y);
     // Mitspieler zeigen ihr Leben unter dem Namen
-    if (e.remote) drawBar(ctx, e.x, y + 4, 34, e.hp / Math.max(1, e.maxHp), '#4ad04a');
+    if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), mate ? '#3ee05a' : '#4ad04a');
     if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - (guild ? 26 : 14), e.say);
     return;
   }
@@ -1233,7 +1240,10 @@ const MINIMAP_TILES = 72;
 
 function renderMinimap() {
   const ctx = renderer.miniCtx;
-  const W = renderer.mini.width;
+  // Gezeichnet wird in 120er-Einheiten; am PC ist die Leinwand größer und schärfer (MINIMAP_PX)
+  const k = renderer.mini.width / 120;
+  ctx.setTransform(k, 0, 0, k, 0, 0);
+  const W = 120;
   const scale = W / MINIMAP_TILES;
   const p = game.player;
   const cx = p && game.running ? p.x / TILE : CENTER_X;
@@ -1283,13 +1293,54 @@ function renderMinimap() {
     ctx.fillStyle = mark === 'main' ? '#ffd34d' : mark === 'side' ? '#6ae86a' : '#e8d8a8';
     ctx.fillRect(mx - 1, my - 1, mark ? 3.5 : 2.5, mark ? 3.5 : 2.5);
   }
-  // Mitspieler als grüne Punkte
+  // Mitspieler als hellblaue Punkte, die eigene Gruppe groß und grün mit Leuchtring.
+  // Ist ein Gruppenmitglied außerhalb des Ausschnitts, zeigt ein grüner Pfeil am Rand in seine Richtung.
+  const half = W / 2;
+  // auf der kleinen Handy-Karte die Gruppenzeichen größer, damit sie auffallen
+  const ms = Math.max(1, Math.min(2.4, 110 / (renderer.mini.clientWidth || W)));
   for (const rp of net.players.values()) {
-    ctx.fillStyle = '#5ae05a';
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
+    if (rp.gone) continue;
+    let mx = (rp.x / TILE - ox) * scale;
+    let my = (rp.y / TILE - oy) * scale;
+    const mate = inMyParty(rp.name);
+    const dx = mx - half;
+    const dy = my - half;
+    const d = Math.hypot(dx, dy);
+    if (mate && d > half - 7 * ms) {
+      const a = Math.atan2(dy, dx);
+      const rx = half + Math.cos(a) * (half - 7 * ms);
+      const ry = half + Math.sin(a) * (half - 7 * ms);
+      ctx.save();
+      ctx.translate(rx, ry);
+      ctx.rotate(a);
+      ctx.scale(ms, ms);
+      ctx.fillStyle = '#5dff6e';
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(6, 0);
+      ctx.lineTo(-4, -5);
+      ctx.lineTo(-4, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+    if (d > half) continue;
+    if (mate) {
+      const pulse = (5.5 + Math.sin(game.time * 5) * 1.2) * ms;
+      ctx.strokeStyle = 'rgba(93,255,110,0.55)';
+      ctx.lineWidth = 2 * ms;
+      ctx.beginPath();
+      ctx.arc(mx, my, pulse + 2 * ms, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = mate ? '#5dff6e' : '#9fd6ff';
+    ctx.strokeStyle = mate ? '#ffffff' : '#000000';
+    ctx.lineWidth = (mate ? 1.5 : 1) * ms;
     ctx.beginPath();
-    ctx.arc((rp.x / TILE - ox) * scale, (rp.y / TILE - oy) * scale, 2.6, 0, Math.PI * 2);
+    ctx.arc(mx, my, (mate ? 4.2 : 2.6) * ms, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
