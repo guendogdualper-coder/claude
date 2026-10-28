@@ -101,7 +101,22 @@ function setPartyMode(mode) {
   partySync();
 }
 
-// Nachrichten: pi Einladung, pa angenommen, pn abgelehnt, ps Stand vom Anführer, pl Mitglied geht
+// Wer in einen Dungeon geht (Eingang oder Riss), nimmt die Gruppe mit: alle Mitglieder im Kanal bekommen
+// eine Einladung und landen beim Annehmen am Anfang desselben Dungeons
+function partyDungeonCall(k) {
+  if (!game.party || !netOnline()) return;
+  let n = 0;
+  for (const name of game.party.members) {
+    const x = partyMember(name);
+    if (!x || x.me) continue;
+    netSocial(x.pid, { k: 'pd', n: partyMe(), dg: k });
+    n++;
+  }
+  if (n) ui.log(`Deine Gruppe ist eingeladen, mit in die ${DUNGEONS[k].name} zu kommen.`, 'info');
+}
+
+// Nachrichten: pi Einladung, pa angenommen, pn abgelehnt, ps Stand vom Anführer, pl Mitglied geht,
+// pd Gruppenmitglied geht in einen Dungeon
 function onParty(pid, d) {
   const p = game.player;
   const rp = net.players.get(pid);
@@ -142,6 +157,16 @@ function onParty(pid, d) {
         ui.log('Die Gruppe ist aufgelöst oder du wurdest entfernt.', 'warn');
       }
       partyRefresh();
+      break;
+    }
+    case 'pd': {
+      const k = Number(d.dg);
+      if (!game.party || !game.party.members.includes(name) || !DUNGEONS[k] || !game.world.dungeons[k]) break;
+      const low = p.level < DUNGEONS[k].minLevel ? ` <small>(eigentlich ab Stufe ${DUNGEONS[k].minLevel})</small>` : '';
+      inviteToast(`<b>${escapeHtml(name)}</b> geht in die ${DUNGEONS[k].name}. Mitkommen?${low}`, () => {
+        if (p.dead) return;
+        enterDungeon(k, true);
+      }, null);
       break;
     }
     case 'pl':

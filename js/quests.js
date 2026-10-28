@@ -112,12 +112,15 @@ function questTick() {
 }
 
 // Dungeons betreten und verlassen
-function enterDungeon(k) {
+// viaParty: über die Einladung eines Gruppenmitglieds (dann ohne Stufengrenze und ohne erneut einzuladen)
+function enterDungeon(k, viaParty = false) {
   const p = game.player;
   const dg = game.world.dungeons[k];
-  if (p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
+  if (!viaParty && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
   moveThrough(dg.start, dg.def.portal);
   ui.banner(dg.def.name, `Boss: ${MONSTER_TYPES[dg.def.boss].name} (Stufe ${MONSTER_TYPES[dg.def.boss].level})`);
+  // Die Gruppe kommt auf Wunsch mit
+  if (!viaParty) partyDungeonCall(k);
   return null;
 }
 // --- Dungeon-Risse ---------------------------------------------------------------------------

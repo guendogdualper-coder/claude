@@ -103,13 +103,13 @@ const MONSTER_TYPES = {
 };
 
 // Schwierigkeit: Bis Stufe 15 werden Monster schrittweise zäher und stärker als die Grundformel,
-// danach wächst der Abstand mit jeder Stufe deutlich weiter (seit Version 5.7 stärker), damit man
+// danach wächst der Abstand mit jeder Stufe deutlich weiter (seit Version 5.7/5.8 stärker), damit man
 // in den hohen Gebieten gute, aufgewertete Ausrüstung braucht. Die ersten Stufen bleiben leicht.
 // Erfahrung und Gold hängen nicht davon ab.
 function monsterPower(level) {
   const ramp = Math.min(1, (level - 1) / 14);
   const extra = Math.max(0, level - 15);
-  return { hp: 1 + ramp * 1.1 + extra * 0.06, atk: 1 + ramp * 1.15 + extra * 0.03, def: 1 + extra * 0.04 };
+  return { hp: 1 + ramp * 1.1 + extra * 0.08, atk: 1 + ramp * 1.4 + extra * 0.1, def: 1 + extra * 0.05 };
 }
 
 function monsterStats(level, hpMul = 1, atkMul = 1) {
@@ -118,7 +118,8 @@ function monsterStats(level, hpMul = 1, atkMul = 1) {
     maxHp: Math.round((40 + 18 * Math.pow(level - 1, 1.1)) * hpMul * pw.hp),
     atk: Math.round((3 + 2 * (level - 1)) * atkMul * pw.atk),
     def: Math.round((1 + (level - 1)) * pw.def),
-    xp: Math.round((10 * Math.pow(level, 1.5) + 2) * hpMul),
+    // Bosse und zähe Monster geben mehr Erfahrung, aber höchstens das Achtfache
+    xp: Math.round((10 * Math.pow(level, 1.5) + 2) * Math.min(hpMul, 8)),
     gold: [level * 2, level * 4 + 2]
   };
 }
@@ -127,7 +128,7 @@ function monsterStats(level, hpMul = 1, atkMul = 1) {
 // und geben viel Erfahrung, Gold und Seelensplitter.
 const STONE = {
   hpMul: 9,
-  xpMul: 10,
+  xpMul: 6,
   goldMul: 10,
   // Verstärkung: nach jeweils 10–15 % Schaden eine Welle mit der Stufe des Steins (stoneWaveMarks)
   respawn: [60, 90]

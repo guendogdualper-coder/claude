@@ -130,7 +130,8 @@ function hitMonster(m, mul, opts = {}) {
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
   // Lebensraub heilt um einen Teil des Schadens; die Heilung erscheint als grüne Zahl
   if (!opts.ally && !opts.dot && s.hpSteal > 0 && !p.dead) {
-    const gain = Math.min(s.maxHp - p.hp, amount * s.hpSteal);
+    // Lebensraub heilt je Treffer höchstens 3 % des Lebens, sonst macht hoher Schaden unverwundbar
+    const gain = Math.min(s.maxHp - p.hp, amount * s.hpSteal, s.maxHp * 0.03);
     if (gain > 0) {
       p.hp += gain;
       p.stealSum = (p.stealSum || 0) + gain;

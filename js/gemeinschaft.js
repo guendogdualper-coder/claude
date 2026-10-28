@@ -47,7 +47,7 @@ function onSocial(pid, d) {
     return;
   }
   // Gruppen stehen in gruppe.js
-  if (/^p[iansl]$/.test(d.k)) {
+  if (/^p[iansld]$/.test(d.k)) {
     onParty(pid, d);
     return;
   }

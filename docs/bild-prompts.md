@@ -1393,3 +1393,12 @@ Round fantasy minimap with parchment-green terrain and a brass rim: the player a
 ```
 Stylized 3D toon fantasy: a hulking high-level storm troll with glowing runes and heavy stone armor towering over a well-equipped chibi warrior in shining +9 dragon armor with sparkling weapon; health bars above both show a long, hard fight. Dramatic but readable, thin dark outlines.
 ```
+
+## Gemeinsam in den Dungeon (Version 5.8)
+
+```
+Mobile fantasy MMORPG screenshot: at the top center a small dark invitation card with a gold rim reading "Kaito geht in die Spinnenhöhle. Mitkommen?" with buttons "Annehmen" and "Ablehnen"; in the background two chibi heroes (warrior and ninja) appearing together in a purple-lit spider cave next to a glowing violet portal ring, giant spiders lurking in the shadows. Stylized 3D toon look, thin dark outlines.
+```
+```
+A dangerous high-level monster pack (three armored orc brutes with glowing eyes) overwhelming a chibi hero in basic leather gear, big red damage numbers flying, the hero's health bar almost empty; next to it the same pack being held off by a hero in shining upgraded dragon armor. Stylized 3D toon, readable, dramatic.
+```
