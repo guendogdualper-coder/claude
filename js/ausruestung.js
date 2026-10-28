@@ -239,8 +239,9 @@ function sellValue(item) {
 
 function bonusValue(def, tier) {
   const [lo, hi] = def.range;
-  const v = (lo + Math.random() * (hi - lo)) * (1 + tier * 0.35);
-  if (def.fmt === 'flat') return Math.max(1, Math.round(v));
+  const r = lo + Math.random() * (hi - lo);
+  if (def.fmt === 'flat') return Math.max(1, Math.round(r * (1 + tier * (def.tierScale || 0.35))));
+  const v = Math.min(def.max || Infinity, r * (1 + tier * 0.1));
   if (def.fmt === 'pct1') return Math.round(v * 10000) / 10000;
   return Math.round(v * 1000) / 1000;
 }
@@ -300,6 +301,18 @@ function applyMaterial(ref, matId) {
 }
 
 // Summe aller Boni eines Gegenstands
+// Seit Version 5.9: zu hohe Prozent-Boni alter Gegenstände auf die neue Höchstgrenze kürzen
+function clampItemBonuses(item) {
+  if (!item || isBook(item)) return;
+  // Statuswerte (Stärke, Geschick …) auf die neue Höchstgrenze ihrer Gegenstandsstufe
+  for (const b of item.bonuses || []) {
+    const d = BONUS_TYPES[b.t];
+    if (d && d.tierScale) b.v = Math.min(b.v, Math.round(d.range[1] * (1 + (item.tier || 0) * d.tierScale)));
+  }
+  for (const b of item.bonuses || []) { const d = BONUS_TYPES[b.t]; if (d && d.max && b.v > d.max) b.v = d.max; }
+  for (const b of item.specials || []) { const d = SPECIAL_BONUS_TYPES[b.t]; if (d && d.max && b.v > d.max) b.v = d.max; }
+}
+
 function itemBonusStats(item) {
   const out = {};
   for (const b of item.bonuses || []) out[b.t] = (out[b.t] || 0) + b.v;

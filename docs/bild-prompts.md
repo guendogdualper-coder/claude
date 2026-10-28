@@ -1402,3 +1402,9 @@ Mobile fantasy MMORPG screenshot: at the top center a small dark invitation card
 ```
 A dangerous high-level monster pack (three armored orc brutes with glowing eyes) overwhelming a chibi hero in basic leather gear, big red damage numbers flying, the hero's health bar almost empty; next to it the same pack being held off by a hero in shining upgraded dragon armor. Stylized 3D toon, readable, dramatic.
 ```
+
+## Boni mit Höchstwerten (Version 5.9)
+
+```
+Item tooltip of a fantasy MMORPG on dark parchment with a gold frame: "Drachenklinge +9", base attack in large numbers, five bonus lines in light blue ("Stark gegen Monster +10 %" marked with a small "max" badge, "Kritische Treffer +8 %", "Angriffswert +38", "Geschick +8", "Angriffstempo +12 %"), two golden special lines ("Fertigkeitsschaden +10 %", "Normaler Schaden +9 %"), each value with a thin bar showing how close it is to its maximum. Clean, readable game UI.
+```

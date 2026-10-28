@@ -81,7 +81,9 @@ const ATTRS = [
 // Hauptwert jeder Klasse: stärkt je Punkt zusätzlich Fertigkeiten, normale Angriffe und Buffs (Auren, Heilung, Schilde).
 // Bei Intelligenz als Hauptwert ersetzt das den allgemeinen Fertigkeitsschaden der Intelligenz.
 const MAIN_ATTR = { krieger: 'str', ninja: 'dex', schamane: 'int', nekromant: 'int' };
-const MAIN_SKILL = 0.015;
+const MAIN_SKILL = 0.012;
+// Mehr als so viele Punkte (eigene plus Ausrüstung) zählen für den Hauptwert-Bonus nicht
+const MAIN_ATTR_CAP = 120;
 const MAIN_BASIC = 0.01;
 const MAIN_BUFF = 0.01;
 
@@ -105,7 +107,7 @@ function newCharacter(name, classId, path = 0, look = null) {
     name, classId, path, level: 1, xp: 0, gold: 30, skillPoints: 0, skillLevels: [1, 1, 1, 1, 1],
     potions: { hp: 5, mp: 5 }, splinters: 0, kills: 0, stones: 0, deaths: 0,
     hp: null, mp: null, x: null, y: null, playTime: 0,
-    equipment: starterEquipment(classId), inventory: [], scrolls: 0, itemsVersion: 2,
+    equipment: starterEquipment(classId), inventory: [], scrolls: 0, itemsVersion: 3,
     attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
     materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 },
     worldVersion: WORLD_VERSION, quests: null, upmats: {}, books: 0
@@ -141,7 +143,11 @@ function makePlayer(save) {
     Object.values(p.equipment).forEach(migrateItem);
     p.inventory.filter((it) => !isBook(it)).forEach(migrateItem);
   }
-  p.itemsVersion = 2;
+  if ((save.itemsVersion || 1) < 3) {
+    Object.values(p.equipment).forEach(clampItemBonuses);
+    p.inventory.forEach(clampItemBonuses);
+  }
+  p.itemsVersion = 3;
   // Waffe, Rüstung und Helm gehören jetzt einer Klasse; alte Gegenstände bekommen die eigene
   Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
   p.inventory.forEach((it) => { if (!isBook(it)) assignClass(it, p.classId); });
@@ -228,6 +234,7 @@ function playerStats(p) {
     const share = item === offhand ? DUAL_WIELD.bonus : 1;
     for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v * share;
   }
+  for (const [k, cap] of Object.entries(BONUS_CAPS)) if (bonus[k] > cap) bonus[k] = cap;
   s.atk += bonus.atk || 0;
   s.def += bonus.def || 0;
   s.maxHp += bonus.hp || 0;
@@ -276,7 +283,7 @@ function playerStats(p) {
   s.def += (a.vit || 0) * 0.3;
   s.maxMp += (a.int || 0) * 5;
   const mainId = MAIN_ATTR[p.classId];
-  const main = a[mainId] || 0;
+  const main = Math.min(MAIN_ATTR_CAP, a[mainId] || 0);
   s.skillDmg = 1 + (mainId === 'int' ? 0 : (a.int || 0) * 0.01) + main * MAIN_SKILL + (bonus.skillDmg || 0) + magic;
   s.basicDmg += main * MAIN_BASIC;
   s.buffPower = 1 + main * MAIN_BUFF;
@@ -306,9 +313,9 @@ function playerStats(p) {
   // Obergrenzen, damit hohe Ränge und viele Buffs zusammen nicht ausufern
   s.speed *= Math.min(1.9, speedMul);
   s.atkSpeed = Math.min(2.5, s.atkSpeed);
-  s.dodge = Math.min(0.6, s.dodge);
+  s.dodge = Math.min(0.45, s.dodge);
   s.reflect = Math.min(0.8, s.reflect);
-  s.damageTaken = Math.max(0.2, s.damageTaken);
+  s.damageTaken = Math.max(0.4, s.damageTaken);
   return s;
 }
 

@@ -103,13 +103,13 @@ const MONSTER_TYPES = {
 };
 
 // Schwierigkeit: Bis Stufe 15 werden Monster schrittweise zäher und stärker als die Grundformel,
-// danach wächst der Abstand mit jeder Stufe deutlich weiter (seit Version 5.7/5.8 stärker), damit man
+// danach wächst der Abstand mit jeder Stufe deutlich weiter (seit Version 5.7–5.9 stärker), damit man
 // in den hohen Gebieten gute, aufgewertete Ausrüstung braucht. Die ersten Stufen bleiben leicht.
 // Erfahrung und Gold hängen nicht davon ab.
 function monsterPower(level) {
   const ramp = Math.min(1, (level - 1) / 14);
   const extra = Math.max(0, level - 15);
-  return { hp: 1 + ramp * 1.1 + extra * 0.08, atk: 1 + ramp * 1.4 + extra * 0.1, def: 1 + extra * 0.05 };
+  return { hp: 1 + ramp * 1.6 + extra * 0.11, atk: 1 + ramp * 1.4 + extra * 0.1, def: 1 + extra * 0.05 };
 }
 
 function monsterStats(level, hpMul = 1, atkMul = 1) {
@@ -127,7 +127,7 @@ function monsterStats(level, hpMul = 1, atkMul = 1) {
 // Seelensteine: tauchen in jeder Jagdzone auf, rufen beim Angreifen Monster herbei
 // und geben viel Erfahrung, Gold und Seelensplitter.
 const STONE = {
-  hpMul: 9,
+  hpMul: 12,
   xpMul: 6,
   goldMul: 10,
   // Verstärkung: nach jeweils 10–15 % Schaden eine Welle mit der Stufe des Steins (stoneWaveMarks)

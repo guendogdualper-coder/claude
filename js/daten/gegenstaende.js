@@ -268,34 +268,43 @@ const MERCHANTS = {
 // --- Boni -----------------------------------------------------------------------------
 // Jeder Gegenstand kann bis zu 5 normale Boni und 2 besondere Boni (6 und 7) tragen.
 // fmt: flat = ganze Zahl, pct = Prozent, pct1 = Prozent mit einer Nachkommastelle.
-// range: Spanne auf Gegenstandsstufe 1; höhere Stufen erhöhen die Werte um 35 % je Stufe.
+// range: Spanne auf Gegenstandsstufe 1. Feste Werte (flat) wachsen um 35 % je Gegenstandsstufe (Statuswerte
+// nur um 15 %, tierScale),
+// Prozentwerte seit Version 5.9 nur um 10 % je Stufe und höchstens bis max (je Gegenstand).
+// Dazu begrenzt BONUS_CAPS die Summe aller angelegten Gegenstände.
 const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'];
 const BONUS_TYPES = {
   hp: { name: 'Max. Leben', fmt: 'flat', range: [20, 90], slots: ALL_SLOTS },
   mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'umhang', 'guertel'] },
   atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'schultern', 'guertel'] },
   def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'] },
-  str: { name: 'Stärke', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
-  vit: { name: 'Vitalität', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
-  int: { name: 'Intelligenz', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
-  dex: { name: 'Geschick', fmt: 'flat', range: [1, 6], slots: ALL_SLOTS },
-  crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.06], slots: ['waffe', 'helm', 'guertel'] },
-  atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.08], slots: ['waffe', 'schuhe', 'guertel'] },
-  speed: { name: 'Lauftempo', fmt: 'pct', range: [0.02, 0.08], slots: ['schuhe'] },
-  dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'umhang', 'schild', 'schuhe'] },
-  block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.05], slots: ['schild'] },
-  regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.005], slots: ['ruestung', 'helm', 'schultern', 'guertel'] },
-  monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.1], slots: ['waffe', 'helm', 'guertel'] },
-  dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.05], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild'] },
-  hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.04], slots: ['waffe'] }
+  str: { name: 'Stärke', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
+  vit: { name: 'Vitalität', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
+  int: { name: 'Intelligenz', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
+  dex: { name: 'Geschick', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
+  crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['waffe', 'helm', 'guertel'] },
+  atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'schuhe', 'guertel'] },
+  speed: { name: 'Lauftempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['schuhe'] },
+  dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'umhang', 'schild', 'schuhe'] },
+  block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['schild'] },
+  regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.003], max: 0.006, slots: ['ruestung', 'helm', 'schultern', 'guertel'] },
+  monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.06], max: 0.1, slots: ['waffe', 'helm', 'guertel'] },
+  dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild'] },
+  hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['waffe'] }
 };
 
 // Besondere Boni 6 und 7, nur über den Sternenstein
 const SPECIAL_BONUS_TYPES = {
-  skillDmg: { name: 'Fertigkeitsschaden', fmt: 'pct', range: [0.02, 0.08] },
-  basicDmg: { name: 'Normaler Schaden', fmt: 'pct', range: [0.02, 0.08] },
-  hpPct: { name: 'Max. Leben', fmt: 'pct', range: [0.02, 0.06] },
-  resist: { name: 'Erlittener Schaden', fmt: 'neg', range: [0.01, 0.04] }
+  skillDmg: { name: 'Fertigkeitsschaden', fmt: 'pct', range: [0.02, 0.05], max: 0.1 },
+  basicDmg: { name: 'Normaler Schaden', fmt: 'pct', range: [0.02, 0.05], max: 0.1 },
+  hpPct: { name: 'Max. Leben', fmt: 'pct', range: [0.02, 0.05], max: 0.08 },
+  resist: { name: 'Erlittener Schaden', fmt: 'neg', range: [0.01, 0.03], max: 0.06 }
+};
+
+// Obergrenzen für die Summe der Boni aller angelegten Gegenstände
+const BONUS_CAPS = {
+  crit: 0.25, atkSpeed: 0.35, speed: 0.25, dodge: 0.2, regen: 0.015, monsterDmg: 0.2, dmgReduce: 0.2, hpSteal: 0.06,
+  skillDmg: 0.4, basicDmg: 0.4, hpPct: 0.3, resist: 0.15
 };
 
 const MAX_NORMAL_BONUS = 5;
