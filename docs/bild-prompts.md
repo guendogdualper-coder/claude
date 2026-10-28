@@ -1308,3 +1308,9 @@ STYLE: stylized 3D toy-like fantasy MMORPG in the spirit of classic East-Asian o
 ```
 Mobile MMORPG gameplay screenshot in landscape (iPhone, 19.5:9), stylized 3D toon fantasy world filling almost the whole screen, with a minimal, compact HUD pushed into the corners: top left a small round portrait with level badge and two thin HP/MP bars; top right a tiny round minimap with only the region name below it and a row of six small round brown-gold menu buttons beside it; bottom left a small translucent chat box with tabs Global / Gilde / Ort and a small loot-bag button above it; bottom right a big red attack button tucked deep into the corner with five small round skill buttons in a tight arc around it and two small potion buttons; a very thin XP line along the bottom edge. Clock, battery, ping and gold are hidden and only appear in a small dropdown under the minimap when tapped. Clean, unobtrusive, lots of free view of the game world.
 ```
+
+## Anzeige bis an den Rand (Version 4.9)
+
+```
+Mobile MMORPG screenshot on a modern iPhone in landscape with the Dynamic Island on the left edge: the stylized 3D toon game world fills the whole screen edge to edge; HUD elements hug the screen corners – on the free right side the tiny round minimap sits in the top-right corner and the big red attack button with its tight arc of skill buttons sits deep in the bottom-right corner just inside the rounded screen corner; on the island side the portrait and the small chat box keep a little more distance. System messages like "ERFOO · Kanal 1: Du bist online" appear as grey italic lines inside the chat box instead of floating over the game. A thin XP line spans almost the full bottom edge. Clean, minimal, lots of free view.
+```

@@ -2,6 +2,14 @@
 
 const $ = (id) => document.getElementById(id);
 
+// Im Querformat meldet das iPhone links und rechts denselben sicheren Rand, die Kamera-Aussparung sitzt
+// aber nur auf einer Seite: Drehwinkel 90 = Oberkante links, 270 = Oberkante rechts.
+function updateNotchSide() {
+  const o = screen.orientation;
+  const a = ((Number(o && typeof o.angle === 'number' ? o.angle : window.orientation) || 0) % 360 + 360) % 360;
+  document.documentElement.dataset.notch = a === 90 ? 'l' : a === 270 ? 'r' : '';
+}
+
 const ui = {
   selectedClass: 'krieger',
   selectedPath: 0,
@@ -26,6 +34,10 @@ const ui = {
         this.log('Chat gibt es im Kanal: wähle Server ERFOO und einen Kanal.', 'info');
       }
     });
+    // Seite der Kamera-Aussparung merken, damit die Anzeigen auf der freien Seite bis an den Rand dürfen
+    updateNotchSide();
+    window.addEventListener('orientationchange', updateNotchSide);
+    window.addEventListener('resize', updateNotchSide);
     // Handy: Karte antippen klappt Gold, Splitter, Akku, Uhr und Ping auf oder zu
     const map = document.querySelector('.hud-map');
     try { map.classList.toggle('open', localStorage.getItem('seelenstein.kartendetails') === '1'); } catch (e) {}

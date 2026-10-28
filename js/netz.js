@@ -131,7 +131,7 @@ function netClaimChannel(srv, ch, attempt) {
     net.mode = 'host';
     netTakeOverWorld();
     netRemember();
-    ui.log(`${serverName(srv)} · Kanal ${ch}: Du bist online. Wer dazukommt, spielt in deiner Welt.`, 'level');
+    ui.chat('', `${serverName(srv)} · Kanal ${ch}: Du bist online. Wer dazukommt, spielt in deiner Welt.`);
     ui.banner(`${serverName(srv)} · Kanal ${ch}`, 'Du bist online');
     $('panelNet').hidden = true;
     ui.renderNet();
@@ -171,7 +171,7 @@ function netMigrate() {
   net.hostConn = null;
   for (const rp of net.players.values()) rp.gone = true;
   net.players.clear();
-  ui.log('Der Host ist gegangen, der Kanal wird übernommen …', 'info');
+  ui.chat('', 'Der Host ist gegangen, der Kanal wird übernommen …');
   ui.updateNetBadge();
   setTimeout(() => { if (net.mode === 'joining') netJoinChannel(srv, ch, 1); }, 200 + Math.random() * 1200);
 }
@@ -268,7 +268,6 @@ function netOnHostData(conn, d) {
     const rp = netRemote(id);
     netApplyState(rp, d.s);
     conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList() });
-    ui.log(`${rp.name} spielt jetzt mit.`, 'level');
     ui.chat('', `${rp.name} spielt jetzt mit.`);
     netBroadcast({ t: 'chat', n: '', x: `${rp.name} spielt jetzt mit.` }, id);
     ui.renderNet();
@@ -303,7 +302,6 @@ function netDropPlayer(id) {
   if (!rp) return;
   rp.gone = true;
   net.players.delete(id);
-  ui.log(`${rp.name} hat das Spiel verlassen.`, 'info');
   ui.chat('', `${rp.name} hat das Spiel verlassen.`);
   netBroadcast({ t: 'chat', n: '', x: `${rp.name} hat das Spiel verlassen.` });
   ui.renderNet();
@@ -373,7 +371,7 @@ function netOnClientData(d) {
       game.target = null;
       game.projectiles = [];
       netRemember();
-      ui.log(`${serverName(net.server)} · Kanal ${net.channel}: Du bist online.`, 'level');
+      ui.chat('', `${serverName(net.server)} · Kanal ${net.channel}: Du bist online.`);
       ui.banner(`${serverName(net.server)} · Kanal ${net.channel}`, 'Du bist online');
       $('panelNet').hidden = true;
       ui.renderNet();
@@ -448,10 +446,7 @@ function netOnClientData(d) {
     }
     case 'chat':
       if (d.n) netReceiveChat(d.n, d, d.from ? net.players.get(d.from) : (d.n === net.hostName ? net.players.get('host') : null));
-      else {
-        ui.log(d.x, 'info');
-        ui.chat('', d.x);
-      }
+      else ui.chat('', d.x);
       break;
   }
 }
@@ -749,7 +744,7 @@ function netStop(silent, reason, keepWorld) {
     game.target = null;
     game.projectiles = [];
   }
-  if (!silent) ui.log(reason || 'Du spielst jetzt allein.', 'info');
+  if (!silent) ui.chat('', reason || 'Du spielst jetzt allein.');
   ui.renderNet();
   ui.updateNetBadge();
 }

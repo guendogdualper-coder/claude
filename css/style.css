@@ -2413,3 +2413,33 @@ body.has-target { --target-h: 46px; }
 #hud.touch #potHp { left: 73px; top: 159px; }
 #hud.touch #potMp { left: 73px; top: 119px; }
 #hud.touch .loot-feed { right: calc(var(--edge-r) + 236px); }
+
+/* --- Version 4.9: Rand nutzen ----------------------------------------------------------
+   Das iPhone meldet im Querformat links und rechts denselben sicheren Rand, die Kamera-Aussparung
+   sitzt aber nur auf einer Seite (html[data-notch]) und dort nur in der Mitte. Ecken-Anzeigen rücken
+   darum bis an den Rand; was in der Bildmitte liegt (Meldungen), hält weiter Abstand zur Aussparung. */
+#hud.touch {
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+html[data-notch="l"] #hud.touch { --safe-r: 0px; }
+html[data-notch="r"] #hud.touch { --safe-l: 0px; }
+#hud.touch {
+  --edge-l: max(8px, var(--safe-l));
+  --edge-r: max(8px, var(--safe-r));
+  /* oben und unten in den Ecken: nur die abgerundete Bildschirmecke zählt */
+  --corner-l: max(10px, calc(var(--safe-l) - 34px));
+  --corner-r: max(10px, calc(var(--safe-r) - 34px));
+  /* Fertigkeitsbogen reicht bis in die untere Bildhälfte: etwas mehr Abstand zur Aussparung */
+  --arc-r: max(10px, calc(var(--safe-r) - 20px));
+  --map-r: var(--corner-r);
+}
+#hud.touch .hud-char { left: calc(var(--corner-l) + 8px); }
+#hud.touch .chat-box, #hud.touch > .loot-btn { left: var(--corner-l); }
+#hud.touch .stick { left: calc(var(--corner-l) + min(190px, 24vw) + 14px); }
+#hud.touch .touch-talk { left: calc(var(--corner-l) + min(190px, 24vw) + 34px); }
+#hud.touch .log { left: max(8px, env(safe-area-inset-left, 0px)); }
+#hud.touch .action-row { right: var(--arc-r); }
+#hud.touch .touch-attack { right: calc(var(--arc-r) + 12px); }
+#hud.touch .loot-feed { right: calc(var(--arc-r) + 236px); }
+#hud.touch .xp { left: 24px; right: 24px; }
