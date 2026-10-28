@@ -1364,3 +1364,9 @@ Fantasy game window "Freunde, Gilde & Gruppe" with three tabs, the tab "Gruppe 3
 ```
 Desktop version of the same MMORPG HUD at 1920×1080: in the top-left corner a larger round portrait with a level badge and two wide, thick HP and MP bars with numbers, a red heart and blue drop icon in front of the bars; clean, readable, more spacious than on mobile.
 ```
+
+## PC-Anzeige mit Gruppe und Aufträgen (Version 5.5)
+
+```
+Desktop MMORPG HUD at 1920×1080, stylized 3D toon fantasy world: top-left a large portrait with level badge, the player name and wide HP/MP bars, directly below a party list of two larger dark rows ("Mira  Lv 24", "Shaolin  Lv 31") with names flush left and thick red HP bars; top-right the round minimap with region name, gold and status, and directly under it on the right edge a wider quest panel "Aufträge" with golden main quest and green hunt quest, larger text, progress bars and location hints; bottom-right a vertical column of menu buttons, bottom center the skill bar with potions. Clean, readable, spacious.
+```

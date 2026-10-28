@@ -2491,3 +2491,21 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 .party-mode:disabled { cursor: default; }
 .party-mode:disabled:not(.on) { opacity: 0.55; }
 @media (max-width: 560px) { .party-modes { grid-template-columns: 1fr; } }
+
+/* --- Version 5.5: PC – größere Gruppenliste, Aufträge rechts unter der Karte ---------------- */
+#hud:not(.touch) .hud-char .char-name { font-size: 17px; }
+#hud:not(.touch) .party-frame { left: var(--edge-l); top: calc(var(--edge-t) + 102px); width: 240px; gap: 5px; }
+#hud:not(.touch).has-buffs .party-frame { top: calc(var(--edge-t) + 130px); }
+#hud:not(.touch) .pt-row { padding: 4px 8px 5px 6px; gap: 2px 8px; border-radius: 8px; }
+#hud:not(.touch) .pt-name { font-size: 15px; }
+#hud:not(.touch) .pt-lvl { font-size: 13px; }
+#hud:not(.touch) .pt-lvl::before { content: "Lv "; font-weight: 400; color: var(--muted); }
+#hud:not(.touch) .pt-hp { height: 7px; }
+#hud:not(.touch) .quest-log { right: var(--edge-r); top: calc(var(--edge-t) + 266px); width: 310px; max-height: calc(100vh - 560px); min-height: 0; }
+#hud:not(.touch) .ql-head { font-size: 16px; padding: 7px 12px; }
+#hud:not(.touch) .ql-list { gap: 8px; padding: 0 10px 9px; }
+#hud:not(.touch) .ql-q b { font-size: 15.5px; }
+#hud:not(.touch) .ql-goal { font-size: 14px; }
+#hud:not(.touch) .ql-where { font-size: 13px; }
+#hud:not(.touch) .ql-bar { height: 13px; border-radius: 7px; }
+#hud:not(.touch) .ql-bar em { font-size: 10.5px; line-height: 13px; }
