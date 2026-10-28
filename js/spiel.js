@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '3.2';
+const GAME_VERSION = '3.3';
 
 const game = {
   world: null,
@@ -53,6 +53,14 @@ function updatePlayer(dt) {
   updateBuffAuras(dt);
   for (let i = 0; i < 5; i++) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt);
   p.ultCd = Math.max(0, (p.ultCd || 0) - dt);
+  // Staubwölkchen bei jedem Schritt
+  if (p.moving && !p.riding) {
+    const step = Math.floor(game.time * 9) % 4;
+    if ((step === 1 || step === 3) && step !== p.lastStep) {
+      particles(p.x - p.facing.x * 4, feetY(p), { count: 3, color: ['#b8a888', '#9a8a6a'], angle: Math.atan2(-p.facing.y, -p.facing.x), spread: 1.2, speed: [15, 45], life: [0.3, 0.5], size: [1.5, 3], drag: 4, glow: false });
+    }
+    p.lastStep = step;
+  }
 
   // abgelaufene Buffs entfernen
   const before = p.buffs.length;
@@ -121,6 +129,7 @@ function update(dt) {
   updateProjectiles(dt);
   updateEffects(dt);
   questTick();
+  updateRifts();
   if (game.target && game.target.dead) game.target = null;
 
   game.saveTimer += dt;

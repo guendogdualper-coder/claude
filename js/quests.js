@@ -96,6 +96,60 @@ function enterDungeon(k) {
   ui.banner(dg.def.name, `Boss: ${MONSTER_TYPES[dg.def.boss].name} (Stufe ${MONSTER_TYPES[dg.def.boss].level})`);
   return null;
 }
+// --- Dungeon-Risse ---------------------------------------------------------------------------
+// Alle paar Minuten öffnet sich in deiner Nähe ein Riss, der 5 Minuten offen bleibt und direkt
+// in einen zufälligen Dungeon deiner Stufe führt. Ein Riss trägt einen Spieler hinein, dann schließt er sich.
+const RIFT = { first: 75, every: [140, 240], life: 300, minLevel: 10 };
+
+function riftDungeon(level) {
+  const ok = DUNGEONS.map((d, k) => k).filter((k) => DUNGEONS[k].minLevel <= level && DUNGEONS[k].minLevel >= level - 28);
+  const fallback = DUNGEONS.map((d, k) => k).filter((k) => DUNGEONS[k].minLevel <= level);
+  const list = ok.length ? ok : fallback;
+  return list.length ? list[randInt(0, list.length - 1)] : -1;
+}
+
+function updateRifts() {
+  const p = game.player;
+  const w = game.world;
+  if (!p || p.dead || p.level < RIFT.minLevel) return;
+  if (w.npcs.some((n) => n.id === 'riss' && game.time > n.until)) {
+    w.npcs = w.npcs.filter((n) => n.id !== 'riss' || game.time <= n.until);
+    ui.log('Der Dungeon-Riss hat sich wieder geschlossen.', 'info');
+  }
+  if (game.riftAt == null) game.riftAt = game.time + RIFT.first;
+  if (game.time < game.riftAt) return;
+  const zone = zoneAt(p.x, p.y);
+  // im Dorf, im Lager oder schon im Dungeon: bald noch einmal versuchen
+  if (zone.dungeon || zone.safe || w.npcs.some((n) => n.id === 'riss')) {
+    game.riftAt = game.time + 30;
+    return;
+  }
+  game.riftAt = game.time + randInt(...RIFT.every);
+  const k = riftDungeon(p.level);
+  if (k < 0) return;
+  const here = mapOfTile(p.x / TILE, p.y / TILE);
+  for (let tries = 0; tries < 50; tries++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = (7 + Math.random() * 7) * TILE;
+    const x = p.x + Math.cos(a) * d;
+    const y = p.y + Math.sin(a) * d;
+    if (!canStand(x, y, 16, false) || inVillage(x, y) || zoneAt(x, y).dungeon || mapOfTile(x / TILE, y / TILE) !== here) continue;
+    w.npcs.push({ id: 'riss', name: 'Dungeon-Riss', x, y, r: 11, dungeon: k, until: game.time + RIFT.life, born: game.time });
+    ui.banner('Ein Dungeon-Riss öffnet sich!', `${DUNGEONS[k].name} · 5 Minuten offen`);
+    ui.log(`Ganz in deiner Nähe flackert ein Riss in die ${DUNGEONS[k].name}. Er ist auf der Karte markiert.`, 'level');
+    addEffect({ type: 'ring', x, y: y + 9, r: 70, dur: 0.8, color: DUNGEONS[k].portal, width: 10, grow: true });
+    shakeScreen(3);
+    return;
+  }
+}
+
+function enterRift(n) {
+  const err = enterDungeon(n.dungeon);
+  if (err) return err;
+  game.world.npcs = game.world.npcs.filter((x) => x !== n);
+  return null;
+}
+
 function leaveDungeon(k) {
   moveThrough(game.world.dungeons[k].entrance, '#9fd0ff');
 }
@@ -486,12 +540,15 @@ Object.assign(ui, {
     const alive = game.monsters.find((m) => m.typeId === dg.def.boss);
     const bossInfo = alive && alive.dead ? `ist besiegt und kehrt in ${Math.max(1, Math.ceil((alive.respawnAt - game.time) / 60))} Min. zurück` : 'wartet im letzten Raum';
     const low = p.level < dg.def.minLevel;
-    body.innerHTML = `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
+    const rift = npc.id === 'riss';
+    const left = rift ? Math.max(0, Math.ceil(npc.until - game.time)) : 0;
+    body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name} und schließt sich, sobald du hindurchgehst.</p>` : '') +
+      `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
       `<p>Drei Räume voller Monster: ${mobs}. Am Ende ${boss.name} (Stufe ${boss.level}), der ${bossInfo}.</p>` +
       '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +3 bis +6, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
       `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Betreten'}</button>`;
     body.querySelector('[data-dg]').addEventListener('click', () => {
-      const err = enterDungeon(npc.dungeon);
+      const err = rift ? enterRift(npc) : enterDungeon(npc.dungeon);
       if (err) ui.log(err, 'warn');
     });
   },

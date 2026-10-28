@@ -83,7 +83,9 @@ function useUltimate() {
   if (ULT_RUN[u.id](p, u, ultPower(p)) === false) return;
   p.ultCd = ULT_COOLDOWN;
   p.lastCombat = game.time;
-  startSwing(p, 'skill', 0.5);
+  startSwing(p, 'pose', 0.7);
+  p.poseColor = u.color;
+  vfxPowerUp(p, u.color);
   ui.banner(u.name, 'Ultimative Attacke');
   flashScreen(u.color, 0.28);
   hitStop(0.08);

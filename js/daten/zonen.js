@@ -95,6 +95,31 @@ const DUNGEONS = [
     wall: { top: '#1a1210', face: '#080404', line: '#ff6a2a' }, portal: '#ff6a3a',
     mobs: ['drachenbrut', 'feuerdaemon'], boss: 'urdrache', stones: [65, 70],
     ambient: { kind: 'embers', tint: [90, 20, 0, 0.3] }
+  },
+  // Version 3.3: vier weitere Dungeons, zwei davon in Map 2 und Map 3 (entry.map)
+  {
+    id: 'banditenkeller', name: 'Banditenkeller', minLevel: 10, entry: { dir: [1, 0], dist: 42, side: 4 }, floor: 'FLAGSTONE',
+    wall: { top: '#5a4632', face: '#21180f', line: '#8a6a44' }, portal: '#ffb04a',
+    mobs: ['kellerwache', 'armbrustschuetze'], boss: 'banditenfuerst', stones: [10, 15],
+    ambient: { kind: 'dust', tint: [40, 25, 10, 0.26] }
+  },
+  {
+    id: 'totengruft', name: 'Totengruft', minLevel: 38, entry: { dir: [0, -1], dist: 68, side: -4 }, floor: 'CAVE',
+    wall: { top: '#2e2a34', face: '#100e14', line: '#7a6a9a' }, portal: '#a774e0',
+    mobs: ['grabwaechter', 'seelenfresser'], boss: 'gruftkoenig', stones: [40, 40],
+    ambient: { kind: 'wisps', tint: [20, 10, 40, 0.34] }
+  },
+  {
+    id: 'schlangentempel', name: 'Schlangentempel', minLevel: 44, entry: { map: 2, dir: [1, 0], dist: 44, side: 4 }, floor: 'FLAGSTONE',
+    wall: { top: '#3a5a4a', face: '#142a22', line: '#c9a35a' }, portal: '#7ad8c8',
+    mobs: ['naga', 'nagapriesterin'], boss: 'nagakoenigin', stones: [45, 50],
+    ambient: { kind: 'fireflies', tint: [10, 40, 30, 0.3] }
+  },
+  {
+    id: 'titanenschmiede', name: 'Titanenschmiede', minLevel: 60, entry: { map: 3, dir: [-1, 0], dist: 44, side: 4 }, floor: 'BASALT',
+    wall: { top: '#3a3430', face: '#14100c', line: '#ffb04a' }, portal: '#ffb04a',
+    mobs: ['steintitan', 'gargoyle'], boss: 'titanenkoenig', stones: [60, 65],
+    ambient: { kind: 'embers', tint: [70, 30, 0, 0.3] }
   }
 ];
 for (const d of DUNGEONS) {

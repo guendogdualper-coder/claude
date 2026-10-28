@@ -818,3 +818,50 @@ Game item icon sheet for a 2D fantasy MMORPG: top row eight pairs of shoulder pa
 ```
 2D fantasy MMORPG gameplay screenshot, three-quarter top-down view, East Asian village and forest: every character and monster casts a soft slanted shadow toward the lower right, characters are lit from the top left with a thin bright rim on their edges, an idle warrior gently breathes, a walking ninja leans forward and his cape flutters. Cute game art, bold outlines, warm afternoon light.
 ```
+
+## Figur-Animationen, neues HUD, mehr Dungeons, Freunde und Gilden (Version 3.3)
+
+### Kraftpose beim Buffen
+```
+2D fantasy MMORPG character animation sheet, cute chibi style with bold outlines: a warrior casting a buff in four frames – standing, throwing both arms up with the sword pointing to the sky, a small hop with golden light rings rising around the body and light streaks shooting upward, landing with dust puffs. Same for a ninja, a shaman with a fan and a necromancer with a staff, each in their class color. Plain background, cel shading.
+```
+
+### Treffer-Reaktion und Laufstaub
+```
+2D fantasy MMORPG character animation frames, chibi style: a warrior flinching backwards with a brief red flash on the whole body when hit by a monster claw; next to it the same warrior running with small dust puffs kicked up behind his boots and his cape fluttering. Bold outlines, light from the top left.
+```
+
+### Chat unten links und Beutel
+```
+Mobile game HUD close-up in landscape, dark leather fantasy style: bottom-left corner a small semi-transparent chat box with three lines ("Mira: Wer kommt mit in den Dungeon?", grey italic "Jin spielt jetzt mit.", "Kaito: Ich komme!") and a round green speech-bubble button in its corner; above it a round brass button with a loot bag icon and a red counter badge. Clean readable UI, the game world visible behind.
+```
+
+### Gold im Inventar
+```
+Mobile game inventory window header, dark leather and gold fantasy style: the title "Inventar" on the left and on the right a rounded pill with a stack of shiny gold coins, a big golden number "123.456" and the word "Gold", a light sheen sweeping across it. Clean UI, warm glow.
+```
+
+### Uhrzeit, Ping und Akku unter der Karte
+```
+Mobile game minimap corner, fantasy style: a round minimap with the zone name "Dorf Hayan" below it, then a tiny status line with a battery icon "85 %", a clock "14:32" and green signal bars "42 ms". Small, crisp, readable on a phone.
+```
+
+### Neue Dungeons
+```
+2D fantasy MMORPG dungeon concept sheet, three-quarter top-down view, four panels: "Banditenkeller" – a wooden cellar with barrels and the bandit lord Raku with a red plume and golden pauldrons; "Totengruft" – a purple-lit crypt with skeleton guards and the crowned skull king Morvan with a skull staff; "Schlangentempel" – a jade temple with golden trims and the giant naga queen Sseth with a trident staff; "Titanenschmiede" – a basalt forge with lava pools and the colossal stone titan king Kroth with glowing orange cracks and a crown of fire. Cute game art, bold outlines.
+```
+
+### Dungeon-Riss
+```
+2D fantasy MMORPG scene, three-quarter top-down view: in the middle of a sandy valley with orcs a tall flickering vertical rift opens in the air, a dark swirling vortex with a bright orange rim and sparks spiraling out, a golden banner text "Ein Dungeon-Riss öffnet sich!" and a pulsing dot on the minimap. Cute game art, bold outlines, magical glow.
+```
+
+### Freunde und Gilde
+```
+Mobile game social window in landscape, dark leather and gold fantasy style: tabs "Freunde" and "Gilde"; a highlighted request row "Mira möchte dein Freund sein" with "Annehmen" and "Ablehnen" buttons; the guild tab shows a green shield emblem with the letter D, the guild name "Drachenherz", "Anführer: Kaito · 2 Mitglieder", a member list with green online dots and a gold "Anführer" label, and a "Gilde gründen für 5.000 Gold" card with a name field. Clean readable UI.
+```
+
+### Gildenname über den Köpfen
+```
+2D fantasy MMORPG village scene, cute chibi characters: two players standing together, above their names "Lv 42 Kaito" and "Lv 35 Mira" a small colored guild tag "‹Drachenherz›" in the same green, a third player without a guild nearby. Bold outlines, warm light.
+```

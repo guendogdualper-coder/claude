@@ -4,7 +4,8 @@
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
 const WORLD_W = 200;      // Breite der Oberwelt in Kacheln
-const DUNGEON_W = 60;     // östlich davon liegt ein Streifen mit den Dungeons (nur per Eingang erreichbar)
+const DUNGEON_COL = 60;   // Breite einer Dungeon-Spalte in Kacheln
+const DUNGEON_W = DUNGEON_COL * 2; // östlich davon liegen zwei Spalten mit je vier Dungeons (nur per Eingang erreichbar)
 const MAP_W = WORLD_W + DUNGEON_W;
 const WORLD_H = 200;      // Höhe der Oberwelt; darunter liegen Map 2 und Map 3 (nur über das Weltentor)
 const MAP_H = WORLD_H + 132;
@@ -63,7 +64,7 @@ function makeNoise(rng, cell) {
 // Das Dorf ist ein Quadrat innerhalb der Mauer, die Jagdzonen sind Ringe darum
 function zoneIndexAt(x, y) {
   if (y >= WORLD_H) return mapZoneAt(x, y);
-  if (x >= WORLD_W) return dungeonZoneAt(y);
+  if (x >= WORLD_W) return dungeonZoneAt(x, y);
   const dx = Math.abs(x + 0.5 - CENTER_X);
   const dy = Math.abs(y + 0.5 - CENTER_Y);
   if (Math.max(dx, dy) < VILLAGE_HALF + 0.5) return 0;
@@ -91,10 +92,14 @@ function mapZoneAt(x, y) {
   return last;
 }
 
-// Der Dungeon-Streifen ist von oben nach unten in gleich hohe Blöcke geteilt, einer je Dungeon
+// Der Dungeon-Streifen hat zwei Spalten, jede von oben nach unten in vier gleich hohe Blöcke geteilt
 const DUNGEON_BLOCK = Math.floor(WORLD_H / 4);
-function dungeonZoneAt(y) {
-  return RING_ZONES + Math.min(DUNGEONS.length - 1, Math.floor(y / DUNGEON_BLOCK));
+function dungeonIndexAt(x, y) {
+  const col = Math.max(0, Math.min(1, Math.floor((x - WORLD_W) / DUNGEON_COL)));
+  return Math.min(DUNGEONS.length - 1, col * 4 + Math.min(3, Math.floor(y / DUNGEON_BLOCK)));
+}
+function dungeonZoneAt(x, y) {
+  return RING_ZONES + dungeonIndexAt(x, y);
 }
 
 // Liegt die Kachel auf der Dorfmauer? (Tore ausgenommen)
@@ -327,17 +332,29 @@ function buildDungeons(ground, obj, zoneIdx) {
   for (let y = 0; y < WORLD_H; y++) {
     for (let x = WORLD_W; x < MAP_W; x++) {
       const i = y * MAP_W + x;
-      const zi = dungeonZoneAt(y);
+      const zi = dungeonZoneAt(x, y);
       zoneIdx[i] = zi;
       ground[i] = GROUND[ZONES[zi].ground];
       obj[i] = OBJ.CAVEWALL;
     }
   }
+  // unter den Dungeons, neben Map 2 und 3: unzugänglicher Fels
+  for (let y = WORLD_H; y < MAP_H; y++) {
+    for (let x = 260; x < MAP_W; x++) {
+      const i = y * MAP_W + x;
+      zoneIdx[i] = RING_ZONES;
+      ground[i] = GROUND.CAVE;
+      obj[i] = OBJ.CAVEWALL;
+    }
+  }
   return DUNGEONS.map((def, k) => {
-    const ox = WORLD_W + 2;
-    const oy = k * DUNGEON_BLOCK + 2;
+    const col = Math.floor(k / 4);
+    const row = k % 4;
+    const x0 = WORLD_W + col * DUNGEON_COL;
+    const ox = x0 + 2;
+    const oy = row * DUNGEON_BLOCK + 2;
     const carve = (x, y) => {
-      if (x <= WORLD_W || x >= MAP_W - 1 || y <= k * DUNGEON_BLOCK || y >= (k + 1) * DUNGEON_BLOCK - 1) return;
+      if (x <= x0 || x >= x0 + DUNGEON_COL - 1 || y <= row * DUNGEON_BLOCK || y >= (row + 1) * DUNGEON_BLOCK - 1) return;
       obj[y * MAP_W + x] = OBJ.NONE;
     };
     const rooms = DUNGEON_ROOMS.map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2) }));
@@ -434,14 +451,18 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
 }
 
 // Eingang neben dem Weg: Kachel suchen, Platz und einen kurzen Pfad zum Weg freiräumen
+// entry.map: Eingang in Map 2 oder 3 (dann vom Lager der Map aus gemessen)
 function placeDungeonEntrance(entry, ground, obj, deco, zoneIdx) {
   const [dx, dy] = entry.dir;
   const px = dy ? 1 : 0;
   const py = dx ? 1 : 0;
-  const x = Math.round(CENTER_X + dx * entry.dist + px * entry.side);
-  const y = Math.round(CENTER_Y + dy * entry.dist + py * entry.side);
+  const wm = entry.map ? WORLD_MAPS.find((m) => m.id === entry.map) : null;
+  const [cx, cy] = wm ? [wm.cx, wm.cy] : [CENTER_X, CENTER_Y];
+  const [bx0, by0, bx1, by1] = wm ? [wm.region[0], wm.region[1], wm.region[0] + wm.region[2], wm.region[1] + wm.region[3]] : [0, 0, WORLD_W, WORLD_H];
+  const x = Math.round(cx + dx * entry.dist + px * entry.side);
+  const y = Math.round(cy + dy * entry.dist + py * entry.side);
   const free = (tx, ty) => {
-    if (tx < 2 || ty < 2 || tx >= WORLD_W - 2 || ty >= WORLD_H - 2) return;
+    if (tx < bx0 + 2 || ty < by0 + 2 || tx >= bx1 - 2 || ty >= by1 - 2) return;
     const i = ty * MAP_W + tx;
     obj[i] = OBJ.NONE;
     if (LIQUID.has(ground[i])) ground[i] = GROUND[ZONES[zoneIdx[i]].ground];

@@ -281,6 +281,8 @@ function swingProgress(p, ago = 0) {
 
 function weaponAngle(kind, dir, p, ago = 0) {
   const t = swingProgress(p, ago);
+  // Kraftpose: Waffe steil nach oben
+  if (p.swingKind === 'pose' && t >= 0) return dir === 'side' ? -1.25 : -1.9;
   // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
   if (kind === 'bow') return localFacingAngle(dir) + (dir === 'side' ? 0 : 0.35) + (t >= 0 ? -Math.sin(t * Math.PI) * 0.15 : 0);
   if (kind === 'staff' || kind === 'bell' || (kind === 'fan' && p.swingKind === 'cast')) {
@@ -321,10 +323,14 @@ function drawPlayer(ctx, p) {
     if (lk >= 1) p.leap = null;
     else leapH = Math.sin(lk * Math.PI) * p.leap.h;
   }
+  // Kraftpose beim Buffen: Arme hoch, kleiner Hüpfer (auch bei Mitspielern, über swingKind)
+  const posing = p.swingKind === 'pose' && p.swing > 0 && !p.riding;
+  const poseK = posing ? 1 - p.swing / (p.swingDur || 0.7) : 0;
+  if (posing) leapH += Math.sin(Math.min(1, poseK * 1.6) * Math.PI) * 6;
   const ride = (p.riding ? RIDE_HEIGHT : 0) + leapH;
   const dir = p.riding ? 'side' : facingDir(facing);
   const flip = p.riding ? !!p.rideFlip : dir === 'side' && facing.x < 0;
-  const frame = p.moving ? Math.floor(game.time * 9) % 4 : 0;
+  const frame = posing ? POSE_FRAME : p.moving ? Math.floor(game.time * 9) % 4 : 0;
   const fy = feetY(p);
   const kind = weaponKindOf(p);
   const melee = MELEE_KINDS.has(kind);
@@ -346,8 +352,9 @@ function drawPlayer(ctx, p) {
     }
     const sp = shieldSprite(shield.tier);
     const b = sp.bounds;
-    const sx = dir === 'side' ? 5 : -10.5;
-    const sy = -13 + (dir === 'side' ? 0 : WALK[frame].bob);
+    const raised = posing && dir !== 'side' ? handPosition(dir, frame, 'left') : null;
+    const sx = raised ? raised.x : dir === 'side' ? 5 : -10.5;
+    const sy = raised ? raised.y + 3 : -13 + (dir === 'side' ? 0 : WALK[frame].bob);
     ctx.save();
     ctx.translate(sx, sy);
     ctx.scale(0.78, 0.78);
@@ -360,7 +367,7 @@ function drawPlayer(ctx, p) {
   const t = swingProgress(p);
   const fa = localFacingAngle(dir);
   const thrust = p.swingKind === 'combo' && p.combo === 2;
-  const lunge = t >= 0 && melee ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
+  const lunge = t >= 0 && melee && !posing ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
   if (thrust) {
     hand.x += Math.cos(fa) * lunge * 1.3;
     hand.y += Math.sin(fa) * lunge * 0.8;
@@ -394,6 +401,9 @@ function drawPlayer(ctx, p) {
   ctx.translate(p.x, fy - ride);
   if (flip) ctx.scale(-1, 1);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
+  // Getroffen: kurz nach hinten zucken
+  const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;
+  if (hurtK < 1 && !p.riding) ctx.rotate(-Math.sin(hurtK * Math.PI) * 0.1);
   // Im Stand atmet die Figur, beim Laufen lehnt sie sich leicht nach vorn
   if (!p.riding) {
     if (!p.moving && t < 0) ctx.scale(1, 1 + 0.02 * Math.sin(game.time * 2.4 + (p.x % 5)));
@@ -509,6 +519,20 @@ function drawPlayer(ctx, p) {
   if (dir !== 'down') drawShield();
   ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
   drawCape(ctx, cape, dir, WALK[frame], p.moving, game.time, 'front');
+  // rotes Aufblitzen bei Treffern, helles beim Buffen
+  if (hurtK < 1) {
+    ctx.save();
+    ctx.globalAlpha *= 0.5 * (1 - hurtK);
+    ctx.drawImage(tintOf(sp, '#ff3a26'), sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+    ctx.restore();
+  }
+  if (posing) {
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha *= 0.3 * Math.sin(poseK * Math.PI);
+    ctx.drawImage(tintOf(sp, p.poseColor || CLASSES[p.classId].trim), sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+    ctx.restore();
+  }
   // Nach dem Stufenaufstieg leuchtet die Figur hell auf
   if (p.glowUntil > game.time) {
     const left = (p.glowUntil - game.time) / 1.5;
@@ -597,7 +621,64 @@ function drawSkeleton(ctx, a) {
   ctx.restore();
 }
 
+// Dungeon-Riss: senkrechter Wirbel in der Farbe des Dungeons, der Funken sprüht
+function drawRift(ctx, n) {
+  const fy = feetY(n);
+  const col = DUNGEONS[n.dungeon].portal;
+  const t = game.time;
+  const open = Math.min(1, (t - (n.born || 0)) / 0.6);
+  const closing = Math.min(1, Math.max(0, (n.until - t) / 3));
+  const s = open * (0.3 + 0.7 * closing);
+  const cy = fy - 30;
+  softShadow(ctx, n.x, fy, 22 * s, 8 * s, 0.45);
+  glow(ctx, n.x, cy, 52 * s, col, 0.55 + 0.15 * Math.sin(t * 4));
+  ctx.save();
+  ctx.translate(n.x, cy);
+  ctx.scale(s * 0.62, s);
+  ctx.fillStyle = '#0a0612';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 22, 32, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineCap = 'round';
+  for (let k = 0; k < 4; k++) {
+    ctx.strokeStyle = k % 2 ? '#ffffff' : col;
+    ctx.globalAlpha = k % 2 ? 0.55 : 0.95;
+    ctx.lineWidth = k % 2 ? 1.5 : 3.5;
+    ctx.beginPath();
+    for (let i = 0; i <= 20; i++) {
+      const u = i / 20;
+      const a = t * 3 + k * 1.6 + u * 5;
+      const r = (1 - u) * 21;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r * 1.45;
+      if (i) ctx.lineTo(x, y);
+      else ctx.moveTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 22, 32, 0, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+  // Funken, die aus dem Riss wirbeln
+  for (let k = 0; k < 6; k++) {
+    const u = (t * 0.8 + k / 6) % 1;
+    const a = k * 1.05 + t;
+    ctx.globalAlpha = (1 - u) * s;
+    ctx.fillStyle = k % 2 ? '#ffffff' : col;
+    circle(ctx, n.x + Math.cos(a) * (8 + u * 26), cy + Math.sin(a) * 12 - u * 24, 1.6);
+  }
+  ctx.globalAlpha = 1;
+}
+
 function drawNpc(ctx, n) {
+  if (n.id === 'riss') {
+    drawRift(ctx, n);
+    return;
+  }
   const fy = feetY(n);
   const portal = n.id === 'eingang' || n.id === 'ausgang';
   if (!portal && n.id !== 'weltentor') {
@@ -936,12 +1017,22 @@ function drawLabel(ctx, e) {
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     const label = 'Lv ' + e.level + '  ' + e.name;
     const y = feetY(e) - 60 - (e.riding ? RIDE_HEIGHT : 0);
+    // Gildenname in der Gildenfarbe über dem Namen
+    const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
+    if (guild) {
+      ctx.font = '700 10px "Alegreya Sans", sans-serif';
+      const gl = '‹' + guild + '›';
+      ctx.strokeText(gl, e.x, y - 12);
+      ctx.fillStyle = guildColor(guild);
+      ctx.fillText(gl, e.x, y - 12);
+      ctx.font = '600 11px "Alegreya Sans", sans-serif';
+    }
     ctx.strokeText(label, e.x, y);
     ctx.fillStyle = e.remote ? '#a8f0a0' : '#9fe0ff';
     ctx.fillText(label, e.x, y);
     // Mitspieler zeigen ihr Leben unter dem Namen
     if (e.remote) drawBar(ctx, e.x, y + 4, 34, e.hp / Math.max(1, e.maxHp), '#4ad04a');
-    if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - 14, e.say);
+    if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - (guild ? 26 : 14), e.say);
     return;
   }
   if (e.until) {
@@ -1036,6 +1127,19 @@ function renderMinimap() {
     if (n.silent || n.wander) continue;
     const mx = (n.x / TILE - ox) * scale;
     const my = (n.y / TILE - oy) * scale;
+    if (n.id === 'riss') {
+      // Dungeon-Riss: pulsierender Punkt in der Farbe des Dungeons
+      const r = 4 + Math.sin(game.time * 6) * 1.5;
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(mx, my, r + 1.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = DUNGEONS[n.dungeon].portal;
+      ctx.beginPath();
+      ctx.arc(mx, my, r, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
     if (n.id === 'eingang' || n.id === 'ausgang') {
       // Dungeons als Torbogen in ihrer Farbe
       ctx.fillStyle = '#000000';

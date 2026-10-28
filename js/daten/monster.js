@@ -78,6 +78,27 @@ const MONSTER_TYPES = {
   urdrache: {
     name: 'Urdrache Vharak', level: 72, shape: 'beast', color: '#2a1a2a', size: 34, speed: 100, range: 64, cooldown: 1.8, aggressive: true, hpMul: 30, atkMul: 1.7, dungeon: true,
     boss: { color: '#ff6a3a', slam: 170, volley: 7, shot: '#ff9a4a', summon: 'drachenbrut', mat: 'feuerdrache' }
+  },
+  // Version 3.3: Banditenkeller, Totengruft, Schlangentempel, Titanenschmiede
+  kellerwache: { name: 'Kellerwache', level: 12, shape: 'humanoid', color: '#5a4a32', accent: '#9a2f2a', size: 13, speed: 105, range: 30, cooldown: 1.4, aggressive: true, hpMul: 1.3, dungeon: true },
+  armbrustschuetze: { name: 'Armbrustschütze', level: 14, shape: 'humanoid', color: '#4a5a3a', accent: '#9a2f2a', size: 12, speed: 95, range: 220, cooldown: 2, aggressive: true, ranged: true, hpMul: 0.9, bow: true, dungeon: true },
+  banditenfuerst: {
+    name: 'Banditenfürst Raku', level: 17, shape: 'humanoid', color: '#3a2a22', size: 24, speed: 105, range: 46, cooldown: 1.5, aggressive: true, hpMul: 18, atkMul: 1.4, dungeon: true,
+    boss: { color: '#ffb04a', slam: 110, volley: 5, shot: '#e8dcc0', summon: 'kellerwache', mat: 'bandit' }
+  },
+  grabwaechter: { name: 'Grabwächter', level: 39, shape: 'humanoid', color: '#8a8470', size: 14, speed: 95, range: 32, cooldown: 1.5, aggressive: true, hpMul: 1.6, atkMul: 1.2, dungeon: true },
+  seelenfresser: { name: 'Seelenfresser', level: 41, shape: 'ghost', color: '#8a6ac8', size: 13, speed: 100, range: 220, cooldown: 2, aggressive: true, ranged: true, hpMul: 1, atkMul: 1.3, shot: '#c89aff', dungeon: true },
+  gruftkoenig: {
+    name: 'Gruftkönig Morvan', level: 45, shape: 'humanoid', color: '#4a4438', size: 26, speed: 95, range: 52, cooldown: 1.6, aggressive: true, hpMul: 25, atkMul: 1.6, dungeon: true,
+    boss: { color: '#a774e0', slam: 145, volley: 8, shot: '#c89aff', summon: 'grabwaechter', mat: 'untoter' }
+  },
+  nagakoenigin: {
+    name: 'Naga-Königin Sseth', level: 52, shape: 'snake', color: '#2a6a5a', size: 28, speed: 100, range: 56, cooldown: 1.6, aggressive: true, hpMul: 27, atkMul: 1.6, dungeon: true,
+    boss: { color: '#7ad8c8', slam: 150, volley: 9, shot: '#c89aff', summon: 'naga', mat: 'naga' }
+  },
+  titanenkoenig: {
+    name: 'Titanenkönig Kroth', level: 70, shape: 'brute', color: '#6a6458', size: 34, speed: 80, range: 66, cooldown: 2, aggressive: true, hpMul: 30, atkMul: 1.7, dungeon: true,
+    boss: { color: '#ffb04a', slam: 190, volley: 6, shot: '#ffb04a', summon: 'gargoyle', mat: 'steintitan' }
   }
 };
 

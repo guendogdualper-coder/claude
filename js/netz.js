@@ -33,7 +33,9 @@ const net = {
   probes: {},           // Spielerzahl je Kanal (Server-Auswahl)
   lastSnapAt: 0,
   resume: null,
-  timer: 0
+  timer: 0,
+  ping: 0,              // Laufzeit hin und zurück in ms
+  pings: new Map()      // beim Host: Laufzeit je Mitspieler
 };
 
 const channelId = (srv, ch) => `${NET_PREFIX}${srv}-k${ch}`;
@@ -251,11 +253,23 @@ function netOnHostData(conn, d) {
     conn.send({ t: 'pong', n: net.players.size + 1 });
     return;
   }
+  // Laufzeitmessung (Ping) in beide Richtungen
+  if (d.t === 'pi') {
+    conn.send({ t: 'po', s: d.s });
+    return;
+  }
+  if (d.t === 'po') {
+    net.pings.set(id, performance.now() - d.s);
+    const all = [...net.pings.values()];
+    net.ping = all.reduce((a, b) => a + b, 0) / all.length;
+    return;
+  }
   if (d.t === 'hello') {
     const rp = netRemote(id);
     netApplyState(rp, d.s);
     conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList() });
     ui.log(`${rp.name} spielt jetzt mit.`, 'level');
+    ui.chat('', `${rp.name} spielt jetzt mit.`);
     netBroadcast({ t: 'chat', n: '', x: `${rp.name} spielt jetzt mit.` }, id);
     ui.renderNet();
     ui.updateNetBadge();
@@ -265,7 +279,11 @@ function netOnHostData(conn, d) {
   if (!rp) return;
   if (d.t === 'st') netApplyState(rp, d.s);
   else if (d.t === 'dmg') netHostDamage(rp, d);
-  else if (d.t === 'ult') {
+  else if (d.t === 'rel') {
+    // Nachricht an einen Spieler: an den Host selbst oder weiter an den Empfänger
+    if (d.to === 'host') onSocial(id, d.d);
+    else netSendTo(d.to, { t: 'rel', from: id, d: d.d });
+  } else if (d.t === 'ult') {
     ultRemoteFx(d.u, d.x, d.y);
     netBroadcast({ t: 'ult', u: d.u, x: d.x, y: d.y }, id);
   } else if (d.t === 'chat') {
@@ -275,12 +293,14 @@ function netOnHostData(conn, d) {
 }
 
 function netDropPlayer(id) {
+  net.pings.delete(id);
   const rp = net.players.get(id);
   net.conns.delete(id);
   if (!rp) return;
   rp.gone = true;
   net.players.delete(id);
   ui.log(`${rp.name} hat das Spiel verlassen.`, 'info');
+  ui.chat('', `${rp.name} hat das Spiel verlassen.`);
   netBroadcast({ t: 'chat', n: '', x: `${rp.name} hat das Spiel verlassen.` });
   ui.renderNet();
   ui.updateNetBadge();
@@ -408,9 +428,23 @@ function netOnClientData(d) {
     case 'ult':
       ultRemoteFx(d.u, d.x, d.y);
       break;
+    case 'pi':
+      netSend({ t: 'po', s: d.s });
+      break;
+    case 'rel':
+      onSocial(d.from, d.d);
+      break;
+    case 'po': {
+      const rtt = performance.now() - d.s;
+      net.ping = net.ping ? net.ping * 0.6 + rtt * 0.4 : rtt;
+      break;
+    }
     case 'chat':
       if (d.n) netShowChat(d.n, d.x, d.from ? net.players.get(d.from) : (d.n === net.hostName ? net.players.get('host') : null));
-      else ui.log(d.x, 'info');
+      else {
+        ui.log(d.x, 'info');
+        ui.chat('', d.x);
+      }
       break;
   }
 }
@@ -565,7 +599,7 @@ function netPlayerState() {
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
-    hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? 1 : 0, iv: s.invisible ? 1 : 0, eq,
+    hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? 1 : 0, iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '',
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
     sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0
   };
@@ -596,12 +630,16 @@ function netApplyState(rp, s) {
   if (first || Math.abs(rp.x - s.x) + Math.abs(rp.y - s.y) > 400) { rp.x = s.x; rp.y = s.y; }
   rp.facing = { x: s.fx, y: s.fy };
   rp.moving = !!s.m;
+  if (!first && s.hp < rp.hp) rp.hurtAt = game.time;
   rp.hp = s.hp;
   rp.maxHp = s.mh;
   rp.dead = !!s.d;
   rp.riding = !!s.r;
   rp.invisible = !!s.iv;
   rp.equipment = s.eq || {};
+  if ((s.g || '') !== rp.guild) rp.guildSynced = false;
+  rp.guild = s.g || '';
+  if (!first) guildSeen(rp.peerId, rp);
   rp.buffs = (s.b || []).map(([id, lvl, left]) => ({ id, lvl, until: game.time + left, duration: left, effects: {} }));
   if (s.sw && s.sw[0] !== rp.seq) {
     if (!first) {
@@ -609,6 +647,7 @@ function netApplyState(rp, s) {
       rp.combo = s.sw[2];
       rp.swingDur = s.sw[3];
       rp.swing = s.sw[3];
+      if (rp.swingKind === 'pose') vfxPowerUp(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffd34d');
     }
     rp.seq = s.sw[0];
   }
@@ -639,6 +678,14 @@ function netUpdate(dt) {
     ui.updateNetBadge();
     if (!$('panelNet').hidden) ui.renderNet();
   }
+  // alle 2 Sekunden die Laufzeit messen
+  net.pingTimer = (net.pingTimer || 0) + dt;
+  if (net.pingTimer > 2) {
+    net.pingTimer = 0;
+    const d = { t: 'pi', s: performance.now() };
+    if (net.mode === 'client') netSend(d);
+    else netBroadcast(d);
+  }
   net.timer += dt;
   if (net.timer < NET_RATE) return;
   net.timer = 0;
@@ -658,6 +705,8 @@ function netStop(silent, reason, keepWorld) {
   if (net.hostConn) { try { net.hostConn.close(); } catch (e) { /* schon zu */ } }
   if (net.peer) { try { net.peer.destroy(); } catch (e) { /* schon zu */ } }
   net.conns.clear();
+  net.pings.clear();
+  net.ping = 0;
   for (const rp of net.players.values()) rp.gone = true;
   net.players.clear();
   net.mons.clear();

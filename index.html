@@ -52,6 +52,11 @@
       <span>Gold <b id="goldText">0</b></span>
       <span>Splitter <b id="splinterText">0</b></span>
     </div>
+    <div id="statusLine" class="status-line">
+      <span id="stBattery" class="st-bat" hidden><i class="bat"><i id="stBatFill"></i></i><b id="stBatText"></b></span>
+      <span id="stClock" class="st-clock"></span>
+      <span id="stPing" class="st-ping"><i class="sig"><i></i><i></i><i></i></i><b id="stPingText">allein</b></span>
+    </div>
     <div id="netBadge" class="net-badge" hidden></div>
     <div id="questTrack" class="quest-track" hidden></div>
   </section>
@@ -67,11 +72,7 @@
       <button class="slot potion potion-mp" id="potMp" type="button" title="Mondtau – Manatrank (E)">
         <span class="key">E</span><img class="flask" alt=""><span class="count" id="potMpCount">0</span>
       </button>
-      <button class="slot loot-btn" id="btnLoot" type="button" title="Beute und Rucksack (B)" aria-label="Beute und Rucksack">
-        <span class="key">B</span>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10l1.5 12.5H5.5z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M8 13h8"/></svg>
-        <span id="lootBadge" class="loot-badge" hidden></span>
-      </button>
+
     </div>
     <div class="xp" title="Erfahrung">
       <i id="xpFill"></i>
@@ -92,6 +93,9 @@
     <button id="btnNet" class="menu-btn" type="button" aria-label="Server und Kanal">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><circle cx="16.5" cy="9" r="2.6"/><path d="M3 20c.8-3.6 3.2-5.6 6-5.6s5.2 2 6 5.6"/><path d="M15 14.6c2.6-.4 4.8 1.2 5.6 4.6"/></svg>
       <span class="menu-text">Server</span> <kbd>N</kbd></button>
+    <button id="btnSocial" class="menu-btn" type="button" aria-label="Freunde und Gilde">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l8 2.7v6c0 5.3-3.6 8.7-8 10.3-4.4-1.6-8-5-8-10.3v-6z"/><path d="M12 8.2c-1.2-1.6-4-1.1-4 1 0 2 2.4 3.4 4 4.8 1.6-1.4 4-2.8 4-4.8 0-2.1-2.8-2.6-4-1z"/></svg>
+      <span class="menu-text">Freunde &amp; Gilde</span> <kbd>G</kbd><span id="socialBadge" class="menu-badge" hidden></span></button>
     <button id="btnChat" class="menu-btn" type="button" aria-label="Chat" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg>
       <span class="menu-text">Chat</span> <kbd>Enter</kbd></button>
@@ -100,7 +104,18 @@
       <span class="menu-text">Hilfe</span> <kbd>H</kbd></button>
   </nav>
 
-  <div id="chatLog" class="chat-log" aria-live="polite"></div>
+  <button class="slot loot-btn" id="btnLoot" type="button" title="Beute und Rucksack (B)" aria-label="Beute und Rucksack">
+        <span class="key">B</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10l1.5 12.5H5.5z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/><path d="M8 13h8"/></svg>
+        <span id="lootBadge" class="loot-badge" hidden></span>
+      </button>
+
+  <section id="chatBox" class="chat-box" aria-label="Chat">
+    <div id="chatLog" class="chat-log" aria-live="polite"></div>
+    <button id="chatOpen" class="chat-open" type="button" aria-label="Chat schreiben">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>
+    </button>
+  </section>
 
   <div id="bossBar" class="boss-bar" hidden>
     <strong id="bossName"></strong>
@@ -177,6 +192,7 @@
       <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
       <dt><kbd>N</kbd> / <kbd>Enter</kbd></dt><dd>Server und Kanal / Chat</dd>
+      <dt><kbd>G</kbd></dt><dd>Freunde &amp; Gilde</dd>
       <dt><kbd>I</kbd></dt><dd>Inventar: Ausrüstung anlegen, ablegen, bei Händlern verkaufen</dd>
       <dt><kbd>B</kbd></dt><dd>Beute: alles, was du aufgehoben hast, und der Weg in den Rucksack</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
@@ -208,6 +224,9 @@
       <li>Schilde trägt nur der Krieger. Zweihänder führt nur der Krieger auf dem Weg des Leibes. Zweihänder, Bogen und Sense brauchen beide Hände, dann gibt es keinen Schild. Blocken kannst du nur mit Schild.</li>
       <li>Beidhändig: Krieger auf dem Weg der Klinge lernen ab Stufe 30 bei Waffenhändler Goro (20.000 Gold), ein zweites Schwert in der Nebenhand zu führen. Im Inventar ein Schwert antippen und „Nebenhand“ wählen. Die Nebenhand gibt 30 % ihres Angriffs, +5 % Angriffstempo und ihre Boni zur Hälfte, dafür kein Blocken.</li>
       <li>Ultimative Attacke: Ab Stufe 30 hat jeder Weg eine eigene, sehr starke Attacke mit 3 Minuten Abklingzeit (goldener Knopf über dem Angriff oder Taste 6): Klingenhimmel, Titanenzorn, Schattentanz, Todesmal, Drachensturm, Himmelssegen, Seelenernte und Knochenkerker. Sie wird mit deiner Stufe stärker.</li>
+      <li>Freunde &amp; Gilde (Schild-Knopf oben oder Taste G): Spieler aus deinem Kanal als Freund anfragen, sie nehmen an. Ab Stufe 40 gründest du für 5.000 Gold eine Gilde und lädst Spieler aus dem Kanal ein; der Gildenname steht über euren Köpfen.</li>
+      <li>Dungeon-Risse: Ab Stufe 10 öffnet sich alle paar Minuten in deiner Nähe ein flackernder Riss (pulsierender Punkt auf der Karte). Er bleibt 5 Minuten offen und bringt dich direkt in einen Dungeon deiner Stufe. Dungeons gibt es jetzt acht: Banditenkeller (ab 10), Spinnenhöhle (18), Orkfestung (28), Totengruft (38), Schlangentempel (44, Map 2), Eisgrotte (45), Titanenschmiede (60, Map 3) und Drachenhort (63).</li>
+      <li>Unten links: der kleine Chat (Sprechblase zum Schreiben) und darüber der Beutel mit deiner Beute. Unter der Karte stehen Uhrzeit, Ping und, wenn dein Gerät ihn verrät, der Akku.</li>
       <li>Acht Ausrüstungsplätze: Waffe, Rüstung, Helm, Schultern, Umhang, Schild (nur Krieger), Schuhe und Gürtel. Jedes Teil siehst du an deiner Figur, der Umhang weht beim Laufen.</li>
       <li>Waffe, Rüstung und Helm kann nur die passende Klasse tragen. Jede Klasse hat zwei Waffenarten: Schwert oder Zweihänder, Dolche oder Bogen, Fächer oder Glocke, Stab oder Sense. Ausrüstung ab Stufe 30 gibt es nur in den hohen Gebieten oder von Seelensteinen ab Stufe 20.</li>
       <li>Innerhalb der Dorfmauer bist du sicher. Monster folgen dir nicht durch die Tore.</li>
@@ -220,8 +239,18 @@
 </div>
 
 <div id="panelInv" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="invTitle">
-  <header class="panel-head"><h2 id="invTitle">Inventar</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <header class="panel-head"><h2 id="invTitle">Inventar</h2>
+    <div class="gold-chip" title="Dein Gold">
+      <svg viewBox="0 0 32 24" aria-hidden="true"><ellipse cx="12" cy="17" rx="9" ry="4.2"/><ellipse cx="12" cy="13" rx="9" ry="4.2"/><ellipse cx="20" cy="11" rx="9" ry="4.2"/><ellipse cx="20" cy="7" rx="9" ry="4.2"/></svg>
+      <b id="invGold">0</b><small>Gold</small>
+    </div>
+    <button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="invBody" class="panel-body"></div>
+</div>
+
+<div id="panelSocial" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="socialTitle">
+  <header class="panel-head"><h2 id="socialTitle">Freunde &amp; Gilde</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="socialBody" class="panel-body social"></div>
 </div>
 
 <div id="panelNet" class="panel frame" hidden role="dialog" aria-labelledby="netTitle">
@@ -286,6 +315,7 @@
 <script src="js/quests.js"></script>
 <script src="js/eingabe.js"></script>
 <script src="js/netz.js"></script>
+<script src="js/gemeinschaft.js"></script>
 <script src="js/spiel.js"></script>
 </body>
 </html>

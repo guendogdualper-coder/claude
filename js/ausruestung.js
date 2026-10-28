@@ -1268,12 +1268,23 @@ const gear = {
       `<p class="inv-sum">Angriff ${s.atk} · Verteidigung ${s.def}<br>Leben ${s.maxHp} · Mana ${s.maxMp}</p></section>` +
       `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs}</span></h3>` +
       sellBar + `<div class="bag-grid">${bag}</div>` +
-      `<p class="inv-sum">Gold ${p.gold.toLocaleString('de-DE')} · Seelensplitter ${p.splinters} · ` +
+      `<p class="inv-sum">Seelensplitter ${p.splinters} · ` +
       `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}<br>` +
       MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
       `</p></section>` +
       `</div><div id="invDetail" class="item-detail-wrap"></div><p id="invMsg" class="gear-msg"></p>`;
     drawDoll(document.getElementById('invDoll'));
+    // Gold oben im Fensterkopf, zählt bei Änderungen kurz hoch
+    const goldEl = document.getElementById('invGold');
+    const shownGold = Number(goldEl.dataset.v || p.gold);
+    goldEl.dataset.v = p.gold;
+    if (shownGold !== p.gold) {
+      const chip = goldEl.parentElement;
+      chip.classList.remove('bump');
+      void chip.offsetWidth;
+      chip.classList.add('bump');
+    }
+    goldEl.textContent = p.gold.toLocaleString('de-DE');
     const body = document.getElementById('invBody');
     body.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('click', () => {
       this.selected = { where: 'equip', key: b.dataset.equip };

@@ -279,6 +279,7 @@ function damagePlayer(amount, attacker) {
   }
   if (dmg > 0) {
     p.hp -= dmg;
+    p.hurtAt = game.time;
     addText(p.x + (Math.random() - 0.5) * 16, p.y - 34, '-' + dmg, 'hurt');
     game.hurtFlash = 0.35;
     shakeScreen(2.5);
@@ -405,7 +406,14 @@ function useSkill(i) {
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   p.mp -= sk.mp;
   p.skillCd[i] = sk.cooldown;
-  startSwing(p, 'skill', 0.34);
+  // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
+  if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
+    startSwing(p, 'pose', 0.7);
+    p.poseColor = skillColor(sk, CLASSES[p.classId].trim);
+    vfxPowerUp(p, p.poseColor);
+  } else {
+    startSwing(p, 'skill', 0.34);
+  }
   if (sk.kind === 'angriff' || sk.kind === 'fluch') p.lastCombat = game.time;
 }
 

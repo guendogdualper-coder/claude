@@ -19,6 +19,9 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const rand = (a, b) => a + Math.random() * (b - a);
 
+// Weitere Effektarten aus anderen Dateien (z. B. ultimativ.js): type -> (ctx, e, k, x, y)
+const EXTRA_EFFECTS = {};
+
 function hexRgb(hex) {
   const n = parseInt(hex.slice(1), 16);
   return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
@@ -237,6 +240,49 @@ function vfxCorpse(m) {
   addEffect({ type: 'corpse', typeId: m.typeId, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 });
 }
 
+// Kraftpose beim Buffen: Lichtringe steigen an der Figur auf, Lichtstreifen und Funken
+function vfxPowerUp(p, color) {
+  addEffect({ type: 'powerup', follow: p, ox: 0, oy: 0, dur: 0.75, color });
+  particles(p.x, feetY(p) - 4, { count: 22, color: [color, '#ffffff', lighter(color, 0.4)], angle: -Math.PI / 2, spread: 0.9, speed: [60, 170], life: [0.4, 0.8], size: [1.5, 3], drag: 2, jitter: 10 });
+  particles(p.x, feetY(p), { count: 10, color: ['#a88f62', '#c9b28a'], speed: [40, 110], life: [0.3, 0.5], size: [2, 4], drag: 4, glow: false });
+}
+
+EXTRA_EFFECTS.powerup = (ctx, e, k, x, y) => {
+  ctx.globalCompositeOperation = 'lighter';
+  // Bodenblitz
+  ctx.globalAlpha = 0.5 * (1 - k);
+  ctx.fillStyle = e.color;
+  ctx.beginPath();
+  ctx.ellipse(x, y, 16 + 22 * k, (16 + 22 * k) * 0.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // aufsteigende Ringe
+  ctx.strokeStyle = e.color;
+  for (let a = 0; a < 3; a++) {
+    const kk = k * 1.3 - a * 0.18;
+    if (kk < 0 || kk > 1) continue;
+    ctx.globalAlpha = (1 - kk) * 0.9;
+    ctx.lineWidth = 2.5 * (1 - kk) + 0.8;
+    const r = 13 + kk * 9;
+    ctx.beginPath();
+    ctx.ellipse(x, y - kk * 52, r, r * 0.38, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  // Lichtstreifen
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 7; i++) {
+    const ox = Math.sin(i * 2.4) * 13;
+    const h = 20 + ((i * 37) % 23);
+    const yy = y - k * 70 - (i % 3) * 6;
+    ctx.globalAlpha = Math.sin(k * Math.PI) * 0.75;
+    ctx.strokeStyle = i % 2 ? '#ffffff' : e.color;
+    ctx.lineWidth = 1.6;
+    ctx.beginPath();
+    ctx.moveTo(x + ox, yy);
+    ctx.lineTo(x + ox, yy - h);
+    ctx.stroke();
+  }
+};
+
 function vfxPillar(p, color, dur = 0.8) {
   addEffect({ type: 'pillar', follow: p, dur, color });
   particles(p.x, feetY(p), { count: 18, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.35, speed: [60, 160], life: [0.4, 0.8], size: [1.5, 3], jitter: 12, drag: 1.5 });
@@ -251,9 +297,6 @@ function vfxPotion(p, kind) {
 }
 
 // --- Effekte zeichnen ---------------------------------------------------------------------
-
-// Weitere Effektarten aus anderen Dateien (z. B. ultimativ.js): type -> (ctx, e, k, x, y)
-const EXTRA_EFFECTS = {};
 
 function addEffect(e) {
   e.start = game.time;

@@ -62,6 +62,11 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Beidhändig** (Krieger, Weg der Klinge, ab Stufe 30, bei Goro für 20.000 Gold): zweites Schwert in der Nebenhand, 30 % seines Angriffs, +5 % Tempo, Boni zur Hälfte, kein Blocken
 - **Ultimative Attacken** ab Stufe 30, eine je Weg, 3 Minuten Abklingzeit, goldener Knopf und Taste 6: Klingenhimmel (Geisterschwerter fallen vom Himmel), Titanenzorn (Sprung mit Erdriss und Titanenhaut), Schattentanz (Sprünge zu bis zu 8 Gegnern), Todesmal (Hinrichtung eines Ziels), Drachensturm (Meteorregen), Himmelssegen (Heilung, Schutz und Lichtsäulen), Seelenernte (Seelenstrudel, der Gegner zusammenzieht), Knochenkerker (drei Ringe aus Knochenspießen mit Lebensraub). Mitspieler sehen sie auch
 - **Acht Ausrüstungsplätze**: dazu Schultern und Umhang. Jedes Teil ist an der Figur zu sehen: Stiefel, Gürtel mit Schnalle, Schulterpanzer (ab Drache mit Dornen, ab Himmel mit Federn), der Umhang weht beim Laufen und trägt ab Drache ein Wappen
+- **Figur 3.3**: Kraftpose beim Buffen (Arme hoch, kleiner Sprung, aufsteigende Lichtringe), kurzes Zucken und rotes Aufblitzen bei Treffern, Staubwölkchen beim Laufen, Spielfiguren in höherer Auflösung, Mund und Augenbrauen
+- **HUD 3.3**: kleiner Chat unten links (immer sichtbar, Sprechblase zum Schreiben), Beute-Beutel darüber statt neben den Tränken, Gold als Münzstapel im Kopf des Inventars, unter der Karte Uhrzeit, Ping und Akku (wo der Browser ihn verrät)
+- **8 Dungeons**: neu Banditenkeller (ab 10), Totengruft (ab 38), Schlangentempel (ab 44, Map 2) und Titanenschmiede (ab 60, Map 3) mit eigenen Bossen (Banditenfürst Raku, Gruftkönig Morvan, Naga-Königin Sseth, Titanenkönig Kroth)
+- **Dungeon-Risse**: ab Stufe 10 öffnet sich alle paar Minuten in der Nähe ein Riss, 5 Minuten offen, führt in einen zufälligen Dungeon der eigenen Stufe
+- **Freunde & Gilde** (Taste G): Freundschaftsanfragen an Spieler im Kanal, Freundesliste mit Online-Anzeige; ab Stufe 40 Gilde gründen für 5.000 Gold, Spieler einladen, Mitglieder entfernen, verlassen oder auflösen; Gildenname mit eigener Farbe über den Köpfen
 - **Grafik 3.2**: Schlagschatten aller Figuren nach unten rechts, Licht von oben links mit hellem Saum an jeder Figur, Atmen im Stand, Vorlehnen beim Laufen
 - **Glitzern ab +8**: starke Ausrüstung funkelt an der Figur und im Inventar
 - **Lebensbalken** mit rundem Bild der Figur, schrägem Messingrahmen, Herz und Tropfen, flüssiger Füllung mit wanderndem Glanz; bei wenig Leben schlägt das Herz. Lebensraub erscheint als grüne Zahl
@@ -78,6 +83,7 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 | Leertaste halten | Angreifen, läuft automatisch zum nächsten Monster |
 | 1–5 | Fertigkeiten |
 | 6 | Ultimative Attacke (ab Stufe 30) |
+| G | Freunde & Gilde |
 | Q / E | Drachenblut (Leben) / Mondtau (Mana) |
 | Tab, Mausklick | Ziel wählen |
 | I | Inventar |
@@ -107,6 +113,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/effekte.js` | Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse, Bildschirmwackeln |
 | `js/fertigkeiten.js` | Symbole der Fertigkeiten, Effekte je Fertigkeit, Auren aktiver Buffs |
 | `js/ultimativ.js` | Ultimative Attacken ab Stufe 30: Ablauf, Symbole und Effekte |
+| `js/gemeinschaft.js` | Freunde und Gilden: Anfragen über den Host, Fenster, Gildenwappen |
 | `js/umgebung.js` | Boden (vorgezeichnet in Blöcken), Bäume, Felsen, Häuser, Dorfschmuck und Tiefensortierung |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |

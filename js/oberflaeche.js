@@ -14,7 +14,18 @@ const ui = {
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
     $('btnHorse').addEventListener('click', () => toggleRide());
     $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
+    $('btnSocial').addEventListener('click', () => this.toggle('panelSocial'));
     $('btnChat').addEventListener('click', () => this.openChat());
+    // Chat-Knopf in der Ecke: im Kanal schreiben, allein die Server-Auswahl öffnen
+    $('chatOpen').addEventListener('click', () => {
+      if (netOnline()) this.openChat();
+      else {
+        this.toggle('panelNet');
+        this.log('Chat gibt es im Kanal: wähle Server ERFOO und einen Kanal.', 'info');
+      }
+    });
+    this.chatHint();
+    this.initBattery();
     $('chatClose').addEventListener('click', () => { $('chatBar').hidden = true; });
     $('chatBar').addEventListener('submit', (e) => {
       e.preventDefault();
@@ -410,17 +421,61 @@ const ui = {
     $('chatInput').focus();
   },
 
-  // Chat unten links: die letzten Nachrichten, verblassen nach einer Weile
+  // Kleiner Chat unten links: die letzten Nachrichten bleiben stehen, die neueste unten.
+  // Ohne Namen ist es eine Meldung des Kanals (jemand kommt oder geht).
   chat(name, text) {
     const box = $('chatLog');
+    box.querySelectorAll('.hint').forEach((x) => x.remove());
     const row = document.createElement('p');
-    const b = document.createElement('b');
-    b.textContent = name + ': ';
-    row.append(b, document.createTextNode(text));
+    if (name) {
+      const b = document.createElement('b');
+      b.textContent = name + ': ';
+      b.style.color = name === (game.player && game.player.name) ? '#ffd38a' : '';
+      row.append(b);
+    } else row.className = 'sys';
+    row.append(document.createTextNode(text));
     box.append(row);
-    while (box.children.length > 5) box.firstChild.remove();
-    setTimeout(() => row.classList.add('old'), 20000);
-    setTimeout(() => row.remove(), 26000);
+    while (box.children.length > 12) box.firstChild.remove();
+    box.scrollTop = box.scrollHeight;
+  },
+
+  chatHint() {
+    const box = $('chatLog');
+    if (box.children.length) return;
+    box.innerHTML = '<p class="hint">Chat · Tippe auf die Sprechblase, um zu schreiben.</p>';
+  },
+
+  // Akku (wenn das Gerät ihn verrät; Safari auf dem iPhone tut das nicht)
+  initBattery() {
+    if (!navigator.getBattery) return;
+    navigator.getBattery().then((bat) => {
+      const show = () => {
+        const pct = Math.round(bat.level * 100);
+        $('stBattery').hidden = false;
+        $('stBatText').textContent = pct + ' %';
+        $('stBatFill').style.width = pct + '%';
+        $('stBattery').classList.toggle('low', pct <= 20 && !bat.charging);
+        $('stBattery').classList.toggle('charging', bat.charging);
+      };
+      show();
+      bat.addEventListener('levelchange', show);
+      bat.addEventListener('chargingchange', show);
+    }).catch(() => {});
+  },
+
+  // Uhrzeit und Ping unter der Karte
+  updateStatus() {
+    const now = new Date();
+    this.set('clock', now.getHours() * 60 + now.getMinutes(), () => {
+      $('stClock').textContent = now.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    });
+    const ms = netOnline() && net.ping ? Math.round(net.ping) : -1;
+    const shown = ms < 0 ? (netOnline() ? 'misst' : 'allein') : ms;
+    this.set('ping', shown, () => {
+      $('stPingText').textContent = ms < 0 ? shown : ms + ' ms';
+      const q = ms < 0 ? 0 : ms < 120 ? 3 : ms < 300 ? 2 : 1;
+      $('stPing').dataset.q = q;
+    });
   },
 
   updateHorseButton() {
@@ -469,6 +524,7 @@ const ui = {
       $('xpText').textContent = p.level >= MAX_LEVEL ? 'Höchststufe' : `${p.xp.toLocaleString('de-DE')} / ${need.toLocaleString('de-DE')} EP (${pct.toFixed(1).replace('.', ',')} %)`;
     });
     this.set('gold', p.gold, (v) => { $('goldText').textContent = v.toLocaleString('de-DE'); });
+    this.updateStatus();
     this.set('splinter', p.splinters, (v) => { $('splinterText').textContent = v; });
     this.set('potHp', potionTotal(p, 'hp'), (v) => { $('potHpCount').textContent = v; });
     this.set('potMp', potionTotal(p, 'mp'), (v) => { $('potMpCount').textContent = v; });
@@ -698,6 +754,7 @@ const ui = {
         return;
       }
       if (id === 'panelLoot') this.renderLoot();
+      if (id === 'panelSocial') social.render();
       if (id === 'panelNet') {
         this.renderNet();
         netProbe();
@@ -771,7 +828,7 @@ const ui = {
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
-    else if (npc.id === 'eingang' || npc.id === 'ausgang') this.renderDungeon(npc);
+    else if (npc.id === 'eingang' || npc.id === 'ausgang' || npc.id === 'riss') this.renderDungeon(npc);
     else if (npc.id === 'weltentor') this.renderWorldGate();
     else this.renderTalk(npc);
     $('panelNpc').hidden = false;
@@ -934,7 +991,7 @@ function ultHtml(u, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;
