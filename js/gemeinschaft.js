@@ -46,6 +46,11 @@ function onSocial(pid, d) {
     onInteract(pid, d);
     return;
   }
+  // Gruppen stehen in gruppe.js
+  if (/^p[iansl]$/.test(d.k)) {
+    onParty(pid, d);
+    return;
+  }
   const rp = net.players.get(pid);
   const name = d.n || (rp && rp.name) || '?';
   if (d.k === 'fr') {
@@ -260,9 +265,12 @@ const social = {
       `<div class="soc-info"><strong>${escapeHtml(x.name)}</strong><small>${x.type === 'friend' ? 'möchte dein Freund sein' : `lädt dich in die Gilde „${escapeHtml(x.g.name)}“ ein`}</small></div>` +
       `<button type="button" class="mini-btn primary" data-pend="${i}:yes">Annehmen</button><button type="button" class="mini-btn" data-pend="${i}:no">Ablehnen</button></div>`).join('');
     const tabs = `<div class="soc-tabs"><button type="button" class="bag-tab${this.tab === 'freunde' ? ' on' : ''}" data-tab="freunde">Freunde <small>${(p.friends || []).length}</small></button>` +
-      `<button type="button" class="bag-tab${this.tab === 'gilde' ? ' on' : ''}" data-tab="gilde">Gilde${p.guild ? ` <small>${p.guild.members.length}</small>` : ''}</button></div>`;
+      `<button type="button" class="bag-tab${this.tab === 'gilde' ? ' on' : ''}" data-tab="gilde">Gilde${p.guild ? ` <small>${p.guild.members.length}</small>` : ''}</button>` +
+      `<button type="button" class="bag-tab${this.tab === 'gruppe' ? ' on' : ''}" data-tab="gruppe">Gruppe${game.party ? ` <small>${game.party.members.length}</small>` : ''}</button></div>`;
     let html = '';
-    if (this.tab === 'freunde') {
+    if (this.tab === 'gruppe') {
+      html = partyPanelHtml();
+    } else if (this.tab === 'freunde') {
       const chan = [...net.players.entries()].filter(([, rp]) => !rp.gone).map(([pid, rp]) => {
         const friend = isFriend(rp.name);
         return `<div class="soc-row"><span class="soc-dot on"></span><div class="soc-info"><strong>${escapeHtml(rp.name)}</strong>` +
@@ -307,6 +315,7 @@ const social = {
         (lead ? `<h3>Einladen <small>· Spieler im Kanal</small></h3>` + (online ? (invites || '<p class="hint-text">Niemand im Kanal, den du einladen kannst.</p>') : '<p class="hint-text">Einladen geht im Kanal: Server-Knopf (N).</p>') : '');
     }
     body.innerHTML = pend + tabs + '<p id="socialMsg" class="gear-msg"></p>' + html;
+    partyPanelBind(body);
     body.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.confirm = null; this.render(); }));
     body.querySelectorAll('[data-friend]').forEach((b) => b.addEventListener('click', () => askFriend(b.dataset.friend)));
     body.querySelectorAll('[data-unfriend]').forEach((b) => b.addEventListener('click', () => removeFriend(b.dataset.unfriend)));

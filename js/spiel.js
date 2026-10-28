@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '5.3';
+const GAME_VERSION = '5.4';
 
 const game = {
   world: null,
@@ -25,6 +25,7 @@ const game = {
 };
 
 function startGame(save) {
+  game.party = null;
   game.player = makePlayer(save);
   game.stats = playerStats(game.player);
   game.allies = [];
@@ -81,6 +82,8 @@ function updatePlayer(dt) {
       const len = Math.hypot(mv.x, mv.y);
       p.facing = { x: mv.x / len, y: mv.y / len };
     }
+    // Leertaste gehalten (PC): jeder Frame ist ein neuer Tipp, also Dauerangriff
+    if (input.keys.has('Space')) input.attackAt = game.time;
     // offener Tipp: kurz gültig, beim Hinlaufen zum Ziel bis zu 3 Sekunden
     const tapAge = game.time - input.attackAt;
     const wantAttack = tapAge >= 0 && tapAge < (input.attackWalk ? 3 : 0.45);
@@ -140,6 +143,7 @@ function update(dt) {
   updateRifts();
   updateDuel();
   pcard.update();
+  partyTick();
   if (game.target && game.target.dead) game.target = null;
 
   game.saveTimer += dt;

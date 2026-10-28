@@ -1347,3 +1347,20 @@ Stylized 3D chibi ninja with twin daggers fading into transparent shadow smoke, 
 ```
 Character attribute panel of a fantasy mobile MMORPG: a glowing purple orb on the left with the number of free stat points, four cards for Stärke (red, sword icon), Vitalität (green, heart icon), Intelligenz (blue, crystal icon) and Geschick (gold, feather icon), each with a value, a thin progress bar and round golden "+" buttons; the class main stat card carries a small golden badge "Hauptwert" and lists "+1,5 % Fertigkeitsschaden · +1 % Angriffsschaden · +1 % Buff-Stärke". Dark brown wood frame with gold trim, clean readable layout.
 ```
+
+## Gruppen und PC-Anzeige (Version 5.4)
+
+### Gruppe im Spiel
+```
+Mobile fantasy MMORPG screenshot: three chibi heroes of different classes (warrior, ninja, shaman) fighting a pack of wolves together in a sunny meadow; in the top-left HUD under the player's portrait and HP/MP bars a compact party list with two small dark rows, each showing a name, level and a thin red HP bar, a tiny golden crown next to the leader. Floating golden "+1.467 EP" above the highest-level hero and "+733 EP" above the lowest. Soft toon shading, thin dark outline.
+```
+
+### Gruppenfenster
+```
+Fantasy game window "Freunde, Gilde & Gruppe" with three tabs, the tab "Gruppe 3" selected: member rows with green online dots, names, class and level, a golden "Anführer" tag, "Entfernen" buttons, a "Gruppe verlassen" button; below a section "Erfahrung verteilen" with two large selectable cards "Gleich verteilen" and "Höhere Stufe bekommt mehr" (the second one glowing gold); a list of channel players with "In Gruppe einladen" buttons. Dark brown wood frame with gold trim.
+```
+
+### PC-Lebensanzeige
+```
+Desktop version of the same MMORPG HUD at 1920×1080: in the top-left corner a larger round portrait with a level badge and two wide, thick HP and MP bars with numbers, a red heart and blue drop icon in front of the bars; clean, readable, more spacious than on mobile.
+```

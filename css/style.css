@@ -2452,3 +2452,42 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 .death-btns small { font-size: 11px; font-weight: 400; opacity: 0.85; }
 /* Hauptwert der Klasse im Statusfenster */
 .attr-mainstat { margin-left: 6px; padding: 0 5px; border-radius: 6px; font-size: 9.5px; font-style: normal; font-weight: 700; letter-spacing: 0.03em; color: #1a120a; background: linear-gradient(#ffe39a, #c9963a); vertical-align: 2px; }
+
+/* --- Version 5.4: größere Lebensanzeige am PC (Handy bleibt wie es ist) -------------------- */
+#hud:not(.touch) .hud-char { width: 330px; gap: 10px; }
+#hud:not(.touch) .portrait { width: 64px; height: 64px; }
+#hud:not(.touch) .portrait .lvl { min-width: 24px; height: 24px; font-size: 13px; right: -6px; bottom: -5px; }
+#hud:not(.touch) .hud-char .char-name { font-size: 15px; }
+#hud:not(.touch) .char-line { font-size: 14px; }
+#hud:not(.touch) .char-main { gap: 5px; }
+#hud:not(.touch) .bar { height: 22px; padding: 3px 4px; }
+#hud:not(.touch) .bar::before, #hud:not(.touch) .bar i { inset: 3px 4px; }
+#hud:not(.touch) .bar span { font-size: 13px; line-height: 16px; }
+#hud:not(.touch) .bar-ico { width: 26px; height: 26px; margin-right: -9px; }
+
+/* --- Version 5.4: Gruppe unter der eigenen Lebensanzeige ---------------------------------- */
+.party-frame { position: absolute; left: calc(var(--edge-l) + 4px); top: calc(var(--edge-t) + 74px); display: flex; flex-direction: column; gap: 3px; width: 168px; pointer-events: auto; cursor: pointer; z-index: 2; }
+#hud.touch .party-frame { left: calc(var(--corner-l, var(--edge-l)) + 8px); top: calc(var(--edge-t) + 54px); width: 128px; gap: 2px; }
+#hud.has-buffs .party-frame { top: calc(var(--edge-t) + 100px); }
+#hud.touch.has-buffs .party-frame { top: calc(var(--edge-t) + 76px); }
+.pt-row { display: grid; grid-template-columns: 1fr auto; gap: 0 6px; padding: 2px 6px 3px; border-radius: 6px; background: rgba(14, 10, 7, 0.55); border: 1px solid rgba(201, 163, 90, 0.35); }
+.pt-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 700; color: #f3e6c8; text-shadow: 0 1px 2px #000; }
+.pt-crown { color: #ffd34d; margin-right: 3px; font-weight: 400; }
+.pt-lvl { font-size: 11px; color: #ffd98a; font-weight: 700; }
+.pt-hp { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: rgba(0, 0, 0, 0.6); overflow: hidden; }
+.pt-hp i { display: block; height: 100%; background: linear-gradient(#ff8a6a, #c8321e); transform-origin: left; }
+.pt-row.off { opacity: 0.45; }
+.pt-row.dead .pt-hp i { background: #555; }
+#hud.touch .pt-row { padding: 1px 5px 2px; }
+#hud.touch .pt-name { font-size: 9.5px; }
+#hud.touch .pt-lvl { font-size: 9px; }
+#hud.touch .pt-hp { height: 4px; }
+.party-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.party-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.party-mode { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; text-align: left; border-radius: 9px; border: 1px solid var(--brass-dim); background: rgba(14, 10, 7, 0.5); color: var(--parchment); font: inherit; cursor: pointer; }
+.party-mode strong { font-size: 13px; color: #ffd98a; }
+.party-mode small { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.party-mode.on { border-color: #ffd34d; box-shadow: 0 0 0 1px #ffd34d, 0 0 10px rgba(255, 211, 77, 0.35); background: rgba(80, 60, 20, 0.5); }
+.party-mode:disabled { cursor: default; }
+.party-mode:disabled:not(.on) { opacity: 0.55; }
+@media (max-width: 560px) { .party-modes { grid-template-columns: 1fr; } }

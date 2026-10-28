@@ -38,6 +38,7 @@
     </div>
   </section>
 
+  <section id="partyFrame" class="party-frame" hidden aria-label="Gruppe"></section>
   <section id="playerCard" class="player-card frame" hidden aria-label="Mitspieler"></section>
   <div id="inviteToasts" class="invite-toasts"></div>
 
@@ -261,6 +262,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 5.4 – Gruppen und PC: Lade Mitspieler im Kanal in eine Gruppe ein (Spieler antippen → „Gruppe“ oder Freunde, Gilde &amp; Gruppe → Reiter „Gruppe“, bis zu 8 Spieler). Der Anführer stellt ein, wie die Erfahrung für Monster in eurer Nähe verteilt wird: „Gleich verteilen“ (jeder bekommt seine EP plus 10 % je weiterem Mitglied) oder „Höhere Stufe bekommt mehr“ (dieselbe Menge, nach Stufe aufgeteilt). Die Gruppe steht mit Leben und Stufe unter deiner Lebensanzeige. Am PC ist die Lebensanzeige oben links größer, und Leertaste gedrückt halten greift ununterbrochen an.</li>
       <li>Version 5.3 – Hauptwert je Klasse: Krieger Stärke, Ninja Geschick, Schamane und Nekromant Intelligenz. Jeder Punkt im Hauptwert gibt +1,5 % Fertigkeitsschaden, +1 % Schaden normaler Angriffe und +1 % Buff-Stärke (Auren, Buffs, Heilung, Schilde, Skelette). Der Hauptwert ist im Charakterfenster golden markiert. Die übrigen Werte wirken wie bisher.</li>
       <li>Version 5.2 – Ninja: Im Weg des Dolches ersetzt die Tarnung den Giftpfeil (ab Stufe 3): 30 Sekunden unsichtbar, bis du angreifst – auch ein normaler Schlag macht dich wieder sichtbar. Dein Angriff aus der Tarnung trifft dreifach und sicher kritisch. Ein Schlag, der beim Tarnen schon unterwegs war, bricht die Tarnung nicht mehr. Die Tarnung im Weg des Schattens funktioniert genauso (bis zu 2 Minuten). Giftpfeil-Bücher werden zu Tarnungs-Büchern.</li>
       <li>Version 5.1 – Tarnung und Neustart: Die Tarnung des Ninjas endet nicht mehr beim ersten Schlag – nach dem ersten Angriff bleibst du noch 8 Sekunden unsichtbar (mit höherer Fertigkeitsstufe länger), ohne Angriff bis zu 2 Minuten. Wenn du stirbst, wählst du: „Hier neu starten“ (an Ort und Stelle mit halbem Leben und 3 Sekunden Schutz, kostet 3 % der EP zur nächsten Stufe) oder „In der Stadt neu starten“ (volles Leben, kein EP-Verlust).</li>
@@ -318,7 +320,7 @@
 </div>
 
 <div id="panelSocial" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="socialTitle">
-  <header class="panel-head"><h2 id="socialTitle">Freunde &amp; Gilde</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <header class="panel-head"><h2 id="socialTitle">Freunde, Gilde &amp; Gruppe</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="socialBody" class="panel-body social"></div>
 </div>
 
@@ -416,6 +418,7 @@
 <script src="js/netz.js"></script>
 <script src="js/gemeinschaft.js"></script>
 <script src="js/interaktion.js"></script>
+<script src="js/gruppe.js"></script>
 <script src="js/spiel.js"></script>
 </body>
 </html>

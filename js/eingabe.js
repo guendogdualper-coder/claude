@@ -56,7 +56,9 @@ function setupInput() {
     }
     switch (e.code) {
       case 'Space':
+        // Gedrückt halten greift immer weiter an (siehe spiel.js)
         if (!e.repeat) tapAttack();
+        input.keys.add('Space');
         e.preventDefault();
         break;
       case 'Digit6':

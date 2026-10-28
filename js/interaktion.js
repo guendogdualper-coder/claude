@@ -46,6 +46,8 @@ const pcard = {
     const friend = isFriend(rp.name);
     const canGuild = p.guild && p.guild.leader === p.name && rp.guild !== p.guild.name && !rp.guild;
     const inDuel = game.duel && game.duel.pid === this.pid;
+    const inParty = !!game.party && game.party.members.includes(rp.name);
+    const canParty = !inParty && (!game.party || (game.party.leader === p.name && game.party.members.length < PARTY.max));
     const btn = (act, label, icon, on = true, extra = '') => `<button type="button" class="pc-btn${extra}" data-pc="${act}" ${on ? '' : 'disabled'}>` +
       `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}</span></button>`;
     $('playerCard').innerHTML =
@@ -58,6 +60,7 @@ const pcard = {
       btn('duel', inDuel ? 'Im Duell' : 'Duell', '<path d="M5 3l8 8M3 5l2-2M19 3l-8 8M21 5l-2-2M8 13l-4 4 3 3 4-4M16 13l4 4-3 3-4-4"/>', !game.duel, ' red') +
       btn('friend', friend ? 'Freund' : 'Freund', '<path d="M12 20s-7-4.3-8.9-8.7C1.7 8 3.6 4.5 7 4.5c1.9 0 3.3 1 5 2.8 1.7-1.8 3.1-2.8 5-2.8 3.4 0 5.3 3.5 3.9 6.8C19 15.7 12 20 12 20z"/>', !friend) +
       btn('guild', 'Gilde', '<path d="M12 2.5l8 2.7v6c0 5.3-3.6 8.7-8 10.3-4.4-1.6-8-5-8-10.3v-6z"/><path d="M12 7v8M8 11h8"/>', !!canGuild) +
+      btn('party', inParty ? 'In Gruppe' : 'Gruppe', '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 19c.6-3.4 2.8-5.5 5.5-5.5s4.9 2.1 5.5 5.5M10.5 19c.6-3.4 2.8-5.5 5.5-5.5s4.9 2.1 5.5 5.5"/>', canParty) +
       btn('trade', 'Handeln', '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', !game.trade) +
       btn('inspect', 'Betrachten', '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>') +
       `</div>`;
@@ -75,6 +78,7 @@ const pcard = {
     }
     if (a === 'friend') askFriend(pid);
     if (a === 'guild') inviteGuild(pid);
+    if (a === 'party') inviteParty(pid);
     if (a === 'inspect') netSocial(pid, { k: 'iq', n: game.player.name });
     if (a === 'duel') {
       netSocial(pid, { k: 'dq', n: game.player.name });

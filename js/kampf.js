@@ -222,7 +222,8 @@ function monsterDeathFx(m) {
 // Erfahrung, Gold, Beute und Aufträge für ein besiegtes Monster
 function rewardKill(m) {
   const p = game.player;
-  const xp = Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level)));
+  // in einer Gruppe teilen sich die Mitglieder in der Nähe die Erfahrung (gruppe.js)
+  const xp = partyXp(Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level))), m);
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
   const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
