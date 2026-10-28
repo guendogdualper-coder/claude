@@ -35,16 +35,58 @@ function v3Supported() {
 
 // --- Materialien -----------------------------------------------------------------------------
 
-// Weiche Zeichentrick-Schattierung: vier Helligkeitsstufen mit sanften Übergängen
+// Zeichentrick-Schattierung in drei Stufen mit weichen Kanten. Die Schatten sind kühl blau-violett
+// getönt statt grau (wie in Anime-Spielen), die Lichtseite bleibt warm.
 let toonGradient = null;
 function toonRamp() {
   if (toonGradient) return toonGradient;
-  const d = new Uint8Array([96, 96, 96, 255, 150, 150, 150, 255, 212, 212, 212, 255, 255, 255, 255, 255]);
-  toonGradient = new THREE.DataTexture(d, 4, 1, THREE.RGBAFormat);
+  const N = 64;
+  const d = new Uint8Array(N * 4);
+  const shadow = [0.5, 0.5, 0.66];
+  const mid = [0.8, 0.79, 0.88];
+  const lit = [1, 1, 1];
+  const step = (a, b, x) => Math.max(0, Math.min(1, (x - a) / (b - a)));
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1);
+    const k1 = step(0.3, 0.38, t);
+    const k2 = step(0.58, 0.66, t);
+    for (let c = 0; c < 3; c++) {
+      const v = shadow[c] + (mid[c] - shadow[c]) * k1 + (lit[c] - mid[c]) * k2;
+      d[i * 4 + c] = Math.round(v * 255);
+    }
+    d[i * 4 + 3] = 255;
+  }
+  toonGradient = new THREE.DataTexture(d, N, 1, THREE.RGBAFormat);
   toonGradient.minFilter = THREE.LinearFilter;
   toonGradient.magFilter = THREE.LinearFilter;
   toonGradient.needsUpdate = true;
   return toonGradient;
+}
+
+// Für Figuren: Randlicht an den Kanten (warm auf der Sonnenseite) und kleine Glanzpunkte auf
+// Metall, Augen und Haaren (Eckenwert "shine"). Kostet fast nichts, macht sie deutlich plastischer.
+function addRimShine(mat) {
+  mat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'attribute float shine;\nvarying float vShine;\nvoid main() {\n\tvShine = shine;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('void main() {', 'varying float vShine;\nvoid main() {')
+      .replace('#include <output_fragment>', `
+	vec3 vdir = normalize(vViewPosition);
+	float ndv = clamp(dot(normal, vdir), 0.0, 1.0);
+	float rim = smoothstep(0.55, 0.92, 1.0 - ndv);
+	#if NUM_DIR_LIGHTS > 0
+		vec3 ldir = directionalLights[0].direction;
+		float facing = clamp(dot(normal, ldir) * 0.5 + 0.5, 0.0, 1.0);
+		outgoingLight += rim * mix(vec3(0.22, 0.24, 0.42), vec3(0.95, 0.78, 0.55), facing) * 0.42 * (0.4 + 0.6 * diffuseColor.rgb);
+		vec3 hv = normalize(ldir + vdir);
+		float sp = smoothstep(0.86, 0.93, dot(normal, hv)) * vShine;
+		outgoingLight += sp * vec3(1.0, 0.97, 0.9) * 0.75;
+	#endif
+	#include <output_fragment>`);
+  };
+  mat.customProgramCacheKey = () => 'rimshine' + (mat.skinning ? 's' : '');
+  return mat;
 }
 
 // Objekte zwischen Kamera und Spieler werden in einem kleinen Kreis um ihn durchsichtig gerastert,
@@ -279,42 +321,125 @@ class Bake3 {
     this.lists = {};
   }
 
-  // o: p (Position), r (Drehung), s (Größe), bone, mat ('lit' | 'glow' | 'aura'), shade (Schatten nach unten), m (Matrix)
+  // o: p (Position), r (Drehung), s (Größe), bone, mat ('lit' | 'glow' | 'aura' …), shade (dunkler nach unten),
+  //    top/topK (zweite Farbe auf Oberseiten), shine (Glanzlicht 0–1, z. B. Metall), m (Matrix), parent (Matrix)
   add(geo, color, o = {}) {
     const key = o.mat || 'lit';
-    (this.lists[key] = this.lists[key] || []).push({ geo, color, m: partMatrix(o), bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null, top: o.top ? new THREE.Color(o.top) : null, topK: o.topK == null ? 0.5 : o.topK });
+    (this.lists[key] = this.lists[key] || []).push({
+      geo, color, m: partMatrix(o), bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null,
+      top: o.top ? new THREE.Color(o.top) : null, topK: o.topK == null ? 0.5 : o.topK, shine: o.shine || 0, ao: o.ao == null ? 0.22 : o.ao
+    });
     return this;
   }
 
-  build() {
+  // fertige Vorlage (siehe bakeTemplate) an eine Stelle setzen: viel schneller als Teil für Teil
+  addTemplate(tpl, M) {
+    for (const key in tpl) (this.lists[key] = this.lists[key] || []).push({ tpl: tpl[key], m: M });
+    return this;
+  }
+
+  build(keepArrays) {
     const out = {};
-    for (const k in this.lists) out[k] = mergeParts(this.lists[k], this.skinned);
+    for (const k in this.lists) out[k] = mergeParts(this.lists[k], this.skinned, keepArrays);
+    return out;
+  }
+
+  // Rohdaten statt Geometrie (für Vorlagen)
+  raw() {
+    const out = {};
+    for (const k in this.lists) out[k] = mergeRaw(this.lists[k], false);
     return out;
   }
 }
 
-function mergeParts(list, skinned) {
+// Vorlage: ein Objekt einmal aus seinen Teilen backen und als Rohdaten behalten
+const TPL3 = new Map();
+function bakeTemplate(key, make) {
+  let t = TPL3.get(key);
+  if (!t) {
+    const b = new Bake3(false);
+    make(b);
+    t = b.raw();
+    TPL3.set(key, t);
+  }
+  return t;
+}
+
+// Nach dem Hochladen auf die Grafikkarte braucht der Arbeitsspeicher die Daten nicht mehr
+function freeArray() {
+  this.array = null;
+}
+
+// Alle Teile zu Rohdaten zusammenführen (Position, Normale, Farbe, Glanz, Knochen)
+function mergeRaw(list, skinned) {
   let nv = 0;
   let ni = 0;
   for (const it of list) {
-    nv += it.geo.attributes.position.count;
-    ni += it.geo.index ? it.geo.index.count : it.geo.attributes.position.count;
+    if (it.tpl) {
+      nv += it.tpl.n;
+      ni += it.tpl.idx.length;
+    } else {
+      nv += it.geo.attributes.position.count;
+      ni += it.geo.index ? it.geo.index.count : it.geo.attributes.position.count;
+    }
   }
   const pos = new Float32Array(nv * 3);
   const nor = new Float32Array(nv * 3);
   const col = new Float32Array(nv * 3);
-  const idx = nv > 65535 ? new Uint32Array(ni) : new Uint16Array(ni);
-  const si = skinned ? new Float32Array(nv * 4) : null;
+  const shine = new Float32Array(nv);
+  const idx = new Uint32Array(ni);
+  const si = skinned ? new Uint8Array(nv * 4) : null;
   const sw = skinned ? new Float32Array(nv * 4) : null;
   let vo = 0;
   let io = 0;
+  let anyShine = false;
   for (const it of list) {
+    if (it.tpl) {
+      // Vorlage verschieben: Positionen mit der Matrix, Normalen nur gedreht
+      const t = it.tpl;
+      const e = it.m.elements;
+      _n3.getNormalMatrix(it.m);
+      const ne = _n3.elements;
+      for (let i = 0; i < t.n; i++) {
+        const x = t.pos[i * 3];
+        const y = t.pos[i * 3 + 1];
+        const z = t.pos[i * 3 + 2];
+        const o = (vo + i) * 3;
+        pos[o] = e[0] * x + e[4] * y + e[8] * z + e[12];
+        pos[o + 1] = e[1] * x + e[5] * y + e[9] * z + e[13];
+        pos[o + 2] = e[2] * x + e[6] * y + e[10] * z + e[14];
+        const a = t.nor[i * 3];
+        const b2 = t.nor[i * 3 + 1];
+        const c = t.nor[i * 3 + 2];
+        let nx = ne[0] * a + ne[3] * b2 + ne[6] * c;
+        let ny = ne[1] * a + ne[4] * b2 + ne[7] * c;
+        let nz = ne[2] * a + ne[5] * b2 + ne[8] * c;
+        const l = Math.hypot(nx, ny, nz) || 1;
+        nor[o] = nx / l;
+        nor[o + 1] = ny / l;
+        nor[o + 2] = nz / l;
+        col[o] = t.col[i * 3];
+        col[o + 1] = t.col[i * 3 + 1];
+        col[o + 2] = t.col[i * 3 + 2];
+        shine[vo + i] = t.shine[i];
+      }
+      if (t.anyShine) anyShine = true;
+      for (let i = 0; i < t.idx.length; i++) idx[io + i] = t.idx[i] + vo;
+      io += t.idx.length;
+      vo += t.n;
+      continue;
+    }
     const g = it.geo;
     const P = g.attributes.position;
     const N = g.attributes.normal;
     const m = it.parent ? it.parent.clone().multiply(it.m) : it.m;
     _n3.getNormalMatrix(m);
-    _c.set(it.color);
+    // ohne Farbe: Eckenfarben der Form selbst (z. B. gestreifte Schlangen)
+    const VC = it.color == null ? g.attributes.color : null;
+    if (!VC) _c.set(it.color);
+    // eigene Knochen-Gewichte der Form (weich biegende Schläuche)
+    const SI = g.attributes.skinIndex;
+    const SW = g.attributes.skinWeight;
     let minY = 0;
     let span = 1;
     if (it.shade) {
@@ -322,21 +447,25 @@ function mergeParts(list, skinned) {
       minY = g.boundingBox.min.y;
       span = Math.max(1e-4, g.boundingBox.max.y - minY);
     }
+    if (it.shine) anyShine = true;
     for (let i = 0; i < P.count; i++) {
       _v1.set(P.getX(i), P.getY(i), P.getZ(i));
       const ly = _v1.y;
       _v1.applyMatrix4(m);
-      pos[(vo + i) * 3] = _v1.x;
-      pos[(vo + i) * 3 + 1] = _v1.y;
-      pos[(vo + i) * 3 + 2] = _v1.z;
+      const o = (vo + i) * 3;
+      pos[o] = _v1.x;
+      pos[o + 1] = _v1.y;
+      pos[o + 2] = _v1.z;
       _v2.set(N.getX(i), N.getY(i), N.getZ(i)).applyMatrix3(_n3).normalize();
-      nor[(vo + i) * 3] = _v2.x;
-      nor[(vo + i) * 3 + 1] = _v2.y;
-      nor[(vo + i) * 3 + 2] = _v2.z;
-      const k = it.shade ? 1 - it.shade * (1 - (ly - minY) / span) : 1;
-      let r = _c.r;
-      let gg = _c.g;
-      let bb = _c.b;
+      nor[o] = _v2.x;
+      nor[o + 1] = _v2.y;
+      nor[o + 2] = _v2.z;
+      // weiche Verdunkelung: nach unten zeigende Flächen und der untere Teil eines Teils
+      let k = it.shade ? 1 - it.shade * (1 - (ly - minY) / span) : 1;
+      if (it.ao) k *= 1 - it.ao * Math.max(0, -_v2.y);
+      let r = VC ? VC.getX(i) : _c.r;
+      let gg = VC ? VC.getY(i) : _c.g;
+      let bb = VC ? VC.getZ(i) : _c.b;
       if (it.top) {
         // nach oben zeigende Flächen nehmen die zweite Farbe an (Moos, Schnee, helle Dachziegel)
         const t = Math.max(0, Math.min(1, (_v2.y - 0.25) / 0.6)) * it.topK;
@@ -344,12 +473,20 @@ function mergeParts(list, skinned) {
         gg += (it.top.g - gg) * t;
         bb += (it.top.b - bb) * t;
       }
-      col[(vo + i) * 3] = r * k;
-      col[(vo + i) * 3 + 1] = gg * k;
-      col[(vo + i) * 3 + 2] = bb * k;
+      col[o] = r * k;
+      col[o + 1] = gg * k;
+      col[o + 2] = bb * k;
+      shine[vo + i] = it.shine;
       if (skinned) {
-        si[(vo + i) * 4] = it.bone;
-        sw[(vo + i) * 4] = 1;
+        if (SI) {
+          for (let c = 0; c < 4; c++) {
+            si[(vo + i) * 4 + c] = SI.array[i * 4 + c];
+            sw[(vo + i) * 4 + c] = SW.array[i * 4 + c];
+          }
+        } else {
+          si[(vo + i) * 4] = it.bone;
+          sw[(vo + i) * 4] = 1;
+        }
       }
     }
     if (g.index) {
@@ -362,16 +499,41 @@ function mergeParts(list, skinned) {
     }
     vo += P.count;
   }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
-  out.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  if (skinned) {
-    out.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
-    out.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  return { n: nv, pos, nor, col, shine, idx, si, sw, anyShine };
+}
+
+// Zu einer Geometrie im Sparformat: Normalen und Farben als Bytes, Knochen als Bytes.
+// Je Eckpunkt 22–30 statt 68 Bytes; nach dem Hochladen wird die Kopie im Arbeitsspeicher freigegeben.
+function mergeParts(list, skinned, keepArrays) {
+  const r = mergeRaw(list, skinned);
+  const nv = r.n;
+  const nor = new Int8Array(nv * 3);
+  const col = new Uint8Array(nv * 3);
+  for (let i = 0; i < nv * 3; i++) {
+    nor[i] = Math.round(Math.max(-1, Math.min(1, r.nor[i])) * 127);
+    col[i] = Math.round(Math.max(0, Math.min(1, r.col[i])) * 255);
   }
-  out.setIndex(new THREE.BufferAttribute(idx, 1));
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.BufferAttribute(r.pos, 3));
+  out.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
+  out.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  if (r.anyShine) {
+    const sh = new Uint8Array(nv);
+    for (let i = 0; i < nv; i++) sh[i] = Math.round(Math.min(1, r.shine[i]) * 255);
+    out.setAttribute('shine', new THREE.BufferAttribute(sh, 1, true));
+  }
+  if (skinned) {
+    const sw = new Uint8Array(nv * 4);
+    for (let i = 0; i < nv * 4; i++) sw[i] = Math.round(r.sw[i] * 255);
+    out.setAttribute('skinIndex', new THREE.BufferAttribute(r.si, 4));
+    out.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4, true));
+  }
+  out.setIndex(new THREE.BufferAttribute(nv > 65535 ? r.idx : Uint16Array.from(r.idx), 1));
   out.computeBoundingSphere();
+  if (!keepArrays) {
+    for (const k in out.attributes) out.attributes[k].onUpload(freeArray);
+    out.index.onUpload(freeArray);
+  }
   return out;
 }
 
@@ -399,7 +561,8 @@ function v3Init() {
   V3.sun = new THREE.DirectionalLight(0xfff0d4, 0.92);
   V3.sun.castShadow = true;
   const sc = V3.sun.shadow.camera;
-  sc.left = -22; sc.right = 22; sc.top = 22; sc.bottom = -22; sc.near = 1; sc.far = 80;
+  // Echtzeit-Schatten werfen nur Figuren (die Welt hat eingebackene Schatten): kleiner Bereich, scharf
+  sc.left = -13; sc.right = 13; sc.top = 13; sc.bottom = -13; sc.near = 1; sc.far = 60;
   sc.updateProjectionMatrix();
   V3.sun.shadow.bias = -0.0008;
   V3.sun.shadow.normalBias = 0.02;
@@ -428,7 +591,7 @@ function v3ApplyGraphics() {
   V3.builtFor = opts.graphics;
   V3.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, renderer.maxDpr || g.dpr));
   V3.sun.castShadow = g.castShadows;
-  const size = opts.graphics === 'hoch' ? 2048 : 1024;
+  const size = opts.graphics === 'hoch' ? 1024 : 512;
   if (V3.sun.shadow.mapSize.x !== size) {
     V3.sun.shadow.mapSize.set(size, size);
     if (V3.sun.shadow.map) {
@@ -532,6 +695,8 @@ function v3Project(wx, wy, h = 0, out = {}) {
 
 const _pa = {};
 const _pb = {};
+const _fadeA = {};
+const _fadeB = {};
 // Zeichnet das 2D-Canvas ab hier so, dass der Weltpunkt (wx, wy) an seiner Stelle im 3D-Bild liegt.
 // h: Höhe des Punkts, ax/ay: welcher 2D-Punkt dorthin gehört (Standard: derselbe)
 function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
@@ -731,7 +896,46 @@ function liquidMat(kind) {
   });
 }
 
-function buildTerrainChunk(cx, cy) {
+// Schattenwerfer der festen Welt (Bäume, Felsen, Häuser, Mauer, Bauten) in Kacheln.
+// Ihr Schatten wird einmal in die Bodenfarbe gebacken, statt jedes Bild neu gezeichnet zu werden.
+// h: Höhe des Schattenzentrums, r: Radius, s: Stärke. Die Sonne steht im Südosten (wie V3.sun).
+const SUN_DX = -9 / 24;
+const SUN_DZ = -13 / 24;
+const CASTER3 = {
+  [OBJ.TREE]: [1.9, 1.05, 0.42], [OBJ.BLOSSOM]: [1.9, 1.05, 0.4], [OBJ.PINE]: [1.6, 0.9, 0.45],
+  [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
+};
+const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25] };
+
+function shadowCasters(x0, y0, x1, y1) {
+  const w = game.world;
+  const out = [];
+  const push = (x, z, h, r, st) => {
+    out.push(x + SUN_DX * h, z + SUN_DZ * h, r, st);
+    // dunkler Fuß direkt am Objekt (Umgebungsverdeckung)
+    out.push(x, z, r * 0.55, st * 0.55);
+  };
+  for (let y = Math.max(0, y0); y < Math.min(MAP_H, y1); y++) {
+    for (let x = Math.max(0, x0); x < Math.min(MAP_W, x1); x++) {
+      const c = CASTER3[w.obj[y * MAP_W + x]];
+      if (c) push(x + 0.5, y + 0.55, c[0], c[1], c[2]);
+    }
+  }
+  for (const h of w.houses) {
+    if (h.x + h.w < x0 || h.x > x1 || h.y + h.h < y0 || h.y > y1) continue;
+    for (let y = h.y; y < h.y + h.h; y++) for (let x = h.x; x < h.x + h.w; x++) push(x + 0.5, y + 0.5, 2.1, 1.05, 0.42);
+  }
+  for (const pr of w.props) {
+    const c = PROP_CASTER3[pr.type];
+    const x = pr.x * U3;
+    const z = pr.y * U3 - 0.3;
+    if (c && x > x0 && x < x1 && z > y0 && z < y1) push(x, z, c[0], c[1], c[2]);
+  }
+  return out;
+}
+
+// Boden eines Blocks als Bauauftrag in kleinen Schritten (yield), damit kein Bild lange hängt
+function* terrainJob(cx, cy) {
   const w = game.world;
   const S = SUB3;
   const n = CHUNK3 * S + 1;
@@ -739,21 +943,30 @@ function buildTerrainChunk(cx, cy) {
   const y0 = cy * CHUNK3;
   // Kachelwerte für den Block plus Rand
   const span = CHUNK3 + 2;
-  const tiles = new Array(span * span);
+  const tr = new Float32Array(span * span);
+  const tg = new Float32Array(span * span);
+  const tb = new Float32Array(span * span);
+  const th = new Float32Array(span * span);
+  const tp = new Float32Array(span * span);
   const tmp = {};
   for (let ty = 0; ty < span; ty++) {
     for (let tx = 0; tx < span; tx++) {
       tileSample(x0 + tx - 1, y0 + ty - 1, tmp);
-      tiles[ty * span + tx] = { r: tmp.r, g: tmp.g, b: tmp.b, h: tmp.h, paved: tmp.paved };
+      const k = ty * span + tx;
+      tr[k] = tmp.r; tg[k] = tmp.g; tb[k] = tmp.b; th[k] = tmp.h; tp[k] = tmp.paved;
     }
   }
-  const T = (tx, ty) => tiles[(ty - y0 + 1) * span + (tx - x0 + 1)];
+  yield;
+  const casters = shadowCasters(x0 - 4, y0 - 4, x0 + CHUNK3 + 4, y0 + CHUNK3 + 4);
+  // Höhen mit einem Eckpunkt Rand (für die Normalen)
+  const m = n + 2;
+  const hgt = new Float32Array(m * m);
+  const tIdx = (tx, ty) => (Math.max(y0 - 1, Math.min(y0 + CHUNK3, ty)) - y0 + 1) * span + (Math.max(x0 - 1, Math.min(x0 + CHUNK3, tx)) - x0 + 1);
   const pos = new Float32Array(n * n * 3);
-  const col = new Float32Array(n * n * 3);
-  const pav = new Float32Array(n * n);
-  const depth = new Float32Array(n * n);
-  for (let j = 0; j < n; j++) {
-    for (let i = 0; i < n; i++) {
+  const col = new Uint8Array(n * n * 3);
+  const pav = new Uint8Array(n * n);
+  for (let j = -1; j <= n; j++) {
+    for (let i = -1; i <= n; i++) {
       const vx = x0 + i / S;
       const vy = y0 + j / S;
       // bilinear zwischen den Kachelmitten
@@ -763,46 +976,82 @@ function buildTerrainChunk(cx, cy) {
       const iy = Math.floor(fy);
       const ax = fx - ix;
       const ay = fy - iy;
-      const a = T(Math.max(x0 - 1, ix), Math.max(y0 - 1, iy));
-      const b = T(Math.min(x0 + CHUNK3, ix + 1), Math.max(y0 - 1, iy));
-      const c = T(Math.max(x0 - 1, ix), Math.min(y0 + CHUNK3, iy + 1));
-      const d = T(Math.min(x0 + CHUNK3, ix + 1), Math.min(y0 + CHUNK3, iy + 1));
-      const mix = (k) => (a[k] * (1 - ax) + b[k] * ax) * (1 - ay) + (c[k] * (1 - ax) + d[k] * ax) * ay;
-      let h = mix('h');
+      const a = tIdx(ix, iy);
+      const b = tIdx(ix + 1, iy);
+      const c = tIdx(ix, iy + 1);
+      const d = tIdx(ix + 1, iy + 1);
+      const mix = (arr) => (arr[a] * (1 - ax) + arr[b] * ax) * (1 - ay) + (arr[c] * (1 - ax) + arr[d] * ax) * ay;
+      let h = mix(th);
       // Felsen oben leicht unruhig, Wiese ganz leicht gewellt
       const hash = (((vx * 7919) ^ (vy * 104729)) >>> 0) % 1000 / 1000;
       if (h > 0.2) h += (hash - 0.5) * 0.18 * (h / WALL3_H);
       else if (h > -0.05) h += Math.sin(vx * 1.3 + vy * 0.7) * Math.cos(vy * 1.1) * 0.035;
+      hgt[(j + 1) * m + (i + 1)] = h;
+      if (i < 0 || j < 0 || i >= n || j >= n) continue;
       const v = j * n + i;
       pos[v * 3] = vx;
       pos[v * 3 + 1] = h;
       pos[v * 3 + 2] = vy;
+      // eingebackener Schatten der Objekte, kühl getönt
+      let dark = 0;
+      for (let q = 0; q < casters.length; q += 4) {
+        const dx = vx - casters[q];
+        const dz = vy - casters[q + 1];
+        const r = casters[q + 2];
+        if (dx > r || dx < -r || dz > r || dz < -r) continue;
+        const dd = Math.sqrt(dx * dx + dz * dz);
+        if (dd >= r) continue;
+        const t = dd / r;
+        const k = casters[q + 3] * (t < 0.5 ? 1 : 1 - (t - 0.5) * 2) ;
+        if (k > dark) dark = k;
+      }
       // Felsen werden nach oben heller
       const lift = h > 0.3 ? 1 + (h / WALL3_H) * 0.25 : 1;
-      col[v * 3] = mix('r') * lift;
-      col[v * 3 + 1] = mix('g') * lift;
-      col[v * 3 + 2] = mix('b') * lift;
-      pav[v] = mix('paved');
-      depth[v] = -h;
+      const cr = mix(tr) * lift * (1 - dark);
+      const cg = mix(tg) * lift * (1 - dark * 0.95);
+      const cb = mix(tb) * lift * (1 - dark * 0.7);
+      col[v * 3] = Math.min(255, cr * 255);
+      col[v * 3 + 1] = Math.min(255, cg * 255);
+      col[v * 3 + 2] = Math.min(255, cb * 255);
+      pav[v] = Math.round(mix(tp) * 255);
+    }
+    if (j % 6 === 5) yield;
+  }
+  // Normalen direkt aus dem Höhenfeld (schneller und ohne zweite Gleitkomma-Kopie)
+  const nor = new Int8Array(n * n * 3);
+  const step = 2 / S;
+  for (let j = 0; j < n; j++) {
+    for (let i = 0; i < n; i++) {
+      const hx = hgt[(j + 1) * m + (i + 2)] - hgt[(j + 1) * m + i];
+      const hz = hgt[(j + 2) * m + (i + 1)] - hgt[j * m + (i + 1)];
+      const nx = -hx / step;
+      const nz = -hz / step;
+      const l = Math.sqrt(nx * nx + 1 + nz * nz);
+      const v = (j * n + i) * 3;
+      nor[v] = Math.round((nx / l) * 127);
+      nor[v + 1] = Math.round((1 / l) * 127);
+      nor[v + 2] = Math.round((nz / l) * 127);
     }
   }
-  const idx = [];
+  const idx = new Uint16Array((n - 1) * (n - 1) * 6);
+  let q = 0;
   for (let j = 0; j < n - 1; j++) {
     for (let i = 0; i < n - 1; i++) {
       const a = j * n + i;
-      idx.push(a, a + n, a + 1, a + 1, a + n, a + n + 1);
+      idx[q++] = a; idx[q++] = a + n; idx[q++] = a + 1;
+      idx[q++] = a + 1; idx[q++] = a + n; idx[q++] = a + n + 1;
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.setAttribute('paved', new THREE.BufferAttribute(pav, 1));
-  g.setIndex(idx);
-  g.computeVertexNormals();
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
+  g.setAttribute('paved', new THREE.BufferAttribute(pav, 1, true));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeBoundingSphere();
+  yield;
   const mesh = new THREE.Mesh(g, groundMat());
   mesh.receiveShadow = true;
-  mesh.castShadow = true;
   const group = new THREE.Group();
   group.add(mesh);
 
@@ -820,8 +1069,7 @@ function buildTerrainChunk(cx, cy) {
       // Art der Flüssigkeit: nächste flüssige Kachel
       const tx = Math.floor(x0 + (i + 0.5) / S);
       const ty = Math.floor(y0 + (j + 0.5) / S);
-      let k = kindAt(tx, ty);
-      for (let r = 1; !k && r <= 1; r++) k = kindAt(tx + r, ty) || kindAt(tx - r, ty) || kindAt(tx, ty + r) || kindAt(tx, ty - r);
+      const k = kindAt(tx, ty) || kindAt(tx + 1, ty) || kindAt(tx - 1, ty) || kindAt(tx, ty + 1) || kindAt(tx, ty - 1);
       kinds[k || 'water'].push(v);
     }
   }
@@ -831,68 +1079,94 @@ function buildTerrainChunk(cx, cy) {
     if (!cells.length) continue;
     const wp = new Float32Array(cells.length * 4 * 3);
     const wd = new Float32Array(cells.length * 4);
-    const wi = [];
-    cells.forEach((v, q) => {
-      [v, v + 1, v + n, v + n + 1].forEach((u, c) => {
-        wp[(q * 4 + c) * 3] = pos[u * 3];
-        wp[(q * 4 + c) * 3 + 1] = LEVEL;
-        wp[(q * 4 + c) * 3 + 2] = pos[u * 3 + 2];
-        wd[q * 4 + c] = Math.max(0, LEVEL - pos[u * 3 + 1]);
-      });
-      const b = q * 4;
-      wi.push(b, b + 2, b + 1, b + 1, b + 2, b + 3);
+    const wi = new Uint16Array(cells.length * 6);
+    cells.forEach((v, c0) => {
+      const us = [v, v + 1, v + n, v + n + 1];
+      for (let c = 0; c < 4; c++) {
+        const u = us[c];
+        wp[(c0 * 4 + c) * 3] = pos[u * 3];
+        wp[(c0 * 4 + c) * 3 + 1] = LEVEL;
+        wp[(c0 * 4 + c) * 3 + 2] = pos[u * 3 + 2];
+        wd[c0 * 4 + c] = Math.max(0, LEVEL - pos[u * 3 + 1]);
+      }
+      const b = c0 * 4;
+      wi.set([b, b + 2, b + 1, b + 1, b + 2, b + 3], c0 * 6);
     });
     const wg = new THREE.BufferGeometry();
-    wg.setAttribute('position', new THREE.BufferAttribute(wp, 3));
-    wg.setAttribute('depth', new THREE.BufferAttribute(wd, 1));
-    wg.setIndex(wi);
+    wg.setAttribute('position', new THREE.BufferAttribute(wp, 3).onUpload(freeArray));
+    wg.setAttribute('depth', new THREE.BufferAttribute(wd, 1).onUpload(freeArray));
+    wg.setIndex(new THREE.BufferAttribute(wi, 1).onUpload(freeArray));
     wg.computeBoundingSphere();
     const wm = new THREE.Mesh(wg, liquidMat(kind));
     wm.renderOrder = 1;
     group.add(wm);
   }
+  for (const k in g.attributes) g.attributes[k].onUpload(freeArray);
+  g.index.onUpload(freeArray);
   return group;
 }
 
 // --- Blöcke laden und verwerfen -------------------------------------------------------------------
+// Gebaut wird in Zeitscheiben: jedes Bild nur wenige Millisekunden, der Rest im nächsten Bild.
 
 const chunks3 = new Map();
-const CHUNK3_KEEP = 3;
+const CHUNK3_KEEP = 2;
+let chunkJob = null;
 
-function v3UpdateChunks(fx, fy, budget) {
+function v3UpdateChunks(fx, fy, msBudget) {
   const ccx = Math.floor(fx * U3 / CHUNK3);
   const ccy = Math.floor(fy * U3 / CHUNK3);
   const maxX = Math.ceil(MAP_W / CHUNK3) - 1;
   const maxY = Math.ceil(MAP_H / CHUNK3) - 1;
   // Blöcke im Sichtfeld zuerst (die Kamera schaut nach Norden: oben mehr, unten weniger)
+  const fxIn = (fx * U3) / CHUNK3 - ccx;
   const want = [];
   for (let dy = -2; dy <= 1; dy++) {
-    for (let dx = -2; dx <= 2; dx++) {
+    for (let dx = -1; dx <= 1; dx++) {
       const x = ccx + dx;
       const y = ccy + dy;
       if (x < 0 || y < 0 || x > maxX || y > maxY) continue;
-      want.push([x, y, Math.hypot(dx * 1.2, dy + 0.5)]);
+      // auf der Seite, zu der man näher am Rand steht, zuerst
+      want.push([x, y, Math.hypot(dx * 1.2 - (fxIn - 0.5), dy + 0.5)]);
     }
   }
   want.sort((a, b) => a[2] - b[2]);
-  // Pro Bild höchstens ein Bauschritt (Boden oder Objekte), damit es beim Laufen nicht ruckelt
-  let built = 0;
-  for (const [x, y] of want) {
-    const key = x + ':' + y;
-    let ch = chunks3.get(key);
-    if (!ch) {
-      if (built >= budget) continue;
-      built++;
-      ch = { terrain: buildTerrainChunk(x, y), objects: null, x, y };
-      V3.terrain.add(ch.terrain);
-      chunks3.set(key, ch);
-      if (budget <= 1) continue;
+  // Nach einem Sprung (Teleport, Wiederbeleben, Dungeon) fehlt der Boden unter der Kamera:
+  // dann einmal kräftig bauen statt sekundenlang Himmel zu zeigen
+  if (!chunks3.has(ccx + ':' + ccy) || (ccy > 0 && !chunks3.has(ccx + ':' + (ccy - 1)))) msBudget = Math.max(msBudget, 120);
+  // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
+  if (chunkJob && (Math.abs(chunkJob.x - ccx) > CHUNK3_KEEP || Math.abs(chunkJob.y - ccy) > CHUNK3_KEEP)) chunkJob = null;
+  const t0 = performance.now();
+  while (performance.now() - t0 < msBudget) {
+    if (!chunkJob) {
+      for (const [x, y] of want) {
+        const key = x + ':' + y;
+        const ch = chunks3.get(key);
+        if (!ch) chunkJob = { key, x, y, part: 'terrain', gen: terrainJob(x, y) };
+        else if (!ch.objects) chunkJob = { key, x, y, part: 'objects', gen: objectJob(x, y) };
+        if (chunkJob) break;
+      }
+      if (!chunkJob) break;
     }
-    if (!ch.objects) {
-      if (built >= budget && budget <= 1) continue;
-      built++;
-      ch.objects = buildObjectChunk(x, y);
-      V3.objects.add(ch.objects);
+    const r = chunkJob.gen.next();
+    if (!r.done) continue;
+    const { key, x, y, part } = chunkJob;
+    chunkJob = null;
+    if (Math.abs(x - ccx) > CHUNK3_KEEP || Math.abs(y - ccy) > CHUNK3_KEEP) {
+      disposeTree(r.value);
+      continue;
+    }
+    if (part === 'terrain') {
+      chunks3.set(key, { terrain: r.value, objects: null, x, y });
+      V3.terrain.add(r.value);
+    } else {
+      const ch = chunks3.get(key);
+      if (!ch) {
+        disposeTree(r.value);
+        continue;
+      }
+      ch.objects = r.value;
+      V3.objects.add(r.value);
     }
   }
   for (const [key, ch] of chunks3) {
@@ -911,6 +1185,7 @@ function v3ClearChunks() {
     if (ch.objects) disposeTree(ch.objects);
   }
   chunks3.clear();
+  chunkJob = null;
 }
 
 function disposeTree(obj) {
@@ -975,15 +1250,16 @@ function renderDrei() {
   v3PlaceCamera(fx + shakeX, fy + shakeY);
   v3UpdateMood(dt, fx, fy);
   v3CollectLights();
-  v3UpdateChunks(fx, fy, chunks3.size < 4 ? 12 : 1);
+  // Beim Start (noch kein Boden) großzügig bauen, danach nur kleine Zeitscheiben
+  v3UpdateChunks(fx, fy, chunks3.size < 4 ? 400 : 5);
   v3UpdateLights(fx, fy);
   for (const k of ['water', 'lava', 'bog']) if (MAT3['liquid' + k]) MAT3['liquid' + k].uniforms.uTime.value = V3.time;
   v3SyncActors(dt);
   // Durchsicht um die eigene Figur
   const p = game.player;
   if (p && game.running && !p.dead) {
-    const s = v3Project(p.x, feetY(p), 0.8, {});
-    const top = v3Project(p.x, feetY(p), 1.9, {});
+    const s = v3Project(p.x, feetY(p), 0.8, _fadeA);
+    const top = v3Project(p.x, feetY(p), 1.9, _fadeB);
     const d = r.dpr * V3.gl.getPixelRatio() / r.dpr;
     V3.fadeScreen[0] = s.x * d;
     V3.fadeScreen[1] = (r.h - s.y) * d;
@@ -1002,6 +1278,10 @@ function renderDrei() {
 }
 
 // Alles, was das 2D-Canvas über die 3D-Szene malt
+// Listen je Bild wiederverwenden (weniger Müll für die Speicherbereinigung)
+const _ovPlayers = [];
+const _ovList = [];
+const byY = (a, b) => a.y - b.y;
 function drawOverlay3(ctx) {
   const r = renderer;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -1034,18 +1314,20 @@ function drawOverlay3(ctx) {
     drawEffect(ctx, e);
   }
   // Auren und Ringe der Spieler
-  const players = [];
+  const players = _ovPlayers;
+  players.length = 0;
   if (game.player && game.running && !game.player.dead) players.push(game.player);
   for (const rp of net.players.values()) if (!rp.dead && inView(rp.x, rp.y)) players.push(rp);
   for (const pl of players) drawPlayerExtras3(ctx, pl);
   drawParticles(ctx);
   // Namen, Lebensbalken, Zeichen über den Köpfen
-  const list = [];
+  const list = _ovList;
+  list.length = 0;
   for (const m of game.monsters) if (!m.dead && inView(m.x, m.y)) list.push(m);
   for (const a of game.allies) list.push(a);
   for (const n of game.world.npcs) if (inView(n.x, n.y)) list.push(n);
-  list.push(...players);
-  list.sort((a, b) => a.y - b.y);
+  for (const pl of players) list.push(pl);
+  list.sort(byY);
   for (const e of list) {
     const fy = feetY(e);
     const head = v3HeadHeight(e);

@@ -291,8 +291,31 @@ const GRASS3 = {
 };
 const FLOWER3 = { [DECO.FLOWER_RED]: '#e04a3a', [DECO.FLOWER_YELLOW]: '#f0c83a', [DECO.FLOWER_WHITE]: '#f4f0e8' };
 
-// Ein Block mit allen Objekten
-function buildObjectChunk(cx, cy) {
+// Vorlagen der häufigen Objekte: einmal gebacken, danach nur noch verschoben und gedreht
+const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) => {
+  if (kind === 'blossom') WORLD3.tree(b, null, v, 'blossom');
+  else WORLD3[kind](b, null, v, style);
+});
+const tplWall = () => bakeTemplate('wall', (b) => WORLD3.wall(b, 0, 0, false));
+const tplBridge = () => bakeTemplate('bridge', (b) => WORLD3.bridge(b, 0, 0, false));
+const tplTuft = (color) => bakeTemplate('tuft' + color, (b) => tuft3(b, 0, 0, color, 1, 0));
+const tplFlower = (color, grass) => bakeTemplate('flower' + color + grass, (b) => {
+  b.add(limb3(0.22, 0.015, 0.015, 4), '#4a7a30', { p: [0, 0.22, 0], mat: 'grass' });
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2;
+    b.add(sphere3(0.045, 6, 4), color, { p: [Math.cos(a) * 0.05, 0.24, Math.sin(a) * 0.05], mat: 'grass' });
+  }
+  b.add(sphere3(0.035, 6, 4), '#f0c83a', { p: [0, 0.25, 0], mat: 'grass' });
+  tuft3(b, -0.25, 0.25, grass, 0.8, 0);
+});
+const tplPebble = (v, style) => bakeTemplate(`pebble:${v}:${style}`, (b) => {
+  const [base, top] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
+  b.add(rockGeo(v), base, { s: [0.1, 0.07, 0.08], p: [0, 0.03, 0], top, topK: 0.5, mat: 'grass' });
+});
+const tplProp = (pr) => bakeTemplate(`prop:${pr.type}:${pr.roof || ''}`, (b) => PROP3[pr.type](b, null, pr));
+
+// Ein Block mit allen Objekten, als Bauauftrag in Zeitscheiben (siehe v3UpdateChunks)
+function* objectJob(cx, cy) {
   const w = game.world;
   const b = new Bake3(false);
   const lowGfx = opts.graphics === 'niedrig';
@@ -312,14 +335,14 @@ function buildObjectChunk(cx, cy) {
       const rot = ((h >> 3) % 628) / 100;
       const sc = 0.9 + ((h >> 12) % 20) / 100;
       if (o === OBJ.WALL) {
-        if (!towerTiles.has(i)) WORLD3.wall(b, x + 0.5, y + 0.5, Math.abs(x - CENTER_X) === VILLAGE_HALF && Math.abs(y - CENTER_Y) !== VILLAGE_HALF);
+        const vertical = Math.abs(x - CENTER_X) === VILLAGE_HALF && Math.abs(y - CENTER_Y) !== VILLAGE_HALF;
+        if (!towerTiles.has(i)) b.addTemplate(tplWall(), placeAt(x + 0.5, y + 0.5, vertical ? Math.PI / 2 : 0));
         continue;
       }
       const kind = OBJ_KIND[o];
       if (kind) {
-        const M = placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc);
-        if (kind === 'blossom') WORLD3.tree(b, M, h % 3, 'blossom');
-        else WORLD3[kind](b, M, h % 3, style);
+        const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && style === 'nagadschungel' ? style : '';
+        b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
         continue;
       }
       if (o) continue;
@@ -329,53 +352,48 @@ function buildObjectChunk(cx, cy) {
         // Der Weg läuft waagerecht, wenn links oder rechts Weg oder Brücke liegt
         const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || (w.deco[ty * MAP_W + tx] === DECO.BRIDGE);
         const horiz = way(x - 1, y) || way(x + 1, y);
-        WORLD3.bridge(b, x + 0.5, y + 0.5, !horiz);
+        b.addTemplate(tplBridge(), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
         continue;
       }
-      if (FLOWER3[d] && !lowGfx) {
-        const M = placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, 1);
-        b.add(limb3(0.22, 0.015, 0.015, 4), '#4a7a30', { parent: M, p: [0, 0.22, 0], mat: 'grass' });
-        for (let k = 0; k < 5; k++) {
-          const a = (k / 5) * Math.PI * 2;
-          b.add(sphere3(0.045, 6, 4), FLOWER3[d], { parent: M, p: [Math.cos(a) * 0.05, 0.24, Math.sin(a) * 0.05], mat: 'grass' });
-        }
-        b.add(sphere3(0.035, 6, 4), '#f0c83a', { parent: M, p: [0, 0.25, 0], mat: 'grass' });
-        tuft3(b, x + 0.25, y + 0.75, GRASS3[g] || '#4f8a34', 0.8, rot);
+      if (lowGfx) continue;
+      if (FLOWER3[d]) {
+        b.addTemplate(tplFlower(FLOWER3[d], GRASS3[g] || '#4f8a34'), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, 1));
         continue;
       }
-      if (d === DECO.PEBBLE && !lowGfx) {
-        const style2 = ZONES[w.zoneIdx[i]].id;
-        const [base, top] = ROCK_STYLES[style2] || ROCK_STYLES.wiesen;
-        b.add(rockGeo(h % 3), base, { parent: placeAt(x + 0.5 + jx * 4, y + 0.5 + jz * 4, rot, 1), s: [0.1, 0.07, 0.08], p: [0, 0.03, 0], top, topK: 0.5, mat: 'grass' });
+      if (d === DECO.PEBBLE) {
+        b.addTemplate(tplPebble(h % 3, style), placeAt(x + 0.5 + jx * 4, y + 0.5 + jz * 4, rot, 1));
         continue;
       }
       const grass = GRASS3[g];
-      if (lowGfx) continue;
       if (grass && (d === DECO.TUFT || h % 4 === 0) && !LIQUID.has(g)) {
-        tuft3(b, x + 0.5 + jx * 4, y + 0.5 + jz * 4, grass, 0.8 + ((h >> 14) % 6) / 10, rot);
-        if (d === DECO.TUFT) tuft3(b, x + 0.2 + jz * 3, y + 0.3 + jx * 3, grass, 0.7, rot + 1);
+        b.addTemplate(tplTuft(grass), placeAt(x + 0.5 + jx * 4, y + 0.5 + jz * 4, rot, 0.8 + ((h >> 14) % 6) / 10));
+        if (d === DECO.TUFT) b.addTemplate(tplTuft(grass), placeAt(x + 0.2 + jz * 3, y + 0.3 + jx * 3, rot + 1, 0.7));
       }
     }
+    if (y % 4 === 3) yield;
   }
   for (const h of w.houses) {
     const hx = h.x + h.w / 2;
     const hy = h.y + h.h / 2;
-    if (hx >= x0 && hx < x1 && hy >= y0 && hy < y1) WORLD3.house(b, h);
+    if (hx >= x0 && hx < x1 && hy >= y0 && hy < y1) {
+      WORLD3.house(b, h);
+      yield;
+    }
   }
   for (const pr of w.props) {
     const px = pr.x * U3;
     const py = pr.y * U3;
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
-    const art = PROP3[pr.type];
-    if (!art) continue;
+    if (!PROP3[pr.type]) continue;
     const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : 0.25;
-    art(b, placeAt(px, py - back), pr);
+    b.addTemplate(tplProp(pr), placeAt(px, py - back));
   }
+  yield;
   const parts = b.build();
   const group = new THREE.Group();
   if (parts.lit) {
+    // Schatten der Welt sind in den Boden gebacken; hier nur empfangen (z. B. von Figuren)
     const m = new THREE.Mesh(parts.lit, worldLitMat());
-    m.castShadow = true;
     m.receiveShadow = true;
     group.add(m);
     if (!lowGfx) group.add(new THREE.Mesh(parts.lit, mat3('worldOutline', () => outlineMat(0.022, false))));

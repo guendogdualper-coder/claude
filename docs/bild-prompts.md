@@ -1061,3 +1061,41 @@ Stylized 3D dungeon interior, top-down three-quarter view: rough rounded cave wa
 Stylized 3D magical props: soul stones as tall rounded obelisks, spires, twin pillars, boulders and crystal clusters made of dark stone with glowing carved runes (blue, red, gold, green, violet, orange), floating sparks around them; a world gate as a stone ring with a swirling blue portal; dungeon entrances as rock arches with a glowing colored veil; random rifts as cracks in the air with purple light.
 Combat effects: bright slash arcs following the weapon, spinning sword whirl rings, shockwaves on the ground, arrows with light trails, fan wind gusts, green poison clouds, purple curses, lightning chains, healing light pillars, level-up golden column of light. Soft glow, additive light, never covering the characters completely.
 ```
+
+## Qualitäts-Überarbeitung der Figuren und Monster (Version 4.1)
+
+Ausführliche Vorgabe für die zweite Stufe der 3D-Grafik. Sie beschreibt Figuren, Gesichter, Haare, Kleidung, Ausrüstung je Stufe, Waffen und jede Monsterfamilie bis ins Detail, dazu Licht und Material. Alle Teile bleiben weich gerundet und im Chibi-Stil; mehr Details heißt mehr klar lesbare Formen, nicht mehr Rauschen.
+
+### Gesamt-Prompt Figuren und Monster
+```
+High-quality stylized 3D chibi characters for a cozy East-Asian fantasy MMORPG, game-ready, seen from a three-quarter top-down camera (about 50° from the ground). Proportions: head about 38 % of the total height, slightly wider than tall, big expressive anime eyes, small nose and mouth, short neck, compact torso with a defined chest and narrower waist, rounded shoulders, short arms with soft mitten hands and a visible thumb, short legs with knees and chunky boots with a darker sole and a turned-down cuff.
+
+FACE: eyes with white sclera, a large colored iris with a darker outer ring and lighter lower half, a dark pupil, two white catch-lights (big upper, small lower), a thick dark upper lash line that curves down at the outer corner, thin eyebrows that show the mood (calm, cheerful, determined, angry), rosy cheek blush, a tiny smiling mouth line. Face marks: freckles, a scar across the cheek, red war paint stripes.
+
+HAIR: never a smooth helmet. Hair is built from many soft tapered locks: a fringe of five to seven locks over the forehead, side locks framing the cheeks, fuller locks at the back, plus a glossy lighter highlight lying flat on the crown of the head. Styles: short, bun, long flowing, spiky, ponytail, bald. Hair color natural or fantasy, always with a lighter highlight.
+
+CLOTHING: layered and readable – collar, sleeves with cuffs, a tunic with front and back cloth flaps that swing while walking, belt with buckle and pouch, trousers with knee pads, boots with straps. Fabric has soft folds, metal has a small bright highlight, leather is matte.
+
+CLASSES: Krieger in lamellar plate armor (rows of overlapping plates), layered round pauldrons with metal rims, a kabuto-style helmet with brim, cheek guards and a crest plume, sword and round shield or a broad greatsword. Ninja in a dark wrapped outfit, hood with long tails, face mask, a long scarf with two trailing ends, wrapped forearms, shin guards, twin daggers or a recurve bow and quiver. Schamane in a flowing robe with a layered collar, very wide sleeves with golden cuffs, a sash with hanging paper talismans, bead necklace, headband with feathers, folding fan or ritual bell with ribbons. Nekromant in a hooded robe with a tattered zigzag hem, bone pauldrons shaped like small skulls, a skull at the belt, a glowing rune on the chest, a skull staff with a glowing orb or a large curved scythe.
+
+EQUIPMENT TIERS (color and ornament, same shapes): Leder brown and stitched, Bronze warm with copper rivets, Eisen cool grey-blue with blue cloth, Drache crimson scales with gold trim and small horns, Seele deep purple with violet glowing runes, Asche charcoal plates with ember-orange glowing cracks, Himmel white-blue enamel with glowing feather ornaments, Götter radiant gold with white light. Weapons: blades with a darker fuller groove and a light bevelled edge, ornate guards, wrapped grips, glowing pommel gems from tier Seele, glow aura from +4 (green, blue, purple, gold, red, white).
+
+MONSTERS (same chibi charm, but dangerous): 
+Wolves and dogs with a deep chest and slim hips, a tapered muzzle with a black nose, pointed ears with a light inner side, fur tufts on cheeks, chest and tail, slanted angry eyes with a bright iris, visible fangs. Bears bulky with round ears and a short muzzle. Boars with a flat snout disc, tusks and a bristly back ridge. Dragons with a long neck, horned head and jaw, membrane wings with finger bones, a spiked tail and striped belly scales.
+Spiders with a big patterned abdomen, a small head with a cluster of glowing eyes, fangs and long jointed legs with knees above the body. Scorpions with segmented armor plates, two pincers and a curled segmented tail with a glowing stinger.
+Snakes as one smooth continuous body with alternating band pattern, a shaped head with jaw, slit eyes and a forked tongue; cobras with a wide hood; nagas with an armored humanoid torso, crown and trident or staff.
+Humanoid monsters: bandits with hood and red cloth mask, orcs with green skin, heavy brow, underbite tusks and pointed ears, spiked pauldrons and axes, undead with bone-white skin and glowing eyes, witches with a pointed hat, demons and gargoyles with horns, bat wings and tails, brutes (ogre, yeti, troll, ghoul) with huge hands and a round belly, golems built from rock chunks with glowing lava or ice cracks, ghosts as floating hooded spirits with a tattered glowing hem.
+Bosses are larger with more ornament (crowns, golden armor) and a pulsing aura ring on the ground.
+
+RENDERING: thin dark-brown outline, soft three-band toon shading with cool blue-violet shadow tint instead of grey, a warm rim light on the sun side and a cool rim on the edges, small toon specular highlights on metal and eyes, gentle ambient occlusion under heads, arms, hems and in the hair, soft contact shadow under every character. Clean, cute, premium mobile-game quality.
+```
+
+### Charakterbogen (Vorlage zum Nachbauen)
+```
+Turnaround sheet of one stylized 3D chibi hero (Krieger, tier Drache): front, three-quarter, side and back view plus a close-up of the face and hair. Show the lamellar plate rows, the layered pauldrons with gold rims, the kabuto helmet with crest and small horns, the cape with lining and gold trim at the hem, belt pouch, boots with cuff and darker sole, and the sword with fuller, curved guard and glowing pommel. Annotate colors as swatches. Soft toon shading, thin dark outline, white background.
+```
+
+### Monsterbogen
+```
+Lineup sheet of stylized 3D chibi fantasy monsters on a light grey background, each in three-quarter view with a level tag: grey wolf, black alpha wolf with scar and red eyes, bristly boar, brown bear, forest spider with patterned abdomen and glowing eye cluster, desert scorpion with glowing stinger, green orc warrior with tusks and spiked pauldron, bandit with hood and red mask, undead warrior with glowing eyes, king cobra with hood, naga warrior with trident, red fire drake with membrane wings, lava golem made of rock chunks with glowing cracks, frost ghost with tattered glowing hem and crown. Smooth rounded shapes, toon shading with cool shadows, rim light, thin outline.
+```
