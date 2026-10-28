@@ -1299,7 +1299,7 @@ function drawOverlay3(ctx) {
   }
   if (game.duel) {
     v3Anchor(ctx, game.duel.cx, game.duel.cy);
-    drawDuelArena(ctx);
+    drawDuelArena(ctx, true);
   }
   for (const pr of game.projectiles) {
     if (!inView(pr.x, pr.y)) continue;

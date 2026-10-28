@@ -2,7 +2,9 @@
 // Gildeneinladung, Handeln und Betrachten. Anfragen erscheinen beim anderen als Einladung oben.
 // Alle Nachrichten laufen wie bei Freunden und Gilde über netSocial (Host reicht weiter).
 
-const DUEL = { countdown: 3, maxTime: 150, arena: 340, pvpMul: 0.6 };
+// arena: Radius des Kreises; pvpMul: Schaden zwischen Spielern; maxHit/maxCrit: höchstens dieser Anteil
+// des Lebens pro Treffer, damit niemand mit einem Schlag fällt und Duelle eine Weile dauern
+const DUEL = { countdown: 3, maxTime: 210, arena: 400, pvpMul: 0.24, maxHit: 0.08, maxCrit: 0.12 };
 const TRADE_SLOTS = 8;
 
 // --- Spielerkarte oben in der Mitte -------------------------------------------------------------
@@ -420,7 +422,8 @@ function duelReceive(pid, d) {
   const p = game.player;
   if (!g || g.pid !== pid || !duelFighting() || p.dead) return;
   const s = game.stats;
-  const amount = Math.max(1, Math.round(d.a * DUEL.pvpMul * (1 - s.def / (s.def + 40 + 5 * ((d.l || 1) - 1)))));
+  const raw = d.a * DUEL.pvpMul * (1 - s.def / (s.def + 40 + 5 * ((d.l || 1) - 1)));
+  const amount = Math.max(1, Math.round(Math.min(raw, s.maxHp * (d.c ? DUEL.maxCrit : DUEL.maxHit))));
   const before = p.hp;
   damagePlayer(amount, g.proxy);
   const dealt = Math.max(0, Math.round(before - p.hp));
@@ -456,21 +459,61 @@ function endDuel(winner, why) {
   }
 }
 
-// Duellkreis am Boden und ein Zeichen über dem Gegner
-function drawDuelArena(ctx) {
+// Duellkreis am Boden und ein Zeichen über dem Gegner. In 3D steht die Lichtwand als echtes Modell
+// (siehe syncDuel3), dann zeichnet das hier nur das Zeichen über dem Gegner.
+function drawDuelArena(ctx, marksOnly = false) {
   const d = game.duel;
   if (!d) return;
   const t = game.time;
   ctx.save();
+  if (!marksOnly) {
+    const R = DUEL.arena;
+    const ry = R * 0.62;
+    // Countdown: die Wand wächst aus dem Boden
+    const rise = Math.min(1, Math.max(0.15, 1 - (d.fightAt - t) / DUEL.countdown));
+    const wall = 70 * rise;
+    // Boden leicht rot getönt, Rand doppelt mit Lauflicht
+    const g = ctx.createRadialGradient(d.cx, d.cy, R * 0.3, d.cx, d.cy, R);
+    g.addColorStop(0, 'rgba(255,60,40,0)');
+    g.addColorStop(1, 'rgba(255,60,40,0.16)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, R, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // hintere Hälfte der Wand (hinter den Figuren, vorn ist sie durchsichtiger)
+    for (let k = 0; k < 72; k++) {
+      const a = (k / 72) * Math.PI * 2;
+      const x = d.cx + Math.cos(a) * R;
+      const y = d.cy + Math.sin(a) * ry;
+      const back = Math.sin(a) < 0;
+      const h = wall * (0.75 + 0.25 * Math.sin(a * 6 - t * 5));
+      const lg = ctx.createLinearGradient(x, y, x, y - h);
+      lg.addColorStop(0, `rgba(255,70,50,${back ? 0.5 : 0.28})`);
+      lg.addColorStop(1, 'rgba(255,70,50,0)');
+      ctx.strokeStyle = lg;
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y - h);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#ff4a3a';
+    ctx.globalAlpha = 0.65 + 0.2 * Math.sin(t * 4);
+    ctx.lineWidth = 5;
+    ctx.setLineDash([22, 10]);
+    ctx.lineDashOffset = -t * 40;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, R, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, R - 14, ry - 9, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#ff4a3a';
+  }
   ctx.strokeStyle = '#ff4a3a';
-  ctx.globalAlpha = 0.55 + 0.2 * Math.sin(t * 4);
-  ctx.lineWidth = 4;
-  ctx.setLineDash([18, 10]);
-  ctx.lineDashOffset = -t * 30;
-  ctx.beginPath();
-  ctx.ellipse(d.cx, d.cy, DUEL.arena, DUEL.arena * 0.62, 0, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.setLineDash([]);
   const rp = net.players.get(d.pid);
   if (rp) {
     const fy = feetY(rp);

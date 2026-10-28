@@ -1172,3 +1172,9 @@ Top-down three-quarter view of a small fantasy town plaza for a mobile MMORPG: p
 ```
 Ancient stone portal ring standing on a small round paved clearing in the wilderness, filled with swirling blue light, small golden studs around the ring, faint runes on the ground; a sign shows the destination map. Stylized 3D toon look, thin dark outline.
 ```
+
+## Duellarena (Version 4.6)
+
+```
+Dueling arena for a stylized 3D fantasy MMORPG seen from a three-quarter top-down camera: a large circle on the grass marked by a glowing red ring, from which a translucent red wall of light rises about two character heights, brightest at the ground and fading upward, with bright vertical streaks drifting up; ten dark stone posts with glowing red crystal tips stand around the ring; the ground inside is faintly tinted red toward the edge. Two chibi heroes face each other in the middle, crossed golden swords float above the opponent. The wall grows out of the ground during a 3-2-1 countdown. Dramatic but readable, soft toon shading.
+```

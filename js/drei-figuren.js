@@ -1963,7 +1963,99 @@ function v3SyncActors(dt) {
     targetRing3.scale.setScalar(s);
     targetRing3.rotation.y += dt * 1.4;
   }
+  syncDuel3();
   v3Prewarm();
+}
+
+// --- Duellkreis in 3D: rote Lichtwand, die beim Countdown aus dem Boden wächst ---------------------
+let duel3 = null;
+function buildDuel3() {
+  const R = DUEL.arena * U3;
+  const g = new THREE.Group();
+  // Wand: senkrechter Verlauf (unten kräftig, oben weg) mit hellen Streifen, die nach oben laufen
+  const c = newCanvas(64, 128);
+  const x = c.getContext('2d');
+  const grad = x.createLinearGradient(0, 128, 0, 0);
+  grad.addColorStop(0, 'rgba(255,90,60,0.95)');
+  grad.addColorStop(0.35, 'rgba(255,50,40,0.45)');
+  grad.addColorStop(1, 'rgba(255,40,30,0)');
+  x.fillStyle = grad;
+  x.fillRect(0, 0, 64, 128);
+  x.globalCompositeOperation = 'lighter';
+  for (let k = 0; k < 4; k++) {
+    const lg = x.createLinearGradient(0, 128, 0, 0);
+    lg.addColorStop(0, 'rgba(255,200,160,0.5)');
+    lg.addColorStop(1, 'rgba(255,120,80,0)');
+    x.fillStyle = lg;
+    x.fillRect(k * 16 + 6, 0, 4, 128);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.repeat.set(18, 1);
+  // normale Mischung statt additiv: auf hellem Gras bliebe additives Rot sonst fast weiß
+  const wallMat = new THREE.MeshBasicMaterial({ map: tex, color: 0xff3a2a, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 3.2, 96, 1, true).translate(0, 1.6, 0), wallMat);
+  wall.renderOrder = 4;
+  g.add(wall);
+  // Leuchtring und gestrichelter Innenring am Boden
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xff3a2a, transparent: true, opacity: 0.85, depthWrite: false, side: THREE.DoubleSide });
+  // Boden innen leicht rot getönt, zum Rand hin kräftiger
+  const fc = newCanvas(128, 128);
+  const fx = fc.getContext('2d');
+  const fg = fx.createRadialGradient(64, 64, 20, 64, 64, 64);
+  fg.addColorStop(0, 'rgba(255,60,40,0)');
+  fg.addColorStop(0.8, 'rgba(255,60,40,0.12)');
+  fg.addColorStop(1, 'rgba(255,60,40,0.3)');
+  fx.fillStyle = fg;
+  fx.fillRect(0, 0, 128, 128);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(R, 64).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(fc), transparent: true, depthWrite: false }));
+  floor.position.y = 0.03;
+  g.add(floor);
+  const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.22, R + 0.12, 128).rotateX(-Math.PI / 2), ringMat);
+  ring.position.y = 0.04;
+  g.add(ring);
+  const inner = new THREE.Mesh(new THREE.RingGeometry(R - 0.75, R - 0.62, 128, 1, 0, Math.PI * 2).rotateX(-Math.PI / 2), ringMat);
+  inner.position.y = 0.04;
+  g.add(inner);
+  // Säulen ringsum mit glühender Spitze
+  const postMat = new THREE.MeshBasicMaterial({ color: 0x3a2a2a });
+  const tipMat = new THREE.MeshBasicMaterial({ color: 0xff6a4a });
+  const post = new THREE.CylinderGeometry(0.16, 0.22, 1.3, 8).translate(0, 0.65, 0);
+  const tip = new THREE.OctahedronGeometry(0.2, 0).translate(0, 1.55, 0);
+  const tips = [];
+  for (let k = 0; k < 10; k++) {
+    const a = (k / 10) * Math.PI * 2;
+    const p1 = new THREE.Mesh(post, postMat);
+    const t1 = new THREE.Mesh(tip, tipMat);
+    for (const m of [p1, t1]) {
+      m.position.set(Math.cos(a) * R, 0, Math.sin(a) * R);
+      g.add(m);
+    }
+    tips.push(t1);
+  }
+  V3.scene.add(g);
+  return { g, wall, tex, ringMat, tips };
+}
+
+function syncDuel3() {
+  const d = game.duel;
+  if (!d) {
+    if (duel3) duel3.g.visible = false;
+    return;
+  }
+  if (!duel3) duel3 = buildDuel3();
+  const t = game.time;
+  duel3.g.visible = true;
+  duel3.g.position.set(d.cx * U3, 0, d.cy * U3);
+  const rise = Math.min(1, Math.max(0.05, 1 - (d.fightAt - t) / DUEL.countdown));
+  duel3.wall.scale.y = rise * (0.92 + 0.08 * Math.sin(t * 3));
+  duel3.tex.offset.x = t * 0.06;
+  duel3.wall.material.opacity = 0.75 + 0.25 * Math.sin(t * 4);
+  duel3.ringMat.opacity = 0.6 + 0.3 * Math.sin(t * 4);
+  duel3.tips.forEach((m, k) => {
+    m.rotation.y = t * 2 + k;
+    m.position.y = Math.sin(t * 3 + k) * 0.08;
+  });
 }
 
 function placeActor(a, e, fy, y = 0) {
