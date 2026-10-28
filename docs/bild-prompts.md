@@ -1099,3 +1099,15 @@ Turnaround sheet of one stylized 3D chibi hero (Krieger, tier Drache): front, th
 ```
 Lineup sheet of stylized 3D chibi fantasy monsters on a light grey background, each in three-quarter view with a level tag: grey wolf, black alpha wolf with scar and red eyes, bristly boar, brown bear, forest spider with patterned abdomen and glowing eye cluster, desert scorpion with glowing stinger, green orc warrior with tusks and spiked pauldron, bandit with hood and red mask, undead warrior with glowing eyes, king cobra with hood, naga warrior with trident, red fire drake with membrane wings, lava golem made of rock chunks with glowing cracks, frost ghost with tattered glowing hem and crown. Smooth rounded shapes, toon shading with cool shadows, rim light, thin outline.
 ```
+
+## Schadenszahlen und Chat-Kanäle (Version 4.2)
+
+### Schadenszahlen
+```
+Mobile MMORPG combat UI detail: small floating damage numbers in a bold rounded fantasy font with a thin dark outline, rising diagonally to the upper right of the hit monster or hero so the characters stay fully visible. White for normal hits, golden with a soft orange glow and slightly larger for critical hits, red for damage taken, green for healing, small gold-colored loot text. Clean, readable at phone size, never covering faces.
+```
+
+### Chat-Kanäle
+```
+Compact semi-transparent chat window for a landscape mobile MMORPG, bottom left corner, dark wood-brown glass with a thin brass border. At the top three small pill tabs: "Global" (gold when active), "Gilde" (leaf green when active), "Ort" (sky blue when active); an inactive tab with new messages shows a tiny red dot. Messages in the global view carry small colored tags [Gilde] and [Ort]. The input bar above has the same three channel pills next to the text field and a golden "Senden" button. Readable, cozy East-Asian fantasy style.
+```

@@ -290,8 +290,8 @@ function netOnHostData(conn, d) {
     ultRemoteFx(d.u, d.x, d.y);
     netBroadcast({ t: 'ult', u: d.u, x: d.x, y: d.y }, id);
   } else if (d.t === 'chat') {
-    netShowChat(rp.name, d.x, rp);
-    netBroadcast({ t: 'chat', n: rp.name, x: d.x, from: id }, id);
+    netReceiveChat(rp.name, d, rp);
+    netBroadcast({ t: 'chat', n: rp.name, x: d.x, c: d.c, gn: d.gn, px: d.px, py: d.py, from: id }, id);
   }
 }
 
@@ -447,7 +447,7 @@ function netOnClientData(d) {
       break;
     }
     case 'chat':
-      if (d.n) netShowChat(d.n, d.x, d.from ? net.players.get(d.from) : (d.n === net.hostName ? net.players.get('host') : null));
+      if (d.n) netReceiveChat(d.n, d, d.from ? net.players.get(d.from) : (d.n === net.hostName ? net.players.get('host') : null));
       else {
         ui.log(d.x, 'info');
         ui.chat('', d.x);
@@ -538,7 +538,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.hitFlash = 0.12;
     m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
     m.lastText = game.time;
-    addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 20, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+    addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
     m.pend = (game.time - (m.pendAt || -9) < 0.4 ? m.pend || 0 : 0) + amount;
     m.pendAt = game.time;
     m.hp = Math.max(1, m.hp - amount);
@@ -756,19 +756,36 @@ function netStop(silent, reason, keepWorld) {
 
 // --- Chat -------------------------------------------------------------------------------------
 
-function netChat(text) {
+// Kanäle: g = Global (alle im Kanal), gi = Gilde (nur Mitglieder), o = Ort (Spieler in der Nähe)
+const CHAT_RANGE = 1400;
+
+function netChat(text, c = ui.chatChan || 'g') {
   text = String(text || '').trim().slice(0, 120);
   if (!text || !game.player) return;
   const p = game.player;
-  netShowChat(p.name, text, p);
-  if (net.mode === 'host') netBroadcast({ t: 'chat', n: p.name, x: text, from: 'host' });
-  else if (net.mode === 'client') netSend({ t: 'chat', x: text });
+  if (c === 'gi' && !p.guild) {
+    ui.chat('', 'Du bist in keiner Gilde. Gilden gründest du ab Stufe 40 über den Gemeinschaft-Knopf.', 'gi');
+    return;
+  }
+  const msg = { t: 'chat', x: text, c, gn: c === 'gi' ? p.guild.name : undefined, px: Math.round(p.x), py: Math.round(p.y) };
+  netShowChat(p.name, text, p, c);
+  if (net.mode === 'host') netBroadcast(Object.assign(msg, { n: p.name, from: 'host' }));
+  else if (net.mode === 'client') netSend(msg);
 }
 
-// Nachricht unten links und als Sprechblase über der Figur
-function netShowChat(name, text, who) {
-  ui.chat(name, text);
-  if (who) {
+// Empfangene Nachricht nur zeigen, wenn sie für uns ist (gleiche Gilde, in der Nähe)
+function netReceiveChat(name, d, who) {
+  const c = d.c || 'g';
+  const p = game.player;
+  if (c === 'gi' && !(p && p.guild && p.guild.name === d.gn)) return;
+  if (c === 'o' && p && (d.px == null || Math.hypot(d.px - p.x, d.py - p.y) > CHAT_RANGE)) return;
+  netShowChat(name, d.x, who, c);
+}
+
+// Nachricht unten links und als Sprechblase über der Figur (Gildenchat ohne Sprechblase)
+function netShowChat(name, text, who, c = 'g') {
+  ui.chat(name, text, c);
+  if (who && c !== 'gi') {
     who.say = text;
     who.sayUntil = game.time + 5;
   }

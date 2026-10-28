@@ -29,6 +29,13 @@ const ui = {
     this.chatHint();
     this.initBattery();
     $('chatClose').addEventListener('click', () => { $('chatBar').hidden = true; });
+    for (const b of document.querySelectorAll('#chatTabs button, #chatChan button')) {
+      b.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.setChatChan(b.dataset.c);
+        if (b.closest('#chatChan')) $('chatInput').focus();
+      });
+    }
     $('chatBar').addEventListener('submit', (e) => {
       e.preventDefault();
       netChat($('chatInput').value);
@@ -488,26 +495,71 @@ const ui = {
 
   // Kleiner Chat unten links: die letzten Nachrichten bleiben stehen, die neueste unten.
   // Ohne Namen ist es eine Meldung des Kanals (jemand kommt oder geht).
-  chat(name, text) {
+  // c: g Global, gi Gilde, o Ort, sys Meldung. Die Reiter Global/Gilde/Ort wählen, was man sieht
+  // und wohin man schreibt; unter Global stehen alle Nachrichten, Gilde und Ort mit Kennzeichen.
+  chatChan: 'g',
+  chatLines: [],
+
+  chat(name, text, c) {
+    c = c || (name ? 'g' : 'sys');
+    this.chatLines.push({ name, text, c });
+    if (this.chatLines.length > 60) this.chatLines.shift();
+    if (this.chatShows(c)) this.renderChat();
+    else {
+      const tab = document.querySelector(`#chatTabs button[data-c="${c}"]`);
+      if (tab) tab.classList.add('new');
+    }
+  },
+
+  chatShows(c) {
+    return this.chatChan === 'g' || c === this.chatChan;
+  },
+
+  setChatChan(c) {
+    this.chatChan = c;
+    for (const b of document.querySelectorAll('#chatTabs button, #chatChan button')) {
+      const on = b.dataset.c === c;
+      b.classList.toggle('on', on);
+      b.setAttribute(b.getAttribute('role') === 'tab' ? 'aria-selected' : 'aria-pressed', on ? 'true' : 'false');
+      if (on) b.classList.remove('new');
+    }
+    if (c === 'g') for (const b of document.querySelectorAll('#chatTabs button')) b.classList.remove('new');
+    $('chatInput').placeholder = c === 'gi' ? 'Nachricht an deine Gilde …' : c === 'o' ? 'Nachricht an Spieler in der Nähe …' : 'Nachricht an alle …';
+    this.renderChat();
+  },
+
+  renderChat() {
     const box = $('chatLog');
-    box.querySelectorAll('.hint').forEach((x) => x.remove());
-    const row = document.createElement('p');
-    if (name) {
-      const b = document.createElement('b');
-      b.textContent = name + ': ';
-      b.style.color = name === (game.player && game.player.name) ? '#ffd38a' : '';
-      row.append(b);
-    } else row.className = 'sys';
-    row.append(document.createTextNode(text));
-    box.append(row);
-    while (box.children.length > 12) box.firstChild.remove();
+    box.textContent = '';
+    const tags = { gi: 'Gilde', o: 'Ort' };
+    const lines = this.chatLines.filter((l) => this.chatShows(l.c)).slice(-12);
+    for (const l of lines) {
+      const row = document.createElement('p');
+      row.classList.add('ch-' + l.c);
+      if (l.c === 'sys') row.classList.add('sys');
+      if (this.chatChan === 'g' && tags[l.c]) {
+        const t = document.createElement('i');
+        t.textContent = '[' + tags[l.c] + '] ';
+        row.append(t);
+      }
+      if (l.name) {
+        const b = document.createElement('b');
+        b.textContent = l.name + ': ';
+        b.style.color = l.name === (game.player && game.player.name) ? '#ffd38a' : '';
+        row.append(b);
+      }
+      row.append(document.createTextNode(l.text));
+      box.append(row);
+    }
+    if (!lines.length) this.chatHint();
     box.scrollTop = box.scrollHeight;
   },
 
   chatHint() {
     const box = $('chatLog');
     if (box.children.length) return;
-    box.innerHTML = '<p class="hint">Chat · Tippe auf die Sprechblase, um zu schreiben.</p>';
+    const c = this.chatChan;
+    box.innerHTML = '<p class="hint">' + (c === 'gi' ? 'Gildenchat · nur deine Gilde liest mit.' : c === 'o' ? 'Ortschat · nur Spieler in deiner Nähe lesen mit.' : 'Chat · Tippe auf die Sprechblase, um zu schreiben.') + '</p>';
   },
 
   // Akku (wenn das Gerät ihn verrät; Safari auf dem iPhone tut das nicht)

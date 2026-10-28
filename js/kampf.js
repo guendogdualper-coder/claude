@@ -176,7 +176,7 @@ function damageMonster(m, amount, crit, source, isDot) {
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
   m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
   m.lastText = game.time;
-  if (opts.numbers) addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 20, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+  if (opts.numbers) addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
   if (m.isStone) {
     checkStoneWaves(m);
   } else {

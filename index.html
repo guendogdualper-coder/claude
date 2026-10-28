@@ -119,6 +119,11 @@
       </button>
 
   <section id="chatBox" class="chat-box" aria-label="Chat">
+    <div id="chatTabs" class="chat-tabs" role="tablist" aria-label="Chat-Kanal">
+      <button type="button" role="tab" data-c="g" class="on">Global</button>
+      <button type="button" role="tab" data-c="gi">Gilde</button>
+      <button type="button" role="tab" data-c="o">Ort</button>
+    </div>
     <div id="chatLog" class="chat-log" aria-live="polite"></div>
     <button id="chatOpen" class="chat-open" type="button" aria-label="Chat schreiben">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/></svg>
@@ -229,7 +234,7 @@
       <li>Weltentor (in Vlotho neben der Wegweiserin): bringt dich kostenlos in Map 2 Schlangental (ab Stufe 30: Sandschlangenwüste und Nagadschungel) und Map 3 Donnerklamm (ab Stufe 50: Donnerklamm und Titanenkamm). In der Mitte jeder Map liegt ein sicheres Lager mit Weltentor zurück; wer dort stirbt, wacht im Lager auf.</li>
       <li>Tränke gibt es in fünf Größen: S (35 %), M (50 %), L (65 %), XL (80 %) und XXL (100 %). Q bzw. E nimmt automatisch die kleinste Größe, die das Fehlende auffüllt. Seelensteine und Monster lassen größere Tränke fallen, je höher ihre Stufe.</li>
       <li>Vergleich: In der Tasche zeigt ein grüner Pfeil ▲, dass ein Teil besser ist als dein angelegtes, ein roter ▼, dass es schlechter ist. Tippst du es an, siehst du jeden Wert einzeln: grün mehr, rot weniger. Beim Schmied siehst du links deine Figur mit der angelegten Ausrüstung, daneben die Tasche.</li>
-      <li>Server: Beim Start wählst du den Server ERFOO und Kanal 1 oder 2 (oder „Allein spielen“). Alle im selben Kanal spielen in derselben Welt, jeder mit seiner eigenen Figur, höchstens 8 pro Kanal. Wer einen leeren Kanal betritt, führt dessen Welt für alle; geht er (oder sperrt sein Handy), übernimmt automatisch ein anderer, der Kanal bleibt also immer offen. Den Kanal wechselst du über den Server-Knopf (Taste N). Mit „Freunde einladen“ schickst du einen Link direkt in deinen Kanal. Chat über den Sprechblasen-Knopf oder Enter.</li>
+      <li>Server: Beim Start wählst du den Server ERFOO und Kanal 1 oder 2 (oder „Allein spielen“). Alle im selben Kanal spielen in derselben Welt, jeder mit seiner eigenen Figur, höchstens 8 pro Kanal. Wer einen leeren Kanal betritt, führt dessen Welt für alle; geht er (oder sperrt sein Handy), übernimmt automatisch ein anderer, der Kanal bleibt also immer offen. Den Kanal wechselst du über den Server-Knopf (Taste N). Mit „Freunde einladen“ schickst du einen Link direkt in deinen Kanal. Chat über den Sprechblasen-Knopf oder Enter. Oben im Chat wählst du den Kanal: Global (alle im Kanal), Gilde (nur deine Gildenmitglieder, ohne Sprechblase) oder Ort (nur Spieler in deiner Nähe). Der gewählte Reiter bestimmt, was du liest und wohin du schreibst; unter Global stehen alle Nachrichten mit [Gilde]/[Ort]-Kennzeichen. Ein roter Punkt zeigt neue Nachrichten in einem anderen Reiter.</li>
       <li>Ausrufezeichen über Personen: golden = Hauptmission (Dorfältester Bao, Stallmeister Jun), grün = Nebenmission (Jägerin Rin). Auch in der Auftragsliste oben rechts sind Hauptmissionen golden und Nebenmissionen grün.</li>
       <li>Ab Stufe 30 hat Stallmeister Jun eine Hauptmission: 120 Monster ab Stufe 25 in 20 Minuten. Belohnung ist ein eigenes Pferd (60 % schneller). Aufsteigen mit dem Pferdeknopf oder Taste R, wer angreift, steigt ab.</li>
       <li>Dungeons: Spinnenhöhle (ab Stufe 18, Dunkelwald), Orkfestung (ab 28, Orktal), Eisgrotte (ab 45, Frostgipfel) und Drachenhort (ab 63, Feuerberg). Die Eingänge stehen neben den Wegen und sind auf der Minikarte als farbige Quadrate zu sehen. Drei Räume voller Monster, am Ende ein Boss: Sein Stampfer wird mit einem roten Kreis angekündigt, bei zwei Dritteln und einem Drittel Leben ruft er Verstärkung. Bosse kommen nach 10 Minuten wieder.</li>
@@ -254,6 +259,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 4.2: Schadenszahlen sind kleiner und steigen rechts oben neben Figur und Gegnern auf, damit man das Kampfgeschehen sieht. Chat mit den Kanälen Global, Gilde und Ort.</li>
       <li>Version 4.1 – flüssiger und schöner: Figuren werden wiederverwendet statt neu gebaut, alle Shader werden beim Start einmal vorbereitet (kein Ruckeln, wenn im Kampf zum ersten Mal ein Effekt auftaucht), Modelle für Monster in der Nähe entstehen schon vorher, die Welt braucht rund 40 % weniger Grafikspeicher und weniger als die Hälfte Arbeitsspeicher, Schatten der Landschaft sind fest eingebacken. Figuren mit Gesichtern (Iris, Pupille, Glanzpunkte, Lidstrich), Haaren aus Strähnen, geschichteter Kleidung und Rüstung je Klasse; Monster mit Schnauze, Fell, Gelenken, Schlangen als biegsamer Körper, Golems aus Felsbrocken mit glühenden Rissen. Farbige Schatten, Randlicht und Glanz auf Metall.</li>
       <li>3D-Ansicht (ab Version 4.0, Standard): Die Welt ist echtes 3D mit Licht, Schatten, weichen runden Formen und Umrissen wie im 2D-Spiel. Gesteuert wird wie bisher; die Kamera schaut schräg von oben nach Norden. Stehst du hinter einem Baum, Dach oder einer Mauer, wird es um deine Figur durchsichtig. Im Zahnrad unter „Grafik“ wechselst du zwischen 3D und 2D (das Spiel lädt dabei kurz neu, der Spielstand bleibt). „Niedrig“ spart Akku: ohne Schatten, Gras und Umrisse der Landschaft. Ruckelt es, senkt das Spiel die Auflösung von selbst.</li>
       <li>Monster: Über jedem Monster stehen immer Stufe und Name. Die Stufe ist grau (viel schwächer), weiß (passend), gelb (etwas stärker) oder rot (gefährlich). Das Zielfenster und der Bossbalken liegen oben in der Mitte unter der Knopfleiste und verdecken nie deinen Figurenkasten; ist dein Ziel der Boss, zeigt nur der Bossbalken sein Leben.</li>
@@ -356,6 +362,11 @@
 
 <!-- Chat-Eingabe im Mehrspieler -->
 <form id="chatBar" class="chat-bar" hidden>
+  <div id="chatChan" class="chat-chan" role="radiogroup" aria-label="Senden an">
+    <button type="button" data-c="g" class="on">Global</button>
+    <button type="button" data-c="gi">Gilde</button>
+    <button type="button" data-c="o">Ort</button>
+  </div>
   <input id="chatInput" type="text" maxlength="120" autocomplete="off" enterkeyhint="send" placeholder="Nachricht an alle …" aria-label="Chat-Nachricht">
   <button class="btn btn-primary" type="submit">Senden</button>
   <button class="btn btn-ghost" type="button" id="chatClose">×</button>

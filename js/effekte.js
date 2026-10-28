@@ -1,20 +1,21 @@
 // Effekte: Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse,
 // Bildschirmwackeln und kurzes Einfrieren bei harten Treffern.
 
+// Größen bewusst klein: Zahlen sollen Figur und Gegner nicht verdecken. center: mittig statt rechts versetzt
 const TEXT_STYLES = {
-  dmg: { color: '#fff7e6', size: 26 },
-  dot: { color: '#c6e8a0', size: 19 },
-  crit: { color: '#ffd34d', size: 40, glow: '#ff7a1a' },
-  hurt: { color: '#ff5a4a', size: 26 },
-  heal: { color: '#8ff08f', size: 24 },
-  mana: { color: '#8fb8ff', size: 21 },
-  xp: { color: '#d6b8ff', size: 19 },
-  other: { color: '#d8e8f0', size: 19 },
-  xpgain: { color: '#e8d4ff', size: 24, glow: '#9a5ae8' },
-  gold: { color: '#f0cf6a', size: 17 },
-  info: { color: '#e8e0cc', size: 17 },
-  block: { color: '#e6eef8', size: 22, glow: '#7fb8ff' },
-  level: { color: '#ffd34d', size: 38, glow: '#ff9a1a' }
+  dmg: { color: '#fff7e6', size: 18 },
+  dot: { color: '#c6e8a0', size: 14 },
+  crit: { color: '#ffd34d', size: 27, glow: '#ff7a1a' },
+  hurt: { color: '#ff5a4a', size: 18 },
+  heal: { color: '#8ff08f', size: 17 },
+  mana: { color: '#8fb8ff', size: 15 },
+  xp: { color: '#d6b8ff', size: 14 },
+  other: { color: '#d8e8f0', size: 14 },
+  xpgain: { color: '#e8d4ff', size: 17, glow: '#9a5ae8' },
+  gold: { color: '#f0cf6a', size: 13 },
+  info: { color: '#e8e0cc', size: 14, center: true },
+  block: { color: '#e6eef8', size: 16, glow: '#7fb8ff' },
+  level: { color: '#ffd34d', size: 32, glow: '#ff9a1a', center: true }
 };
 
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
@@ -785,14 +786,17 @@ function drawTexts(ctx) {
     const k = age / t.dur;
     const st = TEXT_STYLES[t.style] || TEXT_STYLES.info;
     // Aufploppen: kurz groß, dann normal
-    const popTime = 0.14;
-    const popFrom = st.glow ? 2.2 : 1.7;
+    const popTime = 0.12;
+    const popFrom = st.glow ? 1.6 : 1.35;
     const scale = age < popTime ? popFrom - (popFrom - 1) * easeOut(age / popTime) : 1;
-    const y = t.y - easeOut(Math.min(1, k * 1.3)) * 42;
+    // schräg nach rechts oben wegziehen, damit die Mitte (Figur und Gegner) frei bleibt
+    const rise = easeOut(Math.min(1, k * 1.3));
+    const y = t.y - 12 - rise * 34;
+    const x = st.center ? t.x : t.x + 24 + rise * 16;
     ctx.save();
     if (V3.on) v3Anchor(ctx, t.x, t.y);
     ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-    ctx.translate(t.x, y);
+    ctx.translate(x, y);
     if (st.glow && age < 0.3) ctx.rotate(Math.sin(age * 60) * 0.06 * (1 - age / 0.3));
     ctx.scale(scale, scale);
     ctx.font = `800 ${st.size}px "Alegreya Sans", sans-serif`;
