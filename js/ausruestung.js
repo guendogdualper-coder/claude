@@ -1785,7 +1785,7 @@ function forgeScene(icon, kind, info, done) {
     fx.style.setProperty('--heat', String((i + 1) / 3));
     burst(10 + i * 4, 2.4);
     sfx.clang(i);
-    if (navigator.vibrate) navigator.vibrate(18);
+    buzz(18);
   }));
   at(1350, () => {
     fx.classList.add('suspense');
@@ -1805,7 +1805,7 @@ function forgeScene(icon, kind, info, done) {
       burst(26, 6.3);
       sfx.shatter();
       shakeScreen(9);
-      if (navigator.vibrate) navigator.vibrate([60, 40, 120]);
+      buzz([60, 40, 120]);
     } else if (kind === 'saved') {
       title.textContent = 'Geschützt';
       sub.textContent = `Fehlgeschlagen, die Segensschriftrolle hat ${info.name} gerettet`;

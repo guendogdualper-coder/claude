@@ -106,6 +106,9 @@
     <button id="btnHelp" class="menu-btn" type="button" aria-label="Hilfe">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M6 3.5h10.5a2 2 0 0 1 2 2v13a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2z"/><path d="M4 5.5a2 2 0 0 1 4 0V7H4z"/><path d="M10.4 9.4a2 2 0 1 1 2.8 1.9c-.6.3-.8.7-.8 1.3"/><path d="M12.4 15.4h.01"/></svg>
       <span class="menu-text">Hilfe</span> <kbd>H</kbd></button>
+    <button id="btnOpts" class="menu-btn" type="button" aria-label="Einstellungen">
+      <svg class="menu-icon gear" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M10.3 2.6h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9-2.6-.5v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z"/><circle cx="12" cy="12" r="3.4"/></svg>
+      <span class="menu-text">Einstellungen</span> <kbd>O</kbd></button>
   </nav>
 
   <button class="slot loot-btn" id="btnLoot" type="button" title="Beute und Rucksack (B)" aria-label="Beute und Rucksack">
@@ -206,6 +209,7 @@
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
       <dt><kbd>N</kbd> / <kbd>Enter</kbd></dt><dd>Server und Kanal / Chat</dd>
       <dt><kbd>G</kbd></dt><dd>Freunde &amp; Gilde</dd>
+      <dt><kbd>O</kbd></dt><dd>Einstellungen (Zahnrad oben)</dd>
       <dt><kbd>I</kbd></dt><dd>Inventar: Ausrüstung anlegen, ablegen, bei Händlern verkaufen</dd>
       <dt><kbd>B</kbd></dt><dd>Beute: alles, was du aufgehoben hast, und der Weg in den Rucksack</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
@@ -237,6 +241,7 @@
       <li>Schilde trägt nur der Krieger. Zweihänder führt nur der Krieger auf dem Weg des Leibes. Zweihänder, Bogen und Sense brauchen beide Hände, dann gibt es keinen Schild. Blocken kannst du nur mit Schild.</li>
       <li>Beidhändig: Krieger auf dem Weg der Klinge lernen ab Stufe 30 bei Waffenhändler Goro (20.000 Gold), ein zweites Schwert in der Nebenhand zu führen. Im Inventar ein Schwert antippen und „Nebenhand“ wählen. Die Nebenhand gibt 30 % ihres Angriffs, +5 % Angriffstempo und ihre Boni zur Hälfte, dafür kein Blocken.</li>
       <li>Ultimative Attacke: Ab Stufe 30 hat jeder Weg eine eigene, sehr starke Attacke mit 3 Minuten Abklingzeit (goldener Knopf über dem Angriff oder Taste 6): Klingenhimmel, Titanenzorn, Schattentanz, Todesmal, Drachensturm, Himmelssegen, Seelenernte und Knochenkerker. Sie wird mit deiner Stufe stärker.</li>
+      <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
       <li>Mitspieler antippen: Oben erscheint eine Karte mit Duell, Freund, Gilde, Handeln und Betrachten. Beim anderen erscheint die Anfrage mit Annehmen und Ablehnen. Duell: nach 3 Sekunden kämpft ihr mit allen Angriffen und Fertigkeiten, wer auf 1 Leben fällt oder den roten Kreis verlässt, verliert; niemand stirbt und niemand verliert Erfahrung. Handel: beide legen Sachen aus der Tasche und Gold hinein, getauscht wird erst, wenn beide dasselbe Angebot bestätigt haben. Betrachten zeigt Ausrüstung, Boni und Werte des anderen.</li>
@@ -273,6 +278,11 @@
 <div id="panelTrade" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="tradeTitle">
   <header class="panel-head"><h2 id="tradeTitle">Handel</h2></header>
   <div id="tradeBody" class="panel-body"></div>
+</div>
+
+<div id="panelOpts" class="panel frame" hidden role="dialog" aria-labelledby="optsTitle">
+  <header class="panel-head"><h2 id="optsTitle">Einstellungen</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="optsBody" class="panel-body opts"></div>
 </div>
 
 <div id="panelSocial" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="socialTitle">
@@ -352,6 +362,7 @@
 <script src="js/figuren.js"></script>
 <script src="js/umgebung.js"></script>
 <script src="js/klang.js"></script>
+<script src="js/optionen.js"></script>
 <script src="js/fertigkeiten.js"></script>
 <script src="js/ultimativ.js"></script>
 <script src="js/zeichnen.js"></script>

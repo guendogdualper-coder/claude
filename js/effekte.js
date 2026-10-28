@@ -37,6 +37,7 @@ function bodyCenter(e) {
 // --- Bildschirm --------------------------------------------------------------------
 
 function shakeScreen(amount) {
+  if (!opts.shake) return;
   game.shake = Math.max(game.shake, amount);
 }
 
@@ -95,7 +96,7 @@ function drawHurtVignette(ctx, w, h) {
 // Höchstzahl gleichzeitiger Partikel: bei vielen Effekten auf einmal fallen die ältesten weg
 const MAX_PARTICLES = 320;
 function particles(x, y, o) {
-  const n = o.count || 8;
+  const n = Math.max(1, Math.round((o.count || 8) * gfx().particles));
   const over = game.particles.length + n - MAX_PARTICLES;
   if (over > 0) game.particles.splice(0, over);
   for (let i = 0; i < n; i++) {

@@ -24,7 +24,7 @@ const sfx = {
       if (!AC) return null;
       this.ctx = new AC();
       this.master = this.ctx.createGain();
-      this.master.gain.value = 0.55;
+      this.master.gain.value = 0.8 * (typeof opts !== 'undefined' ? opts.volume : 0.7);
       this.master.connect(this.ctx.destination);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();

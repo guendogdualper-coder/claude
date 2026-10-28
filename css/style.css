@@ -2205,3 +2205,28 @@ kbd {
 @keyframes ff-split-r { to { transform: translate(70px, 46px) rotate(42deg); opacity: 0.2; } }
 .forge-row { display: flex; gap: 8px; align-items: center; }
 @media (prefers-reduced-motion: reduce) { .ff-rays { animation: none !important; } }
+
+/* --- Version 3.7: Einstellungen ------------------------------------------------------- */
+.menu-icon.gear .fill { fill: rgba(240, 200, 110, 0.28); }
+#btnOpts:hover .menu-icon.gear { transform: rotate(45deg); transition: transform 0.4s; }
+#panelOpts { width: min(600px, calc(100vw - 24px)); }
+.opts .opt-group { min-width: 0; }
+.opt-group { margin-bottom: 10px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 240, 210, 0.04); border: 1px solid rgba(201, 163, 90, 0.25); }
+.opt-group h3 { margin: 0 0 4px; }
+.opt-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-top: 1px solid rgba(201, 163, 90, 0.12); }
+.opt-row:first-of-type { border-top: 0; }
+.opt-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.opt-text strong { font-size: 14px; color: #fff3d8; }
+.opt-text small { font-size: 11.5px; color: var(--muted); }
+.opt-switch { position: relative; flex: 0 0 auto; width: 52px; height: 30px; padding: 0; border: 0; border-radius: 15px; background: #3a2e22; box-shadow: inset 0 0 0 1.5px #120c08, inset 0 2px 4px rgba(0, 0, 0, 0.5); cursor: pointer; transition: background 0.2s; }
+.opt-switch i { position: absolute; left: 3px; top: 3px; width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(#f4e6c8, #b8a07a); box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5); transition: transform 0.2s; }
+.opt-switch.on { background: linear-gradient(#6ad05a, #2a8a2a); }
+.opt-switch.on i { transform: translateX(22px); background: linear-gradient(#ffffff, #e8f4d8); }
+.opt-seg { display: inline-flex; flex: 0 0 auto; border-radius: 9px; overflow: hidden; box-shadow: 0 0 0 1.5px var(--brass-dim); }
+.opt-seg button { padding: 6px 11px; border: 0; font: inherit; font-size: 13px; color: #e8dcc0; background: #1c140c; cursor: pointer; }
+.opt-seg button + button { border-left: 1px solid rgba(201, 163, 90, 0.3); }
+.opt-seg button.on { color: #1b130a; font-weight: 800; background: linear-gradient(#ffe9a8, #c9963a); }
+#optVolume { flex: 0 0 160px; accent-color: #c9963a; }
+.opt-val { flex: 0 0 44px; text-align: right; font-size: 13px; color: #f0cf6a; }
+.opt-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 560px) { .opt-btns { grid-template-columns: 1fr; } .opt-row { flex-wrap: wrap; } }

@@ -62,6 +62,8 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Beidhändig** (Krieger, Weg der Klinge, ab Stufe 30, bei Goro für 20.000 Gold): zweites Schwert in der Nebenhand, 30 % seines Angriffs, +5 % Tempo, Boni zur Hälfte, kein Blocken
 - **Ultimative Attacken** ab Stufe 30, eine je Weg, 3 Minuten Abklingzeit, goldener Knopf und Taste 6: Klingenhimmel (Geisterschwerter fallen vom Himmel), Titanenzorn (Sprung mit Erdriss und Titanenhaut), Schattentanz (Sprünge zu bis zu 8 Gegnern), Todesmal (Hinrichtung eines Ziels), Drachensturm (Meteorregen), Himmelssegen (Heilung, Schutz und Lichtsäulen), Seelenernte (Seelenstrudel, der Gegner zusammenzieht), Knochenkerker (drei Ringe aus Knochenspießen mit Lebensraub). Mitspieler sehen sie auch
 - **Acht Ausrüstungsplätze**: dazu Schultern und Umhang. Jedes Teil ist an der Figur zu sehen: Stiefel, Gürtel mit Schnalle, Schulterpanzer (ab Drache mit Dornen, ab Himmel mit Federn), der Umhang weht beim Laufen und trägt ab Drache ein Wappen
+- **Einstellungen 3.7** (Zahnrad, Taste O): Klänge an/aus und Lautstärke, Grafik Hoch/Mittel/Niedrig (Auflösung, Schlagschatten, Wolkenschatten, Partikel), Kamera Nah/Normal/Weit, Bildschirmwackeln, Schadenszahlen, Namen der Bewohner, Vibration; Aussehen ändern, Server, Hilfe, zum Startbildschirm; im Browser gespeichert
+- **Figur 3.7**: Augen mit Weiß, farbiger Iris, Pupille, Glanzpunkten und Lidstrich; Ohren, Nase, Hals, Schatten unter dem Kinn, Mittelnaht, Ellbogenfalte, Hände mit Daumen, Hosen mit Naht und Kniefalte, Stiefel mit Sohle und Schnürung; Krieger mit Schlitzen im Panzerrock und Nieten, Ninja mit Tabi, Schamanin mit gesticktem Saum, Nekromant mit Rune und Flicken, Roben mit Falten
 - **Schmied 3.6**: bis +6 geht nichts kaputt (Fehlschlag kostet nur das Material), ab +7 kann der Gegenstand zerbrechen; Schmiede-Szene über den ganzen Bildschirm mit drei Hammerschlägen, Funken, Glühen und Spannung, dann Goldstrahlen und „+X“, Rauch, blauer Schutzschein oder zerspringende Hälften; Klänge aus Web Audio für Hammer, Erfolg, Fehlschlag, Schutz und Bruch, „Ton an/aus“ beim Schmied
 - **Stadt Vlotho**: die Stadt in der Mitte von Map 1 heißt jetzt Vlotho
 - **Aussehen 3.5**: bei der Erstellung 6 Frisuren, 8 Haarfarben, 7 Hauttöne, 4 Augenformen, 6 Augenfarben und 4 Gesichtszeichen (Sommersprossen, Narbe, Kriegsbemalung), drehbare Vorschau, „Zufällig“; später im Charakterfenster änderbar; Mitspieler sehen es
@@ -124,6 +126,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/figuren.js` | Aussehen aller Figuren und Monster: Klassen in drei Blickrichtungen mit Laufanimation, Waffen, Händler, Skelette |
 | `js/effekte.js` | Partikel, Schwungspuren, Treffer, Schadenszahlen, Geschosse, Bildschirmwackeln |
 | `js/fertigkeiten.js` | Symbole der Fertigkeiten, Effekte je Fertigkeit, Auren aktiver Buffs |
+| `js/optionen.js` | Einstellungen: Ton, Grafikstufe, Kamera, Wackeln, Vibration, Zahlen, Namen |
 | `js/klang.js` | Klänge (Web Audio): Hammer, Erfolg, Fehlschlag, Schutz, Bruch |
 | `js/ultimativ.js` | Ultimative Attacken ab Stufe 30: Ablauf, Symbole und Effekte |
 | `js/gemeinschaft.js` | Freunde und Gilden: Anfragen über den Host, Fenster, Gildenwappen |

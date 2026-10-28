@@ -956,3 +956,20 @@ Mobile game character creation screen in landscape, dark leather and gold fantas
 ```
 2D fantasy game upgrade break screen: a red flash over the forge, a sword cracks along a jagged line and its two halves fly apart, red-hot shards scatter, a big red text "Zerbrochen!" with "Seelenreißer +9 ist zersprungen" below. Cute game art, bold outlines, dramatic.
 ```
+
+## Einstellungen und detailliertere Figur (Version 3.7)
+
+### Zahnrad und Einstellungen
+```
+Mobile game settings window in landscape, dark leather and gold fantasy style: a golden gear button in the top menu row, the open "Einstellungen" window with sections "Ton" (a green toggle switch "Klänge" and a golden volume slider "70 %"), "Grafik" (segmented buttons "Hoch / Mittel / Niedrig" and "Nah / Normal / Weit", toggles for screen shake, damage numbers and villager names), "Steuerung" (vibration toggle) and buttons "Aussehen ändern", "Server und Kanal", "Hilfe", "Zum Startbildschirm". Clean readable UI.
+```
+
+### Detailliertere Figur
+```
+2D fantasy MMORPG character close-up, cute chibi style with bold dark outlines and soft cel shading: a young warrior with big expressive anime eyes (white, blue iris, dark pupil, two highlights, dark upper lid line), small ears, a tiny nose, a neck shadow under the chin, a red armored tunic with a center seam, a skirt with slits and brass rivets on the belt, gloves with thumbs, trousers with knee folds and boots with dark soles and crossed laces. Front, side and back view, light from the top left.
+```
+
+### Kleidungsdetails je Klasse
+```
+2D fantasy MMORPG character lineup, cute chibi style: a ninja with split-toe tabi boots and crossed straps, a shaman in a teal robe with embroidered golden zigzag hem and soft cloth folds, a hooded necromancer with a faintly glowing green rune on the chest and stitched patches on the robe, each with detailed eyes and hands. Bold outlines, cel shading.
+```

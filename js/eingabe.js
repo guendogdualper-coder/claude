@@ -54,6 +54,7 @@ function setupInput() {
       case 'KeyR': if (!e.repeat) toggleRide(); break;
       case 'KeyN': if (!e.repeat) ui.toggle('panelNet'); break;
       case 'KeyG': if (!e.repeat) ui.toggle('panelSocial'); break;
+      case 'KeyO': if (!e.repeat) ui.toggle('panelOpts'); break;
       case 'Enter': if (netOnline()) { ui.openChat(); e.preventDefault(); } break;
       case 'KeyB': if (!e.repeat) ui.toggle('panelLoot'); break;
       case 'Tab':

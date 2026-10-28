@@ -218,19 +218,25 @@ function hLegs(ctx, dir, w, o) {
     }
     return;
   }
+  // Bein mit Naht und Kniefalte, Stiefel mit Sohle und Schnürung
+  const leg = (x, y, pants, boots, bx, bw) => {
+    box(ctx, x, y - 10, 5, 7.5, 2, pants);
+    stroke(ctx, darker(pants, 0.25), 0.5, [[x + 2.5, y - 9.5], [x + 2.5, y - 3.5]]);
+    stroke(ctx, lighter(pants, 0.18), 0.6, [[x + 1, y - 6.6], [x + 3.8, y - 6.2]]);
+    box(ctx, bx, y - 4.6, bw, 4.6, 2, boots);
+    box(ctx, bx + 0.3, y - 1.1, bw - 0.6, 1.1, 0.5, darker(boots, 0.45));
+    stroke(ctx, lighter(boots, 0.25), 0.45, [[bx + 1.4, y - 3.8], [bx + bw - 1.6, y - 3.1]]);
+    stroke(ctx, lighter(boots, 0.25), 0.45, [[bx + 1.4, y - 3.1], [bx + bw - 1.6, y - 3.8]]);
+  };
   if (dir === 'side') {
     const s = w.l * 2.6;
-    box(ctx, -2.5 - s, -10, 5, 7.5, 2, darker(o.pants, 0.18));
-    box(ctx, -3.2 - s, -4.2, 7, 4.2, 1.8, darker(o.boots, 0.18));
-    box(ctx, -2.5 + s, -10, 5, 7.5, 2, o.pants);
-    box(ctx, -3 + s, -4.2, 7.5, 4.2, 1.8, o.boots);
+    leg(-2.5 - s, 0, darker(o.pants, 0.18), darker(o.boots, 0.18), -3.2 - s, 7);
+    leg(-2.5 + s, 0, o.pants, o.boots, -3 + s, 7.5);
   } else {
     const ly = w.l > 0 ? -1.2 : 0;
     const ry = w.r > 0 ? -1.2 : 0;
-    box(ctx, -6, -10 + ly, 5, 7.5, 2, o.pants);
-    box(ctx, -6.6, -4.6 + ly, 6.2, 4.6, 2, o.boots);
-    box(ctx, 1, -10 + ry, 5, 7.5, 2, o.pants);
-    box(ctx, 0.4, -4.6 + ry, 6.2, 4.6, 2, o.boots);
+    leg(-6, ly, o.pants, o.boots, -6.6, 6.2);
+    leg(1, ry, o.pants, o.boots, 0.4, 6.2);
   }
 }
 
@@ -249,10 +255,17 @@ function hBody(ctx, dir, w, o) {
     }
     pts.push([-wb, -2.5]);
     poly(ctx, pts, o.robe);
+    // Falten im Stoff
+    const fold = darker(o.robe, 0.28);
+    for (const fx of dir === 'side' ? [-2, 3] : [-6, -1.5, 3, 7]) stroke(ctx, fold, 0.6, [[fx * 0.55, y + 7], [fx, -3.5]]);
+    dot(ctx, 0, y + 1.2, dir === 'side' ? 3.5 : 4.5, 1.4, 'rgba(0,0,0,0.22)');
     return wb;
   }
   const tw = torsoWidth(dir) * (o.wide || 1);
   box(ctx, -tw / 2, y, tw, 16, 5, o.torso);
+  // Schatten unter dem Kinn und Mittelnaht
+  dot(ctx, 0, y + 1.3, dir === 'side' ? 3.6 : 4.6, 1.5, 'rgba(0,0,0,0.22)');
+  if (dir !== 'side') stroke(ctx, darker(o.torso, 0.3), 0.5, [[0, y + 3], [0, y + 10.5]]);
   return tw / 2;
 }
 
@@ -266,7 +279,11 @@ function hArms(ctx, dir, w, o) {
       box(ctx, x, y + dy, 5, 10.5, 2.5, o.sleeve);
       if (o.cuff) box(ctx, x, y + dy + 7.8, 5, 2, 1, o.cuff);
     }
-    oval(ctx, x + 2.5, y + dy + 11.5, 2.4, 2.3, o.gloves || o.skin);
+    if (!o.wideSleeves) stroke(ctx, darker(o.sleeve, 0.3), 0.5, [[x + 1, y + dy + 5.2], [x + 4, y + dy + 5.6]]);
+    const hand = o.gloves || o.skin;
+    oval(ctx, x + 2.5, y + dy + 11.5, 2.4, 2.3, hand);
+    oval(ctx, x + 4.4, y + dy + 10.6, 1, 1.2, hand);
+    stroke(ctx, darker(hand, 0.3), 0.4, [[x + 1.2, y + dy + 12.4], [x + 3.6, y + dy + 12.4]]);
   };
   // Kraftpose: Arme von der Schulter aus schräg nach oben gedreht
   if (w.raise) {
@@ -295,7 +312,19 @@ function hArms(ctx, dir, w, o) {
 function hHead(ctx, dir, w, o) {
   const cx = dir === 'side' ? 1.5 : 0;
   const cy = -34.5 + w.bob;
-  oval(ctx, cx, cy, 11, 10.5, o.skin);
+  const skin = o.skin;
+  // Hals und Ohren liegen hinter dem Kopf
+  box(ctx, cx - 3, cy + 7, 6, 4.5, 1.5, darker(skin, 0.12));
+  const ear = (x) => {
+    oval(ctx, x, cy + 1.2, 2.3, 3, skin);
+    dot(ctx, x, cy + 1.4, 1, 1.6, darker(skin, 0.22));
+  };
+  if (dir === 'down') { ear(cx - 10.6); ear(cx + 10.6); } else if (dir === 'side') ear(cx - 2.5);
+  else { ear(cx - 10.4); ear(cx + 10.4); }
+  oval(ctx, cx, cy, 11, 10.5, skin);
+  // kleine Nase
+  if (dir === 'down') dot(ctx, cx, cy + 3.7, 0.9, 0.6, darker(skin, 0.2));
+  else if (dir === 'side') poly(ctx, [[cx + 10.4, cy + 2], [cx + 12, cy + 3.6], [cx + 10.3, cy + 4.4]], skin);
   return { cx, cy };
 }
 
@@ -317,9 +346,25 @@ function eyes(ctx, dir, cx, cy, o = {}) {
       ctx.globalAlpha = 0.4;
       dot(ctx, x, cy + 1.5, 3, 3, o.glow);
       ctx.globalAlpha = 1;
+      dot(ctx, x, cy + 1.5, 1.7, o.narrow ? 1.3 : 2.4, o.color || '#21160f');
+      dot(ctx, x - 0.5, cy + (o.narrow ? 1.1 : 0.6), 0.65, 0.65, '#ffffff');
+      continue;
     }
-    dot(ctx, x, cy + 1.5, 1.7, o.narrow ? 1.3 : 2.4, o.color || '#21160f');
-    dot(ctx, x - 0.5, cy + (o.narrow ? 1.1 : 0.6), 0.65, 0.65, '#ffffff');
+    // Auge: Weiß, farbige Iris, Pupille, zwei Glanzpunkte und ein Lidstrich
+    const side = dir === 'side' ? 0.55 : 0;
+    const ew = dir === 'side' ? 1.6 : 2.1;
+    const eh = o.narrow ? 1.35 : 2.6;
+    const iris = o.color && o.color !== '#21160f' ? o.color : '#5a3a22';
+    dot(ctx, x, cy + 1.5, ew, eh, '#fbf6ee');
+    dot(ctx, x + side, cy + 1.75, ew * 0.78, eh * 0.84, iris);
+    dot(ctx, x + side, cy + 1.9, ew * 0.4, eh * 0.45, '#120a06');
+    dot(ctx, x + side - 0.6, cy + (o.narrow ? 1.2 : 0.75), 0.62, 0.62, '#ffffff');
+    dot(ctx, x + side + 0.55, cy + (o.narrow ? 2 : 2.7), 0.3, 0.3, 'rgba(255,255,255,0.85)');
+    ctx.strokeStyle = '#2a1810';
+    ctx.lineWidth = 0.95;
+    ctx.beginPath();
+    ctx.ellipse(x, cy + 1.5, ew + 0.15, eh + 0.1, 0, Math.PI * 1.08, Math.PI * 1.92);
+    ctx.stroke();
   }
   // Mund und Augenbrauen bei offenen Gesichtern
   if (o.blush) {
@@ -641,6 +686,7 @@ function gearBoots(ctx, dir, w, tier, robe) {
     }
     box(ctx, x + 0.4, -8.2 - lift, wide - 0.8, 5, 1.4, darker(c, 0.08));
     box(ctx, x, -4.8 - lift, wide, 4.8, 1.8, c);
+    box(ctx, x + 0.3, -1.2 - lift, wide - 0.6, 1.2, 0.5, darker(c, 0.45));
     box(ctx, x - 0.2, -8.8 - lift, wide + 0.4, 1.8, 0.8, tier >= 2 ? m : lighter(c, 0.2));
     if (tier >= 1) stroke(ctx, m, 0.7, [[x + 1, -5.6 - lift], [x + wide - 1, -5.6 - lift]]);
     if (tier >= 3) poly(ctx, [[x + wide * 0.3, -9 - lift], [x + wide * 0.5, -12 - lift], [x + wide * 0.7, -9 - lift]], m);
@@ -927,9 +973,12 @@ const CHARACTER_ART = {
     const sw = dir === 'side' ? 8 : 11.5;
     poly(ctx, [[-sw + 1.5, ty + 12], [sw - 1.5, ty + 12], [sw, ty + 18.5], [-sw, ty + 18.5]], darker(crimson, 0.1));
     stroke(ctx, brass, 0.6, [[-sw + 1, ty + 15.5], [sw - 1, ty + 15.5]]);
+    // Schlitze im Panzerrock
+    for (const x of dir === 'side' ? [-3, 2.5] : [-5.5, 0, 5.5]) stroke(ctx, darker(crimson, 0.4), 0.6, [[x, ty + 13], [x * 1.08, ty + 18.3]]);
     const half = hBody(ctx, dir, w, o);
     for (let k = 0; k < 3; k++) stroke(ctx, brass, 0.7, [[-half + 1.5, ty + 3.5 + k * 3], [half - 1.5, ty + 3.5 + k * 3]]);
     box(ctx, -half, ty + 11.5, half * 2, 3, 1, brass);
+    for (const x of [-half + 2, half - 2]) dot(ctx, x, ty + 13, 0.7, 0.7, lighter(brass, 0.4));
     if (dir === 'down') oval(ctx, 0, ty + 13, 2.3, 2, L.a >= 4 ? lookColor(A.crest, L.a, '#e0c36a') : '#e0c36a');
     gearBelt(ctx, dir, ty + 11.3, half, L.g);
     // Brustplatte ab Stufe Eisen, Schuppen ab Stufe Drache
@@ -1017,6 +1066,11 @@ const CHARACTER_ART = {
       stroke(ctx, wrap, 0.7, [[1.4, -7.5], [5.6, -6.6]]);
     }
     gearBoots(ctx, dir, w, L.b);
+    // Tabi: geteilte Zehen
+    if (dir === 'down' && gearTier(L.b) < 0) {
+      stroke(ctx, '#1a1620', 0.6, [[-4.4, -2.6 + (w.l > 0 ? -1.2 : 0)], [-4.4, -0.3 + (w.l > 0 ? -1.2 : 0)]]);
+      stroke(ctx, '#1a1620', 0.6, [[2.6, -2.6 + (w.r > 0 ? -1.2 : 0)], [2.6, -0.3 + (w.r > 0 ? -1.2 : 0)]]);
+    }
     const half = hBody(ctx, dir, w, o);
     // Kreuzgurte
     if (dir === 'side') stroke(ctx, '#5a4030', 1.4, [[-4.5, ty + 1], [4.5, ty + 10.5]]);
@@ -1064,6 +1118,10 @@ const CHARACTER_ART = {
     gearBoots(ctx, dir, w, L.b, true);
     const wb = hBody(ctx, dir, w, o);
     stroke(ctx, gold, 1.2, [[-wb + 1, -3.8], [wb - 1, -3.8]]);
+    // gestickte Zacken über dem Saum
+    const zig = [];
+    for (let k = 0; k <= 10; k++) zig.push([-wb + 1.5 + (2 * wb - 3) * k / 10, k % 2 ? -6.4 : -5.2]);
+    stroke(ctx, lighter(gold, 0.1), 0.6, zig);
     if (dir === 'down') {
       poly(ctx, [[-2.5, ty + 1], [2.5, ty + 1], [3.6, -3], [-3.6, -3]], '#e9e2cf');
       stroke(ctx, gold, 0.9, [[-2.6, ty + 1], [-3.7, -3]]);
@@ -1143,7 +1201,21 @@ const CHARACTER_ART = {
     hLegs(ctx, dir, w, o);
     gearBoots(ctx, dir, w, L.b, true);
     const wb = hBody(ctx, dir, w, o);
-    if (dir === 'down') poly(ctx, [[-2.5, ty + 2], [2.5, ty + 2], [3.6, -3.5], [-3.6, -3.5]], '#1d281c');
+    if (dir === 'down') {
+      poly(ctx, [[-2.5, ty + 2], [2.5, ty + 2], [3.6, -3.5], [-3.6, -3.5]], '#1d281c');
+      // schwach leuchtende Rune auf der Brust und geflickte Stellen
+      ctx.strokeStyle = 'rgba(167,227,127,0.55)';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.arc(0, ty + 6, 1.8, 0, Math.PI * 2);
+      ctx.moveTo(0, ty + 3.6);
+      ctx.lineTo(0, ty + 8.4);
+      ctx.stroke();
+      for (const [x, y] of [[-6, ty + 9], [5.5, ty + 12]]) {
+        stroke(ctx, '#8a8470', 0.5, [[x - 1.2, y - 1.2], [x + 1.2, y + 1.2]]);
+        stroke(ctx, '#8a8470', 0.5, [[x + 1.2, y - 1.2], [x - 1.2, y + 1.2]]);
+      }
+    }
     stroke(ctx, 'rgba(167,227,127,0.35)', 0.7, [[-wb + 2, -5.5], [wb - 2, -5.5]]);
     const bw = dir === 'side' ? 13 : 18.5;
     box(ctx, -bw / 2, ty + 10.5, bw, 2.6, 1, '#4a3a2a');

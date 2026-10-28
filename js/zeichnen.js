@@ -13,6 +13,7 @@ function setupRenderer() {
   renderer.miniCtx = renderer.mini.getContext('2d');
   renderer.miniBase = buildMinimapBase();
   window.addEventListener('resize', resizeRenderer);
+  renderer.maxDpr = gfx().dpr; // Grafikstufe aus den Einstellungen
   resizeRenderer();
 }
 
@@ -25,7 +26,7 @@ function resizeRenderer() {
   r.h = window.innerHeight;
   r.canvas.width = Math.round(r.w * r.dpr);
   r.canvas.height = Math.round(r.h * r.dpr);
-  r.zoom = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410));
+  r.zoom = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410)) * (CAMERA[opts.camera] || CAMERA.normal).zoom;
 }
 
 // Bildschirmkoordinaten → Weltkoordinaten (für Mausklicks)
@@ -189,6 +190,7 @@ function shadowOf(sp, flip) {
   return sp[key];
 }
 function castShadow(ctx, sp, x, fy, flip, alpha = 0.22) {
+  if (!gfx().castShadows) return;
   const sh = shadowOf(sp, !!flip);
   const a = ctx.globalAlpha;
   ctx.globalAlpha = a * alpha;
@@ -201,6 +203,7 @@ const CLOUDS = [[0, 0, 1], [640, 380, 0.85], [1040, -180, 1.15]];
 let cloudImg = null;
 
 function drawCloudShadows(ctx, view) {
+  if (!gfx().clouds) return;
   if (!cloudImg) {
     cloudImg = newCanvas(256, 160);
     const c = cloudImg.getContext('2d');
@@ -1041,7 +1044,7 @@ function drawLabel(ctx, e) {
     return;
   }
   if (!e.type && !e.isStone) {
-    if (!e.name) return;
+    if (!e.name || (!opts.names && e.id !== 'riss')) return;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     ctx.strokeText(e.name, e.x, feetY(e) + 15);
     ctx.fillStyle = '#f0cf6a';

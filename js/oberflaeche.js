@@ -15,6 +15,7 @@ const ui = {
     $('btnHorse').addEventListener('click', () => toggleRide());
     $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
     $('btnSocial').addEventListener('click', () => this.toggle('panelSocial'));
+    $('btnOpts').addEventListener('click', () => this.toggle('panelOpts'));
     $('btnStatPlus').addEventListener('click', () => this.toggle('panelChar'));
     $('btnChat').addEventListener('click', () => this.openChat());
     // Chat-Knopf in der Ecke: im Kanal schreiben, allein die Server-Auswahl öffnen
@@ -337,7 +338,7 @@ const ui = {
     this.swapFrom = i;
     $('skillBar').classList.add('swapping');
     $('skill' + i).parentElement.classList.add('swap-pick');
-    if (navigator.vibrate) navigator.vibrate(25);
+    buzz(25);
     ui.log(`${classSkills(game.player)[i].name} angehoben: auf einen anderen Platz ziehen oder tippen.`, 'info');
     // Tippen irgendwo anders bricht ab
     const cancel = (e) => {
@@ -810,6 +811,7 @@ const ui = {
       }
       if (id === 'panelLoot') this.renderLoot();
       if (id === 'panelSocial') social.render();
+      if (id === 'panelOpts') options.render();
       if (id === 'panelNet') {
         this.renderNet();
         netProbe();
