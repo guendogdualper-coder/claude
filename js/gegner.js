@@ -343,12 +343,23 @@ function huntablePlayers() {
 const isPlayerLike = (t) => t === game.player || !!(t && t.remote);
 const playerHidden = (t) => (t === game.player ? game.stats.invisible : t.invisible) || inVillage(t.x, t.y);
 
+function playerNearSpot(x, y, r) {
+  const p = game.player;
+  if (p && !p.dead && Math.hypot(p.x - x, p.y - y) < r) return true;
+  if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead && Math.hypot(rp.x - x, rp.y - y) < r) return true;
+  return false;
+}
+
 function updateMonsters(dt) {
   const p = game.player;
   const players = huntablePlayers();
   for (const m of game.monsters) {
     if (m.dead) {
-      if (m.respawn && game.time >= m.respawnAt) reviveMonster(m);
+      if (m.respawn && game.time >= m.respawnAt) {
+        // Besiegte Monster bleiben tot, solange ein Spieler an ihrem Platz ist; erst danach kommen sie wieder
+        if (!m.isStone && playerNearSpot(m.homeX, m.homeY, 420)) m.respawnAt = game.time + 5;
+        else reviveMonster(m);
+      }
       continue;
     }
     if (m.hitFlash > 0) m.hitFlash -= dt;

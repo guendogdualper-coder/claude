@@ -329,9 +329,9 @@ function netHostDamage(rp, d) {
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
   }
   m.lastAttacker = rp;
-  // Hält der Mitspieler den Treffer für tödlich und fehlt nur wenig (Zeitversatz, kurzes Erholen),
-  // stirbt das Monster trotzdem – es bleibt nie mit ein paar Lebenspunkten stehen
-  if (d.k && d.a > 0 && m.hp - d.a < m.maxHp * (m.isStone ? 0.15 : 0.08)) {
+  // Hält der Mitspieler den Treffer für tödlich, stirbt das Monster – auch wenn der Host noch etwas mehr
+  // Leben sieht (Zeitversatz, Erholen beim Zurücklaufen). Sonst stünde es beim Mitspieler mit wenig Leben wieder auf.
+  if (d.k && d.a > 0) {
     damageMonster(m, Math.max(d.a, Math.ceil(m.hp)), !!d.c, rp, false);
     return;
   }
@@ -507,8 +507,20 @@ function netApplySnapshot(d) {
     }
     m.hostHp = e[3];
     // Eben selbst besiegt: kurz auf die Bestätigung des Hosts warten statt es wieder aufstehen zu lassen
-    if (m.predictedDead && !(flags & 1) && game.time - m.predictedDead < 1.5) continue;
-    if (m.predictedDead && !(flags & 1)) m.predictedDead = null;
+    // Ein älterer Host lehnt den tödlichen Treffer ab, wenn er mehr Leben sieht: dann einmal mit seinem
+    // vollen Lebensstand nachschicken, damit das Monster sicher stirbt und nicht mit wenig Leben wieder aufsteht.
+    if (m.predictedDead && !(flags & 1)) {
+      const since = game.time - m.predictedDead;
+      if (since < 4) {
+        if (!m.killResent && since > 0.5) {
+          m.killResent = true;
+          netSend({ t: 'dmg', id: m.id, a: Math.max(1, e[3]), c: 0, st: {}, k: 1 });
+        }
+        continue;
+      }
+      m.predictedDead = null;
+      m.killResent = false;
+    }
     m.hp = Math.max(flags & 1 ? 0 : 1, e[3] - pending);
     m.dead = !!(flags & 1);
     m.moving = !!(flags & 2);
@@ -557,6 +569,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.hp = 0;
     m.dead = true;
     m.predictedDead = game.time;
+    m.killResent = false;
     m.poison = m.burn = null;
     if (game.target === m) game.target = null;
     monsterDeathFx(m);
@@ -582,6 +595,7 @@ function netVersionCheck(other, name, iAmHost) {
 function netClientKill(m) {
   const shown = !!m.predictedDead;
   m.predictedDead = null;
+  m.killResent = false;
   m.dead = true;
   m.hp = 0;
   m.poison = m.burn = null;

@@ -3,20 +3,22 @@
 // bei jedem Start gleich aus – wichtig, sobald später mehrere Spieler darin unterwegs sind.
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
-const WORLD_W = 300;      // Breite des oberen Bereichs (Vlotho und die Maps 4–9) in Kacheln
+// Seit Version 6.4 sind alle neun Maps gleich groß (300 × 120 wie Vlotho): Vlotho links, die anderen acht
+// in zwei Spalten mit je vier Maps rechts daneben (WORLD_MAPS.region). Freie Flächen sind Fels.
+const WORLD_W = 900;      // Breite des Map-Bereichs in Kacheln
+const WORLD_H = 480;      // Höhe des Map-Bereichs in Kacheln
 const DUNGEON_COL = 60;   // Breite einer Dungeon-Spalte in Kacheln
 const DUNGEON_W = DUNGEON_COL * 2; // östlich davon liegen zwei Spalten mit je vier Dungeons (nur per Eingang erreichbar)
-const WORLD_H = 300;      // Höhe der Oberwelt; darunter liegen Map 2 und Map 3 (je 200 × 200, nur per Tor oder Portal)
-const SUBMAP_SIZE = 200;
-const MAP_W = Math.max(WORLD_W + DUNGEON_W, SUBMAP_SIZE * 2);
-const MAP_H = WORLD_H + SUBMAP_SIZE;
-const CENTER_X = WORLD_W / 2;
-const CENTER_Y = WORLD_H / 2;
+const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
+const MAP_W = WORLD_W + DUNGEON_W;
+const MAP_H = WORLD_H;
+const CENTER_X = 150;     // Mitte von Vlotho
+const CENTER_Y = 150;
 const VILLAGE_HALF = 14;  // Dorfmauer: Quadrat 14 Kacheln um die Mitte; drinnen greifen Monster nicht an
 const SAFE_RING = 24;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 6;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 7;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -67,7 +69,7 @@ function makeNoise(rng, cell) {
 // Mauer, sonst liegen die Gebiete als Ringe um die Mitte der Map. Was zu keiner Map gehört, ist Fels.
 function zoneIndexAt(x, y) {
   const wm = mapOfTile(x, y);
-  if (!wm) return x >= WORLD_W && y < WORLD_H ? dungeonZoneAt(x, y) : RING_ZONES;
+  if (!wm) return x >= WORLD_W && y < DUNGEON_H ? dungeonZoneAt(x, y) : RING_ZONES;
   if (wm.id === 1 && Math.max(Math.abs(x + 0.5 - CENTER_X), Math.abs(y + 0.5 - CENTER_Y)) < VILLAGE_HALF + 0.5) return 0;
   return mapZoneAt(x, y);
 }
@@ -92,7 +94,7 @@ function mapZoneAt(x, y) {
 }
 
 // Der Dungeon-Streifen hat zwei Spalten, jede von oben nach unten in vier gleich hohe Blöcke geteilt
-const DUNGEON_BLOCK = Math.floor(WORLD_H / 4);
+const DUNGEON_BLOCK = Math.floor(DUNGEON_H / 4);
 function dungeonIndexAt(x, y) {
   const col = Math.max(0, Math.min(1, Math.floor((x - WORLD_W) / DUNGEON_COL)));
   return Math.min(DUNGEONS.length - 1, col * 4 + Math.min(3, Math.floor(y / DUNGEON_BLOCK)));
@@ -387,7 +389,7 @@ const DUNGEON_ROOMS = [[3, 4, 9, 9], [18, 3, 12, 11], [38, 4, 14, 12], [39, 26, 
 
 function buildDungeons(ground, obj, zoneIdx) {
   const rng = mulberry32(WORLD_SEED + 99);
-  for (let y = 0; y < WORLD_H; y++) {
+  for (let y = 0; y < DUNGEON_H; y++) {
     for (let x = WORLD_W; x < MAP_W; x++) {
       const i = y * MAP_W + x;
       const zi = dungeonZoneAt(x, y);
@@ -396,9 +398,10 @@ function buildDungeons(ground, obj, zoneIdx) {
       obj[i] = OBJ.CAVEWALL;
     }
   }
-  // unter den Dungeons, neben Map 2 und 3: unzugänglicher Fels
-  for (let y = WORLD_H; y < MAP_H; y++) {
-    for (let x = SUBMAP_SIZE * 2; x < MAP_W; x++) {
+  // alles, was weder Map noch Dungeon ist: unzugänglicher Fels
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      if ((x >= WORLD_W && y < DUNGEON_H) || mapOfTile(x, y)) continue;
       const i = y * MAP_W + x;
       zoneIdx[i] = RING_ZONES;
       ground[i] = GROUND.CAVE;

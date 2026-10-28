@@ -185,8 +185,16 @@ function makePlayer(save) {
     p.skillPoints += (p.skillLevels || []).reduce((a, v) => a + Math.max(0, v - 1), 0);
     p.skillLevels = [1, 1, 1, 1, 1];
   }
-  // Die Welt ist größer geworden: alte Positionen passen nicht mehr, es geht im Dorf weiter
+  // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Version 6.2/6.3 (Welt 6) geht es
+  // im Lager derselben Map weiter, sonst im Dorf.
+  let campOf = null;
   if ((save.worldVersion || 1) < WORLD_VERSION) {
+    if (save.worldVersion === 6 && save.x != null) {
+      const OLD = { 4: [0, 0, 100, 90], 5: [100, 0, 100, 90], 6: [200, 0, 100, 90], 7: [0, 210, 100, 90], 8: [100, 210, 100, 90], 9: [200, 210, 100, 90], 2: [0, 300, 200, 200], 3: [200, 300, 200, 200] };
+      const tx = save.x / TILE;
+      const ty = save.y / TILE;
+      for (const [id, [x, y, w, h]] of Object.entries(OLD)) if (tx >= x && tx < x + w && ty >= y && ty < y + h) campOf = Number(id);
+    }
     p.x = null;
     p.y = null;
   }
@@ -194,7 +202,8 @@ function makePlayer(save) {
   const stats = playerStats(p);
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
-  const spawn = villageSpawn();
+  const camp = campOf && game.world && game.world.maps ? game.world.maps.find((m) => m.id === campOf) : null;
+  const spawn = camp ? camp.spawn : villageSpawn();
   if (p.x == null || !canStand(p.x, p.y, p.r * 0.7, false)) {
     p.x = spawn.x;
     p.y = spawn.y;

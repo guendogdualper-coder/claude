@@ -583,6 +583,8 @@ const ui = {
   // Hinweise an Elementen mit data-tip: mit der Maus beim Darüberfahren, auf dem Handy beim Antippen
   initTips() {
     const box = $('tipBox');
+    // Direkt an die Seite hängen: im HUD läge der Hinweis immer hinter den Fenstern (Schmied, Inventar)
+    document.body.appendChild(box);
     let cur = null;
     const show = (el) => {
       cur = el;

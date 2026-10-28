@@ -1710,26 +1710,18 @@ const gear = {
       `<div class="chance"><i style="width:${step.chance * 100}%"></i><span>Erfolgschance ${Math.round(step.chance * 100)} %</span></div>` +
       `<p class="smith-cost">Kosten: <b class="${p.gold >= cost.gold ? '' : 'lack'}">${cost.gold.toLocaleString('de-DE')} Gold</b> und ` +
       `<b class="${p.splinters >= cost.splinters ? '' : 'lack'}">${cost.splinters} Seelensplitter</b> (du hast ${p.splinters})</p>` + matLine +
-      `<p class="smith-risk ${step.fail}">${risk}</p>` + this.smithMatsHtml(mat ? mat.id : null) +
-      (step.fail !== 'none' ? `<label class="scroll-opt" for="useScroll"><input id="useScroll" type="checkbox" ${p.scrolls ? '' : 'disabled'}>` +
+      `<p class="smith-risk ${step.fail}">${risk}</p>` +
+      // Haken für die Segensschriftrolle bleibt gesetzt, bis man ihn selbst wieder herausnimmt
+      (step.fail !== 'none' ? `<label class="scroll-opt" for="useScroll"><input id="useScroll" type="checkbox" ${p.scrolls ? '' : 'disabled'} ${p.scrolls && this.scrollPref ? 'checked' : ''}>` +
         `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrolle verwenden (${p.scrolls} vorhanden)</label>` : '') +
       `<div class="forge-row"><button id="btnForge" type="button" class="btn btn-primary" ${enough ? '' : 'disabled'}>Verbessern</button>` +
       `<button id="btnSound" type="button" class="mini-btn" title="Klänge an oder aus">${sfx.on ? '🔊 Ton an' : '🔇 Ton aus'}</button></div>`;
+    const sc = document.getElementById('useScroll');
+    if (sc) sc.addEventListener('change', () => { this.scrollPref = sc.checked; });
     document.getElementById('btnForge').addEventListener('click', () => this.forge());
     document.getElementById('btnSound').addEventListener('click', (e) => {
       e.target.textContent = sfx.toggle() ? '🔊 Ton an' : '🔇 Ton aus';
     });
-  },
-
-  // Alle Teile für den Schmied, die man hat (und das gerade nötige): Antippen oder Zeigen verrät, wo es sie gibt
-  smithMatsHtml(need) {
-    const p = game.player;
-    const ids = Object.keys(p.upmats || {}).filter((id) => p.upmats[id] > 0 && MOB_MATS[id]);
-    if (need && !ids.includes(need)) ids.unshift(need);
-    if (!ids.length) return '';
-    return `<div class="smith-mats"><h4>Teile für den Schmied <small>antippen: wo es sie gibt</small></h4><div class="loot-purse mob-mats">` +
-      ids.map((id) => `<span class="mat-chip${id === need ? ' need' : ''}" tabindex="0" data-tip="${mobMatTip(id)}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${p.upmats[id] || 0}</b></span>`).join('') +
-      `</div></div>`;
   },
 
   anvil(item) {

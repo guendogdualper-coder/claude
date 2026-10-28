@@ -97,7 +97,34 @@ function drawHurtVignette(ctx, w, h) {
 //    gravity, drag, shape ('dot' | 'spark' | 'square' | 'ember'), glow (leuchtend addieren)
 // Höchstzahl gleichzeitiger Partikel: bei vielen Effekten auf einmal fallen die ältesten weg
 const MAX_PARTICLES = 320;
+// Rang der gerade wirkenden Fertigkeit (-1 = normale Stufe 1–17, sonst Index in SKILL_RANKS). useSkill setzt ihn,
+// later(), Sturmangriffe und Geschosse tragen ihn weiter. So kennt jeder Effekt einer Fertigkeit ihren Rang:
+// ab Erwacht leuchtet alles in der Rangfarbe, ist größer und sprüht mehr Funken – jeder Rang ein Stück mehr.
+let fxRank = -1;
+function withRank(rank, fn) {
+  const prev = fxRank;
+  fxRank = rank;
+  try {
+    return fn();
+  } finally {
+    fxRank = prev;
+  }
+}
+const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin']);
+function rankLook(e) {
+  if (fxRank < 0 || e.rank != null || !RANK_FX_TYPES.has(e.type)) return;
+  e.rank = fxRank;
+  e.rankColor = SKILL_RANKS[fxRank].color;
+  const s = 1 + 0.1 * (fxRank + 1); // E +10 %, H +20 %, L +30 %, V +40 %
+  for (const key of ['r', 'len', 'w', 'width']) if (typeof e[key] === 'number') e[key] *= s;
+}
+
 function particles(x, y, o) {
+  if (fxRank >= 0 && !o.rankExtra) {
+    // mehr Teilchen, dazu Funken in der Rangfarbe
+    o = { ...o, count: (o.count || 8) * (1 + 0.25 * (fxRank + 1)) };
+    particles(x, y, { ...o, count: Math.ceil(o.count * (0.25 + 0.1 * fxRank)), color: [SKILL_RANKS[fxRank].color, '#ffffff'], shape: fxRank >= 2 ? 'spark' : o.shape, glow: true, rankExtra: true });
+  }
   const n = Math.max(1, Math.round((o.count || 8) * gfx().particles));
   const over = game.particles.length + n - MAX_PARTICLES;
   if (over > 0) game.particles.splice(0, over);
@@ -319,6 +346,7 @@ function addEffect(e) {
     const from = e.points[3];
     for (let k = 1; k <= 3; k++) e.branch.push({ x: from.x + k * 12 * (Math.random() < 0.5 ? -1 : 1), y: from.y + k * 16 });
   }
+  rankLook(e);
   game.effects.push(e);
 }
 
@@ -362,6 +390,11 @@ function drawEffect(ctx, e) {
   ctx.globalAlpha = 1 - k;
   ctx.strokeStyle = e.color;
   ctx.fillStyle = e.color;
+  // Fertigkeit mit Rang: Schein in der Rangfarbe um alles, was sie zeichnet
+  if (e.rank >= 0) {
+    ctx.shadowColor = e.rankColor;
+    ctx.shadowBlur = 7 + 5 * e.rank;
+  }
   switch (e.type) {
     case 'swoosh': {
       // Leuchtschweif: vorn breit und hell, nach hinten spitz auslaufend

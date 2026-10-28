@@ -23,44 +23,44 @@ const ZONES = [
   {
     id: 'wald', map: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, minDist: 8, maxDist: 999,
     ground: 'FOREST', trees: 0.1, treeObj: 'PINE', rocks: 0.012, water: 0.2, liquid: 'WATER',
-    groups: [['bandit', 8, 0, 0.6], ['banditschuetze', 6, 0.2, 0.8], ['waldspinne', 8, 0.35, 1], ['braunbaer', 6, 0.6, 1]], groupSize: [3, 4],
-    stones: [[15, 3, 0, 0.6], [20, 2, 0.5, 1]],
-    ambient: { kind: 'fireflies', tint: [10, 30, 20, 0.12] }
+    groups: [['bandit', 10, 0, 0.6], ['banditschuetze', 8, 0.2, 0.8], ['waldspinne', 10, 0.35, 1], ['braunbaer', 8, 0.6, 1]], groupSize: [3, 4],
+    stones: [[15, 4, 0, 0.6], [20, 3, 0.5, 1]],
+    ambient: { kind: 'fireflies', tint: [10, 42, 20, 0.12] }
   },
   {
     id: 'orktal', map: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999,
     ground: 'SAND', trees: 0.015, treeObj: 'DEADTREE', rocks: 0.06, water: 0.12, liquid: 'WATER',
-    groups: [['ork', 9, 0, 0.6], ['orkschamane', 7, 0.3, 0.9], ['skorpion', 8, 0.2, 1], ['orkhauptmann', 5, 0.65, 1]], groupSize: [3, 5],
-    stones: [[25, 3, 0, 0.6], [30, 2, 0.55, 1]],
-    ambient: { kind: 'dust', tint: [80, 50, 10, 0.08] }
+    groups: [['ork', 12, 0, 0.6], ['orkschamane', 9, 0.3, 0.9], ['skorpion', 10, 0.2, 1], ['orkhauptmann', 6, 0.65, 1]], groupSize: [3, 5],
+    stones: [[25, 4, 0, 0.6], [30, 3, 0.55, 1]],
+    ambient: { kind: 'dust', tint: [80, 70, 10, 0.08] }
   },
   {
     id: 'oedland', map: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, minDist: 8, maxDist: 999,
     ground: 'ASH', trees: 0.018, treeObj: 'DEADTREE', rocks: 0.07, water: 0.1, liquid: 'BOG',
-    groups: [['oger', 9, 0, 0.6], ['daemon', 10, 0.3, 1], ['hoellenhund', 9, 0.5, 1]], groupSize: [2, 4],
-    stones: [[35, 3, 0, 0.6], [40, 2, 0.55, 1]],
-    ambient: { kind: 'ash', tint: [40, 20, 20, 0.12] }
+    groups: [['oger', 12, 0, 0.6], ['daemon', 13, 0.3, 1], ['hoellenhund', 12, 0.5, 1]], groupSize: [2, 4],
+    stones: [[35, 4, 0, 0.6], [40, 3, 0.55, 1]],
+    ambient: { kind: 'ash', tint: [40, 28, 20, 0.12] }
   },
   {
     id: 'frost', map: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999,
     ground: 'SNOW', trees: 0.05, treeObj: 'PINE', rocks: 0.04, water: 0.16, liquid: 'ICE',
-    groups: [['eiswolf', 11, 0, 0.7], ['yeti', 9, 0.3, 1], ['frostgeist', 9, 0.45, 1]], groupSize: [2, 4],
-    stones: [[45, 3, 0, 0.6], [50, 2, 0.55, 1]],
-    ambient: { kind: 'snow', tint: [120, 160, 220, 0.1] }
+    groups: [['eiswolf', 14, 0, 0.7], ['yeti', 12, 0.3, 1], ['frostgeist', 12, 0.45, 1]], groupSize: [2, 4],
+    stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
+    ambient: { kind: 'snow', tint: [120, 224, 220, 0.1] }
   },
   {
     id: 'moor', map: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, minDist: 8, maxDist: 999,
     ground: 'SWAMP', trees: 0.04, treeObj: 'DEADTREE', rocks: 0.02, water: 0.28, liquid: 'BOG',
-    groups: [['untoter', 11, 0, 0.7], ['sumpfhexe', 9, 0.3, 1], ['ghul', 10, 0.45, 1]], groupSize: [2, 4],
-    stones: [[55, 3, 0, 0.6], [60, 2, 0.55, 1]],
-    ambient: { kind: 'wisps', tint: [20, 50, 30, 0.16] }
+    groups: [['untoter', 14, 0, 0.7], ['sumpfhexe', 12, 0.3, 1], ['ghul', 13, 0.45, 1]], groupSize: [2, 4],
+    stones: [[55, 4, 0, 0.6], [60, 3, 0.55, 1]],
+    ambient: { kind: 'wisps', tint: [20, 70, 30, 0.16] }
   },
   {
     id: 'vulkan', map: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, minDist: 8, maxDist: 999,
     ground: 'BASALT', trees: 0.01, treeObj: 'DEADTREE', rocks: 0.08, water: 0.2, liquid: 'LAVA',
-    groups: [['lavagolem', 10, 0, 0.6], ['feuerdaemon', 11, 0.2, 1], ['feuerdrache', 8, 0.4, 1]], groupSize: [2, 4],
-    stones: [[65, 4, 0, 0.6], [70, 3, 0.4, 1]],
-    ambient: { kind: 'embers', tint: [120, 30, 0, 0.12] }
+    groups: [['lavagolem', 13, 0, 0.6], ['feuerdaemon', 14, 0.2, 1], ['feuerdrache', 10, 0.4, 1]], groupSize: [2, 4],
+    stones: [[65, 6, 0, 0.6], [70, 4, 0.4, 1]],
+    ambient: { kind: 'embers', tint: [120, 42, 0, 0.12] }
   }
 ];
 
@@ -136,14 +136,14 @@ for (const d of DUNGEONS) {
 // portals: Weltportale draußen (seit Version 6.2 keine mehr – nur noch das Weltentor)
 const WORLD_MAPS = [
   { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 90, 300, 120], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
-  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [0, 0, 100, 90], camp: 7, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
-  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [100, 0, 100, 90], camp: 7, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
-  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [200, 0, 100, 90], camp: 7, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [0, 300, 200, 200], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
-  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [0, 210, 100, 90], camp: 7, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
-  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [100, 210, 100, 90], camp: 7, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
-  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [200, 300, 200, 200], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
-  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [200, 210, 100, 90], camp: 7, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
+  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [300, 0, 300, 120], camp: 7, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
+  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [600, 0, 300, 120], camp: 7, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
+  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [300, 120, 300, 120], camp: 7, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
+  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [600, 120, 300, 120], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
+  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [300, 240, 300, 120], camp: 7, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
+  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [600, 240, 300, 120], camp: 7, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
+  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [300, 360, 300, 120], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [600, 360, 300, 120], camp: 7, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'SAND' },

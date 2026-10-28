@@ -1480,3 +1480,25 @@ Set of three round fantasy skill icons in a hand-painted toon style with thick d
 ```
 Top-down three-quarter view of a small safe camp in the middle of a snowy mountain map, stylized 3D toon MMORPG: a square cobblestone plaza with a glowing blue ring-shaped world gate at the north edge, flanked by the camp elder (white beard, staff, golden exclamation mark above the head, quest board beside him) and a guide woman with a glowing orb; on the west side a blacksmith at an anvil and a weapon trader, on the east side a potion merchant at a stall and an armor trader with a shield; in the south a stable master next to hay bales, a huntress with a bow (green exclamation mark) and an alchemist in a violet robe. Braziers, a well, lanterns at the corners, pine trees and yetis outside. Cozy, readable, every person clearly visible.
 ```
+
+## Große Maps, 3D-Fertigkeiten und Ränge (Version 6.4)
+
+### Weltkarte mit neun gleich großen Maps
+```
+Illustrated world atlas page for a cozy East-Asian fantasy MMORPG on aged parchment: nine equally sized wide rectangular map panels (each 300 × 120 tiles, landscape format), Vlotho with its walled city and green Sonnenwiesen on the left, the other eight arranged in two columns of four to the right – Dunkelwald (pine forest), Orktal (ochre canyon), Ödland (ash plain), Schlangental (desert oasis city with jungle at both ends), Frostgipfel (snowy peaks), Totenmoor (misty swamp), Donnerklamm (storm canyon fortress), Feuerberg (basalt and lava). Every panel has a small safe camp in the center with a glowing ring gate, roads to the four edges, monster groups spread evenly, dungeon arches near the roads. Thin blue teleport lines between the camps, clear labels and level ranges.
+```
+
+### Fertigkeiten in 3D
+```
+Stylized 3D toon MMORPG combat, three-quarter view: a warrior spins with a greatsword and a glowing golden shockwave ring expands across the ground with a short translucent wall of light rising from it; a shaman calls six jagged white-blue lightning bolts that strike from the sky down to the ground with bright ground flashes; a ninja's slash hangs in the air as a curved glowing crescent with real depth, bending toward the camera. Additive glow, soft bloom, crisp thin dark outlines on the characters, readable on a phone screen.
+```
+
+### Rangstufen einer Fertigkeit (normal, E, H, L, V)
+```
+Five-panel comparison of the same sword-whirl skill in a stylized 3D toon MMORPG, getting more spectacular from left to right: (1) normal – a plain golden shockwave ring; (2) Erwacht E – an extra pale-blue outer ring, a glowing rune circle under the hero and light-blue sparks; (3) Heroisch H – violet rings, rising swirling rings around the hero and violet cross-slashes on every hit; (4) Legendär L – golden rune circle rotating on the ground, a pillar of light, a lightning bolt and tiny arcs of lightning on the enemies; (5) Vollendet V – an orange-red sky beam, a wall of glowing embers rising from the ring, fiery sparks and a strong screen shake. Labels "1–17", "E", "H", "L", "V" under each panel.
+```
+
+### Schmied mit Fundort-Hinweis
+```
+Fantasy MMORPG blacksmith window in dark wood and brass: the anvil with a glowing sword, the success chance bar, the cost line "Dazu: 3 × Spinnenseide (du hast 1)" with a small tooltip bubble floating in front of the window that says "Spinnenseide: fällt von Höhlenspinne (Stufe 18). Fundort: Dunkelwald · Spinnenhöhle", a checked box "Segensschriftrolle verwenden" and the big golden button "Verbessern" directly below, no long material list. Clean, readable.
+```

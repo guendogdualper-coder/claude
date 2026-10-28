@@ -835,27 +835,53 @@ function updateBuffAuras(dt) {
 
 // --- Ränge: je höher der Rang, desto wuchtiger sieht eine Fertigkeit aus -------------------------
 
+// Ränge sichtbar machen: jede Stufe legt etwas drauf.
+// Erwacht: Runenkreis und Ring in der Rangfarbe · Heroisch: dazu aufsteigende Wirbelringe ·
+// Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
 function rankCastFx(p, rank, color) {
   const fy = feetY(p);
   addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });
+  addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: 46 + rank * 10, dur: 0.9, color });
   particles(p.x, fy - 14, { count: 14 + rank * 10, color: [color, '#ffffff'], speed: [80, 200 + rank * 40], life: [0.3, 0.6], size: [1.5, 3], shape: 'spark', drag: 4 });
-  if (rank >= 1) addEffect({ type: 'decal', kind: 'rune', x: p.x, y: fy, r: 42 + rank * 8, dur: 1.4, color });
+  if (rank >= 1) {
+    addEffect({ type: 'decal', kind: 'rune', x: p.x, y: fy, r: 42 + rank * 8, dur: 1.4, color });
+    addEffect({ type: 'tornado', follow: p, ox: 0, oy: 0, r: 34 + rank * 6, dur: 0.6, color });
+  }
   if (rank >= 2) {
     vfxPillar(p, color, 0.7);
+    addEffect({ type: 'bolt', x: p.x + rand(-30, 30), y: fy + rand(-10, 10), dur: 0.35, color });
     flashScreen(color, 0.18);
   }
   if (rank >= 3) {
+    addEffect({ type: 'ultbeam', x: p.x, y: fy, w: 70, dur: 0.7, color: '#ff6a4a' });
     later(0.1, () => addEffect({ type: 'ring', x: p.x, y: fy, r: 130, dur: 0.6, color: '#ffd34d', width: 12, grow: true }));
     particles(p.x, fy, { count: 30, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 260], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
     shakeScreen(5);
   }
 }
 
+// Treffer einer Fertigkeit mit Rang: Lichtfleck in der Rangfarbe, ab Heroisch ein Kreuzschnitt,
+// ab Legendär kleine Blitze, Vollendet mit Glutwelle
 function rankHitFx(m, rank) {
   const color = SKILL_RANKS[rank].color;
   const c = bodyCenter(m);
   particles(c.x, c.y, { count: 4 + rank * 4, color: [color, '#ffffff'], speed: [100, 220], life: [0.2, 0.4], size: [1.5, 2.8], shape: 'spark', drag: 5 });
-  if (rank >= 2) addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color, big: true });
+  addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.26 + rank * 0.04, color, big: rank >= 2 });
+  if (rank >= 1) {
+    const a = Math.random() * Math.PI;
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: a, len: 40 + rank * 8, w: 5, dur: 0.24, color });
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: a + Math.PI / 2, len: 40 + rank * 8, w: 5, dur: 0.24, color });
+  }
+  if (rank >= 2) {
+    for (let k = 0; k < rank; k++) {
+      const an = Math.random() * Math.PI * 2;
+      addEffect({ type: 'chain', x: c.x, y: c.y, x2: c.x + Math.cos(an) * 40, y2: c.y + Math.sin(an) * 26, dur: 0.18, color });
+    }
+  }
+  if (rank >= 3) {
+    addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 60, dur: 0.4, color: '#ff6a4a', width: 8, grow: true });
+    particles(c.x, c.y, { count: 14, color: ['#ff6a4a', '#ffd34d'], speed: [80, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'ember', drag: 3 });
+  }
 }
 
 // --- Sichtbare Buffs: jeder Buff hat ein eigenes Erscheinungsbild an der Figur ---------------------

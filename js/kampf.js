@@ -203,7 +203,7 @@ function killMonster(m) {
   if (game.target === m) game.target = null;
   monsterDeathFx(m);
   if (m.isStone) m.respawnAt = game.time + randInt(...(m.stoneRespawn || STONE.respawn));
-  else m.respawnAt = game.time + (m.respawnDelay || 12 + Math.random() * 8);
+  else m.respawnAt = game.time + (m.respawnDelay || 30 + Math.random() * 15);
   if (net.mode === 'host') netBroadcastKill(m);
   // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
   if (net.mode !== 'host' || netShares(m, m.hostHitAt)) rewardKill(m);
@@ -458,10 +458,10 @@ function useSkill(i) {
   }
   if (p.riding) toggleRide(false);
   const lvl = p.skillLevels[i];
-  const ok = SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1), lvl);
-  if (ok === false) return;
-  skillCastFx(sk);
   const rank = skillRank(lvl);
+  const ok = withRank(rank, () => SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1), lvl));
+  if (ok === false) return;
+  withRank(rank, () => skillCastFx(sk));
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   p.mp -= sk.mp;
   p.skillCd[i] = sk.cooldown;
@@ -494,8 +494,10 @@ function enemiesInCircle(x, y, radius) {
   return aliveEnemies().filter((m) => Math.hypot(m.x - x, m.y - y) <= radius + m.r);
 }
 
+// Spätere Schritte einer Fertigkeit behalten ihren Rang (Aussehen je Rang, siehe fxRank)
 function later(delay, fn) {
-  game.timers.push({ at: game.time + delay, fn });
+  const r = fxRank;
+  game.timers.push({ at: game.time + delay, fn: r >= 0 ? () => withRank(r, fn) : fn });
 }
 
 function applyBuff(sk, lvl) {
@@ -609,7 +611,7 @@ const SKILL_TYPES = {
   dash(sk, pw) {
     const p = game.player;
     const dir = aim(sk.distance);
-    p.dash = { dx: dir.x, dy: dir.y, left: sk.distance, speed: sk.distance / 0.22, hit: new Set(), sk, pw };
+    p.dash = { dx: dir.x, dy: dir.y, left: sk.distance, speed: sk.distance / 0.22, hit: new Set(), sk, pw, rank: fxRank };
     shakeScreen(2);
   },
 
@@ -797,6 +799,9 @@ const SKILL_TYPES = {
 
 // Ablauf des Sturmangriffs, wird jeden Frame aus spiel.js aufgerufen
 function updateDash(dt) {
+  withRank(game.player.dash.rank != null ? game.player.dash.rank : -1, () => dashStep(dt));
+}
+function dashStep(dt) {
   const p = game.player;
   const d = p.dash;
   const step = Math.min(d.left, d.speed * dt);
@@ -833,7 +838,7 @@ function spawnProjectile(o) {
   }
   const len = Math.hypot(dx, dy) || 1;
   game.projectiles.push({
-    hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6, trail: [],
+    hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6, trail: [], rank: fxRank,
     ...o,
     vx: dx / len, vy: dy / len
   });
@@ -842,6 +847,8 @@ function spawnProjectile(o) {
 function updateProjectiles(dt) {
   const p = game.player;
   for (const pr of game.projectiles) {
+    // Treffer eines Geschosses sehen aus wie seine Fertigkeit (Rang beim Abschuss)
+    fxRank = pr.owner === 'player' && pr.rank >= 0 ? pr.rank : -1;
     if (pr.target && !pr.target.dead) {
       const dx = pr.target.x - pr.x;
       const dy = pr.target.y - pr.y;
@@ -912,5 +919,6 @@ function updateProjectiles(dt) {
       }
     }
   }
+  fxRank = -1;
   game.projectiles = game.projectiles.filter((pr) => !pr.done);
 }

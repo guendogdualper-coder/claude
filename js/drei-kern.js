@@ -1331,6 +1331,7 @@ function renderDrei() {
   v3UpdateLights(fx, fy);
   for (const k of ['water', 'lava', 'bog']) if (MAT3['liquid' + k]) MAT3['liquid' + k].uniforms.uTime.value = V3.time;
   v3SyncActors(dt);
+  v3SyncFx();
   // Durchsicht um die eigene Figur
   const p = game.player;
   if (p && game.running && !p.dead) {
@@ -1365,7 +1366,8 @@ function drawOverlay3(ctx) {
   if (!game.running && !game.player) return;
   const inView = (x, y) => v3InView(x, y, 120);
   const ground = (e) => e.ground || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
-  const skip = (e) => e.type === 'corpse' || e.type === 'afterimage';
+  // Ringe, Säulen, Blitze, Schnitte usw. stehen als 3D-Körper in der Szene (drei-fx.js)
+  const skip = (e) => e.type === 'corpse' || e.type === 'afterimage' || FX3_TYPES.has(e.type);
   for (const e of game.effects) {
     if (!ground(e) || skip(e)) continue;
     const o = effectOrigin(e);
