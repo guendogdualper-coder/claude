@@ -520,6 +520,28 @@ function refreshBuff(sk, lvl) {
   game.stats = playerStats(p);
 }
 
+// Die Figur verschwindet und steht im selben Moment hinter dem Ziel (Hinterhalt, Blitzangriff)
+function blinkBehind(t, color) {
+  const p = game.player;
+  const d = Math.max(1, dist(t, p));
+  const ux = (t.x - p.x) / d;
+  const uy = (t.y - p.y) / d;
+  const from = { x: p.x, y: feetY(p) };
+  const dir = facingDir(p.facing);
+  addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1, playerLook(p)), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.45, tint: color });
+  particles(p.x, feetY(p) - 14, { count: 22, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [30, 100], life: [0.4, 0.8], size: [5, 9], jitter: 8, drag: 2.5, glow: false });
+  p.x = t.x;
+  p.y = t.y;
+  moveEntity(p, ux * (t.r + 16), uy * (t.r + 10), false);
+  faceTowards(t.x, t.y);
+  // Schattenspur vom alten zum neuen Platz
+  const to = { x: p.x, y: feetY(p) };
+  const len = Math.hypot(to.x - from.x, to.y - from.y);
+  if (len > 20) addEffect({ type: 'slash', x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 14, ang: Math.atan2(to.y - from.y, to.x - from.x), len, w: 7, dur: 0.3, color });
+  particles(p.x, feetY(p) - 14, { count: 18, color: ['#3d3848', '#5a5466', color], speed: [30, 110], life: [0.35, 0.7], size: [4, 8], jitter: 6, drag: 2.5, glow: false });
+  input.walkTo = null;
+}
+
 const SKILL_TYPES = {
   // Fächer vor der Figur, optional mehrere Treffer hintereinander
   cone(sk, pw) {
@@ -594,7 +616,16 @@ const SKILL_TYPES = {
   // Einzelner starker Treffer im Nahkampf
   strike(sk, pw) {
     const p = game.player;
-    const t = pickTarget(sk.range);
+    // Hinterhalt aus der Tarnung: weiter Sprung hinter das Ziel und mehrfacher Schaden
+    const ambush = sk.ambushMul && p.nextHitMul > 1 && game.stats.invisible && !(game.time - (p.stealthAt || -99) < STEALTH_GRACE);
+    const t = pickTarget(ambush ? sk.ambushRange : sk.range);
+    if (t && ambush) {
+      blinkBehind(t, '#8a6ad8');
+      addText(p.x, p.y - 46, 'Hinterhalt!', 'crit');
+      flashScreen('#3d2a6a', 0.3);
+      shakeScreen(6);
+      pw *= sk.ambushMul;
+    }
     if (t) faceTowards(t.x, t.y);
     // ohne Ziel trifft der Schlag die Stelle vor der Figur
     const bc = t ? bodyCenter(t) : { x: p.x + p.facing.x * 40, y: bodyCenter(p).y + p.facing.y * 24 };
@@ -605,6 +636,24 @@ const SKILL_TYPES = {
     if (!t) return;
     hitStop(0.05);
     hitMonster(t, sk.dmg * pw, { skill: sk.id, critBonus: sk.critBonus, stun: sk.stun, knockback: sk.knockback, poison: sk.poison, heavy: true, vfxColor: sk.color ? lighter(sk.color, 0.3) : '#d6c4ff' });
+  },
+
+  // Blitzangriff: sofort hinter dem Ziel stehen und zuschlagen
+  blink(sk, pw) {
+    const p = game.player;
+    const t = pickTarget(sk.range);
+    if (!t) {
+      addText(p.x, p.y - 34, 'Kein Ziel', 'info');
+      return false;
+    }
+    blinkBehind(t, sk.color);
+    const bc = bodyCenter(t);
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.4, len: 70, w: 10, dur: 0.3, color: sk.color });
+    later(0.05, () => addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 2.6, len: 64, w: 8, dur: 0.3, color: '#ffffff' }));
+    particles(bc.x, bc.y, { count: 18, color: [sk.color, '#ffffff', '#c9b8ff'], speed: [90, 240], life: [0.2, 0.45], size: [1.5, 3], shape: 'spark', drag: 5 });
+    shakeScreen(4);
+    hitStop(0.05);
+    hitMonster(t, sk.dmg * pw, { skill: sk.id, critBonus: sk.critBonus, stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
   },
 
   projectile(sk, pw) {

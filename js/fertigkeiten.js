@@ -100,14 +100,14 @@ const SKILL_ICONS = {
     iconLine(ctx, '#6a4aa8', 3, [[-8, -6], [8, -6]]);
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(9, 8); ctx.quadraticCurveTo(14, 14, 9, 17); ctx.quadraticCurveTo(4, 14, 9, 8); ctx.closePath(); }, '#ff8a9a', '#a0182a', 2);
   },
-  klingensturm(ctx) {
-    for (let k = 0; k < 4; k++) {
-      ctx.save();
-      ctx.rotate(k * Math.PI / 2 + 0.4);
-      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(3, -2); ctx.lineTo(19, -1); ctx.lineTo(16, 3); ctx.lineTo(3, 2); ctx.closePath(); }, '#ffffff', '#b48cff', 2);
-      ctx.restore();
-    }
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#e0d0ff', '#6a4aa8', 2);
+  // Blitzangriff: Ninja-Schatten links, Blitzspur, Dolch rechts beim Ziel
+  blitzangriff(ctx) {
+    ctx.globalAlpha = 0.5;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-13, -6, 4.5, 0, Math.PI * 2); ctx.moveTo(-17, 0); ctx.lineTo(-9, 0); ctx.lineTo(-10, 12); ctx.lineTo(-16, 12); ctx.closePath(); }, '#c9b8ff', '#3d3848', 2);
+    ctx.globalAlpha = 1;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -10); ctx.lineTo(4, -4); ctx.lineTo(-1, -2); ctx.lineTo(8, 6); ctx.lineTo(-4, 1); ctx.lineTo(1, -1); ctx.closePath(); }, '#ffffff', '#9fd0ff', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(10, -16); ctx.lineTo(14, -14); ctx.lineTo(14, 4); ctx.lineTo(12, 10); ctx.lineTo(10, 4); ctx.closePath(); }, '#ffffff', '#b8c8e8', 2);
+    iconLine(ctx, '#6a4aa8', 3, [[7, 5], [17, 5]]);
   },
   tarnung(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 15, 0.6, Math.PI * 2 - 0.6); ctx.arc(9, 0, 11, Math.PI * 2 - 1.2, 1.2, true); ctx.closePath(); }, '#e0d0ff', '#5a3a8a');
@@ -277,15 +277,6 @@ Object.assign(SKILL_ICONS, {
       iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(2, -2); ctx.lineTo(16, -1); ctx.lineTo(13, 2.5); ctx.lineTo(2, 2); ctx.closePath(); }, '#ffffff', '#8a7aa8', 2);
       ctx.restore();
     }
-  },
-  giftnebel(ctx) {
-    for (const [x, y, r] of [[-8, 4, 9], [7, 3, 10], [0, -6, 10], [-2, 9, 8]]) {
-      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }, '#c6f08a', '#3a8a2a', 2.5);
-    }
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); }, '#ffffff', '#8fd16a', 1.5);
-    ctx.fillStyle = '#1a3a12';
-    ctx.fillRect(-2.5, -1.5, 1.6, 1.6);
-    ctx.fillRect(1, -1.5, 1.6, 1.6);
   },
   schattensprung(ctx) {
     for (let k = 0; k < 3; k++) {
@@ -514,14 +505,12 @@ const SKILL_FX = {
       particles(c.x, c.y, { count: 14, color: ['#b48cff', '#ffffff', '#ff6a8a'], speed: [100, 260], life: [0.2, 0.45], size: [1.5, 3], shape: 'spark', drag: 5 });
     }
   },
-  klingensturm: {
-    color: '#b48cff',
-    cast(p) {
-      addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 60, dur: 0.5, color: '#b48cff', width: 5, grow: true });
-    },
+  blitzangriff: {
+    color: '#9fd0ff',
     hit(m) {
       const c = bodyCenter(m);
-      for (let k = 0; k < 2; k++) addEffect({ type: 'slash', x: c.x + rand(-10, 10), y: c.y + rand(-12, 8), ang: Math.random() * Math.PI, len: 30, w: 4, dur: 0.16, color: '#d8c4ff' });
+      addEffect({ type: 'bolt', x: m.x, y: m.y, dur: 0.3, color: '#cfe8ff' });
+      particles(c.x, c.y, { count: 10, color: ['#cfe8ff', '#ffffff', '#8a6ad8'], speed: [100, 240], life: [0.15, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 5 });
     }
   },
   tarnung: {
@@ -684,11 +673,6 @@ Object.assign(SKILL_FX, {
     hit(m) {
       const c = bodyCenter(m);
       addEffect({ type: 'slash', x: c.x, y: c.y, ang: Math.random() * Math.PI, len: 32, w: 4, dur: 0.18, color: '#d8c4ff' });
-    }
-  },
-  giftnebel: {
-    hit(m) {
-      particles(m.x, feetY(m) - 16, { count: 6, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2, glow: false });
     }
   },
   schattensprung: {

@@ -18,9 +18,9 @@ const ULTIMATES = {
     buff: { id: 'titanenhaut', name: 'Titanenhaut', duration: 12, effects: { damageTaken: -0.4, def: 0.3 } }
   },
   dolch: {
-    id: 'schattentanz', name: 'Schattentanz', short: 'ST', color: '#c9b8ff',
-    text: 'Du springst blitzschnell von Gegner zu Gegner (bis zu 8), triffst jeden und kehrst zurück. Zum Schluss schlägt der Schatten nach.',
-    stats: 'je Sprung 3,2× Angriff, Nachhall 2×'
+    id: 'schattenklone', name: 'Schattendoppelgänger', short: 'SD', color: '#c9b8ff',
+    text: 'Du zerfällst in Rauch: Sechs Schattendoppelgänger umzingeln dein Ziel und stoßen alle im selben Augenblick zu. Dann tauchst du hinter ihm auf und vollendest mit einem Kreuzschnitt.',
+    stats: '6 Doppelgänger je 3,2× Angriff (Gegner daneben 1,2×), Kreuzschnitt 6× aufs Ziel und 2,5× im Umkreis mit Betäubung'
   },
   schatten: {
     id: 'todesmal', name: 'Todesmal', short: 'TM', color: '#ff4a6a',
@@ -179,50 +179,71 @@ const ULT_RUN = {
     });
   },
 
-  schattentanz(p, u, pw) {
-    const victims = aliveEnemies().filter((m) => dist(m, p) < 300 && !m.isStone).sort((a, b) => dist(a, p) - dist(b, p)).slice(0, 8);
-    if (!victims.length) {
-      addText(p.x, p.y - 34, 'Kein Gegner in der Nähe', 'info');
+  schattenklone(p, u, pw) {
+    const t = pickTarget(320);
+    if (!t) {
+      addText(p.x, p.y - 34, 'Kein Ziel', 'info');
       return false;
     }
-    const home = { x: p.x, y: p.y };
-    const hit = [];
-    victims.forEach((m, k) => {
-      later(k * 0.13, () => {
-        if (p.dead || m.dead) return;
-        const dir = facingDir(p.facing);
-        addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, dir, 1, playerLook(p)), x: p.x, y: feetY(p), flip: dir === 'side' && p.facing.x < 0, dur: 0.4, tint: u.color });
-        const ang = Math.random() * Math.PI * 2;
-        p.x = m.x;
-        p.y = m.y;
-        moveEntity(p, Math.cos(ang) * (m.r + 14), Math.sin(ang) * (m.r + 8), false);
-        faceTowards(m.x, m.y);
-        startSwing(p, 'combo', 0.12);
-        const bc = bodyCenter(m);
-        addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: rand(-1, 1), len: 70, w: 10, dur: 0.3, color: u.color });
-        addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: rand(2, 3.5), len: 60, w: 8, dur: 0.3, color: '#ffffff' });
-        particles(bc.x, bc.y, { count: 12, color: [u.color, '#3d3848', '#ffffff'], speed: [80, 200], life: [0.2, 0.4], size: [2, 3], shape: 'spark', drag: 5 });
-        hitMonster(m, 3.2 * pw, { heavy: true, vfxColor: u.color });
-        hit.push(m);
-        shakeScreen(2.5);
-      });
+    faceTowards(t.x, t.y);
+    const n = 6;
+    const a0 = Math.random() * Math.PI * 2;
+    addEffect({ type: 'ultsigil', ground: true, x: t.x, y: feetY(t), r: 120, dur: 1.9, color: u.color });
+    addEffect({ type: 'ultmark', follow: t, ox: 0, oy: 0, dur: 1.4, color: u.color });
+    particles(p.x, feetY(p) - 14, { count: 30, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [30, 100], life: [0.5, 0.9], size: [5, 10], jitter: 10, drag: 2, glow: false });
+    // Sechs Doppelgänger erscheinen im Kreis um das Ziel ...
+    const clones = [];
+    for (let k = 0; k < n; k++) {
+      const ang = a0 + (k / n) * Math.PI * 2;
+      const at = { x: t.x + Math.cos(ang) * 95, y: t.y + Math.sin(ang) * 70 };
+      const c = spawnShadowClone(p, at.x, at.y, t, 1.45);
+      clones.push(c);
+      later(0.04 * k, () => particles(at.x, at.y - 14, { count: 14, color: ['#3d3848', '#5a5466', u.color], speed: [20, 80], life: [0.4, 0.8], size: [4, 8], jitter: 6, drag: 2.5, glow: false }));
+    }
+    // ... und stoßen alle zugleich zu
+    later(0.55, () => {
+      for (const c of clones) cloneDash(c, t, 0.16);
+      shakeScreen(3);
     });
-    later(victims.length * 0.13 + 0.1, () => {
+    later(0.72, () => {
       if (p.dead) return;
-      addEffect({ type: 'afterimage', sprite: characterSprite(p.classId, 'down', 1, playerLook(p)), x: p.x, y: feetY(p), flip: false, dur: 0.4, tint: u.color });
-      p.x = home.x;
-      p.y = home.y;
-      particles(p.x, feetY(p) - 14, { count: 24, color: ['#5a5466', '#3d3848', u.color], speed: [30, 90], life: [0.4, 0.8], size: [4, 8], drag: 2, glow: false });
-      later(0.25, () => {
-        for (const m of hit) {
-          if (m.dead) continue;
-          const bc = bodyCenter(m);
-          addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.8, len: 80, w: 12, dur: 0.35, color: u.color });
-          addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.8, len: 80, w: 12, dur: 0.35, color: u.color });
-          hitMonster(m, 2 * pw, { vfxColor: u.color });
-        }
-        shakeScreen(6);
+      const seen = new Set([t.id]);
+      clones.forEach((c, k) => {
+        later(k * 0.03, () => {
+          if (t.dead) return;
+          c.combo = k % 3;
+          startSwing(c, 'combo', 0.16);
+          const bc = bodyCenter(t);
+          addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: Math.atan2(t.y - c.y, t.x - c.x) + rand(-0.4, 0.4), len: 66, w: 9, dur: 0.3, color: k % 2 ? '#ffffff' : u.color });
+          hitMonster(t, 3.2 * pw, { heavy: k === n - 1, vfxColor: u.color });
+        });
       });
+      // Gegner direkt daneben bekommen die Streifschläge ab
+      for (const m of enemiesInCircle(t.x, t.y, 70)) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
+        hitMonster(m, 1.2 * pw, { vfxColor: u.color });
+      }
+      flashScreen(u.color, 0.25);
+      hitStop(0.08);
+      shakeScreen(5);
+    });
+    // Zum Schluss: hinter dem Ziel auftauchen, Kreuzschnitt
+    later(1.1, () => {
+      if (p.dead) return;
+      for (const c of clones) cloneVanish(c);
+      if (!t.dead) blinkBehind(t, u.color);
+      const cx = t.dead ? p.x : t.x;
+      const cy = t.dead ? p.y : t.y;
+      const bc = t.dead ? bodyCenter(p) : bodyCenter(t);
+      startSwing(p, 'skill', 0.34);
+      addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.8, len: 110, w: 14, dur: 0.4, color: u.color });
+      addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.8, len: 110, w: 14, dur: 0.4, color: '#ffffff' });
+      addEffect({ type: 'ring', x: cx, y: cy, r: 110, dur: 0.5, color: u.color, width: 10, grow: true });
+      particles(bc.x, bc.y, { count: 40, color: [u.color, '#3d3848', '#ffffff'], speed: [100, 300], life: [0.3, 0.6], size: [2, 4], shape: 'spark', drag: 4 });
+      shakeScreen(9);
+      hitStop(0.1);
+      for (const m of enemiesInCircle(cx, cy, 110)) hitMonster(m, (m === t ? 6 : 2.5) * pw, { stun: 1.5, heavy: true, vfxColor: u.color });
     });
   },
 
@@ -376,10 +397,72 @@ const ULT_RUN = {
   }
 };
 
+// --- Schattendoppelgänger -----------------------------------------------------------------------
+// Durchscheinende, dunkel getönte Kopien einer Spielerfigur (Aussehen und Ausrüstung wie das Original).
+// Reine Darstellung: den Schaden rechnet der Ablauf der Ultimativen Attacke.
+function spawnShadowClone(owner, x, y, face, life) {
+  const c = {
+    clone: true, classId: owner.classId, path: owner.path, look: owner.look, equipment: owner.equipment,
+    dualWield: owner.dualWield, level: owner.level, x, y, r: owner.r || 12, facing: { x: 0, y: 1 }, buffs: [],
+    swing: 0, moving: false, born: game.time, until: game.time + life
+  };
+  if (face) {
+    const d = Math.max(1, Math.hypot(face.x - x, face.y - y));
+    c.facing = { x: (face.x - x) / d, y: (face.y - y) / d };
+  }
+  game.clones.push(c);
+  return c;
+}
+
+// Doppelgänger stürmt zum Ziel und bleibt davor stehen
+function cloneDash(c, t, dur) {
+  const d = Math.max(1, Math.hypot(t.x - c.x, t.y - c.y));
+  const stop = (t.r || 12) + 12;
+  c.run = { x0: c.x, y0: c.y, x1: t.x - (t.x - c.x) / d * stop, y1: t.y - (t.y - c.y) / d * stop, t0: game.time, dur };
+}
+
+function cloneVanish(c) {
+  c.until = Math.min(c.until, game.time + 0.12);
+  particles(c.x, feetY(c) - 14, { count: 10, color: ['#3d3848', '#5a5466', '#8a7aa8'], speed: [20, 70], life: [0.3, 0.6], size: [4, 8], jitter: 6, drag: 2.5, glow: false });
+}
+
+function updateClones(dt) {
+  if (!game.clones.length) return;
+  game.clones = game.clones.filter((c) => c.until > game.time);
+  for (const c of game.clones) {
+    c.swing = Math.max(0, c.swing - dt);
+    c.moving = false;
+    if (c.run) {
+      const k = Math.min(1, (game.time - c.run.t0) / c.run.dur);
+      c.x = c.run.x0 + (c.run.x1 - c.run.x0) * k;
+      c.y = c.run.y0 + (c.run.y1 - c.run.y0) * k;
+      c.moving = k < 1;
+      if (k >= 1) c.run = null;
+    }
+  }
+}
+
 // Mitspieler sehen nur das Schauspiel, Schaden macht immer der eigene Spieler
 function ultRemoteFx(id, x, y) {
   const u = Object.values(ULTIMATES).find((v) => v.id === id);
   if (!u) return;
+  if (id === 'schattenklone') {
+    // Doppelgänger des Mitspielers umkreisen den Platz vor ihm und stoßen zusammen zu
+    let owner = null;
+    for (const rp of net.players.values()) if (!owner || Math.hypot(rp.x - x, rp.y - y) < Math.hypot(owner.x - x, owner.y - y)) owner = rp;
+    if (owner && Math.hypot(owner.x - x, owner.y - y) < 80) {
+      const f = owner.facing || { x: 0, y: 1 };
+      const mid = { x: x + f.x * 110, y: y + f.y * 80, r: 14 };
+      const a0 = Math.random() * Math.PI * 2;
+      for (let k = 0; k < 6; k++) {
+        const ang = a0 + (k / 6) * Math.PI * 2;
+        const c = spawnShadowClone(owner, mid.x + Math.cos(ang) * 95, mid.y + Math.sin(ang) * 70, mid, 1.2);
+        later(0.55, () => cloneDash(c, mid, 0.16));
+        later(0.72 + k * 0.03, () => startSwing(c, 'combo', 0.16));
+        later(1.1, () => cloneVanish(c));
+      }
+    }
+  }
   addEffect({ type: 'ultsigil', ground: true, x, y: y + 9, r: 190, dur: 2, color: u.color });
   addEffect({ type: 'ultbeam', x, y: y + 9, w: 80, dur: 1, color: u.color });
   addEffect({ type: 'ring', x, y, r: 200, dur: 0.7, color: u.color, width: 14, grow: true });
@@ -405,13 +488,19 @@ Object.assign(SKILL_ICONS, {
     for (const a of [-2.6, -1.9, -1.2, -0.5]) iconLine(ctx, '#ff9a4a', 2.2, [[0, 12], [Math.cos(a + Math.PI) * -16, 12 + Math.sin(a + Math.PI) * -6]]);
     iconLine(ctx, '#3a1a08', 2, [[-14, 14], [-6, 10], [0, 15], [7, 10], [15, 14]]);
   },
-  schattentanz(ctx) {
-    for (let k = 0; k < 3; k++) {
-      ctx.globalAlpha = 0.45 + k * 0.27;
-      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-12 + k * 10, -4 + k * 2, 5, 0, Math.PI * 2); ctx.moveTo(-16 + k * 10, 2 + k * 2); ctx.lineTo(-8 + k * 10, 2 + k * 2); ctx.lineTo(-10 + k * 10, 14); ctx.lineTo(-14 + k * 10, 14); ctx.closePath(); }, '#c9b8ff', '#3d3848', 2);
+  schattenklone(ctx) {
+    // sechs Schatten im Kreis um ein rotes Ziel
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 - Math.PI / 2;
+      const x = Math.cos(a) * 14;
+      const y = Math.sin(a) * 13;
+      ctx.globalAlpha = 0.55 + (k % 2) * 0.35;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y - 3, 3.6, 0, Math.PI * 2); ctx.moveTo(x - 3.5, y + 1); ctx.lineTo(x + 3.5, y + 1); ctx.lineTo(x + 2, y + 8); ctx.lineTo(x - 2, y + 8); ctx.closePath(); }, '#c9b8ff', '#3d3848', 1.6);
     }
     ctx.globalAlpha = 1;
-    iconLine(ctx, '#ffffff', 2, [[-18, -14], [18, 10]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 1, 4.5, 0, Math.PI * 2); }, '#ff8a9a', '#a0182a', 1.8);
+    iconLine(ctx, '#ffffff', 1.6, [[-7, -6], [7, 8]]);
+    iconLine(ctx, '#ffffff', 1.6, [[7, -6], [-7, 8]]);
   },
   todesmal(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 13, 0, Math.PI * 2); }, '#ff8a9a', '#7a0a1a', 2.5);

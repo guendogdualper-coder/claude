@@ -90,6 +90,7 @@ function render() {
   for (const n of game.world.npcs) if (inView(n)) list.push(n);
   if (game.player && game.running && !game.player.dead) list.push(game.player);
   for (const rp of net.players.values()) if (!rp.dead && inView(rp)) list.push(rp);
+  for (const c of game.clones) if (inView(c)) list.push(c);
   collectWorldObjects(list, x0, y0, x1, y1);
   // Alles nach der Fußlinie sortieren: was weiter unten steht, wird später (also davor) gezeichnet
   const baseY = (e) => (e.worldObj ? e.y : e.isStone ? e.y + 9 : feetY(e));
@@ -101,7 +102,7 @@ function render() {
   drawDuelArena(ctx);
   for (const e of list) {
     if (e.worldObj) drawWorldObject(ctx, e);
-    else if (e === game.player || e.remote) drawPlayer(ctx, e);
+    else if (e === game.player || e.remote || e.clone) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
     else if (e.until) drawSkeleton(ctx, e);
     else if (e.type) drawMonster(ctx, e);
@@ -110,7 +111,7 @@ function render() {
   for (const pr of game.projectiles) drawProjectile(ctx, pr);
   for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
   drawParticles(ctx);
-  for (const e of list) if (!e.worldObj) drawLabel(ctx, e);
+  for (const e of list) if (!e.worldObj && !e.clone) drawLabel(ctx, e);
   drawTexts(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   drawZoneTint(ctx, r.w, r.h);
@@ -326,7 +327,7 @@ function horseSprite(frame, saddle) {
 }
 
 function drawPlayer(ctx, p) {
-  const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible);
+  const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible) || p.clone;
   // Beim Schwertwirbel dreht sich die Figur einmal im Kreis
   const facing = p.spin > 0 ? { x: Math.cos(game.time * 28), y: Math.sin(game.time * 28) } : p.facing;
   // Auf dem Pferd sieht man Pferd und Reiter immer von der Seite
@@ -391,7 +392,7 @@ function drawPlayer(ctx, p) {
   const sp = characterSprite(p.classId, dir, frame, playerLook(p));
   const cape = p.equipment && p.equipment.umhang ? p.equipment.umhang.tier : -1;
   ctx.save();
-  if (invisible) ctx.globalAlpha = 0.35;
+  if (invisible) ctx.globalAlpha = p.clone ? 0.55 : 0.35;
   if (!p.riding) castShadow(ctx, sp, p.x, fy, flip);
   drawShadow(ctx, p.x, fy, 12);
 

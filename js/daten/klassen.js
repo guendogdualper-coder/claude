@@ -98,18 +98,18 @@ const CLASSES = {
     basic: { range: 48, cooldown: 0.55, ranged: false },
     paths: [
       {
-        id: 'dolch', name: 'Weg des Dolches', role: 'PvE · Flächenschaden und Gift',
-        description: 'Wirbelt durch Gruppen, vergiftet ganze Rudel und wird mit Leichtfüßigkeit immer schneller.',
+        id: 'dolch', name: 'Weg des Dolches', role: 'PvE · Hinterhalt und Blitzangriff',
+        description: 'Verschwindet in der Tarnung, schlägt aus dem Hinterhalt zu, steht per Blitzangriff sofort beim nächsten Ziel und wirbelt durch Gruppen.',
         skills: [
           {
-            id: 'klingensturm', name: 'Klingensturm', short: 'KS', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
-            type: 'cone', radius: 80, angle: 100, dmg: 0.55, hits: 5,
-            text: 'Fünf blitzschnelle Schnitte vor dir in einer Sekunde.'
+            id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
+            type: 'strike', range: 70, dmg: 2.6, critBonus: 0.4, ambushMul: 2, ambushRange: 220,
+            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst doppelt so hart – zusammen mit dem Tarnungs-Bonus 6× Schaden, sicher kritisch.'
           },
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,
             type: 'buff', duration: 30, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
-            text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch.'
+            text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch – mit Hinterhalt sogar 6×.'
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
@@ -117,9 +117,9 @@ const CLASSES = {
             text: 'Du drehst dich mit beiden Dolchen und triffst alle Gegner um dich.'
           },
           {
-            id: 'giftnebel', name: 'Giftnebel', short: 'GN', kind: 'angriff', unlock: 7, mp: 22, cooldown: 10,
-            type: 'blast', fx: 'poison', range: 260, radius: 100, dmg: 1, poison: { dps: 0.4, duration: 6 },
-            text: 'Eine Giftwolke platzt beim Ziel und vergiftet alle Gegner darin 6 s lang.'
+            id: 'blitzangriff', name: 'Blitzangriff', short: 'BA', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
+            type: 'blink', range: 300, dmg: 2.4, stun: 0.8, critBonus: 0.15, color: '#9fd0ff',
+            text: 'Von einem Moment auf den anderen stehst du hinter deinem Ziel (bis 300 weit) und schlägst zu. Das Ziel ist kurz betäubt.'
           },
           {
             id: 'leichtfuessigkeit', name: 'Leichtfüßigkeit', short: 'LF', kind: 'buff', unlock: 10, mp: 20, cooldown: 60,
@@ -134,8 +134,8 @@ const CLASSES = {
         skills: [
           {
             id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
-            type: 'strike', range: 70, dmg: 2.6, critBonus: 0.4,
-            text: 'Ein gezielter Stich mit hohem Schaden und stark erhöhter Chance auf kritische Treffer.'
+            type: 'strike', range: 70, dmg: 2.6, critBonus: 0.4, ambushMul: 2, ambushRange: 220,
+            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst doppelt so hart – zusammen mit dem Tarnungs-Bonus 6× Schaden, sicher kritisch.'
           },
           {
             id: 'schattensprung', name: 'Schattensprung', short: 'SS', kind: 'angriff', unlock: 3, mp: 12, cooldown: 6,
@@ -150,7 +150,7 @@ const CLASSES = {
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
             type: 'buff', duration: 120, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
-            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch.'
+            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch – mit Hinterhalt sogar 6×.'
           },
           {
             id: 'schattenmantel', name: 'Schattenmantel', short: 'SM', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,

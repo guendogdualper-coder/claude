@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '6.2';
+const GAME_VERSION = '6.3';
 
 const game = {
   world: null,
@@ -8,6 +8,7 @@ const game = {
   stats: null,
   monsters: [],
   allies: [],
+  clones: [],
   projectiles: [],
   effects: [],
   particles: [],
@@ -29,6 +30,7 @@ function startGame(save) {
   game.player = makePlayer(save);
   game.stats = playerStats(game.player);
   game.allies = [];
+  game.clones = [];
   game.projectiles = [];
   game.target = null;
   game.running = true;
@@ -119,7 +121,14 @@ function updatePlayer(dt) {
   p.mp = Math.min(s.maxMp, p.mp + s.maxMp * (calm ? 0.03 : 0.012) * dt);
 
   // Händlerin oder Schmied in der Nähe?
-  game.nearNpc = game.world.npcs.find((n) => dist(n, p) < 70) || null;
+  // nächste Person in Reichweite (in den Lagern stehen mehrere dicht beieinander)
+  let near = null;
+  let nd = 70;
+  for (const n of game.world.npcs) {
+    const d = dist(n, p);
+    if (d < nd) { near = n; nd = d; }
+  }
+  game.nearNpc = near;
 
   // Zonenwechsel ankündigen
   const zone = zoneAt(p.x, p.y);
@@ -143,6 +152,7 @@ function update(dt) {
   if (net.mode !== 'client') updateMonsters(dt);
   netUpdate(dt);
   updateAllies(dt);
+  updateClones(dt);
   updateVillagers(dt);
   updateAmbient(dt);
   updateProjectiles(dt);

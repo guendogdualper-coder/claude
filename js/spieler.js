@@ -405,7 +405,7 @@ const RIDE_SPEED = 0.6;
 function toggleRide(on) {
   const p = game.player;
   if (!p || p.dead || !p.horse) {
-    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Stallmeister Jun im Dorf hat eine Prüfung für dich (ab Stufe 30).', 'warn');
+    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Vlotho und in jedem Lager) hat eine Prüfung für dich (ab Stufe 30).', 'warn');
     return;
   }
   const next = on == null ? !p.riding : on;
@@ -460,7 +460,9 @@ function loadSave() {
     const data = JSON.parse(raw);
     if (!data || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
     // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
-    for (const it of data.inventory || []) if (it && it.book === 'giftpfeil') it.book = 'tarnung';
+    // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
+    const renamed = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff' };
+    for (const it of data.inventory || []) if (it && renamed[it.book]) it.book = renamed[it.book];
     return data;
   } catch {
     return null;

@@ -1941,6 +1941,7 @@ function v3SyncActors(dt) {
   if (game.player && game.running && !p.dead) syncPlayer3(p, dt);
   if (V3.extra) for (const ep of V3.extra) syncPlayer3(ep, dt);
   for (const rp of net.players.values()) if (!rp.dead && near(rp)) syncPlayer3(rp, dt);
+  for (const c of game.clones) if (near(c)) syncPlayer3(c, dt);
   for (const m of game.monsters) if (!m.dead && near(m)) syncMonster3(m, dt);
   for (const al of game.allies) if (near(al)) syncAlly3(al, dt);
   if (w) for (const n of w.npcs) if (near(n)) syncNpc3(n, dt);
@@ -2196,10 +2197,14 @@ function syncPlayer3(p, dt) {
   if (hurtK < 1) mat.emissive.setRGB(0.6 * (1 - hurtK), 0.05, 0.02);
   else if (glowUp > 0) mat.emissive.setRGB(0.55 * glowUp, 0.5 * glowUp, 0.35 * glowUp);
   else if (posing) mat.emissive.set(p.poseColor || CLASSES[p.classId].trim).multiplyScalar(0.35 * Math.sin((1 - p.swing / (p.swingDur || 0.7)) * Math.PI));
+  else if (p.clone) mat.emissive.setRGB(0.18, 0.1, 0.34);
   else mat.emissive.setRGB(0, 0, 0);
+  // Schattendoppelgänger: dunkel getönt; die Farbe wird jedes Bild gesetzt, weil Figuren aus dem Pool wiederkommen
+  if (p.clone) mat.color.setRGB(0.32, 0.28, 0.46);
+  else mat.color.setRGB(1, 1, 1);
   // Durchsichtig, wenn unsichtbar
   const inv = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible);
-  setActorAlpha(a, inv ? 0.35 : 1);
+  setActorAlpha(a, p.clone ? 0.6 : inv ? 0.35 : 1);
   // Leuchtende Waffe: Plus-Stufe oder Waffenaura-Buff
   const wg = a.mats.wglow;
   if (wg) {

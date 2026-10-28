@@ -224,15 +224,42 @@ function generateWorld() {
     npc('stallmeister', 'Stallmeister Jun', C - 10, C + 2.2),
     npc('weltentor', 'Weltentor', C + 6.8, C - 5.6)
   ];
-  // Städte und Lager der anderen Maps: Weltentor, Händler (in den Städten auch Schmied und Alchemist)
-  const CAMP_NPCS = [['haendler', 'Händlerin', 3.2, -1.2]];
-  const TOWN_NPCS = {
-    2: [['haendler', 'Händlerin Sahra', 3, -2.5], ['schmied', 'Schmied Kadir', -3.5, 2.5], ['waffen', 'Waffenhändler Omar', -4.5, -2], ['ruestung', 'Rüstungshändlerin Lale', 3.5, 3], ['alchemist', 'Alchemistin Nur', 6.5, 0.5]],
-    3: [['haendler', 'Händler Brok', 3, -2.5], ['schmied', 'Schmiedin Hilda', -3.5, 2.5], ['waffen', 'Waffenhändler Ragnar', -4.5, -2], ['ruestung', 'Rüstungshändler Eik', 3.5, 3], ['alchemist', 'Alchemist Thorm', 6.5, 0.5]]
+  // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
+  // damit man Aufträge, Jagden und die Stallmeister-Prüfung überall annehmen und abgeben kann
+  const ROLE_TITLE = {
+    haendler: ['Händlerin', 'Händler'], schmied: ['Schmied', 'Schmiedin'], waffen: ['Waffenhändler', 'Waffenhändlerin'],
+    ruestung: ['Rüstungshändlerin', 'Rüstungshändler'], alchemist: ['Alchemist', 'Alchemistin'], aeltester: ['Lagerältester', 'Lagerälteste'],
+    jaegerin: ['Jägerin', 'Jäger'], teleport: ['Wegweiserin', 'Wegweiser'], stallmeister: ['Stallmeister', 'Stallmeisterin']
+  };
+  // je Map: Name und ob die weibliche/männliche Form (Index in ROLE_TITLE) gilt
+  const MAP_PEOPLE = {
+    2: { haendler: ['Sahra', 0], schmied: ['Kadir', 0], waffen: ['Omar', 0], ruestung: ['Lale', 0], alchemist: ['Nur', 1], aeltester: ['Hakim', 0], jaegerin: ['Dila', 0], teleport: ['Selim', 1], stallmeister: ['Yusuf', 0] },
+    3: { haendler: ['Brok', 1], schmied: ['Hilda', 1], waffen: ['Ragnar', 0], ruestung: ['Eik', 1], alchemist: ['Thorm', 0], aeltester: ['Gunhild', 1], jaegerin: ['Sigrun', 0], teleport: ['Halvar', 1], stallmeister: ['Ulf', 0] },
+    4: { haendler: ['Tilda', 0], schmied: ['Arno', 0], waffen: ['Fenn', 0], ruestung: ['Ilka', 0], alchemist: ['Wanda', 1], aeltester: ['Hagen', 0], jaegerin: ['Sena', 0], teleport: ['Elm', 1], stallmeister: ['Ruth', 1] },
+    5: { haendler: ['Grada', 0], schmied: ['Borr', 0], waffen: ['Kragg', 0], ruestung: ['Urza', 0], alchemist: ['Mok', 0], aeltester: ['Thrak', 0], jaegerin: ['Vasha', 0], teleport: ['Durn', 1], stallmeister: ['Gor', 0] },
+    6: { haendler: ['Rami', 1], schmied: ['Zahra', 1], waffen: ['Tarik', 0], ruestung: ['Amal', 0], alchemist: ['Faris', 0], aeltester: ['Idris', 0], jaegerin: ['Layla', 0], teleport: ['Samir', 1], stallmeister: ['Nadia', 1] },
+    7: { haendler: ['Frida', 0], schmied: ['Sten', 0], waffen: ['Bjarne', 0], ruestung: ['Ylva', 0], alchemist: ['Eira', 1], aeltester: ['Olaf', 0], jaegerin: ['Ingrid', 0], teleport: ['Torvi', 0], stallmeister: ['Knut', 0] },
+    8: { haendler: ['Morla', 0], schmied: ['Grim', 0], waffen: ['Vex', 0], ruestung: ['Nebel', 1], alchemist: ['Hexe Una', 1], aeltester: ['Oswin', 0], jaegerin: ['Moira', 0], teleport: ['Irrlicht', 1], stallmeister: ['Bran', 0] },
+    9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0] }
+  };
+  const personName = (mapId, id) => {
+    const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
+    return n.startsWith('Hexe') ? n : `${ROLE_TITLE[id][form]} ${n}`.trim();
+  };
+  // kleines Lager (Platz 12 × 12): oben Älteste, Weltentor, Wegweiserin; links Schmied und Waffen,
+  // rechts Händlerin und Rüstung, unten Stall, Jägerin, Alchemist
+  const CAMP_SPOTS = {
+    aeltester: [-3, -4.3], teleport: [3.8, -4.3], schmied: [-4.6, -1.2], waffen: [-4.6, 1.8], haendler: [4.6, -1.2],
+    ruestung: [4.6, 2], stallmeister: [-4.2, 4.3], jaegerin: [-1.2, 4.5], alchemist: [2.4, 4.5]
+  };
+  // Städte in Map 2 und 3 (Platz 20 × 20)
+  const TOWN_SPOTS = {
+    haendler: [3, -2.5], schmied: [-3.5, 2.5], waffen: [-4.5, -2], ruestung: [3.5, 3], alchemist: [6.5, 0.5],
+    aeltester: [-3.6, -5.4], teleport: [4, -6.2], jaegerin: [-6.6, 3.6], stallmeister: [-7.2, -0.6]
   };
   for (const mp of maps) {
     npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5, mp.cy - 4.5));
-    for (const [id, name, dx, dy] of TOWN_NPCS[mp.id] || CAMP_NPCS) npcs.push(npc(id, name, mp.cx + dx, mp.cy + dy));
+    for (const [id, [dx, dy]] of Object.entries(mp.small ? CAMP_SPOTS : TOWN_SPOTS)) npcs.push(npc(id, personName(mp.id, id), mp.cx + dx, mp.cy + dy));
     houses.push(...mp.houses);
   }
   // Weltportale draußen (oben links und unten rechts jeder Map): bringen in die Stadt der Ziel-Map
@@ -334,8 +361,9 @@ function generateWorld() {
       // kleines Lager: Laternen an den Ecken, Feuerbecken, Brunnen und ein Stand
       for (const [dx, dy] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) props.push({ type: 'lantern', ...T(mp.cx + dx, mp.cy + dy) });
       props.push({ type: 'brazier', roof: '#ffb04a', ...T(mp.cx - 2, mp.cy - 3.2) }, { type: 'brazier', roof: '#ffb04a', ...T(mp.cx + 3, mp.cy - 3.2) });
-      props.push({ type: 'well', ...T(mp.cx - 1.4, mp.cy + 1.4) }, { type: 'stall', roof: '#7a3a2a', ...T(mp.cx + 3.6, mp.cy + 0.6) });
-      props.push({ type: 'barrel', ...T(mp.cx - 4, mp.cy + 2.6) }, { type: 'crate', ...T(mp.cx + 4.6, mp.cy + 3.2) });
+      props.push({ type: 'well', ...T(mp.cx - 1.4, mp.cy + 1.4) }, { type: 'stall', roof: '#7a3a2a', ...T(mp.cx + 5.8, mp.cy + 0.4) });
+      props.push({ type: 'barrel', ...T(mp.cx - 5.4, mp.cy - 3.4) }, { type: 'crate', ...T(mp.cx + 5.4, mp.cy + 4.6) });
+      props.push({ type: 'anvil', ...T(mp.cx - 5.6, mp.cy - 0.2) }, { type: 'hay', ...T(mp.cx - 5.6, mp.cy + 3.4) }, { type: 'board', ...T(mp.cx - 3, mp.cy - 5.4) });
       continue;
     }
     for (const [dx, dy] of [[-6, -6], [6, -6], [-6, 6], [6, 6], [-2.5, -7], [2.5, -7], [-2.5, 7.5], [2.5, 7.5]]) props.push({ type: 'lantern', ...T(mp.cx + dx, mp.cy + dy) });
@@ -345,6 +373,7 @@ function generateWorld() {
     props.push({ type: 'stall', roof: mp.id === 2 ? '#9a2f2a' : '#7a3a2a', ...T(mp.cx - 6.4, mp.cy - 3) });
     props.push({ type: 'anvil', ...T(mp.cx - 2.6, mp.cy + 3.4) });
     props.push({ type: 'barrel', ...T(mp.cx + 5.2, mp.cy + 1.6) }, { type: 'crate', ...T(mp.cx - 7.2, mp.cy + 1.2) });
+    props.push({ type: 'hay', ...T(mp.cx - 8.4, mp.cy - 1.4) }, { type: 'board', ...T(mp.cx - 3.6, mp.cy - 6.4) });
   }
 
   return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps };

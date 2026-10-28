@@ -1453,3 +1453,30 @@ Fantasy game travel window "Weltentor" in dark wood with gold trim: a list of ma
 ```
 Stylized 3D chibi MMORPG combat comparison in three panels: a level-40 hero fighting a same-level frost yeti in a fair, tense fight with a half-empty health bar; the same hero barely surviving against a level-50 monster while drinking a glowing red potion; and fleeing from a towering level-60 lava golem whose single hit takes a third of the health bar. Thin dark outlines, soft toon shading, readable UI numbers.
 ```
+
+## Ninja-Fertigkeiten und volle Lager (Version 6.3)
+
+### Hinterhalt aus der Tarnung
+```
+Stylized 3D toon MMORPG action shot: a half-transparent ninja in dark violet leather and a hood, just stepping out of stealth in a puff of grey-violet smoke directly behind a large forest troll; twin daggers drive into the troll's back with a huge violet-white X slash, a golden "Hinterhalt!" text and a big critical damage number above. A faint smoky streak shows where the ninja vanished a moment ago. Thin dark outlines, soft cel shading, dramatic but readable.
+```
+
+### Blitzangriff
+```
+Stylized 3D toon MMORPG skill effect: a ninja vanishes on the left in a burst of dark smoke and an after-image silhouette, a thin pale-blue lightning streak crosses the ground, and in the same instant the ninja appears behind an orc warrior on the right, slashing with a bright blue-white crescent and a small lightning bolt striking the orc, who is briefly stunned with stars above the head. Fast, crisp, readable from a phone screen.
+```
+
+### Schattendoppelgänger (Ultimative Attacke)
+```
+Epic ultimate attack in a stylized 3D toon MMORPG: six translucent dark-violet shadow clones of the same ninja (same outfit and daggers, glowing pale lilac eyes) stand in a perfect circle around a huge lava golem on a glowing violet rune sigil; all six dash inward at the same moment and stab together, violet slash arcs crossing in the center. In the second beat the real ninja appears behind the golem and finishes with a giant white-violet cross slash and a shockwave ring. Particles of smoke and sparks, screen-wide violet flash, readable composition.
+```
+
+### Fertigkeitssymbole
+```
+Set of three round fantasy skill icons in a hand-painted toon style with thick dark outlines: (1) "Hinterhalt" – a white dagger pointing down with a drop of red, violet background; (2) "Blitzangriff" – a faded ninja silhouette on the left, a white-blue lightning zigzag, a dagger on the right; (3) "Schattendoppelgänger" – six small dark-violet ninja silhouettes in a ring around a red target with a white X, golden ultimate frame.
+```
+
+### Lager mit allen Leuten
+```
+Top-down three-quarter view of a small safe camp in the middle of a snowy mountain map, stylized 3D toon MMORPG: a square cobblestone plaza with a glowing blue ring-shaped world gate at the north edge, flanked by the camp elder (white beard, staff, golden exclamation mark above the head, quest board beside him) and a guide woman with a glowing orb; on the west side a blacksmith at an anvil and a weapon trader, on the east side a potion merchant at a stall and an armor trader with a shield; in the south a stable master next to hay bales, a huntress with a bow (green exclamation mark) and an alchemist in a violet robe. Braziers, a well, lanterns at the corners, pine trees and yetis outside. Cozy, readable, every person clearly visible.
+```

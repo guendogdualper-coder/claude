@@ -56,8 +56,8 @@ function questEvent(kind, m) {
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
     q.progress++;
     if (goalDone(main.goal, q.progress)) {
-      ui.banner('Auftrag erfüllt', `${main.title}: Kehre zu Dorfältestem Bao zurück`);
-      ui.log(`Auftrag „${main.title}“ erfüllt. Hol dir deine Belohnung bei Bao im Dorf.`, 'level');
+      ui.banner('Auftrag erfüllt', `${main.title}: Kehre zu einem Ältesten zurück`);
+      ui.log(`Auftrag „${main.title}“ erfüllt. Hol dir deine Belohnung bei Bao in Vlotho oder beim Ältesten in jedem Lager.`, 'level');
     }
   }
   const st = q.stable;
@@ -65,16 +65,16 @@ function questEvent(kind, m) {
     st.progress++;
     if (st.progress >= STABLE_QUEST.count) {
       st.state = 'done';
-      ui.banner('Prüfung bestanden', 'Kehre zu Stallmeister Jun zurück');
-      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd im Dorf.', 'level');
+      ui.banner('Prüfung bestanden', 'Kehre zu einem Stallmeister zurück');
+      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Vlotho oder beim Stallmeister in jedem Lager.', 'level');
     }
   }
   const h = q.hunt;
   if (h && h.progress < h.count && kind === 'kill' && m.typeId === h.monster) {
     h.progress++;
     if (h.progress >= h.count) {
-      ui.banner('Jagd erfüllt', `${MONSTER_TYPES[h.monster].name}: Kehre zu Jägerin Rin zurück`);
-      ui.log('Jagdauftrag erfüllt. Rin im Dorf wartet auf dich.', 'level');
+      ui.banner('Jagd erfüllt', `${MONSTER_TYPES[h.monster].name}: Kehre zu einer Jägerin zurück`);
+      ui.log('Jagdauftrag erfüllt. Gib ihn bei Rin in Vlotho oder bei der Jägerin in jedem Lager ab.', 'level');
     }
   }
   ui.renderQuestTrack();
@@ -107,7 +107,7 @@ function questTick() {
   st.state = 'open';
   st.progress = 0;
   ui.banner('Zeit abgelaufen', STABLE_QUEST.title);
-  ui.log('Die 20 Minuten sind um. Sprich mit Stallmeister Jun, um es noch einmal zu versuchen.', 'warn');
+  ui.log('Die 20 Minuten sind um. Sprich mit einem Stallmeister, um es noch einmal zu versuchen.', 'warn');
   ui.renderQuestTrack();
   saveGame();
 }
@@ -344,7 +344,7 @@ Object.assign(ui, {
     const main = currentMainQuest();
     const body = $('npcBody');
     if (!main) {
-      body.innerHTML = '<p>„Du hast alles getan, worum ich dich bitten konnte. Vlotho steht in deiner Schuld, Held.“</p>';
+      body.innerHTML = '<p>„Du hast alles getan, worum ich dich bitten konnte. Das ganze Land steht in deiner Schuld, Held.“</p>';
       return;
     }
     const xp = questXp(main.level);
