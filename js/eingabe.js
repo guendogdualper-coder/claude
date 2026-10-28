@@ -35,7 +35,14 @@ function moveVector() {
   }
   const len = Math.hypot(x, y);
   if (len < 0.15) return { x: 0, y: 0 };
-  return len > 1 ? { x: x / len, y: y / len } : { x, y };
+  if (len > 1) { x /= len; y /= len; }
+  // Schulterblick: „nach oben“ heißt „von der Kamera weg“, die Kamera kann gedreht sein
+  if (v3Shoulder() && V3.yaw) {
+    const c = Math.cos(V3.yaw);
+    const s = Math.sin(V3.yaw);
+    return { x: c * x + s * y, y: -s * x + c * y };
+  }
+  return { x, y };
 }
 
 function setupInput() {
@@ -91,8 +98,39 @@ function setupInput() {
     clearAttack();
   });
 
-  // Mausklick oder Tippen auf ein Monster wählt es als Ziel
-  renderer.canvas.addEventListener('pointerdown', (e) => selectAt(e.clientX, e.clientY));
+  // Mausklick oder Tippen auf ein Monster wählt es als Ziel. Im Schulterblick dreht Ziehen die Kamera
+  // (Finger auf der rechten Bildhälfte oder Maus), kurzes Tippen wählt weiter aus.
+  const cv = renderer.canvas;
+  let camDrag = null;
+  cv.addEventListener('pointerdown', (e) => {
+    if (!v3Shoulder()) {
+      selectAt(e.clientX, e.clientY);
+      return;
+    }
+    camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
+    cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener('pointermove', (e) => {
+    if (!camDrag || e.pointerId !== camDrag.id) return;
+    const dx = e.clientX - camDrag.x;
+    if (!camDrag.moved && Math.abs(dx) < 8) return;
+    camDrag.moved = true;
+    V3.yaw = (V3.yaw || 0) - dx * 0.008;
+    camDrag.x = e.clientX;
+  });
+  const endCamDrag = (e) => {
+    if (!camDrag || e.pointerId !== camDrag.id) return;
+    if (!camDrag.moved) selectAt(e.clientX, e.clientY);
+    camDrag = null;
+  };
+  cv.addEventListener('pointerup', endCamDrag);
+  cv.addEventListener('pointercancel', endCamDrag);
+  // Mausrad: näher oder weiter weg (3D)
+  cv.addEventListener('wheel', (e) => {
+    if (!V3.on) return;
+    e.preventDefault();
+    V3.zoomMul = Math.max(0.6, Math.min(1.8, (V3.zoomMul || 1) * (e.deltaY > 0 ? 1.08 : 1 / 1.08)));
+  }, { passive: false });
 
   setupTouch();
 }

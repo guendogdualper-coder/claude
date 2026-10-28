@@ -2,15 +2,27 @@
 // Vibration, Schadenszahlen und Namen. Gespeichert im Browser, gilt für alle Figuren auf dem Gerät.
 
 const OPT_KEY = 'seelenstein.optionen';
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, graphics: 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
 
-// Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln
+// PC oder Handy? Maus/Touchpad als Hauptzeiger, Hover möglich und großer Bildschirm = PC.
+// Auf dem PC startet das Spiel mit Ultra-Grafik.
+const IS_PC = (() => {
+  try {
+    return matchMedia('(hover: hover) and (pointer: fine)').matches && !matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) >= 700;
+  } catch (e) {
+    return false;
+  }
+})();
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, graphics: IS_PC ? 'ultra' : 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
+
+// Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln.
+// Ultra (für PC): volle Auflösung, scharfe große Schatten, weitere Sicht, schärfere Böden
 const GRAPHICS = {
+  ultra: { label: 'Ultra', dpr: 3, castShadows: true, clouds: true, particles: 1.25 },
   hoch: { label: 'Hoch', dpr: 2, castShadows: true, clouds: true, particles: 1 },
   mittel: { label: 'Mittel', dpr: 1.6, castShadows: true, clouds: false, particles: 0.7 },
   niedrig: { label: 'Niedrig', dpr: 1.25, castShadows: false, clouds: false, particles: 0.4 }
 };
-const CAMERA = { nah: { label: 'Nah', zoom: 1.15 }, normal: { label: 'Normal', zoom: 1 }, weit: { label: 'Weit', zoom: 0.85 } };
+const CAMERA = { nah: { label: 'Nah', zoom: 1.15 }, normal: { label: 'Normal', zoom: 1 }, weit: { label: 'Weit', zoom: 0.85 }, schulter: { label: 'Schulterblick', zoom: 1.25 } };
 
 const opts = (() => {
   try { return { ...OPT_DEFAULTS, ...JSON.parse(localStorage.getItem(OPT_KEY) || '{}') }; } catch (e) { return { ...OPT_DEFAULTS }; }
@@ -59,8 +71,8 @@ const options = {
       `<div class="opt-row"><div class="opt-text"><strong>Lautstärke</strong></div><input type="range" id="optVolume" min="0" max="1" step="0.05" value="${opts.volume}" aria-label="Lautstärke"><b class="opt-val">${Math.round(opts.volume * 100)} %</b></div></section>` +
       `<section class="opt-group"><h3>Grafik</h3>` +
       seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
-      seg('graphics', GRAPHICS, 'Qualität', 'Niedrig spart Akku und läuft auf älteren Handys flüssiger.') +
-      seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist.') +
+      seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Hoch ist empfohlen, Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger.`) +
+      seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit der Maus ziehen, Mausrad zoomt.') +
       sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
       sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +
       sw('names', 'Namen der Bewohner', 'Namen unter Händlern und Helfern im Dorf.') + `</section>` +

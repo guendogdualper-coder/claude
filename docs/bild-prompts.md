@@ -1178,3 +1178,127 @@ Ancient stone portal ring standing on a small round paved clearing in the wilder
 ```
 Dueling arena for a stylized 3D fantasy MMORPG seen from a three-quarter top-down camera: a large circle on the grass marked by a glowing red ring, from which a translucent red wall of light rises about two character heights, brightest at the ground and fading upward, with bright vertical streaks drifting up; ten dark stone posts with glowing red crystal tips stand around the ring; the ground inside is faintly tinted red toward the edge. Two chibi heroes face each other in the middle, crossed golden swords float above the opponent. The wall grows out of the ground during a 3-2-1 countdown. Dramatic but readable, soft toon shading.
 ```
+
+## Schulterblick und PC-Grafik „Ultra“ (Version 4.7)
+
+### Schulterblick (Kamera hinter der Figur)
+```
+Gameplay screenshot of a stylized 3D chibi fantasy MMORPG in landscape 16:9, third-person over-the-shoulder camera: the camera sits low behind the hero (about 30° above the ground, a few meters back) and looks forward across the scene, so the hero is seen from behind in the lower middle of the screen and the world stretches far into the distance. In front: a cozy East-Asian village plaza with cobblestones, a wooden well, market stalls with striped awnings, lanterns, curved tiled roofs and a red gate in the background; friendly villagers with name tags. Gentle depth fog toward the horizon, soft afternoon sun, long soft shadows, thin dark outlines, smooth toon shading. HUD in warm gold and dark brown frames: portrait with HP/MP bars top left, round menu buttons top right, round minimap in the corner, chat box bottom left, virtual joystick, big round attack button and skill buttons bottom right.
+```
+
+### Schulterblick im Kampf
+```
+Third-person over-the-shoulder view of a chibi hero standing in a sunny meadow full of flowers, a pack of grey wolves charging toward the camera from the distance, a glowing red soul-stone egg with cracks pulsing on the right, trees with round crowns and pink cherry trees in the background, a dirt path winding into the horizon. Dynamic but readable composition, depth fog, soft toon shading, thin outline, warm golden light, mobile MMORPG HUD.
+```
+
+### PC-Grafik „Ultra“
+```
+High-end PC version of a stylized 3D toon fantasy MMORPG, 2560×1440, same art style as the mobile version but richer: crisp full-resolution rendering, sharp anisotropic ground textures with visible grass blades and stone gaps, large high-resolution soft shadows from every tree, house and character, a wider view distance with more of the landscape visible, layered atmospheric fog, drifting clouds and many small particles (pollen, fireflies, embers). Clean, polished, no realism, still cozy and readable.
+```
+
+### Einstellungs-Fenster „Grafik“
+```
+Settings panel UI for a fantasy mobile/PC game, dark brown wood frame with gold trim, parchment-toned text: section "Grafik" with buttons "Niedrig / Mittel / Hoch / Ultra" (Ultra highlighted, small note "PC erkannt"), section "Kamera" with buttons "Weit / Normal / Nah / Schulterblick" (Schulterblick highlighted, small hint "Wischen dreht die Kamera, Mausrad zoomt"), toggles for shadows, clouds and particles. Rounded buttons, soft glow on the selected option, clean readable layout.
+```
+
+## Prompt-Sammlung für alles (Stand Version 4.7)
+
+Alle Prompts in einer Liste, damit man jedes Bild des Spiels im gleichen Stil erzeugen kann. Jeder Prompt beginnt mit der Stilvorgabe:
+
+```
+STYLE: stylized 3D toy-like fantasy MMORPG in the spirit of classic East-Asian online RPGs (Metin2-like), chibi proportions, smooth rounded mid-poly shapes, thin dark-brown outline, soft 3–4 step toon shading, warm afternoon sun, soft cast shadows, saturated but not neon colors, clean readable silhouettes, no realism, no gore.
+```
+
+### Welt und Regionen
+```
+[STYLE] Map 1 "Vlotho": the walled starting city in the middle of a huge land, rings of regions around it: Sonnenwiesen (green meadow, flowers, cherry trees, level 1–9), Dunkelwald (deep pine forest, blue fog, fireflies, 10–19), Orktal (dusty ochre canyon with orc camps, 20–29), Ödland (grey ash plains, dead trees, 30–39), Frostgipfel (snow, ice crystals, 40–49), Totenmoor (murky swamp, will-o'-wisps, 50–59), Feuerberg (black basalt, lava rivers, embers, 60–70). Bird's-eye diorama view.
+```
+```
+[STYLE] Map 2 "Schlangental": golden desert with dunes, sandstone ruins and oases with palms around the oasis city Sahra, a humid naga jungle with lianas and turquoise pools at the outer edge.
+```
+```
+[STYLE] Map 3 "Donnerklamm": deep grey canyon with storm-blue light, stone bridges, troll caves and minotaur cliffs around the fortress city Klammfeste, a glowing lava ridge of the titans at the outer edge, lightning in the clouds.
+```
+
+### Städte und Gebäude
+```
+[STYLE] Korean-style fantasy town: cream plaster houses with dark timber, curved roofs with glazed red/teal/plum tiles and upturned eaves, red torii-like gate with guards, cobblestone plaza with a well, market stalls with striped awnings, stone lanterns, barrels, hay bales, archery target, a glowing ring-shaped world gate.
+```
+```
+[STYLE] Town NPC lineup, each with a small icon above the head: Waffenhändler (sword sign), Rüstungshändlerin (shield sign), Schmied with anvil and hammer, Alchemistin with a green potion, Dorfältester with a scroll and exclamation mark, Wegweiserin, Händlerin, Jägerin with bow, Torwache with spear, Weltentor keeper.
+```
+
+### Klassen (männlich und weiblich)
+```
+[STYLE] Character sheet: Krieger and Kriegerin – sturdy, leather-and-plate tunic, rounded shoulder pads, red crest helmet, one-handed sword with round shield, or a two-handed greatsword / great axe; male with broad shoulders and short hair, female with a long braid and slimmer silhouette. Front, side and back view.
+```
+```
+[STYLE] Character sheet: Ninja (male and female) – slim, dark wrapped outfit, long red scarf, hood, twin daggers or recurve bow with quiver; female with a high ponytail.
+```
+```
+[STYLE] Character sheet: Schamane and Schamanin – flowing teal robe with golden zigzag hem, feather headband, folding fan or ritual bell, glowing turquoise orbs.
+```
+```
+[STYLE] Character sheet: Nekromant and Nekromantin – hooded dark robe with stitched patches, pale skin, glowing green chest rune, skull staff or scythe, small green soul sparks.
+```
+```
+[STYLE] Equipment tiers on the same warrior: leather brown, bronze, iron blue-grey, dragon red-gold, soul purple with runes, ash black with ember cracks, sky white-blue with feathers, god gold with white light; upgrade level +0 to +9 shown by growing glow on the weapon.
+```
+
+### Monster und Bosse
+```
+[STYLE] Monster sheet, low-level: wild dog, grey wolf, alpha wolf, boar, giant spider, bandit, goblin – cute but dangerous, red eyes when aggressive, level tag above the head.
+```
+```
+[STYLE] Monster sheet, mid-level: orc warrior with axe, orc shaman, skeleton, ghoul, ice golem, frost wolf, swamp troll, will-o'-wisp, desert snake, scorpion, naga with trident.
+```
+```
+[STYLE] Monster sheet, high-level: rock golem with glowing cracks, minotaur with a huge axe, storm troll, lava titan, fire demon, black dragon; bosses twice the size with a golden crown-shaped glow ring on the ground.
+```
+
+### Seelensteine
+```
+[STYLE] Soul stone as a large glowing egg on a small rock base, cracked shell with light shining through the cracks, colored by level (green, blue, purple, red, gold), runes circling around it, monsters spawning from it in waves, shards flying when it breaks; health bar and name "Stein der Wut" above it.
+```
+
+### Dungeons
+```
+[STYLE] Dungeon cave interior: dark rock walls, colored braziers (blue, green, red), stone bridges over glowing water, treasure chest, boss arena with a rune circle, entrance as a carved stone archway in the wild.
+```
+
+### Gegenstände und Symbole
+```
+[STYLE] Item icon set on dark round slots with gold rim: swords, greatswords, axes, great axes, daggers, bows, fans, bells, staffs, scythes, helmets, armor, shields, boots, rings, amulets, red HP potion, blue MP potion, upgrade stone, soul shard, gold coins, quest scroll, mount whistle.
+```
+```
+[STYLE] Skill icon set, round with colored rim: fire slash, dash arrow, sword aura, whirlwind, triple claw strike, healing wave, shadow step, poison dagger, skeleton summon, soul drain, ultimate skill with golden frame (locked until level 30).
+```
+
+### Reittiere
+```
+[STYLE] Mount sheet: brown horse with saddle, white war horse with armor, black wolf mount, red battle tiger, golden lion; chibi rider sitting on top, soft dust clouds at the hooves.
+```
+
+### Kampf, Effekte und Duell
+```
+[STYLE] Combat effects: orange sword arc, blue magic burst, green poison cloud, damage numbers floating up to the right of the target (white normal, yellow critical with "!"), level-up golden light pillar, loot sparkle on the ground.
+```
+```
+[STYLE] Duel arena: big circle with a glowing red ring and a translucent red light wall rising during the 3-2-1 countdown, stone posts with glowing red tips, two heroes facing each other, crossed golden swords above the opponent.
+```
+
+### Oberfläche (HUD und Fenster)
+```
+[STYLE] Mobile MMORPG HUD, landscape: portrait with level badge, red HP and blue MP bars top left; six round brown-gold menu buttons top right (character, bag, world, guild, quests, settings); round minimap with region name, gold, shards, battery, clock and ping; chat box with tabs Global / Gilde / Ort bottom left; floating joystick; big red attack button, five skill buttons and potion buttons bottom right; thin XP bar at the bottom.
+```
+```
+[STYLE] Game windows: character sheet with equipment slots around the hero, inventory grid, blacksmith upgrade window with success chance, quest log on the right side, guild window, map window with three map tabs and portals, settings with graphics and camera options.
+```
+
+### App-Symbol und Ladebildschirm
+```
+[STYLE] App icon: a glowing purple soul-stone egg with golden cracks on a dark round background, small crossed swords behind it, title "Seelenstein" in a carved golden fantasy font, readable at small size.
+```
+```
+[STYLE] Loading screen, landscape: four chibi heroes (Krieger, Ninja, Schamane, Nekromant) standing on a hill at sunset, a huge glowing soul stone in the valley below, the walled city Vlotho in the distance, title "Seelenstein" in gold.
+```

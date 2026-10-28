@@ -589,9 +589,21 @@ function v3ApplyGraphics() {
   const g = gfx();
   if (V3.builtFor && V3.builtFor !== opts.graphics) v3ClearChunks();
   V3.builtFor = opts.graphics;
+  V3.ultra = opts.graphics === 'ultra';
   V3.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, renderer.maxDpr || g.dpr));
   V3.sun.castShadow = g.castShadows;
-  const size = opts.graphics === 'hoch' ? 1024 : 512;
+  const size = V3.ultra ? 2048 : opts.graphics === 'hoch' ? 1024 : 512;
+  // Ultra: größerer Schattenbereich, schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte)
+  const sc = V3.sun.shadow.camera;
+  const half = V3.ultra ? 18 : 13;
+  if (sc.right !== half) {
+    sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half;
+    sc.updateProjectionMatrix();
+  }
+  if (groundTex) {
+    const an = V3.ultra ? V3.gl.capabilities.getMaxAnisotropy() : 4;
+    for (const t of [groundTex.noise, groundTex.cobble]) if (t.anisotropy !== an) { t.anisotropy = an; t.needsUpdate = true; }
+  }
   if (V3.sun.shadow.mapSize.x !== size) {
     V3.sun.shadow.mapSize.set(size, size);
     if (V3.sun.shadow.map) {
@@ -649,8 +661,10 @@ function v3UpdateMood(dt, x, y) {
   s.far += ((m.far || 64) - s.far) * k;
   V3.scene.background.copy(s.sky);
   V3.scene.fog.color.copy(s.sky);
-  V3.scene.fog.near = s.near;
-  V3.scene.fog.far = s.far;
+  // Im Schulterblick sieht man weiter in die Ferne: Nebel etwas näher, damit kein Rand der Welt auftaucht
+  const fogK = v3Shoulder() ? 0.62 : V3.ultra ? 1.25 : 1;
+  V3.scene.fog.near = s.near * fogK;
+  V3.scene.fog.far = s.far * fogK;
   V3.sun.color.copy(s.sun);
   V3.sun.intensity = s.sunI;
   V3.hemi.color.copy(s.hemi);
@@ -662,9 +676,60 @@ function v3UpdateMood(dt, x, y) {
 
 const CAM3 = { nah: 0.86, normal: 1, weit: 1.2 };
 
+// Schulterblick: tiefe, nahe Kamera hinter der Figur (wie die 3D-Vorschau), drehbar per Wischen.
+// V3.yaw: 0 = Kamera im Süden, Blick nach Norden
+const SHOULDER3 = { pitch: 0.5, dist: 9.5, fov: 45, ahead: 12 };
+function v3Shoulder() {
+  return V3.on && opts.camera === 'schulter';
+}
+// Mitte des sichtbaren Bereichs (im Schulterblick ein Stück vor der Figur) und sein Radius in Pixeln
+function v3ViewCenter(out) {
+  const yaw = V3.yaw || 0;
+  const ahead = v3Shoulder() ? SHOULDER3.ahead * TILE * (V3.zoomMul || 1) : 0;
+  out.x = V3.focus.x - Math.sin(yaw) * ahead;
+  out.y = V3.focus.y - Math.cos(yaw) * ahead;
+  return out;
+}
+const _vc = { x: 0, y: 0 };
+// Liegt ein Weltpunkt im Bild? Feste Kamera: Rechteck mit mehr Sicht nach Norden; Schulterblick: Kreis
+function v3InView(x, y, pad = 0) {
+  const r = renderer;
+  if (v3Shoulder()) {
+    v3ViewCenter(_vc);
+    return Math.hypot(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
+  }
+  return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
+}
+
 function v3PlaceCamera(fx, fy) {
   const r = renderer;
   const cam = V3.camera;
+  if (v3Shoulder()) {
+    if (cam.fov !== SHOULDER3.fov) {
+      cam.fov = SHOULDER3.fov;
+      cam.updateProjectionMatrix();
+    }
+    const yaw = V3.yaw || 0;
+    const d = SHOULDER3.dist * (V3.zoomMul || 1);
+    const tx = fx * U3;
+    const tz = fy * U3;
+    const ty = 1.0;
+    const cp = Math.cos(SHOULDER3.pitch);
+    cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(SHOULDER3.pitch) * d, tz + Math.cos(yaw) * cp * d);
+    cam.lookAt(tx, ty, tz);
+    cam.updateMatrixWorld();
+    V3.sun.position.set(tx + 9, 24, tz + 13);
+    V3.sun.target.position.set(tx - Math.sin(yaw) * 4, 0, tz - Math.cos(yaw) * 4);
+    V3.sun.target.updateMatrixWorld();
+    V3.focus.x = fx;
+    V3.focus.y = fy;
+    return;
+  }
+  if (cam.fov !== 30) {
+    cam.fov = 30;
+    cam.updateProjectionMatrix();
+  }
+  V3.yaw = 0;
   // so weit weg, dass etwa so viel Welt zu sehen ist wie im 2D-Spiel (etwas mehr Überblick)
   const viewH = r.h / r.zoom * U3;
   const fov = (cam.fov * Math.PI) / 180;
@@ -801,7 +866,7 @@ function groundTextures() {
   const mk = (c) => {
     const t = new THREE.CanvasTexture(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.anisotropy = 4;
+    t.anisotropy = V3.ultra ? V3.gl.capabilities.getMaxAnisotropy() : 4;
     return t;
   };
   groundTex = { noise: mk(noise), cobble: mk(cob) };
@@ -1110,7 +1175,9 @@ function* terrainJob(cx, cy) {
 // Gebaut wird in Zeitscheiben: jedes Bild nur wenige Millisekunden, der Rest im nächsten Bild.
 
 const chunks3 = new Map();
+// Ultra (PC): ein Ring Blöcke mehr bleibt geladen, man sieht weiter
 const CHUNK3_KEEP = 2;
+const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP);
 let chunkJob = null;
 
 function v3UpdateChunks(fx, fy, msBudget) {
@@ -1121,8 +1188,14 @@ function v3UpdateChunks(fx, fy, msBudget) {
   // Blöcke im Sichtfeld zuerst (die Kamera schaut nach Norden: oben mehr, unten weniger)
   const fxIn = (fx * U3) / CHUNK3 - ccx;
   const want = [];
-  for (let dy = -2; dy <= 1; dy++) {
-    for (let dx = -1; dx <= 1; dx++) {
+  // Feste Kamera: Blick nach Norden, oben mehr Blöcke (Ultra: ein Ring mehr). Schulterblick: Kreis um die
+  // Mitte des Sichtbaren vor der Figur (dahinter und hinter dem Nebel braucht es nichts)
+  const shoulder = v3Shoulder();
+  const reach = shoulder ? 2 : V3.ultra ? 3 : 2;
+  const side = shoulder ? 2 : V3.ultra ? 2 : 1;
+  for (let dy = -reach; dy <= (shoulder ? 2 : 1); dy++) {
+    for (let dx = -side; dx <= side; dx++) {
+      if (shoulder && dx * dx + dy * dy > 3.2) continue;
       const x = ccx + dx;
       const y = ccy + dy;
       if (x < 0 || y < 0 || x > maxX || y > maxY) continue;
@@ -1135,7 +1208,7 @@ function v3UpdateChunks(fx, fy, msBudget) {
   // dann einmal kräftig bauen statt sekundenlang Himmel zu zeigen
   if (!chunks3.has(ccx + ':' + ccy) || (ccy > 0 && !chunks3.has(ccx + ':' + (ccy - 1)))) msBudget = Math.max(msBudget, 120);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
-  if (chunkJob && (Math.abs(chunkJob.x - ccx) > CHUNK3_KEEP || Math.abs(chunkJob.y - ccy) > CHUNK3_KEEP)) chunkJob = null;
+  if (chunkJob && (Math.abs(chunkJob.x - ccx) > chunkKeep3() || Math.abs(chunkJob.y - ccy) > chunkKeep3())) chunkJob = null;
   const t0 = performance.now();
   while (performance.now() - t0 < msBudget) {
     if (!chunkJob) {
@@ -1152,7 +1225,7 @@ function v3UpdateChunks(fx, fy, msBudget) {
     if (!r.done) continue;
     const { key, x, y, part } = chunkJob;
     chunkJob = null;
-    if (Math.abs(x - ccx) > CHUNK3_KEEP || Math.abs(y - ccy) > CHUNK3_KEEP) {
+    if (Math.abs(x - ccx) > chunkKeep3() || Math.abs(y - ccy) > chunkKeep3()) {
       disposeTree(r.value);
       continue;
     }
@@ -1170,7 +1243,7 @@ function v3UpdateChunks(fx, fy, msBudget) {
     }
   }
   for (const [key, ch] of chunks3) {
-    if (Math.abs(ch.x - ccx) > CHUNK3_KEEP || Math.abs(ch.y - ccy) > CHUNK3_KEEP) {
+    if (Math.abs(ch.x - ccx) > chunkKeep3() || Math.abs(ch.y - ccy) > chunkKeep3()) {
       disposeTree(ch.terrain);
       if (ch.objects) disposeTree(ch.objects);
       chunks3.delete(key);
@@ -1251,7 +1324,9 @@ function renderDrei() {
   v3UpdateMood(dt, fx, fy);
   v3CollectLights();
   // Beim Start (noch kein Boden) großzügig bauen, danach nur kleine Zeitscheiben
-  v3UpdateChunks(fx, fy, chunks3.size < 4 ? 400 : 5);
+  // Nachladen um die Mitte des Sichtbaren (im Schulterblick ein Stück vor der Figur)
+  v3ViewCenter(_vc);
+  v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 ? 400 : 5);
   v3UpdateLights(fx, fy);
   for (const k of ['water', 'lava', 'bog']) if (MAT3['liquid' + k]) MAT3['liquid' + k].uniforms.uTime.value = V3.time;
   v3SyncActors(dt);
@@ -1287,7 +1362,7 @@ function drawOverlay3(ctx) {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, r.canvas.width, r.canvas.height);
   if (!game.running && !game.player) return;
-  const inView = (x, y) => Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.9 && y - V3.focus.y > -r.h / r.zoom * 1.1 && y - V3.focus.y < r.h / r.zoom * 0.8;
+  const inView = (x, y) => v3InView(x, y, 120);
   const ground = (e) => e.ground || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
   const skip = (e) => e.type === 'corpse' || e.type === 'afterimage';
   for (const e of game.effects) {

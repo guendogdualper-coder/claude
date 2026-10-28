@@ -1935,10 +1935,8 @@ function monsterBuild(b, typeId) {
 function v3SyncActors(dt) {
   for (const a of actors3.values()) a.seen = false;
   const w = game.world;
-  // nur, was im Bild ist (die Kamera schaut nach Norden: oben sieht man weiter)
-  const r = renderer;
-  const halfW = r.w / r.zoom * 0.62 + 64;
-  const near = (e) => Math.abs(e.x - V3.focus.x) < halfW && e.y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 && e.y - V3.focus.y < r.h / r.zoom * 0.62 + 64;
+  // nur, was im Bild ist (feste Kamera: nach Norden sieht man weiter; Schulterblick: Kreis vor der Figur)
+  const near = (e) => v3InView(e.x, e.y);
   const p = game.player;
   if (game.player && game.running && !p.dead) syncPlayer3(p, dt);
   if (V3.extra) for (const ep of V3.extra) syncPlayer3(ep, dt);
