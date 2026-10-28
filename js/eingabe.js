@@ -89,6 +89,13 @@ function selectAt(clientX, clientY) {
   if (!game.running) return;
   {
     const w = screenToWorld(clientX, clientY);
+    // Mitspieler antippen: im Duell als Ziel, sonst öffnet sich oben die Spielerkarte
+    const pid = remotePlayerAt(w.x, w.y);
+    if (pid) {
+      if (duelFighting() && game.duel.pid === pid) game.target = game.duel.proxy;
+      else pcard.open(pid);
+      return;
+    }
     let best = null;
     let bestD = 40;
     for (const m of game.monsters) {

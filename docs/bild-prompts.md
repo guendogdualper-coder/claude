@@ -865,3 +865,45 @@ Mobile game social window in landscape, dark leather and gold fantasy style: tab
 ```
 2D fantasy MMORPG village scene, cute chibi characters: two players standing together, above their names "Lv 42 Kaito" and "Lv 35 Mira" a small colored guild tag "‹Drachenherz›" in the same green, a third player without a guild nearby. Bold outlines, warm light.
 ```
+
+## Schlankes HUD, EP, Statuspunkte, Duell, Handel und Betrachten (Version 3.4)
+
+### Schlanke Lebensanzeige ohne Fenster
+```
+Mobile game HUD close-up, top-left corner in landscape, fantasy style: a small round character portrait with a golden ring and a level badge "22", next to it the name "Kaito" with a soft shadow and two slim slanted bars (red health with a heart icon, blue mana with a drop icon) floating directly over the game world without any dark panel behind them; a glowing golden plus button on the portrait for free stat points. Clean, airy UI.
+```
+
+### Menüknöpfe als Münzen
+```
+Mobile game top menu row, dark East Asian fantasy style: six round buttons like lacquered coins with a thin brass ring and golden two-tone icons – a helmeted bust, a bag with a clasp, a globe, a shield with a heart, a speech bubble and a scroll with a question mark; the globe glows green for "online", a small red dot marks free points. Crisp, consistent icon set.
+```
+
+### EP-Leiste und EP-Zahlen
+```
+2D fantasy MMORPG screenshot detail: at the bottom edge a long experience bar with a brass frame, ten thin golden tick marks, a glossy violet filling with a moving sheen and a small text "1.104 / 75.382 EP (1,5 %)"; above the character a big glowing violet number "+1.104 EP" pops up while small violet sparks fly from a defeated orc to the hero, a small golden "+67 Gold" next to the orc. Cute game art, bold outlines.
+```
+
+### Statuspunkte verteilen
+```
+Mobile game character window, dark fantasy style: on the left a glowing violet orb with the number "11" and "Statuspunkte", on the right four colored cards – red "Stärke" with a sword icon, green "Vitalität" with a heart, blue "Intelligenz" with a crystal, gold "Geschick" with a feather – each with a big number, a thin progress bar, a line like "+12 Angriff" and a large golden "+" button plus small "+5" and "Alle" buttons. Clean, juicy UI.
+```
+
+### Spielerkarte beim Antippen
+```
+Mobile game UI in landscape over a village scene: after tapping another player a compact card appears at the top with his round portrait, name "Kaito", "Lv 40 · Krieger", a green health line and five icon buttons "Duell" (red with crossed swords), "Freund" (heart), "Gilde" (shield), "Handeln" (two arrows) and "Betrachten" (magnifier). Below it on the other player's screen a golden toast "Mira möchte mit dir handeln" with "Annehmen" and "Ablehnen". Clean readable UI.
+```
+
+### Duell
+```
+2D fantasy MMORPG scene, three-quarter top-down view: two chibi players face each other in the village square inside a large dashed red circle on the ground, golden crossed swords hover over the opponent's head, a big golden text "Kampf!" in the middle, damage numbers fly; afterwards a banner "Sieg!" for the winner while the loser kneels with a sliver of health. Cute game art, bold outlines.
+```
+
+### Handel
+```
+Mobile game trade window, dark leather and gold fantasy style: two panels side by side, "Dein Angebot" with item slots and a gold field "1500", and "Kaito" with a glowing +4 dagger in the first slot; both panels get a green border and "✓ bestätigt" when confirmed; below the bag grid to pick items and buttons "Handel bestätigen" and "Abbrechen". Clean readable UI.
+```
+
+### Betrachten
+```
+Mobile game inspect window, dark fantasy style: a framed chibi warrior doll wearing purple soul armor, helmet, shoulders and a cape, eight equipment slots around it with +5 badges, small green and red arrows comparing them to your own gear, and on the right the detail card of his sword with stats and bonuses. Clean readable UI.
+```

@@ -18,8 +18,11 @@ const skillDuration = (sk, lvl) => Math.round(sk.duration * levelCurve(lvl, 0.02
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
+// Im Duell steht der Gegner als Stellvertreter mit in der Liste
 function aliveEnemies() {
-  return game.monsters.filter((m) => !m.dead);
+  const list = game.monsters.filter((m) => !m.dead);
+  if (duelFighting() && !game.duel.proxy.dead) list.push(game.duel.proxy);
+  return list;
 }
 
 // Grundformel: Angriff × Faktor, ±10 % Zufall, Verteidigung zieht prozentual ab.
@@ -50,7 +53,7 @@ function levelBonus(attackerLevel, targetLevel) {
 function nearestEnemy(from, range) {
   let best = null;
   let bestD = Infinity;
-  for (const m of game.monsters) {
+  for (const m of aliveEnemies()) {
     if (m.dead) continue;
     const d = dist(from, m) - m.r;
     if (d <= range && d < bestD) { best = m; bestD = d; }
@@ -88,6 +91,7 @@ function aim(range) {
 // Spieler (oder Skelett mit opts.ally) trifft ein Monster
 function hitMonster(m, mul, opts = {}) {
   if (m.dead) return 0;
+  if (m.duelProxy) return duelHit(m, mul, opts);
   const p = game.player;
   const s = game.stats;
   let factor = mul * levelPenalty(p.level, m.level);
@@ -218,8 +222,11 @@ function rewardKill(m) {
   const gold = Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : 1));
   p.gold += gold;
   p.kills++;
-  // Belohnung erscheint über der eigenen Figur, nicht zwischen den Schadenszahlen
-  addText(p.x, feetY(p) - 72, '+' + xp + ' EP  +' + gold + ' Gold', 'xp');
+  // Gold erscheint klein beim Monster, die Erfahrung groß über der eigenen Figur (gainXp)
+  if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold + ' Gold', 'gold');
+  // violette Erfahrungsfunken fliegen vom Monster zur Figur
+  const bc0 = bodyCenter(m);
+  particles(bc0.x, bc0.y, { count: m.isStone ? 24 : 7, color: ['#d6b8ff', '#b48aff', '#ffffff'], angle: Math.atan2(p.y - m.y, p.x - m.x), spread: 0.5, speed: [dist(m, p) * 1.4, dist(m, p) * 2.2], life: [0.35, 0.5], size: [2, 3.2], drag: 0.6 });
 
   if (m.isStone) {
     const splinters = randInt(drops.splinters[0], drops.splinters[1]);
@@ -277,6 +284,12 @@ function damagePlayer(amount, attacker) {
       addText(p.x, p.y - 30, 'Abgewehrt', 'info');
     }
   }
+  // Im Duell fällt niemand: wer auf 1 Leben kommt, hat verloren
+  const duelBlow = attacker && attacker.duelProxy;
+  if (duelBlow && dmg > 0 && p.hp - dmg < 1) {
+    dmg = Math.max(0, Math.floor(p.hp - 1));
+    later(0, () => duelLose(null));
+  }
   if (dmg > 0) {
     p.hp -= dmg;
     p.hurtAt = game.time;
@@ -284,7 +297,7 @@ function damagePlayer(amount, attacker) {
     game.hurtFlash = 0.35;
     shakeScreen(2.5);
   }
-  if (s.reflect > 0 && attacker && !attacker.dead) {
+  if (s.reflect > 0 && attacker && !attacker.dead && !duelBlow) {
     damageMonster(attacker, Math.max(1, Math.round(amount * s.reflect)), false, p, false);
   }
   if (p.hp <= 0) playerDie();
@@ -356,7 +369,7 @@ function tryBasicAttack() {
   const c = CLASSES[p.classId];
   const basic = basicAttack(p);
   if (p.attackCd > 0 || p.dead || p.dash) return false;
-  if (inVillage(p.x, p.y)) return false; // im Dorf wird nicht gekämpft
+  if (inVillage(p.x, p.y) && !duelFighting()) return false; // im Dorf wird nicht gekämpft (außer im Duell)
   if (p.riding) toggleRide(false);
   // Angreifen geht immer: mit Gegner in Reichweite auf ihn, sonst ein Schlag oder Schuss
   // in Blickrichtung (später auch für Kämpfe gegen andere Spieler)
@@ -389,7 +402,7 @@ function useSkill(i) {
     return;
   }
   if (p.skillCd[i] > 0) return;
-  if ((sk.kind === 'angriff' || sk.kind === 'fluch') && inVillage(p.x, p.y)) {
+  if ((sk.kind === 'angriff' || sk.kind === 'fluch') && inVillage(p.x, p.y) && !duelFighting()) {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;
   }
@@ -680,7 +693,7 @@ const SKILL_TYPES = {
         if (sk.stun) m.stun = Math.max(m.stun, sk.stun);
         aggro(m, p);
       }
-      if (net.mode === 'client') netClientDamage(m, 0, false, false);
+      if (net.mode === 'client' && !m.duelProxy) netClientDamage(m, 0, false, false);
     }
   }
 };
@@ -748,6 +761,13 @@ function updateProjectiles(dt) {
     if (pr.traveled > pr.range) { pr.done = true; continue; }
 
     if (pr.owner === 'player') {
+      // Duellgegner: Geschosse treffen auch ihn
+      const foe = duelFighting() ? game.duel.proxy : null;
+      if (foe && !pr.hit.has('duel') && Math.hypot(foe.x - pr.x, foe.y - pr.y) < foe.r + pr.radius) {
+        pr.hit.add('duel');
+        hitMonster(foe, pr.mul, { vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
+        if (!pr.pierce) { pr.done = true; continue; }
+      }
       for (const m of game.monsters) {
         if (m.dead || pr.hit.has(m.id)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;

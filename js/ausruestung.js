@@ -839,7 +839,7 @@ function drawItemArt(ctx, item) {
   }
 }
 // Figur im Inventar: die eigene Spielfigur von vorn mit Waffe und Schild, die gerade angelegt sind
-function drawDoll(canvas) {
+function drawDoll(canvas, who = game.player) {
   if (!canvas) return;
   const w = canvas.clientWidth || 76;
   const h = canvas.clientHeight || 100;
@@ -848,7 +848,7 @@ function drawDoll(canvas) {
   canvas.height = Math.round(h * dpr);
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
-  const p = game.player;
+  const p = who;
   const g = ctx.createRadialGradient(w / 2, h * 0.55, 4, w / 2, h * 0.55, h * 0.6);
   g.addColorStop(0, `rgba(${hexRgb(CLASSES[p.classId].trim)},0.35)`);
   g.addColorStop(1, `rgba(${hexRgb(CLASSES[p.classId].trim)},0)`);

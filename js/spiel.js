@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '3.3';
+const GAME_VERSION = '3.4';
 
 const game = {
   world: null,
@@ -130,6 +130,8 @@ function update(dt) {
   updateEffects(dt);
   questTick();
   updateRifts();
+  updateDuel();
+  pcard.update();
   if (game.target && game.target.dead) game.target = null;
 
   game.saveTimer += dt;

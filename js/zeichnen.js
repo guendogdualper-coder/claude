@@ -86,6 +86,7 @@ function render() {
   // Effekte am Boden liegen unter den Figuren
   const ground = (e) => e.ground || e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
+  drawDuelArena(ctx);
   for (const e of list) {
     if (e.worldObj) drawWorldObject(ctx, e);
     else if (e === game.player || e.remote) drawPlayer(ctx, e);

@@ -300,9 +300,20 @@ function playerStats(p) {
   return s;
 }
 
+// Mehrere Erfahrungsgewinne kurz hintereinander (Flächenangriffe) erscheinen als eine Zahl
+function showXpGain() {
+  const p = game.player;
+  if (!p || !(p.xpPop >= 1)) return;
+  addText(p.x, feetY(p) - 74, '+' + Math.round(p.xpPop).toLocaleString('de-DE') + ' EP', 'xpgain');
+  p.xpPop = 0;
+  ui.xpPulse();
+}
+
 function gainXp(amount) {
   const p = game.player;
   if (p.level >= MAX_LEVEL) return;
+  if (!(p.xpPop > 0)) later(0.18, showXpGain);
+  p.xpPop = (p.xpPop || 0) + amount;
   p.xp += amount;
   while (p.level < MAX_LEVEL && p.xp >= xpToNext(p.level)) {
     p.xp -= xpToNext(p.level);

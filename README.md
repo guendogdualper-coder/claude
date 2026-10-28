@@ -62,6 +62,13 @@ Nach einer Änderung an den Spieldateien in `sw.js` die `VERSION` erhöhen, dami
 - **Beidhändig** (Krieger, Weg der Klinge, ab Stufe 30, bei Goro für 20.000 Gold): zweites Schwert in der Nebenhand, 30 % seines Angriffs, +5 % Tempo, Boni zur Hälfte, kein Blocken
 - **Ultimative Attacken** ab Stufe 30, eine je Weg, 3 Minuten Abklingzeit, goldener Knopf und Taste 6: Klingenhimmel (Geisterschwerter fallen vom Himmel), Titanenzorn (Sprung mit Erdriss und Titanenhaut), Schattentanz (Sprünge zu bis zu 8 Gegnern), Todesmal (Hinrichtung eines Ziels), Drachensturm (Meteorregen), Himmelssegen (Heilung, Schutz und Lichtsäulen), Seelenernte (Seelenstrudel, der Gegner zusammenzieht), Knochenkerker (drei Ringe aus Knochenspießen mit Lebensraub). Mitspieler sehen sie auch
 - **Acht Ausrüstungsplätze**: dazu Schultern und Umhang. Jedes Teil ist an der Figur zu sehen: Stiefel, Gürtel mit Schnalle, Schulterpanzer (ab Drache mit Dornen, ab Himmel mit Federn), der Umhang weht beim Laufen und trägt ab Drache ein Wappen
+- **HUD 3.4**: Lebensanzeige ohne dunkles Fenster, kleiner und schlanker; Karte weiter rechts; Kanal und Spielerzahl klein in der Statuszeile; Menüknöpfe als lackierte Münzen mit Messingring und neuen Symbolen
+- **EP 3.4**: EP-Leiste mit Messingrahmen, Zehntel-Markierungen, Glanz und Aufleuchten; bei jedem Kill und jeder Belohnung erscheint „+… EP“ groß über der Figur, violette Funken fliegen vom Monster zur Figur
+- **Statuspunkte 3.4**: leuchtende Punktekugel, vier farbige Karten mit Symbol, Wert, Fortschritt bis 90, aktuellem Nutzen und +, +5, Alle; Plus am Porträt, solange Punkte frei sind
+- **Mitspieler antippen**: Karte oben mit Duell, Freundschaftsanfrage, Gildeneinladung, Handeln und Betrachten; Anfragen erscheinen beim anderen mit Annehmen/Ablehnen
+- **Duell**: 3 Sekunden Countdown, roter Kreis, alle Angriffe und Fertigkeiten treffen den Gegner (60 % Schaden, eigene Verteidigung zählt), bei 1 Leben ist das Duell verloren, niemand stirbt
+- **Handel**: bis zu 8 Gegenstände und Gold je Seite, jede Änderung hebt die Bestätigungen auf, getauscht wird erst bei beidseitiger Bestätigung desselben Angebots
+- **Betrachten**: Ausrüstung mit Figur, Boni und Werten des anderen, Vergleich mit der eigenen
 - **Figur 3.3**: Kraftpose beim Buffen (Arme hoch, kleiner Sprung, aufsteigende Lichtringe), kurzes Zucken und rotes Aufblitzen bei Treffern, Staubwölkchen beim Laufen, Spielfiguren in höherer Auflösung, Mund und Augenbrauen
 - **HUD 3.3**: kleiner Chat unten links (immer sichtbar, Sprechblase zum Schreiben), Beute-Beutel darüber statt neben den Tränken, Gold als Münzstapel im Kopf des Inventars, unter der Karte Uhrzeit, Ping und Akku (wo der Browser ihn verrät)
 - **8 Dungeons**: neu Banditenkeller (ab 10), Totengruft (ab 38), Schlangentempel (ab 44, Map 2) und Titanenschmiede (ab 60, Map 3) mit eigenen Bossen (Banditenfürst Raku, Gruftkönig Morvan, Naga-Königin Sseth, Titanenkönig Kroth)
@@ -114,6 +121,7 @@ Die Skripte werden in dieser Reihenfolge geladen und teilen sich ihre Variablen.
 | `js/fertigkeiten.js` | Symbole der Fertigkeiten, Effekte je Fertigkeit, Auren aktiver Buffs |
 | `js/ultimativ.js` | Ultimative Attacken ab Stufe 30: Ablauf, Symbole und Effekte |
 | `js/gemeinschaft.js` | Freunde und Gilden: Anfragen über den Host, Fenster, Gildenwappen |
+| `js/interaktion.js` | Mitspieler antippen: Spielerkarte, Betrachten, Handel, Duell |
 | `js/umgebung.js` | Boden (vorgezeichnet in Blöcken), Bäume, Felsen, Häuser, Dorfschmuck und Tiefensortierung |
 | `js/zeichnen.js` | Grafik auf dem Canvas und Minikarte |
 | `js/oberflaeche.js` | Startbildschirm, Anzeigen, Fenster |

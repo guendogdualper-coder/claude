@@ -294,6 +294,7 @@ function netOnHostData(conn, d) {
 
 function netDropPlayer(id) {
   net.pings.delete(id);
+  if (game.trade && game.trade.pid === id) endTrade('Dein Handelspartner ist weg. Der Handel wurde abgebrochen.');
   const rp = net.players.get(id);
   net.conns.delete(id);
   if (!rp) return;
@@ -707,6 +708,7 @@ function netStop(silent, reason, keepWorld) {
   net.conns.clear();
   net.pings.clear();
   net.ping = 0;
+  if (game.trade) endTrade('Der Handel wurde abgebrochen.');
   for (const rp of net.players.values()) rp.gone = true;
   net.players.clear();
   net.mons.clear();

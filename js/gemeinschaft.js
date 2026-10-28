@@ -41,6 +41,11 @@ function netSocial(pid, d) {
 function onSocial(pid, d) {
   const p = game.player;
   if (!p || !d) return;
+  // Betrachten, Handel und Duell stehen in interaktion.js
+  if (/^(iq|ir|t[qantkxo]|d[qanhde])$/.test(d.k)) {
+    onInteract(pid, d);
+    return;
+  }
   const rp = net.players.get(pid);
   const name = d.n || (rp && rp.name) || '?';
   if (d.k === 'fr') {

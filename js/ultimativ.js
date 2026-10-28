@@ -75,7 +75,7 @@ function useUltimate() {
     addText(p.x, p.y - 34, `Noch ${formatBuffTime(Math.ceil(p.ultCd))}`, 'info');
     return;
   }
-  if (inVillage(p.x, p.y)) {
+  if (inVillage(p.x, p.y) && !duelFighting()) {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;
   }

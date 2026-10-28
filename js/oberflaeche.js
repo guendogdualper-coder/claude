@@ -15,6 +15,7 @@ const ui = {
     $('btnHorse').addEventListener('click', () => toggleRide());
     $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
     $('btnSocial').addEventListener('click', () => this.toggle('panelSocial'));
+    $('btnStatPlus').addEventListener('click', () => this.toggle('panelChar'));
     $('btnChat').addEventListener('click', () => this.openChat());
     // Chat-Knopf in der Ecke: im Kanal schreiben, allein die Server-Auswahl öffnen
     $('chatOpen').addEventListener('click', () => {
@@ -410,9 +411,21 @@ const ui = {
   updateNetBadge() {
     const on = netOnline();
     $('btnChat').hidden = !on;
-    $('netBadge').hidden = !on;
-    if (on) $('netBadge').textContent = `${serverName(net.server)} K${net.channel} · ${net.players.size + 1}/${NET_MAX}`;
+    // Kanal und Spielerzahl klein in der Statuszeile unter der Karte
+    $('netBadge').hidden = true;
+    $('stNet').hidden = !on;
+    if (on) $('stNet').textContent = `K${net.channel} · ${net.players.size + 1}/${NET_MAX}`;
+    $('stNet').title = on ? `${serverName(net.server)} Kanal ${net.channel}` : '';
     $('btnNet').classList.toggle('on', on);
+  },
+
+  // EP-Leiste leuchtet kurz auf, wenn Erfahrung dazukommt
+  xpPulse() {
+    const bar = document.querySelector('.xp');
+    if (!bar) return;
+    bar.classList.remove('gain');
+    void bar.offsetWidth;
+    bar.classList.add('gain');
   },
 
   openChat() {
@@ -517,6 +530,7 @@ const ui = {
     this.set('lvl', p.level, (v) => { $('hudLevel').textContent = v; });
     // Roter Punkt am Charakter-Knopf, solange Punkte zu verteilen sind
     this.set('points', (p.statPoints || 0) + p.skillPoints > 0, (v) => { $('btnChar').classList.toggle('has-points', v); });
+    this.set('statPts', (p.statPoints || 0) > 0, (v) => { $('btnStatPlus').hidden = !v; });
     const need = xpToNext(p.level);
     this.set('xp', p.xp + '/' + need, () => {
       const pct = p.level >= MAX_LEVEL ? 100 : (p.xp / need) * 100;
@@ -766,7 +780,8 @@ const ui = {
   // Alle Fenster schließen (auch neu hinzugekommene); nur das Fenster nach dem Tod bleibt,
   // bis man wiederbelebt wird
   closePanels() {
-    document.querySelectorAll('.panel').forEach((el) => { if (el.id !== 'panelDeath') el.hidden = true; });
+    // Der Handel bleibt offen, bis er abgeschlossen oder abgebrochen ist
+    document.querySelectorAll('.panel').forEach((el) => { if (el.id !== 'panelDeath' && !(el.id === 'panelTrade' && game.trade)) el.hidden = true; });
   },
 
   anyPanelOpen() {
@@ -782,6 +797,7 @@ const ui = {
     const pct = (v) => Math.round(v * 100) + ' %';
     $('charBody').innerHTML =
       `<p><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</p>` +
+      this.attrHtml(p) +
       `<dl class="stats">` +
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
       row('Angriff', s.atk) + row('Verteidigung', s.def) +
@@ -792,16 +808,6 @@ const ui = {
       row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
       row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
       `</dl>` +
-      `<h3>Statuswerte</h3>` +
-      `<p>Freie Statuspunkte: <span class="points">${p.statPoints}</span> <small class="hint-text">(${STAT_POINTS_PER_LEVEL} pro Stufe)</small></p>` +
-      `<div class="attr-list">` + ATTRS.map((a) => {
-        const v = p.attrs[a.id] || 0;
-        const can = p.statPoints > 0 && v < MAX_ATTR;
-        return `<div class="attr-row attr-${a.id}"><span class="attr-badge">${a.short}</span>` +
-          `<span class="attr-info"><strong>${a.name} <b>${v}</b></strong><small>${a.text}</small></span>` +
-          `<span class="attr-btns"><button type="button" class="mini-btn" data-attr="${a.id}" data-n="1" ${can ? '' : 'disabled'}>+1</button>` +
-          `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="5" ${can && p.statPoints >= 5 ? '' : 'disabled'}>+5</button></span></div>`;
-      }).join('') + `</div>` +
       `<h3>Fertigkeiten</h3>` +
       `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Bücher für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
       `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Büchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
@@ -810,8 +816,48 @@ const ui = {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
     });
     $('charBody').querySelectorAll('[data-attr]').forEach((b) => {
-      b.addEventListener('click', () => raiseAttr(b.dataset.attr, Number(b.dataset.n)));
+      b.addEventListener('click', () => {
+        this.lastAttr = b.dataset.attr;
+        raiseAttr(b.dataset.attr, b.dataset.n === 'max' ? MAX_ATTR : Number(b.dataset.n));
+      });
     });
+    this.lastAttr = null;
+  },
+
+  // Statuspunkte: leuchtende Kugel mit den freien Punkten, vier Karten mit Symbol, Wert, Fortschritt
+  // bis zum Höchstwert, was der Wert gerade bringt und Knöpfe für +1, +5 und alle Punkte
+  attrHtml(p) {
+    const fmt = (v, d = 0) => v.toFixed(d).replace('.', ',');
+    const effects = {
+      str: (a) => [`+${a} Angriff`],
+      vit: (a) => [`+${a * 6} Leben`, `+${fmt(a * 0.3, 1)} Rüstung`],
+      int: (a) => [`+${a * 5} Mana`, `+${a} % Fertigkeitsschaden`],
+      dex: (a) => [`+${fmt(a * 0.3, 1)} % Kritisch`, `+${fmt(a * 0.25, 2)} % Ausweichen`, `+${fmt(a * 0.5, 1)} % Tempo`]
+    };
+    const icons = {
+      str: '<path d="M5 19l9-9"/><path class="f" d="M13 5l6 0 0 6-3.2-.6L9 17.2 6.8 15z"/><path d="M4 16l4 4"/>',
+      vit: '<path class="f" d="M12 20s-7-4.3-8.9-8.7C1.7 8 3.6 4.5 7 4.5c1.9 0 3.3 1 5 2.8 1.7-1.8 3.1-2.8 5-2.8 3.4 0 5.3 3.5 3.9 6.8C19 15.7 12 20 12 20z"/><path d="M7 11h3l1.5-2.5L13 13l1.5-2H17"/>',
+      int: '<path class="f" d="M12 2.5l5 6.5-5 12.5L7 9z"/><path d="M7 9h10M12 2.5V21.5"/>',
+      dex: '<path class="f" d="M19.5 3.5c-6.5.5-11.5 5.5-13 13l2 2c7.5-1.5 12.5-6.5 13-13z"/><path d="M4 20l4.5-4.5M10 10l4 4"/>'
+    };
+    const pts = p.statPoints || 0;
+    return `<section class="attr-panel${pts ? ' has-points' : ''}">` +
+      `<div class="attr-orb"><b>${pts}</b><small>Statuspunkte</small></div>` +
+      `<div class="attr-cards">` + ATTRS.map((a) => {
+        const v = p.attrs[a.id] || 0;
+        const can = pts > 0 && v < MAX_ATTR;
+        const now = effects[a.id](v).join(' · ');
+        const next = effects[a.id](1)[0];
+        return `<div class="attr-card attr-${a.id}${this.lastAttr === a.id ? ' pop' : ''}">` +
+          `<svg class="attr-ico" viewBox="0 0 24 24" aria-hidden="true">${icons[a.id]}</svg>` +
+          `<div class="attr-main"><div class="attr-top"><strong>${a.name}</strong><b class="attr-val">${v}</b></div>` +
+          `<div class="attr-prog"><i style="width:${(v / MAX_ATTR * 100).toFixed(1)}%"></i></div>` +
+          `<small>${v ? now : a.text}</small>` +
+          (can ? `<small class="attr-next">Nächster Punkt: ${next}</small>` : '') + `</div>` +
+          `<div class="attr-btns"><button type="button" class="attr-plus" data-attr="${a.id}" data-n="1" ${can ? '' : 'disabled'} aria-label="${a.name} +1">+</button>` +
+          `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="5" ${can && pts >= 5 ? '' : 'disabled'}>+5</button>` +
+          `<button type="button" class="mini-btn" data-attr="${a.id}" data-n="max" ${can && pts > 1 ? '' : 'disabled'}>Alle</button></div></div>`;
+      }).join('') + `</div></section>`;
   },
 
   openNpc(npc) {
