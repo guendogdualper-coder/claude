@@ -1414,3 +1414,20 @@ Item tooltip of a fantasy MMORPG on dark parchment with a gold frame: "Drachenkl
 ```
 Stylized 3D chibi MMORPG combat moment: a hero's sword strike lands on a grey wolf whose health bar drops from a sliver to empty, the wolf instantly bursts into a puff of dust and pale sparks with a golden "+EP" number rising, a second player in the background attacking the next wolf. Crisp, snappy feeling, soft toon shading, thin dark outlines.
 ```
+
+## Helle Riss-Dungeons und gemeinsame Risse (Version 6.1)
+
+### Riss-Dungeon (heller)
+```
+Inside a dungeon reached through a dimensional rift in a stylized 3D toon fantasy MMORPG: a wide cave hall with lavender-grey rock walls, softly but clearly lit – bright cool-white light from above, glowing violet crystals and warm braziers along the walls so the floor, monsters and loot are easy to read; light purple mist only in the far distance; a glowing violet rift portal behind the heroes; undead grave guardians with name tags, a soul stone egg on a rune circle. Readable, inviting, not gloomy, thin dark outlines, soft toon shading.
+```
+
+### Riss für die Gruppe
+```
+Mobile MMORPG minimap and world view: a flickering violet dungeon rift in a meadow, marked on the round minimap with a pulsing purple dot for all three party members (green dots), a small chat line "Bei Kaito hat sich ein Riss in die Totengruft geöffnet". The party walks toward the rift together. Stylized 3D toon look.
+```
+
+### Update-Hinweis
+```
+Small dark game notification bar with a golden rim at the top center of a mobile fantasy MMORPG: text "Der Host spielt schon Version 6.1. Bitte neu laden." and a glowing golden button "Jetzt neu laden". Clean, readable.
+```

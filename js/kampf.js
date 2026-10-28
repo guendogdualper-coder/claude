@@ -4,7 +4,7 @@
 // Schaden bis Stufe 17 +8 % je Stufe, in den Rängen +5 % je Stufe, dazu ein Sprung bei jedem neuen Rang.
 // Buffs, Heilung, Schilde und Flüche: +3 % Wirkung je Stufe (in den Rängen +1,5 %), dazu ein Rangsprung.
 // Die Dauer wächst mit: +2 % je Stufe (in den Rängen +1 %), dazu ein Rangsprung.
-const RANK_JUMP = [0.1, 0.25, 0.45, 0.75];
+const RANK_JUMP = [0.05, 0.12, 0.2, 0.3];
 const BUFF_JUMP = [0.08, 0.16, 0.28, 0.45];
 const DUR_JUMP = [0.05, 0.1, 0.15, 0.25];
 function levelCurve(lvl, base, ranked, jumps) {
@@ -18,6 +18,9 @@ const skillDuration = (sk, lvl) => Math.round(sk.duration * levelCurve(lvl, 0.02
 
 // Tarnung endet mit dem nächsten Angriff. Ein Schlag, der beim Tarnen schon unterwegs war, zählt noch nicht.
 const STEALTH_GRACE = 0.6;
+const CRIT_CAP = 0.6;
+// Normale Angriffe treffen seit Version 6.1 etwas härter, damit sie neben den zäheren Monstern nicht zäh werden
+const BASIC_MUL = 1.4;
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -99,7 +102,8 @@ function hitMonster(m, mul, opts = {}) {
   const p = game.player;
   const s = game.stats;
   let factor = mul * levelPenalty(p.level, m.level);
-  let crit = opts.dot ? 0 : s.crit + (opts.critBonus || 0);
+  // Kritische Chance samt Fertigkeits-Bonus höchstens 60 % (nur der Angriff aus der Tarnung trifft sicher kritisch)
+  let crit = opts.dot ? 0 : Math.min(CRIT_CAP, s.crit + (opts.critBonus || 0));
   if (!opts.ally && !opts.dot && !(game.time - (p.stealthAt || -99) < STEALTH_GRACE)) {
     if (p.nextHitMul > 1) {
       factor *= p.nextHitMul;
@@ -112,7 +116,7 @@ function hitMonster(m, mul, opts = {}) {
   if (m.vulnerable && m.vulnerable.until > game.time) factor *= m.vulnerable.mul;
   if (!opts.ally) {
     factor *= 1 + (s.monsterDmg || 0);
-    if (opts.basic) factor *= 1 + (s.basicDmg || 0);
+    if (opts.basic) factor *= BASIC_MUL * (1 + (s.basicDmg || 0));
   }
   const atk = opts.atk != null ? opts.atk : s.atk;
   const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit, p.level);

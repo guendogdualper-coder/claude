@@ -111,7 +111,7 @@ async function netJoinChannel(srv, ch, attempt = 0) {
     const conn = peer.connect(channelId(srv, ch), { reliable: true });
     net.hostConn = conn;
     timer = setTimeout(claim, 7000);
-    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState() }));
+    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState(), v: GAME_VERSION }));
     conn.on('data', (d) => {
       if (d && d.t === 'welcome') { done = true; clearTimeout(timer); }
       netOnClientData(d);
@@ -267,7 +267,8 @@ function netOnHostData(conn, d) {
   if (d.t === 'hello') {
     const rp = netRemote(id);
     netApplyState(rp, d.s);
-    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList() });
+    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(), v: GAME_VERSION });
+    netVersionCheck(d.v, rp.name, true);
     ui.chat('', `${rp.name} spielt jetzt mit.`);
     netBroadcast({ t: 'chat', n: '', x: `${rp.name} spielt jetzt mit.` }, id);
     ui.renderNet();
@@ -330,7 +331,7 @@ function netHostDamage(rp, d) {
   m.lastAttacker = rp;
   // Hält der Mitspieler den Treffer für tödlich und fehlt nur wenig (Zeitversatz, kurzes Erholen),
   // stirbt das Monster trotzdem – es bleibt nie mit ein paar Lebenspunkten stehen
-  if (d.k && d.a > 0 && m.hp - d.a < m.maxHp * 0.08) {
+  if (d.k && d.a > 0 && m.hp - d.a < m.maxHp * (m.isStone ? 0.15 : 0.08)) {
     damageMonster(m, Math.max(d.a, Math.ceil(m.hp)), !!d.c, rp, false);
     return;
   }
@@ -371,6 +372,7 @@ function netOnClientData(d) {
     case 'welcome': {
       net.mode = 'client';
       net.hostName = d.host;
+      netVersionCheck(d.v, d.host, false);
       net.lastSnapAt = performance.now();
       game.monsters = d.mons.map(netBuildMonster);
       net.mons = new Map(game.monsters.map((m) => [m.id, m]));
@@ -558,6 +560,22 @@ function netClientDamage(m, amount, crit, isDot) {
     m.poison = m.burn = null;
     if (game.target === m) game.target = null;
     monsterDeathFx(m);
+  }
+}
+
+// Unterschiedliche Spielversionen im Kanal: Hinweis im Chat und Knopf zum Neuladen für den, der veraltet ist.
+// Der Host rechnet die Monster – mit einer alten Host-Version sind sie für alle zu schwach.
+function netVersionCheck(other, name, iAmHost) {
+  const v = other || '?';
+  if (v === GAME_VERSION) return;
+  if (v === '?' || versionNewer(GAME_VERSION, v)) {
+    ui.chat('', iAmHost
+      ? `${name} spielt eine alte Version (${v}). ${name} sollte die App schließen und neu öffnen.`
+      : `Der Host ${name} spielt eine alte Version (${v}) – die Monster sind dann für alle schwächer. ${name} sollte die App neu laden.`, 'sys', 'warn');
+  } else {
+    showUpdateBar(v, iAmHost
+      ? `${name} hat schon Version ${v}. Bitte neu laden – als Host rechnest du die Monster für alle.`
+      : `Der Host spielt schon Version ${v}. Bitte neu laden.`);
   }
 }
 

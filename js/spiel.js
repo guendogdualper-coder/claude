@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '6.0';
+const GAME_VERSION = '6.1';
 
 const game = {
   world: null,
@@ -199,6 +199,42 @@ function boot() {
   });
   requestAnimationFrame(frame);
 }
+
+// Neue Version online? Beim Start und alle 5 Minuten nachsehen; dann oben ein Knopf zum Neuladen.
+// Wichtig im Kanal: Monster rechnet der Host – spielt er eine alte Version, gelten für alle die alten Werte.
+function versionNewer(a, b) {
+  const pa = String(a).split('.').map(Number);
+  const pb = String(b).split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+  }
+  return false;
+}
+function showUpdateBar(v, why) {
+  let bar = document.getElementById('updateBar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'updateBar';
+    bar.className = 'update-bar';
+    document.body.append(bar);
+  }
+  bar.innerHTML = `<span>${why || `Neue Version ${v} ist da.`}</span><button type="button" class="btn btn-primary">Jetzt neu laden</button>`;
+  bar.querySelector('button').addEventListener('click', () => {
+    if (game.running) saveGame();
+    location.reload();
+  });
+}
+function checkForUpdate() {
+  fetch('js/spiel.js?v=' + Date.now(), { cache: 'no-store' })
+    .then((r) => r.text())
+    .then((t) => {
+      const m = t.match(/GAME_VERSION = '([\d.]+)'/);
+      if (m && versionNewer(m[1], GAME_VERSION)) showUpdateBar(m[1]);
+    })
+    .catch(() => {});
+}
+setTimeout(checkForUpdate, 8000);
+setInterval(checkForUpdate, 5 * 60 * 1000);
 
 // Als App installiert: Dateien für den Offline-Start speichern
 function registerApp() {

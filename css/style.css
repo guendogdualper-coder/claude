@@ -2523,3 +2523,7 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 #hud.touch .pt-name { font-size: 11px; }
 #hud.touch .pt-lvl { font-size: 10px; }
 #hud.touch .pt-hp { height: 5px; }
+
+/* --- Version 6.1: Hinweis auf eine neue Version ----------------------------------------- */
+.update-bar { position: fixed; z-index: 2000; top: max(8px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px); padding: 8px 10px 8px 14px; border-radius: 12px; background: rgba(20, 14, 9, 0.96); color: #fff3d8; font-size: 14px; box-shadow: 0 0 0 1px #120c08, 0 0 0 2.5px #ffd34d, 0 8px 18px rgba(0, 0, 0, 0.6); }
+.update-bar .btn { padding: 6px 12px; font-size: 13px; white-space: nowrap; }

@@ -641,7 +641,8 @@ const MOOD3 = {
   klammwacht: { sky: '#98a4b8', sun: '#e8ecff', sunI: 0.82, hemi: '#d8e0f0', ground: '#4a4a50', hemiI: 0.6 },
   donnerklamm: { sky: '#7a88a8', sun: '#d8e4ff', sunI: 0.75, hemi: '#c8d4f0', ground: '#3a3e4a', hemiI: 0.56, near: 24, far: 56 },
   titanenkamm: { sky: '#4a3a40', sun: '#ffc090', sunI: 0.72, hemi: '#e8c0a8', ground: '#2a1a18', hemiI: 0.5, near: 22, far: 54 },
-  dungeon: { sky: '#120e10', sun: '#c8b8d8', sunI: 0.4, hemi: '#8a80a0', ground: '#2a2028', hemiI: 0.42, near: 14, far: 34 }
+  // Dungeons und Riss-Dungeons: seit Version 6.1 deutlich heller, damit man Monster und Boden gut erkennt
+  dungeon: { sky: '#2a2232', sun: '#f0e4ff', sunI: 0.9, hemi: '#d8d0f0', ground: '#5a4a5a', hemiI: 0.78, near: 20, far: 46 }
 };
 const moodState = { sky: new THREE.Color('#a8d4ec'), sun: new THREE.Color('#fff0d4'), hemi: new THREE.Color('#e4f2ff'), ground: new THREE.Color('#6a7a48'), sunI: 0.95, hemiI: 0.62, near: 30, far: 64 };
 const _mc = new THREE.Color();

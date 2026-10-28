@@ -101,12 +101,12 @@ function populateDungeons(groupId) {
         groupId++;
       });
     }
-    // Seelensteine in Raum 2 und 4, an fester Stelle, kommen nach 25–40 s wieder
+    // Seelensteine in Raum 2 und 4, an fester Stelle, kommen erst nach 5–8 Minuten wieder
     dg.def.stones.forEach((level, k) => {
       const r = dg.rooms[k ? 3 : 1];
       const stone = createStone(zone, level, 0, 1, { x: (r.x + r.w * 0.5) * TILE, y: (r.y + 2.2) * TILE });
       stone.fixedSpot = true;
-      stone.stoneRespawn = [25, 40];
+      stone.stoneRespawn = [300, 480];
       game.monsters.push(stone);
     });
     const rb = dg.rooms[dg.rooms.length - 1];

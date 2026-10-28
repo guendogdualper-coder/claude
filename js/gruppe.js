@@ -115,8 +115,17 @@ function partyDungeonCall(k) {
   if (n) ui.log(`Deine Gruppe ist eingeladen, mit in die ${DUNGEONS[k].name} zu kommen.`, 'info');
 }
 
+// Öffnet sich bei einem Mitglied ein Dungeon-Riss, sehen ihn alle in der Gruppe auf Karte und Boden
+function partyShareRift(x, y, k, life) {
+  if (!game.party || !netOnline()) return;
+  for (const name of game.party.members) {
+    const m = partyMember(name);
+    if (m && !m.me) netSocial(m.pid, { k: 'pr', n: partyMe(), x: Math.round(x), y: Math.round(y), dg: k, life });
+  }
+}
+
 // Nachrichten: pi Einladung, pa angenommen, pn abgelehnt, ps Stand vom Anführer, pl Mitglied geht,
-// pd Gruppenmitglied geht in einen Dungeon
+// pd Gruppenmitglied geht in einen Dungeon, pr Riss bei einem Mitglied
 function onParty(pid, d) {
   const p = game.player;
   const rp = net.players.get(pid);
@@ -167,6 +176,15 @@ function onParty(pid, d) {
         if (p.dead) return;
         enterDungeon(k, true);
       }, null);
+      break;
+    }
+    case 'pr': {
+      const k = Number(d.dg);
+      if (!game.party || !game.party.members.includes(name) || !DUNGEONS[k] || !isFinite(d.x) || !isFinite(d.y)) break;
+      if (game.world.npcs.some((n) => n.id === 'riss' && Math.hypot(n.x - d.x, n.y - d.y) < 40)) break;
+      const life = Math.max(10, Math.min(RIFT.life, Number(d.life) || RIFT.life));
+      game.world.npcs.push({ id: 'riss', name: 'Dungeon-Riss', x: d.x, y: d.y, r: 11, dungeon: k, until: game.time + life, born: game.time, shared: true });
+      ui.log(`Bei ${name} hat sich ein Riss in die ${DUNGEONS[k].name} geöffnet – er ist auf deiner Karte markiert.`, 'level');
       break;
     }
     case 'pl':

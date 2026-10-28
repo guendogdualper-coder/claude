@@ -162,6 +162,7 @@ function updateRifts() {
     const y = p.y + Math.sin(a) * d;
     if (!canStand(x, y, 16, false) || inVillage(x, y) || zoneAt(x, y).dungeon || mapOfTile(x / TILE, y / TILE) !== here) continue;
     w.npcs.push({ id: 'riss', name: 'Dungeon-Riss', x, y, r: 11, dungeon: k, until: game.time + RIFT.life, born: game.time });
+    partyShareRift(x, y, k, RIFT.life);
     ui.banner('Ein Dungeon-Riss öffnet sich!', `${DUNGEONS[k].name} · 5 Minuten offen`);
     ui.log(`Ganz in deiner Nähe flackert ein Riss in die ${DUNGEONS[k].name}. Er ist auf der Karte markiert.`, 'level');
     addEffect({ type: 'ring', x, y: y + 9, r: 70, dur: 0.8, color: DUNGEONS[k].portal, width: 10, grow: true });
@@ -170,10 +171,11 @@ function updateRifts() {
   }
 }
 
+// Allein schließt sich der Riss hinter dir; in einer Gruppe bleibt er offen, bis seine Zeit um ist
 function enterRift(n) {
   const err = enterDungeon(n.dungeon);
   if (err) return err;
-  game.world.npcs = game.world.npcs.filter((x) => x !== n);
+  if (!(game.party && game.party.members.length > 1)) game.world.npcs = game.world.npcs.filter((x) => x !== n);
   return null;
 }
 
@@ -580,7 +582,7 @@ Object.assign(ui, {
     const low = p.level < dg.def.minLevel;
     const rift = npc.id === 'riss';
     const left = rift ? Math.max(0, Math.ceil(npc.until - game.time)) : 0;
-    body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name} und schließt sich, sobald du hindurchgehst.</p>` : '') +
+    body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name}. Allein schließt er sich, sobald du hindurchgehst; in einer Gruppe bleibt er offen, bis seine Zeit um ist.</p>` : '') +
       `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
       `<p>Drei Räume voller Monster: ${mobs}. Am Ende ${boss.name} (Stufe ${boss.level}), der ${bossInfo}.</p>` +
       '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +3 bis +6, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
