@@ -107,9 +107,9 @@ const CLASSES = {
             text: 'Fünf blitzschnelle Schnitte vor dir in einer Sekunde.'
           },
           {
-            id: 'giftpfeil', name: 'Giftpfeil', short: 'GP', kind: 'angriff', unlock: 3, mp: 10, cooldown: 4,
-            type: 'projectile', range: 360, speed: 560, dmg: 1.3, color: '#8fd16a', style: 'dart', poison: { dps: 0.35, duration: 5 },
-            text: 'Fernangriff. Vergiftet das Ziel 5 Sekunden lang.'
+            id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,
+            type: 'buff', duration: 30, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
+            text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch.'
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
@@ -150,7 +150,7 @@ const CLASSES = {
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
             type: 'buff', duration: 120, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
-            text: 'Buff: unsichtbar. Monster verlieren dich aus den Augen, der erste Treffer macht dreifachen Schaden. Nach dem ersten Angriff bleibst du noch 8 s (mit der Stufe länger) unsichtbar.'
+            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch.'
           },
           {
             id: 'schattenmantel', name: 'Schattenmantel', short: 'SM', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,

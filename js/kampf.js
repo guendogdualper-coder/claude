@@ -15,14 +15,8 @@ const dmgScale = (lvl) => levelCurve(lvl, 0.08, 0.05, RANK_JUMP);
 const buffScale = (lvl) => levelCurve(lvl, 0.03, 0.015, BUFF_JUMP);
 const skillDuration = (sk, lvl) => Math.round(sk.duration * levelCurve(lvl, 0.02, 0.01, DUR_JUMP));
 
-// Tarnung: Wer aus dem Schatten angreift, bleibt danach noch eine Weile unsichtbar (mit der Stufe länger)
-const STEALTH_FIGHT_TIME = 8;
-function breakStealth(p) {
-  const b = p.buffs.find((x) => x.effects.invisible);
-  if (!b || b.broken) return;
-  b.broken = true;
-  b.until = Math.min(b.until, game.time + Math.round(STEALTH_FIGHT_TIME * levelCurve(b.lvl, 0.02, 0.01, DUR_JUMP)));
-}
+// Tarnung endet mit dem nächsten Angriff. Ein Schlag, der beim Tarnen schon unterwegs war, zählt noch nicht.
+const STEALTH_GRACE = 0.6;
 
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
@@ -105,15 +99,15 @@ function hitMonster(m, mul, opts = {}) {
   const s = game.stats;
   let factor = mul * levelPenalty(p.level, m.level);
   let crit = opts.dot ? 0 : s.crit + (opts.critBonus || 0);
-  if (!opts.ally && !opts.dot) {
+  if (!opts.ally && !opts.dot && !(game.time - (p.stealthAt || -99) < STEALTH_GRACE)) {
     if (p.nextHitMul > 1) {
       factor *= p.nextHitMul;
       p.nextHitMul = 1;
       crit = 1;
     }
-    if (s.invisible) breakStealth(p);
-    p.lastCombat = game.time;
+    if (s.invisible) p.buffs = p.buffs.filter((b) => !b.effects.invisible);
   }
+  if (!opts.ally && !opts.dot) p.lastCombat = game.time;
   if (m.vulnerable && m.vulnerable.until > game.time) factor *= m.vulnerable.mul;
   if (!opts.ally) {
     factor *= 1 + (s.monsterDmg || 0);
@@ -643,6 +637,7 @@ const SKILL_TYPES = {
       particles(p.x, feetY(p) - 20, { count: 16, color: '#ddd5bb', speed: [60, 140], life: [0.4, 0.7], size: [2, 4], shape: 'square', glow: false });
     }
     if (sk.effects && sk.effects.invisible) {
+      p.stealthAt = game.time;
       for (const m of game.monsters) {
         if (m.target === p) { m.state = 'return'; m.target = null; }
       }

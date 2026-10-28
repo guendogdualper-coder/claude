@@ -441,6 +441,8 @@ function loadSave() {
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (!data || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
+    // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
+    for (const it of data.inventory || []) if (it && it.book === 'giftpfeil') it.book = 'tarnung';
     return data;
   } catch {
     return null;

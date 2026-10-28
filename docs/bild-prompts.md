@@ -1332,3 +1332,12 @@ Stylized 3D chibi ninja in a dark wrapped outfit with a long scarf, half-transpa
 ```
 Mobile fantasy MMORPG death dialog in the center of the screen, dark brown wooden panel with a thin gold rim, title "Du wurdest besiegt" in red-orange carved fantasy letters, a short line of text, two large buttons side by side: left a grey stone button "Hier neu starten" with a small line "−1.855 EP · halbes Leben", right a golden button "In der Stadt neu starten" with "kein EP-Verlust". Behind it the village plaza, slightly dimmed.
 ```
+
+## Tarnung im Weg des Dolches (Version 5.2)
+
+```
+Skill icon for a mobile fantasy MMORPG, round slot with a purple rim: a hooded ninja silhouette dissolving into dark grey-purple smoke, one glowing white eye slit, a small dagger glint at the edge; stylized, soft toon shading, thin dark outline, readable at small size.
+```
+```
+Stylized 3D chibi ninja with twin daggers fading into transparent shadow smoke, creeping behind a grey wolf in a sunny meadow, then reappearing in a burst of purple sparks with a huge critical stab (big golden damage number with "!"); thin dark outline, soft toon shading.
+```

@@ -363,7 +363,7 @@ function addBookItem(p, id, n = 1, force = false) {
 // n Bücher zu zufälligen Fertigkeiten; pool schränkt die Auswahl ein (z. B. eigene Fertigkeiten)
 function addBooks(n, from, pool) {
   const p = game.player;
-  const ids = pool || allSkills().map((e) => e.sk.id);
+  const ids = pool || [...new Set(allSkills().map((e) => e.sk.id))];
   const got = [];
   for (let k = 0; k < n; k++) {
     const id = ids[Math.floor(Math.random() * ids.length)];

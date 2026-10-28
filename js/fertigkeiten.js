@@ -100,11 +100,6 @@ const SKILL_ICONS = {
     iconLine(ctx, '#6a4aa8', 3, [[-8, -6], [8, -6]]);
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(9, 8); ctx.quadraticCurveTo(14, 14, 9, 17); ctx.quadraticCurveTo(4, 14, 9, 8); ctx.closePath(); }, '#ff8a9a', '#a0182a', 2);
   },
-  giftpfeil(ctx) {
-    iconLine(ctx, '#d8c7a0', 3, [[-15, 15], [10, -10]]);
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(16, -16); ctx.lineTo(5, -13); ctx.lineTo(13, -5); ctx.closePath(); }, '#e6eef8', '#8a96a8', 2);
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, 0); ctx.quadraticCurveTo(2, 9, -6, 14); ctx.quadraticCurveTo(-14, 9, -6, 0); ctx.closePath(); }, '#c6f08a', '#3a8a2a', 2);
-  },
   klingensturm(ctx) {
     for (let k = 0; k < 4; k++) {
       ctx.save();
@@ -517,11 +512,6 @@ const SKILL_FX = {
     hit(m) {
       const c = bodyCenter(m);
       particles(c.x, c.y, { count: 14, color: ['#b48cff', '#ffffff', '#ff6a8a'], speed: [100, 260], life: [0.2, 0.45], size: [1.5, 3], shape: 'spark', drag: 5 });
-    }
-  },
-  giftpfeil: {
-    hit(m) {
-      addEffect({ type: 'decal', kind: 'splash', x: m.x, y: feetY(m), r: 22, dur: 2.5, color: '#4a8a2a' });
     }
   },
   klingensturm: {
