@@ -1731,7 +1731,7 @@ const gear = {
     document.getElementById('btnForge').disabled = true;
     const anvil = document.getElementById('anvil');
     anvil.classList.add('forging');
-    const smith = game.world.npcs.find((n) => n.id === 'schmied');
+    const smith = game.world.npcs.filter((n) => n.id === 'schmied').sort((a, b) => dist(a, game.player) - dist(b, game.player))[0];
     particles(smith.x + 12, feetY(smith) - 14, { count: 24, color: ['#ffd34d', '#ff9a3a', '#ffffff'], speed: [80, 200], life: [0.3, 0.6], size: [1.5, 2.5], shape: 'spark', drag: 4, gravity: 300 });
     const kind = res.result === 'success' ? 'ok' : res.result === 'break' ? 'break' : useScroll && step.fail !== 'none' ? 'saved' : 'fail';
     forgeScene(iconBefore, kind, { name, from, to: res.result === 'success' ? res.item.plus : from, color: itemColor(res.item) }, () => {

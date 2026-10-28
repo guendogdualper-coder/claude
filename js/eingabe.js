@@ -1,8 +1,21 @@
 // Eingabe: Tastatur, Maus und Touch-Steuerung.
 
+function tapAttack() {
+  input.attackAt = game.time;
+  input.attackWalk = false;
+}
+function clearAttack() {
+  input.attackAt = -99;
+  input.attackWalk = false;
+}
+
 const input = {
   keys: new Set(),
+  // Angriff nur per Antippen: jeder Tipp (oder Tastendruck) ist genau ein Schlag. attackAt: Zeit des
+  // letzten Tipps; er wartet kurz, falls der Schlag noch abklingt, oder bis die Figur beim Ziel ist.
   attack: false,
+  attackAt: -99,
+  attackWalk: false,
   stick: { x: 0, y: 0 },
   touchUi: window.matchMedia('(pointer: coarse)').matches
 };
@@ -36,7 +49,7 @@ function setupInput() {
     }
     switch (e.code) {
       case 'Space':
-        input.attack = true;
+        if (!e.repeat) tapAttack();
         e.preventDefault();
         break;
       case 'Digit6':
@@ -70,13 +83,12 @@ function setupInput() {
 
   window.addEventListener('keyup', (e) => {
     input.keys.delete(e.code);
-    if (e.code === 'Space') input.attack = false;
   });
 
   // Beim Wechsel in einen anderen Tab keine Tasten "festhalten"
   window.addEventListener('blur', () => {
     input.keys.clear();
-    input.attack = false;
+    clearAttack();
   });
 
   // Mausklick oder Tippen auf ein Monster wählt es als Ziel
@@ -183,11 +195,10 @@ function setupTouch() {
   const atk = $('btnAttack');
   atk.addEventListener('pointerdown', (e) => {
     atk.setPointerCapture(e.pointerId);
-    input.attack = true;
+    tapAttack();
     atk.classList.add('active');
   });
   const stopAttack = () => {
-    input.attack = false;
     atk.classList.remove('active');
   };
   atk.addEventListener('pointerup', stopAttack);

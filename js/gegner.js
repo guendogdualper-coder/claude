@@ -46,6 +46,9 @@ function stoneWaveMarks() {
 
 // Weniger Monster in der Welt (weniger Gedränge, flüssigeres Bild): Anteil der Gruppen aus den Zonendaten
 const MOB_DENSITY = 0.6;
+// Die Maps sind seit Version 4.5 deutlich größer: mehr Gruppen und Steine, damit sie nicht leer wirken
+const WORLD_SCALE_MOBS = 2;
+const WORLD_SCALE_STONES = 1.6;
 
 // Füllt alle Jagdzonen mit Monstergruppen und Seelensteinen
 function populateWorld() {
@@ -54,7 +57,7 @@ function populateWorld() {
   for (const zone of ZONES) {
     if (!zone.groups) continue;
     for (const [typeId, count, from, to] of zone.groups) {
-      for (let g = Math.max(2, Math.round(count * MOB_DENSITY)); g > 0; g--) {
+      for (let g = Math.max(2, Math.round(count * MOB_DENSITY * WORLD_SCALE_MOBS)); g > 0; g--) {
         const center = randomSpotInZone(zone, from, to);
         if (!center) continue;
         const size = randInt(Math.max(2, zone.groupSize[0] - 1), Math.max(2, zone.groupSize[1] - 1));
@@ -66,7 +69,7 @@ function populateWorld() {
       }
     }
     for (const [level, count, from, to] of zone.stones || []) {
-      for (let s = 0; s < count; s++) {
+      for (let s = Math.round(count * WORLD_SCALE_STONES); s > 0; s--) {
         const stone = createStone(zone, level, from, to);
         if (stone) game.monsters.push(stone);
       }

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '4.4';
+const GAME_VERSION = '4.5';
 
 const game = {
   world: null,
@@ -79,7 +79,12 @@ function updatePlayer(dt) {
       p.moving = moveEntity(p, mv.x * s.speed * dt, mv.y * s.speed * dt, false);
       const len = Math.hypot(mv.x, mv.y);
       p.facing = { x: mv.x / len, y: mv.y / len };
-    } else if (input.attack) {
+    }
+    // offener Tipp: kurz gültig, beim Hinlaufen zum Ziel bis zu 3 Sekunden
+    const tapAge = game.time - input.attackAt;
+    const wantAttack = tapAge >= 0 && tapAge < (input.attackWalk ? 3 : 0.45);
+    if (!wantAttack) input.attackWalk = false;
+    if (!(mv.x || mv.y) && wantAttack) {
       // Angriff gedrückt, aber nichts in Reichweite: zum Ziel laufen
       const c = CLASSES[p.classId];
       const t = (game.target && !game.target.dead && dist(game.target, p) < 420) ? game.target : nearestEnemy(p, 260);
@@ -88,10 +93,12 @@ function updatePlayer(dt) {
         p.moving = moveToward(p, t.x, t.y, s.speed * dt, false);
         faceTowards(t.x, t.y);
         approaching = true;
+        input.attackWalk = true;
       }
     }
-    // Läuft die Figur gerade zu einem Gegner, schlägt sie erst bei ihm zu; sonst auch ins Leere
-    if (input.attack && !approaching) tryBasicAttack();
+    // Läuft die Figur gerade zu einem Gegner, schlägt sie erst bei ihm zu; sonst auch ins Leere.
+    // Ein Tipp ist genau ein Schlag.
+    if (wantAttack && !approaching && tryBasicAttack()) clearAttack();
   }
 
   // Regeneration: außerhalb des Kampfes deutlich schneller
@@ -174,7 +181,7 @@ function boot() {
   lockLandscape();
   portraitQuery.addEventListener('change', () => {
     input.keys.clear();
-    input.attack = false;
+    clearAttack();
     if (portraitQuery.matches) saveGame();
   });
   requestAnimationFrame(frame);

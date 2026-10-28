@@ -1155,3 +1155,20 @@ Compact quest tracker for a landscape mobile MMORPG UI on the right side next to
 ```
 Blacksmith upgrade materials UI: a row of small material chips (wolf fur, orc tooth, frost crystal) with counts; tapping one opens a dark tooltip with a brass border: "Wolfspelz: fällt von Wolf (Stufe 3). Fundort: Sonnenwiesen · Map Vlotho". Cozy East-Asian fantasy style.
 ```
+
+## Große Maps mit Städten und Weltportalen (Version 4.5)
+
+### Weltkarte
+```
+Illustrated world map for a cozy East-Asian fantasy MMORPG, three separate regions shown as parchment map panels that are not connected by land. Map 1 "Vlotho": a large walled city with curved roofs in the center, concentric regions around it getting more dangerous outward – green Sonnenwiesen with cherry trees (level 1–9), dark pine Dunkelwald (10–19), dusty Orktal (20–29), grey Ödland (30–39), snowy Frostgipfel (40–49), misty Totenmoor (50–59) and the volcanic Feuerberg in the corners (60–70); four roads from the city gates to the edge, dungeon entrances beside the roads. Map 2 "Schlangental": the desert oasis city Sahra in the middle with palms, sandstone houses and a glowing world gate, a snake desert around it (30–39) and a swampy naga jungle outside (40–50). Map 3 "Donnerklamm": the stone fortress city Klammfeste in a canyon, troll and minotaur cliffs around it (50–61), the lava ridge of the titans outside (62–75). In every map a glowing stone world portal sits in the top-left and bottom-right area, with arrows showing travel to the other maps. Soul stones marked as small glowing eggs, stronger toward the edges. Hand-painted, warm colors, clear labels.
+```
+
+### Stadt in Map 2 und 3
+```
+Top-down three-quarter view of a small fantasy town plaza for a mobile MMORPG: paved square with a well in the center, a glowing ring-shaped world gate at the north side, market stalls, braziers and lanterns, four houses in the corners (sandstone with ochre roofs in the oasis city Sahra; dark stone with slate roofs in the fortress Klammfeste), friendly merchants, a blacksmith with an anvil and an alchemist with potions. Safe, cozy, readable, soft toon shading.
+```
+
+### Weltportal
+```
+Ancient stone portal ring standing on a small round paved clearing in the wilderness, filled with swirling blue light, small golden studs around the ring, faint runes on the ground; a sign shows the destination map. Stylized 3D toon look, thin dark outline.
+```

@@ -1030,7 +1030,7 @@ const ui = {
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
     else if (npc.id === 'eingang' || npc.id === 'ausgang' || npc.id === 'riss') this.renderDungeon(npc);
-    else if (npc.id === 'weltentor') this.renderWorldGate();
+    else if (npc.id === 'weltentor') this.renderWorldGate(npc);
     else this.renderTalk(npc);
     $('panelNpc').hidden = false;
   },

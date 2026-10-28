@@ -270,11 +270,11 @@ let travelSpots = null;
 function travelTargets() {
   if (travelSpots) return travelSpots;
   travelSpots = ZONES.slice(1, RING_ZONES).map((zone) => {
-    // entlang des Weges nach Osten, der Feuerberg liegt in den Ecken der Welt
-    const far = zone.minDist + 4 > WORLD_W / 2 - 4;
-    const d = zone.minDist + 4;
-    const tx = far ? CENTER_X + 74 : CENTER_X + d;
-    const ty = far ? CENTER_Y + 74 : CENTER_Y;
+    // entlang des Weges nach Osten; Gebiete, die nur in den Ecken liegen, schräg dorthin
+    const d = zone.minDist + 5;
+    const far = d > WORLD_W / 2 - 6;
+    const tx = far ? Math.round(CENTER_X + d / Math.SQRT2 + 2) : CENTER_X + d;
+    const ty = far ? Math.round(CENTER_Y + d / Math.SQRT2 + 2) : CENTER_Y;
     for (let r = 0; r < 12; r++) {
       for (let k = 0; k < 16; k++) {
         const x = Math.round(tx + Math.cos(k / 16 * Math.PI * 2) * r);
@@ -535,12 +535,17 @@ Object.assign(ui, {
   },
 
   // Weltentor: Reise zwischen Map 1 (Vlotho), Map 2 und Map 3, kostenlos
-  renderWorldGate() {
+  // Weltportal draußen (npc.to): führt nur in die Stadt einer Map
+  renderWorldGate(npc) {
     const p = game.player;
     const here = mapOfTile(p.x / TILE, p.y / TILE).id;
     const body = $('npcBody');
-    body.innerHTML = '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p><div class="travel-list">' +
-      WORLD_MAPS.map((wm) => {
+    const list = npc && npc.to ? WORLD_MAPS.filter((m) => m.id === npc.to) : WORLD_MAPS;
+    const intro = npc && npc.to
+      ? `<p>Ein uralter Steinring voller Licht. Er führt nach Map ${npc.to} · ${list[0].name}, direkt in die Stadt.</p>`
+      : '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p>';
+    body.innerHTML = intro + '<div class="travel-list">' +
+      list.map((wm) => {
         const low = p.level < wm.minLevel;
         const cur = wm.id === here;
         return `<div class="travel-item"><strong>Map ${wm.id} · ${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +

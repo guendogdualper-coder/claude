@@ -3,19 +3,20 @@
 // bei jedem Start gleich aus – wichtig, sobald später mehrere Spieler darin unterwegs sind.
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
-const WORLD_W = 200;      // Breite der Oberwelt in Kacheln
+const WORLD_W = 300;      // Breite der Oberwelt (Map 1, Vlotho) in Kacheln
 const DUNGEON_COL = 60;   // Breite einer Dungeon-Spalte in Kacheln
 const DUNGEON_W = DUNGEON_COL * 2; // östlich davon liegen zwei Spalten mit je vier Dungeons (nur per Eingang erreichbar)
-const MAP_W = WORLD_W + DUNGEON_W;
-const WORLD_H = 200;      // Höhe der Oberwelt; darunter liegen Map 2 und Map 3 (nur über das Weltentor)
-const MAP_H = WORLD_H + 132;
+const WORLD_H = 300;      // Höhe der Oberwelt; darunter liegen Map 2 und Map 3 (je 200 × 200, nur per Tor oder Portal)
+const SUBMAP_SIZE = 200;
+const MAP_W = Math.max(WORLD_W + DUNGEON_W, SUBMAP_SIZE * 2);
+const MAP_H = WORLD_H + SUBMAP_SIZE;
 const CENTER_X = WORLD_W / 2;
 const CENTER_Y = WORLD_H / 2;
 const VILLAGE_HALF = 14;  // Dorfmauer: Quadrat 14 Kacheln um die Mitte; drinnen greifen Monster nicht an
 const SAFE_RING = 24;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 4;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 5;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 
 // Bodenarten
 const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15 };
@@ -233,8 +234,32 @@ function generateWorld() {
     npc('stallmeister', 'Stallmeister Jun', C - 10, C + 2.2),
     npc('weltentor', 'Weltentor', C + 6.8, C - 5.6)
   ];
-  // In jedem Lager der anderen Maps ein Weltentor zurück
-  for (const mp of maps) npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5, mp.cy - 1.5));
+  // Städte der anderen Maps: Weltentor, Händler, Schmied und Alchemist
+  const TOWN_NPCS = {
+    2: [['haendler', 'Händlerin Sahra', 3, -2.5], ['schmied', 'Schmied Kadir', -3.5, 2.5], ['waffen', 'Waffenhändler Omar', -4.5, -2], ['ruestung', 'Rüstungshändlerin Lale', 3.5, 3], ['alchemist', 'Alchemistin Nur', 6.5, 0.5]],
+    3: [['haendler', 'Händler Brok', 3, -2.5], ['schmied', 'Schmiedin Hilda', -3.5, 2.5], ['waffen', 'Waffenhändler Ragnar', -4.5, -2], ['ruestung', 'Rüstungshändler Eik', 3.5, 3], ['alchemist', 'Alchemist Thorm', 6.5, 0.5]]
+  };
+  for (const mp of maps) {
+    npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5, mp.cy - 4.5));
+    for (const [id, name, dx, dy] of TOWN_NPCS[mp.id] || []) npcs.push(npc(id, name, mp.cx + dx, mp.cy + dy));
+    houses.push(...mp.houses);
+  }
+  // Weltportale draußen (oben links und unten rechts jeder Map): bringen in die Stadt der Ziel-Map
+  for (const wm of WORLD_MAPS) {
+    const [cx, cy] = wm.region ? [wm.cx, wm.cy] : [CENTER_X, CENTER_Y];
+    for (const [dx, dy, dist, to] of wm.portals || []) {
+      const px = Math.round(cx + dx * dist / Math.SQRT2);
+      const py = Math.round(cy + dy * dist / Math.SQRT2);
+      for (let y = py - 3; y <= py + 3; y++) for (let x = px - 3; x <= px + 3; x++) {
+        const i = y * MAP_W + x;
+        obj[i] = OBJ.NONE;
+        deco[i] = DECO.NONE;
+        if (LIQUID.has(ground[i])) ground[i] = GROUND[ZONES[zoneIdx[i]].ground];
+        if (Math.hypot(x - px, y - py) < 2.5) ground[i] = GROUND.PLAZA;
+      }
+      npcs.push(npc('weltentor', `Weltportal · Map ${to}`, px + 0.5, py, { to }));
+    }
+  }
   // Eingänge zu den Dungeons neben den Wegen, innen je ein Ausgang am Start und im Bossraum
   dungeons.forEach((dg, k) => {
     const e = placeDungeonEntrance(dg.def.entry, ground, obj, deco, zoneIdx);
@@ -312,10 +337,15 @@ function generateWorld() {
   });
 
   // Hinter jedem Turm steht die Mauer; die Türme selbst blockieren über die Mauerkacheln
-  // Lager in Map 2 und 3: Laternen und Feuerbecken
+  // Städte in Map 2 und 3: Laternen, Feuerbecken, Marktstände, Brunnen, Fässer
   for (const mp of maps) {
-    for (const [dx, dy] of [[-4, -3], [4, -3], [-4, 4], [4, 4]]) props.push({ type: 'lantern', ...T(mp.cx + dx, mp.cy + dy) });
-    props.push({ type: 'brazier', roof: '#ffb04a', ...T(mp.cx - 2, mp.cy + 1.5) }, { type: 'brazier', roof: '#ffb04a', ...T(mp.cx + 3, mp.cy + 1.5) });
+    for (const [dx, dy] of [[-6, -6], [6, -6], [-6, 6], [6, 6], [-2.5, -7], [2.5, -7], [-2.5, 7.5], [2.5, 7.5]]) props.push({ type: 'lantern', ...T(mp.cx + dx, mp.cy + dy) });
+    props.push({ type: 'brazier', roof: '#ffb04a', ...T(mp.cx - 2, mp.cy - 3.5) }, { type: 'brazier', roof: '#ffb04a', ...T(mp.cx + 3, mp.cy - 3.5) });
+    props.push({ type: 'well', ...T(mp.cx - 1.4, mp.cy + 0.6) });
+    props.push({ type: 'stall', roof: mp.id === 2 ? '#c8a03a' : '#5a5a6a', ...T(mp.cx + 6.4, mp.cy - 4.6) });
+    props.push({ type: 'stall', roof: mp.id === 2 ? '#9a2f2a' : '#7a3a2a', ...T(mp.cx - 6.4, mp.cy - 3) });
+    props.push({ type: 'anvil', ...T(mp.cx - 2.6, mp.cy + 3.4) });
+    props.push({ type: 'barrel', ...T(mp.cx + 5.2, mp.cy + 1.6) }, { type: 'crate', ...T(mp.cx - 7.2, mp.cy + 1.2) });
   }
 
   return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps };
@@ -340,7 +370,7 @@ function buildDungeons(ground, obj, zoneIdx) {
   }
   // unter den Dungeons, neben Map 2 und 3: unzugänglicher Fels
   for (let y = WORLD_H; y < MAP_H; y++) {
-    for (let x = 260; x < MAP_W; x++) {
+    for (let x = SUBMAP_SIZE * 2; x < MAP_W; x++) {
       const i = y * MAP_W + x;
       zoneIdx[i] = RING_ZONES;
       ground[i] = GROUND.CAVE;
@@ -414,10 +444,10 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
           continue;
         }
         if (zone.safe) {
-          if (d < 5.5) ground[i] = GROUND.PLAZA;
+          if (Math.max(Math.abs(x + 0.5 - wm.cx), Math.abs(y + 0.5 - wm.cy)) < CAMP_HALF - 1) ground[i] = GROUND.PLAZA;
           continue;
         }
-        if (d < 11) continue;
+        if (d < CAMP_HALF + 5) continue;
         const v = shape(x, y) * 0.65 + detail(x, y) * 0.35;
         if (zone.water && v < zone.water) {
           ground[i] = GROUND[zone.liquid || 'WATER'];
@@ -432,7 +462,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
     }
     // Wege vom Lager zum Rand
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      for (let s = 0; s < 64; s++) {
+      for (let s = 0; s < SUBMAP_SIZE / 2; s++) {
         for (let w = -1; w <= 0; w++) {
           const x = Math.floor(wm.cx + dx * s + (dy ? w : 0));
           const y = Math.floor(wm.cy + dy * s + (dx ? w : 0));
@@ -445,7 +475,10 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
         }
       }
     }
-    out.push({ id: wm.id, cx: wm.cx, cy: wm.cy, spawn: { x: wm.cx * TILE, y: (wm.cy + 1.5) * TILE } });
+    // Häuser der Stadt in den vier Ecken des Platzes
+    const houses = [[-9, -9, 5, 3], [5, -9, 5, 3], [-9, 6, 4, 3], [6, 6, 4, 3]].map(([hx, hy, w, h], k) => ({ x: Math.floor(wm.cx + hx), y: Math.floor(wm.cy + hy), w, h, roof: wm.id === 2 ? ['#b0763a', '#8a4a2a', '#c8a060', '#7a5a3a'][k] : ['#4a4644', '#5a3a2e', '#3a3a4a', '#6a4a3a'][k] }));
+    for (const h of houses) for (let y = h.y; y < h.y + h.h; y++) for (let x = h.x; x < h.x + h.w; x++) obj[y * MAP_W + x] = OBJ.HOUSE;
+    out.push({ id: wm.id, cx: wm.cx, cy: wm.cy, houses, spawn: { x: wm.cx * TILE, y: (wm.cy + 1.5) * TILE } });
   }
   return out;
 }
@@ -493,7 +526,7 @@ function tileBlocked(tx, ty) {
 }
 
 // Sicher: das Dorf Vlotho und die Lager in Map 2 und 3
-const CAMP_HALF = 7;
+const CAMP_HALF = 11; // Städte in Map 2 und 3: sicheres Quadrat um die Mitte
 function inVillage(x, y) {
   const tx = x / TILE;
   const ty = y / TILE;
