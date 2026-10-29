@@ -202,11 +202,15 @@ const RAID_MOVES = ['slam', 'meteor', 'charge', 'buster', 'leap', 'line', 'nova'
 const RAID_MUL = { slam: 3, meteor: 2.6, line: 3.2, buster: 6, nova: 3.4, leap: 3.6, charge: 3.4 };
 const RAID_ADD_EVERY = 20;
 
-function raidPlayers() {
+// Spieler im Kampf mit dem Endboss: nur wer in seiner Halle ist (nicht Mitspieler irgendwo anders auf der Welt
+// und nie jemand in einer Stadt) – sonst fielen Meteore auf Spieler, die gerade ganz woanders stehen
+const RAID_REACH = 1100;
+function raidPlayers(m) {
   const list = [];
+  const near = (pl) => !pl.dead && !inVillage(pl.x, pl.y) && (!m || Math.hypot(pl.x - m.homeX, pl.y - m.homeY) < RAID_REACH);
   const p = game.player;
-  if (p && !p.dead) list.push(p);
-  if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead) list.push(rp);
+  if (p && near(p)) list.push(p);
+  if (net.mode === 'host') for (const rp of net.players.values()) if (near(rp)) list.push(rp);
   return list;
 }
 
@@ -219,6 +223,8 @@ function updateRaidBoss(m, dt) {
     if (m.hp < m.maxHp && !m.cast) { m.hp = m.maxHp; R.phase = 0; R.step = 0; }
     return false;
   }
+  // niemand in der Halle: keine Angriffe (der Boss kehrt dann wie jedes Monster um)
+  if (!m.dash && !m.cast && !raidPlayers(m).length) return false;
   // Sturm- und Sprungbewegung des Bosses
   if (m.dash) {
     const d = m.dash;
@@ -261,7 +267,7 @@ function updateRaidBoss(m, dt) {
   if (R.next > 0) return false;
   R.next = Math.max(2.4, 5 - R.phase * 0.9);
   const kind = RAID_MOVES[R.step++ % RAID_MOVES.length];
-  const tgt = m.target && !m.target.dead ? m.target : game.player;
+  const tgt = m.target && !m.target.dead ? m.target : raidPlayers(m)[0] || m;
   const fy = (e) => feetY(e);
   let circles = [];
   let inner = 0;
@@ -269,7 +275,7 @@ function updateRaidBoss(m, dt) {
   if (kind === 'slam') circles = [{ x: m.x, y: fy(m), r: b.slam }];
   else if (kind === 'meteor') {
     // ein Meteor auf jeden Spieler, dazu ein paar zufällige
-    for (const pl of raidPlayers()) circles.push({ x: pl.x, y: fy(pl), r: 95 });
+    for (const pl of raidPlayers(m)) circles.push({ x: pl.x, y: fy(pl), r: 95 });
     for (let k = 0; k < 3 + R.phase * 2; k++) { const s = spotNear(m, 360); circles.push({ x: s.x, y: s.y + 10, r: 85 }); }
     delay = 1.9;
   } else if (kind === 'line') {
@@ -286,13 +292,13 @@ function updateRaidBoss(m, dt) {
     delay = 2.2;
   } else if (kind === 'leap') {
     // springt auf einen zufälligen Spieler (nicht immer den Tank)
-    const list = raidPlayers();
+    const list = raidPlayers(m);
     const v = list[randInt(0, list.length - 1)] || tgt;
     circles = [{ x: v.x, y: fy(v), r: 130 }];
     delay = 1.4;
   } else if (kind === 'charge') {
     // Sturmangriff: rast in gerader Linie durch die Halle, auf einen Spieler zu und darüber hinaus
-    const list = raidPlayers();
+    const list = raidPlayers(m);
     const v = list[randInt(0, list.length - 1)] || tgt;
     const a = Math.atan2(v.y - m.y, v.x - m.x);
     const len = Math.min(600, Math.hypot(v.x - m.x, v.y - m.y) + 160);
@@ -355,7 +361,7 @@ function raidMinions(m, n) {
     add.homeX = m.homeX;
     add.homeY = m.homeY;
     add.state = 'chase';
-    const list = raidPlayers();
+    const list = raidPlayers(m);
     add.target = list[randInt(0, list.length - 1)] || game.player;
     game.monsters.push(add);
     addEffect({ type: 'pillar', x: pos.x, y: pos.y + 9, dur: 0.7, color: b.color });
@@ -587,6 +593,47 @@ function playerNearSpot(x, y, r) {
   return false;
 }
 
+// --- Ansturm in Dungeons (seit 7.7) --------------------------------------------------------------
+// Wer wegläuft, wird eingeholt: kurz ducken (Warnring), dann ein schneller Sprint bis zum Ziel mit Schlag.
+const DUNGEON_CHASE = 0.95; // Verfolgung mit 95 % des Spielertempos (oder schneller, wenn das Monster schneller ist)
+const RUSH_RANGE = 340;     // ab dieser Entfernung kein Ansturm
+const RUSH_SPEED = 820;
+const LUNGE = 60;         // so weit setzt ein Dungeon-Monster mit dem Schlag nach
+function startRush(m) {
+  m.rush = { wind: 0.32, left: 0.7 };
+  m.rushAt = game.time + 4.5 + Math.random() * 2.5;
+  m.moving = false;
+  addEffect({ type: 'ring', x: m.x, y: feetY(m), r: m.r * 1.6, dur: 0.32, color: '#ff8a3a', width: 4, grow: false });
+  particles(m.x, feetY(m), { count: 8, color: ['#c8b89a', '#8a7a62'], speed: [30, 90], life: [0.25, 0.45], size: [2, 3.5], drag: 4, glow: false });
+}
+function monsterRush(m, t, dt, reach) {
+  const r = m.rush;
+  if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
+  if (r.wind > 0) {
+    r.wind -= dt;
+    m.moving = false;
+    return;
+  }
+  const dx = t.x - m.x;
+  const dy = t.y - m.y;
+  const d = Math.hypot(dx, dy) || 1;
+  const step = Math.min(RUSH_SPEED * dt, Math.max(0, d - reach * 0.6));
+  const ox = m.x;
+  const oy = m.y;
+  moveEntity(m, (dx / d) * step, (dy / d) * step, true);
+  m.moving = true;
+  r.left -= dt;
+  if (Math.random() < 0.7) particles(m.x, feetY(m), { count: 2, color: ['#c8b89a', '#8a7a62'], speed: [20, 60], life: [0.2, 0.4], size: [2, 4], drag: 3, glow: false });
+  const stuck = Math.hypot(m.x - ox, m.y - oy) < step * 0.3;
+  if (d - step <= reach * 0.75 || r.left <= 0 || stuck) {
+    m.rush = null;
+    if (dist(m, t) <= reach * 1.3 + 10) {
+      m.cd = m.type.cooldown;
+      monsterAttack(m, t);
+    }
+  }
+}
+
 function updateMonsters(dt) {
   const p = game.player;
   const players = huntablePlayers();
@@ -619,7 +666,7 @@ function updateMonsters(dt) {
       if (Math.abs(m.kx) + Math.abs(m.ky) < 5) m.kx = m.ky = 0;
     }
     if (m.attackAnim > 0) m.attackAnim -= dt;
-    if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; m.windup = 0; continue; }
+    if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; m.windup = 0; m.rush = null; continue; }
     if (m.type.boss) {
       m.stun = 0;
       if (m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
@@ -648,7 +695,7 @@ function updateMonsters(dt) {
 
     if (m.state === 'chase') {
       const t = m.target;
-      const leash = m.respawn ? LEASH : LEASH * 2;
+      const leash = (m.respawn ? LEASH : LEASH * 2) * (m.inDungeon ? 1.7 : 1);
       const lost = !t || t.dead || t.hp <= 0 || t.gone
         || (isPlayerLike(t) && playerHidden(t))
         || (!isPlayerLike(t) && !game.allies.includes(t))
@@ -657,9 +704,22 @@ function updateMonsters(dt) {
         m.state = 'return';
         m.target = null;
         m.windup = 0;
+        m.rush = null;
       } else {
         const d = dist(m, t);
         const reach = m.type.range + t.r;
+        // In Dungeons lassen sich Monster nicht weglocken: fast so schnell wie der Spieler und mit Ansturm
+        const dun = m.inDungeon != null ? m.inDungeon : (m.inDungeon = !!zoneAt(m.homeX, m.homeY).dungeon);
+        let chaseSpeed = speed;
+        if (dun) {
+          const ts = t === p ? game.stats.speed : 160;
+          chaseSpeed = Math.max(m.type.speed, ts * DUNGEON_CHASE) * slowMul;
+          if (m.rush) { monsterRush(m, t, dt, reach); continue; }
+          if (!m.type.ranged && !m.windup && d > reach * 1.7 && d < RUSH_RANGE && game.time >= (m.rushAt || 0)) {
+            startRush(m);
+            continue;
+          }
+        }
         if (m.windup > 0) {
           // Ausholen: stehen bleiben, zum Ziel drehen; erst danach trifft der Schlag.
           // Wer rechtzeitig aus der Reichweite läuft, weicht aus.
@@ -668,10 +728,16 @@ function updateMonsters(dt) {
           if (m.windup <= 0) {
             m.windup = 0;
             if (m.type.ranged || d <= reach * 1.3 + 10) monsterAttack(m, t);
-            else { m.attackAnim = 0.25; monsterStrikeFx(m, null); }
+            else if (dun && d <= reach * 1.3 + 10 + LUNGE) {
+              // im Dungeon: mit dem Schlag nachsetzen
+              const k = Math.min(LUNGE, d - reach * 0.8) / d;
+              moveEntity(m, (t.x - m.x) * k, (t.y - m.y) * k, true);
+              if (dist(m, t) <= reach * 1.3 + 10) monsterAttack(m, t);
+              else { m.attackAnim = 0.25; monsterStrikeFx(m, null); }
+            } else { m.attackAnim = 0.25; monsterStrikeFx(m, null); }
           }
         } else {
-          if (d > reach * 0.85) m.moving = moveToward(m, t.x, t.y, speed * dt, true);
+          if (d > reach * 0.85) m.moving = moveToward(m, t.x, t.y, chaseSpeed * dt, true);
           else if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
           if (d <= reach && m.cd <= 0) {
             m.cd = m.type.cooldown;

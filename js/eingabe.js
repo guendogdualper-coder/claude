@@ -89,7 +89,8 @@ function setupInput() {
         cycleTarget();
         break;
       case 'Escape':
-        if (ui.anyPanelOpen()) ui.closePanels();
+        if (game.aim) cancelAim();
+        else if (ui.anyPanelOpen()) ui.closePanels();
         else game.target = null;
         break;
     }
@@ -115,6 +116,12 @@ function setupInput() {
   const cv = renderer.canvas;
   let camDrag = null;
   cv.addEventListener('pointerdown', (e) => {
+    // Zielkreis offen (Blizzard): Tippen oder Linksklick auf den Boden wirkt dort
+    if (game.aim && game.running && (e.pointerType !== 'mouse' || e.button === 0)) {
+      const w = screenToWorld(e.clientX, e.clientY);
+      if (w && isFinite(w.x) && isFinite(w.y)) aimFire(w.x, w.y);
+      return;
+    }
     if (e.pointerType === 'mouse') {
       mouseDown(e);
       return;
@@ -145,6 +152,11 @@ function setupInput() {
     }
   };
   cv.addEventListener('pointermove', (e) => {
+    // Am PC folgt der Zielkreis der Maus
+    if (game.aim && e.pointerType === 'mouse') {
+      const w = screenToWorld(e.clientX, e.clientY);
+      if (w && isFinite(w.x) && isFinite(w.y)) aimAt(w.x, w.y);
+    }
     if (input.mouseWalk && e.pointerType === 'mouse') walkToScreen(e.clientX, e.clientY, false);
     if (!camDrag || e.pointerId !== camDrag.id) return;
     const dx = e.clientX - camDrag.x;

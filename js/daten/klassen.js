@@ -174,14 +174,15 @@ const CLASSES = {
     basic: { range: 230, cooldown: 0.9, ranged: true, color: '#8fe3d8', style: 'wind' },
     paths: [
       {
-        id: 'drache', name: 'Weg des Drachen', role: 'PvE · Feuer und Blitz',
-        description: 'Ruft Drachenfeuer und Gewitter herab und trifft viele Gegner aus der Distanz.',
+        id: 'drache', name: 'Weg des Drachen', role: 'PvE · Feuer, Blitz und Eis',
+        description: 'Ruft Drachenfeuer, Gewitter und Schneestürme herab und trifft viele Gegner aus der Distanz.',
         skills: [
-          // seit 6.9: Flächenschaden statt Talisman und Kegel (Kennungen bleiben, damit Stufen und Bücher erhalten bleiben)
+          // seit 6.9: Flächenschaden statt Talisman und Kegel (Kennungen bleiben, damit Stufen und Bücher erhalten bleiben);
+          // seit 7.7 ein Blitzdrache statt Glutdrache (gleiche Wirkung) und Blizzard statt Feuerhagel
           {
-            id: 'talisman', name: 'Glutdrache', short: 'GD', kind: 'angriff', unlock: 1, mp: 10, cooldown: 3,
-            type: 'dragon', range: 340, radius: 100, speed: 620, dmg: 1.7, color: '#ff8a2a', burn: { dps: 0.25, duration: 3 },
-            text: 'Du schleuderst einen Drachen aus Feuer: Er schlängelt sich im Bogen zum Ziel, explodiert dort und trifft alle Gegner im Umkreis, die danach 3 Sekunden brennen.'
+            id: 'talisman', name: 'Blitzdrache', short: 'BD', kind: 'angriff', unlock: 1, mp: 10, cooldown: 3,
+            type: 'dragon', element: 'blitz', range: 340, radius: 100, speed: 620, dmg: 1.7, color: '#8fd0ff', burn: { dps: 0.25, duration: 3 },
+            text: 'Du schleuderst einen Drachen aus Blitzen: Er schlängelt sich im Bogen zum Ziel, entlädt sich dort und trifft alle Gegner im Umkreis, die danach 3 Sekunden lang unter Strom stehen.'
           },
           {
             id: 'drachengebruell', name: 'Drachenwirbel', short: 'DW', kind: 'angriff', unlock: 3, mp: 18, cooldown: 7,
@@ -194,9 +195,9 @@ const CLASSES = {
             text: 'Buff: Drachenkraft fließt in dich. Mehr Angriff und mehr Fertigkeitsschaden.'
           },
           {
-            id: 'blitzschlag', name: 'Feuerhagel', short: 'FH', kind: 'angriff', unlock: 7, mp: 26, cooldown: 10,
-            type: 'blast', fx: 'hail', range: 320, radius: 140, meteors: 22, every: 0.15, splash: 55, dmg: 0.42, color: '#ff6a2a', burn: { dps: 0.2, duration: 2 },
-            text: 'Über dem Ziel prasseln gut drei Sekunden lang 22 Feuerbrocken vom Himmel. Jeder Einschlag trifft alle Gegner in seiner Nähe und setzt sie in Brand.'
+            id: 'blitzschlag', name: 'Blizzard', short: 'BZ', kind: 'angriff', unlock: 7, mp: 26, cooldown: 12,
+            type: 'blizzard', aim: true, range: 360, radius: 165, duration: 4, ticks: 8, shards: 26, dmg: 0.3, slow: { amount: 0.5, duration: 1.2 }, color: '#bfe8ff',
+            text: 'Du wählst den Ort: Dort tobt 4 Sekunden lang ein Schneesturm mit Eiszapfen und Hagel. Er trifft alle Gegner im Kreis immer wieder und verlangsamt sie stark.'
           },
           {
             id: 'donnersturm', name: 'Donnersturm', short: 'DS', kind: 'angriff', unlock: 10, mp: 34, cooldown: 12,

@@ -130,6 +130,7 @@ function hitMonster(m, mul, opts = {}) {
     }
     if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps, until: game.time + opts.poison.duration, tick: 0 };
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
+    if (opts.slow) m.slow = { mul: 1 - opts.slow.amount, until: game.time + opts.slow.duration };
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
   // Lebensraub heilt um einen Teil des Schadens; die Heilung erscheint als grüne Zahl
@@ -324,6 +325,8 @@ function damagePlayer(amount, attacker) {
   const p = game.player;
   const s = game.stats;
   if (p.dead) return;
+  // In Städten und Lagern gibt es keinen Schaden (außer im Duell) – egal woher er kommt
+  if (inVillage(p.x, p.y) && !(attacker && attacker.duelProxy)) return;
   p.lastCombat = game.time;
   if (p.protectUntil > game.time) return;
   if (Math.random() < s.dodge) {
@@ -466,6 +469,14 @@ function tryBasicAttack() {
 
 // --- Fertigkeiten -----------------------------------------------------------------
 
+// Manakosten (seit 7.7): wachsen mit der Stufe, damit auch später Manatränke gebraucht werden.
+// Der Schamane zaubert am meisten und zahlt am meisten, der Krieger am wenigsten.
+const MANA_COST = { schamane: [1.15, 0.022], nekromant: [1.05, 0.016], ninja: [1, 0.013], krieger: [1, 0.011] };
+function skillMana(sk, p = game.player) {
+  const [a, b] = MANA_COST[p.classId] || [1, 0];
+  return Math.round(sk.mp * (a + b * p.level));
+}
+
 function useSkill(i) {
   const p = game.player;
   if (!p || p.dead || p.dash) return;
@@ -480,8 +491,14 @@ function useSkill(i) {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;
   }
-  if (p.mp < sk.mp) {
+  if (p.mp < skillMana(sk, p)) {
     addText(p.x, p.y - 34, 'Zu wenig Mana', 'info');
+    return;
+  }
+  // Fertigkeiten mit Zielort: erst zielen, beim zweiten Antippen oder Tippen auf den Boden wirken
+  if (sk.aim && !(game.aim && game.aim.i === i && game.aim.go)) {
+    if (game.aim && game.aim.i === i) aimFire();
+    else startAim(i, sk);
     return;
   }
   if (p.riding) toggleRide(false);
@@ -491,9 +508,9 @@ function useSkill(i) {
   if (ok === false) return;
   withRank(rank, () => skillCastFx(sk));
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
-  p.mp -= sk.mp;
+  p.mp -= skillMana(sk, p);
   p.skillCd[i] = sk.cooldown;
-  netSkillFx(sk.id);
+  netSkillFx(sk.id, 160, sk.aim ? { tx: Math.round(skillAimPoint(sk).x), ty: Math.round(skillAimPoint(sk).y) } : {});
   // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
   if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
     startSwing(p, 'pose', 0.7);
@@ -503,6 +520,66 @@ function useSkill(i) {
     startSwing(p, 'skill', 0.34);
   }
   if (sk.kind === 'angriff' || sk.kind === 'fluch') p.lastCombat = game.time;
+}
+
+// --- Zielen mit Zielkreis (seit 7.7, Blizzard) -------------------------------------------------------
+// Antippen der Fertigkeit zeigt einen Kreis (am Ziel oder vor der Figur). Tippen oder Klicken auf den Boden
+// setzt ihn dorthin und wirkt sofort, nochmal Antippen der Fertigkeit wirkt am Kreis. Nach 8 s ohne Wahl
+// verschwindet er wieder. Der Kreis bleibt immer in Reichweite.
+const AIM_TIMEOUT = 8;
+function startAim(i, sk) {
+  const p = game.player;
+  cancelAim();
+  const t = pickTarget(sk.range);
+  const pt = { x: t ? t.x : p.x + p.facing.x * 150, y: t ? t.y : p.y + p.facing.y * 150, r: 0 };
+  game.aim = { i, sk, pt, until: game.time + AIM_TIMEOUT, go: false };
+  clampAim();
+  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.radius, dur: AIM_TIMEOUT + 1, color: sk.color || '#bfe8ff' });
+  addText(p.x, p.y - 40, 'Ort antippen', 'info');
+  document.body.classList.add('aiming');
+}
+function cancelAim() {
+  if (!game.aim) return;
+  if (game.aim.fx) game.aim.fx.dur = 0;
+  game.aim = null;
+  document.body.classList.remove('aiming');
+}
+// Punkt auf Reichweite um die Figur begrenzen
+function clampAim() {
+  const a = game.aim;
+  const p = game.player;
+  const d = Math.hypot(a.pt.x - p.x, a.pt.y - p.y);
+  if (d > a.sk.range) {
+    a.pt.x = p.x + (a.pt.x - p.x) / d * a.sk.range;
+    a.pt.y = p.y + (a.pt.y - p.y) / d * a.sk.range;
+  }
+}
+function aimAt(x, y) {
+  if (!game.aim) return;
+  game.aim.pt.x = x;
+  game.aim.pt.y = y;
+  clampAim();
+}
+function aimFire(x, y) {
+  const a = game.aim;
+  if (!a) return;
+  if (x != null) aimAt(x, y);
+  a.go = true;
+  useSkill(a.i);
+  cancelAim();
+}
+function updateAim() {
+  const a = game.aim;
+  if (!a) return;
+  if (game.time > a.until || !game.player || game.player.dead) cancelAim();
+  else clampAim();
+}
+// Zielort einer Fertigkeit: der gewählte Kreis, sonst das Ziel oder ein Punkt vor der Figur
+function skillAimPoint(sk) {
+  const p = game.player;
+  if (game.aim && game.aim.sk.id === sk.id) return game.aim.pt;
+  const t = pickTarget(sk.range);
+  return t ? { x: t.x, y: t.y } : { x: p.x + p.facing.x * 150, y: p.y + p.facing.y * 150 };
 }
 
 function enemiesInCone(x, y, dir, radius, angleDeg) {
@@ -707,14 +784,6 @@ const SKILL_TYPES = {
     const x = t ? t.x : p.x + p.facing.x * 120;
     const y = t ? t.y : p.y + p.facing.y * 120;
     if (t) faceTowards(t.x, t.y);
-    if (sk.fx === 'hail') {
-      // Feuerhagel: jeder Brocken trifft, was in seiner Nähe steht
-      hailFx(x, y, sk, (cx, cy, last) => {
-        shakeScreen(last ? 4 : 1.5);
-        for (const m of enemiesInCircle(cx, cy, sk.splash)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: last, vfxColor: '#ffd08a' });
-      });
-      return;
-    }
     if (sk.fx === 'poison') {
       // Giftwolke statt Blitz
       later(0.1, () => {
@@ -738,7 +807,20 @@ const SKILL_TYPES = {
     });
   },
 
-  // Glutdrache: fliegt zum Ziel (oder in Blickrichtung) und explodiert dort
+  // Blizzard (seit 7.7): am gewählten Ort (Zielkreis) tobt ein Schneesturm, jede Welle trifft alle im Kreis
+  // und verlangsamt sie
+  blizzard(sk, pw) {
+    const p = game.player;
+    const pt = skillAimPoint(sk);
+    faceTowards(pt.x, pt.y);
+    startSwing(p, 'cast', 0.35);
+    blizzardFx(pt.x, pt.y, sk, (last) => {
+      shakeScreen(last ? 4 : 1.2);
+      for (const m of enemiesInCircle(pt.x, pt.y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, slow: sk.slow, heavy: last, vfxColor: '#dff4ff' });
+    });
+  },
+
+  // Drache (Blitzdrache, früher Glutdrache): fliegt zum Ziel (oder in Blickrichtung) und entlädt sich dort
   dragon(sk, pw) {
     const p = game.player;
     const t = pickTarget(sk.range);
@@ -749,7 +831,7 @@ const SKILL_TYPES = {
     dragonFx(p, tx, ty, sk, () => {
       shakeScreen(4);
       hitStop(0.04);
-      for (const m of enemiesInCircle(tx, ty, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: true, vfxColor: '#ffd08a' });
+      for (const m of enemiesInCircle(tx, ty, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: true, vfxColor: sk.element === 'blitz' ? '#cfe8ff' : '#ffd08a' });
     });
   },
 

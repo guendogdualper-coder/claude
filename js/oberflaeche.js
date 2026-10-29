@@ -406,7 +406,7 @@ const ui = {
       const rank = skillRank(p.skillLevels[i]);
       btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
-      btn.title = `${sk.name} (${slot + 1}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${sk.mp}, Abklingzeit: ${sk.cooldown} s. Lange drücken zum Tauschen.`;
+      btn.title = `${sk.name} (${slot + 1}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${skillMana(sk, p)}, Abklingzeit: ${sk.cooldown} s. Lange drücken zum Tauschen.`;
       btn.innerHTML = `<span class="key">${slot + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
@@ -903,7 +903,7 @@ const ui = {
           if (el) el.style.setProperty('--p', String(v / 48));
         });
       }
-      this.set('mana' + i, p.mp < sk.mp, (v) => {
+      this.set('mana' + i, p.mp < skillMana(sk, p), (v) => {
         const el = $('skill' + i);
         if (el) el.classList.toggle('no-mana', v);
       });
@@ -1327,7 +1327,7 @@ function skillStatsHtml(sk, lvl) {
 
 function skillListHtml(skills, p) {
   return '<ul class="skill-list">' + skills.map((sk, i) => {
-    let meta = `ab Stufe ${sk.unlock}<br>${sk.mp} Mana · ${sk.cooldown} s`;
+    let meta = `ab Stufe ${sk.unlock}<br>${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s`;
     if (p) {
       const lvl = p.skillLevels[i];
       const r = skillRank(lvl);

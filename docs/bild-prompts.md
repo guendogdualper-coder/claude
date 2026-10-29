@@ -1670,3 +1670,20 @@ Fantasy MMORPG title screen UI for a mobile landscape game, dark night-blue ston
 ```
 Character select screen for a stylized fantasy MMORPG, four slot cards in a row (two by two on narrow phones): each filled card shows a small class emblem (warrior axe, ninja dagger, shaman talisman, necromancer skull) in the class color, the character name in bold, "Stufe 12 · Schamane", map name and last played time, a gold "Spielen" button and a small red trash icon; the last played card has a soft gold glow; an empty card is a dashed gold outline with a big "+" and "Neuer Charakter"; dark blue parchment background with gold trim, compact and readable on a phone in landscape.
 ```
+
+## Blitzdrache, Blizzard und Ansturm (Version 7.7)
+
+### Blitzdrache
+```
+Stylized 3D toon MMORPG spell VFX, top-down three-quarter view: a serpentine lightning dragon made of crackling electric-blue energy – white-hot head with horns, open jaws and long whiskers, body of overlapping glowing segments shading from pale cyan at the neck to deep cobalt at the tail, small sparks jumping off the body; it arcs from the shaman's hand to the target and discharges in a burst of forked lightning bolts, blue ground cracks and bright sparks. Clean silhouettes, readable on a phone screen.
+```
+
+### Blizzard mit Zielkreis
+```
+Stylized 3D toon MMORPG area spell, top-down: a ground-targeted blizzard – first a dashed pale-blue aiming circle with slowly turning rune ring; then inside the circle a frosty ground patch, a blue rune circle, wind-blown snowflakes drifting diagonally and sharp icicles falling at an angle and shattering into ice shards; enemies inside get a light frost tint. Medium radius, cold palette of white, ice blue and cobalt, readable at small size.
+```
+
+### Ansturm der Dungeon-Monster
+```
+Game animation reference, stylized 3D toon monsters (cave spider, orc berserker, ice golem): a short crouch with an orange warning ring at the feet, then a fast low sprint toward the player with a dust trail, ending in a lunging strike; three key poses side by side for each monster.
+```

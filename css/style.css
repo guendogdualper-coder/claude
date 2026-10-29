@@ -2591,3 +2591,6 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 .char-confirm div { display: flex; gap: 6px; }
 .create-row { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 560px) { .char-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); } .acc-form { grid-template-columns: 1fr 1fr; } }
+
+/* Zielkreis (Blizzard): Fadenkreuz am PC */
+body.aiming canvas { cursor: crosshair; }

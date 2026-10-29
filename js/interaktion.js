@@ -624,12 +624,11 @@ function remoteSkillFx(rp, d) {
     case 'dragon':
       dragonFx(rp, target.x, target.y, sk);
       break;
+    case 'blizzard':
+      blizzardFx(target.x, target.y, sk);
+      break;
     case 'blast': {
       const bolts = sk.fx === 'storm' ? 6 : 1;
-      if (sk.fx === 'hail') {
-        hailFx(target.x, target.y, sk);
-        break;
-      }
       if (sk.fx === 'poison') {
         addEffect({ type: 'ring', x: target.x, y: target.y, r: sk.radius, dur: 0.5, color: '#8fd16a', width: 8, grow: true });
         particles(target.x, target.y - 8, { count: 24, color: ['#8fd16a', '#5a8a3a'], speed: [30, 120], life: [0.8, 1.4], size: [5, 10], drag: 2, glow: false, jitter: sk.radius * 0.5 });

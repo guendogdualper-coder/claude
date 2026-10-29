@@ -373,6 +373,7 @@ function addEffect(e) {
   }
   rankLook(e);
   game.effects.push(e);
+  return e;
 }
 
 function addText(x, y, text, style) {
@@ -553,6 +554,20 @@ function drawEffect(ctx, e) {
         ctx.quadraticCurveTo(x + i * 6 + 4, y - 2, x - 6 + i * 6 + len * 0.5, y - 12 + len);
         ctx.stroke();
       }
+      break;
+    }
+    // Zielkreis beim Zielen (Blizzard): gestrichelter Ring, der dem gewählten Punkt folgt
+    case 'aim': {
+      ctx.globalAlpha = 0.9;
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([12, 6]);
+      ctx.lineDashOffset = -game.time * 30;
+      ctx.beginPath();
+      ctx.ellipse(x, y, e.r, e.r / 1.2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 0.15;
+      ctx.fill();
       break;
     }
     // Warnkreis am Boden vor einem Boss-Stampfer: füllt sich, bis der Schlag kommt

@@ -124,20 +124,24 @@ const SKILL_ICONS = {
     iconLine(ctx, '#7a8aa8', 1.5, [[-12, 14], [10, -14]]);
   },
   // Schamane
-  // Glutdrache: Drachenkopf mit Hörnern und Feuerschweif
+  // Blitzdrache: Drachenkopf mit Hörnern und gezacktem Blitzschweif
   talisman(ctx) {
     ctx.lineCap = 'round';
-    for (const [w, c] of [[7, '#c8302a'], [4.5, '#ff7a2a'], [2, '#ffd34d']]) {
+    ctx.lineJoin = 'round';
+    for (const [w, c] of [[7, '#2a4ac8'], [4.5, '#5aa8ff'], [2, '#ffffff']]) {
       ctx.strokeStyle = c;
       ctx.lineWidth = w;
       ctx.beginPath();
       ctx.moveTo(-17, 13);
-      ctx.bezierCurveTo(-12, -2, -2, 14, 2, 2);
+      ctx.lineTo(-11, 4);
+      ctx.lineTo(-7, 10);
+      ctx.lineTo(-2, 1);
+      ctx.lineTo(2, 4);
       ctx.stroke();
     }
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-1, 4); ctx.quadraticCurveTo(2, -8, 10, -8); ctx.lineTo(18, -3); ctx.lineTo(10, 1); ctx.lineTo(16, 5); ctx.lineTo(6, 7); ctx.closePath(); }, '#ffd34d', '#c8402f', 1.3);
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(-3, -16); ctx.lineTo(7, -9); ctx.closePath(); }, '#fff2c0', '#a8682a', 1);
-    ctx.fillStyle = '#1a0a04';
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-1, 4); ctx.quadraticCurveTo(2, -8, 10, -8); ctx.lineTo(18, -3); ctx.lineTo(10, 1); ctx.lineTo(16, 5); ctx.lineTo(6, 7); ctx.closePath(); }, '#dff2ff', '#2a5ac8', 1.3);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(-3, -16); ctx.lineTo(7, -9); ctx.closePath(); }, '#ffffff', '#3a6ad8', 1);
+    ctx.fillStyle = '#0a1a4a';
     ctx.beginPath();
     ctx.arc(9, -4, 1.4, 0, Math.PI * 2);
     ctx.fill();
@@ -168,18 +172,22 @@ const SKILL_ICONS = {
     }
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); }, '#fffbe6', '#e8b83a');
   },
-  // Feuerhagel: drei Brocken mit Schweif schräg nach unten
+  // Blizzard: Schneeflocke im Sturmwirbel mit fallenden Eiszapfen
   blitzschlag(ctx) {
     ctx.lineCap = 'round';
-    for (const [x, y, r] of [[-8, -6, 5], [6, -10, 4], [3, 8, 6]]) {
-      ctx.strokeStyle = 'rgba(255,154,74,0.75)';
-      ctx.lineWidth = r * 1.2;
-      ctx.beginPath();
-      ctx.moveTo(x + 10, y - 10);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }, '#ffe08a', '#c8402f', 1.2);
+    ctx.strokeStyle = 'rgba(159,216,255,0.7)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 2, 15, 3.6, 3.6 + Math.PI * 1.4);
+    ctx.stroke();
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI / 3;
+      const [cx, cy] = [Math.cos(a), Math.sin(a)];
+      iconLine(ctx, '#ffffff', 2.6, [[0, 0], [cx * 11, cy * 11]]);
+      iconLine(ctx, '#bfe8ff', 1.6, [[cx * 7, cy * 7], [cx * 7 + Math.cos(a + 0.9) * 4, cy * 7 + Math.sin(a + 0.9) * 4]]);
+      iconLine(ctx, '#bfe8ff', 1.6, [[cx * 7, cy * 7], [cx * 7 + Math.cos(a - 0.9) * 4, cy * 7 + Math.sin(a - 0.9) * 4]]);
     }
+    for (const [x, y] of [[-14, -14], [12, -16], [15, 10]]) iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(x - 2.5, y - 4); ctx.lineTo(x + 2.5, y - 4); ctx.lineTo(x, y + 5); ctx.closePath(); }, '#dff4ff', '#4a8ad8', 1);
   },
   heilung(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 14); ctx.quadraticCurveTo(-14, -12, 15, -15); ctx.quadraticCurveTo(12, 12, -14, 14); ctx.closePath(); }, '#c6f08a', '#3a8a2a');
@@ -550,10 +558,11 @@ const SKILL_FX = {
     aura: { every: 0.05, color: ['#ffffff', '#c8d8f0'], shape: 'spark', wind: true, onlyMoving: true }
   },
   talisman: {
-    color: '#ff8a2a',
+    color: '#8fd0ff',
     hit(m) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 10, color: ['#ffd34d', '#ff7a2a', '#ffffff'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 2.5], shape: 'ember', drag: 5 });
+      particles(c.x, c.y, { count: 10, color: ['#cfe8ff', '#5aa8ff', '#ffffff'], speed: [80, 220], life: [0.15, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+      addEffect({ type: 'chain', x: c.x - 14, y: c.y - 10, x2: c.x + 12, y2: c.y + 8, dur: 0.18, color: '#cfe8ff' });
     }
   },
   drachengebruell: {
@@ -575,13 +584,13 @@ const SKILL_FX = {
     ring: '#ffe9a0'
   },
   blitzschlag: {
-    color: '#ff6a2a',
+    color: '#bfe8ff',
     cast() {
-      flashScreen('#ff6a2a', 0.15);
+      flashScreen('#bfe8ff', 0.15);
     },
     hit(m) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 8, color: ['#ffd34d', '#ff7a2a'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 3], shape: 'ember', drag: 5 });
+      particles(c.x, c.y, { count: 6, color: ['#ffffff', '#bfe8ff', '#6ab8ff'], speed: [50, 140], life: [0.3, 0.6], size: [1.5, 3], shape: 'square', drag: 4, glow: false });
     }
   },
   heilung: {
@@ -799,48 +808,84 @@ Object.assign(SKILL_FX, {
   }
 });
 
-// --- Schamane (seit 6.9/7.1): Glutdrache, Drachenwirbel und Feuerhagel, auch für Mitspieler sichtbar -------------------
+// --- Schamane (seit 6.9/7.1, 7.7): Drache, Drachenwirbel und Blizzard, auch für Mitspieler sichtbar -------------------
 
-// Glutdrache: Runen an der Hand, der Drache fliegt im Bogen zum Ziel, dort Feuerexplosion; onHit trifft
-// (nur beim eigenen Wirken). Gibt die Flugzeit zurück.
+// Farben des Drachen je Element (Glutdrache aus Feuer, seit 7.7 Blitzdrache)
+const DRAGON_PAL = {
+  feuer: { rune: '#ffb04a', ring: '#ff9a4a', column: '#ff6a2a', core: '#ffe08a', shard: '#ff8a2a', spark: '#ffb04a', bits: ['#ffd34d', '#ff9a4a', '#ff5a2a'] },
+  blitz: { rune: '#8fd0ff', ring: '#9fd0ff', column: '#4a8aff', core: '#ffffff', shard: '#9fd8ff', spark: '#cfe8ff', bits: ['#ffffff', '#cfe8ff', '#5aa8ff'] }
+};
+
+// Drache: Runen an der Hand, der Drache fliegt im Bogen zum Ziel, dort Explosion (Feuer) oder Entladung (Blitz);
+// onHit trifft (nur beim eigenen Wirken). Gibt die Flugzeit zurück.
 function dragonFx(p, tx, ty, sk, onHit) {
+  const el = sk.element || 'feuer';
+  const P = DRAGON_PAL[el];
   const fly = Math.max(0.3, Math.min(0.7, Math.hypot(tx - p.x, ty - p.y) / (sk.speed || 620)));
   const c = bodyCenter(p);
-  addEffect({ type: 'runes', x: c.x + p.facing.x * 14, y: c.y + 6, r: 24, dur: 0.5, color: '#ffb04a' });
-  addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 1, count: 12, color: '#ffb04a', speed: 2, up: 1.4, dur: 0.6 });
-  addEffect({ type: 'dragon3', x: p.x, y: feetY(p), tx, ty, fly, dur: fly + 0.2, size: 1 });
+  addEffect({ type: 'runes', x: c.x + p.facing.x * 14, y: c.y + 6, r: 24, dur: 0.5, color: P.rune });
+  addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 1, count: 12, color: P.rune, speed: 2, up: 1.4, dur: 0.6 });
+  addEffect({ type: 'dragon3', x: p.x, y: feetY(p), tx, ty, fly, dur: fly + 0.2, size: 1, pal: el });
   later(fly, () => {
-    addEffect({ type: 'ring', x: tx, y: ty, r: sk.radius, dur: 0.45, color: '#ff9a4a', width: 9, grow: true });
-    addEffect({ type: 'column3', x: tx, y: ty, r: 32, hgt: 2.4, color: '#ff6a2a', core: '#ffe08a', dur: 0.6 });
-    addEffect({ type: 'shards3', x: tx, y: ty, r: sk.radius * 0.6, count: 8, color: '#ff8a2a', glow: true, size: 1.1, dur: 0.6 });
-    addEffect({ type: 'sparks3', x: tx, y: ty, h: 0.5, count: 26, color: '#ffb04a', speed: 3.4, up: 2, dur: 0.9 });
-    addEffect({ type: 'smoke3', x: tx, y: ty, count: 7, color: '#2a1a12', size: 0.8, dur: 1.1 });
-    addEffect({ type: 'decal', kind: 'scorch', x: tx, y: ty, r: sk.radius * 0.6, dur: 3, color: '#1a1008' });
-    particles(tx, ty - 10, { count: 34, color: ['#ffd34d', '#ff9a4a', '#ff5a2a'], speed: [80, 240], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3 });
+    addEffect({ type: 'ring', x: tx, y: ty, r: sk.radius, dur: 0.45, color: P.ring, width: 9, grow: true });
+    addEffect({ type: 'column3', x: tx, y: ty, r: 32, hgt: 2.4, color: P.column, core: P.core, dur: 0.6 });
+    addEffect({ type: 'shards3', x: tx, y: ty, r: sk.radius * 0.6, count: 8, color: P.shard, glow: true, size: 1.1, dur: 0.6 });
+    addEffect({ type: 'sparks3', x: tx, y: ty, h: 0.5, count: 26, color: P.spark, speed: 3.4, up: 2, dur: 0.9 });
+    if (el === 'blitz') {
+      // Entladung: mehrere Blitze rund um den Einschlag, zuckende Bögen am Boden
+      for (let k = 0; k < 4; k++) {
+        const a = k * Math.PI / 2 + Math.random() * 0.8;
+        const d = k ? sk.radius * (0.35 + Math.random() * 0.45) : 0;
+        later(k * 0.05, () => addEffect({ type: 'bolt', x: tx + Math.cos(a) * d, y: ty + Math.sin(a) * d * 0.8, dur: 0.35, color: '#cfe8ff' }));
+      }
+      for (let k = 0; k < 5; k++) {
+        const a = Math.random() * Math.PI * 2;
+        addEffect({ type: 'chain', x: tx, y: ty - 6, x2: tx + Math.cos(a) * sk.radius * 0.8, y2: ty + Math.sin(a) * sk.radius * 0.6, dur: 0.25, color: '#9fd0ff' });
+      }
+      addEffect({ type: 'decal', kind: 'crack', x: tx, y: ty, r: sk.radius * 0.5, dur: 2.5, color: '#2a3a6a' });
+      flashScreen('#cfe8ff', 0.12);
+    } else {
+      addEffect({ type: 'smoke3', x: tx, y: ty, count: 7, color: '#2a1a12', size: 0.8, dur: 1.1 });
+      addEffect({ type: 'decal', kind: 'scorch', x: tx, y: ty, r: sk.radius * 0.6, dur: 3, color: '#1a1008' });
+    }
+    particles(tx, ty - 10, { count: 34, color: P.bits, speed: [80, 240], life: [0.3, 0.7], size: [2.5, 5], shape: el === 'blitz' ? 'spark' : 'ember', drag: 3 });
     if (onHit) onHit();
   });
   return fly;
 }
 
-// Feuerhagel: nur Brocken, die gut drei Sekunden lang nacheinander vom Himmel fallen (ohne Runen am Boden);
-// onImpact(x, y, letzter) trifft (nur beim eigenen Wirken)
-function hailFx(x, y, sk, onImpact) {
-  const n = sk.meteors || 22;
-  const fall = 0.42;
+// Blizzard (seit 7.7): Über dem gewählten Ort tobt ein Schneesturm – Frostkreis am Boden, wirbelnder Schnee,
+// Eiszapfen und Hagel fallen schräg herab. onTick(letzter) trifft alle im Kreis (nur beim eigenen Wirken).
+function blizzardFx(x, y, sk, onTick) {
+  const dur = sk.duration || 4;
+  const R = sk.radius;
+  addEffect({ type: 'ring', x, y, r: R, dur: 0.6, color: '#dff4ff', width: 10, grow: true });
+  addEffect({ type: 'runes', x, y, r: R * 0.95, dur, color: '#3a7ac8' });
+  addEffect({ type: 'decal', kind: 'splash', x, y, r: R * 0.85, dur: dur + 1.5, color: '#d8f0ff' });
+  // Eiszapfen und Hagel
+  const n = sk.shards || 26;
+  const fall = 0.45;
   for (let k = 0; k < n; k++) {
-    // erster Brocken in die Mitte, die anderen verteilt
     const a = Math.random() * Math.PI * 2;
-    const d = k ? Math.sqrt(Math.random()) * sk.radius * 0.9 : 0;
+    const d = Math.sqrt(Math.random()) * R * 0.92;
     const cx = x + Math.cos(a) * d;
     const cy = y + Math.sin(a) * d * 0.8;
-    const delay = 0.05 + k * (sk.every || 0.15);
-    later(delay, () => addEffect({ type: 'meteor3', x: cx, y: cy, fall, dur: fall + 0.1, size: k ? 0.9 + Math.random() * 0.3 : 1.3 }));
+    const delay = 0.1 + (k / n) * (dur - 0.5);
+    later(delay, () => addEffect({ type: 'meteor3', x: cx, y: cy, fall, dur: fall + 0.1, size: 1 + Math.random() * 0.5, pal: 'eis' }));
     later(delay + fall, () => {
-      addEffect({ type: 'ring', x: cx, y: cy, r: sk.splash || 55, dur: 0.35, color: '#ffb04a', width: 6, grow: true });
-      addEffect({ type: 'sparks3', x: cx, y: cy, h: 0.2, count: 12, color: '#ffb04a', speed: 2.6, up: 1.6, dur: 0.6 });
-      addEffect({ type: 'decal', kind: 'scorch', x: cx, y: cy, r: 22, dur: 2.5, color: '#1a1008' });
-      particles(cx, cy - 6, { count: 12, color: ['#ffd34d', '#ff7a2a', '#5a3a2a'], speed: [60, 180], life: [0.3, 0.6], size: [2, 4], shape: 'ember', drag: 3 });
-      if (onImpact) onImpact(cx, cy, k === n - 1);
+      addEffect({ type: 'sparks3', x: cx, y: cy, h: 0.2, count: 8, color: '#dff4ff', speed: 2.2, up: 1.2, dur: 0.5 });
+      particles(cx, cy - 4, { count: 6, color: ['#ffffff', '#bfe8ff', '#6ab8ff'], speed: [40, 120], life: [0.3, 0.5], size: [1.5, 3], shape: 'square', drag: 4, glow: false });
+    });
+  }
+  // Schneegestöber: Flocken treiben schräg durch den Kreis
+  for (let t = 0; t < dur; t += 0.12) {
+    later(t, () => particles(x + rand(-R, R), y - 70 + rand(-20, 20), { count: 3, color: ['#ffffff', '#e8f6ff', '#bfe8ff'], angle: Math.PI * 0.6, spread: 0.3, speed: [80, 150], life: [0.5, 0.9], size: [1.5, 3], drag: 0.5, gravity: 60, glow: false, jitter: R * 0.4 }));
+  }
+  const ticks = sk.ticks || 8;
+  for (let t = 0; t < ticks; t++) {
+    later(0.3 + t * ((dur - 0.3) / ticks), () => {
+      addEffect({ type: 'ring', x, y, r: R, dur: 0.35, color: '#6ab8ff', width: 3 });
+      if (onTick) onTick(t === ticks - 1);
     });
   }
 }
@@ -896,6 +941,7 @@ const ELEMENT3 = {
   feuer: { spark: '#ffb04a', column: '#ff6a2a' },
   schatten: { spark: '#c9b8ff', smoke: '#1a1224', orb: '#8a5aff' },
   blitz: { spark: '#cfe8ff', column: '#7fb8ff' },
+  eis: { spark: '#dff4ff', shard: '#9fd8ff' },
   wind: { spark: '#e8fff0', column: '#9fe8c8' },
   licht: { spark: '#fff2c0', column: '#ffd34d', orb: '#fff2a0' },
   seele: { spark: '#9ff0b0', smoke: '#14281a', orb: '#7fe3a0' },
@@ -907,17 +953,17 @@ const SKILL_ELEMENT = {
   sturmangriff: 'erde', schildstoss: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
   kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
-  blitzangriff: 'blitz', blitzschlag: 'feuer', donnersturm: 'blitz',
+  blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
   leichtfuessigkeit: 'wind', windfessel: 'wind',
-  geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'feuer', geistesschlag: 'licht',
+  geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'blitz', geistesschlag: 'licht',
   seelenpfeil: 'seele', seelensturm: 'seele', fluch: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
   blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
 };
 
 function skillSignature3(sk, p) {
   const el = SKILL_ELEMENT[sk.id];
-  // Glutdrache und Feuerhagel haben ihren eigenen Auftritt (Drache, Brocken)
-  if (!el || sk.type === 'dragon' || sk.fx === 'hail') return;
+  // Blitzdrache und Blizzard haben ihren eigenen Auftritt (Drache, Schneesturm)
+  if (!el || sk.type === 'dragon' || sk.type === 'blizzard') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
   // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur
