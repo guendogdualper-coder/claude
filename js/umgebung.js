@@ -414,6 +414,27 @@ function drawDeco(ctx, d, g, px, py, h) {
       ctx.moveTo(px + ox, py + oy - 5); ctx.lineTo(px + ox - 5, py + oy - 9);
       ctx.stroke();
       break;
+    case DECO.DRIFT:
+      // Schneewehe (seit 8.4): heller Hügel mit bläulichem Schatten, ein Stein und zwei trockene Halme
+      ctx.fillStyle = 'rgba(150,175,205,0.55)';
+      ctx.beginPath();
+      ctx.ellipse(px + ox + 1, py + oy + 1.5, 11, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#f4f8fc';
+      ctx.beginPath();
+      ctx.ellipse(px + ox - 1, py + oy - 0.5, 10, 4, -0.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#7a8694';
+      ctx.beginPath();
+      ctx.ellipse(px + ox + 6, py + oy - 1, 3, 2.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#8a9878';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(px + ox - 6, py + oy); ctx.lineTo(px + ox - 8, py + oy - 6);
+      ctx.moveTo(px + ox - 5, py + oy); ctx.lineTo(px + ox - 4, py + oy - 7);
+      ctx.stroke();
+      break;
     case DECO.CRACK:
       ctx.strokeStyle = g === GROUND.BASALT ? 'rgba(255,120,40,0.55)' : 'rgba(28,18,16,0.5)';
       ctx.lineWidth = 1;

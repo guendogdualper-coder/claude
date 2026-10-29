@@ -5,6 +5,7 @@
 // Alle Formen sind weich abgerundet; Farben kommen aus denselben Tabellen wie im 2D-Spiel.
 
 const WALL3_ROOF = '#3e4656';
+const FROST_ROCK3 = '#3e4a5c';
 
 function worldLitMat() {
   return mat3('worldLit', () => addFade(toonMat(), 0.45));
@@ -115,9 +116,19 @@ const WORLD3 = {
   },
 
   rock(b, M, v, style) {
-    const [base, top, moss] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
+    const [grey, top, moss] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
+    // Frost: im hellen Schneelicht wirkt das 2D-Grau weiß, darum dunkler blaugrau (Schnee liegt obenauf)
+    const base = style === 'frost' ? FROST_ROCK3 : grey;
     const s = [1, 0.85, 1.15][v];
-    b.add(rockGeo(v), base, { parent: M, s: [0.48 * s, 0.5 * s, 0.42 * s], p: [0, 0.12, 0], top: moss || top, topK: moss ? 0.8 : 0.6, shade: 0.45 });
+    const frost = style === 'frost';
+    b.add(rockGeo(v), base, { parent: M, s: [0.48 * s, 0.5 * s, 0.42 * s], p: [0, 0.12, 0], top: moss || top, topK: moss ? 0.8 : frost ? 0.3 : 0.6, shade: 0.45 });
+    // Frost (seit 8.4): blaugrauer Fels mit eigener Schneehaube und Schnee am Fuß statt einer weißen Kugel
+    if (frost) {
+      const rg = rockGeo(v);
+      if (!rg.boundingBox) rg.computeBoundingBox();
+      b.add(foliageGeo(v, 2), '#c8d8ea', { parent: M, p: [0.04, 0.07 + rg.boundingBox.max.y * 0.5 * s, -0.07], s: [0.32 * s, 0.13 * s, 0.26 * s], top: '#f4f8fc', topK: 1, ao: 0.3 });
+      b.add(cap3(1, Math.PI / 2, 0, Math.PI * 2, 10, 3), '#eef4fa', { parent: M, p: [0.1, -0.012, 0.12], s: [0.5 * s, 0.07, 0.4 * s], ao: 0, mat: 'detail' });
+    }
     if (v === 2) b.add(rockGeo(1), base, { parent: M, s: [0.22, 0.24, 0.2], p: [0.45, 0.06, 0.15], top, topK: 0.45 });
     if (style === 'vulkan' || style === 'titanenkamm') b.add(limb3(0.3, 0.025, 0.02, 5), '#ff7a2a', { parent: M, p: [-0.15, 0.42, 0.25], r: [0.3, 0, 1.2], mat: 'glow' });
   },
@@ -419,10 +430,13 @@ function flowerGeo(color) {
   });
 }
 
-// Grasfarbe je Boden; auf Wegen vereinzelt trockene Büschel
+// Grasfarbe je Boden; auf Wegen vereinzelt trockene Büschel. Seit 8.4 auch bereifte Halme im Schnee,
+// dürres Wüstengras auf Sand und totes graues Gras auf Asche, jeweils nur jede n-te Kachel (GRASS3_SPARSE)
 const GRASS3 = {
-  [GROUND.GRASS]: '#4f8a34', [GROUND.MEADOW]: '#62a040', [GROUND.FOREST]: '#2e5a2a', [GROUND.SWAMP]: '#4a5a34', [GROUND.PATH]: '#7a8a3e'
+  [GROUND.GRASS]: '#4f8a34', [GROUND.MEADOW]: '#62a040', [GROUND.FOREST]: '#2e5a2a', [GROUND.SWAMP]: '#4a5a34', [GROUND.PATH]: '#7a8a3e',
+  [GROUND.SNOW]: '#9aa88a', [GROUND.SAND]: '#a89a5a', [GROUND.ASH]: '#6a645a'
 };
+const GRASS3_SPARSE = { [GROUND.SNOW]: 9, [GROUND.SAND]: 12, [GROUND.ASH]: 14 };
 const CLOVER3 = '#3a8048';
 const FLOWER3 = { [DECO.FLOWER_RED]: '#e04a3a', [DECO.FLOWER_YELLOW]: '#f0c83a', [DECO.FLOWER_WHITE]: '#f4f0e8' };
 
@@ -442,53 +456,585 @@ const tplPebble = (v, style) => bakeTemplate(`pebble:${v}:${style}`, (b) => {
   const [base, top] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
   b.add(rockGeo(v, 0), base, { s: [0.1, 0.07, 0.08], p: [0, 0.03, 0], top, topK: 0.5, mat: 'grass' });
 });
-// Schmuck ohne Kollision (seit 6.5): Baumstumpf, umgefallener Stamm, Pilze, Knochen, Busch, Kristalle, toter Baum
-const DECO_COLORS = {
-  frost: { wood: '#7a6a5a', crystal: '#bfe8ff', glow: false, cap: '#c84a3a', bush: '#5a7a6a' },
-  vulkan: { wood: '#2a1a14', crystal: '#ff7a2a', glow: true, cap: '#8a3a2a', bush: '#4a3a2a' },
-  titanenkamm: { wood: '#2a1a14', crystal: '#ffb04a', glow: true, cap: '#8a3a2a', bush: '#4a3a2a' },
-  oedland: { wood: '#4a3a34', crystal: '#c8303a', glow: true, cap: '#6a4a3a', bush: '#5a4a3a' },
-  moor: { wood: '#3a3428', crystal: '#8fe36a', glow: true, cap: '#7ad86a', capGlow: true, bush: '#3a4a2a' },
-  donnerklamm: { wood: '#4a4440', crystal: '#9fd0ff', glow: true, cap: '#8a6a4a', bush: '#5a5a4a' },
-  nagadschungel: { wood: '#5a3f2a', crystal: '#7ad8c8', glow: true, cap: '#e0a03a', bush: '#2f6a3a' }
-};
-const tplDeco = (d, style, v) => bakeTemplate(`deco:${d}:${style}:${v}`, (b) => {
-  const c = Object.assign({ wood: '#6b4a2e', crystal: '#bfe8ff', glow: false, cap: '#c84a3a', bush: '#3f7a32' }, DECO_COLORS[style] || {});
-  const bark = c.wood;
-  if (d === DECO.STUMP) {
-    b.add(lathe3('stump', [[0.2, 0], [0.17, 0.08], [0.15, 0.22], [0, 0.23]], 10), bark, { top: '#c8a070', topK: 0.25, shade: 0.3 });
-    for (let k = 0; k < 3; k++) b.add(horn3(0.22, 0.05, 4), darker(bark, 0.1), { p: [Math.cos(k * 2.1) * 0.15, 0.03, Math.sin(k * 2.1) * 0.15], r: [Math.sin(k * 2.1) * 1.4, 0, -Math.cos(k * 2.1) * 1.4] });
-    if (style === 'frost') b.add(sphere3(0.15, 8, 6), '#f4fbff', { p: [0, 0.23, 0], s: [1, 0.35, 1] });
-  } else if (d === DECO.LOG) {
-    b.add(limb3(1.0, 0.13, 0.11, 7), bark, { p: [-0.5, 0.12, 0], r: [0, 0, -Math.PI / 2], shade: 0.3 });
-    b.add(cyl3(0.12, 0.12, 0.02, 8), '#c8a070', { p: [0.5, 0.12, 0], r: [0, 0, Math.PI / 2] });
-    b.add(sphere3(0.12, 8, 6), style === 'moor' ? '#5a6a2a' : '#4f7a32', { p: [-0.1, 0.22, 0.02], s: [1.4, 0.4, 0.8] });
-  } else if (d === DECO.MUSHROOM) {
-    for (let k = 0; k < 3; k++) {
-      const s = 0.7 + (k + v) % 3 * 0.25;
-      const x = [-0.12, 0.1, 0.02][k];
-      const z = [0.05, -0.06, 0.14][k];
-      b.add(limb3(0.12 * s, 0.025 * s, 0.03 * s, 5), '#efe6cc', { p: [x, 0, z] });
-      b.add(sphere3(0.09 * s, 8, 5), c.cap, { p: [x, 0.12 * s, z], s: [1, 0.7, 1], mat: c.capGlow ? 'glow' : 'lit' });
+// Schmuck ohne Kollision (seit 6.5, neu gebaut in 8.4): Baumstumpf, umgefallener Stamm, Pilze, Knochen, Busch,
+// Kristalle, toter Baum und Schneewehe. Jedes Teil in echter Größe, fest im Boden verankert (Büschel oder kleiner
+// Hügel am Fuß), mit dunkler Unterseite und heller Oberseite. Dünne Teile (Zweige, Beeren, Pilzpunkte, Jahresringe)
+// kommen ins Material 'detail' ohne Umriss, sonst wären sie nur schwarze Striche.
+
+// Ast, Wurzel oder Knochen zwischen zwei Punkten a → z (seit 8.4). Nie ein gedrehtes limb3: das hängt von y = 0
+// nach unten und landete so im Boden. rund: Kapsel, sonst ein schlanker Kegelstumpf (ein Drittel der Dreiecke).
+const _stD = new THREE.Vector3();
+const _stOne = new THREE.Vector3(1, 1, 1);
+function stick3(b, a, z, r1, r2, color, o = {}) {
+  _stD.set(z[0] - a[0], z[1] - a[1], z[2] - a[2]);
+  const len = Math.max(0.05, +_stD.length().toFixed(2));
+  const q = new THREE.Quaternion().setFromUnitVectors(_down, _stD.normalize());
+  const geo = o.round ? limb3(len, r1, r2, o.seg || 6) : lathe3(`stick${len},${r1},${r2}`, [[0, -len], [r2, -len], [r1, 0], [0, 0]], o.seg || 5);
+  b.add(geo, color, Object.assign({}, o, { m: new THREE.Matrix4().compose(new THREE.Vector3(a[0], a[1], a[2]), q, _stOne) }));
+}
+// Teil in einem gedrehten Unterkörper (Pilz, Kristall): Matrix M mal eigene Lage
+const atM3 = (M, p, r, s) => M.clone().multiply(partMatrix({ p, r, s }));
+
+// Laubwolke mit Ausbuchtungen (seit 8.4): Ikosaeder, an neun Stellen nach außen gewölbt, dazu feines Rauschen
+// für den Blattrand; unten abgeflacht. Für Moospolster und Schneehauben. foliageR gibt den Radius der
+// Wolke in einer Richtung (ohne Rauschen).
+const FOLIAGE3 = [];
+function foliageLobes(v) {
+  if (!FOLIAGE3[v]) {
+    const rnd = mulberry32(57 + v * 23);
+    FOLIAGE3[v] = Array.from({ length: 9 }, (_, k) => {
+      // sechs Ausbuchtungen rundum, drei oben
+      const a = (k < 6 ? k / 6 : (k - 6) / 3 + 0.15) * Math.PI * 2 + rnd() * 0.5;
+      const e = k < 6 ? 0.1 + rnd() * 0.35 : 0.75 + rnd() * 0.3;
+      return [Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e), 0.32 + rnd() * 0.12];
+    });
+  }
+  return FOLIAGE3[v];
+}
+function foliageR(v, x, y, z) {
+  let r = 0.74;
+  for (const [lx, ly, lz, a] of foliageLobes(v)) r += a * Math.pow(Math.max(0, x * lx + y * ly + z * lz), 7);
+  return r;
+}
+function foliageGeo(v, detail = 2) {
+  return geo3(`foliage${v},${detail}`, () => {
+    const g = smoothGeo(new THREE.IcosahedronGeometry(1, detail));
+    const pos = g.attributes.position;
+    const rnd = mulberry32(91 + v * 7);
+    for (let i = 0; i < pos.count; i++) {
+      _v1.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+      const r = foliageR(v, _v1.x, _v1.y, _v1.z) + (rnd() - 0.5) * 0.08;
+      let y = _v1.y * r;
+      if (y < -0.3) y = -0.3 + (y + 0.3) * 0.25;
+      pos.setXYZ(i, _v1.x * r, y, _v1.z * r);
     }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Laubbausch für Büsche (seit 8.4): kleine, leicht verbeulte Kugel mit Eckenfarben, unten dunkel, oben hell.
+// Mehrere davon überlappen sich; die Umrisse zwischen ihnen zeichnen die einzelnen Bausche wie bei den Baumkronen.
+function puffGeo(v, lo, hi) {
+  return geo3(`puff${v},${lo},${hi}`, () => {
+    const g = smoothGeo(new THREE.IcosahedronGeometry(1, 1));
+    const P = g.attributes.position;
+    const rnd = mulberry32(71 + v * 11);
+    for (let i = 0; i < P.count; i++) {
+      _v1.set(P.getX(i), P.getY(i), P.getZ(i)).normalize();
+      const r = 0.94 + rnd() * 0.12;
+      P.setXYZ(i, _v1.x * r, Math.max(-0.55, _v1.y * r * 0.92), _v1.z * r);
+    }
+    g.computeVertexNormals();
+    const N = g.attributes.normal;
+    const a = new THREE.Color(lo);
+    const b = new THREE.Color(hi);
+    const col = new Float32Array(P.count * 3);
+    for (let i = 0; i < P.count; i++) {
+      const t = Math.max(0, Math.min(1, (P.getY(i) + 0.1) / 0.9)) * 0.55 + Math.max(0, N.getY(i)) * 0.4;
+      _c.copy(a).lerp(b, Math.min(1, t));
+      col[i * 3] = _c.r;
+      col[i * 3 + 1] = _c.g;
+      col[i * 3 + 2] = _c.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return g;
+  });
+}
+// Kristall (seit 8.4): sechseckiges Prisma (Radius 1, Höhe 1) und Pyramidenspitze (Höhe 0,45) ohne gemeinsame
+// Ecken: jede Facette hat ihre eigene Normale und fängt das Licht. Nie durch smoothGeo schicken.
+function crystalGeo(part, sides = 6) {
+  return geo3(`crystal${part}${sides}`, () => {
+    const pos = [];
+    for (let k = 0; k < sides; k++) {
+      const a0 = (k / sides) * Math.PI * 2;
+      const a1 = ((k + 1) / sides) * Math.PI * 2;
+      const x0 = Math.cos(a0);
+      const z0 = Math.sin(a0);
+      const x1 = Math.cos(a1);
+      const z1 = Math.sin(a1);
+      if (part === 'tip') pos.push(x0, 0, z0, 0, 0.45, 0, x1, 0, z1);
+      else pos.push(x0, 0, z0, x1, 1, z1, x1, 0, z1, x0, 0, z0, x0, 1, z0, x1, 1, z1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Schneewehe (seit 8.4): Hügel auf einem Kreisgitter, auf der Windseite lang auslaufend, auf der anderen steil
+// abgebrochen; der Rand liegt knapp unter dem Boden, damit die Wehe aus dem Schnee herauswächst. Eckenfarben:
+// am Fuß bläulicher Schatten, oben auf dem Kamm reines Weiß (so hebt sie sich ohne Umriss vom Schnee ab).
+function driftGeo(v, lo, hi) {
+  return geo3(`drift${v},${lo},${hi}`, () => {
+    const S = 16;
+    const R = 4;
+    const th0 = v * 2.1 + 0.4;
+    const rnd = mulberry32(13 + v * 5);
+    const h = (r, a) => 0.2 * Math.pow(1 - r * r, 1.3) * (1 + 0.5 * Math.cos(a - th0)) * (v === 1 ? 1 + 0.4 * Math.cos(2 * a) : 1) - 0.012 * r;
+    const pos = [0, h(0, 0), 0];
+    const idx = [];
+    for (let j = 1; j <= R; j++) {
+      const r = j / R;
+      for (let k = 0; k < S; k++) {
+        const a = (k / S) * Math.PI * 2;
+        // Windseite: Kamm zum steilen Rand hin verschoben
+        const sk = 1 - 0.22 * Math.cos(a - th0) * r;
+        const n = j < R ? (rnd() - 0.5) * 0.06 : 0;
+        pos.push(Math.cos(a) * r * sk * (1 + n), h(r, a), Math.sin(a) * r * sk * (1 + n));
+      }
+    }
+    for (let k = 0; k < S; k++) idx.push(0, 1 + ((k + 1) % S), 1 + k);
+    for (let j = 1; j < R; j++) {
+      for (let k = 0; k < S; k++) {
+        const a = 1 + (j - 1) * S + k;
+        const b = 1 + (j - 1) * S + ((k + 1) % S);
+        idx.push(a, b, a + S, b, b + S, a + S);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const top = Math.max(...pos.filter((_, i) => i % 3 === 1));
+    const a = new THREE.Color(lo);
+    const b = new THREE.Color(hi);
+    const col = [];
+    for (let i = 1; i < pos.length; i += 3) {
+      _c.copy(a).lerp(b, Math.max(0, Math.min(1, (pos[i] / top) * 2.2 - 0.05)));
+      col.push(_c.r, _c.g, _c.b);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  });
+}
+
+// Flache Kleinteile (Normalen nach oben, nur von oben sichtbar): Scheibe, Ring, Blatt
+const discGeo = (n = 12) => flatGeo('disc' + n, (B) => {
+  const w = new THREE.Color('#ffffff');
+  const m = B.v(0, 0, 0, w);
+  const rim = Array.from({ length: n }, (_, k) => B.v(Math.cos((k / n) * Math.PI * 2), 0, Math.sin((k / n) * Math.PI * 2), w));
+  for (let k = 0; k < n; k++) B.up(m, rim[k], rim[(k + 1) % n]);
+});
+// Weicher Schein am Boden (für 'aura', additiv): innen die Farbe, zum Rand hin schwarz, also unsichtbar
+const haloGeo = (color) => flatGeo('halo' + color, (B) => {
+  const m = B.v(0, 0, 0, new THREE.Color(color));
+  const mid = new THREE.Color(color).multiplyScalar(0.45);
+  const black = new THREE.Color(0, 0, 0);
+  const ring = [];
+  const rim = [];
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    ring.push(B.v(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5, mid));
+    rim.push(B.v(Math.cos(a), 0, Math.sin(a), black));
+  }
+  for (let k = 0; k < 12; k++) {
+    const k2 = (k + 1) % 12;
+    B.up(m, ring[k], ring[k2]);
+    B.up(ring[k], rim[k], rim[k2]);
+    B.up(ring[k], rim[k2], ring[k2]);
+  }
+});
+const ringGeo = (inner, n = 14) => flatGeo(`ring${inner},${n}`, (B) => {
+  const w = new THREE.Color('#ffffff');
+  const o = [];
+  const i = [];
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
+    o.push(B.v(Math.cos(a), 0, Math.sin(a), w));
+    i.push(B.v(Math.cos(a) * inner, 0, Math.sin(a) * inner, w));
+  }
+  for (let k = 0; k < n; k++) {
+    const k2 = (k + 1) % n;
+    B.up(o[k], o[k2], i[k]);
+    B.up(i[k], o[k2], i[k2]);
+  }
+});
+// Blatt entlang +z (Länge 1): Mittelrippe hell, Rand dunkler; droop biegt die Spitze nach unten
+const leafGeo = (color, w = 0.38, droop = 0) => flatGeo(`leaf${color},${w},${droop}`, (B) => {
+  const c = grassShades(color);
+  const rib = [];
+  const left = [];
+  const right = [];
+  for (let k = 0; k <= 4; k++) {
+    const t = k / 4;
+    const y = droop * (0.5 * t - t * t);
+    const half = w * Math.sin(Math.PI * Math.pow(t, 0.8)) * 0.5;
+    rib.push(B.v(0, y + 0.01, t, k ? c.tip : c.foot));
+    if (k > 0 && k < 4) {
+      left.push(B.v(half, y - 0.01, t, c.mid));
+      right.push(B.v(-half, y - 0.01, t, c.mid));
+    }
+  }
+  for (let k = 0; k < 4; k++) {
+    for (const side of [left, right]) {
+      const e0 = k > 0 ? side[k - 1] : null;
+      const e1 = k < 3 ? side[k] : null;
+      if (e0 !== null && e1 !== null) {
+        B.up(rib[k], e0, e1);
+        B.up(rib[k], e1, rib[k + 1]);
+      } else B.up(rib[k], e0 !== null ? e0 : e1, rib[k + 1]);
+    }
+  }
+});
+
+// Farben je Gebiet: erst die Grundfarben, dann was das Gebiet ändert
+const DECO_BASE3 = {
+  wood: '#6b4a2e', cut: '#d8b080', ring: '#a07850', bush: '#356e2c', bushTop: '#7ab84a', berry: '#d8343a', blossom: '#f4f0e8',
+  moss: '#4f7a32', cap: '#c84a3a', capDot: '#f4f0e8', stem: '#efe6cc', fungus: '#d8b878', bone: '#e8e0c8', crystal: '#bfe8ff',
+  crystalBase: '#5a5a62', snow: '#f8fbff', snowShade: '#a8bcd6', tuft: '#4f8a34', glow: false, capGlow: false, snowy: false
+};
+const DECO_COLORS = {
+  wald: { bush: '#2f5a2a', bushTop: '#5a9a46', berry: '#3a3a6a', tuft: '#2e5a2a', moss: '#4a7a30' },
+  nagadschungel: { wood: '#5a3f2a', bush: '#2f6a3a', bushTop: '#5aa858', blossom: '#e0703a', cap: '#e0a03a', capDot: '#fff0c0', tuft: '#3d7633', moss: '#3d7a33' },
+  frost: { wood: '#5a4a3e', cut: '#c8b090', ring: '#8a6a4a', crystal: '#58b0ec', crystalBase: '#5a6a7c', snowy: true, tuft: '#8a9a78' },
+  moor: { wood: '#3a3428', moss: '#5a6a2a', cap: '#7ad86a', capGlow: true, bone: '#cfc8a8', tuft: '#4a5a34' },
+  orktal: { wood: '#a08a6a', cut: '#d8c8a8', bone: '#efe6cc', tuft: '#a89a5a', thorn: true },
+  sandwueste: { wood: '#a08a6a', cut: '#d8c8a8', bone: '#efe6cc', tuft: '#a89a5a', thorn: true },
+  oedland: { wood: '#6e5e54', bone: '#d8d4c8', crystal: '#e0404a', crystalBase: '#2a2024', glow: true, ember: '#e0404a', tuft: '#6a645a' },
+  vulkan: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ff7a2a', crystalBase: '#2a1a1a', glow: true, ember: '#ff7a2a', char: '#3a2a20', tuft: null },
+  titanenkamm: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ffb04a', crystalBase: '#2e2628', glow: true, ember: '#ffb04a', char: '#3a2a20', tuft: null },
+  donnerklamm: { wood: '#4a4440', crystal: '#9fd0ff', crystalBase: '#3a3640', glow: true, tuft: '#8a8a5a' }
+};
+// Bodenfarbe des Gebiets für Hügel am Fuß (Sand unter dem Schädel, Schnee unter der Wehe)
+function decoSoil(style) {
+  const z = ZONES.find((zz) => zz.id === style);
+  const g = z && GROUND[z.ground] != null ? GROUND[z.ground] : GROUND.GRASS;
+  return GROUND_PALETTE[g][4];
+}
+
+// Größe je Art beim Setzen: die Vorlagen bleiben in Kachelmaß (Prüfung: nichts unter dem Boden, nichts über
+// 0,6 Kacheln vom Mittelpunkt), aus der Spielkamera muss jedes Teil auf einen Blick erkennbar sein
+const DECO_SIZE3 = {
+  [DECO.STUMP]: 1.3, [DECO.LOG]: 1.15, [DECO.MUSHROOM]: 1.75, [DECO.BONES]: 1.35, [DECO.SHRUB]: 1.2, [DECO.CRYSTAL]: 1.3,
+  [DECO.DEADTREE]: 1.3, [DECO.DRIFT]: 1.35
+};
+const tplDeco = (d, style, v, low) => bakeTemplate(`deco:${d}:${style}:${v}${low ? ':l' : ''}`, (b0) => {
+  const c = Object.assign({}, DECO_BASE3, DECO_COLORS[style] || {});
+  // niedrig: nur der Kern ohne Kleinteile, Gras und Schein (core: tragende Teile bleiben, dann als 'lit')
+  const b = !low ? b0 : {
+    add(g, col, o = {}) {
+      if (o.mat === 'detail' || o.mat === 'grass' || o.mat === 'aura') {
+        if (!o.core) return;
+        o = Object.assign({}, o, { mat: 'lit' });
+      }
+      b0.add(g, col, o);
+    }
+  };
+  const W = (g, col, o) => b.add(g, col, o);
+  const soil = decoSoil(style);
+  const bark = c.wood;
+  // Büschel am Fuß und flacher Hügel in Bodenfarbe: nichts schwebt auf der glatten Bodentextur
+  const tuft = (x, z, s = 1, form = 'short') => {
+    if (c.tuft) b.add(tuftGeo(c.tuft, form), null, { p: [x, 0, z], r: [0, x * 9 + z * 5, 0], s, mat: 'grass' });
+  };
+  const mound = (x, z, sx, sy, sz, col = soil) => b.add(cap3(1, Math.PI / 2, 0, Math.PI * 2, 10, 3), col, { p: [x, -0.012, z], s: [sx, sy, sz], mat: 'detail', ao: 0 });
+  const fungus = (p, ry, s) => b.add(sphere3(1, 8, 4), c.fungus, { p, r: [0, ry, 0], s: [s, s * 0.3, s * 0.75], top: lighter(c.fungus, 0.35), topK: 0.8, ao: 0.4 });
+  if (d === DECO.SHRUB) {
+    // Busch: fünf bis sechs Laubbausche, unten dunkel, oben hell, mit Umrissen dazwischen; Blätter zwischen den
+    // Bauschen. Wiese mit roten Beeren oder weißen Blüten, Wald mit dunklen Beeren, Dschungel mit großen hängenden
+    // Blättern und oranger Blüte
+    const jungle = style === 'nagadschungel';
+    const puffs = jungle
+      ? [[0, 0.13, 0, 0.13], [0.09, 0.1, 0.06, 0.1], [-0.08, 0.1, -0.05, 0.1]]
+      : [[[0, 0.2, 0, 0.19], [0.17, 0.14, 0.05, 0.15], [-0.16, 0.14, 0.07, 0.15], [0.04, 0.14, -0.16, 0.15], [-0.06, 0.13, 0.17, 0.14], [0.03, 0.34, 0.03, 0.13]],
+        [[0.08, 0.2, 0.02, 0.18], [-0.13, 0.18, -0.02, 0.17], [0.0, 0.14, 0.16, 0.14], [0.02, 0.14, -0.16, 0.14], [-0.04, 0.35, 0, 0.13]],
+        [[0, 0.22, 0, 0.2], [0.18, 0.15, -0.04, 0.15], [-0.15, 0.15, -0.08, 0.15], [-0.04, 0.13, 0.17, 0.14], [0.12, 0.13, 0.15, 0.12], [-0.05, 0.37, -0.02, 0.12]]][v];
+    puffs.forEach(([x, y, z, r], k) => b.add(puffGeo((v + k) % 3, darker(c.bush, 0.15), k === puffs.length - 1 && !jungle ? lighter(c.bushTop, 0.1) : c.bushTop), null, { p: [x * 1.12, y * 1.12, z * 1.12], r: [0, k * 1.3, 0], s: r * 1.12, ao: 0.3 }));
+    if (jungle) {
+      // Dschungel: große, hängende Blätter rundum (Elefantenohr) und eine orange Blüte
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + v;
+        b.add(leafGeo(k % 2 ? c.bush : darker(c.bush, 0.15), 0.55, 0.5), null, { p: [Math.cos(a) * 0.05, 0.2 + (k % 3) * 0.04, Math.sin(a) * 0.05], r: [-0.25, Math.PI / 2 - a, 0], s: 0.36 + (k % 3) * 0.04, mat: 'detail', order: 'YXZ' });
+      }
+      b.add(flowerGeo(c.blossom), null, { p: [0.02, 0.12, 0.03], s: 1.2, mat: 'detail' });
+    } else {
+      // Blätter in den Lücken zwischen den Bauschen brechen den Umriss auf
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + v * 0.5 + 0.4;
+        const R = 0.26 + (k % 2) * 0.03;
+        b.add(leafGeo(k % 3 ? c.bushTop : c.bush, 0.55), null, { p: [Math.cos(a) * R * 0.75, 0.16 + (k % 2) * 0.1, Math.sin(a) * R * 0.75], r: [0.25 - (k % 2) * 0.3, Math.PI / 2 - a, 0], s: 0.15, mat: 'detail', order: 'YXZ' });
+      }
+      const onPuff = (pf, a, e, out = 1.02) => [pf[0] + Math.cos(a) * Math.cos(e) * pf[3] * out, pf[1] + Math.sin(e) * pf[3] * 0.92 * out, pf[2] + Math.sin(a) * Math.cos(e) * pf[3] * out];
+      if (v === 0) {
+        // Beeren in kleinen Trauben auf den Bauschen
+        for (let k = 0; k < 3; k++) {
+          const pf = puffs[1 + k];
+          for (let j = 0; j < 2; j++) b.add(sphere3(0.032, 5, 3), c.berry, { p: onPuff(pf, k * 1.6 + j * 0.35 + 0.5, 0.55 + j * 0.15), mat: 'detail', top: lighter(c.berry, 0.4), topK: 0.6 });
+        }
+      } else if (v === 1 && style !== 'wald') {
+        // weiße Blüten auf der Krone
+        for (let k = 0; k < 5; k++) {
+          const at = onPuff(puffs[k], k * 1.9 + 0.3, 0.75, 0.98);
+          b.add(flowerGeo(c.blossom), null, { p: [at[0], at[1] - 0.245 * 0.6, at[2]], r: [0, k, 0], s: 0.6, mat: 'detail' });
+        }
+      }
+    }
+    tuft(0.24, 0.2, 0.8);
+    tuft(-0.26, 0.12, 0.7);
+  } else if (d === DECO.STUMP) {
+    // Baumstumpf: Wurzelfuß, helle Schnittfläche mit Jahresring, Wurzeln, die in den Boden laufen
+    const frost = style === 'frost';
+    b.add(lathe3('stump84', [[0.26, 0], [0.2, 0.05], [0.17, 0.12], [0.16, 0.24], [0.15, 0.27], [0.146, 0.272], [0, 0.272]], 12), bark, { shade: 0.4, ao: 0.3 });
+    b.add(discGeo(12), c.cut, { p: [0, 0.274, 0], s: [0.146, 1, 0.146] });
+    b.add(ringGeo(0.8), c.ring, { p: [0, 0.276, 0], s: [0.1, 1, 0.1], mat: 'detail' });
+    b.add(discGeo(6), darker(c.ring, 0.2), { p: [0.01, 0.276, -0.01], s: [0.022, 1, 0.022], mat: 'detail' });
+    for (let k = 0; k < 3; k++) {
+      const a = k * 2.1 + v * 0.7;
+      stick3(b, [Math.cos(a) * 0.12, 0.09, Math.sin(a) * 0.12], [Math.cos(a) * 0.36, -0.02, Math.sin(a) * 0.36], 0.06, 0.022, bark, { ao: 0.35 });
+    }
+    if (frost) {
+      // kleine Schneehaube und eine Wehe am Fuß: Holz und Wurzeln bleiben sichtbar, kein Schneeball
+      b.add(foliageGeo(v, 1), c.snowShade, { p: [0.025, 0.278, -0.015], s: [0.12, 0.05, 0.11], top: c.snow, topK: 1, ao: 0.25 });
+      mound(0.16, 0.1, 0.2, 0.06, 0.16, c.snow);
+    } else {
+      if (style === 'wald' && v === 1) b.add(foliageGeo(v, 1), c.moss, { p: [0.03, 0.28, 0.01], s: [0.12, 0.045, 0.11], top: lighter(c.moss, 0.3), topK: 0.6, mat: 'detail' });
+      if (style === 'wald' && v === 2) {
+        fungus([0.15, 0.13, 0.04], 0.3, 0.075);
+        fungus([0.13, 0.19, -0.07], -0.4, 0.06);
+      }
+      if (style === 'wiesen' && v === 2) {
+        // Axt steckt im Stumpf
+        b.add(tinyBox(0.13, 0.09, 0.02), '#9aa0aa', { p: [-0.01, 0.29, 0], r: [0, 0, 0.3] });
+        b.add(tinyBox(0.03, 0.05, 0.022), '#d8dce4', { p: [-0.07, 0.305, 0], r: [0, 0, 0.3] });
+        stick3(b, [0.03, 0.32, 0], [0.24, 0.5, 0.03], 0.024, 0.024, '#8a6038', { seg: 5 });
+      }
+      tuft(0.22, 0.16, 0.8);
+      tuft(-0.2, -0.18, 0.7, v === 1 ? 'tall' : 'short');
+    }
+  } else if (d === DECO.LOG) {
+    // liegender Stamm ganz auf der Kachel: Schnittflächen an beiden Enden, abgebrochener Ast, Moosstreifen, Baumpilze
+    const R = 0.12;
+    b.add(cyl3(R, R * 0.9, 0.84, 10), bark, { p: [0, R, 0], r: [0, 0, Math.PI / 2], ao: 0.5 });
+    // Enden: links (dick) Schnittfläche, rechts Schnittfläche oder hohl
+    b.add(discGeo(10), c.cut, { p: [-0.422, R, 0], r: [0, 0, Math.PI / 2], s: [R * 0.94, 1, R * 0.94] });
+    b.add(ringGeo(0.78), c.ring, { p: [-0.425, R, 0], r: [0, 0, Math.PI / 2], s: [R * 0.6, 1, R * 0.6], mat: 'detail' });
+    if (v === 1) {
+      b.add(discGeo(10), '#2a1a10', { p: [0.422, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.72, 1, R * 0.72] });
+      b.add(ringGeo(0.72), c.cut, { p: [0.423, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.88, 1, R * 0.88], mat: 'detail' });
+    } else {
+      b.add(discGeo(10), c.cut, { p: [0.422, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.85, 1, R * 0.85] });
+      b.add(ringGeo(0.75), c.ring, { p: [0.425, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.5, 1, R * 0.5], mat: 'detail' });
+    }
+    // abgebrochener Seitenast mit Splitterspitze
+    const s0 = [0.1, R * 1.7, 0.05];
+    const s1 = [0.2, 0.36, 0.13];
+    stick3(b, s0, s1, 0.042, 0.03, bark, { ao: 0.3 });
+    stick3(b, s1, [0.215, 0.42, 0.14], 0.028, 0.006, lighter(bark, 0.15), { seg: 4 });
+    // Moosstreifen oben, Baumpilze an der Flanke
+    b.add(foliageGeo(v, 1), c.moss, { p: [-0.13, R * 1.9, -0.01], s: [0.24, 0.045, 0.085], top: lighter(c.moss, 0.3), topK: 0.6, mat: 'detail' });
+    if (style !== 'moor') {
+      fungus([0.02, R * 0.9, R * 0.92], 0, 0.06);
+      fungus([-0.06, R * 1.25, R * 0.82], 0.2, 0.045);
+    }
+    if (style === 'moor') {
+      // hängendes Moos an der Flanke, leuchtende Pilzchen oben
+      for (let k = 0; k < 3; k++) stick3(b, [-0.2 + k * 0.17, R * 1.7, R * 0.6], [-0.19 + k * 0.17, 0.02, R * 1.2], 0.026, 0.008, c.moss, { mat: 'detail', seg: 4 });
+      for (let k = 0; k < 3; k++) b.add(sphere3(0.035, 6, 4), c.cap, { p: [0.05 + k * 0.08, R * 1.95, -0.03 + (k % 2) * 0.05], s: [1, 0.6, 1], mat: 'glow' });
+    }
+    if (style === 'nagadschungel') {
+      // zwei Lianenringe mit Blättern
+      for (const x of [-0.24, 0.16]) {
+        b.add(torus3(R * 1.06, 0.014, Math.PI * 2, 3, 10), '#3d7a33', { p: [x, R, 0], r: [0, Math.PI / 2, 0], mat: 'detail' });
+        b.add(leafGeo(c.moss, 0.5), null, { p: [x, R * 2, 0], r: [-0.3, 0.8, 0], s: 0.14, mat: 'detail', order: 'YXZ' });
+      }
+    }
+    tuft(-0.42, 0.16, 0.8);
+    tuft(0.38, -0.15, 0.7, 'tall');
+  } else if (d === DECO.MUSHROOM) {
+    // drei Pilze mit Stiel und gewölbtem Hut und ein kleiner Knopf; Fliegenpilz mit weißen Punkten,
+    // im Moor leuchtende Hüte, im Dschungel hohe, schlanke orange Pilze
+    const tall = style === 'nagadschungel';
+    const stemCol = style === 'moor' ? '#6a665a' : c.stem;
+    const capMat = c.capGlow ? 'glow' : 'lit';
+    const stem = tall ? lathe3('mstemT', [[0.026, 0], [0.032, 0.02], [0.022, 0.15], [0.024, 0.2]], 6) : lathe3('mstem', [[0.03, 0], [0.036, 0.02], [0.026, 0.1], [0.03, 0.14]], 6);
+    const cap = tall
+      ? lathe3('mcapT', [[0.02, 0.185], [0.075, 0.195], [0.068, 0.24], [0.035, 0.29], [0, 0.305]], 9)
+      : lathe3('mcap', [[0.02, 0.125], [0.1, 0.135], [0.096, 0.175], [0.058, 0.21], [0, 0.22]], 9);
+    // Lage der Punkte auf dem Hut: Ring (Höhe, Neigung) und Mitte, knapp über der Oberfläche
+    const dotRing = tall ? [0.04, 0.287, 1.0] : [0.062, 0.21, 0.75];
+    const dotTop = tall ? 0.308 : 0.223;
+    const set = [[0, 0, 1.3, 0], [0.15, 0.07, 0.95, 0.28], [-0.12, 0.11, 0.7, -0.24], [0.04, -0.15, 0.45, 0.1]];
+    set.forEach(([x, z, s, tilt], k) => {
+      const ry = v * 2.1 + k;
+      const rx = Math.cos(ry) * x - Math.sin(ry) * z;
+      const rz = Math.sin(ry) * x + Math.cos(ry) * z;
+      const M = partMatrix({ p: [rx, 0, rz], r: [tilt * 0.5, ry, tilt], s });
+      W(stem, stemCol, { m: M.clone(), shade: 0.25 });
+      W(cap, c.cap, { m: M.clone(), mat: capMat, top: lighter(c.cap, 0.25), topK: 0.5, ao: 0.55 });
+      // Punkte auf dem Hut (Fliegenpilz), nicht bei den kleinen Knöpfen
+      if (!c.capGlow && k < 3) {
+        for (let j = 0; j < (tall ? 3 : 5); j++) {
+          const a = j * 2.4 + k;
+          const rr = j === 0 ? 0.012 : dotRing[0];
+          const y = j === 0 ? dotTop : dotRing[1];
+          const tiltOut = j === 0 ? 0 : dotRing[2];
+          W(discGeo(6), c.capDot, { m: atM3(M, [Math.cos(a) * rr, y, Math.sin(a) * rr], [0, -a, -tiltOut], [0.022, 1, 0.022]), mat: 'detail' });
+        }
+      }
+    });
+    if (c.capGlow) b.add(haloGeo(c.cap), null, { p: [0, 0.01, 0], s: [0.38, 1, 0.38], mat: 'aura' });
+    tuft(0.2, -0.05, 0.7);
+    tuft(-0.18, 0.2, 0.6);
   } else if (d === DECO.BONES) {
-    b.add(sphere3(0.1, 8, 6), '#e8e0c8', { p: [0, 0.08, 0], s: [1, 0.85, 1.1] });
-    for (const sx of [-1, 1]) b.add(sphere3(0.025, 5, 3), '#2a2018', { p: [sx * 0.04, 0.1, 0.09] });
-    for (let k = 0; k < 3; k++) b.add(limb3(0.3, 0.025, 0.025, 4), '#e0d8c0', { p: [0.15 + k * 0.05, 0.03, -0.1 + k * 0.08], r: [0, k * 0.8, Math.PI / 2] });
-    b.add(torus3(0.12, 0.02, Math.PI, 4, 10), '#e0d8c0', { p: [-0.18, 0.05, -0.1], r: [0, 0.5, 0] });
-  } else if (d === DECO.SHRUB) {
-    for (let k = 0; k < 4; k++) b.add(sphere3(0.16 - k * 0.02, 8, 6), k % 2 ? lighter(c.bush, 0.1) : c.bush, { p: [Math.cos(k * 1.7) * 0.14, 0.13 + (k % 2) * 0.06, Math.sin(k * 1.7) * 0.14], mat: 'grass', shade: 0.3 });
-    if (style === 'wiesen') for (let k = 0; k < 3; k++) b.add(sphere3(0.03, 5, 3), '#e04a3a', { p: [Math.cos(k * 2) * 0.15, 0.26, Math.sin(k * 2) * 0.15] });
+    const bone = c.bone;
+    const end = c.char || lighter(bone, 0.2);
+    const endK = c.char ? 0.45 : 0.4;
+    if (v === 0) {
+      // Ochsenschädel mit Hörnern, halb im Sand
+      mound(0, 0.02, 0.28, 0.05, 0.24);
+      b.add(sphere3(1, 8, 6), bone, { p: [0, 0.075, -0.03], s: [0.1, 0.075, 0.1], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });
+      b.add(sphere3(1, 7, 5), bone, { p: [0, 0.05, 0.09], s: [0.065, 0.05, 0.11], r: [0.15, 0, 0], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });
+      for (const sx of [-1, 1]) {
+        b.add(sphere3(1, 6, 4), '#2a2018', { p: [sx * 0.058, 0.098, 0.04], s: [0.03, 0.026, 0.03], mat: 'detail' });
+        b.add(sphere3(1, 5, 3), '#3a2a20', { p: [sx * 0.022, 0.065, 0.195], s: 0.012, mat: 'detail' });
+        stick3(b, [sx * 0.07, 0.1, -0.05], [sx * 0.17, 0.115, -0.06], 0.034, 0.029, bone, { seg: 6 });
+        coneAlong(W, horn3(1, 1, 5), [sx * 0.165, 0.115, -0.06], [sx * 0.35, 0.8, -0.25], 0.17, 0.029, bone, { top: end, topK: endK });
+      }
+      // ein loser Knochen daneben
+      stick3(b, [-0.24, 0.03, 0.14], [-0.06, 0.03, 0.24], 0.024, 0.02, bone, { seg: 5 });
+      b.add(sphere3(0.036, 5, 3), bone, { p: [-0.25, 0.032, 0.13] });
+      b.add(sphere3(0.03, 5, 3), bone, { p: [-0.055, 0.03, 0.245] });
+      tuft(0.22, 0.12, 0.7);
+    } else if (v === 1) {
+      // Brustkorb: Rippenbögen, nach hinten kleiner, Wirbelsäule obenauf, Schädel am Kopfende
+      const ribs = [0.15, 0.14, 0.12, 0.095];
+      ribs.forEach((r, k) => {
+        const x = -0.18 + k * 0.1;
+        b.add(torus3(r, 0.024, Math.PI * 0.82, 3, 9), bone, { p: [x, -0.015, 0], r: [0, Math.PI / 2, Math.PI * 0.09], ao: 0.4, top: lighter(bone, 0.2), topK: 0.5 });
+      });
+      stick3(b, [-0.24, ribs[0] - 0.02, 0], [0.13, ribs[3] - 0.02, 0], 0.03, 0.026, bone, { seg: 6 });
+      stick3(b, [0.13, ribs[3] - 0.02, 0], [0.34, 0.025, 0.04], 0.026, 0.018, bone, { seg: 5 });
+      for (let k = 0; k < 4; k++) b.add(sphere3(0.03, 5, 3), lighter(bone, 0.15), { p: [-0.18 + k * 0.1, ribs[k] + 0.005, 0], s: [0.8, 1, 1.2], mat: 'detail' });
+      // Schädel liegt vorn auf der Seite
+      b.add(sphere3(1, 7, 5), bone, { p: [-0.33, 0.055, 0.03], s: [0.075, 0.06, 0.07], shade: 0.3, top: lighter(bone, 0.2), topK: 0.5 });
+      b.add(sphere3(1, 5, 4), bone, { p: [-0.42, 0.04, 0.06], s: [0.07, 0.04, 0.05], r: [0, -0.3, 0], shade: 0.3 });
+      b.add(sphere3(1, 5, 4), '#2a2018', { p: [-0.37, 0.07, 0.085], s: 0.022, mat: 'detail' });
+      mound(-0.05, 0, 0.36, 0.035, 0.2);
+      tuft(0.1, 0.22, 0.7);
+    } else {
+      // zwei gekreuzte Röhrenknochen mit Gelenkköpfen und ein kleiner Schädel
+      const bones = [[[-0.24, 0.035, -0.1], [0.18, 0.035, 0.1]], [[-0.2, 0.08, 0.13], [0.2, 0.04, -0.1]]];
+      for (const [a, z] of bones) {
+        stick3(b, a, z, 0.028, 0.026, bone, { seg: 6, top: lighter(bone, 0.2), topK: 0.4 });
+        const dx = z[0] - a[0];
+        const dz = z[2] - a[2];
+        const l = Math.hypot(dx, dz);
+        for (const p of [a, z]) for (const sd of [-1, 1]) b.add(sphere3(0.04, 5, 3), bone, { p: [p[0] - (dz / l) * sd * 0.03, p[1], p[2] + (dx / l) * sd * 0.03], top: end, topK: endK * 0.6 });
+      }
+      b.add(sphere3(1, 7, 5), bone, { p: [0.05, 0.065, -0.2], s: [0.075, 0.068, 0.08], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });
+      b.add(sphere3(1, 5, 4), bone, { p: [0.05, 0.03, -0.13], s: [0.05, 0.03, 0.04], shade: 0.3 });
+      for (const sx of [-1, 1]) b.add(sphere3(1, 5, 4), '#2a2018', { p: [0.05 + sx * 0.03, 0.07, -0.135], s: 0.02, mat: 'detail' });
+      mound(0, 0, 0.3, 0.035, 0.26);
+      tuft(-0.22, -0.16, 0.7);
+    }
   } else if (d === DECO.CRYSTAL) {
-    for (let k = 0; k < 4; k++) b.add(horn3(0.28 + (k % 2) * 0.16, 0.07, 5), k % 2 ? lighter(c.crystal, 0.2) : c.crystal, { p: [Math.cos(k * 1.6) * 0.1, 0, Math.sin(k * 1.6) * 0.1], r: [Math.sin(k * 1.6) * 0.4, 0, -Math.cos(k * 1.6) * 0.4], mat: c.glow ? 'glow' : 'lit', shine: 1 });
-    b.add(rockGeo(v), '#5a5a62', { s: [0.18, 0.08, 0.16], p: [0, 0.02, 0] });
+    // Kristallgruppe: ein großer, drei schräge, zwei liegende Splitter auf einem Felsfuß, facettiert mit hellen
+    // Spitzen. Im Frost kräftig eisblau mit Umriss (durchscheinendes Eis verschwand auf dem Schnee und kostete zwei
+    // Zeichenaufrufe je Block), in Glut- und Zaubergebieten unten dunkler Obsidian, oben leuchtend, mit Schein am Boden
+    const glow = c.glow;
+    const tipCol = lighter(c.crystal, 0.45);
+    const gem = (p, tilt, yaw, r, h) => {
+      const M = new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion().setFromEuler(_e.set(0, yaw, -tilt, 'YXZ')), _stOne);
+      if (glow) {
+        W(crystalGeo('body'), c.crystalBase, { m: atM3(M, [0, 0, 0], null, [r, h * 0.45, r]), top: lighter(c.crystalBase, 0.2), topK: 0.6 });
+        W(crystalGeo('body'), c.crystal, { m: atM3(M, [0, h * 0.45, 0], null, [r * 0.98, h * 0.55, r * 0.98]), mat: 'glow', top: lighter(c.crystal, 0.3), topK: 0.9, ao: 0.4 });
+        W(crystalGeo('tip'), tipCol, { m: atM3(M, [0, h, 0], null, [r * 0.98, r * 1.6, r * 0.98]), mat: 'glow' });
+      } else {
+        W(crystalGeo('body'), c.crystal, { m: atM3(M, [0, 0, 0], null, [r, h, r]), shade: 0.3, top: lighter(c.crystal, 0.3), topK: 0.6 });
+        W(crystalGeo('tip'), tipCol, { m: atM3(M, [0, h, 0], null, [r, r * 1.6, r]) });
+      }
+    };
+    const rot = v * 1.3;
+    gem([0, 0.02, 0], 0.12, rot, 0.09, 0.52 - v * 0.05);
+    for (let k = 0; k < 3; k++) {
+      const a = rot + k * 2.1 + 0.4;
+      gem([Math.cos(a) * 0.09, 0.02, Math.sin(a) * 0.09], 0.5 + (k % 2) * 0.22, -a, 0.065 - k * 0.007, 0.34 - k * 0.05);
+    }
+    for (let k = 0; k < 2; k++) {
+      const a = rot + k * 3 + 1.5;
+      gem([Math.cos(a) * 0.21, 0.015, Math.sin(a) * 0.21], 1.3, -a, 0.035, 0.12);
+    }
+    b.add(rockGeo(v), c.crystalBase, { s: [0.2, 0.09, 0.18], p: [0, 0.01, 0], top: lighter(c.crystalBase, 0.2), topK: 0.5, shade: 0.3 });
+    for (let k = 0; k < 3; k++) {
+      const a = k * 2.3 + v;
+      b.add(rockGeo((v + k) % 3, 0), c.crystalBase, { s: [0.06, 0.045, 0.05], p: [Math.cos(a) * 0.25, 0.015, Math.sin(a) * 0.22], r: [0, a, 0], top: lighter(c.crystalBase, 0.25), topK: 0.5 });
+    }
+    if (glow) b.add(haloGeo(c.crystal), null, { p: [0, 0.012, 0], s: [0.45, 1, 0.45], mat: 'aura' });
+    else if (c.snowy) mound(0, 0, 0.3, 0.05, 0.26, c.snow);
+    else tuft(0.22, 0.14, 0.7);
   } else if (d === DECO.DEADTREE) {
-    // abgebrochener toter Baum: kurzer Stamm, zwei kahle Äste, gesplitterte Spitze
-    b.add(limb3(0.7, 0.11, 0.07, 6), bark, { p: [0, 0, 0], shade: 0.35 });
-    b.add(horn3(0.3, 0.07, 5), darker(bark, 0.1), { p: [0, 0.68, 0], r: [0.2, 0, 0.3] });
-    b.add(limb3(0.35, 0.035, 0.015, 5), bark, { p: [0.04, 0.45, 0], r: [0, 0, -0.9] });
-    b.add(limb3(0.28, 0.03, 0.012, 5), bark, { p: [-0.04, 0.35, 0.02], r: [0.3, 0, 1.0] });
-    if (c.glow && style !== 'moor') b.add(limb3(0.25, 0.018, 0.012, 4), c.crystal, { p: [0.02, 0.2, 0.09], mat: 'glow' });
+    const thorn = c.thorn && v === 2;
+    if (thorn) {
+      // Dornbusch: trockene Zweige strahlen aus einem dunklen Kern, mit Gabeln an den Spitzen
+      const twig = darker(c.wood, 0.15);
+      b.add(sphere3(1, 7, 5), darker(twig, 0.35), { p: [0, 0.1, 0], s: [0.09, 0.07, 0.09] });
+      const rnd = mulberry32(5 + v);
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * Math.PI * 2 + rnd() * 0.4;
+        const e = 0.15 + (k % 3) * 0.32 + rnd() * 0.15;
+        const L = 0.3 + rnd() * 0.12;
+        const tip = [Math.cos(a) * Math.cos(e) * L, 0.08 + Math.sin(e) * L * 0.85, Math.sin(a) * Math.cos(e) * L];
+        stick3(b, [0, 0.1, 0], tip, 0.03, 0.012, twig, { mat: 'detail', core: true, seg: 4, ao: 0.3 });
+        const fa = a + (k % 2 ? 0.5 : -0.5);
+        stick3(b, [tip[0] * 0.6, 0.1 + (tip[1] - 0.1) * 0.6, tip[2] * 0.6], [tip[0] * 0.6 + Math.cos(fa) * 0.12, tip[1] * 0.6 + 0.1, tip[2] * 0.6 + Math.sin(fa) * 0.12], 0.016, 0.007, twig, { mat: 'detail', seg: 3 });
+      }
+      mound(0, 0, 0.22, 0.04, 0.2);
+      tuft(0.22, 0.14, 0.8);
+    } else if (v === 1) {
+      // liegender, gegabelter Ast mit Stein und dürrem Laub
+      const A = [-0.42, 0.05, -0.05];
+      const Z = [0.4, 0.045, 0.08];
+      stick3(b, A, Z, 0.055, 0.032, bark, { round: true, seg: 6, ao: 0.45 });
+      const at = (t, y = 0) => [A[0] + (Z[0] - A[0]) * t, A[1] + (Z[1] - A[1]) * t + y, A[2] + (Z[2] - A[2]) * t];
+      stick3(b, at(0.33), [-0.02, 0.03, -0.24], 0.034, 0.016, bark, { ao: 0.4 });
+      stick3(b, at(0.62), [0.3, 0.035, 0.26], 0.03, 0.014, bark, { ao: 0.4 });
+      stick3(b, at(0.8, 0.02), [0.3, 0.2, -0.06], 0.02, 0.008, bark, { mat: 'detail', seg: 4 });
+      b.add(discGeo(8), lighter(bark, 0.35), { p: [A[0] - 0.012, A[1], A[2] - 0.001], r: [0, 0.16, Math.PI / 2], s: [0.05, 1, 0.05] });
+      b.add(rockGeo(v), darker(soil, 0.35), { p: [0.05, 0.03, 0.16], s: [0.12, 0.08, 0.1], top: lighter(soil, 0.1), topK: 0.4, shade: 0.3 });
+      for (let k = 0; k < 2; k++) b.add(leafGeo(k ? '#8a6a3a' : '#a0703a', 0.5), null, { p: [-0.2 + k * 0.3, 0.012, 0.12 - k * 0.25], r: [0, k * 2 + 0.5, 0], s: 0.12, mat: 'detail' });
+      if (c.ember) stick3(b, at(0.15, 0.045), at(0.55, 0.04), 0.012, 0.012, c.ember, { mat: 'glow', seg: 4 });
+      tuft(-0.3, 0.16, 0.7);
+    } else {
+      // abgebrochener toter Baum: Stamm mit Wurzelfuß, Splitter am Bruch, zwei kahle Äste mit Gabel
+      const tallV = v === 2;
+      const H = tallV ? 0.9 : 0.72;
+      const lean = tallV ? 0.06 : 0;
+      b.add(lathe3(`snag${H}`, [[0.17, 0], [0.12, 0.06], [0.1, 0.2], [0.08, H * 0.75], [0.065, H], [0.03, H - 0.02], [0, H - 0.03]], 8), bark, { r: [0, 0, lean], shade: 0.35, ao: 0.3 });
+      const topAt = [-Math.sin(lean) * H, H, 0];
+      for (let k = 0; k < 3; k++) {
+        const a = k * 2.2 + v;
+        coneAlong(W, horn3(1, 1, 4), [topAt[0] + Math.cos(a) * 0.04, H - 0.04, Math.sin(a) * 0.04], [Math.cos(a) * 0.3, 1, Math.sin(a) * 0.3], 0.1 + (k === 0) * 0.07, 0.035, lighter(bark, 0.12), {});
+      }
+      const branches = tallV
+        ? [[0.62, 0.0, 0.34, 0.95], [0.48, 2.6, 0.3, 0.9], [0.32, 4.4, 0.24, 0.75]]
+        : [[0.44, 0.3, 0.34, 0.92], [0.32, 3.1, 0.28, 0.78]];
+      for (const [y0, a, L, up] of branches) {
+        const p0 = [-Math.sin(lean) * y0, y0, 0];
+        const p1 = [p0[0] + Math.cos(a) * L * 0.75, y0 + L * up * 0.75, Math.sin(a) * L * 0.75];
+        stick3(b, p0, p1, 0.04, 0.022, bark, { ao: 0.3 });
+        stick3(b, p1, [p1[0] + Math.cos(a + 0.5) * 0.14, p1[1] + 0.12, p1[2] + Math.sin(a + 0.5) * 0.14], 0.02, 0.008, bark, { mat: 'detail', seg: 4 });
+        stick3(b, p1, [p1[0] + Math.cos(a - 0.4) * 0.12, p1[1] - 0.02, p1[2] + Math.sin(a - 0.4) * 0.12], 0.018, 0.007, bark, { mat: 'detail', seg: 4 });
+        if (style === 'moor') stick3(b, [p1[0], p1[1] - 0.01, p1[2]], [p1[0] + 0.01, p1[1] - 0.2, p1[2]], 0.022, 0.006, c.moss, { mat: 'detail', seg: 4 });
+      }
+      for (let k = 0; k < 2; k++) {
+        const a = k * 2.6 + 1 + v;
+        stick3(b, [Math.cos(a) * 0.1, 0.07, Math.sin(a) * 0.1], [Math.cos(a) * 0.32, -0.02, Math.sin(a) * 0.32], 0.05, 0.018, bark, { ao: 0.3 });
+      }
+      // Glutader liegt auf dem Stamm (vorher zeigte sie in den Boden)
+      if (c.ember) stick3(b, [0.0, 0.05, 0.128], [-Math.sin(lean) * H * 0.85, H * 0.85, 0.07], 0.016, 0.012, c.ember, { mat: 'glow', seg: 4 });
+      tuft(0.2, 0.16, 0.8);
+      tuft(-0.18, -0.2, 0.7, 'tall');
+    }
+  } else if (d === DECO.DRIFT) {
+    // Schneewehe mit Steinen und trockenen Halmen (statt Schneebällen)
+    b.add(driftGeo(v, c.snowShade, c.snow), null, { s: [0.48, 1, 0.3], mat: 'detail', core: true, ao: 0.2 });
+    const rb = FROST_ROCK3;
+    const rt = '#9aaabb';
+    b.add(rockGeo(v), rb, { p: [0.18, 0.04, -0.04], s: [0.13, 0.12, 0.11], r: [0, v, 0], top: rt, topK: 0.35, shade: 0.4 });
+    if (v !== 1) b.add(rockGeo((v + 1) % 3, 0), rb, { p: [-0.26, 0.02, 0.1], s: [0.07, 0.06, 0.06], top: rt, topK: 0.35, shade: 0.3 });
+    tuft(-0.08, -0.16, 0.9, 'tall');
+    tuft(0.34, 0.12, 0.7);
   }
 });
 const tplProp = (pr) => bakeTemplate(`prop:${pr.type}:${pr.roof || ''}`, (b) => PROP3[pr.type](b, null, pr));
@@ -861,7 +1407,8 @@ function* objectJob(cx, cy) {
         continue;
       }
       if (d >= DECO.STUMP) {
-        b.addTemplate(tplDeco(d, style, h % 3), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, sc * (d === DECO.DEADTREE ? 2 : 1.4)));
+        // seit 8.4 richtig modelliert und je Art auf Spielgröße gebracht (DECO_SIZE3) statt pauschal vergrößert
+        b.addTemplate(tplDeco(d, style, h % 3, lowGfx), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, sc * DECO_SIZE3[d]));
         continue;
       }
       if (lowGfx) continue;
@@ -890,6 +1437,8 @@ function* objectJob(cx, cy) {
         if (((m >>> 19) & 7) === 0) at(2, 0.9 + ((m >>> 22) & 3) * 0.1, rot + 1, 'clover', CLOVER3);
       } else if (g === GROUND.PATH) {
         if ((m >>> 26) % 9 === 0) at(0, 0.55 + ((m >>> 22) & 3) * 0.08, rot, 'short');
+      } else if (GRASS3_SPARSE[g]) {
+        if ((m >>> 26) % GRASS3_SPARSE[g] === 0 || (d === DECO.TUFT && (m >>> 26) % 4 === 1)) at(0, 0.6 + ((m >>> 22) & 3) * 0.1, rot, (m >>> 22) % 3 === 0 ? 'tall' : 'short');
       } else if (d === DECO.TUFT || (m >>> 26) % 4 === 0) {
         at(0, 0.8 + ((h >> 14) % 6) / 10, rot, (m >>> 22) % 5 === 0 ? 'tall' : 'short');
         if (d === DECO.TUFT) at(1, 0.7, rot + 1, 'short');
@@ -914,7 +1463,7 @@ function* objectJob(cx, cy) {
     bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back));
   }
   const group = new THREE.Group();
-  for (const key of ['lit', 'glow', 'glowWin', 'grass', 'aura']) {
+  for (const key of ['lit', 'detail', 'glow', 'glowWin', 'grass', 'aura']) {
     const lists = bakes.map((b) => b.lists[key] || []);
     const total = lists.reduce((n, l) => n + partTris3(l), 0);
     if (!total) continue;
@@ -950,7 +1499,12 @@ function worldMesh(group, key, geo, lowGfx) {
     group.add(m);
     if (!lowGfx) group.add(new THREE.Mesh(geo, mat3('worldOutline', () => outlineMat(0.022, false))));
   } else if (key === 'glow') group.add(new THREE.Mesh(geo, worldGlowMat()));
-  else if (key === 'glowWin') group.add(new THREE.Mesh(geo, mat3('worldWin', () => toonMat({ emissive: 0x6a4a20 }))));
+  else if (key === 'detail') {
+    // Kleinteile des Schmucks (seit 8.4): wie 'lit', aber ohne Umriss und ohne Wind
+    const m = new THREE.Mesh(geo, worldLitMat());
+    m.receiveShadow = true;
+    group.add(m);
+  } else if (key === 'glowWin') group.add(new THREE.Mesh(geo, mat3('worldWin', () => toonMat({ emissive: 0x6a4a20 }))));
   else if (key === 'grass') {
     const m = new THREE.Mesh(geo, worldGrassMat());
     m.receiveShadow = true;

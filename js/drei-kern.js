@@ -1278,9 +1278,10 @@ const CASTER3 = {
 };
 const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25] };
 // Schmuck ohne Kollision (seit 7.9): kleiner Schatten und dunkler Fuß, wie bei Bäumen und Felsen
+// (seit 8.4 auf die echten Größen der neuen Modelle abgestimmt)
 const DECO_CASTER3 = {
-  [DECO.STUMP]: [0.3, 0.42, 0.26], [DECO.LOG]: [0.25, 0.62, 0.26], [DECO.SHRUB]: [0.35, 0.5, 0.3], [DECO.MUSHROOM]: [0.15, 0.32, 0.2],
-  [DECO.BONES]: [0.1, 0.38, 0.18], [DECO.CRYSTAL]: [0.35, 0.4, 0.22], [DECO.DEADTREE]: [0.9, 0.5, 0.2]
+  [DECO.STUMP]: [0.28, 0.45, 0.26], [DECO.LOG]: [0.22, 0.6, 0.26], [DECO.SHRUB]: [0.36, 0.52, 0.3], [DECO.MUSHROOM]: [0.24, 0.36, 0.22],
+  [DECO.BONES]: [0.1, 0.42, 0.2], [DECO.CRYSTAL]: [0.4, 0.42, 0.22], [DECO.DEADTREE]: [0.6, 0.45, 0.22], [DECO.DRIFT]: [0.1, 0.5, 0.12]
 };
 
 function shadowCasters(x0, y0, x1, y1) {
