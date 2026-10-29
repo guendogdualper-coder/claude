@@ -192,47 +192,191 @@ function face3(A0, hb, hc, hr, o) {
 }
 
 // --- Haare aus Strähnen ------------------------------------------------------------------------------
-// Frisuren: 0 Kurz, 1 Dutt, 2 Lang, 3 Stachelig, 4 Pferdeschwanz, 5 Glatze. "covered": Helm/Kapuze.
+// Frisuren: 0 Kurz, 1 Dutt, 2 Lang, 3 Stachelig, 4 Pferdeschwanz, 5 Glatze; seit 8.4 (Monster, später auch
+// für Spieler): 6 Zerzaust, 7 Nach hinten gekämmt, 8 Kamm (Irokese), 9 Haarknoten, 10 Wilde Mähne, 11 Schütter.
+// "covered": true Helm (Spieler), 'helmet' Helm, 'hood' Kapuze, 'cloth' Kopftuch, 'hat' Hut – darunter schauen
+// Pony, Seiten- und Nackensträhnen hervor. rnd: Zufall beim Bauen (Varianten der Monster).
 
 function lock(A, hb, base, len, r, rot, color) {
   A(horn3(len, r, 7), color, { bone: hb, p: base, r: rot, shade: 0.25, shine: 0.25 });
 }
 
-function hair3(A, hb, hc, hr, style, color, covered) {
+// Strähne aus einer einzigen Einheitsform (eine Geometrie im Cache für alle Längen und Dicken; horn3 legt je
+// Größe eine neue an): spitz von p aus in Richtung d, wie pointAt3, aber mit fester Breitseite – o.flat < 1
+// macht sie flach, breit entlang o.w (sonst quer). Strähnen werfen keinen Schatten (Schattenmodell bleibt klein).
+const strandGeo3 = () => lathe3('strand1', [[0, 0], [0.25, 0.05], [0.21, 0.4], [0.11, 0.75], [0, 1]], 6);
+const _sx3 = new THREE.Vector3();
+const _sy3 = new THREE.Vector3();
+const _sz3 = new THREE.Vector3();
+function strand3(A, hb, p, d, len, r, color, o = {}) {
+  _sy3.set(d[0], d[1], d[2]).normalize();
+  const w = o.w || (Math.abs(_sy3.x) < 0.9 ? [1, 0, 0] : [0, 0, 1]);
+  _sx3.set(w[0], w[1], w[2]);
+  _sx3.addScaledVector(_sy3, -_sx3.dot(_sy3));
+  if (_sx3.lengthSq() < 1e-4) _sx3.set(0, 0, 1).addScaledVector(_sy3, -_sy3.z);
+  _sx3.normalize();
+  _sz3.crossVectors(_sx3, _sy3);
+  const k = r / 0.25;
+  const m = new THREE.Matrix4().makeBasis(_sx3.multiplyScalar(k), _sy3.multiplyScalar(len), _sz3.multiplyScalar(k * (o.flat || 1)));
+  m.setPosition(p[0], p[1], p[2]);
+  A(strandGeo3(), color, { bone: hb, m, shade: 0.2, shine: o.shine == null ? 0.25 : o.shine, noShadow: true });
+}
+
+// Strähnenkranz: n Strähnen rund um den Kopf zwischen den Winkeln a0 … a1 (0 vorn, + linke Seite) in Höhe yk
+// und Abstand rk (in Kopfradien); sie hängen nach unten, stehen um out nach außen ab, mess zerzaust sie
+function hairRing3(A, hb, hc, hr, n, yk, rk, a0, a1, len, thick, out, color, rnd, mess) {
+  for (let k = 0; k < n; k++) {
+    const a = a0 + (a1 - a0) * (n === 1 ? 0.5 : k / (n - 1)) + (rnd() - 0.5) * 0.25 * mess;
+    const sa = Math.sin(a);
+    const ca = Math.cos(a);
+    const o = out + (rnd() - 0.5) * 0.5 * mess;
+    strand3(A, hb, [hc[0] + sa * hr * rk, hc[1] + hr * yk, hc[2] + ca * hr * rk], [sa * o + (rnd() - 0.5) * 0.25 * mess, -1, ca * o], len * hr * (0.85 + rnd() * 0.3 * (1 + mess)), thick * hr, k % 2 ? color : darker(color, 0.08), { w: [ca, 0, -sa], flat: 0.7 });
+  }
+}
+
+// Glanzband quer über den Hinterkopf, liegt auf der Haarkappe, ohne Umriss (seit 8.4 statt einer hellen Kappe,
+// die von hinten wie eine kahle Stelle aussah)
+function shineBand3(A, hb, hc, hr, color) {
+  A(torus3(+(hr * 0.93).toFixed(3), +(hr * 0.045).toFixed(3), Math.PI * 0.9, 4, 14), lighter(color, 0.22), { bone: hb, p: [hc[0], hc[1] + hr * 0.545, hc[2] - hr * 0.213], r: [Math.PI / 2 - 0.3, 0, -Math.PI * 0.95], shine: 0.6, ao: 0, mat: 'face' });
+}
+
+function hair3(A, hb, hc, hr, style, color, covered, rnd) {
   if (style === 5) return;
   const [x, y, z] = hc;
-  const hi = lighter(color, 0.42);
+  const R = rnd || mulberry32(31 + style * 7);
+  const dark = darker(color, 0.07);
+  // neue Frisuren aus Strähnen; zerzaust und Mähne streuen stärker
+  const strands = style >= 6;
+  const mess = style === 6 || style === 10 ? 1 : 0.35;
+  if (style === 8) {
+    // Kamm: flache Strähnen von der Stirn bis in den Nacken, hell und dunkel im Wechsel, Seiten geschoren
+    for (let i = 0; i < 9; i++) {
+      const t = i / 8;
+      const a = -0.35 + t * 2.5;
+      const ta = a + 0.45;
+      strand3(A, hb, [x, y + hr * 0.86 * Math.cos(a), z - hr * 0.9 * Math.sin(a)], [0, Math.cos(ta), -Math.sin(ta)], hr * (0.62 - Math.abs(t - 0.35) * 0.4), hr * 0.22, i % 2 ? color : lighter(color, 0.12), { w: [0, -Math.sin(ta), -Math.cos(ta)], flat: 0.35 });
+    }
+    return;
+  }
+  if (style === 9) {
+    // Haarknoten oben mit Goldring und langem Schwanz, das Haar darunter straff hochgebunden
+    A(ball(10), color, { bone: hb, p: [x, y + hr * 0.98, z - hr * 0.28], s: [hr * 0.26, hr * 0.24, hr * 0.26], shine: 0.25 });
+    A(torus3(+(hr * 0.17).toFixed(3), +(hr * 0.055).toFixed(3), Math.PI * 2, 4, 12), '#c9a35a', { bone: hb, p: [x, y + hr * 0.8, z - hr * 0.25], r: [Math.PI / 2 - 0.45, 0, 0], shine: 1 });
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + 0.3;
+      strand3(A, hb, [x + Math.sin(a) * hr * 0.55, y + hr * 0.62, z - hr * 0.22 + Math.cos(a) * hr * 0.55], [-Math.sin(a) * 0.55, 1, -Math.cos(a) * 0.55], hr * 0.32, hr * 0.13, k % 2 ? color : dark, { w: [Math.cos(a), 0, -Math.sin(a)], flat: 0.6 });
+    }
+    strand3(A, hb, [x, y + hr * 1.02, z - hr * 0.42], [0, -0.75, -0.65], hr * 1.05, hr * 0.16, color, { flat: 0.7 });
+    for (const sx of [-1, 1]) strand3(A, hb, [x + sx * hr * 0.06, y + hr * 0.98, z - hr * 0.4], [sx * 0.35, -0.6, -0.7], hr * 0.7, hr * 0.12, dark, { flat: 0.7 });
+    return;
+  }
+  if (style === 11) {
+    // schütteres Haar: dünne Strähnen liegen vom Scheitel über den Schädel und hängen lang herab, dazwischen Kopfhaut
+    for (let k = 0; k < 7; k++) {
+      const a = 1.0 + (k / 6) * (Math.PI * 2 - 2.0) + (R() - 0.5) * 0.25;
+      const sa = Math.sin(a);
+      const ca = Math.cos(a);
+      const col = k % 2 ? color : dark;
+      const pts = [[0.84, 0.5], [0.56, 0.86], [0.18, 1.0]].map(([h, r]) => [x + sa * hr * r, y + hr * h, z + ca * hr * r]);
+      for (let j = 0; j < 2; j++) {
+        const d = [pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1], pts[j + 1][2] - pts[j][2]];
+        strand3(A, hb, pts[j], d, Math.hypot(d[0], d[1], d[2]) * 1.25, hr * 0.07, col, { w: [ca, 0, -sa], flat: 0.8 });
+      }
+      strand3(A, hb, pts[2], [sa * 0.12, -1, ca * 0.12 - 0.05], hr * (0.95 + R() * 0.5), hr * 0.07, col, { w: [ca, 0, -sa], flat: 0.8 });
+    }
+    return;
+  }
   if (!covered) {
     A(cap3(hr * 1.07, Math.PI * 0.5, 0, Math.PI * 2, 18, 9), color, { bone: hb, p: [x, y + hr * 0.02, z - hr * 0.05], r: [-0.6, 0, 0], shade: 0.2, shine: 0.25 });
-    // Glanz oben auf dem Scheitel (hellere Kappe, liegt flach im Haar)
-    A(cap3(hr * 1.075, Math.PI * 0.2, 0, Math.PI * 2, 14, 4), hi, { bone: hb, p: [x, y + hr * 0.02, z - hr * 0.05], r: [-0.6, 0, 0], shine: 0.5, ao: 0 });
-    // Pony: sechs Strähnen über der Stirn, nach außen gefächert
-    for (let k = 0; k < 6; k++) {
-      const u = k / 5 - 0.5;
-      lock(A, hb, [x + u * hr * 1.35, y + hr * 0.72 - Math.abs(u) * hr * 0.12, z + hr * 0.52], hr * (0.48 - Math.abs(u) * 0.14), hr * 0.16, [2.55 - Math.abs(u) * 0.3, 0, -u * 0.9], k % 2 ? color : darker(color, 0.06));
-    }
-    if (style === 3) {
-      // stachelig: Spitzen nach oben und hinten
-      for (let k = 0; k < 9; k++) {
-        const a = -1.3 + (k / 8) * 2.6;
-        lock(A, hb, [x + Math.sin(a) * hr * 0.6, y + hr * 0.55, z - hr * 0.1 + Math.cos(a) * hr * 0.1], hr * 0.85, hr * 0.22, [-0.5, 0, -a * 0.75], k % 2 ? color : lighter(color, 0.08));
+    shineBand3(A, hb, hc, hr, color);
+    if (!strands) {
+      // Pony: sechs Strähnen über der Stirn, nach außen gefächert
+      for (let k = 0; k < 6; k++) {
+        const u = k / 5 - 0.5;
+        lock(A, hb, [x + u * hr * 1.35, y + hr * 0.72 - Math.abs(u) * hr * 0.12, z + hr * 0.52], hr * (0.48 - Math.abs(u) * 0.14), hr * 0.16, [2.55 - Math.abs(u) * 0.3, 0, -u * 0.9], k % 2 ? color : darker(color, 0.06));
+      }
+      if (style === 3) {
+        // stachelig: Spitzen nach oben und hinten
+        for (let k = 0; k < 9; k++) {
+          const a = -1.3 + (k / 8) * 2.6;
+          lock(A, hb, [x + Math.sin(a) * hr * 0.6, y + hr * 0.55, z - hr * 0.1 + Math.cos(a) * hr * 0.1], hr * 0.85, hr * 0.22, [-0.5, 0, -a * 0.75], k % 2 ? color : lighter(color, 0.08));
+        }
+      }
+    } else if (style === 7) {
+      // nach hinten gekämmt: freie Stirn, Kammstriche in fünf Bahnen über den Scheitel, Seiten nach hinten gestrichen
+      const Rs = hr * 1.08;
+      const cy = y + hr * 0.02;
+      const cz = z - hr * 0.05;
+      for (let k = 0; k < 5; k++) {
+        const xo = (k / 4 - 0.5) * hr * 0.95;
+        const rl = Math.sqrt(Rs * Rs - xo * xo);
+        const P = (a) => [x + xo * (1 + 0.15 * Math.sin(Math.min(a, 0))), cy + rl * Math.cos(a), cz + rl * Math.sin(a)];
+        const lanes = [0.95, 0.35, -0.3];
+        for (let j = 0; j < 2; j++) {
+          const p0 = P(lanes[j]);
+          const p1 = P(lanes[j + 1]);
+          const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+          strand3(A, hb, p0, d, Math.hypot(d[0], d[1], d[2]) * 1.12, hr * 0.12, (k + j) % 2 ? color : lighter(color, 0.08), { flat: 0.3, shine: 0.5 });
+        }
+      }
+      for (const sx of [-1, 1]) for (const dy of [0.32, 0.05]) strand3(A, hb, [x + sx * hr * 0.9, y + hr * dy, z + hr * 0.3], [-sx * 0.12, 0.04, -1], hr * 0.85, hr * 0.14, dy > 0.1 ? color : dark, { w: [0, 1, 0], flat: 0.5 });
+    } else {
+      // zerzaust bzw. Mähne: Pony aus sieben unruhigen Strähnen
+      for (let k = 0; k < 7; k++) {
+        const u = k / 6 - 0.5;
+        strand3(A, hb, [x + u * hr * 1.3, y + hr * 0.72 - Math.abs(u) * hr * 0.14, z + hr * 0.52], [u * 0.9 + (R() - 0.5) * 0.6, -0.85, 0.55 + (R() - 0.5) * 0.3], hr * (style === 10 ? 0.6 : 0.46) * (0.85 + R() * 0.3), hr * 0.16, k % 2 ? color : dark, { flat: 0.6 });
+      }
+      // zerzaust: oben stehen Büschel nach oben und hinten ab
+      if (style === 6) for (let k = 0; k < 7; k++) {
+        const a = -1.2 + (k / 6) * 2.4 + (R() - 0.5) * 0.3;
+        strand3(A, hb, [x + Math.sin(a) * hr * 0.55, y + hr * 0.82, z - hr * 0.1 + Math.cos(a) * hr * 0.25], [Math.sin(a) * 0.7, 0.55 + R() * 0.35, -0.75], hr * (0.42 + R() * 0.25), hr * 0.17, k % 2 ? color : lighter(color, 0.08), { flat: 0.6 });
       }
     }
-  } else if (covered !== 'hood') {
-    // unter dem Helm schauen ein paar Strähnen hervor (unter Kapuzen nicht)
+  } else if (covered === 'hood') {
+    // unter der Kapuze: kurzer Pony und je drei Strähnen an den Wangen
+    for (let k = 0; k < 5; k++) {
+      const u = k / 4 - 0.5;
+      strand3(A, hb, [x + u * hr * 1.1, y + hr * 0.52 - Math.abs(u) * hr * 0.1, z + hr * 0.72], [u * 0.8 + (R() - 0.5) * 0.3 * mess, -0.9, 0.5], hr * 0.32 * (0.85 + R() * 0.3), hr * 0.14, k % 2 ? color : dark, { flat: 0.6 });
+    }
+    for (const sx of [-1, 1]) hairRing3(A, hb, hc, hr, 3, 0.2, 0.92, sx * 0.72, sx * 1.02, style === 2 ? 1.0 : 0.5, 0.13, 0.12, color, R, mess);
+  } else if (covered === true) {
+    // unter dem Helm schauen ein paar Strähnen hervor
     for (const u of [-0.3, 0, 0.3]) lock(A, hb, [x + u * hr, y + hr * 0.48, z + hr * 0.8], hr * 0.24, hr * 0.11, [2.6, 0, -u * 1.2], color);
+  } else {
+    // unter Helm, Kopftuch oder Hut: Haarkappe (schaut hinten und an den Seiten unter dem Rand hervor), Pony;
+    // unter dem Helm etwas kleiner, damit sie nicht durch die Helmschale sticht
+    const hk = covered === 'helmet' ? 1.03 : 1.07;
+    A(cap3(+(hr * hk).toFixed(4), Math.PI * 0.5, 0, Math.PI * 2, 18, 9), color, { bone: hb, p: [x, y + hr * 0.02, z - hr * (covered === 'helmet' ? 0.02 : 0.05)], r: [-0.6, 0, 0], shade: 0.2, shine: 0.25 });
+    // Ansatz unter dem Rand versteckt, die breiten Strähnen schließen aneinander
+    const fy = covered === 'helmet' ? 0.32 : covered === 'hat' ? 0.55 : 0.46;
+    for (let k = 0; k < 6; k++) {
+      const u = k / 5 - 0.5;
+      strand3(A, hb, [x + u * hr * 1.2, y + hr * fy - Math.abs(u) * hr * 0.1, z + hr * 0.8], [u * 0.9 + (R() - 0.5) * 0.4 * mess, -0.9, 0.42], hr * (style === 10 ? 0.62 : covered === 'cloth' ? 0.34 : 0.42) * (0.85 + R() * 0.3), hr * 0.17, k % 2 ? color : dark, { flat: 0.5 });
+    }
   }
-  // Seitensträhnen um die Wangen
-  for (const sx of [-1, 1]) {
-    lock(A, hb, [x + sx * hr * 0.86, y + hr * 0.12, z + hr * 0.2], hr * (style === 2 ? 1.05 : 0.55), hr * 0.15, [2.95, 0, sx * 0.1], color);
-    lock(A, hb, [x + sx * hr * 0.8, y + hr * 0.15, z - hr * 0.2], hr * (style === 2 ? 0.95 : 0.45), hr * 0.15, [-2.95, 0, sx * 0.16], darker(color, 0.06));
+  // Seitensträhnen um die Wangen (unter der Kapuze nur die am Gesicht, siehe oben)
+  if (covered !== 'hood') {
+    if (!strands) for (const sx of [-1, 1]) {
+      lock(A, hb, [x + sx * hr * 0.86, y + hr * 0.12, z + hr * 0.2], hr * (style === 2 ? 1.05 : 0.55), hr * 0.15, [2.95, 0, sx * 0.1], color);
+      lock(A, hb, [x + sx * hr * 0.8, y + hr * 0.15, z - hr * 0.2], hr * (style === 2 ? 0.95 : 0.45), hr * 0.15, [-2.95, 0, sx * 0.16], darker(color, 0.06));
+    } else if (style !== 7) for (const sx of [-1, 1]) hairRing3(A, hb, hc, hr, 4, 0.12, 0.9, sx * 1.35, sx * 2.0, style === 10 ? 1.25 : 0.55, 0.15, style === 10 ? 0.3 : 0.12, color, R, mess);
   }
+  // Hinterkopf: unter der Kapuze nur bei langem Haar und Pferdeschwanz (sonst ganz verdeckt)
+  if (covered === 'hood' && style !== 2 && style !== 4) return;
   A(ball(16), color, { bone: hb, p: [x, y - hr * 0.02, z - hr * 0.22], s: [hr * 1.04, hr * 0.98, hr * 0.84], shade: 0.25 });
-  // Strähnen am Hinterkopf
-  for (let k = 0; k < 5; k++) {
-    const u = k / 4 - 0.5;
-    lock(A, hb, [x + u * hr * 1.3, y - hr * 0.25, z - hr * 0.75], hr * (style === 2 ? 1.5 : 0.5), hr * 0.2, [-2.75, 0, u * 0.5], k % 2 ? color : darker(color, 0.07));
-  }
+  if (!strands) {
+    // Strähnen am Hinterkopf
+    for (let k = 0; k < 5; k++) {
+      const u = k / 4 - 0.5;
+      lock(A, hb, [x + u * hr * 1.3, y - hr * 0.25, z - hr * 0.75], hr * (style === 2 ? 1.5 : 0.5), hr * 0.2, [-2.75, 0, u * 0.5], k % 2 ? color : darker(color, 0.07));
+    }
+  } else if (style === 7) {
+    // kurzer Entenschwanz im Nacken
+    for (let k = 0; k < 5; k++) {
+      const u = k / 4 - 0.5;
+      strand3(A, hb, [x + u * hr * 0.8, y - hr * 0.12, z - hr * 0.86], [u * 0.8, -0.55, -0.75], hr * 0.5, hr * 0.16, k % 2 ? color : dark, { w: [1, 0, 0], flat: 0.6 });
+    }
+  } else hairRing3(A, hb, hc, hr, style === 10 ? 9 : 7, -0.2, 0.86, 2.25, Math.PI * 2 - 2.25, style === 10 ? 1.5 : 0.6, 0.17, style === 10 ? 0.25 : 0.1, color, R, mess);
   if (style === 1 && !covered) {
     A(ball(12), color, { bone: hb, p: [x, y + hr * 0.95, z - hr * 0.38], s: [hr * 0.38, hr * 0.34, hr * 0.38], shine: 0.25 });
     A(torus3(hr * 0.24, hr * 0.06, Math.PI * 2, 4, 14), '#c8402f', { bone: hb, p: [x, y + hr * 0.75, z - hr * 0.3], r: [Math.PI / 2 - 0.5, 0, 0] });
@@ -268,7 +412,8 @@ function humanoid3(b, c, P) {
   const armR = (belly ? 0.11 : 0.062) * bk;
   const neckY = hipY + (belly ? 0.6 : 0.44);
   const hr = c.headR || (belly ? 0.26 : 0.33);
-  const hc = [0, neckY + hr * 0.84, belly ? 0.1 : 0.02];
+  // headZ: Kopf etwas nach vorn (schlanke Wegelagerer)
+  const hc = [0, neckY + hr * 0.84, (belly ? 0.1 : 0.02) + (c.headZ || 0)];
   const rig = rigOf([
     [[0, 0, 0], -1], [[0, hipY, 0], 0], [[0, chestY, 0], 1], [[0, neckY, 0], 2],
     [[shX, shY, 0], 2], [[-shX, shY, 0], 2], [[shX, shY - armLen, 0], 4], [[-shX, shY - armLen, 0], 5],
@@ -482,16 +627,18 @@ function humanoid3(b, c, P) {
   // Kopf: runder Schädel mit vollen Wangen
   const hb = BH.head;
   A(ball(18), c.skin, { bone: hb, p: hc, s: [hr, hr * 0.93, hr * 0.96], shine: c.hair && c.hair.style === 5 ? 0.35 : 0 });
-  A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28, hc[2] + hr * 0.12], s: [hr * 0.86, hr * 0.62, hr * 0.8] });
+  // mit Maske sitzt das Tuch auf dem Kiefer statt darin
+  A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86, hr * 0.62, hr * 0.8] });
   if (!c.noEars) for (const sx of [-1, 1]) {
     if (c.pointEars) A(horn3(hr * 0.55, hr * 0.14, 6), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.9, hc[1], hc[2]], r: [0, 0, -sx * 1.25] });
     else A(ball(8), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.97, hc[1] - hr * 0.06, hc[2]], s: [hr * 0.1, hr * 0.17, hr * 0.14] });
   }
   if (c.brow) A(roundBox(hr * 1.4, hr * 0.2, hr * 0.3, hr * 0.1), c.skin, { bone: hb, p: [hc[0], hc[1] + hr * 0.12, hc[2] + hr * 0.75], shade: 0.3 });
   face3(A, hb, hc, hr, Object.assign({ hairColor: c.hair ? c.hair.color : null }, c));
-  if (c.beard) A(ball(12), c.beard, { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + hr * 0.42], s: [hr * 0.64, hr * 0.52, hr * 0.44], shade: 0.2, mat: c.beardGlow ? 'glow' : 'lit' });
+  if (c.beard && c.beardGlow) A(ball(12), c.beard, { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + hr * 0.42], s: [hr * 0.64, hr * 0.52, hr * 0.44], shade: 0.2, mat: 'glow' });
+  else if (c.beard) beard3(A, hb, hc, hr, c.beard, c.beardKind, c.rnd || mulberry32(5));
   if (c.tusks) for (const sx of [-1, 1]) A(horn3(hr * 0.34, hr * 0.085, 6), '#f4ecd8', { bone: hb, p: [hc[0] + sx * hr * 0.3, hc[1] - hr * 0.6, hc[2] + hr * 0.78], r: [-0.25, 0, sx * 0.15], shine: 0.4 });
-  if (c.hair) hair3(A, hb, hc, hr, c.hair.style, c.hair.color, c.covered === 'hood' ? 'hood' : !!c.covered);
+  if (c.hair) hair3(A, hb, hc, hr, c.hair.style, c.hair.color, typeof c.covered === 'string' ? c.covered : !!c.covered, c.rnd);
   // Frauen unter Kapuze oder Helm: geflochtener Zopf hängt hinten heraus
   if (c.braid) {
     const b0 = [hc[0], hc[1] - hr * 0.2, hc[2] - hr * 0.85];
@@ -1583,6 +1730,196 @@ function headExtras(h, skin) {
   };
 }
 
+// --- Köpfe der Menschenartigen (seit 8.4) --------------------------------------------------------------
+// Jeder Kopf ist geschlossen: Haare aus Strähnen unter Kapuze, Kopftuch, Helm oder Hut, Kopfbedeckungen mit
+// Dicke (Saumwulst, Knoten, Zipfel), Masken am Kiefer, Bärte aus Strähnen. Jede Art hat bis zu drei Varianten
+// (HEADKIT3), die Variante hängt am Startpunkt des Monsters (monVariant3), alle Spieler sehen dieselbe.
+// lean: schlanke Wegelagerer mit etwas kleinerem, weiter vorn sitzendem Kopf.
+const HEADKIT3 = {
+  bandit: [
+    { lean: 1, hood: '#5a3a22', mask: '#9a2f2a', hair: 0, hairColor: '#2a1c14', tail: 'pony', eye: '#4a3a22' },
+    { lean: 1, bandana: '#8a2a22', mask: '#2e2a2c', hair: 6, hairColor: '#7a4a2a', eye: '#3a5a3a', mark: 2 },
+    { lean: 1, hood: '#4a3424', hair: 0, hairColor: '#1e1612', beard: '#2a1e16', eye: '#5a6a7a', mark: 2, scarf: '#9a2f2a' }
+  ],
+  banditschuetze: [
+    { lean: 1, hood: '#3e5530', mask: '#9a2f2a', hair: 0, hairColor: '#4a2e1a', tail: 'braid', eye: '#4a3a22' },
+    { lean: 1, bandana: '#46603a', hair: 6, hairColor: '#8a5a2a', eye: '#3a5a3a', scarf: '#9a2f2a' },
+    { lean: 1, hood: '#46603a', hair: 0, hairColor: '#2a1c14', beard: '#3a2618', beardKind: 'short', eye: '#6a4a2a', mark: 2 }
+  ],
+  armbrustschuetze: [{ lean: 1, hat: '#4a3a2a', hair: 0, hairColor: '#3a2418', mask: '#9a2f2a', eye: '#5a6a7a' }],
+  kellerwache: [
+    { hair: 0, hairColor: '#5a3a22', beard: '#5a3a22', beardKind: 'long', eye: '#4a3a22' },
+    { hair: 0, hairColor: '#8a8a82', beard: '#8a8a82', beardKind: 'short', eye: '#5a6a7a', mark: 2 },
+    { hair: 0, hairColor: '#3a2418', beard: '#3a2418', beardKind: 'braid', eye: '#6a4a2a' }
+  ],
+  banditenfuerst: [{ hair: 7, hairColor: '#2a1c14', mask: '#9a2f2a', eye: '#4a3a22', mark: 2 }],
+  ork: [
+    { band: '#3e3226', hair: 8, hairColor: '#2a2018' },
+    { band: '#8a2a1a', hair: 9, hairColor: '#1e1a14' },
+    { hair: 8, hairColor: '#6a2a1a', sideBraid: '#2a2018' }
+  ],
+  orkberserker: [{ hair: 8, hairColor: '#8a2a1a' }],
+  orkschamane: [{ hair: 9, hairColor: '#2a2018' }],
+  untoter: [
+    { hair: 11, hairColor: '#8a8676', cheeks: true },
+    { halfHelm: '#7a7068', hair: 11, hairColor: '#7a766a', cheeks: true }
+  ],
+  sumpfhexe: [{ hair: 10, hairColor: '#2e3a2a' }]
+};
+// Augenfarben der Menschen (statt roter Monsteraugen)
+const HUMAN_EYES3 = ['#4a3a22', '#3a5a3a', '#5a6a7a', '#6a4a2a'];
+
+// Kapuze: geschlossener Scheitel, Öffnung nur vor dem Gesicht mit weichem Saumwulst, Spitze hinten,
+// dunkle Innenseite und ein Kragen auf der Brust (dort, damit sich der Kopf frei drehen kann)
+function monHood3(A, hb, hc, hr, col) {
+  const [x, y, z] = hc;
+  const R = +(hr * 1.16).toFixed(3);
+  const gap = 0.95;
+  const tTop = Math.PI * 0.36;
+  const tBot = Math.PI * 0.86;
+  const p = [x, y + hr * 0.04, z - hr * 0.04];
+  // Scheitel reicht etwas über den unteren Teil (keine Ritze an der Naht)
+  A(cap3(+(R * 1.006).toFixed(3), tTop + 0.05, 0, Math.PI * 2, 20, 5), col, { bone: hb, p });
+  A(geo3('mhood' + R, () => new THREE.SphereGeometry(R, 20, 6, Math.PI / 2 + gap, Math.PI * 2 - 2 * gap, tTop, tBot - tTop)), col, { bone: hb, p, shade: 0.25 });
+  A(geo3('mhoodin' + R, () => flipGeo(new THREE.SphereGeometry(R * 0.96, 20, 6, Math.PI / 2 + gap, Math.PI * 2 - 2 * gap, tTop, tBot - tTop))), darker(col, 0.5), { bone: hb, p });
+  // Saumwulst: zwei Bögen an den Seiten der Öffnung, einer über der Stirn, Knoten an den Ecken
+  const hem = lighter(col, 0.12);
+  const tube = +(hr * 0.075).toFixed(3);
+  for (const ph of [Math.PI / 2 + gap, Math.PI / 2 - gap]) A(torus3(R, tube, tBot - tTop, 4, 8), hem, { bone: hb, p, r: [0, ph + Math.PI, Math.PI / 2 - tBot] });
+  A(torus3(+(R * Math.sin(tTop)).toFixed(3), tube, gap * 2, 4, 10), hem, { bone: hb, p: [p[0], p[1] + R * Math.cos(tTop), p[2]], r: [Math.PI / 2, 0, Math.PI / 2 - gap] });
+  for (const sx of [-1, 1]) A(sphere3(tube, 6, 4), hem, { bone: hb, p: [p[0] + sx * R * Math.cos(Math.PI / 2 - gap) * Math.sin(tTop), p[1] + R * Math.cos(tTop), p[2] + R * Math.sin(Math.PI / 2 - gap) * Math.sin(tTop)], noShadow: true });
+  // Kapuzenspitze nach hinten
+  A(horn3(+(hr * 0.62).toFixed(3), +(hr * 0.42).toFixed(3), 8), col, { bone: hb, p: [x, y + hr * 0.62, z - hr * 0.78], r: [-1.95, 0, 0], s: [0.75, 1, 1], shade: 0.2 });
+  A(lathe3('hoodcowl', [[0, -0.051], [0.26, -0.05], [0.23, -0.01], [0.17, 0.05], [0.12, 0.09]], 16), col, { bone: BH.chest, p: [x, y - hr * 0.84, 0], s: [1, 1, 0.9], shade: 0.2 });
+}
+
+// Kopftuch: liegt am Schädel, Rand als Wulst, Knoten am Hinterkopf, zwei Zipfel schwingen mit dem Umhang
+function monBandana3(A, hb, hc, hr, col) {
+  const [x, y, z] = hc;
+  A(cap3(+(hr * 1.09).toFixed(3), Math.PI * 0.5, 0, Math.PI * 2, 18, 8), col, { bone: hb, p: [x, y + hr * 0.03, z - hr * 0.04], r: [-0.42, 0, 0], shade: 0.2 });
+  A(torus3(+(hr * 1.02).toFixed(3), +(hr * 0.07).toFixed(3), Math.PI * 2, 4, 22), darker(col, 0.12), { bone: hb, p: [x, y + hr * 0.03, z - hr * 0.04], r: [Math.PI / 2 - 0.42, 0, 0] });
+  const kn = [x, y + hr * 0.08, z - hr * 1.1];
+  A(ball(10), darker(col, 0.08), { bone: hb, p: kn, s: [hr * 0.17, hr * 0.15, hr * 0.13] });
+  for (const sx of [-1, 1]) A(horn3(+(hr * 1.0).toFixed(3), +(hr * 0.22).toFixed(3), 6), sx > 0 ? col : darker(col, 0.1), { bone: BH.cape, p: [kn[0] + sx * hr * 0.04, kn[1], kn[2] - hr * 0.04], r: [-2.8, sx * 0.2, sx * 0.14], s: [1, 1, 0.3], shade: 0.2 });
+}
+
+// Maskentuch über Nase und Mund: folgt dem Kiefer, Zipfel am Kinn, Knoten mit zwei Enden im Nacken
+function monMask3(A, hb, hc, hr, col, knot) {
+  const [x, y, z] = hc;
+  const jc = [x, y - hr * 0.2, z + hr * 0.02];
+  A(geo3('mask3b', () => new THREE.SphereGeometry(1, 20, 7, Math.PI / 2 - 1.75, 3.5, Math.PI * 0.5, Math.PI * 0.42)), col, { bone: hb, p: jc, s: [hr * 1.03, hr * 0.86, hr * 1.04], shade: 0.15 });
+  A(torus3(1, 0.05, 3.5, 3, 18), darker(col, 0.15), { bone: hb, p: jc, r: [Math.PI / 2, 0, Math.PI / 2 - 1.75], s: [hr * 1.03, hr * 1.04, hr * 0.86], noShadow: true });
+  A(horn3(+(hr * 0.26).toFixed(3), +(hr * 0.26).toFixed(3), 6), darker(col, 0.06), { bone: hb, p: [x, y - hr * 0.78, z + hr * 0.74], r: [Math.PI - 0.5, 0, 0], s: [1, 1, 0.3] });
+  A(ball(8), lighter(col, 0.06), { bone: hb, p: [x, y - hr * 0.2, z + hr * 1.0], s: [hr * 0.12, hr * 0.1, hr * 0.08] });
+  if (!knot) return;
+  const kn = [x, y - hr * 0.15, z - hr * 0.98];
+  A(ball(8), darker(col, 0.1), { bone: hb, p: kn, s: [hr * 0.12, hr * 0.11, hr * 0.1] });
+  for (const sx of [-1, 1]) A(horn3(+(hr * 0.5).toFixed(3), +(hr * 0.15).toFixed(3), 5), col, { bone: BH.cape, p: kn, r: [-2.75, 0, sx * 0.3], s: [1, 1, 0.35] });
+}
+
+// Bart aus Strähnen (seit 8.4 statt einer Kugel): Grundform am Kinn, Strähnen laufen nach unten spitz zu,
+// Schnurrbart; kind 'long' lang, 'short' kurz, 'braid' mit zwei geflochtenen Zöpfen
+function beard3(A, hb, hc, hr, col, kind, rnd) {
+  const [x, y, z] = hc;
+  A(ball(12), col, { bone: hb, p: [x, y - hr * 0.55, z + hr * 0.45], s: [hr * 0.72, hr * 0.42, hr * 0.5], shade: 0.2 });
+  const L = kind === 'long' ? 0.78 : kind === 'braid' ? 0.34 : 0.44;
+  for (let k = 0; k < 7; k++) {
+    const u = k / 6 - 0.5;
+    strand3(A, hb, [x + u * hr * 1.1, y - hr * (0.5 + (0.5 - Math.abs(u)) * 0.15), z + hr * (0.72 - Math.abs(u) * 0.4)], [-u * 0.35, -1, 0.25], hr * L * (1 - Math.abs(u) * 0.6) * (0.9 + rnd() * 0.2), hr * 0.14, k % 2 ? col : darker(col, 0.08), { flat: 0.7 });
+  }
+  for (const sx of [-1, 1]) strand3(A, hb, [x + sx * hr * 0.05, y - hr * 0.34, z + hr * 0.97], [sx, -0.45, 0.1], hr * 0.34, hr * 0.075, darker(col, 0.05), { w: [0, 1, 0], flat: 0.7 });
+  if (kind === 'braid') for (const sx of [-1, 1]) {
+    let p = [x + sx * hr * 0.22, y - hr * 0.8, z + hr * 0.62];
+    for (let k = 0; k < 3; k++) {
+      p = [p[0], p[1] - hr * 0.17, p[2] - hr * 0.02];
+      A(ball(8), k % 2 ? col : darker(col, 0.12), { bone: hb, p, s: [hr * 0.11, hr * 0.13, hr * 0.11], shine: 0.25 });
+    }
+    A(torus3(+(hr * 0.08).toFixed(3), +(hr * 0.03).toFixed(3), Math.PI * 2, 3, 8), '#c9a35a', { bone: hb, p: [p[0], p[1] - hr * 0.1, p[2]], r: [Math.PI / 2, 0, 0], shine: 1 });
+    strand3(A, hb, [p[0], p[1] - hr * 0.1, p[2]], [0, -1, 0.05], hr * 0.22, hr * 0.1, col);
+  }
+}
+
+// Pferdeschwanz aus der Kapuze: Band am Kopf, Schwanz am Umhang-Knochen (schwingt mit)
+function ponytail3(A, hc, hr, color, tie) {
+  const t0 = [hc[0], hc[1] - hr * 0.1, hc[2] - hr * 1.12];
+  const t1 = [hc[0], t0[1] - hr * 0.55, t0[2] - hr * 0.35];
+  const t2 = [hc[0] + hr * 0.05, t0[1] - hr * 1.25, t0[2] - hr * 0.3];
+  A(torus3(+(hr * 0.15).toFixed(3), +(hr * 0.06).toFixed(3), Math.PI * 2, 4, 12), tie, { bone: BH.head, p: t0, r: [0.4, 0, 0], shine: 1 });
+  limbBetween(A, t0, t1, hr * 0.22, hr * 0.2, color, { bone: BH.cape, seg: 8, shine: 0.25 });
+  limbBetween(A, t1, t2, hr * 0.2, hr * 0.06, color, { bone: BH.cape, seg: 8, shine: 0.25 });
+  for (const sx of [-1, 1]) strand3(A, BH.cape, [t2[0] + sx * hr * 0.05, t2[1] + hr * 0.25, t2[2]], [sx * 0.3, -1, 0], hr * 0.4, hr * 0.09, darker(color, 0.06));
+}
+
+// Kopf aus dem Baukasten: stellt Gesicht, Haare und Bart in c ein und liefert die Kopfbedeckung.
+// h: die alten Kopfteile (Krone, Federn, Hut, Bemalung … bleiben), v: Variante (für die Augenfarbe)
+function headKit3(k, h, c, rnd, v) {
+  if (k.lean) {
+    c.headR = 0.31;
+    c.headZ = 0.02;
+  }
+  c.rnd = rnd;
+  if (v >= 0) c.eyeColor = k.eye || HUMAN_EYES3[v % HUMAN_EYES3.length];
+  if (k.mark) c.mark = k.mark;
+  const helmet = k.helmet || h.helmet;
+  c.covered = k.hood ? 'hood' : k.bandana ? 'cloth' : k.hat || h.hat ? 'hat' : helmet || k.halfHelm ? 'helmet' : false;
+  c.noEars = !!k.hood;
+  c.hair = k.hair != null ? { style: k.hair, color: k.hairColor } : null;
+  if (k.mask) {
+    c.noMouth = true;
+    c.noNose = true;
+    c.masked = true;
+  }
+  c.beard = k.beard || null;
+  c.beardKind = k.beardKind;
+  if (k.tail === 'braid') c.braid = k.hairColor;
+  // alte Teile ohne die, die der Baukasten neu macht
+  const rest = headExtras(Object.assign({}, h, { hood: null, mask: null, band: null, mohawk: null, hairLong: null, hair: null, helmet }), c.skin);
+  return (A, hb, hc, hr) => {
+    const [x, y, z] = hc;
+    if (k.hood) monHood3(A, hb, hc, hr, k.hood);
+    if (k.bandana) monBandana3(A, hb, hc, hr, k.bandana);
+    if (k.mask) monMask3(A, hb, hc, hr, k.mask, !k.hood);
+    if (k.hat) {
+      // breitkrempiger Hut mit Band und kleiner Feder, leicht schief
+      A(cyl3(+(hr * 1.6).toFixed(3), +(hr * 1.6).toFixed(3), +(hr * 0.06).toFixed(3), 22), k.hat, { bone: hb, p: [x, y + hr * 0.62, z - hr * 0.02], r: [-0.08, 0, 0.06] });
+      A(cap3(+(hr * 0.9).toFixed(3), Math.PI * 0.5, 0, Math.PI * 2, 16, 6), k.hat, { bone: hb, p: [x, y + hr * 0.62, z - hr * 0.02], r: [-0.08, 0, 0.06], s: [1, 0.9, 1], shade: 0.2 });
+      A(torus3(+(hr * 0.9).toFixed(3), +(hr * 0.07).toFixed(3), Math.PI * 2, 4, 18), '#6a2a1a', { bone: hb, p: [x, y + hr * 0.7, z - hr * 0.02], r: [Math.PI / 2 - 0.08, 0, 0.06] });
+      A(geo3('feather2', () => new THREE.SphereGeometry(1, 10, 6).scale(0.05, 0.3, 0.012)), '#c8402f', { bone: hb, p: [x + hr * 0.8, y + hr * 0.95, z - hr * 0.2], r: [-0.4, 0.3, -0.5], s: hr / 0.33 });
+    }
+    if (k.halfHelm) {
+      // rostiger Halbhelm mit Rand und Rostflecken
+      A(cap3(+(hr * 1.1).toFixed(3), Math.PI * 0.42, 0, Math.PI * 2, 16, 6), k.halfHelm, { bone: hb, p: [x, y + hr * 0.06, z - hr * 0.02], r: [-0.15, 0, 0], shine: 0.5, top: lighter(k.halfHelm, 0.15), topK: 0.4 });
+      A(torus3(+(hr * 1.07).toFixed(3), +(hr * 0.06).toFixed(3), Math.PI * 2, 4, 20), darker(k.halfHelm, 0.2), { bone: hb, p: [x, y + hr * 0.33, z - hr * 0.06], r: [Math.PI / 2 - 0.15, 0, 0], shine: 0.4 });
+      for (const [dx, dy, dz] of [[0.5, 0.85, 0.35], [-0.6, 0.7, -0.5], [0.1, 0.6, -0.9]]) A(ball(6), '#9a5a32', { bone: hb, p: [x + dx * hr, y + dy * hr, z + dz * hr], s: [hr * 0.16, hr * 0.06, hr * 0.16], r: [dz, 0, -dx], noShadow: true });
+    }
+    // Stirnband, das am Schädel anliegt (Radius des Schädels in dieser Höhe), Knoten mit zwei Enden hinten
+    if (k.band) {
+      A(torus3(+(hr * 0.97).toFixed(3), +(hr * 0.07).toFixed(3), Math.PI * 2, 4, 22), k.band, { bone: hb, p: [x, y + hr * 0.3, z], r: [Math.PI / 2 - 0.1, 0, 0], s: [1, 0.98, 1] });
+      A(ball(8), darker(k.band, 0.1), { bone: hb, p: [x, y + hr * 0.24, z - hr * 0.97], s: [hr * 0.13, hr * 0.12, hr * 0.1] });
+      for (const sx of [-1, 1]) A(horn3(+(hr * 0.45).toFixed(3), +(hr * 0.12).toFixed(3), 5), k.band, { bone: hb, p: [x, y + hr * 0.24, z - hr * 0.97], r: [-2.7, 0, sx * 0.35], s: [1, 1, 0.35] });
+    }
+    // Zopf an der linken Seite hinter dem Ohr
+    if (k.sideBraid) {
+      let p = [x + hr * 0.78, y - hr * 0.05, z - hr * 0.35];
+      for (let i = 0; i < 4; i++) {
+        p = [p[0] + hr * 0.03, p[1] - hr * 0.22, p[2] - hr * 0.02];
+        A(ball(8), i % 2 ? k.sideBraid : darker(k.sideBraid, 0.15), { bone: hb, p, s: [hr * 0.13, hr * 0.16, hr * 0.13], shine: 0.25 });
+      }
+      A(torus3(+(hr * 0.1).toFixed(3), +(hr * 0.035).toFixed(3), Math.PI * 2, 3, 8), '#c9a35a', { bone: hb, p: [p[0], p[1] - hr * 0.14, p[2]], r: [Math.PI / 2, 0, 0], shine: 1 });
+      strand3(A, hb, [p[0], p[1] - hr * 0.14, p[2]], [0, -1, 0], hr * 0.3, hr * 0.12, k.sideBraid);
+    }
+    // Halstuch mit Zipfel vorn (Gesicht bleibt frei)
+    if (k.scarf) {
+      A(torus3(0.12, 0.05, Math.PI * 2, 5, 16), k.scarf, { bone: BH.chest, p: [x, y - hr * 0.9, z + 0.01], r: [Math.PI / 2 - 0.2, 0, 0] });
+      A(horn3(+(hr * 0.42).toFixed(3), +(hr * 0.3).toFixed(3), 6), darker(k.scarf, 0.08), { bone: BH.chest, p: [x, y - hr * 0.95, z + 0.12], r: [Math.PI - 0.25, 0, 0], s: [1, 1, 0.3], shade: 0.2 });
+    }
+    if (k.tail === 'pony') ponytail3(A, hc, hr, k.hairColor, '#c9a35a');
+    // eingefallene Wangen (Untote)
+    if (k.cheeks) for (const sx of [-1, 1]) A(ball(8), darker(c.skin, 0.35), { bone: hb, p: [x + sx * hr * 0.5, y - hr * 0.36, z + hr * 0.8], s: [hr * 0.14, hr * 0.2, hr * 0.05], r: [0, sx * 0.5, 0], mat: 'face' });
+    rest(A, hb, hc, hr);
+  };
+}
+
 // Besonderheiten einzelner Arten, die die 2D-Zeichnung nicht kennt (seit 7.9, nach docs/monster-prompts.md).
 // Endbosse bekommen die ihrer Vorlage und darüber ihre eigenen.
 const MON3_LOOK = {
@@ -1630,7 +1967,7 @@ function monsterModelDef(id) {
   return { fn: call.fn, o, scale, wings: wings ? wings.o : null };
 }
 
-function buildMonster3(b, id) {
+function buildMonster3(b, id, v = 0) {
   const def = monsterModelDef(id);
   const t = MONSTER_TYPES[id];
   const own = MON3_BUILD[id] || (t && t.raid && MON3_BUILD[t.raid.art]);
@@ -1666,7 +2003,13 @@ function buildMonster3(b, id) {
         res = golem3(b, Object.assign(c, { cracks: o.cracks || h.cracks, look: o }));
         break;
       }
-      c.headgear = headExtras(h, c.skin);
+      // Kopf aus dem Baukasten (seit 8.4): Haare, Kopfbedeckung, Bart und Augen je Variante
+      const kit = HEADKIT3[id] || (t.raid && HEADKIT3[t.raid.art]);
+      if (kit) {
+        let seed = 7;
+        for (let i = 0; i < id.length; i++) seed = (Math.imul(seed, 31) + id.charCodeAt(i)) | 0;
+        c.headgear = headKit3(kit[v % kit.length], h, c, mulberry32(seed * 31 + v), t.shape === 'humanoid' && !h.bone ? v : -1);
+      } else c.headgear = headExtras(h, c.skin);
       res = humanoid3(b, c);
       // Brocken stehen vornübergebeugt mit Buckel
       if (t.shape === 'brute') res.hunch = 0.2;
@@ -3275,15 +3618,37 @@ function v3Prewarm() {
   if (!p) return;
   for (const m of game.monsters) {
     if (m.isStone || Math.abs(m.x - p.x) > 1400 || Math.abs(m.y - p.y) > 1100) continue;
-    const key = 'm:' + m.typeId;
+    const key = monModelKey3(m);
     if (MODELS3.has(key)) continue;
-    model3(key, (b) => monsterBuild(b, m.typeId));
+    model3(key, (b) => monsterBuild(b, m.typeId, m.__v3));
     return;
   }
 }
 
-function monsterBuild(b, typeId) {
-  const r = buildMonster3(b, typeId);
+// Varianten (seit 8.4): Arten mit mehreren Köpfen im Baukasten nehmen die Variante aus dem Startpunkt
+// (wird im Netz übertragen, alle Spieler sehen dieselbe); Bosse und Arten ohne Varianten behalten ein Modell
+function monVariant3(m) {
+  const kit = HEADKIT3[m.typeId];
+  if (!kit || kit.length < 2) return -1;
+  let h = m.homeX != null ? Math.imul(Math.round(m.homeX) | 0, 73856093) ^ Math.imul(Math.round(m.homeY) | 0, 19349663) : m.id | 0;
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  return ((h ^ (h >>> 16)) >>> 0) % kit.length;
+}
+const monKey3 = (typeId, v) => 'm:' + typeId + (v >= 0 ? '#' + v : '');
+// Modellschlüssel eines Monsters, gemerkt, solange es am selben Startpunkt steht (keine neue Zeichenkette je Bild)
+function monModelKey3(m) {
+  if (m.__mk3 === undefined || m.__mkX !== m.homeX || m.__mkY !== m.homeY || m.__mkT !== m.typeId) {
+    m.__mkX = m.homeX;
+    m.__mkY = m.homeY;
+    m.__mkT = m.typeId;
+    m.__v3 = monVariant3(m);
+    m.__mk3 = monKey3(m.typeId, m.__v3);
+  }
+  return m.__mk3;
+}
+
+function monsterBuild(b, typeId, v) {
+  const r = buildMonster3(b, typeId, v > 0 ? v : 0);
   r.blob = r.family === 'beast' ? 0.5 : r.family === 'spider' ? 0.6 : 0.45;
   return r;
 }
@@ -3813,7 +4178,7 @@ function syncMonster3(m, dt) {
     syncStone3(m, dt);
     return;
   }
-  const a = actorFor(entityKey(m), 'm:' + m.typeId, (b) => monsterBuild(b, m.typeId));
+  const a = actorFor(entityKey(m), monModelKey3(m), (b) => monsterBuild(b, m.typeId, m.__v3));
   if (!a) return;
   a.corpse = false;
   animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
@@ -4023,7 +4388,13 @@ function syncNpc3(n, dt) {
 // Gefallene Monster kippen um und versinken im Boden (ohne Durchsichtigkeit: keine neuen Shader)
 function syncCorpse3(e) {
   const key = entityKey(e);
-  const a = actorFor(key, 'm:' + e.typeId, (b) => monsterBuild(b, e.typeId));
+  // dieselbe Variante wie das lebende Monster: die Figur kommt aus dessen Pool (kein Wechsel beim Tod)
+  if (e.__mk3 === undefined) {
+    const kit = HEADKIT3[e.typeId];
+    e.__v3 = e.v3 != null ? e.v3 : kit && kit.length > 1 ? 0 : -1;
+    e.__mk3 = monKey3(e.typeId, e.__v3);
+  }
+  const a = actorFor(key, e.__mk3, (b) => monsterBuild(b, e.typeId, e.__v3));
   if (!a) return;
   a.corpse = true;
   resetBones(a);

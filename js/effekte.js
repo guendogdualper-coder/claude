@@ -302,7 +302,7 @@ function groundLoot(at, name, count, icon, color, done) {
 }
 
 function vfxCorpse(m) {
-  addEffect({ type: 'corpse', typeId: m.typeId, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 });
+  addEffect({ type: 'corpse', typeId: m.typeId, v3: m.__v3, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 });
 }
 
 // Kraftpose beim Buffen: Lichtringe steigen an der Figur auf, Lichtstreifen und Funken
