@@ -1561,3 +1561,22 @@ Top-down three-quarter view of the northern edge of a grey ash plain map in a st
 ```
 Close-up of a mobile MMORPG action bar: a red potion button and a blue potion button, the red one dimmed by a dark circular cooldown sweep with a large "2" in the middle, the blue one ready and glowing. Clean, readable game UI.
 ```
+
+## Monster neu und sichtbare Angriffe (Version 6.7)
+
+Der ausführliche Katalog mit Design, Skizze, Ruhe, Bewegung, Ausholen, Schlag, Treffer/Tod und einem Prompt für jedes einzelne Monster steht in `docs/monster-prompts.md`.
+
+### Ausholen und Zuschlagen
+```
+Animation sheet for a stylized 3D toon MMORPG, elevated three-quarter top-down camera, four rows: a grey wolf backs off with its head up and jaws wide open, then lunges and snaps (two glowing jaw arcs close over the target); a wild boar lowers its head and scrapes the ground with a front hoof, then charges and tosses its tusks upward (dust cloud, upward slash); a brown bear rears up on its hind legs with both paws raised, then crashes down with a paw swipe (three claw marks); a stone ogre raises both fists above its head, then slams the ground (shockwave ring, rock shards). Each wind-up frame shows a faint red warning glow on the monster.
+```
+
+### Echter Keiler
+```
+Concept turnaround of a wild boar for a stylized 3D toon MMORPG: low wedge-shaped body, high bristly withers with a dark mane ridge, long wedge head angled down ending in a flat pink-grey snout disc, small deep-set eyes, upright hairy pointed ears, upward-curving ivory lower tusks, thin legs with cloven black hooves, thin tail with a tuft, dark grey-brown grizzled coat (#4e3a2c). Side, front and top views plus idle, scrape, charge and tusk-toss poses. Clearly a pig, not a bear.
+```
+
+### Neue Tiere je Map
+```
+Lineup of thirteen stylized 3D toon MMORPG animals on a neutral ground, each with real anatomy and readable silhouette from above: red fox with white-tipped bushy tail; red deer stag with branching antlers; thorn boar with mossy back and green thorns; lynx with black ear tufts and stubby tail; spotted hyena with sloped back and dark mane; desert jackal with black saddle and big ears; huge black ash warg with glowing orange eyes; polar bear; black shadow panther with glowing yellow eyes; woolly mammoth with shaggy coat, trunk and curved tusks; grey-green moor wolf with glowing green eyes; thunder ibex with huge ridged horns and blue sparks; ember cat with glowing orange stripes and tail tip.
+```

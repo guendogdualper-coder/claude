@@ -5,7 +5,7 @@
 // Ränge (E, H, L, V) bekommen eine zweite Hülle in der Rangfarbe, ab Legendär zusätzlich Runen und Funken.
 
 const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
-  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3']);
+  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3']);
 const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null } };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
@@ -307,6 +307,47 @@ const FX3_DRAW = {
       o.rotation.set(Math.sin(q.a) * q.tilt, 0, -Math.cos(q.a) * q.tilt);
       o.material.color.set(e.color);
       o.material.opacity = e.glow ? 0.9 * (1 - k * 0.5) : 1;
+    }
+  },
+  // Monsterbiss (seit 6.7): Ober- und Unterkiefer als leuchtende Bögen, die über dem Ziel zuschnappen
+  bite3(h, e, k) {
+    const c = fx3Body(e, _x3c);
+    const { r: R, u: Up } = FX3.cam;
+    const sz = 0.42 * (e.size || 1);
+    const close = easeOut(Math.min(1, k * 3.5));
+    const gap = sz * 0.75 * (1 - close) - sz * 0.15;
+    const fade = k < 0.45 ? 1 : 1 - (k - 0.45) / 0.55;
+    for (const sg of [1, -1]) {
+      _x3p.copy(c).addScaledVector(Up, sg * gap);
+      const mid = sg * Math.PI / 2;
+      const o = fx3Take(h, 'strip');
+      fx3Strip(o, _x3p, R, Up, sz, sz * 0.3, mid - 1.15, mid + 1.15, e.color, fade, true);
+      const core = fx3Take(h, 'strip');
+      fx3Strip(core, _x3p, R, Up, sz - sz * 0.05, sz * 0.1, mid - 1.0, mid + 1.0, '#ffffff', fade, true);
+    }
+  },
+  // Prankenhieb: drei Krallenspuren schräg durch das Ziel, kurz nacheinander
+  claw3(h, e, k) {
+    const c = fx3Body(e, _x3c);
+    const { r: R, u: Up, f: F } = FX3.cam;
+    const sz = e.size || 1;
+    const ang = e.flip ? -0.95 : 0.95;
+    _x3u.copy(R).multiplyScalar(Math.cos(ang)).addScaledVector(Up, -Math.sin(ang)).normalize();
+    _x3v.copy(R).multiplyScalar(Math.sin(ang)).addScaledVector(Up, Math.cos(ang)).addScaledVector(F, -0.6).normalize();
+    const span = 1.1;
+    for (let i = -1; i <= 1; i++) {
+      const kk = clamp01((k - (i + 1) * 0.06) / 0.94);
+      if (kk <= 0) continue;
+      const L = 0.95 * sz * Math.min(1, kk * 5) * (i ? 0.85 : 1);
+      const W = 0.1 * sz * (1 - kk * 0.6);
+      const rr = Math.max(0.05, L / (2 * Math.sin(span / 2)));
+      _x3q.copy(R).multiplyScalar(Math.sin(ang)).addScaledVector(Up, Math.cos(ang));
+      _x3p.copy(c).addScaledVector(_x3q, i * 0.16 * sz).addScaledVector(_x3v, -rr * Math.cos(span / 2));
+      const fade = 1 - kk;
+      const o = fx3Take(h, 'strip');
+      fx3Strip(o, _x3p, _x3u, _x3v, rr, W, Math.PI / 2 - span / 2, Math.PI / 2 + span / 2, e.color, fade, true);
+      const core = fx3Take(h, 'strip');
+      fx3Strip(core, _x3p, _x3u, _x3v, rr - W * 0.2, W * 0.35, Math.PI / 2 - span / 2 + 0.1, Math.PI / 2 + span / 2 - 0.1, '#ffffff', fade, true);
     }
   },
   // Lichtkugeln kreisen aufsteigend um die Figur

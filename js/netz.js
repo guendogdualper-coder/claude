@@ -353,7 +353,7 @@ function netSnapshotFor(id, rp) {
   const mons = [];
   for (const m of game.monsters) {
     if (Math.abs(m.x - rp.x) > NET_VIEW || Math.abs(m.y - rp.y) > NET_VIEW * 0.75) continue;
-    const flags = (m.dead ? 1 : 0) | (m.moving ? 2 : 0) | (m.attackAnim > 0 ? 4 : 0) | (m.stun > 0 ? 8 : 0) | (m.facing < 0 ? 16 : 0) | (m.cast ? 32 : 0);
+    const flags = (m.dead ? 1 : 0) | (m.moving ? 2 : 0) | (m.attackAnim > 0 ? 4 : 0) | (m.stun > 0 ? 8 : 0) | (m.facing < 0 ? 16 : 0) | (m.cast ? 32 : 0) | (m.windup > 0 ? 64 : 0);
     const e = [m.id, Math.round(m.x), Math.round(m.y), Math.ceil(Math.max(0, m.hp)), flags];
     // Monster, die erst später entstanden sind (Steinwellen, Verstärkung von Bossen)
     if (!m.respawn) e.push(m.typeId, m.level, m.maxHp);
@@ -408,8 +408,11 @@ function netOnClientData(d) {
       const m = net.mons.get(d.id);
       const p = game.player;
       if (p.dead) break;
-      const bc = bodyCenter(p);
-      addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
+      if (m) monsterStrikeFx(m, p);
+      else {
+        const bc = bodyCenter(p);
+        addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
+      }
       damagePlayer(calcDamage(d.atk, d.mul, game.stats.def, 0.03, d.lvl).amount, m || null);
       break;
     }
@@ -539,7 +542,9 @@ function netApplySnapshot(d) {
     m.hp = Math.max(flags & 1 ? 0 : 1, e[3] - pending);
     m.dead = !!(flags & 1);
     m.moving = !!(flags & 2);
-    if (flags & 4 && !(m.attackAnim > 0)) m.attackAnim = 0.25;
+    if (flags & 4 && !(m.attackAnim > 0)) { m.attackAnim = 0.25; m.windup = 0; }
+    // Ausholen auch beim Mitspieler zeigen
+    if (flags & 64 && !(m.windup > 0) && !(m.attackAnim > 0)) m.windup = m.windupMax = windupTime(m.typeId);
     m.stunned = !!(flags & 8);
     m.facing = flags & 16 ? -1 : 1;
     if (wasDead && !m.dead) { m.x = m.tx; m.y = m.ty; }
@@ -629,6 +634,7 @@ function netMirrorMonsters(dt) {
   for (const m of game.monsters) {
     if (m.hitFlash > 0) m.hitFlash -= dt;
     if (m.attackAnim > 0) m.attackAnim -= dt;
+    if (m.windup > 0) m.windup = Math.max(0, m.windup - dt);
     if (m.tx == null || m.dead) continue;
     const dx = m.tx - m.x;
     const dy = m.ty - m.y;

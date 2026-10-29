@@ -304,6 +304,15 @@ function face3(A0, hb, hc, hr, o) {
       if (o.angry !== false) A(roundBox(hr * 0.32, hr * 0.06, hr * 0.06, hr * 0.025), ink, { bone: hb, p: [ex, eyeY + hr * 0.2, ez + hr * 0.02], r: [0, 0, sx * 0.45] });
       continue;
     }
+    if (o.beastEyes) {
+      // Monster: kleine, tief liegende Augen unter einem schweren Brauenwulst
+      A(ball(10), darker(o.skin || '#7a7466', 0.45), { bone: hb, p: [ex, eyeY, ez - hr * 0.03], s: [hr * 0.17, hr * 0.12, hr * 0.07] });
+      A(ball(10), '#f0e0a0', { bone: hb, p: [ex, eyeY - hr * 0.01, ez + hr * 0.01], s: [hr * 0.11, hr * 0.07, hr * 0.05] });
+      A(ball(8), o.eyeColor || '#c8302a', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.01, ez + hr * 0.04], s: [hr * 0.06, hr * 0.06, hr * 0.03], mat: 'glow' });
+      A(ball(6), '#120808', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.01, ez + hr * 0.06], s: [hr * 0.02, hr * 0.045, hr * 0.02] });
+      A(roundBox(hr * 0.36, hr * 0.1, hr * 0.12, hr * 0.04), darker(o.skin || '#7a7466', 0.12), { bone: hb, p: [ex + sx * hr * 0.02, eyeY + hr * 0.11, ez + hr * 0.02], r: [0.2, 0, sx * 0.38], mat: 'lit' });
+      continue;
+    }
     if (shape === 2) {
       // fröhlich: geschlossene Bögen
       A(torus3(hr * 0.15, hr * 0.035, Math.PI, 4, 10), ink, { bone: hb, p: [ex, eyeY - hr * 0.06, ez + hr * 0.02] });
@@ -331,7 +340,11 @@ function face3(A0, hb, hc, hr, o) {
   }
   if (o.blush !== false && !o.glowEyes) for (const sx of [-1, 1]) A(ball(8), '#f2988a', { bone: hb, p: [hc[0] + sx * hr * 0.58, eyeY - hr * 0.3, hc[2] + f * 0.84], s: [hr * 0.14, hr * 0.07, hr * 0.05] });
   if (!o.noMouth) {
-    if (o.angry) A(roundBox(hr * 0.2, hr * 0.045, hr * 0.05, hr * 0.02), '#4a1a14', { bone: hb, p: [hc[0], hc[1] - hr * 0.45, hc[2] + f * 0.97] });
+    if (o.beastEyes) {
+      // breites, zähnefletschendes Maul
+      A(roundBox(hr * 0.46, hr * 0.09, hr * 0.06, hr * 0.04), '#2a0e0c', { bone: hb, p: [hc[0], hc[1] - hr * 0.47, hc[2] + f * 0.96] });
+      for (let k = -2; k <= 2; k++) A(horn3(hr * 0.09, hr * 0.03, 4), '#f0e6cc', { bone: hb, p: [hc[0] + k * hr * 0.09, hc[1] - hr * (k % 2 ? 0.43 : 0.52), hc[2] + f * 0.99], r: [k % 2 ? Math.PI : 0, 0, 0] });
+    } else if (o.angry) A(roundBox(hr * 0.2, hr * 0.045, hr * 0.05, hr * 0.02), '#4a1a14', { bone: hb, p: [hc[0], hc[1] - hr * 0.45, hc[2] + f * 0.97] });
     else A(torus3(hr * 0.08, hr * (o.female ? 0.03 : 0.022), Math.PI * 0.8, 4, 8), o.female ? '#c0485a' : '#6a2a24', { bone: hb, p: [hc[0], hc[1] - hr * 0.38, hc[2] + f * 0.98], r: [0, 0, Math.PI + Math.PI * 0.1] });
   }
   if (!o.noNose) A(sphere3(hr * 0.055, 8, 6), darker(o.skin || '#e9c6a1', 0.1), { bone: hb, p: [hc[0], hc[1] - hr * 0.24, hc[2] + f * 1.03] });
@@ -877,23 +890,38 @@ function beast3(b, o, P) {
   const seg = (a, z, r1, r2, color, x) => limbBetween(A, a, z, r1, r2, color, x);
   const bulky = !!o.bulky;
   const boar = !!o.tusk && !o.wings && o.small;
-  const legLen = bulky ? 0.3 : boar ? 0.28 : 0.36;
+  // lean: schlanke Hunde, Wölfe, Füchse (lange Läufe, schmaler Leib); cat: Katzen mit rundem Kopf
+  const lean = !!(o.lean || o.cat);
+  const legLen = bulky ? 0.3 : boar ? 0.28 : lean ? 0.42 : 0.36;
   const bodyY = legLen + 0.2;
   const len = o.long || 0.44;
+  const hp = [0, bodyY + 0.2, len + 0.2];
   const fur = o.fur;
   const dark = darker(fur, 0.22);
   const belly = o.belly || lighter(fur, 0.2);
   const rig = rigOf([
     [[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, bodyY + 0.16, len + 0.18], 1],
     [[0.15, bodyY - 0.05, len * 0.62], 1], [[-0.15, bodyY - 0.05, len * 0.62], 1], [[0.15, bodyY - 0.05, -len * 0.62], 1], [[-0.15, bodyY - 0.05, -len * 0.62], 1],
-    [[0, bodyY + 0.08, -len * 0.95], 1], [[0.14, bodyY + 0.2, 0.05], 1], [[-0.14, bodyY + 0.2, 0.05], 1], [[0, bodyY + 0.1, len * 0.7], 1]
+    [[0, bodyY + 0.08, -len * 0.95], 1], [[0.14, bodyY + 0.2, 0.05], 1], [[-0.14, bodyY + 0.2, 0.05], 1], [[0, bodyY + 0.1, len * 0.7], 1],
+    [[0, hp[1] - 0.06, hp[2] + 0.06], 2]
   ]);
-  const bw = bulky ? 1.3 : boar ? 1.15 : 1;
+  const bw = bulky ? 1.3 : boar ? 1.15 : lean ? 0.84 : 1;
   // Rumpf: Brust vorn, Bauch, Hüfte hinten
   A(ball(16), fur, { bone: BQ.body, p: [0, bodyY + 0.03, len * 0.42], s: [0.26 * bw, 0.27 * bw, 0.3], shade: 0.25 });
   A(ball(14), fur, { bone: BQ.body, p: [0, bodyY, -len * 0.05], s: [0.23 * bw, 0.23 * bw, len * 0.62], shade: 0.25 });
   A(ball(14), fur, { bone: BQ.body, p: [0, bodyY + 0.02, -len * 0.55], s: [0.22 * bw, 0.22 * bw, 0.25], shade: 0.25 });
-  A(ball(12), belly, { bone: BQ.body, p: [0, bodyY - 0.1, len * 0.1], s: [0.18 * bw, 0.13, len * 0.7] });
+  A(ball(12), belly, { bone: BQ.body, p: [0, bodyY - (lean ? 0.06 : 0.1), len * 0.1], s: [0.18 * bw, lean ? 0.1 : 0.13, len * 0.7] });
+  if (lean) A(ball(14), fur, { bone: BQ.body, p: [0, bodyY - 0.04, len * 0.45], s: [0.2 * bw, 0.26, 0.22], shade: 0.25 });
+  // Fellzeichnung: dunkler Sattel (Schakal), Tupfen (Hyäne, Luchs), Streifen (Glutkatze)
+  if (o.saddleFur) A(ball(12), o.saddleFur, { bone: BQ.body, p: [0, bodyY + 0.1, -len * 0.05], s: [0.17 * bw, 0.16, len * 0.66] });
+  if (o.spots) for (let k = 0; k < 16; k++) {
+    // Tupfen verstreut auf Flanken und Rücken (fest gestreut, damit jedes Tier gleich aussieht)
+    const sx = k % 2 ? 1 : -1;
+    const z = len * (0.6 - ((k * 37) % 13) / 13 * 1.25);
+    const up = ((k * 53) % 7) / 7;
+    A(sphere3(0.036 + (k % 3) * 0.008, 6, 4), o.spots, { bone: BQ.body, p: [sx * (0.2 - up * 0.08) * bw, bodyY - 0.04 + up * 0.22, z], s: [0.5, 1, 1.1] });
+  }
+  if (o.stripes) for (let k = 0; k < 6; k++) A(torus3(0.215 * bw, 0.016, Math.PI * 0.9, 4, 12), o.stripes, { bone: BQ.body, p: [0, bodyY + 0.01, len * (0.35 - k * 0.17)], r: [0, Math.PI / 2, Math.PI * 0.05], mat: o.glowStripes ? 'glow' : 'lit' });
   // Brustfell / Mähne als Büschel
   const ruff = o.mane || o.ruff;
   if (ruff || !o.small) for (let k = 0; k < 7; k++) {
@@ -913,24 +941,28 @@ function beast3(b, o, P) {
     for (const dx of [-0.035, 0, 0.035]) A(sphere3(0.026 * bw, 6, 4), darker(dark, 0.15), { bone, p: [paw[0] + dx * bw, 0.03, paw[2] + 0.09] });
   }
   // Hals und Kopf
-  const hp = [0, bodyY + 0.2, len + 0.2];
   seg([0, bodyY + 0.05, len * 0.55], [0, hp[1] - 0.04, hp[2] - 0.08], 0.15 * bw, 0.12 * bw, fur, { bone: BQ.neck });
   A(ball(14), fur, { bone: BQ.head, p: hp, s: [0.18 * bw, 0.17 * bw, 0.18], shade: 0.15 });
   // Schnauze: oben spitz zulaufend, Unterkiefer dunkler, schwarze Nase
-  const muz = bulky ? 0.17 : boar ? 0.2 : 0.26;
+  const muz = o.cat ? 0.12 : bulky ? 0.17 : boar ? 0.2 : o.muzzle || 0.26;
   A(lathe3('muzzle' + muz, [[0, 0], [0.085, 0.02], [0.08, muz * 0.6], [0.055, muz], [0, muz + 0.005]], 12), o.snout || lighter(fur, 0.12), { bone: BQ.head, p: [0, hp[1] - 0.03, hp[2] + 0.08], r: [Math.PI / 2, 0, 0], s: [1.05 * bw, 1, 0.82] });
-  A(ball(10), darker(o.snout || fur, 0.2), { bone: BQ.head, p: [0, hp[1] - 0.1, hp[2] + 0.12 + muz * 0.4], s: [0.07 * bw, 0.035, muz * 0.42] });
+  // Unterkiefer am eigenen Glied (geht beim Ausholen auf), Maul innen dunkelrot, untere Zähne
+  A(ball(10), '#5a1a18', { bone: BQ.head, p: [0, hp[1] - 0.075, hp[2] + 0.1 + muz * 0.4], s: [0.06 * bw, 0.025, muz * 0.4] });
+  A(ball(10), darker(o.snout || fur, 0.2), { bone: 11, p: [0, hp[1] - 0.1, hp[2] + 0.12 + muz * 0.4], s: [0.07 * bw, 0.035, muz * 0.42] });
+  for (const sx of [-1, 1]) A(horn3(0.045, 0.012, 4), '#f4ecd8', { bone: 11, p: [sx * 0.03, hp[1] - 0.085, hp[2] + 0.12 + muz * 0.75], shine: 0.4 });
   if (boar) {
     A(cyl3(0.06, 0.065, 0.04, 14), '#d89a8a', { bone: BQ.head, p: [0, hp[1] - 0.03, hp[2] + 0.1 + muz], r: [Math.PI / 2, 0, 0] });
     for (const sx of [-1, 1]) A(sphere3(0.014, 6, 4), '#3a1a10', { bone: BQ.head, p: [sx * 0.022, hp[1] - 0.03, hp[2] + 0.125 + muz] });
   } else A(ball(10), '#1a1210', { bone: BQ.head, p: [0, hp[1] - 0.005, hp[2] + 0.1 + muz], s: [0.04, 0.032, 0.03], shine: 0.8 });
-  A(roundBox(0.08, 0.008, muz * 0.6, 0.004), '#3a1a14', { bone: BQ.head, p: [0, hp[1] - 0.075, hp[2] + 0.12 + muz * 0.4] });
+  A(roundBox(0.08, 0.008, muz * 0.6, 0.004), '#3a1a14', { bone: 11, p: [0, hp[1] - 0.075, hp[2] + 0.12 + muz * 0.4] });
   for (const sx of [-1, 1]) {
     // Ohren: rund beim Bären, sonst spitz mit hellem Inneren
     if (bulky && !o.wings && !boar) A(ball(10), dark, { bone: BQ.head, p: [sx * 0.13, hp[1] + 0.14, hp[2] - 0.05], s: [0.06, 0.06, 0.035] });
     else if (!o.noEars) {
       A(horn3(o.small ? 0.11 : 0.16, 0.06, 6), dark, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.12, hp[2] - 0.04], r: [-0.25, 0, -sx * 0.35], s: [1, 1, 0.6] });
       A(horn3(o.small ? 0.07 : 0.11, 0.035, 5), '#d8a8a0', { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.025], r: [-0.25, 0, -sx * 0.35], s: [1, 1, 0.4] });
+      if (o.tufts) A(horn3(0.08, 0.012, 4), o.tufts, { bone: BQ.head, p: [sx * 0.155, hp[1] + 0.27, hp[2] - 0.08], r: [-0.25, 0, -sx * 0.35] });
+      if (o.bigEars) A(horn3(0.2, 0.08, 6), dark, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.2, 0, -sx * 0.45], s: [1, 1, 0.5] });
     }
     // Augen: weiß, farbige Iris, schmale Pupille, böse Braue
     const eye = o.eye || '#3a2a1a';
@@ -954,9 +986,20 @@ function beast3(b, o, P) {
     const t0 = [0, bodyY + 0.08, -len * 0.75];
     const t1 = [0, bodyY + 0.2, -len - 0.12];
     const t2 = [0, bodyY + 0.12, -len - 0.38];
-    if (o.bushy) {
+    if (o.stub) {
+      seg(t0, [0, bodyY + 0.16, -len - 0.1], 0.055, 0.045, fur, { bone: BQ.tail });
+      A(ball(8), o.stub, { bone: BQ.tail, p: [0, bodyY + 0.17, -len - 0.12], s: [0.045, 0.045, 0.05] });
+    } else if (o.longTail) {
+      const t3 = [0, bodyY + 0.02, -len - 0.62];
+      const t4 = [0, bodyY + 0.16, -len - 0.8];
+      seg(t0, t1, 0.05, 0.045, fur, { bone: BQ.tail });
+      seg(t1, t2, 0.045, 0.04, fur, { bone: BQ.tail });
+      seg(t2, t3, 0.04, 0.035, fur, { bone: BQ.tail });
+      seg(t3, t4, 0.035, 0.02, o.tailTip || fur, { bone: BQ.tail });
+    } else if (o.bushy) {
       seg(t0, t1, 0.06, 0.09, fur, { bone: BQ.tail });
-      seg(t1, t2, 0.09, 0.03, lighter(fur, 0.08), { bone: BQ.tail });
+      seg(t1, t2, 0.09, o.tailTip ? 0.08 : 0.03, lighter(fur, 0.08), { bone: BQ.tail });
+      if (o.tailTip) A(horn3(0.14, 0.08, 6), o.tailTip, { bone: BQ.tail, p: t2, r: [-1.9, 0, 0] });
     } else if (o.wings) {
       seg(t0, t1, 0.08, 0.06, fur, { bone: BQ.tail });
       seg(t1, t2, 0.06, 0.025, fur, { bone: BQ.tail });
@@ -979,7 +1022,7 @@ function beast3(b, o, P) {
     A(roundBox(0.38, 0.08, 0.36, 0.04), o.saddle, { bone: BQ.body, p: [0, bodyY + 0.25, -0.02] });
     A(roundBox(0.42, 0.14, 0.04, 0.02), darker(o.saddle, 0.3), { bone: BQ.body, p: [0, bodyY + 0.2, 0.12] });
   }
-  return { rig, height: bodyY + 0.42, family: 'beast', bodyY };
+  return { rig, height: bodyY + 0.42, family: 'beast', bodyY, jaw: true };
 }
 
 // Pferd: lange Beine, langer Hals, Mähne, Hufe, Sattel (auch als Schmuck beim Stall)
@@ -1355,10 +1398,12 @@ function monsterModelDef(id) {
 function buildMonster3(b, id) {
   const def = monsterModelDef(id);
   const t = MONSTER_TYPES[id];
-  if (!def) return Object.assign(beast3(b, { fur: t.color }), { scale: 1 });
-  const o = def.o;
+  const own = MON3_BUILD[id] || (t && t.raid && MON3_BUILD[t.raid.art]);
+  if (!def && !own) return Object.assign(beast3(b, { fur: t.color }), { scale: 1, style: attackStyle(id) });
+  const o = def ? def.o : {};
   let res;
-  switch (def.fn) {
+  if (own) res = own(b);
+  else switch (def.fn) {
     case 'beastArt': {
       const dragon = !!def.wings;
       res = beast3(b, Object.assign({}, o, { wings: def.wings, horns: dragon ? '#e8dcc0' : null, glowMane: o.mane && o.glow }));
@@ -1372,6 +1417,7 @@ function buildMonster3(b, id) {
     default: {
       const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || {};
       const c = {
+        beastEyes: t.shape === 'brute' || t.shape === 'orc' || t.shape === 'demon', narrow: t.shape === 'humanoid',
         skin: o.skin || t.color, torso: o.torso || o.robe || o.skin || t.color, sleeve: o.sleeve, pants: o.pants, boots: o.boots, gloves: o.gloves,
         belt: o.belt, pouch: o.pouch, straps: o.straps, robe: o.robe, wideSleeves: o.wideSleeves, belly: o.belly, pads: o.pauldron, padTrim: o.pauldron ? '#c9a35a' : null, spikes: o.spikes,
         cape: o.cape, wings: o.wings, tail: o.tail ? o.skin : null, claws: o.claws, cracks: o.cracks || h.cracks, runes: o.runes, necklace: o.necklace,
@@ -1386,11 +1432,14 @@ function buildMonster3(b, id) {
       }
       c.headgear = headExtras(h, c.skin);
       res = humanoid3(b, c);
+      // Brocken stehen vornübergebeugt mit Buckel
+      if (t.shape === 'brute') res.hunch = 0.2;
     }
   }
   monsterFlair3(b, res, id, def);
+  res.style = attackStyle(id);
   // etwas größer als früher, damit man die Einzelheiten sieht
-  res.scale = def.scale * 1.15 * (t && t.raid ? t.raid.scale : 1);
+  res.scale = (def ? def.scale : 1) * 1.15 * (t && t.raid ? t.raid.scale : 1) * (own && t.scale3 ? t.scale3 : 1);
   return res;
 }
 
@@ -1441,7 +1490,7 @@ function monsterFlair3(b, res, id, def) {
   const spikeCol = th.ice ? '#d8f2ff' : th.hot ? th.glow : th.spike;
   const nSpikes = Math.round(2 + tier * 6);
   const o = def ? def.o || {} : {};
-  if (res.family === 'beast') {
+  if (res.family === 'beast' && !res.custom) {
     const bodyY = res.bodyY;
     const bulky = !!o.bulky;
     const boar = !!o.tusk && !o.wings && o.small;
@@ -1543,7 +1592,7 @@ function monsterFlair3(b, res, id, def) {
     A(torus3(0.62, 0.02, Math.PI * 2, 4, 36), col, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
     A(torus3(0.75, 0.012, Math.PI * 2, 4, 36), col, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
     const headBone = res.family === 'beast' ? BQ.head : res.family === 'human' ? BH.head : 1;
-    const hp = res.family === 'beast' ? [0, res.bodyY + 0.33, (o.long || 0.44) + 0.14] : res.family === 'human' ? [res.hc[0], res.hc[1] + res.hr * 0.95, res.hc[2]] : [0, top * 0.95, 0.2];
+    const hp = res.crownAt || res.family === 'beast' ? res.crownAt || [0, res.bodyY + 0.33, (o.long || 0.44) + 0.14] : res.family === 'human' ? [res.hc[0], res.hc[1] + res.hr * 0.95, res.hc[2]] : [0, top * 0.95, 0.2];
     for (let k = -2; k <= 2; k++) A(horn3(0.16 - Math.abs(k) * 0.025, 0.035, 6), '#ffd34d', { bone: headBone, p: [hp[0] + k * 0.06, hp[1], hp[2] - Math.abs(k) * 0.02], r: [-0.2, 0, -k * 0.25], mat: 'glow' });
   }
 }
@@ -2449,7 +2498,7 @@ function syncMonster3(m, dt) {
   const a = actorFor(entityKey(m), 'm:' + m.typeId, (b) => monsterBuild(b, m.typeId));
   if (!a) return;
   a.corpse = false;
-  animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0);
+  animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
   // Bosse stehen in einem pulsierenden Schein
   if (m.type.boss) {
     if (!a.aura) {
@@ -2461,7 +2510,7 @@ function syncMonster3(m, dt) {
   }
 }
 
-function animateCreature(a, e, dt, moving, atk, flash) {
+function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   const fy = feetY(e);
   resetBones(a);
   const B = a.bones;
@@ -2472,14 +2521,17 @@ function animateCreature(a, e, dt, moving, atk, flash) {
     const dy = e.y - a.lastY;
     if (dx * dx + dy * dy > 0.25) a.want = Math.atan2(dx, dy);
   }
-  if (atk > 0 && game.player) a.want = Math.atan2(game.player.x - e.x, game.player.y - e.y);
+  const foe = e.target && !e.target.dead ? e.target : game.player;
+  if ((atk > 0 || wind > 0) && foe) a.want = Math.atan2(foe.x - e.x, foe.y - e.y);
   // im Stehen halb zur Kamera gedreht, damit Gesichter zu sehen sind
   if (a.want == null) a.want = e.facing < 0 ? -Math.PI / 2 + 0.55 : Math.PI / 2 - 0.55;
   turnToward(a, a.want, Math.min(1, dt * 10));
   a.lastX = e.x;
   a.lastY = e.y;
   const fam = a.model.family;
-  const lunge = atk > 0 ? Math.sin(atk * Math.PI) : 0;
+  // Monster mit Angriffsart bekommen eigene Posen (creatureAttackPose), sonst einfaches Vorschnellen
+  const posed = !!a.model.style;
+  const lunge = atk > 0 && !posed ? Math.sin(atk * Math.PI) : 0;
   let y = 0;
   if (fam === 'ghost') y = 0.2 + Math.sin(t * 2.5) * 0.08;
   placeActor(a, e, fy, y);
@@ -2495,6 +2547,10 @@ function animateCreature(a, e, dt, moving, atk, flash) {
       B[BH.chest].rotation.y = -Math.sin(w) * 0.08;
     } else {
       B[BH.chest].rotation.x = Math.sin(t * 2.6) * 0.025;
+    }
+    if (a.model.hunch) {
+      B[BH.chest].rotation.x += a.model.hunch;
+      B[BH.head].rotation.x -= a.model.hunch * 0.8;
     }
     if (lunge > 0) {
       B[BH.armR].rotation.set(-2.6 + (1 - atk) * 2.6, 0, 0);
@@ -2516,7 +2572,7 @@ function animateCreature(a, e, dt, moving, atk, flash) {
     B[BQ.tail].rotation.y = Math.sin(t * (moving ? 9 : 3)) * 0.35;
     B[BQ.head].rotation.x = lunge > 0 ? -0.3 * lunge : Math.sin(t * 1.3) * 0.05;
     // vor dem Biss ducken, dann nach vorn schnellen
-    if (atk > 0.6) B[BQ.body].position.y -= (atk - 0.6) * 0.15;
+    if (atk > 0.6 && !posed) B[BQ.body].position.y -= (atk - 0.6) * 0.15;
     B[BQ.head].rotation.y = lunge > 0 ? 0 : Math.sin(t * 0.7) * 0.15;
     B[BQ.body].position.z += lunge * 0.22;
     B[BQ.wingL].rotation.z = Math.sin(t * 5) * 0.35;
@@ -2528,6 +2584,7 @@ function animateCreature(a, e, dt, moving, atk, flash) {
     B[1].position.y += moving ? Math.abs(Math.sin(w * 1.4)) * 0.02 : Math.sin(t * 3) * 0.01;
     B[1].position.z += lunge * 0.2;
     if (fam === 'scorpion') B[3].rotation.x = -0.2 - lunge * 0.6 + Math.sin(t * 2) * 0.05;
+    if (fam === 'spider' && B[2]) B[2].rotation.x = Math.sin(t * 9) * 0.04;
   } else if (fam === 'serpent') {
     for (let k = 1; k < B.length; k++) B[k].rotation.y = Math.sin(t * (moving ? 7 : 2.5) - k * 0.8) * (moving ? 0.25 : 0.1);
     B[1].position.z += lunge * 0.25;
@@ -2545,6 +2602,7 @@ function animateCreature(a, e, dt, moving, atk, flash) {
     else if (e.stun > 0) mat.emissive.setRGB(0.2, 0.18, 0.02);
     else mat.emissive.setRGB(0, 0, 0);
   }
+  if (posed) creatureAttackPose(a, B, fam, a.model.style, wind, atk, t, flash > 0);
 }
 
 function syncStone3(s, dt) {

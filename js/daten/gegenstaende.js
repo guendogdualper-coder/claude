@@ -223,7 +223,20 @@ const MOB_MATS = {
   minotaurus: { name: 'Minotaurushorn', art: 'horn', color: '#e8d8b8' },
   steintitan: { name: 'Titanenkern', art: 'core', color: '#c8b8a0' },
   gargoyle: { name: 'Gargoylekralle', art: 'claw', color: '#7a7a82' },
-  donnerriese: { name: 'Donnerstein', art: 'crystal', color: '#9fd0ff' }
+  donnerriese: { name: 'Donnerstein', art: 'crystal', color: '#9fd0ff' },
+  fuchs: { name: 'Fuchsrute', art: 'fur', color: '#c8682a' },
+  hirsch: { name: 'Geweihstück', art: 'horn', color: '#e0d0b0' },
+  dornenkeiler: { name: 'Dornenborste', art: 'horn', color: '#6a8a3a' },
+  luchs: { name: 'Luchspinsel', art: 'fur', color: '#b08a5a' },
+  hyaene: { name: 'Hyänenzahn', art: 'fang', color: '#e8dcc0' },
+  schakal: { name: 'Schakalohr', art: 'fur', color: '#c8a060' },
+  warg: { name: 'Wargfang', art: 'fang', color: '#f0e0c8' },
+  eisbaer: { name: 'Eisbärenfell', art: 'fur', color: '#eef4f8' },
+  panther: { name: 'Schattenkralle', art: 'claw', color: '#4a4a5a' },
+  mammut: { name: 'Mammutelfenbein', art: 'horn', color: '#f2ead6' },
+  moorwolf: { name: 'Moorfell', art: 'fur', color: '#4a5a4a' },
+  donnerbock: { name: 'Donnerhorn', art: 'horn', color: '#9fd0ff' },
+  glutkatze: { name: 'Glutschnurrhaar', art: 'core', color: '#ff7a2a' }
 };
 
 

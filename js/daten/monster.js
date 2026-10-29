@@ -51,6 +51,20 @@ const MONSTER_TYPES = {
   steintitan: { name: 'Steintitan', level: 64, shape: 'brute', color: '#8a8478', size: 24, speed: 70, range: 40, cooldown: 2.2, aggressive: true, hpMul: 2.6, atkMul: 1.4 },
   gargoyle: { name: 'Gargoyle', level: 68, shape: 'demon', color: '#6a6a72', size: 15, speed: 125, range: 30, cooldown: 1.2, aggressive: true, hpMul: 1.3, atkMul: 1.4 },
   donnerriese: { name: 'Donnerriese', level: 72, shape: 'brute', color: '#7a8aa8', size: 25, speed: 80, range: 200, cooldown: 2.2, aggressive: true, ranged: true, hpMul: 2.4, atkMul: 1.45, shot: '#9fd0ff' },
+  // neue Tiere (seit 6.7), je Gebiet verschiedene
+  fuchs: { name: 'Rotfuchs', level: 2, shape: 'beast', color: '#c8682a', size: 11, speed: 115, range: 24, cooldown: 1.3, hpMul: 0.8 },
+  hirsch: { name: 'Rothirsch', level: 5, shape: 'beast', color: '#9a6a3e', size: 17, speed: 110, range: 30, cooldown: 1.7, hpMul: 1.4, atkMul: 1.1 },
+  dornenkeiler: { name: 'Dornenkeiler', level: 12, shape: 'boar', color: '#4a3a26', size: 17, speed: 105, range: 28, cooldown: 1.6, aggressive: true, hpMul: 1.5, atkMul: 1.15 },
+  luchs: { name: 'Luchs', level: 16, shape: 'beast', color: '#b08a5a', size: 13, speed: 125, range: 26, cooldown: 1.2, aggressive: true, atkMul: 1.15 },
+  hyaene: { name: 'Tüpfelhyäne', level: 23, shape: 'beast', color: '#a08a62', size: 14, speed: 115, range: 26, cooldown: 1.3, aggressive: true, hpMul: 1.1 },
+  schakal: { name: 'Wüstenschakal', level: 32, shape: 'beast', color: '#c8a060', size: 13, speed: 125, range: 26, cooldown: 1.2, aggressive: true, atkMul: 1.1 },
+  warg: { name: 'Aschewarg', level: 34, shape: 'beast', color: '#2e2a2a', size: 18, speed: 120, range: 30, cooldown: 1.4, aggressive: true, hpMul: 1.7, atkMul: 1.25 },
+  eisbaer: { name: 'Eisbär', level: 43, shape: 'beast', color: '#eef4f8', size: 20, speed: 95, range: 32, cooldown: 1.8, aggressive: true, hpMul: 2, atkMul: 1.3 },
+  panther: { name: 'Schattenpanther', level: 45, shape: 'beast', color: '#1e1e26', size: 15, speed: 130, range: 28, cooldown: 1.2, aggressive: true, hpMul: 1.2, atkMul: 1.3 },
+  mammut: { name: 'Wollmammut', level: 47, shape: 'beast', color: '#7a5a42', size: 26, speed: 80, range: 38, cooldown: 2.1, aggressive: true, hpMul: 2.6, atkMul: 1.4 },
+  moorwolf: { name: 'Moorwolf', level: 53, shape: 'beast', color: '#4a5a4a', size: 15, speed: 120, range: 28, cooldown: 1.3, aggressive: true, hpMul: 1.3, atkMul: 1.3 },
+  donnerbock: { name: 'Donnerbock', level: 57, shape: 'beast', color: '#8a8a92', size: 17, speed: 115, range: 30, cooldown: 1.6, aggressive: true, hpMul: 1.6, atkMul: 1.35 },
+  glutkatze: { name: 'Glutkatze', level: 63, shape: 'beast', color: '#2a1a16', size: 15, speed: 130, range: 28, cooldown: 1.2, aggressive: true, hpMul: 1.3, atkMul: 1.4 },
 
   // Dungeons (dungeon: kommen nur dort vor). Bosse haben eigene Fähigkeiten (boss):
   //   slam    Radius eines Stampfers, der vorher als roter Kreis am Boden angekündigt wird

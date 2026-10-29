@@ -16,49 +16,49 @@ const ZONES = [
   {
     id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 999,
     ground: 'GRASS', alt: 'MEADOW', trees: 0.006, treeObj: 'TREE', rocks: 0.0024, water: 0.22, liquid: 'WATER',
-    groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1]], groupSize: [3, 5],
+    groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1], ['fuchs', 6, 0, 0.5], ['hirsch', 5, 0.45, 1]], groupSize: [3, 5],
     stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
     ambient: { kind: 'pollen' }
   },
   {
     id: 'wald', map: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, minDist: 8, maxDist: 999,
     ground: 'FOREST', trees: 0.03, treeObj: 'PINE', rocks: 0.0036, water: 0.2, liquid: 'WATER',
-    groups: [['bandit', 10, 0, 0.6], ['banditschuetze', 8, 0.2, 0.8], ['waldspinne', 10, 0.35, 1], ['braunbaer', 8, 0.6, 1]], groupSize: [3, 4],
+    groups: [['bandit', 10, 0, 0.6], ['banditschuetze', 8, 0.2, 0.8], ['waldspinne', 10, 0.35, 1], ['braunbaer', 8, 0.6, 1], ['dornenkeiler', 6, 0.2, 0.7], ['luchs', 6, 0.5, 1]], groupSize: [3, 4],
     stones: [[15, 4, 0, 0.6], [20, 3, 0.5, 1]],
     ambient: { kind: 'fireflies', tint: [10, 42, 20, 0.12] }
   },
   {
     id: 'orktal', map: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999,
     ground: 'SAND', trees: 0.0045, treeObj: 'DEADTREE', rocks: 0.018, water: 0.12, liquid: 'WATER',
-    groups: [['ork', 12, 0, 0.6], ['orkschamane', 9, 0.3, 0.9], ['skorpion', 10, 0.2, 1], ['orkhauptmann', 6, 0.65, 1]], groupSize: [3, 5],
+    groups: [['ork', 12, 0, 0.6], ['orkschamane', 9, 0.3, 0.9], ['skorpion', 10, 0.2, 1], ['orkhauptmann', 6, 0.65, 1], ['hyaene', 7, 0.1, 0.8]], groupSize: [3, 5],
     stones: [[25, 4, 0, 0.6], [30, 3, 0.55, 1]],
     ambient: { kind: 'dust', tint: [80, 70, 10, 0.08] }
   },
   {
     id: 'oedland', map: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, minDist: 8, maxDist: 999,
     ground: 'ASH', trees: 0.0054, treeObj: 'DEADTREE', rocks: 0.021, water: 0.1, liquid: 'BOG',
-    groups: [['oger', 12, 0, 0.6], ['daemon', 13, 0.3, 1], ['hoellenhund', 12, 0.5, 1]], groupSize: [2, 4],
+    groups: [['oger', 12, 0, 0.6], ['daemon', 13, 0.3, 1], ['hoellenhund', 12, 0.5, 1], ['warg', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[35, 4, 0, 0.6], [40, 3, 0.55, 1]],
     ambient: { kind: 'ash', tint: [40, 28, 20, 0.12] }
   },
   {
     id: 'frost', map: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999,
     ground: 'SNOW', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.16, liquid: 'ICE',
-    groups: [['eiswolf', 14, 0, 0.7], ['yeti', 12, 0.3, 1], ['frostgeist', 12, 0.45, 1]], groupSize: [2, 4],
+    groups: [['eiswolf', 14, 0, 0.7], ['yeti', 12, 0.3, 1], ['frostgeist', 12, 0.45, 1], ['eisbaer', 7, 0.15, 0.8], ['mammut', 5, 0.55, 1]], groupSize: [2, 4],
     stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
     ambient: { kind: 'snow', tint: [120, 224, 220, 0.1] }
   },
   {
     id: 'moor', map: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, minDist: 8, maxDist: 999,
     ground: 'SWAMP', trees: 0.012, treeObj: 'DEADTREE', rocks: 0.006, water: 0.28, liquid: 'BOG',
-    groups: [['untoter', 14, 0, 0.7], ['sumpfhexe', 12, 0.3, 1], ['ghul', 13, 0.45, 1]], groupSize: [2, 4],
+    groups: [['untoter', 14, 0, 0.7], ['sumpfhexe', 12, 0.3, 1], ['ghul', 13, 0.45, 1], ['moorwolf', 9, 0.1, 0.9]], groupSize: [2, 4],
     stones: [[55, 4, 0, 0.6], [60, 3, 0.55, 1]],
     ambient: { kind: 'wisps', tint: [20, 70, 30, 0.16] }
   },
   {
     id: 'vulkan', map: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, minDist: 8, maxDist: 999,
     ground: 'BASALT', trees: 0.003, treeObj: 'DEADTREE', rocks: 0.024, water: 0.2, liquid: 'LAVA',
-    groups: [['lavagolem', 13, 0, 0.6], ['feuerdaemon', 14, 0.2, 1], ['feuerdrache', 10, 0.4, 1]], groupSize: [2, 4],
+    groups: [['lavagolem', 13, 0, 0.6], ['feuerdaemon', 14, 0.2, 1], ['feuerdrache', 10, 0.4, 1], ['glutkatze', 8, 0.15, 0.9]], groupSize: [2, 4],
     stones: [[65, 6, 0, 0.6], [70, 4, 0.4, 1]],
     ambient: { kind: 'embers', tint: [120, 42, 0, 0.12] }
   }
@@ -171,14 +171,14 @@ const MAP_ZONES = [
   {
     id: 'sandwueste', map: 2, name: 'Sandschlangenwüste', levels: 'Stufe 30–39', minLevel: 30, minDist: 12, maxDist: 55,
     ground: 'SAND', trees: 0.0036, treeObj: 'DEADTREE', rocks: 0.012, water: 0.1, liquid: 'WATER',
-    groups: [['sandviper', 9, 0, 0.6], ['klapperschlange', 8, 0.3, 1], ['kobra', 7, 0.55, 1]], groupSize: [3, 5],
+    groups: [['sandviper', 9, 0, 0.6], ['klapperschlange', 8, 0.3, 1], ['kobra', 7, 0.55, 1], ['schakal', 6, 0.1, 0.9]], groupSize: [3, 5],
     stones: [[30, 3, 0, 0.6], [35, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [90, 60, 10, 0.08] }
   },
   {
     id: 'nagadschungel', map: 2, name: 'Nagadschungel', levels: 'Stufe 40–50', minLevel: 40, minDist: 55, maxDist: 999,
     ground: 'FOREST', alt: 'SWAMP', trees: 0.021, treeObj: 'TREE', rocks: 0.003, water: 0.22, liquid: 'BOG',
-    groups: [['riesenpython', 9, 0, 0.6], ['naga', 9, 0.3, 1], ['nagapriesterin', 7, 0.5, 1]], groupSize: [2, 4],
+    groups: [['riesenpython', 9, 0, 0.6], ['naga', 9, 0.3, 1], ['nagapriesterin', 7, 0.5, 1], ['panther', 6, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
     ambient: { kind: 'fireflies', tint: [10, 40, 20, 0.14] }
   },
@@ -192,7 +192,7 @@ const MAP_ZONES = [
   {
     id: 'donnerklamm', map: 3, name: 'Donnerklamm', levels: 'Stufe 50–61', minLevel: 50, minDist: 12, maxDist: 55,
     ground: 'ASH', trees: 0.0024, treeObj: 'DEADTREE', rocks: 0.027, water: 0.08, liquid: 'WATER',
-    groups: [['trollkrieger', 10, 0, 0.6], ['harpyie', 8, 0.3, 1], ['minotaurus', 8, 0.5, 1]], groupSize: [2, 4],
+    groups: [['trollkrieger', 10, 0, 0.6], ['harpyie', 8, 0.3, 1], ['minotaurus', 8, 0.5, 1], ['donnerbock', 6, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[55, 3, 0, 0.6], [60, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [60, 40, 30, 0.1] }
   },

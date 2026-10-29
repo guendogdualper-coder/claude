@@ -398,6 +398,7 @@ function spotNear(c, radius) {
 }
 
 function reviveMonster(m) {
+  m.windup = 0;
   if (m.isStone && !m.fixedSpot) {
     const spot = randomSpotInZone(m.zone, m.area[0], m.area[1]);
     if (spot) { m.x = m.homeX = spot.x; m.y = m.homeY = spot.y; }
@@ -516,9 +517,7 @@ function monsterAttack(m, target) {
     if (net.mode === 'host') netBroadcastProjectile(game.projectiles[game.projectiles.length - 1], m);
     return;
   }
-  const bc = bodyCenter(target);
-  if (m.type.shape === 'beast' || m.type.shape === 'boar') addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
-  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 30, w: 5, dur: 0.22, color: '#ff8a6a' });
+  monsterStrikeFx(m, target);
   if (target.remote) {
     // Ein Mitspieler wird getroffen: den Schaden rechnet sein Gerät mit seiner Rüstung aus
     netSendTo(target.peerId, { t: 'mhit', id: m.id, atk: m.atk, lvl: m.level, mul: levelBonus(m.level, target.level) });
@@ -527,6 +526,39 @@ function monsterAttack(m, target) {
   } else {
     damageAlly(target, calcDamage(m.atk, 1, target.def, 0, m.level).amount);
   }
+}
+
+// Treffer-Effekt passend zur Angriffsart: Biss, Prankenhieb, Rammstoß, Stampfer, Stich, Hieb.
+// target null: der Schlag geht ins Leere (Ziel ausgewichen)
+const STRIKE_COLORS = { bite: '#ff5a4a', fang: '#b6ff6a', snap: '#ffd36a', maul: '#ff7a3a', pounce: '#ffb04a', claw: '#ff4a6a', gore: '#ffcf8a', ram: '#ffe0a0', charge: '#ffcf8a', slam: '#ffd08a', sting: '#9be07a', haunt: '#c8a8ff', swing: '#ff8a6a', thrust: '#7ad8c8' };
+function monsterStrikeFx(m, target) {
+  const st = attackStyle(m.typeId);
+  if (m.type.ranged && st !== 'breath') return;
+  const color = STRIKE_COLORS[st] || '#ff8a6a';
+  const dir = target ? Math.atan2(target.y - m.y, target.x - m.x) : (m.facing > 0 ? 0 : Math.PI);
+  const reach = m.type.range * 0.8;
+  const hx = target ? target.x : m.x + Math.cos(dir) * reach;
+  const hy = target ? target.y : m.y + Math.sin(dir) * reach;
+  const bc = target ? bodyCenter(target) : { x: hx, y: hy - 14 };
+  const big = (m.type.size || 14) >= 19 || m.type.boss;
+  if (st === 'bite' || st === 'fang' || st === 'snap') addEffect({ type: 'bite3', x: bc.x, y: bc.y, dur: 0.3, color, size: big ? 1.4 : 1 });
+  else if (st === 'maul' || st === 'pounce' || st === 'claw') addEffect({ type: 'claw3', x: bc.x, y: bc.y, dur: 0.3, color, flip: m.facing < 0, size: big ? 1.4 : 1 });
+  else if (st === 'gore' || st === 'ram' || st === 'charge') {
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -1.2, len: 34, w: 7, dur: 0.24, color });
+    addEffect({ type: 'smoke3', x: m.x + Math.cos(dir) * 14, y: m.y + Math.sin(dir) * 14, dur: 0.7, color: '#8a7a64', count: 6, size: 0.7 });
+  } else if (st === 'slam') {
+    const sx = m.x + Math.cos(dir) * reach * 0.8;
+    const sy = m.y + Math.sin(dir) * reach * 0.8;
+    addEffect({ type: 'ring', x: sx, y: sy, r: big ? 56 : 42, dur: 0.45, color, width: 6, grow: true });
+    addEffect({ type: 'shards3', x: sx, y: sy, r: big ? 40 : 30, dur: 0.6, color: '#8a7e6e', count: 7, size: 0.7 });
+    if (target === game.player) shakeScreen(4);
+  } else if (st === 'sting') {
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -1.45, len: 26, w: 4, dur: 0.22, color });
+    addEffect({ type: 'sparks3', x: bc.x, y: bc.y, dur: 0.5, color, count: 10 });
+  } else if (st === 'haunt') addEffect({ type: 'smoke3', x: hx, y: hy, dur: 0.6, color, count: 6, size: 0.6 });
+  else if (st === 'breath') addEffect({ type: 'sparks3', x: m.x + Math.cos(dir) * 20, y: m.y + Math.sin(dir) * 20, dur: 0.5, color: '#ff9a4a', count: 12 });
+  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 32, w: 6, dur: 0.24, color });
+  if (target && st !== 'breath') addEffect({ type: 'impact', x: bc.x, y: bc.y, dur: 0.2, color });
 }
 
 function moveToward(e, tx, ty, step, isMonster) {
@@ -587,7 +619,7 @@ function updateMonsters(dt) {
       if (Math.abs(m.kx) + Math.abs(m.ky) < 5) m.kx = m.ky = 0;
     }
     if (m.attackAnim > 0) m.attackAnim -= dt;
-    if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; continue; }
+    if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; m.windup = 0; continue; }
     if (m.type.boss) {
       m.stun = 0;
       if (m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
@@ -624,14 +656,27 @@ function updateMonsters(dt) {
       if (lost) {
         m.state = 'return';
         m.target = null;
+        m.windup = 0;
       } else {
         const d = dist(m, t);
         const reach = m.type.range + t.r;
-        if (d > reach * 0.85) m.moving = moveToward(m, t.x, t.y, speed * dt, true);
-        else if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
-        if (d <= reach && m.cd <= 0) {
-          m.cd = m.type.cooldown;
-          monsterAttack(m, t);
+        if (m.windup > 0) {
+          // Ausholen: stehen bleiben, zum Ziel drehen; erst danach trifft der Schlag.
+          // Wer rechtzeitig aus der Reichweite läuft, weicht aus.
+          if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
+          m.windup -= dt;
+          if (m.windup <= 0) {
+            m.windup = 0;
+            if (m.type.ranged || d <= reach * 1.3 + 10) monsterAttack(m, t);
+            else { m.attackAnim = 0.25; monsterStrikeFx(m, null); }
+          }
+        } else {
+          if (d > reach * 0.85) m.moving = moveToward(m, t.x, t.y, speed * dt, true);
+          else if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
+          if (d <= reach && m.cd <= 0) {
+            m.cd = m.type.cooldown;
+            m.windup = m.windupMax = windupTime(m.typeId);
+          }
         }
       }
     }

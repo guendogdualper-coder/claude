@@ -1823,9 +1823,9 @@ function humanoidMonsterArt(ctx, f, o) {
 }
 
 const MONSTER_ART = {
-  hund: { h: 26, draw: (ctx, f) => beastArt(ctx, f, { fur: '#8a6748', belly: '#c8a47e', eye: '#7a4a1a' }) },
-  wolf: { h: 28, draw: (ctx, f) => { ctx.scale(1.08, 1.08); beastArt(ctx, f, { fur: '#7d8188', belly: '#c4c7cb', ruff: '#a4a8ad', bushy: true, eye: '#d8a03a', fangs: true }); } },
-  alphawolf: { h: 35, draw: (ctx, f) => { ctx.scale(1.32, 1.32); beastArt(ctx, f, { fur: '#43484f', belly: '#8d9196', mane: '#25292e', bushy: true, eye: '#ff3a2a', angry: true, glow: true, fangs: true, scar: true }); } },
+  hund: { h: 26, draw: (ctx, f) => beastArt(ctx, f, { fur: '#8a6748', belly: '#c8a47e', eye: '#7a4a1a', lean: true }) },
+  wolf: { h: 28, draw: (ctx, f) => { ctx.scale(1.08, 1.08); beastArt(ctx, f, { fur: '#7d8188', belly: '#c4c7cb', ruff: '#a4a8ad', bushy: true, eye: '#d8a03a', fangs: true, lean: true }); } },
+  alphawolf: { h: 35, draw: (ctx, f) => { ctx.scale(1.32, 1.32); beastArt(ctx, f, { fur: '#43484f', belly: '#8d9196', mane: '#25292e', bushy: true, eye: '#ff3a2a', angry: true, glow: true, fangs: true, scar: true, lean: true }); } },
   wildschwein: { h: 30, draw: (ctx, f) => { ctx.scale(1.15, 1.15); beastArt(ctx, f, { fur: '#5a3f2e', belly: '#7a5a44', snout: '#c09080', bulky: true, ridge: true, tusk: true, tail: false, small: true, eye: '#3a1a0a', angry: true }); } },
   bandit: {
     h: 46, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
@@ -2016,8 +2016,8 @@ Object.assign(MONSTER_ART, {
       }
     })
   },
-  hoellenhund: { h: 36, draw: (ctx, f) => { ctx.scale(1.3, 1.3); beastArt(ctx, f, { fur: '#2e2222', belly: '#4a3030', mane: '#d8402a', bushy: true, eye: '#ffb04a', angry: true, glow: true, fangs: true, ridge: true }); } },
-  eiswolf: { h: 32, draw: (ctx, f) => { ctx.scale(1.2, 1.2); beastArt(ctx, f, { fur: '#c8d8e8', belly: '#f4f8fc', ruff: '#ffffff', bushy: true, eye: '#3ab0ff', glow: true, angry: true, fangs: true }); } },
+  hoellenhund: { h: 36, draw: (ctx, f) => { ctx.scale(1.3, 1.3); beastArt(ctx, f, { fur: '#2e2222', belly: '#4a3030', mane: '#d8402a', bushy: true, eye: '#ffb04a', angry: true, glow: true, fangs: true, ridge: true, lean: true }); } },
+  eiswolf: { h: 32, draw: (ctx, f) => { ctx.scale(1.2, 1.2); beastArt(ctx, f, { fur: '#c8d8e8', belly: '#f4f8fc', ruff: '#ffffff', bushy: true, eye: '#3ab0ff', glow: true, angry: true, fangs: true, lean: true }); } },
   yeti: {
     h: 68, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
       scale: 1.5, belly: true, skin: '#e8eef4', pants: '#c8d4e0', boots: '#a8b8c8', sleeve: '#e8eef4', gloves: '#9aa8b8', claws: true,
@@ -2463,4 +2463,22 @@ function feetY(e) {
 }
 
 // Endbosse (seit 6.5) sehen aus wie ihre Vorlage, nur riesig und geschmückt
+// Neue Tiere (seit 6.7): in 2D aus den Vierbeiner-Bausteinen; in 3D teils mit eigenem Modell (drei-tiere.js)
+const beastIn = (sc, o) => (ctx, f) => { ctx.scale(sc, sc); beastArt(ctx, f, o); };
+Object.assign(MONSTER_ART, {
+  fuchs: { h: 24, draw: beastIn(0.95, { fur: '#c8682a', belly: '#f4ece0', snout: '#f4ece0', bushy: true, tailTip: '#f8f4ec', bigEars: true, eye: '#d8a03a', lean: true, muzzle: 0.3 }) },
+  hirsch: { h: 44, draw: beastIn(1.3, { fur: '#9a6a3e', belly: '#e8dcc8', horns: '#e0d0b0', tail: false, eye: '#2a1a10' }) },
+  dornenkeiler: { h: 36, draw: beastIn(1.35, { fur: '#4a3a26', belly: '#6a5a3a', snout: '#a88a6a', mane: '#6a8a3a', bulky: true, ridge: true, tusk: true, tail: false, small: true, eye: '#c8ff6a', angry: true }) },
+  luchs: { h: 28, draw: beastIn(1.05, { fur: '#b08a5a', belly: '#efe2c8', snout: '#efe2c8', spots: '#5a4630', cat: true, tufts: '#1a1410', stub: '#1a1410', eye: '#c8d84a', angry: true, fangs: true }) },
+  hyaene: { h: 30, draw: beastIn(1.1, { fur: '#a08a62', belly: '#c8b890', snout: '#3a2e22', mane: '#4a3a28', spots: '#3a2e20', ridge: true, eye: '#d8a03a', angry: true, fangs: true, lean: true, muzzle: 0.2 }) },
+  schakal: { h: 28, draw: beastIn(1.05, { fur: '#c8a060', belly: '#f0e0c0', saddleFur: '#3a3028', bushy: true, bigEars: true, eye: '#e8b040', angry: true, fangs: true, lean: true, muzzle: 0.3 }) },
+  warg: { h: 40, draw: beastIn(1.5, { fur: '#2e2a2a', belly: '#4a4444', mane: '#141010', bushy: true, eye: '#ff6a2a', glow: true, angry: true, fangs: true, scar: true, lean: true }) },
+  eisbaer: { h: 44, draw: beastIn(1.62, { fur: '#eef4f8', belly: '#dfe8ee', snout: '#e4ecf0', bulky: true, tail: false, eye: '#1a2a3a', angry: true, fangs: true, long: 0.5 }) },
+  panther: { h: 30, draw: beastIn(1.15, { fur: '#1e1e26', belly: '#2a2a34', snout: '#2a2a34', cat: true, longTail: true, eye: '#ffd34d', glow: true, angry: true, fangs: true }) },
+  mammut: { h: 58, draw: beastIn(1.6, { fur: '#7a5a42', belly: '#5a4030', bulky: true, tusk: true, tail: false, eye: '#9fe8ff' }) },
+  moorwolf: { h: 32, draw: beastIn(1.18, { fur: '#4a5a4a', belly: '#6a7a5a', mane: '#2a3a2a', bushy: true, eye: '#9be07a', glow: true, angry: true, fangs: true, lean: true }) },
+  donnerbock: { h: 44, draw: beastIn(1.3, { fur: '#8a8a92', belly: '#c8c8d0', horns: '#6a6458', tail: false, eye: '#9fd0ff', glow: true }) },
+  glutkatze: { h: 30, draw: beastIn(1.15, { fur: '#2a1a16', belly: '#3a2420', snout: '#3a2420', cat: true, longTail: true, tailTip: '#ff7a2a', stripes: '#ff6a1a', glowStripes: true, eye: '#ffb04a', glow: true, angry: true, fangs: true }) }
+});
+
 for (const [id, t] of Object.entries(MONSTER_TYPES)) if (t.raid && !MONSTER_ART[id]) MONSTER_ART[id] = MONSTER_ART[t.raid.art];
