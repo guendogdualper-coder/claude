@@ -77,22 +77,6 @@ function capeGeo(inner) {
   });
 }
 
-// Klinge als flaches Prisma mit Spitze und weichem Rand (Schwert, Dolch, Zweihänder, Sense)
-function bladeGeo(len, w, curve = 0) {
-  return geo3(`blade${len},${w},${curve}`, () => {
-    const s = new THREE.Shape();
-    s.moveTo(-w / 2, 0);
-    s.lineTo(w / 2, 0);
-    s.quadraticCurveTo(w / 2 + curve * len * 0.4, len * 0.55, w * 0.42, len * 0.82);
-    s.lineTo(curve * len * 0.25, len);
-    s.lineTo(-w * 0.42, len * 0.82);
-    s.quadraticCurveTo(-w / 2 + curve * len * 0.2, len * 0.5, -w / 2, 0);
-    const g = new THREE.ExtrudeGeometry(s, { depth: w * 0.16, bevelEnabled: true, bevelThickness: w * 0.1, bevelSize: w * 0.12, bevelSegments: 1, curveSegments: 6 });
-    g.translate(0, 0, -w * 0.08);
-    return smoothGeo(g);
-  });
-}
-
 // Sichelklinge der Sense
 function scytheGeo() {
   return geo3('scytheblade2', () => {
@@ -132,155 +116,6 @@ function framed(A, M, bone) {
 }
 function partFrame(at, rot) {
   return new THREE.Matrix4().compose(new THREE.Vector3(...at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(1, 1, 1));
-}
-
-// --- Waffen (Griff im Ursprung, Klinge entlang +y) -----------------------------------------------
-
-function weapon3(A, kind, tier, bone, at, rot, wg) {
-  tier = Math.max(0, Math.min(7, tier || 0));
-  const metal = TIER_METAL[tier];
-  const accent = TIER_ACCENT[tier];
-  const M = partFrame(at, rot);
-  const W = framed(A, M, bone);
-  const shell = (geo, o) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: M.clone().multiply(partMatrix(o)) });
-  const gold = '#c9a35a';
-  const gem = tier >= 4 ? STAFF_ORB[tier] : null;
-  switch (kind) {
-    case 'sword':
-    case 'greatsword':
-    case 'dagger': {
-      const big = kind === 'greatsword';
-      const dag = kind === 'dagger';
-      const len = big ? 1.0 : dag ? 0.34 : 0.68;
-      const wd = big ? 0.17 : dag ? 0.075 : 0.11;
-      const grip = big ? 0.26 : 0.16;
-      W(limb3(grip, 0.028, 0.026, 7), accent, { p: [0, 0.03, 0] });
-      for (let k = 0; k < 3; k++) W(torus3(0.03, 0.009, Math.PI * 2, 4, 10), darker(accent, 0.3), { p: [0, -grip * (0.2 + k * 0.28), 0], r: [Math.PI / 2, 0, 0] });
-      W(sphere3(0.042, 10, 7), gem || gold, { p: [0, -grip - 0.02, 0], mat: gem ? 'glow' : 'lit', shine: 1 });
-      // Parierstange mit nach oben gebogenen Enden
-      W(roundBox(big ? 0.36 : dag ? 0.16 : 0.26, 0.045, 0.06, 0.02), tier >= 3 ? metal : gold, { p: [0, 0.055, 0], shine: 1 });
-      for (const sx of [-1, 1]) W(horn3(0.07, 0.025, 6), tier >= 3 ? metal : gold, { p: [sx * (big ? 0.18 : dag ? 0.08 : 0.13), 0.06, 0], r: [0, 0, -sx * 0.9], shine: 1 });
-      if (tier >= 2) W(sphere3(0.025, 8, 6), gem || accent, { p: [0, 0.06, 0.035], mat: gem ? 'glow' : 'lit' });
-      W(bladeGeo(len, wd, dag ? 0.12 : 0), metal, { p: [0, 0.08, 0], shine: 1, top: lighter(metal, 0.35), topK: 0.25 });
-      // Hohlkehle auf beiden Seiten
-      for (const sz of [-1, 1]) W(roundBox(wd * 0.2, len * 0.7, 0.008, 0.004), darker(metal, 0.32), { p: [0, 0.08 + len * 0.4, sz * wd * 0.1] });
-      if (tier >= 4) W(roundBox(wd * 0.12, len * 0.55, 0.012, 0.004), lighter(gem, 0.3), { p: [0, 0.08 + len * 0.42, wd * 0.11], mat: 'glow' });
-      shell(roundBox(wd * 1.9, len * 1.12, 0.09, 0.045), { p: [0, 0.08 + len / 2, 0] });
-      return;
-    }
-    case 'bow': {
-      const wood = tier === 0 ? '#8a5a34' : accent;
-      for (const sy of [-1, 1]) {
-        W(torus3(0.44, 0.024, Math.PI * 0.38, 5, 10), wood, { r: [0, 0, sy > 0 ? 0.32 : -Math.PI * 0.38 - 0.32], p: [-0.4, 0, 0] });
-        W(horn3(0.1, 0.022, 5), metal, { p: [-0.12, sy * 0.42, 0], r: [0, 0, sy > 0 ? -0.9 : Math.PI + 0.9], shine: 1 });
-      }
-      W(limb3(0.18, 0.032, 0.032, 7), '#3a2a1c', { p: [0, 0.09, 0] });
-      for (let k = 0; k < 3; k++) W(torus3(0.034, 0.008, Math.PI * 2, 4, 10), gold, { p: [0, 0.07 - k * 0.06, 0], r: [Math.PI / 2, 0, 0] });
-      W(limb3(0.84, 0.005, 0.005, 3), '#efe6cc', { p: [-0.13, 0.42, 0] });
-      shell(torus3(0.44, 0.06, Math.PI * 0.76, 5, 12), { r: [0, 0, -Math.PI * 0.38], p: [-0.4, 0, 0] });
-      return;
-    }
-    case 'fan': {
-      W(geo3('fanleaf2', () => new THREE.CylinderGeometry(0.36, 0.36, 0.018, 18, 1, false, -Math.PI * 0.44, Math.PI * 0.88).rotateX(Math.PI / 2)), FAN_LEAF[tier], { p: [0, 0.04, 0], top: lighter(FAN_LEAF[tier], 0.25), topK: 0.3 });
-      W(torus3(0.35, 0.012, Math.PI * 0.88, 4, 18), gold, { p: [0, 0.04, 0.012], r: [0, 0, Math.PI * 0.06], shine: 1 });
-      for (let k = -3; k <= 3; k++) W(limb3(0.36, 0.007, 0.006, 3), '#3a2a1c', { p: [0, 0.04, 0.014], r: [0, 0, Math.PI + k * 0.2] });
-      W(sphere3(0.035, 8, 6), gold, { p: [0, 0.03, 0.02], shine: 1 });
-      W(limb3(0.16, 0.01, 0.01, 4), '#c8402f', { p: [0, 0.02, 0] });
-      W(sphere3(0.03, 8, 6), '#c8402f', { p: [0, -0.15, 0] });
-      shell(geo3('fanshell2', () => new THREE.CylinderGeometry(0.44, 0.44, 0.06, 16, 1, false, -Math.PI * 0.46, Math.PI * 0.92).rotateX(Math.PI / 2)), { p: [0, 0.04, 0] });
-      return;
-    }
-    case 'bell': {
-      W(limb3(0.2, 0.024, 0.024, 7), '#6b4a2e', { p: [0, 0.2, 0] });
-      W(torus3(0.04, 0.012, Math.PI * 2, 4, 10), gold, { p: [0, 0.22, 0], shine: 1 });
-      W(lathe3('bell2', [[0, 0], [0.14, 0], [0.13, 0.03], [0.09, 0.15], [0.055, 0.22], [0, 0.23]], 16), tier >= 3 ? metal : gold, { p: [0, -0.24, 0], shine: 1 });
-      W(sphere3(0.035, 8, 6), STAFF_ORB[tier], { p: [0, -0.25, 0], mat: 'glow' });
-      for (const sx of [-1, 1]) W(roundBox(0.03, 0.26, 0.008, 0.004), '#c8402f', { p: [sx * 0.05, -0.12, 0.02], r: [0, 0, sx * 0.25] });
-      shell(sphere3(0.21, 12, 8), { p: [0, -0.14, 0] });
-      return;
-    }
-    case 'staff':
-    case 'skullstaff': {
-      W(limb3(1.45, 0.03, 0.026, 7), '#5a3f2a', { p: [0, 1.0, 0], shade: 0.2 });
-      for (const y of [0.1, 0.55]) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), gold, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
-      if (kind === 'skullstaff') {
-        W(ball(12), '#e8e0cc', { p: [0, 1.07, 0], s: [0.1, 0.095, 0.105] });
-        W(roundBox(0.1, 0.05, 0.08, 0.025), '#e8e0cc', { p: [0, 1.0, 0.02] });
-        for (const sx of [-1, 1]) W(sphere3(0.026, 7, 5), '#9be2ff', { p: [sx * 0.038, 1.07, 0.085], mat: 'glow' });
-      } else {
-        for (let k = 0; k < 3; k++) {
-          const a = (k / 3) * Math.PI * 2;
-          W(horn3(0.16, 0.018, 5), tier >= 3 ? metal : '#8a6a44', { p: [Math.cos(a) * 0.05, 0.98, Math.sin(a) * 0.05], r: [Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4], shine: 1 });
-        }
-        W(sphere3(0.075, 14, 10), STAFF_ORB[tier], { p: [0, 1.08, 0], mat: 'glow' });
-      }
-      shell(sphere3(0.19, 12, 8), { p: [0, 1.07, 0] });
-      return;
-    }
-    case 'scythe': {
-      W(limb3(1.5, 0.03, 0.026, 7), '#4a3527', { p: [0, 1.0, 0] });
-      W(scytheGeo(), metal, { p: [0, 0.98, 0], shine: 1 });
-      W(roundBox(0.1, 0.09, 0.07, 0.025), accent, { p: [0, 0.98, 0] });
-      for (const y of [0.2, 0.5]) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), accent, { p: [0, y, 0], r: [Math.PI / 2, 0, 0] });
-      shell(roundBox(0.8, 0.22, 0.08, 0.04), { p: [-0.35, 0.98, 0] });
-      return;
-    }
-    case 'axe':
-    case 'greataxe': {
-      // Äxte: Schaft mit Wicklung, Bartklinge (Streitaxt: doppelt), Dorn hinten, Spitze oben
-      const big = kind === 'greataxe';
-      const shaft = big ? 1.25 : 0.78;
-      const wood = tier >= 5 ? '#2a2024' : tier >= 3 ? accent : '#5a3f2a';
-      W(limb3(shaft, 0.032, 0.028, 7), wood, { p: [0, shaft * 0.78, 0], shade: 0.2 });
-      for (let k = 0; k < 3; k++) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), darker(accent, 0.25), { p: [0, 0.02 - k * 0.07, 0], r: [Math.PI / 2, 0, 0] });
-      W(sphere3(0.04, 8, 6), gem || darker(metal, 0.2), { p: [0, -shaft * 0.22 - 0.02, 0], mat: gem ? 'glow' : 'lit', shine: 1 });
-      const headY = shaft * 0.66;
-      const s = big ? 1.35 + tier * 0.03 : 1 + tier * 0.03;
-      const blade = geo3('axeblade2', () => {
-        const sh = new THREE.Shape();
-        sh.moveTo(0, -0.07);
-        sh.quadraticCurveTo(0.1, -0.1, 0.17, -0.2);
-        sh.quadraticCurveTo(0.28, -0.08, 0.27, 0);
-        sh.quadraticCurveTo(0.28, 0.1, 0.19, 0.2);
-        sh.quadraticCurveTo(0.1, 0.12, 0, 0.07);
-        sh.lineTo(0, -0.07);
-        return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.032, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.014, bevelSegments: 1, curveSegments: 6 }).translate(0, 0, -0.016));
-      });
-      const sides = big ? [1, -1] : [1];
-      for (const sx of sides) {
-        // zweite Klinge gedreht statt gespiegelt (gespiegelte Flächen wären innen nach außen)
-        W(blade, metal, { p: [sx * 0.03, headY, 0], s: [s, s, 1], r: [0, sx > 0 ? 0 : Math.PI, 0], shine: 1, top: lighter(metal, 0.35), topK: 0.3 });
-        // helle Schneide
-        W(roundBox(0.02, 0.32 * s, 0.05, 0.008), lighter(metal, 0.45), { p: [sx * (0.03 + 0.265 * s), headY, 0], shine: 1 });
-        if (tier >= 4) W(roundBox(0.1 * s, 0.025, 0.05, 0.008), lighter(gem, 0.2), { p: [sx * (0.03 + 0.12 * s), headY, 0], mat: 'glow' });
-      }
-      if (!big && tier >= 2) W(horn3(0.13, 0.03, 6), metal, { p: [-0.03, headY, 0], r: [0, 0, Math.PI / 2], shine: 1 });
-      W(roundBox(0.08, 0.16 * s, 0.07, 0.025), darker(metal, 0.3), { p: [0, headY, 0], shine: 0.6 });
-      if (big || tier >= 3) W(horn3(big ? 0.2 : 0.12, 0.03, 6), metal, { p: [0, headY + 0.08 * s, 0], shine: 1 });
-      if (gem) W(sphere3(0.028, 8, 6), gem, { p: [0, headY, 0.04], mat: 'glow' });
-      shell(roundBox(big ? 0.75 : 0.42, 0.5 * s, 0.09, 0.045), { p: [big ? 0 : 0.14, headY, 0] });
-      return;
-    }
-    case 'club': {
-      W(lathe3('club2', [[0, -0.12], [0.04, -0.1], [0.05, 0.2], [0.11, 0.45], [0.12, 0.55], [0.06, 0.62], [0, 0.63]], 10), '#6b4a2e', { shade: 0.2 });
-      for (const [x, y, z] of [[0.1, 0.45, 0], [-0.08, 0.5, 0.06], [0.02, 0.4, -0.1], [-0.05, 0.36, -0.06]]) W(horn3(0.07, 0.025, 6), '#d9dde2', { p: [x, y, z], r: [z * 8, 0, -x * 12], shine: 1 });
-      return;
-    }
-    default:
-  }
-}
-
-function shield3(A, tier, bone, at) {
-  tier = Math.max(0, Math.min(7, tier || 0));
-  const W = framed(A, partFrame(at, [0, 0, Math.PI / 2]), bone);
-  W(lathe3('shield2', [[0, -0.045], [0.25, -0.04], [0.27, -0.015], [0.26, 0.02], [0.19, 0.045], [0, 0.055]], 22), TIER_ACCENT[tier], { top: lighter(TIER_ACCENT[tier], 0.2), topK: 0.3 });
-  W(torus3(0.26, 0.024, Math.PI * 2, 5, 24), TIER_METAL[tier], { r: [Math.PI / 2, 0, 0], shine: 1 });
-  W(ball(12), TIER_METAL[tier], { p: [0, 0.05, 0], s: [0.075, 0.045, 0.075], shine: 1 });
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2;
-    W(sphere3(0.018, 6, 4), TIER_METAL[tier], { p: [Math.cos(a) * 0.2, 0.04, Math.sin(a) * 0.2], shine: 1 });
-  }
-  if (tier >= 4) W(sphere3(0.03, 8, 6), STAFF_ORB[tier], { p: [0, 0.095, 0], mat: 'glow' });
 }
 
 // --- Gesicht ----------------------------------------------------------------------------------------
@@ -493,7 +328,7 @@ function humanoid3(b, c, P) {
     A(cyl3(0.055, 0.06, 0.1, 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02, 0.0] });
     A(torus3(0.12, 0.032, Math.PI * 2, 5, 16), c.collar || trim, { bone: BH.chest, p: [0, neckY - 0.02, 0], r: [Math.PI / 2 - 0.15, 0, 0], s: [1, 0.86, 1] });
     if (c.robe) {
-      A(lathe3('robe2', [[0, 0], [0.31, 0], [0.32, 0.03], [0.28, 0.2], [0.23, 0.4], [0.2, 0.47], [0, 0.48]], 20), c.robe, { bone: BH.hips, p: [0, 0.02, 0], s: [1, 1, 0.88], shade: 0.25 });
+      A(lathe3('robe2', [[0, 0], [0.31, 0], [0.32, 0.03], [0.28, 0.2], [0.23, 0.4], [0.2, 0.47], [0, 0.48]], 20), c.robe, { bone: BH.hips, p: [0, 0.02, 0], s: [1, 1, 0.88], shade: 0.25, shine: c.robeShine || 0 });
       if (c.hemTrim) A(torus3(0.31, 0.022, Math.PI * 2, 4, 22), c.hemTrim, { bone: BH.hips, p: [0, 0.07, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.88, 1], shine: 0.5 });
       if (c.tattered) for (let k = 0; k < 14; k++) {
         const a = (k / 14) * Math.PI * 2;
@@ -509,8 +344,11 @@ function humanoid3(b, c, P) {
   if (c.belt) {
     const by = hipY + (belly ? 0.06 : 0.02);
     A(torus3(belly ? 0.41 : 0.21, 0.03 * (c.wideBelt ? 1.6 : 1), Math.PI * 2, 5, 20), c.belt, { bone: BH.hips, p: [0, by, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.86 * bk, c.wideBelt ? 1.4 : 1] });
-    A(roundBox(c.wideBelt ? 0.12 : 0.08, c.wideBelt ? 0.1 : 0.065, 0.03, 0.012), c.buckle || '#c9a35a', { bone: BH.hips, p: [0, by, (belly ? 0.36 : 0.185) * bk], shine: 1 });
-    if (c.wideBelt) A(ball(8), darker(c.buckle || '#c9a35a', 0.2), { bone: BH.hips, p: [0, by, 0.2 * bk], s: [0.035, 0.035, 0.02], shine: 1 });
+    // die Schnalle kommt bei angelegtem Gürtel aus der Ausrüstung (drei-ausruestung.js)
+    if (!c.noBuckle) {
+      A(roundBox(c.wideBelt ? 0.12 : 0.08, c.wideBelt ? 0.1 : 0.065, 0.03, 0.012), c.buckle || '#c9a35a', { bone: BH.hips, p: [0, by, (belly ? 0.36 : 0.185) * bk], shine: 1 });
+      if (c.wideBelt) A(ball(8), darker(c.buckle || '#c9a35a', 0.2), { bone: BH.hips, p: [0, by, 0.2 * bk], s: [0.035, 0.035, 0.02], shine: 1 });
+    }
     if (c.pouch !== false) A(roundBox(0.085, 0.09, 0.06, 0.025), c.pouch || darker(c.belt, 0.1), { bone: BH.hips, p: [-0.15, by - 0.06, 0.12], r: [0, 0.6, 0] });
   }
   if (c.sash) {
@@ -667,8 +505,17 @@ function humanoid3(b, c, P) {
     A(horn3(hr * 0.3, hr * 0.13, 6), c.braid, { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.16, prev[2]], r: [Math.PI, 0, 0] });
   }
   if (c.headgear) c.headgear(A, hb, hc, hr);
-  // Umhang gebogen, mit Futter und Saum
-  if (c.cape) {
+  // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
+  const g = {
+    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: !!c.female,
+    cuirass: !!c.cuirass, greaves: !!c.greaves,
+    beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
+    beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk
+  };
+  if (c.gear) c.gear(A, g);
+  if (c.cape && c.capeTier != null) gearCape3(A, g, c.capeTier, c.cape, c.lining);
+  // Umhang gebogen, mit Futter und Saum (Bewohner, Monster)
+  else if (c.cape) {
     const cs = belly ? 1.5 : 1;
     A(capeGeo(false), c.cape, { bone: BH.cape, p: [0, shY + 0.02, 0.02], s: [cs, 1, cs], shade: 0.25 });
     A(capeGeo(true), c.lining || darker(c.cape, 0.25), { bone: BH.cape, p: [0, shY + 0.02, 0.02], s: [cs, 1, cs] });
@@ -719,69 +566,6 @@ const WEAPON_HOLD = {
   bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45]
 };
 
-// --- Kopfbedeckungen der vier Klassen -------------------------------------------------------------
-
-function kriegerHelm(L) {
-  const A0 = ARMOR_LOOK.krieger;
-  const steel = lookColor(A0.helm, L.h, '#8f98a3');
-  const plume = lookColor(A0.crest, L.h, '#c8402f');
-  const brass = lookColor(A0.trim, L.a, '#c9a35a');
-  return (A, hb, hc, hr) => {
-    // Kabuto: Kuppel, breite Krempe, Nackenschutz, Wangenschutz, Helmbusch, Stirnzier
-    A(cap3(hr * 1.1, Math.PI * 0.55, 0, Math.PI * 2, 18, 9), steel, { bone: hb, p: [hc[0], hc[1] + hr * 0.04, hc[2] - hr * 0.02], r: [-0.18, 0, 0], top: lighter(steel, 0.3), topK: 0.4, shine: 0.9 });
-    for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * Math.PI - Math.PI / 2;
-      A(roundBox(hr * 0.06, hr * 0.5, hr * 0.06, hr * 0.03), darker(steel, 0.15), { bone: hb, p: [hc[0] + Math.sin(a) * hr * 1.0, hc[1] + hr * 0.62, hc[2] + Math.cos(a) * hr * 0.5 - hr * 0.1], r: [-0.5 * Math.cos(a), 0, -0.6 * Math.sin(a)] });
-    }
-    A(torus3(hr * 1.08, hr * 0.08, Math.PI * 2, 5, 24), brass, { bone: hb, p: [hc[0], hc[1] + hr * 0.14, hc[2]], r: [Math.PI / 2 - 0.18, 0, 0], shine: 1 });
-    A(geo3('neckguard', () => new THREE.SphereGeometry(1, 16, 6, Math.PI * 0.15, Math.PI * 0.7, Math.PI * 0.45, Math.PI * 0.28)), steel, { bone: hb, p: [hc[0], hc[1] + hr * 0.05, hc[2]], s: hr * 1.22, r: [0, Math.PI, 0], shine: 0.6 });
-    for (const sx of [-1, 1]) A(roundBox(hr * 0.2, hr * 0.6, hr * 0.34, hr * 0.08), steel, { bone: hb, p: [hc[0] + sx * hr * 0.94, hc[1] - hr * 0.2, hc[2] + hr * 0.12], r: [0, 0, sx * 0.08], shine: 0.6 });
-    A(geo3('plume2', () => new THREE.SphereGeometry(1, 14, 10).scale(0.15, 0.24, 0.46)), plume, { bone: hb, p: [hc[0], hc[1] + hr * 1.15, hc[2] - hr * 0.25], s: hr / 0.33, shade: 0.3 });
-    A(torus3(hr * 0.32, hr * 0.05, Math.PI, 4, 12), brass, { bone: hb, p: [hc[0], hc[1] + hr * 0.5, hc[2] + hr * 0.98], r: [0.35, 0, 0], shine: 1 });
-    if (L.h >= 3 && L.h < 6) for (const sx of [-1, 1]) A(horn3(hr * 0.8, hr * 0.15, 8), '#e8dcc0', { bone: hb, p: [hc[0] + sx * hr * 0.75, hc[1] + hr * 0.5, hc[2]], r: [0, 0, -sx * 0.9], shine: 0.4 });
-    if (L.h >= 4) A(sphere3(hr * 0.09, 8, 6), STAFF_ORB[L.h], { bone: hb, p: [hc[0], hc[1] + hr * 0.42, hc[2] + hr * 1.08], mat: 'glow' });
-    if (L.h >= 6) for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) A(roundBox(hr * (0.75 - k * 0.15), hr * 0.18, hr * 0.05, hr * 0.08), '#ffffff', { bone: hb, p: [hc[0] + sx * hr * (1.15 + k * 0.08), hc[1] + hr * (0.5 + k * 0.16), hc[2] - hr * 0.1], r: [0, 0, sx * (0.5 + k * 0.25)], mat: L.h >= 7 ? 'glow' : 'lit' });
-  };
-}
-
-function ninjaHood(L, scarf) {
-  const hood = lookColor(ARMOR_LOOK.ninja.hood, L.h, '#2a2633');
-  return (A, hb, hc, hr) => {
-    A(cap3(hr * 1.1, Math.PI * 0.82, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9), hood, { bone: hb, p: [hc[0], hc[1] + hr * 0.05, hc[2] - hr * 0.02], shade: 0.2 });
-    A(flipGeo(cap3(hr * 1.08, Math.PI * 0.82, Math.PI / 2 + 0.95, Math.PI * 2 - 1.9)), darker(hood, 0.4), { bone: hb, p: [hc[0], hc[1] + hr * 0.05, hc[2] - hr * 0.02] });
-    A(cap3(hr * 1.12, Math.PI * 0.42), hood, { bone: hb, p: [hc[0], hc[1] + hr * 0.08, hc[2]], r: [-0.05, 0, 0] });
-    // Maske über Mund und Nase, Kapuzenzipfel hinten
-    A(geo3('ninjamask2', () => new THREE.SphereGeometry(1, 18, 8, Math.PI / 2 - 1.2, 2.4, Math.PI * 0.55, Math.PI * 0.4)), scarf, { bone: hb, p: hc, s: hr * 1.06, shade: 0.2 });
-    for (const sx of [-1, 1]) limbBetween(A, [hc[0] + sx * hr * 0.3, hc[1] + hr * 0.2, hc[2] - hr * 0.95], [hc[0] + sx * hr * 0.55, hc[1] - hr * 0.9, hc[2] - hr * 1.5], hr * 0.13, hr * 0.05, hood, { bone: hb });
-    if (L.h >= 4) {
-      A(torus3(hr * 1.08, hr * 0.06, Math.PI * 2, 4, 22), lookColor(ARMOR_LOOK.ninja.scarf, L.h, scarf), { bone: hb, p: [hc[0], hc[1] + hr * 0.42, hc[2]], r: [Math.PI / 2 - 0.15, 0, 0] });
-      A(roundBox(hr * 0.42, hr * 0.2, hr * 0.06, hr * 0.04), '#c7ccd3', { bone: hb, p: [hc[0], hc[1] + hr * 0.45, hc[2] + hr * 1.06], shine: 1 });
-    }
-  };
-}
-
-function shamanBand(L, gold) {
-  if (L.h === -2) return null;
-  const band = lookColor(ARMOR_LOOK.schamane.band, L.h, gold);
-  return (A, hb, hc, hr) => {
-    A(torus3(hr * 1.06, hr * 0.07, Math.PI * 2, 5, 24), band, { bone: hb, p: [hc[0], hc[1] + hr * 0.4, hc[2]], r: [Math.PI / 2 - 0.12, 0, 0], shine: 0.6 });
-    A(sphere3(hr * 0.1, 8, 6), L.h >= 4 ? '#ffffff' : '#c8402f', { bone: hb, p: [hc[0], hc[1] + hr * 0.5, hc[2] + hr * 1.04], mat: L.h >= 4 ? 'glow' : 'lit' });
-    for (const [dx, dy, c] of [[0.9, 0.7, '#e8dcc0'], [1.02, 0.5, '#c8402f']]) A(geo3('feather2', () => new THREE.SphereGeometry(1, 10, 6).scale(0.05, 0.3, 0.012)), c, { bone: hb, p: [hc[0] + hr * dx, hc[1] + hr * dy, hc[2] - hr * 0.2], r: [0, 0, -0.5 - dy * 0.3], s: hr / 0.33 });
-    if (L.h >= 3) for (let k = -2; k <= 2; k++) A(horn3(hr * (0.3 + (L.h >= 5 ? 0.1 : 0)), hr * 0.08, 5), band, { bone: hb, p: [hc[0] + Math.sin(k * 0.45) * hr * 1.03, hc[1] + hr * 0.5, hc[2] + Math.cos(k * 0.45) * hr * 1.03], r: [0.2, 0, -k * 0.15], shine: 0.8 });
-    if (L.h >= 6) A(torus3(hr * 0.7, hr * 0.05, Math.PI * 2, 4, 22), '#fff2b0', { bone: hb, p: [hc[0], hc[1] + hr * 1.5, hc[2]], r: [Math.PI / 2, 0, 0], mat: 'glow' });
-  };
-}
-
-function nekroHood(L) {
-  const hood = lookColor(ARMOR_LOOK.nekromant.hood, L.h, '#2a3b28');
-  return (A, hb, hc, hr) => {
-    A(cap3(hr * 1.14, Math.PI * 0.86, Math.PI / 2 + 0.85, Math.PI * 2 - 1.7), hood, { bone: hb, p: [hc[0], hc[1] + hr * 0.05, hc[2] - hr * 0.02], shade: 0.2 });
-    A(flipGeo(cap3(hr * 1.12, Math.PI * 0.86, Math.PI / 2 + 0.85, Math.PI * 2 - 1.7)), '#0d120c', { bone: hb, p: [hc[0], hc[1] + hr * 0.05, hc[2] - hr * 0.02] });
-    A(horn3(hr * 0.95, hr * 0.62, 12), hood, { bone: hb, p: [hc[0], hc[1] + hr * 0.62, hc[2] - hr * 0.25], r: [-0.45, 0, 0] });
-    if (L.h >= 4) for (let k = -2; k <= 2; k++) A(horn3(hr * (0.42 - Math.abs(k) * 0.08), hr * 0.08, 5), '#ddd5bb', { bone: hb, p: [hc[0] + k * hr * 0.24, hc[1] + hr * 0.95, hc[2] + hr * 0.15] });
-  };
-}
-
 // --- Spielerfiguren ---------------------------------------------------------------------------------
 
 function playerKey3(p) {
@@ -804,17 +588,16 @@ function playerConfig3(p) {
     bootTrim: gt('b') >= 3 ? TIER_METAL[gt('b')] : null,
     belt: gt('g') >= 0 ? GEAR_LOOK.belt[gt('g')] : '#3a2618'
   };
+  // Schultern, Umhang: Grundform hier, das Merkmal der Stufe baut drei-ausruestung.js
   if (gt('s') >= 0) {
     c.pads = GEAR_LOOK.plate[gt('s')];
     c.padTrim = TIER_METAL[gt('s')];
-    c.spikes = gt('s') >= 3;
-    c.padGem = gt('s') >= 4 ? STAFF_ORB[gt('s')] : null;
   }
   const capeT = eq.umhang ? eq.umhang.tier : -1;
   if (capeT >= 0) {
     c.cape = GEAR_LOOK.cape[capeT];
     c.lining = GEAR_LOOK.lining[capeT];
-    c.capeTrim = capeT >= 2 ? TIER_METAL[capeT] : null;
+    c.capeTier = capeT;
   }
   if (eq.schild) {
     if (isOffhand(eq.schild)) c.offhand = { kind: eq.schild.kind, tier: eq.schild.tier };
@@ -833,14 +616,17 @@ function playerConfig3(p) {
     const fur = L.a >= 5 ? '#3a3230' : L.a >= 3 ? '#5a4030' : '#8a6a4a';
     Object.assign(c, {
       bulk: ap.sex === 1 ? 1.03 : 1.1, torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030',
-      buckle: brass, collar: brass, cuff: brass, rivet: brass, padStyle: 'plate', furCollar: fur, furBoots: fur, wideBelt: true,
+      buckle: brass, collar: brass, cuff: brass, rivet: brass, padStyle: 'plate', furCollar: fur, furBoots: gt('b') < 1 ? fur : null, wideBelt: true,
       tassets: plate, tassetRim: rim, kneePads: L.a >= 1 ? rim : null, armBands: '#4a3020'
     });
     if (L.a >= 1) { c.cuirass = plate; c.cuirassRim = rim; } else c.lamellar = darker(crimson, 0.05);
     if (L.a >= 2) { c.greaves = plate; c.bracer = rim; } else c.legWraps = '#5a4030';
     if (L.a >= 3) { c.gauntlets = plate; c.greaveSpike = rim; }
     if (!c.pads) { c.pads = plate; c.padTrim = rim; c.spikes = L.a >= 3; }
-    if (L.h !== -2) { c.headgear = kriegerHelm(L); c.covered = true; }
+    if (L.h !== -2) {
+      c.headgear = kriegerHelm3(L.h, lookColor(A0.helm, L.h, '#8f98a3'), lookColor(A0.crest, L.h, '#c8402f'), lookColor(A0.trim, L.h, '#c9a35a'));
+      c.covered = true;
+    }
     if (ap.sex === 1 && c.covered) c.braid = hairOf(ap);
   } else if (p.classId === 'ninja') {
     const A0 = ARMOR_LOOK.ninja;
@@ -855,31 +641,37 @@ function playerConfig3(p) {
     });
     if (c.pads) { c.pads = mixColor(c.pads, leather, 0.6); c.padTrim = scarf; }
     if (kind === 'bow') c.quiver = '#6b4a2e';
-    c.headgear = ninjaHood(L, scarf);
+    c.headgear = ninjaHelm3(L.h, lookColor(A0.hood, L.h, '#2a2633'), scarf);
     c.covered = true;
     if (ap.sex === 1) c.braid = hairOf(ap);
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;
-    if (L.h >= 6) c.glowEyes = '#9fe8ff';
+    if (NINJA_EYES3[L.h]) c.glowEyes = NINJA_EYES3[L.h];
   } else if (p.classId === 'schamane') {
     const A0 = ARMOR_LOOK.schamane;
     const robe = lookColor(A0.robe, L.a, '#2c6f6a');
     const gold = lookColor(A0.gold, L.a, '#e0c36a');
     Object.assign(c, { torso: robe, sleeve: robe, robe, hemTrim: gold, wideSleeves: true, cuff: gold, collar: gold, gloves: c.skin, buckle: gold, sash: '#c8402f', beads: '#7a3a2a', belt: null, padStyle: 'cloth' });
     if (c.pads) { c.pads = mixColor(c.pads, robe, 0.55); c.padTrim = gold; }
-    c.headgear = shamanBand(L, gold);
+    c.headgear = shamanHelm3(L.h, lookColor(A0.band, L.h, gold), gold);
+    // Seidenhaube bedeckt das Haar
+    if (L.h === 1) { c.covered = true; if (ap.sex === 1) c.braid = hairOf(ap); }
   } else {
     const A0 = ARMOR_LOOK.nekromant;
     const robe = lookColor(A0.robe, L.a, '#334a31');
     Object.assign(c, { torso: robe, sleeve: darker(robe, 0.12), robe, tattered: true, wideSleeves: true, gloves: c.skin, runes: '#a7e37f', blush: false, skullBelt: true, collar: darker(robe, 0.3), padStyle: 'bone' });
     if (c.pads) c.padTrim = gt('s') >= 3 ? lookColor(A0.glow, L.h, '#a7e37f') : null;
     else c.bonePads = true;
-    c.headgear = nekroHood(L);
+    c.headgear = nekroHelm3(L.h, lookColor(A0.hood, L.h, '#2a3b28'), lookColor(A0.glow, L.h, '#a7e37f'));
     c.covered = 'hood';
     if (ap.sex === 1) c.braid = hairOf(ap);
     c.glowEyes = lookColor(A0.glow, L.h, '#a7e37f');
     c.angry = false;
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;
   }
+  // Stufenmerkmale: Rüstung (Grundform umstellen), dann alle Teile nach dem Körper
+  armorLook3(c, p.classId, L.a);
+  c.noBuckle = gt('g') >= 0;
+  c.gear = gearAll3(p.classId, { a: L.a, s: gt('s'), b: gt('b'), g: gt('g') }, c);
   return c;
 }
 

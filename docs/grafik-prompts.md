@@ -87,6 +87,19 @@ Kleine Nieten und Muster sind nur das Sahnehäubchen.
 
 Jede Zeile beschreibt das **Merkmal**, also das, was die Silhouette verändert, dazu die Details.
 
+**Umsetzung (seit 7.9):** `js/drei-ausruestung.js`. `humanoid3` baut den Körper in den Grundfarben der
+Klasse und ruft danach `c.gear(A, g)` auf; `g` enthält die Maße der Figur (Hüfte, Brust, Schultern,
+Hals, Kopf, Gürtelmitte). Dort entstehen:
+- `armorLook3` (Grundform der Rüstung umstellen: Lederweste, Kettenhemd, Lamellen, Harnisch …) und
+  `ARMOR3[klasse][stufe]` (Merkmal auf Brust, Rücken, Saum),
+- `kriegerHelm3`, `ninjaHelm3`, `shamanHelm3`, `nekroHelm3` (in Kopfradien gebaut, Kopfmitte = 0),
+- `gearShoulders3`, `gearBoots3`, `gearBelt3`, `gearCape3` (Länge, Weite und Saumform je Stufe),
+- `shield3` (eigene Form je Stufe, Mandelschild ab Eisen) und `weapon3` (Klinge, Parierstange,
+  Knauf bzw. Kopfstück je Stufe, siehe 4.11).
+Hilfen für Motive: `crescent3`, `sun3`, `wing3`, `floatGem3`, `emberSpike3`, `skull3`, `star3`,
+`flame3`, `curvedHorn3`; Lage auf dem Körper: `onBody3` (Rahmen auf der Rumpfoberfläche),
+`bodyLine3` (Nähte, Risse, Schnürung), `ringAt3`/`arcAt3` (Ringe und Rippen).
+
 ### 4.1 Rüstung – Krieger
 | Stufe | Name | Merkmal | Details |
 |---|---|---|---|
@@ -285,7 +298,8 @@ Jede Familie bekommt mehr Tiefe durch **Schichten und Akzente**, nicht durch vie
 
 ## 7. Leistungsregeln (damit nichts ruckelt)
 
-- **Spielerfigur:** sichtbar höchstens etwa 24.000 Dreiecke, Schattenmodell höchstens 3.000.
+- **Spielerfigur:** sichtbar höchstens etwa 24.000 Dreiecke (gemessen 7.9: 8.700–23.800 je nach
+  Klasse und Stufe), Schattenmodell höchstens etwa 7.000 (eine kleine Kugel je größerem Teil).
 - **Monster:** im Schnitt höchstens etwa 9.000 Dreiecke, Bosse höchstens 16.000.
 - **Kleinteile mit wenigen Segmenten:** Nieten 6×4, Hörner 5–6, Ringe 4×12. Kugeln mit mehr als
   12 Segmenten gibt es nur für Köpfe und große Flächen.

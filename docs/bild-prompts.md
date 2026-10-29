@@ -1704,3 +1704,29 @@ Row of round HUD buttons for a mobile fantasy MMORPG, each like a lacquered dark
 ```
 Three-panel concept, stylized 3D toon MMORPG: the same stealthed ninja seen by himself (semi-transparent with a faint purple shimmer and his name faded), by a party member (same semi-transparent look with a green party name), and by a stranger (nothing visible at all – only the empty ground and grass). Top-down three-quarter camera.
 ```
+
+## Grafik auf dem nächsten Level (Version 7.9)
+
+Die ausführliche Bauanleitung für Licht, Schatten, Figur, jedes Ausrüstungsteil in jeder Stufe,
+Monster, Boden, Gras und Wasser steht in `docs/grafik-prompts.md` (Grafik-Bibel). Hier die Prompts,
+mit denen die neuen Formen entworfen wurden.
+
+### Acht Stufen nebeneinander (Silhouette statt Farbe)
+```
+Character sheet, stylized 3D toon MMORPG (chibi proportions, big head, thick dark outlines, three-band cel shading), the same warrior shown eight times side by side in armor tiers: leather vest with cross lacing and leather cap with ear flaps; bronze helmet with nose guard and narrow red comb over chain mail; iron kabuto with a big silver crescent crest over lamellar plates; red dragon helmet with curved horns, jaw guards and a spiked ridge, dragon head on the chest; violet soul helmet with a closed visor, glowing eye slit and a crown of crystals, a crystal floating in front of the chest; black ash helmet with a crown of jagged obsidian spikes and glowing seams; white sky helmet with large feather wings and feather tassets; golden god helmet with a tall crest, red plume and sun disc. Every tier must be recognizable by its silhouette alone, top-down three-quarter camera.
+```
+
+### Kopfbedeckungen der vier Klassen
+```
+Sprite reference sheet, 4 rows × 8 columns of chibi head-and-shoulders busts in stylized 3D toon style: warrior helmets (leather cap to golden sun helmet), ninja hoods and masks (cloth hood, leather headband, moon plate with long hood tails, cobra hood with fangs, night mask with glowing lines, red oni mask with small horns, star mask with forehead star, golden fox mask with ears), shaman headwear (headband with feathers, silk cap with ribbons, white crane crest, phoenix flame crown, dragon crown with horns and pearl, ember crown with floating sparks, cloud crown with small wings, golden diadem with a sun halo), necromancer hoods (torn hood, ash band, bone skull helmet with jaw, green soul flame on the hood tip, crown of bone thorns, long black horns, starry hood, golden skull with a halo). Readable at 80 px.
+```
+
+### Waffen je Stufe
+```
+Weapon tier sheet for a stylized 3D toon MMORPG, eight swords from plain to divine: straight iron blade with a simple cross guard; broad leaf blade with bronze guard and round ends; curved moon blade with a crescent guard; dragon sword with a saw-toothed back, wing-shaped guard and a claw gripping a red stone; soul blade with a glowing violet fuller, thorn-ring guard and a floating crystal pommel; jagged obsidian blade with an ember core; slim pale sky blade with feather wings and a star pommel; broad golden blade with a sun-disc guard and glowing edges. Below: matching axes, bows (dragon-head tips, feathered limbs, sun at the grip), fans (crane feathers, phoenix flames, cloud puffs) and necromancer staffs and scythes (skull, thorn crown, obsidian spikes, star, sun).
+```
+
+### Schilde
+```
+Eight warrior shields in stylized 3D toon style: round plank shield with iron bands and boss; bronze shield with two raised rings and a pointed boss; almond-shaped iron kite shield with a silver crescent; red dragon shield with a dragon head relief and spikes around the rim; violet soul shield with a floating glowing rune circle; black ash shield with a jagged rim and glowing cracks; white sky shield with feather wings on both sides; golden sun shield with rays reaching past the rim.
+```
