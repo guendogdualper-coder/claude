@@ -1465,19 +1465,23 @@ const hairCap = (ctx, cx, cy, color, long) => {
 };
 
 Object.assign(NPC_ART, {
-  // Dungeon-Eingang: Felsbogen mit dunklem Wirbel (die Farbe des Dungeons leuchtet beim Zeichnen darüber)
+  // Dungeon-Eingang (seit 8.4 wie in 3D): rundes Podest mit Stufe, zwei Säulen mit Moos, Bogen aus Keilsteinen;
+  // die Öffnung bleibt dunkel, den Wirbel in der Farbe des Dungeons malt drawNpc darüber
   eingang(ctx) {
-    oval(ctx, 0, -2, 24, 6, '#3a3430');
-    paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-22, 0); ctx.lineTo(-20, -34); ctx.quadraticCurveTo(0, -60, 20, -34); ctx.lineTo(22, 0); ctx.closePath(); }, '#6a625a', -22, -56, 44, 56);
-    paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 0); ctx.lineTo(-13, -30); ctx.quadraticCurveTo(0, -48, 13, -30); ctx.lineTo(14, 0); ctx.closePath(); }, '#120c14', -14, -46, 28, 46);
-    for (const [x, y, r] of [[-19, -10, 5], [18, -16, 6], [-16, -38, 5], [12, -44, 5], [-4, -50, 4.5]]) oval(ctx, x, y, r, r * 0.8, '#7e766c');
-    ctx.strokeStyle = 'rgba(200,180,255,0.5)';
-    ctx.lineWidth = 1.4;
-    for (let k = 0; k < 3; k++) {
-      ctx.beginPath();
-      ctx.arc(0, -20, 4 + k * 3.5, k, k + 4);
-      ctx.stroke();
+    oval(ctx, 0, -1, 27, 7.5, '#5e5850');
+    oval(ctx, 0, -3, 23, 6, '#7a7268');
+    box(ctx, -9, 2, 18, 4.5, 2, '#6a625a');
+    paintShape(ctx, () => gateOpening2(ctx), '#120c14', -11, -39, 22, 36);
+    for (const sx of [-1, 1]) {
+      box(ctx, sx * 16 - 4, -31, 8, 29, 3.5, '#857c70');
+      box(ctx, sx * 16 - 5.5, -6, 11, 4, 2, '#6a625a');
+      box(ctx, sx * 16 - 5.5, -33, 11, 4, 2, '#6e8a44');
     }
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI + (i * Math.PI) / 6;
+      if (i !== 3) oval(ctx, Math.cos(a) * 16, -29 + Math.sin(a) * 16, 4.8, 4.4, i % 2 ? '#857c70' : '#8e857a');
+    }
+    box(ctx, -5.5, -51, 11, 11, 4, '#968c80');
   },
   // Weltentor: großer Steinring mit leuchtendem Wirbel (bringt zu Map 1, 2 und 3)
   weltentor(ctx) {
@@ -1496,12 +1500,11 @@ Object.assign(NPC_ART, {
     ctx.arc(0, -30, 7, 0.5, 3.6);
     ctx.stroke();
   },
-  // Ausgang im Dungeon: leuchtender Steinkreis am Boden
+  // Ausgang im Dungeon (seit 8.4): flacher Steinkreis mit vier runden Steinen; Wirbel und Lichtsäule malt drawNpc
   ausgang(ctx) {
-    oval(ctx, 0, -2, 18, 7, '#4a4440');
-    oval(ctx, 0, -3, 14, 5, '#9fd0ff');
-    oval(ctx, 0, -3.5, 9, 3, '#e8f6ff');
-    for (const [x, y] of [[-16, -3], [16, -3], [0, -9], [0, 3]]) box(ctx, x - 2, y - 6, 4, 7, 1, '#7e766c');
+    oval(ctx, 0, -2, 19, 7, '#4a4440');
+    oval(ctx, 0, -3, 16, 5.5, '#5e5850');
+    for (const [x, y] of [[-14, -7], [14, -7], [-14, 2], [14, 2]]) oval(ctx, x, y - 4, 3.6, 5.5, '#8a8278');
   },
   stallmeister: (ctx) => villagerArt(ctx, {
     skin: '#e2b98f', pants: '#4a3a2a', boots: '#2a1e16', torso: '#7a5a3a', sleeve: '#7a5a3a', gloves: '#5a3a22', belt: '#2a1e16',

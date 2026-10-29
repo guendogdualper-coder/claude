@@ -970,6 +970,8 @@ function v3CollectLights() {
   }
   for (const n of w.npcs) {
     if (n.id === 'weltentor') lightSpots3.push({ x: n.x * U3, y: 1.2, z: n.y * U3, color: '#7ab8ff', power: 1.4, range: 7 });
-    if (n.id === 'eingang' || n.id === 'ausgang') lightSpots3.push({ x: n.x * U3, y: 1.0, z: n.y * U3, color: DUNGEONS[n.dungeon].portal, power: 1.4, range: 7 });
+    // Dungeon-Tor: Licht vor dem Wirbel (beleuchtet Podest und Stufen, ohne die Steine weiß zu waschen)
+    if (n.id === 'eingang') lightSpots3.push({ x: n.x * U3, y: 1.3, z: n.y * U3 + 1.4, color: DUNGEONS[n.dungeon].portal, power: 1.0, range: 7 });
+    if (n.id === 'ausgang') lightSpots3.push({ x: n.x * U3, y: 1.0, z: n.y * U3, color: DUNGEONS[n.dungeon].portal, power: 1.4, range: 7 });
   }
 }

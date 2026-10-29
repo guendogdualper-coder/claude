@@ -2204,98 +2204,639 @@ function buildNpc3(b, id) {
   return res;
 }
 
-// Portale: Dungeon-Eingang (Felsbogen mit Schleier), Ausgang (Lichtkreis), Weltentor (Steinring)
-function buildPortal3(b, id, color) {
+// --- Portale und Risse (seit 8.4) ---------------------------------------------------------------------
+// Rund und weich statt kantig: Risse sind ein Ring aus glatten Runensteinen auf einem kleinen Erdhügel mit
+// Wurzeln und Grasbüscheln, Dungeon-Eingänge ein Steintor aus Keilsteinen auf einem runden Podest. Darin
+// dreht sich ein Wirbel aus einem eigenen Shader (Zeichentrick-Stufen, heller Kern, leuchtender Rand), dahinter
+// liegt ein weicher Schein, Funken werden in den Wirbel gezogen, am Boden leuchten Lichtfleck und Runenkreis.
+// Jeder Dungeon hat sein eigenes Aussehen (RIFT_LOOK): Steinfarbe, Wirbelfarben, Funkenart und Schmuck.
+// Wirbel, Schein, Funken und Bodenzeichen sind eigene kleine Meshes an den Knochen (model.extra), weil die
+// gebackenen Figuren keine Texturkoordinaten haben. Geometrien und Materialien sind geteilt, die Shader
+// werden beim Start mit übersetzt (warmPrograms); je Bild kostet ein Portal nur ein paar Zuweisungen.
+
+// Zeit und Funkengröße für alle Portal-Shader (ein gemeinsamer Wert, kein Abgleich je Figur)
+const PORTAL_T = { value: 0 };
+const MOTE_SIZE3 = { value: 6 };
+
+// Aussehen je Dungeon. stone/top: Steine (top: Oberseiten, Moos, Schnee), accent: Runen und Kristalle,
+// deep/mid/core: Wirbel von außen nach innen, motes: Funkenart, spin: Drehtempo, deco: Schmuck am Ring,
+// emblem: Zeichen auf dem Schlussstein (auch am Dungeon-Tor)
+const RIFT_LOOK = {
+  spinnenhoehle: { stone: '#5a546a', top: '#8a80a0', accent: '#b48cff', deep: '#24123a', mid: '#b48cff', core: '#f4ecff', motes: 'wisp', spin: 1, deco: 'web', emblem: 'spider' },
+  orkfestung: { stone: '#8a7258', top: '#b49a74', accent: '#ff8a4a', deep: '#4a1606', mid: '#ff8a4a', core: '#ffe2b0', motes: 'dust', spin: 1.1, deco: 'ork', emblem: 'tusks' },
+  eisgrotte: { stone: '#8cbcdc', top: '#ffffff', topK: 0.75, accent: '#9fe8ff', deep: '#10304e', mid: '#9fe8ff', core: '#ffffff', motes: 'snow', spin: 0.8, deco: 'ice', emblem: 'flake' },
+  drachenhort: { stone: '#3a302c', top: '#54443c', accent: '#ff6a3a', deep: '#3a0800', mid: '#ff6a3a', core: '#ffd27a', motes: 'ember', spin: 1.25, deco: 'lava', emblem: 'flame' },
+  banditenkeller: { stone: '#857866', top: '#6e8a44', topK: 0.6, accent: '#ffb04a', deep: '#3a2408', mid: '#ffb04a', core: '#fff0c8', motes: 'dust', spin: 1, deco: 'rope', emblem: 'lantern' },
+  totengruft: { stone: '#8a8494', top: '#b4aec0', accent: '#a774e0', deep: '#1a0e2c', mid: '#a774e0', core: '#d8ffe8', motes: 'wisp', spin: 0.9, deco: 'chains', emblem: 'skull' },
+  schlangentempel: { stone: '#4a7a6a', top: '#7aa894', accent: '#7ad8c8', deep: '#08302a', mid: '#7ad8c8', core: '#eafff8', motes: 'firefly', spin: 1, deco: 'snake', emblem: 'snake', trim: '#c9a35a' },
+  titanenschmiede: { stone: '#54504c', top: '#726a62', accent: '#ffb04a', deep: '#3a1a00', mid: '#ffb04a', core: '#fff2c0', motes: 'ember', spin: 1.1, deco: 'forge', emblem: 'anvil' }
+};
+const WELTTOR_LOOK = { id: 'weltentor', stone: '#8a8478', top: '#b0a898', accent: '#7ab8ff', deep: '#0e2a52', mid: '#7ab8ff', core: '#e8f6ff', motes: 'wisp', spin: 0.8 };
+for (const id in RIFT_LOOK) RIFT_LOOK[id].id = id;
+
+// Aussehen eines Dungeons; Endboss-Tore und unbekannte Dungeons leiten es aus der Portalfarbe ab
+function riftLook(d) {
+  let L = RIFT_LOOK[d.id];
+  if (!L) {
+    const c = d.portal;
+    L = RIFT_LOOK[d.id] = {
+      id: d.id, stone: d.raid ? '#3a3034' : '#7a7268', top: d.raid ? '#5a4a50' : '#a49a8c', accent: c,
+      deep: mixColor('#200408', c, 0.18), mid: c, core: lighter(c, 0.7), motes: d.raid ? 'ember' : 'wisp', spin: d.raid ? 1.2 : 1, emblem: d.raid ? 'skull' : null
+    };
+  }
+  return L;
+}
+
+// Funkenarten im Shader: 0 in den Wirbel gezogen, 1 Schnee fällt, 2 Glut steigt, 3 Glühwürmchen
+const MOTE_KIND3 = { wisp: 0, dust: 0, snow: 1, ember: 2, firefly: 3 };
+
+const VORTEX3_VS = `
+  varying vec2 vUv;
+  #include <fog_pars_vertex>
+  void main() {
+    vUv = uv;
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * mvPosition;
+    #include <fog_vertex>
+  }`;
+// p = Ort im Wirbel (Mitte 0, Rand 1). Zwei Spiralen gegeneinander, in drei harte Stufen geteilt wie die
+// Schattierung der Figuren; heller Kern; leuchtender Innenrand. uArch: Torbogen (x 1) mit Mittelpunkt des
+// Halbkreises (y), seinem Radius (z) und der Unterkante (w), sonst ein Kreis.
+const VORTEX3_FS = `
+  uniform float uTime;
+  uniform float uSpin;
+  uniform float uAlpha;
+  uniform vec3 uDeep;
+  uniform vec3 uMid;
+  uniform vec3 uCore;
+  uniform vec4 uArch;
+  varying vec2 vUv;
+  #include <fog_pars_fragment>
+  void main() {
+    vec2 p = vUv * 2.0 - 1.0;
+    float r = length(p);
+    float b = r;
+    if (uArch.x > 0.5) b = p.y > uArch.y ? length(p - vec2(0.0, uArch.y)) / uArch.z : max(abs(p.x) / uArch.z, (uArch.y - p.y) / (uArch.y + uArch.w));
+    if (b > 1.0) discard;
+    float a = atan(p.y, p.x);
+    float t = uTime * uSpin;
+    float s1 = 0.5 + 0.5 * sin(a * 3.0 + 7.0 * r - t * 2.0);
+    float s2 = 0.5 + 0.5 * sin(-a * 2.0 + 11.0 * r - t * 1.3 + 1.7);
+    float m = mix(s1, s2, 0.28);
+    float k = max(0.0, 1.0 - r);
+    float v = m * (0.35 + 0.65 * k) + k * 0.45;
+    float q = smoothstep(0.30, 0.36, v) * 0.5 + smoothstep(0.58, 0.64, v) * 0.5;
+    vec3 col = mix(uDeep, uMid, q);
+    col = mix(col, mix(uMid, uCore, 0.55), smoothstep(0.86, 0.92, v));
+    col = mix(col, uCore, smoothstep(0.78, 0.84, k * k + m * 0.18));
+    col += uMid * smoothstep(0.80, 0.97, b) * 0.9;
+    gl_FragColor = vec4(col, uAlpha * (1.0 - smoothstep(0.95, 1.0, b)));
+    #include <fog_fragment>
+  }`;
+
+// Wirbel-Material je Aussehen (rev: kleinere, gegenläufige Schicht davor; arch: Torbogen statt Kreis).
+// Alle teilen ein Shaderprogramm, nur die Farben unterscheiden sich.
+function vortexMat(L, rev, arch) {
+  return mat3('vortex' + L.id + (rev ? 'r' : '') + (arch ? 'a' : ''), () => {
+    const u = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
+      uSpin: { value: (L.spin || 1) * (rev ? -0.75 : 1) },
+      uAlpha: { value: rev ? 0.5 : 1 },
+      uDeep: { value: new THREE.Color(L.deep) },
+      uMid: { value: new THREE.Color(L.mid) },
+      uCore: { value: new THREE.Color(L.core) },
+      uArch: { value: arch ? new THREE.Vector4(1, arch[0], arch[1], arch[2]) : new THREE.Vector4(0, 0, 1, 1) }
+    }]);
+    u.uTime = PORTAL_T;
+    return new THREE.ShaderMaterial({ uniforms: u, vertexShader: VORTEX3_VS, fragmentShader: VORTEX3_FS, fog: true, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+  });
+}
+
+// Funken: feste Punkte (Phase, Bahnradius, Tempo), die Bahn rechnet der Shader aus der Zeit
+const MOTES3_VS = `
+  attribute vec3 mote;
+  uniform float uTime;
+  uniform float uKind;
+  uniform float uSize;
+  varying float vA;
+  void main() {
+    float k = fract(uTime * mote.z + mote.x);
+    float a = mote.x * 6.2832 + k * 2.6;
+    vec3 p;
+    if (uKind < 0.5) {
+      p = mix(vec3(cos(a) * mote.y * 1.3, 0.2, sin(a) * mote.y * 1.3), vec3(0.0, 1.3, 0.0), k * k);
+      vA = sin(k * 3.1416);
+    } else if (uKind < 1.5) {
+      p = vec3(cos(a) * mote.y + sin(k * 9.0 + mote.x * 20.0) * 0.15, 3.0 - k * 2.9, sin(a) * mote.y);
+      vA = sin(k * 3.1416);
+    } else if (uKind < 2.5) {
+      p = vec3(cos(a) * mote.y * (1.0 - 0.4 * k), 0.15 + k * 2.8, sin(a) * mote.y * (1.0 - 0.4 * k));
+      vA = 1.0 - k;
+    } else {
+      float w = uTime * mote.z * 2.0 + mote.x * 6.2832;
+      p = vec3(cos(w) * mote.y * 1.3, 0.5 + mote.y * 0.7 + sin(w * 1.7) * 0.35, sin(w * 1.3) * mote.y * 1.3);
+      vA = smoothstep(0.1, 1.0, sin(uTime * 3.0 * mote.z + mote.x * 40.0));
+    }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = uSize * projectionMatrix[1][1] / -mv.z;
+  }`;
+const MOTES3_FS = `
+  uniform vec3 uColor;
+  varying float vA;
+  void main() {
+    float a = smoothstep(0.5, 0.15, length(gl_PointCoord - 0.5)) * vA;
+    gl_FragColor = vec4(uColor, a);
+  }`;
+function motesMat(L) {
+  return mat3('motes' + L.id, () => new THREE.ShaderMaterial({
+    uniforms: { uTime: PORTAL_T, uSize: MOTE_SIZE3, uKind: { value: MOTE_KIND3[L.motes] || 0 }, uColor: { value: new THREE.Color(L.motes === 'snow' ? '#ffffff' : lighter(L.mid, 0.45)) } },
+    vertexShader: MOTES3_VS, fragmentShader: MOTES3_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+}
+function motesGeo() {
+  return geo3('portalMotes', () => {
+    const n = 14;
+    const rnd = mulberry32(84);
+    const m = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+      m[i * 3] = i / n + rnd() * 0.05;
+      m[i * 3 + 1] = 0.55 + rnd() * 0.6;
+      m[i * 3 + 2] = 0.16 + rnd() * 0.18;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    g.setAttribute('mote', new THREE.BufferAttribute(m, 3));
+    return g;
+  });
+}
+
+// Leuchtende Fläche mit Textur aus drei-fx.js (Schein, Lichtfleck, Runenkreis, Lichtsäule), additiv, ohne Nebel
+function portalGlowMat(kind, tex, color, opacity) {
+  return mat3('pglow' + kind + color + opacity, () => new THREE.MeshBasicMaterial({
+    map: fx3Texture(tex), color, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false
+  }));
+}
+const portalPlane3 = () => geo3('pplane', () => new THREE.PlaneGeometry(2, 2));
+const portalFloor3 = () => geo3('pfloor', () => new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2));
+
+// Torbogen-Fläche (unten Rechteck, oben Halbkreis) mit Wirbel-Koordinaten: Mitte bei y = cy, Einheit sc
+const GATE3 = { w: 0.55, y0: 0.2, ya: 1.6, cy: 1.22, sc: 0.62 };
+function archVeilGeo() {
+  return geo3('archveil', () => {
+    const G = GATE3;
+    const s = new THREE.Shape();
+    s.moveTo(-G.w, G.y0);
+    s.lineTo(G.w, G.y0);
+    s.lineTo(G.w, G.ya);
+    s.absarc(0, G.ya, G.w, 0, Math.PI, false);
+    s.lineTo(-G.w, G.y0);
+    const g = new THREE.ShapeGeometry(s, 20);
+    const P = g.attributes.position;
+    const U = g.attributes.uv;
+    for (let i = 0; i < P.count; i++) U.setXY(i, P.getX(i) / (2 * G.sc) + 0.5, (P.getY(i) - G.cy) / (2 * G.sc) + 0.5);
+    return g;
+  });
+}
+const GATE3_ARCH = [(GATE3.ya - GATE3.cy) / GATE3.sc, GATE3.w / GATE3.sc, (GATE3.cy - GATE3.y0) / GATE3.sc];
+
+// Nicht gebackene Teile an die Knochen hängen. o: vortex/halo { bone, p, s, tilt, arch }, motes { bone },
+// pool/rune { bone, y, r }, beam { r, h }, back: gegenläufige zweite Wirbelschicht (nur Hoch/Ultra)
+function portalExtras(a, B, L, o) {
+  a.extras = [];
+  const put = (obj, c, order) => {
+    obj.position.set(c.p ? c.p[0] : 0, c.p ? c.p[1] : c.y || 0, c.p ? c.p[2] : 0);
+    if (c.tilt) obj.rotation.x = c.tilt;
+    if (c.s) obj.scale.set(c.s[0], c.s[1], c.s[2] || 1);
+    else if (c.r) obj.scale.setScalar(c.r);
+    obj.renderOrder = order;
+    B[c.bone || 0].add(obj);
+    a.extras.push(obj);
+    return obj;
+  };
+  if (o.halo) a.halo = put(new THREE.Mesh(portalPlane3(), portalGlowMat('halo', 'disc', L.mid, 0.34)), o.halo, 1);
+  if (o.pool) put(new THREE.Mesh(portalFloor3(), portalGlowMat('pool', 'disc', L.mid, o.pool.op || 0.3)), o.pool, 1);
+  if (o.rune) a.rune = put(new THREE.Mesh(portalFloor3(), portalGlowMat('rune', 'rune', L.accent, o.rune.op || 0.32)), o.rune, 1);
+  if (o.beam) {
+    a.beam = put(new THREE.Mesh(geo3('pbeam', () => new THREE.CylinderGeometry(1, 1.1, 1, 20, 1, true).translate(0, 0.5, 0)), portalGlowMat('beam', 'beam', L.mid, 0.4)), o.beam, 3);
+    a.beam.scale.set(o.beam.r, o.beam.h, o.beam.r);
+  }
+  const geo = o.vortex.arch ? archVeilGeo() : geo3('vortexDisc', () => new THREE.CircleGeometry(1, 48));
+  a.vortex = put(new THREE.Mesh(geo, vortexMat(L, false, o.vortex.arch && GATE3_ARCH)), o.vortex, 2);
+  if (o.back) {
+    const c = o.vortex;
+    a.vortexBack = put(new THREE.Mesh(geo, vortexMat(L, true, c.arch && GATE3_ARCH)), Object.assign({}, c, { s: [c.s[0] * 0.78, c.s[1] * 0.78, 1], p: [c.p[0], c.p[1] + (c.arch ? GATE3.cy * 0.22 : 0), c.p[2] + 0.03] }), 2);
+  }
+  const pts = new THREE.Points(motesGeo(), motesMat(L));
+  pts.frustumCulled = false;
+  a.motes = put(pts, o.motes || {}, 3);
+}
+
+// Je Bild: Runenkreis dreht sich, Schein atmet, Funken und zweite Wirbelschicht nur ab Mittel bzw. Hoch
+function portalTick(a, t) {
+  PORTAL_T.value = t;
+  MOTE_SIZE3.value = renderer.h * V3.gl.getPixelRatio() * 0.035;
+  const on = a.alpha == null || a.alpha >= 1;
+  if (a.rune) a.rune.rotation.y = t * 0.3;
+  if (a.halo) a.halo.material.opacity = 0.3 + 0.08 * Math.sin(t * 2.5);
+  if (a.motes) a.motes.visible = on && opts.graphics !== 'niedrig';
+  if (a.vortexBack) a.vortexBack.visible = on && (opts.graphics === 'hoch' || opts.graphics === 'ultra');
+}
+
+// Für warmPrograms: je ein Wirbel, Funken und Schein, damit die Shader beim Start übersetzt werden
+function portalWarm3() {
+  const g = new THREE.Group();
+  const L = WELTTOR_LOOK;
+  g.add(new THREE.Mesh(geo3('vortexDisc', () => new THREE.CircleGeometry(1, 48)), vortexMat(L)));
+  g.add(new THREE.Mesh(portalPlane3(), portalGlowMat('halo', 'disc', L.mid, 0.34)));
+  const pts = new THREE.Points(motesGeo(), motesMat(L));
+  pts.frustumCulled = false;
+  g.add(pts);
+  return g;
+}
+
+// Kissenstein: Kugel, zum Quader hin gedrückt (weich und rund, aber mit Flächen). Halb so viele Dreiecke wie
+// ein abgerundeter Quader, die Größe kommt über s (Halbachsen).
+const pillow3 = () => geo3('pillow3', () => {
+  const g = new THREE.SphereGeometry(1, 12, 8);
+  const P = g.attributes.position;
+  const f = (v) => Math.sign(v) * Math.pow(Math.abs(v), 0.5);
+  for (let i = 0; i < P.count; i++) P.setXYZ(i, f(P.getX(i)), f(P.getY(i)), f(P.getZ(i)));
+  return smoothGeo(g.toNonIndexed());
+});
+
+// Glyphe aus zwei, drei Strichen (leuchtend, schlichte Quader) auf einer Steinfläche; R: Teil-Funktion im Rahmen des Steins
+function rune3(R, color, k, o) {
+  const s = (w, h, x, y, r) => R(box3(), color, Object.assign({}, o, { p: [o.p[0] + x, o.p[1] + y, o.p[2]], r: [0, 0, (o.rz || 0) + r], s: [w, h, 0.02], mat: 'glow' }));
+  const v = k % 3;
+  if (v === 0) { s(0.03, 0.15, 0, 0, 0); s(0.025, 0.08, 0.025, 0.03, -0.7); s(0.025, 0.08, -0.025, -0.03, -0.7); }
+  else if (v === 1) { s(0.03, 0.14, -0.03, 0, 0.25); s(0.03, 0.14, 0.03, 0, -0.25); s(0.08, 0.025, 0, -0.02, 0); }
+  else { s(0.03, 0.15, 0, 0, 0); s(0.07, 0.025, 0, 0.05, 0); s(0.025, 0.06, 0.03, -0.04, 0.6); }
+}
+
+// Zeichen des Dungeons auf dem Schlussstein. P: Mitte der Vorderseite, R: Teil-Funktion (Knochen/Rahmen)
+function emblem3(R, kind, L, P, k = 1) {
+  const at = (x, y, z = 0) => [P[0] + x * k, P[1] + y * k, P[2] + z * k];
+  const g = { mat: 'glow' };
+  if (kind === 'spider') {
+    R(ball(8), L.accent, Object.assign({ p: at(0, -0.03, 0.01), s: [0.055 * k, 0.065 * k, 0.025 * k] }, g));
+    R(ball(8), L.accent, Object.assign({ p: at(0, 0.055, 0.01), s: [0.035 * k, 0.03 * k, 0.02 * k] }, g));
+    for (const sx of [-1, 1]) for (let i = 0; i < 4; i++) {
+      R(box3(), L.accent, Object.assign({ p: at(sx * 0.07, 0.06 - i * 0.04, 0.012), r: [0, 0, sx * (0.9 - i * 0.55)], s: [0.11 * k, 0.014 * k, 0.012 * k] }, g));
+    }
+  } else if (kind === 'tusks') {
+    for (const sx of [-1, 1]) R(horn3(0.2 * k, 0.035 * k, 8), '#efe4c8', { p: at(sx * 0.07, -0.08, 0.02), r: [0.3, 0, -sx * 0.45], shine: 0.5 });
+    R(ball(8), L.accent, Object.assign({ p: at(0, 0.03, 0.01), s: [0.035 * k, 0.035 * k, 0.015 * k] }, g));
+  } else if (kind === 'flake') {
+    for (let i = 0; i < 3; i++) R(box3(), '#e8fbff', Object.assign({ p: at(0, 0, 0.01), r: [0, 0, (i * Math.PI) / 3], s: [0.2 * k, 0.025 * k, 0.015 * k] }, g));
+    R(ball(8), '#ffffff', Object.assign({ p: at(0, 0, 0.015), s: 0.03 * k }, g));
+  } else if (kind === 'flame') {
+    R(horn3(0.2 * k, 0.07 * k, 10), L.accent, Object.assign({ p: at(0, -0.09, 0.01), s: [1, 1, 0.35] }, g));
+    R(horn3(0.12 * k, 0.04 * k, 10), '#fff2c0', Object.assign({ p: at(0, -0.08, 0.02), s: [1, 1, 0.35] }, g));
+  } else if (kind === 'lantern') {
+    R(roundBox(0.09 * k, 0.12 * k, 0.05 * k, 0.02 * k), '#3a2a1a', { p: at(0, 0, 0.02), shine: 0.6 });
+    R(ball(8), '#ffd070', Object.assign({ p: at(0, 0, 0.045), s: [0.03 * k, 0.04 * k, 0.012 * k] }, g));
+  } else if (kind === 'skull') {
+    R(ball(10), '#ece4cc', { p: at(0, 0.015, 0.02), s: [0.085 * k, 0.08 * k, 0.05 * k], shade: 0.2 });
+    R(roundBox(0.1 * k, 0.05 * k, 0.05 * k, 0.02 * k), '#ece4cc', { p: at(0, -0.06, 0.02) });
+    for (const sx of [-1, 1]) {
+      R(ball(8), '#201820', { p: at(sx * 0.032, 0.015, 0.062), s: [0.024 * k, 0.026 * k, 0.012 * k], mat: 'face' });
+      R(ball(6), L.core, Object.assign({ p: at(sx * 0.032, 0.012, 0.068), s: 0.011 * k }, g));
+    }
+  } else if (kind === 'snake') {
+    R(ball(10), '#3a8a5a', { p: at(0, 0, 0.02), s: [0.07 * k, 0.09 * k, 0.04 * k], top: '#c9d870', topK: 0.3 });
+    for (const sx of [-1, 1]) R(ball(6), '#ffd84a', Object.assign({ p: at(sx * 0.035, 0.03, 0.055), s: [0.014 * k, 0.018 * k, 0.01 * k] }, g));
+    R(roundBox(0.012 * k, 0.05 * k, 0.01 * k, 0.005 * k), '#c83a3a', { p: at(0, -0.11, 0.03), mat: 'face' });
+  } else if (kind === 'anvil') {
+    R(roundBox(0.2 * k, 0.05 * k, 0.05 * k, 0.015 * k), '#3a3634', { p: at(0, 0.04, 0.03), shine: 0.9 });
+    R(roundBox(0.08 * k, 0.07 * k, 0.04 * k, 0.015 * k), '#3a3634', { p: at(0, -0.02, 0.03), shine: 0.9 });
+    R(roundBox(0.15 * k, 0.035 * k, 0.05 * k, 0.012 * k), '#3a3634', { p: at(0, -0.07, 0.03), shine: 0.9 });
+    R(ball(6), L.accent, Object.assign({ p: at(0.06, 0.08, 0.04), s: 0.015 * k }, g));
+  }
+}
+
+// Ring der Risse: Mitte in 1,3 Höhe, nach hinten gekippt (wirkt unter der schrägen Kamera höher)
+const RIFT3 = { cy: 1.3, rx: 0.8, ry: 1.08, tilt: -0.25 };
+const RIFT_M3 = new THREE.Matrix4().compose(new THREE.Vector3(0, RIFT3.cy, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(RIFT3.tilt, 0, 0)), new THREE.Vector3(1, 1, 1));
+// Punkt auf dem Ring (Winkel a: 0 rechts, π/2 oben), d: nach außen, z: nach vorn (im Rahmen des Rings)
+const riftPt3 = (a, d = 0, z = 0) => [Math.cos(a) * (RIFT3.rx + d), Math.sin(a) * (RIFT3.ry + d), z];
+// Drehung, mit der ein Teil entlang des Rings liegt (lokales y zeigt in Laufrichtung)
+const riftRot3 = (a) => Math.atan2(Math.cos(a) * RIFT3.ry, -Math.sin(a) * RIFT3.rx) - Math.PI / 2;
+
+// Bodenart unter dem Riss (einmal gemerkt): bestimmt die Farbe des Hügels und ob Gras darauf wächst
+function riftGround3(n) {
+  if (n.__g3 == null) {
+    let g = groundAt(Math.floor(n.x / TILE), Math.floor(feetY(n) / TILE));
+    if (g < 0 || g === GROUND.WATER) g = GROUND.SAND;
+    else if (g === GROUND.LAVA) g = GROUND.BASALT;
+    else if (g === GROUND.BOG) g = GROUND.SWAMP;
+    n.__g3 = g;
+  }
+  return n.__g3;
+}
+
+// Glatter Schlauch entlang einer Kurve, von r0 (Anfang) bis r1 (Ende) dicker werdend, mit runden Enden
+function taperTube3(curve, r0, r1, seg, rad) {
+  const g = new THREE.TubeGeometry(curve, seg, 1, rad, false);
+  const P = g.attributes.position;
+  const c = new THREE.Vector3();
+  for (let i = 0; i <= seg; i++) {
+    const u = i / seg;
+    curve.getPointAt(u, c);
+    // Enden zur Spitze zusammenziehen (Schwanz spitz, Kopfansatz rund)
+    const r = (r0 + (r1 - r0) * u) * (u < 0.06 ? 0.3 + (u / 0.06) * 0.7 : 1);
+    for (let j = 0; j <= rad; j++) {
+      const k = i * (rad + 1) + j;
+      P.setXYZ(k, c.x + (P.getX(k) - c.x) * r, c.y + (P.getY(k) - c.y) * r, c.z + (P.getZ(k) - c.z) * r);
+    }
+  }
+  g.computeVertexNormals();
+  return g;
+}
+
+// Schmuck am Ring je Dungeon. R: Teil im Ringrahmen (Knochen 1), K: am Schlussstein (Knochen 3), A: am Boden
+const RIFT_DECO3 = {
+  web(R, K, A, L) {
+    // Spinnennetz in der oberen linken Ecke, zwei Eiersäcke am Hügel
+    const c = riftPt3(2.5, -0.42, 0.06);
+    const silk = { mat: 'face' };
+    for (const a of [1.95, 2.2, 2.5, 2.8, 3.05]) {
+      const e = riftPt3(a, -0.16, 0.06);
+      limbBetween(R, c, e, 0.008, 0.008, '#f4f0ff', Object.assign({ seg: 4 }, silk));
+    }
+    for (const d of [-0.24, -0.33]) {
+      let prev = null;
+      for (const a of [1.95, 2.2, 2.5, 2.8, 3.05]) {
+        const q = riftPt3(a, d, 0.06);
+        if (prev) limbBetween(R, prev, q, 0.007, 0.007, '#f4f0ff', Object.assign({ seg: 4 }, silk));
+        prev = q;
+      }
+    }
+    A(ball(10), '#ece4d4', { p: [-0.92, 0.2, 0.32], s: [0.14, 0.11, 0.13], shade: 0.25 });
+    A(ball(10), '#ece4d4', { p: [0.86, 0.17, 0.42], s: [0.1, 0.08, 0.1], shade: 0.25 });
+  },
+  ork(R, K, A, L) {
+    // Eisenbänder um drei Steine, zwei Hauer am Schlussstein, rotes Banner
+    for (const i of [2, 5, 8]) {
+      const a = Math.PI / 2 - (i * Math.PI) / 5;
+      R(roundBox(0.34, 0.07, 0.32, 0.03), '#3a3430', { p: riftPt3(a), r: [0, 0, riftRot3(a)], shine: 0.8, top: '#5a524a', topK: 0.4 });
+    }
+    for (const sx of [-1, 1]) K(horn3(0.5, 0.08, 10), '#efe4c8', { p: [sx * 0.2, RIFT3.ry + 0.05, 0.04], r: [0, 0, -sx * 0.75], shine: 0.5 });
+    const b = riftPt3(-0.2, 0.2, 0.1);
+    R(roundBox(0.24, 0.42, 0.025, 0.012), '#a8302a', { p: [b[0] + 0.08, b[1] - 0.12, b[2]], r: [0, 0, 0.08], shade: 0.3 });
+    R(ball(8), '#1a1210', { p: [b[0] + 0.08, b[1] - 0.08, b[2] + 0.02], s: [0.06, 0.06, 0.01], mat: 'face' });
+    R(roundBox(0.3, 0.035, 0.035, 0.015), '#4a3020', { p: [b[0] + 0.08, b[1] + 0.1, b[2]], r: [0, 0, 0.08] });
+  },
+  ice(R, K, A, L) {
+    // Eiszapfen außen an den oberen Seitensteinen, Kristallgruppen am Hügel
+    [[0.3, 0.26], [0.55, 0.18], [2.6, 0.2], [2.85, 0.28]].forEach(([a, len]) => {
+      const p = riftPt3(a, 0.1, 0.04);
+      R(horn3(len, 0.04, 8), '#d8f2ff', { p: [p[0], p[1] - 0.08, p[2]], r: [0, 0, Math.PI], shine: 0.9, top: '#ffffff' });
+    });
+    for (const [x, z, s] of [[-0.85, 0.35, 1], [0.8, 0.4, 0.8]]) {
+      for (let i = 0; i < 3; i++) {
+        A(lathe3('icecrys', [[0, 0], [0.07, 0.04], [0.06, 0.24], [0, 0.34]], 6), i ? '#bfefff' : '#e8fbff', { p: [x + (i - 1) * 0.08 * s, 0.1, z + (i % 2) * 0.05], s, r: [0.15 * (i % 2), 0, (i - 1) * 0.45], shine: 0.9, top: '#ffffff', topK: 0.5 });
+      }
+    }
+  },
+  lava(R, K, A, L) {
+    // glühende Lavaadern über die Steine, Obsidiansplitter am Hügel
+    for (let i = 1; i < 10; i++) {
+      const a = Math.PI / 2 - (i * Math.PI) / 5;
+      const p = riftPt3(a, 0, 0.19);
+      const rz = riftRot3(a);
+      R(box3(), L.accent, { p, r: [0, 0, rz + 0.5], s: [0.03, 0.2, 0.02], mat: 'glow' });
+      R(box3(), '#ffd27a', { p: [p[0] + 0.05 * Math.cos(rz), p[1] + 0.05 * Math.sin(rz), p[2]], r: [0, 0, rz - 0.6], s: [0.025, 0.12, 0.02], mat: 'glow' });
+    }
+    for (let i = 0; i < 5; i++) {
+      const a = 0.4 + i * 1.25;
+      A(horn3(0.22 + (i % 2) * 0.1, 0.07, 6), '#1e1a20', { p: [Math.cos(a) * 1.05, 0.06, Math.sin(a) * 1.05], r: [Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5], shine: 1, top: '#4a4050' });
+    }
+  },
+  rope(R, K, A, L) {
+    // Seile um zwei Steine, eine Laterne hängt am rechten Stein
+    for (const i of [2, 8]) {
+      const a = Math.PI / 2 - (i * Math.PI) / 5;
+      for (const d of [-0.07, 0.07]) {
+        const rz = riftRot3(a);
+        const p = riftPt3(a);
+        R(torus3(0.16, 0.02, Math.PI * 2, 4, 14), '#b08a5a', { p: [p[0] - Math.sin(rz) * d, p[1] + Math.cos(rz) * d, p[2]], r: [Math.PI / 2, 0, rz], order: 'ZXY', s: [1.02, 0.92, 1] });
+      }
+    }
+    const h = riftPt3(0.15, 0.22, 0.06);
+    R(torus3(0.04, 0.012, Math.PI * 2, 4, 8), '#3a3430', { p: [h[0], h[1] - 0.04, h[2]], shine: 0.8 });
+    R(roundBox(0.12, 0.15, 0.12, 0.03), '#3a2a1a', { p: [h[0], h[1] - 0.17, h[2]], shine: 0.6 });
+    R(ball(8), '#ffd070', { p: [h[0], h[1] - 0.17, h[2]], s: [0.05, 0.065, 0.065], mat: 'glow' });
+    R(lathe3('lanterncap', [[0.09, 0], [0.04, 0.06], [0, 0.07]], 8), '#3a2a1a', { p: [h[0], h[1] - 0.095, h[2]] });
+  },
+  chains(R, K, A, L) {
+    // zwei Ketten hängen außen an den oberen Steinen
+    for (const a of [0.75, 2.4]) {
+      const p = riftPt3(a, 0.12, 0.12);
+      for (let i = 0; i < 5; i++) R(torus3(0.035, 0.012, Math.PI * 2, 4, 8), '#4a4650', { p: [p[0], p[1] - 0.05 - i * 0.06, p[2]], r: [0, i % 2 ? Math.PI / 2 : 0, 0], s: [0.8, 1, 1], shine: 0.8 });
+    }
+    A(ball(10), '#d8d0bc', { p: [0.82, 0.16, 0.45], s: [0.09, 0.075, 0.08], shade: 0.2 });
+  },
+  snake(R, K, A, L) {
+    // Steinschlange liegt außen auf dem Ring (Schwanz unten rechts, Kopf oben neben dem Schlussstein), Ranken
+    // mit Blättern; Goldbänder an Sockel und Schlussstein
+    R(geo3('riftsnake', () => {
+      const pts = [];
+      for (let i = 0; i <= 12; i++) {
+        const u = i / 12;
+        pts.push(new THREE.Vector3(...riftPt3(-1.25 + u * 2.45, 0.17, 0.12 + Math.sin(u * Math.PI * 3) * 0.05)));
+      }
+      return taperTube3(new THREE.CatmullRomCurve3(pts), 0.025, 0.065, 48, 8);
+    }), '#3a8a5a', { top: '#a8c860', topK: 0.35 });
+    const hd = riftPt3(1.27, 0.2, 0.16);
+    R(ball(12), '#3a8a5a', { p: hd, s: [0.1, 0.075, 0.13], r: [0.5, 0, -0.4], top: '#a8c860', topK: 0.35 });
+    for (const sx of [-1, 1]) R(ball(6), '#ffd84a', { p: [hd[0] + sx * 0.05, hd[1] + 0.035, hd[2] + 0.06], s: 0.018, mat: 'glow' });
+    R(roundBox(0.012, 0.07, 0.01, 0.005), '#c83a3a', { p: [hd[0] - 0.03, hd[1] - 0.06, hd[2] + 0.1], r: [0.6, 0, 0.4], mat: 'face' });
+    for (const a of [2.15, 2.75]) {
+      const p0 = riftPt3(a, 0.1, 0.12);
+      const p1 = [p0[0] - 0.04, p0[1] - 0.2, p0[2] + 0.02];
+      const p2 = [p1[0] + 0.03, p1[1] - 0.2, p1[2]];
+      limbBetween(R, p0, p1, 0.016, 0.014, '#3a6a2a', { seg: 4, mat: 'face' });
+      limbBetween(R, p1, p2, 0.014, 0.01, '#3a6a2a', { seg: 4, mat: 'face' });
+      for (const q of [p1, p2]) R(ball(8), '#5a9a3a', { p: q, s: [0.06, 0.045, 0.04], top: '#8ac85a', topK: 0.4 });
+    }
+    for (const i of [4, 6]) {
+      const a = Math.PI / 2 - (i * Math.PI) / 5;
+      R(roundBox(0.48, 0.05, 0.42, 0.02), L.trim, { p: riftPt3(a), r: [0, 0, riftRot3(a)], shine: 1 });
+    }
+    K(roundBox(0.42, 0.05, 0.3, 0.02), L.trim, { p: [0, RIFT3.ry - 0.12, 0], shine: 1 });
+  },
+  forge(R, K, A, L) {
+    // Goldnieten auf jedem Stein, eine glühende Fuge quer darüber
+    for (let i = 1; i < 10; i++) {
+      const a = Math.PI / 2 - (i * Math.PI) / 5;
+      const rz = riftRot3(a);
+      const p = riftPt3(a, 0, 0.19);
+      for (const d of [-0.13, 0.13]) R(sphere3(0.03, 6, 4), '#d8b04a', { p: [p[0] + Math.cos(rz) * d, p[1] + Math.sin(rz) * d, p[2]], shine: 1 });
+      R(box3(), L.accent, { p: riftPt3(a, 0, 0.185), r: [0, 0, rz], s: [0.3, 0.025, 0.02], mat: 'glow' });
+    }
+  }
+};
+
+// Riss (seit 8.4): Ring aus Runensteinen auf einem Erdhügel, darin der Wirbel, ringsum Kristallsplitter
+// Knochen: 0 Hügel, 1 Ring und Wirbel (dreht sich zur Kamera), 2 Splitter, 3 Schlussstein
+function buildRift3(b, d, ground) {
+  const L = riftLook(d);
+  const A = adder(b, null);
+  const R = (geo, color, o) => b.add(geo, color, Object.assign({ bone: 1 }, o, { parent: RIFT_M3 }));
+  const K = (geo, color, o) => R(geo, color, Object.assign({}, o, { bone: 3 }));
+  const top = [0, RIFT3.cy + Math.cos(RIFT3.tilt) * RIFT3.ry, Math.sin(RIFT3.tilt) * RIFT3.ry];
+  const rig = rigOf([[[0, 0, 0], -1], [[0, RIFT3.cy, 0], 0], [[0, RIFT3.cy, 0], 0], [top, 1]]);
+  const rnd = mulberry32(17 + d.id.length * 31 + d.id.charCodeAt(0));
+  // Erdhügel; oben die Farbe des Bodens ringsum (Gras, Schnee, Sand, Asche)
+  // (dunkler als die Bodenfarbe: die Zeichentrick-Beleuchtung hellt Oberseiten stärker auf als der Boden-Shader)
+  const turf = darker(GROUND_PALETTE[ground] ? GROUND_PALETTE[ground][2] : '#5a8a3a', 0.16);
+  A(lathe3('riftmound3', [[0.98, -0.02], [0.92, 0.05], [0.8, 0.11], [0.5, 0.16], [0, 0.17]], 22), '#5a4434', { top: turf, topK: 0.9, shade: 0.15, ao: 0, noShadow: true });
+  // Steinring: 9 glatte Steine und der Schlussstein oben, unten drei schwere Sockelsteine im Hügel
+  for (let i = 1; i < 10; i++) {
+    const a = Math.PI / 2 - (i * Math.PI) / 5;
+    const base = i >= 4 && i <= 6;
+    const j = 0.9 + rnd() * 0.2;
+    const s = base ? [0.19 * j, 0.25 * (0.92 + rnd() * 0.12), 0.18] : [0.15 * j, 0.235 * (0.92 + rnd() * 0.12), 0.14];
+    R(pillow3(), L.stone, { p: riftPt3(a, base ? 0.03 : 0), r: [0, 0, riftRot3(a) + (rnd() - 0.5) * 0.12], s, top: L.top, topK: L.topK || 0.45, shade: 0.22 });
+    if (i % 2) rune3(R, L.accent, i, { p: riftPt3(a, 0.01, (base ? 0.19 : 0.15) + 0.004), rz: riftRot3(a) + Math.PI / 2 });
+  }
+  // Steinband hinter den Steinen hält den Ring zusammen
+  R(geo3('riftband', () => new THREE.TorusGeometry(1, 0.085, 6, 32).scale(RIFT3.rx, RIFT3.ry, 1)), darker(L.stone, 0.22), { p: [0, 0, -0.03], top: darker(L.top, 0.15), topK: 0.3 });
+  K(pillow3(), lighter(L.stone, 0.06), { p: [0, RIFT3.ry + 0.03, 0], s: [0.21, 0.19, 0.18], top: L.top, topK: L.topK || 0.45, shade: 0.2 });
+  if (L.emblem) emblem3(K, L.emblem, L, [0, RIFT3.ry + 0.02, 0.18]);
+  else rune3(K, L.accent, 0, { p: [0, RIFT3.ry + 0.03, 0.185] });
+  // Wurzeln: von den Sockelsteinen über den Hügel in den Boden
+  // Höhe des Hügels in Abstand r (für Wurzeln, die auf ihm liegen)
+  const hill = (r) => (r < 0.5 ? 0.17 - r * 0.02 : r < 0.8 ? 0.16 - (r - 0.5) * 0.17 : r < 0.92 ? 0.11 - (r - 0.8) * 0.5 : 0.05 - (r - 0.92) * 1.1);
+  for (const [x, ang, len] of [[-0.4, 2.7, 1.1], [-0.28, 1.95, 1.0], [0.4, 0.4, 1.15], [0.3, -0.5, 0.95], [-0.05, -2.0, 0.95]]) {
+    let prev = [x, 0.34, 0.2];
+    for (let k = 1; k <= 3; k++) {
+      const u = k / 3;
+      const bend = Math.sin(u * Math.PI) * 0.18;
+      const px = x + Math.cos(ang + bend) * len * u;
+      const pz = 0.2 + Math.sin(ang + bend) * len * u;
+      const q = [px, hill(Math.hypot(px, pz)) + 0.01, pz];
+      limbBetween(A, prev, q, 0.06 - k * 0.012, 0.05 - k * 0.012, '#4a3424', { seg: 4, top: '#7a5a40', topK: 0.5, noShadow: true });
+      prev = q;
+    }
+  }
+  // Grasbüschel oder Schneehäufchen am Rand, ein paar Kiesel
+  const grassy = ground === GROUND.GRASS || ground === GROUND.MEADOW || ground === GROUND.FOREST || ground === GROUND.SWAMP;
+  const snowy = ground === GROUND.SNOW || ground === GROUND.ICE;
+  for (let i = 0; i < 6; i++) {
+    const a = 0.3 + i * 1.05 + rnd() * 0.3;
+    const rr = 0.8 + rnd() * 0.25;
+    const x = Math.cos(a) * rr;
+    const z = Math.sin(a) * rr;
+    if (grassy) {
+      for (let k = 0; k < 3; k++) A(horn3(0.26, 0.035, 4), k % 2 ? lighter(turf, 0.18) : darker(turf, 0.12), { p: [x + (k - 1) * 0.04, 0.02, z], r: [(rnd() - 0.5) * 0.5, 0, (k - 1) * 0.45], s: [1, 0.75 + rnd() * 0.5, 1], mat: 'face' });
+    } else if (snowy) A(ball(8), '#f4f8ff', { p: [x, 0.02, z], s: [0.12, 0.06, 0.1], top: '#ffffff' });
+    if (i % 3 === 0) A(rockGeo(i % 3), '#8a8478', { p: [x * 1.05 + 0.12, 0.03, z * 1.05], s: [0.08, 0.06, 0.07], top: '#a8a296', topK: 0.5, noShadow: true });
+  }
+  // schwebende Kristallsplitter (Knochen 2 kreist)
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    const p = [Math.cos(a) * 1.15, -0.55 + (i % 2) * 0.75, Math.sin(a) * 0.6];
+    A(lathe3('riftshard', [[0, 0], [0.07, 0.1], [0.055, 0.22], [0, 0.32]], 6), lighter(L.accent, 0.15), { bone: 2, p: [p[0], p[1] + RIFT3.cy, p[2]], r: [0.3 * (i % 2 ? 1 : -1), a, 0.35], top: lighter(L.accent, 0.6), topK: 0.6, shine: 0.9 });
+  }
+  if (L.deco) RIFT_DECO3[L.deco](R, K, A, L);
+  const extra = (a, B) => portalExtras(a, B, L, {
+    vortex: { bone: 1, p: [0, 0, 0], tilt: RIFT3.tilt, s: [0.68, 0.95, 1] },
+    back: true,
+    halo: { bone: 1, p: [0, 0.01, -0.12], tilt: RIFT3.tilt, s: [1.3, 1.28, 1] },
+    motes: { bone: 0 },
+    rune: { bone: 0, y: 0.03, r: 1.75 }
+  });
+  return { rig, height: 2.65, family: 'rift', extra };
+}
+
+// Portale: Dungeon-Eingang (Steintor mit Wirbel), Endboss-Tor (dunkler, Schädel und Hörner),
+// Ausgang (Lichtsäule über einem Runenkreis), Weltentor (Steinring mit blauem Wirbel)
+function buildPortal3(b, id, d) {
   const A = adder(b, null);
   const rig = rigOf([[[0, 0, 0], -1]]);
   if (id === 'weltentor') {
+    const L = WELTTOR_LOOK;
     A(lathe3('gatebase', [[0.85, 0], [0.85, 0.1], [0.7, 0.16], [0, 0.16]], 22), '#6e685e', {});
     A(geo3('gatering', () => new THREE.TorusGeometry(0.62, 0.12, 10, 32)), '#8a8478', { p: [0, 0.92, 0], top: '#b0a898', topK: 0.4 });
-    A(new THREE.CircleGeometry(0.52, 28), '#7ab8ff', { p: [0, 0.92, 0], mat: 'aura' });
-    A(new THREE.CircleGeometry(0.3, 20), '#e8f6ff', { p: [0, 0.92, 0.01], mat: 'aura' });
     for (let k = 0; k < 5; k++) {
       const a = (k / 5) * Math.PI * 2 + 0.3;
       A(sphere3(0.07, 8, 6), '#c9a35a', { p: [Math.cos(a) * 0.62, 0.92 + Math.sin(a) * 0.62, 0.1], shine: 1 });
     }
-    return { rig, height: 1.7, family: 'portal' };
+    const extra = (a, B) => portalExtras(a, B, L, {
+      vortex: { p: [0, 0.92, 0], s: [0.54, 0.54, 1] },
+      back: true,
+      halo: { p: [0, 0.94, -0.08], s: [1.1, 0.9, 1] },
+      pool: { y: 0.165, r: 0.7 }
+    });
+    return { rig, height: 1.7, family: 'portal', extra };
   }
+  const L = riftLook(d);
   if (id === 'eingang' || id === 'raid') {
-    // Großes Steintor (seit 6.5): zwei Säulen mit Feuerschalen, Bogen mit Schlussstein, wirbelndes Portal,
-    // Stufen davor und Runenkreis am Boden. Endboss-Tor dunkler, mit Schädel und Hörnern.
+    // Steintor (seit 8.4): rundes Podest mit zwei Stufen davor, Säulen mit Schwellung, Bogen aus Keilsteinen
+    // mit dem Zeichen des Dungeons im Schlussstein, Moos, zwei Feuerschalen; im Bogen der Wirbel.
     const raid = id === 'raid';
-    const stone = raid ? '#3a3034' : '#7a7268';
-    const top = raid ? '#5a4a50' : '#a49a8c';
-    A(roundBox(1.9, 0.12, 0.9, 0.04), darker(stone, 0.1), { p: [0, 0.06, 0.18], top, topK: 0.4 });
-    A(roundBox(1.6, 0.1, 0.7, 0.04), stone, { p: [0, 0.16, 0.12], top, topK: 0.4 });
+    const stone = raid ? '#3a3034' : mixColor('#746c62', L.stone, 0.3);
+    const top = raid ? '#5a4a50' : lighter(stone, 0.22);
+    const moss = raid ? top : '#6e8a44';
+    const dark = darker(stone, 0.12);
+    const rnd = mulberry32(5 + d.id.length * 7);
+    A(lathe3('gatedais', [[1.1, -0.02], [1.1, 0.08], [1.05, 0.1], [0.92, 0.1], [0.9, 0.18], [0.84, 0.2], [0, 0.2]], 28), dark, { top, topK: 0.5, ao: 0 });
+    A(roundBox(0.92, 0.1, 0.3, 0.04), dark, { p: [0, 0.05, 1.12], r: [0, 0.05, 0], top, topK: 0.4 });
+    A(roundBox(0.72, 0.06, 0.24, 0.03), dark, { p: [0.03, 0.03, 1.38], r: [0, -0.07, 0], top, topK: 0.4 });
     for (const sx of [-1, 1]) {
-      A(roundBox(0.34, 1.5, 0.34, 0.06), stone, { p: [sx * 0.72, 0.9, 0], top, topK: 0.5, shade: 0.3 });
-      A(roundBox(0.44, 0.12, 0.44, 0.04), darker(stone, 0.15), { p: [sx * 0.72, 0.2, 0] });
-      A(roundBox(0.44, 0.1, 0.44, 0.04), darker(stone, 0.15), { p: [sx * 0.72, 1.62, 0] });
-      // Feuerschale oben auf der Säule
-      A(cyl3(0.16, 0.1, 0.12, 12), '#3a2a20', { p: [sx * 0.72, 1.74, 0], shine: 0.5 });
-      A(horn3(0.32, 0.13, 8), color, { p: [sx * 0.72, 1.8, 0], mat: 'glow' });
-      A(horn3(0.2, 0.07, 8), '#fff2c0', { p: [sx * 0.72, 1.82, 0], mat: 'glow' });
-      // Runenband an der Säule
-      for (let k = 0; k < 3; k++) A(roundBox(0.05, 0.14, 0.02, 0.01), color, { p: [sx * 0.72, 0.6 + k * 0.32, 0.18], mat: 'glow' });
+      const x = sx * 0.72;
+      A(roundBox(0.46, 0.12, 0.46, 0.05), dark, { p: [x, 0.25, 0], top, topK: 0.4 });
+      A(torus3(0.2, 0.05, Math.PI * 2, 5, 16), stone, { p: [x, 0.33, 0], r: [Math.PI / 2, 0, 0], top, topK: 0.3 });
+      A(lathe3('gatecol', [[0.185, 0], [0.2, 0.32], [0.19, 0.65], [0.165, 0.92], [0.155, 1.04]], 12), stone, { p: [x, 0.32, 0], top, topK: 0.3, shade: 0.25 });
+      A(torus3(0.17, 0.045, Math.PI * 2, 5, 16), stone, { p: [x, 1.37, 0], r: [Math.PI / 2, 0, 0], top: moss, topK: 0.5 });
+      A(roundBox(0.44, 0.1, 0.44, 0.05), stone, { p: [x, 1.43, 0], top: moss, topK: 0.55 });
+      // Runen an der Säule
+      for (let k = 0; k < 3; k++) rune3(A, L.accent, k + (sx > 0 ? 1 : 0), { p: [x, 0.55 + k * 0.27, 0.205] });
+      // Feuerschale vorn auf dem Podest
+      const fx = sx * 0.86;
+      A(cyl3(0.04, 0.06, 0.36, 8), '#3a2a20', { p: [fx, 0.38, 0.62], shine: 0.5 });
+      A(lathe3('gatebowl', [[0, 0], [0.08, 0.01], [0.14, 0.07], [0.15, 0.12], [0.13, 0.13]], 12), '#4a3a2a', { p: [fx, 0.54, 0.62], shine: 0.6, top: '#6a5038', topK: 0.3 });
+      A(horn3(0.3, 0.11, 10), L.accent, { p: [fx, 0.6, 0.62], mat: 'glow' });
+      A(horn3(0.18, 0.06, 10), '#fff2c0', { p: [fx, 0.61, 0.62], mat: 'glow' });
     }
-    A(geo3('gatearch2', () => new THREE.TorusGeometry(0.72, 0.17, 10, 26, Math.PI)), stone, { p: [0, 1.55, 0], top, topK: 0.4, shade: 0.2 });
-    A(roundBox(0.26, 0.3, 0.26, 0.05), raid ? '#e8e0c8' : top, { p: [0, 2.28, 0.04] });
-    if (raid) {
-      for (const sx of [-1, 1]) A(horn3(0.5, 0.09, 8), '#e8dcc0', { p: [sx * 0.24, 2.35, 0.04], r: [0, 0, -sx * 0.9], shine: 0.5 });
-      for (const sx of [-1, 1]) A(sphere3(0.04, 8, 6), color, { p: [sx * 0.06, 2.3, 0.18], mat: 'glow' });
+    // Bogen aus sieben Keilsteinen, der mittlere ist der Schlussstein
+    for (let i = 0; i < 7; i++) {
+      const a = (i * Math.PI) / 6;
+      const p = [Math.cos(a) * 0.72, GATE3.ya + Math.sin(a) * 0.72, 0];
+      if (i === 3) continue;
+      A(pillow3(), i % 2 ? stone : lighter(stone, 0.04), { p, r: [0, 0, a - Math.PI / 2 + (rnd() - 0.5) * 0.06], s: [0.15 * (0.94 + rnd() * 0.12), 0.18, 0.19], top: i === 0 || i === 6 ? top : moss, topK: i === 0 || i === 6 ? 0.3 : 0.35, shade: 0.2 });
     }
-    // Portalfläche: Rand, Wirbel, heller Kern (Knochen 1 dreht sich)
-    A(new THREE.CircleGeometry(0.55, 30), darker(color, 0.55), { p: [0, 1.55, 0.04], mat: 'aura' });
-    A(geo3('portalbody', () => new THREE.PlaneGeometry(1.1, 1.35)), darker(color, 0.55), { p: [0, 0.9, 0.04], mat: 'aura' });
-    for (let k = 0; k < 3; k++) A(geo3('swirl' + k, () => new THREE.TorusGeometry(0.16 + k * 0.13, 0.035, 6, 28, Math.PI * 1.4)), k % 2 ? '#ffffff' : color, { bone: 1, p: [0, 1.2, 0.08 + k * 0.005], r: [0, 0, k * 2.1], mat: 'glow' });
-    A(new THREE.CircleGeometry(0.14, 18), '#ffffff', { bone: 1, p: [0, 1.2, 0.1], mat: 'aura' });
-    // Runenkreis am Boden
-    A(geo3('gatering2', () => new THREE.RingGeometry(1.05, 1.18, 40).rotateX(-Math.PI / 2)), color, { p: [0, 0.03, 0.2], mat: 'aura' });
-    for (let k = 0; k < 10; k++) {
-      const a2 = (k / 10) * Math.PI * 2;
-      A(roundBox(0.06, 0.01, 0.12, 0.004), color, { p: [Math.cos(a2) * 1.25, 0.03, 0.2 + Math.sin(a2) * 1.25], r: [0, -a2, 0], mat: 'glow' });
-    }
-    const rig2 = rigOf([[[0, 0, 0], -1], [[0, 1.2, 0.08], 0]]);
-    return { rig: rig2, height: 2.4, family: 'portal' };
+    const kp = [0, GATE3.ya + 0.74, 0.01];
+    A(pillow3(), raid ? '#4a3e44' : lighter(stone, 0.08), { p: kp, s: [0.18, 0.22, 0.22], top: moss, topK: 0.4 });
+    if (L.emblem) emblem3(A, L.emblem, L, [0, kp[1] + 0.02, 0.22], 1.1);
+    if (raid) for (const sx of [-1, 1]) A(horn3(0.55, 0.09, 10), '#e8dcc0', { p: [sx * 0.2, kp[1] + 0.12, 0.02], r: [0, 0, -sx * 0.85], shine: 0.5 });
+    const extra = (a, B) => portalExtras(a, B, L, {
+      vortex: { p: [0, 0, 0], s: [1, 1, 1], arch: true },
+      back: true,
+      halo: { p: [0, GATE3.cy + 0.05, -0.1], s: [1.05, 1.15, 1] },
+      motes: {},
+      pool: { y: 0.205, r: 1.0, op: 0.16 },
+      rune: { y: 0.21, r: 0.86, op: 0.28 }
+    });
+    return { rig, height: 2.55, family: 'portal', extra };
   }
-  // Ausgang: leuchtender Kreis mit vier Steinen
-  A(new THREE.CircleGeometry(0.48, 24).rotateX(-Math.PI / 2), color, { p: [0, 0.04, 0], mat: 'aura' });
-  A(new THREE.CircleGeometry(0.28, 20).rotateX(-Math.PI / 2), '#e8f6ff', { p: [0, 0.05, 0], mat: 'aura' });
+  // Ausgang: flacher Steinkreis mit Runen, vier glatte Steine, darüber eine weiche Lichtsäule
+  A(lathe3('exitbase', [[0.66, -0.02], [0.66, 0.04], [0.6, 0.06], [0, 0.06]], 24), '#5a5450', { top: '#7a746c', topK: 0.5, ao: 0 });
   for (let k = 0; k < 4; k++) {
-    const a = (k / 4) * Math.PI * 2;
-    A(roundBox(0.14, 0.26, 0.14, 0.05), '#7e766c', { p: [Math.cos(a) * 0.55, 0.13, Math.sin(a) * 0.55] });
+    const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+    const p = [Math.cos(a) * 0.62, 0.2, Math.sin(a) * 0.62];
+    A(ball(10), '#8a8278', { p, s: [0.12, 0.24, 0.1], r: [0, -a, 0], top: '#aaa298', topK: 0.45, shade: 0.25 });
+    rune3(A, L.accent, k, { p: [p[0] * 1.17, 0.22, p[2] * 1.17], rz: 0 });
   }
-  return { rig, height: 0.6, family: 'portal' };
-}
-
-// Riss (seit 6.5): großer gezackter Spalt aus schwarzem Stein in der Luft, darin ein Wirbel in der
-// Farbe des Dungeons, ringsum schwebende Felssplitter und leuchtende Risse im Boden
-function buildRift3(b, color = '#b48cff') {
-  const A = adder(b, null);
-  const rig = rigOf([[[0, 0, 0], -1], [[0, 1.25, 0], 0], [[0, 0.9, 0], 0]]);
-  // Bodenrisse
-  for (let k = 0; k < 7; k++) {
-    const a = (k / 7) * Math.PI * 2;
-    A(roundBox(0.06, 0.012, 0.7 + (k % 3) * 0.2, 0.005), color, { p: [Math.cos(a) * 0.55, 0.02, Math.sin(a) * 0.55], r: [0, -a + Math.PI / 2, 0], mat: 'glow' });
-  }
-  A(geo3('riftfloor', () => new THREE.CircleGeometry(1.2, 28).rotateX(-Math.PI / 2)), darker(color, 0.5), { p: [0, 0.015, 0], mat: 'aura' });
-  // gezackter Rahmen aus dunklen Steinzacken um einen hohen Spalt
-  for (let k = 0; k < 16; k++) {
-    const a = (k / 16) * Math.PI * 2;
-    const len = 0.28 + (k % 3) * 0.12;
-    A(horn3(len, 0.09, 5), k % 2 ? '#1a1220' : '#2a1e34', { bone: 1, p: [Math.cos(a) * 0.62, 1.25 + Math.sin(a) * 1.0, 0], r: [0, 0, a - Math.PI / 2], shine: 0.4 });
-    if (k % 2 === 0) A(horn3(len * 0.6, 0.03, 4), color, { bone: 1, p: [Math.cos(a) * 0.6, 1.25 + Math.sin(a) * 0.98, 0.04], r: [0, 0, a - Math.PI / 2], mat: 'glow' });
-  }
-  A(geo3('riftvoid', () => new THREE.CircleGeometry(1, 30).scale(0.6, 1, 1)), '#0a0612', { bone: 1, p: [0, 1.25, -0.01] });
-  for (let k = 0; k < 4; k++) A(geo3('riftswirl' + k, () => new THREE.TorusGeometry(0.16 + k * 0.11, 0.03, 6, 28, Math.PI * 1.3).scale(1, 1.6, 1)), k % 2 ? '#ffffff' : color, { bone: 1, p: [0, 1.25, 0.02], r: [0, 0, k * 1.7], mat: 'glow' });
-  A(geo3('riftaura2', () => new THREE.SphereGeometry(1, 16, 12).scale(0.8, 1.3, 0.2)), color, { bone: 1, p: [0, 1.25, 0], mat: 'aura' });
-  // schwebende Felssplitter (Knochen 2 kreist)
-  for (let k = 0; k < 6; k++) {
-    const a = (k / 6) * Math.PI * 2;
-    A(rockGeo(k % 3), '#3a3040', { bone: 2, p: [Math.cos(a) * 1.1, 0.6 + (k % 3) * 0.35, Math.sin(a) * 1.1], s: [0.13, 0.11, 0.12], top: '#5a4a60', topK: 0.5 });
-    A(sphere3(0.035, 6, 4), color, { bone: 2, p: [Math.cos(a) * 1.1, 0.75 + (k % 3) * 0.35, Math.sin(a) * 1.1], mat: 'glow' });
-  }
-  return { rig, height: 2.4, family: 'rift' };
+  const extra = (a, B) => {
+    portalExtras(a, B, Object.assign({}, L, { id: L.id + ':aus', motes: 'ember' }), {
+      vortex: { p: [0, 0.065, 0], tilt: -Math.PI / 2, s: [0.56, 0.56, 1] },
+      rune: { y: 0.07, r: 0.62 },
+      beam: { r: 0.5, h: 2.2 }
+    });
+  };
+  return { rig, height: 0.6, family: 'portal', extra };
 }
 
 // Seelenstein: Grundform, hellere Spitze, leuchtende Runen
@@ -2529,6 +3070,8 @@ function makeActor(model) {
     a.mats.wglow = figWeaponGlowMat();
     add('wglow', model.geos.wglow, a.mats.wglow);
   }
+  // nicht gebackene Teile (Portal-Wirbel, Schein, Funken) an die Knochen hängen
+  if (model.extra) model.extra(a, bones);
   group.scale.setScalar(model.scale);
   // Weicher runder Schatten unter den Füßen (auch ohne echte Schatten)
   const blob = new THREE.Mesh(blobGeo(), blobMat());
@@ -2710,7 +3253,11 @@ function warmPrograms() {
   V3.actors.add(ring);
   // Erdbrocken und Felspfeiler (Sprungschlag, Felsenfaust) einmal mit übersetzen, danach in ihren Pool
   const rocks = typeof fx3Make === 'function' && FX3.group ? ['rock', 'rockcol'].map((k) => fx3Make(k)) : [];
+  // Portal-Wirbel, Funken und Schein (seit 8.4): sonst ruckelt es, wenn sich der erste Riss öffnet
+  const portal = portalWarm3();
+  V3.actors.add(portal);
   V3.gl.compile(V3.scene, V3.camera);
+  V3.actors.remove(portal);
   for (const o of rocks) {
     o.visible = false;
     (FX3.pools[o.userData.kind] || (FX3.pools[o.userData.kind] = [])).push(o);
@@ -3257,6 +3804,7 @@ function setActorAlpha(a, alpha) {
     m.opacity = alpha;
   }
   if (a.meshes.outline) a.meshes.outline.visible = alpha >= 1;
+  if (a.extras) for (const m of a.extras) m.visible = alpha >= 1;
 }
 
 // Monster: Blickrichtung aus der Bewegung, Laufen, Angreifen, Aufblitzen, Schweben
@@ -3416,15 +3964,17 @@ function syncAlly3(al, dt) {
 function syncNpc3(n, dt) {
   let a;
   if (n.id === 'riss') {
-    const col = DUNGEONS[n.dungeon].portal;
-    a = actorFor(entityKey(n), 'rift:' + col, (b) => Object.assign(buildRift3(b, col), { blob: 0.3, scale: 1.25 }));
+    // Aussehen je Dungeon, der Hügel nimmt die Farbe des Bodens an
+    const d = DUNGEONS[n.dungeon];
+    const g = riftGround3(n);
+    a = actorFor(entityKey(n), 'rift2:' + d.id + ':' + g, (b) => Object.assign(buildRift3(b, d, g), { blob: 1.1, scale: 1.15 }));
   }
   else if (n.id === 'eingang' || n.id === 'ausgang' || n.id === 'weltentor') {
-    const col = n.id === 'weltentor' ? '#7ab8ff' : DUNGEONS[n.dungeon].portal;
+    const d = n.id === 'weltentor' ? null : DUNGEONS[n.dungeon];
     // Endboss-Tor: dunkler, mit Schädel und Hörnern, größer
-    const raid = n.id === 'eingang' && DUNGEONS[n.dungeon].raid;
+    const raid = n.id === 'eingang' && d.raid;
     const kind = raid ? 'raid' : n.id;
-    a = actorFor(entityKey(n), 'portal:' + kind + col, (b) => Object.assign(buildPortal3(b, kind, col), { blob: 0.01, scale: raid ? 2.0 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
+    a = actorFor(entityKey(n), 'portal2:' + kind + ':' + (d ? d.id : ''), (b) => Object.assign(buildPortal3(b, kind, d), { blob: 0.01, scale: raid ? 2.0 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
   } else a = actorFor(entityKey(n), 'npc:' + (n.art || n.id), (b) => {
     const r = buildNpc3(b, n.art || n.id);
     if (r) r.blob = 0.42;
@@ -3450,14 +4000,23 @@ function syncNpc3(n, dt) {
   } else {
     resetBones(a);
     placeActor(a, n, n.id === 'eingang' ? n.y : feetY(n));
+    const t = game.time;
     if (fam === 'rift') {
-      // Spalt zur Kamera gedreht und pulsierend, Wirbel dreht sich, Splitter kreisen
-      a.bones[1].rotation.z = Math.sin(game.time * 0.7) * 0.06;
-      a.bones[1].scale.setScalar(1 + Math.sin(game.time * 4) * 0.04);
-      a.bones[2].rotation.y = game.time * 0.6;
-      a.bones[2].position.y += Math.sin(game.time * 1.5) * 0.06;
+      // Öffnen und Schließen wie im 2D-Bild; der Ring atmet und dreht sich im Schulterblick zur Kamera
+      // (nur Ring, Schlussstein und Splitter, Hügel und Wurzeln bleiben liegen), der Schlussstein schwebt,
+      // die Splitter kreisen. Der Wirbel dreht sich im Shader.
+      const B = a.bones;
+      const open = n.born == null ? 1 : easeOutBack(clamp01((t - n.born) / 0.8));
+      a.group.scale.setScalar(a.model.scale * Math.max(0.01, open * (0.3 + 0.7 * clamp01((n.until - t) / 3))));
+      B[1].rotation.set(0, V3.yaw || 0, Math.sin(t * 0.5) * 0.04);
+      B[1].scale.setScalar(1 + Math.sin(t * 2) * 0.02);
+      B[2].rotation.y = t * 0.5;
+      B[2].position.y += Math.sin(t * 1.5) * 0.06;
+      B[3].position.y += Math.sin(t * 1.6) * 0.04;
     }
-    if (fam === 'portal' && a.bones[1]) a.bones[1].rotation.z = -game.time * 1.6;
+    // Runen und Flammen pulsieren
+    if (a.mats.glow) a.mats.glow.color.setScalar(0.8 + 0.2 * Math.sin(t * 3));
+    if (a.extras) portalTick(a, t);
   }
 }
 

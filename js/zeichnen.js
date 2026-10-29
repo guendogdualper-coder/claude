@@ -105,7 +105,8 @@ function render() {
     if (e.worldObj) drawWorldObject(ctx, e);
     else if (e === game.player || e.remote || e.clone) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
-    else if (e.until) drawSkeleton(ctx, e);
+    // beschworene Skelette laufen ab (until); Risse auch, die zeichnet aber drawNpc
+    else if (e.until && e.id !== 'riss') drawSkeleton(ctx, e);
     else if (e.type) drawMonster(ctx, e);
     else drawNpc(ctx, e);
   }
@@ -639,57 +640,142 @@ function drawSkeleton(ctx, a) {
   ctx.restore();
 }
 
-// Dungeon-Riss: senkrechter Wirbel in der Farbe des Dungeons, der Funken sprüht
-function drawRift(ctx, n) {
-  const fy = feetY(n);
-  const col = DUNGEONS[n.dungeon].portal;
-  const t = game.time;
-  const open = Math.min(1, (t - (n.born || 0)) / 0.6);
-  const closing = Math.min(1, Math.max(0, (n.until - t) / 3));
-  const s = open * (0.3 + 0.7 * closing);
-  const cy = fy - 30;
-  softShadow(ctx, n.x, fy, 22 * s, 8 * s, 0.45);
-  glow(ctx, n.x, cy, 52 * s, col, 0.55 + 0.15 * Math.sin(t * 4));
+// Farben eines Risses oder Dungeon-Tors in 2D: wie RIFT_LOOK in 3D, sonst aus der Portalfarbe (einmal je Dungeon)
+const RIFT2D = new Map();
+function riftLook2(k) {
+  let L = RIFT2D.get(k);
+  if (!L) {
+    const d = DUNGEONS[k];
+    const R = typeof RIFT_LOOK !== 'undefined' && RIFT_LOOK[d.id];
+    const c = d.portal;
+    L = R ? { stone: R.stone, top: R.top, accent: R.accent, deep: R.deep, mid: R.mid, core: R.core, spin: R.spin || 1 }
+      : { stone: d.raid ? '#4a3e44' : '#7a7268', top: d.raid ? '#5a4a50' : '#a49a8c', accent: c, deep: darker(c, 0.72), mid: c, core: lighter(c, 0.75), spin: 1 };
+    RIFT2D.set(k, L);
+  }
+  return L;
+}
+
+// Wirbel (seit 8.4): Verlauf von dunkel nach hell, drei runde Spiralarme, die sich drehen, leuchtender Rand.
+// Mitte im Ursprung, Halbachsen rx/ry. Der Verlauf wird einmal je Dungeon angelegt und nur skaliert.
+function drawVortex2(ctx, L, rx, ry, t) {
+  if (!L.grad) {
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    g.addColorStop(0, L.core);
+    g.addColorStop(0.18, L.core);
+    g.addColorStop(0.42, L.mid);
+    g.addColorStop(0.85, L.deep);
+    g.addColorStop(1, L.deep);
+    L.grad = g;
+  }
+  const a0 = ctx.globalAlpha;
   ctx.save();
-  ctx.translate(n.x, cy);
-  ctx.scale(s * 0.62, s);
-  ctx.fillStyle = '#0a0612';
+  ctx.scale(rx, ry);
+  ctx.fillStyle = L.grad;
   ctx.beginPath();
-  ctx.ellipse(0, 0, 22, 32, 0, 0, Math.PI * 2);
+  ctx.arc(0, 0, 1, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
   ctx.lineCap = 'round';
-  for (let k = 0; k < 4; k++) {
-    ctx.strokeStyle = k % 2 ? '#ffffff' : col;
-    ctx.globalAlpha = k % 2 ? 0.55 : 0.95;
-    ctx.lineWidth = k % 2 ? 1.5 : 3.5;
+  for (let k = 0; k < 3; k++) {
+    ctx.strokeStyle = k === 1 ? L.core : L.mid;
+    ctx.globalAlpha = a0 * (k === 1 ? 0.5 : 0.75);
+    ctx.lineWidth = k === 1 ? 1.3 : 2.2;
     ctx.beginPath();
-    for (let i = 0; i <= 20; i++) {
-      const u = i / 20;
-      const a = t * 3 + k * 1.6 + u * 5;
-      const r = (1 - u) * 21;
-      const x = Math.cos(a) * r;
-      const y = Math.sin(a) * r * 1.45;
-      if (i) ctx.lineTo(x, y);
-      else ctx.moveTo(x, y);
+    for (let i = 0; i <= 14; i++) {
+      const u = i / 14;
+      const a = -t * 2 * L.spin + k * 2.094 + u * 3.4;
+      const r = 0.92 - u * 0.8;
+      if (i) ctx.lineTo(Math.cos(a) * r * rx, Math.sin(a) * r * ry);
+      else ctx.moveTo(Math.cos(a) * r * rx, Math.sin(a) * r * ry);
     }
     ctx.stroke();
   }
-  ctx.globalAlpha = 1;
-  ctx.strokeStyle = col;
-  ctx.lineWidth = 3;
+  ctx.globalAlpha = a0 * 0.9;
+  ctx.strokeStyle = L.mid;
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
-  ctx.ellipse(0, 0, 22, 32, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, Math.max(1, rx - 0.8), Math.max(1, ry - 0.8), 0, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.globalAlpha = a0;
+}
+
+// Runder Stein mit dunklem Umriss und hellerer Oberseite (Ring der Risse)
+function stone2(ctx, x, y, rx, ry, rot, color, top) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle = '#1a1210';
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx + 1.1, ry + 1.1, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.restore();
-  // Funken, die aus dem Riss wirbeln
+  ctx.fillStyle = top;
+  ctx.beginPath();
+  ctx.ellipse(x - rx * 0.1, y - ry * 0.35, rx * 0.62, ry * 0.42, rot, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Dungeon-Riss (seit 8.4 wie in 3D): Ring aus runden Runensteinen auf einem Erdhügel, darin der Wirbel,
+// weicher Schein und Funken, die hineingezogen werden; öffnet und schließt sich
+function drawRift(ctx, n) {
+  const fy = feetY(n);
+  const L = riftLook2(n.dungeon);
+  const t = game.time;
+  const open = n.born == null ? 1 : easeOutBack(clamp01((t - n.born) / 0.8));
+  const s = Math.max(0.01, open * (0.3 + 0.7 * clamp01((n.until - t) / 3)));
+  softShadow(ctx, n.x, fy, 30 * s, 10 * s, 0.4);
+  glow(ctx, n.x, fy - 30 * s, 52 * s, L.mid, 0.45 + 0.12 * Math.sin(t * 2.5));
+  ctx.save();
+  ctx.translate(n.x, fy);
+  ctx.scale(s, s);
+  // Erdhügel mit Grasrand
+  ctx.fillStyle = '#4a3828';
+  ellipse(ctx, 0, 0, 30, 10);
+  ctx.fillStyle = '#5e8a3a';
+  ellipse(ctx, 0, -1.5, 27, 8);
+  ctx.fillStyle = '#6e9a48';
+  ellipse(ctx, -3, -3, 18, 5);
+  ctx.translate(0, -30);
+  drawVortex2(ctx, L, 15, 21, t);
+  // neun Steine und der Schlussstein oben, jeder zweite mit Rune
+  for (let i = 0; i < 10; i++) {
+    const a = -Math.PI / 2 + (i * Math.PI) / 5;
+    const x = Math.cos(a) * 18.5;
+    const y = Math.sin(a) * 25;
+    const big = i === 0 || i === 5;
+    stone2(ctx, x, y, big ? 6.4 : 5, big ? 6 : 6.6, a + Math.PI / 2, i === 0 ? lighter(L.stone, 0.06) : L.stone, L.top);
+    if (i % 2) {
+      ctx.fillStyle = L.accent;
+      ctx.fillRect(x - 0.7, y - 2, 1.4, 4);
+    }
+  }
+  ctx.fillStyle = L.accent;
+  circle(ctx, 0, -25, 1.8);
+  // Funken, die in den Wirbel gezogen werden
   for (let k = 0; k < 6; k++) {
-    const u = (t * 0.8 + k / 6) % 1;
-    const a = k * 1.05 + t;
-    ctx.globalAlpha = (1 - u) * s;
-    ctx.fillStyle = k % 2 ? '#ffffff' : col;
-    circle(ctx, n.x + Math.cos(a) * (8 + u * 26), cy + Math.sin(a) * 12 - u * 24, 1.6);
+    const u = (t * 0.45 + k / 6) % 1;
+    const a = k * 1.05 + u * 2.6;
+    const r = 1 - u * u;
+    ctx.globalAlpha = Math.sin(u * Math.PI);
+    ctx.fillStyle = k % 2 ? L.core : L.mid;
+    circle(ctx, Math.cos(a) * 34 * r, (24 + Math.sin(a) * 6) * r, 1.5);
   }
   ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+// Torbogen-Öffnung des Dungeon-Eingangs (wie im Bild NPC_ART.eingang)
+function gateOpening2(ctx) {
+  ctx.beginPath();
+  ctx.moveTo(-11, -3);
+  ctx.lineTo(-11, -28);
+  ctx.arc(0, -28, 11, Math.PI, 0);
+  ctx.lineTo(11, -3);
+  ctx.closePath();
 }
 
 function drawNpc(ctx, n) {
@@ -706,10 +792,40 @@ function drawNpc(ctx, n) {
   const step = n.moving ? Math.abs(Math.sin(game.time * 9)) * 1.5 : 0;
   blitSprite(ctx, npcSprite(n.art || n.id), n.x, fy - step, n.facing < 0);
   if (n.id === 'weltentor') glow(ctx, n.x, fy - 30, 30, '#7ab8ff', 0.45 + 0.15 * Math.sin(game.time * 2.5));
-  // Dungeon-Eingänge und -Ausgänge leuchten in der Farbe ihres Dungeons
+  // Dungeon-Eingänge und -Ausgänge: Wirbel und Schein in der Farbe ihres Dungeons (seit 8.4 wie in 3D)
   if (portal) {
-    const col = DUNGEONS[n.dungeon].portal;
-    glow(ctx, n.x, fy - (n.id === 'eingang' ? 20 : 4), n.id === 'eingang' ? 26 : 22, col, 0.45 + 0.15 * Math.sin(game.time * 3));
+    const L = riftLook2(n.dungeon);
+    const t = game.time;
+    ctx.save();
+    ctx.translate(n.x, fy);
+    if (n.id === 'eingang') {
+      ctx.save();
+      gateOpening2(ctx);
+      ctx.clip();
+      ctx.translate(0, -22);
+      drawVortex2(ctx, L, 15, 22, t);
+      ctx.restore();
+      ctx.fillStyle = L.accent;
+      circle(ctx, 0, -44, 1.8);
+    } else {
+      // Lichtsäule über dem Wirbel am Boden
+      if (!L.beam) {
+        const g = ctx.createLinearGradient(0, 0, 0, -46);
+        g.addColorStop(0, L.mid);
+        g.addColorStop(1, 'rgba(255,255,255,0)');
+        L.beam = g;
+      }
+      ctx.translate(0, -3);
+      drawVortex2(ctx, L, 12, 4.5, t);
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.3 + 0.06 * Math.sin(t * 2.5);
+      ctx.fillStyle = L.beam;
+      ctx.fillRect(-11, -46, 22, 46);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    ctx.restore();
+    glow(ctx, n.x, fy - (n.id === 'eingang' ? 22 : 4), n.id === 'eingang' ? 26 : 22, L.mid, 0.4 + 0.12 * Math.sin(t * 3));
   }
   drawNpcMarks(ctx, n);
 }
@@ -1185,13 +1301,15 @@ function drawLabel(ctx, e) {
     // Riss: Name des Dungeons und Restzeit statt eines Balkens
     const left = Math.max(0, Math.ceil(e.until - game.time));
     const label = `${DUNGEONS[e.dungeon].name} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    // in 3D über dem Steinring (sonst läge der Name mitten auf dem Wirbel), in 2D darunter
+    const ly = V3.on ? feetY(e) - figureHeight(e) - 8 : feetY(e) + 16;
     ctx.font = '700 12px "Alegreya Sans", sans-serif';
     ctx.textAlign = 'center';
     ctx.lineWidth = 3;
     ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-    ctx.strokeText(label, e.x, feetY(e) + 16);
+    ctx.strokeText(label, e.x, ly);
     ctx.fillStyle = lighter(DUNGEONS[e.dungeon].portal, 0.35);
-    ctx.fillText(label, e.x, feetY(e) + 16);
+    ctx.fillText(label, e.x, ly);
     return;
   }
   if (e.until) {
@@ -1200,10 +1318,12 @@ function drawLabel(ctx, e) {
   }
   if (!e.type && !e.isStone) {
     if (!e.name || (!opts.names && e.id !== 'riss')) return;
+    // Dungeon-Tore sind in 3D hoch: Name über dem Bogen statt mitten auf dem Wirbel
+    const ny = V3.on && e.id === 'eingang' ? feetY(e) - figureHeight(e) - 6 : feetY(e) + 15;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    ctx.strokeText(e.name, e.x, feetY(e) + 15);
+    ctx.strokeText(e.name, e.x, ny);
     ctx.fillStyle = '#f0cf6a';
-    ctx.fillText(e.name, e.x, feetY(e) + 15);
+    ctx.fillText(e.name, e.x, ny);
     return;
   }
   if (!p || !game.running) return;
