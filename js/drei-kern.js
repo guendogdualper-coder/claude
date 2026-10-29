@@ -820,9 +820,16 @@ function groundColorsRGB() {
   return groundRGB;
 }
 
-// Kachel-Werte für die Glättung: Farbe, Höhe, Pflaster
+// Bodenart für die Feinstruktur im Shader (seit 7.9): 0 Gras, 1 Weg, 2 Sand, 3 Pflaster, 4 Schnee, 5 Asche
+const SOIL3 = {
+  [GROUND.GRASS]: 0, [GROUND.MEADOW]: 0, [GROUND.FOREST]: 0, [GROUND.SWAMP]: 0, [GROUND.PATH]: 1, [GROUND.CAVE]: 1,
+  [GROUND.SAND]: 2, [GROUND.PLAZA]: 3, [GROUND.FLAGSTONE]: 3, [GROUND.SNOW]: 4, [GROUND.ICE]: 4, [GROUND.ASH]: 5, [GROUND.BASALT]: 5
+};
+
+// Kachel-Werte für die Glättung: Farbe, Höhe, Bodenart (soil), Nässe am Ufer (wet), Brandrand an Lava (hot)
 const WALL3_H = 1.5;
 const WATER3_DEPTH = 0.5;
+const wetGround3 = (g) => g === GROUND.WATER || g === GROUND.BOG;
 function tileSample(x, y, out) {
   const w = game.world;
   x = Math.max(0, Math.min(MAP_W - 1, x));
@@ -831,41 +838,94 @@ function tileSample(x, y, out) {
   let g = w.ground[i];
   const pal = groundColorsRGB();
   out.h = 0;
-  out.paved = g === GROUND.PLAZA || g === GROUND.FLAGSTONE ? 1 : 0;
+  out.soil = -1;
+  out.wet = 0;
+  out.hot = 0;
   if (w.obj[i] === OBJ.CAVEWALL) {
     out.h = WALL3_H;
     const zone = ZONES[w.zoneIdx[i]];
     _c.set(lighter(zone.dungeon ? zone.dungeon.wall.top : '#3a3430', 0.22));
     out.r = _c.r; out.g = _c.g; out.b = _c.b;
-    out.paved = 0;
     return out;
   }
-  if (LIQUID.has(g) && w.deco[i] !== DECO.BRIDGE) out.h = -WATER3_DEPTH;
-  else if (LIQUID.has(g)) out.h = -WATER3_DEPTH;
+  if (LIQUID.has(g)) out.h = -WATER3_DEPTH;
+  // Ufer: die Kacheln neben Wasser und Moor sind nass, neben Lava verbrannt
+  if (wetGround3(g)) out.wet = 1;
+  else if (g === GROUND.LAVA) out.hot = 1;
+  else {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const n = groundAt(x + dx, y + dy);
+        if (wetGround3(n)) out.wet = 0.4;
+        else if (n === GROUND.LAVA) out.hot = 0.4;
+      }
+    }
+  }
   if (g === GROUND.WATER) g = GROUND.SAND;
   else if (g === GROUND.LAVA) g = GROUND.BASALT;
   else if (g === GROUND.BOG) g = GROUND.SWAMP;
   const c = pal[g][g === GROUND.PATH || g === GROUND.PLAZA || g === GROUND.FLAGSTONE ? Math.min(7, (w.shade[i] >> 6) + 3) : w.shade[i] >> 5];
   out.r = c[0]; out.g = c[1]; out.b = c[2];
+  out.soil = SOIL3[g] == null ? -1 : SOIL3[g];
   return out;
 }
 
-// Feine Bodenstruktur (Grasflecken, Kiesel) und Pflastersteine als gemalte Texturen
+// Bodenstruktur als gemalte Texturen (seit 7.9 je Kanal ein Muster) und Pflastersteine.
+// Feinstruktur, 256 × 256, direkt in ein Feld gemalt (ohne Zeichenfläche, darum schnell und ohne Nähte):
+//   r: feines Rauschen (Grasflecken, Kiesel; wie bis 7.8)
+//   g: Grasstriche, hell und dunkel
+//   b: Kies (helle Punkte) und Trittspuren (dunkle Sohlen) für Wege
+//   a: Risse (dunkle Linien) für Asche und Glitzerpunkte (hell) für Schnee
+// Dazu ein weiches Großrauschen (64 × 64) für Farbflecken über viele Kacheln.
 let groundTex = null;
+const GTEX3 = 256;
+// weicher Fleck (gedrehte Ellipse) in Kanal ch, über den Rand hinweg gekachelt
+function texBlot(f, ch, cx, cy, rx, ry, a, v, k) {
+  const N = GTEX3;
+  const r = Math.max(rx, ry) + 1;
+  const ca = Math.cos(a);
+  const sa = Math.sin(a);
+  const edge = Math.min(rx, ry);
+  for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++) {
+    for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++) {
+      const dx = x + 0.5 - cx;
+      const dy = y + 0.5 - cy;
+      const u = (dx * ca + dy * sa) / rx;
+      const w = (dy * ca - dx * sa) / ry;
+      const cov = Math.min(1, (1 - Math.sqrt(u * u + w * w)) * edge + 0.5);
+      if (cov <= 0) continue;
+      const i = (((y + N) % N) * N + ((x + N) % N)) * 4 + ch;
+      f[i] += (v - f[i]) * k * cov;
+    }
+  }
+}
+// Strich von (x0, y0) nach (x1, y1) mit Breite w
+function texLine(f, ch, x0, y0, x1, y1, w, v) {
+  const N = GTEX3;
+  const lx = x1 - x0;
+  const ly = y1 - y0;
+  const ll = lx * lx + ly * ly || 1;
+  for (let y = Math.floor(Math.min(y0, y1) - w); y <= Math.ceil(Math.max(y0, y1) + w); y++) {
+    for (let x = Math.floor(Math.min(x0, x1) - w); x <= Math.ceil(Math.max(x0, x1) + w); x++) {
+      const px = x + 0.5 - x0;
+      const py = y + 0.5 - y0;
+      const t = Math.max(0, Math.min(1, (px * lx + py * ly) / ll));
+      const cov = Math.min(1, w / 2 - Math.hypot(px - t * lx, py - t * ly) + 0.5);
+      if (cov <= 0) continue;
+      const i = (((y + N) % N) * N + ((x + N) % N)) * 4 + ch;
+      f[i] += (v - f[i]) * cov;
+    }
+  }
+}
 function groundTextures() {
   if (groundTex) return groundTex;
-  const noise = newCanvas(128, 128);
-  const nx = noise.getContext('2d');
-  nx.fillStyle = '#808080';
-  nx.fillRect(0, 0, 128, 128);
+  const N = GTEX3;
+  const f = new Float32Array(N * N * 4).fill(128);
   const rnd = mulberry32(99);
   for (let i = 0; i < 900; i++) {
     const v = 100 + Math.floor(rnd() * 60);
-    nx.fillStyle = `rgba(${v},${v},${v},0.5)`;
     const s = 1 + rnd() * 3;
-    nx.beginPath();
-    nx.ellipse(rnd() * 128, rnd() * 128, s, s * 0.6, rnd() * 3, 0, Math.PI * 2);
-    nx.fill();
+    texBlot(f, 0, rnd() * N, rnd() * N, s * 2, s * 1.2, rnd() * 3, v, 0.5);
   }
   const cob = newCanvas(128, 128);
   const cx = cob.getContext('2d');
@@ -886,16 +946,121 @@ function groundTextures() {
       }
     }
   }
-  const mk = (c) => {
-    const t = new THREE.CanvasTexture(c);
+  const r2 = mulberry32(7);
+  for (let i = 0; i < 1500; i++) {
+    const px = r2() * N;
+    const py = r2() * N;
+    const a = -Math.PI / 2 + (r2() - 0.5) * 1.2;
+    const len = 3 + r2() * 5;
+    const v = r2() < 0.55 ? 160 + Math.floor(r2() * 60) : 60 + Math.floor(r2() * 40);
+    texLine(f, 1, px, py, px + Math.cos(a) * len, py + Math.sin(a) * len, 1 + r2() * 0.8, v);
+  }
+  // Trittspuren: kurze Fährten aus abwechselnd linken und rechten Sohlen
+  for (let t = 0; t < 16; t++) {
+    let px = r2() * N;
+    let py = r2() * N;
+    const a = r2() * Math.PI * 2;
+    for (let k = 0; k < 4; k++) {
+      const side = k % 2 ? 1 : -1;
+      texBlot(f, 2, px - Math.sin(a) * side * 4, py + Math.cos(a) * side * 4, 6, 3.4, a, 70 + Math.floor(r2() * 25), 1);
+      px += Math.cos(a) * 15;
+      py += Math.sin(a) * 15;
+    }
+  }
+  for (let i = 0; i < 650; i++) {
+    const px = r2() * N;
+    const py = r2() * N;
+    const s = 0.8 + r2() * 1.8;
+    const v = 170 + Math.floor(r2() * 70);
+    texBlot(f, 2, px + 0.5, py + 0.8, s, s * 0.75, 0, 100, 1);
+    texBlot(f, 2, px, py, s, s * 0.75, 0, v, 1);
+  }
+  // Risse: Kanten zwischen unregelmäßigen Zellen (je Zelle eines 6 × 6-Gitters ein Punkt; geprüft werden
+  // nur die Nachbarzellen), dazu helle Glitzerpunkte
+  const G = 6;
+  const cell = N / G;
+  const seeds = Array.from({ length: G * G }, (_, k) => [((k % G) + 0.15 + r2() * 0.7) * cell, (Math.floor(k / G) + 0.15 + r2() * 0.7) * cell]);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      let d1 = 1e9;
+      let d2 = 1e9;
+      const gx = Math.floor(x / cell);
+      const gy = Math.floor(y / cell);
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          const s = seeds[((gy + oy + G) % G) * G + ((gx + ox + G) % G)];
+          let dx = Math.abs(x - s[0]);
+          let dy = Math.abs(y - s[1]);
+          if (dx > N / 2) dx = N - dx;
+          if (dy > N / 2) dy = N - dy;
+          const d = dx * dx + dy * dy;
+          if (d < d1) {
+            d2 = d1;
+            d1 = d;
+          } else if (d < d2) d2 = d;
+        }
+      }
+      const e = Math.sqrt(d2) - Math.sqrt(d1) + (f[(y * N + x) * 4] - 128) * 0.04;
+      f[(y * N + x) * 4 + 3] = e < 1.1 ? 50 : e < 2.2 ? 100 : 128;
+    }
+  }
+  for (let i = 0; i < 700; i++) {
+    const k = (Math.floor(r2() * (N - 1)) * N + Math.floor(r2() * (N - 1))) * 4 + 3;
+    for (const o of [0, 4, N * 4, N * 4 + 4]) if (f[k + o] === 128) f[k + o] = 255;
+  }
+  const bytes = new Uint8ClampedArray(f.length);
+  bytes.set(f);
+  const detail = new THREE.DataTexture(new Uint8Array(bytes.buffer), N, N, THREE.RGBAFormat);
+  detail.generateMipmaps = true;
+  detail.minFilter = THREE.LinearMipmapLinearFilter;
+  detail.magFilter = THREE.LinearFilter;
+  // Großrauschen: zwei Lagen weich verblendeter Zufallswerte, nahtlos kachelbar
+  const M = 64;
+  const macroData = new Uint8Array(M * M * 4);
+  const lattice = (n) => {
+    const g = Array.from({ length: n * n }, () => r2());
+    return (u, v) => {
+      const x0 = Math.floor(u);
+      const y0 = Math.floor(v);
+      const fx = (u - x0) * (u - x0) * (3 - 2 * (u - x0));
+      const fy = (v - y0) * (v - y0) * (3 - 2 * (v - y0));
+      const at = (x, y) => g[(y % n) * n + (x % n)];
+      const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * fx;
+      const bot = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * fx;
+      return top + (bot - top) * fy;
+    };
+  };
+  const big = lattice(8);
+  const small = lattice(16);
+  for (let y = 0; y < M; y++) {
+    for (let x = 0; x < M; x++) {
+      const v = big((x / M) * 8, (y / M) * 8) * 0.68 + small((x / M) * 16, (y / M) * 16) * 0.32;
+      const k = (y * M + x) * 4;
+      macroData[k] = macroData[k + 1] = macroData[k + 2] = Math.round(Math.max(0, Math.min(1, (v - 0.5) * 1.7 + 0.5)) * 255);
+      macroData[k + 3] = 255;
+    }
+  }
+  const macro = new THREE.DataTexture(macroData, M, M, THREE.RGBAFormat);
+  macro.magFilter = THREE.LinearFilter;
+  macro.minFilter = THREE.LinearFilter;
+  const mk = (t) => {
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
     t.anisotropy = V3.ultra ? V3.gl.capabilities.getMaxAnisotropy() : 4;
+    t.needsUpdate = true;
     return t;
   };
-  groundTex = { noise: mk(noise), cobble: mk(cob) };
+  groundTex = { noise: mk(detail), cobble: mk(new THREE.CanvasTexture(cob)), macro: mk(macro) };
   return groundTex;
 }
 
+// Boden: vier Texturabfragen je Pixel (Feinstruktur nah und mittel, Großrauschen, Pflaster). Die Bodenart
+// kommt als Gewichte aus den Ecken: soil = Gras, Weg, Sand, Pflaster; soil2 = Schnee, Asche. Der Reihe nach:
+// feines Rauschen; große Flecken über viele Kacheln (hier heller und wärmer, dort dunkler und kühler);
+// Grasstriche auf grünem Boden; heller Kies und stellenweise dunkle Trittspuren auf Wegen; weiche, vom
+// Rauschen verbogene Rippeln im Sand; dunkle Risse in der Asche; Schnee etwas gedämpft (sonst überstrahlt
+// er, und man sähe weder Struktur noch Glitzern); Pflastersteine mit Fugen. Zuletzt leuchten auf Schnee
+// Glitzerpunkte auf, je nach Blickrichtung (sie blitzen, wenn sich die Kamera bewegt).
+// (In den Shader-Texten stehen keine Kommentare: Umlaute darin mögen manche Grafiktreiber nicht.)
 function groundMat() {
   return mat3('ground', () => {
     const tex = groundTextures();
@@ -903,37 +1068,110 @@ function groundMat() {
     m.onBeforeCompile = (sh) => {
       sh.uniforms.tNoise = { value: tex.noise };
       sh.uniforms.tCobble = { value: tex.cobble };
+      sh.uniforms.tMacro = { value: tex.macro };
       sh.vertexShader = sh.vertexShader
-        .replace('void main() {', 'attribute float paved;\nvarying float vPaved;\nvarying vec3 vGW;\nvoid main() {')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvPaved = paved;\n\tvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        .replace('void main() {', 'attribute vec4 soil;\nattribute vec2 soil2;\nvarying vec4 vSoil;\nvarying vec2 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvSoil = soil;\n\tvSoil2 = soil2;\n\tvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('void main() {', 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nvarying float vPaved;\nvarying vec3 vGW;\nvoid main() {')
+        .replace('void main() {', 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec2 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
         .replace('#include <color_fragment>', `#include <color_fragment>
-	float nz = texture2D(tNoise, vGW.xz * 0.21).r * 0.6 + texture2D(tNoise, vGW.xz * 0.053).r * 0.4;
+	vec4 d1 = texture2D(tNoise, vGW.xz * 0.21);
+	vec4 d2 = texture2D(tNoise, vGW.xz * 0.053);
+	float mac = texture2D(tMacro, vGW.xz * 0.011).r;
+	float nz = d1.r * 0.6 + d2.r * 0.4;
 	diffuseColor.rgb *= 0.86 + nz * 0.28;
+	diffuseColor.rgb *= mix(vec3(0.86, 0.91, 0.92), vec3(1.1, 1.07, 0.95), mac);
+	diffuseColor.rgb *= 1.0 + (d1.g - 0.5) * 0.4 * vSoil.x;
+	float pebble = max(d1.b - 0.5, 0.0) * 2.0;
+	float tread = max(0.5 - d1.b, 0.0) * 2.0 * smoothstep(0.35, 0.65, d2.r + mac * 0.3);
+	diffuseColor.rgb *= 1.0 + (pebble * 0.4 - tread * 0.32) * vSoil.y;
+	float rip = sin(dot(vGW.xz, vec2(2.4, 5.1)) + d2.r * 7.0 + mac * 10.0);
+	diffuseColor.rgb *= 1.0 + rip * 0.075 * vSoil.z;
+	diffuseColor.rgb *= 1.0 - max(0.5 - d1.a, 0.0) * (0.3 + 0.6 * d2.r) * vSoil2.y;
+	diffuseColor.rgb *= 1.0 - 0.26 * vSoil2.x;
 	float cb = texture2D(tCobble, vGW.xz * 0.5).r;
-	diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.62 + cb * 0.62), smoothstep(0.35, 0.75, vPaved));`);
+	diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.62 + cb * 0.62), smoothstep(0.35, 0.75, vSoil.w));`)
+        .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+	float spark = max(d1.a - 0.5, 0.0) * 2.0 * smoothstep(0.2, 0.6, fract(dot(vGW.xz, vec2(1.7, 2.9)) + dot(normalize(vViewPosition), vec3(6.0, 9.0, 4.0))));
+	totalEmissiveRadiance += spark * vSoil2.x * 1.2;`);
     };
     m.customProgramCacheKey = () => 'ground';
     return addFade(m, 0.45);
   });
 }
 
-// Wasser, Lava und Moor: Oberfläche mit leichten Wellen, Schaum am Ufer und Glanz
+// Wasser, Lava und Moor (seit 7.9 je mit eigenem Bild), ohne Texturen und ohne Schleifen:
+//   Wasser: türkis am Ufer, tiefblau in der Mitte; je flacher der Blick auf die bewegte Oberfläche, desto
+//           mehr Himmelsfarbe (Fresnel); ziehende Wellenlinien in Stücken; Glanzfunken (je Zelle höchstens
+//           einer, der kurz aufblitzt); ein leicht pulsierender weißer Schaumstreifen am Ufer
+//   Lava:   dunkle Krusten, dazwischen hell glühende Adern auf den Nullstellen eines verbogenen, langsam
+//           wandernden Wellenmusters; glühender Rand am Ufer
+//   Moor:   trübes Grün mit Algenflecken und kleinen Blasen (je Zelle höchstens eine: wächst als Ring, zerplatzt)
+// depth ist die Wassertiefe in der Ecke (0 an der Uferlinie); uTime und uSky setzt renderDrei.
+const LIQUID3 = {
+  water: {
+    shallow: '#48c2bc', deep: '#1b5788', foam: '#f4fcff', alpha: 0.84, frag: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.8, d));
+          float wa = sin(p.x * 1.9 + p.y * 0.8 + t * 0.9);
+          float wb = sin(p.y * 2.3 - p.x * 0.7 + t * 0.7);
+          vec3 n = normalize(vec3(wa * 0.14, 1.0, wb * 0.14));
+          float fres = smoothstep(0.12, 0.72, 1.0 - dot(n, normalize(cameraPosition - vW)));
+          col = mix(col, uSky * 1.04, fres * 0.8);
+          float wl = sin(dot(p, vec2(0.55, 1.0)) * 3.0 - t * 0.7 + sin(p.x * 0.8 + t * 0.25) * 1.8);
+          col += smoothstep(0.86, 0.98, wl) * smoothstep(0.1, 0.8, sin(p.x * 0.9 - p.y * 0.5 + t * 0.3)) * (0.05 + 0.09 * d);
+          vec2 gq = p * 2.4 + vec2(t * 0.12, t * 0.05);
+          float gh = fract(sin(dot(floor(gq), vec2(41.3, 289.1))) * 43758.5453);
+          vec2 go = fract(gq) - 0.25 - 0.5 * vec2(fract(gh * 13.7), fract(gh * 7.9));
+          float tw = smoothstep(0.55, 1.0, sin(t * 2.2 + gh * 40.0)) * step(gh, 0.6);
+          col += smoothstep(0.1, 0.0, length(go * vec2(1.0, 2.0))) * tw * 0.6;
+          float band = 0.22 + 0.08 * sin(t * 1.6 + p.x * 0.6 + p.y * 0.4);
+          float foam = smoothstep(band, band * 0.45, d) * (0.8 + 0.2 * sin(p.x * 7.0 + p.y * 5.0 + t * 1.5));
+          col = mix(col, uFoam, foam * 0.85);
+          float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`
+  },
+  lava: {
+    shallow: '#ff6a14', deep: '#4a180c', foam: '#ffe890', alpha: 1, frag: `
+          vec2 q = p * 0.62;
+          q += vec2(sin(q.y * 1.3 + t * 0.22), cos(q.x * 1.1 - t * 0.18)) * 0.7;
+          float f = sin(q.x * 2.1 + t * 0.3) * sin(q.y * 2.5 - t * 0.25) + 0.35 * sin((q.x - q.y) * 3.3 + t * 0.4);
+          float vein = 1.0 - smoothstep(0.05, 0.36, abs(f));
+          float core = 1.0 - smoothstep(0.0, 0.12, abs(f));
+          vec3 col = uDeep * (0.8 + 0.25 * sin(q.x * 5.0 + q.y * 4.0) + 0.15 * sin(q.y * 9.0 - q.x * 7.0)) + uShallow * 0.12 * (1.0 - smoothstep(0.0, 0.7, abs(f)));
+          col = mix(col, uShallow, vein);
+          col = mix(col, uFoam, core * 0.85);
+          col = mix(col, uShallow * 1.15, smoothstep(0.28, 0.0, d) * 0.7);
+          col *= 0.92 + 0.08 * sin(t * 2.0 + p.x * 0.5 + p.y * 0.3);
+          float alpha = 1.0;`
+  },
+  bog: {
+    shallow: '#56683a', deep: '#22321e', foam: '#a8b878', alpha: 0.92, frag: `
+          vec3 col = mix(uShallow, uDeep, smoothstep(0.0, 0.7, d));
+          float al = sin(p.x * 2.6 + sin(p.y * 1.8 + t * 0.05) * 1.6) * sin(p.y * 2.2 + sin(p.x * 1.4) * 1.4) + 0.45 * sin(p.x * 5.1 - p.y * 4.3);
+          col = mix(col, vec3(0.42, 0.52, 0.2), smoothstep(0.5, 0.75, al) * 0.55);
+          vec2 cell = floor(p * 1.4);
+          float h = fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+          vec2 c = (cell + 0.3 + 0.4 * vec2(fract(h * 7.13), fract(h * 3.71))) / 1.4;
+          float life = fract(t * 0.3 + h * 5.0);
+          float r = 0.025 + life * 0.08;
+          float dist = length(p - c);
+          float on = step(h, 0.5);
+          col += smoothstep(0.02, 0.0, abs(dist - r)) * (1.0 - life) * on * 0.4;
+          col += smoothstep(0.045, 0.0, dist) * step(life, 0.22) * on * 0.35;
+          float foam = smoothstep(0.14, 0.03, d);
+          col = mix(col, uFoam, foam * 0.45);
+          float alpha = mix(uAlpha * 0.9, uAlpha, d);`
+  }
+};
 function liquidMat(kind) {
   return mat3('liquid' + kind, () => {
-    const P = {
-      water: { shallow: '#5ab8c8', deep: '#2a6890', foam: '#e8f8ff', alpha: 0.82, glow: 0 },
-      lava: { shallow: '#ffb040', deep: '#d0340e', foam: '#ffe890', alpha: 1, glow: 1 },
-      bog: { shallow: '#5a6a3a', deep: '#22301e', foam: '#9aa870', alpha: 0.9, glow: 0 }
-    }[kind];
+    const P = LIQUID3[kind];
     const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
       uTime: { value: 0 },
       uShallow: { value: new THREE.Color(P.shallow) },
       uDeep: { value: new THREE.Color(P.deep) },
       uFoam: { value: new THREE.Color(P.foam) },
-      uAlpha: { value: P.alpha },
-      uGlow: { value: P.glow }
+      uSky: { value: new THREE.Color('#a8d4ec') },
+      uAlpha: { value: P.alpha }
     }]);
     const m = new THREE.ShaderMaterial({
       uniforms,
@@ -961,22 +1199,17 @@ function liquidMat(kind) {
         uniform vec3 uShallow;
         uniform vec3 uDeep;
         uniform vec3 uFoam;
+        uniform vec3 uSky;
         uniform float uAlpha;
-        uniform float uGlow;
         varying float vDepth;
         varying vec3 vW;
         #include <fog_pars_fragment>
         void main() {
-          float d = clamp(vDepth / 0.45, 0.0, 1.0);
-          vec3 col = mix(uShallow, uDeep, smoothstep(0.1, 0.9, d));
-          float wave = sin(vW.x * 3.1 + uTime * 2.0 + sin(vW.z * 2.3 + uTime)) * 0.5 + 0.5;
-          float ripple = sin((vW.x + vW.z) * 5.0 - uTime * 2.6) * 0.5 + 0.5;
-          col += (wave * ripple) * 0.07;
-          float foam = smoothstep(0.32, 0.0, d) * (0.55 + 0.45 * sin(uTime * 2.2 + vW.x * 4.0 + vW.z * 3.0));
-          col = mix(col, uFoam, clamp(foam, 0.0, 1.0) * (uGlow > 0.5 ? 0.6 : 0.75));
-          float glint = pow(max(0.0, sin(vW.x * 4.0 + uTime * 1.2) * sin(vW.z * 3.5 - uTime * 0.9)), 18.0);
-          col += glint * (uGlow > 0.5 ? 0.25 : 0.22);
-          gl_FragColor = vec4(col, uAlpha);
+          float d = clamp(vDepth / 0.36, 0.0, 1.0);
+          vec2 p = vW.xz;
+          float t = uTime;
+          ${P.frag}
+          gl_FragColor = vec4(col, alpha);
           #include <fog_fragment>
         }`
     });
@@ -994,6 +1227,11 @@ const CASTER3 = {
   [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
 };
 const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25] };
+// Schmuck ohne Kollision (seit 7.9): kleiner Schatten und dunkler Fuß, wie bei Bäumen und Felsen
+const DECO_CASTER3 = {
+  [DECO.STUMP]: [0.3, 0.42, 0.26], [DECO.LOG]: [0.25, 0.62, 0.26], [DECO.SHRUB]: [0.35, 0.5, 0.3], [DECO.MUSHROOM]: [0.15, 0.32, 0.2],
+  [DECO.BONES]: [0.1, 0.38, 0.18], [DECO.CRYSTAL]: [0.35, 0.4, 0.22], [DECO.DEADTREE]: [0.9, 0.5, 0.2]
+};
 
 function shadowCasters(x0, y0, x1, y1) {
   const w = game.world;
@@ -1005,8 +1243,15 @@ function shadowCasters(x0, y0, x1, y1) {
   };
   for (let y = Math.max(0, y0); y < Math.min(MAP_H, y1); y++) {
     for (let x = Math.max(0, x0); x < Math.min(MAP_W, x1); x++) {
-      const c = CASTER3[w.obj[y * MAP_W + x]];
+      const i = y * MAP_W + x;
+      const c = CASTER3[w.obj[i]];
       if (c) push(x + 0.5, y + 0.55, c[0], c[1], c[2]);
+      const d = !w.obj[i] && DECO_CASTER3[w.deco[i]];
+      if (d) {
+        // gleiche Verschiebung wie in objectJob
+        const h = tileHash(x, y);
+        push(x + 0.5 + ((h >> 5) % 5 - 2) * 0.15, y + 0.5 + ((h >> 9) % 5 - 2) * 0.15, d[0], d[1], d[2]);
+      }
     }
   }
   for (const h of w.houses) {
@@ -1035,13 +1280,17 @@ function* terrainJob(cx, cy) {
   const tg = new Float32Array(span * span);
   const tb = new Float32Array(span * span);
   const th = new Float32Array(span * span);
-  const tp = new Float32Array(span * span);
+  // Bodenarten (Gewicht je Art, siehe SOIL3), nasser und verbrannter Uferrand
+  const ts = Array.from({ length: 6 }, () => new Float32Array(span * span));
+  const tw = new Float32Array(span * span);
+  const tl = new Float32Array(span * span);
   const tmp = {};
   for (let ty = 0; ty < span; ty++) {
     for (let tx = 0; tx < span; tx++) {
       tileSample(x0 + tx - 1, y0 + ty - 1, tmp);
       const k = ty * span + tx;
-      tr[k] = tmp.r; tg[k] = tmp.g; tb[k] = tmp.b; th[k] = tmp.h; tp[k] = tmp.paved;
+      tr[k] = tmp.r; tg[k] = tmp.g; tb[k] = tmp.b; th[k] = tmp.h; tw[k] = tmp.wet; tl[k] = tmp.hot;
+      if (tmp.soil >= 0) ts[tmp.soil][k] = 1;
     }
   }
   yield;
@@ -1052,7 +1301,8 @@ function* terrainJob(cx, cy) {
   const tIdx = (tx, ty) => (Math.max(y0 - 1, Math.min(y0 + CHUNK3, ty)) - y0 + 1) * span + (Math.max(x0 - 1, Math.min(x0 + CHUNK3, tx)) - x0 + 1);
   const pos = new Float32Array(n * n * 3);
   const col = new Uint8Array(n * n * 3);
-  const pav = new Uint8Array(n * n);
+  const soil = new Uint8Array(n * n * 4);
+  const soil2 = new Uint8Array(n * n * 2);
   for (let j = -1; j <= n; j++) {
     for (let i = -1; i <= n; i++) {
       const vx = x0 + i / S;
@@ -1095,13 +1345,18 @@ function* terrainJob(cx, cy) {
       }
       // Felsen werden nach oben heller
       const lift = h > 0.3 ? 1 + (h / WALL3_H) * 0.25 : 1;
-      const cr = mix(tr) * lift * (1 - dark);
-      const cg = mix(tg) * lift * (1 - dark * 0.95);
-      const cb = mix(tb) * lift * (1 - dark * 0.7);
+      // Ufer: nasser Boden ist dunkler und etwas kühler, neben Lava verkohlt er
+      const wet = Math.max(0, Math.min(1, (mix(tw) - 0.18) * 3));
+      const hot = Math.max(0, Math.min(1, (mix(tl) - 0.12) * 2.2));
+      const cr = mix(tr) * lift * (1 - dark) * (1 - wet * 0.34) * (1 - hot * 0.3);
+      const cg = mix(tg) * lift * (1 - dark * 0.95) * (1 - wet * 0.3) * (1 - hot * 0.5);
+      const cb = mix(tb) * lift * (1 - dark * 0.7) * (1 - wet * 0.18) * (1 - hot * 0.55);
       col[v * 3] = Math.min(255, cr * 255);
       col[v * 3 + 1] = Math.min(255, cg * 255);
       col[v * 3 + 2] = Math.min(255, cb * 255);
-      pav[v] = Math.round(mix(tp) * 255);
+      for (let c = 0; c < 4; c++) soil[v * 4 + c] = Math.round(mix(ts[c]) * 255);
+      soil2[v * 2] = Math.round(mix(ts[4]) * 255);
+      soil2[v * 2 + 1] = Math.round(mix(ts[5]) * 255);
     }
     if (j % 6 === 5) yield;
   }
@@ -1134,7 +1389,8 @@ function* terrainJob(cx, cy) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
-  g.setAttribute('paved', new THREE.BufferAttribute(pav, 1, true));
+  g.setAttribute('soil', new THREE.BufferAttribute(soil, 4, true));
+  g.setAttribute('soil2', new THREE.BufferAttribute(soil2, 2, true));
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeBoundingSphere();
   yield;
@@ -1351,7 +1607,13 @@ function renderDrei() {
   v3ViewCenter(_vc);
   v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 ? 400 : 5);
   v3UpdateLights(fx, fy);
-  for (const k of ['water', 'lava', 'bog']) if (MAT3['liquid' + k]) MAT3['liquid' + k].uniforms.uTime.value = V3.time;
+  for (const k of ['water', 'lava', 'bog']) {
+    const lm = MAT3['liquid' + k];
+    if (!lm) continue;
+    lm.uniforms.uTime.value = V3.time;
+    lm.uniforms.uSky.value.copy(moodState.sky);
+  }
+  if (MAT3.worldGrass) MAT3.worldGrass.userData.uTime.value = V3.time;
   v3SyncActors(dt);
   v3SyncFx();
   v3SyncBounds();
