@@ -303,6 +303,11 @@ Dreiecke je Monster, größtes Modell 14.152.
 - **Lava:** dunkle Kruste mit hell glühenden Adern, die langsam fließen.
 - **Moor:** trübes Grün mit Blasen und Algenflecken.
 
+**Umsetzung (seit 8.2):** Gras mit Wind im Shader (`worldGrassMat`), flache Halme, Klee und Blumen
+(`js/drei-welt.js`); Boden mit Bodenart-Gewichten, Feinstruktur und nassen bzw. verkohlten Rändern,
+Wasser, Lava und Moor als eigene Shader (`LIQUID3` in `js/drei-kern.js`). Gemessen (Grafik „hoch“,
+844×390): Dorf 608k, Wiese 277k, Wald 250k, Wasser 252k Dreiecke (vorher 746k, 304k, 329k, 710k).
+
 ---
 
 ## 7. Leistungsregeln (damit nichts ruckelt)
