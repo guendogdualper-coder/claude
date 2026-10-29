@@ -325,10 +325,12 @@ class Bake3 {
   //    top/topK (zweite Farbe auf Oberseiten), shine (Glanzlicht 0–1, z. B. Metall), m (Matrix), parent (Matrix)
   add(geo, color, o = {}) {
     const key = o.mat || 'lit';
+    const m = partMatrix(o);
     (this.lists[key] = this.lists[key] || []).push({
-      geo, color, m: partMatrix(o), bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null,
+      geo, color, m, bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null,
       top: o.top ? new THREE.Color(o.top) : null, topK: o.topK == null ? 0.5 : o.topK, shine: o.shine || 0, ao: o.ao == null ? 0.22 : o.ao
     });
+    if (this.skinned && key === 'lit' && !o.noShadow) shadowPart(this, geo, m, o);
     return this;
   }
 
@@ -350,6 +352,26 @@ class Bake3 {
     for (const k in this.lists) out[k] = mergeRaw(this.lists[k], false);
     return out;
   }
+}
+
+// Schattenmodell (seit 7.9): Figuren werfen ihren Schatten mit einer groben Kopie. Jedes größere feste
+// Teil wird darin zu einer kleinen Kugel in der Größe seines Umrisses, Kleinteile fallen weg. So kostet
+// der Schatten nur einen Bruchteil, und das sichtbare Modell darf viel mehr Einzelheiten haben.
+const SHADOW3_MIN = 0.07;
+const _sbS = new THREE.Vector3();
+function shadowPart(b, geo, m, o) {
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  bb.getSize(_v1);
+  _sbS.setFromMatrixScale(m);
+  if (Math.max(_v1.x * _sbS.x, _v1.y * _sbS.y, _v1.z * _sbS.z) < SHADOW3_MIN) return;
+  bb.getCenter(_v2);
+  const M = m.clone().multiply(new THREE.Matrix4().makeTranslation(_v2.x, _v2.y, _v2.z))
+    .multiply(new THREE.Matrix4().makeScale(Math.max(0.01, _v1.x / 2), Math.max(0.01, _v1.y / 2), Math.max(0.01, _v1.z / 2)));
+  (b.lists.shadow = b.lists.shadow || []).push({
+    geo: geo3('shadowball', () => new THREE.SphereGeometry(1, 6, 4)), color: '#000000', m: M, bone: o.bone || 0, shade: 0,
+    parent: o.parent || null, top: null, topK: 0.5, shine: 0, ao: 0
+  });
 }
 
 // Vorlage: ein Objekt einmal aus seinen Teilen backen und als Rohdaten behalten

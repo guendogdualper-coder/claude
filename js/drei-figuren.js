@@ -31,6 +31,8 @@ function figLitMat() {
 }
 const figOutline = () => mat3('figOutline', () => outlineMat(0.022, true));
 const figGlow = () => mat3('figGlow', () => new THREE.MeshBasicMaterial({ vertexColors: true, skinning: true }));
+// unsichtbar im Bild, wirft aber Schatten (die Schattenkarte zeichnet mit eigenem Tiefenmaterial)
+const figShadowProxy = () => mat3('figShadowProxy', () => new THREE.MeshBasicMaterial({ skinning: true, colorWrite: false, depthWrite: false }));
 const figAura = () => mat3('figAura', () => new THREE.MeshBasicMaterial({ vertexColors: true, skinning: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
 function figWeaponGlowMat() {
   return new THREE.MeshBasicMaterial({ skinning: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffffff });
@@ -2049,10 +2051,12 @@ function makeActor(model) {
   if (model.geos.lit) {
     a.mats.lit = figLitMat();
     const lit = add('lit', model.geos.lit, a.mats.lit);
-    lit.castShadow = true;
+    // Schatten wirft das grobe Schattenmodell (unsichtbar), nicht das volle Modell
+    lit.castShadow = !model.geos.shadow;
     lit.receiveShadow = true;
     add('outline', model.geos.lit, figOutline());
   }
+  if (model.geos.shadow) add('shadow', model.geos.shadow, figShadowProxy()).castShadow = true;
   if (model.geos.face) add('face', model.geos.face, a.mats.lit || (a.mats.lit = figLitMat()));
   if (model.geos.glow) {
     a.mats.glow = figGlow().clone();
