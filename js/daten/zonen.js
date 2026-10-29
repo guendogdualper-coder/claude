@@ -171,14 +171,14 @@ const MAP_ZONES = [
   {
     id: 'sandwueste', map: 2, name: 'Sandschlangenwüste', levels: 'Stufe 30–39', minLevel: 30, minDist: 12, maxDist: 55,
     ground: 'SAND', trees: 0.0036, treeObj: 'DEADTREE', rocks: 0.012, water: 0.1, liquid: 'WATER',
-    groups: [['sandviper', 9, 0, 0.6], ['klapperschlange', 8, 0.3, 1], ['kobra', 7, 0.55, 1], ['schakal', 6, 0.1, 0.9]], groupSize: [3, 5],
+    groups: [['sandviper', 11, 0, 0.6], ['klapperschlange', 10, 0.3, 1], ['kobra', 9, 0.55, 1], ['schakal', 8, 0.1, 0.9]], groupSize: [3, 5],
     stones: [[30, 3, 0, 0.6], [35, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [90, 60, 10, 0.08] }
   },
   {
     id: 'nagadschungel', map: 2, name: 'Nagadschungel', levels: 'Stufe 40–50', minLevel: 40, minDist: 55, maxDist: 999,
     ground: 'FOREST', alt: 'SWAMP', trees: 0.021, treeObj: 'TREE', rocks: 0.003, water: 0.22, liquid: 'BOG',
-    groups: [['riesenpython', 9, 0, 0.6], ['naga', 9, 0.3, 1], ['nagapriesterin', 7, 0.5, 1], ['panther', 6, 0.2, 0.9]], groupSize: [2, 4],
+    groups: [['riesenpython', 11, 0, 0.6], ['naga', 11, 0.3, 1], ['nagapriesterin', 9, 0.5, 1], ['panther', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
     ambient: { kind: 'fireflies', tint: [10, 40, 20, 0.14] }
   },
@@ -192,14 +192,14 @@ const MAP_ZONES = [
   {
     id: 'donnerklamm', map: 3, name: 'Donnerklamm', levels: 'Stufe 50–61', minLevel: 50, minDist: 12, maxDist: 55,
     ground: 'ASH', trees: 0.0024, treeObj: 'DEADTREE', rocks: 0.027, water: 0.08, liquid: 'WATER',
-    groups: [['trollkrieger', 10, 0, 0.6], ['harpyie', 8, 0.3, 1], ['minotaurus', 8, 0.5, 1], ['donnerbock', 6, 0.2, 0.9]], groupSize: [2, 4],
+    groups: [['trollkrieger', 12, 0, 0.6], ['harpyie', 10, 0.3, 1], ['minotaurus', 10, 0.5, 1], ['donnerbock', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[55, 3, 0, 0.6], [60, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [60, 40, 30, 0.1] }
   },
   {
     id: 'titanenkamm', map: 3, name: 'Titanenkamm', levels: 'Stufe 62–75', minLevel: 62, minDist: 55, maxDist: 999,
     ground: 'BASALT', trees: 0.0018, treeObj: 'DEADTREE', rocks: 0.024, water: 0.14, liquid: 'LAVA',
-    groups: [['steintitan', 9, 0, 0.6], ['gargoyle', 9, 0.3, 1], ['donnerriese', 7, 0.5, 1]], groupSize: [2, 4],
+    groups: [['steintitan', 12, 0, 0.6], ['gargoyle', 12, 0.3, 1], ['donnerriese', 10, 0.5, 1]], groupSize: [2, 4],
     stones: [[65, 3, 0, 0.6], [70, 3, 0.4, 1]],
     ambient: { kind: 'embers', tint: [80, 30, 10, 0.12] }
   }

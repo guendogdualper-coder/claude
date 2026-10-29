@@ -1,6 +1,6 @@
 // Mehrspieler mit Servern und Kanälen wie bei Metin2: Server ERFOO mit Kanal 1 und Kanal 2.
-// Die Geräte verbinden sich direkt über WebRTC (PeerJS, mit öffentlichem Vermittlungs- und
-// Relay-Server, damit es auch im Mobilfunknetz klappt). Einen eigenen Rechner gibt es nicht:
+// Die Geräte verbinden sich direkt über WebRTC; gefunden wird der Host eines Kanals über einen
+// öffentlichen Nachrichtendienst (netz-signal.js, seit 6.8 statt des PeerJS-Servers). Einen eigenen Rechner gibt es nicht:
 // Wer einen leeren Kanal betritt, führt dessen Welt (Host), alle anderen verbinden sich mit ihm.
 // Geht der Host, übernimmt automatisch ein anderer Spieler den Kanal, so ist er immer erreichbar.
 //
@@ -42,7 +42,7 @@ const channelId = (srv, ch) => `${NET_PREFIX}${srv}-k${ch}`;
 const serverName = (srv) => (SERVERS.find((x) => x.id === srv) || { name: srv }).name;
 const netOnline = () => net.mode === 'host' || net.mode === 'client';
 
-// PeerJS wird erst geladen, wenn jemand Mehrspieler nutzt
+// Verbindungsaufbau aus netz-signal.js (window.Peer); PeerJS nur als Notlösung, falls die Datei fehlt
 function netLoadLib() {
   if (window.Peer) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -137,6 +137,7 @@ function netClaimChannel(srv, ch, attempt) {
     ui.renderNet();
     ui.updateNetBadge();
   });
+  peer.count = () => net.players.size + 1;
   peer.on('connection', netAccept);
   peer.on('error', (e) => {
     if (net.peer !== peer) return;
@@ -204,29 +205,19 @@ async function netProbe() {
   } catch (e) {
     return;
   }
-  for (const sv of SERVERS) {
-    for (let ch = 1; ch <= sv.channels; ch++) {
-      const key = sv.id + ch;
-      if (net.server === sv.id && net.channel === ch && netOnline()) continue;
-      net.probes[key] = '…';
-      const peer = new Peer();
-      let ended = false;
-      const finish = (v) => {
-        if (ended) return;
-        ended = true;
-        net.probes[key] = v;
-        try { peer.destroy(); } catch (e) { /* schon zu */ }
-        if (!$('panelNet').hidden) ui.renderNet();
-      };
-      const t = setTimeout(() => finish('?'), 6000);
-      peer.on('error', (e) => { clearTimeout(t); finish(e.type === 'peer-unavailable' ? 0 : '?'); });
-      peer.on('open', () => {
-        const c = peer.connect(channelId(sv.id, ch));
-        c.on('open', () => c.send({ t: 'ping' }));
-        c.on('data', (d) => { if (d && d.t === 'pong') { clearTimeout(t); finish(d.n); } });
-      });
+  // Jeder Host meldet sich regelmäßig mit seiner Spielerzahl; das reicht für die Anzeige
+  await Promise.all(SERVERS.flatMap((sv) => Array.from({ length: sv.channels }, (_, k) => k + 1).map(async (ch) => {
+    const key = sv.id + ch;
+    if (net.server === sv.id && net.channel === ch && netOnline()) return;
+    if (net.probes[key] == null) net.probes[key] = '…';
+    try {
+      net.probes[key] = typeof sigChannelInfo === 'function' ? await sigChannelInfo(channelId(sv.id, ch)) : '?';
+    } catch (e) {
+      net.probes[key] = '?';
     }
-  }
+    if (!$('panelNet').hidden) ui.renderNet();
+  })));
+  net.probing = 0;
   if (!$('panelNet').hidden) ui.renderNet();
 }
 

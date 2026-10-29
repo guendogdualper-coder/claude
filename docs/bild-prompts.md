@@ -1580,3 +1580,15 @@ Concept turnaround of a wild boar for a stylized 3D toon MMORPG: low wedge-shape
 ```
 Lineup of thirteen stylized 3D toon MMORPG animals on a neutral ground, each with real anatomy and readable silhouette from above: red fox with white-tipped bushy tail; red deer stag with branching antlers; thorn boar with mossy back and green thorns; lynx with black ear tufts and stubby tail; spotted hyena with sloped back and dark mane; desert jackal with black saddle and big ears; huge black ash warg with glowing orange eyes; polar bear; black shadow panther with glowing yellow eyes; woolly mammoth with shaggy coat, trunk and curved tusks; grey-green moor wolf with glowing green eyes; thunder ibex with huge ridged horns and blue sparks; ember cat with glowing orange stripes and tail tip.
 ```
+
+## Kanäle und belebte Maps (Version 6.8)
+
+### Kanal-Auswahl
+```
+Mobile MMORPG server selection panel in dark fantasy style: server "ERFOO" with two channel rows, "Kanal 1 – 2/8 Spieler" with a glowing orange dot and a "Betreten" button, "Kanal 2 – leer · du eröffnest ihn" with a calm green dot. Clean readable UI on a phone in landscape.
+```
+
+### Belebte Wiese
+```
+Elevated three-quarter top-down view of a sunny meadow map in a stylized 3D toon MMORPG: several packs of wild dogs and grey wolves, a family of wild boars rooting in the grass, a red fox trotting, a red deer stag with antlers at the forest edge, two glowing soul stones in the distance; few trees, lots of open grass, a lone hero in the middle. Lively but readable on a phone.
+```
