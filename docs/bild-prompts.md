@@ -1614,3 +1614,10 @@ Stylized 3D toon MMORPG skill effect: a ghostly fire dragon spirals three times 
 ```
 Close-up of a mobile game attack button held down by a thumb, glowing ring pulsing around it, the hero in the background attacking repeatedly with motion trails. Clean readable mobile UI.
 ```
+
+## Zusammenspielen im Mobilfunk (Version 7.0)
+
+### Umweg-Verbindung
+```
+Simple friendly infographic in a fantasy game style: two smartphones on mobile data, each behind a small castle wall labelled "Anbieter"; a dashed direct arrow between them breaks with a red cross, while a glowing golden path arcs over the walls through two floating message towers labelled "HiveMQ" and "EMQX" and connects both phones; a small badge "K1 · 2/8 · Umweg" under a minimap. Clean, readable on a phone.
+```

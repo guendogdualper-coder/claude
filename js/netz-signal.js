@@ -1,58 +1,39 @@
-// Verbindungsaufbau für den Mehrspieler (seit 6.8) ohne den öffentlichen PeerJS-Server, der Anfragen
-// nicht mehr zuverlässig weiterleitet. Die Geräte finden sich über einen öffentlichen Nachrichtendienst
-// (ntfy.sh, je Kanal ein „Thema“), danach läuft alles direkt von Gerät zu Gerät (WebRTC-Datenkanal).
+// Verbindungsaufbau für den Mehrspieler (seit 6.8, umgebaut in 7.0) ohne den PeerJS-Server.
+// Gefunden wird der Host eines Kanals über öffentliche MQTT-Broker (HiveMQ und EMQX, Websocket,
+// verschlüsselt); jede Nachricht geht an beide, doppelt Ankommendes fällt weg – fällt einer aus,
+// geht es über den anderen weiter. Danach wird zuerst ein direkter Kanal von Gerät zu Gerät
+// versucht (WebRTC). Zwei Handys im Mobilfunknetz kommen oft nicht direkt zueinander (beide hinter
+// der Sammel-Adresse des Anbieters): Steht der direkte Kanal nach 5 s nicht, laufen die Spieldaten
+// über die Broker (Notweg).
 //
 // Nachbau der wenigen PeerJS-Teile, die netz.js nutzt:
 //   new Peer()          – eigene zufällige Kennung, Antworten kommen in ein eigenes Thema
 //   new Peer(kanal)     – den Kanal übernehmen (Host); ist er besetzt: Fehler 'unavailable-id'
 //   peer.connect(kanal) – Anfrage an den Host; gibt es keinen: Fehler 'peer-unavailable'
 //   Verbindung: open, send(obj), close(), Ereignisse open/data/close/error
-// Der Host meldet alle 20 s „ich bin da“ (mit Spielerzahl); so sieht die Kanal-Auswahl sofort,
-// ob ein Kanal leer ist. Beim Verlassen meldet er „weg“.
+// Der Host hinterlegt beim Broker „ich bin da“ (mit Spielerzahl, alle 20 s erneuert). Bricht seine
+// Verbindung ab, löscht der Broker den Eintrag von selbst („letzter Wille“); beim Verlassen löscht
+// er ihn selbst. So sieht die Kanal-Auswahl sofort, ob ein Kanal leer ist.
 
-const SIG_BASE = 'https://ntfy.sh/';
-const SIG_WS = 'wss://ntfy.sh/';
-const SIG_PREFIX = 'seelenstein8-';
-const SIG_BEACON = 20000;   // ms zwischen zwei Lebenszeichen des Hosts
-const SIG_FRESH = 45;       // s: so alt darf das letzte Lebenszeichen sein
-const SIG_CLAIM_WAIT = 3500; // ms: so lange darf ein Host widersprechen, wenn man einen Kanal übernimmt
-const SIG_ANSWER_WAIT = 6500;
-const SIG_CHUNK = 15000;    // lange Nachrichten in Stücken über den Datenkanal
+const SIG_BEACON = 20000;     // ms zwischen zwei Lebenszeichen des Hosts
+const SIG_FRESH = 45000;      // ms: so alt darf das letzte Lebenszeichen sein
+const SIG_CLAIM_WAIT = 2500;  // ms: so lange darf ein Host widersprechen, wenn man einen Kanal übernimmt
+const SIG_ANSWER_WAIT = 7000;
+const SIG_CHUNK = 15000;      // lange Nachrichten in Stücken
+const SIG_RELAY_AFTER = 5000; // ms ohne direkten Kanal, dann Notweg über den Broker
+const SIG_RELAYS = () => window.SIG_RELAYS_OVERRIDE || ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
 const SIG_ICE = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
   { urls: 'stun:stun.cloudflare.com:3478' },
-  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' }
+  { urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'], username: 'peerjs', credential: 'peerjsp' },
+  { urls: ['turn:openrelay.metered.ca:80', 'turn:openrelay.metered.ca:443?transport=tcp'], username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' }
 ];
 
-const sigTopic = (id) => (SIG_PREFIX + id).replace(/[^-_A-Za-z0-9]/g, '_').slice(0, 64);
 const sigRand = (n = 10) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
 const sigParse = (s) => { try { return JSON.parse(s); } catch (e) { return null; } };
-
-function sigPost(id, d, cache = false) {
-  return fetch(SIG_BASE + sigTopic(id), { method: 'POST', body: JSON.stringify(d), headers: cache ? {} : { Cache: 'no' } });
-}
-
-// letzte Meldungen eines Themas (für Kanal-Auswahl und um zu sehen, ob ein Host da ist)
-async function sigRecent(id, seconds = SIG_FRESH) {
-  const r = await fetch(`${SIG_BASE}${sigTopic(id)}/json?poll=1&since=${seconds}s`);
-  if (!r.ok) throw new Error('signal ' + r.status);
-  const out = [];
-  for (const line of (await r.text()).split('\n')) {
-    const m = sigParse(line);
-    if (m && m.event === 'message') { const d = sigParse(m.message); if (d) out.push(d); }
-  }
-  return out;
-}
-
-// Spielerzahl im Kanal: 0 = leer, sonst Zahl; wirft bei Netzfehlern
-async function sigChannelInfo(id) {
-  let n = 0;
-  for (const d of await sigRecent(id)) {
-    if (d.t === 'host') n = d.n || 1;
-    else if (d.t === 'bye') n = 0;
-  }
-  return n;
-}
+const sigChTopic = (id, part) => `seelenstein8/ch/${id}/${part}`;
+const sigFresh = (m) => m && m.t === 'host' && (!m.at || Date.now() - m.at < SIG_FRESH);
 
 class SigEmitter {
   constructor() { this.handlers = {}; }
@@ -60,39 +41,210 @@ class SigEmitter {
   emit(ev, ...a) { for (const fn of this.handlers[ev] || []) { try { fn(...a); } catch (e) { console.error(e); } } }
 }
 
-// Thema abonnieren (Websocket), bei Abbruch neu verbinden
-class SigInbox {
-  constructor(id, onData, onOpen, onFail) {
-    this.id = id;
-    this.onData = onData;
+// --- Kleiner MQTT-Client (3.1.1, nur QoS 0) ------------------------------------------------------
+const sigTxt = new TextEncoder();
+const sigUntxt = new TextDecoder();
+function mqttLen(n) {
+  const out = [];
+  do { let b = n % 128; n = Math.floor(n / 128); if (n > 0) b |= 128; out.push(b); } while (n > 0);
+  return out;
+}
+function mqttStr(str) {
+  const b = sigTxt.encode(str);
+  return [b.length >> 8, b.length & 255, ...b];
+}
+function mqttPacket(head, body) {
+  const len = mqttLen(body.length);
+  const out = new Uint8Array(1 + len.length + body.length);
+  out[0] = head;
+  out.set(len, 1);
+  out.set(body, 1 + len.length);
+  return out;
+}
+
+class SigMqtt {
+  // will: { topic, payload } – wird beim Abbruch der Verbindung vom Broker gespeichert (retained)
+  constructor(url, will) {
+    this.url = url;
+    this.will = will;
+    this.subs = new Map();
+    this.ready = false;
     this.closed = false;
-    this.opened = false;
-    this.connect(onOpen, onFail);
+    this.queue = [];
+    this.waiters = [];
+    this.pid = 1;
+    this.connect();
   }
-  connect(onOpen, onFail) {
+  connect() {
     if (this.closed) return;
-    const ws = new WebSocket(`${SIG_WS}${sigTopic(this.id)}/ws`);
+    let ws;
+    try { ws = new WebSocket(this.url, 'mqtt'); } catch (e) { setTimeout(() => this.connect(), 5000); return; }
+    ws.binaryType = 'arraybuffer';
     this.ws = ws;
+    this.buf = new Uint8Array(0);
     ws.onopen = () => {
-      if (!this.opened) { this.opened = true; if (onOpen) onOpen(); }
+      const w = this.will;
+      const flags = 0x02 | (w ? 0x24 : 0);
+      const body = [...mqttStr('MQTT'), 4, flags, 0, 30, ...mqttStr('ss' + sigRand(14))];
+      if (w) body.push(...mqttStr(w.topic), ...mqttStr(w.payload || ''));
+      ws.send(mqttPacket(0x10, Uint8Array.from(body)));
     };
-    ws.onmessage = (e) => {
-      const m = sigParse(e.data);
-      if (m && m.event === 'message') { const d = sigParse(m.message); if (d) this.onData(d); }
-    };
-    ws.onerror = () => { if (!this.opened && onFail) { onFail(); onFail = null; } };
+    ws.onmessage = (e) => this.onBytes(new Uint8Array(e.data));
+    ws.onerror = () => {};
     ws.onclose = () => {
-      if (this.closed) return;
-      setTimeout(() => this.connect(), this.opened ? 1500 : 4000);
+      this.ready = false;
+      clearInterval(this.pingTimer);
+      if (this.ws === ws && !this.closed) setTimeout(() => this.connect(), 3000);
     };
+  }
+  onBytes(chunk) {
+    const b = new Uint8Array(this.buf.length + chunk.length);
+    b.set(this.buf);
+    b.set(chunk, this.buf.length);
+    let at = 0;
+    while (at + 2 <= b.length) {
+      let len = 0;
+      let mul = 1;
+      let k = at + 1;
+      let byte;
+      do {
+        if (k >= b.length) { this.buf = b.slice(at); return; }
+        byte = b[k++];
+        len += (byte & 127) * mul;
+        mul *= 128;
+      } while (byte & 128);
+      if (k + len > b.length) break;
+      this.onPacket(b[at] >> 4, b[at] & 15, b.subarray(k, k + len));
+      at = k + len;
+    }
+    this.buf = b.slice(at);
+  }
+  onPacket(type, flags, p) {
+    if (type === 2) {
+      if (p[1] !== 0) return; // abgelehnt
+      this.ready = true;
+      for (const t of this.subs.keys()) this.sendSub(t);
+      for (const [t, m, r] of this.queue.splice(0)) this.pub(t, m, r);
+      clearInterval(this.pingTimer);
+      this.pingTimer = setInterval(() => { if (this.ready) this.ws.send(Uint8Array.from([0xc0, 0])); }, 20000);
+      for (const fn of this.waiters.splice(0)) fn();
+    } else if (type === 3) {
+      const tl = (p[0] << 8) | p[1];
+      const topic = sigUntxt.decode(p.subarray(2, 2 + tl));
+      const skip = ((flags >> 1) & 3) ? 2 : 0; // Paketnummer bei QoS > 0
+      const fn = this.subs.get(topic);
+      if (fn) fn(sigUntxt.decode(p.subarray(2 + tl + skip)));
+    }
+  }
+  sendSub(topic) {
+    const id = (this.pid++ & 0xffff) || 1;
+    this.ws.send(mqttPacket(0x82, Uint8Array.from([id >> 8, id & 255, ...mqttStr(topic), 0])));
+  }
+  sub(topic, fn) {
+    this.subs.set(topic, fn);
+    if (this.ready) this.sendSub(topic);
+  }
+  unsub(topic) {
+    if (!this.subs.delete(topic) || !this.ready) return;
+    const id = (this.pid++ & 0xffff) || 1;
+    this.ws.send(mqttPacket(0xa2, Uint8Array.from([id >> 8, id & 255, ...mqttStr(topic)])));
+  }
+  pub(topic, text, retain = false) {
+    if (!this.ready) {
+      if (this.queue.length < 300) this.queue.push([topic, text, retain]);
+      return;
+    }
+    const t = mqttStr(topic);
+    const m = sigTxt.encode(text);
+    const body = new Uint8Array(t.length + m.length);
+    body.set(t);
+    body.set(m, t.length);
+    this.ws.send(mqttPacket(0x30 | (retain ? 1 : 0), body));
   }
   close() {
     this.closed = true;
+    clearInterval(this.pingTimer);
+    // sauber trennen: kein „letzter Wille“
+    try { if (this.ready) this.ws.send(Uint8Array.from([0xe0, 0])); } catch (e) { /* egal */ }
     try { this.ws.close(); } catch (e) { /* schon zu */ }
   }
 }
 
-// Eine direkte Verbindung (Datenkanal) zu einem anderen Gerät
+// Mehrere Broker wie einer: senden an alle, jeder Empfänger sieht jede Nachricht nur einmal
+class SigBus {
+  constructor(urls, will) {
+    this.brokers = urls.map((u) => new SigMqtt(u, will));
+    this.topics = new Map(); // Thema -> Set von Empfängern
+  }
+  get ready() { return this.brokers.some((b) => b.ready); }
+  whenReady(ms) {
+    if (this.ready) return Promise.resolve(true);
+    return new Promise((res) => {
+      const t = setTimeout(() => res(this.ready), ms);
+      for (const b of this.brokers) b.waiters.push(() => { clearTimeout(t); res(true); });
+    });
+  }
+  on(topic, fn) {
+    const seen = new Set();
+    const h = (txt) => {
+      if (!txt) { fn(null); return; }
+      const m = sigParse(txt);
+      if (!m) return;
+      if (m.m) {
+        if (seen.has(m.m)) return;
+        seen.add(m.m);
+        if (seen.size > 400) seen.delete(seen.values().next().value);
+      }
+      fn(m);
+    };
+    h.fn = fn;
+    let set = this.topics.get(topic);
+    if (!set) {
+      set = new Set();
+      this.topics.set(topic, set);
+      for (const b of this.brokers) b.sub(topic, (txt) => { for (const x of [...set]) x(txt); });
+    } else {
+      // erneut abonnieren: der Broker schickt gespeicherte Meldungen (Host-Eintrag) noch einmal
+      for (const b of this.brokers) if (b.ready) b.sendSub(topic);
+    }
+    set.add(h);
+    return h;
+  }
+  off(topic, h) {
+    const set = this.topics.get(topic);
+    if (!set) return;
+    set.delete(h);
+    if (set.size) return;
+    this.topics.delete(topic);
+    for (const b of this.brokers) b.unsub(topic);
+  }
+  pub(topic, d, retain = false) {
+    const s = JSON.stringify(Object.assign({ m: sigRand(8) }, d));
+    for (const b of this.brokers) b.pub(topic, s, retain);
+  }
+  clear(topic) {
+    for (const b of this.brokers) b.pub(topic, '', true);
+  }
+  close() {
+    for (const b of this.brokers) b.close();
+  }
+}
+let sigBusShared = null;
+const sigBus = () => (sigBusShared = sigBusShared || new SigBus(SIG_RELAYS()));
+
+// Spielerzahl im Kanal: 0 = leer, sonst Zahl; wirft, wenn kein Broker erreichbar ist
+async function sigChannelInfo(id) {
+  const bus = sigBus();
+  if (!(await bus.whenReady(6000))) throw new Error('offline');
+  const topic = sigChTopic(id, 'host');
+  return new Promise((res) => {
+    let h = null;
+    const done = (n) => { clearTimeout(t); bus.off(topic, h); res(n); };
+    const t = setTimeout(() => done(0), 1500);
+    h = bus.on(topic, (m) => { if (sigFresh(m)) done(m.n || 1); });
+  });
+}
+
 class SigConn extends SigEmitter {
   constructor(peerId, pc) {
     super();
@@ -101,51 +253,107 @@ class SigConn extends SigEmitter {
     this.open = false;
     this.ended = false;
     this.parts = new Map();
+    this.via = null;
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === 'failed' || pc.connectionState === 'closed') this.end();
+      const st = pc.connectionState;
+      if (st !== 'failed' && st !== 'closed') return;
+      // direkter Weg gescheitert: gleich den Notweg nehmen; läuft der schon, ist das egal
+      if (this.via === 'dc') this.end();
+      else if (!this.open) this.startRelay();
     };
-    // kommt der Kanal nicht zustande (z. B. Netz zu streng), gilt die Verbindung als gescheitert
-    this.failTimer = setTimeout(() => { if (!this.open) { this.emit('error', { type: 'negotiation-failed' }); this.end(); } }, 20000);
+    // kommt gar nichts zustande, gilt die Verbindung als gescheitert
+    this.failTimer = setTimeout(() => { if (!this.open) { this.emit('error', { type: 'negotiation-failed' }); this.end(); } }, 30000);
+  }
+  // Notweg vorbereiten: Kennung aus dem Angebot, Seite h (Host) oder j (Mitspieler)
+  relayLater(id, side) {
+    this.relayId = id;
+    this.side = side;
+    if (!id) return;
+    this.relayTimer = setTimeout(() => this.startRelay(), window.SIG_NO_RTC ? 0 : SIG_RELAY_AFTER);
+  }
+  openVia(via) {
+    if (this.open || this.ended) return;
+    clearTimeout(this.failTimer);
+    clearTimeout(this.relayTimer);
+    this.via = via;
+    this.open = true;
+    this.emit('open');
   }
   attach(dc) {
     this.dc = dc;
     dc.onopen = () => {
-      clearTimeout(this.failTimer);
-      this.open = true;
-      this.emit('open');
+      if (window.SIG_NO_RTC || this.via === 'relay') return;
+      this.openVia('dc');
     };
-    dc.onmessage = (e) => {
-      const d = sigParse(e.data);
-      if (!d) return;
-      if (d.__c) {
-        // Stück einer langen Nachricht
-        const list = this.parts.get(d.__c) || [];
-        list[d.i] = d.s;
-        this.parts.set(d.__c, list);
-        if (list.filter((x) => x != null).length === d.n) {
-          this.parts.delete(d.__c);
-          const full = sigParse(list.join(''));
-          if (full) this.emit('data', full);
-        }
-        return;
+    dc.onmessage = (e) => { if (this.via === 'dc') this.receive(sigParse(e.data)); };
+    dc.onclose = () => { if (this.via === 'dc') this.end(); };
+  }
+  startRelay() {
+    if (this.relay || this.open || this.ended || !this.relayId) return;
+    const other = this.side === 'h' ? 'j' : 'h';
+    this.relay = { out: 0, in: 0, brokers: sigBus().brokers, inT: `seelenstein8/${this.relayId}/${this.side}`, outT: `seelenstein8/${this.relayId}/${other}` };
+    for (const b of this.relay.brokers) b.sub(this.relay.inT, (txt) => this.onRelay(txt));
+    // „hi“ wiederholen, bis die andere Seite antwortet
+    const hello = () => {
+      if (this.open || this.ended) return;
+      this.relayPub({ __r: 'hi' });
+      this.helloTimer = setTimeout(hello, 1000);
+    };
+    hello();
+  }
+  relayPub(d) {
+    const s = JSON.stringify({ q: ++this.relay.out, d });
+    for (const b of this.relay.brokers) b.pub(this.relay.outT, s);
+  }
+  onRelay(txt) {
+    const m = sigParse(txt);
+    if (!m || !(m.q > this.relay.in)) return;
+    this.relay.in = m.q;
+    const d = m.d;
+    if (d && d.__r === 'hi') { this.relayPub({ __r: 'ok' }); this.openVia('relay'); return; }
+    if (d && d.__r === 'ok') { this.openVia('relay'); return; }
+    if (d && d.__r === 'bye') { this.end(); return; }
+    if (this.via === 'relay') this.receive(d);
+  }
+  raw(d) {
+    if (this.via === 'relay') this.relayPub(d);
+    else if (this.dc && this.dc.readyState === 'open') this.dc.send(JSON.stringify(d));
+  }
+  receive(d) {
+    if (!d) return;
+    if (d.__c) {
+      // Stück einer langen Nachricht
+      const list = this.parts.get(d.__c) || [];
+      list[d.i] = d.s;
+      this.parts.set(d.__c, list);
+      if (list.filter((x) => x != null).length === d.n) {
+        this.parts.delete(d.__c);
+        const full = sigParse(list.join(''));
+        if (full) this.emit('data', full);
       }
-      this.emit('data', d);
-    };
-    dc.onclose = () => this.end();
+      return;
+    }
+    this.emit('data', d);
   }
   send(d) {
-    if (!this.open || !this.dc || this.dc.readyState !== 'open') return;
+    if (!this.open) return;
     const s = JSON.stringify(d);
-    if (s.length <= SIG_CHUNK) { this.dc.send(s); return; }
+    if (s.length <= SIG_CHUNK) { this.raw(d); return; }
     const id = sigRand(6);
     const n = Math.ceil(s.length / SIG_CHUNK);
-    for (let i = 0; i < n; i++) this.dc.send(JSON.stringify({ __c: id, i, n, s: s.slice(i * SIG_CHUNK, (i + 1) * SIG_CHUNK) }));
+    for (let i = 0; i < n; i++) this.raw({ __c: id, i, n, s: s.slice(i * SIG_CHUNK, (i + 1) * SIG_CHUNK) });
   }
   close() { this.end(); }
   end() {
     if (this.ended) return;
     this.ended = true;
     clearTimeout(this.failTimer);
+    clearTimeout(this.relayTimer);
+    clearTimeout(this.helloTimer);
+    if (this.relay) {
+      try { this.relayPub({ __r: 'bye' }); } catch (e) { /* egal */ }
+      for (const b of this.relay.brokers) b.unsub(this.relay.inT);
+    }
     this.open = false;
     try { if (this.dc) this.dc.close(); } catch (e) { /* schon zu */ }
     try { this.pc.close(); } catch (e) { /* schon zu */ }
@@ -160,7 +368,6 @@ async function sigLocalSdp(pc) {
     const t = setTimeout(res, 3000);
     pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
   });
-  // TCP-Kandidaten weglassen, damit die Nachricht klein bleibt
   return pc.localDescription.sdp.split('\r\n').filter((l) => !(l.startsWith('a=candidate') && / tcp /i.test(l))).join('\n');
 }
 const sigSdp = (s) => s.replace(/\r?\n/g, '\r\n');
@@ -170,33 +377,49 @@ class SigPeer extends SigEmitter {
     super();
     this.destroyed = false;
     this.conns = new Map();
-    this.pending = new Map(); // eigene Anfragen: Kennung -> { pc, conn, timer }
+    this.pending = new Map(); // eigene Anfragen: Kennung -> { pc, conn, timer, rid }
     this.count = () => 1;
+    this.bus = sigBus();
     if (fixedId) this.claim(fixedId);
     else {
       this.id = 'p' + sigRand();
-      this.inbox = new SigInbox(this.id, (d) => this.onInbox(d), () => this.emit('open', this.id), () => this.emit('error', { type: 'network' }));
+      this.inT = `seelenstein8/p/${this.id}`;
+      this.inH = this.bus.on(this.inT, (m) => this.onInbox(m));
+      this.bus.whenReady(8000).then((ok) => {
+        if (this.destroyed) return;
+        if (ok) this.emit('open', this.id);
+        else this.emit('error', { type: 'network' });
+      });
     }
   }
 
   // --- Host: Kanal übernehmen --------------------------------------------------------------
-  claim(id) {
+  async claim(id) {
     this.id = id;
     this.key = Date.now() * 1000 + Math.floor(Math.random() * 1000);
     this.host = false;
-    this.inbox = new SigInbox(id, (d) => this.onChannel(d), async () => {
-      try { await sigPost(id, { t: 'claim', k: this.key }); } catch (e) { this.fail({ type: 'network' }); return; }
-      this.claimTimer = setTimeout(() => {
-        if (this.destroyed) return;
-        this.host = true;
-        this.emit('open', id);
-        this.beacon();
-        this.beaconTimer = setInterval(() => this.beacon(), SIG_BEACON);
-      }, SIG_CLAIM_WAIT);
-    }, () => this.fail({ type: 'network' }));
+    if (!(await this.bus.whenReady(8000))) { this.fail({ type: 'network' }); return; }
+    let n = 0;
+    try { n = await sigChannelInfo(id); } catch (e) { /* weiter */ }
+    if (this.destroyed) return;
+    if (n) { this.fail({ type: 'unavailable-id' }); return; }
+    this.chT = sigChTopic(id, 'in');
+    this.chH = this.bus.on(this.chT, (m) => this.onChannel(m));
+    this.bus.pub(this.chT, { t: 'claim', k: this.key });
+    this.claimTimer = setTimeout(() => this.becomeHost(), SIG_CLAIM_WAIT);
+  }
+  becomeHost() {
+    if (this.destroyed) return;
+    this.host = true;
+    // eigene Verbindung mit „letztem Willen“: reißt sie ab, löscht der Broker die Host-Meldung
+    this.hostT = sigChTopic(this.id, 'host');
+    this.hostBus = new SigBus(SIG_RELAYS(), { topic: this.hostT, payload: '' });
+    this.emit('open', this.id);
+    this.beacon();
+    this.beaconTimer = setInterval(() => this.beacon(), SIG_BEACON);
   }
   beacon() {
-    if (this.host && !this.destroyed) sigPost(this.id, { t: 'host', n: this.count(), k: this.key }, true).catch(() => {});
+    if (this.host && !this.destroyed) this.hostBus.pub(this.hostT, { t: 'host', n: this.count(), k: this.key, at: Date.now() }, true);
   }
   // Spielerzahl hat sich geändert: kurz danach melden (mehrere Wechsel zusammengefasst)
   beaconSoon() {
@@ -206,20 +429,20 @@ class SigPeer extends SigEmitter {
   fail(e) {
     if (this.destroyed) return;
     clearTimeout(this.claimTimer);
-    this.inbox.close();
+    if (this.chH) { this.bus.off(this.chT, this.chH); this.chH = null; }
     this.emit('error', e);
   }
-  onChannel(d) {
-    if (this.destroyed || d.k === this.key) return;
+  onChannel(m) {
+    if (this.destroyed || !m || m.k === this.key) return;
     if (!this.host) {
-      // jemand ist schon Host oder war beim Übernehmen schneller
-      if (d.t === 'taken' && d.to === this.key) this.fail({ type: 'unavailable-id' });
-      else if (d.t === 'claim' && d.k < this.key) this.fail({ type: 'unavailable-id' });
-      else if (d.t === 'host' && d.k < this.key) this.fail({ type: 'unavailable-id' });
+      // jemand ist schon Host oder war beim Übernehmen schneller (kleinere Nummer gewinnt);
+      // wer später kam, hat unsere Meldung vielleicht verpasst – also widersprechen
+      if ((m.t === 'taken' && m.to === this.key) || (m.t === 'claim' && m.k < this.key)) this.fail({ type: 'unavailable-id' });
+      else if (m.t === 'claim') this.bus.pub(this.chT, { t: 'taken', to: m.k, k: this.key });
       return;
     }
-    if (d.t === 'claim') { sigPost(this.id, { t: 'taken', to: d.k, k: this.key }).catch(() => {}); return; }
-    if (d.t === 'offer' && d.from && d.sdp) this.answer(d);
+    if (m.t === 'claim') this.bus.pub(this.chT, { t: 'taken', to: m.k, k: this.key });
+    else if (m.t === 'offer' && m.from && m.sdp) this.answer(m);
   }
   async answer(d) {
     if (this.conns.has(d.from)) this.conns.get(d.from).end();
@@ -230,15 +453,15 @@ class SigPeer extends SigEmitter {
     conn.on('close', () => { if (this.conns.get(d.from) === conn) this.conns.delete(d.from); this.beaconSoon(); });
     conn.on('open', () => this.beaconSoon());
     this.emit('connection', conn);
+    let sdp = '';
     try {
       await pc.setRemoteDescription({ type: 'offer', sdp: sigSdp(d.sdp) });
       await pc.setLocalDescription(await pc.createAnswer());
-      const sdp = await sigLocalSdp(pc);
-      await sigPost(d.from, { t: 'answer', c: d.c, sdp });
-    } catch (e) {
-      conn.emit('error', { type: 'negotiation-failed' });
-      conn.end();
-    }
+      sdp = await sigLocalSdp(pc);
+    } catch (e) { /* dann eben nur der Notweg */ }
+    if (this.destroyed || conn.ended) return;
+    this.bus.pub(`seelenstein8/p/${d.from}`, { t: 'answer', c: d.c, sdp });
+    conn.relayLater(d.r, 'h');
   }
 
   // --- Mitspieler: beim Host anfragen ------------------------------------------------------
@@ -255,8 +478,9 @@ class SigPeer extends SigEmitter {
         const sdp = await sigLocalSdp(pc);
         if (this.destroyed || conn.ended) return;
         const timer = setTimeout(() => { this.pending.delete(c); this.unavailable(conn, target); }, SIG_ANSWER_WAIT);
-        this.pending.set(c, { pc, conn, timer });
-        await sigPost(target, { t: 'offer', from: this.id, c, sdp });
+        const rid = sigRand(14);
+        this.pending.set(c, { pc, conn, timer, rid });
+        this.bus.pub(sigChTopic(target, 'in'), { t: 'offer', from: this.id, c, sdp, r: rid });
       } catch (e) {
         if (!this.destroyed) this.emit('error', { type: 'network' });
       }
@@ -269,30 +493,38 @@ class SigPeer extends SigEmitter {
     this.emit('error', { type: 'peer-unavailable', message: target });
   }
   async onInbox(d) {
-    if (d.t !== 'answer') return;
+    if (!d || d.t !== 'answer') return;
     const p = this.pending.get(d.c);
     if (!p) return;
     this.pending.delete(d.c);
     clearTimeout(p.timer);
+    // Notweg-Uhr läuft ab jetzt; kommt der direkte Kanal vorher, bleibt der Notweg ungenutzt
+    p.conn.relayLater(p.rid, 'j');
     try {
+      if (!d.sdp) throw new Error('kein sdp');
       await p.pc.setRemoteDescription({ type: 'answer', sdp: sigSdp(d.sdp) });
     } catch (e) {
-      p.conn.emit('error', { type: 'negotiation-failed' });
-      p.conn.end();
+      p.conn.startRelay();
     }
   }
 
-  reconnect() { /* der Websocket verbindet sich selbst neu */ }
+  reconnect() { /* die Broker-Verbindungen kommen von selbst wieder */ }
   destroy() {
     if (this.destroyed) return;
     this.destroyed = true;
     clearTimeout(this.claimTimer);
     clearInterval(this.beaconTimer);
     clearTimeout(this.soonTimer);
-    if (this.host) sigPost(this.id, { t: 'bye', k: this.key }, true).catch(() => {});
+    if (this.host) {
+      // Host-Meldung löschen, dann die eigene Verbindung sauber trennen
+      this.hostBus.clear(this.hostT);
+      const hb = this.hostBus;
+      setTimeout(() => hb.close(), 800);
+    }
+    if (this.chH) this.bus.off(this.chT, this.chH);
+    if (this.inH) this.bus.off(this.inT, this.inH);
     for (const p of this.pending.values()) { clearTimeout(p.timer); p.conn.end(); }
     for (const c of this.conns.values()) c.end();
-    if (this.inbox) this.inbox.close();
   }
 }
 

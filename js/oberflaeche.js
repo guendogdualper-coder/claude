@@ -510,7 +510,8 @@ const ui = {
     // Kanal und Spielerzahl klein in der Statuszeile unter der Karte
     $('netBadge').hidden = true;
     $('stNet').hidden = !on;
-    if (on) $('stNet').textContent = `K${net.channel} · ${net.players.size + 1}/${NET_MAX}`;
+    // „Umweg“: Daten laufen über den Broker statt direkt (typisch, wenn beide im Mobilfunk sind)
+    if (on) $('stNet').textContent = `K${net.channel} · ${net.players.size + 1}/${NET_MAX}${net.hostConn && net.hostConn.via === 'relay' ? ' · Umweg' : ''}`;
     $('stNet').title = on ? `${serverName(net.server)} Kanal ${net.channel}` : '';
     $('btnNet').classList.toggle('on', on);
   },

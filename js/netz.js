@@ -110,7 +110,8 @@ async function netJoinChannel(srv, ch, attempt = 0) {
     if (net.peer !== peer) return;
     const conn = peer.connect(channelId(srv, ch), { reliable: true });
     net.hostConn = conn;
-    timer = setTimeout(claim, 7000);
+    // Antwort des Hosts plus ggf. Notweg über den Broker brauchen etwas länger als ein direkter Kanal
+    timer = setTimeout(claim, 20000);
     conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState(), v: GAME_VERSION }));
     conn.on('data', (d) => {
       if (d && d.t === 'welcome') { done = true; clearTimeout(timer); }
