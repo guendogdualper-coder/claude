@@ -277,6 +277,31 @@ Vorlage), `humanFlair3` gibt menschenartigen Monstern Zubehör, `themeAcc3` das 
 (`noShadow`); Figuren mit Schattenmodell empfangen selbst keine Schatten. Gemessen: im Schnitt 8.562
 Dreiecke je Monster, größtes Modell 14.152.
 
+### 5.1 Köpfe und Haare der Menschenartigen (seit 8.4)
+Banditen, Schützen, Wachen, Orks, Untote und Hexen hatten keine Haare, und die Kapuze des Banditen ließ
+vorn einen Keil Kopfhaut frei. Neue Regeln:
+- **Jeder Kopf ist geschlossen:** Unter Kapuze, Kopftuch und Helm schauen Pony, Seitensträhnen und
+  Nackenhaare hervor; nie eine kahle Kugel unter der Kopfbedeckung.
+- **Haare aus Strähnen** (spitze, leicht flache Locken) mit **Glanzband** quer über den Scheitel, keine
+  glatte Kappe. Neue Frisuren: zerzaust, nach hinten gekämmt, Kamm (Irokese), Haarknoten, wilde Mähne.
+- **Kopfbedeckungen mit Dicke:** Kapuze mit Saumwulst, Spitze hinten und Kragen am Hals; Kopftuch mit
+  Knoten und zwei Zipfeln, die mitschwingen; Maske liegt am Kiefer an, mit Knoten im Nacken.
+- **Gesicht:** Menschen haben braune, grüne oder graue Augen (rote Augen nur für Orks, Dämonen, Untote),
+  manche eine Narbe; Bärte aus Strähnen mit Schnurrbart statt einer Kugel.
+- **Jedes Monster etwas anders:** 2–3 Varianten je Art, fest an den Startpunkt gebunden (alle Spieler
+  sehen dieselbe Variante).
+
+| Art | Varianten |
+|---|---|
+| Bandit | braune Kapuze mit roter Maske und Pferdeschwanz · rotes Kopftuch mit schwarzer Maske, zerzauste Haare, Narbe · Kapuze offen, Halstuch, Vollbart |
+| Banditenschütze | grüne Kapuze mit Maske und Zopf · grünes Kopftuch, zerzaust · Kapuze mit Bart |
+| Armbrustschütze | breitkrempiger Hut, kurze Haare, Maske |
+| Kellerwache | Helm mit Haaren darunter, langer brauner, kurzer grauer oder geflochtener Bart |
+| Banditenfürst | nach hinten gekämmt, Krone, Maske |
+| Ork | Stirnband mit Kamm · rotes Band mit Haarknoten · Kamm mit seitlichem Zopf |
+| Untoter | dünne graue Strähnen, eingefallene Wangen, rostiger Halbhelm |
+| Sumpfhexe | wilde Mähne unter dem Hut |
+
 ---
 
 ## 6. Boden, Gras, Wasser
@@ -307,6 +332,60 @@ Dreiecke je Monster, größtes Modell 14.152.
 (`js/drei-welt.js`); Boden mit Bodenart-Gewichten, Feinstruktur und nassen bzw. verkohlten Rändern,
 Wasser, Lava und Moor als eigene Shader (`LIQUID3` in `js/drei-kern.js`). Gemessen (Grafik „hoch“,
 844×390): Dorf 608k, Wiese 277k, Wald 250k, Wasser 252k Dreiecke (vorher 746k, 304k, 329k, 710k).
+
+### 6.4 Schmuck je Gebiet (seit 8.4)
+Kleinteile am Boden müssen auf einen Blick erkennbar sein: klare Silhouette, dunkle Unterseite und helle
+Oberseite, fest im Boden verankert (Büschel oder kleiner Hügel am Fuß), echte Größe statt pauschal
+vergrößert. Dünne Teile (Zweige, Beeren, Pilzpunkte) bekommen keinen Umriss, sonst wirken sie wie
+schwarze Striche.
+
+| Schmuck | Neu |
+|---|---|
+| Busch | eine Laubwolke mit Ausbuchtungen statt drei Kugeln, Zweige unten sichtbar, Blätter am Rand; Wiese mit roten Beeren oder weißen Blüten, Dschungel mit großen Blättern und Blüte |
+| Baumstumpf | Wurzelfuß, Schnittfläche mit Jahresringen, Wurzeln, die in den Boden gehen; Moos, Baumpilze oder eine Axt; im Frost mit Schneehaube statt Schneeball |
+| Liegender Stamm | ganz auf der Kachel, Schnittflächen an beiden Enden, abgebrochener Ast, Moosstreifen, Baumpilze; im Moor hängendes Moos |
+| Pilze | drei Pilze mit echtem Stiel und Hut, Lamellen, weiße Punkte (Fliegenpilz); im Moor leuchtende Hüte |
+| Knochen | Ochsenschädel mit Hörnern halb im Sand · Brustkorb · gekreuzte Knochen mit kleinem Schädel |
+| Kristalle | sechseckige, facettierte Kristalle auf Felsfuß; im Frost durchscheinend blau, in Glutgebieten unten dunkler Obsidian, oben leuchtend |
+| Toter Baum | abgebrochener Stamm mit Splittern und kahlen Ästen · liegender gegabelter Ast mit Stein und Laub · Dornbusch |
+| Schneewehe (neu) | vom Wind geformte Wehe mit Steinen und trockenen Halmen (statt Schneebällen) |
+| Frostfelsen | blaugrauer Fels mit Schneehaube statt weißer Kugel |
+
+### 6.5 Kartenrand (seit 8.4)
+Am Rand jeder Map darf **nie eine graue oder einfarbige Fläche** zu sehen sein. Der Rand ist eine hohe,
+geschlossene Kulisse in Schichten:
+1. **Saum:** die Pflanzen oder Felsen des Gebiets, dicht an dicht, mit Büschen in den Lücken.
+2. **Wand:** hohe Kulisse (6–8 Einheiten; im Süden nur so hoch, dass die Figur sichtbar bleibt).
+3. **Ferne:** große Massen dahinter, zur Horizontfarbe hin aufgehellt (Luftperspektive).
+4. **Horizont:** ein weicher Farbverlauf vom Gebietston zur Himmelsfarbe statt flacher Deckel.
+
+| Gebiet | Kulisse |
+|---|---|
+| Wiese, Dorf | Blütenhecke: gestapelte Laubkronen, jede fünfte rosa blühend |
+| Dunkelwald | Tannenwall aus überlappenden Tannen |
+| Schlangendschungel | Dschungelwand mit Lianen, Fächerblättern, roten Blüten |
+| Orktal, Donnerklamm | Sandsteinklippe in Schichten |
+| Ödland | Aschenklippe mit Felsnadeln, toten Bäumen und Glutadern |
+| Frostgipfel | Eisklippe mit Schneekappen, Eiszacken und verschneiten Tannen |
+| Totenmoor | Trauerweiden mit hängendem Moos und Nebelband |
+| Feuerberg, Titanenkamm | Basaltsäulen mit glühenden Fugen |
+
+Der Boden läuft unter der Kulisse weiter und steigt leicht an; Himmelsfarben sind nie grau.
+
+### 6.6 Portale und Risse (seit 8.4)
+Risse und Dungeon-Eingänge passen zur weichen Toon-Welt: **runde, glatte Formen statt Zacken**.
+- **Riss:** aufrechter Ring aus neun glatten Runensteinen mit leuchtenden Runen auf einem kleinen
+  Erdhügel mit Wurzeln und Grasbüscheln. Im Ring dreht sich ein Wirbel in drei Farbstufen (tief, mittel,
+  helles Auge in der Mitte). Weicher Schein dahinter, Lichtfunken spiralen hinein, Kristallsplitter
+  schweben um den Ring. Öffnet und schließt sich sichtbar. Der Name steht über dem Ring.
+- **Thema je Dungeon:** Spinnenhöhle (violett, Spinnweben, Eiersäcke), Orkfestung (Sandstein, Eisenbänder,
+  Hauer), Eisgrotte (Eissteine mit Schneekappe, Eiszapfen, Schneeflocken), Drachenhort (Basalt mit
+  Lavafugen, Glut), Banditenkeller (bemooste Feldsteine, Seile, Laterne), Totengruft (Grabstein,
+  Schädel-Schlussstein, Ketten), Schlangentempel (Jade mit Gold, steinerne Schlange, Ranken),
+  Titanenschmiede (Eisenstein, Goldnieten, Amboss).
+- **Dungeon-Eingang:** runder Sockel mit zwei Stufen, Säulen mit Schwellung, Bogen aus einzelnen
+  Keilsteinen mit Schlussstein und Emblem, Efeu; im Bogen derselbe Wirbel.
+- **Ausgang und Weltentor:** Runenkreis am Boden, glatte Steine, weiche Lichtsäule bzw. Wirbel im Ring.
 
 ---
 
@@ -368,6 +447,26 @@ Stylized 3D game terrain close-up, top-down three-quarter camera: a lush meadow 
 ### Lava und Moor
 ```
 Stylized 3D game terrain: a lava river with dark cooling crust plates and bright glowing veins flowing slowly between them, heat shimmer at the edges; a murky swamp with green water, algae patches, small rising bubbles and reeds at the edge. Top-down three-quarter view, toon shading.
+```
+
+### Menschenartige Monster: Köpfe und Haare (8.4)
+```
+Character head sheet for a stylized 3D chibi toon MMORPG, thick dark outlines, three-step cel shading, front, three-quarter and back views: three bandit variants – a brown hood with a soft rolled hem, a pointed tip at the back and a cowl, a red cloth mask tied at the neck with two tails, a dark-brown fringe and a ponytail with a gold tie coming out of the hood; a red bandana with a knot and two fluttering tails, a black mask, messy chestnut hair and a scar; an open hood, a red neckerchief and a full dark beard. Hair made of chunky pointed strands with a bright shine band, every head fully covered, brown, green or grey eyes. Plus orcs with a crest, a topknot or a side braid, a guard with hair under the helmet and a braided beard, an undead with thin grey strands.
+```
+
+### Schmuck am Boden (8.4)
+```
+Stylized 3D game props for a top-down chibi MMORPG, toon shading, thick outlines: a leafy round bush with clustered lobes, darker underside and red berries; a cut tree stump with root flare, growth rings and moss; a fallen mossy log with bracket fungi; a cluster of red-capped white-dotted mushrooms; an ox skull half buried in sand; a ribcage; a broken dead snag and a fallen forked branch with a stone; a faceted hexagonal ice crystal cluster, translucent blue; glowing ember crystals with dark obsidian bases; a wind-carved snow drift with rocks poking out; a blue-grey boulder with a snow cap. Readable at small size from above.
+```
+
+### Kartenrand (8.4)
+```
+Stylized 3D toon MMORPG map edge seen from a top-down three-quarter camera: the walkable meadow ends in a dense, tall, layered hedge of rounded leafy tree crowns with pink blossom clusters, behind it bigger crown masses fading into a soft blue-green haze and a gradient sky; no grey, no flat colour, the ground rises gently under the hedge. Variants in one sheet: a wall of overlapping dark pines (forest), layered sandstone cliffs (canyon), ash cliffs with dead trees and glowing veins (badlands), ice cliffs with snow caps and icicles (frost), weeping willows with hanging moss and mist (swamp), basalt columns with glowing seams (volcano).
+```
+
+### Portale und Risse (8.4)
+```
+Stylized 3D toon magic rift portal for a cozy anime MMORPG, top-down three-quarter view: an upright oval ring of nine smooth rounded rune stones with glowing violet runes, standing on a small grassy earth mound with roots and grass tufts, filled with a softly swirling violet vortex in three tone bands with a bright white eye in the centre, a soft glow behind it, tiny light motes spiralling in, small crystal shards floating around the ring, thin dark outlines, three-step cel shading, no sharp spikes. Variants: an ice ring with snow caps and icicles, a basalt ring with lava seams and embers, a jade ring with a coiled stone snake and vines, a mossy fieldstone ring with ropes and a lantern.
 ```
 
 ---
