@@ -14,6 +14,9 @@ const PARTY_MODES = {
 const partyMe = () => game.player.name;
 // Mitspieler in der eigenen Gruppe: grün und größer im Spiel und auf der Karte
 const inMyParty = (name) => !!game.party && name !== partyMe() && game.party.members.includes(name);
+// Getarnte Mitspieler (Ninja-Tarnung, seit 7.8): Gruppe und Freunde sehen sie halb durchsichtig,
+// alle anderen gar nicht – keine Figur, kein Name, kein Punkt auf der Karte, nicht antippbar
+const remoteHidden = (rp) => !!rp.invisible && !inMyParty(rp.name) && !isFriend(rp.name);
 const partyLead = () => !!game.party && game.party.leader === partyMe();
 
 // Mitglied online im Kanal? (man selbst immer)

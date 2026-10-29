@@ -1396,7 +1396,7 @@ function drawOverlay3(ctx) {
   const players = _ovPlayers;
   players.length = 0;
   if (game.player && game.running && !game.player.dead) players.push(game.player);
-  for (const rp of net.players.values()) if (!rp.dead && inView(rp.x, rp.y)) players.push(rp);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp.x, rp.y)) players.push(rp);
   for (const pl of players) drawPlayerExtras3(ctx, pl);
   drawParticles(ctx);
   // Namen, Lebensbalken, Zeichen über den Köpfen

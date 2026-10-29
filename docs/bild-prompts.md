@@ -1687,3 +1687,20 @@ Stylized 3D toon MMORPG area spell, top-down: a ground-targeted blizzard – fir
 ```
 Game animation reference, stylized 3D toon monsters (cave spider, orc berserker, ice golem): a short crouch with an orange warning ring at the feet, then a fast low sprint toward the player with a dust trail, ending in a lunging strike; three key poses side by side for each monster.
 ```
+
+## Karte und Menü oben rechts (Version 7.8)
+
+### Runde Minikarte
+```
+Mobile MMORPG HUD element, stylized fantasy: a round minimap set in a polished brass ring with a thin dark inner rim and a small "N" medallion at the top, the map inside slightly darker toward the edge like a lens, the player shown as a cream-white arrow pointing in the walking direction with a soft glow, quest givers as small gold and green diamonds, soul stones as glowing gems; below it a small dark ribbon with the zone name in gold serif letters. Crisp at 84 px on a phone screen, no clutter.
+```
+
+### Menüknöpfe
+```
+Row of round HUD buttons for a mobile fantasy MMORPG, each like a lacquered dark-brown coin with a brass ring and a gold line icon (helmet for character, backpack, horse head, globe for server, shield with heart for friends and guild, gift box for daily reward, speech bubble, book with question mark, gear); generous spacing between the coins so they are easy to tap with a thumb, subtle press animation, readable at 36 px.
+```
+
+### Ninja-Tarnung aus drei Blickwinkeln
+```
+Three-panel concept, stylized 3D toon MMORPG: the same stealthed ninja seen by himself (semi-transparent with a faint purple shimmer and his name faded), by a party member (same semi-transparent look with a green party name), and by a stranger (nothing visible at all – only the empty ground and grass). Top-down three-quarter camera.
+```

@@ -241,6 +241,8 @@ function netAccept(conn) {
 function netOnHostData(conn, d) {
   if (!d || !game.player) return;
   const id = conn.peer;
+  const known = net.players.get(id);
+  if (known) known.heardAt = game.time;
   if (d.t === 'ping') {
     conn.send({ t: 'pong', n: net.players.size + 1 });
     return;
@@ -257,7 +259,10 @@ function netOnHostData(conn, d) {
     return;
   }
   if (d.t === 'hello') {
+    // Dieselbe Figur kommt neu (App war zu, neu eingeloggt): die alte Verbindung ist tot, ihr Geist muss weg
+    if (d.s) for (const [pid, o] of [...net.players]) if (pid !== id && o.name === d.s.n && o.classId === d.s.c) netDropPlayer(pid, true);
     const rp = netRemote(id);
+    rp.heardAt = game.time;
     netApplyState(rp, d.s);
     conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(), v: GAME_VERSION });
     netVersionCheck(d.v, rp.name, true);
@@ -267,8 +272,17 @@ function netOnHostData(conn, d) {
     ui.updateNetBadge();
     return;
   }
-  const rp = net.players.get(id);
-  if (!rp) return;
+  let rp = known;
+  if (!rp) {
+    // War nach langer Funkstille entfernt, meldet sich aber wieder: wieder aufnehmen
+    if (d.t !== 'st' || !d.s) return;
+    net.conns.set(id, conn);
+    rp = netRemote(id);
+    rp.heardAt = game.time;
+    netApplyState(rp, d.s);
+    ui.renderNet();
+    return;
+  }
   if (d.t === 'st') netApplyState(rp, d.s);
   else if (d.t === 'dmg') netHostDamage(rp, d);
   else if (d.t === 'fx') {
@@ -287,7 +301,8 @@ function netOnHostData(conn, d) {
   }
 }
 
-function netDropPlayer(id) {
+// quiet: dieselbe Figur ist gerade neu dazugekommen (kein „hat verlassen“)
+function netDropPlayer(id, quiet) {
   net.pings.delete(id);
   if (game.trade && game.trade.pid === id) endTrade('Dein Handelspartner ist weg. Der Handel wurde abgebrochen.');
   const rp = net.players.get(id);
@@ -295,8 +310,10 @@ function netDropPlayer(id) {
   if (!rp) return;
   rp.gone = true;
   net.players.delete(id);
-  ui.chat('', `${rp.name} hat das Spiel verlassen.`);
-  netBroadcast({ t: 'chat', n: '', x: `${rp.name} hat das Spiel verlassen.` });
+  if (!quiet) {
+    ui.chat('', `${rp.name} hat das Spiel verlassen.`);
+    netBroadcast({ t: 'chat', n: '', x: `${rp.name} hat das Spiel verlassen.` });
+  }
   ui.renderNet();
   ui.updateNetBadge();
 }
@@ -352,7 +369,7 @@ function netSnapshotFor(id, rp) {
     mons.push(e);
   }
   const players = [['host', netPlayerState()]];
-  for (const [pid, o] of net.players) if (pid !== id && o.last) players.push([pid, o.last]);
+  for (const [pid, o] of net.players) if (pid !== id && o.last && !(o.name === rp.name && o.classId === rp.classId)) players.push([pid, o.last]);
   return { t: 'snap', m: mons, p: players };
 }
 
@@ -748,8 +765,13 @@ function netApplyState(rp, s) {
 }
 
 // Jedes Bild: andere Spieler weich nachziehen, Zustand senden
+// So lange (Spielzeit) darf ein Mitspieler schweigen, dann gilt er als weg (App zu ohne Abmelden)
+const NET_SILENT = 12;
 function netUpdate(dt) {
   if (net.mode !== 'host' && net.mode !== 'client') return;
+  if (net.mode === 'host') {
+    for (const [pid, rp] of [...net.players]) if (game.time - (rp.heardAt ?? game.time) > NET_SILENT) netDropPlayer(pid);
+  }
   const k = Math.min(1, dt * 12);
   for (const rp of net.players.values()) {
     rp.x += (rp.tx - rp.x) * k;

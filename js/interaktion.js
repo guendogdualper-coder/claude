@@ -555,7 +555,7 @@ function remotePlayerAt(wx, wy) {
   let best = null;
   let bestD = 26;
   for (const [pid, rp] of net.players) {
-    if (rp.gone) continue;
+    if (rp.gone || remoteHidden(rp)) continue;
     const d = Math.hypot(rp.x - wx, feetY(rp) - 22 - (rp.riding ? RIDE_HEIGHT : 0) - wy);
     if (d < bestD) { best = pid; bestD = d; }
   }

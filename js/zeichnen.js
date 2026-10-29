@@ -14,7 +14,8 @@ function setupRenderer() {
   renderer.maxDpr = gfx().dpr;
   if (want3d && !v3Init()) document.getElementById('welt3d').hidden = true;
   renderer.mini = document.getElementById('minimap');
-  if (IS_PC) renderer.mini.width = renderer.mini.height = 200;
+  // am PC größer, auf dem Handy doppelt so fein wie gezeichnet (scharf auf Retina-Bildschirmen)
+  renderer.mini.width = renderer.mini.height = IS_PC ? 200 : 240;
   renderer.miniCtx = renderer.mini.getContext('2d');
   renderer.miniBase = buildMinimapBase();
   window.addEventListener('resize', resizeRenderer);
@@ -89,7 +90,7 @@ function render() {
   for (const a of game.allies) list.push(a);
   for (const n of game.world.npcs) if (inView(n)) list.push(n);
   if (game.player && game.running && !game.player.dead) list.push(game.player);
-  for (const rp of net.players.values()) if (!rp.dead && inView(rp)) list.push(rp);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp)) list.push(rp);
   for (const c of game.clones) if (inView(c)) list.push(c);
   collectWorldObjects(list, x0, y0, x1, y1);
   // Alles nach der Fußlinie sortieren: was weiter unten steht, wird später (also davor) gezeichnet
@@ -1148,7 +1149,10 @@ function drawLabel(ctx, e) {
   ctx.strokeStyle = 'rgba(10,8,6,0.85)';
   const p = game.player;
   if (e === p || e.remote) {
-    if (e === p ? game.stats.invisible : e.invisible) return;
+    if (e.remote && remoteHidden(e)) return;
+    // getarnt: der Ninja selbst, seine Gruppe und Freunde sehen den Namen blass
+    ctx.save();
+    if (e === p ? game.stats.invisible : e.invisible) ctx.globalAlpha *= 0.5;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     const label = 'Lv ' + e.level + '  ' + e.name;
     const y = feetY(e) - 60 - (e.riding ? RIDE_HEIGHT : 0);
@@ -1174,6 +1178,7 @@ function drawLabel(ctx, e) {
     // Mitspieler zeigen ihr Leben unter dem Namen
     if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), mate ? '#3ee05a' : '#4ad04a');
     if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - (guild ? 26 : 14), e.say);
+    ctx.restore();
     return;
   }
   if (e.id === 'riss') {
@@ -1266,7 +1271,18 @@ function renderMinimap() {
   const ox = Math.max(0, Math.min(MAP_W - MINIMAP_TILES, cx - MINIMAP_TILES / 2));
   const oy = Math.max(0, Math.min(MAP_H - MINIMAP_TILES, cy - MINIMAP_TILES / 2));
   ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, W, W);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(W / 2, W / 2, W / 2, 0, Math.PI * 2);
+  ctx.clip();
   ctx.drawImage(renderer.miniBase, ox, oy, MINIMAP_TILES, MINIMAP_TILES, 0, 0, W, W);
+  // leichter Schatten zum Rand hin (seit 7.8), damit die Karte wie eine Linse im Messingring wirkt
+  const vig = ctx.createRadialGradient(W / 2, W / 2, W * 0.3, W / 2, W / 2, W / 2);
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(10,6,2,0.55)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, W);
   for (const m of game.monsters) {
     if (!m.isStone || m.dead) continue;
     const mx = (m.x / TILE - ox) * scale;
@@ -1305,8 +1321,23 @@ function renderMinimap() {
       continue;
     }
     const mark = questMarker(n.id, n);
-    ctx.fillStyle = mark === 'main' ? '#ffd34d' : mark === 'side' ? '#6ae86a' : '#e8d8a8';
-    ctx.fillRect(mx - 1, my - 1, mark ? 3.5 : 2.5, mark ? 3.5 : 2.5);
+    if (mark) {
+      // Auftrag: kleine Raute in Gold (Hauptauftrag) oder Grün (Nebenauftrag)
+      ctx.fillStyle = mark === 'main' ? '#ffd34d' : '#6ae86a';
+      ctx.strokeStyle = '#1a1208';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mx, my - 3.6);
+      ctx.lineTo(mx + 3, my);
+      ctx.lineTo(mx, my + 3.6);
+      ctx.lineTo(mx - 3, my);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = '#e8d8a8';
+      ctx.fillRect(mx - 1.2, my - 1.2, 2.4, 2.4);
+    }
   }
   // Mitspieler als hellblaue Punkte, die eigene Gruppe groß und grün mit Leuchtring.
   // Ist ein Gruppenmitglied außerhalb des Ausschnitts, zeigt ein grüner Pfeil am Rand in seine Richtung.
@@ -1314,7 +1345,7 @@ function renderMinimap() {
   // auf der kleinen Handy-Karte die Gruppenzeichen größer, damit sie auffallen
   const ms = Math.max(1, Math.min(2.4, 110 / (renderer.mini.clientWidth || W)));
   for (const rp of net.players.values()) {
-    if (rp.gone) continue;
+    if (rp.gone || remoteHidden(rp)) continue;
     let mx = (rp.x / TILE - ox) * scale;
     let my = (rp.y / TILE - oy) * scale;
     const mate = inMyParty(rp.name);
@@ -1360,14 +1391,31 @@ function renderMinimap() {
     ctx.stroke();
   }
   if (p && game.running) {
-    ctx.fillStyle = '#ffffff';
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
+    // eigene Figur: Pfeil in Blickrichtung mit hellem Schein
+    const px = (cx - ox) * scale;
+    const py = (cy - oy) * scale;
+    const glowG = ctx.createRadialGradient(px, py, 0, px, py, 9);
+    glowG.addColorStop(0, 'rgba(255,240,190,0.55)');
+    glowG.addColorStop(1, 'rgba(255,240,190,0)');
+    ctx.fillStyle = glowG;
+    ctx.fillRect(px - 9, py - 9, 18, 18);
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(Math.atan2(p.facing.y, p.facing.x));
+    ctx.fillStyle = '#fff6d8';
+    ctx.strokeStyle = '#1a1208';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc((cx - ox) * scale, (cy - oy) * scale, 3, 0, Math.PI * 2);
+    ctx.moveTo(5.5, 0);
+    ctx.lineTo(-3.5, -3.8);
+    ctx.lineTo(-1.8, 0);
+    ctx.lineTo(-3.5, 3.8);
+    ctx.closePath();
     ctx.fill();
     ctx.stroke();
+    ctx.restore();
   }
+  ctx.restore();
 }
 
 // --- Glitzern ab +8 ---------------------------------------------------------------------------

@@ -2277,10 +2277,16 @@ function v3SyncActors(dt) {
   // nur, was im Bild ist (feste Kamera: nach Norden sieht man weiter; Schulterblick: Kreis vor der Figur)
   const near = (e) => v3InView(e.x, e.y);
   const p = game.player;
-  if (game.player && game.running && !p.dead) syncPlayer3(p, dt);
-  if (V3.extra) for (const ep of V3.extra) syncPlayer3(ep, dt);
-  for (const rp of net.players.values()) if (!rp.dead && near(rp)) syncPlayer3(rp, dt);
-  for (const c of game.clones) if (near(c)) syncPlayer3(c, dt);
+  // Ein Fehler bei einer Figur darf die anderen (und die eigene) nicht mitreißen
+  const safe = (fn, e) => {
+    try { fn(e, dt); } catch (err) {
+      if (!e.__err3) { e.__err3 = true; console.warn('3D-Figur:', err); }
+    }
+  };
+  if (game.player && game.running && !p.dead) safe(syncPlayer3, p);
+  if (V3.extra) for (const ep of V3.extra) safe(syncPlayer3, ep);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && near(rp)) safe(syncPlayer3, rp);
+  for (const c of game.clones) if (near(c)) safe(syncPlayer3, c);
   for (const m of game.monsters) if (!m.dead && near(m)) syncMonster3(m, dt);
   for (const al of game.allies) if (near(al)) syncAlly3(al, dt);
   if (w) for (const n of w.npcs) if (near(n)) syncNpc3(n, dt);
@@ -2419,7 +2425,15 @@ function syncPlayer3(p, dt) {
     r.blob = 0.42;
     return r;
   });
-  if (!a) return;
+  if (!a) {
+    // Modell nicht gebaut: beim nächsten Bild neu versuchen
+    MODELS3.delete('p:' + key);
+    return;
+  }
+  // Selbstheilung (7.8): Figur gehört in die Szene und braucht gültige Werte, sonst ist sie unsichtbar
+  if (!a.group.parent) V3.actors.add(a.group);
+  if (!isFinite(a.heading)) a.heading = 0;
+  if (!(a.group.scale.x > 0.01)) a.group.scale.setScalar(a.model.scale);
   const fy = feetY(p);
   const B = a.bones;
   resetBones(a);
