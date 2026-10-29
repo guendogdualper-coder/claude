@@ -1332,6 +1332,7 @@ function renderDrei() {
   for (const k of ['water', 'lava', 'bog']) if (MAT3['liquid' + k]) MAT3['liquid' + k].uniforms.uTime.value = V3.time;
   v3SyncActors(dt);
   v3SyncFx();
+  v3SyncBounds();
   // Durchsicht um die eigene Figur
   const p = game.player;
   if (p && game.running && !p.dead) {

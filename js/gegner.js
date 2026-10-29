@@ -196,8 +196,11 @@ function updateBoss(m, dt) {
 // Fünf Angriffe im Wechsel, jeder mit Warnzeichen am Boden: Stampfer um den Boss, Meteorregen auf alle
 // Spieler, Linienangriff, Tank-Schlag aufs Ziel (Heiler gefragt), Nova (nur direkt beim Boss sicher).
 // Bei 70 % und 35 % Leben: Wutschrei, Helfer, danach schneller. Den Schaden rechnet jeder Spieler für sich.
-const RAID_MOVES = ['slam', 'meteor', 'line', 'buster', 'nova', 'meteor'];
-const RAID_MUL = { slam: 3, meteor: 2.6, line: 3.2, buster: 6, nova: 3.4 };
+// Seit 6.6: Sprung auf einen Spieler, Sturmangriff quer durch die Halle, alle paar Sekunden kleine Helfer
+// (mit Beute), unter 20 % Raserei. Insgesamt schneller und mit doppeltem Leben.
+const RAID_MOVES = ['slam', 'meteor', 'charge', 'buster', 'leap', 'line', 'nova', 'meteor', 'leap'];
+const RAID_MUL = { slam: 3, meteor: 2.6, line: 3.2, buster: 6, nova: 3.4, leap: 3.6, charge: 3.4 };
+const RAID_ADD_EVERY = 20;
 
 function raidPlayers() {
   const list = [];
@@ -209,23 +212,46 @@ function raidPlayers() {
 
 function updateRaidBoss(m, dt) {
   const b = m.type.boss;
-  if (!m.raid) m.raid = { next: 3, step: 0, phase: 0 };
+  if (!m.raid) m.raid = { next: 3, step: 0, phase: 0, addAt: game.time + 12 };
   const R = m.raid;
   if (m.state !== 'chase') {
     // ohne Kampf heilt der Boss vollständig und beginnt von vorn
     if (m.hp < m.maxHp && !m.cast) { m.hp = m.maxHp; R.phase = 0; R.step = 0; }
     return false;
   }
+  // Sturm- und Sprungbewegung des Bosses
+  if (m.dash) {
+    const d = m.dash;
+    const k = Math.min(1, (game.time - d.t0) / d.dur);
+    m.x = d.x0 + (d.x1 - d.x0) * k;
+    m.y = d.y0 + (d.y1 - d.y0) * k;
+    m.moving = true;
+    if (Math.random() < 0.6) particles(m.x, feetY(m), { count: 4, color: [m.type.boss.color, '#5a4a3a'], speed: [40, 120], life: [0.3, 0.6], size: [3, 6], drag: 3, glow: false });
+    if (k >= 1) m.dash = null;
+    return true;
+  }
   if (m.cast) {
     m.moving = false;
     if (game.time < m.cast.at) return true;
     const c = m.cast;
     m.cast = null;
+    // Sprung und Sturmangriff: der Boss landet am Ziel bzw. rast durch die Linie
+    if (c.kind === 'leap' || c.kind === 'charge') {
+      const end = c.circles[c.circles.length - 1];
+      m.dash = { x0: m.x, y0: m.y, x1: end.x, y1: end.y - m.r * 0.8, t0: game.time, dur: c.kind === 'leap' ? 0.3 : 0.45 };
+      later(m.dash.dur, () => raidResolve(m, c.kind, c.circles, c.inner));
+      return true;
+    }
     raidResolve(m, c.kind, c.circles, c.inner);
     return true;
   }
+  // regelmäßig kleine Helfer, in der Raserei öfter
+  if (game.time >= R.addAt) {
+    R.addAt = game.time + RAID_ADD_EVERY * (R.phase >= 2 ? 0.6 : 1);
+    raidMinions(m, 2 + R.phase);
+  }
   const hpk = m.hp / m.maxHp;
-  const phase = hpk < 0.35 ? 2 : hpk < 0.7 ? 1 : 0;
+  const phase = hpk < 0.2 ? 3 : hpk < 0.35 ? 2 : hpk < 0.7 ? 1 : 0;
   if (phase > R.phase) {
     R.phase = phase;
     raidRoar(m, phase);
@@ -233,7 +259,7 @@ function updateRaidBoss(m, dt) {
   }
   R.next -= dt * (1 + R.phase * 0.35);
   if (R.next > 0) return false;
-  R.next = 6.5 - R.phase * 1.2;
+  R.next = Math.max(2.4, 5 - R.phase * 0.9);
   const kind = RAID_MOVES[R.step++ % RAID_MOVES.length];
   const tgt = m.target && !m.target.dead ? m.target : game.player;
   const fy = (e) => feetY(e);
@@ -258,6 +284,26 @@ function updateRaidBoss(m, dt) {
     circles = [{ x: m.x, y: fy(m), r: 420 }];
     inner = 130;
     delay = 2.2;
+  } else if (kind === 'leap') {
+    // springt auf einen zufälligen Spieler (nicht immer den Tank)
+    const list = raidPlayers();
+    const v = list[randInt(0, list.length - 1)] || tgt;
+    circles = [{ x: v.x, y: fy(v), r: 130 }];
+    delay = 1.4;
+  } else if (kind === 'charge') {
+    // Sturmangriff: rast in gerader Linie durch die Halle, auf einen Spieler zu und darüber hinaus
+    const list = raidPlayers();
+    const v = list[randInt(0, list.length - 1)] || tgt;
+    const a = Math.atan2(v.y - m.y, v.x - m.x);
+    const len = Math.min(600, Math.hypot(v.x - m.x, v.y - m.y) + 160);
+    for (let s2 = 60; s2 <= len; s2 += 60) {
+      const x = m.x + Math.cos(a) * s2;
+      const y = fy(m) + Math.sin(a) * s2;
+      if (!canStand(x, y - m.r * 0.8, 10, true)) break;
+      circles.push({ x, y, r: 70 });
+    }
+    if (!circles.length) circles.push({ x: m.x, y: fy(m), r: 90 });
+    delay = 1.3;
   }
   m.cast = { kind, circles, inner, at: game.time + delay };
   m.attackAnim = 0.25;
@@ -273,6 +319,8 @@ function raidTelegraph(m, kind, circles, inner, delay) {
   if (kind === 'meteor') for (const c of circles) later(Math.max(0, delay - 0.45), () => addEffect({ type: 'ultfall', kind: 'meteor', x: c.x, y: c.y, fall: 0.45, dur: 0.9, color: m.type.boss.color }));
   if (kind === 'nova') addEffect({ type: 'ultsigil', ground: true, x: m.x, y: feetY(m), r: inner, dur: delay, color: '#7aff8a' });
   if (kind === 'slam' || kind === 'nova') addEffect({ type: 'pillar', follow: m, dur: delay, color: m.type.boss.color });
+  if (kind === 'leap') for (const c of circles) addEffect({ type: 'ultmark', x: c.x, y: c.y, dur: delay, color: m.type.boss.color });
+  if (kind === 'charge') addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 60, dur: delay, color: m.type.boss.color });
 }
 
 // Einschlag: Wirkung zeigen, eigener Spieler nimmt Schaden, wenn er in einem Kreis steht
@@ -296,10 +344,29 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
   if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
 }
 
+// Kleine Helfer: wenig Leben, schnell, lassen mit etwas Glück Tränke, Splitter oder Verstärkungen fallen
+function raidMinions(m, n) {
+  const b = m.type.boss;
+  for (let k = 0; k < n; k++) {
+    const pos = spotNear(m, 260);
+    const add = createMonster(b.summon, pos.x, pos.y, { respawn: false, zone: m.zone, level: m.level - 6 });
+    add.raidAdd = true;
+    add.hp = add.maxHp = Math.round(add.maxHp * 0.6);
+    add.homeX = m.homeX;
+    add.homeY = m.homeY;
+    add.state = 'chase';
+    const list = raidPlayers();
+    add.target = list[randInt(0, list.length - 1)] || game.player;
+    game.monsters.push(add);
+    addEffect({ type: 'pillar', x: pos.x, y: pos.y + 9, dur: 0.7, color: b.color });
+    addEffect({ type: 'ring', x: pos.x, y: pos.y + 9, r: 50, dur: 0.5, color: b.color, width: 6, grow: true });
+  }
+}
+
 // Phasenwechsel: Wutschrei mit Druckwelle und Helfer
 function raidRoarFx(m, phase) {
   const b = m.type.boss;
-  ui.banner(m.name, phase === 2 ? 'rast vor Wut!' : 'ruft seine Brut!');
+  ui.banner(m.name, phase === 3 ? 'gerät in Raserei!' : phase === 2 ? 'rast vor Wut!' : 'ruft seine Brut!');
   shakeScreen(14);
   flashScreen(b.color, 0.4);
   addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 380, dur: 0.9, color: b.color, width: 18, grow: true });

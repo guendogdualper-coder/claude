@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '6.5';
+const GAME_VERSION = '6.6';
 
 const game = {
   world: null,
@@ -51,7 +51,7 @@ function updatePlayer(dt) {
   if (p.dead) return;
   p.playTime += dt;
   p.attackCd = Math.max(0, p.attackCd - dt);
-  p.potionCd = Math.max(0, p.potionCd - dt);
+  if (p.potCd) for (const k of ['hp', 'mp']) p.potCd[k] = Math.max(0, p.potCd[k] - dt);
   p.swing = Math.max(0, p.swing - dt);
   p.spin = Math.max(0, (p.spin || 0) - dt);
   updateBuffAuras(dt);

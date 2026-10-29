@@ -270,7 +270,7 @@ function rewardKillInner(m) {
   if (m.isStone) {
     const splinters = randInt(drops.splinters[0], drops.splinters[1]);
     const potHp = randInt(drops.potions[0], drops.potions[1]);
-    const potMp = Math.max(1, Math.round(potHp * 0.7));
+    const potMp = Math.round(potHp * 0.6);
     const size = potionSizeFor(m.level);
     p.splinters += splinters;
     p.stones++;
@@ -285,12 +285,31 @@ function rewardKillInner(m) {
   } else {
     questEvent('kill', m);
     const sz = potionSizeFor(m.level).id;
-    const potMul = sd ? (sd.potions[0] >= 3 ? 5 : 3) : 1;
-    for (const [kind, chance] of [['hp', 0.06 * potMul], ['mp', 0.04 * potMul]]) {
+    // Seit 6.6 deutlich seltener: Tränke kauft man bei der Händlerin
+    const potMul = sd ? (sd.potions[0] >= 2 ? 2 : 1.5) : 1;
+    for (const [kind, chance] of [['hp', 0.012 * potMul], ['mp', 0.008 * potMul]]) {
       if (Math.random() >= chance) continue;
       const key = potKey(kind, sz);
       p.potions[key] = (p.potions[key] || 0) + 1;
       ui.loot(`${potionInfo(kind).name} (${sz})`, 1, potionIconUrl(kind, sz), potionInfo(kind).color);
+    }
+  }
+  // Helfer der Endbosse: mit etwas Glück Tränke, Splitter oder eine Verstärkung
+  if (m.raidAdd) {
+    const sz = potionSizeFor(m.level).id;
+    if (Math.random() < 0.35) {
+      const key = potKey('hp', sz);
+      p.potions[key] = (p.potions[key] || 0) + 1;
+      ui.loot(`${potionInfo('hp').name} (${sz})`, 1, potionIconUrl('hp', sz), potionInfo('hp').color);
+    }
+    if (Math.random() < 0.3) {
+      const n = randInt(1, 3);
+      p.splinters += n;
+      ui.loot('Seelensplitter', n, lootIconUrl('splinter'), '#c9a8ff');
+    }
+    if (Math.random() < 0.12) {
+      p.materials.boniPlus = (p.materials.boniPlus || 0) + 1;
+      ui.loot(MATERIALS.find((x) => x.id === 'boniPlus').name, 1, materialIconUrl('boniPlus'), MATERIAL_COLORS.boniPlus);
     }
   }
   if (m.type && m.type.raid) raidLoot(m);

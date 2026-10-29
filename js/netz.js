@@ -428,7 +428,8 @@ function netOnClientData(d) {
       if (!m) break;
       const circles = d.c.map(([x, y, r]) => ({ x, y, r }));
       raidTelegraph(m, d.k, circles, d.in || 0, d.d);
-      later(d.d, () => raidResolve(m, d.k, circles, d.in || 0, d.atk, d.lvl));
+      // Sprung und Sturmangriff schlagen erst nach der Bewegung des Bosses ein
+      later(d.d + (d.k === 'leap' ? 0.3 : d.k === 'charge' ? 0.45 : 0), () => raidResolve(m, d.k, circles, d.in || 0, d.atk, d.lvl));
       break;
     }
     case 'roar': {

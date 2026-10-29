@@ -717,6 +717,16 @@ const ui = {
     this.set('splinter', p.splinters, (v) => { $('splinterText').textContent = v; });
     this.set('potHp', potionTotal(p, 'hp'), (v) => { $('potHpCount').textContent = v; });
     this.set('potMp', potionTotal(p, 'mp'), (v) => { $('potMpCount').textContent = v; });
+    // Abklingzeit der Tränke (3 s) als dunkler Kreis mit Sekunden
+    for (const [kind, id] of [['hp', 'potHp'], ['mp', 'potMp']]) {
+      const left = p.potCd ? p.potCd[kind] : 0;
+      this.set('potcd' + kind, left > 0 ? Math.ceil(left * 10) : 0, () => {
+        const el = $(id).querySelector('.cd');
+        el.hidden = !(left > 0);
+        el.textContent = left > 0 ? Math.ceil(left) : '';
+        el.style.setProperty('--p', left / POTION_CD);
+      });
+    }
 
     const zone = zoneAt(p.x, p.y);
     this.set('zone', zone.id, () => {

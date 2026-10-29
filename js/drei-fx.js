@@ -4,7 +4,8 @@
 // Die 2D-Ebene über der 3D-Szene zeichnet diese Arten dann nicht mehr (FX3_TYPES).
 // Ränge (E, H, L, V) bekommen eine zweite Hülle in der Rangfarbe, ab Legendär zusätzlich Runen und Funken.
 
-const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil']);
+const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
+  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3']);
 const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null } };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
@@ -139,6 +140,14 @@ function fx3Make(kind) {
     geo.setIndex(idx);
     o = new THREE.Mesh(geo, fx3Mat(null, true));
     o.frustumCulled = false;
+  } else if (kind === 'cone' || kind === 'coneG') {
+    // Zacken aus dem Boden: Fels/Knochen (fest) oder Kristall/Glut (leuchtend)
+    const mat = kind === 'cone'
+      ? new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 })
+      : fx3Mat(null);
+    o = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 5), mat);
+  } else if (kind === 'smoke') {
+    o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0x000000, transparent: true, depthWrite: false, fog: false }));
   } else {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('spark'), color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   }
@@ -258,7 +267,100 @@ const _x3v = new THREE.Vector3();
 const _x3p = new THREE.Vector3();
 const _x3q = new THREE.Vector3();
 
+// Zufallswerte je Effekt einmal festlegen (gleiche Flugbahn in jedem Bild)
+function fx3Seed(h, n, make) {
+  if (!h.seed) h.seed = Array.from({ length: n }, make);
+  return h.seed;
+}
+
 const FX3_DRAW = {
+  // Funken im Raum: fliegen vom Körper weg, fallen mit Schwerkraft
+  sparks3(h, e, k) {
+    const n = e.count || 14;
+    const sd = fx3Seed(h, n, () => ({ a: Math.random() * Math.PI * 2, up: 0.4 + Math.random() * (e.up || 1.2), sp: (0.6 + Math.random()) * (e.speed || 2.6), s: 0.08 + Math.random() * 0.12 }));
+    const t = (game.time - e.start);
+    const bx = e.x * U3;
+    const bz = (e.y) * U3;
+    for (const q of sd) {
+      const o = fx3Take(h, 'sprite');
+      const x = bx + Math.cos(q.a) * q.sp * t;
+      const z = bz + Math.sin(q.a) * q.sp * t * 0.8;
+      const y = (e.h || 0.7) + q.up * 3 * t - 4.5 * t * t * (e.grav != null ? e.grav : 1);
+      o.position.set(x, Math.max(0.05, y), z);
+      const s = q.s * (1 - k * 0.6) * (e.size || 1);
+      o.scale.set(s, s, 1);
+      fx3Map(o, 'spark');
+      fx3Color(o, e.color, 1 - k);
+    }
+  },
+  // Zacken brechen im Kreis aus dem Boden und versinken wieder
+  shards3(h, e, k) {
+    const n = e.count || 9;
+    const r = (e.r || 60) * U3;
+    const sd = fx3Seed(h, n, (v, i) => ({ a: (i / n) * Math.PI * 2 + Math.random() * 0.4, d: r * (0.55 + Math.random() * 0.45), hgt: 0.5 + Math.random() * 0.6, tilt: 0.2 + Math.random() * 0.3 }));
+    const up = k < 0.25 ? easeOut(k / 0.25) : k > 0.7 ? 1 - (k - 0.7) / 0.3 : 1;
+    for (const q of sd) {
+      const o = fx3Take(h, e.glow ? 'coneG' : 'cone');
+      const hh = q.hgt * (e.size || 1) * up;
+      o.position.set(e.x * U3 + Math.cos(q.a) * q.d, hh / 2 - 0.05, e.y * U3 + Math.sin(q.a) * q.d);
+      o.scale.set(0.12 * (e.size || 1), Math.max(0.01, hh), 0.12 * (e.size || 1));
+      o.rotation.set(Math.sin(q.a) * q.tilt, 0, -Math.cos(q.a) * q.tilt);
+      o.material.color.set(e.color);
+      o.material.opacity = e.glow ? 0.9 * (1 - k * 0.5) : 1;
+    }
+  },
+  // Lichtkugeln kreisen aufsteigend um die Figur
+  orbs3(h, e, k) {
+    const n = e.count || 5;
+    const f = e.follow || e;
+    const cx = f.x * U3;
+    const cz = (e.follow ? feetY(f) : f.y) * U3;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + (game.time - e.start) * 5;
+      const r = 0.55 * (1 - k * 0.3);
+      const o = fx3Take(h, 'sprite');
+      o.position.set(cx + Math.cos(a) * r, 0.3 + k * 1.6 + Math.sin(a * 2) * 0.1, cz + Math.sin(a) * r);
+      o.scale.set(0.32, 0.32, 1);
+      fx3Map(o, 'disc');
+      fx3Color(o, e.color, 1 - k);
+    }
+  },
+  // Säule aus Flammen, Licht oder Blut: zwei gedrehte Wände und ein heller Kern
+  column3(h, e, k) {
+    const f = e.follow || e;
+    const x = f.x;
+    const z = e.follow ? feetY(f) : f.y;
+    const grow = k < 0.2 ? k / 0.2 : 1;
+    const ht = (e.hgt || 2.4) * grow;
+    const r = (e.r || 30) * U3 * (1 - k * 0.4);
+    const outer = fx3Take(h, 'wall');
+    fx3Wall(outer, x, z, r, ht);
+    fx3Color(outer, e.color, (1 - k) * 0.8);
+    const inner = fx3Take(h, 'wall');
+    fx3Wall(inner, x, z, r * 0.55, ht * 1.15);
+    fx3Color(inner, e.core || '#ffffff', (1 - k) * 0.7);
+    const base = fx3Take(h, 'plane');
+    fx3Ground(base, x, z, r * 2.4, 0.05, 'disc');
+    fx3Color(base, e.color, (1 - k) * 0.7);
+  },
+  // dunkle Rauchwolken, die sich ausbreiten
+  smoke3(h, e, k) {
+    const n = e.count || 8;
+    const f = e.follow || e;
+    const cx = f.x * U3;
+    const cz = (e.follow ? feetY(f) : f.y) * U3;
+    const sd = fx3Seed(h, n, () => ({ a: Math.random() * Math.PI * 2, d: 0.2 + Math.random() * 0.6, y: 0.2 + Math.random() * 1.0, s: 0.5 + Math.random() * 0.5 }));
+    for (const q of sd) {
+      const o = fx3Take(h, 'smoke');
+      const d = q.d * (0.5 + k);
+      o.position.set(cx + Math.cos(q.a) * d, q.y + k * 0.4, cz + Math.sin(q.a) * d * 0.8);
+      const s = q.s * (0.6 + k) * (e.size || 1);
+      o.scale.set(s, s, 1);
+      o.material.color.set(e.color);
+      o.material.opacity = 0.7 * (1 - k);
+    }
+  },
+
   ring(h, e, k) {
     const f = fx3Foot(e);
     const r = e.r * (e.grow ? 0.3 + 0.9 * k : 0.4 + 0.6 * k) * U3;
@@ -550,4 +652,67 @@ function v3SyncFx() {
     FX3.live.add(h);
   }
   fx3Projectiles(FX3_PROJ);
+}
+
+// --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------
+// Um die Map bzw. die Dungeon-Halle, in der man steht, liegt ein Kasten aus Nebel: hohe Wände im Norden,
+// Osten und Westen, eine niedrige im Süden (dort steht die Kamera), darüber Deckel. So sieht man die
+// Nachbarkarte hinter dem Rand nicht mehr, nur Nebel in der Farbe des Gebiets.
+const BOUNDS3 = { key: '', walls: null, mat: null };
+function regionRect3(x, y) {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  const wm = mapOfTile(tx, ty);
+  if (wm) return { r: wm.region, inset: MAP_BORDER - 1, key: 'm' + wm.id };
+  if (tx >= WORLD_W && ty < DUNGEON_H) {
+    const col = Math.floor((tx - WORLD_W) / DUNGEON_COL);
+    const row = Math.floor(ty / DUNGEON_BLOCK);
+    return { r: [WORLD_W + col * DUNGEON_COL, row * DUNGEON_BLOCK, DUNGEON_COL, DUNGEON_BLOCK], inset: 1, key: 'd' + col + ':' + row };
+  }
+  return null;
+}
+function v3SyncBounds() {
+  const p = game.player;
+  if (!p || !game.running) return;
+  if (!BOUNDS3.walls) {
+    BOUNDS3.mat = new THREE.MeshBasicMaterial({ color: 0x000000, fog: false, side: THREE.FrontSide });
+    const lidMat = new THREE.MeshBasicMaterial({ color: 0x000000, fog: false, side: THREE.DoubleSide });
+    BOUNDS3.lidMat = lidMat;
+    BOUNDS3.walls = [];
+    for (let k = 0; k < 8; k++) {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), k < 4 ? BOUNDS3.mat : lidMat);
+      m.renderOrder = -1;
+      V3.scene.add(m);
+      BOUNDS3.walls.push(m);
+    }
+  }
+  // Nebelfarbe übernehmen (wechselt mit dem Gebiet)
+  BOUNDS3.mat.color.copy(V3.scene.fog.color);
+  BOUNDS3.lidMat.color.copy(V3.scene.fog.color);
+  const rr = regionRect3(p.x, p.y);
+  const key = rr ? rr.key : '';
+  if (key === BOUNDS3.key) return;
+  BOUNDS3.key = key;
+  for (const w of BOUNDS3.walls) w.visible = !!rr;
+  if (!rr) return;
+  const [rx, ry, rw, rh] = rr.r;
+  const x0 = rx + rr.inset;
+  const x1 = rx + rw - rr.inset;
+  const z0 = ry + rr.inset;
+  const z1 = ry + rh - rr.inset;
+  const H = 9;
+  const HS = 1.4;
+  const FAR = 260;
+  const [wn, ws, ww, we, ln, ls, lw, le] = BOUNDS3.walls;
+  // Wände: Vorderseite zeigt nach innen (von außen unsichtbar)
+  wn.scale.set(x1 - x0 + 2, H + 1, 1); wn.position.set((x0 + x1) / 2, H / 2 - 0.5, z0); wn.rotation.set(0, 0, 0);
+  ws.scale.set(x1 - x0 + 2, HS + 1, 1); ws.position.set((x0 + x1) / 2, HS / 2 - 0.5, z1); ws.rotation.set(0, Math.PI, 0);
+  ww.scale.set(z1 - z0, H + 1, 1); ww.position.set(x0, H / 2 - 0.5, (z0 + z1) / 2); ww.rotation.set(0, Math.PI / 2, 0);
+  we.scale.set(z1 - z0, H + 1, 1); we.position.set(x1, H / 2 - 0.5, (z0 + z1) / 2); we.rotation.set(0, -Math.PI / 2, 0);
+  // Deckel über allem außerhalb
+  const lid = (m, cx, cz, sx, sz, h) => { m.scale.set(sx, sz, 1); m.position.set(cx, h, cz); m.rotation.set(-Math.PI / 2, 0, 0); };
+  lid(ln, (x0 + x1) / 2, z0 - FAR / 2, x1 - x0 + FAR * 2, FAR, H);
+  lid(ls, (x0 + x1) / 2, z1 + FAR / 2, x1 - x0 + FAR * 2, FAR, HS);
+  lid(lw, x0 - FAR / 2, (z0 + z1) / 2, FAR, z1 - z0, H);
+  lid(le, x1 + FAR / 2, (z0 + z1) / 2, FAR, z1 - z0, H);
 }

@@ -123,7 +123,7 @@ function makePlayer(save) {
     facing: { x: 0, y: 1 },
     attackCd: 0,
     skillCd: [0, 0, 0, 0, 0],
-    potionCd: 0,
+    potCd: { hp: 0, mp: 0 },
     buffs: [],
     shield: 0,
     shieldUntil: 0,
@@ -430,10 +430,17 @@ function toggleRide(on) {
   ui.updateHorseButton();
 }
 
-// Trinken: nimmt die kleinste Größe, die das Fehlende auffüllt, sonst die größte vorhandene
+// Trinken: nimmt die kleinste Größe, die das Fehlende auffüllt, sonst die größte vorhandene.
+// Seit 6.6 je Sorte 3 s Abklingzeit (kein Durchtrinken), Leben und Mana getrennt.
+const POTION_CD = 3;
 function usePotion(kind) {
   const p = game.player;
-  if (!p || p.dead || p.potionCd > 0) return;
+  if (!p || p.dead) return;
+  if (!p.potCd) p.potCd = { hp: 0, mp: 0 };
+  if (p.potCd[kind] > 0) {
+    addText(p.x, p.y - 34, `Noch ${p.potCd[kind].toFixed(1).replace('.', ',')} s`, 'info');
+    return;
+  }
   const s = game.stats;
   const name = potionInfo(kind).plural;
   if (potionTotal(p, kind) <= 0) {
@@ -447,7 +454,7 @@ function usePotion(kind) {
   const have = POTION_SIZES.filter((sz) => (p.potions[potKey(kind, sz.id)] || 0) > 0);
   const size = have.find((sz) => (hp ? sz.heal : sz.mana) >= missing - 0.02) || have[have.length - 1];
   p.potions[potKey(kind, size.id)]--;
-  p.potionCd = 0.5;
+  p.potCd[kind] = POTION_CD;
   vfxPotion(p, kind);
   if (hp) {
     const amount = Math.round(s.maxHp * size.heal);

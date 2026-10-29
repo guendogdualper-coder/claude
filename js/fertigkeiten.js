@@ -798,11 +798,61 @@ function skillColor(sk, fallback) {
 function skillCastFx(sk) {
   const fx = SKILL_FX[sk.id];
   if (fx && fx.cast) fx.cast(game.player, sk);
+  skillSignature3(sk, game.player);
 }
 
 function skillHitFx(id, m, crit, heavy) {
   const fx = SKILL_FX[id];
   if (fx && fx.hit) fx.hit(m, crit, heavy);
+  const el = SKILL_ELEMENT[id];
+  if (el) addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.6, count: heavy ? 12 : 7, color: ELEMENT3[el].spark, speed: 2.2, up: 1, size: crit ? 1.4 : 1, dur: 0.6 });
+}
+
+// --- Eigener 3D-Auftritt je Element (seit 6.6) ------------------------------------------------------
+// Jede Fertigkeit gehört zu einem Element und bekommt beim Wirken räumliche Teile dazu:
+// Klinge: Stahlfunken · Erde: Felsen brechen aus dem Boden · Feuer/Wut: Flammensäule und Glut ·
+// Schatten: Rauch und dunkle Kugeln · Blitz: blaue Funken · Wind: Wirbelsäule · Licht/Geist: goldene Säule
+// und Kugeln · Seele: grüne Kugeln und Rauch · Blut: rote Säule · Knochen: Knochenzacken
+const ELEMENT3 = {
+  klinge: { spark: '#e6eeff' },
+  erde: { spark: '#c8a878', shard: '#7a6a54' },
+  feuer: { spark: '#ffb04a', column: '#ff6a2a' },
+  schatten: { spark: '#c9b8ff', smoke: '#1a1224', orb: '#8a5aff' },
+  blitz: { spark: '#cfe8ff', column: '#7fb8ff' },
+  wind: { spark: '#e8fff0', column: '#9fe8c8' },
+  licht: { spark: '#fff2c0', column: '#ffd34d', orb: '#fff2a0' },
+  seele: { spark: '#9ff0b0', smoke: '#14281a', orb: '#7fe3a0' },
+  blut: { spark: '#ff6a6a', column: '#c8202a' },
+  knochen: { spark: '#f0e8d4', shard: '#e8e0c8' }
+};
+const SKILL_ELEMENT = {
+  dreifachschlag: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
+  sturmangriff: 'erde', schildstoss: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
+  kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
+  tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
+  blitzangriff: 'blitz', blitzschlag: 'blitz', donnersturm: 'blitz',
+  leichtfuessigkeit: 'wind', windfessel: 'wind',
+  geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'licht', geistesschlag: 'licht',
+  seelenpfeil: 'seele', seelensturm: 'seele', fluch: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
+  blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
+};
+
+function skillSignature3(sk, p) {
+  const el = SKILL_ELEMENT[sk.id];
+  if (!el) return;
+  const c = ELEMENT3[el];
+  const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
+  // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur
+  const at = t && (sk.type === 'blast' || sk.type === 'strike' || sk.type === 'curse' || sk.type === 'drain' || sk.type === 'blink') ? t : p;
+  const fy = feetY(at);
+  const big = sk.radius ? sk.radius : 60;
+  addEffect({ type: 'sparks3', x: at.x, y: fy, h: 0.8, count: 18, color: c.spark, speed: 3, up: 1.4, dur: 0.8 });
+  if (c.shard) addEffect({ type: 'shards3', x: at.x, y: fy, r: Math.max(50, big * 0.8), count: el === 'knochen' ? 7 : 10, color: c.shard, glow: false, size: el === 'erde' ? 1.3 : 1, dur: 1.1 });
+  if (c.column) addEffect({ type: 'column3', follow: at, ox: 0, oy: 0, r: 26, hgt: sk.kind === 'buff' ? 3 : 2.2, color: c.column, dur: 0.8 });
+  if (c.smoke) addEffect({ type: 'smoke3', follow: at, ox: 0, oy: 0, count: 9, color: c.smoke, dur: 1 });
+  if (c.orb && (sk.kind === 'buff' || sk.kind === 'heilung' || sk.kind === 'fluch' || el === 'seele')) addEffect({ type: 'orbs3', follow: p, ox: 0, oy: 0, count: 6, color: c.orb, dur: 1 });
+  if (el === 'wind') addEffect({ type: 'tornado', follow: at, ox: 0, oy: 0, r: 40, dur: 0.8, color: c.column });
+  if (el === 'blitz' && at !== p) addEffect({ type: 'bolt', x: at.x, y: fy, dur: 0.3, color: '#cfe8ff' });
 }
 
 function skillPhaseFx(id, phase) {

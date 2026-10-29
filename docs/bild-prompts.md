@@ -1539,3 +1539,25 @@ Top-down three-quarter view of a small fortified camp on a snowy map in a styliz
 ```
 A large jagged rift hanging in the air above a grey ash plain in a stylized 3D toon MMORPG: a frame of black stone shards around a swirling violet vortex, glowing cracks spreading on the ground, floating rock fragments circling it, a small label below "Totengruft · 4:31". Mysterious and dangerous.
 ```
+
+## Härtere Endbosse, Element-Effekte und Nebelrand (Version 6.6)
+
+### Endboss-Sprung und Helfer
+```
+Stylized 3D toon MMORPG raid scene: a huge horned demon lord leaps high into the air toward one hero, a red warning circle with a glowing X under the targeted hero, while small hellhound minions burst out of fiery pillars around the arena; one defeated minion leaves a red potion and violet soul splinters glowing on the ground. Five heroes scatter, dramatic red lighting, readable on a phone.
+```
+
+### Elemente der Fertigkeiten
+```
+Grid of eight stylized 3D toon MMORPG skill effects, each clearly different: steel-blue sparks flying from a sword whirl; jagged rocks erupting from the ground around a warrior; a roaring orange flame column with embers; dark violet smoke and orbiting shadow orbs around a ninja; blue-white lightning sparks with a bolt from the sky; a swirling green-white wind column; a golden column of light with floating golden orbs around a shaman; white bone spikes bursting from the ground around a necromancer. Additive glow, soft cel shading.
+```
+
+### Nebel am Kartenrand
+```
+Top-down three-quarter view of the northern edge of a grey ash plain map in a stylized 3D toon MMORPG: a row of dark boulders marks the border, behind it the world fades into soft grey-violet mist – nothing of the next map is visible. A lone hero stands near the edge, a few dead trees and bones scattered around.
+```
+
+### Tränke mit Abklingzeit
+```
+Close-up of a mobile MMORPG action bar: a red potion button and a blue potion button, the red one dimmed by a dark circular cooldown sweep with a large "2" in the middle, the blue one ready and glowing. Clean, readable game UI.
+```
