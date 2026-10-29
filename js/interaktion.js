@@ -618,8 +618,15 @@ function remoteSkillFx(rp, d) {
     case 'projectile':
       spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce });
       break;
+    case 'vortex':
+      vortexFx(rp, sk);
+      break;
     case 'blast': {
       const bolts = sk.fx === 'storm' ? 6 : 1;
+      if (sk.fx === 'lotus') {
+        lotusFx(target.x, target.y, sk);
+        break;
+      }
       if (sk.fx === 'poison') {
         addEffect({ type: 'ring', x: target.x, y: target.y, r: sk.radius, dur: 0.5, color: '#8fd16a', width: 8, grow: true });
         particles(target.x, target.y - 8, { count: 24, color: ['#8fd16a', '#5a8a3a'], speed: [30, 120], life: [0.8, 1.4], size: [5, 10], drag: 2, glow: false, jitter: sk.radius * 0.5 });

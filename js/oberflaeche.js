@@ -23,6 +23,7 @@ const ui = {
     $('btnHorse').addEventListener('click', () => toggleRide());
     $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
     $('btnSocial').addEventListener('click', () => this.toggle('panelSocial'));
+    $('btnDaily').addEventListener('click', () => this.toggle('panelDaily'));
     $('btnOpts').addEventListener('click', () => this.toggle('panelOpts'));
     $('btnStatPlus').addEventListener('click', () => this.toggle('panelChar'));
     $('btnChat').addEventListener('click', () => this.openChat());
@@ -269,6 +270,12 @@ const ui = {
     this.renderQuestTrack();
     this.updateHorseButton();
     this.updateNetBadge();
+    this.updateDailyBadge();
+    // Tagesbelohnung: beim Einloggen von selbst zeigen, wenn sie heute noch nicht abgeholt ist
+    clearTimeout(this.dailyTimer);
+    this.dailyTimer = setTimeout(() => {
+      if (game.player && !dailyState().claimed && !this.anyPanelOpen()) this.toggle('panelDaily');
+    }, 1500);
     netAutoJoin();
     const moved = game.player.gearMoved || [];
     if (moved.length) {
@@ -489,6 +496,12 @@ const ui = {
         }
       }
     }));
+  },
+
+  // Rotes Zeichen am Geschenk-Knopf, solange die Tagesbelohnung wartet
+  updateDailyBadge() {
+    const b = $('dailyBadge');
+    if (b && game.player) b.hidden = dailyState().claimed;
   },
 
   updateNetBadge() {
@@ -960,6 +973,7 @@ const ui = {
       }
       if (id === 'panelLoot') this.renderLoot();
       if (id === 'panelSocial') social.render();
+      if (id === 'panelDaily') renderDaily();
       if (id === 'panelOpts') options.render();
       if (id === 'panelNet') {
         this.renderNet();

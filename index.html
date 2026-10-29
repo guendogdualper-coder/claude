@@ -104,6 +104,9 @@
     <button id="btnSocial" class="menu-btn" type="button" aria-label="Freunde und Gilde">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M12 2.5l8 2.7v6c0 5.3-3.6 8.7-8 10.3-4.4-1.6-8-5-8-10.3v-6z"/><path d="M12 8.2c-1.2-1.6-4-1.1-4 1 0 2 2.4 3.4 4 4.8 1.6-1.4 4-2.8 4-4.8 0-2.1-2.8-2.6-4-1z"/></svg>
       <span class="menu-text">Freunde &amp; Gilde</span> <kbd>G</kbd><span id="socialBadge" class="menu-badge" hidden></span></button>
+    <button id="btnDaily" class="menu-btn" type="button" aria-label="Tagesbelohnung">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M3.5 9.5h17v3h-17z"/><path class="fill" d="M5 12.5h14V21H5z"/><path d="M12 9.5V21"/><path d="M12 9.5C10 5 6 5 6.6 7.6 7 9.3 12 9.5 12 9.5zM12 9.5c2-4.5 6-4.5 5.4-1.9-.4 1.7-5.4 1.9-5.4 1.9z"/></svg>
+      <span class="menu-text">Tagesbelohnung</span> <kbd>T</kbd><span id="dailyBadge" class="menu-badge" hidden>!</span></button>
     <button id="btnChat" class="menu-btn" type="button" aria-label="Chat" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-5 4v-4H4A1.5 1.5 0 0 1 2.5 15V6A1.5 1.5 0 0 1 4 4.5z"/><path d="M7 9h10M7 12h6"/></svg>
       <span class="menu-text">Chat</span> <kbd>Enter</kbd></button>
@@ -262,6 +265,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 6.9 – Tagesbelohnung, neuer Schamane, Dauerangriff am Handy: Jeden Tag einmal die Tagesbelohnung abholen (Geschenk-Knopf im Menü, Taste T, öffnet sich beim Einloggen von selbst). Sieben Tage in Folge geben immer mehr: Gold, Seelensplitter, Verstärkungen, Segensschriftrolle, Switcher, Schatztruhe und am 7. Tag ein Fertigkeitsbuch mit Schriftrollen und seltenen Verstärkungen – wer einen Tag auslässt, fängt wieder bei Tag 1 an. Der Schamane (Weg des Drachen) hat zwei neue Flächenangriffe: Glutlotus (eine glühende Lotosblüte aus Drachenfeuer öffnet sich unter dem Ziel, Flammenblätter und eine Feuersäule treffen alle Gegner im Umkreis und setzen sie in Brand) und Drachenwirbel (ein Feuerdrache kreist dreimal um dich, trifft jedes Mal alle Gegner ringsum und schleudert sie am Ende weg). Stufen und Bücher der alten Fertigkeiten bleiben erhalten. Am Handy greift der Angriffsknopf gedrückt gehalten ununterbrochen an – Tippen ist weiter ein einzelner Schlag.</li>
       <li>Version 6.8 – Kanäle repariert, mehr Monster: Der kostenlose Vermittlungsserver, über den sich die Handys gefunden haben, hat Anfragen nicht mehr weitergeleitet – deshalb stand bei einem besetzten Kanal nur „prüfe …“ und man kam nicht zu seinem Mitspieler. Jetzt finden sich die Geräte über einen anderen, zuverlässigen Dienst; gespielt wird danach wie bisher direkt von Handy zu Handy. Die Kanal-Auswahl zeigt sofort „leer“ oder die Spielerzahl. Wichtig: Alle müssen auf Version 6.8 sein. Auf jeder Map stehen jetzt gut 60 % mehr Monstergruppen (mit allen neuen Tierarten) und deutlich mehr Seelensteine.</li>
       <li>Version 6.7 – Monster neu gemacht: Jedes Monster holt jetzt sichtbar aus, bevor es zuschlägt – es bleibt stehen, dreht sich zu dir und glüht kurz rot auf. Erst dann trifft der Schlag; wer rechtzeitig wegläuft, weicht aus. Jede Art greift anders an: Wölfe reißen das Maul auf und schnappen zu, Wildschweine scharren und rammen mit den Hauern, Bären richten sich auf und schlagen mit den Pranken, Katzen springen, Spinnen heben die Vorderbeine, Skorpione stechen über den Kopf, Schlangen schnellen vor, Oger und Golems schmettern beide Fäuste auf den Boden, Krieger holen weit mit der Waffe aus. Das Wildschwein ist jetzt ein echter Keiler (Keilkopf mit Rüsselscheibe, Hauer, Borstenkamm, Hufe), Wölfe sind schlanker, große Brocken haben böse Augen und einen Buckel. Neu auf jeder Map: Rotfuchs und Rothirsch, Dornenkeiler und Luchs, Tüpfelhyäne, Aschewarg, Wüstenschakal und Schattenpanther, Eisbär und Wollmammut, Moorwolf, Donnerbock und Glutkatze – jede mit eigenem Monster-Teil.</li>
       <li>Version 6.6 – Härter und schöner: Tränke haben je 3 Sekunden Abklingzeit (rot und blau getrennt, die Zeit läuft sichtbar auf dem Knopf ab), Durchtrinken geht nicht mehr. Monster lassen viel seltener Tränke fallen – Nachschub gibt es bei der Händlerin. Endbosse haben doppeltes Leben, sind schneller, springen auf einzelne Spieler, rasen im Sturmangriff durch die Halle, rufen alle 20 Sekunden kleine Helfer (die oft Tränke, Splitter oder Verstärkungen fallen lassen) und geraten unter 20 % in Raserei – ohne fünf Spieler kaum zu schaffen. Jede Fertigkeit hat einen eigenen 3D-Auftritt nach ihrem Element (Stahlfunken, Felsen aus dem Boden, Flammensäule, Schattenrauch, Blitzfunken, Windwirbel, Lichtsäule, Seelenkugeln, Blut, Knochenzacken). Am Rand jeder Map und jeder Halle liegt Nebel – die Nachbarkarte sieht man nicht mehr.</li>
@@ -341,6 +345,11 @@
 <div id="panelNet" class="panel frame" hidden role="dialog" aria-labelledby="netTitle">
   <header class="panel-head"><h2 id="netTitle">Server wählen</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="netBody" class="panel-body"></div>
+</div>
+
+<div id="panelDaily" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="dailyTitle">
+  <header class="panel-head"><h2 id="dailyTitle">Tagesbelohnung</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="dailyBody" class="panel-body"></div>
 </div>
 
 <div id="panelLoot" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="lootTitle">
@@ -430,6 +439,7 @@
 <script src="js/drei-fx.js"></script>
 <script src="js/oberflaeche.js"></script>
 <script src="js/quests.js"></script>
+<script src="js/tagesbelohnung.js"></script>
 <script src="js/eingabe.js"></script>
 <script src="js/netz-signal.js"></script>
 <script src="js/netz.js"></script>

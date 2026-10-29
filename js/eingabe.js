@@ -80,6 +80,7 @@ function setupInput() {
       case 'KeyR': if (!e.repeat) toggleRide(); break;
       case 'KeyN': if (!e.repeat) ui.toggle('panelNet'); break;
       case 'KeyG': if (!e.repeat) ui.toggle('panelSocial'); break;
+      case 'KeyT': if (!e.repeat) ui.toggle('panelDaily'); break;
       case 'KeyO': if (!e.repeat) ui.toggle('panelOpts'); break;
       case 'Enter': if (netOnline()) { ui.openChat(); e.preventDefault(); } break;
       case 'KeyB': if (!e.repeat) ui.toggle('panelLoot'); break;
@@ -289,16 +290,22 @@ function setupTouch() {
   zone.addEventListener('pointercancel', releaseStick);
 
   const atk = $('btnAttack');
+  // Gedrückt halten greift immer weiter an (wie die Leertaste am PC), Tippen bleibt ein einzelner Angriff
   atk.addEventListener('pointerdown', (e) => {
-    atk.setPointerCapture(e.pointerId);
+    try { atk.setPointerCapture(e.pointerId); } catch (x) { /* ohne Fangen geht es auch */ }
     tapAttack();
+    input.touchAttack = true;
     atk.classList.add('active');
   });
   const stopAttack = () => {
+    input.touchAttack = false;
     atk.classList.remove('active');
   };
   atk.addEventListener('pointerup', stopAttack);
   atk.addEventListener('pointercancel', stopAttack);
+  atk.addEventListener('lostpointercapture', stopAttack);
+  // App im Hintergrund: nicht ewig weiter angreifen
+  document.addEventListener('visibilitychange', () => { if (document.hidden) stopAttack(); });
   atk.addEventListener('contextmenu', (e) => e.preventDefault());
 
   onPress($('btnTalk'), interact);

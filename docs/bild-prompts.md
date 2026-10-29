@@ -1592,3 +1592,25 @@ Mobile MMORPG server selection panel in dark fantasy style: server "ERFOO" with 
 ```
 Elevated three-quarter top-down view of a sunny meadow map in a stylized 3D toon MMORPG: several packs of wild dogs and grey wolves, a family of wild boars rooting in the grass, a red fox trotting, a red deer stag with antlers at the forest edge, two glowing soul stones in the distance; few trees, lots of open grass, a lone hero in the middle. Lively but readable on a phone.
 ```
+
+## Tagesbelohnung, Schamane und Dauerangriff (Version 6.9)
+
+### Tagesbelohnung
+```
+Mobile MMORPG daily login reward window in dark fantasy style: seven reward tiles in a row labelled "Tag 1" to "Tag 7" – gold pouch, violet soul splinters, blue enhancement crystals, a blessing scroll, green switcher gems, an open treasure chest, and a big glowing violet tile with a skill book and rare crystals for day 7. Days 1–2 dimmed with green check marks, day 3 glowing golden and pulsing, a large golden button "Tag 3 abholen" below. Readable on a phone in landscape.
+```
+
+### Glutlotus
+```
+Stylized 3D toon MMORPG skill effect, elevated three-quarter view: a shaman in teal robes with a fan points at a group of bandits; under them a huge glowing orange-gold rune circle opens like a lotus, eight flame petals burst out of the ground in a ring, a bright fire column rises in the middle, embers and sparks fly, scorched ground. Additive glow, cel shading.
+```
+
+### Drachenwirbel
+```
+Stylized 3D toon MMORPG skill effect: a ghostly fire dragon spirals three times around a shaman, leaving a glowing orange-gold ring trail at waist height; enemies all around are hit, the final loop releases a fire shockwave and a short flame column, bandits are knocked outward. Rune circle on the ground, sparks, warm light.
+```
+
+### Dauerangriff am Handy
+```
+Close-up of a mobile game attack button held down by a thumb, glowing ring pulsing around it, the hero in the background attacking repeatedly with motion trails. Clean readable mobile UI.
+```

@@ -707,6 +707,15 @@ const SKILL_TYPES = {
     const x = t ? t.x : p.x + p.facing.x * 120;
     const y = t ? t.y : p.y + p.facing.y * 120;
     if (t) faceTowards(t.x, t.y);
+    if (sk.fx === 'lotus') {
+      // Glutlotus: Blüte am Boden, dann schießen Flammenblätter hoch
+      lotusFx(x, y, sk, () => {
+        shakeScreen(4);
+        hitStop(0.04);
+        for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: true, vfxColor: '#ffd08a' });
+      });
+      return;
+    }
     if (sk.fx === 'poison') {
       // Giftwolke statt Blitz
       later(0.1, () => {
@@ -727,6 +736,18 @@ const SKILL_TYPES = {
       shakeScreen(bolts > 1 ? 8 : 6);
       hitStop(0.05);
       for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
+    });
+  },
+
+  // Drachenwirbel: mehrere Runden um die Figur, jede trifft alle im Umkreis, die letzte schleudert weg
+  vortex(sk, pw) {
+    const p = game.player;
+    vortexFx(p, sk, (h, last) => {
+      if (p.dead) return;
+      if (last) shakeScreen(5);
+      for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, knockback: last ? sk.knockback : 0, burn: last ? sk.burn : null, heavy: last, vfxColor: '#ffd08a' });
+      }
     });
   },
 

@@ -124,28 +124,34 @@ const SKILL_ICONS = {
     iconLine(ctx, '#7a8aa8', 1.5, [[-12, 14], [10, -14]]);
   },
   // Schamane
+  // Glutlotus: Blüte aus Flammenblättern
   talisman(ctx) {
-    ctx.save();
-    ctx.rotate(-0.25);
-    iconShape(ctx, () => { ctx.beginPath(); ctx.rect(-9, -15, 18, 30); }, '#fff6dc', '#e8d8a8');
-    iconLine(ctx, '#c8302a', 2, [[-4, -9], [4, -5], [-4, -1], [4, 3], [-4, 7]]);
-    ctx.restore();
-    ctx.fillStyle = 'rgba(255,220,120,0.55)';
-    ctx.beginPath();
-    ctx.arc(10, -12, 4, 0, Math.PI * 2);
-    ctx.fill();
+    for (let k = 0; k < 6; k++) {
+      ctx.save();
+      ctx.rotate((k / 6) * Math.PI * 2);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -2); ctx.quadraticCurveTo(7, -9, 0, -17); ctx.quadraticCurveTo(-7, -9, 0, -2); ctx.closePath(); }, '#ffe08a', '#ff7a2a', 1.2);
+      ctx.restore();
+    }
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); }, '#fff6d0', '#ffb04a', 1.2);
   },
+  // Drachenwirbel: Drache im Kreis mit Feuerschweif
   drachengebruell(ctx) {
-    iconShape(ctx, () => {
-      ctx.beginPath();
-      ctx.moveTo(-17, 0);
-      ctx.quadraticCurveTo(0, -18, 17, -14);
-      ctx.quadraticCurveTo(10, -6, 18, 0);
-      ctx.quadraticCurveTo(10, 6, 17, 14);
-      ctx.quadraticCurveTo(0, 18, -17, 0);
-      ctx.closePath();
-    }, '#ffe08a', '#e0381a');
-    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, 0, 7, 4, 0, 0, Math.PI * 2); }, '#fff6d0', '#ffb04a', 1.5);
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ff7a2a';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0.4, Math.PI * 1.85);
+    ctx.stroke();
+    ctx.strokeStyle = '#ffe08a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 12, 0.6, Math.PI * 1.8);
+    ctx.stroke();
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(10, -2); ctx.lineTo(19, -8); ctx.lineTo(16, 1); ctx.lineTo(19, 6); ctx.lineTo(9, 6); ctx.closePath(); }, '#ffd34d', '#c8402f', 1.2);
+    ctx.fillStyle = '#1a0a04';
+    ctx.beginPath();
+    ctx.arc(14, -2, 1.3, 0, Math.PI * 2);
+    ctx.fill();
   },
   segen(ctx) {
     for (let k = 0; k < 8; k++) {
@@ -526,29 +532,23 @@ const SKILL_FX = {
     aura: { every: 0.05, color: ['#ffffff', '#c8d8f0'], shape: 'spark', wind: true, onlyMoving: true }
   },
   talisman: {
+    color: '#ff9a4a',
     cast(p) {
       const c = bodyCenter(p);
-      addEffect({ type: 'runes', x: c.x + p.facing.x * 16, y: c.y + 6, r: 18, dur: 0.5, color: '#f0d27a' });
+      addEffect({ type: 'runes', x: c.x + p.facing.x * 16, y: c.y + 6, r: 20, dur: 0.5, color: '#ffb04a' });
     },
     hit(m) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 10, color: ['#f0d27a', '#ffffff'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+      particles(c.x, c.y, { count: 10, color: ['#ffd34d', '#ff7a2a', '#ffffff'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 2.5], shape: 'ember', drag: 5 });
     }
   },
   drachengebruell: {
-    cast(p, sk) {
-      const dir = p.facing;
-      const ang = Math.atan2(dir.y, dir.x);
-      const c = bodyCenter(p);
-      later(0.12, () => particles(c.x + dir.x * 20, c.y + dir.y * 10, {
-        count: 40, color: ['#ffe08a', '#ff9a4a', '#e0381a'], angle: ang, spread: 0.35,
-        speed: [sk.radius * 1.6, sk.radius * 3.2], life: [0.3, 0.55], size: [3, 6], shape: 'ember', drag: 3
-      }));
-      later(0.3, () => particles(c.x + dir.x * 60, c.y + dir.y * 30, { count: 14, color: ['#3a3430', '#5a524a'], angle: ang, spread: 0.6, speed: [20, 70], life: [0.6, 1], size: [6, 10], drag: 2, glow: false, gravity: -40 }));
-      flashScreen('#ff7a2a', 0.18);
+    color: '#ff7a2a',
+    cast() {
+      flashScreen('#ff7a2a', 0.15);
     },
     hit(m) {
-      addEffect({ type: 'decal', kind: 'scorch', x: m.x, y: feetY(m), r: 20, dur: 2.2, color: '#1a1008' });
+      addEffect({ type: 'decal', kind: 'scorch', x: m.x, y: feetY(m), r: 18, dur: 2, color: '#1a1008' });
     }
   },
   segen: {
@@ -790,6 +790,48 @@ Object.assign(SKILL_FX, {
   }
 });
 
+// --- Schamane (seit 6.9): Glutlotus und Drachenwirbel, auch für Mitspieler sichtbar -------------------
+
+// Lotosblüte aus Drachenfeuer: Runenkreis am Boden, nach kurzer Zeit schießen Flammenblätter
+// und eine Feuersäule hoch; onBurst trifft (nur beim eigenen Wirken)
+function lotusFx(x, y, sk, onBurst) {
+  addEffect({ type: 'runes', x, y, r: sk.radius, dur: 0.75, color: '#ffb04a' });
+  addEffect({ type: 'ring', x, y, r: sk.radius * 0.55, dur: 0.3, color: '#ffd34d', width: 6, grow: true });
+  addEffect({ type: 'decal', kind: 'rune', x, y, r: sk.radius * 0.8, dur: 1, color: '#ff9a4a' });
+  later(0.2, () => {
+    addEffect({ type: 'shards3', x, y, r: sk.radius * 0.7, count: 8, color: '#ff8a2a', glow: true, size: 1.3, dur: 0.75 });
+    addEffect({ type: 'shards3', x, y, r: sk.radius * 0.35, count: 5, color: '#ffd34d', glow: true, size: 0.9, dur: 0.6 });
+    addEffect({ type: 'column3', x, y, r: 28, hgt: 2.6, color: '#ff6a2a', core: '#ffe08a', dur: 0.7 });
+    addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.45, color: '#ff9a4a', width: 8, grow: true });
+    addEffect({ type: 'sparks3', x, y, h: 0.3, count: 22, color: '#ffb04a', speed: 3, up: 2, dur: 0.9 });
+    addEffect({ type: 'decal', kind: 'scorch', x, y, r: sk.radius * 0.6, dur: 3, color: '#1a1008' });
+    particles(x, y - 10, { count: 30, color: ['#ffd34d', '#ff9a4a', '#ff5a2a'], speed: [60, 200], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3, jitter: sk.radius * 0.4 });
+    if (onBurst) onBurst();
+  });
+}
+
+// Geisterdrache kreist um die Figur: je Runde ein Feuerbogen mit Schweif, am Ende eine Feuerwelle
+function vortexFx(p, sk, onPulse) {
+  const hits = sk.hits || 3;
+  const col = sk.color || '#ff7a2a';
+  addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius * 0.9, dur: hits * 0.3 + 0.4, color: col });
+  addEffect({ type: 'tornado', follow: p, ox: 0, oy: 0, r: sk.radius * 0.35, dur: hits * 0.3 + 0.2, color: '#ffb04a' });
+  for (let h = 0; h < hits; h++) {
+    later(h * 0.3, () => {
+      const last = h === hits - 1;
+      const a = h * 2.1;
+      vfxSweep(p, sk.radius * 0.88, a, a + Math.PI * 2.1, col, 0.34, 30);
+      vfxSweep(p, sk.radius * 0.7, a + 0.4, a + 0.4 + Math.PI * 1.8, '#ffe08a', 0.3, 12);
+      addEffect({ type: 'sparks3', follow: p, x: p.x, y: feetY(p), h: 0.9, count: 10, color: '#ffb04a', speed: 3.4, up: 0.8, dur: 0.6 });
+      if (last) {
+        addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.5, color: '#ff9a4a', width: 10, grow: true });
+        addEffect({ type: 'column3', follow: p, ox: 0, oy: 0, r: 34, hgt: 2.2, color: '#ff6a2a', core: '#ffe08a', dur: 0.6 });
+      }
+      if (onPulse) onPulse(h, last);
+    });
+  }
+}
+
 function skillColor(sk, fallback) {
   const fx = SKILL_FX[sk.id];
   return (fx && fx.color) || fallback;
@@ -832,7 +874,7 @@ const SKILL_ELEMENT = {
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
   blitzangriff: 'blitz', blitzschlag: 'blitz', donnersturm: 'blitz',
   leichtfuessigkeit: 'wind', windfessel: 'wind',
-  geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'licht', geistesschlag: 'licht',
+  geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'feuer', geistesschlag: 'licht',
   seelenpfeil: 'seele', seelensturm: 'seele', fluch: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
   blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
 };

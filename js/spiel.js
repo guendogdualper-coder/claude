@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '6.8';
+const GAME_VERSION = '6.9';
 
 const game = {
   world: null,
@@ -84,8 +84,8 @@ function updatePlayer(dt) {
       const len = Math.hypot(mv.x, mv.y);
       p.facing = { x: mv.x / len, y: mv.y / len };
     }
-    // Leertaste oder linke Maustaste auf einem Monster gehalten (PC): jeder Frame ist ein neuer Tipp
-    if (input.keys.has('Space') || input.mouseAttack) input.attackAt = game.time;
+    // Leertaste, linke Maustaste auf einem Monster (PC) oder Angriffsknopf (Handy) gehalten: jeder Frame ist ein neuer Tipp
+    if (input.keys.has('Space') || input.mouseAttack || input.touchAttack) input.attackAt = game.time;
     // Mausklick auf den Boden: dorthin laufen, bis Tasten, Steuerknüppel oder ein Angriff übernehmen
     if (mv.x || mv.y || game.time - input.attackAt < 0.45) input.walkTo = null;
     else if (input.walkTo) {

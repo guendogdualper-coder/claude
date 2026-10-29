@@ -177,15 +177,16 @@ const CLASSES = {
         id: 'drache', name: 'Weg des Drachen', role: 'PvE · Feuer und Blitz',
         description: 'Ruft Drachenfeuer und Gewitter herab und trifft viele Gegner aus der Distanz.',
         skills: [
+          // seit 6.9: Flächenschaden statt Talisman und Kegel (Kennungen bleiben, damit Stufen und Bücher erhalten bleiben)
           {
-            id: 'talisman', name: 'Fliegender Talisman', short: 'FT', kind: 'angriff', unlock: 1, mp: 9, cooldown: 2.5,
-            type: 'projectile', range: 340, speed: 430, dmg: 1.6, color: '#f0d27a', style: 'talisman', chain: 2,
-            text: 'Ein Talisman, der vom Ziel auf zwei weitere Gegner überspringt.'
+            id: 'talisman', name: 'Glutlotus', short: 'GL', kind: 'angriff', unlock: 1, mp: 10, cooldown: 3,
+            type: 'blast', fx: 'lotus', range: 320, radius: 95, dmg: 1.6, color: '#ff9a4a', burn: { dps: 0.25, duration: 3 },
+            text: 'Unter dem Ziel öffnet sich eine glühende Lotosblüte aus Drachenfeuer: Flammenblätter schießen aus dem Boden, treffen alle Gegner im Umkreis und setzen sie 3 Sekunden in Brand.'
           },
           {
-            id: 'drachengebruell', name: 'Drachengebrüll', short: 'DG', kind: 'angriff', unlock: 3, mp: 16, cooldown: 6,
-            type: 'cone', radius: 160, angle: 70, dmg: 1.7, color: '#ff9a4a', burn: { dps: 0.3, duration: 3 },
-            text: 'Drachenfeuer in einem Kegel vor dir. Setzt Gegner 3 Sekunden in Brand.'
+            id: 'drachengebruell', name: 'Drachenwirbel', short: 'DW', kind: 'angriff', unlock: 3, mp: 18, cooldown: 7,
+            type: 'vortex', radius: 170, hits: 3, dmg: 0.95, knockback: 140, color: '#ff7a2a', burn: { dps: 0.3, duration: 3 },
+            text: 'Ein Geisterdrache aus Feuer kreist dreimal um dich und trifft jedes Mal alle Gegner im Umkreis. Zum Schluss schleudert er sie zurück und setzt sie in Brand.'
           },
           {
             id: 'drachenkraft', name: 'Drachenkraft', short: 'DK', kind: 'buff', unlock: 5, mp: 24, cooldown: 60,
