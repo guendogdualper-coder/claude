@@ -270,6 +270,13 @@ Jede Familie bekommt mehr Tiefe durch **Schichten und Akzente**, nicht durch vie
 | Drachen | Rückenzacken, Bauchplatten, Flügel mit Fingerknochen, Hornkrone |
 | Bosse und Endbosse | größer, Krone oder Rüstung, eigener Leuchtring |
 
+**Umsetzung (seit 8.1):** `js/drei-figuren.js` – `beast3`, `spider3`, `scorpion3`, `ghost3`, `serpent3`,
+`golem3` überarbeitet; `MON3_LOOK` legt je Art die Besonderheiten fest (Endbosse erben die ihrer
+Vorlage), `humanFlair3` gibt menschenartigen Monstern Zubehör, `themeAcc3` das Gebietszubehör
+(`MON3_THEMES[…].acc`). Tiere (Eber, Mammut, Hirsch) in `js/drei-tiere.js`. Kleinteile ohne Schatten
+(`noShadow`); Figuren mit Schattenmodell empfangen selbst keine Schatten. Gemessen: im Schnitt 8.562
+Dreiecke je Monster, größtes Modell 14.152.
+
 ---
 
 ## 6. Boden, Gras, Wasser
