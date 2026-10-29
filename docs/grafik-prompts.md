@@ -100,7 +100,7 @@ Hals, Kopf, Gürtelmitte). Dort entstehen:
   Knauf bzw. Kopfstück je Stufe, siehe 4.11).
 Hilfen für Motive: `crescent3`, `sun3`, `wing3`, `floatGem3`, `emberSpike3`, `skull3`, `star3`,
 `flame3`, `curvedHorn3`; Lage auf dem Körper: `onBody3` (Rahmen auf der Rumpfoberfläche),
-`bodyLine3` (Nähte, Risse, Schnürung), `ringAt3`/`arcAt3` (Ringe und Rippen).
+`bodyLine3` (Nähte, Risse, Schnürung), `bodyRing3`/`arcAt3` (Ringe und Rippen).
 
 ### 4.1 Rüstung – Krieger
 | Stufe | Name | Merkmal | Details |

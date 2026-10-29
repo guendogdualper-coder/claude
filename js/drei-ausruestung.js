@@ -884,7 +884,7 @@ function bodyLine3(W, g, a, b, n, w, color, o = {}, side = 1, at = torsoAt3) {
 }
 
 // Ring um den Körper in Höhe y mit den Halbachsen rx, rz
-function ringAt3(W, y, rx, rz, tube, color, o = {}) {
+function bodyRing3(W, y, rx, rz, tube, color, o = {}) {
   W(torus3(0.2, tube, Math.PI * 2, 3, 18), color, Object.assign({ p: [0, y, 0], r: [Math.PI / 2, 0, 0], s: [rx / 0.2, rz / 0.2, 1] }, o));
 }
 // Teilbogen vorn um den Körper (mid 0 = vorn), z. B. Rippen
@@ -976,7 +976,7 @@ const ARMOR3 = {
       for (let k = 0; k < 6; k++) {
         const y = g.hipY + 0.03 + k * 0.055;
         const [rx, rz] = torsoAt3(g, y);
-        ringAt3(W, y, rx + 0.006, rz + 0.006, 0.012, k % 2 ? '#a8a090' : '#7a7264', { shine: 0.8 });
+        bodyRing3(W, y, rx + 0.006, rz + 0.006, 0.012, k % 2 ? '#a8a090' : '#7a7264', { shine: 0.8 });
       }
       const [, rz] = torsoAt3(g, g.chestY);
       W(roundBox(0.05, 0.56, rz * 2 + 0.04, 0.02), '#5a3a22', { p: [0, g.chestY - 0.02, 0], r: [0, 0, 0.62] });
@@ -1067,7 +1067,7 @@ const ARMOR3 = {
       bodyLine3(W, g, [0.12 * g.bk, g.chestY + 0.13], [-0.06, g.hipY + 0.06], 4, 0.04, '#e8dcc0');
       const y = g.hipY + 0.08;
       const [rx, rz] = torsoAt3(g, y);
-      ringAt3(W, y, rx + 0.01, rz + 0.01, 0.015, '#c8b890');
+      bodyRing3(W, y, rx + 0.01, rz + 0.01, 0.015, '#c8b890');
       const K = onBody3(W, g, -0.06, y, 1, 0.02);
       K(ball(8), '#c8b890', { s: [0.026, 0.022, 0.018] });
       for (const s of [-1, 1]) K(limb3(0.09, 0.008, 0.006, 4), '#c8b890', { p: [s * 0.012, -0.01, 0.005], r: [0, 0, s * 0.2] });
@@ -1114,14 +1114,14 @@ const ARMOR3 = {
         coneAlong(Wh, G3.spike(), at, [Math.sin(m) * 0.25, -1, Math.cos(m) * 0.25], 0.05 + (k % 3) * 0.025, 0.2, '#2a1410');
         if (k % 2) coneAlong(Wh, G3.ray(), at, [Math.sin(m) * 0.25, -1, Math.cos(m) * 0.25], 0.04, 0.2, '#ff7a2a', { mat: 'glow' });
       }
-      ringAt3(Wh, y + 0.02, 0.278 * g.bk, 0.236 * g.bk, 0.008, '#ff7a2a', { mat: 'glow' });
+      bodyRing3(Wh, y + 0.02, 0.278 * g.bk, 0.236 * g.bk, 0.008, '#ff7a2a', { mat: 'glow' });
     },
     // Sternengewand: weiße Sterne auf Nachtblau, Silbersaum
     (W, g, c, Wh) => {
       for (const [x, y, side] of [[-0.1, 0.12, 1], [0.09, 0.2, 1], [-0.03, 0.3, 1], [0.12, 0.05, 1], [0.05, 0.15, -1], [-0.1, 0.28, -1]]) {
         star3(onBody3(W, g, x * g.bk, g.hipY + y, side, 0.008), [0, 0, 0], 0.016 + (x > 0 ? 0.004 : 0), '#e6f6ff');
       }
-      ringAt3(Wh, g.hipY - 0.15, 0.288 * g.bk, 0.245 * g.bk, 0.012, '#c7ccd3', { shine: 1 });
+      bodyRing3(Wh, g.hipY - 0.15, 0.288 * g.bk, 0.245 * g.bk, 0.012, '#c7ccd3', { shine: 1 });
     },
     // Göttergewand: Sonnenwappen im Rücken, goldgesäumter Kragen in zwei Lagen
     (W, g) => {
@@ -1154,7 +1154,7 @@ const ARMOR3 = {
         sub3(Wh, [Math.sin(m) * (rx + 0.008), 0.17, Math.cos(m) * (rz + 0.008)], [0, m, 0])(G3.feather(), k % 2 ? FEATHER3 : '#e8eef4', { r: [Math.PI - 0.22, 0, 0], s: 0.13, top: '#2a2a30', topK: 0.25 });
       }
       const [rx, rz] = robeAt3(0.27);
-      ringAt3(Wh, 0.27, rx + 0.004, rz + 0.004, 0.016, '#f4f4f0');
+      bodyRing3(Wh, 0.27, rx + 0.004, rz + 0.004, 0.016, '#f4f4f0');
       for (let k = -2; k <= 2; k++) onRobe3(Wh, g, Math.sin(k * 0.4) * rx, 0.27, 1, 0.016)(sphere3(0.013, 6, 4), '#c8402f', {});
     },
     // Phönixrobe: Flammenzungen steigen vom Saum auf, Goldborte
@@ -1165,7 +1165,7 @@ const ARMOR3 = {
         coneAlong(Wh, horn3(1, 0.3, 5), [Math.sin(m) * rx, 0.05, Math.cos(m) * rz], [-Math.sin(m) * 0.2, 1, -Math.cos(m) * 0.2], 0.1 + (k % 2) * 0.07, 0.3, k % 2 ? '#ff7a2a' : '#e8402a', { top: '#ffd34d', topK: 0.6 });
       }
       const [rx, rz] = robeAt3(0.05);
-      ringAt3(Wh, 0.05, rx + 0.006, rz + 0.006, 0.016, GOLD3, { shine: 1 });
+      bodyRing3(Wh, 0.05, rx + 0.006, rz + 0.006, 0.016, GOLD3, { shine: 1 });
     },
     // Drachenrobe: Drachenperle in goldenen Klauen vor der Brust, Schuppenband um die Taille
     (W, g) => {
@@ -1180,7 +1180,7 @@ const ARMOR3 = {
     // Glutrobe: glühender Saum, aufsteigende Glutsplitter
     (W, g, c, Wh) => {
       const [rx, rz] = robeAt3(0.05);
-      ringAt3(Wh, 0.05, rx + 0.004, rz + 0.004, 0.018, '#ff7a2a', { mat: 'glow' });
+      bodyRing3(Wh, 0.05, rx + 0.004, rz + 0.004, 0.018, '#ff7a2a', { mat: 'glow' });
       for (let k = 0; k < 8; k++) {
         const m = k * 0.785 + 0.3;
         const y = 0.14 + (k % 4) * 0.12;
@@ -1224,7 +1224,7 @@ const ARMOR3 = {
       }
       const y = g.hipY + 0.06;
       const [rx, rz] = robeAt3(y);
-      ringAt3(Wh, y, rx + 0.012, rz + 0.012, 0.014, '#8a7a5a');
+      bodyRing3(Wh, y, rx + 0.012, rz + 0.012, 0.014, '#8a7a5a');
       const K = onRobe3(Wh, g, 0.08, y, 1, 0.025);
       K(ball(6), '#8a7a5a', { s: 0.022 });
       K(limb3(0.12, 0.008, 0.006, 4), '#8a7a5a', { p: [0, -0.01, 0] });
@@ -1234,7 +1234,7 @@ const ARMOR3 = {
     // Seelenrobe: grün leuchtender Saum mit Seelenflammen
     (W, g, c, Wh) => {
       const [rx, rz] = robeAt3(0.07);
-      ringAt3(Wh, 0.07, rx + 0.004, rz + 0.004, 0.016, '#7dff9a', { mat: 'glow' });
+      bodyRing3(Wh, 0.07, rx + 0.004, rz + 0.004, 0.016, '#7dff9a', { mat: 'glow' });
       for (let k = 0; k < 6; k++) {
         const m = (k / 6) * Math.PI * 2 + 0.3;
         flame3(Wh, [Math.sin(m) * (rx + 0.01), 0.08, Math.cos(m) * (rz + 0.01)], [Math.sin(m) * 0.15, 1, Math.cos(m) * 0.15], 0.09 + (k % 2) * 0.05, 0.16, '#7dff9a', '#e8ffe0');
