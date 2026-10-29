@@ -732,8 +732,12 @@ function netApplyState(rp, s) {
   rp.name = s.n;
   rp.classId = CLASSES[s.c] ? s.c : 'krieger';
   rp.level = s.l;
-  rp.tx = s.x;
-  rp.ty = s.y;
+  const gh = rp.glideHold;
+  if (gh && (game.time >= gh.until || s.d || Math.abs(s.x - gh.x) + Math.abs(s.y - gh.y) < 16)) rp.glideHold = null;
+  if (!rp.glideHold) {
+    rp.tx = s.x;
+    rp.ty = s.y;
+  }
   if (first || Math.abs(rp.x - s.x) + Math.abs(rp.y - s.y) > 400) { rp.x = s.x; rp.y = s.y; }
   rp.facing = { x: s.fx, y: s.fy };
   rp.moving = !!s.m;
@@ -752,7 +756,7 @@ function netApplyState(rp, s) {
   rp.buffs = (s.b || []).map(([id, lvl, left]) => ({ id, lvl, until: game.time + left, duration: left, effects: {} }));
   if (s.sw && s.sw[0] !== rp.seq) {
     if (!first) {
-      rp.swingKind = s.sw[1];
+      rp.swingKind = typeof s.sw[1] === 'string' ? s.sw[1] : 'combo';
       rp.combo = s.sw[2];
       rp.swingDur = s.sw[3];
       rp.swing = s.sw[3];
@@ -779,7 +783,13 @@ function netUpdate(dt) {
     let gk = -1;
     if (g) {
       gk = (game.time - g.start) / g.dur;
-      if (gk >= 1) { rp.x = rp.tx = g.x1; rp.y = rp.ty = g.y1; rp.glide = null; }
+      if (gk >= 1) {
+        rp.x = rp.tx = g.x1;
+        rp.y = rp.ty = g.y1;
+        rp.glide = null;
+        // verspätete Zwischenstände aus der Luft kurz übergehen, sonst zuckt die Figur zurück
+        rp.glideHold = { x: g.x1, y: g.y1, until: game.time + 2 * NET_RATE + 0.05 };
+      }
     }
     if (g && gk >= 0 && gk < 1) {
       rp.x = g.x0 + (g.x1 - g.x0) * gk;

@@ -558,7 +558,7 @@ function waveFx(owner, x0, y0, dir, wl, sk, local, pw) {
   addEffect({ type: 'sparks3', x: x0, y: fy0, h: 0.2, count: 12, color: '#e6eeff', speed: 2.6, up: 1.2, dur: 0.5 });
   const speed = 420;
   const steps = Math.ceil(wl / speed / 0.05);
-  addEffect({ type: 'wave3', x: x0, y: fy0, dx: dir.x, dy: dir.y, len: wl, w: sk.waveWidth, dur: wl / speed + 1.2, speed, color: sk.color || '#e6eeff' });
+  addEffect({ type: 'wave3', x: x0, y: fy0, dx: dir.x, dy: dir.y, dist: wl, w: sk.waveWidth, dur: wl / speed + 1.2, speed, color: sk.color || '#e6eeff' });
   const hit = new Set();
   for (let s = 0; s <= steps; s++) {
     later(s * 0.05, () => {
@@ -889,14 +889,14 @@ const SKILL_TYPES = {
     for (let s = 6; s <= want; s += 6) {
       const nx = p.x + dir.x * s;
       const ny = p.y + dir.y * s;
-      if (!canStand(nx, ny, p.r * 0.7, false) || inVillage(nx, ny)) break;
+      if (!canStand(nx, ny, p.r * 0.7, false) || (inVillage(nx, ny) && !duelFighting())) break;
       reach = s;
     }
     const x1 = p.x + dir.x * reach;
     const y1 = p.y + dir.y * reach;
     const h = Math.max(44, Math.min(60, 44 + 0.08 * reach));
     const now = game.time;
-    p.dash = { leap: true, x0: p.x, y0: p.y, x1, y1, t0: now + sk.crouch, dur: sk.air, until: now + sk.crouch + sk.air + sk.recover, sk, pw, rank: fxRank, landed: false, trailAt: 0, smoked: false };
+    p.dash = { leap: true, x0: p.x, y0: p.y, px: p.x, py: p.y, x1, y1, t0: now + sk.crouch, dur: sk.air, until: now + sk.crouch + sk.air + sk.recover, sk, pw, rank: fxRank, landed: false, trailAt: 0, smoked: false };
     p.leap = { start: now + sk.crouch, dur: sk.air, h, slam: true };
     input.walkTo = null;
     particles(p.x, feetY(p), { count: 12, color: ['#a88f62', '#c9b28a'], speed: [40, 120], life: [0.3, 0.6], size: [2.5, 4.5], shape: 'square', drag: 3, glow: false });
@@ -1156,6 +1156,12 @@ function dashStep(dt) {
       addEffect({ type: 'smoke3', x: p.x, y: feetY(p), count: 4, color: '#8a7458', size: 0.6, dur: 0.5 });
     }
     if (!d.landed) {
+      // von außen versetzt (Tor, Reise, Dungeon): Sprung abbrechen statt zurückzuziehen
+      if (d.px != null && Math.hypot(p.x - d.px, p.y - d.py) > 40) {
+        p.dash = null;
+        p.leap = null;
+        return;
+      }
       let k = Math.min(1, (now - d.t0) / d.dur);
       const tx = d.x0 + (d.x1 - d.x0) * k;
       const ty = d.y0 + (d.y1 - d.y0) * k;
@@ -1163,6 +1169,8 @@ function dashStep(dt) {
       const my = ty - p.y;
       // zweite Sicherung: blockiert der Weg doch, landet die Figur sofort
       if ((mx || my) && !moveEntity(p, mx, my, false)) k = 1;
+      d.px = p.x;
+      d.py = p.y;
       if (now >= d.trailAt) {
         d.trailAt = now + 0.04;
         particles(p.x, feetY(p) - 30, { count: 2, color: ['#e8dcc0', '#ffffff'], angle: Math.atan2(-(d.y1 - d.y0), -(d.x1 - d.x0)), spread: 0.3, speed: [60, 120], life: [0.15, 0.25], size: [1.5, 2.5], shape: 'spark', drag: 3 });

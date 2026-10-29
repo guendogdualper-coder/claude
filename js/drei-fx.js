@@ -418,8 +418,8 @@ const FX3_DRAW = {
   // dahinter eine Lichtschleppe und eine dunkle Schnittfurche
   wave3(h, e) {
     const t = game.time - e.start;
-    const travel = e.len / e.speed;
-    const d = Math.min(e.len, t * e.speed);
+    const travel = e.dist / e.speed;
+    const d = Math.min(e.dist, t * e.speed);
     const fade = t < travel ? 1 : Math.max(0, 1 - (t - travel) / 0.3);
     const g = 0.7 + 0.3 * Math.min(1, t / 0.08);
     const ang = Math.atan2(-e.dy, e.dx);
@@ -562,7 +562,7 @@ const FX3_DRAW = {
     fx3Ground(seam, e.x, e.y, R, 0.038, 'ring', 0);
     fx3Color(seam, '#1e140c', 0.4 * bowlOp);
     const low = typeof opts !== 'undefined' && opts.graphics === 'niedrig';
-    const N = low ? 8 : 12;
+    const N = e.n || (e.n = low ? 8 : 12);
     const sd = fx3Seed(h, N + 12, (v, i) => ({
       a: (i / N) * Math.PI * 2 + (Math.random() - 0.5) * 0.4, d: 0.95 + Math.random() * 0.15,
       sx: 0.2 + Math.random() * 0.1, sy: 0.11 + Math.random() * 0.07, sz: 0.14 + Math.random() * 0.06,

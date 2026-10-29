@@ -146,7 +146,9 @@ function onInteract(pid, d) {
       break;
     case 'to':
       if (game.trade && game.trade.pid === pid) {
-        game.trade.theirs = { items: d.items || [], gold: d.gold || 0 };
+        // Bücher älterer Versionen umbenennen, unbekannte weglassen (sonst bricht die Anzeige)
+        const items = (d.items || []).filter(Boolean).map((it) => (it.book && SKILL_RENAMED[it.book] ? { ...it, book: SKILL_RENAMED[it.book] } : it)).filter((it) => !it.book || skillEntry(it.book));
+        game.trade.theirs = { items, gold: d.gold || 0 };
         game.trade.okMine = false;
         game.trade.okTheirs = false;
         trade.render();
@@ -646,6 +648,7 @@ function remoteSkillFx(rp, d) {
       const r = rp.r || 14;
       rp.leap = { start: t0, dur: sk.air, h, slam: true };
       rp.glide = { x0: d.x, y0: d.y, x1: d.tx, y1: d.ty, start: t0, dur: sk.air };
+      rp.glideHold = null;
       particles(d.x, d.y + r * 0.8, { count: 12, color: ['#a88f62', '#c9b28a'], speed: [40, 120], life: [0.3, 0.6], size: [2.5, 4.5], shape: 'square', drag: 3, glow: false });
       addEffect({ type: 'ring', x: d.tx, y: d.ty + r * 0.8, r: sk.radius, dur: 0.55, color: '#c8a878', width: 3 });
       later(sk.crouch + sk.air, () => {

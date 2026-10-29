@@ -479,14 +479,15 @@ const SLOTS_KEY = 'seelenstein.charaktere.v2';
 const MAX_CHARS = 4;
 let saveSlot = null;
 
+// Umbenannte Fertigkeiten (alte ID -> neue ID); gilt für Spielstände und für Bücher aus dem Handel
+const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff', dreifachschlag: 'sichelwelle', sturmangriff: 'sprungschlag', schildstoss: 'felsenfaust' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
   // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
   // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
   // Version 8.3: Dreifachschlag → Sichelwelle, Sturmangriff → Sprungschlag, Schildstoß → Felsenfaust
-  const renamed = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff', dreifachschlag: 'sichelwelle', sturmangriff: 'sprungschlag', schildstoss: 'felsenfaust' };
-  for (const it of data.inventory || []) if (it && renamed[it.book]) it.book = renamed[it.book];
+  for (const it of data.inventory || []) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
   return data;
 }
 

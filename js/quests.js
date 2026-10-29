@@ -222,6 +222,8 @@ function leaveDungeon(k) {
 function moveThrough(spot, color) {
   const p = game.player;
   addEffect({ type: 'ring', x: p.x, y: feetY(p), r: 40, dur: 0.5, color, width: 8, grow: true });
+  p.dash = null;
+  p.leap = null;
   p.x = spot.x;
   p.y = spot.y;
   game.target = null;
@@ -330,6 +332,8 @@ function travelTo(spot) {
   if (p.gold < cost) return `Dir fehlen ${cost - p.gold} Gold für die Reise.`;
   p.gold -= cost;
   addEffect({ type: 'ring', x: p.x, y: feetY(p), r: 40, dur: 0.5, color: '#9fd0ff', width: 8, grow: true });
+  p.dash = null;
+  p.leap = null;
   p.x = spot.x;
   p.y = spot.y;
   game.target = null;

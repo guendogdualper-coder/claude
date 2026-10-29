@@ -3167,7 +3167,7 @@ function syncPlayer3(p, dt) {
     B[BH.armL].rotation.set(-2.7 * k, 0, 0.3 * k);
     B[BH.armR].rotation.set(-2.7 * k, 0, -0.3 * k);
     B[BH.head].rotation.x += -0.3 * k;
-  } else if (sw >= 0 && SKILL_POSE3[p.swingKind]) {
+  } else if (sw >= 0 && Object.prototype.hasOwnProperty.call(SKILL_POSE3, p.swingKind)) {
     // eigene Animationen (seit 8.3): Sichelwelle, Felsenfaust, Sprungschlag
     SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
   } else if (sw >= 0) {
