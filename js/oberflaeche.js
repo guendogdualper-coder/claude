@@ -229,6 +229,15 @@ const ui = {
   },
 
   // Konto: anmelden/registrieren oder Name, Speicherstand und Abmelden
+  // Charaktere vom Gerät, für die im Konto gerade kein Platz frei ist
+  pendingNote() {
+    const pend = (readSlots().pending || []).filter((sv) => sv && !sv.deleted);
+    if (!pend.length) return '';
+    const who = pend.map((sv) => `${escapeHtml(sv.name)} (Stufe ${sv.level})`).join(', ');
+    return `<p class="acc-pending">Im Konto sind alle vier Plätze belegt. ${who} ${pend.length > 1 ? 'warten' : 'wartet'} sicher auf diesem Gerät ` +
+      'und ' + (pend.length > 1 ? 'kommen' : 'kommt') + ' automatisch dazu, sobald du einen Platz frei machst.</p>';
+  },
+
   renderAccount() {
     const box = $('accountBox');
     if (!box) return;
@@ -237,7 +246,8 @@ const ui = {
     if (accountOn()) {
       const st = account.state === 'sync' ? '☁ gleiche ab …' : account.state === 'error' ? `⚠ ${escapeHtml(account.msg)}` : '☁ im Konto gespeichert';
       box.innerHTML = `<div class="acc-row"><span class="acc-name">👤 ${escapeHtml(account.name || '')}</span><span class="acc-state ${account.state}">${st}</span>` +
-        '<button type="button" class="btn btn-ghost acc-out">Abmelden</button></div>';
+        '<button type="button" class="btn btn-ghost acc-out">Abmelden</button></div>' +
+        this.pendingNote();
       box.querySelector('.acc-out').addEventListener('click', async () => {
         box.querySelector('.acc-out').disabled = true;
         await accountLogout();

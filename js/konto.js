@@ -122,7 +122,7 @@ async function cloudPut(st, keepalive) {
 // beide geändert → der neuere. „Zuletzt gespielt“ kommt vom Gerät, das zuletzt gespeichert hat.
 function mergeSlots(local, remote) {
   const synced = local.synced || [];
-  const out = { slots: [], claims: [], last: null, synced: [] };
+  const out = { slots: [], claims: [], last: null, synced: [], owner: local.owner, pending: [] };
   for (let k = 0; k < MAX_CHARS; k++) {
     const l = local.slots[k] || null;
     const r = remote ? remote.slots[k] || null : null;
@@ -155,10 +155,59 @@ function accountStatus(state, msg = '') {
 }
 
 // Abgleich: Konto laden, mit dem Gerät zusammenführen, hochladen; erst danach gilt der Stand als bekannt
+const liveSave = (sv) => !!(sv && !sv.deleted);
+const sameChar = (a, b) => liveSave(a) && liveSave(b) && a.name === b.name && a.classId === b.classId;
+
+// Charakter in den Konto-Stand legen: gleicher Charakter (Name + Klasse) → der neuere bleibt,
+// sonst auf einen freien Platz (am liebsten den bisherigen). Kein Platz frei → -1
+function placeChar(st, sv, prefer) {
+  const same = st.slots.findIndex((x) => sameChar(x, sv));
+  if (same >= 0) {
+    if ((sv.savedAt || 0) > (st.slots[same].savedAt || 0)) st.slots[same] = sv;
+    return same;
+  }
+  const at = prefer >= 0 && !liveSave(st.slots[prefer]) ? prefer : st.slots.findIndex((x) => !liveSave(x));
+  if (at >= 0) st.slots[at] = sv;
+  return at;
+}
+
+// Erste Anmeldung dieses Geräts bei diesem Konto: Die Charaktere vom Gerät kommen dazu, ohne einen
+// Charakter im Konto zu überschreiben. Passt einer nicht mehr hinein (alle vier Plätze belegt), wartet er
+// auf dem Gerät (pending), bis ein Platz frei wird.
+function adoptLocal(local, remote) {
+  const r = remote || { slots: [null, null, null, null], claims: [], last: null };
+  const st = {
+    slots: r.slots.slice(), claims: (r.claims || []).slice(), last: r.last, owner: account.uid, pending: [],
+    synced: r.slots.map((sv) => (sv ? sv.savedAt || 0 : null))
+  };
+  const mine = local.slots.map((sv, k) => ({ sv, k })).filter((e) => liveSave(e.sv))
+    .concat((local.pending || []).map((sv) => ({ sv, k: -1 })));
+  for (const { sv, k } of mine) {
+    const at = placeChar(st, sv, k);
+    if (at < 0) st.pending.push(sv);
+    else if (k === local.last) st.last = at;
+  }
+  return st;
+}
+
 async function cloudExchange(keepalive) {
-  const local = readSlots();
+  let local = readSlots();
   const remote = await cloudGet();
+  if (local.owner !== account.uid) {
+    local = adoptLocal(local, remote);
+    writeSlots(local, true);
+  }
   const merged = mergeSlots(local, remote);
+  // wartende Charaktere vom Gerät, sobald ein Platz frei ist
+  let placed = false;
+  for (const sv of local.pending || []) {
+    const at = placeChar(merged, sv, -1);
+    if (at < 0) merged.pending.push(sv);
+    else {
+      merged.synced[at] = merged.slots[at].savedAt || 0;
+      placed = true;
+    }
+  }
   // Der Charakter läuft hier noch, wurde aber woanders weitergespielt oder gelöscht: dieses Spiel ist veraltet
   if (game.running && saveSlot != null && remote) {
     const l = local.slots[saveSlot];
@@ -169,6 +218,7 @@ async function cloudExchange(keepalive) {
   await cloudPut(merged, keepalive);
   writeSlots(Object.assign(readSlots(), { synced: merged.synced }), true);
   account.lastPush = Date.now();
+  return placed;
 }
 
 // Beim Starten eines Charakters: ihn für dieses Gerät übernehmen (andere offene Spiele damit werden veraltet)
@@ -220,8 +270,9 @@ async function cloudPush(keepalive) {
   account.dirty = false;
   account.lastPush = Date.now();
   try {
-    await cloudExchange(keepalive);
+    const placed = await cloudExchange(keepalive);
     accountStatus('ok');
+    if (placed && typeof ui !== 'undefined' && !game.running) ui.showStart();
   } catch (e) {
     account.dirty = true;
     accountStatus('error', e.message);
@@ -248,10 +299,13 @@ async function accountLogout() {
   if (game.running) saveGame();
   account.dirty = true;
   await cloudPush();
+  // Charaktere, die noch auf einen Platz im Konto warten, bleiben auf dem Gerät
+  const pending = (readSlots().pending || []).slice(0, MAX_CHARS);
   accountClear();
   try {
     localStorage.removeItem(SLOTS_KEY);
     localStorage.removeItem(SAVE_KEY);
+    if (pending.length) writeSlots({ slots: pending, last: null }, true);
   } catch { /* privat */ }
   saveSlot = null;
   accountStatus('off');

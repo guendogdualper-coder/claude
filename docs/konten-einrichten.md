@@ -92,5 +92,9 @@ funktioniert der Schlüssel nur noch auf der Spielseite.
   Gerät noch offen, merkt das Gerät es beim nächsten Abgleich (spätestens beim Zurückkehren in die App),
   speichert nicht mehr und lädt den neueren Stand. Ein vergessenes, offenes Spiel überschreibt also keinen
   neueren Fortschritt.
+- Erste Anmeldung auf einem Gerät: Alle Charaktere, die schon auf dem Gerät sind, kommen mit ins Konto –
+  auf freie Plätze, ohne einen Charakter im Konto zu überschreiben. Gleicher Name und gleiche Klasse gelten
+  als derselbe Charakter (der weitere Stand bleibt). Ist kein Platz frei, wartet der Charakter auf dem Gerät
+  und kommt dazu, sobald einer frei wird.
 - Gelöschte Charaktere werden auch auf den anderen Geräten gelöscht.
 - Beim Abmelden werden die Charaktere vom Gerät entfernt (sie bleiben im Konto).
