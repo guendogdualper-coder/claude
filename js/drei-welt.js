@@ -493,6 +493,314 @@ const tplDeco = (d, style, v) => bakeTemplate(`deco:${d}:${style}:${v}`, (b) => 
 });
 const tplProp = (pr) => bakeTemplate(`prop:${pr.type}:${pr.roof || ''}`, (b) => PROP3[pr.type](b, null, pr));
 
+// --- Randkulisse (seit 8.4) -----------------------------------------------------------------------
+// Statt Felsen in Kniehöhe vor einem Nebelkasten schließt jede Map mit einer Wand ihres Gebiets ab, in Schichten:
+//   Saum  – innerste Randreihe: das Objekt des Gebiets (Baum, Tanne, Fels) etwas größer, dazu Büsche (mit Umriss)
+//   Wand  – hohe Stücke (Hecke, Tannen, Klippe, Säulen) auf dem Rand und gleich dahinter, ohne Umriss ('far')
+//   Ferne – große Massen auf der Böschung bis KUL3_OUT Kacheln draußen, zum Himmel hin eingefärbt
+// Im Süden steht die Kamera: dort bleibt alles unter der Sichtlinie zur Figur in der letzten begehbaren
+// Reihe (1,1 Einheiten je Reihe, mindestens 2,6); die Durchsicht um die Figur (addFade) bleibt.
+// Wand und Ferne haben eigene, sparsame Formen (Kugeln 7 × 5, Kegel mit 6–7 Seiten, Sechskantsäulen).
+// form: Bauart (KUL3_FORM), saum: [Art, Stil, Größe, jede n-te Kachel], alt: jedes n-te Wandstück anders
+// (Blütenhecke), far: Farbe des Horizonts unten (drei-fx.js)
+const BORDER3 = {
+  wiesen: { form: 'hecke', saum: [['tree', '', 1.15], ['blossom', '', 1.15, 5]], alt: 5, far: '#3d6e3a' },
+  wald: { form: 'tannen', saum: [['pine', 'wald', 1.3]], far: '#1e4034' },
+  nagadschungel: { form: 'dschungel', saum: [['tree', 'nagadschungel', 1.2]], far: '#2e5a2a' },
+  orktal: { form: 'sandstein', saum: [['rock', 'orktal', 2.2], ['dead', 'orktal', 1.4, 4]], far: '#a07a50' },
+  oedland: { form: 'asche', saum: [['rock', 'donnerklamm', 2.1], ['dead', 'oedland', 1.5, 3]], far: '#6e5a54' },
+  frost: { form: 'eis', saum: [['pine', 'frost', 1.25], ['rock', 'frost', 2.1, 3]], far: '#9fb4c8' },
+  moor: { form: 'weiden', saum: [['rock', 'moor', 2.0], ['dead', 'moor', 1.5, 4]], far: '#3e5034' },
+  vulkan: { form: 'basalt', saum: [['rock', 'vulkan', 2.1], ['dead', 'vulkan', 1.4, 4]], far: '#4a2a24' },
+  titanenkamm: { form: 'basalt', saum: [['rock', 'titanenkamm', 2.1], ['dead', 'titanenkamm', 1.4, 4]], far: '#4a2a26' }
+};
+for (const id in BORDER3) BORDER3[id].id = id;
+const kulStyle3 = (style) => BORDER3[style] || BORDER3.wiesen;
+// Höhe der Gebietsobjekte bei Größe 1 (für die Sichtlinie im Süden)
+const KUL3_HT = { tree: 3, blossom: 3, pine: 2.8, rock: 0.65, dead: 1.5 };
+
+// Tannenkegel (Stufen aus Kegeln mit 7 Seiten) mit kurzem Stamm
+function kulPine3(b, x, z, s, tiers, col, T, top, mat) {
+  b.add(lathe3('kultrunk', [[0.22, 0], [0.16, 1.2], [0, 1.25]], 5), T('#4a3424'), { p: [x, 0, z], s, mat });
+  for (let k = 0; k < tiers; k++) {
+    const r = 1.2 - k * (0.75 / tiers);
+    const g = lathe3(`kulpine${r.toFixed(2)}`, [[0, 0], [r, 0.18], [r * 0.45, 1.15], [0, 1.75]], 7);
+    b.add(g, T(col[k % 2]), { p: [x, (0.9 + k * 1.2) * s, z], s, r: [0, k * 0.9, 0], top: top && T(top), topK: 0.85, shade: 0.35, mat });
+  }
+}
+// Sechskantsäule mit flachen Seiten (Basalt), Fuß bei y = 0
+const kulCol3 = () => geo3('kulbasalt', () => {
+  const g = new THREE.CylinderGeometry(1, 1, 1, 6).translate(0, 0.5, 0).toNonIndexed();
+  g.computeVertexNormals();
+  return g;
+});
+// Krone aus Kugeln: die Wand steht nah an der Kamera und bekommt rundere Kugeln als die Ferne
+const kulBlob3 = (near) => (near ? sphere3(1, 8, 6) : sphere3(1, 7, 5));
+// Tafelberg-Schicht: flacher Kegelstumpf mit sieben Seiten, Fuß bei y = 0
+const kulMesa3 = () => geo3('kulmesa', () => {
+  const g = new THREE.CylinderGeometry(0.9, 1, 1, 7).translate(0, 0.5, 0).toNonIndexed();
+  g.computeVertexNormals();
+  return g;
+});
+
+// Bauarten: hw/hf = Höhe von Wand und Ferne bei Größe 1. wand/fern bekommen T (Farbe, in der Ferne zum
+// Himmel gemischt) und landen ohne Umriss im Mesh 'far'; busch steht im Saum und bekommt einen Umriss.
+const KUL3_FORM = {
+  // Map 1: Blütenhecke aus Kronenkugeln, jedes fünfte Stück blüht rosa
+  hecke: {
+    hw: 5.4, hf: 4.0,
+    wand(b, v, T, alt) {
+      const c = alt ? ['#c86a8a', '#e08aa6', '#f5b8cb'] : ['#2f6229', '#3d7633', '#5a9a46'];
+      const top = T(alt ? '#ffdce6' : '#86c262');
+      const m = v === 1 ? -1 : 1;
+      [[-0.75, 1.0, 0.1, 1.05], [0.72, 1.1, -0.1, 1.1], [0.05, 2.3, 0.15, 1.15], [-0.6, 3.4, -0.1, 0.95], [0.55, 3.5, 0.1, 0.9], [v === 2 ? 0.35 : -0.1, 4.55, 0, 0.75]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(true), T(c[Math.min(2, k >> 1)]), { p: [x * m, y, z], s: [r * 1.08, r, r * 0.92], top, topK: 0.45, shade: 0.3 }));
+      if (alt) for (const [x, y, z] of [[-0.5, 3.9, 0.75], [0.6, 2.9, 0.95], [0.1, 4.95, 0.55], [-0.9, 1.8, 0.9]]) b.add(sphere3(0.13, 4, 3), T('#ffffff'), { p: [x * m, y, z] });
+    },
+    fern(b, v, T) {
+      const c = ['#2a5a26', '#356c30', v === 2 ? '#e08aa6' : '#4e8c40'];
+      [[-0.7, 1.3, 0, 1.35], [0.75, 1.5, 0.1, 1.4], [0.0, 2.75, -0.1, 1.2]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(), T(c[k]), { p: [x, y, z], s: r, top: T(v === 2 && k === 2 ? '#f5b8cb' : '#7ab45a'), topK: 0.4, shade: 0.3 }));
+    },
+    busch(b, v) {
+      const c = v === 0 ? ['#d07896', '#f5b8cb'] : ['#3d7633', '#5a9a46'];
+      [[-0.28, 0.32, 0, 0.42], [0.26, 0.36, 0.06, 0.46], [0, 0.66, -0.04, 0.38]].forEach(([x, y, z, r], k) => b.add(kulBlob3(), c[k === 2 ? 1 : 0], { p: [x, y, z], s: r, shade: 0.3 }));
+    }
+  },
+  // Map 4: Tannenwall aus zwei, drei Tannen hintereinander
+  tannen: {
+    hw: 6.3, hf: 5.8,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      kulPine3(b, -0.55 * m, 0, 1, 4, ['#245242', '#2a5c48'], T, '#3e7a5e');
+      kulPine3(b, 0.65 * m, 0.25, v === 2 ? 0.7 : 0.82, 4, ['#2a5c48', '#245242'], T, '#3e7a5e');
+    },
+    fern(b, v, T) {
+      kulPine3(b, -0.4, 0, 1.15, 3, ['#1e4034', '#24493b'], T);
+      kulPine3(b, 0.7, 0.3, 0.8, 3, ['#24493b', '#1e4034'], T);
+    },
+    busch(b) {
+      kulPine3(b, 0, 0, 0.42, 2, ['#2a5c48', '#245242'], (c) => c, '#3e7a5e', 'lit');
+    }
+  },
+  // Map 2 außen: Dschungelwand aus Laubmassen, Lianen, Fächerblättern und roten Blüten
+  dschungel: {
+    hw: 4.9, hf: 4.0,
+    wand(b, v, T) {
+      const c = ['#2e5a2a', '#3d7633', '#4a8a3c'];
+      const m = v === 1 ? -1 : 1;
+      [[-0.7, 1.2, 0, 1.15], [0.7, 1.4, 0.1, 1.2], [-0.2, 2.8, -0.1, 1.2], [0.5, 3.9, 0.05, 0.95]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(true), T(c[k % 3]), { p: [x * m, y, z], s: [r * 1.1, r * 0.9, r], top: T('#6aa84e'), topK: 0.4, shade: 0.3 }));
+      for (const [x, y, l] of [[-0.45, 3.4, 2.4], [0.35, 2.9, 1.8]]) b.add(limb3(l, 0.05, 0.035, 4), T('#4a7a3a'), { p: [x * m, y, 1.0] });
+      b.add(sphere3(1, 6, 4), T('#5a9a46'), { p: [0.9 * m, 2.2, 0.85], s: [0.9, 0.1, 0.4], r: [0.5, 0.3 * m, 0.4 * m] });
+      if (v !== 2) for (const [x, y] of [[-0.9, 1.9], [0.2, 1.3]]) b.add(sphere3(1, 5, 4), T('#e04a3a'), { p: [x * m, y, 1.1], s: 0.16 });
+    },
+    fern(b, v, T) {
+      const c = ['#24502a', '#2e6030', '#3d7633'];
+      [[-0.7, 1.3, 0, 1.35], [0.75, 1.5, 0.1, 1.4], [0.0, 2.7, -0.1, 1.2]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(), T(c[k]), { p: [x, y, z], s: [r * 1.1, r * 0.9, r], top: T('#5a9a46'), topK: 0.4, shade: 0.3 }));
+    },
+    busch(b, v) {
+      for (let k = 0; k < 3; k++) b.add(sphere3(1, 6, 4), k % 2 ? '#5a9a46' : '#3d7633', { p: [Math.cos(k * 2.1) * 0.25, 0.35, Math.sin(k * 2.1) * 0.25], s: [0.55, 0.08, 0.24], r: [0, -k * 2.1, 0.5] });
+      if (v === 0) b.add(sphere3(1, 5, 4), '#e04a3a', { p: [0, 0.42, 0], s: 0.12 });
+    }
+  },
+  // Map 5: Sandsteinklippe aus drei Schichten, nach oben heller
+  sandstein: {
+    hw: 4.8, hf: 3.8,
+    wand(b, v, T) {
+      // flache Schichten übereinander, abwechselnd dunkler und heller, oben die hellste mit Kante
+      const m = v === 1 ? -1 : 1;
+      const c = ['#8a5a32', '#b47e4a', '#a06c3c'];
+      for (let k = 0; k < 3; k++) {
+        b.add(rockGeo((v + k) % 3), T(c[k]), { s: [1.5 - k * 0.12, 1.65, 1.2 - k * 0.1], p: [(k % 2 ? 0.12 : -0.1) * m, k * 1.45 - 0.15, (k % 2) * 0.08], top: T(k === 2 ? '#c8945c' : '#b88550'), topK: 0.35, shade: 0.5 });
+      }
+    },
+    fern(b, v, T) {
+      // Tafelberge: Schichten in wechselnden Farben, von oben als Ringe zu sehen
+      const c = ['#94643a', '#c48f58', '#a87444', '#d4a46a'];
+      const stack = (x, z, r, n, k0) => {
+        for (let k = 0; k < n; k++) b.add(kulMesa3(), T(c[(k + k0) % 4]), { p: [x, k * 1.05 - 0.2, z], s: [r * (1 - k * 0.2), 1.05, r * (0.9 - k * 0.18)], r: [0, k * 0.8 + v, 0], top: T('#e0b47a'), topK: 0.25, shade: 0.4 });
+      };
+      stack(-0.35, 0, 1.6, 3, v);
+      stack(1.0, 0.4, 0.95, 2, v + 1);
+    },
+    busch(b, v) {
+      b.add(rockGeo(v, 0), '#b08a5a', { s: [0.42, 0.5, 0.36], p: [0, 0.05, 0], top: '#d0aa7a', topK: 0.6, shade: 0.3 });
+      b.add(rockGeo((v + 1) % 3, 0), '#a07a50', { s: [0.28, 0.32, 0.25], p: [0.35, 0.02, 0.15], top: '#c29a6a', topK: 0.6 });
+    }
+  },
+  // Map 6: Aschenklippe mit Felsnadeln und Glutadern
+  asche: {
+    hw: 5.8, hf: 4.6,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      b.add(rockGeo(v), T('#5e4c48'), { s: [1.45, 2.0, 1.15], p: [0, -0.1, 0], top: T('#7a6862'), topK: 0.5, shade: 0.35 });
+      b.add(horn3(5.4, 0.85, 6), T('#6e5a56'), { p: [-0.4 * m, 0.3, -0.1], r: [0, 0, 0.08 * m], top: T('#8a766c'), topK: 0.4, shade: 0.4 });
+      b.add(horn3(3.8, 0.7, 6), T('#64524e'), { p: [0.6 * m, 0.3, 0.15], r: [0.1, 0, -0.12 * m], top: T('#8a766c'), topK: 0.4, shade: 0.4 });
+      if (v !== 1) b.add(limb3(2.2, 0.06, 0.03, 4), '#ff7a2a', { p: [-0.25 * m, 2.6, 0.45], r: [0.25, 0, 0.1 * m], mat: 'glow' });
+    },
+    fern(b, v, T) {
+      b.add(rockGeo(v, 0), T('#5e4c48'), { s: [1.8, 2.4, 1.5], p: [0, -0.1, 0], top: T('#7a6862'), topK: 0.5, shade: 0.35 });
+      b.add(horn3(4.4, 0.9, 6), T('#6e5a56'), { p: [0.3, 0.4, 0], r: [0, 0, -0.1], shade: 0.4 });
+    },
+    busch(b, v) {
+      for (let k = 0; k < 3; k++) b.add(limb3(0.6 - k * 0.1, 0.04, 0.02, 4), '#4a3a34', { p: [0, 0, 0], r: [Math.PI + Math.sin(k * 2.1 + v) * 0.6, 0, Math.cos(k * 2.1 + v) * 0.6] });
+      b.add(rockGeo(v, 0), '#5e4c48', { s: [0.3, 0.3, 0.26], p: [0.15, 0.02, 0.1], top: '#7a6862', topK: 0.5 });
+    }
+  },
+  // Map 7: Eisklippe mit Schneekappe und Eiszapfen, dazwischen verschneite Tannen
+  eis: {
+    hw: 6.3, hf: 5.0,
+    wand(b, v, T) {
+      if (v === 2) {
+        kulPine3(b, -0.5, 0, 1, 4, ['#2a4a48', '#2e5250'], T, '#f4f8fc');
+        kulPine3(b, 0.6, 0.25, 0.78, 4, ['#2e5250', '#2a4a48'], T, '#f4f8fc');
+        return;
+      }
+      b.add(rockGeo(v), T('#7aa6c8'), { s: [1.5, 4.2, 1.2], p: [-0.25, -0.2, 0], top: T('#f4f9fd'), topK: 0.95, shade: 0.4 });
+      b.add(rockGeo((v + 1) % 3), T('#8ab8d8'), { s: [1.05, 2.8, 0.95], p: [0.75, -0.1, 0.25], top: T('#f4f9fd'), topK: 0.95, shade: 0.35 });
+      for (const [x, z, l, a] of [[0.35, 0.7, 2.6, 0.25], [-0.9, 0.6, 1.8, -0.35]]) b.add(horn3(l, 0.3, 6), T('#bfe6f8'), { p: [x, 0, z], r: [0.15, 0, a] });
+    },
+    fern(b, v, T) {
+      if (v === 2) {
+        kulPine3(b, 0, 0, 1.1, 3, ['#2a4a48', '#2e5250'], T, '#f4f8fc');
+        return;
+      }
+      b.add(rockGeo(v, 0), T('#7aa6c8'), { s: [1.9, 3.8, 1.6], p: [0, -0.2, 0], top: T('#f4f9fd'), topK: 0.95, shade: 0.4 });
+      b.add(horn3(2.4, 0.35, 6), T('#bfe6f8'), { p: [0.9, 0, 0.5], r: [0.2, 0, -0.3] });
+    },
+    busch(b) {
+      kulPine3(b, 0, 0, 0.42, 2, ['#2a4a48', '#2e5250'], (c) => c, '#f4f8fc', 'lit');
+    }
+  },
+  // Map 8: Trauerweiden mit hängendem Moos
+  weiden: {
+    hw: 5.4, hf: 4.6,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      b.add(lathe3('kulweide', [[0.32, 0], [0.22, 1.6], [0.16, 3.0], [0, 3.1]], 6), T('#3a3a2a'), { p: [0.1 * m, 0, 0], shade: 0.3 });
+      [[-0.65, 3.4, 0, 1.1], [0.6, 3.6, 0.1, 1.15], [0.0, 4.5, -0.1, 0.95]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(), T(k === 1 ? '#4a5a3a' : '#3a4a30'), { p: [x * m, y, z], s: [r * 1.15, r * 1.2, r], top: T('#6a7e50'), topK: 0.45, shade: 0.4 }));
+      for (const [x, y, l] of [[-1.0, 2.7, 0.75], [-0.2, 2.75, 0.6], [0.8, 2.85, 0.85]]) b.add(sphere3(1, 5, 4), T('#6a8a52'), { p: [x * m, y, 0.8], s: [0.2, l, 0.16], shade: 0.4 });
+    },
+    fern(b, v, T) {
+      b.add(lathe3('kulweide', [[0.32, 0], [0.22, 1.6], [0.16, 3.0], [0, 3.1]], 6), T('#3a3a2a'), { p: [0, 0, 0] });
+      [[-0.6, 3.0, 0, 1.3], [0.65, 3.2, 0.1, 1.3]].forEach(([x, y, z, r]) => b.add(kulBlob3(), T('#3a4a30'), { p: [x, y, z], s: [r * 1.1, r * 1.15, r], top: T('#5a6e44'), topK: 0.4, shade: 0.4 }));
+    },
+    busch(b, v) {
+      for (let k = 0; k < 4; k++) b.add(horn3(0.7 + (k % 2) * 0.25, 0.04, 4), k % 2 ? '#6a7a4a' : '#4a5a3a', { p: [Math.cos(k * 1.7 + v) * 0.18, 0, Math.sin(k * 1.7 + v) * 0.18], r: [Math.sin(k * 1.7) * 0.2, 0, Math.cos(k * 1.7) * 0.2] });
+      b.add(sphere3(1, 5, 4), '#5a3a28', { p: [0.1, 0.8, 0], s: [0.05, 0.12, 0.05] });
+    }
+  },
+  // Map 9 und Titanenkamm: Basaltsäulen in Gruppen, unten glühende Fugen
+  basalt: {
+    hw: 7.0, hf: 5.6,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      [[-0.8, 0.1, 0.36, 5.0], [-0.25, -0.15, 0.4, 7.0], [0.3, 0.05, 0.38, 6.2], [0.85, -0.15, 0.34, 4.4], [-1.15, -0.3, 0.32, 3.0], [0.05, 0.5, 0.34, 2.6], [0.65, 0.5, 0.3, 1.8], [-0.6, 0.55, 0.3, 1.4]]
+        .forEach(([x, z, r, h], k) => b.add(kulCol3(), T(k % 2 ? '#3a2c2c' : '#463434'), { p: [x * m, -0.2, z], s: [r, h * (0.88 + ((k + v) % 3) * 0.08), r], r: [0, k, 0], top: T('#6a4c44'), topK: 0.9, shade: 0.45 }));
+      b.add(limb3(1.6, 0.06, 0.04, 4), '#ff7a2a', { p: [-0.8 * m, 0.1, 0.75], r: [0, 0, Math.PI / 2 * m], mat: 'glow' });
+    },
+    fern(b, v, T) {
+      [[-0.7, 0, 0.42, 4.4], [-0.1, -0.25, 0.46, 5.6], [0.5, 0.05, 0.42, 4.8], [1.0, -0.1, 0.38, 3.2], [0.2, 0.5, 0.38, 2.4]]
+        .forEach(([x, z, r, h], k) => b.add(kulCol3(), T(k % 2 ? '#3a2c2c' : '#463434'), { p: [x, -0.2, z], s: [r, h * (0.9 + ((k + v) % 3) * 0.08), r], r: [0, k, 0], top: T('#6a4c44'), topK: 0.9, shade: 0.45 }));
+    },
+    busch(b, v) {
+      [[-0.2, 0, 0.22, 0.9], [0.18, 0.1, 0.2, 0.6], [0, -0.2, 0.18, 0.4]]
+        .forEach(([x, z, r, h], k) => b.add(kulCol3(), '#463434', { p: [x, 0, z], s: [r, h + v * 0.1, r], r: [0, k, 0], top: '#6a4c44', topK: 0.9, shade: 0.4 }));
+    }
+  }
+};
+
+// Vorlagen der Randkulisse je Gebiet. Ferne: Farben zu 28 % zum Himmel des Gebiets gemischt (Luftperspektive)
+const tplKul = (B, part, v, alt) => bakeTemplate(`kul:${B.id}:${part}:${v}:${alt ? 1 : 0}`, (b) => {
+  const F = KUL3_FORM[B.form];
+  if (part === 'busch') {
+    F.busch(b, v);
+    return;
+  }
+  const sky = new THREE.Color((MOOD3[B.id] || MOOD3.dorf).sky);
+  const T = part === 'fern' ? (hex) => new THREE.Color(hex).lerp(sky, 0.28) : (hex) => hex;
+  // alles ohne eigenes Material ins Mesh 'far' (ohne Umriss)
+  const far = { add: (g, c, o = {}) => b.add(g, c, Object.assign({}, o, { mat: o.mat || 'far' })) };
+  F[part](far, v, T, alt);
+});
+
+// Ausrichtung je Seite (0 Nord, 1 Süd, 2 West, 3 Ost): Vorderseite (lokal +z) zur Map, Richtung nach außen
+const KUL3_ROT = [0, Math.PI, Math.PI / 2, -Math.PI / 2];
+const KUL3_NX = [0, 0, -1, 1];
+const KUL3_NZ = [-1, 1, 0, 0];
+const _kulP = new THREE.Vector3();
+const _kulS = new THREE.Vector3();
+// wie placeAt, aber mit eigener Höhe (sy), z. B. für Stücke unter der Sichtlinie
+function kulAt(x, z, rotY, s, sy, y) {
+  _q.setFromEuler(_e.set(0, rotY, 0));
+  return new THREE.Matrix4().compose(_kulP.set(x, y, z), _q, _kulS.set(s, s * sy, s));
+}
+
+// Randkulisse einer Kachel am oder hinter dem Rand der Map H. false: Kachel liegt im begehbaren Teil.
+function kulisse3(b, H, x, y, lowGfx) {
+  const dOut = homeOut3(H, x, y);
+  if (dOut > KUL3_OUT) return true;
+  const dIn = dOut ? 0 : homeIn3(H, x, y);
+  if (!dOut && dIn >= MAP_BORDER) return false;
+  // Seite und Reihe r ab dem begehbaren Teil (1 = Saum, 2–4 Rand, ab 5 draußen)
+  let side;
+  if (dOut) {
+    const ox = Math.max(H.x0 - x, x - (H.x1 - 1), 0);
+    const oy = Math.max(H.y0 - y, y - (H.y1 - 1), 0);
+    side = ox > oy ? (x < H.x0 ? 2 : 3) : y < H.y0 ? 0 : 1;
+  } else side = dIn === y - H.y0 ? 0 : dIn === H.y1 - 1 - y ? 1 : dIn === x - H.x0 ? 2 : 3;
+  const r = dOut ? MAP_BORDER + dOut : MAP_BORDER - dIn;
+  const along = side < 2 ? x : y;
+  const B = H.B;
+  const h = tileHash(x, y);
+  const v = h % 3;
+  // Im Süden unter der Sichtlinie der Kamera zur Figur in der letzten begehbaren Reihe (r = Reihen ab dort,
+  // höchstens 1,1 je Reihe) und flacher als die Kamera selbst, sonst füllen die nahen Stücke das halbe Bild;
+  // der Saum direkt vor der Figur bleibt hüfthoch
+  const cap = side !== 1 ? 99 : r === 1 ? 1.2 : Math.max(2.6, 0.75 * r);
+  const jx = ((h >> 5) % 5 - 2) * 0.06;
+  const jz = ((h >> 9) % 5 - 2) * 0.06;
+  const nx = KUL3_NX[side];
+  const nz = KUL3_NZ[side];
+  // eine Kachel weiter entlang des Randes (Stücke über zwei Kacheln)
+  const ax = side < 2 ? 0.5 : 0;
+  const az = side < 2 ? 0 : 0.5;
+  if (r === 1) {
+    // Saum: Gebietsobjekt auf jeder Kachel (Bäume und Tannen auf jeder zweiten), dahinter versetzt ein Busch.
+    // Im Süden nur, was niedrig bleibt (Felsen), sonst ein größerer Busch an seiner Stelle
+    const alt = B.saum[1];
+    const [kind, st, size] = alt && (h >> 6) % alt[3] === 0 ? alt : B.saum[0];
+    const s = size * (0.92 + ((h >> 12) % 16) / 100);
+    const rb = ((h >> 4) % 628) / 100;
+    // etwas nach außen gerückt, damit nichts in die begehbare Reihe ragt
+    const sx = x + 0.5 + jx + nx * 0.3;
+    const sz = y + 0.5 + jz + nz * 0.3;
+    if (kind === 'rock' || (s * KUL3_HT[kind] <= cap * 1.4 && !(KUL3_HT[kind] > 2 && along & 1))) b.addTemplate(tplTree(kind, v, st), placeAt(sx, sz, ((h >> 3) % 628) / 100, Math.min(s, cap / KUL3_HT[kind])));
+    else b.addTemplate(tplKul(B, 'busch', (v + 1) % 3), placeAt(sx, sz, rb + 1, 1.25 + ((h >> 15) % 4) * 0.06));
+    b.addTemplate(tplKul(B, 'busch', v), placeAt(x + 0.5 + ax + nx * 0.35, y + 0.5 + az + nz * 0.35, rb, 1.1 + ((h >> 15) % 4) * 0.12));
+    return true;
+  }
+  // Wand: auf dem Rand (r = 3) und gleich dahinter (r = 6) je ein Stück über zwei Kacheln, versetzt;
+  // Ferne: ab r = 8 je eine Masse über 2 × 2 Kacheln (niedrige Grafik: nur die erste Reihe)
+  let part = null;
+  if ((r === 3 && !(along & 1)) || (r === 6 && along & 1)) part = 'wand';
+  else if ((r === 8 || r === 10 || r === 12) && (along & 1) === ((r >> 1) & 1) && !(lowGfx && r > 8)) part = 'fern';
+  if (!part) return true;
+  const F = KUL3_FORM[B.form];
+  const far = part === 'fern';
+  const s = (far ? 1.2 : side === 1 ? 1.0 : 1.15) * (0.9 + ((h >> 12) % 20) / 100);
+  const out = far ? 0.5 : 0;
+  const gy = dOut ? bermH3(dOut + out) - 0.3 : -0.1;
+  const sy = Math.max(0.3, Math.min(1, (cap - gy) / ((far ? F.hf : F.hw) * s)));
+  const alt = B.alt && (h >> 4) % B.alt === 0;
+  const rot = KUL3_ROT[side] + (((h >> 7) % 9) - 4) * 0.06;
+  b.addTemplate(tplKul(B, part, v, alt), kulAt(x + 0.5 + ax + nx * out + jx, y + 0.5 + az + nz * out + jz, rot, s, sy, gy));
+  return true;
+}
+
 // Kachel-Zahl gut verrühren: tileHash allein hat in den unteren Bits ein Gittermuster
 function mixHash(h) {
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
@@ -513,13 +821,16 @@ function* objectJob(cx, cy) {
   const lowGfx = opts.graphics === 'niedrig';
   const x0 = cx * CHUNK3;
   const y0 = cy * CHUNK3;
-  const x1 = Math.min(MAP_W, x0 + CHUNK3);
-  const y1 = Math.min(MAP_H, y0 + CHUNK3);
+  // Map, in der man steht (seit 8.4): Rand und alles dahinter wird zur Randkulisse, auch jenseits der Weltgrenze
+  const H = V3.home && !V3.home.dungeon ? V3.home : null;
+  const x1 = H ? x0 + CHUNK3 : Math.min(MAP_W, x0 + CHUNK3);
+  const y1 = H ? y0 + CHUNK3 : Math.min(MAP_H, y0 + CHUNK3);
   const bakeAt = (x, y) => bakes[(y - y0 >= QUARTER3 ? 2 : 0) + (x - x0 >= QUARTER3 ? 1 : 0)];
   if (!towerTiles) towerTiles = new Set(w.props.filter((pr) => pr.type === 'tower').map((pr) => Math.floor(pr.y / TILE - 1) * MAP_W + Math.floor(pr.x / TILE)));
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const b = bakeAt(x, y);
+      if (H && kulisse3(b, H, x, y, lowGfx)) continue;
       const i = y * MAP_W + x;
       const o = w.obj[i];
       const h = tileHash(x, y);
@@ -589,7 +900,7 @@ function* objectJob(cx, cy) {
   for (const h of w.houses) {
     const hx = h.x + h.w / 2;
     const hy = h.y + h.h / 2;
-    if (hx >= x0 && hx < x1 && hy >= y0 && hy < y1) {
+    if (hx >= x0 && hx < x1 && hy >= y0 && hy < y1 && !(H && homeOut3(H, Math.floor(hx), Math.floor(hy)))) {
       WORLD3.house(bakeAt(Math.floor(hx), Math.floor(hy)), h);
       yield;
     }
@@ -598,7 +909,7 @@ function* objectJob(cx, cy) {
     const px = pr.x * U3;
     const py = pr.y * U3;
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
-    if (!PROP3[pr.type]) continue;
+    if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
     const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : 0.25;
     bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back));
   }
@@ -613,6 +924,12 @@ function* objectJob(cx, cy) {
       worldMesh(group, key, mergeParts(list, false), lowGfx);
     }
   }
+  // Randkulisse (seit 8.4): Wand und Ferne in einem eigenen Mesh ohne Umriss
+  const farList = bakes.flatMap((b) => b.lists.far || []);
+  if (farList.length) {
+    yield;
+    worldMesh(group, 'far', mergeParts(farList, false), lowGfx);
+  }
   return group;
 }
 
@@ -621,6 +938,11 @@ const partTris3 = (list) => list.reduce((n, it) => n + (it.tpl ? it.tpl.idx.leng
 
 // Mesh(es) einer Art mit dem passenden Material in die Gruppe des Blocks
 function worldMesh(group, key, geo, lowGfx) {
+  // Randkulisse: beleuchtet und mit Durchsicht um die Figur, aber ohne Umriss und ohne Schattenempfang
+  if (key === 'far') {
+    group.add(new THREE.Mesh(geo, worldLitMat()));
+    return;
+  }
   if (key === 'lit') {
     // Schatten der Welt sind in den Boden gebacken; hier nur empfangen (z. B. von Figuren)
     const m = new THREE.Mesh(geo, worldLitMat());

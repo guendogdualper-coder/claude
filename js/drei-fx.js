@@ -1322,10 +1322,64 @@ function v3SyncFx() {
 }
 
 // --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------
-// Um die Map bzw. die Dungeon-Halle, in der man steht, liegt ein Kasten aus Nebel: hohe Wände im Norden,
-// Osten und Westen, eine niedrige im Süden (dort steht die Kamera), darüber Deckel. So sieht man die
-// Nachbarkarte hinter dem Rand nicht mehr, nur Nebel in der Farbe des Gebiets.
-const BOUNDS3 = { key: '', walls: null, mat: null };
+// Um die Dungeon-Halle, in der man steht, liegt ein Kasten aus Nebel: hohe Wände im Norden, Osten und
+// Westen, eine niedrige im Süden (dort steht die Kamera), darüber Deckel. So sieht man die Nachbarhalle nicht.
+// Maps (seit 8.4): Den Rand schließt die Randkulisse ab (drei-welt.js), dahinter steht nur noch ein Horizont:
+// ein Ring aus vier Wänden KUL3_FAR Kacheln hinter dem Rand, unten in der Farbe der Ferne mit einem flachen
+// Bergkamm, nach oben in den Himmel verlaufend. Ein Mesh, ein Zeichenaufruf, je Bild nur zwei Farben kopiert.
+const BOUNDS3 = { key: '', walls: null, mat: null, horizon: null };
+const HORIZON3_H = 16;
+function horizonMat3() {
+  return mat3('horizon', () => new THREE.ShaderMaterial({
+    uniforms: { uBottom: { value: new THREE.Color() }, uTop: { value: new THREE.Color() } },
+    vertexShader: `varying float vH;
+varying float vU;
+void main() {
+	vH = position.y;
+	vU = position.x + position.z;
+	gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`,
+    fragmentShader: `uniform vec3 uBottom;
+uniform vec3 uTop;
+varying float vH;
+varying float vU;
+void main() {
+	float ridge = 7.0 + 2.2 * sin(vU * 0.11) + 1.4 * sin(vU * 0.27 + 1.3) + 0.6 * sin(vU * 0.71);
+	vec3 hill = mix(uBottom, uTop, 0.3 * clamp(1.0 - vH / ridge, 0.0, 1.0));
+	gl_FragColor = vec4(mix(hill, uTop, smoothstep(ridge - 0.25, ridge + 0.25, vH)), 1.0);
+}`,
+    side: THREE.DoubleSide,
+    fog: false
+  }));
+}
+// Horizont-Ring um das Rechteck x0..x1 × z0..z1 (Positionen nur beim Wechsel der Map neu)
+function placeHorizon3(x0, z0, x1, z1) {
+  if (!BOUNDS3.horizon) {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(16 * 3), 3));
+    const idx = [];
+    for (let k = 0; k < 4; k++) idx.push(k * 4, k * 4 + 1, k * 4 + 2, k * 4 + 2, k * 4 + 1, k * 4 + 3);
+    g.setIndex(idx);
+    BOUNDS3.horizon = new THREE.Mesh(g, horizonMat3());
+    BOUNDS3.horizon.material.uniforms.uTop.value.copy(V3.scene.fog.color);
+    BOUNDS3.horizon.material.uniforms.uBottom.value.copy(V3.scene.fog.color);
+    BOUNDS3.horizon.renderOrder = -1;
+    V3.scene.add(BOUNDS3.horizon);
+  }
+  const g = BOUNDS3.horizon.geometry;
+  const pos = g.attributes.position;
+  const corners = [[x0, z0], [x1, z0], [x1, z1], [x0, z1], [x0, z0]];
+  for (let k = 0; k < 4; k++) {
+    const [ax, az] = corners[k];
+    const [bx, bz] = corners[k + 1];
+    pos.setXYZ(k * 4, ax, -3, az);
+    pos.setXYZ(k * 4 + 1, bx, -3, bz);
+    pos.setXYZ(k * 4 + 2, ax, HORIZON3_H, az);
+    pos.setXYZ(k * 4 + 3, bx, HORIZON3_H, bz);
+  }
+  pos.needsUpdate = true;
+  g.computeBoundingSphere();
+}
 function regionRect3(x, y) {
   const tx = Math.floor(x / TILE);
   const ty = Math.floor(y / TILE);
@@ -1356,12 +1410,25 @@ function v3SyncBounds() {
   // Nebelfarbe übernehmen (wechselt mit dem Gebiet)
   BOUNDS3.mat.color.copy(V3.scene.fog.color);
   BOUNDS3.lidMat.color.copy(V3.scene.fog.color);
+  const home = V3.home;
+  if (BOUNDS3.horizon && home && home.B) {
+    const u = BOUNDS3.horizon.material.uniforms;
+    u.uTop.value.copy(V3.scene.fog.color);
+    u.uBottom.value.copy(home.B.farC || (home.B.farC = new THREE.Color(home.B.far))).lerp(V3.scene.fog.color, 0.4);
+  }
   const rr = regionRect3(p.x, p.y);
   const key = rr ? rr.key : '';
   if (key === BOUNDS3.key) return;
   BOUNDS3.key = key;
-  for (const w of BOUNDS3.walls) w.visible = !!rr;
-  if (!rr) return;
+  // Map: Horizont statt Nebelkasten
+  const box = !!rr && key[0] === 'd';
+  for (const w of BOUNDS3.walls) w.visible = box;
+  if (rr && !box) {
+    const [rx, ry, rw, rh] = rr.r;
+    placeHorizon3(rx - KUL3_FAR, ry - KUL3_FAR, rx + rw + KUL3_FAR, ry + rh + KUL3_FAR);
+  }
+  if (BOUNDS3.horizon) BOUNDS3.horizon.visible = !!rr && !box;
+  if (!box) return;
   const [rx, ry, rw, rh] = rr.r;
   const x0 = rx + rr.inset;
   const x1 = rx + rw - rr.inset;

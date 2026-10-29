@@ -648,21 +648,22 @@ function v3Resize() {
 
 // --- Stimmung je Gebiet: Himmel, Nebel, Licht ------------------------------------------------
 
+// Seit 8.4 ohne graue Himmel: Himmel und Nebel färben auch die Ferne hinter dem Kartenrand
 const MOOD3 = {
   dorf: { sky: '#a8d4ec', sun: '#fff0d4', sunI: 0.95, hemi: '#e4f2ff', ground: '#6a7a48', hemiI: 0.62 },
   wiesen: { sky: '#a8d8ee', sun: '#fff2d0', sunI: 0.98, hemi: '#e8f6ff', ground: '#6a8a40', hemiI: 0.64 },
-  wald: { sky: '#7aa6a0', sun: '#ffe8c0', sunI: 0.72, hemi: '#cfe8e0', ground: '#2e4a2a', hemiI: 0.56, near: 22, far: 52 },
+  wald: { sky: '#8ab4a6', sun: '#ffe8c0', sunI: 0.72, hemi: '#cfe8e0', ground: '#2e4a2a', hemiI: 0.56, near: 22, far: 52 },
   orktal: { sky: '#d8c08a', sun: '#ffe0a8', sunI: 0.95, hemi: '#fff0d0', ground: '#8a6a3a', hemiI: 0.6 },
-  oedland: { sky: '#a8a098', sun: '#f0dcc8', sunI: 0.78, hemi: '#e0d8d0', ground: '#4a4440', hemiI: 0.58, near: 24, far: 56 },
+  oedland: { sky: '#c0a896', sun: '#f0dcc8', sunI: 0.78, hemi: '#e0d8d0', ground: '#4a4440', hemiI: 0.58, near: 24, far: 56 },
   frost: { sky: '#cfe4f4', sun: '#f4f8ff', sunI: 0.9, hemi: '#f0f8ff', ground: '#9ab0c8', hemiI: 0.7 },
-  moor: { sky: '#6a7a68', sun: '#d8e8c0', sunI: 0.6, hemi: '#b8c8b0', ground: '#2a3a28', hemiI: 0.52, near: 18, far: 46 },
-  vulkan: { sky: '#5a3028', sun: '#ffb080', sunI: 0.75, hemi: '#ffb890', ground: '#3a1a14', hemiI: 0.5, near: 22, far: 54 },
+  moor: { sky: '#7e9070', sun: '#d8e8c0', sunI: 0.6, hemi: '#b8c8b0', ground: '#2a3a28', hemiI: 0.52, near: 18, far: 46 },
+  vulkan: { sky: '#7a3a28', sun: '#ffb080', sunI: 0.75, hemi: '#ffb890', ground: '#3a1a14', hemiI: 0.5, near: 22, far: 54 },
   oasenlager: { sky: '#e8d4a0', sun: '#fff0c8', sunI: 1, hemi: '#fff4e0', ground: '#a88a50', hemiI: 0.62 },
   sandwueste: { sky: '#ecd8a8', sun: '#fff0c8', sunI: 1, hemi: '#fff4e0', ground: '#b09050', hemiI: 0.62 },
   nagadschungel: { sky: '#7aa088', sun: '#f0f0c0', sunI: 0.75, hemi: '#d0e8d0', ground: '#2a4a30', hemiI: 0.56, near: 22, far: 52 },
   klammwacht: { sky: '#98a4b8', sun: '#e8ecff', sunI: 0.82, hemi: '#d8e0f0', ground: '#4a4a50', hemiI: 0.6 },
-  donnerklamm: { sky: '#7a88a8', sun: '#d8e4ff', sunI: 0.75, hemi: '#c8d4f0', ground: '#3a3e4a', hemiI: 0.56, near: 24, far: 56 },
-  titanenkamm: { sky: '#4a3a40', sun: '#ffc090', sunI: 0.72, hemi: '#e8c0a8', ground: '#2a1a18', hemiI: 0.5, near: 22, far: 54 },
+  donnerklamm: { sky: '#8e9cc4', sun: '#d8e4ff', sunI: 0.75, hemi: '#c8d4f0', ground: '#3a3e4a', hemiI: 0.56, near: 24, far: 56 },
+  titanenkamm: { sky: '#7a4e4a', sun: '#ffc090', sunI: 0.72, hemi: '#e8c0a8', ground: '#2a1a18', hemiI: 0.5, near: 22, far: 54 },
   // Dungeons und Riss-Dungeons: seit Version 6.1 deutlich heller, damit man Monster und Boden gut erkennt
   dungeon: { sky: '#2a2232', sun: '#f0e4ff', sunI: 0.9, hemi: '#d8d0f0', ground: '#5a4a5a', hemiI: 0.78, near: 20, far: 46 }
 };
@@ -717,6 +718,9 @@ const _vc = { x: 0, y: 0 };
 // Liegt ein Weltpunkt im Bild? Feste Kamera: Rechteck mit mehr Sicht nach Norden; Schulterblick: Kreis
 function v3InView(x, y, pad = 0) {
   const r = renderer;
+  // Was weiter hinter dem Rand der eigenen Map ist (Nachbarkarte), steckt in der Randkulisse (seit 8.4)
+  const H = V3.home;
+  if (H && !H.dungeon && homeOut3(H, Math.floor(x / TILE), Math.floor(y / TILE)) > 3) return false;
   if (v3Shoulder()) {
     v3ViewCenter(_vc);
     return Math.hypot(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
@@ -830,8 +834,54 @@ const SOIL3 = {
 const WALL3_H = 1.5;
 const WATER3_DEPTH = 0.5;
 const wetGround3 = (g) => g === GROUND.WATER || g === GROUND.BOG;
+
+// --- Kartenrand (seit 8.4) -------------------------------------------------------------------------
+// Gebaut wird nur, was zur Map gehört, in der man steht (V3.home, siehe v3UpdateHome). Hinter ihrem Rand
+// läuft der Boden als Böschung weiter und steigt nach außen leicht an; darauf steht die Randkulisse
+// (drei-welt.js, kulisse3). Weiter als KUL3_OUT Kacheln draußen steht nichts mehr, bei KUL3_FAR der
+// Horizont (drei-fx.js). Nachbarkarten, Füllfels und die Weltgrenze sieht man so nicht mehr.
+const KUL3_OUT = 10;
+const KUL3_FAR = KUL3_OUT + 3;
+// Abstand einer Kachel außerhalb des Rechtecks (Schachbrett-Abstand, füllt die Ecken; 0 = drinnen)
+const homeOut3 = (H, x, y) => Math.max(H.x0 - x, x - (H.x1 - 1), H.y0 - y, y - (H.y1 - 1), 0);
+// Abstand zum Rand von innen (0 = äußerste Reihe der Map)
+const homeIn3 = (H, x, y) => Math.min(x - H.x0, H.x1 - 1 - x, y - H.y0, H.y1 - 1 - y);
+// Höhe der Böschung d Kacheln vor dem Rand
+const bermH3 = (d) => Math.min(2.2, 0.15 + 0.28 * d);
+
+// Map bzw. Dungeon-Halle der Kamera-Mitte; beim Wechsel (Teleport, Dungeon) wird alles neu gebaut,
+// denn die Blöcke am Rand gehören je nach Map zur Böschung oder zur Nachbarkarte
+function v3UpdateHome(fx, fy) {
+  const rr = regionRect3(fx, fy);
+  const key = rr ? rr.key : '';
+  if (key === (V3.home ? V3.home.key : '')) return;
+  if (!rr) V3.home = null;
+  else {
+    const [rx, ry, rw, rh] = rr.r;
+    const dungeon = key[0] === 'd';
+    const style = dungeon ? '' : ZONES[game.world.zoneIdx[(ry + 1) * MAP_W + rx + 1]].id;
+    V3.home = { key, x0: rx, y0: ry, x1: rx + rw, y1: ry + rh, dungeon, style, B: dungeon ? null : kulStyle3(style) };
+  }
+  v3ClearChunks();
+}
+
 function tileSample(x, y, out) {
   const w = game.world;
+  // Hinter dem Rand der Map: Boden der nächsten Randkachel als ansteigende Böschung (ohne Wasser und Lava)
+  const H = V3.home;
+  if (H && !H.dungeon) {
+    const d = homeOut3(H, x, y);
+    if (d > 0) {
+      tileSample(Math.max(H.x0, Math.min(H.x1 - 1, x)), Math.max(H.y0, Math.min(H.y1 - 1, y)), out);
+      out.h = bermH3(d);
+      out.wet = 0;
+      out.hot = 0;
+      // terrainJob hellt Felsen nach oben auf; die Böschung bleibt in der Bodenfarbe, nach außen etwas dunkler
+      const k = (1 - Math.min(0.18, d * 0.03)) / (1 + (out.h / WALL3_H) * 0.25);
+      out.r *= k; out.g *= k; out.b *= k;
+      return out;
+    }
+  }
   x = Math.max(0, Math.min(MAP_W - 1, x));
   y = Math.max(0, Math.min(MAP_H - 1, y));
   const i = y * MAP_W + x;
@@ -1462,8 +1512,12 @@ let chunkJob = null;
 function v3UpdateChunks(fx, fy, msBudget) {
   const ccx = Math.floor(fx * U3 / CHUNK3);
   const ccy = Math.floor(fy * U3 / CHUNK3);
-  const maxX = Math.ceil(MAP_W / CHUNK3) - 1;
-  const maxY = Math.ceil(MAP_H / CHUNK3) - 1;
+  // Auf einer Map nur Blöcke bis zum Horizont hinter ihrem Rand, dafür auch jenseits der Weltgrenze (seit 8.4)
+  const H = V3.home && !V3.home.dungeon ? V3.home : null;
+  const minX = H ? Math.floor((H.x0 - KUL3_FAR) / CHUNK3) : 0;
+  const minY = H ? Math.floor((H.y0 - KUL3_FAR) / CHUNK3) : 0;
+  const maxX = H ? Math.floor((H.x1 - 1 + KUL3_FAR) / CHUNK3) : Math.ceil(MAP_W / CHUNK3) - 1;
+  const maxY = H ? Math.floor((H.y1 - 1 + KUL3_FAR) / CHUNK3) : Math.ceil(MAP_H / CHUNK3) - 1;
   // Blöcke im Sichtfeld zuerst (die Kamera schaut nach Norden: oben mehr, unten weniger)
   const fxIn = (fx * U3) / CHUNK3 - ccx;
   const want = [];
@@ -1477,7 +1531,7 @@ function v3UpdateChunks(fx, fy, msBudget) {
       if (shoulder && dx * dx + dy * dy > 3.2) continue;
       const x = ccx + dx;
       const y = ccy + dy;
-      if (x < 0 || y < 0 || x > maxX || y > maxY) continue;
+      if (x < minX || y < minY || x > maxX || y > maxY) continue;
       // auf der Seite, zu der man näher am Rand steht, zuerst
       want.push([x, y, Math.hypot(dx * 1.2 - (fxIn - 0.5), dy + 0.5)]);
     }
@@ -1605,6 +1659,7 @@ function renderDrei() {
   // Beim Start (noch kein Boden) großzügig bauen, danach nur kleine Zeitscheiben
   // Nachladen um die Mitte des Sichtbaren (im Schulterblick ein Stück vor der Figur)
   v3ViewCenter(_vc);
+  v3UpdateHome(fx, fy);
   v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 ? 400 : 5);
   v3UpdateLights(fx, fy);
   for (const k of ['water', 'lava', 'bog']) {
