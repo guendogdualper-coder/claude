@@ -164,17 +164,12 @@
       <p>Monster farmen, Seelensteine brechen, Stufe um Stufe stärker werden.</p>
     </header>
 
-    <div id="continueBox" class="continue" hidden>
-      <button id="btnContinue" class="btn btn-primary" type="button"></button>
-      <button id="btnNewChar" class="btn btn-ghost" type="button">Neuen Charakter erstellen</button>
-      <div id="confirmNew" class="confirm" hidden>
-        <p>Dein bisheriger Charakter wird dabei gelöscht.</p>
-        <div class="confirm-row">
-          <button id="btnConfirmNew" class="btn btn-danger" type="button">Löschen und neu anfangen</button>
-          <button id="btnCancelNew" class="btn btn-ghost" type="button">Abbrechen</button>
-        </div>
-      </div>
-    </div>
+    <section id="accountBox" class="account-box" hidden aria-label="Konto"></section>
+
+    <section id="charSelect" class="char-select" hidden aria-label="Deine Charaktere">
+      <h2>Deine Charaktere</h2>
+      <div id="charSlots" class="char-slots"></div>
+    </section>
 
     <form id="createForm" class="create" hidden>
       <label class="field" for="charName">
@@ -191,7 +186,10 @@
       </fieldset>
       <div id="classDetail" class="class-detail"></div>
       <p id="createError" class="form-error" hidden></p>
-      <button class="btn btn-primary" type="submit">Abenteuer beginnen</button>
+      <div class="create-row">
+        <button class="btn btn-primary" type="submit">Abenteuer beginnen</button>
+        <button id="btnCreateBack" class="btn btn-ghost" type="button" hidden>Zurück zur Auswahl</button>
+      </div>
     </form>
     <div id="installBox" class="install-box" hidden>
       <button id="btnInstall" class="btn btn-ghost" type="button">📲 Als App installieren</button>
@@ -265,6 +263,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 7.4 – Konten und vier Charaktere: Auf dem Startbildschirm gibt es jetzt die Charakterauswahl mit vier Plätzen – man kann bis zu vier Charaktere gleichzeitig haben, ohne einen löschen zu müssen (Löschen nur mit Nachfrage). Neu ist das Konto: kurz mit Name und Passwort registrieren (keine Mail, keine Bestätigung), danach liegen alle vier Charaktere im Konto und man kann sich am Handy oder PC anmelden und dort weiterspielen. Abgeglichen wird beim Start, alle 15 Sekunden beim Spielen und sofort beim Verlassen der App; wer einen Charakter startet, übernimmt ihn – ist er auf einem anderen Gerät noch offen, lädt das andere Gerät den neueren Stand, statt ihn zu überschreiben. Ohne Konto bleiben die Charaktere wie bisher auf dem Gerät.</li>
       <li>Version 7.3 – Neue Pferde: Das Pferd ist komplett neu gebaut – echte Pferdeform mit tiefer Brust, gebogenem Hals, Kopf mit Nüstern und gespitzten Ohren, wehender Mähne und langem Schweif, Zaumzeug, Satteldecke in deiner Klassenfarbe, Sattel und Steigbügeln; im Galopp nickt der Hals mit und der Schweif weht. Die Prüfung beim Stallmeister gibt es jetzt schon ab Stufe 20 (Monster ab Stufe 15) – Belohnung ist ein Reitpferd (Fuchs mit Blesse und weißen Socken), 10 % schneller. Ab Stufe 40 kann man beim Stallmeister das Kriegsross kaufen (200.000 Gold): ein Rappe mit Rossharnisch, Stirndorn, Brustpanzer, roter Schabracke, Federbusch und glühenden Augen, 30 % schneller. Wer schon ein Pferd hatte, reitet jetzt das Reitpferd.</li>
       <li>Version 7.2 – Feuerhagel länger: Kein Runenkreis mehr am Boden – nur noch der Hagel selbst. Er dauert jetzt gut drei Sekunden: 22 Feuerbrocken stürzen nacheinander auf das Zielgebiet (etwas größer als vorher), jeder Einschlag trifft alles in seiner Nähe und setzt es in Brand.</li>
       <li>Version 7.1 – Feuer-Schamane: Die erste Fertigkeit im Weg des Drachen ist jetzt der Glutdrache – du schleuderst einen Drachen aus Feuer (Kopf mit offenem Maul, Hörnern, glühenden Augen und Barteln, dahinter ein schlängelnder Glutleib mit Rückenzacken). Er fliegt im Bogen zum Ziel und explodiert dort: Feuersäule, Glutzacken und Funken treffen alle Gegner im Umkreis und setzen sie 3 Sekunden in Brand. Die vierte Fertigkeit ist jetzt der Feuerhagel statt Blitzschlag: Über dem Ziel glüht ein großer Runenkreis auf, dann stürzen zehn Feuerbrocken nacheinander schräg vom Himmel; jeder Einschlag trifft alles in seiner Nähe und setzt es in Brand. Stufen und Bücher der alten Fertigkeiten bleiben erhalten; Mitspieler sehen beide Angriffe auch.</li>
@@ -447,6 +446,8 @@
 <script src="js/eingabe.js"></script>
 <script src="js/netz-signal.js"></script>
 <script src="js/netz.js"></script>
+<script src="js/konto-config.js"></script>
+<script src="js/konto.js"></script>
 <script src="js/gemeinschaft.js"></script>
 <script src="js/interaktion.js"></script>
 <script src="js/gruppe.js"></script>

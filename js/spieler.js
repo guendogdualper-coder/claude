@@ -472,26 +472,77 @@ function usePotion(kind) {
 }
 
 // --- Speichern ------------------------------------------------------------
+// Seit 7.4: bis zu vier Charaktere (Plätze 0–3). Jeder Platz trägt savedAt; ein gelöschter Platz bleibt als
+// { deleted: true, savedAt } stehen, damit das Löschen beim Abgleich mit dem Konto (konto.js) mitwandert.
+// Der zuletzt gespielte Charakter steht zusätzlich unter dem alten Schlüssel (Sicherung, ältere Versionen).
+const SLOTS_KEY = 'seelenstein.charaktere.v2';
+const MAX_CHARS = 4;
+let saveSlot = null;
 
-function loadSave() {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const data = JSON.parse(raw);
-    if (!data || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
-    // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
-    // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
-    const renamed = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff' };
-    for (const it of data.inventory || []) if (it && renamed[it.book]) it.book = renamed[it.book];
-    return data;
-  } catch {
-    return null;
+// Spielstand prüfen und alte Namen nachziehen
+function fixSave(data) {
+  if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
+  // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
+  // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
+  const renamed = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff' };
+  for (const it of data.inventory || []) if (it && renamed[it.book]) it.book = renamed[it.book];
+  return data;
+}
+
+function readSlots() {
+  let st = null;
+  try { st = JSON.parse(localStorage.getItem(SLOTS_KEY) || 'null'); } catch { st = null; }
+  if (!st || !Array.isArray(st.slots)) {
+    st = { slots: [], last: null };
+    // alter einzelner Spielstand wird Platz 1
+    try {
+      const old = fixSave(JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'));
+      if (old) {
+        st.slots[0] = Object.assign({ savedAt: Date.now() }, old);
+        st.last = 0;
+        localStorage.setItem(SLOTS_KEY, JSON.stringify(st));
+      }
+    } catch { /* kaputt oder privat */ }
   }
+  for (let k = 0; k < MAX_CHARS; k++) if (st.slots[k] === undefined) st.slots[k] = null;
+  st.slots.length = MAX_CHARS;
+  return st;
+}
+
+function writeSlots(st, quiet) {
+  try { localStorage.setItem(SLOTS_KEY, JSON.stringify(st)); } catch { /* privat */ }
+  if (!quiet && typeof cloudSoon === 'function') cloudSoon();
+}
+
+// Alle vier Plätze für die Charakterauswahl (null = frei)
+function listSaves() {
+  return readSlots().slots.map((sv) => fixSave(sv));
+}
+function lastSlot() {
+  const st = readSlots();
+  return st.last != null && fixSave(st.slots[st.last]) ? st.last : null;
+}
+
+// Platz für einen Spielstand: derselbe Charakter (Name und Klasse) oder der erste freie
+function slotFor(save) {
+  const st = readSlots();
+  const same = st.slots.findIndex((sv) => fixSave(sv) && sv.name === save.name && sv.classId === save.classId);
+  if (same >= 0) return same;
+  const free = st.slots.findIndex((sv) => !fixSave(sv));
+  return free >= 0 ? free : null;
+}
+
+function loadSave(slot) {
+  const st = readSlots();
+  const k = slot != null ? slot : saveSlot != null ? saveSlot : st.last;
+  if (k == null) return null;
+  return fixSave(st.slots[k]);
 }
 
 function saveGame() {
   const p = game.player;
-  if (!p) return;
+  // auf einem anderen Gerät weitergespielt: dieses Spiel ist veraltet und speichert nicht mehr
+  if (!p || (typeof account !== 'undefined' && account.stale)) return;
   const data = {};
   for (const f of SAVE_FIELDS) data[f] = p[f];
   if (p.dead) {
@@ -500,6 +551,16 @@ function saveGame() {
     data.y = spawn.y;
     data.hp = null;
   }
+  const st = readSlots();
+  if (saveSlot == null) saveSlot = slotFor(data);
+  if (saveSlot == null) saveSlot = st.last != null ? st.last : 0;
+  // neuer Zeitstempel nur bei echtem Fortschritt (nicht fürs bloße Herumstehen): so überschreibt ein
+  // vergessenes, offenes Spiel auf einem anderen Gerät beim Abgleich nicht den neueren Stand
+  const prev = st.slots[saveSlot];
+  data.savedAt = prev && !prev.deleted && saveCore(prev) === saveCore(data) ? prev.savedAt : Date.now();
+  st.slots[saveSlot] = data;
+  st.last = saveSlot;
+  writeSlots(st);
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch {
@@ -507,6 +568,22 @@ function saveGame() {
   }
 }
 
-function deleteSave() {
-  try { localStorage.removeItem(SAVE_KEY); } catch { /* egal */ }
+// Spielstand ohne Werte, die sich ständig ändern (Ort, Leben, Spielzeit)
+const SAVE_VOLATILE = new Set(['savedAt', 'playTime', 'x', 'y', 'hp', 'mp', 'riding']);
+function saveCore(sv) {
+  return JSON.stringify(sv, (k, v) => (SAVE_VOLATILE.has(k) ? undefined : v));
+}
+
+// Charakter löschen (bleibt als Grabstein stehen, damit das Konto es mitbekommt)
+function deleteSave(slot = saveSlot) {
+  const st = readSlots();
+  if (slot == null) return;
+  st.slots[slot] = { deleted: true, savedAt: Date.now() };
+  if (st.last === slot) st.last = null;
+  if (saveSlot === slot) saveSlot = null;
+  writeSlots(st);
+  try {
+    const old = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null');
+    if (!old || !st.slots.some((sv) => fixSave(sv) && sv.name === old.name && sv.classId === old.classId)) localStorage.removeItem(SAVE_KEY);
+  } catch { /* egal */ }
 }

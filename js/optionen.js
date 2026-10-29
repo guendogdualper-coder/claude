@@ -103,7 +103,7 @@ const options = {
       `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
       `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
       `<button type="button" class="btn btn-ghost" data-go="help">❓ Hilfe</button>` +
-      `<button type="button" class="btn btn-ghost" data-go="start">⏏ Zum Startbildschirm</button></div>` +
+      `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
       `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>`;
     body.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
       setOpt(b.dataset.sw, !opts[b.dataset.sw]);
@@ -129,7 +129,7 @@ const options = {
       vol.nextElementSibling.textContent = Math.round(opts.volume * 100) + ' %';
     });
     vol.addEventListener('change', () => sfx.clang(1));
-    body.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
+    body.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', async () => {
       const go = b.dataset.go;
       if (go === 'look') ui.openLookPanel();
       if (go === 'net') ui.toggle('panelNet');
@@ -137,6 +137,8 @@ const options = {
       if (go === 'start') {
         saveGame();
         if (netOnline()) netStop(true);
+        // mit Konto: erst hochladen, dann zur Charakterauswahl
+        if (accountOn()) { b.disabled = true; await cloudPush(true); }
         location.reload();
       }
     }));

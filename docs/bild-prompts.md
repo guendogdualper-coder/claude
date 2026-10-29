@@ -1658,3 +1658,15 @@ Concept turnaround, stylized 3D toon MMORPG: a chestnut riding horse with real h
 ```
 Concept turnaround, stylized 3D toon MMORPG: a black war horse with glowing orange eyes, steel chanfron with a golden horn spike on the forehead, overlapping steel neck plates, a rounded steel chest plate with golden rim and glowing gem, red caparison panels with gold trim along the flanks, red cloth over the croup, red plume on the head, heavy feathering above the hooves; menacing but elegant, readable from an elevated top-down camera. Include a gallop cycle with mane and tail flowing.
 ```
+
+## Konten und Charakterauswahl (Version 7.4)
+
+### Startbildschirm mit Konto
+```
+Fantasy MMORPG title screen UI for a mobile landscape game, dark night-blue stone panel with thin gold filigree border, small "Konto" header with a glowing soul-stone gem icon, two compact input fields (account name, password) with dark inset style and gold focus glow, two buttons side by side: "Anmelden" (gold, primary) and "Registrieren" (dark with gold outline), a small green status line "angemeldet als alper · abgeglichen"; clean, readable at phone size, no clutter, stylized toon look matching a top-down 3D fantasy game.
+```
+
+### Charakterauswahl mit vier Plätzen
+```
+Character select screen for a stylized fantasy MMORPG, four slot cards in a row (two by two on narrow phones): each filled card shows a small class emblem (warrior axe, ninja dagger, shaman talisman, necromancer skull) in the class color, the character name in bold, "Stufe 12 · Schamane", map name and last played time, a gold "Spielen" button and a small red trash icon; the last played card has a soft gold glow; an empty card is a dashed gold outline with a big "+" and "Neuer Charakter"; dark blue parchment background with gold trim, compact and readable on a phone in landscape.
+```

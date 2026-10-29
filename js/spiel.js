@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '7.3';
+const GAME_VERSION = '7.4';
 
 const game = {
   world: null,
@@ -25,7 +25,11 @@ const game = {
   saveTimer: 0
 };
 
-function startGame(save) {
+function startGame(save, slot) {
+  // Platz des Charakters merken (neue Figur: erster freier Platz)
+  saveSlot = slot != null ? slot : slotFor(save);
+  // mit Konto: dieser Charakter wird jetzt hier gespielt
+  if (typeof accountClaim === 'function') accountClaim(saveSlot);
   game.party = null;
   game.player = makePlayer(save);
   game.stats = playerStats(game.player);

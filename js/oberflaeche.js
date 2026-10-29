@@ -86,17 +86,9 @@ const ui = {
       return `<li><b style="color:${t.look.glow}">■</b> Stufe ${t.level} · ${t.name} <span>· ${zone ? zone.name : ''} · ${t.drop}</span></li>`;
     }).join('');
 
-    // Startbildschirm
-    $('btnContinue').addEventListener('click', () => {
-      const save = loadSave();
-      if (save) startGame(save);
-    });
-    $('btnNewChar').addEventListener('click', () => { $('confirmNew').hidden = false; });
-    $('btnCancelNew').addEventListener('click', () => { $('confirmNew').hidden = true; });
-    $('btnConfirmNew').addEventListener('click', () => {
-      deleteSave();
-      this.showStart();
-    });
+    // Startbildschirm: Charakterauswahl (4 Plätze) und Konto
+    $('btnCreateBack').addEventListener('click', () => { this.creating = false; this.showStart(); });
+    accountInit();
     $('createForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const name = $('charName').value.trim();
@@ -106,7 +98,14 @@ const ui = {
         return;
       }
       const save = newCharacter(name, this.selectedClass, this.selectedPath, this.createLook || DEFAULT_LOOKS[this.selectedClass]);
-      startGame(save);
+      const free = listSaves().findIndex((sv) => !sv);
+      if (free < 0) {
+        $('createError').textContent = 'Alle vier Plätze sind belegt. Lösche zuerst einen Charakter.';
+        $('createError').hidden = false;
+        return;
+      }
+      this.creating = false;
+      startGame(save, free);
       saveGame();
     });
     this.setupInstall();
@@ -165,18 +164,113 @@ const ui = {
   showStart() {
     $('startScreen').hidden = false;
     $('hud').hidden = true;
-    const save = loadSave();
-    $('confirmNew').hidden = true;
-    if (save) {
-      $('continueBox').hidden = false;
+    const saves = listSaves();
+    const any = saves.some(Boolean);
+    this.renderAccount();
+    if (any && !this.creating) {
+      $('charSelect').hidden = false;
       $('createForm').hidden = true;
-      const way = save.path != null ? ' · ' + classPath(save.classId, save.path).name : '';
-      $('btnContinue').textContent = `Weiterspielen: ${save.name} · ${CLASSES[save.classId].name}${way} · Stufe ${save.level}`;
+      this.renderSlots(saves);
     } else {
-      $('continueBox').hidden = true;
+      $('charSelect').hidden = true;
       $('createForm').hidden = false;
       $('createError').hidden = true;
+      $('btnCreateBack').hidden = !any;
     }
+  },
+
+  // Vier Plätze: belegte mit Bild, Name, Klasse, Weg und Stufe; freie zum Erstellen
+  renderSlots(saves) {
+    const box = $('charSlots');
+    const last = lastSlot();
+    box.innerHTML = '';
+    saves.forEach((sv, k) => {
+      const card = document.createElement('div');
+      card.className = 'char-slot' + (sv ? '' : ' empty') + (k === last ? ' last' : '');
+      if (!sv) {
+        card.innerHTML = '<button type="button" class="char-new">＋<span>Neuer Charakter</span></button>';
+        card.querySelector('button').addEventListener('click', () => { this.creating = true; this.showStart(); $('charName').focus(); });
+        box.append(card);
+        return;
+      }
+      const cv = document.createElement('canvas');
+      cv.width = 96;
+      cv.height = 96;
+      cv.className = 'char-pic';
+      drawClassPreview(cv, sv.classId);
+      const way = sv.path != null ? classPath(sv.classId, sv.path).name : '';
+      const info = document.createElement('div');
+      info.className = 'char-info';
+      info.innerHTML = `<strong>${escapeHtml(sv.name)}</strong><span>${CLASSES[sv.classId].name}${way ? ' · ' + way : ''}</span><b>Stufe ${sv.level}</b>`;
+      const play = document.createElement('button');
+      play.type = 'button';
+      play.className = 'btn btn-primary char-play';
+      play.textContent = 'Spielen';
+      // der zuletzt gespielte behält die alte Kennung „Weiterspielen“
+      if (k === last || (last == null && !box.querySelector('#btnContinue'))) play.id = 'btnContinue';
+      play.addEventListener('click', () => { const save = loadSave(k); if (save) startGame(save, k); });
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'char-del';
+      del.title = 'Charakter löschen';
+      del.textContent = '✕';
+      del.addEventListener('click', () => {
+        card.classList.add('confirming');
+        const ask = document.createElement('div');
+        ask.className = 'char-confirm';
+        ask.innerHTML = `<p>${escapeHtml(sv.name)} wirklich löschen?</p><div><button type="button" class="btn btn-danger">Löschen</button><button type="button" class="btn btn-ghost">Nein</button></div>`;
+        ask.querySelector('.btn-danger').addEventListener('click', () => { deleteSave(k); this.showStart(); });
+        ask.querySelector('.btn-ghost').addEventListener('click', () => this.showStart());
+        card.append(ask);
+      });
+      card.append(cv, info, play, del);
+      box.append(card);
+    });
+  },
+
+  // Konto: anmelden/registrieren oder Name, Speicherstand und Abmelden
+  renderAccount() {
+    const box = $('accountBox');
+    if (!box) return;
+    if (!cloudReady()) { box.hidden = true; return; }
+    box.hidden = false;
+    if (accountOn()) {
+      const st = account.state === 'sync' ? '☁ gleiche ab …' : account.state === 'error' ? `⚠ ${escapeHtml(account.msg)}` : '☁ im Konto gespeichert';
+      box.innerHTML = `<div class="acc-row"><span class="acc-name">👤 ${escapeHtml(account.name || '')}</span><span class="acc-state ${account.state}">${st}</span>` +
+        '<button type="button" class="btn btn-ghost acc-out">Abmelden</button></div>';
+      box.querySelector('.acc-out').addEventListener('click', async () => {
+        box.querySelector('.acc-out').disabled = true;
+        await accountLogout();
+        this.showStart();
+      });
+      return;
+    }
+    if (this.accBusy) return;
+    box.innerHTML = '<p class="acc-hint">Mit Konto liegen deine Charaktere sicher auf dem Server – spiel auf Handy, PC oder Tablet weiter.</p>' +
+      '<div class="acc-form"><input id="accName" type="text" maxlength="20" autocomplete="username" spellcheck="false" placeholder="Kontoname">' +
+      '<input id="accPass" type="password" maxlength="64" autocomplete="current-password" placeholder="Passwort (mind. 6 Zeichen)">' +
+      '<button type="button" class="btn btn-primary" data-acc="login">Anmelden</button><button type="button" class="btn btn-ghost" data-acc="register">Registrieren</button></div>' +
+      `<p id="accMsg" class="acc-msg"${account.msg && account.state === 'off' ? '' : ' hidden'}>${escapeHtml(account.msg || '')}</p>`;
+    box.querySelectorAll('[data-acc]').forEach((b) => b.addEventListener('click', async () => {
+      const name = $('accName').value;
+      const pass = $('accPass').value;
+      const msg = $('accMsg');
+      box.querySelectorAll('button').forEach((x) => { x.disabled = true; });
+      msg.hidden = false;
+      msg.textContent = b.dataset.acc === 'register' ? 'Konto wird angelegt …' : 'Melde an …';
+      this.accBusy = true;
+      try {
+        await accountLogin(b.dataset.acc, name, pass);
+        this.accBusy = false;
+        this.creating = false;
+        this.showStart();
+      } catch (e) {
+        this.accBusy = false;
+        account.msg = e.message;
+        msg.textContent = e.message;
+        box.querySelectorAll('button').forEach((x) => { x.disabled = false; });
+      }
+    }));
   },
 
   buildClassGrid() {
