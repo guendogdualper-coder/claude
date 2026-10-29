@@ -1730,3 +1730,18 @@ Weapon tier sheet for a stylized 3D toon MMORPG, eight swords from plain to divi
 ```
 Eight warrior shields in stylized 3D toon style: round plank shield with iron bands and boss; bronze shield with two raised rings and a pointed boss; almond-shaped iron kite shield with a silver crescent; red dragon shield with a dragon head relief and spikes around the rim; violet soul shield with a floating glowing rune circle; black ash shield with a jagged rim and glowing cracks; white sky shield with feather wings on both sides; golden sun shield with rays reaching past the rim.
 ```
+
+## Attacken und Zustände (Version 8.0)
+
+Alle Attacken jeder Klasse – Grundangriffe, beide Wege, Buffs, Ultimates – stehen mit Merkmal und
+Prompt in `docs/grafik-prompts.md`, Abschnitt 9.
+
+### Zustände am Ziel
+```
+Status effect icons in 3D for a stylized toon MMORPG, top-down three-quarter view, five bandits side by side: stunned – three small yellow stars circling the head; slowed – a frosty ring with ice crystals at the feet; burning – small flame tongues on shoulders and head with embers rising; poisoned – green bubbles floating up; cursed – a glowing rune circle hovering above the head in the curse colour (violet, orange, green or turquoise). Clear and readable at phone size.
+```
+
+### Neue Merkmale einzelner Fertigkeiten
+```
+Four skill moments in stylized 3D toon style, top-down three-quarter view: a golden round shield imprint flashing in front of a warrior (shield bash); a dark thundercloud with flickering light above an enemy, bolts striking down (thunderstorm); skeletal bone hands bursting from a green glowing ground and grabbing an enemy's legs (crippling curse); the ground cracking open with bone spikes and green smoke as two skeletons rise (raise dead).
+```

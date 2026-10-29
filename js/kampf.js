@@ -917,6 +917,10 @@ const SKILL_TYPES = {
         until: game.time + skillDuration(sk, lvl), target: null, cd: 0, facing: 1, swing: 0
       });
       addEffect({ type: 'runes', x, y: y + 8, r: 22, dur: 0.9, color: '#a7e37f' });
+      // die Erde bricht auf: Riss, Knochenzacken und grüner Rauch, wo das Skelett aufsteigt
+      addEffect({ type: 'decal', kind: 'crack', x, y: y + 8, r: 20, dur: 2.2, color: '#1a2a14' });
+      addEffect({ type: 'shards3', x, y: y + 8, r: 26, count: 5, color: '#e8e0c8', glow: false, size: 0.7, dur: 1 });
+      addEffect({ type: 'smoke3', x, y: y + 8, count: 5, color: '#14281a', size: 0.7, dur: 1 });
       particles(x, y + 6, { count: 14, color: ['#ddd5bb', '#a7e37f'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 140], life: [0.4, 0.7], size: [2, 3.5], shape: 'square', gravity: 200 });
     }
     ui.log(sk.count + ' Skelette erheben sich aus dem Boden.', 'info');
@@ -928,8 +932,11 @@ const SKILL_TYPES = {
     const dur = skillDuration(sk, lvl);
     const col = sk.color || '#a774e0';
     addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: col });
+    const fx = SKILL_FX[sk.id];
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
-      m.vulnerable = { mul: 1 + sk.vulnerable * scale, until: game.time + dur };
+      // Farbe der Fluchrune über dem Kopf (Zustand in 3D)
+      m.vulnerable = { mul: 1 + sk.vulnerable * scale, until: game.time + dur, color: col };
+      if (fx && fx.curseHit) fx.curseHit(m, sk);
       const bc = bodyCenter(m);
       particles(bc.x, bc.y - 20, { count: 8, color: [col, darker(col, 0.4)], angle: Math.PI / 2, spread: 0.3, speed: [40, 90], life: [0.4, 0.6], size: [2, 3] });
       if (!m.isStone) {

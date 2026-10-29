@@ -555,3 +555,13 @@ Skill VFX sheet for a stylized 3D toon necromancer (bone path), top-down three-q
   Abläufe in `js/kampf.js`, Ultimates in `js/ultimativ.js`, 3D-Körper in `js/drei-fx.js` (`FX3_DRAW`).
 - Jede Fertigkeit bekommt beim Wirken ihr Element (`SKILL_ELEMENT`) und dazu das **Merkmal** aus den
   Tabellen oben. Neue Merkmale werden als gepoolte 3D-Körper gebaut, nicht als Einzelbilder.
+- **Seit 8.0 umgesetzt:**
+  - Zustände in 3D an jedem Monster (`fx3Status` in `js/drei-fx.js`): kreisende Sterne (Betäubung),
+    Raureif-Ring mit Eiskristallen (Verlangsamung), Flammenzungen und Glut (Brand), grüne Bläschen
+    (Gift), Rune in der Farbe des Fluchs über dem Kopf (verwundbar). Höchstens 24 Monster je Bild.
+  - Schildstoß: goldener Schildabdruck (`shield3`) · Donnersturm: Gewitterwolke mit Wetterleuchten
+    (`cloud3`) · Lähmender Fluch: Knochenhände aus dem Boden (`hands3`) · Windfessel: Windbänder um
+    jeden Gegner · Kriegsschrei, Fluch der Schwäche: Fluchrune in der Farbe der Fertigkeit, Rauch ·
+    Totenbeschwörung: Riss, Knochenzacken und Rauch, wo die Skelette aufsteigen · Lebensentzug: rote
+    Tropfen kreisen zur Figur · Knochenspeer: Splitter im Boden · Kritische Treffer: weißer Kreuzblitz.
+  - Flüche rufen je Gegner `SKILL_FX[id].curseHit(m)` auf; die Farbe der Rune steht in `m.vulnerable.color`.

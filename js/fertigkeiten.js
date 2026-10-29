@@ -611,6 +611,8 @@ const SKILL_FX = {
   lebensentzug: {
     cast(p) {
       addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 30, dur: 0.5, color: '#ff6a7a', width: 4, grow: true });
+      // rote Tropfen kreisen zurück zur Figur
+      addEffect({ type: 'orbs3', follow: p, ox: 0, oy: 0, count: 5, color: '#ff4a5a', dur: 0.9 });
     }
   },
   totenbeschwoerung: {
@@ -621,6 +623,9 @@ const SKILL_FX = {
     }
   },
   fluch: {
+    curseHit(m) {
+      addEffect({ type: 'smoke3', follow: m, ox: 0, oy: 0, count: 4, color: '#1a1224', size: 0.6, dur: 0.8 });
+    },
     cast(p, sk) {
       addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.9, dur: 1.8, color: '#a774e0' });
       flashScreen('#6a3aa8', 0.2);
@@ -648,6 +653,10 @@ Object.assign(SKILL_FX, {
   },
   schildstoss: {
     color: '#ffd38a',
+    // goldener Schildabdruck steht vor der Figur
+    cast(p) {
+      addEffect({ type: 'shield3', x: p.x + p.facing.x * 30, y: feetY(p) + p.facing.y * 22, fx: p.facing.x, fy: p.facing.y, dur: 0.38, color: '#ffe9a0' });
+    },
     hit(m) {
       const c = bodyCenter(m);
       addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#ffe9a0', big: true });
@@ -676,6 +685,12 @@ Object.assign(SKILL_FX, {
     }
   },
   kriegsschrei: {
+    // getroffene Gegner bekommen die Fluchrune in Orange (Zustand „verwundbar“)
+    curseHit(m) {
+      const bc = bodyCenter(m);
+      addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 1, count: 6, color: '#ff9a4a', speed: 1.6, up: 1, dur: 0.5 });
+      particles(bc.x, bc.y - 10, { count: 4, color: ['#ff9a4a', '#ffd34d'], speed: [40, 90], life: [0.3, 0.5], size: [1.5, 2.5], shape: 'spark', drag: 4 });
+    },
     cast(p, sk) {
       for (let k = 0; k < 3; k++) later(k * 0.12, () => addEffect({ type: 'ring', follow: p, ox: 0, oy: -20, r: sk.radius * (0.5 + k * 0.25), dur: 0.5, color: '#ff9a4a', width: 6, grow: true }));
       flashScreen('#ff7a3a', 0.2);
@@ -735,7 +750,10 @@ Object.assign(SKILL_FX, {
     cast() {
       flashScreen('#cfe8ff', 0.4);
       const t = game.target;
-      if (t) later(0.15, () => addEffect({ type: 'decal', kind: 'scorch', x: t.x, y: feetY(t), r: 60, dur: 2.6, color: '#141820' }));
+      if (!t) return;
+      // dunkle Gewitterwolke über dem Ziel, aus der die Blitze fahren
+      addEffect({ type: 'cloud3', x: t.x, y: feetY(t), dur: 1.3 });
+      later(0.15, () => addEffect({ type: 'decal', kind: 'scorch', x: t.x, y: feetY(t), r: 60, dur: 2.6, color: '#141820' }));
     },
     hit(m) {
       const c = bodyCenter(m);
@@ -751,6 +769,10 @@ Object.assign(SKILL_FX, {
   windfessel: {
     cast(p, sk) {
       addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.6, dur: 0.7, color: '#d8fff8' });
+    },
+    // Windbänder schlingen sich um jeden Gegner
+    curseHit(m) {
+      addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 20, dur: 0.9, color: '#d8fff8' });
     }
   },
   schutzgeist: {
@@ -788,6 +810,8 @@ Object.assign(SKILL_FX, {
   knochenspeer: {
     hit(m) {
       const c = bodyCenter(m);
+      // der Speer zersplittert: Knochensplitter stecken kurz im Boden
+      addEffect({ type: 'shards3', x: m.x, y: feetY(m), r: 26, count: 5, color: '#e8e0c8', glow: false, size: 0.6, dur: 0.8 });
       particles(c.x, c.y, { count: 12, color: ['#ddd5bb', '#ffffff'], speed: [80, 200], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 300 });
     }
   },
@@ -795,6 +819,10 @@ Object.assign(SKILL_FX, {
     cast(p, sk) {
       addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.9, dur: 1.8, color: '#7ad36a' });
       flashScreen('#3a8a2a', 0.2);
+    },
+    // Knochenhände greifen aus dem Boden nach jedem Gegner
+    curseHit(m) {
+      addEffect({ type: 'hands3', follow: m, ox: 0, oy: 0, r: m.r || 14, dur: 1.5, color: '#7ad36a' });
     }
   },
   blutopfer: {
@@ -926,6 +954,12 @@ function skillCastFx(sk) {
 function skillHitFx(id, m, crit, heavy) {
   const fx = SKILL_FX[id];
   if (fx && fx.hit) fx.hit(m, crit, heavy);
+  // kritischer Treffer: weißer Kreuzblitz am Ziel
+  if (crit) {
+    const c = bodyCenter(m);
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: 0.78, len: 34, w: 4, dur: 0.2, color: '#ffffff' });
+    addEffect({ type: 'slash', x: c.x, y: c.y, ang: -0.78, len: 34, w: 4, dur: 0.2, color: '#ffffff' });
+  }
   const el = SKILL_ELEMENT[id];
   if (el) addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.6, count: heavy ? 12 : 7, color: ELEMENT3[el].spark, speed: 2.2, up: 1, size: crit ? 1.4 : 1, dur: 0.6 });
 }

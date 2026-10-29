@@ -5,7 +5,7 @@
 // Ränge (E, H, L, V) bekommen eine zweite Hülle in der Rangfarbe, ab Legendär zusätzlich Runen und Funken.
 
 const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'aim', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
-  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3']);
+  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3', 'shield3', 'cloud3', 'hands3']);
 const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null } };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
@@ -91,6 +91,77 @@ function fx3Texture(kind) {
     rg.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = rg;
     g.fillRect(0, 0, 128, 128);
+  } else if (kind === 'star') {
+    // fünfzackiger Stern mit Schein (Betäubung)
+    const rg = g.createRadialGradient(m, m, 0, m, m, 62);
+    rg.addColorStop(0, 'rgba(255,255,255,0.55)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 128, 128);
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + (i / 10) * Math.PI * 2;
+      const r = i % 2 ? 21 : 52;
+      if (i) g.lineTo(m + Math.cos(a) * r, m + Math.sin(a) * r);
+      else g.moveTo(m + Math.cos(a) * r, m + Math.sin(a) * r);
+    }
+    g.closePath();
+    g.fill();
+  } else if (kind === 'flame') {
+    // Flammenzunge: unten hell und rund, oben spitz
+    const rg = g.createRadialGradient(m, 88, 4, m, 80, 52);
+    rg.addColorStop(0, 'rgba(255,255,255,1)');
+    rg.addColorStop(0.5, 'rgba(255,255,255,0.65)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.beginPath();
+    g.moveTo(m, 4);
+    g.bezierCurveTo(m + 48, 58, m + 42, 120, m, 122);
+    g.bezierCurveTo(m - 42, 120, m - 48, 58, m, 4);
+    g.fill();
+  } else if (kind === 'bubble') {
+    // Bläschen: heller Rand, Glanzpunkt (Gift)
+    g.fillStyle = 'rgba(255,255,255,0.22)';
+    g.beginPath();
+    g.arc(m, m, 46, 0, Math.PI * 2);
+    g.fill();
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 9;
+    g.beginPath();
+    g.arc(m, m, 46, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(m - 17, m - 17, 10, 0, Math.PI * 2);
+    g.fill();
+  } else if (kind === 'shield') {
+    // Schildabdruck: Rand, innerer Ring, Buckel, Nieten
+    const rg = g.createRadialGradient(m, m, 0, m, m, m);
+    rg.addColorStop(0, 'rgba(255,255,255,0.45)');
+    rg.addColorStop(0.75, 'rgba(255,255,255,0.2)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 9;
+    g.beginPath();
+    g.arc(m, m, 52, 0, Math.PI * 2);
+    g.stroke();
+    g.lineWidth = 4;
+    g.beginPath();
+    g.arc(m, m, 35, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(m, m, 14, 0, Math.PI * 2);
+    g.fill();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.beginPath();
+      g.arc(m + Math.cos(a) * 44, m + Math.sin(a) * 44, 4, 0, Math.PI * 2);
+      g.fill();
+    }
   } else if (kind === 'beam') {
     // senkrecht: unten hell, nach oben ausblendend (oben im Bild = oben am Zylinder)
     const lg = g.createLinearGradient(0, 0, 0, 128);
@@ -118,7 +189,7 @@ function fx3Mat(map, vertexColors) {
 const FX3_STRIP_N = 18;
 function fx3Make(kind) {
   let o;
-  if (kind === 'plane' || kind === 'planeN') {
+  if (kind.startsWith('plane')) {
     o = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fx3Mat(fx3Texture('ring')));
     // planeN: normal gemischt – Warnkreise bleiben auch auf hellem Schnee und Eis sichtbar
     if (kind === 'planeN') o.material.blending = THREE.NormalBlending;
@@ -279,7 +350,85 @@ function fx3Seed(h, n, make) {
   return h.seed;
 }
 
+// Kegel vom Punkt b in Richtung d (normiert), Länge len, Dicke w
+function fx3Cone(o, b, d, len, w) {
+  o.position.copy(b).addScaledVector(d, len / 2);
+  o.scale.set(w, Math.max(0.01, len), w);
+  o.quaternion.setFromUnitVectors(_x3fy, d);
+}
+const _x3hb = new THREE.Vector3();
+const _x3hd = new THREE.Vector3();
+
 const FX3_DRAW = {
+  // Schildabdruck (Schildstoß): goldene Scheibe steht senkrecht vor der Figur und weitet sich
+  shield3(h, e, k) {
+    // zur Kamera gedreht, damit man den Abdruck von oben sieht; dazu ein Schein am Boden
+    const o = fx3Take(h, 'spriteShield');
+    fx3Map(o, 'shield');
+    const s = (0.75 + 0.6 * easeOut(k)) * (e.size || 1);
+    o.position.set(e.x * U3, 0.75, e.y * U3);
+    o.scale.set(s, s, 1);
+    fx3Color(o, e.color || '#ffe9a0', Math.min(1, (1 - k) * 1.6));
+    const g = fx3Take(h, 'plane');
+    fx3Ground(g, e.x, e.y, s * 0.9, 0.05, 'disc');
+    fx3Color(g, e.color || '#ffe9a0', (1 - k) * 0.6);
+  },
+  // Gewitterwolke über dem Ziel (Donnersturm): dunkle Ballen, darin Wetterleuchten
+  cloud3(h, e, k) {
+    const sd = fx3Seed(h, 7, (v, i) => ({ a: (i / 7) * Math.PI * 2 + Math.random() * 0.5, r: i ? 0.5 + Math.random() * 0.5 : 0, s: 1 + Math.random() * 0.6, f: Math.random() * 6 }));
+    const x = e.x * U3;
+    const z = e.y * U3;
+    const fade = k < 0.12 ? k / 0.12 : k > 0.7 ? (1 - k) / 0.3 : 1;
+    const y = 4.2 + 0.3 * k;
+    for (const q of sd) {
+      const o = fx3Take(h, 'smoke');
+      o.position.set(x + Math.cos(q.a) * q.r, y + Math.sin(q.a * 3) * 0.15, z + Math.sin(q.a) * q.r * 0.8);
+      o.scale.set(q.s * 1.3, q.s * 0.85, 1);
+      o.material.color.set(e.color || '#232838');
+      o.material.opacity = 0.88 * fade;
+    }
+    for (let i = 0; i < 3; i++) {
+      const q = sd[i * 2];
+      const o = fx3Take(h, 'sprite');
+      fx3Map(o, 'disc');
+      o.position.set(x + Math.cos(q.a) * q.r * 0.6, y - 0.15, z + Math.sin(q.a) * q.r * 0.5);
+      o.scale.set(1.5, 1, 1);
+      fx3Color(o, '#9fd0ff', Math.max(0, Math.sin(game.time * 23 + q.f * 3)) * 0.8 * fade);
+    }
+  },
+  // Knochenhände greifen aus dem Boden nach dem Ziel (Lähmender Fluch)
+  hands3(h, e, k) {
+    const f = fx3Foot(e);
+    const rise = k < 0.2 ? easeOut(k / 0.2) : k > 0.8 ? (1 - k) / 0.2 : 1;
+    const x = f.x * U3;
+    const z = f.z * U3;
+    const R = (e.r || 14) * U3 + 0.22;
+    const glow = fx3Take(h, 'plane');
+    fx3Ground(glow, f.x, f.z, R * 1.7, 0.04, 'disc');
+    fx3Color(glow, e.color || '#7ad36a', 0.6 * rise);
+    // zwei Hände vorn links und rechts (vor dem Körper, damit man sie von oben sieht)
+    for (const side of [-1, 1]) {
+      _x3hb.set(x + side * R * 0.85, 0, z + 0.22);
+      _x3hd.set(-side * 0.3, 1, -0.15).normalize();
+      const arm = fx3Take(h, 'cone');
+      fx3Cone(arm, _x3hb, _x3hd, 0.48 * rise, 0.13);
+      arm.material.color.set('#d8d0b8');
+      arm.material.opacity = 1;
+      const wx = _x3hb.x + _x3hd.x * 0.42 * rise;
+      const wy = 0.42 * rise;
+      const wz = _x3hb.z + _x3hd.z * 0.42 * rise;
+      for (let i = 0; i < 5; i++) {
+        const thumb = i === 4;
+        const sz = thumb ? 0.1 : (i - 1.5) * 0.07;
+        _x3hb.set(wx, wy, wz + sz);
+        _x3hd.set(-side * (thumb ? 1 : 0.75), 1, thumb ? 0.6 : (i - 1.5) * 0.3).normalize();
+        const fg = fx3Take(h, 'cone');
+        fx3Cone(fg, _x3hb, _x3hd, (thumb ? 0.2 : i === 0 || i === 3 ? 0.26 : 0.31) * rise, 0.055);
+        fg.material.color.set('#ece4cc');
+        fg.material.opacity = 1;
+      }
+    }
+  },
   // Funken im Raum: fliegen vom Körper weg, fallen mit Schwerkraft
   sparks3(h, e, k) {
     const n = e.count || 14;
@@ -829,6 +978,82 @@ function fx3Projectiles(h) {
   }
 }
 
+// --- Zustände an Monstern (seit 8.0): Betäubung, Verlangsamung, Brand, Gift, Fluch -----------------
+// Sterne kreisen über dem Kopf, Raureif mit Eiskristallen an den Füßen, Flammenzungen und Glut,
+// grüne Bläschen, eine Rune in der Farbe des Fluchs über dem Kopf. Höchstens STATUS3_MAX Monster je Bild.
+const FX3_STATUS = { parts: [] };
+const STATUS3_MAX = 24;
+function fx3Status(h) {
+  const t = game.time;
+  let n = 0;
+  for (const m of game.monsters) {
+    if (m.dead || m.isStone) continue;
+    const stun = m.stun > 0 || m.stunned;
+    const slow = m.slow && m.slow.until > t;
+    const burn = m.burn && m.burn.until > t;
+    const poison = m.poison && m.poison.until > t;
+    const curse = m.vulnerable && m.vulnerable.until > t;
+    if (!(stun || slow || burn || poison || curse) || !v3InView(m.x, m.y, 60)) continue;
+    if (++n > STATUS3_MAX) break;
+    const fy = feetY(m);
+    const x = m.x * U3;
+    const z = fy * U3;
+    const head = v3HeadHeight(m);
+    const rr = Math.max(0.32, (m.r || 14) * U3 * 1.25);
+    const ph = ((m.id | 0) % 13) * 0.5;
+    if (stun) for (let i = 0; i < 3; i++) {
+      const a = t * 5 + i * 2.094 + ph;
+      const o = fx3Take(h, 'spriteStar');
+      fx3Map(o, 'star');
+      o.position.set(x + Math.cos(a) * 0.36, head - 0.06 + Math.sin(a * 2) * 0.04, z + Math.sin(a) * 0.26);
+      o.scale.set(0.22, 0.22, 1);
+      o.material.rotation = a;
+      fx3Color(o, '#ffe27a', 1);
+    }
+    if (slow) {
+      const o = fx3Take(h, 'planeFrost');
+      fx3Ground(o, m.x, fy, rr * (1.05 + 0.05 * Math.sin(t * 3 + ph)), 0.05, 'ring', t * 0.3);
+      fx3Color(o, '#bfe8ff', 0.9);
+      for (let i = 0; i < 4; i++) {
+        const a = i * 1.571 + ph;
+        const c = fx3Take(h, 'coneG');
+        c.position.set(x + Math.cos(a) * rr * 0.85, 0.09, z + Math.sin(a) * rr * 0.85);
+        c.scale.set(0.05, 0.18, 0.05);
+        c.rotation.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3);
+        fx3Color(c, '#dff4ff', 0.9);
+      }
+    }
+    if (burn) for (let i = 0; i < 3; i++) {
+      const fl = 0.85 + 0.25 * Math.sin(t * 17 + i * 2 + ph);
+      const o = fx3Take(h, 'spriteFlame');
+      fx3Map(o, 'flame');
+      o.position.set(x + (i - 1) * 0.16, head * (0.62 + (i === 1 ? 0.12 : 0)) + 0.08 * fl, z + 0.05);
+      o.scale.set(0.2 * fl, 0.32 * fl, 1);
+      fx3Color(o, i === 1 ? '#ffb04a' : '#ff6a2a', 0.95);
+      const u = (t * 0.9 + i * 0.33 + ph) % 1;
+      const em = fx3Take(h, 'sprite');
+      fx3Map(em, 'spark');
+      em.position.set(x + Math.sin(u * 9 + i) * 0.15, head * 0.5 + u * head * 0.9, z);
+      em.scale.set(0.12, 0.12, 1);
+      fx3Color(em, '#ffd34d', 1 - u);
+    }
+    if (poison) for (let i = 0; i < 3; i++) {
+      const u = (t * 0.7 + i * 0.33 + ph) % 1;
+      const o = fx3Take(h, 'spriteBubble');
+      fx3Map(o, 'bubble');
+      o.position.set(x + Math.sin(u * 7 + i * 2) * 0.14 + (i - 1) * 0.12, head * 0.2 + u * head * 0.7, z + 0.12);
+      const s = 0.1 + 0.07 * u;
+      o.scale.set(s, s, 1);
+      fx3Color(o, '#9fe36a', 1 - u * 0.8);
+    }
+    if (curse) {
+      const o = fx3Take(h, 'planeRune');
+      fx3Ground(o, m.x, fy, 0.44, head + 0.12, 'rune', t * 1.3);
+      fx3Color(o, m.vulnerable.color || '#b48cff', 0.95);
+    }
+  }
+}
+
 const FX3_PROJ = { parts: [] };
 function v3SyncFx() {
   if (!FX3.group) {
@@ -846,6 +1071,7 @@ function v3SyncFx() {
   for (const h of FX3.live) fx3Release(h);
   FX3.live.clear();
   fx3Release(FX3_PROJ);
+  fx3Release(FX3_STATUS);
   for (const e of game.effects) {
     if (!FX3_TYPES.has(e.type)) continue;
     const o = effectOrigin(e);
@@ -856,6 +1082,7 @@ function v3SyncFx() {
     FX3.live.add(h);
   }
   fx3Projectiles(FX3_PROJ);
+  fx3Status(FX3_STATUS);
 }
 
 // --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------
