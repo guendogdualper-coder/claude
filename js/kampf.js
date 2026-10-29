@@ -707,12 +707,11 @@ const SKILL_TYPES = {
     const x = t ? t.x : p.x + p.facing.x * 120;
     const y = t ? t.y : p.y + p.facing.y * 120;
     if (t) faceTowards(t.x, t.y);
-    if (sk.fx === 'lotus') {
-      // Glutlotus: Blüte am Boden, dann schießen Flammenblätter hoch
-      lotusFx(x, y, sk, () => {
-        shakeScreen(4);
-        hitStop(0.04);
-        for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: true, vfxColor: '#ffd08a' });
+    if (sk.fx === 'hail') {
+      // Feuerhagel: jeder Brocken trifft, was in seiner Nähe steht
+      hailFx(x, y, sk, (cx, cy, last) => {
+        shakeScreen(last ? 4 : 1.5);
+        for (const m of enemiesInCircle(cx, cy, sk.splash)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: last, vfxColor: '#ffd08a' });
       });
       return;
     }
@@ -736,6 +735,21 @@ const SKILL_TYPES = {
       shakeScreen(bolts > 1 ? 8 : 6);
       hitStop(0.05);
       for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#cfe8ff' });
+    });
+  },
+
+  // Glutdrache: fliegt zum Ziel (oder in Blickrichtung) und explodiert dort
+  dragon(sk, pw) {
+    const p = game.player;
+    const t = pickTarget(sk.range);
+    if (t) faceTowards(t.x, t.y);
+    const tx = t ? t.x : p.x + p.facing.x * sk.range * 0.7;
+    const ty = t ? t.y : p.y + p.facing.y * sk.range * 0.7;
+    startSwing(p, 'cast', 0.3);
+    dragonFx(p, tx, ty, sk, () => {
+      shakeScreen(4);
+      hitStop(0.04);
+      for (const m of enemiesInCircle(tx, ty, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: sk.burn, heavy: true, vfxColor: '#ffd08a' });
     });
   },
 

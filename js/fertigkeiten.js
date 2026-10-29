@@ -124,15 +124,23 @@ const SKILL_ICONS = {
     iconLine(ctx, '#7a8aa8', 1.5, [[-12, 14], [10, -14]]);
   },
   // Schamane
-  // Glutlotus: Blüte aus Flammenblättern
+  // Glutdrache: Drachenkopf mit Hörnern und Feuerschweif
   talisman(ctx) {
-    for (let k = 0; k < 6; k++) {
-      ctx.save();
-      ctx.rotate((k / 6) * Math.PI * 2);
-      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -2); ctx.quadraticCurveTo(7, -9, 0, -17); ctx.quadraticCurveTo(-7, -9, 0, -2); ctx.closePath(); }, '#ffe08a', '#ff7a2a', 1.2);
-      ctx.restore();
+    ctx.lineCap = 'round';
+    for (const [w, c] of [[7, '#c8302a'], [4.5, '#ff7a2a'], [2, '#ffd34d']]) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(-17, 13);
+      ctx.bezierCurveTo(-12, -2, -2, 14, 2, 2);
+      ctx.stroke();
     }
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); }, '#fff6d0', '#ffb04a', 1.2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-1, 4); ctx.quadraticCurveTo(2, -8, 10, -8); ctx.lineTo(18, -3); ctx.lineTo(10, 1); ctx.lineTo(16, 5); ctx.lineTo(6, 7); ctx.closePath(); }, '#ffd34d', '#c8402f', 1.3);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(3, -6); ctx.lineTo(-3, -16); ctx.lineTo(7, -9); ctx.closePath(); }, '#fff2c0', '#a8682a', 1);
+    ctx.fillStyle = '#1a0a04';
+    ctx.beginPath();
+    ctx.arc(9, -4, 1.4, 0, Math.PI * 2);
+    ctx.fill();
   },
   // Drachenwirbel: Drache im Kreis mit Feuerschweif
   drachengebruell(ctx) {
@@ -160,8 +168,18 @@ const SKILL_ICONS = {
     }
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); }, '#fffbe6', '#e8b83a');
   },
+  // Feuerhagel: drei Brocken mit Schweif schräg nach unten
   blitzschlag(ctx) {
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(4, -19); ctx.lineTo(-9, 2); ctx.lineTo(-1, 2); ctx.lineTo(-5, 19); ctx.lineTo(10, -4); ctx.lineTo(2, -4); ctx.closePath(); }, '#ffffff', '#7ac8ff');
+    ctx.lineCap = 'round';
+    for (const [x, y, r] of [[-8, -6, 5], [6, -10, 4], [3, 8, 6]]) {
+      ctx.strokeStyle = 'rgba(255,154,74,0.75)';
+      ctx.lineWidth = r * 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x + 10, y - 10);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }, '#ffe08a', '#c8402f', 1.2);
+    }
   },
   heilung(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, 14); ctx.quadraticCurveTo(-14, -12, 15, -15); ctx.quadraticCurveTo(12, 12, -14, 14); ctx.closePath(); }, '#c6f08a', '#3a8a2a');
@@ -532,11 +550,7 @@ const SKILL_FX = {
     aura: { every: 0.05, color: ['#ffffff', '#c8d8f0'], shape: 'spark', wind: true, onlyMoving: true }
   },
   talisman: {
-    color: '#ff9a4a',
-    cast(p) {
-      const c = bodyCenter(p);
-      addEffect({ type: 'runes', x: c.x + p.facing.x * 16, y: c.y + 6, r: 20, dur: 0.5, color: '#ffb04a' });
-    },
+    color: '#ff8a2a',
     hit(m) {
       const c = bodyCenter(m);
       particles(c.x, c.y, { count: 10, color: ['#ffd34d', '#ff7a2a', '#ffffff'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 2.5], shape: 'ember', drag: 5 });
@@ -561,18 +575,13 @@ const SKILL_FX = {
     ring: '#ffe9a0'
   },
   blitzschlag: {
+    color: '#ff6a2a',
     cast() {
-      const t = game.target;
-      if (!t) return;
-      for (let k = 1; k <= 2; k++) later(0.07 * k, () => addEffect({ type: 'bolt', x: t.x + rand(-30, 30), y: t.y + rand(-15, 15), dur: 0.35, color: '#9fd0ff' }));
-      later(0.12, () => {
-        flashScreen('#cfe8ff', 0.35);
-        addEffect({ type: 'decal', kind: 'scorch', x: t.x, y: feetY(t), r: 36, dur: 2.4, color: '#141820' });
-      });
+      flashScreen('#ff6a2a', 0.15);
     },
     hit(m) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 10, color: ['#cfe8ff', '#ffffff'], speed: [100, 260], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
+      particles(c.x, c.y, { count: 8, color: ['#ffd34d', '#ff7a2a'], speed: [80, 200], life: [0.2, 0.4], size: [1.5, 3], shape: 'ember', drag: 5 });
     }
   },
   heilung: {
@@ -790,24 +799,52 @@ Object.assign(SKILL_FX, {
   }
 });
 
-// --- Schamane (seit 6.9): Glutlotus und Drachenwirbel, auch für Mitspieler sichtbar -------------------
+// --- Schamane (seit 6.9/7.1): Glutdrache, Drachenwirbel und Feuerhagel, auch für Mitspieler sichtbar -------------------
 
-// Lotosblüte aus Drachenfeuer: Runenkreis am Boden, nach kurzer Zeit schießen Flammenblätter
-// und eine Feuersäule hoch; onBurst trifft (nur beim eigenen Wirken)
-function lotusFx(x, y, sk, onBurst) {
-  addEffect({ type: 'runes', x, y, r: sk.radius, dur: 0.75, color: '#ffb04a' });
-  addEffect({ type: 'ring', x, y, r: sk.radius * 0.55, dur: 0.3, color: '#ffd34d', width: 6, grow: true });
-  addEffect({ type: 'decal', kind: 'rune', x, y, r: sk.radius * 0.8, dur: 1, color: '#ff9a4a' });
-  later(0.2, () => {
-    addEffect({ type: 'shards3', x, y, r: sk.radius * 0.7, count: 8, color: '#ff8a2a', glow: true, size: 1.3, dur: 0.75 });
-    addEffect({ type: 'shards3', x, y, r: sk.radius * 0.35, count: 5, color: '#ffd34d', glow: true, size: 0.9, dur: 0.6 });
-    addEffect({ type: 'column3', x, y, r: 28, hgt: 2.6, color: '#ff6a2a', core: '#ffe08a', dur: 0.7 });
-    addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.45, color: '#ff9a4a', width: 8, grow: true });
-    addEffect({ type: 'sparks3', x, y, h: 0.3, count: 22, color: '#ffb04a', speed: 3, up: 2, dur: 0.9 });
-    addEffect({ type: 'decal', kind: 'scorch', x, y, r: sk.radius * 0.6, dur: 3, color: '#1a1008' });
-    particles(x, y - 10, { count: 30, color: ['#ffd34d', '#ff9a4a', '#ff5a2a'], speed: [60, 200], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3, jitter: sk.radius * 0.4 });
-    if (onBurst) onBurst();
+// Glutdrache: Runen an der Hand, der Drache fliegt im Bogen zum Ziel, dort Feuerexplosion; onHit trifft
+// (nur beim eigenen Wirken). Gibt die Flugzeit zurück.
+function dragonFx(p, tx, ty, sk, onHit) {
+  const fly = Math.max(0.3, Math.min(0.7, Math.hypot(tx - p.x, ty - p.y) / (sk.speed || 620)));
+  const c = bodyCenter(p);
+  addEffect({ type: 'runes', x: c.x + p.facing.x * 14, y: c.y + 6, r: 24, dur: 0.5, color: '#ffb04a' });
+  addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 1, count: 12, color: '#ffb04a', speed: 2, up: 1.4, dur: 0.6 });
+  addEffect({ type: 'dragon3', x: p.x, y: feetY(p), tx, ty, fly, dur: fly + 0.2, size: 1 });
+  later(fly, () => {
+    addEffect({ type: 'ring', x: tx, y: ty, r: sk.radius, dur: 0.45, color: '#ff9a4a', width: 9, grow: true });
+    addEffect({ type: 'column3', x: tx, y: ty, r: 32, hgt: 2.4, color: '#ff6a2a', core: '#ffe08a', dur: 0.6 });
+    addEffect({ type: 'shards3', x: tx, y: ty, r: sk.radius * 0.6, count: 8, color: '#ff8a2a', glow: true, size: 1.1, dur: 0.6 });
+    addEffect({ type: 'sparks3', x: tx, y: ty, h: 0.5, count: 26, color: '#ffb04a', speed: 3.4, up: 2, dur: 0.9 });
+    addEffect({ type: 'smoke3', x: tx, y: ty, count: 7, color: '#2a1a12', size: 0.8, dur: 1.1 });
+    addEffect({ type: 'decal', kind: 'scorch', x: tx, y: ty, r: sk.radius * 0.6, dur: 3, color: '#1a1008' });
+    particles(tx, ty - 10, { count: 34, color: ['#ffd34d', '#ff9a4a', '#ff5a2a'], speed: [80, 240], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3 });
+    if (onHit) onHit();
   });
+  return fly;
+}
+
+// Feuerhagel: der Boden im Zielgebiet glüht als Warnung, dann fallen die Brocken nacheinander;
+// onImpact(x, y, letzter) trifft (nur beim eigenen Wirken)
+function hailFx(x, y, sk, onImpact) {
+  const n = sk.meteors || 10;
+  const fall = 0.42;
+  addEffect({ type: 'runes', x, y, r: sk.radius, dur: 0.6 + n * 0.11 + fall, color: '#ff6a2a' });
+  addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.5, color: '#ff9a4a', width: 6, grow: true });
+  for (let k = 0; k < n; k++) {
+    // erster Brocken in die Mitte, die anderen verteilt
+    const a = Math.random() * Math.PI * 2;
+    const d = k ? Math.sqrt(Math.random()) * sk.radius * 0.9 : 0;
+    const cx = x + Math.cos(a) * d;
+    const cy = y + Math.sin(a) * d * 0.8;
+    const delay = 0.12 + k * 0.11;
+    later(delay, () => addEffect({ type: 'meteor3', x: cx, y: cy, fall, dur: fall + 0.1, size: k ? 0.9 + Math.random() * 0.3 : 1.3 }));
+    later(delay + fall, () => {
+      addEffect({ type: 'ring', x: cx, y: cy, r: sk.splash || 55, dur: 0.35, color: '#ffb04a', width: 6, grow: true });
+      addEffect({ type: 'sparks3', x: cx, y: cy, h: 0.2, count: 12, color: '#ffb04a', speed: 2.6, up: 1.6, dur: 0.6 });
+      addEffect({ type: 'decal', kind: 'scorch', x: cx, y: cy, r: 22, dur: 2.5, color: '#1a1008' });
+      particles(cx, cy - 6, { count: 12, color: ['#ffd34d', '#ff7a2a', '#5a3a2a'], speed: [60, 180], life: [0.3, 0.6], size: [2, 4], shape: 'ember', drag: 3 });
+      if (onImpact) onImpact(cx, cy, k === n - 1);
+    });
+  }
 }
 
 // Geisterdrache kreist um die Figur: je Runde ein Feuerbogen mit Schweif, am Ende eine Feuerwelle
@@ -872,7 +909,7 @@ const SKILL_ELEMENT = {
   sturmangriff: 'erde', schildstoss: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
   kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
-  blitzangriff: 'blitz', blitzschlag: 'blitz', donnersturm: 'blitz',
+  blitzangriff: 'blitz', blitzschlag: 'feuer', donnersturm: 'blitz',
   leichtfuessigkeit: 'wind', windfessel: 'wind',
   geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'feuer', geistesschlag: 'licht',
   seelenpfeil: 'seele', seelensturm: 'seele', fluch: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
@@ -881,7 +918,8 @@ const SKILL_ELEMENT = {
 
 function skillSignature3(sk, p) {
   const el = SKILL_ELEMENT[sk.id];
-  if (!el) return;
+  // Glutdrache und Feuerhagel haben ihren eigenen Auftritt (Drache, Brocken)
+  if (!el || sk.type === 'dragon' || sk.fx === 'hail') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
   // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur

@@ -5,7 +5,7 @@
 // Ränge (E, H, L, V) bekommen eine zweite Hülle in der Rangfarbe, ab Legendär zusätzlich Runen und Funken.
 
 const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
-  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3']);
+  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3']);
 const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null } };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
@@ -308,6 +308,138 @@ const FX3_DRAW = {
       o.material.color.set(e.color);
       o.material.opacity = e.glow ? 0.9 * (1 - k * 0.5) : 1;
     }
+  },
+  // Glutdrache (seit 7.1): Kopf mit Schnauze, Hörnern und Augen, dahinter ein Leib aus glühenden Gliedern
+  // mit Rückenzacken; schlängelt sich im hohen Bogen vom Schamanen zum Ziel
+  dragon3(h, e, k) {
+    const t = game.time - e.start;
+    const u = Math.min(1, t / e.fly);
+    const fade = t > e.fly ? Math.max(0, 1 - (t - e.fly) / 0.15) : 1;
+    if (fade <= 0) return;
+    const sz = (e.size || 1) * 1.5;
+    const dx = e.tx - e.x;
+    const dz = e.ty - e.y;
+    const L = Math.hypot(dx, dz) || 1;
+    const at = (q, out) => {
+      q = Math.max(0, Math.min(1, q));
+      const side = Math.sin(q * Math.PI * 3 + 0.6) * 30 * (1 - q * 0.8);
+      out.set((e.x + dx * q - dz / L * side) * U3, 0.9 + Math.sin(Math.PI * q) * 1.6, (e.y + dz * q + dx / L * side) * U3);
+      return out;
+    };
+    // Leib aus überlappenden Gliedern (Schwanz dünn und dunkelrot, zum Hals hin dick und golden)
+    const N = 20;
+    for (let i = N; i >= 1; i--) {
+      const q = u - i * 0.026;
+      if (q < 0) continue;
+      at(q, _x3p);
+      const f = i / N;
+      const s = (0.62 - f * 0.42) * sz;
+      const o = fx3Take(h, 'sprite');
+      o.position.copy(_x3p);
+      o.scale.set(s, s, 1);
+      fx3Map(o, 'disc');
+      fx3Color(o, f < 0.25 ? '#ffb04a' : f < 0.6 ? '#ff6a2a' : '#c8302a', fade * (1 - f * 0.5));
+      const core = fx3Take(h, 'sprite');
+      core.position.copy(_x3p);
+      core.scale.set(s * 0.42, s * 0.42, 1);
+      fx3Map(core, 'disc');
+      fx3Color(core, '#fff2c0', fade * (0.9 - f * 0.6));
+      if (i % 3 === 0 && i < N - 2) {
+        // Rückenzacken
+        const fin = fx3Take(h, 'coneG');
+        fin.position.set(_x3p.x, _x3p.y + s * 0.38, _x3p.z);
+        fin.scale.set(0.05 * sz, s * 0.6, 0.05 * sz);
+        fin.quaternion.identity();
+        fin.material.color.set('#ffd34d');
+        fin.material.opacity = fade;
+      }
+      if (i % 4 === 2) {
+        // Glutfunken lösen sich vom Leib
+        const sp = fx3Take(h, 'sprite');
+        sp.position.set(_x3p.x + Math.sin(i * 7 + t * 20) * 0.2, _x3p.y - 0.2 - (t * 3 + i) % 0.6, _x3p.z + Math.cos(i * 5) * 0.2);
+        sp.scale.set(0.12, 0.12, 1);
+        fx3Map(sp, 'spark');
+        fx3Color(sp, '#ffd34d', fade * 0.9);
+      }
+    }
+    // Kopf: Richtung aus der Bahn
+    at(u, _x3c);
+    at(u - 0.03, _x3q);
+    _x3u.subVectors(_x3c, _x3q);
+    if (_x3u.lengthSq() < 1e-6) _x3u.set(dx, 0, dz);
+    _x3u.normalize();
+    _x3v.crossVectors(_x3u, _x3fy).normalize();
+    const head = fx3Take(h, 'sprite');
+    head.position.copy(_x3c);
+    head.scale.set(0.85 * sz, 0.85 * sz, 1);
+    fx3Map(head, 'disc');
+    fx3Color(head, '#ffe08a', fade);
+    // Oberkiefer und Unterkiefer (Maul offen)
+    for (const [dy, len, col] of [[0.05, 0.55, '#ff8a2a'], [-0.09, 0.42, '#c8402f']]) {
+      const jaw = fx3Take(h, 'coneG');
+      _x3fa.copy(_x3u).addScaledVector(_x3fy, dy * 3).normalize();
+      jaw.position.copy(_x3c).addScaledVector(_x3fa, len * 0.5 * sz).addScaledVector(_x3fy, dy * sz);
+      jaw.scale.set(0.15 * sz, len * sz, 0.12 * sz);
+      jaw.quaternion.setFromUnitVectors(_x3fy, _x3fa);
+      jaw.material.color.set(col);
+      jaw.material.opacity = fade;
+    }
+    // Feueratem vor dem Maul
+    const breath = fx3Take(h, 'sprite');
+    breath.position.copy(_x3c).addScaledVector(_x3u, 0.75 * sz);
+    breath.scale.set(0.5 * sz, 0.5 * sz, 1);
+    fx3Map(breath, 'spark');
+    fx3Color(breath, '#fff2c0', fade * (0.6 + 0.4 * Math.sin(t * 40)));
+    for (const sd of [-1, 1]) {
+      // Hörner nach hinten oben, Barteln seitlich, Augen
+      _x3fa.copy(_x3u).multiplyScalar(-1).addScaledVector(_x3fy, 1.1).addScaledVector(_x3v, sd * 0.5).normalize();
+      const horn = fx3Take(h, 'coneG');
+      horn.position.copy(_x3c).addScaledVector(_x3v, sd * 0.14 * sz).addScaledVector(_x3fy, 0.14 * sz);
+      horn.scale.set(0.06 * sz, 0.5 * sz, 0.06 * sz);
+      horn.quaternion.setFromUnitVectors(_x3fy, _x3fa);
+      horn.material.color.set('#fff2c0');
+      horn.material.opacity = fade;
+      _x3fa.copy(_x3u).multiplyScalar(-1).addScaledVector(_x3v, sd * 1.2).addScaledVector(_x3fy, -0.2).normalize();
+      const whisker = fx3Take(h, 'coneG');
+      whisker.position.copy(_x3c).addScaledVector(_x3u, 0.3 * sz).addScaledVector(_x3v, sd * 0.1 * sz);
+      whisker.scale.set(0.03 * sz, 0.55 * sz, 0.03 * sz);
+      whisker.quaternion.setFromUnitVectors(_x3fy, _x3fa);
+      whisker.material.color.set('#ffb04a');
+      whisker.material.opacity = fade * 0.9;
+      const eye = fx3Take(h, 'sprite');
+      eye.position.copy(_x3c).addScaledVector(_x3v, sd * 0.16 * sz).addScaledVector(_x3fy, 0.1 * sz).addScaledVector(_x3u, 0.14 * sz);
+      eye.scale.set(0.2 * sz, 0.2 * sz, 1);
+      fx3Map(eye, 'spark');
+      fx3Color(eye, '#ffffff', fade);
+    }
+  },
+  // Feuerbrocken: fällt schräg vom Himmel, mit Glutschweif
+  meteor3(h, e, k) {
+    const t = game.time - e.start;
+    const u = Math.min(1, t / e.fall);
+    if (t > e.fall + 0.05) return;
+    const sz = e.size || 1;
+    const fall = (q, out) => out.set((e.x + (1 - q) * 45) * U3, 0.15 + (1 - q) * 3.8, (e.y - (1 - q) * 20) * U3);
+    for (let i = 5; i >= 0; i--) {
+      fall(Math.max(0, u - i * 0.06), _x3p);
+      const o = fx3Take(h, 'sprite');
+      o.position.copy(_x3p);
+      const s = (i ? 0.85 - i * 0.1 : 1.1) * sz;
+      o.scale.set(s, s, 1);
+      fx3Map(o, i ? 'disc' : 'spark');
+      fx3Color(o, i === 0 ? '#fff2c0' : i < 3 ? '#ffb04a' : '#ff5a2a', 1 - i * 0.13);
+    }
+    const rock = fx3Take(h, 'coneG');
+    fall(u, _x3c);
+    rock.position.copy(_x3c);
+    rock.scale.set(0.24 * sz, 0.3 * sz, 0.24 * sz);
+    rock.rotation.set(t * 9, t * 7, 0);
+    rock.material.color.set('#ff5a1a');
+    rock.material.opacity = 1;
+    // Schatten wächst am Boden, bis der Brocken einschlägt
+    const sh = fx3Take(h, 'planeN');
+    fx3Ground(sh, e.x, e.y, 0.25 + u * 0.5 * sz, 0.04, 'disc');
+    fx3Color(sh, '#ff6a2a', 0.25 + u * 0.4);
   },
   // Monsterbiss (seit 6.7): Ober- und Unterkiefer als leuchtende Bögen, die über dem Ziel zuschnappen
   bite3(h, e, k) {

@@ -179,9 +179,9 @@ const CLASSES = {
         skills: [
           // seit 6.9: Flächenschaden statt Talisman und Kegel (Kennungen bleiben, damit Stufen und Bücher erhalten bleiben)
           {
-            id: 'talisman', name: 'Glutlotus', short: 'GL', kind: 'angriff', unlock: 1, mp: 10, cooldown: 3,
-            type: 'blast', fx: 'lotus', range: 320, radius: 95, dmg: 1.6, color: '#ff9a4a', burn: { dps: 0.25, duration: 3 },
-            text: 'Unter dem Ziel öffnet sich eine glühende Lotosblüte aus Drachenfeuer: Flammenblätter schießen aus dem Boden, treffen alle Gegner im Umkreis und setzen sie 3 Sekunden in Brand.'
+            id: 'talisman', name: 'Glutdrache', short: 'GD', kind: 'angriff', unlock: 1, mp: 10, cooldown: 3,
+            type: 'dragon', range: 340, radius: 100, speed: 620, dmg: 1.7, color: '#ff8a2a', burn: { dps: 0.25, duration: 3 },
+            text: 'Du schleuderst einen Drachen aus Feuer: Er schlängelt sich im Bogen zum Ziel, explodiert dort und trifft alle Gegner im Umkreis, die danach 3 Sekunden brennen.'
           },
           {
             id: 'drachengebruell', name: 'Drachenwirbel', short: 'DW', kind: 'angriff', unlock: 3, mp: 18, cooldown: 7,
@@ -194,9 +194,9 @@ const CLASSES = {
             text: 'Buff: Drachenkraft fließt in dich. Mehr Angriff und mehr Fertigkeitsschaden.'
           },
           {
-            id: 'blitzschlag', name: 'Blitzschlag', short: 'BS', kind: 'angriff', unlock: 7, mp: 24, cooldown: 9,
-            type: 'blast', range: 300, radius: 90, dmg: 2.2, stun: 0.8,
-            text: 'Ein Blitz schlägt beim Ziel ein, trifft alle Gegner in der Nähe und betäubt sie.'
+            id: 'blitzschlag', name: 'Feuerhagel', short: 'FH', kind: 'angriff', unlock: 7, mp: 26, cooldown: 10,
+            type: 'blast', fx: 'hail', range: 320, radius: 130, meteors: 10, splash: 55, dmg: 0.65, color: '#ff6a2a', burn: { dps: 0.2, duration: 2 },
+            text: 'Über dem Ziel glüht der Himmel auf, dann prasseln zehn Feuerbrocken auf das ganze Gebiet. Jeder Einschlag trifft alle Gegner in seiner Nähe und setzt sie in Brand.'
           },
           {
             id: 'donnersturm', name: 'Donnersturm', short: 'DS', kind: 'angriff', unlock: 10, mp: 34, cooldown: 12,

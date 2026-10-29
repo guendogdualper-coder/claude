@@ -621,10 +621,13 @@ function remoteSkillFx(rp, d) {
     case 'vortex':
       vortexFx(rp, sk);
       break;
+    case 'dragon':
+      dragonFx(rp, target.x, target.y, sk);
+      break;
     case 'blast': {
       const bolts = sk.fx === 'storm' ? 6 : 1;
-      if (sk.fx === 'lotus') {
-        lotusFx(target.x, target.y, sk);
+      if (sk.fx === 'hail') {
+        hailFx(target.x, target.y, sk);
         break;
       }
       if (sk.fx === 'poison') {

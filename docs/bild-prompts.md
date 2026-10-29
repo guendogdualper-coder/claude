@@ -1621,3 +1621,23 @@ Close-up of a mobile game attack button held down by a thumb, glowing ring pulsi
 ```
 Simple friendly infographic in a fantasy game style: two smartphones on mobile data, each behind a small castle wall labelled "Anbieter"; a dashed direct arrow between them breaks with a red cross, while a glowing golden path arcs over the walls through two floating message towers labelled "HiveMQ" and "EMQX" and connects both phones; a small badge "K1 · 2/8 · Umweg" under a minimap. Clean, readable on a phone.
 ```
+
+## Glutdrache und Feuerhagel (Version 7.1)
+
+So sind die beiden Angriffe im Spiel gebaut; die Prompts dienen als Vorlage für noch flüssigere Animationen.
+
+### Glutdrache – Ablauf (0,3–0,7 s Flug, dann Explosion)
+1. **Wirken (0–0,1 s):** Der Schamane reißt den Fächer nach vorn, an der Hand dreht sich ein goldener Runenkreis, Funken steigen auf.
+2. **Flug:** Aus dem Fächer schießt der Drache: zuerst der Kopf, der Leib zieht in einem flachen S hinterher (drei Wellen, die zum Ziel hin abklingen) und steigt dabei in einem Bogen auf und ab. Der Schwanz wird dünner und dunkelrot, zum Hals hin dick und golden; von den Rückenzacken lösen sich Glutfunken.
+3. **Einschlag:** Der Kopf taucht ins Ziel, eine Feuersäule schießt hoch, glühende Zacken brechen im Kreis aus dem Boden, Rauch und eine Brandspur bleiben 3 Sekunden.
+```
+Animation sheet, stylized 3D toon MMORPG, elevated three-quarter top-down view, 6 frames: a shaman in teal robes flicks a golden fan; a serpentine fire dragon bursts out – horned head with open jaws, glowing white eyes, long whiskers trailing back, a body of overlapping glowing segments from gold at the neck to deep red at the thin tail, small golden spikes along the back, embers dripping off; it flies in a low S-curve arc toward a group of enemies, then dives into them and explodes into a fire column, a ring shockwave and glowing shards. Additive glow, smooth motion trail, readable on a phone.
+```
+
+### Feuerhagel – Ablauf (etwa 1,6 s)
+1. **Warnung (0–0,1 s):** Über dem Zielgebiet erscheint ein großer, langsam drehender Feuer-Runenkreis.
+2. **Hagel:** Zehn glühende Brocken stürzen nacheinander schräg vom Himmel (alle 0,11 s einer; der erste genau in die Mitte), jeder mit kurzem Glutschweif, rotierend; am Boden wächst ihr Schatten, bis sie aufschlagen.
+3. **Einschläge:** Je Einschlag ein kleiner Glutring, Funken, Brandfleck; der letzte Einschlag lässt den Boden stärker beben.
+```
+Stylized 3D toon MMORPG skill effect, elevated three-quarter view: over a group of monsters a large slowly rotating orange rune circle glows on the ground; ten glowing meteors with short fiery tails fall diagonally from the sky one after another, each casting a growing glow on the ground before impact; impacts burst into small ring shockwaves, sparks and scorch marks; warm orange light, ash in the air, readable on a phone.
+```
