@@ -322,8 +322,9 @@ function drawWeaponSprite(ctx, kind, x, y, angle, tier = 0) {
 
 // Reiter sitzt so viel höher, Pferd als gebackenes Bild je Galopp-Schritt und Sattelfarbe
 const RIDE_HEIGHT = 20;
-function horseSprite(frame, saddle) {
-  return getSprite(`horse:${frame}:${saddle}`, { x: -34, y: -58, w: 68, h: 62 }, (ctx) => horseArt(ctx, frame, { saddle }));
+function horseSprite(frame, saddle, tier = 1) {
+  const war = tier === 2;
+  return getSprite(`horse:${frame}:${saddle}:${tier}`, { x: -34, y: -58, w: 68, h: 62 }, (ctx) => horseArt(ctx, frame, war ? { saddle: '#7a1a1a', coat: '#241e26', mane: '#0e0a10' } : { saddle }));
 }
 
 function drawPlayer(ctx, p) {
@@ -411,7 +412,7 @@ function drawPlayer(ctx, p) {
   drawBuffLooks(ctx, p, fy, 'back');
   if (p.riding) {
     drawShadow(ctx, p.x, fy, 22);
-    blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim), p.x, fy, flip);
+    blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim, p.horseTier || 1), p.x, fy, flip);
   }
   ctx.save();
   ctx.translate(p.x, fy - ride);

@@ -1025,45 +1025,130 @@ function beast3(b, o, P) {
   return { rig, height: bodyY + 0.42, family: 'beast', bodyY, jaw: true };
 }
 
-// Pferd: lange Beine, langer Hals, Mähne, Hufe, Sattel (auch als Schmuck beim Stall)
+// Pferd (neu in 7.3): echte Pferde-Anatomie – tiefe Brust, Widerrist, runde Kruppe, gebogener Hals,
+// keilförmiger Kopf mit Ganaschen, Nüstern und gespitzten Ohren, wehende Mähne und Schweif,
+// Beine mit Knie bzw. Sprunggelenk, Fesseln und Hufen; Zaumzeug, Satteldecke, Sattel, Steigbügel.
+// tier 1: Reitpferd (Fuchs mit Blesse und weißen Socken) · tier 2: Kriegsross (Rappe mit Rossharnisch,
+// Stirnplatte mit Dorn, Halsplatten, Brustpanzer, rote Schabracke, Federbusch, glühende Augen, Behang)
 function horseParts3(b, unused, o = {}) {
   const A = adder(b, o.parent || null);
   const seg = (a, z, r1, r2, color, x) => limbBetween(A, a, z, r1, r2, color, x);
-  const coat = o.coat || '#8a5a34';
-  const mane = o.mane || '#3a2618';
-  const legLen = 0.62;
-  const bodyY = legLen + 0.22;
+  const war = o.tier === 2;
+  const coat = o.coat || (war ? '#241e26' : '#8a5230');
+  const dark = darker(coat, 0.25);
+  const mane = o.mane || (war ? '#0e0a10' : '#2e1c12');
+  const white = '#f2ece0';
+  const steel = '#8a929c';
+  const gold = '#c9a35a';
+  const cloth = o.saddle || '#8a2a1a';
+  const legLen = 0.66;
+  const bodyY = legLen + 0.24;
+  const hy = bodyY + 0.72;
+  const hz = 0.82;
   const rig = rigOf([
-    [[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, bodyY + 0.62, 0.78], 1],
-    [[0.17, legLen + 0.05, 0.42], 1], [[-0.17, legLen + 0.05, 0.42], 1], [[0.17, legLen + 0.05, -0.42], 1], [[-0.17, legLen + 0.05, -0.42], 1],
-    [[0, bodyY + 0.1, -0.62], 1], [[0, 0, 0], 1], [[0, 0, 0], 1], [[0, bodyY + 0.2, 0.5], 1]
+    [[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, hy, hz - 0.06], 10],
+    [[0.16, bodyY - 0.08, 0.36], 1], [[-0.16, bodyY - 0.08, 0.36], 1], [[0.15, bodyY - 0.06, -0.36], 1], [[-0.15, bodyY - 0.06, -0.36], 1],
+    [[0, bodyY + 0.14, -0.6], 1], [[0, 0, 0], 1], [[0, 0, 0], 1], [[0, bodyY + 0.16, 0.44], 1]
   ]);
-  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY + 0.02, 0.28], s: [0.28, 0.3, 0.32], shade: 0.25 });
-  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY, -0.05], s: [0.27, 0.28, 0.5], shade: 0.25 });
-  A(ball(14), coat, { bone: BQ.body, p: [0, bodyY + 0.03, -0.38], s: [0.27, 0.27, 0.3], shade: 0.25 });
-  seg([0, bodyY + 0.12, 0.45], [0, bodyY + 0.6, 0.72], 0.15, 0.1, coat, { bone: BQ.neck, shade: 0.15 });
-  for (let k = 0; k < 6; k++) A(horn3(0.14, 0.04, 5), mane, { bone: BQ.neck, p: [0, bodyY + 0.22 + k * 0.08, 0.46 + k * 0.05], r: [-1.6, 0, 0] });
-  const hp = [0, bodyY + 0.62, 0.8];
-  seg(hp, [0, hp[1] - 0.18, hp[2] + 0.32], 0.11, 0.085, coat, { bone: BQ.head });
-  A(ball(10), lighter(coat, 0.2), { bone: BQ.head, p: [0, hp[1] - 0.18, hp[2] + 0.34], s: [0.09, 0.07, 0.08] });
+  // Rumpf: Brust, Bauch, Kruppe, Widerrist
+  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY + 0.02, 0.32], s: [0.26, 0.31, 0.3], shade: 0.25 });
+  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY, -0.02], s: [0.26, 0.28, 0.48], shade: 0.25 });
+  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY + 0.05, -0.36], s: [0.28, 0.29, 0.29], shade: 0.25 });
+  A(ball(12), coat, { bone: BQ.body, p: [0, bodyY + 0.21, 0.24], s: [0.13, 0.1, 0.17] });
+  // Hals in zwei Bögen, Kamm für die Mähne
+  seg([0, bodyY + 0.1, 0.4], [0, bodyY + 0.46, 0.62], 0.17, 0.13, coat, { bone: BQ.neck, shade: 0.2 });
+  seg([0, bodyY + 0.46, 0.62], [0, hy - 0.02, hz - 0.08], 0.13, 0.11, coat, { bone: BQ.neck, shade: 0.15 });
+  // Kopf: Stirn, Ganaschen, schräges Gesicht, weiches Maul mit Nüstern
+  A(ball(14), coat, { bone: BQ.head, p: [0, hy, hz], s: [0.11, 0.12, 0.14], shade: 0.15 });
+  A(ball(12), coat, { bone: BQ.head, p: [0, hy - 0.07, hz - 0.01], s: [0.1, 0.1, 0.11] });
+  seg([0, hy - 0.02, hz + 0.06], [0, hy - 0.24, hz + 0.32], 0.085, 0.07, coat, { bone: BQ.head, shade: 0.12 });
+  A(ball(12), war ? '#3a3238' : lighter(coat, 0.08), { bone: BQ.head, p: [0, hy - 0.25, hz + 0.33], s: [0.08, 0.07, 0.085] });
+  for (const sx of [-1, 1]) A(sphere3(0.016, 6, 4), '#140c0a', { bone: BQ.head, p: [sx * 0.035, hy - 0.24, hz + 0.41] });
+  A(roundBox(0.09, 0.008, 0.04, 0.004), '#2a1410', { bone: BQ.head, p: [0, hy - 0.3, hz + 0.37] });
+  if (!war) seg([0, hy + 0.06, hz + 0.1], [0, hy - 0.2, hz + 0.38], 0.028, 0.02, white, { bone: BQ.head });
   for (const sx of [-1, 1]) {
-    A(horn3(0.13, 0.04, 6), coat, { bone: BQ.head, p: [sx * 0.06, hp[1] + 0.08, hp[2] - 0.04] });
-    A(ball(8), '#1a120c', { bone: BQ.head, p: [sx * 0.085, hp[1] - 0.02, hp[2] + 0.12], s: [0.028, 0.034, 0.02], shine: 0.8 });
+    // Augen seitlich, Ohren gespitzt
+    if (war) A(ball(8), '#ff6a2a', { bone: BQ.head, p: [sx * 0.095, hy + 0.02, hz + 0.07], s: [0.03, 0.022, 0.03], mat: 'glow' });
+    else {
+      A(ball(8), '#140c08', { bone: BQ.head, p: [sx * 0.095, hy + 0.02, hz + 0.07], s: [0.028, 0.032, 0.028], shine: 0.9 });
+      A(sphere3(0.008, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.105, hy + 0.035, hz + 0.085], mat: 'glow' });
+    }
+    A(horn3(0.13, 0.04, 6), coat, { bone: BQ.head, p: [sx * 0.055, hy + 0.1, hz - 0.04], r: [-0.15, 0, -sx * 0.18], s: [1, 1, 0.6] });
+    A(horn3(0.08, 0.022, 5), dark, { bone: BQ.head, p: [sx * 0.056, hy + 0.11, hz - 0.03], r: [-0.15, 0, -sx * 0.18], s: [1, 1, 0.4] });
   }
-  for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
-    const top = [sx * 0.17, legLen + 0.05, sz * 0.42];
-    const mid = [sx * 0.17, legLen * 0.45, sz * 0.42 + (sz < 0 ? -0.06 : 0.02)];
-    seg(top, mid, 0.085, 0.06, coat, { bone, shade: 0.15 });
-    seg(mid, [sx * 0.17, 0.08, sz * 0.42], 0.06, 0.05, coat, { bone });
-    A(cyl3(0.065, 0.075, 0.08, 10), '#2a1c14', { bone, p: [sx * 0.17, 0.04, sz * 0.42], shine: 0.4 });
+  // Mähne: Strähnen fallen abwechselnd zu beiden Seiten, vorn ein Schopf
+  for (let k = 0; k < 9; k++) {
+    const q = k / 8;
+    const base = [0, bodyY + 0.28 + q * 0.44, 0.42 + q * 0.34];
+    const sx = k % 3 === 1 ? -1 : 1;
+    lock(A, BQ.neck, base, 0.22 + (k % 2) * 0.06, 0.05, [Math.PI - 0.35, 0, sx * 0.55], k % 2 ? mane : lighter(mane, 0.1));
   }
-  seg([0, bodyY + 0.12, -0.6], [0, bodyY - 0.35, -0.82], 0.08, 0.04, mane, { bone: BQ.tail });
-  if (o.saddle) {
-    A(roundBox(0.42, 0.1, 0.4, 0.05), o.saddle, { bone: BQ.body, p: [0, bodyY + 0.3, -0.02] });
-    A(roundBox(0.48, 0.24, 0.04, 0.02), darker(o.saddle, 0.3), { bone: BQ.body, p: [0, bodyY + 0.16, -0.02], r: [0, Math.PI / 2, 0] });
-    for (const sx of [-1, 1]) A(torus3(0.05, 0.012, Math.PI * 2, 4, 10), '#c9a35a', { bone: BQ.body, p: [sx * 0.3, bodyY - 0.05, -0.02], shine: 1 });
+  lock(A, BQ.head, [0, hy + 0.1, hz + 0.02], 0.14, 0.035, [0.6, 0, 0.1], mane);
+  // Schweif: hoher Ansatz, dann lang wehend
+  seg([0, bodyY + 0.14, -0.6], [0, bodyY + 0.04, -0.72], 0.06, 0.05, mane, { bone: BQ.tail });
+  for (const [dx, len, rz] of [[0, 0.62, 0], [0.04, 0.55, 0.15], [-0.04, 0.55, -0.15], [0, 0.48, 0.05]]) {
+    lock(A, BQ.tail, [dx, bodyY + 0.04, -0.72], len, 0.07, [Math.PI + 0.35, 0, rz], dx ? lighter(mane, 0.08) : mane);
   }
-  return { rig, height: bodyY + 0.9, family: 'horse', bodyY, seat: bodyY + 0.32 };
+  // Beine: vorn Unterarm–Knie–Röhre, hinten Schenkel–Sprunggelenk–Röhre; Fessel, Huf
+  for (const [bone, sx, front] of [[BQ.legFL, 1, true], [BQ.legFR, -1, true], [BQ.legBL, 1, false], [BQ.legBR, -1, false]]) {
+    const x = sx * (front ? 0.16 : 0.15);
+    const z0 = front ? 0.36 : -0.36;
+    const sock = !war && ((front && sx < 0) || (!front && sx > 0));
+    if (front) {
+      seg([x, bodyY - 0.08, z0], [x, legLen * 0.5, z0 + 0.03], 0.085, 0.06, coat, { bone, shade: 0.15 });
+      A(ball(8), coat, { bone, p: [x, legLen * 0.5, z0 + 0.03], s: [0.06, 0.055, 0.06] });
+      seg([x, legLen * 0.5, z0 + 0.03], [x, 0.13, z0 + 0.02], 0.048, 0.042, sock ? white : dark, { bone });
+    } else {
+      A(ball(12), coat, { bone, p: [x, bodyY - 0.06, z0 - 0.02], s: [0.12, 0.22, 0.17], shade: 0.2 });
+      seg([x, bodyY - 0.14, z0 - 0.02], [x, legLen * 0.46, z0 - 0.11], 0.08, 0.055, coat, { bone, shade: 0.15 });
+      A(ball(8), coat, { bone, p: [x, legLen * 0.46, z0 - 0.11], s: [0.055, 0.06, 0.07] });
+      seg([x, legLen * 0.46, z0 - 0.11], [x, 0.13, z0 - 0.05], 0.046, 0.042, sock ? white : dark, { bone });
+    }
+    const zf = front ? z0 + 0.02 : z0 - 0.05;
+    A(ball(8), sock ? white : dark, { bone, p: [x, 0.12, zf], s: [0.055, 0.05, 0.06] });
+    seg([x, 0.12, zf], [x, 0.07, zf + 0.04], 0.045, 0.05, sock ? white : dark, { bone });
+    A(cyl3(0.062, 0.074, 0.075, 12), '#1e1814', { bone, p: [x, 0.038, zf + 0.05], shine: 0.4 });
+    // Behang über den Hufen (Kriegsross)
+    if (war) for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2;
+      A(horn3(0.12, 0.035, 4), lighter(mane, 0.15), { bone, p: [x + Math.cos(a) * 0.05, 0.16, zf + Math.sin(a) * 0.05], r: [Math.PI + Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4] });
+    }
+  }
+  // Zaumzeug: Nasenriemen, Stirnriemen, Backenstücke mit Trensenringen
+  const strap = war ? '#3a2a1e' : '#4a2e1a';
+  A(torus3(0.085, 0.012, Math.PI * 2, 4, 14), strap, { bone: BQ.head, p: [0, hy - 0.18, hz + 0.24], r: [Math.PI / 2 + 0.85, 0, 0] });
+  A(torus3(0.115, 0.012, Math.PI * 2, 4, 14), strap, { bone: BQ.head, p: [0, hy + 0.04, hz + 0.02], r: [Math.PI / 2 + 0.35, 0, 0] });
+  for (const sx of [-1, 1]) {
+    seg([sx * 0.1, hy + 0.04, hz + 0.02], [sx * 0.08, hy - 0.2, hz + 0.26], 0.012, 0.012, strap, { bone: BQ.head });
+    A(torus3(0.02, 0.006, Math.PI * 2, 3, 8), gold, { bone: BQ.head, p: [sx * 0.085, hy - 0.22, hz + 0.27], r: [0, Math.PI / 2, 0], shine: 1 });
+  }
+  // Satteldecke mit Borte, Sattel mit Knauf und Rückenlehne, Gurt, Steigbügel
+  A(roundBox(0.6, 0.03, 0.5, 0.015), cloth, { bone: BQ.body, p: [0, bodyY + 0.28, -0.02], shade: 0.1 });
+  A(roundBox(0.62, 0.02, 0.52, 0.01), gold, { bone: BQ.body, p: [0, bodyY + 0.265, -0.02], shine: 0.8 });
+  A(roundBox(0.34, 0.08, 0.36, 0.035), '#5a3a22', { bone: BQ.body, p: [0, bodyY + 0.32, -0.02], top: lighter('#5a3a22', 0.2), topK: 0.4 });
+  A(ball(10), '#5a3a22', { bone: BQ.body, p: [0, bodyY + 0.39, 0.15], s: [0.06, 0.06, 0.05], shine: 0.4 });
+  A(roundBox(0.3, 0.1, 0.05, 0.025), '#4a2e1a', { bone: BQ.body, p: [0, bodyY + 0.39, -0.19] });
+  A(torus3(0.285, 0.022, Math.PI * 2, 4, 20), strap, { bone: BQ.body, p: [0, bodyY, 0.08], r: [0, Math.PI / 2, 0], s: [1, 1.02, 1] });
+  for (const sx of [-1, 1]) {
+    seg([sx * 0.18, bodyY + 0.3, 0.02], [sx * 0.3, bodyY - 0.14, 0.02], 0.012, 0.012, strap, { bone: BQ.body });
+    A(torus3(0.04, 0.01, Math.PI * 2, 4, 10), steel, { bone: BQ.body, p: [sx * 0.3, bodyY - 0.17, 0.02], r: [0, Math.PI / 2, 0], shine: 1 });
+  }
+  if (war) {
+    // Rossharnisch: Stirnplatte mit Dorn, Halsplatten, Brustpanzer, Schabracke, Federbusch
+    A(roundBox(0.12, 0.24, 0.035, 0.02), steel, { bone: BQ.head, p: [0, hy - 0.08, hz + 0.17], r: [-0.75, 0, 0], shine: 1, top: lighter(steel, 0.3), topK: 0.4 });
+    A(horn3(0.16, 0.025, 6), gold, { bone: BQ.head, p: [0, hy + 0.06, hz + 0.08], r: [0.5, 0, 0], shine: 1 });
+    for (let k = 0; k < 4; k++) A(roundBox(0.1, 0.03, 0.14, 0.015), k % 2 ? steel : darker(steel, 0.15), { bone: BQ.neck, p: [0, bodyY + 0.32 + k * 0.12, 0.47 + k * 0.08], r: [-0.85, 0, 0], shine: 0.9 });
+    A(cap3(0.3, Math.PI * 0.5, 0, Math.PI * 2, 16, 6), steel, { bone: BQ.body, p: [0, bodyY + 0.02, 0.42], r: [Math.PI / 2, 0, 0], s: [1, 1, 0.45], shine: 1, top: lighter(steel, 0.25), topK: 0.3 });
+    A(torus3(0.29, 0.015, Math.PI * 2, 4, 20), gold, { bone: BQ.body, p: [0, bodyY + 0.02, 0.555], shine: 1 });
+    A(ball(8), '#ff6a2a', { bone: BQ.body, p: [0, bodyY + 0.05, 0.57], s: [0.04, 0.04, 0.02], mat: 'glow' });
+    for (const sx of [-1, 1]) {
+      A(roundBox(0.02, 0.3, 0.62, 0.01), '#7a1a1a', { bone: BQ.body, p: [sx * 0.29, bodyY - 0.08, -0.06], shade: 0.15 });
+      A(roundBox(0.025, 0.035, 0.63, 0.01), gold, { bone: BQ.body, p: [sx * 0.295, bodyY - 0.22, -0.06], shine: 0.9 });
+    }
+    A(cap3(0.3, Math.PI * 0.45, 0, Math.PI * 2, 16, 6), '#7a1a1a', { bone: BQ.body, p: [0, bodyY + 0.07, -0.4], s: [1, 0.8, 1] });
+    for (let k = -1; k <= 1; k++) A(horn3(0.22, 0.03, 5), '#c8302a', { bone: BQ.head, p: [k * 0.03, hy + 0.13, hz - 0.03], r: [-0.5, 0, k * 0.3] });
+  }
+  return { rig, height: bodyY + 1.0, family: 'horse', bodyY, seat: bodyY + 0.36 };
 }
 
 // --- Spinne, Skorpion, Geist, Schlange, Naga, Golem ------------------------------------------------
@@ -2357,7 +2442,8 @@ function syncPlayer3(p, dt) {
   // Reiten: Pferd darunter, Reiter sitzt im Sattel
   let ride = 0;
   if (p.riding) {
-    const h = actorFor(entityKey(p) + 'h', 'horse:' + CLASSES[p.classId].trim, (b) => Object.assign(horseParts3(b, null, { saddle: CLASSES[p.classId].trim }), { blob: 0.7, scale: 1.25 }));
+    const tier = p.horseTier || 1;
+    const h = actorFor(entityKey(p) + 'h' + tier, 'horse' + tier + ':' + CLASSES[p.classId].trim, (b) => Object.assign(horseParts3(b, null, { saddle: CLASSES[p.classId].trim, tier }), { blob: 0.7, scale: tier === 2 ? 1.3 : 1.22 }));
     if (h) {
       resetBones(h);
       h.group.position.set(p.x * U3, 0, fy * U3);
@@ -2369,6 +2455,14 @@ function syncPlayer3(p, dt) {
         h.bones[BQ.legBL].rotation.x = -Math.sin(gal + 0.3) * 0.7;
         h.bones[BQ.legBR].rotation.x = -Math.sin(gal + 0.9) * 0.7;
         h.bones[BQ.body].position.y += Math.abs(Math.sin(gal)) * 0.05;
+        // Galopp: Hals nickt mit, Schweif weht nach hinten
+        h.bones[BQ.neck].rotation.x = Math.sin(gal + 1.2) * 0.12;
+        h.bones[BQ.head].rotation.x = -Math.sin(gal + 1.2) * 0.08;
+        h.bones[BQ.tail].rotation.x = -0.5 + Math.sin(gal * 2) * 0.12;
+      } else {
+        // im Stehen: Kopf senkt und hebt sich, Ohren und Schweif zucken
+        h.bones[BQ.neck].rotation.x = 0.05 + Math.sin(t * 0.8) * 0.06;
+        h.bones[BQ.head].rotation.y = Math.sin(t * 0.5) * 0.12;
       }
       h.bones[BQ.tail].rotation.y = Math.sin(t * 3) * 0.2;
       ride = h.model.seat * h.model.scale - a.model.hipY * a.model.scale + 0.05 + (p.moving ? Math.abs(Math.sin(gal)) * 0.05 : 0);

@@ -67,7 +67,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -135,6 +135,8 @@ function makePlayer(save) {
     moving: false
   };
   p.potions = { hp: 0, mp: 0, ...save.potions };
+  // Wer schon ein Pferd hat, reitet ab 7.3 das Reitpferd (Stufe 1)
+  p.horseTier = p.horse ? Math.max(1, save.horseTier || 1) : 0;
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
   p.equipment = { ...starterEquipment(save.classId), helm: null, schultern: null, umhang: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
@@ -254,7 +256,7 @@ function playerStats(p) {
   s.block += bonus.block || 0;
   s.regen += bonus.regen || 0;
   speedMul += bonus.speed || 0;
-  if (p.riding) speedMul += RIDE_SPEED;
+  if (p.riding) speedMul += rideSpeed(p);
   s.monsterDmg = bonus.monsterDmg || 0;
   s.hpSteal = bonus.hpSteal || 0;
   s.basicDmg = bonus.basicDmg || 0;
@@ -408,13 +410,15 @@ function upgradeSkill(i, type = 'point') {
   saveGame();
 }
 
-// Pferd: Belohnung der Stallmeister-Prüfung. Reiten macht 60 % schneller;
-// wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
-const RIDE_SPEED = 0.6;
+// Pferd (seit 7.3): Reitpferd aus der Stallmeister-Prüfung (ab Stufe 20) macht 10 % schneller,
+// das Kriegsross (ab Stufe 40 beim Stallmeister für 200.000 Gold) 30 %.
+// Wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
+const HORSES = [null, { name: 'Reitpferd', speed: 0.1 }, { name: 'Kriegsross', speed: 0.3, level: 40, price: 200000 }];
+const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
 function toggleRide(on) {
   const p = game.player;
   if (!p || p.dead || !p.horse) {
-    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Vlotho und in jedem Lager) hat eine Prüfung für dich (ab Stufe 30).', 'warn');
+    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Vlotho und in jedem Lager) hat eine Prüfung für dich (ab Stufe 20).', 'warn');
     return;
   }
   const next = on == null ? !p.riding : on;

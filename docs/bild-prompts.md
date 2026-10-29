@@ -1646,3 +1646,15 @@ Stylized 3D toon MMORPG skill effect, elevated three-quarter view: over a group 
 ```
 Stylized 3D toon MMORPG skill effect, elevated three-quarter view, no rune circle on the ground: for three seconds a steady rain of 22 glowing meteors with short fiery tails falls diagonally from a darkening sky onto a group of monsters, one after another; each casts a growing orange glow on the ground before it hits and bursts into a small ring shockwave, sparks and a scorch mark. Smooth, continuous, readable on a phone.
 ```
+
+## Neue Pferde (Version 7.3)
+
+### Reitpferd
+```
+Concept turnaround, stylized 3D toon MMORPG: a chestnut riding horse with real horse anatomy – deep chest, high withers, rounded croup, arched neck, wedge-shaped head with nostrils and pricked ears, white blaze and two white socks, dark flowing mane falling to both sides, long high-set tail; leather bridle with gold bit rings, a saddle blanket in the rider's class color with gold border, brown saddle with pommel and cantle, steel stirrups. Side, front and top views, plus gallop cycle with the neck nodding and the tail streaming back.
+```
+
+### Kriegsross
+```
+Concept turnaround, stylized 3D toon MMORPG: a black war horse with glowing orange eyes, steel chanfron with a golden horn spike on the forehead, overlapping steel neck plates, a rounded steel chest plate with golden rim and glowing gem, red caparison panels with gold trim along the flanks, red cloth over the croup, red plume on the head, heavy feathering above the hooves; menacing but elegant, readable from an elevated top-down camera. Include a gallop cycle with mane and tail flowing.
+```

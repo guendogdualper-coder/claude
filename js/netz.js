@@ -689,7 +689,7 @@ function netPlayerState() {
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
-    hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? 1 : 0, iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
+    hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
     sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0
   };
@@ -725,6 +725,7 @@ function netApplyState(rp, s) {
   rp.maxHp = s.mh;
   rp.dead = !!s.d;
   rp.riding = !!s.r;
+  rp.horseTier = s.r || 1;
   rp.invisible = !!s.iv;
   rp.equipment = s.eq || {};
   rp.look = s.lk || null;
