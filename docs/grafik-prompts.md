@@ -1,7 +1,9 @@
 # Seelenstein – Grafik-Bibel (Version 7.9)
 
 Dieses Dokument beschreibt, wie **alles** in Seelenstein aussehen soll: Licht und Schatten, die
-Spielerfigur, jedes Ausrüstungsteil in jeder Stufe, alle Monsterfamilien, Boden, Gras und Wasser.
+Spielerfigur, jedes Ausrüstungsteil in jeder Stufe, alle Monsterfamilien, Boden, Gras und Wasser
+sowie jede Attacke jeder Klasse (Abschnitt 9: Grundangriffe, alle Fertigkeiten beider Wege, Buffs,
+Ultimates, Ränge und Zustände).
 Es ist zugleich die Bauanleitung für den Code (`js/drei-*.js`) und eine Sammlung von Prompts für
 Konzeptbilder (englisch, unten in jedem Abschnitt).
 
@@ -355,3 +357,201 @@ Stylized 3D game terrain close-up, top-down three-quarter camera: a lush meadow 
 ```
 Stylized 3D game terrain: a lava river with dark cooling crust plates and bright glowing veins flowing slowly between them, heat shimmer at the edges; a murky swamp with green water, algae patches, small rising bubbles and reeds at the edge. Top-down three-quarter view, toon shading.
 ```
+
+---
+
+## 9. Attacken und Effekte aller Klassen
+
+Jede Attacke muss man **an ihrer Form** erkennen, auch ohne Farbe und ohne Zahl: ein Schlag ist eine
+Sichel, ein Sprung eine Schleppe mit Aufprall, ein Zauber von oben eine Säule, eine Fläche ein Ring am
+Boden, ein Fluch eine Rune. Die Kamera schaut schräg von oben; alles Wichtige liegt deshalb **am Boden**
+(Ring, Rune, Riss) oder **steigt senkrecht auf** (Säule, Wirbel, Strahl).
+
+### 9.1 Grundregeln
+
+**Ablauf in vier Takten**
+1. **Ausholen** (0,1–0,2 s): Waffe oder Hände leuchten in der Elementfarbe auf, kleiner Bodenkreis.
+2. **Wirken**: die Hauptform (Sichel, Wirbel, Säule, Geschoss, Strahl, Drache …).
+3. **Treffer**: Funken in der Elementfarbe am Ziel, das Ziel blinkt kurz auf und zuckt zurück,
+   bei Kritisch zusätzlich ein weißer Kreuzblitz.
+4. **Nachglühen** (1–3 s): Abdruck am Boden (Riss, Brandfleck, Rune, Raureif, Blutfleck), der langsam
+   verblasst.
+
+**Elemente und Farben** (wie im Code, `ELEMENT3`)
+
+| Element | Farbe | Räumliche Form |
+|---|---|---|
+| Klinge | Stahlweiß `#e6eeff` | Sicheln, Klingenwirbel, Stahlfunken |
+| Erde | Sand `#c8a878`, Fels `#7a6a54` | Felszacken brechen aus dem Boden, Risse, Staub |
+| Feuer / Wut | Orange `#ff6a2a`, Glut `#ffb04a` | Flammensäule, Glut steigt auf, Brandfleck |
+| Schatten | Violett `#8a5aff`, Rauch `#1a1224` | Rauchballen, dunkle Kugeln, Nachbilder |
+| Blitz | Hellblau `#7fb8ff` | Zickzack-Blitze von oben, Ketten zwischen Zielen |
+| Eis | Eisblau `#9fd8ff` | Eiszapfen, Splitter, Raureif am Boden |
+| Wind | Mint `#9fe8c8` | Windhose, Streifen in Laufrichtung |
+| Licht / Geist | Gold `#ffd34d` | Lichtsäule, Heiligenschein, goldene Kugeln |
+| Seele | Grün `#7fe3a0` | grüne Irrlichter, Rauch, Schädel |
+| Blut | Rot `#c8202a` | rote Säule, Strahl vom Ziel zur Figur |
+| Knochen | Elfenbein `#e8e0c8` | Knochenzacken, kreisende Knochen |
+
+**Ränge** (Erwacht, Heroisch, Legendär, Vollendet) legen sichtbar etwas drauf:
+Erwacht – Runenkreis und Ring in der Rangfarbe · Heroisch – dazu aufsteigende Wirbelringe und ein
+Kreuzschnitt beim Treffer · Legendär – dazu Lichtsäule, Blitz und kleine Ketten beim Treffer ·
+Vollendet – dazu Himmelsstrahl, Glutwelle und leichtes Beben.
+
+**Zustände am Ziel**
+- **Betäubt:** drei kleine gelbe Sterne kreisen über dem Kopf, die Figur glimmt leicht gelb.
+- **Verlangsamt:** Raureif-Ring an den Füßen, kleine Eiskristalle, Bewegungen sichtbar träge.
+- **Brennt:** kleine Flammenzungen auf Schultern und Kopf, Glut steigt auf, orange Leiste.
+- **Vergiftet:** grüne Bläschen steigen auf, grüner Schimmer, grüne Leiste.
+- **Verwundbar / verflucht:** violette Rune schwebt über dem Kopf, dunkler Rauch an den Füßen.
+- **Rückstoß:** Staubschleppe am Boden in Flugrichtung.
+
+**Leistung**
+- Alle 3D-Effekte sind gepoolte Körper (`FX3`): Ringe, Säulen, Sicheln, Wirbel, Splitter, Kugeln,
+  Rauch, Blitze. Pro Wurf entstehen keine neuen Geometrien.
+- Funken und Partikel sind begrenzt; Leuchtteile nutzen das Leuchtmaterial ohne Licht.
+- Ein normaler Angriff kostet höchstens ein paar Dutzend Teilchen, eine Ultimate höchstens ein paar Hundert.
+
+### 9.2 Grundangriffe je Waffe
+
+| Waffe | Klasse | Grundangriff | Merkmal |
+|---|---|---|---|
+| Schwert | Krieger | ein Schwung vor der Figur | flache helle Sichel in Klingenfarbe, Stahlfunken |
+| Axt | Krieger | schwerer Hieb von oben | kürzere, dickere Sichel, Funken und kleiner Riss |
+| Zweihänder | Krieger | weiter Halbkreis | breite Sichel mit Nachbild der Klinge, weiter Reichweite |
+| Streitaxt | Krieger | weiter Rundschlag | doppelte Sichel, Staub am Boden |
+| Dolche | Ninja | zwei schnelle Stiche | zwei schmale Stichlinien hintereinander, violette Funken |
+| Bogen | Ninja | Pfeilschuss | Pfeil mit heller Leuchtspur, Federn sichtbar, kleiner Aufprall |
+| Fächer / Glocke | Schamane | Windklinge | türkisfarbene Windsichel fliegt zum Ziel, Blätter wirbeln |
+| Stab | Nekromant | Seelengeschoss | grüne Kugel mit Schweif, Schädelgesicht angedeutet |
+| Sense | Nekromant | Sensenhieb | lange grüne Sichel am Boden entlang, Rauch |
+
+```
+Combat VFX reference sheet, stylized 3D toon MMORPG seen from a top-down three-quarter camera: basic attacks of nine weapons side by side – a bright steel crescent slash of a sword, a short heavy axe chop with sparks and a small ground crack, a wide two-handed crescent with a blade afterimage, a double arc of a great axe kicking up dust, two quick violet stab lines of twin daggers, an arrow with a glowing trail, a turquoise wind blade with swirling leaves from a fan, a green skull-faced soul orb from a staff, a long green scythe sweep along the ground. Clean shapes, readable at phone size.
+```
+
+### 9.3 Krieger – Weg der Klinge (Flächenschaden)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Dreifachschlag | 1 | drei Hiebe im 120°-Kegel, Rückstoß | drei Sicheln nacheinander (links, rechts, Mitte), letzte am größten; Glut beim Treffer, Riss bei schwerem Treffer |
+| Schwertwirbel | 3 | Rundumschlag, Betäubung | zwei volle Klingenwirbel um die Figur, Wirbelsäule, Staubring am Boden |
+| Kampfrausch | 5 | Buff: Angriffs- und Lauftempo | rote Flammensäule beim Wirken; danach rote Blitze um den Körper (mehr je Rang), Glut steigt auf |
+| Sturmangriff | 7 | Ansturm 200 px, Betäubung | Staubwolke beim Start, Glutschleppe hinter der Figur, Aufprall mit Funkenstern und Brandfleck |
+| Aura des Schwertes | 10 | Buff: Angriff, Kritisch | goldene Lichtsäule und Heiligenschein; die Waffe leuchtet golden, goldene Funken steigen auf |
+| **Klingenhimmel** (Ultimate) | 30 | zehn Riesenschwerter fallen, dann Explosion | goldener Runenkreis, zehn geisterhafte Riesenschwerter stürzen im Kreis in den Boden, Risse, weißer Ring und Himmelsstrahl |
+
+```
+Skill VFX sheet for a stylized 3D toon warrior (blade path), top-down three-quarter view: TRIPLE STRIKE – three crescent slashes in quick succession in a 120° cone, the last one biggest, embers on hit; SWORD WHIRL – two full spinning blade rings around the warrior with a dusty whirl column and a ring on the ground; BATTLE FRENZY – a red flame pillar, then small red lightning arcs crackling around the body and embers rising; CHARGE – a dust burst at the start, a trail of embers behind the running warrior, a star-shaped spark impact and a scorch mark; SWORD AURA – a golden light pillar and halo, the weapon glowing gold with sparks rising; ULTIMATE "BLADE HEAVEN" – a golden rune circle, ten huge ghostly swords plunging into the ground in a ring, cracks, then a white shock ring and a beam from the sky.
+```
+
+### 9.4 Krieger – Weg des Leibes (Verteidigung und Kontrolle)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Schildstoß | 1 | Stoß nach vorn, Betäubung, Rückstoß | goldener Schildabdruck (runde Scheibe) vor der Figur, Aufprallring, Staubschleppe am Gegner |
+| Erdbeben | 3 | Erschütterung im Umkreis, Betäubung | sternförmige Risse, Felszacken brechen aus dem Boden, Staubring, Bildschirm bebt |
+| Starker Körper | 5 | Buff: weniger Schaden, Rüstung | goldene Säule, Steinsplitter fallen ab; danach steinerne goldene Haut mit kleinen Plättchen um den Körper |
+| Geistesschlag | 7 | harter Einzelschlag, Kritisch | blaue Geistersichel, blaue Lichtsäule am Ziel, helle Funken |
+| Kriegsschrei | 10 | Fluch: Gegner verwundbar und langsam | drei orange Schallringe laufen nach außen, Gegner bekommen eine rote Rune über dem Kopf |
+| **Titanenzorn** (Ultimate) | 30 | Sprung und Aufschlag, 3 s Betäubung, Titanenhaut | hoher Sprung, Aufschlag mit Rissstern, zwei Druckringe, Felszacken; danach orange Steinhaut |
+
+```
+Skill VFX sheet for a stylized 3D toon warrior (body path, shield and earth), top-down three-quarter view: SHIELD BASH – a golden disc-shaped shield imprint in front of the warrior, an impact ring and the enemy sliding back with a dust trail; EARTHQUAKE – star-shaped cracks spreading from the feet, rock spikes bursting out of the ground and a dust ring; STRONG BODY – a golden pillar, stone flakes falling off, then a golden stone skin with small floating plates; SPIRIT STRIKE – a blue ghostly crescent and a blue light pillar on the target; WAR CRY – three orange sound rings rolling outward, red runes appearing above the enemies' heads; ULTIMATE "TITAN'S WRATH" – a high leap, a slam with a star of cracks, two shock rings and rock spikes, then an orange stone skin.
+```
+
+### 9.5 Ninja – Weg des Dolches (Hinterhalt und Blitzangriff)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Hinterhalt | 1 | Stich, doppelt aus dem Hinterhalt | Rauchballen am Ziel, violetter Kreuzstich, rosa Funken |
+| Tarnung | 3 | Buff: unsichtbar, schneller, nächster Treffer ×3 | violetter Ring, die Figur löst sich in Rauch auf; danach halb durchsichtig mit Schimmer |
+| Wirbelklinge | 5 | Rundumschlag | zwei violette Klingenwirbel, kleine Schnitte an jedem Gegner |
+| Blitzangriff | 7 | Sprung bis 300 px zum Ziel, Betäubung | Nachbild am Start, blauer Blitzstreifen bis zum Ziel, Blitz schlägt ein |
+| Leichtfüßigkeit | 10 | Buff: Tempo, Ausweichen | weiße Windstreifen beim Laufen, kleiner Wirbel beim Wirken |
+| **Schattendoppelgänger** (Ultimate) | 30 | sechs Doppelgänger stechen zu, Kreuzschnitt | Rauchwolke, sechs violette Schattenfiguren im Kreis um das Ziel, gleichzeitige Stiche, dann großer weißer Kreuzschnitt |
+
+```
+Skill VFX sheet for a stylized 3D toon ninja (dagger path), top-down three-quarter view: AMBUSH – a smoke puff at the target and a violet cross-shaped stab with pink sparks; STEALTH – a violet ring, the ninja dissolving into smoke and then shimmering half-transparent; WHIRLING BLADE – two violet spinning blade rings with tiny cuts on every enemy; BLITZ – an afterimage at the start, a blue lightning streak to the target and a bolt striking down; LIGHT FEET – white wind streaks behind the running ninja; ULTIMATE "SHADOW CLONES" – a cloud of smoke, six violet shadow copies surrounding the target and stabbing at once, then a huge white cross slash.
+```
+
+### 9.6 Ninja – Weg des Schattens (Hinterhalt und Ausweichen)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Hinterhalt | 1 | wie oben | wie oben |
+| Schattensprung | 3 | Sprung 180 px, Betäubung | Rauchballen am Start, Rauchschleppe, X-Schnitt am Ende |
+| Lähmende Klinge | 5 | Stich, 2 s Betäubung, Gift | grüner Stich, Giftbläschen am Ziel, gelbe Betäubungssterne |
+| Tarnung | 7 | wie oben, länger | wie oben |
+| Schattenmantel | 10 | Buff: Ausweichen, Kritisch | dunkler Rauchmantel um die Figur, Rauch steigt auf, violetter Ring |
+| **Todesmal** (Ultimate) | 30 | Mal am Ziel, Stich ×9, unter 35 % noch einmal | rotes Todesmal (Rune) schwebt über dem Ziel, Runenkreis am Boden, die Figur erscheint dahinter, roter Stich und Himmelsstrahl |
+
+```
+Skill VFX sheet for a stylized 3D toon ninja (shadow path), top-down three-quarter view: SHADOW LEAP – a smoke puff at the start, a trail of smoke and an X-shaped slash at the landing; CRIPPLING BLADE – a green stab, poison bubbles rising from the target and three small yellow stun stars circling its head; SHADOW CLOAK – a mantle of dark smoke wrapping the ninja with smoke rising and a violet ring; ULTIMATE "DEATH MARK" – a red skull-like rune hovering over the target, a red rune circle on the ground, the ninja appearing behind it and a red piercing stab with a beam of light.
+```
+
+### 9.7 Schamane – Weg des Drachen (Feuer, Blitz und Eis)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Blitzdrache | 1 | Drache fliegt zum Ziel, Brand | ein blauer Blitzdrache aus Licht schlängelt sich zum Ziel und zerbirst in Blitzketten |
+| Drachenwirbel | 3 | drei Sogwellen um die Figur, Rückstoß, Brand | feuriger Drachenwirbel am Boden, Flammenringe, Brandflecken |
+| Drachenkraft | 5 | Buff: Angriff, Fertigkeitsschaden | orange Flammensäule und Ring; danach Glut steigt auf |
+| Blizzard | 7 | Zielfläche: Eiszapfen fallen 4 s, Verlangsamung | Zielkreis zum Ausrichten, Schneetreiben, Eiszapfen stürzen herab, Raureif am Boden |
+| Donnersturm | 10 | Blitze auf das Ziel und die Umgebung, Betäubung | dunkle Wolke über dem Ziel, mehrere Blitze, blauer Ring, verkohlter Fleck |
+| **Drachensturm** (Ultimate) | 30 | neun Feuermeteore, Brand, Drachenschrei | Runenkreis am Ziel, neun Meteore mit Feuerschweif, Brandflecken, zum Schluss ein großer Feuerring |
+
+```
+Skill VFX sheet for a stylized 3D toon shaman (dragon path), top-down three-quarter view: LIGHTNING DRAGON – a serpentine blue dragon made of light and lightning flying to the target and bursting into chain lightning; DRAGON VORTEX – a fiery dragon-shaped vortex on the ground with expanding flame rings and scorch marks; DRAGON MIGHT – an orange flame pillar and a ring, embers rising; BLIZZARD – a targeting circle, swirling snow, icicles crashing down and frost on the ground; THUNDERSTORM – a dark cloud above the target with several lightning bolts, a blue ring and a charred spot; ULTIMATE "DRAGON STORM" – a rune circle at the target, nine meteors with fire tails, scorch marks and a final big fire ring.
+```
+
+### 9.8 Schamane – Weg der Heilung (Heilung und Schutz)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Geisterfaust | 1 | Geschoss, Betäubung | türkise Geisterfaust fliegt zum Ziel, großer Aufprallstern |
+| Windfessel | 3 | Fluch: Verlangsamung im Umkreis | türkiser Windwirbel, Windbänder schlingen sich um die Gegner |
+| Segen | 5 | Buff: weniger Schaden, Heilung, Kritisch | goldene Säule, Heiligenschein, Lichtflocken schweben herab |
+| Heilung | 7 | heilt 45 %, danach Angriff | grüne Rune am Boden, grüne Lichtblätter steigen auf |
+| Schutzgeist | 10 | Buff: Rückwurf, Rüstung | türkise Säule, ein Schutzgeist (durchscheinende Gestalt) umkreist die Figur |
+| **Himmelssegen** (Ultimate) | 30 | heilt 60 %, Lichtsäulen auf 8 Gegner | Himmelsstrahl auf die Figur, Runenkreis, Lichtsäulen fahren auf die Gegner herab |
+
+```
+Skill VFX sheet for a stylized 3D toon shaman (healing path), top-down three-quarter view: SPIRIT FIST – a translucent turquoise fist flying to the target with a big star-shaped impact; WIND SHACKLES – a turquoise whirlwind with ribbons of wind wrapping around the enemies; BLESSING – a golden pillar, a halo and flakes of light drifting down; HEAL – a green rune on the ground with green leaves of light rising; GUARDIAN SPIRIT – a turquoise pillar and a translucent spirit animal circling the shaman; ULTIMATE "HEAVEN'S BLESSING" – a beam from the sky on the shaman, a rune circle, then pillars of light striking down on up to eight enemies.
+```
+
+### 9.9 Nekromant – Weg der Seelen (Beschwörung und Flächenschaden)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Seelenpfeil | 1 | Geschoss, durchbohrt | grüner Schädel mit Rauchschweif fliegt durch alle Gegner |
+| Seelensturm | 3 | Fläche um die Figur | grüne Seelenwirbel, Irrlichter kreisen nach außen, grüne Rune |
+| Totenbeschwörung | 5 | zwei Skelette helfen 90 s | grüne Rune, Erde bricht auf, zwei Skelette steigen aus dem Boden |
+| Fluch der Schwäche | 7 | Fluch: verwundbar, langsam | violetter Runenkreis, violette Rune über jedem Gegner |
+| Dunkle Macht | 10 | Buff: Angriff, Tempo | violette Säule, violette und grüne Glut steigt auf |
+| **Seelenernte** (Ultimate) | 30 | Sog, sechs Treffer, Ernte heilt | grüner Strudel am Boden zieht die Gegner heran, grüne Seelen fliegen als Strahlen zur Figur |
+
+```
+Skill VFX sheet for a stylized 3D toon necromancer (soul path), top-down three-quarter view: SOUL ARROW – a green glowing skull with a smoky tail piercing through a line of enemies; SOUL STORM – green spirit whirls and wisps spiralling outward over a green rune; RAISE DEAD – a green rune, the earth cracking open and two skeleton warriors rising; CURSE OF WEAKNESS – a violet rune circle and violet runes above every enemy; DARK MIGHT – a violet pillar with violet and green embers rising; ULTIMATE "SOUL HARVEST" – a green vortex on the ground pulling enemies in, their souls flying to the necromancer as green beams.
+```
+
+### 9.10 Nekromant – Weg der Knochen (Lebensraub und Lähmung)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Lebensentzug | 1 | Schaden und Heilung | roter Strahl vom Ziel zur Figur, rote Tropfen fließen zurück |
+| Knochenspeer | 3 | Geschoss, Betäubung | weißer Knochenspeer fliegt, zersplittert am Ziel |
+| Knochenpanzer | 5 | Buff: Schild, Rückwurf | Knochensplitter fliegen auf, danach kreisen Knochen um die Figur |
+| Lähmender Fluch | 7 | Fluch: langsam, Betäubung | grüner Runenkreis, Knochenhände greifen aus dem Boden nach den Gegnern |
+| Blutopfer | 10 | Buff: Lebensraub, Angriff | rote Blutsäule, rote Tropfen steigen auf |
+| **Knochenkerker** (Ultimate) | 30 | drei Ringe Knochenspieße, festhalten, Lebensraub | roter Runenkreis, drei Ringe aus Knochenspießen brechen nacheinander aus dem Boden |
+
+```
+Skill VFX sheet for a stylized 3D toon necromancer (bone path), top-down three-quarter view: LIFE DRAIN – a red beam from the enemy to the necromancer with red droplets flowing back; BONE SPEAR – a white bone spear flying and shattering into splinters on impact; BONE ARMOR – bone splinters flying up, then bones orbiting the necromancer; CRIPPLING CURSE – a green rune circle with skeletal hands grabbing up from the ground at the enemies; BLOOD SACRIFICE – a red blood pillar with red droplets rising; ULTIMATE "BONE PRISON" – a red rune circle and three rings of bone spikes bursting out of the ground one after another, holding the enemies.
+```
+
+### 9.11 Stand und Umsetzung
+- Code: Wirken und Treffer je Fertigkeit in `js/fertigkeiten.js` (`SKILL_FX`, `skillSignature3`),
+  Abläufe in `js/kampf.js`, Ultimates in `js/ultimativ.js`, 3D-Körper in `js/drei-fx.js` (`FX3_DRAW`).
+- Jede Fertigkeit bekommt beim Wirken ihr Element (`SKILL_ELEMENT`) und dazu das **Merkmal** aus den
+  Tabellen oben. Neue Merkmale werden als gepoolte 3D-Körper gebaut, nicht als Einzelbilder.
