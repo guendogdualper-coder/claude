@@ -609,6 +609,51 @@ function remoteSkillFx(rp, d) {
       addEffect({ type: 'ring', x: rp.x, y: feetY(rp), r: 40, dur: 0.4, color: col, width: 6, grow: true });
       for (let k = 1; k <= 5; k++) later(k * 0.04, () => particles(rp.x, feetY(rp), { count: 3, color: ['#a88f62', col], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false }));
       break;
+    // Sichelwelle, Felsenfaust, Sprungschlag (seit 8.3): nur Optik, Treffer rechnet der Host
+    case 'wave': {
+      const spread = (sk.angle || 140) * Math.PI / 180;
+      const dir = { x: d.fx, y: d.fy };
+      later(0.12, () => {
+        vfxSweep(rp, sk.radius * 0.85, ang + spread / 2, ang - spread / 2, col, 0.22, 30);
+        if (blade) addEffect({ type: 'bladearc', follow: rp, ox: 0, oy: -14, len: sk.radius * 0.8, a0: ang + spread / 2, a1: ang - spread / 2, dur: 0.24, ...blade });
+      });
+      later(0.24, () => { rp.leap = { start: game.time, dur: 0.14, h: 10 }; });
+      later(0.4, () => waveFx(rp, d.x + d.fx * 28, d.y + d.fy * 28, dir, d.wl ?? sk.waveLen, sk, false, 0));
+      break;
+    }
+    case 'erupt': {
+      const from = { x: d.x + d.fx * 22, y: d.y + d.fy * 22 };
+      rp.leap = { start: game.time, dur: 0.2, h: 12 };
+      eruptFx(rp, from, target, sk);
+      later(0.34, () => {
+        let m = null;
+        let best = 30;
+        for (const e of game.monsters) {
+          if (e.dead) continue;
+          const dd = dist(e, target);
+          if (dd <= best) { best = dd; m = e; }
+        }
+        if (canLift(m)) m.lift = { start: game.time, dur: 0.5, h: sk.launch * Math.min(1, 18 / (m.r || 18)) };
+        const me = game.player;
+        if (duelFighting() && game.duel.pid === rp.peerId && !me.dead && dist(me, target) <= 30) me.leap = { start: game.time, dur: 0.5, h: sk.launch };
+      });
+      break;
+    }
+    case 'leap': {
+      const reach = Math.hypot(d.tx - d.x, d.ty - d.y);
+      const h = Math.max(44, Math.min(60, 44 + 0.08 * reach));
+      const t0 = game.time + sk.crouch;
+      const r = rp.r || 14;
+      rp.leap = { start: t0, dur: sk.air, h, slam: true };
+      rp.glide = { x0: d.x, y0: d.y, x1: d.tx, y1: d.ty, start: t0, dur: sk.air };
+      particles(d.x, d.y + r * 0.8, { count: 12, color: ['#a88f62', '#c9b28a'], speed: [40, 120], life: [0.3, 0.6], size: [2.5, 4.5], shape: 'square', drag: 3, glow: false });
+      addEffect({ type: 'ring', x: d.tx, y: d.ty + r * 0.8, r: sk.radius, dur: 0.55, color: '#c8a878', width: 3 });
+      later(sk.crouch + sk.air, () => {
+        leapLandFx(d.tx, d.ty + r * 0.8, sk, dist(game.player, target) < 300);
+        for (const m of enemiesInCircle(d.tx, d.ty, sk.radius)) if (canLift(m)) m.lift = { start: game.time, dur: 0.25, h: 8 };
+      });
+      break;
+    }
     case 'strike': {
       const c = sk.color || col;
       addEffect({ type: 'slash', x: target.x, y: target.y - 18, ang: 0.75, len: 58, w: 9, dur: 0.3, color: c });

@@ -2708,7 +2708,13 @@ function warmPrograms() {
   }
   const ring = groundRing(new THREE.Color(0xffffff), false);
   V3.actors.add(ring);
+  // Erdbrocken und Felspfeiler (Sprungschlag, Felsenfaust) einmal mit übersetzen, danach in ihren Pool
+  const rocks = typeof fx3Make === 'function' && FX3.group ? ['rock', 'rockcol'].map((k) => fx3Make(k)) : [];
   V3.gl.compile(V3.scene, V3.camera);
+  for (const o of rocks) {
+    o.visible = false;
+    (FX3.pools[o.userData.kind] || (FX3.pools[o.userData.kind] = [])).push(o);
+  }
   for (const a of V3.warm) V3.actors.remove(a.group);
   V3.actors.remove(ring);
   V3.warm.push(ring);
@@ -2883,6 +2889,181 @@ function resetBones(a) {
   if (a.model.family === 'human') B[BH.head].rotation.x = -0.24;
 }
 
+// --- Eigene Animationen der Krieger-Attacken (seit 8.3) ------------------------------------------------
+// sw läuft von 0 bis 1 über die Dauer der Pose. Arme und Beine werden fest gesetzt (überschreibt das Laufen),
+// Hüfte relativ verschoben. Vorzeichen: arm.x negativ = nach vorn/oben (−2,7 über dem Kopf), leg.x negativ =
+// Bein nach vorn, chest.rotation.y positiv = ausgeholt, negativ = durchgezogen; armL sitzt bei +x.
+const poseSeg = (sw, a, b) => clamp01((sw - a) / (b - a));
+const easeInOut3 = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+const twoHanded3 = (kind) => kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe';
+function setArm(bone, x, y, z) {
+  bone.rotation.set(x, y, z);
+}
+// Leuchten der Waffe während einer Pose (wird nach Plus-Stufe und Aura angewendet, siehe syncPlayer3)
+function poseWeaponGlow(a, color, op) {
+  if (!a.poseWg || op > a.poseWg.op) a.poseWg = { color, op };
+}
+
+const SKILL_POSE3 = {
+  // Sichelwelle: Ausholen, Querhieb, beidhändig hochreißen, in den Boden schmettern, halten, aufrichten
+  sichel(B, sw, kind, p, a) {
+    const two = twoHanded3(kind);
+    const shield = p.equipment && p.equipment.schild && !isOffhand(p.equipment.schild);
+    let w = 1;
+    if (sw >= 0.8) w = 1 - easeInOut3(poseSeg(sw, 0.8, 1));
+    if (sw < 0.15) {
+      const k = easeOut(poseSeg(sw, 0, 0.15));
+      B[BH.chest].rotation.y = 1.2 * k;
+      B[BH.hips].rotation.y = 0.35 * k;
+      setArm(B[BH.armR], -1.3 * k, 0, -0.9 * k);
+      if (two) setArm(B[BH.armL], -1.04 * k, 0, 0.5);
+      else if (shield) setArm(B[BH.armL], -1.0, 0, 0.3);
+      else setArm(B[BH.armL], -0.6 * k, 0, 0.5 * k);
+      B[BH.hips].position.y -= 0.05 * k;
+      B[BH.legR].rotation.x = 0.2 * k;
+      B[BH.legL].rotation.x = -0.15 * k;
+    } else if (sw < 0.35) {
+      const b = easeOut(poseSeg(sw, 0.15, 0.35));
+      B[BH.chest].rotation.y = 1.2 - 2.35 * b;
+      B[BH.hips].rotation.y = 0.35 - 0.7 * b;
+      setArm(B[BH.armR], -1.45, 0, -0.9 + 0.7 * b);
+      if (two) setArm(B[BH.armL], -1.16, 0, 0.5);
+      else if (shield) setArm(B[BH.armL], -1.0, 0, 0.3);
+      else setArm(B[BH.armL], -1.45, 0, 0.9 - 0.7 * b);
+      B[BH.legR].rotation.x = 0.2 - 0.5 * b;
+      B[BH.legL].rotation.x = -0.15;
+      B[BH.cape].rotation.x = 0.35;
+    } else if (sw < 0.58) {
+      const c = easeInOut3(poseSeg(sw, 0.35, 0.58));
+      setArm(B[BH.armR], -1.45 - 1.55 * c, 0, -0.2 + 0.05 * c);
+      setArm(B[BH.armL], -0.6 - 2.1 * c, 0, 0.5 - 0.65 * c);
+      B[BH.chest].rotation.y = -1.15 * (1 - c);
+      B[BH.chest].rotation.x = -0.3 * c;
+      B[BH.head].rotation.x += -0.15 * c;
+      B[BH.legL].rotation.x = -0.3 * c;
+      B[BH.legR].rotation.x = 0;
+      poseWeaponGlow(a, '#e6eeff', 0.6 * c);
+    } else {
+      // Niederschlag (sehr schnell), dann halten und weich zurück
+      const d = Math.pow(poseSeg(sw, 0.58, 0.65), 3);
+      setArm(B[BH.armR], (-3.0 + 2.55 * d) * w, 0, -0.15 * w);
+      setArm(B[BH.armL], (-2.7 + 2.1 * d) * w, 0, -0.15 * w);
+      B[BH.handR].rotation.x = 0.5 * d * (sw >= 0.8 ? 1 - easeInOut3(poseSeg(sw, 0.8, 0.9)) : 1);
+      B[BH.chest].rotation.x = (-0.3 + 0.85 * d) * w;
+      B[BH.hips].position.y -= 0.14 * d * w;
+      B[BH.hips].position.z += 0.2 * d * w;
+      B[BH.legL].rotation.x = (-0.3 - 0.45 * d) * w;
+      B[BH.legR].rotation.x = 0.55 * d * w;
+      B[BH.cape].rotation.x = 0.35 + 0.35 * d * w;
+      if (sw < 0.7) poseWeaponGlow(a, '#e6eeff', 0.6);
+    }
+  },
+
+  // Felsenfaust: Hopser, linke Faust über den Kopf, in den Boden rammen, halten, Aufwärtshaken, lösen
+  felsenfaust(B, sw, kind, p, a) {
+    const T = sw * 0.7;
+    let w = 1;
+    if (T >= 0.48) w = 1 - easeInOut3(poseSeg(T, 0.48, 0.7));
+    if (T < 0.16) {
+      const k = easeOut(T / 0.16);
+      setArm(B[BH.armL], -2.9 * k, 0, 0.2 * k);
+      setArm(B[BH.armR], 0.45 * k, 0, -0.5 * k);
+      B[BH.chest].rotation.x = -0.28 * k;
+      B[BH.chest].rotation.y = -0.35 * k;
+      B[BH.head].rotation.x += -0.1 * k;
+      B[BH.legL].rotation.x = -0.5 * k;
+      B[BH.legR].rotation.x = 0.2 * k;
+      return;
+    }
+    // Faustschlag (beschleunigt) und halten
+    const b = Math.pow(poseSeg(T, 0.16, 0.2), 2);
+    let armLx = -2.9 + 2.55 * b;
+    let armLz = 0.2 - 0.15 * b;
+    let chestX = -0.28 + 0.9 * b;
+    let hipsDown = 0.17 * b;
+    let legLx = -0.5 - 0.3 * b;
+    let legRx = 0.2 + 0.45 * b;
+    B[BH.chest].rotation.y = (-0.35 + 0.75 * b) * w;
+    B[BH.hips].position.z += 0.08 * b * w;
+    setArm(B[BH.armR], (0.45 + 0.2 * b) * w, 0, (-0.5 - 0.3 * b) * w);
+    B[BH.cape].rotation.x = 0.12 + 0.6 * b * w;
+    if (T >= 0.2 && T < 0.26) chestX += Math.sin(T * 90) * 0.03;
+    if (T >= 0.31) {
+      // Aufwärtshaken: die Faust reißt den Pfeiler hoch
+      const u = easeOut(poseSeg(T, 0.31, 0.38));
+      armLx = -0.35 - 2.45 * u;
+      armLz = 0.05 + 0.25 * u;
+      chestX = 0.62 - 0.9 * u;
+      hipsDown = 0.17 * (1 - u) - 0.04 * u;
+      legLx = -0.8 + 0.5 * u;
+      legRx = 0.65 - 0.35 * u;
+      B[BH.head].rotation.x += -0.2 * u * w;
+      if (u > 0 && u < 1) a.poseEm = 0.25 * Math.sin(u * Math.PI);
+    }
+    setArm(B[BH.armL], armLx * w, 0, armLz * w);
+    B[BH.chest].rotation.x = chestX * w;
+    B[BH.hips].position.y -= hipsDown * w;
+    B[BH.legL].rotation.x = legLx * w;
+    B[BH.legR].rotation.x = legRx * w;
+  },
+
+  // Sprungschlag: Hocke, Steigen mit Schwert über dem Kopf, Scheitel, Sturz, Aufschlag und Heldenlandung
+  sprung(B, sw, kind, p, a) {
+    const T = sw * 0.8;
+    const two = twoHanded3(kind);
+    const k = clamp01((T - 0.1) / 0.45);
+    if (T < 0.1) {
+      const c = easeOut(T / 0.1);
+      B[BH.hips].position.y -= 0.12 * c;
+      B[BH.legL].rotation.x = -0.5 * c;
+      B[BH.legR].rotation.x = 0.4 * c;
+      B[BH.chest].rotation.x = 0.4 * c;
+      setArm(B[BH.armR], 0.7 * c, 0, -0.3 * c);
+      setArm(B[BH.armL], 0.6 * c, 0, 0.3 * c);
+      B[BH.cape].rotation.x = 0.3;
+    } else if (T < 0.55) {
+      if (k < 0.6) {
+        const q = easeOut(Math.min(1, k / 0.45));
+        B[BH.legL].rotation.x = -0.5 - 0.75 * q;
+        B[BH.legR].rotation.x = 0.4 - 0.75 * q;
+        setArm(B[BH.armR], 0.7 - 3.7 * q, 0, -0.25);
+        setArm(B[BH.armL], two ? (0.7 - 3.7 * q) * 0.9 : 0.6 - 3.0 * q, 0, 0.35);
+        B[BH.chest].rotation.x = 0.4 - 0.75 * q;
+        B[BH.head].rotation.x += -0.2 * q;
+        B[BH.hips].position.y -= 0.12 * (1 - q);
+        B[BH.root].rotation.x = -0.15 * q;
+        B[BH.cape].rotation.x = 0.3 + 0.8 * q;
+        if (k >= 0.45) poseWeaponGlow(a, '#e8dcc0', 0.5);
+      } else {
+        const f = Math.pow((k - 0.6) / 0.4, 2);
+        setArm(B[BH.armR], -3.0 + 0.8 * f, 0, -0.25);
+        setArm(B[BH.armL], two ? (-3.0 + 0.8 * f) * 0.9 : -2.4 + 1.4 * f, 0, 0.35 + 0.45 * f);
+        B[BH.legL].rotation.x = -1.25 + 0.75 * f;
+        B[BH.legR].rotation.x = -0.35 + 0.7 * f;
+        B[BH.chest].rotation.x = -0.35 + 0.55 * f;
+        B[BH.root].rotation.x = -0.15 + 0.4 * f;
+        B[BH.cape].rotation.x = 1.1 + 0.3 * f;
+      }
+    } else {
+      // Aufschlag (in 0,04 s), Heldenlandung, ab 0,64 s weich zurück
+      const i = Math.min(1, (T - 0.55) / 0.04);
+      const w = T >= 0.64 ? 1 - easeInOut3(poseSeg(T, 0.64, 0.8)) : 1;
+      setArm(B[BH.armR], (-2.2 + 1.9 * i) * w, 0, -0.25 * w);
+      B[BH.handR].rotation.x = 0.8 * i * (T >= 0.64 ? 1 - easeInOut3(poseSeg(T, 0.64, 0.72)) : 1);
+      if (two) setArm(B[BH.armL], -0.5 * w, 0, -0.3 * w);
+      else setArm(B[BH.armL], -0.4 * w, 0, 1.0 * w);
+      B[BH.hips].position.y -= 0.24 * w;
+      B[BH.hips].position.z += 0.08 * w;
+      B[BH.legL].rotation.x = -1.0 * w;
+      B[BH.legR].rotation.x = 0.95 * w;
+      B[BH.chest].rotation.x = 0.6 * w;
+      B[BH.head].rotation.x += -0.1 * w;
+      if (T < 0.6) B[BH.hips].scale.set(1.08, 0.88, 1.08);
+      else if (T < 0.64) B[BH.hips].scale.set(0.97, 1.04, 0.97);
+    }
+  }
+};
+
 // Spieler: Laufen, Schlagen, Zaubern, Pose, Wirbel, Sprung, Reiten, Treffer, Aufleuchten
 function syncPlayer3(p, dt) {
   const key = playerKey3(p);
@@ -2913,7 +3094,7 @@ function syncPlayer3(p, dt) {
   if (p.leap) {
     const lk = (game.time - p.leap.start) / p.leap.dur;
     if (lk >= 1) p.leap = null;
-    else lift = Math.sin(lk * Math.PI) * p.leap.h * U3;
+    else if (lk > 0) lift = leapCurve(p.leap, lk) * p.leap.h * U3;
   }
   const kind = weaponKindOf(p);
   const sw = swingProgress(p);
@@ -2953,6 +3134,11 @@ function syncPlayer3(p, dt) {
   a.lift = lift;
   placeActor(a, p, fy, lift + ride);
   a.group.rotation.y = a.heading;
+  // Schatten bleibt beim Sprung am Boden und wird kleiner
+  if (a.blob) {
+    a.blob.position.y = 0.02 - lift / a.group.scale.y;
+    a.blob.scale.setScalar((a.model.blob || 0.5) * (1 - 0.35 * Math.min(1, lift / 2)));
+  }
   // Gehen und Atmen
   if (p.moving && !p.riding) {
     const w = t * 11;
@@ -2974,11 +3160,16 @@ function syncPlayer3(p, dt) {
     B[BH.cape].rotation.x = 0.12 + Math.sin(t * 1.7) * 0.05;
   }
   // Angriffe
+  a.poseWg = null;
+  a.poseEm = 0;
   if (posing) {
     const k = Math.sin(Math.min(1, (1 - p.swing / (p.swingDur || 0.7)) * 1.4) * Math.PI);
     B[BH.armL].rotation.set(-2.7 * k, 0, 0.3 * k);
     B[BH.armR].rotation.set(-2.7 * k, 0, -0.3 * k);
     B[BH.head].rotation.x += -0.3 * k;
+  } else if (sw >= 0 && SKILL_POSE3[p.swingKind]) {
+    // eigene Animationen (seit 8.3): Sichelwelle, Felsenfaust, Sprungschlag
+    SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
   } else if (sw >= 0) {
     const e = easeOut(sw);
     if (kind === 'bow') {
@@ -3025,6 +3216,7 @@ function syncPlayer3(p, dt) {
   if (hurtK < 1) mat.emissive.setRGB(0.6 * (1 - hurtK), 0.05, 0.02);
   else if (glowUp > 0) mat.emissive.setRGB(0.55 * glowUp, 0.5 * glowUp, 0.35 * glowUp);
   else if (posing) mat.emissive.set(p.poseColor || CLASSES[p.classId].trim).multiplyScalar(0.35 * Math.sin((1 - p.swing / (p.swingDur || 0.7)) * Math.PI));
+  else if (a.poseEm > 0) mat.emissive.set('#c8a878').multiplyScalar(a.poseEm);
   else if (p.clone) mat.emissive.setRGB(0.18, 0.1, 0.34);
   else mat.emissive.setRGB(0, 0, 0);
   // Schattendoppelgänger: dunkel getönt; die Farbe wird jedes Bild gesetzt, weil Figuren aus dem Pool wiederkommen
@@ -3046,6 +3238,10 @@ function syncPlayer3(p, dt) {
       wg.color.set(PLUS_COLORS[band]);
       wg.opacity = 0.22 + band * 0.06 + 0.1 * Math.sin(t * 6);
     } else wg.opacity = 0;
+    if (a.poseWg && a.poseWg.op > wg.opacity) {
+      wg.color.set(a.poseWg.color);
+      wg.opacity = a.poseWg.op;
+    }
     a.meshes.wglow.visible = wg.opacity > 0.01;
   }
 }
@@ -3108,8 +3304,19 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   const lunge = atk > 0 && !posed ? Math.sin(atk * Math.PI) : 0;
   let y = 0;
   if (fam === 'ghost') y = 0.2 + Math.sin(t * 2.5) * 0.08;
+  // hochgeschleudert (Felsenfaust, Sprungschlag): Bogen nach oben, dabei nach hinten kippen
+  let tilt = 0;
+  if (e.lift) {
+    const lk = (game.time - e.lift.start) / e.lift.dur;
+    if (lk >= 1) e.lift = null;
+    else if (lk > 0) {
+      const s = Math.sin(lk * Math.PI);
+      y += s * e.lift.h * U3;
+      tilt = -0.45 * s * (e.lift.h > 12 ? 1 : 0.3);
+    }
+  }
   placeActor(a, e, fy, y);
-  a.group.rotation.set(0, a.heading, 0);
+  a.group.rotation.set(tilt, a.heading, 0);
   const w = t * (moving ? 11 : 0);
   if (fam === 'human') {
     if (moving) {

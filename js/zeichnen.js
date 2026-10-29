@@ -339,7 +339,7 @@ function drawPlayer(ctx, p) {
   if (p.leap) {
     const lk = (game.time - p.leap.start) / p.leap.dur;
     if (lk >= 1) p.leap = null;
-    else leapH = Math.sin(lk * Math.PI) * p.leap.h;
+    else if (lk > 0) leapH = leapCurve(p.leap, lk) * p.leap.h;
   }
   // Kraftpose beim Buffen: Arme hoch, kleiner Hüpfer (auch bei Mitspielern, über swingKind)
   const posing = p.swingKind === 'pose' && p.swing > 0 && !p.riding;

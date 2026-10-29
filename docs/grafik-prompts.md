@@ -446,22 +446,22 @@ Combat VFX reference sheet, stylized 3D toon MMORPG seen from a top-down three-q
 
 | Fertigkeit | Ab Stufe | Wirkung | Merkmal |
 |---|---|---|---|
-| Dreifachschlag | 1 | drei Hiebe im 120°-Kegel, Rückstoß | drei Sicheln nacheinander (links, rechts, Mitte), letzte am größten; Glut beim Treffer, Riss bei schwerem Treffer |
+| Sichelwelle (seit 8.3) | 1 | Querhieb im 140°-Kegel, dann rammt die Klinge in den Boden: eine Klingensichel läuft 180 px über den Boden, trifft alle auf der Bahn hart und stößt sie zurück | weißer Querhieb, kurzer Hüpfer, Einschlag mit Riss und Funken, aufrechte blau-weiße Sichel (40° geneigt) mit Lichtschleppe und dunkler Furche; stoppt an Wänden |
 | Schwertwirbel | 3 | Rundumschlag, Betäubung | zwei volle Klingenwirbel um die Figur, Wirbelsäule, Staubring am Boden |
 | Kampfrausch | 5 | Buff: Angriffs- und Lauftempo | rote Flammensäule beim Wirken; danach rote Blitze um den Körper (mehr je Rang), Glut steigt auf |
-| Sturmangriff | 7 | Ansturm 200 px, Betäubung | Staubwolke beim Start, Glutschleppe hinter der Figur, Aufprall mit Funkenstern und Brandfleck |
+| Sprungschlag (seit 8.3) | 7 | Sprung bis 190 px nach vorn (vor das Ziel), Landung betäubt alle im Kreis r 80 für 1,6 s, wenig Schaden | Hocke, hoher Bogen mit Windstreifen, harter Fall; Boden gibt nach: Mulde in Bodenfarbe, ringsum ein Wall aus braunen Erdbrocken und hochgedrückte Schollen, Staub, Risse – keine Explosion; nach 2 s sinkt alles zurück |
 | Aura des Schwertes | 10 | Buff: Angriff, Kritisch | goldene Lichtsäule und Heiligenschein; die Waffe leuchtet golden, goldene Funken steigen auf |
 | **Klingenhimmel** (Ultimate) | 30 | zehn Riesenschwerter fallen, dann Explosion | goldener Runenkreis, zehn geisterhafte Riesenschwerter stürzen im Kreis in den Boden, Risse, weißer Ring und Himmelsstrahl |
 
 ```
-Skill VFX sheet for a stylized 3D toon warrior (blade path), top-down three-quarter view: TRIPLE STRIKE – three crescent slashes in quick succession in a 120° cone, the last one biggest, embers on hit; SWORD WHIRL – two full spinning blade rings around the warrior with a dusty whirl column and a ring on the ground; BATTLE FRENZY – a red flame pillar, then small red lightning arcs crackling around the body and embers rising; CHARGE – a dust burst at the start, a trail of embers behind the running warrior, a star-shaped spark impact and a scorch mark; SWORD AURA – a golden light pillar and halo, the weapon glowing gold with sparks rising; ULTIMATE "BLADE HEAVEN" – a golden rune circle, ten huge ghostly swords plunging into the ground in a ring, cracks, then a white shock ring and a beam from the sky.
+Skill VFX sheet for a stylized 3D toon warrior (blade path), top-down three-quarter view: CRESCENT WAVE – a wide white cross slash, a short hop, the blade rammed into the ground with a crack and sparks, then an upright blue-white blade crescent (tilted 40°) racing 180 px across the ground with a light trail and a dark furrow behind it; SWORD WHIRL – two full spinning blade rings around the warrior with a dusty whirl column and a ring on the ground; BATTLE FRENZY – a red flame pillar, then small red lightning arcs crackling around the body and embers rising; LEAP SLAM – a short crouch, a high arc forward with wind streaks, a hard fall; the ground gives way under the landing: a shallow bowl in the ground colour, a ring of brown earth clods pushed up around it and a few clods tumbling outward, dust and cracks, NO explosion, enemies in the circle dazed with stars; after two seconds the earth sinks back; SWORD AURA – a golden light pillar and halo, the weapon glowing gold with sparks rising; ULTIMATE "BLADE HEAVEN" – a golden rune circle, ten huge ghostly swords plunging into the ground in a ring, cracks, then a white shock ring and a beam from the sky.
 ```
 
 ### 9.4 Krieger – Weg des Leibes (Verteidigung und Kontrolle)
 
 | Fertigkeit | Ab Stufe | Wirkung | Merkmal |
 |---|---|---|---|
-| Schildstoß | 1 | Stoß nach vorn, Betäubung, Rückstoß | goldener Schildabdruck (runde Scheibe) vor der Figur, Aufprallring, Staubschleppe am Gegner |
+| Felsenfaust (seit 8.3) | 1 | Einzelziel bis 120 px: Fels bricht unter dem Ziel hervor, schleudert es hoch, 1,5 s Betäubung; Ausweichfenster 0,34 s | Hopser, Faust in den Boden, dunkler Riss mit Felsdornen jagt zum Ziel, Aufwärtshaken: sechseckiger Felspfeiler mit Felsfaust, Keile im Kranz, Lichtspalt |
 | Erdbeben | 3 | Erschütterung im Umkreis, Betäubung | sternförmige Risse, Felszacken brechen aus dem Boden, Staubring, Bildschirm bebt |
 | Starker Körper | 5 | Buff: weniger Schaden, Rüstung | goldene Säule, Steinsplitter fallen ab; danach steinerne goldene Haut mit kleinen Plättchen um den Körper |
 | Geistesschlag | 7 | harter Einzelschlag, Kritisch | blaue Geistersichel, blaue Lichtsäule am Ziel, helle Funken |
@@ -469,7 +469,7 @@ Skill VFX sheet for a stylized 3D toon warrior (blade path), top-down three-quar
 | **Titanenzorn** (Ultimate) | 30 | Sprung und Aufschlag, 3 s Betäubung, Titanenhaut | hoher Sprung, Aufschlag mit Rissstern, zwei Druckringe, Felszacken; danach orange Steinhaut |
 
 ```
-Skill VFX sheet for a stylized 3D toon warrior (body path, shield and earth), top-down three-quarter view: SHIELD BASH – a golden disc-shaped shield imprint in front of the warrior, an impact ring and the enemy sliding back with a dust trail; EARTHQUAKE – star-shaped cracks spreading from the feet, rock spikes bursting out of the ground and a dust ring; STRONG BODY – a golden pillar, stone flakes falling off, then a golden stone skin with small floating plates; SPIRIT STRIKE – a blue ghostly crescent and a blue light pillar on the target; WAR CRY – three orange sound rings rolling outward, red runes appearing above the enemies' heads; ULTIMATE "TITAN'S WRATH" – a high leap, a slam with a star of cracks, two shock rings and rock spikes, then an orange stone skin.
+Skill VFX sheet for a stylized 3D toon warrior (body path, shield and earth), top-down three-quarter view: ROCK FIST – the warrior hops and punches the ground, a dark crack with small rock spikes races to the target, then with an uppercut a hexagonal stone pillar topped by a chunky rock fist bursts out under the enemy and throws it up, stone wedges in a ring, a golden light gap; EARTHQUAKE – star-shaped cracks spreading from the feet, rock spikes bursting out of the ground and a dust ring; STRONG BODY – a golden pillar, stone flakes falling off, then a golden stone skin with small floating plates; SPIRIT STRIKE – a blue ghostly crescent and a blue light pillar on the target; WAR CRY – three orange sound rings rolling outward, red runes appearing above the enemies' heads; ULTIMATE "TITAN'S WRATH" – a high leap, a slam with a star of cracks, two shock rings and rock spikes, then an orange stone skin.
 ```
 
 ### 9.5 Ninja – Weg des Dolches (Hinterhalt und Blitzangriff)
@@ -571,9 +571,15 @@ Skill VFX sheet for a stylized 3D toon necromancer (bone path), top-down three-q
   - Zustände in 3D an jedem Monster (`fx3Status` in `js/drei-fx.js`): kreisende Sterne (Betäubung),
     Raureif-Ring mit Eiskristallen (Verlangsamung), Flammenzungen und Glut (Brand), grüne Bläschen
     (Gift), Rune in der Farbe des Fluchs über dem Kopf (verwundbar). Höchstens 24 Monster je Bild.
-  - Schildstoß: goldener Schildabdruck (`shield3`) · Donnersturm: Gewitterwolke mit Wetterleuchten
+  - Schildstoß (bis 8.2): goldener Schildabdruck (`shield3`) · Donnersturm: Gewitterwolke mit Wetterleuchten
     (`cloud3`) · Lähmender Fluch: Knochenhände aus dem Boden (`hands3`) · Windfessel: Windbänder um
     jeden Gegner · Kriegsschrei, Fluch der Schwäche: Fluchrune in der Farbe der Fertigkeit, Rauch ·
     Totenbeschwörung: Riss, Knochenzacken und Rauch, wo die Skelette aufsteigen · Lebensentzug: rote
     Tropfen kreisen zur Figur · Knochenspeer: Splitter im Boden · Kritische Treffer: weißer Kreuzblitz.
   - Flüche rufen je Gegner `SKILL_FX[id].curseHit(m)` auf; die Farbe der Rune steht in `m.vulnerable.color`.
+- **Seit 8.3 umgesetzt (Krieger neu):** Sichelwelle (`wave3`: Sichel aus vier Streifen, Lichtschleppe, Furche),
+  Felsenfaust (`erupt3`: Risslinie, Dornen, Pfeiler aus dem Pool `rockcol`, Felsfaust, Keile, Mulde, Lichtspalt),
+  Sprungschlag (`crater3`: Mulde in Bodenfarbe über `tileSample`, Wall aus 12 + 6 Erdbrocken aus dem Pool `rock`,
+  6 Schollen, im Wasser nur Ringe, höchstens drei Krater gleichzeitig). Eigene Posen je Fertigkeit
+  (`SKILL_POSE3` in `js/drei-figuren.js`), Sprunghöhe mit harter Fallkurve (`leapCurve`), Mitspieler fliegen auf
+  derselben Bahn (`rp.glide`).

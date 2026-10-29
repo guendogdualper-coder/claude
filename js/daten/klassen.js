@@ -26,9 +26,11 @@ const CLASSES = {
         description: 'Trifft ganze Gruppen auf einmal und stärkt seinen Angriff mit der Aura des Schwertes. Ideal zum Farmen.',
         skills: [
           {
-            id: 'dreifachschlag', name: 'Dreifachschlag', short: 'DS', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
-            type: 'cone', radius: 90, angle: 120, dmg: 0.75, hits: 3, knockback: 140,
-            text: 'Drei schnelle Hiebe im Halbkreis vor dir. Stößt Gegner zurück.'
+            // seit 8.3 (ersetzt den Dreifachschlag): Querhieb, dann das Schwert in den Boden – eine Klingenwelle rast nach vorn
+            id: 'sichelwelle', name: 'Sichelwelle', short: 'SI', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
+            type: 'wave', radius: 90, angle: 140, dmg: 0.8, waveDmg: 1.4, waveLen: 180, waveWidth: 64, knockback: 90,
+            anim: 'sichel', animDur: 0.62, lock: 0.42, color: '#e6eeff',
+            text: 'Ein weiter Querhieb, dann schlägst du das Schwert in den Boden: Eine Klingenwelle rast bis zu 180 weit nach vorn, trifft alle Gegner in ihrer Bahn und stößt sie zurück.'
           },
           {
             id: 'schwertwirbel', name: 'Schwertwirbel', short: 'SW', kind: 'angriff', unlock: 3, mp: 14, cooldown: 6,
@@ -41,9 +43,11 @@ const CLASSES = {
             text: 'Buff: Blitze zucken um dich. Mehr Angriffstempo und Lauftempo.'
           },
           {
-            id: 'sturmangriff', name: 'Sturmangriff', short: 'SA', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
-            type: 'dash', distance: 200, radius: 42, dmg: 2.3, stun: 1,
-            text: 'Du stürmst nach vorn, verletzt alle Gegner auf dem Weg und betäubst sie.'
+            // seit 8.3 (ersetzt den Sturmangriff): Sprung nach vorn, Landung drückt den Boden ein und betäubt im Kreis
+            id: 'sprungschlag', name: 'Sprungschlag', short: 'SP', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
+            type: 'leap', distance: 190, radius: 80, dmg: 0.9, stun: 1.6, crater: 50,
+            crouch: 0.1, air: 0.45, recover: 0.2, anim: 'sprung', animDur: 0.8, color: '#c8a878',
+            text: 'Du springst bis zu 190 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt und leicht verletzt.'
           },
           {
             id: 'schwertaura', name: 'Aura des Schwertes', short: 'AS', kind: 'buff', unlock: 10, mp: 30, cooldown: 60,
@@ -57,9 +61,11 @@ const CLASSES = {
         description: 'Steht wie eine Mauer: betäubt Gegner, hält einzelne starke Feinde fest und hält mit Starker Körper enorm viel aus.',
         skills: [
           {
-            id: 'schildstoss', name: 'Schildstoß', short: 'ST', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
-            type: 'strike', range: 66, dmg: 2, stun: 1.5, knockback: 120, color: '#ffd38a',
-            text: 'Ein wuchtiger Stoß, der ein Ziel 1,5 s betäubt und zurückwirft.'
+            // seit 8.3 (ersetzt den Schildstoß): Faust in den Boden, ein Riss läuft zum Ziel, ein Felspfeiler schleudert es hoch
+            id: 'felsenfaust', name: 'Felsenfaust', short: 'FF', kind: 'angriff', unlock: 1, mp: 9, cooldown: 4.5,
+            type: 'erupt', range: 120, dmg: 2, stun: 1.5, launch: 40, dodge: 40, lock: 0.36,
+            anim: 'felsenfaust', animDur: 0.7, color: '#c8a878',
+            text: 'Du schlägst die Faust in den Boden: Ein Riss läuft bis zu 120 weit zu deinem Ziel, ein Felspfeiler schießt unter ihm empor, schleudert es hoch und betäubt es 1,5 s.'
           },
           {
             id: 'erdbeben', name: 'Erdbeben', short: 'EB', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,

@@ -484,7 +484,8 @@ function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
   // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
   // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
-  const renamed = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff' };
+  // Version 8.3: Dreifachschlag → Sichelwelle, Sturmangriff → Sprungschlag, Schildstoß → Felsenfaust
+  const renamed = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff', dreifachschlag: 'sichelwelle', sturmangriff: 'sprungschlag', schildstoss: 'felsenfaust' };
   for (const it of data.inventory || []) if (it && renamed[it.book]) it.book = renamed[it.book];
   return data;
 }

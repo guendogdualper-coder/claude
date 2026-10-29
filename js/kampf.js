@@ -510,16 +510,117 @@ function useSkill(i) {
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   p.mp -= skillMana(sk, p);
   p.skillCd[i] = sk.cooldown;
-  netSkillFx(sk.id, 160, sk.aim ? { tx: Math.round(skillAimPoint(sk).x), ty: Math.round(skillAimPoint(sk).y) } : {});
+  // Fertigkeiten mit eigener Bahn (Welle, Riss, Sprung) geben ihre Eckdaten für Mitspieler zurück
+  const extra = ok && typeof ok === 'object' ? ok : sk.aim ? { tx: Math.round(skillAimPoint(sk).x), ty: Math.round(skillAimPoint(sk).y) } : {};
+  netSkillFx(sk.id, 160, extra);
   // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
   if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
     startSwing(p, 'pose', 0.7);
     p.poseColor = skillColor(sk, CLASSES[p.classId].trim);
     vfxPowerUp(p, p.poseColor);
+  } else if (sk.anim) {
+    // eigene Animation (SKILL_POSE3 in drei-figuren.js), Mitspieler sehen sie über den Zustand
+    startSwing(p, sk.anim, sk.animDur);
   } else {
     startSwing(p, 'skill', 0.34);
   }
   if (sk.kind === 'angriff' || sk.kind === 'fluch') p.lastCombat = game.time;
+}
+
+// --- Hilfen für Sichelwelle, Felsenfaust und Sprungschlag (seit 8.3) ------------------------------
+
+// Figur für kurze Zeit festhalten (kein Laufen, kein Grundangriff, keine andere Fertigkeit)
+function lockPlayer(p, dur) {
+  if (!p.dash) p.dash = { lock: true, until: game.time + dur, rank: fxRank };
+}
+
+// Freie Strecke von (x, y) in Richtung dir bis zur ersten Wand, Wasser oder Lava (höchstens want)
+function clearLen(x, y, dir, want, r) {
+  let len = 0;
+  for (let s = 6; s <= want; s += 6) {
+    if (!canStand(x + dir.x * s, y + dir.y * s, r, false)) break;
+    len = s;
+  }
+  return len;
+}
+
+// Darf ein Monster sichtbar hochgeschleudert werden? (nur Optik)
+function canLift(m) {
+  return !!m && !m.dead && !m.isStone && !(m.type && m.type.boss) && !m.duelProxy;
+}
+
+// Sichelwelle: Einschlag und wandernde Klingensichel; local = eigener Spieler (trifft), sonst nur Optik
+function waveFx(owner, x0, y0, dir, wl, sk, local, pw) {
+  const fy0 = y0 + 9;
+  addEffect({ type: 'impact', x: x0, y: fy0 - 14, dur: 0.3, color: '#ffffff', big: true });
+  addEffect({ type: 'ring', x: x0, y: fy0, r: 40, dur: 0.3, color: '#cfe0ff', width: 6, grow: true });
+  addEffect({ type: 'decal', kind: 'crack', x: x0, y: fy0, r: 24, dur: 2, color: '#2a1a10' });
+  addEffect({ type: 'sparks3', x: x0, y: fy0, h: 0.2, count: 12, color: '#e6eeff', speed: 2.6, up: 1.2, dur: 0.5 });
+  const speed = 420;
+  const steps = Math.ceil(wl / speed / 0.05);
+  addEffect({ type: 'wave3', x: x0, y: fy0, dx: dir.x, dy: dir.y, len: wl, w: sk.waveWidth, dur: wl / speed + 1.2, speed, color: sk.color || '#e6eeff' });
+  const hit = new Set();
+  for (let s = 0; s <= steps; s++) {
+    later(s * 0.05, () => {
+      const d = Math.min(wl, speed * s * 0.05);
+      const cx = x0 + dir.x * d;
+      const cy = y0 + dir.y * d;
+      particles(cx, cy + 9, { count: 3, color: ['#ffffff', '#cfe0ff'], angle: Math.atan2(-dir.y, -dir.x), spread: 0.6, speed: [60, 140], life: [0.2, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 4 });
+      addEffect({ type: 'decal', kind: 'scorch', x: cx, y: cy + 9, r: 10, dur: 1.4, color: '#2a2018' });
+      if (local) {
+        for (const m of enemiesInCircle(cx, cy, sk.waveWidth / 2)) {
+          if (hit.has(m.id)) continue;
+          hit.add(m.id);
+          hitMonster(m, sk.waveDmg * pw, { skill: sk.id, knockback: sk.knockback, from: { x: cx - dir.x * 40, y: cy - dir.y * 40 }, heavy: true, vfxColor: '#e6eeff' });
+        }
+      }
+      if (s === steps && wl < sk.waveLen - 6) {
+        addEffect({ type: 'impact', x: cx, y: cy - 4, dur: 0.22, color: '#e6eeff' });
+        addEffect({ type: 'sparks3', x: cx, y: cy + 9, h: 0.4, count: 6, color: '#e6eeff', speed: 2, up: 1, dur: 0.4 });
+      }
+    });
+  }
+}
+
+// Felsenfaust: Faust schlägt bei from in den Boden, Riss läuft zu end, Pfeiler bricht hervor (für alle gleich)
+function eruptFx(owner, from, end, sk, targetR) {
+  addEffect({ type: 'ring', x: end.x, y: end.y + 9, r: 26, dur: 0.36, color: '#c8a878', width: 4 });
+  later(0.18, () => {
+    addEffect({ type: 'shards3', x: from.x, y: from.y + 9, r: 14, count: 4, color: '#7a6a54', glow: false, size: 0.55, dur: 0.5 });
+    addEffect({ type: 'smoke3', x: from.x, y: from.y + 9, count: 3, color: '#8a7656', size: 0.45, dur: 0.5 });
+    addEffect({ type: 'decal', kind: 'crack', x: from.x, y: from.y + 9, r: 16, dur: 1.6, color: '#2a1a10' });
+    addEffect({ type: 'erupt3', x: end.x, y: end.y + 9, x0: from.x, y0: from.y + 9, x1: end.x, y1: end.y + 9, r: targetR || 14, dur: 1.3, color: '#8a7a62' });
+    if (owner === game.player) shakeScreen(2.5);
+  });
+  later(0.34, () => {
+    addEffect({ type: 'ring', x: end.x, y: end.y + 9, r: 40, dur: 0.35, color: '#c8a878', width: 5, grow: true });
+    addEffect({ type: 'decal', kind: 'crack', x: end.x, y: end.y + 9, r: 24, dur: 2, color: '#2a1a10' });
+    particles(end.x, end.y + 6, { count: 10, color: ['#6a5038', '#8a6a44'], angle: -Math.PI / 2, spread: 0.8, speed: [80, 180], life: [0.4, 0.7], size: [2, 4], shape: 'square', glow: false, gravity: 600 });
+  });
+}
+
+// Sprungschlag: Landung – Mulde, aufgeworfene Erde, Staub, Risse (für alle gleich; near = eigener Bildschirm wackelt)
+function leapLandFx(x, fy, sk, near) {
+  addEffect({ type: 'crater3', x, y: fy, r: sk.crater || 50, dur: 2 });
+  addEffect({ type: 'ring', x, y: fy, r: sk.radius, dur: 0.35, color: '#c8a878', width: 5, grow: true });
+  addEffect({ type: 'smoke3', x, y: fy, count: 7, color: '#9a8466', size: 0.9, dur: 0.9 });
+  addEffect({ type: 'decal', kind: 'crack', x, y: fy, r: 40, dur: 2.4, color: '#2a1a10' });
+  particles(x, fy - 4, { count: 20, color: ['#8a6a44', '#c9a878', '#5a4030'], angle: -Math.PI / 2, spread: 1.3, speed: [60, 150], life: [0.4, 0.7], size: [2.5, 4.5], shape: 'square', drag: 2, glow: false, gravity: 600 });
+  if (near) shakeScreen(3);
+}
+
+// Landung des eigenen Sprungschlags: Treffer und Krater
+function leapLand(p, d) {
+  const fy = feetY(p);
+  const sk = d.sk;
+  leapLandFx(p.x, fy, sk, false);
+  const hits = enemiesInCircle(p.x, p.y, sk.radius);
+  for (const m of hits) {
+    hitMonster(m, sk.dmg * d.pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#e8d8b0' });
+    if (canLift(m)) m.lift = { start: game.time, dur: 0.25, h: 8 };
+  }
+  hitStop(hits.length ? 0.06 : 0.03);
+  shakeScreen(hits.length ? 7 : 5);
 }
 
 // --- Zielen mit Zielkreis (seit 7.7, Blizzard) -------------------------------------------------------
@@ -718,6 +819,91 @@ const SKILL_TYPES = {
     const dir = aim(sk.distance);
     p.dash = { dx: dir.x, dy: dir.y, left: sk.distance, speed: sk.distance / 0.22, hit: new Set(), sk, pw, rank: fxRank };
     shakeScreen(2);
+  },
+
+  // Sichelwelle (seit 8.3): Querhieb im Fächer, dann Einschlag und eine Klingenwelle, die nach vorn gleitet
+  wave(sk, pw) {
+    const p = game.player;
+    const c = CLASSES[p.classId];
+    const dir = { ...aim(sk.waveLen * 0.6) };
+    const ang = Math.atan2(dir.y, dir.x);
+    const spread = sk.angle * Math.PI / 180;
+    lockPlayer(p, sk.lock);
+    input.walkTo = null;
+    const x0 = p.x + dir.x * 28;
+    const y0 = p.y + dir.y * 28;
+    const wl = clearLen(x0, y0, dir, sk.waveLen, 6);
+    later(0.12, () => {
+      if (p.dead) return;
+      vfxSweep(p, sk.radius * 0.85, ang + spread / 2, ang - spread / 2, sk.color || c.trim, 0.22, 30);
+      if (MELEE_KINDS.has(weaponKindOf(p))) addEffect({ type: 'bladearc', follow: p, ox: 0, oy: -14, len: sk.radius * 0.8, a0: ang + spread / 2, a1: ang - spread / 2, dur: 0.24, ...playerBlade(p) });
+      for (const m of enemiesInCone(p.x, p.y, dir, sk.radius, sk.angle)) hitMonster(m, sk.dmg * pw, { skill: sk.id });
+    });
+    later(0.24, () => { p.leap = { start: game.time, dur: 0.14, h: 10 }; });
+    later(0.4, () => {
+      if (p.dead) return;
+      hitStop(0.04);
+      shakeScreen(4);
+      waveFx(p, x0, y0, dir, wl, sk, true, pw);
+    });
+    return { wl: Math.round(wl), tx: Math.round(x0 + dir.x * wl), ty: Math.round(y0 + dir.y * wl) };
+  },
+
+  // Felsenfaust (seit 8.3): Riss zum Ziel, Felspfeiler bricht unter ihm hervor und schleudert es hoch
+  erupt(sk, pw) {
+    const p = game.player;
+    const t = pickTarget(sk.range);
+    if (t) faceTowards(t.x, t.y);
+    const dir = { ...p.facing };
+    const want = t ? dist(p, t) : 90;
+    const from = { x: p.x + dir.x * 22, y: p.y + dir.y * 22 };
+    const free = clearLen(from.x, from.y, dir, Math.max(0, want - 22), 4);
+    const blocked = free < want - 22 - 6;
+    const end = blocked || !t ? { x: from.x + dir.x * free, y: from.y + dir.y * free } : { x: t.x, y: t.y };
+    lockPlayer(p, sk.lock);
+    input.walkTo = null;
+    p.leap = { start: game.time, dur: 0.2, h: 12 };
+    eruptFx(p, from, end, sk, t ? t.r : 14);
+    later(0.34, () => {
+      if (p.dead) return;
+      let tt = t && !t.dead && !blocked && dist(t, end) <= sk.dodge ? t : null;
+      if (!tt && !t) tt = enemiesInCircle(end.x, end.y, 24)[0] || null;
+      if (tt) {
+        hitStop(0.07);
+        hitMonster(tt, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#e8d8b0' });
+        if (canLift(tt)) tt.lift = { start: game.time, dur: 0.5, h: sk.launch * Math.min(1, 18 / (tt.r || 18)) };
+      }
+      shakeScreen(tt ? 5 : 3);
+    });
+    return { tx: Math.round(end.x), ty: Math.round(end.y) };
+  },
+
+  // Sprungschlag (seit 8.3): kurze Hocke, Sprung nach vorn (vor das Ziel), Landung mit Krater und Betäubung
+  leap(sk, pw) {
+    const p = game.player;
+    const t = pickTarget(sk.distance + 40);
+    if (t) faceTowards(t.x, t.y);
+    const dir = { ...p.facing };
+    const want = t ? Math.max(0, Math.min(sk.distance, dist(p, t) - ((t.r || 14) + 12))) : sk.distance;
+    let reach = 0;
+    for (let s = 6; s <= want; s += 6) {
+      const nx = p.x + dir.x * s;
+      const ny = p.y + dir.y * s;
+      if (!canStand(nx, ny, p.r * 0.7, false) || inVillage(nx, ny)) break;
+      reach = s;
+    }
+    const x1 = p.x + dir.x * reach;
+    const y1 = p.y + dir.y * reach;
+    const h = Math.max(44, Math.min(60, 44 + 0.08 * reach));
+    const now = game.time;
+    p.dash = { leap: true, x0: p.x, y0: p.y, x1, y1, t0: now + sk.crouch, dur: sk.air, until: now + sk.crouch + sk.air + sk.recover, sk, pw, rank: fxRank, landed: false, trailAt: 0, smoked: false };
+    p.leap = { start: now + sk.crouch, dur: sk.air, h, slam: true };
+    input.walkTo = null;
+    particles(p.x, feetY(p), { count: 12, color: ['#a88f62', '#c9b28a'], speed: [40, 120], life: [0.3, 0.6], size: [2.5, 4.5], shape: 'square', drag: 3, glow: false });
+    addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 28, dur: 0.25, color: '#c8a878', width: 4 });
+    addEffect({ type: 'ring', x: x1, y: y1 + p.r * 0.8, r: sk.radius, dur: 0.55, color: '#c8a878', width: 3 });
+    shakeScreen(1.5);
+    return { tx: Math.round(x1), ty: Math.round(y1) };
   },
 
   // Einzelner starker Treffer im Nahkampf
@@ -956,6 +1142,43 @@ function updateDash(dt) {
 function dashStep(dt) {
   const p = game.player;
   const d = p.dash;
+  // Sprungschlag: Hocke, Flug auf vorab geprüfter Bahn, Landung, Landehocke
+  if (d.leap) {
+    const now = game.time;
+    if (p.dead) {
+      p.dash = null;
+      p.leap = null;
+      return;
+    }
+    if (now < d.t0) return;
+    if (!d.smoked) {
+      d.smoked = true;
+      addEffect({ type: 'smoke3', x: p.x, y: feetY(p), count: 4, color: '#8a7458', size: 0.6, dur: 0.5 });
+    }
+    if (!d.landed) {
+      let k = Math.min(1, (now - d.t0) / d.dur);
+      const tx = d.x0 + (d.x1 - d.x0) * k;
+      const ty = d.y0 + (d.y1 - d.y0) * k;
+      const mx = tx - p.x;
+      const my = ty - p.y;
+      // zweite Sicherung: blockiert der Weg doch, landet die Figur sofort
+      if ((mx || my) && !moveEntity(p, mx, my, false)) k = 1;
+      if (now >= d.trailAt) {
+        d.trailAt = now + 0.04;
+        particles(p.x, feetY(p) - 30, { count: 2, color: ['#e8dcc0', '#ffffff'], angle: Math.atan2(-(d.y1 - d.y0), -(d.x1 - d.x0)), spread: 0.3, speed: [60, 120], life: [0.15, 0.25], size: [1.5, 2.5], shape: 'spark', drag: 3 });
+      }
+      if (k >= 1) {
+        d.landed = true;
+        leapLand(p, d);
+      }
+    } else if (now >= d.until) p.dash = null;
+    return;
+  }
+  // kurze Sperre während einer Fertigkeit (Sichelwelle, Felsenfaust)
+  if (d.lock) {
+    if (game.time >= d.until || p.dead) p.dash = null;
+    return;
+  }
   const step = Math.min(d.left, d.speed * dt);
   const moved = moveEntity(p, d.dx * step, d.dy * step, false);
   d.left -= step;

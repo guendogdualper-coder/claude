@@ -774,8 +774,20 @@ function netUpdate(dt) {
   }
   const k = Math.min(1, dt * 12);
   for (const rp of net.players.values()) {
-    rp.x += (rp.tx - rp.x) * k;
-    rp.y += (rp.ty - rp.y) * k;
+    // Sprungschlag (seit 8.3): auf derselben Bahn fliegen wie beim Werfer, danach weiter weich nachziehen
+    const g = rp.glide;
+    let gk = -1;
+    if (g) {
+      gk = (game.time - g.start) / g.dur;
+      if (gk >= 1) { rp.x = rp.tx = g.x1; rp.y = rp.ty = g.y1; rp.glide = null; }
+    }
+    if (g && gk >= 0 && gk < 1) {
+      rp.x = g.x0 + (g.x1 - g.x0) * gk;
+      rp.y = g.y0 + (g.y1 - g.y0) * gk;
+    } else if (!g || gk < 0) {
+      rp.x += (rp.tx - rp.x) * k;
+      rp.y += (rp.ty - rp.y) * k;
+    }
     if (rp.swing > 0) rp.swing = Math.max(0, rp.swing - dt);
     if (rp.spin > 0) rp.spin = Math.max(0, rp.spin - dt);
     if (rp.riding && Math.abs(rp.facing.x) > 0.15) rp.rideFlip = rp.facing.x < 0;

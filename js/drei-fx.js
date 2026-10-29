@@ -5,8 +5,9 @@
 // Ränge (E, H, L, V) bekommen eine zweite Hülle in der Rangfarbe, ab Legendär zusätzlich Runen und Funken.
 
 const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'aim', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
-  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3', 'shield3', 'cloud3', 'hands3']);
-const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null } };
+  'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3', 'shield3', 'cloud3', 'hands3',
+  'wave3', 'erupt3', 'crater3']);
+const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null }, geo: {} };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
 function fx3Texture(kind) {
@@ -162,6 +163,27 @@ function fx3Texture(kind) {
       g.arc(m + Math.cos(a) * 44, m + Math.sin(a) * 44, 4, 0, Math.PI * 2);
       g.fill();
     }
+  } else if (kind === 'crater') {
+    // Mulde (Sprungschlag): Graustufen, die Materialfarbe bringt die Bodenfarbe; Norden (Kamera, Sonne)
+    // heller Innenhang, Süden dunkle Vorderkante
+    const rg = g.createRadialGradient(m, m, 0, m, m, m);
+    rg.addColorStop(0, 'rgba(70,70,70,0.9)');
+    rg.addColorStop(0.55, 'rgba(95,95,95,0.85)');
+    rg.addColorStop(0.8, 'rgba(150,150,150,0.6)');
+    rg.addColorStop(0.92, 'rgba(255,255,255,0.45)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 128, 128);
+    g.fillStyle = 'rgba(255,255,255,0.35)';
+    g.beginPath();
+    g.ellipse(m, m - 14, 52, 30, 0, Math.PI, Math.PI * 2);
+    g.ellipse(m, m - 4, 40, 16, 0, Math.PI * 2, Math.PI, true);
+    g.fill();
+    g.fillStyle = 'rgba(0,0,0,0.5)';
+    g.beginPath();
+    g.ellipse(m, m + 12, 56, 46, 0, 0, Math.PI);
+    g.ellipse(m, m + 6, 48, 34, 0, Math.PI, 0, true);
+    g.fill();
   } else if (kind === 'beam') {
     // senkrecht: unten hell, nach oben ausblendend (oben im Bild = oben am Zylinder)
     const lg = g.createLinearGradient(0, 0, 0, 128);
@@ -217,6 +239,15 @@ function fx3Make(kind) {
       ? new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 })
       : fx3Mat(null);
     o = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 5), mat);
+  } else if (kind === 'rock' || kind === 'rockcol') {
+    // Erdbrocken und Felspfeiler (seit 8.3): eine gemeinsame Geometrie je Art, fest und facettiert
+    if (!FX3.geo.rock) {
+      FX3.geo.rock = new THREE.DodecahedronGeometry(1, 0);
+      const col = new THREE.CylinderGeometry(0.62, 1, 1, 6, 1).toNonIndexed();
+      col.computeVertexNormals();
+      FX3.geo.rockcol = col;
+    }
+    o = new THREE.Mesh(FX3.geo[kind], new THREE.MeshLambertMaterial({ color: 0xffffff }));
   } else if (kind === 'smoke') {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0x000000, transparent: true, depthWrite: false, fog: false }));
   } else {
@@ -359,7 +390,212 @@ function fx3Cone(o, b, d, len, w) {
 const _x3hb = new THREE.Vector3();
 const _x3hd = new THREE.Vector3();
 
+// Ebene am Boden mit eigenen Halbachsen (Furche, Riss): Mitte, halbe Länge, halbe Breite, Drehung
+function fx3Strip2(o, x, z, hl, hw, h, tex, rot) {
+  fx3Map(o, tex);
+  o.position.set(x * U3, h, z * U3);
+  o.scale.set(Math.max(0.001, hl), Math.max(0.001, hw), 1);
+  o.rotation.set(-Math.PI / 2, 0, rot);
+}
+function fx3Rock(h, kind, x, y, z, sx, sy, sz, color) {
+  const o = fx3Take(h, kind);
+  o.position.set(x, y, z);
+  o.scale.set(Math.max(0.001, sx), Math.max(0.001, sy), Math.max(0.001, sz));
+  o.material.color.set(color);
+  return o;
+}
+const _x3w1 = new THREE.Vector3();
+const _x3w2 = new THREE.Vector3();
+const _x3w3 = new THREE.Vector3();
+const _x3w4 = new THREE.Vector3();
+const _x3tile = {};
+const _x3col = new THREE.Color();
+const _x3mix = new THREE.Color('#6b5236');
+const CRATER3_MAX = 3;
+
 const FX3_DRAW = {
+  // Sichelwelle (seit 8.3): stahlweiße Klingensichel, aufrecht und 40° nach vorn gekippt, gleitet über den Boden;
+  // dahinter eine Lichtschleppe und eine dunkle Schnittfurche
+  wave3(h, e) {
+    const t = game.time - e.start;
+    const travel = e.len / e.speed;
+    const d = Math.min(e.len, t * e.speed);
+    const fade = t < travel ? 1 : Math.max(0, 1 - (t - travel) / 0.3);
+    const g = 0.7 + 0.3 * Math.min(1, t / 0.08);
+    const ang = Math.atan2(-e.dy, e.dx);
+    const mx = e.x + e.dx * d / 2;
+    const mz = e.y + e.dy * d / 2;
+    if (d > 2) {
+      const furrow = fx3Take(h, 'planeN');
+      fx3Strip2(furrow, mx, mz, d * U3 / 2, 0.12, 0.035, 'disc', ang);
+      fx3Color(furrow, '#2a2018', 0.55 * (t < travel ? 1 : Math.max(0, 1 - (t - travel) / (e.dur - travel))));
+      if (fade > 0) {
+        const trail = fx3Take(h, 'plane');
+        fx3Strip2(trail, mx, mz, d * U3 / 2, 0.45, 0.03, 'disc', ang);
+        fx3Color(trail, '#9fc8ff', 0.35 * fade);
+      }
+    }
+    if (fade <= 0) return;
+    _x3w1.set((e.x + e.dx * d) * U3, 0.3, (e.y + e.dy * d) * U3);
+    _x3w2.set(-e.dy, 0, e.dx);
+    _x3w3.set(e.dx * 0.64, 0.77, e.dy * 0.64).normalize();
+    const half = (e.w / 2) * U3 * g * 1.4;
+    const span = 2.3;
+    const rr = half / Math.sin(span / 2);
+    const a0 = Math.PI / 2 - span / 2;
+    const a1 = Math.PI / 2 + span / 2;
+    _x3w4.copy(_x3w1).addScaledVector(_x3w3, -rr * Math.cos(span / 2));
+    const layer = (r, w, from, to, color, op) => fx3Strip(fx3Take(h, 'strip'), _x3w4, _x3w2, _x3w3, r, w, from, to, color, op, true);
+    if (e.rank != null && e.rank >= 0) layer(rr + 0.08, 0.5, a0, a1, e.rankColor, 0.8 * fade);
+    layer(rr, 0.42, a0, a1, '#9fc8ff', 0.6 * fade);
+    layer(rr - 0.04, 0.26, a0, a1, e.color || '#e6eeff', fade);
+    layer(rr - 0.08, 0.09, a0 + 0.12, a1 - 0.12, '#ffffff', fade);
+    if (!(e.rank >= 0) && d > 12) {
+      _x3w4.addScaledVector(_x3w3.set(e.dx, 0, e.dy), -0.35);
+      _x3w3.set(e.dx * 0.64, 0.77, e.dy * 0.64).normalize();
+      layer(rr - 0.04, 0.22, a0, a1, e.color || '#e6eeff', 0.4 * fade);
+    }
+  },
+  // Felsenfaust (seit 8.3): Riss mit Dornen läuft zum Ziel, dort bricht ein sechseckiger Pfeiler mit Felsfaust hervor
+  erupt3(h, e) {
+    const t = game.time - e.start;
+    const dx = e.x1 - e.x0;
+    const dz = e.y1 - e.y0;
+    const len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len;
+    const uz = dz / len;
+    const ang = Math.atan2(-uz, ux);
+    const L = Math.min(1, t / 0.14) * len;
+    const lineOp = t < 1 ? 0.7 : Math.max(0, 0.7 * (1 - (t - 1) / 0.3));
+    if (L > 2) {
+      const crack = fx3Take(h, 'planeN');
+      fx3Strip2(crack, e.x0 + ux * L / 2, e.y0 + uz * L / 2, L * U3 / 2, 0.08, 0.036, 'disc', ang);
+      fx3Color(crack, '#1e140c', lineOp);
+      const glow = 0.3 * Math.max(0, 1 - t / 0.5);
+      if (glow > 0) {
+        const lit = fx3Take(h, 'plane');
+        fx3Strip2(lit, e.x0 + ux * L / 2, e.y0 + uz * L / 2, L * U3 / 2, 0.16, 0.03, 'disc', ang);
+        fx3Color(lit, '#c8a878', glow);
+      }
+    }
+    // Dornen entlang des Risses
+    const n = Math.max(2, Math.min(4, Math.round(len / 30)));
+    const sink = clamp01((t - 0.8) / 0.3);
+    for (let i = 0; i < n; i++) {
+      const f = (i + 1) / (n + 1);
+      const r = easeOutBack(clamp01((t - f * 0.14) / 0.06)) * (1 - sink);
+      if (r <= 0.01) continue;
+      const side = i % 2 ? 8 : -8;
+      const px = e.x0 + ux * len * f - uz * side;
+      const pz = e.y0 + uz * len * f + ux * side;
+      const hy = (0.22 + 0.03 * i) * r;
+      const o = fx3Rock(h, 'rock', px * U3, hy * 0.5, pz * U3, 0.09 * r, hy, 0.08 * r, i % 2 ? '#a8957a' : '#7a6a54');
+      o.rotation.set(uz * 0.3, i * 1.3, -ux * 0.3);
+    }
+    // Pfeiler, Faust, Kranz
+    const k = t - 0.16;
+    if (k < 0) return;
+    const up = k < 0.07 ? easeOutBack(k / 0.07) : 1;
+    const down = clamp01((k - 0.51) / 0.45);
+    const S = Math.max(0.8, Math.min(1.3, (e.r || 14) * U3 * 2.2));
+    const H = 1.15 * S * up * (1 - down);
+    const x = e.x1 * U3;
+    const z = e.y1 * U3;
+    const rot = e.rot || (e.rot = Math.random() * Math.PI);
+    if (H > 0.01) {
+      const wide = 0.36 * S * (1 - 0.3 * down);
+      const col = fx3Rock(h, 'rockcol', x, H / 2 - 0.04, z, wide, H, wide, e.color || '#8a7a62');
+      col.rotation.set(0.12 * down, rot, 0.1 * down);
+      const fist = fx3Rock(h, 'rock', x, H + 0.14 * S * up, z, 0.44 * S * up, 0.34 * S * up, 0.4 * S * up, '#a8946e');
+      fist.rotation.set(0.2, rot + k * 3, 0.1);
+      const ku = k < 0.1 ? easeOutBack(clamp01((k - 0.03) / 0.07)) : 1;
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2 + rot;
+        const s = S * ku * (1 - down);
+        if (s <= 0.01) continue;
+        const w = fx3Rock(h, 'rock', x + Math.cos(a) * 0.42 * S, 0.08 * s, z + Math.sin(a) * 0.42 * S, 0.13 * s, 0.22 * s, 0.1 * s, '#6a5a46');
+        w.rotation.set(Math.sin(a) * 0.7, a, -Math.cos(a) * 0.7);
+      }
+    }
+    const bowl = fx3Take(h, 'planeN');
+    fx3Ground(bowl, e.x1, e.y1, 0.6 * S, 0.035, 'crater', 0);
+    fx3Color(bowl, '#8a7458', 0.9 * (1 - down));
+    if (k < 0.3) {
+      const gap = fx3Take(h, 'plane');
+      fx3Ground(gap, e.x1, e.y1, 0.7 * S, 0.04, 'ring', 0);
+      fx3Color(gap, '#ffd38a', 0.6 * Math.pow(1 - k / 0.3, 2));
+    }
+  },
+  // Sprungschlag (seit 8.3): Mulde in Bodenfarbe, ringsum ein Wall aus Erdbrocken, die nach außen gedrückt
+  // werden, und ein paar hochgedrückte Schollen – keine Explosion. Nach 2 s sinkt alles zurück.
+  crater3(h, e) {
+    const t = game.time - e.start;
+    const R = (e.r || 50) * U3;
+    if (!e.tint) {
+      tileSample(Math.floor(e.x / TILE), Math.floor(e.y / TILE), _x3tile);
+      e.liquid = _x3tile.h < 0;
+      _x3col.setRGB(_x3tile.r || 0.4, _x3tile.g || 0.35, _x3tile.b || 0.25);
+      if (_x3tile.soil === 3) _x3col.lerp(new THREE.Color('#7a7a7a'), 0.45);
+      else _x3col.lerp(_x3mix, 0.45);
+      e.tint = '#' + _x3col.getHexString();
+      // aufgeworfene Erde: deutlich brauner als die Oberfläche (auf Fels grau)
+      _x3col.lerp(_x3tile.soil === 3 ? _x3col : _x3mix, 0.6);
+      e.earth = '#' + _x3col.getHexString();
+      // höchstens drei Krater: ältere sinken sofort
+      const live = game.effects.filter((q) => q.type === 'crater3' && q !== e && game.time - q.start < 1.3);
+      if (live.length >= CRATER3_MAX) live[0].start = Math.min(live[0].start, game.time - 1.3);
+    }
+    if (e.liquid) {
+      // ins Wasser gesprungen: nur Ringe
+      const o = fx3Take(h, 'plane');
+      fx3Ground(o, e.x, e.y, R * (1 + t), 0.05, 'ring', 0);
+      fx3Color(o, '#cfeeff', Math.max(0, 0.8 - t * 0.5));
+      return;
+    }
+    const rise = t < 0.07 ? 1.12 * easeOutBack(t / 0.07) : t < 0.18 ? 1.12 - 0.12 * (t - 0.07) / 0.11 : t < 1.3 ? 1 - 0.08 * (t - 0.18) / 1.12 : 0.92 * (1 - smooth01((t - 1.3) / 0.7));
+    const open = 0.6 + 0.4 * easeOut(Math.min(1, t / 0.07));
+    const bowlOp = t < 1.3 ? 0.95 : Math.max(0, 0.95 * (1 - (t - 1.3) / 0.7));
+    const bowl = fx3Take(h, 'planeN');
+    fx3Ground(bowl, e.x, e.y, R * open, 0.035, 'crater', 0);
+    fx3Color(bowl, e.tint, bowlOp);
+    const seam = fx3Take(h, 'planeN');
+    fx3Ground(seam, e.x, e.y, R, 0.038, 'ring', 0);
+    fx3Color(seam, '#1e140c', 0.4 * bowlOp);
+    const low = typeof opts !== 'undefined' && opts.graphics === 'niedrig';
+    const N = low ? 8 : 12;
+    const sd = fx3Seed(h, N + 12, (v, i) => ({
+      a: (i / N) * Math.PI * 2 + (Math.random() - 0.5) * 0.4, d: 0.95 + Math.random() * 0.15,
+      sx: 0.2 + Math.random() * 0.1, sy: 0.11 + Math.random() * 0.07, sz: 0.14 + Math.random() * 0.06,
+      tilt: 0.3 + Math.random() * 0.2, tone: (Math.random() - 0.5) * 0.16, hm: 0.25 + Math.random() * 0.15, fl: 0.4 + Math.random() * 0.4
+    }));
+    const cx = e.x * U3;
+    const cz = e.y * U3;
+    const push = Math.min(1, t / 0.07);
+    const r2 = Math.max(0, rise);
+    _x3col.set(e.tint);
+    // Wall aus Erdbrocken
+    const wall = (q, ring, size, delay) => {
+      const rr = R * (ring - (1 - Math.min(1, (t - delay) / 0.07)) * 0.25) * q.d;
+      if (t < delay) return;
+      const s = size * (0.6 + 0.4 * r2);
+      const y = q.sy * size * (0.35 * r2 - (1 - r2));
+      const o = fx3Rock(h, 'rock', cx + Math.cos(q.a) * rr, y, cz + Math.sin(q.a) * rr, q.sx * s, q.sy * s, q.sz * s, q.tone > 0 ? lighter(e.earth, q.tone) : darker(e.earth, -q.tone));
+      o.rotation.set(Math.sin(q.a) * q.tilt, -q.a, -Math.cos(q.a) * q.tilt);
+    };
+    for (let i = 0; i < N; i++) wall(sd[i], 0.75 + 0.25 * push, 1, 0);
+    if (!low) for (let i = 0; i < 6; i++) wall(sd[N + i], 1.3, 0.6, 0.03);
+    // hochgedrückte Schollen: flacher Bogen nach außen, dann liegen bleiben und schrumpfen
+    for (let i = 0; i < 6; i++) {
+      const q = sd[N + 6 + i];
+      const u = Math.min(1, t / 0.35);
+      const dist = R * 0.85 + q.fl * u;
+      const y = 4 * q.hm * u * (1 - u);
+      const s = (0.05 + 0.04 * (i % 3) / 2) * (1 - clamp01((t - 0.6) / 0.6));
+      if (s <= 0.002) continue;
+      const o = fx3Rock(h, 'rock', cx + Math.cos(q.a + 0.3) * dist, y + s * 0.5, cz + Math.sin(q.a + 0.3) * dist, s, s * 0.8, s, darker(e.earth, 0.1));
+      o.rotation.set(t * 6 * (u < 1 ? 1 : 0), q.a, t * 4 * (u < 1 ? 1 : 0));
+    }
+  },
   // Schildabdruck (Schildstoß): goldene Scheibe steht senkrecht vor der Figur und weitet sich
   shield3(h, e, k) {
     // zur Kamera gedreht, damit man den Abdruck von oben sieht; dazu ein Schein am Boden

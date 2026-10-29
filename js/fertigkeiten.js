@@ -56,8 +56,11 @@ function crescentPath(ctx, x0, y0, x1, y1, bulge) {
 
 const SKILL_ICONS = {
   // Krieger
-  dreifachschlag(ctx) {
-    for (let k = 0; k < 3; k++) iconShape(ctx, crescentPath(ctx, -15 + k * 8, 14, 6 + k * 8, -15, 7), '#fff3c0', '#ff8a3a', 2.5);
+  // stehende Sichel mit Tempolinien über einer dunklen Furche
+  sichelwelle(ctx) {
+    iconLine(ctx, '#3a2a1c', 3, [[-17, 15], [17, 15]]);
+    for (const y of [-6, 1, 8]) iconLine(ctx, '#cfe0ff', 2, [[-18, y], [-9, y]]);
+    iconShape(ctx, crescentPath(ctx, -2, 13, 2, -17, 13), '#ffffff', '#9fc8ff', 2.5);
   },
   schwertwirbel(ctx) {
     ctx.lineCap = 'round';
@@ -85,9 +88,14 @@ const SKILL_ICONS = {
     }, '#ffe08a', '#e0381a');
     iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(1, 8, 5, 7, 0, 0, Math.PI * 2); }, '#fff6d0', '#ffb04a', 1.5);
   },
-  sturmangriff(ctx) {
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-4, -10); ctx.lineTo(16, 0); ctx.lineTo(-4, 10); ctx.lineTo(0, 0); ctx.closePath(); }, '#fff3c0', '#ff7a3a');
-    for (const y of [-8, 0, 8]) iconLine(ctx, '#ffd38a', 2.5, [[-18, y], [-8 + Math.abs(y) * 0.3, y]]);
+  // Sprungbogen, der in einer Mulde aus zwei Erdhügeln endet
+  sprungschlag(ctx) {
+    ctx.setLineDash([3, 3]);
+    iconLine(ctx, '#ffd38a', 2, [[-17, 6], [-12, -8], [-4, -15], [4, -12], [9, -2]]);
+    ctx.setLineDash([]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(8, 11, 11, 5, 0, 0, Math.PI * 2); }, '#5a4030', '#2a1a10', 2);
+    for (const x of [-3, 19]) iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(x - 5, 13); ctx.quadraticCurveTo(x, 2, x + 5, 13); ctx.closePath(); }, '#c9a878', '#6a4a2a', 1.5);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(5, -8); ctx.lineTo(11, -8); ctx.lineTo(8, 2); ctx.closePath(); }, '#fff3c0', '#ff9a4a', 1.5);
   },
   starkerkoerper(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-13, -14); ctx.lineTo(13, -14); ctx.lineTo(13, 0); ctx.quadraticCurveTo(12, 12, 0, 18); ctx.quadraticCurveTo(-12, 12, -13, 0); ctx.closePath(); }, '#ffe9a0', '#b88a2a');
@@ -260,10 +268,12 @@ Object.assign(SKILL_ICONS, {
     iconLine(ctx, '#c9a35a', 3, [[-8, 8], [8, 8]]);
     iconLine(ctx, '#6a2a24', 3, [[0, 10], [0, 17]]);
   },
-  schildstoss(ctx) {
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-14, -12); ctx.lineTo(4, -12); ctx.lineTo(4, 2); ctx.quadraticCurveTo(3, 12, -5, 16); ctx.quadraticCurveTo(-13, 12, -14, 2); ctx.closePath(); }, '#e6eef8', '#7a8a9a');
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(-5, 0, 3.5, 0, Math.PI * 2); }, '#ffe9a0', '#b88a2a', 1.5);
-    for (const y of [-8, 0, 8]) iconLine(ctx, '#ffd38a', 2.5, [[9, y], [18, y * 1.3]]);
+  // Felsfaust auf einem Pfeiler, der aus einem Zickzackriss steigt
+  felsenfaust(ctx) {
+    iconLine(ctx, '#2a1a10', 2, [[-17, 15], [-10, 12], [-4, 16], [2, 12]]);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-1, 17); ctx.lineTo(-3, -2); ctx.lineTo(11, -2); ctx.lineTo(9, 17); ctx.closePath(); }, '#a8957a', '#5a4a36', 2);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -2); ctx.lineTo(-7, -12); ctx.lineTo(0, -17); ctx.lineTo(12, -16); ctx.lineTo(15, -8); ctx.lineTo(13, -2); ctx.closePath(); }, '#d8c4a0', '#8a7456', 2);
+    for (const x of [-14, 18]) iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, -14, 2.5, 0, Math.PI * 2); }, '#fff3c0', '#ffd34d', 1);
   },
   erdbeben(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, 8, 19, 8, 0, 0, Math.PI * 2); }, '#c9a878', '#6a4a2a');
@@ -467,12 +477,18 @@ function skillIconUrl(sk) {
 // color: Grundfarbe der Schwungspuren; cast: beim Auslösen; hit: bei jedem Treffer.
 
 const SKILL_FX = {
-  dreifachschlag: {
-    color: '#ff8a3a',
+  // Sichelwelle (seit 8.3): stahlweiße Schnitte quer zur Welle, Riss bei schwerem Treffer
+  sichelwelle: {
+    color: '#e6eeff',
+    cast(p) {
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 34, dur: 0.25, color: '#e6eeff', width: 3 });
+      addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 0.9, count: 6, color: '#e6eeff', speed: 1.6, up: 1, dur: 0.3 });
+    },
     hit(m, crit, heavy) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 8, color: ['#ffd34d', '#ff7a2a', '#c8302a'], speed: [60, 180], life: [0.3, 0.6], size: [2, 4], shape: 'ember', drag: 3, gravity: -60 });
-      if (heavy) addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: 26, dur: 1.8, color: '#2a1a10' });
+      const f = game.player.facing;
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: Math.atan2(f.y, f.x) + Math.PI / 2, len: 44, w: 6, dur: 0.2, color: '#ffffff' });
+      if (heavy || crit) addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: 18, dur: 1.2, color: '#2a1a10' });
     }
   },
   schwertwirbel: {
@@ -499,19 +515,11 @@ const SKILL_FX = {
     },
     aura: { every: 0.06, color: ['#ff7a2a', '#ffd34d', '#c8302a'], shape: 'ember', up: true }
   },
-  sturmangriff: {
-    color: '#ff8a3a',
-    cast(p) {
-      particles(p.x, feetY(p), { count: 16, color: ['#a88f62', '#c9b28a'], speed: [60, 160], life: [0.3, 0.6], size: [3, 5], drag: 3, glow: false });
-    },
-    trail(p) {
-      particles(p.x, feetY(p) - 12, { count: 3, color: ['#ff7a2a', '#ffd34d'], speed: [10, 60], life: [0.25, 0.5], size: [2.5, 4.5], shape: 'ember', drag: 2, gravity: -80 });
-    },
-    end(p) {
-      const c = bodyCenter(p);
-      addEffect({ type: 'impact', x: c.x + p.facing.x * 20, y: c.y + p.facing.y * 10, dur: 0.35, color: '#ffd34d', big: true });
-      addEffect({ type: 'decal', kind: 'scorch', x: p.x + p.facing.x * 18, y: feetY(p) + p.facing.y * 10, r: 30, dur: 2, color: '#1a1008' });
-      particles(c.x, c.y, { count: 22, color: ['#ffd34d', '#ff7a2a', '#ffffff'], speed: [120, 280], life: [0.3, 0.6], size: [2, 4], shape: 'ember', drag: 3 });
+  // Sprungschlag (seit 8.3): Erdbrocken springen an jedem Getroffenen hoch
+  sprungschlag: {
+    color: '#c8a878',
+    hit(m) {
+      particles(m.x, feetY(m) - 4, { count: 6, color: ['#8a6a44', '#c9a878'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 140], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 500 });
     }
   },
   starkerkoerper: {
@@ -651,16 +659,15 @@ Object.assign(SKILL_FX, {
     ring: '#ffd38a',
     weaponGlow: '#ffd36a'
   },
-  schildstoss: {
-    color: '#ffd38a',
-    // goldener Schildabdruck steht vor der Figur
+  // Felsenfaust (seit 8.3): Fußring beim Ausholen, Staubstern beim Treffer
+  felsenfaust: {
+    color: '#c8a878',
     cast(p) {
-      addEffect({ type: 'shield3', x: p.x + p.facing.x * 30, y: feetY(p) + p.facing.y * 22, fx: p.facing.x, fy: p.facing.y, dur: 0.38, color: '#ffe9a0' });
+      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 30, dur: 0.3, color: '#c8a878', width: 4 });
     },
     hit(m) {
       const c = bodyCenter(m);
-      addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#ffe9a0', big: true });
-      addEffect({ type: 'ring', x: c.x, y: c.y, r: 30, dur: 0.35, color: '#ffd38a', width: 5, grow: true });
+      addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.3, color: '#e8d8b0', big: true });
     }
   },
   erdbeben: {
@@ -983,8 +990,8 @@ const ELEMENT3 = {
   knochen: { spark: '#f0e8d4', shard: '#e8e0c8' }
 };
 const SKILL_ELEMENT = {
-  dreifachschlag: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
-  sturmangriff: 'erde', schildstoss: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
+  sichelwelle: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
+  sprungschlag: 'erde', felsenfaust: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
   kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
   blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
@@ -996,8 +1003,8 @@ const SKILL_ELEMENT = {
 
 function skillSignature3(sk, p) {
   const el = SKILL_ELEMENT[sk.id];
-  // Blitzdrache und Blizzard haben ihren eigenen Auftritt (Drache, Schneesturm)
-  if (!el || sk.type === 'dragon' || sk.type === 'blizzard') return;
+  // Blitzdrache, Blizzard, Sichelwelle, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt
+  if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'wave' || sk.type === 'erupt' || sk.type === 'leap') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
   // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur

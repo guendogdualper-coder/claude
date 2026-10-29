@@ -19,6 +19,14 @@ const TEXT_STYLES = {
 };
 
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+// leicht über das Ziel hinaus und zurück (Felsen brechen hervor)
+const easeOutBack = (t) => 1 + 2.70158 * Math.pow(t - 1, 3) + 1.70158 * Math.pow(t - 1, 2);
+const smooth01 = (t) => { t = clamp01(t); return t * t * (3 - 2 * t); };
+// Höhe eines Sprungs (0 … 1) über den Anteil lk: Bogen, beim Sprungschlag schnelles Steigen und hartes Fallen
+function leapCurve(leap, lk) {
+  if (!leap.slam) return Math.sin(lk * Math.PI);
+  return lk < 0.55 ? Math.sin(lk / 0.55 * Math.PI / 2) : Math.cos((lk - 0.55) / 0.45 * Math.PI / 2);
+}
 const clamp01 = (t) => Math.max(0, Math.min(1, t));
 const rand = (a, b) => a + Math.random() * (b - a);
 
@@ -110,7 +118,7 @@ function withRank(rank, fn) {
     fxRank = prev;
   }
 }
-const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin']);
+const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin', 'wave3']);
 function rankLook(e) {
   if (fxRank < 0 || e.rank != null || !RANK_FX_TYPES.has(e.type)) return;
   e.rank = fxRank;

@@ -574,7 +574,7 @@ Game item icon for a 2D fantasy MMORPG: a faceted crystal potion bottle shaped l
 
 ### Fertigkeiten per langem Drücken tauschen
 ```
-Mobile game HUD close-up in landscape, dark fantasy style: five round skill buttons in an arc around a big red attack button; one skill button is lifted and enlarged with a bright white ring and a golden glow, a finger holds it and a dotted arrow shows it being dragged onto another slot, the other skill buttons gently wiggle; a small toast "Dreifachschlag angehoben: auf einen anderen Platz ziehen oder tippen". Clean game UI, bold outlines.
+Mobile game HUD close-up in landscape, dark fantasy style: five round skill buttons in an arc around a big red attack button; one skill button is lifted and enlarged with a bright white ring and a golden glow, a finger holds it and a dotted arrow shows it being dragged onto another slot, the other skill buttons gently wiggle; a small toast "Sichelwelle angehoben: auf einen anderen Platz ziehen oder tippen". Clean game UI, bold outlines.
 ```
 
 ### Fertigkeitsbücher für jede Fertigkeit
@@ -1744,4 +1744,29 @@ Status effect icons in 3D for a stylized toon MMORPG, top-down three-quarter vie
 ### Neue Merkmale einzelner Fertigkeiten
 ```
 Four skill moments in stylized 3D toon style, top-down three-quarter view: a golden round shield imprint flashing in front of a warrior (shield bash); a dark thundercloud with flickering light above an enemy, bolts striking down (thunderstorm); skeletal bone hands bursting from a green glowing ground and grabbing an enemy's legs (crippling curse); the ground cracking open with bone spikes and green smoke as two skeletons rise (raise dead).
+```
+
+## Neue Krieger-Attacken (Version 8.3)
+
+Drei Krieger-Attacken sind neu: Sichelwelle (statt Dreifachschlag), Sprungschlag (statt Sturmangriff) und
+Felsenfaust (statt Schildstoß). Merkmale und Werte stehen in `docs/grafik-prompts.md`, Abschnitt 9.3 und 9.4.
+
+### Sichelwelle
+```
+Stylized 3D toon MMORPG, top-down three-quarter camera, a warrior in plate armour performs CRESCENT WAVE: frame 1 a wide white cross slash in a 140° arc, frame 2 a short hop with the sword raised over the head, frame 3 the blade rammed into the ground with a white impact flash, a star crack and steel sparks, frame 4 an upright blue-white crescent of light (tilted 40° forward) racing away across the grass, leaving a soft light trail and a dark furrow; bandits on its path are knocked back. Clean shapes, readable at phone size, no text.
+```
+
+### Sprungschlag
+```
+Stylized 3D toon MMORPG, top-down three-quarter camera, a warrior performs LEAP SLAM in four frames: a short crouch with dust at the feet, a high arc forward with wind streaks and the sword held over the head with both hands, a hard fall, then the landing: the ground is pressed in like soft earth – a shallow bowl in the colour of the grass and soil, a ring of chunky brown earth clods pushed up around the rim, a few clods tumbling outward, dust and dark cracks, absolutely no fire and no explosion; three bandits at the rim are dazed with small yellow stars circling their heads. Clean shapes, readable at phone size, no text.
+```
+
+### Felsenfaust
+```
+Stylized 3D toon MMORPG, top-down three-quarter camera, a warrior performs ROCK FIST: he hops and punches the ground with the left fist, a dark crack with small rock spikes races in a straight line to a bandit, then with an uppercut motion a hexagonal stone pillar with a chunky rock fist on top bursts out of the ground right under the bandit and throws him into the air, stone wedges break open in a ring around the pillar and a thin golden light glows in the gap. Earthy sand and grey-brown rock colours, clean shapes, readable at phone size, no text.
+```
+
+### Krater im Detail
+```
+Close-up game asset render, stylized 3D toon: a landing crater on a grass meadow two seconds before it fades – a shallow round depression slightly darker than the grass, its rim made of 12 faceted low-poly earth clods in warm brown tones, six smaller clods outside, thin dark cracks radiating, a light dust haze. Matching soft toon shading, top-down three-quarter view, no characters, no text.
 ```
