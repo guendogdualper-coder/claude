@@ -1641,3 +1641,8 @@ Animation sheet, stylized 3D toon MMORPG, elevated three-quarter top-down view, 
 ```
 Stylized 3D toon MMORPG skill effect, elevated three-quarter view: over a group of monsters a large slowly rotating orange rune circle glows on the ground; ten glowing meteors with short fiery tails fall diagonally from the sky one after another, each casting a growing glow on the ground before impact; impacts burst into small ring shockwaves, sparks and scorch marks; warm orange light, ash in the air, readable on a phone.
 ```
+
+## Feuerhagel länger (Version 7.2)
+```
+Stylized 3D toon MMORPG skill effect, elevated three-quarter view, no rune circle on the ground: for three seconds a steady rain of 22 glowing meteors with short fiery tails falls diagonally from a darkening sky onto a group of monsters, one after another; each casts a growing orange glow on the ground before it hits and bursts into a small ring shockwave, sparks and a scorch mark. Smooth, continuous, readable on a phone.
+```

@@ -822,20 +822,18 @@ function dragonFx(p, tx, ty, sk, onHit) {
   return fly;
 }
 
-// Feuerhagel: der Boden im Zielgebiet glüht als Warnung, dann fallen die Brocken nacheinander;
+// Feuerhagel: nur Brocken, die gut drei Sekunden lang nacheinander vom Himmel fallen (ohne Runen am Boden);
 // onImpact(x, y, letzter) trifft (nur beim eigenen Wirken)
 function hailFx(x, y, sk, onImpact) {
-  const n = sk.meteors || 10;
+  const n = sk.meteors || 22;
   const fall = 0.42;
-  addEffect({ type: 'runes', x, y, r: sk.radius, dur: 0.6 + n * 0.11 + fall, color: '#ff6a2a' });
-  addEffect({ type: 'ring', x, y, r: sk.radius, dur: 0.5, color: '#ff9a4a', width: 6, grow: true });
   for (let k = 0; k < n; k++) {
     // erster Brocken in die Mitte, die anderen verteilt
     const a = Math.random() * Math.PI * 2;
     const d = k ? Math.sqrt(Math.random()) * sk.radius * 0.9 : 0;
     const cx = x + Math.cos(a) * d;
     const cy = y + Math.sin(a) * d * 0.8;
-    const delay = 0.12 + k * 0.11;
+    const delay = 0.05 + k * (sk.every || 0.15);
     later(delay, () => addEffect({ type: 'meteor3', x: cx, y: cy, fall, dur: fall + 0.1, size: k ? 0.9 + Math.random() * 0.3 : 1.3 }));
     later(delay + fall, () => {
       addEffect({ type: 'ring', x: cx, y: cy, r: sk.splash || 55, dur: 0.35, color: '#ffb04a', width: 6, grow: true });

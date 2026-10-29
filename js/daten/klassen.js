@@ -195,8 +195,8 @@ const CLASSES = {
           },
           {
             id: 'blitzschlag', name: 'Feuerhagel', short: 'FH', kind: 'angriff', unlock: 7, mp: 26, cooldown: 10,
-            type: 'blast', fx: 'hail', range: 320, radius: 130, meteors: 10, splash: 55, dmg: 0.65, color: '#ff6a2a', burn: { dps: 0.2, duration: 2 },
-            text: 'Über dem Ziel glüht der Himmel auf, dann prasseln zehn Feuerbrocken auf das ganze Gebiet. Jeder Einschlag trifft alle Gegner in seiner Nähe und setzt sie in Brand.'
+            type: 'blast', fx: 'hail', range: 320, radius: 140, meteors: 22, every: 0.15, splash: 55, dmg: 0.42, color: '#ff6a2a', burn: { dps: 0.2, duration: 2 },
+            text: 'Über dem Ziel prasseln gut drei Sekunden lang 22 Feuerbrocken vom Himmel. Jeder Einschlag trifft alle Gegner in seiner Nähe und setzt sie in Brand.'
           },
           {
             id: 'donnersturm', name: 'Donnersturm', short: 'DS', kind: 'angriff', unlock: 10, mp: 34, cooldown: 12,
