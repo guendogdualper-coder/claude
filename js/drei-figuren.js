@@ -886,10 +886,24 @@ function playerConfig3(p) {
 // --- Vierbeiner (Hunde, Wölfe, Eber, Bären, Drachen) ---------------------------------------------------
 // Tiefe Brust, schmale Hüfte, Hals, Kopf mit Schnauze und Unterkiefer, Ohren mit hellem Innenteil,
 // Fellbüschel, Beine mit Gelenk und Pfoten mit Zehen, buschiger Schwanz aus Gliedern.
+// Seit 7.9: zweifarbiges Fell (Rücken dunkler, Bauch heller), Mähne als Büschelkranz, Büschel an Nacken
+// und Schwanzspitze, Tieraugen mit Glanzpunkt; Besonderheiten einzelner Arten kommen aus MON3_LOOK.
+
+// schlichter Quader (12 Dreiecke) für dünne Leisten, Risse, Runen; Größe über s
+const box3 = () => geo3('box1', () => new THREE.BoxGeometry(1, 1, 1));
+
+// Teil so drehen, dass seine +y-Achse von p aus in Richtung d zeigt (Büschel, Zacken, Pfeile)
+const _up3 = new THREE.Vector3(0, 1, 0);
+function pointAt3(A, geo, color, p, d, o = {}) {
+  const q = new THREE.Quaternion().setFromUnitVectors(_up3, new THREE.Vector3(...d).normalize());
+  const s = o.s == null ? 1 : o.s;
+  A(geo, color, Object.assign({}, o, { m: new THREE.Matrix4().compose(new THREE.Vector3(...p), q, new THREE.Vector3(...(Array.isArray(s) ? s : [s, s, s]))) }));
+}
 
 function beast3(b, o, P) {
   const A = adder(b, P);
   const seg = (a, z, r1, r2, color, x) => limbBetween(A, a, z, r1, r2, color, x);
+  const tuft = (len, r, color, p, d, x) => pointAt3(A, horn3(len, r, 5), color, p, d, Object.assign({ noShadow: true }, x));
   const bulky = !!o.bulky;
   const boar = !!o.tusk && !o.wings && o.small;
   // lean: schlanke Hunde, Wölfe, Füchse (lange Läufe, schmaler Leib); cat: Katzen mit rundem Kopf
@@ -901,6 +915,9 @@ function beast3(b, o, P) {
   const fur = o.fur;
   const dark = darker(fur, 0.22);
   const belly = o.belly || lighter(fur, 0.2);
+  // zweifarbiges Fell: nach oben zeigende Flächen nehmen die dunklere Rückenfarbe an, der Bauch bleibt hell
+  const back = o.back || darker(fur, 0.3);
+  const coat = (x) => Object.assign({ top: back, topK: o.backK || 0.55, shade: 0.25 }, x);
   const rig = rigOf([
     [[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, bodyY + 0.16, len + 0.18], 1],
     [[0.15, bodyY - 0.05, len * 0.62], 1], [[-0.15, bodyY - 0.05, len * 0.62], 1], [[0.15, bodyY - 0.05, -len * 0.62], 1], [[-0.15, bodyY - 0.05, -len * 0.62], 1],
@@ -909,13 +926,15 @@ function beast3(b, o, P) {
   ]);
   const bw = bulky ? 1.3 : boar ? 1.15 : lean ? 0.84 : 1;
   // Rumpf: Brust vorn, Bauch, Hüfte hinten
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY + 0.03, len * 0.42], s: [0.26 * bw, 0.27 * bw, 0.3], shade: 0.25 });
-  A(ball(14), fur, { bone: BQ.body, p: [0, bodyY, -len * 0.05], s: [0.23 * bw, 0.23 * bw, len * 0.62], shade: 0.25 });
-  A(ball(14), fur, { bone: BQ.body, p: [0, bodyY + 0.02, -len * 0.55], s: [0.22 * bw, 0.22 * bw, 0.25], shade: 0.25 });
+  A(ball(16), fur, coat({ bone: BQ.body, p: [0, bodyY + 0.03, len * 0.42], s: [0.26 * bw, 0.27 * bw, 0.3] }));
+  A(ball(14), fur, coat({ bone: BQ.body, p: [0, bodyY, -len * 0.05], s: [0.23 * bw, 0.23 * bw, len * 0.62] }));
+  A(ball(14), fur, coat({ bone: BQ.body, p: [0, bodyY + 0.02, -len * 0.55], s: [0.22 * bw, 0.22 * bw, 0.25] }));
   A(ball(12), belly, { bone: BQ.body, p: [0, bodyY - (lean ? 0.06 : 0.1), len * 0.1], s: [0.18 * bw, lean ? 0.1 : 0.13, len * 0.7] });
-  if (lean) A(ball(14), fur, { bone: BQ.body, p: [0, bodyY - 0.04, len * 0.45], s: [0.2 * bw, 0.26, 0.22], shade: 0.25 });
+  if (lean) A(ball(14), fur, coat({ bone: BQ.body, p: [0, bodyY - 0.04, len * 0.45], s: [0.2 * bw, 0.26, 0.22] }));
+  // Schulterbuckel (Braunbär): die breiteste und höchste Stelle von oben
+  if (o.hump) A(ball(12), fur, coat({ bone: BQ.body, p: [0, bodyY + 0.2 * bw, len * 0.36], s: [0.2 * bw, 0.14, 0.24], topK: 0.7 }));
   // Fellzeichnung: dunkler Sattel (Schakal), Tupfen (Hyäne, Luchs), Streifen (Glutkatze)
-  if (o.saddleFur) A(ball(12), o.saddleFur, { bone: BQ.body, p: [0, bodyY + 0.1, -len * 0.05], s: [0.17 * bw, 0.16, len * 0.66] });
+  if (o.saddleFur) A(ball(12), o.saddleFur, { bone: BQ.body, p: [0, bodyY + 0.1, -len * 0.05], s: [0.17 * bw, 0.16, len * 0.66], top: lighter(o.saddleFur, 0.25), topK: 0.3 });
   if (o.spots) for (let k = 0; k < 16; k++) {
     // Tupfen verstreut auf Flanken und Rücken (fest gestreut, damit jedes Tier gleich aussieht)
     const sx = k % 2 ? 1 : -1;
@@ -923,31 +942,52 @@ function beast3(b, o, P) {
     const up = ((k * 53) % 7) / 7;
     A(sphere3(0.036 + (k % 3) * 0.008, 6, 4), o.spots, { bone: BQ.body, p: [sx * (0.2 - up * 0.08) * bw, bodyY - 0.04 + up * 0.22, z], s: [0.5, 1, 1.1] });
   }
-  if (o.stripes) for (let k = 0; k < 6; k++) A(torus3(0.215 * bw, 0.016, Math.PI * 0.9, 4, 12), o.stripes, { bone: BQ.body, p: [0, bodyY + 0.01, len * (0.35 - k * 0.17)], r: [0, Math.PI / 2, Math.PI * 0.05], mat: o.glowStripes ? 'glow' : 'lit' });
-  // Brustfell / Mähne als Büschel
+  // Querstreifen über den Rücken (Bögen um die Körperachse, von Flanke zu Flanke)
+  if (o.stripes) for (let k = 0; k < 6; k++) A(torus3((0.25 - Math.abs(k - 2) * 0.008) * bw, 0.018, Math.PI * 0.9, 4, 12), o.stripes, { bone: BQ.body, p: [0, bodyY + 0.01, len * (0.35 - k * 0.17)], r: [0, 0, Math.PI * 0.05], mat: o.glowStripes ? 'glow' : 'lit', noShadow: true });
+  // Rippen (ausgemergelte Hunde und Moorwölfe)
+  if (o.ribs) for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) A(torus3(0.205 * bw, 0.014, 1.1, 3, 6), darker(fur, 0.25), { bone: BQ.body, p: [0, bodyY - 0.01, len * (0.3 - k * 0.12)], r: [0, 0, sx > 0 ? -0.75 : Math.PI - 0.35], s: [1, 1.15, 1], noShadow: true });
+  // Fell am Hals aus flachen, nach hinten gelegten Büscheln: Brustfell, Nackenbüschel; Halskrause bzw.
+  // Mähne als dichter Kragen mit Büschelkranz (dunkle Mähne liegt von oben wie ein Kragen über den Schultern)
   const ruff = o.mane || o.ruff;
-  if (ruff || !o.small) for (let k = 0; k < 7; k++) {
-    const a = -0.9 + (k / 6) * 1.8;
-    A(horn3(0.16, 0.06, 5), ruff || lighter(fur, 0.12), { bone: BQ.body, p: [Math.sin(a) * 0.2 * bw, bodyY + 0.02 + Math.cos(a) * 0.08, len * 0.62], r: [1.9, 0, -a * 0.6], mat: o.glowMane && ruff === o.mane ? 'glow' : 'lit' });
+  const maneMat = o.glowMane ? 'glow' : 'lit';
+  const flat = (len, r, color, p, d, x) => tuft(len, r, color, p, d, Object.assign({ s: [1, 1, 0.5] }, x));
+  if (!o.small && !o.cat) for (let k = -2; k <= 2; k++) flat(0.13 - Math.abs(k) * 0.015, 0.055, k % 2 ? (o.ruff || belly) : lighter(o.ruff || belly, 0.06), [k * 0.065 * bw, bodyY - 0.02 + Math.abs(k) * 0.03, len * 0.68], [k * 0.35, -0.6, 1], { bone: BQ.body });
+  if (ruff) {
+    const big = o.mane ? 1.2 : 1;
+    A(ball(12), ruff, { bone: BQ.body, p: [0, bodyY + 0.1, len * 0.58], s: [0.21 * bw * big, 0.18 * bw * big, 0.17], top: o.mane ? darker(ruff, 0.15) : null, topK: 0.4, mat: maneMat });
+    const n = o.mane ? 7 : 5;
+    for (let k = 0; k < n; k++) {
+      const a = -1.5 + (k / (n - 1)) * 3;
+      flat(0.15 * big, 0.07, k % 2 ? ruff : darker(ruff, 0.12), [Math.sin(a) * 0.18 * bw * big, bodyY + 0.1 + Math.cos(a) * 0.15 * bw * big, len * 0.52], [Math.sin(a) * 0.5, 0.1, -1], { bone: BQ.body, mat: maneMat, s: [1, 1, 0.75] });
+    }
+    if (o.mane) for (let k = 0; k < 4; k++) {
+      const a = -1.2 + (k / 3) * 2.4;
+      flat(0.16, 0.065, k % 2 ? darker(ruff, 0.06) : ruff, [Math.sin(a) * 0.15 * bw, bodyY + 0.12 + Math.cos(a) * 0.12 * bw, len * 0.3], [Math.sin(a) * 0.4, 0.1, -1], { bone: BQ.body, mat: maneMat });
+    }
   }
-  if (o.ridge) for (let k = 0; k < 6; k++) A(horn3(boar ? 0.12 : 0.17, 0.045, 6), o.mane || dark, { bone: BQ.body, p: [0, bodyY + 0.21 * bw - Math.abs(k - 2.5) * 0.01, len * (0.55 - k * 0.22)], r: [-0.4, 0, 0] });
-  // Beine: vorn gerade, hinten mit Sprunggelenk; Pfoten mit drei Zehen
+  // Nackenbüschel oben auf dem Hals
+  if (!o.cat) for (let k = 0; k < 2; k++) flat(0.12, 0.05, ruff || back, [0, hp[1] - 0.005 - k * 0.06, hp[2] - 0.15 - k * 0.11], [0, 0.35, -1], { bone: BQ.neck, mat: maneMat });
+  // lodernde Mähne bis zur Rute (Höllenhund)
+  if (o.glowMane) for (let k = 0; k < 5; k++) tuft(0.2 - k * 0.025, 0.05, k % 2 ? o.mane : lighter(o.mane, 0.25), [0, bodyY + 0.2 * bw, len * (0.2 - k * 0.24)], [0, 1, -0.9], { bone: BQ.body, mat: 'glow' });
+  if (o.ridge) for (let k = 0; k < 6; k++) A(horn3(boar ? 0.12 : 0.17, 0.045, 6), o.mane || dark, { bone: BQ.body, p: [0, bodyY + 0.21 * bw - Math.abs(k - 2.5) * 0.01, len * (0.55 - k * 0.22)], r: [-0.4, 0, 0], noShadow: true });
+  // Beine: vorn gerade, hinten mit Sprunggelenk; Pfoten mit drei Zehen (Füchse mit schwarzen Socken)
+  const sock = o.socks || dark;
   for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
     const top = [sx * 0.15 * bw, bodyY - 0.05, sz * len * 0.62];
     const mid = [sx * 0.16 * bw, legLen * 0.48, sz * len * 0.62 + (sz < 0 ? -0.07 : 0.02)];
     const paw = [sx * 0.16 * bw, 0.05, sz * len * 0.62 + 0.02];
-    if (sz < 0) A(ball(10), fur, { bone, p: [top[0], top[1] - 0.04, top[2]], s: [0.1 * bw, 0.14, 0.13], shade: 0.2 });
+    if (sz < 0) A(ball(10), fur, coat({ bone, p: [top[0], top[1] - 0.04, top[2]], s: [0.1 * bw, 0.14, 0.13], shade: 0.2 }));
     seg(top, mid, (bulky ? 0.09 : 0.075) * bw, 0.06 * bw, sz > 0 ? fur : dark, { bone, shade: 0.15 });
-    seg(mid, paw, 0.06 * bw, 0.05 * bw, dark, { bone });
-    A(ball(10), dark, { bone, p: [paw[0], 0.045, paw[2] + 0.02], s: [0.075 * bw, 0.05, 0.095] });
-    for (const dx of [-0.035, 0, 0.035]) A(sphere3(0.026 * bw, 6, 4), darker(dark, 0.15), { bone, p: [paw[0] + dx * bw, 0.03, paw[2] + 0.09] });
+    seg(mid, paw, 0.06 * bw, 0.05 * bw, sock, { bone });
+    A(ball(10), sock, { bone, p: [paw[0], 0.045, paw[2] + 0.02], s: [(o.bigPaws ? 0.09 : 0.075) * bw, 0.05, o.bigPaws ? 0.11 : 0.095] });
+    for (const dx of [-0.035, 0, 0.035]) A(sphere3(0.026 * bw, 6, 4), darker(sock, 0.15), { bone, p: [paw[0] + dx * bw, 0.03, paw[2] + 0.09] });
   }
   // Hals und Kopf
-  seg([0, bodyY + 0.05, len * 0.55], [0, hp[1] - 0.04, hp[2] - 0.08], 0.15 * bw, 0.12 * bw, fur, { bone: BQ.neck });
-  A(ball(14), fur, { bone: BQ.head, p: hp, s: [0.18 * bw, 0.17 * bw, 0.18], shade: 0.15 });
+  seg([0, bodyY + 0.05, len * 0.55], [0, hp[1] - 0.04, hp[2] - 0.08], 0.15 * bw, 0.12 * bw, fur, { bone: BQ.neck, top: back, topK: 0.5 });
+  A(ball(14), fur, { bone: BQ.head, p: hp, s: [0.18 * bw, 0.17 * bw, 0.18], shade: 0.15, top: back, topK: 0.4 });
   // Schnauze: oben spitz zulaufend, Unterkiefer dunkler, schwarze Nase
   const muz = o.cat ? 0.12 : bulky ? 0.17 : boar ? 0.2 : o.muzzle || 0.26;
-  A(lathe3('muzzle' + muz, [[0, 0], [0.085, 0.02], [0.08, muz * 0.6], [0.055, muz], [0, muz + 0.005]], 12), o.snout || lighter(fur, 0.12), { bone: BQ.head, p: [0, hp[1] - 0.03, hp[2] + 0.08], r: [Math.PI / 2, 0, 0], s: [1.05 * bw, 1, 0.82] });
+  A(lathe3('muzzle' + muz, [[0, 0], [0.085, 0.02], [0.08, muz * 0.6], [0.055, muz], [0, muz + 0.005]], 12), o.snout || lighter(fur, 0.12), { bone: BQ.head, p: [0, hp[1] - 0.03, hp[2] + 0.08], r: [Math.PI / 2, 0, 0], s: [1.05 * bw, 1, 0.82], top: o.snout ? null : back, topK: 0.3 });
   // Unterkiefer am eigenen Glied (geht beim Ausholen auf), Maul innen dunkelrot, untere Zähne
   A(ball(10), '#5a1a18', { bone: BQ.head, p: [0, hp[1] - 0.075, hp[2] + 0.1 + muz * 0.4], s: [0.06 * bw, 0.025, muz * 0.4] });
   A(ball(10), darker(o.snout || fur, 0.2), { bone: 11, p: [0, hp[1] - 0.1, hp[2] + 0.12 + muz * 0.4], s: [0.07 * bw, 0.035, muz * 0.42] });
@@ -958,73 +998,140 @@ function beast3(b, o, P) {
   } else A(ball(10), '#1a1210', { bone: BQ.head, p: [0, hp[1] - 0.005, hp[2] + 0.1 + muz], s: [0.04, 0.032, 0.03], shine: 0.8 });
   A(roundBox(0.08, 0.008, muz * 0.6, 0.004), '#3a1a14', { bone: 11, p: [0, hp[1] - 0.075, hp[2] + 0.12 + muz * 0.4] });
   for (const sx of [-1, 1]) {
-    // Ohren: rund beim Bären, sonst spitz mit hellem Inneren
-    if (bulky && !o.wings && !boar) A(ball(10), dark, { bone: BQ.head, p: [sx * 0.13, hp[1] + 0.14, hp[2] - 0.05], s: [0.06, 0.06, 0.035] });
+    // Ohren: rund beim Bären, sonst spitz mit hellem Inneren; ein eingerissenes Knick-Ohr beim Wilden Hund
+    const ear = o.earBack || dark;
+    if ((bulky && !o.wings && !boar) || o.roundEars) A(ball(10), ear, { bone: BQ.head, p: [sx * (o.roundEars ? 0.11 : 0.13), hp[1] + 0.14, hp[2] - 0.05], s: o.roundEars ? [0.065, 0.075, 0.035] : [0.06, 0.06, 0.035] });
     else if (!o.noEars) {
-      A(horn3(o.small ? 0.11 : 0.16, 0.06, 6), dark, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.12, hp[2] - 0.04], r: [-0.25, 0, -sx * 0.35], s: [1, 1, 0.6] });
-      A(horn3(o.small ? 0.07 : 0.11, 0.035, 5), '#d8a8a0', { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.025], r: [-0.25, 0, -sx * 0.35], s: [1, 1, 0.4] });
+      const flop = o.floppy && sx < 0;
+      const er = flop ? [0.9, 0, -sx * 1.5] : [-0.25, 0, -sx * 0.35];
+      A(horn3(o.small ? 0.11 : 0.16, 0.06, 6), ear, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.12, hp[2] - 0.04], r: er, s: [1, flop ? 0.7 : 1, 0.6] });
+      A(horn3(o.small ? 0.07 : 0.11, 0.035, 5), '#d8a8a0', { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.025], r: er, s: [1, flop ? 0.7 : 1, 0.4] });
       if (o.tufts) A(horn3(0.08, 0.012, 4), o.tufts, { bone: BQ.head, p: [sx * 0.155, hp[1] + 0.27, hp[2] - 0.08], r: [-0.25, 0, -sx * 0.35] });
-      if (o.bigEars) A(horn3(0.2, 0.08, 6), dark, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.2, 0, -sx * 0.45], s: [1, 1, 0.5] });
+      if (o.bigEars) A(horn3(0.2, 0.08, 6), ear, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.2, 0, -sx * 0.45], s: [1, 1, 0.5] });
     }
-    // Augen: weiß, farbige Iris, schmale Pupille, böse Braue
+    // Augen: Tieraugen ohne viel Weiß – dunkler Lidrand, farbige Iris, Pupille, heller Glanzpunkt
     const eye = o.eye || '#3a2a1a';
     const ep = [sx * 0.095, hp[1] + 0.045, hp[2] + 0.14];
-    if (o.glow) A(ball(10), eye, { bone: BQ.head, p: ep, s: [0.045, 0.035, 0.025], mat: 'glow' });
+    if (o.glow) A(sphere3(1, 8, 6), eye, { bone: BQ.head, p: ep, s: [0.045, 0.033, 0.025], mat: 'glow' });
     else {
-      A(ball(10), '#f4efe2', { bone: BQ.head, p: ep, s: [0.045, 0.04, 0.03] });
-      A(ball(8), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.012], s: [0.032, 0.032, 0.02], shine: 0.6 });
-      A(ball(8), '#120c08', { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.022], s: [0.012, 0.026, 0.012] });
+      A(sphere3(1, 8, 6), '#1a120c', { bone: BQ.head, p: ep, s: [0.045, 0.038, 0.028] });
+      A(sphere3(1, 8, 6), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.008], s: [0.035, 0.031, 0.022], shine: 0.7 });
+      A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.021], s: o.cat || o.slit ? [0.007, 0.025, 0.01] : [0.014, 0.016, 0.01] });
     }
-    if (o.angry) A(roundBox(0.085, 0.022, 0.03, 0.01), '#1a1210', { bone: BQ.head, p: [ep[0], ep[1] + 0.045, ep[2] + 0.005], r: [0, 0, sx * 0.45] });
-    // Backenfell
+    A(sphere3(1, 6, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.01, ep[1] + 0.013, ep[2] + 0.024], s: 0.009, mat: 'glow' });
+    if (o.angry) A(box3(), '#1a1210', { bone: BQ.head, p: [ep[0], ep[1] + 0.045, ep[2] + 0.005], r: [0, 0, sx * 0.45], s: [0.085, 0.022, 0.03] });
+    // Backenfell (beim Luchs ein heller Backenbart aus zwei Büscheln)
     if (!boar) A(horn3(0.1, 0.045, 5), lighter(fur, 0.1), { bone: BQ.head, p: [sx * 0.15 * bw, hp[1] - 0.05, hp[2] + 0.02], r: [0, 0, -sx * 1.9], s: [1, 1, 0.6] });
-    if (o.fangs) A(horn3(0.07, 0.018, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.13 + muz * 0.6], r: [Math.PI, 0, 0] });
+    if (o.beard) tuft(0.13, 0.05, o.beard, [sx * 0.14 * bw, hp[1] - 0.09, hp[2] + 0.04], [sx, -0.7, -0.2], { bone: BQ.head });
+    if (o.fangs) A(horn3(0.07, 0.018, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.13 + muz * 0.6], r: [Math.PI, 0, 0], shine: 0.4 });
     if (o.tusk) A(horn3(boar ? 0.22 : 0.16, boar ? 0.04 : 0.03, 6), '#f4ecd8', { bone: BQ.head, p: [sx * 0.07, hp[1] - 0.07, hp[2] + 0.1 + muz * 0.7], r: [-0.7, 0, -sx * 0.45], shine: 0.4 });
-    if (o.horns) A(horn3(0.36, 0.06, 8), o.horns, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.08], r: [-1.0, 0, -sx * 0.35], shine: 0.4 });
+    if (o.horns) {
+      // Drachen: zwei große Hornzacken mit Ringen, dahinter eine Krone aus kleinen Zacken
+      A(horn3(0.36, 0.06, 6), o.horns, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.08], r: [-1.0, 0, -sx * 0.35], shine: 0.5 });
+      for (const t of [0.07, 0.14]) A(torus3(0.05 - t * 0.12, 0.009, Math.PI * 2, 3, 8), darker(o.horns, 0.25), { bone: BQ.head, p: [sx * (0.1 + t * 0.29), hp[1] + 0.13 + t * 0.54, hp[2] - 0.08 - t * 0.84], r: [-1.0 + Math.PI / 2, 0, -sx * 0.35], noShadow: true });
+      for (const k of [0.45, 0.95]) A(horn3(0.13, 0.03, 5), o.horns, { bone: BQ.head, p: [sx * Math.sin(k) * 0.16 * bw, hp[1] + 0.06 + Math.cos(k) * 0.08, hp[2] - 0.12], r: [-1.6, 0, -sx * k], shine: 0.5, noShadow: true });
+    }
   }
-  if (o.scar) A(roundBox(0.02, 0.15, 0.02, 0.008), '#d8a0a0', { bone: BQ.head, p: [0.08, hp[1] + 0.06, hp[2] + 0.16], r: [0, 0, 0.4] });
-  // Schwanz aus zwei Gliedern, buschig oder glatt
+  if (o.scar) A(box3(), '#d8a0a0', { bone: BQ.head, p: [0.08, hp[1] + 0.06, hp[2] + 0.16], r: [0, 0, 0.4], s: [0.02, 0.15, 0.02] });
+  // Schwanz aus zwei Gliedern, buschig oder glatt; an der Spitze ein Büschel
   if (o.tail !== false) {
     const t0 = [0, bodyY + 0.08, -len * 0.75];
-    const t1 = [0, bodyY + 0.2, -len - 0.12];
-    const t2 = [0, bodyY + 0.12, -len - 0.38];
+    const t1 = o.droop ? [0, bodyY - 0.05, -len - 0.08] : [0, bodyY + 0.2, -len - 0.12];
+    const t2 = o.droop ? [0, bodyY - 0.22, -len - 0.2] : [0, bodyY + 0.12, -len - 0.38];
     if (o.stub) {
       seg(t0, [0, bodyY + 0.16, -len - 0.1], 0.055, 0.045, fur, { bone: BQ.tail });
       A(ball(8), o.stub, { bone: BQ.tail, p: [0, bodyY + 0.17, -len - 0.12], s: [0.045, 0.045, 0.05] });
     } else if (o.longTail) {
       const t3 = [0, bodyY + 0.02, -len - 0.62];
       const t4 = [0, bodyY + 0.16, -len - 0.8];
-      seg(t0, t1, 0.05, 0.045, fur, { bone: BQ.tail });
-      seg(t1, t2, 0.045, 0.04, fur, { bone: BQ.tail });
-      seg(t2, t3, 0.04, 0.035, fur, { bone: BQ.tail });
-      seg(t3, t4, 0.035, 0.02, o.tailTip || fur, { bone: BQ.tail });
+      seg(t0, t1, 0.05, 0.045, fur, { bone: BQ.tail, top: back, topK: 0.5 });
+      seg(t1, t2, 0.045, 0.04, fur, { bone: BQ.tail, top: back, topK: 0.5 });
+      seg(t2, t3, 0.04, 0.035, fur, { bone: BQ.tail, top: back, topK: 0.5 });
+      seg(t3, t4, 0.035, 0.02, o.tailTip || fur, { bone: BQ.tail, mat: o.glowStripes && o.tailTip ? 'glow' : 'lit' });
+      tuft(0.08, 0.035, o.tailTip || back, t4, [0, 0.6, -1], { bone: BQ.tail, mat: o.glowStripes && o.tailTip ? 'glow' : 'lit' });
     } else if (o.bushy) {
-      seg(t0, t1, 0.06, 0.09, fur, { bone: BQ.tail });
-      seg(t1, t2, 0.09, o.tailTip ? 0.08 : 0.03, lighter(fur, 0.08), { bone: BQ.tail });
+      seg(t0, t1, 0.06, 0.09, fur, { bone: BQ.tail, top: back, topK: 0.55 });
+      seg(t1, t2, 0.09, o.tailTip ? 0.08 : 0.05, lighter(fur, 0.08), { bone: BQ.tail, top: back, topK: 0.55 });
       if (o.tailTip) A(horn3(0.14, 0.08, 6), o.tailTip, { bone: BQ.tail, p: t2, r: [-1.9, 0, 0] });
+      else tuft(0.13, 0.06, back, t2, [0, -0.35, -1], { bone: BQ.tail });
+      // Fell steht seitlich ab
+      for (const sx of [-1, 1]) tuft(0.1, 0.045, fur, t1, [sx, 0.3, -0.8], { bone: BQ.tail });
     } else if (o.wings) {
-      seg(t0, t1, 0.08, 0.06, fur, { bone: BQ.tail });
-      seg(t1, t2, 0.06, 0.025, fur, { bone: BQ.tail });
-      for (const t of [t1, t2]) A(horn3(0.1, 0.03, 5), o.mane || dark, { bone: BQ.tail, p: [t[0], t[1] + 0.05, t[2]], r: [-0.4, 0, 0] });
+      seg(t0, t1, 0.08, 0.06, fur, { bone: BQ.tail, top: back, topK: 0.5 });
+      seg(t1, t2, 0.06, 0.025, fur, { bone: BQ.tail, top: back, topK: 0.5 });
+      for (const t of [t1, t2]) A(horn3(0.1, 0.03, 5), o.mane || dark, { bone: BQ.tail, p: [t[0], t[1] + 0.05, t[2]], r: [-0.4, 0, 0], noShadow: true });
+      // Schwanzende: Klinge aus Obsidian (Weltendrache) bzw. Pfeilspitze
+      pointAt3(A, horn3(o.tailBlade ? 0.26 : 0.14, o.tailBlade ? 0.07 : 0.05, 4), o.tailBlade || back, t2, [0, -0.3, -1], { bone: BQ.tail, s: [1, 1, 0.35], shine: o.tailBlade ? 1 : 0.3 });
     } else {
       seg(t0, t1, 0.04, 0.03, fur, { bone: BQ.tail });
-      seg(t1, t2, 0.03, 0.015, fur, { bone: BQ.tail });
+      seg(t1, t2, 0.03, 0.02, fur, { bone: BQ.tail });
+      tuft(0.07, 0.03, back, t2, o.droop ? [0, -1, -0.3] : [0, -0.3, -1], { bone: BQ.tail });
     }
   }
-  // Drachenflügel mit Fingerknochen und Bauchschuppen
+  // Drachenflügel mit Fingerknochen, Daumenkralle und Bauchschuppen
   if (o.wings) {
     for (const [sx, bone] of [[1, BQ.wingL], [-1, BQ.wingR]]) {
       A(limb3(0.6, 0.04, 0.022, 6), darker(o.wings, 0.3), { bone, p: [sx * 0.14, bodyY + 0.2, 0.05], r: [0, 0, sx * 2.0] });
-      for (const a of [0.35, 0.8]) A(limb3(0.45, 0.018, 0.01, 5), darker(o.wings, 0.3), { bone, p: [sx * 0.55, bodyY + 0.42, 0.05], r: [0, 0, sx * (Math.PI - a)] });
+      for (const a of [0.35, 0.8]) A(limb3(0.45, 0.018, 0.01, 5), darker(o.wings, 0.3), { bone, p: [sx * 0.55, bodyY + 0.42, 0.05], r: [0, 0, sx * (Math.PI - a)], noShadow: true });
       A(wingGeo(), o.wings, { bone, p: [sx * 0.14, bodyY + 0.2, 0.0], s: [sx * 1.25, 1.25, 1.25] });
+      A(horn3(0.08, 0.022, 5), '#f0e8d4', { bone, p: [sx * 0.56, bodyY + 0.44, 0.06], r: [0.3, 0, -sx * 0.5], shine: 0.6, noShadow: true });
     }
     for (let k = 0; k < 4; k++) A(torus3(0.17, 0.02, Math.PI * 0.8, 4, 10), belly, { bone: BQ.body, p: [0, bodyY - 0.05, len * (0.4 - k * 0.25)], r: [0, 0, Math.PI * 1.1] });
   }
+  // Besonderheiten einzelner Arten (MON3_LOOK); topY: Höhe der Rückenlinie
+  const topY = bodyY + 0.21 * bw;
+  const legs = [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]];
+  // Ascheflecken (Warg)
+  if (o.ash) for (let k = 0; k < 7; k++) A(sphere3(1, 6, 4), k % 2 ? o.ash : lighter(o.ash, 0.15), { bone: BQ.body, p: [((k * 3) % 5 - 2) * 0.05 * bw, topY - 0.015, len * (0.55 - k * 0.2)], s: [0.05, 0.016, 0.045], noShadow: true });
+  // Moorwolf: Algen und Wasserlinsen auf dem Rücken, nasse Strähnen unter dem Bauch, grüner Schleim am Maul
+  if (o.algae) {
+    for (const [x, z, s] of [[0.05, 0.4, 0.09], [-0.07, -0.05, 0.1], [0.04, -0.5, 0.08]]) A(ball(8), o.algae, { bone: BQ.body, p: [x * bw, topY - 0.025, len * z], s: [s * bw, 0.025, s * 1.4], top: lighter(o.algae, 0.25), topK: 0.6, noShadow: true });
+    for (let k = 0; k < 4; k++) A(sphere3(0.018, 6, 4), '#a8d860', { bone: BQ.body, p: [((k * 7) % 5 - 2) * 0.04 * bw, topY - 0.005, len * (0.45 - k * 0.28)], s: [1, 0.4, 1], noShadow: true });
+    for (let k = 0; k < 4; k++) tuft(0.12, 0.035, darker(fur, 0.2), [(k % 2 ? 1 : -1) * 0.11 * bw, bodyY - 0.13, len * (0.4 - Math.floor(k / 2) * 0.35)], [0, -1, -0.25], { bone: BQ.body });
+    for (const sx of [-1, 1]) A(horn3(0.07, 0.014, 4), o.slime || '#9be07a', { bone: 11, p: [sx * 0.04, hp[1] - 0.12, hp[2] + 0.14 + muz * 0.5], r: [Math.PI, 0, 0], mat: 'glow' });
+  }
+  // Fenris: zerrissene Eisenfesseln mit Kettenresten an allen Läufen, eingebrannte Rune auf der Stirn
+  if (o.shackles) for (const [bone, sx, sz] of legs) {
+    const x = sx * 0.16 * bw;
+    const z = sz * len * 0.62 + 0.02;
+    const y = legLen * 0.3;
+    A(torus3(0.07 * bw, 0.022, Math.PI * 2, 4, 10), o.shackles, { bone, p: [x, y, z], r: [Math.PI / 2, 0, 0], shine: 0.8, noShadow: true });
+    for (let k = 0; k < 2; k++) A(torus3(0.032, 0.01, Math.PI * 2, 3, 8), o.shackles, { bone, p: [x + sx * 0.03, y - 0.03 - k * 0.05, z - 0.07], r: [0, k ? Math.PI / 2 : 0, 0.3], shine: 0.8, noShadow: true });
+  }
+  if (o.rune) {
+    A(torus3(0.04, 0.009, Math.PI * 2, 3, 10), o.rune, { bone: BQ.head, p: [0, hp[1] + 0.1, hp[2] + 0.13], r: [-0.5, 0, 0], mat: 'glow' });
+    A(box3(), o.rune, { bone: BQ.head, p: [0, hp[1] + 0.1, hp[2] + 0.135], r: [-0.5, 0, 0], mat: 'glow', s: [0.012, 0.1, 0.01] });
+  }
+  // Ursus: ein kleiner Wald auf dem Schulterbuckel (Moos, Farne, zwei junge Bäume), Wurzelkrone,
+  // abgebrochene Pfeile und Speere in der Flanke
+  if (o.forest) {
+    const hy = topY + 0.05;
+    A(ball(10), '#4f7a32', { bone: BQ.body, p: [0, hy - 0.02, len * 0.3], s: [0.24 * bw, 0.06, 0.3], top: '#7aa84a', topK: 0.6 });
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      tuft(0.16, 0.035, k % 2 ? '#5a9a3a' : '#3e7a2e', [Math.cos(a) * 0.14 * bw, hy, len * 0.3 + Math.sin(a) * 0.16], [Math.cos(a), 0.9, Math.sin(a)], { bone: BQ.body, s: [1, 1, 0.4] });
+    }
+    for (const [x, z, h] of [[0.1, 0.42, 0.36], [-0.12, 0.2, 0.28]]) {
+      A(limb3(h, 0.022, 0.016, 5), '#5a3a22', { bone: BQ.body, p: [x * bw, hy + h - 0.04, len * z] });
+      A(ball(8), '#3e6a2a', { bone: BQ.body, p: [x * bw, hy + h - 0.02, len * z], s: [0.09, 0.11, 0.09], top: '#6a9a3a', topK: 0.5 });
+      A(ball(8), '#4f7a32', { bone: BQ.body, p: [x * bw + 0.02, hy + h + 0.1, len * z], s: [0.06, 0.08, 0.06], top: '#7aaa4a', topK: 0.5 });
+    }
+    for (let k = -2; k <= 2; k++) A(horn3(0.14 - Math.abs(k) * 0.02, 0.022, 5), '#5a3a22', { bone: BQ.head, p: [k * 0.05, hp[1] + 0.15, hp[2] - 0.05 - Math.abs(k) * 0.02], r: [-0.3, 0, -k * 0.35], noShadow: true });
+    for (const [x, y, z, d] of [[1, 0.0, 0.0, [0.8, 0.45, 0.2]], [1, -0.05, -0.25, [0.9, 0.3, -0.3]], [-1, 0.02, -0.1, [-0.8, 0.5, 0.1]]]) {
+      const p = [x * 0.2 * bw, bodyY + y, len * z];
+      pointAt3(A, limb3(0.26, 0.01, 0.01, 4), '#8a6a44', p, d.map((v) => -v), { bone: BQ.body, noShadow: true });
+      pointAt3(A, box3(), '#e8e0cc', [p[0] + d[0] * 0.23, p[1] + d[1] * 0.23, p[2] + d[2] * 0.23], d, { bone: BQ.body, noShadow: true, s: [0.05, 0.04, 0.008] });
+    }
+  }
+  // Urdrache: Goldmünzen aus dem Hort kleben auf dem Rücken, Glut zwischen den Schuppen
+  if (o.coins) for (let k = 0; k < 9; k++) A(cyl3(0.03, 0.03, 0.008, 8), k % 3 ? o.coins : lighter(o.coins, 0.2), { bone: BQ.body, p: [((k * 5) % 7 - 3) * 0.04 * bw, topY - 0.02, len * (0.5 - k * 0.12)], r: [((k * 3) % 5 - 2) * 0.2, 0, ((k * 7) % 5 - 2) * 0.2], shine: 1, noShadow: true });
+  // Weltendrache: glühende Magmaadern auf Flanken und Rücken
+  if (o.magma) for (const sx of [-1, 1]) for (let k = 0; k < 4; k++) A(box3(), k % 2 ? o.magma : lighter(o.magma, 0.3), { bone: BQ.body, p: [sx * (0.12 + (k % 2) * 0.05) * bw, topY - 0.04 - (k % 2) * 0.05, len * (0.45 - k * 0.3)], r: [0.6 + (k % 2) * 0.5, 0, sx * 0.9], mat: 'glow', s: [0.018, 0.2, 0.018] });
   if (o.saddle) {
     A(roundBox(0.38, 0.08, 0.36, 0.04), o.saddle, { bone: BQ.body, p: [0, bodyY + 0.25, -0.02] });
     A(roundBox(0.42, 0.14, 0.04, 0.02), darker(o.saddle, 0.3), { bone: BQ.body, p: [0, bodyY + 0.2, 0.12] });
   }
-  return { rig, height: bodyY + 0.42, family: 'beast', bodyY, jaw: true };
+  return { rig, height: bodyY + 0.42, family: 'beast', bodyY, jaw: true, len, bw, hp, legLen };
 }
 
 // Pferd (neu in 7.3): echte Pferde-Anatomie – tiefe Brust, Widerrist, runde Kruppe, gebogener Hals,
@@ -1155,117 +1262,217 @@ function horseParts3(b, unused, o = {}) {
 
 // --- Spinne, Skorpion, Geist, Schlange, Naga, Golem ------------------------------------------------
 
+// Spinne (seit 7.9): glänzender Panzer mit Rillen, Haare und helle Gelenkringe an den Beinen, Augenpaare mit
+// Glanzpunkt, Gift an den Kieferklauen. o.legs / o.abd: Länge der Beine bzw. Größe des Hinterleibs je Art.
 function spider3(b, o) {
   const A = adder(b, null);
   const legC = darker(o.body, 0.25);
+  const L = o.legs || 1;
+  const ab = o.abd || 1;
   const bodyY = 0.42;
   const list = [[[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, bodyY + 0.02, 0.28], 1]];
   for (let k = 0; k < 8; k++) list.push([[(k % 2 ? -1 : 1) * 0.16, bodyY, 0.22 - Math.floor(k / 2) * 0.12], 1]);
   const rig = rigOf(list);
-  // Hinterleib mit Streifen und Haaren
-  A(ball(16), o.body, { bone: 1, p: [0, bodyY + 0.1, -0.34], s: [0.36, 0.31, 0.43], shade: 0.25, shine: 0.25 });
-  for (let k = 0; k < 3; k++) A(torus3(0.3 - k * 0.04, 0.025, Math.PI, 4, 12), o.mark, { bone: 1, p: [0, bodyY + 0.12, -0.2 - k * 0.14], r: [0, Math.PI / 2, 0], s: [1, 1, 1] });
-  A(ball(10), o.mark, { bone: 1, p: [0, bodyY + 0.37, -0.36], s: [0.13, 0.05, 0.16] });
+  // Hinterleib: glänzend, oben heller, mit Querbändern und Zeichnung (leuchtet bei Höhlenspinnen)
+  const az = -0.34 - (ab - 1) * 0.2;
+  const markMat = o.glowMark ? 'glow' : 'lit';
+  A(ball(16), o.body, { bone: 1, p: [0, bodyY + 0.1 * ab, az], s: [0.36 * ab, 0.31 * ab, 0.43 * ab * (o.egg || 1)], shade: 0.25, shine: 0.5, top: lighter(o.body, 0.18), topK: 0.5 });
+  for (let k = 0; k < 3; k++) A(torus3((0.3 - k * 0.04) * ab, 0.025, Math.PI, 4, 12), o.mark, { bone: 1, p: [0, bodyY + 0.12 * ab, az + (0.14 - k * 0.14) * ab], r: [0, Math.PI / 2, 0], mat: markMat });
+  A(ball(10), o.mark, { bone: 1, p: [0, bodyY + 0.37 * ab, az - 0.02], s: [0.13 * ab, 0.05, 0.16 * ab], mat: markMat });
+  // Keilzeichnung bzw. Kronenmuster auf dem Rücken des Hinterleibs
+  for (let k = 0; k < 3; k++) A(roundBox(0.05 * ab, 0.02, 0.12 * ab, 0.01), o.mark, { bone: 1, p: [(k - 1) * 0.07 * ab, bodyY + 0.36 * ab - Math.abs(k - 1) * 0.03, az - 0.16 * ab - Math.abs(k - 1) * 0.04], r: [0.25, 0, (k - 1) * 0.5], mat: markMat, noShadow: true });
+  // Sprenkel (Giftspeierin)
+  if (o.speckle) for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    const u = 0.35 + ((k * 37) % 9) / 18;
+    A(sphere3(0.026, 6, 4), o.speckle, { bone: 1, p: [Math.cos(a) * 0.3 * ab * u, bodyY + 0.12 * ab + 0.28 * ab * Math.sqrt(1 - u * u), az + Math.sin(a) * 0.36 * ab * u], mat: 'glow', noShadow: true });
+  }
   for (let k = 0; k < 10; k++) {
     const a = (k / 10) * Math.PI * 2;
-    A(horn3(0.08, 0.016, 4), legC, { bone: 1, p: [Math.cos(a) * 0.33, bodyY + 0.12 + Math.sin(k) * 0.1, -0.34 + Math.sin(a) * 0.36], r: [Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2] });
+    A(horn3(0.08, 0.016, 4), legC, { bone: 1, p: [Math.cos(a) * 0.33 * ab, bodyY + (0.12 + Math.sin(k) * 0.1) * ab, az + Math.sin(a) * 0.36 * ab], r: [Math.sin(a) * 1.2, 0, -Math.cos(a) * 1.2], noShadow: true });
   }
-  // Kopfbruststück, Augenhaufen, Klauen
-  A(ball(14), lighter(o.body, 0.08), { bone: 1, p: [0, bodyY + 0.02, 0.12], s: [0.22, 0.18, 0.24], shade: 0.2 });
-  A(ball(12), lighter(o.body, 0.12), { bone: 2, p: [0, bodyY + 0.06, 0.32], s: [0.13, 0.11, 0.1] });
+  // Kopfbruststück: glänzender Panzer mit Rillen, die von der Mitte ausgehen; Augenhügel, Klauen
+  A(ball(14), lighter(o.body, 0.08), { bone: 1, p: [0, bodyY + 0.02, 0.12], s: [0.22, 0.18, 0.24], shade: 0.2, shine: 0.6, top: lighter(o.body, 0.25), topK: 0.4 });
+  for (const a of [-1.1, -0.4, 0.4, 1.1]) A(box3(), darker(o.body, 0.35), { bone: 1, p: [Math.sin(a) * 0.09, bodyY + 0.18, 0.1 + Math.cos(a) * 0.02], r: [0.15, a, 0], noShadow: true, s: [0.016, 0.012, 0.13] });
+  A(ball(12), lighter(o.body, 0.12), { bone: 2, p: [0, bodyY + 0.06, 0.32], s: [0.13, 0.11, 0.1], shine: 0.5 });
   const eyes = [[-0.05, 0.1, 1.2], [0.05, 0.1, 1.2], [-0.1, 0.07, 0.8], [0.1, 0.07, 0.8], [-0.03, 0.15, 0.7], [0.03, 0.15, 0.7], [-0.13, 0.12, 0.6], [0.13, 0.12, 0.6]];
   for (const [x, y, s] of eyes) A(sphere3(0.022 * s, 7, 5), o.eye, { bone: 2, p: [x, bodyY + y, 0.4], mat: 'glow' });
+  for (const [x, y, s] of eyes.slice(0, 4)) A(sphere3(0.007 * s, 6, 4), '#ffffff', { bone: 2, p: [x - 0.006, bodyY + y + 0.009 * s, 0.4 + 0.017 * s], mat: 'glow' });
+  // Chitinkrone um die Augen (Spinnenkönigin)
+  if (o.crownSpikes) for (let k = 0; k < 6; k++) {
+    const a = -1.2 + (k / 5) * 2.4;
+    A(horn3(0.16 - Math.abs(a) * 0.03, 0.03, 5), o.crownSpikes, { bone: 2, p: [Math.sin(a) * 0.12, bodyY + 0.13, 0.32 - Math.cos(a) * 0.04], r: [-0.4, 0, -a * 0.5], shine: 0.6 });
+  }
   for (const sx of [-1, 1]) {
     limbBetween(A, [sx * 0.05, bodyY - 0.02, 0.38], [sx * 0.04, bodyY - 0.12, 0.46], 0.03, 0.02, '#2a2018', { bone: 2 });
-    A(horn3(0.08, 0.02, 5), '#e8e0cc', { bone: 2, p: [sx * 0.04, bodyY - 0.12, 0.46], r: [Math.PI - 0.6, 0, 0] });
+    A(horn3(0.08, 0.02, 5), '#e8e0cc', { bone: 2, p: [sx * 0.04, bodyY - 0.12, 0.46], r: [Math.PI - 0.6, 0, 0], shine: 0.6 });
+    // Gifttropfen an der Klauenspitze
+    A(sphere3(0.018, 6, 4), o.venom || o.mark, { bone: 2, p: [sx * 0.04, bodyY - 0.19, 0.5], s: [1, 1.4, 1], mat: 'glow' });
   }
+  // Beine: drei Glieder, Gelenkkugeln mit hellem Ring, Haare am Oberschenkel
+  const joint = o.joint || lighter(o.body, 0.35);
   for (let k = 0; k < 8; k++) {
     const sx = k % 2 ? -1 : 1;
     const row = Math.floor(k / 2);
     const z = 0.22 - row * 0.12;
     const spread = [0.75, 0.25, -0.25, -0.75][row];
-    const knee = [sx * 0.5, bodyY + 0.26, z + spread * 0.42];
-    const ankle = [sx * 0.7, 0.16, z + spread * 0.72];
-    const foot = [sx * 0.8, 0.02, z + spread * 0.85];
-    limbBetween(A, [sx * 0.14, bodyY, z], knee, 0.048, 0.04, legC, { bone: 3 + k, seg: 6 });
-    limbBetween(A, knee, ankle, 0.04, 0.03, legC, { bone: 3 + k, seg: 6 });
-    limbBetween(A, ankle, foot, 0.03, 0.015, o.body, { bone: 3 + k, seg: 6 });
-    A(sphere3(0.045, 7, 5), o.body, { bone: 3 + k, p: knee });
-    A(sphere3(0.034, 7, 5), legC, { bone: 3 + k, p: ankle });
+    const knee = [sx * 0.5 * L, bodyY + 0.26 * (0.6 + 0.4 * L), z + spread * 0.42 * L];
+    const ankle = [sx * 0.7 * L, 0.16, z + spread * 0.72 * L];
+    const foot = [sx * 0.8 * L, 0.02, z + spread * 0.85 * L];
+    const th = o.legR || 1;
+    const bone = 3 + k;
+    limbBetween(A, [sx * 0.14, bodyY, z], knee, 0.048 * th, 0.04 * th, legC, { bone, seg: 6 });
+    limbBetween(A, knee, ankle, 0.04 * th, 0.03 * th, legC, { bone, seg: 6 });
+    limbBetween(A, ankle, foot, 0.03 * th, 0.015 * th, o.body, { bone, seg: 6 });
+    A(sphere3(0.045 * th, 7, 5), o.body, { bone, p: knee, shine: 0.4 });
+    A(sphere3(0.034 * th, 7, 5), legC, { bone, p: ankle });
+    A(torus3(0.036 * th, 0.012, Math.PI * 2, 3, 8), joint, { bone, p: [knee[0] * 0.92, knee[1] - 0.02, knee[2] * 0.92 + z * 0.08], r: [Math.PI / 2, 0, sx * 0.6], noShadow: true });
+    for (const u of [0.35, 0.7]) {
+      const h = [sx * 0.14 + (knee[0] - sx * 0.14) * u, bodyY + (knee[1] - bodyY) * u + 0.03, z + (knee[2] - z) * u];
+      A(horn3(0.07 * th, 0.012, 3), legC, { bone, p: h, r: [spread * 0.4, 0, -sx * 0.5], noShadow: true });
+    }
   }
-  return { rig, height: bodyY + 0.45, family: 'spider', bodyY };
+  // Eikokons und Netzfäden am Hinterleib (Spinnenkönigin)
+  if (o.cocoons) for (const [x, z] of [[-0.18, -0.12], [0.16, -0.2], [0, -0.3]]) {
+    const p = [x * ab, bodyY - 0.12, az + z * ab - 0.1];
+    limbBetween(A, [x * ab * 0.8, bodyY + 0.02, az + z * ab * 0.8], p, 0.006, 0.006, '#e8e8f0', { bone: 1, seg: 3, noShadow: true });
+    A(ball(8), '#ece6dc', { bone: 1, p: [p[0], p[1] - 0.05, p[2]], s: [0.05, 0.07, 0.05], shade: 0.2, noShadow: true });
+  }
+  return { rig, height: bodyY + 0.45 * ab, family: 'spider', bodyY, ab, az };
 }
 
+// Skorpion (seit 7.9 mit dunklen Plattenkanten, Kopfschild mit Augenpunkten, gezähnten Scheren, Ringen am
+// Schwanz und vier Beinpaaren; das vierte Paar hängt an den Knochen des dritten)
 function scorpion3(b, o) {
   const A = adder(b, null);
   const bodyY = 0.3;
   const shell = darker(o.body, 0.12);
+  const rim = darker(o.body, 0.4);
   const list = [[[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, bodyY, 0.32], 1], [[0, bodyY + 0.05, -0.3], 1]];
   for (let k = 0; k < 6; k++) list.push([[(k % 2 ? -1 : 1) * 0.16, bodyY, 0.12 - Math.floor(k / 2) * 0.14], 1]);
   const rig = rigOf(list);
-  // Rumpf aus überlappenden Panzerplatten
-  for (let k = 0; k < 4; k++) A(ball(14), k % 2 ? o.body : shell, { bone: 1, p: [0, bodyY + 0.02, 0.18 - k * 0.14], s: [0.27 - k * 0.02, 0.13, 0.12], shade: 0.25, shine: 0.4 });
-  // Schwanz aus Gliedern, die nach oben einrollen, mit leuchtendem Stachel
+  // Rumpf aus überlappenden Panzerplatten mit dunkler Kante und Mittelgrat
+  for (let k = 0; k < 4; k++) {
+    const z = 0.18 - k * 0.14;
+    const w = 0.27 - k * 0.02;
+    A(ball(14), k % 2 ? o.body : shell, { bone: 1, p: [0, bodyY + 0.02, z], s: [w, 0.13, 0.12], shade: 0.25, shine: 0.5, top: lighter(o.body, 0.15), topK: 0.4 });
+    A(torus3(w * 0.92, 0.014, Math.PI, 3, 10), rim, { bone: 1, p: [0, bodyY + 0.02, z - 0.085], s: [1, 0.5, 1], noShadow: true });
+  }
+  A(box3(), lighter(o.body, 0.2), { bone: 1, p: [0, bodyY + 0.145, -0.02], shine: 0.6, noShadow: true, s: [0.03, 0.02, 0.5] });
+  // Kopfschild mit zwei schwarzen Mittelaugen und seitlichen Augenpunkten
+  A(ball(12), shell, { bone: 1, p: [0, bodyY + 0.04, 0.27], s: [0.17, 0.09, 0.1], shine: 0.5, top: lighter(o.body, 0.2), topK: 0.5 });
+  // Schwanz aus Gliedern, die nach oben einrollen, mit dunklen Ringen und leuchtendem Stachel
   let prev = [0, bodyY + 0.06, -0.32];
   for (let k = 0; k < 5; k++) {
     const a = 0.4 + k * 0.42;
     const next = [0, bodyY + 0.06 + Math.sin(a) * 0.16 * (k + 1) * 0.55, -0.32 - Math.cos(a) * 0.14 * (k + 1) * 0.5];
-    A(ball(10), k % 2 ? o.body : shell, { bone: 3, p: next, s: [0.1 - k * 0.008, 0.09 - k * 0.008, 0.1 - k * 0.008], shine: 0.4 });
+    const r = 0.1 - k * 0.008;
+    A(ball(10), k % 2 ? o.body : shell, { bone: 3, p: next, s: [r, 0.09 - k * 0.008, r], shine: 0.5, top: lighter(o.body, 0.15), topK: 0.4 });
+    A(torus3(r * 0.85, 0.012, Math.PI * 2, 3, 10), rim, { bone: 3, p: [(prev[0] + next[0]) / 2, (prev[1] + next[1]) / 2, (prev[2] + next[2]) / 2], r: [a, 0, 0], noShadow: true });
     prev = next;
   }
   A(ball(10), o.sting, { bone: 3, p: [0, prev[1] + 0.06, prev[2] + 0.08], s: [0.07, 0.09, 0.07], mat: 'glow' });
-  A(horn3(0.17, 0.035, 6), '#2a2018', { bone: 3, p: [0, prev[1] + 0.06, prev[2] + 0.12], r: [2.4, 0, 0] });
-  // Scheren: Arm, Schere oben und beweglicher Finger
+  A(horn3(0.17, 0.035, 6), '#2a2018', { bone: 3, p: [0, prev[1] + 0.06, prev[2] + 0.12], r: [2.4, 0, 0], shine: 0.8 });
+  A(sphere3(0.022, 6, 4), lighter(o.sting, 0.4), { bone: 3, p: [0, prev[1] + 0.02, prev[2] + 0.25], mat: 'glow' });
+  // Scheren: Arm, Schere oben und beweglicher Finger, Zähne an der Innenkante
   for (const sx of [-1, 1]) {
-    limbBetween(A, [sx * 0.15, bodyY, 0.22], [sx * 0.28, bodyY + 0.04, 0.42], 0.05, 0.045, o.body, { bone: 2 });
-    A(ball(12), shell, { bone: 2, p: [sx * 0.3, bodyY + 0.05, 0.56], s: [0.08, 0.06, 0.13], shine: 0.4 });
-    A(horn3(0.14, 0.035, 6), o.body, { bone: 2, p: [sx * 0.33, bodyY + 0.06, 0.64], r: [Math.PI / 2, 0, -sx * 0.25] });
+    limbBetween(A, [sx * 0.15, bodyY, 0.22], [sx * 0.28, bodyY + 0.04, 0.42], 0.05, 0.045, o.body, { bone: 2, shine: 0.4 });
+    A(ball(12), shell, { bone: 2, p: [sx * 0.3, bodyY + 0.05, 0.56], s: [0.08, 0.06, 0.13], shine: 0.5, top: lighter(o.body, 0.2), topK: 0.4 });
+    A(horn3(0.14, 0.035, 6), o.body, { bone: 2, p: [sx * 0.33, bodyY + 0.06, 0.64], r: [Math.PI / 2, 0, -sx * 0.25], shine: 0.4 });
     A(horn3(0.12, 0.03, 6), shell, { bone: 2, p: [sx * 0.27, bodyY + 0.03, 0.64], r: [Math.PI / 2, 0, sx * 0.3] });
-    A(sphere3(0.025, 7, 5), '#2a1a0a', { bone: 1, p: [sx * 0.06, bodyY + 0.12, 0.27], shine: 0.8 });
+    for (let k = 0; k < 3; k++) A(horn3(0.025, 0.008, 3), '#f0e8d4', { bone: 2, p: [sx * (0.3 - k * 0.006), bodyY + 0.05, 0.67 + k * 0.03], r: [0, 0, sx * 1.4], noShadow: true });
+    A(sphere3(0.025, 7, 5), '#2a1a0a', { bone: 1, p: [sx * 0.04, bodyY + 0.13, 0.28], shine: 0.9 });
+    for (const dz of [0, 0.025]) A(sphere3(0.012, 6, 4), '#2a1a0a', { bone: 1, p: [sx * 0.14, bodyY + 0.08, 0.3 + dz], shine: 0.9 });
   }
-  for (let k = 0; k < 6; k++) {
+  // vier Beinpaare mit dunklen Spitzen
+  for (let k = 0; k < 8; k++) {
     const sx = k % 2 ? -1 : 1;
     const row = Math.floor(k / 2);
-    const z = 0.12 - row * 0.14;
-    const knee = [sx * 0.36, bodyY + 0.1, z + (1 - row) * 0.12];
-    limbBetween(A, [sx * 0.14, bodyY, z], knee, 0.035, 0.03, shell, { bone: 4 + k, seg: 6 });
-    limbBetween(A, knee, [sx * 0.52, 0.02, z + (1 - row) * 0.22], 0.03, 0.016, shell, { bone: 4 + k, seg: 6 });
+    const z = 0.12 - row * 0.12;
+    const bone = 4 + (row < 3 ? k : k - 2);
+    const fw = 1 - row * 0.45;
+    const knee = [sx * 0.36, bodyY + 0.1, z + fw * 0.12];
+    const foot = [sx * 0.52, 0.02, z + fw * 0.22];
+    limbBetween(A, [sx * 0.14, bodyY, z], knee, 0.035, 0.03, shell, { bone, seg: 6 });
+    limbBetween(A, knee, foot, 0.03, 0.016, shell, { bone, seg: 6 });
+    A(sphere3(0.034, 6, 4), o.body, { bone, p: knee, shine: 0.4 });
+    A(horn3(0.05, 0.014, 4), rim, { bone, p: foot, r: [Math.PI, 0, -sx * 0.3], noShadow: true });
   }
   return { rig, height: bodyY + 0.9, family: 'scorpion', bodyY };
 }
 
+// Geist (seit 7.9): durchscheinender, leuchtender Saum, Seelenfunken, glühende Augenhöhlen mit Glanzpunkt;
+// je Art ein Mundspalt mit Schneeflocken (Frostgeist), ein Schlundmaul voller Seelenlichter (Seelenfresser)
+// oder breite Nebelschultern mit Frostbart und schwerer Krone (Eiskönig)
 function ghost3(b, o) {
   const A = adder(b, null);
   const rig = rigOf([[[0, 0, 0], -1], [[0, 0.3, 0], 0], [[0, 0.75, 0], 1], [[0, 1.0, 0], 2], [[0.26, 0.86, 0], 2], [[-0.26, 0.86, 0], 2]]);
-  // schwebendes Gewand mit zerfetztem, leuchtendem Saum
-  A(lathe3('ghost2', [[0, 0.95], [0.28, 0.9], [0.34, 0.72], [0.33, 0.45], [0.3, 0.22], [0.27, 0.05], [0, 0.04]], 18), o.body, { bone: 1, p: [0, 0.1, 0], shade: 0.15, top: lighter(o.body, 0.25), topK: 0.4 });
+  const pale = lighter(o.body, 0.25);
+  // schwebendes Gewand mit zerfetztem Saum; darüber ein durchscheinender Schleier, der nach unten leuchtet
+  // (Profil von unten nach oben, sonst zeigen die Normalen nach innen und die Vorderseite wird dunkel)
+  A(lathe3('ghost3', [[0, 0.04], [0.27, 0.05], [0.3, 0.22], [0.33, 0.45], [0.34, 0.72], [0.28, 0.9], [0, 0.95]], 18), o.body, { bone: 1, p: [0, 0.1, 0], shade: 0.15, top: pale, topK: 0.4 });
+  A(lathe3('ghostveil', [[0.33, -0.04], [0.36, 0.12], [0.33, 0.32], [0.27, 0.5]], 16), pale, { bone: 1, p: [0, 0.1, 0], mat: 'aura' });
   for (let k = 0; k < 12; k++) {
     const a = (k / 12) * Math.PI * 2;
     A(horn3(0.16 + (k % 3) * 0.06, 0.07, 5), k % 2 ? o.body : lighter(o.body, 0.15), { bone: 1, p: [Math.cos(a) * 0.25, 0.16, Math.sin(a) * 0.25], r: [Math.PI, 0, 0] });
+    if (k % 2) A(horn3(0.12 + (k % 4) * 0.04, 0.05, 4), pale, { bone: 1, p: [Math.cos(a + 0.26) * 0.3, 0.1, Math.sin(a + 0.26) * 0.3], r: [Math.PI + Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3], mat: 'aura' });
   }
   A(torus3(0.27, 0.03, Math.PI * 2, 4, 20), o.eye, { bone: 1, p: [0, 0.16, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
-  // Kapuze, dunkles Gesicht, glühende Augen
-  A(cap3(0.33, Math.PI * 0.8, Math.PI / 2 + 0.8, Math.PI * 2 - 1.6), o.body, { bone: 3, p: [0, 1.15, 0], shade: 0.15 });
-  A(ball(14), '#0d1a2a', { bone: 3, p: [0, 1.12, 0.06], s: [0.24, 0.24, 0.22] });
+  // Seelenfunken unten am Saum
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + 0.4;
+    A(sphere3(0.025 - (k % 2) * 0.008, 6, 4), k % 2 ? o.eye : pale, { bone: 1, p: [Math.cos(a) * 0.4, 0.02 + (k % 2) * 0.12, Math.sin(a) * 0.4], mat: 'glow' });
+  }
+  // Kapuze, dunkles Gesicht, glühende Augenhöhlen mit hellem Kern und Glanzpunkt
+  // (Kapuze und Gesicht ohne Schattenmodell: sonst fällt ihr Schatten als dunkler Fleck auf das helle Gewand)
+  A(cap3(0.33, Math.PI * 0.8, Math.PI / 2 + 0.8, Math.PI * 2 - 1.6), o.body, { bone: 3, p: [0, 1.15, 0], shade: 0.15, top: pale, topK: 0.35, noShadow: true });
+  A(ball(14), '#0d1a2a', { bone: 3, p: [0, 1.12, 0.06], s: [0.24, o.maw ? 0.3 : 0.24, 0.22], noShadow: true });
   for (const sx of [-1, 1]) {
     A(ball(10), o.eye, { bone: 3, p: [sx * 0.09, 1.14, 0.25], s: [0.06, 0.08, 0.03], mat: 'glow' });
-    limbBetween(A, [sx * 0.26, 0.86, 0], [sx * 0.42, 0.6, 0.12], 0.08, 0.04, o.body, { bone: sx > 0 ? 4 : 5 });
-    for (let k = -1; k <= 1; k++) A(horn3(0.1, 0.02, 4), lighter(o.body, 0.2), { bone: sx > 0 ? 4 : 5, p: [sx * 0.42 + k * 0.02, 0.6, 0.12], r: [Math.PI + 0.3, 0, k * 0.3] });
+    A(ball(8), o.eye, { bone: 3, p: [sx * 0.09, 1.14, 0.245], s: [0.085, 0.105, 0.03], mat: 'aura' });
+    A(sphere3(1, 6, 4), '#ffffff', { bone: 3, p: [sx * 0.09 - 0.015, 1.16, 0.28], s: [0.018, 0.024, 0.01], mat: 'glow' });
+    const fingers = o.longFingers ? 0.17 : 0.1;
+    limbBetween(A, [sx * 0.26, 0.86, 0], [sx * 0.42, 0.6, 0.12], 0.08, 0.04, o.body, { bone: sx > 0 ? 4 : 5, top: pale, topK: 0.4 });
+    for (let k = -1; k <= 1; k++) A(horn3(fingers, 0.02, 4), o.iceFingers || pale, { bone: sx > 0 ? 4 : 5, p: [sx * 0.42 + k * 0.02, 0.6, 0.12], r: [Math.PI + 0.3, 0, k * 0.3], shine: o.iceFingers ? 1 : 0 });
   }
-  if (o.crown) for (let k = -2; k <= 2; k++) A(horn3(0.16 - Math.abs(k) * 0.03, 0.04, 6), o.crown, { bone: 3, p: [k * 0.09, 1.4, Math.cos(k * 0.5) * 0.05], mat: o.crown === '#ffffff' ? 'lit' : 'glow' });
+  if (o.maw) {
+    // weit offenes Schlundmaul, darin kreisen kleine Seelenlichter
+    A(ball(10), '#1a0820', { bone: 3, p: [0, 0.98, 0.2], s: [0.12, 0.13, 0.06] });
+    for (let k = 0; k < 3; k++) A(sphere3(0.022, 6, 4), k % 2 ? '#ffffff' : o.eye, { bone: 3, p: [Math.cos(k * 2.1) * 0.05, 0.98 + Math.sin(k * 2.1) * 0.05, 0.24], mat: 'glow' });
+    for (let k = -2; k <= 2; k++) A(horn3(0.04, 0.012, 3), '#e8e0f0', { bone: 3, p: [k * 0.035, 1.1, 0.24], r: [Math.PI, 0, 0], noShadow: true });
+  } else A(box3(), '#0d1a2a', { bone: 3, p: [0, 1.03, 0.27], s: [0.1, 0.02, 0.02] });
+  if (o.beard) {
+    // langer, wehender Bart aus Frostnebel und breite Nebelschultern
+    for (let k = -1; k <= 1; k++) A(horn3(0.42 - Math.abs(k) * 0.1, 0.07, 5), k ? o.beard : lighter(o.beard, 0.3), { bone: 3, p: [k * 0.06, 1.02, 0.2], r: [Math.PI - 0.35, 0, k * 0.25], mat: 'aura' });
+    for (const sx of [-1, 1]) A(ball(10), o.body, { bone: 2, p: [sx * 0.24, 0.9, -0.02], s: [0.17, 0.11, 0.15], top: pale, topK: 0.5 });
+  }
+  if (o.snow) for (let k = 0; k < 4; k++) {
+    // Schneeflocken kreisen um den Leib
+    const a = (k / 4) * Math.PI * 2 + 0.8;
+    for (let j = 0; j < 3; j++) A(box3(), '#ffffff', { bone: 1, p: [Math.cos(a) * 0.48, 0.45 + (k % 2) * 0.25, Math.sin(a) * 0.48], r: [0, a, j * Math.PI / 3], mat: 'glow', s: [0.06, 0.012, 0.012] });
+  }
+  if (o.crown) {
+    const glow = o.crown === '#ffffff' ? 'lit' : 'glow';
+    if (o.crownRing) A(torus3(0.22, 0.04, Math.PI * 2, 4, 14), o.crown, { bone: 3, p: [0, 1.38, 0.02], r: [Math.PI / 2, 0, 0], mat: glow, shine: 1 });
+    for (let k = -2; k <= 2; k++) A(horn3(0.16 - Math.abs(k) * 0.03, 0.04, 6), o.crown, { bone: 3, p: [k * 0.09, 1.4, Math.cos(k * 0.5) * 0.05], mat: glow, shine: 1 });
+    if (o.crownRing) for (let k = 0; k < 4; k++) A(horn3(0.12, 0.025, 4), '#bfe8ff', { bone: 3, p: [Math.sin(k * 1.6 + 0.8) * 0.2, 1.38, Math.cos(k * 1.6 + 0.8) * 0.2 + 0.02], shine: 1 });
+  }
   return { rig, height: 1.48, family: 'ghost', bodyY: 0.3 };
 }
 
 // Schlange als ein glatter, biegsamer Schlauch: jeder Eckpunkt hängt weich an zwei Gliedern,
-// Bänderung und hellerer Bauch als Eckenfarben.
+// Muster und hellerer Bauch als Eckenfarben. Seit 7.9 mit Bauchschuppen (Querplatten in zwei Tönen) und
+// Rückenmuster je Art: Querbänder, Querflecken (Viper), Rauten mit hellem Rand (Klapperschlange),
+// unregelmäßige Sattelflecken (Python).
 function serpentBody(o, segs) {
-  const key = `snake:${o.body}:${o.belly}:${o.mark}:${segs}`;
+  const pat = o.pattern || 'bands';
+  const key = `snake2:${o.body}:${o.belly}:${o.mark}:${segs}:${pat}`;
   return geo3(key, () => {
     const pts = [];
     for (let k = 0; k <= segs; k++) pts.push(new THREE.Vector3(Math.sin(k * 0.9) * 0.08, 0.13, 0.42 - k * 0.16));
     const curve = new THREE.CatmullRomCurve3(pts);
-    const tubular = segs * 6;
-    const radial = 10;
+    const tubular = segs * 8;
+    const radial = 12;
     const g = new THREE.TubeGeometry(curve, tubular, 0.13, radial, false);
     const pos = g.attributes.position;
     const nor = g.attributes.normal;
@@ -1275,7 +1482,10 @@ function serpentBody(o, segs) {
     const cb = new THREE.Color(o.body);
     const cm = new THREE.Color(o.mark);
     const cl = new THREE.Color(o.belly);
+    const cl2 = new THREE.Color(darker(o.belly, 0.14));
+    const crim = new THREE.Color(lighter(o.body, 0.35));
     const p = new THREE.Vector3();
+    const frac = (v) => v - Math.floor(v);
     for (let i = 0; i < pos.count; i++) {
       const ring = Math.floor(i / (radial + 1));
       const u = ring / tubular;
@@ -1286,11 +1496,21 @@ function serpentBody(o, segs) {
       const y = p.y + (pos.getY(i) - p.y) * taper * 0.85;
       const z = p.z + (pos.getZ(i) - p.z) * taper;
       pos.setXYZ(i, x, Math.max(0.01, y), z);
-      // Bauch unten hell, Rücken mit Bändern
-      const band = Math.sin(u * segs * Math.PI * 1.5) > 0.55;
-      const c = nor.getY(i) < -0.2 ? cl : band ? cm : cb;
-      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
+      // Winkel um den Leib: 0 oben auf dem Rücken, π unten am Bauch
+      const th = Math.abs(Math.atan2(nor.getX(i), nor.getY(i)));
       const f = u * segs;
+      let c = cb;
+      if (th > 2.15) c = ring % 2 ? cl : cl2;
+      else if (pat === 'diamond') {
+        const d = Math.abs(frac(f * 1.2) - 0.5) * 2 + th / 1.4;
+        c = d < 0.6 ? cm : d < 0.85 ? crim : cb;
+      } else if (pat === 'spots') {
+        const q = Math.abs(frac(f * 1.5) - 0.5);
+        c = (q < 0.2 && th < 0.8) || (q > 0.36 && th > 1.2 && th < 1.7) ? cm : cb;
+      } else if (pat === 'saddle') {
+        c = Math.sin(f * Math.PI * 1.1 + Math.sin(u * 17) * 0.9) > 0.15 && th < 1.15 + 0.45 * Math.sin(u * 23) ? cm : cb;
+      } else if (Math.sin(f * Math.PI * 1.5) > 0.55) c = cm;
+      col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b;
       const k0 = Math.min(segs - 1, Math.floor(f));
       const t = Math.min(1, f - k0);
       si[i * 4] = 1 + k0;
@@ -1312,73 +1532,170 @@ function serpent3(b, o, naga) {
   const list = [[[0, 0, 0], -1]];
   for (let k = 0; k < segs; k++) list.push([[Math.sin(k * 0.9) * 0.08, 0.13, 0.42 - k * 0.16], k === 0 ? 0 : k]);
   const rig = rigOf(list);
-  A(serpentBody(o, segs), null, { shade: 0.15, shine: 0.3 });
-  if (o.rattle) for (let k = 0; k < 3; k++) A(ball(8), '#e8d0a0', { bone: segs, p: [Math.sin(segs * 0.9) * 0.08, 0.14, 0.42 - segs * 0.16 - 0.04 - k * 0.06], s: [0.05 - k * 0.008, 0.035, 0.035], shine: 0.4 });
+  A(serpentBody(o, segs), null, { shade: 0.15, shine: 0.35 });
+  if (o.rattle) for (let k = 0; k < 4; k++) A(ball(8), k % 2 ? '#c8b080' : '#e8d0a0', { bone: segs, p: [Math.sin(segs * 0.9) * 0.08, 0.14, 0.42 - segs * 0.16 - 0.04 - k * 0.05], s: [0.05 - k * 0.007, 0.036 - k * 0.003, 0.032], shine: 0.5 });
   if (naga) {
-    // Oberkörper mit Rüstung, Kopf mit Haaren, Krone und Waffe
+    // Oberkörper mit Rüstung, Kopf mit Haaren, Kopfputz und Waffe
     const nb = 1;
     A(lathe3('nagatorso2', [[0, 0], [0.17, 0], [0.2, 0.15], [0.19, 0.32], [0.1, 0.4], [0, 0.41]], 14), o.skin, { bone: nb, p: [0, 0.2, 0.42], shade: 0.15 });
     A(roundBox(0.4, 0.2, 0.27, 0.08), o.armor, { bone: nb, p: [0, 0.44, 0.44], top: lighter(o.armor, 0.2), topK: 0.4, shine: 0.8 });
     A(torus3(0.17, 0.02, Math.PI * 2, 4, 16), o.trim, { bone: nb, p: [0, 0.34, 0.44], r: [Math.PI / 2, 0, 0], shine: 0.8 });
+    // Schuppengürtel am Übergang zum Schlangenleib
+    A(torus3(0.18, 0.03, Math.PI * 2, 4, 16), o.mark, { bone: nb, p: [0, 0.22, 0.42], r: [Math.PI / 2, 0, 0], shine: 0.5 });
     for (const sx of [-1, 1]) A(cap3(0.1, Math.PI * 0.5), o.armor, { bone: nb, p: [sx * 0.2, 0.58, 0.44], r: [0, 0, -sx * 0.4], shine: 0.8 });
     const hc = [0, 0.86, 0.46];
     const hr = 0.24;
+    // Kobrahaube als Kopfputz (Priesterin), hohe Haubenkrone (Königin) oder ein Kranz aus fünf Hauben (Vritra)
+    if (o.hoods) for (let k = -2; k <= 2; k++) {
+      const a = k * 0.42;
+      const hp = [hc[0] + Math.sin(a) * hr * 1.5, hc[1] + Math.cos(a) * hr * 1.35 - hr * 0.2, hc[2] - hr * 0.7];
+      A(ball(10), o.body, { bone: nb, p: hp, s: [hr * 0.42, hr * 0.55, hr * 0.12], r: [0, 0, -a], top: lighter(o.body, 0.2), topK: 0.4 });
+      A(ball(8), o.belly, { bone: nb, p: [hp[0], hp[1], hp[2] + hr * 0.08], s: [hr * 0.3, hr * 0.42, hr * 0.06], r: [0, 0, -a] });
+      for (const sx of [-1, 1]) A(sphere3(hr * 0.05, 6, 4), o.eye, { bone: nb, p: [hp[0] + Math.cos(a) * sx * hr * 0.12, hp[1] + hr * 0.3, hp[2] + hr * 0.13], mat: 'glow' });
+    } else if (o.hoodCrown) {
+      const big = o.hoodCrown;
+      A(ball(12), o.body, { bone: nb, p: [hc[0], hc[1] + hr * 0.25 * big, hc[2] - hr * 0.55], s: [hr * 0.95 * big, hr * 0.9 * big, hr * 0.14], top: lighter(o.body, 0.2), topK: 0.4 });
+      A(ball(10), o.belly, { bone: nb, p: [hc[0], hc[1] + hr * 0.25 * big, hc[2] - hr * 0.46], s: [hr * 0.75 * big, hr * 0.72 * big, hr * 0.08] });
+      A(torus3(hr * 0.9 * big, hr * 0.05, Math.PI * 1.3, 4, 16), o.trim, { bone: nb, p: [hc[0], hc[1] + hr * 0.25 * big, hc[2] - hr * 0.48], r: [0, 0, -Math.PI * 0.15], shine: 1 });
+    }
     A(ball(16), o.skin, { bone: nb, p: hc, s: [hr, hr * 0.95, hr * 0.96] });
     face3(A, nb, hc, hr, { eyeColor: o.eye, angry: true, skin: o.skin, blush: false, hairColor: o.hair });
     hair3(A, nb, hc, hr, 2, o.hair, false);
-    for (let k = -2; k <= 2; k++) A(horn3(0.12 - Math.abs(k) * 0.02, 0.025, 5), '#e8c84a', { bone: nb, p: [hc[0] + k * 0.06, hc[1] + 0.24, hc[2] + 0.06], shine: 1 });
-    for (const sx of [-1, 1]) limbBetween(A, [sx * 0.2, 0.58, 0.44], [sx * 0.3, 0.4, 0.6], 0.05, 0.04, o.skin, { bone: nb });
+    if (o.crownHorns !== false) for (let k = -2; k <= 2; k++) A(horn3(0.12 - Math.abs(k) * 0.02, 0.025, 5), '#e8c84a', { bone: nb, p: [hc[0] + k * 0.06, hc[1] + 0.24, hc[2] + 0.06], shine: 1 });
+    else A(torus3(hr * 1.02, hr * 0.06, Math.PI * 2, 4, 18), o.trim, { bone: nb, p: [hc[0], hc[1] + hr * 0.35, hc[2]], r: [Math.PI / 2 - 0.15, 0, 0], shine: 0.8 });
+    for (const sx of [-1, 1]) {
+      limbBetween(A, [sx * 0.2, 0.58, 0.44], [sx * 0.3, 0.4, 0.6], 0.05, 0.04, o.skin, { bone: nb });
+      // Armreife
+      A(torus3(0.05, 0.012, Math.PI * 2, 3, 10), o.trim, { bone: nb, p: [sx * 0.28, 0.44, 0.57], r: [Math.PI / 2 - 0.9, 0, sx * 0.4], shine: 1, noShadow: true });
+    }
     if (o.staff) {
       A(limb3(1.1, 0.025, 0.022, 6), '#5a3f2a', { bone: nb, p: [-0.3, 0.95, 0.6] });
       A(sphere3(0.07, 10, 8), o.staff, { bone: nb, p: [-0.3, 1.0, 0.6], mat: 'glow' });
+      A(torus3(0.085, 0.012, Math.PI * 2, 3, 12), o.trim, { bone: nb, p: [-0.3, 1.0, 0.6], r: [Math.PI / 2, 0, 0], shine: 1 });
+      for (let k = 0; k < 3; k++) A(horn3(0.08, 0.016, 4), o.trim, { bone: nb, p: [-0.3 + Math.cos(k * 2.1) * 0.07, 0.96, 0.6 + Math.sin(k * 2.1) * 0.07], r: [Math.sin(k * 2.1) * 0.5, 0, -Math.cos(k * 2.1) * 0.5], shine: 1, noShadow: true });
     } else {
       A(limb3(1.0, 0.022, 0.02, 6), '#8a6a3a', { bone: nb, p: [-0.3, 0.9, 0.6], r: [0.3, 0, 0] });
       for (const dx of [-0.05, 0, 0.05]) A(horn3(0.12, 0.02, 5), '#d9dde2', { bone: nb, p: [-0.3 + dx, 0.9, 0.62], shine: 1 });
+      A(torus3(0.06, 0.012, Math.PI * 2, 3, 10), o.trim, { bone: nb, p: [-0.3, 0.88, 0.61], r: [Math.PI / 2 - 0.3, 0, 0], shine: 1, noShadow: true });
     }
     return { rig, height: 1.12, family: 'serpent', bodyY: 0.12, naga: true };
   }
-  // Kopf: aufgerichteter Hals, Schädel mit Kiefer, Schlitzaugen, gespaltene Zunge, Haube
+  // Kopf: aufgerichteter Hals, Schädel mit Kopfschild, Schlitzaugen mit Glanzpunkt, gespaltene Zunge, Haube.
+  // Viper und Klapperschlange mit breitem Dreieckskopf, Python mit schmalem, stumpfem Kopf
   const hb = 1;
   const hc = [0, 0.52, 0.5];
-  limbBetween(A, [0, 0.16, 0.38], [0, 0.48, 0.46], 0.12, 0.1, o.body, { bone: hb });
-  A(ball(14), o.body, { bone: hb, p: hc, s: [0.14, 0.1, 0.19], shine: 0.3 });
-  A(ball(12), o.belly, { bone: hb, p: [0, hc[1] - 0.05, hc[2] + 0.05], s: [0.11, 0.05, 0.16] });
+  const viper = o.head === 'viper';
+  const hw = viper ? 1.15 : o.head === 'python' ? 0.85 : 1;
+  limbBetween(A, [0, 0.16, 0.38], [0, 0.48, 0.46], 0.12, 0.1 * Math.min(1, hw), o.body, { bone: hb });
+  A(ball(14), o.body, { bone: hb, p: [0, hc[1], hc[2] - (viper ? 0.03 : 0)], s: [0.14 * hw, 0.1, viper ? 0.15 : 0.19], shine: 0.4, top: lighter(o.body, 0.12), topK: 0.4 });
+  if (viper) A(ball(12), o.body, { bone: hb, p: [0, hc[1] - 0.01, hc[2] + 0.1], s: [0.1, 0.08, 0.13], shine: 0.4, top: lighter(o.body, 0.12), topK: 0.4 });
+  A(ball(12), o.belly, { bone: hb, p: [0, hc[1] - 0.05, hc[2] + 0.05], s: [0.11 * hw, 0.05, 0.16] });
+  // Kopfschild aus großen Schuppen
+  A(ball(10), lighter(o.body, 0.1), { bone: hb, p: [0, hc[1] + 0.07, hc[2] + 0.04], s: [0.075 * hw, 0.03, 0.11], shine: 0.7, noShadow: true });
+  A(ball(8), o.mark, { bone: hb, p: [0, hc[1] + 0.065, hc[2] - 0.08], s: [0.06 * hw, 0.03, 0.06], noShadow: true });
   for (const sx of [-1, 1]) {
-    A(ball(8), o.eye, { bone: hb, p: [sx * 0.085, hc[1] + 0.035, hc[2] + 0.09], s: [0.032, 0.03, 0.025], mat: 'glow' });
-    A(ball(6), '#120c08', { bone: hb, p: [sx * 0.09, hc[1] + 0.035, hc[2] + 0.11], s: [0.006, 0.024, 0.008] });
+    const ep = [sx * 0.085 * hw, hc[1] + 0.035, hc[2] + 0.09];
+    A(ball(8), o.eye, { bone: hb, p: ep, s: [0.032, 0.03, 0.025], mat: 'glow' });
+    A(ball(6), '#120c08', { bone: hb, p: [ep[0] + sx * 0.005, ep[1], ep[2] + 0.02], s: [0.006, 0.024, 0.008] });
+    A(sphere3(0.007, 6, 4), '#ffffff', { bone: hb, p: [ep[0] - sx * 0.006, ep[1] + 0.012, ep[2] + 0.022], mat: 'glow' });
+    // Lippenlinie, Wärmegruben, Hornschuppen über den Augen (Hornviper)
+    A(box3(), darker(o.body, 0.4), { bone: hb, p: [sx * 0.1 * hw, hc[1] - 0.035, hc[2] + 0.08], r: [0, sx * 0.25, 0], noShadow: true, s: [0.008, 0.008, 0.16] });
+    if (o.pits) A(sphere3(0.011, 6, 4), '#1a1410', { bone: hb, p: [sx * 0.06 * hw, hc[1] + 0.005, hc[2] + 0.2] });
+    if (o.browHorns) A(horn3(0.07, 0.018, 4), o.mark, { bone: hb, p: [ep[0], ep[1] + 0.03, ep[2] - 0.01], r: [-0.3, 0, -sx * 0.25], shine: 0.4 });
   }
   if (o.hood) {
+    // Haube mit dunkler Brillenzeichnung auf der Rückseite
     A(ball(14), o.hood, { bone: hb, p: [0, 0.4, 0.4], s: [0.32, 0.27, 0.05] });
     A(ball(12), o.body, { bone: hb, p: [0, 0.41, 0.375], s: [0.3, 0.25, 0.04] });
+    for (const sx of [-1, 1]) A(torus3(0.05, 0.014, Math.PI * 2, 3, 10), o.mark, { bone: hb, p: [sx * 0.09, 0.45, 0.352], s: [1, 1.2, 1], noShadow: true });
+    for (let k = 0; k < 3; k++) A(box3(), o.mark, { bone: hb, p: [0, 0.3 - k * 0.05, 0.43], noShadow: true, s: [0.24 - k * 0.06, 0.012, 0.01] });
   }
-  for (const sx of [-1, 1]) A(roundBox(0.012, 0.008, 0.07, 0.003), '#c8302a', { bone: hb, p: [sx * 0.012, hc[1] - 0.04, hc[2] + 0.24], r: [0, sx * 0.3, 0] });
-  A(roundBox(0.014, 0.008, 0.09, 0.003), '#c8302a', { bone: hb, p: [0, hc[1] - 0.04, hc[2] + 0.17] });
+  for (const sx of [-1, 1]) A(box3(), '#c8302a', { bone: hb, p: [sx * 0.012, hc[1] - 0.04, hc[2] + 0.24], r: [0, sx * 0.3, 0], s: [0.012, 0.008, 0.07] });
+  A(box3(), '#c8302a', { bone: hb, p: [0, hc[1] - 0.04, hc[2] + 0.17], s: [0.014, 0.008, 0.09] });
   return { rig, height: 0.64, family: 'serpent', bodyY: 0.12 };
 }
 
-// Golem aus Felsbrocken mit leuchtenden Rissen (Lava, Eis, Stein, Titanen)
+// Golem (seit 7.9): Steinblöcke mit Kanten (Steintitan, Titanenkönig), runde Krustenplatten (Lavagolem) oder
+// glänzende Eisblöcke (Eisgolem). Zwischen den Blöcken sieht man die Fugen – ein leuchtender Kern aus Lava,
+// Schmiedeglut oder Eislicht –, dazu ein Kernkristall in der Brust, Glutrisse, Augenschlitze und Mundspalt.
+// Das Skelett kommt aus der menschlichen Gestalt mit Bauch, damit Gehen und Hiebe gleich bleiben.
 function golem3(b, c) {
   const A = adder(b, null);
   const res = humanoid3(new Bake3(true), Object.assign({}, c, { belly: true }));
-  const hipY = res.hipY;
-  const shY = res.shY;
+  const { hipY, shY } = res;
+  const L = c.look || {};
+  const style = L.golemStyle || 'blocks';
   const rock = c.skin;
+  const legRock = c.pants || darker(rock, 0.2);
+  const footRock = c.boots || darker(rock, 0.35);
+  const fistRock = c.gloves || rock;
   const glow = c.cracks || '#ffb04a';
-  const R = (v, bone, p, s, top) => A(rockGeo(v), rock, { bone, p, s, top: top || lighter(rock, 0.2), topK: 0.5, shade: 0.3 });
-  R(2, BH.chest, [0, hipY + 0.27, 0.0], [0.45, 0.36, 0.34]);
-  R(0, BH.hips, [0, hipY, 0], [0.38, 0.28, 0.32]);
-  R(1, BH.head, [0, shY + 0.3, 0.08], [0.21, 0.2, 0.2]);
-  for (const [sx, ab, hb, lb] of [[1, BH.armL, BH.handL, BH.legL], [-1, BH.armR, BH.handR, BH.legR]]) {
-    R(1, ab, [sx * 0.46, shY, 0], [0.24, 0.22, 0.24]);
-    R(0, ab, [sx * 0.5, shY - 0.24, 0.02], [0.17, 0.2, 0.17]);
-    R(2, hb, [sx * 0.5, shY - 0.5, 0.06], [0.22, 0.2, 0.22]);
-    R(1, lb, [sx * 0.17, 0.2, 0], [0.17, 0.22, 0.18]);
+  const ice = style === 'ice';
+  // Block: kantiger Quader (Stein, Eis) oder runde Kruste (Lava)
+  const blockGeo = (v) => (style === 'crust' ? rockGeo(v % 3) : roundBox(1, 1, 1, ice ? 0.1 : 0.16, 1));
+  const B = (color, bone, p, s, r, v = 0) => A(blockGeo(v), color, { bone, p, s: s.map((x) => x * (style === 'crust' ? 0.8 : 1.7)), r, top: ice ? '#f4fbff' : lighter(color, 0.18), topK: ice ? 0.7 : 0.45, shade: 0.3, shine: ice ? 0.9 : 0.15 });
+  // leuchtender Kern hinter den Blöcken: zeigt sich in den Fugen
+  const core = (bone, p, s) => A(ball(10), glow, { bone, p, s, mat: 'glow' });
+  core(BH.chest, [0, hipY + 0.28, 0.02], [0.4, 0.32, 0.29]);
+  core(BH.hips, [0, hipY - 0.02, 0], [0.3, 0.2, 0.25]);
+  // Brust aus fünf Blöcken (Brustplatten, Rücken, Schulteransatz), dazwischen Fugen
+  B(rock, BH.chest, [-0.17, hipY + 0.3, 0.13], [0.2, 0.2, 0.15], [0.1, 0.15, 0.08], 1);
+  B(rock, BH.chest, [0.17, hipY + 0.32, 0.13], [0.2, 0.19, 0.15], [0.12, -0.12, -0.1], 2);
+  B(darker(rock, 0.06), BH.chest, [0, hipY + 0.14, 0.15], [0.26, 0.13, 0.15], [0.05, 0, 0.04], 0);
+  B(rock, BH.chest, [0, hipY + 0.3, -0.14], [0.36, 0.26, 0.16], [-0.1, 0, 0.05], 1);
+  B(lighter(rock, 0.05), BH.chest, [0, shY - 0.02, 0.0], [0.3, 0.1, 0.22], [0, 0, -0.04], 2);
+  // Kernkristall in der Brust, von Steinen eingefasst
+  A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), lighter(glow, 0.25), { bone: BH.chest, p: [0, hipY + 0.3, 0.3], s: [0.07, 0.11, 0.07], r: [0, 0.6, 0], mat: 'glow' });
+  for (let k = 0; k < 4; k++) {
+    const a = (k / 4) * Math.PI * 2 + 0.4;
+    A(blockGeo(k), darker(rock, 0.15), { bone: BH.chest, p: [Math.cos(a) * 0.1, hipY + 0.3 + Math.sin(a) * 0.12, 0.27], s: style === 'crust' ? 0.04 : 0.06, r: [a, a, 0], shine: ice ? 0.9 : 0.1 });
   }
-  for (const [x, y, r] of [[-0.15, 0.3, 0.5], [0.12, 0.18, -0.6], [0.0, 0.42, 0.1], [0.2, 0.36, 0.9]]) A(roundBox(0.03, 0.2, 0.03, 0.012), glow, { bone: BH.chest, p: [x, hipY + y * 0.8, 0.33], r: [0, 0, r], mat: 'glow' });
-  for (const sx of [-1, 1]) A(ball(8), glow, { bone: BH.head, p: [sx * 0.085, shY + 0.33, 0.27], s: [0.05, 0.035, 0.03], mat: 'glow' });
-  A(roundBox(0.12, 0.025, 0.02, 0.01), glow, { bone: BH.head, p: [0, shY + 0.22, 0.27], mat: 'glow' });
-  if (c.crown) for (let k = -2; k <= 2; k++) A(horn3(0.16, 0.04, 5), c.crown, { bone: BH.head, p: [k * 0.08, shY + 0.48, 0.06], mat: 'glow' });
-  return { rig: res.rig, height: shY + 0.45, family: 'human', shY, hipY, shX: res.shX, hc: [0, shY + 0.3, 0.08], hr: 0.21, belly: true, golem: true };
+  // Hüfte und Lendenblock
+  B(legRock, BH.hips, [0, hipY - 0.02, 0], [0.32, 0.15, 0.25], [0, 0, 0.03], 0);
+  B(darker(legRock, 0.1), BH.hips, [0, hipY - 0.13, 0.12], [0.16, 0.1, 0.1], [0.2, 0, 0], 1);
+  // Kopf: kleiner kantiger Block tief zwischen den Schultern, Stirnwulst, Augenschlitze, Mundspalt
+  const hc = [0, shY + 0.26, 0.1];
+  B(rock, BH.head, hc, [0.18, 0.15, 0.16], [0.08, 0, 0], 2);
+  B(darker(rock, 0.1), BH.head, [0, hc[1] + 0.07, hc[2] + 0.1], [0.19, 0.05, 0.08], [0.3, 0, 0], 1);
+  for (const sx of [-1, 1]) A(box3(), glow, { bone: BH.head, p: [sx * 0.065, hc[1] + 0.025, hc[2] + 0.165], r: [0, 0, sx * 0.25], mat: 'glow', s: [0.075, 0.025, 0.02] });
+  A(box3(), glow, { bone: BH.head, p: [0, hc[1] - 0.07, hc[2] + 0.165], mat: 'glow', s: [0.12, 0.022, 0.02] });
+  // Arme: Schulterblock, Ober- und Unterarm, Fäuste wie Hämmer; Fugenkern im Arm
+  for (const [sx, ab, hb, lb] of [[1, BH.armL, BH.handL, BH.legL], [-1, BH.armR, BH.handR, BH.legR]]) {
+    const x = sx * 0.48;
+    limbBetween(A, [x, shY - 0.05, 0], [x, shY - 0.5, 0.04], 0.09, 0.08, glow, { bone: ab, mat: 'glow' });
+    B(rock, ab, [x - sx * 0.02, shY + 0.04, 0], [0.24, 0.17, 0.24], [0, 0, -sx * 0.25], 0);
+    B(darker(rock, 0.05), ab, [x + sx * 0.02, shY - 0.2, 0.02], [0.15, 0.15, 0.15], [0.1, 0.3, sx * 0.1], 1);
+    B(rock, ab, [x + sx * 0.01, shY - 0.38, 0.04], [0.14, 0.12, 0.14], [-0.1, -0.2, 0], 2);
+    B(fistRock, hb, [x, shY - 0.55, 0.06], [0.19, 0.17, 0.19], [0.1, 0.2, sx * 0.1], 0);
+    for (let k = -1; k <= 1; k++) A(blockGeo(k + 1), darker(fistRock, 0.1), { bone: hb, p: [x + k * 0.07, shY - 0.6, 0.2], s: style === 'crust' ? 0.045 : 0.07, r: [0.3, k, 0], shine: ice ? 0.9 : 0.1 });
+    // Beine: Oberschenkel, Schienbein, breiter Fuß
+    const lx = sx * 0.17;
+    limbBetween(A, [lx, hipY - 0.05, 0], [lx, 0.1, 0], 0.08, 0.07, glow, { bone: lb, mat: 'glow' });
+    B(legRock, lb, [lx, hipY - 0.12, 0], [0.15, 0.13, 0.15], [0.05, sx * 0.2, 0], 1);
+    B(darker(legRock, 0.06), lb, [lx, 0.15, 0.01], [0.13, 0.11, 0.14], [-0.05, -sx * 0.25, 0], 2);
+    B(footRock, lb, [lx, 0.04, 0.05], [0.16, 0.06, 0.2], [0, 0, 0], 0);
+  }
+  // Glutrisse bzw. Eisadern auf Brust und Kopf
+  for (const [x, y, r] of [[-0.15, 0.3, 0.5], [0.12, 0.2, -0.6], [0.2, 0.36, 0.9]]) A(box3(), glow, { bone: BH.chest, p: [x, hipY + y * 0.8, 0.33], r: [0, 0, r], mat: 'glow', s: [0.03, 0.2, 0.03] });
+  // Lava tropft an Ellbogen und Fäusten (Lavagolem); Steine und Luftblasen im Eis (Eisgolem)
+  if (style === 'crust') {
+    // Lavaadern quer über die Krusten auf Rücken, Schultern und Schenkeln
+    for (const [x, y, z, r] of [[-0.12, 0.34, -0.3, 0.6], [0.14, 0.24, -0.3, -0.7], [0.0, 0.44, -0.27, 1.4]]) A(box3(), glow, { bone: BH.chest, p: [x, hipY + y, z], r: [0, 0, r], s: [0.03, 0.22, 0.03], mat: 'glow' });
+    for (const [sx, ab, , lb] of [[1, BH.armL, 0, BH.legL], [-1, BH.armR, 0, BH.legR]]) {
+      A(box3(), glow, { bone: ab, p: [sx * 0.5, shY + 0.1, 0], r: [0.4, 0, sx * 1.2], s: [0.025, 0.2, 0.025], mat: 'glow' });
+      A(box3(), glow, { bone: lb, p: [sx * 0.2, hipY - 0.1, 0.1], r: [0, 0, sx * 0.5], s: [0.022, 0.14, 0.022], mat: 'glow' });
+    }
+  }
+  if (style === 'crust') for (const sx of [-1, 1]) for (const [y, bone] of [[shY - 0.3, sx > 0 ? BH.armL : BH.armR], [shY - 0.68, sx > 0 ? BH.handL : BH.handR]]) A(horn3(0.1, 0.03, 4), glow, { bone, p: [sx * 0.5, y, -0.02], r: [Math.PI, 0, 0], mat: 'glow' });
+  if (ice) for (const [x, y, z, s2] of [[-0.12, 0.34, 0.25, 0.05], [0.14, 0.18, 0.24, 0.04], [0.05, 0.42, -0.25, 0.05]]) A(ball(8), '#5a6a78', { bone: BH.chest, p: [x, hipY + y, z], s: s2 });
+  // Titanenkönig: geschmiedete Stachelpanzer auf den Schultern, eingemeißelte Runen
+  if (L.forge) for (const [sx, ab] of [[1, BH.armL], [-1, BH.armR]]) {
+    A(cap3(0.2, Math.PI * 0.5, 0, Math.PI * 2, 10, 4), '#3a3430', { bone: ab, p: [sx * 0.47, shY + 0.12, 0], s: [1.1, 0.7, 1.1], r: [0, 0, -sx * 0.35], shine: 0.8, top: '#5a524a', topK: 0.4 });
+    for (const dz of [-0.08, 0.08]) A(horn3(0.2, 0.045, 5), '#5a524a', { bone: ab, p: [sx * 0.52, shY + 0.2, dz], r: [0, 0, -sx * 0.5], shine: 1 });
+    A(torus3(0.05, 0.01, Math.PI * 2, 3, 8), glow, { bone: ab, p: [sx * 0.6, shY - 0.2, 0.06], r: [0, sx * Math.PI / 2, 0], mat: 'glow' });
+  }
+  if (c.crown) for (let k = -2; k <= 2; k++) A(horn3(0.16, 0.04, 5), c.crown, { bone: BH.head, p: [k * 0.08, hc[1] + 0.16, hc[2] - 0.02], mat: 'glow' });
+  return { rig: res.rig, height: shY + 0.45, family: 'human', shY, hipY, shX: res.shX, hc, hr: 0.21, belly: true, golem: true };
 }
 
 // --- Monsterfarben aus den 2D-Zeichnungen auslesen ---------------------------------------------------
@@ -1445,6 +1762,9 @@ function headExtras(h, skin) {
       const base = [hc[0] + sx * hr * 0.62, hc[1] + hr * 0.62, hc[2]];
       const midp = [base[0] + sx * hr * (big ? 0.7 : 0.35), base[1] + hr * (big ? 0.15 : 0.45), base[2] - hr * 0.1];
       limbBetween(A, base, midp, hr * (big ? 0.2 : 0.14), hr * (big ? 0.15 : 0.1), h.horns, { bone: hb, shine: 0.4 });
+      // Hornringe (seit 7.9): Wülste quer zum Horn, etwas heller
+      const hd = [midp[0] - base[0], midp[1] - base[1], midp[2] - base[2]];
+      for (const u of [0.35, 0.75]) ringAt3(A, +(hr * (big ? 0.2 : 0.14) * (1.05 - u * 0.3)).toFixed(3), +(hr * 0.035).toFixed(3), lighter(h.horns, 0.18), [base[0] + hd[0] * u, base[1] + hd[1] * u, base[2] + hd[2] * u], hd, { bone: hb, shine: 0.5, noShadow: true });
       A(horn3(hr * (big ? 0.6 : 0.4), hr * (big ? 0.15 : 0.1), 7), h.horns, { bone: hb, p: midp, r: [0, 0, -sx * (big ? 0.3 : 0.1)], shine: 0.4 });
     }
     if (h.horn1) A(horn3(hr * 0.8, hr * 0.2, 8), h.horn1, { bone: hb, p: [hc[0], hc[1] + hr * 0.85, hc[2] + hr * 0.1], r: [0.2, 0, 0], shine: 0.4 });
@@ -1471,6 +1791,42 @@ function headExtras(h, skin) {
   };
 }
 
+// Besonderheiten einzelner Arten, die die 2D-Zeichnung nicht kennt (seit 7.9, nach docs/monster-prompts.md).
+// Endbosse bekommen die ihrer Vorlage und darüber ihre eigenen.
+const MON3_LOOK = {
+  hund: { floppy: true, ribs: true, droop: true },
+  fuchs: { earBack: '#2a1a14', socks: '#2a1a14', slit: true },
+  braunbaer: { hump: true },
+  luchs: { beard: '#efe2c8', bigPaws: true },
+  hyaene: { roundEars: true },
+  schakal: { tailTip: '#2a221c' },
+  warg: { ash: '#8a8484' },
+  eisbaer: { bigPaws: true, back: '#d8d4c4' },
+  panther: { spots: '#121218' },
+  moorwolf: { algae: '#5a7a2a', ribs: true },
+  urdrache: { coins: '#e8c04a' },
+  lavagolem: { golemStyle: 'crust' },
+  eisgolem: { golemStyle: 'ice' },
+  titanenkoenig: { forge: true },
+  sandviper: { head: 'viper', pattern: 'spots', browHorns: true },
+  klapperschlange: { head: 'viper', pattern: 'diamond', pits: true },
+  riesenpython: { head: 'python', pattern: 'saddle', pits: true },
+  naga: { crownHorns: false },
+  nagapriesterin: { crownHorns: false, hoodCrown: 1 },
+  nagakoenigin: { hoodCrown: 1.45 },
+  vritra: { hoodCrown: null, hoods: true },
+  frostgeist: { snow: true, iceFingers: '#e8f8ff' },
+  seelenfresser: { maw: true, longFingers: true },
+  eiskoenig: { beard: '#d8f0ff', crownRing: true, iceFingers: '#e8f8ff', snow: true },
+  waldspinne: { venom: '#c8ff6a' },
+  hoehlenspinne: { legs: 1.25, legR: 0.8, abd: 0.8, glowMark: true },
+  giftspinne: { legs: 0.82, legR: 1.25, abd: 1.25, speckle: '#c6f08a', venom: '#d8ff6a' },
+  spinnenkoenigin: { abd: 1.12, egg: 1.2, legR: 1.15, glowMark: true, crownSpikes: '#24142e', cocoons: true, venom: '#ff3aff' },
+  fenris: { shackles: '#4a4a52', rune: '#ffcc4a' },
+  ursus: { forest: true },
+  ignar: { coins: null, magma: '#ff6a2a', tailBlade: '#1a1418' }
+};
+
 function monsterModelDef(id) {
   const art = MONSTER_ART[id];
   if (!art) return null;
@@ -1487,7 +1843,8 @@ function buildMonster3(b, id) {
   const t = MONSTER_TYPES[id];
   const own = MON3_BUILD[id] || (t && t.raid && MON3_BUILD[t.raid.art]);
   if (!def && !own) return Object.assign(beast3(b, { fur: t.color }), { scale: 1, style: attackStyle(id) });
-  const o = def ? def.o : {};
+  const o = Object.assign({}, def ? def.o : {}, t && t.raid ? MON3_LOOK[t.raid.art] : null, MON3_LOOK[id]);
+  if (def) def.o = o;
   let res;
   if (own) res = own(b);
   else switch (def.fn) {
@@ -1514,7 +1871,7 @@ function buildMonster3(b, id) {
       };
       if (h.bone) c.glowEyes = o.runes || '#a774e0';
       if (h.golem) {
-        res = golem3(b, Object.assign(c, { cracks: o.cracks || h.cracks }));
+        res = golem3(b, Object.assign(c, { cracks: o.cracks || h.cracks, look: o }));
         break;
       }
       c.headgear = headExtras(h, c.skin);
@@ -1534,16 +1891,16 @@ function buildMonster3(b, id) {
 // dazu Krallen, Fänge, leuchtende Augen; je höher die Stufe, desto mehr; starke Monster mit Rüstung und Leuchtkreis.
 const MON3_THEMES = {
   wild: { spike: '#5a4632', glow: '#ffcc4a' },
-  forest: { spike: '#3e4a2a', glow: '#c8ff6a', leaf: '#4f7a32' },
-  desert: { spike: '#d8b878', glow: '#ffd34d', metal: '#8a6a44' },
+  forest: { spike: '#3e4a2a', glow: '#c8ff6a', leaf: '#4f7a32', acc: 'moss' },
+  desert: { spike: '#d8b878', glow: '#ffd34d', metal: '#8a6a44', acc: 'sand' },
   war: { spike: '#6a6f78', glow: '#ff8a4a', metal: '#5a5e66' },
-  hell: { spike: '#2a1414', glow: '#ff4a2a', hot: true },
-  frost: { spike: '#bfe8ff', glow: '#7fd8ff', ice: true },
-  rot: { spike: '#d8d0b8', glow: '#8fe36a', bone: true },
-  fire: { spike: '#3a1a10', glow: '#ffb04a', hot: true },
-  jungle: { spike: '#2f6a4a', glow: '#7ad8c8' },
-  storm: { spike: '#8a8f9a', glow: '#9fd0ff', metal: '#6a6f78' },
-  cave: { spike: '#3a2a40', glow: '#b48cff' }
+  hell: { spike: '#2a1414', glow: '#ff4a2a', hot: true, acc: 'ash' },
+  frost: { spike: '#bfe8ff', glow: '#7fd8ff', ice: true, acc: 'snow' },
+  rot: { spike: '#d8d0b8', glow: '#8fe36a', bone: true, acc: 'mud' },
+  fire: { spike: '#3a1a10', glow: '#ffb04a', hot: true, acc: 'ash' },
+  jungle: { spike: '#2f6a4a', glow: '#7ad8c8', leaf: '#3e7a3a', acc: 'vine' },
+  storm: { spike: '#8a8f9a', glow: '#9fd0ff', metal: '#6a6f78', acc: 'spark' },
+  cave: { spike: '#3a2a40', glow: '#b48cff', acc: 'fungus' }
 };
 const MON3_ZONE_THEME = {
   wiesen: 'wild', wald: 'forest', orktal: 'desert', oedland: 'hell', frost: 'frost', moor: 'rot', vulkan: 'fire',
@@ -1566,6 +1923,41 @@ function monsterTheme3(id) {
   return MON3_THEMES[mon3ThemeOf[id] || (t && t.raid && mon3ThemeOf[t.raid.art]) || 'wild'];
 }
 
+// Gebietsthema als Zubehör (seit 7.9): Waldmoos, Wüstensand, Schnee mit Eiszapfen, Asche mit Glut, Moorschlamm,
+// Ranken, Leuchtpilze oder Funken. tops: Flecken oben auf Rücken und Schultern, under: was darunter hängt.
+// Jeder Eintrag [Knochen, Punkt, Größe].
+function themeAcc3(A, th, tops, under = []) {
+  const acc = th.acc;
+  if (!acc) return;
+  const patch = (bone, p, s, c, top) => A(ball(8), c, { bone, p, s: [0.09 * s, 0.028 * s, 0.11 * s], top, topK: 0.6, noShadow: true });
+  tops.forEach(([bone, p, s = 1], k) => {
+    if (acc === 'moss') {
+      patch(bone, p, s, th.leaf, lighter(th.leaf, 0.3));
+      if (k % 2 === 0) A(horn3(0.07 * s, 0.02 * s, 4), '#6a9a3a', { bone, p: [p[0], p[1] + 0.01, p[2]], r: [0.5, 0, 0.4], noShadow: true });
+    } else if (acc === 'snow') patch(bone, p, s, '#e6f2fc', '#ffffff');
+    else if (acc === 'sand') A(ball(8), '#c8a870', { bone, p, s: [0.055 * s, 0.022 * s, 0.065 * s], top: '#e0c896', topK: 0.6, noShadow: true });
+    else if (acc === 'mud') patch(bone, p, s, '#3a3624', '#5a5a34');
+    else if (acc === 'ash') {
+      // Ascheflocken und ein Glutfunke
+      for (let j = 0; j < 3; j++) A(sphere3(1, 6, 4), j % 2 ? '#5a5450' : '#8a8480', { bone, p: [p[0] + (j - 1) * 0.035 * s, p[1], p[2] + ((j * 2) % 3 - 1) * 0.03 * s], s: [0.03 * s, 0.01 * s, 0.025 * s], noShadow: true });
+      A(sphere3(0.014 * s, 6, 4), th.glow, { bone, p: [p[0] + 0.01 * s, p[1] + 0.012 * s, p[2] - 0.035 * s], mat: 'glow' });
+    } else if (acc === 'vine') {
+      // zwei spitze Blätter an einer Ranke
+      for (const d of [-1, 1]) A(horn3(0.1 * s, 0.035 * s, 4), d > 0 ? th.leaf : lighter(th.leaf, 0.15), { bone, p, r: [-1.2, k * 1.3 + d * 0.6, 0], s: [1, 1, 0.3], noShadow: true });
+      A(torus3(0.05 * s, 0.008 * s, Math.PI, 3, 6), darker(th.leaf, 0.25), { bone, p: [p[0], p[1] - 0.01, p[2]], r: [Math.PI / 2, 0, k], noShadow: true });
+    } else if (acc === 'fungus') {
+      A(cyl3(0.01 * s, 0.014 * s, 0.04 * s, 5), '#d8d0e0', { bone, p: [p[0], p[1] + 0.02 * s, p[2]], noShadow: true });
+      A(cap3(0.032 * s, Math.PI * 0.5, 0, Math.PI * 2, 8, 3), th.glow, { bone, p: [p[0], p[1] + 0.035 * s, p[2]], s: [1, 0.6, 1], mat: 'glow' });
+    } else if (acc === 'spark') A(horn3(0.09 * s, 0.014 * s, 4), th.glow, { bone, p, r: [0.4 - k * 0.5, 0, 0.5 - k * 0.4], mat: 'glow' });
+  });
+  under.forEach(([bone, p, s = 1]) => {
+    // Eiszapfen, hängendes Moos und Ranken, Schlammtropfen
+    if (acc === 'snow') A(horn3(0.1 * s, 0.018 * s, 4), '#d8f2ff', { bone, p, r: [Math.PI, 0, 0], shine: 1, noShadow: true });
+    else if (acc === 'moss' || acc === 'vine') A(horn3(0.12 * s, 0.022 * s, 4), th.leaf, { bone, p, r: [Math.PI, 0, 0.1], noShadow: true });
+    else if (acc === 'mud') A(horn3(0.06 * s, 0.02 * s, 4), '#3a3624', { bone, p, r: [Math.PI, 0, 0], noShadow: true });
+  });
+}
+
 function monsterFlair3(b, res, id, def) {
   const t = MONSTER_TYPES[id];
   if (!t || !res) return;
@@ -1577,39 +1969,40 @@ function monsterFlair3(b, res, id, def) {
   const spikeCol = th.ice ? '#d8f2ff' : th.hot ? th.glow : th.spike;
   const nSpikes = Math.round(2 + tier * 6);
   const o = def ? def.o || {} : {};
+  const boar = !!o.tusk && !o.wings && o.small;
   if (res.family === 'beast' && !res.custom) {
-    const bodyY = res.bodyY;
-    const bulky = !!o.bulky;
-    const boar = !!o.tusk && !o.wings && o.small;
-    const bw = bulky ? 1.3 : boar ? 1.15 : 1;
-    const len = o.long || 0.44;
-    const hp = [0, bodyY + 0.2, len + 0.2];
+    const { bodyY, len, bw, hp } = res;
+    const topY = bodyY + 0.21 * bw;
     // Rückenstacheln bzw. Eiskristalle / Glutzacken
     if (t.level >= 6) for (let k = 0; k < nSpikes; k++) {
       const z = len * 0.5 - (k / Math.max(1, nSpikes - 1)) * len * 1.1;
       const h = (0.1 + 0.12 * tier) * (1 - Math.abs(k - nSpikes / 2) / nSpikes * 0.6);
-      A(horn3(h, 0.035 + 0.02 * tier, 6), spikeCol, { bone: BQ.body, p: [0, bodyY + 0.2 * bw, z], r: [-0.35, 0, 0], mat: spikeMat, shine: th.ice ? 1 : 0.4 });
-      if (th.ice && k % 2 === 0) A(horn3(h * 0.7, 0.03, 5), '#9fdcff', { bone: BQ.body, p: [0.07 * bw, bodyY + 0.17 * bw, z], r: [-0.3, 0, -0.5], shine: 1 });
+      A(horn3(h, 0.035 + 0.02 * tier, 6), spikeCol, { bone: BQ.body, p: [0, bodyY + 0.2 * bw, z], r: [-0.35, 0, 0], mat: spikeMat, shine: th.ice ? 1 : 0.4, noShadow: true });
+      if (th.ice && k % 2 === 0) A(horn3(h * 0.7, 0.03, 5), '#9fdcff', { bone: BQ.body, p: [0.07 * bw, bodyY + 0.17 * bw, z], r: [-0.3, 0, -0.5], shine: 1, noShadow: true });
     }
-    // Krallen an allen Pfoten
+    // Krallen in Elfenbein an allen Pfoten, Fellbüschel am Ellbogen
     for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
-      for (const dx of [-0.035, 0, 0.035]) A(horn3(0.05 + 0.02 * tier, 0.012, 4), '#f0e8d4', { bone, p: [sx * 0.16 * bw + dx * bw, 0.025, sz * len * 0.62 + 0.115], r: [Math.PI / 2 + 0.4, 0, 0], shine: 0.5 });
-      // Fellbüschel am Ellbogen
-      A(horn3(0.07, 0.03, 5), darker(o.fur || t.color, 0.1), { bone, p: [sx * 0.19 * bw, bodyY * 0.55, sz * len * 0.62 - 0.05], r: [-2.2, 0, sx * 0.3] });
+      const big = sz > 0 && o.hump ? 1.6 : 1;
+      for (const dx of [-0.035, 0, 0.035]) A(horn3((0.05 + 0.02 * tier) * big, 0.012 * Math.sqrt(big), 4), '#f0e8d4', { bone, p: [sx * 0.16 * bw + dx * bw, 0.025, sz * len * 0.62 + 0.115], r: [Math.PI / 2 + 0.4, 0, 0], shine: 0.6 });
+      A(horn3(0.08, 0.034, 5), darker(o.fur || t.color, 0.12), { bone, p: [sx * 0.17 * bw, bodyY * 0.55, sz * len * 0.62 - 0.05], r: [-2.2, 0, sx * 0.3], s: [1, 1, 0.6], noShadow: true });
     }
-    // Leuchtende Augen (über den gemalten Augen), Atemwolke bei Eis, Glut im Maul bei Feuer
-    for (const sx of [-1, 1]) A(sphere3(0.022, 7, 5), th.glow, { bone: BQ.head, p: [sx * 0.095, hp[1] + 0.045, hp[2] + 0.165], mat: 'glow' });
-    if (!o.fangs && !boar) for (const sx of [-1, 1]) A(horn3(0.06, 0.016, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.17], r: [Math.PI, 0, 0] });
+    // Fänge, Glut im Maul bei Feuer
+    if (!o.fangs && !boar) for (const sx of [-1, 1]) A(horn3(0.06, 0.016, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.17], r: [Math.PI, 0, 0], shine: 0.4 });
     if (th.hot) A(ball(8), th.glow, { bone: BQ.head, p: [0, hp[1] - 0.08, hp[2] + 0.2], s: [0.05, 0.02, 0.06], mat: 'glow' });
-    // starke Tiere: Knochenplatten oder Rüstung auf den Schultern, Halsband mit Dornen
+    // starke Tiere: Schulterplatten (nur mit Metall im Gebiet), Halsband mit Dornen
     if (elite) {
-      for (const sx of [-1, 1]) A(cap3(0.12 * bw, Math.PI * 0.5), th.metal || darker(th.spike, 0.1), { bone: BQ.body, p: [sx * 0.17 * bw, bodyY + 0.12, len * 0.45], r: [0, 0, -sx * 0.7], shine: 0.7 });
-      A(torus3(0.15 * bw, 0.025, Math.PI * 2, 4, 14), th.metal || '#3a2a1a', { bone: BQ.neck, p: [0, bodyY + 0.12, len * 0.68], r: [0.5, 0, 0], shine: 0.6 });
+      if (th.metal) for (const sx of [-1, 1]) A(cap3(0.12 * bw, Math.PI * 0.5, 0, Math.PI * 2, 10, 4), th.metal, { bone: BQ.body, p: [sx * 0.17 * bw, bodyY + 0.12, len * 0.45], r: [0, 0, -sx * 0.7], shine: 0.7, noShadow: true });
+      A(torus3(0.15 * bw, 0.025, Math.PI * 2, 4, 14), th.metal || darker(th.spike, 0.35), { bone: BQ.neck, p: [0, bodyY + 0.12, len * 0.68], r: [0.5, 0, 0], shine: 0.6 });
       for (let k = 0; k < 6; k++) {
         const a = (k / 6) * Math.PI * 2;
-        A(horn3(0.05, 0.015, 4), '#d9dde2', { bone: BQ.neck, p: [Math.cos(a) * 0.16 * bw, bodyY + 0.12 + Math.sin(a) * 0.08, len * 0.68 + Math.sin(a) * 0.06], r: [Math.sin(a) * 1.5 + 0.5, 0, -Math.cos(a) * 1.5], shine: 1 });
+        A(horn3(0.05, 0.015, 4), '#d9dde2', { bone: BQ.neck, p: [Math.cos(a) * 0.16 * bw, bodyY + 0.12 + Math.sin(a) * 0.08, len * 0.68 + Math.sin(a) * 0.06], r: [Math.sin(a) * 1.5 + 0.5, 0, -Math.cos(a) * 1.5], shine: 1, noShadow: true });
       }
     }
+    themeAcc3(A, th, [[BQ.body, [0.08 * bw, topY - 0.02, len * 0.15], bw], [BQ.body, [-0.07 * bw, topY - 0.03, -len * 0.4], bw], [BQ.head, [0.05, hp[1] + 0.15, hp[2] - 0.04], 0.7]],
+      [[BQ.body, [0.1 * bw, bodyY - 0.16, len * 0.2]], [BQ.body, [-0.1 * bw, bodyY - 0.16, -len * 0.25]], [11, [0, hp[1] - 0.14, hp[2] + 0.2], 0.7]]);
+  } else if (res.family === 'beast' && res.topY) {
+    // eigene Tiermodelle: nur das Gebietszubehör auf dem Rücken
+    themeAcc3(A, th, [[BQ.body, [0.07, res.topY - 0.02, 0.1]], [BQ.body, [-0.06, res.topY - 0.05, -0.2]]]);
   } else if (res.family === 'human') {
     const { shY, hipY, shX = 0.25, hc = [0, shY + 0.3, 0.02], hr = 0.3 } = res;
     // Schulterstacheln ab Stufe 20 (Glutzacken, Eis, Knochen, Metall)
@@ -1619,16 +2012,17 @@ function monsterFlair3(b, res, id, def) {
     }
     // Rückenzacken oder Kristalle zwischen den Schultern
     if (t.level >= 30 && !res.golem) for (let k = 0; k < Math.round(1 + tier * 3); k++) A(horn3(0.12 + 0.06 * tier, 0.035, 6), spikeCol, { bone: BH.chest, p: [(k - 1) * 0.08, shY - 0.04, -0.2], r: [-0.9, 0, (k - 1) * 0.25], mat: spikeMat, shine: 0.8 });
-    // glühende Augen bei allem, was nicht wie ein Mensch aussieht
-    if (t.shape !== 'humanoid' || t.level >= 50) for (const sx of [-1, 1]) A(sphere3(0.026, 7, 5), th.glow, { bone: BH.head, p: [hc[0] + sx * hr * 0.32, hc[1] + hr * 0.08, hc[2] + hr * 0.92], mat: 'glow' });
+    // glühende Augen bei allem, was nicht wie ein Mensch aussieht (Golems haben eigene Augenschlitze)
+    if ((t.shape !== 'humanoid' || t.level >= 50) && !res.golem) for (const sx of [-1, 1]) A(sphere3(0.026, 7, 5), th.glow, { bone: BH.head, p: [hc[0] + sx * hr * 0.32, hc[1] + hr * 0.08, hc[2] + hr * 0.92], mat: 'glow' });
     // Gürtel mit Schädel (Moder), Trophäen-Zähne (Orks), Brustplatte (starke Krieger)
     if (th.bone || t.shape === 'orc') {
       A(sphere3(0.07, 8, 6), '#e8e0c8', { bone: BH.hips, p: [0.12, hipY + 0.02, 0.17], shine: 0.3 });
       for (let k = 0; k < 5; k++) A(horn3(0.06, 0.014, 4), '#f0e8d4', { bone: BH.chest, p: [-0.12 + k * 0.06, shY - 0.1 - Math.abs(k - 2) * 0.02, 0.2], r: [Math.PI, 0, 0] });
     }
     if (elite && !res.golem) {
-      A(roundBox(0.34, 0.2, 0.06, 0.03), th.metal || darker(t.color, 0.35), { bone: BH.chest, p: [0, shY - 0.14, 0.17], shine: 0.8, top: lighter(th.metal || t.color, 0.2), topK: 0.4 });
-      A(sphere3(0.035, 8, 6), th.glow, { bone: BH.chest, p: [0, shY - 0.13, 0.21], mat: 'glow' });
+      const fz = res.belly ? 0.36 : 0.17;
+      A(roundBox(0.34, 0.2, 0.06, 0.03), th.metal || darker(t.color, 0.35), { bone: BH.chest, p: [0, shY - 0.14, fz], shine: 0.8, top: lighter(th.metal || t.color, 0.2), topK: 0.4 });
+      A(sphere3(0.035, 8, 6), th.glow, { bone: BH.chest, p: [0, shY - 0.13, fz + 0.04], mat: 'glow' });
     }
     if (res.golem) {
       // Kristalle wachsen aus Schultern und Rücken
@@ -1637,19 +2031,27 @@ function monsterFlair3(b, res, id, def) {
         A(horn3(0.18 + (k % 3) * 0.06, 0.06, 5), th.ice ? '#bfe8ff' : th.glow, { bone: BH.chest, p: [sx * (0.15 + (k % 3) * 0.1), shY + 0.05, -0.15 - (k % 2) * 0.08], r: [-0.6, 0, -sx * 0.5], mat: th.ice ? 'lit' : 'glow', shine: 1 });
       }
     }
+    humanFlair3(A, res, id, t, th, o);
+    // Gebietszubehör auf den Schultern (bei Golems auch auf dem Kopf)
+    const sx0 = shX + (res.belly ? 0.02 : 0);
+    themeAcc3(A, th, [[BH.armL, [sx0, shY + (res.belly ? 0.13 : 0.09), -0.04], res.belly ? 1.3 : 0.9], [BH.armR, [-sx0, shY + (res.belly ? 0.13 : 0.09), 0.03], res.belly ? 1.2 : 0.8]].concat(res.golem ? [[BH.head, [hc[0], hc[1] + 0.15, hc[2] - 0.02], 1.1]] : []),
+      res.golem ? [[BH.handL, [shX + 0.08, shY - 0.66, 0.06], 1.2], [BH.handR, [-shX - 0.08, shY - 0.66, 0.06], 1.2]] : []);
   } else if (res.family === 'spider') {
-    const bodyY = res.bodyY;
-    // Dornen auf dem Hinterleib, leuchtende Zeichnung, große Kieferklauen, Haare an den Beinen
+    const { bodyY, ab = 1, az = -0.34 } = res;
+    // Dornen auf dem Hinterleib, leuchtende Zeichnung, große Kieferklauen
     for (let k = 0; k < nSpikes; k++) {
       const a = -0.9 + (k / Math.max(1, nSpikes - 1)) * 1.8;
-      A(horn3(0.1 + 0.08 * tier, 0.03, 5), spikeCol, { bone: 1, p: [Math.sin(a) * 0.22, bodyY + 0.36, -0.34 + Math.cos(a) * 0.12], r: [-0.3, 0, -Math.sin(a) * 0.8], mat: spikeMat, shine: 0.5 });
+      A(horn3(0.1 + 0.08 * tier, 0.03, 5), spikeCol, { bone: 1, p: [Math.sin(a) * 0.22 * ab, bodyY + 0.36 * ab, az + Math.cos(a) * 0.12 * ab], r: [-0.3, 0, -Math.sin(a) * 0.8], mat: spikeMat, shine: 0.5, noShadow: true });
     }
-    A(ball(10), th.glow, { bone: 1, p: [0, bodyY + 0.385, -0.42], s: [0.07, 0.02, 0.1], mat: 'glow' });
+    A(ball(10), th.glow, { bone: 1, p: [0, bodyY + 0.385 * ab, az - 0.08], s: [0.07, 0.02, 0.1], mat: 'glow' });
     for (const sx of [-1, 1]) A(horn3(0.13, 0.03, 6), '#1a120c', { bone: 2, p: [sx * 0.045, bodyY - 0.04, 0.42], r: [Math.PI - 0.9, 0, sx * 0.2], shine: 0.6 });
+    themeAcc3(A, th, [[1, [0.12 * ab, bodyY + 0.33 * ab, az + 0.12 * ab], ab], [1, [-0.14 * ab, bodyY + 0.3 * ab, az - 0.14 * ab], ab]], [[1, [0.1, bodyY - 0.15, az], ab]]);
   } else if (res.family === 'scorpion') {
     const bodyY = res.bodyY;
-    for (let k = 0; k < 4; k++) A(horn3(0.07 + 0.05 * tier, 0.025, 5), spikeCol, { bone: 1, p: [0, bodyY + 0.14, 0.18 - k * 0.14], r: [-0.4, 0, 0], mat: spikeMat, shine: 0.6 });
-    for (const sx of [-1, 1]) A(sphere3(0.02, 7, 5), th.glow, { bone: 1, p: [sx * 0.06, bodyY + 0.13, 0.29], mat: 'glow' });
+    for (let k = 0; k < 4; k++) A(horn3(0.07 + 0.05 * tier, 0.025, 5), spikeCol, { bone: 1, p: [0, bodyY + 0.14, 0.18 - k * 0.14], r: [-0.4, 0, 0], mat: spikeMat, shine: 0.6, noShadow: true });
+    // Glanzpunkte auf den schwarzen Augen
+    for (const sx of [-1, 1]) A(sphere3(0.008, 6, 4), '#ffffff', { bone: 1, p: [sx * 0.045, bodyY + 0.15, 0.295], mat: 'glow' });
+    themeAcc3(A, th, [[1, [0.12, bodyY + 0.12, 0.05]], [1, [-0.1, bodyY + 0.12, -0.2]]]);
   } else if (res.family === 'ghost') {
     // Ketten um den Leib und schwebende Seelenlichter
     for (let k = 0; k < 8; k++) {
@@ -1662,8 +2064,10 @@ function monsterFlair3(b, res, id, def) {
     }
   } else if (res.family === 'serpent') {
     // Rückenflossen / Stacheln entlang des Körpers, Fänge
-    for (let k = 1; k < 7; k++) A(horn3(0.08 + 0.06 * tier, 0.03, 5), res.naga ? th.spike : spikeCol, { bone: k, p: [Math.sin(k * 0.9) * 0.08, 0.26, 0.42 - k * 0.16], r: [-0.5, 0, 0], mat: spikeMat, shine: 0.6 });
-    if (!res.naga) for (const sx of [-1, 1]) A(horn3(0.06, 0.012, 4), '#f4ecd8', { bone: 1, p: [sx * 0.04, 0.46, 0.66], r: [Math.PI, 0, 0] });
+    // Nagas: Rückenkamm aus Flossenhaut; Schlangen: Fänge und Gebietszubehör auf dem Rücken
+    if (res.naga) for (let k = 2; k < 7; k++) A(horn3(0.1 + 0.06 * tier - (k - 2) * 0.012, 0.06, 4), o.mark || th.spike, { bone: k, p: [Math.sin(k * 0.9) * 0.08, 0.24, 0.42 - k * 0.16], r: [-0.7, 0, 0], s: [0.25, 1, 1], shine: 0.5, noShadow: true });
+    else for (const sx of [-1, 1]) A(horn3(0.06, 0.012, 4), '#f4ecd8', { bone: 1, p: [sx * 0.04, 0.46, 0.66], r: [Math.PI, 0, 0], shine: 0.5 });
+    if (th.acc !== 'sand') themeAcc3(A, th, [[3, [Math.sin(2.7) * 0.08, 0.245, 0.42 - 3 * 0.16], 0.8], [5, [Math.sin(4.5) * 0.08, 0.235, 0.42 - 5 * 0.16], 0.7]]);
   }
   // Leuchtkreis am Boden unter starken Monstern
   if (elite) A(torus3(0.42, 0.018, Math.PI * 2, 4, 28), th.glow, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
@@ -1674,13 +2078,278 @@ function monsterFlair3(b, res, id, def) {
     for (let k = 0; k < 7; k++) {
       const a = (k / 7) * Math.PI * 2;
       A(sphere3(0.05, 8, 6), col, { bone: 0, p: [Math.cos(a) * 0.7, top * 0.6 + (k % 2) * 0.15, Math.sin(a) * 0.7], mat: 'glow' });
-      A(roundBox(0.06, 0.12, 0.02, 0.01), col, { bone: 0, p: [Math.cos(a) * 0.62, 0.04, Math.sin(a) * 0.62], r: [-Math.PI / 2, 0, a], mat: 'glow' });
+      A(box3(), col, { bone: 0, p: [Math.cos(a) * 0.62, 0.04, Math.sin(a) * 0.62], r: [-Math.PI / 2, 0, a], mat: 'glow', s: [0.06, 0.12, 0.02] });
     }
     A(torus3(0.62, 0.02, Math.PI * 2, 4, 36), col, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
     A(torus3(0.75, 0.012, Math.PI * 2, 4, 36), col, { bone: 0, p: [0, 0.03, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
     const headBone = res.family === 'beast' ? BQ.head : res.family === 'human' ? BH.head : 1;
     const hp = res.crownAt || res.family === 'beast' ? res.crownAt || [0, res.bodyY + 0.33, (o.long || 0.44) + 0.14] : res.family === 'human' ? [res.hc[0], res.hc[1] + res.hr * 0.95, res.hc[2]] : [0, top * 0.95, 0.2];
     for (let k = -2; k <= 2; k++) A(horn3(0.16 - Math.abs(k) * 0.025, 0.035, 6), '#ffd34d', { bone: headBone, p: [hp[0] + k * 0.06, hp[1], hp[2] - Math.abs(k) * 0.02], r: [-0.2, 0, -k * 0.25], mat: 'glow' });
+  }
+}
+
+// Ring, dessen Achse von p aus in Richtung d zeigt (Hornringe, Armreife, Fesseln)
+function ringAt3(A, r, t, color, p, d, o) {
+  pointAt3(A, geo3(`ringy${r},${t}`, () => new THREE.TorusGeometry(r, t, 3, 10).rotateX(Math.PI / 2)), color, p, d, o);
+}
+
+// Schmuck für menschenartige Monster (seit 7.9) – hängt nur an die Knochen der fertigen Gestalt:
+// Riesen, Oger und Trolle mit Bauchfalte, Gürtel voller Beute, Knochenschmuck, Warzen und Flechten;
+// Orks mit Leder- und Eisenteilen, Stammeszeichen und Zopf; Dämonen mit Adern in der Flügelhaut, Glutrissen
+// und Pfeilspitze am Schwanz; Banditen, Untote, Hexe und Bosse mit eigenem Zubehör.
+function humanFlair3(A, res, id, t, th, o) {
+  const { shY, hipY, shX, hc, hr, belly } = res;
+  const armLen = belly ? 0.46 : 0.31;
+  const armR = belly ? 0.11 : 0.062;
+  const hipX = belly ? 0.16 : 0.105;
+  const front = belly ? 0.4 : 0.18;
+  const skin = o.skin || t.color;
+  const arms = [[1, BH.armL, BH.handL, BH.legL], [-1, BH.armR, BH.handR, BH.legR]];
+  const brute = t.shape === 'brute' && !res.golem;
+  // Gürtel mit Beute: Strick- bzw. Ledergurt, Beutel, Knochen, kleiner Schädel
+  const lootBelt = (strap, extra) => {
+    const by = hipY + (belly ? 0.04 : 0.02);
+    const br = belly ? 0.42 : 0.215;
+    A(torus3(br, 0.026, Math.PI * 2, 4, 18), strap, { bone: BH.hips, p: [0, by, 0.02], r: [Math.PI / 2, 0, 0], s: [1, 0.88, 1] });
+    A(roundBox(0.09, 0.1, 0.06, 0.025), lighter(strap, 0.12), { bone: BH.hips, p: [-br * 0.75, by - 0.07, br * 0.55], r: [0, -0.7, 0.1] });
+    A(torus3(0.025, 0.008, Math.PI * 2, 3, 6), darker(strap, 0.2), { bone: BH.hips, p: [-br * 0.75, by - 0.01, br * 0.58], r: [0, -0.7, 0] });
+    if (extra) {
+      // Knochen und Schädel baumeln am Gurt
+      limbBetween(A, [br * 0.5, by - 0.02, br * 0.82], [br * 0.6, by - 0.18, br * 0.82], 0.014, 0.014, '#e8e0c8', { bone: BH.hips, seg: 4 });
+      for (const y of [-0.02, -0.18]) A(sphere3(0.022, 6, 4), '#e8e0c8', { bone: BH.hips, p: [br * (y < -0.1 ? 0.6 : 0.5), by + y, br * 0.82] });
+      A(ball(8), '#e8e0c8', { bone: BH.hips, p: [br * 0.15, by - 0.08, br * 0.95], s: 0.045, shine: 0.2 });
+      for (const sx of [-1, 1]) A(sphere3(0.011, 6, 4), '#1a1210', { bone: BH.hips, p: [br * 0.15 + sx * 0.016, by - 0.075, br * 0.95 + 0.04] });
+    }
+  };
+  // Warzen bzw. Flechtenflecken auf Kopf, Schultern und Bauch
+  const warts = (color, n) => {
+    const spots = [[BH.head, [hc[0] + hr * 0.5, hc[1] + hr * 0.2, hc[2] + hr * 0.75]], [BH.head, [hc[0] - hr * 0.35, hc[1] - hr * 0.35, hc[2] + hr * 0.85]], [BH.chest, [0.15, hipY + 0.32, front * 0.95]],
+      [BH.chest, [-0.2, hipY + 0.1, front * 0.85]], [BH.armL, [shX + 0.06, shY + 0.06, 0.05]], [BH.armR, [-shX - 0.04, shY + 0.07, -0.04]]];
+    spots.slice(0, n).forEach(([bone, p], k) => A(sphere3(k < 2 ? 0.02 : 0.03, 6, 4), color, { bone, p, noShadow: true }));
+  };
+  const lichen = (color) => {
+    for (const [sx, bone] of [[1, BH.armL], [-1, BH.armR]]) A(ball(8), color, { bone, p: [sx * (shX + 0.02), shY + 0.11, 0.02], s: [0.1, 0.03, 0.09], r: [0, 0, -sx * 0.4], top: lighter(color, 0.2), topK: 0.5, noShadow: true });
+  };
+  // Lederwickel bzw. Armschienen an den Unterarmen
+  const bracers = (color, metal) => {
+    for (const [sx, ab] of arms) for (let k = 0; k < (metal ? 1 : 3); k++) {
+      const y = shY - armLen + 0.06 + k * 0.045;
+      if (metal) A(lathe3('bracer', [[armR * 1.0, 0], [armR * 1.08, 0.06], [armR * 1.02, 0.12], [0, 0.121]], 10), color, { bone: ab, p: [sx * shX, y, 0.01], s: [1.15, 1, 1.15], shine: 0.8 });
+      else A(torus3(armR * 1.0, 0.014, Math.PI * 2, 3, 10), k % 2 ? color : darker(color, 0.12), { bone: ab, p: [sx * shX, y, 0.01], r: [Math.PI / 2 + (k % 2 ? 0.25 : -0.25), 0, 0], noShadow: true });
+    }
+  };
+  // Zopf am Hinterkopf (Orks): Glieder mit Band und Quaste
+  const braid = (color) => {
+    let prev = [hc[0], hc[1] - hr * 0.1, hc[2] - hr * 0.9];
+    for (let k = 1; k <= 3; k++) {
+      const next = [hc[0], prev[1] - hr * 0.3, prev[2] - 0.015];
+      A(ball(8), k % 2 ? color : darker(color, 0.15), { bone: BH.cape, p: next, s: [hr * 0.15, hr * 0.19, hr * 0.15], noShadow: true });
+      prev = next;
+    }
+    A(torus3(hr * 0.11, hr * 0.035, Math.PI * 2, 3, 8), '#c9a35a', { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.14, prev[2]], r: [Math.PI / 2, 0, 0], shine: 1 });
+    A(horn3(hr * 0.28, hr * 0.12, 5), color, { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.16, prev[2]], r: [Math.PI, 0, 0] });
+  };
+  // Kriegsbemalung bzw. Stammeszeichen: Streifen auf der Brust, Zeichen am Oberarm
+  const paint = (color, chest) => {
+    if (chest) for (let k = 0; k < 3; k++) A(box3(), color, { bone: BH.chest, p: [(k - 1) * 0.08, hipY + 0.28, front + 0.005], r: [0, 0, (k - 1) * 0.25], noShadow: true, s: [0.035, 0.16, 0.012] });
+    for (const [sx, ab] of arms) {
+      A(torus3(armR * 1.06, 0.012, Math.PI * 2, 3, 10), color, { bone: ab, p: [sx * shX, shY - armLen * 0.35, 0.003], r: [Math.PI / 2, 0, 0], noShadow: true });
+      A(box3(), color, { bone: ab, p: [sx * (shX + armR * 1.02), shY - armLen * 0.5, 0.01], r: [0, 0, sx * 0.3], noShadow: true, s: [0.012, 0.05, 0.03] });
+    }
+  };
+  // Glutrisse bzw. Blitzadern als Zickzack auf Unterarmen und Brust
+  const veins = (color) => {
+    for (const [sx, ab] of arms) for (let k = 0; k < 2; k++) A(box3(), color, { bone: ab, p: [sx * (shX + armR * 0.9), shY - armLen * (0.35 + k * 0.3), 0.03], r: [0, 0, sx * (k ? -0.5 : 0.5)], mat: 'glow', s: [0.014, 0.1, 0.014] });
+    for (const [x, y, r] of [[-0.14, 0.36, 0.7], [-0.08, 0.22, -0.5], [0.15, 0.3, -0.6]]) A(box3(), color, { bone: BH.chest, p: [x * (belly ? 1.6 : 1), hipY + y, front + 0.01], r: [0, 0, r], mat: 'glow', s: [0.016, 0.13, 0.016] });
+  };
+  const furTufts = (color, n) => {
+    for (let k = 0; k < n; k++) {
+      const [sx, ab] = arms[k % 2];
+      const y = shY - armLen * (0.15 + Math.floor(k / 2) * 0.32);
+      pointAt3(A, horn3(0.11, 0.05, 5), k % 4 < 2 ? color : darker(color, 0.06), [sx * (shX + armR * 0.9), y, -0.02], [sx * 0.8, -0.9, -0.3], { bone: ab, s: [1, 1, 0.6], noShadow: true });
+    }
+  };
+
+  // --- Riesen, Oger, Trolle und andere Brocken
+  if (brute) {
+    if (belly) {
+      // Bauchfalte und Nabel
+      A(ball(10), darker(skin, 0.18), { bone: BH.chest, p: [0, hipY + 0.11, 0.36], s: [0.26, 0.022, 0.06], r: [0.2, 0, 0], noShadow: true });
+      A(sphere3(0.018, 6, 4), darker(skin, 0.3), { bone: BH.chest, p: [0, hipY + 0.2, 0.415], noShadow: true });
+    }
+    if (id === 'oger') { lootBelt('#5a4632', true); warts(darker(skin, 0.2), 4); lichen('#8a9a6a'); }
+    if (id === 'trollkrieger') {
+      lootBelt('#4a3a2a', true); warts(darker(skin, 0.22), 6); lichen('#a8b878');
+      // Knochenschmuck in den Ohren
+      for (const sx of [-1, 1]) A(torus3(hr * 0.12, hr * 0.03, Math.PI * 2, 3, 8), '#e8e0c8', { bone: BH.head, p: [hc[0] + sx * hr * 1.2, hc[1] - hr * 0.12, hc[2]], r: [0, Math.PI / 2, 0], noShadow: true });
+      // lange Knollennase
+      A(ball(8), darker(skin, 0.06), { bone: BH.head, p: [hc[0], hc[1] - hr * 0.2, hc[2] + hr * 1.05], s: [hr * 0.18, hr * 0.16, hr * 0.28], shade: 0.2 });
+    }
+    if (id === 'yeti' || id === 'ymir') {
+      furTufts('#e8eef4', 8);
+      for (let k = -2; k <= 2; k++) pointAt3(A, horn3(0.12, 0.05, 5), k % 2 ? '#e8eef4' : '#d8e2ec', [hc[0] + k * hr * 0.3, hc[1] + hr * 0.85, hc[2] - hr * 0.2], [k * 0.3, 0.6, -1], { bone: BH.head, s: [1, 1, 0.6], noShadow: true });
+    }
+    if (id === 'ymir') {
+      // Eiskristalle wachsen aus den Schultern, Eiszapfen hängen am Kinn
+      for (const [sx, ab] of arms) for (let k = 0; k < 3; k++) A(horn3(0.22 - k * 0.04, 0.05, 5), k % 2 ? '#7fcff0' : '#a8e4ff', { bone: ab, p: [sx * (shX + 0.02), shY + 0.12, 0.08 - k * 0.09], r: [-0.2, 0, -sx * (0.35 + k * 0.25)], shine: 1 });
+      for (let k = -1; k <= 1; k++) A(horn3(0.1 - Math.abs(k) * 0.02, 0.018, 4), '#d8f2ff', { bone: BH.head, p: [hc[0] + k * hr * 0.25, hc[1] - hr * 0.75, hc[2] + hr * 0.7], r: [Math.PI, 0, 0], shine: 1, noShadow: true });
+    }
+    if (id === 'minotaurus') {
+      // Nackenbuckel, Brustfell, Lederwickel, Lendenschurz-Gurt
+      A(ball(12), skin, { bone: BH.chest, p: [0, shY + 0.02, -0.12], s: [0.32, 0.17, 0.22], top: darker(skin, 0.2), topK: 0.5, shade: 0.2 });
+      for (let k = -2; k <= 2; k++) pointAt3(A, horn3(0.12, 0.05, 5), k % 2 ? darker(skin, 0.15) : darker(skin, 0.25), [k * 0.08, shY - 0.06, 0.3], [k * 0.3, -0.8, 0.6], { bone: BH.chest, s: [1, 1, 0.5], noShadow: true });
+      bracers('#5a3418', false);
+      lootBelt('#3a2a1a', false);
+    }
+    if (id === 'ghul') {
+      // Rippen über dem Bauch, Wirbelsäule auf dem krummen Rücken, fahle Flecken
+      for (let k = 0; k < 3; k++) A(torus3(0.33 - k * 0.02, 0.014, Math.PI * 0.55, 3, 8), lighter(skin, 0.15), { bone: BH.chest, p: [0, hipY + 0.36 - k * 0.07, 0.05], r: [Math.PI / 2 - 0.3, 0, Math.PI * 0.225], s: [1, 1.2, 1], noShadow: true });
+      for (let k = 0; k < 4; k++) A(sphere3(0.035 - k * 0.003, 6, 4), lighter(skin, 0.1), { bone: BH.chest, p: [0, shY - 0.02 - k * 0.1, -0.3 + k * 0.03], noShadow: true });
+      warts(darker(skin, 0.25), 6);
+    }
+    if (id === 'donnerriese' || id === 'tarkon') {
+      veins('#bfe8ff');
+      lootBelt('#2a3248', false);
+      if (id === 'tarkon') {
+        bracers('#4a5a78', true);
+        // kleine schwarze Gewitterwolke über dem Kopf, aus der Blitze zucken
+        for (const [x, y, z, s] of [[0, 0.45, 0, 0.16], [0.14, 0.42, 0.04, 0.12], [-0.15, 0.43, -0.03, 0.13], [0.04, 0.5, -0.1, 0.11]]) A(ball(10), '#2a2a34', { bone: BH.head, p: [hc[0] + x, hc[1] + hr + y, hc[2] + z], s: [s * 1.2, s * 0.8, s], top: '#4a4a5a', topK: 0.5 });
+        for (const x of [-0.1, 0.08]) A(horn3(0.22, 0.02, 3), '#bfe8ff', { bone: BH.head, p: [hc[0] + x, hc[1] + hr + 0.36, hc[2]], r: [Math.PI, 0, x * 3], mat: 'glow' });
+      }
+    }
+  }
+  // --- Orks: Leder- und Eisenteile, Stammeszeichen, Zopf
+  if (t.shape === 'orc') {
+    const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || {};
+    braid(h.mohawk || '#2a2018');
+    if (id === 'ork') { bracers('#5a4632', false); paint('#2a3a1a', false); }
+    if (id === 'orkschamane') {
+      paint('#e8e0cc', false);
+      // Knochenfetische am Gewand
+      for (const x of [-0.12, 0.1]) {
+        limbBetween(A, [x, hipY + 0.1, 0.24], [x, hipY - 0.06, 0.26], 0.006, 0.006, '#3a2a1c', { bone: BH.hips, seg: 3 });
+        A(ball(8), '#e8e0c8', { bone: BH.hips, p: [x, hipY - 0.09, 0.26], s: [0.03, 0.035, 0.03] });
+      }
+    }
+    if (id === 'orkberserker') { paint('#c8302a', true); bracers('#5a2a1a', false); }
+    if (id === 'orkhauptmann' || id === 'gorbag') bracers('#c9a35a', true);
+    if (id === 'orkelite' || id === 'kriegsherr') bracers(id === 'orkelite' ? '#6e7680' : '#c9a35a', true);
+    if (id === 'orkelite') {
+      // Rundschild auf dem Rücken, Wappen auf dem Umhang
+      A(cyl3(0.2, 0.2, 0.03, 14), '#6a4a2e', { bone: BH.chest, p: [0, shY - 0.12, -0.26], r: [Math.PI / 2 + 0.1, 0, 0], shine: 0.2 });
+      A(torus3(0.2, 0.018, Math.PI * 2, 3, 14), '#9aa1a8', { bone: BH.chest, p: [0, shY - 0.12, -0.27], r: [0.1, 0, 0], shine: 0.9 });
+      A(sphere3(0.05, 8, 6), '#9aa1a8', { bone: BH.chest, p: [0, shY - 0.14, -0.29], s: [1, 1, 0.6], shine: 1 });
+    }
+    if (id === 'kriegsherr' || id === 'gorbag') {
+      // Trophäenkette mit kleinen Schädeln
+      for (let k = -2; k <= 2; k += 2) {
+        A(ball(8), '#e8e0c8', { bone: BH.chest, p: [k * 0.07, shY - 0.1 - Math.abs(k) * 0.02, 0.22], s: 0.035, shine: 0.2 });
+        for (const sx of [-1, 1]) A(sphere3(0.008, 6, 4), '#1a1210', { bone: BH.chest, p: [k * 0.07 + sx * 0.012, shY - 0.1 - Math.abs(k) * 0.02, 0.252] });
+      }
+    }
+    if (id === 'gorbag') {
+      // zwei hohe Kriegsbanner mit Clanzeichen auf dem Rücken, weiße Schädelbemalung im Gesicht
+      for (const sx of [-1, 1]) {
+        A(limb3(0.95, 0.018, 0.018, 5), '#3a2a1c', { bone: BH.chest, p: [sx * 0.14, shY + 0.75, -0.22], r: [-0.12, 0, -sx * 0.12] });
+        A(horn3(0.08, 0.025, 4), '#c9a35a', { bone: BH.chest, p: [sx * 0.23, shY + 0.78, -0.13], r: [-0.12, 0, -sx * 0.12], shine: 1 });
+        A(roundBox(0.24, 0.34, 0.012, 0.006), '#8a1a14', { bone: BH.chest, p: [sx * 0.27, shY + 0.52, -0.17], r: [-0.12, 0, -sx * 0.12], shade: 0.2 });
+        A(torus3(0.05, 0.014, Math.PI * 2, 3, 10), '#e8e0cc', { bone: BH.chest, p: [sx * 0.27, shY + 0.55, -0.155], r: [-0.12, 0, 0] });
+      }
+      for (const sx of [-1, 1]) A(ball(8), '#f0ece0', { bone: BH.head, p: [hc[0] + sx * hr * 0.37, hc[1] - hr * 0.08, hc[2] + hr * 0.82], s: [hr * 0.24, hr * 0.2, hr * 0.12], mat: 'face' });
+    }
+  }
+  // --- Dämonen: Adern in der Flügelhaut, Glutrisse, Pfeilspitze am Schwanz; Harpyie mit Schwungfedern
+  if (t.shape === 'demon') {
+    const wingC = o.wings || '#4a1a20';
+    for (const [sx, bone] of [[1, BH.wingL], [-1, BH.wingR]]) {
+      const wx = sx * 0.12;
+      const root = [wx, shY - 0.02, -0.2];
+      if (id === 'harpyie') {
+        // Schwungfedern in drei Tönen entlang der Unterkante
+        const fc = ['#8a6a9a', '#c8a8d8', '#6a4a7a'];
+        for (let k = 0; k < 6; k++) pointAt3(A, horn3(0.2 - k * 0.012, 0.05, 4), fc[k % 3], [wx + sx * (0.12 + k * 0.11), shY - 0.12 - (k % 2) * 0.03, -0.2], [sx * 0.25, -1, -0.1], { bone, s: [1, 1, 0.3] });
+      } else for (const [x, y] of [[0.5, -0.2], [0.28, -0.26], [0.7, 0.02]]) for (const dz of [0.022, -0.022]) {
+        limbBetween(A, [root[0], root[1], root[2] + 0.008 + dz], [wx + sx * x * 0.92, shY - 0.02 + y * 0.92, root[2] + 0.008 + dz], 0.009, 0.005, darker(wingC, 0.35), { bone, seg: 3, noShadow: true });
+      }
+      // brennende Flügelränder (Höllenfürst)
+      if (id === 'azaroth') for (let k = 0; k < 4; k++) A(horn3(0.1, 0.03, 4), k % 2 ? '#ffb04a' : '#ff4a2a', { bone, p: [wx + sx * (0.2 + k * 0.17), shY - 0.2 + (k === 3 ? 0.18 : 0), -0.19], r: [Math.PI, 0, sx * 0.3], mat: 'glow' });
+    }
+    if (id !== 'harpyie') {
+      // Pfeilspitze bzw. Steinspitze am Schwanzende
+      const t2 = [0, hipY + 0.05, -0.7];
+      const tail = darker(skin, 0.3);
+      for (const sx of [-1, 1]) pointAt3(A, horn3(0.1, 0.035, 4), id === 'gargoyle' ? '#4a4a52' : tail, [t2[0] + sx * 0.02, t2[1] + 0.05, t2[2] - 0.04], [sx * 0.9, -0.5, 0.5], { bone: BH.tail, s: [1, 1, 0.45] });
+    }
+    if (id === 'daemon' || id === 'feuerdaemon' || id === 'azaroth') veins(id === 'feuerdaemon' ? '#ffd34d' : '#ffb04a');
+    if (id === 'gargoyle') {
+      // Steinplatten auf Brust und Schultern, gemeißelte Runen in der Flügelhaut
+      for (const sx of [-1, 1]) A(roundBox(0.13, 0.15, 0.04, 0.02), '#5a5a62', { bone: BH.chest, p: [sx * 0.08, hipY + 0.3, 0.17], r: [0.1, sx * 0.3, 0], top: '#7a7a82', topK: 0.4 });
+      for (const [sx, bone] of [[1, BH.wingL], [-1, BH.wingR]]) A(torus3(0.05, 0.01, Math.PI * 2, 3, 8), '#9fd0ff', { bone, p: [sx * 0.42, shY + 0.02, -0.17], mat: 'glow' });
+    }
+    if (id === 'azaroth') {
+      // Krone aus sechs gebogenen Hörnern, Feuer aus den Hufen
+      for (let k = 0; k < 6; k++) {
+        const a = -1.6 + (k / 5) * 3.2;
+        A(horn3(0.22, 0.035, 5), '#2a1416', { bone: BH.head, p: [hc[0] + Math.sin(a) * hr * 0.75, hc[1] + hr * 0.75, hc[2] - Math.cos(a) * hr * 0.3], r: [-0.4, 0, -a * 0.45], shine: 0.5 });
+      }
+      for (const [sx, , , lb] of arms) for (let k = -1; k <= 1; k++) A(horn3(0.12, 0.035, 4), k ? '#ff7a3a' : '#ffd34d', { bone: lb, p: [sx * hipX + k * 0.04, 0.05, 0.06], r: [0, 0, k * 0.4], mat: 'glow' });
+    }
+  }
+  // --- Banditen, Untote, Hexe
+  if (id === 'bandit' || id === 'banditenfuerst') {
+    // Dolch am Gürtel, praller Beutel
+    A(box3(), '#c8ccd2', { bone: BH.hips, p: [0.17, hipY - 0.08, 0.1], r: [0, 0.5, 0.15], shine: 1, s: [0.03, 0.13, 0.015] });
+    A(box3(), '#3a2a1c', { bone: BH.hips, p: [0.17, hipY + 0.0, 0.1], r: [0, 0.5, 0.15], s: [0.06, 0.02, 0.02] });
+  }
+  if (id === 'banditschuetze') bracers('#6b4a2e', false);
+  if (id === 'armbrustschuetze') {
+    // Laterne am Gürtel, Bolzenköcher an der Hüfte
+    A(cyl3(0.04, 0.045, 0.08, 6), '#3a2a1c', { bone: BH.hips, p: [0.19, hipY - 0.1, 0.08] });
+    A(sphere3(0.032, 6, 4), '#ffcc6a', { bone: BH.hips, p: [0.19, hipY - 0.1, 0.08], mat: 'glow' });
+    A(lathe3('quiver2', [[0, 0], [0.065, 0], [0.075, 0.36], [0, 0.37]], 10), '#6b4a2e', { bone: BH.hips, p: [-0.2, hipY - 0.22, -0.04], s: [0.7, 0.6, 0.7], r: [0, 0, 0.15] });
+  }
+  if (id === 'kellerwache') {
+    // großer Schlüsselbund am Gürtel, rote Nase
+    A(torus3(0.05, 0.01, Math.PI * 2, 3, 10), '#8a8e96', { bone: BH.hips, p: [0.15, hipY - 0.06, 0.15], r: [0, 0.6, 0], shine: 1 });
+    for (let k = -1; k <= 1; k++) A(box3(), '#c9a35a', { bone: BH.hips, p: [0.15 + k * 0.025, hipY - 0.13, 0.16], r: [0, 0.6, k * 0.3], shine: 1, s: [0.012, 0.08, 0.008] });
+    A(sphere3(hr * 0.09, 6, 4), '#c84a3a', { bone: BH.head, p: [hc[0], hc[1] - hr * 0.22, hc[2] + hr * 0.98] });
+  }
+  if (id === 'banditenfuerst') {
+    // Kette aus Ringen und Münzen
+    for (let k = 0; k < 7; k++) {
+      const a = Math.PI * (0.18 + (k / 6) * 0.64);
+      A(cyl3(0.022, 0.022, 0.006, 6), '#e8c84a', { bone: BH.chest, p: [Math.cos(a) * 0.15, shY - 0.04 - Math.sin(a) * 0.09, 0.16 + Math.sin(a) * 0.03], r: [Math.PI / 2 - 0.3, 0, 0], shine: 1 });
+    }
+  }
+  if (id === 'untoter') {
+    // freiliegende Rippen, zerfetzte Stoffstreifen
+    for (let k = 0; k < 3; k++) A(torus3(0.12 - k * 0.01, 0.012, Math.PI * 0.7, 3, 8), '#cfc8b0', { bone: BH.chest, p: [0, hipY + 0.3 - k * 0.06, 0.08], r: [Math.PI / 2 - 0.2, 0, Math.PI * 0.15], noShadow: true });
+    for (let k = 0; k < 5; k++) A(horn3(0.1 + (k % 2) * 0.05, 0.03, 4), '#3a3428', { bone: BH.hips, p: [-0.14 + k * 0.07, hipY - 0.16, 0.17], r: [Math.PI, 0, (k - 2) * 0.1], s: [1, 1, 0.3], noShadow: true });
+  }
+  if (id === 'sumpfhexe') {
+    // Kräuterbündel und Fläschchen am Gürtel, Zweige im Haar
+    for (const [x, c] of [[-0.12, '#8fe36a'], [0.06, '#c89aff']]) {
+      A(cyl3(0.022, 0.03, 0.07, 6), '#5a7a6a', { bone: BH.hips, p: [x, hipY - 0.06, 0.24], shine: 1 });
+      A(sphere3(0.022, 6, 4), c, { bone: BH.hips, p: [x, hipY - 0.07, 0.24], mat: 'glow' });
+    }
+    for (let k = -1; k <= 1; k++) A(horn3(0.1, 0.012, 3), k ? '#6a8a3a' : '#4a6a2a', { bone: BH.hips, p: [0.16 + k * 0.015, hipY - 0.02, 0.18], r: [Math.PI + k * 0.3, 0, 0] });
+    for (const sx of [-1, 1]) A(horn3(hr * 0.5, hr * 0.03, 3), '#4a3a2a', { bone: BH.head, p: [hc[0] + sx * hr * 0.8, hc[1] + hr * 0.1, hc[2] - hr * 0.5], r: [-0.5, 0, -sx * 1.0] });
+  }
+  if (id === 'grabwaechter') for (const sx of [-1, 1]) A(horn3(hr * 0.5, hr * 0.1, 5), '#2a2630', { bone: BH.head, p: [hc[0] + sx * hr * 0.75, hc[1] + hr * 0.45, hc[2]], r: [0, 0, -sx * 0.8], shine: 0.6 });
+  if (id === 'gruftkoenig' || id === 'morrak') {
+    // Kette mit Seelensteinen
+    for (let k = -1; k <= 1; k++) A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), '#c89aff', { bone: BH.chest, p: [k * 0.08, shY - 0.1 - Math.abs(k) * 0.02, 0.21], s: [0.025, 0.04, 0.025], mat: 'glow' });
+  }
+  if (id === 'morrak') {
+    // Ring aus violetten Seelenflammen über dem Schädel, drei kreisende Seelensteine
+    for (let k = 0; k < 7; k++) {
+      const a = (k / 7) * Math.PI * 2;
+      A(horn3(0.14, 0.035, 4), k % 2 ? '#c89aff' : '#e8d8ff', { bone: BH.head, p: [hc[0] + Math.cos(a) * hr * 0.75, hc[1] + hr * 1.25, hc[2] + Math.sin(a) * hr * 0.75], mat: 'glow' });
+    }
+    for (let k = 0; k < 3; k++) {
+      const a = (k / 3) * Math.PI * 2 + 0.5;
+      A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), '#8fe36a', { bone: BH.chest, p: [Math.cos(a) * 0.55, shY + 0.1, Math.sin(a) * 0.55], s: [0.05, 0.08, 0.05], mat: 'glow' });
+    }
   }
 }
 

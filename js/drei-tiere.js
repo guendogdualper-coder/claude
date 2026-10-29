@@ -4,6 +4,8 @@
 // Hirsch und Donnerbock: lange Läufe mit Hufen, langer Hals, Geweih bzw. geriffelte Hörner.
 // Mammut: Säulenbeine, Zottelfell, Rüssel und große gebogene Stoßzähne.
 // Alle Tiere haben ein eigenes Kiefer-Glied (BQ.jaw), damit man beim Ausholen das Maul aufgehen sieht.
+// Seit 7.9: zweifarbiges Fell (Rücken dunkler, Bauch heller), Augen mit Glanzpunkt, Büschel an der
+// Schwanzspitze; topY gibt monsterFlair3 die Höhe der Rückenlinie für das Gebietszubehör.
 
 const BQ_JAW = 11;
 
@@ -28,9 +30,10 @@ function boar3(b, o) {
     [[0, bodyY - 0.06, 0.48], 2]
   ]);
   // Rumpf als Keil: mächtige Schultern vorn, Rücken fällt zur schmalen Hüfte ab
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY + 0.06, 0.15], s: [0.25, 0.3, 0.3], shade: 0.3 });
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY, -0.1], s: [0.23, 0.25, 0.34], shade: 0.3 });
-  A(ball(14), fur, { bone: BQ.body, p: [0, bodyY - 0.02, -0.34], s: [0.19, 0.21, 0.2], shade: 0.3 });
+  const coat = { top: darker(fur, 0.3), topK: 0.55, shade: 0.3 };
+  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY + 0.06, 0.15], s: [0.25, 0.3, 0.3] }, coat));
+  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY, -0.1], s: [0.23, 0.25, 0.34] }, coat));
+  A(ball(14), fur, Object.assign({ bone: BQ.body, p: [0, bodyY - 0.02, -0.34], s: [0.19, 0.21, 0.2] }, coat));
   A(ball(12), o.belly || lighter(fur, 0.15), { bone: BQ.body, p: [0, bodyY - 0.14, 0.0], s: [0.16, 0.08, 0.32] });
   // graue Stichelhaare auf den Flanken
   for (let k = 0; k < 10; k++) {
@@ -51,7 +54,7 @@ function boar3(b, o) {
     A(torus3(0.24, 0.018, Math.PI * 1.2, 4, 16), '#3e5a2a', { bone: BQ.body, p: [0, bodyY + 0.02, -0.12], r: [0, Math.PI / 2, 0.4] });
   }
   // kurzer, dicker Nacken
-  A(ball(14), fur, { bone: BQ.neck, p: [0, bodyY + 0.05, 0.36], s: [0.19, 0.23, 0.16], shade: 0.25 });
+  A(ball(14), fur, { bone: BQ.neck, p: [0, bodyY + 0.05, 0.36], s: [0.19, 0.23, 0.16], shade: 0.25, top: darker(fur, 0.3), topK: 0.5 });
   // Kopf: Keil, der schräg nach vorn unten läuft
   const tilt = 0.38;
   const dir = [0, -Math.sin(tilt), Math.cos(tilt)];
@@ -81,6 +84,7 @@ function boar3(b, o) {
     const ep = at(0.13, 0.08, sx * 0.105);
     A(ball(8), '#140c08', { bone: BQ.head, p: ep, s: [0.028, 0.024, 0.022], shine: 0.9 });
     A(sphere3(0.008, 5, 4), o.eye || '#ff5a2a', { bone: BQ.head, p: [ep[0] + sx * 0.012, ep[1] + 0.006, ep[2] + 0.012], mat: 'glow' });
+    A(sphere3(0.006, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.004, ep[1] + 0.012, ep[2] + 0.018], mat: 'glow' });
     A(roundBox(0.07, 0.018, 0.03, 0.008), bristle, { bone: BQ.head, p: [ep[0], ep[1] + 0.03, ep[2] + 0.005], r: [0, sx * 0.3, sx * 0.5] });
     // spitze, aufrechte Ohren mit Haarbüschel
     A(horn3(0.13, 0.055, 6), dark, { bone: BQ.head, p: at(0.0, 0.15, sx * 0.09), r: [-0.1, 0, -sx * 0.55], s: [1, 1, 0.45] });
@@ -101,7 +105,7 @@ function boar3(b, o) {
   // dünner Schwanz mit Quaste
   seg([0, bodyY + 0.03, -0.5], [0, bodyY - 0.12, -0.56], 0.022, 0.016, fur, { bone: BQ.tail });
   A(horn3(0.08, 0.03, 5), bristle, { bone: BQ.tail, p: [0, bodyY - 0.12, -0.56], r: [Math.PI, 0, 0] });
-  return { rig, height: bodyY + 0.38, family: 'beast', bodyY, custom: true, jaw: true, crownAt: [0, bodyY + 0.3, 0.5] };
+  return { rig, height: bodyY + 0.38, family: 'beast', bodyY, custom: true, jaw: true, crownAt: [0, bodyY + 0.3, 0.5], topY: bodyY + 0.3 };
 }
 
 // Mammut: hoher Kopf, Säulenbeine, Zottelfell, Rüssel, große gebogene Stoßzähne
@@ -118,8 +122,8 @@ function mammoth3(b, o) {
     [[0, bodyY + 0.05, -0.45], 1], [[0.1, bodyY, 0], 1], [[-0.1, bodyY, 0], 1], [[0, bodyY + 0.1, 0.32], 1],
     [[0, bodyY - 0.02, 0.56], 2]
   ]);
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY + 0.1, 0.12], s: [0.32, 0.36, 0.32], shade: 0.3 });
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY, -0.18], s: [0.3, 0.3, 0.32], shade: 0.3 });
+  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY + 0.1, 0.12], s: [0.32, 0.36, 0.32], shade: 0.3, top: shag, topK: 0.55 });
+  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY, -0.18], s: [0.3, 0.3, 0.32], shade: 0.3, top: shag, topK: 0.55 });
   // Buckel und Nackenfell
   A(ball(12), shag, { bone: BQ.body, p: [0, bodyY + 0.36, 0.12], s: [0.18, 0.14, 0.2] });
   // Zottelfell hängt wie ein Rock an den Flanken
@@ -135,6 +139,9 @@ function mammoth3(b, o) {
     A(ball(10), shag, { bone: BQ.head, p: [sx * 0.19, hc[1] + 0.04, hc[2] - 0.06], s: [0.05, 0.1, 0.08] });
     A(ball(8), '#140c08', { bone: BQ.head, p: [sx * 0.13, hc[1] + 0.04, hc[2] + 0.16], s: [0.026, 0.022, 0.02], shine: 0.9 });
     A(sphere3(0.008, 5, 4), o.eye || '#9fe8ff', { bone: BQ.head, p: [sx * 0.135, hc[1] + 0.046, hc[2] + 0.178], mat: 'glow' });
+    A(sphere3(0.005, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.125, hc[1] + 0.052, hc[2] + 0.18], mat: 'glow' });
+    // Ringe auf den Stoßzähnen
+    for (const u of [0.35, 0.7]) ringAt3(A, 0.05, 0.01, '#d8ccb0', [sx * (0.1 + 0.1 * u), hc[1] - 0.14 - 0.2 * u, hc[2] + 0.12 + 0.16 * u], [sx * 0.1, -0.2, 0.16], { bone: BQ.head, noShadow: true });
     // Stoßzähne: weit nach vorn, dann nach oben und innen gebogen
     const p0 = [sx * 0.1, hc[1] - 0.14, hc[2] + 0.12];
     const p1 = [sx * 0.2, hc[1] - 0.34, hc[2] + 0.28];
@@ -163,7 +170,7 @@ function mammoth3(b, o) {
   }
   seg([0, bodyY + 0.06, -0.46], [0, bodyY - 0.2, -0.52], 0.03, 0.02, fur, { bone: BQ.tail });
   A(horn3(0.08, 0.035, 5), shag, { bone: BQ.tail, p: [0, bodyY - 0.2, -0.52], r: [Math.PI, 0, 0] });
-  return { rig, height: bodyY + 0.6, family: 'beast', bodyY, custom: true, jaw: true, crownAt: [0, bodyY + 0.48, 0.48] };
+  return { rig, height: bodyY + 0.6, family: 'beast', bodyY, custom: true, jaw: true, crownAt: [0, bodyY + 0.48, 0.48], topY: bodyY + 0.46 };
 }
 
 // Hirsch (Geweih) und Donnerbock (Steinbock mit geriffelten Hörnern und Bart)
@@ -182,9 +189,10 @@ function deer3(b, o) {
     [[0, bodyY + 0.4, 0.58], 2]
   ]);
   const bw = ibex ? 1.12 : 1;
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY + 0.03, 0.2], s: [0.19 * bw, 0.23, 0.24], shade: 0.25 });
-  A(ball(16), fur, { bone: BQ.body, p: [0, bodyY, -0.05], s: [0.18 * bw, 0.2, 0.32], shade: 0.25 });
-  A(ball(14), fur, { bone: BQ.body, p: [0, bodyY + 0.02, -0.28], s: [0.18 * bw, 0.2, 0.18], shade: 0.25 });
+  const coat = { top: darker(fur, 0.25), topK: 0.5, shade: 0.25 };
+  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY + 0.03, 0.2], s: [0.19 * bw, 0.23, 0.24] }, coat));
+  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY, -0.05], s: [0.18 * bw, 0.2, 0.32] }, coat));
+  A(ball(14), fur, Object.assign({ bone: BQ.body, p: [0, bodyY + 0.02, -0.28], s: [0.18 * bw, 0.2, 0.18] }, coat));
   A(ball(12), o.belly || '#f0e6d4', { bone: BQ.body, p: [0, bodyY - 0.12, 0.0], s: [0.13 * bw, 0.08, 0.3] });
   // heller Spiegel am Hinterteil
   A(ball(10), '#f4ece0', { bone: BQ.body, p: [0, bodyY + 0.04, -0.43], s: [0.1, 0.12, 0.05] });
@@ -201,6 +209,7 @@ function deer3(b, o) {
   for (const sx of [-1, 1]) {
     // große, dunkle Augen seitlich, Ohren wie Blätter
     A(ball(8), '#140c08', { bone: BQ.head, p: [sx * 0.08, hc[1] + 0.02, hc[2] + 0.06], s: [0.026, 0.03, 0.024], shine: 0.9 });
+    A(sphere3(0.007, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.094, hc[1] + 0.035, hc[2] + 0.07], mat: 'glow' });
     if (o.eye) A(sphere3(0.009, 5, 4), o.eye, { bone: BQ.head, p: [sx * 0.095, hc[1] + 0.03, hc[2] + 0.075], mat: 'glow' });
     A(horn3(0.13, 0.045, 6), fur, { bone: BQ.head, p: [sx * 0.08, hc[1] + 0.05, hc[2] - 0.04], r: [0, 0, -sx * 1.2], s: [1, 1, 0.45] });
     A(horn3(0.08, 0.025, 5), '#d8b8a8', { bone: BQ.head, p: [sx * 0.085, hc[1] + 0.055, hc[2] - 0.035], r: [0, 0, -sx * 1.2], s: [1, 1, 0.3] });
@@ -241,7 +250,8 @@ function deer3(b, o) {
     hooves3(A, bone, foot[0], foot[2], '#241a14');
   }
   seg([0, bodyY + 0.08, -0.42], [0, bodyY + 0.04, -0.5], 0.035, 0.02, fur, { bone: BQ.tail });
-  return { rig, height: bodyY + (ibex ? 0.75 : 1.05), family: 'beast', bodyY, custom: true, jaw: true, crownAt: [0, bodyY + 0.6, 0.48] };
+  A(horn3(0.07, 0.03, 4), ibex ? dark : '#f4ece0', { bone: BQ.tail, p: [0, bodyY + 0.04, -0.5], r: [Math.PI - 0.6, 0, 0] });
+  return { rig, height: bodyY + (ibex ? 0.75 : 1.05), family: 'beast', bodyY, custom: true, jaw: true, crownAt: [0, bodyY + 0.6, 0.48], topY: bodyY + 0.22 };
 }
 
 // Eigene Bauweise je Monster (alles andere kommt aus den 2D-Zeichnungen)
