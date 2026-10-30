@@ -598,8 +598,12 @@ function netClientDamage(m, amount, crit, isDot) {
   if (left(m.poison) && !m.poison.sent) { st.po = [m.poison.dps, left(m.poison)]; m.poison.sent = true; }
   if (left(m.burn) && !m.burn.sent) { st.bu = [m.burn.dps, left(m.burn)]; m.burn.sent = true; }
   // Einfrieren (seit 8.6): Restdauer schicken; zerschlagenes Eis einmal melden
-  if (m.frozen > game.time) st.fz = +(m.frozen - game.time).toFixed(1);
-  if (m.unfreeze) { st.uf = 1; m.unfreeze = false; }
+  // nur eigenes Eis melden; das vom Host gespiegelte zurückzuschicken hielte den Gegner ewig eingefroren
+  if (m.unfreeze) {
+    st.uf = 1;
+    m.unfreeze = false;
+    m.frozenOwn = 0;
+  } else if (m.frozenOwn > game.time && m.frozen > game.time) st.fz = +(m.frozenOwn - game.time).toFixed(1);
   // Rückstoß und Betäubung führt der Host aus
   m.stun = 0;
   m.kx = m.ky = 0;

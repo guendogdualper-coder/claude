@@ -127,6 +127,8 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.freeze && opts.stun && canFreeze(m)) {
       if (!(m.frozen > game.time)) m.frozenT = game.time;
       m.frozen = Math.max(m.frozen || 0, game.time + opts.stun);
+      // eigenes Eis (nur das geht an den Host; gespiegeltes Eis vom Host nicht zurückschicken)
+      m.frozenOwn = m.frozen;
     }
     if (opts.knockback) {
       const src = opts.from || p;
@@ -336,7 +338,7 @@ function damagePlayer(amount, attacker) {
   p.lastCombat = game.time;
   // Frostpanzer (seit 8.6): wer dich aus der Nähe schlägt, wird 1,5 s verlangsamt (feste Verlangsamung)
   if (s.chill && attacker && !attacker.duelProxy && !attacker.dead && attacker.typeId && dist(attacker, p) < 90) {
-    setSlow(attacker, 1 - s.chill, 1.5);
+    setSlow(attacker, Math.max(0.1, 1 - s.chill), 1.5);
     if (net.mode === 'client') netClientDamage(attacker, 0, false, false);
   }
   if (p.protectUntil > game.time) return;
@@ -742,7 +744,7 @@ function applyBuff(sk, lvl) {
   const scale = buffScale(lvl);
   const effects = {};
   // Lauftempo seit 8.5 fest (sonst bis +158 % mit Rang und Hauptwert)
-  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = typeof v === 'number' ? (k === 'speed' ? v : v * scale) : v;
+  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = typeof v === 'number' ? (k === 'speed' || k === 'chill' ? v : v * scale) : v;
   const duration = skillDuration(sk, lvl);
   p.buffs = p.buffs.filter((b) => b.id !== sk.id);
   p.buffs.push({ id: sk.id, name: sk.name, short: sk.short, until: game.time + duration, duration, effects, lvl });

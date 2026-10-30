@@ -235,6 +235,8 @@ function boltAfterHit(sk, m, pr, pw, lvl) {
     m.stun = 0;
     m.unfreeze = true;
     iceShatterFx(m);
+    // als Mitspieler sofort melden: der Treffer selbst ging noch mit Eis an den Host
+    if (net.mode === 'client' && !m.duelProxy && !m.dead) netClientDamage(m, 0, false, false);
   }
   if (sk.discharge && m.charged > game.time) {
     m.charged = 0;
@@ -292,7 +294,7 @@ SKILL_TYPES.shift = function (sk, pw, lvl) {
   const p = game.player;
   const plan = shiftPlan(p, sk);
   const len = shiftReach(p, plan.dir, plan.want);
-  if (len < 24) {
+  if (len < 24 && !plan.near) {
     addText(p.x, p.y - 34, 'Kein Platz', 'info');
     return false; // kein Mana, keine Abklingzeit
   }
@@ -322,8 +324,10 @@ function shiftPlan(p, sk) {
   if (t && (sk.at === 'line' || sk.at === 'end')) {
     const d = dist(p, t);
     const dir = unitVec(t.x - p.x, t.y - p.y);
-    // Blitzschritt schlägt knapp hinter dem Ziel ein, Erdsprung bricht kurz davor aus dem Boden
-    return { dir, want: sk.at === 'end' ? Math.max(0, Math.min(sk.distance, d - 24)) : Math.min(sk.distance, d + 40) };
+    // Blitzschritt schlägt knapp hinter dem Ziel ein, Erdsprung bricht kurz davor aus dem Boden;
+    // steht das Ziel schon daneben, bricht der Erdsprung an Ort und Stelle aus (near)
+    const want = sk.at === 'end' ? Math.max(0, Math.min(sk.distance, d - 24)) : Math.min(sk.distance, d + 40);
+    return { dir, want, near: sk.at === 'end' && want < 24 };
   }
   const n = nearestEnemy(p, 160);
   return { dir: n ? unitVec(p.x - n.x, p.y - n.y) : { ...p.facing }, want: sk.distance };

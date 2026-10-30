@@ -1484,7 +1484,7 @@ function skillStats(sk, lvl) {
     // Kälte (Frostpanzer, seit 8.6) verlangsamt fest um diesen Anteil
     if (k === 'chill') { out.push([label, skillPct(v)]); continue; }
     // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
-    out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' ? v : v * scale))]);
+    out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' || k === 'chill' ? v : v * scale))]);
   }
   if (sk.duration) out.push(['Dauer', skillDuration(sk, lvl) + ' s']);
   return out;
