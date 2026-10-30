@@ -1,8 +1,9 @@
 // Tastenbelegung und freie Plätze (seit 10.5)
 // - Jede Aktion hat eine Taste; in den Einstellungen lässt sich jede Taste neu belegen (opts.keys, gilt für das Gerät).
 //   Laufen bleibt auf WASD und den Pfeiltasten, Esc schließt Fenster.
-// - Zwei freie Plätze unten in der Leiste (p.quick, je Figur): mit einer Aktion nach Wahl belegen – Trank, Pferd,
-//   Ziel, Sprechen, Karte, Fenster. Langes Drücken (oder Rechtsklick) auf den Platz öffnet die Auswahl.
+// - Zwei freie Plätze unten in der Leiste (p.quick, je Figur), am Anfang leer: mit einer Fertigkeit (z. B. einem
+//   Buff), der Ulti oder einer Aktion belegen – Trank, Pferd, Ziel, Sprechen, Karte, Fenster. Antippen eines leeren
+//   Platzes, langes Drücken oder Rechtsklick öffnet die Auswahl.
 
 const KEY_ACTIONS = [
   { id: 'skill1', label: 'Fertigkeit 1', key: 'Digit1' },
@@ -148,14 +149,37 @@ const QUICK_ACTIONS = {
   daily: { label: 'Tagesbelohnung', menu: 'btnDaily' },
   social: { label: 'Freunde & Gilde', menu: 'btnSocial' }
 };
-const QUICK_DEFAULT = ['ride', 'map'];
+const QUICK_DEFAULT = [null, null];
 
 function quickOf(p) {
-  if (!Array.isArray(p.quick) || p.quick.length !== 2) p.quick = QUICK_DEFAULT.slice();
+  // 10.5 hatte Pferd und Karte vorbelegt: seit 10.6 sind die Plätze frei, bis man sie selbst belegt
+  if (!Array.isArray(p.quick) || p.quick.length !== 2 || (!p.quickSet && p.quick[0] === 'ride' && p.quick[1] === 'map')) p.quick = QUICK_DEFAULT.slice();
   return p.quick;
 }
+// Fertigkeiten der Figur als belegbare Aktionen: sk:0 … sk:4 (Platz in der Klasse) und die Ulti
+function quickSkill(p, id) {
+  const m = /^sk:(\d)$/.exec(id || '');
+  return m ? { i: Number(m[1]), sk: classSkills(p)[Number(m[1])] } : null;
+}
+function quickEntry(p, id) {
+  if (!id) return null;
+  if (id === 'ult') {
+    const u = ultimateOf(p);
+    return u ? { label: u.name, img: skillIconUrl(u), ult: true } : null;
+  }
+  const s = quickSkill(p, id);
+  if (s && s.sk) return { label: s.sk.name, img: skillIconUrl(s.sk), skill: s.i };
+  return QUICK_ACTIONS[id] || null;
+}
+function quickChoices(p) {
+  const out = classSkills(p).map((sk, i) => ['sk:' + i, quickEntry(p, 'sk:' + i)]);
+  if (ultimateOf(p)) out.push(['ult', quickEntry(p, 'ult')]);
+  return out.concat(Object.entries(QUICK_ACTIONS));
+}
 function quickIconHtml(id) {
-  const q = QUICK_ACTIONS[id];
+  const p = game.player;
+  const q = p ? quickEntry(p, id) : QUICK_ACTIONS[id];
+  if (q && q.img) return `<img class="skill-icon" src="${q.img}" alt="">`;
   if (!q) return '<span class="quick-empty">+</span>';
   if (q.icon) return q.icon();
   const svg = q.svg ? QUICK_SVG[q.svg] : (document.querySelector(`#${q.menu} svg`) || { outerHTML: '' }).outerHTML;
@@ -173,7 +197,10 @@ function useQuickSlot(k) {
     ui.log('Du hast noch kein Pferd. Der Stallmeister hilft dir ab Stufe 30.', 'warn');
     return;
   }
-  runAction(id);
+  const s = quickSkill(p, id);
+  if (s) useSkill(s.i);
+  else if (id === 'ult') useUltimate();
+  else runAction(id);
 }
 function renderQuickSlots() {
   const p = game.player;
@@ -181,12 +208,13 @@ function renderQuickSlots() {
   quickOf(p).forEach((id, k) => {
     const btn = $('quick' + (k + 1));
     if (!btn) return;
-    const q = QUICK_ACTIONS[id];
+    const q = quickEntry(p, id);
     btn.classList.toggle('empty', !q);
     btn.classList.toggle('off', !!(q && q.need && !q.need(p)));
     btn.title = `${q ? q.label : 'Freier Platz'} (${keyLabel(actionKey('quick' + (k + 1)))}) – lange drücken oder Rechtsklick zum Belegen`;
+    btn.classList.toggle('has-skill', !!(q && q.img));
     btn.innerHTML = `<span class="key">${keyLabel(actionKey('quick' + (k + 1)))}</span>${quickIconHtml(id)}` +
-      (q && q.count ? `<span class="count">${q.count(p)}</span>` : '');
+      (q && q.count ? `<span class="count">${q.count(p)}</span>` : '') + (q && q.img ? '<span class="cd" hidden></span>' : '');
   });
 }
 // Anzahl der Tränke auf den freien Plätzen mitzählen (aus ui.update)
@@ -194,16 +222,28 @@ function updateQuickCounts() {
   const p = game.player;
   if (!p) return;
   quickOf(p).forEach((id, k) => {
-    const q = QUICK_ACTIONS[id];
-    if (!q || !q.count) return;
-    const el = document.querySelector(`#quick${k + 1} .count`);
-    const v = String(q.count(p));
-    if (el && el.textContent !== v) el.textContent = v;
+    const q = quickEntry(p, id);
+    if (!q) return;
+    if (q.count) {
+      const el = document.querySelector(`#quick${k + 1} .count`);
+      const v = String(q.count(p));
+      if (el && el.textContent !== v) el.textContent = v;
+      return;
+    }
+    // Fertigkeit oder Ulti: Abklingzeit wie in der Leiste
+    const cd = q.ult ? p.ultCd || 0 : q.skill != null ? (p.skillCd[q.skill] || 0) : 0;
+    const el = document.querySelector(`#quick${k + 1} .cd`);
+    if (!el) return;
+    const show = cd > 0.05;
+    if (el.hidden === show) el.hidden = !show;
+    const t = show ? (cd >= 60 ? Math.ceil(cd / 60) + 'm' : cd >= 10 ? String(Math.ceil(cd)) : cd.toFixed(1)) : '';
+    if (el.textContent !== t) el.textContent = t;
   });
 }
 function setQuickSlot(k, id) {
   const p = game.player;
   quickOf(p)[k] = id || null;
+  p.quickSet = true;
   renderQuickSlots();
   saveGame();
 }
@@ -215,7 +255,7 @@ function openQuickPicker(k) {
   box.className = 'quick-pick';
   box.id = 'quickPick';
   box.innerHTML = `<strong>Freier Platz ${k + 1}</strong><div class="quick-pick-grid">` +
-    Object.entries(QUICK_ACTIONS).map(([id, q]) => `<button type="button" data-q="${id}" class="${quickOf(p)[k] === id ? 'on' : ''}">${quickIconHtml(id)}<span>${q.label}</span></button>`).join('') +
+    quickChoices(p).map(([id, q]) => `<button type="button" data-q="${id}" class="${quickOf(p)[k] === id ? 'on' : ''}${q.img ? ' sk' : ''}">${quickIconHtml(id)}<span>${q.label}</span></button>`).join('') +
     `<button type="button" data-q=""><span class="quick-empty">×</span><span>Leer</span></button></div>`;
   box.addEventListener('pointerdown', (e) => e.stopPropagation());
   box.querySelectorAll('[data-q]').forEach((b) => b.addEventListener('click', (e) => {
@@ -270,9 +310,9 @@ function keyOptionsHtml() {
   const p = game.player;
   const quick = p ? quickOf(p) : QUICK_DEFAULT;
   const sel = (k) => `<select data-qsel="${k}" aria-label="Freier Platz ${k + 1}"><option value="">Leer</option>` +
-    Object.entries(QUICK_ACTIONS).map(([id, q]) => `<option value="${id}"${quick[k] === id ? ' selected' : ''}>${q.label}</option>`).join('') + '</select>';
+    quickChoices(p).map(([id, q]) => `<option value="${id}"${quick[k] === id ? ' selected' : ''}>${q.img ? 'Fertigkeit: ' : ''}${q.label}</option>`).join('') + '</select>';
   return `<section class="opt-group"><h3>Freie Plätze</h3>` +
-    `<p class="hint-text">Zwei Plätze unten in der Leiste belegst du selbst – Trank, Pferd, Ziel, Sprechen, Karte oder ein Fenster. Im Spiel: Platz lange drücken (am PC Rechtsklick).</p>` +
+    `<p class="hint-text">Zwei Plätze unten in der Leiste belegst du selbst – mit einer Fertigkeit (z. B. einem Buff), der Ulti, einem Trank, dem Pferd, der Karte oder einem Fenster. Im Spiel: leeren Platz antippen oder Platz lange drücken (am PC Rechtsklick).</p>` +
     (p ? `<div class="opt-row"><div class="opt-text"><strong>Platz 1</strong></div>${sel(0)}</div><div class="opt-row"><div class="opt-text"><strong>Platz 2</strong></div>${sel(1)}</div>` : '') +
     `</section><section class="opt-group"><h3>Tastenbelegung</h3>` +
     `<p class="hint-text">Für Tastatur: Aktion antippen, dann die neue Taste drücken (Esc bricht ab). Ist die Taste schon belegt, tauschen die beiden. Laufen bleibt auf WASD und den Pfeiltasten.</p>` +

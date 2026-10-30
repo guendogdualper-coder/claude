@@ -13,5 +13,7 @@ const REC_SPRITES = {
   deer: {aggro: [[0.05, 3.95], [4.25, 1.95]], attack: [[6.45, 1.55], [8.25, 1.632]], hurt: [[10.132, 0.826]], death: [[11.208, 2.176]]},
   brute: {aggro: [[0.05, 1.421], [1.721, 1.526]], attack: [[3.497, 1.19]], hurt: [[4.938, 0.773]], death: [[5.961, 1.706]]},
   undead: {aggro: [[0.05, 1.45], [1.75, 2.15]], attack: [[4.15, 1.35], [5.75, 1.15]], hurt: [[7.15, 0.955]], death: [[8.355, 1.722]]},
-  orc: {aggro: [[0.05, 1.859]], attack: [[2.159, 0.549], [2.958, 0.89]], hurt: [[4.098, 0.671]], death: [[5.019, 1.628]]}
+  orc: {aggro: [[0.05, 1.859]], attack: [[2.159, 0.549], [2.958, 0.89]], hurt: [[4.098, 0.671]], death: [[5.019, 1.628]]},
+  // seit 10.6: das eigene Pferd (BigSoundBank, CC0): Wiehern beim Aufsitzen, Schnauben beim Absteigen
+  horse: {neigh: [[0.05, 1.58], [1.933, 1.18]], snort: [[3.413, 0.49]]}
 };

@@ -10,11 +10,11 @@
 // ambient           Stimmung: schwebende Teilchen (kind) und eine leichte Färbung des Bildes (tint, RGBA)
 const ZONES = [
   {
-    id: 'dorf', map: 1, name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 15, safe: true,
+    id: 'dorf', map: 1, name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 19, safe: true,
     ground: 'GRASS'
   },
   {
-    id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 999,
+    id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 19, maxDist: 999,
     ground: 'GRASS', alt: 'MEADOW', trees: 0.006, treeObj: 'TREE', rocks: 0.0024, water: 0.22, liquid: 'WATER',
     groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1], ['fuchs', 6, 0, 0.5], ['hirsch', 5, 0.45, 1]], groupSize: [3, 5],
     stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
@@ -112,13 +112,13 @@ const DUNGEONS = [
     ambient: { kind: 'wisps', tint: [20, 10, 40, 0.14] }
   },
   {
-    id: 'schlangentempel', name: 'Schlangentempel', minLevel: 44, entry: { map: 2, dir: [1, 0], dist: 70, side: 4 }, floor: 'FLAGSTONE',
+    id: 'schlangentempel', name: 'Schlangentempel', minLevel: 44, entry: { map: 2, dir: [1, 0], dist: 84, side: 4 }, floor: 'FLAGSTONE',
     wall: { top: '#3a5a4a', face: '#142a22', line: '#c9a35a' }, portal: '#7ad8c8',
     mobs: ['naga', 'nagapriesterin'], boss: 'nagakoenigin', stones: [45, 50],
     ambient: { kind: 'fireflies', tint: [10, 40, 30, 0.12] }
   },
   {
-    id: 'titanenschmiede', name: 'Titanenschmiede', minLevel: 60, entry: { map: 3, dir: [-1, 0], dist: 70, side: 4 }, floor: 'BASALT',
+    id: 'titanenschmiede', name: 'Titanenschmiede', minLevel: 60, entry: { map: 3, dir: [-1, 0], dist: 84, side: 4 }, floor: 'BASALT',
     wall: { top: '#3a3430', face: '#14100c', line: '#ffb04a' }, portal: '#ffb04a',
     mobs: ['steintitan', 'gargoyle'], boss: 'titanenkoenig', stones: [60, 65],
     ambient: { kind: 'embers', tint: [70, 30, 0, 0.12] }
@@ -141,7 +141,7 @@ for (const [boss, name, map, floor, portal, wall, amb] of RAID_DEFS) {
   const lvl = MONSTER_TYPES[boss].level;
   DUNGEONS.push({
     id: 'raid_' + boss, name, minLevel: Math.max(1, lvl - 6), raid: true, floor, wall, portal, mobs: [], boss, stones: [],
-    entry: map ? { map, dir: [0, 1], dist: 16, side: 6 } : { dir: [0, 1], dist: 24, side: 6 },
+    entry: map ? { map, dir: [0, 1], dist: 18, side: 6 } : { dir: [0, 1], dist: 29, side: 6 },
     ambient: { kind: amb, tint: [40, 20, 20, 0.08] }
   });
 }
@@ -156,48 +156,48 @@ for (const d of DUNGEONS) {
 // region: [x, y, Breite, Höhe] in Kacheln; camp: halbe Breite des sicheren Platzes (Standard CAMP_HALF)
 // portals: Weltportale draußen (seit Version 6.2 keine mehr – nur noch das Weltentor)
 const WORLD_MAPS = [
-  { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 90, 300, 120], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
-  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [300, 0, 300, 120], camp: 7, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
-  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [600, 0, 300, 120], camp: 7, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
-  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [300, 120, 300, 120], camp: 7, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [600, 120, 300, 120], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
-  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [300, 240, 300, 120], camp: 7, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
-  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [600, 240, 300, 120], camp: 7, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
-  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [300, 360, 300, 120], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
-  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [600, 360, 300, 120], camp: 7, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
+  { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 105, 360, 150], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
+  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 150], camp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
+  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 150], camp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
+  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 150, 360, 150], camp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
+  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 150, 360, 150], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
+  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 300, 360, 150], camp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
+  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 300, 360, 150], camp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
+  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 450, 360, 150], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 450, 360, 150], camp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
 ];
 const MAP_ZONES = [
-  { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'SAND' },
+  { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
   {
-    id: 'sandwueste', map: 2, name: 'Sandschlangenwüste', levels: 'Stufe 30–39', minLevel: 30, minDist: 12, maxDist: 55,
+    id: 'sandwueste', map: 2, name: 'Sandschlangenwüste', levels: 'Stufe 30–39', minLevel: 30, minDist: 15, maxDist: 66,
     ground: 'SAND', trees: 0.0036, treeObj: 'DEADTREE', rocks: 0.012, water: 0.1, liquid: 'WATER',
     groups: [['sandviper', 11, 0, 0.6], ['klapperschlange', 10, 0.3, 1], ['kobra', 9, 0.55, 1], ['schakal', 8, 0.1, 0.9]], groupSize: [3, 5],
     stones: [[30, 3, 0, 0.6], [35, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [90, 60, 10, 0.08] }
   },
   {
-    id: 'nagadschungel', map: 2, name: 'Nagadschungel', levels: 'Stufe 40–50', minLevel: 40, minDist: 55, maxDist: 999,
+    id: 'nagadschungel', map: 2, name: 'Nagadschungel', levels: 'Stufe 40–50', minLevel: 40, minDist: 66, maxDist: 999,
     ground: 'FOREST', alt: 'SWAMP', trees: 0.021, treeObj: 'TREE', rocks: 0.003, water: 0.22, liquid: 'BOG',
     groups: [['riesenpython', 11, 0, 0.6], ['naga', 11, 0.3, 1], ['nagapriesterin', 9, 0.5, 1], ['panther', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
     ambient: { kind: 'fireflies', tint: [10, 40, 20, 0.14] }
   },
-  { id: 'waldlager', map: 4, name: 'Waldlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'FOREST' },
-  { id: 'orklager', map: 5, name: 'Talwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'SAND' },
-  { id: 'aschelager', map: 6, name: 'Aschenlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'ASH' },
-  { id: 'frostlager', map: 7, name: 'Frostlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'SNOW' },
-  { id: 'moorlager', map: 8, name: 'Moorwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'SWAMP' },
-  { id: 'feuerlager', map: 9, name: 'Glutlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 8, safe: true, ground: 'BASALT' },
-  { id: 'klammwacht', map: 3, name: 'Klammfeste', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 12, safe: true, ground: 'ASH' },
+  { id: 'waldlager', map: 4, name: 'Waldlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'FOREST' },
+  { id: 'orklager', map: 5, name: 'Talwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'SAND' },
+  { id: 'aschelager', map: 6, name: 'Aschenlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'ASH' },
+  { id: 'frostlager', map: 7, name: 'Frostlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'SNOW' },
+  { id: 'moorlager', map: 8, name: 'Moorwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'SWAMP' },
+  { id: 'feuerlager', map: 9, name: 'Glutlager', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'BASALT' },
+  { id: 'klammwacht', map: 3, name: 'Klammfeste', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'ASH' },
   {
-    id: 'donnerklamm', map: 3, name: 'Donnerklamm', levels: 'Stufe 50–61', minLevel: 50, minDist: 12, maxDist: 55,
+    id: 'donnerklamm', map: 3, name: 'Donnerklamm', levels: 'Stufe 50–61', minLevel: 50, minDist: 15, maxDist: 66,
     ground: 'ASH', trees: 0.0024, treeObj: 'DEADTREE', rocks: 0.027, water: 0.08, liquid: 'WATER',
     groups: [['trollkrieger', 12, 0, 0.6], ['harpyie', 10, 0.3, 1], ['minotaurus', 10, 0.5, 1], ['donnerbock', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[55, 3, 0, 0.6], [60, 3, 0.4, 1]],
     ambient: { kind: 'dust', tint: [60, 40, 30, 0.1] }
   },
   {
-    id: 'titanenkamm', map: 3, name: 'Titanenkamm', levels: 'Stufe 62–75', minLevel: 62, minDist: 55, maxDist: 999,
+    id: 'titanenkamm', map: 3, name: 'Titanenkamm', levels: 'Stufe 62–75', minLevel: 62, minDist: 66, maxDist: 999,
     ground: 'BASALT', trees: 0.0018, treeObj: 'DEADTREE', rocks: 0.024, water: 0.14, liquid: 'LAVA',
     groups: [['steintitan', 12, 0, 0.6], ['gargoyle', 12, 0.3, 1], ['donnerriese', 10, 0.5, 1]], groupSize: [2, 4],
     stones: [[65, 3, 0, 0.6], [70, 3, 0.4, 1]],

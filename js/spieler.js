@@ -71,7 +71,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 1; // seit 10.1 (vorher 3): sonst ist man zu schnell durch
@@ -214,8 +214,8 @@ function makePlayer(save) {
     const spent = p.skillLevels.reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX - 1 : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
     p.skillPoints = Math.max(p.skillPoints, (p.level - 1) - spent);
   }
-  // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Version 6.2/6.3 (Welt 6) geht es
-  // im Lager derselben Map weiter, sonst im Dorf.
+  // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Welt 6 (6.2/6.3) und Welt 7 (bis 10.5,
+  // Maps 300 × 120) geht es im Lager derselben Map weiter, sonst im Dorf.
   let campOf = null;
   if ((save.worldVersion || 1) < WORLD_VERSION) {
     if (save.worldVersion === 6 && save.x != null) {
@@ -223,6 +223,11 @@ function makePlayer(save) {
       const tx = save.x / TILE;
       const ty = save.y / TILE;
       for (const [id, [x, y, w, h]] of Object.entries(OLD)) if (tx >= x && tx < x + w && ty >= y && ty < y + h) campOf = Number(id);
+    } else if (save.worldVersion === 7 && save.x != null) {
+      const OLD7 = { 4: [300, 0], 5: [600, 0], 6: [300, 120], 2: [600, 120], 7: [300, 240], 8: [600, 240], 3: [300, 360], 9: [600, 360] };
+      const tx = save.x / TILE;
+      const ty = save.y / TILE;
+      for (const [id, [x, y]] of Object.entries(OLD7)) if (tx >= x && tx < x + 300 && ty >= y && ty < y + 120) campOf = Number(id);
     }
     p.x = null;
     p.y = null;
@@ -632,6 +637,8 @@ function toggleRide(on) {
   game.stats = playerStats(p);
   particles(p.x, feetY(p), { count: 16, color: ['#c9b28a', '#a88f62'], speed: [30, 90], life: [0.3, 0.6], size: [2, 4], drag: 3, glow: false });
   ui.log(next ? 'Du sitzt auf deinem Pferd.' : 'Du steigst ab.', 'info');
+  // seit 10.6: das Pferd wiehert, wenn man es ruft, und schnaubt beim Absteigen
+  if (typeof snd !== 'undefined') snd.horse(p, next ? 'neigh' : 'snort');
   ui.updateHorseButton();
 }
 

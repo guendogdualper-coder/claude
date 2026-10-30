@@ -686,7 +686,7 @@ Object.assign(ui, {
     body.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
       const id = Number(b.dataset.map);
       const wm = WORLD_MAPS.find((m) => m.id === id);
-      const spot = id === 1 ? { x: (CENTER_X + 6.8) * TILE, y: (CENTER_Y - 4) * TILE } : { ...game.world.maps.find((m) => m.id === id).spawn };
+      const spot = id === 1 ? { x: (CENTER_X + 6.8 * VS) * TILE, y: (CENTER_Y - 4 * VS) * TILE } : { ...game.world.maps.find((m) => m.id === id).spawn };
       moveThrough(spot, '#7ab8ff');
       ui.banner(wm.name, wm.levels);
     }));

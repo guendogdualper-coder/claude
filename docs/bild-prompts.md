@@ -1942,3 +1942,8 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 - Leiste: `Mobile MMORPG landscape HUD, bottom right: a big red attack button, skill buttons in an arc, two potion buttons (red and blue flask) and above them two extra round slots with a horse icon and a map icon, brass rims, dark wood, painterly toon UI`
 - Auswahl: `Game UI popup "Freier Platz 2" centered on screen, dark lacquered panel with brass border, 4x3 grid of square buttons each with a line icon and German label (Lebenstrank, Manatrank, Pferd auf/ab, Nächstes Ziel, Sprechen / Aufheben, Große Karte, Inventar, Charakter, Beutel, Tagesbelohnung, Freunde & Gilde, Leer), selected one glowing gold`
 - Tastenbelegung: `Settings panel section "Tastenbelegung", two columns of rows, action name left and a small key cap right (1, 2, Q, E, Leertaste, Tab), one row highlighted in gold with blinking text "Taste drücken …", button "Standard wiederherstellen"`
+
+## Größere Welt und Städte (seit 10.6)
+
+- Vlotho: `Top-down 3D toon MMORPG town square seen at 50 degrees, wide cobblestone plaza with a well in the center, four colorful market stalls spaced far apart, merchants standing with plenty of room between them, red-roofed East Asian houses along a stone wall with corner towers and four gates, lanterns at the corners, sunny, painterly`
+- Lager: `Small fortified camp in a pine forest, square plaza inside a low wall with towers and red roofs, world gate portal at the top, eleven villagers spread evenly around the plaza with space between them, stall, anvil, well, painterly toon 3D`

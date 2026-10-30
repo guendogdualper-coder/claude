@@ -1309,6 +1309,15 @@ const snd = {
     }
   },
 
+  // Eigenes Pferd (seit 10.6): Wiehern beim Rufen/Aufsitzen, Schnauben beim Absteigen (echte Aufnahmen)
+  horse(p, ev) {
+    const clips = REC_SPRITES.horse && REC_SPRITES.horse[ev];
+    const rb = clips && recSheet('horse');
+    if (!rb || !p) return;
+    const clip = clips[Math.floor(Math.random() * clips.length)];
+    this.out(rb, { x: p.x, y: p.y, off: clip[0], dur: clip[1], rate: 0.97 + Math.random() * 0.06, vol: ev === 'neigh' ? 0.95 : 0.7, rev: 0.12 });
+  },
+
   // Häufige Klänge vorab berechnen, damit der erste Schlag nicht stumm bleibt
   warm() {
     // Klangblätter der Tiere im Hintergrund laden

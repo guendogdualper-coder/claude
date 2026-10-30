@@ -33,6 +33,8 @@ Fremde Spielklänge werden nicht kopiert (Urheberrecht); genutzt werden nur frei
 - **BigSoundBank.com** (Joseph Sardin, CC0): Hunde (Bellen, Knurrbellen, Aufjaulen, Heulen), Hausschwein
   (Grunzen, höher gestimmt als Quieken), Raubkatze (Fauchen), Sikahirsch (Rufe), Zombie-Stimmen (Untote, Orks),
   Kampfgrunzer (Orks). https://bigsoundbank.com/licenses.html
+- **Pferd (seit 10.6)**: BigSoundBank.com (CC0), Wiehern Nr. 0284 und 1542, Schnauben Nr. 0285 → `snd/tier-horse.mp3`.
+  Wiehern beim Rufen/Aufsitzen, Schnauben beim Absteigen; Tonhöhe leicht zufällig (±3 %).
 
 **Verarbeitung:**
 - Je Familie ein Klangblatt `snd/tier-<familie>.mp3` (mono, 22 kHz, 40 kbit/s); die Lage jedes Lauts steht in

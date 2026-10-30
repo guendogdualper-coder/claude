@@ -47,8 +47,9 @@ function stoneWaveMarks() {
 // Anteil der Gruppen aus den Zonendaten (seit 6.8 wieder mehr: weniger Bäume, mehr Tierarten)
 const MOB_DENSITY = 0.95;
 // Die Maps sind seit Version 4.5 deutlich größer: mehr Gruppen und Steine, damit sie nicht leer wirken
-const WORLD_SCALE_MOBS = 2;
-const WORLD_SCALE_STONES = 2.6;
+// seit 10.6 sind die Maps noch einmal 1,5-mal so groß (360 × 150): entsprechend mehr Gruppen und Steine
+const WORLD_SCALE_MOBS = 2.8;
+const WORLD_SCALE_STONES = 3.5;
 
 // Füllt alle Jagdzonen mit Monstergruppen und Seelensteinen
 function populateWorld() {

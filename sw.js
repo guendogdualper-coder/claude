@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v102';
+const VERSION = 'seelenstein-v103';
 const FILES = [
   './',
   'index.html',
@@ -29,6 +29,7 @@ const FILES = [
   'snd/tier-fox.mp3',
   'snd/tier-hyena.mp3',
   'snd/tier-orc.mp3',
+  'snd/tier-horse.mp3',
   'snd/tier-undead.mp3',
   'snd/tier-wolf.mp3',
   'js/klang-aufnahmen.js',
