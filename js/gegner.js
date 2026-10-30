@@ -596,6 +596,7 @@ function playerNearSpot(x, y, r) {
 // --- Ansturm in Dungeons (seit 7.7) --------------------------------------------------------------
 // Wer wegläuft, wird eingeholt: kurz ducken (Warnring), dann ein schneller Sprint bis zum Ziel mit Schlag.
 const DUNGEON_CHASE = 0.95; // Verfolgung mit 95 % des Spielertempos (oder schneller, wenn das Monster schneller ist)
+const MONSTER_SPEED_MUL = 0.92; // seit 8.5: Monster etwas langsamer, weil auch das Grundtempo der Klassen sank
 const RUSH_RANGE = 340;     // ab dieser Entfernung kein Ansturm
 const RUSH_SPEED = 820;
 const LUNGE = 60;         // so weit setzt ein Dungeon-Monster mit dem Schlag nach
@@ -673,7 +674,7 @@ function updateMonsters(dt) {
     }
     m.cd -= dt;
     const slowMul = m.slow && m.slow.until > game.time ? m.slow.mul : 1;
-    const speed = m.type.speed * slowMul;
+    const speed = m.type.speed * slowMul * MONSTER_SPEED_MUL;
     m.moving = false;
 
     if (m.state === 'idle') {
@@ -712,7 +713,8 @@ function updateMonsters(dt) {
         const dun = m.inDungeon != null ? m.inDungeon : (m.inDungeon = !!zoneAt(m.homeX, m.homeY).dungeon);
         let chaseSpeed = speed;
         if (dun) {
-          const ts = t === p ? game.stats.speed : 160;
+          // Fußtempo: Reiten macht die Monster nicht schneller; Mitspieler senden ihr Fußtempo mit (fs)
+          const ts = t === p ? game.stats.footSpeed : t.footSpeed || (CLASSES[t.classId] ? CLASSES[t.classId].base.speed : 160);
           chaseSpeed = Math.max(m.type.speed, ts * DUNGEON_CHASE) * slowMul;
           if (m.rush) { monsterRush(m, t, dt, reach); continue; }
           if (!m.type.ranged && !m.windup && d > reach * 1.7 && d < RUSH_RANGE && game.time >= (m.rushAt || 0)) {

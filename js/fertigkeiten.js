@@ -1251,7 +1251,7 @@ function orbit(t, speed, r, k, n, ry = 0.4) {
 }
 
 const BUFF_LOOKS = {
-  // Kampfrausch: rote Blitze zucken um die Figur. Bis Stufe 17 nur ein einzelner, kurzer Blitz,
+  // Kampfrausch: rote Blitze zucken um die Figur. Bis zum Erwecken nur ein einzelner, kurzer Blitz,
   // mit jedem Rang mehr und längere Blitze, ab Legendär knistert die ganze Figur.
   kampfrausch(ctx, p, fy, t, layer, b) {
     const r = skillRank(b.lvl || 1);

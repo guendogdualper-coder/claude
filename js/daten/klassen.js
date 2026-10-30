@@ -17,7 +17,7 @@ const CLASSES = {
     color: '#9c3b33',
     trim: '#d7cdb8',
     weapon: 'sword',
-    base: { hp: 160, mp: 40, atk: 14, def: 6, crit: 0.05, speed: 150 },
+    base: { hp: 160, mp: 40, atk: 14, def: 6, crit: 0.05, speed: 132 },
     perLevel: { hp: 26, mp: 5, atk: 4, def: 1.6 },
     basic: { range: 54, cooldown: 0.8, ranged: false },
     paths: [
@@ -39,7 +39,7 @@ const CLASSES = {
           },
           {
             id: 'kampfrausch', name: 'Kampfrausch', short: 'KR', kind: 'buff', unlock: 5, mp: 20, cooldown: 45,
-            type: 'buff', duration: 150, effects: { atkSpeed: 0.3, speed: 0.15 },
+            type: 'buff', duration: 150, effects: { atkSpeed: 0.3, speed: 0.06 },
             text: 'Buff: Blitze zucken um dich. Mehr Angriffstempo und Lauftempo.'
           },
           {
@@ -99,7 +99,7 @@ const CLASSES = {
     color: '#3f3658',
     trim: '#c9c2d9',
     weapon: 'daggers',
-    base: { hp: 130, mp: 50, atk: 15, def: 4, crit: 0.12, speed: 165 },
+    base: { hp: 130, mp: 50, atk: 15, def: 4, crit: 0.12, speed: 142 },
     perLevel: { hp: 20, mp: 6, atk: 4.4, def: 1.2 },
     basic: { range: 48, cooldown: 0.55, ranged: false },
     paths: [
@@ -114,7 +114,7 @@ const CLASSES = {
           },
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,
-            type: 'buff', duration: 30, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
+            type: 'buff', duration: 30, effects: { invisible: true, speed: 0.12 }, nextHitMul: 3,
             text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch – mit Hinterhalt sogar 6×.'
           },
           {
@@ -129,7 +129,7 @@ const CLASSES = {
           },
           {
             id: 'leichtfuessigkeit', name: 'Leichtfüßigkeit', short: 'LF', kind: 'buff', unlock: 10, mp: 20, cooldown: 60,
-            type: 'buff', duration: 180, effects: { speed: 0.2, atkSpeed: 0.25, dodge: 0.15 },
+            type: 'buff', duration: 180, effects: { speed: 0.08, atkSpeed: 0.25, dodge: 0.15 },
             text: 'Buff: Leicht wie eine Feder. Mehr Lauftempo, Angriffstempo und Chance auszuweichen.'
           }
         ]
@@ -155,7 +155,7 @@ const CLASSES = {
           },
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
-            type: 'buff', duration: 120, effects: { invisible: true, speed: 0.3 }, nextHitMul: 3,
+            type: 'buff', duration: 120, effects: { invisible: true, speed: 0.12 }, nextHitMul: 3,
             text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch – mit Hinterhalt sogar 6×.'
           },
           {
@@ -175,7 +175,7 @@ const CLASSES = {
     color: '#2c6f6a',
     trim: '#e0c36a',
     weapon: 'fan',
-    base: { hp: 115, mp: 80, atk: 13, def: 3, crit: 0.06, speed: 150 },
+    base: { hp: 115, mp: 80, atk: 13, def: 3, crit: 0.06, speed: 132 },
     perLevel: { hp: 18, mp: 10, atk: 3.8, def: 1 },
     basic: { range: 230, cooldown: 0.9, ranged: true, color: '#8fe3d8', style: 'wind' },
     paths: [
@@ -253,7 +253,7 @@ const CLASSES = {
     color: '#334a31',
     trim: '#cfd8b0',
     weapon: 'staff',
-    base: { hp: 120, mp: 75, atk: 13, def: 3, crit: 0.05, speed: 148 },
+    base: { hp: 120, mp: 75, atk: 13, def: 3, crit: 0.05, speed: 130 },
     perLevel: { hp: 19, mp: 9, atk: 3.9, def: 1.1 },
     basic: { range: 230, cooldown: 0.9, ranged: true, color: '#a7e37f' },
     paths: [

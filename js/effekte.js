@@ -105,7 +105,7 @@ function drawHurtVignette(ctx, w, h) {
 //    gravity, drag, shape ('dot' | 'spark' | 'square' | 'ember'), glow (leuchtend addieren)
 // Höchstzahl gleichzeitiger Partikel: bei vielen Effekten auf einmal fallen die ältesten weg
 const MAX_PARTICLES = 320;
-// Rang der gerade wirkenden Fertigkeit (-1 = normale Stufe 1–17, sonst Index in SKILL_RANKS). useSkill setzt ihn,
+// Rang der gerade wirkenden Fertigkeit (-1 = normale Stufe 1–15, sonst Index in SKILL_RANKS). useSkill setzt ihn,
 // later(), Sturmangriffe und Geschosse tragen ihn weiter. So kennt jeder Effekt einer Fertigkeit ihren Rang:
 // ab Erwacht leuchtet alles in der Rangfarbe, ist größer und sprüht mehr Funken – jeder Rang ein Stück mehr.
 let fxRank = -1;

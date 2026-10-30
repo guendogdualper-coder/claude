@@ -106,7 +106,7 @@ const BASE_STATS = {
   schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }, { def: 22, block: 0.14 }, { def: 31, block: 0.16 }, { def: 43, block: 0.18 }],
   schultern: [{ def: 2 }, { def: 3, hp: 20 }, { def: 5, hp: 35 }, { def: 7, hp: 55 }, { def: 10, hp: 80 }, { def: 14, hp: 120 }, { def: 20, hp: 180 }, { def: 28, hp: 260 }],
   umhang: [{ def: 1 }, { def: 2, mp: 15, dodge: 0.01 }, { def: 3, mp: 25, dodge: 0.015 }, { def: 5, mp: 35, dodge: 0.02 }, { def: 7, mp: 50, dodge: 0.025 }, { def: 10, mp: 75, dodge: 0.03 }, { def: 14, mp: 110, dodge: 0.035 }, { def: 19, mp: 150, dodge: 0.04 }],
-  schuhe: [{ def: 2 }, { def: 2, speed: 0.04 }, { def: 3, speed: 0.05, dodge: 0.02 }, { def: 4, speed: 0.07, dodge: 0.03 }, { def: 6, speed: 0.09, dodge: 0.05 }, { def: 9, speed: 0.1, dodge: 0.06 }, { def: 13, speed: 0.11, dodge: 0.07 }, { def: 18, speed: 0.12, dodge: 0.08 }],
+  schuhe: [{ def: 2 }, { def: 2, speed: 0.02 }, { def: 3, speed: 0.025, dodge: 0.02 }, { def: 4, speed: 0.03, dodge: 0.03 }, { def: 6, speed: 0.035, dodge: 0.05 }, { def: 9, speed: 0.04, dodge: 0.06 }, { def: 13, speed: 0.045, dodge: 0.07 }, { def: 18, speed: 0.05, dodge: 0.08 }],
   guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }]
 };
 
@@ -297,7 +297,7 @@ const BONUS_TYPES = {
   dex: { name: 'Geschick', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
   crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['waffe', 'helm', 'guertel'] },
   atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'schuhe', 'guertel'] },
-  speed: { name: 'Lauftempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['schuhe'] },
+  speed: { name: 'Lauftempo', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['schuhe'] },
   dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'umhang', 'schild', 'schuhe'] },
   block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['schild'] },
   regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.003], max: 0.006, slots: ['ruestung', 'helm', 'schultern', 'guertel'] },
@@ -316,7 +316,7 @@ const SPECIAL_BONUS_TYPES = {
 
 // Obergrenzen für die Summe der Boni aller angelegten Gegenstände
 const BONUS_CAPS = {
-  crit: 0.25, atkSpeed: 0.35, speed: 0.25, dodge: 0.2, regen: 0.015, monsterDmg: 0.2, dmgReduce: 0.2, hpSteal: 0.06,
+  crit: 0.25, atkSpeed: 0.35, speed: 0.08, dodge: 0.2, regen: 0.015, monsterDmg: 0.2, dmgReduce: 0.2, hpSteal: 0.06,
   skillDmg: 0.4, basicDmg: 0.4, hpPct: 0.3, resist: 0.15
 };
 

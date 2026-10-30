@@ -414,7 +414,7 @@ const ui = {
       this.pressSkill(btn, i);
       wrap.append(btn);
       wrap.insertAdjacentHTML('beforeend', '<span class="runring" hidden></span><span class="run" hidden></span>');
-      // Plus-Knopf, wenn etwas geht: Punkt setzen, auf 17 direkt erwecken, Buch lesen.
+      // Plus-Knopf, wenn etwas geht: Punkt setzen, auf 15 direkt erwecken, Buch lesen.
       // Nur der Schritt in einen höheren Rang (kostet mehrere Bücher) läuft über das Charakterfenster.
       const acts = skillActions(p, i).filter((a) => a.ok);
       if (acts.length) {
@@ -785,8 +785,20 @@ const ui = {
 
   updateHorseButton() {
     const p = game.player;
-    $('btnHorse').hidden = !p || !p.horse;
-    $('btnHorse').classList.toggle('on', !!(p && p.riding));
+    const btn = $('btnHorse');
+    btn.hidden = !p || !p.horse;
+    btn.classList.toggle('on', !!(p && p.riding));
+    // Abzeichen mit dem Pferdetempo (seit 8.5), hervorgehoben beim Reiten
+    let pct = btn.querySelector('.horse-pct');
+    if (!pct) {
+      pct = document.createElement('span');
+      pct.className = 'horse-pct';
+      btn.append(pct);
+    }
+    const horse = p && p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
+    pct.hidden = !horse;
+    if (horse) pct.textContent = '+' + Math.round(horse.speed * 100) + ' %';
+    btn.title = horse ? `${horse.name} (+${Math.round(horse.speed * 100)} % Lauftempo)` : '';
   },
 
   // Lebensbalken eines Bosses oben in der Mitte, sobald man in seiner Nähe ist
@@ -1113,7 +1125,7 @@ const ui = {
       `<dl class="stats">` +
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
       row('Angriff', s.atk) + row('Verteidigung', s.def) +
-      row('Kritische Treffer', pct(s.crit)) + row('Lauftempo', Math.round(s.speed)) +
+      row('Kritische Treffer', pct(s.crit)) + row('Lauftempo', speedText(p, s)) +
       row('Angriffstempo', pct(s.atkSpeed)) + row('Magiestärke', '+' + pct(s.magic || 0)) +
       row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
       row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
@@ -1122,7 +1134,7 @@ const ui = {
       `</dl>` +
       `<h3>Fertigkeiten</h3>` +
       `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Bücher für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
-      `<p class="hint-text">Bis Stufe 17 mit Punkten. Ab Stufe 15 kannst du eine Fertigkeit erwecken (E1–E10), danach geht es mit Büchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
+      `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsbüchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
       skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p);
     $('btnLook').addEventListener('click', () => this.openLookPanel());
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
@@ -1293,6 +1305,13 @@ function skillPct(v) {
   const n = Math.round(v * 1000) / 10;
   return String(n).replace('.', ',') + ' %';
 }
+// Lauftempo im Charakterfenster (seit 8.5): Zahl, dazu der Anteil zu Fuß und der des Pferdes in Prozent
+function speedText(p, s) {
+  const foot = Math.round(((s.footMul || 1) - 1) * 100);
+  const horse = p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
+  return `${Math.round(s.speed)} <small class="speed-parts">· zu Fuß +${foot} %` +
+    (horse ? ` · <span class="${p.riding ? 'on' : ''}">Pferd +${Math.round(horse.speed * 100)} %</span>` : '') + '</small>';
+}
 function skillStats(sk, lvl) {
   const out = [];
   const scale = buffScale(lvl);
@@ -1314,8 +1333,10 @@ function skillStats(sk, lvl) {
   }
   if (sk.vulnerable) out.push(['Verwundbar', '+' + skillPct(sk.vulnerable * scale)]);
   for (const [k, v] of Object.entries(sk.effects || {})) {
-    if (typeof v !== 'number' || !SKILL_EFFECT_LABELS[k]) continue;
-    out.push([SKILL_EFFECT_LABELS[k], (v < 0 ? '−' : '+') + skillPct(Math.abs(v * scale))]);
+    const label = (sk.labels && sk.labels[k]) || SKILL_EFFECT_LABELS[k];
+    if (typeof v !== 'number' || !label) continue;
+    // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
+    out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' ? v : v * scale))]);
   }
   if (sk.duration) out.push(['Dauer', skillDuration(sk, lvl) + ' s']);
   return out;
@@ -1326,9 +1347,10 @@ function skillStatsHtml(sk, lvl) {
   const now = skillStats(sk, lvl);
   if (!now.length) return '';
   let html = '<span class="sk-stats">' + now.map(([k, v]) => `${k} <b>${v}</b>`).join(' · ') + '</span>';
-  if (lvl < MAX_SKILL_LEVEL) {
-    const next = skillStats(sk, lvl + 1);
-    html += `<span class="sk-next">Stufe ${skillLevelText(lvl + 1)}: ` +
+  const nl = nextSkillLevel(lvl);
+  if (nl != null) {
+    const next = skillStats(sk, nl);
+    html += `<span class="sk-next">${nl === SKILL_RANKS[0].from && skillRank(lvl) < 0 ? 'Nach dem Erwecken (E1)' : 'Stufe ' + skillLevelText(nl)}: ` +
       next.map(([k, v], j) => `${k} <b${now[j] && now[j][1] !== v ? ' class="up"' : ''}>${v}</b>`).join(' · ') + '</span>';
   }
   return html;
@@ -1341,7 +1363,7 @@ function skillListHtml(skills, p) {
       const lvl = p.skillLevels[i];
       const r = skillRank(lvl);
       const acts = skillActions(p, i);
-      const title = r < 0 ? `Stufe ${lvl}/${SKILL_BASE_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
+      const title = r < 0 ? `Stufe ${lvl}/${SKILL_POINT_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
       meta = p.level >= sk.unlock
         ? title + '<br>' + (acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${a.ok ? '' : a.why}">${a.label}</button>`).join('') || (r === SKILL_RANKS.length - 1 ? 'Höchste Stufe' : ''))
         : `ab Stufe ${sk.unlock}`;

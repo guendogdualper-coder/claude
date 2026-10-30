@@ -283,7 +283,7 @@ function rewardHtml(reward, xp) {
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
   if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
-  if (reward.horse) li.push('<b class="reward-horse">Ein eigenes Reitpferd</b> (10 % schneller laufen, Taste R oder Pferdeknopf)');
+  if (reward.horse) li.push(`<b class="reward-horse">Ein eigenes Reitpferd</b> (+${Math.round(HORSES[1].speed * 100)} % Lauftempo, Taste R oder Pferdeknopf)`);
   if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Buch zu deinen Fertigkeiten`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
     li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
@@ -587,7 +587,8 @@ Object.assign(ui, {
       } else {
         html = '<p>„Dein Reitpferd ist gut genährt und wartet auf dich. Steig mit dem Pferdeknopf oder Taste R auf.“</p>' +
           `<h3>Kriegsross · ab Stufe ${war.level}</h3><p>„Ein Rappe aus meiner besten Zucht, in Rossharnisch mit Stirndorn und roter Schabracke. ` +
-          `Er läuft ${Math.round(war.speed * 100)} % schneller als zu Fuß – dein Reitpferd schafft ${Math.round(HORSES[1].speed * 100)} %.“</p>` +
+          `Er legt ${Math.round(war.speed * 100)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
+          `<p class="hint-text">Reitpferd +${Math.round(HORSES[1].speed * 100)} % → ${war.name} +${Math.round(war.speed * 100)} %</p>` +
           (p.level < war.level
             ? `<p class="hint-text">Komm ab Stufe ${war.level} wieder.</p>`
             : `<button type="button" class="btn btn-primary" data-buyhorse ${p.gold >= war.price ? '' : 'disabled'}>Kriegsross kaufen – ${war.price.toLocaleString('de-DE')} Gold</button>` +
@@ -615,8 +616,9 @@ Object.assign(ui, {
       p.gold -= war.price;
       p.horseTier = 2;
       game.stats = playerStats(p);
-      ui.banner('Ein Kriegsross!', `${Math.round(war.speed * 100)} % schneller – Pferdeknopf oder Taste R`);
-      ui.log(`Du hast ein Kriegsross gekauft (${war.price.toLocaleString('de-DE')} Gold). Es läuft ${Math.round(war.speed * 100)} % schneller.`, 'level');
+      ui.banner('Ein Kriegsross!', `+${Math.round(war.speed * 100)} % Lauftempo – Pferdeknopf oder Taste R`);
+      ui.log(`Du hast ein Kriegsross gekauft (${war.price.toLocaleString('de-DE')} Gold). Es gibt +${Math.round(war.speed * 100)} % Lauftempo.`, 'level');
+      ui.updateHorseButton();
       vfxLevelUp(p);
       saveGame();
       this.renderStable();

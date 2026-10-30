@@ -69,7 +69,7 @@ const MAIN_QUESTS = [
 ];
 
 // Hauptmission des Stallmeisters ab Stufe 20: in 20 Minuten 120 Monster ab Stufe 15 besiegen.
-// Belohnung: ein eigenes Reitpferd (10 % schneller), Gold und Erfahrung. Ab Stufe 40 verkauft er das Kriegsross.
+// Belohnung: ein eigenes Reitpferd (+35 % Lauftempo, siehe HORSES), Gold und Erfahrung. Ab Stufe 40 verkauft er das Kriegsross.
 const STABLE_QUEST = {
   level: 20, count: 120, minLevel: 15, time: 1200, title: 'Prüfung des Stallmeisters',
   text: 'Ein Pferd trägt nur, wem es vertraut. Zeig mir, dass du draußen bestehen kannst: Besiege in 20 Minuten 120 Monster ab Stufe 15. Schaffst du es, gehört dir eines meiner Reitpferde.',

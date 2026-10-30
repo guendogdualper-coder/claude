@@ -156,6 +156,8 @@ function itemStats(item, plus = item.plus) {
   }
   // Das Tempo einer Waffe hängt von ihrer Art ab und wächst nicht mit dem Plus
   if (speed) out.atkSpeed = speed;
+  // Das Lauftempo der Schuhe auch nicht (seit 8.5)
+  if (base.speed) out.speed = base.speed;
   return out;
 }
 

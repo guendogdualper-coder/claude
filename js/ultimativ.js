@@ -26,7 +26,7 @@ const ULTIMATES = {
     id: 'todesmal', name: 'Todesmal', short: 'TM', color: '#ff4a6a',
     text: 'Du zeichnest ein Ziel mit dem Todesmal und erscheinst hinter ihm: ein vernichtender Stich, der unter 35 % Leben noch einmal zuschlägt.',
     stats: '9× Angriff, sicher kritisch, unter 35 % Leben +4×',
-    buff: { id: 'schattenschleier', name: 'Schattenschleier', duration: 8, effects: { dodge: 0.3, speed: 0.3 } }
+    buff: { id: 'schattenschleier', name: 'Schattenschleier', duration: 8, effects: { dodge: 0.3, speed: 0.15 } }
   },
   drache: {
     id: 'drachensturm', name: 'Drachensturm', short: 'DS', color: '#ff7a2a',

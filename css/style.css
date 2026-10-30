@@ -1536,7 +1536,7 @@ kbd {
 .skill-list .info .sk-next { color: var(--muted); }
 .skill-list .info .sk-next b { color: #cfc4a8; font-weight: 600; }
 .skill-list .info .sk-next b.up { color: #8fef8f; font-weight: 800; }
-/* Erwecken-Knopf an der Fertigkeit, wenn sie auf 15–17 steht */
+/* Erwecken-Knopf an der Fertigkeit, wenn sie auf Stufe 15 steht */
 .plus.awaken {
   background: radial-gradient(circle at 40% 35%, #e8f6ff, #6aa8e8 60%, #2a4a8a);
   color: #10223f; font-weight: 900; border-color: #e8f6ff;
@@ -1627,6 +1627,12 @@ kbd {
 
 /* Pferdeknopf: leuchtet, solange man reitet */
 #btnHorse.on { box-shadow: 0 0 0 2px #ffd34d, 0 0 12px rgba(255, 211, 77, 0.7); }
+/* Pferdetempo als Abzeichen unten am Knopf (seit 8.5), beim Reiten in Gold */
+.horse-pct { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); padding: 0 4px; border-radius: 7px; font-size: 8.5px; font-weight: 800; line-height: 13px; white-space: nowrap; pointer-events: none; color: #f4d48a; background: rgba(20, 14, 8, 0.92); box-shadow: 0 0 0 1px rgba(201, 163, 90, 0.75); }
+.horse-pct[hidden] { display: none; }
+#btnHorse.on .horse-pct { color: #2a1a06; background: #ffd34d; box-shadow: 0 0 0 1px #120c08, 0 0 8px rgba(255, 211, 77, 0.8); }
+.speed-parts { color: var(--muted); font-weight: 400; }
+.speed-parts .on { color: #ffd34d; font-weight: 700; }
 
 /* Lebensbalken eines Bosses oben in der Mitte */
 .boss-bar {

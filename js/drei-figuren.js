@@ -4198,7 +4198,14 @@ function syncPlayer3(p, dt) {
       resetBones(h);
       h.group.position.set(p.x * U3, 0, fy * U3);
       h.group.rotation.y = a.heading;
-      const gal = p.moving ? t * 12 : 0;
+      // Galopp im Takt des Tempos (seit 8.5): Kriegsross schneller als Reitpferd. Die Phase läuft in
+      // Spielzeit mit, damit ein Tempowechsel (Buff) keinen Sprung in den Beinen macht.
+      const base = CLASSES[p.classId].base.speed;
+      const spd = p === game.player && game.stats ? game.stats.speed : (p.footSpeed || base) + base * (HORSES[tier] || HORSES[1]).speed;
+      const gdt = Math.min(0.1, Math.max(0, t - (h.galAt ?? t)));
+      h.galAt = t;
+      if (p.moving) h.galPhase = (h.galPhase || 0) + gdt * 12 * Math.max(0.8, Math.min(1.4, spd / 180));
+      const gal = p.moving ? h.galPhase : 0;
       if (p.moving) {
         h.bones[BQ.legFL].rotation.x = Math.sin(gal) * 0.7;
         h.bones[BQ.legFR].rotation.x = Math.sin(gal + 0.6) * 0.7;

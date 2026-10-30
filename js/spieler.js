@@ -2,12 +2,12 @@
 
 const SAVE_KEY = 'seelenstein.spielstand.v1';
 const MAX_LEVEL = 99;
-// Fertigkeiten: Stufe 1–17 mit Fertigkeitspunkten, danach vier Ränge.
-// Ab Stufe 15 kann man eine Fertigkeit erwecken (Rang Erwacht, kostet einen Punkt).
-// Auf Stufe 17 macht der nächste Fertigkeitspunkt die Fertigkeit direkt zu E1.
-// In den Rängen steigt man mit Fertigkeitsbüchern; aus den letzten drei Stufen eines Rangs
-// geht es mit mehreren Büchern in den nächsten Rang.
-const SKILL_BASE_MAX = 17;
+// Fertigkeiten: Stufe 1–15 mit Fertigkeitspunkten. Auf Stufe 15 erweckt ein Klick die Fertigkeit
+// (E1, kostet einen Punkt). In den Rängen steigt man mit Fertigkeitsbüchern; aus den letzten drei
+// Stufen eines Rangs geht es mit mehreren Büchern in den nächsten Rang.
+// E1 bleibt intern Stufe 18, die Stufen 16/17 werden seit 8.5 nicht mehr erreicht.
+const SKILL_POINT_MAX = 15;
+const SKILL_BASE_MAX = 17; // Kurvenanker für dmgScale/buffScale, nicht ändern
 const SKILL_RANKS = [
   { id: 'E', name: 'Erwacht', from: 18, levels: 10, minLevel: 1, books: 0, color: '#9fd0ff' },
   { id: 'H', name: 'Heroisch', from: 28, levels: 10, minLevel: 35, books: 3, color: '#c58cff' },
@@ -30,6 +30,12 @@ function skillLevelText(lvl) {
   return rank.levels === 1 ? rank.id : rank.id + (lvl - rank.from + 1);
 }
 
+// Nächste erreichbare Stufe (für die Vorschau): auf 15 kommt E1, ganz oben nichts mehr
+function nextSkillLevel(lvl) {
+  if (lvl >= MAX_SKILL_LEVEL) return null;
+  return skillRank(lvl) < 0 && lvl >= SKILL_POINT_MAX ? SKILL_RANKS[0].from : lvl + 1;
+}
+
 // Was mit einer Fertigkeit gerade möglich ist (für Knöpfe im Charakterfenster)
 function skillActions(p, i) {
   const sk = classSkills(p)[i];
@@ -38,8 +44,8 @@ function skillActions(p, i) {
   if (p.level < sk.unlock) return out;
   const r = skillRank(lvl);
   if (r < 0) {
-    if (lvl < SKILL_BASE_MAX) out.push({ type: 'point', label: 'Verbessern', ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
-    if (lvl >= SKILL_BASE_MAX - 2) {
+    if (lvl < SKILL_POINT_MAX) out.push({ type: 'point', label: 'Verbessern', ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
+    if (lvl >= SKILL_POINT_MAX) {
       const next = SKILL_RANKS[0];
       out.push({ type: 'rankup', label: `Erwecken → ${next.id}1`, ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
     }
@@ -187,6 +193,11 @@ function makePlayer(save) {
     p.skillPoints += (p.skillLevels || []).reduce((a, v) => a + Math.max(0, v - 1), 0);
     p.skillLevels = [1, 1, 1, 1, 1];
   }
+  // 8.5: Punkte nur bis 15. Alte Stufe 16/17 wird E1 (gleiche Punktkosten), 17 gibt einen Punkt zurück.
+  p.skillLevels = p.skillLevels.map((lvl) => {
+    if (lvl > SKILL_POINT_MAX && skillRank(lvl) < 0) { p.skillPoints += lvl - SKILL_POINT_MAX - 1; return SKILL_RANKS[0].from; }
+    return lvl;
+  });
   // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Version 6.2/6.3 (Welt 6) geht es
   // im Lager derselben Map weiter, sonst im Dorf.
   let campOf = null;
@@ -212,6 +223,9 @@ function makePlayer(save) {
   }
   return p;
 }
+
+// Obergrenze des Lauftempos zu Fuß (Schuhe, Boni, Buffs), das Pferd zählt nicht mit
+const FOOT_SPEED_CAP = 1.25;
 
 // Endwerte aus Klasse, Stufe und aktiven Buffs
 function playerStats(p) {
@@ -256,7 +270,6 @@ function playerStats(p) {
   s.block += bonus.block || 0;
   s.regen += bonus.regen || 0;
   speedMul += bonus.speed || 0;
-  if (p.riding) speedMul += rideSpeed(p);
   s.monsterDmg = bonus.monsterDmg || 0;
   s.hpSteal = bonus.hpSteal || 0;
   s.basicDmg = bonus.basicDmg || 0;
@@ -322,7 +335,14 @@ function playerStats(p) {
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def * defMul);
   // Obergrenzen, damit hohe Ränge und viele Buffs zusammen nicht ausufern
-  s.speed *= Math.min(1.9, speedMul);
+  // Lauftempo (seit 8.5): Gegenstände, Boni und Buffs zählen zu Fuß und sind auf +25 % begrenzt,
+  // das Pferd kommt danach dazu
+  const foot = Math.min(FOOT_SPEED_CAP, speedMul);
+  const ride = p.riding ? rideSpeed(p) : 0;
+  s.footMul = foot;
+  s.rideMul = ride;
+  s.footSpeed = c.base.speed * foot;
+  s.speed = c.base.speed * (foot + ride);
   s.atkSpeed = Math.min(2.5, s.atkSpeed);
   s.dodge = Math.min(0.45, s.dodge);
   s.reflect = Math.min(0.8, s.reflect);
@@ -388,6 +408,7 @@ function upgradeSkill(i, type = 'point') {
   if (!act || !act.ok) return;
   const lvl = p.skillLevels[i];
   if (type === 'point') {
+    if (lvl >= SKILL_POINT_MAX) return;
     p.skillLevels[i]++;
     p.skillPoints--;
   } else if (type === 'book') {
@@ -399,7 +420,9 @@ function upgradeSkill(i, type = 'point') {
     if (next.books) takeBooks(p, sk.id, next.books);
     else p.skillPoints--;
     p.skillLevels[i] = next.from;
-    ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
+    // Erwecken auf Stufe 15 (seit 8.5 ein einzelner Klick) bekommt ein eigenes Banner
+    if (next === SKILL_RANKS[0]) ui.banner('Erweckt!', `${sk.name} ist jetzt ${skillLevelText(next.from)}`);
+    else ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
     vfxLevelUp(p);
     rankCastFx(p, skillRank(next.from), next.color);
     // seit 8.5: laufende Diener sofort auf den neuen Rang umbauen (Skelette werden zu Knochenhunden)
@@ -412,10 +435,10 @@ function upgradeSkill(i, type = 'point') {
   saveGame();
 }
 
-// Pferd (seit 7.3): Reitpferd aus der Stallmeister-Prüfung (ab Stufe 20) macht 10 % schneller,
-// das Kriegsross (ab Stufe 40 beim Stallmeister für 200.000 Gold) 30 %.
+// Pferd (seit 7.3, Tempo seit 8.5): Reitpferd aus der Stallmeister-Prüfung (ab Stufe 20) +35 %,
+// Kriegsross (ab Stufe 40 beim Stallmeister für 200.000 Gold) +65 %. Das Tempo zählt zusätzlich zum Fußtempo.
 // Wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
-const HORSES = [null, { name: 'Reitpferd', speed: 0.1 }, { name: 'Kriegsross', speed: 0.3, level: 40, price: 200000 }];
+const HORSES = [null, { name: 'Reitpferd', speed: 0.35 }, { name: 'Kriegsross', speed: 0.65, level: 40, price: 200000 }];
 const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
 function toggleRide(on) {
   const p = game.player;

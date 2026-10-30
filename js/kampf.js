@@ -1,7 +1,8 @@
 // Kampf: Schaden berechnen, normale Angriffe, Fertigkeiten, Geschosse, Effekte.
 
 // Jede Stufe macht eine Fertigkeit stärker:
-// Schaden bis Stufe 17 +8 % je Stufe, in den Rängen +5 % je Stufe, dazu ein Sprung bei jedem neuen Rang.
+// Schaden bis Stufe 15 mit Punkten +6 % je Stufe, Erwecken springt auf E1 (Kurvenanker 17),
+// in den Rängen +4 % je Stufe, dazu ein Sprung bei jedem neuen Rang.
 // Buffs, Heilung, Schilde und Flüche: +3 % Wirkung je Stufe (in den Rängen +1,5 %), dazu ein Rangsprung.
 // Die Dauer wächst mit: +2 % je Stufe (in den Rängen +1 %), dazu ein Rangsprung.
 const RANK_JUMP = [0.05, 0.12, 0.2, 0.3];
@@ -712,7 +713,8 @@ function applyBuff(sk, lvl) {
   const p = game.player;
   const scale = buffScale(lvl);
   const effects = {};
-  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = typeof v === 'number' ? v * scale : v;
+  // Lauftempo seit 8.5 fest (sonst bis +158 % mit Rang und Hauptwert)
+  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = typeof v === 'number' ? (k === 'speed' ? v : v * scale) : v;
   const duration = skillDuration(sk, lvl);
   p.buffs = p.buffs.filter((b) => b.id !== sk.id);
   p.buffs.push({ id: sk.id, name: sk.name, short: sk.short, until: game.time + duration, duration, effects, lvl });
