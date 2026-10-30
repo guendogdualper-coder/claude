@@ -703,6 +703,7 @@ Skill VFX sheet for a stylized 3D toon necromancer (bone path), top-down three-q
     Totenbeschwörung: Riss, Knochenzacken und Rauch, wo die Skelette aufsteigen · Lebensentzug: rote
     Tropfen kreisen zur Figur · Knochenspeer: Splitter im Boden · Kritische Treffer: weißer Kreuzblitz.
   - Flüche rufen je Gegner `SKILL_FX[id].curseHit(m)` auf; die Farbe der Rune steht in `m.vulnerable.color`.
+- **Seit 8.5 umgesetzt (Nekromant Seelen neu):** Schädelsalve (Pool-Körper `skull`, Kurvenflug `turn`), Seelenkäfig (`cage3`: Rippenkäfig, Geist, Schreiringe), Totenbeschwörung (`skeletonWarrior3`, `boneHound3`, Aufstieg aus dem Boden, numerische IDs, Netzliste `al`), Seelenschnitter (`reaper3`: Bodenschatten, Gestalt, Sichelspur), Dunkle Macht (Seelenkrone).
 - **Seit 8.3 umgesetzt (Krieger neu):** Sichelwelle (`wave3`: Sichel aus vier Streifen, Lichtschleppe, Furche),
   Felsenfaust (`erupt3`: Risslinie, Dornen, Pfeiler aus dem Pool `rockcol`, Felsfaust, Keile, Mulde, Lichtspalt),
   Sprungschlag (`crater3`: Mulde in Bodenfarbe über `tileSample`, Wall aus 12 + 6 Erdbrocken aus dem Pool `rock`,

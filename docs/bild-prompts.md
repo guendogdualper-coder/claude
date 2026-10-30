@@ -498,7 +498,7 @@ Set of 24 small item icons for a 2D fantasy MMORPG, crafting materials dropped b
 
 ### Ränge der Fertigkeiten: Erwacht, Heroisch, Legendär, Vollendet
 ```
-2D fantasy MMORPG skill window UI mockup in East Asian style, dark lacquered wood panel with brass borders: a list of five skills with round painted icons; on the right of each row the skill level and rank in colored text: "Stufe 17/17" with a glowing violet button "Erwecken → E1", "Erwacht E5" in ice blue with a button "Buch lesen", "Heroisch H6" in violet, "Legendär L2" in gold, "Vollendet V" in crimson-gold with "Höchste Stufe". In the corner a counter "Fertigkeitsbücher: 4" with a small purple book icon. Below the window the skill buttons around the attack button with ring colors per rank (silver-blue, violet, gold, pulsing crimson-gold) and small level plaques "E5", "H6", "V".
+2D fantasy MMORPG skill window UI mockup in East Asian style, dark lacquered wood panel with brass borders: a list of five skills with round painted icons; on the right of each row the skill level and rank in colored text: "Stufe 15/15" with a glowing violet button "Erwecken → E1", "Erwacht E5" in ice blue with a button "Buch lesen", "Heroisch H6" in violet, "Legendär L2" in gold, "Vollendet V" in crimson-gold with "Höchste Stufe". In the corner a counter "Fertigkeitsbücher: 4" with a small purple book icon. Below the window the skill buttons around the attack button with ring colors per rank (silver-blue, violet, gold, pulsing crimson-gold) and small level plaques "E5", "H6", "V".
 ```
 
 ### Fertigkeiten werden je Rang wuchtiger
