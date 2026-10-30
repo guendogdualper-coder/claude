@@ -481,12 +481,13 @@ const ui = {
       this.pressSkill(btn, i);
       wrap.append(btn);
       wrap.insertAdjacentHTML('beforeend', '<span class="runring" hidden></span><span class="run" hidden></span>');
-      // Plus-Knopf, wenn etwas geht: Punkt setzen, auf 15 direkt erwecken, Buch lesen.
+      // Plus-Knopf, wenn etwas geht: Punkt setzen (der Punkt auf 15 erweckt), Buch lesen.
       // Nur der Schritt in einen höheren Rang (kostet mehrere Bücher) läuft über das Charakterfenster.
       const acts = skillActions(p, i).filter((a) => a.ok);
       if (acts.length) {
         const act = acts.find((a) => a.type === 'point') || acts.find((a) => a.type === 'rankup' && rank < 0) || acts.find((a) => a.type === 'book');
-        const awaken = act && act.type === 'rankup';
+        // „E“, wenn der Tipp erweckt (der Punkt auf Stufe 15 macht seit 8.9 sofort E1)
+        const awaken = act && (act.type === 'rankup' || (act.type === 'point' && p.skillLevels[i] + 1 >= SKILL_POINT_MAX));
         const plus = document.createElement('button');
         plus.type = 'button';
         plus.className = 'plus' + (awaken ? ' awaken' : '');

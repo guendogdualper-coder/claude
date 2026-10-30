@@ -30,10 +30,10 @@ function skillLevelText(lvl) {
   return rank.levels === 1 ? rank.id : rank.id + (lvl - rank.from + 1);
 }
 
-// Nächste erreichbare Stufe (für die Vorschau): auf 15 kommt E1, ganz oben nichts mehr
+// Nächste erreichbare Stufe (für die Vorschau): der Punkt auf 15 erweckt sofort zu E1 (seit 8.9), ganz oben nichts mehr
 function nextSkillLevel(lvl) {
   if (lvl >= MAX_SKILL_LEVEL) return null;
-  return skillRank(lvl) < 0 && lvl >= SKILL_POINT_MAX ? SKILL_RANKS[0].from : lvl + 1;
+  return skillRank(lvl) < 0 && lvl + 1 >= SKILL_POINT_MAX ? SKILL_RANKS[0].from : lvl + 1;
 }
 
 // Was mit einer Fertigkeit gerade möglich ist (für Knöpfe im Charakterfenster)
@@ -44,11 +44,9 @@ function skillActions(p, i) {
   if (p.level < sk.unlock) return out;
   const r = skillRank(lvl);
   if (r < 0) {
-    if (lvl < SKILL_POINT_MAX) out.push({ type: 'point', label: 'Verbessern', ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
-    if (lvl >= SKILL_POINT_MAX) {
-      const next = SKILL_RANKS[0];
-      out.push({ type: 'rankup', label: `Erwecken → ${next.id}1`, ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
-    }
+    // seit 8.9: der Punkt auf Stufe 15 erweckt automatisch zu E1
+    if (lvl < SKILL_POINT_MAX) out.push({ type: 'point', label: lvl + 1 >= SKILL_POINT_MAX ? `Verbessern → ${SKILL_RANKS[0].id}1` : 'Verbessern', ok: p.skillPoints > 0, why: 'Kein Fertigkeitspunkt frei' });
+    else out.push({ type: 'rankup', label: `Erwecken → ${SKILL_RANKS[0].id}1`, ok: true, why: '' });
     return out;
   }
   const rank = SKILL_RANKS[r];
@@ -193,15 +191,15 @@ function makePlayer(save) {
     p.skillPoints += (p.skillLevels || []).reduce((a, v) => a + Math.max(0, v - 1), 0);
     p.skillLevels = [1, 1, 1, 1, 1];
   }
-  // 8.5: Punkte nur bis 15. Alte Stufe 16/17 wird E1 (gleiche Punktkosten), 17 gibt einen Punkt zurück.
+  // 8.5: Punkte nur bis 15. Seit 8.9 wird alles ab Stufe 15 (ohne Rang) automatisch E1; 16/17 gibt Punkte zurück.
   p.skillLevels = p.skillLevels.map((lvl) => {
-    if (lvl > SKILL_POINT_MAX && skillRank(lvl) < 0) { p.skillPoints += lvl - SKILL_POINT_MAX - 1; return SKILL_RANKS[0].from; }
+    if (lvl >= SKILL_POINT_MAX && skillRank(lvl) < 0) { p.skillPoints += Math.max(0, lvl - SKILL_POINT_MAX); return SKILL_RANKS[0].from; }
     return lvl;
   });
-  // 8.5: E1 kostet 15 Punkte. Wer in 8.4 erst über 16/17 erweckt hat (bis zu 17 Punkte), bekommt die Differenz
+  // Seit 8.9 kostet E1 14 Punkte (Stufe 1 → 15, das Erwecken ist frei). Wer mehr bezahlt hat, bekommt die Differenz
   // zurück. Je Stufe gibt es einen Punkt; es wird nie etwas abgezogen, mehrfaches Laden ändert nichts.
   {
-    const spent = p.skillLevels.reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
+    const spent = p.skillLevels.reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX - 1 : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
     p.skillPoints = Math.max(p.skillPoints, (p.level - 1) - spent);
   }
   // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Version 6.2/6.3 (Welt 6) geht es
@@ -462,6 +460,17 @@ function raiseAttr(id, n = 1) {
   saveGame();
 }
 
+// Erwecken: Stufe 15 wird E1, mit eigenem Banner und Leuchten
+function awakenSkill(p, i, sk) {
+  const e1 = SKILL_RANKS[0];
+  p.skillLevels[i] = e1.from;
+  ui.banner('Erweckt!', `${sk.name} ist jetzt ${skillLevelText(e1.from)}`);
+  vfxLevelUp(p);
+  rankCastFx(p, 0, e1.color);
+  // laufende Diener sofort auf den neuen Rang umbauen (Skelette werden zu Knochenhunden)
+  if (sk.type === 'summon') convertAllies(sk, p.skillLevels[i]);
+}
+
 function upgradeSkill(i, type = 'point') {
   const p = game.player;
   const sk = classSkills(p)[i];
@@ -472,22 +481,22 @@ function upgradeSkill(i, type = 'point') {
     if (lvl >= SKILL_POINT_MAX) return;
     p.skillLevels[i]++;
     p.skillPoints--;
+    // Stufe 15 erreicht: sofort erweckt (E1)
+    if (p.skillLevels[i] >= SKILL_POINT_MAX) awakenSkill(p, i, sk);
   } else if (type === 'book') {
     p.skillLevels[i]++;
     takeBooks(p, sk.id, 1);
   } else {
-    // in den nächsten Rang
+    // in den nächsten Rang (Erwecken kostet seit 8.9 nichts mehr, es passiert auf 15 von selbst)
     const next = SKILL_RANKS[skillRank(lvl) + 1];
-    if (next.books) takeBooks(p, sk.id, next.books);
-    else p.skillPoints--;
-    p.skillLevels[i] = next.from;
-    // Erwecken auf Stufe 15 (seit 8.5 ein einzelner Klick) bekommt ein eigenes Banner
-    if (next === SKILL_RANKS[0]) ui.banner('Erweckt!', `${sk.name} ist jetzt ${skillLevelText(next.from)}`);
-    else ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
-    vfxLevelUp(p);
-    rankCastFx(p, skillRank(next.from), next.color);
-    // seit 8.5: laufende Diener sofort auf den neuen Rang umbauen (Skelette werden zu Knochenhunden)
-    if (sk.type === 'summon') convertAllies(sk, p.skillLevels[i]);
+    if (next === SKILL_RANKS[0]) awakenSkill(p, i, sk);
+    else {
+      takeBooks(p, sk.id, next.books);
+      p.skillLevels[i] = next.from;
+      ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
+      vfxLevelUp(p);
+      rankCastFx(p, skillRank(next.from), next.color);
+    }
   }
   ui.log(`${sk.name} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');
   refreshBuff(sk, p.skillLevels[i]);
