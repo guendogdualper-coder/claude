@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '10.4';
+const GAME_VERSION = '10.5';
 
 const game = {
   world: null,
@@ -42,6 +42,7 @@ function startGame(save, slot) {
   keepScreenOn();
   ui.closePanels();
   ui.enterGame();
+  refreshKeyLabels();
   const c = CLASSES[game.player.classId];
   // Begrüßung im Chat statt mitten im Bild
   if (game.player.statNotice) {
@@ -50,7 +51,7 @@ function startGame(save, slot) {
   }
   ui.chat('', input.touchUi ? `Willkommen, ${game.player.name}! Hilfe findest du unter dem Buch-Knopf oben.` : `Willkommen, ${game.player.name}! Drücke H für die Steuerung.`);
   if (game.player.level === 1 && game.player.xp === 0) {
-    ui.log(`Als ${c.name} nutzt du Taste 1 für ${classSkills(game.player)[0].name}. Jage zuerst Wilde Hunde vor dem Dorf.`, 'info');
+    ui.log(`Als ${c.name} nutzt du Taste ${keyLabel(actionKey('skill1'))} für ${classSkills(game.player)[0].name}. Jage zuerst Wilde Hunde vor dem Dorf.`, 'info');
   }
 }
 

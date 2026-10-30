@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v101';
+const VERSION = 'seelenstein-v102';
 const FILES = [
   './',
   'index.html',
@@ -64,6 +64,7 @@ const FILES = [
   'js/karte.js',
   'js/tagesbelohnung.js',
   'js/eingabe.js',
+  'js/tasten.js',
   'js/netz-signal.js',
   'js/netz.js',
   'js/konto-config.js',

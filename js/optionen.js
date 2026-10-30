@@ -114,6 +114,7 @@ const options = {
       `<section class="opt-group"><h3>Steuerung</h3>` +
       sw('vibrate', 'Vibration', 'Kurzes Rütteln beim Schmieden und Tauschen (wo das Gerät es kann).') +
       (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. Im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera, das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
+      keyOptionsHtml() +
       `<section class="opt-group"><h3>Figur und Spiel</h3><div class="opt-btns">` +
       `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
       `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
@@ -133,6 +134,7 @@ const options = {
       setOpt(k, v);
       this.render();
     }));
+    wireKeyOptions(body, () => this.render());
     if ($('optFull')) $('optFull').addEventListener('click', toggleFullscreen);
     $('optSound').addEventListener('click', () => {
       sfx.toggle();

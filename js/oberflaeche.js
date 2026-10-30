@@ -75,6 +75,7 @@ const ui = {
     $('potHp').querySelector('.flask').src = lootIconUrl('potHp');
     $('potMp').querySelector('.flask').src = lootIconUrl('potMp');
     onPress($('potMp'), () => usePotion('mp'));
+    setupQuickSlots();
     $('btnLoot').addEventListener('click', () => this.toggle('panelLoot'));
     $('lootFeed').addEventListener('click', () => this.toggle('panelLoot'));
     $('btnRevive').addEventListener('click', () => {
@@ -473,8 +474,8 @@ const ui = {
       const rank = skillRank(p.skillLevels[i]);
       btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
-      btn.title = `${sk.name} (${slot + 1}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${skillMana(sk, p)}, Abklingzeit: ${sk.cooldown} s. Lange drücken zum Tauschen.`;
-      btn.innerHTML = `<span class="key">${slot + 1}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
+      btn.title = `${sk.name} (${keyLabel(actionKey('skill' + (slot + 1)))}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${skillMana(sk, p)}, Abklingzeit: ${sk.cooldown} s. Lange drücken zum Tauschen.`;
+      btn.innerHTML = `<span class="key">${keyLabel(actionKey('skill' + (slot + 1)))}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
@@ -509,8 +510,8 @@ const ui = {
       const wrap = document.createElement('div');
       wrap.className = 'skill-wrap ult-wrap';
       const locked = p.level < u.unlock;
-      wrap.innerHTML = `<button type="button" id="skillUlt" class="slot skill ult${locked ? ' locked' : ''}" title="${u.name} (6) – ${u.text} ${u.stats}. Abklingzeit: 3 Minuten.">` +
-        `<span class="key">6</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
+      wrap.innerHTML = `<button type="button" id="skillUlt" class="slot skill ult${locked ? ' locked' : ''}" title="${u.name} (${keyLabel(actionKey('ult'))}) – ${u.text} ${u.stats}. Abklingzeit: 3 Minuten.">` +
+        `<span class="key">${keyLabel(actionKey('ult'))}</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
         `<span class="cd" hidden></span>${locked ? `<span class="lock">ab Lv ${u.unlock}</span>` : ''}</button>`;
       const btn = wrap.firstChild;
       btn.addEventListener('pointerdown', (e) => {
@@ -934,6 +935,7 @@ const ui = {
     this.set('splinter', p.splinters, (v) => { $('splinterText').textContent = v; });
     this.set('potHp', potionTotal(p, 'hp'), (v) => { $('potHpCount').textContent = v; });
     this.set('potMp', potionTotal(p, 'mp'), (v) => { $('potMpCount').textContent = v; });
+    updateQuickCounts();
     // Abklingzeit der Tränke (3 s) als dunkler Kreis mit Sekunden
     for (const [kind, id] of [['hp', 'potHp'], ['mp', 'potMp']]) {
       const left = p.potCd ? p.potCd[kind] : 0;

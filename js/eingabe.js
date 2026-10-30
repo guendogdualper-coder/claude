@@ -51,56 +51,35 @@ function moveVector() {
 
 function setupInput() {
   window.addEventListener('keydown', (e) => {
-    if (!game.running || e.target instanceof HTMLInputElement) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    // Einstellungen: neue Taste für eine Aktion abfangen (tasten.js)
+    if (captureKey(e)) return;
+    if (!game.running) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (MOVE_KEYS[e.code]) {
       input.keys.add(e.code);
       e.preventDefault();
       return;
     }
-    switch (e.code) {
-      case 'Space':
-        // Gedrückt halten greift immer weiter an (siehe spiel.js)
-        if (!e.repeat) tapAttack();
-        input.keys.add('Space');
-        e.preventDefault();
-        break;
-      case 'Digit6':
-        useUltimate();
-        break;
-      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5':
-        if (game.player) useSkill(skillOrder(game.player)[Number(e.code.slice(5)) - 1]);
-        break;
-      case 'KeyQ': usePotion('hp'); break;
-      case 'KeyE': usePotion('mp'); break;
-      case 'KeyF': interact(); break;
-      case 'KeyC': if (!e.repeat) ui.toggle('panelChar'); break;
-      case 'KeyH': if (!e.repeat) ui.toggle('panelHelp'); break;
-      case 'KeyI': if (!e.repeat) ui.toggle('panelInv'); break;
-      case 'KeyR': if (!e.repeat) toggleRide(); break;
-      case 'KeyN': if (!e.repeat) ui.toggle('panelNet'); break;
-      case 'KeyG': if (!e.repeat) ui.toggle('panelSocial'); break;
-      case 'KeyT': if (!e.repeat) ui.toggle('panelDaily'); break;
-      case 'KeyO': if (!e.repeat) ui.toggle('panelOpts'); break;
-      case 'Enter': if (netOnline()) { ui.openChat(); e.preventDefault(); } break;
-      case 'KeyB': if (!e.repeat) ui.toggle('panelLoot'); break;
-      case 'KeyM': if (!e.repeat) openBigMap(); break;
-      case 'Tab':
-        e.preventDefault();
-        cycleTarget();
-        break;
-      case 'Escape':
-        if (game.aim) cancelAim();
-        else if (ui.anyPanelOpen()) ui.closePanels();
-        else game.target = null;
-        break;
+    if (e.code === 'Escape') {
+      if ($('quickPick')) closeQuickPicker();
+      else if (game.aim) cancelAim();
+      else if (ui.anyPanelOpen()) ui.closePanels();
+      else game.target = null;
+      return;
     }
+    // seit 10.5 frei belegbar (tasten.js, Einstellungen → Tastenbelegung)
+    const act = keyAction(e.code);
+    if (act) runAction(act, e);
   });
 
   window.addEventListener('keyup', (e) => {
     input.keys.delete(e.code);
+    const act = keyAction(e.code);
+    if (act === 'attack') input.keys.delete('Space');
     // Eisstrahl: Taste loslassen beendet ihn
-    if (/^Digit[1-5]$/.test(e.code) && game.player) releaseChannel(skillOrder(game.player)[Number(e.code.slice(5)) - 1]);
+    const m = act && /^skill(\d)$/.exec(act);
+    if (m && game.player) releaseChannel(skillOrder(game.player)[Number(m[1]) - 1]);
   });
 
   // Beim Wechsel in einen anderen Tab keine Tasten "festhalten"

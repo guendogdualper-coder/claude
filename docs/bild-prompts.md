@@ -1936,3 +1936,9 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 
 - Fertigkeitsschriftrolle: `Game inventory icon, 40x40, painterly toon: a vertical East Asian hanging scroll, cream parchment with a border in the class color (warrior red, ninja violet, shaman teal, necromancer green, mage blue), dark wooden rods at top and bottom with small gold knobs, a hanging cord on top and a little tassel at the bottom, in the middle a round gold seal showing the skill symbol, clean dark outline, transparent background`
 - Segensschriftrolle (unverändert, liegt quer): `Game inventory icon: a horizontal parchment scroll with rolled ends, three red ink lines and a red wax seal, warm light, transparent background`
+
+## Freie Plätze und Tastenbelegung (seit 10.5)
+
+- Leiste: `Mobile MMORPG landscape HUD, bottom right: a big red attack button, skill buttons in an arc, two potion buttons (red and blue flask) and above them two extra round slots with a horse icon and a map icon, brass rims, dark wood, painterly toon UI`
+- Auswahl: `Game UI popup "Freier Platz 2" centered on screen, dark lacquered panel with brass border, 4x3 grid of square buttons each with a line icon and German label (Lebenstrank, Manatrank, Pferd auf/ab, Nächstes Ziel, Sprechen / Aufheben, Große Karte, Inventar, Charakter, Beutel, Tagesbelohnung, Freunde & Gilde, Leer), selected one glowing gold`
+- Tastenbelegung: `Settings panel section "Tastenbelegung", two columns of rows, action name left and a small key cap right (1, 2, Q, E, Leertaste, Tab), one row highlighted in gold with blinking text "Taste drücken …", button "Standard wiederherstellen"`

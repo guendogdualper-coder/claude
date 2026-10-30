@@ -2739,3 +2739,40 @@ body.aiming canvas { cursor: crosshair; }
 @media (orientation: landscape) and (max-height: 520px) {
   .store-box .bag-grid { max-width: 430px; }
 }
+
+/* --- Freie Plätze und Tastenbelegung (seit 10.5) ---------------------------------------- */
+.quick { background: radial-gradient(circle at 50% 60%, rgba(201, 163, 90, 0.28), transparent 70%), linear-gradient(160deg, #3a2f22, #1d1712); }
+.quick.empty { border-style: dashed; opacity: 0.8; }
+.quick.off { filter: grayscale(0.8); opacity: 0.55; }
+.quick .quick-svg { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.quick .quick-svg svg { width: 26px; height: 26px; fill: none; stroke: #f0dca8; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.quick .quick-svg svg .fill { fill: rgba(240, 207, 106, 0.25); }
+.quick-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 22px; font-weight: 700; color: var(--brass); pointer-events: none; }
+#hud.touch #quick1 { left: 73px; top: 79px; }
+#hud.touch #quick2 { left: 92px; top: 40px; }
+#hud.touch .quick .quick-svg svg { width: 20px; height: 20px; }
+#hud.touch .quick-empty { font-size: 18px; }
+.quick-pick {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 60;
+  width: min(460px, calc(100vw - 32px)); max-height: calc(100vh - 24px); overflow-y: auto; padding: 10px; border-radius: 12px; pointer-events: auto;
+  background: rgba(24, 18, 12, 0.96); border: 1px solid var(--brass-dim); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+.quick-pick strong { display: block; margin-bottom: 6px; font-family: var(--font-display); color: var(--brass); }
+.quick-pick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+@media (max-height: 420px) { .quick-pick-grid button { min-height: 50px; padding-top: 27px; } }
+.quick-pick-grid button {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 58px; padding: 30px 4px 4px;
+  border-radius: 8px; border: 1px solid rgba(201, 163, 90, 0.35); background: rgba(255, 240, 210, 0.05); color: var(--text); font: inherit; font-size: 11px; cursor: pointer;
+}
+.quick-pick-grid button.on { border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass); }
+.quick-pick-grid .quick-svg, .quick-pick-grid .quick-empty { position: absolute; inset: 4px 0 auto; height: 26px; display: grid; place-items: center; }
+.quick-pick-grid .quick-svg svg { width: 22px; height: 22px; fill: none; stroke: #f0dca8; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.quick-pick-grid .quick-svg svg .fill { fill: rgba(240, 207, 106, 0.25); }
+.quick-pick-grid .flask { position: absolute; top: 3px; left: 50%; width: 26px; height: 26px; transform: translateX(-50%); }
+.key-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 5px; margin: 6px 0; }
+.key-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 7px; border: 1px solid rgba(201, 163, 90, 0.3); background: rgba(255, 240, 210, 0.04); color: var(--text); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.key-row kbd { min-width: 34px; padding: 2px 6px; border-radius: 5px; background: #120e0a; border: 1px solid var(--brass-dim); color: #ffe08a; font-family: inherit; font-size: 12px; text-align: center; }
+.key-row.wait { border-color: #ffd34d; box-shadow: 0 0 10px rgba(255, 211, 77, 0.4); }
+.key-row.wait kbd { color: #fff; animation: key-blink 0.8s ease-in-out infinite alternate; }
+@keyframes key-blink { from { opacity: 1; } to { opacity: 0.4; } }
+.opt-row select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--brass-dim); background: #120e0a; color: var(--text); font: inherit; font-size: 14px; }
