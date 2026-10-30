@@ -6,10 +6,11 @@ const DAILY_DAYS = [
   { name: 'Goldbeutel', icon: 'gold', reward: (L) => ({ gold: 300 + L * 80, potions: 4 }) },
   { name: 'Seelensplitter', icon: 'splinter', reward: (L) => ({ splinters: 3 + Math.floor(L / 12), potions: 4 }) },
   { name: 'Verstärkungen', icon: 'boniPlus', reward: (L) => ({ gold: 500 + L * 100, mats: { boniPlus: 2 } }) },
-  { name: 'Segensschriftrolle', icon: 'scroll', reward: (L) => ({ scrolls: 1, potions: 6 }) },
+  // seit 10.4 keine Segensschriftrollen mehr (die geben nur noch Seelensteine ab Stufe 35)
+  { name: 'Tränkekorb', icon: 'gold', reward: (L) => ({ gold: 800 + L * 120, potions: 8 }) },
   { name: 'Switcher', icon: 'switcher', reward: (L) => ({ splinters: 4 + Math.floor(L / 10), mats: { switcher: 2 } }) },
   { name: 'Schatztruhe', icon: 'gold', reward: (L) => ({ gold: 1500 + L * 250, mats: { boniPlus: 3 } }) },
-  { name: 'Großer Preis', icon: 'book', reward: (L) => ({ books: 1, scrolls: 2, mats: L >= 30 ? { boni5: 1, switcher: 2 } : { switcher: 3 } }) }
+  { name: 'Großer Preis', icon: 'book', reward: (L) => ({ books: 1, gold: 2000 + L * 300, mats: L >= 30 ? { boni5: 1, switcher: 2 } : { switcher: 3 } }) }
 ];
 
 // Datum als Text (Gerätezeit) und Abstand zweier Tage
@@ -81,7 +82,7 @@ function dailyLines(day, level) {
   if (r.splinters) out.push(`${r.splinters} Splitter`);
   if (r.potions) out.push(`${r.potions}+${r.potions} Tränke`);
   if (r.scrolls) out.push(`${r.scrolls} Segensrolle${r.scrolls > 1 ? 'n' : ''}`);
-  if (r.books) out.push(`${r.books} Fertigkeitsbuch`);
+  if (r.books) out.push(`${r.books} Fertigkeitsschriftrolle${r.books > 1 ? 'n' : ''}`);
   for (const [id, n] of Object.entries(r.mats || {})) out.push(`${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   return out;
 }

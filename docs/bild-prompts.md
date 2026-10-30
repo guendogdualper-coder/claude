@@ -1931,3 +1931,8 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 
 - Fenster: `Fantasy MMORPG UI panel, dark lacquered wood with brass trim, title "Weg wechseln", two (or four for the mage: fire, frost, lightning, earth) tall path cards side by side, each with an emblem, path name, role line and short description, the selected card glowing with a golden border, below a single brass button "Wechseln" and a gold price tag, an old teacher NPC with a scroll at the side, painterly toon style, clean readable German text, 16:9`
 - Totenruf gesperrt: `Small floating combat text above a necromancer in pale cyan: "Deine Geister wandeln noch", three white ghost animals (wolf, bear, boar) still circling him in soft blue mist, painterly toon 3D style, top-down MMORPG camera`
+
+## Fertigkeitsschriftrolle und Segensschriftrolle (seit 10.4)
+
+- Fertigkeitsschriftrolle: `Game inventory icon, 40x40, painterly toon: a vertical East Asian hanging scroll, cream parchment with a border in the class color (warrior red, ninja violet, shaman teal, necromancer green, mage blue), dark wooden rods at top and bottom with small gold knobs, a hanging cord on top and a little tassel at the bottom, in the middle a round gold seal showing the skill symbol, clean dark outline, transparent background`
+- Segensschriftrolle (unverändert, liegt quer): `Game inventory icon: a horizontal parchment scroll with rolled ends, three red ink lines and a red wax seal, warm light, transparent background`

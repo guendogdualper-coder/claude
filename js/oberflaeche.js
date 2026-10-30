@@ -396,7 +396,7 @@ const ui = {
       const E = MAGE_EL[MAGE_PATH_EL[pick]];
       const ok = !same && p.gold >= cost && canChangeElement(p);
       $('pathBody').innerHTML = `<p>Wähle ein neues Element. Deine Fertigkeitsstufen bleiben erhalten, die Buffs deines alten Elements enden. ` +
-        `Bücher des alten Elements gehören danach zu fremden Fertigkeiten.</p>` +
+        `Schriftrollen des alten Elements gehören danach zu fremden Fertigkeiten.</p>` +
         pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) + ultHtml(ULTIMATES[c.paths[pick].id], null) +
         `<p class="el-cost">${cost ? `Kosten: ${cost.toLocaleString('de-DE')} Gold (du hast ${p.gold.toLocaleString('de-DE')})` : 'Bis Stufe 10 kostenlos.'}</p>` +
         (asking && ok
@@ -1131,7 +1131,7 @@ const ui = {
       `<span><img src="${lootIconUrl('gold')}" alt=""> ${p.gold.toLocaleString('de-DE')}</span>` +
       `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
       `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
-      `<span title="Fertigkeitsbücher in der Tasche"><img src="${lootIconUrl('book')}" alt=""> ${totalBooks(p)}</span>` +
+      `<span title="Fertigkeitsschriftrollen in der Tasche"><img src="${lootIconUrl('book')}" alt=""> ${totalBooks(p)}</span>` +
       POTION_SIZES.flatMap((sz) => ['hp', 'mp'].map((kind) => {
         const n = p.potions[potKey(kind, sz.id)] || 0;
         return n ? `<span title="${potionInfo(kind).name} (${sz.id})"><img src="${potionIconUrl(kind, sz.id)}" alt=""> ${n}</span>` : '';
@@ -1235,8 +1235,8 @@ const ui = {
       row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
       `</dl>` +
       `<h3>Fertigkeiten</h3>` +
-      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Bücher für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
-      `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsbüchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
+      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Schriftrollen für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
+      `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsschriftrollen über Heroisch (H) und Legendär (L) bis Vollendet (V). Jede Schriftrolle gehört zu einer Fertigkeit. Seelensteine ab Stufe 40 lassen ab und zu Schriftrollen zu den Fertigkeiten deiner Klasse fallen; der Lehrmeister verkauft sie auch.</p>` +
       skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p);
     $('btnLook').addEventListener('click', () => this.openLookPanel());
     if ($('btnElement')) $('btnElement').addEventListener('click', () => this.showElementChoice());
@@ -1393,13 +1393,13 @@ const ui = {
     const way = c.paths.length === 4 ? 'Element' : 'Weg';
     const pickName = c.paths.length === 4 ? MAGE_EL[c.paths[pick].id].name : c.paths[pick].name;
     $('npcBody').innerHTML =
-      `<p>„Wissen hat seinen Preis. Ich verkaufe Bücher zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg.“</p>` +
+      `<p>„Wissen hat seinen Preis. Ich verkaufe Schriftrollen zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg.“</p>` +
       `<p>Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
       (msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '') +
-      `<h3>Fertigkeitsbücher <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
-      `<p class="hint">Bücher braucht man ab dem Erwecken (E2–E10, Heroisch, Legendär, Vollendet).</p><div class="shop">` +
+      `<h3>Fertigkeitsschriftrollen <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
+      `<p class="hint">Schriftrollen braucht man ab dem Erwecken (E2–E10, Heroisch, Legendär, Vollendet).</p><div class="shop">` +
       skills.map((sk) => `<div class="shop-item"><img class="shop-icon" src="${bookIconUrl(sk.id)}" alt="">` +
-        `<strong>${sk.name}</strong><small>Fertigkeitsbuch · im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
+        `<strong>${sk.name}</strong><small>Fertigkeitsschriftrolle · im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
         `<div class="buy"><button class="mini-btn" type="button" data-book="${sk.id}" ${p.gold < TEACHER.bookPrice ? 'disabled' : ''}>Kaufen</button></div></div>`).join('') +
       `</div><h3>Punkte zurücksetzen</h3><div class="shop">` +
       `<div class="shop-item"><strong>Statuspunkte <span class="price">${fmt(stCost)} Gold</span></strong>` +
@@ -1407,11 +1407,11 @@ const ui = {
       `<div class="buy"><button class="mini-btn" type="button" data-reset="stat" ${!statSpent || p.gold < stCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `<div class="shop-item"><strong>Fertigkeitspunkte <span class="price">${fmt(skCost)} Gold</span></strong>` +
       `<small>Alle Fertigkeiten gehen auf Stufe 1 zurück, auch erweckte (E/H/L/V). Du bekommst alle ${p.level - 1} Fertigkeitspunkte` +
-      `${bookBack ? ` und ${bookBack} gelesene Bücher` : ''} zurück.</small>` +
+      `${bookBack ? ` und ${bookBack} gelesene Schriftrollen` : ''} zurück.</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!canResetSkills(p) || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `</div><h3>${way} wechseln <span class="price">${fmt(skCost)} Gold</span></h3>` +
-      `<p class="hint">Ein neuer ${way} setzt deine Fertigkeiten wie oben zurück (alle Punkte und Bücher zurück). ` +
-      `Bücher deines alten ${way}s werden zu Büchern derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>` +
+      `<p class="hint">Ein neuer ${way} setzt deine Fertigkeiten wie oben zurück (alle Punkte und Schriftrollen zurück). ` +
+      `Schriftrollen deines alten ${way}s werden zu Schriftrollen derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>` +
       pathChoiceHtml(c, pick) +
       `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? `Dein jetziger ${way}` : `${way}: ${pickName}`}</strong>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="path" ${pick === cur || p.gold < skCost ? 'disabled' : ''}>${pick === cur ? 'Gewählt' : 'Wechseln'}</button></div></div></div>` +
@@ -1429,7 +1429,7 @@ const ui = {
       const r = buyBook(sk.id);
       if (r === 'ok') {
         saveGame();
-        this.renderTeacher({ ok: true, text: `Buch „${sk.name}“ gekauft.` });
+        this.renderTeacher({ ok: true, text: `Schriftrolle „${sk.name}“ gekauft.` });
       } else this.renderTeacher({ ok: false, text: r === 'bag' ? 'Deine Tasche ist voll.' : 'Dafür reicht dein Gold nicht.' });
     }));
     body.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', () => {
@@ -1454,7 +1454,7 @@ const ui = {
         if (kind !== 'stat') {
           this.buildSkillBar();
           drawPortrait($('hudPortrait'), p);
-          const extra = (res.books ? ` ${res.books} Bücher liegen in deiner Tasche.` : '') +
+          const extra = (res.books ? ` ${res.books} Schriftrollen liegen in deiner Tasche.` : '') +
             (res.moved ? ` ${res.moved === 1 ? 'Ein Teil' : res.moved + ' Teile'} deiner Ausrüstung ${res.moved === 1 ? 'liegt' : 'liegen'} jetzt in der Tasche.` : '');
           text = kind === 'path'
             ? `Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine ${p.level - 1} Fertigkeitspunkte im Charakterfenster.` + extra
@@ -1470,9 +1470,9 @@ const ui = {
   renderShop() {
     const p = game.player;
     $('npcBody').innerHTML =
-      `<p>„Tränke und Schriftrollen für unterwegs. Waffen gibt es bei Goro, Rüstungen bei Mei.“</p>` +
+      `<p>„Tränke für unterwegs. Waffen gibt es bei Goro, Rüstungen bei Mei. Segensschriftrollen? Die geben nur noch die Seelensteine ab Stufe 35 her.“</p>` +
       `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
-      `<h3>Tränke und Schriftrollen</h3><div class="shop">` +
+      `<h3>Tränke</h3><div class="shop">` +
       SHOP.map((item) => POTION_SIZES.map((sz) => {
         const key = potKey(item.id, sz.id);
         const price = item.price * sz.price;
@@ -1484,15 +1484,11 @@ const ui = {
           `<div class="buy"><button class="mini-btn" type="button" data-buy="${key}" data-n="1" ${low ? 'disabled' : ''}>1 kaufen</button>` +
           `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10 kaufen</button></div></div>`;
       }).join('')).join('') +
-      `<div class="shop-item"><img class="shop-icon" src="${scrollIconUrl()}" alt=""><strong>${BLESSING.name} <span class="price">${BLESSING.price} Gold</span></strong>` +
-      `<small>${BLESSING.text} Im Gepäck: <b id="have-scroll">${p.scrolls}</b></small>` +
-      `<div class="buy"><button class="mini-btn" type="button" data-scroll="1">Kaufen</button></div></div>` +
       `</div><p id="shopMsg" class="form-error" hidden></p>` + gear.sellSectionHtml();
     gear.wireSell($('npcBody'), () => this.renderShop());
     $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
       b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
     });
-    $('npcBody').querySelector('[data-scroll]').addEventListener('click', () => this.buyScroll());
   },
 
   shopMessage(text, ok) {
@@ -1519,20 +1515,6 @@ const ui = {
     $('shopMsg').hidden = true;
     $('shopGold').textContent = p.gold.toLocaleString('de-DE');
     $('have-' + key).textContent = p.potions[key];
-    saveGame();
-  },
-
-  buyScroll() {
-    const p = game.player;
-    if (p.gold < BLESSING.price) {
-      this.shopMessage(`Dir fehlen ${BLESSING.price - p.gold} Gold für eine ${BLESSING.name}.`);
-      return;
-    }
-    p.gold -= BLESSING.price;
-    p.scrolls++;
-    $('shopGold').textContent = p.gold.toLocaleString('de-DE');
-    $('have-scroll').textContent = p.scrolls;
-    this.shopMessage(`${BLESSING.name} gekauft.`, true);
     saveGame();
   },
 

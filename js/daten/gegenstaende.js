@@ -259,9 +259,10 @@ function plusBand(plus) {
   return 0;
 }
 
+// seit 10.4 nicht mehr beim Händler: nur noch selten aus Seelensteinen ab Stufe 35 (stone)
 const BLESSING = {
   name: 'Segensschriftrolle',
-  price: 400,
+  stone: 35,
   text: 'Schützt beim Schmied: Schlägt die Verbesserung fehl, passiert dem Gegenstand nichts. Nur die Kosten sind weg.'
 };
 

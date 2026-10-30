@@ -20,7 +20,7 @@ const MAIN_QUESTS = [
     reward: { gold: 500, items: [['schuhe', 1, 2]], mats: { switcher: 1 } } },
   { id: 'q5', level: 8, title: 'Stein der Wut', goal: { type: 'stone', level: 10, count: 1 },
     text: 'Am Rand der Wiesen glüht ein Stein der Wut. Seine Wut macht die Tiere rasend.',
-    reward: { gold: 800, scrolls: 1, mats: { switcher: 2 } } },
+    reward: { gold: 1200, mats: { switcher: 2 } } },
   { id: 'q6', level: 10, title: 'Banditen im Dunkelwald', goal: { type: 'kill', monster: 'bandit', count: 20 },
     text: 'Banditen überfallen unsere Händler auf dem Weg durch den Dunkelwald. Vertreib sie.',
     reward: { gold: 1500, items: [['waffe', 2, 2]] } },
@@ -38,7 +38,7 @@ const MAIN_QUESTS = [
     reward: { gold: 9000, mats: { boni5: 1, switcher: 3 } } },
   { id: 'q11', level: 24, title: 'Stein der Schwärze', goal: { type: 'stone', level: 25, count: 2 },
     text: 'Die Orks beten schwarze Steine an. Nimm ihnen ihre Götzen.',
-    reward: { books: 1, gold: 12000, scrolls: 2, mats: { star: 1 } } },
+    reward: { books: 1, gold: 16000, mats: { star: 1 } } },
   { id: 'q12', level: 27, title: 'Der Ork-Hauptmann', goal: { type: 'kill', monster: 'orkhauptmann', count: 10 },
     text: 'Ohne ihre Hauptmänner sind die Orks nur ein wilder Haufen. Finde sie.',
     reward: { gold: 15000, items: [['waffe', 4, 2]] } },
@@ -65,7 +65,7 @@ const MAIN_QUESTS = [
     reward: { books: 5, gold: 160000, items: [['waffe', 7, 2]] } },
   { id: 'q20', level: 68, title: 'Stein des Untergangs', goal: { type: 'stone', level: 70, count: 1 },
     text: 'Der letzte und mächtigste aller Seelensteine. Zerstöre ihn und Vlotho ist für immer frei.',
-    reward: { books: 8, gold: 250000, scrolls: 5, mats: { star: 3, boni5: 3 } } }
+    reward: { books: 8, gold: 300000, mats: { star: 3, boni5: 3 } } }
 ];
 
 // Hauptmission des Stallmeisters ab Stufe 20: in 20 Minuten 120 Monster ab Stufe 15 besiegen.

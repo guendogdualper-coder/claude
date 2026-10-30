@@ -336,7 +336,7 @@ const trade = {
     const it = t.edit && t.mine.uids.includes(t.edit) ? p.inventory.find((x) => x.uid === t.edit) : null;
     if (!isBook(it)) return '';
     const n = Math.min(it.count, t.mine.counts[it.uid] || it.count);
-    return `<div class="trade-count"><img src="${bookIconUrl(it.book)}" alt=""><span>Buch „${skillEntry(it.book).sk.name}“: <b>${n}</b> von ${it.count}</span>` +
+    return `<div class="trade-count"><img src="${bookIconUrl(it.book)}" alt=""><span>Schriftrolle „${skillEntry(it.book).sk.name}“: <b>${n}</b> von ${it.count}</span>` +
       ['-10', '-1', '+1', '+10'].map((v) => `<button type="button" class="mini-btn" data-tcount="${v}">${v.replace('-', '−')}</button>`).join('') +
       `<button type="button" class="mini-btn" data-tcount="all">Alle</button><button type="button" class="mini-btn" data-tcount="out">Herausnehmen</button></div>`;
   },
@@ -371,7 +371,7 @@ const trade = {
       `<section class="trade-side${t.okTheirs ? ' ok' : ''}"><h3>${escapeHtml(t.name)} ${t.okTheirs ? '<span class="trade-ok">✓ bestätigt</span>' : ''}</h3>` +
       `<div class="trade-grid">${slots(t.theirs.items, 'data-ttheirs')}</div>` +
       `<p class="trade-gold">Gold <b>${t.theirs.gold.toLocaleString('de-DE')}</b></p></section></div>` +
-      `<p class="hint-text">Beide können anbieten: Tippe Sachen in deiner Tasche an – Ausrüstung, Fertigkeitsbücher (Anzahl wählbar) und Gold (höchstens ${TRADE_SLOTS} Plätze). Jede Änderung hebt beide Bestätigungen auf.</p>` +
+      `<p class="hint-text">Beide können anbieten: Tippe Sachen in deiner Tasche an – Ausrüstung, Fertigkeitsschriftrollen (Anzahl wählbar) und Gold (höchstens ${TRADE_SLOTS} Plätze). Jede Änderung hebt beide Bestätigungen auf.</p>` +
       `<div class="trade-bag"><div class="bag-tabs">${tabs}</div><div class="bag-grid">${bag}</div></div>` +
       `<div id="tradeDetail" class="item-detail-wrap">${this.countHtml(t, p)}</div>` +
       (tooFull ? `<p class="gear-msg warn">In deiner Tasche ist nicht genug Platz für das Angebot.</p>` : '') +
@@ -430,7 +430,7 @@ const trade = {
       const item = t.theirs.items.find((x) => x.uid === b.dataset.ttheirs);
       if (!item) return;
       $('tradeDetail').innerHTML = isBook(item)
-        ? `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt=""><div class="item-info"><strong>Buch: ${skillEntry(item.book).sk.name} × ${item.count}</strong></div></div>`
+        ? `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt=""><div class="item-info"><strong>Schriftrolle: ${skillEntry(item.book).sk.name} × ${item.count}</strong></div></div>`
         : `<div class="item-detail"><img src="${itemIconUrl(item)}" alt=""><div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
           `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small><span>${gear.statsList(item)}</span>` +
           `<ul class="bonus-list">${(item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('')}</ul>${compareHtml(item)}</div></div>`;

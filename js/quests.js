@@ -264,7 +264,7 @@ function giveReward(reward, xp) {
   if (reward.books) {
     // Aufträge geben Bücher zu den eigenen Fertigkeiten
     const got = addBooks(reward.books, null, classSkills(p).map((sk) => sk.id));
-    if (got.length) parts.push('Bücher: ' + got.join(', '));
+    if (got.length) parts.push('Schriftrollen: ' + got.join(', '));
   }
   for (const [id, n] of Object.entries(reward.mats || {})) {
     p.materials[id] = (p.materials[id] || 0) + n;
@@ -289,7 +289,7 @@ function rewardHtml(reward, xp) {
   if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
   if (reward.horse) li.push(`<b class="reward-horse">Ein eigenes Reitpferd</b> (+${Math.round(HORSES[1].speed * 100)} % Lauftempo, Taste R oder Pferdeknopf)`);
-  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Buch zu deinen Fertigkeiten`);
+  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Schriftrolle zu deinen Fertigkeiten`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
     li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   }
@@ -566,7 +566,7 @@ Object.assign(ui, {
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="shop">` +
       ALCHEMIST_WARES.map((w) => {
         const book = w.id === 'book';
-        const m = book ? { id: 'book', name: 'Unbekanntes Fertigkeitsbuch', text: 'Ein Buch zu einer zufälligen Fertigkeit irgendeiner Klasse. Mit Glück eines von deinen.' } : MATERIALS.find((x) => x.id === w.id);
+        const m = book ? { id: 'book', name: 'Fertigkeitsschriftrolle', text: 'Eine Schriftrolle zu einer zufälligen Fertigkeit deiner Klasse.' } : MATERIALS.find((x) => x.id === w.id);
         const have = book ? totalBooks(p, true) : p.materials[m.id] || 0;
         return `<div class="shop-item"><img class="shop-icon" src="${book ? lootIconUrl('book') : materialIconUrl(m.id)}" alt=""><strong>${m.name} <span class="price">${w.price.toLocaleString('de-DE')} Gold</span></strong>` +
           `<small>${m.text} Im Gepäck: <b>${have}</b></small>` +
@@ -583,7 +583,7 @@ Object.assign(ui, {
           ui.log('Deine Tasche ist voll.', 'warn');
           return;
         }
-        addBooks(1);
+        addBooks(1, null, ownClassSkillIds(p));
       } else {
         p.materials[w.id] = (p.materials[w.id] || 0) + 1;
       }
@@ -717,7 +717,7 @@ Object.assign(ui, {
         '<ul class="raid-roles"><li><b>Tank</b> hält den Boss und fängt den Tank-Schlag (rotes Zeichen über dem Kopf).</li>' +
         '<li><b>Heiler</b> hält alle am Leben (Schamane: Heilung).</li><li><b>Schaden</b> (2–3 Spieler) bringen ihn zu Fall.</li></ul>' +
         '<p class="hint-text">Mechaniken: rote Kreise am Boden = gleich schlägt es dort ein, raus da! Meteore fallen auf jeden Spieler. Der Linienangriff fährt zum Ziel. Bei der Nova ist nur der grüne Kreis direkt am Boss sicher. Er springt auf einzelne Spieler (Zeichen über dem Kopf) und rast im Sturmangriff quer durch die Halle. Alle 20 s ruft er kleine Helfer – die lassen oft Tränke, Splitter oder Verstärkungen fallen. Bei 70 % und 35 % Leben schreit er und wird schneller, unter 20 % gerät er in Raserei. Ohne Kampf heilt er sich voll.</p>' +
-        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei legendäre Teile (+7 bis +9, vier Boni, darunter eine Waffe), Fertigkeitsbücher, Seltene Verstärkungen, Sternensteine und sehr viel Gold.</p>' +
+        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei legendäre Teile (+7 bis +9, vier Boni, darunter eine Waffe), Seltene Verstärkungen, Sternensteine und sehr viel Gold.</p>' +
         (party < 5 ? `<p class="form-error">Deine Gruppe hat ${party} von 5 Spielern – zu wenige ist es sehr gefährlich.</p>` : '') +
         `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Halle betreten'}</button>`;
       body.querySelector('[data-dg]').addEventListener('click', () => {

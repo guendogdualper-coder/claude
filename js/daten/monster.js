@@ -207,7 +207,7 @@ const STONE_TYPES = [
   { level: 10, name: 'Stein der Wut', look: { shape: 'obelisk', base: '#5a2e26', top: '#7a4232', rune: '#ff6a4a', glow: '#e0482a' }, focus: 'weapons', drop: 'oft Waffen' },
   { level: 15, name: 'Stein der Gier', look: { shape: 'cluster', base: '#2e4a36', top: '#3e6a48', rune: '#ffd34d', glow: '#e8c46a' }, focus: 'gold', drop: 'dreimal so viel Gold' },
   { level: 20, name: 'Stein der Dornen', look: { shape: 'spire', base: '#4a3a2a', top: '#6a5238', rune: '#9be07a', glow: '#6ab04a', thorns: true }, focus: 'armor', drop: 'oft Rüstungsteile' },
-  { level: 25, name: 'Stein der Schwärze', look: { shape: 'boulder', base: '#1e1a24', top: '#2e2838', rune: '#c58cff', glow: '#8a5ad0' }, focus: 'scrolls', drop: 'Segensschriftrollen' },
+  { level: 25, name: 'Stein der Schwärze', look: { shape: 'boulder', base: '#1e1a24', top: '#2e2838', rune: '#c58cff', glow: '#8a5ad0' }, focus: 'rot', drop: 'Tränke und viel Gold' },
   { level: 30, name: 'Stein der Asche', look: { shape: 'obelisk', base: '#4a4644', top: '#6a6460', rune: '#ffb04a', glow: '#ff8a3a' }, focus: 'boniPlus', drop: 'viele Verstärkungen' },
   { level: 35, name: 'Stein der Glut', look: { shape: 'boulder', base: '#3a1a14', top: '#5a2a1e', rune: '#ff7a2a', glow: '#ff5a1a', lava: true }, focus: 'splinters', drop: 'viele Seelensplitter' },
   { level: 40, name: 'Stein der Schatten', look: { shape: 'twin', base: '#2a2238', top: '#3e3254', rune: '#b48cff', glow: '#6a4aa8', smoke: true }, focus: 'switcher', drop: 'viele Switcher' },
@@ -234,7 +234,7 @@ function stoneDrops(type) {
       boni5: [Math.min(0.6, 0.1 + t * 0.025), 1, 1],
       star: [Math.min(0.5, 0.06 + t * 0.02), 1, 1 + Math.floor(t / 10)]
     },
-    gear: 0.55, plus: [0, 2], slots: null, gold: 1, potions: [0, 1], scroll: 0.25, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
+    gear: 0.55, plus: [0, 2], slots: null, gold: 1, potions: [0, 1], scroll: 0.1 + Math.max(0, t - 6) * 0.01, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
   };
   const boost = (id, f) => { d.mats[id][0] = Math.min(1, d.mats[id][0] * f); d.mats[id][2] += 1; };
   switch (type.focus) {
@@ -242,7 +242,6 @@ function stoneDrops(type) {
     case 'weapons': d.slots = ['waffe']; d.gear = 0.75; break;
     case 'gold': d.gold = 3; break;
     case 'armor': d.slots = ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel']; d.gear = 0.75; break;
-    case 'scrolls': d.scroll = 0.8; break;
     case 'boniPlus': boost('boniPlus', 1.5); break;
     case 'splinters': d.splinters = d.splinters.map((n) => n * 2); break;
     case 'switcher': boost('switcher', 2); break;
@@ -253,7 +252,7 @@ function stoneDrops(type) {
     case 'flame': d.slots = ['waffe']; d.gear = 0.7; boost('boni5', 1.5); boost('star', 1.5); break;
     case 'all':
       for (const id of Object.keys(d.mats)) boost(id, 1.5);
-      d.gear = 1; d.plus = [1, 2]; d.gold = 2; d.scroll = 0.5; d.potions = [1, 3];
+      d.gear = 1; d.plus = [1, 2]; d.gold = 2; d.scroll = 0.25; d.potions = [1, 3];
       break;
   }
   return d;

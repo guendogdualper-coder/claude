@@ -52,10 +52,10 @@ function skillActions(p, i) {
   const rank = SKILL_RANKS[r];
   const pos = lvl - rank.from + 1;
   const have = bookCount(p, sk.id);
-  if (pos < rank.levels) out.push({ type: 'book', label: `Buch lesen (${have})`, ok: have > 0, why: `Kein Buch „${sk.name}“` });
+  if (pos < rank.levels) out.push({ type: 'book', label: `Schriftrolle lesen (${have})`, ok: have > 0, why: `Keine Schriftrolle „${sk.name}“` });
   const next = SKILL_RANKS[r + 1];
   if (next && pos >= rank.levels - 2) {
-    out.push({ type: 'rankup', label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} (${have}/${next.books} Bücher)`, ok: have >= next.books && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : `${next.books} Bücher „${sk.name}“ nötig` });
+    out.push({ type: 'rankup', label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} (${have}/${next.books} Schriftrollen)`, ok: have >= next.books && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : `${next.books} Schriftrollen „${sk.name}“ nötig` });
   }
   return out;
 }
