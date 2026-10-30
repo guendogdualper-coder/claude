@@ -266,7 +266,7 @@ const BLESSING = {
 };
 
 // Tasche: vier Seiten mit je 20 Plätzen
-const BAG_PAGE = 20;
+const BAG_PAGE = 30; // seit 9.1: drei Reihen zu je 10 Plätzen (vorher 20)
 const BAG_PAGES = 4;
 const BAG_SIZE = BAG_PAGE * BAG_PAGES;
 

@@ -1868,6 +1868,12 @@ const NPC_ICONS = {
     ctx.scale(0.62, 0.62);
     shieldArt(ctx, 3);
   },
+  // Lager (seit 9.1): kleine Truhe mit Goldschloss
+  lager(ctx) {
+    box(ctx, -6.5, -4.5, 13, 9, 1.4, '#8a6238');
+    box(ctx, -6.5, -1.2, 13, 1.4, 0.3, '#5a3e22');
+    box(ctx, -1.3, -2.2, 2.6, 3.4, 0.5, '#e8c46a');
+  },
   schmied(ctx) {
     ctx.rotate(-0.6);
     box(ctx, -1.2, -2, 2.4, 13, 1, '#6b4a2e');
@@ -1996,6 +2002,25 @@ Object.assign(NPC_ART, {
       stroke(ctx, '#9fd0ff', 1.2, [[cx - 3, cy - 15], [cx + 3, cy - 15]]);
     },
     extra: (ctx) => { oval(ctx, 12, -15, 4, 4, '#bfe8ff'); dot(ctx, 11, -16.2, 1.3, 1.3, '#ffffff'); }
+  }),
+  // Lagerverwalter (seit 9.1): braune Arbeitsjacke mit heller Schürze, Schlüsselbund am Gürtel, Kiste in der Hand
+  lager: (ctx) => villagerArt(ctx, {
+    skin: '#e2b48c', boots: '#2a2018', torso: '#6a4a2e', sleeve: '#5a3e26', pants: '#3a2c20', belt: '#2a1c12',
+    body: (ctx) => {
+      box(ctx, -6, -16, 12, 13, 1.5, '#d8c49a');
+      box(ctx, -6, -16, 12, 1.4, 0.5, '#b09a70');
+      ctx.strokeStyle = '#c9a35a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(5.5, -8, 2.2, 0, Math.PI * 2); ctx.stroke();
+      box(ctx, 5, -6.5, 1, 3.5, 0.3, '#c9a35a');
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 0.5, 11.4, Math.PI * 1.05, Math.PI * 1.95); ctx.quadraticCurveTo(cx, cy - 6, cx - 11, cy - 2); ctx.closePath(); }, '#5a3a22', cx - 11.4, cy - 12, 22.8, 10);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 7, cy + 4); ctx.quadraticCurveTo(cx, cy + 13, cx + 7, cy + 4); ctx.closePath(); }, '#5a3a22', cx - 7, cy + 4, 14, 9);
+    },
+    extra: (ctx) => {
+      box(ctx, 7, -16, 11, 9, 1, '#8a6238');
+      box(ctx, 7, -12.2, 11, 1.4, 0.3, '#5a3e22');
+      box(ctx, 11.6, -16, 1.6, 9, 0.3, '#c9a35a');
+    }
   }),
   // Lehrmeister (seit 8.7): grüne Gelehrtenrobe mit Goldschärpe, weißer Bart, dickes Buch in der Hand
   lehrmeister: (ctx) => villagerArt(ctx, {

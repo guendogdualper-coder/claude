@@ -2705,3 +2705,28 @@ body.aiming canvas { cursor: crosshair; }
   .map-nav { font-size: 11.5px; }
 }
 .ql-q.done b::before { content: "? "; }
+
+/* --- Version 9.1: Inventar mit 10 Spalten und größerer Figur, Lager ------------------------------
+   Die Tasche hat je Seite drei Reihen zu zehn Plätzen; die Kacheln wachsen mit dem Fenster (höchstens 58 px).
+   Die Figur links ist breiter und zeigt in 3D die echte Spielfigur, ganz im Bild. */
+#panelInv { width: min(1020px, calc(100vw - 16px)); }
+#panelInv .bag-grid, .store-box .bag-grid { grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 5px; max-width: 640px; }
+#panelInv .bag-grid .item-tile, .store-box .bag-grid .item-tile { width: auto; height: auto; aspect-ratio: 1; min-width: 0; }
+#panelInv .bag-grid .item-tile img, .store-box .bag-grid .item-tile img { width: 86%; height: 86%; }
+#panelInv .inv-layout { grid-template-columns: auto minmax(0, 1fr); gap: 16px; }
+#panelInv .doll { width: 132px; min-height: 196px; cursor: pointer; }
+#panelNpc:has(.store-box) { width: min(760px, calc(100vw - 16px)); }
+.store-box h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.store-box h3 .mini-btn { margin-left: auto; }
+.store-box + .store-box { margin-top: 4px; }
+@media (orientation: landscape) and (max-height: 520px) {
+  #panelInv .doll { width: 104px; min-height: 150px; }
+  #panelInv .bag-grid, .store-box .bag-grid { gap: 4px; max-width: 520px; }
+}
+@media (max-width: 700px) {
+  #panelInv .inv-layout { grid-template-columns: 1fr; }
+}
+.store-box h3 .mini-btn { font: 600 12px/1.2 var(--font-body, inherit); letter-spacing: 0; text-transform: none; padding: 4px 10px; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .store-box .bag-grid { max-width: 430px; }
+}

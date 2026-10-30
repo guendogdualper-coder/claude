@@ -971,6 +971,25 @@ function drawItemArt(ctx, item) {
 // Figur im Inventar: die eigene Spielfigur von vorn mit Waffe und Schild, die gerade angelegt sind
 function drawDoll(canvas, who = game.player) {
   if (!canvas) return;
+  // seit 9.1: in 3D die echte Figur, ganz im Bild; Antippen dreht sie weiter
+  if (!canvas.dataset.turn) {
+    canvas.dataset.turn = '1';
+    canvas.dataset.yaw = '-0.4';
+    canvas.addEventListener('click', () => {
+      canvas.dataset.yaw = String(Number(canvas.dataset.yaw) + Math.PI / 4);
+      drawDoll(canvas, who);
+    });
+  }
+  // Fenster noch nicht sichtbar (keine Größe): im nächsten Bild zeichnen
+  if (!canvas.clientWidth && !canvas.dataset.wait) {
+    canvas.dataset.wait = '1';
+    requestAnimationFrame(() => {
+      delete canvas.dataset.wait;
+      if (canvas.isConnected) drawDoll(canvas, who);
+    });
+    return;
+  }
+  if (typeof v3Portrait === 'function' && v3Portrait(canvas, who, Number(canvas.dataset.yaw))) return;
   const w = canvas.clientWidth || 76;
   const h = canvas.clientHeight || 100;
   const dpr = Math.min(3, window.devicePixelRatio || 1);
@@ -985,7 +1004,8 @@ function drawDoll(canvas, who = game.player) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
   const pose = { ...p, x: 0, y: 0, facing: { x: 0, y: 1 }, moving: false, spin: 0, swing: 0, buffs: [], shield: 0, glowUntil: 0 };
-  const scale = h / 82;
+  // 2D: so groß, dass die Figur samt Waffe in Höhe und Breite passt
+  const scale = Math.min(h / 82, w / 46);
   ctx.translate(w / 2, h - 8 * scale);
   ctx.scale(scale, scale);
   ctx.translate(0, -feetY(pose));

@@ -71,7 +71,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -144,6 +144,8 @@ function makePlayer(save) {
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
   p.equipment = { ...starterEquipment(save.classId), helm: null, schultern: null, umhang: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
+  // Lager (seit 9.1): erst nach dem Kauf vorhanden
+  p.storage = save.storage && save.storage.open && Array.isArray(save.storage.items) ? save.storage : null;
   p.scrolls = save.scrolls || 0;
   if (save.equipment && (save.itemsVersion || 1) < 2) {
     Object.values(p.equipment).forEach(migrateItem);
@@ -436,6 +438,55 @@ function resetSkills() {
   p.skillPoints += back;
   return true;
 }
+// --- Lager (seit 9.1) ------------------------------------------------------------------------------
+// Bei jedem Lagerverwalter (Vlotho und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,
+// danach frei nutzbar, ohne Passwort. 6 Seiten zu je 30 Plätzen. Bücher stapeln sich wie in der Tasche.
+const STORAGE = { price: 1000, page: 30, pages: 6 };
+const STORAGE_SIZE = STORAGE.page * STORAGE.pages;
+function buyStorage(p) {
+  if (p.storage) return 'ok';
+  if (p.gold < STORAGE.price) return 'gold';
+  p.gold -= STORAGE.price;
+  p.storage = { open: true, items: [] };
+  return 'ok';
+}
+// Gegenstand aus der Tasche (i) ins Lager; Bücher kommen auf einen passenden Stapel
+function storeItem(p, i) {
+  const it = p.inventory[i];
+  const st = p.storage;
+  if (!it || !st) return 'none';
+  if (isBook(it)) {
+    const stack = st.items.find((x) => x.book === it.book && x.count + it.count <= BOOK_STACK);
+    if (stack) {
+      stack.count += it.count;
+      p.inventory.splice(i, 1);
+      return 'ok';
+    }
+  }
+  if (st.items.length >= STORAGE_SIZE) return 'full';
+  st.items.push(it);
+  p.inventory.splice(i, 1);
+  return 'ok';
+}
+// Gegenstand aus dem Lager (i) in die Tasche
+function takeItem(p, i) {
+  const st = p.storage;
+  const it = st && st.items[i];
+  if (!it) return 'none';
+  if (isBook(it)) {
+    const stack = p.inventory.find((x) => x.book === it.book && x.count + it.count <= BOOK_STACK);
+    if (stack) {
+      stack.count += it.count;
+      st.items.splice(i, 1);
+      return 'ok';
+    }
+  }
+  if (p.inventory.length >= BAG_SIZE) return 'full';
+  p.inventory.push(it);
+  st.items.splice(i, 1);
+  return 'ok';
+}
+
 // Ein Fertigkeitsbuch der eigenen Klasse kaufen
 function buyBook(id) {
   const p = game.player;

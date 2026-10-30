@@ -1889,3 +1889,20 @@ Gameplay close-up, stylized 3D toon MMORPG, top-down three-quarter view: a chibi
 ```
 Set of quest markers for a stylized 3D toon MMORPG, each floating above a villager's head: a golden exclamation mark (new main quest), a green exclamation mark (new side quest), a golden question mark (main quest ready to hand in), a green question mark (side quest ready to hand in). Thick dark outline, soft glow in the same colour, gentle bob, readable from far away, no text.
 ```
+
+## Inventar und Lager (Version 9.1)
+
+### Lagerverwalter
+```
+Villager character for a stylized 3D toon fantasy MMORPG, chibi proportions, top-down three-quarter view: a sturdy storekeeper with short brown hair and a short brown beard, brown work jacket with rolled sleeves, a light canvas apron, a ring of brass keys on the belt, holding a small wooden chest with a brass lock. Friendly, readable at phone size, thick dark outlines, no text.
+```
+
+### Inventarfenster
+```
+Mobile game inventory window, dark leather and brass fantasy style, landscape phone format: on the left a framed 3D character portrait standing fully inside the frame (helmet, shoulders, weapon and cape all visible, nothing cut off), next to it a 3 × 3 equipment grid; on the right the bag with three rows of ten square item slots, page tabs I–IV, gold counter at the top. Clean, readable, nothing squeezed.
+```
+
+### Lagerfenster
+```
+Mobile game storage window, dark wood and brass fantasy style: upper part a storage chest grid with three rows of ten slots and page tabs I–VI, lower part the player's bag with the same grid and a button "store whole page"; a few items, stacked skill books with a count number. Clean, readable at phone size.
+```

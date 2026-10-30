@@ -1287,11 +1287,72 @@ const ui = {
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
     else if (npc.id === 'lehrmeister') this.renderTeacher();
+    else if (npc.id === 'lager') {
+      this.stPage = 0;
+      this.renderStorage();
+    }
     else if (npc.id === 'wanderer') this.renderWanderer(npc);
     else if (npc.id === 'eingang' || npc.id === 'ausgang' || npc.id === 'riss') this.renderDungeon(npc);
     else if (npc.id === 'weltentor') this.renderWorldGate(npc);
     else this.renderTalk(npc);
     $('panelNpc').hidden = false;
+  },
+
+  // Lager (seit 9.1): einmal 1.000 Gold, dann bei jedem Lagerverwalter dasselbe Lager. Antippen in der Tasche
+  // lagert ein, Antippen im Lager holt heraus.
+  renderStorage(msg) {
+    const p = game.player;
+    const fmt = (n) => n.toLocaleString('de-DE');
+    const body = $('npcBody');
+    const note = msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '';
+    if (!p.storage) {
+      body.innerHTML = `<p>„Hier lagert ganz Vlotho seine Schätze. Für einmalig ${fmt(STORAGE.price)} Gold bekommst du ein eigenes Fach – ` +
+        `bei jedem Lagerverwalter in jeder Stadt und jedem Lager kommst du an dieselben Sachen.“</p>` + note +
+        `<p>${STORAGE_SIZE} Plätze (${STORAGE.pages} Seiten zu je ${STORAGE.page}). Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
+        `<button type="button" class="btn btn-primary" id="btnBuyStorage" ${p.gold < STORAGE.price ? 'disabled' : ''}>Lager eröffnen (${fmt(STORAGE.price)} Gold)</button>`;
+      $('btnBuyStorage').addEventListener('click', () => {
+        const r = buyStorage(p);
+        if (r === 'ok') saveGame();
+        this.renderStorage(r === 'ok' ? { ok: true, text: 'Dein Lager ist eröffnet.' } : { ok: false, text: 'Dafür reicht dein Gold nicht.' });
+      });
+      return;
+    }
+    const st = p.storage;
+    this.stPage = Math.max(0, Math.min(STORAGE.pages - 1, this.stPage || 0));
+    gear.page = Math.max(0, Math.min(BAG_PAGES - 1, gear.page || 0));
+    const roman = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+    const tabs = (n, per, list, cur, attr) => Array.from({ length: n }, (_, k) =>
+      `<button type="button" class="bag-tab${k === cur ? ' on' : ''}" ${attr}="${k}">${roman[k]}<small>${list.slice(k * per, (k + 1) * per).length}</small></button>`).join('');
+    let sGrid = '';
+    for (let i = this.stPage * STORAGE.page; i < (this.stPage + 1) * STORAGE.page; i++) sGrid += gear.tile(st.items[i], `data-take="${i}"`);
+    let bGrid = '';
+    for (let i = gear.page * BAG_PAGE; i < (gear.page + 1) * BAG_PAGE; i++) bGrid += gear.tile(p.inventory[i], `data-store="${i}"`);
+    body.innerHTML = `<p class="hint-text">Tippe in der Tasche auf einen Gegenstand, um ihn einzulagern, und im Lager, um ihn herauszuholen.</p>` + note +
+      `<section class="store-box"><h3>Lager <small>${st.items.length}/${STORAGE_SIZE}</small><span class="bag-tabs">${tabs(STORAGE.pages, STORAGE.page, st.items, this.stPage, 'data-spage')}</span></h3>` +
+      `<div class="bag-grid">${sGrid}</div></section>` +
+      `<section class="store-box"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs(BAG_PAGES, BAG_PAGE, p.inventory, gear.page, 'data-bpage')}</span>` +
+      `<button type="button" class="mini-btn" id="btnStorePage">Ganze Seite einlagern</button></h3>` +
+      `<div class="bag-grid">${bGrid}</div></section>`;
+    const again = (m) => {
+      saveGame();
+      this.renderStorage(m);
+    };
+    body.querySelectorAll('[data-store]').forEach((b) => b.addEventListener('click', () => {
+      const r = storeItem(p, Number(b.dataset.store));
+      if (r !== 'none') again(r === 'full' ? { ok: false, text: 'Dein Lager ist voll.' } : null);
+    }));
+    body.querySelectorAll('[data-take]').forEach((b) => b.addEventListener('click', () => {
+      const r = takeItem(p, Number(b.dataset.take));
+      if (r !== 'none') again(r === 'full' ? { ok: false, text: 'Deine Tasche ist voll.' } : null);
+    }));
+    body.querySelectorAll('[data-spage]').forEach((b) => b.addEventListener('click', () => { this.stPage = Number(b.dataset.spage); this.renderStorage(); }));
+    body.querySelectorAll('[data-bpage]').forEach((b) => b.addEventListener('click', () => { gear.page = Number(b.dataset.bpage); this.renderStorage(); }));
+    $('btnStorePage').addEventListener('click', () => {
+      // von hinten, damit die Plätze davor nicht verrutschen
+      let full = false;
+      for (let i = Math.min(p.inventory.length, (gear.page + 1) * BAG_PAGE) - 1; i >= gear.page * BAG_PAGE; i--) if (storeItem(p, i) === 'full') full = true;
+      again(full ? { ok: false, text: 'Dein Lager ist voll, nicht alles passte hinein.' } : null);
+    });
   },
 
   // Lehrmeister (seit 8.7): Fertigkeitsbücher kaufen, Status- und Fertigkeitspunkte zurücksetzen
@@ -1634,7 +1695,7 @@ function ultHtml(u, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', lehrmeister: 'Lernen', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', lehrmeister: 'Lernen', lager: 'Lager', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;

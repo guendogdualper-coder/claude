@@ -2603,6 +2603,7 @@ function npcModelDef(id) {
     teleport: { hair: { style: 2, color: '#1a1a2a' }, beads: '#9fd0ff' },
     alchemist: { hat: '#3a2a4a', hair: { style: 0, color: '#2a2a2a' }, beard: '#2a2a2a', sash: '#c9a35a' },
     lehrmeister: { hair: { style: 1, color: '#d8d0c8' }, beard: '#e8e2da', sash: '#c9a35a', weapon: { kind: 'staff', tier: 1 }, eyeShape: 2 },
+    lager: { hair: { style: 0, color: '#5a3a22' }, beard: '#5a3a22', sash: '#d8c49a', belt: '#2a1c12', eyeShape: 1 },
     wache: { helm: '#7a828c', weapon: { kind: 'staff', tier: 0 }, belt: '#c9a35a', lamellar: '#6a2a24', pads: '#7a828c', padTrim: '#c9a35a', eyeShape: 3 },
     bauer: { hat: '#d8b86a', hatCone: true, hair: { style: 0, color: '#4a3020' } },
     kind: { hair: { style: 1, color: '#2a1c14' }, eyeShape: 2 },
@@ -3533,6 +3534,8 @@ function model3(key, build) {
   m.scale = m.scale || 1;
   for (const k in m.geos) {
     m.geos[k].shared = true;
+    // Maße merken, solange die Daten noch da sind (für das Figurenbild in Fenstern, seit 9.1)
+    if (!m.geos[k].boundingBox) m.geos[k].computeBoundingBox();
     // Spielraum für Bewegungen, damit Figuren am Bildrand nicht zu früh weggeschnitten werden
     if (m.geos[k].boundingSphere) m.geos[k].boundingSphere.radius *= 1.5;
   }
@@ -4741,4 +4744,123 @@ function syncCorpse3(e) {
   a.group.rotateZ(fall * (Math.PI / 2) * (e.flip ? -1 : 1) * 0.9);
   a.group.scale.setScalar(a.model.scale * (1 - sink * 0.25));
   if (a.mats.lit) a.mats.lit.emissive.setRGB(0.25 * (1 - fall), 0.2 * (1 - fall), 0.18 * (1 - fall));
+}
+
+// --- Bild der Figur für Fenster (seit 9.1) ------------------------------------------------------------
+// Inventar, Schmied und „Betrachten“ zeigen die echte 3D-Figur statt der 2D-Zeichnung: eigene kleine Szene,
+// gerendert in ein Bild (Render-Target) und in das Fenster-Canvas kopiert. Die Figur passt immer ganz hinein
+// (Höhe und Breite), nichts wird gestaucht oder abgeschnitten. yaw dreht die Figur (Antippen dreht weiter).
+const portrait3 = { scene: null, cam: null, rt: null, buf: null, img: null, actors: new Map() };
+function v3Portrait(canvas, who, yaw = -0.4) {
+  if (!V3.on || !V3.gl || !canvas || !who) return false;
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  if (!w || !h) return false;
+  const P = portrait3;
+  if (!P.scene) {
+    P.scene = new THREE.Scene();
+    const hemi = new THREE.HemisphereLight(0xf2f8ff, 0x6a5a4a, 0.95);
+    const sun = new THREE.DirectionalLight(0xfff0d4, 0.92);
+    sun.position.set(-2, 5, 6);
+    const fill = new THREE.DirectionalLight(0xd8e4ff, 0.35);
+    fill.position.set(4, 2, 3);
+    P.scene.add(hemi, sun, sun.target, fill);
+    P.cam = new THREE.PerspectiveCamera(24, 1, 0.1, 60);
+  }
+  const key = 'p:' + playerKey3(who);
+  let a = P.actors.get(key);
+  if (!a) {
+    const model = model3(key, (b) => {
+      const r = humanoid3(b, playerConfig3(who));
+      r.blob = 0.42;
+      return r;
+    });
+    if (!model) return false;
+    a = makeActor(model);
+    // Höhe und Breite der Figur (mit Waffe, Helm und Umhang) aus dem Modell
+    const gl0 = model.geos.lit;
+    let bb = gl0.boundingBox;
+    if (!bb) {
+      // ältere Modelle ohne gemerkte Maße: aus der (um 50 % vergrößerten) Hüllkugel schätzen
+      const sp = gl0.boundingSphere;
+      const r = sp ? sp.radius / 1.5 : 1.2;
+      const c = sp ? sp.center : new THREE.Vector3(0, 1, 0);
+      bb = new THREE.Box3(new THREE.Vector3(c.x - r * 0.6, 0, c.z - r * 0.6), new THREE.Vector3(c.x + r * 0.6, c.y + r, c.z + r * 0.6));
+    }
+    a.box = bb.clone();
+    // höchstens drei Figuren behalten (eigene, Schmied-Vorschau, Betrachten)
+    if (P.actors.size >= 3) {
+      const [k0, a0] = P.actors.entries().next().value;
+      P.scene.remove(a0.group);
+      disposeActor(a0);
+      P.actors.delete(k0);
+    }
+    P.actors.set(key, a);
+  }
+  for (const o of P.actors.values()) o.group.visible = o === a;
+  if (!a.group.parent) P.scene.add(a.group);
+  resetBones(a);
+  a.bones[BH.head].rotation.x = -0.08;
+  a.group.rotation.set(0, yaw, 0);
+  a.group.position.set(0, 0, 0);
+  a.group.updateMatrixWorld(true);
+  // Kamera so weit weg, dass die Figur in Höhe und Breite mit etwas Rand passt
+  const sc = a.model.scale;
+  const top = a.box.max.y * sc;
+  const half = Math.max(-a.box.min.x, a.box.max.x, -a.box.min.z, a.box.max.z) * sc;
+  const dpr = Math.min(2, window.devicePixelRatio || 1) * 1.5;
+  const W = Math.min(1024, Math.round(w * dpr));
+  const H = Math.min(1024, Math.round(h * dpr));
+  const cam = P.cam;
+  cam.aspect = W / H;
+  const t = Math.tan((cam.fov * Math.PI) / 360);
+  const dist = Math.max((top * 1.08) / (2 * t), (half * 2.0) / (2 * t * cam.aspect)) + half * 0.6;
+  const cy = top * 0.5;
+  cam.position.set(0, cy + dist * 0.12, dist);
+  cam.lookAt(0, cy, 0);
+  cam.updateProjectionMatrix();
+  if (!P.rt || P.rt.width !== W || P.rt.height !== H) {
+    if (P.rt) P.rt.dispose();
+    P.rt = new THREE.WebGLRenderTarget(W, H);
+    P.buf = new Uint8Array(W * H * 4);
+    P.img = document.createElement('canvas');
+    P.img.width = W;
+    P.img.height = H;
+  }
+  const gl = V3.gl;
+  const prevRT = gl.getRenderTarget();
+  const prevColor = gl.getClearColor(new THREE.Color());
+  const prevAlpha = gl.getClearAlpha();
+  const prevShadow = gl.shadowMap.enabled;
+  gl.shadowMap.enabled = false;
+  gl.setRenderTarget(P.rt);
+  gl.setClearColor(0x000000, 0);
+  gl.clear();
+  gl.render(P.scene, cam);
+  gl.readRenderTargetPixels(P.rt, 0, 0, W, H, P.buf);
+  gl.setRenderTarget(prevRT);
+  gl.setClearColor(prevColor, prevAlpha);
+  gl.shadowMap.enabled = prevShadow;
+  // Zeilen umdrehen (WebGL zählt von unten)
+  const ix = P.img.getContext('2d');
+  const id = ix.createImageData(W, H);
+  const row = W * 4;
+  for (let y = 0; y < H; y++) id.data.set(P.buf.subarray((H - 1 - y) * row, (H - y) * row), y * row);
+  ix.putImageData(id, 0, 0);
+  // ins Fenster: Hintergrund in der Klassenfarbe, darüber die Figur
+  const cd = Math.min(3, window.devicePixelRatio || 1);
+  canvas.width = Math.round(w * cd);
+  canvas.height = Math.round(h * cd);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(cd, 0, 0, cd, 0, 0);
+  const trim = hexRgb(CLASSES[who.classId].trim);
+  const g = ctx.createRadialGradient(w / 2, h * 0.62, 4, w / 2, h * 0.55, Math.max(w, h) * 0.65);
+  g.addColorStop(0, `rgba(${trim},0.38)`);
+  g.addColorStop(1, `rgba(${trim},0)`);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(P.img, 0, 0, w, h);
+  return true;
 }
