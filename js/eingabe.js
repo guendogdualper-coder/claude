@@ -99,11 +99,14 @@ function setupInput() {
 
   window.addEventListener('keyup', (e) => {
     input.keys.delete(e.code);
+    // Eisstrahl: Taste loslassen beendet ihn
+    if (/^Digit[1-5]$/.test(e.code) && game.player) releaseChannel(skillOrder(game.player)[Number(e.code.slice(5)) - 1]);
   });
 
   // Beim Wechsel in einen anderen Tab keine Tasten "festhalten"
   window.addEventListener('blur', () => {
     input.keys.clear();
+    releaseChannel();
     input.mouseAttack = false;
     input.mouseWalk = false;
     clearAttack();

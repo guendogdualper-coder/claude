@@ -1,4 +1,4 @@
-# Klang-Bibel – Seelenstein (seit Version 9.4, erweitert in 9.5)
+# Klang-Bibel – Seelenstein (seit Version 9.4, erweitert in 9.5 und 9.6)
 
 Alle Klänge und die Musik werden im Browser erzeugt, es gibt keine Tondateien. Der Code steht in
 `js/klang.js` (Mischpult), `js/klang-welt.js` (Klänge) und `js/musik.js` (Musik). Dieses Dokument
@@ -83,18 +83,37 @@ Realistic animal vocalizations for a fantasy MMORPG, recorded close and dry, the
   Sense schwer mit tiefem Anteil. Zu hören ist er im Trefferbild der neuen Schlaganimation (9.3).
 - **Treffer:** dumpfer Schlag mit kurzem Knacken; Blocken klingt metallisch.
 - **Bogen:** Die Sehne schnalzt, der Pfeil zischt.
-- **Zauber nach Element:**
-  - Klinge: Metallklang.
-  - Erde: Grollen und Schlag.
-  - Feuer: Fauchen mit Knistern.
-  - Schatten: tiefes Raunen.
-  - Seele: geisterhafter Hauch.
-  - Blitz: Zischen und Knall.
-  - Eis: klirrende Kristalle.
-  - Wind: Windstoß.
-  - Licht: Glockenakkord.
-  - Blut: nasser Schlag.
-  - Knochen: Knacken.
+- **Zauber nach Element (seit 9.6 wie echt):** Knistern, Knirschen, Splittern und Geröll entstehen aus vielen
+  winzigen Einzelklängen („Körnern“). Jedes Korn ist ein kurzer, abklingender Resonanzton in zufälliger Höhe, mit
+  wenigen lauten Knackern und vielen leisen.
+  - **Eis:** Kristalle wachsen knirschend (das Knistern wird dichter), dazu glasige Töne und zum Schluss das
+    typische Knacken von Eis (ein Ton, der in 60 ms von 5 kHz nach unten fällt).
+  - **Feuer:** Fauchen beim Entzünden, ein Brausen, das flackert, und prasselnde Funken.
+  - **Blitz:** knisternde Ladung, ein scharfer Knall und kurzes Donnergrollen.
+  - **Erde:** Fels bricht mit tiefem Schlag, Geröll prasselt, Grollen.
+  - **Wasser** (Heilung des Schamanen): Plätschern, Blasen (kurze Töne, die schnell steigen) und ein sanfter
+    Glanzton.
+  - **Klinge:** Stahl klingt mit unharmonischen Teiltönen nach, die Luft wird geschnitten.
+  - **Schatten:** Sog rückwärts (schwillt an und reißt ab), tiefes Raunen, Flüstern.
+  - **Seele:** geisterhafter Hauch, schwebender Ton, feines Glitzern.
+  - **Wind:** pfeifende Böe.
+  - **Licht:** Akkord, der aufblüht, mit Glitzern.
+  - **Blut:** nasser Schlag, Spritzer, Tropfen.
+  - **Knochen:** trockenes Knacken und Splittern.
+- **Große Zauber** haben eigene Klänge:
+  - Donnersturm: Knall und langes, rollendes Grollen.
+  - Erdbeben und Schwerkraftsiegel: Beben.
+  - Blizzard: heulender Wind voller klirrender Eiskörner.
+  - Heilung: Wasser.
+- **Einschlag:** Trifft eine Fertigkeit, klingt der Treffer nach ihrem Element.
+  - Feuer: dumpfer Knall mit Glut.
+  - Eis: Splittern wie Glas.
+  - Blitz: Knall mit Knistern.
+  - Erde: Schlag mit Steinchen.
+  - Schatten und Seele: eigene Laute.
+  - Klinge: Schlag mit Metallklang.
+- **Eisstrahl:** Solange er läuft, ein kalter, zischender Strom mit Knistern (Schleife). Er wird mit der
+  Entfernung leiser und endet mit kurzem Splittern.
 - **Stimme (seit 9.5):** Die Figuren stöhnen nicht. Es gibt nur kurze, schnelle Laute (0,1–0,2 s), männlich
   tiefer, weiblich höher (nach dem Aussehen):
   - **Kampflaut** beim Schlag: „Ha!“, „Hm!“, „Hyah!“ oder ein scharfer Atemzug durch die Zähne. Er kommt beim
@@ -109,6 +128,11 @@ Realistic animal vocalizations for a fantasy MMORPG, recorded close and dry, the
   - Gold: klimpernde Münzen.
   - Gegenstand: weicher Glanzton.
   - Trank: Gluckern und Funkeln.
+
+**Prompt Elementzauber (englisch, seit 9.6):**
+```
+Realistic elemental spell sound effects for a fantasy MMORPG, made from real-world textures. Ice: crystals forming with dense crunching and crackling, glassy chimes, a sharp ice crack with the descending "pew" of lake ice; ice impact like shattering glass. Fire: ignition whoosh, flickering roar, popping and crackling embers; fire impact as a dull boom with ember crackle. Lightning: electric crackle building up, a sharp thunder crack, short rolling rumble; big thunder version with long rolling thunder. Earth: rock breaking with a deep thud, gravel and pebbles raining down, low rumble. Water/healing: splashing, rising bubble pops, soft chime. Channeled ice beam: continuous cold hiss with fine crackling, loopable, ending in a small shatter. Mono, 32 kHz, peak −1 dB, three variations each.
+```
 
 **Prompt (englisch):**
 ```

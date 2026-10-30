@@ -99,6 +99,11 @@ function aim(range) {
 // Spieler (oder Skelett mit opts.ally) trifft ein Monster
 function hitMonster(m, mul, opts = {}) {
   if (m.dead) return 0;
+  // Einschlagklang nach Element (klang-welt.js)
+  if (opts.skill && typeof sndElOf === 'function') {
+    m._sEl = sndElOf(opts.skill);
+    m._sElAt = game.time;
+  }
   if (m.duelProxy) return duelHit(m, mul, opts);
   const p = game.player;
   const s = game.stats;
@@ -485,7 +490,7 @@ function tryBasicAttack() {
   const p = game.player;
   const c = CLASSES[p.classId];
   const basic = basicAttack(p);
-  if (p.attackCd > 0 || p.dead || p.dash) return false;
+  if (p.attackCd > 0 || p.dead || p.dash || p.channel) return false;
   if (inVillage(p.x, p.y) && !duelFighting()) return false; // im Dorf wird nicht gekämpft (außer im Duell)
   if (p.riding) toggleRide(false);
   // Angreifen geht immer: mit Gegner in Reichweite auf ihn, sonst ein Schlag oder Schuss
@@ -552,6 +557,11 @@ function useSkill(i) {
     return;
   }
   if (p.skillCd[i] > 0) return;
+  // eine andere Fertigkeit beendet den Eisstrahl
+  if (p.channel) {
+    if (p.channel.sk === sk) return;
+    stopChannel(p);
+  }
   if ((sk.kind === 'angriff' || sk.kind === 'fluch') && inVillage(p.x, p.y) && !duelFighting()) {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;
@@ -587,6 +597,8 @@ function useSkill(i) {
     startSwing(p, 'pose', 0.7);
     p.poseColor = skillColor(sk, CLASSES[p.classId].trim);
     vfxPowerUp(p, p.poseColor);
+  } else if (sk.channel) {
+    // Kanalisieren (Eisstrahl): Haltung kommt aus channelTick
   } else if (sk.anim) {
     // eigene Animation (SKILL_POSE3 in drei-figuren.js), Mitspieler sehen sie über den Zustand
     startSwing(p, sk.anim, sk.animDur);

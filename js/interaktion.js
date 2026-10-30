@@ -601,6 +601,12 @@ function remoteSkillFx(rp, d) {
   }
   const sk = skillById(d.s);
   if (!sk) return;
+  // Eisstrahl (seit 9.6): Anfang, Richtung, Ende
+  if (sk.type === 'beam') {
+    if (d.bm === 1) snd.skill(sk, rp);
+    remoteBeam(rp, d);
+    return;
+  }
   snd.skill(sk, rp);
   // Rang aus dem Netz nur als gültige Zahl (sonst stünde SKILL_RANKS[rk] leer und das Bild hielte an)
   const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;

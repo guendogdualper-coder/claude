@@ -430,14 +430,8 @@ function bookSprite(id) {
     ctx.clip();
     ctx.translate(-0.5, 0);
     ctx.scale(0.31, 0.31);
-    const [l, d] = SKILL_ICON_BG[e.sk.kind] || SKILL_ICON_BG.angriff;
-    ctx.fillStyle = d;
-    ctx.fillRect(-24, -24, 48, 48);
-    ctx.fillStyle = l;
-    ctx.globalAlpha = 0.5;
-    ctx.fillRect(-24, -24, 48, 20);
-    ctx.globalAlpha = 1;
-    (SKILL_ICONS[id] || (() => {}))(ctx);
+    // gleiches Bild wie in der Fertigkeitsleiste (seit 9.6)
+    drawSkillIcon(ctx, e.sk);
     ctx.restore();
   });
 }

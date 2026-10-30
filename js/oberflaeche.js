@@ -529,6 +529,7 @@ const ui = {
   pressSkill(btn, i) {
     let timer = null;
     let lifted = false;
+    let channeling = false;
     btn.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
@@ -539,6 +540,13 @@ const ui = {
         return;
       }
       try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ältere Browser */ }
+      // Eisstrahl (seit 9.6): sofort beim Drücken, solange gehalten (kein Anheben zum Tauschen)
+      const sk = game.player && classSkills(game.player)[i];
+      if (sk && sk.channel) {
+        channeling = true;
+        useSkill(i);
+        return;
+      }
       timer = setTimeout(() => {
         timer = null;
         lifted = true;
@@ -546,6 +554,11 @@ const ui = {
       }, SKILL_HOLD_MS);
     });
     btn.addEventListener('pointerup', (e) => {
+      if (channeling) {
+        channeling = false;
+        releaseChannel(i);
+        return;
+      }
       if (timer) {
         clearTimeout(timer);
         timer = null;
@@ -559,11 +572,17 @@ const ui = {
       if (target && target !== btn) this.finishSwap(Number(target.id.slice(5)));
     });
     btn.addEventListener('pointercancel', () => {
+      if (channeling) releaseChannel(i);
+      channeling = false;
       clearTimeout(timer);
       timer = null;
     });
-    // Tastatur (Enter/Leertaste auf dem Knopf)
-    btn.addEventListener('click', (e) => { if (e.detail === 0) useSkill(i); });
+    // Tastatur (Enter/Leertaste auf dem Knopf); ein Eisstrahl läuft dann nur kurz
+    btn.addEventListener('click', (e) => {
+      if (e.detail !== 0) return;
+      useSkill(i);
+      releaseChannel(i);
+    });
   },
 
   startSwap(i) {

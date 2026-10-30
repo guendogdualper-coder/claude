@@ -920,7 +920,7 @@ Skill VFX sheet for a stylized 3D toon mage (fire path), top-down three-quarter 
 | Fertigkeit | Ab Stufe | Wirkung | Merkmal |
 |---|---|---|---|
 | Frostnova | 1 | Nova, Einfrieren, Verlangsamung | königsblaue Sechseck-Frostplatte, flache Eisnadeln schießen nach außen, Gegner im Eisblock |
-| Frostlanze | 3 | durchbohrt die Linie, verlangsamt, Eingefrorene zerspringen | lange Eislanze, Eisblock zerbricht in Splitter |
+| Eisstrahl (seit 9.6, ersetzt die Frostlanze) | 3 | gedrückt halten: Strahl bis 300 weit, trifft alle in der Linie 5× pro Sekunde leicht, Verlangsamung wächst von 30 % auf 70 %, kostet laufend Mana, Gehen mit 40 % Tempo | beide Handflächen nach vorn, dreilagiger Strahl (Königsblau-Schein, Cyan, weißer Kern) mit Wellen, wandernde Frostringe, Kristallstern am Ende, Reif am Boden |
 | Eisschritt | 5 | Gleiten bis 160, Eisfigur zerspringt | Eisstatue am Startpunkt, Frostbahn |
 | Frostpanzer | 7 | Buff: Verteidigung, weniger Schaden, Angreifer verlangsamt | vier Sechseck-Eisplatten kreisen |
 | Kristallgrab | 10 | Zielfläche, Einfrieren, Eisfeld verlangsamt | sieben Eiskristalle wachsen im Sechseck aus einem ▽-Siegel |
@@ -970,4 +970,30 @@ Skill VFX sheet for a stylized 3D toon mage (earth path), top-down three-quarter
 ```
 
 Symbol-Prompts für alle 24 Magier-Fertigkeiten stehen in `docs/bild-prompts.md` („Der Magier (Version 8.6)“).
+
+## 10. Fertigkeitssymbole (seit 9.6)
+
+Die alten Symbole bestanden aus flachen Einzelformen und wirkten „wie Gekritzel“. Seit 9.6 ist jedes Symbol ein
+kleines gemaltes Bild, das genau zeigt, was die Attacke tut (Schwertwirbel = Schwert in einem leuchtenden Wirbel,
+Feuerball = weißglühende Kugel mit Flammenschweif, Eisstrahl = Eisstrahl aus der offenen Hand).
+
+- **Aufbau** (`js/symbol-kunst.js`):
+  - Runde Fläche mit Hintergrund je Element (`ICON_THEME`): heller Lichtkern oben links, dunkler Rand und feine
+    Strahlen hinter dem Motiv.
+  - Darauf das Motiv (`SKILL_ART[id]`, je Klasse in `js/symbole-*.js`).
+  - Darüber Innenschatten, Glanzbogen oben und ein Metallrand aus Gold und Bronze.
+  - Gezeichnet in 128 px, damit es auch auf Retina-Bildschirmen scharf ist.
+- **Malregeln:**
+  - Ein klares Hauptmotiv, das 60–75 % der Fläche füllt und auch bei 44 px auf dem Handy erkennbar ist.
+  - Licht kommt von oben links. Verläufe statt flacher Flächen, Glanzkanten an Metall und Kristall.
+  - Magie leuchtet, Schwünge bekommen Bewegungsspuren.
+  - Buffs zeigen Figur, Körper oder Schild mit Aura; Flüche zeigen dunkle Zeichen und Ketten; Heilung ist grünes Licht.
+  - Innerhalb einer Klasse unterscheidet sich jedes Symbol in Form und Hintergrundfarbe.
+  - Magier: Glyphen △ und ▽, Wirkung flach am Boden, nichts fällt vom Himmel (Abgrenzung zum Schamanen).
+- **Fertigkeitsbücher** zeigen dasselbe Bild im goldenen Ring auf dem Buchdeckel.
+
+**Prompt (englisch, je Fertigkeit anpassen):**
+```
+Game skill icon for a stylized fantasy MMORPG, round, 128×128, painterly toon rendering, rich radial background in the element's colour with a bright core top-left and dark vignette, subtle light rays behind the motif, one bold central motif that shows exactly what the attack does ({motif}), strong light from top left, glossy rim highlights, glowing magic and motion trails, gold-and-bronze metal ring frame with a soft glass highlight on top, readable at 44 px, no text, no letters.
+```
 

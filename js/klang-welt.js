@@ -292,6 +292,93 @@ function sClicks(c, out, n, gap, hz, vol, rnd, at = 0) {
   }
 }
 
+// --- Körnige Klänge (seit 9.6): direkt als Samples berechnet ---------------------------------------------
+// Viele winzige Einzelklänge (Körner): Knistern von Feuer, Knirschen und Splittern von Eis, Geröll, Funken.
+// Jedes Korn ist ein kurzer, abklingender Resonanzton aus Rauschen (Frequenz zufällig zwischen f[0] und f[1]),
+// Lautstärke zufällig mit langem Schwanz (wenige laute Knacker, viele leise). o.rate: Körner pro Sekunde
+// (Zahl oder Verlauf [[t, rate]]), o.dec: Abklingzeit [min, max] in s, o.q: Schärfe (0.9 = weich … 0.995 = klingend)
+function sGrains(c, out, o, r) {
+  const at = o.at || 0;
+  const dur = o.dur;
+  const sr = c.sampleRate;
+  const len = Math.ceil((dur + 0.15) * sr);
+  const buf = c.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+  const env = o.amp || [[0, 1], [dur, 1]];
+  const rate = Array.isArray(o.rate) ? o.rate : [[0, o.rate], [dur, o.rate]];
+  let t = 0;
+  while (t < dur) {
+    const rt = Math.max(1, sCurve(rate, t));
+    t += -Math.log(1 - r() * 0.999) / rt;
+    if (t >= dur) break;
+    const a = (o.vol || 0.5) * sCurve(env, t) * Math.pow(r(), o.tail || 2.2);
+    if (a < 0.002) continue;
+    const f = o.f[0] * Math.pow(o.f[1] / o.f[0], r());
+    const dec = o.dec[0] + (o.dec[1] - o.dec[0]) * r();
+    const rr = Math.pow(o.q || 0.97, 22050 / sr);
+    const w = 2 * Math.PI * f / sr;
+    const c1 = 2 * rr * Math.cos(w);
+    const c2 = -rr * rr;
+    let y1 = 0;
+    let y2 = 0;
+    const n0 = Math.floor(t * sr);
+    const n = Math.min(len - n0, Math.ceil(dec * 5 * sr));
+    const g = (1 - rr) * 2.2;
+    for (let i = 0; i < n; i++) {
+      const x = i < sr * 0.0015 ? (Math.random() * 2 - 1) : (Math.random() * 2 - 1) * 0.15;
+      const y = c1 * y1 + c2 * y2 + x * g;
+      y2 = y1;
+      y1 = y;
+      d[n0 + i] += y * a * Math.exp(-i / (dec * sr));
+    }
+  }
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.connect(out);
+  src.start(at);
+}
+
+// Blasen (Wasser): kurze Sinustöne, deren Höhe schnell steigt (so klingt eine platzende Luftblase)
+function sBubbles(c, out, o, r) {
+  const at = o.at || 0;
+  const sr = c.sampleRate;
+  const len = Math.ceil((o.dur + 0.1) * sr);
+  const buf = c.createBuffer(1, len, sr);
+  const d = buf.getChannelData(0);
+  let t = r() * 0.02;
+  while (t < o.dur) {
+    const f0 = o.f[0] * Math.pow(o.f[1] / o.f[0], r());
+    const bd = 0.015 + r() * 0.04;
+    const a = (o.vol || 0.4) * (0.3 + r() * 0.7);
+    const n0 = Math.floor(t * sr);
+    let ph = 0;
+    for (let i = 0; i < bd * sr && n0 + i < len; i++) {
+      const k = i / (bd * sr);
+      ph += 2 * Math.PI * f0 * (1 + 1.8 * k * k) / sr;
+      d[n0 + i] += Math.sin(ph) * a * Math.exp(-k * 4) * Math.min(1, i / 20);
+    }
+    t += -Math.log(1 - r() * 0.999) / o.rate;
+  }
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.connect(out);
+  src.start(at);
+}
+
+// Grollen (Donner, Erdbeben): tiefes Rauschen, dessen Lautstärke unregelmäßig an- und abschwillt
+function sRumble(c, out, o, r) {
+  const at = o.at || 0;
+  const pts = [[0, 0], [o.attack || 0.03, o.vol]];
+  for (let t = (o.attack || 0.03) + 0.1; t < o.dur - 0.1; t += 0.08 + r() * 0.14) pts.push([t, o.vol * (0.35 + r() * 0.65) * (1 - t / o.dur * 0.6)]);
+  pts.push([o.dur, 0]);
+  sNoise(c, out, { at, f: o.f || [[0, 260], [o.dur, 90]], type: 'lowpass', q: 0.7, amp: pts, color: 'brown' });
+}
+
+// Metallklang (Klinge): unharmonische Teiltöne wie bei einer angeschlagenen Stahlplatte
+function sMetal(c, out, f, at, dur, vol) {
+  [[1, 1], [2.76, 0.5], [5.4, 0.3], [8.93, 0.18]].forEach(([k, g]) => sTone(c, out, { at, f: f * k, amp: [[0, 0], [0.002, vol * g], [dur * (1.2 - k * 0.08), 0]] }));
+}
+
 // --- Vokale (Formanten) ----------------------------------------------------------------------------
 const FORM = {
   a: [[780, 6, 1], [1180, 8, 0.6], [2500, 12, 0.25]],
@@ -693,63 +780,168 @@ const PLAYER_SND = {
     sNoise(c, out, { at: 0.02, f: [[0, 3000], [0.2, 1500]], q: 2, amp: [[0, 0], [0.02, 0.35], [0.22, 0]] });
     return 0.25;
   },
-  // Zauber je Element
+  // Zauber je Element (seit 9.6 natürlicher): beim Wirken (el_*) und beim Einschlag (imp_*)
+  // Klinge: Stahl klingt nach, Luft wird geschnitten
   el_klinge: (c, out, r) => {
-    sNoise(c, out, { f: [[0, 2500], [0.25, 6000]], q: 2, amp: [[0, 0], [0.03, 0.6], [0.3, 0]] });
-    sBell(c, out, 2200 + r() * 300, 0.03, 0.5, 0.15, 1.41, 1.2);
-    return 0.55;
+    sNoise(c, out, { f: [[0, 1800], [0.18, 5500], [0.3, 3000]], q: 1.8, amp: [[0, 0], [0.06, 0.55], [0.3, 0]] });
+    sMetal(c, out, 1150 + r() * 250, 0.05, 0.9, 0.22);
+    sGrains(c, out, { at: 0.05, dur: 0.12, rate: 120, f: [3000, 7000], dec: [0.002, 0.006], q: 0.95, vol: 0.25 }, r);
+    return 0.9;
   },
-  el_erde: (c, out) => {
-    sTone(c, out, { f: [[0, 90], [0.4, 38]], amp: [[0, 0], [0.01, 0.9], [0.45, 0]] });
-    sNoise(c, out, { f: 300, type: 'lowpass', amp: [[0, 0], [0.02, 0.8], [0.6, 0]], color: 'brown', rough: [14, 0.5] });
-    return 0.65;
+  // Erde: Fels bricht, Geröll prasselt, tiefes Grollen
+  el_erde: (c, out, r) => {
+    sTone(c, out, { f: [[0, 95], [0.35, 36]], amp: [[0, 0], [0.008, 1], [0.4, 0]] });
+    sNoise(c, out, { f: 900, type: 'lowpass', amp: [[0, 0], [0.004, 0.7], [0.12, 0]], color: 'brown' });
+    sGrains(c, out, { at: 0.03, dur: 0.7, rate: [[0, 160], [0.7, 15]], f: [250, 1600], dec: [0.008, 0.03], q: 0.93, vol: 0.55, amp: [[0, 1], [0.7, 0.2]] }, r);
+    sRumble(c, out, { dur: 0.9, vol: 0.55, f: [[0, 220], [0.9, 70]] }, r);
+    return 0.95;
   },
-  el_feuer: (c, out) => {
-    sNoise(c, out, { f: [[0, 300], [0.5, 1400]], q: 0.7, amp: [[0, 0], [0.12, 0.8], [0.45, 0.5], [0.65, 0]], color: 'pink' });
-    sNoise(c, out, { f: 3500, q: 1, amp: [[0, 0], [0.1, 0.25], [0.6, 0]], rough: [19, 0.9] });
-    return 0.7;
+  // Feuer: Fauchen beim Entzünden, Brausen, prasselnde Funken
+  el_feuer: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 250], [0.18, 2200], [0.7, 700]], type: 'lowpass', q: 0.8, amp: [[0, 0], [0.12, 0.9], [0.35, 0.55], [0.75, 0]], color: 'pink' });
+    sNoise(c, out, { f: 320, q: 0.9, amp: [[0, 0], [0.15, 0.55], [0.75, 0]], color: 'brown', rough: [11, 0.6] });
+    sGrains(c, out, { at: 0.08, dur: 0.75, rate: [[0, 20], [0.25, 70], [0.75, 25]], f: [900, 4500], dec: [0.001, 0.004], q: 0.9, vol: 0.7, tail: 3 }, r);
+    return 0.85;
   },
-  el_schatten: (c, out) => {
-    sVoice(c, out, { f: [[0, 70], [0.6, 55]], amp: [[0, 0], [0.25, 0.5], [0.7, 0]], form: FORM.u, breath: 0.6, vib: [3, 30], type: 'sawtooth' });
-    sNoise(c, out, { f: [[0, 2000], [0.6, 500]], q: 3, amp: [[0, 0], [0.3, 0.3], [0.7, 0]] });
-    return 0.75;
+  // Schatten: Sog rückwärts (schwillt an, reißt ab), tiefes Raunen und Flüstern
+  el_schatten: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 400], [0.45, 2600]], q: 1.4, amp: [[0, 0], [0.42, 0.75], [0.47, 0]], color: 'pink' });
+    sVoice(c, out, { rnd: r, f: [[0, 62], [0.7, 50]], amp: [[0, 0], [0.3, 0.5], [0.8, 0]], form: FORM.u, breath: 0.7, sub: 0.4, rough: [9, 0.5], vib: [3, 20], type: 'sawtooth' });
+    sNoise(c, out, { at: 0.2, f: [[0, 2800], [0.5, 1800]], q: 6, amp: [[0, 0], [0.15, 0.18], [0.55, 0]], rough: [23, 0.7] });
+    return 0.85;
   },
-  el_seele: (c, out) => {
-    sVoice(c, out, { f: [[0, 520], [0.6, 690]], amp: [[0, 0], [0.15, 0.45], [0.7, 0]], form: FORM.u, breath: 0.5, vib: [7, 35], type: 'triangle' });
-    sNoise(c, out, { f: 4000, q: 3, amp: [[0, 0], [0.2, 0.2], [0.7, 0]] });
-    return 0.75;
+  // Seele: geisterhafter Hauch und ein schwebender, singender Ton
+  el_seele: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 600], [0.5, 1100], [0.9, 800]], q: 5, amp: [[0, 0], [0.25, 0.35], [0.9, 0]] });
+    sVoice(c, out, { rnd: r, f: [[0, 520], [0.4, 700], [0.9, 640]], amp: [[0, 0], [0.18, 0.4], [0.9, 0]], form: FORM.u, breath: 0.6, vib: [6, 25], type: 'triangle' });
+    sGrains(c, out, { at: 0.1, dur: 0.7, rate: 30, f: [3500, 8000], dec: [0.01, 0.04], q: 0.995, vol: 0.12 }, r);
+    return 0.95;
   },
+  // Blitz: knisternde Ladung, scharfer Knall, kurzes Donnergrollen
   el_blitz: (c, out, r) => {
-    for (let i = 0; i < 4; i++) sTone(c, out, { at: i * 0.05, type: 'sawtooth', f: [[0, 1800 + r() * 1500], [0.05, 120]], amp: [[0, 0], [0.002, 0.35], [0.06, 0]] });
-    sNoise(c, out, { f: 3500, q: 0.6, amp: [[0, 0], [0.005, 0.8], [0.12, 0.3], [0.45, 0]], rough: [55, 0.9] });
-    sTone(c, out, { f: [[0, 70], [0.45, 40]], amp: [[0, 0], [0.01, 0.5], [0.5, 0]] });
-    return 0.5;
+    sGrains(c, out, { dur: 0.16, rate: [[0, 150], [0.16, 600]], f: [1500, 6000], dec: [0.0005, 0.002], q: 0.85, vol: 0.5 }, r);
+    sNoise(c, out, { at: 0.16, f: 2500, type: 'highpass', amp: [[0, 0], [0.002, 1], [0.05, 0.3], [0.12, 0]] });
+    sTone(c, out, { at: 0.16, type: 'sawtooth', f: [[0, 180 + r() * 60], [0.2, 90]], amp: [[0, 0], [0.003, 0.35], [0.22, 0]], lp: 2500 });
+    sNoise(c, out, { at: 0.16, f: 3000, q: 0.7, amp: [[0, 0], [0.003, 0.5], [0.25, 0]], rough: [70, 0.9] });
+    sRumble(c, out, { at: 0.2, dur: 0.9, vol: 0.5, f: [[0, 300], [0.9, 80]] }, r);
+    return 1.15;
   },
+  // Eis: Kristalle wachsen knirschend, glasige Töne, ein Knacken zum Schluss
   el_eis: (c, out, r) => {
-    for (let i = 0; i < 5; i++) sBell(c, out, 2400 + r() * 2200, i * 0.04, 0.6, 0.13, 2.76, 1.3);
-    sNoise(c, out, { f: 6000, type: 'highpass', amp: [[0, 0], [0.004, 0.6], [0.12, 0]] });
-    return 0.7;
+    sNoise(c, out, { f: [[0, 5000], [0.5, 2500]], q: 1.2, amp: [[0, 0], [0.15, 0.25], [0.55, 0]] });
+    sGrains(c, out, { dur: 0.5, rate: [[0, 60], [0.45, 380]], f: [2500, 9000], dec: [0.001, 0.005], q: 0.96, vol: 0.55, amp: [[0, 0.4], [0.45, 1], [0.5, 0.2]] }, r);
+    for (let i = 0; i < 3; i++) sBell(c, out, 2800 + r() * 2500, 0.1 + i * 0.12, 0.45, 0.07, 2.76, 0.8);
+    sTone(c, out, { at: 0.48, f: [[0, 5200], [0.06, 400]], amp: [[0, 0], [0.002, 0.45], [0.07, 0]] });
+    sNoise(c, out, { at: 0.48, f: 3500, q: 1.5, amp: [[0, 0], [0.002, 0.6], [0.04, 0]] });
+    return 0.75;
   },
-  el_wind: (c, out) => {
-    sNoise(c, out, { f: [[0, 500], [0.3, 1800], [0.7, 700]], q: 2.2, amp: [[0, 0], [0.2, 0.7], [0.7, 0]], color: 'pink' });
-    return 0.72;
+  // Wind: pfeifende Böe
+  el_wind: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 400], [0.3, 1500], [0.75, 600]], q: 1.5, amp: [[0, 0], [0.25, 0.7], [0.75, 0]], color: 'pink' });
+    sNoise(c, out, { f: [[0, 900 + r() * 300], [0.35, 1800], [0.7, 1100]], q: 14, amp: [[0, 0], [0.25, 0.3], [0.7, 0]] });
+    return 0.8;
   },
-  el_licht: (c, out) => {
-    [880, 1109, 1319, 1760].forEach((f, i) => sBell(c, out, f, i * 0.05, 1.2, 0.14, 1.0, 0.6));
-    sNoise(c, out, { f: 7000, type: 'highpass', amp: [[0, 0], [0.3, 0.12], [1.0, 0]] });
-    return 1.25;
+  // Licht: heller Akkord, der aufblüht, mit Glitzern
+  el_licht: (c, out, r) => {
+    [880, 1109, 1319, 1760].forEach((f, i) => sTone(c, out, { at: i * 0.04, f: f * (1 + (r() - 0.5) * 0.004), amp: [[0, 0], [0.25, 0.12], [1.2, 0]] }));
+    sBell(c, out, 2637, 0.05, 1.1, 0.1, 1.0, 0.5);
+    sGrains(c, out, { at: 0.1, dur: 0.9, rate: 40, f: [4000, 9000], dec: [0.02, 0.06], q: 0.997, vol: 0.12 }, r);
+    return 1.3;
   },
-  el_blut: (c, out) => {
-    sNoise(c, out, { f: [[0, 900], [0.25, 300]], q: 3, amp: [[0, 0], [0.01, 0.8], [0.3, 0]] });
-    sTone(c, out, { f: [[0, 160], [0.3, 70]], amp: [[0, 0], [0.01, 0.5], [0.3, 0]] });
-    return 0.35;
+  // Blut: nasser Schlag, Spritzer, Tropfen
+  el_blut: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 1400], [0.08, 500], [0.3, 250]], q: 3.5, amp: [[0, 0], [0.006, 0.8], [0.3, 0]], rough: [35, 0.7] });
+    sTone(c, out, { f: [[0, 150], [0.25, 60]], amp: [[0, 0], [0.008, 0.5], [0.28, 0]] });
+    sBubbles(c, out, { at: 0.1, dur: 0.25, rate: 25, f: [500, 1100], vol: 0.25 }, r);
+    return 0.45;
   },
+  // Knochen: trockenes Knacken und Splittern
   el_knochen: (c, out, r) => {
-    sClicks(c, out, 7, 0.035, 2200, 0.7, r);
-    sTone(c, out, { f: [[0, 260], [0.2, 120]], amp: [[0, 0], [0.004, 0.5], [0.2, 0]] });
-    return 0.35;
+    sGrains(c, out, { dur: 0.3, rate: [[0, 60], [0.3, 15]], f: [700, 2200], dec: [0.004, 0.012], q: 0.97, vol: 0.8, tail: 1.5 }, r);
+    sTone(c, out, { f: [[0, 260], [0.2, 120]], amp: [[0, 0], [0.004, 0.4], [0.2, 0]] });
+    return 0.4;
   },
   el_frost: (c, out, r) => PLAYER_SND.el_eis(c, out, r),
+  // Wasser (Heilung): Plätschern, Blasen und ein sanfter Glanzton
+  el_wasser: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 2500], [0.6, 1200]], q: 0.8, amp: [[0, 0], [0.05, 0.3], [0.7, 0]], rough: [17, 0.6] });
+    sBubbles(c, out, { dur: 0.8, rate: 45, f: [400, 1600], vol: 0.35 }, r);
+    [784, 988, 1175].forEach((f, i) => sTone(c, out, { at: 0.1 + i * 0.06, f, amp: [[0, 0], [0.2, 0.08], [1.0, 0]] }));
+    return 1.1;
+  },
+  // Großer Donner (Donnersturm): Knall direkt über dir und langes, rollendes Grollen
+  el_donner: (c, out, r) => {
+    PLAYER_SND.el_blitz(c, out, r);
+    sRumble(c, out, { at: 0.3, dur: 1.7, vol: 0.85, attack: 0.15, f: [[0, 400], [1.7, 60]] }, r);
+    return 2.0;
+  },
+  // Beben: Boden bricht, langes Grollen
+  el_beben: (c, out, r) => {
+    PLAYER_SND.el_erde(c, out, r);
+    sRumble(c, out, { dur: 1.6, vol: 0.9, attack: 0.05, f: [[0, 180], [1.6, 45]] }, r);
+    sGrains(c, out, { at: 0.2, dur: 1.2, rate: 60, f: [200, 900], dec: [0.01, 0.04], q: 0.92, vol: 0.35, amp: [[0, 1], [1.2, 0]] }, r);
+    return 1.7;
+  },
+  // Eissturm (Blizzard): heulender Wind voller klirrender Eiskörner
+  el_eissturm: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 500], [0.5, 1600], [1.4, 700]], q: 1.2, amp: [[0, 0], [0.4, 0.7], [1.4, 0]], color: 'pink' });
+    sNoise(c, out, { f: [[0, 1200], [0.6, 2200], [1.4, 1400]], q: 12, amp: [[0, 0], [0.4, 0.22], [1.4, 0]] });
+    sGrains(c, out, { at: 0.2, dur: 1.1, rate: 160, f: [3000, 9000], dec: [0.001, 0.003], q: 0.95, vol: 0.4, amp: [[0, 0.3], [0.4, 1], [1.1, 0]] }, r);
+    return 1.45;
+  },
+
+  // Einschläge: kurz, nach Element
+  imp_feuer: (c, out, r) => {
+    sTone(c, out, { f: [[0, 110], [0.25, 40]], amp: [[0, 0], [0.004, 0.8], [0.3, 0]] });
+    sNoise(c, out, { f: [[0, 3000], [0.3, 500]], type: 'lowpass', amp: [[0, 0], [0.005, 0.8], [0.4, 0]], color: 'pink' });
+    sGrains(c, out, { at: 0.03, dur: 0.45, rate: [[0, 90], [0.45, 10]], f: [1200, 5000], dec: [0.001, 0.003], q: 0.9, vol: 0.6, tail: 3 }, r);
+    return 0.5;
+  },
+  imp_eis: (c, out, r) => {
+    sNoise(c, out, { f: 4500, type: 'highpass', amp: [[0, 0], [0.002, 0.8], [0.06, 0]] });
+    sGrains(c, out, { dur: 0.35, rate: [[0, 500], [0.35, 30]], f: [2500, 9000], dec: [0.003, 0.02], q: 0.985, vol: 0.5 }, r);
+    for (let i = 0; i < 3; i++) sBell(c, out, 3000 + r() * 3000, i * 0.03, 0.35, 0.06, 2.76, 0.7);
+    return 0.45;
+  },
+  imp_blitz: (c, out, r) => {
+    sNoise(c, out, { f: 3000, type: 'highpass', amp: [[0, 0], [0.001, 1], [0.04, 0.2], [0.1, 0]] });
+    sGrains(c, out, { dur: 0.15, rate: 400, f: [2000, 7000], dec: [0.0005, 0.002], q: 0.85, vol: 0.45 }, r);
+    sTone(c, out, { type: 'sawtooth', f: [[0, 200], [0.12, 90]], amp: [[0, 0], [0.002, 0.3], [0.14, 0]], lp: 2500 });
+    return 0.2;
+  },
+  imp_erde: (c, out, r) => {
+    sTone(c, out, { f: [[0, 130], [0.15, 50]], amp: [[0, 0], [0.003, 0.9], [0.18, 0]] });
+    sGrains(c, out, { dur: 0.35, rate: [[0, 200], [0.35, 20]], f: [300, 1800], dec: [0.006, 0.02], q: 0.93, vol: 0.6 }, r);
+    return 0.4;
+  },
+  imp_schatten: (c, out, r) => {
+    sTone(c, out, { f: [[0, 90], [0.2, 45]], amp: [[0, 0], [0.004, 0.6], [0.22, 0]] });
+    sNoise(c, out, { f: [[0, 1500], [0.25, 400]], q: 2, amp: [[0, 0], [0.005, 0.5], [0.28, 0]], color: 'pink' });
+    return 0.3;
+  },
+  imp_seele: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 2000], [0.3, 900]], q: 4, amp: [[0, 0], [0.01, 0.5], [0.3, 0]] });
+    sTone(c, out, { f: [[0, 900], [0.3, 600]], type: 'triangle', amp: [[0, 0], [0.01, 0.2], [0.3, 0]] });
+    return 0.32;
+  },
+  imp_klinge: (c, out, r) => {
+    PLAYER_SND.hit(c, out, r);
+    sMetal(c, out, 1400 + r() * 300, 0, 0.4, 0.12);
+    return 0.4;
+  },
+  // Eisstrahl: kalter, zischender Strom mit Knistern (wird als Schleife gespielt) und Splittern am Ende
+  beam_loop: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 3500], [0.7, 4500], [1.4, 3200], [2.0, 3800]], q: 1.4, amp: [[0, 0.3], [2.0, 0.3]], rough: [13, 0.35] });
+    sNoise(c, out, { f: 900, q: 0.8, amp: [[0, 0.22], [2.0, 0.22]], color: 'pink' });
+    sTone(c, out, { f: 220, type: 'triangle', amp: [[0, 0.06], [2.0, 0.06]] });
+    sGrains(c, out, { dur: 2.0, rate: 140, f: [2500, 9000], dec: [0.001, 0.004], q: 0.96, vol: 0.4 }, r);
+    return 2.0;
+  },
+  beam_end: (c, out, r) => {
+    sGrains(c, out, { dur: 0.25, rate: [[0, 300], [0.25, 20]], f: [3000, 9000], dec: [0.003, 0.015], q: 0.985, vol: 0.4 }, r);
+    sNoise(c, out, { f: [[0, 4000], [0.3, 1500]], q: 1, amp: [[0, 0.3], [0.3, 0]] });
+    return 0.35;
+  },
   // Stimmen der Spieler (seit 9.5): kurze Kampflaute statt Stöhnen – „Ha!“, „Hm!“, „Hyah!“, „Tsch!“ beim Schlag,
   // ein lauterer Ruf bei Fertigkeiten, ein kurzes „Uh!“ bei Treffern; männlich tiefer, weiblich höher
   kiai_m: (c, out, r) => kiai(c, out, r, 135),
@@ -780,6 +972,16 @@ const PLAYER_SND = {
     return 0.85;
   }
 };
+
+// Klang-Element einer Fertigkeit (Magier-Elemente auf die allgemeinen abgebildet)
+const SND_EL_MAP = { m_feuer: 'feuer', m_frost: 'eis', m_blitz: 'blitz', m_erde: 'erde', frost: 'eis' };
+function sndElOf(id, el) {
+  let e = el || (typeof SKILL_ELEMENT !== 'undefined' && SKILL_ELEMENT[id]) || 'klinge';
+  e = SND_EL_MAP[e] || e;
+  return PLAYER_SND['el_' + e] ? e : 'klinge';
+}
+// eigene Klänge großer Zauber
+const SKILL_SND = { donnersturm: 'donner', erdbeben: 'beben', blitzschlag: 'eissturm', heilung: 'wasser', kristallgrab: 'eis', schwerkraft: 'beben' };
 
 // --- Abspielen ---------------------------------------------------------------------------------------
 const snd = {
@@ -920,13 +1122,52 @@ const snd = {
     else this.player('el_seele', { x: p.x, y: p.y, vol: 0.45, rate: 1.3 });
   },
 
-  // Fertigkeit nach Element (Magier: eigenes Element)
+  // Fertigkeit nach Element (Magier: eigenes Element); einige große Zauber haben einen eigenen Klang
   skill(sk, p) {
-    let el = sk.el || (typeof SKILL_ELEMENT !== 'undefined' && SKILL_ELEMENT[sk.id]) || 'klinge';
-    if (el === 'frost') el = 'eis';
-    if (!PLAYER_SND['el_' + el]) el = 'klinge';
+    const el = SKILL_SND[sk.id] || sndElOf(sk.id, sk.el);
     this.player('el_' + el, { x: p.x, y: p.y, vol: p === game.player ? 0.6 : 0.4, rev: 0.3 });
     this.kiai(p, true);
+  },
+
+  // Eisstrahl: Schleife solange er läuft (je Figur eine), am Ende Splittern
+  beamLoop(p) {
+    const c = sfx.ac();
+    if (!c) return;
+    let b = p._beamSnd;
+    if (!b) {
+      const buf = this.buffer('p:beam_loop#0', PLAYER_SND.beam_loop, sndHash('p:beam_loop#0'));
+      if (!buf) return;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      src.loopStart = 0.2;
+      src.loopEnd = 1.9;
+      const g = c.createGain();
+      g.gain.value = 0;
+      src.connect(g);
+      g.connect(sfx.master);
+      src.start();
+      b = p._beamSnd = { src, g };
+    }
+    const me = game.player;
+    const d = me && p !== me ? Math.hypot(p.x - me.x, p.y - me.y) : 0;
+    const vol = (p === me ? 0.4 : 0.25) * (d < 140 ? 1 : Math.max(0, 1 - (d - 140) / 760));
+    b.g.gain.setTargetAtTime(vol, c.currentTime, 0.04);
+    clearTimeout(b.off);
+    // ohne Nachschub (Netz weg) nach 0,7 s aus
+    b.off = setTimeout(() => this.beamStop(p), 700);
+  },
+  beamStop(p = game.player) {
+    const b = p && p._beamSnd;
+    if (!b) return;
+    p._beamSnd = null;
+    clearTimeout(b.off);
+    const c = sfx.ctx;
+    if (c) {
+      b.g.gain.setTargetAtTime(0, c.currentTime, 0.05);
+      b.src.stop(c.currentTime + 0.3);
+    }
+    this.player('beam_end', { x: p.x, y: p.y, vol: p === game.player ? 0.45 : 0.3 });
   },
 
   female(p) {
@@ -972,7 +1213,10 @@ const snd = {
       const s = m._snd || (m._snd = { atk: false, hit: 0, hurtAt: -9, aggroAt: -99, state: m.state });
       // Treffer: Aufprall immer, Schmerzlaut höchstens alle 0,5 s
       if (m.hitFlash > s.hit + 0.02) {
-        if (!m.isStone) this.player('hit', { x: m.x, y: m.y, vol: 0.55, rate: 0.9 + Math.random() * 0.2 });
+        // Einschlag nach Element, wenn gerade eine Fertigkeit traf (seit 9.6), sonst dumpfer Schlag
+        const el = m._sEl && t - m._sElAt < 0.15 && PLAYER_SND['imp_' + m._sEl] ? m._sEl : null;
+        if (el) this.player('imp_' + el, { x: m.x, y: m.y, vol: 0.5, rate: 0.92 + Math.random() * 0.16 });
+        else if (!m.isStone) this.player('hit', { x: m.x, y: m.y, vol: 0.55, rate: 0.9 + Math.random() * 0.2 });
         if (t - s.hurtAt > 0.5) {
           s.hurtAt = t;
           this.mob(m, 'hurt');

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '9.5';
+const GAME_VERSION = '9.6';
 
 const game = {
   world: null,
@@ -85,7 +85,8 @@ function updatePlayer(dt) {
     const mv = moveVector();
     let approaching = false;
     if (mv.x || mv.y) {
-      p.moving = moveEntity(p, mv.x * s.speed * dt, mv.y * s.speed * dt, false);
+      const spd = s.speed * (p.channel ? BEAM_WALK : 1);
+      p.moving = moveEntity(p, mv.x * spd * dt, mv.y * spd * dt, false);
       const len = Math.hypot(mv.x, mv.y);
       p.facing = { x: mv.x / len, y: mv.y / len };
     }
@@ -95,7 +96,7 @@ function updatePlayer(dt) {
     if (mv.x || mv.y || game.time - input.attackAt < 0.45) input.walkTo = null;
     else if (input.walkTo) {
       const wt = input.walkTo;
-      if (Math.hypot(wt.x - p.x, wt.y - p.y) < 6 || !moveToward(p, wt.x, wt.y, s.speed * dt, false)) input.walkTo = input.mouseWalk ? wt : null;
+      if (Math.hypot(wt.x - p.x, wt.y - p.y) < 6 || !moveToward(p, wt.x, wt.y, s.speed * (p.channel ? BEAM_WALK : 1) * dt, false)) input.walkTo = input.mouseWalk ? wt : null;
       else p.moving = true;
       faceTowards(wt.x, wt.y);
     }
@@ -119,6 +120,9 @@ function updatePlayer(dt) {
     // Ein Tipp ist genau ein Schlag.
     if (wantAttack && !approaching && tryBasicAttack()) clearAttack();
   }
+
+  // Eisstrahl halten (nach dem Laufen, damit er der neuen Stelle folgt)
+  channelTick(p, dt);
 
   // Regeneration: außerhalb des Kampfes deutlich schneller
   const calm = game.time - p.lastCombat > 5;

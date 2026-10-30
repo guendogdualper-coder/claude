@@ -1844,7 +1844,7 @@ Feuer (crimson red and white-hot, #e8362a, #a0102e, #fff1c8):
 
 Frost (royal blue with cyan-white highlights, #3a7bff, #1a3fb0, #eafcff):
 - Frostnova: `Game skill icon, 64×64, painterly toon, dark vignette, a flat royal-blue hexagonal frost plate with twelve ice needles shooting outward like a starburst, royal blue and cyan-white palette, Western arcane mage magic, flat ground-level effect, no snowstorm, no sky.`
-- Frostlanze: `Game skill icon, 64×64, painterly toon, dark vignette, a long faceted ice lance piercing three dark enemy silhouettes in a line, the last one bursting into ice shards, royal blue and cyan-white palette, Western arcane mage magic, no sky.`
+- Eisstrahl (seit 9.6): `Game skill icon, 64×64, painterly toon, dark vignette, an open palm firing a wide, channeled beam of ice diagonally upward, white-hot core with swirling frost streaks, frost crystals growing along its edges, royal blue and cyan-white palette, Western arcane mage magic, no sky.`
 - Eisschritt: `Game skill icon, 64×64, painterly toon, dark vignette, a crystalline ice statue of a wizard with a pointed hat, a frost glide path with small hexagons leading away, speed lines, royal blue and cyan-white palette, Western arcane mage magic, no sky.`
 - Frostpanzer: `Game skill icon, 64×64, painterly toon, dark blue vignette, an indigo robed torso with four thin hexagonal ice plates orbiting at chest height, royal blue and cyan-white palette, Western arcane mage magic.`
 - Kristallgrab: `Game skill icon, 64×64, painterly toon, dark vignette, five tall ice crystals growing in a hexagon out of a glowing downward-triangle sigil on the ground, royal blue and cyan-white palette, Western arcane mage magic, no falling icicles, no sky.`

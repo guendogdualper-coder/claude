@@ -389,7 +389,7 @@ const CLASSES = {
       },
       {
         id: 'frost', name: 'Weg des Frosts', role: 'Kontrolle · Einfrieren',
-        description: 'Lässt Gegner im Eis erstarren, zerschmettert Eingefrorene mit der Frostlanze und lässt ein Feld aus Kristallen wachsen. Weniger Schaden, sehr viel Kontrolle.',
+        description: 'Lässt Gegner im Eis erstarren, bremst sie mit dem Eisstrahl immer weiter aus und lässt ein Feld aus Kristallen wachsen. Weniger Schaden, sehr viel Kontrolle.',
         skills: [
           {
             id: 'frostnova', name: 'Frostnova', short: 'FR', kind: 'angriff', unlock: 1, mp: 9, cooldown: 6,
@@ -398,10 +398,10 @@ const CLASSES = {
             text: 'Eiskristalle schießen von deinen Füßen waagrecht nach außen und überziehen den Boden mit Reif. Alle Gegner bis 130 weit frieren 1 s ein (wächst mit der Stufe) und sind danach 3 s langsamer. Bosse werden nur verlangsamt.'
           },
           {
-            id: 'frostlanze', name: 'Frostlanze', short: 'FL', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3.5,
-            type: 'mbolt', el: 'frost', range: 360, speed: 640, dmg: 2.0, pierce: true, slow: { amount: 0.4, duration: 2 }, shatter: 0.6,
-            style: 'frostlance', anim: 'stoss', animDur: 0.35, color: '#3a7bff',
-            text: 'Eine Lanze aus Eis durchbohrt alle Gegner in einer Linie und verlangsamt sie. Eingefrorene Gegner zerspringen: +60 % Schaden, das Eis ist danach weg.'
+            id: 'eisstrahl', name: 'Eisstrahl', short: 'EI', kind: 'angriff', unlock: 3, mp: 6, cooldown: 1.5,
+            type: 'beam', el: 'frost', channel: true, range: 300, width: 26, every: 0.2, maxDur: 6, minDur: 0.5, dmg: 0.34, mpPerSec: 9,
+            slow: { amount: 0.3, max: 0.7, build: 0.25, duration: 1 }, duelMul: 1.1, color: '#9ff6ff',
+            text: 'Gedrückt halten: Ein eisiger Strahl schießt aus deinen Händen und trifft alle Gegner in einer Linie bis 300 weit, fünfmal pro Sekunde mit leichtem Schaden. Wer im Strahl steht, wird immer langsamer (30 % bis 70 %). Kostet laufend Mana; du kannst dabei langsam gehen. Loslassen beendet den Strahl.'
           },
           {
             id: 'eisschritt', name: 'Eisschritt', short: 'ES', kind: 'angriff', unlock: 5, mp: 16, cooldown: 10,

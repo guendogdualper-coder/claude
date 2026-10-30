@@ -43,7 +43,7 @@ Object.assign(ELEMENT3, {
 });
 Object.assign(SKILL_ELEMENT, {
   feuernova: 'm_feuer', feuerball: 'm_feuer', flammenschritt: 'm_feuer', glutherz: 'm_feuer', flammenkreis: 'm_feuer',
-  frostnova: 'm_frost', frostlanze: 'm_frost', eisschritt: 'm_frost', frostpanzer: 'm_frost', kristallgrab: 'm_frost',
+  frostnova: 'm_frost', eisstrahl: 'm_frost', eisschritt: 'm_frost', frostpanzer: 'm_frost', kristallgrab: 'm_frost',
   blitznova: 'm_blitz', kettenblitz: 'm_blitz', blitzschritt: 'm_blitz', ladung: 'm_blitz', kugelblitz: 'm_blitz',
   erdnova: 'm_erde', steingeschoss: 'm_erde', erdsprung: 'm_erde', basalthaut: 'm_erde', schwerkraft: 'm_erde'
 });
@@ -593,7 +593,7 @@ function mageBuffCast(p, sk) {
 (function () {
   const skills = {
     feuer: ['feuernova', 'feuerball', 'flammenschritt', 'glutherz', 'flammenkreis'],
-    frost: ['frostnova', 'frostlanze', 'eisschritt', 'frostpanzer', 'kristallgrab'],
+    frost: ['frostnova', 'eisstrahl', 'eisschritt', 'frostpanzer', 'kristallgrab'],
     blitz: ['blitznova', 'kettenblitz', 'blitzschritt', 'ladung', 'kugelblitz'],
     erde: ['erdnova', 'steingeschoss', 'erdsprung', 'basalthaut', 'schwerkraft']
   };
