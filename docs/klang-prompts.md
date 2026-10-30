@@ -1,4 +1,4 @@
-# Klang-Bibel – Seelenstein (seit Version 9.4, erweitert in 9.5 und 9.6)
+# Klang-Bibel – Seelenstein (seit Version 9.4, erweitert in 9.5 bis 9.8)
 
 Alle Klänge und die Musik werden im Browser erzeugt, es gibt keine Tondateien. Der Code steht in
 `js/klang.js` (Mischpult), `js/klang-welt.js` (Klänge) und `js/musik.js` (Musik). Dieses Dokument
@@ -20,6 +20,40 @@ falls später echte Aufnahmen dazukommen.
   - Höchstens 18 Laute gleichzeitig.
 - **Leistung:** Jeder Laut wird beim ersten Gebrauch einmal vorberechnet und danach nur abgespielt. Im
   Hintergrund (andere App, anderer Tab) pausiert alles.
+
+## 1b. Echte Tieraufnahmen (seit 9.8) und Quellen
+
+Tiere klingen seit 9.8 wie echte Tiere: Ihre Laute sind Ausschnitte aus echten Aufnahmen, nicht mehr erzeugt.
+Fremde Spielklänge werden nicht kopiert (Urheberrecht); genutzt werden nur frei verwendbare Aufnahmen:
+
+- **National Park Service, Yellowstone Sound Library** (gemeinfrei, Quelle „NPS / Yellowstone“): Grauwölfe
+  (Heulen), Grizzly (Brüllen, Schnauben, Knurren), Wapiti (Röhren und Grunzen), Kojoten (Kläffen, für Hyänen),
+  Rotfuchs (Schreie), Bison (Brüllen, für Oger, Trolle, Yetis und Mammuts).
+  https://www.nps.gov/yell/learn/photosmultimedia/soundlibrary.htm
+- **BigSoundBank.com** (Joseph Sardin, CC0): Hunde (Bellen, Knurrbellen, Aufjaulen, Heulen), Hausschwein
+  (Grunzen, höher gestimmt als Quieken), Raubkatze (Fauchen), Sikahirsch (Rufe), Zombie-Stimmen (Untote, Orks),
+  Kampfgrunzer (Orks). https://bigsoundbank.com/licenses.html
+
+**Verarbeitung:**
+- Je Familie ein Klangblatt `snd/tier-<familie>.mp3` (mono, 22 kHz, 40 kbit/s); die Lage jedes Lauts steht in
+  `js/klang-aufnahmen.js`.
+- Naturaufnahmen aus der Ferne werden entrauscht und tiefpassgefiltert. Jeder Laut wird auf gleiche Spitze
+  gebracht und bekommt kurze Ein- und Ausblendungen.
+- Tonhöhe: beim Bau festgelegt (z. B. Schwein höher = Quieken, Hundeheulen tiefer = sterbender Wolf) und beim
+  Abspielen leicht nach Größe und Zufall verändert.
+- Familien ohne eigene Aufnahme nutzen ein anderes Blatt mit eigener Tonhöhe:
+  - Höllenhund: Wolf tiefer.
+  - Mammut: Wapiti sehr tief (Trompeten) und Bison.
+  - Drache und Dämon: Grizzly tief.
+- Spinnen, Skorpione, Schlangen, Golems, Geister, Hexen, Naga, Harpyien, Menschen und Seelensteine behalten ihre
+  erzeugten Laute.
+
+**Zuordnung je Ereignis (Beispiel Hund):**
+- Schrei: Bellfolge.
+- Angriff: einzelnes scharfes Bellen oder Knurrbellen.
+- Schmerz: kurzes, hohes Aufjaulen.
+- Tod: langgezogenes Jaulen.
+- Wolf: Heulen beim Schrei, tiefes Bellen und Knurren beim Angriff, Aufjaulen, sterbendes Heulen.
 
 ## 2. Monster – vier Laute je Art
 
@@ -190,6 +224,36 @@ Relaxing ambient background music for a cozy East-Asian inspired fantasy MMORPG,
 **Prompt Bosskampf (englisch, seit 9.5):**
 ```
 Epic boss battle music for a stylized fantasy MMORPG, seamless loop, 100 BPM, A harmonic minor (i–VI–iv–V, one variation with a Neapolitan chord), driving eighth-note bass ostinato (root, octave, fifth), big taiko drums with a roll every fourth bar, short brass stabs on the downbeat, a wordless choir "aah", fast harp arpeggios in the second half of each phrase, a rising noise swell into every fourth bar. Starts with a deep impact and cymbal; when the boss dies a short major chord with rising bells resolves it.
+```
+
+## 4b. Lieder (seit 9.8)
+
+Die Musik spielt keine zufälligen Töne mehr. Jede Gegend hat ein eigenes, komponiertes Lied im Stil
+fernöstlicher Volksmusik, wie man sie aus asiatischen Fantasy-MMOs kennt. Alle Melodien sind eigene
+Kompositionen, nichts ist aus einem anderen Spiel übernommen.
+
+- **Aufbau:** zwei Takte Vorspiel (nur Guzheng und Fläche), dann Strophe und Refrain, z. B. im Dorf
+  A–A'–B–A' über 22 Takte. Danach beginnt das Lied von vorn.
+- **Instrumente:**
+  - Bambusflöte (Dizi): Grundton mit Obertönen, Atemgeräusch, Vorschlag von oben als Verzierung, spätes Vibrato.
+  - Xiao: tiefe, hauchige Flöte.
+  - Erhu: gestrichene Saite mit Körperresonanzen, gleitet in den Ton, ausdrucksvolles Vibrato.
+  - Guzheng: gezupfte Saite (Saitensimulation), spielt den Akkord als Bogen in Achteln.
+  - Dazu weiche Streicherfläche, Bass auf 1 und 3, Trommel und Holzblock.
+
+| Gegend | Tonart, Tempo | Melodie | Charakter |
+|---|---|---|---|
+| Dorf, Städte | D-Dur-Pentatonik, 76 BPM | Flöte, im Refrain Erhu | heiter, warm |
+| Wiesen | G-Dur-Pentatonik, 84 BPM | Flöte | leicht, offen |
+| Wald | A-Moll-Pentatonik, 68 BPM | Erhu, im Refrain Flöte | ruhig, wehmütig |
+| Schnee, Eis | E-Moll-Pentatonik, 58 BPM | Flöte und Xiao, Glöckchen | kühl, sparsam |
+| Wüste, Feuerberg | D mit kleiner Sekunde, 80 BPM | Erhu, Flöte, Handtrommeln | fremd, warm |
+| Moor, Dungeons | G-Moll, 56 BPM | Xiao, dann Erhu, tiefe Trommel | dunkel |
+| Bosskampf | unverändert (siehe oben) | | dramatisch |
+
+**Prompt (englisch):**
+```
+Original East Asian folk-inspired village theme for a fantasy MMORPG, peaceful and nostalgic, 76 BPM, D major pentatonic, memorable lead melody on bamboo flute (dizi) with grace notes and late vibrato, chorus answered by an erhu with expressive slides, guzheng playing flowing chord arpeggios in eighth notes, soft string pad, gentle bass on beats 1 and 3, light frame drum and woodblock, warm hall reverb, seamless loop of about 70 seconds (intro – verse – verse – chorus – verse).
 ```
 
 ## 5. Einstellungen

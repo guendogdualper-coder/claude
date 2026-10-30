@@ -1005,6 +1005,37 @@ function sndElOf(id, el) {
 // eigene Klänge großer Zauber
 const SKILL_SND = { donnersturm: 'donner', erdbeben: 'beben', blitzschlag: 'eissturm', heilung: 'wasser', kristallgrab: 'eis', schwerkraft: 'beben' };
 
+// --- Echte Aufnahmen (seit 9.8) ----------------------------------------------------------------------
+// Tierfamilien mit echten Aufnahmen (REC_SPRITES, klang-aufnahmen.js); andere nutzen ein Klangblatt mit eigener
+// Tonhöhe. Je Ereignis: [Klangblatt, Tonhöhe]. Solange ein Blatt lädt, klingt die bisherige Stimme (VOICES).
+const REC_VOICE = {
+  hellhound: { aggro: ['wolf', 0.78], attack: ['wolf', 0.8], hurt: ['wolf', 0.85], death: ['wolf', 0.8] },
+  mammoth: { aggro: ['deer', 0.62], attack: ['brute', 0.85], hurt: ['brute', 0.9], death: ['brute', 0.75] },
+  dragon: { aggro: ['bear', 0.66], attack: ['bear', 0.7], hurt: ['bear', 0.75], death: ['bear', 0.62] },
+  demon: { aggro: ['bear', 0.74], attack: ['brute', 0.8], hurt: ['bear', 0.8], death: ['brute', 0.7] }
+};
+function recOf(name, ev) {
+  if (REC_VOICE[name] && REC_VOICE[name][ev]) {
+    const [sheet, rate] = REC_VOICE[name][ev];
+    return REC_SPRITES[sheet] && REC_SPRITES[sheet][ev] ? { sheet, rate, clips: REC_SPRITES[sheet][ev] } : null;
+  }
+  return REC_SPRITES[name] && REC_SPRITES[name][ev] ? { sheet: name, rate: 1, clips: REC_SPRITES[name][ev] } : null;
+}
+const recSheets = new Map();
+function recSheet(name) {
+  const s = recSheets.get(name);
+  if (s) return s.buf || null;
+  const c = sfx.ctx;
+  if (!c || !window.fetch) return null;
+  const e = { buf: null };
+  recSheets.set(name, e);
+  fetch('snd/tier-' + name + '.mp3').then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+    .then((ab) => new Promise((res, rej) => c.decodeAudioData(ab, res, rej)))
+    .then((buf) => { e.buf = buf; })
+    .catch(() => { setTimeout(() => recSheets.delete(name), 20000); });
+  return null;
+}
+
 // --- Abspielen ---------------------------------------------------------------------------------------
 const snd = {
   bufs: new Map(),
@@ -1089,7 +1120,9 @@ const snd = {
     }
     this.active++;
     src.onended = () => { this.active--; };
-    src.start();
+    // Ausschnitt aus einem Klangblatt (echte Aufnahmen)
+    if (o.off != null) src.start(0, o.off, o.dur);
+    else src.start();
   },
 
   play(key, build, o = {}) {
@@ -1116,6 +1149,21 @@ const snd = {
   // Monsterlaut: Höhe nach Größe (große Monster tiefer), Bosse lauter und mit mehr Hall
   mob(m, ev) {
     const name = voiceOf(m);
+    // echte Aufnahme, wenn das Klangblatt schon geladen ist (Tonhöhe nur leicht nach Größe)
+    const R = recOf(name, ev);
+    const rb = R && recSheet(R.sheet);
+    if (rb) {
+      const now = performance.now();
+      const key = 'r:' + name + ':' + ev;
+      if (now - (this.last.get(key) || 0) < 40) return;
+      this.last.set(key, now);
+      const size = (m.type && m.type.size) || 14;
+      const boss = !!(m.type && (m.type.boss || m.type.raid));
+      const k = Math.max(0.85, Math.min(1.12, Math.pow(14 / size, 0.18)));
+      const clip = R.clips[Math.floor(Math.random() * R.clips.length)];
+      this.out(rb, { x: m.x, y: m.y, off: clip[0], dur: clip[1], rate: R.rate * k * (0.96 + Math.random() * 0.08), vol: (boss ? 1 : 0.75) * (ev === 'hurt' ? 0.7 : ev === 'death' ? 0.9 : ev === 'aggro' ? 0.85 : 1), rev: boss ? 0.35 : 0.15 });
+      return;
+    }
     const V = VOICES[name];
     if (!V) return;
     const build = V.build ? (c, out, r) => V.build(c, out, ev, r) : (c, out, r) => vocal(c, out, V.v, ev, r);
@@ -1263,6 +1311,8 @@ const snd = {
 
   // Häufige Klänge vorab berechnen, damit der erste Schlag nicht stumm bleibt
   warm() {
+    // Klangblätter der Tiere im Hintergrund laden
+    for (const n of Object.keys(REC_SPRITES)) recSheet(n);
     for (const k of ['whoosh_l', 'whoosh_m', 'whoosh_h', 'hit', 'bow', 'coin', 'item', 'potion', 'hurt_m', 'hurt_f', 'kiai_m', 'kiai_f', 'shout_m', 'shout_f']) {
       const n = k.startsWith('kiai') || k.startsWith('shout') ? 5 : k.startsWith('hurt') ? 4 : SND_VARIANTS;
       for (let v = 0; v < n; v++) this.buffer('p:' + k + '#' + v, PLAYER_SND[k], sndHash('p:' + k + '#' + v));
