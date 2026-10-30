@@ -34,6 +34,14 @@ Blick zum Betrachter, Schrägansicht von oben.
 2D game character sprite of a necromancer, dark fantasy style with East Asian influences. Tattered hooded robe in dark moss green, bone ornaments and a small skull on each shoulder, pale face half hidden in the hood, glowing green eyes, tall twisted wooden staff with a glowing green soul orb at the top, wisps of green spirit smoke. Full body, top-down three-quarter view (camera about 45 degrees above), facing toward the viewer, idle pose. Slightly chibi proportions (large head, about one third of body height) so it reads well at small size. Clean hand-painted game art, bold dark outline, soft cel shading, warm light from the top left. Centered, isolated on a plain white background, no shadow on the ground, no text, no frame.
 ```
 
+### Magier (`magier`, seit 8.6)
+Männlich und weiblich: indigo Mantelrobe mit hohem Stehkragen und Silberborte, spitzer Krempenhut mit Band in
+Elementfarbe, Zepter mit schwebendem Kristall, Buch an der Kette; weiblich mit silbernem Zopf. Elementfarbe:
+Feuer `crimson red`, Frost `royal blue`, Blitz `yellow-white with violet`, Erde `amber`.
+```
+Stylized 3D toon MMORPG wizard, {male|female}, indigo layered coat-robe with a stiff standing collar and silver trim, fitted sleeves with bell cuffs, tall pointed brimmed hat with a {element colour} band, short sceptre with a floating octahedral crystal, book on a belt chain; {male: straight ankle-length robe with a front slit and a short shoulder capelet | female: fitted bodice with silver lacing, A-line skirt, a long silver braid over one shoulder}. No sash, no feathers, no gold talismans, no hood, not teal. Full body, top-down three-quarter view (camera about 45 degrees above), facing toward the viewer, idle pose. Slightly chibi proportions (large head, about one third of body height). Clean hand-painted game art, bold dark outline, soft cel shading, warm light from the top left. Centered, isolated on a plain white background, no shadow on the ground, no text, no frame.
+```
+
 ### Spritesheet für Spielfiguren (an einen Figuren-Prompt anhängen)
 ```
 Character sprite sheet of exactly this character, same design and colors in every frame. Grid with 4 rows and 4 columns, evenly spaced, each cell the same size. Row 1: walking toward the viewer. Row 2: walking left. Row 3: walking right. Row 4: walking away from the viewer. Each row is a 4-frame walk cycle. Plain white background, no text, no labels, no grid lines.
@@ -1801,3 +1809,59 @@ Three bandits in a row, stylized 3D chibi toon MMORPG, thick outlines: a brown h
 Close-up sheet of ground props, stylized 3D toon, top-down three-quarter view on grass: a bush of five leafy puffs with red berries and small leaves at the rim; a fly agaric cluster; a stump with growth rings, roots and a hand axe stuck in it; a hollow mossy log with bracket fungi; a jungle plant with big drooping leaves and an orange flower; an ox skull with horns half in sand; crossed bones with a small skull; a fallen forked branch with a stone; an icy blue faceted crystal cluster; a snow drift with rocks and dry grass.
 ```
 
+## Der Magier (Version 8.6)
+
+Die fünfte Klasse: ein westlicher Gelehrtenmagier mit vier Element-Wegen (Feuer, Frost, Blitz, Erde). Tabellen,
+Abgrenzung zum Schamanen und die Effekt-Prompts je Weg stehen in `docs/grafik-prompts.md` (3, 4.4a, 4.5, 4.11,
+Abschnitt 8 „Magier-Sets“ und 9.12–9.15). Hier die Einzelbilder. Grundregel für alles: Dreiecks-Siegel statt Kreis,
+flach am Boden nach außen oder aus dem Boden aufsteigend, nichts fällt vom Himmel, keine Drachen.
+
+### Zepter je Stufe
+```
+Eight short magic sceptres side by side, stylized 3D toon game assets, top-down three-quarter view: a forked wooden branch holding a small crystal; a dark lacquered shaft with a silver band cage; a crescent-moon cage; a bundle of three small crystals; two crossed rings slowly turning; a hexagonal sigil plate with a glowing ember core; an astrolabe with star spikes; a golden halo with three floating crystals. In the centre of every cage floats a stretched octahedral crystal (shown in crimson, royal blue, yellow-white and amber variants). Silver cuffs, clean shapes, readable at phone size, no text.
+```
+
+### Spitzhüte je Stufe
+```
+Eight wizard hats in a row, stylized 3D toon game assets, top-down three-quarter view: soft grey-blue hat with a bent-back tip; stiff indigo hat with a silver band and an element stone; tall hat with a glowing rune band; hat whose tip ends in a floating crystal; arcane hat with a glowing brim and a small triangle sigil floating above the tip; charred black hat with glowing ember holes and a smoke wisp; night-blue hat with star dots, a rolled tip and one orbiting star; a silver circlet with three floating crystals instead of a hat. Clean shapes, thick outlines, no text.
+```
+
+### Eingefroren
+```
+Status effect close-up, stylized 3D toon MMORPG, top-down three-quarter view: three enemies (a bandit, a wolf, an orc) frozen mid-motion inside translucent royal-blue hexagonal ice blocks with white edges and two glossy highlight streaks, a hexagonal frost pattern on the ground; next to them one block shattering into glittering white shards. A boss beside them is only slowed with a frosty ring at its feet, no ice block. No snow falling, no sky effects.
+```
+
+### Symbole der 24 Magier-Fertigkeiten (je 256×256)
+Muster: `Game skill icon, 64×64, painterly toon, dark vignette, {Motiv}, {Elementpalette}, Western arcane mage magic, flat ground-level effect, no dragons, no sky.` Hintergrund wie im Spiel: Angriff rotbraun, Buff blau, Ultimate gold.
+
+Feuer (crimson red and white-hot, #e8362a, #a0102e, #fff1c8):
+- Feuernova: `Game skill icon, 64×64, painterly toon, dark vignette, a flat ring of upright crimson flame tongues around a pair of boots standing on a small glowing upward-triangle sigil, the ring racing outward over the ground, crimson and white-hot palette, Western arcane mage magic, flat ground-level effect, no dragons, no sky.`
+- Feuerball: `Game skill icon, 64×64, painterly toon, dark vignette, a white-hot fireball wrapped in two thin crossing sigil rings flying to the upper right with a trail of embers, crimson and white-hot palette, Western arcane mage magic, no dragons, no sky.`
+- Flammenschritt: `Game skill icon, 64×64, painterly toon, dark vignette, a dark mage silhouette with a pointed hat inside a tall crimson flame column, glowing burning footprints leading away, crimson and white-hot palette, Western arcane mage magic, no dragons, no sky.`
+- Glutherz: `Game skill icon, 64×64, painterly toon, dark blue vignette, a glowing ember crystal floating above an open palm, soft crimson glow, crimson and white-hot palette, Western arcane mage magic, no dragons.`
+- Flammenkreis: `Game skill icon, 64×64, painterly toon, dark vignette, a glowing upward-triangle sigil on the ground surrounded by a circular wall of crimson flames leaning inward toward the centre, crimson and white-hot palette, Western arcane mage magic, flat ground-level effect, no dragons, no sky.`
+- Inferno (Ultimate): `Game skill icon, 64×64, painterly toon, golden frame, three concentric crimson flame rings on the ground, the outer ones darker, white-hot centre, crimson and white-hot palette, Western arcane mage magic, flat ground-level effect, no dragons, no meteors.`
+
+Frost (royal blue with cyan-white highlights, #3a7bff, #1a3fb0, #eafcff):
+- Frostnova: `Game skill icon, 64×64, painterly toon, dark vignette, a flat royal-blue hexagonal frost plate with twelve ice needles shooting outward like a starburst, royal blue and cyan-white palette, Western arcane mage magic, flat ground-level effect, no snowstorm, no sky.`
+- Frostlanze: `Game skill icon, 64×64, painterly toon, dark vignette, a long faceted ice lance piercing three dark enemy silhouettes in a line, the last one bursting into ice shards, royal blue and cyan-white palette, Western arcane mage magic, no sky.`
+- Eisschritt: `Game skill icon, 64×64, painterly toon, dark vignette, a crystalline ice statue of a wizard with a pointed hat, a frost glide path with small hexagons leading away, speed lines, royal blue and cyan-white palette, Western arcane mage magic, no sky.`
+- Frostpanzer: `Game skill icon, 64×64, painterly toon, dark blue vignette, an indigo robed torso with four thin hexagonal ice plates orbiting at chest height, royal blue and cyan-white palette, Western arcane mage magic.`
+- Kristallgrab: `Game skill icon, 64×64, painterly toon, dark vignette, five tall ice crystals growing in a hexagon out of a glowing downward-triangle sigil on the ground, royal blue and cyan-white palette, Western arcane mage magic, no falling icicles, no sky.`
+- Eiszeit (Ultimate): `Game skill icon, 64×64, painterly toon, golden frame, a hexagonal glacier plate with crystal spires at the rim and an enemy frozen inside a translucent hexagonal ice block, royal blue and cyan-white palette, Western arcane mage magic, no snowstorm.`
+
+Blitz (yellow-white with violet edges, #ffe94a, #ffffff, #8a5aff):
+- Blitznova: `Game skill icon, 64×64, painterly toon, dark vignette, jagged yellow-white ground lightning crawling outward from a small wizard figure along a flat violet ring, yellow-white and violet palette, Western arcane mage magic, flat ground-level effect, no clouds, no bolts from the sky.`
+- Kettenblitz: `Game skill icon, 64×64, painterly toon, dark vignette, a zigzag lightning bolt jumping over three glowing nodes, a small violet spark pair at each node, yellow-white and violet palette, Western arcane mage magic, no clouds, no sky.`
+- Blitzschritt: `Game skill icon, 64×64, painterly toon, dark vignette, a faded wizard afterimage turning into a horizontal lightning streak with a scorched line below, yellow-white and violet palette, Western arcane mage magic, no sky.`
+- Statische Ladung: `Game skill icon, 64×64, painterly toon, dark blue vignette, the hem of an indigo robe crackling with small white and violet sparks, yellow-white and violet palette, Western arcane mage magic.`
+- Kugelblitz: `Game skill icon, 64×64, painterly toon, dark vignette, a crackling ball of lightning rising low above a triangle sigil with a bar, three horizontal arcs striking outward, yellow-white and violet palette, Western arcane mage magic, no clouds, no sky.`
+- Donnerkrone (Ultimate): `Game skill icon, 64×64, painterly toon, golden frame, a crown of yellow-white lightning spikes above an indigo hat brim, two horizontal arcs leaving the sides, yellow-white and violet palette, Western arcane mage magic, no clouds, no sky.`
+
+Erde (dark basalt with glowing amber, #3e3532, #f0a830, #ffd98a):
+- Erdnova: `Game skill icon, 64×64, painterly toon, dark vignette, six black basalt shards with amber veins flung outward horizontally from a glowing amber centre, amber cracks on the ground, basalt and amber palette, Western arcane mage magic, flat ground-level effect, no rock pillar, no sand.`
+- Steingeschoss: `Game skill icon, 64×64, painterly toon, dark vignette, a dark basalt boulder with a glowing amber core flying to the right with speed lines, basalt and amber palette, Western arcane mage magic, no sand.`
+- Erdsprung: `Game skill icon, 64×64, painterly toon, dark vignette, a wizard with a pointed hat rising out of a glowing amber fissure in the ground, small basalt shards flying, basalt and amber palette, Western arcane mage magic, no crater, no sand.`
+- Basalthaut: `Game skill icon, 64×64, painterly toon, dark blue vignette, an indigo robed torso covered by dark basalt plates with glowing amber seams on both shoulders and the chest, basalt and amber palette, Western arcane mage magic.`
+- Schwerkraftsiegel: `Game skill icon, 64×64, painterly toon, dark vignette, an amber spiral on a downward-triangle sigil pulling three basalt boulders inward, basalt and amber palette, Western arcane mage magic, flat ground-level effect, no sky.`
+- Weltenbruch (Ultimate): `Game skill icon, 64×64, painterly toon, golden frame, a ring of seven basalt monoliths with amber veins tilting inward around a glowing crack, basalt and amber palette, Western arcane mage magic, no rock pillar, no sand.`

@@ -82,6 +82,11 @@ Kleine Nieten und Muster sind nur das Sahnehäubchen.
   Stirnschmuck.
 - **Nekromant:** zerfetzte Robe, Knochen und Schädel als Schmuck, Kapuze mit leuchtenden Augen,
   grüne Seelenrunen.
+- **Magier (seit 8.6):** langer geschichteter Mantel über der Robe, hoher steifer Stehkragen, schmale Ärmel mit Glockenstulpen,
+  Buch an einer Kette am Gürtel, spitzer Krempenhut; Zepter mit schwebendem Kristall. Indigo und Silber, die Farbe des
+  gewählten Elements nur an Kristall, Hutband, Saumrunen und Handlicht. Keine Schärpe, keine Federn, kein Gold, keine Kapuze.
+  Männlich: gerade knöchellange Robe mit Mittelschlitz und kurzem Schultercape. Weiblich: Korsage mit Silberschnürung,
+  A-Linie ab der Hüfte, langer silberner Zopf vor der Schulter.
 
 ---
 
@@ -150,6 +155,22 @@ Hilfen für Motive: `crescent3`, `sun3`, `wing3`, `floatGem3`, `emberSpike3`, `s
 | 6 | Sternenrobe | Sternbilder | leuchtende Punkte verbunden |
 | 7 | Götterrobe | goldene Knochenrüstung | Halbmond-Kragen, Goldsaum |
 
+### 4.4a Robe – Magier (seit 8.6)
+Die Elementfarbe (Feuer Karmin `#e8362a`, Frost Königsblau `#3a7bff`, Blitz Gelbweiß `#ffe94a` mit Violett,
+Erde Bernstein `#f0a830` auf Basalt) sitzt **ab Stufe 0** an Hutband, Buchschließe und Handlicht, damit man
+die vier Elemente auch in 2D auseinanderhält. Ohne bekannten Weg: Arkan-Blau `#b8c4ff`.
+
+| Stufe | Name | Merkmal | Details |
+|---|---|---|---|
+| 0 | Novizenrobe | schlichte Wollrobe | Strickgürtel, Lesezeichenband, Hutband in Elementfarbe |
+| 1 | Gelehrtenrobe | steifer Stehkragen | Buch an Kette, drei Silberschließen |
+| 2 | Runenmantel | offener Übermantel, hoher Kragen | sechs leuchtende Dreiecksrunen am Saum |
+| 3 | Kristallrobe | schwebende Kristalle über den Schultern | Kristallspitzen am Saum |
+| 4 | Arkanrobe | Tabard mit Element-Dreieck | dünner Runenring dreht sich um die Taille |
+| 5 | Aschenmantel | glühende Glutrisse | glimmender Saum |
+| 6 | Sternenmantel | Sternbilder auf Nachtblau | Halbmondschließe, kleines Astrolabium am Rücken |
+| 7 | Erzmagierornat | doppelter Stehkragen | Siegelring hinter dem Rücken, Goldsaum |
+
 ### 4.5 Helm / Kopf
 | Stufe | Krieger | Ninja | Schamane | Nekromant |
 |---|---|---|---|---|
@@ -161,6 +182,19 @@ Hilfen für Motive: `crescent3`, `sun3`, `wing3`, `floatGem3`, `emberSpike3`, `s
 | 5 | Aschenhelm: Krone aus Zacken | Oni-Maske mit Hörnchen | Glutkrone mit schwebender Glut | Schattenkrone mit langen Hörnern |
 | 6 | Himmelshelm mit großen Flügeln | Sternenmaske mit Stirnstern | Wolkenkrone mit Flügeln | Sternenkapuze mit Lichtpunkten |
 | 7 | Götterhelm mit Sonnenscheibe und hohem Kamm | goldene Fuchsmaske mit Ohren | Götterdiadem mit Sonnenscheibe | Götterschädel mit Heiligenschein |
+
+**Magier (seit 8.6)** – spitzer Krempenhut (Kegel auf breiter Krempe, Band in Elementfarbe), bei Frauen leicht schräg:
+
+| Stufe | Magier |
+|---|---|
+| 0 | Novizenhut mit geknickter Spitze |
+| 1 | Gelehrtenhut mit Silberband und Elementstein |
+| 2 | Runenhut (höher) mit leuchtendem Runenband |
+| 3 | Kristallhut, die Spitze endet in einem schwebenden Kristall |
+| 4 | Arkanhut mit glühender Krempe und schwebendem Dreieck über der Spitze |
+| 5 | Aschenhut, verkohlt, mit Glutlöchern und Rauchfaden |
+| 6 | Sternenhut mit Sternpunkten, gerollter Spitze und kreisendem Stern |
+| 7 | Erzmagierreif (kein Hut): Silberreif mit drei schwebenden Kristallen |
 
 ### 4.6 Schultern
 Die Grundform richtet sich nach der Klasse: Krieger große Platte, Ninja kleine Lederkappe, Schamane
@@ -246,6 +280,10 @@ Für die anderen Arten gilt dasselbe Muster:
 - **Glocke:** Kronenaufsatz.
 - **Stab:** Kopfstück (Schädel, Kristall, Sonne).
 - **Sense:** Blattform je Stufe.
+- **Zepter (Magier, seit 8.6):** kurzer Schaft mit Silbermanschette, Metallkäfig mit schwebendem Oktaeder-Kristall in
+  Elementfarbe; Käfigform je Stufe (Holzgabel, Silberband, Mondsichel, Kristallbündel, gekreuzte Ringe, Sechseck-Siegelplatte
+  mit Glutkern, Astrolabium mit Sternspitzen, Goldhalo mit drei Kristallen). Im Stand kreist ein kleiner Elementfunke um den
+  Kristall – nicht aufsteigend wie beim Nekromanten, nicht zweihändig türkis wie beim Schamanen.
 
 ---
 
@@ -454,6 +492,11 @@ Stylized 3D chibi shaman in eight robes: plain linen robe with headband; silk ro
 Stylized 3D chibi necromancer in eight robes: ragged burial wraps and torn hood; grey ash robe; bone robe with ribcage chestplate and bone helm; soul robe with glowing green hem flames; death king robe with skull collar and spiked crown; shadow robe with long smoky tails and shadow horns; star robe with connected constellation dots; golden bone armor with a halo above a golden skull mask. Staff or scythe. Top-down three-quarter view.
 ```
 
+### Magier-Sets
+```
+Stylized 3D chibi mage in eight robes, Western high-fantasy scholar: plain grey-blue wool robe with a soft bent pointed hat; indigo scholar robe with a stiff standing collar, a book on a chain and a silver-banded pointed hat; open rune coat with glowing triangle runes on the hem; crystal robe with crystals floating above the shoulders and a hat tip ending in a floating crystal; arcane tabard with a triangle emblem and a slowly turning rune ring; charred ash coat with glowing ember cracks; night-blue star coat with a crescent clasp and a small astrolabe; white-and-silver archmage robe with a double collar, a sigil ring behind the back and a circlet of three floating crystals. Holding a short sceptre whose cage holds a floating octahedral crystal in the element colour (crimson, royal blue, yellow-white or amber). No feathers, no dragons, no gold talismans, no teal, no hood. Male and female. Top-down three-quarter view.
+```
+
 ### Monster-Detailstufe
 ```
 Stylized 3D chibi fantasy monsters, top-down three-quarter view: a wolf with two-tone fur (dark back, light belly), a mane of tufts, ivory claws and fangs; a forest spider with a glossy ridged carapace, hairy legs and a glowing venom tip; a stone golem with mossy seams and a glowing core crystal; a demon with ringed horns, veined wing membranes and ember cracks. Clean shapes, readable at small size, toon shading, thick outlines.
@@ -536,6 +579,8 @@ Vollendet – dazu Himmelsstrahl, Glutwelle und leichtes Beben.
 - **Vergiftet:** grüne Bläschen steigen auf, grüner Schimmer, grüne Leiste.
 - **Verwundbar / verflucht:** violette Rune schwebt über dem Kopf, dunkler Rauch an den Füßen.
 - **Rückstoß:** Staubschleppe am Boden in Flugrichtung.
+- **Eingefroren (Magier, seit 8.6):** durchscheinender königsblauer Eisblock in Sechseckform um das Ziel, weißer Rand,
+  zwei Glanzlinien, die Pose bleibt stehen; statt der Sterne. Beim Zerspringen fliegen Eissplitter. Bosse frieren nie ein.
 
 **Leistung**
 - Alle 3D-Effekte sind gepoolte Körper (`FX3`): Ringe, Säulen, Sicheln, Wirbel, Splitter, Kugeln,
@@ -556,6 +601,7 @@ Vollendet – dazu Himmelsstrahl, Glutwelle und leichtes Beben.
 | Fächer / Glocke | Schamane | Windklinge | türkisfarbene Windsichel fliegt zum Ziel, Blätter wirbeln |
 | Stab | Nekromant | Seelengeschoss | grüne Kugel mit Schweif, Schädelgesicht angedeutet |
 | Sense | Nekromant | Sensenhieb | lange grüne Sichel am Boden entlang, Rauch |
+| Zepter | Magier (8.6) | Elementgeschoss | Feuer kleiner Komet mit Glut, Frost blaue Raute, Blitz weißer Funke mit zuckenden Zacken, Erde Bernsteinkiesel |
 
 ```
 Combat VFX reference sheet, stylized 3D toon MMORPG seen from a top-down three-quarter camera: basic attacks of nine weapons side by side – a bright steel crescent slash of a sword, a short heavy axe chop with sparks and a small ground crack, a wide two-handed crescent with a blade afterimage, a double arc of a great axe kicking up dust, two quick violet stab lines of twin daggers, an arrow with a glowing trail, a turquoise wind blade with swirling leaves from a fan, a green skull-faced soul orb from a staff, a long green scythe sweep along the ground. Clean shapes, readable at phone size.
@@ -710,3 +756,93 @@ Skill VFX sheet for a stylized 3D toon necromancer (bone path), top-down three-q
   6 Schollen, im Wasser nur Ringe, höchstens drei Krater gleichzeitig). Eigene Posen je Fertigkeit
   (`SKILL_POSE3` in `js/drei-figuren.js`), Sprunghöhe mit harter Fallkurve (`leapCurve`), Mitspieler fliegen auf
   derselben Bahn (`rp.glide`).
+- **Seit 8.6 umgesetzt (Magier):** `nova3` (Front mit Takt, je Element eigene Form), `sigil3` (Dreieckssiegel `msig0–3`),
+  Eisblock bei `m.frozen`, Geschoss-Stile `fireball`, `frostlance`, `arc`, `stone`, Posen `nova`, `stoss`, `zauber`,
+  `schritt`; alle Magier-Effekte in `js/magier.js`. Symbole der 24 Magier-Fertigkeiten und die 2D-Buffbilder in
+  `js/magier-symbole.js`, 2D-Figur, Spitzhut und Zepter in `js/figuren.js`, 2D-Eisblock in `js/zeichnen.js`.
+
+### Magier: Grundregeln (seit 8.6)
+Der Magier ist ein westlicher Gelehrtenmagier, kein Schamane. Damit man beide auf einen Blick trennt:
+- **Form:** Dreiecks-Siegel (alchemistisch: △ Feuer, ▽ Frost, △ mit Balken Blitz, ▽ mit Balken Erde) statt des runden
+  Hexagramms des Schamanen. **Keine** Drachen, Wirbel um die Figur, Wolken oder Meteore.
+- **Richtung:** Alles läuft **flach am Boden von den Füßen nach außen** (Novas) oder **steigt aus einem Bodensiegel auf**
+  bzw. zieht sich nach innen (Siegel). Nichts fällt vom Himmel, kein Teil höher als 2,6 Einheiten.
+- **Farbe:** Elementfarbe nur als Akzent; Karmin statt Orange, Königsblau statt Blassblau, Gelbweiß mit Violett statt
+  Hellblau, dunkler Basalt mit Bernstein statt Sand.
+- **Platzschema** in allen vier Wegen: 1 Nova (ab Stufe 1) · 2 Element-Geschoss (3) · 3 Elementsprung (5) · 4 Buff (7) ·
+  5 Großes Siegel mit Zielkreis (10) · Ultimate (30). Ab E1 folgt jeder Nova ein schwächerer, weiterer Nachhall.
+
+### 9.12 Magier – Weg der Flamme (Flächenschaden und Brand)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Feuernova | 1 | Nova um die Figur, Rückstoß, Brand, Brennende explodieren | Zepter in den Boden, karminroter Flammenring läuft am Boden nach außen, Brandring |
+| Feuerball | 3 | Geschoss, Splitter 70, Brand | weißglühender Ball mit zwei Siegelringen, kleine Explosion |
+| Flammenschritt | 5 | Sprung bis 170, Explosion am Startpunkt | Stichflamme, brennende Spur |
+| Glutherz | 7 | Buff: Zauberschaden, Krit | glühender Kern über der Hand |
+| Flammenkreis | 10 | Zielfläche, drei Pulse nach innen, Brand | Dreieckssiegel, Flammenwand zieht sich zur Mitte |
+| **Inferno** (Ultimate) | 30 | drei Feuernovas, immer weiter | drei Flammenringe rollen nacheinander nach außen |
+
+**Abgrenzung zum Schamanen:** keine Drachen, kein Wirbel um die Figur (Drachenwirbel), nichts fällt herab (Drachensturm);
+ein flacher Ring aufrechter **karminroter** Flammen, der nach außen läuft, ohne Drehung. Karmin und Weiß statt Orange.
+
+```
+Skill VFX sheet for a stylized 3D toon mage (fire path), top-down three-quarter view, crimson and white-hot palette (#e8362a, #a0102e, #fff1c8): FIRE NOVA – the mage rams a crystal sceptre into the ground and a flat ring of upright crimson flame tongues races outward across the floor from a small glowing triangle sigil, leaving a burnt ring; FIREBALL – a white-hot fireball wrapped in two thin rotating sigil rings bursting into a small crimson explosion; FLAME STEP – the mage vanishes in a tall crimson flame burst, burning footprints lead away; EMBER HEART – a glowing ember core floating above an open palm; FLAME CIRCLE – a glowing upward-triangle sigil on the ground with a circular wall of flames closing inward three times; ULTIMATE "INFERNO" – three concentric crimson flame rings rolling outward one after another. No dragons, no meteors, nothing falling from the sky, no orange vortex.
+```
+
+### 9.13 Magier – Weg des Frosts (Kontrolle und Einfrieren)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Frostnova | 1 | Nova, Einfrieren, Verlangsamung | königsblaue Sechseck-Frostplatte, flache Eisnadeln schießen nach außen, Gegner im Eisblock |
+| Frostlanze | 3 | durchbohrt die Linie, verlangsamt, Eingefrorene zerspringen | lange Eislanze, Eisblock zerbricht in Splitter |
+| Eisschritt | 5 | Gleiten bis 160, Eisfigur zerspringt | Eisstatue am Startpunkt, Frostbahn |
+| Frostpanzer | 7 | Buff: Verteidigung, weniger Schaden, Angreifer verlangsamt | vier Sechseck-Eisplatten kreisen |
+| Kristallgrab | 10 | Zielfläche, Einfrieren, Eisfeld verlangsamt | sieben Eiskristalle wachsen im Sechseck aus einem ▽-Siegel |
+| **Eiszeit** (Ultimate) | 30 | alles erstarrt 2 s, dann Zerspringen | Gletscherplatte, Kristalle am Rand, alles zerbricht zugleich |
+
+**Abgrenzung zum Schamanen:** kein Schneesturm, keine Eiszapfen von oben, kein Zielkreis mit Schneetreiben (Blizzard);
+ein flaches **königsblaues Sechseck** mit waagrechten Kristallen, Cyan nur als Glanz.
+
+```
+Skill VFX sheet for a stylized 3D toon mage (frost path), top-down three-quarter view, royal blue dominant with cyan-white highlights (#3a7bff, #1a3fb0, #eafcff): FROST NOVA – a royal-blue hexagonal frost plate spreads over the ground from the mage's feet, flat ice needles shoot outward like a starburst, nearby enemies are encased in translucent hexagonal ice blocks; FROST LANCE – a long faceted ice lance pierces a line of enemies, a frozen one shatters into shards; ICE STEP – a crystalline ice statue of the mage cracks apart while a frost glide path leads away; FROST ARMOR – four thin hexagonal ice plates orbit the mage at chest height; CRYSTAL TOMB – seven tall ice crystals erupt in a hexagon from a downward-triangle sigil; ULTIMATE "ICE AGE" – a vast hexagonal glacier sheet with crystal spires, every enemy frozen, then everything shatters at once. No snowstorm, no falling icicles, nothing from the sky.
+```
+
+### 9.14 Magier – Weg des Blitzes (Ketten und Tempo)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Blitznova | 1 | bis 8 Ziele, kurze Betäubung, Ladung | gezackte Bodenblitze kriechen nach außen, violetter Saum, zwei Kugelblitze kreisen |
+| Kettenblitz | 3 | springt zu zwei weiteren, entlädt Geladene | Blitz aus dem Zepter, Funkenpaare an jedem Knoten |
+| Blitzschritt | 5 | Blitz bis 200, Treffer auf der Strecke, Betäubung | Figur wird zum waagrechten Blitz, Brandlinie |
+| Statische Ladung | 7 | Buff: Angriffstempo, Krit, Lauftempo | Funken knistern über die Robe |
+| Kugelblitz | 10 | Zielfläche, 3 s Zaps auf drei Gegner, Betäubung | Kugel steigt aus einem Siegel, schlägt waagrecht zu |
+| **Donnerkrone** (Ultimate) | 30 | sechs Blitze, dann Tempo-Buff | Blitzkrone über dem Kopf, waagrechte Blitze |
+
+**Abgrenzung zum Schamanen:** keine Wolke, keine Blitze vom Himmel (Donnersturm), keine Blitzschlange (Blitzdrache);
+nur **flache Bodenbögen** und waagrechte Zaps, Gelbweiß mit violettem Saum statt Hellblau.
+
+```
+Skill VFX sheet for a stylized 3D toon mage (lightning path), top-down three-quarter view, yellow-white with violet edges (#ffe94a, #ffffff, #8a5aff): LIGHTNING NOVA – jagged yellow-white arcs crawl outward along the ground from the mage to nearby enemies, two violet ball lightnings orbit; CHAIN LIGHTNING – a bolt leaps from a crystal sceptre to an enemy and on to two more, small spark pairs at each node; LIGHTNING STEP – the mage becomes a horizontal lightning streak with an afterimage and a scorched line; STATIC CHARGE – tiny sparks crackle over the robe; BALL LIGHTNING – a crackling sphere rises low above a triangle sigil and strikes three enemies with horizontal arcs; ULTIMATE "THUNDER CROWN" – a crown of lightning spikes above the mage firing horizontal arcs. No clouds, no bolts from the sky, no dragon.
+```
+
+### 9.15 Magier – Weg der Erde (Schutz und Schwerkraft)
+
+| Fertigkeit | Ab Stufe | Wirkung | Merkmal |
+|---|---|---|---|
+| Erdnova | 1 | Nova, hochschleudern, Rückstoß, Betäubung | Basaltsplitter mit Bernsteinadern heben sich und fliegen waagrecht nach außen, Bernsteinrisse |
+| Steingeschoss | 3 | schwerer Treffer, Splitter 55, Betäubung | Basaltbrocken mit Bernsteinkern |
+| Erdsprung | 5 | durch die Erde bis 150, Ausbruch beim Ziel | glühender Riss, Ausbruch mit Splittern |
+| Basalthaut | 7 | Buff: Schild, Verteidigung | Basaltplatten mit Bernsteinadern an Schultern und Brust |
+| Schwerkraftsiegel | 10 | Zielfläche, Sog, drei Treffer, Einsturz | Bernsteinsiegel, drei Felsen kreisen nach innen |
+| **Weltenbruch** (Ultimate) | 30 | Monolithen, hochschleudern, Einsturz, Steinhaut | acht Basaltmonolithen im Kreis kippen nach innen |
+
+**Abgrenzung zum Schamanen** (der keine Erde hat) **und zum Krieger:** kein Felspfeiler, keine Mulde, kein Sand
+(Felsenfaust, Sprungschlag, Erdbeben); dunkler Basalt mit Bernstein, nach außen geschleudert oder nach innen gezogen.
+
+```
+Skill VFX sheet for a stylized 3D toon mage (earth path), top-down three-quarter view, dark basalt with glowing amber (#3e3532, #f0a830, #ffd98a): EARTH NOVA – black basalt shards with glowing amber cracks rise around the mage and are flung outward horizontally by a gravity pulse, amber cracks radiate across the floor; STONE SHOT – a dark basalt boulder with an amber core hurtles forward and shatters; EARTH STEP – the mage sinks into a glowing amber fissure and erupts further away in a burst of shards; BASALT SKIN – dark basalt plates with amber seams cover shoulders and chest; GRAVITY SIGIL – an amber sigil with three boulders spiralling inward, enemies dragged to the centre; ULTIMATE "WORLD BREAK" – eight basalt monoliths with amber veins burst up in a ring and topple inward. No rock pillar, no crater, no sand colours.
+```
+
+Symbol-Prompts für alle 24 Magier-Fertigkeiten stehen in `docs/bild-prompts.md` („Der Magier (Version 8.6)“).
+

@@ -98,7 +98,7 @@ function enforceGearRules(p) {
   if (eq.waffe && !canWear(eq.waffe, p)) off('waffe');
   if (isOffhand(eq.schild) && (!canDualWield(p) || eq.schild.kind !== 'sword')) off('schild');
   if (eq.schild && !isOffhand(eq.schild) && !canWear(eq.schild, p)) off('schild');
-  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind].twoHanded && eq.schild) off('schild');
+  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind]?.twoHanded && eq.schild) off('schild');
   return moved;
 }
 
@@ -111,7 +111,8 @@ function itemName(item) {
 // Kurzbeschreibung: Waffenart bzw. Klasse
 function itemKindText(item) {
   if (item.slot === 'waffe') {
-    const k = WEAPON_KINDS[item.kind];
+    // unbekannte Waffenart (Gegenstand aus einer neueren Version): nicht abstürzen
+    const k = WEAPON_KINDS[item.kind] || { name: 'Waffe' };
     const who = k.path != null ? CLASSES[item.cls].paths[k.path].name : CLASSES[item.cls].name;
     return `${k.name}${k.twoHanded ? ' (Zweihand)' : ''} · ${who}`;
   }
@@ -135,7 +136,7 @@ function itemStats(item, plus = item.plus) {
   const base = { ...BASE_STATS[item.slot][t] };
   let speed = null;
   if (item.slot === 'waffe') {
-    const k = WEAPON_KINDS[item.kind];
+    const k = WEAPON_KINDS[item.kind] || { atkMul: 1, atkSpeed: 0 };
     base.atk = Math.round(base.atk * k.atkMul);
     if ((item.kind === 'dagger' || item.kind === 'bow') && CRIT_BY_TIER[t]) base.crit = CRIT_BY_TIER[t] * (item.kind === 'bow' ? 0.7 : 1);
     if (k.magic && t) {
@@ -200,7 +201,7 @@ function compareItem(item, hand) {
   const slot = hand === 'off' ? 'schild' : item.slot;
   const eq = { ...p.equipment, [slot]: item };
   if (slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded) eq.schild = null;
-  if (slot === 'schild' && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind].twoHanded) eq.waffe = null;
+  if (slot === 'schild' && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind]?.twoHanded) eq.waffe = null;
   const test = playerStats({ ...p, equipment: eq });
   const out = [];
   for (const [k, name, fmt] of COMPARE_STATS) {
@@ -384,13 +385,17 @@ function addBookItem(p, id, n = 1, force = false) {
   return true;
 }
 
-// n Bücher zu zufälligen Fertigkeiten; pool schränkt die Auswahl ein (z. B. eigene Fertigkeiten)
+// n Bücher zu zufälligen Fertigkeiten; pool schränkt die Auswahl ein (z. B. eigene Fertigkeiten).
+// Ohne pool zieht jedes Buch mit OWN_BOOK_BIAS aus den eigenen Fertigkeiten: Mit dem Magier (8.6) wuchs der
+// Pool von 38 auf 58 Bücher; so bleiben eigene Bücher so häufig wie vorher (0,05 + 0,95 · 5/58 ≈ 13 %).
+const OWN_BOOK_BIAS = 0.05;
 function addBooks(n, from, pool) {
   const p = game.player;
   const ids = pool || [...new Set(allSkills().map((e) => e.sk.id))];
   const got = [];
   for (let k = 0; k < n; k++) {
-    const id = ids[Math.floor(Math.random() * ids.length)];
+    const mine = !pool && Math.random() < OWN_BOOK_BIAS ? classSkills(p).map((sk) => sk.id) : null;
+    const id = mine ? mine[Math.floor(Math.random() * mine.length)] : ids[Math.floor(Math.random() * ids.length)];
     const sk = skillEntry(id).sk;
     if (!addBookItem(p, id, 1)) {
       ui.log(`Deine Tasche ist voll: Buch „${sk.name}“ bleibt liegen.`, 'warn');
@@ -407,7 +412,7 @@ function addBooks(n, from, pool) {
 }
 
 // Buchdeckel in der Farbe der Klasse, vorn das Symbol der Fertigkeit
-const BOOK_COVERS = { krieger: ['#8a2a1a', '#c8502a'], ninja: ['#3a2a5a', '#6a4a9a'], schamane: ['#145a5a', '#2a8a8a'], nekromant: ['#2a4a1a', '#4a7a2a'] };
+const BOOK_COVERS = { krieger: ['#8a2a1a', '#c8502a'], ninja: ['#3a2a5a', '#6a4a9a'], schamane: ['#145a5a', '#2a8a8a'], nekromant: ['#2a4a1a', '#4a7a2a'], magier: ['#1e2458', '#4a5ab8'] };
 function bookSprite(id) {
   return getSprite('book:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
     const e = skillEntry(id);
@@ -557,7 +562,7 @@ function lootSlots(slots, cls) {
 // Waffenart der Beute: für die eigene Klasse meist eine, die der eigene Weg führen kann
 function lootKind(p, cls) {
   const kinds = CLASS_WEAPON_KINDS[cls];
-  const own = cls === p.classId && Math.random() < 0.8 ? kinds.filter((k) => WEAPON_KINDS[k].path == null || WEAPON_KINDS[k].path === (p.path || 0)) : kinds;
+  const own = cls === p.classId && Math.random() < 0.8 ? kinds.filter((k) => WEAPON_KINDS[k]?.path == null || WEAPON_KINDS[k].path === (p.path || 0)) : kinds;
   return own[randInt(0, own.length - 1)];
 }
 
@@ -621,7 +626,7 @@ function equipFromBag(index, hand) {
   }
   // Schild oder Zweihandwaffe: beides zusammen geht nicht
   const weapon = p.equipment.waffe;
-  if ((item.slot === 'schild' || off) && weapon && WEAPON_KINDS[weapon.kind].twoHanded) {
+  if ((item.slot === 'schild' || off) && weapon && WEAPON_KINDS[weapon.kind]?.twoHanded) {
     gear.message(`Mit ${itemName(weapon)} hast du keine Hand frei. Lege zuerst eine einhändige Waffe an.`, 'warn');
     return false;
   }
@@ -630,7 +635,7 @@ function equipFromBag(index, hand) {
   p.inventory.splice(index, 1);
   if (old) p.inventory.splice(index, 0, old);
   p.equipment[slot] = item;
-  if (item.slot === 'waffe' && !off && WEAPON_KINDS[item.kind].twoHanded && p.equipment.schild) {
+  if (item.slot === 'waffe' && !off && WEAPON_KINDS[item.kind]?.twoHanded && p.equipment.schild) {
     const shield = p.equipment.schild;
     if (addToBag(shield)) {
       p.equipment.schild = null;
@@ -783,6 +788,10 @@ function drawItemArt(ctx, item) {
       ctx.rotate(Math.PI / 4);
       ctx.translate(-2, 0);
       ctx.scale(1.35, 1.35);
+    } else if (kind === 'rod') {
+      // Zepter: kurz, dafür etwas größer
+      ctx.translate(-11, 0);
+      ctx.scale(1.02, 1.02);
     } else if (long) {
       ctx.translate(-15, 0);
       ctx.scale(0.85, 0.85);
@@ -802,6 +811,25 @@ function drawItemArt(ctx, item) {
     stroke(ctx, trim, 1.2, [[-3, -12], [0, -5], [3, -12]]);
     box(ctx, -8, 1, 16, 2.4, 1, trim);
     stroke(ctx, trim, 1, [[-9, 12.5], [9, 12.5]]);
+  } else if (slot === 'ruestung' && item.cls === 'magier') {
+    // Magier (seit 8.6): langer Mantel mit hohem Stehkragen, Mittelschlitz und Glockenstulpen
+    const L = ARMOR_LOOK.magier;
+    const robe = L.robe[tier];
+    const silver = L.trim[tier];
+    const arkan = MAGE_EL.arkan.main;
+    poly(ctx, [[-6, -11], [6, -11], [10, 14], [-10, 14]], robe);
+    poly(ctx, [[-1, 0], [1, 0], [3.5, 14], [-3.5, 14]], darker(robe, 0.3));
+    for (const sg of [-1, 1]) {
+      poly(ctx, [[sg * 6, -11], [sg * 13, 5], [sg * 9.5, 7], [sg * 4.5, -3]], darker(robe, 0.12));
+      poly(ctx, [[sg * 12.6, 4], [sg * 9.2, 6.4], [sg * 10, 9.6], [sg * 15, 6.6]], darker(robe, 0.12));
+      stroke(ctx, silver, 1, [[sg * 10, 9.6], [sg * 15, 6.6]]);
+      poly(ctx, [[sg * 2.4, -11], [sg * 6.6, -16], [sg * 6, -10.5]], mixColor(robe, silver, 0.35));
+      stroke(ctx, silver, 0.9, [[sg * 1.8, -10], [sg * 1.8, 0], [sg * 3.6, 13.5]]);
+    }
+    stroke(ctx, tier === 7 ? '#e8c46a' : silver, 1.4, [[-9.6, 12.8], [9.6, 12.8]]);
+    box(ctx, -7, 0, 14, 2, 0.8, tier === 0 ? '#c8b890' : '#2a2230');
+    if (tier >= 2) for (const x of [-6, 0, 6]) mageGlyph2D(ctx, x, 10, 1.4, 'up', arkan, 0.8);
+    if (tier >= 4) mageGlyph2D(ctx, 0, -5, 2.6, 'up', arkan, 1);
   } else if (slot === 'ruestung' && item.cls === 'ninja') {
     // Wams mit Schal und Kreuzgurten
     const L = ARMOR_LOOK.ninja;
@@ -841,6 +869,36 @@ function drawItemArt(ctx, item) {
     if (tier >= 3) for (const x of [-9, -3, 3, 9]) poly(ctx, [[x - 2.5, -2], [x, -10 - (tier >= 5 ? 3 : 0)], [x + 2.5, -2]], band);
     oval(ctx, 0, 1, 2.6, 2.6, tier >= 4 ? '#ffffff' : '#c8402f');
     if (tier < 3) for (const x of [-13, 13]) poly(ctx, [[x, 2], [x + (x < 0 ? -3 : 3), 12], [x + (x < 0 ? 1 : -1), 12]], band);
+  } else if (slot === 'helm' && item.cls === 'magier') {
+    // Spitzer Krempenhut; Erzmagierreif mit drei schwebenden Kristallen
+    const L = ARMOR_LOOK.magier;
+    const hat = L.hat[tier];
+    const arkan = MAGE_EL.arkan.main;
+    ctx.save();
+    ctx.translate(0, 3);
+    if (tier === 7) {
+      box(ctx, -13, 2, 26, 4, 2, L.trim[tier]);
+      oval(ctx, 0, 4, 2, 2, arkan);
+      for (const [x, y] of [[-8, -6], [0, -10], [8, -6]]) rodCrystal(ctx, x, y, 0.75, arkan, true);
+    } else {
+      const bent = tier === 0 || tier === 6;
+      oval(ctx, 0, 9, 16, 4.6, darker(hat, 0.08));
+      paintShape(ctx, () => {
+        ctx.beginPath();
+        ctx.moveTo(-10, 8);
+        ctx.quadraticCurveTo(-6, -4, bent ? -9 : 1, bent ? -14 : -19);
+        ctx.quadraticCurveTo(5, -4, 10, 8);
+        ctx.quadraticCurveTo(0, 10, -10, 8);
+        ctx.closePath();
+      }, hat, -10, -19, 20, 28);
+      poly(ctx, [[-10, 8.4], [10, 8.4], [9, 4.6], [-9, 4.6]], tier === 1 ? L.trim[tier] : arkan);
+      if (tier === 1) oval(ctx, 0, 6.5, 1.8, 1.8, arkan);
+      if (tier === 3) rodCrystal(ctx, 1, -22, 0.7, arkan, true);
+      if (tier === 4) mageGlyph2D(ctx, 1, -22.5, 2.6, 'up', arkan, 1.2);
+      if (tier === 5) for (const [x, y] of [[-4, 0], [3, -5], [-1, -10]]) dot(ctx, x, y, 1, 0.8, '#ff7a2a');
+      if (tier === 6) for (const [x, y] of [[-4, 1], [3, -3], [-2, -8], [4, 3]]) dot(ctx, x, y, 0.8, 0.8, '#ffffff');
+    }
+    ctx.restore();
   } else if (slot === 'helm' && item.cls === 'nekromant') {
     // Spitze Kapuze, ab Stufe 5 mit Knochenkrone
     const L = ARMOR_LOOK.nekromant;
@@ -1566,7 +1624,8 @@ const gear = {
       .flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].filter((kind) => canWear(makeItem('waffe', 0, 0, p.classId, kind), p)).map((kind) => ({ slot, kind })) : [{ slot }]));
     const groups = lists.map(({ slot, kind }) => {
       const slotName = EQUIP_SLOTS.find((x) => x.id === slot).name;
-      const title = kind ? `${WEAPON_KINDS[kind].name} für ${CLASSES[p.classId].name} <small>${WEAPON_KINDS[kind].text}</small>`
+      const wk = WEAPON_KINDS[kind] || { name: 'Waffe', text: '' };
+      const title = kind ? `${wk.name} für ${CLASSES[p.classId].name} <small>${wk.text}</small>`
         : CLASS_SLOTS.includes(slot) ? `${slotName} für ${CLASSES[p.classId].name}` : slotName;
       const equipped = p.equipment[slot];
       const eqStats = equipped ? itemStats(equipped) : {};

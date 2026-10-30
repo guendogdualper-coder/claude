@@ -248,7 +248,8 @@ function hBody(ctx, dir, w, o) {
   const y = -24 + w.bob;
   if (o.robe) {
     const wt = dir === 'side' ? 6.5 : 9;
-    const wb = dir === 'side' ? 9.5 : 12.5;
+    // hem: Saumbreite (Magier seit 8.6: gerade beim Mann, A-Linie bei der Frau)
+    const wb = (dir === 'side' ? 9.5 : 12.5) * (o.hem || 1);
     const pts = [[-wt, y + 4], [-wt + 3, y], [wt - 3, y], [wt, y + 4], [wb, -2.5]];
     if (o.tattered) {
       for (let k = 1; k < 7; k++) pts.push([wb - (2 * wb) * k / 7, k % 2 ? -0.3 : -3.4]);
@@ -277,7 +278,11 @@ function hArms(ctx, dir, w, o) {
       if (o.cuff) box(ctx, x - 1.5, y + dy + 8.6, 8, 2, 1, o.cuff);
     } else {
       box(ctx, x, y + dy, 5, 10.5, 2.5, o.sleeve);
-      if (o.cuff) box(ctx, x, y + dy + 7.8, 5, 2, 1, o.cuff);
+      // Glockenstulpe (Magier): unten ausgestellt, mit Saum in der Stulpenfarbe
+      if (o.cuff && o.bell) {
+        poly(ctx, [[x + 0.3, y + dy + 7.2], [x + 4.7, y + dy + 7.2], [x + 6.4, y + dy + 10.8], [x - 1.4, y + dy + 10.8]], o.sleeve);
+        stroke(ctx, o.cuff, 1.1, [[x - 1.2, y + dy + 10.4], [x + 6.2, y + dy + 10.4]]);
+      } else if (o.cuff) box(ctx, x, y + dy + 7.8, 5, 2, 1, o.cuff);
     }
     if (!o.wideSleeves) stroke(ctx, darker(o.sleeve, 0.3), 0.5, [[x + 1, y + dy + 5.2], [x + 4, y + dy + 5.6]]);
     const hand = o.gloves || o.skin;
@@ -492,8 +497,113 @@ function swordArt(ctx, tier, big) {
   if (sh.runes) for (let x = 9; x < sh.len * k - 5; x += 5) stroke(ctx, sh.gem, 0.8, [[x, -0.7], [x + 2, 0.5]]);
 }
 
-function weaponArt(ctx, kind, tier = 0) {
+// Zepter des Magiers (seit 8.6): kurzer Schaft, Käfig je Stufe, darin schwebt ein Oktaeder-Kristall
+// in der Elementfarbe (accent; ohne Weg Arkan-Blau)
+const ROD_METAL = ['#8a6a44', '#d8e0f0', '#e6eef8', '#cfe6ff', '#b48cff', '#4a4044', '#e8f0ff', '#e8c46a'];
+const ROD_SHAFT = ['#6b4a2e', '#2e3350', '#252a5e', '#2a3f74', '#3b2c72', '#2a2024', '#121a3c', '#f4f0e6'];
+// Oktaeder-Kristall im Profil: Raute, links oben heller; vert: aufrecht statt längs zum Schaft
+function rodCrystal(ctx, x, y, s, accent, vert = false) {
+  const a = 5 * s;
+  const b = 3.2 * s;
+  if (vert) {
+    poly(ctx, [[x, y - a], [x + b, y], [x, y + a], [x - b, y]], accent);
+    poly(ctx, [[x, y - a], [x - b, y], [x, y + 1.2 * s]], lighter(accent, 0.45));
+    dot(ctx, x - 1 * s, y - 1.4 * s, 0.6 * s, 0.8 * s, '#ffffff');
+    return;
+  }
+  poly(ctx, [[x - a, y], [x, y - b], [x + a, y], [x, y + b]], accent);
+  poly(ctx, [[x - a, y], [x, y - b], [x + 1.2 * s, y]], lighter(accent, 0.45));
+  dot(ctx, x - 1.4 * s, y - 1 * s, 0.8 * s, 0.6 * s, '#ffffff');
+}
+function rodArt(ctx, tier, accent = '#b8c4ff') {
+  const m = ROD_METAL[tier] || ROD_METAL[0];
+  const shaft = ROD_SHAFT[tier] || ROD_SHAFT[0];
+  const cx = 22.5;
+  box(ctx, -7, -1.1, 23, 2.2, 1, shaft);
+  box(ctx, -1.5, -1.6, 3.4, 3.2, 0.8, tier ? m : '#c7ccd3');
+  box(ctx, 14, -1.9, 3, 3.8, 0.8, tier ? m : '#5a4030');
+  if (tier >= 1) oval(ctx, -7.4, 0, 1.6, 1.6, m);
+  // Hinter dem Kristall: Käfig, Ringe oder Platte
+  if (tier === 0) {
+    // Holzgabel
+    stroke(ctx, shaft, 1.6, [[16.5, 0], [19, -3.6], [25, -4.4]]);
+    stroke(ctx, shaft, 1.6, [[16.5, 0], [19, 3.6], [25, 4.4]]);
+  } else if (tier === 1) {
+    // Silberband: zwei Bügel um den Kristall
+    for (const sg of [-1, 1]) stroke(ctx, m, 1.1, [[17, sg * 1.5], [19.5, sg * 5], [25.5, sg * 5], [28, sg * 1.5]]);
+  } else if (tier === 2) {
+    // Mondsichel-Käfig, nach vorn offen
+    paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, 0, 6.6, 0.9, Math.PI * 2 - 0.9, false); ctx.arc(cx - 1.4, 0, 5, Math.PI * 2 - 1.1, 1.1, true); ctx.closePath(); }, m, cx - 7, -7, 12, 14);
+  } else if (tier === 3) {
+    // Kristallbündel: drei kleine Kristalle als Fassung
+    for (const [dx, dy, a] of [[-3, -4.5, -0.5], [-3, 4.5, 0.5], [3.8, 0, 0]]) {
+      ctx.save();
+      ctx.translate(cx + dx, dy);
+      ctx.rotate(a);
+      poly(ctx, [[-2.6, 0], [0, -1.4], [2.6, 0], [0, 1.4]], lighter(accent, 0.25));
+      ctx.restore();
+    }
+  } else if (tier === 4) {
+    // zwei gekreuzte Ringe
+    ctx.lineWidth = 1;
+    for (const a of [-0.7, 0.7]) {
+      ctx.strokeStyle = OUTLINE;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(cx, 0, 7, 2.6, a, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = m;
+      ctx.lineWidth = 1.1;
+      ctx.stroke();
+    }
+  } else if (tier === 5) {
+    // Sechseck-Siegelplatte mit Glutkern
+    const hex = [];
+    for (let k = 0; k < 6; k++) hex.push([cx + Math.cos(k * Math.PI / 3) * 6.5, Math.sin(k * Math.PI / 3) * 6.5]);
+    poly(ctx, hex, m);
+    stroke(ctx, '#ff7a2a', 0.7, [...hex, hex[0]].map(([x, y]) => [cx + (x - cx) * 0.75, y * 0.75]));
+    dot(ctx, cx, 0, 3.2, 3.2, '#ff7a2a');
+  } else if (tier === 6) {
+    // Astrolabium mit Sternspitzen
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    ctx.arc(cx, 0, 6.4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(cx, 0, 6.4, 2.2, 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4;
+      poly(ctx, [[cx + Math.cos(a - 0.2) * 6.4, Math.sin(a - 0.2) * 6.4], [cx + Math.cos(a) * 9.5, Math.sin(a) * 9.5], [cx + Math.cos(a + 0.2) * 6.4, Math.sin(a + 0.2) * 6.4]], m);
+    }
+  } else {
+    // Goldhalo mit drei Kristallen
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, 0, 7.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    for (let k = 0; k < 3; k++) {
+      const a = k * Math.PI * 2 / 3 + Math.PI / 6;
+      rodCrystal(ctx, cx + Math.cos(a) * 7.2, Math.sin(a) * 7.2, 0.42, accent);
+    }
+  }
+  rodCrystal(ctx, cx, 0, tier >= 3 ? 1.05 : 0.9, accent);
+}
+
+function weaponArt(ctx, kind, tier = 0, accent) {
   switch (kind) {
+    case 'rod':
+      rodArt(ctx, tier, accent);
+      break;
     case 'sword':
       swordArt(ctx, tier, false);
       break;
@@ -646,8 +756,9 @@ function weaponArt(ctx, kind, tier = 0) {
 
 const WEAPON_BOUNDS = { x: -14, y: -22, w: 58, h: 44 };
 
-function weaponSprite(kind, tier = 0) {
-  return getSprite(`w:${kind}:${tier}`, WEAPON_BOUNDS, (ctx) => weaponArt(ctx, kind, tier));
+// accent: Kristallfarbe des Zepters (nur 'rod')
+function weaponSprite(kind, tier = 0, accent) {
+  return getSprite(`w:${kind}:${tier}${accent ? ':' + accent : ''}`, WEAPON_BOUNDS, (ctx) => weaponArt(ctx, kind, tier, accent));
 }
 
 function heldWeapon(ctx, kind, x, y, angle, tier = 0) {
@@ -682,6 +793,12 @@ const ARMOR_LOOK = {
     robe: ['#4a4438', '#3a3a30', '#334a31', '#4a2a2a', '#2a1a3a', '#1e1a1a', '#2a3a4a', '#3a2a10'],
     hood: ['#3a3428', '#2e2a24', '#2a3b28', '#3a1e1e', '#24143a', '#141010', '#1e2a3a', '#2e2410'],
     glow: ['#a7e37f', '#a7e37f', '#a7e37f', '#ff6a5a', '#d6a8ff', '#ff9a4a', '#9fe8ff', '#ffe9a0']
+  },
+  // Magier (seit 8.6): Indigo und Silber; die Elementfarbe kommt aus MAGE_EL (Hutband, Kristall, Runen)
+  magier: {
+    robe: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#2a2428', '#121a3c', '#e6eaf2'],
+    trim: ['#a8b0bc', '#c8d2e4', '#d8e0f0', '#cfe6ff', '#e0d4ff', '#ff8a5a', '#e8f0ff', '#f4f6fb'],
+    hat: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#1e1a1c', '#121a3c', '#e6eaf2']
   }
 };
 
@@ -689,9 +806,9 @@ const ARMOR_LOOK = {
 // erst beim Zeichnen dazugemalt, weil er im Wind flattert)
 function playerLook(p) {
   const eq = p.equipment;
-  if (!eq) return { a: -1, h: -1, ap: p.look || null };
+  if (!eq) return { a: -1, h: -1, ap: p.look || null, pt: p.path ?? null };
   const t = (it) => (it ? it.tier : -1);
-  return { a: t(eq.ruestung), h: eq.helm ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern), ap: p.look || null };
+  return { a: t(eq.ruestung), h: eq.helm ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern), ap: p.look || null, pt: p.path ?? null };
 }
 
 // --- Sichtbare Ausrüstung: Schuhe, Gürtel, Schultern, Umhang ------------------------------------
@@ -891,7 +1008,9 @@ const DEFAULT_LOOKS = {
   krieger: { sex: 0, hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0 },
   ninja: { sex: 1, hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0 },
   schamane: { sex: 1, hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0 },
-  nekromant: { sex: 0, hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0 }
+  nekromant: { sex: 0, hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0 },
+  // Magier: kurzes grau-silbernes Haar, blaue Augen
+  magier: { sex: 0, hair: 0, hc: 7, skin: 0, eyes: 0, ec: 1, mark: 0 }
 };
 function lookOf(L, classId) {
   return { ...DEFAULT_LOOKS[classId], ...((L && L.ap) || {}) };
@@ -992,6 +1111,99 @@ function faceMarks(ctx, dir, cx, cy, ap) {
 
 // Farbe aus der Tabelle, sonst die Grundfarbe
 const lookColor = (list, i, fallback) => (i >= 0 ? list[i] : fallback);
+
+// Element-Dreieck des Magiers: △ Feuer, ▽ Frost, △ mit Balken Blitz, ▽ mit Balken Erde (glyph aus MAGE_EL)
+function mageGlyph2D(ctx, x, y, r, glyph, color, width = 1) {
+  const s = glyph === 'down' || glyph === 'downbar' ? -1 : 1;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x, y - r * s);
+  ctx.lineTo(x + r * 0.866, y + r * 0.5 * s);
+  ctx.lineTo(x - r * 0.866, y + r * 0.5 * s);
+  ctx.closePath();
+  if (glyph === 'upbar' || glyph === 'downbar') {
+    ctx.moveTo(x - r * 0.85, y - r * 0.15 * s);
+    ctx.lineTo(x + r * 0.85, y - r * 0.15 * s);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Spitzer Krempenhut des Magiers je Helmstufe (−1: Grundhut der Vorschau). Spitze bei Novize und Sternenhut
+// nach hinten geknickt; Band in der Elementfarbe (Gelehrtenhut: Silberband mit Elementstein).
+function mageHat2D(ctx, dir, cx, cy, ht, hat, silver, E, female) {
+  const side = dir === 'side';
+  const by = cy - 7.5;
+  const h = ht === 2 ? 25 : ht === 0 ? 20 : 22;
+  // Knick: von vorn zur Seite, von der Seite nach hinten (links)
+  const bend = ht === 0 || ht === 6 ? (side ? -9 : -7) : side ? -3 : -1.5;
+  const droop = ht === 0 || ht === 6 ? 5 : 0;
+  ctx.save();
+  if (female && !side) {
+    ctx.translate(cx, by);
+    ctx.rotate(dir === 'up' ? -0.08 : 0.08);
+    ctx.translate(-cx, -by);
+  }
+  // Krempe
+  const bx = side ? cx - 0.5 : cx;
+  oval(ctx, bx, cy - 6.6, side ? 12.5 : 13.2, 3.2, darker(hat, 0.08));
+  if (ht === 4) {
+    ctx.save();
+    ctx.strokeStyle = E.main;
+    ctx.globalAlpha = 0.9;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(bx, cy - 6.6, side ? 12.5 : 13.2, 3.2, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // Kegel
+  const tx = cx + bend;
+  const tyy = by - h + droop;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(cx - 9.2, by);
+    ctx.quadraticCurveTo(cx - 6 + bend * 0.15, by - h * 0.6, tx, tyy);
+    ctx.quadraticCurveTo(cx + 4 + bend * 0.35, by - h * 0.55, cx + 9.2, by);
+    ctx.quadraticCurveTo(cx, by + 1.6, cx - 9.2, by);
+    ctx.closePath();
+  }, hat, cx - 9.2, tyy, 18.4, by - tyy);
+  // Falte im Kegel
+  stroke(ctx, darker(hat, 0.3), 0.6, [[cx + 2, by - 1], [cx + 1 + bend * 0.4, by - h * 0.55]]);
+  // Band über der Krempe
+  const band = ht === 1 ? silver : E.main;
+  poly(ctx, [[cx - 9.2, by + 0.4], [cx + 9.2, by + 0.4], [cx + 8.2, by - 3], [cx - 8.2, by - 3]], band);
+  if (ht === 1 && dir !== 'up') oval(ctx, side ? cx + 5 : cx, by - 1.3, 1.6, 1.6, E.main);
+  if (ht === 2) for (const x of side ? [cx - 3, cx + 3] : [cx - 5.5, cx, cx + 5.5]) mageGlyph2D(ctx, x, by - 1.2, 1.1, 'up', lighter(E.main, 0.6), 0.6);
+  // Merkmal je Stufe
+  if (ht === 3) {
+    // die Spitze endet in einem schwebenden Kristall
+    rodCrystal(ctx, tx + (side ? -1 : 0), tyy - 4.5, 0.7, E.main, true);
+  } else if (ht === 4) {
+    mageGlyph2D(ctx, tx, tyy - 5, 2.6, E.glyph, E.main, 1);
+  } else if (ht === 5) {
+    for (const [dx, dy] of [[-4, 6], [3, 9], [-1, 14]]) dot(ctx, cx + dx + bend * 0.2, by - dy, 0.9, 0.7, '#ff7a2a');
+    // Rauchfaden über der verkohlten Spitze
+    oval(ctx, tx + 1, tyy - 3, 1.7, 1.3, '#8a8490');
+    oval(ctx, tx - 0.6, tyy - 6.6, 1.2, 1, '#a8a2ae');
+  } else if (ht === 6) {
+    for (const [dx, dy] of [[-4, 5], [3, 8], [-1, 12], [4, 14]]) dot(ctx, cx + dx + bend * 0.25, by - dy, 0.7, 0.7, '#ffffff');
+    // gerollte Spitze und ein kreisender Stern
+    ctx.strokeStyle = darker(hat, 0.4);
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.arc(tx - 0.5, tyy + 1, 1.6, 0, Math.PI * 1.6);
+    ctx.stroke();
+    const sx = cx + (side ? 7 : 12);
+    const sy = by - 13;
+    poly(ctx, [[sx, sy - 2.4], [sx + 0.7, sy - 0.7], [sx + 2.4, sy], [sx + 0.7, sy + 0.7], [sx, sy + 2.4], [sx - 0.7, sy + 0.7], [sx - 2.4, sy], [sx - 0.7, sy - 0.7]], '#fff2b0');
+  }
+  ctx.restore();
+}
 
 const CHARACTER_ART = {
   krieger(ctx, dir, w, f, L = { a: -1, h: -1 }) {
@@ -1285,14 +1497,243 @@ const CHARACTER_ART = {
     }
     // Ab Stufe Totenkönig eine Knochenkrone auf der Kapuze
     if (L.h >= 4) for (const [x, h] of [[cx - 7, 5], [cx - 3.5, 7], [cx, 9], [cx + 3.5, 7], [cx + 7, 5]]) poly(ctx, [[x - 1.4, cy - 12], [x, cy - 12 - h], [x + 1.4, cy - 12]], bone);
+  },
+
+  // Magier (seit 8.6): lange gerade Robe mit Mittelschlitz, hoher Stehkragen, schmale Ärmel mit Glockenstulpen,
+  // Büchlein an der Hüfte und spitzer Krempenhut. Die Elementfarbe sitzt an Hutband, Buchschließe, Runen und Kristallen.
+  magier(ctx, dir, w, f, L = { a: -1, h: -1 }) {
+    const A = ARMOR_LOOK.magier;
+    const E = mageEl({ path: L.pt });
+    const t = L.a;
+    const robe = lookColor(A.robe, t, '#283070');
+    const silver = lookColor(A.trim, t, '#d8e0f0');
+    const ap = lookOf(L, 'magier');
+    const female = ap.sex === 1;
+    const o = { skin: skinOf(ap), boots: '#22202c', robe, sleeve: darker(robe, 0.08), cuff: silver, bell: true, hem: female ? 1.12 : 0.9 };
+    const ty = -24 + w.bob;
+    const front = dir === 'down';
+    const side = dir === 'side';
+    // Erzmagier: senkrechter Siegelring hinter dem Rücken (von hinten liegt er über dem Rücken)
+    const sigilRing = () => {
+      ctx.save();
+      ctx.globalAlpha = dir === 'up' ? 0.7 : 0.9;
+      if (side) {
+        ctx.strokeStyle = '#e8c46a';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.ellipse(-6, ty + 4, 3.2, 13, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.strokeStyle = '#e8c46a';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.arc(0, ty + 4, 14, 0, Math.PI * 2);
+        ctx.stroke();
+        mageGlyph2D(ctx, 0, ty + 5, 11, E.glyph, E.main, 1.3);
+      }
+      ctx.restore();
+    };
+    if (t === 7 && dir !== 'up') sigilRing();
+    // Runenring um die Taille (Arkanrobe): hintere Hälfte hinter dem Körper
+    const waistRing = (back) => {
+      ctx.save();
+      ctx.strokeStyle = E.main;
+      ctx.globalAlpha = back ? 0.45 : 0.85;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2.2, 1.6]);
+      ctx.beginPath();
+      ctx.ellipse(0, ty + 12, side ? 10 : 15, 3.4, 0, back ? Math.PI : 0, back ? Math.PI * 2 : Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    };
+    if (t === 4) waistRing(true);
+    hLegs(ctx, dir, w, o);
+    gearBoots(ctx, dir, w, L.b, true);
+    const wb = hBody(ctx, dir, w, o);
+    // Unterrobe im Mittelschlitz, Silberlinien vorn, Saumborte
+    if (front) {
+      poly(ctx, [[-1, ty + 13], [1, ty + 13], [3.4, -2.6], [-3.4, -2.6]], darker(robe, 0.25));
+      for (const sg of [-1, 1]) stroke(ctx, silver, 0.8, [[sg * 1.9, ty + 2.5], [sg * 1.9, ty + 12.5], [sg * 3.6, -2.9]]);
+    } else if (side) {
+      poly(ctx, [[3.5, ty + 13], [5, ty + 13], [7.4, -2.6], [4.2, -2.6]], darker(robe, 0.25));
+      stroke(ctx, silver, 0.8, [[3.5, ty + 2.5], [3.5, ty + 12.5], [4.2, -2.9]]);
+    } else {
+      stroke(ctx, darker(robe, 0.3), 0.6, [[0, ty + 3], [0, -3.5]]);
+    }
+    stroke(ctx, t === 7 ? '#e8c46a' : silver, t === 7 ? 1.5 : 1.1, [[-wb + 0.8, -3.3], [wb - 0.8, -3.3]]);
+    // Merkmale je Robenstufe
+    if (t === 2) {
+      // sechs leuchtende Dreiecksrunen auf dem Saumband
+      const n = side ? 3 : 6;
+      for (let k = 0; k < n; k++) {
+        const x = -wb + 2.4 + (2 * wb - 4.8) * (k + 0.5) / n;
+        mageGlyph2D(ctx, x, -5.6, 1.5, k % 2 ? 'down' : 'up', lighter(E.main, 0.2), 0.8);
+      }
+    } else if (t === 3) {
+      // Kristallspitzen am Saum
+      const n = side ? 3 : 6;
+      for (let k = 0; k < n; k++) {
+        const x = -wb + 2 + (2 * wb - 4) * (k + 0.5) / n;
+        poly(ctx, [[x - 1.3, -3.4], [x, -0.6], [x + 1.3, -3.4]], lighter(E.main, 0.35));
+      }
+    } else if (t === 4 && dir !== 'up') {
+      // Tabard mit Element-Dreieck auf der Brust
+      const x0 = side ? 2.5 : 0;
+      poly(ctx, [[x0 - 4.6, ty + 2.5], [x0 + 4.6, ty + 2.5], [x0 + 4, -3.2], [x0 - 4, -3.2]], darker(robe, 0.22));
+      stroke(ctx, silver, 0.7, [[x0 - 4.6, ty + 2.5], [x0 - 4, -3.2]]);
+      stroke(ctx, silver, 0.7, [[x0 + 4.6, ty + 2.5], [x0 + 4, -3.2]]);
+      mageGlyph2D(ctx, x0, ty + 7.5, 2.8, E.glyph, E.main, 1);
+    } else if (t === 5) {
+      // Asche: glühende Glutrisse am Saum, das Wappen in der Elementfarbe
+      for (const [x0, h] of (side ? [[-3, 6], [4, 5]] : [[-8, 7], [-2.5, 5], [4, 8], [9, 5]])) {
+        stroke(ctx, '#ff7a2a', 0.8, [[x0, -3.4], [x0 + 1.2, -3.4 - h * 0.4], [x0 - 0.6, -3.4 - h * 0.7], [x0 + 0.6, -3.4 - h]]);
+      }
+      if (front) mageGlyph2D(ctx, 0, ty + 7, 2.4, E.glyph, E.main, 0.9);
+    } else if (t === 6) {
+      // Sternbilder: Punkte, verbunden mit dünnen Linien
+      const stars = side ? [[-4, ty + 15], [1, ty + 18], [-1, -7]] : [[-8, ty + 15], [-5, ty + 18.5], [-8.5, -6], [6, ty + 14], [8.5, ty + 19], [5, -7]];
+      ctx.save();
+      ctx.globalAlpha = 0.5;
+      stroke(ctx, '#cfe0ff', 0.4, stars.slice(0, 3));
+      if (!side) stroke(ctx, '#cfe0ff', 0.4, stars.slice(3));
+      ctx.restore();
+      for (const [x, y] of stars) dot(ctx, x, y, 0.75, 0.75, '#ffffff');
+    }
+    // Korsage mit Silberschnürung (Frau)
+    if (female && dir !== 'up') {
+      const x0 = side ? 1 : 0;
+      const hw = side ? 4.6 : 6;
+      poly(ctx, [[x0 - hw, ty + 3.5], [x0 + hw, ty + 3.5], [x0 + hw - 1.2, ty + 11.5], [x0 - hw + 1.2, ty + 11.5]], darker(robe, 0.16));
+      stroke(ctx, silver, 0.7, [[x0 - hw + 0.5, ty + 4], [x0 + hw - 1.6, ty + 11]]);
+      stroke(ctx, silver, 0.7, [[x0 + hw - 0.5, ty + 4], [x0 - hw + 1.6, ty + 11]]);
+    }
+    // Gürtel: Novize mit Strickgürtel, sonst schmaler dunkler Riemen
+    const bw = side ? 13 : 17;
+    if (t === 0) {
+      ctx.save();
+      ctx.setLineDash([1.2, 0.8]);
+      stroke(ctx, '#c8b890', 1.8, [[-bw / 2, ty + 11.6], [bw / 2, ty + 11.6]]);
+      ctx.restore();
+      if (dir !== 'up') stroke(ctx, '#c8b890', 0.9, [[side ? 3 : 2.5, ty + 11.6], [side ? 3.5 : 3.4, ty + 17], [side ? 4.5 : 4.4, ty + 18.5]]);
+    } else {
+      box(ctx, -bw / 2, ty + 10.6, bw, 2.4, 1, '#2a2230');
+      if (front) box(ctx, -1.6, ty + 10.2, 3.2, 3.2, 0.8, silver);
+    }
+    gearBelt(ctx, dir, ty + 10.3, bw / 2, L.g);
+    // Büchlein an der linken Hüfte, Schließe in der Elementfarbe; ab Gelehrtenrobe an einer Kette
+    const book = (x) => {
+      if (t >= 1 || t < 0) stroke(ctx, silver, 0.5, [[x + 3, ty + 12], [x + 2.5, ty + 13.6]]);
+      box(ctx, x, ty + 13.4, 6, 7, 1, '#4a2a22');
+      box(ctx, x + 4.6, ty + 14, 1.2, 5.8, 0.4, '#efe6cc');
+      oval(ctx, x + 5.2, ty + 16.9, 1.1, 1.1, E.main);
+      // Lesezeichenband (Novize)
+      if (t === 0) stroke(ctx, E.main, 0.8, [[x + 2, ty + 20.3], [x + 1.6, ty + 23]]);
+    };
+    if (front) book(-11.5);
+    else if (side) book(-5);
+    else book(5.5);
+    // Gelehrtenrobe: drei Silberschließen
+    if (t === 1 && front) for (const y of [ty + 3.5, ty + 6.5, ty + 9.5]) box(ctx, -2.6, y, 5.2, 1.3, 0.5, silver);
+    // Sternenmantel: Halbmondschließe
+    if (t === 6 && front) {
+      oval(ctx, 0, ty + 3, 2.2, 2.2, E.main);
+      dot(ctx, 0.9, ty + 2.4, 1.8, 1.8, robe);
+    }
+    hArms(ctx, dir, w, o);
+    if (t === 4) waistRing(false);
+    // Schultern: Ausrüstung, sonst beim Mann ein kurzes Schultercape mit Silberrand
+    if (!gearShoulders(ctx, dir, w, L.s, ty, 10.5) && !female) {
+      const hw = side ? 7.5 : 13;
+      const x0 = side ? -0.5 : 0;
+      paintShape(ctx, () => {
+        ctx.beginPath();
+        ctx.moveTo(x0 - hw, ty + 6);
+        ctx.quadraticCurveTo(x0 - hw + 1, ty - 1.2, x0, ty - 1.2);
+        ctx.quadraticCurveTo(x0 + hw - 1, ty - 1.2, x0 + hw, ty + 6);
+        ctx.quadraticCurveTo(x0, ty + 9, x0 - hw, ty + 6);
+        ctx.closePath();
+      }, lighter(robe, 0.06), x0 - hw, ty - 1.2, hw * 2, 10);
+      ctx.strokeStyle = silver;
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.moveTo(x0 - hw + 0.6, ty + 6);
+      ctx.quadraticCurveTo(x0, ty + 8.6, x0 + hw - 0.6, ty + 6);
+      ctx.stroke();
+    }
+    // Kristallrobe: zwei schwebende Kristalle über den Schultern
+    if (t === 3 || t === 7) for (const x of side ? [-3] : [-12.5, 12.5]) rodCrystal(ctx, x, ty - 6, 0.55, E.main, true);
+    // Hoher Stehkragen: Silberdreiecke hinter dem Hals (Erzmagier doppelt)
+    const collar = (s) => {
+      const fill = mixColor(robe, silver, 0.35);
+      if (side) {
+        poly(ctx, [[-0.5, ty + 1.6], [-5.5 * s, ty - 6 * s], [-4.5 * s, ty + 2.4]], fill);
+        stroke(ctx, silver, 0.7, [[-5.5 * s, ty - 6 * s], [-4.5 * s, ty + 2.4]]);
+        return;
+      }
+      for (const sg of [-1, 1]) {
+        poly(ctx, [[sg * 2.4, ty + 1.6], [sg * 8.6 * s, ty - 5.6 * s], [sg * 6.8 * s, ty + 2.6]], fill);
+        stroke(ctx, silver, 0.7, [[sg * 8.6 * s, ty - 5.6 * s], [sg * 6.8 * s, ty + 2.6]]);
+      }
+    };
+    const stiff = t !== 0;
+    if (dir !== 'up') {
+      if (t === 7) collar(1.3);
+      collar(stiff ? 1 : 0.6);
+    } else {
+      // von hinten: der Kragen steht rund um den Hals hoch, der Kopf verdeckt die Mitte
+      const top = ty - (stiff ? 5 : 2.5) - (t === 7 ? 2 : 0);
+      poly(ctx, [[-8.5, ty + 1.8], [8.5, ty + 1.8], [9.6, top], [-9.6, top]], mixColor(robe, silver, 0.35));
+      stroke(ctx, silver, 0.8, [[-9.6, top], [9.6, top]]);
+    }
+    // Haare und Kopf; unter dem Hut keine Stacheln
+    const hat = L.h !== -2 && L.h !== 7;
+    const hairAp = hat && (ap.hair === 3 || ap.hair === 4) ? { ...ap, hair: ap.hair === 3 ? 0 : 2 } : ap;
+    drawHair(ctx, dir, side ? 1.5 : 0, -34.5 + w.bob, hairAp, 'back');
+    const { cx, cy } = hHead(ctx, dir, w, o);
+    if (dir !== 'up') {
+      eyes(ctx, dir, cx, cy, { blush: true, ...eyeOpts(ap) });
+      faceMarks(ctx, dir, cx, cy, ap);
+    }
+    drawHair(ctx, dir, cx, cy, hairAp, 'front');
+    if (dir === 'up' && t === 7) sigilRing();
+    // Frau: Zopf vor der Schulter (unter dem Hut)
+    if (female && hat && ap.hair !== 5) {
+      const hc = hairOf(ap);
+      const pts = dir === 'up' ? [[cx, cy + 7], [cx + 0.6, cy + 10.5], [cx, cy + 14], [cx + 0.6, cy + 17.5]]
+        : side ? [[cx + 1, cy + 7.5], [cx + 2, cy + 11], [cx + 1.6, cy + 14.5], [cx + 2.4, cy + 18]]
+          : [[cx + 8.6, cy + 5.5], [cx + 9.4, cy + 9], [cx + 9, cy + 12.5], [cx + 9.8, cy + 16]];
+      for (const [x, y] of pts) oval(ctx, x, y, 2.1, 2.2, hc);
+      const [ex, ey] = pts[pts.length - 1];
+      box(ctx, ex - 1.6, ey + 1.8, 3.2, 1.6, 0.6, E.main);
+      poly(ctx, [[ex - 1.4, ey + 3.4], [ex + 1.4, ey + 3.4], [ex + 0.6, ey + 5.6], [ex - 0.6, ey + 5.6]], hc);
+      // Strähnen unter der Krempe
+      if (front) for (const x of [cx - 11.4, cx + 9]) box(ctx, x, cy - 5, 2.4, 8, 1.1, hc);
+    }
+    if (L.h === -2) return;
+    if (L.h === 7) {
+      // Erzmagierreif: Silberreif mit drei schwebenden Kristallen
+      if (dir === 'up') box(ctx, cx - 11.2, cy - 6.4, 22.4, 2.2, 1, '#f4f6fb');
+      else if (front) {
+        box(ctx, cx - 11.2, cy - 7.2, 22.4, 2.2, 1, '#f4f6fb');
+        oval(ctx, cx, cy - 6.1, 1.5, 1.5, E.main);
+      } else box(ctx, cx - 9.5, cy - 7.2, 20.5, 2.2, 1, '#f4f6fb');
+      for (const [dx, dy] of side ? [[-5, -14], [1, -17], [6, -13]] : [[-7.5, -14.5], [0, -18], [7.5, -14.5]]) rodCrystal(ctx, cx + dx, cy + dy, 0.5, E.main, true);
+      return;
+    }
+    mageHat2D(ctx, dir, cx, cy, L.h, lookColor(A.hat, L.h, '#283070'), silver, E, female);
   }
 };
 
 const FIGURE_BOUNDS = { x: -30, y: -60, w: 60, h: 66 };
+// Der Magier trägt einen hohen Spitzhut: oben mehr Platz
+const MAGE_FIGURE_BOUNDS = { x: -30, y: -74, w: 60, h: 80 };
 
 function characterSprite(classId, dir, frame, look = { a: -1, h: -1 }) {
+  // Beim Magier hängt das Bild am Element (Hutband, Kristall, Runen): Weg anhängen
+  const mage = classId === 'magier';
+  const el = mage ? '|' + (look.pt ?? 'a') : '';
   // Spielfiguren in höherer Auflösung (4 Pixel je Einheit), damit sie auch nah scharf bleiben
-  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}:${lookKey(look.ap)}`, FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look), 4);
+  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}:${lookKey(look.ap)}${el}`, mage ? MAGE_FIGURE_BOUNDS : FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look), 4);
 }
 
 // Wo die Waffenhand sitzt (relativ zu den Füßen, Figur nach rechts bzw. zum Betrachter)

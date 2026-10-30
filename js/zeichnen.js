@@ -305,8 +305,9 @@ function weaponAngle(kind, dir, p, ago = 0) {
   if (p.swingKind === 'pose' && t >= 0) return dir === 'side' ? -1.25 : -1.9;
   // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
   if (kind === 'bow') return localFacingAngle(dir) + (dir === 'side' ? 0 : 0.35) + (t >= 0 ? -Math.sin(t * Math.PI) * 0.15 : 0);
-  if (kind === 'staff' || kind === 'bell' || (kind === 'fan' && p.swingKind === 'cast')) {
-    const base = kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : -1.45;
+  if (kind === 'staff' || kind === 'bell' || kind === 'rod' || (kind === 'fan' && p.swingKind === 'cast')) {
+    // Das Zepter ist kurz: etwas nach außen geneigt, damit der Kristall nicht vor dem Gesicht schwebt
+    const base = kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : kind === 'rod' ? -1.2 : -1.45;
     return base + (t >= 0 ? Math.sin(t * Math.PI) * 0.9 : 0);
   }
   if (t < 0) return kind === 'fan' ? WEAPON_IDLE[dir] + 0.5 : WEAPON_IDLE[dir];
@@ -314,8 +315,9 @@ function weaponAngle(kind, dir, p, ago = 0) {
   return a0 + (a1 - a0) * easeOut(t);
 }
 
-function drawWeaponSprite(ctx, kind, x, y, angle, tier = 0) {
-  const sp = weaponSprite(kind, tier);
+// accent: Kristallfarbe des Zepters (Element des Magiers)
+function drawWeaponSprite(ctx, kind, x, y, angle, tier = 0, accent) {
+  const sp = weaponSprite(kind, tier, accent);
   const b = sp.bounds;
   ctx.save();
   ctx.translate(x, y);
@@ -332,6 +334,8 @@ function horseSprite(frame, saddle, tier = 1) {
 }
 
 function drawPlayer(ctx, p) {
+  // Elementsprung des Magiers (seit 8.6): die Figur ist kurz ganz verschwunden
+  if (p.blinkHide > game.time) return;
   const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible) || p.clone;
   // Beim Schwertwirbel dreht sich die Figur einmal im Kreis
   const facing = p.spin > 0 ? { x: Math.cos(game.time * 28), y: Math.sin(game.time * 28) } : p.facing;
@@ -359,6 +363,9 @@ function drawPlayer(ctx, p) {
   const tier = weapon ? weapon.tier : 0;
   const band = weapon ? plusBand(weapon.plus) : 0;
   const shield = p.equipment ? p.equipment.schild : null;
+  // Zepter des Magiers: Kristall und Handlicht in der Farbe des Elements
+  const mageE = p.classId === 'magier' ? mageEl(p) : null;
+  const accent = kind === 'rod' && mageE ? mageE.main : undefined;
   // Schild am anderen Arm: von vorn vor dem Körper, sonst dahinter
   const drawShield = () => {
     if (!shield) return;
@@ -438,11 +445,11 @@ function drawPlayer(ctx, p) {
         if (swingProgress(p, ago) < 0) continue;
         ctx.save();
         ctx.globalAlpha *= ago > 0.2 ? 0.18 : 0.38;
-        drawWeaponSprite(ctx, kind, hand.x, hand.y, weaponAngle(kind, dir, p, ago), tier);
+        drawWeaponSprite(ctx, kind, hand.x, hand.y, weaponAngle(kind, dir, p, ago), tier, accent);
         ctx.restore();
       }
     }
-    drawWeaponSprite(ctx, kind, hand.x, hand.y, angle, tier);
+    drawWeaponSprite(ctx, kind, hand.x, hand.y, angle, tier, accent);
     if (kind === 'dagger' && dir !== 'side' && !shield) {
       const left = handPosition(dir, frame, 'left');
       drawWeaponSprite(ctx, kind, left.x, left.y, Math.PI - angle, tier);
@@ -462,7 +469,7 @@ function drawPlayer(ctx, p) {
       const power = 1 + (r + 1) * 0.3;
       const pulse = 0.65 + 0.35 * Math.sin(game.time * 8);
       const reach = kind === 'greatsword' || kind === 'greataxe' ? 34 : kind === 'dagger' ? 12 : 26;
-      const sp = weaponSprite(kind, tier);
+      const sp = weaponSprite(kind, tier, accent);
       const b = sp.bounds;
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
@@ -570,6 +577,20 @@ function drawPlayer(ctx, p) {
     if (dir !== 'side') glow(ctx, -hand.x, hand.y, 7, '#8fe3d8', 0.4 * pulse);
   } else if (p.classId === 'nekromant') {
     if (weapon) glow(ctx, hand.x + Math.cos(angle) * 25, hand.y + Math.sin(angle) * 25, 12, STAFF_ORB[tier], 0.7 * pulse);
+  } else if (mageE) {
+    // Handlicht: der Kristall leuchtet, ein kleiner Elementfunke kreist um ihn (nicht aufsteigend wie beim Nekromanten)
+    if (weapon && kind === 'rod') {
+      const kx = hand.x + Math.cos(angle) * 22.5;
+      const ky = hand.y + Math.sin(angle) * 22.5;
+      glow(ctx, kx, ky, 11, mageE.main, 0.6 * pulse);
+      const a = game.time * 3.2;
+      const sx = kx + Math.cos(a) * 7;
+      const sy = ky + Math.sin(a) * 3.5;
+      glow(ctx, sx, sy, 4, mageE.hi, 0.9);
+      ctx.fillStyle = mageE.core;
+      circle(ctx, sx, sy, 0.9);
+    }
+    if (dir !== 'side') glow(ctx, -hand.x, hand.y, 6, mageE.main, 0.35 * pulse);
   }
   ctx.restore();
 
@@ -894,11 +915,14 @@ function drawMonster(ctx, m) {
     ctx.ellipse(m.x, fy, m.r * 1.6, m.r * 0.65, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
-  const frame = m.moving ? Math.floor(game.time * 9 + m.id * 0.37) % 4 : 0;
+  // Eingefroren (Magier seit 8.6): die Pose bleibt beim Zeitpunkt des Einfrierens stehen
+  const frozen = m.frozen > game.time;
+  const tt = frozen ? m.frozenT || game.time : game.time;
+  const frame = m.moving ? Math.floor(tt * 9 + m.id * 0.37) % 4 : 0;
   if (m.type.shape !== 'ghost') castShadow(ctx, monsterSprite(m.typeId, frame), m.x, fy, m.facing < 0, 0.2);
-  const lunge = m.attackAnim > 0 ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 * m.facing : 0;
+  const lunge = m.attackAnim > 0 && !frozen ? Math.sin(m.attackAnim / 0.25 * Math.PI) * 5 * m.facing : 0;
   // Im Stand atmen die Monster sichtbar
-  const breathe = m.moving ? 1 : 1 + Math.sin(game.time * 3 + m.id) * 0.025;
+  const breathe = m.moving ? 1 : 1 + Math.sin(tt * 3 + m.id) * 0.025;
   ctx.save();
   // Geister schweben über dem Boden
   const float = m.type.shape === 'ghost' ? -6 + Math.sin(game.time * 2.5 + m.id) * 3 : 0;
@@ -906,15 +930,50 @@ function drawMonster(ctx, m) {
   ctx.scale(1, breathe);
   blitSprite(ctx, monsterSprite(m.typeId, frame), 0, 0, m.facing < 0, m.hitFlash);
   ctx.restore();
+  if (frozen) drawIceBlock(ctx, m, fy + float, h);
 
   drawMonsterStatus(ctx, m);
+}
+
+// Eisblock über einem eingefrorenen Monster (nur 2D; in 3D baut fx3Status den Block):
+// durchscheinendes Sechseck, weißer Rand, zwei Glanzlinien. Wächst in 0,12 s auf.
+function drawIceBlock(ctx, m, fy, h) {
+  const grow = Math.min(1, (game.time - (m.frozenT || 0)) / 0.12);
+  const rx = Math.max(12, m.r * 1.25) * (0.6 + 0.4 * grow);
+  const top = fy - (h + 4) * grow;
+  const mid = (fy + top) / 2;
+  const q = (fy - top) * 0.22;
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(m.x, top - q * 0.4);
+  ctx.lineTo(m.x + rx, top + q);
+  ctx.lineTo(m.x + rx, fy - q);
+  ctx.lineTo(m.x, fy + q * 0.4);
+  ctx.lineTo(m.x - rx, fy - q);
+  ctx.lineTo(m.x - rx, top + q);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(58,123,255,0.28)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+  ctx.lineWidth = 1.4;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(234,252,255,0.75)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(m.x - rx * 0.6, top + q * 1.3);
+  ctx.lineTo(m.x - rx * 0.6, mid);
+  ctx.moveTo(m.x - rx * 0.25, top + q * 0.9);
+  ctx.lineTo(m.x - rx * 0.25, top + q * 2.2);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // Betäubt: kreisende Sterne; vergiftet oder brennend: aufsteigende Tropfen
 function drawMonsterStatus(ctx, m) {
   const fy = feetY(m);
   const h = figureHeight(m);
-  if (m.stun > 0) {
+  // Eingefroren: statt der Sterne der Eisblock
+  if (m.stun > 0 && !(m.frozen > game.time)) {
     ctx.fillStyle = '#ffe27a';
     for (let k = 0; k < 3; k++) {
       const a = game.time * 6 + k * 2.1;
@@ -1296,12 +1355,15 @@ function drawLabel(ctx, e) {
   const p = game.player;
   if (e === p || e.remote) {
     if (e.remote && remoteHidden(e)) return;
+    // Elementsprung: mit der Figur verschwindet auch der Name
+    if (e.blinkHide > game.time) return;
     // getarnt: der Ninja selbst, seine Gruppe und Freunde sehen den Namen blass
     ctx.save();
     if (e === p ? game.stats.invisible : e.invisible) ctx.globalAlpha *= 0.5;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
     const label = 'Lv ' + e.level + '  ' + e.name;
-    const y = feetY(e) - 60 - (e.riding ? RIDE_HEIGHT : 0);
+    // der Spitzhut des Magiers ist höher: Name etwas darüber
+    const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (e.riding ? RIDE_HEIGHT : 0);
     // Gildenname in der Gildenfarbe über dem Namen
     const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
     if (guild) {
