@@ -773,6 +773,120 @@ function drawEffect(ctx, e) {
       }
       break;
     }
+    case 'cage3': {
+      // Seelenkäfig ohne 3D (seit 8.5): Rune, sechs weiße Rippenbögen zu einer Spitze, darin ein blasser Geist
+      // mit zwei Augen, der bei jedem Schrei den Mund aufreißt (die Schreie selbst sind ring-Effekte)
+      const t = game.time - e.start;
+      const last = e.rise + (e.pulses - 1) * e.every;
+      let scream = 0;
+      if (t >= e.rise) {
+        const st = t - e.rise - Math.min(e.pulses - 1, Math.floor((t - e.rise) / e.every)) * e.every;
+        scream = st < 0.12 ? st / 0.12 : Math.max(0, 1 - (st - 0.12) / 0.2);
+      }
+      const end = clamp01((t - last) / Math.max(0.1, e.dur - last));
+      const burst = clamp01((t - last) / 0.3);
+      const H = 54 * easeOutBack(clamp01(t / e.rise));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.6 * (1 - end);
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y, e.r * 0.35, e.r * 0.15, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+      if (burst >= 1) break;
+      const flex = 1 + 0.08 * scream;
+      const rib = (a) => {
+        const out = burst * 26;
+        const bx = x + Math.cos(a) * (19 * flex + out);
+        const by = y + Math.sin(a) * (8 * flex + out * 0.4) + burst * 6;
+        const tx = x + Math.cos(a) * (3 + out * 1.4);
+        const ty = y - H + burst * 10;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(x + Math.cos(a) * (24 * flex + out), y - H * 0.6 + Math.sin(a) * 4, tx, ty);
+        ctx.strokeStyle = '#3a3428';
+        ctx.lineWidth = 4.5;
+        ctx.stroke();
+        ctx.strokeStyle = '#f4eedc';
+        ctx.lineWidth = 2.6;
+        ctx.stroke();
+      };
+      ctx.globalAlpha = 1 - burst;
+      // hintere Rippen, Geist, vordere Rippen
+      for (let i = 0; i < 6; i++) if (Math.sin((i / 6) * Math.PI * 2 + 0.26) < 0) rib((i / 6) * Math.PI * 2 + 0.26);
+      if (t < last + 0.05) {
+        const gy = y - H * 0.42 + Math.sin(t * 3) * 1.5;
+        glow(ctx, x, gy, 20, e.color, 0.45 + 0.3 * scream);
+        ctx.fillStyle = 'rgba(216,245,220,0.85)';
+        ellipse(ctx, x, gy, 7, 11);
+        ctx.fillStyle = e.eye || '#a7e37f';
+        circle(ctx, x - 2.6, gy - 3.5, 1.5);
+        circle(ctx, x + 2.6, gy - 3.5, 1.5);
+        ctx.fillStyle = '#0b1a0e';
+        ellipse(ctx, x, gy + 2.5, 1.7, 1.5 * (1 + scream));
+      }
+      for (let i = 0; i < 6; i++) if (Math.sin((i / 6) * Math.PI * 2 + 0.26) >= 0) rib((i / 6) * Math.PI * 2 + 0.26);
+      ctx.strokeStyle = '#f4eedc';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(x, y - H - 1 + burst * 10, 4, 2, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    }
+    case 'reaper3': {
+      // Seelenschnitter ohne 3D (seit 8.5): Schatten, dunkelviolette Kapuzengestalt hinter der Figur (doppelte
+      // Figurhöhe), zwei grüne Augen, Sense; die Sichelspur ist ein vfxSweep aus reaperFx
+      const t = game.time - e.start;
+      const fade = t < 0.65 ? 1 : Math.max(0, 1 - (t - 0.65) / 0.3);
+      ctx.globalAlpha = 0.4 * Math.min(1, t / 0.12) * fade;
+      ctx.fillStyle = '#1a1224';
+      ellipse(ctx, x, y - 26, 34, 12);
+      if (t < 0.1) break;
+      const decay = clamp01((t - 0.55) / 0.4);
+      const H = 96 * easeOut(clamp01((t - 0.1) / 0.25));
+      const by = y - 26 + decay * 8;
+      ctx.globalAlpha = 0.92 * (1 - decay);
+      ctx.fillStyle = '#2a1c3a';
+      ctx.strokeStyle = '#0a0610';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(x - 20, by);
+      ctx.quadraticCurveTo(x - 16, by - H * 0.6, x - 7, by - H * 0.88);
+      ctx.quadraticCurveTo(x, by - H * 1.04, x + 7, by - H * 0.88);
+      ctx.quadraticCurveTo(x + 16, by - H * 0.6, x + 20, by);
+      for (let i = 0; i < 4; i++) ctx.lineTo(x + 15 - i * 10, by + (i % 2 ? -4 : 3) + Math.sin(t * 8 + i) * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#0a0610';
+      ellipse(ctx, x, by - H * 0.8, 6, 8);
+      ctx.fillStyle = '#e8e0c8';
+      ellipse(ctx, x, by - H * 0.79, 4, 5.5);
+      ctx.fillStyle = e.eye || '#a7e37f';
+      circle(ctx, x - 1.8, by - H * 0.8, 1.3);
+      circle(ctx, x + 1.8, by - H * 0.8, 1.3);
+      // Sense: erhoben, dann im Schwung in Richtung des Sichelkopfs
+      const a0 = e.ang + e.half;
+      const a1 = e.ang - e.half;
+      const head = t < 0.35 ? -Math.PI * 0.7 : a0 + (a1 - a0) * easeOut(clamp01((t - 0.35) / 0.15));
+      const hx = x + 8;
+      const hy = by - H * 0.45;
+      const len = t < 0.35 ? H * 0.75 : 46;
+      const ex = hx + Math.cos(head) * len;
+      const ey = hy + Math.sin(head) * len * (t < 0.35 ? 1 : 0.5);
+      ctx.strokeStyle = '#3a2c44';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(hx - Math.cos(head) * 12, hy - Math.sin(head) * 6);
+      ctx.lineTo(ex, ey);
+      ctx.stroke();
+      ctx.strokeStyle = '#a7e37f';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(ex - Math.cos(head + 1.2) * 12, ey - Math.sin(head + 1.2) * 12, 12, head + 1.2 - 0.2, head + 1.2 + 1.5);
+      ctx.stroke();
+      break;
+    }
     case 'tornado': {
       // drei gedrehte Ringe übereinander, wie ein Wirbelsturm aus Klingen
       ctx.globalCompositeOperation = 'lighter';
@@ -941,6 +1055,8 @@ const PROJECTILE_LIFT = 15; // Geschosse fliegen auf Brusthöhe
 function drawProjectile(ctx, pr) {
   const y = pr.y - PROJECTILE_LIFT;
   const style = pr.style || 'orb';
+  // Schädel der Schädelsalve stehen in 3D als eigener Körper in der Szene (drei-fx.js)
+  if (style === 'skullfire' && V3.on) return;
   ctx.save();
   // Leuchtspur
   if (pr.trail && pr.trail.length > 1) {
@@ -1043,6 +1159,37 @@ function drawProjectile(ctx, pr) {
       ctx.beginPath();
       ctx.arc(3, -2.2, 1.6, 0, Math.PI * 2);
       ctx.arc(3, 2.2, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    }
+    case 'skullfire': {
+      // Schädelsalve (seit 8.5): brennender Schädel mit klapperndem Kiefer, Glut fliegt hinterher
+      particles(pr.x - pr.vx * 10, y - pr.vy * 10, { count: 2, color: ['#a7e37f', '#e0ffd0', '#5aa83a'], speed: [10, 40], life: [0.2, 0.4], size: [1.5, 3], shape: 'ember', drag: 3 });
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 0, 0, 20, pr.color, 0.75);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.rotate(ang);
+      const jaw = Math.abs(Math.sin(game.time * 18 + (pr.seed || 0))) * 2.2;
+      ctx.fillStyle = '#ece4cc';
+      ctx.strokeStyle = '#3a3428';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.rect(1 + jaw, -4, 7, 8);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#123012';
+      ctx.beginPath();
+      ctx.arc(3.5, -3, 2.3, 0, Math.PI * 2);
+      ctx.arc(3.5, 3, 2.3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = pr.rank >= 0 ? SKILL_RANKS[pr.rank].color : '#a7e37f';
+      ctx.beginPath();
+      ctx.arc(3.8, -3, 1.2, 0, Math.PI * 2);
+      ctx.arc(3.8, 3, 1.2, 0, Math.PI * 2);
       ctx.fill();
       break;
     }

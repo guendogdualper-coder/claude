@@ -203,14 +203,46 @@ const SKILL_ICONS = {
     iconLine(ctx, '#fffbe6', 2.5, [[-2, 0], [10, 0]]);
   },
   // Nekromant
-  seelenpfeil(ctx) {
-    for (const y of [-6, 0, 6]) iconLine(ctx, '#a7e37f', 2, [[-18, y], [-6, y * 0.6]]);
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(5, -2, 10, 0, Math.PI * 2); }, '#f0f8e0', '#a7e37f');
-    ctx.fillStyle = '#123012';
-    ctx.beginPath();
-    ctx.ellipse(1, -2, 2.5, 3, 0, 0, Math.PI * 2);
-    ctx.ellipse(9, -2, 2.5, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
+  // Schädelsalve (seit 8.5): drei Schädel im Fächer nach rechts oben, der mittlere größer mit offenem Kiefer,
+  // grüne Augenhöhlen und grüne Flammenschweife nach links unten
+  schaedelsalve(ctx) {
+    const skull = (a, d, s, open) => {
+      const x = -12 + Math.cos(a) * d;
+      const y = 14 + Math.sin(a) * d;
+      // Flammenschweif zurück nach links unten
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -6 * s); ctx.quadraticCurveTo(-10 * s, -6 * s, -19 * s, -1 * s); ctx.quadraticCurveTo(-12 * s, 0, -16 * s, 3 * s); ctx.quadraticCurveTo(-8 * s, 6 * s, 0, 6 * s); ctx.closePath(); }, '#e0ffd0', '#3a8a2a', 1.5);
+      ctx.restore();
+      // Schädel von vorn: Hirnschale, Kiefer mit Zähnen, dunkle Augenhöhlen mit grüner Glut
+      ctx.save();
+      ctx.translate(x, y);
+      const jy = open ? 2.2 * s : 0;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.rect(-4 * s, 3 * s + jy, 8 * s, 3.6 * s); }, '#f4eedc', '#b8b098', 1.5);
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -1.5 * s, 7 * s, Math.PI * 0.82, Math.PI * 0.18); ctx.lineTo(4.5 * s, 4 * s); ctx.lineTo(-4.5 * s, 4 * s); ctx.closePath(); }, '#fffbe6', '#c8c0a8', 2);
+      if (open) {
+        ctx.fillStyle = '#123012';
+        ctx.fillRect(-3.5 * s, 4 * s, 7 * s, jy);
+      }
+      ctx.fillStyle = '#123012';
+      ctx.beginPath();
+      ctx.ellipse(-2.6 * s, -1.2 * s, 2.1 * s, 2.3 * s, 0, 0, Math.PI * 2);
+      ctx.ellipse(2.6 * s, -1.2 * s, 2.1 * s, 2.3 * s, 0, 0, Math.PI * 2);
+      ctx.moveTo(0, 1.2 * s);
+      ctx.lineTo(-1 * s, 2.8 * s);
+      ctx.lineTo(1 * s, 2.8 * s);
+      ctx.fill();
+      ctx.fillStyle = '#a7e37f';
+      ctx.beginPath();
+      ctx.arc(-2.5 * s, -1 * s, 1.1 * s, 0, Math.PI * 2);
+      ctx.arc(2.5 * s, -1 * s, 1.1 * s, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    };
+    skull(-1.35, 24, 0.68, false);
+    skull(-0.2, 24, 0.68, false);
+    skull(-0.78, 23, 1, true);
   },
   lebensentzug(ctx) {
     iconShape(ctx, () => {
@@ -235,17 +267,22 @@ const SKILL_ICONS = {
     ctx.fillRect(-4.6, -6.6, 1.4, 1.4);
     ctx.fillRect(3.4, -6.6, 1.4, 1.4);
   },
-  fluch(ctx) {
-    ctx.strokeStyle = '#120c08';
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(0, 0, 15, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.strokeStyle = '#c58cff';
-    ctx.lineWidth = 2.5;
-    ctx.stroke();
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-12, 0); ctx.quadraticCurveTo(0, -11, 12, 0); ctx.quadraticCurveTo(0, 11, -12, 0); ctx.closePath(); }, '#f0e0ff', '#9a6ad8', 2.5);
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#3a1250', '#120c08', 1.5);
+  // Seelenschnitter (seit 8.5): Kapuzengestalt mit Knochengesicht und grünen Augenflammen, Sense quer davor
+  seelenschnitter(ctx) {
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-13, 20); ctx.quadraticCurveTo(-11, -2, -7, -10); ctx.quadraticCurveTo(-4, -19, 1, -20); ctx.quadraticCurveTo(8, -17, 8, -8); ctx.quadraticCurveTo(12, 4, 13, 20); ctx.lineTo(6, 16); ctx.lineTo(0, 20); ctx.lineTo(-6, 16); ctx.closePath(); }, '#6a4a8a', '#140c1e');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0.5, -8, 5.5, 6.5, 0, 0, Math.PI * 2); }, '#0a0610', '#0a0610', 1.5);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0.5, -6.5, 3.6, 4.4, 0, 0, Math.PI * 2); }, '#f4eedc', '#b8b098', 1);
+    ctx.fillStyle = '#a7e37f';
+    for (const x of [-1, 2]) {
+      ctx.beginPath();
+      ctx.moveTo(x - 1.2, -6.5);
+      ctx.quadraticCurveTo(x, -10, x + 0.4, -11);
+      ctx.quadraticCurveTo(x + 1.4, -8, x + 1.2, -6.5);
+      ctx.fill();
+    }
+    iconLine(ctx, '#5a4430', 2.4, [[-17, 18], [15, -12]]);
+    iconShape(ctx, crescentPath(ctx, 15, -12, -13, -15, 10), '#f0ffe0', '#7ad36a', 2);
+    iconLine(ctx, '#e0ffd0', 1.2, [[13, -14], [4, -19], [-6, -19], [-12, -16]]);
   },
   knochenpanzer(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-13, -14); ctx.lineTo(13, -14); ctx.lineTo(13, 0); ctx.quadraticCurveTo(12, 12, 0, 18); ctx.quadraticCurveTo(-12, 12, -13, 0); ctx.closePath(); }, '#fffbe6', '#c8c0a8');
@@ -399,19 +436,39 @@ Object.assign(SKILL_ICONS, {
     ctx.arc(0, -1, 19, 0, Math.PI * 2);
     ctx.stroke();
   },
-  seelensturm(ctx) {
-    for (let k = 0; k < 3; k++) {
-      ctx.save();
-      ctx.rotate(k * Math.PI * 2 / 3);
-      iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -4); ctx.quadraticCurveTo(14, -10, 16, 4); ctx.quadraticCurveTo(10, -2, 0, 2); ctx.closePath(); }, '#e0ffd0', '#5aa83a', 2);
-      ctx.restore();
-    }
-    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 5, 0, Math.PI * 2); }, '#f4f0e0', '#a8a080', 1.5);
-    ctx.fillStyle = '#1a3a12';
-    ctx.fillRect(-2.6, -1.6, 1.6, 1.8);
-    ctx.fillRect(1, -1.6, 1.6, 1.8);
+  // Seelenkäfig (seit 8.5): aufrechter Käfig aus sechs Rippen auf rissigem Boden, darin ein schreiender Geist
+  seelenkaefig(ctx) {
+    ctx.strokeStyle = '#7ad36a';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(0, 15, 18, 5.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(0, 15, 14, 4, 0, 0, Math.PI * 2); }, '#3a2a1a', '#140c08', 1.5);
+    iconLine(ctx, '#7ad36a', 1, [[-9, 15], [-4, 13], [0, 16], [5, 14], [9, 16]]);
+    const rib = (x0) => iconLine(ctx, '#f4eedc', 2.6, [[x0, 15], [x0 * 1.18, 4], [x0 * 0.95, -6], [x0 * 0.45, -14], [0, -17]]);
+    rib(-4.5);
+    rib(4.5);
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -3, 6, Math.PI, 0); ctx.lineTo(6, 9); ctx.lineTo(3, 6.5); ctx.lineTo(0, 9.5); ctx.lineTo(-3, 6.5); ctx.lineTo(-6, 9); ctx.closePath(); }, '#e8fff0', '#7fe3a0', 1.5);
+    ctx.fillStyle = '#123012';
+    ctx.beginPath();
+    ctx.ellipse(-2.3, -3.5, 1.3, 1.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(2.3, -3.5, 1.3, 1.6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 1.5, 1.6, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    for (const x0 of [-15, -10, 10, 15]) rib(x0);
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 3.5;
+    ctx.beginPath();
+    ctx.arc(0, -17.5, 3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#f4eedc';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
   },
   dunklemacht(ctx) {
+    // Tempostriche links (seit 8.5: Dunkle Macht gibt etwas Lauftempo)
+    iconLine(ctx, '#b48cff', 2, [[-21, -6], [-14, -6]]);
+    iconLine(ctx, '#b48cff', 2, [[-22, 5], [-15, 5]]);
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(0, -18); ctx.lineTo(5, -5); ctx.lineTo(18, 0); ctx.lineTo(5, 5); ctx.lineTo(0, 18); ctx.lineTo(-5, 5); ctx.lineTo(-18, 0); ctx.lineTo(-5, -5); ctx.closePath(); }, '#d6a8ff', '#3a1250');
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI * 2); }, '#a7e37f', '#1a3a12', 1.5);
   },
@@ -610,10 +667,18 @@ const SKILL_FX = {
       }
     }
   },
-  seelenpfeil: {
+  // Schädelsalve (seit 8.5): kleiner Ring am Stabkopf; am Ziel schnappt ein grüner Kiefer zu, Seelenfunken steigen auf
+  schaedelsalve: {
+    color: '#a7e37f',
+    cast(p) {
+      addEffect({ type: 'ring', follow: p, ox: p.facing.x * 16, oy: -24, r: 24, dur: 0.3, color: '#a7e37f', width: 3 });
+      addEffect({ type: 'sparks3', x: p.x + p.facing.x * 16, y: feetY(p) + p.facing.y * 8, h: 1.1, count: 6, color: '#a7e37f', speed: 1.6, up: 1, dur: 0.35 });
+    },
     hit(m) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 12, color: ['#a7e37f', '#e0ffd0'], speed: [40, 140], life: [0.3, 0.6], size: [2, 4], drag: 3, gravity: -60 });
+      addEffect({ type: 'bite3', x: c.x, y: c.y, dur: 0.3, color: '#a7e37f', size: 1 });
+      addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.6, count: 8, color: '#a7e37f', speed: 2, up: 1.2, dur: 0.5 });
+      particles(c.x, c.y, { count: 6, color: ['#a7e37f', '#e0ffd0'], speed: [40, 140], life: [0.3, 0.6], size: [2, 4], drag: 3, gravity: -60 });
     }
   },
   lebensentzug: {
@@ -630,13 +695,13 @@ const SKILL_FX = {
       flashScreen('#5aa83a', 0.18);
     }
   },
-  fluch: {
-    curseHit(m) {
-      addEffect({ type: 'smoke3', follow: m, ox: 0, oy: 0, count: 4, color: '#1a1224', size: 0.6, dur: 0.8 });
-    },
-    cast(p, sk) {
-      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.9, dur: 1.8, color: '#a774e0' });
-      flashScreen('#6a3aa8', 0.2);
+  // Seelenschnitter (seit 8.5): jedem Getroffenen wird die Seele halb herausgerissen, violetter Schnitt
+  seelenschnitter: {
+    color: '#a774e0',
+    hit(m) {
+      const c = bodyCenter(m);
+      addEffect({ type: 'orbs3', follow: m, ox: 0, oy: 0, count: 2, color: '#e0ffd0', dur: 0.6 });
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: 2.4, len: 46, w: 7, dur: 0.24, color: '#a774e0' });
     }
   },
   knochenpanzer: {
@@ -790,19 +855,12 @@ Object.assign(SKILL_FX, {
     aura: { every: 0.16, color: ['#d8fff8', '#8fe3d8'], shape: 'dot', up: true },
     ring: '#8fe3d8'
   },
-  seelensturm: {
-    color: '#a7e37f',
-    cast(p, sk) {
-      addEffect({ type: 'tornado', follow: p, r: sk.radius * 0.75, dur: 0.6, color: '#a7e37f' });
-      addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: sk.radius * 0.8, dur: 1.4, color: '#7ad36a' });
-      for (let k = 0; k < 10; k++) {
-        const a = (k / 10) * Math.PI * 2;
-        particles(p.x + Math.cos(a) * 30, feetY(p) - 14 + Math.sin(a) * 12, { count: 1, color: ['#e0ffd0', '#a7e37f'], angle: a + Math.PI / 2, spread: 0.1, speed: [160, 240], life: [0.4, 0.6], size: [3, 5], drag: 2 });
-      }
-    },
+  // Seelenkäfig (seit 8.5): Aufstieg, Schreie und Zerfall zeigt cageFx, hier nur der Treffer
+  seelenkaefig: {
+    color: '#7fe3a0',
     hit(m) {
       const c = bodyCenter(m);
-      particles(c.x, c.y, { count: 8, color: ['#a7e37f', '#e0ffd0'], speed: [40, 140], life: [0.3, 0.6], size: [2, 4], drag: 3, gravity: -60 });
+      particles(c.x, c.y, { count: 6, color: ['#7fe3a0', '#e0ffd0'], speed: [40, 120], life: [0.3, 0.5], size: [2, 3.5], drag: 3, gravity: -60 });
     }
   },
   dunklemacht: {
@@ -812,7 +870,9 @@ Object.assign(SKILL_FX, {
       flashScreen('#6a3aa8', 0.2);
     },
     aura: { every: 0.09, color: ['#b48cff', '#a7e37f', '#5a2a8a'], shape: 'ember', up: true },
-    ring: '#a774e0'
+    ring: '#a774e0',
+    // Seelenkrone (seit 8.5): der Stabkopf brennt grün, die Krone aus fünf Flammen zeichnet fx3Crown (drei-fx.js)
+    weaponGlow: '#a7e37f'
   },
   knochenspeer: {
     hit(m) {
@@ -947,6 +1007,73 @@ function vortexFx(p, sk, onPulse) {
   }
 }
 
+// --- Nekromant, Weg der Seelen (seit 8.5): Seelenkäfig und Seelenschnitter, auch für Mitspieler sichtbar ----------
+
+// Augen und Kern in der Rangfarbe, sonst Seelengrün
+function soulEyeColor() {
+  return fxRank >= 0 ? SKILL_RANKS[fxRank].color : '#a7e37f';
+}
+
+// Seelenkäfig: Stabstoß, die Erde reißt auf, ein Käfig aus sechs Rippen bricht hervor (cage3), der Geist darin schreit
+// sk.pulses-mal. onPulse(k, letzter) trifft (nur beim eigenen Wirken); gibt es false zurück, endet der Käfig sofort.
+function cageFx(owner, x, y, sk, onPulse) {
+  const fy = y + 9;
+  const dur = sk.rise + sk.pulses * sk.every + 0.5;
+  later(0.2, () => {
+    const sx = owner.x + owner.facing.x * 18;
+    const sy = feetY(owner) + owner.facing.y * 10;
+    addEffect({ type: 'ring', x: sx, y: sy, r: 22, dur: 0.3, color: '#7fe3a0', width: 3 });
+    particles(sx, sy, { count: 8, color: ['#6a5038', '#8a6a44'], angle: -Math.PI / 2, spread: 0.9, speed: [40, 110], life: [0.3, 0.5], size: [2, 3.5], shape: 'square', glow: false, gravity: 500 });
+  });
+  const e = addEffect({ type: 'cage3', x, y: fy, r: sk.radius, rise: sk.rise, pulses: sk.pulses, every: sk.every, dur, color: sk.color || '#7fe3a0', eye: soulEyeColor() });
+  addEffect({ type: 'decal', kind: 'crack', x, y: fy, r: 24, dur: dur + 1, color: '#1a2a14' });
+  addEffect({ type: 'shards3', x, y: fy, r: 34, count: 8, color: '#5a4a38', glow: false, size: 0.7, dur: 0.9 });
+  addEffect({ type: 'smoke3', x, y: fy, count: 5, color: '#14281a', size: 0.7, dur: 1 });
+  particles(x, fy - 4, { count: 14, color: ['#6a5038', '#8a6a44', '#e8e0c8'], angle: -Math.PI / 2, spread: 1, speed: [60, 160], life: [0.4, 0.7], size: [2, 4], shape: 'square', glow: false, gravity: 500 });
+  for (let k = 0; k < sk.pulses; k++) {
+    const last = k === sk.pulses - 1;
+    later(sk.rise + k * sk.every, () => {
+      if (e.stop) return;
+      if (onPulse && onPulse(k, last) === false) {
+        e.stop = true;
+        e.dur = 0;
+        return;
+      }
+      addEffect({ type: 'ring', x, y: fy, r: sk.radius, dur: 0.5, color: '#7fe3a0', width: 6, grow: true });
+      for (const m of enemiesInCircle(x, y, sk.radius)) addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.7, count: 4, color: '#a7e37f', speed: 1.8, up: 1, dur: 0.45 });
+      particles(x, fy - 30, { count: 8, color: ['#e0ffd0', '#7fe3a0'], speed: [60, 140], life: [0.3, 0.5], size: [2, 3.5], drag: 3 });
+      if (last) {
+        // die Rippen platzen weg, der Geist fährt als Lichtsäule auf
+        addEffect({ type: 'shards3', x, y: fy, r: 46, count: 8, color: '#e8e0c8', glow: false, size: 0.8, dur: 0.8 });
+        addEffect({ type: 'column3', x, y: fy, r: 24, hgt: 2.2, color: '#7fe3a0', core: '#e0ffd0', dur: 0.7 });
+        particles(x, fy - 20, { count: 16, color: ['#e8e0c8', '#ffffff'], speed: [90, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'square', glow: false, gravity: 400 });
+      }
+    });
+  }
+  return e;
+}
+
+// Seelenschnitter: ein violetter Schnitter erhebt sich neben der Figur (reaper3), mäht mit der Sense einmal durch den
+// Bogen vor ihr (Sichelspur, Narbe am Boden) und zerfällt zu Asche. Nur Optik, den Treffer setzt SKILL_TYPES.reaper.
+function reaperFx(owner, ang, sk) {
+  const half = (sk.angle || 200) * Math.PI / 360;
+  // ground: ohne 3D steht die Gestalt hinter der Figur (wird vor den Figuren gezeichnet)
+  addEffect({ type: 'reaper3', follow: owner, ang, half, R: sk.radius, dur: 0.95, color: sk.color || '#a774e0', eye: soulEyeColor(), ground: true });
+  // ohne 3D: Sichelspur als Schwung um die Figur
+  if (!V3.on) later(0.35, () => vfxSweep(owner, sk.radius * 0.85, ang + half, ang - half, '#a7e37f', 0.3, 40));
+  later(0.38, () => {
+    // gebogene Narbe im Boden entlang des Bogens (dunkle Flecken; Risse sähen von oben wie Spinnen aus)
+    for (let i = 0; i < 7; i++) {
+      const a = ang + half - (i + 0.5) / 7 * half * 2;
+      addEffect({ type: 'decal', kind: 'splash', x: owner.x + Math.cos(a) * sk.radius * 0.85, y: feetY(owner) + Math.sin(a) * sk.radius * 0.85, r: 18, dur: 1.5, color: '#2a1a34' });
+    }
+  });
+  later(0.5, () => {
+    addEffect({ type: 'smoke3', x: owner.x, y: feetY(owner) - 29, count: 5, color: '#1a1224', size: 0.8, dur: 0.6 });
+    addEffect({ type: 'sparks3', x: owner.x, y: feetY(owner) - 29, h: 1.4, count: 10, color: '#8a7a9a', speed: 1.2, up: 0.6, dur: 0.6 });
+  });
+}
+
 function skillColor(sk, fallback) {
   const fx = SKILL_FX[sk.id];
   return (fx && fx.color) || fallback;
@@ -997,14 +1124,16 @@ const SKILL_ELEMENT = {
   blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
   leichtfuessigkeit: 'wind', windfessel: 'wind',
   geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'blitz', geistesschlag: 'licht',
-  seelenpfeil: 'seele', seelensturm: 'seele', fluch: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
+  schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
   blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
 };
 
 function skillSignature3(sk, p) {
   const el = SKILL_ELEMENT[sk.id];
-  // Blitzdrache, Blizzard, Sichelwelle, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt
+  // Blitzdrache, Blizzard, Sichelwelle, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
+  // ebenso seit 8.5 Schädelsalve, Seelenkäfig, Seelenschnitter und Totenbeschwörung
   if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'wave' || sk.type === 'erupt' || sk.type === 'leap') return;
+  if (sk.type === 'skulls' || sk.type === 'cage' || sk.type === 'reaper' || sk.type === 'summon') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
   // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur
@@ -1296,8 +1425,20 @@ const BUFF_LOOKS = {
     ctx.fillRect(x + 0.9, y - 1, 1.3, 1.6);
     ctx.restore();
   },
-  // Dunkle Macht: violett-grüne Flammen am Boden
+  // Dunkle Macht: violett-grüne Flammen am Boden; ohne 3D dazu fünf grüne Seelenflammen über dem Kopf
+  // (in 3D kreist dort die Seelenkrone, fx3Crown)
   dunklemacht(ctx, p, fy, t, layer) {
+    if (layer === 'front' && !V3.on) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      for (let k = 0; k < 5; k++) {
+        const o = orbit(t, 1.2, 9, k, 5, 0.35);
+        glow(ctx, p.x + o.x, fy - 52 + o.y, 5, '#a7e37f', 0.8);
+        ctx.fillStyle = '#e0ffd0';
+        circle(ctx, p.x + o.x, fy - 52 + o.y, 1.5);
+      }
+      ctx.restore();
+    }
     if (layer !== 'back') return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

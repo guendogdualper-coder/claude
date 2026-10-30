@@ -1296,7 +1296,11 @@ function skillPct(v) {
 function skillStats(sk, lvl) {
   const out = [];
   const scale = buffScale(lvl);
-  if (sk.dmg) out.push(['Schaden', skillPct(sk.dmg * dmgScale(lvl)) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage') out.push(['Schaden', skillPct(sk.dmg * dmgScale(lvl)) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  // Nekromant, Weg der Seelen (seit 8.5): Schädelsalve, Seelenkäfig, Mal des Seelenschnitters
+  if (sk.type === 'skulls') out.push(['Schaden', sk.count + ' × ' + skillPct(sk.dmg * dmgScale(lvl))]);
+  if (sk.type === 'cage') out.push(['Schrei', skillPct(sk.dmg * dmgScale(lvl)) + ' ×' + sk.pulses], ['Verlangsamt', skillPct(sk.slow.amount)]);
+  if (sk.mark) out.push(['Mal', '+' + skillPct(sk.mark.vulnerable * scale) + ' (' + sk.mark.duration + ' s)']);
   if (sk.type === 'heal') out.push(['Heilung', skillPct(sk.amount * scale) + ' Leben']);
   if (sk.shield) out.push(['Schild', skillPct(sk.shield * scale) + ' Leben']);
   if (sk.type === 'summon') {
@@ -1369,7 +1373,8 @@ function skillById(id) {
       if (u.buff) skillIndex.set(u.buff.id, u);
     }
   }
-  return skillIndex.get(id);
+  // alte IDs (z. B. Seelenpfeil von 8.4-Mitspielern) zeigen die Fertigkeit, die sie ersetzt hat
+  return skillIndex.get(id) || (SKILL_RENAMED[id] ? skillById(SKILL_RENAMED[id]) : undefined);
 }
 
 // 2:45 bzw. 9s

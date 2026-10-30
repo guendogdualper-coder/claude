@@ -6,7 +6,7 @@
 
 const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'aim', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
   'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3', 'shield3', 'cloud3', 'hands3',
-  'wave3', 'erupt3', 'crater3']);
+  'wave3', 'erupt3', 'crater3', 'cage3', 'reaper3']);
 const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null }, geo: {} };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
@@ -248,17 +248,68 @@ function fx3Make(kind) {
       FX3.geo.rockcol = col;
     }
     o = new THREE.Mesh(FX3.geo[kind], new THREE.MeshLambertMaterial({ color: 0xffffff }));
-  } else if (kind === 'smoke') {
+  } else if (kind === 'smoke' || kind === 'smokeTop') {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0x000000, transparent: true, depthWrite: false, fog: false }));
+  } else if (kind === 'skull') {
+    // Schädel der Schädelsalve (seit 8.5): Knochenkugel 0,55 lang, Kiefer am Scharnier hinten, zwei leuchtende Augen
+    fx3SoulGeo();
+    o = new THREE.Group();
+    const head = new THREE.Mesh(FX3.geo.skull, FX3.geo.boneMat);
+    head.scale.set(0.275, 0.215, 0.24);
+    o.add(head);
+    const hinge = new THREE.Group();
+    hinge.position.set(-0.08, -0.1, 0);
+    const jaw = new THREE.Mesh(FX3.geo.box, FX3.geo.boneMat);
+    jaw.scale.set(0.26, 0.06, 0.24);
+    jaw.position.set(0.17, -0.02, 0);
+    hinge.add(jaw);
+    o.add(hinge);
+    // dunkle Augenhöhlen, darin die Glut (immer sichtbar, auch von schräg oben)
+    const eyeMat = new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0xa7e37f, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, fog: false });
+    for (const ez of [-0.1, 0.1]) {
+      const socket = new THREE.Mesh(FX3.geo.skull, FX3.geo.socketMat);
+      socket.position.set(0.19, 0.08, ez);
+      socket.scale.set(0.1, 0.09, 0.085);
+      o.add(socket);
+      const eye = new THREE.Sprite(eyeMat);
+      eye.position.set(0.24, 0.1, ez);
+      eye.scale.set(0.19, 0.19, 1);
+      eye.renderOrder = 6;
+      o.add(eye);
+    }
+    o.userData.hinge = hinge;
+    o.userData.eyeMat = eyeMat;
+  } else if (kind === 'bone' || kind === 'robe' || kind === 'hood' || kind === 'boneRing') {
+    // feste Körper (seit 8.5): Rippen und Sensenstiel, Kutte und Kapuze des Schnitters, Knochenring des Käfigs
+    fx3SoulGeo();
+    o = new THREE.Mesh(FX3.geo[kind], new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 }));
   } else {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('spark'), color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   }
   o.renderOrder = 5;
+  // ...Top (seit 8.5): Geist im Seelenkäfig, immer sichtbar (auch über dem gefangenen Gegner); Knochen darüber
+  if (kind.endsWith('Top')) {
+    o.material.depthTest = false;
+    o.renderOrder = 6;
+  } else if (kind === 'bone' || kind === 'boneRing') o.renderOrder = 7;
   o.castShadow = false;
   o.receiveShadow = false;
   o.userData.kind = kind;
   FX3.group.add(o);
   return o;
+}
+
+// gemeinsame Geometrie der Seelen-Fertigkeiten (Nekromant, seit 8.5): einmal anlegen, von allen Teilen geteilt
+function fx3SoulGeo() {
+  if (FX3.geo.skull) return;
+  FX3.geo.skull = new THREE.SphereGeometry(1, 10, 8);
+  FX3.geo.box = new THREE.BoxGeometry(1, 1, 1);
+  FX3.geo.boneMat = new THREE.MeshLambertMaterial({ color: '#d8cfb2' });
+  FX3.geo.socketMat = new THREE.MeshLambertMaterial({ color: '#16200f' });
+  FX3.geo.bone = new THREE.CylinderGeometry(1, 1, 1, 6);
+  FX3.geo.robe = new THREE.CylinderGeometry(0.5, 1, 1, 10);
+  FX3.geo.hood = new THREE.ConeGeometry(1, 1, 10);
+  FX3.geo.boneRing = new THREE.TorusGeometry(1, 0.28, 5, 12);
 }
 
 function fx3Take(h, kind) {
@@ -317,10 +368,11 @@ function fx3Wall(o, x, z, r, h, y0 = 0) {
 
 // gebogener Streifen: Mitte c, Ebene (u, v), Radius, Breite, Winkel von a0 bis a1;
 // lens: Sichel (in der Mitte am breitesten), sonst vorn breit und hell (Schweif)
+const _x3stripCol = new THREE.Color();
 function fx3Strip(o, c, u, v, r, w, a0, a1, color, op, lens) {
   const pos = o.geometry.attributes.position.array;
   const col = o.geometry.attributes.color.array;
-  const cc = new THREE.Color(color);
+  const cc = _x3stripCol.set(color);
   for (let i = 0; i <= FX3_STRIP_N; i++) {
     const t = i / FX3_STRIP_N;
     const a = a0 + (a1 - a0) * t;
@@ -931,7 +983,7 @@ const FX3_DRAW = {
       const s = q.s * (0.6 + k) * (e.size || 1);
       o.scale.set(s, s, 1);
       o.material.color.set(e.color);
-      o.material.opacity = 0.7 * (1 - k);
+      o.material.opacity = (e.op || 0.7) * (1 - k);
     }
   },
 
@@ -1169,6 +1221,197 @@ const FX3_DRAW = {
     const core = fx3Take(h, 'strip');
     fx3Strip(core, _x3p, _x3u, _x3v, rr - W * 0.15, W * 0.35, a0 + 0.1, a1 - 0.1, '#ffffff', fade, true);
   },
+  // Seelenkäfig (seit 8.5): Rune am Boden, sechs gebogene Rippen treffen sich oben in einem Knochenring, darin ein
+  // blassgrüner Geist. Steigt mit Überschwingen aus dem Boden; bei jedem Schrei reißt der Geist den Mund auf und die
+  // Rippen biegen sich nach außen; nach dem letzten Schrei platzen die Rippen weg (der Geist fährt als column3 auf).
+  cage3(h, e) {
+    const t = game.time - e.start;
+    const x = e.x * U3;
+    const z = e.y * U3;
+    const last = e.rise + (e.pulses - 1) * e.every;
+    let scream = 0;
+    if (t >= e.rise) {
+      const j = Math.min(e.pulses - 1, Math.floor((t - e.rise) / e.every));
+      const st = t - e.rise - j * e.every;
+      scream = st < 0.12 ? Math.sin((st / 0.12) * Math.PI / 2) : Math.max(0, 1 - (st - 0.12) / 0.2);
+    }
+    const end = clamp01((t - last) / Math.max(0.1, e.dur - last));
+    // Rune und Schein am Boden
+    const rune = fx3Take(h, 'planeRune');
+    fx3Ground(rune, e.x, e.y, e.r * 0.35 * U3, 0.05, 'rune', t * 0.5);
+    fx3Color(rune, '#7ad36a', 0.35 * Math.min(1, t / 0.2) * (1 - end) + 0.25 * scream * (1 - end));
+    const glow = fx3Take(h, 'plane');
+    fx3Ground(glow, e.x, e.y, 0.9, 0.04, 'disc');
+    fx3Color(glow, e.color, (0.25 + 0.3 * scream) * Math.min(1, t / 0.3) * (1 - end));
+    // Aufstieg mit leichtem Überschwingen
+    const yo = -1.7 * (1 - easeOutBack(clamp01(t / e.rise)));
+    const burst = clamp01((t - last) / 0.3);
+    if (burst < 1) {
+      const flex = 1 + 0.08 * scream;
+      const R = 0.68;
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.26;
+        const ca = Math.cos(a);
+        const sa = Math.sin(a);
+        // platzen: nach außen wegfliegen, hoch und wieder herunter
+        const out = burst * 1.1;
+        const up = burst * 0.9 - burst * burst * 1.6;
+        _x3s1.set(x + ca * (R * flex + out), yo + up, z + sa * (R * flex + out));
+        _x3s2.set(x + ca * (R * 1.2 * flex + out * 1.3), yo + 0.75 + up, z + sa * (R * 1.2 * flex + out * 1.3));
+        _x3s3.set(x + ca * (0.13 + out * 1.6), yo + 1.62 + up - burst * 0.4, z + sa * (0.13 + out * 1.6));
+        const lo = fx3Take(h, 'bone');
+        fx3Segment(lo, _x3s1, _x3s2, 0.085);
+        fx3Color(lo, '#e8e0c8', 1 - burst);
+        const hi = fx3Take(h, 'bone');
+        fx3Segment(hi, _x3s2, _x3s3, 0.07);
+        fx3Color(hi, '#e8e0c8', 1 - burst);
+      }
+      // kleiner Knochenring als Krone oben
+      const crown = fx3Take(h, 'boneRing');
+      crown.position.set(x, yo + 1.68 + burst * 0.6, z);
+      crown.rotation.set(Math.PI / 2, 0, t);
+      crown.scale.setScalar(0.18);
+      fx3Color(crown, '#e8e0c8', 1 - burst);
+    }
+    // der gefangene Geist
+    if (t < last + 0.05) {
+      const { r: Rc, u: Up, f: F } = FX3.cam;
+      const gy = yo + 1.0 + 0.05 * Math.sin(t * 3);
+      const aura = fx3Take(h, 'spriteTop');
+      fx3Map(aura, 'disc');
+      aura.position.set(x, gy, z);
+      aura.scale.set(1.3, 1.5, 1);
+      fx3Color(aura, e.color, 0.45 + 0.4 * scream);
+      const ghost = fx3Take(h, 'smokeTop');
+      ghost.position.set(x, gy, z);
+      ghost.scale.set(0.62 * (1 + 0.1 * scream), 0.92 * (1 + 0.15 * scream), 1);
+      ghost.material.color.set('#e4fbe8');
+      ghost.material.opacity = 0.8;
+      for (const side of [-1, 1]) {
+        const eye = fx3Take(h, 'spriteTop');
+        fx3Map(eye, 'disc');
+        eye.position.set(x, gy, z).addScaledVector(Rc, side * 0.09).addScaledVector(Up, 0.12).addScaledVector(F, -0.3);
+        eye.scale.set(0.16, 0.16, 1);
+        fx3Color(eye, e.eye || '#a7e37f', 1);
+      }
+      const mouth = fx3Take(h, 'smokeTop');
+      mouth.position.set(x, gy, z).addScaledVector(Up, -0.07).addScaledVector(F, -0.3);
+      mouth.scale.set(0.12, 0.1 * (1 + scream), 1);
+      mouth.material.color.set('#0b1a0e');
+      mouth.material.opacity = 0.95;
+    }
+  },
+  // Seelenschnitter (seit 8.5): großer dunkler Schatten am Boden, violette Kapuzengestalt immer bildschirm-oben neben
+  // der Figur (verdeckt sie nie), Sense mit grün leuchtender Klinge. Ein schwerer Schwung durch den Bogen vor der Figur
+  // hinterlässt eine breite Sichelspur, danach zerfällt die Gestalt (Rauch und Asche kommen aus reaperFx).
+  reaper3(h, e) {
+    const t = game.time - e.start;
+    const f = e.follow;
+    if (!f) return;
+    const fy = feetY(f);
+    const cx = f.x * U3;
+    const cz = fy * U3;
+    const rx = cx;
+    const rz = cz - 0.9;
+    const fade = t < 0.65 ? 1 : Math.max(0, 1 - (t - 0.65) / 0.3);
+    const shadow = fx3Take(h, 'planeN');
+    fx3Strip2(shadow, f.x, fy - 24, 1.2, 0.85, 0.035, 'disc', 0);
+    fx3Color(shadow, '#1a1224', 0.5 * Math.min(1, t / 0.12) * fade);
+    // Schwung: Kopf der Sichelspur läuft von a0 nach a1
+    const a0 = e.ang + e.half;
+    const a1 = e.ang - e.half;
+    const sw = clamp01((t - 0.35) / 0.15);
+    const head = a0 + (a1 - a0) * easeOut(sw);
+    const R = e.R * U3;
+    if (t >= 0.35) {
+      const tail = a0 + (head - a0) * clamp01((t - 0.42) / 0.35);
+      const tf = t < 0.5 ? 1 : Math.max(0, 1 - (t - 0.5) / 0.3);
+      if (tf > 0 && head !== tail) {
+        _x3s1.set(cx, 0.5, cz);
+        _x3s2.set(1, 0, 0);
+        _x3s3.set(0, 0, 1);
+        fx3Strip(fx3Take(h, 'strip'), _x3s1, _x3s2, _x3s3, R, 0.5, tail, head, '#a7e37f', tf, false);
+        fx3Strip(fx3Take(h, 'strip'), _x3s1, _x3s2, _x3s3, R - 0.12, 0.18, tail + (head - tail) * 0.3, head, '#ffffff', tf, false);
+      }
+    }
+    if (t < 0.1) return;
+    // Gestalt: steigt auf, zerfällt am Ende (sinkt und wird durchsichtig)
+    const decay = clamp01((t - 0.55) / 0.4);
+    const yo = -1.5 * (1 - easeOut(clamp01((t - 0.1) / 0.25))) - 0.4 * decay;
+    const op = 0.85 * (1 - decay);
+    if (op <= 0.01) return;
+    const robe = fx3Take(h, 'robe');
+    robe.position.set(rx, yo + 0.95, rz);
+    robe.scale.set(0.55, 1.9, 0.55);
+    robe.rotation.set(0, 0, 0.05 * Math.sin(t * 6));
+    fx3Color(robe, '#1a1224', op);
+    const hood = fx3Take(h, 'hood');
+    hood.position.set(rx, yo + 2.2, rz);
+    hood.scale.set(0.4, 0.8, 0.4);
+    hood.rotation.set(0.15, 0, 0);
+    fx3Color(hood, '#2a1c3a', op);
+    // Fetzen am Saum
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2 + Math.PI / 4;
+      const rag = fx3Take(h, 'cone');
+      rag.position.set(rx + Math.cos(a) * 0.4, yo + 0.12, rz + Math.sin(a) * 0.4);
+      rag.scale.set(0.11, 0.34, 0.11);
+      rag.rotation.set(Math.PI + Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4 + 0.25 * Math.sin(t * 8 + i * 1.7));
+      fx3Color(rag, '#1a1224', op);
+    }
+    // Kapuzenöffnung, Knochengesicht und zwei Augenflammen
+    const { r: Rc, u: Up } = FX3.cam;
+    _x3s4.set(rx, yo + 2.0, rz + 0.36);
+    const hole = fx3Take(h, 'smoke');
+    hole.position.copy(_x3s4).z -= 0.04;
+    hole.scale.set(0.48, 0.56, 1);
+    hole.material.color.set('#0a0610');
+    hole.material.opacity = op;
+    const face = fx3Take(h, 'smoke');
+    face.position.copy(_x3s4);
+    face.scale.set(0.3, 0.36, 1);
+    face.material.color.set('#e8e0c8');
+    face.material.opacity = Math.min(1, op * 1.15);
+    for (const side of [-1, 1]) {
+      const fl = 0.85 + 0.2 * Math.sin(t * 19 + side * 2);
+      const eye = fx3Take(h, 'spriteFlame');
+      fx3Map(eye, 'flame');
+      eye.position.copy(_x3s4).addScaledVector(Rc, side * 0.065).addScaledVector(Up, 0.04).z += 0.05;
+      eye.scale.set(0.16 * fl, 0.25 * fl, 1);
+      fx3Color(eye, e.eye || '#a7e37f', op / 0.85);
+    }
+    // Sense: Stiel aus den Händen, gebogene Klinge mit weiß-grünem Kern
+    _x3s5.set(rx + 0.15, yo + 1.4, rz + 0.35);
+    if (t < 0.35) {
+      // erhoben: Stiel schräg über dem Kopf, Klinge hängt oben nach links
+      const lift = easeOut(clamp01((t - 0.1) / 0.25));
+      _x3s6.set(0.55 - 0.25 * lift, 1, 0.15).normalize();
+      _x3s1.copy(_x3s5).addScaledVector(_x3s6, -0.9);
+      _x3s2.copy(_x3s5).addScaledVector(_x3s6, 1.7);
+      const shaft = fx3Take(h, 'bone');
+      fx3Segment(shaft, _x3s1, _x3s2, 0.04);
+      fx3Color(shaft, '#3a2c44', op);
+      _x3s3.set(1, 0, 0);
+      _x3s6.set(0, 1, 0);
+      _x3s1.copy(_x3s2).addScaledVector(_x3s3, -0.8);
+      fx3Strip(fx3Take(h, 'strip'), _x3s1, _x3s3, _x3s6, 0.8, 0.24, 0, 1.75, '#7ad36a', op / 0.85, true);
+      fx3Strip(fx3Take(h, 'strip'), _x3s1, _x3s3, _x3s6, 0.77, 0.09, 0.1, 1.65, '#e0ffd0', op / 0.85, true);
+    } else {
+      // im Schwung und danach: die Klinge läuft auf dem Bogen vor der Figur, der Stiel reicht von den Händen hin
+      const ca = Math.cos(head);
+      const sa = Math.sin(head);
+      _x3s1.set(cx + ca * R * 0.62, 0.7, cz + sa * R * 0.62);
+      const shaft = fx3Take(h, 'bone');
+      fx3Segment(shaft, _x3s5, _x3s1, 0.045);
+      fx3Color(shaft, '#3a2c44', op);
+      _x3s1.set(cx, 0.62, cz);
+      _x3s2.set(1, 0, 0);
+      _x3s3.set(0, 0, 1);
+      const dir = a1 < a0 ? 1 : -1;
+      fx3Strip(fx3Take(h, 'strip'), _x3s1, _x3s2, _x3s3, R * 0.85, 0.36, head + dir * 0.38, head, '#7ad36a', op / 0.85, true);
+      fx3Strip(fx3Take(h, 'strip'), _x3s1, _x3s2, _x3s3, R * 0.85 - 0.05, 0.13, head + dir * 0.34, head + dir * 0.03, '#e0ffd0', op / 0.85, true);
+    }
+  },
   swoosh(h, e, k) {
     const head = e.a0 + (e.a1 - e.a0) * easeOut(Math.min(1, k * 2.2));
     const tail = e.a0 + (head - e.a0) * clamp01((k - 0.12) / 0.88);
@@ -1191,10 +1434,66 @@ const FX3_DRAW = {
   }
 };
 
+// Hilfsvektoren der Seelen-Fertigkeiten (Käfig, Schnitter, Schädel)
+const _x3s1 = new THREE.Vector3();
+const _x3s2 = new THREE.Vector3();
+const _x3s3 = new THREE.Vector3();
+const _x3s4 = new THREE.Vector3();
+const _x3s5 = new THREE.Vector3();
+const _x3s6 = new THREE.Vector3();
+
+// Schädelsalve (seit 8.5): brennender Schädel statt Lichtkugel, Gier = Flugrichtung, klappernder Kiefer,
+// grüne Flammenschleppe und alle 0,08 s ein Rauchwölkchen (Schleppe nicht bei Grafik „Niedrig“)
+const SKULL3_MAX = 6;
+function fx3Skull(h, pr) {
+  const t = game.time;
+  const id = pr.seed || (pr.seed = 1 + Math.random() * 9);
+  const y = PROJECTILE_LIFT * U3 * 1.3 + 0.05 * Math.sin(t * 9 + id);
+  const o = fx3Take(h, 'skull');
+  o.position.set(pr.x * U3, y, pr.y * U3);
+  // Gier = Flugrichtung; der Schädel hebt das Gesicht etwas, damit man es von schräg oben sieht
+  o.rotation.set(0, Math.atan2(-pr.vy, pr.vx), 0.8);
+  o.userData.hinge.rotation.z = -0.4 * Math.abs(Math.sin(t * 18 + id));
+  o.userData.eyeMat.color.set(pr.rank >= 0 ? SKILL_RANKS[pr.rank].color : '#a7e37f');
+  const g = fx3Take(h, 'sprite');
+  fx3Map(g, 'disc');
+  g.position.set(pr.x * U3, y, pr.y * U3);
+  g.scale.set(0.85, 0.85, 1);
+  fx3Color(g, pr.color || '#a7e37f', 0.55);
+  if (typeof opts !== 'undefined' && opts.graphics === 'niedrig') return;
+  // Flammen zeigen auf dem Bildschirm nach hinten (Bildrichtung aus den Kameraachsen)
+  const { r: R, u: Up } = FX3.cam;
+  const bx = -pr.vx * R.x - pr.vy * R.z;
+  const by = -pr.vx * Up.x - pr.vy * Up.z;
+  const rot = Math.atan2(-bx, by);
+  for (let i = 0; i < 2; i++) {
+    const fl = fx3Take(h, 'spriteTrail');
+    fx3Map(fl, 'flame');
+    const d = i ? 0.24 : 0.4;
+    const w = 0.92 + 0.12 * Math.sin(t * 23 + id + i);
+    fl.position.set(pr.x * U3 - pr.vx * d, y, pr.y * U3 - pr.vy * d);
+    fl.scale.set((i ? 0.26 : 0.46) * w, (i ? 0.46 : 0.85) * w, 1);
+    fl.material.rotation = rot;
+    fx3Color(fl, i ? '#e0ffd0' : '#a7e37f', 1);
+  }
+  if (t >= (pr.puffAt || 0)) {
+    pr.puffAt = t + 0.08;
+    addEffect({ type: 'smoke3', x: pr.x - pr.vx * 12, y: pr.y - pr.vy * 12, count: 1, color: '#14281a', size: 0.6, op: 0.35, dur: 0.5 });
+  }
+}
+
 // Leuchtende Geschosse: Lichtkugel und kurzer Schweif im Raum (das gezeichnete Geschoss bleibt darüber)
 function fx3Projectiles(h) {
+  let skulls = 0;
   for (const pr of game.projectiles) {
-    if (pr.owner !== 'player' || !v3InView(pr.x, pr.y, 40)) continue;
+    // Schädel zeigen auch die Mitspieler (fremde Geschosse sonst nur gezeichnet)
+    const skull = pr.style === 'skullfire';
+    if ((pr.owner !== 'player' && !skull) || !v3InView(pr.x, pr.y, 40)) continue;
+    if (skull && skulls < SKULL3_MAX) {
+      skulls++;
+      fx3Skull(h, pr);
+      continue;
+    }
     const s = (pr.radius || 6) * U3 * 4;
     const o = fx3Take(h, 'sprite');
     o.position.set(pr.x * U3, PROJECTILE_LIFT * U3 * 1.3, pr.y * U3);
@@ -1290,6 +1589,84 @@ function fx3Status(h) {
   }
 }
 
+// --- Seelenkrone (seit 8.5, Dunkle Macht) ------------------------------------------------------------
+// Fünf grüne Flammen steigen spiralförmig von den Füßen auf und kreisen danach als Krone über dem Kopf (fest fünf in
+// allen Rängen, Spitzen in der Rangfarbe). Beim Laufen alle 0,12 s ein violett-grünes Rauchwölkchen an den Füßen.
+// Für den eigenen Spieler und Mitspieler mit dem Buff im Zustand (b); nicht bei Grafik „Niedrig“.
+const FX3_CROWN = { parts: [] };
+const CROWN3_PUFFS = Array.from({ length: 16 }, () => ({ x: 0, z: 0, t: -9, c: 0 }));
+let crown3Next = 0;
+const _crown3List = [];
+function fx3Crown(h) {
+  if (typeof opts !== 'undefined' && opts.graphics === 'niedrig') return;
+  const now = game.time;
+  const list = _crown3List;
+  list.length = 0;
+  if (game.player && game.running && !game.player.dead) list.push(game.player);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp)) list.push(rp);
+  for (const p of list) {
+    let b = null;
+    for (const q of p.buffs || []) if (q.id === 'dunklemacht' && q.until > now) { b = q; break; }
+    if (!b) {
+      p.crownAt = null;
+      continue;
+    }
+    if (p.crownAt == null) p.crownAt = now;
+    if (!v3InView(p.x, p.y, 60)) continue;
+    const fy = feetY(p);
+    if (p.moving && now >= (p.crownPuffAt || 0)) {
+      p.crownPuffAt = now + 0.12;
+      const q = CROWN3_PUFFS[crown3Next++ % CROWN3_PUFFS.length];
+      q.x = p.x + (Math.random() - 0.5) * 10;
+      q.z = fy;
+      q.t = now;
+      q.c = crown3Next & 1;
+    }
+    const x = p.x * U3;
+    const z = fy * U3;
+    const k = easeOut(clamp01((now - p.crownAt) / 0.8));
+    const r = 0.5 - 0.12 * k;
+    // etwas über dem Kopf (viel höher läge die Krone unter dem Namensschild)
+    const y = 0.1 + (v3HeadHeight(p) + 0.14) * k;
+    const spin = now * 1.2 + (1 - k) * 7;
+    const rank = skillRank(b.lvl || 1);
+    const tip = rank >= 0 ? SKILL_RANKS[rank].color : '#e0ffd0';
+    for (let i = 0; i < 5; i++) {
+      const a = spin + i * 1.2566;
+      const fl = 0.85 + 0.2 * Math.sin(now * 15 + i * 2.1);
+      const px = x + Math.cos(a) * r;
+      const pz = z + Math.sin(a) * r;
+      const py = y + 0.03 * Math.sin(now * 4 + i);
+      // dunkelvioletter Schein dahinter: grüne Flammen bleiben auch auf hellem Gras sichtbar
+      const back = fx3Take(h, 'smoke');
+      back.position.set(px, py + 0.04, pz);
+      back.scale.set(0.36, 0.44, 1);
+      back.material.color.set('#2a1440');
+      back.material.opacity = 0.6;
+      const o = fx3Take(h, 'spriteFlame');
+      fx3Map(o, 'flame');
+      o.position.set(px, py, pz);
+      o.scale.set(0.26 * fl, 0.46 * fl, 1);
+      fx3Color(o, i % 2 ? '#7ad36a' : '#a7e37f', 1);
+      const s = fx3Take(h, 'sprite');
+      fx3Map(s, 'disc');
+      s.position.set(px, py + 0.2 * fl, pz);
+      s.scale.set(0.14, 0.14, 1);
+      fx3Color(s, tip, 0.9);
+    }
+  }
+  for (const q of CROWN3_PUFFS) {
+    const age = now - q.t;
+    if (age < 0 || age >= 0.6) continue;
+    const o = fx3Take(h, 'smoke');
+    o.position.set(q.x * U3, 0.12 + age * 0.5, q.z * U3);
+    const s = 0.3 + age * 0.8;
+    o.scale.set(s, s, 1);
+    o.material.color.set(q.c ? '#5a2a9a' : '#2a6a3a');
+    o.material.opacity = 0.6 * (1 - age / 0.6);
+  }
+}
+
 const FX3_PROJ = { parts: [] };
 function v3SyncFx() {
   if (!FX3.group) {
@@ -1308,6 +1685,7 @@ function v3SyncFx() {
   FX3.live.clear();
   fx3Release(FX3_PROJ);
   fx3Release(FX3_STATUS);
+  fx3Release(FX3_CROWN);
   for (const e of game.effects) {
     if (!FX3_TYPES.has(e.type)) continue;
     const o = effectOrigin(e);
@@ -1319,6 +1697,7 @@ function v3SyncFx() {
   }
   fx3Projectiles(FX3_PROJ);
   fx3Status(FX3_STATUS);
+  fx3Crown(FX3_CROWN);
 }
 
 // --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------

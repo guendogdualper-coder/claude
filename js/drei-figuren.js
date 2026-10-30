@@ -3975,6 +3975,82 @@ const SKILL_POSE3 = {
       if (T < 0.6) B[BH.hips].scale.set(1.08, 0.88, 1.08);
       else if (T < 0.64) B[BH.hips].scale.set(0.97, 1.04, 0.97);
     }
+  },
+
+  // --- Nekromant, Weg der Seelen (seit 8.5) ---
+  // Schädelsalve (0,4 s): Stab an die Schulter zurück, nach vorn stoßen (die Schädel verlassen den Stab),
+  // freie Hand fächert seitlich aus, Oberkörper leicht vor; zurück
+  salve(B, sw, kind, p, a) {
+    const T = sw * 0.4;
+    if (T < 0.12) {
+      const k = easeOut(T / 0.12);
+      setArm(B[BH.armR], 0.5 * k, 0, -0.35 * k);
+      setArm(B[BH.armL], -0.3 * k, 0, 0.3 * k);
+      B[BH.chest].rotation.y = 0.4 * k;
+      B[BH.legR].rotation.x = 0.15 * k;
+      return;
+    }
+    const w = T < 0.25 ? 1 : 1 - easeInOut3(poseSeg(T, 0.25, 0.4));
+    const b = easeOut(poseSeg(T, 0.12, 0.2));
+    setArm(B[BH.armR], (0.5 - 2.05 * b) * w, 0, -0.35 * (1 - b) * w);
+    setArm(B[BH.armL], -0.3 * w, 0, (0.3 + 1.0 * b) * w);
+    B[BH.chest].rotation.y = (0.4 - 0.7 * b) * w;
+    B[BH.chest].rotation.x = 0.17 * b * w;
+    B[BH.legR].rotation.x = (0.15 - 0.35 * b) * w;
+    B[BH.legL].rotation.x = 0.2 * b * w;
+    poseWeaponGlow(a, '#a7e37f', 0.7 * b * w);
+  },
+
+  // Seelenkäfig (0,55 s): Stab mit beiden Händen über den Kopf, Stabfuß in Richtung Zielort in den Boden rammen,
+  // halten, zurück
+  kaefig(B, sw, kind, p, a) {
+    const T = sw * 0.55;
+    if (T < 0.2) {
+      const k = easeOut(T / 0.2);
+      setArm(B[BH.armR], -2.7 * k, 0, -0.15 * k);
+      setArm(B[BH.armL], -2.6 * k, 0, 0.15 * k);
+      B[BH.chest].rotation.x = -0.15 * k;
+      B[BH.head].rotation.x += -0.12 * k;
+      B[BH.legL].rotation.x = -0.25 * k;
+      return;
+    }
+    const w = T < 0.45 ? 1 : 1 - easeInOut3(poseSeg(T, 0.45, 0.55));
+    const d = Math.pow(poseSeg(T, 0.2, 0.3), 2);
+    setArm(B[BH.armR], (-2.7 + 2.1 * d) * w, 0, -0.15 * w);
+    setArm(B[BH.armL], (-2.6 + 1.9 * d) * w, 0, 0.15 * (1 - d) * w);
+    B[BH.chest].rotation.x = (-0.15 + 0.5 * d) * w;
+    B[BH.hips].position.y -= 0.06 * d * w;
+    B[BH.legL].rotation.x = (-0.25 - 0.2 * d) * w;
+    B[BH.legR].rotation.x = 0.3 * d * w;
+    if (T >= 0.3 && T < 0.36) B[BH.chest].rotation.x += Math.sin(T * 90) * 0.03;
+    poseWeaponGlow(a, '#7fe3a0', 0.6 * d * w);
+  },
+
+  // Seelenschnitter (0,75 s): Stab mit beiden Armen über den Kopf, Rücken gebogen; Arme schwingen im Takt der Sense
+  // von rechts nach links; zurück. Passt für Stab und Sense.
+  schnitter(B, sw, kind, p, a) {
+    const T = sw * 0.75;
+    if (T < 0.35) {
+      const k = easeOut(T / 0.35);
+      setArm(B[BH.armR], -2.8 * k, 0, -0.2 * k);
+      setArm(B[BH.armL], -2.7 * k, 0, 0.2 * k);
+      B[BH.chest].rotation.x = -0.3 * k;
+      B[BH.chest].rotation.y = 0.6 * k;
+      B[BH.head].rotation.x += -0.15 * k;
+      B[BH.legR].rotation.x = 0.2 * k;
+      poseWeaponGlow(a, '#a774e0', 0.5 * k);
+      return;
+    }
+    const w = T < 0.5 ? 1 : 1 - easeInOut3(poseSeg(T, 0.5, 0.75));
+    const s = easeOut(poseSeg(T, 0.35, 0.5));
+    setArm(B[BH.armR], (-2.8 + 1.4 * s) * w, 0, -0.2 * w);
+    setArm(B[BH.armL], (-2.7 + 1.4 * s) * w, 0, 0.2 * w);
+    B[BH.chest].rotation.x = (-0.3 + 0.45 * s) * w;
+    B[BH.chest].rotation.y = (0.6 - 1.5 * s) * w;
+    B[BH.hips].rotation.y = -0.3 * s * w;
+    B[BH.legR].rotation.x = (0.2 - 0.4 * s) * w;
+    B[BH.legL].rotation.x = 0.25 * s * w;
+    poseWeaponGlow(a, '#a7e37f', 0.7 * (1 - s * 0.5) * w);
   }
 };
 
@@ -4082,7 +4158,7 @@ function syncPlayer3(p, dt) {
     B[BH.armR].rotation.set(-2.7 * k, 0, -0.3 * k);
     B[BH.head].rotation.x += -0.3 * k;
   } else if (sw >= 0 && Object.prototype.hasOwnProperty.call(SKILL_POSE3, p.swingKind)) {
-    // eigene Animationen (seit 8.3): Sichelwelle, Felsenfaust, Sprungschlag
+    // eigene Animationen (seit 8.3): Sichelwelle, Felsenfaust, Sprungschlag; seit 8.5 Salve, Käfig, Schnitter
     SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
   } else if (sw >= 0) {
     const e = easeOut(sw);

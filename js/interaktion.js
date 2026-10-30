@@ -666,6 +666,34 @@ function remoteSkillFx(rp, d) {
     case 'projectile':
       spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce });
       break;
+    // Nekromant, Weg der Seelen (seit 8.5): nur Optik, mit dem Rang des Wirkers. Alte IDs (8.4-Mitspieler, über
+    // SKILL_RENAMED) oder fehlende Felder zeigen nur Rune bzw. Säule.
+    case 'skulls':
+      if (d.s !== sk.id || !Array.isArray(d.ts)) {
+        vfxPillar(rp, col);
+        break;
+      }
+      withRank(d.rk ?? -1, () => d.ts.forEach((pt, k) => {
+        if (!Array.isArray(pt)) return;
+        const [x, y] = pt;
+        const a = ang + (k - (d.ts.length - 1) / 2) * sk.fan;
+        later(k * 0.06, () => spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: { x: Math.cos(a), y: Math.sin(a) }, turn: sk.turn, homeTo: { x, y }, speed: sk.speed, range: Math.hypot(x - rp.x, y - rp.y) + 120, mul: 0, color: sk.color, radius: 8, style: 'skullfire' }));
+      }));
+      break;
+    case 'cage':
+      if (d.s !== sk.id) {
+        addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: 60, dur: 0.8, color: col });
+        break;
+      }
+      withRank(d.rk ?? -1, () => cageFx(rp, d.tx, d.ty, sk, null));
+      break;
+    case 'reaper':
+      if (d.s !== sk.id) {
+        addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: 60, dur: 0.8, color: col });
+        break;
+      }
+      withRank(d.rk ?? -1, () => reaperFx(rp, d.a ?? ang, sk));
+      break;
     case 'vortex':
       vortexFx(rp, sk);
       break;

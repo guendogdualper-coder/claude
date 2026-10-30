@@ -259,32 +259,47 @@ const CLASSES = {
     paths: [
       {
         id: 'seelen', name: 'Weg der Seelen', role: 'PvE · Beschwörung und Flächenschaden',
-        description: 'Lässt Skelette kämpfen, verflucht Gruppen und fegt mit Seelenstürmen durch sie hindurch.',
+        description: 'Ruft Skelette – erweckt Knochenhunde –, sperrt Seelen in Knochenkäfige und mäht Gruppen mit dem Seelenschnitter.',
         skills: [
           {
-            id: 'seelenpfeil', name: 'Seelenpfeil', short: 'SP', kind: 'angriff', unlock: 1, mp: 8, cooldown: 2,
-            type: 'projectile', range: 380, speed: 500, dmg: 1.5, color: '#b7f08c', style: 'skull', pierce: true,
-            text: 'Ein Geschoss aus Seelenenergie, das durch alle Gegner in einer Linie fliegt.'
+            // seit 8.5 (ersetzt den Seelenpfeil): drei brennende Schädel im Fächer, die bis zu drei Ziele suchen
+            id: 'schaedelsalve', name: 'Schädelsalve', short: 'SV', kind: 'angriff', unlock: 1, mp: 9, cooldown: 2.5,
+            type: 'skulls', range: 360, speed: 430, count: 3, fan: 0.42, turn: 7, spreadR: 150, dmg: 0.75, duelExtra: 0.5,
+            color: '#a7e37f', style: 'skullfire', anim: 'salve', animDur: 0.4,
+            text: 'Drei brennende Totenschädel schießen im Fächer aus deinem Stab, fliegen im Bogen und beißen bis zu drei Gegner. Auf ein einzelnes Ziel treffen alle drei.'
           },
           {
-            id: 'seelensturm', name: 'Seelensturm', short: 'SS', kind: 'angriff', unlock: 3, mp: 16, cooldown: 6,
-            type: 'circle', radius: 120, dmg: 1.5,
-            text: 'Ein Wirbel aus Seelen fegt um dich herum und trifft alle Gegner.'
+            // seit 8.5 (ersetzt den Seelensturm): ein Käfig aus Rippen bricht beim Ziel aus dem Boden, der gefangene Geist schreit fünfmal
+            id: 'seelenkaefig', name: 'Seelenkäfig', short: 'SK', kind: 'angriff', unlock: 3, mp: 18, cooldown: 8,
+            type: 'cage', range: 300, place: 110, radius: 125, rise: 0.35, pulses: 5, every: 1.0, dmg: 0.5, pull: 30,
+            slow: { amount: 0.25, duration: 1.2 }, lock: 0.25, color: '#7fe3a0', anim: 'kaefig', animDur: 0.55,
+            text: 'Ein Käfig aus riesigen Rippen bricht bei deinem Ziel aus dem Boden. Der Geist darin schreit 5 s lang jede Sekunde: Jeder Schrei trifft und verlangsamt alle Gegner im Umkreis, der erste zieht sie heran.'
           },
           {
-            id: 'totenbeschwoerung', name: 'Totenbeschwörung', short: 'TB', kind: 'beschwörung', unlock: 5, mp: 30, cooldown: 45,
-            type: 'summon', count: 2, duration: 90, hp: 0.4, atk: 0.5,
-            text: 'Beschwört zwei Skelette, die an deiner Seite kämpfen.'
+            id: 'totenbeschwoerung', name: 'Totenbeschwörung', short: 'TB', kind: 'beschwörung', unlock: 5, mp: 30, cooldown: 40,
+            type: 'summon', count: 3, duration: 90,
+            // Index = skillRank(lvl) + 1: 0 = Stufe 1–15, 1 = Erwacht, 2 = Heroisch, 3 = Legendär, 4 = Vollendet
+            tiers: [
+              { kind: 'skelett', name: 'Skelettkrieger', hp: 0.4,  atk: 0.45, every: 1.1,  windup: 0.18, speed: 160, def: 0.6, scale: 1.0 },
+              { kind: 'hund',    name: 'Knochenhund',    hp: 0.45, atk: 0.55, every: 0.85, windup: 0.12, speed: 195, def: 0.6, scale: 1.0,  pounce: true },
+              { kind: 'hund',    name: 'Knochenhund',    hp: 0.5,  atk: 0.55, every: 0.85, windup: 0.12, speed: 200, def: 0.6, scale: 1.08, pounce: true, slow: 0.25 },
+              { kind: 'hund',    name: 'Seelenhund',     hp: 0.55, atk: 0.55, every: 0.85, windup: 0.12, speed: 205, def: 0.7, scale: 1.14, pounce: true, slow: 0.25, burst: 1.0 },
+              { kind: 'hund',    name: 'Seelenhund',     hp: 0.6,  atk: 0.55, every: 0.85, windup: 0.1,  speed: 210, def: 0.7, scale: 1.18, pounce: true, slow: 0.3,  burst: 1.2, alpha: 1.15 }
+            ],
+            text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen 90 s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen.'
           },
           {
-            id: 'fluch', name: 'Fluch der Schwäche', short: 'FS', kind: 'fluch', unlock: 7, mp: 18, cooldown: 15,
-            type: 'curse', radius: 150, duration: 8, vulnerable: 0.3, slow: 0.4,
-            text: 'Verflucht Gegner um dich: Sie nehmen mehr Schaden und werden langsamer.'
+            // seit 8.5 (ersetzt den Fluch der Schwäche): ein riesiger Schnitter erhebt sich und mäht einmal vor dir durch
+            id: 'seelenschnitter', name: 'Seelenschnitter', short: 'SN', kind: 'angriff', unlock: 7, mp: 22, cooldown: 12,
+            type: 'reaper', radius: 135, angle: 200, dmg: 1.8, hitAt: 0.42, lock: 0.45,
+            mark: { vulnerable: 0.15, duration: 6, slow: 0.3, slowDur: 2 },
+            color: '#a774e0', anim: 'schnitter', animDur: 0.75,
+            text: 'Neben dir erhebt sich ein riesiger Schnitter und mäht mit seiner Sense in weitem Bogen vor dir durch alle Gegner. Getroffene tragen sein Mal: 6 s mehr Schaden, 2 s langsamer.'
           },
           {
             id: 'dunklemacht', name: 'Dunkle Macht', short: 'DM', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
-            type: 'buff', duration: 180, effects: { atk: 0.2, atkSpeed: 0.1 },
-            text: 'Buff: Dunkle Macht durchströmt dich. Mehr Angriff und Angriffstempo.'
+            type: 'buff', duration: 180, effects: { skillDmg: 0.18, atkSpeed: 0.1, speed: 0.06 }, labels: { skillDmg: 'Zauberschaden' },
+            text: 'Buff: Dunkle Macht krönt dich mit Seelenflammen. Mehr Zauberschaden – für alle Fertigkeiten, deine Diener und die Ultimative Attacke –, mehr Angriffstempo und etwas Lauftempo.'
           }
         ]
       },

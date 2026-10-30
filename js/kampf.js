@@ -512,6 +512,8 @@ function useSkill(i) {
   p.skillCd[i] = sk.cooldown;
   // Fertigkeiten mit eigener Bahn (Welle, Riss, Sprung) geben ihre Eckdaten für Mitspieler zurück
   const extra = ok && typeof ok === 'object' ? ok : sk.aim ? { tx: Math.round(skillAimPoint(sk).x), ty: Math.round(skillAimPoint(sk).y) } : {};
+  // Rang mitschicken (seit 8.5): Mitspieler sehen Augen und Kern in der Rangfarbe
+  if (rank >= 0) extra.rk = rank;
   netSkillFx(sk.id, 160, extra);
   // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
   if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
@@ -1132,6 +1134,99 @@ const SKILL_TYPES = {
       }
       if (net.mode === 'client' && !m.duelProxy) netClientDamage(m, 0, false, false);
     }
+  },
+
+  // Schädelsalve (seit 8.5): drei brennende Schädel im Fächer, jeder biegt im Flug zu einem eigenen Ziel ab
+  skulls(sk, pw) {
+    const p = game.player;
+    const main = pickTarget(sk.range);
+    if (main) faceTowards(main.x, main.y);
+    const fa = Math.atan2(p.facing.y, p.facing.x);
+    const ts = [];
+    if (main) {
+      // bis zu zwei Nachbarn des Hauptziels, fehlende Plätze gehen auch aufs Hauptziel
+      const near = aliveEnemies()
+        .filter((m) => m !== main && dist(m, main) < sk.spreadR && dist(m, p) < sk.range + 40)
+        .sort((a, b) => dist(a, main) - dist(b, main));
+      for (let k = 0; k < sk.count; k++) ts.push(k && near[k - 1] ? near[k - 1] : main);
+      // jeder Schädel nimmt das Ziel auf seiner Seite des Fächers (keine gekreuzten Bahnen)
+      const side = (m) => {
+        const d = Math.atan2(m.y - p.y, m.x - p.x) - fa;
+        return Math.atan2(Math.sin(d), Math.cos(d));
+      };
+      ts.sort((a, b) => side(a) - side(b));
+    }
+    const salve = { duel: 0, extra: sk.duelExtra };
+    const pts = [];
+    for (let k = 0; k < sk.count; k++) {
+      const tk = ts[k] || null;
+      const a = fa + (k - (sk.count - 1) / 2) * sk.fan;
+      const dir = { x: Math.cos(a), y: Math.sin(a) };
+      pts.push(tk ? [Math.round(tk.x), Math.round(tk.y)] : [Math.round(p.x + dir.x * sk.range), Math.round(p.y + dir.y * sk.range)]);
+      later(k * 0.06, () => {
+        if (p.dead) return;
+        spawnProjectile({ owner: 'player', x: p.x, y: p.y, target: tk, dir, turn: tk ? sk.turn : 0, speed: sk.speed, range: sk.range + 80, mul: sk.dmg * pw, color: sk.color, radius: 8, style: 'skullfire', skill: sk.id, salve });
+      });
+    }
+    return { ts: pts };
+  },
+
+  // Seelenkäfig (seit 8.5): beim Ziel bricht ein Rippenkäfig aus dem Boden, der Geist darin schreit jede Sekunde
+  cage(sk, pw) {
+    const p = game.player;
+    const t = pickTarget(sk.range);
+    if (t) faceTowards(t.x, t.y);
+    const dir = { ...p.facing };
+    let x = t ? t.x : p.x + dir.x * sk.place;
+    let y = t ? t.y : p.y + dir.y * sk.place;
+    // Wand, Wasser oder Lava: auf der Linie zur Figur zurückziehen
+    if (!canStand(x, y, 10, false)) {
+      const len = clearLen(p.x, p.y, dir, Math.hypot(x - p.x, y - p.y), 10);
+      x = p.x + dir.x * len;
+      y = p.y + dir.y * len;
+    }
+    lockPlayer(p, sk.lock);
+    input.walkTo = null;
+    cageFx(p, x, y, sk, (k, last) => {
+      // Kartenwechsel, Reise oder Tod: der Käfig schreit nicht weiter
+      if (p.dead || Math.hypot(p.x - x, p.y - y) > sk.range + 400) return false;
+      shakeScreen(last ? 3 : 1);
+      for (const m of enemiesInCircle(x, y, sk.radius)) {
+        // der erste Schrei zieht heran (negativer Rückstoß, nicht bei Bossen)
+        const pull = k === 0 && !(m.type && m.type.boss) ? { knockback: -sk.pull, from: { x, y } } : {};
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, slow: sk.slow, heavy: last, vfxColor: '#c6f5a0', ...pull });
+      }
+      return true;
+    });
+    return { tx: Math.round(x), ty: Math.round(y) };
+  },
+
+  // Seelenschnitter (seit 8.5): ein Schnitter erhebt sich neben der Figur und mäht einmal schwer vor ihr durch.
+  // Getroffene tragen sein Mal (verwundbar und langsamer); der Host bekommt es mit dem Treffer (netClientDamage).
+  reaper(sk, pw, lvl) {
+    const p = game.player;
+    const t = pickTarget(sk.radius + 40);
+    if (t) faceTowards(t.x, t.y);
+    const dir = { ...p.facing };
+    const ang = Math.atan2(dir.y, dir.x);
+    lockPlayer(p, sk.lock);
+    input.walkTo = null;
+    reaperFx(p, ang, sk);
+    later(sk.hitAt, () => {
+      if (p.dead) return;
+      for (const m of enemiesInCone(p.x, p.y, dir, sk.radius, sk.angle)) {
+        // erst das Mal setzen, dann treffen (der Treffer nimmt die Zustände mit zum Host)
+        if (!m.isStone && !m.duelProxy) {
+          m.vulnerable = { mul: 1 + sk.mark.vulnerable * buffScale(lvl), until: game.time + sk.mark.duration, color: sk.color };
+          m.slow = { mul: 1 - sk.mark.slow, until: game.time + sk.mark.slowDur };
+        }
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, heavy: true, vfxColor: '#e0ffd0' });
+        aggro(m, p);
+      }
+      shakeScreen(5);
+      hitStop(0.05);
+    });
+    return { a: Math.round(ang * 100) / 100 };
   }
 };
 
@@ -1211,7 +1306,8 @@ function dashStep(dt) {
 function spawnProjectile(o) {
   let dx;
   let dy;
-  const goal = o.target || o.aimAt;
+  // mit turn (Kurvenflug, seit 8.5) kommt die Startrichtung aus o.dir, nicht aus dem Ziel
+  const goal = o.turn ? null : (o.target || o.aimAt);
   if (goal) {
     dx = goal.x - o.x;
     dy = goal.y - o.y;
@@ -1232,12 +1328,26 @@ function updateProjectiles(dt) {
   for (const pr of game.projectiles) {
     // Treffer eines Geschosses sehen aus wie seine Fertigkeit (Rang beim Abschuss)
     fxRank = pr.owner === 'player' && pr.rank >= 0 ? pr.rank : -1;
-    if (pr.target && !pr.target.dead) {
-      const dx = pr.target.x - pr.x;
-      const dy = pr.target.y - pr.y;
+    const goal = pr.target && !pr.target.dead ? pr.target : pr.homeTo;
+    if (goal) {
+      const dx = goal.x - pr.x;
+      const dy = goal.y - pr.y;
       const len = Math.hypot(dx, dy) || 1;
-      pr.vx = dx / len;
-      pr.vy = dy / len;
+      // Kurvenflug: höchstens turn rad/s drehen. Nahfang: unter 70 px oder nach 0,35 s Flug lenkt das Geschoss
+      // direkt ein (sonst kreisen Schädel um Gegner im Nahkampf und verfallen)
+      if (pr.turn && len > 70 && pr.traveled < pr.speed * 0.35) {
+        const want = Math.atan2(dy, dx);
+        const cur = Math.atan2(pr.vy, pr.vx);
+        let d = Math.atan2(Math.sin(want - cur), Math.cos(want - cur));
+        d = Math.max(-pr.turn * dt, Math.min(pr.turn * dt, d));
+        pr.vx = Math.cos(cur + d);
+        pr.vy = Math.sin(cur + d);
+      } else {
+        pr.vx = dx / len;
+        pr.vy = dy / len;
+      }
+      // fremde Schädel (homeTo): am Zielpunkt angekommen geradeaus weiter statt dort zu zittern
+      if (goal === pr.homeTo && len < pr.speed * dt + 4) pr.homeTo = null;
     }
     const step = pr.speed * dt;
     pr.x += pr.vx * step;
@@ -1262,11 +1372,15 @@ function updateProjectiles(dt) {
       const foe = duelFighting() ? game.duel.proxy : null;
       if (foe && !pr.hit.has('duel') && Math.hypot(foe.x - pr.x, foe.y - pr.y) < foe.r + pr.radius) {
         pr.hit.add('duel');
-        hitMonster(foe, pr.mul, { vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
+        // Schädelsalve im Duell: der erste Schädel voll, jeder weitere nur mit duelExtra (zusammen 1,5×)
+        const mul = pr.mul * (pr.salve && pr.salve.duel++ > 0 ? pr.salve.extra : 1);
+        hitMonster(foe, mul, { vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
         if (!pr.pierce) { pr.done = true; continue; }
       }
+      // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
+      const only = pr.turn && pr.target && !pr.target.dead ? pr.target : null;
       for (const m of game.monsters) {
-        if (m.dead || pr.hit.has(m.id)) continue;
+        if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
         hitMonster(m, pr.mul, { poison: pr.poison, stun: pr.stun, vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
