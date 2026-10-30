@@ -221,21 +221,23 @@ for (const wm of WORLD_MAPS) {
 
 // Waren der Händlerin im Dorf: die beiden Tränke
 const SHOP = [
-  { id: 'hp', name: 'Drachenblut', plural: 'Drachenblut-Tränke', kind: 'Lebenstrank', color: '#ff9a8a', text: 'Lebenstrank: Stellt 35 % Leben wieder her. Taste Q.', price: 15 },
-  { id: 'mp', name: 'Mondtau', plural: 'Mondtau-Tränke', kind: 'Manatrank', color: '#9ac0ff', text: 'Manatrank: Stellt 40 % Mana wieder her. Taste E.', price: 20 }
+  { id: 'hp', name: 'Drachenblut', plural: 'Drachenblut-Tränke', kind: 'Lebenstrank', color: '#ff9a8a', text: 'Lebenstrank: Stellt Leben wieder her, je größer, desto mehr. Taste Q.', price: 15 },
+  { id: 'mp', name: 'Mondtau', plural: 'Mondtau-Tränke', kind: 'Manatrank', color: '#9ac0ff', text: 'Manatrank: Stellt Mana wieder her, je größer, desto mehr. Taste E.', price: 20 }
 ];
 const potionInfo = (kind) => SHOP.find((x) => x.id === kind);
 
 // Trankgrößen: S bis XXL. Je größer, desto mehr Leben bzw. Mana und desto teurer;
 // die Händlerin verkauft sie ab einer Stufe. Im Gepäck: p.potions.hp (S), hpM, hpL, hpXL, hpXXL, ebenso mp.
+// Seit 10.1 heilen sie feste Mengen statt Prozent: So passt jede Größe zu ihrem Stufenbereich (bei Stufe 30
+// heilt der kleine Trank nur noch etwa ein Siebtel, der große etwa die Hälfte).
 const POTION_SIZES = [
-  { id: 'S', name: 'klein', heal: 0.35, mana: 0.4, price: 1, level: 1 },
-  { id: 'M', name: 'mittel', heal: 0.5, mana: 0.55, price: 5, level: 10 },
-  { id: 'L', name: 'groß', heal: 0.65, mana: 0.7, price: 20, level: 25 },
-  { id: 'XL', name: 'sehr groß', heal: 0.8, mana: 0.85, price: 80, level: 40 },
-  { id: 'XXL', name: 'riesig', heal: 1, mana: 1, price: 320, level: 55 }
+  { id: 'S', name: 'klein', hp: 170, mp: 60, price: 1, level: 1 },
+  { id: 'M', name: 'mittel', hp: 330, mp: 115, price: 5, level: 10 },
+  { id: 'L', name: 'groß', hp: 620, mp: 210, price: 20, level: 25 },
+  { id: 'XL', name: 'sehr groß', hp: 980, mp: 320, price: 80, level: 40 },
+  { id: 'XXL', name: 'riesig', hp: 1450, mp: 470, price: 320, level: 55 }
 ];
 const potKey = (kind, size) => (size === 'S' ? kind : kind + size);
 const potionTotal = (p, kind) => POTION_SIZES.reduce((n, sz) => n + (p.potions[potKey(kind, sz.id)] || 0), 0);
-// Größe passend zur Stufe (für Beute): bis 15 S, bis 31 M, bis 47 L, bis 63 XL, darüber XXL
-const potionSizeFor = (level) => POTION_SIZES[Math.min(POTION_SIZES.length - 1, Math.floor(level / 16))];
+// Größe passend zur Stufe (für Beute und Tagesbelohnung): die größte, die man auf dieser Stufe kaufen kann
+const potionSizeFor = (level) => POTION_SIZES.reduce((best, sz) => (level >= sz.level ? sz : best), POTION_SIZES[0]);

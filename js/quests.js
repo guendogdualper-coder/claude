@@ -165,11 +165,16 @@ function enterDungeon(k, viaParty = false) {
 // in einen zufälligen Dungeon deiner Stufe führt. Ein Riss trägt einen Spieler hinein, dann schließt er sich.
 const RIFT = { first: 75, every: [140, 240], life: 300, minLevel: 10 };
 
-function riftDungeon(level) {
-  const ok = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && DUNGEONS[k].minLevel <= level && DUNGEONS[k].minLevel >= level - 28);
-  const fallback = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && DUNGEONS[k].minLevel <= level);
-  const list = ok.length ? ok : fallback;
-  return list.length ? list[randInt(0, list.length - 1)] : -1;
+// seit 10.1 passend zur Stufe: nur Dungeons bis 8 Stufen darunter (und höchstens 2 darüber); gibt es keinen,
+// der nächstniedrigere. Maßstab ist deine Stufe, höchstens die Mitte des Gebiets, in dem der Riss erscheint.
+function riftDungeon(level, zone) {
+  const target = zone && zone.minLevel ? Math.min(level, zone.minLevel + 9) : level;
+  const all = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && DUNGEONS[k].minLevel <= Math.max(level, target + 2));
+  const ok = all.filter((k) => DUNGEONS[k].minLevel >= target - 8 && DUNGEONS[k].minLevel <= target + 2);
+  if (ok.length) return ok[randInt(0, ok.length - 1)];
+  if (!all.length) return -1;
+  // sonst der höchste darunter
+  return all.reduce((best, k) => (DUNGEONS[k].minLevel > DUNGEONS[best].minLevel ? k : best), all[0]);
 }
 
 function updateRifts() {
@@ -189,7 +194,7 @@ function updateRifts() {
     return;
   }
   game.riftAt = game.time + randInt(...RIFT.every);
-  const k = riftDungeon(p.level);
+  const k = riftDungeon(p.level, zone);
   if (k < 0) return;
   const here = mapOfTile(p.x / TILE, p.y / TILE);
   for (let tries = 0; tries < 50; tries++) {

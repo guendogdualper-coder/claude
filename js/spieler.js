@@ -74,7 +74,7 @@ const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoi
   'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
-const STAT_POINTS_PER_LEVEL = 3;
+const STAT_POINTS_PER_LEVEL = 1; // seit 10.1 (vorher 3): sonst ist man zu schnell durch
 const MAX_ATTR = 90;
 const ATTRS = [
   { id: 'str', name: 'Stärke', short: 'STR', text: '+1 Angriff je Punkt' },
@@ -185,6 +185,14 @@ function makePlayer(save) {
   } else {
     p.attrs = { str: 0, vit: 0, int: 0, dex: 0, ...save.attrs };
     p.statPoints = save.statPoints || 0;
+    // 10.1: nur noch 1 Statuspunkt pro Stufe – wer mehr hat (alte 3 pro Stufe), bekommt alle Punkte zurück
+    // und verteilt die neue Zahl kostenlos neu
+    const allowed = (p.level - 1) * STAT_POINTS_PER_LEVEL;
+    if (statPointsSpent(p) + p.statPoints > allowed) {
+      p.attrs = { str: 0, vit: 0, int: 0, dex: 0 };
+      p.statPoints = allowed;
+      p.statNotice = true;
+    }
   }
   // Spielstände vor den zwei Wegen: Fertigkeitspunkte zurückgeben, der Weg wird beim Start gewählt
   if (save.path == null) {
@@ -601,19 +609,20 @@ function usePotion(kind) {
   const hp = kind === 'hp';
   if (hp && p.hp >= s.maxHp) return;
   if (!hp && p.mp >= s.maxMp) return;
-  const missing = hp ? 1 - p.hp / s.maxHp : 1 - p.mp / s.maxMp;
+  const missing = hp ? s.maxHp - p.hp : s.maxMp - p.mp;
   const have = POTION_SIZES.filter((sz) => (p.potions[potKey(kind, sz.id)] || 0) > 0);
-  const size = have.find((sz) => (hp ? sz.heal : sz.mana) >= missing - 0.02) || have[have.length - 1];
+  // die kleinste Größe, die das Fehlende (fast) auffüllt, sonst die größte vorhandene
+  const size = have.find((sz) => (hp ? sz.hp : sz.mp) >= missing * 0.9) || have[have.length - 1];
   p.potions[potKey(kind, size.id)]--;
   p.potCd[kind] = POTION_CD;
   vfxPotion(p, kind);
   snd.player('potion', { vol: 0.4 });
   if (hp) {
-    const amount = Math.round(s.maxHp * size.heal);
+    const amount = Math.min(size.hp, s.maxHp - p.hp);
     p.hp = Math.min(s.maxHp, p.hp + amount);
     addText(p.x, p.y - 30, `+${amount} (${size.id})`, 'heal');
   } else {
-    const amount = Math.round(s.maxMp * size.mana);
+    const amount = Math.min(size.mp, s.maxMp - p.mp);
     p.mp = Math.min(s.maxMp, p.mp + amount);
     addText(p.x, p.y - 30, `+${amount} MP (${size.id})`, 'mana');
   }

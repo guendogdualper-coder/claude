@@ -105,6 +105,7 @@ function hitMonster(m, mul, opts = {}) {
     m._sElAt = game.time;
   }
   if (m.duelProxy) return duelHit(m, mul, opts);
+  m.struckAt = game.time;
   const p = game.player;
   const s = game.stats;
   let factor = mul * levelPenalty(p.level, m.level);

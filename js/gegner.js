@@ -1,6 +1,6 @@
 // Monster: Erscheinen, Verhalten (KI), Seelensteine und Skelett-Diener.
 
-const LEASH = 420;        // so weit verfolgen Monster dich von ihrem Platz weg
+const LEASH = 820;        // so weit verfolgen Monster dich von ihrem Platz weg (seit 10.1 fast doppelt so weit)
 const AGGRO_LEVEL_GAP = 10; // so viele Stufen unter dem Spieler: kein Angriff von selbst
 const AGGRO_RANGE = 150;  // ab dieser Nähe greifen aggressive Monster an
 let nextMonsterId = 1;
@@ -700,7 +700,8 @@ function updateMonsters(dt) {
       const lost = !t || t.dead || t.hp <= 0 || t.gone
         || (isPlayerLike(t) && playerHidden(t))
         || (!isPlayerLike(t) && !game.allies.includes(t))
-        || Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash;
+        // wer gerade noch getroffen wurde (3 s), verfolgt weiter, auch über die Leine hinaus (bis 1,5-fach)
+        || (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash && (game.time - (m.struckAt || -9) > 3 || Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash * 1.5));
       if (lost) {
         m.state = 'return';
         m.target = null;

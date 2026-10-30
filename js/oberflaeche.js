@@ -1442,10 +1442,10 @@ const ui = {
         const key = potKey(item.id, sz.id);
         const price = item.price * sz.price;
         const low = p.level < sz.level;
-        const pct = Math.round((item.id === 'hp' ? sz.heal : sz.mana) * 100);
+        const amt = item.id === 'hp' ? sz.hp : sz.mp;
         return `<div class="shop-item${low ? ' locked' : ''}"><img class="shop-icon potion-icon" src="${potionIconUrl(item.id, sz.id)}" alt="">` +
           `<strong>${item.name} ${sz.id} <span class="price">${price.toLocaleString('de-DE')} Gold</span></strong>` +
-          `<small>${item.kind} (${sz.name}): ${pct} % ${item.id === 'hp' ? 'Leben' : 'Mana'}${low ? ` · ab Stufe ${sz.level}` : ''}. Im Gepäck: <b id="have-${key}">${p.potions[key] || 0}</b></small>` +
+          `<small>${item.kind} (${sz.name}): +${amt.toLocaleString('de-DE')} ${item.id === 'hp' ? 'Leben' : 'Mana'}${low ? ` · ab Stufe ${sz.level}` : ''}. Im Gepäck: <b id="have-${key}">${p.potions[key] || 0}</b></small>` +
           `<div class="buy"><button class="mini-btn" type="button" data-buy="${key}" data-n="1" ${low ? 'disabled' : ''}>1 kaufen</button>` +
           `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10 kaufen</button></div></div>`;
       }).join('')).join('') +
