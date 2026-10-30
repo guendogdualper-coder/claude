@@ -434,18 +434,62 @@ function resetStats() {
   p.mp = Math.min(p.mp, game.stats.maxMp);
   return true;
 }
-// Fertigkeiten bis Stufe 15 zurück auf 1 (Punkte zurück). Erweckte Fertigkeiten (E/H/L/V) behalten ihren Rang,
-// denn dafür wurden Bücher gelesen, die sich nicht zurückgeben lassen.
-function skillPointsBack(p) {
-  return p.skillLevels.reduce((a, l) => a + (skillRank(l) < 0 ? Math.max(0, l - 1) : 0), 0);
+// Fertigkeiten zurücksetzen (seit 10.2): alle fünf auf Stufe 1, auch erweckte (E/H/L/V), alle Fertigkeitspunkte
+// zurück (eine je Stufe ab 2). Die gelesenen Bücher kommen als Bücher zurück – so viele, wie der Rang mindestens
+// gekostet hat (Rangaufstieg geht schon 2 Stufen vor dem Ende eines Rangs). Wahlweise mit neuem Weg der Klasse.
+function skillBooksSpent(lvl) {
+  const r = skillRank(lvl);
+  if (r < 0) return 0;
+  let n = lvl - SKILL_RANKS[r].from;
+  for (let k = 1; k <= r; k++) n += Math.max(0, SKILL_RANKS[k - 1].levels - 3) + SKILL_RANKS[k].books;
+  return n;
 }
-function resetSkills() {
+function skillPointsBack(p) {
+  return p.level - 1 - (p.skillPoints || 0);
+}
+function canResetSkills(p, path = p.path || 0) {
+  return path !== (p.path || 0) || p.skillLevels.some((l) => l > 1);
+}
+// Was beim Zurücksetzen oder Wegwechsel endet: Buffs der Klasse und der Ultimates, Diener, Geister, Strahl
+function endSkillEffects(p) {
+  const ids = new Set(CLASSES[p.classId].paths.flatMap((pt) => pt.skills.map((sk) => sk.id)));
+  Object.values(ULTIMATES).forEach((u) => { if (u.buff) ids.add(u.buff.id); });
+  ids.add('steinhaut');
+  ids.add('donnerkrone');
+  p.buffs = p.buffs.filter((b) => !ids.has(b.id));
+  if (p.channel) stopChannel(p);
+  for (const a of game.allies) allyCrumble(a);
+  game.allies = [];
+  releaseAllyTargets();
+}
+function giveBooks(p, id, n) {
+  for (; n > 0; n -= BOOK_STACK) addBookItem(p, id, Math.min(n, BOOK_STACK), true);
+}
+function resetSkills(path = game.player.path || 0) {
   const p = game.player;
-  const back = skillPointsBack(p);
-  if (!back || !payReset(p, 'skill')) return false;
-  p.skillLevels = p.skillLevels.map((l) => (skillRank(l) < 0 ? 1 : l));
-  p.skillPoints += back;
-  return true;
+  const c = CLASSES[p.classId];
+  if (!c.paths[path] || !canResetSkills(p, path) || !payReset(p, 'skill')) return false;
+  const oldPath = p.path || 0;
+  const books = p.skillLevels.map(skillBooksSpent);
+  let moved = [];
+  endSkillEffects(p);
+  if (path !== oldPath) {
+    // Bücher des alten Wegs in der Tasche werden zu Büchern derselben Plätze im neuen Weg
+    c.paths[oldPath].skills.forEach((sk, i) => {
+      const n = bookCount(p, sk.id);
+      if (n) { takeBooks(p, sk.id, n); giveBooks(p, c.paths[path].skills[i].id, n); }
+    });
+    p.path = path;
+    moved = enforceGearRules(p);
+  }
+  const skills = classSkills(p);
+  books.forEach((n, i) => giveBooks(p, skills[i].id, n));
+  p.skillLevels = [1, 1, 1, 1, 1];
+  p.skillPoints = p.level - 1;
+  game.stats = playerStats(p);
+  p.hp = Math.min(p.hp, game.stats.maxHp);
+  p.mp = Math.min(p.mp, game.stats.maxMp);
+  return { books: books.reduce((a, n) => a + n, 0), moved: moved.length, changed: path !== oldPath };
 }
 // --- Lager (seit 9.1) ------------------------------------------------------------------------------
 // Bei jedem Lagerverwalter (Vlotho und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,

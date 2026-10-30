@@ -44,6 +44,12 @@ function addGrave(m) {
 // Fertigkeit: Gräber in Reichweite wecken
 SKILL_TYPES.revive = function (sk, pw, lvl) {
   const p = game.player;
+  // seit 10.2: nur eine Geisterschar – solange noch Geister wandeln, ruft der Totenruf keine weiteren
+  // (keine Armee aus 50 Geistern). Die Totenbeschwörung (3) geht weiter.
+  if (game.allies.some((a) => a.ghost && a.hp > 0 && a.until > game.time) || game.time < (p.ghostCallAt ?? -99) + 2) {
+    addText(p.x, p.y - 34, 'Deine Geister wandeln noch', 'info');
+    return false;
+  }
   const graves = (game.graves || []).filter((g) => g.until > game.time && Math.hypot(g.x - p.x, g.y - p.y) <= sk.radius)
     .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
   if (!graves.length) {
@@ -71,6 +77,7 @@ SKILL_TYPES.revive = function (sk, pw, lvl) {
       a.until = game.time;
     }
   });
+  p.ghostCallAt = game.time;
   ui.log(n === 1 ? 'Ein Geist erhebt sich aus seinem Grab.' : n + ' Geister erheben sich aus ihren Gräbern.', 'info');
   return {};
 };

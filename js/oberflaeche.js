@@ -1307,7 +1307,7 @@ const ui = {
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
-    else if (npc.id === 'lehrmeister') this.renderTeacher();
+    else if (npc.id === 'lehrmeister') { this.teacherPath = null; this.renderTeacher(); }
     else if (npc.id === 'lager') {
       this.stPage = 0;
       this.renderStorage();
@@ -1379,14 +1379,21 @@ const ui = {
   // Lehrmeister (seit 8.7): Fertigkeitsbücher kaufen, Status- und Fertigkeitspunkte zurücksetzen
   renderTeacher(msg) {
     const p = game.player;
+    const c = CLASSES[p.classId];
     const fmt = (n) => n.toLocaleString('de-DE');
     const skills = classSkills(p);
     const statSpent = statPointsSpent(p);
     const skillBack = skillPointsBack(p);
+    const bookBack = p.skillLevels.reduce((a, l) => a + skillBooksSpent(l), 0);
     const stCost = resetCost(p, 'stat');
     const skCost = resetCost(p, 'skill');
+    const cur = p.path || 0;
+    if (this.teacherPath == null || !c.paths[this.teacherPath]) this.teacherPath = cur;
+    const pick = this.teacherPath;
+    const way = c.paths.length === 4 ? 'Element' : 'Weg';
+    const pickName = c.paths.length === 4 ? MAGE_EL[c.paths[pick].id].name : c.paths[pick].name;
     $('npcBody').innerHTML =
-      `<p>„Wissen hat seinen Preis. Ich verkaufe Bücher zu deinen Fertigkeiten und helfe dir, deine Punkte neu zu verteilen.“</p>` +
+      `<p>„Wissen hat seinen Preis. Ich verkaufe Bücher zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg.“</p>` +
       `<p>Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
       (msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '') +
       `<h3>Fertigkeitsbücher <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
@@ -1399,10 +1406,24 @@ const ui = {
       `<small>Alle ${statSpent} verteilten Statuspunkte kommen zurück und lassen sich neu verteilen.</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="stat" ${!statSpent || p.gold < stCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `<div class="shop-item"><strong>Fertigkeitspunkte <span class="price">${fmt(skCost)} Gold</span></strong>` +
-      `<small>Fertigkeiten bis Stufe 15 gehen auf Stufe 1, ${skillBack} Punkte kommen zurück. Erweckte Fertigkeiten (E/H/L/V) behalten ihren Rang.</small>` +
-      `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!skillBack || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
-      `</div><p class="hint">Das erste Zurücksetzen kostet ${fmt(TEACHER.resetBase)} Gold, jedes weitere das Doppelte (Status und Fertigkeiten getrennt).</p>`;
+      `<small>Alle Fertigkeiten gehen auf Stufe 1 zurück, auch erweckte (E/H/L/V). Du bekommst alle ${p.level - 1} Fertigkeitspunkte` +
+      `${bookBack ? ` und ${bookBack} gelesene Bücher` : ''} zurück.</small>` +
+      `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!canResetSkills(p) || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
+      `</div><h3>${way} wechseln <span class="price">${fmt(skCost)} Gold</span></h3>` +
+      `<p class="hint">Ein neuer ${way} setzt deine Fertigkeiten wie oben zurück (alle Punkte und Bücher zurück). ` +
+      `Bücher deines alten ${way}s werden zu Büchern derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>` +
+      pathChoiceHtml(c, pick) +
+      `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? `Dein jetziger ${way}` : `${way}: ${pickName}`}</strong>` +
+      `<div class="buy"><button class="mini-btn" type="button" data-reset="path" ${pick === cur || p.gold < skCost ? 'disabled' : ''}>${pick === cur ? 'Gewählt' : 'Wechseln'}</button></div></div></div>` +
+      `<p class="hint">Das erste Zurücksetzen kostet ${fmt(TEACHER.resetBase)} Gold, jedes weitere das Doppelte (Status und Fertigkeiten getrennt, der Wegwechsel zählt zu den Fertigkeiten).</p>`;
     const body = $('npcBody');
+    drawPathSigils(body);
+    body.querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
+      this.teacherPath = Number(b.dataset.path);
+      const y = body.scrollTop;
+      this.renderTeacher(msg);
+      body.scrollTop = y;
+    }));
     body.querySelectorAll('[data-book]').forEach((b) => b.addEventListener('click', () => {
       const sk = skills.find((s) => s.id === b.dataset.book);
       const r = buyBook(sk.id);
@@ -1417,17 +1438,31 @@ const ui = {
       body.querySelector('.buy-confirm')?.remove();
       const ask = document.createElement('div');
       ask.className = 'buy-confirm';
-      ask.innerHTML = `<p>${what} für ${fmt(resetCost(p, kind))} Gold zurücksetzen?</p>` +
+      ask.innerHTML = (kind === 'path'
+        ? `<p>Für ${fmt(skCost)} Gold zu ${pickName} wechseln? Alle Fertigkeiten gehen auf Stufe 1.</p>`
+        : `<p>${what} für ${fmt(resetCost(p, kind === 'stat' ? 'stat' : 'skill'))} Gold zurücksetzen?</p>`) +
         `<button class="mini-btn" type="button" data-yes>Ja</button> <button class="mini-btn" type="button" data-no>Nein</button>`;
       b.closest('.shop-item').appendChild(ask);
       ask.querySelector('[data-no]').addEventListener('click', () => ask.remove());
       ask.querySelector('[data-yes]').addEventListener('click', () => {
-        const ok = kind === 'stat' ? resetStats() : resetSkills();
-        if (ok) {
-          if (kind === 'skill') this.buildSkillBar();
-          saveGame();
+        const res = kind === 'stat' ? resetStats() : resetSkills(kind === 'path' ? pick : cur);
+        if (!res) {
+          this.renderTeacher({ ok: false, text: 'Dafür reicht dein Gold nicht.' });
+          return;
         }
-        this.renderTeacher(ok ? { ok: true, text: `${what} zurückgesetzt. Verteile sie im Charakterfenster neu.` } : { ok: false, text: 'Dafür reicht dein Gold nicht.' });
+        let text = `${what} zurückgesetzt. Verteile sie im Charakterfenster neu.`;
+        if (kind !== 'stat') {
+          this.buildSkillBar();
+          drawPortrait($('hudPortrait'), p);
+          const extra = (res.books ? ` ${res.books} Bücher liegen in deiner Tasche.` : '') +
+            (res.moved ? ` ${res.moved === 1 ? 'Ein Teil' : res.moved + ' Teile'} deiner Ausrüstung ${res.moved === 1 ? 'liegt' : 'liegen'} jetzt in der Tasche.` : '');
+          text = kind === 'path'
+            ? `Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine ${p.level - 1} Fertigkeitspunkte im Charakterfenster.` + extra
+            : `Alle Fertigkeiten sind wieder auf Stufe 1. Du hast ${p.level - 1} Fertigkeitspunkte zum Verteilen.` + extra;
+          if (kind === 'path') this.log(`Du folgst jetzt dem ${c.paths[pick].name}.`, 'level');
+        }
+        saveGame();
+        this.renderTeacher({ ok: true, text });
       });
     }));
   },

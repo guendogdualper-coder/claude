@@ -1924,3 +1924,8 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 
 - Totenruf: `Game skill icon, round, painterly toon, dark violet vignette, a tilted gravestone with a glowing green cross on a dirt mound, a pale ghostly wolf head with glowing cyan eyes rising from it with a misty tail, green soul light, gold ring frame, no text.`
 
+
+## Lehrmeister – Weg wechseln (seit 10.2)
+
+- Fenster: `Fantasy MMORPG UI panel, dark lacquered wood with brass trim, title "Weg wechseln", two (or four for the mage: fire, frost, lightning, earth) tall path cards side by side, each with an emblem, path name, role line and short description, the selected card glowing with a golden border, below a single brass button "Wechseln" and a gold price tag, an old teacher NPC with a scroll at the side, painterly toon style, clean readable German text, 16:9`
+- Totenruf gesperrt: `Small floating combat text above a necromancer in pale cyan: "Deine Geister wandeln noch", three white ghost animals (wolf, bear, boar) still circling him in soft blue mist, painterly toon 3D style, top-down MMORPG camera`

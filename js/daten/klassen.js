@@ -296,7 +296,7 @@ const CLASSES = {
             id: 'totenruf', name: 'Totenruf', short: 'TR', kind: 'beschwörung', unlock: 7, mp: 24, cooldown: 15,
             type: 'revive', radius: 320, duration: 180, counts: [2, 3, 4, 4, 5], hp: 0.3, atk: 0.42,
             color: '#9fe8d0', anim: 'kaefig', animDur: 0.55,
-            text: 'Jedes Monster, das in deiner Nähe stirbt, hinterlässt 2 Minuten lang ein Grab. Der Totenruf weckt die Gräber um dich: Die Monster steigen als weiße Geister in ihrer eigenen Gestalt auf und kämpfen 3 Minuten an deiner Seite – 2 Geister, mit dem Rang bis zu 5 (höchstens 6 zugleich). Sie bleiben neben deinen Knochenhunden.'
+            text: 'Jedes Monster, das in deiner Nähe stirbt, hinterlässt 2 Minuten lang ein Grab. Der Totenruf weckt die Gräber um dich: Die Monster steigen als weiße Geister in ihrer eigenen Gestalt auf und kämpfen 3 Minuten an deiner Seite – 2 Geister, mit dem Rang bis zu 5. Solange deine Geister wandeln, ruft der Totenruf keine weiteren. Sie bleiben neben deinen Knochenhunden.'
           },
           {
             id: 'dunklemacht', name: 'Dunkle Macht', short: 'DM', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
