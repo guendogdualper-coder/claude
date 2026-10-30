@@ -414,12 +414,17 @@ function humanoid3(b, c, P) {
   const hr = c.headR || (belly ? 0.26 : 0.33);
   // headZ: Kopf etwas nach vorn (schlanke Wegelagerer)
   const hc = [0, neckY + hr * 0.84, (belly ? 0.1 : 0.02) + (c.headZ || 0)];
-  const rig = rigOf([
+  const handR = [-shX, shY - armLen - armR * 0.5, 0.02];
+  const handL = [shX, shY - armLen - armR * 0.5, 0.02];
+  const bones = [
     [[0, 0, 0], -1], [[0, hipY, 0], 0], [[0, chestY, 0], 1], [[0, neckY, 0], 2],
     [[shX, shY, 0], 2], [[-shX, shY, 0], 2], [[shX, shY - armLen, 0], 4], [[-shX, shY - armLen, 0], 5],
     [[hipX, hipY, 0], 1], [[-hipX, hipY, 0], 1], [[0, shY + 0.02, -0.18], 2], [[0, hipY + 0.04, -0.2], 1],
     [[0.12, shY - 0.02, -0.18], 2], [[-0.12, shY - 0.02, -0.18], 2]
-  ]);
+  ];
+  // schwebende, sich drehende Teile (seit 8.6, Magier) bekommen eigene Knochen hinter den üblichen 14
+  const spin = spinBones3(c, bones, { hipY, shY, hc, hr, handR });
+  const rig = rigOf(bones);
   const pants = c.pants || darker(c.torso, 0.2);
   const boots = c.boots || '#3a2a1c';
   const trim = c.trim || c.belt || darker(c.torso, 0.3);
@@ -571,7 +576,11 @@ function humanoid3(b, c, P) {
       if (c.cuff) A(torus3(0.155, 0.018, Math.PI * 2, 4, 16), c.cuff, { bone: ab, p: [sh[0], sh[1] - 0.29, sh[2]], r: [Math.PI / 2, 0, 0], shine: 0.6 });
     } else {
       seg(sh, wrist, armR, armR * 0.85, c.sleeve || c.torso, { bone: ab, shade: 0.12 });
-      A(torus3(armR * 1.0, 0.016, Math.PI * 2, 4, 12), c.cuff || trim, { bone: ab, p: [wrist[0], wrist[1] + 0.04, wrist[2]], r: [Math.PI / 2, 0, 0] });
+      // Magier (seit 8.6): schmale Ärmel mit Glockenstulpe und Silberrand
+      if (c.bellCuff) {
+        A(lathe3('bellcuff', [[0, -0.026], [0.09, -0.025], [0.078, 0.0], [0.058, 0.04], [0.05, 0.075]], 12), c.sleeve || c.torso, { bone: ab, p: [wrist[0], wrist[1] + 0.02, wrist[2]], shade: 0.15 });
+        A(torus3(0.088, 0.011, Math.PI * 2, 4, 14), c.cuff || trim, { bone: ab, p: [wrist[0], wrist[1] - 0.004, wrist[2]], r: [Math.PI / 2, 0, 0], shine: 0.8 });
+      } else A(torus3(armR * 1.0, 0.016, Math.PI * 2, 4, 12), c.cuff || trim, { bone: ab, p: [wrist[0], wrist[1] + 0.04, wrist[2]], r: [Math.PI / 2, 0, 0] });
       if (c.wraps) for (let k = 0; k < 3; k++) A(torus3(armR * 0.95, 0.011, Math.PI * 2, 4, 12), c.wraps, { bone: ab, p: [wrist[0], wrist[1] + 0.08 + k * 0.045, wrist[2]], r: [Math.PI / 2 + 0.2 * (k % 2 ? 1 : -1), 0, 0] });
       if (c.bracer) A(lathe3('bracer', [[armR * 1.0, 0], [armR * 1.08, 0.06], [armR * 1.02, 0.12], [0, 0.121]], 10), c.bracer, { bone: ab, p: [wrist[0], wrist[1] + 0.03, wrist[2]], shine: 0.8 });
     }
@@ -639,8 +648,19 @@ function humanoid3(b, c, P) {
   else if (c.beard) beard3(A, hb, hc, hr, c.beard, c.beardKind, c.rnd || mulberry32(5));
   if (c.tusks) for (const sx of [-1, 1]) A(horn3(hr * 0.34, hr * 0.085, 6), '#f4ecd8', { bone: hb, p: [hc[0] + sx * hr * 0.3, hc[1] - hr * 0.6, hc[2] + hr * 0.78], r: [-0.25, 0, sx * 0.15], shine: 0.4 });
   if (c.hair) hair3(A, hb, hc, hr, c.hair.style, c.hair.color, typeof c.covered === 'string' ? c.covered : !!c.covered, c.rnd);
+  // Magierin (seit 8.6): langer Zopf unter der Hutkrempe vorn über die linke Schulter
+  if (c.braid && c.braidFront) {
+    const pts = [[hr * 0.62, hc[1] - hr * 0.42, hc[2] - hr * 0.2], [shX * 0.78, shY + 0.06, 0.06], [shX * 0.72, shY - 0.06, 0.15], [shX * 0.66, shY - 0.18, 0.18], [shX * 0.62, shY - 0.3, 0.19], [shX * 0.6, shY - 0.41, 0.19]];
+    for (let k = 0; k < pts.length; k++) {
+      const bone = k ? BH.chest : hb;
+      A(ball(8), k % 2 ? c.braid : darker(c.braid, 0.12), { bone, p: pts[k], s: [hr * (0.2 - k * 0.012), hr * 0.24, hr * (0.18 - k * 0.01)], shine: 0.25 });
+    }
+    const end = pts[pts.length - 1];
+    A(torus3(hr * 0.1, hr * 0.035, Math.PI * 2, 4, 10), c.braidTie || '#c8402f', { bone: BH.chest, p: [end[0], end[1] - hr * 0.14, end[2]], r: [Math.PI / 2, 0, 0], shine: 0.6 });
+    A(horn3(hr * 0.32, hr * 0.12, 6), c.braid, { bone: BH.chest, p: [end[0], end[1] - hr * 0.16, end[2]], r: [Math.PI, 0, 0] });
+  }
   // Frauen unter Kapuze oder Helm: geflochtener Zopf hängt hinten heraus
-  if (c.braid) {
+  else if (c.braid) {
     const b0 = [hc[0], hc[1] - hr * 0.2, hc[2] - hr * 0.85];
     let prev = b0;
     for (let k = 1; k <= 4; k++) {
@@ -651,14 +671,23 @@ function humanoid3(b, c, P) {
     A(torus3(hr * 0.12, hr * 0.04, Math.PI * 2, 4, 10), '#c8402f', { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.14, prev[2]], r: [Math.PI / 2, 0, 0] });
     A(horn3(hr * 0.3, hr * 0.13, 6), c.braid, { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.16, prev[2]], r: [Math.PI, 0, 0] });
   }
-  if (c.headgear) c.headgear(A, hb, hc, hr);
+  if (c.headgear) c.headgear(A, hb, hc, hr, spin);
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
-    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: !!c.female,
+    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: !!c.female, spin,
     cuirass: !!c.cuirass, greaves: !!c.greaves,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk
   };
+  // Magier (seit 8.6): kurzes Schultercape (Männer) mit Silberrand und Schließe, hoher steifer Stehkragen
+  if (c.capelet) {
+    const Wc = frame3(A, BH.chest, [0, neckY - 0.05, 0], [0, 0, 0]);
+    const cs = [bk, 1, 0.9 * bk];
+    Wc(lathe3('capelet', [[0, -0.171], [0.31, -0.17], [0.33, -0.165], [0.32, -0.13], [0.27, -0.04], [0.2, 0.025], [0.13, 0.05]], 20), c.capelet, { s: cs, shade: 0.25, top: lighter(c.capelet, 0.12), topK: 0.3 });
+    Wc(torus3(0.325, 0.014, Math.PI * 2, 4, 24), c.collar || trim, { p: [0, -0.163, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.9 * bk, 1], shine: 0.8 });
+  }
+  if (c.highCollar) highCollar3(frame3(A, BH.chest, [0, 0, 0]), g, c.collar || trim, 0.13);
+  if (c.accent && c.highCollar) A(G3.gem(), c.accent, { bone: BH.chest, p: [0, neckY - 0.07, 0.15 * bk], s: [0.022, 0.03, 0.016], mat: 'glow' });
   if (c.gear) c.gear(A, g);
   if (c.cape && c.capeTier != null) gearCape3(A, g, c.capeTier, c.cape, c.lining);
   // Umhang gebogen, mit Futter und Saum (Bewohner, Monster)
@@ -693,10 +722,9 @@ function humanoid3(b, c, P) {
     limbBetween(A, t1, t2, 0.045, 0.025, c.tail, { bone: BH.tail });
     A(horn3(0.14, 0.07, 4), darker(c.tail, 0.3), { bone: BH.tail, p: t2, r: [-0.6, 0, 0] });
   }
-  // Waffen
-  const handR = [-shX, shY - armLen - armR * 0.5, 0.02];
-  const handL = [shX, shY - armLen - armR * 0.5, 0.02];
-  if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], true);
+  // Waffen (das Zepter hängt seinen Kristall und den Funken an die Drehknochen)
+  const wo = spin && c.weapon ? { accent: c.weapon.accent, hi: c.weapon.hi, gemBone: spin.gem, sparkBone: spin.spark } : undefined;
+  if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], true, wo);
   if (c.offhand) {
     const h = WEAPON_HOLD[c.offhand.kind] || [1.1, 0, 0];
     weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, [h[0], -h[1], -h[2]], false);
@@ -704,13 +732,41 @@ function humanoid3(b, c, P) {
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
-  return { rig, height: top, family: 'human', shY, hipY, shX, hc, hr, belly };
+  return { rig, height: top, family: 'human', shY, hipY, shX, hc, hr, belly, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
+}
+
+// Drehknochen (seit 8.6): Teile, die schweben und sich drehen (Zepterkristall mit Funke, Runenring um die
+// Taille, Siegelring im Rücken, Stern oder Kristalle am Hut), sind gebacken wie alles andere, hängen aber an
+// einem eigenen Knochen, den syncPlayer3 dreht – kein eigenes Mesh, kein neuer Shader, nichts je Bild neu.
+// anim: [Knochen, Achse (0 x, 1 y, 2 z), Drehtempo, Wippen]
+const ROD3_GEM_Y = 0.97;
+const ROD3_SPARK_R = 0.095;
+function spinBones3(c, list, m) {
+  const out = { anim: [] };
+  const add = (key, pos, parent, axis, speed, bob = 0) => {
+    out[key] = list.length;
+    list.push([pos, parent]);
+    out.anim.push([out[key], axis, speed, bob]);
+  };
+  if (c.weapon && c.weapon.kind === 'rod') {
+    const M = partFrame(m.handR, WEAPON_HOLD.rod);
+    const at = new THREE.Vector3(0, ROD3_GEM_Y, 0).applyMatrix4(M);
+    const sp = new THREE.Vector3(ROD3_SPARK_R, ROD3_GEM_Y, 0).applyMatrix4(M).sub(at);
+    add('gem', [at.x, at.y, at.z], BH.handR, 1, 1.2, 0.012);
+    add('spark', [at.x, at.y, at.z], BH.handR, 1, -3.4, 0.022);
+    out.sparkOff = [sp.x, sp.y, sp.z];
+  }
+  if (c.spinRing === 'waist') add('ring', [0, m.hipY + 0.07, 0], BH.hips, 1, 0.5);
+  else if (c.spinRing === 'back') add('ring', [0, m.shY - 0.04, -0.34], BH.chest, 2, 0.35);
+  if (c.spinHat) add('hat', [m.hc[0], m.hc[1] + m.hr * c.spinHat[0], m.hc[2] + m.hr * c.spinHat[1]], BH.head, 1, c.spinHat[2] || 0.9);
+  return out.anim.length ? out : null;
 }
 
 // Haltung der Waffe in der Hand (Drehung des Griffs)
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [0.8, 0, 0.35], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
-  bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45]
+  bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45],
+  rod: [0.22, 0, 0.08]
 };
 
 // --- Spielerfiguren ---------------------------------------------------------------------------------
@@ -718,7 +774,9 @@ const WEAPON_HOLD = {
 function playerKey3(p) {
   const eq = p.equipment || {};
   const t = (it) => (it ? it.tier + ':' + (it.kind || '') + ':' + plusBand(it.plus || 0) : '-');
-  return [p.classId, JSON.stringify(p.look || {}), t(eq.waffe), t(eq.ruestung), t(eq.helm), t(eq.schild), t(eq.schuhe), t(eq.guertel), t(eq.schultern), t(eq.umhang), weaponKindOf(p)].join('|');
+  const key = [p.classId, JSON.stringify(p.look || {}), t(eq.waffe), t(eq.ruestung), t(eq.helm), t(eq.schild), t(eq.schuhe), t(eq.guertel), t(eq.schultern), t(eq.umhang), weaponKindOf(p)].join('|');
+  // Magier (seit 8.6): Kristall, Hutband und Runen tragen die Farbe des Elements (Weg)
+  return p.classId === 'magier' ? key + '|' + (p.path ?? 'a') : key;
 }
 
 function playerConfig3(p) {
@@ -802,6 +860,37 @@ function playerConfig3(p) {
     c.headgear = shamanHelm3(L.h, lookColor(A0.band, L.h, gold), gold);
     // Seidenhaube bedeckt das Haar
     if (L.h === 1) { c.covered = true; if (ap.sex === 1) c.braid = hairOf(ap); }
+  } else if (p.classId === 'magier') {
+    // Magier (seit 8.6): Indigo und Silber, hoher Stehkragen, Glockenstulpen, spitzer Krempenhut; die Farbe des
+    // Elements nur an Kristall, Hutband, Runen und Schließen. Männer mit Schultercape, Frauen mit Korsage und Zopf vorn.
+    const A0 = ARMOR_LOOK.magier;
+    const E = mageEl(p);
+    const robe = lookColor(A0.robe, L.a, '#283070');
+    const silver = lookColor(A0.trim, L.a, '#d8e0f0');
+    Object.assign(c, {
+      torso: robe, sleeve: darker(robe, 0.08), robe, wideSleeves: false, bellCuff: true, cuff: silver, hemTrim: silver,
+      collar: silver, highCollar: true, gloves: c.skin, buckle: silver, belt: gt('g') >= 0 ? c.belt : '#2a2230', sash: false, padStyle: 'cloth',
+      robeShine: 0.15, accent: E.main, accentHi: E.hi, glyph: E.glyph
+    });
+    c.weapon.accent = E.main;
+    c.weapon.hi = E.hi;
+    if (ap.sex === 0) c.capelet = darker(robe, 0.04);
+    else c.bulk = 0.97;
+    if (c.pads) { c.pads = mixColor(c.pads, robe, 0.6); c.padTrim = silver; }
+    // Stufe 0 ohne Gürtel: Strickgürtel aus der Rüstung (drei-ausruestung.js)
+    if (L.a === 0 && gt('g') < 0) c.belt = null;
+    const hat = L.h !== -2 && L.h !== 7;
+    c.headgear = magierHelm3(L.h, lookColor(A0.hat, L.h, '#283070'), silver, E.main, { tilt: ap.sex === 1 ? 0.08 : 0, glyph: E.glyph });
+    c.covered = hat ? 'hat' : false;
+    if (hat) c.tall = 0.36;
+    // Drehknochen: Runenring um die Taille (Arkanrobe), Siegelring im Rücken (Erzmagier), Stern, Siegel, Kristalle am Hut
+    c.spinRing = L.a === 4 ? 'waist' : L.a === 7 ? 'back' : null;
+    c.spinHat = L.h === 4 ? [2.9, -0.15, 1.4] : L.h === 6 ? [1.15, -0.12, 1.1] : L.h === 7 ? [1.05, 0, 0.7] : null;
+    if (ap.sex === 1) {
+      c.braid = hairOf(ap);
+      c.braidFront = true;
+      c.braidTie = silver;
+    }
   } else {
     const A0 = ARMOR_LOOK.nekromant;
     const robe = lookColor(A0.robe, L.a, '#334a31');
@@ -3452,7 +3541,7 @@ function model3(key, build) {
     const used = new Set();
     for (const a of actors3.values()) used.add(a.modelKey);
     for (const [k, old] of MODELS3) {
-      if (used.has(k) || k === key || k === 'warm') continue;
+      if (used.has(k) || k === key || k === 'warm' || k === 'warm:magier') continue;
       MODELS3.delete(k);
       dropPool(k);
       for (const g in old.geos) old.geos[g].dispose();
@@ -3681,6 +3770,16 @@ function warmPrograms() {
     if (a.mats.wglow) a.mats.wglow.opacity = 0.5;
     V3.actors.add(a.group);
     V3.warm.push(a);
+  }
+  // Magier (seit 8.6) mit Weg 0 und Zepter: Skelett mit Drehknochen (Kristall, Funke) und Kristallschein mit übersetzen
+  if (CLASSES.magier) try {
+    const mm = model3('warm:magier', (b) => humanoid3(b, playerConfig3({ classId: 'magier', path: 0, look: null, equipment: null, buffs: [] })));
+    const a = makeActor(mm);
+    a.modelKey = 'warm:magier';
+    V3.actors.add(a.group);
+    V3.warm.push(a);
+  } catch (err) {
+    console.warn('3D-Vorwärmen Magier:', err);
   }
   const ring = groundRing(new THREE.Color(0xffffff), false);
   V3.actors.add(ring);
@@ -4174,6 +4273,18 @@ function syncPlayer3(p, dt) {
   const B = a.bones;
   resetBones(a);
   const t = game.time;
+  // Elementsprung (seit 8.6): Figur kurz ganz verborgen
+  a.group.visible = !(p.blinkHide > t);
+  // schwebende Teile drehen sich (Zepterkristall, Funke, Runenring, Hutstern), siehe spinBones3
+  const spin = a.model.spin;
+  if (spin) for (let i = 0; i < spin.length; i++) {
+    const sp = spin[i];
+    const bn = B[sp[0]];
+    if (sp[1] === 0) bn.rotation.x = t * sp[2];
+    else if (sp[1] === 1) bn.rotation.y = t * sp[2];
+    else bn.rotation.z = t * sp[2];
+    if (sp[3]) bn.position.y += Math.sin(t * 2.3 + i) * sp[3];
+  }
   // Blickrichtung (beim Wirbel dreht sich die Figur)
   const f = p.facing || { x: 0, y: 1 };
   if (p.spin > 0) a.heading += dt * 28;
@@ -4196,6 +4307,7 @@ function syncPlayer3(p, dt) {
     const h = actorFor(entityKey(p) + 'h' + tier, 'horse' + tier + ':' + CLASSES[p.classId].trim, (b) => Object.assign(horseParts3(b, null, { saddle: CLASSES[p.classId].trim, tier }), { blob: 0.7, scale: tier === 2 ? 1.3 : 1.22 }));
     if (h) {
       resetBones(h);
+      h.group.visible = a.group.visible;
       h.group.position.set(p.x * U3, 0, fy * U3);
       h.group.rotation.y = a.heading;
       // Galopp im Takt des Tempos (seit 8.5): Kriegsross schneller als Reitpferd. Die Phase läuft in
@@ -4272,7 +4384,7 @@ function syncPlayer3(p, dt) {
       B[BH.armR].rotation.set(-1.5, 0.2, 0);
       B[BH.armL].rotation.set(-1.45, -0.6 + Math.sin(sw * Math.PI) * 0.3, 0);
       B[BH.chest].rotation.y = 0.35;
-    } else if (kind === 'staff' || kind === 'bell' || kind === 'fan' && p.swingKind === 'cast') {
+    } else if (kind === 'staff' || kind === 'bell' || kind === 'rod' || kind === 'fan' && p.swingKind === 'cast') {
       const k = Math.sin(sw * Math.PI);
       B[BH.armR].rotation.set(-0.6 - k * 1.8, 0, 0);
       B[BH.armL].rotation.set(-0.4 - k * 1.2, 0, 0.3);
@@ -4381,8 +4493,21 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   const fy = feetY(e);
   resetBones(a);
   const B = a.bones;
+  // Eingefroren (seit 8.6, Frost-Magier): Lauf-, Atem- und Angriffsphase bleiben im Moment des Einfrierens stehen
+  const frozen = e.frozen > game.time;
+  if (frozen) {
+    if (a.fzT !== e.frozenT) {
+      a.fzT = e.frozenT;
+      a.fzMove = moving;
+      a.fzAtk = atk;
+      a.fzWind = wind;
+    }
+    moving = a.fzMove;
+    atk = a.fzAtk;
+    wind = a.fzWind;
+  }
   // nur Zahlen-IDs versetzen die Phase (Text wie früher 'ally0' ergab NaN-Knochen)
-  const t = game.time + (typeof e.id === 'number' ? e.id : 0) * 0.37;
+  const t = (frozen ? e.frozenT ?? game.time : game.time) + (typeof e.id === 'number' ? e.id : 0) * 0.37;
   // Richtung: aus der Bewegung, beim Angriff zum Ziel (sonst zum Spieler)
   if (a.lastX != null) {
     const dx = e.x - a.lastX;
@@ -4393,7 +4518,7 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   if ((atk > 0 || wind > 0) && foe) a.want = Math.atan2(foe.x - e.x, foe.y - e.y);
   // im Stehen halb zur Kamera gedreht, damit Gesichter zu sehen sind
   if (a.want == null) a.want = e.facing < 0 ? -Math.PI / 2 + 0.55 : Math.PI / 2 - 0.55;
-  turnToward(a, a.want, Math.min(1, dt * 10));
+  if (!frozen) turnToward(a, a.want, Math.min(1, dt * 10));
   a.lastX = e.x;
   a.lastY = e.y;
   const fam = a.model.family;
@@ -4478,6 +4603,7 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   const mat = a.mats.lit;
   if (mat) {
     if (flash > 0) mat.emissive.setRGB(flash * 0.9, flash * 0.85, flash * 0.8);
+    else if (frozen) mat.emissive.setRGB(0.06, 0.14, 0.3);
     else if (e.stun > 0) mat.emissive.setRGB(0.2, 0.18, 0.02);
     else mat.emissive.setRGB(0, 0, 0);
   }

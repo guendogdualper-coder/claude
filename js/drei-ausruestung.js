@@ -122,7 +122,7 @@ function flame3(W, at, dir, len, w, outer, inner, o = {}) {
 // --- Schultern -----------------------------------------------------------------------------------
 // Grundform je Klasse baut humanoid3 (Platte, Lederkappe, Stoffmantel, Schädel); hier sitzt das Merkmal der Stufe darauf.
 
-const PAD3_R = { krieger: 0.16, ninja: 0.1, schamane: 0.13, nekromant: 0.1 };
+const PAD3_R = { krieger: 0.16, ninja: 0.1, schamane: 0.13, nekromant: 0.1, magier: 0.12 };
 
 function gearShoulders3(A, g, t, cls) {
   if (t < 0) return;
@@ -821,6 +821,128 @@ function nekroHelm3(t, hood, glow) {
   };
 }
 
+// Magier (seit 8.6): spitzer Krempenhut (Krempe 1,3, Kegel gut 2 Kopfradien, Spitze nach hinten), Band in der
+// Elementfarbe ab Stufe 0; Stufe 7 Silberreif mit drei schwebenden Kristallen. Stern, Siegel und Kristalle
+// am Hut kreisen an einem eigenen Drehknochen (spinBones3), o.tilt neigt den Hut der Magierin etwas zur Seite.
+// Hutkegel je Stufe als ein gebogener Drehkörper (ohne Stufen an den Gelenken): Höhe, Neigung der Spitze nach
+// hinten, Knick (die Spitze fällt herab), Neigung zur Seite
+const HAT3_CONE = [
+  { h: 2.0, bend: 0.65, droop: 0.6, side: 0.12 },
+  { h: 2.1, bend: 0.3, droop: 0, side: 0 },
+  { h: 2.45, bend: 0.4, droop: 0, side: 0 },
+  { h: 1.95, bend: 0.2, droop: 0, side: 0 },
+  { h: 2.1, bend: 0.3, droop: 0, side: 0 },
+  { h: 1.95, bend: 0.35, droop: 0.12, side: 0.16 },
+  { h: 2.0, bend: 0.9, droop: 0.8, side: 0 }
+];
+const hatR3 = (u) => 0.94 * Math.pow(1 - u, 1.35);
+// Punkt auf dem Hutkegel der Stufe s in der Höhe u (0 Krempe, 1 Spitze), Richtung m (0 vorn)
+function hatPt3(s, u, m = 0, out = 0) {
+  const c = HAT3_CONE[s];
+  const r = hatR3(u) + out;
+  return [Math.sin(m) * r + c.side * u * u * u, u * c.h - c.droop * Math.pow(u, 4), Math.cos(m) * r - c.bend * Math.pow(u, 2.5)];
+}
+const hatConeGeo3 = (s) => geo3('mhcone' + s, () => {
+  const pts = [];
+  for (let i = 0; i <= 16; i++) pts.push(new THREE.Vector2(hatR3(i / 16), i / 16));
+  const geo = new THREE.LatheGeometry(pts, 18);
+  const P = geo.attributes.position;
+  const c = HAT3_CONE[s];
+  for (let i = 0; i < P.count; i++) {
+    const u = P.getY(i);
+    P.setXYZ(i, P.getX(i) + c.side * u * u * u, u * c.h - c.droop * Math.pow(u, 4), P.getZ(i) - c.bend * Math.pow(u, 2.5));
+  }
+  geo.computeVertexNormals();
+  return geo;
+});
+function magierHelm3(t, hat, silver, accent, o = {}) {
+  if (t === -2) return null;
+  const s = t < 0 ? 0 : t;
+  return (A, hb, hc, hr, spin) => {
+    const W = sub3(headFrame3(A, hb, hc, hr), [0, 0, 0], [0, 0, o.tilt || 0]);
+    // kreisende Teile: am Drehknochen (Mittelpunkt wie in playerConfig3: c.spinHat), sonst fest
+    const orbit = (at) => sub3(spin && spin.hat != null ? frame3(A, spin.hat, hc, [0, 0, 0], hr) : headFrame3(A, hb, hc, hr), at);
+    if (s === 7) {
+      // Erzmagierreif: Silberreif mit Stirnstein, darüber kreisen drei Kristalle
+      W(torus3(1.04, 0.07, Math.PI * 2, 4, 26), silver, { p: [0, 0.42, -0.02], r: [Math.PI / 2 - 0.2, 0, 0], shine: 1, top: '#ffffff', topK: 0.4 });
+      W(G3.gem(), accent, { p: [0, 0.66, 1.0], s: [0.1, 0.16, 0.07], mat: 'glow' });
+      coneAlong(W, G3.ray(), [0, 0.6, 1.0], [0, 1, 0.25], 0.38, 1.2, silver, { shine: 1 });
+      const O = orbit([0, 1.05, 0]);
+      for (let k = 0; k < 3; k++) {
+        const a = (k / 3) * Math.PI * 2;
+        floatGem3(O, [Math.sin(a) * 1.25, 0, Math.cos(a) * 1.25], 0.13, accent);
+      }
+      return;
+    }
+    // leicht nach vorn geneigt: der Kopf ist zur Kamera gekippt, so bleibt der Kegel auch von hinten ein Kegel
+    const H = sub3(W, [0, 0.5, -0.04], [0.1, 0, 0]);
+    const soft = s === 0;
+    const col = hat;
+    // Krempe (vorn etwas hochgebogen) und Kegel
+    H(lathe3('mhbrim', [[0.86, 0.06], [1.05, 0.02], [1.24, -0.03], [1.32, -0.01], [1.3, 0.04], [1.05, 0.08], [0.86, 0.1]], 24), col, { shade: 0.2, top: lighter(col, 0.12), topK: 0.35 });
+    H(hatConeGeo3(s), col, { shade: 0.15, top: lighter(col, soft ? 0.06 : 0.1), topK: 0.3 });
+    const pt = (y, m, out) => hatPt3(s, y / HAT3_CONE[s].h, m, out);
+    // Hutband: Stoff (Novize), Silber mit Stein, leuchtende Runen, verkohlt
+    const band = (c, oo = {}) => H(torus3(0.93, 0.075, Math.PI * 2, 4, 24), c, Object.assign({ p: [0, 0.1, 0], r: [Math.PI / 2, 0, 0], s: [1, 1, 1.3] }, oo));
+    // schmaler Streifen in der Elementfarbe über dem Silberband (die Elemente bleiben auch von weitem unterscheidbar)
+    const stripe = () => H(torus3(0.89, 0.032, Math.PI * 2, 3, 24), accent, { p: [0, 0.22, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+    const tipEnd = hatPt3(s, 1);
+    switch (s) {
+      case 0:
+        // Novizenhut: weiche Spitze geknickt, Stoffband in der Elementfarbe, ein Flicken
+        band(accent, { shine: 0.1 });
+        sub3(H, pt(0.45, 0.9, 0.02), [-0.4, 0.9, 0])(roundBox(0.3, 0.26, 0.04, 0.02), lighter(col, 0.16), { r: [0, 0, 0.3] });
+        break;
+      case 1:
+        // Gelehrtenhut: Silberband mit Elementstein in Silberfassung
+        band(silver, { shine: 1 });
+        stripe();
+        H(torus3(0.16, 0.035, Math.PI * 2, 3, 12), silver, { p: [0, 0.12, 0.99], shine: 1 });
+        H(G3.gem(), accent, { p: [0, 0.12, 1.02], s: [0.14, 0.2, 0.08], mat: 'glow' });
+        break;
+      case 2:
+        // Runenhut: hoch, leuchtendes Band mit fünf Dreiecksrunen
+        band(darker(col, 0.2));
+        H(torus3(0.95, 0.025, Math.PI * 2, 3, 24), accent, { p: [0, 0.1, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+        for (let k = -2; k <= 2; k++) {
+          const m = k * 0.62;
+          sub3(H, pt(0.1, m, 0.1), [0, m, 0])(triGeo3(), accent, { s: [0.09, 0.09, 0.1], r: [0, 0, glyphUp3(o.glyph) ? Math.PI : 0], mat: 'glow' });
+        }
+        break;
+      case 3:
+        // Kristallhut: Spitze endet in einem schwebenden Kristall, Eiskristalle am Band
+        band(silver, { shine: 1 });
+        stripe();
+        floatGem3(H, [tipEnd[0], tipEnd[1] + 0.32, tipEnd[2] - 0.08], 0.13, accent);
+        for (const m of [-0.5, 0.5]) coneAlong(H, G3.gem(), pt(0.14, m, 0.06), [Math.sin(m) * 0.6, 1, 0.4], 0.24, 0.1, '#cfe6ff', { shine: 1 });
+        break;
+      case 4:
+        // Arkanhut: Krempe glüht, über der Spitze kreist ein kleines Dreieckssiegel
+        band(silver, { shine: 1 });
+        stripe();
+        H(torus3(1.31, 0.035, Math.PI * 2, 3, 30), accent, { p: [0, 0.02, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+        mageGlyph3(sub3(orbit([0, 2.9, -0.15]), [0, 0, 0], [-0.25, 0, 0]), [0, 0, 0], 0.28, o.glyph, accent, { mat: 'glow' });
+        break;
+      case 5:
+        // Aschenhut: verkohlt, Glutlöcher, Rauchfaden über der Spitze
+        band('#2a1e1c', { shine: 0.2 });
+        for (const [y, m, r] of [[0.3, 0.6, 0.07], [0.55, -0.7, 0.06], [0.2, -1.6, 0.08], [0.7, 2.4, 0.05], [0.4, 1.9, 0.06]]) H(sphere3(r, 6, 4), '#ff7a2a', { p: pt(y, m, -0.01), mat: 'glow' });
+        H(torus3(1.3, 0.025, Math.PI * 2, 3, 30), '#ff7a2a', { p: [0, 0.02, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+        for (let k = 0; k < 3; k++) H(G3.puff(), '#5a5258', { p: [tipEnd[0] + Math.sin(k * 2) * 0.08, tipEnd[1] + 0.22 + k * 0.24, tipEnd[2] - k * 0.06], s: 0.1 + k * 0.04, shade: 0.2 });
+        break;
+      case 6:
+        // Sternenhut: Sternpunkte auf dem Kegel, gerollte Spitze, ein Stern kreist um den Hut
+        band(silver, { shine: 1 });
+        stripe();
+        crescent3(H, [0, 0.12, 0.99], 0.12, 0.03, Math.PI / 2, Math.PI * 1.2, '#e8f0ff');
+        for (const [y, m] of [[0.3, 0.3], [0.55, -0.5], [0.25, -1.4], [0.7, 1.2], [0.45, 2.2], [0.35, -2.5], [0.8, -0.1]]) H(sphere3(0.035, 6, 4), '#e6f6ff', { p: pt(y, m, 0.005), mat: 'glow' });
+        star3(orbit([0, 1.15, -0.12]), [1.15, 0, 0], 0.14, '#e6f6ff');
+        break;
+      default:
+    }
+  };
+}
+
 // --- Rüstung und Roben ---------------------------------------------------------------------------
 // humanoid3 baut Rumpf, Rock oder Robe in den Grundfarben (Schalter wie cuirass, lamellar, chestPlate);
 // armorLook3 stellt diese Schalter je Stufe um, gearArmor3 setzt das Merkmal der Stufe darauf.
@@ -950,6 +1072,20 @@ function armorLook3(c, cls, t) {
     if (t === 0) c.hemTrim = darker(c.robe, 0.25);
     if (t === 1) c.robeShine = 0.45;
     if (t >= 3) c.hemTrim = t === 5 ? '#ff9a4a' : t === 6 ? '#e6f2ff' : GOLD3;
+  } else if (cls === 'magier') {
+    // Saum je Stufe: Wolle, Silber, Silber, Eis, Silber, Glut, Sternsilber, Gold
+    if (t === 0) c.hemTrim = darker(c.robe, 0.22);
+    if (t === 1) c.robeShine = 0.3;
+    // Runenmantel: offener Übermantel in der Robenfarbe über einer hellen Unterrobe
+    if (t === 2) {
+      c.coat = c.robe;
+      c.robe = mixColor(c.robe, '#c8d2e4', 0.4);
+      c.torso = c.robe;
+    }
+    if (t === 3) c.hemTrim = '#cfe6ff';
+    if (t === 5) c.hemTrim = '#ff8a4a';
+    if (t === 6) c.hemTrim = '#e8f0ff';
+    if (t === 7) c.hemTrim = GOLD3;
   } else {
     if (t >= 2) c.runes = null;
     if (t === 7) c.hemTrim = GOLD3;
@@ -1284,11 +1420,227 @@ const ARMOR3 = {
   ]
 };
 
+// --- Magier (seit 8.6) -----------------------------------------------------------------------------
+// Indigo und Silber, hoher Stehkragen (humanoid3), Buch an der Kette; die Farbe des Elements (c.accent) nur an
+// Runen, Kristallen, Wappen und Schließen. Alchemistische Dreiecke statt Kreise (Abgrenzung zum Schamanen).
+
+// Dreieck als Fläche (schaut nach +z, Spitze unten ▽; mit r [0, 0, π] oben △)
+const triGeo3 = () => geo3('g3tri', () => new THREE.CylinderGeometry(1, 1, 0.24, 3).rotateX(Math.PI / 2));
+const glyphUp3 = (glyph) => glyph !== 'down' && glyph !== 'downbar';
+
+// Element-Zeichen (schaut nach +z): Dreieck aus drei Stäben, Inkreis, bei Blitz und Erde ein Balken
+function mageGlyph3(W, at, r, glyph, color, o = {}) {
+  const up = glyphUp3(glyph);
+  const w = +(r * 0.16).toFixed(3);
+  const side = +(r * Math.sqrt(3) + w).toFixed(3);
+  for (let k = 0; k < 3; k++) {
+    const a0 = (up ? Math.PI / 2 : -Math.PI / 2) + (k * Math.PI * 2) / 3;
+    const a1 = a0 + (Math.PI * 2) / 3;
+    const x = (Math.cos(a0) + Math.cos(a1)) * r / 2;
+    const y = (Math.sin(a0) + Math.sin(a1)) * r / 2;
+    W(roundBox(side, w, w * 0.7, w * 0.3), color, Object.assign({ p: [at[0] + x, at[1] + y, at[2]], r: [0, 0, (a0 + a1) / 2 + Math.PI / 2] }, o));
+  }
+  W(torus3(+(r * 0.5).toFixed(3), +(w * 0.32).toFixed(3), Math.PI * 2, 3, 16), color, Object.assign({ p: at }, o));
+  if (glyph === 'upbar' || glyph === 'downbar') W(roundBox(+(r * 1.15).toFixed(3), w * 0.8, w * 0.6, w * 0.25), color, Object.assign({ p: at }, o));
+}
+
+// Lathe mit Öffnung vorn (offener Mantel): Profil [[radius, höhe]], gap = halbe Öffnung in rad
+function openLathe3(key, pts, gap, seg = 18) {
+  return geo3('ol' + key, () => {
+    const geo = new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg, gap, Math.PI * 2 - gap * 2);
+    geo.computeVertexNormals();
+    return geo;
+  });
+}
+
+// Gemeinsam für alle Stufen: Frontschlitz mit Silberkanten (Männer), Korsage mit Silberschnürung (Frauen),
+// Buch an der Kette an der linken Hüfte (ab Stufe 1)
+const onRobeAt3 = (gg, y) => robeAt3(y);
+function mageRobeBase3(W, g, c, Wh, t) {
+  const sv = c.collar || '#d8e0f0';
+  if (!g.female && !c.coat) {
+    onRobe3(Wh, g, 0, 0.2, 1, 0.003)(roundBox(0.07, 0.34, 0.012, 0.006), darker(c.robe, 0.32), {});
+    if (t >= 1) for (const sx of [-1, 1]) bodyLine3(Wh, g, [sx * 0.042, 0.05], [sx * 0.036, 0.37], 3, 0.011, sv, { shine: 0.8 }, 1, onRobeAt3);
+  } else {
+    // Korsage: dunkleres Mieder mit gekreuzter Silberschnürung
+    for (let k = 0; k < 3; k++) {
+      const y = g.hipY + 0.05 + k * 0.06;
+      bodyLine3(W, g, [-0.045, y], [0.045, y + 0.05], 1, 0.008, sv, { shine: 0.8 });
+      bodyLine3(W, g, [0.045, y], [-0.045, y + 0.05], 1, 0.008, sv, { shine: 0.8 });
+    }
+    const y = g.hipY + 0.03;
+    const [rx, rz] = torsoAt3(g, y);
+    bodyRing3(W, y, rx + 0.006, rz + 0.006, 0.014, sv, { shine: 0.8 });
+  }
+  if (t >= 1) mageBook3(Wh, g, c);
+}
+
+// Buch an der Kette: Einband, Seiten, Schließe in der Elementfarbe, Kette zum Gürtel
+function mageBook3(Wh, g, c) {
+  const B = onRobe3(Wh, g, 0.2 * g.bk, 0.25, 1, 0.034);
+  const F = sub3(B, [0, 0, 0], [0, 0.35, 0.12]);
+  F(roundBox(0.1, 0.125, 0.04, 0.012), '#3a2430', { shine: 0.2 });
+  F(roundBox(0.092, 0.115, 0.03, 0.004), '#efe6cc', { p: [0.006, 0, 0] });
+  for (const sy of [-1, 1]) F(roundBox(0.022, 0.022, 0.044, 0.006), '#c8d2e4', { p: [-0.04, sy * 0.05, 0], shine: 1 });
+  F(roundBox(0.03, 0.022, 0.012, 0.005), c.accent || '#b8c4ff', { p: [0.045, 0, 0.018], mat: 'glow' });
+  // Kette vom Gürtel zum Buch
+  const a = [0.13 * g.bk, g.hipY + 0.01, 0.2 * g.bk];
+  const b = [0.2 * g.bk, 0.33, 0.26 * g.bk];
+  for (let k = 0; k < 4; k++) {
+    const u = (k + 0.5) / 4;
+    Wh(torus3(0.011, 0.0035, Math.PI * 2, 3, 8), '#c8d2e4', { p: [a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, a[2] + (b[2] - a[2]) * u], r: [k % 2 ? 0 : Math.PI / 2, 0.5, 0], shine: 1 });
+  }
+}
+
+// Offener Übermantel (Runenmantel): Unterteil an der Hüfte, Oberteil an der Brust, Silberkanten an der Öffnung
+function mageCoat3(W, g, c, Wh) {
+  const col = c.coat;
+  const sv = c.collar || '#d8e0f0';
+  const gap = 0.55;
+  const lo = [0.04, 0.06, 0.2, 0.32, 0.44, 0.52].map((y) => [+(robeAt3(y)[0] + (y < 0.1 ? 0.03 : 0.022)).toFixed(3), y]);
+  Wh(openLathe3('coatL', lo, gap, 22), col, { s: [1, 1, 0.9], shade: 0.25, top: lighter(col, 0.1), topK: 0.3 });
+  const ys = [g.hipY + 0.08, g.hipY + 0.18, g.chestY, g.chestY + 0.08, g.shY - 0.03];
+  const up = ys.map((y) => [+(torsoAt3(g, y)[0] + 0.02).toFixed(3), +y.toFixed(3)]);
+  W(openLathe3('coatU' + (g.female ? 'f' : 'm') + g.bk, up, gap + 0.08, 18), col, { s: [1, 1, 0.86], shade: 0.2 });
+  // Kanten der Öffnung und Saumband mit leuchtenden Dreiecksrunen
+  for (const sx of [-1, 1]) {
+    const m = sx * gap;
+    for (let k = 0; k < 4; k++) {
+      const y0 = 0.05 + k * 0.12;
+      const [rx, rz] = robeAt3(y0 + 0.06);
+      Wh(roundBox(0.018, 0.125, 0.014, 0.006), sv, { p: [Math.sin(m) * (rx + 0.024), y0 + 0.06, Math.cos(m) * (rz * 0.9 / 0.88 + 0.02)], r: [0, m, 0], shine: 0.8 });
+    }
+  }
+  const [rx, rz] = robeAt3(0.1);
+  for (let k = 0; k < 6; k++) {
+    const m = (k < 3 ? -1 : 1) * (0.8 + (k % 3) * 0.75);
+    sub3(Wh, [Math.sin(m) * (rx + 0.036), 0.11, Math.cos(m) * (rz + 0.03)], [0, m, 0])(triGeo3(), c.accent, { s: [0.032, 0.032, 0.05], r: [0, 0, glyphUp3(c.glyph) ? Math.PI : 0], mat: 'glow' });
+  }
+}
+
+// Hutband, Hutkrempe usw. siehe magierHelm3; hier die Roben je Stufe
+ARMOR3.magier = [
+  // Novizenrobe: graublaue Wolle, Strickgürtel mit Knoten, Lesezeichenband, ein Flicken
+  (W, g, c, Wh) => {
+    mageRobeBase3(W, g, c, Wh, 0);
+    if (!c.belt) {
+      const y = g.hipY + 0.03;
+      const [rx, rz] = robeAt3(y);
+      bodyRing3(Wh, y, rx + 0.012, rz + 0.012, 0.016, '#c8b890');
+      const K = onRobe3(Wh, g, 0.09, y, 1, 0.026);
+      K(ball(8), '#c8b890', { s: [0.026, 0.022, 0.018] });
+      for (const s of [-1, 1]) K(limb3(0.13, 0.008, 0.006, 4), '#c8b890', { p: [s * 0.012, -0.01, 0.004], r: [0, 0, s * 0.18] });
+      // Lesezeichenband
+      onRobe3(Wh, g, 0.17, y - 0.08, 1, 0.012)(roundBox(0.018, 0.15, 0.004, 0.002), '#8a2a34', { r: [0, 0, 0.12] });
+    }
+    onRobe3(Wh, g, -0.13, 0.17, 1, 0.006)(roundBox(0.075, 0.07, 0.01, 0.005), lighter(c.robe, 0.14), { r: [0, 0, 0.25] });
+  },
+  // Gelehrtenrobe: drei Silberschließen über der Brust, Buch an der Kette
+  (W, g, c, Wh) => {
+    mageRobeBase3(W, g, c, Wh, 1);
+    for (let k = 0; k < 3; k++) {
+      const F = onBody3(W, g, 0, g.chestY + 0.1 - k * 0.075, 1, 0.012);
+      F(roundBox(0.075, 0.016, 0.012, 0.006), c.collar, { shine: 1 });
+      for (const sx of [-1, 1]) F(sphere3(0.012, 6, 4), c.collar, { p: [sx * 0.04, 0, 0.004], shine: 1 });
+    }
+  },
+  // Runenmantel: offener Übermantel mit hohem Kragen, sechs leuchtende Dreiecksrunen am Saumband
+  (W, g, c, Wh) => {
+    mageRobeBase3(W, g, c, Wh, 2);
+    mageCoat3(W, g, c, Wh);
+  },
+  // Kristallrobe: zwei schwebende Kristalle über den Schultern, Kristallspitzen am Saum
+  (W, g, c, Wh) => {
+    mageRobeBase3(W, g, c, Wh, 3);
+    for (const sx of [-1, 1]) floatGem3(W, [sx * (g.shX + 0.04), g.shY + 0.22, -0.05], 0.034, c.accent);
+    for (let k = 0; k < 6; k++) {
+      const m = (k / 6) * Math.PI * 2 + Math.PI / 6;
+      const [rx, rz] = robeAt3(0.07);
+      coneAlong(Wh, G3.gem(), [Math.sin(m) * (rx + 0.01), 0.075, Math.cos(m) * (rz + 0.01)], [Math.sin(m) * 0.5, -1, Math.cos(m) * 0.5], 0.07, 0.035, '#cfe6ff', { shine: 1 });
+    }
+    onBody3(W, g, 0, g.chestY + 0.06, 1, 0.014)(G3.gem(), c.accent, { s: [0.022, 0.034, 0.016], mat: 'glow' });
+  },
+  // Arkanrobe: Tabard mit Element-Dreieck auf der Brust, dünner Runenring dreht sich um die Taille
+  (W, g, c, Wh, Wr) => {
+    mageRobeBase3(W, g, c, Wh, 4);
+    const tab = darker(c.robe, 0.28);
+    const sv = c.collar;
+    onBody3(W, g, 0, g.chestY + 0.02, 1, 0.006)(roundBox(0.17, 0.3, 0.012, 0.006), tab, { shade: 0.15 });
+    onRobe3(Wh, g, 0, 0.27, 1, 0.006)(roundBox(0.17, 0.34, 0.012, 0.006), tab, { r: [-0.08, 0, 0], shade: 0.2 });
+    for (const sx of [-1, 1]) {
+      bodyLine3(W, g, [sx * 0.088, g.hipY + 0.02], [sx * 0.088, g.chestY + 0.15], 3, 0.01, sv, { shine: 0.8 });
+      bodyLine3(Wh, g, [sx * 0.088, 0.1], [sx * 0.088, 0.44], 3, 0.01, sv, { shine: 0.8 }, 1, onRobeAt3);
+    }
+    mageGlyph3(onBody3(W, g, 0, g.chestY + 0.05, 1, 0.016), [0, 0, 0], 0.055, c.glyph, c.accent, { mat: 'glow' });
+    // Runenring frei um die Taille (weit genug, dass die Hände nicht hindurchgreifen); dreht sich am Drehknochen
+    const R = sub3(Wr || Wh, [0, g.hipY + 0.07, 0]);
+    const rx = 0.4 * g.bk;
+    const rz = 0.34 * g.bk;
+    R(torus3(0.2, 0.006, Math.PI * 2, 3, 32), c.accent, { r: [Math.PI / 2, 0, 0], s: [rx / 0.2, rz / 0.2, 1], mat: 'glow' });
+    for (let k = 0; k < 6; k++) {
+      const m = (k / 6) * Math.PI * 2;
+      sub3(R, [Math.sin(m) * rx, 0, Math.cos(m) * rz], [0, m, 0])(triGeo3(), c.accent, { s: [0.024, 0.024, 0.04], r: [0, 0, glyphUp3(c.glyph) ? Math.PI : 0], mat: 'glow' });
+    }
+  },
+  // Aschenmantel: Anthrazit mit glühenden Glutrissen, Glutzacken am Saum, kleines Wappen in der Elementfarbe
+  (W, g, c, Wh) => {
+    mageRobeBase3(W, g, c, Wh, 5);
+    for (const [a, b] of [[[-0.12, g.hipY + 0.06], [-0.05, g.chestY + 0.02]], [[0.11, g.hipY + 0.12], [0.04, g.chestY + 0.1]]]) bodyLine3(W, g, a, b, 2, 0.012, '#ff7a2a', { mat: 'glow' });
+    for (const [a, b, side] of [[[-0.2, 0.06], [-0.12, 0.3], 1], [[0.16, 0.05], [0.2, 0.24], 1], [[0.06, 0.08], [-0.08, 0.32], -1]]) bodyLine3(Wh, g, a, b, 3, 0.012, '#ff7a2a', { mat: 'glow' }, side, onRobeAt3);
+    for (let k = 0; k < 9; k++) {
+      const m = (k / 9) * Math.PI * 2 + 0.2;
+      const [rx, rz] = robeAt3(0.06);
+      emberSpike3(Wh, [Math.sin(m) * rx, 0.07, Math.cos(m) * rz], [Math.sin(m) * 0.45, -1, Math.cos(m) * 0.45], 0.07 + (k % 3) * 0.025, 0.2);
+    }
+    mageGlyph3(onBody3(W, g, 0, g.chestY + 0.06, 1, 0.014), [0, 0, 0], 0.04, c.glyph, c.accent, { mat: 'glow' });
+  },
+  // Sternenmantel: Sternbilder auf Nachtblau, Halbmondschließe, kleines Astrolabium hinter dem Rücken
+  (W, g, c, Wh) => {
+    mageRobeBase3(W, g, c, Wh, 6);
+    const pts = [[-0.17, 0.32], [-0.1, 0.22], [-0.15, 0.1], [0.14, 0.38], [0.18, 0.2], [0.12, 0.08]];
+    for (let i = 0; i < pts.length; i++) {
+      star3(onRobe3(Wh, g, pts[i][0], pts[i][1], 1, 0.008), [0, 0, 0], i % 3 ? 0.014 : 0.02, '#e6f6ff');
+      if (i % 3) bodyLine3(Wh, g, pts[i - 1], pts[i], 2, 0.005, '#9fd0ff', { mat: 'glow' }, 1, onRobeAt3);
+    }
+    for (const [x, y] of [[-0.1, g.chestY + 0.06], [0.12, g.hipY + 0.1], [0.06, g.chestY + 0.12]]) onBody3(W, g, x, y, 1, 0.008)(sphere3(0.011, 6, 4), '#e6f6ff', { mat: 'glow' });
+    const H = sub3(W, [0, g.neckY - 0.08, 0.17 * g.bk], [-0.3, 0, 0]);
+    crescent3(H, [0, 0, 0], 0.04, 0.012, -Math.PI / 2, Math.PI * 1.25, '#e8f0ff');
+    H(sphere3(0.014, 8, 6), c.accent, { p: [0.012, 0.012, 0.004], mat: 'glow' });
+    // Astrolabium: zwei gekreuzte Ringe mit Kugel und Zeiger
+    const As = sub3(W, [0, g.chestY + 0.02, -0.26 * g.bk], [0, 0, 0]);
+    As(torus3(0.085, 0.008, Math.PI * 2, 3, 20), '#e8f0ff', { shine: 1 });
+    As(torus3(0.085, 0.008, Math.PI * 2, 3, 20), '#c9a35a', { r: [0, Math.PI / 2, 0.5], shine: 1 });
+    As(torus3(0.06, 0.006, Math.PI * 2, 3, 16), '#e8f0ff', { r: [Math.PI / 2, 0, 0], shine: 1 });
+    As(sphere3(0.022, 8, 6), c.accent, { mat: 'glow' });
+    As(roundBox(0.006, 0.1, 0.006, 0.003), '#c9a35a', { r: [0, 0, 0.7], shine: 1 });
+  },
+  // Erzmagierornat: Weiß-Silber, doppelter Stehkragen, senkrechter Siegelring im Rücken (dreht sich), Goldsaum
+  (W, g, c, Wh, Wr) => {
+    mageRobeBase3(W, g, c, Wh, 7);
+    highCollar3(W, g, '#f4f6fb', 0.2);
+    W(torus3(0.2, 0.01, Math.PI * 1.4, 3, 16), GOLD3, { p: [0, g.neckY + 0.075, -0.012], r: [Math.PI / 2 - 0.12, 0, Math.PI * 0.8], s: [g.bk * 1.05, 0.95 * g.bk, 1], shine: 1 });
+    const [rx, rz] = robeAt3(0.13);
+    bodyRing3(Wh, 0.13, rx + 0.005, rz + 0.005, 0.012, GOLD3, { shine: 1 });
+    for (const sx of [-1, 1]) bodyLine3(W, g, [sx * 0.06, g.hipY + 0.04], [sx * 0.1, g.chestY + 0.14], 3, 0.012, GOLD3, { shine: 1 });
+    // Siegelring: Ring, Element-Dreieck und drei Kristalle (am Drehknochen im Rücken, sonst fest)
+    const R = sub3(Wr || W, [0, g.shY - 0.04, -0.34]);
+    R(torus3(0.27, 0.012, Math.PI * 2, 3, 32), c.accent, { mat: 'glow' });
+    R(torus3(0.235, 0.006, Math.PI * 2, 3, 28), '#fff2b0', { mat: 'glow' });
+    mageGlyph3(R, [0, 0, 0], 0.2, c.glyph, '#fff2b0', { mat: 'glow' });
+    for (let k = 0; k < 3; k++) {
+      const a = Math.PI / 2 + (k * Math.PI * 2) / 3;
+      R(G3.gem(), c.accent, { p: [Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0], s: [0.03, 0.045, 0.03], mat: 'glow' });
+    }
+  }
+];
+
 function gearArmor3(A, g, t, cls, c) {
   if (t < 0 || g.belly || !ARMOR3[cls]) return;
   const W = frame3(A, BH.chest, [0, 0, 0]);
   const Wh = frame3(A, BH.hips, [0, 0, 0]);
-  ARMOR3[cls][t](W, g, c, Wh);
+  // Drehknochen (seit 8.6): Runenring um die Taille, Siegelring im Rücken
+  const Wr = g.spin && g.spin.ring != null ? frame3(A, g.spin.ring, [0, 0, 0]) : null;
+  ARMOR3[cls][t](W, g, c, Wh, Wr);
 }
 
 // Alle Teile der Ausrüstung nach dem Körper (aufgerufen von humanoid3)
@@ -1335,7 +1687,10 @@ const fanLeafGeo = (r, h) => geo3(`fanleaf3${r},${h}`, () => new THREE.CylinderG
 // Jede Art behält ihre Grundform; die Stufe ändert Klinge, Parierstange, Knauf bzw. Kopfstück
 // (Bauplan: docs/grafik-prompts.md, Abschnitt 4.11).
 
-function weapon3(A, kind, tier, bone, at, rot, wg) {
+// Schaftfarbe des Zepters je Stufe (Magier, seit 8.6)
+const ROD3_SHAFT = ['#6b4a2e', '#3a2e2a', '#2e3448', '#2a3f74', '#2e2450', OBSIDIAN3, '#121a3c', '#e6eaf2'];
+
+function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   tier = Math.max(0, Math.min(7, tier || 0));
   const metal = TIER_METAL[tier];
   const accent = TIER_ACCENT[tier];
@@ -1605,6 +1960,91 @@ function weapon3(A, kind, tier, bone, at, rot, wg) {
           sun3(sub3(W, [0, 1.08, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.06, 8, GOLD3, null);
       }
       shell(sphere3(0.19, 12, 8), { p: [0, 1.07, 0] });
+      return;
+    }
+    case 'rod': {
+      // Zepter (seit 8.6, Magier): kurzer Schaft mit Silbermanschette, Käfig je Stufe; in der Mitte schwebt ein
+      // gestreckter Oktaeder-Kristall in der Elementfarbe (o.accent), um ihn kreist ein Funke. Kristall und Funke
+      // hängen an eigenen Drehknochen (spinBones3), ohne sie stehen sie fest. Kopfformen: Holzgabel, Silberband,
+      // Mondsichel-Käfig, Kristallbündel, gekreuzte drehende Ringe, Siegelplatte mit Glutkern, Astrolabium, Goldhalo.
+      const acc = o.accent || '#b8c4ff';
+      const hi = o.hi || lighter(acc, 0.5);
+      const G = o.gemBone != null ? framed(A, M, o.gemBone) : W;
+      const S = o.sparkBone != null ? framed(A, M, o.sparkBone) : W;
+      const Y = ROD3_GEM_Y;
+      const sv = tier === 7 ? GOLD3 : tier === 0 ? '#a8b0bc' : '#d8e0f0';
+      const shaft = ROD3_SHAFT[tier];
+      W(limb3(1.15, 0.025, 0.02, 7), shaft, { p: [0, 0.8, 0], shade: 0.2, shine: tier >= 1 ? 0.5 : 0 });
+      // Manschette am Griff, Knauf unten, Kelch oben
+      W(lathe3('rodcuff', [[0.031, -0.06], [0.036, -0.05], [0.034, 0.1], [0.04, 0.12], [0, 0.121]], 10), sv, { shine: 1 });
+      W(sphere3(0.034, 8, 6), sv, { p: [0, -0.36, 0], shine: 1 });
+      W(lathe3('rodcup', [[0.02, 0], [0.032, 0.03], [0.05, 0.07], [0.045, 0.08], [0, 0.081]], 10), sv, { p: [0, 0.76, 0], shine: 1 });
+      for (const y of tier === 1 || tier === 7 ? [0.28, 0.45, 0.62] : [0.45]) W(torus3(0.027, 0.008, Math.PI * 2, 3, 10), sv, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      switch (tier) {
+        case 0:
+          // Holzgabel mit kleinem Kristall
+          for (const sx of [-1, 1]) curvedHorn3(W, [[sx * 0.012, 0.8, 0], [sx * 0.05, 0.88, 0], [sx * 0.068, 0.98, 0], [sx * 0.045, 1.09, 0]], 0.016, shaft, { shade: 0.15 });
+          break;
+        case 1:
+          // Silberband: zwei gekreuzte Silberbügel um den Kristall
+          for (const ry of [0, Math.PI / 2]) W(torus3(0.085, 0.008, Math.PI * 2, 3, 18), sv, { p: [0, Y, 0], r: [0, ry, 0], shine: 1 });
+          W(sphere3(0.018, 6, 4), sv, { p: [0, Y + 0.09, 0], shine: 1 });
+          break;
+        case 2:
+          // Mondsichel-Käfig: zwei Sicheln über Kreuz, offen nach oben
+          for (const ry of [0, Math.PI / 2]) crescent3(sub3(W, [0, Y, 0], [0, ry, 0]), [0, 0, 0], 0.095, 0.011, -Math.PI / 2, Math.PI * 1.35, '#e6eef8');
+          break;
+        case 3:
+          // Kristallbündel: drei kleine Kristalle in der Elementfarbe wachsen schräg aus dem Kelch
+          for (let k = 0; k < 3; k++) {
+            const a = (k / 3) * Math.PI * 2 + 0.5;
+            coneAlong(W, G3.gem(), [Math.cos(a) * 0.035, 0.85, Math.sin(a) * 0.035], [Math.cos(a) * 0.6, 1, Math.sin(a) * 0.6], 0.07, 0.024, lighter(acc, 0.15), { mat: 'glow' });
+          }
+          for (let k = 0; k < 3; k++) {
+            const a = (k / 3) * Math.PI * 2 + 0.5 + Math.PI / 3;
+            coneAlong(W, horn3(1, 0.3, 4), [Math.cos(a) * 0.04, 0.83, Math.sin(a) * 0.04], [Math.cos(a) * 0.35, 1, Math.sin(a) * 0.35], 0.17, 0.09, sv, { shine: 1 });
+          }
+          break;
+        case 4:
+          // zwei gekreuzte Ringe, die sich mit dem Kristall drehen
+          G(torus3(0.11, 0.009, Math.PI * 2, 3, 20), '#e0d4ff', { p: [0, Y, 0], r: [0, 0, 0.55], shine: 1 });
+          G(torus3(0.11, 0.009, Math.PI * 2, 3, 20), '#e0d4ff', { p: [0, Y, 0], r: [0, Math.PI / 2, -0.55], shine: 1 });
+          G(torus3(0.075, 0.006, Math.PI * 2, 3, 16), acc, { p: [0, Y, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+          break;
+        case 5: {
+          // Sechseck-Siegelplatte aus Obsidian mit Glutrand und Glutkern hinter dem Kristall
+          const P = sub3(W, [0, Y, -0.045], [Math.PI / 2, 0, 0]);
+          P(cyl3(0.12, 0.12, 0.018, 6), OBSIDIAN3, { shine: 0.6 });
+          P(torus3(0.112, 0.008, Math.PI * 2, 3, 6), '#ff7a2a', { r: [Math.PI / 2, 0, Math.PI / 6], p: [0, -0.012, 0], mat: 'glow' });
+          W(sphere3(0.04, 8, 6), '#ff7a2a', { p: [0, Y, -0.03], mat: 'glow' });
+          for (let k = 0; k < 3; k++) {
+            const a = Math.PI / 2 + (k * Math.PI * 2) / 3;
+            emberSpike3(W, [Math.cos(a) * 0.11, Y + Math.sin(a) * 0.11, -0.045], [Math.cos(a), Math.sin(a), 0], 0.07, 0.2);
+          }
+          break;
+        }
+        case 6:
+          // Astrolabium: drei Ringe drehen sich um den Kristall, Sternspitze darüber
+          G(torus3(0.105, 0.007, Math.PI * 2, 3, 20), '#e8f0ff', { p: [0, Y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+          G(torus3(0.105, 0.007, Math.PI * 2, 3, 20), '#c9a35a', { p: [0, Y, 0], shine: 1 });
+          G(torus3(0.09, 0.006, Math.PI * 2, 3, 18), '#e8f0ff', { p: [0, Y, 0], r: [0.6, Math.PI / 2, 0], shine: 1 });
+          star3(W, [0, Y + 0.15, 0], 0.04, '#e6f6ff');
+          break;
+        default:
+          // Goldhalo hinter dem Kristall mit drei Kristallen und Strahlen
+          W(torus3(0.13, 0.012, Math.PI * 2, 3, 24), GOLD3, { p: [0, Y, -0.03], shine: 1 });
+          for (let k = 0; k < 3; k++) {
+            const a = Math.PI / 2 + (k * Math.PI * 2) / 3;
+            W(G3.gem(), acc, { p: [Math.cos(a) * 0.13, Y + Math.sin(a) * 0.13, -0.03], s: [0.02, 0.032, 0.02], mat: 'glow' });
+            coneAlong(W, G3.ray(), [Math.cos(a + Math.PI / 3) * 0.13, Y + Math.sin(a + Math.PI / 3) * 0.13, -0.03], [Math.cos(a + Math.PI / 3), Math.sin(a + Math.PI / 3), 0], 0.07, 0.4, '#fff2b0', { shine: 1 });
+          }
+      }
+      // der schwebende Kristall (dreht sich), Facetten oben heller; ab Stufe 3 ein weicher Schein
+      const gs = tier === 0 ? 0.052 : tier >= 3 ? 0.068 : 0.06;
+      G(G3.gem(), acc, { p: [0, Y, 0], s: [gs, gs * 1.6, gs], mat: 'glow', top: lighter(acc, 0.5), topK: 0.6 });
+      if (tier >= 3) G(sphere3(1, 10, 8), acc, { p: [0, Y, 0], s: gs * 2.1, mat: 'aura' });
+      S(sphere3(0.016, 6, 4), hi, { p: [ROD3_SPARK_R, Y, 0], mat: 'glow' });
+      shell(sphere3(0.17, 12, 8), { p: [0, Y, 0] });
       return;
     }
     case 'scythe': {

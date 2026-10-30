@@ -1768,6 +1768,32 @@ function drawOverlay3(ctx) {
   drawScreenFlash(ctx, r.w, r.h);
 }
 
+// Schein um den Elementfunken am Zepter (Magier, seit 8.6): Lage aus dem Drehknochen des Funkens (spinBones3),
+// nach dem Zeichnen der Szene sind seine Weltmatrizen aktuell. Nicht aufsteigend wie beim Nekromanten.
+const _mgS = new THREE.Vector3();
+const _mgA = {};
+const _mgB = {};
+function drawMageSpark3(ctx, p, invisible) {
+  const a = p.__k3 && actors3.get(p.__k3);
+  if (!a || !a.group.visible || !(a.model.sparkBone >= 0) || typeof mageEl !== 'function') return;
+  const o = a.model.sparkOff;
+  _mgS.set(o[0], o[1], o[2]).applyMatrix4(a.bones[a.model.sparkBone].matrixWorld).project(V3.camera);
+  if (_mgS.z > 1) return;
+  const r = renderer;
+  const fy = feetY(p);
+  const k = Math.max(0.05, (v3Project(p.x + 32, fy, 0, _mgB).x - v3Project(p.x, fy, 0, _mgA).x) / 32);
+  const x = (_mgS.x + 1) * 0.5 * r.w;
+  const y = (1 - _mgS.y) * 0.5 * r.h;
+  const pulse = 0.8 + 0.2 * Math.sin(game.time * 9 + p.x * 0.1);
+  ctx.save();
+  ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  const al = invisible ? 0.35 : 1;
+  glow(ctx, x, y, 7 * k * pulse, mageEl(p).hi, 0.75 * al);
+  glow(ctx, x, y, 2.4 * k, '#ffffff', 0.8 * al);
+  ctx.restore();
+}
+
 // Auren der Spieler (Buff-Ringe, Knochenpanzer, Seelenfunken), an den Füßen ausgerichtet
 function drawPlayerExtras3(ctx, p) {
   const fy = feetY(p);
@@ -1801,6 +1827,8 @@ function drawPlayerExtras3(ctx, p) {
     }
     ctx.globalAlpha = invisible ? 0.35 : 1;
   }
+  // Magier (seit 8.6): der Funke kreist gebacken um den Zepterkristall, hier kommt sein weicher Schein dazu
+  if (p.classId === 'magier') drawMageSpark3(ctx, p, invisible);
   if (p.shield > 0) {
     for (let k = 0; k < 6; k++) {
       const a = game.time * 2.4 + k * Math.PI / 3;
