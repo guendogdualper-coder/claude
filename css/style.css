@@ -2779,3 +2779,12 @@ body.aiming canvas { cursor: crosshair; }
 .key-row.wait kbd { color: #fff; animation: key-blink 0.8s ease-in-out infinite alternate; }
 @keyframes key-blink { from { opacity: 1; } to { opacity: 0.4; } }
 .opt-row select { padding: 5px 8px; border-radius: 6px; border: 1px solid var(--brass-dim); background: #120e0a; color: var(--text); font: inherit; font-size: 14px; }
+
+/* Leere Plätze der Leiste und Ziehen (seit 10.7) */
+.slot.skill.empty-slot { border-style: dashed; background: rgba(24, 18, 12, 0.55); }
+.slot.skill.empty-slot .quick-empty { font-size: 22px; }
+#hud.touch .slot.skill.empty-slot .quick-empty { font-size: 18px; }
+#skillBar.swapping .slot.skill.empty-slot { border-color: #ffe9a0; }
+.drag-ghost { position: fixed; z-index: 80; width: 52px; height: 52px; margin: -26px 0 0 -26px; pointer-events: none; border-radius: 10px; overflow: hidden; opacity: 0.85; box-shadow: 0 0 0 2px #ffe9a0, 0 6px 18px rgba(0, 0, 0, 0.6); transform: scale(1.1); }
+.drag-ghost img { width: 100%; height: 100%; display: block; }
+.quick-pick-grid button small { color: var(--muted); font-size: 10px; }

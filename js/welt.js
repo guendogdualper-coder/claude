@@ -3,10 +3,11 @@
 // bei jedem Start gleich aus – wichtig, sobald später mehrere Spieler darin unterwegs sind.
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
-// Seit Version 6.4 sind alle neun Maps gleich groß, seit 10.6 je 360 × 150 (vorher 300 × 120): Vlotho links,
+// Seit Version 6.4 sind alle neun Maps gleich groß: 10.6 je 360 × 150, seit 10.7 je 360 × 220 (nach oben und unten
+// größer, Platz für viele Spieler; ursprünglich 300 × 120). Vlotho links,
 // die anderen acht in zwei Spalten mit je vier Maps rechts daneben (WORLD_MAPS.region). Freie Flächen sind Fels.
 const WORLD_W = 1080;     // Breite des Map-Bereichs in Kacheln
-const WORLD_H = 600;      // Höhe des Map-Bereichs in Kacheln
+const WORLD_H = 880;      // Höhe des Map-Bereichs in Kacheln (vier Maps übereinander)
 const DUNGEON_COL = 60;   // Breite einer Dungeon-Spalte in Kacheln
 const DUNGEON_W = DUNGEON_COL * Math.ceil(DUNGEONS.length / 4); // östlich davon Spalten mit je vier Dungeons und Endboss-Arenen (nur per Eingang)
 const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
@@ -19,7 +20,7 @@ const VS = VILLAGE_HALF / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 28;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 8;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 9;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten

@@ -1947,3 +1947,7 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 
 - Vlotho: `Top-down 3D toon MMORPG town square seen at 50 degrees, wide cobblestone plaza with a well in the center, four colorful market stalls spaced far apart, merchants standing with plenty of room between them, red-roofed East Asian houses along a stone wall with corner towers and four gates, lanterns at the corners, sunny, painterly`
 - Lager: `Small fortified camp in a pine forest, square plaza inside a low wall with towers and red roofs, world gate portal at the top, eleven villagers spread evenly around the plaza with space between them, stall, anvil, well, painterly toon 3D`
+
+## Leiste umbauen (seit 10.7)
+
+- `Mobile MMORPG skill bar close-up: a finger drags a glowing skill icon up out of the bar, a translucent copy of the icon follows the finger with a golden outline, the slot it left shows a dashed border and a plus sign, two extra free slots 7 and 8 on the right, painterly toon UI`

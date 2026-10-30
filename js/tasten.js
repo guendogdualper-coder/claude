@@ -100,7 +100,8 @@ function runAction(id, e) {
   const rep = e && e.repeat;
   const m = /^skill(\d)$/.exec(id);
   if (m) {
-    if (p) useSkill(skillOrder(p)[Number(m[1]) - 1]);
+    const i = p ? skillOrder(p)[Number(m[1]) - 1] : null;
+    if (i != null) useSkill(i);
     return;
   }
   switch (id) {
@@ -244,8 +245,67 @@ function setQuickSlot(k, id) {
   const p = game.player;
   quickOf(p)[k] = id || null;
   p.quickSet = true;
+  // jede Fertigkeit nur an einem Ort: wandert sie auf den freien Platz, wird ihr Platz in der Leiste frei
+  const s = quickSkill(p, id);
+  const other = quickOf(p)[1 - k];
+  if (s && other === id) quickOf(p)[1 - k] = null;
+  if (s) {
+    const order = skillOrder(p);
+    const at = order.indexOf(s.i);
+    if (at >= 0) {
+      order[at] = null;
+      p.skillOrder = order;
+    }
+  }
+  ui.buildSkillBar();
   renderQuickSlots();
   saveGame();
+}
+
+// Leerer Platz in der Leiste (seit 10.7): Auswahl der Fertigkeiten; liegt sie schon woanders, wandert sie hierher
+function openSlotPicker(slot) {
+  closeQuickPicker();
+  const p = game.player;
+  const order = skillOrder(p);
+  const box = document.createElement('div');
+  box.className = 'quick-pick';
+  box.id = 'quickPick';
+  box.innerHTML = `<strong>Platz ${slot + 1} der Leiste</strong><div class="quick-pick-grid">` +
+    classSkills(p).map((sk, i) => {
+      const where = order.indexOf(i) >= 0 ? `Platz ${order.indexOf(i) + 1}` : quickOf(p).indexOf('sk:' + i) >= 0 ? `frei ${quickOf(p).indexOf('sk:' + i) + 1}` : '';
+      return `<button type="button" data-s="${i}" class="sk${order[slot] === i ? ' on' : ''}"><img class="skill-icon" src="${skillIconUrl(sk)}" alt=""><span>${sk.name}${where ? `<small> · ${where}</small>` : ''}</span></button>`;
+    }).join('') + `<button type="button" data-s=""><span class="quick-empty">×</span><span>Leer lassen</span></button></div>`;
+  box.addEventListener('pointerdown', (e) => e.stopPropagation());
+  box.querySelectorAll('[data-s]').forEach((b) => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeQuickPicker();
+    if (b.dataset.s === '') return;
+    const i = Number(b.dataset.s);
+    const o = skillOrder(p);
+    const at = o.indexOf(i);
+    if (at >= 0) o[at] = null;
+    o[slot] = i;
+    p.skillOrder = o;
+    const q = quickOf(p).indexOf('sk:' + i);
+    if (q >= 0) quickOf(p)[q] = null;
+    saveGame();
+    ui.buildSkillBar();
+    renderQuickSlots();
+  }));
+  $('hud').append(box);
+  setTimeout(() => document.addEventListener('pointerdown', closeQuickPicker, { once: true }), 0);
+}
+
+// Bild der angehobenen Fertigkeit, das dem Finger bzw. der Maus folgt
+function skillDragGhost(i, x, y) {
+  const sk = classSkills(game.player)[i];
+  const g = document.createElement('div');
+  g.className = 'drag-ghost';
+  g.innerHTML = `<img src="${skillIconUrl(sk)}" alt="">`;
+  g.style.left = x + 'px';
+  g.style.top = y + 'px';
+  document.body.append(g);
+  return g;
 }
 // Auswahl über dem Platz: alle Aktionen als Knöpfe, „Leer“ räumt den Platz
 function openQuickPicker(k) {
@@ -282,6 +342,12 @@ function wireQuickSlot(btn, k) {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+    // eine angehobene Fertigkeit der Leiste hierher legen (Tippen statt Ziehen)
+    if (ui.swapFrom != null) {
+      long = true;
+      ui.moveToQuick(ui.swapFrom, k);
+      return;
+    }
     long = false;
     timer = setTimeout(() => {
       long = true;

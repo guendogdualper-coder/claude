@@ -79,7 +79,8 @@ function setupInput() {
     if (act === 'attack') input.keys.delete('Space');
     // Eisstrahl: Taste loslassen beendet ihn
     const m = act && /^skill(\d)$/.exec(act);
-    if (m && game.player) releaseChannel(skillOrder(game.player)[Number(m[1]) - 1]);
+    const i = m && game.player ? skillOrder(game.player)[Number(m[1]) - 1] : null;
+    if (i != null) releaseChannel(i);
   });
 
   // Beim Wechsel in einen anderen Tab keine Tasten "festhalten"

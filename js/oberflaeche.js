@@ -464,22 +464,37 @@ const ui = {
     bar.innerHTML = '';
     bar.classList.remove('swapping');
     this.swapFrom = null;
-    // Die Reihenfolge der Plätze kann man per langem Drücken ändern (p.skillOrder)
+    // Anzeigen der Abklingzeiten neu setzen (die Knöpfe sind neu)
+    if (this.cache) for (const k of Object.keys(this.cache)) if (/^(run|cd|cdp|mana)\d$/.test(k)) delete this.cache[k];
+    // Die Reihenfolge der Plätze kann man per langem Drücken ändern (p.skillOrder); seit 10.7 auch leere Plätze
     skillOrder(p).forEach((i, slot) => {
-      const sk = classSkills(p)[i];
       const wrap = document.createElement('div');
       wrap.className = 'skill-wrap';
+      wrap.dataset.slot = slot;
       const btn = document.createElement('button');
       btn.type = 'button';
+      btn.dataset.slot = slot;
+      const keyTxt = keyLabel(actionKey('skill' + (slot + 1)));
+      if (i == null) {
+        btn.className = 'slot skill empty-slot';
+        btn.id = 'skillSlot' + slot;
+        btn.title = `Freier Platz (${keyTxt}) – antippen, um eine Fertigkeit hineinzulegen`;
+        btn.innerHTML = `<span class="key">${keyTxt}</span><span class="quick-empty">+</span>`;
+        this.pressSkill(btn, null, slot);
+        wrap.append(btn);
+        bar.append(wrap);
+        return;
+      }
+      const sk = classSkills(p)[i];
       const rank = skillRank(p.skillLevels[i]);
       btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
-      btn.title = `${sk.name} (${keyLabel(actionKey('skill' + (slot + 1)))}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${skillMana(sk, p)}, Abklingzeit: ${sk.cooldown} s. Lange drücken zum Tauschen.`;
-      btn.innerHTML = `<span class="key">${keyLabel(actionKey('skill' + (slot + 1)))}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
+      btn.title = `${sk.name} (${keyTxt}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${skillMana(sk, p)}, Abklingzeit: ${sk.cooldown} s. Lange drücken: tauschen, auf einen freien Platz oder aus der Leiste ziehen.`;
+      btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
-      this.pressSkill(btn, i);
+      this.pressSkill(btn, i, slot);
       wrap.append(btn);
       wrap.insertAdjacentHTML('beforeend', '<span class="runring" hidden></span><span class="run" hidden></span>');
       // Plus-Knopf, wenn etwas geht: Punkt setzen (der Punkt auf 15 erweckt), Buch lesen.
@@ -525,19 +540,28 @@ const ui = {
     if (this.cache) this.cache.ult = null;
   },
 
-  // Antippen löst die Fertigkeit aus, langes Drücken hebt sie an: dann auf einen anderen Platz
-  // ziehen oder einen anderen Platz antippen, um die beiden zu tauschen.
-  pressSkill(btn, i) {
+  // Antippen löst die Fertigkeit aus, langes Drücken hebt sie an. Dann (seit 10.7):
+  // - auf einen anderen Platz der Leiste ziehen oder ihn antippen: die beiden tauschen (auch mit einem leeren Platz),
+  // - auf einen freien Platz (7/8) ziehen oder ihn antippen: die Fertigkeit wandert dorthin, ihr Platz wird frei,
+  // - aus der Leiste hinausziehen und loslassen: sie wird herausgenommen, der Platz ist frei.
+  // Ein leerer Platz zeigt „+“: Antippen öffnet die Auswahl der Fertigkeiten.
+  pressSkill(btn, i, slot) {
     let timer = null;
     let lifted = false;
     let channeling = false;
+    let ghost = null;
+    const dropGhost = () => { if (ghost) ghost.remove(); ghost = null; };
     btn.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
       lifted = false;
       if (this.swapFrom != null) {
         timer = null;
-        this.finishSwap(i);
+        this.finishSwap(slot);
+        return;
+      }
+      if (i == null) {
+        openSlotPicker(slot);
         return;
       }
       try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ältere Browser */ }
@@ -548,11 +572,19 @@ const ui = {
         useSkill(i);
         return;
       }
+      const sx = e.clientX;
+      const sy = e.clientY;
       timer = setTimeout(() => {
         timer = null;
         lifted = true;
-        this.startSwap(i);
+        this.startSwap(slot);
+        ghost = skillDragGhost(i, sx, sy);
       }, SKILL_HOLD_MS);
+    });
+    btn.addEventListener('pointermove', (e) => {
+      if (!ghost) return;
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top = e.clientY + 'px';
     });
     btn.addEventListener('pointerup', (e) => {
       if (channeling) {
@@ -568,55 +600,111 @@ const ui = {
       }
       if (!lifted) return;
       lifted = false;
+      dropGhost();
       const el = document.elementFromPoint(e.clientX, e.clientY);
-      const target = el && el.closest('.slot.skill');
-      if (target && target !== btn) this.finishSwap(Number(target.id.slice(5)));
+      const target = el && el.closest('#skillBar .slot.skill, #quick1, #quick2');
+      // auf sich selbst losgelassen: bleibt angehoben, ein Tippen auf einen Platz tauscht
+      if (target === btn) return;
+      if (target && (target.id === 'quick1' || target.id === 'quick2')) {
+        this.moveToQuick(slot, target.id === 'quick1' ? 0 : 1);
+        return;
+      }
+      if (target) {
+        this.finishSwap(Number(target.dataset.slot));
+        return;
+      }
+      // außerhalb der Leiste losgelassen: herausnehmen
+      const r = $('skillBar').getBoundingClientRect();
+      const out = e.clientX < r.left - 12 || e.clientX > r.right + 12 || e.clientY < r.top - 12 || e.clientY > r.bottom + 12;
+      if (out) this.removeFromBar(slot);
     });
     btn.addEventListener('pointercancel', () => {
       if (channeling) releaseChannel(i);
       channeling = false;
       clearTimeout(timer);
       timer = null;
+      dropGhost();
     });
     // Tastatur (Enter/Leertaste auf dem Knopf); ein Eisstrahl läuft dann nur kurz
     btn.addEventListener('click', (e) => {
       if (e.detail !== 0) return;
+      if (i == null) { openSlotPicker(slot); return; }
       useSkill(i);
       releaseChannel(i);
     });
   },
 
-  startSwap(i) {
-    this.swapFrom = i;
+  startSwap(slot) {
+    const p = game.player;
+    this.swapFrom = slot;
     $('skillBar').classList.add('swapping');
-    $('skill' + i).parentElement.classList.add('swap-pick');
+    const wrap = document.querySelector(`#skillBar .skill-wrap[data-slot="${slot}"]`);
+    if (wrap) wrap.classList.add('swap-pick');
     buzz(25);
-    ui.log(`${classSkills(game.player)[i].name} angehoben: auf einen anderen Platz ziehen oder tippen.`, 'info');
+    const i = skillOrder(p)[slot];
+    ui.log(`${classSkills(p)[i].name} angehoben: auf einen anderen Platz oder einen freien Platz ziehen – oder aus der Leiste hinausziehen, um sie herauszunehmen.`, 'info');
     // Tippen irgendwo anders bricht ab
     const cancel = (e) => {
-      if (e.target.closest && e.target.closest('#skillBar .slot.skill')) return;
+      if (e.target.closest && e.target.closest('#skillBar .slot.skill, #quick1, #quick2')) return;
       document.removeEventListener('pointerdown', cancel, true);
-      if (this.swapFrom != null) this.buildSkillBar();
+      if (this.swapFrom != null) { this.swapFrom = null; this.buildSkillBar(); }
     };
     this.swapCancel = cancel;
     setTimeout(() => document.addEventListener('pointerdown', cancel, true), 0);
   },
 
-  finishSwap(j) {
-    const p = game.player;
-    const from = this.swapFrom;
+  endSwap() {
     if (this.swapCancel) document.removeEventListener('pointerdown', this.swapCancel, true);
     this.swapFrom = null;
-    if (from != null && j !== from) {
+  },
+
+  // zwei Plätze der Leiste tauschen (auch mit einem leeren)
+  finishSwap(to) {
+    const p = game.player;
+    const from = this.swapFrom;
+    this.endSwap();
+    if (from != null && to != null && to !== from) {
       const order = skillOrder(p);
-      const a = order.indexOf(from);
-      const b = order.indexOf(j);
-      [order[a], order[b]] = [order[b], order[a]];
+      [order[from], order[to]] = [order[to], order[from]];
       p.skillOrder = order;
       saveGame();
       const sks = classSkills(p);
-      ui.log(`${sks[from].name} und ${sks[j].name} haben die Plätze getauscht.`, 'info');
+      const a = order[to] != null ? sks[order[to]].name : '';
+      const b = order[from] != null ? sks[order[from]].name : '';
+      ui.log(b ? `${a} und ${b} haben die Plätze getauscht.` : `${a} liegt jetzt auf Platz ${to + 1}.`, 'info');
     }
+    this.buildSkillBar();
+  },
+
+  // Fertigkeit aus der Leiste auf einen freien Platz (7/8): ihr Platz in der Leiste wird frei
+  // (lag dort schon eine Fertigkeit, kommt sie zurück in die Leiste)
+  moveToQuick(slot, k) {
+    const p = game.player;
+    this.endSwap();
+    const order = skillOrder(p);
+    const i = order[slot];
+    if (i == null) return this.buildSkillBar();
+    const prev = quickSkill(p, quickOf(p)[k]);
+    order[slot] = prev && !order.includes(prev.i) ? prev.i : null;
+    p.skillOrder = order;
+    quickOf(p)[k] = 'sk:' + i;
+    p.quickSet = true;
+    saveGame();
+    ui.log(`${classSkills(p)[i].name} liegt jetzt auf dem freien Platz ${k + 1}.`, 'info');
+    this.buildSkillBar();
+    renderQuickSlots();
+  },
+
+  removeFromBar(slot) {
+    const p = game.player;
+    this.endSwap();
+    const order = skillOrder(p);
+    const i = order[slot];
+    if (i == null) return this.buildSkillBar();
+    order[slot] = null;
+    p.skillOrder = order;
+    saveGame();
+    ui.log(`${classSkills(p)[i].name} ist aus der Leiste genommen – Platz ${slot + 1} ist frei. Antippen, um ihn neu zu belegen.`, 'info');
     this.buildSkillBar();
   },
 

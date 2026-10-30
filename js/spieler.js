@@ -62,9 +62,11 @@ function skillActions(p, i) {
 
 // Reihenfolge der Fertigkeiten in der Leiste: Platz -> Fertigkeit
 const SKILL_HOLD_MS = 500;
+// Seit 10.7 darf ein Platz leer sein (null): Fertigkeiten lassen sich aus der Leiste ziehen
 function skillOrder(p) {
   const o = p.skillOrder;
-  const ok = Array.isArray(o) && o.length === 5 && [0, 1, 2, 3, 4].every((k) => o.includes(k));
+  const used = Array.isArray(o) ? o.filter((k) => k != null) : [];
+  const ok = Array.isArray(o) && o.length === 5 && used.every((k) => Number.isInteger(k) && k >= 0 && k < 5) && new Set(used).size === used.length;
   if (!ok) p.skillOrder = [0, 1, 2, 3, 4];
   return p.skillOrder.slice();
 }
@@ -214,8 +216,8 @@ function makePlayer(save) {
     const spent = p.skillLevels.reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX - 1 : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
     p.skillPoints = Math.max(p.skillPoints, (p.level - 1) - spent);
   }
-  // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Welt 6 (6.2/6.3) und Welt 7 (bis 10.5,
-  // Maps 300 × 120) geht es im Lager derselben Map weiter, sonst im Dorf.
+  // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Welt 6 (6.2/6.3), Welt 7 (bis 10.5) und
+  // Welt 8 (10.6) geht es im Lager derselben Map weiter, sonst im Dorf.
   let campOf = null;
   if ((save.worldVersion || 1) < WORLD_VERSION) {
     if (save.worldVersion === 6 && save.x != null) {
@@ -223,11 +225,14 @@ function makePlayer(save) {
       const tx = save.x / TILE;
       const ty = save.y / TILE;
       for (const [id, [x, y, w, h]] of Object.entries(OLD)) if (tx >= x && tx < x + w && ty >= y && ty < y + h) campOf = Number(id);
-    } else if (save.worldVersion === 7 && save.x != null) {
-      const OLD7 = { 4: [300, 0], 5: [600, 0], 6: [300, 120], 2: [600, 120], 7: [300, 240], 8: [600, 240], 3: [300, 360], 9: [600, 360] };
+    } else if ((save.worldVersion === 7 || save.worldVersion === 8) && save.x != null) {
+      // Welt 7: Maps 300 × 120, Welt 8 (10.6): 360 × 150 – je Map die linke obere Ecke
+      const OLD = save.worldVersion === 7
+        ? { w: 300, h: 120, at: { 4: [300, 0], 5: [600, 0], 6: [300, 120], 2: [600, 120], 7: [300, 240], 8: [600, 240], 3: [300, 360], 9: [600, 360] } }
+        : { w: 360, h: 150, at: { 4: [360, 0], 5: [720, 0], 6: [360, 150], 2: [720, 150], 7: [360, 300], 8: [720, 300], 3: [360, 450], 9: [720, 450] } };
       const tx = save.x / TILE;
       const ty = save.y / TILE;
-      for (const [id, [x, y]] of Object.entries(OLD7)) if (tx >= x && tx < x + 300 && ty >= y && ty < y + 120) campOf = Number(id);
+      for (const [id, [x, y]] of Object.entries(OLD.at)) if (tx >= x && tx < x + OLD.w && ty >= y && ty < y + OLD.h) campOf = Number(id);
     }
     p.x = null;
     p.y = null;

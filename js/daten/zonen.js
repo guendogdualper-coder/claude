@@ -156,15 +156,15 @@ for (const d of DUNGEONS) {
 // region: [x, y, Breite, Höhe] in Kacheln; camp: halbe Breite des sicheren Platzes (Standard CAMP_HALF)
 // portals: Weltportale draußen (seit Version 6.2 keine mehr – nur noch das Weltentor)
 const WORLD_MAPS = [
-  { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 105, 360, 150], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
-  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 150], camp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
-  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 150], camp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
-  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 150, 360, 150], camp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 150, 360, 150], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
-  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 300, 360, 150], camp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
-  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 300, 360, 150], camp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
-  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 450, 360, 150], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
-  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 450, 360, 150], camp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
+  { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
+  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
+  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
+  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
+  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
+  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
+  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
+  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },

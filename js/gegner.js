@@ -47,9 +47,10 @@ function stoneWaveMarks() {
 // Anteil der Gruppen aus den Zonendaten (seit 6.8 wieder mehr: weniger Bäume, mehr Tierarten)
 const MOB_DENSITY = 0.95;
 // Die Maps sind seit Version 4.5 deutlich größer: mehr Gruppen und Steine, damit sie nicht leer wirken
-// seit 10.6 sind die Maps noch einmal 1,5-mal so groß (360 × 150): entsprechend mehr Gruppen und Steine
-const WORLD_SCALE_MOBS = 2.8;
-const WORLD_SCALE_STONES = 3.5;
+// 10.6: Maps 1,5-mal so groß (360 × 150), seit 10.7 nach oben und unten noch größer (360 × 220):
+// entsprechend mehr Gruppen und Steine, damit es sich füllt
+const WORLD_SCALE_MOBS = 4;
+const WORLD_SCALE_STONES = 4.9;
 
 // Füllt alle Jagdzonen mit Monstergruppen und Seelensteinen
 function populateWorld() {
@@ -636,9 +637,18 @@ function monsterRush(m, t, dt, reach) {
   }
 }
 
+// Bereich eines Punktes: Map-Nummer oder Dungeon (für das schnelle Überspringen ruhender Monster, seit 10.7)
+function areaKey(x, y) {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  const wm = mapOfTile(tx, ty);
+  return wm ? wm.id : tx >= WORLD_W && ty < DUNGEON_H ? 100 + dungeonIndexAt(tx, ty) : 0;
+}
 function updateMonsters(dt) {
   const p = game.player;
   const players = huntablePlayers();
+  // Maps und Dungeons, in denen gerade jemand ist: ruhende Monster anderswo brauchen keine Rechnung
+  const busy = new Set(players.map((pl) => areaKey(pl.x, pl.y)));
   for (const m of game.monsters) {
     if (m.dead) {
       if (m.respawn && game.time >= m.respawnAt) {
@@ -647,6 +657,13 @@ function updateMonsters(dt) {
         else reviveMonster(m);
       }
       continue;
+    }
+    if (m.state === 'idle' && !m.poison && !m.burn) {
+      if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
+      if (!busy.has(m.area)) {
+        if (m.hitFlash > 0) m.hitFlash = 0;
+        continue;
+      }
     }
     if (m.hitFlash > 0) m.hitFlash -= dt;
     // nächster Spieler
