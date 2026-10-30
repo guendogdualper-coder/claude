@@ -383,6 +383,7 @@ function gainXp(amount) {
     p.hp = s.maxHp;
     p.mp = s.maxMp;
     vfxLevelUp(p);
+    snd.player('levelup', { vol: 0.6, rev: 0.5, variants: 1 });
     ui.log('Stufenaufstieg! Du bist jetzt Stufe ' + p.level + '. Du hast einen Fertigkeitspunkt erhalten.', 'level');
     const unlocked = classSkills(p).find((sk) => sk.unlock === p.level);
     if (unlocked) ui.log('Neue Fertigkeit freigeschaltet: ' + unlocked.name + '.', 'level');
@@ -606,6 +607,7 @@ function usePotion(kind) {
   p.potions[potKey(kind, size.id)]--;
   p.potCd[kind] = POTION_CD;
   vfxPotion(p, kind);
+  snd.player('potion', { vol: 0.4 });
   if (hp) {
     const amount = Math.round(s.maxHp * size.heal);
     p.hp = Math.min(s.maxHp, p.hp + amount);

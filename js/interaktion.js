@@ -595,11 +595,13 @@ function remoteSkillFx(rp, d) {
   const trim = CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff';
   const target = { x: d.tx, y: d.ty };
   if (d.s === '_shot') {
+    snd.shot(rp, { style: d.st, el: d.el });
     spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? 620 : 480, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el });
     return;
   }
   const sk = skillById(d.s);
   if (!sk) return;
+  snd.skill(sk, rp);
   // Rang aus dem Netz nur als gültige Zahl (sonst stünde SKILL_RANKS[rk] leer und das Bild hielte an)
   const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
   const col = skillColor(sk, trim);

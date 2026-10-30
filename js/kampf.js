@@ -350,6 +350,7 @@ function damagePlayer(amount, attacker) {
   if (s.block > 0 && Math.random() < s.block) {
     addText(p.x, p.y - 30, 'Geblockt', 'block');
     vfxBlock(p, attacker);
+    snd.player('el_klinge', { vol: 0.5, rate: 1.4 });
     return;
   }
   let dmg = Math.max(1, Math.round(amount * s.damageTaken));
@@ -372,6 +373,10 @@ function damagePlayer(amount, attacker) {
     dmg = Math.max(0, Math.floor(p.hp - 1));
     later(0, () => duelLose(null));
   }
+  if (dmg > 0 && game.time - (p.sndHurtAt || -9) > 0.4) {
+    p.sndHurtAt = game.time;
+    snd.hurt(p);
+  }
   if (dmg > 0) {
     p.hp -= dmg;
     p.hurtAt = game.time;
@@ -387,6 +392,7 @@ function damagePlayer(amount, attacker) {
 
 function playerDie() {
   const p = game.player;
+  snd.die(p);
   p.hp = 0;
   p.dead = true;
   p.dash = null;
@@ -567,6 +573,7 @@ function useSkill(i) {
   if (ok === false) return;
   withRank(rank, () => skillCastFx(sk));
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
+  snd.skill(sk, p);
   p.mp -= skillMana(sk, p);
   p.skillCd[i] = sk.cooldown;
   // Fertigkeiten mit eigener Bahn (Welle, Riss, Sprung) geben ihre Eckdaten für Mitspieler zurück

@@ -17,18 +17,55 @@ const sfx = {
     return this.on;
   },
 
-  ac() {
-    if (!this.on) return null;
+  // Audio-Graph (seit 9.4): Klänge (master) und Musik (music) laufen über einen gemeinsamen Hall (verb) und einen
+  // Begrenzer, damit viele Klänge gleichzeitig nicht verzerren. Die Musik läuft auch, wenn die Klänge aus sind.
+  graph() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
-      this.ctx = new AC();
-      this.master = this.ctx.createGain();
-      this.master.gain.value = 0.8 * (typeof opts !== 'undefined' ? opts.volume : 0.7);
-      this.master.connect(this.ctx.destination);
+      const c = (this.ctx = new AC());
+      const lim = c.createDynamicsCompressor();
+      lim.threshold.value = -10;
+      lim.knee.value = 6;
+      lim.ratio.value = 8;
+      lim.attack.value = 0.004;
+      lim.release.value = 0.2;
+      lim.connect(c.destination);
+      this.out = lim;
+      this.master = c.createGain();
+      this.music = c.createGain();
+      this.master.connect(lim);
+      this.music.connect(lim);
+      // Hall: abklingendes Rauschen als Raumantwort (2,4 s, links und rechts leicht verschieden)
+      this.verb = c.createConvolver();
+      const len = Math.floor(c.sampleRate * 2.4);
+      const ir = c.createBuffer(2, len, c.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2) * (i < 200 ? i / 200 : 1);
+      }
+      this.verb.buffer = ir;
+      this.verbOut = c.createGain();
+      this.verbOut.gain.value = 0.55;
+      this.verb.connect(this.verbOut);
+      this.verbOut.connect(lim);
+      this.applyVolume();
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
+  },
+
+  applyVolume() {
+    if (!this.master) return;
+    const v = typeof opts !== 'undefined' ? opts.volume : 0.7;
+    this.master.gain.value = 0.8 * v;
+    const mv = typeof opts !== 'undefined' ? (opts.music === false ? 0 : opts.musicVol ?? 0.5) : 0.5;
+    this.music.gain.value = 1.2 * v * mv;
+  },
+
+  ac() {
+    if (!this.on) return null;
+    return this.graph();
   },
 
   // Einzelner Ton mit kurzem Anschlag und Ausklingen; slide: Zielfrequenz am Ende

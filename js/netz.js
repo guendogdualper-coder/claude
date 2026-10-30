@@ -799,7 +799,10 @@ function netApplyState(rp, s) {
       // Schlagspur erst im Treffer-Bild der Animation (seit 9.3)
       if (rp.swingKind === 'combo' && MELEE_KINDS.has(weaponKindOf(rp))) {
         const imp = (BASIC_TIMING[weaponKindOf(rp)] || [0, 0.45])[1];
-        later((rp.swingDur || 0.3) * imp, () => vfxSwing(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff'));
+        later((rp.swingDur || 0.3) * imp, () => {
+          vfxSwing(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff');
+          snd.swing(rp);
+        });
       }
       if (rp.swingKind === 'pose') vfxPowerUp(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffd34d');
     }

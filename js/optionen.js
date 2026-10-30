@@ -12,7 +12,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, graphics: IS_PC ? 'ultra' : 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'ultra' : 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
 
 // Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln.
 // Ultra (für PC): volle Auflösung, scharfe große Schatten, weitere Sicht, schärfere Böden
@@ -37,7 +37,7 @@ function setOpt(key, value) {
 }
 
 function applyOpts() {
-  if (sfx.master) sfx.master.gain.value = 0.8 * opts.volume;
+  sfx.applyVolume();
   renderer.maxDpr = gfx().dpr;
   if (renderer.canvas) resizeRenderer();
   if (V3.on) v3ApplyGraphics();
@@ -84,9 +84,11 @@ const options = {
       `<div class="opt-seg">${Object.entries(table).map(([id, v]) => `<button type="button" class="${opts[key] === id ? 'on' : ''}" data-seg="${key}:${id}">${v.label}</button>`).join('')}</div></div>`;
     body.innerHTML =
       `<section class="opt-group"><h3>Ton</h3>` +
-      `<div class="opt-row"><div class="opt-text"><strong>Klänge</strong><small>Schmied und weitere Effekte. Der Stummschalter am iPhone schaltet sie ebenfalls stumm.</small></div>` +
+      `<div class="opt-row"><div class="opt-text"><strong>Klänge</strong><small>Kampf, Monster, Beute und Schmied. Der Stummschalter am iPhone schaltet Klänge und Musik ebenfalls stumm.</small></div>` +
       `<button type="button" class="opt-switch${sfx.on ? ' on' : ''}" id="optSound" role="switch" aria-checked="${sfx.on}" aria-label="Klänge"><i></i></button></div>` +
-      `<div class="opt-row"><div class="opt-text"><strong>Lautstärke</strong></div><input type="range" id="optVolume" min="0" max="1" step="0.05" value="${opts.volume}" aria-label="Lautstärke"><b class="opt-val">${Math.round(opts.volume * 100)} %</b></div></section>` +
+      `<div class="opt-row"><div class="opt-text"><strong>Lautstärke</strong></div><input type="range" id="optVolume" min="0" max="1" step="0.05" value="${opts.volume}" aria-label="Lautstärke"><b class="opt-val">${Math.round(opts.volume * 100)} %</b></div>` +
+      sw('music', 'Musik', 'Entspannte Hintergrundmusik, passend zur Gegend (Dorf, Wald, Schnee, Wüste, Dungeon).') +
+      `<div class="opt-row"><div class="opt-text"><strong>Musiklautstärke</strong></div><input type="range" id="optMusicVol" min="0" max="1" step="0.05" value="${opts.musicVol ?? 0.5}" aria-label="Musiklautstärke"><b class="opt-val">${Math.round((opts.musicVol ?? 0.5) * 100)} %</b></div></section>` +
       `<section class="opt-group"><h3>Grafik</h3>` +
       seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
       seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Hoch ist empfohlen, Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger.`) +
@@ -129,6 +131,11 @@ const options = {
       vol.nextElementSibling.textContent = Math.round(opts.volume * 100) + ' %';
     });
     vol.addEventListener('change', () => sfx.clang(1));
+    const mvol = $('optMusicVol');
+    mvol.addEventListener('input', () => {
+      setOpt('musicVol', Number(mvol.value));
+      mvol.nextElementSibling.textContent = Math.round(opts.musicVol * 100) + ' %';
+    });
     body.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', async () => {
       const go = b.dataset.go;
       if (go === 'look') ui.openLookPanel();

@@ -1051,6 +1051,8 @@ const ui = {
 
   lootNow(name, count, icon, color) {
     const now = game.time;
+    // Klang (seit 9.4): Münzen für Gold, sonst ein weicher Glanz
+    snd.player(/Gold/.test(name) ? 'coin' : 'item', { vol: 0.3 });
     const last = this.lootLog[0];
     if (last && last.name === name && now - last.time < 30) {
       last.count += count;
