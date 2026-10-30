@@ -1906,3 +1906,12 @@ Mobile game inventory window, dark leather and brass fantasy style, landscape ph
 ```
 Mobile game storage window, dark wood and brass fantasy style: upper part a storage chest grid with three rows of ten slots and page tabs I–VI, lower part the player's bag with the same grid and a button "store whole page"; a few items, stacked skill books with a count number. Clean, readable at phone size.
 ```
+
+## Schlaganimationen (Version 9.3)
+
+Grundregeln, Tabelle je Waffe und der große Prompt stehen in `docs/grafik-prompts.md`, Abschnitt 8b.
+
+### Einzelbild Schwertkombo
+```
+Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield, top-down three-quarter view: anticipation with the sword raised high behind the right shoulder and the shield forward, impact with a diagonal slash across the body and the front foot stepping in, follow-through with the blade low on the left and the hips turned, recovery back to a ready stance. Crimson smear trail on impact, thick outlines, toon shading, no text.
+```

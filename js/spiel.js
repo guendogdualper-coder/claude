@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '9.2';
+const GAME_VERSION = '9.3';
 
 const game = {
   world: null,
@@ -58,6 +58,7 @@ function updatePlayer(dt) {
   if (p.potCd) for (const k of ['hp', 'mp']) p.potCd[k] = Math.max(0, p.potCd[k] - dt);
   p.swing = Math.max(0, p.swing - dt);
   p.spin = Math.max(0, (p.spin || 0) - dt);
+  basicTick(p);
   updateBuffAuras(dt);
   for (let i = 0; i < 5; i++) p.skillCd[i] = Math.max(0, p.skillCd[i] - dt);
   p.ultCd = Math.max(0, (p.ultCd || 0) - dt);

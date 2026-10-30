@@ -454,6 +454,18 @@ const KIND_BASIC = {
   scythe: { range: 62, cooldown: 0.85, ranged: false }
 };
 
+// Schlaganimation (seit 9.3): Grunddauer des Schwungs je Waffe und der Anteil, bei dem die Klinge trifft bzw.
+// der Pfeil/Zauber losfliegt. Schaden, Zahl und Schlagspur kommen erst in diesem Bild (siehe basicTick).
+const BASIC_TIMING = {
+  sword: [0.42, 0.42], axe: [0.44, 0.45], greatsword: [0.56, 0.5], greataxe: [0.6, 0.52], dagger: [0.3, 0.4], scythe: [0.56, 0.5],
+  bow: [0.5, 0.58], fan: [0.42, 0.45], bell: [0.46, 0.55], staff: [0.46, 0.5], rod: [0.4, 0.42]
+};
+function basicTiming(p) {
+  const [base, impact] = BASIC_TIMING[weaponKindOf(p)] || [0.42, 0.45];
+  // mit Angriffstempo schneller, höchstens so lang wie die Abklingzeit
+  return { dur: Math.max(0.12, Math.min(base, (p.attackCd || base) * 0.95)), impact };
+}
+
 function basicAttack(p) {
   // Magier (seit 8.6): Farbe und Geschoss nach dem gewählten Element
   if (p.classId === 'magier') {
@@ -475,19 +487,43 @@ function tryBasicAttack() {
   const target = pickTarget(basic.range);
   if (target) faceTowards(target.x, target.y);
   p.attackCd = basic.cooldown / game.stats.atkSpeed;
+  const tm = basicTiming(p);
   if (basic.ranged) {
-    startSwing(p, 'cast', 0.28);
+    startSwing(p, 'cast', tm.dur);
+    p.pendingShot = { at: game.time + tm.dur * tm.impact, target, basic };
+  } else {
+    p.combo = ((p.combo || 0) + 1) % 3;
+    startSwing(p, 'combo', tm.dur);
+    p.pendingHit = { at: game.time + tm.dur * tm.impact, target, mul: p.combo === 2 ? 1.25 : 1, range: basic.range, color: c.trim };
+  }
+  return true;
+}
+
+// Treffer bzw. Schuss im richtigen Bild der Schlaganimation auslösen (jedes Bild aus updatePlayer)
+function basicTick(p) {
+  const h = p.pendingHit;
+  if (h && game.time >= h.at) {
+    p.pendingHit = null;
+    if (!p.dead) {
+      vfxSwing(p, h.color);
+      const t = h.target;
+      if (t && !t.dead && dist(p, t) - (t.r || 0) <= h.range + 30) hitMonster(t, h.mul, { vfxColor: h.color, basic: true });
+      if (typeof snd !== 'undefined') snd.swing(p, !!(t && !t.dead));
+    }
+  }
+  const s = p.pendingShot;
+  if (s && game.time >= s.at) {
+    p.pendingShot = null;
+    if (p.dead) return;
+    const basic = s.basic;
+    const target = s.target && !s.target.dead ? s.target : null;
+    if (target) faceTowards(target.x, target.y);
     const hand = bodyCenter(p);
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
     spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, el: basic.el, basic: true });
     netSkillFx('_shot', basic.range, { c: basic.color, st: basic.style, el: basic.el });
-  } else {
-    p.combo = ((p.combo || 0) + 1) % 3;
-    startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
-    vfxSwing(p, c.trim);
-    if (target) hitMonster(target, p.combo === 2 ? 1.25 : 1, { vfxColor: c.trim, basic: true });
+    if (typeof snd !== 'undefined') snd.shot(p, basic);
   }
-  return true;
 }
 
 // --- Fertigkeiten -----------------------------------------------------------------

@@ -796,7 +796,11 @@ function netApplyState(rp, s) {
       rp.combo = s.sw[2];
       rp.swingDur = s.sw[3];
       rp.swing = s.sw[3];
-      if (rp.swingKind === 'combo' && MELEE_KINDS.has(weaponKindOf(rp))) vfxSwing(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff');
+      // Schlagspur erst im Treffer-Bild der Animation (seit 9.3)
+      if (rp.swingKind === 'combo' && MELEE_KINDS.has(weaponKindOf(rp))) {
+        const imp = (BASIC_TIMING[weaponKindOf(rp)] || [0, 0.45])[1];
+        later((rp.swingDur || 0.3) * imp, () => vfxSwing(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff'));
+      }
       if (rp.swingKind === 'pose') vfxPowerUp(rp, CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffd34d');
     }
     rp.seq = s.sw[0];

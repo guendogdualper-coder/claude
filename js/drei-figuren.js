@@ -4300,6 +4300,138 @@ const SKILL_POSE3 = {
 };
 
 // Spieler: Laufen, Schlagen, Zaubern, Pose, Wirbel, Sprung, Reiten, Treffer, Aufleuchten
+// --- Grundangriffe (seit 9.3) --------------------------------------------------------------------------
+// Schlüsselposen je Waffe und Kombo-Schlag: [Zeit 0…1, Pose, Übergang]. Übergang 'in' beschleunigt (der Schlag),
+// 'out' bremst (Ausholen, Durchziehen), sonst weich. Kanäle (fehlend = 0):
+//   hy Hüfte drehen, hpy/hpz Hüfte heben/vor, cx/cy/cz Oberkörper beugen/drehen/kippen, hx Kopf,
+//   rx/ry/rz rechter Arm, lx/ly/lz linker Arm, wx/wz rechtes Handgelenk, gl/gr Beine, sy ganze Figur drehen.
+// Arme: rx −1,5 = waagerecht nach vorn, −2,7 = über dem Kopf; rz < 0 rechter Arm nach außen, > 0 quer vor den Körper
+// (linker Arm umgekehrt). Oberkörper cy > 0 dreht nach links. Zweihänder (two) führen den linken Arm am Griff mit.
+const N3 = { rz: -0.08, lz: 0.08 };
+const BASIC3 = {
+  sword: [
+    [[0, N3], [0.34, { cy: -0.55, cx: -0.12, hy: -0.25, rx: -2.6, rz: -0.55, lx: -1.1, lz: 0.25, gr: 0.2, gl: -0.15 }, 'out'],
+      [0.42, { cy: 0.5, cx: 0.2, hy: 0.25, rx: -1.0, rz: 0.6, lx: -1.2, lz: 0.2, gr: -0.35, gl: 0.3, hpz: 0.08, hpy: -0.04 }, 'in'],
+      [0.66, { cy: 0.62, cx: 0.24, hy: 0.3, rx: -0.55, rz: 0.75, lx: -1.0, lz: 0.2, gr: -0.3, gl: 0.25, hpz: 0.06, hpy: -0.04 }, 'out'], [1, N3]],
+    [[0, N3], [0.32, { cy: 0.6, cx: 0.15, hy: 0.25, rx: -0.75, rz: 0.85, lx: -0.9, lz: 0.35, gl: -0.2, gr: 0.15, hpy: -0.03 }, 'out'],
+      [0.42, { cy: -0.45, cx: -0.1, hy: -0.2, rx: -2.3, rz: -0.55, lx: -1.15, lz: 0.25, gl: 0.3, gr: -0.25, hpz: 0.06 }, 'in'],
+      [0.66, { cy: -0.6, cx: -0.12, hy: -0.25, rx: -2.55, rz: -0.7, lx: -1.0, lz: 0.25, gl: 0.25, gr: -0.2, hpz: 0.05 }, 'out'], [1, N3]],
+    [[0, N3], [0.32, { cy: -0.45, hy: -0.2, cx: -0.08, rx: -1.2, rz: -0.35, lx: -1.3, lz: 0.2, hpz: -0.06, gr: 0.25, gl: -0.1 }, 'out'],
+      [0.42, { cy: 0.2, hy: 0.1, cx: 0.22, rx: -1.62, rz: 0.05, lx: -1.5, lz: 0.05, hpz: 0.26, hpy: -0.07, gr: -0.75, gl: 0.5 }, 'in'],
+      [0.68, { cy: 0.22, hy: 0.1, cx: 0.2, rx: -1.55, rz: 0.05, lx: -1.35, lz: 0.1, hpz: 0.22, hpy: -0.06, gr: -0.65, gl: 0.45 }, 'out'], [1, N3]]
+  ],
+  axe: [
+    [[0, N3], [0.36, { rx: -2.95, rz: -0.15, cx: -0.25, cy: -0.2, lx: -0.6, lz: 0.4, hpy: 0.02, gr: 0.15 }, 'out'],
+      [0.45, { rx: -0.7, rz: 0.15, cx: 0.35, cy: 0.15, hpy: -0.08, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3 }, 'in'],
+      [0.68, { rx: -0.45, rz: 0.2, cx: 0.3, cy: 0.15, hpy: -0.07, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.7, lz: 0.3 }, 'out'], [1, N3]],
+    [[0, N3], [0.34, { cy: -0.7, hy: -0.3, rx: -1.45, rz: -1.05, lx: -0.8, lz: 0.4, gr: 0.2, gl: -0.15 }, 'out'],
+      [0.45, { cy: 0.6, hy: 0.3, rx: -1.45, rz: 0.85, lx: -0.9, lz: 0.3, gr: -0.35, gl: 0.3, hpz: 0.07, hpy: -0.04 }, 'in'],
+      [0.68, { cy: 0.75, hy: 0.35, rx: -1.35, rz: 0.95, lx: -0.8, lz: 0.3, gr: -0.3, gl: 0.25, hpz: 0.06 }, 'out'], [1, N3]],
+    [[0, N3], [0.32, { rx: -0.5, rz: 0.5, cx: 0.2, cy: 0.35, hpy: -0.06, lx: -0.7, lz: 0.3, gl: 0.15 }, 'out'],
+      [0.44, { rx: -2.4, rz: -0.3, cx: -0.2, cy: -0.3, hpy: 0.05, lx: -1.0, lz: 0.3, gl: 0.3, gr: -0.3, hpz: 0.06 }, 'in'],
+      [0.68, { rx: -2.6, rz: -0.35, cx: -0.22, cy: -0.35, hpy: 0.03, lx: -0.9, lz: 0.3, gl: 0.25, gr: -0.25 }, 'out'], [1, N3]]
+  ],
+  greatsword: [
+    [[0, N3], [0.38, { cy: -0.95, hy: -0.45, cx: -0.05, rx: -1.35, rz: -1.0, gr: 0.3, gl: -0.2, hpy: -0.03, two: 1 }, 'out'],
+      [0.5, { cy: 0.75, hy: 0.4, rx: -1.35, rz: 0.75, gr: -0.4, gl: 0.35, hpz: 0.08, hpy: -0.06, two: 1 }, 'in'],
+      [0.72, { cy: 0.95, hy: 0.5, rx: -1.2, rz: 0.9, gr: -0.35, gl: 0.3, hpz: 0.07, hpy: -0.05, two: 1 }, 'out'], [1, N3]],
+    [[0, N3], [0.36, { cy: 0.8, hy: 0.35, cx: -0.1, rx: -2.3, rz: 0.6, gl: 0.2, gr: -0.1, two: 1 }, 'out'],
+      [0.5, { cy: -0.6, hy: -0.3, cx: 0.2, rx: -0.9, rz: -0.7, hpy: -0.06, hpz: 0.06, gl: -0.3, gr: 0.35, two: 1 }, 'in'],
+      [0.72, { cy: -0.75, hy: -0.35, cx: 0.22, rx: -0.7, rz: -0.8, hpy: -0.05, gl: -0.25, gr: 0.3, two: 1 }, 'out'], [1, N3]],
+    [[0, N3], [0.4, { rx: -3.0, rz: -0.1, cx: -0.3, hpy: 0.12, gr: -0.4, gl: 0.2, two: 1 }, 'out'],
+      [0.52, { rx: -0.55, rz: 0.05, cx: 0.5, hpy: -0.12, hpz: 0.12, gr: -0.6, gl: 0.45, two: 1 }, 'in'],
+      [0.74, { rx: -0.5, rz: 0.05, cx: 0.45, hpy: -0.1, hpz: 0.1, gr: -0.5, gl: 0.4, two: 1 }, 'out'], [1, N3]]
+  ],
+  greataxe: [
+    [[0, N3], [0.4, { cy: 0.7, hy: 0.3, cx: -0.15, rx: -2.6, rz: 0.4, gl: 0.2, two: 1 }, 'out'],
+      [0.52, { cy: -0.5, hy: -0.25, cx: 0.35, rx: -0.7, rz: -0.55, hpy: -0.1, hpz: 0.08, gl: -0.35, gr: 0.4, two: 1 }, 'in'],
+      [0.74, { cy: -0.6, hy: -0.3, cx: 0.32, rx: -0.55, rz: -0.6, hpy: -0.09, gl: -0.3, gr: 0.35, two: 1 }, 'out'], [1, N3]],
+    // Wirbel: volle Drehung mit ausgestreckten Armen
+    [[0, N3], [0.3, { cy: -0.6, hy: -0.3, rx: -1.4, rz: -1.0, hpy: -0.05, gr: 0.25, two: 1 }, 'out'],
+      [0.75, { sy: Math.PI * 2, cy: -0.4, rx: -1.4, rz: -0.95, hpy: -0.07, gr: -0.2, gl: 0.2, two: 1 }],
+      [0.86, { sy: Math.PI * 2, rx: -1.2, rz: -0.6, hpy: -0.04, two: 1 }, 'out'], [1, { sy: Math.PI * 2, ...N3 }]],
+    [[0, N3], [0.42, { rx: -3.05, rz: -0.05, cx: -0.35, hpy: 0.08, gr: 0.2, gl: -0.1, two: 1 }, 'out'],
+      [0.54, { rx: -0.45, rz: 0.05, cx: 0.65, hpy: -0.16, hpz: 0.1, gr: -0.55, gl: 0.5, two: 1 }, 'in'],
+      [0.78, { rx: -0.4, rz: 0.05, cx: 0.6, hpy: -0.15, hpz: 0.09, gr: -0.5, gl: 0.45, two: 1 }, 'out'], [1, N3]]
+  ],
+  dagger: [
+    [[0, N3], [0.3, { rx: -1.0, rz: -0.2, cy: -0.35, lx: -1.3, lz: 0.4, gr: 0.15 }, 'out'],
+      [0.4, { rx: -1.65, rz: 0.15, cy: 0.3, cx: 0.15, hpz: 0.12, gr: -0.45, gl: 0.3, lx: -0.6, lz: 0.3 }, 'in'],
+      [0.65, { rx: -1.55, rz: 0.12, cy: 0.25, cx: 0.12, hpz: 0.1, gr: -0.4, gl: 0.25, lx: -0.7, lz: 0.3 }, 'out'], [1, N3]],
+    [[0, N3], [0.3, { lx: -1.5, lz: 1.0, cy: 0.45, rx: -0.9, rz: -0.2, gl: 0.15 }, 'out'],
+      [0.4, { lx: -1.45, lz: -0.7, cy: -0.45, hpz: 0.08, gl: -0.4, gr: 0.3, rx: -0.8, rz: -0.25 }, 'in'],
+      [0.65, { lx: -1.35, lz: -0.85, cy: -0.55, hpz: 0.07, gl: -0.35, gr: 0.25, rx: -0.8, rz: -0.25 }, 'out'], [1, N3]],
+    [[0, N3], [0.36, { rx: -2.6, rz: -0.5, lx: -2.6, lz: 0.5, hpy: 0.14, cx: -0.15, gr: -0.3, gl: -0.3 }, 'out'],
+      [0.46, { rx: -0.8, rz: 0.55, lx: -0.8, lz: -0.55, hpy: -0.08, cx: 0.3, gr: -0.4, gl: 0.35, hpz: 0.08 }, 'in'],
+      [0.7, { rx: -0.6, rz: 0.6, lx: -0.6, lz: -0.6, hpy: -0.07, cx: 0.28, gr: -0.35, gl: 0.3, hpz: 0.07 }, 'out'], [1, N3]]
+  ],
+  scythe: [
+    [[0, N3], [0.38, { cy: -0.9, hy: -0.4, cx: 0.15, rx: -1.0, rz: -1.15, hpy: -0.05, gr: 0.25, two: 1 }, 'out'],
+      [0.5, { cy: 0.85, hy: 0.4, cx: 0.2, rx: -1.0, rz: 0.85, hpy: -0.08, gr: -0.35, gl: 0.3, hpz: 0.06, two: 1 }, 'in'],
+      [0.72, { cy: 1.0, hy: 0.45, cx: 0.18, rx: -0.9, rz: 0.95, hpy: -0.07, gr: -0.3, gl: 0.25, two: 1 }, 'out'], [1, N3]],
+    [[0, N3], [0.38, { cy: 0.85, hy: 0.4, cx: 0.15, rx: -1.0, rz: 0.8, hpy: -0.05, gl: 0.25, two: 1 }, 'out'],
+      [0.5, { cy: -0.85, hy: -0.4, cx: 0.2, rx: -1.0, rz: -1.1, hpy: -0.08, gl: -0.35, gr: 0.3, hpz: 0.06, two: 1 }, 'in'],
+      [0.72, { cy: -1.0, hy: -0.45, cx: 0.18, rx: -0.9, rz: -1.15, hpy: -0.07, gl: -0.3, gr: 0.25, two: 1 }, 'out'], [1, N3]],
+    [[0, N3], [0.4, { rx: -2.9, rz: -0.3, cx: -0.25, hpy: 0.03, gr: 0.2, two: 1 }, 'out'],
+      [0.52, { rx: -0.6, rz: 0.2, cx: 0.45, hpy: -0.1, hpz: 0.1, gr: -0.5, gl: 0.4, two: 1 }, 'in'],
+      [0.74, { rx: -0.5, rz: 0.25, cx: 0.4, hpy: -0.09, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1 }, 'out'], [1, N3]]
+  ],
+  // Fernkampf: ein Ablauf je Waffe (Bogen in der rechten Hand, die linke zieht die Sehne)
+  bow: [[[0, N3], [0.25, { rx: -1.5, rz: 0.1, lx: -1.5, lz: -0.3, cy: 0.4, hy: 0.2 }, 'out'],
+    [0.55, { rx: -1.55, rz: 0.1, lx: -1.35, lz: 0.55, cy: 0.55, hy: 0.25, hx: -0.05 }],
+    [0.62, { rx: -1.45, rz: 0.12, lx: -1.0, lz: 0.95, cy: 0.5, hy: 0.25 }, 'in'],
+    [0.82, { rx: -1.4, rz: 0.1, lx: -0.9, lz: 0.9, cy: 0.45, hy: 0.2 }, 'out'], [1, N3]]],
+  fan: [[[0, N3], [0.3, { rx: -1.2, rz: -0.9, cy: -0.5, hy: -0.2, wz: 0.6, lx: -0.5, lz: 0.4 }, 'out'],
+    [0.45, { rx: -1.45, rz: 0.75, cy: 0.45, hy: 0.2, wz: -0.6, hpz: 0.06, gr: -0.25, gl: 0.2, lx: -0.7, lz: 0.6 }, 'in'],
+    [0.7, { rx: -1.35, rz: 0.95, cy: 0.55, hy: 0.25, wz: -0.7, hpz: 0.05, gr: -0.2, gl: 0.15, lx: -0.6, lz: 0.7 }, 'out'], [1, N3]]],
+  bell: [[[0, N3], [0.2, { rx: -2.3, rz: -0.2, cx: -0.08, lx: -0.4, lz: 0.3 }, 'out'], [0.3, { rx: -2.35, rz: -0.45, cx: -0.08 }],
+    [0.4, { rx: -2.3, rz: 0.05, cx: -0.08 }], [0.55, { rx: -1.5, rz: 0.1, cx: 0.15, hpz: 0.06, gr: -0.25, lx: -1.0, lz: 0.2 }, 'in'],
+    [0.75, { rx: -1.3, rz: 0.1, cx: 0.12, hpz: 0.05, gr: -0.2, lx: -0.9, lz: 0.2 }, 'out'], [1, N3]]],
+  staff: [[[0, N3], [0.3, { rx: -2.6, rz: -0.15, cx: -0.15, lx: -0.6, lz: 0.3, hpy: 0.02 }, 'out'],
+    [0.5, { rx: -1.45, rz: 0.1, cx: 0.25, lx: -1.35, lz: -0.1, hpz: 0.1, gr: -0.35, gl: 0.25 }, 'in'],
+    [0.72, { rx: -1.4, rz: 0.1, cx: 0.22, lx: -1.3, lz: -0.05, hpz: 0.09, gr: -0.3, gl: 0.2 }, 'out'], [1, N3]]],
+  rod: [[[0, N3], [0.25, { rx: -0.9, rz: -0.3, lx: -1.4, lz: 0.6, cy: -0.2 }, 'out'],
+    [0.42, { rx: -1.75, rz: 0.05, lx: -1.5, lz: -0.2, cx: 0.12, cy: 0.15, hpz: 0.06, gr: -0.2 }, 'in'],
+    [0.6, { rx: -1.65, rz: 0.08, lx: -1.2, lz: 0.4, cx: 0.1, cy: 0.12, hpz: 0.05, gr: -0.15 }, 'out'], [1, N3]]]
+};
+
+function basicKeys3(kind, p) {
+  const list = BASIC3[kind];
+  if (!list) return null;
+  return list[(p.swingKind === 'combo' ? p.combo || 0 : 0) % list.length];
+}
+
+const easeIn3 = (u) => u * u;
+const easeOut3 = (u) => 1 - (1 - u) * (1 - u);
+const easeIO3 = (u) => u * u * (3 - 2 * u);
+function poseKeys3(B, keys, sw) {
+  let i = 0;
+  while (i < keys.length - 2 && sw > keys[i + 1][0]) i++;
+  const [t0, a] = keys[i];
+  const [t1, b, ease] = keys[i + 1];
+  const u0 = Math.max(0, Math.min(1, (sw - t0) / Math.max(1e-4, t1 - t0)));
+  const u = ease === 'in' ? easeIn3(u0) : ease === 'out' ? easeOut3(u0) : easeIO3(u0);
+  const v = (k) => (a[k] || 0) + ((b[k] || 0) - (a[k] || 0)) * u;
+  const two = (a.two || 0) + ((b.two || 0) - (a.two || 0)) * u;
+  B[BH.root].rotation.y = v('sy');
+  B[BH.hips].rotation.y = v('hy');
+  B[BH.hips].position.y += v('hpy');
+  B[BH.hips].position.z += v('hpz');
+  B[BH.chest].rotation.set(v('cx'), v('cy'), v('cz'));
+  B[BH.head].rotation.x += v('hx');
+  const rx = v('rx');
+  const rz = v('rz');
+  B[BH.armR].rotation.set(rx, v('ry'), rz);
+  // Zweihänder: linke Hand greift unter der rechten (gleiche Höhe, zur rechten Hand hin)
+  const lx = v('lx');
+  const lz = v('lz');
+  B[BH.armL].rotation.set(lx + (rx * 0.95 - lx) * two, v('ly'), lz + (rz - 0.62 - lz) * two);
+  B[BH.handR].rotation.x = v('wx');
+  B[BH.handR].rotation.z = v('wz');
+  B[BH.legL].rotation.x = v('gl');
+  B[BH.legR].rotation.x = v('gr');
+}
+
 function syncPlayer3(p, dt) {
   const key = playerKey3(p);
   const a = actorFor(entityKey(p), 'p:' + key, (b) => {
@@ -4425,6 +4557,9 @@ function syncPlayer3(p, dt) {
   } else if (sw >= 0 && Object.prototype.hasOwnProperty.call(SKILL_POSE3, p.swingKind)) {
     // eigene Animationen (seit 8.3): Sichelwelle, Felsenfaust, Sprungschlag; seit 8.5 Salve, Käfig, Schnitter
     SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
+  } else if (sw >= 0 && (p.swingKind === 'combo' || p.swingKind === 'cast') && basicKeys3(kind, p)) {
+    // Grundangriff (seit 9.3): Schlüsselposen je Waffe und Kombo, ganzer Körper
+    poseKeys3(B, basicKeys3(kind, p), sw);
   } else if (sw >= 0) {
     const e = easeOut(sw);
     if (kind === 'bow') {
@@ -4794,7 +4929,7 @@ function syncCorpse3(e) {
 // gerendert in ein Bild (Render-Target) und in das Fenster-Canvas kopiert. Die Figur passt immer ganz hinein
 // (Höhe und Breite), nichts wird gestaucht oder abgeschnitten. yaw dreht die Figur (Antippen dreht weiter).
 const portrait3 = { scene: null, cam: null, rt: null, buf: null, img: null, actors: new Map() };
-function v3Portrait(canvas, who, yaw = -0.4) {
+function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   if (!V3.on || !V3.gl || !canvas || !who) return false;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
@@ -4844,6 +4979,8 @@ function v3Portrait(canvas, who, yaw = -0.4) {
   if (!a.group.parent) P.scene.add(a.group);
   resetBones(a);
   a.bones[BH.head].rotation.x = -0.08;
+  // pose: eigene Haltung (Bildtafeln der Animationen)
+  if (pose) pose(a.bones);
   a.group.rotation.set(0, yaw, 0);
   a.group.position.set(0, 0, 0);
   a.group.updateMatrixWorld(true);

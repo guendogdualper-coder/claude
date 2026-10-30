@@ -604,6 +604,61 @@ Stylized 3D toon magic rift portal for a cozy anime MMORPG, top-down three-quart
 
 ---
 
+## 8b. Grundangriffe – Schlaganimationen aller Klassen (seit 9.3)
+
+Bis 9.2 hob die Figur nur den rechten Arm. Der Treffer kam schon beim ersten Bild, Beine und Hüfte blieben steif
+und die zweite Hand hing herunter. Darum passte der Schlag nicht zur Figur. Ab 9.3 gilt für jeden Grundangriff:
+
+### Grundregeln (für alle Waffen)
+1. **Vier Phasen:**
+   - **Ausholen**, etwa 30–38 % der Zeit, langsam und ausgeprägt.
+   - **Schlag**, etwa 12–16 %, sehr schnell.
+   - **Durchziehen**, etwa 20 %, die Waffe schwingt über das Ziel hinaus.
+   - **Zurück** in die Ruhe, weich.
+2. **Der Treffer kommt im Schlagbild:** Schaden, Zahl, Funken und Schlagspur erscheinen erst, wenn die Klinge
+   das Ziel erreicht, nicht beim Tastendruck. Pfeile und Zauber fliegen erst beim Loslassen los.
+3. **Ganzer Körper:**
+   - Die Hüfte dreht vor dem Oberkörper, der Oberkörper vor dem Arm.
+   - Beim Schlag tritt ein Fuß nach vorn, der Körper senkt sich leicht in die Knie.
+   - Der Kopf bleibt auf das Ziel gerichtet.
+4. **Die zweite Hand arbeitet mit:**
+   - Der Schild geht beim Ausholen nach vorn und wird beim Stoß mitgedrückt.
+   - Zweihänder greifen mit beiden Händen.
+   - Ninjas schlagen abwechselnd links und rechts.
+   - Die freie Hand der Magier zeichnet das Siegel.
+5. **Gewicht nach Waffe:** Dolch etwa 0,3 s, Schwert und Axt etwa 0,42 s, Zweihänder und Sense etwa 0,55–0,6 s.
+   Mit Angriffstempo wird alles im selben Verhältnis schneller.
+6. **Kombo aus drei unterschiedlichen Schlägen** je Nahkampfwaffe, damit es nicht wie eine Schleife aussieht.
+7. **Schlagspur** in der Klassenfarbe nur im Schlag und Durchziehen. Beim dritten Schlag ist sie breiter und heller.
+
+### Je Waffenart
+| Waffe (Klasse) | Schlag 1 | Schlag 2 | Schlag 3 |
+|---|---|---|---|
+| Schwert + Schild (Krieger) | Schrägschlag von rechts oben nach links unten, der Schild deckt | Rückhand von links unten aufwärts | Stoß mit Ausfallschritt, der Schild drückt mit |
+| Axt (Krieger) | Hieb von oben über den Kopf, Oberkörper lehnt zurück und kippt vor | Waagerechter Hieb | Aufwärtshaken |
+| Zweihandschwert (Krieger) | Weiter waagerechter Schwung mit Hüftdrehung, beide Hände | Schräger Rückschwung | Senkrechter Spalthieb mit kleinem Sprung und Aufprall |
+| Zweihandaxt (Krieger) | Schräger Hieb | Volle Drehung (Wirbel) mit ausgestreckten Armen | Schmetterschlag von oben in die Knie |
+| Dolche (Ninja) | Rechter Stich | Linker Kreuzschnitt | Beide Klingen hoch, X-Schnitt nach unten mit kleinem Sprung |
+| Sense (Nekromant) | Tiefe Mähbewegung von rechts nach links | Rückwärtsmähen | Bogen von oben nach unten |
+| Bogen (Ninja) | Seitlich stellen, Sehne zur Wange ziehen, loslassen, Rückstoß der Zughand | | |
+| Fächer (Schamane) | Fächer von rechts nach links mit Drehen des Handgelenks, Oberkörper dreht mit, Windstoß beim Loslassen | | |
+| Glocke (Schamane) | Glocke hoch, zweimal schütteln, nach vorn schwingen | | |
+| Stab (Nekromant) | Stab hoch, Spitze nach vorn stoßen, die freie Hand öffnet sich zum Ziel | | |
+| Zepter (Magier) | Zepter kurz zurück, schnelles Vorschnellen aus dem Handgelenk, die freie Hand zieht einen Kreis | | |
+
+### Prompt (englisch)
+```
+Animation key-pose sheet for a stylized 3D chibi fantasy MMORPG, top-down three-quarter camera, toon shading, thick outlines. Rows of basic attack combos, each shown as four key poses (anticipation, impact, follow-through, recovery) with motion arcs and smear trails in the class colour: (1) warrior with sword and round shield – diagonal slash with the shield raised, rising backhand, forward lunge thrust with shield push; (2) warrior with one-handed axe – overhead chop leaning back then forward, flat horizontal hack, rising hook; (3) warrior with a two-handed greatsword gripped with both hands – wide horizontal sweep driven by the hips, reverse diagonal, overhead cleave with a small hop and ground impact; (4) warrior with a great axe – diagonal chop, full 360 spin with outstretched arms, overhead smash dropping into the knees; (5) ninja with twin daggers – quick right stab, left cross slash, both blades raised then an X-cut downward with a small jump; (6) necromancer with a scythe – low reaping sweep, reverse reap, downward arc; (7) ninja with a bow – side stance, draw string to the cheek, release with hand recoil; (8) shaman with a folding fan – sweeping flick with a wrist turn and a gust of wind; shaman with a bell – raised, shaken twice, swung forward; (9) necromancer with a staff – raised, tip thrust forward, free hand opens toward the target; (10) mage with a short sceptre – wrist flick forward while the free hand traces a glowing circle. Weight shifts visible in the hips and feet, front foot steps in on impact, head stays on the target. Clean, readable at phone size, no text.
+```
+
+### Umsetzung (9.3)
+- `BASIC3` in `js/drei-figuren.js` beschreibt je Waffe und Kombo Schlüsselposen für Hüfte, Oberkörper, Kopf, Arme,
+  Hände und Beine.
+- `poseKeys3` blendet die Posen weich ineinander: Ausholen weich, Schlag schnell, Ausklingen weich.
+- In `js/kampf.js` hängt der Treffer an `p.pendingHit` und der Schuss an `p.pendingShot`. Beides löst erst im
+  Schlag- bzw. Loslass-Bild aus (`BASIC_TIMING`). Mitspieler sehen dieselbe Animation (Dauer und Kombo kommen übers
+  Netz).
+
 ## 9. Attacken und Effekte aller Klassen
 
 Jede Attacke muss man **an ihrer Form** erkennen, auch ohne Farbe und ohne Zahl: ein Schlag ist eine
