@@ -198,6 +198,12 @@ function makePlayer(save) {
     if (lvl > SKILL_POINT_MAX && skillRank(lvl) < 0) { p.skillPoints += lvl - SKILL_POINT_MAX - 1; return SKILL_RANKS[0].from; }
     return lvl;
   });
+  // 8.5: E1 kostet 15 Punkte. Wer in 8.4 erst über 16/17 erweckt hat (bis zu 17 Punkte), bekommt die Differenz
+  // zurück. Je Stufe gibt es einen Punkt; es wird nie etwas abgezogen, mehrfaches Laden ändert nichts.
+  {
+    const spent = p.skillLevels.reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
+    p.skillPoints = Math.max(p.skillPoints, (p.level - 1) - spent);
+  }
   // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Version 6.2/6.3 (Welt 6) geht es
   // im Lager derselben Map weiter, sonst im Dorf.
   let campOf = null;

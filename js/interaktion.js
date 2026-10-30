@@ -581,6 +581,8 @@ function remoteSkillFx(rp, d) {
   }
   const sk = skillById(d.s);
   if (!sk) return;
+  // Rang aus dem Netz nur als gültige Zahl (sonst stünde SKILL_RANKS[rk] leer und das Bild hielte an)
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
   const col = skillColor(sk, trim);
   const blade = MELEE_KINDS.has(weaponKindOf(rp)) ? playerBlade(rp) : null;
   switch (sk.type) {
@@ -676,7 +678,7 @@ function remoteSkillFx(rp, d) {
         vfxPillar(rp, col);
         break;
       }
-      withRank(d.rk ?? -1, () => d.ts.forEach((pt, k) => {
+      withRank(rk, () => d.ts.forEach((pt, k) => {
         if (!Array.isArray(pt)) return;
         const [x, y] = pt;
         const a = ang + (k - (d.ts.length - 1) / 2) * sk.fan;
@@ -688,14 +690,14 @@ function remoteSkillFx(rp, d) {
         addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: 60, dur: 0.8, color: col });
         break;
       }
-      withRank(d.rk ?? -1, () => cageFx(rp, d.tx, d.ty, sk, null));
+      withRank(rk, () => cageFx(rp, d.tx, d.ty, sk, null));
       break;
     case 'reaper':
       if (d.s !== sk.id) {
         addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: 60, dur: 0.8, color: col });
         break;
       }
-      withRank(d.rk ?? -1, () => reaperFx(rp, d.a ?? ang, sk));
+      withRank(rk, () => reaperFx(rp, d.a ?? ang, sk));
       break;
     case 'vortex':
       vortexFx(rp, sk);
@@ -725,7 +727,7 @@ function remoteSkillFx(rp, d) {
       // seit 8.5: an jedem Platz bricht die Erde auf (ältere Clients schicken keine Punkte)
       if (sk.tiers) {
         const kind = (sk.tiers[d.k || 0] || sk.tiers[0]).kind;
-        (d.pts || []).forEach(([x, y], k) => later(k * 0.12, () => allyRiseFx(x, y, kind)));
+        (Array.isArray(d.pts) ? d.pts : []).forEach((pt, k) => Array.isArray(pt) && later(k * 0.12, () => allyRiseFx(pt[0], pt[1], kind)));
       }
       break;
     case 'curse':

@@ -131,7 +131,7 @@ function hitMonster(m, mul, opts = {}) {
     }
     if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps, until: game.time + opts.poison.duration, tick: 0 };
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
-    if (opts.slow) m.slow = { mul: 1 - opts.slow.amount, until: game.time + opts.slow.duration };
+    if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
   // Lebensraub heilt um einen Teil des Schadens; die Heilung erscheint als grüne Zahl
@@ -531,6 +531,13 @@ function useSkill(i) {
 }
 
 // --- Hilfen für Sichelwelle, Felsenfaust und Sprungschlag (seit 8.3) ------------------------------
+
+// Verlangsamung setzen, ohne eine stärkere laufende zu überschreiben (Diener-Bisse gegen Flüche, Blizzard)
+function setSlow(m, mul, dur) {
+  const until = game.time + dur;
+  if (!m.slow || m.slow.until <= game.time || mul < m.slow.mul) m.slow = { mul, until };
+  else if (mul === m.slow.mul) m.slow.until = Math.max(m.slow.until, until);
+}
 
 // Figur für kurze Zeit festhalten (kein Laufen, kein Grundangriff, keine andere Fertigkeit)
 function lockPlayer(p, dur) {
@@ -1111,7 +1118,7 @@ const SKILL_TYPES = {
       let y = p.y + Math.sin(ang) * 26;
       if (!canStand(x, y, 10, false)) { x = p.x; y = p.y; }
       // Zahlen-ID (nie Text): animateCreature rechnet mit e.id, Text ergab NaN-Knochen in 3D
-      const a = Object.assign({ id: nextAllyId++, ally: true, x, y }, allyTierStats(sk, lvl, k), {
+      const a = Object.assign({ id: nextAllyId++, ally: true, slot: k, x, y }, allyTierStats(sk, lvl, k), {
         born: game.time + k * 0.12, rise: 0.6, until: game.time + life,
         target: null, cd: 0.4 + k * 0.15, pounceCd: 0, windup: 0, attackAnim: 0, swing: 0, facing: 1, moving: false, leap: null
       });

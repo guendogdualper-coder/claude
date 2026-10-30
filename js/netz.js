@@ -333,7 +333,7 @@ function netHostDamage(rp, d) {
     if (st.s) m.stun = Math.max(m.stun, st.s);
     if (st.kx || st.ky) { m.kx = st.kx; m.ky = st.ky; }
     if (st.v) m.vulnerable = { mul: st.v[0], until: game.time + st.v[1] };
-    if (st.sl) m.slow = { mul: st.sl[0], until: game.time + st.sl[1] };
+    if (st.sl) setSlow(m, st.sl[0], st.sl[1]);
     if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
   }
@@ -386,6 +386,10 @@ function netOnClientData(d) {
       game.monsters = d.mons.map(netBuildMonster);
       net.mons = new Map(game.monsters.map((m) => [m.id, m]));
       game.target = null;
+      for (const a of game.allies) {
+        a.target = null;
+        a.windup = 0;
+      }
       game.projectiles = [];
       netRemember();
       ui.chat('', `${serverName(net.server)} · Kanal ${net.channel}: Du bist online.`);
@@ -707,8 +711,8 @@ function netPlayerState() {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
     hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
-    // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg], nur wenn welche da sind
-    ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0)]) } : {}),
+    // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
+    ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0), a.slot | 0]) } : {}),
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
     sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0
   };
@@ -776,15 +780,20 @@ const NET_NO_ALLIES = [];
 
 // Diener eines Mitspielers (seit 8.5): je Platz ein stabiles Objekt, nur zum Ansehen (kein Ziel, kein Schaden)
 function netRemoteAllies(rp, list) {
-  const out = rp.allies || (rp.allies = []);
+  // nach festem Platz (slot) zuordnen: stirbt ein Diener, rutschen die anderen nicht nach (ältere Clients: Index)
+  const old = rp.allies || (rp.allies = []);
+  const out = rp.alliesSpare || (rp.alliesSpare = []);
+  out.length = 0;
+  for (const o of old) o.seen = false;
   const tiers = list.length ? (skillById('totenbeschwoerung') || {}).tiers || [] : [];
   for (let n = 0; n < list.length; n++) {
-    const [x, y, tier, f] = list[n];
-    let al = out[n];
+    const [x, y, tier, f, slot = n] = list[n];
+    let al = null;
+    for (const o of old) if (o.slot === slot && !o.seen) { al = o; break; }
     // neu beschworen oder erweckt: neues Objekt (neue Figur), steigt wieder aus dem Boden
     if (!al || al.tier !== tier || (f & 8 && !al.rising)) {
-      al = out[n] = {
-        id: 2e6 + n, remoteAlly: true, kind: tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: tier ? 12 : 10,
+      al = {
+        id: 2e6 + slot, slot, remoteAlly: true, kind: tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: tier ? 12 : 10,
         facing: 1, moving: false, attackAnim: 0, swing: 0, windup: 0, windupMax: 0.15, alpha: false, scale: 1,
         born: f & 8 ? game.time : game.time - 1, rise: 0.6, target: null, rising: false
       };
@@ -812,8 +821,13 @@ function netRemoteAllies(rp, list) {
     al.alpha = !!(f & 4);
     al.scale = tiers[tier] ? tiers[tier].scale * (al.alpha ? 1.35 : 1) : 1;
     al.name = al.alpha ? 'Alpha' : tiers[tier] ? tiers[tier].name : '';
+    al.seen = true;
+    out.push(al);
   }
-  out.length = list.length;
+  // weggefallene Diener zerfallen sichtbar (nicht beim Wechsel der Stufe: dann steht ein neuer am selben Platz)
+  for (const o of old) if (!o.seen && !out.some((a) => a.slot === o.slot)) allyCrumble(o);
+  rp.alliesSpare = old;
+  rp.allies = out;
 }
 
 // Jedes Bild: andere Spieler weich nachziehen, Zustand senden

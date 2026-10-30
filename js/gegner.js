@@ -938,7 +938,11 @@ function updateAllies(dt) {
       continue;
     }
     let t = a.target;
-    if (t && (t.dead || dist(t, p) > ALLY_KEEP)) t = a.target = null;
+    // vorbei: totes Ziel, zu weit weg oder Duell-Stellvertreter nach dem Duell
+    if (t && (t.dead || dist(t, p) > ALLY_KEEP || (t.duelProxy && (!duelFighting() || t !== game.duel.proxy)))) {
+      t = a.target = null;
+      a.windup = 0;
+    }
     // ohne Ziel nur alle 0,2 s neu suchen
     if (!t && game.time >= (a.seekAt || 0)) {
       t = a.target = allyPickTarget(a, p);
@@ -964,7 +968,9 @@ function updateAllies(dt) {
         const tx = t.x - ux * (t.r + a.r + 2);
         const ty = t.y - uy * (t.r + a.r + 2);
         a.pounceCd = 5;
-        if (canStand(tx, ty, 8, false)) a.leap = { fx: a.x, fy: a.y, tx, ty, start: game.time, dur: 0.28 };
+        // nur mit freier Bahn (sonst spränge der Hund durch Wände und über Wasser)
+        const len = d - (t.r + a.r + 2);
+        if (canStand(tx, ty, 8, false) && clearLen(a.x, a.y, { x: ux, y: uy }, len, 8) >= len - 6) a.leap = { fx: a.x, fy: a.y, tx, ty, start: game.time, dur: 0.28 };
       } else if (d > reach) {
         a.moving = moveToward(a, t.x, t.y, a.speed * dt, false);
       } else if (a.cd <= 0) {
