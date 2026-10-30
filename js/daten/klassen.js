@@ -45,9 +45,10 @@ const CLASSES = {
           },
           {
             // seit 8.3 (ersetzt den Sturmangriff): Sprung nach vorn, Landung drückt den Boden ein und betäubt im Kreis
+            // (seit 8.6 schneller: Hocke, Flug und Landehocke je etwa 30 % kürzer)
             id: 'sprungschlag', name: 'Sprungschlag', short: 'SP', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
             type: 'leap', distance: 190, radius: 80, dmg: 0.9, stun: 1.6, crater: 50,
-            crouch: 0.1, air: 0.45, recover: 0.2, anim: 'sprung', animDur: 0.8, color: '#c8a878',
+            crouch: 0.07, air: 0.32, recover: 0.14, anim: 'sprung', animDur: 0.56, color: '#c8a878',
             text: 'Du springst bis zu 190 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt und leicht verletzt.'
           },
           {
