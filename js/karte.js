@@ -516,23 +516,41 @@ function drawMapMarks(ctx, v, area) {
   const Y = (wy) => (wy / TILE - v.oy) * v.sc;
   const inside = (x, y, pad) => x > -pad && y > -pad && x < v.w + pad && y < v.h + pad;
   // Monster: rote Punkte, Bosse größer und orange
-  ctx.lineWidth = 0.8 * u;
-  ctx.strokeStyle = 'rgba(30,6,4,0.9)';
+  // seit 10.8: erst grob nach Weltlage aussortieren, dann alle Punkte einer Farbe in einem Pfad (statt je Monster
+  // einzeln füllen und umranden) – bei über 5.000 Monstern in der Welt um ein Vielfaches schneller
+  const wx0 = v.ox * TILE;
+  const wy0 = v.oy * TILE;
+  const wx1 = wx0 + (v.w / v.sc) * TILE;
+  const wy1 = wy0 + (v.h / v.sc) * TILE;
+  const seen = [];
+  const stones = [];
+  const bosses = [];
   for (const m of game.monsters) {
-    if (m.dead || m.isStone || m.duelProxy) continue;
-    const x = X(m.x);
-    const y = Y(m.y);
-    if (!inside(x, y, 0)) continue;
-    const boss = m.type && m.type.boss;
-    ctx.fillStyle = boss ? '#ff9a2a' : '#e8402e';
+    if (m.dead || m.duelProxy || m.x < wx0 || m.y < wy0 || m.x > wx1 || m.y > wy1) continue;
+    if (m.isStone) stones.push(m);
+    else if (m.type && m.type.boss) bosses.push(m);
+    else seen.push(m);
+  }
+  const dots = (list, r, fill) => {
+    if (!list.length) return;
     ctx.beginPath();
-    ctx.arc(x, y, (boss ? 3.4 : v.big ? 1.9 : 1.6) * u, 0, Math.PI * 2);
+    for (const m of list) {
+      const x = X(m.x);
+      const y = Y(m.y);
+      if (!inside(x, y, 0)) continue;
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+    }
+    ctx.fillStyle = fill;
     ctx.fill();
     ctx.stroke();
-  }
+  };
+  ctx.lineWidth = 0.8 * u;
+  ctx.strokeStyle = 'rgba(30,6,4,0.9)';
+  dots(seen, (v.big ? 1.9 : 1.6) * u, '#e8402e');
+  dots(bosses, 3.4 * u, '#ff9a2a');
   // Seelensteine: Quadrat in ihrer Farbe
-  for (const m of game.monsters) {
-    if (!m.isStone || m.dead) continue;
+  for (const m of stones) {
     const x = X(m.x);
     const y = Y(m.y);
     if (!inside(x, y, 0)) continue;
@@ -779,7 +797,10 @@ function renderMinimap() {
 }
 
 // --- Große Karte ----------------------------------------------------------------------------------
-const bigMap = { view: null, area: null, timer: 0 };
+// Seit 10.8 in zwei Ebenen: Das Gelände mit den Gebietsnamen (#bigMap) wird nur beim Öffnen, bei neuer Größe oder
+// in einem anderen Gebiet gezeichnet; die Markierungen (#bigMapFx: Monster, Steine, Leute, Ziel, Mitspieler)
+// jedes dritte Bild auf einer leeren Ebene darüber. Vorher wurde alles jedes sechste Bild neu gezeichnet und ruckelte.
+const bigMap = { view: null, area: null, timer: 0, baseKey: '' };
 
 function openBigMap() {
   const el = document.getElementById('panelMap');
@@ -787,6 +808,7 @@ function openBigMap() {
   ui.toggle('panelMap');
   if (!el.hidden) {
     bigMap.timer = 0;
+    bigMap.baseKey = '';
     renderBigMap();
   }
 }
@@ -796,43 +818,54 @@ function bigMapOpen() {
   return !!el && !el.hidden;
 }
 
-// jedes sechste Bild neu zeichnen, solange die Karte offen ist
+// jedes dritte Bild die Markierungen neu (das Gelände bleibt stehen)
 function tickBigMap() {
   if (!bigMapOpen()) return;
   if (--bigMap.timer > 0) return;
-  bigMap.timer = 6;
+  bigMap.timer = 3;
   renderBigMap();
 }
 
 function renderBigMap() {
   const p = game.player;
   const cv = document.getElementById('bigMap');
-  if (!cv || !p) return;
+  const fx = document.getElementById('bigMapFx');
+  if (!cv || !fx || !p) return;
   updateGuide();
   const area = mapAreaAt(p.x / TILE, p.y / TILE);
   if (!area) return;
-  const art = mapArt(area);
   // Größe: so groß wie möglich im Fenster, Seitenverhältnis des Gebiets
-  const box = cv.parentElement.getBoundingClientRect();
+  const box = cv.parentElement.parentElement.getBoundingClientRect();
   const scale = Math.max(0.5, Math.min(box.width / area.w, box.height / area.h));
   const cw = Math.floor(area.w * scale);
   const ch = Math.floor(area.h * scale);
-  const dpr = Math.min(2.5, window.devicePixelRatio || 1);
-  if (cv.width !== Math.round(cw * dpr) || cv.height !== Math.round(ch * dpr)) {
-    cv.width = Math.round(cw * dpr);
-    cv.height = Math.round(ch * dpr);
-    cv.style.width = cw + 'px';
-    cv.style.height = ch + 'px';
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const view = { ox: area.x, oy: area.y, sc: scale, w: cw, h: ch, big: true, round: false, u: Math.max(1, Math.min(1.6, cw / 620)) };
+  // Gelände nur, wenn sich etwas geändert hat
+  const key = `${area.key}|${cw}|${ch}|${dpr}`;
+  if (bigMap.baseKey !== key) {
+    bigMap.baseKey = key;
+    for (const c of [cv, fx]) {
+      c.width = Math.round(cw * dpr);
+      c.height = Math.round(ch * dpr);
+      c.style.width = cw + 'px';
+      c.style.height = ch + 'px';
+    }
+    const art = mapArt(area);
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(art.c, 0, 0, cw, ch);
+    drawZoneLabels(ctx, area, view);
   }
-  const ctx = cv.getContext('2d');
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(art.c, 0, 0, cw, ch);
   bigMap.area = area;
-  bigMap.view = { ox: area.x, oy: area.y, sc: scale, w: cw, h: ch, big: true, round: false, u: Math.max(1, Math.min(1.6, cw / 620)) };
-  drawZoneLabels(ctx, area, bigMap.view);
-  drawMapMarks(ctx, bigMap.view, area);
+  bigMap.view = view;
+  const fctx = fx.getContext('2d');
+  fctx.setTransform(1, 0, 0, 1, 0, 0);
+  fctx.clearRect(0, 0, fx.width, fx.height);
+  fctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawMapMarks(fctx, view, area);
   // Kopfzeile
   const z = zoneAt(p.x, p.y);
   const title = document.getElementById('mapTitle');

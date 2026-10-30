@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '10.7';
+const GAME_VERSION = '10.8';
 
 const game = {
   world: null,
@@ -201,6 +201,7 @@ function frameCap() {
   if (opts.fps === 'auto' && quality.cap30) return 30;
   return 0;
 }
+let mapSkip = 0;
 function frame(ts) {
   const cap = frameCap();
   if (cap && ts - lastFrame < 1000 / cap - 4) {
@@ -214,7 +215,10 @@ function frame(ts) {
   updateScreenEffects(dt);
   if (game.running && !portraitQuery.matches) update(dt);
   else if (!game.running) game.time += dt;
-  render();
+  // Große Karte offen (seit 10.8): Sie bedeckt fast den ganzen Bildschirm, die Welt dahinter nur jedes dritte Bild
+  // zeichnen (die Karte selbst läuft weiter) – spart viel Grafikleistung, die Karte bleibt flüssig
+  if (game.running && typeof bigMapOpen === 'function' && bigMapOpen() && ++mapSkip % 3) tickBigMap();
+  else render();
   requestAnimationFrame(frame);
 }
 

@@ -2788,3 +2788,26 @@ body.aiming canvas { cursor: crosshair; }
 .drag-ghost { position: fixed; z-index: 80; width: 52px; height: 52px; margin: -26px 0 0 -26px; pointer-events: none; border-radius: 10px; overflow: hidden; opacity: 0.85; box-shadow: 0 0 0 2px #ffe9a0, 0 6px 18px rgba(0, 0, 0, 0.6); transform: scale(1.1); }
 .drag-ghost img { width: 100%; height: 100%; display: block; }
 .quick-pick-grid button small { color: var(--muted); font-size: 10px; }
+
+/* Große Karte in zwei Ebenen (seit 10.8): unten das Gelände (einmal gezeichnet), oben die Markierungen */
+.map-stack { position: relative; display: inline-block; line-height: 0; }
+#bigMapFx { position: absolute; left: 0; top: 0; pointer-events: none; }
+
+/* Infofelder beim Darüberfahren (seit 10.8) */
+.hover-tip {
+  position: fixed; z-index: 120; max-width: min(320px, calc(100vw - 16px)); padding: 8px 10px; border-radius: 9px; pointer-events: none;
+  background: rgba(20, 15, 10, 0.96); border: 1px solid var(--brass-dim); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.6);
+  color: var(--text); font-size: 12.5px; line-height: 1.35; display: flex; flex-direction: column; gap: 3px;
+}
+.hover-tip[hidden] { display: none; }
+.hover-tip strong { font-family: var(--font-display); font-size: 15px; color: #ffe08a; }
+.hover-tip small { color: var(--muted); font-size: 11.5px; }
+.hover-tip .tip-stats { color: #f0dca8; }
+.hover-tip .tip-stats b { color: #ffffff; }
+.hover-tip ul { margin: 2px 0 0; padding-left: 16px; }
+.hover-tip li.special { color: #ffd34d; }
+.hover-tip em { font-style: normal; font-size: 11.5px; color: var(--muted); }
+.hover-tip em.up { color: #6ee36e; }
+.hover-tip em.down { color: #ff7a6a; }
+.hover-tip kbd { font-family: inherit; font-size: 11px; padding: 0 5px; border-radius: 4px; background: #120e0a; border: 1px solid var(--brass-dim); color: #ffe08a; }
+.hover-tip .tip-hint { font-style: italic; opacity: 0.8; }

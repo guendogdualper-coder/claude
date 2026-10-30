@@ -478,7 +478,7 @@ const ui = {
       if (i == null) {
         btn.className = 'slot skill empty-slot';
         btn.id = 'skillSlot' + slot;
-        btn.title = `Freier Platz (${keyTxt}) – antippen, um eine Fertigkeit hineinzulegen`;
+        btn.dataset.info = `<strong>Freier Platz <kbd>${keyTxt}</kbd></strong><span>Antippen, um eine Fertigkeit hineinzulegen.</span>`;
         btn.innerHTML = `<span class="key">${keyTxt}</span><span class="quick-empty">+</span>`;
         this.pressSkill(btn, null, slot);
         wrap.append(btn);
@@ -489,7 +489,9 @@ const ui = {
       const rank = skillRank(p.skillLevels[i]);
       btn.className = 'slot skill kind-' + sk.kind + (rank >= 0 ? ' rank-' + SKILL_RANKS[rank].id : '');
       btn.id = 'skill' + i;
-      btn.title = `${sk.name} (${keyTxt}) – ${sk.text} ${skillStats(sk, p.skillLevels[i]).map(([k, v]) => k + ' ' + v).join(', ')}. Mana: ${skillMana(sk, p)}, Abklingzeit: ${sk.cooldown} s. Lange drücken: tauschen, auf einen freien Platz oder aus der Leiste ziehen.`;
+      // Infofeld beim Darüberfahren (seit 10.8, tipps.js) statt des schlichten Browser-Titels
+      btn.dataset.info = skillTipHtml(sk, p.skillLevels[i], keyTxt) + '<small class="tip-hint">Lange drücken: tauschen, auf einen freien Platz oder aus der Leiste ziehen.</small>';
+      btn.setAttribute('aria-label', sk.name);
       btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
@@ -525,7 +527,7 @@ const ui = {
       const wrap = document.createElement('div');
       wrap.className = 'skill-wrap ult-wrap';
       const locked = p.level < u.unlock;
-      wrap.innerHTML = `<button type="button" id="skillUlt" class="slot skill ult${locked ? ' locked' : ''}" title="${u.name} (${keyLabel(actionKey('ult'))}) – ${u.text} ${u.stats}. Abklingzeit: 3 Minuten.">` +
+      wrap.innerHTML = `<button type="button" id="skillUlt" class="slot skill ult${locked ? ' locked' : ''}" aria-label="${u.name}" data-info="${escTip(ultTipHtml(u, keyLabel(actionKey('ult'))))}">` +
         `<span class="key">${keyLabel(actionKey('ult'))}</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
         `<span class="cd" hidden></span>${locked ? `<span class="lock">ab Lv ${u.unlock}</span>` : ''}</button>`;
       const btn = wrap.firstChild;

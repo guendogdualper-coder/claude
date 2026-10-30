@@ -1356,7 +1356,7 @@ const gear = {
     }
     if (isBook(item)) {
       const own = ownBook(game.player, item.book);
-      return `<button type="button" class="item-tile book-tile${own ? ' own' : ''}" ${attrs}>` +
+      return `<button type="button" class="item-tile book-tile${own ? ' own' : ''}" ${attrs} data-info="${escTip(itemTipHtml(item))}">` +
         `<img src="${bookIconUrl(item.book)}" alt="Schriftrolle: ${skillEntry(item.book).sk.name}">` +
         `<span class="item-count">${item.count}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
     }
@@ -1365,7 +1365,7 @@ const gear = {
     const worn = Object.values(game.player.equipment).includes(item);
     const score = worn ? 0 : compareScore(item);
     const arrow = score > 0 ? '<span class="tile-cmp up">▲</span>' : score < 0 ? '<span class="tile-cmp down">▼</span>' : '';
-    return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}>` +
+    return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       `<span class="item-plus" style="color:${itemColor(item)}">+${item.plus}</span>` +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;

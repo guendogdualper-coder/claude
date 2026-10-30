@@ -212,7 +212,13 @@ function renderQuickSlots() {
     const q = quickEntry(p, id);
     btn.classList.toggle('empty', !q);
     btn.classList.toggle('off', !!(q && q.need && !q.need(p)));
-    btn.title = `${q ? q.label : 'Freier Platz'} (${keyLabel(actionKey('quick' + (k + 1)))}) – lange drücken oder Rechtsklick zum Belegen`;
+    const key = keyLabel(actionKey('quick' + (k + 1)));
+    const sq = quickSkill(p, id);
+    const hint = '<small class="tip-hint">Lange drücken oder Rechtsklick: neu belegen.</small>';
+    btn.removeAttribute('title');
+    btn.dataset.info = (sq && sq.sk ? skillTipHtml(sq.sk, p.skillLevels[sq.i], key)
+      : id === 'ult' && ultimateOf(p) ? ultTipHtml(ultimateOf(p), key)
+        : `<strong>${q ? q.label : 'Freier Platz'} <kbd>${key}</kbd></strong>${q ? '' : '<span>Antippen, um ihn zu belegen.</span>'}`) + hint;
     btn.classList.toggle('has-skill', !!(q && q.img));
     btn.innerHTML = `<span class="key">${keyLabel(actionKey('quick' + (k + 1)))}</span>${quickIconHtml(id)}` +
       (q && q.count ? `<span class="count">${q.count(p)}</span>` : '') + (q && q.img ? '<span class="cd" hidden></span>' : '');

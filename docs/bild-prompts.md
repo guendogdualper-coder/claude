@@ -1951,3 +1951,7 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 ## Leiste umbauen (seit 10.7)
 
 - `Mobile MMORPG skill bar close-up: a finger drags a glowing skill icon up out of the bar, a translucent copy of the icon follows the finger with a golden outline, the slot it left shows a dashed border and a plus sign, two extra free slots 7 and 8 on the right, painterly toon UI`
+
+## Infofelder (seit 10.8)
+
+- `Game UI hover tooltip next to the mouse cursor over an inventory slot: dark lacquered panel with thin brass border, item name in its rarity color as title, small grey line with type, tier and required level, a line of stats, a bullet list of bonuses, a green arrow line "besser als dein angelegtes Teil", clean readable German text, painterly fantasy MMORPG style`
