@@ -118,7 +118,8 @@ function withRank(rank, fn) {
     fxRank = prev;
   }
 }
-const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin', 'wave3']);
+// nova3 und sigil3 (Magier) tragen ihren Radius in R: der Rang färbt sie, vergrößert sie aber nicht (Front-Takt)
+const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin', 'wave3', 'nova3', 'sigil3']);
 function rankLook(e) {
   if (fxRank < 0 || e.rank != null || !RANK_FX_TYPES.has(e.type)) return;
   e.rank = fxRank;
@@ -415,6 +416,367 @@ function lens(ctx, x, y, ang, len, w) {
   ctx.quadraticCurveTo(x - s * w, y + c * w, x + c * len / 2, y + s * len / 2);
   ctx.quadraticCurveTo(x + s * w * 0.3, y - c * w * 0.3, x - c * len / 2, y - s * len / 2);
   ctx.closePath();
+}
+
+// --- Magier (seit 8.6): Dreiecks-Siegel und Novas ohne 3D ------------------------------------------------
+
+// Siegel wie die Textur msig0–3: Dreieck als Silhouette (Spitze oben bei Feuer und Blitz, unten bei Frost und Erde),
+// Inkreis, Kreise an den Ecken, kurze Striche an den Seitenmitten, Balken bei Blitz und Erde. Flach (für Karten
+// und Symbole); am Boden vorher ctx.scale(1, 0,5).
+function drawSigil(ctx, x, y, r, el, rot = 0, color = '#ffffff', alpha = 1) {
+  const n = { feuer: 0, frost: 1, blitz: 2, erde: 3 }[el] || 0;
+  const sg = n === 1 || n === 3 ? -1 : 1;
+  const k = r / 60;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.globalAlpha *= alpha;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineJoin = 'round';
+  const P = [0, 1, 2].map((i) => {
+    const a = -Math.PI / 2 * sg + (i * 2 * Math.PI) / 3;
+    return [Math.cos(a) * r, Math.sin(a) * r];
+  });
+  ctx.lineWidth = Math.max(1, 5 * k);
+  ctx.beginPath();
+  ctx.moveTo(P[0][0], P[0][1]);
+  ctx.lineTo(P[1][0], P[1][1]);
+  ctx.lineTo(P[2][0], P[2][1]);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.lineWidth = Math.max(0.8, 2 * k);
+  ctx.beginPath();
+  ctx.arc(0, 0, r / 2, 0, Math.PI * 2);
+  ctx.stroke();
+  for (const [px, py] of P) {
+    ctx.beginPath();
+    ctx.arc(px, py, Math.max(1, 6 * k), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.lineWidth = Math.max(0.8, 3 * k);
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const [ax, ay] = P[i];
+    const [bx, by] = P[(i + 1) % 3];
+    const mx = (ax + bx) / 2;
+    const my = (ay + by) / 2;
+    const l = Math.hypot(mx, my) || 1;
+    const ox = mx / l;
+    const oy = my / l;
+    const tx = (bx - ax) / (Math.hypot(bx - ax, by - ay) || 1);
+    const ty = (by - ay) / (Math.hypot(bx - ax, by - ay) || 1);
+    for (const d of [-12 * k, 12 * k]) {
+      ctx.moveTo(mx + tx * d + ox * 4 * k, my + ty * d + oy * 4 * k);
+      ctx.lineTo(mx + tx * d + ox * 13 * k, my + ty * d + oy * 13 * k);
+    }
+  }
+  ctx.stroke();
+  if (n >= 2) {
+    ctx.lineWidth = Math.max(1, 4 * k);
+    ctx.beginPath();
+    ctx.moveTo(-44 * k, -sg * 6 * k);
+    ctx.lineTo(44 * k, -sg * 6 * k);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Nova ohne 3D: dieselben Formen wie nova3 mit Canvas-Pfaden (Flammenzähne, Sechseck mit Strahlen, Zackenlinien,
+// Vielecke), flach am Boden (Höhe halbiert)
+function drawNova2d(ctx, e, x, y) {
+  const E = MAGE_EL[e.el] || MAGE_EL.arkan;
+  const age = game.time - e.start;
+  const t = age - (e.lead || 0);
+  if (t < 0) return;
+  const lite = e.small || e.echo;
+  const R = e.R;
+  const rf = R * (0.08 + 0.92 * (1 - Math.pow(1 - clamp01(t / e.grow), 2)));
+  const fade = t < e.grow ? 1 : clamp01(1 - (t - e.grow) / 0.55);
+  const run = clamp01(t / e.grow);
+  ctx.globalAlpha = lite ? 0.6 : 1;
+  if (e.rank >= 0 && fade > 0) {
+    ctx.strokeStyle = e.rankColor;
+    ctx.lineWidth = 2;
+    ctx.globalAlpha *= fade * 0.7;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rf * 1.15, rf * 0.575, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = lite ? 0.6 : 1;
+  }
+  const a0 = e.rot || 0;
+  if (e.el === 'feuer') {
+    if (fade <= 0) return;
+    ctx.globalAlpha *= fade;
+    ctx.strokeStyle = E.main;
+    ctx.lineWidth = 6 - 4 * run;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rf, rf * 0.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // zwölf dreieckige Flammenzähne auf der Front
+    const n = lite ? 6 : 12;
+    const hgt = (16 - 9 * run) * (lite ? 0.7 : 1);
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i / n) * Math.PI * 2;
+      const px = x + Math.cos(a) * rf;
+      const py = y + Math.sin(a) * rf * 0.5;
+      const fl = 0.85 + 0.25 * Math.sin(age * 17 + i);
+      ctx.fillStyle = i % 2 ? E.deep : E.main;
+      ctx.beginPath();
+      ctx.moveTo(px - 4, py);
+      ctx.quadraticCurveTo(px - 3, py - hgt * fl * 0.6, px, py - hgt * fl);
+      ctx.quadraticCurveTo(px + 3, py - hgt * fl * 0.6, px + 4, py);
+      ctx.closePath();
+      ctx.fill();
+      if (i % 2 === 0) {
+        ctx.fillStyle = E.core;
+        ctx.beginPath();
+        ctx.ellipse(px, py - 2, 1.6, 3 * fl, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  } else if (e.el === 'frost') {
+    const hold = clamp01((e.dur - (e.lead || 0) - t) / 0.35);
+    const hex = (r) => {
+      ctx.beginPath();
+      for (let i = 0; i <= 6; i++) {
+        const a = a0 + (i / 6) * Math.PI * 2;
+        if (i) ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5);
+        else ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5);
+      }
+    };
+    ctx.globalAlpha *= hold;
+    ctx.fillStyle = 'rgba(58,123,255,0.28)';
+    hex(rf);
+    ctx.fill();
+    ctx.strokeStyle = E.main;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    if (fade > 0) {
+      // zwölf weiße Eisnadeln an der Front nach außen
+      ctx.globalAlpha = (lite ? 0.6 : 1) * fade;
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const n = lite ? 6 : 12;
+      for (let i = 0; i < n; i++) {
+        const a = a0 + (i / n) * Math.PI * 2 + Math.PI / 6;
+        ctx.moveTo(x + Math.cos(a) * rf * 0.85, y + Math.sin(a) * rf * 0.425);
+        ctx.lineTo(x + Math.cos(a) * (rf + 12), y + Math.sin(a) * (rf + 12) * 0.5);
+      }
+      ctx.stroke();
+    }
+  } else if (e.el === 'blitz') {
+    if (fade <= 0 || age > e.grow + 0.3) return;
+    const seed = Math.floor(age / 0.05);
+    const ts = e.ts || [];
+    const nT = lite ? 0 : Math.min(8, ts.length);
+    const nArc = lite ? 3 : Math.max(5, nT);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < nArc; i++) {
+      let ax;
+      let ay;
+      let L;
+      if (i < nT) {
+        const dx = ts[i][0] - x;
+        const dy = (ts[i][1] + 9 - y) * 2;
+        L = Math.hypot(dx, dy) || 1;
+        ax = dx / L;
+        ay = dy / L;
+        L = Math.min(L, rf);
+      } else {
+        const a = a0 + (i / nArc) * Math.PI * 2;
+        ax = Math.cos(a);
+        ay = Math.sin(a);
+        L = rf * 0.85;
+      }
+      for (const [w, c, al] of [[4, E.deep, 0.7], [1.5, '#ffffff', 1]]) {
+        ctx.globalAlpha = fade * al;
+        ctx.strokeStyle = c;
+        ctx.lineWidth = w;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        for (let j = 1; j <= 4; j++) {
+          const f = j / 4;
+          const r = Math.sin(i * 12.9898 + j * 7.1 + seed * 78.233) * 43758.5453;
+          const off = j < 4 ? (r - Math.floor(r) - 0.5) * 18 : 0;
+          ctx.lineTo(x + ax * L * f - ay * off, y + (ay * L * f + ax * off) * 0.5);
+        }
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = fade * 0.8;
+    ctx.strokeStyle = E.deep;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(x, y, rf, rf * 0.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (e.el === 'erde') {
+    if (fade <= 0) return;
+    ctx.globalAlpha *= fade;
+    // acht gezackte Bernsteinstrahlen, dunkle Basaltvielecke mit Bernsteinpunkt nach außen
+    ctx.strokeStyle = E.main;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = a0 + (i / 8) * Math.PI * 2;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + Math.cos(a + 0.18) * rf * 0.5, y + Math.sin(a + 0.18) * rf * 0.25);
+      ctx.lineTo(x + Math.cos(a) * rf, y + Math.sin(a) * rf * 0.5);
+    }
+    ctx.stroke();
+    const n = lite ? 4 : 8;
+    for (let i = 0; i < n; i++) {
+      const a = a0 + (i / n) * Math.PI * 2 + 0.2;
+      const px = x + Math.cos(a) * Math.max(10, rf);
+      const py = y + Math.sin(a) * Math.max(10, rf) * 0.5 - Math.max(0, 16 - 40 * t * t);
+      ctx.fillStyle = '#3e3532';
+      ctx.strokeStyle = '#1a1614';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let j = 0; j < 5; j++) {
+        const b = j * 1.257 + age * 6 + i;
+        const rr = 4.5 + (j % 2) * 1.5;
+        if (j) ctx.lineTo(px + Math.cos(b) * rr, py + Math.sin(b) * rr * 0.8);
+        else ctx.moveTo(px + Math.cos(b) * rr, py + Math.sin(b) * rr * 0.8);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = E.main;
+      ctx.beginPath();
+      ctx.arc(px, py, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+// Großes Siegel ohne 3D: Dreieck am Boden, darauf die Nutzlast je Element
+function drawSigil2d(ctx, e, x, y) {
+  const E = MAGE_EL[e.el] || MAGE_EL.arkan;
+  const age = game.time - e.start;
+  const end = clamp01((e.dur - age) / (e.flash ? e.dur * 0.5 : 0.35));
+  const draw = e.flash ? 1 : clamp01(age / Math.max(0.05, e.delay));
+  const r = (0.6 + 0.4 * easeOut(draw)) * e.R;
+  const rot = age * 0.4 + (e.el === 'frost' || e.el === 'erde' ? Math.PI : 0);
+  ctx.globalAlpha = 1;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(1, 0.5);
+  if (e.rank >= 0) {
+    ctx.globalAlpha = end * 0.6;
+    ctx.strokeStyle = e.rankColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 1.12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+  drawSigil(ctx, 0, 0, r * 1.04, e.el, rot, E.deep, end * 0.7);
+  // helle Elemente (Blitz, Erde) würden mit „lighter“ weiß überstrahlen
+  if (e.el === 'feuer' || e.el === 'frost') ctx.globalCompositeOperation = 'lighter';
+  drawSigil(ctx, 0, 0, r, e.el, rot, E.main, end * (e.flash || draw >= 1 ? 1 : 0.75 + 0.25 * Math.sin(age * 18)));
+  ctx.restore();
+  if (e.flash) return;
+  const T = age - e.delay;
+  if (T < 0) return;
+  const R = e.R;
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = end;
+  if (e.el === 'feuer') {
+    for (let k = 0; k < e.ticks; k++) {
+      const u = (T - k * e.every) / 0.4;
+      if (u < 0 || u > 1) continue;
+      const rr = R * (1 - 0.85 * easeOut(u));
+      const hh = 26 * (1 - 0.35 * u);
+      for (let i = 0; i < 12; i++) {
+        const a = (i / 12) * Math.PI * 2 + k * 0.26;
+        const px = x + Math.cos(a) * rr;
+        const py = y + Math.sin(a) * rr * 0.5;
+        ctx.fillStyle = i % 2 ? E.deep : E.main;
+        ctx.beginPath();
+        ctx.moveTo(px - 5, py);
+        ctx.quadraticCurveTo(px - 4, py - hh * 0.6, px, py - hh);
+        ctx.quadraticCurveTo(px + 4, py - hh * 0.6, px + 5, py);
+        ctx.closePath();
+        ctx.fill();
+      }
+      if (u > 0.85) glow(ctx, x, y - 10, 30, E.core, 0.9);
+    }
+  } else if (e.el === 'frost') {
+    const up = T < 0.15 ? easeOutBack(T / 0.15) : 1;
+    const crack = clamp01((T - 1.6) / 0.15);
+    if (crack >= 1) return;
+    for (let i = 0; i < 7; i++) {
+      const a = i ? ((i - 1) / 6) * Math.PI * 2 + Math.PI / 6 : 0;
+      const d = i ? R * 0.6 : 0;
+      const px = x + Math.cos(a) * d;
+      const py = y + Math.sin(a) * d * 0.5;
+      const hh = (i ? 38 : 56) * up * (1 - crack);
+      const w = i ? 8 : 10;
+      ctx.fillStyle = E.main;
+      ctx.strokeStyle = E.core;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(px - w, py);
+      ctx.lineTo(px - w * 0.6, py - hh * 0.75);
+      ctx.lineTo(px, py - hh);
+      ctx.lineTo(px + w * 0.6, py - hh * 0.75);
+      ctx.lineTo(px + w, py);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath();
+      ctx.moveTo(px - 2, py - 3);
+      ctx.lineTo(px - 1, py - hh * 0.8);
+      ctx.stroke();
+    }
+  } else if (e.el === 'blitz') {
+    const rise = easeOut(clamp01(T / 0.3));
+    const big = T >= e.last - e.delay - 0.05 ? 1.4 : 1;
+    const by = y - 6 - 26 * rise;
+    ctx.globalCompositeOperation = 'lighter';
+    glow(ctx, x, by, 20 * big, E.main, 0.9 * end);
+    glow(ctx, x, by, 8 * big, '#ffffff', end);
+    ctx.strokeStyle = E.hi;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 3; i++) {
+      const a = age * 7 + i * 2.094;
+      const px = x + Math.cos(a) * 13;
+      const py = by + Math.sin(a) * 5;
+      zigzag(ctx, x, by, px, py, Math.floor(age / 0.05) + i, 3);
+      ctx.stroke();
+    }
+  } else if (e.el === 'erde') {
+    const lastT = e.last - e.delay;
+    const done = clamp01(T / Math.max(0.01, lastT));
+    const crash = clamp01((T - lastT) / 0.15);
+    if (crash >= 1) return;
+    const rr = R * 0.5 * (1 - 0.45 * done) * (1 - crash);
+    for (let i = 0; i < 3; i++) {
+      const a = age * 2.2 + i * 2.094;
+      const px = x + Math.cos(a) * rr;
+      const py = y + Math.sin(a) * rr * 0.5 - 20 * (1 - crash);
+      ctx.fillStyle = '#3e3532';
+      ctx.strokeStyle = '#1a1614';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let j = 0; j < 6; j++) {
+        const b = j * 1.047 + age * 3 + i;
+        const q = 8 + (j % 2) * 2;
+        if (j) ctx.lineTo(px + Math.cos(b) * q, py + Math.sin(b) * q * 0.8);
+        else ctx.moveTo(px + Math.cos(b) * q, py + Math.sin(b) * q * 0.8);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = E.main;
+      ctx.beginPath();
+      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
 }
 
 function drawEffect(ctx, e) {
@@ -983,6 +1345,12 @@ function drawEffect(ctx, e) {
       }
       break;
     }
+    case 'nova3':
+      drawNova2d(ctx, e, x, y);
+      break;
+    case 'sigil3':
+      drawSigil2d(ctx, e, x, y);
+      break;
     case 'levelup':
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#ffd34d';
@@ -1052,11 +1420,68 @@ function drawTexts(ctx) {
 
 const PROJECTILE_LIFT = 15; // Geschosse fliegen auf Brusthöhe
 
+// Grundangriff des Magiers je Element: Feuer kleiner Komet mit zwei Glutpunkten, Frost Raute, Blitz Kern mit zwei
+// zuckenden Zacken, Erde Bernsteinkiesel mit dunklem Rand
+function drawMageShot2d(ctx, pr, ang) {
+  const E = (typeof MAGE_EL !== 'undefined' && MAGE_EL[pr.el]) || null;
+  ctx.globalCompositeOperation = 'lighter';
+  glow(ctx, 0, 0, 10, pr.color, 0.7);
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.rotate(ang);
+  if (!E || pr.el === 'arkan') {
+    ctx.fillStyle = '#ffffff';
+    circle(ctx, 0, 0, 3);
+  } else if (pr.el === 'feuer') {
+    ctx.fillStyle = E.main;
+    ctx.beginPath();
+    ctx.moveTo(-11, 0);
+    ctx.quadraticCurveTo(-2, -5, 4, 0);
+    ctx.quadraticCurveTo(-2, 5, -11, 0);
+    ctx.fill();
+    ctx.fillStyle = E.core;
+    circle(ctx, 1, 0, 3);
+    ctx.fillStyle = E.hi;
+    circle(ctx, -7, Math.sin(game.time * 22) * 2.5, 1.2);
+    circle(ctx, -10, -Math.sin(game.time * 22) * 2.5, 1);
+  } else if (pr.el === 'frost') {
+    ctx.fillStyle = E.main;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(5, 0);
+    ctx.lineTo(0, -4);
+    ctx.lineTo(-5, 0);
+    ctx.lineTo(0, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else if (pr.el === 'blitz') {
+    ctx.strokeStyle = E.hi;
+    ctx.lineWidth = 1.4;
+    const seed = Math.floor(game.time / 0.05);
+    zigzag(ctx, 0, 0, -12, -4, seed, 4);
+    ctx.stroke();
+    zigzag(ctx, 0, 0, -12, 4, seed + 3, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    circle(ctx, 0, 0, 3);
+  } else {
+    ctx.fillStyle = E.main;
+    ctx.strokeStyle = E.deep;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 4.5, 3.5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
 function drawProjectile(ctx, pr) {
   const y = pr.y - PROJECTILE_LIFT;
   const style = pr.style || 'orb';
-  // Schädel der Schädelsalve stehen in 3D als eigener Körper in der Szene (drei-fx.js)
-  if (style === 'skullfire' && V3.on) return;
+  // Schädel der Schädelsalve stehen in 3D als eigener Körper in der Szene (drei-fx.js), ebenso Magier-Geschosse,
+  // die in diesem Bild einen Körper bekommen haben (pr.body3)
+  if ((style === 'skullfire' || pr.body3 === game.time) && V3.on) return;
   ctx.save();
   // Leuchtspur
   if (pr.trail && pr.trail.length > 1) {
@@ -1193,6 +1618,93 @@ function drawProjectile(ctx, pr) {
       ctx.fill();
       break;
     }
+    // Magier (seit 8.6): Grundangriff je Element und die vier Element-Geschosse
+    case 'mage':
+      drawMageShot2d(ctx, pr, ang);
+      break;
+    case 'fireball': {
+      // Komet mit Siegelring und Glutpunkten
+      ctx.rotate(ang);
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 0, 0, 16, '#e8362a', 0.8);
+      ctx.fillStyle = '#a0102e';
+      ctx.beginPath();
+      ctx.moveTo(-18, 0);
+      ctx.quadraticCurveTo(-4, -8, 6, 0);
+      ctx.quadraticCurveTo(-4, 8, -18, 0);
+      ctx.fill();
+      ctx.fillStyle = '#fff1c8';
+      circle(ctx, 1, 0, 5);
+      ctx.strokeStyle = '#ff8a4a';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(-1, 0, 3, 9, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = '#ff8a4a';
+      for (let i = 0; i < 3; i++) circle(ctx, -9 - i * 5, Math.sin(game.time * 20 + i * 2) * 3, 1.4);
+      break;
+    }
+    case 'frostlance':
+      // lange Raute mit Glanzlinie, blaue Schleppe
+      ctx.rotate(ang);
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, -6, 0, 12, '#3a7bff', 0.6);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = '#9ff6ff';
+      ctx.strokeStyle = '#1a3fb0';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(-2, -4);
+      ctx.lineTo(-16, 0);
+      ctx.lineTo(-2, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.strokeStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(10, -0.5);
+      ctx.lineTo(-10, -0.5);
+      ctx.stroke();
+      break;
+    case 'arc': {
+      // Funke mit Zackenschweif
+      ctx.rotate(ang);
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 0, 0, 12, '#ffe94a', 0.8);
+      const seed = Math.floor(game.time / 0.04);
+      for (const [w, c] of [[4, '#8a5aff'], [1.5, '#ffffff']]) {
+        ctx.strokeStyle = c;
+        ctx.lineWidth = w;
+        zigzag(ctx, 0, 0, -26, 0, seed, 6);
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#ffffff';
+      circle(ctx, 0, 0, 3.5);
+      break;
+    }
+    case 'stone':
+      // Basaltbrocken mit Bernsteinkern
+      ctx.globalCompositeOperation = 'lighter';
+      glow(ctx, 0, 0, 13, '#f0a830', 0.6);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.rotate(game.time * 8);
+      ctx.fillStyle = '#3e3532';
+      ctx.strokeStyle = '#1a1614';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(-7, -3);
+      ctx.lineTo(-2, -7);
+      ctx.lineTo(6, -5);
+      ctx.lineTo(7, 3);
+      ctx.lineTo(1, 7);
+      ctx.lineTo(-6, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#f0a830';
+      circle(ctx, 0, 0, 2.6);
+      break;
     case 'talisman':
       ctx.rotate(game.time * 14);
       ctx.globalCompositeOperation = 'lighter';

@@ -184,6 +184,149 @@ function fx3Texture(kind) {
     g.ellipse(m, m + 12, 56, 46, 0, 0, Math.PI);
     g.ellipse(m, m + 6, 48, 34, 0, Math.PI, 0, true);
     g.fill();
+  } else if (kind.startsWith('msig')) {
+    // Magier-Siegel (seit 8.6): großes gleichseitiges Dreieck als Silhouette, Inkreis, Kreise an den Ecken, kurze Striche
+    // außen an den Seitenmitten; Spitze oben (Feuer, Blitz) oder unten (Frost, Erde), Blitz und Erde mit Balken.
+    // Kein äußerer Ring, keine Glyphen – das Schamanen-Zeichen ist ein Kreis.
+    const n = Number(kind.slice(4));
+    const down = n === 1 || n === 3;
+    const bar = n === 2 || n === 3;
+    const sg = down ? -1 : 1;
+    const P = [0, 1, 2].map((i) => {
+      const a = -Math.PI / 2 * sg + (i * 2 * Math.PI) / 3;
+      return [m + Math.cos(a) * 60, m + Math.sin(a) * 60];
+    });
+    const rg = g.createRadialGradient(m, m, 0, m, m, 62);
+    rg.addColorStop(0, 'rgba(255,255,255,0.22)');
+    rg.addColorStop(0.5, 'rgba(255,255,255,0.08)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.beginPath();
+    g.moveTo(P[0][0], P[0][1]);
+    g.lineTo(P[1][0], P[1][1]);
+    g.lineTo(P[2][0], P[2][1]);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = '#ffffff';
+    g.fillStyle = '#ffffff';
+    g.lineJoin = 'round';
+    g.lineWidth = 5;
+    g.stroke();
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(m, m, 30, 0, Math.PI * 2);
+    g.stroke();
+    for (const [x, y] of P) {
+      g.beginPath();
+      g.arc(x, y, 6, 0, Math.PI * 2);
+      g.fill();
+    }
+    // je Seite zwei kurze Striche nach außen, neben der Seitenmitte
+    g.lineWidth = 3;
+    for (let i = 0; i < 3; i++) {
+      const [ax, ay] = P[i];
+      const [bx, by] = P[(i + 1) % 3];
+      const mx = (ax + bx) / 2;
+      const my = (ay + by) / 2;
+      const ox = (mx - m) / 30;
+      const oy = (my - m) / 30;
+      const tx = (bx - ax) / 104;
+      const ty = (by - ay) / 104;
+      for (const s of [-12, 12]) {
+        g.beginPath();
+        g.moveTo(mx + tx * s + ox * 4, my + ty * s + oy * 4);
+        g.lineTo(mx + tx * s + ox * 13, my + ty * s + oy * 13);
+        g.stroke();
+      }
+    }
+    if (bar) {
+      g.lineWidth = 4;
+      g.beginPath();
+      g.moveTo(m - 44, m - sg * 6);
+      g.lineTo(m + 44, m - sg * 6);
+      g.stroke();
+    }
+  } else if (kind === 'mflame') {
+    // scharfe Flammenzunge (seit 8.6, Magier, normal gemischt): dunkler Rand, heller Kern, gewellte Spitze
+    const tongue = (w, top, bot) => {
+      g.beginPath();
+      g.moveTo(m + 4, top);
+      g.bezierCurveTo(m + w * 0.5, top + 30, m + w * 1.1, bot - 40, m + w * 0.8, bot - 14);
+      g.quadraticCurveTo(m, bot + 8, m - w * 0.8, bot - 14);
+      g.bezierCurveTo(m - w * 1.1, bot - 40, m - w * 0.2, top + 40, m + 4, top);
+      g.closePath();
+      g.fill();
+    };
+    g.fillStyle = 'rgb(150,150,150)';
+    tongue(40, 4, 122);
+    g.fillStyle = 'rgb(215,215,215)';
+    tongue(28, 34, 118);
+    g.fillStyle = '#ffffff';
+    tongue(16, 66, 114);
+  } else if (kind === 'hexfrost') {
+    // Reif (seit 8.6): Sechseck-Umriss und sechs farnartige Frostlinien von der Mitte
+    const rg = g.createRadialGradient(m, m, 0, m, m, 60);
+    rg.addColorStop(0, 'rgba(255,255,255,0.5)');
+    rg.addColorStop(0.75, 'rgba(255,255,255,0.28)');
+    rg.addColorStop(1, 'rgba(255,255,255,0.12)');
+    g.fillStyle = rg;
+    g.strokeStyle = '#ffffff';
+    g.lineJoin = 'round';
+    g.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      if (i) g.lineTo(m + Math.cos(a) * 60, m + Math.sin(a) * 60);
+      else g.moveTo(m + Math.cos(a) * 60, m + Math.sin(a) * 60);
+    }
+    g.closePath();
+    g.fill();
+    g.lineWidth = 4;
+    g.stroke();
+    g.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const c = Math.cos(a);
+      const sn = Math.sin(a);
+      g.beginPath();
+      g.moveTo(m, m);
+      g.lineTo(m + c * 52, m + sn * 52);
+      for (const d of [16, 28, 40]) {
+        const l = 13 - d * 0.18;
+        for (const side of [-0.6, 0.6]) {
+          g.moveTo(m + c * d, m + sn * d);
+          g.lineTo(m + Math.cos(a + side) * (d + l) , m + Math.sin(a + side) * (d + l));
+        }
+      }
+      g.stroke();
+    }
+  } else if (kind === 'mcracks') {
+    // Bernsteinrisse (seit 8.6): acht gezackte Strahlen mit weichem Leuchten
+    const rays = [];
+    for (let i = 0; i < 8; i++) {
+      const pts = [[m, m]];
+      let ang = (i / 8) * Math.PI * 2 + Math.sin(i * 5.1) * 0.2;
+      for (let d = 12; d <= 60; d += 12) {
+        ang += Math.sin(i * 3.7 + d) * 0.32;
+        pts.push([m + Math.cos(ang) * d, m + Math.sin(ang) * d]);
+      }
+      rays.push(pts);
+    }
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    for (const [w, al] of [[6, 0.16], [3.5, 0.35], [1.6, 1]]) {
+      g.strokeStyle = `rgba(255,255,255,${al})`;
+      g.lineWidth = w;
+      for (const pts of rays) {
+        g.beginPath();
+        pts.forEach(([x, y], j) => (j ? g.lineTo(x, y) : g.moveTo(x, y)));
+        g.stroke();
+      }
+    }
+    const rg = g.createRadialGradient(m, m, 0, m, m, 22);
+    rg.addColorStop(0, 'rgba(255,255,255,0.6)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 128, 128);
   } else if (kind === 'beam') {
     // senkrecht: unten hell, nach oben ausblendend (oben im Bild = oben am Zylinder)
     const lg = g.createLinearGradient(0, 0, 0, 128);
@@ -213,12 +356,12 @@ function fx3Make(kind) {
   let o;
   if (kind.startsWith('plane')) {
     o = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fx3Mat(fx3Texture('ring')));
-    // planeN: normal gemischt – Warnkreise bleiben auch auf hellem Schnee und Eis sichtbar
-    if (kind === 'planeN') o.material.blending = THREE.NormalBlending;
+    // planeN…: normal gemischt – Warnkreise bleiben auch auf hellem Schnee und Eis sichtbar (seit 8.6 auch Reif und Siegel)
+    if (kind.startsWith('planeN')) o.material.blending = THREE.NormalBlending;
     o.rotation.x = -Math.PI / 2;
   } else if (kind === 'wall') {
     o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28, 1, true), fx3Mat(fx3Texture('beam')));
-  } else if (kind === 'seg') {
+  } else if (kind === 'seg' || kind === 'segTop') {
     o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6, 1, true), fx3Mat(null));
   } else if (kind === 'strip') {
     const geo = new THREE.BufferGeometry();
@@ -248,6 +391,10 @@ function fx3Make(kind) {
       FX3.geo.rockcol = col;
     }
     o = new THREE.Mesh(FX3.geo[kind], new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  } else if (kind === 'ice') {
+    // Eisblock (seit 8.6): sechseckiges Prisma, durchscheinend, mit Deckel
+    if (!FX3.geo.ice) FX3.geo.ice = new THREE.CylinderGeometry(1, 1, 1, 6, 1, false);
+    o = new THREE.Mesh(FX3.geo.ice, new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x1a3fb0, transparent: true, opacity: 0.45, depthWrite: false }));
   } else if (kind === 'smoke' || kind === 'smokeTop') {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0x000000, transparent: true, depthWrite: false, fog: false }));
   } else if (kind === 'skull') {
@@ -1148,11 +1295,12 @@ const FX3_DRAW = {
   },
   chain(h, e, k) {
     const a = 1 - k;
-    let prev = _x3q.set(e.x * U3, 0.7, (e.y + 16) * U3).clone();
+    // h1: Starthöhe (seit 8.6: Kugelblitz 1,0, Donnerkrone 1,9), sonst Körpermitte
+    let prev = _x3q.set(e.x * U3, e.h1 != null ? e.h1 : 0.7, (e.y + 16) * U3).clone();
     for (let i = 1; i <= 6; i++) {
       const t = i / 6;
       const next = i === 6 ? _x3p.set(e.x2 * U3, 0.7, (e.y2 + 16) * U3).clone()
-        : _x3p.set((e.x + (e.x2 - e.x) * t) * U3 + rand(-0.22, 0.22), 0.7 + rand(-0.25, 0.25), (e.y + 16 + (e.y2 - e.y) * t) * U3 + rand(-0.22, 0.22)).clone();
+        : _x3p.set((e.x + (e.x2 - e.x) * t) * U3 + rand(-0.22, 0.22), (e.h1 != null ? e.h1 + (0.7 - e.h1) * t : 0.7) + rand(-0.25, 0.25), (e.y + 16 + (e.y2 - e.y) * t) * U3 + rand(-0.22, 0.22)).clone();
       const core = fx3Take(h, 'seg');
       fx3Segment(core, prev, next, 0.035);
       fx3Color(core, '#ffffff', a);
@@ -1482,18 +1630,136 @@ function fx3Skull(h, pr) {
   }
 }
 
+// Magier-Geschosse (seit 8.6): eigene Körper für Feuerball, Frostlanze, Kettenblitz, Steingeschoss (eigene und
+// fremde) und den eigenen Grundangriff; höchstens MAGE3_MAX Körper je Bild, je höchstens fünf Teile.
+// pr.body3 = game.time: das 2D-Geschoss wird in diesem Bild nicht mehr darüber gezeichnet.
+const MAGE3_STYLES = new Set(['fireball', 'frostlance', 'arc', 'stone', 'mage']);
+const MAGE3_MAX = 6;
+const _x3mq = new THREE.Quaternion();
+const _x3mq2 = new THREE.Quaternion();
+const _x3mz = new THREE.Vector3(0, 0, 1);
+const _x3md = new THREE.Vector3();
+const _x3ma = new THREE.Vector3();
+const _x3mb = new THREE.Vector3();
+function fx3MageSprite(h, kind, tex, px, py, pz, sx, sy, color, op) {
+  const o = fx3Take(h, kind);
+  fx3Map(o, tex);
+  o.position.set(px, py, pz);
+  o.scale.set(sx, sy, 1);
+  o.material.rotation = 0;
+  fx3Color(o, color, op);
+  return o;
+}
+function fx3MageBolt(h, pr) {
+  const t = game.time;
+  const id = pr.seed || (pr.seed = 1 + Math.random() * 9);
+  const y = PROJECTILE_LIFT * U3 * 1.3;
+  const x = pr.x * U3;
+  const z = pr.y * U3;
+  const E = (typeof MAGE_EL !== 'undefined' && MAGE_EL[pr.el]) || { main: pr.color || '#b8c4ff', hi: '#ffffff', core: '#ffffff', deep: '#4a5ad8' };
+  const low = typeof opts !== 'undefined' && opts.graphics === 'niedrig';
+  _x3md.set(pr.vx, 0, pr.vy).normalize();
+  // Richtung auf dem Bildschirm (Flammen zeigen nach hinten)
+  const R = FX3.cam.r;
+  const Up = FX3.cam.u;
+  const rot = Math.atan2(pr.vx * R.x + pr.vy * R.z, -(pr.vx * Up.x + pr.vy * Up.z));
+  if (pr.style === 'fireball') {
+    // weißglühender Kern, zwei Flammen nach hinten, zwei gegenläufig drehende Siegelringe quer zur Flugbahn
+    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.6, 0.6, E.core, 1);
+    for (let i = 0; i < 2; i++) {
+      const d = i ? 0.26 : 0.42;
+      const w = 0.9 + 0.12 * Math.sin(t * 23 + id + i);
+      const fl = fx3MageSprite(h, 'spriteFlame', 'flame', x - _x3md.x * d, y, z - _x3md.z * d, (i ? 0.36 : 0.55) * w, (i ? 0.7 : 1.05) * w, i ? E.hi : E.main, 1);
+      fl.material.rotation = rot;
+    }
+    _x3mq.setFromUnitVectors(_x3mz, _x3md);
+    for (let i = 0; i < 2; i++) {
+      const ring = fx3Take(h, 'planeMs0');
+      fx3Map(ring, 'msig0');
+      ring.position.set(x + _x3md.x * (i ? -0.06 : 0.06), y, z + _x3md.z * (i ? -0.06 : 0.06));
+      _x3mq2.setFromAxisAngle(_x3mz, (i ? -1 : 1) * t * 7 + id);
+      ring.quaternion.multiplyQuaternions(_x3mq, _x3mq2);
+      ring.scale.set(0.3, 0.3, 1);
+      fx3Color(ring, i ? E.hi : E.main, 0.95);
+    }
+    if (!low && t >= (pr.puffAt || 0)) {
+      pr.puffAt = t + 0.06;
+      addEffect({ type: 'smoke3', x: pr.x - pr.vx * 10, y: pr.y - pr.vy * 10, count: 1, color: '#2a0a0a', size: 0.3, op: 0.5, dur: 0.45 });
+    }
+  } else if (pr.style === 'frostlance') {
+    // lange Eislanze mit blauem Kern und zwei Glitzerpunkten
+    _x3ma.set(x - _x3md.x * 0.42, y, z - _x3md.z * 0.42);
+    const lance = fx3Take(h, 'coneG');
+    fx3Cone(lance, _x3ma, _x3md, 0.85, 0.11);
+    fx3Color(lance, E.core, 0.95);
+    _x3mb.set(x + _x3md.x * 0.12, y, z + _x3md.z * 0.12);
+    _x3ma.set(x - _x3md.x * 0.48, y, z - _x3md.z * 0.48);
+    const core = fx3Take(h, 'seg');
+    fx3Segment(core, _x3ma, _x3mb, 0.035);
+    fx3Color(core, E.main, 1);
+    for (let i = 0; i < 2; i++) {
+      const tw = 0.5 + 0.5 * Math.sin(t * 25 + i * 3 + id);
+      fx3MageSprite(h, 'sprite', 'spark', x - _x3md.x * (0.1 + 0.25 * i), y + 0.04, z - _x3md.z * (0.1 + 0.25 * i), 0.2 * tw + 0.05, 0.2 * tw + 0.05, '#ffffff', 0.9);
+    }
+  } else if (pr.style === 'arc') {
+    // heller Kern, drei gezackte Bögen hinterher (jedes Bild neu)
+    const s = 0.3 + 0.08 * Math.sin(t * 40);
+    fx3MageSprite(h, 'sprite', 'spark', x, y, z, s, s, '#ffffff', 1);
+    _x3ma.set(x, y, z);
+    for (let i = 1; i <= 3; i++) {
+      _x3mb.set(x - _x3md.x * 0.17 * i + (Math.random() - 0.5) * 0.14, y + (Math.random() - 0.5) * 0.12, z - _x3md.z * 0.17 * i + (Math.random() - 0.5) * 0.14);
+      const sg = fx3Take(h, 'seg');
+      fx3Segment(sg, _x3ma, _x3mb, 0.03);
+      fx3Color(sg, i === 1 ? '#ffffff' : E.hi, 1 - i * 0.22);
+      _x3ma.copy(_x3mb);
+    }
+  } else if (pr.style === 'stone') {
+    // taumelnder Basaltbrocken mit Bernsteinkern, Staub hinterher
+    const rock = fx3Take(h, 'rock');
+    rock.position.set(x, y, z);
+    rock.scale.set(0.24, 0.2, 0.22);
+    rock.rotation.set(t * 9 + id, t * 6, t * 4);
+    rock.material.color.set(E.deep);
+    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.5, 0.5, E.main, 0.9);
+    if (!low && t >= (pr.puffAt || 0)) {
+      pr.puffAt = t + 0.05;
+      addEffect({ type: 'smoke3', x: pr.x - pr.vx * 8, y: pr.y - pr.vy * 8, count: 1, color: '#6a5a50', size: 0.3, op: 0.45, dur: 0.4 });
+    }
+  } else {
+    // Grundangriff: Schein, Kern und eine kleine drehende Raute in der Elementfarbe
+    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.34, 0.34, pr.rank >= 0 ? SKILL_RANKS[pr.rank].color : E.main, 0.85);
+    fx3MageSprite(h, 'sprite', 'spark', x, y, z, 0.16, 0.16, E.core, 1);
+    for (let i = 0; i < 2; i++) {
+      const c = fx3Take(h, 'coneG');
+      c.position.set(x, y + (i ? -0.04 : 0.04), z);
+      c.scale.set(0.05, 0.08, 0.05);
+      c.rotation.set(i ? Math.PI : 0, t * 6 + id, 0);
+      fx3Color(c, E.hi, 0.95);
+    }
+  }
+  pr.body3 = t;
+}
+
 // Leuchtende Geschosse: Lichtkugel und kurzer Schweif im Raum (das gezeichnete Geschoss bleibt darüber)
 function fx3Projectiles(h) {
   let skulls = 0;
+  let mages = 0;
   for (const pr of game.projectiles) {
-    // Schädel zeigen auch die Mitspieler (fremde Geschosse sonst nur gezeichnet)
+    // Schädel und Magier-Geschosse zeigen auch die Mitspieler (fremde Geschosse sonst nur gezeichnet)
     const skull = pr.style === 'skullfire';
-    if ((pr.owner !== 'player' && !skull) || !v3InView(pr.x, pr.y, 40)) continue;
+    const mage = MAGE3_STYLES.has(pr.style) && (pr.owner === 'player' || pr.style !== 'mage');
+    if ((pr.owner !== 'player' && !skull && !mage) || !v3InView(pr.x, pr.y, 40)) continue;
     if (skull && skulls < SKULL3_MAX) {
       skulls++;
       fx3Skull(h, pr);
       continue;
     }
+    if (mage && mages < MAGE3_MAX) {
+      mages++;
+      fx3MageBolt(h, pr);
+      continue;
+    }
+    if (pr.owner !== 'player') continue;
     const s = (pr.radius || 6) * U3 * 4;
     const o = fx3Take(h, 'sprite');
     o.position.set(pr.x * U3, PROJECTILE_LIFT * U3 * 1.3, pr.y * U3);
@@ -1518,12 +1784,23 @@ function fx3Projectiles(h) {
 // grüne Bläschen, eine Rune in der Farbe des Fluchs über dem Kopf. Höchstens STATUS3_MAX Monster je Bild.
 const FX3_STATUS = { parts: [] };
 const STATUS3_MAX = 24;
+const ICE3_MAX = 8;
 function fx3Status(h) {
   const t = game.time;
   let n = 0;
+  let ice = 0;
   for (const m of game.monsters) {
+    // Eis taut oder bricht: Splitter und Funken (zählen zum Effekt-Budget)
+    if (m.ice3 && !(m.frozen > t)) {
+      m.ice3 = false;
+      if (!m.dead) {
+        addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.6, count: 8, color: '#eafcff', speed: 2.2, up: 1, dur: 0.5 });
+        addEffect({ type: 'shards3', x: m.x, y: feetY(m), r: (m.r || 14) * 1.2, count: 5, color: '#9ff6ff', glow: true, size: 0.5, dur: 0.45 });
+      }
+    }
     if (m.dead || m.isStone) continue;
-    const stun = m.stun > 0 || m.stunned;
+    const frozen = m.frozen > t;
+    const stun = m.stun > 0 || m.stunned || frozen;
     const slow = m.slow && m.slow.until > t;
     const burn = m.burn && m.burn.until > t;
     const poison = m.poison && m.poison.until > t;
@@ -1536,7 +1813,34 @@ function fx3Status(h) {
     const head = v3HeadHeight(m);
     const rr = Math.max(0.32, (m.r || 14) * U3 * 1.25);
     const ph = ((m.id | 0) % 13) * 0.5;
-    if (stun) for (let i = 0; i < 3; i++) {
+    // Eingefroren (Magier, seit 8.6): Eisblock statt Sternen, höchstens ICE3_MAX gleichzeitig
+    const iced = frozen && ice < ICE3_MAX;
+    if (iced) {
+      ice++;
+      m.ice3 = true;
+      const g = easeOut(clamp01((t - (m.frozenT || t - 1)) / 0.12));
+      const H = Math.max(0.5, head * 0.95) * g;
+      const r = Math.max(0.28, (m.r || 14) * U3 * 0.9);
+      const block = fx3Take(h, 'ice');
+      block.position.set(x, H / 2, z);
+      block.scale.set(r, Math.max(0.01, H), r);
+      block.rotation.set(0, ph, 0);
+      block.material.color.set('#9ff6ff');
+      block.material.opacity = 0.42;
+      for (let i = 0; i < 3; i++) {
+        const a = ph + i * 2.094 + 0.5;
+        const c = fx3Take(h, 'coneG');
+        const ch = head * 0.6 * g;
+        c.position.set(x + Math.cos(a) * r * 0.95, ch * 0.4, z + Math.sin(a) * r * 0.95);
+        c.scale.set(0.08, Math.max(0.01, ch), 0.08);
+        c.rotation.set(Math.sin(a) * 0.45, 0, -Math.cos(a) * 0.45);
+        fx3Color(c, '#eafcff', 0.9);
+      }
+      const fl = fx3Take(h, 'planeNHex');
+      fx3Ground(fl, m.x, fy, r * 1.6 * g + 0.01, 0.045, 'hexfrost', ph);
+      fx3Color(fl, '#3a7bff', 0.75);
+    }
+    if (stun && !iced) for (let i = 0; i < 3; i++) {
       const a = t * 5 + i * 2.094 + ph;
       const o = fx3Take(h, 'spriteStar');
       fx3Map(o, 'star');
@@ -1545,7 +1849,7 @@ function fx3Status(h) {
       o.material.rotation = a;
       fx3Color(o, '#ffe27a', 1);
     }
-    if (slow) {
+    if (slow && !iced) {
       const o = fx3Take(h, 'planeFrost');
       fx3Ground(o, m.x, fy, rr * (1.05 + 0.05 * Math.sin(t * 3 + ph)), 0.05, 'ring', t * 0.3);
       fx3Color(o, '#bfe8ff', 0.9);
@@ -1667,6 +1971,24 @@ function fx3Crown(h) {
   }
 }
 
+// --- Buff-Auren als Körper (seit 8.6): SKILL_FX[id].aura3(h, p, b, t) für den eigenen Spieler und Mitspieler ---------
+const FX3_AURA = { parts: [] };
+const _aura3List = [];
+function fx3BuffAuras(h) {
+  const now = game.time;
+  const list = _aura3List;
+  list.length = 0;
+  if (game.player && game.running && !game.player.dead) list.push(game.player);
+  for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp)) list.push(rp);
+  for (const p of list) {
+    if (!p.buffs || !p.buffs.length || p.blinkHide > now || !v3InView(p.x, p.y, 60)) continue;
+    for (const b of p.buffs) {
+      const fx = SKILL_FX[b.id];
+      if (fx && fx.aura3 && b.until > now) fx.aura3(h, p, b, now);
+    }
+  }
+}
+
 const FX3_PROJ = { parts: [] };
 function v3SyncFx() {
   if (!FX3.group) {
@@ -1686,6 +2008,7 @@ function v3SyncFx() {
   fx3Release(FX3_PROJ);
   fx3Release(FX3_STATUS);
   fx3Release(FX3_CROWN);
+  fx3Release(FX3_AURA);
   for (const e of game.effects) {
     if (!FX3_TYPES.has(e.type)) continue;
     const o = effectOrigin(e);
@@ -1698,6 +2021,7 @@ function v3SyncFx() {
   fx3Projectiles(FX3_PROJ);
   fx3Status(FX3_STATUS);
   fx3Crown(FX3_CROWN);
+  fx3BuffAuras(FX3_AURA);
 }
 
 // --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------

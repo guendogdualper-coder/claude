@@ -1,4 +1,4 @@
-// Fertigkeiten: gemalte Symbole für die Leiste und eigene Effekte für jede der 40 Fertigkeiten.
+// Fertigkeiten: gemalte Symbole für die Leiste und eigene Effekte für jede der 60 Fertigkeiten.
 // Die Spielmechanik steht in kampf.js; hier geht es nur ums Aussehen.
 
 // --- Symbole ------------------------------------------------------------------------------
@@ -1129,6 +1129,8 @@ const SKILL_ELEMENT = {
 };
 
 function skillSignature3(sk, p) {
+  // Magier (seit 8.6): eigene Auftritte und Wirk-Effekte über SKILL_FX (magier.js)
+  if (sk.el) return;
   const el = SKILL_ELEMENT[sk.id];
   // Blitzdrache, Blizzard, Sichelwelle, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
   // ebenso seit 8.5 Schädelsalve, Seelenkäfig, Seelenschnitter und Totenbeschwörung
@@ -1185,15 +1187,18 @@ function updateBuffAuras(dt) {
 function rankCastFx(p, rank, color) {
   const fy = feetY(p);
   addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });
-  addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: 46 + rank * 10, dur: 0.9, color });
+  // Magier (seit 8.6): Dreieckssiegel statt Runenkreis und Wirbel (keine Schamanen-Zeichen)
+  const mage = p.classId === 'magier' && typeof mageEl === 'function';
+  if (mage) addEffect({ type: 'sigil3', ground: true, el: mageEl(p).key, follow: p, ox: 0, oy: 0, x: p.x, y: fy, R: 46 + rank * 10, flash: true, dur: 0.9 });
+  else addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: 46 + rank * 10, dur: 0.9, color });
   particles(p.x, fy - 14, { count: 14 + rank * 10, color: [color, '#ffffff'], speed: [80, 200 + rank * 40], life: [0.3, 0.6], size: [1.5, 3], shape: 'spark', drag: 4 });
-  if (rank >= 1) {
+  if (rank >= 1 && !mage) {
     addEffect({ type: 'decal', kind: 'rune', x: p.x, y: fy, r: 42 + rank * 8, dur: 1.4, color });
     addEffect({ type: 'tornado', follow: p, ox: 0, oy: 0, r: 34 + rank * 6, dur: 0.6, color });
   }
   if (rank >= 2) {
     vfxPillar(p, color, 0.7);
-    addEffect({ type: 'bolt', x: p.x + rand(-30, 30), y: fy + rand(-10, 10), dur: 0.35, color });
+    if (!mage) addEffect({ type: 'bolt', x: p.x + rand(-30, 30), y: fy + rand(-10, 10), dur: 0.35, color });
     flashScreen(color, 0.18);
   }
   if (rank >= 3) {

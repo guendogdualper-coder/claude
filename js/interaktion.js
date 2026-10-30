@@ -595,7 +595,7 @@ function remoteSkillFx(rp, d) {
   const trim = CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff';
   const target = { x: d.tx, y: d.ty };
   if (d.s === '_shot') {
-    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? 620 : 480, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st });
+    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? 620 : 480, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el });
     return;
   }
   const sk = skillById(d.s);
@@ -717,6 +717,28 @@ function remoteSkillFx(rp, d) {
         break;
       }
       withRank(rk, () => reaperFx(rp, d.a ?? ang, sk));
+      break;
+    // Magier (seit 8.6): nur Optik mit dem Rang des Wirkers; fehlende Felder zeigen nur das Siegel an der Figur
+    case 'nova':
+      withRank(rk, () => novaFx(rp, d.x ?? rp.x, d.y ?? rp.y, sk, false, 0, lvlFromRank(rk), { ts: d.ts }));
+      break;
+    case 'mbolt':
+      withRank(rk, () => spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), dir: null, aimAt: target, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60 }));
+      break;
+    case 'shift':
+      if (!d.pre || !isFinite(d.x1) || !isFinite(d.y1)) {
+        addEffect({ type: 'sigil3', ground: true, el: sk.el, follow: rp, ox: 0, oy: 0, x: rp.x, y: feetY(rp), R: 40, flash: true, dur: 0.5 });
+        break;
+      }
+      withRank(rk, () => shiftFx(rp, { x: d.x0 ?? d.x, y: d.y0 ?? d.y }, { x: d.x1, y: d.y1 }, sk, false, 0, 1));
+      // sofort am Ziel, ohne über den Bildschirm zu gleiten (wie der Hinterhalt)
+      rp.blinkHide = game.time + 0.14;
+      rp.glideHold = { x: d.x1, y: d.y1, until: game.time + 0.6 };
+      rp.x = rp.tx = d.x1;
+      rp.y = rp.ty = d.y1;
+      break;
+    case 'sigil':
+      withRank(rk, () => sigilFx(rp, target.x, target.y, sk, false, 0, 1));
       break;
     case 'vortex':
       vortexFx(rp, sk);

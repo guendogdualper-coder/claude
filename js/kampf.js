@@ -123,6 +123,11 @@ function hitMonster(m, mul, opts = {}) {
   const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit, p.level);
   if (!m.isStone) {
     if (opts.stun) m.stun = Math.max(m.stun, opts.stun);
+    // Einfrieren (Magier, seit 8.6): Betäubung mit Eisblock; die Pose bleibt stehen, solange m.frozen läuft
+    if (opts.freeze && opts.stun && canFreeze(m)) {
+      if (!(m.frozen > game.time)) m.frozenT = game.time;
+      m.frozen = Math.max(m.frozen || 0, game.time + opts.stun);
+    }
     if (opts.knockback) {
       const src = opts.from || p;
       const d = Math.max(1, dist(src, m));
@@ -329,6 +334,11 @@ function damagePlayer(amount, attacker) {
   // In Städten und Lagern gibt es keinen Schaden (außer im Duell) – egal woher er kommt
   if (inVillage(p.x, p.y) && !(attacker && attacker.duelProxy)) return;
   p.lastCombat = game.time;
+  // Frostpanzer (seit 8.6): wer dich aus der Nähe schlägt, wird 1,5 s verlangsamt (feste Verlangsamung)
+  if (s.chill && attacker && !attacker.duelProxy && !attacker.dead && attacker.typeId && dist(attacker, p) < 90) {
+    setSlow(attacker, 1 - s.chill, 1.5);
+    if (net.mode === 'client') netClientDamage(attacker, 0, false, false);
+  }
   if (p.protectUntil > game.time) return;
   if (Math.random() < s.dodge) {
     addText(p.x, p.y - 30, 'Ausgewichen', 'info');
@@ -345,6 +355,11 @@ function damagePlayer(amount, attacker) {
     const absorbed = Math.min(p.shield, dmg);
     p.shield -= absorbed;
     dmg -= absorbed;
+    // eigener Abdruck des Schild-Buffs (Basalthaut)
+    for (const b of p.buffs) {
+      const fx = SKILL_FX[b.id];
+      if (fx && fx.absorb) fx.absorb(p, attacker);
+    }
     if (dmg <= 0) {
       addText(p.x, p.y - 30, 'Abgewehrt', 'info');
     }
@@ -438,6 +453,11 @@ const KIND_BASIC = {
 };
 
 function basicAttack(p) {
+  // Magier (seit 8.6): Farbe und Geschoss nach dem gewählten Element
+  if (p.classId === 'magier') {
+    const E = mageEl(p);
+    return { ...CLASSES.magier.basic, color: E.hi, el: E.key };
+  }
   return KIND_BASIC[weaponKindOf(p)] || CLASSES[p.classId].basic;
 }
 
@@ -457,8 +477,8 @@ function tryBasicAttack() {
     startSwing(p, 'cast', 0.28);
     const hand = bodyCenter(p);
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, basic: true });
-    netSkillFx('_shot', basic.range, { c: basic.color, st: basic.style });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, el: basic.el, basic: true });
+    netSkillFx('_shot', basic.range, { c: basic.color, st: basic.style, el: basic.el });
   } else {
     p.combo = ((p.combo || 0) + 1) % 3;
     startSwing(p, 'combo', p.combo === 2 ? 0.24 : 0.28);
@@ -472,7 +492,7 @@ function tryBasicAttack() {
 
 // Manakosten (seit 7.7): wachsen mit der Stufe, damit auch später Manatränke gebraucht werden.
 // Der Schamane zaubert am meisten und zahlt am meisten, der Krieger am wenigsten.
-const MANA_COST = { schamane: [1.15, 0.022], nekromant: [1.05, 0.016], ninja: [1, 0.013], krieger: [1, 0.011] };
+const MANA_COST = { schamane: [1.15, 0.022], magier: [1.15, 0.022], nekromant: [1.05, 0.016], ninja: [1, 0.013], krieger: [1, 0.011] };
 function skillMana(sk, p = game.player) {
   const [a, b] = MANA_COST[p.classId] || [1, 0];
   return Math.round(sk.mp * (a + b * p.level));
@@ -515,7 +535,8 @@ function useSkill(i) {
   const extra = ok && typeof ok === 'object' ? ok : sk.aim ? { tx: Math.round(skillAimPoint(sk).x), ty: Math.round(skillAimPoint(sk).y) } : {};
   // Rang mitschicken (seit 8.5): Mitspieler sehen Augen und Kern in der Rangfarbe
   if (rank >= 0) extra.rk = rank;
-  netSkillFx(sk.id, 160, extra);
+  // skipNet: die Fertigkeit hat ihre Nachricht schon selbst geschickt (Elementsprung vor dem Ortswechsel)
+  if (!extra.skipNet) netSkillFx(sk.id, 160, extra);
   // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
   if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
     startSwing(p, 'pose', 0.7);
@@ -1379,7 +1400,8 @@ function updateProjectiles(dt) {
       for (const m of game.monsters) {
         if (m.dead || Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.done = true;
-        vfxImpact(m, false, pr.color);
+        if (pr.onRemoteHit) pr.onRemoteHit(m);
+        else vfxImpact(m, false, pr.color);
         break;
       }
       continue;
@@ -1391,7 +1413,9 @@ function updateProjectiles(dt) {
         pr.hit.add('duel');
         // Schädelsalve im Duell: der erste Schädel voll, jeder weitere nur mit duelExtra (zusammen 1,5×)
         const mul = pr.mul * (pr.salve && pr.salve.duel++ > 0 ? pr.salve.extra : 1);
-        hitMonster(foe, mul, { vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
+        const hm = pr.hitMul ? pr.hitMul(foe) : 1;
+        hitMonster(foe, mul * hm, { stun: pr.stun, slow: pr.slow, burn: pr.burn, vfxColor: pr.color, skill: pr.skill, basic: pr.basic, duelMul: pr.duelMul });
+        if (pr.afterHit) pr.afterHit(foe, pr);
         if (!pr.pierce) { pr.done = true; continue; }
       }
       // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
@@ -1400,16 +1424,25 @@ function updateProjectiles(dt) {
         if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
-        hitMonster(m, pr.mul, { poison: pr.poison, stun: pr.stun, vfxColor: pr.color, skill: pr.skill, basic: pr.basic });
+        // Haken der Magier-Geschosse (seit 8.6): Zerspringen und Entladung (hitMul), Splitter und Einschlag (afterHit)
+        const hm = pr.hitMul ? pr.hitMul(m) : 1;
+        hitMonster(m, pr.mul * hm, {
+          poison: pr.poison, stun: pr.stun, slow: pr.slow, burn: pr.burn, knockback: pr.knockback,
+          from: pr.knockback ? { x: pr.x - pr.vx * 20, y: pr.y - pr.vy * 20 } : null,
+          vfxColor: pr.color, skill: pr.skill, basic: pr.basic, duelMul: pr.duelMul
+        });
+        if (pr.afterHit) pr.afterHit(m, pr);
         if (pr.poison) particles(m.x, feetY(m) - 16, { count: 12, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2 });
         if (pr.chain > 0) {
           const next = aliveEnemies()
-            .filter((o) => !pr.hit.has(o.id) && dist(o, m) < 180)
+            .filter((o) => !pr.hit.has(o.id) && dist(o, m) < (pr.chainR || 180))
             .sort((a, b) => dist(a, m) - dist(b, m))[0];
           if (next) {
             const a = bodyCenter(m);
             const b = bodyCenter(next);
             addEffect({ type: 'chain', x: a.x, y: a.y, x2: b.x, y2: b.y, dur: 0.25, color: pr.color });
+            // jeder Sprung schwächer (Kettenblitz −20 %)
+            if (pr.chainMul) pr.mul *= pr.chainMul;
             pr.chain--;
             pr.target = next;
             pr.traveled = 0;

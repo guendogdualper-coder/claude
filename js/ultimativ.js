@@ -452,6 +452,7 @@ function updateClones(dt) {
 
 // Mitspieler sehen nur das Schauspiel, Schaden macht immer der eigene Spieler
 function ultRemoteFx(id, x, y) {
+  if (typeof MAGE_ULT_FX !== 'undefined' && MAGE_ULT_FX[id]) return MAGE_ULT_FX[id](x, y);
   const u = Object.values(ULTIMATES).find((v) => v.id === id);
   if (!u) return;
   if (id === 'schattenklone') {
