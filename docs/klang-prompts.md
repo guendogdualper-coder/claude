@@ -112,6 +112,9 @@ Realistic animal vocalizations for a fantasy MMORPG, recorded close and dry, the
   - Erde: Schlag mit Steinchen.
   - Schatten und Seele: eigene Laute.
   - Klinge: Schlag mit Metallklang.
+- **Strom der Elemente (seit 9.7):** Solange er läuft, eine Schleife aus rauschendem Wasserschwall mit
+  Blasen, knisternder Ladung und Feuerfauchen. Zum Schluss ein großer Platscher, ein Donnerschlag und ein Beben.
+  Treffer des Strahls klingen nach Wasser, die Blitzsprünge knallen.
 - **Eisstrahl:** Solange er läuft, ein kalter, zischender Strom mit Knistern (Schleife). Er wird mit der
   Entfernung leiser und endet mit kurzem Splittern.
 - **Stimme (seit 9.5):** Die Figuren stöhnen nicht. Es gibt nur kurze, schnelle Laute (0,1–0,2 s), männlich

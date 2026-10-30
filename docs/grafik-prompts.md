@@ -801,7 +801,7 @@ Skill VFX sheet for a stylized 3D toon ninja (shadow path), top-down three-quart
 | Drachenkraft | 5 | Buff: Angriff, Fertigkeitsschaden | orange Flammensäule und Ring; danach Glut steigt auf |
 | Blizzard | 7 | Zielfläche: Eiszapfen fallen 4 s, Verlangsamung | Zielkreis zum Ausrichten, Schneetreiben, Eiszapfen stürzen herab, Raureif am Boden |
 | Donnersturm | 10 | Blitze auf das Ziel und die Umgebung, Betäubung | dunkle Wolke über dem Ziel, mehrere Blitze, blauer Ring, verkohlter Fleck |
-| **Drachensturm** (Ultimate) | 30 | neun Feuermeteore, Brand, Drachenschrei | Runenkreis am Ziel, neun Meteore mit Feuerschweif, Brandflecken, zum Schluss ein großer Feuerring |
+| **Strom der Elemente** (Ultimate, seit 9.7; vorher Drachensturm) | 30 | Wasserstrahl 5,5 s, Blitz, Brand, Erdbruch | großer Wasserstrahl, umwirbelt von Blitz, Feuer und Erde, glühende Bodenrisse (siehe Abschnitt 11) |
 
 ```
 Skill VFX sheet for a stylized 3D toon shaman (dragon path), top-down three-quarter view: LIGHTNING DRAGON – a serpentine blue dragon made of light and lightning flying to the target and bursting into chain lightning; DRAGON VORTEX – a fiery dragon-shaped vortex on the ground with expanding flame rings and scorch marks; DRAGON MIGHT – an orange flame pillar and a ring, embers rising; BLIZZARD – a targeting circle, swirling snow, icicles crashing down and frost on the ground; THUNDERSTORM – a dark cloud above the target with several lightning bolts, a blue ring and a charred spot; ULTIMATE "DRAGON STORM" – a rune circle at the target, nine meteors with fire tails, scorch marks and a final big fire ring.
@@ -995,5 +995,34 @@ Feuerball = weißglühende Kugel mit Flammenschweif, Eisstrahl = Eisstrahl aus d
 **Prompt (englisch, je Fertigkeit anpassen):**
 ```
 Game skill icon for a stylized fantasy MMORPG, round, 128×128, painterly toon rendering, rich radial background in the element's colour with a bright core top-left and dark vignette, subtle light rays behind the motif, one bold central motif that shows exactly what the attack does ({motif}), strong light from top left, glossy rim highlights, glowing magic and motion trails, gold-and-bronze metal ring frame with a soft glass highlight on top, readable at 44 px, no text, no letters.
+```
+
+## 11. Schamane: spitzes Eis und Strom der Elemente (seit 9.7)
+
+- **Blizzard:** Es fallen Eiszapfen, keine Kugeln.
+  - Jeder Zapfen ist ein Bündel aus drei spitzen Eiskegeln (eisblau mit leuchtendem Kern), Spitze voran in
+    Fallrichtung, dahinter eine dünne helle Fallspur.
+  - Beim Aufschlag stecken drei bis fünf spitze Eiszacken schräg im Boden; nach 0,7 s zerspringen sie.
+  - Die Splitter sind spitze Rauten statt Quadrate.
+- **Strom der Elemente** (Ultimative Attacke, Weg des Drachen):
+  - **Haltung:** Der Schamane steht still, beide Hände nach vorn. In den Händen sammelt sich 0,45 s lang
+    Wasser zu einer leuchtenden Kugel.
+  - **Wasserstrahl:** schießt 380 weit, 5,5 s lang, und wird zum Ende breiter. Er hat eine deckende,
+    tiefblaue Hülle, darüber leuchtende türkise Lagen mit weißem Kern; zwei helle Wasserwirbel drehen sich
+    schnell um die Achse.
+  - **Drei Elemente** kreisen auf Spiralen um den Strahl:
+    - Blitz: zuckende, jedes Bild neu gezackte Spirale, gelbweißer Kern mit violettem Schein.
+    - Feuer: Flammenzungen mit hellem Kern.
+    - Erde: taumelnde Felsbrocken mit Bernsteinschein.
+  - **Ende des Strahls:** Gischt, Wasserring und Spritzer.
+  - **Boden:** Wo der Strahl entlangfegt, reißt der Boden in glühenden, gezackten Rissen auf, abwechselnd
+    Feuer, Blitz, Erde und Wasser. Die Risse wachsen in 0,25 s und verglühen in 3 s.
+  - **Blitzsprünge:** Blitze springen aus dem Strahl auf Getroffene.
+  - **Schluss:** Entlang des ganzen Strahls brechen Felszacken mit glühenden Adern auf. Am Ende schlagen ein
+    Blitz, ein Feuerring und ein Wasserring ein.
+
+**Prompt (englisch):**
+```
+Ultimate ability of a fantasy shaman, stylized 3D toon MMORPG: the shaman stands firm with both palms forward and unleashes a massive, widening torrent of water that lasts several seconds; three elements spiral around the water beam – crackling yellow-white lightning with violet glow, licking flame tongues, tumbling rocks with amber glow; the ground along the beam cracks open in glowing fissures (orange fire, yellow lightning, amber earth, cyan water); spray and a ripple ring where the beam hits; finale: jagged rock spikes erupt along the whole line with a lightning strike and fire ring at the end. Epic, colourful, readable from an isometric camera.
 ```
 

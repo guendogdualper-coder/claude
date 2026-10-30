@@ -1915,3 +1915,8 @@ Grundregeln, Tabelle je Waffe und der große Prompt stehen in `docs/grafik-promp
 ```
 Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield, top-down three-quarter view: anticipation with the sword raised high behind the right shoulder and the shield forward, impact with a diagonal slash across the body and the front foot stepping in, follow-through with the blade low on the left and the hips turned, recovery back to a ready stance. Crimson smear trail on impact, thick outlines, toon shading, no text.
 ```
+
+## Strom der Elemente – Symbol (seit 9.7)
+
+- Strom der Elemente: `Game skill icon, round, painterly toon, dark indigo vignette, a wide water beam shooting diagonally upward, wrapped by three spirals – yellow lightning, orange flame tongues and tumbling rocks – with glowing cracks in the ground below, gold ring frame, no text.`
+

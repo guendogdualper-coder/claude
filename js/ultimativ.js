@@ -28,10 +28,11 @@ const ULTIMATES = {
     stats: '9× Angriff, sicher kritisch, unter 35 % Leben +4×',
     buff: { id: 'schattenschleier', name: 'Schattenschleier', duration: 8, effects: { dodge: 0.3, speed: 0.15 } }
   },
+  // seit 9.7: Strom der Elemente statt Drachensturm (Ablauf in elementarstrom.js)
   drache: {
-    id: 'drachensturm', name: 'Drachensturm', short: 'DS', color: '#ff7a2a',
-    text: 'Neun Feuermeteore schlagen auf dein Ziel ein und setzen alles in Brand, zum Schluss erschüttert ein Drachenschrei das Feld.',
-    stats: 'je Meteor 2× Angriff und Brand, Schrei 3×'
+    id: 'elementarstrom', name: 'Strom der Elemente', short: 'SE', color: '#4ac8ff',
+    text: 'Ein gewaltiger Wasserstrahl schießt 5,5 s lang aus deinen Händen, umwirbelt von Blitz, Feuer und Erde. Er dreht sich langsam zu deinem Ziel und trifft alles in der Linie; Blitze springen auf Getroffene über, Feuer setzt sie in Brand, der Boden reißt in glühenden Rissen auf. Zum Schluss bricht die Erde entlang des Strahls auf.',
+    stats: '4 Wellen pro Sekunde je 0,35× Angriff mit Brand, Blitze 1,2× (kurz betäubt), Erdbruch am Ende 2,5×; du stehst dabei still'
   },
   heilung: {
     id: 'himmelssegen', name: 'Himmelssegen', short: 'HS', color: '#fff2a0',
@@ -288,32 +289,6 @@ const ULT_RUN = {
     });
   },
 
-  drachensturm(p, u, pw) {
-    const t = pickTarget(380);
-    if (t) faceTowards(t.x, t.y);
-    const cx = t ? t.x : p.x + p.facing.x * 150;
-    const cy = t ? t.y : p.y + p.facing.y * 150;
-    addEffect({ type: 'ultsigil', ground: true, x: cx, y: cy, r: 170, dur: 2.4, color: u.color });
-    for (let k = 0; k < 9; k++) {
-      const at = k === 0 ? { x: cx, y: cy } : randomInCircle(cx, cy, 160);
-      const delay = 0.35 + k * 0.15;
-      later(delay - 0.35, () => addEffect({ type: 'ultfall', kind: 'meteor', x: at.x, y: at.y, fall: 0.35, dur: 0.36, color: u.color }));
-      later(delay, () => {
-        addEffect({ type: 'ring', x: at.x, y: at.y, r: 70, dur: 0.45, color: '#ffd34d', width: 10, grow: true });
-        addEffect({ type: 'decal', kind: 'scorch', x: at.x, y: at.y, r: 46, dur: 4, color: '#2a1408' });
-        particles(at.x, at.y - 8, { count: 30, color: ['#ffd34d', '#ff9a4a', '#ff5a2a', '#c8402f'], speed: [100, 280], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3 });
-        shakeScreen(5);
-        ultHitCircle(at.x, at.y, 70, 2 * pw, { burn: { dps: 0.4, duration: 4 }, vfxColor: '#ffd34d' });
-      });
-    }
-    later(1.9, () => {
-      addEffect({ type: 'ring', x: cx, y: cy, r: 200, dur: 0.6, color: u.color, width: 16, grow: true });
-      particles(cx, cy - 20, { count: 50, color: ['#ffd34d', '#ff7a2a', '#ffffff'], speed: [120, 360], life: [0.4, 0.8], size: [2, 5], shape: 'ember', drag: 3 });
-      shakeScreen(10);
-      ultHitCircle(cx, cy, 200, 3 * pw, { stun: 1, knockback: 80, vfxColor: u.color });
-    });
-  },
-
   himmelssegen(p, u, pw) {
     const s = game.stats;
     const amount = Math.round(s.maxHp * 0.6);
@@ -451,8 +426,11 @@ function updateClones(dt) {
 }
 
 // Mitspieler sehen nur das Schauspiel, Schaden macht immer der eigene Spieler
+// eigene Darstellung für Mitspieler (z. B. Strom der Elemente, elementarstrom.js)
+const ULT_SHOW = {};
 function ultRemoteFx(id, x, y) {
   if (typeof MAGE_ULT_FX !== 'undefined' && MAGE_ULT_FX[id]) return MAGE_ULT_FX[id](x, y);
+  if (ULT_SHOW[id]) return ULT_SHOW[id](x, y);
   const u = Object.values(ULTIMATES).find((v) => v.id === id);
   if (!u) return;
   if (id === 'schattenklone') {
@@ -516,12 +494,6 @@ Object.assign(SKILL_ICONS, {
     iconLine(ctx, '#1a0508', 2.5, [[-8, -8], [8, 8]]);
     iconLine(ctx, '#1a0508', 2.5, [[8, -8], [-8, 8]]);
     iconLine(ctx, '#ffffff', 2, [[-17, 17], [17, -17]]);
-  },
-  drachensturm(ctx) {
-    for (const [x, y, r] of [[-9, -8, 5], [8, -12, 4], [2, 6, 7]]) {
-      iconLine(ctx, '#ff9a4a', r * 0.9, [[x - r * 2.2, y - r * 2.2], [x, y]]);
-      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); }, '#fff3c0', '#ff5a2a', 2);
-    }
   },
   himmelssegen(ctx) {
     iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -20); ctx.lineTo(6, -20); ctx.lineTo(12, 16); ctx.lineTo(-12, 16); ctx.closePath(); }, '#ffffff', '#ffd34d', 2);

@@ -969,7 +969,10 @@ function blizzardFx(x, y, sk, onTick) {
     later(delay, () => addEffect({ type: 'meteor3', x: cx, y: cy, fall, dur: fall + 0.1, size: 1 + Math.random() * 0.5, pal: 'eis' }));
     later(delay + fall, () => {
       addEffect({ type: 'sparks3', x: cx, y: cy, h: 0.2, count: 8, color: '#dff4ff', speed: 2.2, up: 1.2, dur: 0.5 });
-      particles(cx, cy - 4, { count: 6, color: ['#ffffff', '#bfe8ff', '#6ab8ff'], speed: [40, 120], life: [0.3, 0.5], size: [1.5, 3], shape: 'square', drag: 4, glow: false });
+      // seit 9.7: spitze Eiszacken bleiben kurz im Boden stecken und zerspringen dann
+      const list = Array.from({ length: 3 + Math.floor(Math.random() * 3) }, (_, i) => [rand(-7, 7), rand(-5, 5), (i ? rand(0.25, 0.5) : rand(0.5, 0.75)), (i ? rand(0.04, 0.06) : rand(0.07, 0.09)), rand(-0.45, 0.45), rand(-0.45, 0.45)]);
+      addEffect({ type: 'mcrys3', x: cx, y: cy, list, color: '#bfe8ff', core: '#6ab8ff', rise: 0.07, hold: 0.7, dur: 0.95 });
+      particles(cx, cy - 4, { count: 7, color: ['#ffffff', '#bfe8ff', '#6ab8ff'], speed: [50, 140], life: [0.3, 0.55], size: [2, 3.5], shape: 'shard', drag: 4, glow: false });
     });
   }
   // Schneegestöber: Flocken treiben schräg durch den Kreis

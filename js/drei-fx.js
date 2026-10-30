@@ -361,8 +361,10 @@ function fx3Make(kind) {
     o.rotation.x = -Math.PI / 2;
   } else if (kind === 'wall') {
     o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28, 1, true), fx3Mat(fx3Texture('beam')));
-  } else if (kind === 'seg' || kind === 'segTop') {
-    o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 6, 1, true), fx3Mat(null));
+  } else if (kind === 'seg' || kind === 'segTop' || kind === 'segN') {
+    o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, kind === 'segN' ? 12 : 6, 1, true), fx3Mat(null));
+    // segN (seit 9.7): normal gemischt, deckt auch auf hellem Boden (Wasserstrahl)
+    if (kind === 'segN') o.material.blending = THREE.NormalBlending;
   } else if (kind === 'strip') {
     const geo = new THREE.BufferGeometry();
     const n = (FX3_STRIP_N + 1) * 2;
@@ -463,6 +465,8 @@ function fx3Take(h, kind) {
   const pool = FX3.pools[kind] || (FX3.pools[kind] = []);
   const o = pool.pop() || fx3Make(kind);
   o.visible = true;
+  // Kegel werden seit 9.7 auch frei gedreht (Eiszapfen): immer aufrecht ausgeben
+  if (kind === 'cone' || kind === 'coneG') o.rotation.set(0, 0, 0);
   h.parts.push(o);
   return o;
 }
@@ -611,6 +615,48 @@ const _x3tile = {};
 const _x3col = new THREE.Color();
 const _x3mix = new THREE.Color('#6b5236');
 const CRATER3_MAX = 3;
+
+// Eiszapfen des Blizzards (seit 9.7): ein Bündel spitzer Eiskegel, Spitze voran in Fallrichtung, mit dünner,
+// heller Fallspur (früher runde Leuchtkugeln) und einem kalten Schatten am Boden
+const _icDir = new THREE.Vector3();
+const _icUp = new THREE.Vector3(0, 1, 0);
+const _icQ = new THREE.Quaternion();
+const ICICLE3 = [[0, 0, 0, 1, 0.13], [0.09, 0.05, 0.12, 0.62, 0.08], [-0.08, -0.04, 0.1, 0.55, 0.07]];
+function fx3Icicle(h, e, u, sz, fall) {
+  fall(u, _x3c);
+  fall(Math.max(0, u - 0.08), _x3p);
+  _icDir.subVectors(_x3c, _x3p);
+  if (_icDir.lengthSq() < 1e-6) _icDir.set(-45 * U3, -3.8, 20 * U3);
+  _icDir.normalize();
+  // Spitze zeigt nach unten in Fallrichtung (Kegelspitze ist +Y)
+  _icQ.setFromUnitVectors(_icUp, _icDir);
+  // Fallspur: zwei dünne Striche hinter dem Zapfen
+  fall(Math.max(0, u - 0.3), _x3p);
+  const tr = fx3Take(h, 'seg');
+  fx3Segment(tr, _x3p, _x3c, 0.025 * sz);
+  fx3Color(tr, '#dff4ff', 0.55);
+  const tr2 = fx3Take(h, 'seg');
+  fx3Segment(tr2, _x3p, _x3c, 0.07 * sz);
+  fx3Color(tr2, '#6ab8ff', 0.2);
+  for (const [ox, oz, back, len, wid] of ICICLE3) {
+    const ice = fx3Take(h, 'cone');
+    ice.quaternion.copy(_icQ);
+    ice.position.copy(_x3c).addScaledVector(_icDir, -back * sz - len * sz * 0.5);
+    ice.position.x += ox * sz;
+    ice.position.z += oz * sz;
+    ice.scale.set(wid * sz, len * sz, wid * sz);
+    ice.material.color.set('#a8dcff');
+    ice.material.opacity = 0.95;
+    const core = fx3Take(h, 'coneG');
+    core.quaternion.copy(_icQ);
+    core.position.copy(ice.position);
+    core.scale.set(wid * sz * 0.5, len * sz * 0.9, wid * sz * 0.5);
+    fx3Color(core, '#7ac8ff', 0.8);
+  }
+  const sh = fx3Take(h, 'planeN');
+  fx3Ground(sh, e.x, e.y, 0.2 + u * 0.35 * sz, 0.04, 'disc');
+  fx3Color(sh, '#9fd8ff', 0.2 + u * 0.35);
+}
 
 const FX3_DRAW = {
   // Sichelwelle (seit 8.3): stahlweiße Klingensichel, aufrecht und 40° nach vorn gekippt, gleitet über den Boden;
@@ -1013,6 +1059,7 @@ const FX3_DRAW = {
     if (t > e.fall + 0.05) return;
     const sz = e.size || 1;
     const fall = (q, out) => out.set((e.x + (1 - q) * 45) * U3, 0.15 + (1 - q) * 3.8, (e.y - (1 - q) * 20) * U3);
+    if (ice) return fx3Icicle(h, e, u, sz, fall);
     for (let i = 5; i >= 0; i--) {
       fall(Math.max(0, u - i * 0.06), _x3p);
       const o = fx3Take(h, 'sprite');

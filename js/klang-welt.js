@@ -937,6 +937,28 @@ const PLAYER_SND = {
     sGrains(c, out, { dur: 2.0, rate: 140, f: [2500, 9000], dec: [0.001, 0.004], q: 0.96, vol: 0.4 }, r);
     return 2.0;
   },
+  // Strom der Elemente: rauschender Wasserschwall mit Blasen, knisternder Ladung und Feuerfauchen (Schleife)
+  strom_loop: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 900], [0.8, 1300], [1.6, 800], [2.0, 1100]], q: 0.6, amp: [[0, 0.55], [2.0, 0.55]], color: 'pink', rough: [7, 0.35] });
+    sNoise(c, out, { f: 260, type: 'lowpass', amp: [[0, 0.5], [2.0, 0.5]], color: 'brown', rough: [5, 0.4] });
+    sBubbles(c, out, { dur: 2.0, rate: 70, f: [300, 1400], vol: 0.25 }, r);
+    sGrains(c, out, { dur: 2.0, rate: 90, f: [1500, 6000], dec: [0.0005, 0.002], q: 0.85, vol: 0.3 }, r);
+    sGrains(c, out, { dur: 2.0, rate: 25, f: [900, 3500], dec: [0.002, 0.006], q: 0.9, vol: 0.3, tail: 3 }, r);
+    return 2.0;
+  },
+  // Schluss: großer Platscher, Donnerschlag, Erdbruch
+  strom_end: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 3000], [0.5, 600]], type: 'lowpass', amp: [[0, 0], [0.01, 0.8], [0.6, 0]], color: 'pink' });
+    sBubbles(c, out, { dur: 0.6, rate: 60, f: [300, 1500], vol: 0.3 }, r);
+    PLAYER_SND.el_beben(c, out, r);
+    sNoise(c, out, { at: 0.4, f: 2500, type: 'highpass', amp: [[0, 0], [0.002, 0.9], [0.06, 0.2], [0.15, 0]] });
+    return 1.9;
+  },
+  imp_wasser: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 2500], [0.2, 900]], q: 0.8, amp: [[0, 0], [0.004, 0.6], [0.25, 0]] });
+    sBubbles(c, out, { at: 0.02, dur: 0.2, rate: 60, f: [400, 1400], vol: 0.3 }, r);
+    return 0.3;
+  },
   beam_end: (c, out, r) => {
     sGrains(c, out, { dur: 0.25, rate: [[0, 300], [0.25, 20]], f: [3000, 9000], dec: [0.003, 0.015], q: 0.985, vol: 0.4 }, r);
     sNoise(c, out, { f: [[0, 4000], [0.3, 1500]], q: 1, amp: [[0, 0.3], [0.3, 0]] });
@@ -1129,45 +1151,47 @@ const snd = {
     this.kiai(p, true);
   },
 
-  // Eisstrahl: Schleife solange er läuft (je Figur eine), am Ende Splittern
-  beamLoop(p) {
+  // Dauerklang (Eisstrahl, Strom der Elemente): Schleife solange er läuft (je Figur und Klang eine), am Ende ein Schlussklang
+  beamLoop(p, key = 'beam_loop', base = 0.4) {
     const c = sfx.ac();
     if (!c) return;
-    let b = p._beamSnd;
+    const slot = '_snd_' + key;
+    let b = p[slot];
     if (!b) {
-      const buf = this.buffer('p:beam_loop#0', PLAYER_SND.beam_loop, sndHash('p:beam_loop#0'));
+      const buf = this.buffer('p:' + key + '#0', PLAYER_SND[key], sndHash('p:' + key + '#0'));
       if (!buf) return;
       const src = c.createBufferSource();
       src.buffer = buf;
       src.loop = true;
       src.loopStart = 0.2;
-      src.loopEnd = 1.9;
+      src.loopEnd = buf.duration - 0.3;
       const g = c.createGain();
       g.gain.value = 0;
       src.connect(g);
       g.connect(sfx.master);
       src.start();
-      b = p._beamSnd = { src, g };
+      b = p[slot] = { src, g };
     }
     const me = game.player;
     const d = me && p !== me ? Math.hypot(p.x - me.x, p.y - me.y) : 0;
-    const vol = (p === me ? 0.4 : 0.25) * (d < 140 ? 1 : Math.max(0, 1 - (d - 140) / 760));
+    const vol = base * (p === me ? 1 : 0.6) * (d < 140 ? 1 : Math.max(0, 1 - (d - 140) / 760));
     b.g.gain.setTargetAtTime(vol, c.currentTime, 0.04);
     clearTimeout(b.off);
     // ohne Nachschub (Netz weg) nach 0,7 s aus
-    b.off = setTimeout(() => this.beamStop(p), 700);
+    b.off = setTimeout(() => this.beamStop(p, key), 700);
   },
-  beamStop(p = game.player) {
-    const b = p && p._beamSnd;
+  beamStop(p = game.player, key = 'beam_loop', endKey = 'beam_end') {
+    const slot = '_snd_' + key;
+    const b = p && p[slot];
     if (!b) return;
-    p._beamSnd = null;
+    p[slot] = null;
     clearTimeout(b.off);
     const c = sfx.ctx;
     if (c) {
       b.g.gain.setTargetAtTime(0, c.currentTime, 0.05);
       b.src.stop(c.currentTime + 0.3);
     }
-    this.player('beam_end', { x: p.x, y: p.y, vol: p === game.player ? 0.45 : 0.3 });
+    this.player(endKey, { x: p.x, y: p.y, vol: p === game.player ? 0.5 : 0.3, rev: 0.3 });
   },
 
   female(p) {

@@ -180,6 +180,17 @@ function drawParticles(ctx) {
       ctx.moveTo(q.x, q.y);
       ctx.lineTo(q.x - q.vx * 0.045, q.y - q.vy * 0.045);
       ctx.stroke();
+    } else if (q.shape === 'shard') {
+      // spitzer Splitter in Flugrichtung (Eis, seit 9.7)
+      const a = Math.atan2(q.vy, q.vx);
+      const L = q.size * 1.8;
+      ctx.beginPath();
+      ctx.moveTo(q.x + Math.cos(a) * L, q.y + Math.sin(a) * L);
+      ctx.lineTo(q.x + Math.cos(a + 2.6) * q.size * 0.6, q.y + Math.sin(a + 2.6) * q.size * 0.6);
+      ctx.lineTo(q.x - Math.cos(a) * L * 0.6, q.y - Math.sin(a) * L * 0.6);
+      ctx.lineTo(q.x + Math.cos(a - 2.6) * q.size * 0.6, q.y + Math.sin(a - 2.6) * q.size * 0.6);
+      ctx.closePath();
+      ctx.fill();
     } else if (q.shape === 'square') {
       ctx.save();
       ctx.translate(q.x, q.y);
