@@ -1747,14 +1747,18 @@ function drawOverlay3(ctx) {
   for (const m of game.monsters) if (!m.dead && inView(m.x, m.y)) list.push(m);
   for (const a of game.allies) list.push(a);
   for (const n of game.world.npcs) if (inView(n.x, n.y)) list.push(n);
-  for (const pl of players) list.push(pl);
+  for (const pl of players) {
+    list.push(pl);
+    // Diener der Mitspieler (seit 8.5): nur der Name
+    if (pl.allies) for (const al of pl.allies) if (inView(al.x, al.y)) list.push(al);
+  }
   list.sort(byY);
   for (const e of list) {
     const fy = feetY(e);
     const head = v3HeadHeight(e);
     v3Anchor(ctx, e.x, fy, head, e.x, fy - figureHeight(e));
     if (e.type && !e.isStone && !e.until) drawMonsterStatus(ctx, e);
-    if (!e.type && !e.isStone && !e.remote && e !== game.player && !e.until) drawNpcMarks(ctx, e);
+    if (!e.type && !e.isStone && !e.remote && e !== game.player && !e.until && !e.remoteAlly) drawNpcMarks(ctx, e);
     drawLabel(ctx, e);
   }
   drawTexts(ctx);

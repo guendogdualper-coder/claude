@@ -1090,28 +1090,36 @@ const SKILL_TYPES = {
     particles(bc.x, bc.y, { count: 16, color: ['#ff6a7a', '#c43a5a'], angle: ang, spread: 0.3, speed: [dist(t, p) * 1.6, dist(t, p) * 2.6], life: [0.3, 0.45], size: [2, 3.5], drag: 0.5 });
   },
 
+  // Totenbeschwörung (seit 8.5): drei Diener nach Rang – Skelettkrieger, ab E1 Knochenhunde (Werte in sk.tiers)
   summon(sk, pw, lvl) {
     const p = game.player;
-    const s = game.stats;
+    const ti = Math.min(sk.tiers.length - 1, skillRank(lvl) + 1);
+    const T = sk.tiers[ti];
+    // alte Diener zerfallen sichtbar
+    for (const a of game.allies) allyCrumble(a);
     game.allies = [];
+    releaseAllyTargets();
+    const life = skillDuration(sk, lvl);
+    const pts = [];
+    const fa = Math.atan2(p.facing.y, p.facing.x);
     for (let k = 0; k < sk.count; k++) {
-      const ang = Math.PI * 2 * k / sk.count;
-      const x = p.x + Math.cos(ang) * 34;
-      const y = p.y + Math.sin(ang) * 20;
-      const maxHp = Math.round(s.maxHp * sk.hp * buffScale(lvl));
-      game.allies.push({
-        id: 'ally' + k, x, y, r: 10,
-        hp: maxHp, maxHp, atk: Math.round(s.atk * sk.atk * pw), def: Math.round(s.def * 0.5),
-        until: game.time + skillDuration(sk, lvl), target: null, cd: 0, facing: 1, swing: 0
+      // im Halbkreis vor der Figur
+      const ang = fa + (k - 1) * 0.9;
+      let x = p.x + Math.cos(ang) * 40;
+      let y = p.y + Math.sin(ang) * 26;
+      if (!canStand(x, y, 10, false)) { x = p.x; y = p.y; }
+      // Zahlen-ID (nie Text): animateCreature rechnet mit e.id, Text ergab NaN-Knochen in 3D
+      const a = Object.assign({ id: nextAllyId++, ally: true, x, y }, allyTierStats(sk, lvl, k), {
+        born: game.time + k * 0.12, rise: 0.6, until: game.time + life,
+        target: null, cd: 0.4 + k * 0.15, pounceCd: 0, windup: 0, attackAnim: 0, swing: 0, facing: 1, moving: false, leap: null
       });
-      addEffect({ type: 'runes', x, y: y + 8, r: 22, dur: 0.9, color: '#a7e37f' });
-      // die Erde bricht auf: Riss, Knochenzacken und grüner Rauch, wo das Skelett aufsteigt
-      addEffect({ type: 'decal', kind: 'crack', x, y: y + 8, r: 20, dur: 2.2, color: '#1a2a14' });
-      addEffect({ type: 'shards3', x, y: y + 8, r: 26, count: 5, color: '#e8e0c8', glow: false, size: 0.7, dur: 1 });
-      addEffect({ type: 'smoke3', x, y: y + 8, count: 5, color: '#14281a', size: 0.7, dur: 1 });
-      particles(x, y + 6, { count: 14, color: ['#ddd5bb', '#a7e37f'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 140], life: [0.4, 0.7], size: [2, 3.5], shape: 'square', gravity: 200 });
+      a.hp = a.maxHp;
+      game.allies.push(a);
+      later(k * 0.12, () => allyRiseFx(x, y, T.kind));
+      pts.push([Math.round(x), Math.round(y)]);
     }
-    ui.log(sk.count + ' Skelette erheben sich aus dem Boden.', 'info');
+    ui.log('Drei ' + (T.kind === 'hund' ? T.name.replace('hund', 'hunde') : 'Skelettkrieger') + ' erheben sich aus dem Boden.', 'info');
+    return { k: ti, pts };
   },
 
   curse(sk, pw, lvl) {

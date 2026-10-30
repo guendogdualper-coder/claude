@@ -41,8 +41,8 @@ const ULTIMATES = {
   },
   seelen: {
     id: 'seelenernte', name: 'Seelenernte', short: 'SE', color: '#7fe3a0',
-    text: 'Ein Seelenstrudel zieht alle Gegner um dich zusammen und zehrt an ihnen, dann reißt er ihre Seelen heraus und heilt dich.',
-    stats: '6 Sog-Treffer je 1×, Ernte 3,5×, heilt 3 % je Gegner'
+    text: 'Ein Seelenstrudel zieht alle Gegner um dich zusammen und zehrt an ihnen, dann reißt er ihre Seelen heraus und heilt dich. Deine Diener werden voll geheilt, bleiben 15 s länger und greifen 8 s lang schneller an.',
+    stats: '6 Sog-Treffer je 1×, Ernte 3,5×, heilt 3 % je Gegner; Diener: volle Heilung, +15 s, 8 s +33 % Angriffstempo'
   },
   knochen: {
     id: 'knochenkerker', name: 'Knochenkerker', short: 'KK', color: '#e8e0c8',
@@ -361,6 +361,14 @@ const ULT_RUN = {
       if (heal > 0 && !p.dead) {
         p.hp = Math.min(game.stats.maxHp, p.hp + heal);
         addText(p.x, p.y - 44, '+' + heal, 'heal');
+      }
+      // seit 8.5: die Seelen stärken auch die Diener (voll geheilt, 15 s länger, 8 s schneller)
+      for (const a of game.allies) {
+        a.hp = a.maxHp;
+        a.until += 15;
+        a.frenzyUntil = game.time + 8;
+        addEffect({ type: 'beam', x: p.x, y: p.y - 18, follow2: a, dur: 0.5, color: u.color });
+        addEffect({ type: 'column3', x: a.x, y: feetY(a), hgt: 1.2, dur: 0.5, color: '#7fe3a0' });
       }
       addEffect({ type: 'ring', x: cx, y: cy, r: 230, dur: 0.6, color: u.color, width: 16, grow: true });
       particles(cx, cy - 20, { count: 60, color: [u.color, '#ffffff', '#3a6a4a'], speed: [100, 320], life: [0.5, 1], size: [2, 4.5], drag: 2 });

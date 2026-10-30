@@ -408,13 +408,16 @@ function updateDuel() {
   if (Math.hypot(p.x - d.cx, p.y - d.cy) > DUEL.arena && game.time >= d.fightAt) duelLose('Du hast den Duellkreis verlassen.');
 }
 
-// Treffer auf den Stellvertreter: rohen Schaden an den Gegner schicken
+// Treffer auf den Stellvertreter: rohen Schaden an den Gegner schicken.
+// Diener (opts.ally) treffen mit ihrem eigenen Angriffswert (opts.atk), im Duell nur halb und nie kritisch.
+const DUEL_ALLY_MUL = 0.5;
 function duelHit(m, mul, opts) {
   const p = game.player;
   const s = game.stats;
   if (!duelFighting()) return 0;
-  const crit = Math.random() < s.crit + (opts.critBonus || 0);
-  const raw = s.atk * mul * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1);
+  const base = opts.atk != null ? opts.atk : s.atk;
+  const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
+  const raw = base * mul * (opts.ally ? DUEL_ALLY_MUL : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1);
   netSocial(game.duel.pid, { k: 'dh', a: Math.round(raw), c: crit ? 1 : 0, l: p.level });
   vfxImpact(m, crit, opts.vfxColor);
   if (opts.skill) skillHitFx(opts.skill, m, crit, opts.heavy);
@@ -719,6 +722,11 @@ function remoteSkillFx(rp, d) {
       break;
     case 'summon':
       addEffect({ type: 'runes', follow: rp, ox: 0, oy: 8, r: 40, dur: 0.9, color: '#a7e37f' });
+      // seit 8.5: an jedem Platz bricht die Erde auf (ältere Clients schicken keine Punkte)
+      if (sk.tiers) {
+        const kind = (sk.tiers[d.k || 0] || sk.tiers[0]).kind;
+        (d.pts || []).forEach(([x, y], k) => later(k * 0.12, () => allyRiseFx(x, y, kind)));
+      }
       break;
     case 'curse':
       addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: sk.color || '#a774e0' });

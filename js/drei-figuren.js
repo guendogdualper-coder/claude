@@ -3331,17 +3331,105 @@ function buildStone3(b, st) {
   return { rig, height: y0 + H + 0.1, family: 'stone' };
 }
 
-// Beschworene Skelette
-function buildSkeleton3(b) {
-  const bone = '#ddd5bb';
+// --- Diener des Nekromanten (seit 8.5) -----------------------------------------------------------------
+// Skelettkrieger: Schädel mit Kiefer und grünen Augen, offene Rippen, zerfetzter Lendenschurz,
+// rostiges Kurzschwert und kleiner runder Knochenschild. Keine Hörner, kein Helm (kein feindlicher Grabwächter).
+function skeletonWarrior3(b) {
+  const bone = '#e2dac2';
+  const shade = '#b8b096';
+  const cloth = '#2e4526';
   const res = humanoid3(b, {
-    skin: bone, torso: '#4a4434', sleeve: bone, pants: '#3a3428', boots: '#2a241c', gloves: bone, belt: '#3a2a1c',
-    weapon: { kind: 'sword', tier: 1 }, glowEyes: '#a7e37f', noMouth: true, noNose: true, noEars: true, blush: false, bonePads: true
+    skin: bone, torso: '#26241c', sleeve: bone, pants: bone, boots: shade, gloves: bone, collar: bone, bootTrim: shade, cuff: shade,
+    skirt: cloth, flap: '#243a1e', belt: '#3a2a1c', noBuckle: true, pouch: false,
+    glowEyes: '#a7e37f', angry: false, noMouth: true, noNose: true, noEars: true, blush: false, bonePads: true, headR: 0.28,
+    // Schädel: Hinterkopf, Wangenknochen, tiefe Augenhöhlen mit grünem Glühen, Nasenloch, Zahnreihe, abgesetzter Unterkiefer
+    headgear: (A, hb, hc, hr) => {
+      const [x, y, z] = hc;
+      A(ball(14), bone, { bone: hb, p: [x, y + hr * 0.12, z - hr * 0.22], s: [hr * 0.9, hr * 0.84, hr * 0.92] });
+      A(roundBox(hr * 1.5, hr * 0.16, hr * 0.3, hr * 0.08), shade, { bone: hb, p: [x, y + hr * 0.14, z + hr * 0.72], r: [0.25, 0, 0] });
+      for (const sx of [-1, 1]) {
+        A(ball(10), '#14100c', { bone: hb, p: [x + sx * hr * 0.36, y - hr * 0.08, z + hr * 0.72], s: [hr * 0.27, hr * 0.24, hr * 0.2], mat: 'face' });
+        A(ball(10), '#a7e37f', { bone: hb, p: [x + sx * hr * 0.36, y - hr * 0.08, z + hr * 0.9], s: [hr * 0.13, hr * 0.11, hr * 0.05], mat: 'glow' });
+        A(ball(8), bone, { bone: hb, p: [x + sx * hr * 0.62, y - hr * 0.32, z + hr * 0.55], s: [hr * 0.2, hr * 0.14, hr * 0.22] });
+      }
+      A(horn3(+(hr * 0.2).toFixed(3), +(hr * 0.09).toFixed(3), 3), '#1a1410', { bone: hb, p: [x, y - hr * 0.2, z + hr * 0.93], r: [Math.PI, 0, 0], s: [1, 1, 0.5] });
+      A(roundBox(hr * 0.62, hr * 0.06, hr * 0.06, hr * 0.02), '#1a1410', { bone: hb, p: [x, y - hr * 0.48, z + hr * 0.86] });
+      for (let k = -3; k <= 3; k++) A(roundBox(hr * 0.07, hr * 0.11, hr * 0.05, hr * 0.02), '#f4eedc', { bone: hb, p: [x + k * hr * 0.085, y - hr * 0.41, z + hr * 0.88 - Math.abs(k) * hr * 0.03] });
+      A(ball(12), shade, { bone: hb, p: [x, y - hr * 0.6, z + hr * 0.42], s: [hr * 0.62, hr * 0.2, hr * 0.5] });
+      // Schädelnaht und Risse auf der Schädeldecke (von oben gut zu sehen)
+      A(roundBox(hr * 0.04, hr * 0.32, hr * 0.03, hr * 0.012), '#5a5444', { bone: hb, p: [x + hr * 0.3, y + hr * 0.55, z + hr * 0.6], r: [0.6, 0, 0.5] });
+      for (let k = 0; k < 3; k++) A(roundBox(hr * 0.05, hr * 0.03, hr * 0.42, hr * 0.012), '#6a6450', { bone: hb, p: [x + (k % 2 ? 0.05 : -0.05) * hr, y + hr * (0.96 - Math.abs(k - 1) * 0.06), z + hr * (0.25 - k * 0.42)], r: [0.35 - k * 0.35, (k % 2 ? 0.4 : -0.4), 0] });
+    }
   });
-  res.scale = 0.9;
+  const A = adder(b);
+  const { hipY, shY, shX } = res;
+  const chestY = hipY + 0.26;
+  // offene Rippen über dem dunklen Brustkorb, Brustbein vorn, Wirbelsäule hinten
+  for (let k = 0; k < 4; k++) A(torus3(0.215 - k * 0.012, 0.018, Math.PI * 1.08, 3, 12), k % 2 ? bone : '#d6ceb4', { bone: BH.chest, p: [0, chestY + 0.11 - k * 0.065, 0], r: [Math.PI / 2 - 0.1, 0, -Math.PI * 0.04], s: [1, 0.86, 1], noShadow: true });
+  A(roundBox(0.045, 0.24, 0.03, 0.015), bone, { bone: BH.chest, p: [0, chestY + 0.02, 0.19], r: [0.08, 0, 0] });
+  for (let k = 0; k < 5; k++) A(ball(8), shade, { bone: BH.chest, p: [0, hipY + 0.08 + k * 0.07, -0.16], s: [0.04, 0.03, 0.035] });
+  A(ball(10), shade, { bone: BH.hips, p: [0, hipY - 0.02, 0], s: [0.16, 0.06, 0.12] });
+  // zerfetzte Stoffstreifen am Lendenschurz
+  for (let k = 0; k < 7; k++) {
+    const a = -1.2 + (k / 6) * 2.4;
+    A(horn3(0.1 + (k % 3) * 0.04, 0.04, 4), k % 2 ? cloth : '#1f3319', { bone: BH.hips, p: [Math.sin(a) * 0.22, hipY - 0.32, Math.cos(a) * 0.19], r: [Math.PI, 0, (k - 3) * 0.06], s: [1, 1, 0.35], noShadow: true });
+  }
+  // rostiges Kurzschwert (rechte Hand)
+  const armLen = 0.31;
+  const handR = [-shX, shY - armLen - 0.031, 0.02];
+  const W = framed(A, partFrame(handR, WEAPON_HOLD.sword), BH.handR);
+  W(limb3(0.14, 0.026, 0.024, 7), '#4a3426', { p: [0, 0.03, 0] });
+  W(roundBox(0.2, 0.035, 0.05, 0.014), '#6a5a48', { p: [0, 0.05, 0], shine: 0.4 });
+  W(roundBox(0.085, 0.42, 0.022, 0.01), '#8a8276', { p: [0, 0.27, 0], shine: 0.5 });
+  W(horn3(0.08, 0.042, 4), '#8a8276', { p: [0, 0.48, 0], s: [1, 1, 0.26], shine: 0.5 });
+  for (const [py, px] of [[0.16, 0.02], [0.3, -0.018], [0.4, 0.012]]) W(ball(6), '#9a5a32', { p: [px, py, 0.012], s: [0.026, 0.04, 0.012], noShadow: true });
+  // kleiner runder Knochenschild (linker Unterarm)
+  const S = framed(A, partFrame([shX + 0.08, shY - armLen * 0.6, 0.05], [0, 0, Math.PI / 2]), BH.handL);
+  S(cyl3(0.17, 0.17, 0.035, 16), '#c8c0a6', { top: bone, topK: 0.4, shade: 0.15 });
+  S(torus3(0.17, 0.02, Math.PI * 2, 4, 18), shade, { r: [Math.PI / 2, 0, 0] });
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    S(roundBox(0.03, 0.02, 0.13, 0.01), '#a8a088', { p: [Math.cos(a) * 0.09, 0.02, Math.sin(a) * 0.09], r: [0, -a, 0] });
+  }
+  S(ball(10), bone, { p: [0, 0.035, 0], s: [0.055, 0.04, 0.055], shine: 0.4 });
+  res.style = 'swing';
+  res.scale = 1.0;
+  res.blob = 0.42;
   return res;
 }
 
+// Knochenhund: hager, Rippen, Stachelkamm, grün glühende Mähne und Augen; ab L Seelenhund mit
+// leuchtenden Streifen und Mähnenspitzen in Rangfarbe, der Alpha mit Rune auf dem Rücken
+function boneHound3(b, al) {
+  const soul = al.tier >= 3;
+  const tip = soul ? SKILL_RANKS[al.alpha ? 3 : 2].color : null;
+  const res = beast3(b, {
+    fur: '#ddd5bb', belly: '#a8a088', back: '#8a8270', ribs: true, ridge: true, fangs: true, lean: true, angry: true, glow: true,
+    eye: '#a7e37f', mane: soul ? '#9ff0b8' : '#7ad36a', glowMane: true, stripes: soul ? '#7fe3a0' : null, glowStripes: soul,
+    noEars: true, rune: al.alpha ? '#e0ffd0' : null
+  });
+  const A = adder(b);
+  const { hp, bodyY, len, bw } = res;
+  // spitze Knochenohren statt Fellohren
+  for (const sx of [-1, 1]) A(horn3(0.15, 0.045, 5), '#c8c0a6', { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.12, hp[2] - 0.05], r: [-0.35, 0, -sx * 0.4], s: [1, 1, 0.6] });
+  // Mähnenspitzen in Rangfarbe (Seelenhunde)
+  if (tip) for (let k = 0; k < 4; k++) A(horn3(0.08, 0.03, 4), tip, { bone: BQ.body, p: [0, bodyY + 0.36 * bw - k * 0.02, len * (0.15 - k * 0.24)], r: [-0.5, 0, 0], mat: 'glow', noShadow: true });
+  // Alpha: leuchtende Rune auf dem Rücken
+  if (al.alpha) {
+    const ry = bodyY + 0.22 * bw;
+    A(torus3(0.11, 0.014, Math.PI * 2, 3, 16), '#e0ffd0', { bone: BQ.body, p: [0, ry, -len * 0.1], r: [Math.PI / 2, 0, 0], mat: 'glow', noShadow: true });
+    for (const a of [0, Math.PI / 3, -Math.PI / 3]) A(box3(), '#e0ffd0', { bone: BQ.body, p: [0, ry + 0.005, -len * 0.1], r: [0, a, 0], s: [0.016, 0.01, 0.17], mat: 'glow', noShadow: true });
+  }
+  return Object.assign(res, { family: 'beast', style: 'bite', blob: 0.5, scale: 1.0 });
+}
+
+// Modellschlüssel der Diener ohne neue Zeichenketten je Bild: Skelett, Knochenhund, Seelenhund, Alpha
+const ALLY_KEYS3 = ['ally:skelett', 'ally:hund', 'ally:hund:soul', 'ally:hund:soul:alpha'];
+const allyKeyIndex3 = (al) => (al.kind !== 'hund' ? 0 : al.tier >= 3 ? (al.alpha ? 3 : 2) : 1);
+const ALLY_LOOK3 = [null, { tier: 1, alpha: false }, { tier: 3, alpha: false }, { tier: 4, alpha: true }];
+function allyBuild3(b, i) {
+  return i ? boneHound3(b, ALLY_LOOK3[i]) : skeletonWarrior3(b);
+}
 // --- Modelle bauen, zwischenspeichern und als Figuren aufstellen ---------------------------------------
 
 const MODELS3 = new Map();
@@ -3481,6 +3569,7 @@ let targetRing3 = null;
 
 function disposeActor(a) {
   for (const k in a.mats) a.mats[k].dispose();
+  if (a.mark) a.mark.material.dispose();
   if (a.aura) {
     a.aura.material.dispose();
     a.aura = null;
@@ -3624,6 +3713,14 @@ function v3Prewarm() {
     model3(key, (b) => monsterBuild(b, m.typeId, m.__v3));
     return;
   }
+  // Diener (seit 8.5): Skelettkrieger, Knochen-, Seelen- und Alphahund, wenn man selbst beschwört oder Mitspieler Diener haben
+  let summoner = game.allies.length > 0 || classSkills(p).some((sk) => sk.type === 'summon');
+  if (!summoner) for (const rp of net.players.values()) if (rp.allies && rp.allies.length) summoner = true;
+  if (summoner) for (let i = 0; i < ALLY_KEYS3.length; i++) {
+    if (MODELS3.has(ALLY_KEYS3[i])) continue;
+    model3(ALLY_KEYS3[i], (b) => allyBuild3(b, i));
+    return;
+  }
 }
 
 // Varianten (seit 8.4): Arten mit mehreren Köpfen im Baukasten nehmen die Variante aus dem Startpunkt
@@ -3674,7 +3771,9 @@ function v3SyncActors(dt) {
   for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && near(rp)) safe(syncPlayer3, rp);
   for (const c of game.clones) if (near(c)) safe(syncPlayer3, c);
   for (const m of game.monsters) if (!m.dead && near(m)) syncMonster3(m, dt);
-  for (const al of game.allies) if (near(al)) syncAlly3(al, dt);
+  for (const al of game.allies) if (near(al)) safe(syncAlly3, al);
+  // Diener der Mitspieler (seit 8.5, Netzliste al)
+  for (const rp of net.players.values()) if (rp.allies && !remoteHidden(rp)) for (const al of rp.allies) if (near(al)) safe(syncAlly3, al);
   if (w) for (const n of w.npcs) if (near(n)) syncNpc3(n, dt);
   // Zuerst verschwundene Figuren in den Pool, dann übernehmen die Gefallenen genau diese Figuren
   for (const [k, a] of actors3) if (!a.seen && !a.corpse) dropActor(k, a);
@@ -4275,7 +4374,8 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   const fy = feetY(e);
   resetBones(a);
   const B = a.bones;
-  const t = game.time + (e.id || 0) * 0.37;
+  // nur Zahlen-IDs versetzen die Phase (Text wie früher 'ally0' ergab NaN-Knochen)
+  const t = game.time + (typeof e.id === 'number' ? e.id : 0) * 0.37;
   // Richtung: aus der Bewegung, beim Angriff zum Ziel (sonst zum Spieler)
   if (a.lastX != null) {
     const dx = e.x - a.lastX;
@@ -4398,10 +4498,33 @@ function syncStone3(s, dt) {
   if (a.mats.glow) a.mats.glow.color.setScalar(0.75 + 0.25 * Math.sin(game.time * 3 + s.x) + (1 - hp) * 0.3);
 }
 
+// Diener (eigene und die der Mitspieler): steigen aus dem Boden, holen aus und schlagen oder beißen,
+// springen an (Hunde); ein weicher grüner Ring zeigt, dass sie freundlich sind
 function syncAlly3(al, dt) {
-  const a = actorFor(entityKey(al), 'skel', (b) => Object.assign(buildSkeleton3(b), { blob: 0.4 }));
+  const ki = allyKeyIndex3(al);
+  const a = actorFor(entityKey(al), ALLY_KEYS3[ki], (b) => allyBuild3(b, ki));
   if (!a) return;
-  animateCreature(a, al, dt, al.moving, al.attackAnim > 0 ? al.attackAnim / 0.25 : 0, 0);
+  animateCreature(a, al, dt, al.moving, al.attackAnim > 0 ? al.attackAnim / 0.25 : 0, 0, al.windup > 0 ? 1 - al.windup / (al.windupMax || 0.15) : 0);
+  // beim Ausholen glüht ein Diener grün statt rot (keine Warnung, er gehört zu dir)
+  if (al.windup > 0 && a.mats.lit) a.mats.lit.emissive.setRGB(0.02, 0.14 * (1 - al.windup / (al.windupMax || 0.15)), 0.05);
+  const k = Math.max(0, Math.min(1, (game.time - al.born) / (al.rise || 0.6)));
+  const ek = easeOut(k);
+  // steigt aus dem Boden, das Skelett klettert vornübergebeugt heraus
+  a.group.position.y -= (1 - ek) * 0.9;
+  if (al.kind === 'skelett') {
+    a.group.rotation.x = 0.4 * (1 - ek);
+    // Schädel weiter zur Kamera geneigt: Augenhöhlen und Zähne statt nur der Schädeldecke
+    a.bones[BH.head].rotation.x -= 0.22;
+  }
+  if (al.leap) a.group.position.y += 0.35 * Math.sin(Math.PI * leapK(al));
+  a.group.scale.setScalar((al.scale || 1) * a.model.scale);
+  if (!a.mark) {
+    a.mark = groundRing(new THREE.Color('#7fe3a0'), false);
+    a.mark.position.y = 0.03;
+    a.mark.scale.setScalar(al.kind === 'hund' ? 0.5 : 0.42);
+    a.group.add(a.mark);
+  }
+  a.mark.material.opacity = 0.3 * ek;
 }
 
 function syncNpc3(n, dt) {

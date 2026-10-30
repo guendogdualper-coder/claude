@@ -91,6 +91,8 @@ function render() {
   for (const n of game.world.npcs) if (inView(n)) list.push(n);
   if (game.player && game.running && !game.player.dead) list.push(game.player);
   for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && inView(rp)) list.push(rp);
+  // Diener der Mitspieler (seit 8.5)
+  for (const rp of net.players.values()) if (rp.allies && !remoteHidden(rp)) for (const al of rp.allies) if (inView(al)) list.push(al);
   for (const c of game.clones) if (inView(c)) list.push(c);
   collectWorldObjects(list, x0, y0, x1, y1);
   // Alles nach der Fußlinie sortieren: was weiter unten steht, wird später (also davor) gezeichnet
@@ -105,8 +107,8 @@ function render() {
     if (e.worldObj) drawWorldObject(ctx, e);
     else if (e === game.player || e.remote || e.clone) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
-    // beschworene Skelette laufen ab (until); Risse auch, die zeichnet aber drawNpc
-    else if (e.until && e.id !== 'riss') drawSkeleton(ctx, e);
+    // Diener des Nekromanten (eigene und fremde)
+    else if (e.ally || e.remoteAlly) drawSkeleton(ctx, e);
     else if (e.type) drawMonster(ctx, e);
     else drawNpc(ctx, e);
   }
@@ -630,13 +632,41 @@ function drawPlayer(ctx, p) {
   ctx.restore();
 }
 
+// Diener des Nekromanten (eigene und die der Mitspieler): Skelettkrieger oder Knochenhund,
+// steigen aus dem Boden, stehen auf einem weichen grünen Ring, springen an (Hunde)
+const ALLY_HOUND_BOUNDS = { x: -36, y: -44, w: 72, h: 50 };
+const ALLY_HOUND_KEYS = [0, 1].map((soul) => [0, 1, 2, 3].map((f) => 'ally:hund:' + soul + ':' + f));
+function allyHoundSprite(soul, frame) {
+  return getSprite(ALLY_HOUND_KEYS[soul][frame], ALLY_HOUND_BOUNDS, (ctx) => {
+    ctx.scale(1.1, 1.1);
+    beastArt(ctx, frame, { fur: '#ddd5bb', belly: '#a8a088', mane: soul ? '#9ff0b8' : '#7ad36a', eye: '#a7e37f', glow: true, angry: true, fangs: true, ridge: true, lean: true });
+  });
+}
 function drawSkeleton(ctx, a) {
   const fy = feetY(a);
+  const k = Math.max(0, Math.min(1, (game.time - (a.born || 0)) / (a.rise || 0.6)));
+  const hound = a.kind === 'hund';
   ctx.save();
-  ctx.globalAlpha = Math.max(0.2, Math.min(1, (a.until - game.time) / 1.5));
-  drawShadow(ctx, a.x, fy, 10);
-  const frame = a.moving ? Math.floor(game.time * 9) % 4 : 0;
-  blitSprite(ctx, skeletonSprite(frame), a.x, fy, a.facing < 0);
+  // fremde Diener haben kein until (sie verschwinden mit der Liste des Mitspielers)
+  ctx.globalAlpha = (a.until ? Math.max(0.2, Math.min(1, (a.until - game.time) / 1.5)) : 1) * (0.25 + 0.75 * k);
+  ctx.fillStyle = 'rgba(127,227,160,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(a.x, fy, hound ? 17 : 13, hound ? 7 : 5.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  drawShadow(ctx, a.x, fy, hound ? 13 : 10);
+  // Aufstieg: nur was über dem Boden ist, ist zu sehen
+  if (k < 1) {
+    ctx.beginPath();
+    ctx.rect(a.x - 50, fy - 90, 100, 91);
+    ctx.clip();
+  }
+  const lunge = a.attackAnim > 0 ? Math.sin(a.attackAnim / 0.25 * Math.PI) * 5 * (a.facing < 0 ? -1 : 1) : 0;
+  const hop = a.leap ? Math.sin(Math.PI * leapK(a)) * 10 : 0;
+  ctx.translate(a.x + lunge, fy + (1 - k) * 14 - hop);
+  const sc = a.scale || 1;
+  if (sc !== 1) ctx.scale(sc, sc);
+  const frame = a.moving ? Math.floor(game.time * (hound ? 12 : 9) + (a.id || 0) * 0.37) % 4 : 0;
+  blitSprite(ctx, hound ? allyHoundSprite(a.tier >= 3 ? 1 : 0, frame) : skeletonSprite(frame), 0, 0, a.facing < 0);
   ctx.restore();
 }
 
@@ -1312,8 +1342,16 @@ function drawLabel(ctx, e) {
     ctx.fillText(label, e.x, ly);
     return;
   }
-  if (e.until) {
-    drawBar(ctx, e.x, feetY(e) - 50, 26, e.hp / e.maxHp, '#cfd8b0');
+  if (e.ally || e.remoteAlly) {
+    // Diener: Name in Grün (freundlich), eigene mit Lebensbalken
+    const y = feetY(e) - figureHeight(e) - 8;
+    if (e.name) {
+      ctx.font = '700 10px "Alegreya Sans", sans-serif';
+      ctx.strokeText(e.name, e.x, y - 5);
+      ctx.fillStyle = '#8ff0a8';
+      ctx.fillText(e.name, e.x, y - 5);
+    }
+    if (e.ally) drawBar(ctx, e.x, y, 26, Math.max(0, e.hp) / e.maxHp, '#7fe3a0');
     return;
   }
   if (!e.type && !e.isStone) {

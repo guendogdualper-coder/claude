@@ -707,6 +707,8 @@ function netPlayerState() {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
     hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
+    // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg], nur wenn welche da sind
+    ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0)]) } : {}),
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
     sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0
   };
@@ -766,6 +768,51 @@ function netApplyState(rp, s) {
     rp.seq = s.sw[0];
   }
   if (s.sp) rp.spin = 0.2;
+  netRemoteAllies(rp, Array.isArray(s.al) ? s.al : NET_NO_ALLIES);
+}
+
+const NET_NO_ALLIES = [];
+
+// Diener eines Mitspielers (seit 8.5): je Platz ein stabiles Objekt, nur zum Ansehen (kein Ziel, kein Schaden)
+function netRemoteAllies(rp, list) {
+  const out = rp.allies || (rp.allies = []);
+  const tiers = list.length ? (skillById('totenbeschwoerung') || {}).tiers || [] : [];
+  for (let n = 0; n < list.length; n++) {
+    const [x, y, tier, f] = list[n];
+    let al = out[n];
+    // neu beschworen oder erweckt: neues Objekt (neue Figur), steigt wieder aus dem Boden
+    if (!al || al.tier !== tier || (f & 8 && !al.rising)) {
+      al = out[n] = {
+        id: 2e6 + n, remoteAlly: true, kind: tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: tier ? 12 : 10,
+        facing: 1, moving: false, attackAnim: 0, swing: 0, windup: 0, windupMax: 0.15, alpha: false, scale: 1,
+        born: f & 8 ? game.time : game.time - 1, rise: 0.6, target: null, rising: false
+      };
+    }
+    if (Math.abs(x - al.x) > 1) al.facing = x > al.x ? 1 : -1;
+    al.tx = x;
+    al.ty = y;
+    if (Math.abs(al.x - x) + Math.abs(al.y - y) > 400) { al.x = x; al.y = y; }
+    // steigende Flanke: ein Biss oder Hieb, zum nächsten Monster gedreht
+    if (f & 1 && !al.hitBit) {
+      al.attackAnim = 0.25;
+      let best = null;
+      let bd = 70;
+      for (const m of game.monsters) {
+        if (m.dead) continue;
+        const d = Math.hypot(m.x - al.x, m.y - al.y);
+        if (d < bd) { best = m; bd = d; }
+      }
+      al.target = best;
+      if (best && Math.abs(best.x - al.x) > 1) al.facing = best.x > al.x ? 1 : -1;
+    }
+    al.hitBit = !!(f & 1);
+    al.rising = !!(f & 8);
+    al.moving = !!(f & 2);
+    al.alpha = !!(f & 4);
+    al.scale = tiers[tier] ? tiers[tier].scale * (al.alpha ? 1.35 : 1) : 1;
+    al.name = al.alpha ? 'Alpha' : tiers[tier] ? tiers[tier].name : '';
+  }
+  out.length = list.length;
 }
 
 // Jedes Bild: andere Spieler weich nachziehen, Zustand senden
@@ -800,6 +847,13 @@ function netUpdate(dt) {
     }
     if (rp.swing > 0) rp.swing = Math.max(0, rp.swing - dt);
     if (rp.spin > 0) rp.spin = Math.max(0, rp.spin - dt);
+    // Diener der Mitspieler weich nachziehen
+    if (rp.allies) for (const al of rp.allies) {
+      al.x += (al.tx - al.x) * k;
+      al.y += (al.ty - al.y) * k;
+      if (al.attackAnim > 0) al.attackAnim -= dt;
+      al.swing = Math.max(0, al.attackAnim);
+    }
     if (rp.riding && Math.abs(rp.facing.x) > 0.15) rp.rideFlip = rp.facing.x < 0;
   }
   if (net.mode === 'client') {

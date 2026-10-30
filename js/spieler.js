@@ -402,6 +402,8 @@ function upgradeSkill(i, type = 'point') {
     ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
     vfxLevelUp(p);
     rankCastFx(p, skillRank(next.from), next.color);
+    // seit 8.5: laufende Diener sofort auf den neuen Rang umbauen (Skelette werden zu Knochenhunden)
+    if (sk.type === 'summon') convertAllies(sk, p.skillLevels[i]);
   }
   ui.log(`${sk.name} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');
   refreshBuff(sk, p.skillLevels[i]);

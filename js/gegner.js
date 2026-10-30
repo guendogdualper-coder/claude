@@ -781,42 +781,243 @@ function updateMonsters(dt) {
   game.monsters = game.monsters.filter((m) => !(m.dead && !m.respawn));
 }
 
-// --- Skelette des Nekromanten ------------------------------------------------------
+// --- Diener des Nekromanten (seit 8.5: drei Diener, ab E1 Knochenhunde) -------------------------------
+
+// Diener bekommen Zahlen-IDs ab 1e6 (kollidieren nicht mit Monster-IDs in pr.hit), fremde Diener ab 2e6
+let nextAllyId = 1e6;
+const ALLY_RECALL = 500;   // weiter weg: der Diener steigt neben dem Spieler neu auf
+const ALLY_KEEP = 380;     // ein Ziel bleibt, solange es so nah am Spieler ist
+const ALLY_SEEK = 260;     // neue Ziele nur so nah am Spieler
+const ALLY_BURST_R = 70;   // Seelenfeuer der Seelenhunde beim Tod oder Ablauf
+
+// Fortschritt eines Ansprungs 0…1
+const leapK = (a) => (a.leap ? Math.max(0, Math.min(1, (game.time - a.leap.start) / a.leap.dur)) : 0);
+
+// Die Erde bricht auf: Rune, Riss, Knochenzacken und grüner Rauch, wo ein Diener aufsteigt (lokal und für Mitspieler)
+function allyRiseFx(x, y, kind) {
+  addEffect({ type: 'runes', x, y: y + 8, r: 22, dur: 0.9, color: '#a7e37f' });
+  addEffect({ type: 'decal', kind: 'crack', x, y: y + 8, r: 20, dur: 2.2, color: '#1a2a14' });
+  addEffect({ type: 'shards3', x, y: y + 8, r: 26, count: 5, color: '#e8e0c8', glow: false, size: 0.7, dur: 1 });
+  addEffect({ type: 'smoke3', x, y: y + 8, count: 5, color: '#14281a', size: 0.7, dur: 1 });
+  particles(x, y + 6, { count: 14, color: ['#ddd5bb', '#a7e37f'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 140], life: [0.4, 0.7], size: [2, 3.5], shape: 'square', gravity: 200 });
+  if (kind === 'hund') particles(x, y + 4, { count: 8, color: ['#7fe3a0', '#e0ffd0'], angle: -Math.PI / 2, spread: 0.5, speed: [50, 110], life: [0.5, 0.8], size: [2, 3] });
+}
+
+// Ein Diener zerfällt sichtbar zu Knochen und Rauch
+function allyCrumble(a) {
+  const fy = feetY(a);
+  addEffect({ type: 'shards3', x: a.x, y: fy, r: 22, count: 6, color: '#e8e0c8', glow: false, size: 0.6, dur: 0.9 });
+  addEffect({ type: 'smoke3', x: a.x, y: fy, count: 4, color: '#14281a', size: 0.6, dur: 0.9 });
+  addEffect({ type: 'decal', kind: 'crack', x: a.x, y: fy, r: 14, dur: 1.5, color: '#1a2a14' });
+  particles(a.x, fy - 12, { count: 10, color: ['#ddd5bb', '#8f8a78'], speed: [40, 110], life: [0.3, 0.6], size: [2, 3.5], shape: 'square', gravity: 260 });
+}
+
+// Monster, die einen verschwundenen Diener jagen, nehmen wieder den Spieler
+function releaseAllyTargets() {
+  const p = game.player;
+  for (const m of game.monsters) {
+    if (m.target && m.target.ally && !game.allies.includes(m.target)) m.target = p;
+  }
+}
+
+// Werte eines Dieners aus seiner Stufe (sk.tiers); k = Platz (der erste wird beim Vollendet-Rang zum Alpha)
+function allyTierStats(sk, lvl, k) {
+  const s = game.stats;
+  const ti = Math.min(sk.tiers.length - 1, skillRank(lvl) + 1);
+  const T = sk.tiers[ti];
+  const big = T.alpha && k === 0 ? T.alpha : 1;
+  return {
+    kind: T.kind, tier: ti, lvl, r: T.kind === 'hund' ? 12 : 10, maxHp: Math.round(s.maxHp * T.hp * buffScale(lvl) * big),
+    atkMul: T.atk * big, def: Math.round(s.def * T.def), every: T.every, windupMax: T.windup, speed: T.speed,
+    slow: T.slow || 0, burst: T.burst || 0, pounce: !!T.pounce, scale: T.scale * (big > 1 ? 1.35 : 1), alpha: big > 1,
+    name: big > 1 ? 'Alpha' : T.name
+  };
+}
+
+// Erwecken (Rangaufstieg) mit laufenden Dienern: an Ort und Stelle auf die neue Stufe umbauen
+function convertAllies(sk, lvl) {
+  if (!sk || sk.type !== 'summon' || !game.allies.length) return;
+  game.allies.forEach((a, k) => {
+    const share = a.maxHp ? Math.max(0, a.hp) / a.maxHp : 1;
+    // Lebensanteil und Restzeit bleiben, der Rest kommt aus der neuen Stufe
+    Object.assign(a, allyTierStats(sk, lvl, k), { born: game.time, windup: 0, attackAnim: 0, swing: 0, leap: null });
+    a.hp = Math.max(1, Math.round(a.maxHp * share));
+    addEffect({ type: 'column3', x: a.x, y: feetY(a), r: 24, hgt: 1.6, color: '#7fe3a0', core: '#e0ffd0', dur: 0.7 });
+    addEffect({ type: 'shards3', x: a.x, y: feetY(a), r: 24, count: 6, color: '#e8e0c8', glow: false, size: 0.6, dur: 0.9 });
+    allyRiseFx(a.x, a.y, a.kind);
+  });
+}
+
+// Angriffswert eines Dieners, live zur Trefferzeit: Dunkle Macht, INT und Zauberschaden wirken sofort
+function allyAtk(a) {
+  const s = game.stats;
+  return s.atk * a.atkMul * dmgScale(a.lvl) * (s.skillDmg || 1);
+}
+
+// Biss oder Hieb eines Dieners (kein Monsterschaden-Bonus, kein Lebensraub, 5 % Krit)
+function allyStrike(a, t, mul) {
+  a.attackAnim = 0.25;
+  a.swing = 0.25;
+  const bc = bodyCenter(t);
+  if (a.kind === 'hund') addEffect({ type: 'bite3', x: bc.x, y: bc.y, dur: 0.28, color: '#a7e37f', size: a.alpha ? 1.3 : 0.9 });
+  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: a.facing < 0 ? -0.75 : 0.75, len: 30, w: 5, dur: 0.22, color: '#cfd8b0' });
+  hitMonster(t, mul, { atk: allyAtk(a), ally: true, source: t.isStone ? game.player : a, slow: a.slow ? { amount: a.slow, duration: 1.5 } : null });
+}
 
 function damageAlly(a, amount) {
+  // beim Aufsteigen aus dem Boden unverwundbar
+  if (game.time < a.born + a.rise) return;
   a.hp -= amount;
   addText(a.x, a.y - 22, '-' + amount, 'hurt');
 }
 
-function updateAllies(dt) {
-  const p = game.player;
-  for (const a of game.allies) {
-    if (a.swing > 0) a.swing -= dt;
-    a.cd -= dt;
-    if (!a.target || a.target.dead || dist(a.target, p) > 380) {
-      a.target = aliveEnemies()
-        .filter((m) => dist(m, p) < 260)
-        .sort((x, y) => (y.target === p) - (x.target === p) || dist(x, a) - dist(y, a))[0] || null;
-    }
-    if (a.target) {
-      const t = a.target;
-      const d = dist(a, t);
-      a.moving = false;
-      if (d > t.r + a.r + 10) a.moving = moveToward(a, t.x, t.y, 150 * dt, false);
-      else if (a.cd <= 0) {
-        a.cd = 1;
-        a.swing = 0.25;
-        hitMonster(t, 1, { atk: a.atk, ally: true, source: t.isStone ? p : a });
-      }
-    } else {
-      a.moving = dist(a, p) > 60 && moveToward(a, p.x, p.y, 170 * dt, false);
+// Ziel suchen ohne neue Listen: wer den Spieler oder einen Diener angreift zuerst, dann der nächste.
+// Den Duell-Gegner nur im Netz (dort sieht er die Diener über die Liste al)
+function allyScore(m, a, p, proxyOk) {
+  if (m.dead || (m.duelProxy && !proxyOk) || dist(m, p) >= ALLY_SEEK) return Infinity;
+  return dist(m, a) - (m.target && (m.target === p || m.target.ally) ? 1e5 : 0);
+}
+function allyPickTarget(a, p) {
+  const proxyOk = net.mode === 'host' || net.mode === 'client';
+  let best = null;
+  let bestScore = Infinity;
+  for (const m of game.monsters) {
+    const sc = allyScore(m, a, p, proxyOk);
+    if (sc < bestScore) {
+      best = m;
+      bestScore = sc;
     }
   }
-  const before = game.allies.length;
-  game.allies = game.allies.filter((a) => a.hp > 0 && a.until > game.time);
-  if (game.allies.length < before) {
-    for (const m of game.monsters) {
-      if (m.target && m.target !== p && !game.allies.includes(m.target)) m.target = p;
+  if (duelFighting() && !game.duel.proxy.dead && allyScore(game.duel.proxy, a, p, proxyOk) < bestScore) best = game.duel.proxy;
+  return best;
+}
+
+function updateAllies(dt) {
+  const p = game.player;
+  const list = game.allies;
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i];
+    // Aufstieg: handelt noch nicht
+    if (game.time < a.born + a.rise) continue;
+    a.attackAnim -= dt;
+    a.swing = Math.max(0, a.attackAnim);
+    a.pounceCd -= dt;
+    // Seelenernte: 8 s lang im 0,75-fachen Abstand
+    a.cd -= dt * (a.frenzyUntil > game.time ? 1 / 0.75 : 1);
+    // Ansprung: in einem flachen Bogen zum Ziel, bei der Landung sofort ein kräftiger Biss
+    if (a.leap) {
+      const L = a.leap;
+      const k = leapK(a);
+      a.x = L.fx + (L.tx - L.fx) * k;
+      a.y = L.fy + (L.ty - L.fy) * k;
+      a.moving = false;
+      if (k >= 1) {
+        a.leap = null;
+        const t = a.target;
+        if (t && !t.dead && dist(a, t) <= t.r + a.r + 24) allyStrike(a, t, 1.3);
+        a.cd = a.every;
+      }
+      continue;
     }
+    // zu weit weg (Teleport, Kartenwechsel): neben dem Spieler neu aus dem Boden steigen
+    if (dist(a, p) > ALLY_RECALL) {
+      const ang = i * 2.1 + 0.6;
+      a.x = p.x + Math.cos(ang) * 36;
+      a.y = p.y + Math.sin(ang) * 22;
+      if (!canStand(a.x, a.y, 10, false)) {
+        a.x = p.x;
+        a.y = p.y;
+      }
+      a.target = null;
+      a.windup = 0;
+      a.moving = false;
+      a.born = game.time;
+      allyRiseFx(a.x, a.y, a.kind);
+      continue;
+    }
+    let t = a.target;
+    if (t && (t.dead || dist(t, p) > ALLY_KEEP)) t = a.target = null;
+    // ohne Ziel nur alle 0,2 s neu suchen
+    if (!t && game.time >= (a.seekAt || 0)) {
+      t = a.target = allyPickTarget(a, p);
+      a.seekAt = game.time + 0.2;
+    }
+    a.moving = false;
+    if (t) {
+      const d = dist(a, t);
+      const reach = t.r + a.r + 10;
+      a.facing = Math.sign(t.x - a.x) || a.facing;
+      if (a.windup > 0) {
+        // Ausholen: stehen bleiben, erst danach trifft der Hieb oder Biss
+        a.windup -= dt;
+        if (a.windup <= 0) {
+          a.windup = 0;
+          if (d <= reach * 1.3 + 10) allyStrike(a, t, 1);
+          else a.attackAnim = a.swing = 0.25;
+        }
+      } else if (a.pounce && a.pounceCd <= 0 && d >= 60 && d <= 130) {
+        // Ansprung bis kurz vor das Ziel
+        const ux = (t.x - a.x) / d;
+        const uy = (t.y - a.y) / d;
+        const tx = t.x - ux * (t.r + a.r + 2);
+        const ty = t.y - uy * (t.r + a.r + 2);
+        a.pounceCd = 5;
+        if (canStand(tx, ty, 8, false)) a.leap = { fx: a.x, fy: a.y, tx, ty, start: game.time, dur: 0.28 };
+      } else if (d > reach) {
+        a.moving = moveToward(a, t.x, t.y, a.speed * dt, false);
+      } else if (a.cd <= 0) {
+        a.windup = a.windupMax;
+        a.cd = a.every;
+      }
+    } else {
+      // folgen: jeder Diener hält seinen Platz neben dem Spieler (schnell genug für das Pferd)
+      a.windup = 0;
+      if (dist(a, p) > 60) {
+        const ang = i * 2.1 + 0.6;
+        const gx = p.x + Math.cos(ang) * 36;
+        const gy = p.y + Math.sin(ang) * 22;
+        a.moving = moveToward(a, gx, gy, Math.max(170, game.stats.speed * 1.1) * dt, false);
+        a.facing = Math.sign(gx - a.x) || a.facing;
+      }
+    }
+  }
+  // Diener drängen sich nicht auf einen Punkt
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      if (a.leap || b.leap) continue;
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const d = Math.hypot(dx, dy) || 0.01;
+      const min = (a.r + b.r) * 0.9;
+      if (d < min) {
+        const push = (min - d) / 2;
+        moveEntity(a, -dx / d * push, -dy / d * push, false);
+        moveEntity(b, dx / d * push, dy / d * push, false);
+      }
+    }
+  }
+  // Tote und abgelaufene Diener entfernen (ohne neue Liste); Seelenhunde zerplatzen in Seelenfeuer
+  let n = 0;
+  for (let i = 0; i < list.length; i++) {
+    const a = list[i];
+    if (a.hp > 0 && a.until > game.time) {
+      list[n++] = a;
+      continue;
+    }
+    if (a.burst) {
+      const fy = feetY(a);
+      addEffect({ type: 'ring', x: a.x, y: fy, r: ALLY_BURST_R, dur: 0.45, color: '#7fe3a0', width: 8, grow: true });
+      addEffect({ type: 'smoke3', x: a.x, y: fy, count: 5, color: '#1e4a2a', size: 0.7, dur: 0.8 });
+      particles(a.x, fy - 12, { count: 16, color: ['#7fe3a0', '#e0ffd0'], speed: [60, 160], life: [0.3, 0.6], size: [2, 3.5], drag: 2 });
+      const atk = allyAtk(a);
+      for (const m of enemiesInCircle(a.x, a.y, ALLY_BURST_R)) hitMonster(m, a.burst, { atk, ally: true, source: m.isStone ? p : a });
+    }
+    allyCrumble(a);
+  }
+  if (n < list.length) {
+    list.length = n;
+    releaseAllyTargets();
   }
 }

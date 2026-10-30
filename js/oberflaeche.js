@@ -1304,8 +1304,13 @@ function skillStats(sk, lvl) {
   if (sk.type === 'heal') out.push(['Heilung', skillPct(sk.amount * scale) + ' Leben']);
   if (sk.shield) out.push(['Schild', skillPct(sk.shield * scale) + ' Leben']);
   if (sk.type === 'summon') {
-    out.push(['Skelette', sk.count + ' × ' + skillPct(sk.hp * scale) + ' Leben']);
-    out.push(['Skelett-Angriff', skillPct(sk.atk * dmgScale(lvl))]);
+    // Diener nach Rang (seit 8.5): Skelettkrieger, ab E1 Knochenhunde
+    const ti = Math.min(sk.tiers.length - 1, skillRank(lvl) + 1);
+    const T = sk.tiers[ti];
+    out.push([T.name + ' ×' + sk.count, skillPct(T.hp * scale) + ' Leben']);
+    out.push([T.kind === 'hund' ? 'Biss' : 'Hieb', skillPct(T.atk * dmgScale(lvl)) + ' je ' + String(T.every).replace('.', ',') + ' s']);
+    const extra = [T.pounce && 'Ansprung', T.slow && 'verlangsamt ' + Math.round(T.slow * 100) + ' %', T.burst && 'Seelenfeuer ' + T.burst.toFixed(1).replace('.', ',') + '×', T.alpha && 'Alpha'].filter(Boolean);
+    if (extra.length) out.push(['Rang', extra.join(', ')]);
   }
   if (sk.vulnerable) out.push(['Verwundbar', '+' + skillPct(sk.vulnerable * scale)]);
   for (const [k, v] of Object.entries(sk.effects || {})) {
