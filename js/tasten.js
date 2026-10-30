@@ -127,7 +127,7 @@ function runAction(id, e) {
     case 'net': if (!rep) ui.toggle('panelNet'); break;
     case 'help': if (!rep) ui.toggle('panelHelp'); break;
     case 'opts': if (!rep) ui.toggle('panelOpts'); break;
-    case 'chat': if (netOnline()) { ui.openChat(); if (e) e.preventDefault(); } break;
+    case 'chat': if (netOnline() || IS_PC) { ui.openChat(); if (e) e.preventDefault(); } break;
   }
 }
 

@@ -2811,3 +2811,24 @@ body.aiming canvas { cursor: crosshair; }
 .hover-tip em.down { color: #ff7a6a; }
 .hover-tip kbd { font-family: inherit; font-size: 11px; padding: 0 5px; border-radius: 4px; background: #120e0a; border: 1px solid var(--brass-dim); color: #ffe08a; }
 .hover-tip .tip-hint { font-style: italic; opacity: 0.8; }
+
+/* Chat am PC (seit 10.9): größer, Eingabe unten im Fenster; offen höher und mit scrollbarem Verlauf */
+#chatBox.pc { width: min(580px, 42vw); height: 240px; }
+#chatBox.pc.open {
+  height: min(470px, calc(100vh - 230px)); padding-bottom: 50px; z-index: 30; pointer-events: auto;
+  background: linear-gradient(rgba(14, 10, 7, 0.78), rgba(14, 10, 7, 0.9)); border-color: var(--brass);
+}
+#chatBox.pc.open .chat-log {
+  display: block; overflow-y: auto; pointer-events: auto; padding-right: 6px;
+  scrollbar-width: thin; scrollbar-color: #c9a35a rgba(0, 0, 0, 0.3);
+}
+#chatBox.pc.open .chat-log p { margin: 0 0 2px; }
+#chatBox.pc.open .chat-open { display: none; }
+#chatBox.pc .chat-bar.in-box {
+  position: absolute; top: auto; left: 6px; right: 6px; bottom: 6px; width: auto; transform: none; z-index: 2;
+  padding: 5px; gap: 5px; flex-wrap: nowrap; align-items: center; pointer-events: auto; border-radius: 8px;
+}
+#chatBox.pc .chat-bar.in-box input { flex: 1; min-width: 0; padding: 6px 9px; font-size: 15px; }
+#chatBox.pc .chat-bar.in-box input:disabled { opacity: 0.7; }
+#chatBox.pc .chat-bar.in-box .btn { padding: 6px 10px; font-size: 13px; }
+#chatBox.pc .chat-bar.in-box .chat-chan button { font-size: 12px; padding: 3px 7px; }

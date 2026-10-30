@@ -56,7 +56,21 @@ const ui = {
     this.chatHint();
     this.initBattery();
     this.initTips();
-    $('chatClose').addEventListener('click', () => { $('chatBar').hidden = true; });
+    // Am PC (seit 10.9): Eingabe unten im Chatfenster statt oben in der Mitte; offen wird der Chat groß und scrollbar
+    if (IS_PC) {
+      $('chatBox').classList.add('pc');
+      $('chatBox').append($('chatBar'));
+      $('chatBar').classList.add('in-box');
+    }
+    $('chatClose').addEventListener('click', () => this.closeChat());
+    $('chatInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        this.closeChat();
+      }
+    });
+    // Mausrad im offenen Chat scrollt nur den Chat
+    $('chatLog').addEventListener('wheel', (e) => { if ($('chatBox').classList.contains('open')) e.stopPropagation(); }, { passive: true });
     for (const b of document.querySelectorAll('#chatTabs button, #chatChan button')) {
       b.addEventListener('click', (e) => {
         e.preventDefault();
@@ -66,10 +80,9 @@ const ui = {
     }
     $('chatBar').addEventListener('submit', (e) => {
       e.preventDefault();
-      netChat($('chatInput').value);
+      if (netOnline()) netChat($('chatInput').value);
       $('chatInput').value = '';
-      $('chatBar').hidden = true;
-      $('chatInput').blur();
+      this.closeChat();
     });
     onPress($('potHp'), () => usePotion('hp'));
     $('potHp').querySelector('.flask').src = lootIconUrl('potHp');
@@ -808,9 +821,30 @@ const ui = {
   },
 
   openChat() {
-    if (!netOnline()) return;
+    const online = netOnline();
+    // am Handy nur im Kanal; am PC lässt sich der Verlauf auch ohne Kanal lesen
+    if (!online && !IS_PC) return;
     $('chatBar').hidden = false;
-    $('chatInput').focus();
+    const inp = $('chatInput');
+    inp.disabled = !online;
+    if (!online) inp.placeholder = 'Chat gibt es im Kanal – Server wählen (N). Esc schließt.';
+    else this.setChatChan(this.chatChan);
+    if (IS_PC) {
+      $('chatBox').classList.add('open');
+      this.chatOpen = true;
+      this.renderChat(true);
+    }
+    if (online) inp.focus();
+  },
+
+  closeChat() {
+    $('chatBar').hidden = true;
+    $('chatInput').blur();
+    if (this.chatOpen) {
+      this.chatOpen = false;
+      $('chatBox').classList.remove('open');
+      this.renderChat(true);
+    }
   },
 
   // Kleiner Chat unten links: die letzten Nachrichten bleiben stehen, die neueste unten.
@@ -823,7 +857,7 @@ const ui = {
   chat(name, text, c, type) {
     c = c || (name ? 'g' : 'sys');
     this.chatLines.push({ name, text, c, type });
-    if (this.chatLines.length > 60) this.chatLines.shift();
+    if (this.chatLines.length > 200) this.chatLines.shift();
     if (this.chatShows(c)) this.renderChat();
     else {
       const tab = document.querySelector(`#chatTabs button[data-c="${c}"]`);
@@ -848,11 +882,14 @@ const ui = {
     this.renderChat();
   },
 
-  renderChat() {
+  // Offen (PC) stehen alle Nachrichten (bis 200) im scrollbaren Verlauf; wer hochgescrollt hat, bleibt dort stehen
+  renderChat(jump) {
     const box = $('chatLog');
+    const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 12;
     box.textContent = '';
     const tags = { gi: 'Gilde', o: 'Ort' };
-    const lines = this.chatLines.filter((l) => this.chatShows(l.c)).slice(-12);
+    const all = this.chatLines.filter((l) => this.chatShows(l.c));
+    const lines = this.chatOpen ? all : all.slice(-12);
     for (const l of lines) {
       const row = document.createElement('p');
       row.classList.add('ch-' + l.c);
@@ -873,7 +910,7 @@ const ui = {
       box.append(row);
     }
     if (!lines.length) this.chatHint();
-    box.scrollTop = box.scrollHeight;
+    if (jump || atBottom || !this.chatOpen) box.scrollTop = box.scrollHeight;
   },
 
   // Hinweise an Elementen mit data-tip: mit der Maus beim Darüberfahren, auf dem Handy beim Antippen

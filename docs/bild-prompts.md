@@ -1955,3 +1955,7 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 ## Infofelder (seit 10.8)
 
 - `Game UI hover tooltip next to the mouse cursor over an inventory slot: dark lacquered panel with thin brass border, item name in its rarity color as title, small grey line with type, tier and required level, a line of stats, a bullet list of bonuses, a green arrow line "besser als dein angelegtes Teil", clean readable German text, painterly fantasy MMORPG style`
+
+## Chat am PC (seit 10.9)
+
+- `Fantasy MMORPG desktop HUD, bottom-left chat window expanded and semi-transparent dark wood with brass border, tabs Global / Gilde / Ort on top, a long scrollable list of messages with colored player names (guild lines in green with [Gilde] tag), a thin golden scrollbar, at the bottom an input line with channel buttons, text field "Nachricht an alle …", buttons Senden and ×`
