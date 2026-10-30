@@ -1277,11 +1277,68 @@ const ui = {
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();
     else if (npc.id === 'stallmeister') this.renderStable();
+    else if (npc.id === 'lehrmeister') this.renderTeacher();
     else if (npc.id === 'wanderer') this.renderWanderer(npc);
     else if (npc.id === 'eingang' || npc.id === 'ausgang' || npc.id === 'riss') this.renderDungeon(npc);
     else if (npc.id === 'weltentor') this.renderWorldGate(npc);
     else this.renderTalk(npc);
     $('panelNpc').hidden = false;
+  },
+
+  // Lehrmeister (seit 8.7): Fertigkeitsbücher kaufen, Status- und Fertigkeitspunkte zurücksetzen
+  renderTeacher(msg) {
+    const p = game.player;
+    const fmt = (n) => n.toLocaleString('de-DE');
+    const skills = classSkills(p);
+    const statSpent = statPointsSpent(p);
+    const skillBack = skillPointsBack(p);
+    const stCost = resetCost(p, 'stat');
+    const skCost = resetCost(p, 'skill');
+    $('npcBody').innerHTML =
+      `<p>„Wissen hat seinen Preis. Ich verkaufe Bücher zu deinen Fertigkeiten und helfe dir, deine Punkte neu zu verteilen.“</p>` +
+      `<p>Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
+      (msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '') +
+      `<h3>Fertigkeitsbücher <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
+      `<p class="hint">Bücher braucht man ab dem Erwecken (E2–E10, Heroisch, Legendär, Vollendet).</p><div class="shop">` +
+      skills.map((sk) => `<div class="shop-item"><img class="shop-icon" src="${bookIconUrl(sk.id)}" alt="">` +
+        `<strong>${sk.name}</strong><small>Fertigkeitsbuch · im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
+        `<div class="buy"><button class="mini-btn" type="button" data-book="${sk.id}" ${p.gold < TEACHER.bookPrice ? 'disabled' : ''}>Kaufen</button></div></div>`).join('') +
+      `</div><h3>Punkte zurücksetzen</h3><div class="shop">` +
+      `<div class="shop-item"><strong>Statuspunkte <span class="price">${fmt(stCost)} Gold</span></strong>` +
+      `<small>Alle ${statSpent} verteilten Statuspunkte kommen zurück und lassen sich neu verteilen.</small>` +
+      `<div class="buy"><button class="mini-btn" type="button" data-reset="stat" ${!statSpent || p.gold < stCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
+      `<div class="shop-item"><strong>Fertigkeitspunkte <span class="price">${fmt(skCost)} Gold</span></strong>` +
+      `<small>Fertigkeiten bis Stufe 15 gehen auf Stufe 1, ${skillBack} Punkte kommen zurück. Erweckte Fertigkeiten (E/H/L/V) behalten ihren Rang.</small>` +
+      `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!skillBack || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
+      `</div><p class="hint">Das erste Zurücksetzen kostet ${fmt(TEACHER.resetBase)} Gold, jedes weitere das Doppelte (Status und Fertigkeiten getrennt).</p>`;
+    const body = $('npcBody');
+    body.querySelectorAll('[data-book]').forEach((b) => b.addEventListener('click', () => {
+      const sk = skills.find((s) => s.id === b.dataset.book);
+      const r = buyBook(sk.id);
+      if (r === 'ok') {
+        saveGame();
+        this.renderTeacher({ ok: true, text: `Buch „${sk.name}“ gekauft.` });
+      } else this.renderTeacher({ ok: false, text: r === 'bag' ? 'Deine Tasche ist voll.' : 'Dafür reicht dein Gold nicht.' });
+    }));
+    body.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', () => {
+      const kind = b.dataset.reset;
+      const what = kind === 'stat' ? 'Statuspunkte' : 'Fertigkeitspunkte';
+      body.querySelector('.buy-confirm')?.remove();
+      const ask = document.createElement('div');
+      ask.className = 'buy-confirm';
+      ask.innerHTML = `<p>${what} für ${fmt(resetCost(p, kind))} Gold zurücksetzen?</p>` +
+        `<button class="mini-btn" type="button" data-yes>Ja</button> <button class="mini-btn" type="button" data-no>Nein</button>`;
+      b.closest('.shop-item').appendChild(ask);
+      ask.querySelector('[data-no]').addEventListener('click', () => ask.remove());
+      ask.querySelector('[data-yes]').addEventListener('click', () => {
+        const ok = kind === 'stat' ? resetStats() : resetSkills();
+        if (ok) {
+          if (kind === 'skill') this.buildSkillBar();
+          saveGame();
+        }
+        this.renderTeacher(ok ? { ok: true, text: `${what} zurückgesetzt. Verteile sie im Charakterfenster neu.` } : { ok: false, text: 'Dafür reicht dein Gold nicht.' });
+      });
+    }));
   },
 
   renderShop() {
@@ -1568,7 +1625,7 @@ function ultHtml(u, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', lehrmeister: 'Lernen', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;

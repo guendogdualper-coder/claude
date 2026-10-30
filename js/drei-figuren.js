@@ -2602,6 +2602,7 @@ function npcModelDef(id) {
     jaegerin: { hair: { style: 4, color: '#7a3a1a' }, band: '#3e6a3a', weapon: { kind: 'bow', tier: 0 }, quiver: '#6b4a2e', straps: '#6b4a2e' },
     teleport: { hair: { style: 2, color: '#1a1a2a' }, beads: '#9fd0ff' },
     alchemist: { hat: '#3a2a4a', hair: { style: 0, color: '#2a2a2a' }, beard: '#2a2a2a', sash: '#c9a35a' },
+    lehrmeister: { hair: { style: 1, color: '#d8d0c8' }, beard: '#e8e2da', sash: '#c9a35a', weapon: { kind: 'staff', tier: 1 }, eyeShape: 2 },
     wache: { helm: '#7a828c', weapon: { kind: 'staff', tier: 0 }, belt: '#c9a35a', lamellar: '#6a2a24', pads: '#7a828c', padTrim: '#c9a35a', eyeShape: 3 },
     bauer: { hat: '#d8b86a', hatCone: true, hair: { style: 0, color: '#4a3020' } },
     kind: { hair: { style: 1, color: '#2a1c14' }, eyeShape: 2 },

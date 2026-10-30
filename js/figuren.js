@@ -1997,6 +1997,24 @@ Object.assign(NPC_ART, {
     },
     extra: (ctx) => { oval(ctx, 12, -15, 4, 4, '#bfe8ff'); dot(ctx, 11, -16.2, 1.3, 1.3, '#ffffff'); }
   }),
+  // Lehrmeister (seit 8.7): grüne Gelehrtenrobe mit Goldschärpe, weißer Bart, dickes Buch in der Hand
+  lehrmeister: (ctx) => villagerArt(ctx, {
+    skin: '#e9c6a1', boots: '#2a2420', robe: '#2f5a4a', sleeve: '#2f5a4a', cuff: '#c9a35a', wideSleeves: true,
+    body: (ctx) => {
+      box(ctx, -9.25, -13.5, 18.5, 3, 1, '#c9a35a');
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -24); ctx.lineTo(6, -12); ctx.lineTo(3, -12); ctx.lineTo(-8, -22); ctx.closePath(); }, '#c9a35a', -8, -24, 14, 12);
+    },
+    head: (ctx, cx, cy) => {
+      paintShape(ctx, () => { ctx.beginPath(); ctx.arc(cx, cy - 1, 10.6, Math.PI, 0); ctx.closePath(); }, '#d8d0c8', cx - 10.6, cy - 11.6, 21.2, 10.6);
+      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(cx - 6, cy + 5); ctx.quadraticCurveTo(cx, cy + 18, cx + 6, cy + 5); ctx.closePath(); }, '#e8e2da', cx - 6, cy + 5, 12, 13);
+      for (const x of [-4.2, 4.2]) { ctx.strokeStyle = '#5a4a3a'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(cx + x, cy + 1.5, 2.8, 0, Math.PI * 2); ctx.stroke(); }
+    },
+    extra: (ctx) => {
+      box(ctx, 7.5, -19, 9, 11, 1.2, '#7a2a1a');
+      box(ctx, 8.6, -18, 6.8, 9, 0.8, '#f0e6cc');
+      box(ctx, 11.4, -19, 1.2, 11, 0.4, '#c9a35a');
+    }
+  }),
   // Alchemist Yun: violette Robe, Fläschchen am Gürtel
   alchemist: (ctx) => villagerArt(ctx, {
     skin: '#e9c6a1', boots: '#2a2420', robe: '#5a3a6a', sleeve: '#5a3a6a', cuff: '#c9a35a', wideSleeves: true,

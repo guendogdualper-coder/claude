@@ -73,7 +73,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 3;
@@ -393,6 +393,58 @@ function gainXp(amount) {
     ui.buildSkillBar();
     saveGame();
   }
+}
+
+// Lehrmeister (seit 8.7): Fertigkeitsbücher der eigenen Klasse kaufen, Status- und Fertigkeitspunkte zurücksetzen.
+// Das erste Zurücksetzen kostet 10.000 Gold, jedes weitere das Doppelte (höchstens 5 Mio.); Status und Fertigkeiten getrennt.
+const TEACHER = { bookPrice: 100000, resetBase: 10000, resetMax: 5000000 };
+function resetCost(p, kind) {
+  const n = (p.resets && p.resets[kind]) || 0;
+  return Math.min(TEACHER.resetMax, TEACHER.resetBase * 2 ** n);
+}
+function payReset(p, kind) {
+  const cost = resetCost(p, kind);
+  if (p.gold < cost) return false;
+  p.gold -= cost;
+  p.resets = { stat: 0, skill: 0, ...p.resets };
+  p.resets[kind]++;
+  return true;
+}
+// Alle verteilten Statuspunkte zurück
+function statPointsSpent(p) {
+  return Object.values(p.attrs || {}).reduce((a, v) => a + (v || 0), 0);
+}
+function resetStats() {
+  const p = game.player;
+  const spent = statPointsSpent(p);
+  if (!spent || !payReset(p, 'stat')) return false;
+  p.attrs = { str: 0, vit: 0, int: 0, dex: 0 };
+  p.statPoints = (p.statPoints || 0) + spent;
+  game.stats = playerStats(p);
+  p.hp = Math.min(p.hp, game.stats.maxHp);
+  p.mp = Math.min(p.mp, game.stats.maxMp);
+  return true;
+}
+// Fertigkeiten bis Stufe 15 zurück auf 1 (Punkte zurück). Erweckte Fertigkeiten (E/H/L/V) behalten ihren Rang,
+// denn dafür wurden Bücher gelesen, die sich nicht zurückgeben lassen.
+function skillPointsBack(p) {
+  return p.skillLevels.reduce((a, l) => a + (skillRank(l) < 0 ? Math.max(0, l - 1) : 0), 0);
+}
+function resetSkills() {
+  const p = game.player;
+  const back = skillPointsBack(p);
+  if (!back || !payReset(p, 'skill')) return false;
+  p.skillLevels = p.skillLevels.map((l) => (skillRank(l) < 0 ? 1 : l));
+  p.skillPoints += back;
+  return true;
+}
+// Ein Fertigkeitsbuch der eigenen Klasse kaufen
+function buyBook(id) {
+  const p = game.player;
+  if (p.gold < TEACHER.bookPrice) return 'gold';
+  if (!addBookItem(p, id, 1)) return 'bag';
+  p.gold -= TEACHER.bookPrice;
+  return 'ok';
 }
 
 function raiseAttr(id, n = 1) {

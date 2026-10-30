@@ -243,6 +243,7 @@ function generateWorld() {
     npc('teleport', 'Wegweiserin Lian', C + 5.6, C - 4.4),
     npc('alchemist', 'Alchemist Yun', C + 6.2, C + 2.4),
     npc('stallmeister', 'Stallmeister Jun', C - 10, C + 2.2),
+    npc('lehrmeister', 'Lehrmeister Wen', C - 1.5, C + 5.6),
     npc('weltentor', 'Weltentor', C + 6.8, C - 5.6)
   ];
   // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
@@ -250,18 +251,19 @@ function generateWorld() {
   const ROLE_TITLE = {
     haendler: ['Händlerin', 'Händler'], schmied: ['Schmied', 'Schmiedin'], waffen: ['Waffenhändler', 'Waffenhändlerin'],
     ruestung: ['Rüstungshändlerin', 'Rüstungshändler'], alchemist: ['Alchemist', 'Alchemistin'], aeltester: ['Lagerältester', 'Lagerälteste'],
-    jaegerin: ['Jägerin', 'Jäger'], teleport: ['Wegweiserin', 'Wegweiser'], stallmeister: ['Stallmeister', 'Stallmeisterin']
+    jaegerin: ['Jägerin', 'Jäger'], teleport: ['Wegweiserin', 'Wegweiser'], stallmeister: ['Stallmeister', 'Stallmeisterin'],
+    lehrmeister: ['Lehrmeister', 'Lehrmeisterin']
   };
   // je Map: Name und ob die weibliche/männliche Form (Index in ROLE_TITLE) gilt
   const MAP_PEOPLE = {
-    2: { haendler: ['Sahra', 0], schmied: ['Kadir', 0], waffen: ['Omar', 0], ruestung: ['Lale', 0], alchemist: ['Nur', 1], aeltester: ['Hakim', 0], jaegerin: ['Dila', 0], teleport: ['Selim', 1], stallmeister: ['Yusuf', 0] },
-    3: { haendler: ['Brok', 1], schmied: ['Hilda', 1], waffen: ['Ragnar', 0], ruestung: ['Eik', 1], alchemist: ['Thorm', 0], aeltester: ['Gunhild', 1], jaegerin: ['Sigrun', 0], teleport: ['Halvar', 1], stallmeister: ['Ulf', 0] },
-    4: { haendler: ['Tilda', 0], schmied: ['Arno', 0], waffen: ['Fenn', 0], ruestung: ['Ilka', 0], alchemist: ['Wanda', 1], aeltester: ['Hagen', 0], jaegerin: ['Sena', 0], teleport: ['Elm', 1], stallmeister: ['Ruth', 1] },
-    5: { haendler: ['Grada', 0], schmied: ['Borr', 0], waffen: ['Kragg', 0], ruestung: ['Urza', 0], alchemist: ['Mok', 0], aeltester: ['Thrak', 0], jaegerin: ['Vasha', 0], teleport: ['Durn', 1], stallmeister: ['Gor', 0] },
-    6: { haendler: ['Rami', 1], schmied: ['Zahra', 1], waffen: ['Tarik', 0], ruestung: ['Amal', 0], alchemist: ['Faris', 0], aeltester: ['Idris', 0], jaegerin: ['Layla', 0], teleport: ['Samir', 1], stallmeister: ['Nadia', 1] },
-    7: { haendler: ['Frida', 0], schmied: ['Sten', 0], waffen: ['Bjarne', 0], ruestung: ['Ylva', 0], alchemist: ['Eira', 1], aeltester: ['Olaf', 0], jaegerin: ['Ingrid', 0], teleport: ['Torvi', 0], stallmeister: ['Knut', 0] },
-    8: { haendler: ['Morla', 0], schmied: ['Grim', 0], waffen: ['Vex', 0], ruestung: ['Nebel', 1], alchemist: ['Hexe Una', 1], aeltester: ['Oswin', 0], jaegerin: ['Moira', 0], teleport: ['Irrlicht', 1], stallmeister: ['Bran', 0] },
-    9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0] }
+    2: { haendler: ['Sahra', 0], schmied: ['Kadir', 0], waffen: ['Omar', 0], ruestung: ['Lale', 0], alchemist: ['Nur', 1], aeltester: ['Hakim', 0], jaegerin: ['Dila', 0], teleport: ['Selim', 1], stallmeister: ['Yusuf', 0], lehrmeister: ['Rahim', 0] },
+    3: { haendler: ['Brok', 1], schmied: ['Hilda', 1], waffen: ['Ragnar', 0], ruestung: ['Eik', 1], alchemist: ['Thorm', 0], aeltester: ['Gunhild', 1], jaegerin: ['Sigrun', 0], teleport: ['Halvar', 1], stallmeister: ['Ulf', 0], lehrmeister: ['Solveig', 1] },
+    4: { haendler: ['Tilda', 0], schmied: ['Arno', 0], waffen: ['Fenn', 0], ruestung: ['Ilka', 0], alchemist: ['Wanda', 1], aeltester: ['Hagen', 0], jaegerin: ['Sena', 0], teleport: ['Elm', 1], stallmeister: ['Ruth', 1], lehrmeister: ['Eberhard', 0] },
+    5: { haendler: ['Grada', 0], schmied: ['Borr', 0], waffen: ['Kragg', 0], ruestung: ['Urza', 0], alchemist: ['Mok', 0], aeltester: ['Thrak', 0], jaegerin: ['Vasha', 0], teleport: ['Durn', 1], stallmeister: ['Gor', 0], lehrmeister: ['Zug', 0] },
+    6: { haendler: ['Rami', 1], schmied: ['Zahra', 1], waffen: ['Tarik', 0], ruestung: ['Amal', 0], alchemist: ['Faris', 0], aeltester: ['Idris', 0], jaegerin: ['Layla', 0], teleport: ['Samir', 1], stallmeister: ['Nadia', 1], lehrmeister: ['Yasmin', 1] },
+    7: { haendler: ['Frida', 0], schmied: ['Sten', 0], waffen: ['Bjarne', 0], ruestung: ['Ylva', 0], alchemist: ['Eira', 1], aeltester: ['Olaf', 0], jaegerin: ['Ingrid', 0], teleport: ['Torvi', 0], stallmeister: ['Knut', 0], lehrmeister: ['Hjalmar', 0] },
+    8: { haendler: ['Morla', 0], schmied: ['Grim', 0], waffen: ['Vex', 0], ruestung: ['Nebel', 1], alchemist: ['Hexe Una', 1], aeltester: ['Oswin', 0], jaegerin: ['Moira', 0], teleport: ['Irrlicht', 1], stallmeister: ['Bran', 0], lehrmeister: ['Mortimer', 0] },
+    9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0], lehrmeister: ['Aschea', 1] }
   };
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
@@ -271,12 +273,12 @@ function generateWorld() {
   // rechts Händlerin und Rüstung, unten Stall, Jägerin, Alchemist
   const CAMP_SPOTS = {
     aeltester: [-3, -4.3], teleport: [3.8, -4.3], schmied: [-4.6, -1.2], waffen: [-4.6, 1.8], haendler: [4.6, -1.2],
-    ruestung: [4.6, 2], stallmeister: [-4.2, 4.3], jaegerin: [-1.2, 4.5], alchemist: [2.4, 4.5]
+    ruestung: [4.6, 2], stallmeister: [-4.2, 4.3], jaegerin: [-1.2, 4.5], alchemist: [2.4, 4.5], lehrmeister: [0.6, 1.6]
   };
   // Städte in Map 2 und 3 (Platz 20 × 20)
   const TOWN_SPOTS = {
     haendler: [3, -2.5], schmied: [-3.5, 2.5], waffen: [-4.5, -2], ruestung: [3.5, 3], alchemist: [6.5, 0.5],
-    aeltester: [-3.6, -5.4], teleport: [4, -6.2], jaegerin: [-6.6, 3.6], stallmeister: [-7.2, -0.6]
+    aeltester: [-3.6, -5.4], teleport: [4, -6.2], jaegerin: [-6.6, 3.6], stallmeister: [-7.2, -0.6], lehrmeister: [0.5, 5.5]
   };
   for (const mp of maps) {
     npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5, mp.cy - 4.5));
