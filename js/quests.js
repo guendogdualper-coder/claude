@@ -356,34 +356,47 @@ Object.assign(ui, {
     const q = questState();
     const main = currentMainQuest();
     const rows = [];
-    const row = (cls, title, goal, have, need, where, extra = '') => {
+    // Der verfolgte Auftrag (goldener Pfeil, seit 8.8) zeigt darunter Ziel und Entfernung; antippen wählt ihn aus
+    if (typeof updateGuide === 'function') {
+      guide.t = -9;
+      updateGuide();
+    }
+    const tracked = typeof guide !== 'undefined' && guide.entry ? guide.entry.key : '';
+    const row = (cls, title, goal, have, need, where, extra = '', key = '') => {
       const done = have >= need;
-      rows.push(`<li class="ql-q ${cls}${done ? ' done' : ''}"><b>${title}</b>` +
+      const on = key && key === tracked;
+      rows.push(`<li class="ql-q ${cls}${done ? ' done' : ''}${on ? ' tracked' : ''}" data-guide="${key}"><b>${title}</b>` +
         `<span class="ql-goal">${done ? 'Erfüllt – zurück zum Auftraggeber' : goal}${extra}</span>` +
         `<span class="ql-bar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><em>${Math.min(have, need)}/${need}</em></span>` +
-        (done ? '' : `<span class="ql-where">📍 ${where}</span>`) + `</li>`);
+        (done ? '' : `<span class="ql-where">📍 ${where}</span>`) + (on ? `<span class="ql-nav" id="qlNav">${guideText()}</span>` : '') + `</li>`);
     };
     // Hauptmissionen golden, Nebenmissionen grün
-    if (main && q.accepted) row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal));
+    if (main && q.accepted) row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal), '', 'main');
     const st = q.stable;
     if (st.state === 'active' || st.state === 'done') {
       const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
       const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
-      row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time);
+      row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time, 'stable');
     }
     if (q.side) for (const n of game.world.npcs) {
       if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const s = q.side[n.key];
       const t = MONSTER_TYPES[n.side.monster];
       const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[n.side.monster].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`;
-      row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(n.side.monster));
+      row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(n.side.monster), '', 'side:' + n.key);
     }
-    if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster));
+    if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster), '', 'hunt');
     el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
       (this.questLogClosed ? '' : `<ul class="ql-list">${rows.join('')}</ul>`) : '';
     el.hidden = !rows.length;
     const head = el.querySelector('.ql-head');
     if (head) head.addEventListener('click', () => { this.questLogClosed = !this.questLogClosed; this.renderQuestTrack(); });
+    for (const li of el.querySelectorAll('[data-guide]')) {
+      li.addEventListener('click', () => {
+        guide.pick = li.dataset.guide;
+        this.renderQuestTrack();
+      });
+    }
   },
 
   renderElder() {

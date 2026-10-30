@@ -1695,6 +1695,7 @@ function renderDrei() {
     renderMinimap();
     r.miniTimer = 10;
   }
+  tickBigMap();
 }
 
 // Alles, was das 2D-Canvas über die 3D-Szene malt
@@ -1762,6 +1763,7 @@ function drawOverlay3(ctx) {
     drawLabel(ctx, e);
   }
   drawTexts(ctx);
+  drawGuide(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   drawZoneTint(ctx, r.w, r.h);
   drawHurtVignette(ctx, r.w, r.h);

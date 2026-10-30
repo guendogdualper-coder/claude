@@ -445,6 +445,58 @@ Risse und Dungeon-Eingänge passen zur weichen Toon-Welt: **runde, glatte Formen
 eigener Shader (beim Start vorgewärmt), Schein, Runenkreis und Funken über `model.extra` in `makeActor`;
 2D-Ersatz in `drawRift`. Riss etwa 10–13k Dreiecke, 12 Zeichenaufrufe (höchstens 1–2 Risse gleichzeitig).
 
+### 6.7 Karte und Wegweiser (seit 8.8)
+
+**Ziel:** Auf der Karte erkennt man sofort, wo man ist, wo Monster, Bewohner, Gruppe und Gilde
+stehen und wohin man für den Auftrag laufen muss. Nichts ist verpixelt.
+
+**Kartengrafik (eine Leinwand je Map, von Minikarte und großer Karte geteilt):**
+- **Boden:** gemalte Fläche wie eine alte Landkarte. Die Bodenfarben gehen weich ineinander über
+  (3 × 3 geglättet und weich vergrößert, 6 Bildpunkte je Kachel). Wege sind hell, Wasser ist blau mit
+  kleinen hellen Wellenbögen.
+- **Bäume:** runde Kronen mit dunklem Rand, einem hellen Fleck oben links und einem weichen Schatten
+  nach rechts unten. Laubbaum grün, Nadelbaum dunkelgrün, Blütenbaum rosa, toter Baum klein und braun.
+- **Felsen:** graue runde Steine mit Glanzfleck.
+- **Häuser:** Dachfläche in der Dachfarbe, die obere Hälfte heller, mit dunklem Rand und First.
+- **Mauern:** dunkles Steinband mit heller Oberkante.
+- **Dungeons:** scharfe Kanten. Helle Räume und Gänge liegen auf dunklem Fels.
+
+**Zeichen (gleich auf beiden Karten):**
+
+| Was | Zeichen |
+|---|---|
+| Du | heller Pfeil in Blickrichtung mit warmem Schein |
+| Gruppe | großer grüner Punkt mit weißem Rand und pulsierendem Ring; außerhalb der Minikarte ein grüner Randpfeil |
+| Gilde | großer lila Punkt (#d08cff) mit Ring; außerhalb ein lila Randpfeil |
+| andere Spieler | kleiner hellblauer Punkt |
+| Monster | kleiner roter Punkt (#e8402e), Bosse größer in Orange |
+| Seelensteine | Quadrat in ihrer Leuchtfarbe |
+| Bewohner | kleiner cremefarbener Punkt |
+| neuer Auftrag | „!“: golden (Haupt) oder grün (Neben), mit Schein |
+| Auftrag abgeben | „?“ in denselben Farben |
+| Ziel des Wegweisers | goldene Nadel; außerhalb der Minikarte ein goldener Randpfeil, auf der großen Karte eine gestrichelte goldene Linie vom Spieler |
+| Weltentor | hellblauer Ring |
+| Dungeon | Quadrat in der Portalfarbe, auf der großen Karte mit Namen |
+
+**Wegweiser im Spiel:**
+- Ein goldener Pfeil (#ffd34d, Verlauf von Weiß nach Bernstein, dunkler Rand, weicher Schein) liegt
+  etwa 70 Pixel neben der Figur in Richtung des Ziels. Nach oben steht er weiter weg, damit er Figur und
+  Namen nicht verdeckt.
+- Zwei kleine Pfeile laufen in Pfeilrichtung, damit man die Richtung auch aus dem Augenwinkel sieht.
+- Neben dem Pfeil stehen Ziel und Entfernung, z. B. „Wolf · 47 m“.
+- Ist das Ziel im Bild, schwebt über ihm ein goldener Pfeil nach unten.
+- Farben: Hauptauftrag golden, Nebenauftrag grün, Weg über Weltentor oder Ausgang hellblau.
+
+**Große Karte:** Fenster fast über den ganzen Bildschirm im Messingrahmen. Darauf stehen die Gebietsnamen in
+Zierschrift mit der Stufe darunter. Unten stehen das Ziel und die Legende.
+
+**Umsetzung (8.8):**
+- Datei `js/karte.js`: `buildMapArt` und `mapArt` (Zwischenspeicher für zwei Gebiete), `drawMapMarks`,
+  `renderMinimap` (60 Kacheln Ausschnitt), `renderBigMap`/`drawZoneLabels`.
+- Wegweiser: `guideEntries`, `guideTarget`, `huntTarget`, `routeOut`, `drawGuide`.
+- Kosten: Karte bauen etwa 35–40 ms beim ersten Betreten einer Map; Minikarte etwa 2 ms alle 10 Bilder,
+  große Karte etwa 2 ms alle 6 Bilder (nur wenn sie offen ist).
+
 ---
 
 ## 7. Leistungsregeln (damit nichts ruckelt)

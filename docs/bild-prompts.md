@@ -1865,3 +1865,27 @@ Erde (dark basalt with glowing amber, #3e3532, #f0a830, #ffd98a):
 - Basalthaut: `Game skill icon, 64×64, painterly toon, dark blue vignette, an indigo robed torso covered by dark basalt plates with glowing amber seams on both shoulders and the chest, basalt and amber palette, Western arcane mage magic.`
 - Schwerkraftsiegel: `Game skill icon, 64×64, painterly toon, dark vignette, an amber spiral on a downward-triangle sigil pulling three basalt boulders inward, basalt and amber palette, Western arcane mage magic, flat ground-level effect, no sky.`
 - Weltenbruch (Ultimate): `Game skill icon, 64×64, painterly toon, golden frame, a ring of seven basalt monoliths with amber veins tilting inward around a glowing crack, basalt and amber palette, Western arcane mage magic, no rock pillar, no sand.`
+
+## Karte und Wegweiser (Version 8.8)
+
+Regeln und Zeichen stehen in `docs/grafik-prompts.md`, Abschnitt 6.7. Hier die Einzelbilder.
+
+### Große Karte
+```
+In-game world map screen of a stylized 3D toon fantasy MMORPG, landscape phone format: a wide painted parchment-style map inside a thin brass frame showing a green meadow region with soft blended ground colours, a pale winding dirt road crossing it, small blue ponds with tiny white wave arcs, round tree crowns with dark outlines and a light highlight, grey round rocks, a small walled village in the centre with coloured roof rectangles. On top: small red dots for monsters, larger orange dots for bosses, coloured squares for soul stones, a bright cream arrow for the player with the word "Du", a large green dot with a pulsing ring for a party member, a purple dot for a guild member, light blue dots for other players, golden and green exclamation and question marks above quest givers, a golden map pin with a dashed golden line from the player. Elegant serif zone names with level ranges, a dark header bar with the region name, a small legend row at the bottom. Clean, readable, nothing pixelated.
+```
+
+### Minikarte
+```
+Round minimap HUD element of a stylized 3D toon fantasy MMORPG, top-right corner: a circular painted map inside a brass ring with a small "N" north marker, soft blended grass, a pale path, round tree crowns, tiny red dots for monsters, a golden exclamation mark above a quest giver, a cream player arrow in the centre with a warm glow, a golden triangle on the rim pointing towards the quest target, a green triangle on the rim for a party member outside the view. Crisp at phone size, no pixel blocks.
+```
+
+### Goldener Wegpfeil
+```
+Gameplay close-up, stylized 3D toon MMORPG, top-down three-quarter view: a chibi warrior on a green meadow with a big golden arrow lying on the ground beside him pointing to the upper right, the arrow with a white-to-amber gradient, a dark outline and a soft golden glow, two smaller golden chevrons running in the same direction; small text next to it reads "Wolf · 47 m". In the distance a small golden downward arrow floats above a wolf. Clean shapes, readable on a phone.
+```
+
+### Auftragszeichen
+```
+Set of quest markers for a stylized 3D toon MMORPG, each floating above a villager's head: a golden exclamation mark (new main quest), a green exclamation mark (new side quest), a golden question mark (main quest ready to hand in), a green question mark (side quest ready to hand in). Thick dark outline, soft glow in the same colour, gentle bob, readable from far away, no text.
+```

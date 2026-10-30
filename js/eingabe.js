@@ -84,6 +84,7 @@ function setupInput() {
       case 'KeyO': if (!e.repeat) ui.toggle('panelOpts'); break;
       case 'Enter': if (netOnline()) { ui.openChat(); e.preventDefault(); } break;
       case 'KeyB': if (!e.repeat) ui.toggle('panelLoot'); break;
+      case 'KeyM': if (!e.repeat) openBigMap(); break;
       case 'Tab':
         e.preventDefault();
         cycleTarget();

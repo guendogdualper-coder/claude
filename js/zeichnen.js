@@ -17,7 +17,6 @@ function setupRenderer() {
   // am PC größer, auf dem Handy doppelt so fein wie gezeichnet (scharf auf Retina-Bildschirmen)
   renderer.mini.width = renderer.mini.height = IS_PC ? 200 : 240;
   renderer.miniCtx = renderer.mini.getContext('2d');
-  renderer.miniBase = buildMinimapBase();
   window.addEventListener('resize', resizeRenderer);
   renderer.maxDpr = gfx().dpr; // Grafikstufe aus den Einstellungen
   resizeRenderer();
@@ -117,6 +116,7 @@ function render() {
   drawParticles(ctx);
   for (const e of list) if (!e.worldObj && !e.clone) drawLabel(ctx, e);
   drawTexts(ctx);
+  drawGuide(ctx);
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   drawZoneTint(ctx, r.w, r.h);
   drawHurtVignette(ctx, r.w, r.h);
@@ -127,6 +127,7 @@ function render() {
     renderMinimap();
     r.miniTimer = 10;
   }
+  tickBigMap();
 }
 
 // --- Hilfsfunktionen ------------------------------------------------------------
@@ -886,19 +887,21 @@ function drawNpcMarks(ctx, n) {
   const fy = feetY(n);
   const bob = Math.sin(game.time * 3) * 2;
   if (NPC_ICONS[n.id]) blitSprite(ctx, npcIconSprite(n.id), n.x, fy - 60 + bob, false);
-  // Ausrufezeichen: golden bei Hauptmissionen, grün bei Nebenmissionen
-  const mark = questMarker(n.id, n);
-  if (mark) {
+  // Ausrufezeichen (neuer Auftrag) oder Fragezeichen (abgeben, seit 8.8): golden bei Hauptmissionen,
+  // grün bei Nebenmissionen
+  const mk = questMarkChar(n);
+  if (mk) {
     const x = n.x + (NPC_ICONS[n.id] ? 13 : 0);
     const y = fy - 64 + bob;
-    glow(ctx, x, y - 5, 13, mark === 'main' ? '#ffc93a' : '#5ae05a', 0.55);
+    glow(ctx, x, y - 5, 13, mk.color === '#ffd34d' ? '#ffc93a' : '#5ae05a', 0.55);
     ctx.font = '900 20px "Alegreya Sans", sans-serif';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'alphabetic';
     ctx.lineWidth = 3.5;
     ctx.strokeStyle = '#1a1210';
-    ctx.strokeText('!', x, y);
-    ctx.fillStyle = mark === 'main' ? '#ffd34d' : '#6ae86a';
-    ctx.fillText('!', x, y);
+    ctx.strokeText(mk.ch, x, y);
+    ctx.fillStyle = mk.color;
+    ctx.fillText(mk.ch, x, y);
   }
 }
 
@@ -1442,201 +1445,7 @@ function drawLabel(ctx, e) {
   }
 }
 
-// --- Minikarte ----------------------------------------------------------------------
-
-function buildMinimapBase() {
-  const c = document.createElement('canvas');
-  c.width = MAP_W;
-  c.height = MAP_H;
-  const cx = c.getContext('2d');
-  const img = cx.createImageData(MAP_W, MAP_H);
-  const colors = {
-    [GROUND.GRASS]: [88, 128, 58], [GROUND.MEADOW]: [98, 137, 63], [GROUND.FOREST]: [59, 85, 48],
-    [GROUND.PATH]: [176, 151, 106], [GROUND.WATER]: [47, 95, 126], [GROUND.PLAZA]: [170, 160, 140],
-    [GROUND.SAND]: [179, 148, 98], [GROUND.ASH]: [93, 82, 77], [GROUND.SNOW]: [226, 234, 242],
-    [GROUND.SWAMP]: [70, 86, 60], [GROUND.LAVA]: [230, 90, 30], [GROUND.BOG]: [40, 66, 52], [GROUND.ICE]: [170, 208, 232], [GROUND.BASALT]: [58, 46, 46],
-    [GROUND.CAVE]: [74, 60, 52], [GROUND.FLAGSTONE]: [120, 114, 102]
-  };
-  const w = game.world;
-  for (let i = 0; i < MAP_W * MAP_H; i++) {
-    let col = colors[w.ground[i]];
-    if (w.deco[i] === DECO.BRIDGE) col = [138, 106, 68];
-    const o = w.obj[i];
-    if (o === OBJ.TREE || o === OBJ.PINE) col = [36, 60, 30];
-    else if (o === OBJ.BLOSSOM) col = [214, 130, 160];
-    else if (o === OBJ.ROCK) col = [110, 106, 100];
-    else if (o === OBJ.DEADTREE) col = [74, 53, 39];
-    else if (o === OBJ.HOUSE) col = [124, 58, 44];
-    else if (o === OBJ.WALL) col = [62, 70, 86];
-    else if (o === OBJ.CAVEWALL) col = [18, 14, 14];
-    img.data.set([col[0], col[1], col[2], 255], i * 4);
-  }
-  cx.putImageData(img, 0, 0);
-  return c;
-}
-
-// Die Minikarte zeigt einen Ausschnitt um die Figur (die Welt ist dafür zu groß)
-const MINIMAP_TILES = 72;
-
-function renderMinimap() {
-  const ctx = renderer.miniCtx;
-  // Gezeichnet wird in 120er-Einheiten; am PC ist die Leinwand größer und schärfer (MINIMAP_PX)
-  const k = renderer.mini.width / 120;
-  ctx.setTransform(k, 0, 0, k, 0, 0);
-  const W = 120;
-  const scale = W / MINIMAP_TILES;
-  const p = game.player;
-  const cx = p && game.running ? p.x / TILE : CENTER_X;
-  const cy = p && game.running ? p.y / TILE : CENTER_Y;
-  const ox = Math.max(0, Math.min(MAP_W - MINIMAP_TILES, cx - MINIMAP_TILES / 2));
-  const oy = Math.max(0, Math.min(MAP_H - MINIMAP_TILES, cy - MINIMAP_TILES / 2));
-  ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, W, W);
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(W / 2, W / 2, W / 2, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.drawImage(renderer.miniBase, ox, oy, MINIMAP_TILES, MINIMAP_TILES, 0, 0, W, W);
-  // leichter Schatten zum Rand hin (seit 7.8), damit die Karte wie eine Linse im Messingring wirkt
-  const vig = ctx.createRadialGradient(W / 2, W / 2, W * 0.3, W / 2, W / 2, W / 2);
-  vig.addColorStop(0, 'rgba(0,0,0,0)');
-  vig.addColorStop(1, 'rgba(10,6,2,0.55)');
-  ctx.fillStyle = vig;
-  ctx.fillRect(0, 0, W, W);
-  for (const m of game.monsters) {
-    if (!m.isStone || m.dead) continue;
-    const mx = (m.x / TILE - ox) * scale;
-    const my = (m.y / TILE - oy) * scale;
-    if (mx < 0 || my < 0 || mx > W || my > W) continue;
-    ctx.fillStyle = m.stoneType.look.glow;
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 1;
-    ctx.fillRect(mx - 2.5, my - 2.5, 5, 5);
-    ctx.strokeRect(mx - 2.5, my - 2.5, 5, 5);
-  }
-  // Händler und Helfer im Dorf als gelbe Punkte
-  for (const n of game.world.npcs) {
-    if (n.silent || n.wander) continue;
-    const mx = (n.x / TILE - ox) * scale;
-    const my = (n.y / TILE - oy) * scale;
-    if (n.id === 'riss') {
-      // Dungeon-Riss: pulsierender Punkt in der Farbe des Dungeons
-      const r = 4 + Math.sin(game.time * 6) * 1.5;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(mx, my, r + 1.5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = DUNGEONS[n.dungeon].portal;
-      ctx.beginPath();
-      ctx.arc(mx, my, r, 0, Math.PI * 2);
-      ctx.fill();
-      continue;
-    }
-    if (n.id === 'eingang' || n.id === 'ausgang') {
-      // Dungeons als Torbogen in ihrer Farbe
-      ctx.fillStyle = '#000000';
-      ctx.fillRect(mx - 4, my - 4, 8, 8);
-      ctx.fillStyle = DUNGEONS[n.dungeon].portal;
-      ctx.fillRect(mx - 3, my - 3, 6, 6);
-      continue;
-    }
-    const mark = questMarker(n.id, n);
-    if (mark) {
-      // Auftrag: kleine Raute in Gold (Hauptauftrag) oder Grün (Nebenauftrag)
-      ctx.fillStyle = mark === 'main' ? '#ffd34d' : '#6ae86a';
-      ctx.strokeStyle = '#1a1208';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(mx, my - 3.6);
-      ctx.lineTo(mx + 3, my);
-      ctx.lineTo(mx, my + 3.6);
-      ctx.lineTo(mx - 3, my);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    } else {
-      ctx.fillStyle = '#e8d8a8';
-      ctx.fillRect(mx - 1.2, my - 1.2, 2.4, 2.4);
-    }
-  }
-  // Mitspieler als hellblaue Punkte, die eigene Gruppe groß und grün mit Leuchtring.
-  // Ist ein Gruppenmitglied außerhalb des Ausschnitts, zeigt ein grüner Pfeil am Rand in seine Richtung.
-  const half = W / 2;
-  // auf der kleinen Handy-Karte die Gruppenzeichen größer, damit sie auffallen
-  const ms = Math.max(1, Math.min(2.4, 110 / (renderer.mini.clientWidth || W)));
-  for (const rp of net.players.values()) {
-    if (rp.gone || remoteHidden(rp)) continue;
-    let mx = (rp.x / TILE - ox) * scale;
-    let my = (rp.y / TILE - oy) * scale;
-    const mate = inMyParty(rp.name);
-    const dx = mx - half;
-    const dy = my - half;
-    const d = Math.hypot(dx, dy);
-    if (mate && d > half - 7 * ms) {
-      const a = Math.atan2(dy, dx);
-      const rx = half + Math.cos(a) * (half - 7 * ms);
-      const ry = half + Math.sin(a) * (half - 7 * ms);
-      ctx.save();
-      ctx.translate(rx, ry);
-      ctx.rotate(a);
-      ctx.scale(ms, ms);
-      ctx.fillStyle = '#5dff6e';
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(6, 0);
-      ctx.lineTo(-4, -5);
-      ctx.lineTo(-4, 5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-      continue;
-    }
-    if (d > half) continue;
-    if (mate) {
-      const pulse = (5.5 + Math.sin(game.time * 5) * 1.2) * ms;
-      ctx.strokeStyle = 'rgba(93,255,110,0.55)';
-      ctx.lineWidth = 2 * ms;
-      ctx.beginPath();
-      ctx.arc(mx, my, pulse + 2 * ms, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-    ctx.fillStyle = mate ? '#5dff6e' : '#9fd6ff';
-    ctx.strokeStyle = mate ? '#ffffff' : '#000000';
-    ctx.lineWidth = (mate ? 1.5 : 1) * ms;
-    ctx.beginPath();
-    ctx.arc(mx, my, (mate ? 4.2 : 2.6) * ms, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-  }
-  if (p && game.running) {
-    // eigene Figur: Pfeil in Blickrichtung mit hellem Schein
-    const px = (cx - ox) * scale;
-    const py = (cy - oy) * scale;
-    const glowG = ctx.createRadialGradient(px, py, 0, px, py, 9);
-    glowG.addColorStop(0, 'rgba(255,240,190,0.55)');
-    glowG.addColorStop(1, 'rgba(255,240,190,0)');
-    ctx.fillStyle = glowG;
-    ctx.fillRect(px - 9, py - 9, 18, 18);
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(Math.atan2(p.facing.y, p.facing.x));
-    ctx.fillStyle = '#fff6d8';
-    ctx.strokeStyle = '#1a1208';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.moveTo(5.5, 0);
-    ctx.lineTo(-3.5, -3.8);
-    ctx.lineTo(-1.8, 0);
-    ctx.lineTo(-3.5, 3.8);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-  }
-  ctx.restore();
-}
+// Minikarte, große Karte und Wegweiser: siehe karte.js (seit 8.8)
 
 // --- Glitzern ab +8 ---------------------------------------------------------------------------
 // Vierzackige Sterne funkeln an Waffe, Rüstung, Helm und Schild, damit jeder starke Ausrüstung erkennt.

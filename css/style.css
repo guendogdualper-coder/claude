@@ -2547,7 +2547,7 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 #hud:not(.touch) .zone-levels { font-size: 12.5px; }
 #hud:not(.touch) .purse { font-size: 13px; }
 #hud:not(.touch) .status-line { font-size: 12px; }
-#hud:not(.touch) .quest-log { top: calc(var(--edge-t) + 336px); max-height: max(110px, calc(100vh - 620px)); }
+#hud:not(.touch) .quest-log { top: calc(var(--edge-t) + 336px); max-height: max(132px, calc(100vh - 620px)); }
 /* Gruppenliste auf dem Handy etwas größer */
 #hud.touch .party-frame { width: 140px; }
 #hud.touch .pt-name { font-size: 11px; }
@@ -2665,3 +2665,43 @@ body.aiming canvas { cursor: crosshair; }
   #hud.touch .menu-btn .menu-icon { width: 19px; height: 19px; }
   #hud.touch .menu-btn::before { inset: -4px; }
 }
+
+/* --- Version 8.8: große Karte und Wegweiser ------------------------------------------------------
+   Die große Karte füllt fast den ganzen Bildschirm (Handy quer: 844 × 390), darunter Ziel und Legende.
+   In der Auftragsliste ist der verfolgte Auftrag goldumrandet und zeigt Ziel und Entfernung. */
+.panel.panel-map { width: min(1180px, calc(100vw - 16px)); height: calc(100% - 16px); max-height: none; }
+.panel-map .panel-head { padding: 6px 12px; }
+.panel-map .panel-head h2 { font-size: 17px; }
+.map-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 4px; padding: 6px 8px 8px; }
+.map-box { flex: 1; min-height: 0; display: grid; place-items: center; overflow: hidden; }
+#bigMap { display: block; border-radius: 8px; box-shadow: 0 0 0 1.5px #120c08, 0 0 0 3px #c9a35a, 0 0 0 4.5px #120c08, 0 6px 16px rgba(0, 0, 0, 0.6); cursor: crosshair; touch-action: manipulation; }
+.map-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 26px; }
+.map-nav { margin: 0; color: #ffe08a; font-weight: 700; font-size: 13px; line-height: 1.2; }
+.map-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11px; color: var(--muted); }
+.map-legend li { display: flex; align-items: center; gap: 4px; }
+.map-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid #000; }
+.map-legend .lg-me { background: #fff6d8; clip-path: polygon(100% 50%, 0 0, 30% 50%, 0 100%); border: 0; width: 11px; }
+.map-legend .lg-party { background: #5dff6e; }
+.map-legend .lg-guild { background: #d08cff; }
+.map-legend .lg-player { background: #9fd6ff; }
+.map-legend .lg-mob { background: #e8402e; width: 6px; height: 6px; }
+.map-legend .lg-boss { background: #ff9a2a; }
+.map-legend .lg-stone { background: #c8a0ff; border-radius: 1px; }
+.map-legend .lg-npc { background: #f0e2b4; width: 6px; height: 6px; }
+.map-legend .lg-pin { background: #ffd34d; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.map-legend .lg-gate { background: rgba(160, 220, 255, 0.5); border: 1.5px solid #9fd8ff; }
+.map-legend .lg-dg { background: #8a5ad0; border-radius: 1px; }
+.map-legend .lg-q { color: #ffd34d; font-weight: 900; text-shadow: 0 0 2px #000, 0 0 2px #000; width: 9px; text-align: center; }
+#hud.touch ~ .panel-map .map-legend, body.touch .panel-map .map-legend { font-size: 9.5px; gap: 1px 9px; }
+.ql-q[data-guide] { cursor: pointer; }
+.ql-q.tracked { box-shadow: inset 2px 0 0 #ffd34d; padding-left: 5px; }
+.ql-nav { color: #ffe08a; font-size: 10px; font-weight: 700; }
+#hud.touch .ql-nav { font-size: 9px; }
+@media (max-height: 430px) {
+  .panel.panel-map { height: calc(100% - 8px); }
+  .panel-map .panel-head { padding: 3px 10px; }
+  .panel-map .panel-head .close { min-height: 36px; }
+  .map-legend { display: none; }
+  .map-nav { font-size: 11.5px; }
+}
+.ql-q.done b::before { content: "? "; }

@@ -53,7 +53,7 @@
   <div id="tipBox" class="tip-box" hidden role="tooltip"></div>
 
   <section class="hud-map frame" aria-label="Karte">
-    <canvas id="minimap" width="120" height="120"></canvas>
+    <canvas id="minimap" width="120" height="120" title="Große Karte (M)"></canvas>
     <span class="mini-north" aria-hidden="true">N</span>
     <div id="zoneName" class="zone-name"></div>
     <div id="zoneLevels" class="zone-levels"></div>
@@ -248,7 +248,7 @@
       <li>Bei der Erstellung wählst du einen Weg deiner Klasse: Krieger, Ninja, Schamane und Nekromant haben zwei Wege (einen für Monster in Massen, einen für Zweikämpfe), der Magier vier Elemente. Jeder Weg hat fünf eigene Fertigkeiten. Buffs halten zwei bis drei Minuten.</li>
       <li><b>Magier:</b> Wähle Feuer, Frost, Blitz oder Erde. Taste 1 ist in jedem Element eine Nova um dich (ab Stufe 1), ab Stufe 5 kommt ein Elementsprung zur Flucht. Feuer setzt in Brand und lässt Brennende explodieren, Frost friert ein (Frostlanze zerschmettert Eingefrorene), Blitz lädt Gegner auf und springt weiter, Erde schleudert hoch und zieht zusammen. Im Dorf kannst du im Charakterfenster das Element wechseln (bis Stufe 10 kostenlos), deine Fertigkeitsstufen bleiben. Sein Hauptwert ist Intelligenz.</li>
       <li>Seelensteine (farbige Quadrate auf der Karte) gibt es von Stufe 5 bis 70 in Fünferschritten. Jeder sieht anders aus, ruft beim Angreifen Monster herbei und lässt eigene Beute fallen, siehe Liste unten.</li>
-      <li>Dorfältester Bao vergibt Aufträge mit Belohnungen, Jägerin Rin wiederholbare Jagden. Dieselben Leute stehen auch in jedem Lager und jeder Stadt der anderen Maps; Aufträge lassen sich überall annehmen und abgeben. Ein gelbes Ausrufezeichen zeigt, dass es etwas abzuholen gibt. Den aktuellen Auftrag siehst du unter der Karte.</li>
+      <li>Dorfältester Bao vergibt Aufträge mit Belohnungen, Jägerin Rin wiederholbare Jagden. Dieselben Leute stehen auch in jedem Lager und jeder Stadt der anderen Maps; Aufträge lassen sich überall annehmen und abgeben. Ein Ausrufezeichen zeigt einen neuen Auftrag, ein Fragezeichen, dass du etwas abgeben kannst. Den aktuellen Auftrag siehst du unter der Karte, ein goldener Pfeil an deiner Figur zeigt den Weg. Große Karte: Taste M oder kleine Karte antippen.</li>
       <li>Wegweiserin Lian bringt dich gegen Gold an den Rand jedes Gebiets. Alchemist Yun verkauft Materialien.</li>
       <li>Im Dorf verkauft Waffenhändler Goro Waffen für deine Klasse, Rüstungshändlerin Mei Rüstung, Helm, Schultern, Umhang, Schild (für Krieger), Schuhe und Gürtel, jeweils ab Stufe 1, 5, 10 und 15. Händlerin Ayla hat Tränke und Segensschriftrollen.</li>
       <li>Verkaufen geht nur bei einem Händler im Dorf. In der Tasche (vier Seiten I–IV) „Mehrere verkaufen“ antippen, Sachen auswählen oder mit „Ganze Seite“ und „Nicht nutzbar“ automatisch wählen, dann „Verkaufen“ und bestätigen.</li>
@@ -266,6 +266,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 8.8 – Karte und Wegweiser: Ein goldener Pfeil neben deiner Figur zeigt, wohin du für deinen Auftrag laufen musst, daneben stehen Ziel und Entfernung (z. B. „Wolf · 47 m“). Ist das Ziel im Bild, schwebt ein goldener Pfeil darüber. Ist der Auftrag erfüllt, führt der Pfeil zum Auftraggeber; liegt das Ziel auf einer anderen Map, zum Weltentor (im Dungeon zum Ausgang). In der Auftragsliste wählst du durch Antippen, welchem Auftrag der Pfeil folgt. Auftraggeber zeigen „!“ für einen neuen Auftrag und „?“ zum Abgeben – über dem Kopf und auf der Karte. Die große Karte öffnest du am PC mit M, auf dem Handy durch Antippen der kleinen Karte. Antippen der großen Karte setzt eine eigene Markierung, zu der der Pfeil dann führt. Beide Karten sind neu gezeichnet und scharf: weicher Boden, runde Bäume, Häuser mit Dach. Darauf siehst du Monster (rot, Bosse orange), Bewohner, Seelensteine, Dungeons, das Weltentor, deine Gruppe (grün), deine Gilde (lila) und andere Spieler (blau).</li>
       <li>Version 8.7 – Lehrmeister: In jeder Stadt und jedem Lager steht jetzt ein Lehrmeister (in Vlotho Lehrmeister Wen). Bei ihm kaufst du Fertigkeitsbücher zu deinen eigenen Fertigkeiten für je 100.000 Gold und setzt deine Punkte zurück: Statuspunkte und Fertigkeitspunkte getrennt, das erste Mal für 10.000 Gold, danach jedes Mal doppelt so teuer. Beim Zurücksetzen der Fertigkeiten gehen alle Fertigkeiten bis Stufe 15 auf Stufe 1 und die Punkte kommen zurück; erweckte Fertigkeiten (E/H/L/V) behalten ihren Rang. Außerdem ist der Sprungschlag des Kriegers etwa 30 % schneller.</li>
       <li>Version 8.6 – Der Magier: Die fünfte Klasse ist da. Der Magier ist ein Gelehrter der vier Elemente mit spitzem Hut, hohem Kragen und einem Zepter mit schwebendem Kristall. Bei der Erstellung wählst du <b>Feuer, Frost, Blitz oder Erde</b>; jedes Element ist ein eigener Weg mit fünf Fertigkeiten und eigener Ultimate. Auf Taste 1 hat jedes Element ab Stufe 1 eine <b>Nova</b>, die flach über den Boden nach außen rast: Feuernova (Brand, Brennende explodieren), Frostnova (friert ein), Blitznova (Bodenblitze, lädt auf), Erdnova (Basalt schleudert hoch). Ab E1 folgt jeder Nova ein Nachhall. Dazu Element-Geschosse, ein Elementsprung, ein Buff und ein großes Siegel mit Zielkreis. Das Element lässt sich im Dorf wechseln. Fertigkeitsbücher: Eigene Bücher fallen so oft wie bisher. Wichtig: Bitte aktualisiere das Spiel auf allen Geräten, bevor du einen Magier erstellst – ältere Versionen erkennen ihn nicht.</li>
       <li>Version 8.5 – Nekromant, Erwecken und Pferde: Der Weg der Seelen des Nekromanten ist neu. Die <b>Schädelsalve</b> schießt drei brennende Totenschädel im Fächer, die im Bogen bis zu drei Gegner beißen. Der <b>Seelenkäfig</b> lässt beim Ziel einen Käfig aus riesigen Rippen aus dem Boden brechen; der gefangene Geist schreit fünfmal, trifft und verlangsamt alles im Umkreis und zieht beim ersten Schrei heran. Der <b>Seelenschnitter</b> erhebt sich neben dir und mäht mit seiner Sense in weitem Bogen; Getroffene nehmen 6 s mehr Schaden. Die <b>Totenbeschwörung</b> ist repariert: Die Skelette waren in 3D unsichtbar oder steckten im Boden. Jetzt steigen drei Skelettkrieger aus der Erde, nach dem Erwecken drei Knochenhunde, die Gegner anspringen und richtig zubeißen (Heroisch: Bisse verlangsamen, Legendär: Seelenhunde mit Seelenfeuer, Vollendet: ein Alpha). <b>Dunkle Macht</b> gibt jetzt Zauberschaden statt Angriff – auch für deine Diener – und etwas Lauftempo, mit einer Krone aus Seelenflammen. Fertigkeiten steigen mit Punkten nur noch bis Stufe 15, dann macht ein Klick auf „Erwecken“ sie zu E1; alte Stufen 16 und 17 werden automatisch zu E1 (bei 17 gibt es einen Punkt zurück). Alle Klassen laufen etwas langsamer, Tempo-Buffs wie Kampfrausch bringen weniger, zu Fuß ist das Tempo auf +25 % begrenzt. Dafür sind Pferde viel schneller: Reitpferd +35 %, Kriegsross ab Stufe 40 +65 % – der Pferdeknopf zeigt den Wert in Prozent.</li>
@@ -366,6 +367,22 @@
   <div id="netBody" class="panel-body"></div>
 </div>
 
+<div id="panelMap" class="panel frame panel-map" hidden role="dialog" aria-labelledby="mapTitle">
+  <header class="panel-head"><h2 id="mapTitle">Karte</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div class="map-body">
+    <div class="map-box"><canvas id="bigMap" width="300" height="120"></canvas></div>
+    <div class="map-foot">
+      <p id="mapNav" class="map-nav"></p>
+      <button id="mapClearPin" class="mini-btn" type="button">Markierung löschen</button>
+    </div>
+    <ul class="map-legend">
+      <li><i class="lg-me"></i>Du</li><li><i class="lg-party"></i>Gruppe</li><li><i class="lg-guild"></i>Gilde</li><li><i class="lg-player"></i>Spieler</li>
+      <li><i class="lg-mob"></i>Monster</li><li><i class="lg-boss"></i>Boss</li><li><i class="lg-stone"></i>Seelenstein</li><li><i class="lg-npc"></i>Bewohner</li>
+      <li><b class="lg-q">!</b>Auftrag</li><li><b class="lg-q">?</b>Abgeben</li><li><i class="lg-pin"></i>Ziel</li><li><i class="lg-gate"></i>Weltentor</li><li><i class="lg-dg"></i>Dungeon</li>
+    </ul>
+  </div>
+</div>
+
 <div id="panelDaily" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="dailyTitle">
   <header class="panel-head"><h2 id="dailyTitle">Tagesbelohnung</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="dailyBody" class="panel-body"></div>
@@ -461,6 +478,7 @@
 <script src="js/magier-symbole.js"></script>
 <script src="js/oberflaeche.js"></script>
 <script src="js/quests.js"></script>
+<script src="js/karte.js"></script>
 <script src="js/tagesbelohnung.js"></script>
 <script src="js/eingabe.js"></script>
 <script src="js/netz-signal.js"></script>

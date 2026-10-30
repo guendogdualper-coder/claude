@@ -39,13 +39,20 @@ const ui = {
     updateNotchSide();
     window.addEventListener('orientationchange', updateNotchSide);
     window.addEventListener('resize', updateNotchSide);
-    // Handy: Karte antippen klappt Gold, Splitter, Akku, Uhr und Ping auf oder zu
+    // Kleine Karte antippen öffnet die große Karte (seit 8.8, am PC auch Taste M);
+    // das Gebietsband darunter klappt auf dem Handy Gold, Splitter, Akku, Uhr und Ping auf oder zu
     const map = document.querySelector('.hud-map');
     try { map.classList.toggle('open', localStorage.getItem('seelenstein.kartendetails') === '1'); } catch (e) {}
-    map.addEventListener('click', () => {
+    map.addEventListener('click', (e) => {
+      const r = $('minimap').getBoundingClientRect();
+      if (e.clientX >= r.left - 4 && e.clientX <= r.right + 4 && e.clientY >= r.top - 4 && e.clientY <= r.bottom + 4) {
+        openBigMap();
+        return;
+      }
       const open = map.classList.toggle('open');
-      try { localStorage.setItem('seelenstein.kartendetails', open ? '1' : '0'); } catch (e) {}
+      try { localStorage.setItem('seelenstein.kartendetails', open ? '1' : '0'); } catch (e2) {}
     });
+    setupBigMap();
     this.chatHint();
     this.initBattery();
     this.initTips();
@@ -1151,6 +1158,7 @@ const ui = {
       if (id === 'panelLoot') this.renderLoot();
       if (id === 'panelSocial') social.render();
       if (id === 'panelDaily') renderDaily();
+      if (id === 'panelMap') bigMap.timer = 0;
       if (id === 'panelOpts') options.render();
       if (id === 'panelNet') {
         this.renderNet();
