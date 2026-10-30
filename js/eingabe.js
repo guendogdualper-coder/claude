@@ -163,7 +163,7 @@ function setupInput() {
     const dx = e.clientX - camDrag.x;
     if (!camDrag.moved && Math.abs(dx) < 8) return;
     camDrag.moved = true;
-    V3.yaw = (V3.yaw || 0) - dx * 0.008;
+    V3.yawGoal = (V3.yawGoal != null ? V3.yawGoal : V3.yaw || 0) - dx * 0.008;
     camDrag.x = e.clientX;
   });
   const endCamDrag = (e) => {

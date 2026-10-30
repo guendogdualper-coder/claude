@@ -728,7 +728,27 @@ function v3InView(x, y, pad = 0) {
   return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
 }
 
-function v3PlaceCamera(fx, fy) {
+// Schatten ohne Flimmern (seit 9.0): Der Schattenbereich wandert mit der Kamera. Liegt seine Mitte nicht genau auf
+// einem Schatten-Bildpunkt, springen die Schattenkanten bei jeder Bewegung um einen Bildpunkt hin und her. Darum wird
+// die Mitte im Blickfeld der Sonne auf ganze Bildpunkte gerundet.
+const SUN3_OFF = new THREE.Vector3(9, 24, 13);
+const _sunD = SUN3_OFF.clone().normalize();
+const _sunR = new THREE.Vector3().crossVectors(_sunD, new THREE.Vector3(0, 1, 0)).normalize();
+const _sunU = new THREE.Vector3().crossVectors(_sunR, _sunD).normalize();
+const _sunT = new THREE.Vector3();
+function v3PlaceSun(tx, tz) {
+  const sc = V3.sun.shadow.camera;
+  const texel = (sc.right - sc.left) / (V3.sun.shadow.mapSize.x || 1024);
+  _sunT.set(tx, 0, tz);
+  const a = _sunT.dot(_sunR);
+  const b = _sunT.dot(_sunU);
+  _sunT.addScaledVector(_sunR, Math.round(a / texel) * texel - a).addScaledVector(_sunU, Math.round(b / texel) * texel - b);
+  V3.sun.target.position.copy(_sunT);
+  V3.sun.position.copy(_sunT).add(SUN3_OFF);
+  V3.sun.target.updateMatrixWorld();
+}
+
+function v3PlaceCamera(fx, fy, dt = 0.016) {
   const r = renderer;
   const cam = V3.camera;
   if (v3Shoulder()) {
@@ -736,7 +756,10 @@ function v3PlaceCamera(fx, fy) {
       cam.fov = SHOULDER3.fov;
       cam.updateProjectionMatrix();
     }
-    const yaw = V3.yaw || 0;
+    // Drehen per Wischen setzt nur das Ziel (V3.yawGoal), die Kamera dreht weich hinterher
+    if (V3.yawGoal == null) V3.yawGoal = V3.yaw || 0;
+    V3.yaw = (V3.yaw || 0) + (V3.yawGoal - (V3.yaw || 0)) * (1 - Math.exp(-dt * 16));
+    const yaw = V3.yaw;
     const d = SHOULDER3.dist * (V3.zoomMul || 1);
     const tx = fx * U3;
     const tz = fy * U3;
@@ -745,9 +768,7 @@ function v3PlaceCamera(fx, fy) {
     cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(SHOULDER3.pitch) * d, tz + Math.cos(yaw) * cp * d);
     cam.lookAt(tx, ty, tz);
     cam.updateMatrixWorld();
-    V3.sun.position.set(tx + 9, 24, tz + 13);
-    V3.sun.target.position.set(tx - Math.sin(yaw) * 4, 0, tz - Math.cos(yaw) * 4);
-    V3.sun.target.updateMatrixWorld();
+    v3PlaceSun(tx - Math.sin(yaw) * 4, tz - Math.cos(yaw) * 4);
     V3.focus.x = fx;
     V3.focus.y = fy;
     return;
@@ -757,6 +778,7 @@ function v3PlaceCamera(fx, fy) {
     cam.updateProjectionMatrix();
   }
   V3.yaw = 0;
+  V3.yawGoal = 0;
   // so weit weg, dass etwa so viel Welt zu sehen ist wie im 2D-Spiel (etwas mehr Überblick)
   const viewH = r.h / r.zoom * U3;
   const fov = (cam.fov * Math.PI) / 180;
@@ -768,9 +790,7 @@ function v3PlaceCamera(fx, fy) {
   cam.lookAt(tx, ty, tz);
   cam.updateMatrixWorld();
   // Sonne steht im Südosten hoch am Himmel, der Schattenbereich folgt der Kamera
-  V3.sun.position.set(tx + 9, 24, tz + 13);
-  V3.sun.target.position.set(tx, 0, tz - 2);
-  V3.sun.target.updateMatrixWorld();
+  v3PlaceSun(tx, tz - 2);
   V3.focus.x = fx;
   V3.focus.y = fy;
 }
@@ -1651,12 +1671,35 @@ function renderDrei() {
     fx = CENTER_X * TILE + Math.cos(t * 0.05) * 300;
     fy = CENTER_Y * TILE + Math.sin(t * 0.05) * 220;
   }
-  const shakeX = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
-  const shakeY = game.shake ? (Math.random() - 0.5) * 2 * game.shake : 0;
   // Für die übrige Logik (Teilchen am Bildrand usw.) wie im 2D-Spiel
   r.camX = fx - r.w / 2 / r.zoom;
   r.camY = fy - r.h / 2 / r.zoom;
-  v3PlaceCamera(fx + shakeX, fy + shakeY);
+  let cx = fx;
+  let cy = fy;
+  if (v3Shoulder() && game.player && game.running) {
+    // Schulterblick (seit 9.0): Die nahe Kamera folgt weich statt starr (sonst überträgt sich jedes ungleiche
+    // Bild und jeder Ruck aufs ganze Bild), nach einem Sprung über 6 Kacheln (Teleport) sofort.
+    // Wackeln bei Treffern als kurzes, gedämpftes Schwingen statt zufälliger Sprünge in jedem Bild.
+    const cf = V3.camF || (V3.camF = { x: fx, y: fy });
+    if (Math.abs(fx - cf.x) + Math.abs(fy - cf.y) > 6 * TILE) {
+      cf.x = fx;
+      cf.y = fy;
+    } else {
+      const k = 1 - Math.exp(-dt * 11);
+      cf.x += (fx - cf.x) * k;
+      cf.y += (fy - cf.y) * k;
+    }
+    const a = game.shake * 0.35;
+    cx = cf.x + Math.sin(V3.time * 43) * a;
+    cy = cf.y + Math.cos(V3.time * 37) * a * 0.6;
+  } else {
+    V3.camF = null;
+    if (game.shake) {
+      cx += (Math.random() - 0.5) * 2 * game.shake;
+      cy += (Math.random() - 0.5) * 2 * game.shake;
+    }
+  }
+  v3PlaceCamera(cx, cy, dt);
   v3UpdateMood(dt, fx, fy);
   v3CollectLights();
   // Beim Start (noch kein Boden) großzügig bauen, danach nur kleine Zeitscheiben
@@ -1754,7 +1797,10 @@ function drawOverlay3(ctx) {
     if (pl.allies) for (const al of pl.allies) if (inView(al.x, al.y)) list.push(al);
   }
   list.sort(byY);
+  // Schulterblick: Namen ferner Monster weglassen (sonst stapeln sie sich am Horizont übereinander)
+  const far2 = v3Shoulder() && game.player ? (13 * TILE * (V3.zoomMul || 1)) ** 2 : 0;
   for (const e of list) {
+    if (far2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > far2) continue;
     const fy = feetY(e);
     const head = v3HeadHeight(e);
     v3Anchor(ctx, e.x, fy, head, e.x, fy - figureHeight(e));
