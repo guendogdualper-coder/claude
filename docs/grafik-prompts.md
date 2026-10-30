@@ -88,6 +88,24 @@ Kleine Nieten und Muster sind nur das Sahnehäubchen.
   Männlich: gerade knöchellange Robe mit Mittelschlitz und kurzem Schultercape. Weiblich: Korsage mit Silberschnürung,
   A-Linie ab der Hüfte, langer silberner Zopf vor der Schulter.
 
+### 3.x Mann und Frau, Frisuren, Bärte (seit 9.2)
+
+**Ziel:** Auf einen Blick erkennbar, ob ein Mann oder eine Frau spielt, auch mit Helm.
+
+- **Männer:** Bart in der Haarfarbe (Kurz, Vollbart, Zopfbart mit Goldring, Schnurrbart mit kleinem Kinnbart
+  oder keiner); Kiefer etwa 8 % breiter und tiefer, Körper etwa 8 % kräftiger, dicke gerade Brauen, kein Lidstrich.
+- **Frauen:** Körper schmaler (etwa 96 %), Taille, Wimpern mit zweitem Schwung, rote Lippen, kleine Gold-Ohrringe
+  mit Perle; unter Helm oder Kapuze hängt ein geflochtener Zopf mit rotem Band heraus.
+- **Frisuren:** Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze, Zerzaust, Zurückgekämmt, Irokese,
+  Haarknoten, Mähne. Alle sind aus einzelnen Strähnen gebaut, mit Glanzband und dunklen und hellen Strähnen im Wechsel.
+- **Helm verstecken:** Helm, Kapuze, Hut oder Maske werden nicht gezeichnet, die Werte zählen weiter. Dann sieht
+  man die Frisur, beim Ninja auch den Mund und beim Nekromanten normale Augen statt Leuchtaugen.
+
+**Prompt (englisch):**
+```
+Character customization sheet for a stylized 3D toon fantasy MMORPG, chibi proportions, front three-quarter view, two rows: top row male heroes (warrior, ninja, shaman, necromancer, mage) each with a clearly visible beard in the hair colour – short beard, full beard, braided beard with a gold ring, moustache with a small chin tuft – broader jaw and slightly bulkier body; bottom row female heroes with slimmer bodies, eyelashes, red lips, small gold earrings with a pearl and a braid hanging out under the helmet. Hair styles shown without helmets: short, bun, long, spiky, ponytail, bald, messy, slicked back, mohawk, top knot, wild mane. Thick dark outlines, soft toon shading, no text.
+```
+
 ---
 
 ## 4. Ausrüstung je Platz und Stufe

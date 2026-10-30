@@ -1763,6 +1763,7 @@ function drawClassPreview(cv, classId, path = 0) {
 function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
   const look = { ...DEFAULT_LOOKS[classId], ...(start || {}) };
   let dir = 0;
+  let waited = false;
   const dirs = [{ x: 0, y: 1 }, { x: 1, y: 0 }, { x: 0, y: -1 }];
   const cycle = (key, list, label) => `<div class="lk-row"><span>${label}</span><button type="button" class="lk-arrow" data-cyc="${key}:-1">‹</button>` +
     `<b>${list[look[key]]}</b><button type="button" class="lk-arrow" data-cyc="${key}:1">›</button></div>`;
@@ -1770,10 +1771,23 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
     colors.map((c, i) => `<button type="button" class="lk-sw${look[key] === i ? ' on' : ''}" style="--c:${c}" data-sw="${key}:${i}" aria-label="${label} ${i + 1}"></button>`).join('') + `</div></div>`;
   const render = () => {
     box.innerHTML = `<div class="lk"><canvas class="lk-preview" width="180" height="210" title="Antippen zum Drehen"></canvas><div class="lk-opts">` +
-      cycle('sex', LOOKS.sex, 'Geschlecht') + cycle('hair', LOOKS.hair, 'Frisur') + swatches('hc', LOOKS.hairColor, 'Haare') + swatches('skin', LOOKS.skin, 'Haut') +
-      cycle('eyes', LOOKS.eyes, 'Augen') + swatches('ec', LOOKS.eyeColor, 'Augenfarbe') + cycle('mark', LOOKS.mark, 'Gesicht') +
+      cycle('sex', LOOKS.sex, 'Geschlecht') + cycle('hair', LOOKS.hair, 'Frisur') + swatches('hc', LOOKS.hairColor, 'Haare') +
+      (look.sex === 0 ? cycle('bart', LOOKS.beard, 'Bart') : '') + swatches('skin', LOOKS.skin, 'Haut') +
+      cycle('eyes', LOOKS.eyes, 'Augen') + swatches('ec', LOOKS.eyeColor, 'Augenfarbe') + cycle('mark', LOOKS.mark, 'Gesicht') + cycle('helm', LOOKS.helm, 'Helm') +
       `<button type="button" class="mini-btn lk-random">🎲 Zufällig</button></div></div>`;
     const cv = box.querySelector('canvas');
+    cv.addEventListener('click', () => { dir = (dir + 1) % 3; render(); });
+    // 3D (seit 9.2): Vorschau mit der echten Spielfigur, damit man Frisur, Bart und Helm so sieht wie im Spiel
+    const fig3 = { classId, path, equipment: equipment || starterEquipment(classId), look };
+    if (typeof v3Portrait === 'function' && cv.clientWidth && v3Portrait(cv, fig3, [-0.35, -1.45, Math.PI][dir])) {
+      bind();
+      return;
+    }
+    // Fenster gerade erst geöffnet (noch ohne Größe): im nächsten Bild in 3D zeichnen
+    if (V3.on && !cv.clientWidth && !waited) {
+      waited = true;
+      requestAnimationFrame(() => { if (box.isConnected) render(); });
+    }
     const ctx = cv.getContext('2d');
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, cv.width, cv.height);
@@ -1787,13 +1801,15 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
     const fig = { classId, path, x: 0, y: 0, r: 11, facing: dirs[dir], buffs: [], swing: 0, moving: false, shield: 0, equipment: equipment || starterEquipment(classId), look };
     ctx.translate(0, -feetY(fig));
     drawPlayer(ctx, fig);
-    cv.addEventListener('click', () => { dir = (dir + 1) % 3; render(); });
+    bind();
+  };
+  const bind = () => {
     box.querySelectorAll('[data-cyc]').forEach((b) => b.addEventListener('click', () => {
       const [key, step] = b.dataset.cyc.split(':');
-      const n = { sex: LOOKS.sex, hair: LOOKS.hair, eyes: LOOKS.eyes, mark: LOOKS.mark }[key].length;
-      look[key] = (look[key] + Number(step) + n) % n;
+      const n = { sex: LOOKS.sex, hair: LOOKS.hair, eyes: LOOKS.eyes, mark: LOOKS.mark, bart: LOOKS.beard, helm: LOOKS.helm }[key].length;
+      look[key] = ((look[key] ?? 0) + Number(step) + n) % n;
       // passende Frisur beim Wechsel des Geschlechts (danach frei wählbar)
-      if (key === 'sex') look.hair = look.sex === 1 ? (look.hair === 0 || look.hair === 3 || look.hair === 5 ? 2 : look.hair) : (look.hair === 1 || look.hair === 2 || look.hair === 4 ? 0 : look.hair);
+      if (key === 'sex') look.hair = look.sex === 1 ? ([0, 3, 5, 7, 8].includes(look.hair) ? 2 : look.hair) : ([1, 2, 4, 9].includes(look.hair) ? 0 : look.hair);
       onChange({ ...look });
       render();
     }));
@@ -1805,7 +1821,7 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
     }));
     box.querySelector('.lk-random').addEventListener('click', () => {
       const r = (n) => Math.floor(Math.random() * n);
-      Object.assign(look, { sex: r(2), hair: r(LOOKS.hair.length), hc: r(LOOKS.hairColor.length), skin: r(LOOKS.skin.length), eyes: r(LOOKS.eyes.length), ec: r(LOOKS.eyeColor.length), mark: r(LOOKS.mark.length) });
+      Object.assign(look, { sex: r(2), hair: r(LOOKS.hair.length), hc: r(LOOKS.hairColor.length), skin: r(LOOKS.skin.length), eyes: r(LOOKS.eyes.length), ec: r(LOOKS.eyeColor.length), mark: r(LOOKS.mark.length), bart: r(LOOKS.beard.length) });
       onChange({ ...look });
       render();
     });

@@ -808,7 +808,9 @@ function playerLook(p) {
   const eq = p.equipment;
   if (!eq) return { a: -1, h: -1, ap: p.look || null, pt: p.path ?? null };
   const t = (it) => (it ? it.tier : -1);
-  return { a: t(eq.ruestung), h: eq.helm ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern), ap: p.look || null, pt: p.path ?? null };
+  // Helm versteckt (seit 9.2): gezeichnet wie ohne Helm
+  const hide = p.look && p.look.helm === 0;
+  return { a: t(eq.ruestung), h: eq.helm && !hide ? eq.helm.tier : -2, b: t(eq.schuhe), g: t(eq.guertel), s: t(eq.schultern), ap: p.look || null, pt: p.path ?? null, hideHead: hide };
 }
 
 // --- Sichtbare Ausrüstung: Schuhe, Gürtel, Schultern, Umhang ------------------------------------
@@ -997,7 +999,10 @@ function drawCape(ctx, tier, dir, w, moving, t, layer) {
 // --- Aussehen (bei der Erstellung gewählt) ------------------------------------------------------
 const LOOKS = {
   sex: ['Männlich', 'Weiblich'],
-  hair: ['Kurz', 'Dutt', 'Lang', 'Stachelig', 'Pferdeschwanz', 'Glatze'],
+  hair: ['Kurz', 'Dutt', 'Lang', 'Stachelig', 'Pferdeschwanz', 'Glatze', 'Zerzaust', 'Zurückgekämmt', 'Irokese', 'Haarknoten', 'Mähne'],
+  // seit 9.2: Bart (nur Männer) und ob der Helm bzw. die Kapuze zu sehen ist
+  beard: ['Keiner', 'Kurz', 'Vollbart', 'Zopfbart', 'Schnurrbart'],
+  helm: ['Versteckt', 'Sichtbar'],
   hairColor: ['#3a2418', '#1e1818', '#7a4a24', '#d0a040', '#ece0b8', '#b0382a', '#4a5aa8', '#dcdce6'],
   skin: ['#f6dcc0', '#e9c6a1', '#d8a576', '#b27a50', '#7c4e30', '#c9c4b0', '#a8c4a0'],
   eyes: ['Rund', 'Schmal', 'Fröhlich', 'Entschlossen'],
@@ -1005,18 +1010,18 @@ const LOOKS = {
   mark: ['Keine', 'Sommersprossen', 'Narbe', 'Kriegsbemalung']
 };
 const DEFAULT_LOOKS = {
-  krieger: { sex: 0, hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0 },
-  ninja: { sex: 1, hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0 },
-  schamane: { sex: 1, hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0 },
-  nekromant: { sex: 0, hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0 },
-  // Magier: kurzes grau-silbernes Haar, blaue Augen
-  magier: { sex: 0, hair: 0, hc: 7, skin: 0, eyes: 0, ec: 1, mark: 0 }
+  krieger: { sex: 0, hair: 0, hc: 0, skin: 1, eyes: 0, ec: 0, mark: 0, bart: 1, helm: 1 },
+  ninja: { sex: 1, hair: 4, hc: 1, skin: 1, eyes: 1, ec: 0, mark: 0, bart: 1, helm: 1 },
+  schamane: { sex: 1, hair: 1, hc: 1, skin: 0, eyes: 0, ec: 0, mark: 0, bart: 1, helm: 1 },
+  nekromant: { sex: 0, hair: 2, hc: 7, skin: 5, eyes: 0, ec: 0, mark: 0, bart: 1, helm: 1 },
+  // Magier: kurzes grau-silbernes Haar, blaue Augen, Vollbart
+  magier: { sex: 0, hair: 0, hc: 7, skin: 0, eyes: 0, ec: 1, mark: 0, bart: 2, helm: 1 }
 };
 function lookOf(L, classId) {
   return { ...DEFAULT_LOOKS[classId], ...((L && L.ap) || {}) };
 }
 function lookKey(ap) {
-  return ap ? [ap.sex, ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark].join('.') : '';
+  return ap ? [ap.sex, ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark, ap.bart, ap.helm].join('.') : '';
 }
 const skinOf = (ap) => LOOKS.skin[ap.skin] || LOOKS.skin[1];
 const hairOf = (ap) => LOOKS.hairColor[ap.hc] || LOOKS.hairColor[0];
@@ -1025,8 +1030,10 @@ function eyeOpts(ap) {
 }
 
 // Frisur. layer 'back': hinter dem Kopf (lange Haare, Zopf, Dutt von der Seite), 'front': Kappe und Rest
+// 2D kennt die Frisuren 0–5; die neueren (seit 9.2 für Spieler) nehmen die ähnlichste
+const HAIR2D = [0, 1, 2, 3, 4, 5, 3, 0, 3, 1, 2];
 function drawHair(ctx, dir, cx, cy, ap, layer) {
-  const style = ap.hair;
+  const style = HAIR2D[ap.hair] ?? 0;
   const c = hairOf(ap);
   const dark = darker(c, 0.25);
   if (layer === 'back') {
@@ -1094,6 +1101,19 @@ function drawHair(ctx, dir, cx, cy, ap, layer) {
 
 // Zeichen im Gesicht: Sommersprossen, Narbe, Kriegsbemalung
 function faceMarks(ctx, dir, cx, cy, ap) {
+  // Bart der Männer (seit 9.2): Kinnbart, Vollbart, Zopfbart oder Schnurrbart
+  if (ap.sex === 0 && ap.bart > 0 && dir !== 'up') {
+    const c = darker(hairOf(ap), 0.05);
+    const sx = dir === 'side' ? cx + 4 : cx;
+    if (ap.bart === 4) {
+      stroke(ctx, c, 1.6, [[sx - 3.5, cy + 4.6], [sx, cy + 3.8], [sx + 3.5, cy + 4.6]]);
+    } else {
+      const len = ap.bart === 2 ? 9 : ap.bart === 3 ? 7 : 5;
+      poly(ctx, [[sx - 6.5, cy + 2.5], [sx - 5, cy + 2.5 + len * 0.7], [sx, cy + 2.5 + len], [sx + 5, cy + 2.5 + len * 0.7], [sx + 6.5, cy + 2.5], [sx + 3, cy + 5.5], [sx - 3, cy + 5.5]], c);
+      stroke(ctx, c, 1.4, [[sx - 3.5, cy + 4.4], [sx, cy + 3.8], [sx + 3.5, cy + 4.4]]);
+      if (ap.bart === 3) for (const x of [-2, 2]) box(ctx, sx + x - 1, cy + 2.5 + len, 2, 4, 1, c);
+    }
+  }
   if (!ap.mark || dir === 'up') return;
   const xs = dir === 'side' ? [cx + 6] : [cx - 4.2, cx + 4.2];
   if (ap.mark === 1) {

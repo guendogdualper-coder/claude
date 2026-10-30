@@ -637,12 +637,18 @@ function humanoid3(b, c, P) {
   const hb = BH.head;
   A(ball(18), c.skin, { bone: hb, p: hc, s: [hr, hr * 0.93, hr * 0.96], shine: c.hair && c.hair.style === 5 ? 0.35 : 0 });
   // mit Maske sitzt das Tuch auf dem Kiefer statt darin
-  A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86, hr * 0.62, hr * 0.8] });
+  const jw = c.jaw || 1;
+  A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28 * jw, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86 * jw, hr * 0.62 * jw, hr * 0.8] });
   if (!c.noEars) for (const sx of [-1, 1]) {
     if (c.pointEars) A(horn3(hr * 0.55, hr * 0.14, 6), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.9, hc[1], hc[2]], r: [0, 0, -sx * 1.25] });
     else A(ball(8), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.97, hc[1] - hr * 0.06, hc[2]], s: [hr * 0.1, hr * 0.17, hr * 0.14] });
   }
   if (c.brow) A(roundBox(hr * 1.4, hr * 0.2, hr * 0.3, hr * 0.1), c.skin, { bone: hb, p: [hc[0], hc[1] + hr * 0.12, hc[2] + hr * 0.75], shade: 0.3 });
+  // Ohrringe (Frauen, seit 9.2): kleiner Goldring mit hängender Perle
+  if (c.earrings && !c.noEars && c.covered !== 'hood') for (const sx of [-1, 1]) {
+    A(torus3(hr * 0.07, hr * 0.022, Math.PI * 2, 4, 10), c.earrings, { bone: hb, p: [hc[0] + sx * hr * 1.0, hc[1] - hr * 0.3, hc[2]], r: [0, Math.PI / 2, 0], shine: 1 });
+    A(sphere3(hr * 0.055, 8, 6), c.earrings, { bone: hb, p: [hc[0] + sx * hr * 1.0, hc[1] - hr * 0.42, hc[2]], shine: 1 });
+  }
   face3(A, hb, hc, hr, Object.assign({ hairColor: c.hair ? c.hair.color : null }, c));
   if (c.beard && c.beardGlow) A(ball(12), c.beard, { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + hr * 0.42], s: [hr * 0.64, hr * 0.52, hr * 0.44], shade: 0.2, mat: 'glow' });
   else if (c.beard) beard3(A, hb, hc, hr, c.beard, c.beardKind, c.rnd || mulberry32(5));
@@ -779,6 +785,9 @@ function playerKey3(p) {
   return p.classId === 'magier' ? key + '|' + (p.path ?? 'a') : key;
 }
 
+// Bart der Männer (LOOKS.beard): Keiner, Kurz, Vollbart, Zopfbart, Schnurrbart
+const BEARD3 = [null, 'short', 'long', 'braid', 'mustache'];
+
 function playerConfig3(p) {
   const L = playerLook(p);
   const ap = lookOf(L, p.classId);
@@ -903,6 +912,31 @@ function playerConfig3(p) {
     c.glowEyes = lookColor(A0.glow, L.h, '#a7e37f');
     c.angry = false;
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;
+  }
+  // Aussehen (seit 9.2): Helm/Kapuze ausblendbar, damit man die Frisur sieht; Männer mit Bart, breiter und kantiger,
+  // Frauen schmaler mit Ohrringen und langem Haar unter dem Helm
+  if (ap.helm === 0) {
+    c.headgear = null;
+    c.covered = false;
+    c.braid = null;
+    c.braidFront = false;
+    delete c.tall;
+    c.glowEyes = null;
+    if (p.classId === 'ninja') c.noMouth = false;
+    c.hair = { style: ap.hair || 0, color: hairOf(ap) };
+  }
+  const mask = p.classId === 'ninja' && ap.helm !== 0;
+  if (ap.sex === 0) {
+    c.bulk = Math.max(c.bulk || 1, 1.08);
+    c.jaw = 1.08;
+    const kind = BEARD3[ap.bart == null ? 1 : ap.bart];
+    if (kind && !mask) {
+      c.beard = darker(hairOf(ap), 0.04);
+      c.beardKind = kind;
+    }
+  } else {
+    c.bulk = Math.min(c.bulk || 1, 0.96);
+    c.earrings = '#e8c46a';
   }
   // Stufenmerkmale: Rüstung (Grundform umstellen), dann alle Teile nach dem Körper
   armorLook3(c, p.classId, L.a);
@@ -1910,6 +1944,15 @@ function monMask3(A, hb, hc, hr, col, knot) {
 // Schnurrbart; kind 'long' lang, 'short' kurz, 'braid' mit zwei geflochtenen Zöpfen
 function beard3(A, hb, hc, hr, col, kind, rnd) {
   const [x, y, z] = hc;
+  if (kind === 'mustache') {
+    // Schnurrbart: zwei geschwungene Strähnen über dem Mund und ein kleiner Kinnbart
+    for (const sx of [-1, 1]) {
+      strand3(A, hb, [x + sx * hr * 0.04, y - hr * 0.3, z + hr * 0.98], [sx, -0.35, 0.05], hr * 0.42, hr * 0.1, col, { w: [0, 1, 0], flat: 0.7 });
+      strand3(A, hb, [x + sx * hr * 0.4, y - hr * 0.38, z + hr * 0.88], [sx * 0.4, -1, 0], hr * 0.22, hr * 0.07, darker(col, 0.05), { flat: 0.7 });
+    }
+    strand3(A, hb, [x, y - hr * 0.62, z + hr * 0.86], [0, -1, 0.2], hr * 0.3, hr * 0.12, col, { flat: 0.7 });
+    return;
+  }
   A(ball(12), col, { bone: hb, p: [x, y - hr * 0.55, z + hr * 0.45], s: [hr * 0.72, hr * 0.42, hr * 0.5], shade: 0.2 });
   const L = kind === 'long' ? 0.78 : kind === 'braid' ? 0.34 : 0.44;
   for (let k = 0; k < 7; k++) {
@@ -4759,10 +4802,10 @@ function v3Portrait(canvas, who, yaw = -0.4) {
   const P = portrait3;
   if (!P.scene) {
     P.scene = new THREE.Scene();
-    const hemi = new THREE.HemisphereLight(0xf2f8ff, 0x6a5a4a, 0.95);
-    const sun = new THREE.DirectionalLight(0xfff0d4, 0.92);
+    const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x5a4a3a, 0.62);
+    const sun = new THREE.DirectionalLight(0xfff0d4, 0.88);
     sun.position.set(-2, 5, 6);
-    const fill = new THREE.DirectionalLight(0xd8e4ff, 0.35);
+    const fill = new THREE.DirectionalLight(0xd8e4ff, 0.18);
     fill.position.set(4, 2, 3);
     P.scene.add(hemi, sun, sun.target, fill);
     P.cam = new THREE.PerspectiveCamera(24, 1, 0.1, 60);
