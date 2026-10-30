@@ -261,7 +261,7 @@ const CLASSES = {
     paths: [
       {
         id: 'seelen', name: 'Weg der Seelen', role: 'PvE · Beschwörung und Flächenschaden',
-        description: 'Ruft Skelette – erweckt Knochenhunde –, sperrt Seelen in Knochenkäfige und mäht Gruppen mit dem Seelenschnitter.',
+        description: 'Ruft Skelette – erweckt Knochenhunde –, sperrt Seelen in Knochenkäfige und holt getötete Monster als Geister aus ihren Gräbern zurück.',
         skills: [
           {
             // seit 8.5 (ersetzt den Seelenpfeil): drei brennende Schädel im Fächer, die bis zu drei Ziele suchen
@@ -291,12 +291,12 @@ const CLASSES = {
             text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen 90 s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen.'
           },
           {
-            // seit 8.5 (ersetzt den Fluch der Schwäche): ein riesiger Schnitter erhebt sich und mäht einmal vor dir durch
-            id: 'seelenschnitter', name: 'Seelenschnitter', short: 'SN', kind: 'angriff', unlock: 7, mp: 22, cooldown: 12,
-            type: 'reaper', radius: 135, angle: 200, dmg: 1.8, hitAt: 0.42, lock: 0.45,
-            mark: { vulnerable: 0.15, duration: 6, slow: 0.3, slowDur: 2 },
-            color: '#a774e0', anim: 'schnitter', animDur: 0.75,
-            text: 'Neben dir erhebt sich ein riesiger Schnitter und mäht mit seiner Sense in weitem Bogen vor dir durch alle Gegner. Getroffene tragen sein Mal: 6 s mehr Schaden, 2 s langsamer.'
+            // seit 10.0 (ersetzt den Seelenschnitter): getötete Monster hinterlassen 2 Minuten Gräber; der Totenruf weckt
+            // sie als weiße Geister in ihrer eigenen Gestalt (nekro-totenruf.js)
+            id: 'totenruf', name: 'Totenruf', short: 'TR', kind: 'beschwörung', unlock: 7, mp: 24, cooldown: 15,
+            type: 'revive', radius: 320, duration: 180, counts: [2, 3, 4, 4, 5], hp: 0.3, atk: 0.42,
+            color: '#9fe8d0', anim: 'kaefig', animDur: 0.55,
+            text: 'Jedes Monster, das in deiner Nähe stirbt, hinterlässt 2 Minuten lang ein Grab. Der Totenruf weckt die Gräber um dich: Die Monster steigen als weiße Geister in ihrer eigenen Gestalt auf und kämpfen 3 Minuten an deiner Seite – 2 Geister, mit dem Rang bis zu 5 (höchstens 6 zugleich). Sie bleiben neben deinen Knochenhunden.'
           },
           {
             id: 'dunklemacht', name: 'Dunkle Macht', short: 'DM', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,

@@ -107,6 +107,7 @@ function render() {
     else if (e === game.player || e.remote || e.clone) drawPlayer(ctx, e);
     else if (e.isStone) drawStone(ctx, e);
     // Diener des Nekromanten (eigene und fremde)
+    else if ((e.ally || e.remoteAlly) && e.ghost) drawGhostAlly(ctx, e);
     else if (e.ally || e.remoteAlly) drawSkeleton(ctx, e);
     else if (e.type) drawMonster(ctx, e);
     else drawNpc(ctx, e);
@@ -903,6 +904,15 @@ function drawNpcMarks(ctx, n) {
     ctx.fillStyle = mk.color;
     ctx.fillText(mk.ch, x, y);
   }
+}
+
+// Geist des Totenrufs (seit 10.0): das Monster bleich und durchscheinend
+function drawGhostAlly(ctx, e) {
+  ctx.save();
+  ctx.globalAlpha = 0.65;
+  try { ctx.filter = 'grayscale(1) brightness(1.8)'; } catch (err) { /* ältere Browser */ }
+  drawMonster(ctx, e);
+  ctx.restore();
 }
 
 function drawMonster(ctx, m) {

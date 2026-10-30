@@ -840,6 +840,7 @@ function allyTierStats(sk, lvl, k) {
 function convertAllies(sk, lvl) {
   if (!sk || sk.type !== 'summon' || !game.allies.length) return;
   game.allies.forEach((a, k) => {
+    if (a.ghost) return;
     const share = a.maxHp ? Math.max(0, a.hp) / a.maxHp : 1;
     // Lebensanteil und Restzeit bleiben, der Rest kommt aus der neuen Stufe
     Object.assign(a, allyTierStats(sk, lvl, k), { born: game.time, windup: 0, attackAnim: 0, swing: 0, leap: null });
@@ -862,7 +863,7 @@ function allyStrike(a, t, mul) {
   a.swing = 0.25;
   const bc = bodyCenter(t);
   if (a.kind === 'hund') addEffect({ type: 'bite3', x: bc.x, y: bc.y, dur: 0.28, color: '#a7e37f', size: a.alpha ? 1.3 : 0.9 });
-  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: a.facing < 0 ? -0.75 : 0.75, len: 30, w: 5, dur: 0.22, color: '#cfd8b0' });
+  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: a.facing < 0 ? -0.75 : 0.75, len: 30, w: 5, dur: 0.22, color: a.ghost ? '#bff0ff' : '#cfd8b0' });
   hitMonster(t, mul, { atk: allyAtk(a), ally: true, source: t.isStone ? game.player : a, slow: a.slow ? { amount: a.slow, duration: 1.5 } : null });
 }
 

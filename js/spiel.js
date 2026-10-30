@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '9.9';
+const GAME_VERSION = '10.0';
 
 const game = {
   world: null,
@@ -123,6 +123,8 @@ function updatePlayer(dt) {
 
   // Eisstrahl halten (nach dem Laufen, damit er der neuen Stelle folgt)
   channelTick(p, dt);
+  // Gräber für den Totenruf (Nekromant)
+  graveTick();
 
   // Regeneration: außerhalb des Kampfes deutlich schneller
   const calm = game.time - p.lastCombat > 5;

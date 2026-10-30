@@ -238,55 +238,39 @@ Object.assign(SKILL_ART, {
     IK.sparkles(ctx, 6, '#c8ffe0', 8, 17, 0, -2, 1.1);
   },
 
-  // Seelenschnitter: violette Kapuzengestalt mit Knochengesicht, die Sense zieht eine grüne Sichelspur
-  seelenschnitter(ctx, IK) {
-    IK.trail(ctx, 0, 0, 16.5, Math.PI * 1.1, Math.PI * 0.15, 7, '#7affb0');
-    IK.trail(ctx, 0, 0, 13, Math.PI * 0.95, Math.PI * 0.3, 3, '#e0fff0');
-    // Kutte (etwas tiefer, damit das Gesicht unter dem Sensenblatt liegt)
-    ctx.save();
-    ctx.translate(-1, 6);
-    IK.glow(ctx, '#b88aff', 5, () => IK.fill(ctx, (c) => {
-      c.moveTo(-1, -19);
-      c.bezierCurveTo(7, -18, 9, -10, 8, -4);
-      c.bezierCurveTo(11, 4, 13, 12, 14, 19);
-      c.lineTo(-14, 19);
-      c.bezierCurveTo(-12, 10, -10, 2, -8, -4);
-      c.bezierCurveTo(-10, -12, -7, -18, -1, -19);
-      c.closePath();
-    }, IK.lin(ctx, -10, -18, 10, 18, [[0, '#8a5ac8'], [0.45, '#3a1e5a'], [1, '#0e0618']]), 1.1));
-    // Kapuzenöffnung mit Knochengesicht
-    IK.fill(ctx, (c) => c.ellipse(0, -9, 5, 6.2, 0, 0, Math.PI * 2), IK.rad(ctx, 0, -9, 1, 7, [[0, '#2a1a20'], [1, '#05020a']]), 0.6);
-    IK.fill(ctx, (c) => { c.arc(0, -10, 3.6, Math.PI * 0.9, Math.PI * 0.1); c.lineTo(2.2, -5); c.lineTo(-2.2, -5); c.closePath(); },
-      IK.lin(ctx, -3, -14, 3, -5, [[0, '#f0e6d0'], [1, '#8a7a6a']]), 0.6);
-    for (const ex of [-1.5, 1.5]) {
-      IK.fill(ctx, (c) => c.arc(ex, -10, 1.1, 0, Math.PI * 2), '#05020a', 0);
-      IK.glow(ctx, '#7affb0', 4, () => IK.flame(ctx, ex, -9.4, 3.2, 0, ['#0e7a3a', '#4aff8a', '#eaffd0']));
-    }
-    // Faltenlicht
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.35;
-    IK.line(ctx, [[-5, 0], [-7, 10], [-8, 18]], '#b88aff', 0.8, null);
-    IK.line(ctx, [[3, 1], [4, 10], [6, 18]], '#b88aff', 0.6, null);
-    ctx.restore();
-    ctx.restore();
-    // Sense: Stiel schräg, Blatt oben quer mit grüner Schneide
-    IK.line(ctx, [[-12, 18], [11, -12]], '#6a4a2a', 2.2, 'rgba(10,6,4,0.95)');
-    IK.line(ctx, [[-11.6, 17.2], [10.6, -11.4]], '#c89a6a', 0.6, null);
-    IK.glow(ctx, '#7affb0', 7, () => IK.fill(ctx, (c) => {
-      c.moveTo(13, -12);
-      c.quadraticCurveTo(0, -21, -17, -3);
-      c.quadraticCurveTo(-3, -12, 10, -7);
-      c.closePath();
-    }, IK.lin(ctx, 2, -18, -2, -7, [[0, '#3a3a52'], [0.45, '#a8a8c8'], [0.75, '#e0fff0'], [1, '#4aff8a']]), 1.1));
-    ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(11, -11.6);
-    ctx.quadraticCurveTo(0, -18.6, -14, -5);
-    ctx.stroke();
-    IK.light(ctx, -15, -4, 6, '#7affb0', 0.9);
-    IK.sparkles(ctx, 5, '#c8ffe0', 11, 17, 0, 4, 1.1);
+  // Totenruf (seit 10.0): ein Grabstein auf frischer Erde, darüber steigt ein bleicher Wolfsgeist mit leuchtenden
+  // Augen und Nebelschweif auf; grünes Seelenlicht am Grab
+  totenruf(ctx, IK) {
+    IK.light(ctx, -3, 12, 13, '#7fe3a0', 0.55);
+    // Erdhügel
+    IK.fill(ctx, (c) => c.ellipse(-3, 15, 13, 4.5, 0, 0, Math.PI * 2), IK.lin(ctx, 0, 11, 0, 19, [[0, '#6a5038'], [1, '#2a1c12']]), 1);
+    // Grabstein mit Kreuz
+    IK.fill(ctx, (c) => { c.moveTo(-10, 14); c.lineTo(-10, -1); c.quadraticCurveTo(-4, -8, 2, -1); c.lineTo(2, 14); c.closePath(); },
+      IK.lin(ctx, -10, -6, 2, 14, [[0, '#d8d8e2'], [0.5, '#9a9aa6'], [1, '#55556a']]), 1.2);
+    IK.glow(ctx, '#7fe3a0', 4, () => {
+      IK.line(ctx, [[-4, 1], [-4, 11]], '#c8ffe0', 1.3, null);
+      IK.line(ctx, [[-7.5, 4], [-0.5, 4]], '#c8ffe0', 1.3, null);
+    });
+    // Geist: bleicher Wolfskopf mit Nebelschweif, steigt nach rechts oben
+    IK.glow(ctx, '#9ff6ff', 7, () => {
+      IK.fill(ctx, (c) => {
+        c.moveTo(0, 8);
+        c.bezierCurveTo(4, 2, 2, -4, 7, -8);
+        c.lineTo(9, -15);
+        c.lineTo(11.5, -9.5);
+        c.lineTo(15, -12);
+        c.lineTo(15.5, -7);
+        c.bezierCurveTo(20, -5, 20, -1, 17, 1);
+        c.lineTo(12, 1);
+        c.bezierCurveTo(10, 5, 8, 8, 4, 12);
+        c.closePath();
+      }, IK.lin(ctx, 4, -14, 14, 10, [[0, 'rgba(255,255,255,0.95)'], [0.6, 'rgba(200,230,255,0.75)'], [1, 'rgba(120,180,255,0)']]), 0);
+    });
+    // Augen
+    IK.glow(ctx, '#9ff6ff', 4, () => {
+      IK.fill(ctx, (c) => c.ellipse(13.5, -6, 1.2, 0.8, -0.3, 0, Math.PI * 2), '#e0ffff', 0);
+    });
+    IK.sparkles(ctx, 6, '#e8fff4', 6, 9, 6, -2, 1.1);
   },
 
   // Dunkle Macht: Figur in violetter Säule, über dem Kopf kreist eine Krone aus fünf grünen Seelenflammen
@@ -555,7 +539,7 @@ Object.assign(SKILL_ART, {
 Object.assign(SKILL_ART_THEME, {
   seelenkaefig: 'wind',
   totenbeschwoerung: 'erde',
-  seelenschnitter: 'm_blitz',
+  totenruf: 'm_blitz',
   dunklemacht: 'blitz',
   knochenpanzer: 'licht',
   laehmung: 'schatten',

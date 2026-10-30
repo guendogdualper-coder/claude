@@ -629,7 +629,7 @@ let saveSlot = null;
 
 // Umbenannte Fertigkeiten (alte ID -> neue ID); gilt für Spielstände und für Bücher aus dem Handel
 const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff', dreifachschlag: 'sichelwelle', sturmangriff: 'sprungschlag', schildstoss: 'felsenfaust',
-  seelenpfeil: 'schaedelsalve', seelensturm: 'seelenkaefig', fluch: 'seelenschnitter', frostlanze: 'eisstrahl' };
+  seelenpfeil: 'schaedelsalve', seelensturm: 'seelenkaefig', fluch: 'seelenschnitter', frostlanze: 'eisstrahl', seelenschnitter: 'totenruf' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
@@ -637,7 +637,7 @@ function fixSave(data) {
   // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
   // Version 8.3: Dreifachschlag → Sichelwelle, Sturmangriff → Sprungschlag, Schildstoß → Felsenfaust
   // Version 8.5: Seelenpfeil → Schädelsalve, Seelensturm → Seelenkäfig, Fluch der Schwäche → Seelenschnitter
-  // Version 9.6: Frostlanze → Eisstrahl (auch im Lager)
+  // Version 9.6: Frostlanze → Eisstrahl (auch im Lager); Version 10.0: Seelenschnitter → Totenruf
   for (const it of data.inventory || []) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
   for (const it of (data.storage && data.storage.items) || []) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
   return data;

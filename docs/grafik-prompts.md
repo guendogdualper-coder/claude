@@ -1032,3 +1032,23 @@ Game skill icon for a stylized fantasy MMORPG, round, 128×128, painterly toon r
 Ultimate ability of a fantasy shaman, stylized 3D toon MMORPG: the shaman stands firm with both palms forward and unleashes a massive, widening torrent of water that lasts several seconds; three elements spiral around the water beam – crackling yellow-white lightning with violet glow, licking flame tongues, tumbling rocks with amber glow; the ground along the beam cracks open in glowing fissures (orange fire, yellow lightning, amber earth, cyan water); spray and a ripple ring where the beam hits; finale: jagged rock spikes erupt along the whole line with a lightning strike and fire ring at the end. Epic, colourful, readable from an isometric camera.
 ```
 
+## 12. Nekromant: Totenruf und Dunkle Macht (seit 10.0)
+
+- **Totenruf** (Weg der Seelen, Platz 4, statt Seelenschnitter):
+  - **Grab:** Wo ein Monster in deiner Nähe stirbt, steht 2 Minuten lang ein schiefer grauer Grabstein mit
+    hellgrünem Kreuz auf einem Erdhügel; darüber schwebt ein grünes Seelenlicht. Das Grab wächst in 0,35 s aus
+    dem Boden und versinkt am Ende.
+  - **Wecken:** Das Grab bricht auf (grüne Lichtsäule, Steinsplitter, bleicher Nebel, Ring).
+  - **Geist:** Aus dem Grab steigt das Monster in seiner eigenen Gestalt auf: knochenweiß ohne Farben, mit
+    dunklem Umriss und dünnem bläulichem Schein; es schwebt leicht. Beim Ausholen glüht es grünlich, am Ende
+    verblasst es. Der Name lautet „Geist: Wolf“ usw.
+- **Dunkle Macht:** Die Figur bleibt frei sichtbar (vorher verdeckten flache Flammen sie).
+  - Am Boden dreht ein violetter Runenkreis mit pulsierendem grünem Innenring.
+  - Drei Seelenlichter (hellgrüner Kern, violetter Schweif) kreisen auf und ab um die Figur.
+  - Dünner dunkelvioletter Nebel steigt am Rand auf; die Seelenkrone schwebt über dem Kopf.
+
+**Prompt (englisch):**
+```
+Necromancer skill "Call of the Dead", stylized 3D toon MMORPG: tilted grey gravestones with glowing green crosses on fresh dirt mounds mark where monsters died, a green soul light hovering above each; the necromancer raises his staff and the graves burst open with green light pillars; the slain creatures rise again in their own shapes (wolf, bear, boar, lynx) as bone-white ghosts with dark outlines and a thin cold-blue glow, floating slightly, fighting beside him. Buff "Dark Power": a slowly rotating violet rune circle on the ground with a pulsing green inner ring, three soul wisps with violet trails orbiting the character, thin dark violet mist rising at the edge, a crown of green soul flames above the head – the character stays clearly visible.
+```
+

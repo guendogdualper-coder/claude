@@ -1920,3 +1920,7 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 
 - Strom der Elemente: `Game skill icon, round, painterly toon, dark indigo vignette, a wide water beam shooting diagonally upward, wrapped by three spirals – yellow lightning, orange flame tongues and tumbling rocks – with glowing cracks in the ground below, gold ring frame, no text.`
 
+## Totenruf – Symbol (seit 10.0)
+
+- Totenruf: `Game skill icon, round, painterly toon, dark violet vignette, a tilted gravestone with a glowing green cross on a dirt mound, a pale ghostly wolf head with glowing cyan eyes rising from it with a misty tail, green soul light, gold ring frame, no text.`
+

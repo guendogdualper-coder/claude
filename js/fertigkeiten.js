@@ -1127,7 +1127,7 @@ const SKILL_ELEMENT = {
   blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
   leichtfuessigkeit: 'wind', windfessel: 'wind',
   geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'blitz', geistesschlag: 'licht',
-  schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
+  schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', totenruf: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
   blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
 };
 
@@ -1436,7 +1436,10 @@ const BUFF_LOOKS = {
   // Dunkle Macht: violett-grüne Flammen am Boden; ohne 3D dazu fünf grüne Seelenflammen über dem Kopf
   // (in 3D kreist dort die Seelenkrone, fx3Crown)
   dunklemacht(ctx, p, fy, t, layer) {
-    if (layer === 'front' && !V3.on) {
+    // in 3D zeichnet die Aura aus Runenkreis und Seelenlichtern (aura3, nekro-totenruf.js); die flachen Flammen
+    // lägen dort über der Figur und verdeckten sie (seit 10.0)
+    if (V3.on) return;
+    if (layer === 'front') {
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       for (let k = 0; k < 5; k++) {

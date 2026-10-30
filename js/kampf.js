@@ -1182,9 +1182,9 @@ const SKILL_TYPES = {
     const p = game.player;
     const ti = Math.min(sk.tiers.length - 1, skillRank(lvl) + 1);
     const T = sk.tiers[ti];
-    // alte Diener zerfallen sichtbar
-    for (const a of game.allies) allyCrumble(a);
-    game.allies = [];
+    // alte Diener zerfallen sichtbar; Geister des Totenrufs bleiben (seit 10.0)
+    for (const a of game.allies) if (!a.ghost) allyCrumble(a);
+    game.allies = game.allies.filter((a) => a.ghost);
     releaseAllyTargets();
     const life = skillDuration(sk, lvl);
     const pts = [];
