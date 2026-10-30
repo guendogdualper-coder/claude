@@ -1,10 +1,11 @@
-// Die vier spielbaren Klassen mit je zwei Wegen.
+// Die fünf spielbaren Klassen. Krieger, Ninja, Schamane und Nekromant haben zwei Wege
+// (einer PvE, einer PvP), der Magier vier Element-Wege (Feuer, Frost, Blitz, Erde) mit gleichem Platzschema.
 //
 // base      Werte auf Stufe 1
 // perLevel  Zuwachs pro Stufe
 // basic     normaler Angriff (Leertaste)
-// paths     zwei Wege, ab Stufe 1 wählbar: einer für Monster in Massen (PvE),
-//           einer für Zweikämpfe (PvP). Jeder Weg hat fünf eigene Fertigkeiten (Tasten 1–5).
+// paths     Wege, ab Stufe 1 wählbar: bei vier Klassen einer für Monster in Massen (PvE) und
+//           einer für Zweikämpfe (PvP), beim Magier je Element einer. Jeder Weg hat fünf eigene Fertigkeiten (Tasten 1–5).
 //           type    legt fest, wie kampf.js die Fertigkeit ausführt
 //           unlock  Stufe, ab der sie benutzt werden kann
 //           dmg     Schaden als Vielfaches des Angriffswerts
@@ -335,10 +336,180 @@ const CLASSES = {
         ]
       }
     ]
+  },
+  // seit 8.6: Gelehrter der vier Elemente. Vier Wege = vier Elemente mit gleichem Platzschema:
+  // 1 Nova um dich (Stufe 1) · 2 Element-Geschoss (3) · 3 Elementsprung (5) · 4 Buff (7) · 5 großes Siegel (10).
+  // Jede Magier-Fertigkeit trägt el (Feldname el, nicht element: das nutzt der Schamane).
+  magier: {
+    name: 'Magier',
+    role: 'Fernkampf · Elementmagie',
+    description: 'Gelehrter der vier Elemente. Du wählst Feuer, Frost, Blitz oder Erde – jeder Weg hat ab Stufe 1 eine Nova um dich.',
+    color: '#283070',
+    trim: '#d8e0f0',
+    weapon: 'rod',
+    base: { hp: 110, mp: 90, atk: 13.5, def: 2.5, crit: 0.06, speed: 130 },
+    perLevel: { hp: 17, mp: 11, atk: 4.0, def: 0.95 },
+    basic: { range: 240, cooldown: 0.9, ranged: true, color: '#b8c4ff', style: 'mage' },
+    paths: [
+      {
+        id: 'feuer', name: 'Weg der Flamme', role: 'PvE · Flächenschaden und Brand',
+        description: 'Setzt ganze Gruppen in Brand: Feuernova, explodierende Feuerbälle, eine Stichflamme zur Flucht und ein Flammenkreis, der sich am Boden zusammenzieht.',
+        skills: [
+          {
+            id: 'feuernova', name: 'Feuernova', short: 'FN', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
+            type: 'nova', el: 'feuer', radius: 120, grow: 0.3, dmg: 1.4, burn: { dps: 0.3, duration: 3 }, knockback: 40, ignite: true,
+            lock: 0.2, anim: 'nova', animDur: 0.5, color: '#e8362a',
+            text: 'Du stößt dein Zepter in den Boden: Ein Ring aus karminroten Flammen rast über den Boden nach außen, trifft alle Gegner bis 120 weit, stößt sie leicht zurück und setzt sie 3 s in Brand. Brennen sie schon, explodieren sie.'
+          },
+          {
+            id: 'feuerball', name: 'Feuerball', short: 'FB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
+            type: 'mbolt', el: 'feuer', range: 340, speed: 540, dmg: 1.8, splash: { r: 70, mul: 0.5 }, burn: { dps: 0.2, duration: 3 },
+            style: 'fireball', anim: 'stoss', animDur: 0.35, color: '#e8362a',
+            text: 'Ein Feuerball mit zwei kreisenden Siegelringen fliegt zum Ziel und zerplatzt: Das Ziel brennt, Gegner bis 70 weit darum bekommen die Hälfte ab.'
+          },
+          {
+            id: 'flammenschritt', name: 'Flammenschritt', short: 'FS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 9,
+            type: 'shift', el: 'feuer', at: 'start', distance: 170, radius: 90, dmg: 1.0, burn: { dps: 0.3, duration: 3 },
+            anim: 'schritt', animDur: 0.3, color: '#e8362a',
+            text: 'Du verschwindest in einer Stichflamme und tauchst bis zu 170 weit entfernt wieder auf. Wo du standest, explodiert das Feuer und setzt alle Gegner bis 90 weit in Brand.'
+          },
+          {
+            id: 'glutherz', name: 'Glutherz', short: 'GH', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'feuer',
+            type: 'buff', duration: 180, effects: { skillDmg: 0.15, crit: 0.05 }, labels: { skillDmg: 'Zauberschaden' },
+            text: 'Buff: Ein glühender Kern schwebt über deiner Hand. Mehr Zauberschaden und mehr kritische Treffer.'
+          },
+          {
+            id: 'flammenkreis', name: 'Flammenkreis', short: 'FK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
+            type: 'sigil', el: 'feuer', aim: true, range: 340, radius: 140, delay: 0.5, ticks: 3, every: 0.5, dmg: 0.7, inward: true,
+            burn: { dps: 0.35, duration: 4 }, last: { ignite: true }, anim: 'zauber', animDur: 0.55, color: '#e8362a',
+            text: 'Du zeichnest ein Feuersiegel an den gewählten Ort. Eine Flammenwand bricht an seinem Rand aus dem Boden und zieht sich dreimal zur Mitte zusammen. Jeder Puls trifft alle im Kreis, der letzte lässt Brennende explodieren.'
+          }
+        ]
+      },
+      {
+        id: 'frost', name: 'Weg des Frosts', role: 'Kontrolle · Einfrieren',
+        description: 'Lässt Gegner im Eis erstarren, zerschmettert Eingefrorene mit der Frostlanze und lässt ein Feld aus Kristallen wachsen. Weniger Schaden, sehr viel Kontrolle.',
+        skills: [
+          {
+            id: 'frostnova', name: 'Frostnova', short: 'FR', kind: 'angriff', unlock: 1, mp: 9, cooldown: 6,
+            type: 'nova', el: 'frost', radius: 130, grow: 0.38, dmg: 1.4, freeze: 1.0, slow: { amount: 0.45, duration: 3 }, duelMul: 1.15,
+            lock: 0.2, anim: 'nova', animDur: 0.5, color: '#3a7bff',
+            text: 'Eiskristalle schießen von deinen Füßen waagrecht nach außen und überziehen den Boden mit Reif. Alle Gegner bis 130 weit frieren 1 s ein (wächst mit der Stufe) und sind danach 3 s langsamer. Bosse werden nur verlangsamt.'
+          },
+          {
+            id: 'frostlanze', name: 'Frostlanze', short: 'FL', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3.5,
+            type: 'mbolt', el: 'frost', range: 360, speed: 640, dmg: 2.0, pierce: true, slow: { amount: 0.4, duration: 2 }, shatter: 0.6,
+            style: 'frostlance', anim: 'stoss', animDur: 0.35, color: '#3a7bff',
+            text: 'Eine Lanze aus Eis durchbohrt alle Gegner in einer Linie und verlangsamt sie. Eingefrorene Gegner zerspringen: +60 % Schaden, das Eis ist danach weg.'
+          },
+          {
+            id: 'eisschritt', name: 'Eisschritt', short: 'ES', kind: 'angriff', unlock: 5, mp: 16, cooldown: 10,
+            type: 'shift', el: 'frost', at: 'start', distance: 160, radius: 95, delayHit: 0.5, dmg: 0.9, freeze: 0.8,
+            slow: { amount: 0.5, duration: 2.5 }, duelMul: 1.15, anim: 'schritt', animDur: 0.3, color: '#3a7bff',
+            text: 'Du gleitest auf einer Eisbahn bis zu 160 weit davon. Wo du standest, bleibt eine Eisfigur zurück, die nach 0,5 s zerspringt: Alle Gegner bis 95 weit frieren kurz ein.'
+          },
+          {
+            id: 'frostpanzer', name: 'Frostpanzer', short: 'FP', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'frost',
+            type: 'buff', duration: 180, effects: { def: 0.25, damageTaken: -0.1, chill: 0.3 },
+            text: 'Buff: Eisplatten kreisen um dich. Mehr Verteidigung, weniger erlittener Schaden, und wer dich schlägt, wird 1,5 s verlangsamt.'
+          },
+          {
+            id: 'kristallgrab', name: 'Kristallgrab', short: 'KG', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
+            type: 'sigil', el: 'frost', aim: true, range: 340, radius: 135, delay: 0.6, ticks: 1, every: 0, dmg: 2.6, freeze: 1.4,
+            slow: { amount: 0.5, duration: 3 }, linger: 3, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
+            text: 'Am gewählten Ort wachsen mannshohe Eiskristalle aus dem Boden. Alle Gegner darin nehmen hohen Schaden und frieren ein; das Eisfeld verlangsamt 3 s lang alles, was es betritt.'
+          }
+        ]
+      },
+      {
+        id: 'blitz', name: 'Weg des Blitzes', role: 'PvP · Ketten und Tempo',
+        description: 'Blitze springen von Gegner zu Gegner. Die Nova lädt Gegner auf, der Kettenblitz entlädt sie. Schneller Grundangriff und ein Blitzschritt, der selbst trifft – die Wahl für Zweikämpfe.',
+        skills: [
+          {
+            id: 'blitznova', name: 'Blitznova', short: 'BN', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
+            type: 'nova', el: 'blitz', radius: 140, grow: 0.2, dmg: 1.3, stun: 0.3, arcs: 8, jump: { r: 110, mul: 0.5, max: 3 },
+            lock: 0.2, anim: 'nova', animDur: 0.5, color: '#ffe94a',
+            text: 'Zuckende Blitze kriechen von dir über den Boden zu bis zu acht Gegnern im Umkreis von 140, betäuben sie kurz und laden sie 5 s auf. Gegner knapp außerhalb bekommen einen Überschlag ab.'
+          },
+          {
+            id: 'kettenblitz', name: 'Kettenblitz', short: 'KB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
+            type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 1.9, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2,
+            style: 'arc', anim: 'stoss', animDur: 0.3, color: '#ffe94a',
+            text: 'Ein Blitz schießt aus deinem Zepter zum Ziel und springt zu zwei weiteren Gegnern. Aufgeladene Gegner entladen sich: +30 % Schaden.'
+          },
+          {
+            id: 'blitzschritt', name: 'Blitzschritt', short: 'BS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
+            type: 'shift', el: 'blitz', at: 'line', distance: 200, width: 40, dmg: 1.5, stun: 0.5,
+            anim: 'schritt', animDur: 0.3, color: '#ffe94a',
+            text: 'Du wirst selbst zum Blitz und schlägst bis zu 200 weit ein – in Laufrichtung oder auf dein Ziel zu. Alle Gegner auf der Strecke werden getroffen und kurz betäubt.'
+          },
+          {
+            // Lauftempo bleibt fest (wie seit 8.5 bei allen Tempo-Buffs)
+            id: 'ladung', name: 'Statische Ladung', short: 'SL', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'blitz',
+            type: 'buff', duration: 180, effects: { atkSpeed: 0.2, crit: 0.06, speed: 0.06 },
+            text: 'Buff: Funken knistern über deine Robe. Mehr Angriffstempo, mehr kritische Treffer und etwas Lauftempo.'
+          },
+          {
+            id: 'kugelblitz', name: 'Kugelblitz', short: 'KU', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
+            type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 0.55,
+            last: { stun: 0.8 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
+            text: 'Eine Kugel aus Blitzen steigt über dem gewählten Siegel auf und schlägt 3 s lang jede halbe Sekunde waagrecht in die drei nächsten Gegner – aufgeladene zuerst. Der letzte Schlag betäubt.'
+          }
+        ]
+      },
+      {
+        id: 'erde', name: 'Weg der Erde', role: 'Schutz · Schwerkraft und Hochschleudern',
+        description: 'Basalt und Bernstein: schleudert Gegner hoch, schützt sich mit einer Basalthaut und zieht Feinde mit einem Schwerkraftsiegel zusammen. Hält am meisten aus.',
+        skills: [
+          {
+            id: 'erdnova', name: 'Erdnova', short: 'EN', kind: 'angriff', unlock: 1, mp: 9, cooldown: 6,
+            type: 'nova', el: 'erde', radius: 120, grow: 0.3, dmg: 1.35, knockback: 100, stun: 0.5, lift: 14, duelMul: 1.15,
+            lock: 0.25, anim: 'nova', animDur: 0.55, color: '#f0a830',
+            text: 'Basaltsplitter mit glühenden Bernsteinadern heben sich um dich und werden mit einem Schwerkraftstoß nach außen geschleudert. Alle Gegner bis 120 weit fliegen hoch, werden weggestoßen und kurz betäubt.'
+          },
+          {
+            id: 'steingeschoss', name: 'Steingeschoss', short: 'ST', kind: 'angriff', unlock: 3, mp: 12, cooldown: 4,
+            type: 'mbolt', el: 'erde', range: 320, speed: 430, dmg: 2.3, splash: { r: 55, mul: 0.5 }, knockback: 50, stun: 0.5,
+            style: 'stone', anim: 'stoss', animDur: 0.4, color: '#f0a830',
+            text: 'Ein Basaltbrocken mit glühendem Bernsteinkern schlägt beim Ziel ein, betäubt es kurz und zersplittert: Gegner daneben bekommen die Hälfte ab.'
+          },
+          {
+            id: 'erdsprung', name: 'Erdsprung', short: 'ER', kind: 'angriff', unlock: 5, mp: 16, cooldown: 10,
+            type: 'shift', el: 'erde', at: 'end', distance: 150, radius: 90, dmg: 1.3, stun: 0.8, lift: 16, duelMul: 1.15,
+            anim: 'schritt', animDur: 0.35, color: '#f0a830',
+            text: 'Du versinkst in einem glühenden Riss und brichst bis zu 150 weit entfernt – bei deinem Ziel – wieder aus dem Boden: Alle Gegner bis 90 weit fliegen hoch und sind kurz betäubt. Ohne Ziel springst du von Gegnern weg.'
+          },
+          {
+            id: 'basalthaut', name: 'Basalthaut', short: 'BH', kind: 'buff', unlock: 7, mp: 24, cooldown: 60, el: 'erde',
+            type: 'buff', duration: 180, shield: 0.18, effects: { def: 0.25, damageTaken: -0.08 },
+            text: 'Buff: Basaltplatten mit Bernsteinadern legen sich um dich. Ein Schild fängt Schaden ab, dazu mehr Verteidigung und weniger erlittener Schaden.'
+          },
+          {
+            id: 'schwerkraft', name: 'Schwerkraftsiegel', short: 'SK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 13,
+            type: 'sigil', el: 'erde', aim: true, range: 320, radius: 150, delay: 0.45, pull: 70, ticks: 3, every: 0.45, dmg: 0.5,
+            last: { dmg: 1.6, stun: 1.2, lift: 18 }, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#f0a830',
+            text: 'Ein Bernsteinsiegel zieht alle Gegner im Kreis zur Mitte. Drei Felsbrocken kreisen und treffen sie, dann schlagen sie gemeinsam ein: hoher Schaden, die Gegner fliegen hoch und sind betäubt.'
+          }
+        ]
+      }
+    ]
   }
 };
 
-const CLASS_ORDER = ['krieger', 'ninja', 'schamane', 'nekromant'];
+const CLASS_ORDER = ['krieger', 'ninja', 'schamane', 'nekromant', 'magier'];
+
+// Magier (seit 8.6): Weg-Index = Element. Farben bewusst nicht ELEMENT3 und nicht Schamane (#ff7a2a, #bfe8ff, #8fd0ff).
+const MAGE_PATH_EL = ['feuer', 'frost', 'blitz', 'erde'];
+const MAGE_EL = {
+  feuer: { key: 'feuer', name: 'Feuer', main: '#e8362a', hi: '#ff8a4a', core: '#fff1c8', deep: '#a0102e', dark: '#3a0e0e', glyph: 'up' },      // △ Karmin → weißglühend
+  frost: { key: 'frost', name: 'Frost', main: '#3a7bff', hi: '#9ff6ff', core: '#eafcff', deep: '#1a3fb0', dark: '#0e1e4a', glyph: 'down' },    // ▽ Königsblau, Cyan nur Glanz
+  blitz: { key: 'blitz', name: 'Blitz', main: '#ffe94a', hi: '#fff7b0', core: '#ffffff', deep: '#8a5aff', dark: '#241a4a', glyph: 'upbar' },   // △ mit Balken, violetter Saum
+  erde:  { key: 'erde',  name: 'Erde',  main: '#f0a830', hi: '#ffd98a', core: '#fff0c0', deep: '#3e3532', dark: '#2a2220', glyph: 'downbar' }, // ▽ mit Balken, Basalt + Bernstein
+  arkan: { key: 'arkan', name: 'Arkan', main: '#b8c4ff', hi: '#e0e6ff', core: '#ffffff', deep: '#4a5ad8', dark: '#1a1e3a', glyph: 'up' }       // Weg unbekannt (fremder Spieler ohne pt)
+};
+function mageEl(p) {
+  return p && p.path != null && MAGE_PATH_EL[p.path] ? MAGE_EL[MAGE_PATH_EL[p.path]] : MAGE_EL.arkan;
+}
 
 // Fertigkeiten des gewählten Weges
 function classPath(classId, path) {

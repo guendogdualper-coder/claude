@@ -57,9 +57,11 @@ const WEAPON_KINDS = {
   fan: { name: 'Fächer', cls: 'schamane', atkMul: 0.85, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
   bell: { name: 'Glocke', cls: 'schamane', atkMul: 0.7, atkSpeed: -0.1, magic: true, magicMul: 1.6, text: 'sehr viel Magiestärke, langsam' },
   staff: { name: 'Stab', cls: 'nekromant', atkMul: 0.9, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
-  scythe: { name: 'Sense', cls: 'nekromant', atkMul: 1.15, atkSpeed: -0.12, magic: true, magicMul: 0.6, twoHanded: true, text: 'mehr Schaden, weniger Magie, kein Schild' }
+  scythe: { name: 'Sense', cls: 'nekromant', atkMul: 1.15, atkSpeed: -0.12, magic: true, magicMul: 0.6, twoHanded: true, text: 'mehr Schaden, weniger Magie, kein Schild' },
+  // seit 8.6: das Zepter des Magiers, einhändig, mit schwebendem Kristall in der Farbe seines Elements
+  rod: { name: 'Zepter', cls: 'magier', atkMul: 0.9, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' }
 };
-const CLASS_WEAPON_KINDS = { krieger: ['sword', 'axe', 'greatsword', 'greataxe'], ninja: ['dagger', 'bow'], schamane: ['fan', 'bell'], nekromant: ['staff', 'scythe'] };
+const CLASS_WEAPON_KINDS = { krieger: ['sword', 'axe', 'greatsword', 'greataxe'], ninja: ['dagger', 'bow'], schamane: ['fan', 'bell'], nekromant: ['staff', 'scythe'], magier: ['rod'] };
 
 // Namen je Stufe. Waffen nach Art, Rüstungen und Helme nach Klasse, der Rest für alle gleich.
 const ITEM_NAMES = {
@@ -73,19 +75,22 @@ const ITEM_NAMES = {
     fan: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer'],
     bell: ['Bronzeglocke', 'Tempelglocke', 'Kranichglocke', 'Phönixglocke', 'Drachenglocke', 'Glutglocke', 'Himmelsglocke', 'Götterglocke'],
     staff: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab', 'Aschenstab', 'Sternenstab', 'Götterstab'],
-    scythe: ['Rostsense', 'Grabsense', 'Knochensense', 'Seelensense', 'Totenkönigssense', 'Aschensense', 'Sternensense', 'Göttersense']
+    scythe: ['Rostsense', 'Grabsense', 'Knochensense', 'Seelensense', 'Totenkönigssense', 'Aschensense', 'Sternensense', 'Göttersense'],
+    rod: ['Lehrlingszepter', 'Silberzepter', 'Mondzepter', 'Kristallzepter', 'Arkanzepter', 'Aschenzepter', 'Sternzepter', 'Erzmagierzepter']
   },
   ruestung: {
     krieger: ['Lederpanzer', 'Kettenhemd', 'Lamellenpanzer', 'Drachenpanzer', 'Seelenpanzer', 'Aschenpanzer', 'Himmelspanzer', 'Götterpanzer'],
     ninja: ['Leinenwams', 'Lederwams', 'Schattenwams', 'Viperngewand', 'Nachtgewand', 'Aschengewand', 'Sternengewand', 'Göttergewand'],
     schamane: ['Leinenrobe', 'Seidenrobe', 'Kranichrobe', 'Phönixrobe', 'Drachenrobe', 'Glutrobe', 'Himmelsrobe', 'Götterrobe'],
-    nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe', 'Schattenrobe', 'Sternenrobe', 'Götterrobe']
+    nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe', 'Schattenrobe', 'Sternenrobe', 'Götterrobe'],
+    magier: ['Novizenrobe', 'Gelehrtenrobe', 'Runenmantel', 'Kristallrobe', 'Arkanrobe', 'Aschenmantel', 'Sternenmantel', 'Erzmagierornat']
   },
   helm: {
     krieger: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenhelm', 'Aschenhelm', 'Himmelshelm', 'Götterhelm'],
     ninja: ['Stoffkapuze', 'Lederkapuze', 'Schattenkapuze', 'Viperkapuze', 'Nachtmaske', 'Aschenmaske', 'Sternenmaske', 'Göttermaske'],
     schamane: ['Stirnband', 'Seidenhaube', 'Kranichhaube', 'Phönixkrone', 'Drachenkrone', 'Glutkrone', 'Himmelskrone', 'Götterdiadem'],
-    nekromant: ['Grabkapuze', 'Aschenkapuze', 'Knochenhelm', 'Seelenhaube', 'Totenkönigskrone', 'Schattenkrone', 'Sternenkapuze', 'Götterschädel']
+    nekromant: ['Grabkapuze', 'Aschenkapuze', 'Knochenhelm', 'Seelenhaube', 'Totenkönigskrone', 'Schattenkrone', 'Sternenkapuze', 'Götterschädel'],
+    magier: ['Novizenhut', 'Gelehrtenhut', 'Runenhut', 'Kristallhut', 'Arkanhut', 'Aschenhut', 'Sternenhut', 'Erzmagierreif']
   },
   schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild', 'Aschenschild', 'Himmelsschild', 'Götterschild'],
   schultern: ['Lederschultern', 'Bronzeschultern', 'Eisenschultern', 'Drachenschultern', 'Seelenschultern', 'Aschenschultern', 'Himmelsschultern', 'Götterschultern'],
@@ -123,7 +128,8 @@ const CLASS_ARMOR = {
   krieger: { def: 1.25, hp: 1.15 },
   ninja: { def: 1, hp: 1, dodge: 0.008 },
   schamane: { def: 0.85, hp: 0.85, mp: 0.5 },
-  nekromant: { def: 0.85, hp: 0.85, mp: 0.5 }
+  nekromant: { def: 0.85, hp: 0.85, mp: 0.5 },
+  magier: { def: 0.8, hp: 0.85, mp: 0.6 }
 };
 
 const MAX_PLUS = 20;

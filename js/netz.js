@@ -265,6 +265,7 @@ function netOnHostData(conn, d) {
     rp.heardAt = game.time;
     netApplyState(rp, d.s);
     conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(), v: GAME_VERSION });
+    rp.ver = d.v || rp.ver || null;
     netVersionCheck(d.v, rp.name, true);
     ui.chat('', `${rp.name} spielt jetzt mit.`);
     netBroadcast({ t: 'chat', n: '', x: `${rp.name} spielt jetzt mit.` }, id);
@@ -336,6 +337,13 @@ function netHostDamage(rp, d) {
     if (st.sl) setSlow(m, st.sl[0], st.sl[1]);
     if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
+    // Einfrieren (seit 8.6, Magier): Restdauer im Eis (nie kürzen: der Mitspieler sieht fremdes Eis nur kurz gespiegelt),
+    // uf = die Frostlanze hat das Eis zerschlagen
+    if (st.fz) {
+      if (!(m.frozen > game.time)) m.frozenT = game.time;
+      m.frozen = Math.max(m.frozen || 0, game.time + st.fz);
+    }
+    if (st.uf) { m.frozen = 0; m.stun = 0; }
   }
   m.lastAttacker = rp;
   // Hält der Mitspieler den Treffer für tödlich, stirbt das Monster – auch wenn der Host noch etwas mehr
@@ -362,7 +370,9 @@ function netSnapshotFor(id, rp) {
   const mons = [];
   for (const m of game.monsters) {
     if (Math.abs(m.x - rp.x) > NET_VIEW || Math.abs(m.y - rp.y) > NET_VIEW * 0.75) continue;
-    const flags = (m.dead ? 1 : 0) | (m.moving ? 2 : 0) | (m.attackAnim > 0 ? 4 : 0) | (m.stun > 0 ? 8 : 0) | (m.facing < 0 ? 16 : 0) | (m.cast ? 32 : 0) | (m.windup > 0 ? 64 : 0);
+    // Bit 128 (seit 8.6): im Eis eingefroren (Bosse nie); ältere Clients übergehen es und zeigen Betäubungssterne
+    const flags = (m.dead ? 1 : 0) | (m.moving ? 2 : 0) | (m.attackAnim > 0 ? 4 : 0) | (m.stun > 0 ? 8 : 0) | (m.facing < 0 ? 16 : 0) | (m.cast ? 32 : 0) | (m.windup > 0 ? 64 : 0) |
+      (m.frozen > game.time && !(m.type && m.type.boss) ? 128 : 0);
     const e = [m.id, Math.round(m.x), Math.round(m.y), Math.ceil(Math.max(0, m.hp)), flags];
     // Monster, die erst später entstanden sind (Steinwellen, Verstärkung von Bossen)
     if (!m.respawn) e.push(m.typeId, m.level, m.maxHp);
@@ -381,6 +391,7 @@ function netOnClientData(d) {
     case 'welcome': {
       net.mode = 'client';
       net.hostName = d.host;
+      netRemote('host').ver = d.v || null;
       netVersionCheck(d.v, d.host, false);
       net.lastSnapAt = performance.now();
       game.monsters = d.mons.map(netBuildMonster);
@@ -559,6 +570,11 @@ function netApplySnapshot(d) {
     // Ausholen auch beim Mitspieler zeigen
     if (flags & 64 && !(m.windup > 0) && !(m.attackAnim > 0)) m.windup = m.windupMax = windupTime(m.typeId);
     m.stunned = !!(flags & 8);
+    // Eisblock vom Host: kurz verlängern, solange das Bit kommt; frozenT hält die Pose fest
+    if (flags & 128) {
+      if (!(m.frozen > game.time)) m.frozenT = game.time;
+      m.frozen = game.time + 0.3;
+    }
     m.facing = flags & 16 ? -1 : 1;
     if (wasDead && !m.dead) { m.x = m.tx; m.y = m.ty; }
   }
@@ -581,6 +597,9 @@ function netClientDamage(m, amount, crit, isDot) {
   if (left(m.slow)) st.sl = [m.slow.mul, left(m.slow)];
   if (left(m.poison) && !m.poison.sent) { st.po = [m.poison.dps, left(m.poison)]; m.poison.sent = true; }
   if (left(m.burn) && !m.burn.sent) { st.bu = [m.burn.dps, left(m.burn)]; m.burn.sent = true; }
+  // Einfrieren (seit 8.6): Restdauer schicken; zerschlagenes Eis einmal melden
+  if (m.frozen > game.time) st.fz = +(m.frozen - game.time).toFixed(1);
+  if (m.unfreeze) { st.uf = 1; m.unfreeze = false; }
   // Rückstoß und Betäubung führt der Host aus
   m.stun = 0;
   m.kx = m.ky = 0;
@@ -714,7 +733,9 @@ function netPlayerState() {
     // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
     ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0), a.slot | 0]) } : {}),
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
-    sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0
+    sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0,
+    // Weg (seit 8.6, beim Magier das Element) und Spielversion (Handel mit Magier-Gegenständen erst ab 8.6)
+    pt: p.path | 0, v: GAME_VERSION
   };
 }
 
@@ -738,6 +759,10 @@ function netApplyState(rp, s) {
   rp.name = s.n;
   rp.classId = CLASSES[s.c] ? s.c : 'krieger';
   rp.level = s.l;
+  // Weg bzw. Element (seit 8.6): Figur nur bei einem Wechsel neu bauen; ältere Clients senden kein pt (Magier dann Arkan-Blau)
+  const np = s.pt ?? null;
+  if (np !== rp.path) { rp.path = np; rp.modelDirty = true; }
+  if (s.v) rp.ver = s.v;
   const gh = rp.glideHold;
   if (gh && (game.time >= gh.until || s.d || Math.abs(s.x - gh.x) + Math.abs(s.y - gh.y) < 16)) rp.glideHold = null;
   if (!rp.glideHold) {

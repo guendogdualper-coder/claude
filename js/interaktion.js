@@ -201,16 +201,18 @@ function onInteract(pid, d) {
 function showInspect(d) {
   const who = { classId: d.c, path: d.path, level: d.l, name: d.n, equipment: d.eq || {}, buffs: [], x: 0, y: 0, r: 11 };
   const slots = equipSlotsFor(d.c);
+  // Klasse aus einer neueren Version (seit 8.6): keine Puppe, nur der Name
+  const C = CLASSES[d.c];
   const tiles = slots.map((sl) => gear.tile(who.equipment[sl.id], `data-insp="${sl.id}"`, sl.name, sl.id)).join('');
   ui.closePanels();
   $('inspectTitle').textContent = d.n;
   $('inspectBody').innerHTML =
-    `<p class="quest-step">Lv ${d.l} · ${CLASSES[d.c].name} · ${CLASSES[d.c].paths[d.path || 0].name}${d.guild ? ` · ‹${escapeHtml(d.guild)}›` : ''}</p>` +
+    `<p class="quest-step">Lv ${d.l} · ${C ? C.name + ' · ' + (C.paths[d.path || 0] || C.paths[0]).name : 'Unbekannte Klasse'}${d.guild ? ` · ‹${escapeHtml(d.guild)}›` : ''}</p>` +
     `<div class="inv-layout"><section class="inv-equip"><div class="equip-doll"><canvas id="inspDoll" class="doll"></canvas><div class="equip-grid">${tiles}</div></div>` +
     `<p class="inv-sum">Angriff ${d.s.atk} · Verteidigung ${d.s.def}<br>Leben ${d.s.hp} · Mana ${d.s.mp} · Kritisch ${Math.round(d.s.crit * 100)} %</p></section>` +
     `<section><div id="inspDetail" class="item-detail-wrap"><p class="hint-text">Tippe ein Teil an, um seine Werte und Boni zu sehen. Die Pfeile vergleichen es mit deiner Ausrüstung.</p></div></section></div>`;
   $('panelInspect').hidden = false;
-  drawDoll($('inspDoll'), who);
+  if (C) drawDoll($('inspDoll'), who);
   $('inspectBody').querySelectorAll('[data-insp]').forEach((b) => b.addEventListener('click', () => {
     const item = who.equipment[b.dataset.insp];
     if (!item) return;
@@ -278,6 +280,19 @@ function tradeMaybeFinish() {
   endTrade(null);
 }
 
+// Magier-Gegenstände (seit 8.6: Zepter, Robe und Hut des Magiers, Bücher seiner Fertigkeiten) nur an Mitspieler
+// mit Version 8.6 oder neuer: ältere Spiele kennen die Waffenart und die Klasse nicht und würden abstürzen
+function mageItem(it) {
+  if (!it) return false;
+  if (it.book) { const e = skillEntry(it.book); return !!e && e.cls === 'magier'; }
+  return it.cls === 'magier' || it.kind === 'rod';
+}
+function tradeAllowed(t, it) {
+  if (!mageItem(it)) return true;
+  const rp = net.players.get(t.pid);
+  return !!(rp && rp.ver && !versionNewer('8.6', rp.ver));
+}
+
 function endTrade(msg) {
   game.trade = null;
   $('panelTrade').hidden = true;
@@ -325,7 +340,10 @@ const trade = {
       const uid = b.dataset.tbag;
       const i = t.mine.uids.indexOf(uid);
       if (i >= 0) t.mine.uids.splice(i, 1);
-      else if (t.mine.uids.length < TRADE_SLOTS) t.mine.uids.push(uid);
+      else if (!tradeAllowed(t, p.inventory.find((it) => it.uid === uid))) {
+        $('tradeDetail').innerHTML = '<p class="gear-msg warn">Mitspieler braucht Version 8.6 für Magier-Gegenstände.</p>';
+        return;
+      } else if (t.mine.uids.length < TRADE_SLOTS) t.mine.uids.push(uid);
       sendOffer();
     }));
     body.querySelectorAll('[data-tmine]').forEach((b) => b.addEventListener('click', () => {
@@ -417,7 +435,8 @@ function duelHit(m, mul, opts) {
   if (!duelFighting()) return 0;
   const base = opts.atk != null ? opts.atk : s.atk;
   const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
-  const raw = base * mul * (opts.ally ? DUEL_ALLY_MUL : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1);
+  // duelMul (seit 8.6): Kontroll-Fertigkeiten des Magiers gleichen im Duell aus, dass Zustände dort nur als Schaden zählen
+  const raw = base * mul * (opts.ally ? DUEL_ALLY_MUL : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1);
   netSocial(game.duel.pid, { k: 'dh', a: Math.round(raw), c: crit ? 1 : 0, l: p.level });
   vfxImpact(m, crit, opts.vfxColor);
   if (opts.skill) skillHitFx(opts.skill, m, crit, opts.heavy);

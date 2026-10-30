@@ -149,7 +149,7 @@ const ui = {
     lookEditor($('lookEditor'), this.selectedClass, this.createLook, (look) => {
       this.createLook = look;
       this.lookTouched = true;
-    });
+    }, null, this.selectedPath || 0);
   },
 
   // Aussehen später im Charakterfenster ändern
@@ -157,7 +157,7 @@ const ui = {
     const p = game.player;
     this.closePanels();
     this.editLook = { ...DEFAULT_LOOKS[p.classId], ...(p.look || {}) };
-    lookEditor($('lookPanelEditor'), p.classId, this.editLook, (look) => { this.editLook = look; }, p.equipment);
+    lookEditor($('lookPanelEditor'), p.classId, this.editLook, (look) => { this.editLook = look; }, p.equipment, p.path || 0);
     $('panelLook').hidden = false;
   },
 
@@ -193,11 +193,19 @@ const ui = {
         box.append(card);
         return;
       }
+      // Klasse aus einer neueren Version (seit 8.6): gesperrt, nicht spielbar und nicht löschbar
+      if (sv.unknown) {
+        card.classList.add('locked');
+        card.innerHTML = `<div class="char-pic char-pic-unknown">?</div><div class="char-info"><strong>${escapeHtml(sv.name)}</strong>` +
+          `<span>Unbekannte Klasse</span><b>Stufe ${sv.level}</b></div><button type="button" class="btn btn-ghost char-play" disabled>Neuere Version nötig</button>`;
+        box.append(card);
+        return;
+      }
       const cv = document.createElement('canvas');
       cv.width = 96;
       cv.height = 96;
       cv.className = 'char-pic';
-      drawClassPreview(cv, sv.classId);
+      drawClassPreview(cv, sv.classId, sv.path);
       const way = sv.path != null ? classPath(sv.classId, sv.path).name : '';
       const info = document.createElement('div');
       info.className = 'char-info';
@@ -297,7 +305,7 @@ const ui = {
       const cv = document.createElement('canvas');
       cv.width = 112;
       cv.height = 112;
-      drawClassPreview(cv, id);
+      drawClassPreview(cv, id, id === this.selectedClass ? this.selectedPath : 0);
       const strong = document.createElement('strong');
       strong.textContent = c.name;
       const small = document.createElement('small');
@@ -318,11 +326,19 @@ const ui = {
 
   renderClassDetail() {
     const c = CLASSES[this.selectedClass];
-    $('classDetail').innerHTML = `<p>${c.description}</p>` + pathChoiceHtml(c, this.selectedPath) +
+    $('classDetail').innerHTML = `<p>${c.description}</p><h3 class="path-head">${c.paths.length === 4 ? 'Element wählen' : 'Weg wählen'}</h3>` +
+      pathChoiceHtml(c, this.selectedPath) +
       skillListHtml(c.paths[this.selectedPath].skills, null) + ultHtml(ULTIMATES[c.paths[this.selectedPath].id], null);
+    drawPathSigils($('classDetail'));
     $('classDetail').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
       this.selectedPath = Number(b.dataset.path);
       this.renderClassDetail();
+      // Magier: Kristall, Hutband und Handlicht der Vorschau in der Farbe des gewählten Elements
+      if (c.paths.length === 4) {
+        const card = $('class-' + this.selectedClass);
+        if (card) drawClassPreview(card.querySelector('canvas'), this.selectedClass, this.selectedPath);
+        this.renderCreateLook();
+      }
     }));
   },
 
@@ -332,10 +348,11 @@ const ui = {
     const c = CLASSES[p.classId];
     let pick = p.path || 0;
     const render = () => {
-      $('pathBody').innerHTML = `<p>Jede Klasse hat jetzt zwei Wege mit eigenen Fertigkeiten. Wähle deinen Weg als ${c.name}. ` +
+      $('pathBody').innerHTML = `<p>Jede Klasse hat eigene Wege mit eigenen Fertigkeiten. Wähle deinen Weg als ${c.name}. ` +
         `Deine Fertigkeitspunkte bekommst du zurück und kannst sie neu verteilen.</p>` +
         pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) + ultHtml(ULTIMATES[c.paths[pick].id], null) +
         `<button id="btnPathOk" class="btn btn-primary" type="button">${c.paths[pick].name} wählen</button>`;
+      drawPathSigils($('pathBody'));
       $('pathBody').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
         pick = Number(b.dataset.path);
         render();
@@ -354,6 +371,49 @@ const ui = {
     };
     render();
     this.closePanels();
+    $('pathTitle').textContent = 'Wähle deinen Weg';
+    $('panelPath').hidden = false;
+  },
+
+  // Elementwechsel (seit 8.6, nur Magier): im Dorf oder Lager, nicht im Duell und erst 10 s nach dem letzten Kampf.
+  // Bis Stufe 10 kostenlos, danach 500 Gold je Stufe. Die Fertigkeitsstufen liegen je Platz und bleiben.
+  showElementChoice() {
+    const p = game.player;
+    if (p.classId !== 'magier') return;
+    const c = CLASSES.magier;
+    let pick = p.path || 0;
+    let asking = false;
+    const render = () => {
+      const cost = mageElementCost(p);
+      const same = pick === (p.path || 0);
+      const E = MAGE_EL[MAGE_PATH_EL[pick]];
+      const ok = !same && p.gold >= cost && canChangeElement(p);
+      $('pathBody').innerHTML = `<p>Wähle ein neues Element. Deine Fertigkeitsstufen bleiben erhalten, die Buffs deines alten Elements enden. ` +
+        `Bücher des alten Elements gehören danach zu fremden Fertigkeiten.</p>` +
+        pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) + ultHtml(ULTIMATES[c.paths[pick].id], null) +
+        `<p class="el-cost">${cost ? `Kosten: ${cost.toLocaleString('de-DE')} Gold (du hast ${p.gold.toLocaleString('de-DE')})` : 'Bis Stufe 10 kostenlos.'}</p>` +
+        (asking && ok
+          ? `<p class="el-ask">Element zu ${E.name} wechseln für ${cost.toLocaleString('de-DE')} Gold? Deine Fertigkeitsstufen bleiben erhalten.</p>` +
+            `<div class="create-row"><button id="btnElementOk" class="btn btn-primary" type="button">Wechseln</button>` +
+            `<button id="btnElementNo" class="btn btn-ghost" type="button">Nein</button></div>`
+          : `<button id="btnElementOk" class="btn btn-primary" type="button"${ok ? '' : ' disabled'}>${same ? 'Dein jetziges Element' : `Element zu ${E.name} wechseln`}</button>`);
+      drawPathSigils($('pathBody'));
+      $('pathBody').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
+        pick = Number(b.dataset.path);
+        asking = false;
+        render();
+      }));
+      if ($('btnElementNo')) $('btnElementNo').addEventListener('click', () => { asking = false; render(); });
+      $('btnElementOk').addEventListener('click', () => {
+        // kostet es Gold, erst nachfragen
+        if (cost && !asking) { asking = true; render(); return; }
+        if (changeMageElement(pick)) $('panelPath').hidden = true;
+        else { asking = false; render(); }
+      });
+    };
+    render();
+    this.closePanels();
+    $('pathTitle').textContent = 'Element wechseln';
     $('panelPath').hidden = false;
   },
 
@@ -1111,6 +1171,17 @@ const ui = {
     return [...document.querySelectorAll('.panel')].some((el) => el.id !== 'panelDeath' && !el.hidden);
   },
 
+  // Zeile „Element: Feuer · Wechseln“ im Charakterfenster (nur Magier)
+  elementHtml(p) {
+    if (p.classId !== 'magier') return '';
+    const E = mageEl(p);
+    const ok = canChangeElement(p);
+    const cost = mageElementCost(p);
+    return `<p class="el-change" style="--el:${E.main}">Element: <span class="el-name">${E.name}</span>` +
+      `<button type="button" class="mini-btn" id="btnElement"${ok ? '' : ' disabled'}>Wechseln</button>` +
+      `<span class="hint-text">${ok ? (cost ? `Kosten ${cost.toLocaleString('de-DE')} Gold` : 'bis Stufe 10 kostenlos') : 'Nur im Dorf oder Lager, außerhalb des Kampfes'}</span></p>`;
+  },
+
   renderCharPanel() {
     const p = game.player;
     if (!p) return;
@@ -1121,6 +1192,7 @@ const ui = {
     $('charBody').innerHTML =
       `<p class="char-head"><span><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</span>` +
       `<button type="button" class="mini-btn" id="btnLook">✂ Aussehen ändern</button></p>` +
+      this.elementHtml(p) +
       this.attrHtml(p) +
       `<dl class="stats">` +
       row('Leben', s.maxHp) + row('Mana', s.maxMp) +
@@ -1137,6 +1209,7 @@ const ui = {
       `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsbüchern über Heroisch (H) und Legendär (L) bis Vollendet (V). Jedes Buch gehört zu einer Fertigkeit. Seelensteine lassen Bücher zu allen Fertigkeiten aller Klassen fallen, fremde verkaufst du beim Händler.</p>` +
       skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p);
     $('btnLook').addEventListener('click', () => this.openLookPanel());
+    if ($('btnElement')) $('btnElement').addEventListener('click', () => this.showElementChoice());
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
     });
@@ -1288,19 +1361,91 @@ const ui = {
   }
 };
 
-// Zwei Karten für die Wege einer Klasse
+// Karten für die Wege einer Klasse: zwei, beim Magier vier Elemente mit ihrem Dreieck in der Elementfarbe
 function pathChoiceHtml(c, selected) {
-  return '<div class="path-grid">' + c.paths.map((pt, i) =>
-    `<button type="button" class="path-card" data-path="${i}" aria-pressed="${i === selected}">` +
-    `<strong>${pt.name}</strong><small class="path-role">${pt.role}</small><span>${pt.description}</span></button>`
-  ).join('') + '</div>';
+  const four = c.paths.length === 4;
+  return `<div class="path-grid${four ? ' four' : ''}">` + c.paths.map((pt, i) => {
+    const E = four && MAGE_EL[pt.id];
+    return `<button type="button" class="path-card" data-path="${i}" aria-pressed="${i === selected}"${E ? ` data-el="${pt.id}" style="--el:${E.main}"` : ''}>` +
+      (E ? `<strong><canvas class="el-sigil" width="56" height="56" data-sigil="${pt.id}"></canvas>${E.name}</strong><small class="path-name">${pt.name}</small>`
+        : `<strong>${pt.name}</strong>`) +
+      `<small class="path-role">${pt.role}</small><span>${pt.description}</span></button>`;
+  }).join('') + '</div>';
+}
+
+// Dreiecke auf den Elementkarten zeichnen (nach dem Einsetzen des HTML)
+function drawPathSigils(box) {
+  box.querySelectorAll('canvas[data-sigil]').forEach((cv) => {
+    const E = MAGE_EL[cv.dataset.sigil];
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const r = cv.width * 0.44;
+    if (typeof drawSigil === 'function') {
+      drawSigil(ctx, cv.width / 2, cv.height / 2, r, E.key, 0, E.main, 1);
+      return;
+    }
+    // Ersatz ohne die Siegel-Zeichnung aus effekte.js: nur das Dreieck (Spitze oben △ oder unten ▽, mit Balken)
+    const down = E.glyph.startsWith('down') ? -1 : 1;
+    const cx = cv.width / 2;
+    const cy = cv.height / 2 + r * 0.12 * down;
+    const corner = (k) => [cx + Math.cos(-Math.PI / 2 * down + (k * 2 * Math.PI) / 3) * r, cy + Math.sin(-Math.PI / 2 * down + (k * 2 * Math.PI) / 3) * r];
+    ctx.strokeStyle = E.main;
+    ctx.fillStyle = E.main;
+    ctx.lineWidth = cv.width / 18;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let k = 0; k < 3; k++) ctx[k ? 'lineTo' : 'moveTo'](...corner(k));
+    ctx.closePath();
+    ctx.stroke();
+    if (E.glyph.endsWith('bar')) {
+      ctx.beginPath();
+      ctx.moveTo(cx - r * 0.5, cy);
+      ctx.lineTo(cx + r * 0.5, cy);
+      ctx.stroke();
+    }
+  });
+}
+
+// Elementwechsel des Magiers (seit 8.6): bis Stufe 10 kostenlos, danach 500 Gold je Stufe
+function mageElementCost(p) {
+  return p.level <= 10 ? 0 : 500 * p.level;
+}
+// Nur im Dorf oder Lager, nicht im Duell und erst 10 s nach dem letzten Kampf
+function canChangeElement(p) {
+  return p.classId === 'magier' && !p.dead && inVillage(p.x, p.y) && !game.duel && game.time - (p.lastCombat ?? -99) > 10;
+}
+function changeMageElement(n) {
+  const p = game.player;
+  const cost = mageElementCost(p);
+  if (!canChangeElement(p) || n === (p.path || 0) || !MAGE_PATH_EL[n]) return false;
+  if (p.gold < cost) {
+    ui.log(`Dir fehlen ${(cost - p.gold).toLocaleString('de-DE')} Gold für den Elementwechsel.`, 'warn');
+    return false;
+  }
+  p.gold -= cost;
+  p.path = n;
+  // Buffs der Magier-Fertigkeiten und -Ultimates enden; Abklingzeiten bleiben je Platz (kein Ausnutzen).
+  // Die Mitspieler sehen das neue Element mit dem nächsten Zustand (pt).
+  const mageIds = new Set(CLASSES.magier.paths.flatMap((pt) => pt.skills.map((s) => s.id)));
+  p.buffs = p.buffs.filter((b) => !mageIds.has(b.id) && b.id !== 'steinhaut' && b.id !== 'donnerkrone');
+  game.stats = playerStats(p);
+  p.hp = Math.min(p.hp, game.stats.maxHp);
+  p.mp = Math.min(p.mp, game.stats.maxMp);
+  ui.buildSkillBar();
+  drawPortrait($('hudPortrait'), p);
+  ui.log(`Du folgst jetzt dem ${CLASSES.magier.paths[n].name}.` + (cost ? ` (−${cost.toLocaleString('de-DE')} Gold)` : ''), 'level');
+  saveGame();
+  return true;
 }
 
 // Werte einer Fertigkeit auf einer Stufe, z. B. [['Angriff', '+29,6 %'], ['Dauer', '238 s']]
 const SKILL_EFFECT_LABELS = {
   atk: 'Angriff', crit: 'Krit', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', damageTaken: 'Erlittener Schaden',
-  def: 'Verteidigung', dodge: 'Ausweichen', skillDmg: 'Fertigkeitsschaden', regen: 'Leben je s', reflect: 'Rückwurf', hpSteal: 'Lebensraub'
+  def: 'Verteidigung', dodge: 'Ausweichen', skillDmg: 'Fertigkeitsschaden', regen: 'Leben je s', reflect: 'Rückwurf', hpSteal: 'Lebensraub',
+  chill: 'Kälte für Angreifer'
 };
+// Zahl mit Komma, eine Nachkommastelle (1,3 s)
+const numDe = (v) => String(Math.round(v * 10) / 10).replace('.', ',');
 function skillPct(v) {
   const n = Math.round(v * 1000) / 10;
   return String(n).replace('.', ',') + ' %';
@@ -1315,7 +1460,7 @@ function speedText(p, s) {
 function skillStats(sk, lvl) {
   const out = [];
   const scale = buffScale(lvl);
-  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage') out.push(['Schaden', skillPct(sk.dmg * dmgScale(lvl)) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil') out.push(['Schaden', skillPct(sk.dmg * dmgScale(lvl)) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
   // Nekromant, Weg der Seelen (seit 8.5): Schädelsalve, Seelenkäfig, Mal des Seelenschnitters
   if (sk.type === 'skulls') out.push(['Schaden', sk.count + ' × ' + skillPct(sk.dmg * dmgScale(lvl))]);
   if (sk.type === 'cage') out.push(['Schrei', skillPct(sk.dmg * dmgScale(lvl)) + ' ×' + sk.pulses], ['Verlangsamt', skillPct(sk.slow.amount)]);
@@ -1332,9 +1477,12 @@ function skillStats(sk, lvl) {
     if (extra.length) out.push(['Rang', extra.join(', ')]);
   }
   if (sk.vulnerable) out.push(['Verwundbar', '+' + skillPct(sk.vulnerable * scale)]);
+  if (sk.el && sk.type !== 'buff') mageSkillStats(sk, lvl, out);
   for (const [k, v] of Object.entries(sk.effects || {})) {
     const label = (sk.labels && sk.labels[k]) || SKILL_EFFECT_LABELS[k];
     if (typeof v !== 'number' || !label) continue;
+    // Kälte (Frostpanzer, seit 8.6) verlangsamt fest um diesen Anteil
+    if (k === 'chill') { out.push([label, skillPct(v)]); continue; }
     // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
     out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' ? v : v * scale))]);
   }
@@ -1342,16 +1490,50 @@ function skillStats(sk, lvl) {
   return out;
 }
 
+// Magier (seit 8.6): Nova, Element-Geschoss, Elementsprung und Siegel
+function mageSkillStats(sk, lvl, out) {
+  const dmg = (v) => skillPct(v * dmgScale(lvl));
+  const freeze = (v) => numDe(typeof mageDur === 'function' ? mageDur(v, lvl) : v * levelCurve(lvl, 0.02, 0.01, DUR_JUMP)) + ' s';
+  if (sk.type === 'nova') out.push(['Umkreis', String(sk.radius)]);
+  if (sk.type === 'shift') {
+    out.push(['Weite', String(sk.distance)]);
+    out.push(sk.at === 'line' ? ['Treffer auf der Strecke', ''] : [sk.at === 'end' ? 'Explosion am Ziel' : 'Explosion am Start', 'r ' + sk.radius]);
+  }
+  if (sk.type === 'sigil') {
+    out.push(['Verzögerung', numDe(sk.delay) + ' s']);
+    if (sk.zaps) out.push(['Zaps', `${sk.ticks} × ${sk.zaps} Ziele · ${dmg(sk.dmg)}`]);
+    else if (sk.ticks > 1) out.push(['Pulse', `${sk.ticks} × ${dmg(sk.dmg)}`]);
+    else out.push(['Schaden', dmg(sk.dmg)]);
+    if (sk.last && sk.last.dmg) out.push(['Zum Schluss', dmg(sk.last.dmg)]);
+    if (sk.pull) out.push(['Sog', String(sk.pull)]);
+    if (sk.linger) out.push(['Eisfeld', numDe(sk.linger) + ' s']);
+  }
+  if (sk.splash) out.push(['Splitter', `r ${sk.splash.r} · ${skillPct(sk.splash.mul)}`]);
+  if (sk.shatter) out.push(['Zerspringen', '+' + skillPct(sk.shatter)]);
+  if (sk.chain) out.push(['Sprünge', `${sk.chain} · −${skillPct(1 - (sk.chainMul || 1))} je Sprung`]);
+  if (sk.discharge) out.push(['Entladung', '+' + skillPct(sk.discharge)]);
+  if (sk.pierce) out.push(['Durchbohrt', '']);
+  if (sk.arcs) out.push(['Ziele', `${sk.arcs}, Überschlag ${skillPct(sk.jump ? sk.jump.mul : 0.5)}`]);
+  if (sk.freeze) out.push(['Einfrieren', freeze(sk.freeze)]);
+  const stun = sk.stun || (sk.last && sk.last.stun);
+  if (stun) out.push(['Betäubt', numDe(stun) + ' s']);
+  if (sk.burn) out.push(['Brand', skillPct(sk.burn.dps) + ' je s']);
+  if (sk.slow) out.push(['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
+  if (sk.lift || (sk.last && sk.last.lift)) out.push(['Hochgeschleudert', '']);
+  if (sk.ignite || (sk.last && sk.last.ignite)) out.push(['Explodieren', skillPct(0.5)]);
+  if (sk.type === 'nova' && skillRank(lvl) >= 0) out.push(['Nachhall', skillPct(0.35)]);
+}
+
 // Aktuelle Werte, darunter die nächste Stufe mit den Zuwächsen
 function skillStatsHtml(sk, lvl) {
   const now = skillStats(sk, lvl);
   if (!now.length) return '';
-  let html = '<span class="sk-stats">' + now.map(([k, v]) => `${k} <b>${v}</b>`).join(' · ') + '</span>';
+  let html = '<span class="sk-stats">' + now.map(([k, v]) => (v === '' ? k : `${k} <b>${v}</b>`)).join(' · ') + '</span>';
   const nl = nextSkillLevel(lvl);
   if (nl != null) {
     const next = skillStats(sk, nl);
     html += `<span class="sk-next">${nl === SKILL_RANKS[0].from && skillRank(lvl) < 0 ? 'Nach dem Erwecken (E1)' : 'Stufe ' + skillLevelText(nl)}: ` +
-      next.map(([k, v], j) => `${k} <b${now[j] && now[j][1] !== v ? ' class="up"' : ''}>${v}</b>`).join(' · ') + '</span>';
+      next.map(([k, v], j) => (v === '' ? k : `${k} <b${now[j] && now[j][1] !== v ? ' class="up"' : ''}>${v}</b>`)).join(' · ') + '</span>';
   }
   return html;
 }
@@ -1435,20 +1617,23 @@ function drawPortrait(cv, p) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(2.6, 0, 0, 2.6, cv.width / 2, cv.height + 20);
-  drawPlayer(ctx, { classId: p.classId, x: 0, y: 0, r: 11, facing: { x: 0, y: 1 }, buffs: [], swing: 0, moving: false, shield: 0, equipment: p.equipment || null, look: p.look || null });
+  drawPlayer(ctx, { classId: p.classId, path: p.path, x: 0, y: 0, r: 11, facing: { x: 0, y: 1 }, buffs: [], swing: 0, moving: false, shield: 0, equipment: p.equipment || null, look: p.look || null });
 }
 
-// Kleine Vorschau der Klasse für die Auswahlkarten
-function drawClassPreview(cv, classId) {
+// Kleine Vorschau der Klasse für die Auswahlkarten; path färbt beim Magier Kristall, Hutband und Handlicht (seit 8.6)
+function drawClassPreview(cv, classId, path = 0) {
   const ctx = cv.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, cv.width, cv.height);
   ctx.setTransform(1.9, 0, 0, 1.9, cv.width / 2, cv.height / 2 + 30);
-  const fake = { classId, x: 0, y: 0, r: 11, facing: { x: 0.45, y: 0.89 }, buffs: [], swing: 0, moving: false, shield: 0 };
+  const fake = { classId, path, x: 0, y: 0, r: 11, facing: { x: 0.45, y: 0.89 }, buffs: [], swing: 0, moving: false, shield: 0 };
   drawPlayer(ctx, fake);
 }
 
 // Editor für das Aussehen: Vorschau (dreht sich beim Antippen) und Auswahl für Frisur, Haarfarbe,
 // Haut, Augenform, Augenfarbe und Gesichtszeichen. onChange bekommt jedes Mal das neue Aussehen.
-function lookEditor(box, classId, start, onChange, equipment = null) {
+// path: Weg der Figur (beim Magier das Element, seit 8.6)
+function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
   const look = { ...DEFAULT_LOOKS[classId], ...(start || {}) };
   let dir = 0;
   const dirs = [{ x: 0, y: 1 }, { x: 1, y: 0 }, { x: 0, y: -1 }];
@@ -1472,7 +1657,7 @@ function lookEditor(box, classId, start, onChange, equipment = null) {
     ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.setTransform(3.3, 0, 0, 3.3, 90, 200);
     // ohne eigene Ausrüstung: Grundausrüstung ohne Helm, damit man die Haare sieht
-    const fig = { classId, x: 0, y: 0, r: 11, facing: dirs[dir], buffs: [], swing: 0, moving: false, shield: 0, equipment: equipment || starterEquipment(classId), look };
+    const fig = { classId, path, x: 0, y: 0, r: 11, facing: dirs[dir], buffs: [], swing: 0, moving: false, shield: 0, equipment: equipment || starterEquipment(classId), look };
     ctx.translate(0, -feetY(fig));
     drawPlayer(ctx, fig);
     cv.addEventListener('click', () => { dir = (dir + 1) % 3; render(); });

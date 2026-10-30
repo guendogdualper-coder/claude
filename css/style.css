@@ -451,7 +451,7 @@ kbd {
 }
 .classes { border: 0; padding: 0; margin: 0; }
 .classes legend { padding: 0; margin-bottom: 6px; }
-.class-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.class-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .class-card {
   display: flex;
   flex-direction: column;
@@ -679,7 +679,7 @@ kbd {
   .menu { top: calc(var(--edge-t) + 190px); bottom: auto; }
   .menu-btn kbd { display: none; }
   .banner { top: 36%; }
-  .class-grid { grid-template-columns: repeat(2, 1fr); }
+  .class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .start-card { padding: 20px 16px; }
   .stats { grid-template-columns: 1fr; }
 }
@@ -852,7 +852,8 @@ kbd {
   .create > .field, .create > .classes, .create > .btn, .create > .form-error { grid-column: 1; }
   .class-detail { grid-column: 2; grid-row: 1 / span 4; max-height: calc(100vh - 150px); overflow-y: auto; }
   .class-detail p { font-size: 13px; }
-  .class-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .class-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .class-card strong { font-size: 13px; }
   .class-card { padding: 6px 4px; gap: 2px; }
   .class-card canvas { width: 42px; height: 42px; }
   .class-card small { display: none; }
@@ -1162,8 +1163,10 @@ kbd {
   .item-tile.has-ghost .slot-label { font-size: 8px; }
 }
 
-/* Zwei Wege je Klasse */
+/* Zwei Wege je Klasse, beim Magier vier Elemente (seit 8.6) */
 .path-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.path-grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.path-grid.four .path-card { align-content: start; }
 .path-card {
   display: grid;
   gap: 2px;
@@ -1181,6 +1184,27 @@ kbd {
 .path-card span { font-size: 12px; color: var(--muted); line-height: 1.3; }
 .path-card[aria-pressed="true"] { border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass), 0 0 14px rgba(224, 195, 106, 0.3); }
 #pathBody .btn { justify-self: start; }
+/* Elementkarten des Magiers: Rand und Dreieck in der Elementfarbe */
+.path-card[data-el] { border-color: var(--el); border-color: color-mix(in srgb, var(--el) 50%, transparent); }
+.path-card[data-el] strong { display: flex; align-items: center; gap: 6px; font-size: 17px; color: var(--el); }
+.path-card .el-sigil { width: 28px; height: 28px; flex: none; }
+.path-card .path-name { font-size: 11px; color: var(--parchment); opacity: 0.8; }
+.path-card[data-el][aria-pressed="true"] { border-color: var(--el); box-shadow: 0 0 0 1px var(--el), 0 0 14px color-mix(in srgb, var(--el) 45%, transparent);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--el) 24%, #2a2118), #15100c 75%); }
+@media (orientation: landscape) and (min-width: 600px) {
+  .path-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .path-grid.four .path-card { padding: 6px 7px; align-content: start; }
+  .path-grid.four .path-card strong { font-size: 15px; gap: 4px; }
+  .path-grid.four .path-card .el-sigil { width: 22px; height: 22px; }
+  .path-grid.four .path-card .path-role { font-size: 10.5px; line-height: 1.25; }
+  .path-grid.four .path-card span { font-size: 11px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+}
+/* Elementwechsel im Charakterfenster */
+.el-change { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; margin: 0 0 8px; font-size: 13px; }
+.el-change .el-name { font-weight: 700; color: var(--el); }
+.el-change .hint-text { margin: 0; }
+.el-cost, .el-ask { margin: 6px 0; font-size: 13px; color: #ffd27a; }
+.class-detail .path-head { margin: 8px 0 0; font-family: var(--font-display); font-weight: 400; font-size: 15px; color: var(--brass); }
 
 /* Aufträge, Reisen und Jagd */
 .quest-track { display: grid; gap: 1px; margin-top: 3px; font-size: 11px; line-height: 1.25; color: var(--parchment); text-align: right; }
@@ -2591,6 +2615,8 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 .char-play { width: 100%; margin-top: auto; padding: 6px 4px; }
 .char-del { position: absolute; top: 4px; right: 6px; border: 0; background: transparent; color: rgba(255, 180, 160, 0.7); font-size: 14px; cursor: pointer; }
 .char-slot.empty { border-style: dashed; background: rgba(30, 24, 18, 0.5); }
+.char-slot.locked { opacity: 0.75; border-style: dashed; }
+.char-pic-unknown { display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: rgba(243, 226, 176, 0.6); font-size: 34px; }
 .char-new { flex: 1; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border: 0; background: transparent; color: #f3e2b0; font: inherit; font-size: 30px; cursor: pointer; }
 .char-new span { font-size: 12px; }
 .char-confirm { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px; border-radius: 12px; background: rgba(20, 10, 8, 0.94); font-size: 12px; }

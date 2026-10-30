@@ -86,7 +86,7 @@ const ATTRS = [
 ];
 // Hauptwert jeder Klasse: stärkt je Punkt zusätzlich Fertigkeiten, normale Angriffe und Buffs (Auren, Heilung, Schilde).
 // Bei Intelligenz als Hauptwert ersetzt das den allgemeinen Fertigkeitsschaden der Intelligenz.
-const MAIN_ATTR = { krieger: 'str', ninja: 'dex', schamane: 'int', nekromant: 'int' };
+const MAIN_ATTR = { krieger: 'str', ninja: 'dex', schamane: 'int', nekromant: 'int', magier: 'int' };
 const MAIN_SKILL = 0.012;
 // Mehr als so viele Punkte (eigene plus Ausrüstung) zählen für den Hauptwert-Bonus nicht
 const MAIN_ATTR_CAP = 120;
@@ -250,6 +250,8 @@ function playerStats(p) {
     regen: 0,
     reflect: 0,
     block: 0,
+    // Kälte (seit 8.6, Frostpanzer des Magiers): Nahkämpfer, die dich schlagen, werden so stark verlangsamt
+    chill: 0,
     invisible: false
   };
   let atkMul = 1;
@@ -335,6 +337,7 @@ function playerStats(p) {
     if (e.dodge) s.dodge += e.dodge;
     if (e.regen) s.regen += e.regen;
     if (e.reflect) s.reflect += e.reflect;
+    if (e.chill) s.chill = Math.max(s.chill || 0, e.chill);
     if (e.invisible) s.invisible = true;
   }
   s.atk = Math.round(s.atk * atkMul);
@@ -549,9 +552,19 @@ function writeSlots(st, quiet) {
   if (!quiet && typeof cloudSoon === 'function') cloudSoon();
 }
 
-// Alle vier Plätze für die Charakterauswahl (null = frei)
+// Charakter einer Klasse, die dieses Spiel noch nicht kennt (gespeichert von einer neueren Version, seit 8.6):
+// der Platz bleibt belegt, damit ihn hier niemand überschreibt
+function unknownSave(sv) {
+  return !!(sv && !sv.deleted && typeof sv.classId === 'string' && !CLASSES[sv.classId]);
+}
+function slotTaken(sv) {
+  return !!fixSave(sv) || unknownSave(sv);
+}
+
+// Alle vier Plätze für die Charakterauswahl (null = frei, unknown = braucht eine neuere Version)
 function listSaves() {
-  return readSlots().slots.map((sv) => fixSave(sv));
+  return readSlots().slots.map((sv) => fixSave(sv) ||
+    (unknownSave(sv) ? { unknown: true, name: typeof sv.name === 'string' ? sv.name : '?', classId: sv.classId, level: sv.level | 0 } : null));
 }
 function lastSlot() {
   const st = readSlots();
@@ -563,7 +576,7 @@ function slotFor(save) {
   const st = readSlots();
   const same = st.slots.findIndex((sv) => fixSave(sv) && sv.name === save.name && sv.classId === save.classId);
   if (same >= 0) return same;
-  const free = st.slots.findIndex((sv) => !fixSave(sv));
+  const free = st.slots.findIndex((sv) => !slotTaken(sv));
   return free >= 0 ? free : null;
 }
 
