@@ -207,7 +207,7 @@ function shadowOf(sp, flip) {
   return sp[key];
 }
 function castShadow(ctx, sp, x, fy, flip, alpha = 0.22) {
-  if (!gfx().castShadows) return;
+  if (!gfx().castShadows || quality.noShadow) return;
   const sh = shadowOf(sp, !!flip);
   const a = ctx.globalAlpha;
   ctx.globalAlpha = a * alpha;
@@ -1508,20 +1508,29 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
 
 // Ruckelt das Spiel über mehrere Sekunden (Median der Bildzeiten über 22 ms), wird die Auflösung
 // etwas gesenkt. Das passiert höchstens zweimal und nur während des Spielens.
-const quality = { frames: [], at: 0, steps: 0 };
-function adaptQuality(dtMs) {
-  if (!game.running || dtMs > 120 || document.hidden) return;
+const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false };
+function adaptQuality(dtMs, cap) {
+  // begrenzte Bildrate: die Bildzeit ist gewollt lang, nichts anpassen
+  if (!game.running || dtMs > 120 || document.hidden || cap) return;
   quality.frames.push(dtMs);
-  if (quality.frames.length < 180) return;
+  if (quality.frames.length < 120) return;
   const sorted = quality.frames.slice().sort((a, b) => a - b);
   quality.frames.length = 0;
   const median = sorted[sorted.length >> 1];
+  if (median <= 20) return;
+  // Schritt für Schritt (seit 9.9): Auflösung runter, dann Schatten aus, zuletzt gleichmäßige 30 Bilder/s
   const r = renderer;
   const cur = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
-  if (median > 22 && quality.steps < 2 && cur > 1.25) {
+  const minDpr = IS_PC ? 1.25 : 1;
+  if (quality.steps < 2 && cur > minDpr + 0.05) {
     quality.steps++;
-    r.maxDpr = Math.max(1.25, cur - 0.35);
+    r.maxDpr = Math.max(minDpr, cur - 0.3);
     resizeRenderer();
     if (V3.on) v3ApplyGraphics();
+  } else if (!quality.noShadow && gfx().castShadows) {
+    quality.noShadow = true;
+    if (V3.on) v3ApplyGraphics();
+  } else if (opts.fps === 'auto') {
+    quality.cap30 = true;
   }
 }

@@ -535,6 +535,12 @@ Zierschrift mit der Stufe darunter. Unten stehen das Ziel und die Legende.
 
 ---
 
+**Seit 9.9 (Handy wurde heiß und ruckelte):**
+- Handys starten mit „Mittel“ (Auflösung 1,6-fach, kleine Schattenkarte, keine Wolkenschatten).
+- Bildrate „Auto“: 60 Bilder/s, sonst gleichmäßig 30. Menüs und offene Fenster laufen immer mit 30.
+- Anpassung bei Ruckeln: erst die Auflösung bis auf 1-fach, dann die Schatten aus, zuletzt 30 Bilder/s.
+- Keine Kantenglättung (MSAA) bei 2–3-facher Pixeldichte; einfache Schattenfilterung auf Handys.
+
 ## 8. Prompts für Konzeptbilder (englisch)
 
 ### Gesamtstil

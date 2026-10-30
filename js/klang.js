@@ -36,9 +36,10 @@ const sfx = {
       this.music = c.createGain();
       this.master.connect(lim);
       this.music.connect(lim);
-      // Hall: abklingendes Rauschen als Raumantwort (2,4 s, links und rechts leicht verschieden)
+      // Hall: abklingendes Rauschen als Raumantwort (links und rechts leicht verschieden); seit 9.9 kürzer
+      // (1,6 s, Handy 1,2 s) – die Faltung läuft ständig und kostet sonst viel Rechenzeit
       this.verb = c.createConvolver();
-      const len = Math.floor(c.sampleRate * 2.4);
+      const len = Math.floor(c.sampleRate * (IS_PC ? 1.6 : 1.2));
       const ir = c.createBuffer(2, len, c.sampleRate);
       for (let ch = 0; ch < 2; ch++) {
         const d = ir.getChannelData(ch);

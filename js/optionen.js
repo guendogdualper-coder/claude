@@ -12,7 +12,11 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'ultra' : 'hoch', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'ultra' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
+
+// Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
+// spart Akku und hält das Handy kühler); 30 = immer Akku sparen
+const FPS_MODES = { auto: { label: 'Auto' }, 60: { label: '60' }, 30: { label: '30 (Akku)' } };
 
 // Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln.
 // Ultra (für PC): volle Auflösung, scharfe große Schatten, weitere Sicht, schärfere Böden
@@ -25,7 +29,15 @@ const GRAPHICS = {
 const CAMERA = { nah: { label: 'Nah', zoom: 1.15 }, normal: { label: 'Normal', zoom: 1 }, weit: { label: 'Weit', zoom: 0.85 }, schulter: { label: 'Schulterblick', zoom: 1.25 } };
 
 const opts = (() => {
-  try { return { ...OPT_DEFAULTS, ...JSON.parse(localStorage.getItem(OPT_KEY) || '{}') }; } catch (e) { return { ...OPT_DEFAULTS }; }
+  let o;
+  try { o = { ...OPT_DEFAULTS, ...JSON.parse(localStorage.getItem(OPT_KEY) || '{}') }; } catch (e) { o = { ...OPT_DEFAULTS }; }
+  // 9.9: Handys liefen auf „Hoch“ zu heiß – einmalig auf „Mittel“ (wer danach „Hoch“ wählt, behält es)
+  if ((o.optsVer || 0) < 2) {
+    if (!IS_PC && (o.graphics === 'hoch' || o.graphics === 'ultra')) o.graphics = 'mittel';
+    o.optsVer = 2;
+    try { localStorage.setItem(OPT_KEY, JSON.stringify(o)); } catch (e) { /* privat */ }
+  }
+  return o;
 })();
 
 const gfx = () => GRAPHICS[opts.graphics] || GRAPHICS.hoch;
@@ -91,7 +103,8 @@ const options = {
       `<div class="opt-row"><div class="opt-text"><strong>Musiklautstärke</strong></div><input type="range" id="optMusicVol" min="0" max="1" step="0.05" value="${opts.musicVol ?? 0.5}" aria-label="Musiklautstärke"><b class="opt-val">${Math.round((opts.musicVol ?? 0.5) * 100)} %</b></div></section>` +
       `<section class="opt-group"><h3>Grafik</h3>` +
       seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
-      seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Hoch ist empfohlen, Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger.`) +
+      seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Hoch sieht schärfer aus, macht das Handy aber wärmer; Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
+      seg('fps', FPS_MODES, 'Bildrate', 'Auto: 60 Bilder pro Sekunde, wenn das Gerät es schafft, sonst gleichmäßig 30 (kein Ruckeln). 30 spart viel Akku und hält das Handy kühler.') +
       seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
       sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
       sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +

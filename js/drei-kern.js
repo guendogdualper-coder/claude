@@ -565,7 +565,9 @@ function v3Init() {
   const canvas = document.getElementById('welt3d');
   if (!canvas || !v3Supported()) return false;
   try {
-    V3.gl = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    // Kantenglättung (MSAA) nur am PC und auf Bildschirmen mit niedriger Pixeldichte: auf Handys mit 2–3facher
+    // Dichte sieht man kaum Treppen, die Glättung kostet dort aber viel Grafikleistung (seit 9.9)
+    V3.gl = new THREE.WebGLRenderer({ canvas, antialias: IS_PC || (window.devicePixelRatio || 1) < 2, powerPreference: 'high-performance' });
   } catch (e) {
     return false;
   }
@@ -573,7 +575,8 @@ function v3Init() {
   canvas.hidden = false;
   const gl = V3.gl;
   gl.shadowMap.enabled = true;
-  gl.shadowMap.type = THREE.PCFSoftShadowMap;
+  // weiche Schatten (viele Proben) nur am PC; Handys nehmen die einfache Filterung
+  gl.shadowMap.type = IS_PC ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
   V3.scene = new THREE.Scene();
   V3.scene.background = new THREE.Color('#9ec8e0');
   V3.scene.fog = new THREE.Fog('#9ec8e0', 30, 64);
@@ -613,7 +616,7 @@ function v3ApplyGraphics() {
   V3.builtFor = opts.graphics;
   V3.ultra = opts.graphics === 'ultra';
   V3.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, renderer.maxDpr || g.dpr));
-  V3.sun.castShadow = g.castShadows;
+  V3.sun.castShadow = g.castShadows && !quality.noShadow;
   const size = V3.ultra ? 2048 : opts.graphics === 'hoch' ? 1024 : 512;
   // Ultra: größerer Schattenbereich, schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte)
   const sc = V3.sun.shadow.camera;

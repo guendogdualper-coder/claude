@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '9.8';
+const GAME_VERSION = '9.9';
 
 const game = {
   world: null,
@@ -187,11 +187,23 @@ function update(dt) {
 const portraitQuery = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
 
 let lastFrame = 0;
+// Bildrate begrenzen (seit 9.9): bei 30 wird jedes zweite Bild übersprungen; Menüs und offene Fenster laufen
+// immer mit 30 – das spart Grafikarbeit, Akku und Wärme
+function frameCap() {
+  if (opts.fps === '30' || !game.running || (typeof ui !== 'undefined' && ui.anyPanelOpen && ui.anyPanelOpen())) return 30;
+  if (opts.fps === 'auto' && quality.cap30) return 30;
+  return 0;
+}
 function frame(ts) {
+  const cap = frameCap();
+  if (cap && ts - lastFrame < 1000 / cap - 4) {
+    requestAnimationFrame(frame);
+    return;
+  }
   const raw = ts - lastFrame;
   const dt = Math.min(0.05, raw / 1000 || 0);
   lastFrame = ts;
-  adaptQuality(raw);
+  adaptQuality(raw, cap);
   updateScreenEffects(dt);
   if (game.running && !portraitQuery.matches) update(dt);
   else if (!game.running) game.time += dt;
