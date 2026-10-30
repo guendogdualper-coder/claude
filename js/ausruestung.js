@@ -373,6 +373,8 @@ function takeBooks(p, id, n) {
     if (!it.count) p.inventory.splice(k, 1);
   }
 }
+// Kennung je Platz in der Tasche (Gegenstände und seit 10.3 auch Bücherstapel; der Handel wählt danach aus)
+const newUid = () => Math.random().toString(36).slice(2, 10);
 // force: auch bei voller Tasche (nur beim Umwandeln alter Spielstände)
 function addBookItem(p, id, n = 1, force = false) {
   const stack = p.inventory.find((it) => it.book === id && it.count + n <= BOOK_STACK);
@@ -381,7 +383,7 @@ function addBookItem(p, id, n = 1, force = false) {
     return true;
   }
   if (!force && p.inventory.length >= BAG_SIZE) return false;
-  p.inventory.push({ book: id, count: n });
+  p.inventory.push({ book: id, count: n, uid: newUid() });
   return true;
 }
 

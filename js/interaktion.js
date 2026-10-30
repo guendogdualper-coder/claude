@@ -146,13 +146,11 @@ function onInteract(pid, d) {
       break;
     case 'to':
       if (game.trade && game.trade.pid === pid) {
-        // Bücher älterer Versionen umbenennen, unbekannte weglassen (sonst bricht die Anzeige)
-        const items = (d.items || []).filter(Boolean).map((it) => (it.book && SKILL_RENAMED[it.book] ? { ...it, book: SKILL_RENAMED[it.book] } : it)).filter((it) => !it.book || skillEntry(it.book));
-        game.trade.theirs = { items, gold: d.gold || 0 };
+        game.trade.theirs = tradeOfferIn(d);
         game.trade.okMine = false;
         game.trade.okTheirs = false;
         trade.render();
-      }
+      } else if (!game.trade) tradeEarly = { pid, d };
       break;
     case 'tk':
       if (game.trade && game.trade.pid === pid && d.h === tradeHash(game.trade, true)) {
@@ -232,7 +230,11 @@ function showInspect(d) {
 
 function startTrade(pid, name) {
   const rp = net.players.get(pid);
-  game.trade = { pid, name: name || (rp && rp.name) || '?', mine: { uids: [], gold: 0 }, theirs: { items: [], gold: 0 }, okMine: false, okTheirs: false };
+  game.trade = { pid, name: name || (rp && rp.name) || '?', mine: { uids: [], counts: {}, gold: 0 }, theirs: { items: [], gold: 0 }, okMine: false, okTheirs: false };
+  // Angebot des anderen, das vor dem Öffnen ankam (seit 10.3), gleich übernehmen
+  const early = tradeEarly && tradeEarly.pid === pid ? tradeEarly.d : null;
+  tradeEarly = null;
+  if (early) game.trade.theirs = tradeOfferIn(early);
   pcard.close();
   ui.closePanels();
   trade.page = 0;
@@ -241,15 +243,28 @@ function startTrade(pid, name) {
   ui.log(`Handel mit ${game.trade.name} geöffnet.`, 'info');
 }
 
+// Eigene angebotene Sachen; Bücher mit der gewählten Anzahl (seit 10.3 handelbar, auch ein Teil des Stapels)
 function myOfferItems() {
   const t = game.trade;
-  return t.mine.uids.map((u) => game.player.inventory.find((it) => it.uid === u)).filter(Boolean);
+  return t.mine.uids.map((u) => {
+    const it = game.player.inventory.find((x) => x.uid === u);
+    if (!it || !isBook(it)) return it;
+    return { ...it, count: Math.max(1, Math.min(it.count, t.mine.counts[u] || it.count)) };
+  }).filter(Boolean);
+}
+// Angebot des anderen lesen: Bücher älterer Versionen umbenennen, unbekannte weglassen (sonst bricht die Anzeige)
+let tradeEarly = null;
+function tradeOfferIn(d) {
+  const items = (d.items || []).filter(Boolean).map((it) => (it.book && SKILL_RENAMED[it.book] ? { ...it, book: SKILL_RENAMED[it.book] } : it))
+    .filter((it) => !it.book || (skillEntry(it.book) && it.count > 0));
+  return { items, gold: Math.max(0, Math.floor(d.gold || 0)) };
 }
 
 // Kurzer Fingerabdruck beider Angebote, aus Sicht eines Spielers (flip: aus Sicht des anderen)
 function tradeHash(t, flip) {
-  const mine = `${myOfferItems().map((i) => i.uid).join(',')}|${t.mine.gold}`;
-  const theirs = `${t.theirs.items.map((i) => i.uid).join(',')}|${t.theirs.gold}`;
+  const key = (i) => i.uid + (i.book ? 'x' + i.count : '');
+  const mine = `${myOfferItems().map(key).join(',')}|${t.mine.gold}`;
+  const theirs = `${t.theirs.items.map(key).join(',')}|${t.theirs.gold}`;
   return flip ? theirs + '#' + mine : mine + '#' + theirs;
 }
 
@@ -270,13 +285,27 @@ function tradeMaybeFinish() {
     endTrade('Dein Angebot hat sich geändert. Der Handel wurde abgebrochen.');
     return;
   }
-  p.inventory = p.inventory.filter((it) => !t.mine.uids.includes(it.uid));
+  // abgeben: Gegenstände ganz, von Bücherstapeln die angebotene Anzahl
+  for (const g of give) {
+    const it = p.inventory.find((x) => x.uid === g.uid);
+    if (isBook(it) && it.count > g.count) it.count -= g.count;
+    else p.inventory.splice(p.inventory.indexOf(it), 1);
+  }
   p.gold -= t.mine.gold;
-  for (const it of t.theirs.items) p.inventory.push({ ...JSON.parse(JSON.stringify(it)), uid: Math.random().toString(36).slice(2, 10) });
+  // bekommen: Bücher kommen auf passende Stapel, Gegenstände mit neuer Kennung
+  let got = 0;
+  for (const it of t.theirs.items) {
+    if (it.book) {
+      giveBooks(p, it.book, it.count);
+      got += it.count;
+    } else {
+      p.inventory.push({ ...JSON.parse(JSON.stringify(it)), uid: newUid() });
+      got++;
+    }
+  }
   p.gold += t.theirs.gold;
-  const got = t.theirs.items.length;
   saveGame();
-  ui.banner('Handel abgeschlossen', `${got} Gegenstand${got === 1 ? '' : 'e'} und ${t.theirs.gold.toLocaleString('de-DE')} Gold erhalten`);
+  ui.banner('Handel abgeschlossen', `${got} ${got === 1 ? 'Sache' : 'Sachen'} und ${t.theirs.gold.toLocaleString('de-DE')} Gold erhalten`);
   endTrade(null);
 }
 
@@ -302,6 +331,16 @@ function endTrade(msg) {
 const trade = {
   page: 0,
 
+  // Anzahl eines angebotenen Bücherstapels wählen
+  countHtml(t, p) {
+    const it = t.edit && t.mine.uids.includes(t.edit) ? p.inventory.find((x) => x.uid === t.edit) : null;
+    if (!isBook(it)) return '';
+    const n = Math.min(it.count, t.mine.counts[it.uid] || it.count);
+    return `<div class="trade-count"><img src="${bookIconUrl(it.book)}" alt=""><span>Buch „${skillEntry(it.book).sk.name}“: <b>${n}</b> von ${it.count}</span>` +
+      ['-10', '-1', '+1', '+10'].map((v) => `<button type="button" class="mini-btn" data-tcount="${v}">${v.replace('-', '−')}</button>`).join('') +
+      `<button type="button" class="mini-btn" data-tcount="all">Alle</button><button type="button" class="mini-btn" data-tcount="out">Herausnehmen</button></div>`;
+  },
+
   render() {
     const t = game.trade;
     const p = game.player;
@@ -326,28 +365,65 @@ const trade = {
       `<div class="trade-cols">` +
       `<section class="trade-side${t.okMine ? ' ok' : ''}"><h3>Dein Angebot ${t.okMine ? '<span class="trade-ok">✓ bestätigt</span>' : ''}</h3>` +
       `<div class="trade-grid">${slots(mine, 'data-tmine')}</div>` +
-      `<label class="trade-gold">Gold <input id="tradeGold" type="number" min="0" max="${p.gold}" step="100" value="${t.mine.gold}" inputmode="numeric"></label></section>` +
+      `<label class="trade-gold">Gold <input id="tradeGold" type="number" min="0" max="${p.gold}" step="100" value="${t.mine.gold}" inputmode="numeric"></label>` +
+      `<div class="trade-goldbtns">${[1000, 10000, 100000, 1000000].map((v) => `<button type="button" class="mini-btn" data-tgold="${v}">+${v >= 1e6 ? '1 Mio.' : v.toLocaleString('de-DE')}</button>`).join('')}` +
+      `<button type="button" class="mini-btn" data-tgold="all">Alles</button><button type="button" class="mini-btn" data-tgold="0">0</button></div></section>` +
       `<section class="trade-side${t.okTheirs ? ' ok' : ''}"><h3>${escapeHtml(t.name)} ${t.okTheirs ? '<span class="trade-ok">✓ bestätigt</span>' : ''}</h3>` +
       `<div class="trade-grid">${slots(t.theirs.items, 'data-ttheirs')}</div>` +
       `<p class="trade-gold">Gold <b>${t.theirs.gold.toLocaleString('de-DE')}</b></p></section></div>` +
-      `<p class="hint-text">Tippe Sachen in deiner Tasche an, um sie anzubieten (höchstens ${TRADE_SLOTS}). Jede Änderung hebt beide Bestätigungen auf.</p>` +
+      `<p class="hint-text">Beide können anbieten: Tippe Sachen in deiner Tasche an – Ausrüstung, Fertigkeitsbücher (Anzahl wählbar) und Gold (höchstens ${TRADE_SLOTS} Plätze). Jede Änderung hebt beide Bestätigungen auf.</p>` +
       `<div class="trade-bag"><div class="bag-tabs">${tabs}</div><div class="bag-grid">${bag}</div></div>` +
-      `<div id="tradeDetail" class="item-detail-wrap"></div>` +
+      `<div id="tradeDetail" class="item-detail-wrap">${this.countHtml(t, p)}</div>` +
       (tooFull ? `<p class="gear-msg warn">In deiner Tasche ist nicht genug Platz für das Angebot.</p>` : '') +
       `<div class="trade-btns"><button type="button" class="btn btn-primary" id="tradeOk" ${t.okMine || tooFull ? 'disabled' : ''}>${t.okMine ? 'Warte auf ' + escapeHtml(t.name) : 'Handel bestätigen'}</button>` +
       `<button type="button" class="btn btn-ghost" id="tradeCancel">Abbrechen</button></div>`;
     body.querySelectorAll('[data-tbag]').forEach((b) => b.addEventListener('click', () => {
       const uid = b.dataset.tbag;
+      const it = p.inventory.find((x) => x.uid === uid);
       const i = t.mine.uids.indexOf(uid);
-      if (i >= 0) t.mine.uids.splice(i, 1);
-      else if (!tradeAllowed(t, p.inventory.find((it) => it.uid === uid))) {
+      if (i >= 0) {
+        t.mine.uids.splice(i, 1);
+        if (t.edit === uid) t.edit = null;
+      } else if (!tradeAllowed(t, it)) {
         $('tradeDetail').innerHTML = '<p class="gear-msg warn">Mitspieler braucht Version 8.6 für Magier-Gegenstände.</p>';
         return;
-      } else if (t.mine.uids.length < TRADE_SLOTS) t.mine.uids.push(uid);
+      } else if (t.mine.uids.length < TRADE_SLOTS) {
+        t.mine.uids.push(uid);
+        // Bücher: erst der ganze Stapel, die Anzahl lässt sich darunter ändern
+        if (isBook(it)) {
+          t.mine.counts[uid] = it.count;
+          t.edit = it.count > 1 ? uid : null;
+        }
+      }
       sendOffer();
     }));
     body.querySelectorAll('[data-tmine]').forEach((b) => b.addEventListener('click', () => {
-      t.mine.uids = t.mine.uids.filter((u) => u !== b.dataset.tmine);
+      const uid = b.dataset.tmine;
+      const it = p.inventory.find((x) => x.uid === uid);
+      // Bücherstapel im Angebot: Anzahl ändern statt gleich herausnehmen
+      if (isBook(it) && it.count > 1 && t.edit !== uid) {
+        t.edit = uid;
+        this.render();
+        return;
+      }
+      t.mine.uids = t.mine.uids.filter((u) => u !== uid);
+      if (t.edit === uid) t.edit = null;
+      sendOffer();
+    }));
+    body.querySelectorAll('[data-tcount]').forEach((b) => b.addEventListener('click', () => {
+      const it = p.inventory.find((x) => x.uid === t.edit);
+      if (!it) return;
+      const v = b.dataset.tcount;
+      const cur = t.mine.counts[t.edit] || it.count;
+      if (v === 'out') {
+        t.mine.uids = t.mine.uids.filter((u) => u !== t.edit);
+        t.edit = null;
+      } else t.mine.counts[t.edit] = v === 'all' ? it.count : Math.max(1, Math.min(it.count, cur + Number(v)));
+      sendOffer();
+    }));
+    body.querySelectorAll('[data-tgold]').forEach((b) => b.addEventListener('click', () => {
+      const v = b.dataset.tgold;
+      t.mine.gold = v === 'all' ? p.gold : v === '0' ? 0 : Math.min(p.gold, t.mine.gold + Number(v));
       sendOffer();
     }));
     body.querySelectorAll('[data-ttheirs]').forEach((b) => b.addEventListener('click', () => {
@@ -365,6 +441,12 @@ const trade = {
       sendOffer();
     });
     $('tradeOk').addEventListener('click', () => {
+      // eingetipptes Gold zählt, auch wenn das Feld noch nicht verlassen wurde (iPhone)
+      const typed = Math.max(0, Math.min(p.gold, Math.floor(Number($('tradeGold').value) || 0)));
+      if (typed !== t.mine.gold) {
+        t.mine.gold = typed;
+        sendOffer();
+      }
       t.okMine = true;
       netSocial(t.pid, { k: 'tk', h: tradeHash(t, false) });
       tradeMaybeFinish();

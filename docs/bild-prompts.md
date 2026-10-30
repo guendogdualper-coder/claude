@@ -800,6 +800,8 @@ Game item icon sheet for a 2D fantasy MMORPG: two rows of potions, top row red "
 ### Ultimative Attacke: Seelenernte (Nekromant, Weg der Seelen)
 ```
 2D fantasy MMORPG skill effect: a swirling green-white soul vortex spins around a hooded chibi necromancer and pulls all monsters toward the center, green soul beams flow from the monsters back to him and heal him, final bright green burst. Title "Seelenernte". Cute but eerie game art, bold outlines.
+
+Seit 10.3 (3D): `3D toon MMORPG ultimate: a funnel of six twisting green and violet soul streams rises from a glowing rune circle to a pulsing soul orb above a hooded necromancer, skulls and wisps spiral upward, monsters hang on green soul chains; then a giant spectral scythe sweeps once around the circle, souls fly into the orb, the orb crashes into the necromancer with a green light column and a white shockwave. Title "Seelenernte". Bold outlines, readable on bright grass.`
 ```
 
 ### Ultimative Attacke: Knochenkerker (Nekromant, Weg der Knochen)

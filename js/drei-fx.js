@@ -365,7 +365,7 @@ function fx3Make(kind) {
     o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, kind === 'segN' ? 12 : 6, 1, true), fx3Mat(null));
     // segN (seit 9.7): normal gemischt, deckt auch auf hellem Boden (Wasserstrahl)
     if (kind === 'segN') o.material.blending = THREE.NormalBlending;
-  } else if (kind === 'strip') {
+  } else if (kind === 'strip' || kind === 'stripN') {
     const geo = new THREE.BufferGeometry();
     const n = (FX3_STRIP_N + 1) * 2;
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
@@ -377,6 +377,8 @@ function fx3Make(kind) {
     }
     geo.setIndex(idx);
     o = new THREE.Mesh(geo, fx3Mat(null, true));
+    // stripN (seit 10.3): normal gemischt, deckt auch auf hellem Gras (Schweif der Geistersense)
+    if (kind === 'stripN') o.material.blending = THREE.NormalBlending;
     o.frustumCulled = false;
   } else if (kind === 'cone' || kind === 'coneG') {
     // Zacken aus dem Boden: Fels/Knochen (fest) oder Kristall/Glut (leuchtend)

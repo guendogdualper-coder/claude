@@ -2124,6 +2124,11 @@ kbd {
 .trade-grid .item-tile, .trade-bag .item-tile { width: auto; aspect-ratio: 1; }
 .trade-gold { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; font-size: 13px; color: #f0cf6a; }
 .trade-gold input { width: 120px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--brass-dim); background: #120e0a; color: #ffe08a; font: inherit; font-size: 16px; }
+.trade-goldbtns { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.trade-goldbtns .mini-btn { padding: 3px 7px; font-size: 12px; }
+.trade-count { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.3); }
+.trade-count img { width: 32px; height: 32px; }
+.trade-count span { flex: 1 1 100%; font-size: 13px; }
 .trade-bag { margin-top: 6px; }
 .trade-bag .bag-tabs { display: flex; gap: 4px; margin-bottom: 4px; }
 .trade-bag .item-tile[data-picked] { box-shadow: 0 0 0 2px #5ae05a; opacity: 0.55; }

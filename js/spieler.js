@@ -146,6 +146,8 @@ function makePlayer(save) {
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
   // Lager (seit 9.1): erst nach dem Kauf vorhanden
   p.storage = save.storage && save.storage.open && Array.isArray(save.storage.items) ? save.storage : null;
+  // 10.3: Bücherstapel (und sehr alte Gegenstände) ohne Kennung bekommen eine, sonst lassen sie sich nicht handeln
+  for (const it of [...(p.inventory || []), ...((p.storage && p.storage.items) || [])]) if (it && !it.uid) it.uid = newUid();
   p.scrolls = save.scrolls || 0;
   if (save.equipment && (save.itemsVersion || 1) < 2) {
     Object.values(p.equipment).forEach(migrateItem);

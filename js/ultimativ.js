@@ -310,47 +310,7 @@ const ULT_RUN = {
     });
   },
 
-  seelenernte(p, u, pw) {
-    const cx = p.x;
-    const cy = p.y;
-    addEffect({ type: 'ultvortex', ground: true, x: cx, y: feetY(p), r: 220, dur: 2.3, color: u.color });
-    for (let k = 0; k < 6; k++) {
-      later(0.15 + k * 0.3, () => {
-        for (const m of enemiesInCircle(cx, cy, 230)) {
-          hitMonster(m, 1 * pw, { knockback: -45, from: { x: cx, y: cy }, vfxColor: u.color });
-          const bc = bodyCenter(m);
-          particles(bc.x, bc.y, { count: 4, color: [u.color, '#ffffff'], angle: Math.atan2(cy - m.y, cx - m.x), spread: 0.3, speed: [80, 160], life: [0.3, 0.5], size: [2, 3] });
-        }
-        shakeScreen(2);
-      });
-    }
-    later(2.1, () => {
-      let n = 0;
-      for (const m of enemiesInCircle(cx, cy, 230)) {
-        hitMonster(m, 3.5 * pw, { heavy: true, vfxColor: u.color });
-        const bc = bodyCenter(m);
-        addEffect({ type: 'beam', x: bc.x, y: bc.y, follow2: p, dur: 0.6, color: u.color });
-        n++;
-      }
-      const heal = Math.round(game.stats.maxHp * Math.min(0.3, 0.03 * n));
-      if (heal > 0 && !p.dead) {
-        p.hp = Math.min(game.stats.maxHp, p.hp + heal);
-        addText(p.x, p.y - 44, '+' + heal, 'heal');
-      }
-      // seit 8.5: die Seelen stärken auch die Diener (voll geheilt, 15 s länger, 8 s schneller)
-      for (const a of game.allies) {
-        a.hp = a.maxHp;
-        a.until += 15;
-        a.frenzyUntil = game.time + 8;
-        addEffect({ type: 'beam', x: p.x, y: p.y - 18, follow2: a, dur: 0.5, color: u.color });
-        addEffect({ type: 'column3', x: a.x, y: feetY(a), hgt: 1.2, dur: 0.5, color: '#7fe3a0' });
-      }
-      addEffect({ type: 'ring', x: cx, y: cy, r: 230, dur: 0.6, color: u.color, width: 16, grow: true });
-      particles(cx, cy - 20, { count: 60, color: [u.color, '#ffffff', '#3a6a4a'], speed: [100, 320], life: [0.5, 1], size: [2, 4.5], drag: 2 });
-      flashScreen(u.color, 0.25);
-      shakeScreen(9);
-    });
-  },
+  // seelenernte: seit 10.3 in seelenernte.js (3D-Strudel, Seelenketten, Geistersense)
 
   knochenkerker(p, u, pw) {
     const cx = p.x;
