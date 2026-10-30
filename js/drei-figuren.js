@@ -1793,14 +1793,14 @@ function monHood3(A, hb, hc, hr, col) {
   A(lathe3('hoodcowl', [[0, -0.051], [0.26, -0.05], [0.23, -0.01], [0.17, 0.05], [0.12, 0.09]], 16), col, { bone: BH.chest, p: [x, y - hr * 0.84, 0], s: [1, 1, 0.9], shade: 0.2 });
 }
 
-// Kopftuch: liegt am Schädel, Rand als Wulst, Knoten am Hinterkopf, zwei Zipfel schwingen mit dem Umhang
+// Kopftuch: liegt am Schädel, Rand als Wulst, Knoten am Hinterkopf mit zwei Zipfeln
 function monBandana3(A, hb, hc, hr, col) {
   const [x, y, z] = hc;
   A(cap3(+(hr * 1.09).toFixed(3), Math.PI * 0.5, 0, Math.PI * 2, 18, 8), col, { bone: hb, p: [x, y + hr * 0.03, z - hr * 0.04], r: [-0.42, 0, 0], shade: 0.2 });
   A(torus3(+(hr * 1.02).toFixed(3), +(hr * 0.07).toFixed(3), Math.PI * 2, 4, 22), darker(col, 0.12), { bone: hb, p: [x, y + hr * 0.03, z - hr * 0.04], r: [Math.PI / 2 - 0.42, 0, 0] });
   const kn = [x, y + hr * 0.08, z - hr * 1.1];
   A(ball(10), darker(col, 0.08), { bone: hb, p: kn, s: [hr * 0.17, hr * 0.15, hr * 0.13] });
-  for (const sx of [-1, 1]) A(horn3(+(hr * 1.0).toFixed(3), +(hr * 0.22).toFixed(3), 6), sx > 0 ? col : darker(col, 0.1), { bone: BH.cape, p: [kn[0] + sx * hr * 0.04, kn[1], kn[2] - hr * 0.04], r: [-2.8, sx * 0.2, sx * 0.14], s: [1, 1, 0.3], shade: 0.2 });
+  for (const sx of [-1, 1]) A(horn3(+(hr * 1.0).toFixed(3), +(hr * 0.22).toFixed(3), 6), sx > 0 ? col : darker(col, 0.1), { bone: hb, p: [kn[0] + sx * hr * 0.04, kn[1], kn[2] - hr * 0.04], r: [-2.8, sx * 0.2, sx * 0.14], s: [1, 1, 0.3], shade: 0.2 });
 }
 
 // Maskentuch über Nase und Mund: folgt dem Kiefer, Zipfel am Kinn, Knoten mit zwei Enden im Nacken
@@ -1814,7 +1814,7 @@ function monMask3(A, hb, hc, hr, col, knot) {
   if (!knot) return;
   const kn = [x, y - hr * 0.15, z - hr * 0.98];
   A(ball(8), darker(col, 0.1), { bone: hb, p: kn, s: [hr * 0.12, hr * 0.11, hr * 0.1] });
-  for (const sx of [-1, 1]) A(horn3(+(hr * 0.5).toFixed(3), +(hr * 0.15).toFixed(3), 5), col, { bone: BH.cape, p: kn, r: [-2.75, 0, sx * 0.3], s: [1, 1, 0.35] });
+  for (const sx of [-1, 1]) A(horn3(+(hr * 0.5).toFixed(3), +(hr * 0.15).toFixed(3), 5), col, { bone: hb, p: kn, r: [-2.75, 0, sx * 0.3], s: [1, 1, 0.35] });
 }
 
 // Bart aus Strähnen (seit 8.4 statt einer Kugel): Grundform am Kinn, Strähnen laufen nach unten spitz zu,
@@ -1845,9 +1845,10 @@ function ponytail3(A, hc, hr, color, tie) {
   const t1 = [hc[0], t0[1] - hr * 0.55, t0[2] - hr * 0.35];
   const t2 = [hc[0] + hr * 0.05, t0[1] - hr * 1.25, t0[2] - hr * 0.3];
   A(torus3(+(hr * 0.15).toFixed(3), +(hr * 0.06).toFixed(3), Math.PI * 2, 4, 12), tie, { bone: BH.head, p: t0, r: [0.4, 0, 0], shine: 1 });
-  limbBetween(A, t0, t1, hr * 0.22, hr * 0.2, color, { bone: BH.cape, seg: 8, shine: 0.25 });
-  limbBetween(A, t1, t2, hr * 0.2, hr * 0.06, color, { bone: BH.cape, seg: 8, shine: 0.25 });
-  for (const sx of [-1, 1]) strand3(A, BH.cape, [t2[0] + sx * hr * 0.05, t2[1] + hr * 0.25, t2[2]], [sx * 0.3, -1, 0], hr * 0.4, hr * 0.09, darker(color, 0.06));
+  // am Kopf fest (am Umhang-Knochen löste sich der Zopf beim Laufen vom Haarband)
+  limbBetween(A, t0, t1, hr * 0.22, hr * 0.2, color, { bone: BH.head, seg: 8, shine: 0.25 });
+  limbBetween(A, t1, t2, hr * 0.2, hr * 0.06, color, { bone: BH.head, seg: 8, shine: 0.25 });
+  for (const sx of [-1, 1]) strand3(A, BH.head, [t2[0] + sx * hr * 0.05, t2[1] + hr * 0.25, t2[2]], [sx * 0.3, -1, 0], hr * 0.4, hr * 0.09, darker(color, 0.06));
 }
 
 // Kopf aus dem Baukasten: stellt Gesicht, Haare und Bart in c ein und liefert die Kopfbedeckung.
@@ -3626,11 +3627,12 @@ function v3Prewarm() {
 }
 
 // Varianten (seit 8.4): Arten mit mehreren Köpfen im Baukasten nehmen die Variante aus dem Startpunkt
-// (wird im Netz übertragen, alle Spieler sehen dieselbe); Bosse und Arten ohne Varianten behalten ein Modell
+// (wird im Netz übertragen, alle Spieler sehen dieselbe); nachgerufene Monster ohne Wiederkehr nehmen die
+// Kennung des Hosts (ihr Startpunkt ist beim Mitspieler ein anderer). Bosse und Arten ohne Varianten behalten ein Modell
 function monVariant3(m) {
   const kit = HEADKIT3[m.typeId];
   if (!kit || kit.length < 2) return -1;
-  let h = m.homeX != null ? Math.imul(Math.round(m.homeX) | 0, 73856093) ^ Math.imul(Math.round(m.homeY) | 0, 19349663) : m.id | 0;
+  let h = m.respawn === false || m.homeX == null ? m.id | 0 : Math.imul(Math.round(m.homeX) | 0, 73856093) ^ Math.imul(Math.round(m.homeY) | 0, 19349663);
   h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
   return ((h ^ (h >>> 16)) >>> 0) % kit.length;
 }

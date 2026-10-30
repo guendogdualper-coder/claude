@@ -1540,7 +1540,9 @@ function v3UpdateChunks(fx, fy, msBudget) {
   want.sort((a, b) => a[2] - b[2]);
   // Nach einem Sprung (Teleport, Wiederbeleben, Dungeon) fehlt der Boden unter der Kamera:
   // dann einmal kräftig bauen statt sekundenlang Himmel zu zeigen
-  if (!chunks3.has(ccx + ':' + ccy) || (ccy > 0 && !chunks3.has(ccx + ':' + (ccy - 1)))) msBudget = Math.max(msBudget, 120);
+  // nur Blöcke, die hier überhaupt gebaut werden (sonst bliebe die Notbremse am Kartenrand dauerhaft an)
+  const need3 = (x, y) => x >= minX && y >= minY && x <= maxX && y <= maxY && !chunks3.has(x + ':' + y);
+  if (need3(ccx, ccy) || need3(ccx, ccy - 1)) msBudget = Math.max(msBudget, 120);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
   if (chunkJob && (Math.abs(chunkJob.x - ccx) > chunkKeep3() || Math.abs(chunkJob.y - ccy) > chunkKeep3())) chunkJob = null;
   const t0 = performance.now();
