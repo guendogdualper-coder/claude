@@ -335,8 +335,38 @@ function fx3Texture(kind) {
     lg.addColorStop(1, 'rgba(255,255,255,1)');
     g.fillStyle = lg;
     g.fillRect(0, 0, 8, 128);
+  } else if (kind === 'hexgrid') {
+    // Wabengitter (seit 11.0) für den Kristallschild: kachelbar, helle Kanten, zarte Füllung, zum Pol hin dichter
+    g.fillStyle = 'rgba(255,255,255,0.1)';
+    g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#ffffff';
+    g.lineWidth = 3;
+    // 6 Reihen und 5 Spalten je Kachel: nahtlos wiederholbar
+    const rh = 128 / 6;
+    const s = 128 / 5;
+    const R = rh / 1.5;
+    for (let row = -1; row <= 6; row++) {
+      for (let col = -1; col <= 5; col++) {
+        const cx = col * s + (row % 2 ? s / 2 : 0);
+        const cy = row * rh;
+        g.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = Math.PI / 6 + (i / 6) * Math.PI * 2;
+          const px = cx + Math.cos(a) * R;
+          const py = cy + Math.sin(a) * R;
+          if (i) g.lineTo(px, py);
+          else g.moveTo(px, py);
+        }
+        g.closePath();
+        g.stroke();
+      }
+    }
   }
   const t = new THREE.CanvasTexture(c);
+  if (kind === 'hexgrid') {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(8, 3);
+  }
   FX3.tex[kind] = t;
   return t;
 }
@@ -399,6 +429,10 @@ function fx3Make(kind) {
     // Eisblock (seit 8.6): sechseckiges Prisma, durchscheinend, mit Deckel
     if (!FX3.geo.ice) FX3.geo.ice = new THREE.CylinderGeometry(1, 1, 1, 6, 1, false);
     o = new THREE.Mesh(FX3.geo.ice, new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x1a3fb0, transparent: true, opacity: 0.45, depthWrite: false }));
+  } else if (kind === 'dome') {
+    // Halbkugel (seit 11.0): Kristallschild der Endbosse, Wabenmuster leuchtet additiv
+    if (!FX3.geo.dome) FX3.geo.dome = new THREE.SphereGeometry(1, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2);
+    o = new THREE.Mesh(FX3.geo.dome, fx3Mat(fx3Texture('hexgrid')));
   } else if (kind === 'smoke' || kind === 'smokeTop') {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0x000000, transparent: true, depthWrite: false, fog: false }));
   } else if (kind === 'skull') {
@@ -2039,6 +2073,8 @@ function fx3BuffAuras(h) {
 }
 
 const FX3_PROJ = { parts: [] };
+// weitere Zeichner je Bild (seit 11.0, z. B. Endboss-Kristalle in endboss.js): { parts: [], fn(h) }
+const FX3_HOOKS = [];
 function v3SyncFx() {
   if (!FX3.group) {
     FX3.group = new THREE.Group();
@@ -2058,6 +2094,7 @@ function v3SyncFx() {
   fx3Release(FX3_STATUS);
   fx3Release(FX3_CROWN);
   fx3Release(FX3_AURA);
+  for (const hk of FX3_HOOKS) fx3Release(hk);
   for (const e of game.effects) {
     if (!FX3_TYPES.has(e.type)) continue;
     const o = effectOrigin(e);
@@ -2071,6 +2108,7 @@ function v3SyncFx() {
   fx3Status(FX3_STATUS);
   fx3Crown(FX3_CROWN);
   fx3BuffAuras(FX3_AURA);
+  for (const hk of FX3_HOOKS) hk.fn(hk);
 }
 
 // --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------

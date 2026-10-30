@@ -4652,6 +4652,8 @@ function setActorAlpha(a, alpha) {
 
 // Monster: Blickrichtung aus der Bewegung, Laufen, Angreifen, Aufblitzen, Schweben
 function syncMonster3(m, dt) {
+  // Seelenkristalle der Endbosse zeichnet endboss.js (fx3Raid)
+  if (m.type && m.type.crystal) return;
   if (m.isStone) {
     syncStone3(m, dt);
     return;

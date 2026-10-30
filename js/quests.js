@@ -304,7 +304,7 @@ function rewardHtml(reward, xp) {
 function huntOffers() {
   const p = game.player;
   const types = Object.entries(MONSTER_TYPES)
-    .filter(([, t]) => !t.dungeon && t.level <= p.level + 3 && t.level >= p.level - 6)
+    .filter(([, t]) => !t.dungeon && !t.crystal && !t.raidBoss && t.level <= p.level + 3 && t.level >= p.level - 6)
     .sort((a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level));
   const pool = types.length ? types : [['hund', MONSTER_TYPES.hund]];
   return pool.slice(0, 3).map(([id, t]) => {
@@ -717,7 +717,8 @@ Object.assign(ui, {
         '<ul class="raid-roles"><li><b>Tank</b> hält den Boss und fängt den Tank-Schlag (rotes Zeichen über dem Kopf).</li>' +
         '<li><b>Heiler</b> hält alle am Leben (Schamane: Heilung).</li><li><b>Schaden</b> (2–3 Spieler) bringen ihn zu Fall.</li></ul>' +
         '<p class="hint-text">Mechaniken: rote Kreise am Boden = gleich schlägt es dort ein, raus da! Meteore fallen auf jeden Spieler. Der Linienangriff fährt zum Ziel. Bei der Nova ist nur der grüne Kreis direkt am Boss sicher. Er springt auf einzelne Spieler (Zeichen über dem Kopf) und rast im Sturmangriff quer durch die Halle. Alle 20 s ruft er kleine Helfer – die lassen oft Tränke, Splitter oder Verstärkungen fallen. Bei 70 % und 35 % Leben schreit er und wird schneller, unter 20 % gerät er in Raserei. Ohne Kampf heilt er sich voll.</p>' +
-        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei legendäre Teile (+7 bis +9, vier Boni, darunter eine Waffe), Seltene Verstärkungen, Sternensteine und sehr viel Gold.</p>' +
+        '<p class="hint-text"><b>Kristallschild</b> (bei 75 % und 40 %): Seelenkristalle erscheinen in der Halle – solange einer steht, ist der Boss unverwundbar und heilt sich. Zerstört alle, dann taumelt er 4 s und nimmt mehr Schaden. <b>Vernichtung</b> (bei 55 % und 20 %, danach alle 50 s): Der ganze Boden wird rot, nur die grünen Lichtkreise sind sicher – nach 5 s trifft alle anderen gewaltiger Schaden.</p>' +
+        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei legendäre Teile (+0 mit vier Boni, darunter eine Waffe – ab +4 braucht der Schmied Teile aus der Map des Endbosses), Seltene Verstärkungen, Sternensteine, ab Stufe 30 ein Sternen-Switcher und sehr viel Gold.</p>' +
         (party < 5 ? `<p class="form-error">Deine Gruppe hat ${party} von 5 Spielern – zu wenige ist es sehr gefährlich.</p>` : '') +
         `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Halle betreten'}</button>`;
       body.querySelector('[data-dg]').addEventListener('click', () => {

@@ -180,8 +180,14 @@ const UPGRADE_MAT_MONSTERS = [
   ['untoter', 'sumpfhexe', 'ghul', 'lavagolem', 'feuerdaemon', 'feuerdrache']
 ];
 
+const LEGEND_MAT_START = 4;
 // Monster-Teil und Anzahl für den Schritt von +plus auf +plus+1 (oder null)
 function upgradeMaterial(item) {
+  // Legendäre Endboss-Teile (seit 11.0): schon ab +4 und immer das Teil aus der Map ihres Endbosses, mehr davon
+  if (item.legend && item.raidMat) {
+    if (item.plus < LEGEND_MAT_START) return null;
+    return { id: item.raidMat, count: Math.min(8, 2 + Math.floor((item.plus - LEGEND_MAT_START) / 2)) };
+  }
   const start = upgradeMatStart(item.tier);
   if (item.plus < start) return null;
   const list = UPGRADE_MAT_MONSTERS[item.tier];
@@ -335,11 +341,15 @@ const MATERIALS = [
   { id: 'boniPlus', name: 'Verstärkung', tag: 'Boni +', text: 'Fügt einen zufälligen Bonus hinzu, bis zum 4. Bonus.' },
   { id: 'boni5', name: 'Seltene Verstärkung', tag: '5. Bonus', text: 'Fügt den 5. Bonus hinzu. Der Gegenstand braucht dafür genau 4 Boni.' },
   { id: 'switcher', name: 'Switcher', tag: 'Switcher', text: 'Würfelt die Boni 1 bis 5 komplett neu aus. Die Anzahl bleibt gleich.' },
-  { id: 'star', name: 'Sternenstein', tag: 'Bonus 6/7', text: 'Fügt den 6. Bonus hinzu, danach den 7. Besondere Boni wie Fertigkeitsschaden oder weniger erlittener Schaden.' }
+  { id: 'star', name: 'Sternenstein', tag: 'Bonus 6/7', text: 'Fügt den 6. Bonus hinzu, danach den 7. Besondere Boni wie Fertigkeitsschaden oder weniger erlittener Schaden.' },
+  // seit 11.0: nur aus Seelensteinen ab Stufe 30, etwa jeder vierte bis fünfte Stein
+  { id: 'switch67', name: 'Sternen-Switcher', tag: 'Switch 6/7', text: 'Würfelt Bonus 6 und 7 komplett neu aus. Die Anzahl bleibt gleich. Nur aus Seelensteinen ab Stufe 30.' }
 ];
 
 // Farben der Materialien in der Beuteanzeige
-const MATERIAL_COLORS = { boniPlus: '#9fd0ff', boni5: '#d6a8ff', switcher: '#9fe08f', star: '#ffd34d' };
+const MATERIAL_COLORS = { boniPlus: '#9fd0ff', boni5: '#d6a8ff', switcher: '#9fe08f', star: '#ffd34d', switch67: '#ffb85a' };
+// Sternen-Switcher: ab dieser Steinstufe, mit dieser Chance je Stein
+const SWITCH67 = { stone: 30, chance: 0.22 };
 
 // Was ein Seelenstein fallen lässt, steht bei den Steinen in monster.js (stoneDrops).
 // Ausrüstung von Seelensteinen hat höchstens +2.

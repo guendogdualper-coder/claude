@@ -116,41 +116,43 @@ const MONSTER_TYPES = {
   },
   // Version 6.5: Endbosse der Maps – riesig, mit Mechaniken, gebaut für fünf Spieler (Tank, Heiler, Schaden).
   // Seit 6.6 doppeltes Leben und schneller (allein oder zu zweit kaum zu schaffen).
+  // Seelenkristall (seit 11.0): Endbosse rufen ihn für ihren Schild; steht still, greift nicht an, keine Beute
+  raidkristall: { name: 'Seelenkristall', level: 1, shape: 'golem', color: '#9fd8ff', size: 20, speed: 0, range: 0, cooldown: 99, hpMul: 1, atkMul: 0, crystal: true },
   // raid.art: Aussehen (vergrößert und geschmückt), raid.scale: Größe in 3D, raid.adds: Helfer bei Phasenwechseln
   fenris: {
-    name: 'Fenris, der Urwolf', level: 14, shape: 'beast', color: '#3a3e46', size: 60, speed: 128, range: 90, cooldown: 2.2, aggressive: true, hpMul: 300, atkMul: 2.4, raidBoss: true,
+    name: 'Fenris, der Urwolf', level: 14, shape: 'beast', color: '#3a3e46', size: 60, speed: 128, range: 90, cooldown: 2.2, aggressive: true, hpMul: 300, atkMul: 3.24, raidBoss: true,
     boss: { color: '#ffcc4a', slam: 190, volley: 8, shot: '#ffe08a', summon: 'alphawolf', mat: 'alphawolf' }, raid: { art: 'alphawolf', scale: 3.4, map: 1 }
   },
   ursus: {
-    name: 'Ursus, der Waldtyrann', level: 24, shape: 'beast', color: '#4a3220', size: 64, speed: 115, range: 95, cooldown: 2.3, aggressive: true, hpMul: 310, atkMul: 2.4, raidBoss: true,
+    name: 'Ursus, der Waldtyrann', level: 24, shape: 'beast', color: '#4a3220', size: 64, speed: 115, range: 95, cooldown: 2.3, aggressive: true, hpMul: 310, atkMul: 3.24, raidBoss: true,
     boss: { color: '#9be07a', slam: 200, volley: 8, shot: '#c8ff6a', summon: 'braunbaer', mat: 'braunbaer' }, raid: { art: 'braunbaer', scale: 3.0, map: 4 }
   },
   gorbag: {
-    name: 'Großkhan Gorbag', level: 34, shape: 'orc', color: '#3a5a22', size: 64, speed: 122, range: 95, cooldown: 2.2, aggressive: true, hpMul: 320, atkMul: 2.4, raidBoss: true,
+    name: 'Großkhan Gorbag', level: 34, shape: 'orc', color: '#3a5a22', size: 64, speed: 122, range: 95, cooldown: 2.2, aggressive: true, hpMul: 320, atkMul: 3.24, raidBoss: true,
     boss: { color: '#ff8a4a', slam: 210, volley: 6, shot: '#e8dcc0', summon: 'orkhauptmann', mat: 'orkhauptmann' }, raid: { art: 'orkhauptmann', scale: 3.0, map: 5 }
   },
   azaroth: {
-    name: 'Höllenfürst Azaroth', level: 44, shape: 'demon', color: '#6a1a24', size: 64, speed: 135, range: 95, cooldown: 2.1, aggressive: true, hpMul: 330, atkMul: 2.5, raidBoss: true,
+    name: 'Höllenfürst Azaroth', level: 44, shape: 'demon', color: '#6a1a24', size: 64, speed: 135, range: 95, cooldown: 2.1, aggressive: true, hpMul: 330, atkMul: 3.38, raidBoss: true,
     boss: { color: '#ff4a2a', slam: 220, volley: 10, shot: '#ff7a3a', summon: 'hoellenhund', mat: 'daemon' }, raid: { art: 'daemon', scale: 3.4, map: 6 }
   },
   ymir: {
-    name: 'Frostriese Ymir', level: 54, shape: 'brute', color: '#d8e8f4', size: 68, speed: 108, range: 100, cooldown: 2.4, aggressive: true, hpMul: 340, atkMul: 2.5, raidBoss: true,
+    name: 'Frostriese Ymir', level: 54, shape: 'brute', color: '#d8e8f4', size: 68, speed: 108, range: 100, cooldown: 2.4, aggressive: true, hpMul: 340, atkMul: 3.38, raidBoss: true,
     boss: { color: '#9fe8ff', slam: 230, volley: 12, shot: '#bfe8ff', summon: 'eiswolf', mat: 'yeti' }, raid: { art: 'yeti', scale: 2.6, map: 7 }
   },
   vritra: {
-    name: 'Schlangengöttin Vritra', level: 55, shape: 'snake', color: '#1a5a4a', size: 64, speed: 128, range: 95, cooldown: 2.2, aggressive: true, hpMul: 340, atkMul: 2.5, raidBoss: true,
+    name: 'Schlangengöttin Vritra', level: 55, shape: 'snake', color: '#1a5a4a', size: 64, speed: 128, range: 95, cooldown: 2.2, aggressive: true, hpMul: 340, atkMul: 3.38, raidBoss: true,
     boss: { color: '#7ad8c8', slam: 220, volley: 10, shot: '#9fe8d8', summon: 'naga', mat: 'naga' }, raid: { art: 'nagakoenigin', scale: 2.4, map: 2 }
   },
   morrak: {
-    name: 'Lichkönig Morrak', level: 64, shape: 'humanoid', color: '#3a3a30', size: 64, speed: 122, range: 100, cooldown: 2.2, aggressive: true, hpMul: 350, atkMul: 2.6, raidBoss: true,
+    name: 'Lichkönig Morrak', level: 64, shape: 'humanoid', color: '#3a3a30', size: 64, speed: 122, range: 100, cooldown: 2.2, aggressive: true, hpMul: 350, atkMul: 3.51, raidBoss: true,
     boss: { color: '#8fe36a', slam: 230, volley: 12, shot: '#c6f08a', summon: 'ghul', mat: 'untoter' }, raid: { art: 'gruftkoenig', scale: 2.6, map: 8 }
   },
   ignar: {
-    name: 'Weltendrache Ignar', level: 76, shape: 'beast', color: '#3a1010', size: 72, speed: 135, range: 110, cooldown: 2.3, aggressive: true, hpMul: 370, atkMul: 2.7, raidBoss: true,
+    name: 'Weltendrache Ignar', level: 76, shape: 'beast', color: '#3a1010', size: 72, speed: 135, range: 110, cooldown: 2.3, aggressive: true, hpMul: 370, atkMul: 3.65, raidBoss: true,
     boss: { color: '#ff6a2a', slam: 250, volley: 12, shot: '#ffb04a', summon: 'drachenbrut', mat: 'feuerdrache' }, raid: { art: 'urdrache', scale: 2.6, map: 9 }
   },
   tarkon: {
-    name: 'Donnertitan Tarkon', level: 78, shape: 'brute', color: '#5a5a66', size: 72, speed: 108, range: 110, cooldown: 2.4, aggressive: true, hpMul: 380, atkMul: 2.7, raidBoss: true,
+    name: 'Donnertitan Tarkon', level: 78, shape: 'brute', color: '#5a5a66', size: 72, speed: 108, range: 110, cooldown: 2.4, aggressive: true, hpMul: 380, atkMul: 3.65, raidBoss: true,
     boss: { color: '#9fd0ff', slam: 250, volley: 10, shot: '#cfe8ff', summon: 'gargoyle', mat: 'donnerriese' }, raid: { art: 'donnerriese', scale: 2.4, map: 3 }
   }
 };
@@ -255,5 +257,7 @@ function stoneDrops(type) {
       d.gear = 1; d.plus = [1, 2]; d.gold = 2; d.scroll = 0.25; d.potions = [1, 3];
       break;
   }
+  // Sternen-Switcher (seit 11.0): erst ab Stufe 30, selten und nicht verstärkt
+  if (type.level >= SWITCH67.stone) d.mats.switch67 = [SWITCH67.chance, 1, 1];
   return d;
 }

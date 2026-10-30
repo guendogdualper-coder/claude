@@ -17,7 +17,9 @@ function setupRenderer() {
   // am PC größer, auf dem Handy doppelt so fein wie gezeichnet (scharf auf Retina-Bildschirmen)
   renderer.mini.width = renderer.mini.height = IS_PC ? 200 : 240;
   renderer.miniCtx = renderer.mini.getContext('2d');
-  window.addEventListener('resize', resizeRenderer);
+  // Größenänderung erst zu Beginn des nächsten Bildes (seit 11.0): Das Setzen der Canvas-Größe leert beide
+  // Zeichenflächen, dazwischen sah man sonst kurz den hellen Hintergrund (weißes Aufblitzen)
+  window.addEventListener('resize', () => { renderer.resizeDue = true; });
   renderer.maxDpr = gfx().dpr; // Grafikstufe aus den Einstellungen
   resizeRenderer();
 }
@@ -29,8 +31,12 @@ function resizeRenderer() {
   r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
   r.w = window.innerWidth;
   r.h = window.innerHeight;
-  r.canvas.width = Math.round(r.w * r.dpr);
-  r.canvas.height = Math.round(r.h * r.dpr);
+  r.resizeDue = false;
+  // gleiche Größe nicht neu setzen: jede Zuweisung leert das Bild
+  const cw = Math.round(r.w * r.dpr);
+  const ch = Math.round(r.h * r.dpr);
+  if (r.canvas.width !== cw) r.canvas.width = cw;
+  if (r.canvas.height !== ch) r.canvas.height = ch;
   r.zoom = Math.max(0.9, Math.min(1.6, Math.min(r.w, r.h) / 410)) * (CAMERA[opts.camera] || CAMERA.normal).zoom;
   if (V3.on) v3Resize();
 }
@@ -921,6 +927,18 @@ function drawMonster(ctx, m) {
   drawShadow(ctx, m.x, fy, Math.max(10, m.r * 1.2));
   // Bosse stehen in einem pulsierenden Schein ihrer Farbe
   if (m.type.boss) glow(ctx, m.x, fy - 6, m.r * 2.6, m.type.boss.color, 0.3 + 0.12 * Math.sin(game.time * 3));
+  // Kristallschild der Endbosse (seit 11.0): blaue Blase um den Boss
+  if (m.type.raid && raidShielded(m)) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(120,190,255,0.14)';
+    ctx.strokeStyle = 'rgba(160,215,255,0.8)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(m.x, fy - m.r * 1.2, m.r * 2.3, m.r * 2.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
   if (m.vulnerable && m.vulnerable.until > game.time) {
     ctx.strokeStyle = 'rgba(167,116,224,0.85)';
     ctx.lineWidth = 2;

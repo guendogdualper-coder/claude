@@ -115,7 +115,7 @@ function newCharacter(name, classId, path = 0, look = null) {
     hp: null, mp: null, x: null, y: null, playTime: 0,
     equipment: starterEquipment(classId), inventory: [], scrolls: 0, itemsVersion: 3,
     attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
-    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0 },
+    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0, switch67: 0 },
     worldVersion: WORLD_VERSION, quests: null, upmats: {}, books: 0
   };
 }
@@ -181,7 +181,7 @@ function makePlayer(save) {
     }
     return lvl;
   });
-  p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, ...(save.materials || {}) };
+  p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, switch67: 0, ...(save.materials || {}) };
   // Spielstände ohne Statuswerte bekommen die Punkte aller bisherigen Stufen nachträglich
   if (!save.attrs) {
     p.attrs = { str: 0, vit: 0, int: 0, dex: 0 };
@@ -650,7 +650,8 @@ function toggleRide(on) {
 // Trinken: nimmt die kleinste Größe, die das Fehlende auffüllt, sonst die größte vorhandene.
 // Seit 6.6 je Sorte 3 s Abklingzeit (kein Durchtrinken), Leben und Mana getrennt.
 const POTION_CD = 3;
-function usePotion(kind) {
+// sizeId (seit 11.0, aus den Vorräten im Inventar): genau diese Größe trinken
+function usePotion(kind, sizeId) {
   const p = game.player;
   if (!p || p.dead) return;
   if (!p.potCd) p.potCd = { hp: 0, mp: 0 };
@@ -670,7 +671,7 @@ function usePotion(kind) {
   const missing = hp ? s.maxHp - p.hp : s.maxMp - p.mp;
   const have = POTION_SIZES.filter((sz) => (p.potions[potKey(kind, sz.id)] || 0) > 0);
   // die kleinste Größe, die das Fehlende (fast) auffüllt, sonst die größte vorhandene
-  const size = have.find((sz) => (hp ? sz.hp : sz.mp) >= missing * 0.9) || have[have.length - 1];
+  const size = (sizeId && have.find((sz) => sz.id === sizeId)) || have.find((sz) => (hp ? sz.hp : sz.mp) >= missing * 0.9) || have[have.length - 1];
   p.potions[potKey(kind, size.id)]--;
   p.potCd[kind] = POTION_CD;
   vfxPotion(p, kind);

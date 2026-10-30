@@ -1064,3 +1064,19 @@ Gestaltungsregeln:
 - **Strudel (bis 2,1 s):** 6 Seelenströme (Handy „niedrig“: 5) als Trichter – unten weit und flach, oben eng und steil bis zur Seelenkugel in 3,4 Einheiten Höhe. Jeder Strom: deckender dunkler Mantel (grün/violett im Wechsel) und dünner heller Kern, Lichtpulse laufen nach oben. 9 Irrlichter mit Schweif, 4 Schädel mit Kiefer und grünen Augen steigen spiralförmig auf. Seelenketten von bis zu 7 Gegnern zur Mitte, durchhängend, mit wanderndem Seelenfunken.
 - **Ernte (ab 2,1 s):** Geistersense fährt in 0,42 s einmal herum (Stiel dunkel mit hellem Kern, Klinge dunkel umrandet, hell, zur Spitze nach innen gekrümmt; Schweif als deckender dunkelgrüner Bogen mit hellem Saum). Aus jedem Gegner fliegt eine Seele (heller Kopf auf dunklem Hof, Schweif) in die Kugel, die Kugel stürzt in den Nekromanten: grüne Lichtsäule und Druckwelle (hell und dunkel).
 - Alles Leuchtende hat einen dunklen, normal gemischten Untergrund, damit es auf hellem Gras und Schnee nicht verschwindet.
+
+## 14. Endbosse: Kristallschild und Vernichtung (seit 11.0)
+
+**Seelenkristall (3D, `fx3Raid` in `js/endboss.js`).** Schwebender Doppelkegel (oben lang, unten kurz, fünf Facetten) in der Farbe des Bosses, mit Weiß aufgehellt; darüber eine leuchtende, etwas größere Hülle, die pulsiert und bei Treffern weiß aufblitzt. Am Boden ein Runenkreis und ein pulsierender Ring. Vier kleine Splitter kreisen um den Kristall. Von der Spitze läuft ein Strahl zur Brust des Bosses: farbiger Mantel, weißer Kern, Lichtpulse wandern zum Boss.
+
+> Prompt: *floating faceted soul crystal, elongated bipyramid, tinted in the boss colour with pale icy highlights, soft inner glow, small shards orbiting, glowing rune circle on dark stone floor, energy beam from its tip to a giant demon boss, stylized MMO, top-down three-quarter view*
+
+**Wabenkuppel.** Halbkugel um den Boss mit kachelndem Wabengitter (`hexgrid`), kristallblau statt weiß (additiv auf hellem Boden würde Weiß überstrahlen), zwei Schichten drehen sich gegeneinander, ein heller Ring am Fuß. Treffer lassen die Waben kurz aufleuchten, über dem Boss steht „Schild!“. Bruch: Eissplitter fliegen, Funken in Bossfarbe, eine Druckwelle, danach kreisen 4 s goldene Sterne über dem taumelnden Boss.
+
+> Prompt: *translucent honeycomb energy dome around a huge boss, icy blue hexagon grid, two counter-rotating layers, glowing base ring, boss clearly visible inside, game VFX, no white glare*
+
+**Vernichtung (`FX3_DRAW.doom3`).** Der Hallenboden wird dunkel blutrot (ruhiges, langsames Pulsieren, kein Stroboskop). Ein roter Ring zieht sich von außen zusammen und zeigt die Restzeit. Über der Mitte dreht sich ein Siegel am Himmel (Rune plus roter Ring vor dunklem Rauch), zwölf rote Ströme ziehen vom Rand hinauf, eine Säule aus der Mitte wird zum Ende hin heller. Sichere Lichtkreise: dunkler Grund, grüne Füllung, heller Rand, grüne Rune, eine grüne Lichtsäule (4 m) mit aufsteigenden Funken. Einschlag: eine rote Wand läuft als Druckwelle nach außen, ein heller Ring am Boden, ein Lichtfleck in Bossfarbe.
+
+> Prompt: *boss ultimate attack in a dark dungeon hall, whole floor glowing blood red, rotating sigil in the sky above the boss, red energy streams rising from the edges, two safe zones as green light pillars with rune circles, countdown ring shrinking, stylized MMO top-down view*
+
+**2D:** Kristall als facettierte Raute mit Glanzlicht; Vernichtung als rote Fläche mit grünen Kreisen und schrumpfendem Ring.

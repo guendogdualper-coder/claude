@@ -30,7 +30,18 @@ function itemTipHtml(item) {
   return `<strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
     `<small>${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
     `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') +
+    (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
     (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '');
+}
+
+// Vorräte im Inventar (seit 11.0): Tränke und Segensschriftrollen
+function supplyTipHtml(x) {
+  if (!x.kind) return `<strong style="color:#ffd34d">${BLESSING.name} × ${x.n}</strong><small>Für den Schmied</small><span>${BLESSING.text}</span>`;
+  const info = potionInfo(x.kind);
+  const amt = x.kind === 'hp' ? x.sz.hp : x.sz.mp;
+  return `<strong style="color:${info.color}">${info.name} ${x.sz.id} × ${x.n}</strong>` +
+    `<small>${info.kind} (${x.sz.name}) · ab Stufe ${x.sz.level}</small>` +
+    `<span>+${amt.toLocaleString('de-DE')} ${x.kind === 'hp' ? 'Leben' : 'Mana'} · verkaufen für ${potionSellValue(x.kind, x.sz).toLocaleString('de-DE')} Gold je Trank</span>`;
 }
 
 function skillTipHtml(sk, lvl, key) {

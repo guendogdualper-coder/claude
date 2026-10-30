@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '10.9';
+const GAME_VERSION = '11.0';
 
 const game = {
   world: null,
@@ -181,6 +181,7 @@ function update(dt) {
   pcard.update();
   partyTick();
   if (game.target && game.target.dead) game.target = null;
+  raidWatch();
 
   game.saveTimer += dt;
   if (game.saveTimer > 10) {
@@ -211,6 +212,7 @@ function frame(ts) {
   const raw = ts - lastFrame;
   const dt = Math.min(0.05, raw / 1000 || 0);
   lastFrame = ts;
+  if (renderer.resizeDue) resizeRenderer();
   adaptQuality(raw, cap);
   updateScreenEffects(dt);
   if (game.running && !portraitQuery.matches) update(dt);

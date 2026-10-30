@@ -201,7 +201,8 @@ function updateBoss(m, dt) {
 // Seit 6.6: Sprung auf einen Spieler, Sturmangriff quer durch die Halle, alle paar Sekunden kleine Helfer
 // (mit Beute), unter 20 % Raserei. Insgesamt schneller und mit doppeltem Leben.
 const RAID_MOVES = ['slam', 'meteor', 'charge', 'buster', 'leap', 'line', 'nova', 'meteor', 'leap'];
-const RAID_MUL = { slam: 3, meteor: 2.6, line: 3.2, buster: 6, nova: 3.4, leap: 3.6, charge: 3.4 };
+// seit 11.0 rund 15 % stärker (dazu mehr Grundangriff, siehe monster.js); Vernichtung in endboss.js
+const RAID_MUL = { slam: 3.5, meteor: 3, line: 3.7, buster: 7, nova: 3.9, leap: 4.1, charge: 3.9 };
 const RAID_ADD_EVERY = 20;
 
 // Spieler im Kampf mit dem Endboss: nur wer in seiner Halle ist (nicht Mitspieler irgendwo anders auf der Welt
@@ -222,11 +223,17 @@ function updateRaidBoss(m, dt) {
   const R = m.raid;
   if (m.state !== 'chase') {
     // ohne Kampf heilt der Boss vollständig und beginnt von vorn
-    if (m.hp < m.maxHp && !m.cast) { m.hp = m.maxHp; R.phase = 0; R.step = 0; }
+    if (m.hp < m.maxHp && !m.cast) {
+      m.hp = m.maxHp;
+      R.phase = 0;
+      R.step = 0;
+      if (typeof raidReset === 'function') raidReset(m);
+    }
     return false;
   }
   // niemand in der Halle: keine Angriffe (der Boss kehrt dann wie jedes Monster um)
   if (!m.dash && !m.cast && !raidPlayers(m).length) return false;
+  if (typeof raidShieldTick === 'function') raidShieldTick(m, dt);
   // Sturm- und Sprungbewegung des Bosses
   if (m.dash) {
     const d = m.dash;
@@ -253,6 +260,8 @@ function updateRaidBoss(m, dt) {
     raidResolve(m, c.kind, c.circles, c.inner);
     return true;
   }
+  // Kristall-Schild und Vernichtung (seit 11.0, endboss.js)
+  if (typeof raidMechanics === 'function' && raidMechanics(m, dt)) return true;
   // regelmäßig kleine Helfer, in der Raserei öfter
   if (game.time >= R.addAt) {
     R.addAt = game.time + RAID_ADD_EVERY * (R.phase >= 2 ? 0.6 : 1);
@@ -322,6 +331,10 @@ function updateRaidBoss(m, dt) {
 
 // Warnzeichen am Boden (auch beim Mitspieler)
 function raidTelegraph(m, kind, circles, inner, delay) {
+  if (kind === 'doom') {
+    raidDoomShow(m, circles, delay);
+    return;
+  }
   const col = kind === 'buster' ? '#ff2a2a' : '#ff3a2a';
   for (const c of circles) addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, inner, dur: delay, color: col });
   if (kind === 'meteor') for (const c of circles) later(Math.max(0, delay - 0.45), () => addEffect({ type: 'ultfall', kind: 'meteor', x: c.x, y: c.y, fall: 0.45, dur: 0.9, color: m.type.boss.color }));
@@ -333,6 +346,10 @@ function raidTelegraph(m, kind, circles, inner, delay) {
 
 // Einschlag: Wirkung zeigen, eigener Spieler nimmt Schaden, wenn er in einem Kreis steht
 function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
+  if (kind === 'doom') {
+    raidDoomResolve(m, circles, atk, lvl);
+    return;
+  }
   const p = game.player;
   const b = m.type.boss;
   shakeScreen(kind === 'nova' ? 12 : 8);
@@ -677,6 +694,11 @@ function updateMonsters(dt) {
 
     tickDots(m, dt);
     if (m.dead || m.isStone) continue;
+    // Seelenkristalle der Endbosse stehen nur da
+    if (m.type.crystal) {
+      m.moving = false;
+      continue;
+    }
 
     if (m.kx || m.ky) {
       moveEntity(m, m.kx * dt, m.ky * dt, true);

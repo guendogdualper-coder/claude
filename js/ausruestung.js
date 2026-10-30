@@ -241,6 +241,23 @@ function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung', hand) {
   return `<div class="cmp-box">${head}${diff.map(([n, v, b]) => `<span class="cmp ${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲' : '▼'} ${v} ${n}</span>`).join('')}</div>`;
 }
 
+// Tränke zurückverkaufen (seit 11.0): die Händler zahlen 40 % des Ladenpreises
+function potionSellValue(kind, sz) {
+  return Math.max(1, Math.floor(potionInfo(kind).price * sz.price * 0.4));
+}
+function sellPotions(key, n) {
+  const p = game.player;
+  const kind = key.slice(0, 2);
+  const sz = POTION_SIZES.find((x) => potKey(kind, x.id) === key);
+  if (!sz || !nearTrader()) return 0;
+  n = Math.min(n, p.potions[key] || 0);
+  if (n <= 0) return 0;
+  p.potions[key] -= n;
+  p.gold += potionSellValue(kind, sz) * n;
+  saveGame();
+  return n;
+}
+
 function sellValue(item) {
   if (isBook(item)) return BOOK_PRICE * item.count;
   const bonuses = (item.bonuses || []).length + (item.specials || []).length * 2;
@@ -306,6 +323,12 @@ function applyMaterial(ref, matId) {
     const b = rollBonus(item, true);
     item.specials.push(b);
     text = `Bonus ${5 + item.specials.length}: ${bonusText(b, true)}`;
+  } else if (matId === 'switch67') {
+    if (!item.specials.length) return { error: 'Der Gegenstand hat noch keinen Bonus 6 oder 7. Dafür braucht es zuerst einen Sternenstein.' };
+    const n = item.specials.length;
+    item.specials = [];
+    for (let k = 0; k < n; k++) item.specials.push(rollBonus(item, true));
+    text = `Bonus 6${n > 1 ? ' und 7' : ''} neu: ${item.specials.map((b) => bonusText(b, true)).join(' · ')}`;
   }
   p.materials[matId]--;
   afterGearChange();
@@ -489,6 +512,7 @@ function rollLoot(m) {
   if (drops || sd) {
     const got = [];
     for (const [id, [chance, min, max]] of Object.entries((drops || sd).mats)) {
+      if (id === 'switch67' && !drops) continue; // nur der Stein selbst, nicht seine Monster
       if (Math.random() >= (drops ? chance : chance * 0.12)) continue;
       const n = drops ? randInt(min, max) : 1;
       p.materials[id] = (p.materials[id] || 0) + n;
@@ -535,8 +559,10 @@ function rollLoot(m) {
 }
 
 // Schilde fallen nur für Krieger
-// Endboss-Beute (seit 6.5): drei legendäre Teile für die eigene Klasse (eine Waffe, zwei andere Teile),
-// +7 bis +9 mit gleich vier Boni; dazu Bücher, viele Verstärkungen, Schmiede-Teile und sehr viel Gold
+// Endboss-Beute (seit 6.5): drei legendäre Teile für die eigene Klasse (eine Waffe, zwei andere Teile) mit gleich
+// vier Boni; dazu viele Verstärkungen, Schmiede-Teile und sehr viel Gold.
+// Seit 11.0 auf +0 (vorher +7 bis +9): Hochschmieden muss man selbst, ab +4 mit Teilen aus der Map des Endbosses
+// (item.raidMat, siehe upgradeMaterial); der Boss lässt davon gleich ein paar fallen.
 function raidLoot(m) {
   const p = game.player;
   const b = m.type.boss;
@@ -545,16 +571,17 @@ function raidLoot(m) {
   const others = lootSlots(EQUIP_SLOTS.map((sl) => sl.id).filter((s) => s !== 'waffe'), p.classId);
   const slots = ['waffe', others[randInt(0, others.length - 1)], others[randInt(0, others.length - 1)]];
   for (const slot of slots) {
-    const item = makeItem(slot, tier, randInt(7, 9), p.classId, lootKind(p, p.classId));
+    const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
     item.legend = true;
+    if (b.mat) item.raidMat = b.mat;
     item.bonuses = [];
     for (let k = 0; k < 4; k++) item.bonuses.push(rollBonus(item, false));
     clampItemBonuses(item);
     if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
     else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   }
-  if (b.mat) addMobMat(b.mat, randInt(6, 10), m);
-  const mats = { boniPlus: 4, switcher: 3, boni5: 2, star: randInt(1, 2) };
+  if (b.mat) addMobMat(b.mat, randInt(8, 12), m);
+  const mats = { boniPlus: 4, switcher: 3, boni5: 2, star: randInt(1, 2), ...(m.level >= SWITCH67.stone ? { switch67: 1 } : {}) };
   for (const [id, n] of Object.entries(mats)) {
     p.materials[id] = (p.materials[id] || 0) + n;
     ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
@@ -703,6 +730,7 @@ function nearTrader() {
 function itemAt(ref) {
   if (!ref) return null;
   const p = game.player;
+  if (ref.where === 'sup') return null;
   return ref.where === 'equip' ? p.equipment[ref.key] : p.inventory[ref.key];
 }
 
@@ -1072,6 +1100,33 @@ const MATERIAL_ART = {
     }
     poly(ctx, pts, '#ffcf4a');
     dot(ctx, -2, -2, 3, 3, '#fff6d0');
+  },
+  // Sternen-Switcher: dunkle Rune mit goldenem Stern, zwei Pfeile drehen sich darum
+  switch67(ctx) {
+    oval(ctx, 0, 0, 14, 14, '#3a1e4a');
+    oval(ctx, 0, 0, 11.5, 11.5, '#5a2e6a');
+    const pts = [];
+    for (let k = 0; k < 10; k++) {
+      const a = -Math.PI / 2 + k * Math.PI / 5;
+      const r = k % 2 ? 3.4 : 8;
+      pts.push([Math.cos(a) * r, Math.sin(a) * r + 0.5]);
+    }
+    poly(ctx, pts, '#ffcf4a');
+    dot(ctx, -1.2, -1.2, 1.8, 1.8, '#fff6d0');
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#ffb85a';
+    ctx.lineWidth = 2.2;
+    for (const a0 of [-0.35, Math.PI - 0.35]) {
+      ctx.beginPath();
+      ctx.arc(0, 0, 15.5, a0, a0 + 1.9);
+      ctx.stroke();
+      const a1 = a0 + 1.9;
+      const tx = Math.cos(a1) * 15.5;
+      const ty = Math.sin(a1) * 15.5;
+      const nx = -Math.sin(a1);
+      const ny = Math.cos(a1);
+      poly(ctx, [[tx + nx * 4.5, ty + ny * 4.5], [tx + Math.cos(a1) * 3.5, ty + Math.sin(a1) * 3.5], [tx - Math.cos(a1) * 3.5, ty - Math.sin(a1) * 3.5]], '#ffb85a');
+    }
   }
 };
 
@@ -1427,6 +1482,9 @@ const gear = {
       `<p class="inv-sum">Angriff ${s.atk} · Verteidigung ${s.def}<br>Leben ${s.maxHp} · Mana ${s.maxMp}</p></section>` +
       `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs}</span></h3>` +
       sellBar + `<div class="bag-grid">${bag}</div>` +
+      // Vorräte (seit 11.0): Tränke jeder Größe und Segensschriftrollen, antippen zum Trinken oder Verkaufen
+      `<h4 class="sup-head">Vorräte <small>Tränke und Segensschriftrollen</small></h4>` +
+      `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x)).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
       `<p class="inv-sum">Seelensplitter ${p.splinters} · ` +
       `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}<br>` +
       MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
@@ -1461,6 +1519,12 @@ const gear = {
         return;
       }
       this.selected = { where: 'bag', key: i };
+      this.sellArmed = false;
+      this.renderDetail();
+    }));
+    body.querySelectorAll('[data-sup]').forEach((b) => b.addEventListener('click', () => {
+      if (this.multi) return;
+      this.selected = { where: 'sup', key: b.dataset.sup };
       this.sellArmed = false;
       this.renderDetail();
     }));
@@ -1520,6 +1584,68 @@ const gear = {
     this.renderInventory();
   },
 
+  // Vorräte: Tränke (je Sorte und Größe) und Segensschriftrollen
+  supplyList() {
+    const p = game.player;
+    const out = [];
+    for (const kind of ['hp', 'mp']) {
+      for (const sz of POTION_SIZES) {
+        const n = p.potions[potKey(kind, sz.id)] || 0;
+        if (n > 0) out.push({ key: potKey(kind, sz.id), n, kind, sz });
+      }
+    }
+    if (p.scrolls > 0) out.push({ key: 'scroll', n: p.scrolls });
+    return out;
+  },
+
+  supplyTile(x) {
+    const icon = x.kind ? potionIconUrl(x.kind, x.sz.id) : scrollIconUrl();
+    const name = x.kind ? `${potionInfo(x.kind).name} ${x.sz.id}` : BLESSING.name;
+    return `<button type="button" class="item-tile sup-tile" data-sup="${x.key}" data-info="${escTip(supplyTipHtml(x))}">` +
+      `<img src="${icon}" alt="${name}"><span class="item-count">${x.n > 999 ? '999+' : x.n}</span></button>`;
+  },
+
+  renderSupplyDetail(el) {
+    const p = game.player;
+    const x = this.supplyList().find((s) => s.key === this.selected.key);
+    if (!x) {
+      this.selected = null;
+      el.innerHTML = '<p class="hint-text">Tippe einen Gegenstand an, um ihn anzusehen, anzulegen oder zu verkaufen.</p>';
+      return;
+    }
+    const tileEl = document.querySelector(`#invBody [data-sup="${x.key}"]`);
+    if (tileEl) tileEl.classList.add('selected');
+    if (!x.kind) {
+      el.innerHTML = `<div class="item-detail"><img src="${scrollIconUrl()}" alt="">` +
+        `<div class="item-info"><strong style="color:#ffd34d">${BLESSING.name} × ${x.n}</strong>` +
+        `<small>Für den Schmied · nicht verkäuflich</small><span>${BLESSING.text}</span>` +
+        `<small class="hint-text">Fällt nur aus Seelensteinen ab Stufe ${BLESSING.stone}. Beim Schmied setzt du sie mit einem Haken ein.</small></div></div>`;
+      return;
+    }
+    const info = potionInfo(x.kind);
+    const amt = x.kind === 'hp' ? x.sz.hp : x.sz.mp;
+    const each = potionSellValue(x.kind, x.sz);
+    const trader = nearTrader();
+    const off = trader ? '' : 'disabled title="Nur bei einem Händler"';
+    const sell = (n, label) => `<button type="button" class="mini-btn btn-sell" data-psell="${n}" ${off}>${label} · ${(each * n).toLocaleString('de-DE')} Gold</button>`;
+    el.innerHTML = `<div class="item-detail"><img src="${potionIconUrl(x.kind, x.sz.id)}" alt="">` +
+      `<div class="item-info"><strong style="color:${info.color}">${info.name} ${x.sz.id} × ${x.n}</strong>` +
+      `<small>${info.kind} (${x.sz.name}) · Taste ${x.kind === 'hp' ? 'Q' : 'E'} trinkt automatisch die passende Größe</small>` +
+      `<span>+${amt.toLocaleString('de-DE')} ${x.kind === 'hp' ? 'Leben' : 'Mana'} · Händlerin zahlt ${each.toLocaleString('de-DE')} Gold je Trank</span>` +
+      (trader ? '' : '<small class="hint-text">Verkaufen geht nur bei einem Händler.</small>') + `</div>` +
+      `<div class="item-actions"><button type="button" class="mini-btn" data-pdrink>Jetzt trinken</button>` +
+      sell(1, '1 verkaufen') + (x.n >= 10 ? sell(10, '10 verkaufen') : '') + (x.n > 1 ? sell(x.n, 'Alle verkaufen') : '') + `</div></div>`;
+    el.querySelector('[data-pdrink]').addEventListener('click', () => {
+      usePotion(x.kind, x.sz.id);
+      this.renderInventory();
+    });
+    el.querySelectorAll('[data-psell]').forEach((b) => b.addEventListener('click', () => {
+      const n = sellPotions(x.key, Number(b.dataset.psell));
+      this.renderInventory();
+      if (n) this.message(`${n} × ${info.name} ${x.sz.id} für ${(n * each).toLocaleString('de-DE')} Gold verkauft.`, 'success');
+    }));
+  },
+
   renderBookDetail(el, item) {
     const p = game.player;
     const e = skillEntry(item.book);
@@ -1557,6 +1683,10 @@ const gear = {
     const el = document.getElementById('invDetail');
     if (!el) return;
     document.querySelectorAll('#invBody .item-tile').forEach((b) => b.classList.remove('selected'));
+    if (this.selected && this.selected.where === 'sup') {
+      this.renderSupplyDetail(el);
+      return;
+    }
     const item = itemAt(this.selected);
     if (!item) {
       el.innerHTML = '<p class="hint-text">Tippe einen Gegenstand an, um ihn anzusehen, anzulegen oder zu verkaufen.</p>';
@@ -1587,7 +1717,8 @@ const gear = {
       boniPlus: (item.bonuses || []).length < 4,
       boni5: (item.bonuses || []).length === 4,
       switcher: (item.bonuses || []).length > 0,
-      star: (item.specials || []).length < MAX_SPECIAL_BONUS
+      star: (item.specials || []).length < MAX_SPECIAL_BONUS,
+      switch67: (item.specials || []).length > 0
     };
     const matBtns = MATERIALS.map((m) => {
       const have = p.materials[m.id] || 0;

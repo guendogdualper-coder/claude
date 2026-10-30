@@ -188,6 +188,13 @@ function showLifeSteal() {
 }
 
 function damageMonster(m, amount, crit, source, isDot) {
+  // Endboss hinter dem Kristallschild (seit 11.0): kein Schaden, solange ein Seelenkristall steht
+  if (m.type && m.type.raid && raidShielded(m)) {
+    raidShieldHit(m);
+    return;
+  }
+  // nach dem Bruch taumelt er und nimmt mehr Schaden
+  if (m.raid && m.raid.stagger > game.time) amount = Math.round(amount * RAID.staggerDmg);
   // Im Mehrspieler entscheidet der Host über Leben und Tod der Monster
   if (net.mode === 'client') {
     netClientDamage(m, amount, crit, isDot);
@@ -226,6 +233,10 @@ function killMonster(m) {
 }
 
 function monsterDeathFx(m) {
+  if (m.type && m.type.crystal) {
+    crystalDeathFx(m);
+    return;
+  }
   const bc = bodyCenter(m);
   if (m.isStone) {
     const look = m.stoneType.look;
@@ -257,6 +268,8 @@ function rewardKill(m) {
 }
 function rewardKillInner(m) {
   const p = game.player;
+  // Seelenkristalle geben nichts (nur der Boss dahinter zählt)
+  if (m.type && m.type.crystal) return;
   if (stoneTooLow(m, p)) {
     // Nur noch die (ohnehin kleine) Erfahrung, kein Gold und keine Beute
     p.kills++;

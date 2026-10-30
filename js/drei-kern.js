@@ -573,6 +573,15 @@ function v3Init() {
   }
   V3.canvas = canvas;
   canvas.hidden = false;
+  // Grafikkontext verloren (Speicherdruck, Treiber-Neustart; seit 11.0): beim Zurückkommen die Welt neu
+  // aufbauen und die Größe neu setzen, statt mit leerem (hellem) Bild weiterzulaufen
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); V3.lost = true; });
+  canvas.addEventListener('webglcontextrestored', () => {
+    V3.lost = false;
+    V3.sizeKey = null;
+    v3ClearChunks();
+    v3ApplyGraphics();
+  });
   const gl = V3.gl;
   gl.shadowMap.enabled = true;
   // weiche Schatten (viele Proben) nur am PC; Handys nehmen die einfache Filterung
@@ -615,7 +624,6 @@ function v3ApplyGraphics() {
   if (V3.builtFor && V3.builtFor !== opts.graphics) v3ClearChunks();
   V3.builtFor = opts.graphics;
   V3.ultra = opts.graphics === 'ultra';
-  V3.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, renderer.maxDpr || g.dpr));
   V3.sun.castShadow = g.castShadows && !quality.noShadow;
   const size = V3.ultra ? 2048 : opts.graphics === 'hoch' ? 1024 : 512;
   // Ultra: größerer Schattenbereich, schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte)
@@ -643,7 +651,12 @@ function v3Resize() {
   if (!V3.gl) return;
   const w = window.innerWidth;
   const h = window.innerHeight;
-  V3.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, renderer.maxDpr || gfx().dpr));
+  const pr = Math.min(window.devicePixelRatio || 1, renderer.maxDpr || gfx().dpr);
+  // unveränderte Größe nicht neu setzen (seit 11.0): setSize leert das Bild bis zum nächsten Zeichnen
+  const key = w + 'x' + h + '@' + pr;
+  if (V3.sizeKey === key) return;
+  V3.sizeKey = key;
+  V3.gl.setPixelRatio(pr);
   V3.gl.setSize(w, h, false);
   V3.camera.aspect = w / h;
   V3.camera.updateProjectionMatrix();
@@ -1630,26 +1643,38 @@ function disposeTree(obj) {
 // --- Leuchtende Punkte (Laternen, Feuer, Portale): die vier nächsten bekommen echtes Licht -----
 
 const lightSpots3 = [];
+// Seit 11.0 ohne hartes Umspringen: Leuchtet ein fünftes Licht fast so nah wie das vierte, wird das vierte
+// weich schwächer (und das fünfte übernimmt bei null), Lichter am Rand des Umkreises blenden aus. Vorher
+// sprang ein Licht von einer Laterne zur nächsten – der Boden wurde schlagartig hell oder dunkel (Flackern).
+// Feuerbecken flackern ruhiger (zwei langsame Wellen statt einer schnellen) und waschen den Boden nicht weiß.
+const LIGHT_REACH3 = 18;
+const _near3 = [];
 function v3UpdateLights(fx, fy) {
   const px = fx * U3;
   const pz = fy * U3;
-  const near = [];
+  const near = _near3;
+  near.length = 0;
   for (const s of lightSpots3) {
     const d = Math.hypot(s.x - px, s.z - pz);
-    if (d < 18) near.push([d, s]);
+    if (d < LIGHT_REACH3) near.push([d, s]);
   }
   near.sort((a, b) => a[0] - b[0]);
+  const n = V3.points.length;
+  const edge = near[n] ? near[n][0] : LIGHT_REACH3;
   V3.points.forEach((l, i) => {
     const e = near[i];
     if (!e) {
       l.intensity = 0;
       return;
     }
-    const s = e[1];
+    const [d, s] = e;
+    const fade = Math.max(0, Math.min(1, (edge - d) / 2.5, (LIGHT_REACH3 - d) / 4));
+    const f = s.flicker || 0;
+    const wave = f ? 0.94 + 0.04 * Math.sin(V3.time * Math.min(f, 4) + s.x) + 0.02 * Math.sin(V3.time * Math.min(f, 4) * 2.3 + s.z) : 1;
     l.position.set(s.x, s.y, s.z);
     l.color.set(s.color);
     l.distance = s.range || 7;
-    l.intensity = (s.power || 1) * (0.85 + 0.15 * Math.sin(V3.time * (s.flicker || 3) + s.x));
+    l.intensity = Math.min(1.4, s.power || 1) * fade * wave;
   });
 }
 
