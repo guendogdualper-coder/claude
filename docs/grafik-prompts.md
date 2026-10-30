@@ -302,6 +302,10 @@ vorn einen Keil Kopfhaut frei. Neue Regeln:
 | Untoter | dünne graue Strähnen, eingefallene Wangen, rostiger Halbhelm |
 | Sumpfhexe | wilde Mähne unter dem Hut |
 
+**Umsetzung (8.4):** `HEADKIT3`, `hair3` (neue Frisuren 6–10, Glanzband statt Glanzkappe), Strähnen aus
+einer gemeinsamen Form ohne Schatten; Varianten über `monVariant3` (Startpunkt), Modellschlüssel
+`'m:Art#Variante'`. Je Kopf +0,7k bis +2,8k Dreiecke.
+
 ---
 
 ## 6. Boden, Gras, Wasser
@@ -346,10 +350,16 @@ schwarze Striche.
 | Liegender Stamm | ganz auf der Kachel, Schnittflächen an beiden Enden, abgebrochener Ast, Moosstreifen, Baumpilze; im Moor hängendes Moos |
 | Pilze | drei Pilze mit echtem Stiel und Hut, Lamellen, weiße Punkte (Fliegenpilz); im Moor leuchtende Hüte |
 | Knochen | Ochsenschädel mit Hörnern halb im Sand · Brustkorb · gekreuzte Knochen mit kleinem Schädel |
-| Kristalle | sechseckige, facettierte Kristalle auf Felsfuß; im Frost durchscheinend blau, in Glutgebieten unten dunkler Obsidian, oben leuchtend |
+| Kristalle | sechseckige, facettierte Kristalle auf Felsfuß; im Frost kräftig eisblau (undurchsichtig, durchscheinend verschwand auf Schnee), in Glutgebieten unten dunkler Obsidian, oben leuchtend |
 | Toter Baum | abgebrochener Stamm mit Splittern und kahlen Ästen · liegender gegabelter Ast mit Stein und Laub · Dornbusch |
 | Schneewehe (neu) | vom Wind geformte Wehe mit Steinen und trockenen Halmen (statt Schneebällen) |
 | Frostfelsen | blaugrauer Fels mit Schneehaube statt weißer Kugel |
+
+**Umsetzung (8.4):** `tplDeco` in `js/drei-welt.js`; Äste, Wurzeln und Knochen über `stick3` von Punkt zu
+Punkt (vorher steckten Stämme und Pilzstiele im Boden, weil `limb3` nach unten baut); Größe je Art über
+`DECO_SIZE3` statt pauschal ×1,4; Kleinteile im Material `detail` ohne Umriss; Busch aus 5–6 Laubbauschen
+(`puffGeo`); Kristalle `crystalGeo`; Schneewehe `driftGeo` (`DECO.DRIFT`); bei „niedrig“ nur die Kernformen.
+Gemessen (844×390, „hoch“): Wiese 309k, Wald 135k, Ödland 117k, Frost 189k, Dschungel 119k Dreiecke.
 
 ### 6.5 Kartenrand (seit 8.4)
 Am Rand jeder Map darf **nie eine graue oder einfarbige Fläche** zu sehen sein. Der Rand ist eine hohe,
@@ -372,6 +382,12 @@ geschlossene Kulisse in Schichten:
 
 Der Boden läuft unter der Kulisse weiter und steigt leicht an; Himmelsfarben sind nie grau.
 
+**Umsetzung (8.4):** Heimatregion `V3.home` in `renderDrei` vor dem Blockaufbau, Böschung in `tileSample`,
+Kulisse `BORDER3`/`tplKul` (120–380 Dreiecke je Vorlage) im Mesh `far` ohne Umriss, aber mit Durchsicht um
+die Figur; Horizont mit Farbverlauf in `v3SyncBounds`; Blöcke weiter als 13 Kacheln draußen werden nicht
+gebaut. Gemessen: an den Rändern meist deutlich weniger Dreiecke als vorher (Wiese Süd 335k → 203k),
+höchstens +7,5 %.
+
 ### 6.6 Portale und Risse (seit 8.4)
 Risse und Dungeon-Eingänge passen zur weichen Toon-Welt: **runde, glatte Formen statt Zacken**.
 - **Riss:** aufrechter Ring aus neun glatten Runensteinen mit leuchtenden Runen auf einem kleinen
@@ -386,6 +402,10 @@ Risse und Dungeon-Eingänge passen zur weichen Toon-Welt: **runde, glatte Formen
 - **Dungeon-Eingang:** runder Sockel mit zwei Stufen, Säulen mit Schwellung, Bogen aus einzelnen
   Keilsteinen mit Schlussstein und Emblem, Efeu; im Bogen derselbe Wirbel.
 - **Ausgang und Weltentor:** Runenkreis am Boden, glatte Steine, weiche Lichtsäule bzw. Wirbel im Ring.
+
+**Umsetzung (8.4):** `buildRift3`/`buildPortal3` in `js/drei-figuren.js`, Themen `RIFT_LOOK`, Wirbel als
+eigener Shader (beim Start vorgewärmt), Schein, Runenkreis und Funken über `model.extra` in `makeActor`;
+2D-Ersatz in `drawRift`. Riss etwa 10–13k Dreiecke, 12 Zeichenaufrufe (höchstens 1–2 Risse gleichzeitig).
 
 ---
 

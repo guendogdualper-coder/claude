@@ -1770,3 +1770,34 @@ Stylized 3D toon MMORPG, top-down three-quarter camera, a warrior performs ROCK 
 ```
 Close-up game asset render, stylized 3D toon: a landing crater on a grass meadow two seconds before it fades – a shallow round depression slightly darker than the grass, its rim made of 12 faceted low-poly earth clods in warm brown tones, six smaller clods outside, thin dark cracks radiating, a light dust haze. Matching soft toon shading, top-down three-quarter view, no characters, no text.
 ```
+
+## Schönere Welt (Version 8.4)
+
+Regeln, Tabellen und die Konzept-Prompts für Kartenrand, Portale, Schmuck und Köpfe stehen in
+`docs/grafik-prompts.md` (5.1, 6.4, 6.5, 6.6 und Abschnitt 8). Hier die Einzelbilder.
+
+### Kartenrand je Gebiet
+```
+Six panels, stylized 3D toon MMORPG, top-down three-quarter camera, each showing where a walkable area ends in a tall layered backdrop with no grey: a blossom hedge of rounded green crowns with pink blossom clusters; a wall of overlapping dark pines; a jungle wall with lianas, fan leaves and red flowers; layered sandstone cliffs with mesas behind; ash cliffs with rock needles, dead trees and glowing orange veins; ice cliffs with snow caps, icicles and snowy pines; weeping willows with hanging moss and a mist band; basalt columns with glowing seams. Soft gradient horizon, thick outlines only on the front row.
+```
+
+### Riss je Dungeon
+```
+Eight rift portals side by side, stylized 3D toon, top-down three-quarter view, each an upright oval ring of smooth rounded rune stones on a small earth mound with roots, filled with a swirling vortex in three tone bands with a bright eye: violet with spider webs and egg sacs; orange sandstone with iron bands, tusks and a red banner; icy blue with snow caps and icicles; red basalt with lava seams and embers; amber mossy fieldstone with ropes and a lantern; violet grave stone with a skull keystone and chains; teal jade with gold trims, a coiled stone snake and vines; golden iron stone with rivets and an anvil keystone. No spikes, soft shapes.
+```
+
+### Dungeon-Tor
+```
+Stylized 3D toon dungeon gate, top-down three-quarter view: a round two-step stone dais with worn steps, two columns with a slight bulge and moss on the capitals, an arch of seven individual wedge stones with a keystone carrying a spider emblem, ivy hanging down, braziers on the dais, the arch filled with a softly swirling violet vortex, a glowing rune circle on the dais floor.
+```
+
+### Banditen-Varianten
+```
+Three bandits in a row, stylized 3D chibi toon MMORPG, thick outlines: a brown hood with a soft rolled hem, a tip at the back and a cowl, a red mask tied at the neck, a dark fringe and a ponytail with a gold tie; a red bandana with two fluttering tails, a black mask, messy chestnut hair and a scar; an open hood, a red neckerchief and a full dark beard. Brown, green and grey eyes, hair made of chunky strands with a shine band.
+```
+
+### Schmuck nah
+```
+Close-up sheet of ground props, stylized 3D toon, top-down three-quarter view on grass: a bush of five leafy puffs with red berries and small leaves at the rim; a fly agaric cluster; a stump with growth rings, roots and a hand axe stuck in it; a hollow mossy log with bracket fungi; a jungle plant with big drooping leaves and an orange flower; an ox skull with horns half in sand; crossed bones with a small skull; a fallen forked branch with a stone; an icy blue faceted crystal cluster; a snow drift with rocks and dry grass.
+```
+
