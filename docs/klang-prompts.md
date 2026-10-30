@@ -1,4 +1,4 @@
-# Klang-Bibel – Seelenstein (seit Version 9.4)
+# Klang-Bibel – Seelenstein (seit Version 9.4, erweitert in 9.5)
 
 Alle Klänge und die Musik werden im Browser erzeugt, es gibt keine Tondateien. Der Code steht in
 `js/klang.js` (Mischpult), `js/klang-welt.js` (Klänge) und `js/musik.js` (Musik). Dieses Dokument
@@ -29,24 +29,33 @@ Ereignisse:
 - **Schmerz:** Das Monster wird getroffen.
 - **Tod:** Das Monster stirbt. Bei großen Monstern folgt ein Körperfall.
 
+**Natürliche Stimme (seit 9.5).** Tierlaute sollen echt klingen, nicht wie ein Synthesizer. Darum hat jede
+Stimme:
+- **Zittern und Vibrato:** Die Tonhöhe schwankt leicht und zufällig, wie bei einem echten Kehlkopf.
+- **Unterton:** Ein zweiter Ton eine Oktave tiefer gibt Brust und Größe.
+- **Rauheit:** unregelmäßig aus Rauschen, nicht gleichmäßig wie ein Motor.
+- **Mundöffnung:** Die Klangfarbe gleitet beim Öffnen und Schließen des Mauls.
+- **Anschlag und Atem:** ein kurzes Anschlagrauschen zu Beginn, Atem im Klang und ein leichtes Flackern der
+  Lautstärke.
+
 | Familie | Arten | Klang |
 |---|---|---|
-| Hund | Wilder Hund, Schakal | zwei kurze Beller, helles Jaulen |
-| Fuchs | Rotfuchs | hohes Keckern |
-| Hyäne | Tüpfelhyäne | kicherndes „Lachen“ in fallenden Silben |
-| Wolf | Wolf, Alpha-, Eis-, Moorwolf, Warg, Fenris | Heulen beim Schrei, Knurren und Zuschnappen beim Angriff, Jaulen |
+| Hund | Wilder Hund, Schakal | Bellfolge (2–4 Beller), Knurren und Zuschnappen beim Angriff, Aufjaulen, Winseln beim Tod |
+| Fuchs | Rotfuchs | heiserer Fuchsschrei, Keckern |
+| Hyäne | Tüpfelhyäne | aufsteigendes „Whoop“ beim Schrei, kicherndes „Lachen“ in fallenden Silben |
+| Wolf | Wolf, Alpha-, Eis-, Moorwolf, Warg, Fenris | langes Heulen mit Bruch, tiefes Knurren mit Unterton und Zuschnappen, Jaulen |
 | Höllenhund | Höllenhund | tiefes, verzerrtes Knurren mit Feuerfauchen |
-| Keiler | Wildschwein, Dornenkeiler | doppeltes Grunzen, Quieken bei Schmerz und Tod |
-| Bär | Braunbär, Eisbär, Ursus | tiefes, langes Brüllen |
-| Katze | Luchs, Panther, Glutkatze | Fauchen und kurzes Knurren |
-| Hirsch | Rothirsch, Donnerbock | langes Röhren |
+| Keiler | Wildschwein, Dornenkeiler | nasales Grunzen in Stößen, schrilles Quieken bei Schmerz und Tod |
+| Bär | Braunbär, Eisbär, Ursus | tiefes Brüllen mit Brustgrollen (Unterton) |
+| Katze | Luchs, Panther, Glutkatze | Fauchen mit flatterndem Atem, kurzes Knurren |
+| Hirsch | Rothirsch, Donnerbock | Brunftröhren: rau, mit Stößen am Ende |
 | Mammut | Wollmammut | Trompeten |
 | Spinne | Wald-, Höhlenspinne, Giftspeierin, Königin | schnelles Klicken der Kiefer und Zischen, hohes Kreischen beim Tod |
 | Skorpion | Wüstenskorpion | klackende Scheren, rasselnder Schwanz |
 | Schlange | Sandviper, Kobra, Python | langes Zischen, beim Biss ein kurzer Schlag |
 | Klapperschlange | Klapperschlange | Rassel |
 | Naga | Naga, Priesterin, Königin, Vritra | zischende, gehauchte Stimme |
-| Mensch | Banditen, Schützen, Kellerwachen | Ruf „Hey!“, Angriffsschrei, „Ugh“, Sterbeschrei mit Körperfall |
+| Mensch | Banditen, Schützen, Kellerwachen | Ruf „Hey!“, kurzer Kampflaut beim Angriff, „Uh!“, Sterbeschrei mit Körperfall |
 | Hexe | Sumpfhexe | hohes Kichern |
 | Untote | Untoter, Grabwächter, Ghul, Gruftkönig, Morrak | hohles Stöhnen, klappernde Knochen beim Tod |
 | Ork | alle Orks, Gor'thak, Gorbag | tiefes, raues Gebrüll |
@@ -61,6 +70,11 @@ Ereignisse:
 **Prompt (englisch, je Familie anpassen):**
 ```
 Game sound effects for a stylized fantasy MMORPG, warm and clean, no harsh clipping, short tails with a small room reverb. Set for one creature family ({family}): an aggro call when it notices the player ({aggro}), a short attack effort sound ({attack}), a pain yelp ({hurt}) and a death cry that fades out with a body fall ({death}). Three subtle variations each, mono, 32 kHz, peak −1 dB.
+```
+
+**Prompt für echte Tierstimmen (englisch, seit 9.5):**
+```
+Realistic animal vocalizations for a fantasy MMORPG, recorded close and dry, then a small outdoor room reverb. Natural voice: slight pitch jitter and vibrato, irregular roughness (not a steady buzz), audible jaw opening (formant glide), a short breath or noise onset, a sub-octave chest tone for big animals. Dog: a burst of 2–4 barks, a growl that ends in a snap, a sharp yelp, a whine on death. Wolf: a long howl with a pitch break, a deep growl. Fox: a hoarse scream. Hyena: rising whoop and giggles. Boar: nasal grunts and a shrill squeal. Bear: a deep roar with chest rumble. Big cat: a fluttering hiss and snarl. Red deer: a rutting roar with grunts at the end. Three variations each, mono, 32 kHz, peak −1 dB.
 ```
 
 ## 3. Spieler
@@ -81,7 +95,15 @@ Game sound effects for a stylized fantasy MMORPG, warm and clean, no harsh clipp
   - Licht: Glockenakkord.
   - Blut: nasser Schlag.
   - Knochen: Knacken.
-- **Stimme:** Schmerz- und Sterbelaut, männlich tiefer, weiblich höher (nach dem Aussehen).
+- **Stimme (seit 9.5):** Die Figuren stöhnen nicht. Es gibt nur kurze, schnelle Laute (0,1–0,2 s), männlich
+  tiefer, weiblich höher (nach dem Aussehen):
+  - **Kampflaut** beim Schlag: „Ha!“, „Hm!“, „Hyah!“ oder ein scharfer Atemzug durch die Zähne. Er kommt beim
+    dritten Schlag der Kette immer (etwas kräftiger), sonst bei etwa jedem dritten Schlag und höchstens alle
+    0,6 s. Beim Schuss (Bogen, Zauber) manchmal.
+  - **Ruf** bei Fertigkeiten: wie der Kampflaut, aber kräftiger.
+  - **Treffer:** ein kurzes, kehliges „Uh!“.
+  - **Tod:** ein kurzer Ausruf mit Körperfall (0,7 s).
+  - Mitspieler sind leiser zu hören als die eigene Figur.
 - **Belohnungen:**
   - Stufenaufstieg: aufsteigendes Glockenspiel.
   - Gold: klimpernde Münzen.
@@ -90,7 +112,7 @@ Game sound effects for a stylized fantasy MMORPG, warm and clean, no harsh clipp
 
 **Prompt (englisch):**
 ```
-Player combat sound set for a stylized fantasy MMORPG: weapon swooshes in three weights (twin daggers light and airy, sword and axe medium, two-handed greatsword and scythe heavy with low end), a punchy flesh impact with a short crack, a bow string snap with arrow whistle, spell casts per element (steel ring, earth rumble, fire whoosh with crackle, shadow drone, ghostly soul whisper, lightning zap, ice crystal chimes, wind gust, holy bell chord, wet blood splash, bone cracks), male and female pain grunts, a rising bell arpeggio for level up, coin jingle, soft item chime, potion gulp with sparkle. Clean, warm, mobile friendly.
+Player combat sound set for a stylized fantasy MMORPG: weapon swooshes in three weights (twin daggers light and airy, sword and axe medium, two-handed greatsword and scythe heavy with low end), a punchy flesh impact with a short crack, a bow string snap with arrow whistle, spell casts per element (steel ring, earth rumble, fire whoosh with crackle, shadow drone, ghostly soul whisper, lightning zap, ice crystal chimes, wind gust, holy bell chord, wet blood splash, bone cracks), short male and female combat efforts only ("Ha!", "Hm!", "Hyah!", a sharp breath through the teeth; 0.1–0.2 s, never moaning), a short throaty "Uh!" when hit, a rising bell arpeggio for level up, coin jingle, soft item chime, potion gulp with sparkle. Clean, warm, mobile friendly.
 ```
 
 ## 4. Musik
@@ -120,10 +142,27 @@ Klang (passend zum Stil von Vlotho), viel Hall und keine harten Schläge.
 | Schnee und Eis | E-Moll, 58 BPM | kühl, sparsam, Glöckchen |
 | Wüste und Feuerberg | D mit kleiner Sekunde (Hirajoshi-artig), 78 BPM | warm, mehr Trommel |
 | Moor, Ödland, Dungeons | G-Moll, 54 BPM | dunkel, tiefe Fläche, kaum Melodie |
+| Bosskampf (Boss in der Nähe) | A harmonisch Moll, 100 BPM | dramatisch, treibend, Chor (siehe unten) |
+
+**Bosskampf (seit 9.5).** Steht ein lebender Boss in der Nähe (Boss-Raum im Dungeon oder Weltboss, ab 650 px),
+wechselt die Musik sofort. Sie bleibt, bis man sich weiter als 950 px entfernt (dann noch 4 s) oder der Boss stirbt.
+- **Einstieg:** ein tiefer Schlag mit Becken.
+- **Puls:** treibender Achtelbass (Grundton, Oktave, Quinte), große Trommeln auf 1, 2-und, 3 und vor dem nächsten
+  Takt, im vierten Takt ein Trommelwirbel.
+- **Harmonie:** helle, breite Fläche; Folgen i–VI–iv–V, eine mit neapolitanischem Akkord für mehr Spannung.
+- **Bläserstöße** auf der Eins.
+- **Chor** „Aah“ über zwei Takte.
+- **Steigerung:** In der zweiten Hälfte jeder Folge eine schnelle Harfe; alle vier Takte ein anschwellendes Rauschen.
+- **Sieg:** Ist der Boss tot, erklingt ein kurzer Dur-Akkord mit aufsteigenden Glocken, danach die Musik der Gegend.
 
 **Prompt (englisch):**
 ```
 Relaxing ambient background music for a cozy East-Asian inspired fantasy MMORPG, seamless loop, 60–75 BPM, pentatonic, soft pad chords with long attack, plucked koto/guzheng-like notes, an occasional bamboo flute phrase with gentle vibrato, a warm sub bass on root and fifth, soft frame drum, lots of hall reverb, no harsh transients. Variations: village (warm D major pentatonic), meadows (open C major pentatonic), forest (calm A minor pentatonic), snow (sparse E minor with small bells), desert/volcano (D hirajoshi with more drums), swamp and dungeon (dark G minor, low drones, sparse).
+```
+
+**Prompt Bosskampf (englisch, seit 9.5):**
+```
+Epic boss battle music for a stylized fantasy MMORPG, seamless loop, 100 BPM, A harmonic minor (i–VI–iv–V, one variation with a Neapolitan chord), driving eighth-note bass ostinato (root, octave, fifth), big taiko drums with a roll every fourth bar, short brass stabs on the downbeat, a wordless choir "aah", fast harp arpeggios in the second half of each phrase, a rising noise swell into every fourth bar. Starts with a deep impact and cymbal; when the boss dies a short major chord with rising bells resolves it.
 ```
 
 ## 5. Einstellungen
