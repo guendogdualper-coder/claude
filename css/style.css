@@ -2846,3 +2846,7 @@ body.aiming canvas { cursor: crosshair; }
 }
 /* Anzahl oben links: unten rechts steht auf dem Trank schon die Größe (M, L, XL …) */
 #panelInv .sup-grid .item-count { right: auto; left: 4px; bottom: auto; top: 1px; }
+
+/* Überblendung nach einem Sprung (seit 11.3): dunkel statt heller Himmel oder weißer Blitz */
+#warpFade { position: fixed; inset: 0; pointer-events: none; opacity: 0;
+  background: radial-gradient(circle at 50% 55%, #1a2438 0%, #0a0e18 75%); }

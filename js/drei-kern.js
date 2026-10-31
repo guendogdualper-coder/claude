@@ -1579,6 +1579,9 @@ function v3UpdateChunks(fx, fy, msBudget) {
   // nur Blöcke, die hier überhaupt gebaut werden (sonst bliebe die Notbremse am Kartenrand dauerhaft an)
   const need3 = (x, y) => x >= minX && y >= minY && x <= maxX && y <= maxY && !chunks3.has(x + ':' + y);
   if (need3(ccx, ccy) || need3(ccx, ccy - 1)) msBudget = Math.max(msBudget, 120);
+  // seit 11.3: fehlt im Bild noch Boden (Rand des Sichtfelds), deutlich schneller nachbauen als die 5 ms im
+  // Normalbetrieb – sonst sah man nach einem Sprung sekundenlang hellen Himmel (weißer Bildschirm)
+  else if (want.some(([x, y]) => !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 35);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
   if (chunkJob && (Math.abs(chunkJob.x - ccx) > chunkKeep3() || Math.abs(chunkJob.y - ccy) > chunkKeep3())) chunkJob = null;
   const t0 = performance.now();
@@ -1678,6 +1681,26 @@ function v3UpdateLights(fx, fy) {
   });
 }
 
+// Dunkle Überblendung nach einem Sprung: sofort dunkel, dann in einer halben Sekunde aufziehen
+function warpFade() {
+  let el = document.getElementById('warpFade');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'warpFade';
+    // direkt hinter die Spielfläche: dunkelt die Welt ab, nicht die Knöpfe und Fenster darüber
+    const cv = document.getElementById('welt');
+    if (cv) cv.after(el);
+    else document.body.append(el);
+  }
+  el.style.transition = 'none';
+  el.style.opacity = '0.9';
+  void el.offsetWidth;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    el.style.transition = 'opacity 0.55s ease-out';
+    el.style.opacity = '0';
+  }));
+}
+
 // --- Ein Bild zeichnen ---------------------------------------------------------------------------
 
 let v3Last = 0;
@@ -1734,7 +1757,12 @@ function renderDrei() {
   // Nachladen um die Mitte des Sichtbaren (im Schulterblick ein Stück vor der Figur)
   v3ViewCenter(_vc);
   v3UpdateHome(fx, fy);
-  v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 ? 400 : 5);
+  // Sprung erkannt (Weltentor, Reise, Dungeon, Wiederbeleben; seit 11.3): alles Sichtbare in diesem einen Bild
+  // bauen – einmal kurz warten, dafür kein heller Himmel – und dunkel überblenden statt hell aufzublitzen
+  const jumped = V3.lastFocus && Math.hypot(fx - V3.lastFocus.x, fy - V3.lastFocus.y) > 12 * TILE;
+  V3.lastFocus = { x: fx, y: fy };
+  if (jumped) warpFade();
+  v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 || jumped ? 1500 : 5);
   v3UpdateLights(fx, fy);
   for (const k of ['water', 'lava', 'bog']) {
     const lm = MAT3['liquid' + k];

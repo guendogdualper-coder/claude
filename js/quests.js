@@ -292,7 +292,8 @@ function moveThrough(spot, color) {
   game.allies.forEach((a) => { a.x = p.x; a.y = p.y; });
   ui.closePanels();
   vfxPillar(p, color, 1);
-  flashScreen(color, 0.4);
+  // kein heller Blitz mehr (seit 11.3): in 3D blendet warpFade dunkel über
+  if (!V3.on) flashScreen(color, 0.25);
   saveGame();
 }
 
@@ -402,7 +403,7 @@ function travelTo(spot) {
   game.allies.forEach((a) => { a.x = p.x; a.y = p.y; });
   ui.closePanels();
   vfxPillar(p, '#9fd0ff', 1);
-  flashScreen('#cfe8ff', 0.4);
+  if (!V3.on) flashScreen('#cfe8ff', 0.25);
   saveGame();
   return null;
 }
