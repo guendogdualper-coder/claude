@@ -1431,7 +1431,7 @@ const ui = {
     if (npc.id === 'haendler') this.renderShop();
     else if (npc.id === 'schmied') gear.openSmith($('npcBody'));
     else if (npc.id === 'waffen' || npc.id === 'ruestung') gear.openMerchant(npc.id, $('npcBody'));
-    else if (npc.id === 'aeltester') this.renderElder();
+    else if (npc.id === 'aeltester') this.renderElder(npc);
     else if (npc.id === 'jaegerin') this.renderHunter();
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();

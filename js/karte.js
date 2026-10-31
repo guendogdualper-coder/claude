@@ -220,10 +220,16 @@ function guideEntries() {
   const out = [];
   if (guide.pin) out.push({ key: 'pin', kind: 'main', title: 'Markierung', pin: true });
   const main = currentMainQuest();
+  // seit 11.2 zum Ältesten der richtigen Map (Reiseauftrag: zum Ältesten der Ziel-Map, Finale: zum nächsten Endboss)
+  const elder = (mapId) => {
+    const n = elderOf(mapId);
+    return n ? { npc: n } : { role: 'aeltester' };
+  };
   if (main && q.accepted) {
-    out.push(goalDone(main.goal, q.progress)
-      ? { key: 'main', kind: 'main', title: main.title, role: 'aeltester', done: true }
-      : { key: 'main', kind: 'main', title: main.title, monster: main.goal.type === 'kill' ? main.goal.monster : null, stone: main.goal.type === 'stone' ? main.goal.level : 0 });
+    if (main.goal.type === 'talk') out.push({ key: 'main', kind: 'main', title: main.title, ...elder(main.goal.map), done: true });
+    else if (goalDone(main.goal, q.progress)) out.push({ key: 'main', kind: 'main', title: main.title, ...elder(main.map), done: true });
+    else if (main.goal.type === 'raids') out.push({ key: 'main', kind: 'main', title: main.title, monster: nextRaidBoss() });
+    else out.push({ key: 'main', kind: 'main', title: main.title, monster: main.goal.type === 'kill' ? main.goal.monster : null, stone: main.goal.type === 'stone' ? main.goal.level : 0 });
   }
   const st = q.stable;
   if (st.state === 'done') out.push({ key: 'stable', kind: 'main', title: STABLE_QUEST.title, role: 'stallmeister', done: true });
@@ -239,7 +245,7 @@ function guideEntries() {
   if (h) out.push(h.progress >= h.count ? { key: 'hunt', kind: 'side', title: 'Jagd', role: 'jaegerin', done: true } : { key: 'hunt', kind: 'side', title: 'Jagd', monster: h.monster });
   // Nichts angenommen: zum nächsten Auftrag, den es abzuholen gibt
   if (!out.length) {
-    if (main && p.level >= main.level) out.push({ key: 'offer', kind: 'main', title: main.title, role: 'aeltester', offer: true });
+    if (main && p.level >= main.level) out.push({ key: 'offer', kind: 'main', title: main.title, ...elder(main.map), offer: true });
     else if (st.state === 'open' && p.level >= STABLE_QUEST.level) out.push({ key: 'offer', kind: 'main', title: STABLE_QUEST.title, role: 'stallmeister', offer: true });
   }
   return out;

@@ -5,7 +5,39 @@ function questState() {
   const p = game.player;
   if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
   if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
+  // Alte Hauptkette (bis 11.1, 20 Aufträge) auf die Questreihe je Map umrechnen: weiter beim ersten Auftrag
+  // ab der Stufe des alten (alles erledigt: Heimkehr nach Vlotho vor dem Finale)
+  if (p.quests.chain !== 2) {
+    const q = p.quests;
+    const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
+    const done = q.main >= OLD_MAIN_LEVELS.length;
+    const idx = done ? MAIN_QUESTS.findIndex((m) => m.goal.type === 'talk' && m.goal.map === 1) : MAIN_QUESTS.findIndex((m) => m.level >= lvl);
+    q.main = Math.max(0, idx < 0 ? 0 : idx);
+    q.accepted = false;
+    q.progress = 0;
+    q.chain = 2;
+  }
   return p.quests;
+}
+
+// Ältester einer Map (Bao in Vlotho, sonst der Lagerälteste) und die Map eines NPCs
+function npcMapId(n) {
+  const wm = mapOfTile(n.x / TILE, n.y / TILE);
+  return wm ? wm.id : 1;
+}
+function elderOf(mapId) {
+  return game.world.npcs.find((n) => n.id === 'aeltester' && npcMapId(n) === mapId) || null;
+}
+// Wo ein Hauptauftrag angenommen und abgegeben wird: beim Ältesten seiner Map; ein Reiseauftrag endet beim Ziel
+function questGiverMap(main, q) {
+  return main.goal.type === 'talk' && q.accepted ? main.goal.map : main.map;
+}
+function mapName(id) {
+  return (WORLD_MAPS.find((m) => m.id === id) || WORLD_MAPS[0]).name;
+}
+function elderPlace(mapId) {
+  const n = elderOf(mapId);
+  return `${n ? n.name : 'dem Ältesten'} (${mapName(mapId)})`;
 }
 
 // Nebenaufgaben der Wanderer: Zustand je Wanderer (open, active), Fortschritt und wie oft schon erledigt
@@ -61,10 +93,23 @@ function stoneWhere(level) {
   return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
 }
 function goalWhere(goal) {
+  if (goal.type === 'talk') return mapName(goal.map);
+  if (goal.type === 'raids') return 'die Endboss-Hallen aller Maps';
   return goal.type === 'kill' ? monsterWhere(goal.monster) : stoneWhere(goal.level);
 }
 
+// Nächster noch nicht besiegter Endboss für das Finale
+function nextRaidBoss() {
+  const done = questState().raidsDone || [];
+  return RAID_BOSSES.find((id) => !done.includes(id)) || null;
+}
+
 function goalText(goal) {
+  if (goal.type === 'talk') return `Sprich mit ${elderPlace(goal.map)}`;
+  if (goal.type === 'raids') {
+    const next = nextRaidBoss();
+    return `Alle ${goal.count} Endbosse besiegen${next ? ` · als Nächstes ${MONSTER_TYPES[next].name}` : ''}`;
+  }
   if (goal.type === 'kill') return `${goal.count} × ${MONSTER_TYPES[goal.monster].name} besiegen`;
   return `${goal.count} × ${stoneType(goal.level).name} (Stufe ${goal.level}) zerstören`;
 }
@@ -76,11 +121,21 @@ function questEvent(kind, m) {
   const main = currentMainQuest();
   const matches = (goal) => (kind === 'kill' && goal.type === 'kill' && goal.monster === m.typeId)
     || (kind === 'stone' && goal.type === 'stone' && goal.level === m.level);
+  // Finale: jeder Endboss zählt einmal
+  if (main && q.accepted && main.goal.type === 'raids' && kind === 'kill' && m.type && m.type.raidBoss) {
+    q.raidsDone = q.raidsDone || [];
+    if (!q.raidsDone.includes(m.typeId)) {
+      q.raidsDone.push(m.typeId);
+      q.progress = q.raidsDone.length;
+      ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
+      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Vlotho zurück.', 'level');
+    }
+  }
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
     q.progress++;
     if (goalDone(main.goal, q.progress)) {
-      ui.banner('Auftrag erfüllt', `${main.title}: Kehre zu einem Ältesten zurück`);
-      ui.log(`Auftrag „${main.title}“ erfüllt. Hol dir deine Belohnung bei Bao in Vlotho oder beim Ältesten in jedem Lager.`, 'level');
+      ui.banner('Auftrag erfüllt', `${main.title}: Kehre zu ${elderPlace(main.map)} zurück`);
+      ui.log(`Auftrag „${main.title}“ erfüllt. Hol dir deine Belohnung bei ${elderPlace(main.map)}.`, 'level');
     }
   }
   const st = q.stable;
@@ -124,8 +179,10 @@ function questMarker(npcId, n) {
   if (npcId === 'aeltester') {
     const main = currentMainQuest();
     if (!main) return false;
+    // nur der Älteste, bei dem es gerade weitergeht (seit 11.2)
+    if (n && npcMapId(n) !== questGiverMap(main, q)) return false;
     if (!q.accepted) return game.player.level >= main.level && 'main';
-    return goalDone(main.goal, q.progress) && 'main';
+    return (main.goal.type === 'talk' || goalDone(main.goal, q.progress)) && 'main';
   }
   if (npcId === 'stallmeister') {
     const st = q.stable;
@@ -376,7 +433,11 @@ Object.assign(ui, {
         (done ? '' : `<span class="ql-where">📍 ${where}</span>`) + (on ? `<span class="ql-nav" id="qlNav">${guideText()}</span>` : '') + `</li>`);
     };
     // Hauptmissionen golden, Nebenmissionen grün
-    if (main && q.accepted) row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal), '', 'main');
+    if (main && q.accepted) {
+      // Reiseauftrag: erfüllt, sobald du mit dem Ältesten dort sprichst
+      if (main.goal.type === 'talk') row('main', main.title, goalText(main.goal), 0, 1, `${mapName(main.goal.map)} · über das Weltentor`, '', 'main');
+      else row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal), '', 'main');
+    }
     const st = q.stable;
     if (st.state === 'active' || st.state === 'done') {
       const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
@@ -404,37 +465,74 @@ Object.assign(ui, {
     }
   },
 
-  renderElder() {
+  // Ältester (seit 11.2): vergibt die Aufträge seiner Map, nimmt sie ab und schickt am Ende eines Kapitels
+  // zum Ältesten der nächsten Map. Dort ist der Reiseauftrag erfüllt, sobald man ihn anspricht.
+  renderElder(npc) {
     const p = game.player;
     const q = questState();
     const main = currentMainQuest();
     const body = $('npcBody');
+    const here = npc ? npcMapId(npc) : 1;
     if (!main) {
-      body.innerHTML = '<p>„Du hast alles getan, worum ich dich bitten konnte. Das ganze Land steht in deiner Schuld, Held.“</p>';
+      body.innerHTML = '<p>„Du hast alles getan, worum wir dich bitten konnten. Alle neun Endbosse sind gefallen, die Steine schweigen. Die ganze Welt steht in deiner Schuld, Held.“</p>';
       return;
     }
-    const xp = questXp(main.level);
+    // angekommen: Reiseauftrag beim Ältesten der Ziel-Map erfüllen und gleich den ersten Auftrag hier zeigen
+    if (q.accepted && main.goal.type === 'talk' && main.goal.map === here) {
+      giveReward(main.reward, questXp(main.level, QUEST_XP.talk));
+      q.main++;
+      q.accepted = false;
+      q.progress = 0;
+      const next = MAIN_QUESTS[q.main];
+      ui.banner(next ? next.chapterTitle : 'Angekommen', npc ? npc.name : '');
+      saveGame();
+      this.renderQuestTrack();
+      this.renderElder(npc);
+      return;
+    }
+    const giver = questGiverMap(main, q);
+    if (giver !== here) {
+      // nicht der richtige Älteste: sagen, wo es weitergeht
+      const chapter = MAIN_QUESTS.filter((m) => m.map === here);
+      const doneHere = chapter.length && MAIN_QUESTS.indexOf(chapter[chapter.length - 1]) < q.main;
+      body.innerHTML = `<p>„${doneHere ? 'Was du hier für uns getan hast, vergessen wir nie.' : 'Für meine Aufträge ist es noch zu früh.'} ` +
+        `Dein Weg führt dich jetzt zu ${elderPlace(giver)}. Das Weltentor bringt dich hin.“</p>` +
+        `<p class="quest-step">${main.chapterTitle} · ${main.title}</p>` +
+        (q.accepted ? `<p><strong>Ziel:</strong> ${goalText(main.goal)}</p>` : '');
+      return;
+    }
+    const xp = questXp(main.level, QUEST_XP[main.goal.type] || 0.25);
+    const inChapter = MAIN_QUESTS.filter((m) => m.chapter === main.chapter);
+    const step = inChapter.indexOf(main) + 1;
     let action;
     if (!q.accepted) {
       action = p.level >= main.level
-        ? '<button type="button" class="btn btn-primary" data-quest="accept">Auftrag annehmen</button>'
+        ? `<button type="button" class="btn btn-primary" data-quest="accept">${main.goal.type === 'talk' ? 'Aufbrechen' : 'Auftrag annehmen'}</button>`
         : `<p class="hint-text">Komm wieder, wenn du Stufe ${main.level} erreicht hast.</p>`;
+    } else if (main.goal.type === 'talk') {
+      action = `<p class="hint-text">Reise durch das Weltentor nach ${mapName(main.goal.map)} und sprich dort mit ${elderPlace(main.goal.map)}.</p>`;
     } else if (goalDone(main.goal, q.progress)) {
       action = '<button type="button" class="btn btn-primary" data-quest="reward">Belohnung abholen</button>';
     } else {
       action = `<p class="hint-text">Fortschritt: ${q.progress} / ${main.goal.count}</p>`;
     }
+    const bosses = main.goal.type === 'raids'
+      ? '<ul class="reward-list">' + RAID_BOSSES.map((id) => `<li>${(q.raidsDone || []).includes(id) ? '✔' : '✘'} ${MONSTER_TYPES[id].name} <small>(Stufe ${MONSTER_TYPES[id].level} · ${monsterWhere(id)})</small></li>`).join('') + '</ul>'
+      : '';
+    const where = main.goal.type === 'kill' || main.goal.type === 'stone' ? ` <small>📍 ${goalWhere(main.goal)}</small>` : '';
     body.innerHTML =
-      `<p class="quest-step">Auftrag ${q.main + 1} von ${MAIN_QUESTS.length} · ab Stufe ${main.level}</p>` +
+      `<p class="quest-step">${main.chapterTitle} · Auftrag ${step} von ${inChapter.length} · ab Stufe ${main.level}</p>` +
       `<h3>${main.title}</h3><p>„${main.text}“</p>` +
-      `<p><strong>Ziel:</strong> ${goalText(main.goal)}</p>` +
+      `<p><strong>Ziel:</strong> ${goalText(main.goal)}${where}</p>` + bosses +
       `<p><strong>Belohnung:</strong></p>${rewardHtml(main.reward, xp)}${action}`;
     const btn = body.querySelector('[data-quest]');
     if (btn) btn.addEventListener('click', () => {
+      const travel = main.goal.type === 'talk';
       if (btn.dataset.quest === 'accept') {
         q.accepted = true;
-        q.progress = 0;
+        q.progress = main.goal.type === 'raids' ? (q.raidsDone || []).length : 0;
         ui.log(`Neuer Auftrag: ${main.title}. ${goalText(main.goal)}.`, 'info');
+        if (travel) ui.banner(main.title, `Weiter nach ${mapName(main.goal.map)}`);
       } else {
         giveReward(main.reward, xp);
         q.main++;
@@ -444,7 +542,8 @@ Object.assign(ui, {
       }
       saveGame();
       this.renderQuestTrack();
-      this.renderElder();
+      if (travel && btn.dataset.quest === 'accept') ui.closePanels();
+      else this.renderElder(npc);
     });
   },
 
