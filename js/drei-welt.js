@@ -1793,7 +1793,7 @@ function* objectJob(cx, cy) {
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
     if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
     const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' ? 0 : 0.25;
-    bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back));
+    bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back, pr.rot || 0));
   }
   const group = new THREE.Group();
   for (const key of ['lit', 'detail', 'glow', 'glowWin', 'grass', 'aura']) {
@@ -1852,14 +1852,14 @@ function v3CollectLights() {
   for (const pr of w.props) {
     const x = pr.x * U3;
     const z = pr.y * U3 - 0.25;
-    if (pr.type === 'lantern') lightSpots3.push({ x, y: 1.0, z, color: '#ffb860', power: 1.1, range: 6.5, flicker: 2 });
-    if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: x - 0.65, y: 1.0, z: pr.y * U3 - 0.1, color: '#ff8a3a', power: 1.6, range: 6, flicker: 7 });
-    if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.8, range: 9, flicker: 9 });
+    if (pr.type === 'lantern') lightSpots3.push({ x, y: 1.0, z, color: '#ffb860', power: 0.6, range: 5, flicker: 2 });
+    if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: pr.x * U3 + Math.cos(pr.rot || 0) * -0.65, y: 1.0, z: pr.y * U3 + Math.sin(pr.rot || 0) * 0.65, color: '#ff8a3a', power: 0.8, range: 4.5, flicker: 7 });
+    if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.0, range: 6.5, flicker: 9 });
   }
   for (const n of w.npcs) {
-    if (n.id === 'weltentor') lightSpots3.push({ x: n.x * U3, y: 1.2, z: n.y * U3, color: '#7ab8ff', power: 1.4, range: 7 });
+    if (n.id === 'weltentor') lightSpots3.push({ x: n.x * U3, y: 1.2, z: n.y * U3, color: '#7ab8ff', power: 0.55, range: 4.5 });
     // Dungeon-Tor: Licht vor dem Wirbel (beleuchtet Podest und Stufen, ohne die Steine weiß zu waschen)
-    if (n.id === 'eingang') lightSpots3.push({ x: n.x * U3, y: 1.3, z: n.y * U3 + 1.4, color: DUNGEONS[n.dungeon].portal, power: 1.0, range: 7 });
-    if (n.id === 'ausgang') lightSpots3.push({ x: n.x * U3, y: 1.0, z: n.y * U3, color: DUNGEONS[n.dungeon].portal, power: 1.4, range: 7 });
+    if (n.id === 'eingang') lightSpots3.push({ x: n.x * U3, y: 1.3, z: n.y * U3 + 1.4, color: DUNGEONS[n.dungeon].portal, power: 0.6, range: 5.5 });
+    if (n.id === 'ausgang') lightSpots3.push({ x: n.x * U3, y: 1.0, z: n.y * U3, color: DUNGEONS[n.dungeon].portal, power: 0.7, range: 5 });
   }
 }

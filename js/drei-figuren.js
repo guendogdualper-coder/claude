@@ -2861,7 +2861,7 @@ const RIFT_LOOK = {
   schlangentempel: { stone: '#4a7a6a', top: '#7aa894', accent: '#7ad8c8', deep: '#08302a', mid: '#7ad8c8', core: '#eafff8', motes: 'firefly', spin: 1, deco: 'snake', emblem: 'snake', trim: '#c9a35a' },
   titanenschmiede: { stone: '#54504c', top: '#726a62', accent: '#ffb04a', deep: '#3a1a00', mid: '#ffb04a', core: '#fff2c0', motes: 'ember', spin: 1.1, deco: 'forge', emblem: 'anvil' }
 };
-const WELTTOR_LOOK = { id: 'weltentor', stone: '#8a8478', top: '#b0a898', accent: '#7ab8ff', deep: '#0e2a52', mid: '#7ab8ff', core: '#e8f6ff', motes: 'wisp', spin: 0.8 };
+const WELTTOR_LOOK = { haloK: 0.5, id: 'weltentor', stone: '#8a8478', top: '#b0a898', accent: '#7ab8ff', deep: '#0e2a52', mid: '#7ab8ff', core: '#e8f6ff', motes: 'wisp', spin: 0.8 };
 for (const id in RIFT_LOOK) RIFT_LOOK[id].id = id;
 
 // Aussehen eines Dungeons; Endboss-Tore und unbekannte Dungeons leiten es aus der Portalfarbe ab
@@ -3043,8 +3043,10 @@ function portalExtras(a, B, L, o) {
     a.extras.push(obj);
     return obj;
   };
-  if (o.halo) a.halo = put(new THREE.Mesh(portalPlane3(), portalGlowMat('halo', 'disc', L.mid, 0.34)), o.halo, 1);
-  if (o.pool) put(new THREE.Mesh(portalFloor3(), portalGlowMat('pool', 'disc', L.mid, o.pool.op || 0.3)), o.pool, 1);
+  // haloK (seit 12.2): Weltentore leuchten schwächer, sonst überstrahlten sie den Platz
+  a.haloK = L.haloK || 1;
+  if (o.halo) a.halo = put(new THREE.Mesh(portalPlane3(), portalGlowMat('halo' + (L.haloK ? 'k' : ''), 'disc', L.mid, 0.34 * a.haloK)), o.halo, 1);
+  if (o.pool) put(new THREE.Mesh(portalFloor3(), portalGlowMat('pool' + (L.haloK ? 'k' : ''), 'disc', L.mid, (o.pool.op || 0.3) * a.haloK)), o.pool, 1);
   if (o.rune) a.rune = put(new THREE.Mesh(portalFloor3(), portalGlowMat('rune', 'rune', L.accent, o.rune.op || 0.32)), o.rune, 1);
   if (o.beam) {
     a.beam = put(new THREE.Mesh(geo3('pbeam', () => new THREE.CylinderGeometry(1, 1.1, 1, 20, 1, true).translate(0, 0.5, 0)), portalGlowMat('beam', 'beam', L.mid, 0.4)), o.beam, 3);
@@ -3067,7 +3069,7 @@ function portalTick(a, t) {
   MOTE_SIZE3.value = renderer.h * V3.gl.getPixelRatio() * 0.035;
   const on = a.alpha == null || a.alpha >= 1;
   if (a.rune) a.rune.rotation.y = t * 0.3;
-  if (a.halo) a.halo.material.opacity = 0.3 + 0.08 * Math.sin(t * 2.5);
+  if (a.halo) a.halo.material.opacity = (0.3 + 0.08 * Math.sin(t * 2.5)) * (a.haloK || 1);
   if (a.motes) a.motes.visible = on && opts.graphics !== 'niedrig';
   if (a.vortexBack) a.vortexBack.visible = on && (opts.graphics === 'hoch' || opts.graphics === 'ultra');
 }
@@ -5008,7 +5010,7 @@ function syncNpc3(n, dt) {
       placeActor(a, n, feetY(n));
       // Händler schauen zum Spieler, wenn er nah ist
       const p = game.player;
-      let want = 0;
+      let want = n.restYaw || 0;
       if (p && Math.hypot(p.x - n.x, p.y - n.y) < 140) want = Math.atan2(p.x - n.x, p.y - n.y);
       turnToward(a, want, Math.min(1, dt * 4));
       a.group.rotation.y = a.heading;
