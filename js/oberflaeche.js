@@ -57,10 +57,13 @@ const ui = {
     this.initBattery();
     this.initTips();
     // Am PC (seit 10.9): Eingabe unten im Chatfenster statt oben in der Mitte; offen wird der Chat groß und scrollbar
-    if (IS_PC) {
-      $('chatBox').classList.add('pc');
-      $('chatBox').append($('chatBar'));
-      $('chatBar').classList.add('in-box');
+    // Am Handy (seit 12.3) genauso: offen groß, mit dem Finger nach oben scrollbar, Eingabe unten links im Fenster
+    $('chatBox').classList.add(IS_PC ? 'pc' : 'mob');
+    $('chatBox').append($('chatBar'));
+    $('chatBar').classList.add('in-box');
+    if (!IS_PC && window.visualViewport) {
+      window.visualViewport.addEventListener('resize', () => this.placeChat());
+      window.visualViewport.addEventListener('scroll', () => this.placeChat());
     }
     $('chatClose').addEventListener('click', () => this.closeChat());
     $('chatInput').addEventListener('keydown', (e) => {
@@ -822,19 +825,17 @@ const ui = {
 
   openChat() {
     const online = netOnline();
-    // am Handy nur im Kanal; am PC lässt sich der Verlauf auch ohne Kanal lesen
-    if (!online && !IS_PC) return;
     $('chatBar').hidden = false;
     const inp = $('chatInput');
     inp.disabled = !online;
-    if (!online) inp.placeholder = 'Chat gibt es im Kanal – Server wählen (N). Esc schließt.';
+    if (!online) inp.placeholder = IS_PC ? 'Chat gibt es im Kanal – Server wählen (N). Esc schließt.' : 'Chat gibt es im Kanal – Server wählen.';
     else this.setChatChan(this.chatChan);
-    if (IS_PC) {
-      $('chatBox').classList.add('open');
-      this.chatOpen = true;
-      this.renderChat(true);
-    }
-    if (online) inp.focus();
+    $('chatBox').classList.add('open');
+    this.chatOpen = true;
+    this.renderChat(true);
+    // am Handy erst lesen und scrollen; die Tastatur kommt beim Antippen des Eingabefelds
+    if (online && IS_PC) inp.focus();
+    this.placeChat();
   },
 
   closeChat() {
@@ -845,6 +846,23 @@ const ui = {
       $('chatBox').classList.remove('open');
       this.renderChat(true);
     }
+    this.placeChat();
+  },
+
+  // Handy: offener Chat sitzt über der Tastatur (die Tastatur verdeckt sonst die Eingabe unten)
+  placeChat() {
+    if (IS_PC) return;
+    const box = $('chatBox');
+    const vv = window.visualViewport;
+    if (!this.chatOpen || !vv) {
+      box.style.bottom = '';
+      box.style.maxHeight = '';
+      return;
+    }
+    const kb = Math.max(0, window.innerHeight - (vv.height + vv.offsetTop));
+    box.style.bottom = kb > 60 ? kb + 6 + 'px' : '';
+    box.style.maxHeight = kb > 60 ? Math.max(90, vv.height - 12) + 'px' : '';
+    if (kb > 60) $('chatLog').scrollTop = $('chatLog').scrollHeight;
   },
 
   // Kleiner Chat unten links: die letzten Nachrichten bleiben stehen, die neueste unten.

@@ -2853,3 +2853,24 @@ body.aiming canvas { cursor: crosshair; }
 /* Überblendung nach einem Sprung (seit 11.3): dunkel statt heller Himmel oder weißer Blitz */
 #warpFade { position: fixed; inset: 0; pointer-events: none; opacity: 0;
   background: radial-gradient(circle at 50% 55%, #1a2438 0%, #0a0e18 75%); }
+
+/* Chat am Handy (seit 12.3): offen größer, Verlauf mit dem Finger scrollbar, Eingabe unten im Fenster */
+#hud.touch #chatBox.mob.open {
+  width: min(430px, 54vw); height: min(260px, 64vh); padding: 4px 6px 44px; z-index: 30; opacity: 1; pointer-events: auto;
+  background: linear-gradient(rgba(14, 10, 7, 0.82), rgba(14, 10, 7, 0.92)); border-color: var(--brass);
+}
+#hud.touch #chatBox.mob.open .chat-log {
+  display: block; overflow-y: auto; pointer-events: auto; touch-action: pan-y; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; padding-right: 4px; scrollbar-width: thin; scrollbar-color: #c9a35a rgba(0, 0, 0, 0.3);
+}
+#hud.touch #chatBox.mob.open .chat-log p { font-size: 12.5px; margin: 0 0 2px; }
+#hud.touch #chatBox.mob.open .chat-tabs button { font-size: 11px; padding: 1px 8px; }
+#chatBox.mob.open .chat-open { display: none; }
+#chatBox.mob .chat-bar.in-box {
+  position: absolute; top: auto; left: 5px; right: 5px; bottom: 5px; width: auto; transform: none; z-index: 2;
+  padding: 4px; gap: 4px; flex-wrap: nowrap; align-items: center; pointer-events: auto; border-radius: 8px;
+}
+#chatBox.mob .chat-bar.in-box .chat-chan { display: none; }
+#chatBox.mob .chat-bar.in-box input { flex: 1; min-width: 0; padding: 5px 8px; font-size: 16px; }
+#chatBox.mob .chat-bar.in-box input:disabled { opacity: 0.7; font-size: 13px; }
+#chatBox.mob .chat-bar.in-box .btn { padding: 5px 9px; font-size: 13px; }

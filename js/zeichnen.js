@@ -46,6 +46,9 @@ function viewSize() {
 function checkViewSize() {
   const r = renderer;
   if (!r.canvas) return;
+  // während der Eingabe (Chat) nichts verschieben: die Tastatur verkleinert das Bild nur vorübergehend
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
   if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
   const { w, h } = viewSize();
   // feste Höhe nur, wenn iOS zu wenig meldet; sonst bestimmt wieder das Fenster die Höhe
