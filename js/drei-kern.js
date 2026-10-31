@@ -1322,7 +1322,7 @@ const CASTER3 = {
   [OBJ.TREE]: [1.9, 1.05, 0.42], [OBJ.BLOSSOM]: [1.9, 1.05, 0.4], [OBJ.PINE]: [1.6, 0.9, 0.45],
   [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
 };
-const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25] };
+const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25] };
 // Schmuck ohne Kollision (seit 7.9): kleiner Schatten und dunkler Fuß, wie bei Bäumen und Felsen
 // (seit 8.4 auf die echten Größen der neuen Modelle abgestimmt)
 const DECO_CASTER3 = {

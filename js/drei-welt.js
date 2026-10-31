@@ -200,8 +200,341 @@ const WORLD3 = {
   }
 };
 
+// --- Stände der Stadtleute (seit 12.0) -------------------------------------------------------------
+// Jede Rolle hat einen eigenen Stand hinter sich (Vorderseite nach Süden, zur Kamera; die Person steht davor).
+// Grundmaß: 2,2 breit, 1,1 tief. Gebaut aus Holzpodest, Pfosten, Tresen und gestreiftem Vordach; darauf die
+// Waren, an denen man die Rolle erkennt (Tränke, Waffenständer, Rüstungspuppen, Esse, Regale mit Kisten …).
+const ST3 = { wood: '#8a6440', woodD: '#5a3a22', woodL: '#b08c5c', iron: '#4e535c', steel: '#a4adb8', gold: '#d8b060', paper: '#efe4c4' };
+function stAwning3(b, M, w, d, y, c1, c2) {
+  const n = 7;
+  const tilt = 0.24;
+  for (let k = 0; k < n; k++) {
+    const x = -w / 2 + ((k + 0.5) * w) / n;
+    const c = k % 2 ? c1 : c2;
+    b.add(tinyBox(w / n + 0.005, 0.05, d), c, { parent: M, p: [x, y, 0], r: [tilt, 0, 0], shade: 0.15 });
+    // Zacken an der Vorderkante
+    b.add(horn3(0.16, (w / n) * 0.55, 4), c, { parent: M, p: [x, y - Math.sin(tilt) * d * 0.5 + 0.01, Math.cos(tilt) * d * 0.5], r: [Math.PI, Math.PI / 4, 0], s: [1, 1, 0.25] });
+  }
+  b.add(wbox(w + 0.06, 0.07, 0.07, 0.03), ST3.woodD, { parent: M, p: [0, y + Math.sin(tilt) * d * 0.5 + 0.02, -Math.cos(tilt) * d * 0.5] });
+}
+function stFrame3(b, M, o = {}) {
+  const w = o.w || 2.2;
+  b.add(wbox(w + 0.24, 0.08, 1.15, 0.03), '#7a5a3a', { parent: M, p: [0, 0.04, 0], shade: 0.2, top: '#8e6a46', topK: 0.5 });
+  for (const sx of [-1, 1]) {
+    b.add(wbox(0.1, 2.05, 0.1, 0.03), ST3.woodD, { parent: M, p: [sx * (w / 2 - 0.02), 1.02, -0.47] });
+    b.add(wbox(0.09, 1.72, 0.09, 0.03), ST3.woodD, { parent: M, p: [sx * (w / 2 - 0.02), 0.86, 0.46] });
+  }
+  if (o.awning) stAwning3(b, M, w + 0.3, 1.25, 1.84, o.awning[0], o.awning[1]);
+  if (o.counter !== false) {
+    b.add(wbox(w - 0.12, 0.68, 0.44, 0.04), ST3.wood, { parent: M, p: [0, 0.38, 0.28], shade: 0.25 });
+    b.add(wbox(w + 0.02, 0.06, 0.52, 0.02), ST3.woodL, { parent: M, p: [0, 0.74, 0.28] });
+    if (o.cloth) {
+      b.add(wbox(w - 0.3, 0.34, 0.03, 0.01), o.cloth, { parent: M, p: [0, 0.52, 0.515] });
+      b.add(tinyBox(w - 0.3, 0.04, 0.035), ST3.gold, { parent: M, p: [0, 0.36, 0.52] });
+    }
+  }
+  // Schild über dem Stand mit dem Zeichen der Rolle
+  if (o.sign) {
+    b.add(wbox(0.56, 0.4, 0.05, 0.02), '#3a2618', { parent: M, p: [0, 2.1, -0.47] });
+    b.add(wbox(0.48, 0.32, 0.03, 0.015), o.sign, { parent: M, p: [0, 2.1, -0.44] });
+  }
+}
+// Regal an der Rückwand: n Böden ab y0 im Abstand dy
+function stShelf3(b, M, w, n, y0, dy, z = -0.36) {
+  for (const sx of [-1, 1]) b.add(wbox(0.06, y0 + dy * (n - 1) + 0.12, 0.3, 0.02), ST3.woodD, { parent: M, p: [sx * w / 2, (y0 + dy * (n - 1) + 0.12) / 2, z] });
+  for (let k = 0; k < n; k++) b.add(wbox(w, 0.04, 0.3, 0.015), ST3.woodL, { parent: M, p: [0, y0 + k * dy, z] });
+  b.add(tinyBox(w, y0 + dy * (n - 1), 0.03), darker(ST3.wood, 0.25), { parent: M, p: [0, (y0 + dy * (n - 1)) / 2 + 0.05, z - 0.15] });
+}
+function stFlask3(b, M, x, y, z, s, c) {
+  b.add(sphere3(0.07 * s, 10, 8), c, { parent: M, p: [x, y + 0.07 * s, z], shine: 1, top: lighter(c, 0.35), topK: 0.5 });
+  b.add(cyl3(0.022 * s, 0.03 * s, 0.07 * s, 8), '#dfeef4', { parent: M, p: [x, y + 0.165 * s, z], shine: 1 });
+  b.add(cyl3(0.028 * s, 0.026 * s, 0.035 * s, 8), '#8a5a34', { parent: M, p: [x, y + 0.215 * s, z] });
+  b.add(sphere3(0.018 * s, 6, 4), '#ffffff', { parent: M, p: [x - 0.03 * s, y + 0.1 * s, z + 0.055 * s], mat: 'glow' });
+}
+function stSword3(b, M, x, y, z, len, rz = 0, blade = ST3.steel) {
+  const R = [0, 0, rz];
+  const at = (d) => [x - Math.sin(rz) * d, y + Math.cos(rz) * d, z];
+  b.add(wbox(0.06, len, 0.015, 0.006), blade, { parent: M, p: at(len / 2), r: R, shine: 1 });
+  b.add(wbox(0.2, 0.035, 0.04, 0.012), ST3.gold, { parent: M, p: at(-0.01), r: R, shine: 0.8 });
+  b.add(wbox(0.035, 0.16, 0.035, 0.012), '#4a2e1a', { parent: M, p: at(-0.1), r: R });
+  b.add(sphere3(0.03, 6, 5), ST3.gold, { parent: M, p: at(-0.19), shine: 0.8 });
+}
+function stAxe3(b, M, x, y, z, rz = 0) {
+  const at = (d) => [x - Math.sin(rz) * d, y + Math.cos(rz) * d, z];
+  b.add(limb3(0.78, 0.022, 0.022, 6), '#6b4a2e', { parent: M, p: at(0.78), r: [0, 0, rz] });
+  b.add(cap3(0.16, 1.3, 0, Math.PI, 8, 4), ST3.steel, { parent: M, p: at(0.66), r: [Math.PI / 2, 0, rz - Math.PI / 2], s: [1, 0.25, 1], shine: 1 });
+}
+function stShield3(b, M, x, y, z, r, c, boss = ST3.gold) {
+  b.add(cyl3(r, r, 0.05, 16), c, { parent: M, p: [x, y, z], r: [Math.PI / 2, 0, 0], shade: 0.2 });
+  b.add(torus3(r, 0.025, Math.PI * 2, 4, 18), ST3.iron, { parent: M, p: [x, y, z + 0.02], shine: 0.8 });
+  b.add(sphere3(r * 0.25, 8, 6), boss, { parent: M, p: [x, y, z + 0.03], s: [1, 1, 0.6], shine: 1 });
+}
+// Rüstungspuppe: Pfahl, Kreuz, Brustpanzer, Schulterstücke, Helm mit Busch
+function stDummy3(b, M, x, z, c, helm, plume) {
+  b.add(cyl3(0.16, 0.18, 0.06, 12), ST3.woodD, { parent: M, p: [x, 0.11, z] });
+  b.add(limb3(1.25, 0.03, 0.03, 6), ST3.woodD, { parent: M, p: [x, 1.38, z] });
+  b.add(ball(14), c, { parent: M, p: [x, 1.02, z], s: [0.21, 0.3, 0.14], shine: 0.9, shade: 0.25, top: lighter(c, 0.25), topK: 0.5 });
+  b.add(cyl3(0.2, 0.24, 0.16, 12), darker(c, 0.15), { parent: M, p: [x, 0.72, z], shine: 0.7 });
+  b.add(tinyBox(0.42, 0.04, 0.29), ST3.gold, { parent: M, p: [x, 0.8, z] });
+  for (const sx of [-1, 1]) b.add(cap3(0.12, 1.4, 0, Math.PI * 2, 10, 4), c, { parent: M, p: [x + sx * 0.22, 1.2, z], r: [0, 0, -sx * 0.5], shine: 0.9 });
+  b.add(cap3(0.13, 1.6, 0, Math.PI * 2, 12, 5), helm, { parent: M, p: [x, 1.42, z], shine: 1, top: lighter(helm, 0.25), topK: 0.5 });
+  b.add(wbox(0.18, 0.03, 0.05, 0.012), '#1a1410', { parent: M, p: [x, 1.45, z + 0.12] });
+  if (plume) b.add(horn3(0.24, 0.05, 6), plume, { parent: M, p: [x, 1.53, z - 0.03], r: [-0.6, 0, 0] });
+}
+function stCrate3(b, M, x, y, z, s, c = '#a07a4a', ry = 0) {
+  b.add(wbox(s, s * 0.9, s, 0.03), c, { parent: M, p: [x, y + s * 0.45, z], r: [0, ry, 0], shade: 0.2 });
+  for (const dy of [0.15, 0.75]) b.add(tinyBox(s + 0.01, 0.035, s + 0.01), '#5a3f26', { parent: M, p: [x, y + s * 0.9 * dy, z], r: [0, ry, 0] });
+}
+function stBarrel3(b, M, x, z, s = 1, c = '#8a5a34') {
+  b.add(lathe3('barrel', [[0, 0], [0.2, 0], [0.24, 0.12], [0.26, 0.27], [0.24, 0.42], [0.2, 0.54], [0, 0.54]], 14), c, { parent: M, p: [x, 0.08, z], s: [s, s, s], shade: 0.25 });
+  for (const y of [0.12, 0.42]) b.add(torus3(0.245, 0.018, Math.PI * 2, 4, 14), '#3a2a1c', { parent: M, p: [x, 0.08 + y * s, z], r: [Math.PI / 2, 0, 0], s: [s, s, s] });
+}
+function stSack3(b, M, x, z, s = 1, c = '#c8b088') {
+  b.add(ball(10), c, { parent: M, p: [x, 0.08 + 0.17 * s, z], s: [0.2 * s, 0.19 * s, 0.17 * s], shade: 0.25 });
+  b.add(horn3(0.1 * s, 0.07 * s, 6), c, { parent: M, p: [x, 0.08 + 0.33 * s, z] });
+  b.add(torus3(0.05 * s, 0.012, Math.PI * 2, 3, 8), '#6b4a2e', { parent: M, p: [x, 0.08 + 0.36 * s, z], r: [Math.PI / 2, 0, 0] });
+}
+function stBook3(b, M, x, y, z, c, h = 0.22, tilt = 0) {
+  b.add(wbox(0.05, h, 0.17, 0.008), c, { parent: M, p: [x, y + h / 2, z], r: [0, 0, tilt] });
+  b.add(tinyBox(0.052, 0.02, 0.172), ST3.gold, { parent: M, p: [x, y + h * 0.8, z], r: [0, 0, tilt] });
+}
+
+const STAND3 = {
+  // Händlerin: Tränke in vier Größen auf dem Tresen und im Regal, rot (Leben) und blau (Mana)
+  haendler(b, M) {
+    stFrame3(b, M, { awning: ['#6d3f7d', '#f0dca0'], cloth: '#6d3f7d', sign: '#e8c46a' });
+    stShelf3(b, M, 1.9, 3, 0.62, 0.42);
+    const sizes = [0.8, 0.95, 1.1, 1.3];
+    for (let k = 0; k < 8; k++) stFlask3(b, M, -0.84 + k * 0.24, 0.77, 0.36 + (k % 2) * 0.06, sizes[k % 4], k < 4 ? '#d83a3a' : '#3a6ad8');
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 7; k++) {
+      stFlask3(b, M, -0.78 + k * 0.26, 0.64 + row * 0.42, -0.34, 0.7 + (row % 2) * 0.2, ['#d83a3a', '#3a6ad8', '#e0a040'][(k + row) % 3]);
+    }
+    stFlask3(b, M, 0, 2.02, -0.4, 1.5, '#d83a3a');
+    stCrate3(b, M, 1.25, 0.08, 0.15, 0.38, '#a07a4a', 0.3);
+    for (let k = 0; k < 3; k++) stFlask3(b, M, 1.17 + k * 0.08, 0.43, 0.12 + (k % 2) * 0.08, 0.7, '#3a6ad8');
+  },
+  // Alchemist: brodelnder Kessel, Kräuterbündel unter dem Dach, Gläser, Mörser
+  alchemist(b, M) {
+    stFrame3(b, M, { awning: ['#3a6a4a', '#d8e8c0'], cloth: '#3a6a4a', sign: '#9fe08f' });
+    stShelf3(b, M, 1.0, 3, 0.62, 0.42, -0.36);
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) {
+      const c = ['#7ac85a', '#c8a03a', '#a05ad8', '#5ab8c8'][(k + row) % 4];
+      b.add(cyl3(0.07, 0.07, 0.18, 10), '#dfeef4', { parent: M, p: [-0.36 + k * 0.24, 0.73 + row * 0.42, -0.34], shine: 1 });
+      b.add(cyl3(0.06, 0.06, 0.12, 10), c, { parent: M, p: [-0.36 + k * 0.24, 0.7 + row * 0.42, -0.34], mat: 'glow' });
+      b.add(cyl3(0.075, 0.075, 0.03, 10), '#8a5a34', { parent: M, p: [-0.36 + k * 0.24, 0.835 + row * 0.42, -0.34] });
+    }
+    // Kessel neben dem Tresen auf glühenden Scheiten
+    const kx = 1.45, kz = 0.25;
+    for (let k = 0; k < 3; k++) b.add(limb3(0.5, 0.05, 0.05, 6), '#5a3a22', { parent: M, p: [kx + Math.cos(k * 2.1) * 0.25, 0.12, kz + Math.sin(k * 2.1) * 0.25], r: [Math.PI / 2, k * 2.1, 0] });
+    b.add(sphere3(0.16, 8, 6), '#ff7a2a', { parent: M, p: [kx, 0.12, kz], s: [1.4, 0.5, 1.4], mat: 'glow' });
+    b.add(cap3(0.32, 1.9, 0, Math.PI * 2, 14, 6), '#2e2a2a', { parent: M, p: [kx, 0.5, kz], r: [Math.PI, 0, 0], shine: 0.5 });
+    b.add(torus3(0.3, 0.035, Math.PI * 2, 5, 18), '#3a3434', { parent: M, p: [kx, 0.5, kz], r: [Math.PI / 2, 0, 0], shine: 0.6 });
+    b.add(cyl3(0.28, 0.28, 0.02, 16), '#6aff6a', { parent: M, p: [kx, 0.47, kz], mat: 'glow' });
+    for (const [dx, dz, r] of [[0.08, 0.05, 0.06], [-0.1, -0.06, 0.045], [0.02, -0.12, 0.035]]) b.add(sphere3(r, 8, 6), '#c8ffb0', { parent: M, p: [kx + dx, 0.5, kz + dz], mat: 'glow' });
+    // Kräuterbündel und Mörser
+    for (let k = 0; k < 6; k++) b.add(horn3(0.3, 0.07, 6), k % 2 ? '#6a9a46' : '#8aa040', { parent: M, p: [-0.9 + k * 0.36, 1.68, -0.1], r: [Math.PI, 0, (k % 3 - 1) * 0.12] });
+    b.add(lathe3('mortar', [[0, 0], [0.11, 0], [0.13, 0.1], [0.12, 0.14], [0.09, 0.14], [0.06, 0.05], [0, 0.05]], 12), '#9a948a', { parent: M, p: [0.55, 0.77, 0.32], shade: 0.2 });
+    b.add(limb3(0.2, 0.025, 0.03, 6), '#7a746a', { parent: M, p: [0.58, 1.0, 0.32], r: [0, 0, 0.4] });
+    for (let k = 0; k < 3; k++) b.add(ball(8), ['#c84a6a', '#e0c040', '#6ac8e0'][k], { parent: M, p: [-0.6 + k * 0.22, 0.81, 0.36], s: [0.06, 0.04, 0.06] });
+  },
+  // Waffenhändler: Ständer mit Schwertern und Äxten, Speere im Fass, Schilde an der Rückwand
+  waffen(b, M) {
+    stFrame3(b, M, { awning: ['#9a2f2a', '#efe0b8'], counter: false, sign: '#c0c8d0' });
+    b.add(tinyBox(2.1, 1.5, 0.04), darker(ST3.wood, 0.2), { parent: M, p: [0, 0.85, -0.5] });
+    stShield3(b, M, -0.6, 1.35, -0.46, 0.26, '#9a2f2a');
+    stShield3(b, M, 0.6, 1.35, -0.46, 0.26, '#2f5a7a');
+    stShield3(b, M, 0, 1.45, -0.46, 0.2, '#c9a35a', ST3.steel);
+    // Ständer: zwei Böcke mit Querstange, Schwerter mit der Spitze nach oben
+    for (const sx of [-1, 1]) b.add(wbox(0.07, 0.95, 0.3, 0.02), ST3.woodD, { parent: M, p: [sx * 0.75, 0.55, 0.1] });
+    b.add(limb3(1.56, 0.03, 0.03, 6), ST3.woodD, { parent: M, p: [-0.78, 0.6, 0.1], r: [0, 0, Math.PI / 2] });
+    b.add(limb3(1.56, 0.03, 0.03, 6), ST3.woodD, { parent: M, p: [-0.78, 0.25, 0.1], r: [0, 0, Math.PI / 2] });
+    for (let k = 0; k < 5; k++) stSword3(b, M, -0.56 + k * 0.28, 0.42, 0.13, 0.6 + (k % 2) * 0.12, (k - 2) * 0.04, k === 2 ? '#d8c070' : ST3.steel);
+    stAxe3(b, M, -1.0, 0.1, 0.32, 0.2);
+    // Speere im Fass
+    stBarrel3(b, M, 1.32, 0.2, 0.85);
+    for (let k = 0; k < 4; k++) {
+      const a = k * 1.6;
+      b.add(limb3(1.3, 0.02, 0.02, 5), '#6b4a2e', { parent: M, p: [1.32 + Math.cos(a) * 0.08, 1.5, 0.2 + Math.sin(a) * 0.08], r: [Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12] });
+      b.add(horn3(0.18, 0.04, 6), ST3.steel, { parent: M, p: [1.32 + Math.cos(a) * 0.08 - Math.cos(a) * 0.12 * 0.15, 1.5, 0.2 + Math.sin(a) * 0.08], r: [Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12], shine: 1 });
+    }
+  },
+  // Rüstungshändler: drei Rüstungspuppen (Stahl, Bronze, Leder), Helme und Schilde
+  ruestung(b, M) {
+    stFrame3(b, M, { awning: ['#2f5a7a', '#efe0b8'], counter: false, sign: '#8a95a3' });
+    stDummy3(b, M, -0.7, -0.15, '#a4adb8', '#8a95a3', '#c8302a');
+    stDummy3(b, M, 0, -0.25, '#c9944a', '#b07a3a', '#2f5a7a');
+    stDummy3(b, M, 0.7, -0.15, '#7a5236', '#6a4a30', null);
+    // Tisch vorn rechts mit Helm und Stiefeln, Schild am Pfosten
+    b.add(wbox(0.5, 0.06, 0.36, 0.02), ST3.woodL, { parent: M, p: [1.25, 0.5, 0.3] });
+    for (const sx of [-1, 1]) b.add(wbox(0.05, 0.46, 0.3, 0.02), ST3.woodD, { parent: M, p: [1.25 + sx * 0.2, 0.27, 0.3] });
+    b.add(cap3(0.12, 1.6, 0, Math.PI * 2, 12, 5), '#a4adb8', { parent: M, p: [1.18, 0.53, 0.3], shine: 1 });
+    b.add(wbox(0.1, 0.12, 0.18, 0.03), '#6a4a30', { parent: M, p: [1.38, 0.6, 0.3] });
+    stShield3(b, M, -1.2, 0.55, 0.3, 0.24, '#2f5a7a');
+  },
+  // Schmied: gemauerte Esse mit Glut und Schornstein, Amboss, Löschfass, Werkzeug an der Wand
+  schmied(b, M) {
+    b.add(wbox(2.44, 0.08, 1.15, 0.03), '#6e685e', { parent: M, p: [0, 0.04, 0], shade: 0.2 });
+    // Esse links hinten
+    b.add(wbox(0.95, 0.75, 0.8, 0.06), '#7a746a', { parent: M, p: [-0.65, 0.42, -0.15], shade: 0.35, top: '#8a847a', topK: 0.5 });
+    b.add(wbox(0.7, 0.05, 0.55, 0.02), '#2a1a14', { parent: M, p: [-0.65, 0.8, -0.1] });
+    for (const [dx, dz] of [[-0.15, -0.05], [0.1, 0.05], [0.0, -0.18], [0.2, -0.12], [-0.2, 0.1]]) b.add(sphere3(0.08, 6, 4), '#ff6a1a', { parent: M, p: [-0.65 + dx, 0.83, -0.1 + dz], s: [1, 0.5, 1], mat: 'glow' });
+    b.add(sphere3(0.25, 8, 6), '#ffb040', { parent: M, p: [-0.65, 0.84, -0.1], s: [1.2, 0.25, 1], mat: 'glow' });
+    b.add(roundBox(0.85, 0.5, 0.65, 0.06), '#5a544c', { parent: M, p: [-0.65, 1.55, -0.2], shade: 0.3 });
+    b.add(wbox(0.4, 1.2, 0.4, 0.04), '#6e685e', { parent: M, p: [-0.65, 2.3, -0.25], shade: 0.3 });
+    // Dach über der Werkstatt
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.1, 1.95, 0.1, 0.03), ST3.woodD, { parent: M, p: [sx * 1.12, 0.98, sz * 0.47] });
+    b.add(roofGeo(2.7, 1.5, 0.5, 0.22), '#5a3a2e', { parent: M, p: [0.35, 1.95, 0], s: [0.7, 1, 1], shade: 0.2, top: lighter('#5a3a2e', 0.15), topK: 0.6 });
+    // Amboss auf dem Klotz, Hammer darauf
+    b.add(lathe3('stump', [[0.22, 0], [0.2, 0.25], [0, 0.26]], 12), '#6b4a2e', { parent: M, p: [0.45, 0.08, 0.2], s: [1.2, 1.5, 1.2], shade: 0.3 });
+    b.add(wbox(0.6, 0.16, 0.24, 0.04), '#4e535c', { parent: M, p: [0.45, 0.54, 0.2], shine: 0.8, top: '#7a808a', topK: 0.6 });
+    b.add(wbox(0.26, 0.14, 0.16, 0.03), '#40444c', { parent: M, p: [0.45, 0.42, 0.2] });
+    b.add(horn3(0.26, 0.08, 8), '#4e535c', { parent: M, p: [0.75, 0.54, 0.2], r: [0, 0, -Math.PI / 2], shine: 0.8 });
+    b.add(limb3(0.36, 0.02, 0.02, 5), '#6b4a2e', { parent: M, p: [0.3, 0.64, 0.12], r: [Math.PI / 2, 0.5, 0] });
+    b.add(wbox(0.1, 0.08, 0.16, 0.02), '#3a3e46', { parent: M, p: [0.36, 0.66, 0.06], r: [0, 0.5, 0] });
+    // Löschfass und Werkzeugbrett
+    stBarrel3(b, M, 1.0, -0.1, 0.9);
+    b.add(cyl3(0.2, 0.2, 0.02, 12), '#3a6a8a', { parent: M, p: [1.0, 0.56, -0.1], shine: 1 });
+    b.add(tinyBox(0.9, 0.7, 0.04), darker(ST3.wood, 0.2), { parent: M, p: [0.45, 1.25, -0.5] });
+    for (let k = 0; k < 4; k++) {
+      b.add(limb3(0.4, 0.018, 0.018, 5), '#6b4a2e', { parent: M, p: [0.15 + k * 0.2, 1.5, -0.46] });
+      b.add(wbox(0.12, 0.07, 0.07, 0.02), '#3a3e46', { parent: M, p: [0.15 + k * 0.2, 1.52, -0.46], r: [0, 0, k % 2 ? 0 : Math.PI / 2] });
+    }
+  },
+  // Lagerverwalter: Regale voller Kisten, Säcke und Fässer, Pult mit Buch und Tinte
+  lager(b, M) {
+    stFrame3(b, M, { awning: ['#7a5a3a', '#e0d0a8'], counter: false, sign: '#c9a35a' });
+    stShelf3(b, M, 2.0, 3, 0.1, 0.6, -0.3);
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) {
+      if ((row + k) % 3 === 2) stSack3(b, M, -0.72 + k * 0.48, -0.3, 0.9, '#c8b088');
+      else stCrate3(b, M, -0.72 + k * 0.48, 0.12 + row * 0.6 - (row ? 0 : 0.04), -0.3, 0.38 + ((k + row) % 2) * 0.05, ['#a07a4a', '#8a6a3a', '#b08a52'][(k + row) % 3], (k - 1.5) * 0.08);
+    }
+    // vorn: Pult mit Buch, links Fässer und gestapelte Kisten
+    b.add(wbox(0.6, 0.08, 0.42, 0.02), ST3.woodL, { parent: M, p: [0.55, 0.8, 0.3], r: [0.25, 0, 0] });
+    b.add(wbox(0.5, 0.74, 0.34, 0.03), ST3.wood, { parent: M, p: [0.55, 0.4, 0.28], shade: 0.25 });
+    b.add(wbox(0.36, 0.04, 0.26, 0.01), '#7a2a24', { parent: M, p: [0.55, 0.86, 0.3], r: [0.25, 0, 0] });
+    b.add(wbox(0.32, 0.03, 0.22, 0.01), ST3.paper, { parent: M, p: [0.55, 0.885, 0.3], r: [0.25, 0, 0] });
+    b.add(cyl3(0.035, 0.04, 0.06, 8), '#1a1a2a', { parent: M, p: [0.82, 0.86, 0.2] });
+    b.add(horn3(0.16, 0.012, 4), '#f4f0e8', { parent: M, p: [0.82, 0.88, 0.2], r: [0.3, 0, 0.3] });
+    stBarrel3(b, M, -0.65, 0.3, 0.9);
+    stBarrel3(b, M, -1.1, 0.25, 0.8, '#7a4e2e');
+    stCrate3(b, M, 1.25, 0.08, 0.25, 0.4);
+    stCrate3(b, M, 1.25, 0.44, 0.25, 0.32, '#8a6a3a', 0.4);
+  },
+  // Dorfältester: großes Auftragsbrett mit Dach, Pult mit Schriftrolle, zwei Banner
+  aeltester(b, M) {
+    b.add(wbox(2.44, 0.08, 1.15, 0.03), '#7a5a3a', { parent: M, p: [0, 0.04, 0], shade: 0.2 });
+    for (const sx of [-1, 1]) b.add(wbox(0.12, 1.85, 0.12, 0.03), ST3.woodD, { parent: M, p: [sx * 0.75, 0.93, -0.3] });
+    b.add(wbox(1.5, 1.0, 0.08, 0.03), ST3.wood, { parent: M, p: [0, 1.15, -0.28], shade: 0.15 });
+    b.add(roofGeo(1.9, 0.55, 0.32, 0.12), '#7c3a2c', { parent: M, p: [0, 1.82, -0.3], shade: 0.2 });
+    const notes = [[-0.5, 1.4], [-0.15, 1.36], [0.22, 1.42], [0.52, 1.35], [-0.42, 0.95], [-0.05, 0.92], [0.35, 0.96]];
+    notes.forEach(([x, y], k) => {
+      b.add(tinyBox(0.24, 0.3, 0.02), k % 3 ? ST3.paper : '#f6ecc8', { parent: M, p: [x, y, -0.23], r: [0, 0, (k % 3 - 1) * 0.08] });
+      b.add(sphere3(0.022, 6, 4), k % 2 ? '#c8302a' : ST3.gold, { parent: M, p: [x, y + 0.12, -0.215] });
+    });
+    // Pult mit Schriftrolle
+    b.add(limb3(0.75, 0.05, 0.06, 6), ST3.woodD, { parent: M, p: [-0.8, 0.83, 0.3] });
+    b.add(wbox(0.42, 0.05, 0.32, 0.02), ST3.wood, { parent: M, p: [-0.8, 0.86, 0.3], r: [0.35, 0, 0] });
+    b.add(wbox(0.36, 0.02, 0.24, 0.01), ST3.paper, { parent: M, p: [-0.8, 0.9, 0.3], r: [0.35, 0, 0] });
+    for (const sx of [-1, 1]) b.add(cyl3(0.03, 0.03, 0.3, 8), '#c9a35a', { parent: M, p: [-0.8, 0.92 + sx * 0.04, 0.3 - sx * 0.11], r: [0, 0, Math.PI / 2] });
+    // Banner an Stangen links und rechts
+    for (const sx of [-1, 1]) {
+      b.add(limb3(2.3, 0.035, 0.035, 6), ST3.woodD, { parent: M, p: [sx * 1.12, 2.35, 0.1] });
+      b.add(sphere3(0.06, 8, 6), ST3.gold, { parent: M, p: [sx * 1.12, 2.4, 0.1], shine: 1 });
+      b.add(wbox(0.34, 0.9, 0.02, 0.01), '#9a2f2a', { parent: M, p: [sx * 1.12 - sx * 0.2, 1.8, 0.1], shade: 0.15 });
+      b.add(tinyBox(0.36, 0.05, 0.03), ST3.gold, { parent: M, p: [sx * 1.12 - sx * 0.2, 2.23, 0.1] });
+      b.add(sphere3(0.08, 8, 6), ST3.gold, { parent: M, p: [sx * 1.12 - sx * 0.2, 1.9, 0.12], s: [1, 1, 0.3] });
+    }
+  },
+  // Wegweiserin: Wegweiser mit Pfeilen, Kartentisch mit Karte und Globus, leuchtender Wegstein
+  teleport(b, M) {
+    b.add(wbox(2.44, 0.08, 1.15, 0.03), '#7a5a3a', { parent: M, p: [0, 0.04, 0], shade: 0.2 });
+    b.add(limb3(2.1, 0.05, 0.05, 6), ST3.woodD, { parent: M, p: [-0.85, 2.15, -0.15] });
+    [['#e8d8b0', 0.4, 1.85], ['#c9a35a', -0.6, 1.6], ['#e8d8b0', 1.9, 1.35], ['#c9a35a', 2.6, 1.1]].forEach(([c, a, y]) => {
+      b.add(wbox(0.6, 0.14, 0.04, 0.02), c, { parent: M, p: [-0.85 + Math.cos(a) * 0.28, y, -0.15 - Math.sin(a) * 0.28], r: [0, a, 0] });
+      b.add(horn3(0.14, 0.1, 4), c, { parent: M, p: [-0.85 + Math.cos(a) * 0.58, y, -0.15 - Math.sin(a) * 0.58], r: [0, a, -Math.PI / 2], s: [1, 1, 0.3] });
+    });
+    // Kartentisch
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.06, 0.66, 0.06, 0.02), ST3.woodD, { parent: M, p: [0.3 + sx * 0.42, 0.37, 0.15 + sz * 0.22] });
+    b.add(wbox(1.0, 0.06, 0.56, 0.02), ST3.wood, { parent: M, p: [0.3, 0.72, 0.15] });
+    b.add(wbox(0.8, 0.02, 0.44, 0.01), ST3.paper, { parent: M, p: [0.3, 0.76, 0.15] });
+    for (const [x, z, w, d, c] of [[0.1, 0.1, 0.24, 0.16, '#7aa94f'], [0.42, 0.2, 0.2, 0.12, '#7aa94f'], [0.5, 0.02, 0.16, 0.1, '#5a8ab0'], [0.0, 0.25, 0.14, 0.08, '#a08a6a']]) b.add(tinyBox(w, 0.012, d), c, { parent: M, p: [x, 0.775, z] });
+    b.add(sphere3(0.035, 6, 4), '#c8302a', { parent: M, p: [0.25, 0.8, 0.12] });
+    // Globus und Wegstein
+    b.add(limb3(0.36, 0.02, 0.03, 6), ST3.gold, { parent: M, p: [1.05, 1.12, -0.25] });
+    b.add(cyl3(0.12, 0.14, 0.05, 10), ST3.woodD, { parent: M, p: [1.05, 0.79, -0.25] });
+    b.add(sphere3(0.2, 14, 10), '#4a7ab0', { parent: M, p: [1.05, 1.2, -0.25], shine: 0.6 });
+    b.add(torus3(0.23, 0.012, Math.PI * 1.4, 4, 16), ST3.gold, { parent: M, p: [1.05, 1.2, -0.25], r: [0, Math.PI / 2, 0.4], shine: 1 });
+    b.add(ball(10), '#6aa04a', { parent: M, p: [1.12, 1.25, -0.08], s: [0.08, 0.1, 0.04] });
+    b.add(wbox(0.5, 0.65, 0.4, 0.08), '#8a8478', { parent: M, p: [-0.15, 0.4, -0.35], shade: 0.3 });
+    b.add(horn3(0.5, 0.13, 6), '#7ac8ff', { parent: M, p: [-0.15, 0.72, -0.35], mat: 'glow' });
+    b.add(sphere3(0.07, 8, 6), '#e8f8ff', { parent: M, p: [-0.15, 0.9, -0.35], mat: 'glow' });
+  },
+  // Jägerin: Gestell mit Fellen, Geweih am Pfahl, Bogenständer, Köcher, Zielscheibe
+  jaegerin(b, M) {
+    stFrame3(b, M, { awning: ['#4a6a3a', '#d8c8a0'], counter: false, sign: '#c8402f' });
+    b.add(limb3(1.9, 0.035, 0.035, 6), ST3.woodD, { parent: M, p: [-0.95, 1.55, -0.3], r: [0, 0, Math.PI / 2] });
+    [['#8a6a4a', -0.6], ['#9a9a90', 0], ['#6a4a2e', 0.6]].forEach(([c, x]) => {
+      b.add(ball(12), c, { parent: M, p: [x, 1.15, -0.32], s: [0.26, 0.38, 0.03], shade: 0.25 });
+      for (const sx of [-1, 1]) b.add(ball(6), c, { parent: M, p: [x + sx * 0.24, 0.85, -0.32], s: [0.08, 0.12, 0.03] });
+    });
+    // Bogenständer vorn links: zwei Bögen mit Sehne
+    b.add(wbox(0.5, 0.06, 0.2, 0.02), ST3.woodD, { parent: M, p: [-0.6, 0.12, 0.25] });
+    for (const dx of [-0.12, 0.12]) {
+      b.add(torus3(0.5, 0.022, Math.PI * 0.8, 4, 12), '#6b4a2e', { parent: M, p: [-0.6 + dx, 0.66, 0.15], r: [0, Math.PI / 2, Math.PI * 0.6], shine: 0.3 });
+      b.add(limb3(0.95, 0.006, 0.006, 4), '#efe6cc', { parent: M, p: [-0.6 + dx, 1.13, 0.31] });
+    }
+    // Köcher mit Pfeilen, Zielscheibe rechts
+    b.add(cyl3(0.09, 0.08, 0.5, 10), '#7a4a2a', { parent: M, p: [0.05, 0.33, 0.3], r: [0.15, 0, 0] });
+    for (let k = 0; k < 4; k++) b.add(horn3(0.12, 0.03, 4), k % 2 ? '#e8e0d0' : '#c8402f', { parent: M, p: [0.03 + (k % 2) * 0.05, 0.62, 0.32 + (k > 1 ? 0.04 : -0.02)] });
+    b.add(wbox(0.08, 0.95, 0.08, 0.03), ST3.woodD, { parent: M, p: [0.85, 0.48, 0.15] });
+    for (const [r, c, z] of [[0.36, '#e8d8a8', 0], [0.25, '#c8402f', 0.01], [0.12, '#e8d8a8', 0.02]]) b.add(cyl3(r, r, 0.06, 16), c, { parent: M, p: [0.85, 0.95, 0.22 + z], r: [Math.PI / 2, 0, 0] });
+    b.add(limb3(0.3, 0.012, 0.012, 4), '#6b4a2e', { parent: M, p: [0.92, 1.02, 0.32], r: [-1.1, 0, -0.6] });
+    // Geweih am rechten Pfosten
+    for (const sx of [-1, 1]) {
+      b.add(horn3(0.32, 0.03, 5), '#e8dcc0', { parent: M, p: [1.1, 1.65, -0.42], r: [0, 0, -sx * 0.6] });
+      b.add(horn3(0.16, 0.02, 4), '#e8dcc0', { parent: M, p: [1.1 + sx * 0.1, 1.75, -0.42], r: [0, 0, sx * 0.3] });
+    }
+    b.add(ball(8), '#6a4a2e', { parent: M, p: [1.1, 1.6, -0.42], s: [0.08, 0.1, 0.06] });
+  },
+  // Lehrmeister: Bücherregal, Pult mit offenem Buch und Kerze, Korb mit Schriftrollen
+  lehrmeister(b, M) {
+    stFrame3(b, M, { awning: ['#2a6a6a', '#efe0b8'], counter: false, sign: '#8ad0d0' });
+    stShelf3(b, M, 1.9, 4, 0.1, 0.42, -0.32);
+    const cols = ['#9a2f2a', '#2f5a7a', '#3a6a4a', '#6d3f7d', '#c9944a', '#5a3a22'];
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 14; k++) {
+      if ((k + row * 3) % 9 === 8) continue;
+      stBook3(b, M, -0.86 + k * 0.13, 0.12 + row * 0.42, -0.3, cols[(k * 7 + row) % 6], 0.2 + ((k + row) % 3) * 0.04, (k + row) % 5 === 0 ? 0.25 : 0);
+    }
+    // Pult mit offenem Buch und Kerze
+    b.add(limb3(0.75, 0.05, 0.06, 6), ST3.woodD, { parent: M, p: [0.55, 0.83, 0.3] });
+    b.add(wbox(0.5, 0.05, 0.36, 0.02), ST3.wood, { parent: M, p: [0.55, 0.86, 0.3], r: [0.35, 0, 0] });
+    for (const sx of [-1, 1]) b.add(wbox(0.2, 0.015, 0.26, 0.005), ST3.paper, { parent: M, p: [0.55 + sx * 0.105, 0.9, 0.3], r: [0.35, 0, -sx * 0.12] });
+    b.add(cyl3(0.03, 0.03, 0.14, 8), '#f4ecd8', { parent: M, p: [0.85, 0.96, 0.22] });
+    b.add(horn3(0.07, 0.02, 6), '#ffcc55', { parent: M, p: [0.85, 1.03, 0.22], mat: 'glow' });
+    b.add(cyl3(0.2, 0.17, 0.3, 12), '#a07a4a', { parent: M, p: [-0.6, 0.23, 0.3], shade: 0.2 });
+    for (let k = 0; k < 4; k++) b.add(cyl3(0.035, 0.035, 0.36, 8), ST3.paper, { parent: M, p: [-0.65 + (k % 2) * 0.1, 0.45, 0.25 + (k > 1 ? 0.1 : 0)], r: [0.3 * (k % 2 ? 1 : -1), 0, 0.2] });
+  },
+  // Stallmeister: Koppelzaun mit Sattel, Tränke mit Wasser, Heu
+  stallmeister(b, M) {
+    for (let k = 0; k < 4; k++) b.add(wbox(0.09, 0.9, 0.09, 0.03), ST3.woodD, { parent: M, p: [-1.1 + k * 0.73, 0.45, -0.3] });
+    for (const y of [0.45, 0.78]) b.add(wbox(2.3, 0.07, 0.05, 0.02), ST3.wood, { parent: M, p: [0, y, -0.3] });
+    b.add(cap3(0.22, 1.2, 0, Math.PI * 2, 12, 4), '#6a3a20', { parent: M, p: [-0.3, 0.72, -0.3], s: [1, 0.6, 1.3], shine: 0.3 });
+    b.add(wbox(0.4, 0.3, 0.04, 0.02), '#8a2a1a', { parent: M, p: [-0.3, 0.65, -0.24] });
+    b.add(wbox(1.0, 0.3, 0.38, 0.04), ST3.wood, { parent: M, p: [0.5, 0.2, 0.2], shade: 0.25 });
+    b.add(tinyBox(0.9, 0.02, 0.28), '#4a8ab0', { parent: M, p: [0.5, 0.33, 0.2] });
+    for (const [x, y, z] of [[-0.85, 0.17, 0.2], [-0.85, 0.48, 0.2]]) {
+      b.add(wbox(0.5, 0.3, 0.36, 0.08), '#d8b45a', { parent: M, p: [x, y, z], shade: 0.2 });
+      for (const dx of [-0.1, 0.1]) b.add(tinyBox(0.03, 0.31, 0.37), '#7a5a2a', { parent: M, p: [x + dx, y, z] });
+    }
+  }
+};
+
 // Dorfschmuck und Bauten aus game.world.props
 const PROP3 = {
+  // Stand einer Stadtperson (seit 12.0), pr.roof ist die Rolle
+  stand(b, M, pr) {
+    (STAND3[pr.roof] || STAND3.haendler)(b, M);
+  },
   well(b, M) {
     b.add(lathe3('wellring', [[0.4, 0], [0.48, 0.02], [0.5, 0.3], [0.48, 0.42], [0.42, 0.44], [0.36, 0.4], [0.36, 0.1]], 18), '#8a8276', { parent: M, shade: 0.3 });
     b.add(new THREE.CircleGeometry(0.37, 18).rotateX(-Math.PI / 2), '#3a7aa0', { parent: M, p: [0, 0.3, 0] });
@@ -1459,7 +1792,7 @@ function* objectJob(cx, cy) {
     const py = pr.y * U3;
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
     if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
-    const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : 0.25;
+    const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' ? 0 : 0.25;
     bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back));
   }
   const group = new THREE.Group();
@@ -1520,6 +1853,7 @@ function v3CollectLights() {
     const x = pr.x * U3;
     const z = pr.y * U3 - 0.25;
     if (pr.type === 'lantern') lightSpots3.push({ x, y: 1.0, z, color: '#ffb860', power: 1.1, range: 6.5, flicker: 2 });
+    if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: x - 0.65, y: 1.0, z: pr.y * U3 - 0.1, color: '#ff8a3a', power: 1.6, range: 6, flicker: 7 });
     if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.8, range: 9, flicker: 9 });
   }
   for (const n of w.npcs) {

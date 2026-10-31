@@ -1172,3 +1172,38 @@ Regel wie beim Magier: keine Kreise, Dreiecke oder Runen am Boden. Blut ist deck
 > Prompt: *towering grim reaper rising from dark mist behind a necromancer, tattered black robes, hood, skull with glowing violet eyes, skeletal hands, huge scythe sweeping a glowing arc through enemies, souls flying from them into the reaper, epic dark fantasy MMO ultimate*
 
 **Symbole (`js/symbole-nekro2.js`):** Blutsauger (Knochenhand, Blutfaden, Herz), Geisterflut (stürzende Geister über Seelenfeuer), Lebensentzug (Blutkugel aus einem Schädel), Knochenwurf (fliegender Oberschenkelknochen), Blutlarve (Gliederlarve mit Spritzern), Totenhand (Knochenhand umklammert eine Gestalt), Blutlanzen (sechs Spitzen wie Flügel), Sensenmann (Kapuze mit Schädel und Sense).
+
+## 17. Pferde, Stände der Stadtleute, Gewitterwolke (seit 12.0)
+
+**Pferd (Vorlage).** Ein Reitpferd im Profil: Widerrist und Kruppe gleich hoch, Rumpf so lang wie das Pferd hoch ist, tiefe Brust, schmale Taille hinter dem Sattel, runde Hinterhand mit kräftigen Schenkeln. Schlanker, gebogener Hals mit Kamm, langer keilförmiger Kopf mit Ganaschen, weichem Maul und gespitzten Ohren. Beine in drei Gliedern: Unterarm bzw. Unterschenkel, Röhrbein ab Knie bzw. Sprunggelenk, Fessel mit Huf. Reitpferd: Brauner mit Blesse, schwarzen Beinen, zwei weißen Socken, dunkler Mähne.
+
+> Prompt: *stylized 3D bay riding horse in profile, correct horse anatomy, deep chest, slim arched neck, long wedge head, flowing black mane and tail, white blaze and socks, leather saddle and bridle, MMO character art*
+
+**Galopp.** Viertakt: hinten links, hinten rechts, vorn links, vorn rechts, dann kurze Schwebe. Stützendes Bein schwingt gleichmäßig nach hinten, der Huf bleibt flach am Boden; im Schwung beugt sich das Knie (vorn) bzw. das Sprunggelenk (hinten), der Huf rollt ab und greift wieder nach vorn. Der Rumpf wiegt vor und zurück, der Hals nickt gegenläufig, der Schweif weht nach.
+
+> Prompt: *horse gallop cycle reference, four-beat transverse gallop, knees and hocks flexing, hooves curling in swing phase, body rocking, smooth animation sheet*
+
+**Kriegsross.** Rappe, breiter gebaut, glühende Augen; Kopfplatte entlang des Gesichts mit Goldgrat und Dorn, Augenschalen, roter Federbusch; sechs Halsschienen über dem Kamm; gewölbte Brustschale mit Goldrand und Buckel; rote Schabracke mit Goldborte und Quasten über Kruppe und Flanken; Behang über den Hufen.
+
+> Prompt: *armored black warhorse, steel chanfron with gold ridge and spike, crinet plates on the neck, curved peytral, red caparison with gold trim and tassels, feathered hooves, fantasy MMO mount*
+
+**Stände der Stadtleute.** Jede Person steht vor ihrem Stand (Holzpodest, Pfosten, Tresen, gestreiftes Vordach in der Farbe der Rolle, Schild mit Zeichen):
+- Händlerin: Tränke in vier Größen, rot und blau, auf dem Tresen und im Regal.
+- Alchemist: brodelnder grüner Kessel auf Glut, Kräuterbündel unter dem Dach, Gläser, Mörser.
+- Waffenhändler: Ständer mit Schwertern, Axt, Speere im Fass, Schilde an der Rückwand.
+- Rüstungshändlerin: drei Rüstungspuppen (Stahl, Bronze, Leder) mit Helmen, Tisch mit Helm und Stiefeln.
+- Schmied: gemauerte Esse mit Glut und Schornstein, Amboss auf dem Klotz, Löschfass, Werkzeugbrett.
+- Lager: Regale voller Kisten und Säcke, Fässer, Pult mit Buch und Tinte.
+- Ältester: Auftragsbrett mit Dach, Pult mit Schriftrolle, rote Banner.
+- Wegweiserin: Wegweiser mit Pfeilen, Kartentisch, Globus, leuchtender Wegstein.
+- Jägerin: Felle auf dem Gestell, Bogenständer, Köcher, Zielscheibe, Geweih.
+- Lehrmeister: Bücherregal, Pult mit offenem Buch und Kerze, Korb mit Schriftrollen.
+- Stallmeister: Koppelzaun mit Sattel, Wassertrog, Heuballen.
+
+> Prompt: *cozy fantasy MMO town market, row of themed vendor stalls with striped awnings: potion table, alchemist cauldron, weapon rack, armor mannequins, blacksmith forge, storage shelves with crates, quest board, map table, hunter pelts, bookshelf, stable fence; stylized 3D, top-down three-quarter view*
+
+**Symbole über den Köpfen.** Runde Plakette mit Goldrand in der Farbe der Rolle, darin ein klares Bild: Trank, Kessel, gekreuzte Schwerter, Brustpanzer, Hammer und Amboss, Truhe, Schriftrolle, Kompass, Bogen, offenes Buch, Hufeisen.
+
+**Gewitterwolke.** Dichte, dunkle Wolke in zwei Schichten mit Wetterleuchten und Blitzen in der Wolke, Einschläge ohne Brandflecken; zum Schluss springt ein Blitznetz zwischen allen Gegnern im Feld und hoch in die Wolke, die Getroffenen zucken 1,5 Sekunden in violetten Funken (gelähmt).
+
+> Prompt: *dark thundercloud over a battlefield, lightning web arcing between all enemies and up into the cloud, enemies paralyzed with crackling violet sparks, no ground decals, stylized 3D MMO VFX*

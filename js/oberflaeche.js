@@ -1821,7 +1821,7 @@ function mageSkillStats(sk, lvl, out) {
   if (sk.type === 'mignite') out.push(['Brand gesamt', skillPct(sk.burn.dps * sk.burn.duration) + ' in ' + sk.burn.duration + ' s']);
   if (sk.type === 'mphoenix') out.push(['Auf dem Weg', skillPct(sk.pathMul)], ['Explosion', `r ${sk.blast.r} · ${skillPct(sk.blast.mul)}`], ['Brennt das Ziel', '+' + skillPct(sk.combust)]);
   if (sk.type === 'mspear') out.push(['Linie', String(sk.range)], ['Aufgeladen', sk.charge + ' s']);
-  if (sk.type === 'mstorm') out.push(['Blitze', `${sk.strikes} × ${dmg(sk.dmg)}`], ['Donnerschlag', `${dmg(sk.final.dmg)} · r ${sk.final.r}`], ['Reichweite', String(sk.range)]);
+  if (sk.type === 'mstorm') out.push(['Blitze', `${sk.strikes} × ${dmg(sk.dmg)}`], ['Entladung', `${dmg(sk.final.dmg)} · alle im Feld`], ['Lähmt', numDe(sk.final.stun) + ' s'], ['Feld', String(sk.radius)], ['Reichweite', String(sk.range)]);
   if (sk.trail) out.push(['Blitzspur', `${sk.trail.n} × ${dmg(sk.trail.dmg)}`]);
   if (sk.type === 'mclash' || sk.type === 'mspikes' || sk.type === 'mmeteor') out.push(['Fläche', 'r ' + sk.radius], ['Reichweite', String(sk.range)]);
   if (sk.type === 'mgrav') out.push(['Felsen', `${sk.rocks} · ${sk.ticks} × ${dmg(sk.dmg)}`], ['Zum Schluss', dmg(sk.last.dmg)], ['Sog', String(sk.pull)]);

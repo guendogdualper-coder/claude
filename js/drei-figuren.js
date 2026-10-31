@@ -1196,130 +1196,282 @@ function beast3(b, o, P) {
   return { rig, height: bodyY + 0.42, family: 'beast', bodyY, jaw: true, len, bw, hp, legLen };
 }
 
-// Pferd (neu in 7.3): echte Pferde-Anatomie – tiefe Brust, Widerrist, runde Kruppe, gebogener Hals,
-// keilförmiger Kopf mit Ganaschen, Nüstern und gespitzten Ohren, wehende Mähne und Schweif,
-// Beine mit Knie bzw. Sprunggelenk, Fesseln und Hufen; Zaumzeug, Satteldecke, Sattel, Steigbügel.
-// tier 1: Reitpferd (Fuchs mit Blesse und weißen Socken) · tier 2: Kriegsross (Rappe mit Rossharnisch,
-// Stirnplatte mit Dorn, Halsplatten, Brustpanzer, rote Schabracke, Federbusch, glühende Augen, Behang)
+// Pferd (neu gebaut in 12.0): Vorlage ist ein echtes Reitpferd im Profil – Widerrist und Kruppe gleich hoch,
+// Rumpf so lang wie das Pferd hoch ist, tiefe Brust, schmale Taille hinter dem Sattel, runde Hinterhand mit
+// kräftigen Schenkeln; schlanker, gebogener Hals mit Kamm; langer Keilkopf mit Ganaschen, weichem Maul und
+// gespitzten Ohren. Jedes Bein hat drei Glieder (Schulter/Hüfte, Knie bzw. Sprunggelenk, Fessel), damit der
+// Galopp (horseGait3) die Beine beugen und die Hufe abrollen kann.
+// tier 1: Reitpferd (Brauner mit Blesse, schwarzen Beinen und zwei weißen Socken)
+// tier 2: Kriegsross (Rappe, breiter gebaut, mit Kopfplatte und Dorn, Halsschienen, Brustpanzer, roter
+// Schabracke mit Goldborte über Rumpf und Kruppe, Federbusch und Behang an den Fesseln)
+const HORSE_LEG = { upper: [3, 4, 5, 6], lower: [11, 12, 13, 14], foot: [15, 16, 17, 18], tail2: 19 };
 function horseParts3(b, unused, o = {}) {
   const A = adder(b, o.parent || null);
   const seg = (a, z, r1, r2, color, x) => limbBetween(A, a, z, r1, r2, color, x);
   const war = o.tier === 2;
-  const coat = o.coat || (war ? '#241e26' : '#8a5230');
-  const dark = darker(coat, 0.25);
-  const mane = o.mane || (war ? '#0e0a10' : '#2e1c12');
-  const white = '#f2ece0';
-  const steel = '#8a929c';
-  const gold = '#c9a35a';
+  const coat = o.coat || (war ? '#3b3546' : '#94582e');
+  const points = war ? '#26222e' : '#2a1d16';
+  const mane = o.mane || (war ? '#15111b' : '#22160f');
+  const white = '#f4eee2';
+  const hoofC = '#2b231d';
+  const steel = '#8a95a3';
+  const steelD = '#5c6674';
+  const gold = '#d8b060';
   const cloth = o.saddle || '#8a2a1a';
-  const legLen = 0.66;
-  const bodyY = legLen + 0.24;
-  const hy = bodyY + 0.72;
-  const hz = 0.82;
+  const red = '#8e1f22';
+  const W = war ? 1.08 : 1;
+  const bodyY = 0.95;
+  const FX = 0.12 * W, HX = 0.13 * W, FZ = 0.4, HZ = -0.42;
+  const POLL = [0, 1.64, 0.88];
   const rig = rigOf([
-    [[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, hy, hz - 0.06], 10],
-    [[0.16, bodyY - 0.08, 0.36], 1], [[-0.16, bodyY - 0.08, 0.36], 1], [[0.15, bodyY - 0.06, -0.36], 1], [[-0.15, bodyY - 0.06, -0.36], 1],
-    [[0, bodyY + 0.14, -0.6], 1], [[0, 0, 0], 1], [[0, 0, 0], 1], [[0, bodyY + 0.16, 0.44], 1]
+    [[0, 0, 0], -1], [[0, bodyY, 0], 0], [POLL, 10],
+    [[FX, 0.9, FZ], 1], [[-FX, 0.9, FZ], 1], [[HX, 1.0, HZ], 1], [[-HX, 1.0, HZ], 1],
+    [[0, 1.14, -0.64], 1], [[0, 0, 0], 1], [[0, 0, 0], 1], [[0, 1.06, 0.5], 1],
+    // 11–14 Röhrbein (vorn ab Knie, hinten ab Sprunggelenk), 15–18 Fessel mit Huf, 19 Schweifrübe
+    [[FX, 0.38, FZ + 0.01], 3], [[-FX, 0.38, FZ + 0.01], 4], [[HX, 0.42, HZ - 0.13], 5], [[-HX, 0.42, HZ - 0.13], 6],
+    [[FX, 0.13, FZ], 11], [[-FX, 0.13, FZ], 12], [[HX, 0.13, HZ - 0.09], 13], [[-HX, 0.13, HZ - 0.09], 14],
+    [[0, 1.02, -0.76], 7]
   ]);
-  // Rumpf: Brust, Bauch, Kruppe, Widerrist
-  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY + 0.02, 0.32], s: [0.26, 0.31, 0.3], shade: 0.25 });
-  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY, -0.02], s: [0.26, 0.28, 0.48], shade: 0.25 });
-  A(ball(16), coat, { bone: BQ.body, p: [0, bodyY + 0.05, -0.36], s: [0.28, 0.29, 0.29], shade: 0.25 });
-  A(ball(12), coat, { bone: BQ.body, p: [0, bodyY + 0.21, 0.24], s: [0.13, 0.1, 0.17] });
-  // Hals in zwei Bögen, Kamm für die Mähne
-  seg([0, bodyY + 0.1, 0.4], [0, bodyY + 0.46, 0.62], 0.17, 0.13, coat, { bone: BQ.neck, shade: 0.2 });
-  seg([0, bodyY + 0.46, 0.62], [0, hy - 0.02, hz - 0.08], 0.13, 0.11, coat, { bone: BQ.neck, shade: 0.15 });
-  // Kopf: Stirn, Ganaschen, schräges Gesicht, weiches Maul mit Nüstern
-  A(ball(14), coat, { bone: BQ.head, p: [0, hy, hz], s: [0.11, 0.12, 0.14], shade: 0.15 });
-  A(ball(12), coat, { bone: BQ.head, p: [0, hy - 0.07, hz - 0.01], s: [0.1, 0.1, 0.11] });
-  seg([0, hy - 0.02, hz + 0.06], [0, hy - 0.24, hz + 0.32], 0.085, 0.07, coat, { bone: BQ.head, shade: 0.12 });
-  A(ball(12), war ? '#3a3238' : lighter(coat, 0.08), { bone: BQ.head, p: [0, hy - 0.25, hz + 0.33], s: [0.08, 0.07, 0.085] });
-  for (const sx of [-1, 1]) A(sphere3(0.016, 6, 4), '#140c0a', { bone: BQ.head, p: [sx * 0.035, hy - 0.24, hz + 0.41] });
-  A(roundBox(0.09, 0.008, 0.04, 0.004), '#2a1410', { bone: BQ.head, p: [0, hy - 0.3, hz + 0.37] });
-  if (!war) seg([0, hy + 0.06, hz + 0.1], [0, hy - 0.2, hz + 0.38], 0.028, 0.02, white, { bone: BQ.head });
+  // --- Rumpf: Brust, Mittelhand, Hinterhand, Widerrist, Kruppe, Schulterblätter
+  A(ball(18), coat, { bone: 1, p: [0, bodyY - 0.01, -0.02], s: [0.25 * W, 0.27, 0.44], shade: 0.3, shine: 0.15 });
+  A(ball(16), coat, { bone: 1, p: [0, bodyY + 0.01, 0.34], s: [0.235 * W, 0.29, 0.25], shade: 0.28, shine: 0.15 });
+  A(ball(16), coat, { bone: 1, p: [0, bodyY + 0.05, -0.4], s: [0.262 * W, 0.27, 0.27], shade: 0.28, shine: 0.15 });
+  A(ball(12), coat, { bone: 1, p: [0, bodyY + 0.2, 0.26], s: [0.1, 0.1, 0.2], shine: 0.15 });
+  A(ball(12), coat, { bone: 1, p: [0, bodyY + 0.2, -0.46], s: [0.17 * W, 0.1, 0.2], shine: 0.15 });
+  for (const sx of [-1, 1]) A(ball(12), coat, { bone: 1, p: [sx * 0.13 * W, bodyY + 0.06, 0.38], s: [0.11, 0.25, 0.14], r: [-0.45, 0, 0], shade: 0.2, shine: 0.15 });
+  // --- Hals: Hauptstrang, Kamm oben, Kehle unten
+  seg([0, 1.0, 0.44], [0, 1.4, 0.7], 0.19 * W, 0.12, coat, { bone: 10, shade: 0.2 });
+  seg([0, 1.18, 0.38], [0, 1.48, 0.66], 0.13 * W, 0.1, coat, { bone: 10 });
+  seg([0, 1.48, 0.66], [0, 1.66, 0.85], 0.1, 0.085, coat, { bone: 10 });
+  seg([0, 0.98, 0.56], [0, 1.44, 0.84], 0.12, 0.08, coat, { bone: 10, shade: 0.15 });
+  // --- Kopf: Stirn, Ganaschen, langes Gesicht, weiches Maul mit Nüstern
+  A(ball(14), coat, { bone: 2, p: [0, 1.6, 0.92], s: [0.095, 0.1, 0.12], shine: 0.15 });
+  A(ball(12), coat, { bone: 2, p: [0, 1.5, 0.88], s: [0.1, 0.11, 0.11], shade: 0.15 });
+  seg([0, 1.57, 0.97], [0, 1.33, 1.2], 0.085, 0.062, coat, { bone: 2, shade: 0.1 });
+  const muzzle = war ? '#4a4452' : '#6a4630';
+  A(ball(12), muzzle, { bone: 2, p: [0, 1.3, 1.21], s: [0.07, 0.07, 0.08] });
+  A(ball(10), muzzle, { bone: 2, p: [0, 1.25, 1.17], s: [0.05, 0.035, 0.06] });
+  for (const sx of [-1, 1]) A(sphere3(0.017, 6, 4), '#120a08', { bone: 2, p: [sx * 0.034, 1.31, 1.28] });
+  A(roundBox(0.09, 0.008, 0.035, 0.004), '#1e100c', { bone: 2, p: [0, 1.265, 1.25] });
+  if (!war) {
+    // Blesse: weißer Streifen von der Stirn bis zur Nase
+    seg([0, 1.65, 1.0], [0, 1.39, 1.23], 0.032, 0.026, white, { bone: 2, s: [1, 1, 0.6] });
+    A(ball(8), white, { bone: 2, p: [0, 1.66, 0.99], s: [0.04, 0.035, 0.02], r: [-0.8, 0, 0] });
+  }
   for (const sx of [-1, 1]) {
-    // Augen seitlich, Ohren gespitzt
-    if (war) A(ball(8), '#ff6a2a', { bone: BQ.head, p: [sx * 0.095, hy + 0.02, hz + 0.07], s: [0.03, 0.022, 0.03], mat: 'glow' });
+    if (war) A(ball(8), '#ff6a2a', { bone: 2, p: [sx * 0.09, 1.56, 0.96], s: [0.028, 0.022, 0.03], mat: 'glow' });
     else {
-      A(ball(8), '#140c08', { bone: BQ.head, p: [sx * 0.095, hy + 0.02, hz + 0.07], s: [0.028, 0.032, 0.028], shine: 0.9 });
-      A(sphere3(0.008, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.105, hy + 0.035, hz + 0.085], mat: 'glow' });
+      A(ball(8), '#120a06', { bone: 2, p: [sx * 0.088, 1.56, 0.96], s: [0.026, 0.03, 0.03], shine: 0.9 });
+      A(sphere3(0.008, 5, 4), '#ffffff', { bone: 2, p: [sx * 0.1, 1.572, 0.975], mat: 'glow' });
     }
-    A(horn3(0.13, 0.04, 6), coat, { bone: BQ.head, p: [sx * 0.055, hy + 0.1, hz - 0.04], r: [-0.15, 0, -sx * 0.18], s: [1, 1, 0.6] });
-    A(horn3(0.08, 0.022, 5), dark, { bone: BQ.head, p: [sx * 0.056, hy + 0.11, hz - 0.03], r: [-0.15, 0, -sx * 0.18], s: [1, 1, 0.4] });
+    // Ohren: gespitzt, leicht nach vorn, innen dunkler
+    A(horn3(0.13, 0.036, 7), coat, { bone: 2, p: [sx * 0.045, 1.69, 0.86], r: [0.25, 0, -sx * 0.22], s: [1, 1, 0.6] });
+    A(horn3(0.09, 0.02, 5), points, { bone: 2, p: [sx * 0.046, 1.7, 0.872], r: [0.25, 0, -sx * 0.22], s: [1, 1, 0.4] });
   }
-  // Mähne: Strähnen fallen abwechselnd zu beiden Seiten, vorn ein Schopf
-  for (let k = 0; k < 9; k++) {
-    const q = k / 8;
-    const base = [0, bodyY + 0.28 + q * 0.44, 0.42 + q * 0.34];
-    const sx = k % 3 === 1 ? -1 : 1;
-    lock(A, BQ.neck, base, 0.22 + (k % 2) * 0.06, 0.05, [Math.PI - 0.35, 0, sx * 0.55], k % 2 ? mane : lighter(mane, 0.1));
+  // --- Mähne: liegt auf einer Seite, Strähnen fallen am Hals herab; dazu ein Kamm und der Schopf
+  const crest = (q) => {
+    const u = 1 - q;
+    return [0, u * u * 1.28 + 2 * u * q * 1.6 + q * q * 1.75, u * u * 0.32 + 2 * u * q * 0.6 + q * q * 0.82];
+  };
+  for (let k = 0; k < 14; k++) {
+    const q = k / 13;
+    const [x, y, z] = crest(q);
+    strand3(A, 10, [0.03, y, z], [0.7, -0.62, -0.25], 0.17 + (k % 3) * 0.04 + (1 - q) * 0.06, 0.05, k % 2 ? mane : lighter(mane, 0.12), { flat: 0.45, w: [0, 0.4, 1] });
+    if (k % 2 === 0) strand3(A, 10, [-0.01, y - 0.005, z], [-0.35, 0.12, -0.93], 0.12, 0.035, mane, { flat: 0.6 });
   }
-  lock(A, BQ.head, [0, hy + 0.1, hz + 0.02], 0.14, 0.035, [0.6, 0, 0.1], mane);
-  // Schweif: hoher Ansatz, dann lang wehend
-  seg([0, bodyY + 0.14, -0.6], [0, bodyY + 0.04, -0.72], 0.06, 0.05, mane, { bone: BQ.tail });
-  for (const [dx, len, rz] of [[0, 0.62, 0], [0.04, 0.55, 0.15], [-0.04, 0.55, -0.15], [0, 0.48, 0.05]]) {
-    lock(A, BQ.tail, [dx, bodyY + 0.04, -0.72], len, 0.07, [Math.PI + 0.35, 0, rz], dx ? lighter(mane, 0.08) : mane);
+  strand3(A, 2, [0, 1.71, 0.9], [0, -0.5, 0.86], 0.17, 0.045, mane, { flat: 0.5 });
+  strand3(A, 2, [0.02, 1.7, 0.89], [0.25, -0.6, 0.75], 0.14, 0.035, lighter(mane, 0.1), { flat: 0.5 });
+  // --- Schweif: Rübe, dann lange, flache Haarsträhnen (hängt in Ruhe, weht im Galopp)
+  seg([0, 1.14, -0.64], [0, 1.02, -0.77], 0.058, 0.046, mane, { bone: 7 });
+  for (let k = 0; k < 7; k++) {
+    const dx = (k - 3) * 0.018;
+    strand3(A, 19, [dx, 1.02, -0.77], [dx * 4, -0.85, -0.3 - (k % 3) * 0.12], 0.5 + ((k * 5) % 4) * 0.05, 0.07, k % 2 ? mane : lighter(mane, 0.1), { flat: 1 });
   }
-  // Beine: vorn Unterarm–Knie–Röhre, hinten Schenkel–Sprunggelenk–Röhre; Fessel, Huf
-  for (const [bone, sx, front] of [[BQ.legFL, 1, true], [BQ.legFR, -1, true], [BQ.legBL, 1, false], [BQ.legBR, -1, false]]) {
-    const x = sx * (front ? 0.16 : 0.15);
-    const z0 = front ? 0.36 : -0.36;
-    const sock = !war && ((front && sx < 0) || (!front && sx > 0));
+  // --- Beine
+  const socks = war ? [] : [4, 5];
+  for (let i = 0; i < 4; i++) {
+    const front = i < 2;
+    const sx = i % 2 ? -1 : 1;
+    const up = HORSE_LEG.upper[i], lo = HORSE_LEG.lower[i], ft = HORSE_LEG.foot[i];
+    const sock = socks.includes(up);
+    const lc = sock ? white : points;
+    let x, zk, zf;
     if (front) {
-      seg([x, bodyY - 0.08, z0], [x, legLen * 0.5, z0 + 0.03], 0.085, 0.06, coat, { bone, shade: 0.15 });
-      A(ball(8), coat, { bone, p: [x, legLen * 0.5, z0 + 0.03], s: [0.06, 0.055, 0.06] });
-      seg([x, legLen * 0.5, z0 + 0.03], [x, 0.13, z0 + 0.02], 0.048, 0.042, sock ? white : dark, { bone });
+      x = sx * FX;
+      zk = FZ + 0.01;
+      zf = FZ;
+      // Oberarm geht in die Brust über, Unterarm bis zum Knie
+      A(ball(12), coat, { bone: up, p: [x, 0.78, FZ + 0.01], s: [0.085 * W, 0.17, 0.11], shade: 0.2 });
+      seg([x, 0.74, FZ + 0.01], [x, 0.39, zk], 0.075 * W, 0.05, coat, { bone: up, shade: 0.15 });
+      A(ball(10), points, { bone: lo, p: [x, 0.38, zk + 0.01], s: [0.054, 0.06, 0.056] });
     } else {
-      A(ball(12), coat, { bone, p: [x, bodyY - 0.06, z0 - 0.02], s: [0.12, 0.22, 0.17], shade: 0.2 });
-      seg([x, bodyY - 0.14, z0 - 0.02], [x, legLen * 0.46, z0 - 0.11], 0.08, 0.055, coat, { bone, shade: 0.15 });
-      A(ball(8), coat, { bone, p: [x, legLen * 0.46, z0 - 0.11], s: [0.055, 0.06, 0.07] });
-      seg([x, legLen * 0.46, z0 - 0.11], [x, 0.13, z0 - 0.05], 0.046, 0.042, sock ? white : dark, { bone });
+      x = sx * HX;
+      zk = HZ - 0.13;
+      zf = HZ - 0.09;
+      // kräftiger Schenkel, Unterschenkel schräg nach hinten zum Sprunggelenk
+      A(ball(14), coat, { bone: up, p: [x, 0.88, HZ - 0.04], s: [0.12 * W, 0.24, 0.19], shade: 0.22, shine: 0.15 });
+      seg([x, 0.76, HZ + 0.02], [x, 0.44, zk], 0.085 * W, 0.05, coat, { bone: up, shade: 0.15 });
+      A(ball(10), points, { bone: lo, p: [x, 0.42, zk], s: [0.05, 0.065, 0.065] });
+      A(ball(8), points, { bone: lo, p: [x, 0.46, zk - 0.05], s: [0.035, 0.04, 0.04] });
     }
-    const zf = front ? z0 + 0.02 : z0 - 0.05;
-    A(ball(8), sock ? white : dark, { bone, p: [x, 0.12, zf], s: [0.055, 0.05, 0.06] });
-    seg([x, 0.12, zf], [x, 0.07, zf + 0.04], 0.045, 0.05, sock ? white : dark, { bone });
-    A(cyl3(0.062, 0.074, 0.075, 12), '#1e1814', { bone, p: [x, 0.038, zf + 0.05], shine: 0.4 });
-    // Behang über den Hufen (Kriegsross)
-    if (war) for (let k = 0; k < 6; k++) {
-      const a = (k / 6) * Math.PI * 2;
-      A(horn3(0.12, 0.035, 4), lighter(mane, 0.15), { bone, p: [x + Math.cos(a) * 0.05, 0.16, zf + Math.sin(a) * 0.05], r: [Math.PI + Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4] });
+    // Röhrbein mit Sehne, Fesselkopf, Fessel, Huf
+    seg([x, front ? 0.38 : 0.42, zk], [x, 0.14, zf], 0.043, 0.038, points, { bone: lo });
+    seg([x, front ? 0.35 : 0.39, zk - 0.026], [x, 0.16, zf - 0.026], 0.028, 0.028, points, { bone: lo });
+    if (sock) A(ball(10), white, { bone: lo, p: [x, 0.19, zf], s: [0.046, 0.06, 0.047] });
+    A(ball(10), lc, { bone: ft, p: [x, 0.12, zf - 0.006], s: [0.05, 0.05, 0.056] });
+    seg([x, 0.12, zf], [x, 0.06, zf + 0.035], 0.04, 0.043, lc, { bone: ft });
+    A(cyl3(0.048, 0.063, 0.07, 12), hoofC, { bone: ft, p: [x, 0.035, zf + 0.045], shine: 0.4 });
+    if (war) for (let k = 0; k < 7; k++) {
+      // Behang: lange Haare über dem Huf
+      const a = (k / 7) * Math.PI * 2;
+      strand3(A, ft, [x + Math.cos(a) * 0.045, 0.16, zf + Math.sin(a) * 0.045], [Math.cos(a) * 0.12, -1, Math.sin(a) * 0.12 - 0.1], 0.13, 0.034, lighter(mane, 0.3), { flat: 0.7 });
     }
   }
-  // Zaumzeug: Nasenriemen, Stirnriemen, Backenstücke mit Trensenringen
-  const strap = war ? '#3a2a1e' : '#4a2e1a';
-  A(torus3(0.085, 0.012, Math.PI * 2, 4, 14), strap, { bone: BQ.head, p: [0, hy - 0.18, hz + 0.24], r: [Math.PI / 2 + 0.85, 0, 0] });
-  A(torus3(0.115, 0.012, Math.PI * 2, 4, 14), strap, { bone: BQ.head, p: [0, hy + 0.04, hz + 0.02], r: [Math.PI / 2 + 0.35, 0, 0] });
+  // --- Zaumzeug: Genickstück, Backenstücke, Nasenriemen, Trensenringe, Zügel
+  const strap = war ? '#3a2a1e' : '#4e301a';
+  A(torus3(0.08, 0.012, Math.PI * 2, 4, 14), strap, { bone: 2, p: [0, 1.4, 1.13], r: [0.76, 0, 0] });
+  A(torus3(0.105, 0.012, Math.PI * 2, 4, 14), strap, { bone: 2, p: [0, 1.6, 0.89], r: [0.3, 0, 0] });
   for (const sx of [-1, 1]) {
-    seg([sx * 0.1, hy + 0.04, hz + 0.02], [sx * 0.08, hy - 0.2, hz + 0.26], 0.012, 0.012, strap, { bone: BQ.head });
-    A(torus3(0.02, 0.006, Math.PI * 2, 3, 8), gold, { bone: BQ.head, p: [sx * 0.085, hy - 0.22, hz + 0.27], r: [0, Math.PI / 2, 0], shine: 1 });
+    seg([sx * 0.095, 1.6, 0.9], [sx * 0.072, 1.4, 1.12], 0.012, 0.012, strap, { bone: 2 });
+    A(torus3(0.022, 0.006, Math.PI * 2, 3, 8), gold, { bone: 2, p: [sx * 0.072, 1.29, 1.17], r: [0, Math.PI / 2, 0], shine: 1 });
+    seg([sx * 0.075, 1.29, 1.16], [sx * 0.15, 1.38, 0.74], 0.007, 0.007, strap, { bone: 10 });
+    seg([sx * 0.15, 1.38, 0.74], [sx * 0.1, 1.27, 0.14], 0.007, 0.007, strap, { bone: 10 });
   }
-  // Satteldecke mit Borte, Sattel mit Knauf und Rückenlehne, Gurt, Steigbügel
-  A(roundBox(0.6, 0.03, 0.5, 0.015), cloth, { bone: BQ.body, p: [0, bodyY + 0.28, -0.02], shade: 0.1 });
-  A(roundBox(0.62, 0.02, 0.52, 0.01), gold, { bone: BQ.body, p: [0, bodyY + 0.265, -0.02], shine: 0.8 });
-  A(roundBox(0.34, 0.08, 0.36, 0.035), '#5a3a22', { bone: BQ.body, p: [0, bodyY + 0.32, -0.02], top: lighter('#5a3a22', 0.2), topK: 0.4 });
-  A(ball(10), '#5a3a22', { bone: BQ.body, p: [0, bodyY + 0.39, 0.15], s: [0.06, 0.06, 0.05], shine: 0.4 });
-  A(roundBox(0.3, 0.1, 0.05, 0.025), '#4a2e1a', { bone: BQ.body, p: [0, bodyY + 0.39, -0.19] });
-  A(torus3(0.285, 0.022, Math.PI * 2, 4, 20), strap, { bone: BQ.body, p: [0, bodyY, 0.08], r: [0, Math.PI / 2, 0], s: [1, 1.02, 1] });
+  // --- Satteldecke (schmiegt sich an den Rücken), Sattel mit Knauf und Hinterzwiesel, Gurt, Steigbügel
+  A(cap3(1, 1.0, 0, Math.PI * 2, 20, 6), war ? red : cloth, { bone: 1, p: [0, bodyY - 0.01, -0.06], s: [0.264 * W, 0.284, 0.26], shade: 0.1 });
+  A(torus3(1, 0.05, Math.PI * 2, 4, 28), gold, { bone: 1, p: [0, bodyY - 0.01 + 0.153, -0.06], r: [Math.PI / 2, 0, 0], s: [0.225 * W, 0.22, 0.25], shine: 0.8 });
+  const leather = '#5a3820';
+  A(cap3(1, 1.1, 0, Math.PI * 2, 16, 5), leather, { bone: 1, p: [0, 1.17, -0.05], s: [0.17, 0.09, 0.2], top: lighter(leather, 0.2), topK: 0.4, shine: 0.3 });
+  A(ball(10), leather, { bone: 1, p: [0, 1.27, 0.11], s: [0.05, 0.04, 0.035], shine: 0.4 });
+  A(torus3(0.11, 0.022, Math.PI, 4, 10), darker(leather, 0.15), { bone: 1, p: [0, 1.24, -0.2], r: [0.25, 0, 0], s: [1, 0.55, 1] });
+  for (const sx of [-1, 1]) A(roundBox(0.02, 0.18, 0.24, 0.01), darker(leather, 0.1), { bone: 1, p: [sx * 0.215 * W, 1.11, -0.05], r: [0, 0, sx * 0.5] });
+  A(torus3(0.25, 0.018, Math.PI * 2, 4, 20), strap, { bone: 1, p: [0, bodyY - 0.01, 0.13], s: [0.98 * W, 1.05, 1] });
   for (const sx of [-1, 1]) {
-    seg([sx * 0.18, bodyY + 0.3, 0.02], [sx * 0.3, bodyY - 0.14, 0.02], 0.012, 0.012, strap, { bone: BQ.body });
-    A(torus3(0.04, 0.01, Math.PI * 2, 4, 10), steel, { bone: BQ.body, p: [sx * 0.3, bodyY - 0.17, 0.02], r: [0, Math.PI / 2, 0], shine: 1 });
+    seg([sx * 0.2 * W, 1.2, -0.02], [sx * 0.28 * W, 0.86, -0.02], 0.011, 0.011, strap, { bone: 1 });
+    A(torus3(0.032, 0.009, Math.PI * 2, 4, 10), steelD, { bone: 1, p: [sx * 0.28 * W, 0.83, -0.02], r: [0, Math.PI / 2, 0], shine: 1 });
   }
   if (war) {
-    // Rossharnisch: Stirnplatte mit Dorn, Halsplatten, Brustpanzer, Schabracke, Federbusch
-    A(roundBox(0.12, 0.24, 0.035, 0.02), steel, { bone: BQ.head, p: [0, hy - 0.08, hz + 0.17], r: [-0.75, 0, 0], shine: 1, top: lighter(steel, 0.3), topK: 0.4 });
-    A(horn3(0.16, 0.025, 6), gold, { bone: BQ.head, p: [0, hy + 0.06, hz + 0.08], r: [0.5, 0, 0], shine: 1 });
-    for (let k = 0; k < 4; k++) A(roundBox(0.1, 0.03, 0.14, 0.015), k % 2 ? steel : darker(steel, 0.15), { bone: BQ.neck, p: [0, bodyY + 0.32 + k * 0.12, 0.47 + k * 0.08], r: [-0.85, 0, 0], shine: 0.9 });
-    A(cap3(0.3, Math.PI * 0.5, 0, Math.PI * 2, 16, 6), steel, { bone: BQ.body, p: [0, bodyY + 0.02, 0.42], r: [Math.PI / 2, 0, 0], s: [1, 1, 0.45], shine: 1, top: lighter(steel, 0.25), topK: 0.3 });
-    A(torus3(0.29, 0.015, Math.PI * 2, 4, 20), gold, { bone: BQ.body, p: [0, bodyY + 0.02, 0.555], shine: 1 });
-    A(ball(8), '#ff6a2a', { bone: BQ.body, p: [0, bodyY + 0.05, 0.57], s: [0.04, 0.04, 0.02], mat: 'glow' });
-    for (const sx of [-1, 1]) {
-      A(roundBox(0.02, 0.3, 0.62, 0.01), '#7a1a1a', { bone: BQ.body, p: [sx * 0.29, bodyY - 0.08, -0.06], shade: 0.15 });
-      A(roundBox(0.025, 0.035, 0.63, 0.01), gold, { bone: BQ.body, p: [sx * 0.295, bodyY - 0.22, -0.06], shine: 0.9 });
+    // Kopfplatte entlang des Gesichts mit Grat, Augenschalen und goldenem Dorn
+    A(roundBox(0.15, 0.36, 0.026, 0.012), steel, { bone: 2, p: [0, 1.512, 1.143], r: [-0.81, 0, 0], shine: 1, top: lighter(steel, 0.25), topK: 0.4 });
+    A(roundBox(0.028, 0.34, 0.03, 0.012), gold, { bone: 2, p: [0, 1.528, 1.158], r: [-0.81, 0, 0], shine: 1 });
+    for (const sx of [-1, 1]) A(cap3(0.045, 1.2, 0, Math.PI * 2, 10, 4), steelD, { bone: 2, p: [sx * 0.095, 1.565, 0.955], r: [0, 0, -sx * Math.PI / 2], shine: 1 });
+    A(horn3(0.15, 0.024, 7), gold, { bone: 2, p: [0, 1.66, 0.99], r: [0.7, 0, 0], shine: 1 });
+    for (let k = -1; k <= 1; k++) strand3(A, 2, [k * 0.025, 1.73, 0.86], [k * 0.3, 1, -0.5], 0.24, 0.045, k ? '#c8302a' : '#e84a3a', { flat: 0.5 });
+    // Halsschienen: sechs Lamellen über dem Kamm, je mit Seitenteilen
+    for (let k = 0; k < 6; k++) {
+      const q = 0.08 + k * 0.15;
+      const [, y, z] = crest(q);
+      const [, y2, z2] = crest(q + 0.05);
+      const pitch = -Math.atan2(y2 - y, z2 - z);
+      const c = k % 2 ? steelD : darker(steel, 0.08);
+      A(roundBox(0.15, 0.025, 0.13, 0.012), c, { bone: 10, p: [0, y - 0.01, z], r: [pitch, 0, 0], shine: 0.9 });
+      for (const sx of [-1, 1]) A(roundBox(0.025, 0.11, 0.13, 0.012), c, { bone: 10, p: [sx * 0.085, y - 0.065, z + 0.01], r: [pitch, 0, sx * 0.3], shine: 0.9, shade: 0.3 });
+      A(sphere3(0.014, 6, 4), gold, { bone: 10, p: [0, y + 0.008, z], shine: 1 });
     }
-    A(cap3(0.3, Math.PI * 0.45, 0, Math.PI * 2, 16, 6), '#7a1a1a', { bone: BQ.body, p: [0, bodyY + 0.07, -0.4], s: [1, 0.8, 1] });
-    for (let k = -1; k <= 1; k++) A(horn3(0.22, 0.03, 5), '#c8302a', { bone: BQ.head, p: [k * 0.03, hy + 0.13, hz - 0.03], r: [-0.5, 0, k * 0.3] });
+    // Brustpanzer: gewölbte Schale vor der Brust mit Goldrand und Buckel
+    A(cap3(1, 1.05, 0, Math.PI * 2, 20, 6), steel, { bone: 1, p: [0, 0.95, 0.35], r: [Math.PI / 2, 0, 0], s: [0.27 * W, 0.27, 0.3], shine: 1, shade: 0.25 });
+    A(torus3(1, 0.035, Math.PI * 2, 4, 28), gold, { bone: 1, p: [0, 0.95, 0.35 + 0.3 * Math.cos(1.05)], s: [0.27 * W * Math.sin(1.05), 0.3 * Math.sin(1.05), 1], shine: 0.9 });
+    A(sphere3(0.05, 10, 8), gold, { bone: 1, p: [0, 0.95, 0.64], shine: 1 });
+    A(ball(8), '#ff6a2a', { bone: 1, p: [0, 0.95, 0.685], s: [0.022, 0.022, 0.012], mat: 'glow' });
+    // Schabracke: Tuch über der Kruppe und an den Flanken, unten Goldborte und Quasten
+    A(cap3(1, 1.35, 0, Math.PI * 2, 22, 7), red, { bone: 1, p: [0, 0.99, -0.41], s: [0.285 * W, 0.295, 0.3], shade: 0.15 });
+    A(torus3(1, 0.04, Math.PI * 2, 4, 28), gold, { bone: 1, p: [0, 0.99 + 0.064, -0.41], r: [Math.PI / 2, 0, 0], s: [0.274 * W, 0.284, 0.285], shine: 0.8 });
+    const ell = [[-0.02, 0.25, 0.44], [0.34, 0.235, 0.25], [-0.4, 0.262, 0.27]];
+    const hw = (z) => Math.max(...ell.map(([cz, rx, rz]) => (Math.abs(z - cz) < rz ? rx * W * Math.sqrt(1 - ((z - cz) / rz) ** 2) : 0)));
+    for (const sx of [-1, 1]) for (let k = 0; k < 8; k++) {
+      const z = 0.2 - k * 0.11;
+      const x = hw(z) + 0.03;
+      const yaw = Math.atan2(hw(z + 0.05) - hw(z - 0.05), 0.1) * sx;
+      A(roundBox(0.022, 0.3, 0.12, 0.01), k % 2 ? red : lighter(red, 0.06), { bone: 1, p: [sx * x, 0.86, z], r: [0, yaw, sx * 0.12], shade: 0.2 });
+      A(roundBox(0.03, 0.035, 0.122, 0.012), gold, { bone: 1, p: [sx * (x + 0.02), 0.72, z], r: [0, yaw, sx * 0.12], shine: 0.9 });
+      A(horn3(0.06, 0.016, 5), gold, { bone: 1, p: [sx * (x + 0.02), 0.71, z], r: [Math.PI, 0, 0], shine: 0.9 });
+    }
   }
-  return { rig, height: bodyY + 1.0, family: 'horse', bodyY, seat: bodyY + 0.36 };
+  return { rig, height: 1.8, family: 'horse', bodyY, seat: 1.29, horse3: true };
+}
+
+// Gangart des Pferdes (seit 12.0): Galopp im Viertakt (hinten links, hinten rechts, vorn links, vorn rechts,
+// dann Schwebe). Jedes Bein: Stütze (Huf am Boden, Bein schwingt gleichmäßig nach hinten) und Schwung (Knie
+// bzw. Sprunggelenk beugt sich, der Huf rollt ab, das Bein greift wieder nach vorn). Der Rumpf senkt und neigt
+// sich so, dass die stützenden Hufe am Boden bleiben; Hals und Schweif schwingen nach. Im Stand: Kopf und
+// Schweif bewegen sich, ab und zu scharrt ein Vorderhuf. hz: Galoppsprünge pro Sekunde.
+const HORSE_FEET = [
+  // Knochen oben, unten, Fessel, vorn?, Phase, Länge Drehpunkt–Huf, Stütze von … bis (Drehung)
+  [5, 13, 17, false, 0, 1.0, -0.32, 0.5], [6, 14, 18, false, 0.1, 1.0, -0.32, 0.5],
+  [3, 11, 15, true, 0.42, 0.9, -0.5, 0.45], [4, 12, 16, true, 0.52, 0.9, -0.5, 0.45]
+];
+const HORSE_DUTY = 0.4;
+function horseGait3(h, t, dt, moving, hz) {
+  const B = h.bones;
+  if (!B[19]) return 0;
+  const g = (h.galAmt = Math.max(0, Math.min(1, (h.galAmt || 0) + (moving ? dt * 5 : -dt * 4))));
+  if (moving) h.galPh = ((h.galPh || 0) + dt * hz) % 1;
+  const ph = h.galPh || 0;
+  const ge = g * g * (3 - 2 * g);
+  const TAU = Math.PI * 2;
+  let fDrop = null, hDrop = null;
+  for (const [u, l, f, front, off, len, a0, a1] of HORSE_FEET) {
+    let q = ph - off;
+    q -= Math.floor(q);
+    let up, knee, fet;
+    if (q < HORSE_DUTY) {
+      const s = q / HORSE_DUTY;
+      up = a0 + (a1 - a0) * s;
+      knee = front ? 0 : -0.18 * Math.sin(Math.PI * s);
+      fet = -(up + knee) * 0.85 - 0.25 * Math.sin(Math.PI * s);
+      const drop = len * (1 - Math.cos(up));
+      if (front) fDrop = fDrop == null ? drop : Math.min(fDrop, drop);
+      else hDrop = hDrop == null ? drop : Math.min(hDrop, drop);
+    } else {
+      // Schwung als Hermite-Kurve: gleiche Geschwindigkeit wie in der Stütze an beiden Enden (kein Ruck)
+      const s = (q - HORSE_DUTY) / (1 - HORSE_DUTY);
+      const m = -(a1 - a0) / HORSE_DUTY * (1 - HORSE_DUTY);
+      const s2 = s * s, s3 = s2 * s;
+      up = (2 * s3 - 3 * s2 + 1) * a1 + (s3 - 2 * s2 + s) * m + (-2 * s3 + 3 * s2) * a0 + (s3 - s2) * m;
+      const lift = Math.sin(Math.PI * Math.pow(s, front ? 0.8 : 1));
+      knee = front ? 1.75 * lift : -1.0 * lift;
+      fet = (front ? 1.1 : 0.8) * Math.sin(Math.PI * s) - (up + knee) * 0.85 * (1 - Math.sin(Math.PI * s));
+    }
+    B[u].rotation.x = up * ge;
+    B[l].rotation.x = knee * ge;
+    B[f].rotation.x = fet * ge;
+  }
+  // Rumpf: so tief, dass die Stützbeine den Boden halten; in der Schwebe etwas höher
+  const tf = fDrop == null ? -0.04 : fDrop;
+  const th = hDrop == null ? -0.04 : hDrop;
+  const k = Math.min(1, dt * 18);
+  if (h.galF == null) h.galF = tf;
+  if (h.galH == null) h.galH = th;
+  h.galF += (tf - h.galF) * k;
+  h.galH += (th - h.galH) * k;
+  const body = B[BQ.body];
+  const sink = ((h.galF + h.galH) / 2) * ge;
+  body.position.y -= sink;
+  body.rotation.x = ((h.galF - h.galH) / 0.82) * ge - 0.05 * Math.sin(TAU * (ph - 0.25)) * ge;
+  // Hals nickt gegen den Rumpf, Kopf hält die Richtung; Schweif hebt sich und weht nach
+  const idle = 1 - ge;
+  B[BQ.neck].rotation.x = ge * (0.06 + 0.13 * Math.sin(TAU * (ph - 0.55))) + idle * (0.06 + 0.05 * Math.sin(t * 0.7));
+  B[BQ.head].rotation.x = -ge * 0.09 * Math.sin(TAU * (ph - 0.55)) + idle * 0.04 * Math.sin(t * 0.7 + 1);
+  B[BQ.head].rotation.y = idle * 0.18 * Math.sin(t * 0.45);
+  B[BQ.tail].rotation.x = ge * (0.25 + 0.08 * Math.sin(TAU * ph));
+  B[19].rotation.x = ge * (0.15 + 0.2 * Math.sin(TAU * (ph - 0.2)));
+  B[BQ.tail].rotation.y = idle * 0.22 * Math.sin(t * 1.6) + ge * 0.08 * Math.sin(TAU * ph * 2);
+  B[19].rotation.y = idle * 0.3 * Math.sin(t * 1.6 - 0.9) + ge * 0.12 * Math.sin(TAU * ph * 2 - 1);
+  if (idle > 0.01) {
+    // Gewicht auf drei Beinen: ein Hinterbein ruht angewinkelt; alle paar Sekunden scharrt der rechte Vorderhuf
+    B[13].rotation.x += -0.14 * idle;
+    B[17].rotation.x += 0.3 * idle;
+    B[5].rotation.x += 0.05 * idle;
+    body.rotation.z = 0.012 * idle;
+    const st = (t + (h.idleSeed || (h.idleSeed = Math.random() * 7))) % 7.3;
+    if (st < 0.7) {
+      const s = Math.sin(Math.PI * (st / 0.7));
+      B[4].rotation.x += -0.25 * s * idle;
+      B[12].rotation.x += 1.3 * s * idle;
+      B[16].rotation.x += 0.7 * s * idle;
+    }
+  }
+  return sink;
 }
 
 // --- Spinne, Skorpion, Geist, Schlange, Naga, Golem ------------------------------------------------
@@ -4489,31 +4641,15 @@ function syncPlayer3(p, dt) {
       h.group.visible = a.group.visible;
       h.group.position.set(p.x * U3, 0, fy * U3);
       h.group.rotation.y = a.heading;
-      // Galopp im Takt des Tempos (seit 8.5): Kriegsross schneller als Reitpferd. Die Phase läuft in
-      // Spielzeit mit, damit ein Tempowechsel (Buff) keinen Sprung in den Beinen macht.
+      // Galopp (seit 12.0 mit Gelenken, siehe horseGait3): Sprünge pro Sekunde nach dem Tempo, damit die Hufe
+      // kaum rutschen; Kriegsross ist schneller. Die Phase läuft in Spielzeit, ein Tempowechsel macht keinen Sprung.
       const base = CLASSES[p.classId].base.speed;
       const spd = p === game.player && game.stats ? game.stats.speed : (p.footSpeed || base) + base * (HORSES[tier] || HORSES[1]).speed;
       const gdt = Math.min(0.1, Math.max(0, t - (h.galAt ?? t)));
       h.galAt = t;
-      if (p.moving) h.galPhase = (h.galPhase || 0) + gdt * 12 * Math.max(0.8, Math.min(1.4, spd / 180));
-      const gal = p.moving ? h.galPhase : 0;
-      if (p.moving) {
-        h.bones[BQ.legFL].rotation.x = Math.sin(gal) * 0.7;
-        h.bones[BQ.legFR].rotation.x = Math.sin(gal + 0.6) * 0.7;
-        h.bones[BQ.legBL].rotation.x = -Math.sin(gal + 0.3) * 0.7;
-        h.bones[BQ.legBR].rotation.x = -Math.sin(gal + 0.9) * 0.7;
-        h.bones[BQ.body].position.y += Math.abs(Math.sin(gal)) * 0.05;
-        // Galopp: Hals nickt mit, Schweif weht nach hinten
-        h.bones[BQ.neck].rotation.x = Math.sin(gal + 1.2) * 0.12;
-        h.bones[BQ.head].rotation.x = -Math.sin(gal + 1.2) * 0.08;
-        h.bones[BQ.tail].rotation.x = -0.5 + Math.sin(gal * 2) * 0.12;
-      } else {
-        // im Stehen: Kopf senkt und hebt sich, Ohren und Schweif zucken
-        h.bones[BQ.neck].rotation.x = 0.05 + Math.sin(t * 0.8) * 0.06;
-        h.bones[BQ.head].rotation.y = Math.sin(t * 0.5) * 0.12;
-      }
-      h.bones[BQ.tail].rotation.y = Math.sin(t * 3) * 0.2;
-      ride = h.model.seat * h.model.scale - a.model.hipY * a.model.scale + 0.05 + (p.moving ? Math.abs(Math.sin(gal)) * 0.05 : 0);
+      const sink = horseGait3(h, t, gdt, p.moving, Math.max(1.5, Math.min(2.9, (spd * U3) / 3.4)));
+      // Reiter sitzt im Sattel und geht mit dem Rumpf auf und ab
+      ride = h.model.seat * h.model.scale - a.model.hipY * a.model.scale + 0.04 - sink * h.model.scale;
       B[BH.legL].rotation.set(-1.2, 0, 0.5);
       B[BH.legR].rotation.set(-1.2, 0, -0.5);
     }

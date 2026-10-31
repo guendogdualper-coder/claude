@@ -279,12 +279,15 @@ function stormFx(owner, x, y, sk, local, pw) {
       }
     });
   }
+  // Schluss (seit 12.0): die Wolke entlädt sich – ein Blitznetz springt zwischen allen Gegnern im Feld und lähmt sie
   later(sk.form + sk.strikes * sk.every + 0.1, () => {
-    addEffect({ type: 'mstrike3', x, y: y + 9, dur: 0.7, s: 2.2 });
-    addEffect({ type: 'ring', x, y: y + 9, r: sk.final.r, dur: 0.45, color: '#fff7b0', width: 8, grow: true });
+    const caught = enemiesInCircle(x, y, sk.radius).filter((m) => !m.dead);
+    addEffect({ type: 'mweb3', x, y: y + 9, foes: caught.slice(0, 12), dur: 0.7 });
+    addEffect({ type: 'mstrike3', x, y: y + 9, dur: 0.6, s: 1.8 });
+    for (const m of caught) addEffect({ type: 'mpara3', follow: m, x: m.x, y: m.y, dur: sk.final.stun });
     if (near) shakeScreen(6);
     if (!local) return;
-    for (const m of enemiesInCircle(x, y, sk.final.r)) {
+    for (const m of caught) {
       m.stormHit = 0;
       hitMonster(m, sk.final.dmg * pw, { skill: sk.id, stun: sk.final.stun, heavy: true, vfxColor: '#ffffff' });
     }
@@ -501,6 +504,32 @@ EXTRA_EFFECTS.mspear3 = (ctx, e, k, x, y) => {
   ctx.restore();
 };
 EXTRA_EFFECTS.mstorm3 = (ctx, e, k, x, y) => glow2(ctx, x, y - 80, e.R * 0.8, '#2a2440', 0.5 * (1 - k));
+// 2D: Blitznetz und Lähmung als zuckende Linien
+const zap2 = (ctx, ax, ay, bx, by, col, w) => {
+  ctx.strokeStyle = col;
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.moveTo(ax, ay);
+  for (let i = 1; i < 6; i++) ctx.lineTo(ax + (bx - ax) * i / 6 + (Math.random() - 0.5) * 10, ay + (by - ay) * i / 6 + (Math.random() - 0.5) * 10);
+  ctx.lineTo(bx, by);
+  ctx.stroke();
+};
+EXTRA_EFFECTS.mweb3 = (ctx, e, k) => {
+  const f = e.foes.filter((m) => m && !m.dead).map((m) => bodyCenter(m));
+  ctx.save();
+  ctx.globalAlpha = 1 - k;
+  for (let i = 0; i < f.length; i++) if (f.length > 1) zap2(ctx, f[i].x, f[i].y, f[(i + 1) % f.length].x, f[(i + 1) % f.length].y, '#e8dcff', 2.5);
+  ctx.restore();
+};
+EXTRA_EFFECTS.mpara3 = (ctx, e) => {
+  const m = e.follow;
+  if (!m || m.dead || Math.random() > 0.6) return;
+  const c = bodyCenter(m);
+  const a = Math.random() * 6.28;
+  ctx.save();
+  zap2(ctx, c.x + Math.cos(a) * 14, c.y + Math.sin(a) * 12, c.x - Math.cos(a) * 14, c.y - Math.sin(a) * 12, '#fff7b0', 1.6);
+  ctx.restore();
+};
 EXTRA_EFFECTS.mstrike3 = (ctx, e, k, x, y) => {
   if (k > 0.5) return;
   ctx.save();
@@ -572,7 +601,7 @@ EXTRA_EFFECTS.mgrav3 = (ctx, e, k, x, y) => {
 };
 
 // --- 3D -----------------------------------------------------------------------------------------------
-['mbreath3', 'mcast3', 'mburst3', 'mignite3', 'mphoenix3', 'mspear3', 'mstorm3', 'mstrike3', 'mclash3', 'mspikes3', 'mmeteor3', 'mgrav3'].forEach((k) => FX3_TYPES.add(k));
+['mbreath3', 'mcast3', 'mburst3', 'mignite3', 'mphoenix3', 'mspear3', 'mstorm3', 'mstrike3', 'mclash3', 'mspikes3', 'mmeteor3', 'mgrav3', 'mweb3', 'mpara3'].forEach((k) => FX3_TYPES.add(k));
 const _n3a = new THREE.Vector3();
 const _n3b = new THREE.Vector3();
 const _n3c = new THREE.Vector3();
@@ -895,17 +924,27 @@ FX3_DRAW.mstorm3 = function (h, e) {
   const z = e.y * U3;
   const R = e.R * U3;
   const y = 4.6;
-  const n = low ? 8 : 16;
+  const n = low ? 10 : 24;
+  // zwei Lagen: dunkler Bauch unten, hellere Wülste oben, das Ganze dreht sich langsam
   for (let i = 0; i < n; i++) {
-    const a = n2h(i, 1) * 6.28 + t * 0.15;
-    const r = R * Math.sqrt(n2h(i, 2)) * 0.9 * grow;
-    const s = (1.6 + n2h(i, 3) * 1.6) * grow;
-    n3Smoke(h, x + Math.cos(a) * r, y + (n2h(i, 4) - 0.5) * 0.7, z + Math.sin(a) * r * 0.8, s, i % 3 ? '#1a1a26' : '#2e2a40', 0.85 * fade);
+    const a = n2h(i, 1) * 6.28 + t * 0.22 * (i % 2 ? 1 : -0.7);
+    const r = R * Math.sqrt(n2h(i, 2)) * 0.95 * grow;
+    const s = (1.5 + n2h(i, 3) * 1.8) * grow;
+    const top = i % 3 === 0;
+    n3Smoke(h, x + Math.cos(a) * r, y + (top ? 0.5 : -0.1) + (n2h(i, 4) - 0.5) * 0.5, z + Math.sin(a) * r * 0.8, s, top ? '#3a3654' : i % 2 ? '#14141e' : '#221e30', 0.88 * fade);
   }
-  // Blitze im Inneren der Wolke
-  if (Math.random() < 0.35) {
+  // Wetterleuchten im Inneren: mehrere Stellen flackern auf, zuckende Bögen in der Wolke
+  const flashes = low ? 1 : 3;
+  for (let k = 0; k < flashes; k++) {
+    if (Math.random() > 0.45) continue;
     const a = Math.random() * 6.28;
-    n3Glow(h, x + Math.cos(a) * R * 0.5, y - 0.2, z + Math.sin(a) * R * 0.4, 2.2, '#c8b0ff', 0.6 * fade);
+    const r = R * 0.6 * Math.random();
+    n3Glow(h, x + Math.cos(a) * r, y - 0.3, z + Math.sin(a) * r * 0.8, 1.6 + Math.random() * 1.4, k % 2 ? '#c8b0ff' : '#fff7b0', 0.55 * fade);
+    if (!low && Math.random() < 0.6) {
+      _n3a.set(x + Math.cos(a) * r, y - 0.2, z + Math.sin(a) * r * 0.8);
+      _n3b.set(_n3a.x + (Math.random() - 0.5) * 2.4, y - 0.4, _n3a.z + (Math.random() - 0.5) * 1.6);
+      n3Bolt(h, _n3a, _n3b, 0.035, '#d8c8ff', 0.85 * fade, 5, 0.35);
+    }
   }
   // Regenschleier
   if (!low) {
@@ -920,10 +959,7 @@ FX3_DRAW.mstorm3 = function (h, e) {
       fx3Color(o, '#9ab0d8', 0.45 * fade);
     }
   }
-  // Schatten am Boden (kein Kreis mit Muster, nur Dunkel)
-  const sh = fx3Take(h, 'planeN');
-  fx3Ground(sh, e.x, e.y, R * 1.1 * grow, 0.02, 'disc');
-  fx3Color(sh, '#0a0a14', 0.35 * fade);
+  // seit 12.0 nichts mehr am Boden (kein Schatten, kein Ring)
 };
 
 // Himmelsblitz: aus großer Höhe gezackt in den Boden, Lichtfleck, Funken
@@ -944,10 +980,57 @@ FX3_DRAW.mstrike3 = function (h, e) {
     }
   }
   const fade = Math.max(0, 1 - k);
-  n3Glow(h, x, 0.3, z, 1.6 * s * fade, '#fff7b0', 0.9 * fade);
-  const burn = fx3Take(h, 'planeN');
-  fx3Ground(burn, e.x, e.y, 0.5 * s, 0.025, 'disc');
-  fx3Color(burn, '#120e08', 0.6 * fade);
+  // Einschlag: Lichtblitz in Körperhöhe und Funken (nichts am Boden)
+  n3Glow(h, x, 0.8, z, 1.1 * s * fade, '#fff7b0', 0.75 * fade);
+  if (!n3low() && k < 0.5) {
+    for (let i = 0; i < 6; i++) {
+      const a = i * 1.05 + e.start * 7;
+      const u = k * 2;
+      n3Glow(h, x + Math.cos(a) * u * 0.9 * s, 0.4 + u * 1.2 - u * u * 1.4, z + Math.sin(a) * u * 0.7 * s, 0.16, '#fffbe0', 1 - u);
+    }
+  }
+};
+
+// Blitznetz (seit 12.0): Bögen springen von Gegner zu Gegner und hinauf in die Wolke
+FX3_DRAW.mweb3 = function (h, e) {
+  const t = game.time - e.start;
+  const k = t / e.dur;
+  const op = Math.max(0, 1 - k * 1.1);
+  if (op <= 0) return;
+  const foes = e.foes.filter((m) => m && !m.dead);
+  const low = n3low();
+  const pts = foes.map((m) => new THREE.Vector3(m.x * U3, Math.max(0.5, figureHeight(m) * 0.5 * U3), feetY(m) * U3));
+  for (let i = 0; i < pts.length; i++) {
+    // zum nächsten Gegner im Ring und hinauf zur Wolke
+    const nx = pts[(i + 1) % pts.length];
+    if (pts.length > 1 && (!low || i % 2 === 0)) n3Bolt(h, pts[i], nx, 0.045, '#e8dcff', op, 7, 0.45);
+    if (i < (low ? 2 : 6)) {
+      _n3a.set(pts[i].x + (Math.random() - 0.5) * 0.6, 4.4, pts[i].z + (Math.random() - 0.5) * 0.4);
+      n3Bolt(h, _n3a, pts[i], 0.05, '#ffe94a', op, 9, 0.55);
+    }
+  }
+};
+
+// Lähmung (seit 12.0): kleine zuckende Blitze um den Körper, solange der Gegner gelähmt ist
+FX3_DRAW.mpara3 = function (h, e) {
+  const m = e.follow;
+  if (!m || m.dead) return;
+  const t = game.time - e.start;
+  const fade = Math.min(1, (e.dur - t) / 0.25);
+  const hgt = Math.max(0.6, figureHeight(m) * U3);
+  const rr = Math.max(0.35, (m.r || 14) * U3 * 1.3);
+  const cx = m.x * U3;
+  const cz = feetY(m) * U3;
+  const n = n3low() ? 1 : 3;
+  for (let i = 0; i < n; i++) {
+    if (Math.random() > 0.7) continue;
+    const a = Math.random() * 6.28;
+    const b = a + 0.8 + Math.random() * 1.6;
+    _n3a.set(cx + Math.cos(a) * rr, hgt * (0.2 + Math.random() * 0.7), cz + Math.sin(a) * rr * 0.8);
+    _n3b.set(cx + Math.cos(b) * rr, hgt * (0.2 + Math.random() * 0.7), cz + Math.sin(b) * rr * 0.8);
+    n3Bolt(h, _n3a, _n3b, 0.022, i % 2 ? '#c8b0ff' : '#fff7b0', fade, 5, 0.25);
+  }
+  n3Glow(h, cx, hgt * 0.55, cz + 0.05, rr * 2.2, '#9a8aff', 0.22 * fade * (0.7 + 0.3 * Math.sin(t * 30)));
 };
 
 // Steinschlag: zwei Felsen fliegen im Bogen von links und rechts heran und zerbersten aneinander

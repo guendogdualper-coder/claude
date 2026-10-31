@@ -2139,8 +2139,124 @@ Object.assign(NPC_ICONS, {
   }
 });
 
+// Symbole über den Köpfen (seit 12.0 einheitlich): runde Plakette mit Goldrand, Grundfarbe der Rolle und einem
+// klaren Bild – Trank, gekreuzte Schwerter, Brustpanzer, Hammer und Amboss, Truhe, Schriftrolle, Kompass,
+// Bogen, Kessel, Buch, Hufeisen
+function npcBadge(ctx, color, pic) {
+  dot(ctx, 0, 0.8, 12.6, 12.6, 'rgba(0,0,0,0.35)');
+  const g = ctx.createRadialGradient(-3, -4, 1, 0, 0, 12);
+  g.addColorStop(0, lighter(color, 0.25));
+  g.addColorStop(1, darker(color, 0.35));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, 11.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#e8c878';
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(40,24,8,0.8)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.arc(0, 0, 12.5, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.save();
+  pic(ctx);
+  ctx.restore();
+  // Glanz oben links
+  ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  ctx.beginPath();
+  ctx.ellipse(-3.5, -6, 5.5, 2.6, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+}
+const badgeArc = (ctx, color, w, r, a0, a1, x = 0, y = 0) => {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(x, y, r, a0, a1);
+  ctx.stroke();
+};
+function badgeSword(ctx, ang) {
+  ctx.save();
+  ctx.rotate(ang);
+  poly(ctx, [[-1.3, 3], [-1.3, -6], [0, -8.4], [1.3, -6], [1.3, 3]], '#e4ebf2');
+  box(ctx, -3.8, 2.6, 7.6, 1.8, 0.8, '#e8c46a');
+  box(ctx, -0.9, 4.3, 1.8, 3.4, 0.6, '#7a4a2a');
+  dot(ctx, 0, 8.2, 1.3, 1.3, '#e8c46a');
+  ctx.restore();
+}
+Object.assign(NPC_ICONS, {
+  haendler: (ctx) => npcBadge(ctx, '#7a3a8a', (c) => {
+    box(c, -1.7, -7, 3.4, 4.5, 0.8, '#dfeef4');
+    box(c, -2.3, -8.6, 4.6, 2, 0.6, '#8a5a34');
+    oval(c, 0, 1.6, 5.6, 5.4, '#e8404a');
+    dot(c, -1.8, -0.2, 1.5, 1.2, 'rgba(255,255,255,0.75)');
+  }),
+  alchemist: (ctx) => npcBadge(ctx, '#2f6a46', (c) => {
+    oval(c, 0, 2.6, 6.4, 4.8, '#2e2a2e');
+    box(c, -7, -1.6, 14, 2, 1, '#4a4448');
+    oval(c, 0, -1.4, 5.6, 1.2, '#7aff6a');
+    for (const [x, y, r] of [[-2, -4.5, 1.6], [1.8, -6.5, 1.2], [0.2, -8.6, 0.9]]) dot(c, x, y, r, r, '#b8ffa8');
+  }),
+  waffen: (ctx) => npcBadge(ctx, '#8a2a2a', (c) => {
+    badgeSword(c, -0.7);
+    badgeSword(c, 0.7);
+  }),
+  ruestung: (ctx) => npcBadge(ctx, '#2f5a7a', (c) => {
+    poly(c, [[-6.5, -6], [-2.4, -7], [0, -4.6], [2.4, -7], [6.5, -6], [7, -0.5], [5, 5.5], [0, 7.8], [-5, 5.5], [-7, -0.5]], '#c4cdd6');
+    stroke(c, '#7a8694', 0.9, [[0, -4.4], [0, 7.4]]);
+    stroke(c, '#e8c46a', 1.2, [[-5.4, 1.6], [0, 3.4], [5.4, 1.6]]);
+  }),
+  schmied: (ctx) => npcBadge(ctx, '#5a4636', (c) => {
+    poly(c, [[-7, 1.2], [6, 1.2], [8, -0.8], [6.5, 3.2], [3, 3.6], [3, 5.6], [5, 7.4], [-5, 7.4], [-3, 5.6], [-3, 3.6], [-7, 3.2]], '#6a707a');
+    c.rotate(-0.55);
+    box(c, -0.9, -4, 1.8, 9.5, 0.6, '#8a5a34');
+    box(c, -4.4, -7.8, 8.8, 4, 1, '#c4cdd6');
+  }),
+  lager: (ctx) => npcBadge(ctx, '#6a4a2a', (c) => {
+    box(c, -7, -3.6, 14, 9.6, 1.4, '#a8783e');
+    box(c, -7, -6.6, 14, 4, 1.6, '#c08a48');
+    box(c, -7, -2.4, 14, 1.4, 0.3, '#5a3e22');
+    for (const x of [-4.6, 3.4]) box(c, x, -6.4, 1.2, 12.2, 0.3, '#5a3e22');
+    box(c, -1.5, -3.6, 3, 3.8, 0.6, '#f0cc6a');
+  }),
+  aeltester: (ctx) => npcBadge(ctx, '#7c3a2c', (c) => {
+    box(c, -5.2, -6.6, 10.4, 13.2, 1, '#f4ead0');
+    for (const y of [-3.4, -0.8, 1.8, 4.2]) stroke(c, '#9a8a6a', 0.9, [[-3.4, y], [3.4, y]]);
+    for (const y of [-7.2, 7.2]) box(c, -6.8, y - 1.4, 13.6, 2.8, 1.4, '#c9a35a');
+    dot(c, 2.6, 4.6, 1.6, 1.6, '#c8302a');
+  }),
+  teleport: (ctx) => npcBadge(ctx, '#2f5a8a', (c) => {
+    oval(c, 0, 0, 8, 8, '#e8f2fa');
+    badgeArc(c, '#7a8694', 0.8, 6.2, 0, Math.PI * 2);
+    poly(c, [[0, -7], [1.9, 0], [-1.9, 0]], '#d83a3a');
+    poly(c, [[0, 7], [1.9, 0], [-1.9, 0]], '#3a4a5a');
+    dot(c, 0, 0, 1.2, 1.2, '#e8c46a');
+  }),
+  jaegerin: (ctx) => npcBadge(ctx, '#3e5a2e', (c) => {
+    badgeArc(c, '#b07a40', 2, 8, -Math.PI * 0.42, Math.PI * 0.42, -3, 0);
+    stroke(c, '#f4ead0', 0.8, [[-3 + 8 * Math.cos(Math.PI * 0.42), -8 * Math.sin(Math.PI * 0.42)], [-3 + 8 * Math.cos(Math.PI * 0.42), 8 * Math.sin(Math.PI * 0.42)]]);
+    stroke(c, '#e8e0d0', 1.2, [[-6, 0], [7, 0]]);
+    poly(c, [[9, 0], [5.6, -2], [5.6, 2]], '#c4cdd6');
+    poly(c, [[-6, 0], [-8.4, -2.2], [-7, 0], [-8.4, 2.2]], '#d83a3a');
+  }),
+  lehrmeister: (ctx) => npcBadge(ctx, '#226060', (c) => {
+    poly(c, [[0, -4.6], [-7.6, -6.4], [-7.6, 5], [0, 6.8]], '#f4ead0');
+    poly(c, [[0, -4.6], [7.6, -6.4], [7.6, 5], [0, 6.8]], '#e8dcc0');
+    for (const y of [-2.6, 0, 2.6]) {
+      stroke(c, '#8a7a5a', 0.8, [[-6, y - 1], [-1.4, y]]);
+      stroke(c, '#8a7a5a', 0.8, [[1.4, y], [6, y - 1]]);
+    }
+    stroke(c, '#8a5a34', 1.2, [[0, -4.6], [0, 6.8]]);
+  }),
+  stallmeister: (ctx) => npcBadge(ctx, '#6a4a2a', (c) => {
+    badgeArc(c, '#c4cdd6', 3.4, 5.6, Math.PI * 0.82, Math.PI * 2.18, 0, 0.6);
+    for (const a of [0.95, 1.2, 1.45, 1.55, 1.8, 2.05]) dot(c, Math.cos(Math.PI * a) * 5.6, 0.6 + Math.sin(Math.PI * a) * 5.6, 0.7, 0.7, '#4a4e56');
+  })
+});
+
 function npcIconSprite(id) {
-  return getSprite('ni:' + id, { x: -12, y: -12, w: 24, h: 24 }, (ctx) => NPC_ICONS[id](ctx));
+  return getSprite('ni2:' + id, { x: -14, y: -14, w: 28, h: 28 }, (ctx) => NPC_ICONS[id](ctx));
 }
 
 function shieldSprite(tier) {

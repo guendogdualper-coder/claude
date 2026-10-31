@@ -461,8 +461,8 @@ const CLASSES = {
             // seit 11.5 statt Statische Ladung: Gewitterwolke – Flächenschaden aus der Ferne
             id: 'gewitter', name: 'Gewitterwolke', short: 'GW', kind: 'angriff', unlock: 7, mp: 26, cooldown: 14,
             type: 'mstorm', el: 'blitz', aim: true, range: 460, radius: 165, form: 0.6, strikes: 6, every: 0.3, dmg: 0.95,
-            final: { dmg: 1.8, r: 95, stun: 0.6 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
-            text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen. Sechs Blitze schlagen nacheinander in Gegner darunter, zum Schluss kracht ein gewaltiger Donnerschlag in die Mitte und betäubt alle bis 95 weit. Reichweite 460.'
+            final: { dmg: 1.8, stun: 1.5 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
+            text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen. Sechs Blitze schlagen nacheinander in Gegner darunter. Zum Schluss entlädt sich die ganze Wolke: Ein Netz aus Blitzen springt zwischen allen Gegnern im Feld hin und her und lähmt sie 1,5 s lang. Reichweite 460.'
           },
           {
             id: 'kugelblitz', name: 'Kugelblitz', short: 'KU', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,

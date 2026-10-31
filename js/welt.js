@@ -237,21 +237,23 @@ function generateWorld() {
   const dungeons = buildDungeons(ground, obj, zoneIdx);
   const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom);
 
-  // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher
+  // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher.
+  // Seit 12.0 geordnet in Marktreihen mit Abstand (oben Ältester und Wegweiserin, dann eine Reihe Händler,
+  // unten Handwerk und Lager), jede Person vor ihrem eigenen Stand (siehe STAND3 in drei-welt.js)
   const npc = (id, name, x, y, extra = {}) => ({ id, name, x: x * TILE, y: y * TILE, r: 11, ...extra });
   const npcs = [
-    npc('haendler', 'Händlerin Ayla', V(2.5), V(-2)),
-    npc('schmied', 'Schmied Doran', V(-3), V(2.5)),
-    npc('waffen', 'Waffenhändler Goro', V(-4.5), V(-1.5)),
-    npc('ruestung', 'Rüstungshändlerin Mei', V(3), V(2.6)),
-    npc('aeltester', 'Dorfältester Bao', V(0.5), V(-4.8)),
-    npc('jaegerin', 'Jägerin Rin', V(-5.5), V(5.6)),
-    npc('teleport', 'Wegweiserin Lian', V(5.6), V(-4.4)),
-    npc('alchemist', 'Alchemist Yun', V(6.2), V(2.4)),
-    npc('stallmeister', 'Stallmeister Jun', V(-10), V(2.2)),
-    npc('lehrmeister', 'Lehrmeister Wen', V(-1.5), V(5.6)),
-    npc('lager', 'Lagerverwalter Bo', V(2.2), V(5.6)),
-    npc('weltentor', 'Weltentor', V(6.8), V(-5.6))
+    npc('waffen', 'Waffenhändler Goro', V(-7.4), V(-3.6)),
+    npc('ruestung', 'Rüstungshändlerin Mei', V(-3.8), V(-3.6)),
+    npc('haendler', 'Händlerin Ayla', V(3.8), V(-3.6)),
+    npc('alchemist', 'Alchemist Yun', V(7.4), V(-3.6)),
+    npc('lehrmeister', 'Lehrmeister Wen', V(-7.4), V(2.9)),
+    npc('schmied', 'Schmied Doran', V(-3.8), V(2.9)),
+    npc('lager', 'Lagerverwalter Bo', V(3.8), V(2.9)),
+    npc('jaegerin', 'Jägerin Rin', V(7.4), V(2.9)),
+    npc('aeltester', 'Dorfältester Bao', V(-3.8), V(-7.2)),
+    npc('teleport', 'Wegweiserin Lian', V(3.8), V(-7.2)),
+    npc('stallmeister', 'Stallmeister Jun', V(-10.6), V(1.6)),
+    npc('weltentor', 'Weltentor', V(7.4), V(-7.4))
   ];
   // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
   // damit man Aufträge, Jagden und die Stallmeister-Prüfung überall annehmen und abgeben kann
@@ -278,14 +280,15 @@ function generateWorld() {
   };
   // kleines Lager (für eine Mauer von 7 gezeichnet, wächst mit wm.camp): oben Älteste, Weltentor, Wegweiserin;
   // links Schmied und Waffen, rechts Händlerin und Rüstung, unten Stall, Jägerin, Alchemist
+  // seit 12.0 in Reihen wie in Vlotho: oben Älteste und Wegweiserin, Händlerreihe, Handwerksreihe, unten Stall
   const CAMP_SPOTS = {
-    aeltester: [-3, -4.3], teleport: [3.8, -4.3], schmied: [-4.6, -1.2], waffen: [-4.6, 1.8], haendler: [4.6, -1.2],
-    ruestung: [4.6, 2], stallmeister: [-4.2, 4.3], jaegerin: [-1.2, 4.5], alchemist: [2.4, 4.5], lehrmeister: [2.4, 1.4], lager: [-2.4, 1.4]
+    aeltester: [-3, -4.6], teleport: [3.4, -4.6], waffen: [-5, -1.6], ruestung: [-2.2, -1.6], haendler: [2.2, -1.6],
+    alchemist: [5, -1.6], lehrmeister: [-5, 2.6], schmied: [-2.2, 2.6], lager: [2.2, 2.6], jaegerin: [5, 2.6], stallmeister: [-3.4, 5.2]
   };
   // Städte in Map 2 und 3 (für eine Mauer von 11 gezeichnet, wächst mit CAMP_HALF)
   const TOWN_SPOTS = {
-    haendler: [3, -2.5], schmied: [-3.5, 2.5], waffen: [-4.5, -2], ruestung: [3.5, 3], alchemist: [6.5, 0.5],
-    aeltester: [-3.6, -5.4], teleport: [4, -6.2], jaegerin: [-6.6, 3.6], stallmeister: [-7.2, -0.6], lehrmeister: [0.5, 5.5], lager: [3, 5.6]
+    aeltester: [-3.2, -6.2], teleport: [3.2, -6.2], waffen: [-6.2, -3], ruestung: [-3.2, -3], haendler: [3.2, -3],
+    alchemist: [6.2, -3], lehrmeister: [-6.2, 3.2], schmied: [-3.2, 3.2], lager: [3.2, 3.2], jaegerin: [6.2, 3.2], stallmeister: [-7.2, -0.6]
   };
   for (const mp of maps) {
     const k = mp.scale;
@@ -387,20 +390,11 @@ function generateWorld() {
   const VT = (x, y) => T(V(x), V(y));
   const props = [
     { type: 'well', ...VT(-1.6, -1.4) },
-    ...[[-2.4, -7.6], [2.4, -7.6], [-2.4, 7.8], [2.4, 7.8], [-7.8, -2.4], [-7.8, 2.6], [7.8, -2.4], [7.8, 2.6], [-10.5, -10.5], [10.5, -10.5], [-10.5, 10.5], [10.5, 10.5]]
+    ...[[-2.4, -7.6], [2.4, -7.6], [-2.4, 7.8], [2.4, 7.8], [-10, -1.6], [-10, 3.4], [10, -1.6], [10, 1.6], [-10.5, -10.5], [10.5, -10.5], [-10.5, 10.5], [10.5, 10.5]]
       .map(([x, y]) => ({ type: 'lantern', ...VT(x, y) })),
-    { type: 'stall', roof: '#9a2f2a', ...VT(-5, -2.6) },
-    { type: 'stall', roof: '#2f5a7a', ...VT(3.4, 1.4) },
-    { type: 'stall', roof: '#6d3f7d', ...VT(3.2, -3.2) },
-    { type: 'stall', roof: '#3a6a4a', ...VT(6.6, 1.2) },
-    { type: 'barrel', ...VT(-6.6, -1.4) },
-    { type: 'barrel', ...VT(-6.1, -0.9) },
-    { type: 'crate', ...VT(4.4, 3.8) },
-    { type: 'barrel', ...VT(-4.2, 3.4) },
-    { type: 'anvil', ...VT(-2.2, 3.2) },
-    { type: 'board', ...VT(-0.8, -5.2) },
-    { type: 'targets', ...VT(-7, 6.2) },
-    { type: 'herbs', ...VT(7.4, 3.4) }
+    { type: 'barrel', ...VT(-9.2, -4.6) },
+    { type: 'barrel', ...VT(-8.7, -4.1) },
+    { type: 'crate', ...VT(9.4, 4.4) }
   ];
   // Türme an den Ecken und links und rechts jedes Tores, dazu Torbögen im Norden und Süden
   for (const [x, y] of [[-H, -H], [H, -H], [-H, H], [H, H]]) props.push({ type: 'tower', ...T(C + x + 0.5, C + y + 1) });
@@ -414,7 +408,7 @@ function generateWorld() {
 
   props.push(...wandererFires);
   // Stall des Stallmeisters: ein Pferd und Heuballen
-  props.push({ type: 'horse', ...VT(-11.8, 3.4) }, { type: 'hay', ...VT(-8.6, 3.6) });
+  props.push({ type: 'horse', ...VT(-12.2, 2.6) }, { type: 'hay', ...VT(-12.4, -1.6) });
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
     for (const r of dg.def.raid ? dg.rooms.slice(0, 1) : dg.rooms) {
@@ -448,22 +442,21 @@ function generateWorld() {
     }
     if (mp.small) {
       // kleines Lager: Laternen an den Ecken, Feuerbecken, Brunnen und ein Stand
-      for (const [dx, dy] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) props.push({ type: 'lantern', ...MT(dx, dy) });
-      props.push({ type: 'brazier', roof: '#ffb04a', ...MT(-2, -3.2) }, { type: 'brazier', roof: '#ffb04a', ...MT(3, -3.2) });
-      props.push({ type: 'well', ...MT(-1.4, 1.4) }, { type: 'stall', roof: '#7a3a2a', ...MT(5.8, 0.4) });
-      props.push({ type: 'barrel', ...MT(-5.4, -3.4) }, { type: 'crate', ...MT(5.4, 4.6) });
-      props.push({ type: 'anvil', ...MT(-5.6, -0.2) }, { type: 'hay', ...MT(-5.6, 3.4) }, { type: 'board', ...MT(-3, -5.4) });
+      for (const [dx, dy] of [[-5.4, -5], [5.4, -5], [-1.4, 5.4], [1.4, 5.4]]) props.push({ type: 'lantern', ...MT(dx, dy) });
+      props.push({ type: 'brazier', roof: '#ffb04a', ...MT(-0.9, -5.4) }, { type: 'brazier', roof: '#ffb04a', ...MT(1.9, -5.4) });
+      props.push({ type: 'well', ...MT(-1.3, -0.1) }, { type: 'horse', ...MT(-5.4, 5.3) });
+      props.push({ type: 'barrel', ...MT(-6, -3.4) }, { type: 'crate', ...MT(5.4, 4.6) });
       continue;
     }
-    for (const [dx, dy] of [[-6, -6], [6, -6], [-6, 6], [6, 6], [-2.5, -7], [2.5, -7], [-2.5, 7.5], [2.5, 7.5]]) props.push({ type: 'lantern', ...MT(dx, dy) });
-    props.push({ type: 'brazier', roof: '#ffb04a', ...MT(-2, -3.5) }, { type: 'brazier', roof: '#ffb04a', ...MT(3, -3.5) });
+    for (const [dx, dy] of [[-6, -6], [6, -6], [-6, 6], [6, 6], [-1.3, -7.2], [1.3, -7.2], [-2.5, 7.5], [2.5, 7.5]]) props.push({ type: 'lantern', ...MT(dx, dy) });
+    props.push({ type: 'brazier', roof: '#ffb04a', ...MT(-1.3, -4.6) }, { type: 'brazier', roof: '#ffb04a', ...MT(2.3, -4.6) });
     props.push({ type: 'well', ...MT(-1.4, 0.6) });
-    props.push({ type: 'stall', roof: mp.id === 2 ? '#c8a03a' : '#5a5a6a', ...MT(6.4, -4.6) });
-    props.push({ type: 'stall', roof: mp.id === 2 ? '#9a2f2a' : '#7a3a2a', ...MT(-6.4, -3) });
-    props.push({ type: 'anvil', ...MT(-2.6, 3.4) });
-    props.push({ type: 'barrel', ...MT(5.2, 1.6) }, { type: 'crate', ...MT(-7.2, 1.2) });
-    props.push({ type: 'hay', ...MT(-8.4, -1.4) }, { type: 'board', ...MT(-3.6, -6.4) });
+    props.push({ type: 'horse', ...MT(-9, 1.4) }, { type: 'hay', ...MT(-9.2, -2.6) });
   }
+
+  // Stand hinter jeder Stadtperson (seit 12.0): eine Kachel und ein Viertel nördlich, die Person steht davor
+  const STAND_ROLES = new Set(Object.keys(ROLE_TITLE));
+  for (const n of npcs) if (STAND_ROLES.has(n.id)) props.push({ type: 'stand', roof: n.id, x: n.x, y: n.y - 1.25 * TILE });
 
   return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps };
 }

@@ -687,6 +687,8 @@ function houseSprite(h) {
 
 // --- Dorfschmuck -------------------------------------------------------------------------
 
+// Dachfarbe der Stände je Rolle (2D)
+const STAND_COLORS = { haendler: '#6d3f7d', alchemist: '#3a6a4a', waffen: '#9a2f2a', ruestung: '#2f5a7a', schmied: '#5a3a2e', lager: '#7a5a3a', aeltester: '#7c3a2c', teleport: '#5a8ab0', jaegerin: '#4a6a3a', lehrmeister: '#2a6a6a', stallmeister: '#8a6440' };
 const PROP_ART = {
   well(ctx) {
     oval(ctx, 0, -6, 15, 8, '#7d7468');
@@ -787,6 +789,13 @@ Object.assign(PROP_ART, {
     paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-28, -38); ctx.lineTo(28, -38); ctx.lineTo(24, -48); ctx.lineTo(-24, -48); ctx.closePath(); }, roof, -28, -48, 56, 10);
     for (let x = -26, n = 0; x < 26; x += 8, n++) poly(ctx, [[x, -38], [x + 8, -38], [x + 4, -34]], n % 2 ? roof : lighter(roof, 0.4));
   },
+  // Stand einer Stadtperson (seit 12.0; in 2D ein Marktstand in der Farbe der Rolle)
+  stand(ctx, pr) {
+    ctx.save();
+    ctx.scale(1.25, 1.25);
+    PROP_ART.stall(ctx, { roof: STAND_COLORS[pr.roof] || '#9a2f2a' });
+    ctx.restore();
+  },
   anvil(ctx) {
     box(ctx, -7, -8, 14, 8, 2, '#6b4a2e');
     poly(ctx, [[-10, -14], [10, -14], [13, -11], [6, -10], [6, -8], [-6, -8], [-6, -10], [-10, -11]], '#5a5e66');
@@ -855,6 +864,7 @@ const PROP_BOUNDS = {
   tower: { x: -34, y: -106, w: 68, h: 110 },
   gate: { x: -90, y: -108, w: 180, h: 112 },
   stall: { x: -32, y: -54, w: 64, h: 58 },
+  stand: { x: -40, y: -64, w: 80, h: 68 },
   horse: { x: -34, y: -58, w: 68, h: 62 }
 };
 

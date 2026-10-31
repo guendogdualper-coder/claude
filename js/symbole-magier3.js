@@ -86,16 +86,22 @@ Object.assign(SKILL_ART, {
   },
 
   // Gewitterwolke: schwere dunkle Wolke oben, drei Blitze schlagen nach unten
+  // Gewitterwolke (seit 12.0): Sturmwolke oben, drei Blitze schlagen herab, unten zwei gelähmte Gestalten im Blitznetz
   gewitter(ctx, IK) {
-    IK.light(ctx, 0, 6, 18, '#ffe94a', 0.35);
-    for (const [x, len, seed] of [[-10, 26, 1], [2, 32, 2], [12, 24, 3]]) {
-      IK.bolt(ctx, IK.zigzag(x, -6, x + (seed - 2) * 3, -6 + len, 5, 2.6, seed * 7), IKN.bolt, seed === 2 ? 2.4 : 1.6, IKN.boltGlow);
+    IK.light(ctx, 0, 6, 20, '#9a8aff', 0.55);
+    // Wolke: flache Ballen, oben angeleuchtet
+    for (const [x, y, rx, ry] of [[-11, -12, 9, 6], [10, -12, 9, 6], [-2, -15, 11, 7], [3, -10, 13, 6]]) {
+      IK.fill(ctx, (cx) => cx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2), IK.lin(ctx, x, y - ry, x, y + ry, [[0, '#a8a0d8'], [0.45, '#5a5480'], [1, '#1e1a2c']]), 0.7);
     }
-    // Wolke aus mehreren Ballen
-    for (const [x, y, r, c] of [[-12, -10, 8, '#3a3650'], [12, -10, 8, '#3a3650'], [-4, -14, 10, '#4a4664'], [6, -15, 9, '#4a4664'], [0, -8, 11, '#2a2638']]) {
-      IK.fill(ctx, (cx) => cx.arc(x, y, r, 0, Math.PI * 2), IK.rad(ctx, x - r * 0.3, y - r * 0.4, 1, r, [[0, '#7a76a0'], [0.5, c], [1, '#14121c']]), 0.6);
+    IK.light(ctx, -4, -11, 6, '#fff7b0', 0.8);
+    // gelähmte Gestalten mit Blitznetz
+    // Blitze aus der Wolke treffen die Gestalten
+    for (const [x0, x1, y1, w, seed] of [[-9, -11, 4, 1.4, 1], [1, 0, 12, 2.2, 2], [10, 11, 4, 1.4, 3]]) {
+      IK.bolt(ctx, IK.zigzag(x0, -7, x1, y1, 5, 2.2, seed * 7), IKN.bolt, w, IKN.boltGlow);
     }
-    IK.light(ctx, 2, -10, 8, '#c8b0ff', 0.6);
+    for (const x of [-11, 11]) IK.glow(ctx, '#fff7b0', 5, () => IK.figure(ctx, x, 19, 15, IK.lin(ctx, 0, -14, 0, 0, [[0, '#fffbe8'], [1, '#b8a8ff']])));
+    IK.bolt(ctx, IK.zigzag(-11, 11, 11, 11, 6, 2, 5), '#fffbe8', 0.9, '#9a7aff');
+    IK.sparkles(ctx, 6, '#fff7b0', 41, 18, 0, 6, 1.1);
   },
 
   // Steinschlag: zwei Felsen fliegen von links und rechts aufeinander zu, in der Mitte zerbersten Splitter
