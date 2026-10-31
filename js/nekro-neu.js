@@ -145,6 +145,14 @@ SKILL_TYPES.siphon = function (sk, pw, lvl) {
 };
 CHANNEL_TICK.siphon = function (p, dt, c) {
   const sk = c.sk;
+  // stirbt das Ziel oder läuft es weg, springt der Faden auf den nächsten Gegner in Reichweite (seit 11.8)
+  if ((!c.target || c.target.dead || dist(c.target, p) > sk.range + 80) && !p.dead) {
+    const next = pickTarget(sk.range);
+    if (next && next !== c.target) {
+      c.target = next;
+      if (c.fx) c.fx.tgt = next;
+    }
+  }
   const t = c.target;
   const age = game.time - c.start;
   const cost = skillMana(sk, p) / sk.mp * sk.mpPerSec * dt;

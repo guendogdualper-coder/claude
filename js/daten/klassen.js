@@ -266,9 +266,9 @@ const CLASSES = {
           {
             // seit 11.7 (ersetzt die Schädelsalve): gedrückt halten – ein Blutfaden saugt dem Ziel Leben aus (nekro-neu.js)
             id: 'blutsauger', name: 'Blutsauger', short: 'BS', kind: 'angriff', unlock: 1, mp: 8, cooldown: 2,
-            type: 'siphon', channel: true, range: 300, every: 0.2, maxDur: 3.5, minDur: 0.4, dmg: 0.4, leech: 0.35, mpPerSec: 7,
+            type: 'siphon', channel: true, range: 300, every: 0.2, maxDur: 8, minDur: 0.4, dmg: 0.4, leech: 0.35, mpPerSec: 6,
             color: '#e0203a', nk: true,
-            text: 'Gedrückt halten: Ein pulsierender Blutfaden spannt sich von deinem Ziel zu deiner Hand. Fünfmal pro Sekunde reißt er Blut heraus – Schaden – und ein Drittel davon fließt als Leben zu dir. Bis zu 3,5 s; Loslassen, zu weit weg oder Mana leer beenden ihn.'
+            text: 'Gedrückt halten: Ein pulsierender Blutfaden spannt sich von deinem Ziel zu deiner Hand. Fünfmal pro Sekunde reißt er Blut heraus – Schaden – und ein Drittel davon fließt als Leben zu dir. Er läuft, solange du gedrückt hältst – bis zu 8 s. Stirbt das Ziel, springt der Faden auf den nächsten Gegner in der Nähe. Loslassen oder Mana leer beenden ihn.'
           },
           {
             // seit 8.5 (ersetzt den Seelensturm): ein Käfig aus Rippen bricht beim Ziel aus dem Boden, der gefangene Geist schreit fünfmal
