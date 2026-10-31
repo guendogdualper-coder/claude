@@ -428,6 +428,9 @@ kbd {
 }
 .btn-primary:hover { background: linear-gradient(#dcb974, #b38d46); }
 .btn-ghost { background: transparent; }
+.wiki-link { display: block; text-align: center; margin: 12px auto 0; max-width: 420px; text-decoration: none; }
+.help-wiki { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.help-wiki .btn { text-decoration: none; }
 .btn-ghost:hover { border-color: var(--brass); }
 .btn-danger { background: var(--danger); border-color: #d0594b; }
 

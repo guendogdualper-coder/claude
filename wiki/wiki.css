@@ -152,6 +152,8 @@ table.t td img { width: 34px; height: 34px; object-fit: contain; vertical-align:
 .faq details { background: rgba(10, 20, 40, 0.88); border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; padding: 10px 14px; }
 .faq summary { cursor: pointer; color: var(--gold2); font-weight: 700; }
 kbd { background: #1a2638; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 6px; font: 14px var(--body); color: var(--gold2); }
+.mapimg { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+.dim { color: var(--dim); font-size: 14px; }
 .foot { text-align: center; color: var(--dim); font-size: 14px; padding: 20px; }
 
 /* Handy */
@@ -171,5 +173,12 @@ kbd { background: #1a2638; border: 1px solid var(--line); border-bottom-width: 2
   .dh .di img { max-width: 96px; max-height: 96px; }
   .dh h1 { font-size: 30px; }
   .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .results { position: fixed; left: 8px; right: 8px; top: 64px; max-height: calc(100vh - 80px); }
+  .search input { font-size: 16px; padding: 10px 12px 10px 38px; }
+  .facts { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .fact { padding: 6px 10px; }
+  .fact b { font-size: 15px; }
+  .detail { padding: 14px; }
+  table.t { font-size: 14px; }
   .card .ci, .card .ci img { width: 44px; height: 44px; }
 }

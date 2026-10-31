@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v115';
+const VERSION = 'seelenstein-v116';
 const FILES = [
   './',
   'index.html',
@@ -102,6 +102,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const sameOrigin = new URL(e.request.url).origin === self.location.origin;
+  // das Wiki (seit 11.9) läuft am Spiel-Speicher vorbei: viele Bilder, die das Spiel nicht braucht
+  if (sameOrigin && new URL(e.request.url).pathname.includes('/wiki/')) return;
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
       try {
