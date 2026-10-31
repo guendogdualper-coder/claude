@@ -1189,11 +1189,13 @@ function updateBuffAuras(dt) {
 // Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
 function rankCastFx(p, rank, color) {
   const fy = feetY(p);
-  addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });
-  // Magier (seit 8.6): Dreieckssiegel statt Runenkreis und Wirbel (keine Schamanen-Zeichen)
-  const mage = p.classId === 'magier' && typeof mageEl === 'function';
-  if (mage) addEffect({ type: 'sigil3', ground: true, el: mageEl(p).key, follow: p, ox: 0, oy: 0, x: p.x, y: fy, R: 46 + rank * 10, flash: true, dur: 0.9 });
-  else addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: 46 + rank * 10, dur: 0.9, color });
+  // Magier (seit 11.5): nichts am Boden, nur aufsteigende Funken in der Rangfarbe (kein Kreis, kein Dreieck)
+  const mage = p.classId === 'magier';
+  if (mage) addEffect({ type: 'sparks3', x: p.x, y: fy, h: 0.4, count: 8 + rank * 4, color, speed: 1.6, up: 2.2, dur: 0.6 });
+  else {
+    addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });
+    addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: 46 + rank * 10, dur: 0.9, color });
+  }
   particles(p.x, fy - 14, { count: 14 + rank * 10, color: [color, '#ffffff'], speed: [80, 200 + rank * 40], life: [0.3, 0.6], size: [1.5, 3], shape: 'spark', drag: 4 });
   if (rank >= 1 && !mage) {
     addEffect({ type: 'decal', kind: 'rune', x: p.x, y: fy, r: 42 + rank * 8, dur: 1.4, color });
@@ -1206,7 +1208,7 @@ function rankCastFx(p, rank, color) {
   }
   if (rank >= 3) {
     addEffect({ type: 'ultbeam', x: p.x, y: fy, w: 70, dur: 0.7, color: '#ff6a4a' });
-    later(0.1, () => addEffect({ type: 'ring', x: p.x, y: fy, r: 130, dur: 0.6, color: '#ffd34d', width: 12, grow: true }));
+    if (!mage) later(0.1, () => addEffect({ type: 'ring', x: p.x, y: fy, r: 130, dur: 0.6, color: '#ffd34d', width: 12, grow: true }));
     particles(p.x, fy, { count: 30, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 260], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
     shakeScreen(5);
   }

@@ -1746,13 +1746,16 @@ function fx3MageBolt(h, pr) {
   const R = FX3.cam.r;
   const Up = FX3.cam.u;
   const rot = Math.atan2(pr.vx * R.x + pr.vy * R.z, -(pr.vx * Up.x + pr.vy * Up.z));
+  // Größe (seit 11.5): Feuerball mit Zauberzeit und Felsgeschoss sind etwa doppelt so groß
+  const B = pr.big || 1;
   if (pr.style === 'fireball') {
     // weißglühender Kern, zwei Flammen nach hinten, zwei gegenläufig drehende Siegelringe quer zur Flugbahn
-    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.6, 0.6, E.core, 1);
+    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.6 * B, 0.6 * B, E.core, 1);
+    if (B > 1) fx3MageSprite(h, 'sprite', 'disc', x, y, z, 1.6 * B, 1.6 * B, E.main, 0.45);
     for (let i = 0; i < 2; i++) {
       const d = i ? 0.26 : 0.42;
       const w = 0.9 + 0.12 * Math.sin(t * 23 + id + i);
-      const fl = fx3MageSprite(h, 'spriteFlame', 'flame', x - _x3md.x * d, y, z - _x3md.z * d, (i ? 0.36 : 0.55) * w, (i ? 0.7 : 1.05) * w, i ? E.hi : E.main, 1);
+      const fl = fx3MageSprite(h, 'spriteFlame', 'flame', x - _x3md.x * d * B, y, z - _x3md.z * d * B, (i ? 0.36 : 0.55) * w * B, (i ? 0.7 : 1.05) * w * B, i ? E.hi : E.main, 1);
       fl.material.rotation = rot;
     }
     _x3mq.setFromUnitVectors(_x3mz, _x3md);
@@ -1762,7 +1765,7 @@ function fx3MageBolt(h, pr) {
       ring.position.set(x + _x3md.x * (i ? -0.06 : 0.06), y, z + _x3md.z * (i ? -0.06 : 0.06));
       _x3mq2.setFromAxisAngle(_x3mz, (i ? -1 : 1) * t * 7 + id);
       ring.quaternion.multiplyQuaternions(_x3mq, _x3mq2);
-      ring.scale.set(0.3, 0.3, 1);
+      ring.scale.set(0.3 * B, 0.3 * B, 1);
       fx3Color(ring, i ? E.hi : E.main, 0.95);
     }
     if (!low && t >= (pr.puffAt || 0)) {
@@ -1800,10 +1803,10 @@ function fx3MageBolt(h, pr) {
     // taumelnder Basaltbrocken mit Bernsteinkern, Staub hinterher
     const rock = fx3Take(h, 'rock');
     rock.position.set(x, y, z);
-    rock.scale.set(0.24, 0.2, 0.22);
-    rock.rotation.set(t * 9 + id, t * 6, t * 4);
-    rock.material.color.set(E.deep);
-    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.5, 0.5, E.main, 0.9);
+    rock.scale.set(0.24 * B, 0.2 * B, 0.22 * B);
+    rock.rotation.set(t * (9 / B) + id, t * (6 / B), t * (4 / B));
+    rock.material.color.set(B > 1 ? '#3e3532' : E.deep);
+    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.5 * B, 0.5 * B, E.main, B > 1 ? 0.55 : 0.9);
     if (!low && t >= (pr.puffAt || 0)) {
       pr.puffAt = t + 0.05;
       addEffect({ type: 'smoke3', x: pr.x - pr.vx * 8, y: pr.y - pr.vy * 8, count: 1, color: '#6a5a50', size: 0.3, op: 0.45, dur: 0.4 });

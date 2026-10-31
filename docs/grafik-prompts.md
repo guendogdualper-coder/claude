@@ -1080,3 +1080,57 @@ Gestaltungsregeln:
 > Prompt: *boss ultimate attack in a dark dungeon hall, whole floor glowing blood red, rotating sigil in the sky above the boss, red energy streams rising from the edges, two safe zones as green light pillars with rune circles, countdown ring shrinking, stylized MMO top-down view*
 
 **2D:** Kristall als facettierte Raute mit Glanzlicht; Vernichtung als rote Fläche mit grünen Kreisen und schrumpfendem Ring.
+
+## 15. Magier: Feuer, Blitz und Erde neu (seit 11.5)
+
+Regel für alle: **nichts am Boden** – keine Kreise, keine Dreiecke, keine Runen. Die Wirkung steht im Raum (Flammen, Felsen, Blitze), der Boden zeigt höchstens eine Fläche, Glut, Schatten oder Risse. Feuer wird nicht additiv-weiß: der Flammenkörper ist normal gemischt (rot-orange), nur ein kleiner heißer Kern leuchtet.
+
+**Drachenodem.** Aus der Hand strömt ein Kegel (75°) aus Flammenzungen, die nach außen wachsen, dunkler werden und in Rauch übergehen.
+
+> Prompt: *fire mage breathing a wide cone of dragon fire from his hand, layered orange-red flame tongues growing outward and turning into dark smoke, embers, stylized MMO, top-down three-quarter view, no ground circle*
+
+**Feuerball (3 s Wirken).** Über der Hand wächst eine tiefrote Kugel mit hellem Kern, zwei senkrechte Hitzeringe drehen sich darum, Funken werden angesogen. Darunter eine Leiste mit Namen und Restzeit. Nach dem Wirken fliegt ein doppelt so großer Feuerball und explodiert in einem Feuerpilz mit Rauch.
+
+> Prompt: *mage charging a huge fireball above his hand, deep red sphere with glowing core, rotating heat rings, sparks drawn inward, then a giant fireball explosion with mushroom of fire and smoke, stylized MMO VFX*
+
+**Brand.** Ein Glutfunke fliegt zum Ziel, darauf lodern kleine Flammen am Körper (wie Gift, nur Feuer), sechs Sekunden lang.
+
+> Prompt: *enemy set ablaze by a fire mage, small flames licking over its body, embers rising, damage over time, stylized MMO*
+
+**Phönixflamme.** Ein Feuervogel mit weiten Flammenflügeln (sieben Federflammen je Flügel) fliegt durch die Gegner und zerplatzt am Ende in einer Feuerexplosion.
+
+> Prompt: *blazing phoenix made of fire swooping through a group of monsters, wide flaming wings, trail of embers, ends in a fiery burst, WoW-style fire mage burst, stylized MMO*
+
+**Blitzspeer.** Ein gerader Speer aus weißem Licht mit violettem Mantel schießt in Blickrichtung, an jedem getroffenen Gegner sprühen Funken.
+
+> Prompt: *lightning spear piercing through a line of enemies, straight white-hot core with violet glow, crackling sparks on impact, stylized MMO*
+
+**Gewitterwolke.** Über dem Zielort ballt sich eine dunkle Wolke, darin zucken Blitze, Regenschleier fallen. Sechs Himmelsblitze schlagen in Gegner ein, zum Schluss ein großer Einschlag.
+
+> Prompt: *dark thundercloud forming over a group of monsters, lightning flickering inside, rain streaks, several jagged lightning bolts striking down, final huge strike, stylized MMO top-down view*
+
+**Blitzschritt.** Der Magier wird zum Blitz; auf dem Weg hinter ihm schlagen fünf Himmelsblitze nacheinander ein.
+
+> Prompt: *mage dashing as a bolt of lightning, a chain of lightning strikes hitting the ground along his path behind him, stylized MMO*
+
+**Steinschlag.** Zwei Felsbrocken fliegen von links und rechts heran und prallen über dem Ziel zusammen: Splitter, Staub und eine Druckwelle.
+
+> Prompt: *two boulders flying in from both sides and smashing together above enemies, rock shards and dust burst, earth mage, stylized MMO*
+
+**Felsgeschoss.** Ein riesiger Basaltbrocken mit glühenden Adern fliegt und zerbricht am Ziel, Gegner taumeln (Sterne).
+
+> Prompt: *earth mage hurling a giant basalt boulder with glowing amber veins, it shatters on impact stunning enemies, debris and cracks, stylized MMO*
+
+**Erdspitzen.** In der Fläche brechen viele spitze Steinsäulen (braun-grau, helle Spitzen) aus dem Boden und heben Gegner an.
+
+> Prompt: *sharp stone spikes erupting from the ground in an area, brown grey rock with lighter tips, enemies lifted, dust, stylized MMO*
+
+**Bergsturz.** Ein großer Fels mit Glutadern fällt vom Himmel, sein Schatten wächst am Boden; Einschlag mit Krater, Splittern und Staub.
+
+> Prompt: *huge rock falling from the sky with glowing cracks, growing shadow on the ground, massive impact with crater and debris, earth mage ultimate-like attack, stylized MMO*
+
+**Schwerkraftsiegel.** Ohne Bodenzeichen: acht Felsbrocken kreisen um die Fläche, ziehen Gegner zur Mitte und treffen sie; am Ende stürzen sie in die Mitte.
+
+> Prompt: *ring of eight levitating boulders orbiting an area, pulling enemies to the centre, amber glow, rocks crash inward at the end, no ground symbols, stylized MMO*
+
+**Symbole (`js/symbole-magier3.js`):** Drachenodem (Flammenstrahl aus der Hand), Feuerball (große Kugel mit Ringen), Brand (Flammenkrone), Phönixflamme (Feuervogel), Blitzspeer (diagonaler Lichtspeer), Gewitterwolke (Wolke mit Blitzen), Steinschlag (zwei Felsen mit Aufprall), Felsgeschoss (Basaltbrocken mit Glutadern), Erdspitzen (drei Steinspitzen), Bergsturz (Fels mit Glutzeichen über Bodenspalt), Schwerkraftsiegel (Felsen um einen Kern).

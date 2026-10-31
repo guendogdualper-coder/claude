@@ -697,7 +697,10 @@ let saveSlot = null;
 
 // Umbenannte Fertigkeiten (alte ID -> neue ID); gilt für Spielstände und für Bücher aus dem Handel
 const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff', dreifachschlag: 'sichelwelle', sturmangriff: 'sprungschlag', schildstoss: 'felsenfaust',
-  seelenpfeil: 'schaedelsalve', seelensturm: 'seelenkaefig', fluch: 'seelenschnitter', frostlanze: 'eisstrahl', seelenschnitter: 'totenruf' };
+  seelenpfeil: 'schaedelsalve', seelensturm: 'seelenkaefig', fluch: 'seelenschnitter', frostlanze: 'eisstrahl', seelenschnitter: 'totenruf',
+  // 11.5: Feuer- und Blitzmagier umgebaut
+  feuernova: 'drachenodem', flammenschritt: 'brand', glutherz: 'phoenix', blitznova: 'blitzspeer', ladung: 'gewitter',
+  erdnova: 'steinschlag', erdsprung: 'erdspitzen', basalthaut: 'bergsturz' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

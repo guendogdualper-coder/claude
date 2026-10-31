@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '11.4';
+const GAME_VERSION = '11.5';
 
 const game = {
   world: null,
@@ -107,7 +107,8 @@ function updatePlayer(dt) {
     }
     // offener Tipp: kurz gültig, beim Hinlaufen zum Ziel bis zu 3 Sekunden
     const tapAge = game.time - input.attackAt;
-    const wantAttack = tapAge >= 0 && tapAge < (input.attackWalk ? 3 : 0.45);
+    // beim Zaubern (Feuerball) weder zuschlagen noch zum Ziel laufen
+    const wantAttack = !p.mcast && tapAge >= 0 && tapAge < (input.attackWalk ? 3 : 0.45);
     if (!wantAttack) input.attackWalk = false;
     if (!(mv.x || mv.y) && wantAttack) {
       // Angriff gedrückt, aber nichts in Reichweite: zum Ziel laufen
@@ -182,6 +183,7 @@ function update(dt) {
   partyTick();
   if (game.target && game.target.dead) game.target = null;
   raidWatch();
+  mageCastTick();
 
   game.saveTimer += dt;
   if (game.saveTimer > 10) {

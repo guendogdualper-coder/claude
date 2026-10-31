@@ -43,6 +43,8 @@ Object.assign(ELEMENT3, {
 });
 Object.assign(SKILL_ELEMENT, {
   feuernova: 'm_feuer', feuerball: 'm_feuer', flammenschritt: 'm_feuer', glutherz: 'm_feuer', flammenkreis: 'm_feuer',
+  drachenodem: 'm_feuer', brand: 'm_feuer', phoenix: 'm_feuer', blitzspeer: 'm_blitz', gewitter: 'm_blitz',
+  steinschlag: 'm_erde', erdspitzen: 'm_erde', bergsturz: 'm_erde',
   frostnova: 'm_frost', eisstrahl: 'm_frost', eisschritt: 'm_frost', frostpanzer: 'm_frost', kristallgrab: 'm_frost',
   blitznova: 'm_blitz', kettenblitz: 'm_blitz', blitzschritt: 'm_blitz', ladung: 'm_blitz', kugelblitz: 'm_blitz',
   erdnova: 'm_erde', steingeschoss: 'm_erde', erdsprung: 'm_erde', basalthaut: 'm_erde', schwerkraft: 'm_erde'
@@ -218,7 +220,7 @@ function mageBolt(owner, sk, t, pw, lvl, local) {
     owner: local ? 'player' : 'remote', x: owner.x, y: owner.y, target: sk.pierce ? null : t, dir: t ? null : { ...owner.facing },
     aimAt: sk.pierce && t ? { x: t.x, y: t.y } : null, speed: sk.speed, range: sk.range + 40, mul: sk.dmg * pw,
     color: mageElOf(sk.el).main, radius: sk.pierce ? 8 : 7, pierce: sk.pierce, chain: sk.chain || 0, chainMul: sk.chainMul,
-    stun: sk.stun, slow: sk.slow, burn: sk.burn, knockback: sk.knockback, duelMul: sk.duelMul, style: sk.style, el: sk.el, skill: sk.id,
+    stun: sk.stun, slow: sk.slow, burn: sk.burn, knockback: sk.knockback, duelMul: sk.duelMul, style: sk.style, el: sk.el, skill: sk.id, big: sk.big,
     hitMul: (m) => boltHitMul(sk, m), afterHit: (m, pr) => boltAfterHit(sk, m, pr, pw, lvl), onRemoteHit: (m) => boltImpactFx(sk, m)
   };
 }
@@ -256,7 +258,13 @@ function boltAfterHit(sk, m, pr, pw, lvl) {
 function boltImpactFx(sk, m) {
   const fy = feetY(m);
   const c = bodyCenter(m);
-  if (sk.style === 'fireball') {
+  if (sk.style === 'fireball' && sk.big) {
+    // Feuerball mit Zauberzeit (seit 11.5): große Explosion
+    addEffect({ type: 'mburst3', x: m.x, y: fy, R: sk.splash ? sk.splash.r : 100, dur: 1.1 });
+    addEffect({ type: 'decal', kind: 'scorch', x: m.x, y: fy, r: 50, dur: 3, color: '#2a0a0a' });
+    if (!V3.on) particles(c.x, c.y, { count: 30, color: ['#e8362a', '#ff8a4a', '#fff1c8'], speed: [90, 260], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3 });
+    shakeScreen(6);
+  } else if (sk.style === 'fireball') {
     novaLimit('me', 'small');
     addEffect({ type: 'nova3', ground: true, el: 'feuer', x: m.x, y: fy, R: 70, grow: 0.18, dur: 0.45, small: true, owner: 'me', group: 'small', rot: Math.random() * 6.28 });
     addEffect({ type: 'sparks3', x: m.x, y: fy, h: 0.6, count: 10, color: '#ff8a4a', speed: 2.8, up: 1.4, dur: 0.55 });
@@ -268,6 +276,13 @@ function boltImpactFx(sk, m) {
   } else if (sk.style === 'arc') {
     addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.25, color: '#ffffff' });
     addEffect({ type: 'impact', x: c.x + 6, y: c.y - 4, dur: 0.25, color: '#8a5aff' });
+  } else if (sk.style === 'stone' && sk.big) {
+    // großes Felsgeschoss (seit 11.5): zerbirst in viele Brocken
+    addEffect({ type: 'mdebris3', x: m.x, y: fy, n: 9, size: 0.12, dur: 1 });
+    addEffect({ type: 'smoke3', x: m.x, y: fy, count: 5, color: '#6a5a50', size: 0.8, dur: 0.8 });
+    addEffect({ type: 'decal', kind: 'crack', x: m.x, y: fy, r: 34, dur: 2.5, color: '#1a1210' });
+    if (!V3.on) particles(c.x, c.y + 10, { count: 16, color: ['#3e3532', '#6a5a50', '#f0a830'], speed: [70, 190], life: [0.3, 0.7], size: [3, 5.5], shape: 'square', drag: 2, glow: false, gravity: 500 });
+    shakeScreen(5);
   } else if (sk.style === 'stone') {
     novaLimit('me', 'small');
     addEffect({ type: 'nova3', ground: true, el: 'erde', x: m.x, y: fy, R: 55, grow: 0.18, dur: 0.5, small: true, owner: 'me', group: 'small', rot: Math.random() * 6.28 });
@@ -399,6 +414,8 @@ function shiftFx(owner, a, b, sk, local, pw, lvl) {
       addEffect({ type: 'sparks3', x: b.x, y: fb, h: 0.5, count: 10, color: E.hi, speed: 2.8, up: 1.2, dur: 0.5 });
       if (!V3.on) particles(b.x, fb - 14, { count: 16, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [80, 220], life: [0.15, 0.35], size: [1.5, 3], shape: 'spark', drag: 5 });
       if (near) shakeScreen(3);
+      // seit 11.5: Himmelsblitze schlagen hinter dir auf deinem Weg ein
+      if (sk.trail && typeof blitzTrail === 'function') blitzTrail(owner, a, b, sk, local, pw);
       if (!local || owner.dead) return;
       const vx = b.x - a.x;
       const vy = b.y - a.y;
@@ -559,7 +576,7 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
 // Beim Wirken: kleines Siegel unter den Füßen, Funken an der Hand
 function mageCastFx(p, sk) {
   const E = mageElOf(sk.el);
-  addEffect({ type: 'sigil3', ground: true, el: sk.el, follow: p, ox: 0, oy: 0, x: p.x, y: feetY(p), R: 26, flash: true, small: true, dur: 0.35 });
+  // seit 11.5 ohne Dreieck am Boden: nur Funken an der Hand
   const c = bodyCenter(p);
   particles(c.x + p.facing.x * 12, c.y + p.facing.y * 6, { count: 5, color: [E.main, E.hi, '#ffffff'], speed: [30, 90], life: [0.2, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 4 });
 }
@@ -592,14 +609,16 @@ function mageBuffCast(p, sk) {
 
 (function () {
   const skills = {
-    feuer: ['feuernova', 'feuerball', 'flammenschritt', 'glutherz', 'flammenkreis'],
+    // alte Ids (bis 11.4) bleiben für laufende Buffs und Mitspieler mit älterer Version
+    feuer: ['feuernova', 'feuerball', 'flammenschritt', 'glutherz', 'flammenkreis', 'drachenodem', 'brand', 'phoenix'],
     frost: ['frostnova', 'eisstrahl', 'eisschritt', 'frostpanzer', 'kristallgrab'],
-    blitz: ['blitznova', 'kettenblitz', 'blitzschritt', 'ladung', 'kugelblitz'],
-    erde: ['erdnova', 'steingeschoss', 'erdsprung', 'basalthaut', 'schwerkraft']
+    blitz: ['blitznova', 'kettenblitz', 'blitzschritt', 'ladung', 'kugelblitz', 'blitzspeer', 'gewitter'],
+    erde: ['erdnova', 'steingeschoss', 'erdsprung', 'basalthaut', 'schwerkraft', 'steinschlag', 'erdspitzen', 'bergsturz']
   };
   for (const [el, ids] of Object.entries(skills)) {
     ids.forEach((id, i) => {
-      SKILL_FX[id] = { color: mageElOf(el).main, cast: i === 3 ? mageBuffCast : mageCastFx, hit: mageHitFx(el) };
+      const sk = typeof skillById === 'function' ? skillById(id) : null;
+      SKILL_FX[id] = { color: mageElOf(el).main, cast: (sk ? sk.type === 'buff' : i === 3) ? mageBuffCast : mageCastFx, hit: mageHitFx(el) };
     });
   }
 })();

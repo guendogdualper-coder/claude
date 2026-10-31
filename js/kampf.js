@@ -573,6 +573,8 @@ function useSkill(i) {
     return;
   }
   if (p.skillCd[i] > 0) return;
+  // eine andere Fertigkeit bricht das Zaubern ab (Feuerball, seit 11.5)
+  if (p.mcast && p.mcast.sk !== sk) mageCastCancel(p, '');
   // eine andere Fertigkeit beendet den Eisstrahl
   if (p.channel) {
     if (p.channel.sk === sk) return;

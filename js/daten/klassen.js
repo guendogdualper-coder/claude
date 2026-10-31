@@ -344,7 +344,7 @@ const CLASSES = {
   magier: {
     name: 'Magier',
     role: 'Fernkampf · Elementmagie',
-    description: 'Gelehrter der vier Elemente. Du wählst Feuer, Frost, Blitz oder Erde – jeder Weg hat ab Stufe 1 eine Nova um dich.',
+    description: 'Gelehrter der vier Elemente. Du wählst Feuer, Frost, Blitz oder Erde – jeder Weg hat seine eigenen Zauber, von Drachenodem und Feuerball bis Blitzspeer und Gewitterwolke.',
     color: '#283070',
     trim: '#d8e0f0',
     weapon: 'rod',
@@ -354,30 +354,35 @@ const CLASSES = {
     paths: [
       {
         id: 'feuer', name: 'Weg der Flamme', role: 'PvE · Flächenschaden und Brand',
-        description: 'Setzt ganze Gruppen in Brand: Feuernova, explodierende Feuerbälle, eine Stichflamme zur Flucht und ein Flammenkreis, der sich am Boden zusammenzieht.',
+        description: 'Setzt alles in Brand: Drachenodem nach vorn, ein riesiger Feuerball mit Zauberzeit, Brand über Zeit auf einzelne Gegner, die Phönixflamme als Burst und ein Flammenkreis, der sich am Boden zusammenzieht.',
         skills: [
           {
-            id: 'feuernova', name: 'Feuernova', short: 'FN', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
-            type: 'nova', el: 'feuer', radius: 120, grow: 0.3, dmg: 1.4, burn: { dps: 0.3, duration: 3 }, knockback: 40, ignite: true,
-            lock: 0.2, anim: 'nova', animDur: 0.5, color: '#e8362a',
-            text: 'Du stößt dein Zepter in den Boden: Ein Ring aus karminroten Flammen rast über den Boden nach außen, trifft alle Gegner bis 120 weit, stößt sie leicht zurück und setzt sie 3 s in Brand. Brennen sie schon, explodieren sie.'
+            // seit 11.5 statt der Feuernova: ein Flammenkegel nach vorn (kein Kreis am Boden)
+            id: 'drachenodem', name: 'Drachenodem', short: 'DO', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
+            type: 'mbreath', el: 'feuer', range: 165, angle: 75, dmg: 1.5, burn: { dps: 0.25, duration: 3 }, knockback: 30,
+            anim: 'stoss', animDur: 0.5, color: '#e8362a',
+            text: 'Du reißt die Hände nach vorn und speist einen tosenden Flammenkegel wie ein Drache: Alle Gegner vor dir bis 165 weit werden getroffen, ein Stück zurückgestoßen und brennen 3 s.'
           },
           {
-            id: 'feuerball', name: 'Feuerball', short: 'FB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
-            type: 'mbolt', el: 'feuer', range: 340, speed: 540, dmg: 1.8, splash: { r: 70, mul: 0.5 }, burn: { dps: 0.2, duration: 3 },
-            style: 'fireball', anim: 'stoss', animDur: 0.35, color: '#e8362a',
-            text: 'Ein Feuerball mit zwei kreisenden Siegelringen fliegt zum Ziel und zerplatzt: Das Ziel brennt, Gegner bis 70 weit darum bekommen die Hälfte ab.'
+            // seit 11.5 mit 3 s Zauberzeit: viel größer und stärker; Bewegen bricht ab (Mana und Abklingzeit zurück)
+            id: 'feuerball', name: 'Feuerball', short: 'FB', kind: 'angriff', unlock: 3, mp: 20, cooldown: 2,
+            type: 'mcast', el: 'feuer', castTime: 3, range: 400, speed: 430, dmg: 5.6, splash: { r: 115, mul: 0.6 }, burn: { dps: 0.4, duration: 4 },
+            style: 'fireball', big: 2.1, anim: 'zauber', animDur: 3, color: '#e8362a',
+            text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, Gegner bis 115 weit darum bekommen 60 %, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
           },
           {
-            id: 'flammenschritt', name: 'Flammenschritt', short: 'FS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 9,
-            type: 'shift', el: 'feuer', at: 'start', distance: 170, radius: 90, dmg: 1.0, burn: { dps: 0.3, duration: 3 },
-            anim: 'schritt', animDur: 0.3, color: '#e8362a',
-            text: 'Du verschwindest in einer Stichflamme und tauchst bis zu 170 weit entfernt wieder auf. Wo du standest, explodiert das Feuer und setzt alle Gegner bis 90 weit in Brand.'
+            // seit 11.5 statt Flammenschritt: Brand – Feuerschaden über Zeit auf ein Ziel (wie Gift)
+            id: 'brand', name: 'Brand', short: 'BR', kind: 'angriff', unlock: 5, mp: 14, cooldown: 6,
+            type: 'mignite', el: 'feuer', range: 340, dmg: 0.4, burn: { dps: 0.95, duration: 6 },
+            anim: 'zauber', animDur: 0.4, color: '#e8362a',
+            text: 'Du schnippst einen Funken auf einen Gegner: Er fängt Feuer und brennt 6 s lang – jede Sekunde Feuerschaden, zusammen fast das Sechsfache eines Treffers. Wie Gift, nur heißer.'
           },
           {
-            id: 'glutherz', name: 'Glutherz', short: 'GH', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'feuer',
-            type: 'buff', duration: 180, effects: { skillDmg: 0.15, crit: 0.05 }, labels: { skillDmg: 'Zauberschaden' },
-            text: 'Buff: Ein glühender Kern schwebt über deiner Hand. Mehr Zauberschaden und mehr kritische Treffer.'
+            // seit 11.5 statt Glutherz: Phönixflamme – der große Feuer-Burst
+            id: 'phoenix', name: 'Phönixflamme', short: 'PH', kind: 'angriff', unlock: 7, mp: 28, cooldown: 14,
+            type: 'mphoenix', el: 'feuer', range: 400, speed: 470, dmg: 3.4, pathR: 42, pathMul: 0.6, blast: { r: 105, mul: 0.7 },
+            combust: 0.6, burn: { dps: 0.35, duration: 4 }, anim: 'stoss', animDur: 0.45, color: '#e8362a',
+            text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf (+60 % Schaden), und alle bis 105 weit fangen Feuer.'
           },
           {
             id: 'flammenkreis', name: 'Flammenkreis', short: 'FK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
@@ -424,13 +429,14 @@ const CLASSES = {
       },
       {
         id: 'blitz', name: 'Weg des Blitzes', role: 'PvP · Ketten und Tempo',
-        description: 'Blitze springen von Gegner zu Gegner. Die Nova lädt Gegner auf, der Kettenblitz entlädt sie. Schneller Grundangriff und ein Blitzschritt, der selbst trifft – die Wahl für Zweikämpfe.',
+        description: 'Blitze springen von Gegner zu Gegner. Der Blitzspeer lädt Gegner auf, der Kettenblitz entlädt sie. Ein Blitzschritt mit einer Spur aus Himmelsblitzen und die Gewitterwolke aus der Ferne.',
         skills: [
           {
-            id: 'blitznova', name: 'Blitznova', short: 'BN', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
-            type: 'nova', el: 'blitz', radius: 140, grow: 0.2, dmg: 1.3, stun: 0.3, arcs: 8, jump: { r: 110, mul: 0.5, max: 3 },
-            lock: 0.2, anim: 'nova', animDur: 0.5, color: '#ffe94a',
-            text: 'Zuckende Blitze kriechen von dir über den Boden zu bis zu acht Gegnern im Umkreis von 140, betäuben sie kurz und laden sie 5 s auf. Gegner knapp außerhalb bekommen einen Überschlag ab.'
+            // seit 11.5 statt der Blitznova: ein Speer, der alles in einer Linie durchschlägt (kein Bodenkreis)
+            id: 'blitzspeer', name: 'Blitzspeer', short: 'SP', kind: 'angriff', unlock: 1, mp: 9, cooldown: 4,
+            type: 'mspear', el: 'blitz', range: 390, width: 34, dmg: 1.5, stun: 0.25, charge: 5,
+            anim: 'stoss', animDur: 0.35, color: '#ffe94a',
+            text: 'Du schleuderst einen Speer aus reinem Blitz: Er durchschlägt alle Gegner in einer Linie bis 390 weit, betäubt sie kurz und lädt sie 5 s auf – der Kettenblitz entlädt sie für mehr Schaden.'
           },
           {
             id: 'kettenblitz', name: 'Kettenblitz', short: 'KB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
@@ -440,15 +446,16 @@ const CLASSES = {
           },
           {
             id: 'blitzschritt', name: 'Blitzschritt', short: 'BS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
-            type: 'shift', el: 'blitz', at: 'line', distance: 200, width: 40, dmg: 1.5, stun: 0.5,
+            type: 'shift', el: 'blitz', at: 'line', distance: 200, width: 40, dmg: 1.5, stun: 0.5, trail: { n: 5, r: 44, dmg: 0.45, every: 0.08 },
             anim: 'schritt', animDur: 0.3, color: '#ffe94a',
-            text: 'Du wirst selbst zum Blitz und schlägst bis zu 200 weit ein – in Laufrichtung oder auf dein Ziel zu. Alle Gegner auf der Strecke werden getroffen und kurz betäubt.'
+            text: 'Du wirst selbst zum Blitz und schlägst bis zu 200 weit ein – in Laufrichtung oder auf dein Ziel zu. Alle Gegner auf der Strecke werden getroffen und kurz betäubt. Hinter dir krachen fünf Blitze vom Himmel auf deinen Weg und treffen, wer dort steht.'
           },
           {
-            // Lauftempo bleibt fest (wie seit 8.5 bei allen Tempo-Buffs)
-            id: 'ladung', name: 'Statische Ladung', short: 'SL', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'blitz',
-            type: 'buff', duration: 180, effects: { atkSpeed: 0.2, crit: 0.06, speed: 0.06 },
-            text: 'Buff: Funken knistern über deine Robe. Mehr Angriffstempo, mehr kritische Treffer und etwas Lauftempo.'
+            // seit 11.5 statt Statische Ladung: Gewitterwolke – Flächenschaden aus der Ferne
+            id: 'gewitter', name: 'Gewitterwolke', short: 'GW', kind: 'angriff', unlock: 7, mp: 26, cooldown: 14,
+            type: 'mstorm', el: 'blitz', aim: true, range: 460, radius: 165, form: 0.6, strikes: 6, every: 0.3, dmg: 0.95,
+            final: { dmg: 1.8, r: 95, stun: 0.6 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
+            text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen. Sechs Blitze schlagen nacheinander in Gegner darunter, zum Schluss kracht ein gewaltiger Donnerschlag in die Mitte und betäubt alle bis 95 weit. Reichweite 460.'
           },
           {
             id: 'kugelblitz', name: 'Kugelblitz', short: 'KU', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
@@ -460,36 +467,42 @@ const CLASSES = {
       },
       {
         id: 'erde', name: 'Weg der Erde', role: 'Schutz · Schwerkraft und Hochschleudern',
-        description: 'Basalt und Bernstein: schleudert Gegner hoch, schützt sich mit einer Basalthaut und zieht Feinde mit einem Schwerkraftsiegel zusammen. Hält am meisten aus.',
+        description: 'Basalt und Bernstein: zwei Felsen krachen am Ziel zusammen, ein riesiges Felsgeschoss betäubt, Erdspitzen spießen ganze Gruppen auf, ein Bergsturz fällt vom Himmel und die Schwerkraft lässt Felsen um die Gegner kreisen.',
         skills: [
           {
-            id: 'erdnova', name: 'Erdnova', short: 'EN', kind: 'angriff', unlock: 1, mp: 9, cooldown: 6,
-            type: 'nova', el: 'erde', radius: 120, grow: 0.3, dmg: 1.35, knockback: 100, stun: 0.5, lift: 14, duelMul: 1.15,
-            lock: 0.25, anim: 'nova', animDur: 0.55, color: '#f0a830',
-            text: 'Basaltsplitter mit glühenden Bernsteinadern heben sich um dich und werden mit einem Schwerkraftstoß nach außen geschleudert. Alle Gegner bis 120 weit fliegen hoch, werden weggestoßen und kurz betäubt.'
+            // seit 11.5 statt der Erdnova: zwei Felsbrocken krachen aus der Ferne am Ziel zusammen
+            id: 'steinschlag', name: 'Steinschlag', short: 'SS', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
+            type: 'mclash', el: 'erde', range: 360, radius: 90, dmg: 1.7, stun: 0.4, lift: 12, duelMul: 1.15,
+            anim: 'stoss', animDur: 0.4, color: '#f0a830',
+            text: 'Du reißt zwei Felsbrocken aus der Erde und schleuderst sie von links und rechts auf dein Ziel zu (bis 360 weit). Dort krachen sie zusammen und zerbersten: Alle Gegner bis 90 weit werden getroffen, hochgeworfen und kurz betäubt.'
           },
           {
-            id: 'steingeschoss', name: 'Steingeschoss', short: 'ST', kind: 'angriff', unlock: 3, mp: 12, cooldown: 4,
-            type: 'mbolt', el: 'erde', range: 320, speed: 430, dmg: 2.3, splash: { r: 55, mul: 0.5 }, knockback: 50, stun: 0.5,
-            style: 'stone', anim: 'stoss', animDur: 0.4, color: '#f0a830',
-            text: 'Ein Basaltbrocken mit glühendem Bernsteinkern schlägt beim Ziel ein, betäubt es kurz und zersplittert: Gegner daneben bekommen die Hälfte ab.'
+            // seit 11.5 viel größer: betäubt länger und trifft härter
+            id: 'steingeschoss', name: 'Felsgeschoss', short: 'FG', kind: 'angriff', unlock: 3, mp: 14, cooldown: 5,
+            type: 'mbolt', el: 'erde', range: 340, speed: 380, dmg: 3.0, splash: { r: 80, mul: 0.6 }, knockback: 70, stun: 1.2,
+            style: 'stone', big: 2.1, anim: 'stoss', animDur: 0.4, color: '#f0a830',
+            text: 'Du schleuderst einen riesigen Basaltfelsen mit glühendem Bernsteinkern. Er trifft hart, betäubt das Ziel 1,2 s, stößt es zurück und zerbirst: Gegner bis 80 weit bekommen 60 % ab.'
           },
           {
-            id: 'erdsprung', name: 'Erdsprung', short: 'ER', kind: 'angriff', unlock: 5, mp: 16, cooldown: 10,
-            type: 'shift', el: 'erde', at: 'end', distance: 150, radius: 90, dmg: 1.3, stun: 0.8, lift: 16, duelMul: 1.15,
-            anim: 'schritt', animDur: 0.35, color: '#f0a830',
-            text: 'Du versinkst in einem glühenden Riss und brichst bis zu 150 weit entfernt – bei deinem Ziel – wieder aus dem Boden: Alle Gegner bis 90 weit fliegen hoch und sind kurz betäubt. Ohne Ziel springst du von Gegnern weg.'
+            // seit 11.5 statt Erdsprung: Steinspitzen brechen in einer Fläche aus der Erde
+            id: 'erdspitzen', name: 'Erdspitzen', short: 'ES', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
+            type: 'mspikes', el: 'erde', range: 300, radius: 115, dmg: 1.7, stun: 0.6, lift: 18, duelMul: 1.15,
+            anim: 'nova', animDur: 0.55, color: '#f0a830',
+            text: 'Du stampfst auf: Beim Ziel (oder vor dir) brechen in zwei Wellen spitze Basaltdornen aus der Erde – erst außen, dann in der Mitte. Alle Gegner bis 115 weit werden aufgespießt, hochgeworfen und kurz betäubt.'
           },
           {
-            id: 'basalthaut', name: 'Basalthaut', short: 'BH', kind: 'buff', unlock: 7, mp: 24, cooldown: 60, el: 'erde',
-            type: 'buff', duration: 180, shield: 0.18, effects: { def: 0.25, damageTaken: -0.08 },
-            text: 'Buff: Basaltplatten mit Bernsteinadern legen sich um dich. Ein Schild fängt Schaden ab, dazu mehr Verteidigung und weniger erlittener Schaden.'
+            // seit 11.5 statt Basalthaut: Bergsturz – ein riesiger Fels stürzt vom Himmel
+            id: 'bergsturz', name: 'Bergsturz', short: 'BG', kind: 'angriff', unlock: 7, mp: 28, cooldown: 14,
+            type: 'mmeteor', el: 'erde', aim: true, range: 380, radius: 125, fall: 0.9, dmg: 3.2, stun: 1.0, knockback: 90, duelMul: 1.15,
+            anim: 'zauber', animDur: 0.55, color: '#f0a830',
+            text: 'Du reißt einen Berggipfel aus dem Himmel: Ein gewaltiger Felsen mit glühenden Adern stürzt auf den gewählten Ort, zieht eine Staubfahne hinter sich her und schlägt mit einer Druckwelle ein. Hoher Schaden, alle bis 125 weit werden weggeschleudert und 1 s betäubt.'
           },
           {
             id: 'schwerkraft', name: 'Schwerkraftsiegel', short: 'SK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 13,
-            type: 'sigil', el: 'erde', aim: true, range: 320, radius: 150, delay: 0.45, pull: 70, ticks: 3, every: 0.45, dmg: 0.5,
+            // seit 11.5 ohne Bodensiegel: nur der Sog und ein Ring kreisender Felsen
+            type: 'mgrav', el: 'erde', aim: true, range: 320, radius: 150, delay: 0.45, pull: 70, ticks: 3, every: 0.45, dmg: 0.6, rocks: 8,
             last: { dmg: 1.6, stun: 1.2, lift: 18 }, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#f0a830',
-            text: 'Ein Bernsteinsiegel zieht alle Gegner im Kreis zur Mitte. Drei Felsbrocken kreisen und treffen sie, dann schlagen sie gemeinsam ein: hoher Schaden, die Gegner fliegen hoch und sind betäubt.'
+            text: 'Die Schwerkraft am gewählten Ort kippt: Acht Felsbrocken reißen sich aus dem Boden und kreisen immer enger um die Mitte, ziehen alle Gegner hinein und treffen sie dreimal. Zum Schluss krachen alle Felsen in der Mitte zusammen: hoher Schaden, die Gegner fliegen hoch und sind betäubt.'
           }
         ]
       }

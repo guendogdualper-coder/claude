@@ -689,6 +689,12 @@ function remoteSkillFx(rp, d) {
     remoteBeam(rp, d);
     return;
   }
+  // neue Magier-Zauber (seit 11.5): eigene Darstellung in magier-neu.js
+  if (typeof MAGE2_REMOTE !== 'undefined' && MAGE2_REMOTE[sk.type]) {
+    if (!d.cx) snd.skill(sk, rp);
+    MAGE2_REMOTE[sk.type](rp, sk, d);
+    return;
+  }
   snd.skill(sk, rp);
   // Rang aus dem Netz nur als gültige Zahl (sonst stünde SKILL_RANKS[rk] leer und das Bild hielte an)
   const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
