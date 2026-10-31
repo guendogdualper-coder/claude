@@ -611,6 +611,16 @@ function v3Init() {
   V3.objects = new THREE.Group();
   V3.actors = new THREE.Group();
   V3.scene.add(V3.terrain, V3.objects, V3.actors);
+  // Grundfläche unter der Welt (seit 11.6): fehlt beim schnellen Laufen ein Block noch, sieht man Boden in der
+  // Farbe der Gegend statt des hellen Himmels (das war das graue Aufblitzen am Bildrand auf dem Handy)
+  const ug = new THREE.PlaneGeometry(1, 1);
+  ug.rotateX(-Math.PI / 2);
+  V3.under = new THREE.Mesh(ug, new THREE.MeshLambertMaterial({ color: 0x5a7a3a }));
+  V3.under.scale.set(240, 1, 240);
+  V3.under.position.y = -0.9;
+  V3.under.renderOrder = -10;
+  V3.under.matrixAutoUpdate = true;
+  V3.scene.add(V3.under);
   v3ApplyGraphics();
   V3.on = true;
   document.body.classList.add('drei');
@@ -1546,7 +1556,22 @@ const CHUNK3_KEEP = 2;
 const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP);
 let chunkJob = null;
 
-function v3UpdateChunks(fx, fy, msBudget) {
+// Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
+const _under = {};
+const _underC = new THREE.Color();
+function v3UpdateUnder(fx, fy, dt) {
+  const u = V3.under;
+  if (!u) return;
+  u.position.x = fx * U3;
+  u.position.z = fy * U3;
+  tileSample(Math.floor(fx / TILE), Math.floor(fy / TILE), _under);
+  if (_under.h > 0.2 || !isFinite(_under.r)) return;
+  _underC.setRGB(_under.r * 0.86, _under.g * 0.86, _under.b * 0.86);
+  u.material.color.lerp(_underC, Math.min(1, dt * 2 + (V3.underInit ? 0 : 1)));
+  V3.underInit = true;
+}
+
+function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   const ccx = Math.floor(fx * U3 / CHUNK3);
   const ccy = Math.floor(fy * U3 / CHUNK3);
   // Auf einer Map nur Blöcke bis zum Horizont hinter ihrem Rand, dafür auch jenseits der Weltgrenze (seit 8.4)
@@ -1573,6 +1598,21 @@ function v3UpdateChunks(fx, fy, msBudget) {
       want.push([x, y, Math.hypot(dx * 1.2 - (fxIn - 0.5), dy + 0.5)]);
     }
   }
+  // in Laufrichtung: die Blöcke um den Punkt in ~0,9 s gleich danach (vor allem Pferd und Sprints)
+  if (ax * ax + ay * ay > (2 * TILE) * (2 * TILE)) {
+    const px = Math.floor((fx + ax) * U3 / CHUNK3);
+    const py = Math.floor((fy + ay) * U3 / CHUNK3);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = px + dx;
+        const y = py + dy;
+        if (x < minX || y < minY || x > maxX || y > maxY) continue;
+        if (Math.abs(x - ccx) > chunkKeep3() || Math.abs(y - ccy) > chunkKeep3()) continue;
+        if (want.some((w) => w[0] === x && w[1] === y)) continue;
+        want.push([x, y, 2.2 + Math.hypot(dx, dy), true]);
+      }
+    }
+  }
   want.sort((a, b) => a[2] - b[2]);
   // Nach einem Sprung (Teleport, Wiederbeleben, Dungeon) fehlt der Boden unter der Kamera:
   // dann einmal kräftig bauen statt sekundenlang Himmel zu zeigen
@@ -1581,7 +1621,9 @@ function v3UpdateChunks(fx, fy, msBudget) {
   if (need3(ccx, ccy) || need3(ccx, ccy - 1)) msBudget = Math.max(msBudget, 120);
   // seit 11.3: fehlt im Bild noch Boden (Rand des Sichtfelds), deutlich schneller nachbauen als die 5 ms im
   // Normalbetrieb – sonst sah man nach einem Sprung sekundenlang hellen Himmel (weißer Bildschirm)
-  else if (want.some(([x, y]) => !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 35);
+  else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 35);
+  // Vorausschau-Blöcke in etwas größeren Scheiben, damit sie fertig sind, bevor man dort ankommt
+  else if (want.some(([x, y, , ahead]) => ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 12);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
   if (chunkJob && (Math.abs(chunkJob.x - ccx) > chunkKeep3() || Math.abs(chunkJob.y - ccy) > chunkKeep3())) chunkJob = null;
   const t0 = performance.now();
@@ -1762,7 +1804,18 @@ function renderDrei() {
   const jumped = V3.lastFocus && Math.hypot(fx - V3.lastFocus.x, fy - V3.lastFocus.y) > 12 * TILE;
   V3.lastFocus = { x: fx, y: fy };
   if (jumped) warpFade();
-  v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 || jumped ? 1500 : 5);
+  // Vorausschau (seit 11.6): Blöcke dort bauen, wo die Figur in einer knappen Sekunde ist (Pferd, Sprints)
+  const vel = V3.vel || (V3.vel = { x: 0, y: 0, px: fx, py: fy });
+  if (jumped || dt <= 0) { vel.x = 0; vel.y = 0; }
+  else {
+    const kv = Math.min(1, dt * 4);
+    vel.x += ((fx - vel.px) / dt - vel.x) * kv;
+    vel.y += ((fy - vel.py) / dt - vel.y) * kv;
+  }
+  vel.px = fx;
+  vel.py = fy;
+  v3UpdateUnder(fx, fy, dt);
+  v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 || jumped ? 1500 : 5, vel.x * 0.9, vel.y * 0.9);
   v3UpdateLights(fx, fy);
   for (const k of ['water', 'lava', 'bog']) {
     const lm = MAT3['liquid' + k];
