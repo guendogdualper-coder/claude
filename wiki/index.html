@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seelenstein-Wiki</title>
+  <meta name="description" content="Das Wiki zu Seelenstein: Klassen, Fertigkeiten, Karten, Monster, Seelensteine, Ausrüstung, Schmied, NPCs und Quests – mit Suche.">
+  <meta name="theme-color" content="#0a1428">
+  <link rel="icon" href="../icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Marcellus+SC&display=swap">
+  <link rel="stylesheet" href="wiki.css">
+</head>
+<body>
+  <header class="top">
+    <div class="top-in">
+      <a class="logo" href="#"><img src="../icons/icon-192.png" alt=""><span><small>SEELENSTEIN</small>Wiki</span></a>
+      <div class="search">
+        <input id="q" type="search" placeholder="Suchen: Monster, Fertigkeit, Buch, NPC, Karte …" autocomplete="off" aria-label="Wiki durchsuchen">
+        <div id="results" class="results"></div>
+      </div>
+      <a class="play" href="../">Spielen</a>
+    </div>
+  </header>
+  <div class="wrap">
+    <nav id="nav" class="nav"></nav>
+    <main id="main" class="main"></main>
+  </div>
+  <div id="foot" class="foot"></div>
+  <script src="daten.js"></script>
+  <script src="wiki.js"></script>
+</body>
+</html>
