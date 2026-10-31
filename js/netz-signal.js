@@ -17,10 +17,14 @@
 
 const SIG_BEACON = 20000;     // ms zwischen zwei Lebenszeichen des Hosts
 const SIG_FRESH = 45000;      // ms: so alt darf das letzte Lebenszeichen sein
-const SIG_CLAIM_WAIT = 2500;  // ms: so lange darf ein Host widersprechen, wenn man einen Kanal übernimmt
-const SIG_ANSWER_WAIT = 7000;
+// seit 11.4 schneller: Übernehmen 1,8 s statt 2,5 s, dafür länger auf die Antwort des Hosts warten (12 s statt 7 s) –
+// vorher gab man bei etwas Verzögerung zu früh auf, versuchte selbst zu übernehmen, stieß auf den Host und begann
+// von vorn (20–30 s)
+const SIG_CLAIM_WAIT = 1800;  // ms: so lange darf ein Host widersprechen, wenn man einen Kanal übernimmt
+const SIG_ANSWER_WAIT = 12000;
+const SIG_ICE_WAIT = 900;     // ms: höchstens so lange Verbindungswege sammeln (vorher bis zur vollen Suche, 3 s und mehr)
 const SIG_CHUNK = 15000;      // lange Nachrichten in Stücken
-const SIG_RELAY_AFTER = 5000; // ms ohne direkten Kanal, dann Notweg über den Broker
+const SIG_RELAY_AFTER = 2500; // ms ohne direkten Kanal, dann Notweg über den Broker (seit 11.4, vorher 5 s)
 const SIG_RELAYS = () => window.SIG_RELAYS_OVERRIDE || ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
 const SIG_ICE = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
@@ -30,6 +34,9 @@ const SIG_ICE = [
   { urls: 'turn:freestun.net:3478', username: 'free', credential: 'free' }
 ];
 
+// Zeitmarken für Tests (window.SIG_TRACE = true)
+const sigT0 = performance.now();
+const sigTrace = (msg) => { if (window.SIG_TRACE) console.log(`[sig ${((performance.now() - sigT0) / 1000).toFixed(2)}] ${msg}`); };
 const sigRand = (n = 10) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => 'abcdefghijkmnpqrstuvwxyz23456789'[b % 32]).join('');
 const sigParse = (s) => { try { return JSON.parse(s); } catch (e) { return null; } };
 const sigChTopic = (id, part) => `seelenstein8/ch/${id}/${part}`;
@@ -122,6 +129,7 @@ class SigMqtt {
   onPacket(type, flags, p) {
     if (type === 2) {
       if (p[1] !== 0) return; // abgelehnt
+      sigTrace('broker bereit ' + this.url);
       this.ready = true;
       for (const t of this.subs.keys()) this.sendSub(t);
       for (const [t, m, r] of this.queue.splice(0)) this.pub(t, m, r);
@@ -232,6 +240,8 @@ class SigBus {
 let sigBusShared = null;
 const sigBus = () => (sigBusShared = sigBusShared || new SigBus(SIG_RELAYS()));
 
+// gerade als leer erkannte Kanäle (seit 11.4): beim Übernehmen nicht noch einmal 1,5 s fragen
+const sigEmptyAt = new Map();
 // Spielerzahl im Kanal: 0 = leer, sonst Zahl; wirft, wenn kein Broker erreichbar ist
 async function sigChannelInfo(id) {
   const bus = sigBus();
@@ -240,8 +250,8 @@ async function sigChannelInfo(id) {
   return new Promise((res) => {
     let h = null;
     const done = (n) => { clearTimeout(t); bus.off(topic, h); res(n); };
-    const t = setTimeout(() => done(0), 1500);
-    h = bus.on(topic, (m) => { if (sigFresh(m)) done(m.n || 1); });
+    const t = setTimeout(() => { sigTrace('kanal ' + id + ' leer (keine Meldung)'); sigEmptyAt.set(id, performance.now()); done(0); }, 1500);
+    h = bus.on(topic, (m) => { if (sigFresh(m)) { sigTrace('kanal ' + id + ' hat Host'); done(m.n || 1); } });
   });
 }
 
@@ -273,6 +283,7 @@ class SigConn extends SigEmitter {
   }
   openVia(via) {
     if (this.open || this.ended) return;
+    sigTrace('verbunden über ' + via);
     clearTimeout(this.failTimer);
     clearTimeout(this.relayTimer);
     this.via = via;
@@ -362,11 +373,19 @@ class SigConn extends SigEmitter {
 }
 
 // Angebot/Antwort mit allen Kandidaten in einer Nachricht (wartet kurz auf die Kandidatensuche)
+// Seit 11.4: höchstens SIG_ICE_WAIT warten; sobald ein Weg über das Internet (srflx/relay) dabei ist, nur noch
+// kurz nachsammeln. Unerreichbare Hilfsserver hielten sonst das Angebot sekundenlang auf.
 async function sigLocalSdp(pc) {
   await new Promise((res) => {
     if (pc.iceGatheringState === 'complete') return res();
-    const t = setTimeout(res, 3000);
-    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') { clearTimeout(t); res(); } });
+    let soon = 0;
+    const t = setTimeout(res, SIG_ICE_WAIT);
+    const fin = () => { clearTimeout(t); clearTimeout(soon); res(); };
+    pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') fin(); });
+    pc.addEventListener('icecandidate', (e) => {
+      if (!e.candidate) return fin();
+      if (!soon && / typ (srflx|relay)/.test(e.candidate.candidate)) soon = setTimeout(fin, 250);
+    });
   });
   return pc.localDescription.sdp.split('\r\n').filter((l) => !(l.startsWith('a=candidate') && / tcp /i.test(l))).join('\n');
 }
@@ -400,21 +419,29 @@ class SigPeer extends SigEmitter {
     this.host = false;
     if (!(await this.bus.whenReady(8000))) { this.fail({ type: 'network' }); return; }
     let n = 0;
-    try { n = await sigChannelInfo(id); } catch (e) { /* weiter */ }
+    // eben erst leer gesehen: gleich übernehmen (gleichzeitige Übernahmen klärt die Rückfrage unten)
+    if (!(performance.now() - (sigEmptyAt.get(id) || -1e9) < 4000)) {
+      try { n = await sigChannelInfo(id); } catch (e) { /* weiter */ }
+    }
     if (this.destroyed) return;
     if (n) { this.fail({ type: 'unavailable-id' }); return; }
     this.chT = sigChTopic(id, 'in');
     this.chH = this.bus.on(this.chT, (m) => this.onChannel(m));
+    sigTrace('übernehme ' + id);
+    // eigene Verbindung mit „letztem Willen“ schon jetzt aufbauen (seit 11.4; vorher erst danach – bis sie stand,
+    // sah ein Zweiter den Kanal leer und wurde ebenfalls Host): reißt sie ab, löscht der Broker die Host-Meldung
+    this.hostT = sigChTopic(id, 'host');
+    this.hostBus = new SigBus(SIG_RELAYS(), { topic: this.hostT, payload: '' });
     this.bus.pub(this.chT, { t: 'claim', k: this.key });
     this.claimTimer = setTimeout(() => this.becomeHost(), SIG_CLAIM_WAIT);
   }
   becomeHost() {
     if (this.destroyed) return;
+    sigTrace('bin Host');
     this.host = true;
-    // eigene Verbindung mit „letztem Willen“: reißt sie ab, löscht der Broker die Host-Meldung
-    this.hostT = sigChTopic(this.id, 'host');
-    this.hostBus = new SigBus(SIG_RELAYS(), { topic: this.hostT, payload: '' });
     this.emit('open', this.id);
+    // erste Meldung auch über die schon offene Verbindung: sofort sichtbar, auch wenn die eigene noch aufbaut
+    this.bus.pub(this.hostT, { t: 'host', n: this.count(), k: this.key, at: Date.now() }, true);
     this.beacon();
     this.beaconTimer = setInterval(() => this.beacon(), SIG_BEACON);
   }
@@ -429,6 +456,7 @@ class SigPeer extends SigEmitter {
   fail(e) {
     if (this.destroyed) return;
     clearTimeout(this.claimTimer);
+    if (this.hostBus && !this.host) { this.hostBus.close(); this.hostBus = null; }
     if (this.chH) { this.bus.off(this.chT, this.chH); this.chH = null; }
     this.emit('error', e);
   }
@@ -445,6 +473,7 @@ class SigPeer extends SigEmitter {
     else if (m.t === 'offer' && m.from && m.sdp) this.answer(m);
   }
   async answer(d) {
+    sigTrace('angebot erhalten');
     if (this.conns.has(d.from)) this.conns.get(d.from).end();
     const pc = new RTCPeerConnection({ iceServers: SIG_ICE });
     const conn = new SigConn(d.from, pc);
@@ -476,6 +505,7 @@ class SigPeer extends SigEmitter {
         if (!(await sigChannelInfo(target))) { this.unavailable(conn, target); return; }
         await pc.setLocalDescription(await pc.createOffer());
         const sdp = await sigLocalSdp(pc);
+        sigTrace('angebot fertig');
         if (this.destroyed || conn.ended) return;
         const timer = setTimeout(() => { this.pending.delete(c); this.unavailable(conn, target); }, SIG_ANSWER_WAIT);
         const rid = sigRand(14);
@@ -497,6 +527,7 @@ class SigPeer extends SigEmitter {
     const p = this.pending.get(d.c);
     if (!p) return;
     this.pending.delete(d.c);
+    sigTrace('antwort da');
     clearTimeout(p.timer);
     // Notweg-Uhr läuft ab jetzt; kommt der direkte Kanal vorher, bleibt der Notweg ungenutzt
     p.conn.relayLater(p.rid, 'j');
@@ -520,6 +551,9 @@ class SigPeer extends SigEmitter {
       this.hostBus.clear(this.hostT);
       const hb = this.hostBus;
       setTimeout(() => hb.close(), 800);
+    } else if (this.hostBus) {
+      // beim Übernehmen abgebrochen: Verbindung sauber schließen (kein „letzter Wille“)
+      this.hostBus.close();
     }
     if (this.chH) this.bus.off(this.chT, this.chH);
     if (this.inH) this.bus.off(this.inT, this.inH);

@@ -112,7 +112,7 @@ async function netJoinChannel(srv, ch, attempt = 0) {
     net.hostConn = conn;
     // Antwort des Hosts plus ggf. Notweg über den Broker brauchen etwas länger als ein direkter Kanal
     timer = setTimeout(claim, 20000);
-    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState(), v: GAME_VERSION }));
+    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState(), v: GAME_VERSION, a: areaKey(game.player.x, game.player.y) }));
     conn.on('data', (d) => {
       if (d && d.t === 'welcome') { done = true; clearTimeout(timer); }
       netOnClientData(d);
@@ -180,6 +180,15 @@ function netMigrate() {
 
 // Wer den Kanal übernimmt, führt die Welt weiter, die er gerade sieht
 function netTakeOverWorld() {
+  // als Mitspieler kannte man nur einige Bereiche (seit 11.4): die übrigen frisch bevölkern
+  if (net.areas && !net.areas.has('all')) {
+    const keep = game.monsters;
+    const have = net.areas;
+    nextMonsterId = keep.reduce((n, m) => Math.max(n, m.id + 1), nextMonsterId);
+    populateWorld();
+    game.monsters = game.monsters.filter((m) => !have.has(monArea(m))).concat(keep);
+  }
+  net.areas = null;
   let max = 0;
   for (const m of game.monsters) {
     max = Math.max(max, m.id);
@@ -247,6 +256,11 @@ function netOnHostData(conn, d) {
     conn.send({ t: 'pong', n: net.players.size + 1 });
     return;
   }
+  // Mitspieler betritt einen anderen Bereich: dessen Monster nachschicken
+  if (d.t === 'area') {
+    conn.send({ t: 'areaMons', a: d.a, mons: netWorldList(d.a) });
+    return;
+  }
   // Laufzeitmessung (Ping) in beide Richtungen
   if (d.t === 'pi') {
     conn.send({ t: 'po', s: d.s });
@@ -264,7 +278,8 @@ function netOnHostData(conn, d) {
     const rp = netRemote(id);
     rp.heardAt = game.time;
     netApplyState(rp, d.s);
-    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(), v: GAME_VERSION });
+    // ältere Mitspieler ohne Bereich (a) bekommen weiter die ganze Welt
+    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(d.a ?? null), area: d.a ?? null, v: GAME_VERSION });
     rp.ver = d.v || rp.ver || null;
     netVersionCheck(d.v, rp.name, true);
     ui.chat('', `${rp.name} spielt jetzt mit.`);
@@ -319,9 +334,12 @@ function netDropPlayer(id, quiet) {
   ui.updateNetBadge();
 }
 
-// Alle Monster für einen neuen Mitspieler
-function netWorldList() {
-  return game.monsters.map((m) => [m.id, m.isStone ? '#stone' : m.typeId, m.level, Math.round(m.x), Math.round(m.y),
+// Bereich eines Monsters (Map oder Dungeon seines Platzes, wie areaKey in gegner.js)
+const monArea = (m) => (m.area != null ? m.area : (m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y)));
+// Monster für einen Mitspieler: seit 11.4 nur die eines Bereichs (seine Map oder sein Dungeon) statt aller
+// 5.000 Monster der Welt (über 300 KB, über den Notweg viele Sekunden); andere Bereiche holt er beim Betreten nach
+function netWorldList(area = null) {
+  return game.monsters.filter((m) => area == null || monArea(m) === area).map((m) => [m.id, m.isStone ? '#stone' : m.typeId, m.level, Math.round(m.x), Math.round(m.y),
     Math.round(m.homeX), Math.round(m.homeY), Math.ceil(m.hp), m.maxHp, m.dead ? 1 : 0, m.respawn ? 1 : 0, ZONES.indexOf(m.zone)]);
 }
 
@@ -396,6 +414,9 @@ function netOnClientData(d) {
       net.lastSnapAt = performance.now();
       game.monsters = d.mons.map(netBuildMonster);
       net.mons = new Map(game.monsters.map((m) => [m.id, m]));
+      // geladene Bereiche (null: der Host schickt noch die ganze Welt)
+      net.areas = new Set([d.area ?? 'all']);
+      net.areaAskAt = 0;
       game.target = null;
       for (const a of game.allies) {
         a.target = null;
@@ -408,6 +429,19 @@ function netOnClientData(d) {
       $('panelNet').hidden = true;
       ui.renderNet();
       ui.updateNetBadge();
+      break;
+    }
+    case 'areaMons': {
+      if (!net.areas) net.areas = new Set();
+      const add = d.mons.map(netBuildMonster);
+      const ids = new Set(add.map((m) => m.id));
+      game.monsters = game.monsters.filter((m) => {
+        const drop = ids.has(m.id) || monArea(m) === d.a;
+        if (drop && net.mons.get(m.id) === m) net.mons.delete(m.id);
+        return !drop;
+      }).concat(add);
+      for (const m of add) net.mons.set(m.id, m);
+      net.areas.add(d.a);
       break;
     }
     case 'full':
@@ -924,6 +958,14 @@ function netUpdate(dt) {
     if (rp.riding && Math.abs(rp.facing.x) > 0.15) rp.rideFlip = rp.facing.x < 0;
   }
   if (net.mode === 'client') {
+    // neuer Bereich (Weltentor, Dungeon): Monster dort beim Host anfragen
+    if (net.areas && !net.areas.has('all') && net.hostConn) {
+      const a = areaKey(game.player.x, game.player.y);
+      if (!net.areas.has(a) && performance.now() - (net.areaAskAt || 0) > 2500) {
+        net.areaAskAt = performance.now();
+        net.hostConn.send({ t: 'area', a });
+      }
+    }
     netMirrorMonsters(dt);
     if (performance.now() - net.lastSnapAt > NET_STALL) {
       netMigrate();
@@ -971,6 +1013,7 @@ function netStop(silent, reason, keepWorld) {
   net.mons.clear();
   net.peer = null;
   net.hostConn = null;
+  if (!keepWorld) net.areas = null;
   if ((was === 'client' || was === 'joining') && game.player) {
     if (keepWorld) netTakeOverWorld();
     else if (was === 'client') populateWorld();
@@ -1024,6 +1067,8 @@ function netShowChat(name, text, who, c = 'g') {
 function netAutoJoin() {
   if (net.autoTried || net.mode !== 'off') return;
   net.autoTried = true;
+  // Verbindung zu den Vermittlungs-Brokern schon jetzt aufbauen (seit 11.4): beim Beitreten ist sie dann da
+  if (typeof sigBus === 'function' && !navigator.webdriver) sigBus();
   const q = new URLSearchParams(location.search);
   const srv = (q.get('server') || '').toLowerCase();
   const ch = Number(q.get('kanal'));
