@@ -19,9 +19,46 @@ function setupRenderer() {
   renderer.miniCtx = renderer.mini.getContext('2d');
   // Größenänderung erst zu Beginn des nächsten Bildes (seit 11.0): Das Setzen der Canvas-Größe leert beide
   // Zeichenflächen, dazwischen sah man sonst kurz den hellen Hintergrund (weißes Aufblitzen)
-  window.addEventListener('resize', () => { renderer.resizeDue = true; });
+  window.addEventListener('resize', resizeSoon);
+  window.addEventListener('orientationchange', resizeSoon);
+  window.addEventListener('pageshow', resizeSoon);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resizeSoon);
+  // Tastatur (Chat) zu: iOS lässt die Seite manchmal verschoben oder verkleinert stehen
+  document.addEventListener('focusout', resizeSoon);
   renderer.maxDpr = gfx().dpr; // Grafikstufe aus den Einstellungen
   resizeRenderer();
+}
+
+// Bildschirmgröße überwachen (seit 12.1): iPhones melden die neue Größe nach dem Drehen, nach der Tastatur
+// oder beim Zurückkehren aus dem Hintergrund manchmal zu spät oder gar nicht. Dann blieb die Spielfläche zu
+// klein (schwarzer Streifen unten) und unscharf, bis man neu lud oder das Handy drehte. Jetzt wird nach solchen
+// Ereignissen mehrmals nachgemessen und im Spiel zweimal pro Sekunde verglichen.
+function viewSize() {
+  const w = window.innerWidth;
+  let h = window.innerHeight;
+  // App vom Home-Bildschirm, quer: der ganze Bildschirm gehört dem Spiel (iOS meldet die Höhe hier oft zu klein)
+  if (navigator.standalone && w > h) {
+    const full = Math.min(screen.width, screen.height);
+    if (h < full - 1 && h > full * 0.6) h = full;
+  }
+  return { w, h };
+}
+function checkViewSize() {
+  const r = renderer;
+  if (!r.canvas) return;
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  const { w, h } = viewSize();
+  // feste Höhe nur, wenn iOS zu wenig meldet; sonst bestimmt wieder das Fenster die Höhe
+  const want = h !== window.innerHeight ? h + 'px' : '';
+  if (document.documentElement.style.height !== want) {
+    document.documentElement.style.height = want;
+    document.body.style.height = want;
+  }
+  if (w !== r.w || h !== r.h || Math.abs(r.canvas.clientWidth - w) > 2 || Math.abs(r.canvas.clientHeight - h) > 2) resizeRenderer();
+}
+function resizeSoon() {
+  renderer.resizeDue = true;
+  for (const ms of [150, 450, 1000, 2000]) setTimeout(checkViewSize, ms);
 }
 
 // Auflösung der Spielfläche: höchstens 2-fach. Läuft das Spiel zu langsam, senkt adaptQuality
@@ -29,8 +66,9 @@ function setupRenderer() {
 function resizeRenderer() {
   const r = renderer;
   r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
-  r.w = window.innerWidth;
-  r.h = window.innerHeight;
+  const vs = viewSize();
+  r.w = vs.w;
+  r.h = vs.h;
   r.resizeDue = false;
   // gleiche Größe nicht neu setzen: jede Zuweisung leert das Bild
   const cw = Math.round(r.w * r.dpr);
@@ -1536,16 +1574,44 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
 
 // Ruckelt das Spiel über mehrere Sekunden (Median der Bildzeiten über 22 ms), wird die Auflösung
 // etwas gesenkt. Das passiert höchstens zweimal und nur während des Spielens.
-const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false };
+// Seit 12.1 geht die Auflösung wieder hoch, wenn das Spiel länger flüssig läuft, und nach dem Zurückkehren
+// aus dem Hintergrund oder dem Drehen wird ein paar Sekunden nicht gemessen (dort ruckelt es immer kurz –
+// das senkte früher die Auflösung dauerhaft, das Bild blieb bis zum Neuladen unscharf).
+const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false, good: 0, pauseUntil: 0 };
+function qualityPause(ms = 3000) {
+  quality.frames.length = 0;
+  quality.good = 0;
+  quality.pauseUntil = performance.now() + ms;
+}
+// volle Auflösung der Grafikstufe zurück (z. B. nach dem Drehen ins Querformat)
+function qualityRestore() {
+  if (!quality.steps) return;
+  quality.steps = 0;
+  renderer.maxDpr = gfx().dpr;
+  resizeRenderer();
+  if (V3.on) v3ApplyGraphics();
+}
 function adaptQuality(dtMs, cap) {
   // begrenzte Bildrate: die Bildzeit ist gewollt lang, nichts anpassen
   if (!game.running || dtMs > 120 || document.hidden || cap) return;
+  if (performance.now() < quality.pauseUntil) return;
   quality.frames.push(dtMs);
   if (quality.frames.length < 120) return;
   const sorted = quality.frames.slice().sort((a, b) => a - b);
   quality.frames.length = 0;
   const median = sorted[sorted.length >> 1];
-  if (median <= 20) return;
+  if (median <= 20) {
+    // zweimal hintereinander richtig flüssig: eine Stufe Auflösung zurück
+    if (quality.steps && median <= 15 && ++quality.good >= 2) {
+      quality.good = 0;
+      quality.steps--;
+      renderer.maxDpr = Math.min(gfx().dpr, (renderer.maxDpr || 1) + 0.3);
+      resizeRenderer();
+      if (V3.on) v3ApplyGraphics();
+    }
+    return;
+  }
+  quality.good = 0;
   // Schritt für Schritt (seit 9.9): Auflösung runter, dann Schatten aus, zuletzt gleichmäßige 30 Bilder/s
   const r = renderer;
   const cur = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);

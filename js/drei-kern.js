@@ -659,8 +659,8 @@ function v3ApplyGraphics() {
 
 function v3Resize() {
   if (!V3.gl) return;
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const w = renderer.w || window.innerWidth;
+  const h = renderer.h || window.innerHeight;
   const pr = Math.min(window.devicePixelRatio || 1, renderer.maxDpr || gfx().dpr);
   // unveränderte Größe nicht neu setzen (seit 11.0): setSize leert das Bild bis zum nächsten Zeichnen
   const key = w + 'x' + h + '@' + pr;

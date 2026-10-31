@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '12.0';
+const GAME_VERSION = '12.1';
 
 const game = {
   world: null,
@@ -215,6 +215,10 @@ function frame(ts) {
   const dt = Math.min(0.05, raw / 1000 || 0);
   lastFrame = ts;
   if (renderer.resizeDue) resizeRenderer();
+  if (ts - (renderer.sizeCheckAt || 0) > 500) {
+    renderer.sizeCheckAt = ts;
+    checkViewSize();
+  }
   adaptQuality(raw, cap);
   updateScreenEffects(dt);
   if (game.running && !portraitQuery.matches) update(dt);
@@ -235,7 +239,11 @@ function boot() {
   ui.showStart();
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) saveGame();
-    else if (game.running) keepScreenOn();
+    else {
+      if (game.running) keepScreenOn();
+      qualityPause();
+      resizeSoon();
+    }
   });
   window.addEventListener('pagehide', saveGame);
   registerApp();
@@ -244,6 +252,12 @@ function boot() {
     input.keys.clear();
     clearAttack();
     if (portraitQuery.matches) saveGame();
+    else {
+      // zurück ins Querformat: neu messen, volle Auflösung
+      qualityPause();
+      qualityRestore();
+      resizeSoon();
+    }
   });
   requestAnimationFrame(frame);
 }
