@@ -444,7 +444,7 @@ function reviveMonster(m) {
   m.target = null;
   m.stun = 0;
   m.kx = m.ky = 0;
-  m.slow = m.vulnerable = m.poison = m.burn = null;
+  m.slow = m.vulnerable = m.poison = m.burn = m.bleed = null;
 }
 
 // Ein angegriffenes Monster und seine Gruppe greifen den Angreifer an
@@ -511,7 +511,7 @@ function killStoneMinions(stone) {
 }
 
 function tickDots(m, dt) {
-  for (const key of ['poison', 'burn']) {
+  for (const key of ['poison', 'burn', 'bleed']) {
     const d = m[key];
     if (!d) continue;
     if (d.until <= game.time) { m[key] = null; continue; }
@@ -689,7 +689,7 @@ function updateMonsters(dt) {
       }
       continue;
     }
-    if (m.state === 'idle' && !m.poison && !m.burn) {
+    if (m.state === 'idle' && !m.poison && !m.burn && !m.bleed) {
       if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
       if (!busy.has(m.area)) {
         if (m.hitFlash > 0) m.hitFlash = 0;

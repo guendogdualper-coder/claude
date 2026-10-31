@@ -261,14 +261,14 @@ const CLASSES = {
     paths: [
       {
         id: 'seelen', name: 'Weg der Seelen', role: 'PvE · Beschwörung und Flächenschaden',
-        description: 'Ruft Skelette – erweckt Knochenhunde –, sperrt Seelen in Knochenkäfige und holt getötete Monster als Geister aus ihren Gräbern zurück.',
+        description: 'Saugt mit einem Blutfaden Leben aus, ruft Skelette – erweckt Knochenhunde –, sperrt Seelen in Knochenkäfige, holt getötete Monster als Geister zurück und lässt eine Geisterflut niedergehen.',
         skills: [
           {
-            // seit 8.5 (ersetzt den Seelenpfeil): drei brennende Schädel im Fächer, die bis zu drei Ziele suchen
-            id: 'schaedelsalve', name: 'Schädelsalve', short: 'SV', kind: 'angriff', unlock: 1, mp: 9, cooldown: 2.5,
-            type: 'skulls', range: 360, speed: 430, count: 3, fan: 0.42, turn: 7, spreadR: 150, dmg: 0.75, duelExtra: 0.5,
-            color: '#a7e37f', style: 'skullfire', anim: 'salve', animDur: 0.4,
-            text: 'Drei brennende Totenschädel schießen im Fächer aus deinem Stab, fliegen im Bogen und beißen bis zu drei Gegner. Auf ein einzelnes Ziel treffen alle drei.'
+            // seit 11.7 (ersetzt die Schädelsalve): gedrückt halten – ein Blutfaden saugt dem Ziel Leben aus (nekro-neu.js)
+            id: 'blutsauger', name: 'Blutsauger', short: 'BS', kind: 'angriff', unlock: 1, mp: 8, cooldown: 2,
+            type: 'siphon', channel: true, range: 300, every: 0.2, maxDur: 3.5, minDur: 0.4, dmg: 0.4, leech: 0.35, mpPerSec: 7,
+            color: '#e0203a', nk: true,
+            text: 'Gedrückt halten: Ein pulsierender Blutfaden spannt sich von deinem Ziel zu deiner Hand. Fünfmal pro Sekunde reißt er Blut heraus – Schaden – und ein Drittel davon fließt als Leben zu dir. Bis zu 3,5 s; Loslassen, zu weit weg oder Mana leer beenden ihn.'
           },
           {
             // seit 8.5 (ersetzt den Seelensturm): ein Käfig aus Rippen bricht beim Ziel aus dem Boden, der gefangene Geist schreit fünfmal
@@ -299,40 +299,47 @@ const CLASSES = {
             text: 'Jedes Monster, das in deiner Nähe stirbt, hinterlässt 2 Minuten lang ein Grab. Der Totenruf weckt die Gräber um dich: Die Monster steigen als weiße Geister in ihrer eigenen Gestalt auf und kämpfen 3 Minuten an deiner Seite – 2 Geister, mit dem Rang bis zu 5. Solange deine Geister wandeln, ruft der Totenruf keine weiteren. Sie bleiben neben deinen Knochenhunden.'
           },
           {
-            id: 'dunklemacht', name: 'Dunkle Macht', short: 'DM', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
-            type: 'buff', duration: 180, effects: { skillDmg: 0.18, atkSpeed: 0.1, speed: 0.06 }, labels: { skillDmg: 'Zauberschaden' },
-            text: 'Buff: Dunkle Macht krönt dich mit Seelenflammen. Mehr Zauberschaden – für alle Fertigkeiten, deine Diener und die Ultimative Attacke –, mehr Angriffstempo und etwas Lauftempo.'
+            // seit 11.7 (ersetzt den Buff Dunkle Macht): Geister brechen aus dem Nekromanten und stürzen auf das Zielgebiet
+            id: 'geisterflut', name: 'Geisterflut', short: 'GF', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
+            type: 'ghostflood', aim: true, range: 380, radius: 150, ghosts: 8, rise: 0.55, dmg: 0.9, splash: 45,
+            burst: { dmg: 1.4, slow: { amount: 0.35, duration: 2.5 }, knockback: 40 }, color: '#9fe8d0', nk: true, anim: 'kaefig', animDur: 0.6,
+            text: 'Zielort wählen: Acht schreiende Geister brechen aus deinem Körper, wirbeln über dir in die Höhe und stürzen sich auf die Gegner im Zielgebiet. Jeder Geist trifft beim Einschlag alle in seiner Nähe, zum Schluss platzt eine Seelenwelle auf, die Gegner zurückwirft und verlangsamt.'
           }
         ]
       },
       {
-        id: 'knochen', name: 'Weg der Knochen', role: 'PvP · Lebensraub und Lähmung',
-        description: 'Saugt Leben aus, lähmt Gegner und versteckt sich hinter einem Knochenpanzer.',
+        id: 'knochen', name: 'Weg der Knochen', role: 'PvP · Blut, Knochen und Lebensraub',
+        description: 'Reißt Leben aus Gegnern, wirft Knochen, lässt Blutlarven platzen, packt Feinde mit einer Totenhand und ruft den Sensenmann.',
         skills: [
           {
-            id: 'lebensentzug', name: 'Lebensentzug', short: 'LE', kind: 'angriff', unlock: 1, mp: 12, cooldown: 5,
-            type: 'drain', range: 300, dmg: 1.8, heal: 0.5,
-            text: 'Saugt dem Ziel Leben aus. Du heilst dich um die Hälfte des Schadens.'
+            // seit 11.7 neu: kurz und heftig – ein Blutband reißt die Lebenskraft heraus und heilt sofort (nekro-neu.js)
+            id: 'lebensentzug', name: 'Lebensentzug', short: 'LE', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
+            type: 'lifetap', range: 300, dmg: 1.6, heal: 0.6, color: '#e0203a', nk: true, anim: 'salve', animDur: 0.4,
+            text: 'Ein Blutband schnellt zu deinem Ziel und reißt in einem Ruck seine Lebenskraft heraus. Die Blutkugel fliegt in deine Brust zurück und heilt dich sofort um 60 % des Schadens.'
           },
           {
-            id: 'knochenspeer', name: 'Knochenspeer', short: 'KS', kind: 'angriff', unlock: 3, mp: 12, cooldown: 5,
-            type: 'projectile', range: 360, speed: 620, dmg: 2.4, stun: 0.8, color: '#ddd5bb', style: 'bone',
-            text: 'Ein Speer aus Knochen durchbohrt ein Ziel und betäubt es kurz.'
+            // seit 11.7 (ersetzt den Knochenspeer): ein wirbelnder Oberschenkelknochen, der verlangsamt
+            id: 'knochenwurf', name: 'Knochenwurf', short: 'KW', kind: 'angriff', unlock: 3, mp: 12, cooldown: 4,
+            type: 'bonethrow', range: 380, speed: 520, width: 24, dmg: 1.9, slow: { amount: 0.4, duration: 2.5 }, color: '#e8dcc0', nk: true, anim: 'salve', animDur: 0.4,
+            text: 'Du schleuderst einen großen Knochen, der sich überschlagend durch die Luft wirbelt. Er trifft den ersten Gegner auf seiner Bahn, zersplittert und verlangsamt ihn 2,5 s um 40 %.'
           },
           {
-            id: 'knochenpanzer', name: 'Knochenpanzer', short: 'KP', kind: 'buff', unlock: 5, mp: 25, cooldown: 60,
-            type: 'buff', duration: 180, shield: 0.3, effects: { reflect: 0.2 },
-            text: 'Buff: Ein Schild aus Knochen fängt Schaden ab und wirft einen Teil zurück. Er erneuert sich bei jedem Einsatz.'
+            // seit 11.7 (ersetzt den Knochenpanzer): eine Blutlarve springt zum Ziel und platzt
+            id: 'blutlarve', name: 'Blutlarve', short: 'BL', kind: 'angriff', unlock: 5, mp: 18, cooldown: 7,
+            type: 'larva', aim: true, range: 340, radius: 110, hop: 0.55, wriggle: 0.4, dmg: 1.6, bleed: { dps: 0.32, duration: 4 }, color: '#c01828', nk: true, anim: 'kaefig', animDur: 0.5,
+            text: 'Zielort wählen: Eine fette Blutlarve kriecht aus deinem Ärmel, springt in hohem Bogen zum Ziel, windet sich kurz – und platzt. Alle Gegner in der Nähe nehmen Schaden und bluten 4 s lang.'
           },
           {
-            id: 'laehmung', name: 'Lähmender Fluch', short: 'LF', kind: 'fluch', unlock: 7, mp: 20, cooldown: 16,
-            type: 'curse', radius: 150, duration: 6, vulnerable: 0.2, slow: 0.8, stun: 1.5, color: '#7ad36a',
-            text: 'Ein Fluch, der Gegner um dich 1,5 s erstarren lässt. Danach sind sie stark verlangsamt.'
+            // seit 11.7 (ersetzt den Lähmenden Fluch): eine riesige Knochenhand packt das Ziel und zerdrückt es
+            id: 'totenhand', name: 'Totenhand', short: 'TH', kind: 'angriff', unlock: 7, mp: 22, cooldown: 12,
+            type: 'gravehand', range: 320, radius: 75, grab: 0.4, hold: 1.6, dmg: 0.8, crush: 1.8, color: '#e8dcc0', nk: true, anim: 'kaefig', animDur: 0.55,
+            text: 'Unter deinem Ziel bricht eine riesige Skeletthand aus der Erde, schließt die Finger um alle Gegner in der Nähe und hält sie 1,6 s fest. Dann ballt sie die Faust und zerdrückt sie.'
           },
           {
-            id: 'blutopfer', name: 'Blutopfer', short: 'BO', kind: 'buff', unlock: 10, mp: 26, cooldown: 60,
-            type: 'buff', duration: 150, effects: { hpSteal: 0.05, atk: 0.12 },
-            text: 'Buff: Du opferst Blut für Macht. Lebensraub und mehr Angriff.'
+            // seit 11.7 (ersetzt den Buff Blutopfer): Blutlanzen schießen aus dem Rücken und suchen bis zu sechs Gegner
+            id: 'blutlanzen', name: 'Blutlanzen', short: 'BZ', kind: 'angriff', unlock: 10, mp: 26, cooldown: 10,
+            type: 'bloodlances', range: 280, count: 6, dmg: 1.25, leech: 0.15, color: '#e0203a', nk: true, anim: 'kaefig', animDur: 0.55,
+            text: 'Sechs Lanzen aus Blut wachsen dir wie Flügel aus dem Rücken und schießen auf bis zu sechs Gegner in der Nähe (bei weniger Gegnern treffen mehrere dasselbe Ziel). Jede Lanze heilt dich um 15 % ihres Schadens.'
           }
         ]
       }

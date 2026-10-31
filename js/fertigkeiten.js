@@ -681,13 +681,7 @@ const SKILL_FX = {
       particles(c.x, c.y, { count: 6, color: ['#a7e37f', '#e0ffd0'], speed: [40, 140], life: [0.3, 0.6], size: [2, 4], drag: 3, gravity: -60 });
     }
   },
-  lebensentzug: {
-    cast(p) {
-      addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 30, dur: 0.5, color: '#ff6a7a', width: 4, grow: true });
-      // rote Tropfen kreisen zurück zur Figur
-      addEffect({ type: 'orbs3', follow: p, ox: 0, oy: 0, count: 5, color: '#ff4a5a', dur: 0.9 });
-    }
-  },
+  // lebensentzug: seit 11.7 eigene Optik in nekro-neu.js (Blutband und Blutkugel)
   totenbeschwoerung: {
     cast(p) {
       addEffect({ type: 'decal', kind: 'rune', x: p.x, y: feetY(p), r: 70, dur: 2, color: '#7ad36a' });
@@ -1127,7 +1121,7 @@ const SKILL_ELEMENT = {
   blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
   leichtfuessigkeit: 'wind', windfessel: 'wind',
   geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'blitz', geistesschlag: 'licht',
-  schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', totenruf: 'seele', dunklemacht: 'schatten', lebensentzug: 'blut', laehmung: 'seele',
+  schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', totenruf: 'seele', dunklemacht: 'schatten', laehmung: 'seele',
   blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
 };
 
@@ -1189,8 +1183,8 @@ function updateBuffAuras(dt) {
 // Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
 function rankCastFx(p, rank, color) {
   const fy = feetY(p);
-  // Magier (seit 11.5): nichts am Boden, nur aufsteigende Funken in der Rangfarbe (kein Kreis, kein Dreieck)
-  const mage = p.classId === 'magier';
+  // Magier (seit 11.5) und Nekromant (seit 11.7): nichts am Boden, nur aufsteigende Funken in der Rangfarbe
+  const mage = p.classId === 'magier' || p.classId === 'nekromant';
   if (mage) addEffect({ type: 'sparks3', x: p.x, y: fy, h: 0.4, count: 8 + rank * 4, color, speed: 1.6, up: 2.2, dur: 0.6 });
   else {
     addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });

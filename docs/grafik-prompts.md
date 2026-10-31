@@ -1134,3 +1134,41 @@ Regel für alle: **nichts am Boden** – keine Kreise, keine Dreiecke, keine Run
 > Prompt: *ring of eight levitating boulders orbiting an area, pulling enemies to the centre, amber glow, rocks crash inward at the end, no ground symbols, stylized MMO*
 
 **Symbole (`js/symbole-magier3.js`):** Drachenodem (Flammenstrahl aus der Hand), Feuerball (große Kugel mit Ringen), Brand (Flammenkrone), Phönixflamme (Feuervogel), Blitzspeer (diagonaler Lichtspeer), Gewitterwolke (Wolke mit Blitzen), Steinschlag (zwei Felsen mit Aufprall), Felsgeschoss (Basaltbrocken mit Glutadern), Erdspitzen (drei Steinspitzen), Bergsturz (Fels mit Glutzeichen über Bodenspalt), Schwerkraftsiegel (Felsen um einen Kern).
+
+## 16. Nekromant ohne Buffs (seit 11.7)
+
+Regel wie beim Magier: keine Kreise, Dreiecke oder Runen am Boden. Blut ist deckend dunkelrot (normal gemischt) mit kleinem hellem Kern, damit es auf hellem Gras rot bleibt und nicht weiß überstrahlt.
+
+**Blutsauger.** Zwei gewundene Blutstränge spannen sich von der Brust des Ziels zur ausgestreckten Hand des Nekromanten; Blutstropfen wandern den Faden entlang zu ihm, am Ziel pocht ein rotes Licht und spritzt Blut.
+
+> Prompt: *necromancer channeling a twisting crimson blood tether from an enemy's chest into his outstretched hand, droplets of blood flowing along the strand, pulsing red glow, dark fantasy MMO VFX, top-down three-quarter view*
+
+**Geisterflut.** Acht grünlich-weiße Geister mit dunklen Augen und schreiendem Mund wirbeln spiralförmig über dem Nekromanten hoch und stürzen sich im Bogen auf die Gegner; jeder Einschlag lodert in grünem Seelenfeuer, zum Schluss schießt ein Kranz aus Seelenflammen nach außen.
+
+> Prompt: *swarm of screaming ghost spirits spiraling up above a necromancer and diving down onto enemies, pale green ectoplasm, green soul fire bursts on impact, dark fantasy MMO*
+
+**Lebensentzug.** Ein Blutband schnellt zum Ziel, reißt mit einem Ruck eine leuchtende Blutkugel heraus, die im Bogen in die Brust des Nekromanten fliegt.
+
+> Prompt: *blood ribbon yanking a glowing orb of blood out of an enemy and flying back into the necromancer's chest, healing glow, dark fantasy MMO*
+
+**Knochenwurf.** Ein großer Oberschenkelknochen mit doppelten Gelenkköpfen überschlägt sich im Flug und zersplittert am Ziel in Splitter und Knochenstaub.
+
+> Prompt: *large femur bone spinning end over end through the air, thrown by a necromancer, shattering into bone shards on impact, stylized MMO*
+
+**Blutlarve.** Eine Kette aus dunkelroten, glänzenden Gliedern mit kleinen Kiefern springt in hohem Bogen, windet sich am Ziel, schwillt an und platzt: Blutfontäne, Tropfen und unregelmäßige Blutspritzer.
+
+> Prompt: *fat glossy blood larva leaping through the air, landing, wriggling, swelling and bursting into a fountain of blood, gory but stylized MMO VFX*
+
+**Totenhand.** Der Boden reißt auf, ein riesiger Unterarm mit fünf Knochenfingern bricht heraus, die Finger schließen sich um die Gegner, halten sie fest, die Faust ballt sich und zerdrückt sie; danach versinkt die Hand.
+
+> Prompt: *giant skeletal hand bursting out of cracked earth and closing its bony fingers around enemies, crushing them, bone dust, dark fantasy MMO*
+
+**Blutlanzen.** Sechs dunkelrote Lanzen mit hellem Kern wachsen wie Flügel aus dem Rücken des Nekromanten und schießen nacheinander auf bis zu sechs Gegner.
+
+> Prompt: *six crimson blood spears sprouting like wings from a necromancer's back, then launching at several enemies, blood splashes, dark fantasy MMO*
+
+**Sensenmann (Ulti).** Hinter dem Nekromanten steigt aus Nebel eine riesige Gestalt in zerfetzter Kutte, Kapuze, Totenschädel mit violett glühenden Augen und Knochenhänden. Sie hebt die Sense über die Schulter, mäht einmal durch alle Gegner vor dem Nekromanten und dann einmal ganz herum; Seelen fliegen aus den Gegnern zu ihr, dann zerfällt sie in Rauch.
+
+> Prompt: *towering grim reaper rising from dark mist behind a necromancer, tattered black robes, hood, skull with glowing violet eyes, skeletal hands, huge scythe sweeping a glowing arc through enemies, souls flying from them into the reaper, epic dark fantasy MMO ultimate*
+
+**Symbole (`js/symbole-nekro2.js`):** Blutsauger (Knochenhand, Blutfaden, Herz), Geisterflut (stürzende Geister über Seelenfeuer), Lebensentzug (Blutkugel aus einem Schädel), Knochenwurf (fliegender Oberschenkelknochen), Blutlarve (Gliederlarve mit Spritzern), Totenhand (Knochenhand umklammert eine Gestalt), Blutlanzen (sechs Spitzen wie Flügel), Sensenmann (Kapuze mit Schädel und Sense).

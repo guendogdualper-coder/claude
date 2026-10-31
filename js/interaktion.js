@@ -691,7 +691,8 @@ function remoteSkillFx(rp, d) {
   }
   // neue Magier-Zauber (seit 11.5): eigene Darstellung in magier-neu.js
   if (typeof MAGE2_REMOTE !== 'undefined' && MAGE2_REMOTE[sk.type]) {
-    if (!d.cx) snd.skill(sk, rp);
+    // kein Klang bei Abbruch (cx) und bei Kanal-Meldungen (bm 2 = Richtung, 0 = Ende)
+    if (!d.cx && d.bm !== 0 && d.bm !== 2) snd.skill(sk, rp);
     MAGE2_REMOTE[sk.type](rp, sk, d);
     return;
   }

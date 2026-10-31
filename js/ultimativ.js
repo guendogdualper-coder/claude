@@ -46,9 +46,10 @@ const ULTIMATES = {
     stats: '6 Sog-Treffer je 1×, Ernte 3,5×, heilt 3 % je Gegner; Diener: volle Heilung, +15 s, 8 s +33 % Angriffstempo'
   },
   knochen: {
-    id: 'knochenkerker', name: 'Knochenkerker', short: 'KK', color: '#e8e0c8',
-    text: 'Drei Ringe aus Knochenspießen brechen aus dem Boden, halten Gegner 3,5 s fest und geben dir ein Viertel des Schadens als Leben.',
-    stats: '4× Angriff, 3,5 s festgehalten, 25 % Lebensraub'
+    // seit 11.7 (ersetzt den Knochenkerker): der Sensenmann erhebt sich hinter dem Nekromanten (nekro-neu.js)
+    id: 'sensenmann', name: 'Sensenmann', short: 'SM', color: '#b8a8ff',
+    text: 'Hinter dir erhebt sich der Sensenmann – riesig, in zerfetzter Kutte, mit glühenden Augen. Er holt mit seiner Sense aus und mäht zweimal durch alle Gegner vor dir. Der zweite Hieb erntet ihre Seelen: Er trifft angeschlagene Gegner doppelt hart, und jede Seele heilt dich.',
+    stats: '1. Hieb 3× Angriff + verlangsamt, 2. Hieb 3,5× (doppelt unter 25 % Leben), heilt 4 % je Gegner (max. 30 %)'
   }
 };
 for (const u of Object.values(ULTIMATES)) Object.assign(u, { kind: 'ultimativ', unlock: ULT_UNLOCK, cooldown: ULT_COOLDOWN, mp: 0 });

@@ -355,6 +355,7 @@ function netHostDamage(rp, d) {
     if (st.sl) setSlow(m, st.sl[0], st.sl[1]);
     if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
+    if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0 };
     // Einfrieren (seit 8.6, Magier): Restdauer im Eis (nie kürzen: der Mitspieler sieht fremdes Eis nur kurz gespiegelt),
     // uf = die Frostlanze hat das Eis zerschlagen
     if (st.fz) {
@@ -646,6 +647,7 @@ function netClientDamage(m, amount, crit, isDot) {
   if (left(m.slow)) st.sl = [m.slow.mul, left(m.slow)];
   if (left(m.poison) && !m.poison.sent) { st.po = [m.poison.dps, left(m.poison)]; m.poison.sent = true; }
   if (left(m.burn) && !m.burn.sent) { st.bu = [m.burn.dps, left(m.burn)]; m.burn.sent = true; }
+  if (left(m.bleed) && !m.bleed.sent) { st.bl = [m.bleed.dps, left(m.bleed)]; m.bleed.sent = true; }
   // Einfrieren (seit 8.6): Restdauer schicken; zerschlagenes Eis einmal melden
   // nur eigenes Eis melden; das vom Host gespiegelte zurückzuschicken hielte den Gegner ewig eingefroren
   if (m.unfreeze) {

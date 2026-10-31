@@ -144,6 +144,8 @@ function hitMonster(m, mul, opts = {}) {
     }
     if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps, until: game.time + opts.poison.duration, tick: 0 };
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
+    // Blutung (seit 11.7, Nekromant): Schaden über Zeit wie Gift, rote Tropfen
+    if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps, until: game.time + opts.bleed.duration, tick: 0 };
     if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
@@ -224,6 +226,7 @@ function killMonster(m) {
   m.hp = 0;
   m.poison = null;
   m.burn = null;
+  m.bleed = null;
   if (game.target === m) game.target = null;
   monsterDeathFx(m);
   if (m.isStone) m.respawnAt = game.time + randInt(...(m.stoneRespawn || STONE.respawn));

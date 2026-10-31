@@ -464,6 +464,10 @@ function fx3Make(kind) {
     }
     o.userData.hinge = hinge;
     o.userData.eyeMat = eyeMat;
+  } else if (kind === 'ball') {
+    // feste Kugel (seit 11.7): Glieder der Blutlarve, Knöchel der Totenhand und des Sensenmanns
+    fx3SoulGeo();
+    o = new THREE.Mesh(FX3.geo.skull, new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 }));
   } else if (kind === 'bone' || kind === 'robe' || kind === 'hood' || kind === 'boneRing') {
     // feste Körper (seit 8.5): Rippen und Sensenstiel, Kutte und Kapuze des Schnitters, Knochenring des Käfigs
     fx3SoulGeo();
@@ -1890,8 +1894,9 @@ function fx3Status(h) {
     const slow = m.slow && m.slow.until > t;
     const burn = m.burn && m.burn.until > t;
     const poison = m.poison && m.poison.until > t;
+    const bleed = m.bleed && m.bleed.until > t;
     const curse = m.vulnerable && m.vulnerable.until > t;
-    if (!(stun || slow || burn || poison || curse) || !v3InView(m.x, m.y, 60)) continue;
+    if (!(stun || slow || burn || poison || bleed || curse) || !v3InView(m.x, m.y, 60)) continue;
     if (++n > STATUS3_MAX) break;
     const fy = feetY(m);
     const x = m.x * U3;
@@ -1970,6 +1975,16 @@ function fx3Status(h) {
       const s = 0.1 + 0.07 * u;
       o.scale.set(s, s, 1);
       fx3Color(o, '#9fe36a', 1 - u * 0.8);
+    }
+    // Blutung: dunkelrote Tropfen rinnen vom Körper und fallen zu Boden
+    if (bleed) for (let i = 0; i < 4; i++) {
+      const u = (t * 1.1 + i * 0.25 + ph) % 1;
+      const o = fx3Take(h, 'smoke');
+      o.position.set(x + (i - 1.5) * 0.12, head * (0.7 - u * 0.75), z + 0.1);
+      const s = 0.07 + 0.03 * (1 - u);
+      o.scale.set(s, s * 1.5, 1);
+      o.material.color.set(i % 2 ? '#a0101e' : '#d02030');
+      o.material.opacity = 0.95 * (1 - u * 0.6);
     }
     if (curse) {
       const o = fx3Take(h, 'planeRune');

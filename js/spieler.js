@@ -700,7 +700,9 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   seelenpfeil: 'schaedelsalve', seelensturm: 'seelenkaefig', fluch: 'seelenschnitter', frostlanze: 'eisstrahl', seelenschnitter: 'totenruf',
   // 11.5: Feuer- und Blitzmagier umgebaut
   feuernova: 'drachenodem', flammenschritt: 'brand', glutherz: 'phoenix', blitznova: 'blitzspeer', ladung: 'gewitter',
-  erdnova: 'steinschlag', erdsprung: 'erdspitzen', basalthaut: 'bergsturz' };
+  erdnova: 'steinschlag', erdsprung: 'erdspitzen', basalthaut: 'bergsturz',
+  // 11.7: Nekromant ohne Buffs, Weg der Knochen neu
+  schaedelsalve: 'blutsauger', dunklemacht: 'geisterflut', knochenspeer: 'knochenwurf', knochenpanzer: 'blutlarve', laehmung: 'totenhand', blutopfer: 'blutlanzen' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

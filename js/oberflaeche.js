@@ -1772,6 +1772,7 @@ function skillStats(sk, lvl) {
   }
   if (sk.vulnerable) out.push(['Verwundbar', '+' + skillPct(sk.vulnerable * scale)]);
   if (sk.el && sk.type !== 'buff') mageSkillStats(sk, lvl, out);
+  if (sk.nk) nekroSkillStats(sk, lvl, out);
   for (const [k, v] of Object.entries(sk.effects || {})) {
     const label = (sk.labels && sk.labels[k]) || SKILL_EFFECT_LABELS[k];
     if (typeof v !== 'number' || !label) continue;
@@ -1782,6 +1783,18 @@ function skillStats(sk, lvl) {
   }
   if (sk.duration) out.push(['Dauer', skillDuration(sk, lvl) + ' s']);
   return out;
+}
+
+// Nekromant (seit 11.7): Blutsauger, Geisterflut, Weg der Knochen
+function nekroSkillStats(sk, lvl, out) {
+  const dmg = (v) => skillPct(v * dmgScale(lvl));
+  if (sk.type === 'siphon') out.push(['Treffer', '5 je Sekunde, bis ' + numDe(sk.maxDur) + ' s'], ['Lebensraub', skillPct(sk.leech) + ' des Schadens']);
+  if (sk.type === 'ghostflood') out.push(['Geister', sk.ghosts + ' × ' + dmg(sk.dmg)], ['Seelenwelle', dmg(sk.burst.dmg) + ', verlangsamt ' + skillPct(sk.burst.slow.amount)], ['Umkreis', String(sk.radius)]);
+  if (sk.type === 'lifetap') out.push(['Heilung', skillPct(sk.heal) + ' des Schadens']);
+  if (sk.type === 'bonethrow') out.push(['Verlangsamt', skillPct(sk.slow.amount) + ' (' + numDe(sk.slow.duration) + ' s)']);
+  if (sk.type === 'larva') out.push(['Umkreis', String(sk.radius)], ['Blutung', dmg(sk.bleed.dps * sk.bleed.duration) + ' in ' + sk.bleed.duration + ' s']);
+  if (sk.type === 'gravehand') out.push(['Festhalten', numDe(sk.hold) + ' s'], ['Zerdrücken', dmg(sk.crush)]);
+  if (sk.type === 'bloodlances') out.push(['Lanzen', sk.count + ' × ' + dmg(sk.dmg)], ['Lebensraub', skillPct(sk.leech) + ' je Lanze']);
 }
 
 // Magier (seit 8.6): Nova, Element-Geschoss, Elementsprung und Siegel

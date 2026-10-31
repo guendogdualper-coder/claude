@@ -5,6 +5,8 @@
 // Mitspieler sehen den Strahl über kurze Netzmeldungen (Anfang, Richtung alle 0,25 s, Ende).
 
 const BEAM_WALK = 0.4;
+// andere Kanal-Fertigkeiten (seit 11.7: Blutsauger) tragen ihren eigenen Ablauf je Fertigkeitstyp ein
+const CHANNEL_TICK = {};
 
 SKILL_TYPES.beam = function (sk, pw, lvl) {
   const p = game.player;
@@ -70,6 +72,7 @@ function stopChannel(p) {
 function channelTick(p, dt) {
   const c = p.channel;
   if (!c) return;
+  if (CHANNEL_TICK[c.sk.type]) return CHANNEL_TICK[c.sk.type](p, dt, c);
   const sk = c.sk;
   const age = game.time - c.start;
   const cost = skillMana(sk, p) / sk.mp * sk.mpPerSec * dt;
@@ -144,7 +147,9 @@ SKILL_POSE3.strahl = function (B, sw, kind, p, a) {
   B[BH.head].rotation.x += -0.08 * k;
   B[BH.legL].rotation.x = 0.18 * k;
   B[BH.legR].rotation.x = -0.12 * k;
-  poseWeaponGlow(a, '#9ff6ff', (0.7 + Math.sin(game.time * 18) * 0.2) * k);
+  // Farbe der kanalisierten Fertigkeit (Eisstrahl blau, Blutsauger rot; Mitspieler: beamColor)
+  const col = (p && p.channel && p.channel.sk.color) || (p && p.beamColor) || '#9ff6ff';
+  poseWeaponGlow(a, col, (0.7 + Math.sin(game.time * 18) * 0.2) * k);
 };
 
 // Startpunkt des Strahls: vor der Brust der Figur
