@@ -539,10 +539,24 @@ function netApplySnapshot(d) {
     const wasDead = m.dead;
     m.tx = e[1];
     m.ty = e[2];
-    // Eigene Treffer, die der Host noch nicht verrechnet hat, bleiben kurz abgezogen
-    const pending = game.time - (m.pendAt || -9) < 0.4 ? m.pend || 0 : 0;
     // Treffer anderer Spieler: Zahl und Aufblitzen auch bei mir
     const lost = (m.hostHp != null ? m.hostHp : e[3]) - e[3];
+    // Eigene Treffer, die der Host noch nicht verrechnet hat, bleiben abgezogen (seit 11.1 bis zu 2 s statt 0,4 s):
+    // Sinkt das Leben beim Host, gelten die ältesten eigenen Treffer als angekommen. Vorher sprang das Leben bei
+    // etwas Verzögerung im Netz kurz wieder hoch (Monster, Bosse und Seelensteine schienen sich zu heilen).
+    const L = m.pendList;
+    let pending = 0;
+    if (L && L.length) {
+      let ack = Math.max(0, lost);
+      while (L.length && (game.time - L[0].at > NET_PEND_KEEP || ack > 0)) {
+        if (game.time - L[0].at > NET_PEND_KEEP) { L.shift(); continue; }
+        const take = Math.min(ack, L[0].a);
+        L[0].a -= take;
+        ack -= take;
+        if (L[0].a <= 0) L.shift();
+      }
+      for (const x of L) pending += x.a;
+    }
     if (lost > 0 && !m.dead && game.time - (m.myHitAt || -9) > 0.35 && opts.numbers) {
       m.hitFlash = 0.1;
       addText(m.x, feetY(m) - figureHeight(m) * 0.85, String(lost), 'other');
@@ -586,6 +600,7 @@ function netApplySnapshot(d) {
   for (const pid of [...net.players.keys()]) if (!seen.has(pid)) net.players.delete(pid);
 }
 
+const NET_PEND_KEEP = 2;
 // Treffer beim Mitspieler: sofort anzeigen, an den Host schicken
 function netClientDamage(m, amount, crit, isDot) {
   if (m.dead) return;
@@ -613,8 +628,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
     m.lastText = game.time;
     addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
-    m.pend = (game.time - (m.pendAt || -9) < 0.4 ? m.pend || 0 : 0) + amount;
-    m.pendAt = game.time;
+    (m.pendList || (m.pendList = [])).push({ a: amount, at: game.time });
     m.hp -= amount;
   }
   // Fällt das Leben auf 0, stirbt das Monster sofort (nicht erst bei 1 HP stehen bleiben). Der Host

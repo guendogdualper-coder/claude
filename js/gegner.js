@@ -222,8 +222,8 @@ function updateRaidBoss(m, dt) {
   if (!m.raid) m.raid = { next: 3, step: 0, phase: 0, addAt: game.time + 12 };
   const R = m.raid;
   if (m.state !== 'chase') {
-    // ohne Kampf heilt der Boss vollständig und beginnt von vorn
-    if (m.hp < m.maxHp && !m.cast) {
+    // ohne Kampf heilt der Boss vollständig und beginnt von vorn (seit 11.1 erst, wenn ihn 8 s niemand getroffen hat)
+    if (m.hp < m.maxHp && !m.cast && game.time - (m.struckAt || -99) > 8) {
       m.hp = m.maxHp;
       R.phase = 0;
       R.step = 0;
@@ -597,6 +597,20 @@ function moveToward(e, tx, ty, step, isMonster) {
 }
 
 // Spieler, die Monster jagen können: man selbst und beim Host auch die Mitspieler
+// Neues Ziel für ein Monster, das seins verloren hat: wer es in den letzten 5 s getroffen hat, sonst der
+// nächste sichtbare Spieler oder Diener in Reichweite (nur innerhalb seiner Leine)
+function nextTarget(m, players, leash) {
+  if (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash) return null;
+  const ok = (t) => t && !t.dead && !(t.hp <= 0) && !t.gone && !(isPlayerLike(t) && playerHidden(t)) && dist(m, t) < 500;
+  const la = m.lastAttacker;
+  if (game.time - (m.struckAt || -99) < 5 && ok(la) && (isPlayerLike(la) || game.allies.includes(la))) return la;
+  let best = null;
+  let bd = 400;
+  for (const t of players) if (ok(t) && dist(m, t) < bd) { bd = dist(m, t); best = t; }
+  for (const a of game.allies) if (ok(a) && dist(m, a) < bd) { bd = dist(m, a); best = a; }
+  return best;
+}
+
 function huntablePlayers() {
   const list = [game.player];
   if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead) list.push(rp);
@@ -742,6 +756,15 @@ function updateMonsters(dt) {
         || (!isPlayerLike(t) && !game.allies.includes(t))
         // wer gerade noch getroffen wurde (3 s), verfolgt weiter, auch über die Leine hinaus (bis 1,5-fach)
         || (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash && (game.time - (m.struckAt || -9) > 3 || Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash * 1.5));
+      // Ziel weg (Diener verschwunden, Spieler tot oder getarnt), aber andere kämpfen noch in der Nähe:
+      // zu ihnen wechseln statt umzukehren – sonst lief das Monster heim und heilte sich mitten im Kampf (seit 11.1)
+      const next = lost ? nextTarget(m, players, leash) : null;
+      if (next) {
+        m.target = next;
+        m.windup = 0;
+        m.rush = null;
+        continue;
+      }
       if (lost) {
         m.state = 'return';
         m.target = null;
@@ -791,11 +814,12 @@ function updateMonsters(dt) {
     }
 
     if (m.state === 'return') {
+      // Heimweg (seit 11.1 ohne Heilung unterwegs): erst zu Hause und wenn 6 s lang niemand mehr zugeschlagen hat,
+      // ist es wieder heil – wer es auf dem Rückweg weiter angreift, holt es in den Kampf zurück
       m.moving = moveToward(m, m.homeX, m.homeY, speed * 1.4 * dt, true);
-      m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.3 * dt);
       if (Math.hypot(m.homeX - m.x, m.homeY - m.y) < 8 || !m.moving) {
         m.state = 'idle';
-        m.hp = m.maxHp;
+        if (game.time - (m.struckAt || -99) > 6) m.hp = m.maxHp;
         m.wx = m.x;
         m.wy = m.y;
       }

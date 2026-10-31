@@ -202,6 +202,8 @@ function damageMonster(m, amount, crit, source, isDot) {
   }
   if (source && (source === game.player || source.remote)) m.lastAttacker = source;
   if (source && !source.remote) m.hostHitAt = game.time;
+  // auch Treffer der Mitspieler (über den Host) zählen: so heilt sich kein Monster, das gerade bekämpft wird
+  m.struckAt = game.time;
   m.hp -= amount;
   m.hitFlash = 0.12;
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
