@@ -823,6 +823,102 @@ function shieldArt(ctx, tier) {
   else oval(ctx, 0, -1, 2.4, 2.4, metal);
 }
 
+// Schulterpanzer-Symbol (seit 13.12). Eigene Form je Seite: innen hoch am Hals, außen nach unten gewölbt
+function shoulderIcon(ctx, tier, pc, metal) {
+  const glow = tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff';
+  // Kragen in der Mitte (hinter den Platten)
+  ctx.beginPath();
+  ctx.moveTo(-6, -9);
+  ctx.quadraticCurveTo(0, -12.5, 6, -9);
+  ctx.lineTo(5, -3);
+  ctx.quadraticCurveTo(0, -5.5, -5, -3);
+  ctx.closePath();
+  ctx.fillStyle = darker(pc, 0.35);
+  ctx.fill();
+  ctx.strokeStyle = metal;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  for (const mir of [-1, 1]) {
+    ctx.save();
+    ctx.translate(mir * 9.5, 1);
+    ctx.scale(mir * 0.92, 0.92);
+    ctx.rotate(0.16);
+    // Federn hinter der Platte (Himmel, Götter)
+    if (tier >= 6) for (let k = 0; k < 3; k++) poly(ctx, [[-1, -6], [6 + k * 3, -14 - k * 1.5], [4 + k * 3, -4]], k % 2 ? '#e8f6ff' : '#ffffff');
+    // drei Schienen über dem Oberarm, von unten nach oben gezeichnet, damit die obere überlappt
+    for (let k = 2; k >= 0; k--) {
+      const y = 3.2 + k * 3.6;
+      const w0 = -4.5 + k * 1.2;
+      const w1 = 9.5 - k * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(w0, y - 1.6);
+      ctx.quadraticCurveTo((w0 + w1) / 2, y + 0.6, w1, y + 0.8);
+      ctx.lineTo(w1 - 0.4, y + 3.4);
+      ctx.quadraticCurveTo((w0 + w1) / 2, y + 3.2, w0 + 0.6, y + 1.6);
+      ctx.closePath();
+      const g = ctx.createLinearGradient(0, y - 2, 0, y + 3.5);
+      g.addColorStop(0, lighter(pc, 0.18 - k * 0.04));
+      g.addColorStop(1, darker(pc, 0.25 + k * 0.05));
+      ctx.fillStyle = g;
+      ctx.fill();
+      ctx.strokeStyle = darker(pc, 0.55);
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+      // Metallkante unten an jeder Schiene
+      ctx.beginPath();
+      ctx.moveTo(w0 + 0.6, y + 1.6);
+      ctx.quadraticCurveTo((w0 + w1) / 2, y + 3.2, w1 - 0.4, y + 3.4);
+      ctx.strokeStyle = metal;
+      ctx.lineWidth = 0.9;
+      ctx.stroke();
+      oval(ctx, w1 - 1.6, y + 1.6, 0.8, 0.8, metal);
+    }
+    // Hauptplatte: innen hoch am Hals, oben gewölbt, außen über die Schulter nach unten
+    const plate = () => {
+      ctx.beginPath();
+      ctx.moveTo(-6.5, 3);
+      ctx.lineTo(-6, -7.5);
+      ctx.quadraticCurveTo(-2, -12, 5, -9.5);
+      ctx.quadraticCurveTo(11, -6.5, 11, 2.5);
+      ctx.quadraticCurveTo(3, 5.5, -6.5, 3);
+      ctx.closePath();
+    };
+    plate();
+    const g = ctx.createRadialGradient(0, -8, 1, 2, -3, 13);
+    g.addColorStop(0, lighter(pc, 0.4));
+    g.addColorStop(0.5, pc);
+    g.addColorStop(1, darker(pc, 0.4));
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = metal;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+    // Grat über die Platte und Glanzlicht
+    ctx.beginPath();
+    ctx.moveTo(-4.5, -8);
+    ctx.quadraticCurveTo(3, -9.5, 8.5, -2);
+    ctx.strokeStyle = lighter(metal, 0.35);
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(-0.5, -6.5, 3.2, 1.2, -0.35, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fill();
+    // Nieten am Rand
+    for (const [x, y] of [[-4.8, 1.8], [1.5, 2.9], [8, 1.6], [9.6, -4]]) oval(ctx, x, y, 0.85, 0.85, lighter(metal, 0.2));
+    // Stufen-Merkmale: Zacken ab Drache, Juwel ab Seele
+    if (tier >= 3 && tier < 6) {
+      poly(ctx, [[-1, -10], [1.5, -16], [3, -9.6]], lighter(metal, 0.1));
+      poly(ctx, [[4, -9.4], [8, -14], [7.5, -8]], metal);
+    }
+    if (tier >= 4) {
+      oval(ctx, 2.5, -4, 2.2, 2.2, glow);
+      oval(ctx, 2, -4.6, 0.8, 0.8, '#ffffff');
+    }
+    ctx.restore();
+  }
+}
+
 function drawItemArt(ctx, item) {
   const { slot, tier } = item;
   const metal = TIER_METAL[tier];
@@ -977,20 +1073,9 @@ function drawItemArt(ctx, item) {
     shieldArt(ctx, tier);
     ctx.restore();
   } else if (slot === 'schultern') {
-    // zwei Schulterpanzer mit gestuften Platten
-    const pc = GEAR_LOOK.plate[tier];
-    for (const x of [-9, 9]) {
-      const mir = x < 0 ? -1 : 1;
-      if (tier >= 6) for (let k = 0; k < 3; k++) poly(ctx, [[x - 2 * mir, -4], [x + (6 + k * 2.5) * mir, -11 - k * 2], [x + (4 + k * 2) * mir, -2]], '#ffffff');
-      oval(ctx, x, 3, 8, 5, darker(pc, 0.15));
-      oval(ctx, x, 0, 9, 6.5, pc);
-      stroke(ctx, metal, 1.4, [[x - 7.5, 3], [x + 7.5, 3]]);
-      if (tier >= 3 && tier < 6) {
-        poly(ctx, [[x - 4, -4], [x - 2, -12], [x, -5]], metal);
-        poly(ctx, [[x, -5], [x + 2.5, -11], [x + 4, -4]], metal);
-      }
-      if (tier >= 4) oval(ctx, x, -0.5, 2, 2, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
-    }
+    // seit 13.12: zwei echte Schulterpanzer statt zwei Ovalen – hohe Hauptplatte mit Grat und Nieten,
+    // darunter drei überlappende Schienen über dem Oberarm, in der Mitte ein Kragenstück, das beide verbindet
+    shoulderIcon(ctx, tier, GEAR_LOOK.plate[tier], metal);
   } else if (slot === 'umhang') {
     // Umhang mit Spange und Saum
     const cl = GEAR_LOOK.cape[tier];
@@ -1424,7 +1509,7 @@ const gear = {
     if (!item) {
       // Leere Ausrüstungsplätze zeigen ein blasses Symbol, was dort hingehört
       const ghost = slot ? `<img class="ghost" src="${itemIconUrl(makeItem(slot, 0))}" alt="">` : '';
-      return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
+      return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
     }
     if (isBook(item)) {
       const own = ownBook(game.player, item.book);
@@ -1437,7 +1522,7 @@ const gear = {
     const worn = Object.values(game.player.equipment).includes(item);
     const score = worn ? 0 : compareScore(item);
     const arrow = score > 0 ? '<span class="tile-cmp up">▲</span>' : score < 0 ? '<span class="tile-cmp down">▼</span>' : '';
-    return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs} data-info="${escTip(itemTipHtml(item))}">` +
+    return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       `<span class="item-plus" style="color:${itemColor(item)}">+${item.plus}</span>` +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;

@@ -883,20 +883,45 @@ function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
   if (tier < 0) return false;
   const c = GEAR_LOOK.plate[tier];
   const m = TIER_METAL[tier];
+  // seit 13.12: Hauptplatte (innen hoch, außen über die Schulter gewölbt) und zwei Schienen darunter statt zweier Ovale
   const pad = (x, mirror) => {
+    const P = (u, v) => [x + u * mirror, y + v];
+    const path = (pts) => {
+      ctx.beginPath();
+      ctx.moveTo(...P(pts[0][0], pts[0][1]));
+      for (let i = 1; i < pts.length; i += 2) ctx.quadraticCurveTo(...P(pts[i][0], pts[i][1]), ...P(pts[i + 1][0], pts[i + 1][1]));
+      ctx.closePath();
+    };
     if (tier >= 6) {
-      for (let k = 0; k < 3; k++) poly(ctx, [[x - 2 * mirror, y - 1], [x + (6 + k * 2.5) * mirror, y - 7 - k * 2], [x + (4 + k * 2) * mirror, y + 1]], k === 2 ? '#e6f2ff' : '#ffffff');
+      for (let k = 0; k < 3; k++) poly(ctx, [P(-2, -1), P(6 + k * 2.5, -7 - k * 2), P(4 + k * 2, 1)], k === 2 ? '#e6f2ff' : '#ffffff');
     }
-    oval(ctx, x, y + 3.4, 6.2, 3.6, darker(c, 0.12));
-    oval(ctx, x, y + 1.4, 7, 4.8, c);
-    stroke(ctx, m, 1, [[x - 5.8, y + 3.6], [x + 5.8, y + 3.6]]);
-    if (tier >= 1) stroke(ctx, lighter(c, 0.3), 0.6, [[x - 3.5, y - 1.6], [x + 2, y - 2.4]]);
-    if (tier >= 2) for (const dx of [-3.5, 3.5]) oval(ctx, x + dx, y + 1.6, 0.8, 0.8, m);
+    for (let k = 1; k >= 0; k--) {
+      const v = 3.6 + k * 2.4;
+      path([[-4 + k, v - 1], [1.5, v + 0.3], [6.8 - k * 0.5, v + 0.6], [6.6 - k * 0.5, v + 1.8], [6.4 - k * 0.5, v + 2.5], [1.5, v + 2.4], [-3.6 + k, v + 1.2], [-3.8 + k, v], [-4 + k, v - 1]]);
+      ctx.fillStyle = darker(c, 0.12 + k * 0.1);
+      ctx.fill();
+      ctx.strokeStyle = m;
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+    path([[-5, 3.4], [-5, 0], [-4.6, -2.8], [-1, -5.6], [4, -4.2], [7.6, -2.2], [7.6, 2.8], [1, 4.8], [-5, 3.4]]);
+    ctx.fillStyle = c;
+    ctx.fill();
+    ctx.strokeStyle = m;
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+    // Glanz und Grat
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(...P(0, -2.6), 2.6, 1, -0.3 * mirror, 0, Math.PI * 2);
+    ctx.fill();
+    stroke(ctx, lighter(m, 0.3), 0.7, [P(-3.4, -3), P(1.5, -4), P(5.8, -0.5)]);
+    if (tier >= 2) for (const u of [-3.2, 5.6]) oval(ctx, ...P(u, 2.4), 0.75, 0.75, lighter(m, 0.2));
     if (tier >= 3 && tier < 6) {
-      poly(ctx, [[x - 3.2, y - 1.5], [x - 1.8 + mirror * 0.5, y - 8 - (tier >= 5 ? 2 : 0)], [x - 0.4, y - 2]], m);
-      poly(ctx, [[x + 0.4, y - 2], [x + 2 + mirror * 0.5, y - 7 - (tier >= 5 ? 2 : 0)], [x + 3.2, y - 1.5]], m);
+      poly(ctx, [P(-2.4, -3.4), P(-1 + 0.5, -9.5 - (tier >= 5 ? 2 : 0)), P(0.4, -4)], m);
+      poly(ctx, [P(1.6, -4), P(3.6 + 0.5, -8.5 - (tier >= 5 ? 2 : 0)), P(4.6, -3.2)], m);
     }
-    if (tier >= 4) oval(ctx, x, y + 1, 1.5, 1.5, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
+    if (tier >= 4) oval(ctx, ...P(1.4, -0.6), 1.5, 1.5, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
   };
   if (dir === 'side') pad(w.arm, 1);
   else {

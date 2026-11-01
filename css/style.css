@@ -3011,3 +3011,34 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 /* 13.10: Startbonus in der Buff-Leiste */
 .buff-ico.buff-event { background: radial-gradient(circle at 50% 40%, #6a4a14, #2a1a08); }
 .buff-ico.buff-event svg { width: 70%; height: 70%; margin: 15%; fill: #ffd34d; filter: drop-shadow(0 0 4px rgba(255, 211, 77, 0.8)); }
+
+/* Angelegte Ausrüstung als Puppe (seit 13.12): Mitte von oben Helm, Rüstung, Gürtel, unten die Waffen;
+   Schultern oben links, Umhang oben rechts, Schuhe unten links. Ohne Nebenhand steht die Waffe mittig. */
+.equip-grid {
+  grid-template-columns: repeat(4, 56px);
+  grid-template-areas:
+    "schultern helm helm umhang"
+    ". ruestung ruestung ."
+    ". guertel guertel ."
+    "schuhe waffe schild .";
+  justify-items: center;
+  gap: 6px;
+}
+.equip-grid:not(:has([data-slot="schild"])) {
+  grid-template-areas:
+    "schultern helm helm umhang"
+    ". ruestung ruestung ."
+    ". guertel guertel ."
+    "schuhe waffe waffe .";
+}
+.equip-grid > [data-slot="helm"] { grid-area: helm; }
+.equip-grid > [data-slot="ruestung"] { grid-area: ruestung; }
+.equip-grid > [data-slot="guertel"] { grid-area: guertel; }
+.equip-grid > [data-slot="waffe"] { grid-area: waffe; }
+.equip-grid > [data-slot="schild"] { grid-area: schild; }
+.equip-grid > [data-slot="schultern"] { grid-area: schultern; }
+.equip-grid > [data-slot="umhang"] { grid-area: umhang; }
+.equip-grid > [data-slot="schuhe"] { grid-area: schuhe; }
+@media (orientation: landscape) and (max-height: 520px), (max-width: 560px) {
+  .equip-grid { grid-template-columns: repeat(4, 46px); gap: 5px; }
+}

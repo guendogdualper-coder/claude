@@ -49,6 +49,32 @@ function torus3(r, t, arc = Math.PI * 2, rs = 5, ts = 16) {
 function cyl3(r1, r2, h, seg = 14) {
   return geo3(`cy${r1},${r2},${h},${seg}`, () => new THREE.CylinderGeometry(r1, r2, h, seg));
 }
+// Schulterpanzer (seit 13.12) statt einer runden Kuppel: flache Hauptplatte mit Rand (und Grat bei Platte),
+// darunter Schienen, die sich als Bänder um die Außenseite des Oberarms legen. sh: Schulterpunkt im Armknochen.
+function pauldron3(A, ab, sh, sx, armR, o) {
+  const R = o.R;
+  const pp = [sh[0] + sx * R * 0.12, sh[1] + R * 0.25, 0];
+  const W = frame3(A, ab, pp, [0, 0, -sx * 0.42]);
+  // Hauptplatte: flach gewölbt und breiter als hoch, damit sie wie Blech und nicht wie eine Kugel wirkt
+  W(cap3(R, Math.PI * 0.4, 0, Math.PI * 2, 18, 5), o.col, { s: [1.2, 0.5, 1.12], shine: o.shine, top: lighter(o.col, 0.15), topK: 0.35 });
+  W(torus3(R * 0.95, R * 0.075, Math.PI * 2, 4, 20), o.trim, { p: [0, R * 0.15, 0], r: [Math.PI / 2, 0, 0], s: [1.2, 1.12, 1], shine: o.shine + 0.2 });
+  // Grat von vorn nach hinten über die Platte
+  if (o.ridge) W(torus3(R * 0.94, R * 0.06, Math.PI * 0.9, 3, 14), o.trim, { r: [0, Math.PI / 2, Math.PI * 0.05], s: [1.12, 0.56, 1], shine: o.shine + 0.2 });
+  // Nieten am Rand (vorn, außen, hinten)
+  if (o.rivets) for (const a of [-1.1, -0.45, 0.2, 0.85, 1.5]) {
+    W(sphere3(R * 0.075, 6, 4), o.rivets, { p: [Math.cos(a) * R * 1.08, R * 0.2, Math.sin(a) * R * 1.02], shine: 1 });
+  }
+  // Schienen um den Oberarm: jede etwas tiefer und enger, außen herum (gut 200 Grad)
+  const arc = Math.PI * 1.2;
+  for (let k = 0; k < o.lames; k++) {
+    const rr = armR * (1.6 - k * 0.12) + R * 0.12;
+    const y = sh[1] - 0.025 - k * (o.step || 0.052);
+    const rz = sx > 0 ? -arc / 2 : Math.PI - arc / 2;
+    A(torus3(rr, 0.017, arc, 4, 16), k % 2 ? darker(o.col, 0.06) : lighter(o.col, 0.04), { bone: ab, p: [sh[0] + sx * 0.012, y, 0], r: [Math.PI / 2, 0, rz], s: [1, 1, 2.3], shine: o.shine });
+    if (o.edge) A(torus3(rr + 0.006, 0.0065, arc, 3, 16), o.edge, { bone: ab, p: [sh[0] + sx * 0.012, y - 0.034, 0], r: [Math.PI / 2, 0, rz], shine: o.shine + 0.2 });
+  }
+  return { pp, W };
+}
 // Ellipsoid (Kugel 1, wird über s skaliert)
 const ball = (seg = 10) => sphere3(1, seg, Math.max(5, Math.round(seg * 0.7)));
 
@@ -596,35 +622,31 @@ function humanoid3(b, c, P) {
     }
     if (c.claws) for (let k = -1; k <= 1; k++) A(horn3(0.08 * hs, 0.018 * hs, 5), '#f4ecd8', { bone: hb, p: [hand[0] + k * 0.03 * hs, hand[1] - 0.06 * hs, hand[2] + 0.04], r: [Math.PI + 0.3, 0, 0] });
     if (c.pads && c.padStyle === 'leather') {
-      // Ninja: kleine Lederkappe mit Naht und Riemen
-      const pp = [sx * shX * 1.02, shY + 0.03, 0];
-      A(cap3(0.1, Math.PI * 0.5, 0, Math.PI * 2, 12, 5), c.pads, { bone: ab, p: pp, s: [1, 0.8, 1.05], r: [0, 0, -sx * 0.4], shine: 0.15 });
-      A(torus3(0.098, 0.008, Math.PI * 2, 3, 14), c.padTrim || lighter(c.pads, 0.3), { bone: ab, p: [pp[0], pp[1] - 0.005, pp[2]], r: [Math.PI / 2, -sx * 0.4, 0] });
-      A(torus3(armR * 1.08, 0.012, Math.PI * 2, 4, 12), darker(c.pads, 0.2), { bone: ab, p: [sh[0], sh[1] - 0.08, 0], r: [Math.PI / 2, 0, 0] });
+      // Ninja (seit 13.12): leichter Lederpanzer, zwei Schienen mit Naht, Riemen um den Oberarm
+      pauldron3(A, ab, sh, sx, armR, { R: 0.1, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.3), lames: 2, edge: darker(c.pads, 0.3), shine: 0.15 });
+      A(torus3(armR * 1.08, 0.012, Math.PI * 2, 4, 12), darker(c.pads, 0.2), { bone: ab, p: [sh[0], sh[1] - 0.14, 0], r: [Math.PI / 2, 0, 0] });
     } else if (c.pads && c.padStyle === 'cloth') {
-      // Schamane: Stoffumhang über der Schulter mit Quasten
-      const pp = [sx * shX * 1.0, shY + 0.02, 0];
-      A(cap3(0.14, Math.PI * 0.62, 0, Math.PI * 2, 14, 6), c.pads, { bone: ab, p: pp, s: [1, 0.75, 1.1], r: [0, 0, -sx * 0.45], shade: 0.2 });
-      if (c.padTrim) A(torus3(0.13, 0.012, Math.PI * 2, 4, 16), c.padTrim, { bone: ab, p: [pp[0] + sx * 0.03, pp[1] - 0.05, pp[2]], r: [Math.PI / 2, -sx * 0.45, 0], shine: 0.6 });
+      // Schamane, Magier (seit 13.12): gesteppter Stoffpanzer in Lagen mit Borte, darunter Quasten
+      const { pp } = pauldron3(A, ab, sh, sx, armR, { R: 0.13, col: c.pads, trim: c.padTrim || '#e0c36a', lames: 2, edge: c.padTrim || null, shine: 0.1, step: 0.06 });
       for (const dz of [-0.06, 0, 0.06]) {
-        A(limb3(0.08, 0.006, 0.006, 3), c.padTrim || '#e0c36a', { bone: ab, p: [pp[0] + sx * 0.12, pp[1] - 0.06, dz] });
-        A(sphere3(0.016, 6, 4), '#c8402f', { bone: ab, p: [pp[0] + sx * 0.12, pp[1] - 0.15, dz] });
+        A(limb3(0.08, 0.006, 0.006, 3), c.padTrim || '#e0c36a', { bone: ab, p: [pp[0] + sx * 0.1, pp[1] - 0.1, dz] });
+        A(sphere3(0.016, 6, 4), '#c8402f', { bone: ab, p: [pp[0] + sx * 0.1, pp[1] - 0.19, dz] });
       }
     } else if (c.pads && c.padStyle === 'bone') {
       // Nekromant: Schädel als Schulterstück, Knochendornen
+      // seit 13.12: unter dem Schädel zwei Knochenschienen um den Oberarm
+      for (let k = 0; k < 2; k++) A(torus3(armR * (1.55 - k * 0.12), 0.016, Math.PI * 1.2, 4, 14), k ? '#cfc6ad' : '#e8e0cc', { bone: ab, p: [sh[0] + sx * 0.012, sh[1] - 0.04 - k * 0.05, 0], r: [Math.PI / 2, 0, sx > 0 ? -Math.PI * 0.6 : Math.PI * 0.4], s: [1, 1, 2.3], shade: 0.2 });
       const pp = [sx * shX * 1.05, shY + 0.05, 0];
       A(ball(10), '#e8e0cc', { bone: ab, p: pp, s: [0.1, 0.09, 0.1], shade: 0.2 });
       for (const dx of [-0.03, 0.03]) A(sphere3(0.02, 6, 4), c.padTrim || '#1a1210', { bone: ab, p: [pp[0] + dx, pp[1] + 0.01, pp[2] + 0.085], mat: c.padTrim ? 'glow' : 'lit' });
       for (const dz of [-0.05, 0.05]) A(horn3(0.12, 0.025, 5), '#ddd5bb', { bone: ab, p: [pp[0] + sx * 0.03, pp[1] + 0.06, dz], r: [0, 0, -sx * 0.6] });
     } else if (c.pads) {
-      // Krieger: schwere geschichtete Plattenschultern mit Metallrand (mit Fell darunter)
+      // Krieger (seit 13.12): schwerer Plattenpanzer mit Grat, Nietenrand und drei Schienen über dem Oberarm
       const ps = (belly ? 1.45 : 1) * (c.padStyle === 'plate' ? 1.22 : 1);
-      const pp = [sx * shX * 1.04, shY + 0.03, 0];
-      if (c.furCollar && c.padStyle === 'plate') A(ball(10), c.furCollar, { bone: ab, p: [pp[0] - sx * 0.01, pp[1] - 0.05, pp[2]], s: [0.12 * ps, 0.07, 0.13 * ps], shade: 0.2 });
-      A(cap3(0.13 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), c.pads, { bone: ab, p: pp, s: [1, 0.85, 1.05], r: [0, 0, -sx * 0.35], shine: 0.7 });
-      A(cap3(0.115 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), lighter(c.pads, 0.1), { bone: ab, p: [pp[0] + sx * 0.03, pp[1] - 0.06, pp[2]], s: [1, 0.7, 1.05], r: [0, 0, -sx * 0.55], shine: 0.7 });
-      if (c.padStyle === 'plate') A(cap3(0.1 * ps, Math.PI * 0.5, 0, Math.PI * 2, 14, 6), lighter(c.pads, 0.18), { bone: ab, p: [pp[0] + sx * 0.06, pp[1] - 0.11, pp[2]], s: [1, 0.6, 1.05], r: [0, 0, -sx * 0.7], shine: 0.7 });
-      if (c.padTrim) A(torus3(0.128 * ps, 0.013, Math.PI * 2, 4, 16), c.padTrim, { bone: ab, p: pp, r: [Math.PI / 2, -sx * 0.35, 0], shine: 1 });
+      const R = 0.13 * ps;
+      const pp = [sh[0] + sx * R * 0.12, sh[1] + R * 0.25, 0];
+      if (c.furCollar && c.padStyle === 'plate') A(ball(10), c.furCollar, { bone: ab, p: [pp[0] - sx * 0.04, pp[1] - 0.02, pp[2]], s: [0.1 * ps, 0.06, 0.12 * ps], shade: 0.2 });
+      pauldron3(A, ab, sh, sx, armR * (belly ? 1.3 : 1), { R, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.25), lames: c.padStyle === 'plate' ? 3 : 2, ridge: true, rivets: c.padTrim || lighter(c.pads, 0.3), edge: c.padTrim || lighter(c.pads, 0.2), shine: 0.7, step: 0.05 * Math.min(ps, 1.3) });
       if (c.spikes) for (const dz of [-0.05, 0.05]) A(horn3(0.13 * ps, 0.035 * ps, 6), '#d9dde2', { bone: ab, p: [pp[0] + sx * 0.04, pp[1] + 0.08, dz], r: [0, 0, -sx * 0.45], shine: 1 });
       if (c.padGem) A(sphere3(0.028, 8, 6), c.padGem, { bone: ab, p: [pp[0] + sx * 0.08, pp[1] + 0.02, 0.06], mat: 'glow' });
     }
