@@ -373,10 +373,13 @@ function generateWorld() {
     }
   });
   // Torwachen innen neben den Toren (Abstand zur Mauer bleibt gleich, wenn das Dorf wächst)
+  // seit 13.9.1: am Südtor stehen die Wachen draußen vor den Torsäulen (drinnen verdeckten die Türme sie ganz),
+  // an Ost- und Westtor die oberen Wachen ein Stück tiefer, damit der Turm sie nicht halb verdeckt
   const GN = C - VILLAGE_HALF + 1.4;
   const GS = C + VILLAGE_HALF - 0.6;
-  for (const [x, y] of [[C - 3.3, GN], [C + 3.3, GN], [C - 3.3, GS], [C + 3.3, GS],
-    [GN, C - 3.2], [GN, C + 3.6], [GS, C - 3.2], [GS, C + 3.6]]) {
+  const GO = C + VILLAGE_HALF + 1.9;
+  for (const [x, y] of [[C - 3.3, GN], [C + 3.3, GN], [C - 2.5, GO], [C + 2.5, GO],
+    [GN, C - 1.6], [GN, C + 3.6], [GS, C - 1.6], [GS, C + 3.6]]) {
     npcs.push(npc('wache', 'Torwache', x, y, { silent: true }));
   }
   for (const [id, x, y] of [['bauer', V(-6), V(-6)], ['kind', V(2), V(7)], ['alte', V(-2), V(-9)], ['moench', V(5), V(-3)]]) {
