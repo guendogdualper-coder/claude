@@ -31,7 +31,9 @@ function itemTipHtml(item) {
     `<small>${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
     `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') +
     (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
-    (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '');
+    (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '') +
+    // Verkaufswert (seit 13.5) direkt im Hinweis
+    (worn ? '' : `<span class="tip-sell">Verkaufswert <b>${sellValue(item).toLocaleString('de-DE')} Gold</b></span>`);
 }
 
 // Vorräte im Inventar (seit 11.0): Tränke und Segensschriftrollen

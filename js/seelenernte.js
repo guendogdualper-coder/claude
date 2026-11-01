@@ -2,8 +2,8 @@
 // Vorher lag nur eine flache 2D-Spirale am Boden. Jetzt, in drei Akten:
 // 1. Ruf (0–0,4 s): Der Boden verdunkelt sich, ein grüner Runenkreis mit violettem Innenkreis brennt sich ein,
 //    dunkler Nebel steigt am Rand auf.
-// 2. Strudel (bis 2,1 s): Fünf Seelenströme (grün und violett) wachsen aus dem Kreis und winden sich als Trichter
-//    hinauf zu einer Seelenkugel über dem Nekromanten. Lichtpulse laufen die Ströme hinauf, Irrlichter und
+// 2. Strudel (bis 2,1 s): Seelen – seit 13.5 kleine Geister mit Augen und Rauchschweif statt grüner Streifen –
+//    winden sich als Trichter hinauf zu einer Seelenkugel über dem Nekromanten. Irrlichter und
 //    grinsende Schädel kreisen nach oben. Jeder Gegner hängt an einer grünen Seelenkette, die ihn zur Mitte zieht.
 // 3. Ernte (ab 2,1 s): Eine riesige Geistersense fährt einmal ganz herum; aus jedem Gegner reißt eine Seele
 //    heraus und fliegt in die Kugel. Die Kugel stürzt in den Nekromanten (Heilung), eine Lichtsäule schießt auf,
@@ -137,30 +137,58 @@ FX3_DRAW.harvest3 = function (h, e) {
     o.material.opacity = 0.5 * Math.sin(Math.PI * age) * appear * fade;
   }
 
-  // --- 2. Strudel: fünf Seelenströme vom Rand hinauf zur Kugel ---
+  // --- 2. Strudel: Seelen (seit 13.5 kleine Geister statt grüner Streifen) ziehen spiralförmig zur Kugel ---
   if (vortex > 0.01) {
-    const arms = low ? 5 : 6;
-    const segs = low ? 7 : 10;
-    const grow = Math.min(1, t / 0.55);
-    for (let i = 0; i < arms; i++) {
-      const violet = i % 2 === 1;
-      const base = rot + (i / arms) * Math.PI * 2;
-      for (let j = 0; j < segs; j++) {
-        const u0 = j / segs;
-        const u1 = (j + 1) / segs;
-        if (u0 > grow) break;
-        harvestFunnel(_hv3a, cx, cz, R, apex, u0, base + u0 * 3.6);
-        harvestFunnel(_hv3b, cx, cz, R, apex, Math.min(u1, grow), base + Math.min(u1, grow) * 3.6);
-        // dunkler, deckender Mantel (auch auf hellem Gras sichtbar), dünner wird es nach oben
-        const w = (0.12 - 0.07 * u0) * vortex;
-        const sh = fx3Take(h, 'segN');
-        fx3Segment(sh, _hv3a, _hv3b, w);
-        fx3Color(sh, violet ? HARVEST_COL.dark : HARVEST_COL.deep, 0.85 * vortex);
-        // heller Kern mit Lichtpulsen, die nach oben laufen
-        const pulse = Math.pow(0.5 + 0.5 * Math.cos((u0 * 3 - t * 2.6 + i * 0.37) * Math.PI * 2), 3);
-        const co = fx3Take(h, 'seg');
-        fx3Segment(co, _hv3a, _hv3b, w * (0.22 + 0.3 * pulse));
-        fx3Color(co, violet ? '#c09aff' : '#8fffc0', (0.3 + 0.7 * pulse) * vortex);
+    const souls = low ? 6 : 12;
+    const { r: CR, f: CF } = FX3.cam;
+    for (let i = 0; i < souls; i++) {
+      const ph = (t * 0.55 + i / souls) % 1;
+      const base = rot + (i % 6) / 6 * Math.PI * 2 + (i >= 6 ? 0.5 : 0);
+      const up = ph * 0.94;
+      harvestFunnel(_hv3a, cx, cz, R, apex, up, base + up * 3.6);
+      // oben verblassen sie in der Kugel, unten tauchen sie aus dem Boden auf
+      const vis = vortex * Math.min(1, ph * 6) * Math.min(1, (1 - ph) * 5);
+      if (vis <= 0.02) continue;
+      const sz = (0.52 - 0.16 * ph) * (0.9 + 0.1 * Math.sin(t * 9 + i));
+      const violet = i % 3 === 2;
+      // Schweif: weicher Rauch, der hinter dem Geist herweht (dunkel für Kontrast, heller Kern)
+      for (let j = 1; j <= (low ? 3 : 5); j++) {
+        const uj = Math.max(0, up - j * 0.035);
+        harvestFunnel(_hv3b, cx, cz, R, apex, uj, base + uj * 3.6);
+        const tail = fx3Take(h, 'smoke');
+        tail.position.copy(_hv3b);
+        const ts = sz * (1.5 - j * 0.22);
+        tail.scale.set(ts, ts, 1);
+        tail.material.color.set(violet ? '#2a1640' : '#0f3a26');
+        tail.material.opacity = 0.5 * vis * (1 - j * 0.16);
+        const wisp = fx3Take(h, 'sprite');
+        fx3Map(wisp, 'disc');
+        wisp.position.copy(_hv3b);
+        wisp.scale.set(ts * 0.6, ts * 0.6, 1);
+        fx3Color(wisp, violet ? HARVEST_COL.violet : HARVEST_COL.green, 0.55 * vis * (1 - j * 0.18));
+      }
+      // Körper: heller Geisterleib, darüber der Kopf mit zwei dunklen Augen (zur Kamera)
+      const body = fx3Take(h, 'smoke');
+      body.position.set(_hv3a.x, _hv3a.y - sz * 0.35, _hv3a.z);
+      body.scale.set(sz * 1.5, sz * 2.0, 1);
+      body.material.color.set(violet ? '#d8c8ff' : '#d8ffe8');
+      body.material.opacity = 0.85 * vis;
+      const glow = fx3Take(h, 'sprite');
+      fx3Map(glow, 'disc');
+      glow.position.copy(_hv3a);
+      glow.scale.set(sz * 2.6, sz * 2.6, 1);
+      fx3Color(glow, violet ? HARVEST_COL.violet : HARVEST_COL.green, 0.55 * vis);
+      const head = fx3Take(h, 'sprite');
+      fx3Map(head, 'disc');
+      head.position.copy(_hv3a);
+      head.scale.set(sz * 1.1, sz * 1.15, 1);
+      fx3Color(head, '#ffffff', 0.9 * vis);
+      for (const sx of [-1, 1]) {
+        const eye = fx3Take(h, 'ball');
+        eye.position.copy(_hv3a).addScaledVector(CR, sx * sz * 0.17).addScaledVector(CF, -sz * 0.45);
+        eye.position.y += sz * 0.04;
+        eye.scale.set(sz * 0.11, sz * 0.15, sz * 0.08);
+        fx3Color(eye, '#06140c', vis);
       }
     }
     // Irrlichter mit Schweif steigen spiralförmig auf

@@ -1368,6 +1368,7 @@ const ui = {
   closePanels() {
     // Der Handel bleibt offen, bis er abgeschlossen oder abgebrochen ist
     document.querySelectorAll('.panel').forEach((el) => { if (el.id !== 'panelDeath' && !(el.id === 'panelTrade' && game.trade)) el.hidden = true; });
+    $('panelNpc').classList.remove('npc-wide');
   },
 
   anyPanelOpen() {

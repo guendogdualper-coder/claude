@@ -468,9 +468,10 @@ const CLASSES = {
           },
           {
             id: 'kugelblitz', name: 'Kugelblitz', short: 'KU', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 0.55,
+            // seit 13.5 ein Gewitterfeld: Blitze fahren vom Himmel, jeder Treffer betäubt kurz, der letzte länger
+            type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 0.55, zapStun: 0.25,
             last: { stun: 0.8 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
-            text: 'Eine Kugel aus Blitzen steigt über dem gewählten Siegel auf und schlägt 3 s lang jede halbe Sekunde waagrecht in die drei nächsten Gegner – aufgeladene zuerst. Der letzte Schlag betäubt.'
+            text: 'Über dem gewählten Feld bricht ein Gewitter los: 3 s lang fahren jede halbe Sekunde Blitze vom Himmel in die drei nächsten Gegner – aufgeladene zuerst – und betäuben sie kurz. Der letzte Schlag betäubt länger.'
           }
         ]
       },

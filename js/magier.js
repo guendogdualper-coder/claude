@@ -538,9 +538,9 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
       list = game.monsters.filter((m) => !m.dead && Math.hypot(m.x - x, m.y - y) < sk.radius).slice(0, zaps);
     }
     for (const m of list) {
-      const c = bodyCenter(m);
-      addEffect({ type: 'chain', x, y: fy - 16, h1: 1.0, x2: c.x, y2: c.y, dur: 0.25, color: E.main });
-      if (local) hitMonster(m, L.dmg * pw, { skill: sk.id, stun: L.stun || 0, heavy: last, vfxColor: '#ffffff' });
+      // seit 13.5: der Blitz fährt von oben in den Gegner und betäubt ihn kurz (der letzte länger)
+      addEffect({ type: 'bolt', x: m.x, y: m.y, dur: 0.35, color: E.hi });
+      if (local) hitMonster(m, L.dmg * pw, { skill: sk.id, stun: L.stun || sk.zapStun || 0, heavy: last, vfxColor: '#ffffff' });
     }
     if (last) {
       if (!V3.on) addEffect({ type: 'ring', x, y: fy, r: sk.radius, dur: 0.45, color: E.deep, width: 8, grow: true });
@@ -837,6 +837,9 @@ FX3_DRAW.nova3 = function (h, e) {
 // --- 3D: Siegel ---------------------------------------------------------------------------------------
 // Dreiecks-Siegel am Boden (msig0–3): zeichnet sich ein (gut lesbare Warnung), dann die Nutzlast je Element.
 
+// Hilfsvektoren des Gewitterfelds (Kugelblitz, seit 13.5)
+const _kb3a = new THREE.Vector3();
+const _kb3b = new THREE.Vector3();
 FX3_DRAW.sigil3 = function (h, e) {
   const age = game.time - e.start;
   const E = mageElOf(e.el);
@@ -939,24 +942,42 @@ FX3_DRAW.sigil3 = function (h, e) {
       }
     }
   } else if (e.el === 'blitz') {
-    // Kugel steigt aus dem Siegel (0,3 s) auf Höhe 1,0; beim letzten Schlag größer
-    const rise = easeOut(clamp01(T / 0.3));
+    // Gewitterfeld (seit 13.5, statt Kugel mit Stern): bei jedem Puls fahren mehrere Blitze vom Himmel ins Feld,
+    // zwischen den Pulsen knistern Entladungen über den Boden
     const lastT = e.last - e.delay;
-    const big = T >= lastT - 0.05 ? 1.4 : 1;
-    const yy = 0.1 + 0.9 * rise;
-    const pulse = 0.9 + 0.1 * Math.sin(age * 30);
-    mSprite(h, 'spriteMDiscN', 'disc', xx, yy, zz, 0.95 * big, E.deep, 0.7 * end, true);
-    mSprite(h, 'spriteMDisc', 'disc', xx, yy, zz, 0.7 * big * pulse, E.main, end);
-    const st = mTake(h, 'spriteStar', 'star');
-    st.position.set(xx, yy, zz);
-    st.scale.set(0.9 * big, 0.9 * big, 1);
-    st.material.rotation = age * 4;
-    fx3Color(st, '#ffffff', end * 0.9);
-    for (let i = 0; i < 3; i++) {
-      const a = age * 7 + i * 2.094;
-      mSprite(h, 'sprite', 'spark', xx + Math.cos(a) * 0.4, yy + Math.sin(a * 1.3) * 0.12, zz + Math.sin(a) * 0.4, 0.2, i ? E.hi : E.deep, end);
+    const seed = (k, j) => Math.sin(k * 12.9898 + j * 78.233 + e.start * 3.1) * 43758.5453 % 1;
+    for (let k = 0; k < e.ticks; k++) {
+      const u = T - k * e.every;
+      if (u < 0 || u > 0.3) continue;
+      const fade = 1 - u / 0.3;
+      const final = k === e.ticks - 1;
+      const nb = final ? 7 : 4;
+      for (let j = 0; j < nb; j++) {
+        const a = Math.abs(seed(k, j)) * Math.PI * 2;
+        const d = Math.sqrt(Math.abs(seed(j, k + 7))) * R * 0.85;
+        const bx = xx + Math.cos(a) * d;
+        const bz = zz + Math.sin(a) * d;
+        _kb3a.set(bx + (Math.random() - 0.5) * 0.4, 4.2, bz + (Math.random() - 0.5) * 0.4);
+        _kb3b.set(bx, 0.02, bz);
+        n3Bolt(h, _kb3a, _kb3b, final ? 0.075 : 0.055, E.main, fade, 9, 0.45);
+        mSprite(h, 'spriteMDisc', 'disc', bx, 0.15, bz, (final ? 1.3 : 0.9) * (0.6 + 0.4 * fade), E.hi, fade * 0.9);
+      }
+      mSprite(h, 'spriteMDisc', 'disc', xx, 0.4, zz, R * 1.1 * (0.7 + 0.3 * fade), E.main, fade * (final ? 0.5 : 0.25));
+      if (final) mGround(h, 'planeN', 'ring', e.x, e.y, R * (0.5 + 0.5 * (1 - fade)), 0.05, 0, E.deep, fade * 0.9, true);
     }
-    if (big > 1) mGround(h, 'planeN', 'ring', e.x, e.y, R * (0.6 + 0.4 * clamp01((T - lastT) / 0.3)), 0.05, 0, E.deep, end * 0.8, true);
+    // knisternde Bögen dicht über dem Boden (jedes Bild neu verzweigt)
+    if (T < lastT + 0.3) {
+      const arcs = low ? 2 : 4;
+      for (let j = 0; j < arcs; j++) {
+        const a0 = Math.random() * Math.PI * 2;
+        const r0 = Math.random() * R * 0.85;
+        const a1 = a0 + (Math.random() - 0.5) * 1.6;
+        const r1 = Math.random() * R * 0.85;
+        _kb3a.set(xx + Math.cos(a0) * r0, 0.08, zz + Math.sin(a0) * r0);
+        _kb3b.set(xx + Math.cos(a1) * r1, 0.08, zz + Math.sin(a1) * r1);
+        n3Bolt(h, _kb3a, _kb3b, 0.025, j % 2 ? E.hi : E.deep, 0.75 * end, 5, 0.25);
+      }
+    }
   } else if (e.el === 'erde') {
     // Bernstein-Risse drehen langsam; drei Felsen kreisen und ziehen sich je Tick nach innen, zum Schluss Einsturz
     mGround(h, 'planeCrk', 'mcracks', e.x, e.y, R * 0.95, 0.045, age * 0.3, E.main, 0.3 * end * clamp01(T / 0.2));
@@ -1359,7 +1380,7 @@ const MAGE_ULTS = {
   },
   blitz: {
     id: 'donnerkrone', name: 'Donnerkrone', short: 'DK', color: '#ffe94a',
-    text: 'Eine Krone aus Blitzen erhebt sich über dir: Sechs Blitze schlagen waagrecht in die nächsten Gegner und springen weiter. Danach 10 s Donnerkrone.',
+    text: 'Eine Krone aus Blitzen erhebt sich über dir: Zehn Blitze schlagen waagrecht in die nächsten Gegner und springen weiter. Danach 10 s Donnerkrone.',
     stats: 'je Blitz 1,4× Angriff, Sprung 0,7×; Donnerkrone: +25 % Angriffstempo, +8 % Lauftempo',
     buff: { id: 'donnerkrone', name: 'Donnerkrone', duration: 10, effects: { atkSpeed: 0.25, speed: 0.08 } }
   },
@@ -1409,6 +1430,7 @@ function eiszeitFx(x, fy, near) {
     }
   });
 }
+const DONNERKRONE_BOLTS = 10;
 function donnerkroneFx(owner) {
   addEffect({ type: 'mcrown3', follow: owner, dur: 2.4, color: '#ffe94a' });
   addEffect({ type: 'sigil3', ground: true, el: 'blitz', follow: owner, ox: 0, oy: 0, x: owner.x, y: feetY(owner), R: 70, flash: true, dur: 0.8 });
@@ -1478,8 +1500,9 @@ Object.assign(ULT_RUN, {
   donnerkrone(p, u, pw) {
     donnerkroneFx(p);
     const hit = new Set();
-    for (let k = 0; k < 6; k++) {
-      later(0.2 + k * 0.35, () => {
+    // seit 13.5 zehn Blitze (vorher sechs), dichter hintereinander
+    for (let k = 0; k < DONNERKRONE_BOLTS; k++) {
+      later(0.2 + k * 0.22, () => {
         if (p.dead) return;
         // noch nicht getroffene zuerst, dann der nächste
         let best = null;
@@ -1545,8 +1568,9 @@ const MAGE_ULT_FX = {
     if (owner && Math.hypot(owner.x - x, owner.y - y) < 80) {
       donnerkroneFx(owner);
       // Blitze zu den nächsten sichtbaren Monstern
-      const foes = game.monsters.filter((m) => !m.dead && Math.hypot(m.x - x, m.y - y) < 280).sort((a, b) => dist(a, owner) - dist(b, owner)).slice(0, 6);
-      foes.forEach((m, k) => later(0.2 + k * 0.35, () => {
+      const near = game.monsters.filter((m) => !m.dead && Math.hypot(m.x - x, m.y - y) < 280).sort((a, b) => dist(a, owner) - dist(b, owner)).slice(0, DONNERKRONE_BOLTS);
+      const foes = near.length ? Array.from({ length: DONNERKRONE_BOLTS }, (_, k) => near[k % near.length]) : [];
+      foes.forEach((m, k) => later(0.2 + k * 0.22, () => {
         if (m.dead) return;
         const b = bodyCenter(m);
         addEffect({ type: 'chain', x: owner.x, y: feetY(owner) - 16, h1: 1.9, x2: b.x, y2: b.y, dur: 0.3, color: '#ffe94a' });

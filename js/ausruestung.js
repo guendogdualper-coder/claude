@@ -1531,6 +1531,24 @@ const gear = {
       this.sellArmed = false;
       this.renderDetail();
     }));
+    // Rechtsklick legt ein Teil direkt an (seit 13.5, am PC) – ohne erst „Anlegen“ zu drücken
+    body.querySelectorAll('[data-bag]').forEach((b) => b.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const i = Number(b.dataset.bag);
+      const item = p.inventory[i];
+      if (this.multi || !item || isBook(item) || !item.slot) return;
+      const ok = equipFromBag(i);
+      const msgEl = document.getElementById('invMsg');
+      const msg = msgEl ? msgEl.textContent : '';
+      const cls = msgEl ? msgEl.className : 'gear-msg';
+      this.selected = ok ? null : { where: 'bag', key: i };
+      this.renderInventory();
+      const m2 = document.getElementById('invMsg');
+      if (m2) {
+        m2.textContent = ok ? itemName(item) + ' angelegt.' : msg;
+        m2.className = ok ? 'gear-msg success' : cls;
+      }
+    }));
     body.querySelectorAll('[data-sup]').forEach((b) => b.addEventListener('click', () => {
       if (this.multi) return;
       this.selected = { where: 'sup', key: b.dataset.sup };
@@ -1818,14 +1836,18 @@ const gear = {
           (tooLow ? '' : `<button type="button" class="mini-btn primary" data-buy-equip="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen &amp; anlegen</button>`) +
           `</div></div>`;
       }).join('');
-      return `<h3>${title} <small>· angelegt: ${equipped ? itemFullName(equipped) : 'nichts'}</small></h3><div class="merchant-list">${rows}</div>`;
+      return `<section class="merchant-group"><h3>${title} <small>· angelegt: ${equipped ? itemFullName(equipped) : 'nichts'}</small></h3><div class="merchant-list">${rows}</div></section>`;
     }).join('');
+    // seit 13.5 breit: Listen nebeneinander, Gold und Verkaufen oben – kaum noch scrollen
+    const panel = body.closest('.panel');
+    if (panel) panel.classList.add('npc-wide');
     const msg = keepMsg ? document.getElementById('merchantMsg') : null;
     const text = msg ? msg.textContent : '';
     const cls = msg ? msg.className : 'gear-msg';
-    body.innerHTML = `<p>„${m.greeting}“</p>` +
-      `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span> · Tasche ${p.inventory.length}/${BAG_SIZE}</p>` +
-      `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + groups + this.sellSectionHtml();
+    body.innerHTML = `<div class="merchant-top"><p class="merchant-greet">„${m.greeting}“</p>` +
+      `<div class="merchant-gold"><span>Dein Gold</span><b>${p.gold.toLocaleString('de-DE')}</b></div>` +
+      `<div class="merchant-sell"><button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button><small>Tasche ${p.inventory.length}/${BAG_SIZE}</small></div></div>` +
+      `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + `<div class="merchant-groups">${groups}</div>`;
     this.wireSell(body, () => this.renderMerchant(body, true));
     const learn = body.querySelector('[data-learn-dual]');
     if (learn) learn.addEventListener('click', () => this.learnDualWield());

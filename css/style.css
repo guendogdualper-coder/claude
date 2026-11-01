@@ -2947,3 +2947,18 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .attr-tip { margin: 2px 0 10px; padding: 8px 12px; border: 1px solid rgba(10, 200, 185, 0.45); border-radius: 8px; background: rgba(10, 200, 185, 0.08); font-size: 13px; color: #e8dcc0; }
 .attr-tip b { color: #6af0d0; }
 .class-card .class-main { display: block; color: #6af0d0; font-weight: 700; font-size: 11px; margin-top: 2px; }
+
+/* Händler (seit 13.5): breit, Listen nebeneinander, Gold groß, Verkaufen oben */
+#panelNpc.npc-wide { width: min(1180px, calc(100vw - 24px)); }
+.merchant-top { display: flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; margin-bottom: 4px; }
+.merchant-top .merchant-greet { flex: 1 1 260px; margin: 0; }
+.merchant-gold { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.05; }
+.merchant-gold span { font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+.merchant-gold b { font-size: 24px; color: #ffd34d; font-variant-numeric: tabular-nums; text-shadow: 0 1px 3px #000; }
+.merchant-sell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.merchant-sell small { color: var(--muted); font-size: 11px; }
+.merchant-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 4px 14px; align-items: start; }
+.merchant-group h3 { margin-top: 8px; }
+.multi-bar .price { font-size: 17px; font-weight: 800; color: #ffd34d; }
+.hover-tip .tip-sell, .tip-box .tip-sell { display: block; margin-top: 4px; font-size: 13px; color: #e8dcc0; }
+.hover-tip .tip-sell b { color: #ffd34d; font-size: 15px; }
