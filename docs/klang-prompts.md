@@ -268,3 +268,6 @@ Unter „Einstellungen → Ton“ gibt es:
 
 Am iPhone startet der Ton erst nach der ersten Berührung (so verlangt es der Browser). Der Stummschalter
 schaltet alles stumm.
+
+- **Kreis der Elemente (seit 12.7):** Beim Wirken 2,7 s anschwellendes Sausen mit tiefem Grollen, Knistern und Prasseln, das zum Knall hin immer dichter wird (`kreis_lade`); beim Knall großer Platscher, Donnerschlag und Erdbruch (`strom_end`) plus Feuerstoß (`imp_feuer`). Alles eigene Synthese.
+

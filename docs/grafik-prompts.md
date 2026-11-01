@@ -807,7 +807,7 @@ Skill VFX sheet for a stylized 3D toon ninja (shadow path), top-down three-quart
 | Drachenkraft | 5 | Buff: Angriff, Fertigkeitsschaden | orange Flammensäule und Ring; danach Glut steigt auf |
 | Blizzard | 7 | Zielfläche: Eiszapfen fallen 4 s, Verlangsamung | Zielkreis zum Ausrichten, Schneetreiben, Eiszapfen stürzen herab, Raureif am Boden |
 | Donnersturm | 10 | Blitze auf das Ziel und die Umgebung, Betäubung | dunkle Wolke über dem Ziel, mehrere Blitze, blauer Ring, verkohlter Fleck |
-| **Strom der Elemente** (Ultimate, seit 9.7; vorher Drachensturm) | 30 | Wasserstrahl 5,5 s, Blitz, Brand, Erdbruch | großer Wasserstrahl, umwirbelt von Blitz, Feuer und Erde, glühende Bodenrisse (siehe Abschnitt 11) |
+| **Kreis der Elemente** (Ultimate, seit 12.7; vorher Strom der Elemente, davor Drachensturm) | 30 | 5 Sog-Treffer, Explosion 9× mit Betäubung und Brand | Bodenkreis zeigt die Schadensfläche, Feuer, Wasser, Blitz und Erde winden sich in die Mitte, Kern explodiert (siehe Abschnitt 11b) |
 
 ```
 Skill VFX sheet for a stylized 3D toon shaman (dragon path), top-down three-quarter view: LIGHTNING DRAGON – a serpentine blue dragon made of light and lightning flying to the target and bursting into chain lightning; DRAGON VORTEX – a fiery dragon-shaped vortex on the ground with expanding flame rings and scorch marks; DRAGON MIGHT – an orange flame pillar and a ring, embers rising; BLIZZARD – a targeting circle, swirling snow, icicles crashing down and frost on the ground; THUNDERSTORM – a dark cloud above the target with several lightning bolts, a blue ring and a charred spot; ULTIMATE "DRAGON STORM" – a rune circle at the target, nine meteors with fire tails, scorch marks and a final big fire ring.
@@ -1207,3 +1207,17 @@ Regel wie beim Magier: keine Kreise, Dreiecke oder Runen am Boden. Blut ist deck
 **Gewitterwolke.** Dichte, dunkle Wolke in zwei Schichten mit Wetterleuchten und Blitzen in der Wolke, Einschläge ohne Brandflecken; zum Schluss springt ein Blitznetz zwischen allen Gegnern im Feld und hoch in die Wolke, die Getroffenen zucken 1,5 Sekunden in violetten Funken (gelähmt).
 
 > Prompt: *dark thundercloud over a battlefield, lightning web arcing between all enemies and up into the cloud, enemies paralyzed with crackling violet sparks, no ground decals, stylized 3D MMO VFX*
+
+## 11b. Schamane: Kreis der Elemente (seit 12.7, ersetzt den Strom der Elemente)
+
+Prompt (3D, Ultimative Attacke, Weg des Drachen):
+`Ultimate spell of an elemental shaman in a stylized 3D MMORPG, top-down 3/4 camera. At the target a glowing circle burns into the ground and shows exactly where the damage lands – a dark violet translucent disc, a bright cyan-white rim and four running arcs in the element colors (fire orange, water blue, lightning violet-yellow, earth amber). No triangles, no runes. At four points of the rim the elements burst out: a tall flame, a swirling water orb with orbiting droplets, a crackling violet lightning orb with bolts into the ground, and three tumbling rocks with amber glow. Over 2 seconds they spiral inward, trailing colored streams, and feed a growing four-colored core floating above the center; an inner ring contracts like a countdown. The core compresses, then explodes: white flash, four colored shockwaves on the ground, a ring of fire pillars, water fountains, lightning bolts from the center to the rim, rocks flung outward, earth spikes breaking out of the rim, then smoke and embers.`
+
+Umsetzung: `js/elementkreis.js` – `FX3_DRAW.elkreis3` (3D) und `EXTRA_EFFECTS.elkreis3` (2D: deckende Formen für Flamme, Wassertropfen, Blitzkugel und Felsen, farbige Bögen auf dem Kreis). Deckende Teile (`planeN`, `n3Smoke`, `ball`, `segN`) sorgen dafür, dass die Farben auch auf hellem Gras sichtbar bleiben.
+
+## 11c. Monsteraugen (seit 12.7)
+
+Prompt: `Stylized 3D animal eyes for a top-down MMORPG: large and slightly bulging, a dark lid rim, a bright self-lit iris (amber when the animal's eye color is dark, otherwise its own color), a black pupil (slit for cats, foxes and snakes), a big white catch-light and a small second one – readable from the high game camera even on brown or black fur. Brutes (ogre, troll, minotaur, orc): glowing red eyes in a pale sclera under a raised brow ridge that no longer hides them.`
+
+Umsetzung: `beast3` (drei-figuren.js, `eye3Bright`), `face3` mit `beastEyes`, `boar3`, `mammoth3`, `deer3` (drei-tiere.js).
+

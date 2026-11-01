@@ -1959,3 +1959,8 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 ## Chat am PC (seit 10.9)
 
 - `Fantasy MMORPG desktop HUD, bottom-left chat window expanded and semi-transparent dark wood with brass border, tabs Global / Gilde / Ort on top, a long scrollable list of messages with colored player names (guild lines in green with [Gilde] tag), a thin golden scrollbar, at the bottom an input line with channel buttons, text field "Nachricht an alle …", buttons Senden and ×`
+
+## Kreis der Elemente – Symbol (seit 12.7)
+
+- Kreis der Elemente: `Game skill icon, round, painterly toon, dark indigo vignette, a glowing ground circle seen at an angle with four colored arcs (orange, blue, violet, amber); fire, a water orb, a lightning orb and a rock spiral inward on colored trails into a bright white bursting star core in the center, gold ring frame, no text.`
+

@@ -1,5 +1,5 @@
 // Fertigkeitssymbole Schamane (seit 9.6), Stil und Hilfen in symbol-kunst.js
-// Weg des Drachen: Blitzdrache, Drachenwirbel, Drachenkraft, Blizzard, Donnersturm, Strom der Elemente
+// Weg des Drachen: Blitzdrache, Drachenwirbel, Drachenkraft, Blizzard, Donnersturm, Kreis der Elemente
 // Weg der Heilung: Geisterfaust, Windfessel, Segen, Heilung, Schutzgeist, Himmelssegen
 
 // eigene Hintergründe (nur hier benutzt), damit sich alle zwölf Symbole farblich unterscheiden
@@ -13,7 +13,7 @@ Object.assign(SKILL_ART_THEME, {
   drachenkraft: 'blut',
   blitzschlag: 'eis',
   donnersturm: 'm_blitz',
-  elementarstrom: 'sch_strom',
+  elementkreis: 'sch_strom',
   geisterfaust: 'seele',
   windfessel: 'schatten',
   segen: 'licht',
@@ -465,71 +465,68 @@ Object.assign(SKILL_ART, {
     IK.sparkles(ctx, 5, '#fff7b0', 9, 17, 0, 6, 1);
   },
 
-  // Strom der Elemente (seit 9.7): breiter Wasserstrahl schräg nach oben, umwirbelt von Blitz, Feuer und Erde,
-  // darunter glühende Bodenrisse
-  elementarstrom(ctx, IK) {
-    const ax = -15;
-    const ay = 13;
-    const bx = 17;
-    const by = -12;
-    const ang = Math.atan2(by - ay, bx - ax);
-    const L = Math.hypot(bx - ax, by - ay);
-    // Bodenrisse (Feuer, Blitz, Erde)
-    for (const [pts, col] of [[[[-16, 16], [-11, 13], [-6, 16], [0, 14]], '#ff7a1a'], [[[-2, 17], [3, 14], [8, 16.5], [13, 13]], '#fff07a'], [[[-19, 9], [-15, 7], [-18, 3]], '#f0a830']]) {
-      IK.glow(ctx, col, 3, () => IK.line(ctx, pts, col, 1.9, 'rgba(20,8,4,0.95)'));
-    }
+  // Kreis der Elemente (seit 12.7): leuchtender Bodenkreis, vier Elemente (Feuer, Wasser, Blitz, Erde) winden sich
+  // auf Spiralen zum Kern in der Mitte, der gerade aufplatzt
+  elementkreis(ctx, IK) {
+    // Bodenkreis mit vier farbigen Bögen
     ctx.save();
-    ctx.translate(ax, ay);
-    ctx.rotate(ang);
-    // drei Elemente auf Spiralen um den Strahl: vorn (cos > 0) über dem Wasser, hinten darunter
-    const R = (x) => 6.5 + (x / L) * 5.5;
-    const at = (ph, x) => ({ y: Math.sin(x * 0.42 + ph) * R(x), front: Math.cos(x * 0.42 + ph) > 0 });
-    const elements = (front) => {
-      // Blitz: Zickzack-Stücke
-      let run = [];
-      const flush = () => {
-        if (run.length > 1) IK.bolt(ctx, run, '#ffe94a', 0.75, '#7a4aff');
-        run = [];
-      };
-      for (let x = 1; x <= L; x += 1.6) {
-        const p = at(0, x);
-        if (p.front === front) run.push([x, p.y + (Math.round(x / 1.6) % 2 ? 0.9 : -0.9)]);
-        else flush();
-      }
-      flush();
-      // Feuer
-      for (let x = 4; x < L; x += 6) {
-        const p = at(2.1, x);
-        if (p.front === front) IK.flame(ctx, x, p.y + 2.5, 6.5 + x * 0.07, -0.5, ['#c81a0a', '#ff7a1a', '#fff1a0']);
-      }
-      // Erde
-      for (let x = 7; x < L; x += 7.5) {
-        const p = at(4.2, x);
-        if (p.front === front) IK.rock(ctx, x, p.y, 1.9 + x * 0.03, x, ['#c9a878', '#7a5a3a', '#3a2a1c']);
-      }
-    };
-    ctx.globalAlpha = 0.75;
-    elements(false);
-    ctx.globalAlpha = 1;
-    // Wasserkörper: wird zum Ende breiter
-    const body = (w0, w1) => (c) => { c.moveTo(0, -w0); c.quadraticCurveTo(L * 0.5, -w0 - (w1 - w0) * 0.3, L + 2, -w1); c.quadraticCurveTo(L + 6, 0, L + 2, w1); c.quadraticCurveTo(L * 0.5, w0 + (w1 - w0) * 0.3, 0, w0); c.closePath(); };
-    IK.glow(ctx, '#4ac8ff', 6, () => IK.fill(ctx, body(3.6, 7.5), IK.lin(ctx, 0, -8, 0, 8, [[0, '#bff4ff'], [0.4, '#3ab0ff'], [1, '#1a4ad0']]), 1.2, 'rgba(4,16,48,0.95)'));
-    IK.fill(ctx, body(1.8, 4), IK.lin(ctx, 0, -4, 0, 4, [[0, '#ffffff'], [1, '#8ae0ff']]), 0);
-    // Wasserwirbel
-    ctx.strokeStyle = 'rgba(20,90,200,0.7)';
-    ctx.lineWidth = 0.6;
-    ctx.beginPath();
-    for (let x = 2; x < L; x += 0.8) {
-      const y = Math.sin(x * 0.6) * (2.6 + (x / L) * 3.5);
-      x < 2.8 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    ctx.scale(1, 0.55);
+    IK.glow(ctx, '#9fe8ff', 5, () => {
+      ctx.strokeStyle = '#e8fbff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 26, 19, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    for (const [a, col] of [[0.2, '#ff6a1a'], [1.77, '#2a9aff'], [3.34, '#a07aff'], [4.91, '#f0a830']]) {
+      ctx.strokeStyle = col;
+      ctx.beginPath();
+      ctx.arc(0, 26, 19, a, a + 1.1);
+      ctx.stroke();
     }
-    ctx.stroke();
-    elements(true);
     ctx.restore();
-    // Quelle an den Händen und Gischt am Ende
-    IK.light(ctx, ax, ay, 7, '#9fe8ff', 0.6);
-    IK.light(ctx, bx, by, 8, '#9fe8ff', 0.5);
-    IK.sparkles(ctx, 7, '#e8fbff', 4, 6, bx, by, 1.2);
+    // Spiralschweife zur Mitte
+    const cols = ['#ff6a1a', '#4ac8ff', '#fff07a', '#f0a830'];
+    for (let i = 0; i < 4; i++) {
+      ctx.strokeStyle = cols[i];
+      ctx.lineWidth = 1.6;
+      ctx.globalAlpha = 0.85;
+      ctx.beginPath();
+      for (let s = 0; s <= 20; s++) {
+        const k = s / 20;
+        const a = i * Math.PI / 2 + 0.6 + k * 2.4;
+        const r = 17 * (1 - k * 0.85);
+        const x = Math.cos(a) * r;
+        const y = -2 + Math.sin(a) * r * 0.75;
+        s ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // die vier Elemente am Anfang ihrer Spirale
+    const at = (i) => { const a = i * Math.PI / 2 + 0.6; return [Math.cos(a) * 17, -2 + Math.sin(a) * 17 * 0.75]; };
+    let [x, y] = at(0);
+    IK.flame(ctx, x, y + 4, 10, 0, ['#c81a0a', '#ff7a1a', '#fff1a0']);
+    [x, y] = at(1);
+    IK.glow(ctx, '#4ac8ff', 5, () => IK.fill(ctx, (c) => c.arc(x, y, 4.2, 0, Math.PI * 2), IK.rad(ctx, x - 1.2, y - 1.2, 0, 5, [[0, '#ffffff'], [0.4, '#6ad8ff'], [1, '#1a4ad0']]), 0.9));
+    [x, y] = at(2);
+    IK.light(ctx, x, y, 6, '#fff07a', 0.9);
+    IK.bolt(ctx, IK.zigzag(x - 4, y - 4, x + 4, y + 4, 4, 2, 3), '#fff7b0', 1.4, '#a07aff');
+    [x, y] = at(3);
+    IK.rock(ctx, x, y, 3.6, 5, ['#c9a878', '#7a5a3a', '#3a2a1c']);
+    // Kern platzt auf
+    IK.light(ctx, 0, -2, 13, '#ffffff', 0.8);
+    IK.glow(ctx, '#fff6d0', 8, () => IK.fill(ctx, (c) => {
+      for (let k = 0; k < 16; k++) {
+        const a = (k / 16) * Math.PI * 2;
+        const r = k % 2 ? 3.2 : 8.5;
+        k ? c.lineTo(Math.cos(a) * r, -2 + Math.sin(a) * r) : c.moveTo(Math.cos(a) * r, -2 + Math.sin(a) * r);
+      }
+      c.closePath();
+    }, '#ffffff', 0));
+    IK.sparkles(ctx, 8, '#ffffff', 12, 20, 0, -2, 1.3);
   },
   // Geisterfaust: türkise Faust aus Geisterkraft fliegt nach rechts, Geisterschweif, Aufprallstern
   geisterfaust(ctx, IK) {

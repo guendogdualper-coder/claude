@@ -82,10 +82,12 @@ function boar3(b, o) {
     A(horn3(0.07, 0.016, 5), tusk, { bone: BQ.head, p: at(0.3, -0.06, sx * 0.065), r: [-1.2, 0, -sx * 0.9], shine: 0.5 });
     // kleine, tiefliegende Augen hoch am Kopf, Borstenbraue
     const ep = at(0.13, 0.08, sx * 0.105);
-    A(ball(8), '#140c08', { bone: BQ.head, p: ep, s: [0.028, 0.024, 0.022], shine: 0.9 });
-    A(sphere3(0.008, 5, 4), o.eye || '#ff5a2a', { bone: BQ.head, p: [ep[0] + sx * 0.012, ep[1] + 0.006, ep[2] + 0.012], mat: 'glow' });
-    A(sphere3(0.006, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.004, ep[1] + 0.012, ep[2] + 0.018], mat: 'glow' });
-    A(roundBox(0.07, 0.018, 0.03, 0.008), bristle, { bone: BQ.head, p: [ep[0], ep[1] + 0.03, ep[2] + 0.005], r: [0, sx * 0.3, sx * 0.5] });
+    // seit 12.7 größer: glühende Iris mit Pupille und Glanzpunkt, auch von oben gut zu sehen
+    A(ball(10), '#140c08', { bone: BQ.head, p: ep, s: [0.042, 0.036, 0.03], shine: 0.9 });
+    A(sphere3(1, 8, 6), o.eye || '#ff5a2a', { bone: BQ.head, p: [ep[0] + sx * 0.012, ep[1] + 0.004, ep[2] + 0.014], s: [0.026, 0.024, 0.02], mat: 'glow' });
+    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0] + sx * 0.016, ep[1] + 0.004, ep[2] + 0.028], s: [0.009, 0.014, 0.008] });
+    A(sphere3(0.009, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] + sx * 0.006, ep[1] + 0.016, ep[2] + 0.032], mat: 'glow' });
+    A(roundBox(0.08, 0.018, 0.03, 0.008), bristle, { bone: BQ.head, p: [ep[0], ep[1] + 0.045, ep[2] - 0.004], r: [0, sx * 0.3, sx * 0.5] });
     // spitze, aufrechte Ohren mit Haarbüschel
     A(horn3(0.13, 0.055, 6), dark, { bone: BQ.head, p: at(0.0, 0.15, sx * 0.09), r: [-0.1, 0, -sx * 0.55], s: [1, 1, 0.45] });
     A(horn3(0.05, 0.018, 4), bristle, { bone: BQ.head, p: at(-0.02, 0.27, sx * 0.15), r: [0, 0, -sx * 0.7] });
@@ -137,9 +139,10 @@ function mammoth3(b, o) {
   A(ball(12), shag, { bone: BQ.head, p: [0, hc[1] + 0.22, hc[2] - 0.03], s: [0.15, 0.14, 0.15] });
   for (const sx of [-1, 1]) {
     A(ball(10), shag, { bone: BQ.head, p: [sx * 0.19, hc[1] + 0.04, hc[2] - 0.06], s: [0.05, 0.1, 0.08] });
-    A(ball(8), '#140c08', { bone: BQ.head, p: [sx * 0.13, hc[1] + 0.04, hc[2] + 0.16], s: [0.026, 0.022, 0.02], shine: 0.9 });
-    A(sphere3(0.008, 5, 4), o.eye || '#9fe8ff', { bone: BQ.head, p: [sx * 0.135, hc[1] + 0.046, hc[2] + 0.178], mat: 'glow' });
-    A(sphere3(0.005, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.125, hc[1] + 0.052, hc[2] + 0.18], mat: 'glow' });
+    A(ball(10), '#140c08', { bone: BQ.head, p: [sx * 0.13, hc[1] + 0.05, hc[2] + 0.16], s: [0.042, 0.036, 0.03], shine: 0.9 });
+    A(sphere3(1, 8, 6), o.eye || '#9fe8ff', { bone: BQ.head, p: [sx * 0.134, hc[1] + 0.052, hc[2] + 0.182], s: [0.027, 0.024, 0.016], mat: 'glow' });
+    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [sx * 0.135, hc[1] + 0.052, hc[2] + 0.196], s: [0.01, 0.013, 0.006] });
+    A(sphere3(0.009, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.125, hc[1] + 0.064, hc[2] + 0.198], mat: 'glow' });
     // Ringe auf den Stoßzähnen
     for (const u of [0.35, 0.7]) ringAt3(A, 0.05, 0.01, '#d8ccb0', [sx * (0.1 + 0.1 * u), hc[1] - 0.14 - 0.2 * u, hc[2] + 0.12 + 0.16 * u], [sx * 0.1, -0.2, 0.16], { bone: BQ.head, noShadow: true });
     // Stoßzähne: weit nach vorn, dann nach oben und innen gebogen
@@ -208,9 +211,11 @@ function deer3(b, o) {
   if (ibex) A(horn3(0.16, 0.035, 5), o.beard || dark, { bone: BQ_JAW, p: [0, hc[1] - 0.12, hc[2] + 0.12], r: [Math.PI - 0.2, 0, 0] });
   for (const sx of [-1, 1]) {
     // große, dunkle Augen seitlich, Ohren wie Blätter
-    A(ball(8), '#140c08', { bone: BQ.head, p: [sx * 0.08, hc[1] + 0.02, hc[2] + 0.06], s: [0.026, 0.03, 0.024], shine: 0.9 });
-    A(sphere3(0.007, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.094, hc[1] + 0.035, hc[2] + 0.07], mat: 'glow' });
-    if (o.eye) A(sphere3(0.009, 5, 4), o.eye, { bone: BQ.head, p: [sx * 0.095, hc[1] + 0.03, hc[2] + 0.075], mat: 'glow' });
+    // seit 12.7 größer: dunkler Rand, warme Iris, Pupille, großer Glanzpunkt
+    A(ball(10), '#140c08', { bone: BQ.head, p: [sx * 0.085, hc[1] + 0.025, hc[2] + 0.06], s: [0.036, 0.04, 0.03], shine: 0.9 });
+    A(sphere3(1, 8, 6), o.eye || '#c8822e', { bone: BQ.head, p: [sx * 0.098, hc[1] + 0.025, hc[2] + 0.072], s: [0.022, 0.028, 0.018], mat: 'glow' });
+    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [sx * 0.106, hc[1] + 0.025, hc[2] + 0.08], s: [0.01, 0.014, 0.008] });
+    A(sphere3(0.009, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.104, hc[1] + 0.04, hc[2] + 0.084], mat: 'glow' });
     A(horn3(0.13, 0.045, 6), fur, { bone: BQ.head, p: [sx * 0.08, hc[1] + 0.05, hc[2] - 0.04], r: [0, 0, -sx * 1.2], s: [1, 1, 0.45] });
     A(horn3(0.08, 0.025, 5), '#d8b8a8', { bone: BQ.head, p: [sx * 0.085, hc[1] + 0.055, hc[2] - 0.035], r: [0, 0, -sx * 1.2], s: [1, 1, 0.3] });
     if (ibex) {

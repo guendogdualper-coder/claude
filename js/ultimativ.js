@@ -28,11 +28,11 @@ const ULTIMATES = {
     stats: '9× Angriff, sicher kritisch, unter 35 % Leben +4×',
     buff: { id: 'schattenschleier', name: 'Schattenschleier', duration: 8, effects: { dodge: 0.3, speed: 0.15 } }
   },
-  // seit 9.7: Strom der Elemente statt Drachensturm (Ablauf in elementarstrom.js)
+  // seit 12.7: Kreis der Elemente statt Strom der Elemente (Ablauf in elementkreis.js)
   drache: {
-    id: 'elementarstrom', name: 'Strom der Elemente', short: 'SE', color: '#4ac8ff',
-    text: 'Ein gewaltiger Wasserstrahl schießt 5,5 s lang aus deinen Händen, umwirbelt von Blitz, Feuer und Erde. Er dreht sich langsam zu deinem Ziel und trifft alles in der Linie; Blitze springen auf Getroffene über, Feuer setzt sie in Brand, der Boden reißt in glühenden Rissen auf. Zum Schluss bricht die Erde entlang des Strahls auf.',
-    stats: '4 Wellen pro Sekunde je 0,35× Angriff mit Brand, Blitze 1,2× (kurz betäubt), Erdbruch am Ende 2,5×; du stehst dabei still'
+    id: 'elementkreis', name: 'Kreis der Elemente', short: 'KE', color: '#4ac8ff',
+    text: 'Am Ziel leuchtet ein Kreis im Boden auf. Feuer, Wasser, Blitz und Erde winden sich vom Rand in die Mitte, ziehen Gegner mit und verschmelzen zu einem Kern – dann explodiert alles.',
+    stats: '5 Sog-Treffer je 0,5×, Explosion 9× mit Betäubung 1 s und Brand'
   },
   heilung: {
     id: 'himmelssegen', name: 'Himmelssegen', short: 'HS', color: '#fff2a0',
@@ -91,7 +91,10 @@ function useUltimate() {
   ui.banner(u.name, 'Ultimative Attacke');
   flashScreen(u.color, 0.28);
   hitStop(0.08);
-  if (net.mode !== 'off') netUltimateFx(u.id, p.x, p.y);
+  // Flächen-Ultis am Ziel (Kreis der Elemente) schicken ihre Mitte, sonst die Position der Figur
+  const at = p.ultAt || p;
+  p.ultAt = null;
+  if (net.mode !== 'off') netUltimateFx(u.id, at.x, at.y);
   saveGame();
 }
 
@@ -387,7 +390,7 @@ function updateClones(dt) {
 }
 
 // Mitspieler sehen nur das Schauspiel, Schaden macht immer der eigene Spieler
-// eigene Darstellung für Mitspieler (z. B. Strom der Elemente, elementarstrom.js)
+// eigene Darstellung für Mitspieler (z. B. Kreis der Elemente, elementkreis.js)
 const ULT_SHOW = {};
 function ultRemoteFx(id, x, y) {
   if (typeof MAGE_ULT_FX !== 'undefined' && MAGE_ULT_FX[id]) return MAGE_ULT_FX[id](x, y);

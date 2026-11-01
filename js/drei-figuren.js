@@ -142,12 +142,13 @@ function face3(A0, hb, hc, hr, o) {
       continue;
     }
     if (o.beastEyes) {
-      // Monster: kleine, tief liegende Augen unter einem schweren Brauenwulst
-      A(ball(10), darker(o.skin || '#7a7466', 0.45), { bone: hb, p: [ex, eyeY, ez - hr * 0.03], s: [hr * 0.17, hr * 0.12, hr * 0.07] });
-      A(ball(10), '#f0e0a0', { bone: hb, p: [ex, eyeY - hr * 0.01, ez + hr * 0.01], s: [hr * 0.11, hr * 0.07, hr * 0.05] });
-      A(ball(8), o.eyeColor || '#c8302a', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.01, ez + hr * 0.04], s: [hr * 0.06, hr * 0.06, hr * 0.03], mat: 'glow' });
-      A(ball(6), '#120808', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.01, ez + hr * 0.06], s: [hr * 0.02, hr * 0.045, hr * 0.02] });
-      A(roundBox(hr * 0.36, hr * 0.1, hr * 0.12, hr * 0.04), darker(o.skin || '#7a7466', 0.12), { bone: hb, p: [ex + sx * hr * 0.02, eyeY + hr * 0.11, ez + hr * 0.02], r: [0.2, 0, sx * 0.38], mat: 'lit' });
+      // Monster: tief liegende Augen unter einem schweren Brauenwulst (seit 12.7 größer und leuchtend, auch von oben sichtbar)
+      A(ball(10), darker(o.skin || '#7a7466', 0.5), { bone: hb, p: [ex, eyeY, ez - hr * 0.02], s: [hr * 0.2, hr * 0.15, hr * 0.08] });
+      A(ball(10), '#fff4c8', { bone: hb, p: [ex, eyeY - hr * 0.005, ez + hr * 0.02], s: [hr * 0.15, hr * 0.1, hr * 0.06], mat: 'glow' });
+      A(ball(8), o.eyeColor || '#c8302a', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.005, ez + hr * 0.055], s: [hr * 0.085, hr * 0.085, hr * 0.035], mat: 'glow' });
+      A(ball(6), '#120808', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.005, ez + hr * 0.075], s: [hr * 0.028, hr * 0.06, hr * 0.02] });
+      A(sphere3(1, 6, 4), '#ffffff', { bone: hb, p: [ex - sx * hr * 0.04, eyeY + hr * 0.03, ez + hr * 0.085], s: [hr * 0.025, hr * 0.025, hr * 0.015], mat: 'glow' });
+      A(roundBox(hr * 0.36, hr * 0.1, hr * 0.12, hr * 0.04), darker(o.skin || '#7a7466', 0.12), { bone: hb, p: [ex + sx * hr * 0.02, eyeY + hr * 0.15, ez + hr * 0.0], r: [0.1, 0, sx * 0.38], mat: 'lit' });
       continue;
     }
     if (shape === 2) {
@@ -1071,17 +1072,22 @@ function beast3(b, o, P) {
       if (o.tufts) A(horn3(0.08, 0.012, 4), o.tufts, { bone: BQ.head, p: [sx * 0.155, hp[1] + 0.27, hp[2] - 0.08], r: [-0.25, 0, -sx * 0.35] });
       if (o.bigEars) A(horn3(0.2, 0.08, 6), ear, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.2, 0, -sx * 0.45], s: [1, 1, 0.5] });
     }
-    // Augen: Tieraugen ohne viel Weiß – dunkler Lidrand, farbige Iris, Pupille, heller Glanzpunkt
-    const eye = o.eye || '#3a2a1a';
-    const ep = [sx * 0.095, hp[1] + 0.045, hp[2] + 0.14];
-    if (o.glow) A(sphere3(1, 8, 6), eye, { bone: BQ.head, p: ep, s: [0.045, 0.033, 0.025], mat: 'glow' });
-    else {
-      A(sphere3(1, 8, 6), '#1a120c', { bone: BQ.head, p: ep, s: [0.045, 0.038, 0.028] });
-      A(sphere3(1, 8, 6), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.008], s: [0.035, 0.031, 0.022], shine: 0.7 });
-      A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.021], s: o.cat || o.slit ? [0.007, 0.025, 0.01] : [0.014, 0.016, 0.01] });
+    // Augen (seit 12.7 größer und heller, damit sie auch von oben gut zu sehen sind): dunkler Lidrand,
+    // leuchtende Iris (dunkle Augenfarben werden zu Bernstein), Pupille, großer Glanzpunkt und ein kleiner zweiter
+    const eye = eye3Bright(o.eye || '#3a2a1a');
+    const ep = [sx * 0.1, hp[1] + 0.055, hp[2] + 0.145];
+    if (o.glow) {
+      A(sphere3(1, 8, 6), '#1a120c', { bone: BQ.head, p: ep, s: [0.062, 0.05, 0.034] });
+      A(sphere3(1, 8, 6), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.012], s: [0.052, 0.04, 0.028], mat: 'glow' });
+    } else {
+      A(sphere3(1, 10, 8), '#1a120c', { bone: BQ.head, p: ep, s: [0.064, 0.054, 0.036] });
+      A(sphere3(1, 10, 8), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.012], s: [0.05, 0.045, 0.03], mat: 'glow' });
+      A(sphere3(1, 8, 6), lighter(eye, 0.3), { bone: BQ.head, p: [ep[0], ep[1] - 0.014, ep[2] + 0.024], s: [0.032, 0.018, 0.012], mat: 'glow' });
+      A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0], ep[1] + 0.002, ep[2] + 0.034], s: o.cat || o.slit ? [0.009, 0.034, 0.012] : [0.02, 0.024, 0.012] });
     }
-    A(sphere3(1, 6, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.01, ep[1] + 0.013, ep[2] + 0.024], s: 0.009, mat: 'glow' });
-    if (o.angry) A(box3(), '#1a1210', { bone: BQ.head, p: [ep[0], ep[1] + 0.045, ep[2] + 0.005], r: [0, 0, sx * 0.45], s: [0.085, 0.022, 0.03] });
+    A(sphere3(1, 6, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.014, ep[1] + 0.018, ep[2] + 0.04], s: 0.016, mat: 'glow' });
+    A(sphere3(1, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] + sx * 0.016, ep[1] - 0.014, ep[2] + 0.036], s: 0.007, mat: 'glow' });
+    if (o.angry) A(box3(), '#1a1210', { bone: BQ.head, p: [ep[0], ep[1] + 0.06, ep[2] + 0.005], r: [0, 0, sx * 0.45], s: [0.1, 0.022, 0.03] });
     // Backenfell (beim Luchs ein heller Backenbart aus zwei Büscheln)
     if (!boar) A(horn3(0.1, 0.045, 5), lighter(fur, 0.1), { bone: BQ.head, p: [sx * 0.15 * bw, hp[1] - 0.05, hp[2] + 0.02], r: [0, 0, -sx * 1.9], s: [1, 1, 0.6] });
     if (o.beard) tuft(0.13, 0.05, o.beard, [sx * 0.14 * bw, hp[1] - 0.09, hp[2] + 0.04], [sx, -0.7, -0.2], { bone: BQ.head });
@@ -2207,6 +2213,13 @@ function headKit3(k, h, c, rnd, v) {
 
 // Besonderheiten einzelner Arten, die die 2D-Zeichnung nicht kennt (seit 7.9, nach docs/monster-prompts.md).
 // Endbosse bekommen die ihrer Vorlage und darüber ihre eigenen.
+// Tieraugen (seit 12.7): zu dunkle Augenfarben werden zu warmem Bernstein, sonst bleibt die Farbe
+function eye3Bright(c) {
+  const n = parseInt(c.slice(1, 7), 16);
+  const l = (0.3 * (n >> 16) + 0.59 * ((n >> 8) & 255) + 0.11 * (n & 255)) / 255;
+  return l < 0.4 ? '#e8a838' : c;
+}
+
 const MON3_LOOK = {
   hund: { floppy: true, ribs: true, droop: true },
   fuchs: { earBack: '#2a1a14', socks: '#2a1a14', slit: true },
