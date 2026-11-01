@@ -1221,3 +1221,9 @@ Prompt: `Stylized 3D animal eyes for a top-down MMORPG: large and slightly bulgi
 
 Umsetzung: `beast3` (drei-figuren.js, `eye3Bright`), `face3` mit `beastEyes`, `boar3`, `mammoth3`, `deer3` (drei-tiere.js).
 
+## 11d. Tieranatomie weicher (seit 12.8, nach Rückmeldung zu 12.7)
+
+Prompt: `Stylized but believable 3D animals for a top-down MMORPG. Eyes small and almond-shaped, set into the skull (not bulging), dark lid rim, warm iris, pupil and a tiny catch-light. Ears are cupped shells with a soft inner side in a muted fur-pink, tilted slightly outward and back – never flat cones. Legs: soft shoulder or thigh muscle, a slim leg that tapers to the paw, a hock on the hind leg; paws are low pads with four small toes and tiny claws, no block feet. Horns, tusks and trunks are single smooth tapering curves – no rings, no segments, no visible joints; the mammoth trunk hangs as one soft hose that curls forward at the tip. Fur tufts are short and rounded, not spikes.`
+
+Umsetzung: `tube3` und `earGeo3` (drei-kern.js), Beine/Pfoten/Ohren/Augen in `beast3`, glatte Hörner bei Drachen und gehörnten Humanoiden, `mammoth3` (Rüssel, Stoßzähne), `deer3` (Steinbockhörner, Ohren), `boar3` (Ohren, Augen).
+

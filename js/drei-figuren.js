@@ -1013,7 +1013,8 @@ function beast3(b, o, P) {
   // Mähne als dichter Kragen mit Büschelkranz (dunkle Mähne liegt von oben wie ein Kragen über den Schultern)
   const ruff = o.mane || o.ruff;
   const maneMat = o.glowMane ? 'glow' : 'lit';
-  const flat = (len, r, color, p, d, x) => tuft(len, r, color, p, d, Object.assign({ s: [1, 1, 0.5] }, x));
+  // flache Fellbüschel (seit 12.7.1 kürzer und runder, damit sie nicht wie Stacheln abstehen)
+  const flat = (len, r, color, p, d, x) => tuft(len * 0.75, r * 1.2, color, p, d, Object.assign({ s: [1, 1, 0.5] }, x));
   if (!o.small && !o.cat) for (let k = -2; k <= 2; k++) flat(0.13 - Math.abs(k) * 0.015, 0.055, k % 2 ? (o.ruff || belly) : lighter(o.ruff || belly, 0.06), [k * 0.065 * bw, bodyY - 0.02 + Math.abs(k) * 0.03, len * 0.68], [k * 0.35, -0.6, 1], { bone: BQ.body });
   if (ruff) {
     const big = o.mane ? 1.2 : 1;
@@ -1033,17 +1034,24 @@ function beast3(b, o, P) {
   // lodernde Mähne bis zur Rute (Höllenhund)
   if (o.glowMane) for (let k = 0; k < 5; k++) tuft(0.2 - k * 0.025, 0.05, k % 2 ? o.mane : lighter(o.mane, 0.25), [0, bodyY + 0.2 * bw, len * (0.2 - k * 0.24)], [0, 1, -0.9], { bone: BQ.body, mat: 'glow' });
   if (o.ridge) for (let k = 0; k < 6; k++) A(horn3(boar ? 0.12 : 0.17, 0.045, 6), o.mane || dark, { bone: BQ.body, p: [0, bodyY + 0.21 * bw - Math.abs(k - 2.5) * 0.01, len * (0.55 - k * 0.22)], r: [-0.4, 0, 0], noShadow: true });
-  // Beine: vorn gerade, hinten mit Sprunggelenk; Pfoten mit drei Zehen (Füchse mit schwarzen Socken)
+  // Beine (seit 12.7.1): Schulter bzw. Oberschenkel als weicher Muskel, schlanker Lauf, der nach unten dünner
+  // wird, hinten mit Sprunggelenk; die Pfote ist ein flacher Ballen mit vier kleinen Zehen (keine Klötze)
   const sock = o.socks || dark;
+  const thick = (bulky ? 1.35 : boar ? 1.1 : 1) * bw;
   for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
-    const top = [sx * 0.15 * bw, bodyY - 0.05, sz * len * 0.62];
-    const mid = [sx * 0.16 * bw, legLen * 0.48, sz * len * 0.62 + (sz < 0 ? -0.07 : 0.02)];
-    const paw = [sx * 0.16 * bw, 0.05, sz * len * 0.62 + 0.02];
-    if (sz < 0) A(ball(10), fur, coat({ bone, p: [top[0], top[1] - 0.04, top[2]], s: [0.1 * bw, 0.14, 0.13], shade: 0.2 }));
-    seg(top, mid, (bulky ? 0.09 : 0.075) * bw, 0.06 * bw, sz > 0 ? fur : dark, { bone, shade: 0.15 });
-    seg(mid, paw, 0.06 * bw, 0.05 * bw, sock, { bone });
-    A(ball(10), sock, { bone, p: [paw[0], 0.045, paw[2] + 0.02], s: [(o.bigPaws ? 0.09 : 0.075) * bw, 0.05, o.bigPaws ? 0.11 : 0.095] });
-    for (const dx of [-0.035, 0, 0.035]) A(sphere3(0.026 * bw, 6, 4), darker(sock, 0.15), { bone, p: [paw[0] + dx * bw, 0.03, paw[2] + 0.09] });
+    const x = sx * 0.15 * bw;
+    const z = sz * len * 0.62;
+    const top = [x, bodyY - 0.05, z];
+    const front = sz > 0;
+    // Gelenk: vorn das Handgelenk knapp über dem Boden, hinten das Sprunggelenk höher und weiter hinten
+    const mid = front ? [x * 1.04, legLen * 0.3, z + 0.015] : [x * 1.04, legLen * 0.42, z - 0.085];
+    const paw = [x * 1.04, 0.035, z + (front ? 0.04 : 0.005)];
+    A(ball(12), fur, coat({ bone, p: [x, top[1] - (front ? 0.02 : 0.03), z + (front ? 0.02 : -0.01)], s: [0.085 * thick, front ? 0.15 : 0.16, front ? 0.11 : 0.13], shade: 0.2 }));
+    seg(top, mid, 0.06 * thick, 0.036 * thick, front ? fur : dark, { bone, shade: 0.15, seg: 10 });
+    seg(mid, paw, 0.034 * thick, 0.03 * thick, sock, { bone, seg: 10 });
+    // Ballen und vier Zehen vorn im Bogen
+    A(ball(12), sock, { bone, p: [paw[0], 0.03, paw[2] + 0.012], s: [(o.bigPaws ? 0.058 : 0.046) * thick, 0.03, (o.bigPaws ? 0.07 : 0.058) * thick] });
+    for (const [dx, dz] of [[-0.03, 0.035], [-0.011, 0.048], [0.011, 0.048], [0.03, 0.035]]) A(ball(8), lighter(sock, 0.04), { bone, p: [paw[0] + dx * thick, 0.022, paw[2] + 0.012 + dz * thick], s: [0.015 * thick, 0.017, 0.019 * thick] });
   }
   // Hals und Kopf
   seg([0, bodyY + 0.05, len * 0.55], [0, hp[1] - 0.04, hp[2] - 0.08], 0.15 * bw, 0.12 * bw, fur, { bone: BQ.neck, top: back, topK: 0.5 });
@@ -1065,38 +1073,39 @@ function beast3(b, o, P) {
     const ear = o.earBack || dark;
     if ((bulky && !o.wings && !boar) || o.roundEars) A(ball(10), ear, { bone: BQ.head, p: [sx * (o.roundEars ? 0.11 : 0.13), hp[1] + 0.14, hp[2] - 0.05], s: o.roundEars ? [0.065, 0.075, 0.035] : [0.06, 0.06, 0.035] });
     else if (!o.noEars) {
+      // Ohrmuschel (seit 12.7.1): gewölbte Schale mit hellem Inneren, leicht nach außen und hinten geneigt
       const flop = o.floppy && sx < 0;
-      const er = flop ? [0.9, 0, -sx * 1.5] : [-0.25, 0, -sx * 0.35];
-      A(horn3(o.small ? 0.11 : 0.16, 0.06, 6), ear, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.12, hp[2] - 0.04], r: er, s: [1, flop ? 0.7 : 1, 0.6] });
-      A(horn3(o.small ? 0.07 : 0.11, 0.035, 5), '#d8a8a0', { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.025], r: er, s: [1, flop ? 0.7 : 1, 0.4] });
+      const er = flop ? [0.9, 0, -sx * 1.5] : [-0.18, sx * 0.35, -sx * 0.3];
+      const eh = (o.small ? 0.12 : 0.16) * (flop ? 0.8 : 1);
+      const es = [o.small ? 0.1 : 0.12, eh, 0.1];
+      const ebase = [sx * 0.095, hp[1] + 0.115, hp[2] - 0.035];
+      A(earGeo3(false), ear, { bone: BQ.head, p: ebase, r: er, s: es });
+      A(earGeo3(true), mixColor(fur, '#c89890', 0.55), { bone: BQ.head, p: ebase, r: er, s: es });
       if (o.tufts) A(horn3(0.08, 0.012, 4), o.tufts, { bone: BQ.head, p: [sx * 0.155, hp[1] + 0.27, hp[2] - 0.08], r: [-0.25, 0, -sx * 0.35] });
-      if (o.bigEars) A(horn3(0.2, 0.08, 6), ear, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.2, 0, -sx * 0.45], s: [1, 1, 0.5] });
+      if (o.bigEars) {
+        A(earGeo3(false), ear, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.15, sx * 0.4, -sx * 0.45], s: [0.17, 0.21, 0.12] });
+        A(earGeo3(true), mixColor(fur, '#c89890', 0.55), { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.1, hp[2] - 0.04], r: [-0.15, sx * 0.4, -sx * 0.45], s: [0.17, 0.21, 0.12] });
+      }
     }
-    // Augen (seit 12.7 größer und heller, damit sie auch von oben gut zu sehen sind): dunkler Lidrand,
-    // leuchtende Iris (dunkle Augenfarben werden zu Bernstein), Pupille, großer Glanzpunkt und ein kleiner zweiter
+    // Augen (seit 12.7.1): mandelförmig und flach im Kopf, nicht glubschig – dunkler Lidrand, warme Iris
+    // (dunkle Augenfarben werden zu Bernstein), Pupille und ein feiner Glanzpunkt
     const eye = eye3Bright(o.eye || '#3a2a1a');
-    const ep = [sx * 0.1, hp[1] + 0.055, hp[2] + 0.145];
-    if (o.glow) {
-      A(sphere3(1, 8, 6), '#1a120c', { bone: BQ.head, p: ep, s: [0.062, 0.05, 0.034] });
-      A(sphere3(1, 8, 6), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.012], s: [0.052, 0.04, 0.028], mat: 'glow' });
-    } else {
-      A(sphere3(1, 10, 8), '#1a120c', { bone: BQ.head, p: ep, s: [0.064, 0.054, 0.036] });
-      A(sphere3(1, 10, 8), eye, { bone: BQ.head, p: [ep[0], ep[1], ep[2] + 0.012], s: [0.05, 0.045, 0.03], mat: 'glow' });
-      A(sphere3(1, 8, 6), lighter(eye, 0.3), { bone: BQ.head, p: [ep[0], ep[1] - 0.014, ep[2] + 0.024], s: [0.032, 0.018, 0.012], mat: 'glow' });
-      A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0], ep[1] + 0.002, ep[2] + 0.034], s: o.cat || o.slit ? [0.009, 0.034, 0.012] : [0.02, 0.024, 0.012] });
-    }
-    A(sphere3(1, 6, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.014, ep[1] + 0.018, ep[2] + 0.04], s: 0.016, mat: 'glow' });
-    A(sphere3(1, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] + sx * 0.016, ep[1] - 0.014, ep[2] + 0.036], s: 0.007, mat: 'glow' });
-    if (o.angry) A(box3(), '#1a1210', { bone: BQ.head, p: [ep[0], ep[1] + 0.06, ep[2] + 0.005], r: [0, 0, sx * 0.45], s: [0.1, 0.022, 0.03] });
+    const ep = [sx * 0.1, hp[1] + 0.05, hp[2] + 0.132];
+    const er3 = [0, sx * 0.35, -sx * 0.18];
+    A(sphere3(1, 10, 8), '#140c08', { bone: BQ.head, p: ep, r: er3, s: [0.04, 0.026, 0.02] });
+    A(sphere3(1, 10, 8), o.glow ? eye : darker(eye, 0.12), { bone: BQ.head, p: [ep[0] + sx * 0.003, ep[1], ep[2] + 0.007], r: er3, s: [0.028, 0.021, 0.016], mat: 'glow' });
+    if (!o.glow) A(sphere3(1, 6, 4), '#0a0604', { bone: BQ.head, p: [ep[0] + sx * 0.005, ep[1], ep[2] + 0.016], r: er3, s: o.cat || o.slit ? [0.006, 0.019, 0.008] : [0.012, 0.014, 0.008] });
+    A(sphere3(1, 6, 4), '#ffffff', { bone: BQ.head, p: [ep[0] - sx * 0.004, ep[1] + 0.008, ep[2] + 0.02], s: 0.0065, mat: 'glow' });
+    if (o.angry) A(box3(), darker(fur, 0.35), { bone: BQ.head, p: [ep[0], ep[1] + 0.03, ep[2] - 0.002], r: [0, sx * 0.35, sx * 0.4], s: [0.075, 0.016, 0.03] });
     // Backenfell (beim Luchs ein heller Backenbart aus zwei Büscheln)
-    if (!boar) A(horn3(0.1, 0.045, 5), lighter(fur, 0.1), { bone: BQ.head, p: [sx * 0.15 * bw, hp[1] - 0.05, hp[2] + 0.02], r: [0, 0, -sx * 1.9], s: [1, 1, 0.6] });
+    if (!boar) A(ball(10), lighter(fur, 0.1), { bone: BQ.head, p: [sx * 0.13 * bw, hp[1] - 0.045, hp[2] + 0.02], s: [0.07 * bw, 0.075, 0.09] });
     if (o.beard) tuft(0.13, 0.05, o.beard, [sx * 0.14 * bw, hp[1] - 0.09, hp[2] + 0.04], [sx, -0.7, -0.2], { bone: BQ.head });
     if (o.fangs) A(horn3(0.07, 0.018, 5), '#f4ecd8', { bone: BQ.head, p: [sx * 0.035, hp[1] - 0.09, hp[2] + 0.13 + muz * 0.6], r: [Math.PI, 0, 0], shine: 0.4 });
     if (o.tusk) A(horn3(boar ? 0.22 : 0.16, boar ? 0.04 : 0.03, 6), '#f4ecd8', { bone: BQ.head, p: [sx * 0.07, hp[1] - 0.07, hp[2] + 0.1 + muz * 0.7], r: [-0.7, 0, -sx * 0.45], shine: 0.4 });
     if (o.horns) {
       // Drachen: zwei große Hornzacken mit Ringen, dahinter eine Krone aus kleinen Zacken
-      A(horn3(0.36, 0.06, 6), o.horns, { bone: BQ.head, p: [sx * 0.1, hp[1] + 0.13, hp[2] - 0.08], r: [-1.0, 0, -sx * 0.35], shine: 0.5 });
-      for (const t of [0.07, 0.14]) A(torus3(0.05 - t * 0.12, 0.009, Math.PI * 2, 3, 8), darker(o.horns, 0.25), { bone: BQ.head, p: [sx * (0.1 + t * 0.29), hp[1] + 0.13 + t * 0.54, hp[2] - 0.08 - t * 0.84], r: [-1.0 + Math.PI / 2, 0, -sx * 0.35], noShadow: true });
+      // seit 12.7.1: glatt nach hinten geschwungen, ohne Ringe
+      A(tube3([[sx * 0.09, hp[1] + 0.1, hp[2] - 0.06], [sx * 0.13, hp[1] + 0.22, hp[2] - 0.16], [sx * 0.16, hp[1] + 0.28, hp[2] - 0.32], [sx * 0.15, hp[1] + 0.27, hp[2] - 0.46]], 0.055, 0.006), o.horns, { bone: BQ.head, shine: 0.5 });
       for (const k of [0.45, 0.95]) A(horn3(0.13, 0.03, 5), o.horns, { bone: BQ.head, p: [sx * Math.sin(k) * 0.16 * bw, hp[1] + 0.06 + Math.cos(k) * 0.08, hp[2] - 0.12], r: [-1.6, 0, -sx * k], shine: 0.5, noShadow: true });
     }
   }
@@ -1981,11 +1990,10 @@ function headExtras(h, skin) {
       const big = h.bigHorns;
       const base = [hc[0] + sx * hr * 0.62, hc[1] + hr * 0.62, hc[2]];
       const midp = [base[0] + sx * hr * (big ? 0.7 : 0.35), base[1] + hr * (big ? 0.15 : 0.45), base[2] - hr * 0.1];
-      limbBetween(A, base, midp, hr * (big ? 0.2 : 0.14), hr * (big ? 0.15 : 0.1), h.horns, { bone: hb, shine: 0.4 });
-      // Hornringe (seit 7.9): Wülste quer zum Horn, etwas heller
-      const hd = [midp[0] - base[0], midp[1] - base[1], midp[2] - base[2]];
-      for (const u of [0.35, 0.75]) ringAt3(A, +(hr * (big ? 0.2 : 0.14) * (1.05 - u * 0.3)).toFixed(3), +(hr * 0.035).toFixed(3), lighter(h.horns, 0.18), [base[0] + hd[0] * u, base[1] + hd[1] * u, base[2] + hd[2] * u], hd, { bone: hb, shine: 0.5, noShadow: true });
-      A(horn3(hr * (big ? 0.6 : 0.4), hr * (big ? 0.15 : 0.1), 7), h.horns, { bone: hb, p: midp, r: [0, 0, -sx * (big ? 0.3 : 0.1)], shine: 0.4 });
+      // seit 12.7.1: ein glatter, gebogener Hornbogen statt Glied, Querringen und aufgesetztem Kegel
+      const tip = [midp[0] + sx * hr * (big ? 0.25 : 0.1), midp[1] + hr * (big ? 0.5 : 0.4), midp[2] - hr * 0.05];
+      const m2 = [midp[0] + sx * hr * (big ? 0.12 : 0.04), midp[1] + hr * (big ? 0.15 : 0.15), midp[2] - hr * 0.08];
+      A(tube3([base, midp, m2, tip].map((v) => v.map((n) => +n.toFixed(3))), hr * (big ? 0.2 : 0.14), hr * 0.02), h.horns, { bone: hb, shine: 0.4 });
     }
     if (h.horn1) A(horn3(hr * 0.8, hr * 0.2, 8), h.horn1, { bone: hb, p: [hc[0], hc[1] + hr * 0.85, hc[2] + hr * 0.1], r: [0.2, 0, 0], shine: 0.4 });
     if (h.feathers) h.feathers.forEach((c, k) => A(geo3('feather2', () => new THREE.SphereGeometry(1, 10, 6).scale(0.05, 0.3, 0.012)), c, { bone: hb, p: [hc[0] + (k - 1) * hr * 0.3, hc[1] + hr * 1.1, hc[2] - hr * 0.3], r: [-0.3, 0, (k - 1) * 0.35], s: hr / 0.33 }));
@@ -2416,7 +2424,9 @@ function monsterFlair3(b, res, id, def) {
     // Krallen in Elfenbein an allen Pfoten, Fellbüschel am Ellbogen
     for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
       const big = sz > 0 && o.hump ? 1.6 : 1;
-      for (const dx of [-0.035, 0, 0.035]) A(horn3((0.05 + 0.02 * tier) * big, 0.012 * Math.sqrt(big), 4), '#f0e8d4', { bone, p: [sx * 0.16 * bw + dx * bw, 0.025, sz * len * 0.62 + 0.115], r: [Math.PI / 2 + 0.4, 0, 0], shine: 0.6 });
+      // kleine Krallen vor den Zehen (seit 12.7.1 passend zur neuen Pfote)
+      const cz = sz * len * 0.62 + (sz > 0 ? 0.04 : 0.005) + 0.075;
+      for (const dx of [-0.03, -0.011, 0.011, 0.03]) A(horn3((0.026 + 0.01 * tier) * big, 0.007 * Math.sqrt(big), 4), '#e8e0cc', { bone, p: [sx * 0.156 * bw + dx * bw, 0.02, cz - Math.abs(dx) * 0.4], r: [Math.PI / 2 + 0.5, 0, 0], shine: 0.6 });
       A(horn3(0.08, 0.034, 5), darker(o.fur || t.color, 0.12), { bone, p: [sx * 0.17 * bw, bodyY * 0.55, sz * len * 0.62 - 0.05], r: [-2.2, 0, sx * 0.3], s: [1, 1, 0.6], noShadow: true });
     }
     // Fänge, Glut im Maul bei Feuer

@@ -83,13 +83,14 @@ function boar3(b, o) {
     // kleine, tiefliegende Augen hoch am Kopf, Borstenbraue
     const ep = at(0.13, 0.08, sx * 0.105);
     // seit 12.7 größer: glühende Iris mit Pupille und Glanzpunkt, auch von oben gut zu sehen
-    A(ball(10), '#140c08', { bone: BQ.head, p: ep, s: [0.042, 0.036, 0.03], shine: 0.9 });
-    A(sphere3(1, 8, 6), o.eye || '#ff5a2a', { bone: BQ.head, p: [ep[0] + sx * 0.012, ep[1] + 0.004, ep[2] + 0.014], s: [0.026, 0.024, 0.02], mat: 'glow' });
-    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0] + sx * 0.016, ep[1] + 0.004, ep[2] + 0.028], s: [0.009, 0.014, 0.008] });
-    A(sphere3(0.009, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] + sx * 0.006, ep[1] + 0.016, ep[2] + 0.032], mat: 'glow' });
+    A(ball(10), '#140c08', { bone: BQ.head, p: ep, s: [0.034, 0.026, 0.024], shine: 0.9 });
+    A(sphere3(1, 8, 6), o.eye || '#ff5a2a', { bone: BQ.head, p: [ep[0] + sx * 0.01, ep[1] + 0.002, ep[2] + 0.01], s: [0.02, 0.017, 0.016], mat: 'glow' });
+    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [ep[0] + sx * 0.013, ep[1] + 0.002, ep[2] + 0.022], s: [0.008, 0.011, 0.006] });
+    A(sphere3(0.006, 5, 4), '#ffffff', { bone: BQ.head, p: [ep[0] + sx * 0.005, ep[1] + 0.01, ep[2] + 0.026], mat: 'glow' });
     A(roundBox(0.08, 0.018, 0.03, 0.008), bristle, { bone: BQ.head, p: [ep[0], ep[1] + 0.045, ep[2] - 0.004], r: [0, sx * 0.3, sx * 0.5] });
-    // spitze, aufrechte Ohren mit Haarbüschel
-    A(horn3(0.13, 0.055, 6), dark, { bone: BQ.head, p: at(0.0, 0.15, sx * 0.09), r: [-0.1, 0, -sx * 0.55], s: [1, 1, 0.45] });
+    // aufrechte Ohrmuscheln (seit 12.7.1 gewölbt statt flacher Kegel) mit Haarbüschel
+    A(earGeo3(false), dark, { bone: BQ.head, p: at(0.0, 0.14, sx * 0.09), r: [-0.1, sx * 0.4, -sx * 0.55], s: [0.1, 0.13, 0.08] });
+    A(earGeo3(true), mixColor(dark, '#c89890', 0.4), { bone: BQ.head, p: at(0.0, 0.14, sx * 0.09), r: [-0.1, sx * 0.4, -sx * 0.55], s: [0.1, 0.13, 0.08] });
     A(horn3(0.05, 0.018, 4), bristle, { bone: BQ.head, p: at(-0.02, 0.27, sx * 0.15), r: [0, 0, -sx * 0.7] });
   }
   // dünne Beine mit gespaltenen Hufen
@@ -139,29 +140,21 @@ function mammoth3(b, o) {
   A(ball(12), shag, { bone: BQ.head, p: [0, hc[1] + 0.22, hc[2] - 0.03], s: [0.15, 0.14, 0.15] });
   for (const sx of [-1, 1]) {
     A(ball(10), shag, { bone: BQ.head, p: [sx * 0.19, hc[1] + 0.04, hc[2] - 0.06], s: [0.05, 0.1, 0.08] });
-    A(ball(10), '#140c08', { bone: BQ.head, p: [sx * 0.13, hc[1] + 0.05, hc[2] + 0.16], s: [0.042, 0.036, 0.03], shine: 0.9 });
-    A(sphere3(1, 8, 6), o.eye || '#9fe8ff', { bone: BQ.head, p: [sx * 0.134, hc[1] + 0.052, hc[2] + 0.182], s: [0.027, 0.024, 0.016], mat: 'glow' });
-    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [sx * 0.135, hc[1] + 0.052, hc[2] + 0.196], s: [0.01, 0.013, 0.006] });
-    A(sphere3(0.009, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.125, hc[1] + 0.064, hc[2] + 0.198], mat: 'glow' });
-    // Ringe auf den Stoßzähnen
-    for (const u of [0.35, 0.7]) ringAt3(A, 0.05, 0.01, '#d8ccb0', [sx * (0.1 + 0.1 * u), hc[1] - 0.14 - 0.2 * u, hc[2] + 0.12 + 0.16 * u], [sx * 0.1, -0.2, 0.16], { bone: BQ.head, noShadow: true });
-    // Stoßzähne: weit nach vorn, dann nach oben und innen gebogen
-    const p0 = [sx * 0.1, hc[1] - 0.14, hc[2] + 0.12];
+    A(ball(10), '#140c08', { bone: BQ.head, p: [sx * 0.13, hc[1] + 0.05, hc[2] + 0.16], s: [0.034, 0.026, 0.024], shine: 0.9 });
+    A(sphere3(1, 8, 6), o.eye || '#9fe8ff', { bone: BQ.head, p: [sx * 0.134, hc[1] + 0.05, hc[2] + 0.176], s: [0.02, 0.017, 0.012], mat: 'glow' });
+    A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [sx * 0.135, hc[1] + 0.05, hc[2] + 0.186], s: [0.008, 0.011, 0.005] });
+    A(sphere3(0.006, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.127, hc[1] + 0.059, hc[2] + 0.19], mat: 'glow' });
+    // Stoßzähne (seit 12.7.1 ein glattes, gebogenes Stück ohne Ringe): weit nach vorn, dann nach oben und innen
+    const p0 = [sx * 0.1, hc[1] - 0.12, hc[2] + 0.1];
     const p1 = [sx * 0.2, hc[1] - 0.34, hc[2] + 0.28];
     const p2 = [sx * 0.24, hc[1] - 0.3, hc[2] + 0.48];
     const p3 = [sx * 0.15, hc[1] - 0.08, hc[2] + 0.58];
-    seg(p0, p1, 0.048, 0.044, '#f2ead6', { bone: BQ.head, shine: 0.6 });
-    seg(p1, p2, 0.044, 0.034, '#f2ead6', { bone: BQ.head, shine: 0.6 });
-    seg(p2, p3, 0.034, 0.012, '#f6f0e0', { bone: BQ.head, shine: 0.6 });
+    A(tube3([p0, p1, p2, p3], 0.05, 0.006, 20, 10), '#f2ead6', { bone: BQ.head, shine: 0.6 });
   }
-  // Rüssel aus Gliedern, hängt am Kiefer-Glied und rollt sich beim Angriff ein
-  let prev = [0, hc[1] - 0.06, hc[2] + 0.17];
-  for (let k = 0; k < 5; k++) {
-    const next = [0, prev[1] - 0.1, prev[2] + 0.08 - k * 0.035];
-    seg(prev, next, 0.075 - k * 0.01, 0.065 - k * 0.01, k % 2 ? fur : darker(fur, 0.05), { bone: BQ_JAW });
-    prev = next;
-  }
-  A(ball(8), darker(fur, 0.2), { bone: BQ_JAW, p: prev, s: [0.035, 0.03, 0.035] });
+  // Rüssel (seit 12.7.1 ein weicher Schlauch statt Gliedern): hängt am Kiefer-Glied, unten leicht nach vorn eingerollt
+  const tr = [[0, hc[1] - 0.02, hc[2] + 0.13], [0, hc[1] - 0.16, hc[2] + 0.22], [0, hc[1] - 0.32, hc[2] + 0.26], [0, hc[1] - 0.46, hc[2] + 0.24], [0, hc[1] - 0.55, hc[2] + 0.28], [0, hc[1] - 0.56, hc[2] + 0.35]];
+  A(tube3(tr, 0.085, 0.032, 24, 12), fur, { bone: BQ_JAW, shade: 0.2 });
+  A(ball(10), darker(fur, 0.25), { bone: BQ_JAW, p: tr[tr.length - 1], s: [0.034, 0.03, 0.03] });
   // Säulenbeine mit breiten Fußplatten
   for (const [bone, sx, sz] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, -1], [BQ.legBR, -1, -1]]) {
     const z0 = sz > 0 ? 0.22 : -0.26;
@@ -216,18 +209,19 @@ function deer3(b, o) {
     A(sphere3(1, 8, 6), o.eye || '#c8822e', { bone: BQ.head, p: [sx * 0.098, hc[1] + 0.025, hc[2] + 0.072], s: [0.022, 0.028, 0.018], mat: 'glow' });
     A(sphere3(1, 6, 4), '#0c0806', { bone: BQ.head, p: [sx * 0.106, hc[1] + 0.025, hc[2] + 0.08], s: [0.01, 0.014, 0.008] });
     A(sphere3(0.009, 5, 4), '#ffffff', { bone: BQ.head, p: [sx * 0.104, hc[1] + 0.04, hc[2] + 0.084], mat: 'glow' });
-    A(horn3(0.13, 0.045, 6), fur, { bone: BQ.head, p: [sx * 0.08, hc[1] + 0.05, hc[2] - 0.04], r: [0, 0, -sx * 1.2], s: [1, 1, 0.45] });
-    A(horn3(0.08, 0.025, 5), '#d8b8a8', { bone: BQ.head, p: [sx * 0.085, hc[1] + 0.055, hc[2] - 0.035], r: [0, 0, -sx * 1.2], s: [1, 1, 0.3] });
+    // Ohren wie Blätter (seit 12.7.1 gewölbte Muscheln), seitlich abstehend
+    A(earGeo3(false), fur, { bone: BQ.head, p: [sx * 0.07, hc[1] + 0.05, hc[2] - 0.04], r: [0, sx * 0.5, -sx * 1.15], s: [0.1, 0.15, 0.08] });
+    A(earGeo3(true), mixColor(fur, '#d8b8a8', 0.6), { bone: BQ.head, p: [sx * 0.07, hc[1] + 0.05, hc[2] - 0.04], r: [0, sx * 0.5, -sx * 1.15], s: [0.1, 0.15, 0.08] });
     if (ibex) {
       // mächtige Hörner mit Querwülsten, nach hinten gebogen
-      let p0 = [sx * 0.045, hc[1] + 0.08, hc[2] + 0.02];
+      // seit 12.7.1: ein glatter, nach hinten geschwungener Hornbogen ohne Ringe
+      const hpts = [[sx * 0.045, hc[1] + 0.08, hc[2] + 0.02]];
       for (let k = 0; k < 5; k++) {
         const a = 0.5 + k * 0.42;
-        const p1 = [sx * (0.05 + k * 0.025), hc[1] + 0.08 + Math.sin(a) * 0.1 * (k + 1) * 0.6, hc[2] + 0.02 - (1 - Math.cos(a)) * 0.13 * (k + 1) * 0.6];
-        seg(p0, p1, 0.045 - k * 0.006, 0.04 - k * 0.006, o.horn || '#8a7a60', { bone: BQ.head, shine: 0.4 });
-        A(torus3(0.043 - k * 0.006, 0.01, Math.PI * 2, 3, 10), lighter(o.horn || '#8a7a60', 0.2), { bone: BQ.head, p: p1, r: [Math.PI / 2 + a * 0.8, 0, 0] });
-        p0 = p1;
+        hpts.push([sx * (0.05 + k * 0.025), hc[1] + 0.08 + Math.sin(a) * 0.1 * (k + 1) * 0.6, hc[2] + 0.02 - (1 - Math.cos(a)) * 0.13 * (k + 1) * 0.6]);
       }
+      A(tube3(hpts, 0.046, 0.01, 22, 9), o.horn || '#8a7a60', { bone: BQ.head, shine: 0.4 });
+      const p0 = hpts[hpts.length - 1];
       if (o.spark) A(horn3(0.1, 0.02, 4), o.spark, { bone: BQ.head, p: p0, r: [2.2, 0, 0], mat: 'glow' });
     } else {
       // Geweih: Hauptstange schräg nach oben-außen-hinten, mit Enden

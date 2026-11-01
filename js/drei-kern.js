@@ -254,6 +254,39 @@ function horn3(len, r, seg = 10) {
   return lathe3(`horn${len},${r}`, pts, seg);
 }
 
+// Glattes, sich verjüngendes Rohr entlang einer weichen Kurve durch pts (seit 12.7.1): Hörner, Stoßzähne,
+// Rüssel – ohne Ringe und ohne Knicke zwischen Gliedern. r0 am Anfang, r1 am Ende; die Spitze ist geschlossen.
+function tube3(pts, r0, r1, seg = 18, rad = 9) {
+  const key = 'tube' + pts.map((p) => p.map((v) => v.toFixed(3)).join(',')).join(';') + r0.toFixed(3) + r1.toFixed(3) + seg + rad;
+  return geo3(key, () => {
+    const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
+    const g = new THREE.TubeGeometry(curve, seg, 1, rad, false);
+    const P = g.attributes.position;
+    const c = new THREE.Vector3();
+    for (let i = 0; i <= seg; i++) {
+      const t = i / seg;
+      curve.getPointAt(t, c);
+      const r = r0 + (r1 - r0) * Math.pow(t, 0.85);
+      for (let j = 0; j <= rad; j++) {
+        const k = i * (rad + 1) + j;
+        P.setXYZ(k, c.x + (P.getX(k) - c.x) * r, c.y + (P.getY(k) - c.y) * r, c.z + (P.getZ(k) - c.z) * r);
+      }
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Ohrmuschel (seit 12.7.1): gewölbte halbe Schale, Öffnung nach vorn (+z), Spitze oben; inner = Innenseite
+function earGeo3(inner) {
+  return geo3('ear3' + (inner ? 'in' : 'out'), () => {
+    const pts = [[0, 0], [0.42, 0.04], [0.5, 0.22], [0.44, 0.48], [0.3, 0.74], [0.12, 0.93], [0, 1]].map(([x, y]) => new THREE.Vector2(x * (inner ? 0.86 : 1), y * (inner ? 0.94 : 1)));
+    const g = new THREE.LatheGeometry(pts, 10, Math.PI / 2, Math.PI);
+    g.computeVertexNormals();
+    return inner ? flipGeo(g) : g;
+  });
+}
+
 // Rundes Dach mit hochgezogenen Ecken (asiatisches Walmdach), Grundfläche w × d, Höhe h
 function roofGeo(w, d, h, lift = 0.35) {
   return geo3(`roof${w},${d},${h},${lift}`, () => {
