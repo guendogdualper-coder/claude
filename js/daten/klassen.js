@@ -54,8 +54,9 @@ const CLASSES = {
           {
             // seit 13.2 schon ab Stufe 3 (tauscht mit dem Schwertwirbel)
             id: 'schwertaura', name: 'Aura des Schwertes', short: 'AS', kind: 'buff', unlock: 3, mp: 30, cooldown: 60,
-            type: 'buff', duration: 180, effects: { atk: 0.2, crit: 0.05 },
-            text: 'Buff: Eine leuchtende Aura umgibt dein Schwert. Mehr Angriff und mehr kritische Treffer.'
+            // seit 13.4 fester Angriffswert statt +20 % (Stufe 1 etwa +30, Stufe 15 etwa +45, Vollendet etwa +60)
+            type: 'buff', duration: 180, effects: { atkFlat: 30, crit: 0.04 },
+            text: 'Buff: Eine leuchtende Aura umgibt dein Schwert. Fester Angriff obendrauf (wächst mit der Stufe) und mehr kritische Treffer.'
           }
         ]
       },

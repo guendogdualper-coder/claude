@@ -499,6 +499,8 @@ const MELEE_KINDS = new Set(['sword', 'axe', 'greatsword', 'greataxe', 'dagger',
 
 // Normaler Angriff je Waffenart: der Bogen schießt, Zweihänder und Sense schlagen weiter
 const KIND_BASIC = {
+  // Dolche (Ninja, seit 13.4): viele schnelle, kurze Stiche mit weniger Schaden je Stich (gleicher Schaden je Sekunde)
+  dagger: { range: 46, cooldown: 0.36, ranged: false, mul: 0.66 },
   bow: { range: 250, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
   greataxe: { range: 60, cooldown: 0.88, ranged: false },
@@ -508,7 +510,7 @@ const KIND_BASIC = {
 // Schlaganimation (seit 9.3): Grunddauer des Schwungs je Waffe und der Anteil, bei dem die Klinge trifft bzw.
 // der Pfeil/Zauber losfliegt. Schaden, Zahl und Schlagspur kommen erst in diesem Bild (siehe basicTick).
 const BASIC_TIMING = {
-  sword: [0.42, 0.42], axe: [0.44, 0.45], greatsword: [0.56, 0.5], greataxe: [0.6, 0.52], dagger: [0.3, 0.4], scythe: [0.56, 0.5],
+  sword: [0.42, 0.42], axe: [0.44, 0.45], greatsword: [0.56, 0.5], greataxe: [0.6, 0.52], dagger: [0.24, 0.42], scythe: [0.56, 0.5],
   bow: [0.5, 0.58], fan: [0.42, 0.45], bell: [0.46, 0.55], staff: [0.46, 0.5], rod: [0.4, 0.42]
 };
 function basicTiming(p) {
@@ -545,7 +547,7 @@ function tryBasicAttack() {
   } else {
     p.combo = ((p.combo || 0) + 1) % 3;
     startSwing(p, 'combo', tm.dur);
-    p.pendingHit = { at: game.time + tm.dur * tm.impact, target, mul: p.combo === 2 ? 1.25 : 1, range: basic.range, color: c.trim };
+    p.pendingHit = { at: game.time + tm.dur * tm.impact, target, mul: (p.combo === 2 ? 1.25 : 1) * (basic.mul || 1), range: basic.range, color: c.trim };
   }
   return true;
 }

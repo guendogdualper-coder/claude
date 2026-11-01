@@ -335,7 +335,11 @@ const ui = {
       strong.textContent = c.name;
       const small = document.createElement('small');
       small.textContent = c.role;
-      btn.append(cv, strong, small);
+      // Hauptwert schon bei der Wahl der Klasse (seit 13.4)
+      const main = document.createElement('small');
+      main.className = 'class-main';
+      main.textContent = 'Hauptwert: ' + mainAttrName(id);
+      btn.append(cv, strong, small, main);
       btn.addEventListener('click', () => {
         this.selectedClass = id;
         this.selectedPath = 0;
@@ -1464,7 +1468,11 @@ const ui = {
       dex: '<path class="f" d="M19.5 3.5c-6.5.5-11.5 5.5-13 13l2 2c7.5-1.5 12.5-6.5 13-13z"/><path d="M4 20l4.5-4.5M10 10l4 4"/>'
     };
     const pts = p.statPoints || 0;
-    return `<section class="attr-panel${pts ? ' has-points' : ''}">` +
+    // Tipp für Einsteiger (seit 13.4): welcher Wert die Klasse stark macht
+    const mainName = mainAttrName(p.classId);
+    const tip = `<p class="attr-tip"><b>Tipp für ${CLASSES[p.classId].name}:</b> Steck deine Punkte vor allem in <b>${mainName}</b> – ` +
+      `damit werden alle Fertigkeiten, normalen Angriffe und Buffs stärker. Etwas <b>Vitalität</b> gibt mehr Leben.</p>`;
+    return tip + `<section class="attr-panel${pts ? ' has-points' : ''}">` +
       `<div class="attr-orb"><b>${pts}</b><small>Statuspunkte</small></div>` +
       `<div class="attr-cards">` + ATTRS.map((a) => {
         const v = p.attrs[a.id] || 0;
@@ -1795,7 +1803,7 @@ function changeMageElement(n) {
 
 // Werte einer Fertigkeit auf einer Stufe, z. B. [['Angriff', '+29,6 %'], ['Dauer', '238 s']]
 const SKILL_EFFECT_LABELS = {
-  atk: 'Angriff', crit: 'Krit', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', damageTaken: 'Erlittener Schaden',
+  atk: 'Angriff', atkFlat: 'Angriff', crit: 'Krit', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', damageTaken: 'Erlittener Schaden',
   def: 'Verteidigung', dodge: 'Ausweichen', skillDmg: 'Fertigkeitsschaden', regen: 'Leben je s', reflect: 'Rückwurf', hpSteal: 'Lebensraub',
   chill: 'Kälte für Angreifer'
 };
@@ -1839,6 +1847,8 @@ function skillStats(sk, lvl) {
     if (typeof v !== 'number' || !label) continue;
     // Kälte (Frostpanzer, seit 8.6) verlangsamt fest um diesen Anteil
     if (k === 'chill') { out.push([label, skillPct(v)]); continue; }
+    // fester Angriffswert (Aura des Schwertes, seit 13.4)
+    if (k === 'atkFlat') { out.push([label, '+' + Math.round(v * scale)]); continue; }
     // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
     out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' || k === 'chill' ? v : v * scale))]);
   }
@@ -1951,6 +1961,7 @@ function skillListHtml(skills, p) {
       `<img class="icon" src="${skillIconUrl(sk, r)}" alt="${sk.short}">` +
       `<span class="info"><strong>${i + 1}. ${sk.name} <em class="sk-level">${head}</em></strong>` +
       `<span class="sk-short">${shortSkillText(sk.text)}</span>` +
+      (p ? `<span class="sk-scale">Wird stärker mit <b>${mainAttrName(p.classId)}</b></span>` : '') +
       (p && open ? skillStatsHtml(sk, lvl, true) : '') + rankRow + `</span>` +
       `<span class="meta">${btns}</span></li>`;
   }).join('') + '</ul>';
@@ -2119,6 +2130,7 @@ function buffTip(b) {
   for (const [k, v] of Object.entries(b.effects || {})) {
     if (k === 'invisible' && v) lines.push('Unsichtbar · nächster Treffer stärker');
     else if (k === 'int' && typeof v === 'number') lines.push('Intelligenz +' + Math.round(v));
+    else if (k === 'atkFlat' && typeof v === 'number') lines.push('Angriff +' + Math.round(v));
     else if (BUFF_TIP_LABELS[k] && typeof v === 'number' && v) lines.push(BUFF_TIP_LABELS[k] + ' ' + fmt(v));
   }
   const fx = SKILL_FX[b.id];

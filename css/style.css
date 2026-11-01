@@ -2940,3 +2940,10 @@ body.hud-edit .hud-edit-ctl * { pointer-events: auto !important; }
 body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4px; border: 1px solid var(--brass-dim); background: #3a2f22; color: #fff3d8; font-weight: 800; cursor: pointer; }
 #hudEditBar { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 60; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; max-width: min(520px, calc(100vw - 24px)); padding: 12px 16px; border-radius: 10px; background: rgba(20, 15, 10, 0.94); border: 1px solid var(--brass); color: #fff3d8; text-align: center; }
 #hudEditBar small { flex-basis: 100%; color: #cfc4a8; }
+
+/* Hauptwert an Fertigkeiten und Tipp bei den Statuspunkten (seit 13.4) */
+.skill-list .info .sk-scale, .hover-tip .tip-scale { display: block; font-size: 12px; color: #9fd8c8; margin-top: 2px; }
+.skill-list .info .sk-scale b, .hover-tip .tip-scale b { color: #6af0d0; }
+.attr-tip { margin: 2px 0 10px; padding: 8px 12px; border: 1px solid rgba(10, 200, 185, 0.45); border-radius: 8px; background: rgba(10, 200, 185, 0.08); font-size: 13px; color: #e8dcc0; }
+.attr-tip b { color: #6af0d0; }
+.class-card .class-main { display: block; color: #6af0d0; font-weight: 700; font-size: 11px; margin-top: 2px; }

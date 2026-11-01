@@ -817,6 +817,7 @@ function openBigMap() {
   ui.toggle('panelMap');
   if (!el.hidden) {
     bigMap.timer = 0;
+    bigMap.boxAt = 0;
     bigMap.baseKey = '';
     renderBigMap();
   }
@@ -827,11 +828,9 @@ function bigMapOpen() {
   return !!el && !el.hidden;
 }
 
-// jedes dritte Bild die Markierungen neu (das Gelände bleibt stehen)
+// Markierungen jedes Bild neu (seit 13.4, vorher jedes dritte), das Gelände bleibt als Bild stehen
 function tickBigMap() {
   if (!bigMapOpen()) return;
-  if (--bigMap.timer > 0) return;
-  bigMap.timer = 3;
   renderBigMap();
 }
 
@@ -844,7 +843,13 @@ function renderBigMap() {
   const area = mapAreaAt(p.x / TILE, p.y / TILE);
   if (!area) return;
   // Größe: so groß wie möglich im Fenster, Seitenverhältnis des Gebiets
-  const box = cv.parentElement.parentElement.getBoundingClientRect();
+  // Fenstergröße nur alle 0,5 s messen (Messen erzwingt ein Layout und kostet jedes Bild Zeit)
+  const now = performance.now();
+  if (!bigMap.box || now - (bigMap.boxAt || 0) > 500) {
+    bigMap.box = cv.parentElement.parentElement.getBoundingClientRect();
+    bigMap.boxAt = now;
+  }
+  const box = bigMap.box;
   const scale = Math.max(0.5, Math.min(box.width / area.w, box.height / area.h));
   const cw = Math.floor(area.w * scale);
   const ch = Math.floor(area.h * scale);

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.3';
+const GAME_VERSION = '13.4';
 
 const game = {
   world: null,
@@ -197,14 +197,14 @@ function update(dt) {
 const portraitQuery = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
 
 let lastFrame = 0;
-// Bildrate begrenzen (seit 9.9): bei 30 wird jedes zweite Bild übersprungen; Menüs und offene Fenster laufen
-// immer mit 30 – das spart Grafikarbeit, Akku und Wärme
+// Bildrate begrenzen (seit 9.9): bei 30 wird jedes zweite Bild übersprungen. Seit 13.4 laufen offene Fenster
+// und die große Karte mit voller Bildrate weiter (vorher 30 – dann ruckelte die Welt im Hintergrund beim Laufen);
+// nur Startbildschirm und Einstellung „30“ begrenzen
 function frameCap() {
-  if (opts.fps === '30' || !game.running || (typeof ui !== 'undefined' && ui.anyPanelOpen && ui.anyPanelOpen())) return 30;
+  if (opts.fps === '30' || !game.running) return 30;
   if (opts.fps === 'auto' && quality.cap30) return 30;
   return 0;
 }
-let mapSkip = 0;
 function frame(ts) {
   const cap = frameCap();
   if (cap && ts - lastFrame < 1000 / cap - 4) {
@@ -223,10 +223,10 @@ function frame(ts) {
   updateScreenEffects(dt);
   if (game.running && !portraitQuery.matches) update(dt);
   else if (!game.running) game.time += dt;
-  // Große Karte offen (seit 10.8): Sie bedeckt fast den ganzen Bildschirm, die Welt dahinter nur jedes dritte Bild
-  // zeichnen (die Karte selbst läuft weiter) – spart viel Grafikleistung, die Karte bleibt flüssig
-  if (game.running && typeof bigMapOpen === 'function' && bigMapOpen() && ++mapSkip % 3) tickBigMap();
-  else render();
+  // Große Karte offen: seit 13.4 wird die Welt dahinter jedes Bild gezeichnet (vorher nur jedes dritte – das
+  // ruckelte sichtbar), die Markierungen der Karte ziehen ebenfalls jedes Bild nach
+  render();
+  if (game.running && typeof bigMapOpen === 'function' && bigMapOpen()) tickBigMap();
   requestAnimationFrame(frame);
 }
 

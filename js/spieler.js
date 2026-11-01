@@ -87,6 +87,11 @@ const ATTRS = [
 // Hauptwert jeder Klasse: stärkt je Punkt zusätzlich Fertigkeiten, normale Angriffe und Buffs (Auren, Heilung, Schilde).
 // Bei Intelligenz als Hauptwert ersetzt das den allgemeinen Fertigkeitsschaden der Intelligenz.
 const MAIN_ATTR = { krieger: 'str', ninja: 'dex', schamane: 'int', nekromant: 'int', magier: 'int' };
+// Name des Hauptwerts einer Klasse (seit 13.4 an jeder Fertigkeit angezeigt: „wird stärker mit Geschick“)
+function mainAttrName(classId) {
+  const a = ATTRS.find((x) => x.id === MAIN_ATTR[classId]);
+  return a ? a.name : '';
+}
 const MAIN_SKILL = 0.012;
 // Mehr als so viele Punkte (eigene plus Ausrüstung) zählen für den Hauptwert-Bonus nicht
 const MAIN_ATTR_CAP = 120;
@@ -275,6 +280,7 @@ function playerStats(p) {
     invisible: false
   };
   let atkMul = 1;
+  let atkFlat = 0;
   let defMul = 1;
   let speedMul = 1;
   // Boni der Ausrüstung
@@ -357,6 +363,7 @@ function playerStats(p) {
     if (e.critDmg) s.critDmg += e.critDmg;
     if (e.omniVamp) s.omniVamp += e.omniVamp;
     if (e.atk) atkMul += e.atk;
+    if (e.atkFlat) atkFlat += e.atkFlat;
     if (e.def) defMul += e.def;
     if (e.skillDmg) s.skillDmg += e.skillDmg;
     if (e.hpSteal) s.hpSteal += e.hpSteal;
@@ -370,7 +377,8 @@ function playerStats(p) {
     if (e.chill) s.chill = Math.max(s.chill || 0, e.chill);
     if (e.invisible) s.invisible = true;
   }
-  s.atk = Math.round(s.atk * atkMul);
+  // fester Angriff aus Buffs (Aura des Schwertes, seit 13.4) kommt nach den Prozenten dazu
+  s.atk = Math.round(s.atk * atkMul + atkFlat);
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def * defMul);
   // Obergrenzen, damit hohe Ränge und viele Buffs zusammen nicht ausufern
@@ -690,11 +698,11 @@ function usePotion(kind, sizeId) {
     // nur die wirklich geheilte Menge anzeigen, ganzzahlig (Leben hat durch Regeneration Nachkommastellen)
     const amount = Math.min(size.hp, s.maxHp - p.hp);
     p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} (${size.id})`, 'heal');
+    addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} Leben`, 'heal');
   } else {
     const amount = Math.min(size.mp, s.maxMp - p.mp);
     p.mp = Math.min(s.maxMp, p.mp + amount);
-    addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} MP (${size.id})`, 'mana');
+    addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} Mana`, 'mana');
   }
 }
 
