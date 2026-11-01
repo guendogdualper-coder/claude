@@ -1434,32 +1434,36 @@ function drawLabel(ctx, e) {
     // getarnt: der Ninja selbst, seine Gruppe und Freunde sehen den Namen blass
     ctx.save();
     if (e === p ? game.stats.invisible : e.invisible) ctx.globalAlpha *= 0.5;
-    ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    const label = 'Lv ' + e.level + '  ' + trName(e.name);
+    // seit 13.20: „Level 70“ als eigene kleine Zeile über dem Namen, der Name selbst etwas kleiner
+    const label = trName(e.name);
+    const lvText = 'Level ' + e.level;
     // der Spitzhut des Magiers ist höher: Name etwas darüber
     const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (e.riding ? RIDE_HEIGHT : 0);
-    // Gildenname in der Gildenfarbe über dem Namen
-    const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
-    if (guild) {
-      ctx.font = '700 10px "Alegreya Sans", sans-serif';
-      const gl = '‹' + guild + '›';
-      ctx.strokeText(gl, e.x, y - 12);
-      ctx.fillStyle = guildColor(guild);
-      ctx.fillText(gl, e.x, y - 12);
-      ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    }
     // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
     const mate = e.remote && inMyParty(e.name);
-    if (mate) {
-      ctx.font = '800 15px "Alegreya Sans", sans-serif';
-      ctx.lineWidth = 4;
+    const lvY = y - (mate ? 14 : 11);
+    ctx.font = (mate ? '700 11px' : '700 9px') + ' "Alegreya Sans", sans-serif';
+    ctx.lineWidth = 2.5;
+    ctx.strokeText(lvText, e.x, lvY);
+    ctx.fillStyle = '#ffd98a';
+    ctx.fillText(lvText, e.x, lvY);
+    // Gildenname in der Gildenfarbe über der Stufe
+    const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
+    if (guild) {
+      ctx.font = '700 9px "Alegreya Sans", sans-serif';
+      const gl = '‹' + guild + '›';
+      ctx.strokeText(gl, e.x, lvY - 10);
+      ctx.fillStyle = guildColor(guild);
+      ctx.fillText(gl, e.x, lvY - 10);
     }
+    ctx.font = (mate ? '800 13px' : '600 10px') + ' "Alegreya Sans", sans-serif';
+    ctx.lineWidth = mate ? 3.5 : 2.5;
     ctx.strokeText(label, e.x, y);
     ctx.fillStyle = mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
     ctx.fillText(label, e.x, y);
     // Mitspieler zeigen ihr Leben unter dem Namen
     if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), mate ? '#3ee05a' : '#4ad04a');
-    if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, y - (guild ? 26 : 14), e.say);
+    if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, lvY - (guild ? 22 : 12), e.say);
     ctx.restore();
     return;
   }

@@ -278,9 +278,19 @@ function compareItem(item, hand) {
   return out;
 }
 
-// Grobe Gesamtbewertung für die Pfeile auf den Kacheln: >0 besser, <0 schlechter
+// Grobe Gesamtbewertung für die Pfeile auf den Kacheln: >0 besser, <0 schlechter.
+// Seit 13.20 zählt bei Waffen, die in die Nebenhand passen (zweiter Dolch, zweites Schwert), auch der Vergleich
+// mit der Nebenhand: ist das Teil dort besser, zeigt die Kachel ▲.
 function compareScore(item) {
-  const diff = compareItem(item);
+  const p = game.player;
+  const main = compareScoreHand(item);
+  if (p && item && item.slot === 'waffe' && item.kind === offhandKind(p) && p.equipment.waffe && p.equipment.waffe.kind === item.kind) {
+    return Math.max(main, compareScoreHand(item, 'off'));
+  }
+  return main;
+}
+function compareScoreHand(item, hand) {
+  const diff = compareItem(item, hand);
   if (!diff || !diff.length) return 0;
   const up = diff.filter((d) => d[2] > 0).length;
   const down = diff.length - up;
@@ -1825,6 +1835,23 @@ const gear = {
       this.selected = { where: 'bag', key: i };
       this.sellArmed = false;
       this.renderDetail();
+    }));
+    // Rechtsklick auf ein angelegtes Teil legt es ab (seit 13.20, am PC), es wandert in die Tasche
+    body.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      const slot = b.dataset.equip;
+      const item = p.equipment[slot];
+      if (this.multi || !item) return;
+      const before = p.inventory.length;
+      unequip(slot);
+      const ok = p.inventory.length > before;
+      this.selected = null;
+      this.renderInventory();
+      const m2 = document.getElementById('invMsg');
+      if (m2) {
+        m2.textContent = ok ? itemName(item) + ' abgelegt – liegt jetzt in der Tasche.' : 'Kein Platz im Inventar.';
+        m2.className = ok ? 'gear-msg success' : 'gear-msg warn';
+      }
     }));
     // Rechtsklick legt ein Teil direkt an (seit 13.5, am PC) – ohne erst „Anlegen“ zu drücken
     body.querySelectorAll('[data-bag]').forEach((b) => b.addEventListener('contextmenu', (e) => {
