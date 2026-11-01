@@ -454,7 +454,7 @@ function drawGuide(ctx) {
   ctx.globalAlpha = 1;
   drawGuideChevron(ctx, ax, ay, ang, 19 * s * pulse, gold);
   // Name und Entfernung in kleiner Schrift neben dem Pfeil
-  const txt = `${c.name} · ${Math.max(1, Math.round(dist / TILE))} m`;
+  const txt = `${typeof trName === 'function' ? trName(c.name) : c.name} · ${Math.max(1, Math.round(dist / TILE))} m`;
   ctx.font = `700 ${Math.max(10, Math.round(13 * s))}px "Alegreya Sans", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -732,7 +732,8 @@ function drawMapMarks(ctx, v, area) {
     ctx.textBaseline = 'middle';
     ctx.lineWidth = 3 * u;
     ctx.strokeStyle = 'rgba(16,10,4,0.9)';
-    for (const [x, y, t, col] of labels) {
+    for (const [x, y, t0, col] of labels) {
+      const t = typeof trName === 'function' ? trName(t0) : t0;
       ctx.strokeText(t, x, y);
       ctx.fillStyle = col;
       ctx.fillText(t, x, y);
@@ -918,15 +919,17 @@ function drawZoneLabels(ctx, area, v) {
     ctx.font = `700 ${Math.round((z.safe ? 13 : 14) * v.u)}px "Cinzel", "Alegreya Sans", serif`;
     ctx.lineWidth = 3.5 * v.u;
     ctx.strokeStyle = 'rgba(16,10,4,0.85)';
-    ctx.strokeText(z.name, sx, sy);
+    const zn = typeof trName === 'function' ? trName(z.name) : z.name;
+    ctx.strokeText(zn, sx, sy);
     ctx.fillStyle = '#ffe6a8';
-    ctx.fillText(z.name, sx, sy);
+    ctx.fillText(zn, sx, sy);
     if (z.levels && !z.safe) {
       ctx.font = `600 ${Math.round(10 * v.u)}px "Alegreya Sans", sans-serif`;
       ctx.lineWidth = 3 * v.u;
-      ctx.strokeText(z.levels, sx, sy + 13 * v.u);
+      const zl = typeof trName === 'function' ? trName(z.levels) : z.levels;
+      ctx.strokeText(zl, sx, sy + 13 * v.u);
       ctx.fillStyle = '#e8d8b0';
-      ctx.fillText(z.levels, sx, sy + 13 * v.u);
+      ctx.fillText(zl, sx, sy + 13 * v.u);
     }
   }
 }

@@ -95,6 +95,9 @@ const options = {
     const seg = (key, table, label, hint) => `<div class="opt-row"><div class="opt-text"><strong>${label}</strong>${hint ? `<small>${hint}</small>` : ''}</div>` +
       `<div class="opt-seg">${Object.entries(table).map(([id, v]) => `<button type="button" class="${opts[key] === id ? 'on' : ''}" data-seg="${key}:${id}">${v.label}</button>`).join('')}</div></div>`;
     body.innerHTML =
+      // Sprache (seit 13.9): Namen in der eigenen Sprache, darum nicht übersetzen
+      `<section class="opt-group"><h3>Sprache · Language</h3><div class="opt-row no-tr"><div class="opt-seg opt-langs">` +
+      Object.entries(LANGS).map(([id, v]) => `<button type="button" class="${i18n.lang === id ? 'on' : ''}" data-lang="${id}">${v}</button>`).join('') + `</div></div></section>` +
       `<section class="opt-group"><h3>Ton</h3>` +
       `<div class="opt-row"><div class="opt-text"><strong>Klänge</strong><small>Kampf, Monster, Beute und Schmied. Der Stummschalter am iPhone schaltet Klänge und Musik ebenfalls stumm.</small></div>` +
       `<button type="button" class="opt-switch${sfx.on ? ' on' : ''}" id="optSound" role="switch" aria-checked="${sfx.on}" aria-label="Klänge"><i></i></button></div>` +
@@ -123,6 +126,7 @@ const options = {
       `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
       `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
       `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>`;
+    body.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
     body.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
       setOpt(b.dataset.sw, !opts[b.dataset.sw]);
       this.render();

@@ -1420,6 +1420,8 @@ function monsterLabel(lv, name, big, lvColor, nameColor) {
   return lab;
 }
 
+// Namen in der gewählten Sprache (seit 13.9, sprache.js)
+const trName = (s) => (typeof trText === 'function' && s ? trText(s) : s);
 function drawLabel(ctx, e) {
   ctx.textAlign = 'center';
   ctx.lineWidth = 3;
@@ -1433,7 +1435,7 @@ function drawLabel(ctx, e) {
     ctx.save();
     if (e === p ? game.stats.invisible : e.invisible) ctx.globalAlpha *= 0.5;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    const label = 'Lv ' + e.level + '  ' + e.name;
+    const label = 'Lv ' + e.level + '  ' + trName(e.name);
     // der Spitzhut des Magiers ist höher: Name etwas darüber
     const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (e.riding ? RIDE_HEIGHT : 0);
     // Gildenname in der Gildenfarbe über dem Namen
@@ -1464,7 +1466,7 @@ function drawLabel(ctx, e) {
   if (e.id === 'riss') {
     // Riss: Name des Dungeons und Restzeit statt eines Balkens
     const left = Math.max(0, Math.ceil(e.until - game.time));
-    const label = `${DUNGEONS[e.dungeon].name} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    const label = `${trName(DUNGEONS[e.dungeon].name)} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     // in 3D über dem Steinring (sonst läge der Name mitten auf dem Wirbel), in 2D darunter
     const ly = V3.on ? feetY(e) - figureHeight(e) - 8 : feetY(e) + 16;
     ctx.font = '700 12px "Alegreya Sans", sans-serif';
@@ -1481,9 +1483,9 @@ function drawLabel(ctx, e) {
     const y = feetY(e) - figureHeight(e) - 8;
     if (e.name) {
       ctx.font = '700 10px "Alegreya Sans", sans-serif';
-      ctx.strokeText(e.name, e.x, y - 5);
+      ctx.strokeText(trName(e.name), e.x, y - 5);
       ctx.fillStyle = '#8ff0a8';
-      ctx.fillText(e.name, e.x, y - 5);
+      ctx.fillText(trName(e.name), e.x, y - 5);
     }
     if (e.ally) drawBar(ctx, e.x, y, 26, Math.max(0, e.hp) / e.maxHp, '#7fe3a0');
     return;
@@ -1493,9 +1495,9 @@ function drawLabel(ctx, e) {
     // Dungeon-Tore sind in 3D hoch: Name über dem Bogen statt mitten auf dem Wirbel
     const ny = V3.on && e.id === 'eingang' ? feetY(e) - figureHeight(e) - 6 : feetY(e) + 15;
     ctx.font = '600 11px "Alegreya Sans", sans-serif';
-    ctx.strokeText(e.name, e.x, ny);
+    ctx.strokeText(trName(e.name), e.x, ny);
     ctx.fillStyle = '#f0cf6a';
-    ctx.fillText(e.name, e.x, ny);
+    ctx.fillText(trName(e.name), e.x, ny);
     return;
   }
   if (!p || !game.running) return;

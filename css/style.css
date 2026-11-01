@@ -2998,3 +2998,12 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .st-day.day svg { stroke: #ffd34d; }
 .st-day.day svg circle { fill: #ffd34d; }
 .st-day.night svg path { fill: #c8d4ff; stroke: #c8d4ff; stroke-width: 1; }
+/* 13.9: Sprachwahl auf dem Startbildschirm und in den Einstellungen */
+.start-head { position: relative; }
+.lang-pick { position: absolute; top: 0; right: 0; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: #e8dcc0; }
+.lang-pick select { background: rgba(20, 14, 8, 0.8); color: #f0e6d0; border: 1px solid rgba(255, 220, 150, 0.35); border-radius: 8px; padding: 4px 6px; font: inherit; }
+.opt-langs { display: flex; flex-wrap: wrap; gap: 6px; }
+.opt-langs button { flex: 1 1 auto; min-width: 92px; }
+.opt-row.no-tr { display: block; }
+.opt-seg.opt-langs { display: flex; flex-wrap: wrap; width: 100%; max-width: 100%; }
+.opt-seg.opt-langs button { flex: 1 1 calc(25% - 6px); }

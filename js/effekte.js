@@ -397,6 +397,8 @@ function addEffect(e) {
 }
 
 function addText(x, y, text, style) {
+  // Hinweise in der gewählten Sprache (seit 13.9); Zahlen bleiben, wie sie sind
+  if (typeof text === 'string' && typeof trText === 'function') text = trText(text);
   const long = style === 'level' || style === 'crit';
   game.texts.push({ x: x + (style === 'dmg' || style === 'crit' ? rand(-10, 10) : 0), y, text, style, start: game.time, dur: long ? 1.4 : 1.05 });
 }
