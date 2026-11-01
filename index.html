@@ -226,6 +226,7 @@
       <dt><kbd>Leertaste</kbd> halten</dt><dd>Angreifen. Ist kein Monster in Reichweite, läufst du zum nächsten.</dd>
       <dt><kbd>1</kbd>–<kbd>5</kbd></dt><dd>Fertigkeiten</dd>
       <dt><kbd>6</kbd></dt><dd>Ultimative Attacke (ab Stufe 30, goldener Knopf über dem Angriff)</dd>
+      <dt><kbd>9</kbd></dt><dd>Klassensegen (ab Stufe 10, runder Knopf neben der Ultimativen Attacke; 30 Minuten)</dd>
       <dt><kbd>Q</kbd> / <kbd>E</kbd></dt><dd>Drachenblut (Leben) / Mondtau (Mana)</dd>
       <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
@@ -270,6 +271,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.1 – <b>Klassensegen:</b> Schamane, Ninja, Nekromant und Magier haben ab Stufe 10 einen eigenen Segen (runder Knopf neben der Ultimativen Attacke oder Taste 9). Einfach aktivieren – er hält 30 Minuten, muss nicht verbessert werden und wird alle 10 Stufen stärker. <b>Segen der Natur</b> (Schamane): alle Naturschäden +5 %, je 10 Stufen +2,5 %. <b>Klingenschatten</b> (Ninja): kritische Treffer +3 % und kritischer Schaden +10 %, je 10 Stufen +1 % und +5 %. <b>Blutpakt</b> (Nekromant): Omni-Vampir 2 %, je 10 Stufen +0,5 % – jeder Schaden heilt dich. <b>Arkane Erleuchtung</b> (Magier): Intelligenz +6, je 10 Stufen +2. Beim Aktivieren gibt es einen großen 3D-Auftritt, solange er läuft eine eigene Aura (Elemente, Schattenklingen, Blutstropfen, Lichtkranz). Der Knopf leuchtet, wenn der Segen nicht läuft.</li>
       <li>Version 13.0 – <b>Thron der Unterwelt:</b> Im Feuerberg steht ein riesiges Höllenportal. Dahinter liegt eine Instanz für 6–7 Spieler ab Stufe 60 (mit göttlicher Ausrüstung): Kämpft euch durch Höllenhunde und Feuerdämonen, zerstört vier Seelensteine und besiegt die Wächter Zerberos und Ifrah – dann zerbrechen die Ketten von <b>Abaddor, dem Höllenkaiser</b>. Er schützt sich mit Siegeln, teilt die Halle mit dem Vernichtungsschlag in Viertel (ins sichere Viertel laufen!) und nimmt ab der Hälfte seines Lebens seine wahre Gestalt an: schlanker, mit riesigen brennenden Flügeln, langen Klauen und viel schnelleren Angriffen. <b>Kreis der Elemente</b>: Die Elemente sind jetzt echte Ströme aus Wasser, Feuer, Fels und Blitz, schießen schnell in die Mitte und explodieren mit vier Elementsäulen.</li>
       <li>Version 12.9 – <b>Kreis der Elemente länger:</b> Die Ultimative Attacke des Schamanen sammelt die Elemente jetzt 3,6 Sekunden lang, zieht Gegner siebenmal in die Mitte und explodiert danach noch etwas stärker.</li>
       <li>Version 12.8 – <b>Tiere natürlicher:</b> Kleinere, mandelförmige Augen statt Glubschaugen. Ohren sind gewölbte Muscheln statt steifer Kegel. Schlanke Beine mit echten Pfoten (Ballen und Zehen). Hörner, Stoßzähne und der Mammut-Rüssel sind glatte, geschwungene Formen ohne Ringe.</li>
@@ -535,6 +537,7 @@
 <script src="js/magier-neu.js"></script>
 <script src="js/nekro-neu.js"></script>
 <script src="js/rang-fx.js"></script>
+<script src="js/klassensegen.js"></script>
 <script src="js/magier-symbole.js"></script>
 <script src="js/symbol-kunst.js"></script>
 <script src="js/symbole-krieger.js"></script>

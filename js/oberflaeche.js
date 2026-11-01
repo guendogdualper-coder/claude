@@ -555,6 +555,8 @@ const ui = {
       btn.addEventListener('click', (e) => { if (e.detail === 0) useUltimate(); });
       bar.append(wrap);
     }
+    // Klassensegen (seit 13.1): eigener Knopf, Taste 9
+    if (typeof segenButton === 'function') segenButton(bar, p);
     if (this.cache) this.cache.ult = null;
   },
 
@@ -1104,13 +1106,15 @@ const ui = {
     this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield, () => {
       $('buffList').innerHTML = buffs.map(({ b, left }) => {
         const sk = skillById(b.id);
+        const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
         return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" title="${b.name}">` +
-          `<img src="${sk ? skillIconUrl(sk) : ''}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
+          `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
       $('hud').classList.toggle('has-buffs', buffs.length > 0);
     });
 
+    if (typeof segenTick === 'function') segenTick();
     // Abklingzeiten, und laufende Buffs an ihrer Fertigkeit markieren
     classSkills(p).forEach((sk, i) => {
       const running = p.buffs.find((b) => b.id === sk.id);
@@ -1385,6 +1389,7 @@ const ui = {
         row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
         `</dl><h3>Boni</h3><dl class="stats">` +
         row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
+        (s.natureDmg ? row('Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +
         `</dl><h3>Erfolge</h3><dl class="stats">` +
         row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
         row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +

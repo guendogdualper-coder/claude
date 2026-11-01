@@ -1241,3 +1241,9 @@ Prompt Höllenportal: `A colossal hell gate on a volcanic mountain, three times 
 
 Prompt Viertelschlag: `Top-down boss telegraph: the round throne hall is split into four quarters by golden lines; three quarters glow deep red with an ember fill growing from the center outward, the safe quarter stays dark with a green rim. On impact hellfire flames erupt across the red quarters.`
 
+## 11g. Klassensegen (seit 13.1)
+
+Prompt Auftritt: `Activation burst of a 30-minute class blessing in a stylized 3D MMORPG: a column of light in the class color, a single expanding light ring on the ground (no runes, no triangles), rising sparks. Shaman: four element streams (flame, water drops, leaves, sparks) spiral up the body and meet above the head while leaves drift down. Ninja: eight shadow blades shoot in from all sides, dark smoke bursts outward, two red cross slashes. Necromancer: a vortex of blood drops spirals from the ground into the chest, a heartbeat glow pulses, crimson mist. Mage: rings of violet light rise from the feet to the head, a crown of white stars above.`
+
+Prompt Aura (solange er läuft, ruhig): `Shaman: a small flame, a water drop, a leaf and a spark slowly orbit the hips. Ninja: two ghostly shadow blades float beside the shoulders, faint dark smoke at the feet. Necromancer: six blood drops circle the chest, a slow red heartbeat glow. Mage: a thin halo of light floats above the head with three tiny stars circling it.`
+

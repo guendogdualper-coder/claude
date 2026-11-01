@@ -329,7 +329,10 @@ function playerStats(p) {
   s.block = eq.schild && !offhand && !twoHand ? Math.min(MAX_BLOCK, s.block) : 0;
   // Statuswerte (eigene Punkte plus Boni auf der Ausrüstung)
   const own = p.attrs || {};
-  const a = { str: (own.str || 0) + (bonus.str || 0), vit: (own.vit || 0) + (bonus.vit || 0), int: (own.int || 0) + (bonus.int || 0), dex: (own.dex || 0) + (bonus.dex || 0) };
+  // Intelligenz aus Buffs (Arkane Erleuchtung des Magiers, seit 13.1)
+  let buffInt = 0;
+  for (const b of p.buffs) if (b.effects && b.effects.int) buffInt += b.effects.int;
+  const a = { str: (own.str || 0) + (bonus.str || 0), vit: (own.vit || 0) + (bonus.vit || 0), int: (own.int || 0) + (bonus.int || 0) + buffInt, dex: (own.dex || 0) + (bonus.dex || 0) };
   s.atk += (a.str || 0) * 1;
   s.maxHp += (a.vit || 0) * 6;
   s.def += (a.vit || 0) * 0.3;
@@ -344,8 +347,15 @@ function playerStats(p) {
   s.dodge += (a.dex || 0) * 0.0025;
   s.atkSpeed += (a.dex || 0) * 0.005;
   s.def = Math.round(s.def);
+  // Klassensegen (seit 13.1): Naturschaden, kritischer Schaden, Omni-Vampir
+  s.natureDmg = 0;
+  s.critDmg = 0;
+  s.omniVamp = 0;
   for (const b of p.buffs) {
     const e = b.effects;
+    if (e.natureDmg) s.natureDmg += e.natureDmg;
+    if (e.critDmg) s.critDmg += e.critDmg;
+    if (e.omniVamp) s.omniVamp += e.omniVamp;
     if (e.atk) atkMul += e.atk;
     if (e.def) defMul += e.def;
     if (e.skillDmg) s.skillDmg += e.skillDmg;

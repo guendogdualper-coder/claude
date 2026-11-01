@@ -14,6 +14,7 @@ const KEY_ACTIONS = [
   { id: 'ult', label: 'Ultimative Attacke', key: 'Digit6' },
   { id: 'quick1', label: 'Freier Platz 1', key: 'Digit7' },
   { id: 'quick2', label: 'Freier Platz 2', key: 'Digit8' },
+  { id: 'segen', label: 'Klassensegen', key: 'Digit9' },
   { id: 'attack', label: 'Angriff (halten = weiter)', key: 'Space' },
   { id: 'potHp', label: 'Lebenstrank', key: 'KeyQ' },
   { id: 'potMp', label: 'Manatrank', key: 'KeyE' },
@@ -106,6 +107,7 @@ function runAction(id, e) {
   }
   switch (id) {
     case 'ult': useUltimate(); break;
+    case 'segen': if (!rep) useSegen(); break;
     case 'quick1': case 'quick2': if (!rep) useQuickSlot(id === 'quick1' ? 0 : 1); break;
     case 'attack':
       // gedrückt halten greift weiter an (spiel.js fragt „Space“ ab)
@@ -201,6 +203,7 @@ function useQuickSlot(k) {
   const s = quickSkill(p, id);
   if (s) useSkill(s.i);
   else if (id === 'ult') useUltimate();
+  else if (id === 'segen') useSegen();
   else runAction(id);
 }
 function renderQuickSlots() {

@@ -2907,3 +2907,17 @@ body.aiming canvas { cursor: crosshair; }
 .sk-rank small { font-size: 10px; font-weight: 700; line-height: 1; }
 .sk-arrow { font-style: normal; color: var(--muted); font-size: 14px; margin: 0 1px 12px; }
 @media (max-width: 720px) { .sk-rank img { width: 28px; height: 28px; } .sk-cards .icon { width: 44px !important; height: 44px !important; } }
+
+/* --- Version 13.1: Klassensegen (30 Minuten, nur aktivieren) ------------------------------------ */
+.slot.skill.segen { border-radius: 50%; overflow: visible; box-shadow: 0 0 0 2px #120c08, 0 0 0 3px #b8e8ff, 0 0 0 5px #120c08, 0 3px 10px rgba(0, 0, 0, 0.6); }
+.slot.skill.segen .skill-icon { border-radius: 50%; }
+.slot.skill.segen.locked { filter: grayscale(0.85) brightness(0.7); }
+.slot.skill.segen.segen-off { animation: segen-off 1.8s ease-in-out infinite; }
+@keyframes segen-off {
+  0%, 100% { box-shadow: 0 0 0 2px #120c08, 0 0 0 3px #b8e8ff, 0 0 0 5px #120c08, 0 0 6px 1px rgba(184, 232, 255, 0.3); }
+  50% { box-shadow: 0 0 0 2px #120c08, 0 0 0 3px #ffffff, 0 0 0 5px #120c08, 0 0 16px 5px rgba(184, 232, 255, 0.8); }
+}
+.slot.skill.segen .segen-left { position: absolute; left: 0; right: 0; bottom: -3px; font-size: 10px; font-weight: 800; color: #fff; text-align: center; text-shadow: 0 1px 2px #000, 0 0 3px #000; pointer-events: none; }
+#hud.touch .skill-wrap.segen-wrap { left: 160px; top: 112px; width: 34px; height: 34px; }
+#hud.touch .slot.skill.segen { width: 34px; height: 34px; }
+#hud.touch .slot.skill.segen .key { display: none; }

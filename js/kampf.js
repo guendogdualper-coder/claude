@@ -36,10 +36,10 @@ function aliveEnemies() {
 // Grundformel: Angriff × Faktor, ±10 % Zufall, Verteidigung zieht prozentual ab.
 // Je höher die Stufe des Angreifers, desto weniger hilft die gleiche Verteidigung,
 // damit Rüstung auf hohen Stufen nicht jeden Treffer schluckt.
-function calcDamage(atk, mul, def, critChance, level = 1) {
+function calcDamage(atk, mul, def, critChance, level = 1, critMul = 1.8) {
   let raw = atk * mul * (0.9 + Math.random() * 0.2);
   const crit = Math.random() < critChance;
-  if (crit) raw *= 1.8;
+  if (crit) raw *= critMul;
   const amount = Math.max(1, Math.round(raw * (1 - def / (def + 40 + 5 * (level - 1)))));
   return { amount, crit };
 }
@@ -124,9 +124,11 @@ function hitMonster(m, mul, opts = {}) {
   if (!opts.ally) {
     factor *= 1 + (s.monsterDmg || 0);
     if (opts.basic) factor *= BASIC_MUL * (1 + (s.basicDmg || 0));
+    // Segen der Natur (Schamane): jede Fertigkeit des Schamanen ist Naturschaden
+    if (opts.skill && s.natureDmg) factor *= 1 + s.natureDmg;
   }
   const atk = opts.atk != null ? opts.atk : s.atk;
-  const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit, p.level);
+  const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit, p.level, 1.8 + (opts.ally ? 0 : s.critDmg || 0));
   if (!m.isStone) {
     if (opts.stun) m.stun = Math.max(m.stun, opts.stun);
     // Einfrieren (Magier, seit 8.6): Betäubung mit Eisblock; die Pose bleibt stehen, solange m.frozen läuft
@@ -149,6 +151,15 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
+  // Omni-Vampir (Blutpakt des Nekromanten): jeder eigene Schaden heilt, auch über Zeit (je Treffer höchstens 3 %)
+  if (!opts.ally && s.omniVamp > 0 && !p.dead && !m.isStone) {
+    const gain = Math.min(s.maxHp - p.hp, amount * s.omniVamp, s.maxHp * 0.03);
+    if (gain > 0) {
+      p.hp += gain;
+      p.stealSum = (p.stealSum || 0) + gain;
+      later(0.3, showLifeSteal);
+    }
+  }
   // Lebensraub heilt um einen Teil des Schadens; die Heilung erscheint als grüne Zahl
   if (!opts.ally && !opts.dot && s.hpSteal > 0 && !p.dead) {
     // Lebensraub heilt je Treffer höchstens 3 % des Lebens, sonst macht hoher Schaden unverwundbar

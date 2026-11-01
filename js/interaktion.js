@@ -676,6 +676,10 @@ function remoteSkillFx(rp, d) {
   const ang = Math.atan2(d.fy, d.fx);
   const trim = CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff';
   const target = { x: d.tx, y: d.ty };
+  if (d.s === '_segen') {
+    if (typeof segenShow === 'function') segenShow(rp, d.c);
+    return;
+  }
   if (d.s === '_shot') {
     snd.shot(rp, { style: d.st, el: d.el });
     spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? 620 : 480, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el });
