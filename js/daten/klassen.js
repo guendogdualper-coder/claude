@@ -317,7 +317,7 @@ const CLASSES = {
             // seit 11.7 neu: kurz und heftig – ein Blutband reißt die Lebenskraft heraus und heilt sofort (nekro-neu.js)
             id: 'lebensentzug', name: 'Lebensentzug', short: 'LE', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
             type: 'lifetap', range: 300, dmg: 1.6, heal: 0.6, color: '#e0203a', nk: true, anim: 'salve', animDur: 0.4,
-            text: 'Ein Blutband schnellt zu deinem Ziel und reißt in einem Ruck seine Lebenskraft heraus. Die Blutkugel fliegt in deine Brust zurück und heilt dich sofort um 60 % des Schadens.'
+            text: 'Ein Blutband schnellt zu deinem Ziel und reißt in einem Ruck seine Lebenskraft heraus. Die Blutkugel fliegt in deine Brust zurück und heilt dich sofort um einen Großteil des Schadens.'
           },
           {
             // seit 11.7 (ersetzt den Knochenspeer): ein wirbelnder Oberschenkelknochen, der verlangsamt
@@ -341,7 +341,7 @@ const CLASSES = {
             // seit 11.7 (ersetzt den Buff Blutopfer): Blutlanzen schießen aus dem Rücken und suchen bis zu sechs Gegner
             id: 'blutlanzen', name: 'Blutlanzen', short: 'BZ', kind: 'angriff', unlock: 10, mp: 26, cooldown: 10,
             type: 'bloodlances', range: 280, count: 6, dmg: 1.25, leech: 0.15, color: '#e0203a', nk: true, anim: 'kaefig', animDur: 0.55,
-            text: 'Sechs Lanzen aus Blut wachsen dir wie Flügel aus dem Rücken und schießen auf bis zu sechs Gegner in der Nähe (bei weniger Gegnern treffen mehrere dasselbe Ziel). Jede Lanze heilt dich um 15 % ihres Schadens.'
+            text: 'Sechs Lanzen aus Blut wachsen dir wie Flügel aus dem Rücken und schießen auf bis zu sechs Gegner in der Nähe (bei weniger Gegnern treffen mehrere dasselbe Ziel). Jede Lanze heilt dich ein wenig.'
           }
         ]
       }
@@ -377,7 +377,7 @@ const CLASSES = {
             id: 'feuerball', name: 'Feuerball', short: 'FB', kind: 'angriff', unlock: 3, mp: 20, cooldown: 2,
             type: 'mcast', el: 'feuer', castTime: 3, range: 400, speed: 430, dmg: 5.6, splash: { r: 115, mul: 0.6 }, burn: { dps: 0.4, duration: 4 },
             style: 'fireball', big: 2.1, anim: 'zauber', animDur: 3, color: '#e8362a',
-            text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, Gegner bis 115 weit darum bekommen 60 %, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
+            text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, Gegner bis 115 weit darum bekommen etwas weniger ab, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
           },
           {
             // seit 11.5 statt Flammenschritt: Brand – Feuerschaden über Zeit auf ein Ziel (wie Gift)
@@ -391,7 +391,7 @@ const CLASSES = {
             id: 'phoenix', name: 'Phönixflamme', short: 'PH', kind: 'angriff', unlock: 7, mp: 28, cooldown: 14,
             type: 'mphoenix', el: 'feuer', range: 400, speed: 470, dmg: 3.4, pathR: 42, pathMul: 0.6, blast: { r: 105, mul: 0.7 },
             combust: 0.6, burn: { dps: 0.35, duration: 4 }, anim: 'stoss', animDur: 0.45, color: '#e8362a',
-            text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf (+60 % Schaden), und alle bis 105 weit fangen Feuer.'
+            text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf und nimmt deutlich mehr Schaden, und alle bis 105 weit fangen Feuer.'
           },
           {
             id: 'flammenkreis', name: 'Flammenkreis', short: 'FK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
@@ -451,7 +451,7 @@ const CLASSES = {
             id: 'kettenblitz', name: 'Kettenblitz', short: 'KB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
             type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 1.9, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2,
             style: 'arc', anim: 'stoss', animDur: 0.3, color: '#ffe94a',
-            text: 'Ein Blitz schießt aus deinem Zepter zum Ziel und springt zu zwei weiteren Gegnern. Aufgeladene Gegner entladen sich: +30 % Schaden.'
+            text: 'Ein Blitz schießt aus deinem Zepter zum Ziel und springt zu zwei weiteren Gegnern. Aufgeladene Gegner entladen sich und nehmen mehr Schaden.'
           },
           {
             id: 'blitzschritt', name: 'Blitzschritt', short: 'BS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
@@ -491,7 +491,7 @@ const CLASSES = {
             id: 'steingeschoss', name: 'Felsgeschoss', short: 'FG', kind: 'angriff', unlock: 3, mp: 14, cooldown: 5,
             type: 'mbolt', el: 'erde', range: 340, speed: 380, dmg: 3.0, splash: { r: 80, mul: 0.6 }, knockback: 70, stun: 1.2,
             style: 'stone', big: 2.1, anim: 'stoss', animDur: 0.4, color: '#f0a830',
-            text: 'Du schleuderst einen riesigen Basaltfelsen mit glühendem Bernsteinkern. Er trifft hart, betäubt das Ziel 1,2 s, stößt es zurück und zerbirst: Gegner bis 80 weit bekommen 60 % ab.'
+            text: 'Du schleuderst einen riesigen Basaltfelsen mit glühendem Bernsteinkern. Er trifft hart, betäubt das Ziel 1,2 s, stößt es zurück und zerbirst: Gegner bis 80 weit bekommen etwas weniger ab.'
           },
           {
             // seit 11.5 statt Erdsprung: Steinspitzen brechen in einer Fläche aus der Erde

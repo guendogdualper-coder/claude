@@ -2962,3 +2962,5 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .multi-bar .price { font-size: 17px; font-weight: 800; color: #ffd34d; }
 .hover-tip .tip-sell, .tip-box .tip-sell { display: block; margin-top: 4px; font-size: 13px; color: #e8dcc0; }
 .hover-tip .tip-sell b { color: #ffd34d; font-size: 15px; }
+/* 13.6: Hinweis unter Fertigkeits-Tooltips, dass die Zahlen aus den aktuellen Werten kommen */
+.hover-tip .tip-note { display: block; font-size: 11px; color: #a89c84; margin-top: 3px; font-style: italic; }

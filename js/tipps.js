@@ -52,7 +52,11 @@ function skillTipHtml(sk, lvl, key) {
   const stats = skillStats(sk, lvl).map(([k, v]) => (v === '' ? k : `${k} <b>${v}</b>`)).join(' · ');
   return `<strong>${sk.name}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` +
     `<small>${locked ? `ab Stufe ${sk.unlock}` : `Stufe ${skillLevelText(lvl)}`} · ${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s Abklingzeit</small>` +
-    (stats ? `<span class="tip-stats">${stats}</span>` : '') + `<span>${sk.text}</span>` + scaleLine(sk, p);
+    (stats ? `<span class="tip-stats">${stats}</span>` : '') + `<span>${sk.text}</span>` + scaleLine(sk, p) + numNote(p);
+}
+// seit 13.6: Schaden und Leben stehen als feste Zahlen mit den aktuellen Werten da
+function numNote(p) {
+  return p ? '<span class="tip-note">Zahlen mit deinen aktuellen Werten: Waffe, Ausrüstung, Boni, Status und Buffs (vor der Verteidigung des Gegners)</span>' : '';
 }
 // seit 13.4: womit die Fertigkeit stärker wird (Hauptwert der Klasse)
 function scaleLine(sk, p) {
@@ -65,7 +69,7 @@ function ultTipHtml(u, key) {
   const p = game.player;
   return `<strong>${u.name}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` +
     `<small>Ultimative Attacke · ${p && p.level < u.unlock ? `ab Stufe ${u.unlock}` : '60 s Abklingzeit'}</small>` +
-    `<span class="tip-stats">${u.stats}</span><span>${u.text}</span>` + scaleLine(u, p);
+    `<span class="tip-stats">${ultStatsText(u)}</span><span>${u.text}</span>` + scaleLine(u, p) + numNote(p);
 }
 
 // --- Anzeige -------------------------------------------------------------------------------------------
