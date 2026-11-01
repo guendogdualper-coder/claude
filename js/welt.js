@@ -326,6 +326,8 @@ function generateWorld() {
         const tx = Math.round(wm.cx + Math.cos(ang) * d);
         const ty = Math.round(wm.cy + Math.sin(ang) * d * 0.4);
         if (tx < rx + 8 || ty < ry + 8 || tx >= rx + rw - 8 || ty >= ry + rh - 8) continue;
+        // nicht in der (vergrößerten) Stadt
+        if (wm.genCamp && Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < wm.camp + 3) continue;
         let free = true;
         for (let yy = ty - 1; yy <= ty + 1 && free; yy++) for (let xx = tx - 1; xx <= tx + 1; xx++) {
           const i = yy * MAP_W + xx;
@@ -453,7 +455,7 @@ function generateWorld() {
   // Städte in Map 2 und 3: Laternen, Feuerbecken, Marktstände, Brunnen, Fässer
   for (const mp of maps) {
     // Türme an den Ecken und an jedem Tor, Torbögen im Norden und Süden
-    const H2 = mp.small ? WORLD_MAPS.find((m) => m.id === mp.id).camp : CAMP_HALF;
+    const H2 = WORLD_MAPS.find((m) => m.id === mp.id).camp || CAMP_HALF;
     const k = mp.scale;
     const MT = (x, y) => T(mp.cx + x * k, mp.cy + y * k);
     for (const [x, y] of [[-H2, -H2], [H2, -H2], [-H2, H2], [H2, H2]]) props.push({ type: 'tower', ...T(mp.cx + x + 0.5, mp.cy + y + 1) });
@@ -928,6 +930,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
     if (wm.id === 1) continue;
     const [rx, ry, rw, rh] = wm.region;
     const camp = wm.camp || CAMP_HALF;
+    const safeZi = ZONES.findIndex((z) => z.map === wm.id && z.safe);
     for (let y = ry; y < ry + rh; y++) {
       for (let x = rx; x < rx + rw; x++) {
         const i = y * MAP_W + x;
@@ -945,7 +948,24 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
           if (Math.max(Math.abs(x + 0.5 - wm.cx), Math.abs(y + 0.5 - wm.cy)) < camp - 1) ground[i] = GROUND.PLAZA;
           continue;
         }
-        if (d < camp + 5) continue;
+        // Stadt größer als ihr ursprünglicher Plan (Map 2 seit 13.14): drinnen nur Platz, aber die Zufallszahlen werden
+        // wie früher verbraucht, damit Bäume, Felsen und Schmuck aller übrigen Maps genau gleich bleiben
+        const cityHalf = Math.max(Math.abs(x + 0.5 - wm.cx), Math.abs(y + 0.5 - wm.cy));
+        if (wm.genCamp && cityHalf < camp + 0.5) {
+          if (d >= wm.genCamp + 5) {
+            const v0 = shape(x, y) * 0.65 + detail(x, y) * 0.35;
+            if (!(zone.water && v0 < zone.water)) {
+              const cl = v0 > 0.55 ? 1.8 : 0.5;
+              const r0 = rng();
+              const a0 = zone.trees * cl + zone.rocks;
+              if (r0 >= a0 && r0 < a0 + DECO_RATE) rng();
+            }
+          }
+          zoneIdx[i] = safeZi;
+          ground[i] = cityHalf < camp - 1 ? GROUND.PLAZA : GROUND[ZONES[safeZi].ground];
+          continue;
+        }
+        if (d < (wm.genCamp || camp) + 5) continue;
         const v = shape(x, y) * 0.65 + detail(x, y) * 0.35;
         if (zone.water && v < zone.water) {
           ground[i] = GROUND[zone.liquid || 'WATER'];
@@ -1065,12 +1085,81 @@ function canStand(x, y, r, isMonster) {
   return true;
 }
 
+// Feste Hindernisse ohne eigene Kachel (seit 13.14): Äste, Baumstümpfe, Stämme und Kristalle (Büsche, Pilze, Gras,
+// Blumen, Knochen und Schneewehen bleiben begehbar), dazu Seelensteine und Portale (Weltentor, Dungeon-Eingang,
+// Riss, Ausgang). Rund um ihre Mitte; man kommt nur nicht näher heran, weg geht immer (niemand bleibt stecken).
+const SOLID_DECO_R = { [DECO.STUMP]: 9, [DECO.LOG]: 12, [DECO.DEADTREE]: 9, [DECO.CRYSTAL]: 10 };
+const PORTAL_R = { weltentor: 22, eingang: 26, riss: 22, ausgang: 20 };
+const solidCache = { at: -1, world: null, grid: new Map() };
+const SOLID_CELL = 128;
+function solidObstacles() {
+  const w = game.world;
+  if (solidCache.world === w && game.time - solidCache.at < 0.25 && game.time >= solidCache.at) return solidCache.grid;
+  const list = [];
+  for (const m of game.monsters) if (m.isStone && !m.dead) list.push({ x: m.x, y: m.y, R: Math.max(20, (m.r || 18) + 2), ref: m });
+  for (const n of w.npcs) {
+    const R = PORTAL_R[n.id];
+    if (!R) continue;
+    const d = n.id === 'eingang' && w.dungeons && w.dungeons[n.dungeon] ? w.dungeons[n.dungeon].def : null;
+    list.push({ x: n.x, y: n.id === 'eingang' ? n.y + 0.4 * TILE : n.y, R: d && d.instanz ? 46 : d && d.raid ? 34 : R, ref: n });
+  }
+  // in ein Raster einsortiert, damit jede Bewegung nur die Hindernisse in ihrer Nähe prüft
+  const grid = new Map();
+  for (const o of list) {
+    const k = Math.floor(o.x / SOLID_CELL) + ',' + Math.floor(o.y / SOLID_CELL);
+    if (!grid.has(k)) grid.set(k, []);
+    grid.get(k).push(o);
+  }
+  solidCache.at = game.time;
+  solidCache.world = w;
+  solidCache.grid = grid;
+  return grid;
+}
+// Stößt e an der neuen Stelle (nx, ny) an ein festes Hindernis, dem es sich dabei nähert?
+function solidBump(e, nx, ny, r) {
+  const w = game.world;
+  const hit = (cx, cy, R) => {
+    const dn = Math.hypot(nx - cx, ny - cy);
+    return dn < R + r && dn < Math.hypot(e.x - cx, e.y - cy) - 0.01;
+  };
+  const tx0 = Math.floor((nx - r - 16) / TILE);
+  const tx1 = Math.floor((nx + r + 16) / TILE);
+  const ty0 = Math.floor((ny - r - 16) / TILE);
+  const ty1 = Math.floor((ny + r + 16) / TILE);
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) continue;
+      const R = SOLID_DECO_R[w.deco[ty * MAP_W + tx]];
+      if (!R) continue;
+      // gleiche Verschiebung wie beim Zeichnen in 3D (drei-welt.js)
+      const h = tileHash(tx, ty);
+      const jx = ((h >> 5) % 5 - 2) * 0.15;
+      const jz = ((h >> 9) % 5 - 2) * 0.15;
+      if (hit((tx + 0.5 + jx) * TILE, (ty + 0.5 + jz) * TILE, R)) return true;
+    }
+  }
+  const grid = solidObstacles();
+  const cx = Math.floor(nx / SOLID_CELL);
+  const cy = Math.floor(ny / SOLID_CELL);
+  for (let gy = cy - 1; gy <= cy + 1; gy++) {
+    for (let gx = cx - 1; gx <= cx + 1; gx++) {
+      const cell = grid.get(gx + ',' + gy);
+      if (!cell) continue;
+      for (const o of cell) {
+        if (o.ref === e || Math.abs(o.x - nx) > o.R + r || Math.abs(o.y - ny) > o.R + r) continue;
+        if (hit(o.x, o.y, o.R)) return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Bewegt getrennt nach x und y, damit man an Hindernissen entlanggleitet
 function moveEntity(e, dx, dy, isMonster) {
   const r = e.r * 0.7;
   let moved = false;
-  if (dx && canStand(e.x + dx, e.y, r, isMonster)) { e.x += dx; moved = true; }
-  if (dy && canStand(e.x, e.y + dy, r, isMonster)) { e.y += dy; moved = true; }
+  if (dx && canStand(e.x + dx, e.y, r, isMonster) && !solidBump(e, e.x + dx, e.y, r)) { e.x += dx; moved = true; }
+  if (dy && canStand(e.x, e.y + dy, r, isMonster) && !solidBump(e, e.x, e.y + dy, r)) { e.y += dy; moved = true; }
   return moved;
 }
 
