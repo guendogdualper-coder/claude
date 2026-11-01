@@ -126,10 +126,12 @@ const PAD3_R = { krieger: 0.16, ninja: 0.1, schamane: 0.13, nekromant: 0.1, magi
 
 function gearShoulders3(A, g, t, cls) {
   if (t < 0) return;
-  const R = PAD3_R[cls] || 0.12;
+  // seit 13.17 sitzen die Merkmale auf dem größeren Panzer (PAULDRON_BIG, drei-figuren.js)
+  const big = typeof PAULDRON_BIG !== 'undefined' ? PAULDRON_BIG : 1;
+  const R = (PAD3_R[cls] || 0.12) * big;
   const metal = TIER_METAL[t];
   for (const [sx, ab] of [[1, BH.armL], [-1, BH.armR]]) {
-    const pp = [sx * g.shX * 1.04, g.shY + 0.03 + (cls === 'nekromant' ? 0.02 : 0), 0];
+    const pp = [sx * (g.shX + R * 0.3), g.shY + R * 0.32 + (cls === 'nekromant' ? 0.02 : 0), 0];
     const W = frame3(A, ab, pp, [0, 0, -sx * 0.35]);
     const X = sx;
     switch (t) {

@@ -884,8 +884,10 @@ function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
   const c = GEAR_LOOK.plate[tier];
   const m = TIER_METAL[tier];
   // seit 13.12: Hauptplatte (innen hoch, außen über die Schulter gewölbt) und zwei Schienen darunter statt zweier Ovale
+  // seit 13.17 größer (S), damit man angelegte Schultern an der Figur gut erkennt
+  const S = 1.35;
   const pad = (x, mirror) => {
-    const P = (u, v) => [x + u * mirror, y + v];
+    const P = (u, v) => [x + u * mirror * S, y - 1.5 + v * S];
     const path = (pts) => {
       ctx.beginPath();
       ctx.moveTo(...P(pts[0][0], pts[0][1]));
@@ -913,20 +915,20 @@ function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
     // Glanz und Grat
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath();
-    ctx.ellipse(...P(0, -2.6), 2.6, 1, -0.3 * mirror, 0, Math.PI * 2);
+    ctx.ellipse(...P(0, -2.6), 2.6 * S, 1 * S, -0.3 * mirror, 0, Math.PI * 2);
     ctx.fill();
     stroke(ctx, lighter(m, 0.3), 0.7, [P(-3.4, -3), P(1.5, -4), P(5.8, -0.5)]);
-    if (tier >= 2) for (const u of [-3.2, 5.6]) oval(ctx, ...P(u, 2.4), 0.75, 0.75, lighter(m, 0.2));
+    if (tier >= 2) for (const u of [-3.2, 5.6]) oval(ctx, ...P(u, 2.4), 0.9, 0.9, lighter(m, 0.2));
     if (tier >= 3 && tier < 6) {
       poly(ctx, [P(-2.4, -3.4), P(-1 + 0.5, -9.5 - (tier >= 5 ? 2 : 0)), P(0.4, -4)], m);
       poly(ctx, [P(1.6, -4), P(3.6 + 0.5, -8.5 - (tier >= 5 ? 2 : 0)), P(4.6, -3.2)], m);
     }
-    if (tier >= 4) oval(ctx, ...P(1.4, -0.6), 1.5, 1.5, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
+    if (tier >= 4) oval(ctx, ...P(1.4, -0.6), 1.9, 1.9, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
   };
   if (dir === 'side') pad(w.arm, 1);
   else {
-    pad(-spread, -1);
-    pad(spread, 1);
+    pad(-spread - 1, -1);
+    pad(spread + 1, 1);
   }
   return true;
 }
