@@ -1311,6 +1311,14 @@ function updateBuffAuras(dt) {
 // Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
 function rankCastFx(p, rank, color) {
   const fy = feetY(p);
+  // seit 12.6 in 3D: Funkenspirale, Kränze, Lichtsäule, Flammenflügel je Rang (rang-fx.js) – ohne Runenkreise
+  // und Sterne am Boden; die alten Ringe und Runen gibt es nur noch in 2D
+  if (typeof rankCast3 === 'function' && typeof V3 !== 'undefined' && V3.on) {
+    rankCast3(p, rank);
+    if (rank >= 2) flashScreen(color, 0.14);
+    if (rank >= 3) shakeScreen(5);
+    return;
+  }
   // Magier (seit 11.5) und Nekromant (seit 11.7): nichts am Boden, nur aufsteigende Funken in der Rangfarbe
   const mage = p.classId === 'magier' || p.classId === 'nekromant';
   if (mage) addEffect({ type: 'sparks3', x: p.x, y: fy, h: 0.4, count: 8 + rank * 4, color, speed: 1.6, up: 2.2, dur: 0.6 });
@@ -1340,6 +1348,11 @@ function rankCastFx(p, rank, color) {
 // ab Legendär kleine Blitze, Vollendet mit Glutwelle
 function rankHitFx(m, rank) {
   const color = SKILL_RANKS[rank].color;
+  // 3D-Treffer je Rang (rang-fx.js), höchstens alle 0,15 s je Gegner (Kanal- und Mehrfachtreffer)
+  if (typeof rankHit3 === 'function' && !(m.rk3At > game.time - 0.15)) {
+    m.rk3At = game.time;
+    rankHit3(m, rank);
+  }
   const c = bodyCenter(m);
   particles(c.x, c.y, { count: 4 + rank * 4, color: [color, '#ffffff'], speed: [100, 220], life: [0.2, 0.4], size: [1.5, 2.8], shape: 'spark', drag: 5 });
   addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.26 + rank * 0.04, color, big: rank >= 2 });

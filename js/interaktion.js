@@ -683,6 +683,8 @@ function remoteSkillFx(rp, d) {
   }
   const sk = skillById(d.s);
   if (!sk) return;
+  // Rang-Effekte der Mitspieler in 3D (seit 12.6), nicht bei Kanal-Meldungen und Abbrüchen
+  if (Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length && !d.cx && d.bm !== 0 && d.bm !== 2 && typeof rankCast3 === 'function') rankCast3(rp, d.rk);
   // Eisstrahl (seit 9.6): Anfang, Richtung, Ende
   if (sk.type === 'beam') {
     if (d.bm === 1) snd.skill(sk, rp);
