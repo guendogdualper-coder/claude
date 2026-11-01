@@ -701,24 +701,54 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       break;
     }
     case 'bow': {
-      // Bogen mit gefüllten Wurfarmen, ab Stufe 2 mit geschwungenen Enden
-      const wood = tier >= 3 ? TIER_ACCENT[tier] : '#6b4a2e';
-      const r = 12 + Math.min(3, tier * 0.5);
+      // seit 13.20 je Stufe eine eigene Form (BOW_LIMBS, wie in 3D): Wurfarme, Spitzen, Sehne, Griff
+      const L = BOW_LIMBS[tier];
+      const K = 25;
+      const gx = 8;
+      const P = (x, y) => [gx + x * K, y * K];
+      const n = L.pts.length;
+      const tip = P(...L.pts[n - 1]);
+      // Sehne zuerst (liegt hinter den Armen)
+      stroke(ctx, tier >= 6 ? '#e6f6ff' : '#e8e0cc', 0.6, [[tip[0], -tip[1]], [tip[0], tip[1]]]);
       ctx.lineCap = 'round';
-      ctx.strokeStyle = '#120c08';
-      ctx.lineWidth = 3.6;
-      ctx.beginPath();
-      ctx.arc(-6, 0, r, -1.15, 1.15);
-      ctx.stroke();
-      ctx.strokeStyle = wood;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-      const tipX = -6 + Math.cos(1.15) * r;
-      const tipY = Math.sin(1.15) * r;
-      if (tier >= 2) for (const sgn of [-1, 1]) stroke(ctx, TIER_METAL[tier], 1.4, [[tipX, tipY * sgn], [tipX - 2.5, (tipY + 2.5) * sgn]]);
-      stroke(ctx, '#e8e0cc', 0.5, [[tipX, -tipY], [tipX, tipY]]);
-      box(ctx, -6 + r - 1.8, -2.2, 3, 4.4, 1, tier >= 4 ? TIER_METAL[tier] : '#3a2a1c');
-      if (tier >= 4) oval(ctx, -6 + r - 0.3, 0, 1.2, 1.2, STAFF_ORB[tier]);
+      ctx.lineJoin = 'round';
+      for (const sgn of [-1, 1]) {
+        const pts = L.pts.map(([x, y]) => P(x, y * sgn));
+        const path = () => {
+          ctx.beginPath();
+          ctx.moveTo(pts[0][0], pts[0][1]);
+          for (let k = 1; k < pts.length - 1; k++) ctx.quadraticCurveTo(pts[k][0], pts[k][1], (pts[k][0] + pts[k + 1][0]) / 2, (pts[k][1] + pts[k + 1][1]) / 2);
+          ctx.lineTo(pts[pts.length - 1][0], pts[pts.length - 1][1]);
+        };
+        path();
+        ctx.strokeStyle = '#120c08';
+        ctx.lineWidth = 3.8;
+        ctx.stroke();
+        path();
+        ctx.strokeStyle = L.wood;
+        ctx.lineWidth = 2.2;
+        ctx.stroke();
+        if (L.rail) stroke(ctx, TIER_METAL[tier], 0.9, pts.slice(1).map(([x, y]) => [x - 1.3, y * 0.92]));
+        const [tx, ty] = pts[n - 1];
+        if (tier === 1) poly(ctx, [[tx - 1.2, ty], [tx + 2.2, ty + sgn * 2.4], [tx + 1, ty - sgn * 0.6]], L.tip);
+        else if (tier === 2) { ctx.beginPath(); ctx.arc(tx + 0.6, ty + sgn * 1.2, 2.2, 0, Math.PI * 2); ctx.strokeStyle = '#d6c8ff'; ctx.lineWidth = 1; ctx.stroke(); }
+        else if (tier === 3) { oval(ctx, tx - 0.4, ty + sgn * 0.6, 2.2, 1.7, '#4e8a3e'); oval(ctx, tx - 0.6, ty + sgn * 1.1, 0.5, 0.5, '#e8ff6a'); }
+        else if (tier === 4 || tier === 5) poly(ctx, [[tx - 1.2, ty], [tx - 2.6, ty + sgn * 3.6], [tx + 1, ty]], tier === 5 ? '#2a2224' : lighter(TIER_METAL[tier], 0.2));
+        else if (tier === 6) for (const a of [0.5, 1.1]) poly(ctx, [[tx, ty], [tx + Math.cos(a) * 5, ty + sgn * Math.sin(a) * 5], [tx + Math.cos(a + 0.3) * 2, ty + sgn * Math.sin(a + 0.3) * 2]], '#f4f8ff');
+        else if (tier === 7) poly(ctx, [[tx - 1, ty], [tx + 2, ty + sgn * 4.2], [tx + 1.2, ty - sgn * 0.4]], '#fff2b0');
+        if (tier === 5) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1] - 1], [pts[k][0] + 3, pts[k][1] + sgn * 1.4], [pts[k][0], pts[k][1] + 1]], '#2a2224');
+        if (tier === 6) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1]], [pts[k][0] + 4.5, pts[k][1] + sgn * 1.6], [pts[k][0] + 1, pts[k][1] + sgn * 2.6]], '#dfefff');
+      }
+      // Griff mit Wicklung, Schmuck in der Mitte
+      box(ctx, gx - 1.8, -2.4, 3.6, 4.8, 1, tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : '#3a2a1c');
+      if (tier >= 1) stroke(ctx, tier >= 6 ? '#e8c46a' : TIER_METAL[tier], 0.7, [[gx - 1.8, 0], [gx + 1.8, 0]]);
+      if (tier === 4) oval(ctx, gx + 3, 0, 1.3, 1.3, STAFF_ORB[4]);
+      if (tier === 5) oval(ctx, gx + 1.6, 0, 1.2, 1.2, '#ff7a2a');
+      if (tier === 3) oval(ctx, gx + 1.6, 0, 1, 1.4, '#7ad86a');
+      if (tier === 7) {
+        for (let k = 0; k < 8; k++) poly(ctx, [[gx + 2, 0], [gx + 2 + Math.cos(k * Math.PI / 4) * 4, Math.sin(k * Math.PI / 4) * 4], [gx + 2 + Math.cos(k * Math.PI / 4 + 0.35) * 1.6, Math.sin(k * Math.PI / 4 + 0.35) * 1.6]], '#ffd34d');
+        oval(ctx, gx + 2, 0, 1.8, 1.8, '#fff2b0');
+      }
       break;
     }
     case 'axe': {

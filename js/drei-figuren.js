@@ -756,7 +756,8 @@ function humanoid3(b, c, P) {
     A(torus3(0.11, 0.045, Math.PI * 2, 5, 16), c.scarf, { bone: BH.chest, p: [0, neckY + 0.0, 0], r: [Math.PI / 2 - 0.1, 0, 0] });
     for (const sx of [-1, 1]) A(roundBox(0.09, 0.55, 0.022, 0.011), sx > 0 ? c.scarf : darker(c.scarf, 0.12), { bone: BH.cape, p: [sx * 0.05, shY - 0.3, -0.21], r: [0.08, 0, sx * 0.08], shade: 0.25 });
   }
-  if (c.quiver) {
+  if (c.quiver && c.quiverTier != null) quiver3(A, c.quiverTier, c.quiver, chestY);
+  else if (c.quiver) {
     A(lathe3('quiver2', [[0, 0], [0.065, 0], [0.075, 0.36], [0, 0.37]], 10), c.quiver, { bone: BH.chest, p: [0.1, chestY - 0.1, -0.2], r: [0, 0, -0.35] });
     for (const dx of [-0.03, 0, 0.03]) {
       A(limb3(0.12, 0.007, 0.007, 3), '#e8e0cc', { bone: BH.chest, p: [0.24 + dx, chestY + 0.38, -0.2], r: [0, 0, -0.35] });
@@ -797,6 +798,29 @@ function humanoid3(b, c, P) {
   return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
 }
 
+// Köcher der Spieler (seit 13.20): schräg auf dem Rücken, Beschläge und Pfeilfedern in der Farbe der Munition
+function quiver3(A, tier, leather, chestY) {
+  const arrow = QUIVER_ARROWS[tier].color;
+  const trim = tier === 0 ? '#4a301c' : tier >= 6 ? GOLD3 : TIER_METAL[tier];
+  const M = partFrame([0.1, chestY - 0.16, -0.22], [0.12, 0, -0.42]);
+  const W = framed(A, M, BH.chest);
+  W(lathe3('quiver3', [[0, 0], [0.07, 0], [0.085, 0.2], [0.09, 0.42], [0, 0.43]], 12), leather, {});
+  W(torus3(0.09, 0.016, Math.PI * 2, 5, 14), trim, { p: [0, 0.42, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });
+  W(torus3(0.072, 0.014, Math.PI * 2, 5, 14), trim, { p: [0, 0.02, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });
+  if (tier >= 2) W(torus3(0.087, 0.009, Math.PI * 2, 4, 14), trim, { p: [0, 0.22, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });
+  if (tier >= 4) W(G3.gem(), arrow, { p: [0, 0.22, -0.09], s: [0.03, 0.04, 0.02], mat: 'glow' });
+  // Pfeile: Schaft, zwei Federn, Spitze nach oben (die Spitzen stecken eigentlich unten, so liest man aber die Munition)
+  const n = tier >= 3 ? 5 : 4;
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + 0.4;
+    const x = Math.cos(a) * 0.04;
+    const z = Math.sin(a) * 0.04;
+    const h = 0.52 + (k % 2) * 0.05;
+    W(limb3(h - 0.38, 0.007, 0.007, 3), '#d9c79a', { p: [x, h, z] });
+    for (const fr of [0, Math.PI / 2]) W(roundBox(0.05, 0.08, 0.004, 0.002), k % 2 ? darker(arrow, 0.2) : arrow, Object.assign({ p: [x, h - 0.04, z], r: [0, fr, 0] }, tier >= 5 ? { mat: 'glow' } : {}));
+  }
+}
+
 // Drehknochen (seit 8.6): Teile, die schweben und sich drehen (Zepterkristall mit Funke, Runenring um die
 // Taille, Siegelring im Rücken, Stern oder Kristalle am Hut), sind gebacken wie alles andere, hängen aber an
 // einem eigenen Knochen, den syncPlayer3 dreht – kein eigenes Mesh, kein neuer Shader, nichts je Bild neu.
@@ -828,7 +852,7 @@ function spinBones3(c, list, m) {
 // ungefähre Länge der Waffe ab der Hand entlang +y im Haltungsrahmen (Klinge, Kopf, Stab)
 const WEAPON_LEN3 = { sword: 0.72, greatsword: 1.05, dagger: 0.38, axe: 0.62, greataxe: 0.95, club: 0.6, scythe: 1.1, staff: 1.0, skullstaff: 1.0, rod: 0.7, fan: 0.35, bell: 0.3, bow: 0.5 };
 const WEAPON_HOLD = {
-  sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [0.8, 0, 0.35], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
+  sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
   bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45],
   rod: [0.22, 0, 0.08]
 };
@@ -875,6 +899,7 @@ function playerConfig3(p) {
   }
   if (eq.schild) {
     if (isOffhand(eq.schild)) c.offhand = { kind: eq.schild.kind, tier: eq.schild.tier };
+    else if (isQuiver(eq.schild)) c.quiverTier = eq.schild.tier;
     else c.shield = eq.schild.tier;
   }
   // Männer ohne Wangenröte und etwas breiter, Frauen mit Zopf unter Kapuze und Helm
@@ -913,7 +938,8 @@ function playerConfig3(p) {
       baggy: true, legWraps: '#cdc8dc', tabi: true, kunai: L.a >= 0 ? TIER_METAL[Math.max(0, L.a)] : '#c7ccd3', holster: leather, padStyle: 'leather'
     });
     if (c.pads) { c.pads = mixColor(c.pads, leather, 0.6); c.padTrim = scarf; }
-    if (kind === 'bow') c.quiver = '#6b4a2e';
+    // Köcher auf dem Rücken nur, wenn einer angelegt ist (seit 13.20 eigener Gegenstand), in seiner Stufe
+    if (kind === 'bow' && c.quiverTier != null) c.quiver = QUIVER_LEATHER[c.quiverTier];
     c.headgear = ninjaHelm3(L.h, lookColor(A0.hood, L.h, '#2a2633'), scarf);
     c.covered = true;
     if (ap.sex === 1) c.braid = hairOf(ap);
@@ -4622,18 +4648,23 @@ const BASIC3 = {
       [0.54, { rx: -0.45, rz: 0.05, cx: 0.65, hpy: -0.16, hpz: 0.1, gr: -0.55, gl: 0.5, two: 1 }, 'in'],
       [0.78, { rx: -0.4, rz: 0.05, cx: 0.6, hpy: -0.15, hpz: 0.09, gr: -0.5, gl: 0.45, two: 1 }, 'out'], [1, N3]]
   ],
-  // Dolche (seit 13.4): kurze, schnelle Stiche – rechts, links, dann ein Kreuzschnitt mit beiden Klingen;
-  // kaum Ausholen, der Körper federt nach vorn
+  // Dolche (seit 13.20): jeder Angriff ist ein schneller Doppelstich – rechts vor, sofort links vor („tick-tick“),
+  // fast ohne Ausholen; die Arme schnellen gerade nach vorn und federn zurück, der Körper wippt mit
   dagger: [
-    [[0, N3], [0.22, { rx: -0.95, rz: -0.3, cy: -0.2, lx: -1.1, lz: 0.35, gr: 0.25, hpy: -0.02 }, 'out'],
-      [0.42, { rx: -1.6, rz: 0.05, cy: 0.28, cx: 0.12, hpz: 0.1, gr: -0.6, gl: 0.2, lx: -1.0, lz: 0.3 }, 'in'],
-      [0.62, { rx: -1.5, rz: 0.02, cy: 0.22, cx: 0.1, hpz: 0.08, gr: -0.5, lx: -1.0, lz: 0.3 }, 'out'], [1, N3]],
-    [[0, N3], [0.22, { lx: -0.95, lz: 0.3, cy: 0.2, rx: -1.1, rz: -0.35, gl: 0.25, hpy: -0.02 }, 'out'],
-      [0.42, { lx: -1.6, lz: -0.05, cy: -0.28, cx: 0.12, hpz: 0.1, gl: -0.6, gr: 0.2, rx: -1.0, rz: -0.3 }, 'in'],
-      [0.62, { lx: -1.5, lz: -0.02, cy: -0.22, cx: 0.1, hpz: 0.08, gl: -0.5, rx: -1.0, rz: -0.3 }, 'out'], [1, N3]],
-    [[0, N3], [0.28, { rx: -1.7, rz: -0.85, lx: -1.7, lz: 0.85, cx: -0.1, hpy: 0.04, gr: 0.2, gl: 0.2 }, 'out'],
-      [0.44, { rx: -1.25, rz: 0.55, lx: -1.25, lz: -0.55, cx: 0.25, hpy: -0.06, hpz: 0.1, gr: -0.45, gl: -0.45 }, 'in'],
-      [0.66, { rx: -1.15, rz: 0.6, lx: -1.15, lz: -0.6, cx: 0.22, hpy: -0.05, hpz: 0.08, gr: -0.4, gl: -0.4 }, 'out'], [1, N3]]
+    [[0, N3], [0.08, { rx: -1.0, rz: -0.2, lx: -1.0, lz: 0.2, cy: -0.12, gr: 0.15 }, 'out'],
+      [0.2, { rx: -1.75, rz: 0.08, lx: -0.95, lz: 0.25, cy: 0.22, cx: 0.12, hpz: 0.09, gr: -0.45 }, 'in'],
+      [0.32, { rx: -1.05, rz: -0.15, lx: -1.0, lz: 0.2, cy: 0.0, cx: 0.06, hpz: 0.05 }, 'out'],
+      [0.46, { rx: -0.95, rz: -0.25, lx: -1.75, lz: -0.08, cy: -0.22, cx: 0.12, hpz: 0.09, gl: -0.45 }, 'in'],
+      [0.62, { rx: -1.0, rz: -0.2, lx: -1.05, lz: 0.15, cy: -0.05, cx: 0.05, hpz: 0.04 }, 'out'], [0.85, N3]],
+    [[0, N3], [0.08, { lx: -1.0, lz: 0.2, rx: -1.0, rz: -0.2, cy: 0.12, gl: 0.15 }, 'out'],
+      [0.2, { lx: -1.75, lz: -0.08, rx: -0.95, rz: -0.25, cy: -0.22, cx: 0.12, hpz: 0.09, gl: -0.45 }, 'in'],
+      [0.32, { lx: -1.05, lz: 0.15, rx: -1.0, rz: -0.2, cy: 0.0, cx: 0.06, hpz: 0.05 }, 'out'],
+      [0.46, { lx: -0.95, lz: 0.25, rx: -1.75, rz: 0.08, cy: 0.22, cx: 0.12, hpz: 0.09, gr: -0.45 }, 'in'],
+      [0.62, { lx: -1.0, lz: 0.2, rx: -1.05, rz: -0.15, cy: 0.05, cx: 0.05, hpz: 0.04 }, 'out'], [0.85, N3]],
+    // dritter Schlag: beide Klingen kreuzen schnell nach vorn
+    [[0, N3], [0.14, { rx: -1.6, rz: -0.7, lx: -1.6, lz: 0.7, cx: -0.06, gr: 0.15, gl: 0.15 }, 'out'],
+      [0.3, { rx: -1.3, rz: 0.5, lx: -1.3, lz: -0.5, cx: 0.22, hpz: 0.1, gr: -0.4, gl: -0.4 }, 'in'],
+      [0.5, { rx: -1.2, rz: 0.55, lx: -1.2, lz: -0.55, cx: 0.18, hpz: 0.07, gr: -0.3, gl: -0.3 }, 'out'], [0.8, N3]]
   ],
   scythe: [
     [[0, N3], [0.38, { cy: -0.9, hy: -0.4, cx: 0.15, rx: -1.0, rz: -1.15, hpy: -0.05, gr: 0.25, two: 1 }, 'out'],
@@ -4647,10 +4678,11 @@ const BASIC3 = {
       [0.74, { rx: -0.5, rz: 0.25, cx: 0.4, hpy: -0.09, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1 }, 'out'], [1, N3]]
   ],
   // Fernkampf: ein Ablauf je Waffe (Bogen in der rechten Hand, die linke zieht die Sehne)
-  bow: [[[0, N3], [0.25, { rx: -1.5, rz: 0.1, lx: -1.5, lz: -0.3, cy: 0.4, hy: 0.2 }, 'out'],
-    [0.55, { rx: -1.55, rz: 0.1, lx: -1.35, lz: 0.55, cy: 0.55, hy: 0.25, hx: -0.05 }],
-    [0.62, { rx: -1.45, rz: 0.12, lx: -1.0, lz: 0.95, cy: 0.5, hy: 0.25 }, 'in'],
-    [0.82, { rx: -1.4, rz: 0.1, lx: -0.9, lz: 0.9, cy: 0.45, hy: 0.2 }, 'out'], [1, N3]]],
+  // seit 13.20 mit Handgelenk (wx): der Bogen steht beim Zielen senkrecht vor der Figur statt schräg
+  bow: [[[0, N3], [0.25, { rx: -1.5, rz: 0.1, wx: 1.45, lx: -1.5, lz: -0.3, cy: 0.4, hy: 0.2 }, 'out'],
+    [0.55, { rx: -1.55, rz: 0.1, wx: 1.5, lx: -1.35, lz: 0.55, cy: 0.55, hy: 0.25, hx: -0.05 }],
+    [0.62, { rx: -1.45, rz: 0.12, wx: 1.45, lx: -1.0, lz: 0.95, cy: 0.5, hy: 0.25 }, 'in'],
+    [0.82, { rx: -1.4, rz: 0.1, wx: 1.4, lx: -0.9, lz: 0.9, cy: 0.45, hy: 0.2 }, 'out'], [1, N3]]],
   fan: [[[0, N3], [0.3, { rx: -1.2, rz: -0.9, cy: -0.5, hy: -0.2, wz: 0.6, lx: -0.5, lz: 0.4 }, 'out'],
     [0.45, { rx: -1.45, rz: 0.75, cy: 0.45, hy: 0.2, wz: -0.6, hpz: 0.06, gr: -0.25, gl: 0.2, lx: -0.7, lz: 0.6 }, 'in'],
     [0.7, { rx: -1.35, rz: 0.95, cy: 0.55, hy: 0.25, wz: -0.7, hpz: 0.05, gr: -0.2, gl: 0.15, lx: -0.6, lz: 0.7 }, 'out'], [1, N3]]],
@@ -4787,6 +4819,9 @@ function syncPlayer3(p, dt) {
     B[BH.legR].rotation.x = -Math.sin(w) * 0.65;
     B[BH.armL].rotation.x = -Math.sin(w) * 0.5;
     B[BH.armR].rotation.x = Math.sin(w) * 0.5;
+    // Bogen (seit 13.20): der Bogenarm schwingt kaum mit und hält den Bogen aufrecht neben dem Körper,
+    // statt ihn wie einen Stock nach vorn und hinten zu schleudern
+    if (weaponKindOf(p) === 'bow') B[BH.armR].rotation.set(-0.38 + Math.sin(w) * 0.07, 0, -0.12);
     B[BH.hips].position.y += Math.abs(Math.cos(w)) * 0.035;
     B[BH.hips].rotation.y = Math.sin(w) * 0.08;
     B[BH.chest].rotation.x = 0.08;
@@ -4855,7 +4890,14 @@ function syncPlayer3(p, dt) {
   } else if (!p.moving && !p.riding) {
     // Ruhehaltung mit der Waffe
     if (kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe') B[BH.armL].rotation.set(-0.5, 0, 0.35);
-    if (kind === 'bow') B[BH.armR].rotation.set(-0.3, 0, 0);
+    if (kind === 'bow') B[BH.armR].rotation.set(-0.38, 0, -0.1);
+    // Ninja mit Dolchen (seit 13.20): Kampfstand im Rückhandgriff – Hände leicht vor dem Körper,
+    // die Klingen liegen am Unterarm und zeigen nach hinten
+    if (kind === 'dagger') {
+      const br = Math.sin(game.time * 2.2) * 0.04;
+      B[BH.armR].rotation.set(-0.42 + br, 0, -0.22);
+      B[BH.armL].rotation.set(-0.42 - br, 0, 0.22);
+    }
   }
   // Treffer: kurz nach hinten zucken, rot aufblitzen
   const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;

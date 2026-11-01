@@ -498,7 +498,25 @@ const ui = {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.dataset.slot = slot;
-      const keyTxt = keyLabel(actionKey('skill' + (slot + 1)));
+      const keyTxt = keyLabel(actionKey(slot < 5 ? 'skill' + (slot + 1) : 'ult'));
+      // Ultimative Attacke (seit 13.20 ein Platz der Leiste wie jede Fertigkeit, tauschbar per langem Drücken)
+      if (i === ULT_BAR) {
+        const u = ultimateOf(p);
+        // ohne Ulti bleibt der Platz unsichtbar (die Plätze danach behalten ihre Stelle)
+        if (!u) { wrap.hidden = true; bar.append(wrap); return; }
+        const locked = p.level < u.unlock;
+        wrap.classList.add('ult-wrap');
+        btn.id = 'skillUlt';
+        btn.className = 'slot skill ult' + (locked ? ' locked' : '');
+        btn.setAttribute('aria-label', u.name);
+        btn.dataset.info = ultTipHtml(u, keyTxt) + '<small class="tip-hint">Lange drücken: mit einer anderen Fertigkeit tauschen.</small>';
+        btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
+          `<span class="cd" hidden></span>${locked ? `<span class="lock">ab Lv ${u.unlock}</span>` : ''}`;
+        this.pressSkill(btn, ULT_BAR, slot);
+        wrap.append(btn);
+        bar.append(wrap);
+        return;
+      }
       if (i == null) {
         btn.className = 'slot skill empty-slot';
         btn.id = 'skillSlot' + slot;
@@ -545,24 +563,6 @@ const ui = {
       }
       bar.append(wrap);
     });
-    // Ultimative Attacke des Weges: eigener großer Knopf, Taste 6
-    const u = ultimateOf(p);
-    if (u) {
-      const wrap = document.createElement('div');
-      wrap.className = 'skill-wrap ult-wrap';
-      const locked = p.level < u.unlock;
-      wrap.innerHTML = `<button type="button" id="skillUlt" class="slot skill ult${locked ? ' locked' : ''}" aria-label="${u.name}" data-info="${escTip(ultTipHtml(u, keyLabel(actionKey('ult'))))}">` +
-        `<span class="key">${keyLabel(actionKey('ult'))}</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
-        `<span class="cd" hidden></span>${locked ? `<span class="lock">ab Lv ${u.unlock}</span>` : ''}</button>`;
-      const btn = wrap.firstChild;
-      btn.addEventListener('pointerdown', (e) => {
-        if (e.pointerType === 'mouse' && e.button !== 0) return;
-        e.preventDefault();
-        useUltimate();
-      });
-      btn.addEventListener('click', (e) => { if (e.detail === 0) useUltimate(); });
-      bar.append(wrap);
-    }
     // Klassensegen (seit 13.1): eigener Knopf, Taste 9
     if (typeof segenButton === 'function') segenButton(bar, p);
     if (this.cache) this.cache.ult = null;
@@ -594,7 +594,7 @@ const ui = {
       }
       try { btn.setPointerCapture(e.pointerId); } catch (err) { /* ältere Browser */ }
       // Eisstrahl (seit 9.6): sofort beim Drücken, solange gehalten (kein Anheben zum Tauschen)
-      const sk = game.player && classSkills(game.player)[i];
+      const sk = game.player && i !== ULT_BAR && classSkills(game.player)[i];
       if (sk && sk.channel) {
         channeling = true;
         useSkill(i);
@@ -623,7 +623,7 @@ const ui = {
       if (timer) {
         clearTimeout(timer);
         timer = null;
-        useSkill(i);
+        useBarEntry(i);
         return;
       }
       if (!lifted) return;
@@ -634,6 +634,7 @@ const ui = {
       // auf sich selbst losgelassen: bleibt angehoben, ein Tippen auf einen Platz tauscht
       if (target === btn) return;
       if (target && (target.id === 'quick1' || target.id === 'quick2')) {
+        if (i === ULT_BAR) { this.endSwap(); this.buildSkillBar(); return; }
         this.moveToQuick(slot, target.id === 'quick1' ? 0 : 1);
         return;
       }
@@ -644,7 +645,8 @@ const ui = {
       // außerhalb der Leiste losgelassen: herausnehmen
       const r = $('skillBar').getBoundingClientRect();
       const out = e.clientX < r.left - 12 || e.clientX > r.right + 12 || e.clientY < r.top - 12 || e.clientY > r.bottom + 12;
-      if (out) this.removeFromBar(slot);
+      if (out && i !== ULT_BAR) this.removeFromBar(slot);
+      else if (out) { this.endSwap(); this.buildSkillBar(); }
     });
     btn.addEventListener('pointercancel', () => {
       if (channeling) releaseChannel(i);
@@ -657,8 +659,8 @@ const ui = {
     btn.addEventListener('click', (e) => {
       if (e.detail !== 0) return;
       if (i == null) { openSlotPicker(slot); return; }
-      useSkill(i);
-      releaseChannel(i);
+      useBarEntry(i);
+      if (i !== ULT_BAR) releaseChannel(i);
     });
   },
 
@@ -670,7 +672,8 @@ const ui = {
     if (wrap) wrap.classList.add('swap-pick');
     buzz(25);
     const i = skillOrder(p)[slot];
-    ui.log(`${classSkills(p)[i].name} angehoben: auf einen anderen Platz oder einen freien Platz ziehen – oder aus der Leiste hinausziehen, um sie herauszunehmen.`, 'info');
+    ui.log(i === ULT_BAR ? `${barEntryName(p, i)} angehoben: auf einen anderen Platz der Leiste ziehen oder ihn antippen, um zu tauschen.`
+      : `${barEntryName(p, i)} angehoben: auf einen anderen Platz oder einen freien Platz ziehen – oder aus der Leiste hinausziehen, um sie herauszunehmen.`, 'info');
     // Tippen irgendwo anders bricht ab
     const cancel = (e) => {
       if (e.target.closest && e.target.closest('#skillBar .slot.skill, #quick1, #quick2')) return;
@@ -696,9 +699,8 @@ const ui = {
       [order[from], order[to]] = [order[to], order[from]];
       p.skillOrder = order;
       saveGame();
-      const sks = classSkills(p);
-      const a = order[to] != null ? sks[order[to]].name : '';
-      const b = order[from] != null ? sks[order[from]].name : '';
+      const a = barEntryName(p, order[to]);
+      const b = barEntryName(p, order[from]);
       ui.log(b ? `${a} und ${b} haben die Plätze getauscht.` : `${a} liegt jetzt auf Platz ${to + 1}.`, 'info');
     }
     this.buildSkillBar();
@@ -711,7 +713,7 @@ const ui = {
     this.endSwap();
     const order = skillOrder(p);
     const i = order[slot];
-    if (i == null) return this.buildSkillBar();
+    if (i == null || i === ULT_BAR) return this.buildSkillBar();
     const prev = quickSkill(p, quickOf(p)[k]);
     order[slot] = prev && !order.includes(prev.i) ? prev.i : null;
     p.skillOrder = order;
@@ -728,7 +730,7 @@ const ui = {
     this.endSwap();
     const order = skillOrder(p);
     const i = order[slot];
-    if (i == null) return this.buildSkillBar();
+    if (i == null || i === ULT_BAR) return this.buildSkillBar();
     order[slot] = null;
     p.skillOrder = order;
     saveGame();

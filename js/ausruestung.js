@@ -11,7 +11,36 @@ function makeItem(slot, tier, plus = 0, cls = null, kind = null) {
     if (slot === 'waffe') item.kind = kind || CLASS_WEAPON_KINDS[item.cls][0];
   }
   if (slot === 'schild') item.cls = 'krieger';
+  if (slot === 'koecher') item.cls = 'ninja';
   return item;
+}
+
+// Köcher (seit 13.20): liegt als eigener Gegenstand in der Tasche und wird im Platz der Nebenhand getragen,
+// aber nur zusammen mit einem Bogen
+function isQuiver(item) {
+  return !!item && item.slot === 'koecher';
+}
+function equipSlotOf(item) {
+  return isQuiver(item) ? 'schild' : item.slot;
+}
+// Trägt die Figur einen Bogen (dann gehört der Köcher in die Nebenhand)?
+function quiverMode(p) {
+  return !!p && p.classId === 'ninja' && !!p.equipment && !!p.equipment.waffe && p.equipment.waffe.kind === 'bow';
+}
+function slotNameOf(slotId) {
+  if (slotId === 'koecher') return 'Köcher';
+  const sl = EQUIP_SLOTS.find((s) => s.id === slotId);
+  return sl ? sl.name : slotId;
+}
+// Bester Köcher aus der Tasche, wenn ein Bogen angelegt wird (Index oder -1)
+function bestQuiverIndex(p) {
+  let best = -1;
+  p.inventory.forEach((it, i) => {
+    if (!isQuiver(it) || !canWear(it, p)) return;
+    const b = p.inventory[best];
+    if (best < 0 || it.tier > b.tier || (it.tier === b.tier && it.plus > b.plus)) best = i;
+  });
+  return best;
 }
 
 function starterEquipment(classId = 'krieger') {
@@ -77,8 +106,9 @@ function isOffhand(item) {
 
 // Name des Schildplatzes: mit Beidhändigkeit auch für ein zweites Schwert
 function slotLabel(slotId, p = game.player) {
+  if (slotId === 'schild' && quiverMode(p)) return 'Köcher';
   if (slotId === 'schild' && p && offhandKind(p)) return 'Nebenhand';
-  return EQUIP_SLOTS.find((s) => s.id === slotId).name;
+  return slotNameOf(slotId);
 }
 
 // Hält die Ausrüstung bei den Regeln: kein Schild ohne Krieger, kein Zweihänder ohne Weg des Leibes,
@@ -92,7 +122,7 @@ function enforceGearRules(p) {
     p.inventory.push(it);
     moved.push(it);
   };
-  if (p.classId !== 'krieger' && eq.schild && !(p.classId === 'ninja' && isOffhand(eq.schild))) off('schild');
+  if (p.classId !== 'krieger' && eq.schild && !(p.classId === 'ninja' && (isOffhand(eq.schild) || isQuiver(eq.schild)))) off('schild');
   // Ein angelegter Zweihänder (Streitaxt) wird für den Weg der Klinge zum Schwert (zur Axt) gleicher Stufe;
   // Plus und Boni bleiben
   const ONE_HAND = { greatsword: 'sword', greataxe: 'axe' };
@@ -103,12 +133,15 @@ function enforceGearRules(p) {
   if (eq.waffe && !canWear(eq.waffe, p)) off('waffe');
   if (isOffhand(eq.schild) && eq.schild.kind !== offhandKind(p)) off('schild');
   if (eq.schild && !isOffhand(eq.schild) && !canWear(eq.schild, p)) off('schild');
-  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind]?.twoHanded && eq.schild) off('schild');
+  // Köcher nur zusammen mit einem Bogen, und ein Bogen lässt außer dem Köcher nichts in der Nebenhand zu
+  if (isQuiver(eq.schild) && !quiverMode(p)) off('schild');
+  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind]?.twoHanded && eq.schild && !isQuiver(eq.schild)) off('schild');
   return moved;
 }
 
 function itemName(item) {
   const names = ITEM_NAMES[item.slot];
+  if (!names) return 'Gegenstand';
   if (Array.isArray(names)) return names[item.tier];
   return item.slot === 'waffe' ? names[item.kind][item.tier] : names[item.cls][item.tier];
 }
@@ -121,8 +154,20 @@ function itemKindText(item) {
     const who = k.path != null ? CLASSES[item.cls].paths[k.path].name : CLASSES[item.cls].name;
     return `${k.name}${k.twoHanded ? ' (Zweihand)' : ''} · ${who}`;
   }
+  if (isQuiver(item)) return `Munition für den Bogen · ${quiverArrows(item).name} (gehen nie aus)`;
   if (item.cls) return CLASSES[item.cls].name;
   return 'alle Klassen';
+}
+
+// Ladenpreis: Köcher kosten gut die Hälfte einer Waffe gleicher Stufe
+function merchantPrice(type, slot, tier) {
+  const base = MERCHANTS[type].prices[tier];
+  return slot === 'koecher' ? Math.round(base * 0.6) : base;
+}
+
+// Pfeile im Köcher: Name und Farbe je Stufe
+function quiverArrows(item) {
+  return QUIVER_ARROWS[Math.max(0, Math.min(QUIVER_ARROWS.length - 1, item ? item.tier : 0))];
 }
 
 function itemFullName(item) {
@@ -138,7 +183,7 @@ function itemColor(item) {
 // ganze Zahlen um 10 % des Grundwerts, mindestens aber um 1.
 function itemStats(item, plus = item.plus) {
   const t = item.tier;
-  const base = { ...BASE_STATS[item.slot][t] };
+  const base = { ...((BASE_STATS[item.slot] || [])[t] || {}) };
   let speed = null;
   if (item.slot === 'waffe') {
     const k = WEAPON_KINDS[item.kind] || { atkMul: 1, atkSpeed: 0 };
@@ -211,10 +256,11 @@ function compareItem(item, hand) {
   const p = game.player;
   if (!item || isBook(item) || !canWear(item, p)) return null;
   const now = playerStats(p);
-  const slot = hand === 'off' ? 'schild' : item.slot;
+  const slot = hand === 'off' ? 'schild' : equipSlotOf(item);
   const eq = { ...p.equipment, [slot]: item };
-  if (slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded) eq.schild = null;
-  if (slot === 'schild' && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind]?.twoHanded) eq.waffe = null;
+  if (slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded && !(item.kind === 'bow' && isQuiver(eq.schild))) eq.schild = null;
+  if (slot === 'waffe' && item.kind !== 'bow' && isQuiver(eq.schild)) eq.schild = null;
+  if (slot === 'schild' && !isQuiver(item) && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind]?.twoHanded) eq.waffe = null;
   const test = playerStats({ ...p, equipment: eq });
   const out = [];
   for (const [k, name, fmt] of COMPARE_STATS) {
@@ -248,7 +294,7 @@ function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung', hand) {
   if (!item || isBook(item)) return '';
   if (!canWear(item, p)) return '';
   const diff = compareItem(item, hand);
-  const worn = p.equipment[hand === 'off' ? 'schild' : item.slot];
+  const worn = p.equipment[hand === 'off' ? 'schild' : equipSlotOf(item)];
   const head = `<small class="cmp-head">${title}${worn && worn !== item ? ` (angelegt: ${itemFullName(worn)})` : worn === item ? '' : ' (Platz ist leer)'}:</small>`;
   if (!diff.length) return `<div class="cmp-box">${head}<span class="cmp same">gleich gut</span></div>`;
   return `<div class="cmp-box">${head}${diff.map(([n, v, b]) => `<span class="cmp ${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲' : '▼'} ${v} ${n}</span>`).join('')}</div>`;
@@ -609,7 +655,9 @@ function raidLoot(m) {
 }
 
 function lootSlots(slots, cls) {
-  const out = cls === 'krieger' ? slots : slots.filter((s) => s !== 'schild');
+  // Statt eines Schildes fällt für Ninjas mit Bogen ein Köcher (seit 13.20)
+  const quiver = cls === 'ninja' && quiverMode(game.player);
+  const out = cls === 'krieger' ? slots : slots.flatMap((s) => (s !== 'schild' ? [s] : quiver ? ['koecher'] : []));
   return out.length ? out : ['ruestung'];
 }
 
@@ -670,6 +718,10 @@ function equipFromBag(index, hand) {
     gear.message(`${itemName(item)} kannst du ab Stufe ${need} tragen.`, 'warn');
     return false;
   }
+  if (isQuiver(item) && !quiverMode(p)) {
+    gear.message(`${itemName(item)}: Einen Köcher trägst du zusammen mit einem Bogen.`, 'warn');
+    return false;
+  }
   // Ninja: ein zweiter Dolch wandert von selbst in die Nebenhand, wenn die Haupthand schon einen hat (seit 13.10)
   let off = hand === 'off';
   if (hand == null && p.classId === 'ninja' && item.kind === 'dagger' && p.equipment.waffe && p.equipment.waffe.kind === 'dagger' && !p.equipment.schild) off = true;
@@ -679,20 +731,34 @@ function equipFromBag(index, hand) {
   }
   // Schild oder Zweihandwaffe: beides zusammen geht nicht
   const weapon = p.equipment.waffe;
-  if ((item.slot === 'schild' || off) && weapon && WEAPON_KINDS[weapon.kind]?.twoHanded) {
+  if ((item.slot === 'schild' || off) && weapon && WEAPON_KINDS[weapon.kind]?.twoHanded && !isQuiver(item)) {
     gear.message(`Mit ${itemName(weapon)} hast du keine Hand frei. Lege zuerst eine einhändige Waffe an.`, 'warn');
     return false;
   }
-  const slot = off ? 'schild' : item.slot;
+  const slot = off ? 'schild' : equipSlotOf(item);
   const old = p.equipment[slot];
   p.inventory.splice(index, 1);
   if (old) p.inventory.splice(index, 0, old);
   p.equipment[slot] = item;
-  if (item.slot === 'waffe' && !off && WEAPON_KINDS[item.kind]?.twoHanded && p.equipment.schild) {
+  const bow = item.slot === 'waffe' && !off && item.kind === 'bow';
+  if (item.slot === 'waffe' && !off && p.equipment.schild && (bow ? !isQuiver(p.equipment.schild) : WEAPON_KINDS[item.kind]?.twoHanded || isQuiver(p.equipment.schild))) {
     const shield = p.equipment.schild;
     if (addToBag(shield)) {
       p.equipment.schild = null;
-      gear.message(`${itemName(item)} braucht beide Hände. ${itemName(shield)} liegt jetzt in der Tasche.`, 'info');
+      gear.message(isQuiver(shield) ? `Ohne Bogen brauchst du keinen Köcher. ${itemName(shield)} liegt jetzt in der Tasche.`
+        : `${itemName(item)} braucht beide Hände. ${itemName(shield)} liegt jetzt in der Tasche.`, 'info');
+    }
+  }
+  // Bogen angelegt (seit 13.20): den besten Köcher aus der Tasche gleich dazu; beim ersten Bogen gibt es einen geschenkt
+  if (bow && !p.equipment.schild) {
+    const qi = bestQuiverIndex(p);
+    if (qi >= 0) {
+      p.equipment.schild = p.inventory.splice(qi, 1)[0];
+      gear.message(`${itemName(p.equipment.schild)} angelegt – Munition für deinen Bogen.`, 'info');
+    } else if (!p.quiverGiven) {
+      p.quiverGiven = true;
+      p.equipment.schild = makeItem('koecher', 0, 0, 'ninja');
+      gear.message('Zum Bogen gehört ein Köcher: Du bekommst einen Lederköcher. Bessere Köcher verkauft der Waffenhändler.', 'success');
     }
   }
   afterGearChange();
@@ -1007,6 +1073,42 @@ function daggerIconArt(ctx, tier) {
   else stroke(ctx, darker(blade, 0.25), 0.7, [[3, 0], [1 + 0.15 * K, 0]]);
 }
 
+// Köcher (seit 13.20): schräger Lederköcher mit Riemen, oben ragen drei Pfeile mit Federn heraus.
+// Höhere Stufen: Metallbeschläge, farbige Pfeilspitzen in der Farbe der Munition, ab Stufe 5 Glühen
+const QUIVER_LEATHER = ['#7a5232', '#6b4a2e', '#3a3448', '#3e5a34', '#26304a', '#2a2224', '#e6eef8', '#b8862a'];
+function quiverIconArt(ctx, tier) {
+  const arrow = QUIVER_ARROWS[tier];
+  const leather = QUIVER_LEATHER[tier];
+  const trim = tier === 0 ? '#4a301c' : tier >= 6 ? '#ffd34d' : TIER_METAL[tier];
+  ctx.save();
+  ctx.rotate(0.5);
+  // Pfeile (hinter dem Köcherrand): Schaft, Federn, Spitze oben
+  for (const [dx, h] of [[-3.4, 15], [0, 17.5], [3.4, 14]]) {
+    stroke(ctx, '#d9c79a', 1.1, [[dx, -6], [dx, -h]]);
+    poly(ctx, [[dx, -h - 4], [dx - 2.2, -h + 0.4], [dx + 2.2, -h + 0.4]], arrow.color);
+    poly(ctx, [[dx, -8], [dx - 2.4, -10.5], [dx - 2.4, -6.5], [dx, -5]], tier >= 2 ? arrow.color : '#e8e0cc');
+    poly(ctx, [[dx, -8], [dx + 2.4, -10.5], [dx + 2.4, -6.5], [dx, -5]], tier >= 2 ? darker(arrow.color, 0.25) : '#c8402f');
+  }
+  // Köcherkörper (unten etwas schmaler)
+  poly(ctx, [[-7, -7], [7, -7], [5.6, 15], [-5.6, 15]], leather);
+  poly(ctx, [[-7, -7], [-3.5, -7], [-3, 15], [-5.6, 15]], darker(leather, 0.22));
+  stroke(ctx, lighter(leather, 0.25), 0.8, [[2.5, -5], [2, 13]]);
+  // Rand oben und Boden
+  box(ctx, -7.8, -8.6, 15.6, 3.2, 1.2, trim);
+  box(ctx, -6.2, 13.4, 12.4, 2.8, 1, trim);
+  // Riemen quer und Schnalle
+  stroke(ctx, darker(leather, 0.45), 1.6, [[-9, 1], [9, 5]]);
+  if (tier >= 1) box(ctx, -1.6, 1.4, 3.2, 3.2, 0.8, trim);
+  // Verzierung je Stufe
+  if (tier >= 3) poly(ctx, [[0, 6.5], [2.4, 9.5], [0, 12.5], [-2.4, 9.5]], tier >= 5 ? arrow.color : trim);
+  if (tier >= 5) {
+    ctx.globalAlpha = 0.35;
+    oval(ctx, 0, -12, 7, 5, arrow.color);
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+}
+
 function drawItemArt(ctx, item) {
   const { slot, tier } = item;
   const metal = TIER_METAL[tier];
@@ -1155,6 +1257,8 @@ function drawItemArt(ctx, item) {
       poly(ctx, [[-9, -6], [-13, -14], [-6, -8]], '#b48cff');
       poly(ctx, [[9, -6], [13, -14], [6, -8]], '#b48cff');
     }
+  } else if (slot === 'koecher') {
+    quiverIconArt(ctx, tier);
   } else if (slot === 'schild') {
     ctx.save();
     ctx.scale(1.35, 1.35);
@@ -1596,7 +1700,8 @@ const gear = {
   tile(item, attrs, label, slot) {
     if (!item) {
       // Leere Ausrüstungsplätze zeigen ein blasses Symbol, was dort hingehört
-      const ghost = slot ? `<img class="ghost" src="${itemIconUrl(makeItem(slot, 0))}" alt="">` : '';
+      const gslot = slot === 'schild' && quiverMode(game.player) ? 'koecher' : slot;
+      const ghost = slot ? `<img class="ghost" src="${itemIconUrl(makeItem(gslot, 0))}" alt="">` : '';
       return `<button type="button" class="item-tile empty${slot ? ' has-ghost' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''}>${ghost}<span class="slot-label">${label || 'leer'}</span></button>`;
     }
     if (isBook(item)) {
@@ -1613,6 +1718,8 @@ const gear = {
     return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       `<span class="item-plus" style="color:${itemColor(item)}">+${item.plus}</span>` +
+      // Köcher: Munition wie im Fenster eines Fernkämpfers (Pfeile gehen nie aus)
+      (isQuiver(item) ? `<span class="item-ammo" style="color:${quiverArrows(item).color}" title="${quiverArrows(item).name}">∞</span>` : '') +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
   },
 
@@ -1918,7 +2025,7 @@ const gear = {
     const trader = nearTrader();
     const need = ITEM_TIERS[item.tier].level;
     const inOff = this.selected.where === 'equip' && this.selected.key === 'schild' && isOffhand(item);
-    const slotName = inOff ? 'Nebenhand' : EQUIP_SLOTS.find((s) => s.id === item.slot).name;
+    const slotName = inOff ? 'Nebenhand' : slotNameOf(item.slot);
     const blocked = p.level < need || !canWear(item, p);
     const offOk = this.selected.where === 'bag' && item.slot === 'waffe' && item.kind === offhandKind(p);
     const actions = this.selected.where === 'equip'
@@ -1995,16 +2102,18 @@ const gear = {
     const p = game.player;
     const m = MERCHANTS[this.merchant];
     // Waffen: jede Art der eigenen Klasse als eigene Liste; Rüstung und Helm nur für die eigene Klasse
-    const lists = m.slots.filter((slot) => slot !== 'schild' || p.classId === 'krieger')
+    const lists = m.slots.filter((slot) => (slot !== 'schild' || p.classId === 'krieger') && (slot !== 'koecher' || p.classId === 'ninja'))
       .flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].filter((kind) => canWear(makeItem('waffe', 0, 0, p.classId, kind), p)).map((kind) => ({ slot, kind })) : [{ slot }]));
     const groups = lists.map(({ slot, kind }) => {
-      const slotName = EQUIP_SLOTS.find((x) => x.id === slot).name;
+      const slotName = slotNameOf(slot);
       const wk = WEAPON_KINDS[kind] || { name: 'Waffe', text: '' };
       const title = kind ? `${wk.name} für ${CLASSES[p.classId].name} <small>${wk.text}</small>`
+        : slot === 'koecher' ? `Köcher für den Bogen <small>Munition: Pfeile gehen nie aus, bessere Köcher treffen härter</small>`
         : CLASS_SLOTS.includes(slot) ? `${slotName} für ${CLASSES[p.classId].name}` : slotName;
-      const equipped = p.equipment[slot];
+      const equipped = slot === 'koecher' ? (isQuiver(p.equipment.schild) ? p.equipment.schild : null) : p.equipment[slot];
       const eqStats = equipped ? itemStats(equipped) : {};
-      const rows = m.prices.map((price, tier) => {
+      const rows = m.prices.map((p0, tier) => {
+        const price = merchantPrice(this.merchant, slot, tier);
         const item = makeItem(slot, tier, 0, p.classId, kind);
         const need = ITEM_TIERS[tier].level;
         const tooLow = p.level < need;
@@ -2094,7 +2203,7 @@ const gear = {
 
   buyGear(slot, tier, equip, kind) {
     const p = game.player;
-    const price = MERCHANTS[this.merchant].prices[tier];
+    const price = merchantPrice(this.merchant, slot, tier);
     const item = makeItem(slot, tier, 0, p.classId, kind || null);
     if (p.gold < price) {
       this.message(`Dir fehlen ${(price - p.gold).toLocaleString('de-DE')} Gold.`, 'warn');

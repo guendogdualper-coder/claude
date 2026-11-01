@@ -50,10 +50,13 @@ function levelPenalty(attackerLevel, targetLevel) {
   return diff > 0 ? Math.max(0.25, 1 - 0.08 * diff) : 1;
 }
 
-// Und sie treffen härter: +7 % je Stufe über dir, höchstens +80 %
+// Und sie treffen härter: +7 % je Stufe über dir, höchstens +80 %.
+// Seit 13.20 auch umgekehrt: Monster unter deiner Stufe treffen 3,5 % je Stufe schwächer, höchstens −70 %
+// (ein Lv-70-Spieler nimmt von Lv-50-Monstern, etwa aus den Wellen eines Seelensteins, nur noch 30 % Schaden)
 function levelBonus(attackerLevel, targetLevel) {
   const diff = attackerLevel - targetLevel;
-  return diff > 0 ? 1 + Math.min(0.8, 0.07 * diff) : 1;
+  if (diff > 0) return 1 + Math.min(0.8, 0.07 * diff);
+  return Math.max(0.3, 1 + 0.035 * diff);
 }
 
 // --- Ziele ----------------------------------------------------------------
@@ -521,7 +524,7 @@ const KIND_BASIC = {
 // Schlaganimation (seit 9.3): Grunddauer des Schwungs je Waffe und der Anteil, bei dem die Klinge trifft bzw.
 // der Pfeil/Zauber losfliegt. Schaden, Zahl und Schlagspur kommen erst in diesem Bild (siehe basicTick).
 const BASIC_TIMING = {
-  sword: [0.42, 0.42], axe: [0.44, 0.45], greatsword: [0.56, 0.5], greataxe: [0.6, 0.52], dagger: [0.24, 0.42], scythe: [0.56, 0.5],
+  sword: [0.42, 0.42], axe: [0.44, 0.45], greatsword: [0.56, 0.5], greataxe: [0.6, 0.52], dagger: [0.3, 0.2], scythe: [0.56, 0.5],
   bow: [0.5, 0.58], fan: [0.42, 0.45], bell: [0.46, 0.55], staff: [0.46, 0.5], rod: [0.4, 0.42]
 };
 function basicTiming(p) {

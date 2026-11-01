@@ -1698,8 +1698,11 @@ const ROD3_SHAFT = ['#6b4a2e', '#3a2e2a', '#2e3448', '#2a3f74', '#2e2450', OBSID
 // 0 Kurzdolch (gerade, Holzgriff), 1 Stahldolch (spitzes Dreieck), 2 Schattendolch (gebogene Klinge),
 // 3 Viperzahn (gewellte Schlangenklinge), 4 Nachtklinge (Kunai mit Ringknauf), 5 Aschendolch (gezackter Obsidian),
 // 6 Sternendolch (schmales Stilett, Sternparier), 7 Götterzahn (goldener Hakendolch).
-const DAGGER_SCALE3 = 2.0;
-const DAGGER_TURN3 = Math.PI / 2;
+// Seit 13.20 kleiner und je Stufe etwas größer (Kurzdolch 0,95-fach bis Götterzahn 1,44-fach), Klingenfläche
+// zur Kamera gedreht: im Rückhandgriff zeigt die Klinge am Unterarm entlang nach hinten
+const DAGGER_SCALE3 = 0.95;
+const daggerScale3 = (tier) => DAGGER_SCALE3 + tier * 0.07;
+const DAGGER_TURN3 = 0;
 const DAGGER_BLADES3 = DAGGER_BLADES;
 function daggerBladeGeo3(tier) {
   return geo3('dagblade' + tier, () => {
@@ -1746,12 +1749,85 @@ function dagger3(W, tier, shell) {
   // Breitseite nach oben (zur Spielkamera), sonst sieht man von oben nur die Schneide als Strich
   W(daggerBladeGeo3(tier), blade, { p: [0, by, 0], r: [0, DAGGER_TURN3, 0], shine: 1, top: lighter(blade, 0.4), topK: 0.3 });
   // Merkmale auf der Klinge
-  if (tier === 2) W(roundBox(0.006, 0.12, 0.018, 0.002), '#b48cff', { p: [0, by + 0.12, -0.03], r: [0.35, DAGGER_TURN3, 0], mat: 'glow' });
-  if (tier === 3) W(roundBox(0.006, 0.16, 0.016, 0.002), '#7ad86a', { p: [0, by + 0.12, 0], r: [0, DAGGER_TURN3, 0], mat: 'glow' });
-  if (tier === 4) W(roundBox(0.008, 0.13, 0.018, 0.002), GLOW3[4], { p: [0, by + 0.1, 0], r: [0, DAGGER_TURN3, 0], mat: 'glow' });
-  if (tier === 5) W(roundBox(0.008, 0.18, 0.018, 0.002), '#ff7a2a', { p: [0, by + 0.12, 0], r: [0, DAGGER_TURN3, 0], mat: 'glow' });
-  if (tier === 7) W(roundBox(0.006, 0.14, 0.018, 0.002), GLOW3[7], { p: [0, by + 0.13, -0.04], r: [0.5, DAGGER_TURN3, 0], mat: 'glow' });
+  // Leuchtlinien in der Klinge (folgen der Form: beim Karambit und Götterzahn schräg zum Haken)
+  const line = (col, x, y, len, tilt, w = 0.008) => W(roundBox(w, len, 0.02, 0.003), col, { p: [x, by + y, 0], r: [0, DAGGER_TURN3, tilt], mat: 'glow' });
+  if (tier === 1) line(lighter(metal, 0.3), 0, 0.08, 0.1, 0, 0.005);
+  if (tier === 2) line('#b48cff', 0.035, 0.07, 0.11, -0.55);
+  if (tier === 3) line('#7ad86a', 0, 0.12, 0.17, 0);
+  if (tier === 4) line(GLOW3[4], 0, 0.1, 0.13, 0);
+  if (tier === 5) { line('#ff7a2a', 0, 0.13, 0.19, 0); for (const sx of [-1, 1]) line('#ff7a2a', sx * 0.026, 0.07, 0.05, sx * 0.9, 0.006); }
+  if (tier === 6) line('#bff4ff', 0, 0.17, 0.2, 0, 0.006);
+  if (tier === 7) { line(GLOW3[7], 0.03, 0.12, 0.15, -0.3); line(GLOW3[7], 0.075, 0.2, 0.07, -0.6, 0.006); }
   shell(roundBox(0.12, 0.34, 0.06, 0.03), { p: [0, by + 0.13, 0] });
+}
+
+// --- Bögen (seit 13.20) ------------------------------------------------------------------------------
+// Jede Stufe eine eigene Silhouette statt desselben Bogens in anderer Farbe. Ein Wurfarm ist als Mittellinie
+// vom Griff (0, 0) bis zur Spitze gegeben (x < 0 zur Sehne hin, x > 0 nach vorn) und wird gespiegelt;
+// die Sehne läuft gerade von Spitze zu Spitze. Dieselben Linien zeichnet das Inventarsymbol (bowIconArt).
+// 0 Jagdbogen (schlichter Holzbogen), 1 Kurzbogen (kurzer Reiterbogen mit nach vorn gebogenen Hornspitzen),
+// 2 Schattenbogen (langer, dunkler Bogen mit Mondsicheln), 3 Viperbogen (gewellte Arme, Schlangenköpfe),
+// 4 Nachtbogen (Doppelarm aus blauem Stahl, schwebender Stein), 5 Aschenbogen (Obsidian mit Zacken und Glut),
+// 6 Sternenbogen (weiße Flügel aus Federn), 7 Götterbogen (goldener Reflexbogen mit Sonnenscheibe und Klingen).
+function bow3(W, tier, shell) {
+  const L = BOW_LIMBS[tier];
+  const metal = TIER_METAL[tier];
+  const accent = TIER_ACCENT[tier];
+  const n = L.pts.length;
+  const tip = L.pts[n - 1];
+  for (const sy of [-1, 1]) {
+    const P = L.pts.map(([x, y]) => [x, y * sy, 0]);
+    for (let k = 0; k < n - 1; k++) {
+      const r0 = L.r[0] + (L.r[1] - L.r[0]) * (k / (n - 1));
+      const r1 = L.r[0] + (L.r[1] - L.r[0]) * ((k + 1) / (n - 1));
+      limbBetween(W, P[k], P[k + 1], r0, r1, L.wood, { seg: 6, shine: tier >= 6 ? 0.9 : 0.2 });
+    }
+    // zweiter, schmaler Arm (Nachtbogen) mit Querstreben
+    if (L.rail) {
+      const Q = P.map(([x, y], k) => [x - 0.05 * Math.min(1, k), y * 0.92, 0]);
+      for (let k = 1; k < n - 1; k++) limbBetween(W, Q[k], Q[k + 1], 0.009, 0.007, metal, { seg: 5, shine: 1 });
+      for (let k = 1; k < n - 1; k++) limbBetween(W, P[k], Q[k], 0.007, 0.007, metal, { seg: 5, shine: 1 });
+    }
+    const T = [tip[0], tip[1] * sy, 0];
+    const dir = [tip[0] - L.pts[n - 2][0], (tip[1] - L.pts[n - 2][1]) * sy, 0];
+    switch (tier) {
+      case 1: coneAlong(W, horn3(1, 0.3, 5), T, dir, 0.05, 0.12, L.tip); break;
+      case 2: crescent3(W, [T[0] + 0.01, T[1] + sy * 0.03, 0], 0.055, 0.012, sy > 0 ? Math.PI * 0.75 : -Math.PI * 0.75, Math.PI, '#d6c8ff'); break;
+      case 3:
+        // Schlangenkopf mit Giftzähnen und Augen
+        W(ball(8), '#4e8a3e', { p: [T[0] - 0.01, T[1] + sy * 0.02, 0], s: [0.045, 0.034, 0.03], shine: 0.5 });
+        coneAlong(W, horn3(1, 0.3, 4), [T[0] - 0.03, T[1] + sy * 0.01, 0], [-1, -sy * 0.6, 0], 0.045, 0.1, '#f0ead8');
+        for (const z of [-0.02, 0.02]) W(sphere3(0.008, 6, 4), '#e8ff6a', { p: [T[0] - 0.02, T[1] + sy * 0.035, z], mat: 'glow' });
+        break;
+      case 4: coneAlong(W, G3.spike(), T, dir, 0.05, 0.14, lighter(metal, 0.2), { shine: 1 }); break;
+      case 5: coneAlong(W, G3.spike(), T, dir, 0.06, 0.16, OBSIDIAN3, { shine: 0.6 }); break;
+      case 6: for (const a of [-0.4, 0.15]) W(G3.feather(), FEATHER3, { p: T, r: [0, 0, (sy > 0 ? 0.6 : Math.PI - 0.6) + a * sy], s: 0.14, top: '#bfe8ff', topK: 0.5 }); break;
+      case 7: coneAlong(W, G3.spike(), T, [0.4, sy, 0], 0.06, 0.18, '#fff2b0', { shine: 1 }); break;
+      default: W(sphere3(0.016, 6, 5), '#3a2a1c', { p: T });
+    }
+    // Schmuck an den Armen
+    if (tier === 5) for (let k = 1; k < n - 1; k++) {
+      const [x, y] = L.pts[k];
+      coneAlong(W, G3.spike(), [x + 0.02, y * sy, 0], [1, sy * 0.5, 0], 0.05, 0.13, OBSIDIAN3);
+      W(sphere3(0.01, 6, 4), '#ff7a2a', { p: [x, y * sy, 0.026], mat: 'glow' });
+    }
+    if (tier === 6) for (let k = 1; k < n - 1; k++) {
+      const [x, y] = L.pts[k];
+      W(G3.feather(), k % 2 ? '#dfefff' : FEATHER3, { p: [x + 0.02, y * sy, 0], r: [0, 0, sy > 0 ? -0.9 + k * 0.25 : Math.PI + 0.9 - k * 0.25], s: 0.16, top: '#bfe8ff', topK: 0.5 });
+    }
+    if (tier === 2) limbBetween(W, [0.03, sy * 0.1, 0.02], [-0.06, sy * 0.33, 0.02], 0.006, 0.004, '#b48cff', { mat: 'glow', seg: 4 });
+    if (tier === 3) for (let k = 1; k < n - 1; k += 2) W(roundBox(0.03, 0.05, 0.04, 0.012), '#6aa84a', { p: [L.pts[k][0], L.pts[k][1] * sy, 0], r: [0, 0, 0.4 * sy] });
+    if (tier === 7) limbBetween(W, [-0.02, sy * 0.1, 0.025], [-0.15, sy * 0.36, 0.025], 0.006, 0.004, GLOW3[7], { mat: 'glow', seg: 4 });
+  }
+  // Sehne und Griff mit Wicklung
+  W(limb3(+(tip[1] * 2).toFixed(2), 0.005, 0.005, 3), tier >= 6 ? '#e6f6ff' : '#efe6cc', { p: [tip[0], tip[1], 0], mat: tier >= 6 ? 'glow' : undefined });
+  W(limb3(0.18, 0.034, 0.034, 7), tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : '#3a2a1c', { p: [0.005, 0.09, 0] });
+  for (let k = 0; k < 3; k++) W(torus3(0.036, 0.008, Math.PI * 2, 4, 10), tier === 0 ? '#5a3a22' : tier >= 6 ? GOLD3 : metal, { p: [0.005, 0.07 - k * 0.06, 0], r: [Math.PI / 2, 0, 0] });
+  if (tier === 4) floatGem3(W, [0.07, 0, 0], 0.025, GLOW3[4]);
+  if (tier === 5) W(sphere3(0.026, 8, 6), '#ff7a2a', { p: [0.035, 0, 0], mat: 'glow' });
+  if (tier === 7) sun3(sub3(W, [0.04, 0, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.055, 8, GOLD3, GLOW3[7]);
+  if (tier === 3) W(G3.gem(), '#7ad86a', { p: [0.035, 0, 0], s: [0.018, 0.026, 0.014], mat: 'glow' });
+  shell(roundBox(0.12, tip[1] * 2 + 0.1, 0.08, 0.04), { p: [tip[0] * 0.5, 0, 0] });
 }
 
 function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
@@ -1767,7 +1843,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   switch (kind) {
     case 'dagger': {
       // in Spielgröße (seit 13.19): als Ganzes größer, damit man die Dolchform auch von oben erkennt
-      const S = DAGGER_SCALE3;
+      const S = daggerScale3(tier);
       const MD = new THREE.Matrix4().compose(new THREE.Vector3(...at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(S, S, S));
       const WD = framed(A, MD, bone);
       const shellD = (geo, oo) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: MD.clone().multiply(partMatrix(oo)) });
@@ -1884,46 +1960,9 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       shell(roundBox(bw * 1.9, bl * 1.12, 0.09, 0.045), { p: [0, by + bl / 2, 0] });
       return;
     }
-    case 'bow': {
-      // Bogen: zwei Wurfarme als Bögen, Sehne von Spitze zu Spitze; Spitzen und Griff je Stufe
-      const wood = tier === 0 ? '#8a5a34' : tier === 5 ? OBSIDIAN3 : tier === 7 ? GOLD3 : accent;
-      const tips = [];
-      for (const sy of [-1, 1]) {
-        W(torus3(0.44, 0.024, Math.PI * 0.38, 5, 10), wood, { r: [0, 0, sy > 0 ? 0.32 : -Math.PI * 0.38 - 0.32], p: [-0.4, 0, 0], shine: tier === 7 ? 1 : 0 });
-        tips.push([-0.373, sy * 0.44, 0, sy]);
-      }
-      for (const [x, y, z, sy] of tips) {
-        if (tier === 3) {
-          // Drachenköpfe an den Spitzen
-          W(ball(8), accent, { p: [x - 0.02, y, z], s: [0.04, 0.032, 0.03], shine: 0.5 });
-          coneAlong(W, horn3(1, 0.3, 4), [x - 0.04, y, z], [-1, sy * 0.3, 0], 0.06, 0.15, accent);
-          coneAlong(W, horn3(1, 0.3, 4), [x, y + sy * 0.02, z], [0.3, sy, 0], 0.06, 0.12, '#e8dcc0');
-          W(sphere3(0.008, 6, 4), GLOW3[3], { p: [x - 0.035, y + sy * 0.012, z + 0.022], mat: 'glow' });
-        } else if (tier === 2) {
-          crescent3(W, [x - 0.02, y + sy * 0.03, z], 0.05, 0.012, sy > 0 ? Math.PI * 0.75 : -Math.PI * 0.75, Math.PI, '#e6eef8');
-        } else if (tier === 6) {
-          W(G3.feather(), FEATHER3, { p: [x, y, z], r: [0, 0, sy > 0 ? 1.3 : Math.PI - 1.3], s: 0.12, top: '#bfe8ff', topK: 0.5 });
-        } else {
-          coneAlong(W, horn3(1, 0.3, 5), [x, y, z], [-1, sy * 0.4, 0], 0.09, 0.22, tier >= 4 ? lighter(metal, 0.1) : metal, { shine: 1 });
-        }
-      }
-      W(limb3(0.88, 0.005, 0.005, 3), '#efe6cc', { p: [-0.373, 0.44, 0] });
-      W(limb3(0.18, 0.032, 0.032, 7), tier === 1 ? '#5a3a22' : '#3a2a1c', { p: [0, 0.09, 0] });
-      for (let k = 0; k < 3; k++) W(torus3(0.034, 0.008, Math.PI * 2, 4, 10), tier === 0 ? '#5a3a22' : gold, { p: [0, 0.07 - k * 0.06, 0], r: [Math.PI / 2, 0, 0] });
-      if (tier === 5) {
-        // gezackte Dornen außen an den Armen, Glut im Griff
-        for (const sy of [-1, 1]) for (let k = 0; k < 3; k++) {
-          const a = sy * (0.55 + k * 0.32);
-          coneAlong(W, G3.spike(), [-0.4 + Math.cos(a) * 0.46, Math.sin(a) * 0.46, 0], [Math.cos(a), Math.sin(a), 0], 0.06, 0.16, OBSIDIAN3);
-        }
-        W(sphere3(0.025, 8, 6), '#ff7a2a', { p: [0.03, 0, 0], mat: 'glow' });
-      }
-      if (tier === 6) for (const sy of [-1, 1]) W(G3.feather(), '#dfefff', { p: [0.02, sy * 0.2, 0], r: [0, 0, sy > 0 ? -0.5 : Math.PI + 0.5], s: 0.14, top: '#bfe8ff', topK: 0.5 });
-      if (tier === 4) floatGem3(W, [0.06, 0, 0], 0.025, GLOW3[4]);
-      if (tier === 7) sun3(sub3(W, [0.035, 0, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.05, 8, GOLD3, GLOW3[7]);
-      shell(torus3(0.44, 0.06, Math.PI * 0.76, 5, 12), { r: [0, 0, -Math.PI * 0.38], p: [-0.4, 0, 0] });
+    case 'bow':
+      bow3(W, tier, shell);
       return;
-    }
     case 'fan': {
       // Fächer: Blatt nach oben, Rippen, Goldrand; Kranich aus Federn, Phönix mit Flammenspitzen …
       const leaf = tier === 0 ? '#efe6cc' : FAN_LEAF[tier];

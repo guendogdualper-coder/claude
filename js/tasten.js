@@ -102,12 +102,12 @@ function runAction(id, e) {
   const rep = e && e.repeat;
   const m = /^skill(\d)$/.exec(id);
   if (m) {
-    const i = p ? skillOrder(p)[Number(m[1]) - 1] : null;
-    if (i != null) useSkill(i);
+    if (p) useBarEntry(skillOrder(p)[Number(m[1]) - 1]);
     return;
   }
   switch (id) {
-    case 'ult': useUltimate(); break;
+    // Taste 6: der sechste Platz der Leiste (meist die Ultimative Attacke, seit 13.20 tauschbar)
+    case 'ult': if (p) useBarEntry(skillOrder(p)[5]); break;
     case 'segen': if (!rep) useSegen(); break;
     case 'quick1': case 'quick2': if (!rep) useQuickSlot(id === 'quick1' ? 0 : 1); break;
     case 'attack':
@@ -310,7 +310,7 @@ function openSlotPicker(slot) {
 
 // Bild der angehobenen Fertigkeit, das dem Finger bzw. der Maus folgt
 function skillDragGhost(i, x, y) {
-  const sk = classSkills(game.player)[i];
+  const sk = i === ULT_BAR ? ultimateOf(game.player) : classSkills(game.player)[i];
   const g = document.createElement('div');
   g.className = 'drag-ghost';
   g.innerHTML = `<img src="${skillIconUrl(sk)}" alt="">`;

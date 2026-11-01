@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.19';
+const GAME_VERSION = '13.20';
 
 const game = {
   world: null,
@@ -38,6 +38,11 @@ function startGame(save, slot) {
     np.dagger2 = true;
     const w = np.equipment && np.equipment.waffe;
     if (w && w.kind === 'dagger' && !np.equipment.schild) np.equipment.schild = makeItem('waffe', w.tier, 0, 'ninja', 'dagger');
+  }
+  // Bogen-Ninja (seit 13.20): einmalig ein Lederköcher in die Nebenhand – Munition für den Bogen
+  if (np.classId === 'ninja' && !np.quiverGiven && np.equipment && np.equipment.waffe && np.equipment.waffe.kind === 'bow') {
+    np.quiverGiven = true;
+    if (!np.equipment.schild) np.equipment.schild = makeItem('koecher', 0, 0, 'ninja');
   }
   game.stats = playerStats(game.player);
   game.allies = [];

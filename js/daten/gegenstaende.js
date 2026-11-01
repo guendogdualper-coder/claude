@@ -100,8 +100,19 @@ const ITEM_NAMES = {
   schultern: ['Lederschultern', 'Bronzeschultern', 'Eisenschultern', 'Drachenschultern', 'Seelenschultern', 'Aschenschultern', 'Himmelsschultern', 'Götterschultern'],
   umhang: ['Wollumhang', 'Reiseumhang', 'Jägerumhang', 'Drachenumhang', 'Seelenumhang', 'Aschenumhang', 'Himmelsumhang', 'Götterumhang'],
   schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel', 'Aschenstiefel', 'Himmelsstiefel', 'Götterstiefel'],
-  guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel']
+  guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel'],
+  koecher: ['Lederköcher', 'Jägerköcher', 'Schattenköcher', 'Viperköcher', 'Nachtköcher', 'Aschenköcher', 'Sternenköcher', 'Götterköcher']
 };
+
+// Köcher (seit 13.20): die Munition des Bogens. Ein Ninja mit Bogen trägt ihn im Platz der Nebenhand
+// (Bogen und Köcher gehören zusammen, wie Waffe und Munition). Die Pfeile gehen nie aus;
+// bessere Köcher haben bessere Pfeile (mehr Angriff, öfter kritisch) und färben den Schuss.
+const QUIVER_ARROWS = [
+  { name: 'Holzpfeile', color: '#c9a36a' }, { name: 'Eisenpfeile', color: '#cfd6de' },
+  { name: 'Schattenpfeile', color: '#9a7ad8' }, { name: 'Giftpfeile', color: '#7ed35a' },
+  { name: 'Nachtpfeile', color: '#6aa8ff' }, { name: 'Glutpfeile', color: '#ff8a3a' },
+  { name: 'Sternenpfeile', color: '#bfe8ff' }, { name: 'Götterpfeile', color: '#ffd34d' }
+];
 
 // Grundwerte je Stufe. Die Grundausrüstung (Stufe 1) gibt nur Rüstung bzw. bei Waffen nur Angriff,
 // Zusatzeffekte gibt es erst ab Stufe 5. Bedeutung der Werte:
@@ -116,6 +127,7 @@ const BASE_STATS = {
   schultern: [{ def: 2 }, { def: 3, hp: 20 }, { def: 5, hp: 35 }, { def: 7, hp: 55 }, { def: 10, hp: 80 }, { def: 14, hp: 120 }, { def: 20, hp: 180 }, { def: 28, hp: 260 }],
   umhang: [{ def: 1 }, { def: 2, mp: 15, dodge: 0.01 }, { def: 3, mp: 25, dodge: 0.015 }, { def: 5, mp: 35, dodge: 0.02 }, { def: 7, mp: 50, dodge: 0.025 }, { def: 10, mp: 75, dodge: 0.03 }, { def: 14, mp: 110, dodge: 0.035 }, { def: 19, mp: 150, dodge: 0.04 }],
   schuhe: [{ def: 2 }, { def: 2, speed: 0.02 }, { def: 3, speed: 0.025, dodge: 0.02 }, { def: 4, speed: 0.03, dodge: 0.03 }, { def: 6, speed: 0.035, dodge: 0.05 }, { def: 9, speed: 0.04, dodge: 0.06 }, { def: 13, speed: 0.045, dodge: 0.07 }, { def: 18, speed: 0.05, dodge: 0.08 }],
+  koecher: [{ atk: 2 }, { atk: 4, crit: 0.01 }, { atk: 7, crit: 0.015 }, { atk: 11, crit: 0.02 }, { atk: 17, crit: 0.025 }, { atk: 25, crit: 0.03 }, { atk: 36, crit: 0.035 }, { atk: 50, crit: 0.04 }],
   guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }]
 };
 
@@ -285,7 +297,7 @@ const BAG_SIZE = BAG_PAGE * BAG_PAGES;
 // Händler im Dorf: was sie verkaufen und zu welchem Preis je Stufe (Lv 1, 5, 10, 15)
 const MERCHANTS = {
   waffen: {
-    slots: ['waffe'],
+    slots: ['waffe', 'koecher'],
     prices: [80, 400, 1100, 2600],
     greeting: 'Jede Klasse kämpft anders. Hier findest du die Waffe, die zu dir passt, von der ersten Klinge bis zum Meisterstück.'
   },
@@ -303,23 +315,23 @@ const MERCHANTS = {
 // nur um 15 %, tierScale),
 // Prozentwerte seit Version 5.9 nur um 10 % je Stufe und höchstens bis max (je Gegenstand).
 // Dazu begrenzt BONUS_CAPS die Summe aller angelegten Gegenstände.
-const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'];
+const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel', 'koecher'];
 const BONUS_TYPES = {
   hp: { name: 'Max. Leben', fmt: 'flat', range: [20, 90], slots: ALL_SLOTS },
   mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'umhang', 'guertel'] },
-  atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'schultern', 'guertel'] },
+  atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'schultern', 'guertel', 'koecher'] },
   def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'] },
   str: { name: 'Stärke', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
   vit: { name: 'Vitalität', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
   int: { name: 'Intelligenz', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
   dex: { name: 'Geschick', fmt: 'flat', range: [1, 4], tierScale: 0.15, slots: ALL_SLOTS },
-  crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['waffe', 'helm', 'guertel'] },
-  atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'schuhe', 'guertel'] },
+  crit: { name: 'Kritische Treffer', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
+  atkSpeed: { name: 'Angriffstempo', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'schuhe', 'guertel', 'koecher'] },
   speed: { name: 'Lauftempo', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['schuhe'] },
   dodge: { name: 'Ausweichen', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'umhang', 'schild', 'schuhe'] },
   block: { name: 'Blocken', fmt: 'pct', range: [0.01, 0.04], max: 0.08, slots: ['schild'] },
   regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.003], max: 0.006, slots: ['ruestung', 'helm', 'schultern', 'guertel'] },
-  monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.06], max: 0.1, slots: ['waffe', 'helm', 'guertel'] },
+  monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.06], max: 0.1, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
   dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild'] },
   hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['waffe'] }
 };
@@ -361,13 +373,30 @@ const SWITCH67 = { stone: 30, chance: 0.22 };
 
 // Klingenumrisse der Dolche je Stufe (seit 13.19): x quer, y entlang der Klinge ab der Parierstange (in 3D-Einheiten).
 // Dieselben Formen zeichnen das Inventarsymbol (ausruestung.js) und die Waffe in der Hand (drei-ausruestung.js).
+// Seit 13.20 neu gezeichnet, mit Zacken und Haken – jede Stufe eine eigene Silhouette:
+// 0 Kurzdolch (Tanto mit schräger Spitze), 1 Stahldolch (Sägerücken), 2 Schattendolch (Karambit-Haken),
+// 3 Viperzahn (gewellte Schlangenklinge), 4 Nachtklinge (Kunai), 5 Aschendolch (Widerhaken an beiden Seiten),
+// 6 Sternendolch (Gabel mit zwei Zinken und Nadelspitze), 7 Götterzahn (Flammenklinge mit Haken).
 const DAGGER_BLADES = [
-  [[-0.026, 0], [0.026, 0], [0.024, 0.13], [0.012, 0.21], [0, 0.245], [-0.012, 0.21], [-0.024, 0.13]],
-  [[-0.034, 0], [0.034, 0], [0.02, 0.14], [0, 0.28], [-0.02, 0.14]],
-  [[-0.024, 0], [0.026, 0], [0.04, 0.09], [0.06, 0.17], [0.085, 0.25], [0.05, 0.2], [0.02, 0.13], [-0.004, 0.07]],
-  [[-0.024, 0], [0.024, 0], [0.034, 0.05], [0.016, 0.1], [0.032, 0.15], [0.012, 0.21], [0, 0.27], [-0.016, 0.21], [0.004, 0.15], [-0.014, 0.1], [0.004, 0.05]],
-  [[-0.012, 0], [0.012, 0], [0.04, 0.07], [0.03, 0.15], [0, 0.25], [-0.03, 0.15], [-0.04, 0.07]],
-  [[-0.03, 0], [0.03, 0], [0.042, 0.05], [0.026, 0.08], [0.044, 0.12], [0.024, 0.16], [0.036, 0.2], [0, 0.27], [-0.03, 0.19], [-0.02, 0.14], [-0.034, 0.1], [-0.022, 0.06]],
-  [[-0.014, 0], [0.014, 0], [0.01, 0.2], [0, 0.31], [-0.01, 0.2]],
-  [[-0.03, 0], [0.03, 0], [0.05, 0.08], [0.075, 0.15], [0.11, 0.2], [0.13, 0.27], [0.08, 0.24], [0.03, 0.17], [-0.01, 0.1], [-0.03, 0.04]]
+  [[-0.022, 0], [0.022, 0], [0.023, 0.16], [0.004, 0.225], [-0.022, 0.185]],
+  [[-0.024, 0], [0.026, 0], [0.032, 0.03], [0.02, 0.045], [0.032, 0.07], [0.02, 0.085], [0.032, 0.11], [0.02, 0.125], [0.026, 0.155], [0.003, 0.25], [-0.024, 0.165]],
+  [[-0.02, 0], [0.022, 0], [0.03, 0.04], [0.05, 0.085], [0.078, 0.12], [0.118, 0.158], [0.08, 0.162], [0.045, 0.138], [0.016, 0.098], [-0.005, 0.052]],
+  [[-0.024, 0], [0.024, 0], [0.04, 0.04], [0.016, 0.085], [0.038, 0.13], [0.014, 0.175], [0.028, 0.21], [0, 0.27], [-0.026, 0.205], [-0.01, 0.165], [-0.034, 0.12], [-0.012, 0.075], [-0.036, 0.035]],
+  [[-0.012, 0], [0.012, 0], [0.042, 0.07], [0.03, 0.15], [0, 0.26], [-0.03, 0.15], [-0.042, 0.07]],
+  [[-0.028, 0], [0.028, 0], [0.052, 0.04], [0.03, 0.05], [0.048, 0.095], [0.026, 0.105], [0.04, 0.15], [0.02, 0.16], [0.026, 0.2], [0, 0.28], [-0.026, 0.2], [-0.02, 0.16], [-0.04, 0.15], [-0.026, 0.105], [-0.048, 0.095], [-0.03, 0.05], [-0.052, 0.04]],
+  [[-0.014, 0], [0.014, 0], [0.04, 0.03], [0.058, 0.1], [0.044, 0.1], [0.03, 0.058], [0.011, 0.062], [0.01, 0.22], [0, 0.32], [-0.01, 0.22], [-0.011, 0.062], [-0.03, 0.058], [-0.044, 0.1], [-0.058, 0.1], [-0.04, 0.03]],
+  [[-0.03, 0], [0.03, 0], [0.055, 0.04], [0.045, 0.07], [0.075, 0.11], [0.06, 0.135], [0.1, 0.19], [0.125, 0.26], [0.08, 0.225], [0.05, 0.2], [0.03, 0.235], [0, 0.31], [-0.025, 0.22], [-0.045, 0.16], [-0.03, 0.13], [-0.05, 0.085], [-0.034, 0.06], [-0.048, 0.025]]
+];
+
+// Bögen (seit 13.20): Mittellinie eines Wurfarms je Stufe (Griff bei 0, 0; x < 0 zur Sehne), Dicke am Griff und an der
+// Spitze, Holzfarbe. 3D (drei-ausruestung.js, bow3) und Inventarsymbol (figuren.js) nutzen dieselben Linien.
+const BOW_LIMBS = [
+  { pts: [[0, 0], [-0.03, 0.15], [-0.09, 0.3], [-0.16, 0.42]], r: [0.026, 0.012], wood: '#8a5a34' },
+  { pts: [[0, 0], [-0.045, 0.11], [-0.1, 0.22], [-0.125, 0.3], [-0.095, 0.37]], r: [0.03, 0.013], wood: '#6b3a22', tip: '#e8dcc0' },
+  { pts: [[0, 0], [0.03, 0.1], [-0.02, 0.25], [-0.11, 0.42], [-0.15, 0.53]], r: [0.028, 0.012], wood: '#2e2a3a' },
+  { pts: [[0, 0], [-0.05, 0.08], [0, 0.17], [-0.07, 0.27], [-0.04, 0.36], [-0.12, 0.45]], r: [0.03, 0.014], wood: '#3e6a34' },
+  { pts: [[0, 0], [-0.015, 0.14], [-0.09, 0.3], [-0.19, 0.44]], r: [0.026, 0.014], wood: '#3a4a6a', rail: true },
+  { pts: [[0, 0], [-0.04, 0.14], [-0.12, 0.28], [-0.18, 0.4], [-0.15, 0.49]], r: [0.032, 0.014], wood: '#2a2224' },
+  { pts: [[0, 0], [0.02, 0.12], [-0.04, 0.28], [-0.14, 0.42], [-0.19, 0.51]], r: [0.026, 0.011], wood: '#e6eef8' },
+  { pts: [[0, 0], [-0.02, 0.1], [-0.1, 0.24], [-0.17, 0.37], [-0.14, 0.47], [-0.06, 0.54]], r: [0.032, 0.014], wood: '#d9a63a' }
 ];

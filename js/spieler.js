@@ -62,18 +62,33 @@ function skillActions(p, i) {
 
 // Reihenfolge der Fertigkeiten in der Leiste: Platz -> Fertigkeit
 const SKILL_HOLD_MS = 500;
-// Seit 10.7 darf ein Platz leer sein (null): Fertigkeiten lassen sich aus der Leiste ziehen
+// Seit 10.7 darf ein Platz leer sein (null): Fertigkeiten lassen sich aus der Leiste ziehen.
+// Seit 13.20 hat die Leiste sechs Plätze (Tasten 1–5 und 6): die Ultimative Attacke (Wert ULT_BAR) liegt auf einem
+// davon und lässt sich wie jede Fertigkeit tauschen. Alte Spielstände (fünf Plätze) bekommen sie auf Platz 6.
+const ULT_BAR = 5;
 function skillOrder(p) {
-  const o = p.skillOrder;
+  let o = p.skillOrder;
+  if (Array.isArray(o) && o.length === 5 && !o.includes(ULT_BAR)) o = p.skillOrder = o.concat([ULT_BAR]);
   const used = Array.isArray(o) ? o.filter((k) => k != null) : [];
-  const ok = Array.isArray(o) && o.length === 5 && used.every((k) => Number.isInteger(k) && k >= 0 && k < 5) && new Set(used).size === used.length;
-  if (!ok) p.skillOrder = [0, 1, 2, 3, 4];
+  const ok = Array.isArray(o) && o.length === 6 && used.every((k) => Number.isInteger(k) && k >= 0 && k <= ULT_BAR) &&
+    new Set(used).size === used.length && used.includes(ULT_BAR);
+  if (!ok) p.skillOrder = [0, 1, 2, 3, 4, ULT_BAR];
   return p.skillOrder.slice();
+}
+// Einen Platz der Leiste auslösen (Fertigkeit oder Ultimative Attacke)
+function useBarEntry(v) {
+  if (v === ULT_BAR) useUltimate();
+  else if (v != null) useSkill(v);
+}
+// Name eines Leisteneintrags (für Meldungen)
+function barEntryName(p, v) {
+  if (v === ULT_BAR) { const u = ultimateOf(p); return u ? u.name : 'Ultimative Attacke'; }
+  return v != null && classSkills(p)[v] ? classSkills(p)[v].name : '';
 }
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'dagger2', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'dagger2', 'quiverGiven', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 1; // seit 10.1 (vorher 3): sonst ist man zu schnell durch
