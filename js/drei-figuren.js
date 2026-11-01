@@ -2402,6 +2402,8 @@ function themeAcc3(A, th, tops, under = []) {
 function monsterFlair3(b, res, id, def) {
   const t = MONSTER_TYPES[id];
   if (!t || !res) return;
+  // eigene Großmodelle (Abaddor) bringen ihren Schmuck selbst mit
+  if (res.noFlair) return;
   const th = monsterTheme3(id);
   const A = adder(b, null);
   const tier = Math.min(1, (t.level || 1) / 70);

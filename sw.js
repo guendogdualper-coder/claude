@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v125';
+const VERSION = 'seelenstein-v126';
 const FILES = [
   './',
   'index.html',
@@ -46,6 +46,7 @@ const FILES = [
   'js/drei-figuren.js',
   'js/drei-ausruestung.js',
   'js/drei-tiere.js',
+  'js/teufel.js',
   'js/drei-fx.js',
   'js/magier.js',
   'js/eisstrahl.js',

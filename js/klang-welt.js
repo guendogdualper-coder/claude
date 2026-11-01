@@ -948,11 +948,11 @@ const PLAYER_SND = {
   },
   // Kreis der Elemente (seit 12.7): anschwellendes Sausen, Knistern, Prasseln und Grollen bis zum Knall
   kreis_lade: (c, out, r) => {
-    sNoise(c, out, { f: [[0, 400], [2.6, 2400]], q: 1.5, amp: [[0, 0], [0.3, 0.35], [2.5, 0.7], [2.7, 0]], color: 'pink', rough: [9, 0.3] });
-    sTone(c, out, { f: [[0, 70], [2.6, 160]], type: 'sawtooth', lp: 600, amp: [[0, 0], [0.4, 0.18], [2.5, 0.4], [2.7, 0]] });
-    sGrains(c, out, { at: 0.3, dur: 2.3, rate: [[0, 30], [2.3, 160]], f: [1500, 7000], dec: [0.0005, 0.002], q: 0.85, vol: 0.35 }, r);
-    sGrains(c, out, { at: 0.2, dur: 2.4, rate: 40, f: [900, 3500], dec: [0.002, 0.006], q: 0.9, vol: 0.25, tail: 3 }, r);
-    return 2.8;
+    sNoise(c, out, { f: [[0, 400], [3.7, 2400]], q: 1.5, amp: [[0, 0], [0.3, 0.35], [3.6, 0.7], [3.8, 0]], color: 'pink', rough: [9, 0.3] });
+    sTone(c, out, { f: [[0, 70], [3.7, 160]], type: 'sawtooth', lp: 600, amp: [[0, 0], [0.4, 0.18], [3.6, 0.4], [3.8, 0]] });
+    sGrains(c, out, { at: 0.3, dur: 3.4, rate: [[0, 30], [3.4, 160]], f: [1500, 7000], dec: [0.0005, 0.002], q: 0.85, vol: 0.35 }, r);
+    sGrains(c, out, { at: 0.2, dur: 3.5, rate: 40, f: [900, 3500], dec: [0.002, 0.006], q: 0.9, vol: 0.25, tail: 3 }, r);
+    return 3.9;
   },
   // Schluss: großer Platscher, Donnerschlag, Erdbruch
   strom_end: (c, out, r) => {

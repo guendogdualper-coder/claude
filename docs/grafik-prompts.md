@@ -1227,3 +1227,9 @@ Prompt: `Stylized but believable 3D animals for a top-down MMORPG. Eyes small an
 
 Umsetzung: `tube3` und `earGeo3` (drei-kern.js), Beine/Pfoten/Ohren/Augen in `beast3`, glatte Hörner bei Drachen und gehörnten Humanoiden, `mammoth3` (Rüssel, Stoßzähne), `deer3` (Steinbockhörner, Ohren), `boar3` (Ohren, Augen).
 
+## 11e. Abaddor, der Höllenkaiser – Endendboss (Entwurf seit 12.9, siehe docs/endboss-abaddor.md)
+
+Prompt: `Colossal devil emperor for a stylized 3D MMORPG raid, about four times the height of a player. Massive crimson torso with defined chest and abs, glowing lava veins and a burning crystal heart set in the sternum, framed by obsidian spikes. Black obsidian pauldrons with gold rims and three spikes each, a skull on the left shoulder, spiked obsidian bracers, claw hands. Goat legs with black shaggy fur, forward knees, backward hocks and split hooves; armored loincloth with a skull buckle and a dark red cloth flap. Small angular devil head with glowing yellow eye slits, fangs, pointed goatee, long pointed ears, huge sweeping horns curving up, back and forward, a crown of flames between them and a flame mane. Huge bat wings with obsidian struts and bone claws, a tail ending in a glowing spade. In the right claw a tall obsidian trident with gold bands, a straight central prong and two curved side prongs with glowing lava edges and barbs, a hellfire crystal at the fork. Second form: near-black skin with bright ember cracks, burning wings, glowing horn tips, a permanently burning trident, 15 % larger, an ember storm circling him.`
+
+Umsetzung: `abaddor3` (js/teufel.js) auf dem Skelett von humanoid3 (kräftige Bauweise, Beine um 0,2 verlängert), Hörner, Zinken und Schwanz als `tube3`, Ohren als `earGeo3`.
+

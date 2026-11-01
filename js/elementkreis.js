@@ -2,15 +2,16 @@
 // 1. Ruf (0–0,35 s): Am Ziel brennt sich ein leuchtender Kreis in den Boden – er zeigt genau, wo der Schaden
 //    hinkommt. Vier farbige Bögen (Feuer, Wasser, Blitz, Erde) laufen auf dem Rand. An vier Punkten des Rands
 //    brechen die Elemente hervor: eine Flammensäule, eine Wasserkugel, eine knisternde Blitzkugel, kreisende Felsen.
-// 2. Sammeln (bis 2,5 s): Die vier Elemente winden sich auf Spiralen in die Mitte und ziehen Schweife hinter sich
+// 2. Sammeln (bis 3,6 s): Die vier Elemente winden sich auf Spiralen in die Mitte und ziehen Schweife hinter sich
 //    her. Über der Mitte wächst ein Kern aus allen vier Farben. Ein innerer Ring zieht sich zusammen (Countdown).
 //    Gegner im Kreis werden zur Mitte gezogen und nehmen leichten Schaden.
-// 3. Explosion (2,5–2,7 s Verdichtung, dann Knall): Der Kern zieht sich zusammen und explodiert – weißer Blitz,
+// 3. Explosion (3,6–3,8 s Verdichtung, dann Knall): Der Kern zieht sich zusammen und explodiert – weißer Blitz,
 //    vier farbige Druckwellen, Feuersäulen, Wasserfontänen, Blitze bis zum Rand, Felsbrocken fliegen,
 //    Erdspitzen brechen aus dem Rand. Großer Schaden, Betäubung und Brand.
 // Nichts davon ist ein Dreieck oder Runenzeichen: der Boden zeigt nur den Kreis der Schadensfläche.
 
-const KREIS = { r: 160, range: 300, near: 140, gather: 2.5, boom: 2.7, dur: 3.7, ticks: 5, every: 0.4, tick: 0.5, blast: 9, lift: 1.5 };
+// seit 12.9 länger: 3,6 s Sammeln, Knall bei 3,8 s, Nachglühen bis 5,2 s; 7 Sog-Treffer
+const KREIS = { r: 160, range: 300, near: 140, gather: 3.6, boom: 3.8, dur: 5.2, ticks: 7, every: 0.45, tick: 0.45, blast: 9.5, lift: 1.5 };
 const KREIS_EL = [
   { id: 'feuer', main: '#ff6a1a', hot: '#ffd34d', deep: '#c81a0a' },
   { id: 'wasser', main: '#2a9aff', hot: '#bff4ff', deep: '#1a4ad0' },
@@ -33,7 +34,7 @@ ULT_RUN.elementkreis = function (p, u, pw) {
     cy = p.y + f.y * free;
   }
   p.ultAt = { x: cx, y: cy };
-  lockPlayer(p, 0.9);
+  lockPlayer(p, 1.2);
   kreisShow(cx, cy + 9);
   for (let k = 0; k < KREIS.ticks; k++) {
     later(0.5 + k * KREIS.every, () => {

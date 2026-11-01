@@ -32,7 +32,7 @@ const ULTIMATES = {
   drache: {
     id: 'elementkreis', name: 'Kreis der Elemente', short: 'KE', color: '#4ac8ff',
     text: 'Am Ziel leuchtet ein Kreis im Boden auf. Feuer, Wasser, Blitz und Erde winden sich vom Rand in die Mitte, ziehen Gegner mit und verschmelzen zu einem Kern – dann explodiert alles.',
-    stats: '5 Sog-Treffer je 0,5×, Explosion 9× mit Betäubung 1 s und Brand'
+    stats: '7 Sog-Treffer je 0,45×, Explosion 9,5× mit Betäubung 1 s und Brand'
   },
   heilung: {
     id: 'himmelssegen', name: 'Himmelssegen', short: 'HS', color: '#fff2a0',
