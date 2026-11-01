@@ -2874,3 +2874,18 @@ body.aiming canvas { cursor: crosshair; }
 #chatBox.mob .chat-bar.in-box input { flex: 1; min-width: 0; padding: 5px 8px; font-size: 16px; }
 #chatBox.mob .chat-bar.in-box input:disabled { opacity: 0.7; font-size: 13px; }
 #chatBox.mob .chat-bar.in-box .btn { padding: 5px 9px; font-size: 13px; }
+
+/* Charakterfenster in Seiten (seit 12.4): Status, Fertigkeiten, Werte */
+.char-tabs { display: flex; gap: 6px; margin: 4px 0 10px; position: sticky; top: -14px; z-index: 2; padding: 6px 0; background: rgb(24, 19, 14); }
+.char-tabs button {
+  flex: 1; position: relative; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--brass-dim, #6a5230);
+  background: linear-gradient(#2a2016, #1a130c); color: var(--parchment, #efe4c4); font: inherit; font-weight: 700; letter-spacing: 0.02em; cursor: pointer;
+}
+.char-tabs button.on { color: #1a120a; border-color: #f0d08a; background: linear-gradient(#f3d891, #c9a35a); }
+.char-tabs .tab-dot {
+  position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; font-style: normal; font-size: 11px;
+  line-height: 18px; color: #fff; background: #d8402f; box-shadow: 0 0 0 1.5px #120c08;
+}
+.char-page .stats { margin-top: 2px; }
+.char-page h3:first-child { margin-top: 0; }
+@media (max-width: 720px) { .char-tabs button { padding: 7px 6px; font-size: 13px; } }

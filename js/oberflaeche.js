@@ -1366,25 +1366,43 @@ const ui = {
     const c = CLASSES[p.classId];
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     const pct = (v) => Math.round(v * 100) + ' %';
+    // Seit 12.4 auf Seiten verteilt (kein langes Scrollen): Status, Fertigkeiten, Werte
+    const tab = this.charTab || 'status';
+    const dot = (n) => (n > 0 ? `<i class="tab-dot">${n}</i>` : '');
+    const tabs = [['status', 'Status', dot(p.statPoints || 0)], ['skills', 'Fertigkeiten', dot(p.skillPoints || 0)], ['werte', 'Werte', '']];
+    const pages = {
+      status: this.elementHtml(p) + this.attrHtml(p),
+      skills:
+        `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Schriftrollen für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
+        `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsschriftrollen über Heroisch (H) und Legendär (L) bis Vollendet (V). Jede Schriftrolle gehört zu einer Fertigkeit. Seelensteine ab Stufe 40 lassen ab und zu Schriftrollen zu den Fertigkeiten deiner Klasse fallen; der Lehrmeister verkauft sie auch.</p>` +
+        skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p),
+      werte:
+        `<h3>Kampf</h3><dl class="stats">` +
+        row('Leben', s.maxHp) + row('Mana', s.maxMp) +
+        row('Angriff', s.atk) + row('Verteidigung', s.def) +
+        row('Kritische Treffer', pct(s.crit)) + row('Angriffstempo', pct(s.atkSpeed)) +
+        row('Magiestärke', '+' + pct(s.magic || 0)) + row('Lauftempo', speedText(p, s)) +
+        row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
+        `</dl><h3>Boni</h3><dl class="stats">` +
+        row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
+        `</dl><h3>Erfolge</h3><dl class="stats">` +
+        row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
+        row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
+        `</dl>`
+    };
     $('charBody').innerHTML =
       `<p class="char-head"><span><strong>${escapeHtml(p.name)}</strong> · ${c.name} · ${classPath(p.classId, p.path).name} · Stufe ${p.level}</span>` +
       `<button type="button" class="mini-btn" id="btnLook">✂ Aussehen ändern</button></p>` +
-      this.elementHtml(p) +
-      this.attrHtml(p) +
-      `<dl class="stats">` +
-      row('Leben', s.maxHp) + row('Mana', s.maxMp) +
-      row('Angriff', s.atk) + row('Verteidigung', s.def) +
-      row('Kritische Treffer', pct(s.crit)) + row('Lauftempo', speedText(p, s)) +
-      row('Angriffstempo', pct(s.atkSpeed)) + row('Magiestärke', '+' + pct(s.magic || 0)) +
-      row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
-      row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
-      row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
-      row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
-      `</dl>` +
-      `<h3>Fertigkeiten</h3>` +
-      `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Schriftrollen für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
-      `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsschriftrollen über Heroisch (H) und Legendär (L) bis Vollendet (V). Jede Schriftrolle gehört zu einer Fertigkeit. Seelensteine ab Stufe 40 lassen ab und zu Schriftrollen zu den Fertigkeiten deiner Klasse fallen; der Lehrmeister verkauft sie auch.</p>` +
-      skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p);
+      `<nav class="char-tabs" role="tablist">` +
+      tabs.map(([id, label, extra]) => `<button type="button" role="tab" data-ctab="${id}" class="${id === tab ? 'on' : ''}" aria-selected="${id === tab}">${label}${extra}</button>`).join('') +
+      `</nav><div class="char-page" data-page="${tab}">${pages[tab]}</div>`;
+    $('charBody').querySelectorAll('[data-ctab]').forEach((b) => {
+      b.addEventListener('click', () => {
+        this.charTab = b.dataset.ctab;
+        this.renderCharPanel();
+        $('charBody').scrollTop = 0;
+      });
+    });
     $('btnLook').addEventListener('click', () => this.openLookPanel());
     if ($('btnElement')) $('btnElement').addEventListener('click', () => this.showElementChoice());
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {

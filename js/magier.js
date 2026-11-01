@@ -468,7 +468,6 @@ function sigilFx(owner, x, y, sk, local, pw, lvl) {
   const last = sk.delay + (sk.ticks - 1) * sk.every;
   const tail = sk.el === 'frost' ? Math.max(1.8, sk.linger || 0) : sk.el === 'feuer' ? 0.5 : 0.35;
   const e = addEffect({ type: 'sigil3', ground: true, el: sk.el, x, y: fy, R: sk.radius, delay: sk.delay, ticks: sk.ticks, every: sk.every, last, dur: last + tail + 0.6, owner: ow, linger: sk.linger || 0 });
-  if (sk.el === 'frost') addEffect({ type: 'mground3', ground: true, x, y: fy, R: sk.radius, tex: 'hex', color: '#3a7bff', fadeIn: 0.15, delay: sk.delay, dur: sk.delay + (sk.linger || 3), op: 0.75 });
   for (let k = 0; k < sk.ticks; k++) {
     later(sk.delay + k * sk.every, () => {
       if (e.stop) return;
@@ -492,7 +491,6 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
   const foes = local ? enemiesInCircle(x, y, sk.radius) : null;
   if (sk.el === 'feuer') {
     // Flammenwand am Rand zieht sich zur Mitte zusammen, dort ein Glutblitz
-    if (k === 0) addEffect({ type: 'decal', kind: 'scorch', x, y: fy, r: sk.radius * 0.8, dur: 3, color: '#2a0a0a' });
     later(0.4, () => {
       addEffect({ type: 'sparks3', x, y: fy, h: 0.4, count: 6, color: E.core, speed: 2.2, up: 1.4, dur: 0.5 });
       if (!V3.on) particles(x, fy - 8, { count: 12, color: ['#fff1c8', '#ff8a4a', '#e8362a'], speed: [60, 160], life: [0.25, 0.5], size: [2, 4], shape: 'ember', drag: 3 });
@@ -604,7 +602,8 @@ function mageHitFx(el) {
 function mageBuffCast(p, sk) {
   const E = mageElOf(sk.el);
   addEffect({ type: 'sigil3', ground: true, el: sk.el, follow: p, ox: 0, oy: 0, x: p.x, y: feetY(p), R: 50, flash: true, dur: 0.6 });
-  addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50, dur: 0.5, color: E.main, width: 5, grow: true });
+  // (seit 12.4 ohne flachen Ring am Boden – das Siegel wirbelt die Funken nach oben)
+  void E;
 }
 
 (function () {
@@ -854,11 +853,32 @@ FX3_DRAW.sigil3 = function (h, e) {
   const sc = (0.6 + 0.4 * easeOut(draw)) * R;
   const rot = age * 0.4 + (n === 1 || n === 3 ? Math.PI : 0);
   const op = appear * end * (e.flash ? 1 : draw < 1 ? 0.75 + 0.25 * Math.sin(age * 18) : 0.85) * (n === 2 ? 0.55 : n === 3 ? 0.75 : 1);
-  // Rückseite in der dunklen Elementfarbe, darauf das leuchtende Dreieck
-  mGround(h, 'planeNMs' + n, MAGE_SIG_TEX[n], px, pz, sc * 1.05, 0.04, rot, E.deep, op * (e.small ? 0.5 : 0.7), true);
-  mGround(h, 'planeMs' + n, MAGE_SIG_TEX[n], px, pz, sc, 0.05, rot, E.main, op);
-  if (e.rank >= 0) mGround(h, 'plane', 'ring', px, pz, sc * 1.12, 0.045, 0, e.rankColor, op * 0.7);
-  if (e.flash) return;
+  // Seit 12.4 kein Dreieck mehr am Boden (der Spieler wollte keine Bodenzeichen): Elementfunken kreisen am Rand
+  // und steigen auf; beim Wirken (flash) wirbeln sie enger nach oben, dazu eine kurze Lichtsäule
+  const motes = e.flash ? (low ? 8 : 14) : low ? 14 : 24;
+  const spin = e.flash ? 2.6 : 0.9;
+  for (let i = 0; i < motes; i++) {
+    const ph = (age * (e.flash ? 1.6 : 0.8) + i * 0.137) % 1;
+    const a = (i / motes) * Math.PI * 2 + rot * 0.5 + age * spin * (e.flash || i % 2 ? 1 : -1);
+    const rr = sc * (e.flash ? 0.35 + 0.55 * (1 - ph) : 0.9 + 0.08 * Math.sin(age * 3 + i));
+    const yy = 0.08 + ph * (e.flash ? 1.7 : 0.85);
+    const s = (e.flash ? 0.17 : 0.15) * (1 - ph * 0.55) * (e.small ? 0.7 : 1);
+    mSprite(h, 'spriteMDisc', 'disc', x + Math.cos(a) * rr, yy, z + Math.sin(a) * rr, s, i % 3 ? E.main : E.hi, op * (1 - ph) * 0.95);
+  }
+  if (e.rank >= 0) for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - age * 1.5;
+    mSprite(h, 'spriteMDisc', 'disc', x + Math.cos(a) * sc * 1.05, 0.25 + 0.1 * Math.sin(age * 4 + i), z + Math.sin(a) * sc * 1.05, 0.12, e.rankColor, op * 0.8);
+  }
+  if (e.flash) {
+    const k = clamp01(1 - age / e.dur);
+    const col = mTake(h, 'spriteMDisc', 'disc');
+    fx3Map(col, 'disc');
+    col.position.set(x, 1.0, z);
+    col.scale.set(sc * 0.55 + 0.25, 2.4 * (0.6 + 0.4 * appear), 1);
+    fx3Color(col, E.hi, op * 0.45 * k);
+    mSprite(h, 'spriteMDisc', 'disc', x, 0.35, z, sc * 0.9 + 0.3, E.main, op * 0.35 * k);
+    return;
+  }
   const T = age - e.delay;
   if (T < 0) return;
   const xx = e.x * U3;
