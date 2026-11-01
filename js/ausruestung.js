@@ -823,100 +823,148 @@ function shieldArt(ctx, tier) {
   else oval(ctx, 0, -1, 2.4, 2.4, metal);
 }
 
-// Schulterpanzer-Symbol (seit 13.12). Eigene Form je Seite: innen hoch am Hals, außen nach unten gewölbt
+// Schulterpanzer-Symbol (seit 13.16): ein einzelner, großer Schulterpanzer schräg von vorn – gewölbte Hauptplatte mit
+// Grat und Nietenrand, darunter drei Schienen, die zum Oberarm hin schmaler werden und nach außen fächern. Stufen: ab Drache Dornen auf dem Grat, ab Seele ein Juwel, ab Himmel Federn, Götter mit Goldranke.
 function shoulderIcon(ctx, tier, pc, metal) {
   const glow = tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff';
-  // Kragen in der Mitte (hinter den Platten)
+  const edge = lighter(metal, 0.25);
+  const dark = darker(pc, 0.5);
+  const path = (pts) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i += 2) ctx.quadraticCurveTo(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+    ctx.closePath();
+  };
+  ctx.save();
+  // Schatten am Boden
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
   ctx.beginPath();
-  ctx.moveTo(-6, -9);
-  ctx.quadraticCurveTo(0, -12.5, 6, -9);
-  ctx.lineTo(5, -3);
-  ctx.quadraticCurveTo(0, -5.5, -5, -3);
-  ctx.closePath();
-  ctx.fillStyle = darker(pc, 0.35);
+  ctx.ellipse(1, 16.5, 15, 2.6, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = metal;
-  ctx.lineWidth = 1;
-  ctx.stroke();
-  for (const mir of [-1, 1]) {
-    ctx.save();
-    ctx.translate(mir * 9.5, 1);
-    ctx.scale(mir * 0.92, 0.92);
-    ctx.rotate(0.16);
-    // Federn hinter der Platte (Himmel, Götter)
-    if (tier >= 6) for (let k = 0; k < 3; k++) poly(ctx, [[-1, -6], [6 + k * 3, -14 - k * 1.5], [4 + k * 3, -4]], k % 2 ? '#e8f6ff' : '#ffffff');
-    // drei Schienen über dem Oberarm, von unten nach oben gezeichnet, damit die obere überlappt
-    for (let k = 2; k >= 0; k--) {
-      const y = 3.2 + k * 3.6;
-      const w0 = -4.5 + k * 1.2;
-      const w1 = 9.5 - k * 0.6;
-      ctx.beginPath();
-      ctx.moveTo(w0, y - 1.6);
-      ctx.quadraticCurveTo((w0 + w1) / 2, y + 0.6, w1, y + 0.8);
-      ctx.lineTo(w1 - 0.4, y + 3.4);
-      ctx.quadraticCurveTo((w0 + w1) / 2, y + 3.2, w0 + 0.6, y + 1.6);
-      ctx.closePath();
-      const g = ctx.createLinearGradient(0, y - 2, 0, y + 3.5);
-      g.addColorStop(0, lighter(pc, 0.18 - k * 0.04));
-      g.addColorStop(1, darker(pc, 0.25 + k * 0.05));
-      ctx.fillStyle = g;
+  // ganzer Panzer leicht nach außen (rechts) abfallend, wie er auf der Schulter liegt
+  ctx.translate(0, 1);
+  ctx.rotate(0.12);
+  // Federn hinter dem Panzer (Himmel, Götter)
+  if (tier >= 6) {
+    for (let k = 0; k < 4; k++) {
+      ctx.save();
+      ctx.translate(-9, -6);
+      ctx.rotate(-1.35 + k * 0.3);
+      path([[0, 0], [3, -8], [0.5, -16 + k], [-2.5, -8], [0, 0]]);
+      ctx.fillStyle = k % 2 ? '#e8f6ff' : '#ffffff';
       ctx.fill();
-      ctx.strokeStyle = darker(pc, 0.55);
-      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = '#9ab8d0';
+      ctx.lineWidth = 0.5;
       ctx.stroke();
-      // Metallkante unten an jeder Schiene
-      ctx.beginPath();
-      ctx.moveTo(w0 + 0.6, y + 1.6);
-      ctx.quadraticCurveTo((w0 + w1) / 2, y + 3.2, w1 - 0.4, y + 3.4);
-      ctx.strokeStyle = metal;
-      ctx.lineWidth = 0.9;
-      ctx.stroke();
-      oval(ctx, w1 - 1.6, y + 1.6, 0.8, 0.8, metal);
+      ctx.restore();
     }
-    // Hauptplatte: innen hoch am Hals, oben gewölbt, außen über die Schulter nach unten
-    const plate = () => {
-      ctx.beginPath();
-      ctx.moveTo(-6.5, 3);
-      ctx.lineTo(-6, -7.5);
-      ctx.quadraticCurveTo(-2, -12, 5, -9.5);
-      ctx.quadraticCurveTo(11, -6.5, 11, 2.5);
-      ctx.quadraticCurveTo(3, 5.5, -6.5, 3);
-      ctx.closePath();
-    };
-    plate();
-    const g = ctx.createRadialGradient(0, -8, 1, 2, -3, 13);
-    g.addColorStop(0, lighter(pc, 0.4));
-    g.addColorStop(0.5, pc);
-    g.addColorStop(1, darker(pc, 0.4));
+  }
+  // drei Schienen über dem Oberarm: jede schmaler, tiefer und weiter außen, wie ein Fächer zum Arm hin
+  for (let k = 2; k >= 0; k--) {
+    ctx.save();
+    ctx.translate(5 + k * 2.4, 3 + k * 3.6);
+    ctx.rotate(0.18 + k * 0.12);
+    const hw = 11 - k * 2.4;
+    path([[-hw, -1.4], [0, 1.2], [hw, -1.4], [hw + 0.6, 0.8], [hw - 0.2, 2.6], [0, 5], [-hw + 0.2, 2.6], [-hw - 0.6, 0.8], [-hw, -1.4]]);
+    const g = ctx.createLinearGradient(0, -1.5, 0, 5);
+    g.addColorStop(0, lighter(pc, 0.32));
+    g.addColorStop(0.45, pc);
+    g.addColorStop(1, darker(pc, 0.38));
     ctx.fillStyle = g;
     ctx.fill();
-    ctx.strokeStyle = metal;
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-    // Grat über die Platte und Glanzlicht
-    ctx.beginPath();
-    ctx.moveTo(-4.5, -8);
-    ctx.quadraticCurveTo(3, -9.5, 8.5, -2);
-    ctx.strokeStyle = lighter(metal, 0.35);
-    ctx.lineWidth = 1.1;
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 0.7;
     ctx.stroke();
     ctx.beginPath();
-    ctx.ellipse(-0.5, -6.5, 3.2, 1.2, -0.35, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.fill();
-    // Nieten am Rand
-    for (const [x, y] of [[-4.8, 1.8], [1.5, 2.9], [8, 1.6], [9.6, -4]]) oval(ctx, x, y, 0.85, 0.85, lighter(metal, 0.2));
-    // Stufen-Merkmale: Zacken ab Drache, Juwel ab Seele
-    if (tier >= 3 && tier < 6) {
-      poly(ctx, [[-1, -10], [1.5, -16], [3, -9.6]], lighter(metal, 0.1));
-      poly(ctx, [[4, -9.4], [8, -14], [7.5, -8]], metal);
-    }
-    if (tier >= 4) {
-      oval(ctx, 2.5, -4, 2.2, 2.2, glow);
-      oval(ctx, 2, -4.6, 0.8, 0.8, '#ffffff');
-    }
+    ctx.moveTo(-hw + 0.3, 2.6);
+    ctx.quadraticCurveTo(0, 4.9, hw - 0.3, 2.6);
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    oval(ctx, -hw + 1.6, 0.8, 0.85, 0.85, edge);
+    oval(ctx, hw - 1.6, 0.8, 0.85, 0.85, edge);
     ctx.restore();
   }
+  // breite, flach gewölbte Hauptplatte (breiter als hoch)
+  const cap = () => path([[-15, 1], [-16, -8], [-6, -13.5], [5, -14], [12.5, -8], [17, -2], [16, 4], [1, 7.5], [-15, 1]]);
+  cap();
+  const gm = ctx.createRadialGradient(-4, -7, 1, 1, -1, 19);
+  gm.addColorStop(0, lighter(pc, 0.55));
+  gm.addColorStop(0.35, lighter(pc, 0.12));
+  gm.addColorStop(0.75, pc);
+  gm.addColorStop(1, darker(pc, 0.45));
+  ctx.fillStyle = gm;
+  ctx.fill();
+  ctx.strokeStyle = dark;
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+  // Metallrand ringsum (innen), Grat quer über die Wölbung, Glanzlicht
+  ctx.save();
+  cap();
+  ctx.clip();
+  cap();
+  ctx.strokeStyle = metal;
+  ctx.lineWidth = 3.2;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-12, -5);
+  ctx.quadraticCurveTo(2, -12.5, 15.5, 0);
+  ctx.strokeStyle = darker(pc, 0.35);
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-12, -6.1);
+  ctx.quadraticCurveTo(2, -13.6, 15.8, -1.1);
+  ctx.strokeStyle = lighter(metal, 0.45);
+  ctx.lineWidth = 1.1;
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.42)';
+  ctx.beginPath();
+  ctx.ellipse(-5, -6, 4.6, 1.5, -0.35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+  // Nieten auf dem Rand
+  for (const [x, y] of [[-13.4, -0.2], [-14, -7], [-6, -11.6], [4, -12], [11.4, -6.6], [14.8, 1.6], [9, 4.6], [1, 5.6], [-7, 3.4]]) {
+    oval(ctx, x, y, 1.05, 1.05, darker(metal, 0.25));
+    oval(ctx, x - 0.25, y - 0.25, 0.55, 0.55, lighter(metal, 0.5));
+  }
+  // Götter: goldene Ranke auf der Platte
+  if (tier >= 7) {
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.bezierCurveTo(-5, -6, 6, 2, 12, -4);
+    ctx.strokeStyle = '#ffe9a0';
+    ctx.lineWidth = 0.9;
+    ctx.stroke();
+  }
+  // Dornen auf dem Grat (Drache bis Asche)
+  if (tier >= 3 && tier < 6) {
+    for (const [x, y, h, a] of [[-6, -11, 6.5, -0.35], [2, -12.6, 8, 0], [9.5, -8.6, 6.5, 0.45]]) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(a);
+      path([[-2, 0.6], [-0.6, -h * 0.5], [0, -h], [0.8, -h * 0.5], [2, 0.6], [0, 1], [-2, 0.6]]);
+      const gs = ctx.createLinearGradient(-2, 0, 2, 0);
+      gs.addColorStop(0, lighter(metal, 0.4));
+      gs.addColorStop(1, darker(metal, 0.3));
+      ctx.fillStyle = gs;
+      ctx.fill();
+      ctx.strokeStyle = darker(metal, 0.5);
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  // Juwel in der Mitte der Platte (ab Seele)
+  if (tier >= 4) {
+    oval(ctx, 1.5, -2, 3.2, 3.2, darker(metal, 0.3));
+    oval(ctx, 1.5, -2, 2.4, 2.4, glow);
+    oval(ctx, 0.7, -2.8, 0.9, 0.9, '#ffffff');
+  }
+  ctx.restore();
 }
 
 function drawItemArt(ctx, item) {
