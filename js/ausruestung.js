@@ -967,6 +967,46 @@ function shoulderIcon(ctx, tier, pc, metal) {
   ctx.restore();
 }
 
+// Dolch-Symbol (seit 13.19) aus denselben Klingenumrissen wie die 3D-Waffe (DAGGER_BLADES): Klinge entlang +x
+function daggerIconArt(ctx, tier) {
+  const K = 72;
+  const pts = DAGGER_BLADES[tier];
+  const blade = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 2 ? '#3a3448' : tier === 4 ? '#5a6a8a' : TIER_METAL[tier];
+  const glow = ['#ffffff', '#ffffff', '#b48cff', '#7ad86a', '#9fd0ff', '#ff7a2a', '#bff4ff', '#fff2b0'][tier];
+  // Griff mit Wicklung und Knauf
+  box(ctx, -9, -1.8, 9, 3.6, 1.2, tier === 0 ? '#6b4a2e' : tier === 4 ? '#2a2a3a' : darker(TIER_ACCENT ? TIER_ACCENT[tier] : '#5a3a2a', 0.2));
+  for (const x of [-7.5, -5, -2.5]) stroke(ctx, tier === 7 ? '#e8c46a' : '#2a1a12', 0.9, [[x, -1.9], [x, 1.9]]);
+  if (tier === 4) {
+    ctx.beginPath();
+    ctx.arc(-11.4, 0, 2.2, 0, Math.PI * 2);
+    ctx.strokeStyle = '#8a9ab8';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  } else oval(ctx, -10, 0, 1.7, 1.7, tier >= 5 ? glow : tier === 0 ? '#8a8f96' : TIER_METAL[tier]);
+  // Parierstange
+  if (tier === 6) for (let k = 0; k < 4; k++) poly(ctx, [[0, 0], [Math.cos(k * Math.PI / 2) * 3.4, Math.sin(k * Math.PI / 2) * 3.4], [Math.cos(k * Math.PI / 2 + 0.5) * 1.2, Math.sin(k * Math.PI / 2 + 0.5) * 1.2]], '#e6f6ff');
+  else if (tier === 3) for (const sy of [-1, 1]) poly(ctx, [[0, sy * 1], [-2.5, sy * 4.5], [0.8, sy * 1.6]], '#e8dcc0');
+  else if (tier === 5) for (const sy of [-1, 1]) poly(ctx, [[0, sy * 1], [2.5, sy * 4.6], [1, sy * 1]], '#2a2224');
+  else if (tier !== 4 && tier !== 2) box(ctx, -0.4, -3.6, 1.8, 7.2, 0.7, tier === 7 ? '#e8c46a' : tier === 0 ? '#8a8f96' : TIER_METAL[tier]);
+  else if (tier === 2) oval(ctx, 0.4, 0, 1.2, 2.6, '#2a2430');
+  // Klinge: Umriss (y entlang der Klinge → x, x quer → y)
+  ctx.beginPath();
+  pts.forEach(([qx, qy], i) => (i ? ctx.lineTo(1 + qy * K, -qx * K) : ctx.moveTo(1 + qy * K, -qx * K)));
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, -4, 0, 4);
+  g.addColorStop(0, lighter(blade, 0.5));
+  g.addColorStop(0.5, blade);
+  g.addColorStop(1, darker(blade, 0.3));
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = darker(blade, 0.55);
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+  // Glühlinie bzw. Hohlkehle
+  if (tier >= 2) stroke(ctx, glow, 0.9, [[3, 0], [1 + 0.16 * K, 0]]);
+  else stroke(ctx, darker(blade, 0.25), 0.7, [[3, 0], [1 + 0.15 * K, 0]]);
+}
+
 function drawItemArt(ctx, item) {
   const { slot, tier } = item;
   const metal = TIER_METAL[tier];
@@ -977,8 +1017,7 @@ function drawItemArt(ctx, item) {
     ctx.save();
     ctx.rotate(-Math.PI / 4);
     if (kind === 'dagger') {
-      ctx.translate(-9, 0);
-      ctx.scale(1.6, 1.6);
+      ctx.translate(-5, 0);
     } else if (kind === 'fan') {
       ctx.translate(-6, 0);
       ctx.scale(1.3, 1.3);
@@ -996,7 +1035,8 @@ function drawItemArt(ctx, item) {
     } else {
       ctx.translate(-12, 0);
     }
-    weaponArt(ctx, kind, tier);
+    if (kind === 'dagger') daggerIconArt(ctx, tier);
+    else weaponArt(ctx, kind, tier);
     ctx.restore();
   } else if (slot === 'ruestung' && (item.cls === 'schamane' || item.cls === 'nekromant')) {
     // Robe mit weiten Ärmeln

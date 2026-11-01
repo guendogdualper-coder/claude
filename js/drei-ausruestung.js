@@ -1692,6 +1692,68 @@ const fanLeafGeo = (r, h) => geo3(`fanleaf3${r},${h}`, () => new THREE.CylinderG
 // Schaftfarbe des Zepters je Stufe (Magier, seit 8.6)
 const ROD3_SHAFT = ['#6b4a2e', '#3a2e2a', '#2e3448', '#2a3f74', '#2e2450', OBSIDIAN3, '#121a3c', '#e6eaf2'];
 
+// --- Dolche (seit 13.19) ---------------------------------------------------------------------------
+// Eigener Bauplan statt des verkleinerten Schwerts: kurzer Griff, kleine Parierstange, flache Klinge mit eigener
+// Form je Stufe (aus einem Umriss extrudiert, damit sie wie geschliffenes Blech wirkt):
+// 0 Kurzdolch (gerade, Holzgriff), 1 Stahldolch (spitzes Dreieck), 2 Schattendolch (gebogene Klinge),
+// 3 Viperzahn (gewellte Schlangenklinge), 4 Nachtklinge (Kunai mit Ringknauf), 5 Aschendolch (gezackter Obsidian),
+// 6 Sternendolch (schmales Stilett, Sternparier), 7 Götterzahn (goldener Hakendolch).
+const DAGGER_SCALE3 = 2.0;
+const DAGGER_TURN3 = Math.PI / 2;
+const DAGGER_BLADES3 = DAGGER_BLADES;
+function daggerBladeGeo3(tier) {
+  return geo3('dagblade' + tier, () => {
+    const pts = DAGGER_BLADES3[tier];
+    const sh = new THREE.Shape();
+    sh.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+    sh.lineTo(pts[0][0], pts[0][1]);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.008, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.004, bevelSegments: 1, curveSegments: 4 });
+    g.translate(0, 0, -0.004);
+    return smoothGeo(g);
+  });
+}
+function dagger3(W, tier, shell) {
+  const metal = TIER_METAL[tier];
+  const accent = TIER_ACCENT[tier];
+  const blade = tier === 5 ? OBSIDIAN3 : tier === 7 ? '#ffe9a0' : tier === 2 ? '#3a3448' : tier === 4 ? '#5a6a8a' : metal;
+  const grip = 0.09;
+  // Griff mit Wicklung
+  W(limb3(grip, 0.022, 0.02, 7), tier === 0 ? '#6b4a2e' : tier === 4 ? '#2a2a3a' : darker(accent, 0.2), { p: [0, 0.02, 0] });
+  for (let k = 0; k < 3; k++) W(torus3(0.023, 0.006, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : '#2a1a12', { p: [0, -grip * (0.2 + k * 0.28), 0], r: [Math.PI / 2, 0, 0] });
+  // Knauf
+  const py = -grip - 0.01;
+  if (tier === 4) W(torus3(0.026, 0.007, Math.PI * 2, 4, 12), '#8a9ab8', { p: [0, py - 0.022, 0], shine: 1 });
+  else if (tier === 3) coneAlong(W, horn3(1, 0.3, 4), [0, py + 0.01, 0], [0, -1, 0], 0.045, 0.14, '#e8dcc0');
+  else if (tier >= 5) W(G3.gem(), tier === 5 ? '#ff7a2a' : GLOW3[tier], { p: [0, py - 0.008, 0], s: [0.016, 0.026, 0.016], mat: 'glow' });
+  else W(sphere3(0.022, 8, 6), tier === 0 ? '#8a8f96' : metal, { p: [0, py, 0], shine: 0.8 });
+  // kleine Parierstange je Stufe
+  const gy = 0.03;
+  switch (tier) {
+    case 2: W(cyl3(0.03, 0.03, 0.012, 10), '#2a2430', { p: [0, gy, 0] }); break;
+    case 3: for (const sx of [-1, 1]) coneAlong(W, horn3(1, 0.3, 4), [sx * 0.012, gy, 0], [sx, -0.6, 0], 0.045, 0.14, '#e8dcc0'); break;
+    case 4: break;
+    case 5: for (const sx of [-1, 1]) coneAlong(W, G3.spike(), [sx * 0.015, gy, 0], [sx, 0.4, 0], 0.05, 0.2, OBSIDIAN3, { shine: 0.6 }); break;
+    case 6: star3(W, [0, gy, 0], 0.03, '#e6f6ff'); break;
+    case 7:
+      W(roundBox(0.09, 0.022, 0.03, 0.01), GOLD3, { p: [0, gy, 0], shine: 1 });
+      W(G3.gem(), GLOW3[7], { p: [0, gy, 0.018], s: [0.012, 0.016, 0.01], mat: 'glow' });
+      break;
+    default: W(roundBox(tier === 0 ? 0.07 : 0.09, 0.02, 0.032, 0.008), tier === 0 ? '#8a8f96' : metal, { p: [0, gy, 0], shine: 0.8 });
+  }
+  // Klinge
+  const by = 0.038;
+  // Breitseite nach oben (zur Spielkamera), sonst sieht man von oben nur die Schneide als Strich
+  W(daggerBladeGeo3(tier), blade, { p: [0, by, 0], r: [0, DAGGER_TURN3, 0], shine: 1, top: lighter(blade, 0.4), topK: 0.3 });
+  // Merkmale auf der Klinge
+  if (tier === 2) W(roundBox(0.006, 0.12, 0.018, 0.002), '#b48cff', { p: [0, by + 0.12, -0.03], r: [0.35, DAGGER_TURN3, 0], mat: 'glow' });
+  if (tier === 3) W(roundBox(0.006, 0.16, 0.016, 0.002), '#7ad86a', { p: [0, by + 0.12, 0], r: [0, DAGGER_TURN3, 0], mat: 'glow' });
+  if (tier === 4) W(roundBox(0.008, 0.13, 0.018, 0.002), GLOW3[4], { p: [0, by + 0.1, 0], r: [0, DAGGER_TURN3, 0], mat: 'glow' });
+  if (tier === 5) W(roundBox(0.008, 0.18, 0.018, 0.002), '#ff7a2a', { p: [0, by + 0.12, 0], r: [0, DAGGER_TURN3, 0], mat: 'glow' });
+  if (tier === 7) W(roundBox(0.006, 0.14, 0.018, 0.002), GLOW3[7], { p: [0, by + 0.13, -0.04], r: [0.5, DAGGER_TURN3, 0], mat: 'glow' });
+  shell(roundBox(0.12, 0.34, 0.06, 0.03), { p: [0, by + 0.13, 0] });
+}
+
 function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   tier = Math.max(0, Math.min(7, tier || 0));
   const metal = TIER_METAL[tier];
@@ -1703,9 +1765,17 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   const gem = tier >= 4 ? STAFF_ORB[tier] : null;
   const iron = '#8a8f96';
   switch (kind) {
-    case 'sword':
-    case 'greatsword':
     case 'dagger': {
+      // in Spielgröße (seit 13.19): als Ganzes größer, damit man die Dolchform auch von oben erkennt
+      const S = DAGGER_SCALE3;
+      const MD = new THREE.Matrix4().compose(new THREE.Vector3(...at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(S, S, S));
+      const WD = framed(A, MD, bone);
+      const shellD = (geo, oo) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: MD.clone().multiply(partMatrix(oo)) });
+      dagger3(WD, tier, shellD);
+      return;
+    }
+    case 'sword':
+    case 'greatsword': {
       const big = kind === 'greatsword';
       const dag = kind === 'dagger';
       const len = big ? 1.0 : dag ? 0.34 : 0.68;

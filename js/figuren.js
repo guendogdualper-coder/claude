@@ -600,6 +600,14 @@ function rodArt(ctx, tier, accent = '#b8c4ff') {
 }
 
 function weaponArt(ctx, kind, tier = 0, accent) {
+  // Dolche (seit 13.19) mit derselben Klingenform je Stufe wie Symbol und 3D-Waffe
+  if (kind === 'dagger' && typeof daggerIconArt === 'function') {
+    ctx.save();
+    ctx.scale(0.62, 0.62);
+    daggerIconArt(ctx, tier);
+    ctx.restore();
+    return;
+  }
   switch (kind) {
     case 'rod':
       rodArt(ctx, tier, accent);
