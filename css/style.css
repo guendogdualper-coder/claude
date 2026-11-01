@@ -3012,33 +3012,40 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .buff-ico.buff-event { background: radial-gradient(circle at 50% 40%, #6a4a14, #2a1a08); }
 .buff-ico.buff-event svg { width: 70%; height: 70%; margin: 15%; fill: #ffd34d; filter: drop-shadow(0 0 4px rgba(255, 211, 77, 0.8)); }
 
-/* Angelegte Ausrüstung als Puppe (seit 13.12): Mitte von oben Helm, Rüstung, Gürtel, unten die Waffen;
-   Schultern oben links, Umhang oben rechts, Schuhe unten links. Ohne Nebenhand steht die Waffe mittig. */
-.equip-grid {
-  grid-template-columns: repeat(4, 56px);
+/* Angelegte Ausrüstung wie ein Charakterfenster (seit 13.15): die Figur groß in der Mitte, links Helm, Schultern
+   und Rüstung, rechts Umhang, Gürtel und Schuhe, unter der Figur die Waffen (Haupt- und Nebenhand nebeneinander).
+   Die Plätze werden über display: contents direkt Teil des Rasters um die Figur. */
+.equip-doll {
+  display: grid;
+  grid-template-columns: 56px minmax(56px, 1fr) minmax(56px, 1fr) 56px;
+  grid-template-rows: repeat(3, 60px) auto;
   grid-template-areas:
-    "schultern helm helm umhang"
-    ". ruestung ruestung ."
-    ". guertel guertel ."
-    "schuhe waffe schild .";
-  justify-items: center;
-  gap: 6px;
+    "helm doll doll umhang"
+    "schultern doll doll guertel"
+    "ruestung doll doll schuhe"
+    ". waffe schild .";
+  gap: 8px 10px;
+  align-items: center;
 }
-.equip-grid:not(:has([data-slot="schild"])) {
+.equip-doll:not(:has([data-slot="schild"])) {
   grid-template-areas:
-    "schultern helm helm umhang"
-    ". ruestung ruestung ."
-    ". guertel guertel ."
-    "schuhe waffe waffe .";
+    "helm doll doll umhang"
+    "schultern doll doll guertel"
+    "ruestung doll doll schuhe"
+    ". waffe waffe .";
 }
-.equip-grid > [data-slot="helm"] { grid-area: helm; }
-.equip-grid > [data-slot="ruestung"] { grid-area: ruestung; }
-.equip-grid > [data-slot="guertel"] { grid-area: guertel; }
-.equip-grid > [data-slot="waffe"] { grid-area: waffe; }
-.equip-grid > [data-slot="schild"] { grid-area: schild; }
-.equip-grid > [data-slot="schultern"] { grid-area: schultern; }
-.equip-grid > [data-slot="umhang"] { grid-area: umhang; }
-.equip-grid > [data-slot="schuhe"] { grid-area: schuhe; }
+.equip-doll > .equip-grid { display: contents; }
+.equip-doll > .doll { grid-area: doll; width: 100% !important; height: 100%; min-height: 0 !important; align-self: stretch; }
+.equip-doll [data-slot="helm"] { grid-area: helm; }
+.equip-doll [data-slot="schultern"] { grid-area: schultern; }
+.equip-doll [data-slot="ruestung"] { grid-area: ruestung; }
+.equip-doll [data-slot="umhang"] { grid-area: umhang; }
+.equip-doll [data-slot="guertel"] { grid-area: guertel; }
+.equip-doll [data-slot="schuhe"] { grid-area: schuhe; }
+.equip-doll [data-slot="waffe"] { grid-area: waffe; justify-self: end; }
+.equip-doll [data-slot="schild"] { grid-area: schild; justify-self: start; }
+.equip-doll:not(:has([data-slot="schild"])) [data-slot="waffe"] { justify-self: center; }
+#panelInv .equip-doll { grid-template-columns: 58px 76px 76px 58px; grid-template-rows: repeat(3, 66px) auto; }
 @media (orientation: landscape) and (max-height: 520px), (max-width: 560px) {
-  .equip-grid { grid-template-columns: repeat(4, 46px); gap: 5px; }
+  .equip-doll, #panelInv .equip-doll { grid-template-columns: 46px 56px 56px 46px; grid-template-rows: repeat(3, 50px) auto; gap: 6px 8px; }
 }
