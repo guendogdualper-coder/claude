@@ -63,6 +63,7 @@ function nearestEnemy(from, range) {
   let bestD = Infinity;
   for (const m of aliveEnemies()) {
     if (m.dead) continue;
+    if (m.hidden) continue;
     const d = dist(from, m) - m.r;
     if (d <= range && d < bestD) { best = m; bestD = d; }
   }
@@ -73,7 +74,7 @@ function nearestEnemy(from, range) {
 function pickTarget(range) {
   const p = game.player;
   const t = game.target;
-  if (t && !t.dead && dist(p, t) - t.r <= range) return t;
+  if (t && !t.dead && !t.hidden && dist(p, t) - t.r <= range) return t;
   const n = nearestEnemy(p, range);
   if (n) game.target = n;
   return n;
@@ -97,6 +98,15 @@ function aim(range) {
 // --- Schaden an Monstern ----------------------------------------------------
 
 // Spieler (oder Skelett mit opts.ally) trifft ein Monster
+// Tarnung endet mit jedem Angriff (seit 13.3 auch mit dem Grundangriff, selbst ins Leere, und im Duell);
+// kurz nach dem Wirken (STEALTH_GRACE) bleibt sie, damit der Hinterhalt noch daraus springen kann
+function breakStealth(p) {
+  if (!game.stats || !game.stats.invisible || game.time - (p.stealthAt || -99) < STEALTH_GRACE) return;
+  p.buffs = p.buffs.filter((b) => !b.effects.invisible);
+  p.nextHitMul = 1;
+  game.stats = playerStats(p);
+}
+
 function hitMonster(m, mul, opts = {}) {
   if (m.dead) return 0;
   // Einschlagklang nach Element (klang-welt.js)
@@ -549,6 +559,7 @@ function basicTick(p) {
       vfxSwing(p, h.color);
       const t = h.target;
       if (t && !t.dead && dist(p, t) - (t.r || 0) <= h.range + 30) hitMonster(t, h.mul, { vfxColor: h.color, basic: true });
+      breakStealth(p);
       if (typeof snd !== 'undefined') snd.swing(p, !!(t && !t.dead));
     }
   }
@@ -556,6 +567,7 @@ function basicTick(p) {
   if (s && game.time >= s.at) {
     p.pendingShot = null;
     if (p.dead) return;
+    breakStealth(p);
     const basic = s.basic;
     const target = s.target && !s.target.dead ? s.target : null;
     if (target) faceTowards(target.x, target.y);

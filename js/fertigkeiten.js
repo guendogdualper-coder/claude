@@ -742,7 +742,8 @@ const SKILL_FX = {
     cast(p) {
       addEffect({ type: 'ring', follow: p, ox: 0, oy: -14, r: 40, dur: 0.6, color: '#8a7aa8', width: 6, grow: true });
     },
-    aura: { every: 0.15, color: ['#5a5466', '#8a7aa8'], shape: 'dot', up: true, glow: false, size: [4, 7] }
+    // seit 13.3 statt großer grauer Blasen ein feiner violetter Schimmer
+    aura: { every: 0.22, color: ['#c9b8ff', '#9a86d8', '#ffffff'], shape: 'spark', up: true, size: [1.2, 2.2] }
   },
   leichtfuessigkeit: {
     cast(p) {

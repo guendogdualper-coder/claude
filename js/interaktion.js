@@ -500,7 +500,11 @@ function updateDuel() {
   if (game.time >= d.fightAt && !d.proxy) {
     d.proxy = { id: 'duel', duelProxy: true, name: d.name, r: 11, level: rp.level, x: rp.x, y: rp.y, hp: rp.hp, maxHp: rp.maxHp, def: 0, dead: false, isStone: false, type: {}, stun: 0 };
   }
-  if (d.proxy) Object.assign(d.proxy, { x: rp.x, y: rp.y, hp: rp.hp, maxHp: rp.maxHp, level: rp.level, dead: !!rp.dead });
+  if (d.proxy) {
+    // getarnter Gegner (seit 13.3): nicht anvisierbar, keine Markierung – Flächenangriffe treffen ihn trotzdem
+    Object.assign(d.proxy, { x: rp.x, y: rp.y, hp: rp.hp, maxHp: rp.maxHp, level: rp.level, dead: !!rp.dead, hidden: remoteHidden(rp) });
+    if (d.proxy.hidden && game.target === d.proxy) game.target = null;
+  }
   if (game.time > d.endAt) {
     netSocial(d.pid, { k: 'de', draw: 1 });
     endDuel(null, 'Die Zeit ist um: unentschieden.');
@@ -519,6 +523,7 @@ function duelHit(m, mul, opts) {
   if (!duelFighting()) return 0;
   const base = opts.atk != null ? opts.atk : s.atk;
   const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
+  if (!opts.ally && !opts.dot) breakStealth(p);
   // duelMul (seit 8.6): Kontroll-Fertigkeiten des Magiers gleichen im Duell aus, dass Zustände dort nur als Schaden zählen
   const raw = base * mul * (opts.ally ? DUEL_ALLY_MUL : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1);
   netSocial(game.duel.pid, { k: 'dh', a: Math.round(raw), c: crit ? 1 : 0, l: p.level });
@@ -628,7 +633,8 @@ function drawDuelArena(ctx, marksOnly = false) {
   }
   ctx.strokeStyle = '#ff4a3a';
   const rp = net.players.get(d.pid);
-  if (rp) {
+  // Ring und gekreuzte Schwerter nur, solange man den Gegner sieht (seit 13.3, sonst verriet das X den Ninja)
+  if (rp && !remoteHidden(rp)) {
     const fy = feetY(rp);
     ctx.globalAlpha = 0.8;
     ctx.lineWidth = 2.5;
