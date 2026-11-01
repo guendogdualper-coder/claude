@@ -508,7 +508,7 @@ const ui = {
       // Infofeld beim Darüberfahren (seit 10.8, tipps.js) statt des schlichten Browser-Titels
       btn.dataset.info = skillTipHtml(sk, p.skillLevels[i], keyTxt) + '<small class="tip-hint">Lange drücken: tauschen, auf einen freien Platz oder aus der Leiste ziehen.</small>';
       btn.setAttribute('aria-label', sk.name);
-      btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
+      btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(sk, rank)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
         (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
@@ -1373,8 +1373,8 @@ const ui = {
     const pages = {
       status: this.elementHtml(p) + this.attrHtml(p),
       skills:
-        `<p>Freie Fertigkeitspunkte: <span class="points">${p.skillPoints}</span> · Schriftrollen für deine Fertigkeiten: <span class="points">${totalBooks(p, true)}</span></p>` +
-        `<p class="hint-text">Bis Stufe 15 mit Punkten, dann mit einem Klick erwecken (E1–E10), danach geht es mit Fertigkeitsschriftrollen über Heroisch (H) und Legendär (L) bis Vollendet (V). Jede Schriftrolle gehört zu einer Fertigkeit. Seelensteine ab Stufe 40 lassen ab und zu Schriftrollen zu den Fertigkeiten deiner Klasse fallen; der Lehrmeister verkauft sie auch.</p>` +
+        `<p class="sk-summary">Punkte <span class="points">${p.skillPoints}</span> · Schriftrollen <span class="points">${totalBooks(p, true)}</span>` +
+        `<span class="hint-text">1–15 mit Punkten · dann Erwacht · Heroisch, Legendär, Vollendet mit Schriftrollen</span></p>` +
         skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p),
       werte:
         `<h3>Kampf</h3><dl class="stats">` +
@@ -1878,11 +1878,11 @@ function mageSkillStats(sk, lvl, out) {
 }
 
 // Aktuelle Werte, darunter die nächste Stufe mit den Zuwächsen
-function skillStatsHtml(sk, lvl) {
+function skillStatsHtml(sk, lvl, compact) {
   const now = skillStats(sk, lvl);
   if (!now.length) return '';
   let html = '<span class="sk-stats">' + now.map(([k, v]) => (v === '' ? k : `${k} <b>${v}</b>`)).join(' · ') + '</span>';
-  const nl = nextSkillLevel(lvl);
+  const nl = compact ? null : nextSkillLevel(lvl);
   if (nl != null) {
     const next = skillStats(sk, nl);
     html += `<span class="sk-next">${nl === SKILL_RANKS[0].from && skillRank(lvl) < 0 ? 'Nach dem Erwecken (E1)' : 'Stufe ' + skillLevelText(nl)}: ` +
@@ -1891,21 +1891,43 @@ function skillStatsHtml(sk, lvl) {
   return html;
 }
 
+// Kurzer Text: erster Satz, höchstens etwa 70 Zeichen (der volle Text steht im Infofeld)
+function shortSkillText(t) {
+  const full = String(t || '');
+  const m = full.match(/^.*?[.!](\s|$)/);
+  let s = m ? m[0].trim() : full;
+  if (s.length > 72) s = s.slice(0, s.lastIndexOf(' ', 70)).replace(/[,:;]$/, '') + ' …';
+  return s;
+}
+
+// Fertigkeitenliste (seit 12.4 kompakt): Symbol im aktuellen Rang, Name, kurzer Satz, aktuelle Werte, Knöpfe;
+// darunter alle Ränge als Symbole (normal 1–15, E, H, L, V) – erreichte leuchten, kommende sind abgedunkelt
 function skillListHtml(skills, p) {
-  return '<ul class="skill-list">' + skills.map((sk, i) => {
-    let meta = `ab Stufe ${sk.unlock}<br>${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s`;
-    if (p) {
-      const lvl = p.skillLevels[i];
-      const r = skillRank(lvl);
+  return '<ul class="skill-list sk-cards">' + skills.map((sk, i) => {
+    const lvl = p ? p.skillLevels[i] : 0;
+    const r = p ? skillRank(lvl) : -1;
+    const open = !p || p.level >= sk.unlock;
+    let head = `ab Stufe ${sk.unlock}`;
+    let btns = '';
+    if (p && open) {
       const acts = skillActions(p, i);
-      const title = r < 0 ? `Stufe ${lvl}/${SKILL_POINT_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
-      meta = p.level >= sk.unlock
-        ? title + '<br>' + (acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${a.ok ? '' : a.why}">${a.label}</button>`).join('') || (r === SKILL_RANKS.length - 1 ? 'Höchste Stufe' : ''))
-        : `ab Stufe ${sk.unlock}`;
+      head = r < 0 ? `Stufe ${lvl}/${SKILL_POINT_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
+      btns = acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${a.ok ? '' : a.why}">${a.label}</button>`).join('') ||
+        (r === SKILL_RANKS.length - 1 ? '<span class="hint-text">Höchste Stufe</span>' : '');
     }
-    return `<li><img class="icon" src="${skillIconUrl(sk)}" alt="${sk.short}">` +
-      `<span class="info"><strong>${i + 1}. ${sk.name}</strong><span>${sk.text}</span>${p && p.level >= sk.unlock ? skillStatsHtml(sk, p.skillLevels[i]) : ''}</span>` +
-      `<span class="meta">${meta}</span></li>`;
+    const ranks = [{ r: -1, label: '1–15', color: '#cfc4a8', min: 1 }, ...SKILL_RANKS.map((rk, k) => ({ r: k, label: rk.levels > 1 ? rk.id + '1–' + rk.levels : rk.id, color: rk.color, min: rk.minLevel, name: rk.name }))];
+    const rankRow = '<span class="sk-ranks">' + ranks.map((x) => {
+      const has = !p || (open && r >= x.r);
+      const now = open && p && r === x.r;
+      return `<span class="sk-rank${has ? ' has' : ''}${now ? ' now' : ''}" title="${x.name || 'Normal'}${x.min > 1 ? ' · ab Stufe ' + x.min : ''}">` +
+        `<img src="${skillIconUrl(sk, x.r)}" alt=""><small style="color:${x.color}">${x.label}</small></span>`;
+    }).join('<i class="sk-arrow">›</i>') + '</span>';
+    return `<li${open ? '' : ' class="locked"'} data-info="${escapeHtml('<strong>' + sk.name + '</strong><span>' + sk.text + '</span>')}">` +
+      `<img class="icon" src="${skillIconUrl(sk, r)}" alt="${sk.short}">` +
+      `<span class="info"><strong>${i + 1}. ${sk.name} <em class="sk-level">${head}</em></strong>` +
+      `<span class="sk-short">${shortSkillText(sk.text)}</span>` +
+      (p && open ? skillStatsHtml(sk, lvl, true) : '') + rankRow + `</span>` +
+      `<span class="meta">${btns}</span></li>`;
   }).join('') + '</ul>';
 }
 

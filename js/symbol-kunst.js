@@ -426,14 +426,32 @@ function drawSkillIcon(ctx, sk) {
 
 // ersetzt skillIconUrl aus fertigkeiten.js: 128 px, neuer Stil
 skillIconCache.clear();
-skillIconUrl = function (sk) {
-  if (skillIconCache.has(sk.id)) return skillIconCache.get(sk.id);
+// seit 12.4 je Rang (r: -1 normal, 0 E, 1 H, 2 L, 3 V): Schein in der Rangfarbe und Rangrahmen (skillRankFrame)
+skillIconUrl = function (sk, r = -1) {
+  const key = sk.id + ':' + r;
+  if (skillIconCache.has(key)) return skillIconCache.get(key);
   const size = 128;
   const c = newCanvas(size, size);
   const ctx = c.getContext('2d');
   ctx.setTransform(size / 48, 0, 0, size / 48, size / 2, size / 2);
   drawSkillIcon(ctx, sk);
+  if (r >= 0) {
+    const col = SKILL_RANKS[r].color;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(0, 0, 21, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 22);
+    g.addColorStop(0, col + '00');
+    g.addColorStop(0.6, col + ['22', '30', '3a', '48'][r]);
+    g.addColorStop(1, col + ['66', '80', '99', 'b0'][r]);
+    ctx.fillStyle = g;
+    ctx.fillRect(-24, -24, 48, 48);
+    ctx.restore();
+    skillRankFrame(ctx, r, col);
+  }
   const url = c.toDataURL();
-  skillIconCache.set(sk.id, url);
+  skillIconCache.set(key, url);
   return url;
 };

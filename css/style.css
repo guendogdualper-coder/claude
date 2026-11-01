@@ -2889,3 +2889,21 @@ body.aiming canvas { cursor: crosshair; }
 .char-page .stats { margin-top: 2px; }
 .char-page h3:first-child { margin-top: 0; }
 @media (max-width: 720px) { .char-tabs button { padding: 7px 6px; font-size: 13px; } }
+
+/* Fertigkeiten-Seite (seit 12.4): kompakt, Rangsymbole als Leiste */
+.sk-summary { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; margin: 0; }
+.sk-summary .hint-text { font-size: 12px; }
+.sk-cards li { align-items: flex-start; }
+.sk-cards li.locked { opacity: 0.6; }
+.sk-cards .icon { width: 52px !important; height: 52px !important; border: 0 !important; }
+.sk-cards .info strong { display: flex; flex-wrap: wrap; gap: 2px 8px; align-items: baseline; }
+.sk-cards .sk-level { font-style: normal; font-size: 12px; font-weight: 600; color: var(--muted); }
+.sk-cards .sk-short { display: block; font-size: 13px; color: #d8ccb0; margin-top: 1px; }
+.sk-ranks { display: flex !important; align-items: center; gap: 2px; margin-top: 6px; flex-wrap: wrap; }
+.sk-rank { display: flex; flex-direction: column; align-items: center; gap: 1px; opacity: 0.38; filter: grayscale(0.7); }
+.sk-rank.has { opacity: 1; filter: none; }
+.sk-rank.now img { box-shadow: 0 0 0 2px #fff6c8, 0 0 10px rgba(255, 230, 150, 0.8); border-radius: 50%; }
+.sk-rank img { width: 34px; height: 34px; }
+.sk-rank small { font-size: 10px; font-weight: 700; line-height: 1; }
+.sk-arrow { font-style: normal; color: var(--muted); font-size: 14px; margin: 0 1px 12px; }
+@media (max-width: 720px) { .sk-rank img { width: 28px; height: 28px; } .sk-cards .icon { width: 44px !important; height: 44px !important; } }

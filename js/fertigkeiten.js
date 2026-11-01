@@ -505,8 +505,13 @@ Object.assign(SKILL_ICONS, {
 
 const skillIconCache = new Map();
 
-function skillIconUrl(sk) {
-  if (skillIconCache.has(sk.id)) return skillIconCache.get(sk.id);
+// Symbol einer Fertigkeit, seit 12.4 je Rang (r: -1 normal, 0 Erwacht, 1 Heroisch, 2 Legendär, 3 Vollendet):
+// unter dem Bild ein Schein in der Rangfarbe, darüber ein Rahmen, der mit jedem Rang prächtiger wird –
+// Erwacht silberblau mit vier Steinen, Heroisch violett mit acht Nieten, Legendär gold mit Lorbeer,
+// Vollendet glühend mit Flammenspitzen und Krone
+function skillIconUrl(sk, r = -1) {
+  const key = sk.id + ':' + r;
+  if (skillIconCache.has(key)) return skillIconCache.get(key);
   const size = 96;
   const c = newCanvas(size, size);
   const ctx = c.getContext('2d');
@@ -519,15 +524,138 @@ function skillIconUrl(sk) {
   ctx.beginPath();
   ctx.arc(0, 0, 23.5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(0, 0, 21, 0, Math.PI * 2);
-  ctx.stroke();
+  const RC = ['#9fd0ff', '#c58cff', '#ffd34d', '#ff6a4a'];
+  if (r >= 0) {
+    // Schein unter dem Bild
+    const gl = ctx.createRadialGradient(0, 0, 2, 0, 0, 22);
+    gl.addColorStop(0, RC[r] + (r >= 2 ? 'cc' : '99'));
+    gl.addColorStop(1, RC[r] + '00');
+    ctx.fillStyle = gl;
+    ctx.beginPath();
+    ctx.arc(0, 0, 22, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, 21, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   (SKILL_ICONS[sk.id] || (() => {}))(ctx);
+  if (r >= 0) skillRankFrame(ctx, r, RC[r]);
   const url = c.toDataURL();
-  skillIconCache.set(sk.id, url);
+  skillIconCache.set(key, url);
   return url;
+}
+
+function skillRankFrame(ctx, r, col) {
+  ctx.save();
+  const ring = (rad, w, a, b) => {
+    const gr = ctx.createLinearGradient(-rad, -rad, rad, rad);
+    gr.addColorStop(0, a);
+    gr.addColorStop(0.5, b);
+    gr.addColorStop(1, a);
+    ctx.strokeStyle = gr;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.arc(0, 0, rad, 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  const gem = (x, y, s, fill) => {
+    ctx.fillStyle = fill;
+    ctx.strokeStyle = '#120c08';
+    ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s);
+    ctx.lineTo(x + s * 0.75, y);
+    ctx.lineTo(x, y + s);
+    ctx.lineTo(x - s * 0.75, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  };
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 3 + r * 2;
+  if (r === 0) {
+    ring(22.2, 2.4, '#e8f4ff', '#6a9ac8');
+    ring(19.6, 0.8, 'rgba(232,244,255,0.7)', 'rgba(106,154,200,0.7)');
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 - Math.PI / 2;
+      gem(Math.cos(a) * 22.2, Math.sin(a) * 22.2, 2.6, '#bfe4ff');
+    }
+  } else if (r === 1) {
+    ring(22, 3.2, '#f0e0ff', '#7a3ac0');
+    ring(19.2, 1, 'rgba(240,224,255,0.8)', 'rgba(122,58,192,0.8)');
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2 - Math.PI / 2;
+      ctx.fillStyle = k % 2 ? '#e0c8ff' : '#ffffff';
+      ctx.beginPath();
+      ctx.arc(Math.cos(a) * 22, Math.sin(a) * 22, k % 2 ? 1.2 : 1.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    gem(0, -22, 3, '#d8a0ff');
+  } else if (r === 2) {
+    ring(21.8, 3.6, '#fff4c0', '#c88a1a');
+    ring(18.8, 1.1, 'rgba(255,244,192,0.85)', 'rgba(200,138,26,0.85)');
+    ctx.shadowBlur = 0;
+    // Lorbeer links und rechts unten
+    for (const sx of [-1, 1]) for (let k = 0; k < 5; k++) {
+      const a = Math.PI / 2 + sx * (0.35 + k * 0.28);
+      ctx.save();
+      ctx.translate(Math.cos(a) * 19.4, Math.sin(a) * 19.4);
+      ctx.rotate(a + sx * 0.9);
+      ctx.fillStyle = k % 2 ? '#ffe680' : '#e8b440';
+      ctx.strokeStyle = '#5a3a0a';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 2.6, 1.2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+    gem(0, -21.8, 3.2, '#ffe680');
+    for (const [x, y] of [[-12, -15], [14, -12], [16, 9]]) {
+      ctx.fillStyle = '#fffbe0';
+      ctx.beginPath();
+      ctx.moveTo(x, y - 2.4); ctx.lineTo(x + 0.6, y - 0.6); ctx.lineTo(x + 2.4, y); ctx.lineTo(x + 0.6, y + 0.6);
+      ctx.lineTo(x, y + 2.4); ctx.lineTo(x - 0.6, y + 0.6); ctx.lineTo(x - 2.4, y); ctx.lineTo(x - 0.6, y - 0.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+  } else {
+    // Vollendet: Flammenspitzen nach innen, glühender Doppelring, Krone oben
+    ctx.shadowBlur = 0;
+    for (let k = 0; k < 14; k++) {
+      const a = (k / 14) * Math.PI * 2;
+      const fl = ctx.createLinearGradient(Math.cos(a) * 22, Math.sin(a) * 22, Math.cos(a) * 15, Math.sin(a) * 15);
+      fl.addColorStop(0, '#ffd070');
+      fl.addColorStop(1, 'rgba(255,90,40,0)');
+      ctx.fillStyle = fl;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a - 0.16) * 22, Math.sin(a - 0.16) * 22);
+      ctx.quadraticCurveTo(Math.cos(a) * 18, Math.sin(a) * 18, Math.cos(a + 0.05) * (k % 2 ? 16 : 14.5), Math.sin(a + 0.05) * (k % 2 ? 16 : 14.5));
+      ctx.lineTo(Math.cos(a + 0.16) * 22, Math.sin(a + 0.16) * 22);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.shadowColor = '#ff5a1a';
+    ctx.shadowBlur = 8;
+    ring(22, 3.8, '#ffe0a0', '#c8302a');
+    ring(18.6, 1.2, 'rgba(255,224,160,0.9)', 'rgba(200,48,42,0.9)');
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#ffd34d';
+    ctx.strokeStyle = '#5a1a0a';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(-6.5, -16.5); ctx.lineTo(-6.5, -22.5); ctx.lineTo(-3.2, -19.5); ctx.lineTo(0, -23.6); ctx.lineTo(3.2, -19.5); ctx.lineTo(6.5, -22.5); ctx.lineTo(6.5, -16.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    gem(0, -18.6, 1.7, '#ff4a3a');
+  }
+  ctx.restore();
 }
 
 // --- Effekte je Fertigkeit -------------------------------------------------------------------
