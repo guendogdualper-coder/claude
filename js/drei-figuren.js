@@ -186,16 +186,25 @@ function face3(A0, hb, hc, hr, o) {
       A(torus3(hr * 0.15, hr * 0.035, Math.PI, 4, 10), ink, { bone: hb, p: [ex, eyeY - hr * 0.06, ez + hr * 0.02] });
     } else {
       const narrow = shape === 1 || o.narrow;
-      const sy = narrow ? 0.5 : 1;
-      A(ball(12), '#fbf8f2', { bone: hb, p: [ex, eyeY, ez], s: [hr * 0.18, hr * 0.25 * sy, hr * 0.08] });
-      A(ball(12), iris, { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.03 * sy, ez + hr * 0.03], s: [hr * 0.14, hr * 0.2 * sy, hr * 0.06], shine: 0.6 });
+      // Männer (seit 13.18): kleinere, flachere Augen ohne geschwungenen Lidstrich – wirkt erwachsen und kantig
+      const man = !!o.male;
+      const sy = (narrow ? 0.5 : 1) * (man ? 0.72 : 1);
+      const ew = man ? 0.85 : 1;
+      A(ball(12), '#fbf8f2', { bone: hb, p: [ex, eyeY, ez], s: [hr * 0.18 * ew, hr * 0.25 * sy, hr * 0.08] });
+      A(ball(12), iris, { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.03 * sy, ez + hr * 0.03], s: [hr * 0.14 * ew * (man ? 0.82 : 1), hr * 0.2 * sy, hr * 0.06], shine: 0.6 });
       A(ball(10), lighter(iris, 0.35), { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.1 * sy, ez + hr * 0.055], s: [hr * 0.09, hr * 0.08 * sy, hr * 0.03] });
       A(ball(10), '#140c08', { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.01 * sy, ez + hr * 0.07], s: [hr * 0.07, hr * 0.11 * sy, hr * 0.03] });
       A(sphere3(1, 8, 6), '#ffffff', { bone: hb, p: [ex - sx * hr * 0.05, eyeY + hr * 0.07 * sy, ez + hr * 0.1], s: [hr * 0.055, hr * 0.06 * sy, hr * 0.025], mat: 'glow' });
-      A(sphere3(1, 6, 5), '#ffffff', { bone: hb, p: [ex + sx * hr * 0.04, eyeY - hr * 0.09 * sy, ez + hr * 0.1], s: [hr * 0.026, hr * 0.026, hr * 0.02], mat: 'glow' });
-      // Lidstrich mit Schwung nach außen
-      A(torus3(hr * 0.18, hr * 0.032, Math.PI * 0.82, 4, 10), ink, { bone: hb, p: [ex, eyeY + hr * 0.02 * sy, ez + hr * 0.035], r: [0, 0, Math.PI * 0.09], s: [1, sy * 1.25, 1] });
-      A(horn3(hr * 0.12, hr * 0.03, 5), ink, { bone: hb, p: [ex + sx * hr * 0.17, eyeY + hr * 0.1 * sy, ez + hr * 0.02], r: [0, 0, -sx * 2.2] });
+      if (!man) A(sphere3(1, 6, 5), '#ffffff', { bone: hb, p: [ex + sx * hr * 0.04, eyeY - hr * 0.09 * sy, ez + hr * 0.1], s: [hr * 0.026, hr * 0.026, hr * 0.02], mat: 'glow' });
+      if (man) {
+        // gerades, schweres Oberlid (leicht zur Mitte geneigt) und ein feiner Unterlidstrich
+        A(roundBox(hr * 0.34, hr * 0.06, hr * 0.05, hr * 0.02), ink, { bone: hb, p: [ex, eyeY + hr * 0.15 * sy, ez + hr * 0.045], r: [0, 0, sx * 0.1] });
+        A(roundBox(hr * 0.22, hr * 0.022, hr * 0.03, hr * 0.01), darker(o.skin || '#e9c6a1', 0.35), { bone: hb, p: [ex, eyeY - hr * 0.2 * sy, ez + hr * 0.04] });
+      } else {
+        // Lidstrich mit Schwung nach außen
+        A(torus3(hr * 0.18, hr * 0.032, Math.PI * 0.82, 4, 10), ink, { bone: hb, p: [ex, eyeY + hr * 0.02 * sy, ez + hr * 0.035], r: [0, 0, Math.PI * 0.09], s: [1, sy * 1.25, 1] });
+        A(horn3(hr * 0.12, hr * 0.03, 5), ink, { bone: hb, p: [ex + sx * hr * 0.17, eyeY + hr * 0.1 * sy, ez + hr * 0.02], r: [0, 0, -sx * 2.2] });
+      }
       if (o.female) {
         // längere Wimpern: zweiter Schwung und ein feiner unterer Lidstrich
         A(horn3(hr * 0.1, hr * 0.024, 5), ink, { bone: hb, p: [ex + sx * hr * 0.12, eyeY + hr * 0.19 * sy, ez + hr * 0.03], r: [0, 0, -sx * 2.6] });
@@ -204,7 +213,10 @@ function face3(A0, hb, hc, hr, o) {
     }
     // Brauen: entschlossen oder grimmig schräg, sonst sanft gebogen
     const stern = shape === 3 || o.angry;
-    A(roundBox(hr * 0.26, hr * (o.male ? 0.065 : o.female ? 0.035 : 0.045), hr * 0.05, hr * 0.02), stern ? ink : brow, { bone: hb, p: [ex, eyeY + hr * (stern ? 0.3 : 0.36), ez + hr * 0.0], r: [0, 0, stern ? sx * 0.42 : -sx * 0.12] });
+    if (o.male && !stern) {
+      // Männer: dicke, gerade Brauen dicht über dem Auge, innen leicht gesenkt
+      A(roundBox(hr * 0.32, hr * 0.085, hr * 0.06, hr * 0.03), brow, { bone: hb, p: [ex + sx * hr * 0.01, eyeY + hr * 0.27, ez + hr * 0.0], r: [0, 0, sx * 0.14] });
+    } else A(roundBox(hr * 0.26, hr * (o.male ? 0.065 : o.female ? 0.035 : 0.045), hr * 0.05, hr * 0.02), stern ? ink : brow, { bone: hb, p: [ex, eyeY + hr * (stern ? 0.3 : 0.36), ez + hr * 0.0], r: [0, 0, stern ? sx * 0.42 : -sx * 0.12] });
   }
   if (o.blush !== false && !o.glowEyes) for (const sx of [-1, 1]) A(ball(8), '#f2988a', { bone: hb, p: [hc[0] + sx * hr * 0.58, eyeY - hr * 0.3, hc[2] + f * 0.84], s: [hr * 0.14, hr * 0.07, hr * 0.05] });
   if (!o.noMouth) {
@@ -213,9 +225,17 @@ function face3(A0, hb, hc, hr, o) {
       A(roundBox(hr * 0.46, hr * 0.09, hr * 0.06, hr * 0.04), '#2a0e0c', { bone: hb, p: [hc[0], hc[1] - hr * 0.47, hc[2] + f * 0.96] });
       for (let k = -2; k <= 2; k++) A(horn3(hr * 0.09, hr * 0.03, 4), '#f0e6cc', { bone: hb, p: [hc[0] + k * hr * 0.09, hc[1] - hr * (k % 2 ? 0.43 : 0.52), hc[2] + f * 0.99], r: [k % 2 ? Math.PI : 0, 0, 0] });
     } else if (o.angry) A(roundBox(hr * 0.2, hr * 0.045, hr * 0.05, hr * 0.02), '#4a1a14', { bone: hb, p: [hc[0], hc[1] - hr * 0.45, hc[2] + f * 0.97] });
+    else if (o.male) A(roundBox(hr * 0.17, hr * 0.03, hr * 0.03, hr * 0.012), '#6a2a24', { bone: hb, p: [hc[0], hc[1] - hr * 0.42, hc[2] + f * 0.98] });
     else A(torus3(hr * 0.08, hr * (o.female ? 0.03 : 0.022), Math.PI * 0.8, 4, 8), o.female ? '#c0485a' : '#6a2a24', { bone: hb, p: [hc[0], hc[1] - hr * 0.38, hc[2] + f * 0.98], r: [0, 0, Math.PI + Math.PI * 0.1] });
   }
-  if (!o.noNose) A(sphere3(hr * 0.055, 8, 6), darker(o.skin || '#e9c6a1', 0.1), { bone: hb, p: [hc[0], hc[1] - hr * 0.24, hc[2] + f * 1.03] });
+  if (!o.noNose) {
+    if (o.male) {
+      // Männer: kräftigere Nase mit Rücken, dazu ein angedeutetes Kinn
+      A(ball(8), darker(o.skin || '#e9c6a1', 0.08), { bone: hb, p: [hc[0], hc[1] - hr * 0.2, hc[2] + f * 1.02], s: [hr * 0.07, hr * 0.13, hr * 0.07] });
+      A(sphere3(hr * 0.07, 8, 6), darker(o.skin || '#e9c6a1', 0.12), { bone: hb, p: [hc[0], hc[1] - hr * 0.28, hc[2] + f * 1.04] });
+      if (!o.beard) A(ball(8), darker(o.skin || '#e9c6a1', 0.04), { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + f * 0.86], s: [hr * 0.2, hr * 0.1, hr * 0.1] });
+    } else A(sphere3(hr * 0.055, 8, 6), darker(o.skin || '#e9c6a1', 0.1), { bone: hb, p: [hc[0], hc[1] - hr * 0.24, hc[2] + f * 1.03] });
+  }
   // Gesichtszeichen: 1 Sommersprossen, 2 Narbe, 3 Kriegsbemalung
   if (o.mark === 1) for (const sx of [-1, 1]) for (const [dx, dy] of [[0, 0], [0.12, 0.05], [0.06, -0.08], [0.17, -0.04]]) A(sphere3(hr * 0.024, 6, 4), '#a8683a', { bone: hb, p: [hc[0] + sx * hr * (0.42 + dx), eyeY - hr * (0.3 + dy), hc[2] + f * 0.92] });
   if (o.mark === 2) A(roundBox(hr * 0.05, hr * 0.46, hr * 0.04, hr * 0.02), '#a8483a', { bone: hb, p: [hc[0] - hr * 0.47, eyeY - hr * 0.08, hc[2] + f * 0.94], r: [0, 0, 0.35] });
@@ -432,14 +452,14 @@ function humanoid3(b, c, P) {
   const belly = !!c.belly;
   // bk: kräftiger Körperbau (Krieger), breitere Schultern, Arme und Beine
   const bk = c.bulk || 1;
-  const legLen = belly ? 0.3 : 0.34;
+  const legLen = belly ? 0.3 : c.legLen || 0.34;
   const hipX = (belly ? 0.16 : 0.105) * bk;
   const legR = (belly ? 0.12 : 0.082) * bk;
   const hipY = legLen + 0.06;
   const chestY = hipY + 0.26;
   const shY = hipY + (belly ? 0.48 : 0.37);
   const shX = (belly ? 0.42 : 0.25) * bk;
-  const armLen = belly ? 0.46 : 0.31;
+  const armLen = belly ? 0.46 : c.armLen || 0.31;
   const armR = (belly ? 0.11 : 0.062) * bk;
   const neckY = hipY + (belly ? 0.6 : 0.44);
   const hr = c.headR || (belly ? 0.26 : 0.33);
@@ -774,7 +794,7 @@ function humanoid3(b, c, P) {
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
-  return { rig, height: top, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
+  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
 }
 
 // Drehknochen (seit 8.6): Teile, die schweben und sich drehen (Zepterkristall mit Funke, Runenring um die
@@ -965,9 +985,14 @@ function playerConfig3(p) {
     c.hair = { style: ap.hair || 0, color: hairOf(ap) };
   }
   const mask = p.classId === 'ninja' && ap.helm !== 0;
+  // seit 13.18: Spielfiguren größer und erwachsener – kleinerer Kopf, längere Beine und Arme (docs/charakter-design-v2.md)
+  c.figScale = 1.14;
+  c.headR = ap.sex === 0 ? 0.265 : 0.272;
+  c.legLen = 0.44;
+  c.armLen = 0.35;
   if (ap.sex === 0) {
-    c.bulk = Math.max(c.bulk || 1, 1.08);
-    c.jaw = 1.08;
+    c.bulk = Math.max(c.bulk || 1, 1.1);
+    c.jaw = 1.16;
     const kind = BEARD3[ap.bart == null ? 1 : ap.bart];
     if (kind && !mask) {
       c.beard = darker(hairOf(ap), 0.04);
