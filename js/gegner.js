@@ -501,6 +501,17 @@ function aggro(m, source) {
   }
 }
 
+function alertGroup(m, source) {
+  if (!source || source.dead) return;
+  for (const o of game.monsters) {
+    if (o === m || o.dead || o.isStone || o.groupId !== m.groupId || dist(o, m) > 420) continue;
+    if (o.state === 'chase' && o.target && !o.target.dead) continue;
+    o.state = 'chase';
+    o.target = source;
+    o.provokedAt = game.time;
+  }
+}
+
 // Seelenstein ruft nach jeweils 10–15 % Schaden eine Welle: Monster der Zone mit der Stufe des Steins.
 // Sie gehören zum Stein (m.stone) und sterben mit ihm.
 const STONE_MINIONS_MAX = 9;

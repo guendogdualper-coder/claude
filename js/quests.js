@@ -47,11 +47,23 @@ function sideState(key) {
   if (!q.side[key]) q.side[key] = { state: 'open', progress: 0, times: 0 };
   return q.side[key];
 }
+// Monster der aktuellen Nebenaufgabe (seit 13.10 wechselt es nach jeder Abgabe; vorher immer dasselbe)
+function sideMon(n, s = sideState(n.key)) {
+  return s.monster && MONSTER_TYPES[s.monster] ? s.monster : n.side.monster;
+}
+// nächstes Monster: ein anderes aus den Gebieten der Map des Wanderers (beim Sammeln nur solche mit Teilen)
+function nextSideMonster(n, s) {
+  const map = npcMapId(n);
+  const pool = [...new Set(ZONES.filter((z) => z.map === map && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])))]
+    .filter((id) => MONSTER_TYPES[id] && (n.side.kind !== 'collect' || MOB_MATS[id]) && id !== sideMon(n, s));
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : sideMon(n, s);
+}
+// seit 13.10 wächst die Menge langsamer (vorher 8 → 16 Hunde, jetzt höchstens 6 mehr)
 function sideCount(n, s) {
-  return n.side.kind === 'collect' ? SIDE_COLLECT + Math.min(4, s.times) : SIDE_KILL + Math.min(10, s.times * 2);
+  return n.side.kind === 'collect' ? SIDE_COLLECT + Math.min(3, Math.floor(s.times / 2)) : SIDE_KILL + Math.min(6, s.times);
 }
 function sideHave(n, s) {
-  return n.side.kind === 'collect' ? (game.player.upmats[n.side.monster] || 0) : s.progress;
+  return n.side.kind === 'collect' ? (game.player.upmats[sideMon(n, s)] || 0) : s.progress;
 }
 function sideDone(n, s) {
   return s.state === 'active' && sideHave(n, s) >= sideCount(n, s);
@@ -60,7 +72,7 @@ function sideDone(n, s) {
 function sideCollecting(typeId) {
   if (!game.player || !game.world) return false;
   const q = questState();
-  return !!q.side && game.world.npcs.some((n) => n.id === 'wanderer' && n.side.kind === 'collect' && n.side.monster === typeId && q.side[n.key] && q.side[n.key].state === 'active');
+  return !!q.side && game.world.npcs.some((n) => n.id === 'wanderer' && n.side.kind === 'collect' && q.side[n.key] && sideMon(n, q.side[n.key]) === typeId && q.side[n.key].state === 'active');
 }
 
 function currentMainQuest() {
@@ -151,7 +163,7 @@ function questEvent(kind, m) {
   }
   if (kind === 'kill' && q.side) {
     for (const n of game.world.npcs) {
-      if (n.id !== 'wanderer' || n.side.kind !== 'kill' || n.side.monster !== m.typeId) continue;
+      if (n.id !== 'wanderer' || n.side.kind !== 'kill' || !q.side[n.key] || sideMon(n, q.side[n.key]) !== m.typeId) continue;
       const s = q.side[n.key];
       if (!s || s.state !== 'active' || s.progress >= sideCount(n, s)) continue;
       s.progress++;
@@ -456,9 +468,10 @@ Object.assign(ui, {
     if (q.side) for (const n of game.world.npcs) {
       if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const s = q.side[n.key];
-      const t = MONSTER_TYPES[n.side.monster];
-      const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[n.side.monster].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`;
-      row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(n.side.monster), '', 'side:' + n.key);
+      const mon = sideMon(n, s);
+      const t = MONSTER_TYPES[mon];
+      const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`;
+      row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(mon), '', 'side:' + n.key);
     }
     if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster), '', 'hunt');
     el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
@@ -562,8 +575,9 @@ Object.assign(ui, {
   renderWanderer(n) {
     const p = game.player;
     const s = sideState(n.key);
-    const t = MONSTER_TYPES[n.side.monster];
-    const mat = MOB_MATS[n.side.monster];
+    const mon = sideMon(n, s);
+    const t = MONSTER_TYPES[mon];
+    const mat = MOB_MATS[mon];
     const need = sideCount(n, s);
     const collect = n.side.kind === 'collect';
     const xp = questXp(t.level, 0.25);
@@ -577,7 +591,7 @@ Object.assign(ui, {
     else if (sideDone(n, s)) action = '<button type="button" class="btn btn-primary" data-side="reward">' + (collect ? `${need} × ${mat.name} abgeben` : 'Belohnung abholen') + '</button>';
     else action = `<p class="hint-text">Fortschritt: ${Math.min(sideHave(n, s), need)} / ${need}</p><button type="button" class="btn btn-ghost" data-side="drop">Aufgabe abbrechen</button>`;
     body.innerHTML = `<p class="quest-step">Nebenaufgabe · ${t.name} (Stufe ${t.level})${s.times ? ` · schon ${s.times}× erledigt` : ''}</p>` +
-      `<p>${ask}</p><p><strong>Ziel:</strong> ${collect ? `${need} × ${mat.name}` : `${need} × ${t.name} besiegen`} <small>📍 ${monsterWhere(n.side.monster)}</small></p>` +
+      `<p>${ask}</p><p><strong>Ziel:</strong> ${collect ? `${need} × ${mat.name}` : `${need} × ${t.name} besiegen`} <small>📍 ${monsterWhere(mon)}</small></p>` +
       `<p><strong>Belohnung:</strong></p>${rewardHtml(reward, xp)}${action}`;
     const btn = body.querySelector('[data-side]');
     if (btn) btn.addEventListener('click', () => {
@@ -589,11 +603,13 @@ Object.assign(ui, {
         s.state = 'open';
         s.progress = 0;
       } else {
-        if (collect) p.upmats[n.side.monster] -= need;
+        if (collect) p.upmats[mon] -= need;
         giveReward(reward, xp);
         s.state = 'open';
         s.progress = 0;
         s.times++;
+        // nächstes Mal ein anderes Monster der Map
+        s.monster = nextSideMonster(n, s);
         ui.banner('Nebenaufgabe erledigt', n.name);
       }
       saveGame();

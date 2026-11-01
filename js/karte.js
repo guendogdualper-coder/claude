@@ -238,7 +238,7 @@ function guideEntries() {
     for (const n of game.world.npcs) {
       if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const done = sideDone(n, q.side[n.key]);
-      out.push(done ? { key: 'side:' + n.key, kind: 'side', title: n.name, npc: n, done: true } : { key: 'side:' + n.key, kind: 'side', title: n.name, monster: n.side.monster });
+      out.push(done ? { key: 'side:' + n.key, kind: 'side', title: n.name, npc: n, done: true } : { key: 'side:' + n.key, kind: 'side', title: n.name, monster: sideMon(n, q.side[n.key]) });
     }
   }
   const h = q.hunt;

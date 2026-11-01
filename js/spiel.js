@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.9.1';
+const GAME_VERSION = '13.10';
 
 const game = {
   world: null,
@@ -32,6 +32,13 @@ function startGame(save, slot) {
   if (typeof accountClaim === 'function') accountClaim(saveSlot);
   game.party = null;
   game.player = makePlayer(save);
+  // Ninja (seit 13.10, ein Dolch je Hand): einmalig ein zweiter Dolch gleicher Stufe (+0) in die Nebenhand
+  const np = game.player;
+  if (np.classId === 'ninja' && !np.dagger2) {
+    np.dagger2 = true;
+    const w = np.equipment && np.equipment.waffe;
+    if (w && w.kind === 'dagger' && !np.equipment.schild) np.equipment.schild = makeItem('waffe', w.tier, 0, 'ninja', 'dagger');
+  }
   game.stats = playerStats(game.player);
   game.allies = [];
   game.clones = [];

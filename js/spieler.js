@@ -73,7 +73,7 @@ function skillOrder(p) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'dagger2', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 1; // seit 10.1 (vorher 3): sonst ist man zu schnell durch
@@ -277,7 +277,9 @@ function playerStats(p) {
     block: 0,
     // Kälte (seit 8.6, Frostpanzer des Magiers): Nahkämpfer, die dich schlagen, werden so stark verlangsamt
     chill: 0,
-    invisible: false
+    invisible: false,
+    // Waffenschaden (seit 13.10): Spanne und Mittelwert, der im Angriff steckt
+    wMin: 0, wMax: 0, wAvg: 0
   };
   let atkMul = 1;
   let atkFlat = 0;
@@ -290,7 +292,7 @@ function playerStats(p) {
   const offhand = isOffhand(eq.schild) ? eq.schild : null;
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
-    const share = item === offhand ? DUAL_WIELD.bonus : 1;
+    const share = item === offhand ? (p.classId === 'ninja' ? DUAL_DAGGER.bonus : DUAL_WIELD.bonus) : 1;
     for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v * share;
   }
   for (const [k, cap] of Object.entries(BONUS_CAPS)) if (bonus[k] > cap) bonus[k] = cap;
@@ -312,12 +314,19 @@ function playerStats(p) {
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
     if (item === offhand) {
-      if (!canDualWield(p)) continue;
-      s.atk += Math.round((itemStats(item).atk || 0) * DUAL_WIELD.atk);
-      s.atkSpeed += DUAL_WIELD.atkSpeed;
+      const dw = p.classId === 'ninja' ? DUAL_DAGGER : DUAL_WIELD;
+      if (item.kind !== offhandKind(p)) continue;
+      const ost = itemStats(item);
+      s.atk += Math.round((ost.atk || 0) * dw.atk);
+      s.wAvg += Math.round((ost.atk || 0) * dw.atk);
+      s.atkSpeed += dw.atkSpeed;
+      // Waffenschaden der Nebenhand (seit 13.10, Spanne wie bei der Haupthand)
+      if (ost.dmg) { s.wMin += Math.round(ost.dmg[0] * dw.atk); s.wMax += Math.round(ost.dmg[1] * dw.atk); }
+      if (ost.crit) s.crit += ost.crit * dw.bonus;
       continue;
     }
     const st = itemStats(item);
+    if (st.dmg) { s.wMin += st.dmg[0]; s.wMax += st.dmg[1]; s.wAvg += st.atk || 0; }
     s.atkSpeed += st.atkSpeed || 0;
     magic += st.magic || 0;
     s.atk += st.atk || 0;
@@ -379,6 +388,7 @@ function playerStats(p) {
   }
   // fester Angriff aus Buffs (Aura des Schwertes, seit 13.4) kommt nach den Prozenten dazu
   s.atk = Math.round(s.atk * atkMul + atkFlat);
+  s.wMul = atkMul;
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def * defMul);
   // Obergrenzen, damit hohe Ränge und viele Buffs zusammen nicht ausufern
@@ -409,6 +419,8 @@ function showXpGain() {
 function gainXp(amount) {
   const p = game.player;
   if (p.level >= MAX_LEVEL) return;
+  // Startbonus (seit 13.10, bis 22.11.): +20 % auf jede Erfahrung
+  if (eventXpActive()) amount = Math.round(amount * (1 + EVENT_XP.mul));
   if (!(p.xpPop > 0)) later(0.18, showXpGain);
   p.xpPop = (p.xpPop || 0) + amount;
   p.xp += amount;

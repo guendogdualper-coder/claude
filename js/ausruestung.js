@@ -64,6 +64,11 @@ function wearProblem(item, who) {
 function canDualWield(p) {
   return p.classId === 'krieger' && !!p.dualWield && (p.path || 0) === DUAL_WIELD.path;
 }
+// Waffenart, die in die Nebenhand darf: Schwert (Krieger der Klinge mit Beidhändigkeit) oder Dolch (Ninja)
+function offhandKind(p) {
+  if (p.classId === 'ninja') return 'dagger';
+  return canDualWield(p) ? 'sword' : null;
+}
 
 // Schwert in der Nebenhand
 function isOffhand(item) {
@@ -72,7 +77,7 @@ function isOffhand(item) {
 
 // Name des Schildplatzes: mit Beidhändigkeit auch für ein zweites Schwert
 function slotLabel(slotId, p = game.player) {
-  if (slotId === 'schild' && p && canDualWield(p)) return 'Nebenhand';
+  if (slotId === 'schild' && p && offhandKind(p)) return 'Nebenhand';
   return EQUIP_SLOTS.find((s) => s.id === slotId).name;
 }
 
@@ -87,7 +92,7 @@ function enforceGearRules(p) {
     p.inventory.push(it);
     moved.push(it);
   };
-  if (p.classId !== 'krieger' && eq.schild) off('schild');
+  if (p.classId !== 'krieger' && eq.schild && !(p.classId === 'ninja' && isOffhand(eq.schild))) off('schild');
   // Ein angelegter Zweihänder (Streitaxt) wird für den Weg der Klinge zum Schwert (zur Axt) gleicher Stufe;
   // Plus und Boni bleiben
   const ONE_HAND = { greatsword: 'sword', greataxe: 'axe' };
@@ -96,7 +101,7 @@ function enforceGearRules(p) {
     moved.push(eq.waffe);
   }
   if (eq.waffe && !canWear(eq.waffe, p)) off('waffe');
-  if (isOffhand(eq.schild) && (!canDualWield(p) || eq.schild.kind !== 'sword')) off('schild');
+  if (isOffhand(eq.schild) && eq.schild.kind !== offhandKind(p)) off('schild');
   if (eq.schild && !isOffhand(eq.schild) && !canWear(eq.schild, p)) off('schild');
   if (eq.waffe && WEAPON_KINDS[eq.waffe.kind]?.twoHanded && eq.schild) off('schild');
   return moved;
@@ -157,6 +162,9 @@ function itemStats(item, plus = item.plus) {
   }
   // Das Tempo einer Waffe hängt von ihrer Art ab und wächst nicht mit dem Plus
   if (speed) out.atkSpeed = speed;
+  // Waffenschaden (seit 13.10) als Spanne statt „Angriff +X“: jeder Schlag würfelt in dieser Spanne,
+  // der Mittelwert entspricht dem bisherigen Angriffswert der Waffe (Stufe und Plus heben beide Grenzen)
+  if (item.slot === 'waffe' && out.atk) out.dmg = weaponDmgRange(out.atk);
   // Das Lauftempo der Schuhe auch nicht (seit 8.5)
   if (base.speed) out.speed = base.speed;
   return out;
@@ -167,9 +175,13 @@ const STAT_LABELS = {
   speed: 'Lauftempo', dodge: 'Ausweichen', block: 'Blocken', regen: 'Regeneration',
   atkSpeed: 'Angriffstempo', magic: 'Magiestärke'
 };
-const STAT_ORDER = ['atk', 'atkSpeed', 'magic', 'def', 'hp', 'mp', 'crit', 'block', 'dodge', 'speed', 'regen'];
+function weaponDmgRange(atk) {
+  return [Math.max(1, Math.round(atk * 0.8)), Math.max(2, Math.round(atk * 1.25))];
+}
+const STAT_ORDER = ['dmg', 'atk', 'atkSpeed', 'magic', 'def', 'hp', 'mp', 'crit', 'block', 'dodge', 'speed', 'regen'];
 
 function statText(k, v) {
+  if (k === 'dmg') return `Schaden ${v[0]}–${v[1]}`;
   const pct = (x, d = 0) => (x * 100).toFixed(d).replace('.', ',');
   if (k === 'regen') return `${STAT_LABELS[k]} +${pct(v, 1)} %/s`;
   if (k === 'atkSpeed') return `${STAT_LABELS[k]} ${v >= 0 ? '+' : '−'}${pct(Math.abs(v))} %`;
@@ -180,7 +192,8 @@ function statText(k, v) {
 }
 
 function sortedStats(stats) {
-  return STAT_ORDER.filter((k) => stats[k] != null).map((k) => [k, stats[k]]);
+  // Waffen zeigen ihren Schaden statt des Angriffswerts
+  return STAT_ORDER.filter((k) => stats[k] != null && !(k === 'atk' && stats.dmg)).map((k) => [k, stats[k]]);
 }
 
 // --- Vergleich mit der angelegten Ausrüstung ----------------------------------------------
@@ -657,9 +670,11 @@ function equipFromBag(index, hand) {
     gear.message(`${itemName(item)} kannst du ab Stufe ${need} tragen.`, 'warn');
     return false;
   }
-  const off = hand === 'off';
-  if (off && (!canDualWield(p) || item.kind !== 'sword')) {
-    gear.message('Ein zweites Schwert führt nur ein Krieger der Klinge, der Beidhändigkeit gelernt hat.', 'warn');
+  // Ninja: ein zweiter Dolch wandert von selbst in die Nebenhand, wenn die Haupthand schon einen hat (seit 13.10)
+  let off = hand === 'off';
+  if (hand == null && p.classId === 'ninja' && item.kind === 'dagger' && p.equipment.waffe && p.equipment.waffe.kind === 'dagger' && !p.equipment.schild) off = true;
+  if (off && item.kind !== offhandKind(p)) {
+    gear.message(p.classId === 'ninja' ? 'In die Nebenhand passt nur ein Dolch.' : 'Ein zweites Schwert führt nur ein Krieger der Klinge, der Beidhändigkeit gelernt hat.', 'warn');
     return false;
   }
   // Schild oder Zweihandwaffe: beides zusammen geht nicht
@@ -1732,7 +1747,7 @@ const gear = {
     const inOff = this.selected.where === 'equip' && this.selected.key === 'schild' && isOffhand(item);
     const slotName = inOff ? 'Nebenhand' : EQUIP_SLOTS.find((s) => s.id === item.slot).name;
     const blocked = p.level < need || !canWear(item, p);
-    const offOk = this.selected.where === 'bag' && item.kind === 'sword' && canDualWield(p);
+    const offOk = this.selected.where === 'bag' && item.slot === 'waffe' && item.kind === offhandKind(p);
     const actions = this.selected.where === 'equip'
       ? `<button type="button" class="mini-btn" data-act="unequip">Ablegen</button>`
       : `<button type="button" class="mini-btn" data-act="equip" ${blocked ? 'disabled' : ''}>${offOk ? 'Haupthand' : 'Anlegen'}</button>` +
@@ -1822,8 +1837,9 @@ const gear = {
         const tooLow = p.level < need;
         // Grün: besser als das, was gerade angelegt ist; rot: schlechter
         const stats = sortedStats(itemStats(item)).map(([k, v]) => {
-          const cur = eqStats[k] || 0;
-          const cls = v > cur + 1e-9 ? 'up' : v < cur - 1e-9 ? 'down' : '';
+          const num = (x) => (Array.isArray(x) ? x[0] + x[1] : x || 0);
+          const cur = num(eqStats[k]);
+          const cls = num(v) > cur + 1e-9 ? 'up' : num(v) < cur - 1e-9 ? 'down' : '';
           return `<span class="${cls}">${statText(k, v)}</span>`;
         }).join(' · ');
         return `<div class="merchant-item${tooLow ? ' locked' : ''}">` +

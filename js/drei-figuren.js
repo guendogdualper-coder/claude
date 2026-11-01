@@ -827,7 +827,6 @@ function playerConfig3(p) {
     if (isOffhand(eq.schild)) c.offhand = { kind: eq.schild.kind, tier: eq.schild.tier };
     else c.shield = eq.schild.tier;
   }
-  if (kind === 'dagger' && !eq.schild) c.offhand = { kind: 'dagger', tier: wtier };
   // Männer ohne Wangenröte und etwas breiter, Frauen mit Zopf unter Kapuze und Helm
   if (ap.sex === 0) { c.blush = false; c.bulk = 1.05; }
   if (p.classId === 'krieger') {
@@ -3969,6 +3968,7 @@ function actorFor(key, modelKey, build) {
       // Zustand der wiederverwendeten Figur zurücksetzen
       a.heading = 0;
       a.lastX = null;
+      a.refX = null;
       a.lastY = null;
       a.want = null;
       a.lift = 0;
@@ -3983,6 +3983,7 @@ function actorFor(key, modelKey, build) {
       a.modelKey = modelKey;
       a.heading = 0;
       a.lastX = null;
+      a.refX = null;
       a.lastY = null;
     }
     V3.actors.add(a.group);
@@ -4898,10 +4899,17 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   // nur Zahlen-IDs versetzen die Phase (Text wie früher 'ally0' ergab NaN-Knochen)
   const t = (frozen ? e.frozenT ?? game.time : game.time) + (typeof e.id === 'number' ? e.id : 0) * 0.37;
   // Richtung: aus der Bewegung, beim Angriff zum Ziel (sonst zum Spieler)
-  if (a.lastX != null) {
-    const dx = e.x - a.lastX;
-    const dy = e.y - a.lastY;
-    if (dx * dx + dy * dy > 0.25) a.want = Math.atan2(dx, dy);
+  // seit 13.10 über die Strecke seit der letzten Drehung statt je Bild: Bei hoher Bildrate (120–144 Hz) oder
+  // langsamem Umherlaufen war der Schritt je Bild zu klein, und das Monster lief seitlich gedreht nach oben
+  if (a.refX == null || Math.hypot(e.x - a.refX, e.y - a.refY) > 40) { a.refX = e.x; a.refY = e.y; }
+  else {
+    const dx = e.x - a.refX;
+    const dy = e.y - a.refY;
+    if (dx * dx + dy * dy > 9) {
+      a.want = Math.atan2(dx, dy);
+      a.refX = e.x;
+      a.refY = e.y;
+    }
   }
   const foe = e.target && !e.target.dead ? e.target : game.player;
   if ((atk > 0 || wind > 0) && foe) a.want = Math.atan2(foe.x - e.x, foe.y - e.y);

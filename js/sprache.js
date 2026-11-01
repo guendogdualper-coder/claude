@@ -69,6 +69,16 @@ function trText(s) {
       hit = trLookup(d, m[2]);
       if (hit !== undefined) out = s.replace(m[2], hit);
     }
+    // zusammengesetzte Zeilen („Dolch · Ninja · Selten · ab Stufe 15“): Teil für Teil (seit 13.10)
+    if (hit === undefined && t.includes(' · ')) {
+      let any = false;
+      const parts = t.split(' · ').map((x) => {
+        const h = trLookup(d, x);
+        if (h !== undefined) any = true;
+        return h !== undefined ? h : x;
+      });
+      if (any) out = s.replace(s.trim(), parts.join(' · '));
+    }
   }
   if (i18n.cache.size > 20000) i18n.cache.clear();
   i18n.cache.set(s, out);

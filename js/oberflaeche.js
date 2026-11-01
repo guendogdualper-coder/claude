@@ -1111,15 +1111,19 @@ const ui = {
     // Buffs als Symbole mit Restzeit; der Ring zeigt, wie viel noch übrig ist
     const buffs = p.buffs.map((b) => ({ b, left: Math.max(0, Math.ceil(b.until - game.time)) }));
     const shield = p.shield > 0 ? Math.ceil(p.shield) : 0;
-    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield, () => {
-      $('buffList').innerHTML = buffs.map(({ b, left }) => {
+    // Startbonus (seit 13.10): steht vorn in der Leiste, solange er läuft (Restzeit in Tagen)
+    const evDays = eventXpActive() ? Math.ceil((EVENT_XP.until - Date.now()) / 86400000) : 0;
+    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays, () => {
+      const ev = evDays ? `<div class="buff-ico buff-event" style="--p:${(evDays / 22).toFixed(3)}" data-tip="${escapeHtml(`${EVENT_XP.name}\n+${Math.round(EVENT_XP.mul * 100)} % Erfahrung für alle Charaktere\nnoch ${evDays} ${evDays === 1 ? 'Tag' : 'Tage'} (bis 22.11.), bleibt auch beim Tod`)}">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.8l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z"/></svg><span>${evDays} T</span></div>` : '';
+      $('buffList').innerHTML = ev + buffs.map(({ b, left }) => {
         const sk = skillById(b.id);
         const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
         return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" data-tip="${escapeHtml(buffTip(b))}">` +
           `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
-      $('hud').classList.toggle('has-buffs', buffs.length > 0);
+      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0);
     });
 
     if (typeof segenTick === 'function') segenTick();
@@ -1408,7 +1412,7 @@ const ui = {
       werte:
         `<h3>Kampf</h3><dl class="stats">` +
         row('Leben', s.maxHp) + row('Mana', s.maxMp) +
-        row('Angriff', s.atk) + row('Verteidigung', s.def) +
+        row('Angriff', s.atk) + (s.wMax ? row('Waffenschaden', `${s.wMin}–${s.wMax}`) : '') + row('Verteidigung', s.def) +
         row('Kritische Treffer', pct(s.crit)) + row('Angriffstempo', pct(s.atkSpeed)) +
         row('Magiestärke', '+' + pct(s.magic || 0)) + row('Lauftempo', speedText(p, s)) +
         row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +

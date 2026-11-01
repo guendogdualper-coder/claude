@@ -3007,3 +3007,6 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .opt-row.no-tr { display: block; }
 .opt-seg.opt-langs { display: flex; flex-wrap: wrap; width: 100%; max-width: 100%; }
 .opt-seg.opt-langs button { flex: 1 1 calc(25% - 6px); }
+/* 13.10: Startbonus in der Buff-Leiste */
+.buff-ico.buff-event { background: radial-gradient(circle at 50% 40%, #6a4a14, #2a1a08); }
+.buff-ico.buff-event svg { width: 70%; height: 70%; margin: 15%; fill: #ffd34d; filter: drop-shadow(0 0 4px rgba(255, 211, 77, 0.8)); }

@@ -123,9 +123,17 @@ const STABLE_QUEST = {
 // Erfahrung für einen Auftrag: ein Teil der Erfahrung, die auf dieser Stufe für den Aufstieg nötig ist
 // Anteil je Art (seit 11.2, die Reihe hat dreimal so viele Aufträge): Jagd 0,25, Seelenstein 0,35, Reise 0,15, Finale 3
 const QUEST_XP = { kill: 0.25, stone: 0.35, talk: 0.15, raids: 3 };
+// seit 13.10 gibt jeder Auftrag 50 % mehr Erfahrung (Haupt-, Neben-, Jagd- und Nachtaufträge)
+const QUEST_XP_MUL = 1.5;
 function questXp(level, factor = 0.5) {
-  return Math.round(xpToNext(level) * factor);
+  return Math.round(xpToNext(level) * factor * QUEST_XP_MUL);
 }
+// Monster geben seit 13.10 etwas mehr Erfahrung (+10 %)
+const MOB_XP_MUL = 1.1;
+// Startbonus (seit 13.10): +20 % Erfahrung für alle Charaktere bis einschließlich 22.11.2026.
+// Hängt nur am Datum, darum bleibt er beim Tod und gilt für jede Figur.
+const EVENT_XP = { mul: 0.2, from: Date.UTC(2026, 10, 1), until: Date.UTC(2026, 10, 23), name: 'Startbonus' };
+const eventXpActive = () => Date.now() < EVENT_XP.until;
 
 // Materialien beim Alchemisten (teuer: eigentlich sind sie Beute der Seelensteine)
 const ALCHEMIST_WARES = [

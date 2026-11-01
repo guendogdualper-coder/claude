@@ -137,7 +137,9 @@ function hitMonster(m, mul, opts = {}) {
     // Segen der Natur (Schamane): jede Fertigkeit des Schamanen ist Naturschaden
     if (opts.skill && s.natureDmg) factor *= 1 + s.natureDmg;
   }
-  const atk = opts.atk != null ? opts.atk : s.atk;
+  // Waffenschaden (seit 13.10): statt des Mittelwerts würfelt jeder eigene Treffer in der Spanne der Waffe
+  let atk = opts.atk != null ? opts.atk : s.atk;
+  if (opts.atk == null && !opts.ally && s.wMax > s.wMin) atk = Math.max(1, atk + ((s.wMin + Math.random() * (s.wMax - s.wMin)) - s.wAvg) * (s.wMul || 1));
   const { amount, crit: isCrit } = calcDamage(atk, factor, opts.dot ? 0 : m.def, opts.ally ? 0.05 : crit, p.level, 1.8 + (opts.ally ? 0 : s.critDmg || 0));
   if (!m.isStone) {
     if (opts.stun) m.stun = Math.max(m.stun, opts.stun);
@@ -261,6 +263,10 @@ function killMonster(m) {
   // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
   if (net.mode !== 'host' || netShares(m, m.hostHitAt)) rewardKill(m);
   if (m.isStone) killStoneMinions(m);
+  // Gruppe rächt ihr Mitglied (seit 13.10): auch nach einem Treffer, der sofort tötet – etwa aus der Tarnung,
+  // in der die anderen den Angreifer im ersten Augenblick noch nicht sehen – kommt der Rest kurz danach
+  const killer = m.lastAttacker || game.player;
+  if (m.groupId && !m.isStone && killer) later(0.35, () => alertGroup(m, killer));
 }
 
 function monsterDeathFx(m) {
@@ -309,11 +315,11 @@ function rewardKillInner(m) {
       ui.log(`${m.name} ist ${STONE_LOOT_GAP} oder mehr Stufen unter dir – keine Beute.`, 'warn');
       questEvent('stone', m);
     } else questEvent('kill', m);
-    gainXp(partyXp(Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level))), m));
+    gainXp(partyXp(Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level))), m));
     return;
   }
   // in einer Gruppe teilen sich die Mitglieder in der Nähe die Erfahrung (gruppe.js)
-  const xp = partyXp(Math.max(1, Math.round(m.xp * xpFactor(p.level, m.level))), m);
+  const xp = partyXp(Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level))), m);
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
   const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;

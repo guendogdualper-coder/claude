@@ -45,11 +45,12 @@ function sideQuestEntries() {
     for (const n of game.world.npcs) {
       if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const s = q.side[n.key];
-      const t = MONSTER_TYPES[n.side.monster];
+      const mon = sideMon(n, s);
+      const t = MONSTER_TYPES[mon];
       out.push({
         key: 'side:' + n.key, title: n.name, sub: `Wanderer · ${mapName(npcMapId(n))}`,
-        goal: n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[n.side.monster].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`,
-        have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(n.side.monster), active: true,
+        goal: n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`,
+        have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(mon), active: true,
         abandon: () => { s.state = 'open'; s.progress = 0; }
       });
     }

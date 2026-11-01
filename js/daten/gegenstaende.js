@@ -16,14 +16,18 @@ const EQUIP_SLOTS = [
 ];
 
 // Plätze, die eine Klasse sieht: den Schild (oder als Klinge-Krieger die zweite Waffe) hat nur der Krieger
+// seit 13.10 auch der Ninja: dort ist es die Nebenhand für den zweiten Dolch
 function equipSlotsFor(classId) {
-  return EQUIP_SLOTS.filter((sl) => sl.id !== 'schild' || classId === 'krieger');
+  return EQUIP_SLOTS.filter((sl) => sl.id !== 'schild' || classId === 'krieger' || classId === 'ninja');
 }
 
 // Beidhändig: Krieger auf dem Weg der Klinge lernen ab Stufe 30 beim Waffenhändler,
 // ein zweites Schwert in der Nebenhand zu führen. Die Nebenhand gibt einen Teil des Angriffs
 // und etwas Tempo, aber kein Blocken. Zweihänder führt nur der Weg des Leibes.
 const DUAL_WIELD = { level: 30, path: 0, price: 20000, atk: 0.3, atkSpeed: 0.05, bonus: 0.5 };
+// Ninja (seit 13.10): ein Dolch je Hand, von Anfang an. Ein Dolch allein ist schwächer als früher das Dolchpaar;
+// mit dem zweiten Dolch in der Nebenhand (zählt zu 45 %, Boni zur Hälfte) ist er etwas stärker als vorher.
+const DUAL_DAGGER = { atk: 0.45, atkSpeed: 0.04, bonus: 0.5 };
 const GREATSWORD_PATH = 1;
 
 // Ab welcher Spielerstufe ein Gegenstand getragen werden kann
@@ -52,7 +56,7 @@ const WEAPON_KINDS = {
   axe: { name: 'Axt', cls: 'krieger', atkMul: 1.08, atkSpeed: -0.06, text: 'wuchtiger als das Schwert, etwas langsamer, mit Schild' },
   greatsword: { name: 'Zweihänder', cls: 'krieger', path: GREATSWORD_PATH, atkMul: 1.45, atkSpeed: -0.15, twoHanded: true, text: 'nur Weg des Leibes: viel Schaden, langsam, kein Schild' },
   greataxe: { name: 'Streitaxt', cls: 'krieger', path: GREATSWORD_PATH, atkMul: 1.55, atkSpeed: -0.22, twoHanded: true, text: 'nur Weg des Leibes: der härteste Schlag, sehr langsam, kein Schild' },
-  dagger: { name: 'Dolche', cls: 'ninja', atkMul: 0.88, atkSpeed: 0.15, text: 'schnell, oft kritisch' },
+  dagger: { name: 'Dolch', cls: 'ninja', atkMul: 0.7, atkSpeed: 0.15, text: 'schnell, oft kritisch; ein zweiter Dolch passt in die Nebenhand' },
   bow: { name: 'Bogen', cls: 'ninja', atkMul: 1, atkSpeed: -0.05, ranged: true, twoHanded: true, text: 'greift aus der Ferne an, kein Schild' },
   fan: { name: 'Fächer', cls: 'schamane', atkMul: 0.85, atkSpeed: 0, magic: true, text: 'Magiestärke für Fertigkeiten' },
   bell: { name: 'Glocke', cls: 'schamane', atkMul: 0.7, atkSpeed: -0.1, magic: true, magicMul: 1.6, text: 'sehr viel Magiestärke, langsam' },
@@ -70,7 +74,7 @@ const ITEM_NAMES = {
     axe: ['Beil', 'Bartaxt', 'Wolfsaxt', 'Drachenaxt', 'Seelenhacker', 'Aschenaxt', 'Himmelsaxt', 'Götteraxt'],
     greataxe: ['Holzfälleraxt', 'Doppelaxt', 'Barbarenaxt', 'Drachenspalter', 'Seelenschlächter', 'Aschenhenker', 'Himmelsbrecher', 'Götterhammer'],
     greatsword: ['Holzfällerklinge', 'Langschwert', 'Sichelzweihänder', 'Drachentöter', 'Seelenspalter', 'Aschenbrecher', 'Himmelsrichter', 'Götterzorn'],
-    dagger: ['Kurzdolche', 'Zwillingsdolche', 'Schattendolche', 'Viperzähne', 'Nachtklingen', 'Aschendolche', 'Sternendolche', 'Götterzähne'],
+    dagger: ['Kurzdolch', 'Stahldolch', 'Schattendolch', 'Viperzahn', 'Nachtklinge', 'Aschendolch', 'Sternendolch', 'Götterzahn'],
     bow: ['Jagdbogen', 'Kurzbogen', 'Schattenbogen', 'Viperbogen', 'Nachtbogen', 'Aschenbogen', 'Sternenbogen', 'Götterbogen'],
     fan: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer'],
     bell: ['Bronzeglocke', 'Tempelglocke', 'Kranichglocke', 'Phönixglocke', 'Drachenglocke', 'Glutglocke', 'Himmelsglocke', 'Götterglocke'],
