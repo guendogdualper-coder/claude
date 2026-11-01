@@ -47,6 +47,8 @@ function raidScan() {
   return raidFrame;
 }
 function raidShielded(m) {
+  // Abaddor ist außerdem versiegelt, solange die Instanz nicht geräumt ist (hoellenthron.js)
+  if (m && m.type && m.type.teufel && typeof htSealed === 'function' && htSealed()) return true;
   return !!(m && m.type && m.type.raid && (raidScan().count.get(m) || 0) > 0);
 }
 
@@ -83,16 +85,19 @@ function raidMechanics(m, dt) {
     m.moving = false;
     return true;
   }
-  for (let i = 0; i < RAID.shieldAt.length; i++) {
-    if (hpk <= RAID.shieldAt[i] && !((R.shields || 0) & (1 << i))) {
+  // eigene Schwellen je Boss (Abaddor: drei Siegelphasen, keine Vernichtung, dafür der Viertelschlag)
+  const shieldAt = m.type.raid.shieldAt || RAID.shieldAt;
+  const doomAt = m.type.raid.doomAt || RAID.doomAt;
+  for (let i = 0; i < shieldAt.length; i++) {
+    if (hpk <= shieldAt[i] && !((R.shields || 0) & (1 << i))) {
       R.shields = (R.shields || 0) | (1 << i);
       raidSummonCrystals(m);
       return true;
     }
   }
   let doom = false;
-  for (let i = 0; i < RAID.doomAt.length; i++) {
-    if (!doom && hpk <= RAID.doomAt[i] && !((R.dooms || 0) & (1 << i))) {
+  for (let i = 0; i < doomAt.length; i++) {
+    if (!doom && hpk <= doomAt[i] && !((R.dooms || 0) & (1 << i))) {
       R.dooms = (R.dooms || 0) | (1 << i);
       doom = true;
     }
@@ -108,6 +113,7 @@ function raidMechanics(m, dt) {
 // Boss verlässt den Kampf (alle tot oder weg): Kristalle verschwinden, alles beginnt von vorn
 function raidReset(m) {
   const R = m.raid;
+  if (typeof abaddorReset === 'function' && m.type.teufel) abaddorReset(m);
   R.shields = 0;
   R.dooms = 0;
   R.shieldOn = false;
@@ -187,13 +193,15 @@ function raidDoomResolve(m, safe, atk, lvl) {
 function raidWatch() {
   const p = game.player;
   if (!p || !game.running) return;
+  if (typeof htWatch === 'function') htWatch();
   for (const m of game.monsters) {
     if (!m.type || !m.type.raid || m.dead) continue;
     if (Math.abs(m.x - p.x) > 1600 || Math.abs(m.y - p.y) > 1600) continue;
-    const sh = raidShielded(m);
+    // Abaddors Versiegelung zählt hier nicht als Schild (eigene Anzeige in hoellenthron.js)
+    const sh = m.type.teufel ? (raidScan().count.get(m) || 0) > 0 : raidShielded(m);
     if (sh && !m.shieldWas) {
       const b = m.type.boss;
-      ui.banner(m.name, 'hüllt sich in einen Kristallschild – zerstört die Seelenkristalle!');
+      ui.banner(m.name, m.type.teufel ? 'ruft die Siegel der Unterwelt – zerstört die Seelenkristalle!' : 'hüllt sich in einen Kristallschild – zerstört die Seelenkristalle!');
       for (const c of raidScan().crystals) {
         if (c.crystalBoss !== m) continue;
         addEffect({ type: 'pillar', x: c.x, y: feetY(c), dur: 0.9, color: b.color });

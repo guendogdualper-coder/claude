@@ -12,10 +12,17 @@ const TEUFEL3 = {
   obs: '#1e1619', obsL: '#3a2e34', gold: '#d8a83a', fur: '#2a1614', hoof: '#120c0c',
   horn: '#2e2422', hornTip: '#6a5448', wing: '#3e0c14', eye: '#ffe14a', cloth: '#5a0e16'
 };
+// zweite Form (seit 13.0, ab der Hälfte seines Lebens): fast schwarze Haut mit hellen Glutrissen, glühende Hornspitzen
+const TEUFEL3F = Object.assign({}, TEUFEL3, {
+  skin: '#3a0c10', skinD: '#140406', skinL: '#6a1418', lava: '#ff8a2a', lavaHi: '#fff0a0', wing: '#24060a', fur: '#140a0a', cloth: '#2a0608', horn: '#1a1212', hornTip: '#ff6a2a'
+});
 
-function abaddor3(b) {
+// v = 1: zweite Form – schlanker und sehniger (W), größere Flügel und Krallen, mehr Glut, etwas größer
+function abaddor3(b, v = 0) {
   const A = adder(b, null);
-  const C = TEUFEL3;
+  const F = v === 1;
+  const C = F ? TEUFEL3F : TEUFEL3;
+  const W = F ? 0.8 : 1;
   const res = humanoid3(new Bake3(true), { belly: true, skin: C.skin, torso: C.skin });
   // längere Bocksbeine als beim gewöhnlichen Brocken: alles ab der Hüfte rückt nach oben
   const LEG = 0.2;
@@ -28,22 +35,25 @@ function abaddor3(b) {
   const vein = (bone, p, r, s) => A(box3(), C.lava, { bone, p, r: [0, 0, r], s: [0.022, s, 0.022], mat: 'glow' });
 
   // --- Rumpf: Brustkorb, Brustmuskeln, Bauchmuskeln, Nacken, Höllenherz ---
-  A(ball(16), C.skin, muscle({ bone: BH.chest, p: [0, hipY + 0.34, 0.0], s: [0.4, 0.34, 0.3] }));
-  for (const sx of [-1, 1]) A(ball(14), C.skin, muscle({ bone: BH.chest, p: [sx * 0.15, hipY + 0.41, 0.17], s: [0.19, 0.13, 0.13] }));
-  for (let k = 0; k < 3; k++) for (const sx of [-1, 1]) A(roundBox(0.1, 0.07, 0.06, 0.025), k ? C.skin : C.skinL, { bone: BH.chest, p: [sx * 0.056, hipY + 0.27 - k * 0.075, 0.235 - k * 0.012], shade: 0.25 });
-  A(ball(12), C.skin, muscle({ bone: BH.chest, p: [0, shY + 0.03, -0.05], s: [0.24, 0.12, 0.18] }));
+  A(ball(16), C.skin, muscle({ bone: BH.chest, p: [0, hipY + 0.34, 0.0], s: [0.4 * W, 0.34, 0.3 * W] }));
+  for (const sx of [-1, 1]) A(ball(14), C.skin, muscle({ bone: BH.chest, p: [sx * 0.15 * W, hipY + 0.41, 0.17 * W + 0.02 * (1 - W)], s: [0.19 * W, 0.13, 0.13 * W] }));
+  for (let k = 0; k < 3; k++) for (const sx of [-1, 1]) A(roundBox(0.1, 0.07, 0.06, 0.025), k ? C.skin : C.skinL, { bone: BH.chest, p: [sx * 0.056 * W, hipY + 0.27 - k * 0.075, (0.235 - k * 0.012) * (F ? 0.86 : 1)], shade: 0.25 });
+  A(ball(12), C.skin, muscle({ bone: BH.chest, p: [0, shY + 0.03, -0.05], s: [0.24 * W, 0.12, 0.18 * W] }));
   // Höllenherz: glühender Kristall im Brustbein, von Obsidianzacken gefasst (für Mechaniken: Schwachpunkt)
-  A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), C.lavaHi, { bone: BH.chest, p: [0, hipY + 0.42, 0.29], s: [0.055, 0.085, 0.04], mat: 'glow' });
+  A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), C.lavaHi, { bone: BH.chest, p: [0, hipY + 0.42, 0.29 * W + 0.02], s: [0.055, 0.085, 0.04], mat: 'glow' });
   for (let k = 0; k < 6; k++) {
     const a = (k / 6) * Math.PI * 2;
-    A(horn3(0.07, 0.02, 4), C.obs, { bone: BH.chest, p: [Math.cos(a) * 0.075, hipY + 0.42 + Math.sin(a) * 0.09, 0.27], r: [Math.PI / 2 - 0.4, 0, a - Math.PI / 2], shine: 0.9 });
+    A(horn3(0.07, 0.02, 4), C.obs, { bone: BH.chest, p: [Math.cos(a) * 0.075, hipY + 0.42 + Math.sin(a) * 0.09, 0.27 * W + 0.02], r: [Math.PI / 2 - 0.4, 0, a - Math.PI / 2], shine: 0.9 });
   }
   // Lavaadern über Brust und Bauch
-  for (const [x, y, r, l] of [[-0.2, 0.36, 0.5, 0.16], [0.21, 0.33, -0.6, 0.18], [-0.12, 0.18, 0.2, 0.12], [0.13, 0.2, -0.3, 0.1], [0.04, 0.5, 1.2, 0.1]]) vein(BH.chest, [x, hipY + y, 0.26 - Math.abs(x) * 0.3], r, l);
+  const veins = [[-0.2, 0.36, 0.5, 0.16], [0.21, 0.33, -0.6, 0.18], [-0.12, 0.18, 0.2, 0.12], [0.13, 0.2, -0.3, 0.1], [0.04, 0.5, 1.2, 0.1]];
+  // zweite Form: Glutrisse überall
+  if (F) veins.push([-0.06, 0.28, -0.9, 0.14], [0.08, 0.38, 0.9, 0.12], [-0.17, 0.22, 1.4, 0.1], [0.18, 0.46, -1.2, 0.1], [0, 0.14, 0.1, 0.14]);
+  for (const [x, y, r, l] of veins) vein(BH.chest, [x * W, hipY + y, (0.26 - Math.abs(x) * 0.3) * W + 0.02 * (1 - W)], r, l);
   // Rückenstacheln entlang der Wirbelsäule
   for (let k = 0; k < 5; k++) A(horn3(0.13 - k * 0.012, 0.035, 5), C.obs, { bone: BH.chest, p: [0, shY - 0.02 - k * 0.09, -0.25 + k * 0.01], r: [-1.1, 0, 0], shine: 0.9 });
   // Taille und Hüfte
-  A(ball(14), C.skin, muscle({ bone: BH.hips, p: [0, hipY + 0.06, 0], s: [0.28, 0.17, 0.22] }));
+  A(ball(14), C.skin, muscle({ bone: BH.hips, p: [0, hipY + 0.06, 0], s: [0.28 * W, 0.17, 0.22 * W] }));
 
   // --- Lendenpanzer: Gürtel, Schädelschnalle, Stofflatz, Seitenplatten ---
   A(torus3(0.27, 0.035, Math.PI * 2, 5, 22), C.obs, { bone: BH.hips, p: [0, hipY + 0.0, 0.01], r: [Math.PI / 2, 0, 0], s: [1, 0.85, 1], shine: 0.9 });
@@ -60,8 +70,9 @@ function abaddor3(b) {
     const knee = [x * 1.05, hipY * 0.58, 0.1];
     const hock = [x * 1.05, 0.13, -0.07];
     const foot = [x * 1.05, 0.045, 0.02];
-    A(ball(14), C.fur, { bone, p: [x, hipY - 0.1, 0.02], s: [0.14, 0.2, 0.16], shade: 0.3, top: lighter(C.fur, 0.1), topK: 0.3 });
-    seg([x, hipY - 0.12, 0.03], knee, 0.11, 0.08, C.fur, { bone, shade: 0.25 });
+    A(ball(14), C.fur, { bone, p: [x, hipY - 0.1, 0.02], s: [0.14 * W, 0.2, 0.16 * W], shade: 0.3, top: lighter(C.fur, 0.1), topK: 0.3 });
+    seg([x, hipY - 0.12, 0.03], knee, 0.11 * W, 0.08 * W, C.fur, { bone, shade: 0.25 });
+    if (F) vein(bone, [x * 1.02, hipY * 0.75, 0.12], sx * 0.2, 0.12);
     seg(knee, hock, 0.075, 0.05, darker(C.fur, 0.15), { bone });
     seg(hock, foot, 0.05, 0.045, darker(C.fur, 0.25), { bone });
     // zottige Fellbüschel am Knie und über dem Huf
@@ -78,9 +89,10 @@ function abaddor3(b) {
     const x = sx * shX;
     const elbow = [x + sx * 0.04, shY - 0.24, 0.03];
     const wrist = [x, shY - 0.44, 0.04];
-    A(ball(14), C.skin, muscle({ bone: ab, p: [x, shY - 0.02, 0], s: [0.16, 0.15, 0.15] }));
-    seg([x, shY - 0.04, 0], elbow, 0.105, 0.085, C.skin, { bone: ab, shade: 0.25, top: C.skinD, topK: 0.4 });
-    seg(elbow, wrist, 0.085, 0.07, C.skin, { bone: ab, shade: 0.25 });
+    A(ball(14), C.skin, muscle({ bone: ab, p: [x, shY - 0.02, 0], s: [0.16 * W, 0.15, 0.15 * W] }));
+    seg([x, shY - 0.04, 0], elbow, 0.105 * W, 0.085 * W, C.skin, { bone: ab, shade: 0.25, top: C.skinD, topK: 0.4 });
+    seg(elbow, wrist, 0.085 * W, 0.07 * W, C.skin, { bone: ab, shade: 0.25 });
+    if (F) vein(ab, [x + sx * 0.02, shY - 0.34, 0.08], -sx * 0.4, 0.12);
     vein(ab, [x + sx * 0.06, shY - 0.14, 0.07], sx * 0.3, 0.12);
     // Armschiene aus Obsidian mit Goldkante und zwei Dornen
     A(cyl3(0.09, 0.08, 0.16, 12), C.obs, { bone: ab, p: [x + sx * 0.015, shY - 0.36, 0.035], r: [0, 0, sx * 0.15], shine: 0.9, top: C.obsL, topK: 0.3 });
@@ -97,7 +109,12 @@ function abaddor3(b) {
     // Klauenhand: Handballen, vier Krallenfinger, Daumen
     const hp = [x, shY - 0.52, 0.05];
     A(ball(12), C.skin, { bone: hb, p: hp, s: [0.08, 0.09, 0.075], shade: 0.25 });
-    for (let k = 0; k < 4; k++) A(horn3(0.12, 0.022, 5), C.skinD, { bone: hb, p: [hp[0] + (k - 1.5) * 0.035, hp[1] - 0.05, hp[2] + 0.04], r: [Math.PI - 0.5, 0, (k - 1.5) * 0.12] });
+    for (let k = 0; k < 4; k++) {
+      // zweite Form: lange, gebogene Klauen mit glühenden Spitzen
+      const cl = F ? 0.24 : 0.12;
+      A(horn3(cl, F ? 0.028 : 0.022, 5), F ? '#120608' : C.skinD, { bone: hb, p: [hp[0] + (k - 1.5) * 0.035, hp[1] - 0.05, hp[2] + 0.04], r: [Math.PI - (F ? 0.75 : 0.5), 0, (k - 1.5) * 0.14], shine: F ? 0.8 : 0 });
+      if (F) A(horn3(0.08, 0.012, 4), C.lava, { bone: hb, p: [hp[0] + (k - 1.5) * 0.042, hp[1] - 0.2, hp[2] + 0.14], r: [Math.PI - 0.75, 0, (k - 1.5) * 0.14], mat: 'glow' });
+    }
     A(horn3(0.09, 0.022, 5), C.skinD, { bone: hb, p: [hp[0] - sx * 0.06, hp[1] - 0.01, hp[2] + 0.04], r: [Math.PI - 0.8, 0, -sx * 0.6] });
   }
 
@@ -115,6 +132,7 @@ function abaddor3(b) {
   // Mittelzinke gerade, Seitenzinken nach außen und oben geschwungen; glühende Kanten und Widerhaken
   A(horn3(0.42, 0.034, 6), C.obs, { bone: BH.handR, p: [hx, top + 0.02, hz], shine: 0.9 });
   A(horn3(0.36, 0.013, 4), C.lava, { bone: BH.handR, p: [hx, top + 0.04, hz + 0.02], mat: 'glow' });
+  if (F) for (let k = 0; k < 3; k++) A(horn3(0.22, 0.05, 5), k % 2 ? C.lava : '#ff3a1a', { bone: BH.handR, p: [hx + (k - 1) * 0.15, top + 0.3, hz], r: [0, 0, (k - 1) * 0.2], mat: 'glow' });
   for (const sx of [-1, 1]) {
     const pts = [[hx + sx * 0.13, top, hz], [hx + sx * 0.2, top + 0.08, hz], [hx + sx * 0.19, top + 0.24, hz], [hx + sx * 0.15, top + 0.36, hz]];
     A(tube3(pts, 0.03, 0.004, 16, 7), C.obs, { bone: BH.handR, shine: 0.9 });
@@ -148,24 +166,29 @@ function abaddor3(b) {
   for (const sx of [-1, 1]) {
     const pts = [[sx * 0.06, hc[1] + 0.09, hc[2] + 0.05], [sx * 0.15, hc[1] + 0.22, hc[2] + 0.0], [sx * 0.28, hc[1] + 0.3, hc[2] - 0.12], [sx * 0.38, hc[1] + 0.38, hc[2] - 0.08], [sx * 0.42, hc[1] + 0.52, hc[2] + 0.04]];
     A(tube3(pts, 0.05, 0.005, 24, 10), C.horn, { bone: BH.head, shine: 0.7, top: C.hornTip, topK: 0.35 });
-    A(sphere3(0.012, 6, 4), C.lavaHi, { bone: BH.head, p: pts[4], mat: 'glow' });
+    A(sphere3(F ? 0.035 : 0.012, 6, 4), C.lavaHi, { bone: BH.head, p: pts[4], mat: 'glow' });
   }
   // Flammenkrone zwischen den Hörnern und Flammenmähne am Hinterkopf
   for (let k = -2; k <= 2; k++) {
-    A(horn3(0.13 - Math.abs(k) * 0.025, 0.028, 5), k % 2 ? C.lava : C.lavaHi, { bone: BH.head, p: [k * 0.035, hc[1] + 0.12, hc[2] - 0.01 - Math.abs(k) * 0.01], r: [-0.15, 0, k * 0.18], mat: 'glow' });
+    A(horn3((F ? 0.24 : 0.13) - Math.abs(k) * 0.025, 0.028, 5), k % 2 ? C.lava : C.lavaHi, { bone: BH.head, p: [k * 0.035, hc[1] + 0.12, hc[2] - 0.01 - Math.abs(k) * 0.01], r: [-0.15, 0, k * 0.18], mat: 'glow' });
   }
   for (let k = 0; k < 5; k++) A(horn3(0.2 - k * 0.02, 0.04, 5), k % 2 ? C.lava : '#ff4a1a', { bone: BH.head, p: [(k - 2) * 0.04, hc[1] + 0.05 - k * 0.03, hc[2] - 0.11], r: [-2.0, 0, (k - 2) * 0.25], mat: 'glow' });
 
   // --- Flügel: riesige Fledermausflügel mit Knochenstreben und Krallen ---
   // Streben folgen genau den Kanten der Flughaut (wingGeo: Schulter → Spitze oben, von dort Finger zu den Zipfeln)
-  const WS = 1.9;
+  const WS = F ? 2.7 : 1.9;
   for (const [sx, bone] of [[1, BH.wingL], [-1, BH.wingR]]) {
     const wx = sx * 0.16;
     const wy = shY + 0.02;
     const P = (x, y) => [+(wx + sx * x * WS).toFixed(3), +(wy + y * WS).toFixed(3), -0.23];
     A(wingGeo(), C.wing, { bone, p: [wx, wy, -0.24], s: [sx * WS, WS, 1.4] });
     seg(P(0, 0), P(0.55, 0.42), 0.045, 0.03, C.obs, { bone, shine: 0.6 });
-    for (const [x, y] of [[0.74, 0.0], [0.5, -0.2], [0.28, -0.26]]) seg(P(0.55, 0.42), P(x, y), 0.022, 0.01, C.obs, { bone, shine: 0.6 });
+    for (const [x, y] of [[0.74, 0.0], [0.5, -0.2], [0.28, -0.26]]) {
+      seg(P(0.55, 0.42), P(x, y), 0.022, 0.01, C.obs, { bone, shine: 0.6 });
+      // zweite Form: die Flügel brennen an den Streben
+      if (F) seg(P(0.55, 0.42).map((n, i) => (i === 2 ? n + 0.015 : n)), P(x, y).map((n, i) => (i === 2 ? n + 0.015 : n)), 0.012, 0.006, C.lava, { bone, mat: 'glow' });
+    }
+    if (F) seg(P(0, 0).map((n, i) => (i === 2 ? n + 0.015 : n)), P(0.55, 0.42).map((n, i) => (i === 2 ? n + 0.015 : n)), 0.02, 0.012, C.lava, { bone, mat: 'glow' });
     A(horn3(0.13, 0.03, 5), '#e8dcc0', { bone, p: P(0.55, 0.43), r: [0, 0, -sx * 0.5], shine: 0.4 });
   }
 
@@ -175,6 +198,6 @@ function abaddor3(b) {
   A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), C.obs, { bone: BH.tail, p: [0.13, hipY + 0.17, -0.94], s: [0.08, 0.11, 0.02], r: [0.5, 0.3, 0.3], shine: 0.9 });
   A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), C.lava, { bone: BH.tail, p: [0.13, hipY + 0.17, -0.94], s: [0.05, 0.075, 0.025], r: [0.5, 0.3, 0.3], mat: 'glow' });
 
-  return { rig, height: hc[1] + 0.56, family: 'human', shY, hipY, shX, hc, hr: 0.13, belly: true, noFlair: true, teufel: true };
+  return { rig, height: hc[1] + 0.56, family: 'human', shY, hipY, shX, hc, hr: 0.13, belly: true, noFlair: true, teufel: true, form2: F, ownScale: 1.15 * (F ? 1.12 : 1) };
 }
 MON3_BUILD.abaddor = abaddor3;

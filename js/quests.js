@@ -211,6 +211,11 @@ function enterDungeon(k, viaParty = false) {
   const p = game.player;
   const dg = game.world.dungeons[k];
   if (!viaParty && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
+  // Höllenthron: Gruppe, Stufe und Ausrüstung werden bei jedem geprüft (auch über die Einladung)
+  if (dg.def.instanz) {
+    const err = htEntryError();
+    if (err) return err;
+  }
   moveThrough(dg.start, dg.def.portal);
   ui.banner(dg.def.name, `Boss: ${MONSTER_TYPES[dg.def.boss].name} (Stufe ${MONSTER_TYPES[dg.def.boss].level})`);
   // Die Gruppe kommt auf Wunsch mit
@@ -226,7 +231,7 @@ const RIFT = { first: 75, every: [140, 240], life: 300, minLevel: 10 };
 // der nächstniedrigere. Maßstab ist deine Stufe, höchstens die Mitte des Gebiets, in dem der Riss erscheint.
 function riftDungeon(level, zone) {
   const target = zone && zone.minLevel ? Math.min(level, zone.minLevel + 9) : level;
-  const all = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && DUNGEONS[k].minLevel <= Math.max(level, target + 2));
+  const all = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && !DUNGEONS[k].instanz && DUNGEONS[k].minLevel <= Math.max(level, target + 2));
   const ok = all.filter((k) => DUNGEONS[k].minLevel >= target - 8 && DUNGEONS[k].minLevel <= target + 2);
   if (ok.length) return ok[randInt(0, ok.length - 1)];
   if (!all.length) return -1;
@@ -801,6 +806,10 @@ Object.assign(ui, {
       body.innerHTML = `<p>Ein Steinkreis leuchtet sanft. Er bringt dich zurück zum Eingang von ${dg.def.name}.</p>` +
         '<button type="button" class="btn btn-primary" data-dg="leave">Dungeon verlassen</button>';
       body.querySelector('[data-dg]').addEventListener('click', () => leaveDungeon(npc.dungeon));
+      return;
+    }
+    if (dg.def.instanz) {
+      htRenderGate(body, npc, dg);
       return;
     }
     const mobs = dg.def.mobs.map((id) => `${MONSTER_TYPES[id].name} (Stufe ${MONSTER_TYPES[id].level})`).join(', ');

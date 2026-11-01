@@ -591,6 +591,8 @@ function raidLoot(m) {
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner('Endboss besiegt!', m.name);
   flashScreen('#ffd34d', 0.5);
+  // Abaddor (Höllenthron) gibt noch mehr dazu
+  if (m.type.teufel && typeof htLoot === 'function') htLoot(m);
 }
 
 function lootSlots(slots, cls) {

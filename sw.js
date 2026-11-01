@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v126';
+const VERSION = 'seelenstein-v127';
 const FILES = [
   './',
   'index.html',
@@ -54,6 +54,7 @@ const FILES = [
   'js/nekro-totenruf.js',
   'js/seelenernte.js',
   'js/endboss.js',
+  'js/hoellenthron.js',
   'js/magier-neu.js',
   'js/nekro-neu.js',
   'js/rang-fx.js',

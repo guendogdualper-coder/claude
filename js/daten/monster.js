@@ -147,6 +147,24 @@ const MONSTER_TYPES = {
     name: 'Lichkönig Morrak', level: 64, shape: 'humanoid', color: '#3a3a30', size: 64, speed: 122, range: 100, cooldown: 2.2, aggressive: true, hpMul: 350, atkMul: 3.51, raidBoss: true,
     boss: { color: '#8fe36a', slam: 230, volley: 12, shot: '#c6f08a', summon: 'ghul', mat: 'untoter' }, raid: { art: 'gruftkoenig', scale: 2.6, map: 8 }
   },
+  // Höllenthron (seit 13.0): zwei Wächter in der Instanz und der Endendboss Abaddor (Gruppe aus 6–7 Spielern ab 60).
+  // look/lookScale: Aussehen eines anderen Monsters, vergrößert (ohne Endboss-Mechanik)
+  zerberos: {
+    name: 'Zerberos, Wächter des Höllentors', level: 66, shape: 'beast', color: '#2a1010', size: 44, speed: 128, range: 80, cooldown: 1.8, aggressive: true, hpMul: 140, atkMul: 2.7, look: 'hoellenhund', lookScale: 2.6,
+    boss: { color: '#ff5a1a', slam: 175, volley: 8, shot: '#ff7a3a', summon: 'hoellenhund', mat: 'hoellenhund' }
+  },
+  ifrah: {
+    name: 'Ifrah, die Flammenfürstin', level: 68, shape: 'demon', color: '#c8402f', size: 40, speed: 122, range: 85, cooldown: 1.7, aggressive: true, hpMul: 150, atkMul: 2.8, look: 'feuerdaemon', lookScale: 2.3,
+    boss: { color: '#ffb04a', slam: 185, volley: 12, shot: '#ffd34d', summon: 'feuerdaemon', mat: 'feuerdaemon' }
+  },
+  // kein raidBoss: zählt nicht zur Endboss-Mission der Maps, nutzt aber die Endboss-Mechanik (type.raid)
+  abaddor: {
+    name: 'Abaddor, der Höllenkaiser', level: 72, shape: 'demon', color: '#9a1c1e', size: 90, speed: 128, range: 120, cooldown: 2.0, aggressive: true, hpMul: 950, atkMul: 3.9, teufel: true,
+    boss: { color: '#ff3a1a', slam: 260, volley: 14, shot: '#ff7a3a', summon: 'hoellenhund', mat: 'feuerdaemon' },
+    raid: { art: 'daemon', scale: 3.6, shieldAt: [0.75, 0.55, 0.3], doomAt: [],
+      moves: ['slam', 'meteor', 'buster', 'line', 'leap', 'nova', 'meteor', 'charge'],
+      moves2: ['charge', 'slam', 'charge', 'meteor', 'charge', 'leap', 'buster', 'nova', 'charge', 'line'] }
+  },
   ignar: {
     name: 'Weltendrache Ignar', level: 76, shape: 'beast', color: '#3a1010', size: 72, speed: 135, range: 110, cooldown: 2.3, aggressive: true, hpMul: 370, atkMul: 3.65, raidBoss: true,
     boss: { color: '#ff6a2a', slam: 250, volley: 12, shot: '#ffb04a', summon: 'drachenbrut', mat: 'feuerdrache' }, raid: { art: 'urdrache', scale: 2.6, map: 9 }

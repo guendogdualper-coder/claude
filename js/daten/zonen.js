@@ -145,6 +145,15 @@ for (const [boss, name, map, floor, portal, wall, amb] of RAID_DEFS) {
     ambient: { kind: amb, tint: [40, 20, 20, 0.08] }
   });
 }
+// Version 13.0: der Höllenthron – eine Instanz für 6–7 Spieler ab Stufe 60 hinter einem Riesenportal im Feuerberg
+// (der letzten Map): Räume mit Seelensteinen und Höllenbrut, zwei Wächter und am Ende Abaddor, der Höllenkaiser.
+// Abaddor ist versiegelt, bis alle Seelensteine und beide Wächter der Instanz besiegt sind (hoellenthron.js).
+DUNGEONS.push({
+  id: 'hoellenthron', name: 'Thron der Unterwelt', minLevel: 60, instanz: true, floor: 'BASALT', portal: '#ff3a1a',
+  wall: { top: '#1a0c0c', face: '#060202', line: '#ff3a1a' },
+  entry: { map: 9, dir: [0, -1], dist: 34, side: 0 }, mobs: ['hoellenhund', 'feuerdaemon'], boss: 'abaddor', stones: [64, 65, 66, 67],
+  guards: ['zerberos', 'ifrah'], ambient: { kind: 'embers', tint: [110, 10, 0, 0.14] }
+});
 for (const d of DUNGEONS) {
   ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
 }

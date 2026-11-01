@@ -3104,4 +3104,4 @@ Object.assign(MONSTER_ART, {
   glutkatze: { h: 30, draw: beastIn(1.15, { fur: '#2a1a16', belly: '#3a2420', snout: '#3a2420', cat: true, longTail: true, tailTip: '#ff7a2a', stripes: '#ff6a1a', glowStripes: true, eye: '#ffb04a', glow: true, angry: true, fangs: true }) }
 });
 
-for (const [id, t] of Object.entries(MONSTER_TYPES)) if (t.raid && !MONSTER_ART[id]) MONSTER_ART[id] = MONSTER_ART[t.raid.art];
+for (const [id, t] of Object.entries(MONSTER_TYPES)) if ((t.raid || t.look) && !MONSTER_ART[id]) MONSTER_ART[id] = MONSTER_ART[t.raid ? t.raid.art : t.look];

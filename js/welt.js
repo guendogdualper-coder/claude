@@ -20,7 +20,7 @@ const VS = VILLAGE_HALF / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 28;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 9;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 10;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -355,11 +355,11 @@ function generateWorld() {
   dungeons.forEach((dg, k) => {
     const e = placeDungeonEntrance(dg.def.entry, ground, obj, deco, zoneIdx);
     dg.entrance = { x: (e.x + 0.5) * TILE, y: (e.y + 1.4) * TILE };
-    npcs.push(npc('eingang', dg.def.raid ? `Endboss: ${MONSTER_TYPES[dg.def.boss].name}` : dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k }));
+    npcs.push(npc('eingang', dg.def.instanz ? `Höllenportal: ${dg.def.name}` : dg.def.raid ? `Endboss: ${MONSTER_TYPES[dg.def.boss].name}` : dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k }));
     const r0 = dg.rooms[0];
     const rb = dg.rooms[dg.rooms.length - 1];
     npcs.push(npc('ausgang', 'Ausgang', r0.x + 1.5, r0.y + 1.2, { dungeon: k }));
-    if (dg.def.raid) npcs.push(npc('ausgang', 'Ausgang', rb.cx + 0.5, rb.y + rb.h - 4, { dungeon: k }));
+    if (dg.def.raid || dg.def.instanz) npcs.push(npc('ausgang', 'Ausgang', rb.cx + 0.5, rb.y + rb.h - 4, { dungeon: k }));
     else npcs.push(npc('ausgang', 'Ausgang', rb.x + rb.w - 2, rb.y + 1.2, { dungeon: k }));
   });
   // Torwachen innen neben den Toren (Abstand zur Mauer bleibt gleich, wenn das Dorf wächst)
@@ -417,15 +417,15 @@ function generateWorld() {
   props.push({ type: 'horse', ...T(C - 11.3, C + 15.2) }, { type: 'hay', ...T(C - 15.9, C + 15.8) });
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
-    for (const r of dg.def.raid ? dg.rooms.slice(0, 1) : dg.rooms) {
+    for (const r of dg.def.raid ? dg.rooms.slice(0, 1) : dg.def.instanz ? dg.rooms.slice(0, -1) : dg.rooms) {
       props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + 1.5, r.y + r.h - 0.6) });
       props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + r.w - 1.5, r.y + r.h - 0.6) });
     }
     // Endboss-Halle: ein Ring aus Feuerbecken am Rand
-    if (dg.def.raid) {
-      const r = dg.rooms[1];
-      for (let k = 0; k < 12; k++) {
-        const a = (k / 12) * Math.PI * 2;
+    if (dg.def.raid || dg.def.instanz) {
+      const r = dg.rooms[dg.rooms.length - 1];
+      for (let k = 0; k < (dg.def.instanz ? 16 : 12); k++) {
+        const a = (k / (dg.def.instanz ? 16 : 12)) * Math.PI * 2;
         props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + r.w / 2 + Math.cos(a) * (r.w / 2 - 3), r.y + r.h / 2 + Math.sin(a) * (r.h / 2 - 3)) });
       }
     }
@@ -481,6 +481,9 @@ function generateWorld() {
 const DUNGEON_ROOMS = [[3, 4, 9, 9], [18, 3, 12, 11], [38, 4, 14, 12], [39, 26, 13, 12], [8, 25, 22, 17]];
 // Endboss-Arena: kleiner Vorraum, dann eine große Halle (fast der ganze Block)
 const RAID_ROOMS = [[3, 32, 8, 8], [16, 5, 38, 63]];
+// Höllenthron (seit 13.0): Start unten links, dann vier Räume im Bogen (Steine, Wächter, Steine, Wächter),
+// oben die runde Thronhalle Abaddors
+const INSTANZ_ROOMS = [[2, 61, 10, 8], [17, 57, 15, 12], [38, 55, 15, 14], [38, 33, 15, 14], [14, 32, 16, 15], [6, 1, 44, 28]];
 
 function buildDungeons(ground, obj, zoneIdx) {
   const rng = mulberry32(WORLD_SEED + 99);
@@ -513,7 +516,7 @@ function buildDungeons(ground, obj, zoneIdx) {
       if (x <= x0 || x >= x0 + DUNGEON_COL - 1 || y <= row * DUNGEON_BLOCK || y >= (row + 1) * DUNGEON_BLOCK - 1) return;
       obj[y * MAP_W + x] = OBJ.NONE;
     };
-    const rooms = (def.raid ? RAID_ROOMS : DUNGEON_ROOMS).map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2) }));
+    const rooms = (def.raid ? RAID_ROOMS : def.instanz ? INSTANZ_ROOMS : DUNGEON_ROOMS).map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2) }));
     for (const r of rooms) {
       for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y);
       // unregelmäßige Ränder, damit es wie eine Höhle wirkt
@@ -529,8 +532,8 @@ function buildDungeons(ground, obj, zoneIdx) {
       }
     }
     // Endboss-Halle: Ecken wieder zuschütten, damit sie rund wirkt
-    if (def.raid) {
-      const r = rooms[1];
+    if (def.raid || def.instanz) {
+      const r = rooms[rooms.length - 1];
       for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
         const nx = (x + 0.5 - (r.x + r.w / 2)) / (r.w / 2);
         const ny = (y + 0.5 - (r.y + r.h / 2)) / (r.h / 2);

@@ -281,6 +281,7 @@ function attackStyle(id) {
   const t = MONSTER_TYPES[id];
   if (!t) return 'swing';
   if (t.raid && ATTACK_STYLE[t.raid.art]) return ATTACK_STYLE[t.raid.art];
+  if (t.look && ATTACK_STYLE[t.look]) return ATTACK_STYLE[t.look];
   if (t.ranged) return t.bow ? 'shoot' : t.shape === 'snake' ? 'cast' : 'cast';
   if (t.shape === 'ghost') return 'haunt';
   if (t.shape === 'snake') return 'thrust';

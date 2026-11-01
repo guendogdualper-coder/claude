@@ -88,6 +88,11 @@ const RAID_RESPAWN = 900;
 function populateDungeons(groupId) {
   for (const dg of game.world.dungeons) {
     const zone = ZONES[RING_ZONES + DUNGEONS.indexOf(dg.def)];
+    // Höllenthron (seit 13.0): eigene Bestückung in hoellenthron.js
+    if (dg.def.instanz) {
+      groupId = htPopulate(dg, zone, groupId);
+      continue;
+    }
     if (dg.def.raid) {
       // Endboss-Halle: nur der Boss in der Mitte
       const rb = dg.rooms[1];
@@ -221,6 +226,8 @@ function updateRaidBoss(m, dt) {
   const b = m.type.boss;
   if (!m.raid) m.raid = { next: 3, step: 0, phase: 0, addAt: game.time + 12 };
   const R = m.raid;
+  // Abaddor (hoellenthron.js): Siegel der Instanz, zweite Form, Viertelschlag
+  if (m.type.teufel && typeof abaddorTick === 'function' && abaddorTick(m, dt)) return true;
   if (m.state !== 'chase') {
     // ohne Kampf heilt der Boss vollständig und beginnt von vorn (seit 11.1 erst, wenn ihn 8 s niemand getroffen hat)
     if (m.hp < m.maxHp && !m.cast && game.time - (m.struckAt || -99) > 8) {
@@ -274,10 +281,11 @@ function updateRaidBoss(m, dt) {
     raidRoar(m, phase);
     return true;
   }
-  R.next -= dt * (1 + R.phase * 0.35);
+  R.next -= dt * (1 + R.phase * 0.35) * (m.form2 ? 1.45 : 1);
   if (R.next > 0) return false;
   R.next = Math.max(2.4, 5 - R.phase * 0.9);
-  const kind = RAID_MOVES[R.step++ % RAID_MOVES.length];
+  const moves = (m.form2 && m.type.raid.moves2) || m.type.raid.moves || RAID_MOVES;
+  const kind = moves[R.step++ % moves.length];
   const tgt = m.target && !m.target.dead ? m.target : raidPlayers(m)[0] || m;
   const fy = (e) => feetY(e);
   let circles = [];
@@ -331,6 +339,10 @@ function updateRaidBoss(m, dt) {
 
 // Warnzeichen am Boden (auch beim Mitspieler)
 function raidTelegraph(m, kind, circles, inner, delay) {
+  if (kind === 'quarter' || kind === 'qring' || kind === 'qcore') {
+    htQuarterShow(m, kind, circles[0], inner, delay);
+    return;
+  }
   if (kind === 'doom') {
     raidDoomShow(m, circles, delay);
     return;
@@ -346,6 +358,10 @@ function raidTelegraph(m, kind, circles, inner, delay) {
 
 // Einschlag: Wirkung zeigen, eigener Spieler nimmt Schaden, wenn er in einem Kreis steht
 function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
+  if (kind === 'quarter' || kind === 'qring' || kind === 'qcore') {
+    htQuarterResolve(m, kind, circles[0], inner, atk, lvl);
+    return;
+  }
   if (kind === 'doom') {
     raidDoomResolve(m, circles, atk, lvl);
     return;
@@ -390,6 +406,11 @@ function raidMinions(m, n) {
 
 // Phasenwechsel: Wutschrei mit Druckwelle und Helfer
 function raidRoarFx(m, phase) {
+  // 9: Abaddor nimmt seine wahre Gestalt an (hoellenthron.js)
+  if (phase === 9) {
+    htTransformFx(m);
+    return;
+  }
   const b = m.type.boss;
   ui.banner(m.name, phase === 3 ? 'gerät in Raserei!' : phase === 2 ? 'rast vor Wut!' : 'ruft seine Brut!');
   shakeScreen(14);
@@ -662,7 +683,7 @@ function monsterRush(m, t, dt, reach) {
   if (d - step <= reach * 0.75 || r.left <= 0 || stuck) {
     m.rush = null;
     if (dist(m, t) <= reach * 1.3 + 10) {
-      m.cd = m.type.cooldown;
+      m.cd = m.type.cooldown * (m.form2 ? 0.65 : 1);
       monsterAttack(m, t);
     }
   }
@@ -806,7 +827,7 @@ function updateMonsters(dt) {
           if (d > reach * 0.85) m.moving = moveToward(m, t.x, t.y, chaseSpeed * dt, true);
           else if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
           if (d <= reach && m.cd <= 0) {
-            m.cd = m.type.cooldown;
+            m.cd = m.type.cooldown * (m.form2 ? 0.65 : 1);
             m.windup = m.windupMax = windupTime(m.typeId);
           }
         }

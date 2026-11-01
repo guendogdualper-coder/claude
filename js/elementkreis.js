@@ -1,17 +1,18 @@
 // Kreis der Elemente (seit 12.7, Ultimative Attacke des Schamanen, Weg des Drachen; ersetzt den Strom der Elemente):
 // 1. Ruf (0–0,35 s): Am Ziel brennt sich ein leuchtender Kreis in den Boden – er zeigt genau, wo der Schaden
-//    hinkommt. Vier farbige Bögen (Feuer, Wasser, Blitz, Erde) laufen auf dem Rand. An vier Punkten des Rands
-//    brechen die Elemente hervor: eine Flammensäule, eine Wasserkugel, eine knisternde Blitzkugel, kreisende Felsen.
-// 2. Sammeln (bis 3,6 s): Die vier Elemente winden sich auf Spiralen in die Mitte und ziehen Schweife hinter sich
-//    her. Über der Mitte wächst ein Kern aus allen vier Farben. Ein innerer Ring zieht sich zusammen (Countdown).
-//    Gegner im Kreis werden zur Mitte gezogen und nehmen leichten Schaden.
-// 3. Explosion (3,6–3,8 s Verdichtung, dann Knall): Der Kern zieht sich zusammen und explodiert – weißer Blitz,
-//    vier farbige Druckwellen, Feuersäulen, Wasserfontänen, Blitze bis zum Rand, Felsbrocken fliegen,
-//    Erdspitzen brechen aus dem Rand. Großer Schaden, Betäubung und Brand.
+//    hinkommt. Vier farbige Bögen (Feuer, Wasser, Blitz, Erde) laufen auf dem Rand.
+// 2. Kreisen (bis 2,5 s): Die Elemente brechen aus dem Rand und jagen als echte Ströme im Kreis, immer schneller –
+//    ein fließendes Wasserband mit Gischt, eine Kette aus Flammenzungen mit Glut, rollende Felsbrocken mit Staub und
+//    eine zuckende Blitzkette (seit 13.0 keine Kugeln mehr).
+// 3. Zusammenführen (2,5–3,15 s): Alle vier schießen schnell als Strudel in die Mitte und verschmelzen bis 3,8 s
+//    zu einem gleißenden Wirbel. Gegner im Kreis werden die ganze Zeit zur Mitte gezogen.
+// 4. Explosion: weißer Blitz, vier farbige Druckwellen, vier Elementsäulen (Wassergeysir, Feuersäule,
+//    Blitzeinschlag vom Himmel, Felssäule), Feuerkranz, Blitze bis zum Rand, fliegende Felsen, Erdspitzen.
 // Nichts davon ist ein Dreieck oder Runenzeichen: der Boden zeigt nur den Kreis der Schadensfläche.
 
-// seit 12.9 länger: 3,6 s Sammeln, Knall bei 3,8 s, Nachglühen bis 5,2 s; 7 Sog-Treffer
-const KREIS = { r: 160, range: 300, near: 140, gather: 3.6, boom: 3.8, dur: 5.2, ticks: 7, every: 0.45, tick: 0.45, blast: 9.5, lift: 1.5 };
+// seit 12.9 länger, seit 13.0 in drei Takten: bis 2,5 s kreisen die Elemente als Ströme auf dem Rand (rush), dann
+// schießen sie in 0,65 s als Strudel in die Mitte (gather), verschmelzen bis 3,8 s (boom) und explodieren
+const KREIS = { r: 160, range: 300, near: 140, rush: 2.5, gather: 3.15, boom: 3.8, dur: 5.4, ticks: 7, every: 0.45, tick: 0.45, blast: 9.5, lift: 1.5 };
 const KREIS_EL = [
   { id: 'feuer', main: '#ff6a1a', hot: '#ffd34d', deep: '#c81a0a' },
   { id: 'wasser', main: '#2a9aff', hot: '#bff4ff', deep: '#1a4ad0' },
@@ -77,12 +78,22 @@ ELEMENT3.wasser = { spark: '#9fe8ff' };
 // Weg eines Elements: Winkel und Abstand zur Mitte (Anteil am Radius) und Höhe (Einheiten) zum Zeitpunkt t
 function kreisPath(e, i, t) {
   const a0 = e.rot0 + (i / 4) * Math.PI * 2;
-  const g = Math.max(0, Math.min(1, (t - 0.35) / (KREIS.gather - 0.35)));
-  const ease = g * g * (3 - 2 * g);
-  const rad = 0.92 * (1 - ease);
-  const ang = a0 + ease * Math.PI * 1.6 + t * 0.6;
-  const y = 0.7 + ease * (KREIS.lift - 0.7) + Math.sin(t * 5 + i * 1.7) * 0.06 * (1 - ease);
-  return { ang, rad, y, g: ease };
+  const R0 = KREIS.rush;
+  const base = a0 + R0 * 1.2 + 1.5;
+  if (t < R0) {
+    // auf dem Rand kreisen, immer schneller
+    const k = Math.max(0, t - 0.35) / (R0 - 0.35);
+    return { ang: a0 + t * 1.2 + k * k * 1.5, rad: 0.9, y: 0.45 + 0.2 * k + Math.sin(t * 6 + i * 1.7) * 0.06, g: 0 };
+  }
+  if (t < KREIS.gather) {
+    // schnell als Strudel in die Mitte (beschleunigt)
+    const g = (t - R0) / (KREIS.gather - R0);
+    const q = g * g;
+    return { ang: base + g * Math.PI * 1.3, rad: 0.9 - 0.8 * q, y: 0.65 + q * (KREIS.lift - 0.65), g: q };
+  }
+  // verschmelzen: enger, rasender Wirbel über der Mitte
+  const f = Math.min(1, (t - KREIS.gather) / (KREIS.boom - KREIS.gather));
+  return { ang: base + Math.PI * 1.3 + (t - KREIS.gather) * (10 + f * 12), rad: 0.1 * (1 - f * 0.8), y: KREIS.lift, g: 1 };
 }
 
 // --- 3D -------------------------------------------------------------------------------------------------
@@ -91,6 +102,91 @@ const _kr3a = new THREE.Vector3();
 const _kr3b = new THREE.Vector3();
 const _kr3u = new THREE.Vector3(1, 0, 0);
 const _kr3v = new THREE.Vector3(0, 0, 1);
+
+// Spur eines Elements: Punkte vom Kopf nach hinten (Einheiten)
+function kreisTrail3(e, i, t, cx, cz, R, n, dt) {
+  const out = [];
+  for (let j = 0; j < n; j++) {
+    const tt = t - j * dt;
+    if (tt < 0.3 && j) break;
+    const P = kreisPath(e, i, tt);
+    out.push({ x: cx + Math.cos(P.ang) * R * P.rad, y: P.y, z: cz + Math.sin(P.ang) * R * P.rad });
+  }
+  return out;
+}
+
+// ein Element als Strom zeichnen (sz: Größe 0..1.3)
+function kreisElement3(h, e, i, t, tr, sz, low) {
+  const el = KREIS_EL[i];
+  const n = tr.length;
+  if (!n) return;
+  const hd = tr[0];
+  if (el.id === 'wasser') {
+    // fließendes Wasserband: deckender, nach hinten dünner werdender Schlauch, heller Kern, Schaumkronen, Spritzer
+    for (let j = 0; j < n - 1; j++) {
+      const k = 1 - j / n;
+      const r = (0.07 + 0.2 * k) * sz;
+      _kr3a.set(tr[j].x, tr[j].y + Math.sin(t * 14 - j * 0.9) * 0.05, tr[j].z);
+      _kr3b.set(tr[j + 1].x, tr[j + 1].y + Math.sin(t * 14 - (j + 1) * 0.9) * 0.05, tr[j + 1].z);
+      const w = fx3Take(h, 'segN');
+      fx3Segment(w, _kr3a, _kr3b, r);
+      fx3Color(w, j % 2 ? '#1e6ae0' : '#2a86f0', 0.82);
+      const c = fx3Take(h, 'seg');
+      fx3Segment(c, _kr3a, _kr3b, r * 0.45);
+      fx3Color(c, '#9fe8ff', 0.75 * k);
+      if (!low && j % 3 === 1) n3Glow(h, _kr3a.x, _kr3a.y + r * 0.8, _kr3a.z, r * 1.2, '#ffffff', 0.55 * k);
+    }
+    // Welle am Kopf und Spritzer, die davonfliegen und fallen
+    n3Glow(h, hd.x, hd.y + 0.12 * sz, hd.z, 0.45 * sz, '#e8fbff', 0.8);
+    for (let k = 0; k < (low ? 3 : 7); k++) {
+      const ph = (t * 2.2 + k / 7) % 1;
+      const a = k * 2.4 + t;
+      const d = fx3Take(h, 'ball');
+      d.position.set(hd.x + Math.cos(a) * ph * 0.6, hd.y + 0.25 + ph * 0.7 - ph * ph * 1.2, hd.z + Math.sin(a) * ph * 0.6);
+      d.scale.setScalar(0.05 * (1 - ph * 0.5));
+      fx3Color(d, k % 2 ? '#6ad8ff' : '#2a86f0', 0.9 * (1 - ph));
+    }
+  } else if (el.id === 'feuer') {
+    // Kette aus lodernden Flammenzungen, vorn am größten, mit heißem Kern und aufsteigender Glut
+    for (let j = n - 1; j >= 0; j -= low ? 2 : 1) {
+      const k = 1 - j / n;
+      const p = tr[j];
+      const fl = 0.85 + 0.25 * Math.sin(t * 17 + j * 1.9);
+      n3Flame(h, p.x, p.y + 0.3 * k * sz, p.z, (0.3 + 0.8 * k) * sz, (0.5 + 1.6 * k) * sz * fl, j % 2 ? el.deep : el.main, 0.95 * (0.35 + 0.65 * k), Math.sin(t * 9 + j) * 0.2, true);
+      if (j < 4) n3Flame(h, p.x, p.y + 0.18 * sz, p.z, 0.45 * k * sz, 1.0 * k * sz * fl, el.hot, 0.9);
+    }
+    for (let k = 0; k < (low ? 3 : 8); k++) {
+      const ph = (t * 1.6 + k / 8) % 1;
+      const p = tr[Math.min(n - 1, k)];
+      n3Glow(h, p.x + Math.sin(k * 2.1 + t * 3) * 0.2, p.y + 0.3 + ph * 1.4, p.z + Math.cos(k * 1.7) * 0.2, 0.09 * (1 - ph), k % 2 ? '#ffd34d' : '#ff8a2a', 1 - ph);
+    }
+  } else if (el.id === 'erde') {
+    // rollende Felsbrocken (vorn ein großer), dahinter Steine und eine Staubwolke
+    for (let j = 0; j < n; j += low ? 3 : 2) {
+      const k = 1 - j / n;
+      const p = tr[j];
+      const rs = (j ? 0.1 + 0.16 * k : 0.34) * sz;
+      const r = fx3Rock(h, 'rock', p.x + Math.sin(j * 2.3) * 0.12, p.y + Math.abs(Math.sin(t * 9 + j)) * 0.12, p.z + Math.cos(j * 1.7) * 0.12, rs, rs * 0.85, rs, j % 4 ? '#6a5040' : '#8a6a4a');
+      r.rotation.set(t * 7 + j, t * 5 + j * 2, t * 3);
+      if (!low) n3Smoke(h, p.x, p.y - 0.1, p.z, (0.35 + 0.5 * (1 - k)) * sz, '#8a7258', 0.45 * k);
+    }
+    n3Glow(h, hd.x, hd.y, hd.z, 0.6 * sz, el.main, 0.35);
+  } else {
+    // zuckende Blitzkette entlang der Spur, Äste zum Boden, gleißender Kopf
+    for (let j = 0; j < n - 1; j++) {
+      const k = 1 - j / n;
+      n3Bolt(h, tr[j], tr[j + 1], (0.04 + 0.06 * k) * sz, j % 2 ? el.main : el.hot, 0.95 * k, 3, 0.3);
+    }
+    for (let k = 0; k < (low ? 1 : 3); k++) {
+      if (Math.random() < 0.5) continue;
+      const p = tr[Math.floor(Math.random() * n)];
+      _kr3b.set(p.x + (Math.random() - 0.5) * 0.8, 0.02, p.z + (Math.random() - 0.5) * 0.8);
+      n3Bolt(h, p, _kr3b, 0.03, el.hot, 0.85, 5, 0.25);
+    }
+    n3Glow(h, hd.x, hd.y, hd.z, 0.35 * sz, '#ffffff', 0.95);
+    n3Glow(h, hd.x, hd.y, hd.z, 0.8 * sz, el.main, 0.45);
+  }
+}
 
 FX3_DRAW.elkreis3 = function (h, e) {
   const t = game.time - e.start;
@@ -131,7 +227,6 @@ FX3_DRAW.elkreis3 = function (h, e) {
       }
     }
     if (pre && t > 0.35) {
-      // Countdown: Innenring zieht sich bis zur Explosion in die Mitte
       const c = 1 - (t - 0.35) / (KREIS.boom - 0.35);
       const inner = fx3Take(h, 'planeN');
       fx3Ground(inner, e.x, e.y, Math.max(0.2, R * c), 0.045, 'ring');
@@ -139,113 +234,23 @@ FX3_DRAW.elkreis3 = function (h, e) {
     }
   }
 
-  // Die vier Elemente auf ihren Spiralen (bis zur Explosion)
-  if (t < KREIS.boom + 0.05) {
+  // die vier Elemente als Ströme (bis zur Explosion)
+  if (t < KREIS.boom + 0.03) {
+    const n = low ? 7 : 13;
+    const fusing = t > KREIS.gather;
     for (let i = 0; i < 4; i++) {
-      const el = KREIS_EL[i];
       const P = kreisPath(e, i, t);
-      const x = cx + Math.cos(P.ang) * R * P.rad;
-      const z = cz + Math.sin(P.ang) * R * P.rad;
-      const sz = appear * (1.35 - P.g * 0.55);
-      // Schweif: frühere Punkte der gleichen Bahn
-      const tail = low ? 5 : 10;
-      for (let j = 1; j <= tail; j++) {
-        const Q = kreisPath(e, i, t - j * 0.045);
-        if (t - j * 0.045 < 0.35) break;
-        const k = 1 - j / (tail + 1);
-        const qx = cx + Math.cos(Q.ang) * R * Q.rad;
-        const qz = cz + Math.sin(Q.ang) * R * Q.rad;
-        n3Smoke(h, qx, Q.y, qz, 0.75 * k * sz, j % 2 ? el.main : el.deep, 0.75 * k);
-        n3Glow(h, qx, Q.y, qz, 0.45 * k * sz, el.hot, 0.6 * k);
-      }
-      n3Glow(h, x, P.y, z, 1.3 * sz, el.main, 0.5);
-      if (el.id === 'feuer') {
-        for (let k = 0; k < 3; k++) {
-          const ox = (k - 1) * 0.22 * sz;
-          n3Flame(h, x + ox, P.y + 0.2 - Math.abs(k - 1) * 0.12, z, (k === 1 ? 0.95 : 0.6) * sz, (k === 1 ? 1.7 : 1.1) * sz, k === 1 ? el.main : el.deep, 0.95, Math.sin(t * 9 + k) * 0.15 + (k - 1) * 0.3, true);
-        }
-        n3Flame(h, x, P.y + 0.1, z, 0.5 * sz, 1.0 * sz, el.hot, 0.95);
-        for (let k = 0; k < (low ? 2 : 5); k++) {
-          const ph = (t * 1.5 + k / 5) % 1;
-          n3Glow(h, x + Math.sin(k * 2.3 + t * 3) * 0.3, P.y + 0.3 + ph * 1.2, z, 0.14 * (1 - ph), '#ffd34d', 1 - ph);
-        }
-        if (t < 0.6) n3Flame(h, x, 0.5, z, 0.6, 1.6 * (1 - t / 0.6), el.main, 0.8 * (1 - t / 0.6), 0, true);
-      } else if (el.id === 'wasser') {
-        const b = fx3Take(h, 'ball');
-        b.position.set(x, P.y, z);
-        const ws = 0.5 * sz * (1 + Math.sin(t * 12) * 0.06);
-        b.scale.set(ws, ws * (1 - Math.sin(t * 12) * 0.06), ws);
-        fx3Color(b, '#2a8aff', 0.78);
-        fx3MageSprite(h, 'sprite', 'bubble', x, P.y, z, ws * 2.3, ws * 2.3, el.hot, 0.8);
-        for (let k = 0; k < (low ? 3 : 6); k++) {
-          const a = t * 6 + k * 1.05;
-          const d = fx3Take(h, 'ball');
-          d.position.set(x + Math.cos(a) * ws * 1.8, P.y + Math.sin(a * 1.3) * 0.25, z + Math.sin(a) * ws * 1.8);
-          d.scale.set(0.09, 0.09, 0.09);
-          fx3Color(d, k % 2 ? '#6ad8ff' : '#1a6aff', 0.9);
-        }
-      } else if (el.id === 'blitz') {
-        const bc = fx3Take(h, 'ball');
-        bc.position.set(x, P.y, z);
-        bc.scale.set(0.3 * sz, 0.3 * sz, 0.3 * sz);
-        fx3Color(bc, '#6a4aff', 0.85);
-        n3Smoke(h, x, P.y, z, 1.1 * sz, '#5a3ad8', 0.5);
-        n3Glow(h, x, P.y, z, 0.6 * sz, '#ffffff', 0.9);
-        n3Glow(h, x, P.y, z, 0.9 * sz, el.hot, 0.7);
-        for (let k = 0; k < (low ? 3 : 6); k++) {
-          const a = Math.random() * Math.PI * 2;
-          _kr3a.set(x, P.y, z);
-          _kr3b.set(x + Math.cos(a) * 0.9 * sz, P.y + (Math.random() - 0.5) * 1.0, z + Math.sin(a) * 0.9 * sz);
-          n3Bolt(h, _kr3a, _kr3b, 0.045, k % 2 ? el.main : el.hot, 0.9, 4, 0.18);
-        }
-        if (t < 0.5 || Math.random() < 0.15) {
-          _kr3a.set(x, P.y, z);
-          _kr3b.set(x + (Math.random() - 0.5) * 0.4, 0.02, z + (Math.random() - 0.5) * 0.4);
-          n3Bolt(h, _kr3a, _kr3b, 0.04, el.main, 0.9, 6, 0.25);
-        }
-      } else {
-        for (let k = 0; k < 5; k++) {
-          const a = t * 4 + k * 1.257;
-          const rs = (0.26 + 0.06 * (k % 3)) * sz;
-          const r = fx3Rock(h, 'rock', x + Math.cos(a) * 0.45 * sz, P.y + Math.sin(a * 1.5) * 0.18, z + Math.sin(a) * 0.45 * sz, rs, rs * 0.85, rs, k % 2 ? '#6a5040' : '#8a6a4a');
-          r.rotation.set(t * 3 + k, t * 2 + k * 2, 0);
-          n3Glow(h, r.position.x, r.position.y, r.position.z, rs * 2.2, el.main, 0.45);
-        }
-      }
-      // ab der Hälfte: Energieband vom Element zum Kern
-      if (P.g > 0.25) {
-        _kr3a.set(x, P.y, z);
-        _kr3b.set(cx, KREIS.lift, cz);
-        if (el.id === 'blitz') n3Bolt(h, _kr3a, _kr3b, 0.04, el.hot, 0.8 * P.g, 6, 0.3);
-        else {
-          const s = fx3Take(h, 'segN');
-          fx3Segment(s, _kr3a, _kr3b, 0.05 + 0.05 * P.g);
-          fx3Color(s, el.main, 0.75 * P.g);
-          const c = fx3Take(h, 'seg');
-          fx3Segment(c, _kr3a, _kr3b, 0.025);
-          fx3Color(c, '#ffffff', 0.7 * P.g);
-        }
-      }
+      const sz = appear * (fusing ? 0.6 : 1.25 - P.g * 0.5);
+      const tr = kreisTrail3(e, i, t, cx, cz, R, n, fusing ? 0.02 : 0.045);
+      kreisElement3(h, e, i, t, tr, sz, low);
     }
-    // Kern über der Mitte: wächst, dreht vier Farben, verdichtet sich kurz vor dem Knall
-    const grow = Math.max(0, Math.min(1, (t - 0.6) / (KREIS.gather - 0.6)));
-    const squeeze = t > KREIS.gather ? 1 - (t - KREIS.gather) / (KREIS.boom - KREIS.gather) * 0.7 : 1;
-    const cs = (0.3 + grow * 1.4) * squeeze;
-    if (grow > 0) {
-      n3Glow(h, cx, KREIS.lift, cz, cs * 2.4, '#ffffff', 0.35 + grow * 0.3);
-      for (let i = 0; i < 4; i++) {
-        const a = t * 7 + (i / 4) * Math.PI * 2;
-        const qx = cx + Math.cos(a) * cs * 0.3;
-        const qy = KREIS.lift + Math.sin(a) * cs * 0.22;
-        const qz = cz + Math.sin(a) * cs * 0.3;
-        n3Smoke(h, qx, qy, qz, cs * 1.1, KREIS_EL[i].main, 0.7);
-        n3Glow(h, qx, qy, qz, cs * 0.9, KREIS_EL[i].hot, 0.6);
-      }
-      n3Glow(h, cx, KREIS.lift, cz, cs * 0.8, '#ffffff', 1);
-      const sp = fx3MageSprite(h, 'sprite', 'spark', cx, KREIS.lift, cz, cs * 2.8, cs * 2.8, '#fff6d0', 0.8 * grow);
-      sp.material.rotation = t * 3;
-      // Lichtsäule nach oben, je näher am Knall desto heller
-      fx3MageSprite(h, 'sprite', 'disc', cx, KREIS.lift + 1.5, cz, 0.3 + grow * 0.4, 4, '#e8f0ff', 0.25 * grow);
+    // gleißender Wirbelkern beim Verschmelzen, kurz vor dem Knall eine Lichtsäule
+    if (t > KREIS.rush) {
+      const f = Math.min(1, (t - KREIS.rush) / (KREIS.boom - KREIS.rush));
+      n3Glow(h, cx, KREIS.lift, cz, 0.4 + f * 1.6, '#ffffff', 0.25 + f * 0.6);
+      const sp = fx3MageSprite(h, 'sprite', 'spark', cx, KREIS.lift, cz, 0.6 + f * 2.4, 0.6 + f * 2.4, '#fff6d0', 0.5 + f * 0.4);
+      sp.material.rotation = t * 6;
+      if (t > KREIS.gather) fx3MageSprite(h, 'sprite', 'disc', cx, KREIS.lift + 2, cz, 0.25 + f * 0.5, 5, '#e8f0ff', 0.35 * f);
     }
   }
 
@@ -269,7 +274,53 @@ FX3_DRAW.elkreis3 = function (h, e) {
       fx3Ground(w2, e.x, e.y, R * (0.2 + k * 1.15), 0.06, 'ring');
       fx3Color(w2, KREIS_EL[i].hot, 0.6 * (1 - k));
     }
-    // Feuersäulen im Ring
+    // vier Elementsäulen an den Himmelsrichtungen des Kreises: steigen auf, halten, sinken
+    const rise = Math.min(1, b / 0.22) * Math.max(0, Math.min(1, (1.3 - b) / 0.4));
+    if (rise > 0) for (let i = 0; i < 4; i++) {
+      const a = e.rot0 + (i / 4) * Math.PI * 2 + Math.PI / 4;
+      const px = cx + Math.cos(a) * R * 0.58;
+      const pz = cz + Math.sin(a) * R * 0.58;
+      const H = 3.2 * rise;
+      const id = KREIS_EL[i].id;
+      if (id === 'wasser') {
+        // Geysir: deckende Wassersäule mit hellem Kern, Schaumkrone und herabfallenden Tropfen
+        for (let k = 0; k < 4; k++) {
+          _kr3a.set(px + Math.sin(t * 12 + k) * 0.05, (k / 4) * H, pz);
+          _kr3b.set(px + Math.sin(t * 12 + k + 1) * 0.05, ((k + 1) / 4) * H, pz);
+          const w = fx3Take(h, 'segN');
+          fx3Segment(w, _kr3a, _kr3b, 0.42 - k * 0.06);
+          fx3Color(w, k % 2 ? '#1e6ae0' : '#2a86f0', 0.8);
+          const c = fx3Take(h, 'seg');
+          fx3Segment(c, _kr3a, _kr3b, 0.16);
+          fx3Color(c, '#bff4ff', 0.8);
+        }
+        n3Glow(h, px, H, pz, 0.9, '#ffffff', 0.7 * rise);
+        for (let k = 0; k < (low ? 4 : 9); k++) {
+          const ph = (t * 1.4 + k / 9) % 1;
+          const d = fx3Take(h, 'ball');
+          d.position.set(px + Math.cos(k * 2.4) * (0.3 + ph * 0.9), H * (1 - ph * ph), pz + Math.sin(k * 2.4) * (0.3 + ph * 0.9));
+          d.scale.setScalar(0.07);
+          fx3Color(d, '#6ad8ff', 0.85 * rise);
+        }
+      } else if (id === 'feuer') {
+        for (let k = 0; k < 4; k++) n3Flame(h, px, H * (0.18 + k * 0.22), pz, 0.95 - k * 0.15, 1.3, k % 2 ? '#ff6a1a' : '#c81a0a', 0.92 * rise, Math.sin(t * 8 + k) * 0.15, true);
+        n3Flame(h, px, H * 0.4, pz, 0.5, H * 0.8, '#ffd34d', 0.8 * rise);
+      } else if (id === 'blitz') {
+        // Einschläge vom Himmel, jedes Bild neu gezackt
+        for (let k = 0; k < 2; k++) {
+          _kr3a.set(px + (Math.random() - 0.5) * 0.6, 8, pz + (Math.random() - 0.5) * 0.6);
+          _kr3b.set(px, 0.05, pz);
+          n3Bolt(h, _kr3a, _kr3b, 0.09, k ? '#a07aff' : '#fff07a', rise, 10, 0.6);
+        }
+        n3Glow(h, px, 0.4, pz, 1.4, '#fff07a', 0.6 * rise);
+      } else {
+        // Felssäule bricht aus dem Boden
+        const r = fx3Rock(h, 'rockcol', px, H * 0.4, pz, 0.55, H * 0.8, 0.55, '#6a5040');
+        r.rotation.set(0, t * 0.3 + i, 0);
+        n3Glow(h, px, 0.2, pz, 1.1, '#f0a830', 0.4 * rise);
+      }
+    }
+    // Feuerkranz
     const nf = low ? 6 : 10;
     for (let i = 0; i < nf; i++) {
       const a = e.rot0 + (i / nf) * Math.PI * 2;
@@ -288,7 +339,10 @@ FX3_DRAW.elkreis3 = function (h, e) {
       const d = v * tt * 0.9;
       const y = 0.3 + 5.5 * tt - 6 * tt * tt;
       if (y < 0 || d > R * 1.3) continue;
-      n3Glow(h, cx + Math.cos(a) * d, y, cz + Math.sin(a) * d, 0.22, i % 3 ? '#4ac8ff' : '#e8fbff', 0.9 * out);
+      const dr = fx3Take(h, 'ball');
+      dr.position.set(cx + Math.cos(a) * d, y, cz + Math.sin(a) * d);
+      dr.scale.setScalar(0.08);
+      fx3Color(dr, i % 3 ? '#2a86f0' : '#bff4ff', 0.9 * out);
     }
     // Blitze von der Mitte bis zum Rand
     if (b < 0.6) {
@@ -342,6 +396,18 @@ FX3_DRAW.elkreis3 = function (h, e) {
 };
 
 // --- 2D (ohne 3D-Ansicht) --------------------------------------------------------------------------------
+// Spur in Bildschirmpunkten (Höhe wird nach oben verschoben)
+function kreisTrail2(e, i, t, x, y, n, dt) {
+  const out = [];
+  for (let j = 0; j < n; j++) {
+    const tt = t - j * dt;
+    if (tt < 0.3 && j) break;
+    const P = kreisPath(e, i, tt);
+    out.push([x + Math.cos(P.ang) * e.r * P.rad, y + Math.sin(P.ang) * e.r * P.rad - P.y * 40 / KREIS.lift]);
+  }
+  return out;
+}
+
 EXTRA_EFFECTS.elkreis3 = (ctx, e, k, x, y) => {
   const t = game.time - e.start;
   const R = e.r;
@@ -351,7 +417,6 @@ EXTRA_EFFECTS.elkreis3 = (ctx, e, k, x, y) => {
   ctx.save();
   if (b < 0.4) {
     const gf = b < 0 ? appear : 1 - b / 0.4;
-    // Schadensfläche
     const rg = ctx.createRadialGradient(x, y, 0, x, y, R * appear);
     rg.addColorStop(0, 'rgba(60,40,140,0.05)');
     rg.addColorStop(0.8, 'rgba(60,40,140,0.22)');
@@ -364,7 +429,6 @@ EXTRA_EFFECTS.elkreis3 = (ctx, e, k, x, y) => {
     ctx.strokeStyle = 'rgba(232,251,255,0.8)';
     ctx.lineWidth = 2;
     ctx.stroke();
-    // farbige Bögen deckend, mit leuchtendem Kern
     ctx.lineCap = 'round';
     for (let i = 0; i < 4; i++) {
       const a = e.rot0 + (i / 4) * Math.PI * 2 + t * 1.4;
@@ -385,135 +449,117 @@ EXTRA_EFFECTS.elkreis3 = (ctx, e, k, x, y) => {
       ctx.stroke();
     }
   }
-  ctx.globalCompositeOperation = 'lighter';
-  if (b < 0.05) {
-    ctx.globalAlpha = 1;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (b < 0.03) {
+    const fusing = t > KREIS.gather;
     for (let i = 0; i < 4; i++) {
       const el = KREIS_EL[i];
       const P = kreisPath(e, i, t);
-      const px = x + Math.cos(P.ang) * R * P.rad;
-      const py = y + Math.sin(P.ang) * R * P.rad - P.y * LIFT / KREIS.lift;
-      const s = 16 * appear * (1 - P.g * 0.4);
-      // Schweif
+      const sz = appear * (fusing ? 0.6 : 1.2 - P.g * 0.5);
+      const tr = kreisTrail2(e, i, t, x, y, 12, fusing ? 0.02 : 0.045);
+      const n = tr.length;
+      if (!n) continue;
       ctx.globalCompositeOperation = 'source-over';
-      for (let j = 8; j >= 1; j--) {
-        if (t - j * 0.045 < 0.35) continue;
-        const Q = kreisPath(e, i, t - j * 0.045);
-        ctx.globalAlpha = 0.6 * (1 - j / 9);
-        ctx.fillStyle = j % 2 ? el.main : el.deep;
-        ctx.beginPath();
-        ctx.arc(x + Math.cos(Q.ang) * R * Q.rad, y + Math.sin(Q.ang) * R * Q.rad - Q.y * LIFT / KREIS.lift, s * 0.55 * (1 - j / 10), 0, Math.PI * 2);
-        ctx.fill();
-      }
       ctx.globalAlpha = 1;
-      // Band zum Kern
-      if (P.g > 0.25) {
-        ctx.globalAlpha = 0.8 * P.g;
-        ctx.strokeStyle = el.main;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(x, y - LIFT);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-      }
-      if (el.id === 'feuer') {
-        for (const [w, hh, col] of [[s, s * 2.2, el.deep], [s * 0.75, s * 1.7, el.main], [s * 0.4, s * 1.0, el.hot]]) {
-          ctx.fillStyle = col;
+      if (el.id === 'wasser') {
+        // Wasserband: dicker blauer Strom, der nach hinten dünner wird, darauf heller Schaum
+        for (let j = n - 2; j >= 0; j--) {
+          const q = 1 - j / n;
+          const wob = Math.sin(t * 14 - j) * 2;
+          ctx.strokeStyle = j % 2 ? '#1e6ae0' : '#2a86f0';
+          ctx.lineWidth = (4 + 12 * q) * sz;
           ctx.beginPath();
-          ctx.moveTo(px - w * 0.7, py + s * 0.5);
-          ctx.quadraticCurveTo(px - w * 0.8, py - hh * 0.3, px + Math.sin(t * 12) * 3, py - hh + s * 0.5);
-          ctx.quadraticCurveTo(px + w * 0.8, py - hh * 0.3, px + w * 0.7, py + s * 0.5);
+          ctx.moveTo(tr[j][0], tr[j][1] + wob);
+          ctx.lineTo(tr[j + 1][0], tr[j + 1][1] + Math.sin(t * 14 - j - 1) * 2);
+          ctx.stroke();
+          ctx.strokeStyle = 'rgba(191,244,255,0.85)';
+          ctx.lineWidth = (1.5 + 4 * q) * sz;
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#e8fbff';
+        for (let q = 0; q < 5; q++) {
+          const ph = (t * 2.2 + q / 5) % 1;
+          ctx.beginPath();
+          ctx.arc(tr[0][0] + Math.cos(q * 2.4) * ph * 18, tr[0][1] - ph * 14 + ph * ph * 20, 2.2 * (1 - ph * 0.5), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      } else if (el.id === 'feuer') {
+        for (let j = n - 1; j >= 0; j--) {
+          const q = 1 - j / n;
+          const [fx, fy] = tr[j];
+          const hh = (8 + 28 * q) * sz * (0.85 + 0.25 * Math.sin(t * 17 + j));
+          const w = (3 + 9 * q) * sz;
+          for (const [col, s2] of [[j % 2 ? el.deep : el.main, 1], [el.hot, 0.5]]) {
+            if (s2 < 1 && j > 2) continue;
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.moveTo(fx - w * s2, fy);
+            ctx.quadraticCurveTo(fx - w * s2, fy - hh * s2 * 0.6, fx + Math.sin(t * 11 + j) * 3, fy - hh * s2);
+            ctx.quadraticCurveTo(fx + w * s2, fy - hh * s2 * 0.6, fx + w * s2, fy);
+            ctx.closePath();
+            ctx.fill();
+          }
+        }
+      } else if (el.id === 'erde') {
+        ctx.lineWidth = 1.5;
+        for (let j = 0; j < n; j += 2) {
+          const q = 1 - j / n;
+          const [rx, ry] = tr[j];
+          const rr = (j ? 3 + 5 * q : 10) * sz;
+          ctx.fillStyle = 'rgba(138,114,88,0.35)';
+          ctx.beginPath();
+          ctx.arc(rx, ry + 4, rr * 1.4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = j % 4 ? '#6a5040' : '#8a6a4a';
+          ctx.strokeStyle = '#3a2a1c';
+          ctx.beginPath();
+          for (let s2 = 0; s2 < 6; s2++) {
+            const aa = s2 * 1.047 + t * 5 + j;
+            const d = rr * (0.8 + 0.2 * ((s2 * 7 + j) % 3) / 2);
+            s2 ? ctx.lineTo(rx + Math.cos(aa) * d, ry + Math.sin(aa) * d) : ctx.moveTo(rx + Math.cos(aa) * d, ry + Math.sin(aa) * d);
+          }
           ctx.closePath();
           ctx.fill();
-        }
-      } else if (el.id === 'wasser') {
-        const g = ctx.createRadialGradient(px - s * 0.3, py - s * 0.3, 0, px, py, s * 0.8);
-        g.addColorStop(0, '#ffffff');
-        g.addColorStop(0.3, '#6ad8ff');
-        g.addColorStop(1, '#1a4ad0');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(px, py, s * 0.8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#9fe8ff';
-        for (let k = 0; k < 5; k++) {
-          const a = t * 6 + k * 1.26;
-          ctx.beginPath();
-          ctx.arc(px + Math.cos(a) * s * 1.3, py + Math.sin(a) * s * 0.9, 2.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else if (el.id === 'blitz') {
-        const g = ctx.createRadialGradient(px, py, 0, px, py, s * 0.8);
-        g.addColorStop(0, '#ffffff');
-        g.addColorStop(0.35, '#fff07a');
-        g.addColorStop(0.6, '#a07aff');
-        g.addColorStop(1, '#5a3ad8');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(px, py, s * 0.75, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.lineWidth = 2;
-        for (let k = 0; k < 4; k++) {
-          ctx.strokeStyle = k % 2 ? '#fff07a' : '#c8b0ff';
-          ctx.beginPath();
-          ctx.moveTo(px, py);
-          let qx = px;
-          let qy = py;
-          const a = Math.random() * Math.PI * 2;
-          for (let q = 1; q <= 3; q++) {
-            qx = px + Math.cos(a) * s * 0.6 * q + (Math.random() - 0.5) * 8;
-            qy = py + Math.sin(a) * s * 0.6 * q + (Math.random() - 0.5) * 8;
-            ctx.lineTo(qx, qy);
-          }
           ctx.stroke();
         }
       } else {
-        for (let k = 0; k < 4; k++) {
-          const a = t * 4 + k * 1.57;
-          const rx = px + Math.cos(a) * s * 0.7;
-          const ry = py + Math.sin(a) * s * 0.5;
-          const rr = s * (0.42 + 0.08 * (k % 2));
-          ctx.fillStyle = k % 2 ? '#6a5040' : '#8a6a4a';
-          ctx.strokeStyle = '#f0a830';
+        ctx.globalCompositeOperation = 'lighter';
+        for (const [w, col] of [[5 * sz, el.main], [2 * sz, '#ffffff']]) {
+          ctx.strokeStyle = col;
+          ctx.lineWidth = w;
+          ctx.beginPath();
+          tr.forEach(([px, py], j) => (j ? ctx.lineTo(px + (Math.random() - 0.5) * 8, py + (Math.random() - 0.5) * 8) : ctx.moveTo(px, py)));
+          ctx.stroke();
+        }
+        if (Math.random() < 0.5) {
+          const [px, py] = tr[Math.floor(Math.random() * n)];
+          ctx.strokeStyle = el.hot;
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          for (let q = 0; q < 6; q++) {
-            const aa = q * 1.047 + k + t * 2;
-            const d = rr * (0.8 + 0.2 * ((q * 7 + k) % 3) / 2);
-            q ? ctx.lineTo(rx + Math.cos(aa) * d, ry + Math.sin(aa) * d) : ctx.moveTo(rx + Math.cos(aa) * d, ry + Math.sin(aa) * d);
-          }
-          ctx.closePath();
-          ctx.fill();
+          ctx.moveTo(px, py);
+          ctx.lineTo(px + (Math.random() - 0.5) * 16, py + 10);
+          ctx.lineTo(px + (Math.random() - 0.5) * 22, py + LIFT * 0.6);
           ctx.stroke();
         }
       }
     }
-    ctx.globalCompositeOperation = 'lighter';
-    const grow = Math.max(0, Math.min(1, (t - 0.6) / (KREIS.gather - 0.6)));
-    if (grow > 0) {
-      const sq = t > KREIS.gather ? 1 - (t - KREIS.gather) / (KREIS.boom - KREIS.gather) * 0.7 : 1;
-      const cs = (8 + grow * 26) * sq;
-      for (let i = 0; i < 4; i++) {
-        const a = t * 7 + (i / 4) * Math.PI * 2;
-        ctx.globalAlpha = 0.8;
-        const qx = x + Math.cos(a) * cs * 0.35;
-        const qy = y - LIFT + Math.sin(a) * cs * 0.35;
-        const g = ctx.createRadialGradient(qx, qy, 0, qx, qy, cs);
-        g.addColorStop(0, KREIS_EL[i].hot);
-        g.addColorStop(1, KREIS_EL[i].main + '00');
-        ctx.fillStyle = g;
-        ctx.beginPath();
-        ctx.arc(qx, qy, cs, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-      ctx.fillStyle = '#ffffff';
+    // gleißender Wirbelkern
+    if (t > KREIS.rush) {
+      const f = Math.min(1, (t - KREIS.rush) / (KREIS.boom - KREIS.rush));
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.globalAlpha = 0.5 + f * 0.5;
+      const g = ctx.createRadialGradient(x, y - LIFT, 0, x, y - LIFT, 8 + f * 26);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.5, 'rgba(255,246,208,0.6)');
+      g.addColorStop(1, 'rgba(255,246,208,0)');
+      ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(x, y - LIFT, cs * 0.35, 0, Math.PI * 2);
+      ctx.arc(x, y - LIFT, 8 + f * 26, 0, Math.PI * 2);
       ctx.fill();
     }
   } else {
+    ctx.globalCompositeOperation = 'lighter';
     const fl = Math.max(0, 1 - b / 0.3);
     if (fl > 0) {
       ctx.globalAlpha = fl;
@@ -537,6 +583,31 @@ EXTRA_EFFECTS.elkreis3 = (ctx, e, k, x, y) => {
       ctx.arc(x, y, R * (0.2 + q * 1.15), 0, Math.PI * 2);
       ctx.stroke();
     }
+    // Elementsäulen
+    const rise = Math.min(1, b / 0.22) * Math.max(0, Math.min(1, (1.3 - b) / 0.4));
+    if (rise > 0) {
+      ctx.globalCompositeOperation = 'source-over';
+      for (let i = 0; i < 4; i++) {
+        const a = e.rot0 + (i / 4) * Math.PI * 2 + Math.PI / 4;
+        const px = x + Math.cos(a) * R * 0.58;
+        const py = y + Math.sin(a) * R * 0.58;
+        const H = 90 * rise;
+        const el = KREIS_EL[i];
+        ctx.globalAlpha = rise;
+        const g = ctx.createLinearGradient(px, py, px, py - H);
+        g.addColorStop(0, el.deep);
+        g.addColorStop(0.6, el.main);
+        g.addColorStop(1, el.hot);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(px - 12, py);
+        ctx.quadraticCurveTo(px - 14, py - H * 0.6, px + Math.sin(t * 9 + i) * 4, py - H);
+        ctx.quadraticCurveTo(px + 14, py - H * 0.6, px + 12, py);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    ctx.globalCompositeOperation = 'lighter';
     if (b < 0.5) {
       ctx.globalAlpha = 1 - b / 0.5;
       for (let i = 0; i < 8; i++) {
@@ -545,14 +616,13 @@ EXTRA_EFFECTS.elkreis3 = (ctx, e, k, x, y) => {
         ctx.lineWidth = 2.5;
         ctx.beginPath();
         ctx.moveTo(x, y - LIFT * 0.8);
-        for (let s = 1; s <= 6; s++) {
-          const d = (s / 6) * R;
-          ctx.lineTo(x + Math.cos(a) * d + (s < 6 ? (Math.random() - 0.5) * 16 : 0), y + Math.sin(a) * d - LIFT * 0.8 * (1 - s / 6) + (s < 6 ? (Math.random() - 0.5) * 16 : 0));
+        for (let s2 = 1; s2 <= 6; s2++) {
+          const d = (s2 / 6) * R;
+          ctx.lineTo(x + Math.cos(a) * d + (s2 < 6 ? (Math.random() - 0.5) * 16 : 0), y + Math.sin(a) * d - LIFT * 0.8 * (1 - s2 / 6) + (s2 < 6 ? (Math.random() - 0.5) * 16 : 0));
         }
         ctx.stroke();
       }
     }
-    // Flammen im Ring
     const out = Math.max(0, 1 - b / 0.9);
     if (out > 0) {
       ctx.globalAlpha = out;

@@ -1233,3 +1233,11 @@ Prompt: `Colossal devil emperor for a stylized 3D MMORPG raid, about four times 
 
 Umsetzung: `abaddor3` (js/teufel.js) auf dem Skelett von humanoid3 (kräftige Bauweise, Beine um 0,2 verlängert), Hörner, Zinken und Schwanz als `tube3`, Ohren als `earGeo3`.
 
+## 11f. Kreis der Elemente als echte Elemente und Höllenthron (seit 13.0)
+
+Prompt Ulti: `The four elements are not orbs but their real forms: a flowing ribbon of water with foam crests and flung droplets, a chain of roaring flame tongues with rising embers, tumbling boulders with dust, and a jagged crackling lightning chain. They race around the glowing ground circle, faster and faster, then whip into the center as a whirlpool in under a second, fuse into a blinding vortex and explode: white flash, four colored shockwaves and four element pillars (water geyser, fire column, lightning strikes from the sky, a rock pillar), plus fire ring, radial bolts, flying rocks and earth spikes.`
+
+Prompt Höllenportal: `A colossal hell gate on a volcanic mountain, three times the size of normal dungeon gates: dark obsidian arch with horns and a skull keystone, red vortex, fire bowls.`
+
+Prompt Viertelschlag: `Top-down boss telegraph: the round throne hall is split into four quarters by golden lines; three quarters glow deep red with an ember fill growing from the center outward, the safe quarter stays dark with a green rim. On impact hellfire flames erupt across the red quarters.`
+

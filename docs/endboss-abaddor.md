@@ -1,7 +1,29 @@
 # Endendboss-Entwurf: Abaddor, der Höllenkaiser
 
-Stand: Entwurf (Version 12.9). Das 3D-Modell ist gebaut (`js/teufel.js`, `abaddor3`), steht aber noch nicht in der Welt.
-Kampf, Arena und Belohnungen folgen nach Freigabe dieses Entwurfs.
+Stand: **im Spiel seit Version 13.0** als Instanz „Thron der Unterwelt“ (`js/hoellenthron.js`, Modell `js/teufel.js`).
+
+## 0. Umsetzung 13.0 (so ist es jetzt im Spiel)
+
+- **Riesenportal** im Feuerberg (Map 9, nördlich des Lagers), das Endboss-Tor in 3,6-facher Größe.
+- **Zugang** (für jeden, der hindurchgeht, auch über die Gruppeneinladung): Stufe 60, mindestens 6 angelegte göttliche
+  Teile (Stufe 60), Waffe und Rüstung mit mindestens 3 Boni, Gruppe aus 6–7 Spielern, alle in der Gruppe ab Stufe 60.
+  Das Tor zeigt jede Bedingung mit ✅/❌.
+- **Instanz:** Startraum → Raum mit Höllenhunden und zwei Seelensteinen → **Zerberos, Wächter des Höllentors**
+  (riesiger Höllenhund, Stampfer, Feuersalven, ruft Hunde) → Raum mit Feuerdämonen und zwei Seelensteinen →
+  **Ifrah, die Flammenfürstin** (riesige Feuerdämonin) → runde Thronhalle mit Feuerbecken-Ring.
+- **Versiegelt:** Solange in der Instanz noch ein Seelenstein oder Wächter steht, hängt Abaddor in glühenden Ketten, nimmt
+  keinen Schaden und greift nicht an. Oben in der Mitte zählt eine Anzeige „Seelensteine x/4 · Wächter x/2“.
+- **Abaddor:** Endboss-Angriffe, Höllenbrut, **Siegel der Unterwelt** bei 75/55/30 % (Seelenkristalle schützen ihn),
+  **Vernichtungsschlag** (Viertelschlag, 4 s Warnung) und ab 50 % die **zweite Form** (schlanker und sehniger, fast
+  schwarz mit Glutrissen, riesige brennende Flügel, lange glühende Klauen, flammender Dreizack, 12 % größer; 25 % mehr
+  Schaden, Angriffe 35 % schneller, viele Sturmangriffe; Vernichtungsschlag im Wechsel Viertel / Ring / Kern, 3,2 s Warnung).
+- **Aura:** Feuerring am Boden, Flammenkranz, aufsteigende Glut, Hitzeschein; in der zweiten Form ein Glutsturm.
+- **Beute:** die Endboss-Beute (drei legendäre Teile) plus ein weiteres legendäres Teil mit fünf Boni, mehr Verstärkungen
+  und sehr viel Gold.
+- **Wiederkehr:** Höllenbrut nach 6 Min., Seelensteine nach 25–30 Min., Wächter nach 25 Min., Abaddor nach 30 Min.
+
+---
+Ursprünglicher Entwurf (12.9):
 
 ## 1. Idee
 

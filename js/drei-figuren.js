@@ -2276,12 +2276,14 @@ function monsterModelDef(id) {
 function buildMonster3(b, id, v = 0) {
   const def = monsterModelDef(id);
   const t = MONSTER_TYPES[id];
-  const own = MON3_BUILD[id] || (t && t.raid && MON3_BUILD[t.raid.art]);
+  // look (seit 13.0): Aussehen eines anderen Monsters, z. B. die Wächter im Höllenthron
+  const artId = t && t.raid ? t.raid.art : t && t.look;
+  const own = MON3_BUILD[id] || (artId && MON3_BUILD[artId]);
   if (!def && !own) return Object.assign(beast3(b, { fur: t.color }), { scale: 1, style: attackStyle(id) });
-  const o = Object.assign({}, def ? def.o : {}, t && t.raid ? MON3_LOOK[t.raid.art] : null, MON3_LOOK[id]);
+  const o = Object.assign({}, def ? def.o : {}, artId ? MON3_LOOK[artId] : null, MON3_LOOK[id]);
   if (def) def.o = o;
   let res;
-  if (own) res = own(b);
+  if (own) res = own(b, v);
   else switch (def.fn) {
     case 'beastArt': {
       const dragon = !!def.wings;
@@ -2294,7 +2296,7 @@ function buildMonster3(b, id, v = 0) {
     case 'serpentArt': res = serpent3(b, o, false); break;
     case 'nagaArt': res = serpent3(b, o, true); break;
     default: {
-      const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || {};
+      const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || (t.look && HEAD3[t.look]) || {};
       const c = {
         beastEyes: t.shape === 'brute' || t.shape === 'orc' || t.shape === 'demon', narrow: t.shape === 'humanoid',
         skin: o.skin || t.color, torso: o.torso || o.robe || o.skin || t.color, sleeve: o.sleeve, pants: o.pants, boots: o.boots, gloves: o.gloves,
@@ -2310,7 +2312,7 @@ function buildMonster3(b, id, v = 0) {
         break;
       }
       // Kopf aus dem Baukasten (seit 8.4): Haare, Kopfbedeckung, Bart und Augen je Variante
-      const kit = HEADKIT3[id] || (t.raid && HEADKIT3[t.raid.art]);
+      const kit = HEADKIT3[id] || (t.raid && HEADKIT3[t.raid.art]) || (t.look && HEADKIT3[t.look]);
       if (kit) {
         let seed = 7;
         for (let i = 0; i < id.length; i++) seed = (Math.imul(seed, 31) + id.charCodeAt(i)) | 0;
@@ -2324,7 +2326,9 @@ function buildMonster3(b, id, v = 0) {
   monsterFlair3(b, res, id, def);
   res.style = attackStyle(id);
   // etwas größer als früher, damit man die Einzelheiten sieht
-  res.scale = (def ? def.scale : 1) * 1.15 * (t && t.raid ? t.raid.scale : 1) * (own && t.scale3 ? t.scale3 : 1);
+  res.scale = (def ? def.scale : 1) * 1.15 * (t && t.raid ? t.raid.scale : 1) * (own && t.scale3 ? t.scale3 : 1) * (t && t.lookScale ? t.lookScale : 1);
+  // eigene Großmodelle mit fester Grundgröße (Abaddor, zweite Form etwas größer)
+  if (res.ownScale) res.scale = res.ownScale * (t && t.raid ? t.raid.scale : 1);
   return res;
 }
 
@@ -2665,7 +2669,7 @@ function humanFlair3(A, res, id, t, th, o) {
   }
   // --- Orks: Leder- und Eisenteile, Stammeszeichen, Zopf
   if (t.shape === 'orc') {
-    const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || {};
+    const h = HEAD3[id] || (t.raid && HEAD3[t.raid.art]) || (t.look && HEAD3[t.look]) || {};
     braid(h.mohawk || '#2a2018');
     if (id === 'ork') { bracers('#5a4632', false); paint('#2a3a1a', false); }
     if (id === 'orkschamane') {
@@ -4052,6 +4056,7 @@ function v3Prewarm() {
 // (wird im Netz übertragen, alle Spieler sehen dieselbe); nachgerufene Monster ohne Wiederkehr nehmen die
 // Kennung des Hosts (ihr Startpunkt ist beim Mitspieler ein anderer). Bosse und Arten ohne Varianten behalten ein Modell
 function monVariant3(m) {
+  if (m.type && m.type.teufel) return m.hp < m.maxHp * 0.5 ? 1 : 0;
   const kit = HEADKIT3[m.typeId];
   if (!kit || kit.length < 2) return -1;
   let h = m.respawn === false || m.homeX == null ? m.id | 0 : Math.imul(Math.round(m.homeX) | 0, 73856093) ^ Math.imul(Math.round(m.homeY) | 0, 19349663);
@@ -4061,7 +4066,7 @@ function monVariant3(m) {
 const monKey3 = (typeId, v) => 'm:' + typeId + (v >= 0 ? '#' + v : '');
 // Modellschlüssel eines Monsters, gemerkt, solange es am selben Startpunkt steht (keine neue Zeichenkette je Bild)
 function monModelKey3(m) {
-  if (m.__mk3 === undefined || m.__mkX !== m.homeX || m.__mkY !== m.homeY || m.__mkT !== m.typeId) {
+  if (m.__mk3 === undefined || m.__mkX !== m.homeX || m.__mkY !== m.homeY || m.__mkT !== m.typeId || (m.type && m.type.teufel && m.__v3 !== monVariant3(m))) {
     m.__mkX = m.homeX;
     m.__mkY = m.homeY;
     m.__mkT = m.typeId;
@@ -4825,6 +4830,8 @@ function syncMonster3(m, dt) {
   if (!a) return;
   a.corpse = false;
   animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
+  // Höllenkaiser: eigene Aura (hoellenthron.js)
+  if (a.model.teufel && typeof teufelAura3 === 'function') teufelAura3(a, m);
   // Bosse stehen in einem pulsierenden Schein
   if (m.type.boss) {
     if (!a.aura) {
@@ -5019,8 +5026,10 @@ function syncNpc3(n, dt) {
     const d = n.id === 'weltentor' ? null : DUNGEONS[n.dungeon];
     // Endboss-Tor: dunkler, mit Schädel und Hörnern, größer
     const raid = n.id === 'eingang' && d.raid;
-    const kind = raid ? 'raid' : n.id;
-    a = actorFor(entityKey(n), 'portal2:' + kind + ':' + (d ? d.id : ''), (b) => Object.assign(buildPortal3(b, kind, d), { blob: 0.01, scale: raid ? 2.0 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
+    // Höllenportal (seit 13.0): das Endboss-Tor in Riesengröße
+    const hoelle = n.id === 'eingang' && d.instanz;
+    const kind = raid || hoelle ? 'raid' : n.id;
+    a = actorFor(entityKey(n), 'portal2:' + kind + ':' + (d ? d.id : ''), (b) => Object.assign(buildPortal3(b, kind, d), { blob: 0.01, scale: hoelle ? 3.6 : raid ? 2.0 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
   } else a = actorFor(entityKey(n), 'npc:' + (n.art || n.id), (b) => {
     const r = buildNpc3(b, n.art || n.id);
     if (r) r.blob = 0.42;
