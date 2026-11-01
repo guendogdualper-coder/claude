@@ -1490,7 +1490,14 @@ const gear = {
       `<p class="inv-sum">Seelensplitter ${p.splinters} · ` +
       `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}<br>` +
       MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
-      `</p></section>` +
+      `</p>` +
+      // Teile für den Schmied (seit 13.2 hier statt im Beutel-Fenster), antippen zeigt den Fundort
+      (Object.entries(p.upmats || {}).some(([id, n]) => n > 0 && MOB_MATS[id])
+        ? `<h4 class="sup-head">Teile für den Schmied <small>ab +6, Ausrüstung ab Stufe 30 schon ab +4</small></h4><div class="loot-purse mob-mats">` +
+          Object.entries(p.upmats).filter(([id, n]) => n > 0 && MOB_MATS[id]).map(([id, n]) =>
+            `<span class="mat-chip" tabindex="0" data-tip="${mobMatTip(id)}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${n}</b></span>`).join('') + `</div>`
+        : '') +
+      `</section>` +
       `</div><div id="invDetail" class="item-detail-wrap"></div><p id="invMsg" class="gear-msg"></p>`;
     drawDoll(document.getElementById('invDoll'));
     // Gold oben im Fensterkopf, zählt bei Änderungen kurz hoch

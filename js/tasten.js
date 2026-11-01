@@ -24,7 +24,7 @@ const KEY_ACTIONS = [
   { id: 'char', label: 'Charakter', key: 'KeyC' },
   { id: 'inv', label: 'Inventar', key: 'KeyI' },
   { id: 'map', label: 'Große Karte', key: 'KeyM' },
-  { id: 'loot', label: 'Beutel', key: 'KeyB' },
+  { id: 'loot', label: 'Rucksack', key: 'KeyB' },
   { id: 'social', label: 'Freunde & Gilde', key: 'KeyG' },
   { id: 'daily', label: 'Tagesbelohnung', key: 'KeyT' },
   { id: 'net', label: 'Server', key: 'KeyN' },
@@ -123,7 +123,7 @@ function runAction(id, e) {
     case 'char': if (!rep) ui.toggle('panelChar'); break;
     case 'inv': if (!rep) ui.toggle('panelInv'); break;
     case 'map': if (!rep) openBigMap(); break;
-    case 'loot': if (!rep) ui.toggle('panelLoot'); break;
+    case 'loot': if (!rep) ui.toggle('panelInv'); break;
     case 'social': if (!rep) ui.toggle('panelSocial'); break;
     case 'daily': if (!rep) ui.toggle('panelDaily'); break;
     case 'net': if (!rep) ui.toggle('panelNet'); break;

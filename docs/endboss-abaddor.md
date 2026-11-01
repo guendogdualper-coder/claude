@@ -20,7 +20,7 @@ Stand: **im Spiel seit Version 13.0** als Instanz „Thron der Unterwelt“ (`js
 - **Aura:** Feuerring am Boden, Flammenkranz, aufsteigende Glut, Hitzeschein; in der zweiten Form ein Glutsturm.
 - **Beute:** die Endboss-Beute (drei legendäre Teile) plus ein weiteres legendäres Teil mit fünf Boni, mehr Verstärkungen
   und sehr viel Gold.
-- **Wiederkehr:** Höllenbrut nach 6 Min., Seelensteine nach 25–30 Min., Wächter nach 25 Min., Abaddor nach 30 Min.
+- **Wiederkehr:** Höllenbrut nach 6 Min., Seelensteine nach 25–30 Min., Wächter und Abaddor nach 10 Min. (seit 13.2, wie alle Bosse).
 
 ---
 Ursprünglicher Entwurf (12.9):

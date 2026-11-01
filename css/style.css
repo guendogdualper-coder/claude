@@ -1507,7 +1507,7 @@ kbd {
 
 /* Buffs als Symbole mit Restzeit unter den Balken */
 .buffs { gap: 5px; margin-top: 1px; }
-.buff-ico { position: relative; width: 26px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.buff-ico { pointer-events: auto; cursor: help; position: relative; width: 26px; display: flex; flex-direction: column; align-items: center; gap: 1px; }
 .buff-ico img {
   width: 24px;
   height: 24px;
@@ -1868,6 +1868,8 @@ kbd {
   pointer-events: auto;
 }
 .chat-open svg { width: 15px; height: 15px; fill: rgba(220, 255, 210, 0.25); stroke: #e8ffe0; stroke-width: 1.7; stroke-linejoin: round; stroke-linecap: round; }
+/* am PC sitzt der Beutel seit 13.2 in der Aktionsleiste (placeLootBtn) */
+.action-row > .loot-btn { position: relative; border-radius: 50%; flex: none; }
 #hud > .loot-btn { position: absolute; left: calc(var(--edge-l) + min(300px, 34vw) + 10px); bottom: calc(var(--edge-b) + 26px); width: 48px; height: 48px; border-radius: 50%; }
 .log { bottom: calc(var(--edge-b) + 128px); }
 
@@ -2372,6 +2374,7 @@ body.has-target { --target-h: 46px; }
 #hud.touch .ql-goal { font-size: 9.5px; }
 #hud.touch .ql-where { font-size: 9px; }
 .tip-box {
+  white-space: pre-line;
   position: fixed;
   z-index: 1000;
   padding: 6px 9px;
@@ -2921,3 +2924,19 @@ body.aiming canvas { cursor: crosshair; }
 #hud.touch .skill-wrap.segen-wrap { left: 160px; top: 112px; width: 34px; height: 34px; }
 #hud.touch .slot.skill.segen { width: 34px; height: 34px; }
 #hud.touch .slot.skill.segen .key { display: none; }
+
+/* C-Fenster, Seite Fertigkeiten (seit 13.2): breit und zweispaltig, damit es nicht den ganzen Bildschirm hoch füllt */
+#panelChar.char-wide { width: min(1040px, calc(100vw - 24px)); }
+@media (min-width: 760px) {
+  #panelChar.char-wide .char-page[data-page="skills"] .skill-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* HUD anpassen (seit 13.2, hud-layout.js) */
+body.hud-edit [data-hudpart] { pointer-events: auto !important; outline: 2px dashed rgba(240, 207, 106, 0.9); outline-offset: 3px; cursor: move; min-width: 60px; min-height: 30px; touch-action: none; }
+body.hud-edit [data-hudpart] * { pointer-events: none !important; }
+body.hud-edit [data-hudpart].hud-drag { outline-color: #fff; }
+body.hud-edit .hud-edit-ctl { pointer-events: auto !important; position: absolute; left: 2px; top: 2px; z-index: 50; display: flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 6px; background: rgba(20, 15, 10, 0.92); border: 1px solid var(--brass); font-size: 11px; color: #fff3d8; white-space: nowrap; }
+body.hud-edit .hud-edit-ctl * { pointer-events: auto !important; }
+body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4px; border: 1px solid var(--brass-dim); background: #3a2f22; color: #fff3d8; font-weight: 800; cursor: pointer; }
+#hudEditBar { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 60; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 12px; max-width: min(520px, calc(100vw - 24px)); padding: 12px 16px; border-radius: 10px; background: rgba(20, 15, 10, 0.94); border: 1px solid var(--brass); color: #fff3d8; text-align: center; }
+#hudEditBar small { flex-basis: 100%; color: #cfc4a8; }

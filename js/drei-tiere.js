@@ -31,10 +31,13 @@ function boar3(b, o) {
   ]);
   // Rumpf als Keil: mächtige Schultern vorn, Rücken fällt zur schmalen Hüfte ab
   const coat = { top: darker(fur, 0.3), topK: 0.55, shade: 0.3 };
-  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY + 0.06, 0.15], s: [0.25, 0.3, 0.3] }, coat));
-  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY, -0.1], s: [0.23, 0.25, 0.34] }, coat));
-  A(ball(14), fur, Object.assign({ bone: BQ.body, p: [0, bodyY - 0.02, -0.34], s: [0.19, 0.21, 0.2] }, coat));
-  A(ball(12), o.belly || lighter(fur, 0.15), { bone: BQ.body, p: [0, bodyY - 0.14, 0.0], s: [0.16, 0.08, 0.32] });
+  // seit 13.2 ein glatter Leib aus einem Stück (loft3) statt drei Kugeln: [z, y, Breite, oben, unten]
+  const torso = [
+    [-0.52, bodyY - 0.02, 0.04, 0.04, 0.04], [-0.44, bodyY - 0.01, 0.15, 0.17, 0.17], [-0.25, bodyY, 0.2, 0.22, 0.21],
+    [0.0, bodyY + 0.02, 0.23, 0.26, 0.22], [0.18, bodyY + 0.06, 0.25, 0.3, 0.24], [0.34, bodyY + 0.06, 0.2, 0.24, 0.2], [0.44, bodyY + 0.05, 0.07, 0.08, 0.07]
+  ];
+  A(loft3(torso), fur, Object.assign({ bone: BQ.body }, coat));
+  A(loft3(torso.map(([z, y, rx, ru, rd]) => [z * 0.95, y - 0.012, rx * 0.78, ru * 0.5, rd])), o.belly || lighter(fur, 0.15), { bone: BQ.body });
   // graue Stichelhaare auf den Flanken
   for (let k = 0; k < 10; k++) {
     const sx = k % 2 ? 1 : -1;
@@ -99,10 +102,9 @@ function boar3(b, o) {
     const top = [sx * 0.13, bodyY - 0.06, z0];
     const mid = [sx * 0.13, legLen * 0.5, z0 + (sz > 0 ? 0.02 : -0.05)];
     const foot = [sx * 0.13, 0.07, z0 + 0.01];
-    if (sz < 0) A(ball(10), fur, { bone, p: [top[0], top[1] + 0.02, top[2]], s: [0.1, 0.16, 0.14], shade: 0.2 });
-    else A(ball(10), fur, { bone, p: [top[0], top[1] + 0.02, top[2]], s: [0.09, 0.14, 0.12], shade: 0.2 });
-    seg(top, mid, 0.06, 0.045, sz > 0 ? fur : dark, { bone, shade: 0.15 });
-    seg(mid, foot, 0.042, 0.036, dark, { bone });
+    // ein durchgehender Lauf (seit 13.2): kräftige Keule oben, schlank zum Huf
+    A(tubeProfile3([[top[0], top[1] + 0.08, top[2]], top, mid, foot], [sz < 0 ? 0.1 : 0.09, 0.066, 0.046, 0.038], 12, 10), fur, { bone, shade: 0.2, top: darker(fur, 0.3), topK: 0.5 });
+    A(tubeProfile3([mid, foot], [0.048, 0.04], 6, 10), dark, { bone });
     hooves3(A, bone, foot[0], foot[2], o.hoof || '#1e1612');
   }
   // dünner Schwanz mit Quaste
@@ -186,10 +188,13 @@ function deer3(b, o) {
   ]);
   const bw = ibex ? 1.12 : 1;
   const coat = { top: darker(fur, 0.25), topK: 0.5, shade: 0.25 };
-  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY + 0.03, 0.2], s: [0.19 * bw, 0.23, 0.24] }, coat));
-  A(ball(16), fur, Object.assign({ bone: BQ.body, p: [0, bodyY, -0.05], s: [0.18 * bw, 0.2, 0.32] }, coat));
-  A(ball(14), fur, Object.assign({ bone: BQ.body, p: [0, bodyY + 0.02, -0.28], s: [0.18 * bw, 0.2, 0.18] }, coat));
-  A(ball(12), o.belly || '#f0e6d4', { bone: BQ.body, p: [0, bodyY - 0.12, 0.0], s: [0.13 * bw, 0.08, 0.3] });
+  // seit 13.2 ein glatter Leib aus einem Stück: tiefe Brust, schlanke Flanke, runde Keule
+  const torso = [
+    [-0.47, bodyY + 0.03, 0.04, 0.04, 0.04], [-0.39, bodyY + 0.03, 0.14 * bw, 0.17, 0.16], [-0.2, bodyY + 0.02, 0.17 * bw, 0.2, 0.18],
+    [0.0, bodyY, 0.16 * bw, 0.19, 0.15], [0.2, bodyY + 0.03, 0.18 * bw, 0.22, 0.21], [0.32, bodyY + 0.07, 0.14 * bw, 0.17, 0.16], [0.4, bodyY + 0.12, 0.05, 0.05, 0.05]
+  ];
+  A(loft3(torso), fur, Object.assign({ bone: BQ.body }, coat));
+  A(loft3(torso.map(([z, y, rx, ru, rd]) => [z * 0.95, y - 0.012, rx * 0.78, ru * 0.5, rd])), o.belly || '#f0e6d4', { bone: BQ.body });
   // heller Spiegel am Hinterteil
   A(ball(10), '#f4ece0', { bone: BQ.body, p: [0, bodyY + 0.04, -0.43], s: [0.1, 0.12, 0.05] });
   // Hals schräg nach oben, Halsmähne
@@ -243,9 +248,9 @@ function deer3(b, o) {
     const top = [sx * 0.11 * bw, bodyY - 0.05, z0];
     const mid = [sx * 0.11 * bw, legLen * 0.48, z0 + (sz > 0 ? 0.02 : -0.08)];
     const foot = [sx * 0.11 * bw, 0.07, z0 + (sz > 0 ? 0.0 : -0.02)];
-    if (sz < 0) A(ball(10), fur, { bone, p: [top[0], top[1] + 0.02, top[2]], s: [0.09, 0.15, 0.13], shade: 0.2 });
-    seg(top, mid, 0.05, 0.035, fur, { bone, shade: 0.15 });
-    seg(mid, foot, 0.03, 0.025, sz > 0 ? fur : dark, { bone });
+    // ein durchgehender, schlanker Lauf (seit 13.2), hinten mit kräftiger Keule
+    A(tubeProfile3([[top[0], top[1] + 0.07, top[2]], top, mid, foot], [sz < 0 ? 0.1 : 0.075, 0.055, 0.032, 0.027], 14, 10), fur, { bone, shade: 0.15, top: darker(fur, 0.25), topK: 0.5 });
+    A(tubeProfile3([mid, foot], [0.034, 0.029], 6, 10), sz > 0 ? fur : dark, { bone });
     hooves3(A, bone, foot[0], foot[2], '#241a14');
   }
   seg([0, bodyY + 0.08, -0.42], [0, bodyY + 0.04, -0.5], 0.035, 0.02, fur, { bone: BQ.tail });

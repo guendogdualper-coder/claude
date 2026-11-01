@@ -408,13 +408,16 @@ function drawGuide(ctx) {
   const p = game.player;
   const c = guide.cur;
   if (!c || !p || p.dead || !game.running || game.duel) return;
+  // seit 13.2: bei Seelenstein-Aufträgen kein Pfeil (das Ziel springt zwischen den Steinen hin und her)
+  if (guide.entry && guide.entry.stone > 0 && !guide.entry.done) return;
   const r = renderer;
   const dx = c.x - p.x;
   const dy = c.y - p.y;
   const dist = Math.hypot(dx, dy);
   ctx.save();
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
-  const s = Math.max(0.75, Math.min(1.3, Math.min(r.w, r.h) / 420));
+  // seit 13.2 rund ein Drittel kleiner
+  const s = 0.7 * Math.max(0.75, Math.min(1.3, Math.min(r.w, r.h) / 420));
   const gold = c.sub ? '#9fd8ff' : guide.entry && guide.entry.kind === 'side' && !guide.entry.done ? '#8ef08e' : '#ffd34d';
   // Ziel im Bild: Pfeil über dem Ziel
   const tz = guideScreen(c.x, c.y, _gB);
@@ -434,7 +437,7 @@ function drawGuide(ctx) {
   guideScreen(p.x, fy, _gA);
   guideScreen(p.x + (dx / dist) * 48, fy + (dy / dist) * 48, _gB);
   const ang = Math.atan2(_gB.y - _gA.y, _gB.x - _gA.x);
-  const R = 72 * s;
+  const R = 84 * s;
   const ax = _gA.x + Math.cos(ang) * R;
   // nach oben weiter weg, damit der Pfeil nicht auf Figur und Namen liegt
   const ry = Math.sin(ang) < 0 ? 1.35 : 0.75;
@@ -452,7 +455,7 @@ function drawGuide(ctx) {
   drawGuideChevron(ctx, ax, ay, ang, 19 * s * pulse, gold);
   // Name und Entfernung in kleiner Schrift neben dem Pfeil
   const txt = `${c.name} · ${Math.max(1, Math.round(dist / TILE))} m`;
-  ctx.font = `700 ${Math.round(11 * s)}px "Alegreya Sans", sans-serif`;
+  ctx.font = `700 ${Math.max(10, Math.round(13 * s))}px "Alegreya Sans", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const lx = ax + Math.cos(ang) * 22 * s;

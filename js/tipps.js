@@ -56,7 +56,7 @@ function skillTipHtml(sk, lvl, key) {
 function ultTipHtml(u, key) {
   const p = game.player;
   return `<strong>${u.name}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` +
-    `<small>Ultimative Attacke · ${p && p.level < u.unlock ? `ab Stufe ${u.unlock}` : '3 Min. Abklingzeit'}</small>` +
+    `<small>Ultimative Attacke · ${p && p.level < u.unlock ? `ab Stufe ${u.unlock}` : '60 s Abklingzeit'}</small>` +
     `<span class="tip-stats">${u.stats}</span><span>${u.text}</span>`;
 }
 

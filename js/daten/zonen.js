@@ -239,12 +239,14 @@ const potionInfo = (kind) => SHOP.find((x) => x.id === kind);
 // die Händlerin verkauft sie ab einer Stufe. Im Gepäck: p.potions.hp (S), hpM, hpL, hpXL, hpXXL, ebenso mp.
 // Seit 10.1 heilen sie feste Mengen statt Prozent: So passt jede Größe zu ihrem Stufenbereich (bei Stufe 30
 // heilt der kleine Trank nur noch etwa ein Siebtel, der große etwa die Hälfte).
+// Seit 13.2 heilen die Lebenstränke rund 45 % weniger (vorher füllte ein großer Trank auf Stufe 30 fast die Hälfte):
+// klein 95, mittel 180, groß 340, sehr groß 540, riesig 800
 const POTION_SIZES = [
-  { id: 'S', name: 'klein', hp: 170, mp: 60, price: 1, level: 1 },
-  { id: 'M', name: 'mittel', hp: 330, mp: 115, price: 5, level: 10 },
-  { id: 'L', name: 'groß', hp: 620, mp: 210, price: 20, level: 25 },
-  { id: 'XL', name: 'sehr groß', hp: 980, mp: 320, price: 80, level: 40 },
-  { id: 'XXL', name: 'riesig', hp: 1450, mp: 470, price: 320, level: 55 }
+  { id: 'S', name: 'klein', hp: 95, mp: 60, price: 1, level: 1 },
+  { id: 'M', name: 'mittel', hp: 180, mp: 115, price: 5, level: 10 },
+  { id: 'L', name: 'groß', hp: 340, mp: 210, price: 20, level: 25 },
+  { id: 'XL', name: 'sehr groß', hp: 540, mp: 320, price: 80, level: 40 },
+  { id: 'XXL', name: 'riesig', hp: 800, mp: 470, price: 320, level: 55 }
 ];
 const potKey = (kind, size) => (size === 'S' ? kind : kind + size);
 const potionTotal = (p, kind) => POTION_SIZES.reduce((n, sz) => n + (p.potions[potKey(kind, sz.id)] || 0), 0);

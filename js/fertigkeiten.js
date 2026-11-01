@@ -844,7 +844,7 @@ Object.assign(SKILL_FX, {
     },
     aura: { every: 0.08, color: ['#fff2c0', '#ffd38a', '#ffffff'], shape: 'spark', up: true },
     ring: '#ffd38a',
-    weaponGlow: '#ffd36a'
+    weaponGlow: '#ffe28a'
   },
   // Felsenfaust (seit 8.3): Fußring beim Ausholen, Staubstern beim Treffer
   felsenfaust: {
@@ -1208,6 +1208,8 @@ function skillCastFx(sk) {
   const fx = SKILL_FX[sk.id];
   if (fx && fx.cast) fx.cast(game.player, sk);
   skillSignature3(sk, game.player);
+  // Ninja-Attacken in 3D (seit 13.2, ninja-fx.js)
+  if (typeof ninjaFx3 === 'function') ninjaFx3(game.player, sk, game.target, false);
 }
 
 function skillHitFx(id, m, crit, heavy) {

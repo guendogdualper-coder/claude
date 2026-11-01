@@ -84,7 +84,7 @@ function populateWorld() {
 // Monster kommen erst nach 90 s wieder, der Boss nach 10 Minuten.
 const DUNGEON_RESPAWN = 90;
 const BOSS_RESPAWN = 600;
-const RAID_RESPAWN = 900;
+const RAID_RESPAWN = 600;  // seit 13.2 wie alle Bosse 10 Minuten (vorher 15)
 function populateDungeons(groupId) {
   for (const dg of game.world.dungeons) {
     const zone = ZONES[RING_ZONES + DUNGEONS.indexOf(dg.def)];
@@ -461,6 +461,12 @@ function reviveMonster(m) {
   }
   m.hp = m.maxHp;
   m.dead = false;
+  // Endbosse (seit 13.2): frischer Kampf ohne alte Phase, Schild oder zweite Form
+  if (m.raid) {
+    if (typeof raidReset === 'function') raidReset(m);
+    m.raid = null;
+  }
+  m.form2 = false;
   m.state = 'idle';
   m.target = null;
   m.stun = 0;
@@ -476,8 +482,9 @@ function aggro(m, source) {
     m.target = source;
   }
   if (!m.groupId) return;
+  // seit 13.2: die ganze Gruppe kommt, auch wenn ein Tier gerade umherläuft oder heimkehrt
   for (const o of game.monsters) {
-    if (o !== m && !o.dead && o.groupId === m.groupId && o.state === 'idle' && dist(o, m) < 220) {
+    if (o !== m && !o.dead && o.groupId === m.groupId && (o.state !== 'chase' || !o.target) && dist(o, m) < 420) {
       o.state = 'chase';
       o.target = source;
     }
@@ -704,8 +711,10 @@ function updateMonsters(dt) {
   for (const m of game.monsters) {
     if (m.dead) {
       if (m.respawn && game.time >= m.respawnAt) {
-        // Besiegte Monster bleiben tot, solange ein Spieler an ihrem Platz ist; erst danach kommen sie wieder
-        if (!m.isStone && playerNearSpot(m.homeX, m.homeY, 420)) m.respawnAt = game.time + 5;
+        // Besiegte Monster bleiben tot, solange ein Spieler an ihrem Platz ist; erst danach kommen sie wieder.
+        // Bosse (seit 13.2) kommen nach ihren 10 Minuten immer wieder, auch wenn jemand in der Halle wartet.
+        const boss = m.type && (m.type.boss || m.type.raid);
+        if (!m.isStone && !boss && playerNearSpot(m.homeX, m.homeY, 420)) m.respawnAt = game.time + 5;
         else reviveMonster(m);
       }
       continue;

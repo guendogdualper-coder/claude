@@ -4,7 +4,9 @@
 
 // arena: Radius des Kreises; pvpMul: Schaden zwischen Spielern; maxHit/maxCrit: höchstens dieser Anteil
 // des Lebens pro Treffer, damit niemand mit einem Schlag fällt und Duelle eine Weile dauern
-const DUEL = { countdown: 3, maxTime: 210, arena: 400, pvpMul: 0.24, maxHit: 0.08, maxCrit: 0.12 };
+// seit 13.2 zählen im Duell die echten Werte: kein Deckel mehr bei großem Stufenabstand (Stufe 60 haut Stufe 10
+// mit einem Schlag um); bei ähnlicher Stufe (unter 10 Stufen Abstand) höchstens 35 % bzw. 50 % (krit.) je Treffer
+const DUEL = { countdown: 3, maxTime: 210, arena: 400, pvpMul: 0.7, maxHit: 0.35, maxCrit: 0.5, capGap: 10 };
 const TRADE_SLOTS = 8;
 
 // --- Spielerkarte oben in der Mitte -------------------------------------------------------------
@@ -533,7 +535,8 @@ function duelReceive(pid, d) {
   if (!g || g.pid !== pid || !duelFighting() || p.dead) return;
   const s = game.stats;
   const raw = d.a * DUEL.pvpMul * (1 - s.def / (s.def + 40 + 5 * ((d.l || 1) - 1)));
-  const amount = Math.max(1, Math.round(Math.min(raw, s.maxHp * (d.c ? DUEL.maxCrit : DUEL.maxHit))));
+  const capped = (d.l || 1) - p.level < DUEL.capGap;
+  const amount = Math.max(1, Math.round(capped ? Math.min(raw, s.maxHp * (d.c ? DUEL.maxCrit : DUEL.maxHit)) : raw));
   const before = p.hp;
   damagePlayer(amount, g.proxy);
   const dealt = Math.max(0, Math.round(before - p.hp));
@@ -707,6 +710,7 @@ function remoteSkillFx(rp, d) {
   const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
   const col = skillColor(sk, trim);
   const blade = MELEE_KINDS.has(weaponKindOf(rp)) ? playerBlade(rp) : null;
+  if (typeof ninjaFx3 === 'function') ninjaFx3(rp, sk, target, true);
   switch (sk.type) {
     case 'cone': {
       const spread = (sk.angle || 90) * Math.PI / 180;
@@ -729,7 +733,7 @@ function remoteSkillFx(rp, d) {
     case 'circle': {
       const a = Math.random() * Math.PI * 2;
       vfxSweep(rp, sk.radius * 0.85, a, a + Math.PI * 4, col, 0.45, 34);
-      if (blade) addEffect({ type: 'bladespin', follow: rp, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: 2, count: 2, dir: 1, dur: 0.6, color: col, ...blade });
+      if (blade && !(typeof ninjaOwns3 === 'function' && ninjaOwns3(sk.id))) addEffect({ type: 'bladespin', follow: rp, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: 2, count: 2, dir: 1, dur: 0.6, color: col, ...blade });
       addEffect({ type: 'ring', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
       rp.spin = 0.5;
       break;

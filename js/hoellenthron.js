@@ -16,7 +16,7 @@
 
 const HT = {
   party: [6, 7], level: 60, gearTier: 7, gearCount: 6, gearBoni: 3, mobLevel: 64,
-  respawn: { mob: 360, stone: [1500, 1800], guard: 1500, boss: 1800 },
+  respawn: { mob: 360, stone: [1500, 1800], guard: 600, boss: 600 },
   qFirst: 14, qEvery: 36, qEvery2: 26, qCast: 4, qCast2: 3.2, qR: 1500, ringSafe: 260, coreR: 560
 };
 RAID_MUL.quarter = 11;

@@ -268,7 +268,9 @@ class SigConn extends SigEmitter {
       const st = pc.connectionState;
       if (st !== 'failed' && st !== 'closed') return;
       // direkter Weg gescheitert: gleich den Notweg nehmen; läuft der schon, ist das egal
-      if (this.via === 'dc') this.end();
+      // seit 13.2: bricht der direkte Weg mitten im Spiel ab (Handynetz wechselt, kurzes Funkloch), geht es über
+      // den Notweg weiter, statt die Verbindung zu beenden (das sah aus wie ein Rauswurf mit Neu-Beitritt)
+      if (this.via === 'dc') this.toRelay();
       else if (!this.open) this.startRelay();
     };
     // kommt gar nichts zustande, gilt die Verbindung als gescheitert
@@ -297,16 +299,17 @@ class SigConn extends SigEmitter {
       this.openVia('dc');
     };
     dc.onmessage = (e) => { if (this.via === 'dc') this.receive(sigParse(e.data)); };
-    dc.onclose = () => { if (this.via === 'dc') this.end(); };
+    dc.onclose = () => { if (this.via === 'dc') this.toRelay(); };
   }
-  startRelay() {
-    if (this.relay || this.open || this.ended || !this.relayId) return;
+  startRelay(force = false) {
+    if (this.relay || (this.open && !force) || this.ended || !this.relayId) return;
     const other = this.side === 'h' ? 'j' : 'h';
     this.relay = { out: 0, in: 0, brokers: sigBus().brokers, inT: `seelenstein8/${this.relayId}/${this.side}`, outT: `seelenstein8/${this.relayId}/${other}` };
     for (const b of this.relay.brokers) b.sub(this.relay.inT, (txt) => this.onRelay(txt));
     // „hi“ wiederholen, bis die andere Seite antwortet
     const hello = () => {
-      if (this.open || this.ended) return;
+      // beim Umstellen einer offenen Verbindung (force) so lange, bis die andere Seite antwortet
+      if (this.ended || (this.open && (this.via !== 'relay' || this.relayHeard))) return;
       this.relayPub({ __r: 'hi' });
       this.helloTimer = setTimeout(hello, 1000);
     };
@@ -320,8 +323,15 @@ class SigConn extends SigEmitter {
     const m = sigParse(txt);
     if (!m || !(m.q > this.relay.in)) return;
     this.relay.in = m.q;
+    this.relayHeard = true;
     const d = m.d;
-    if (d && d.__r === 'hi') { this.relayPub({ __r: 'ok' }); this.openVia('relay'); return; }
+    if (d && d.__r === 'hi') {
+      // die andere Seite ist schon auf den Notweg gewechselt: mitgehen
+      if (this.open && this.via === 'dc') this.toRelay();
+      this.relayPub({ __r: 'ok' });
+      this.openVia('relay');
+      return;
+    }
     if (d && d.__r === 'ok') { this.openVia('relay'); return; }
     if (d && d.__r === 'bye') { this.end(); return; }
     if (this.via === 'relay') this.receive(d);
@@ -354,6 +364,19 @@ class SigConn extends SigEmitter {
     const n = Math.ceil(s.length / SIG_CHUNK);
     for (let i = 0; i < n; i++) this.raw({ __c: id, i, n, s: s.slice(i * SIG_CHUNK, (i + 1) * SIG_CHUNK) });
   }
+  // laufende Verbindung auf den Notweg umstellen; antwortet dort 20 s lang nichts, ist sie wirklich weg
+  toRelay() {
+    if (this.ended) return;
+    if (!this.relayId) { this.end(); return; }
+    if (this.via === 'relay') return;
+    sigTrace('direkter Weg weg – weiter über den Broker');
+    this.via = 'relay';
+    this.relayHeard = false;
+    if (this.relay) this.relayPub({ __r: 'hi' });
+    else this.startRelay(true);
+    clearTimeout(this.relayWatch);
+    this.relayWatch = setTimeout(() => { if (!this.relayHeard) this.end(); }, 20000);
+  }
   close() { this.end(); }
   end() {
     if (this.ended) return;
@@ -361,6 +384,7 @@ class SigConn extends SigEmitter {
     clearTimeout(this.failTimer);
     clearTimeout(this.relayTimer);
     clearTimeout(this.helloTimer);
+    clearTimeout(this.relayWatch);
     if (this.relay) {
       try { this.relayPub({ __r: 'bye' }); } catch (e) { /* egal */ }
       for (const b of this.relay.brokers) b.unsub(this.relay.inT);

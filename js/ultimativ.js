@@ -1,9 +1,9 @@
 // Ultimative Attacken: jeder Weg bekommt ab Stufe 30 eine eigene, sehr starke Fertigkeit
-// mit 3 Minuten Abklingzeit. Eigener Knopf neben dem Angriff, Taste 6.
+// mit 60 Sekunden Abklingzeit (seit 13.2, vorher 3 Minuten). Eigener Knopf neben dem Angriff, Taste 6.
 // Die Stärke wächst mit der Spielerstufe und dem Fertigkeitsschaden (Intelligenz, Boni, Magie).
 
 const ULT_UNLOCK = 30;
-const ULT_COOLDOWN = 180;
+const ULT_COOLDOWN = 60;  // seit 13.2 (vorher 3 Minuten)
 
 const ULTIMATES = {
   klinge: {
@@ -297,7 +297,7 @@ const ULT_RUN = {
     const s = game.stats;
     const amount = Math.round(s.maxHp * 0.6);
     p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 44, '+' + amount, 'heal');
+    addText(p.x, p.y - 44, '+' + Math.round(amount), 'heal');
     addEffect({ type: 'ultbeam', follow: p, ox: 0, oy: 0, w: 70, dur: 1.2, color: u.color });
     addEffect({ type: 'ultsigil', ground: true, follow: p, ox: 0, oy: 0, r: 120, dur: 1.6, color: u.color });
     particles(p.x, feetY(p) - 20, { count: 40, color: [u.color, '#ffffff', '#9be59b'], angle: -Math.PI / 2, spread: 1.2, speed: [60, 200], life: [0.6, 1.2], size: [2, 4], drag: 1.5 });
@@ -335,7 +335,7 @@ const ULT_RUN = {
           const heal = Math.round(total * 0.25);
           if (heal > 0 && !p.dead) {
             p.hp = Math.min(game.stats.maxHp, p.hp + heal);
-            addText(p.x, p.y - 44, '+' + heal, 'heal');
+            addText(p.x, p.y - 44, '+' + Math.round(heal), 'heal');
           }
         }
       });

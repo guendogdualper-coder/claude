@@ -687,13 +687,14 @@ function usePotion(kind, sizeId) {
   vfxPotion(p, kind);
   snd.player('potion', { vol: 0.4 });
   if (hp) {
+    // nur die wirklich geheilte Menge anzeigen, ganzzahlig (Leben hat durch Regeneration Nachkommastellen)
     const amount = Math.min(size.hp, s.maxHp - p.hp);
     p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 30, `+${amount} (${size.id})`, 'heal');
+    addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} (${size.id})`, 'heal');
   } else {
     const amount = Math.min(size.mp, s.maxMp - p.mp);
     p.mp = Math.min(s.maxMp, p.mp + amount);
-    addText(p.x, p.y - 30, `+${amount} MP (${size.id})`, 'mana');
+    addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} MP (${size.id})`, 'mana');
   }
 }
 

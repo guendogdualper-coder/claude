@@ -732,6 +732,13 @@ function humanoid3(b, c, P) {
   // Waffen (das Zepter hängt seinen Kristall und den Funken an die Drehknochen)
   const wo = spin && c.weapon ? { accent: c.weapon.accent, hi: c.weapon.hi, gemBone: spin.gem, sparkBone: spin.spark } : undefined;
   if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], true, wo);
+  // Klingenachse im Modellraum merken (Ansatz und Spitze, für Waffen-Auren in 3D seit 13.2)
+  let weaponAxis = null;
+  if (c.weapon) {
+    const M = partFrame(handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0]);
+    const wl = WEAPON_LEN3[c.weapon.kind] || 0.6;
+    weaponAxis = { base: new THREE.Vector3(0, 0.02, 0).applyMatrix4(M), tip: new THREE.Vector3(0, wl, 0).applyMatrix4(M) };
+  }
   if (c.offhand) {
     const h = WEAPON_HOLD[c.offhand.kind] || [1.1, 0, 0];
     weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, [h[0], -h[1], -h[2]], false);
@@ -739,7 +746,7 @@ function humanoid3(b, c, P) {
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
-  return { rig, height: top, family: 'human', shY, hipY, shX, hc, hr, belly, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
+  return { rig, height: top, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
 }
 
 // Drehknochen (seit 8.6): Teile, die schweben und sich drehen (Zepterkristall mit Funke, Runenring um die
@@ -770,6 +777,8 @@ function spinBones3(c, list, m) {
 }
 
 // Haltung der Waffe in der Hand (Drehung des Griffs)
+// ungefähre Länge der Waffe ab der Hand entlang +y im Haltungsrahmen (Klinge, Kopf, Stab)
+const WEAPON_LEN3 = { sword: 0.72, greatsword: 1.05, dagger: 0.38, axe: 0.62, greataxe: 0.95, club: 0.6, scythe: 1.1, staff: 1.0, skullstaff: 1.0, rod: 0.7, fan: 0.35, bell: 0.3, bow: 0.5 };
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [0.8, 0, 0.35], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
   bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45],
@@ -988,12 +997,23 @@ function beast3(b, o, P) {
     [[0, hp[1] - 0.06, hp[2] + 0.06], 2]
   ]);
   const bw = bulky ? 1.3 : boar ? 1.15 : lean ? 0.84 : 1;
-  // Rumpf: Brust vorn, Bauch, Hüfte hinten
-  A(ball(16), fur, coat({ bone: BQ.body, p: [0, bodyY + 0.03, len * 0.42], s: [0.26 * bw, 0.27 * bw, 0.3] }));
-  A(ball(14), fur, coat({ bone: BQ.body, p: [0, bodyY, -len * 0.05], s: [0.23 * bw, 0.23 * bw, len * 0.62] }));
-  A(ball(14), fur, coat({ bone: BQ.body, p: [0, bodyY + 0.02, -len * 0.55], s: [0.22 * bw, 0.22 * bw, 0.25] }));
-  A(ball(12), belly, { bone: BQ.body, p: [0, bodyY - (lean ? 0.06 : 0.1), len * 0.1], s: [0.18 * bw, lean ? 0.1 : 0.13, len * 0.7] });
-  if (lean) A(ball(14), fur, coat({ bone: BQ.body, p: [0, bodyY - 0.04, len * 0.45], s: [0.2 * bw, 0.26, 0.22] }));
+  // Rumpf (seit 13.2) aus einem Stück statt aus Kugeln: runde Hinterhand, eingezogene Taille (bei schlanken
+  // Tieren deutlich), tiefe Brust, Schultern, vorn in den Hals übergehend. Stationen: [z, y, Breite, oben, unten]
+  const tuck = lean ? 0.62 : bulky ? 0.95 : 0.82;
+  const L = len;
+  const torso = [
+    [-L * 0.98, bodyY + 0.04, 0.05 * bw, 0.05 * bw, 0.05 * bw],
+    [-L * 0.86, bodyY + 0.05, 0.16 * bw, 0.17 * bw, 0.16 * bw],
+    [-L * 0.58, bodyY + 0.05, 0.21 * bw, 0.21 * bw, 0.2 * bw],
+    [-L * 0.18, bodyY + 0.04, 0.19 * bw, 0.2 * bw, 0.2 * bw * tuck],
+    [L * 0.22, bodyY + 0.04, 0.22 * bw, 0.21 * bw, 0.25 * bw],
+    [L * 0.55, bodyY + 0.07, 0.21 * bw, 0.21 * bw, 0.25 * bw],
+    [L * 0.8, bodyY + 0.11, 0.14 * bw, 0.15 * bw, 0.16 * bw],
+    [L * 0.9, bodyY + 0.13, 0.05 * bw, 0.05 * bw, 0.05 * bw]
+  ];
+  A(loft3(torso), fur, coat({ bone: BQ.body }));
+  // heller Bauch und Brust: dieselbe Form etwas schmaler, ragt nur unten heraus
+  A(loft3(torso.map(([z, y, rx, ru, rd]) => [z * 0.97, y - 0.012, rx * 0.8, ru * 0.55, rd * 1.0])), belly, { bone: BQ.body });
   // Schulterbuckel (Braunbär): die breiteste und höchste Stelle von oben
   if (o.hump) A(ball(12), fur, coat({ bone: BQ.body, p: [0, bodyY + 0.2 * bw, len * 0.36], s: [0.2 * bw, 0.14, 0.24], topK: 0.7 }));
   // Fellzeichnung: dunkler Sattel (Schakal), Tupfen (Hyäne, Luchs), Streifen (Glutkatze)
@@ -1046,12 +1066,16 @@ function beast3(b, o, P) {
     // Gelenk: vorn das Handgelenk knapp über dem Boden, hinten das Sprunggelenk höher und weiter hinten
     const mid = front ? [x * 1.04, legLen * 0.3, z + 0.015] : [x * 1.04, legLen * 0.42, z - 0.085];
     const paw = [x * 1.04, 0.035, z + (front ? 0.04 : 0.005)];
-    A(ball(12), fur, coat({ bone, p: [x, top[1] - (front ? 0.02 : 0.03), z + (front ? 0.02 : -0.01)], s: [0.085 * thick, front ? 0.15 : 0.16, front ? 0.11 : 0.13], shade: 0.2 }));
-    seg(top, mid, 0.06 * thick, 0.036 * thick, front ? fur : dark, { bone, shade: 0.15, seg: 10 });
-    seg(mid, paw, 0.034 * thick, 0.03 * thick, sock, { bone, seg: 10 });
-    // Ballen und vier Zehen vorn im Bogen
-    A(ball(12), sock, { bone, p: [paw[0], 0.03, paw[2] + 0.012], s: [(o.bigPaws ? 0.058 : 0.046) * thick, 0.03, (o.bigPaws ? 0.07 : 0.058) * thick] });
-    for (const [dx, dz] of [[-0.03, 0.035], [-0.011, 0.048], [0.011, 0.048], [0.03, 0.035]]) A(ball(8), lighter(sock, 0.04), { bone, p: [paw[0] + dx * thick, 0.022, paw[2] + 0.012 + dz * thick], s: [0.015 * thick, 0.017, 0.019 * thick] });
+    // ein durchgehender Lauf (seit 13.2): oben kräftig (Schulter bzw. Keule), zum Gelenk schlank, dann der
+    // dünne Mittelfuß; hinten mit deutlicher Keule
+    const thigh = front ? 0.075 : 0.095;
+    A(tubeProfile3([[x, top[1] + 0.06, z + (front ? 0.02 : -0.03)], top, mid, paw], [thigh * thick, 0.065 * thick, 0.04 * thick, 0.031 * thick], 14, 10), fur, coat({ bone, shade: 0.15 }));
+    // Socken: der untere Lauf in der Pfotenfarbe
+    A(tubeProfile3([mid, paw], [0.042 * thick, 0.033 * thick], 6, 10), sock, { bone });
+    // Pfote: kompakt und nach vorn gestreckt, mit vier kleinen dunklen Krallen
+    const pw = (o.bigPaws ? 0.055 : 0.044) * thick;
+    A(ball(14), sock, { bone, p: [paw[0], 0.03, paw[2] + 0.018], s: [pw, 0.03, pw * 1.35], top: lighter(sock, 0.08), topK: 0.4 });
+    for (const dx of [-0.6, -0.2, 0.2, 0.6]) pointAt3(A, horn3(0.026, 0.008, 4), '#1a120c', [paw[0] + dx * pw, 0.016, paw[2] + 0.018 + pw * 1.2], [0, -0.35, 1], { bone, noShadow: true });
   }
   // Hals und Kopf
   seg([0, bodyY + 0.05, len * 0.55], [0, hp[1] - 0.04, hp[2] - 0.08], 0.15 * bw, 0.12 * bw, fur, { bone: BQ.neck, top: back, topK: 0.5 });
@@ -1127,12 +1151,12 @@ function beast3(b, o, P) {
       seg(t3, t4, 0.035, 0.02, o.tailTip || fur, { bone: BQ.tail, mat: o.glowStripes && o.tailTip ? 'glow' : 'lit' });
       tuft(0.08, 0.035, o.tailTip || back, t4, [0, 0.6, -1], { bone: BQ.tail, mat: o.glowStripes && o.tailTip ? 'glow' : 'lit' });
     } else if (o.bushy) {
-      seg(t0, t1, 0.06, 0.09, fur, { bone: BQ.tail, top: back, topK: 0.55 });
-      seg(t1, t2, 0.09, o.tailTip ? 0.08 : 0.05, lighter(fur, 0.08), { bone: BQ.tail, top: back, topK: 0.55 });
-      if (o.tailTip) A(horn3(0.14, 0.08, 6), o.tailTip, { bone: BQ.tail, p: t2, r: [-1.9, 0, 0] });
-      else tuft(0.13, 0.06, back, t2, [0, -0.35, -1], { bone: BQ.tail });
-      // Fell steht seitlich ab
-      for (const sx of [-1, 1]) tuft(0.1, 0.045, fur, t1, [sx, 0.3, -0.8], { bone: BQ.tail });
+      // buschiger Schwanz (seit 13.2) als ein weicher Pinsel: dünn am Ansatz, in der Mitte dick, spitz am Ende;
+      // die Spitze (Fuchs: weiß) als eigenes Stück darüber
+      const tp = [t0, [0, bodyY + 0.12, -len - 0.02], [0, bodyY + 0.06, -len - 0.22], [0, bodyY - 0.04, -len - 0.42], [0, bodyY - 0.02, -len - 0.58]];
+      const tr = [0.045, 0.085, 0.115, 0.1, 0.012];
+      A(tubeProfile3(tp, tr, 20, 12, 0, 1, 0.85), fur, { bone: BQ.tail, top: back, topK: 0.55 });
+      if (o.tailTip) A(tubeProfile3(tp, tr.map((r) => r * 1.06), 10, 12, 0.7, 1, 0.85), o.tailTip, { bone: BQ.tail });
     } else if (o.wings) {
       seg(t0, t1, 0.08, 0.06, fur, { bone: BQ.tail, top: back, topK: 0.5 });
       seg(t1, t2, 0.06, 0.025, fur, { bone: BQ.tail, top: back, topK: 0.5 });
@@ -4717,6 +4741,11 @@ function syncPlayer3(p, dt) {
   // Angriffe
   a.poseWg = null;
   a.poseEm = 0;
+  // Dolch blitzt auf (Ninja-Attacken seit 13.2, ninja-fx.js)
+  if (p.bladeFlash > t) {
+    const q = (p.bladeFlash - t) / (p.bladeFlashDur || 0.45);
+    poseWeaponGlow(a, p.bladeFlashCol || '#ffffff', Math.min(1, 0.35 + q * 1.1));
+  }
   if (posing) {
     const k = Math.sin(Math.min(1, (1 - p.swing / (p.swingDur || 0.7)) * 1.4) * Math.PI);
     B[BH.armL].rotation.set(-2.7 * k, 0, 0.3 * k);
@@ -4791,7 +4820,7 @@ function syncPlayer3(p, dt) {
     const aura = p.buffs && p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
     if (aura) {
       wg.color.set(SKILL_FX[aura.id].weaponGlow);
-      wg.opacity = 0.55 + 0.25 * Math.sin(t * 8);
+      wg.opacity = 0.8 + 0.2 * Math.sin(t * 8);
     } else if (band >= 2) {
       wg.color.set(PLUS_COLORS[band]);
       wg.opacity = 0.22 + band * 0.06 + 0.1 * Math.sin(t * 6);

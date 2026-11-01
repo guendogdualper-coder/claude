@@ -1733,9 +1733,10 @@ function* objectJob(cx, cy) {
       const g = w.ground[i];
       const d = w.deco[i];
       if (d === DECO.BRIDGE) {
-        // Der Weg läuft waagerecht, wenn links oder rechts Weg oder Brücke liegt
+        // Der Weg läuft waagerecht, wenn links und rechts Weg oder Brücke liegt (bei einer zwei Kacheln breiten
+        // senkrechten Brücke liegt nur auf einer Seite Brücke)
         const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || (w.deco[ty * MAP_W + tx] === DECO.BRIDGE);
-        const horiz = way(x - 1, y) || way(x + 1, y);
+        const horiz = way(x - 1, y) && way(x + 1, y);
         b.addTemplate(tplBridge(), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
         continue;
       }

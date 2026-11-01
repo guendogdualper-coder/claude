@@ -34,7 +34,7 @@ const CLASSES = {
             text: 'Ein weiter Querhieb, dann schlägst du das Schwert in den Boden: Eine Klingenwelle rast bis zu 180 weit nach vorn, trifft alle Gegner in ihrer Bahn und stößt sie zurück.'
           },
           {
-            id: 'schwertwirbel', name: 'Schwertwirbel', short: 'SW', kind: 'angriff', unlock: 3, mp: 14, cooldown: 6,
+            id: 'schwertwirbel', name: 'Schwertwirbel', short: 'SW', kind: 'angriff', unlock: 10, mp: 14, cooldown: 6,
             type: 'circle', radius: 100, dmg: 1.7, stun: 0.8,
             text: 'Du wirbelst um dich selbst, triffst alle Gegner im Umkreis und betäubst sie kurz.'
           },
@@ -52,7 +52,8 @@ const CLASSES = {
             text: 'Du springst bis zu 190 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt und leicht verletzt.'
           },
           {
-            id: 'schwertaura', name: 'Aura des Schwertes', short: 'AS', kind: 'buff', unlock: 10, mp: 30, cooldown: 60,
+            // seit 13.2 schon ab Stufe 3 (tauscht mit dem Schwertwirbel)
+            id: 'schwertaura', name: 'Aura des Schwertes', short: 'AS', kind: 'buff', unlock: 3, mp: 30, cooldown: 60,
             type: 'buff', duration: 180, effects: { atk: 0.2, crit: 0.05 },
             text: 'Buff: Eine leuchtende Aura umgibt dein Schwert. Mehr Angriff und mehr kritische Treffer.'
           }

@@ -116,10 +116,12 @@ const options = {
       (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. Im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera, das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
       keyOptionsHtml() +
       `<section class="opt-group"><h3>Figur und Spiel</h3><div class="opt-btns">` +
+      `<button type="button" class="btn btn-ghost" data-go="hud">🧩 HUD anpassen</button>` +
       `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
       `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
       `<button type="button" class="btn btn-ghost" data-go="help">❓ Hilfe</button>` +
       `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
+      `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
       `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>`;
     body.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
       setOpt(b.dataset.sw, !opts[b.dataset.sw]);
@@ -153,6 +155,7 @@ const options = {
     });
     body.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', async () => {
       const go = b.dataset.go;
+      if (go === 'hud') hudLayout.start();
       if (go === 'look') ui.openLookPanel();
       if (go === 'net') ui.toggle('panelNet');
       if (go === 'help') ui.toggle('panelHelp');

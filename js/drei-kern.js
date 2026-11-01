@@ -277,6 +277,110 @@ function tube3(pts, r0, r1, seg = 18, rad = 9) {
   });
 }
 
+// Rohr mit Dickenverlauf (seit 13.2): wie tube3, aber radii ist eine Liste über die ganze Kurve (gleichmäßig
+// verteilt, dazwischen linear), t0/t1 schneiden ein Stück heraus (z. B. die helle Schwanzspitze), flat staucht
+// den Querschnitt seitlich (< 1 = flacher, z. B. ein buschiger Schwanz von oben breiter als hoch)
+function tubeProfile3(pts, radii, seg = 18, rad = 10, t0 = 0, t1 = 1, flat = 1) {
+  const key = 'tubeP' + pts.map((p) => p.map((v) => v.toFixed(3)).join(',')).join(';') + '|' + radii.map((r) => r.toFixed(3)).join(',') + '|' + seg + ',' + rad + ',' + t0 + ',' + t1 + ',' + flat;
+  return geo3(key, () => {
+    const full = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
+    // Teilstück als eigene Kurve (dichte Stützpunkte), damit die Röhre genau dort beginnt und endet
+    const sub = [];
+    for (let i = 0; i <= 10; i++) sub.push(full.getPointAt(t0 + (t1 - t0) * (i / 10)));
+    const curve = new THREE.CatmullRomCurve3(sub);
+    const rAt = (t) => {
+      const f = Math.max(0, Math.min(1, t)) * (radii.length - 1);
+      const i = Math.min(radii.length - 2, Math.floor(f));
+      return radii[i] + (radii[i + 1] - radii[i]) * (f - i);
+    };
+    const g = new THREE.TubeGeometry(curve, seg, 1, rad, false);
+    const P = g.attributes.position;
+    const c = new THREE.Vector3();
+    const side = new THREE.Vector3();
+    const up = new THREE.Vector3(0, 1, 0);
+    const tan = new THREE.Vector3();
+    for (let i = 0; i <= seg; i++) {
+      const u = i / seg;
+      curve.getPointAt(u, c);
+      curve.getTangentAt(u, tan);
+      side.crossVectors(tan, up).normalize();
+      const r = rAt(t0 + (t1 - t0) * u);
+      for (let j = 0; j <= rad; j++) {
+        const k = i * (rad + 1) + j;
+        let dx = P.getX(k) - c.x;
+        let dy = P.getY(k) - c.y;
+        let dz = P.getZ(k) - c.z;
+        if (flat !== 1 && side.lengthSq() > 0.5) {
+          // Anteil quer zur Seite stauchen
+          const s = dx * side.x + dy * side.y + dz * side.z;
+          dx -= side.x * s * (1 - 1 / flat);
+          dy -= side.y * s * (1 - 1 / flat);
+          dz -= side.z * s * (1 - 1 / flat);
+        }
+        P.setXYZ(k, c.x + dx * r, c.y + dy * r, c.z + dz * r);
+      }
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Glatter Tierleib (seit 13.2) statt aufeinandergesetzter Kugeln: Querschnitte entlang z, je Station
+// [z, Mitte y, halbe Breite, Höhe nach oben, Höhe nach unten]; dazwischen weich (Catmull-Rom) verbunden,
+// an beiden Enden geschlossen. So entstehen tiefe Brust, eingezogene Taille und runde Hinterhand in einem Stück.
+function loft3(stations, rad = 16, sub = 4) {
+  const key = 'loft' + stations.map((s) => s.map((v) => v.toFixed(3)).join(',')).join(';') + rad + ',' + sub;
+  return geo3(key, () => {
+    const cr = (a, b, c, d, t) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+    const n = stations.length;
+    const rows = [];
+    for (let i = 0; i < n - 1; i++) {
+      for (let k = 0; k < sub; k++) {
+        const t = k / sub;
+        const A = stations[Math.max(0, i - 1)];
+        const B = stations[i];
+        const C = stations[i + 1];
+        const D = stations[Math.min(n - 1, i + 2)];
+        rows.push(B.map((_, q) => Math.max(q >= 2 ? 0.002 : -99, cr(A[q], B[q], C[q], D[q], t))));
+      }
+    }
+    rows.push(stations[n - 1].slice());
+    const pos = [];
+    const idx = [];
+    for (const [z, y, rx, ru, rd] of rows) {
+      for (let j = 0; j <= rad; j++) {
+        const a = (j / rad) * Math.PI * 2;
+        const sa = Math.sin(a);
+        pos.push(Math.cos(a) * rx, y + sa * (sa > 0 ? ru : rd), z);
+      }
+    }
+    const W = rad + 1;
+    for (let i = 0; i < rows.length - 1; i++) {
+      for (let j = 0; j < rad; j++) {
+        const a = i * W + j;
+        const b = (i + 1) * W + j;
+        // nach außen gewunden (Ringe laufen mit wachsendem z)
+        idx.push(a, a + 1, b, a + 1, b + 1, b);
+      }
+    }
+    // Deckel an beiden Enden
+    const c0 = pos.length / 3;
+    pos.push(0, rows[0][1], rows[0][0]);
+    const c1 = pos.length / 3;
+    const L = rows.length - 1;
+    pos.push(0, rows[L][1], rows[L][0]);
+    for (let j = 0; j < rad; j++) {
+      idx.push(c0, j + 1, j);
+      idx.push(c1, L * W + j, L * W + j + 1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
 // Ohrmuschel (seit 12.7.1): gewölbte halbe Schale, Öffnung nach vorn (+z), Spitze oben; inner = Innenseite
 function earGeo3(inner) {
   return geo3('ear3' + (inner ? 'in' : 'out'), () => {

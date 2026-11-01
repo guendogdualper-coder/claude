@@ -922,7 +922,8 @@ const SKILL_TYPES = {
     vfxSweep(p, sk.radius * 0.85, a, a + Math.PI * 4, skillColor(sk, c.trim), 0.45, 34);
     const fx = SKILL_FX[sk.id] || {};
     if (fx.bladeSpin) {
-      addEffect({ type: 'bladespin', follow: p, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: fx.bladeSpin.turns, count: fx.bladeSpin.count, dir: 1, dur: 0.6, color: skillColor(sk, c.trim), ...playerBlade(p) });
+      // 3D-Ninja (seit 13.2): eigene räumliche Klingen statt der flachen Riesenklinge (ninja-fx.js)
+      if (!(typeof ninjaOwns3 === 'function' && ninjaOwns3(sk.id))) addEffect({ type: 'bladespin', follow: p, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: fx.bladeSpin.turns, count: fx.bladeSpin.count, dir: 1, dur: 0.6, color: skillColor(sk, c.trim), ...playerBlade(p) });
       p.spin = 0.6;
     }
     addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
@@ -1181,7 +1182,7 @@ const SKILL_TYPES = {
     const s = game.stats;
     const amount = Math.round(s.maxHp * sk.amount * buffScale(lvl));
     p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 40, '+' + amount, 'heal');
+    addText(p.x, p.y - 40, '+' + Math.round(amount), 'heal');
     vfxPillar(p, '#9be59b', 1);
     addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50, dur: 0.6, color: '#9be59b', width: 5, grow: true });
     if (sk.effects) applyBuff(sk, lvl);
@@ -1201,7 +1202,7 @@ const SKILL_TYPES = {
     const dmg = hitMonster(t, sk.dmg * pw, { skill: sk.id, vfxColor: '#ff6a7a' });
     const heal = Math.round(dmg * sk.heal);
     p.hp = Math.min(game.stats.maxHp, p.hp + heal);
-    addText(p.x, p.y - 40, '+' + heal, 'heal');
+    addText(p.x, p.y - 40, '+' + Math.round(heal), 'heal');
     const bc = bodyCenter(t);
     addEffect({ type: 'beam', x: bc.x, y: bc.y, follow2: p, dur: 0.45, color: '#c43a5a' });
     const pc = bodyCenter(p);

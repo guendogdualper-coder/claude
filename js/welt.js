@@ -20,7 +20,7 @@ const VS = VILLAGE_HALF / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 28;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 10;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 11;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -196,8 +196,12 @@ function generateWorld() {
         const y = Math.floor(CENTER_Y + dy * s + (dx ? w + wobble : 0));
         if (x < m1x0 + MAP_BORDER || y < m1y0 + MAP_BORDER || x >= m1x1 - MAP_BORDER || y >= m1y1 - MAP_BORDER) continue;
         const i = y * MAP_W + x;
-        deco[i] = LIQUID.has(ground[i]) ? DECO.BRIDGE : DECO.NONE;
-        if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+        // über Wasser eine Brücke (das Wasser bleibt darunter), sonst Weg; tidyBridges räumt danach auf
+        if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
+        else {
+          deco[i] = DECO.NONE;
+          if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+        }
         obj[i] = OBJ.NONE;
       }
     }
@@ -237,6 +241,7 @@ function generateWorld() {
   // Dungeons im Streifen östlich der Welt, darunter Map 2 und Map 3
   const dungeons = buildDungeons(ground, obj, zoneIdx);
   const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom);
+  tidyBridges(ground, deco, obj);
 
   // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher.
   // Seit 12.2 stehen die Stadtleute am linken und rechten Rand einander gegenüber, die Mitte bleibt frei; jede
@@ -485,6 +490,99 @@ const RAID_ROOMS = [[3, 32, 8, 8], [16, 5, 38, 63]];
 // oben die runde Thronhalle Abaddors
 const INSTANZ_ROOMS = [[2, 61, 10, 8], [17, 57, 15, 12], [38, 55, 15, 14], [38, 33, 15, 14], [14, 32, 16, 15], [6, 1, 44, 28]];
 
+// Brücken aufräumen (seit 13.2): Eine Brücke bleibt nur, wo der Weg wirklich ein Gewässer quert, also quer zum
+// Weg auf beiden Seiten Wasser liegt. Sie wird dann zu einem sauberen Rechteck über die ganze Wegbreite, mit
+// Wasser darunter und gleich daneben (der Bach läuft sichtbar unten durch). Streift der Weg nur den Rand eines
+// Teichs oder quert eine Pfütze, wird dort trockener Weg daraus.
+function tidyBridges(ground, deco, obj) {
+  const seen = new Uint8Array(ground.length);
+  const isB = (i) => deco[i] === DECO.BRIDGE;
+  const wayAt = (i) => isB(i) || ground[i] === GROUND.PATH;
+  for (let i0 = 0; i0 < ground.length; i0++) {
+    if (!isB(i0) || seen[i0]) continue;
+    const comp = [];
+    const stack = [i0];
+    seen[i0] = 1;
+    while (stack.length) {
+      const i = stack.pop();
+      comp.push(i);
+      for (const j of [i - 1, i + 1, i - MAP_W, i + MAP_W]) {
+        if (j >= 0 && j < ground.length && !seen[j] && isB(j)) {
+          seen[j] = 1;
+          stack.push(j);
+        }
+      }
+    }
+    // Richtung des Wegs: Wo schließt trockener Weg an, längs oder quer?
+    let px = 0;
+    let py = 0;
+    for (const i of comp) {
+      if (ground[i - 1] === GROUND.PATH && !isB(i - 1)) px++;
+      if (ground[i + 1] === GROUND.PATH && !isB(i + 1)) px++;
+      if (ground[i - MAP_W] === GROUND.PATH && !isB(i - MAP_W)) py++;
+      if (ground[i + MAP_W] === GROUND.PATH && !isB(i + MAP_W)) py++;
+    }
+    const vert = py > px;
+    // Längs (a) und quer (c) zum Weg
+    const at = (a, c) => (vert ? a * MAP_W + c : c * MAP_W + a);
+    let a0 = Infinity;
+    let a1 = -Infinity;
+    let c0 = Infinity;
+    let c1 = -Infinity;
+    for (const i of comp) {
+      const x = i % MAP_W;
+      const y = (i - x) / MAP_W;
+      const a = vert ? y : x;
+      const c = vert ? x : y;
+      a0 = Math.min(a0, a); a1 = Math.max(a1, a); c0 = Math.min(c0, c); c1 = Math.max(c1, c);
+    }
+    // die ganze Wegbreite (2 Kacheln) überspannen
+    const mid = Math.round((a0 + a1) / 2);
+    while (c1 - c0 < 1 && wayAt(at(mid, c0 - 1))) c0--;
+    while (c1 - c0 < 1 && wayAt(at(mid, c1 + 1))) c1++;
+    const wet = (i) => LIQUID.has(ground[i]) && !isB(i);
+    const rows = [];
+    for (let a = a0; a <= a1; a++) {
+      const left = wet(at(a, c0 - 1)) || wet(at(a, c0 - 2));
+      const right = wet(at(a, c1 + 1)) || wet(at(a, c1 + 2));
+      if (left && right) rows.push(a);
+    }
+    // die häufigste Flüssigkeit unter der Brücke
+    const count = {};
+    let liquid = GROUND.WATER;
+    let best = 0;
+    for (const i of comp) {
+      const g = ground[i];
+      if (!LIQUID.has(g)) continue;
+      count[g] = (count[g] || 0) + 1;
+      if (count[g] > best) { best = count[g]; liquid = g; }
+    }
+    for (const i of comp) {
+      deco[i] = DECO.NONE;
+      ground[i] = GROUND.PATH;
+    }
+    if (rows.length < 2 || rows.length < (a1 - a0 + 1) * 0.5) continue;
+    const r0 = rows[0];
+    const r1 = rows[rows.length - 1];
+    for (let a = r0; a <= r1; a++) {
+      for (let c = c0; c <= c1; c++) {
+        const i = at(a, c);
+        ground[i] = liquid;
+        deco[i] = DECO.BRIDGE;
+        obj[i] = OBJ.NONE;
+      }
+      // gleich neben der Brücke Wasser, damit der Bach durchgehend ist
+      for (const c of [c0 - 1, c1 + 1]) {
+        const i = at(a, c);
+        if (LIQUID.has(ground[i])) continue;
+        ground[i] = liquid;
+        deco[i] = DECO.NONE;
+        obj[i] = OBJ.NONE;
+      }
+    }
+  }
+}
+
 function buildDungeons(ground, obj, zoneIdx) {
   const rng = mulberry32(WORLD_SEED + 99);
   for (let y = 0; y < DUNGEON_H; y++) {
@@ -609,8 +707,10 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
           if (x < rx + MAP_BORDER || y < ry + MAP_BORDER || x >= rx + rw - MAP_BORDER || y >= ry + rh - MAP_BORDER) continue;
           const i = y * MAP_W + x;
           if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
-          else deco[i] = DECO.NONE;
-          if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+          else {
+            deco[i] = DECO.NONE;
+            if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+          }
           obj[i] = OBJ.NONE;
         }
       }

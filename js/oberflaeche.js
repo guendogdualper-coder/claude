@@ -92,8 +92,9 @@ const ui = {
     $('potMp').querySelector('.flask').src = lootIconUrl('potMp');
     onPress($('potMp'), () => usePotion('mp'));
     setupQuickSlots();
-    $('btnLoot').addEventListener('click', () => this.toggle('panelLoot'));
-    $('lootFeed').addEventListener('click', () => this.toggle('panelLoot'));
+    // seit 13.2: Beutel-Knopf, B und Beute-Meldungen öffnen direkt den Rucksack
+    $('btnLoot').addEventListener('click', () => this.toggle('panelInv'));
+    $('lootFeed').addEventListener('click', () => this.toggle('panelInv'));
     $('btnRevive').addEventListener('click', () => {
       $('panelDeath').hidden = true;
       revivePlayer(false);
@@ -446,6 +447,8 @@ const ui = {
     $('hud').hidden = false;
     $('touchControls').hidden = !input.touchUi;
     $('hud').classList.toggle('touch', input.touchUi);
+    this.placeLootBtn();
+    hudLayout.init();
     $('log').innerHTML = '';
     this.cache = {};
     this.buildSkillBar();
@@ -1108,7 +1111,7 @@ const ui = {
         const sk = skillById(b.id);
         const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
-        return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" title="${b.name}">` +
+        return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" data-tip="${escapeHtml(buffTip(b))}">` +
           `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
       $('hud').classList.toggle('has-buffs', buffs.length > 0);
@@ -1262,6 +1265,20 @@ const ui = {
     $('lootBadge').textContent = this.lootUnseen > 99 ? '99+' : this.lootUnseen;
   },
 
+  // Beutel-Knopf (seit 13.2): am PC in der Aktionsleiste rechts neben den Tränken statt hinter dem Chat,
+  // auf dem Handy wie bisher frei über dem Chat
+  placeLootBtn() {
+    const btn = $('btnLoot');
+    if (!input.touchUi) {
+      if (btn.parentElement !== $('quick2').parentElement) $('quick2').after(btn);
+    } else if (btn.parentElement !== $('hud')) $('hud').insertBefore(btn, $('chatBox'));
+  },
+
+  clearLootBadge() {
+    this.lootUnseen = 0;
+    $('lootBadge').hidden = true;
+  },
+
   renderLoot() {
     const p = game.player;
     this.lootUnseen = 0;
@@ -1325,6 +1342,7 @@ const ui = {
     if (open) {
       if (id === 'panelChar') this.renderCharPanel();
       if (id === 'panelInv') {
+        this.clearLootBadge();
         gear.openInventory();
         return;
       }
@@ -1401,6 +1419,8 @@ const ui = {
       `<nav class="char-tabs" role="tablist">` +
       tabs.map(([id, label, extra]) => `<button type="button" role="tab" data-ctab="${id}" class="${id === tab ? 'on' : ''}" aria-selected="${id === tab}">${label}${extra}</button>`).join('') +
       `</nav><div class="char-page" data-page="${tab}">${pages[tab]}</div>`;
+    // Fertigkeiten (seit 13.2) breit in zwei Spalten statt lang nach unten
+    $('panelChar').classList.toggle('char-wide', tab === 'skills');
     $('charBody').querySelectorAll('[data-ctab]').forEach((b) => {
       b.addEventListener('click', () => {
         this.charTab = b.dataset.ctab;
@@ -1943,7 +1963,7 @@ function ultHtml(u, p) {
     ? (p.ultCd > 0 ? `bereit in ${formatBuffTime(Math.ceil(p.ultCd))}` : '<b class="up">bereit</b>') + '<br>Taste 6'
     : `ab Stufe ${u.unlock}`;
   return `<ul class="skill-list ult-list"><li><img class="icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
-    `<span class="info"><strong>Ultimativ: ${u.name}</strong><span>${u.text}</span><span class="sk-stats">${u.stats} · Abklingzeit 3 Minuten · kein Mana</span></span>` +
+    `<span class="info"><strong>Ultimativ: ${u.name}</strong><span>${u.text}</span><span class="sk-stats">${u.stats} · Abklingzeit ${ULT_COOLDOWN} s · kein Mana</span></span>` +
     `<span class="meta">${meta}</span></li></ul>`;
 }
 
@@ -2080,4 +2100,29 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
     });
   };
   render();
+}
+
+// Kurze Wirkungsliste eines Buffs für den Hinweis in der Buff-Leiste (seit 13.2), z. B.
+// „Kampfrausch · 2:10 / Angriffstempo +30 % / Lauftempo +6 %“
+const BUFF_TIP_LABELS = {
+  atk: 'Angriff', def: 'Verteidigung', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', dodge: 'Ausweichen',
+  crit: 'Krit. Chance', critDmg: 'Krit. Schaden', damageTaken: 'Erlittener Schaden', regen: 'Leben je Sek.',
+  skillDmg: 'Fertigkeitsschaden', reflect: 'Schaden zurück', chill: 'Angreifer verlangsamt', natureDmg: 'Naturschaden',
+  omniVamp: 'Omni-Vampir', int: 'Intelligenz'
+};
+function buffTip(b) {
+  const lines = [b.name];
+  const fmt = (v) => {
+    const pct = Math.abs(v) * 100;
+    return (v < 0 ? '−' : '+') + (pct < 1 ? pct.toFixed(1).replace('.', ',') : Math.round(pct)) + ' %';
+  };
+  for (const [k, v] of Object.entries(b.effects || {})) {
+    if (k === 'invisible' && v) lines.push('Unsichtbar · nächster Treffer stärker');
+    else if (k === 'int' && typeof v === 'number') lines.push('Intelligenz +' + Math.round(v));
+    else if (BUFF_TIP_LABELS[k] && typeof v === 'number' && v) lines.push(BUFF_TIP_LABELS[k] + ' ' + fmt(v));
+  }
+  const fx = SKILL_FX[b.id];
+  if (fx && fx.weaponGlow) lines.push('Leuchtende Waffe');
+  if (b.id === 'knochenpanzer') lines.push('Schild fängt Schaden ab');
+  return lines.join('\n');
 }

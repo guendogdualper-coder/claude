@@ -62,10 +62,14 @@ function setupInput() {
       return;
     }
     if (e.code === 'Escape') {
-      if ($('quickPick')) closeQuickPicker();
+      // seit 13.2: Esc schließt der Reihe nach HUD-Bearbeitung, Auswahl, Zielen, Fenster und Ziel –
+      // ist nichts davon offen, öffnet Esc die Einstellungen
+      if (hudLayout.editing) hudLayout.stop();
+      else if ($('quickPick')) closeQuickPicker();
       else if (game.aim) cancelAim();
       else if (ui.anyPanelOpen()) ui.closePanels();
-      else game.target = null;
+      else if (game.target) game.target = null;
+      else ui.toggle('panelOpts');
       return;
     }
     // seit 10.5 frei belegbar (tasten.js, Einstellungen → Tastenbelegung)
@@ -313,6 +317,8 @@ function setupTouch() {
     if (game.running) {
       $('touchControls').hidden = false;
       $('hud').classList.add('touch');
+      ui.placeLootBtn();
+      hudLayout.init();
     }
   }, { once: true, passive: true });
 }

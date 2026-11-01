@@ -35,7 +35,7 @@ ULT_RUN.seelenernte = function (p, u, pw) {
       const heal = Math.round(game.stats.maxHp * Math.min(0.3, 0.03 * n));
       if (heal > 0 && !p.dead) {
         p.hp = Math.min(game.stats.maxHp, p.hp + heal);
-        addText(p.x, p.y - 44, '+' + heal, 'heal');
+        addText(p.x, p.y - 44, '+' + Math.round(heal), 'heal');
       }
       // die Seelen stärken auch die Diener (voll geheilt, 15 s länger, 8 s schneller)
       for (const a of game.allies) {

@@ -101,7 +101,8 @@ function renderGroundChunk(cx, cy) {
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA) drawGrassFringe(ctx, x, y, px, py, h);
       const d = w.deco[i];
-      if (d) drawDeco(ctx, d, g, px, py, h);
+      if (d === DECO.BRIDGE) drawBridge2(ctx, px, py, bridgeHoriz(x, y));
+      else if (d) drawDeco(ctx, d, g, px, py, h);
     }
   }
   return c;
@@ -446,16 +447,31 @@ function drawDeco(ctx, d, g, px, py, h) {
       ctx.lineTo(px + ox + 11, py + oy - 3);
       ctx.stroke();
       break;
-    case DECO.BRIDGE: {
-      ctx.fillStyle = '#8a6a44';
-      ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
-      ctx.fillStyle = 'rgba(40,25,10,0.35)';
-      for (let k = 0; k < 5; k++) ctx.fillRect(px, py + k * 6.4, TILE, 1.2);
-      ctx.fillStyle = '#5a3f26';
-      ctx.fillRect(px, py, 3, TILE);
-      ctx.fillRect(px + TILE - 3, py, 3, TILE);
-      break;
-    }
+  }
+}
+
+// Brücke (seit 13.2 je nach Wegrichtung): Bretter quer zum Weg, Geländer an beiden Seiten
+function bridgeHoriz(x, y) {
+  const w = game.world;
+  const way = (tx, ty) => w.ground[ty * MAP_W + tx] === GROUND.PATH || w.deco[ty * MAP_W + tx] === DECO.BRIDGE;
+  return way(x - 1, y) && way(x + 1, y);
+}
+
+function drawBridge2(ctx, px, py, horiz) {
+  ctx.fillStyle = '#8a6a44';
+  ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
+  ctx.fillStyle = 'rgba(40,25,10,0.35)';
+  for (let k = 0; k < 5; k++) {
+    if (horiz) ctx.fillRect(px + k * 6.4, py, 1.2, TILE);
+    else ctx.fillRect(px, py + k * 6.4, TILE, 1.2);
+  }
+  ctx.fillStyle = '#5a3f26';
+  if (horiz) {
+    ctx.fillRect(px, py, TILE, 3);
+    ctx.fillRect(px, py + TILE - 3, TILE, 3);
+  } else {
+    ctx.fillRect(px, py, 3, TILE);
+    ctx.fillRect(px + TILE - 3, py, 3, TILE);
   }
 }
 

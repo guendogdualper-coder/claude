@@ -47,7 +47,7 @@ function nkHeal(p, amount) {
   const heal = Math.round(amount);
   if (heal <= 0 || p.dead) return 0;
   p.hp = Math.min(game.stats.maxHp, p.hp + heal);
-  addText(p.x, p.y - 44, '+' + heal, 'heal');
+  addText(p.x, p.y - 44, '+' + Math.round(heal), 'heal');
   return heal;
 }
 // nächster Gegner zu einem Punkt (für Mitspieler-Bilder: das Ziel kommt als Ort)
@@ -158,7 +158,7 @@ CHANNEL_TICK.siphon = function (p, dt, c) {
   const cost = skillMana(sk, p) / sk.mp * sk.mpPerSec * dt;
   if (p.dead || p.dash || p.riding || (!c.held && age >= sk.minDur) || age >= sk.maxDur || p.mp < cost || inVillage(p.x, p.y) ||
       !t || t.dead || dist(t, p) > sk.range + 80) {
-    if (c.healAcc) addText(p.x, p.y - 44, '+' + c.healAcc, 'heal');
+    if (c.healAcc) addText(p.x, p.y - 44, '+' + Math.round(c.healAcc), 'heal');
     stopChannel(p);
     return;
   }
@@ -175,7 +175,7 @@ CHANNEL_TICK.siphon = function (p, dt, c) {
   }
   // Heilzahlen gesammelt zeigen (sonst flackern fünf Zahlen pro Sekunde)
   if (c.healAcc && game.time - c.healShow > 0.6) {
-    addText(p.x, p.y - 44, '+' + c.healAcc, 'heal');
+    addText(p.x, p.y - 44, '+' + Math.round(c.healAcc), 'heal');
     c.healAcc = 0;
     c.healShow = game.time;
   }
