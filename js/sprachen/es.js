@@ -2228,6 +2228,7 @@
 "{0} T": "{0} d",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Bono de lanzamiento\n+{0} % de experiencia para todos los personajes\nquedan {1} días (hasta el {2}), se mantiene al morir",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Bono de lanzamiento\n+{0} % de experiencia para todos los personajes\nqueda {1} día (hasta el {2}), se mantiene al morir",
+"Belohnung: {0} EP": "Recompensa: {0} EXP",
 "Dorfältester": "Anciano de la aldea",
 "Fallensteller": "Trampero",
 "Kräutersammlerin": "Herbolaria",

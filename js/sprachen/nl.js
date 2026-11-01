@@ -2185,6 +2185,7 @@
 "{0} T": "{0} d",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Startbonus\n+{0} % ervaring voor alle personages\nnog {1} dagen (tot {2}), blijft ook bij de dood",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Startbonus\n+{0} % ervaring voor alle personages\nnog {1} dag (tot {2}), blijft ook bij de dood",
+"Belohnung: {0} EP": "Beloning: {0} XP",
 "Dorfältester": "Dorpsoudste",
 "Fallensteller": "Pelsjager",
 "Kräutersammlerin": "Kruidenzoekster",

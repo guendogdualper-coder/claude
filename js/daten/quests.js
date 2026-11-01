@@ -128,6 +128,13 @@ const QUEST_XP_MUL = 1.5;
 function questXp(level, factor = 0.5) {
   return Math.round(xpToNext(level) * factor * QUEST_XP_MUL);
 }
+// Nebenaufgaben (Wanderer, Jägerin, Nachtwanderer) geben seit 13.11 so viel wie ein Kampfauftrag der Hauptquest.
+// Vorher zählte nur die Stufe des Monsters (Wildhund Stufe 2 → fast nichts) mit einem kleineren Anteil (15–25 %).
+// Grundlage ist jetzt die eigene Stufe, höchstens 5 über der Monsterstufe (sonst lohnen sich zu leichte Aufträge zu sehr).
+function sideQuestXp(monLevel) {
+  const own = typeof game !== 'undefined' && game.player ? game.player.level : monLevel;
+  return questXp(Math.max(monLevel, Math.min(own, monLevel + 5)), QUEST_XP.kill);
+}
 // Monster geben seit 13.10 etwas mehr Erfahrung (+10 %)
 const MOB_XP_MUL = 1.1;
 // Startbonus (seit 13.10): +20 % Erfahrung für alle Charaktere bis einschließlich 22.11.2026.

@@ -2221,6 +2221,7 @@
 "{0} T": "{0} j",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Bonus de lancement\n+{0} % d'expérience pour tous les personnages\nencore {1} jours (jusqu'au {2}), conservé à la mort",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Bonus de lancement\n+{0} % d'expérience pour tous les personnages\nencore {1} jour (jusqu'au {2}), conservé à la mort",
+"Belohnung: {0} EP": "Récompense : {0} XP",
 "Dorfältester": "Ancien du village",
 "Fallensteller": "Trappeur",
 "Kräutersammlerin": "Herboriste",

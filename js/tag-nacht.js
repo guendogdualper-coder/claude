@@ -229,7 +229,7 @@ function nightQuestKill(m) {
     if (s.progress < NIGHT_KILL) continue;
     const t = MONSTER_TYPES[s.target];
     const n = nightNpcOf(key);
-    giveReward(nightReward(t), questXp(t.level, 0.18));
+    giveReward(nightReward(t), sideQuestXp(t.level));
     s.state = 'open';
     s.progress = 0;
     s.times = (s.times || 0) + 1;
@@ -261,7 +261,7 @@ Object.assign(ui, {
     }
     const reward = nightReward(t);
     body.innerHTML = `<p>„Nachts kriechen andere Wesen aus ihren Verstecken. Hilf mir: Besiege ${NIGHT_KILL} × <b>${t.name}</b> (Stufe ${t.level}). Sie zeigen sich nur in der Nacht.“</p>` +
-      rewardHtml(reward, questXp(t.level, 0.18)) +
+      rewardHtml(reward, sideQuestXp(t.level)) +
       `<p class="hint-text">Erledigte Nachtjagden bei mir: ${s.times || 0}</p>` +
       '<button type="button" class="btn btn-primary" data-night="take">Nachtjagd annehmen</button>';
     body.querySelector('[data-night]').addEventListener('click', () => {
@@ -286,7 +286,7 @@ SIDE_QUEST_SOURCES.push(() => {
     const n = nightNpcOf(key);
     out.push({
       key: 'night:' + key, title: 'Nachtjagd: ' + t.name, sub: (n ? n.name : 'Nachtwanderer') + ' · nur nachts', noTrack: true,
-      goal: `${NIGHT_KILL} × ${t.name} besiegen`, have: s.progress, need: NIGHT_KILL, where: monsterWhere(s.target) + ' (nachts)', active: true,
+      goal: `${NIGHT_KILL} × ${t.name} besiegen`, have: s.progress, need: NIGHT_KILL, where: monsterWhere(s.target) + ' (nachts)', active: true, xp: sideQuestXp(t.level),
       abandon: () => { s.state = 'open'; s.progress = 0; s.target = null; }
     });
   }

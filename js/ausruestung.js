@@ -1960,7 +1960,7 @@ const gear = {
     const equip = equipSlotsFor(p.classId).map((sl) => this.tile(p.equipment[sl.id], `data-ref="equip:${sl.id}" class-sel="${isSel('equip', sl.id)}"`, slotLabel(sl.id, p), sl.id)).join('');
     const bag = p.inventory.map((it, i) => (isBook(it) ? '' : this.tile(it, `data-ref="bag:${i}" class-sel="${isSel('bag', i)}"`))).join('');
     body.innerHTML =
-      `<p>„Zeig mir, was ich schmieden soll. Bis +6 geht nichts kaputt, ab +7 kann es zerbrechen. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +
+      `<p>„Zeig mir, was ich schmieden soll. Pass auf: Jeder Fehlschlag kann es zerbrechen, schon ab +0 – außer du hast eine Segensschriftrolle. Ab +6 brauche ich Teile von Monstern, für Ausrüstung ab Stufe 30 schon ab +4. Ich schmiede bis +20.“</p>` +
       `<div class="smith smith3">` +
       `<section class="smith-equip"><h3>Angelegt</h3><div class="equip-doll"><canvas id="smithDoll" class="doll"></canvas><div class="equip-grid">${equip}</div></div></section>` +
       `<section class="smith-bag"><h3>Tasche</h3><div class="smith-list">${bag || '<p class="hint-text">Keine Ausrüstung in der Tasche.</p>'}</div></section>` +

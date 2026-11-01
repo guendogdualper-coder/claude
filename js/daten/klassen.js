@@ -133,7 +133,7 @@ const CLASSES = {
           },
           {
             id: 'leichtfuessigkeit', name: 'Leichtfüßigkeit', short: 'LF', kind: 'buff', unlock: 10, mp: 20, cooldown: 60,
-            type: 'buff', duration: 180, effects: { speed: 0.08, atkSpeed: 0.25, dodge: 0.15 },
+            type: 'buff', duration: 180, effects: { speed: 0.12, atkSpeed: 0.25, dodge: 0.15 },
             text: 'Buff: Leicht wie eine Feder. Mehr Lauftempo, Angriffstempo und Chance auszuweichen.'
           }
         ]

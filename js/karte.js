@@ -235,8 +235,8 @@ function guideEntries() {
   if (st.state === 'done') out.push({ key: 'stable', kind: 'main', title: STABLE_QUEST.title, role: 'stallmeister', done: true });
   else if (st.state === 'active') out.push({ key: 'stable', kind: 'main', title: STABLE_QUEST.title, minLevel: STABLE_QUEST.minLevel });
   if (q.side) {
-    for (const n of game.world.npcs) {
-      if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
+    for (const n of allWanderers()) {
+      if (!q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const done = sideDone(n, q.side[n.key]);
       out.push(done ? { key: 'side:' + n.key, kind: 'side', title: n.name, npc: n, done: true } : { key: 'side:' + n.key, kind: 'side', title: n.name, monster: sideMon(n, q.side[n.key]) });
     }

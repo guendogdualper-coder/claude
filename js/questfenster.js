@@ -22,7 +22,7 @@ function mainQuestEntries() {
       goal: q.accepted ? goalText(main.goal) : `Beim Ältesten annehmen: ${elderPlace(questGiverMap(main, q))}`,
       have: q.accepted && !talk ? q.progress : 0, need: q.accepted && !talk ? main.goal.count : 0,
       where: q.accepted ? (talk ? `${mapName(main.goal.map)} · über das Weltentor` : goalWhere(main.goal)) : mapName(questGiverMap(main, q)),
-      active: q.accepted
+      active: q.accepted, xp: questXp(main.level, talk ? QUEST_XP.talk : QUEST_XP[main.goal.type] || 0.25)
     });
   }
   const st = q.stable;
@@ -31,7 +31,7 @@ function mainQuestEntries() {
     out.push({
       key: 'stable', title: STABLE_QUEST.title, sub: 'Mission des Stallmeisters' + (st.state === 'active' ? ` · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : ''),
       goal: `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`,
-      have: st.state === 'done' ? STABLE_QUEST.count : st.progress, need: STABLE_QUEST.count, where: 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, active: true
+      have: st.state === 'done' ? STABLE_QUEST.count : st.progress, need: STABLE_QUEST.count, where: 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, active: true, xp: questXp(STABLE_QUEST.level, 0.8)
     });
   }
   return out;
@@ -42,15 +42,15 @@ function sideQuestEntries() {
   const q = questState();
   const out = [];
   if (q.side) {
-    for (const n of game.world.npcs) {
-      if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
+    for (const n of allWanderers()) {
+      if (!q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const s = q.side[n.key];
       const mon = sideMon(n, s);
       const t = MONSTER_TYPES[mon];
       out.push({
         key: 'side:' + n.key, title: n.name, sub: `Wanderer · ${mapName(npcMapId(n))}`,
         goal: n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`,
-        have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(mon), active: true,
+        have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(mon), active: true, xp: sideQuestXp(t.level),
         abandon: () => { s.state = 'open'; s.progress = 0; }
       });
     }
@@ -59,7 +59,7 @@ function sideQuestEntries() {
     const h = q.hunt;
     out.push({
       key: 'hunt', title: 'Jagd: ' + MONSTER_TYPES[h.monster].name, sub: 'Jägerin',
-      goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegen`, have: h.progress, need: h.count, where: monsterWhere(h.monster), active: true,
+      goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegen`, have: h.progress, need: h.count, where: monsterWhere(h.monster), active: true, xp: sideQuestXp(h.level),
       abandon: () => { q.hunt = null; q.offers = null; }
     });
   }
@@ -90,6 +90,8 @@ function renderQuestWindow() {
       `<span class="qw-goal">${done ? 'Erfüllt – zurück zum Auftraggeber' : e.goal}</span>` +
       (e.need ? `<span class="ql-bar"><i style="width:${pct}%"></i><em>${Math.min(e.have, e.need)}/${e.need}</em></span>` : '') +
       (e.where && !done ? `<span class="qw-where">📍 ${e.where}</span>` : '') +
+      // Belohnung in Erfahrung (seit 13.11 auch bei Nebenquests sichtbar)
+      (e.xp ? `<span class="qw-xp">Belohnung: ${e.xp.toLocaleString('de-DE')} EP</span>` : '') +
       `<div class="qw-btns">` +
       (e.active && !e.noTrack ? `<button type="button" class="mini-btn" data-qtrack="${e.key}">${e.key === tracked ? 'Wird verfolgt' : 'Verfolgen'}</button>` : '') +
       (e.abandon ? `<button type="button" class="mini-btn danger" data-qdrop="${e.key}">Abbrechen</button>` : questWin.tab === 'main' ? '<small class="qw-lock">Hauptquest · nicht abbrechbar</small>' : '') +

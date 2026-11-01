@@ -2221,6 +2221,7 @@
 "{0} T": "{0} g",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Başlangıç Bonusu\nTüm karakterler için +{0} % deneyim\n{1} gün kaldı ({2}'e kadar), ölünce de kalır",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Başlangıç Bonusu\nTüm karakterler için +{0} % deneyim\n{1} gün kaldı ({2}'e kadar), ölünce de kalır",
+"Belohnung: {0} EP": "Ödül: {0} TP",
 "Dorfältester": "Köy Yaşlısı",
 "Fallensteller": "Tuzakçı",
 "Kräutersammlerin": "Otçu",

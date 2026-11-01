@@ -2221,6 +2221,7 @@
 "{0} T": "{0} d",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Bonus startowy\n+{0} % doświadczenia dla wszystkich postaci\njeszcze {1} dni (do {2}), zostaje po śmierci",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Bonus startowy\n+{0} % doświadczenia dla wszystkich postaci\njeszcze {1} dzień (do {2}), zostaje po śmierci",
+"Belohnung: {0} EP": "Nagroda: {0} PD",
 "Dorfältester": "Starszy wioski",
 "Fallensteller": "Traper",
 "Kräutersammlerin": "Zielarka",

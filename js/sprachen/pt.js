@@ -2230,6 +2230,7 @@
 "{0} T": "{0} d",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Bônus de lançamento\n+{0} % de experiência para todos os personagens\nfaltam {1} dias (até {2}), mantido ao morrer",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Bônus de lançamento\n+{0} % de experiência para todos os personagens\nfalta {1} dia (até {2}), mantido ao morrer",
+"Belohnung: {0} EP": "Recompensa: {0} XP",
 "Dorfältester": "Ancião da aldeia",
 "Fallensteller": "Armadilheiro",
 "Kräutersammlerin": "Ervanária",

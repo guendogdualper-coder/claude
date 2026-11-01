@@ -2219,6 +2219,7 @@
 "{0} T": "{0} g",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tage (bis {2}.), bleibt auch beim Tod": "Bonus di lancio\n+{0} % di esperienza per tutti i personaggi\nancora {1} giorni (fino al {2}), resta anche alla morte",
 "Startbonus +{0} % Erfahrung für alle Charaktere noch {1} Tag (bis {2}.), bleibt auch beim Tod": "Bonus di lancio\n+{0} % di esperienza per tutti i personaggi\nancora {1} giorno (fino al {2}), resta anche alla morte",
+"Belohnung: {0} EP": "Ricompensa: {0} EXP",
 "Dorfältester": "Anziano del villaggio",
 "Fallensteller": "Trappoliere",
 "Kräutersammlerin": "Erborista",

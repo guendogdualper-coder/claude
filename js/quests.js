@@ -47,6 +47,14 @@ function sideState(key) {
   if (!q.side[key]) q.side[key] = { state: 'open', progress: 0, times: 0 };
   return q.side[key];
 }
+// Alle Wanderer, auch die, die nachts schlafen (tag-nacht.js nimmt sie dann aus world.npcs). Seit 13.11:
+// vorher zählten nachts keine Kills für ihre Aufgaben, und die Aufgaben fehlten im Tracker und im Questfenster
+function allWanderers() {
+  const list = game.world.npcs.filter((n) => n.id === 'wanderer');
+  const hidden = typeof dayNight !== 'undefined' && dayNight.hidden ? dayNight.hidden : [];
+  for (const n of hidden) if (n.id === 'wanderer' && !list.includes(n)) list.push(n);
+  return list;
+}
 // Monster der aktuellen Nebenaufgabe (seit 13.10 wechselt es nach jeder Abgabe; vorher immer dasselbe)
 function sideMon(n, s = sideState(n.key)) {
   return s.monster && MONSTER_TYPES[s.monster] ? s.monster : n.side.monster;
@@ -72,7 +80,7 @@ function sideDone(n, s) {
 function sideCollecting(typeId) {
   if (!game.player || !game.world) return false;
   const q = questState();
-  return !!q.side && game.world.npcs.some((n) => n.id === 'wanderer' && n.side.kind === 'collect' && q.side[n.key] && sideMon(n, q.side[n.key]) === typeId && q.side[n.key].state === 'active');
+  return !!q.side && allWanderers().some((n) => n.side.kind === 'collect' && q.side[n.key] && sideMon(n, q.side[n.key]) === typeId && q.side[n.key].state === 'active');
 }
 
 function currentMainQuest() {
@@ -162,8 +170,8 @@ function questEvent(kind, m) {
     }
   }
   if (kind === 'kill' && q.side) {
-    for (const n of game.world.npcs) {
-      if (n.id !== 'wanderer' || n.side.kind !== 'kill' || !q.side[n.key] || sideMon(n, q.side[n.key]) !== m.typeId) continue;
+    for (const n of allWanderers()) {
+      if (n.side.kind !== 'kill' || !q.side[n.key] || sideMon(n, q.side[n.key]) !== m.typeId) continue;
       const s = q.side[n.key];
       if (!s || s.state !== 'active' || s.progress >= sideCount(n, s)) continue;
       s.progress++;
@@ -465,8 +473,8 @@ Object.assign(ui, {
       const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
       row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time, 'stable');
     }
-    if (q.side) for (const n of game.world.npcs) {
-      if (n.id !== 'wanderer' || !q.side[n.key] || q.side[n.key].state !== 'active') continue;
+    if (q.side) for (const n of allWanderers()) {
+      if (!q.side[n.key] || q.side[n.key].state !== 'active') continue;
       const s = q.side[n.key];
       const mon = sideMon(n, s);
       const t = MONSTER_TYPES[mon];
@@ -580,7 +588,7 @@ Object.assign(ui, {
     const mat = MOB_MATS[mon];
     const need = sideCount(n, s);
     const collect = n.side.kind === 'collect';
-    const xp = questXp(t.level, 0.25);
+    const xp = sideQuestXp(t.level);
     const reward = { gold: t.level * 45, potions: 2 };
     const body = $('npcBody');
     const ask = collect
@@ -623,7 +631,7 @@ Object.assign(ui, {
     const body = $('npcBody');
     const h = q.hunt;
     if (h && h.progress >= h.count) {
-      const xp = questXp(h.level, 0.15);
+      const xp = sideQuestXp(h.level);
       const reward = { gold: h.gold, mats: { [h.mat]: 1 } };
       body.innerHTML = `<p>„Saubere Arbeit! Hier ist dein Lohn.“</p>${rewardHtml(reward, xp)}` +
         '<button type="button" class="btn btn-primary" data-hunt="reward">Belohnung abholen</button>';
@@ -652,7 +660,7 @@ Object.assign(ui, {
     body.innerHTML = `<p>„Ich zahle gut für jede Bestie weniger da draußen. Such dir eine Jagd aus.“ <small class="hint-text">Erledigte Jagden: ${q.hunts}</small></p>` +
       '<div class="hunt-list">' + q.offers.map((o, i) =>
         `<div class="hunt-item"><strong>${o.count} × ${MONSTER_TYPES[o.monster].name}</strong> <small>Stufe ${MONSTER_TYPES[o.monster].level}</small>` +
-        `<span>${questXp(o.level, 0.15).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · 1 × ${MATERIALS.find((m) => m.id === o.mat).name}</span>` +
+        `<span>${sideQuestXp(o.level).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · 1 × ${MATERIALS.find((m) => m.id === o.mat).name}</span>` +
         `<button type="button" class="mini-btn" data-offer="${i}">Annehmen</button></div>`
       ).join('') + '</div>';
     body.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {

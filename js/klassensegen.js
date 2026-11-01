@@ -218,6 +218,7 @@ FX3_TYPES.add('segen3');
 const _sg3a = new THREE.Vector3();
 const _sg3b = new THREE.Vector3();
 const _sg3v = new THREE.Vector3(0, 0, 1);
+const _sg3d = new THREE.Vector3();
 FX3_DRAW.segen3 = function (h, e) {
   const t = game.time - e.start;
   const k = t / e.dur;
@@ -405,21 +406,56 @@ function segenAura3(h, p, b, t) {
       n3Glow(h, px, py, pz, 0.24, SEGEN.schamane.colors[i], 0.35);
     }
   } else if (b.id === 'segen_schatten') {
-    // zwei Schattenklingen schweben hinter den Schultern und kreisen leicht, dunkler Rauch an den Füßen
-    // seitlich neben den Schultern, leicht schwebend und nach außen geneigt (von vorn gut zu sehen)
+    // seit 13.11: zwei echte Dolche kreuzen sich über dem Kopf (Spitzen nach oben), wiegen sich leicht,
+    // ein Glanz läuft über die Klingen, am Kreuzungspunkt glüht es rot; dunkler Rauch an den Füßen
+    const cy = 2.8 + Math.sin(t * 1.8) * 0.06;
+    const L = 1.55;
+    const sway = Math.sin(t * 1.3) * 0.07;
+    const glint = (t * 0.55) % 1;
     for (const s of [-1, 1]) {
-      const bob = Math.sin(t * 2.2 + s) * 0.06;
-      const bx = x + 0.48 * s;
-      const bz = z + 0.05;
-      _sg3a.set(bx, 0.95 + bob, bz);
-      _sg3b.set(bx + 0.18 * s, 1.6 + bob, bz);
-      n3Glow(h, bx + 0.09 * s, 1.28 + bob, bz, 0.35, '#c84a6a', 0.35);
-      const o = fx3Take(h, 'seg');
-      fx3Segment(o, _sg3a, _sg3b, 0.025);
-      fx3Color(o, '#f0f0ff', 0.9);
-      const g = fx3Take(h, 'seg');
-      fx3Segment(g, _sg3a, _sg3b, 0.07);
-      fx3Color(g, '#c84a6a', 0.5);
+      const ang = Math.PI / 4 + sway * s;
+      const dx = Math.sin(ang) * s;
+      const dy = Math.cos(ang);
+      const at = (u, dz = 0) => _sg3d.set(x + dx * u * L, cy + dy * u * L, z + 0.02 * s + dz);
+      // Knauf, Griff, Parierstange, Klinge (fester Kegel) und roter Schimmer um die Klinge
+      const pm = fx3Take(h, 'ball');
+      at(-0.33);
+      pm.position.copy(_sg3d);
+      pm.scale.setScalar(0.06);
+      fx3Color(pm, '#c84a6a', 1);
+      at(-0.32); _sg3a.copy(_sg3d);
+      at(-0.15); _sg3b.copy(_sg3d);
+      const grip = fx3Take(h, 'segN');
+      fx3Segment(grip, _sg3a, _sg3b, 0.036);
+      fx3Color(grip, '#2a1a3a', 1);
+      at(-0.15);
+      _sg3a.set(_sg3d.x - dy * 0.17 * s, _sg3d.y + dx * 0.17 * s, _sg3d.z);
+      _sg3b.set(_sg3d.x + dy * 0.17 * s, _sg3d.y - dx * 0.17 * s, _sg3d.z);
+      const guard = fx3Take(h, 'segN');
+      fx3Segment(guard, _sg3a, _sg3b, 0.032);
+      fx3Color(guard, '#d8b04a', 1);
+      at(-0.14); _sg3a.copy(_sg3d);
+      at(0.36); _sg3b.copy(_sg3d);
+      const blade = fx3Take(h, 'cone');
+      fx3Segment(blade, _sg3a, _sg3b, 0.075);
+      fx3Color(blade, '#8a93b8', 1);
+      if (!low) {
+        const aura = fx3Take(h, 'seg');
+        fx3Segment(aura, _sg3a, _sg3b, 0.15);
+        fx3Color(aura, '#c84a6a', 0.45);
+      }
+      // Glanz wandert vom Heft zur Spitze
+      at(-0.12 + glint * 0.46);
+      n3Glow(h, _sg3d.x, _sg3d.y, _sg3d.z + 0.03, 0.24 * (1 - glint * 0.5), '#ffffff', 0.9 * Math.sin(glint * Math.PI));
+    }
+    // Kreuzungspunkt pulsiert rot, kleiner Funkenkranz
+    const pulse = 0.5 + 0.5 * Math.sin(t * 3.2);
+    n3Glow(h, x, cy, z + 0.05, 0.45 + pulse * 0.15, '#c84a6a', 0.55 + pulse * 0.3);
+    n3Glow(h, x, cy, z + 0.06, 0.12, '#ffd0dc', 0.8);
+    if (!low) for (let i = 0; i < 3; i++) {
+      const q = (t * 0.9 + i / 3) % 1;
+      const a = i * 2.1 + t * 1.5;
+      n3Glow(h, x + Math.cos(a) * 0.22, cy - 0.1 + q * 0.45, z + Math.sin(a) * 0.12, 0.06 * (1 - q), '#ff8aa8', 1 - q);
     }
     if (!low) for (let i = 0; i < 4; i++) {
       const q = (t * 0.6 + i / 4) % 1;

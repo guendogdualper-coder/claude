@@ -143,14 +143,15 @@ const MAX_BLOCK = 0.4;
 // Schmied: Index = aktuelles Plus (also der Schritt von +N auf +N+1).
 // fail: 'none' = nur die Kosten sind weg, 'down' = Gegenstand fällt um 1, 'break' = Gegenstand zerbricht.
 // Gold wird mit (Gegenstandsstufe + 1) multipliziert.
+// Seit 13.11 kann schon ab +0 jeder Fehlschlag den Gegenstand zerbrechen (vorher erst ab +7); eine Segensschriftrolle schützt.
 const UPGRADE_STEPS = [
-  { chance: 1.0, gold: 50, splinters: 1, fail: 'none' },
-  { chance: 0.95, gold: 120, splinters: 1, fail: 'none' },
-  { chance: 0.9, gold: 250, splinters: 1, fail: 'none' },
-  { chance: 0.8, gold: 450, splinters: 2, fail: 'none' },
-  { chance: 0.7, gold: 700, splinters: 2, fail: 'none' },
-  { chance: 0.6, gold: 1000, splinters: 3, fail: 'none' },
-  { chance: 0.45, gold: 1500, splinters: 3, fail: 'none' },
+  { chance: 0.95, gold: 50, splinters: 1, fail: 'break' },
+  { chance: 0.9, gold: 120, splinters: 1, fail: 'break' },
+  { chance: 0.85, gold: 250, splinters: 1, fail: 'break' },
+  { chance: 0.75, gold: 450, splinters: 2, fail: 'break' },
+  { chance: 0.65, gold: 700, splinters: 2, fail: 'break' },
+  { chance: 0.55, gold: 1000, splinters: 3, fail: 'break' },
+  { chance: 0.45, gold: 1500, splinters: 3, fail: 'break' },
   { chance: 0.3, gold: 2200, splinters: 4, fail: 'break' },
   { chance: 0.2, gold: 3000, splinters: 5, fail: 'break' },
   { chance: 0.3, gold: 4000, splinters: 6, fail: 'break' },
