@@ -1079,6 +1079,8 @@ function updateAmbient(dt) {
 }
 
 function drawZoneTint(ctx, w, h) {
+  // Nacht (seit 13.8, tag-nacht.js)
+  if (typeof drawNightTint === 'function') drawNightTint(ctx, w, h);
   const [r, g, b, a] = ambientState.tint;
   if (a < 0.005) return;
   ctx.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;

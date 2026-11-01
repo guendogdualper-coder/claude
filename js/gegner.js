@@ -28,7 +28,7 @@ function createStone(zone, level, from = 0, to = 1, at = null) {
   const st = monsterStats(level, STONE.hpMul);
   return {
     id: nextMonsterId++, isStone: true, stoneType: type, name: type.name, level,
-    x: spot.x, y: spot.y, homeX: spot.x, homeY: spot.y, r: 18, area: [from, to],
+    x: spot.x, y: spot.y, homeX: spot.x, homeY: spot.y, r: 18, ring: [from, to],
     maxHp: st.maxHp, hp: st.maxHp, atk: 0, def: st.def,
     xp: Math.round(monsterStats(level).xp * STONE.xpMul),
     gold: st.gold.map((g) => g * STONE.goldMul),
@@ -456,7 +456,7 @@ function spotNear(c, radius) {
 function reviveMonster(m) {
   m.windup = 0;
   if (m.isStone && !m.fixedSpot) {
-    const spot = randomSpotInZone(m.zone, m.area[0], m.area[1]);
+    const spot = randomSpotInZone(m.zone, m.ring[0], m.ring[1]);
     if (spot) { m.x = m.homeX = spot.x; m.y = m.homeY = spot.y; }
     m.wave = 0;
     m.waveMarks = stoneWaveMarks();
@@ -721,10 +721,11 @@ function updateMonsters(dt) {
   for (const m of game.monsters) {
     if (m.dead) {
       if (m.respawn && game.time >= m.respawnAt) {
-        // Besiegte Monster bleiben tot, solange ein Spieler an ihrem Platz ist; erst danach kommen sie wieder.
+        // Besiegte Monster bleiben tot, solange ein Spieler in Sichtweite ihres Platzes ist (seit 13.8 700 statt 420,
+        // damit niemand sie vor seinen Augen wieder auftauchen sieht); erst danach kommen sie wieder.
         // Bosse (seit 13.2) kommen nach ihren 10 Minuten immer wieder, auch wenn jemand in der Halle wartet.
         const boss = m.type && (m.type.boss || m.type.raid);
-        if (!m.isStone && !boss && playerNearSpot(m.homeX, m.homeY, 420)) m.respawnAt = game.time + 5;
+        if (!m.isStone && !boss && playerNearSpot(m.homeX, m.homeY, 700)) m.respawnAt = game.time + 5;
         else reviveMonster(m);
       }
       continue;

@@ -25,6 +25,7 @@ const KEY_ACTIONS = [
   { id: 'inv', label: 'Inventar', key: 'KeyI' },
   { id: 'map', label: 'Große Karte', key: 'KeyM' },
   { id: 'loot', label: 'Rucksack', key: 'KeyB' },
+  { id: 'quests', label: 'Quests', key: 'KeyL' },
   { id: 'social', label: 'Freunde & Gilde', key: 'KeyG' },
   { id: 'daily', label: 'Tagesbelohnung', key: 'KeyT' },
   { id: 'net', label: 'Server', key: 'KeyN' },
@@ -79,7 +80,7 @@ function resetKeys() {
   refreshKeyLabels();
 }
 // Tastenzeichen an Leiste und Menü nachziehen
-const MENU_KEY_BTN = { char: 'btnChar', inv: 'btnInv', ride: 'btnHorse', net: 'btnNet', social: 'btnSocial', daily: 'btnDaily', help: 'btnHelp', opts: 'btnOpts' };
+const MENU_KEY_BTN = { char: 'btnChar', inv: 'btnInv', ride: 'btnHorse', net: 'btnNet', social: 'btnSocial', quests: 'btnQuests', daily: 'btnDaily', help: 'btnHelp', opts: 'btnOpts' };
 function refreshKeyLabels() {
   for (const [id, btn] of Object.entries(MENU_KEY_BTN)) {
     const kbd = document.querySelector(`#${btn} kbd`);
@@ -125,6 +126,7 @@ function runAction(id, e) {
     case 'map': if (!rep) openBigMap(); break;
     case 'loot': if (!rep) ui.toggle('panelInv'); break;
     case 'social': if (!rep) ui.toggle('panelSocial'); break;
+    case 'quests': if (!rep) ui.toggle('panelQuests'); break;
     case 'daily': if (!rep) ui.toggle('panelDaily'); break;
     case 'net': if (!rep) ui.toggle('panelNet'); break;
     case 'help': if (!rep) ui.toggle('panelHelp'); break;
@@ -150,7 +152,8 @@ const QUICK_ACTIONS = {
   char: { label: 'Charakter', menu: 'btnChar' },
   loot: { label: 'Beutel', menu: 'btnLoot' },
   daily: { label: 'Tagesbelohnung', menu: 'btnDaily' },
-  social: { label: 'Freunde & Gilde', menu: 'btnSocial' }
+  social: { label: 'Freunde & Gilde', menu: 'btnSocial' },
+  quests: { label: 'Quests', menu: 'btnQuests' }
 };
 const QUICK_DEFAULT = [null, null];
 

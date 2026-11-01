@@ -192,7 +192,9 @@ function netTakeOverWorld() {
   let max = 0;
   for (const m of game.monsters) {
     max = Math.max(max, m.id);
-    if (m.dead) m.respawnAt = game.time + 10 + Math.random() * 15;
+    // seit 13.8: besiegte Monster behalten ihre volle Wartezeit (vorher standen nach einem Hostwechsel alle Toten,
+    // auch Seelensteine und Bosse, schon nach 10–25 s wieder auf)
+    if (m.dead) m.respawnAt = game.time + monsterRespawnDelay(m);
     if (m.type && m.type.boss && m.bossCd == null) { m.bossCd = 4; m.summoned = 0; }
     if (!m.isStone && m.state !== 'idle') { m.state = 'return'; m.target = null; }
   }
@@ -458,6 +460,10 @@ function netOnClientData(d) {
       net.lastSnapAt = performance.now();
       netApplySnapshot(d);
       break;
+    // Nachtmonster, die der Host entfernt hat (seit 13.8)
+    case 'gone':
+      if (Array.isArray(d.ids) && typeof netNightGone === 'function') netNightGone(d.ids);
+      break;
     case 'kill': {
       const m = net.mons.get(d.id);
       if (m && (!m.dead || m.predictedDead)) netClientKill(m);
@@ -545,7 +551,7 @@ function netBuildMonster(e) {
     const st = monsterStats(level, STONE.hpMul);
     const t = stoneType(level);
     m = {
-      isStone: true, stoneType: t, name: t.name, level, r: 18, area: [0, 1], atk: 0, def: st.def,
+      isStone: true, stoneType: t, name: t.name, level, r: 18, ring: [0, 1], atk: 0, def: st.def,
       xp: Math.round(monsterStats(level).xp * STONE.xpMul), gold: st.gold.map((g) => g * STONE.goldMul),
       wave: 0, waveMarks: stoneWaveMarks(), hitFlash: 0, stun: 0, kx: 0, ky: 0, phase: Math.random() * 6
     };
@@ -603,8 +609,10 @@ function netApplySnapshot(d) {
     if (m.predictedDead && !(flags & 1)) {
       const since = game.time - m.predictedDead;
       if (since < 4) {
-        if (!m.killResent && since > 0.5) {
+        // seit 13.8 jede Sekunde nachschicken (über den Notweg geht eine Nachricht auch mal verloren)
+        if (since > 0.5 && game.time - (m.killResentAt || 0) > 1) {
           m.killResent = true;
+          m.killResentAt = game.time;
           netSend({ t: 'dmg', id: m.id, a: Math.max(1, e[3]), c: 0, st: {}, k: 1 });
         }
         continue;

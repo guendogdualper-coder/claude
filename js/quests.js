@@ -82,7 +82,7 @@ function zonePlaceText(z) {
   return `${z.name}${z.dungeon ? ' (Dungeon)' : ''}${map !== z.name ? ` · Map ${map}` : ''}`;
 }
 function monsterPlaces(id) {
-  return ZONES.filter((z) => (z.groups && z.groups.some((g) => g[0] === id)) || (z.dungeon && (z.dungeon.mobs.includes(id) || z.dungeon.boss === id)));
+  return ZONES.filter((z) => (z.groups && z.groups.some((g) => g[0] === id)) || (z.night && z.night.some((g) => g[0] === id)) || (z.dungeon && (z.dungeon.mobs.includes(id) || z.dungeon.boss === id)));
 }
 function monsterWhere(id) {
   const zs = monsterPlaces(id);
@@ -117,6 +117,8 @@ function goalText(goal) {
 // Wird bei jedem besiegten Monster und jedem zerstörten Seelenstein aufgerufen
 function questEvent(kind, m) {
   if (!game.player) return;
+  // Nachtjagden (seit 13.8, tag-nacht.js)
+  if (kind === 'kill' && typeof nightQuestKill === 'function') nightQuestKill(m);
   const q = questState();
   const main = currentMainQuest();
   const matches = (goal) => (kind === 'kill' && goal.type === 'kill' && goal.monster === m.typeId)
@@ -189,6 +191,7 @@ function questMarker(npcId, n) {
     return ((st.state === 'open' && game.player.level >= STABLE_QUEST.level) || st.state === 'done') && 'main';
   }
   if (npcId === 'jaegerin') return (!q.hunt || q.hunt.progress >= q.hunt.count) && 'side';
+  if (npcId === 'nachtwanderer' && n && typeof nightState === 'function') return nightState(n.key).state === 'open' && 'side';
   return false;
 }
 
@@ -367,7 +370,7 @@ function rewardHtml(reward, xp) {
 function huntOffers() {
   const p = game.player;
   const types = Object.entries(MONSTER_TYPES)
-    .filter(([, t]) => !t.dungeon && !t.crystal && !t.raidBoss && t.level <= p.level + 3 && t.level >= p.level - 6)
+    .filter(([, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && t.level <= p.level + 3 && t.level >= p.level - 6)
     .sort((a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level));
   const pool = types.length ? types : [['hund', MONSTER_TYPES.hund]];
   return pool.slice(0, 3).map(([id, t]) => {
@@ -463,6 +466,9 @@ Object.assign(ui, {
     el.hidden = !rows.length;
     const head = el.querySelector('.ql-head');
     if (head) head.addEventListener('click', () => { this.questLogClosed = !this.questLogClosed; this.renderQuestTrack(); });
+    // offenes Questfenster (seit 13.8) mit aktualisieren
+    const qw = $('panelQuests');
+    if (qw && !qw.hidden && typeof renderQuestWindow === 'function') renderQuestWindow();
     for (const li of el.querySelectorAll('[data-guide]')) {
       li.addEventListener('click', () => {
         guide.pick = li.dataset.guide;

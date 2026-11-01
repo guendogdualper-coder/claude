@@ -239,8 +239,11 @@ const STONE_TYPES = [
   { level: 70, name: 'Stein des Untergangs', look: { shape: 'monolith', base: '#141018', top: '#2a2030', rune: '#ffd34d', glow: '#d07aff', crown: true }, focus: 'all', drop: 'von allem mehr' }
 ];
 
+// Steinart einer Stufe; Zwischenstufen (Höllenthron 64, 66, 67) nehmen die nächstniedrigere Art statt der ersten
 function stoneType(level) {
-  return STONE_TYPES.find((s) => s.level === level) || STONE_TYPES[0];
+  let best = STONE_TYPES[0];
+  for (const s of STONE_TYPES) if (s.level <= level) best = s;
+  return best;
 }
 
 // Beute eines Seelensteins. Höhere Steine geben mehr, der focus verstärkt eine Sorte.

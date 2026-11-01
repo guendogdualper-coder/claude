@@ -1654,63 +1654,71 @@ function scorpion3(b, o) {
   return { rig, height: bodyY + 0.9, family: 'scorpion', bodyY };
 }
 
-// Geist (seit 7.9): durchscheinender, leuchtender Saum, Seelenfunken, glühende Augenhöhlen mit Glanzpunkt;
-// je Art ein Mundspalt mit Schneeflocken (Frostgeist), ein Schlundmaul voller Seelenlichter (Seelenfresser)
-// oder breite Nebelschultern mit Frostbart und schwerer Krone (Eiskönig)
+// Geist (seit 7.9, seit 13.8 neue Gestalt): eine schwebende Gestalt statt einer runden Säule – breite Schultern,
+// schmale Taille, darunter ein zerfetzter Saum, der in einen langen, geschwungenen Nebelschweif ausläuft.
+// Spitze Kapuze mit dunklem Gesicht und glühenden Augen, Glockenärmel mit langen Krallen, durchscheinender Schleier.
+// Je Art ein Mundspalt mit Schneeflocken (Frostgeist), ein Schlundmaul (Seelenfresser) oder Frostbart und Krone (Eiskönig).
 function ghost3(b, o) {
   const A = adder(b, null);
-  const rig = rigOf([[[0, 0, 0], -1], [[0, 0.3, 0], 0], [[0, 0.75, 0], 1], [[0, 1.0, 0], 2], [[0.26, 0.86, 0], 2], [[-0.26, 0.86, 0], 2]]);
-  const pale = lighter(o.body, 0.25);
-  // schwebendes Gewand mit zerfetztem Saum; darüber ein durchscheinender Schleier, der nach unten leuchtet
-  // (Profil von unten nach oben, sonst zeigen die Normalen nach innen und die Vorderseite wird dunkel)
-  A(lathe3('ghost3', [[0, 0.04], [0.27, 0.05], [0.3, 0.22], [0.33, 0.45], [0.34, 0.72], [0.28, 0.9], [0, 0.95]], 18), o.body, { bone: 1, p: [0, 0.1, 0], shade: 0.15, top: pale, topK: 0.4 });
-  A(lathe3('ghostveil', [[0.33, -0.04], [0.36, 0.12], [0.33, 0.32], [0.27, 0.5]], 16), pale, { bone: 1, p: [0, 0.1, 0], mat: 'aura' });
-  for (let k = 0; k < 12; k++) {
-    const a = (k / 12) * Math.PI * 2;
-    A(horn3(0.16 + (k % 3) * 0.06, 0.07, 5), k % 2 ? o.body : lighter(o.body, 0.15), { bone: 1, p: [Math.cos(a) * 0.25, 0.16, Math.sin(a) * 0.25], r: [Math.PI, 0, 0] });
-    if (k % 2) A(horn3(0.12 + (k % 4) * 0.04, 0.05, 4), pale, { bone: 1, p: [Math.cos(a + 0.26) * 0.3, 0.1, Math.sin(a + 0.26) * 0.3], r: [Math.PI + Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3], mat: 'aura' });
+  const rig = rigOf([[[0, 0, 0], -1], [[0, 0.3, 0], 0], [[0, 0.75, 0], 1], [[0, 1.05, 0], 2], [[0.27, 1.02, 0], 2], [[-0.27, 1.02, 0], 2]]);
+  const pale = lighter(o.body, 0.28);
+  const deep = darker(o.body, 0.22);
+  // Oberkörper: schmale Taille, Brust, breite Schultern (Profil von unten nach oben)
+  A(lathe3('wraith3', [[0, 0.46], [0.12, 0.48], [0.17, 0.56], [0.16, 0.68], [0.2, 0.82], [0.26, 0.94], [0.29, 1.02], [0.22, 1.09], [0.1, 1.12], [0, 1.13]], 18), o.body, { bone: 2, shade: 0.12, top: pale, topK: 0.45 });
+  // Schulterumhang: flacher Kragen, der über die Schultern fällt
+  A(lathe3('wraithcape', [[0.31, 0.9], [0.33, 0.96], [0.3, 1.04], [0.2, 1.1], [0.12, 1.12]], 16), deep, { bone: 2, shade: 0.2 });
+  // zerfetzter Saum unter der Taille: spitze Fetzen in zwei Lagen, außen durchscheinend
+  for (let k = 0; k < 14; k++) {
+    const an = (k / 14) * Math.PI * 2;
+    const len = 0.22 + ((k * 7) % 5) * 0.05;
+    A(horn3(len, 0.07, 5), k % 2 ? o.body : deep, { bone: 1, p: [Math.cos(an) * 0.15, 0.56, Math.sin(an) * 0.15], r: [Math.PI + Math.sin(an) * 0.35, 0, -Math.cos(an) * 0.35], shade: 0.1 });
+    if (k % 2) A(horn3(len * 0.8, 0.05, 4), pale, { bone: 1, p: [Math.cos(an + 0.2) * 0.2, 0.5, Math.sin(an + 0.2) * 0.2], r: [Math.PI + Math.sin(an) * 0.5, 0, -Math.cos(an) * 0.5], mat: 'aura' });
   }
-  A(torus3(0.27, 0.03, Math.PI * 2, 4, 20), o.eye, { bone: 1, p: [0, 0.16, 0], r: [Math.PI / 2, 0, 0], mat: 'aura' });
-  // Seelenfunken unten am Saum
-  for (let k = 0; k < 4; k++) {
-    const a = (k / 4) * Math.PI * 2 + 0.4;
-    A(sphere3(0.025 - (k % 2) * 0.008, 6, 4), k % 2 ? o.eye : pale, { bone: 1, p: [Math.cos(a) * 0.4, 0.02 + (k % 2) * 0.12, Math.sin(a) * 0.4], mat: 'glow' });
-  }
-  // Kapuze, dunkles Gesicht, glühende Augenhöhlen mit hellem Kern und Glanzpunkt
-  // (Kapuze und Gesicht ohne Schattenmodell: sonst fällt ihr Schatten als dunkler Fleck auf das helle Gewand)
-  A(cap3(0.33, Math.PI * 0.8, Math.PI / 2 + 0.8, Math.PI * 2 - 1.6), o.body, { bone: 3, p: [0, 1.15, 0], shade: 0.15, top: pale, topK: 0.35, noShadow: true });
-  A(ball(14), '#0d1a2a', { bone: 3, p: [0, 1.12, 0.06], s: [0.24, o.maw ? 0.3 : 0.24, 0.22], noShadow: true });
+  // Nebelschweif: läuft nach hinten unten aus und dreht sich leicht ein
+  const tail = [[0, 0.5, 0], [0.02, 0.36, -0.06], [0.06, 0.22, -0.18], [0.02, 0.12, -0.32], [-0.06, 0.1, -0.44], [-0.1, 0.16, -0.52]];
+  A(tubeProfile3(tail, [0.15, 0.12, 0.085, 0.055, 0.03, 0.006], 24, 10), o.body, { bone: 1, shade: 0.1, top: pale, topK: 0.5 });
+  A(tubeProfile3(tail, [0.19, 0.15, 0.11, 0.07, 0.04, 0.01], 24, 10), pale, { bone: 1, mat: 'aura' });
+  // Seelenfunken entlang des Schweifs
+  tail.slice(1, 5).forEach((q, k) => A(sphere3(0.022 - (k % 2) * 0.006, 6, 4), k % 2 ? o.eye : '#ffffff', { bone: 1, p: [q[0] + (k % 2 ? 0.12 : -0.12), q[1] + 0.04, q[2]], mat: 'glow' }));
+  // Kapuze: hinten rund, vorne offen, mit nach hinten gebogener Spitze; darin ein dunkles Gesicht
+  A(cap3(0.2, Math.PI * 0.62, Math.PI / 2 + 0.9, Math.PI * 2 - 1.8), o.body, { bone: 3, p: [0, 1.2, -0.01], s: [1, 1.12, 1.05], shade: 0.15, top: pale, topK: 0.35, noShadow: true });
+  A(tube3([[0, 1.36, -0.04], [0, 1.46, -0.1], [0, 1.5, -0.2], [0, 1.47, -0.28]], 0.1, 0.012, 12, 8), o.body, { bone: 3, shade: 0.15, noShadow: true });
+  A(torus3(0.17, 0.035, Math.PI * 1.1, 5, 14), deep, { bone: 3, p: [0, 1.22, 0.08], r: [0.2, 0, Math.PI * 0.95], noShadow: true });
+  A(ball(14), '#0a1220', { bone: 3, p: [0, 1.19, 0.05], s: [0.15, o.maw ? 0.2 : 0.17, 0.14], noShadow: true });
   for (const sx of [-1, 1]) {
-    A(ball(10), o.eye, { bone: 3, p: [sx * 0.09, 1.14, 0.25], s: [0.06, 0.08, 0.03], mat: 'glow' });
-    A(ball(8), o.eye, { bone: 3, p: [sx * 0.09, 1.14, 0.245], s: [0.085, 0.105, 0.03], mat: 'aura' });
-    A(sphere3(1, 6, 4), '#ffffff', { bone: 3, p: [sx * 0.09 - 0.015, 1.16, 0.28], s: [0.018, 0.024, 0.01], mat: 'glow' });
-    const fingers = o.longFingers ? 0.17 : 0.1;
-    limbBetween(A, [sx * 0.26, 0.86, 0], [sx * 0.42, 0.6, 0.12], 0.08, 0.04, o.body, { bone: sx > 0 ? 4 : 5, top: pale, topK: 0.4 });
-    for (let k = -1; k <= 1; k++) A(horn3(fingers, 0.02, 4), o.iceFingers || pale, { bone: sx > 0 ? 4 : 5, p: [sx * 0.42 + k * 0.02, 0.6, 0.12], r: [Math.PI + 0.3, 0, k * 0.3], shine: o.iceFingers ? 1 : 0 });
+    A(ball(10), o.eye, { bone: 3, p: [sx * 0.06, 1.21, 0.17], s: [0.04, 0.03, 0.02], r: [0, 0, sx * -0.35], mat: 'glow' });
+    A(ball(8), o.eye, { bone: 3, p: [sx * 0.06, 1.21, 0.165], s: [0.07, 0.055, 0.02], r: [0, 0, sx * -0.35], mat: 'aura' });
+    A(sphere3(1, 6, 4), '#ffffff', { bone: 3, p: [sx * 0.06 - 0.01, 1.22, 0.19], s: [0.012, 0.012, 0.006], mat: 'glow' });
+    // Arm mit Glockenärmel und langen Krallen
+    const bone = sx > 0 ? 4 : 5;
+    limbBetween(A, [sx * 0.27, 1.02, 0], [sx * 0.4, 0.8, 0.12], 0.07, 0.055, o.body, { bone, top: pale, topK: 0.4 });
+    A(horn3(0.22, 0.11, 10), deep, { bone, p: [sx * 0.42, 0.66, 0.15], r: [0, 0, 0], s: [1, 1, 1], shade: 0.15 });
+    A(horn3(0.24, 0.13, 10), pale, { bone, p: [sx * 0.43, 0.63, 0.15], mat: 'aura' });
+    const fingers = o.longFingers ? 0.2 : 0.14;
+    for (let k = -1; k <= 1; k++) A(horn3(fingers, 0.018, 4), o.iceFingers || pale, { bone, p: [sx * 0.43 + k * 0.025, 0.67, 0.16], r: [Math.PI + 0.25, 0, k * 0.28 + sx * 0.15], shine: o.iceFingers ? 1 : 0.3 });
   }
   if (o.maw) {
     // weit offenes Schlundmaul, darin kreisen kleine Seelenlichter
-    A(ball(10), '#1a0820', { bone: 3, p: [0, 0.98, 0.2], s: [0.12, 0.13, 0.06] });
-    for (let k = 0; k < 3; k++) A(sphere3(0.022, 6, 4), k % 2 ? '#ffffff' : o.eye, { bone: 3, p: [Math.cos(k * 2.1) * 0.05, 0.98 + Math.sin(k * 2.1) * 0.05, 0.24], mat: 'glow' });
-    for (let k = -2; k <= 2; k++) A(horn3(0.04, 0.012, 3), '#e8e0f0', { bone: 3, p: [k * 0.035, 1.1, 0.24], r: [Math.PI, 0, 0], noShadow: true });
-  } else A(box3(), '#0d1a2a', { bone: 3, p: [0, 1.03, 0.27], s: [0.1, 0.02, 0.02] });
+    A(ball(10), '#1a0820', { bone: 3, p: [0, 1.1, 0.14], s: [0.08, 0.09, 0.05] });
+    for (let k = 0; k < 3; k++) A(sphere3(0.018, 6, 4), k % 2 ? '#ffffff' : o.eye, { bone: 3, p: [Math.cos(k * 2.1) * 0.035, 1.1 + Math.sin(k * 2.1) * 0.035, 0.18], mat: 'glow' });
+    for (let k = -2; k <= 2; k++) A(horn3(0.035, 0.01, 3), '#e8e0f0', { bone: 3, p: [k * 0.025, 1.16, 0.17], r: [Math.PI, 0, 0], noShadow: true });
+  } else A(box3(), '#0a1220', { bone: 3, p: [0, 1.13, 0.18], s: [0.06, 0.012, 0.012] });
   if (o.beard) {
-    // langer, wehender Bart aus Frostnebel und breite Nebelschultern
-    for (let k = -1; k <= 1; k++) A(horn3(0.42 - Math.abs(k) * 0.1, 0.07, 5), k ? o.beard : lighter(o.beard, 0.3), { bone: 3, p: [k * 0.06, 1.02, 0.2], r: [Math.PI - 0.35, 0, k * 0.25], mat: 'aura' });
-    for (const sx of [-1, 1]) A(ball(10), o.body, { bone: 2, p: [sx * 0.24, 0.9, -0.02], s: [0.17, 0.11, 0.15], top: pale, topK: 0.5 });
+    // langer, wehender Bart aus Frostnebel
+    for (let k = -1; k <= 1; k++) A(horn3(0.38 - Math.abs(k) * 0.1, 0.06, 5), k ? o.beard : lighter(o.beard, 0.3), { bone: 3, p: [k * 0.05, 1.12, 0.15], r: [Math.PI - 0.35, 0, k * 0.25], mat: 'aura' });
   }
   if (o.snow) for (let k = 0; k < 4; k++) {
     // Schneeflocken kreisen um den Leib
-    const a = (k / 4) * Math.PI * 2 + 0.8;
-    for (let j = 0; j < 3; j++) A(box3(), '#ffffff', { bone: 1, p: [Math.cos(a) * 0.48, 0.45 + (k % 2) * 0.25, Math.sin(a) * 0.48], r: [0, a, j * Math.PI / 3], mat: 'glow', s: [0.06, 0.012, 0.012] });
+    const an = (k / 4) * Math.PI * 2 + 0.8;
+    for (let j = 0; j < 3; j++) A(box3(), '#ffffff', { bone: 1, p: [Math.cos(an) * 0.45, 0.55 + (k % 2) * 0.25, Math.sin(an) * 0.45], r: [0, an, j * Math.PI / 3], mat: 'glow', s: [0.06, 0.012, 0.012] });
   }
   if (o.crown) {
     const glow = o.crown === '#ffffff' ? 'lit' : 'glow';
-    if (o.crownRing) A(torus3(0.22, 0.04, Math.PI * 2, 4, 14), o.crown, { bone: 3, p: [0, 1.38, 0.02], r: [Math.PI / 2, 0, 0], mat: glow, shine: 1 });
-    for (let k = -2; k <= 2; k++) A(horn3(0.16 - Math.abs(k) * 0.03, 0.04, 6), o.crown, { bone: 3, p: [k * 0.09, 1.4, Math.cos(k * 0.5) * 0.05], mat: glow, shine: 1 });
-    if (o.crownRing) for (let k = 0; k < 4; k++) A(horn3(0.12, 0.025, 4), '#bfe8ff', { bone: 3, p: [Math.sin(k * 1.6 + 0.8) * 0.2, 1.38, Math.cos(k * 1.6 + 0.8) * 0.2 + 0.02], shine: 1 });
+    if (o.crownRing) A(torus3(0.17, 0.035, Math.PI * 2, 4, 14), o.crown, { bone: 3, p: [0, 1.4, 0], r: [Math.PI / 2, 0, 0], mat: glow, shine: 1 });
+    for (let k = -2; k <= 2; k++) A(horn3(0.14 - Math.abs(k) * 0.025, 0.035, 6), o.crown, { bone: 3, p: [k * 0.07, 1.4, 0.05 - Math.abs(k) * 0.02], mat: glow, shine: 1 });
+    if (o.crownRing) for (let k = 0; k < 4; k++) A(horn3(0.1, 0.022, 4), '#bfe8ff', { bone: 3, p: [Math.sin(k * 1.6 + 0.8) * 0.16, 1.4, Math.cos(k * 1.6 + 0.8) * 0.16], shine: 1 });
   }
-  return { rig, height: 1.48, family: 'ghost', bodyY: 0.3 };
+  return { rig, height: 1.55, family: 'ghost', bodyY: 0.45 };
 }
 
 // Schlange als ein glatter, biegsamer Schlauch: jeder Eckpunkt hängt weich an zwei Gliedern,
@@ -2384,7 +2392,7 @@ function monsterTheme3(id) {
     for (const z of ZONES) {
       const th = MON3_ZONE_THEME[z.id];
       if (!th) continue;
-      for (const g of z.groups || []) if (!mon3ThemeOf[g[0]]) mon3ThemeOf[g[0]] = th;
+      for (const g of (z.groups || []).concat(z.night || [])) if (!mon3ThemeOf[g[0]]) mon3ThemeOf[g[0]] = th;
       if (z.dungeon) for (const m of [...(z.dungeon.mobs || []), z.dungeon.boss]) if (!mon3ThemeOf[m]) mon3ThemeOf[m] = th;
     }
   }
@@ -2526,11 +2534,7 @@ function monsterFlair3(b, res, id, def) {
     for (const sx of [-1, 1]) A(sphere3(0.008, 6, 4), '#ffffff', { bone: 1, p: [sx * 0.045, bodyY + 0.15, 0.295], mat: 'glow' });
     themeAcc3(A, th, [[1, [0.12, bodyY + 0.12, 0.05]], [1, [-0.1, bodyY + 0.12, -0.2]]]);
   } else if (res.family === 'ghost') {
-    // Ketten um den Leib und schwebende Seelenlichter
-    for (let k = 0; k < 8; k++) {
-      const a = (k / 8) * Math.PI * 2;
-      A(torus3(0.035, 0.01, Math.PI * 2, 4, 8), '#8a8f9a', { bone: 1, p: [Math.cos(a) * 0.32, 0.55 + Math.sin(a * 2) * 0.04, Math.sin(a) * 0.32], r: [0, a, k % 2 ? 0 : Math.PI / 2], shine: 1 });
-    }
+    // schwebende Seelenlichter (seit 13.8 ohne die Kettenglieder um die Taille, die von oben wie Augen wirkten)
     for (let k = 0; k < 3; k++) {
       const a = (k / 3) * Math.PI * 2;
       A(sphere3(0.05, 8, 6), th.glow, { bone: 3, p: [Math.cos(a) * 0.45, 1.05 + k * 0.08, Math.sin(a) * 0.45], mat: 'glow' });

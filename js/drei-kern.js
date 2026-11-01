@@ -857,6 +857,8 @@ function v3UpdateMood(dt, x, y) {
   V3.hemi.color.copy(s.hemi);
   V3.hemi.groundColor.copy(s.ground);
   V3.hemi.intensity = s.hemiI;
+  // Tag und Nacht (seit 13.8, tag-nacht.js)
+  if (typeof v3NightMood === 'function') v3NightMood(zone);
 }
 
 // --- Kamera und Umrechnung Bildschirm ↔ Welt ----------------------------------------------------

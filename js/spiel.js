@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.7';
+const GAME_VERSION = '13.8';
 
 const game = {
   world: null,
@@ -176,6 +176,8 @@ function update(dt) {
   updateProjectiles(dt);
   updateEffects(dt);
   questTick();
+  // Tag und Nacht (seit 13.8)
+  if (typeof dayNightTick === 'function') dayNightTick(dt);
   updateRifts();
   updateDuel();
   snd.update();

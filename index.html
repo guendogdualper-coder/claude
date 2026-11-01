@@ -63,6 +63,7 @@
     </div>
     <div id="statusLine" class="status-line">
       <span id="stBattery" class="st-bat" hidden><i class="bat"><i id="stBatFill"></i></i><b id="stBatText"></b></span>
+      <span id="stDay" class="st-day"></span>
       <span id="stClock" class="st-clock"></span>
       <span id="stNet" class="st-net" hidden></span>
       <span id="stPing" class="st-ping"><i class="sig"><i></i><i></i><i></i></i><b id="stPingText">– ms</b></span>
@@ -104,6 +105,9 @@
     <button id="btnNet" class="menu-btn" type="button" aria-label="Server und Kanal">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle class="fill" cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg>
       <span class="menu-text">Server</span> <kbd>N</kbd></button>
+    <button id="btnQuests" class="menu-btn" type="button" aria-label="Quests">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M6 3h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6z"/><path d="M6 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2"/><path d="M9 8h7M9 12h7M9 16h4"/></svg>
+      <span class="menu-text">Quests</span> <kbd>L</kbd><span id="questBadge" class="menu-badge" hidden></span></button>
     <button id="btnSocial" class="menu-btn" type="button" aria-label="Freunde und Gilde">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M12 2.5l8 2.7v6c0 5.3-3.6 8.7-8 10.3-4.4-1.6-8-5-8-10.3v-6z"/><path d="M12 8.2c-1.2-1.6-4-1.1-4 1 0 2 2.4 3.4 4 4.8 1.6-1.4 4-2.8 4-4.8 0-2.1-2.8-2.6-4-1z"/></svg>
       <span class="menu-text">Freunde &amp; Gilde</span> <kbd>G</kbd><span id="socialBadge" class="menu-badge" hidden></span></button>
@@ -271,6 +275,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.8 – Tag und Nacht auf allen Maps (40-Minuten-Zyklus, Sonne/Mond unter der Karte). Nachts 18 neue Nachtmonster, Nachtwanderer mit Nachtjagden und neue Nachtwächterin in Vlotho. Neues Questfenster (L) mit Haupt- und Nebenquests, Nebenquests abbrechbar. Geister in 3D neu gestaltet. Fehler behoben: Mitspieler sahen keine Seelensteine (z. B. Stein der Glut), Monster kamen nach einem Hostwechsel sofort wieder; normale Monster kommen jetzt erst nach 75–105 s und außer Sicht wieder.</li>
       <li>Version 13.7 – Jeder Dungeon hat seinen eigenen Aufbau: 6–8 Räume auf gewundenem Weg, Schatzkammer und Schrein als Seitenräume, Rundsäle, Kreuz- und Säulenhallen, Becken, Thron, Statuen und Banner.</li>
       <li>Version 13.6 – Fertigkeiten und Ultis zeigen Schaden, Heilung und Schild als echte Zahlen statt Prozent, berechnet mit Waffe, Ausrüstung, Boni, Status und Buffs.</li>
       <li>Version 13.5 – Donnerkrone mit 10 Blitzen, Kugelblitz als echtes Gewitter mit Betäubung, breiteres Händlerfenster mit großer Goldanzeige und Verkaufswert im Tooltip, Seelenernte mit 3D-Seelen, Rechtsklick legt Ausrüstung direkt an.</li>
@@ -437,6 +442,11 @@
   </div>
 </div>
 
+<div id="panelQuests" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="questsTitle">
+  <header class="panel-head"><h2 id="questsTitle">Quests</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="questBody" class="panel-body"></div>
+</div>
+
 <div id="panelDaily" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="dailyTitle">
   <header class="panel-head"><h2 id="dailyTitle">Tagesbelohnung</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="dailyBody" class="panel-body"></div>
@@ -506,6 +516,7 @@
 <script src="js/daten/klassen.js"></script>
 <script src="js/daten/monster.js"></script>
 <script src="js/daten/zonen.js"></script>
+<script src="js/daten/nachtmonster.js"></script>
 <script src="js/daten/gegenstaende.js"></script>
 <script src="js/daten/quests.js"></script>
 <script src="js/welt.js"></script>
@@ -558,6 +569,8 @@
 <script src="js/symbole-nekro2.js"></script>
 <script src="js/oberflaeche.js"></script>
 <script src="js/quests.js"></script>
+<script src="js/questfenster.js"></script>
+<script src="js/tag-nacht.js"></script>
 <script src="js/karte.js"></script>
 <script src="js/tagesbelohnung.js"></script>
 <script src="js/eingabe.js"></script>

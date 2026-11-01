@@ -23,6 +23,7 @@ const ui = {
     $('btnHorse').addEventListener('click', () => toggleRide());
     $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
     $('btnSocial').addEventListener('click', () => this.toggle('panelSocial'));
+    $('btnQuests').addEventListener('click', () => this.toggle('panelQuests'));
     $('btnDaily').addEventListener('click', () => this.toggle('panelDaily'));
     $('btnOpts').addEventListener('click', () => this.toggle('panelOpts'));
     $('btnStatPlus').addEventListener('click', () => this.toggle('panelChar'));
@@ -1353,6 +1354,7 @@ const ui = {
       if (id === 'panelLoot') this.renderLoot();
       if (id === 'panelSocial') social.render();
       if (id === 'panelDaily') renderDaily();
+      if (id === 'panelQuests') renderQuestWindow();
       if (id === 'panelMap') bigMap.timer = 0;
       if (id === 'panelOpts') options.render();
       if (id === 'panelNet') {
@@ -1512,6 +1514,7 @@ const ui = {
       this.renderStorage();
     }
     else if (npc.id === 'wanderer') this.renderWanderer(npc);
+    else if (npc.id === 'nachtwanderer') this.renderNightWanderer(npc);
     else if (npc.id === 'eingang' || npc.id === 'ausgang' || npc.id === 'riss') this.renderDungeon(npc);
     else if (npc.id === 'weltentor') this.renderWorldGate(npc);
     else this.renderTalk(npc);

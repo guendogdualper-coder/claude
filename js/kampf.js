@@ -241,6 +241,12 @@ function damageMonster(m, amount, crit, source, isDot) {
   if (m.hp <= 0) killMonster(m);
 }
 
+// Wartezeit bis zur Wiederkehr (seit 13.8 länger: normale Monster 75–105 s statt 30–45 s)
+function monsterRespawnDelay(m) {
+  if (m.isStone) return randInt(...(m.stoneRespawn || STONE.respawn));
+  return m.respawnDelay || 75 + Math.random() * 30;
+}
+
 function killMonster(m) {
   if (net.mode === 'client') return;
   m.dead = true;
@@ -250,8 +256,7 @@ function killMonster(m) {
   m.bleed = null;
   if (game.target === m) game.target = null;
   monsterDeathFx(m);
-  if (m.isStone) m.respawnAt = game.time + randInt(...(m.stoneRespawn || STONE.respawn));
-  else m.respawnAt = game.time + (m.respawnDelay || 30 + Math.random() * 15);
+  m.respawnAt = game.time + monsterRespawnDelay(m);
   if (net.mode === 'host') netBroadcastKill(m);
   // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
   if (net.mode !== 'host' || netShares(m, m.hostHitAt)) rewardKill(m);
