@@ -627,6 +627,104 @@ const PROP3 = {
     b.add(horn3(0.42, 0.2, 9), col, { parent: M, p: [0, 0.58, 0], mat: 'glow' });
     b.add(horn3(0.26, 0.12, 9), '#fff2c0', { parent: M, p: [0, 0.6, 0], mat: 'glow' });
   },
+  // --- Dungeon-Schmuck (seit 13.7), pr.roof = "Wand oben|Fugen|Portalfarbe" des Dungeons ---
+  // Säule: Sockel, leicht bauchiger Schaft mit Kanneluren, Kapitell und ein leuchtendes Band
+  dpillar(b, M, pr) {
+    const [top, line, glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.3);
+    b.add(wbox(0.92, 0.28, 0.92, 0.06), darker(stone, 0.15), { parent: M, p: [0, 0.14, 0], shade: 0.3 });
+    b.add(wbox(0.78, 0.14, 0.78, 0.04), stone, { parent: M, p: [0, 0.34, 0] });
+    b.add(lathe3('dpillar', [[0.3, 0], [0.33, 0.4], [0.32, 1.1], [0.28, 1.75], [0, 1.75]], 14), stone, { parent: M, p: [0, 0.4, 0], shade: 0.25 });
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      b.add(tinyBox(0.04, 1.6, 0.04), darker(stone, 0.25), { parent: M, p: [Math.cos(a) * 0.31, 1.22, Math.sin(a) * 0.31], mat: 'detail' });
+    }
+    b.add(new THREE.TorusGeometry(0.33, 0.04, 6, 18).rotateX(Math.PI / 2), glow, { parent: M, p: [0, 0.95, 0], mat: 'glow' });
+    b.add(wbox(0.86, 0.16, 0.86, 0.04), stone, { parent: M, p: [0, 2.2, 0] });
+    b.add(wbox(1.0, 0.18, 1.0, 0.05), darker(stone, 0.1), { parent: M, p: [0, 2.36, 0], top: line, topK: 0.2 });
+  },
+  // Banner an einer Stange mit Querholz, Tuch in der Portalfarbe, Zeichen in der Mitte
+  dbanner(b, M, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    b.add(wbox(0.4, 0.12, 0.4, 0.04), darker(lighter(top, 0.3), 0.1), { parent: M, p: [0, 0.06, 0] });
+    b.add(limb3(2.3, 0.045, 0.04, 8), '#3a2a1c', { parent: M, p: [0, 0.1, 0] });
+    b.add(limb3(0.95, 0.03, 0.03, 6), '#3a2a1c', { parent: M, p: [-0.47, 2.15, 0.02], r: [0, 0, -Math.PI / 2] });
+    const cloth = darker(glow, 0.35);
+    b.add(wbox(0.8, 1.3, 0.04, 0.02), cloth, { parent: M, p: [0, 1.48, 0.06], shade: 0.2 });
+    for (const sx of [-1, 1]) b.add(tinyBox(0.26, 0.3, 0.04), cloth, { parent: M, p: [sx * 0.27, 0.72, 0.06], r: [0, 0, sx * 0.25] });
+    b.add(wbox(0.84, 0.08, 0.06, 0.02), '#c9a35a', { parent: M, p: [0, 2.12, 0.07] });
+    b.add(sphere3(0.15, 10, 8), glow, { parent: M, p: [0, 1.6, 0.1], s: [1, 1, 0.35], mat: 'glow' });
+    b.add(new THREE.TorusGeometry(0.21, 0.025, 5, 16), '#e8c46a', { parent: M, p: [0, 1.6, 0.1] });
+    for (const sx of [-1, 1]) b.add(sphere3(0.06, 8, 6), '#c9a35a', { parent: M, p: [sx * 0.47, 2.15, 0.02] });
+  },
+  // Wächterstatue: Sockel, kniende Gestalt mit Kapuze, Schwert vor sich, leuchtende Augen
+  dstatue(b, M, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.38);
+    b.add(wbox(0.9, 0.36, 0.9, 0.06), darker(stone, 0.2), { parent: M, p: [0, 0.18, 0], shade: 0.3 });
+    b.add(wbox(0.74, 0.12, 0.74, 0.04), stone, { parent: M, p: [0, 0.42, 0] });
+    b.add(lathe3('dstatbody', [[0, 0], [0.34, 0], [0.32, 0.4], [0.26, 0.9], [0.18, 1.1], [0, 1.12]], 12), stone, { parent: M, p: [0, 0.48, 0], shade: 0.25 });
+    b.add(sphere3(0.2, 12, 10), stone, { parent: M, p: [0, 1.66, 0.02] });
+    b.add(cap3(0.25, 1.3, 0, Math.PI * 2, 12, 6), darker(stone, 0.12), { parent: M, p: [0, 1.62, -0.02], s: [1, 1.15, 1.05] });
+    for (const sx of [-1, 1]) {
+      b.add(sphere3(0.035, 6, 5), glow, { parent: M, p: [sx * 0.07, 1.67, 0.19], mat: 'glow' });
+      b.add(sphere3(0.16, 10, 8), stone, { parent: M, p: [sx * 0.3, 1.38, 0.02], s: [1, 0.8, 1] });
+      b.add(limb3(0.5, 0.07, 0.06, 7), stone, { parent: M, p: [sx * 0.26, 1.35, 0.1], r: [-0.9, 0, -sx * 0.2] });
+    }
+    b.add(wbox(0.07, 1.0, 0.02, 0.01), lighter(stone, 0.2), { parent: M, p: [0, 1.0, 0.42] });
+    b.add(wbox(0.3, 0.06, 0.06, 0.02), darker(stone, 0.2), { parent: M, p: [0, 1.5, 0.42] });
+    b.add(sphere3(0.06, 8, 6), glow, { parent: M, p: [0, 1.58, 0.42], mat: 'glow' });
+  },
+  // Thron des Bosses: Stufen, hohe Lehne mit Zacken, Armlehnen, leuchtender Stein oben
+  dthrone(b, M, pr) {
+    const [top, line, glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.25);
+    b.add(wbox(2.2, 0.18, 1.5, 0.05), darker(stone, 0.2), { parent: M, p: [0, 0.09, 0], shade: 0.3 });
+    b.add(wbox(1.8, 0.18, 1.2, 0.05), darker(stone, 0.1), { parent: M, p: [0, 0.27, -0.05] });
+    b.add(wbox(1.2, 0.5, 0.9, 0.06), stone, { parent: M, p: [0, 0.6, -0.1], shade: 0.2 });
+    b.add(wbox(1.3, 2.2, 0.26, 0.06), stone, { parent: M, p: [0, 1.5, -0.5], shade: 0.25, top: line, topK: 0.15 });
+    for (const sx of [-1, 0, 1]) b.add(horn3(0.5 - Math.abs(sx) * 0.15, 0.1, 6), darker(stone, 0.15), { parent: M, p: [sx * 0.45, 2.6, -0.5] });
+    for (const sx of [-1, 1]) {
+      b.add(wbox(0.22, 0.4, 0.9, 0.05), darker(stone, 0.12), { parent: M, p: [sx * 0.62, 1.0, -0.1] });
+      b.add(sphere3(0.12, 8, 6), '#c9a35a', { parent: M, p: [sx * 0.62, 1.24, 0.32] });
+    }
+    b.add(wbox(0.9, 0.08, 0.7, 0.03), darker(glow, 0.4), { parent: M, p: [0, 0.88, -0.05] });
+    b.add(sphere3(0.2, 12, 10), glow, { parent: M, p: [0, 2.35, -0.38], mat: 'glow' });
+    b.add(new THREE.TorusGeometry(0.28, 0.035, 6, 18), '#e8c46a', { parent: M, p: [0, 2.35, -0.36] });
+  },
+  // Schatztruhe mit offenem Deckel und Gold darin
+  dchest(b, M) {
+    b.add(wbox(1.0, 0.5, 0.62, 0.05), '#7a4a26', { parent: M, p: [0, 0.25, 0], shade: 0.25 });
+    for (const x of [-0.4, 0, 0.4]) b.add(tinyBox(0.07, 0.52, 0.64), '#c9a35a', { parent: M, p: [x, 0.25, 0] });
+    b.add(wbox(1.0, 0.1, 0.62, 0.03), '#5a3a1c', { parent: M, p: [0, 0.82, -0.36], r: [-1.15, 0, 0] });
+    b.add(wbox(0.9, 0.16, 0.5, 0.06), '#ffd34d', { parent: M, p: [0, 0.5, 0.02], mat: 'glow' });
+    for (let k = 0; k < 7; k++) b.add(sphere3(0.07, 8, 6), k % 3 ? '#ffd34d' : '#ff6a5a', { parent: M, p: [-0.35 + k * 0.11, 0.6, ((k * 37) % 5 - 2) * 0.06], s: [1, 0.5, 1], mat: k % 3 ? undefined : 'glow' });
+    b.add(wbox(0.16, 0.18, 0.04, 0.02), '#e8c46a', { parent: M, p: [0, 0.32, 0.32] });
+  },
+  // Goldhaufen: flache Münzstapel und ein paar Edelsteine
+  dgold(b, M) {
+    b.add(lathe3('goldpile', [[0, 0], [0.48, 0], [0.4, 0.1], [0.22, 0.22], [0, 0.26]], 12), '#e8b830', { parent: M, shade: 0.2 });
+    for (let k = 0; k < 6; k++) {
+      const a = k * 1.1;
+      b.add(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 10), '#ffd34d', { parent: M, p: [Math.cos(a) * 0.4, 0.03, Math.sin(a) * 0.32], r: [0.3 * (k % 2), 0, 0.2] });
+    }
+    b.add(sphere3(0.08, 6, 5), '#5ad0ff', { parent: M, p: [0.1, 0.24, 0.05], mat: 'glow' });
+    b.add(sphere3(0.07, 6, 5), '#ff5a7a', { parent: M, p: [-0.15, 0.18, -0.08], mat: 'glow' });
+  },
+  // Schrein: runder Altar mit Stufen, darüber schwebt ein Kristall in der Portalfarbe
+  dshrine(b, M, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.18);
+    b.add(lathe3('dshrine', [[0, 0], [0.95, 0], [0.95, 0.14], [0.75, 0.16], [0.75, 0.3], [0.55, 0.32], [0.5, 0.9], [0.62, 0.95], [0.62, 1.02], [0, 1.02]], 18), stone, { parent: M, shade: 0.25 });
+    b.add(new THREE.TorusGeometry(0.52, 0.04, 6, 20).rotateX(Math.PI / 2), glow, { parent: M, p: [0, 0.6, 0], mat: 'glow' });
+    b.add(new THREE.OctahedronGeometry(0.42, 0), glow, { parent: M, p: [0, 1.85, 0], s: [0.7, 1.6, 0.7], mat: 'glow' });
+    b.add(new THREE.OctahedronGeometry(0.2, 0), '#ffffff', { parent: M, p: [0, 1.85, 0], s: [0.7, 1.5, 0.7], mat: 'glow' });
+    b.add(new THREE.TorusGeometry(0.62, 0.03, 6, 24).rotateX(Math.PI / 2 - 0.25), glow, { parent: M, p: [0, 1.85, 0], mat: 'glow' });
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + 0.4;
+      b.add(new THREE.OctahedronGeometry(0.08, 0), glow, { parent: M, p: [Math.cos(a) * 0.45, 1.35 + (k % 2) * 0.2, Math.sin(a) * 0.45], s: [0.7, 1.4, 0.7], mat: 'glow' });
+    }
+  },
   horse(b, M) {
     if (typeof horseParts3 === 'function') horseParts3(b, null, { saddle: '#8a2a1a', parent: M });
   },
@@ -1793,7 +1891,7 @@ function* objectJob(cx, cy) {
     const py = pr.y * U3;
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
     if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
-    const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' ? 0 : 0.25;
+    const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' || pr.type === 'dpillar' ? 0 : 0.25;
     bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back, pr.rot || 0));
   }
   const group = new THREE.Group();
@@ -1856,6 +1954,9 @@ function v3CollectLights() {
     if (pr.type === 'lantern') lightSpots3.push({ x, y: 1.0, z, color: '#ffb860', power: 0.6, range: 5, flicker: 2 });
     if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: pr.x * U3 + Math.cos(pr.rot || 0) * -0.65, y: 1.0, z: pr.y * U3 + Math.sin(pr.rot || 0) * 0.65, color: '#ff8a3a', power: 0.8, range: 4.5, flicker: 7 });
     if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.0, range: 6.5, flicker: 9 });
+    // Dungeon-Schmuck (seit 13.7): Schrein, Thron und Schatz leuchten
+    if (pr.type === 'dshrine' || pr.type === 'dthrone') lightSpots3.push({ x, y: 1.6, z, color: String(pr.roof).split('|')[2], power: 0.8, range: 5.5, flicker: 2 });
+    if (pr.type === 'dchest') lightSpots3.push({ x, y: 0.9, z, color: '#ffd34d', power: 0.6, range: 4, flicker: 1 });
   }
   for (const n of w.npcs) {
     if (n.id === 'weltentor') lightSpots3.push({ x: n.x * U3, y: 1.2, z: n.y * U3, color: '#7ab8ff', power: 0.55, range: 4.5 });

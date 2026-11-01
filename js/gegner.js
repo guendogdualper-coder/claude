@@ -101,26 +101,36 @@ function populateDungeons(groupId) {
       game.monsters.push(boss);
       continue;
     }
+    // seit 13.7: jeder Kampfraum auf dem Weg bekommt eine oder (große Räume) zwei Gruppen, die Arten wechseln
+    // sich ab und werden zum Boss hin gemischter; Schatzkammer und Schrein haben eine starke Wache aus beiden Arten
     const [a, b] = dg.def.mobs;
-    const plan = [[1, [a, a]], [2, [a, b]], [3, [b, b]]];
-    for (const [ri, types] of plan) {
-      const r = dg.rooms[ri];
-      types.forEach((typeId, k) => {
-        const c = { x: (r.x + r.w * (k ? 0.7 : 0.3)) * TILE, y: (r.y + r.h * 0.5) * TILE };
-        const n = randInt(2, 3);
-        for (let j = 0; j < n; j++) {
-          const pos = spotNear(c, 50);
-          const m = createMonster(typeId, pos.x, pos.y, { groupId, zone });
-          m.respawnDelay = DUNGEON_RESPAWN;
-          game.monsters.push(m);
-        }
-        groupId++;
-      });
+    const pack = (r, typeId, fx, n) => {
+      const c = { x: (r.x + r.w * fx) * TILE, y: (r.y + r.h * 0.5) * TILE };
+      for (let j = 0; j < n; j++) {
+        const pos = spotNear(c, 50);
+        const m = createMonster(typeId, pos.x, pos.y, { groupId, zone });
+        m.respawnDelay = DUNGEON_RESPAWN;
+        game.monsters.push(m);
+      }
+      groupId++;
+    };
+    const mid = dg.rooms.slice(1, -1);
+    mid.forEach((r, n) => {
+      const t = n / Math.max(1, mid.length - 1);
+      const first = t < 0.34 ? a : t > 0.66 ? b : (n % 2 ? b : a);
+      if (r.w * r.h >= 150) {
+        pack(r, first, 0.3, 2);
+        pack(r, first === a ? b : a, 0.7, 2);
+      } else pack(r, first, 0.5, randInt(2, 3));
+    });
+    for (const r of dg.side || []) {
+      pack(r, a, 0.35, 2);
+      pack(r, b, 0.65, 2);
     }
-    // Seelensteine in Raum 2 und 4, an fester Stelle, kommen erst nach 5–8 Minuten wieder
+    // Seelensteine an fester Stelle auf etwa einem und zwei Dritteln des Wegs, kommen erst nach 5–8 Minuten wieder
     dg.def.stones.forEach((level, k) => {
-      const r = dg.rooms[k ? 3 : 1];
-      const stone = createStone(zone, level, 0, 1, { x: (r.x + r.w * 0.5) * TILE, y: (r.y + 2.2) * TILE });
+      const r = mid[Math.min(mid.length - 1, Math.round((k + 1) * mid.length / 3) - (k ? 0 : 1))] || dg.rooms[1];
+      const stone = createStone(zone, level, 0, 1, { x: (r.cx + 0.5) * TILE, y: (r.y + Math.min(3, r.h * 0.25)) * TILE });
       stone.fixedSpot = true;
       stone.stoneRespawn = [300, 480];
       game.monsters.push(stone);

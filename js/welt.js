@@ -20,7 +20,7 @@ const VS = VILLAGE_HALF / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 28;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 11;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 12;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -29,7 +29,8 @@ const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SA
 const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG]);
 // Objekte auf dem Boden (alle blockieren den Weg)
 // CAVEWALL: Wände der Dungeons, werden mit dem Boden vorgezeichnet
-const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5, BLOSSOM: 6, WALL: 7, CAVEWALL: 8 };
+// PILLAR (seit 13.7): Säule in einem Dungeon-Raum; blockiert, gezeichnet wird sie als Prop 'dpillar'
+const OBJ = { NONE: 0, TREE: 1, PINE: 2, ROCK: 3, DEADTREE: 4, HOUSE: 5, BLOSSOM: 6, WALL: 7, CAVEWALL: 8, PILLAR: 9 };
 // Verzierungen ohne Kollision
 const DECO = { NONE: 0, TUFT: 1, FLOWER_RED: 2, FLOWER_YELLOW: 3, FLOWER_WHITE: 4, PEBBLE: 5, CRACK: 6, BRIDGE: 7,
   STUMP: 8, LOG: 9, MUSHROOM: 10, BONES: 11, SHRUB: 12, CRYSTAL: 13, DEADTREE: 14, DRIFT: 15 };
@@ -239,7 +240,7 @@ function generateWorld() {
   }
 
   // Dungeons im Streifen östlich der Welt, darunter Map 2 und Map 3
-  const dungeons = buildDungeons(ground, obj, zoneIdx);
+  const dungeons = buildDungeons(ground, obj, zoneIdx, deco);
   const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom);
   tidyBridges(ground, deco, obj);
 
@@ -365,7 +366,11 @@ function generateWorld() {
     const rb = dg.rooms[dg.rooms.length - 1];
     npcs.push(npc('ausgang', 'Ausgang', r0.x + 1.5, r0.y + 1.2, { dungeon: k }));
     if (dg.def.raid || dg.def.instanz) npcs.push(npc('ausgang', 'Ausgang', rb.cx + 0.5, rb.y + rb.h - 4, { dungeon: k }));
-    else npcs.push(npc('ausgang', 'Ausgang', rb.x + rb.w - 2, rb.y + 1.2, { dungeon: k }));
+    else {
+      // seit 13.7: freie Stelle oben rechts im Bossraum (der Raum kann rund oder ein Kreuz sein)
+      const ex = dungeonFreeTile(rb, 0.82, 0.18, obj, ground);
+      npcs.push(npc('ausgang', 'Ausgang', ex.x + 0.5, ex.y + 0.5, { dungeon: k }));
+    }
   });
   // Torwachen innen neben den Toren (Abstand zur Mauer bleibt gleich, wenn das Dorf wächst)
   const GN = C - VILLAGE_HALF + 1.4;
@@ -422,7 +427,12 @@ function generateWorld() {
   props.push({ type: 'horse', ...T(C - 11.3, C + 15.2) }, { type: 'hay', ...T(C - 15.9, C + 15.8) });
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
-    for (const r of dg.def.raid ? dg.rooms.slice(0, 1) : dg.def.instanz ? dg.rooms.slice(0, -1) : dg.rooms) {
+    // gewürfelte Dungeons (seit 13.7) schmücken ihre Räume selbst
+    if (!dg.def.raid && !dg.def.instanz) {
+      props.push(...dungeonProps(dg, obj, ground).map((pr) => ({ ...pr, ...T(pr.tx, pr.ty) })));
+      return;
+    }
+    for (const r of dg.def.raid ? dg.rooms.slice(0, 1) : dg.rooms.slice(0, -1)) {
       props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + 1.5, r.y + r.h - 0.6) });
       props.push({ type: 'brazier', roof: dg.def.portal, ...T(r.x + r.w - 1.5, r.y + r.h - 0.6) });
     }
@@ -480,10 +490,14 @@ function generateWorld() {
 }
 
 // --- Dungeons ------------------------------------------------------------------------------
-// Jeder Dungeon liegt in einem Block des Streifens: alles Fels, darin fünf Räume, die mit
-// drei Kacheln breiten Gängen verbunden sind. Der letzte Raum ist der Bossraum.
-// Räume: [x, y, Breite, Höhe] innerhalb des Blocks
-const DUNGEON_ROOMS = [[3, 4, 9, 9], [18, 3, 12, 11], [38, 4, 14, 12], [39, 26, 13, 12], [8, 25, 22, 17]];
+// Jeder Dungeon liegt in einem Block des Streifens: alles Fels, darin Räume, die mit drei Kacheln
+// breiten Gängen verbunden sind. Der letzte Raum ist der Bossraum.
+// Seit 13.7 hat jeder Dungeon seinen eigenen Grundriss (dungeonPlan): Der Block ist in 3 × 4 Felder
+// geteilt, ein Weg aus 6–8 Räumen windet sich ohne Kreuzung vom Start zum Boss, dazu 1–2 Seitenräume
+// als Sackgasse (Schatzkammer oder Schrein). Räume haben verschiedene Formen (Halle, Rundsaal, Kreuz,
+// Säulenhalle), manche ein Becken (Wasser, Lava oder Eis je Dungeon).
+const DG_GRID = { cols: 3, rows: 4, cw: 18, ch: 17 };
+const DG_SHAPES = ['hall', 'round', 'cross', 'pillars', 'hall', 'round'];
 // Endboss-Arena: kleiner Vorraum, dann eine große Halle (fast der ganze Block)
 const RAID_ROOMS = [[3, 32, 8, 8], [16, 5, 38, 63]];
 // Höllenthron (seit 13.0): Start unten links, dann vier Räume im Bogen (Steine, Wächter, Steine, Wächter),
@@ -583,7 +597,94 @@ function tidyBridges(ground, deco, obj) {
   }
 }
 
-function buildDungeons(ground, obj, zoneIdx) {
+// Zahl aus einem Text (Startwert für den Grundriss eines Dungeons)
+function hashText(t) {
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+// Grundriss eines Dungeons (seit 13.7): Felder des Wegs vom Start zum Boss und Seitenräume.
+// Gesucht wird ein Weg mit genug Kurven, damit es nicht immer „zweimal rechts, zweimal runter“ ist.
+function dungeonPlan(rng) {
+  const { cols, rows } = DG_GRID;
+  const key = (c, r) => r * cols + c;
+  const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  let best = null;
+  for (let tries = 0; tries < 400 && !best; tries++) {
+    const want = 6 + Math.floor(rng() * 3);
+    const c0 = Math.floor(rng() * cols);
+    const r0 = Math.floor(rng() * rows);
+    const path = [[c0, r0]];
+    const used = new Set([key(c0, r0)]);
+    while (path.length < want) {
+      const [c, r] = path[path.length - 1];
+      const next = dirs.map(([dc, dr]) => [c + dc, r + dr]).filter(([x, y]) => x >= 0 && y >= 0 && x < cols && y < rows && !used.has(key(x, y)));
+      if (!next.length) break;
+      const n = next[Math.floor(rng() * next.length)];
+      path.push(n);
+      used.add(key(n[0], n[1]));
+    }
+    if (path.length < want) continue;
+    let turns = 0;
+    for (let k = 2; k < path.length; k++) {
+      const a = [path[k - 1][0] - path[k - 2][0], path[k - 1][1] - path[k - 2][1]];
+      const b = [path[k][0] - path[k - 1][0], path[k][1] - path[k - 1][1]];
+      if (a[0] !== b[0] || a[1] !== b[1]) turns++;
+    }
+    const [sc, sr] = path[0];
+    const [bc, br] = path[path.length - 1];
+    if (turns < 3 || Math.abs(sc - bc) + Math.abs(sr - br) < 2) continue;
+    // Seitenräume: freie Nachbarfelder von Räumen in der Mitte des Wegs
+    const side = [];
+    const order = path.slice(1, -1).map((cell, k) => [cell, k + 1]).sort(() => rng() - 0.5);
+    const nSide = 1 + (rng() < 0.6 ? 1 : 0);
+    for (const [[c, r], from] of order) {
+      if (side.length >= nSide) break;
+      const free = dirs.map(([dc, dr]) => [c + dc, r + dr]).filter(([x, y]) => x >= 0 && y >= 0 && x < cols && y < rows && !used.has(key(x, y)));
+      if (!free.length) continue;
+      const f = free[Math.floor(rng() * free.length)];
+      used.add(key(f[0], f[1]));
+      side.push({ cell: f, from });
+    }
+    best = { path, side };
+  }
+  return best;
+}
+
+// Raum in einem Feld des Rasters: Größe und Lage gewürfelt, Form je Rolle (Start schlicht, Boss groß)
+function dungeonRoom(rng, cell, role, ox, oy) {
+  const { cw, ch } = DG_GRID;
+  const big = role === 'boss';
+  const w = big ? 15 + Math.floor(rng() * 2) : role === 'start' ? 9 + Math.floor(rng() * 2) : 10 + Math.floor(rng() * 6);
+  const h = big ? 14 + Math.floor(rng() * 2) : role === 'start' ? 8 + Math.floor(rng() * 2) : 9 + Math.floor(rng() * 5);
+  const rx = cell[0] * cw + 1 + Math.floor(rng() * Math.max(1, cw - 1 - w));
+  const ry = cell[1] * ch + 1 + Math.floor(rng() * Math.max(1, ch - 1 - h));
+  const shape = role === 'start' ? 'hall' : big ? (rng() < 0.5 ? 'round' : 'pillars') : role === 'schatz' || role === 'schrein' ? (rng() < 0.5 ? 'round' : 'cross') : DG_SHAPES[Math.floor(rng() * DG_SHAPES.length)];
+  const x = ox + rx;
+  const y = oy + ry;
+  return { x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2), shape, role, cell };
+}
+
+// Liegt (x, y) innerhalb der Form des Raums?
+function inRoomShape(r, x, y) {
+  if (x < r.x || y < r.y || x >= r.x + r.w || y >= r.y + r.h) return false;
+  if (r.shape === 'round') {
+    const nx = (x + 0.5 - (r.x + r.w / 2)) / (r.w / 2);
+    const ny = (y + 0.5 - (r.y + r.h / 2)) / (r.h / 2);
+    return nx * nx + ny * ny <= 1.08;
+  }
+  if (r.shape === 'cross') {
+    const kx = Math.floor(r.w / 4);
+    const ky = Math.floor(r.h / 4);
+    const ex = x < r.x + kx || x >= r.x + r.w - kx;
+    const ey = y < r.y + ky || y >= r.y + r.h - ky;
+    return !(ex && ey);
+  }
+  return true;
+}
+
+function buildDungeons(ground, obj, zoneIdx, deco) {
   const rng = mulberry32(WORLD_SEED + 99);
   for (let y = 0; y < DUNGEON_H; y++) {
     for (let x = WORLD_W; x < MAP_W; x++) {
@@ -614,11 +715,25 @@ function buildDungeons(ground, obj, zoneIdx) {
       if (x <= x0 || x >= x0 + DUNGEON_COL - 1 || y <= row * DUNGEON_BLOCK || y >= (row + 1) * DUNGEON_BLOCK - 1) return;
       obj[y * MAP_W + x] = OBJ.NONE;
     };
-    const rooms = (def.raid ? RAID_ROOMS : def.instanz ? INSTANZ_ROOMS : DUNGEON_ROOMS).map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2) }));
-    for (const r of rooms) {
-      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) carve(x, y);
+    // Endboss-Arena und Höllenthron behalten ihren festen Plan, normale Dungeons würfeln ihren eigenen (seit 13.7)
+    const fixed = def.raid ? RAID_ROOMS : def.instanz ? INSTANZ_ROOMS : null;
+    let rooms;
+    let side = [];
+    let links = [];
+    if (fixed) {
+      rooms = fixed.map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2), shape: 'hall' }));
+      links = rooms.slice(1).map((b, n) => [rooms[n], b]);
+    } else {
+      const prng = mulberry32(WORLD_SEED + hashText(def.id));
+      const plan = dungeonPlan(prng);
+      rooms = plan.path.map((cell, n) => dungeonRoom(prng, cell, n === 0 ? 'start' : n === plan.path.length - 1 ? 'boss' : 'mob', ox, oy));
+      side = plan.side.map((sd, n) => Object.assign(dungeonRoom(prng, sd.cell, n % 2 ? 'schrein' : 'schatz', ox, oy), { from: sd.from }));
+      links = rooms.slice(1).map((b, n) => [rooms[n], b]).concat(side.map((r) => [rooms[r.from], r]));
+    }
+    for (const r of rooms.concat(side)) {
+      for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (inRoomShape(r, x, y)) carve(x, y);
       // unregelmäßige Ränder, damit es wie eine Höhle wirkt
-      if (def.floor !== 'FLAGSTONE') {
+      if (def.floor !== 'FLAGSTONE' && r.shape === 'hall') {
         for (let x = r.x; x < r.x + r.w; x++) {
           if (rng() < 0.4) carve(x, r.y - 1);
           if (rng() < 0.4) carve(x, r.y + r.h);
@@ -638,23 +753,166 @@ function buildDungeons(ground, obj, zoneIdx) {
         if (nx * nx + ny * ny > 1) obj[y * MAP_W + x] = OBJ.CAVEWALL;
       }
     }
-    // Gänge: erst waagrecht, dann senkrecht
-    for (let n = 0; n < rooms.length - 1; n++) {
-      const a = rooms[n];
-      const b = rooms[n + 1];
-      for (let x = Math.min(a.cx, b.cx); x <= Math.max(a.cx, b.cx); x++) for (let w = -1; w <= 1; w++) carve(x, a.cy + w);
-      for (let y = Math.min(a.cy, b.cy); y <= Math.max(a.cy, b.cy); y++) for (let w = -1; w <= 1; w++) carve(b.cx + w, y);
+    // Gänge: feste Pläne erst waagrecht, dann senkrecht; gewürfelte als Z mit Knick zwischen den Räumen
+    const lineX = (x0, x1, y) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let w = -1; w <= 1; w++) carve(x, y + w); };
+    const lineY = (y0, y1, x) => { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let w = -1; w <= 1; w++) carve(x + w, y); };
+    for (const [a, b] of links) {
+      if (fixed) {
+        lineX(a.cx, b.cx, a.cy);
+        lineY(a.cy, b.cy, b.cx);
+        continue;
+      }
+      if (a.cell[1] === b.cell[1]) {
+        // Nachbarn in einer Reihe: waagrecht bis zur Lücke, dort hoch oder runter, weiter waagrecht
+        const [L, R] = a.cx < b.cx ? [a, b] : [b, a];
+        const mx = Math.round((L.x + L.w + R.x) / 2);
+        const ly = L.cy + Math.round((rng() - 0.5) * (L.h - 5));
+        const ry = R.cy + Math.round((rng() - 0.5) * (R.h - 5));
+        lineX(L.cx, mx, ly);
+        lineY(ly, ry, mx);
+        lineX(mx, R.cx, ry);
+      } else {
+        const [T, B] = a.cy < b.cy ? [a, b] : [b, a];
+        const my = Math.round((T.y + T.h + B.y) / 2);
+        const tx = T.cx + Math.round((rng() - 0.5) * (T.w - 5));
+        const bx = B.cx + Math.round((rng() - 0.5) * (B.w - 5));
+        lineY(T.cy, my, tx);
+        lineX(tx, bx, my);
+        lineY(my, B.cy, bx);
+      }
     }
-    // Im Drachenhort glühen Lavabecken in den Ecken des Bossraums
-    if (def.floor === 'BASALT') {
+    // Säulenhallen: Säulen im Raster, nicht vor den Gängen und nicht in der Mitte
+    const pillars = [];
+    for (const r of rooms.concat(side)) {
+      if (r.shape !== 'pillars') continue;
+      for (let y = r.y + 2; y < r.y + r.h - 2; y += 3) {
+        for (let x = r.x + 2; x < r.x + r.w - 2; x += 4) {
+          if (Math.abs(x - r.cx) <= 2 && Math.abs(y - r.cy) <= 2) continue;
+          const i = y * MAP_W + x;
+          if (obj[i] !== OBJ.NONE) continue;
+          // freier Durchgang: nicht neben einer Wand am Raumrand und nicht in einer Gangflucht
+          if (obj[i - 1] || obj[i + 1] || obj[i - MAP_W] || obj[i + MAP_W]) continue;
+          obj[i] = OBJ.PILLAR;
+          pillars.push({ x, y });
+        }
+      }
+    }
+    // Becken in manchen Kampfräumen: Lava im Basalt, sonst Wasser
+    const pools = [];
+    const liquid = def.floor === 'BASALT' ? GROUND.LAVA : GROUND.WATER;
+    for (const r of fixed ? [] : rooms.slice(1, -1)) {
+      if (r.w < 12 || r.h < 11 || r.shape === 'pillars' || rng() < 0.45) continue;
+      const qx = rng() < 0.5 ? r.x + 2 : r.x + r.w - 5;
+      const qy = rng() < 0.5 ? r.y + 2 : r.y + r.h - 5;
+      let ok = true;
+      for (let y = qy - 1; y < qy + 4 && ok; y++) for (let x = qx - 1; x < qx + 4; x++) if (obj[y * MAP_W + x] !== OBJ.NONE) { ok = false; break; }
+      if (!ok) continue;
+      for (let y = qy; y < qy + 3; y++) for (let x = qx; x < qx + 3; x++) {
+        if ((x === qx || x === qx + 2) && (y === qy || y === qy + 2) && rng() < 0.7) continue;
+        ground[y * MAP_W + x] = liquid;
+      }
+      pools.push({ x: qx + 1.5, y: qy + 1.5 });
+    }
+    // Schmuck auf dem Boden je Dungeon (Knochen, Kristalle, Pilze), selten und nicht in Gängen
+    const decoKinds = { CAVE: [DECO.BONES, DECO.MUSHROOM, DECO.PEBBLE], FLAGSTONE: [DECO.BONES, DECO.PEBBLE], ICE: [DECO.CRYSTAL, DECO.DRIFT], BASALT: [DECO.CRYSTAL, DECO.BONES, DECO.CRACK] }[def.floor] || [DECO.PEBBLE];
+    if (deco && !fixed) {
+      for (const r of rooms.concat(side)) {
+        for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) {
+          const i = y * MAP_W + x;
+          if (obj[i] || LIQUID.has(ground[i]) || Math.abs(x - r.cx) < 2 || rng() > 0.035) continue;
+          deco[i] = decoKinds[Math.floor(rng() * decoKinds.length)];
+        }
+      }
+    }
+    // In Endboss-Hallen aus Basalt glühen Lavabecken in den Ecken (gewürfelte Dungeons haben eigene Becken)
+    if (def.floor === 'BASALT' && fixed) {
       const rb = rooms[rooms.length - 1];
       for (const [px, py] of [[rb.x + 1, rb.y + 3], [rb.x + rb.w - 3, rb.y + rb.h - 3], [rb.x + 2, rb.y + rb.h - 3]]) {
         for (let y = py; y < py + 2; y++) for (let x = px; x < px + 2; x++) ground[y * MAP_W + x] = GROUND.LAVA;
       }
     }
     const tileCenter = (x, y) => ({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE });
-    return { def, rooms, start: tileCenter(rooms[0].cx, rooms[0].cy) };
+    return { def, rooms, side, pillars, pools, start: tileCenter(rooms[0].cx, rooms[0].cy) };
   });
+}
+
+// Freie Kachel im Raum nahe (fx, fy) als Anteil von Breite und Höhe (in der Form, ohne Wand, Säule und Becken)
+function dungeonFreeTile(r, fx, fy, obj, ground, avoid) {
+  const tx = Math.floor(r.x + fx * r.w);
+  const ty = Math.floor(r.y + fy * r.h);
+  for (let d = 0; d < 8; d++) {
+    for (let dy = -d; dy <= d; dy++) for (let dx = -d; dx <= d; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== d) continue;
+      const x = tx + dx;
+      const y = ty + dy;
+      const i = y * MAP_W + x;
+      if (!inRoomShape(r, x, y) || obj[i] !== OBJ.NONE || LIQUID.has(ground[i])) continue;
+      if (avoid && avoid.has(i)) continue;
+      // nicht direkt an der Wand (sonst verschwindet der Schmuck im Fels)
+      if (obj[i - 1] === OBJ.CAVEWALL && obj[i + 1] === OBJ.CAVEWALL) continue;
+      if (avoid) avoid.add(i);
+      return { x, y };
+    }
+  }
+  return { x: r.cx, y: r.cy };
+}
+
+// Schmuck der gewürfelten Dungeons (seit 13.7): Feuerbecken, Säulen, Banner, Statuen, im Bossraum ein Thron,
+// in der Schatzkammer Truhe und Goldhaufen, im Schrein ein leuchtender Altar. Farben aus dem Dungeon.
+function dungeonProps(dg, obj, ground) {
+  const def = dg.def;
+  const out = [];
+  const used = new Set();
+  const theme = `${def.wall.top}|${def.wall.line}|${def.portal}`;
+  const put = (type, r, fx, fy, extra = {}) => {
+    const t = dungeonFreeTile(r, fx, fy, obj, ground, used);
+    out.push({ type, roof: type === 'brazier' ? def.portal : theme, tx: t.x + 0.5, ty: t.y + 0.9, ...extra });
+  };
+  for (const p of dg.pillars) out.push({ type: 'dpillar', roof: theme, tx: p.x + 0.5, ty: p.y + 0.75 });
+  for (const r of dg.rooms.concat(dg.side)) {
+    const round = r.shape === 'round';
+    if (r.role === 'boss') {
+      // Thron hinten in der Mitte, Banner daneben, Feuerbecken im Kreis oder in den Ecken
+      put('dthrone', r, 0.5, 0.12);
+      put('dbanner', r, 0.3, 0.1);
+      put('dbanner', r, 0.7, 0.1);
+      put('dstatue', r, 0.15, 0.5);
+      put('dstatue', r, 0.85, 0.5);
+      const n = round ? 8 : 4;
+      for (let k = 0; k < n; k++) {
+        const a = (k / n) * Math.PI * 2 + Math.PI / n;
+        put('brazier', r, 0.5 + Math.cos(a) * 0.38, 0.5 + Math.sin(a) * 0.38);
+      }
+      continue;
+    }
+    if (r.role === 'schatz') {
+      put('dchest', r, 0.5, 0.3);
+      put('dgold', r, 0.32, 0.4);
+      put('dgold', r, 0.68, 0.42);
+      put('dgold', r, 0.5, 0.6);
+      put('brazier', r, 0.2, 0.8);
+      put('brazier', r, 0.8, 0.8);
+      continue;
+    }
+    if (r.role === 'schrein') {
+      put('dshrine', r, 0.5, 0.45);
+      for (const [fx, fy] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) put('brazier', r, fx, fy);
+      continue;
+    }
+    if (r.role === 'start') {
+      put('dbanner', r, 0.5, 0.12);
+      put('brazier', r, 0.15, 0.85);
+      put('brazier', r, 0.85, 0.85);
+      continue;
+    }
+    // Kampfräume: zwei Feuerbecken, im Rundsaal vier; manchmal Statuen oder ein Banner
+    const spots = round ? [[0.2, 0.25], [0.8, 0.25], [0.2, 0.75], [0.8, 0.75]] : [[0.1, 0.88], [0.9, 0.88]];
+    for (const [fx, fy] of spots) put('brazier', r, fx, fy);
+    const h = (r.x * 7 + r.y * 13) % 3;
+    if (h === 0) { put('dstatue', r, 0.12, 0.15); put('dstatue', r, 0.88, 0.15); }
+    else if (h === 1) put('dbanner', r, 0.5, 0.08);
+  }
+  return out;
 }
 
 // --- Maps 2 bis 9 ---------------------------------------------------------------------------

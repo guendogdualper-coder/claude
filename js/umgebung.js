@@ -847,6 +847,63 @@ Object.assign(PROP_ART, {
     poly(ctx, [[-8, -21], [-4, -33], [-1, -26], [2, -38], [5, -27], [8, -21]], col);
     poly(ctx, [[-4, -21], [-1, -29], [1, -25], [3, -31], [5, -21]], '#fff2c0');
   },
+  // Dungeon-Schmuck (seit 13.7), pr.roof = "Wand oben|Fugen|Portalfarbe"
+  dpillar(ctx, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const st = lighter(top, 0.3);
+    box(ctx, -15, -8, 30, 8, 1.5, darker(st, 0.15));
+    box(ctx, -10, -66, 20, 60, 2, st);
+    for (const x of [-6, -1, 4]) box(ctx, x, -64, 2, 56, 0.5, darker(st, 0.22));
+    box(ctx, -11, -40, 22, 3, 1, glow);
+    box(ctx, -15, -74, 30, 8, 1.5, darker(st, 0.1));
+  },
+  dbanner(ctx, pr) {
+    const [, , glow] = String(pr.roof).split('|');
+    box(ctx, -1.5, -70, 3, 70, 1, '#3a2a1c');
+    box(ctx, -15, -68, 30, 3, 1, '#3a2a1c');
+    poly(ctx, [[-13, -65], [13, -65], [13, -26], [0, -32], [-13, -26]], darker(glow, 0.35));
+    oval(ctx, 0, -48, 5, 5, glow);
+    box(ctx, -13, -66, 26, 2, 0.5, '#c9a35a');
+  },
+  dstatue(ctx, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const st = lighter(top, 0.38);
+    box(ctx, -14, -12, 28, 12, 2, darker(st, 0.2));
+    poly(ctx, [[-10, -12], [10, -12], [7, -40], [-7, -40]], st);
+    oval(ctx, 0, -46, 7, 8, darker(st, 0.12));
+    for (const x of [-2.5, 2.5]) oval(ctx, x, -45, 1.2, 1.2, glow);
+    box(ctx, -1, -42, 2, 28, 0.5, lighter(st, 0.2));
+  },
+  dthrone(ctx, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const st = lighter(top, 0.25);
+    box(ctx, -32, -8, 64, 8, 2, darker(st, 0.2));
+    box(ctx, -20, -86, 40, 66, 3, st);
+    for (const x of [-14, 0, 14]) poly(ctx, [[x - 5, -86], [x, -98 + Math.abs(x) * 0.3], [x + 5, -86]], darker(st, 0.15));
+    box(ctx, -26, -36, 52, 18, 2, darker(st, 0.1));
+    oval(ctx, 0, -76, 6, 6, glow);
+  },
+  dchest(ctx) {
+    box(ctx, -16, -16, 32, 16, 2, '#7a4a26');
+    for (const x of [-12, -1, 10]) box(ctx, x, -16, 2, 16, 0.5, '#c9a35a');
+    poly(ctx, [[-16, -16], [16, -16], [14, -28], [-14, -28]], '#5a3a1c');
+    oval(ctx, 0, -17, 13, 4, '#ffd34d');
+  },
+  dgold(ctx) {
+    oval(ctx, 0, -4, 15, 6, '#c8961e');
+    oval(ctx, 0, -6, 10, 5, '#ffd34d');
+    oval(ctx, 3, -9, 2, 2, '#5ad0ff');
+    oval(ctx, -4, -7, 2, 2, '#ff5a7a');
+  },
+  dshrine(ctx, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const st = lighter(top, 0.35);
+    oval(ctx, 0, -4, 26, 9, darker(st, 0.15));
+    box(ctx, -12, -32, 24, 28, 3, st);
+    box(ctx, -12, -20, 24, 2, 0.5, glow);
+    poly(ctx, [[0, -64], [7, -50], [0, -38], [-7, -50]], glow);
+    poly(ctx, [[0, -58], [3, -50], [0, -43], [-3, -50]], '#ffffff');
+  },
   // Pferd beim Stall im Dorf
   horse(ctx) {
     horseArt(ctx, 0, { saddle: '#8a2a1a' });
@@ -881,7 +938,11 @@ const PROP_BOUNDS = {
   gate: { x: -90, y: -108, w: 180, h: 112 },
   stall: { x: -32, y: -54, w: 64, h: 58 },
   stand: { x: -40, y: -64, w: 80, h: 68 },
-  horse: { x: -34, y: -58, w: 68, h: 62 }
+  horse: { x: -34, y: -58, w: 68, h: 62 },
+  dpillar: { x: -18, y: -78, w: 36, h: 80 },
+  dbanner: { x: -18, y: -74, w: 36, h: 76 },
+  dthrone: { x: -36, y: -102, w: 72, h: 104 },
+  dshrine: { x: -28, y: -68, w: 56, h: 70 }
 };
 
 function propSprite(pr) {
