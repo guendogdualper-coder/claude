@@ -406,56 +406,58 @@ function segenAura3(h, p, b, t) {
       n3Glow(h, px, py, pz, 0.24, SEGEN.schamane.colors[i], 0.35);
     }
   } else if (b.id === 'segen_schatten') {
-    // seit 13.11: zwei echte Dolche kreuzen sich über dem Kopf (Spitzen nach oben), wiegen sich leicht,
-    // ein Glanz läuft über die Klingen, am Kreuzungspunkt glüht es rot; dunkler Rauch an den Füßen
-    const cy = 2.8 + Math.sin(t * 1.8) * 0.06;
-    const L = 1.55;
-    const sway = Math.sin(t * 1.3) * 0.07;
+    // seit 13.13: zwei kleine Dolche mit sichelförmig gebogener Klinge kreuzen sich über dem Kopf
+    // (13.11 waren es gerade, breite Klingen mit rosa Schimmer – die sahen wie Schwerter aus)
+    const cy = 2.62 + Math.sin(t * 1.8) * 0.04;
+    const sway = Math.sin(t * 1.3) * 0.06;
     const glint = (t * 0.55) % 1;
+    const L = 1.0;
     for (const s of [-1, 1]) {
       const ang = Math.PI / 4 + sway * s;
       const dx = Math.sin(ang) * s;
       const dy = Math.cos(ang);
-      const at = (u, dz = 0) => _sg3d.set(x + dx * u * L, cy + dy * u * L, z + 0.02 * s + dz);
-      // Knauf, Griff, Parierstange, Klinge (fester Kegel) und roter Schimmer um die Klinge
+      // Querrichtung in der Bildebene: die Klinge biegt sich nach außen (weg von der Mitte)
+      const nx = dy * s;
+      const ny = -dx * s;
+      const at = (u, w = 0) => _sg3d.set(x + (dx * u + nx * w) * L, cy + (dy * u + ny * w) * L, z + 0.02 * s);
+      // Knaufring, umwickelter Griff, kurze Parierstange
       const pm = fx3Take(h, 'ball');
-      at(-0.33);
+      at(-0.3);
       pm.position.copy(_sg3d);
-      pm.scale.setScalar(0.06);
+      pm.scale.setScalar(0.028);
       fx3Color(pm, '#c84a6a', 1);
-      at(-0.32); _sg3a.copy(_sg3d);
-      at(-0.15); _sg3b.copy(_sg3d);
+      at(-0.29); _sg3a.copy(_sg3d);
+      at(-0.12); _sg3b.copy(_sg3d);
       const grip = fx3Take(h, 'segN');
-      fx3Segment(grip, _sg3a, _sg3b, 0.036);
+      fx3Segment(grip, _sg3a, _sg3b, 0.022);
       fx3Color(grip, '#2a1a3a', 1);
-      at(-0.15);
-      _sg3a.set(_sg3d.x - dy * 0.17 * s, _sg3d.y + dx * 0.17 * s, _sg3d.z);
-      _sg3b.set(_sg3d.x + dy * 0.17 * s, _sg3d.y - dx * 0.17 * s, _sg3d.z);
+      at(-0.12, -0.07); _sg3a.copy(_sg3d);
+      at(-0.12, 0.07); _sg3b.copy(_sg3d);
       const guard = fx3Take(h, 'segN');
-      fx3Segment(guard, _sg3a, _sg3b, 0.032);
-      fx3Color(guard, '#d8b04a', 1);
-      at(-0.14); _sg3a.copy(_sg3d);
-      at(0.36); _sg3b.copy(_sg3d);
-      const blade = fx3Take(h, 'cone');
-      fx3Segment(blade, _sg3a, _sg3b, 0.075);
-      fx3Color(blade, '#8a93b8', 1);
-      if (!low) {
-        const aura = fx3Take(h, 'seg');
-        fx3Segment(aura, _sg3a, _sg3b, 0.15);
-        fx3Color(aura, '#c84a6a', 0.45);
+      fx3Segment(guard, _sg3a, _sg3b, 0.016);
+      fx3Color(guard, '#8a7a5a', 1);
+      // gebogene Klinge: vier Stücke, immer schmaler, die Spitze ein Kegel
+      const pts = [[-0.11, 0], [0.0, 0.012], [0.09, 0.04], [0.16, 0.085], [0.21, 0.15]];
+      const rad = [0.03, 0.026, 0.02, 0.016];
+      for (let i = 0; i < pts.length - 1; i++) {
+        at(pts[i][0], pts[i][1]); _sg3a.copy(_sg3d);
+        at(pts[i + 1][0], pts[i + 1][1]); _sg3b.copy(_sg3d);
+        const piece = fx3Take(h, i === pts.length - 2 ? 'cone' : 'segN');
+        fx3Segment(piece, _sg3a, _sg3b, rad[i] * L);
+        fx3Color(piece, '#b9c1d6', 1);
       }
-      // Glanz wandert vom Heft zur Spitze
-      at(-0.12 + glint * 0.46);
-      n3Glow(h, _sg3d.x, _sg3d.y, _sg3d.z + 0.03, 0.24 * (1 - glint * 0.5), '#ffffff', 0.9 * Math.sin(glint * Math.PI));
+      // schmaler Glanz läuft über die Schneide
+      const gi = Math.min(pts.length - 2, Math.floor(glint * (pts.length - 1)));
+      at(pts[gi][0], pts[gi][1] + 0.01);
+      n3Glow(h, _sg3d.x, _sg3d.y, _sg3d.z + 0.03, 0.06, '#ffffff', 0.55 * Math.sin(glint * Math.PI));
     }
     // Kreuzungspunkt pulsiert rot, kleiner Funkenkranz
     const pulse = 0.5 + 0.5 * Math.sin(t * 3.2);
-    n3Glow(h, x, cy, z + 0.05, 0.45 + pulse * 0.15, '#c84a6a', 0.55 + pulse * 0.3);
-    n3Glow(h, x, cy, z + 0.06, 0.12, '#ffd0dc', 0.8);
+    n3Glow(h, x, cy - 0.08, z + 0.05, 0.2 + pulse * 0.06, '#c84a6a', 0.3 + pulse * 0.2);
     if (!low) for (let i = 0; i < 3; i++) {
       const q = (t * 0.9 + i / 3) % 1;
       const a = i * 2.1 + t * 1.5;
-      n3Glow(h, x + Math.cos(a) * 0.22, cy - 0.1 + q * 0.45, z + Math.sin(a) * 0.12, 0.06 * (1 - q), '#ff8aa8', 1 - q);
+      n3Glow(h, x + Math.cos(a) * 0.16, cy - 0.15 + q * 0.3, z + Math.sin(a) * 0.1, 0.04 * (1 - q), '#ff8aa8', 0.8 * (1 - q));
     }
     if (!low) for (let i = 0; i < 4; i++) {
       const q = (t * 0.6 + i / 4) % 1;
