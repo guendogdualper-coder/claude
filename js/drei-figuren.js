@@ -919,6 +919,8 @@ const WEAPON_LEN3 = { sword: 0.72, greatsword: 1.05, dagger: 0.38, axe: 0.62, gr
 // Winkel der Hand, bei dem die Glocke senkrecht hängt (Armwinkel wird ausgeglichen)
 let BELL_HANG3 = -2.0;
 let BELL_ARM3 = -0.8;
+// Axtkopf um den Stiel drehen (seit 13.48): Schneide nach vorn statt zur Seite
+let AXE_TWIST3 = -Math.PI / 2;
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
   bell: [2.0, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.6, 0, 0.45], club: [0.6, 0, 0.45],
@@ -4687,16 +4689,17 @@ const BASIC3 = {
       [0.42, { cy: 0.2, hy: 0.1, cx: 0.22, rx: -1.62, rz: 0.05, lx: -1.5, lz: 0.05, hpz: 0.26, hpy: -0.07, gr: -0.75, gl: 0.5 }, 'in'],
       [0.68, { cy: 0.22, hy: 0.1, cx: 0.2, rx: -1.55, rz: 0.05, lx: -1.35, lz: 0.1, hpz: 0.22, hpy: -0.06, gr: -0.65, gl: 0.45 }, 'out'], [1, N3]]
   ],
+  // Axt (seit 13.48): nur Hiebe nach vorn – senkrecht von oben, schräg von der Schulter, wuchtig mit Ausfallschritt
   axe: [
     [[0, N3], [0.36, { rx: -2.95, rz: -0.15, cx: -0.25, cy: -0.2, lx: -0.6, lz: 0.4, hpy: 0.02, gr: 0.15 }, 'out'],
       [0.45, { rx: -0.7, rz: 0.15, cx: 0.35, cy: 0.15, hpy: -0.08, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3 }, 'in'],
       [0.68, { rx: -0.45, rz: 0.2, cx: 0.3, cy: 0.15, hpy: -0.07, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.7, lz: 0.3 }, 'out'], [1, N3]],
-    [[0, N3], [0.34, { cy: -0.7, hy: -0.3, rx: -1.45, rz: -1.05, lx: -0.8, lz: 0.4, gr: 0.2, gl: -0.15 }, 'out'],
-      [0.45, { cy: 0.6, hy: 0.3, rx: -1.45, rz: 0.85, lx: -0.9, lz: 0.3, gr: -0.35, gl: 0.3, hpz: 0.07, hpy: -0.04 }, 'in'],
-      [0.68, { cy: 0.75, hy: 0.35, rx: -1.35, rz: 0.95, lx: -0.8, lz: 0.3, gr: -0.3, gl: 0.25, hpz: 0.06 }, 'out'], [1, N3]],
-    [[0, N3], [0.32, { rx: -0.5, rz: 0.5, cx: 0.2, cy: 0.35, hpy: -0.06, lx: -0.7, lz: 0.3, gl: 0.15 }, 'out'],
-      [0.44, { rx: -2.4, rz: -0.3, cx: -0.2, cy: -0.3, hpy: 0.05, lx: -1.0, lz: 0.3, gl: 0.3, gr: -0.3, hpz: 0.06 }, 'in'],
-      [0.68, { rx: -2.6, rz: -0.35, cx: -0.22, cy: -0.35, hpy: 0.03, lx: -0.9, lz: 0.3, gl: 0.25, gr: -0.25 }, 'out'], [1, N3]]
+    [[0, N3], [0.34, { rx: -2.6, rz: -0.65, cy: -0.4, cx: -0.15, hy: -0.18, lx: -0.6, lz: 0.4, gr: 0.15, gl: -0.1 }, 'out'],
+      [0.45, { rx: -0.65, rz: 0.4, cy: 0.32, cx: 0.32, hy: 0.15, hpy: -0.06, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3 }, 'in'],
+      [0.68, { rx: -0.5, rz: 0.45, cy: 0.36, cx: 0.28, hy: 0.16, hpy: -0.05, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.75, lz: 0.3 }, 'out'], [1, N3]],
+    [[0, N3], [0.38, { rx: -3.05, rz: -0.05, cx: -0.32, hpy: 0.06, gr: 0.2, gl: -0.1, lx: -1.8, lz: 0.45 }, 'out'],
+      [0.5, { rx: -0.4, rz: 0.05, cx: 0.55, hpy: -0.14, hpz: 0.12, gr: -0.6, gl: 0.45, lx: -0.6, lz: 0.5 }, 'in'],
+      [0.74, { rx: -0.35, rz: 0.05, cx: 0.5, hpy: -0.12, hpz: 0.1, gr: -0.5, gl: 0.4, lx: -0.55, lz: 0.5 }, 'out'], [1, N3]]
   ],
   greatsword: [
     [[0, N3], [0.38, { cy: -0.95, hy: -0.45, cx: -0.05, rx: -1.35, rz: -1.0, gr: 0.3, gl: -0.2, hpy: -0.03, two: 1 }, 'out'],
@@ -4713,10 +4716,10 @@ const BASIC3 = {
     [[0, N3], [0.4, { cy: 0.7, hy: 0.3, cx: -0.15, rx: -2.6, rz: 0.4, gl: 0.2, two: 1 }, 'out'],
       [0.52, { cy: -0.5, hy: -0.25, cx: 0.35, rx: -0.7, rz: -0.55, hpy: -0.1, hpz: 0.08, gl: -0.35, gr: 0.4, two: 1 }, 'in'],
       [0.74, { cy: -0.6, hy: -0.3, cx: 0.32, rx: -0.55, rz: -0.6, hpy: -0.09, gl: -0.3, gr: 0.35, two: 1 }, 'out'], [1, N3]],
-    // Wirbel: volle Drehung mit ausgestreckten Armen
-    [[0, N3], [0.3, { cy: -0.6, hy: -0.3, rx: -1.4, rz: -1.0, hpy: -0.05, gr: 0.25, two: 1 }, 'out'],
-      [0.75, { sy: Math.PI * 2, cy: -0.4, rx: -1.4, rz: -0.95, hpy: -0.07, gr: -0.2, gl: 0.2, two: 1 }],
-      [0.86, { sy: Math.PI * 2, rx: -1.2, rz: -0.6, hpy: -0.04, two: 1 }, 'out'], [1, { sy: Math.PI * 2, ...N3 }]],
+    // schräger Hieb von der Schulter nach vorn (seit 13.48 statt des Wirbels zur Seite)
+    [[0, N3], [0.4, { cy: -0.5, hy: -0.22, cx: -0.18, rx: -2.7, rz: -0.6, gr: 0.2, two: 1 }, 'out'],
+      [0.52, { cy: 0.38, hy: 0.18, cx: 0.4, rx: -0.6, rz: 0.4, hpy: -0.1, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1 }, 'in'],
+      [0.74, { cy: 0.42, hy: 0.2, cx: 0.36, rx: -0.5, rz: 0.45, hpy: -0.09, hpz: 0.08, gr: -0.4, gl: 0.3, two: 1 }, 'out'], [1, N3]],
     [[0, N3], [0.42, { rx: -3.05, rz: -0.05, cx: -0.35, hpy: 0.08, gr: 0.2, gl: -0.1, two: 1 }, 'out'],
       [0.54, { rx: -0.45, rz: 0.05, cx: 0.65, hpy: -0.16, hpz: 0.1, gr: -0.55, gl: 0.5, two: 1 }, 'in'],
       [0.78, { rx: -0.4, rz: 0.05, cx: 0.6, hpy: -0.15, hpz: 0.09, gr: -0.5, gl: 0.45, two: 1 }, 'out'], [1, N3]]

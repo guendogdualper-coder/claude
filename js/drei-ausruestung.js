@@ -1876,6 +1876,9 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   const metal = TIER_METAL[tier];
   const accent = TIER_ACCENT[tier];
   const M = partFrame(at, rot);
+  // Äxte (seit 13.48): Kopf um den Stiel gedreht, damit die Schneide in Blickrichtung zeigt und nach vorn hackt
+  // (vorher stand die Klinge seitlich ab und der Hieb traf mit der flachen Seite)
+  if ((kind === 'axe' || kind === 'greataxe') && typeof AXE_TWIST3 !== 'undefined') M.multiply(new THREE.Matrix4().makeRotationY(AXE_TWIST3));
   const W = framed(A, M, bone);
   const shell = (geo, o) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: M.clone().multiply(partMatrix(o)) });
   const gold = '#c9a35a';
