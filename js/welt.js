@@ -47,6 +47,21 @@ function zoneDeco(zone, r) {
   const list = ZONE_DECO[zone.id];
   return list ? DECO[list[Math.floor(r * list.length) % list.length]] : DECO.NONE;
 }
+// Halb so viele Stolperteile (seit 13.44): Felsen und feste Bodenteile (Äste, Stümpfe, Stämme, tote Bäumchen,
+// Kristalle), an denen man hängen bleibt, fällt auf jeder Map jede zweite weg. Bäume, Büsche, Pilze, Gras und der
+// Felsrand der Maps bleiben. Entschieden über die Lage der Kachel, nicht über den Zufallsgenerator – so bleibt der
+// Rest der Welt (Bäume, Wasser, Wege) genau wie vorher.
+const SOLID_DECO_KINDS = new Set([DECO.STUMP, DECO.LOG, DECO.DEADTREE, DECO.CRYSTAL]);
+function thinDrop(x, y) {
+  let h = Math.imul(x + 0x3c6ef372, 0x27d4eb2d) ^ Math.imul(y + 0x165667b1, 0x85ebca6b);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x2c1b3c6d);
+  h ^= h >>> 12;
+  return (h & 1) === 0;
+}
+function thinDeco(kind, x, y) {
+  return SOLID_DECO_KINDS.has(kind) && thinDrop(x, y) ? DECO.NONE : kind;
+}
 
 // Zufallsgenerator mit Startwert: gleiche Zahl → gleiche Welt
 function mulberry32(seed) {
@@ -182,8 +197,8 @@ function generateWorld() {
       const cluster = v > 0.55 ? 1.8 : 0.5;
       const r = rng();
       if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
-      else if (r < zone.trees * cluster + zone.rocks) obj[i] = OBJ.ROCK;
-      else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = zoneDeco(zone, rng());
+      else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y)) obj[i] = OBJ.ROCK; }
+      else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y);
     }
   }
 
@@ -825,7 +840,7 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
         for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) {
           const i = y * MAP_W + x;
           if (obj[i] || LIQUID.has(ground[i]) || Math.abs(x - r.cx) < 2 || rng() > 0.035) continue;
-          deco[i] = decoKinds[Math.floor(rng() * decoKinds.length)];
+          deco[i] = thinDeco(decoKinds[Math.floor(rng() * decoKinds.length)], x, y);
         }
       }
     }
@@ -974,8 +989,8 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
         const cluster = v > 0.55 ? 1.8 : 0.5;
         const r = rng();
         if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
-        else if (r < zone.trees * cluster + zone.rocks) obj[i] = OBJ.ROCK;
-        else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = zoneDeco(zone, rng());
+        else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y)) obj[i] = OBJ.ROCK; }
+        else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y);
         else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT ? DECO.CRACK : DECO.TUFT;
       }
     }
