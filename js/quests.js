@@ -156,8 +156,8 @@ function questEvent(kind, m) {
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
     q.progress++;
     if (goalDone(main.goal, q.progress)) {
-      ui.banner('Auftrag erfüllt', `${main.title}: Kehre zu ${elderPlace(main.map)} zurück`);
-      ui.log(`Auftrag „${main.title}“ erfüllt. Hol dir deine Belohnung bei ${elderPlace(main.map)}.`, 'level');
+      ui.banner('✔ Auftrag fertig', `${main.title} – bei jedem NPC abgeben`);
+      ui.log(`Auftrag „${main.title}“ fertig! Sprich irgendeinen NPC an und tippe auf „Abgeben“.`, 'level');
     }
   }
   const st = q.stable;
@@ -175,15 +175,18 @@ function questEvent(kind, m) {
       const s = q.side[n.key];
       if (!s || s.state !== 'active' || s.progress >= sideCount(n, s)) continue;
       s.progress++;
-      if (s.progress >= sideCount(n, s)) ui.banner('Aufgabe erfüllt', `Kehre zu ${n.name} zurück`);
+      if (s.progress >= sideCount(n, s)) {
+        ui.banner('✔ Aufgabe fertig', `${n.name} – bei jedem NPC abgeben`);
+        ui.log(`Nebenaufgabe von ${n.name} fertig! Sprich irgendeinen NPC an und tippe auf „Abgeben“.`, 'level');
+      }
     }
   }
   const h = q.hunt;
   if (h && h.progress < h.count && kind === 'kill' && m.typeId === h.monster) {
     h.progress++;
     if (h.progress >= h.count) {
-      ui.banner('Jagd erfüllt', `${MONSTER_TYPES[h.monster].name}: Kehre zu einer Jägerin zurück`);
-      ui.log('Jagdauftrag erfüllt. Gib ihn bei Rin in Vlotho oder bei der Jägerin in jedem Lager ab.', 'level');
+      ui.banner('✔ Jagd fertig', `${MONSTER_TYPES[h.monster].name} – bei jedem NPC abgeben`);
+      ui.log('Jagdauftrag fertig! Sprich irgendeinen NPC an und tippe auf „Abgeben“.', 'level');
     }
   }
   ui.renderQuestTrack();
@@ -440,14 +443,19 @@ function readyTurnIns() {
   const out = [];
   const main = currentMainQuest();
   if (main && q.accepted && main.goal.type !== 'talk' && goalDone(main.goal, q.progress)) {
-    out.push({ label: 'Hauptauftrag: ' + main.title, run: finishMainQuest });
+    out.push({ kind: 'Hauptauftrag', main: true, label: main.title, goal: goalText(main.goal), reward: main.reward, xp: questXp(main.level, QUEST_XP[main.goal.type] || 0.25), run: finishMainQuest });
   }
   for (const n of allWanderers()) {
     const s = sideState(n.key);
-    if (s.state === 'active' && sideDone(n, s)) out.push({ label: 'Nebenaufgabe von ' + n.name, run: () => finishSideQuest(n) });
+    if (s.state === 'active' && sideDone(n, s)) {
+      const mon = sideMon(n, s);
+      const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name}` : `${sideCount(n, s)} × ${MONSTER_TYPES[mon].name} besiegt`;
+      const r = sideReward(n, s);
+      out.push({ kind: 'Nebenaufgabe', label: n.name, goal, reward: r.reward, xp: r.xp, run: () => finishSideQuest(n) });
+    }
   }
   const h = q.hunt;
-  if (h && h.progress >= h.count) out.push({ label: 'Jagd: ' + h.count + ' × ' + MONSTER_TYPES[h.monster].name, run: finishHunt });
+  if (h && h.progress >= h.count) out.push({ kind: 'Jagd', label: MONSTER_TYPES[h.monster].name, goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegt`, reward: { gold: h.gold }, xp: sideQuestXp(h.level), run: finishHunt });
   return out;
 }
 // Schlafender Wanderer derselben Map (nachts steht der Nachtwanderer an seiner Stelle)
@@ -528,7 +536,7 @@ Object.assign(ui, {
       const done = have >= need;
       const on = key && key === tracked;
       rows.push(`<li class="ql-q ${cls}${done ? ' done' : ''}${on ? ' tracked' : ''}" data-guide="${key}"><b>${title}</b>` +
-        `<span class="ql-goal">${done ? 'Erfüllt – zurück zum Auftraggeber' : goal}${extra}</span>` +
+        `<span class="ql-goal">${done ? (key === 'stable' ? 'Erfüllt – zurück zum Auftraggeber' : '<span class="ql-ready">✔ FERTIG</span> bei jedem NPC abgeben') : goal}${extra}</span>` +
         `<span class="ql-bar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><em>${Math.min(have, need)}/${need}</em></span>` +
         (done ? '' : `<span class="ql-where">📍 ${where}</span>`) + (on ? `<span class="ql-nav" id="qlNav">${guideText()}</span>` : '') + `</li>`);
     };
@@ -661,8 +669,16 @@ Object.assign(ui, {
       box.innerHTML = '';
       return;
     }
-    box.innerHTML = (items.length ? '<span class="npc-quests-head">Abgeben:</span>' : '') +
-      items.map((it, i) => `<button type="button" class="mini-btn npc-turnin" data-turnin="${i}">✔ ${it.label}</button>`).join('') +
+    // seit 13.38 als Karten: Art, Name, erfülltes Ziel, Belohnung und ein großer Knopf
+    const fmt = (n) => Math.round(n).toLocaleString('de-DE');
+    const rew = (it) => [it.reward && it.reward.gold ? `💰 ${fmt(it.reward.gold)} Gold` : '', it.xp ? `✨ ${fmt(it.xp)} EP` : '',
+      it.reward && it.reward.potions ? `🧪 ${it.reward.potions} Tränke` : ''].filter(Boolean).join(' · ');
+    box.innerHTML = (items.length ? `<div class="tq-head"><span class="tq-badge">✔</span><b>${items.length === 1 ? 'Ein Auftrag ist fertig' : items.length + ' Aufträge sind fertig'}</b>` +
+      `<small>Du kannst fertige Aufträge bei jedem NPC abgeben – auch hier.</small></div>` : '') +
+      items.map((it, i) => `<div class="tq-card${it.main ? ' main' : ''}"><div class="tq-info"><span class="tq-kind">${it.kind}</span>` +
+        `<b class="tq-title">${it.label}</b><span class="tq-done">✔ FERTIG · abgabebereit</span>` +
+        `<small class="tq-goal">${it.goal}</small>${rew(it) ? `<small class="tq-reward">${rew(it)}</small>` : ''}</div>` +
+        `<button type="button" class="btn btn-primary tq-btn" data-turnin="${i}">Abgeben</button></div>`).join('') +
       (sleeper ? `<button type="button" class="mini-btn npc-other" data-sleeper="1">💤 Aufgabe von ${sleeper.name}</button>` : '');
     box.hidden = false;
     box.querySelectorAll('[data-turnin]').forEach((b) => b.addEventListener('click', () => {

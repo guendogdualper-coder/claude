@@ -166,7 +166,7 @@ function htRenderGate(body, npc, dg) {
     '<p class="hint-text"><b>Vernichtungsschlag:</b> Er hebt den Dreizack, drei Viertel der Halle glühen rot – lauft ins dunkle, sichere Viertel. <b>Siegel der Unterwelt:</b> Seelenkristalle schützen ihn, zerstört sie alle. Ab der Hälfte seines Lebens nimmt er seine <b>wahre Gestalt</b> an: schneller, stärker, mit Sturmangriffen, und der Schlag wechselt zwischen Viertel, Ring (nur bei ihm sicher) und Kern (nur weit weg sicher).</p>' +
     (htFree() ? '<p class="gear-msg success"><b>Testzeit:</b> Bis einschließlich 7. November ist das Höllenportal ohne Voraussetzungen offen – auch allein oder in kleiner Gruppe. Danach gelten sie wieder.</p>' : '') +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.free ? '🔓' : c.ok ? '✅' : '❌'} ${c.text}${c.free ? ' – <i>entfällt in der Testzeit</i>' : ''}</li>`).join('') + '</ul>' +
-    '<p><b class="legend-text">Beute:</b> vier legendäre Teile mit fünf Boni, viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>' +
+    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 legendäre Teile fallen. Abaddor: vier legendäre Teile, viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Durch das Höllenportal' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
     const err = enterDungeon(npc.dungeon);
@@ -293,6 +293,30 @@ function htLoot(m) {
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner('Der Höllenkaiser ist gefallen!', 'Ihr seid Teufelsbezwinger');
+}
+
+// Wächter der Instanz (Zerberos, Ifrah; seit 13.38): je 2–3 legendäre Teile für die eigene Klasse mit vier Boni,
+// eines davon oft eine Waffe
+function htGuardLoot(m) {
+  const i = htIndex();
+  if (i < 0 || !m || !DUNGEONS[i].guards.includes(m.typeId) || !htInside(m)) return;
+  const p = game.player;
+  let tier = 0;
+  ITEM_TIERS.forEach((t, k) => { if (m.level + 4 >= t.level) tier = k; });
+  const others = lootSlots(EQUIP_SLOTS.map((sl) => sl.id).filter((s) => s !== 'waffe'), p.classId);
+  const n = randInt(2, 3);
+  for (let k = 0; k < n; k++) {
+    const slot = k === 0 && Math.random() < 0.5 ? 'waffe' : others[randInt(0, others.length - 1)];
+    const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
+    item.legend = true;
+    if (m.type.boss && m.type.boss.mat) item.raidMat = m.type.boss.mat;
+    item.bonuses = [];
+    for (let b = 0; b < 4; b++) item.bonuses.push(rollBonus(item, false));
+    clampItemBonuses(item);
+    if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
+  }
+  ui.banner(`${m.name} ist gefallen!`, `${n} legendäre Teile erbeutet`);
 }
 
 // --- Fortschritt in der Instanz (für alle) ----------------------------------------------------------------------

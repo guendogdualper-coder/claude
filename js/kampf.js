@@ -385,6 +385,8 @@ function rewardKillInner(m) {
   }
   if (m.type && m.type.raid) raidLoot(m);
   else if (m.type && m.type.boss) bossLoot(m);
+  // Wächter im Höllenthron (seit 13.38): zusätzlich 2–3 legendäre Teile
+  if (typeof htGuardLoot === 'function') htGuardLoot(m);
   rollLoot(m);
   gainXp(xp);
 }

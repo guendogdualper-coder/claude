@@ -3129,3 +3129,27 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .mat-tile b { font-size: 17px; color: #f3e3b5; }
 .mat-tile span { font-size: 11px; color: var(--muted); line-height: 1.15; }
 .mat-tile.empty { opacity: .45; }
+
+/* 13.38: fertige Aufträge im NPC-Fenster als Karten, im Tracker mit Abzeichen */
+#npcQuests.npc-quests { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 14px 8px; }
+.tq-head { display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: center; }
+.tq-head b { font-size: 15px; color: #c9f5a8; }
+.tq-head small { grid-column: 2; color: var(--muted); font-size: 12px; }
+.tq-badge { grid-row: 1 / span 2; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 800;
+  background: radial-gradient(#7fe05a, #2f7a1f); color: #fff; box-shadow: 0 0 12px rgba(127,224,90,.7); animation: tqPulse 1.6s ease-in-out infinite; }
+@keyframes tqPulse { 50% { box-shadow: 0 0 22px rgba(127,224,90,1); transform: scale(1.08); } }
+.tq-card { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px;
+  background: linear-gradient(90deg, rgba(60,110,40,.45), rgba(30,50,22,.35)); border: 1px solid #7fbf4f; box-shadow: 0 0 10px rgba(127,191,79,.25) inset; }
+.tq-card.main { background: linear-gradient(90deg, rgba(120,92,30,.5), rgba(60,46,16,.35)); border-color: #e0c36a; box-shadow: 0 0 10px rgba(224,195,106,.3) inset; }
+.tq-info { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 1px; }
+.tq-kind { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #d9c48a; }
+.tq-title { font-size: 16px; }
+.tq-done { font-size: 13px; font-weight: 800; color: #9fe08f; letter-spacing: .03em; }
+.tq-card.main .tq-done { color: #ffe08a; }
+.tq-goal, .tq-reward { font-size: 12px; color: var(--muted); }
+.tq-reward { color: #f3e3b5; }
+.tq-btn { flex: 0 0 auto; font-size: 15px; padding: 9px 18px; animation: tqPulse 1.6s ease-in-out infinite; }
+.ql-ready { display: inline-block; padding: 0 5px; margin-right: 3px; border-radius: 4px; background: #3d7a24; color: #fff; font-weight: 800; font-size: 10px; letter-spacing: .04em; }
+.ql-q.done { box-shadow: 0 0 0 1px #7fbf4f inset, 0 0 10px rgba(127,191,79,.35); }
+.ql-q.main.done { box-shadow: 0 0 0 1px #e0c36a inset, 0 0 10px rgba(224,195,106,.35); }
+@media (prefers-reduced-motion: reduce) { .tq-badge, .tq-btn { animation: none; } }
