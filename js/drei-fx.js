@@ -529,9 +529,14 @@ function fx3Map(o, kind) {
   if (o.material.map !== t) { o.material.map = t; o.material.needsUpdate = true; }
 }
 
+// Leuchtende (additive) Effekte nachts etwas gedämpft (seit 13.47): auf dem dunklen Bild wirkten Schwünge,
+// Treffer und Lichtflecken sonst wie weiße Blitze
+function fx3NightDim(o) {
+  return o.material.blending === THREE.AdditiveBlending ? 1 - 0.3 * (V3.nightK || 0) : 1;
+}
 function fx3Color(o, color, op) {
   o.material.color.set(color);
-  o.material.opacity = Math.max(0, Math.min(1, op));
+  o.material.opacity = Math.max(0, Math.min(1, op * fx3NightDim(o)));
 }
 
 // flach am Boden: Mitte (Welt-Pixel), Radius (Einheiten), Höhe, Textur, Drehung
@@ -564,6 +569,7 @@ function fx3Strip(o, c, u, v, r, w, a0, a1, color, op, lens) {
   const pos = o.geometry.attributes.position.array;
   const col = o.geometry.attributes.color.array;
   const cc = _x3stripCol.set(color);
+  op *= fx3NightDim(o);
   for (let i = 0; i <= FX3_STRIP_N; i++) {
     const t = i / FX3_STRIP_N;
     const a = a0 + (a1 - a0) * t;
@@ -1649,7 +1655,10 @@ const FX3_DRAW = {
   },
   swoosh(h, e, k) {
     const head = e.a0 + (e.a1 - e.a0) * easeOut(Math.min(1, k * 2.2));
-    const tail = e.a0 + (head - e.a0) * clamp01((k - 0.12) / 0.88);
+    let tail = e.a0 + (head - e.a0) * clamp01((k - 0.12) / 0.88);
+    // seit 13.47: höchstens eine Runde sichtbar (bei zwei Runden lag der leuchtende Ring doppelt übereinander)
+    const lap = Math.PI * 1.9;
+    if (Math.abs(head - tail) > lap) tail = head - Math.sign(head - tail) * lap;
     const f = e.follow;
     if (!f) return;
     _x3c.set(f.x * U3, Math.max(0.45, -(e.oy || 0) * U3 * 1.6), feetY(f) * U3);
@@ -1657,13 +1666,17 @@ const FX3_DRAW = {
     _x3v.set(0, 0, 1);
     const r = e.r * U3 * 1.25;
     const w = e.width * U3 * 1.3;
-    const fade = 1 - k * 0.75;
+    // große Flächenschwünge (Wirbel, Sichel) liegen flach über vielen Gegnern: deutlich weicher als ein Schlag,
+    // sonst blitzt eine helle Scheibe über dem halben Bild auf
+    const big = e.r > 60;
+    const fade = (1 - k * 0.75) * (big ? 0.5 : 1);
     if (e.rank >= 0) {
       const shell = fx3Take(h, 'strip');
       fx3Strip(shell, _x3c, _x3u, _x3v, r + w * 0.3, w * 1.8, tail, head, e.rankColor, fade * 0.8, false);
     }
     const o = fx3Take(h, 'strip');
     fx3Strip(o, _x3c, _x3u, _x3v, r, w, tail, head, e.color, fade, false);
+    if (big) return;
     const edge = fx3Take(h, 'strip');
     fx3Strip(edge, _x3c, _x3u, _x3v, r + 0.02, w * 0.18, tail + (head - tail) * 0.4, head, '#ffffff', 1 - k, false);
   }
