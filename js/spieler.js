@@ -88,10 +88,10 @@ function barEntryName(p, v) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'dagger2', 'quiverGiven', 'goldGift', 'pathSkills', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'titanGrip', 'dagger2', 'quiverGiven', 'goldGift', 'pathSkills', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
-const STAT_POINTS_PER_LEVEL = 1; // seit 10.1 (vorher 3): sonst ist man zu schnell durch
+const STAT_POINTS_PER_LEVEL = 2; // seit 13.49 zwei je Stufe (10.1 bis 13.48 einer, davor drei)
 const MAX_ATTR = 90;
 const ATTRS = [
   { id: 'str', name: 'Stärke', short: 'STR', text: '+1 Angriff je Punkt' },
@@ -186,6 +186,9 @@ function makePlayer(save) {
   // Waffe, Rüstung und Helm gehören jetzt einer Klasse; alte Gegenstände bekommen die eigene
   Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
   p.inventory.forEach((it) => { if (!isBook(it)) assignClass(it, p.classId); });
+  // 13.49: Statuswerte auf der Ausrüstung passend zur Klasse
+  Object.values(p.equipment).forEach((it) => fitItemAttrs(it, p.classId));
+  p.inventory.forEach((it) => { if (!isBook(it)) fitItemAttrs(it, p.classId); });
   // Seit Version 3.2: Schild nur Krieger, Zweihänder nur Weg des Leibes. Was nicht mehr passt, kommt in die Tasche.
   p.gearMoved = enforceGearRules(p);
   p.upmats = { ...(save.upmats || {}) };
@@ -220,6 +223,8 @@ function makePlayer(save) {
       p.statPoints = allowed;
       p.statNotice = true;
     }
+    // 13.49: zwei Punkte je Stufe – wer weniger hat, bekommt die fehlenden Punkte aller bisherigen Stufen dazu
+    else if (statPointsSpent(p) + p.statPoints < allowed) p.statPoints = allowed - statPointsSpent(p);
   }
   // Spielstände vor den zwei Wegen: Fertigkeitspunkte zurückgeben, der Weg wird beim Start gewählt
   if (save.path == null) {
@@ -311,7 +316,7 @@ function playerStats(p) {
   const offhand = isOffhand(eq.schild) ? eq.schild : null;
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
-    const share = item === offhand ? (p.classId === 'ninja' ? DUAL_DAGGER.bonus : DUAL_WIELD.bonus) : 1;
+    const share = item === offhand ? offhandRules(p).bonus : 1;
     for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v * share;
   }
   for (const [k, cap] of Object.entries(BONUS_CAPS)) if (bonus[k] > cap) bonus[k] = cap;
@@ -333,7 +338,7 @@ function playerStats(p) {
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
     if (item === offhand) {
-      const dw = p.classId === 'ninja' ? DUAL_DAGGER : DUAL_WIELD;
+      const dw = offhandRules(p);
       if (item.kind !== offhandKind(p)) continue;
       const ost = itemStats(item);
       s.atk += Math.round((ost.atk || 0) * dw.atk);
@@ -357,6 +362,8 @@ function playerStats(p) {
     s.block += st.block || 0;
     s.regen += st.regen || 0;
     speedMul += st.speed || 0;
+    // Hauptwert der Klassen-Ausrüstung (seit 13.49) zählt wie Statuspunkte
+    for (const at of ['str', 'vit', 'int', 'dex']) if (st[at]) bonus[at] = (bonus[at] || 0) + st[at];
   }
   // Blocken nur mit Schild (und nicht mit einer Zweihandwaffe oder zweitem Schwert)
   const twoHand = eq.waffe && WEAPON_KINDS[eq.waffe.kind] && WEAPON_KINDS[eq.waffe.kind].twoHanded;

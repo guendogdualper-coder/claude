@@ -25,6 +25,9 @@ function equipSlotsFor(classId) {
 // ein zweites Schwert in der Nebenhand zu führen. Die Nebenhand gibt einen Teil des Angriffs
 // und etwas Tempo, aber kein Blocken. Zweihänder führt nur der Weg des Leibes.
 const DUAL_WIELD = { level: 30, path: 0, price: 20000, atk: 0.3, atkSpeed: 0.05, bonus: 0.5 };
+// Titanengriff (seit 13.49): Krieger des Leibes führen ab Stufe 20 eine Zweihandwaffe in einer Hand – und damit zwei
+// gleiche Zweihänder (zwei Streitäxte oder zwei Zweihänder). Die zweite zählt wie bei der Beidhändigkeit zum Teil.
+const TITAN_GRIP = { level: 20, path: 1, price: 15000, atk: 0.35, atkSpeed: 0.03, bonus: 0.5 };
 // Ninja (seit 13.10): ein Dolch je Hand, von Anfang an. Ein Dolch allein ist schwächer als früher das Dolchpaar;
 // mit dem zweiten Dolch in der Nebenhand (zählt zu 45 %, Boni zur Hälfte) ist er etwas stärker als vorher.
 const DUAL_DAGGER = { atk: 0.45, atkSpeed: 0.04, bonus: 0.5 };
@@ -356,6 +359,12 @@ const BONUS_CAPS = {
   skillDmg: 0.4, basicDmg: 0.4, hpPct: 0.3, resist: 0.15
 };
 
+// Statuswerte, die je Klasse als Bonus gewürfelt werden (seit 13.49): ein Krieger bekommt keine Intelligenz,
+// ein Magier keine Stärke. Gegenstände ohne Klasse (Schultern, Umhang …) würfeln für die Klasse des Finders.
+const CLASS_BONUS_ATTRS = { krieger: ['str', 'vit'], ninja: ['dex', 'str', 'vit'], schamane: ['int', 'vit'], nekromant: ['int', 'vit'], magier: ['int', 'vit'] };
+const ATTR_BONUS_IDS = ['str', 'vit', 'int', 'dex'];
+// Hauptwert als Grundwert auf Klassen-Ausrüstung (Waffe, Rüstung, Helm) je Gegenstandsstufe
+const CLASS_ATTR_BY_TIER = [0, 1, 2, 3, 4, 6, 8, 11, 14, 18];
 const MAX_NORMAL_BONUS = 5;
 const MAX_SPECIAL_BONUS = 2;
 

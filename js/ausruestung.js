@@ -93,10 +93,23 @@ function wearProblem(item, who) {
 function canDualWield(p) {
   return p.classId === 'krieger' && !!p.dualWield && (p.path || 0) === DUAL_WIELD.path;
 }
-// Waffenart, die in die Nebenhand darf: Schwert (Krieger der Klinge mit Beidhändigkeit) oder Dolch (Ninja)
+// Titanengriff: Krieger des Leibes ab Stufe 20, gelernt beim Waffenhändler
+function canTitanGrip(p) {
+  return p.classId === 'krieger' && !!p.titanGrip && (p.path || 0) === TITAN_GRIP.path && p.level >= TITAN_GRIP.level;
+}
+// Waffenart, die in die Nebenhand darf: Schwert (Krieger der Klinge mit Beidhändigkeit), Dolch (Ninja) oder mit
+// Titanengriff die Zweihandwaffe der Haupthand (zweite Streitaxt bzw. zweiter Zweihänder)
 function offhandKind(p) {
   if (p.classId === 'ninja') return 'dagger';
+  if (canTitanGrip(p)) {
+    const main = p.equipment && p.equipment.waffe;
+    return main && (main.kind === 'greataxe' || main.kind === 'greatsword') ? main.kind : 'greataxe';
+  }
   return canDualWield(p) ? 'sword' : null;
+}
+// Daten der Nebenhand (Anteil am Angriff, Tempo, Boni)
+function offhandRules(p) {
+  return p.classId === 'ninja' ? DUAL_DAGGER : canTitanGrip(p) ? TITAN_GRIP : DUAL_WIELD;
 }
 
 // Schwert in der Nebenhand
@@ -135,7 +148,7 @@ function enforceGearRules(p) {
   if (eq.schild && !isOffhand(eq.schild) && !canWear(eq.schild, p)) off('schild');
   // Köcher nur zusammen mit einem Bogen, und ein Bogen lässt außer dem Köcher nichts in der Nebenhand zu
   if (isQuiver(eq.schild) && !quiverMode(p)) off('schild');
-  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind]?.twoHanded && eq.schild && !isQuiver(eq.schild)) off('schild');
+  if (eq.waffe && WEAPON_KINDS[eq.waffe.kind]?.twoHanded && eq.schild && !isQuiver(eq.schild) && !(canTitanGrip(p) && isOffhand(eq.schild))) off('schild');
   return moved;
 }
 
@@ -201,6 +214,9 @@ function itemStats(item, plus = item.plus) {
     if (c.mp && base.hp) base.mp = (base.mp || 0) + Math.round(base.hp * c.mp);
     if (c.dodge && t) base.dodge = c.dodge * t;
   }
+  // seit 13.49: Klassen-Ausrüstung trägt den Hauptwert der Klasse (Krieger Stärke, Ninja Geschick, sonst Intelligenz)
+  let attr = null;
+  if (item.cls && CLASS_SLOTS.includes(item.slot) && item.slot !== 'waffe' && CLASS_ATTR_BY_TIER[t]) attr = [MAIN_ATTR[item.cls], CLASS_ATTR_BY_TIER[t]];
   const out = {};
   for (const [k, v] of Object.entries(base)) {
     // seit 13.37: Waffenschaden wächst stärker je Plus (13 % statt 10 % des Grundwerts)
@@ -215,18 +231,23 @@ function itemStats(item, plus = item.plus) {
   if (item.slot === 'waffe' && out.atk) out.dmg = weaponDmgRange(out.atk);
   // Das Lauftempo der Schuhe auch nicht (seit 8.5)
   if (base.speed) out.speed = base.speed;
+  // Hauptwert der Klasse: fest, ohne Plus
+  if (attr && attr[0]) out[attr[0]] = attr[1];
   return out;
 }
 
+// seit 13.49 heißen Leben und Mana auch so (vorher „Vitalität … Leben“ und „Intelligenz … Mana“ – das sah aus,
+// als gäbe jeder Helm Intelligenz)
 const STAT_LABELS = {
-  atk: 'Angriff', def: 'Rüstung', hp: 'Vitalität', mp: 'Intelligenz', crit: 'Kritisch',
+  atk: 'Angriff', def: 'Rüstung', hp: 'Leben', mp: 'Mana', crit: 'Kritisch',
+  str: 'Stärke', vit: 'Vitalität', int: 'Intelligenz', dex: 'Geschick',
   speed: 'Lauftempo', dodge: 'Ausweichen', block: 'Blocken', regen: 'Regeneration',
   atkSpeed: 'Angriffstempo', magic: 'Magiestärke'
 };
 function weaponDmgRange(atk) {
   return [Math.max(1, Math.round(atk * 0.8)), Math.max(2, Math.round(atk * 1.25))];
 }
-const STAT_ORDER = ['dmg', 'atk', 'atkSpeed', 'magic', 'def', 'hp', 'mp', 'crit', 'block', 'dodge', 'speed', 'regen'];
+const STAT_ORDER = ['dmg', 'atk', 'atkSpeed', 'magic', 'str', 'dex', 'int', 'vit', 'def', 'hp', 'mp', 'crit', 'block', 'dodge', 'speed', 'regen'];
 
 function statText(k, v) {
   if (k === 'dmg') return `Schaden ${v[0]}–${v[1]}`;
@@ -234,8 +255,6 @@ function statText(k, v) {
   if (k === 'regen') return `${STAT_LABELS[k]} +${pct(v, 1)} %/s`;
   if (k === 'atkSpeed') return `${STAT_LABELS[k]} ${v >= 0 ? '+' : '−'}${pct(Math.abs(v))} %`;
   if (k === 'crit' || k === 'speed' || k === 'dodge' || k === 'block' || k === 'magic') return `${STAT_LABELS[k]} +${pct(v)} %`;
-  if (k === 'hp') return `${STAT_LABELS[k]} +${v} Leben`;
-  if (k === 'mp') return `${STAT_LABELS[k]} +${v} Mana`;
   return `${STAT_LABELS[k]} +${v}`;
 }
 
@@ -347,11 +366,30 @@ function bonusValue(def, tier) {
   return Math.round(v * 1000) / 1000;
 }
 
+// Statuswerte, die auf diesem Gegenstand passen: nach seiner Klasse, sonst nach der eigenen Klasse
+function bonusAttrsFor(item, classId) {
+  const cls = item.cls && CLASS_BONUS_ATTRS[item.cls] ? item.cls : classId || (game.player ? game.player.classId : 'krieger');
+  return CLASS_BONUS_ATTRS[cls] || ATTR_BONUS_IDS;
+}
+// Alte Gegenstände (vor 13.49): unpassende Statuswerte werden zum Hauptwert der Klasse (gleicher Wert)
+function fitItemAttrs(item, classId) {
+  if (!item || !item.bonuses) return;
+  const fit = bonusAttrsFor(item, classId);
+  const main = fit[0];
+  for (const b of item.bonuses) {
+    if (!ATTR_BONUS_IDS.includes(b.t) || fit.includes(b.t)) continue;
+    const other = item.bonuses.find((x) => x !== b && x.t === main);
+    if (other) { other.v += b.v; b.t = null; } else b.t = main;
+  }
+  item.bonuses = item.bonuses.filter((b) => b.t);
+}
+
 // Zufälliger Bonus, der auf diesem Gegenstand noch nicht vorkommt
 function rollBonus(item, special) {
   const pool = special ? SPECIAL_BONUS_TYPES : BONUS_TYPES;
   const taken = new Set((special ? item.specials : item.bonuses || []).map((b) => b.t));
-  const ids = Object.keys(pool).filter((id) => !taken.has(id) && (special || pool[id].slots.includes(item.slot)));
+  const fit = bonusAttrsFor(item);
+  const ids = Object.keys(pool).filter((id) => !taken.has(id) && (special || pool[id].slots.includes(item.slot)) && (special || !ATTR_BONUS_IDS.includes(id) || fit.includes(id)));
   const t = ids[Math.floor(Math.random() * ids.length)];
   return { t, v: bonusValue(pool[t], item.tier) };
 }
@@ -741,12 +779,12 @@ function equipFromBag(index, hand) {
   let off = hand === 'off';
   if (hand == null && p.classId === 'ninja' && item.kind === 'dagger' && p.equipment.waffe && p.equipment.waffe.kind === 'dagger' && !p.equipment.schild) off = true;
   if (off && item.kind !== offhandKind(p)) {
-    gear.message(p.classId === 'ninja' ? 'In die Nebenhand passt nur ein Dolch.' : 'Ein zweites Schwert führt nur ein Krieger der Klinge, der Beidhändigkeit gelernt hat.', 'warn');
+    gear.message(p.classId === 'ninja' ? 'In die Nebenhand passt nur ein Dolch.' : canTitanGrip(p) ? `Mit dem Titanengriff passt in die Nebenhand nur eine zweite Waffe wie in der Haupthand (${WEAPON_KINDS[offhandKind(p)].name}).` : 'Eine zweite Waffe führt nur ein Krieger der Klinge mit Beidhändigkeit (Schwert) oder ein Krieger des Leibes mit Titanengriff (Zweihänder).', 'warn');
     return false;
   }
   // Schild oder Zweihandwaffe: beides zusammen geht nicht
   const weapon = p.equipment.waffe;
-  if ((item.slot === 'schild' || off) && weapon && WEAPON_KINDS[weapon.kind]?.twoHanded && !isQuiver(item)) {
+  if ((item.slot === 'schild' || (off && !canTitanGrip(p))) && weapon && WEAPON_KINDS[weapon.kind]?.twoHanded && !isQuiver(item)) {
     gear.message(`Mit ${itemName(weapon)} hast du keine Hand frei. Lege zuerst eine einhändige Waffe an.`, 'warn');
     return false;
   }
@@ -2104,7 +2142,7 @@ const gear = {
       `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
       `<small>${slotName} · ${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${need}</small>` +
       (canWear(item, p) ? '' : `<small class="need">${wearProblem(item, p)} Du kannst es verkaufen.</small>`) +
-      (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(DUAL_WIELD.atk * 100)} % des Angriffs, +${Math.round(DUAL_WIELD.atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
+      (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       `<span>${this.statsList(item)}</span>` +
       (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
       (this.selected.where === 'bag' ? compareHtml(item) + (offOk ? compareHtml(item, 'In der Nebenhand', 'off') : '') : '') +
@@ -2203,6 +2241,8 @@ const gear = {
     this.wireSell(body, () => this.renderMerchant(body, true));
     const learn = body.querySelector('[data-learn-dual]');
     if (learn) learn.addEventListener('click', () => this.learnDualWield());
+    const learnT = body.querySelector('[data-learn-titan]');
+    if (learnT) learnT.addEventListener('click', () => this.learnTitanGrip());
     body.querySelectorAll('[data-buy-gear]').forEach((b) => b.addEventListener('click', () => {
       const [slot, tier, kind] = b.dataset.buyGear.split(':');
       this.buyGear(slot, Number(tier), false, kind);
@@ -2213,10 +2253,40 @@ const gear = {
     }));
   },
 
+  // Titanengriff (seit 13.49): Krieger des Leibes, ab Stufe 20, einmalig gegen Gold
+  titanGripHtml() {
+    const p = game.player;
+    const path = CLASSES.krieger.paths[TITAN_GRIP.path].name;
+    const info = `Du führst eine Zweihandwaffe mit einer Hand – und eine zweite gleiche in der anderen (zwei Streitäxte oder zwei Zweihänder): ` +
+      `+${Math.round(TITAN_GRIP.atk * 100)} % ihres Angriffs, +${Math.round(TITAN_GRIP.atkSpeed * 100)} % Angriffstempo, ihre Boni zur Hälfte. Kein Schild.`;
+    let state;
+    if (p.titanGrip) state = canTitanGrip(p) ? '<b class="up">Gelernt.</b> Lege eine zweite Streitaxt (oder einen zweiten Zweihänder) im Inventar mit „Nebenhand“ an.' : `<b>Gelernt</b>, wirkt aber nur auf dem ${path}.`;
+    else if ((p.path || 0) !== TITAN_GRIP.path) state = `<span class="need">Nur für den ${path}.</span>`;
+    else if (p.level < TITAN_GRIP.level) state = `<span class="need">Ab Stufe ${TITAN_GRIP.level}.</span>`;
+    else state = `<button type="button" class="mini-btn primary" data-learn-titan ${p.gold < TITAN_GRIP.price ? 'disabled' : ''}>Lernen für ${TITAN_GRIP.price.toLocaleString('de-DE')} Gold</button>`;
+    return `<div class="learn-box"><h3>Titanengriff <small>· ${path} · ab Stufe ${TITAN_GRIP.level}</small></h3><p>${info}</p><p>${state}</p></div>`;
+  },
+
+  learnTitanGrip() {
+    const p = game.player;
+    if (p.titanGrip || p.classId !== 'krieger' || (p.path || 0) !== TITAN_GRIP.path || p.level < TITAN_GRIP.level) return;
+    if (p.gold < TITAN_GRIP.price) {
+      this.message(`Dir fehlen ${(TITAN_GRIP.price - p.gold).toLocaleString('de-DE')} Gold.`, 'warn');
+      return;
+    }
+    p.gold -= TITAN_GRIP.price;
+    p.titanGrip = true;
+    saveGame();
+    ui.banner('Titanengriff gelernt', 'Zwei Zweihandwaffen – eine in jeder Hand');
+    this.renderMerchant(undefined, true);
+    this.message('Du kannst jetzt eine zweite Zweihandwaffe in der Nebenhand führen.', 'success');
+  },
+
   // Beidhändigkeit: nur Krieger der Klinge, ab Stufe 30, einmalig gegen Gold
   dualWieldHtml() {
     const p = game.player;
     if (p.classId !== 'krieger') return '';
+    if ((p.path || 0) === TITAN_GRIP.path) return this.titanGripHtml();
     const path = CLASSES.krieger.paths[DUAL_WIELD.path].name;
     const info = `Ein zweites Schwert in der Nebenhand statt Schild: +${Math.round(DUAL_WIELD.atk * 100)} % seines Angriffs, ` +
       `+${Math.round(DUAL_WIELD.atkSpeed * 100)} % Angriffstempo, seine Boni zur Hälfte. Dafür kein Blocken.`;

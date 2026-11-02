@@ -132,7 +132,7 @@ function raidSummonCrystals(m) {
     let s = { x: home.x + Math.cos(a) * d, y: home.y + Math.sin(a) * d * 1.25 };
     if (!canStand(s.x, s.y, 10, true)) s = spotNear(home, 380);
     const c = createMonster('raidkristall', s.x, s.y, { respawn: false, zone: m.zone, level: m.level });
-    c.hp = c.maxHp = Math.round(m.maxHp * RAID.crystalHp);
+    c.hp = c.maxHp = m.type.raid && m.type.raid.crystalHp ? m.type.raid.crystalHp : Math.round(m.maxHp * RAID.crystalHp);
     c.xp = 0;
     c.gold = [0, 0];
     game.monsters.push(c);

@@ -957,7 +957,23 @@ function segenReduction(lvl) {
   if (lvl <= SKILL_POINT_MAX) return -(0.08 + 0.005 * (lvl - 1));
   return -Math.min(0.4, 0.2 + 0.005 * Math.max(0, lvl - SKILL_RANKS[0].from));
 }
-const SKILL_FIXED_EFFECTS = { segen: { damageTaken: segenReduction } };
+// Aura des Schwertes (seit 13.49): eigene Rangtabelle statt +3 % je Stufe – vorher brachte Vollendet nur ~+140.
+// Grundwert je Rang (normal 30–70, E 140–204, H 240–330, L 380–500, V 600), dazu der Hauptwert halb
+// (bei voller Stärke ×1,5): V gibt so etwa +900 Angriff
+const AURA_FLAT = { base: [30, 70], E: [140, 8], H: [240, 10], L: [380, 13], V: 600 };
+function auraFlat(lvl) {
+  const r = skillRank(lvl);
+  let v;
+  if (r < 0) v = AURA_FLAT.base[0] + (AURA_FLAT.base[1] - AURA_FLAT.base[0]) * (Math.min(lvl, SKILL_BASE_MAX) - 1) / (SKILL_BASE_MAX - 1);
+  else if (r === 3) v = AURA_FLAT.V;
+  else {
+    const [b, step] = AURA_FLAT['EHL'[r]];
+    v = b + step * (lvl - SKILL_RANKS[r].from);
+  }
+  const bp = (game.stats && game.stats.buffPower) || 1;
+  return Math.round(v * (1 + (bp - 1) * 0.5));
+}
+const SKILL_FIXED_EFFECTS = { segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat } };
 function applyBuff(sk, lvl) {
   const p = game.player;
   const scale = buffScale(lvl);

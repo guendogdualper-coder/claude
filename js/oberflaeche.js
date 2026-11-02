@@ -1912,7 +1912,7 @@ function skillStats(sk, lvl) {
     // Kälte (Frostpanzer, seit 8.6) verlangsamt fest um diesen Anteil
     if (k === 'chill') { out.push([label, skillPct(v)]); continue; }
     // fester Angriffswert (Aura des Schwertes, seit 13.4)
-    if (k === 'atkFlat') { out.push([label, '+' + Math.round(v * scale)]); continue; }
+    if (k === 'atkFlat') { out.push([label, '+' + (sk.id === 'schwertaura' && typeof auraFlat === 'function' ? auraFlat(lvl) : Math.round(v * scale))]); continue; }
     // seit 13.6 als Zahl: Angriff und Verteidigung aus den Werten ohne diesen Buff, Regeneration in Leben je Sekunde
     if (base && (k === 'atk' || k === 'def')) { out.push([label, '+' + numText(base[k] * v * scale)]); continue; }
     if (base && k === 'regen') { out.push([label, '+' + skillHpNum(v * scale, base)]); continue; }

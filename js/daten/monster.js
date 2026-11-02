@@ -161,7 +161,8 @@ const MONSTER_TYPES = {
   abaddor: {
     name: 'Abaddor, der Höllenkaiser', level: 72, shape: 'demon', color: '#9a1c1e', size: 90, speed: 128, range: 120, cooldown: 2.0, aggressive: true, hpMul: 950, atkMul: 3.9, teufel: true,
     boss: { color: '#ff3a1a', slam: 260, volley: 14, shot: '#ff7a3a', summon: 'hoellenhund', mat: 'feuerdaemon' },
-    raid: { art: 'daemon', scale: 3.6, shieldAt: [0.75, 0.55, 0.3], doomAt: [],
+    // crystalHp (seit 13.49): feste 400.000 Leben je Seelenkristall statt eines Anteils am Bossleben
+    raid: { art: 'daemon', scale: 3.6, shieldAt: [0.75, 0.55, 0.3], doomAt: [], crystalHp: 400000,
       moves: ['slam', 'meteor', 'buster', 'line', 'leap', 'nova', 'meteor', 'charge'],
       moves2: ['charge', 'slam', 'charge', 'meteor', 'charge', 'leap', 'buster', 'nova', 'charge', 'line'] }
   },

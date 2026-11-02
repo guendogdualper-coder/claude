@@ -826,7 +826,7 @@ function humanoid3(b, c, P) {
   }
   if (c.offhand) {
     const h = WEAPON_HOLD[c.offhand.kind] || [1.1, 0, 0];
-    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, [h[0], -h[1], -h[2]], false);
+    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, [h[0], -h[1], -h[2]], false, { left: true });
   }
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);

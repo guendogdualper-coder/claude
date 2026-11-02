@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.48';
+const GAME_VERSION = '13.49';
 
 const game = {
   world: null,
@@ -65,7 +65,7 @@ function startGame(save, slot) {
   // Begrüßung im Chat statt mitten im Bild
   if (game.player.statNotice) {
     game.player.statNotice = false;
-    ui.log(`Neu: 1 Statuspunkt pro Stufe. Deine Statuspunkte wurden zurückgesetzt – verteile jetzt ${game.player.statPoints} Punkte neu (kostenlos).`, 'level');
+    ui.log(`Neu: ${STAT_POINTS_PER_LEVEL} Statuspunkte pro Stufe. Deine Statuspunkte wurden zurückgesetzt – verteile jetzt ${game.player.statPoints} Punkte neu (kostenlos).`, 'level');
   }
   ui.chat('', input.touchUi ? `Willkommen, ${game.player.name}! Hilfe findest du unter dem Buch-Knopf oben.` : `Willkommen, ${game.player.name}! Drücke H für die Steuerung.`);
   if (game.player.level === 1 && game.player.xp === 0) {
