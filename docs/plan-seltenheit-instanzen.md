@@ -32,14 +32,30 @@ Stand: 2. 11. 2026, Wunsch des Spielers. Wird nach den laufenden Arbeiten (Stufe
   - Mit Fünfergruppe: 2 epische Teile (lila, Lv 60–70); kleinere Gruppen eher 1.
   - Mit Glück zusätzlich 1 legendäres Teil (gold, Lv 80), z. B. 5–8 %.
   - Dazu Aufwertungsteile.
-- Abklingzeit je Spieler (z. B. 1 Durchgang pro Stunde), damit es besonders bleibt.
+- Abklingzeit: 30 Minuten je Spieler und je Instanz (siehe Antworten unten).
 
 ## 3. Dungeons ab Stufe 50
 
 - Bosse der Dungeons ab Stufe 50 lassen mit kleiner Chance ein episches Teil fallen (lila, Lv 60).
 
-## Offene Fragen an den Spieler
+## Antworten des Spielers (2. 11. 2026)
 
-- Sollen die Instanzen auch auf den niedrigen Maps (Lv 1–30) stehen? Dafür müsste man als Lv 60 dorthin zurückreisen. Oder sollen sie nur auf den Maps ab Lv 40 stehen?
-- Soll man Instanzen auch allein betreten können (schwer), oder nur in der Gruppe?
-- Wie oft soll man eine Instanz machen dürfen?
+- Instanzen nur auf den Maps ab Stufe 40 (je 2 Eingänge in den Ecken).
+- Nur als Gruppe betretbar.
+- Wiederholbar alle 30 Minuten – je Spieler und je Instanz: Die Instanz merkt sich, wer drin war; andere Instanzen
+  sind für ihn sofort frei.
+- Instanzen mit viel mehr Räumen (nicht wie beim Endboss), in jedem Raum Gegner, dazwischen mehrere kleinere Bosse,
+  die immer stärker werden, mit eigenen Animationen und Attacken; am Ende der Instanzboss.
+- Auch der Höllenthron (Endboss) bekommt viel mehr Räume mit mehr kleineren Bossen, die immer stärker werden.
+
+## 4. Gruppenfinder (Dungeon-Browser), ab Stufe 30
+
+- Kleines Fenster/Knopf unten rechts, erst ab Stufe 30 sichtbar.
+- Liste der Instanzen (und Dungeons): man meldet sich mit einer Rolle an – Tank, Heiler oder Schaden.
+- Zeigt offene Gruppen und wer drin ist (Name, Klasse, Stufe, Rolle); beitreten oder eigene Gruppe eröffnen.
+- Empfohlen: 1 Tank, 1 Heiler, 3 Schaden – aber nicht Pflicht, auch 5 × Schaden geht.
+- Rollen-Vorschlag je Klasse und Weg (z. B. Krieger des Leibes = Tank, Schamane des Wassers/Lichts = Heiler),
+  frei änderbar.
+- Ist die Gruppe voll (oder der Leiter startet), kommt eine Bereitschaftsabfrage; dann Teleport zum Instanz-Eingang
+  bzw. direkt hinein.
+- Ablauf über den bestehenden Gruppen- und Netzcode (Einladung, Gruppenanzeige) im Kanal.
