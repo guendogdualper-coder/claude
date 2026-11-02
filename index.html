@@ -275,6 +275,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.37 – Schmied übersichtlicher: der Gegenstand mit „+6 → +7“ groß, jeder Wert alt → neu, die Kosten (Gold, Seelensplitter, Monsterteile) als große Kacheln. Jedes Plus auf der Waffe gibt jetzt mehr Schaden (13 % statt 10 % des Grundwerts) und +0,5 % Angriffstempo. Statuspunkte wirken sichtbar: der Hauptwert deiner Klasse (Intelligenz, Stärke oder Geschick) erhöht jede Fertigkeit schon ab dem ersten Punkt. Fertigkeitspunkte gibt es nur noch, solange nicht alle Fertigkeiten erweckt sind; Höchststufe ist 80. Händler verkaufen nur noch Ausrüstung ab Stufe 5 bis Stufe 15, Schultern gar nicht mehr – den Rest gibt es als Beute. Aufwertungsteile (Splitter, Schriftrollen, Verstärkungen, Monsterteile) haben ein eigenes Fenster: Taste U oder der Knopf im Inventar.</li>
       <li>Version 13.36 – Erledigte Aufträge gibst du jetzt bei jedem NPC ab, egal ob Tag oder Nacht: oben im Fenster erscheint eine grüne Leiste „Abgeben“, darunter bleibt Händler, Schmied usw. ganz normal nutzbar. Nachts richtet der Nachtwanderer die Aufgabe des schlafenden Wanderers aus (annehmen und abgeben). Schultern: Ninja, Schamane, Nekromant und Magier tragen schmalere Schulterteile, der Krieger einen Stachelkamm. Ninja: neue Dolch-Kombo aus vier Schlägen – Querschnitt rechts, Rückhandschnitt links, Wirbel, Kreuzschnitt mit Sprung. Testzeit: Bis einschließlich 7. November ist der Höllenthron (Abaddor) ohne Voraussetzungen offen, auch allein.</li>
       <li>Version 13.35 – Eigene Adresse: Das Spiel läuft jetzt unter seelenstein.online, und die Adresse bleibt oben stehen. Wer die alte Adresse öffnet, wird samt Charakteren, Konto und Einstellungen automatisch dorthin gebracht. Als App auf dem Startbildschirm erscheint ein Hinweis „Umziehen“; danach die App von seelenstein.online neu hinzufügen.</li>
       <li>Version 13.34 – Handy kühler und schärfer: Bildrate „Auto“ heißt am Handy jetzt gleichmäßig 30 Bilder pro Sekunde, dafür mit höherer, fester Auflösung. Vorher wurde das Handy bei 60 Bildern warm, drosselte sich, und das Spiel senkte deshalb die Auflösung (verpixeltes Bild). Wer es flüssiger will, stellt in den Einstellungen 60 ein. Dazu: seelenstein.online führt zum Spiel.</li>
@@ -483,6 +484,11 @@
 <div id="panelLoot" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="lootTitle">
   <header class="panel-head"><h2 id="lootTitle">Beute</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="lootBody" class="panel-body"></div>
+</div>
+
+<div id="panelMats" class="panel frame" hidden role="dialog" aria-labelledby="matsTitle">
+  <header class="panel-head"><h2 id="matsTitle">Aufwertungsteile</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="matsBody" class="panel-body"></div>
 </div>
 
 <div id="panelNpc" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="npcTitle">

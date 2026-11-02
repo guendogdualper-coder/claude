@@ -1,7 +1,7 @@
 // Spielfigur: Erstellen, Werte berechnen, Erfahrung, Speichern.
 
 const SAVE_KEY = 'seelenstein.spielstand.v1';
-const MAX_LEVEL = 99;
+const MAX_LEVEL = 80; // seit 13.37 (vorher 99)
 // Fertigkeiten: Stufe 1–15 mit Fertigkeitspunkten. Auf Stufe 15 erweckt ein Klick die Fertigkeit
 // (E1, kostet einen Punkt). In den Rängen steigt man mit Fertigkeitsbüchern; aus den letzten drei
 // Stufen eines Rangs geht es mit mehreren Büchern in den nächsten Rang.
@@ -110,6 +110,9 @@ function mainAttrName(classId) {
 const MAIN_SKILL = 0.012;
 // Mehr als so viele Punkte (eigene plus Ausrüstung) zählen für den Hauptwert-Bonus nicht
 const MAIN_ATTR_CAP = 120;
+// seit 13.37: der Hauptwert zählt für Fertigkeiten zusätzlich wie fester Angriff (je Punkt so viel), damit schon
+// ein einzelner Punkt den Fertigkeitsschaden sichtbar erhöht (vorher nur +1,2 % je Punkt, das ging beim Runden unter)
+const MAIN_SKILL_FLAT = 1.0;
 const MAIN_BASIC = 0.01;
 const MAIN_BUFF = 0.01;
 
@@ -235,6 +238,7 @@ function makePlayer(save) {
   {
     const spent = p.skillLevels.reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX - 1 : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
     p.skillPoints = Math.max(p.skillPoints, (p.level - 1) - spent);
+    clampSkillPoints(p);
   }
   // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Welt 6 (6.2/6.3), Welt 7 (bis 10.5) und
   // Welt 8 (10.6) geht es im Lager derselben Map weiter, sonst im Dorf.
@@ -406,6 +410,7 @@ function playerStats(p) {
   }
   // fester Angriff aus Buffs (Aura des Schwertes, seit 13.4) kommt nach den Prozenten dazu
   s.atk = Math.round(s.atk * atkMul + atkFlat);
+  if (main > 0 && s.atk > 0) s.skillDmg *= 1 + (main * MAIN_SKILL_FLAT) / s.atk;
   s.wMul = atkMul;
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def * defMul);
@@ -446,14 +451,17 @@ function gainXp(amount) {
   while (p.level < MAX_LEVEL && p.xp >= xpToNext(p.level)) {
     p.xp -= xpToNext(p.level);
     p.level++;
-    p.skillPoints++;
+    const sp0 = p.skillPoints || 0;
+    p.skillPoints = sp0 + 1;
+    clampSkillPoints(p);
+    const gotPoint = p.skillPoints > sp0;
     p.statPoints = (p.statPoints || 0) + STAT_POINTS_PER_LEVEL;
     const s = playerStats(p);
     p.hp = s.maxHp;
     p.mp = s.maxMp;
     vfxLevelUp(p);
     snd.player('levelup', { vol: 0.6, rev: 0.5, variants: 1 });
-    ui.log('Stufenaufstieg! Du bist jetzt Stufe ' + p.level + '. Du hast einen Fertigkeitspunkt erhalten.', 'level');
+    ui.log('Stufenaufstieg! Du bist jetzt Stufe ' + p.level + '.' + (gotPoint ? ' Du hast einen Fertigkeitspunkt erhalten.' : ''), 'level');
     const unlocked = classSkills(p).find((sk) => sk.unlock === p.level);
     if (unlocked) ui.log('Neue Fertigkeit freigeschaltet: ' + unlocked.name + '.', 'level');
     const tier = ITEM_TIERS.findIndex((t) => t.level === p.level);
@@ -505,8 +513,17 @@ function skillBooksSpent(lvl) {
   for (let k = 1; k <= r; k++) n += Math.max(0, SKILL_RANKS[k - 1].levels - 3) + SKILL_RANKS[k].books;
   return n;
 }
+// Fertigkeitspunkte (seit 13.37 begrenzt): mehr als nötig, um alle fünf Fertigkeiten auf E1 zu bringen
+// (je 14 Punkte), gibt es nicht. Danach geht es nur noch mit Schriftrollen weiter.
+const SKILL_POINT_CAP = 5 * (SKILL_POINT_MAX - 1);
+function skillPointsSpent(levels) {
+  return (levels || []).reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX - 1 : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
+}
+function clampSkillPoints(p) {
+  p.skillPoints = Math.max(0, Math.min(p.skillPoints || 0, SKILL_POINT_CAP - skillPointsSpent(p.skillLevels)));
+}
 function skillPointsBack(p) {
-  return p.level - 1 - (p.skillPoints || 0);
+  return skillPointsSpent(p.skillLevels);
 }
 function canResetSkills(p, path = p.path || 0) {
   return path !== (p.path || 0) || p.skillLevels.some((l) => l > 1);
@@ -545,7 +562,7 @@ function resetSkills(path = game.player.path || 0) {
     // ein schon gespielter Weg kommt genau so zurück. Punkte, die dort stecken, bleiben dort; neue Stufen geben
     // neue Punkte. Gelesene Schriftrollen gehören zu ihrem Weg und kommen deshalb nicht in die Tasche.
     if (!p.pathSkills || typeof p.pathSkills !== 'object') p.pathSkills = {};
-    p.pathSkills[oldPath] = { levels: p.skillLevels.slice(), spent: Math.max(0, p.level - 1 - (p.skillPoints || 0)) };
+    p.pathSkills[oldPath] = { levels: p.skillLevels.slice(), spent: skillPointsSpent(p.skillLevels) };
     p.path = path;
     moved = enforceGearRules(p);
     const st = p.pathSkills[path];
@@ -557,6 +574,7 @@ function resetSkills(path = game.player.path || 0) {
       p.skillLevels = [1, 1, 1, 1, 1];
       p.skillPoints = p.level - 1;
     }
+    clampSkillPoints(p);
     delete p.pathSkills[path];
     game.stats = playerStats(p);
     p.hp = Math.min(p.hp, game.stats.maxHp);
@@ -567,6 +585,7 @@ function resetSkills(path = game.player.path || 0) {
   books.forEach((n, i) => giveBooks(p, skills[i].id, n));
   p.skillLevels = [1, 1, 1, 1, 1];
   p.skillPoints = p.level - 1;
+  clampSkillPoints(p);
   game.stats = playerStats(p);
   p.hp = Math.min(p.hp, game.stats.maxHp);
   p.mp = Math.min(p.mp, game.stats.maxMp);

@@ -150,6 +150,8 @@ const CLASS_ARMOR = {
 
 const MAX_PLUS = 20;
 const PLUS_BONUS = 0.1; // jedes Plus gibt +10 % der Grundwerte (mindestens +1)
+const PLUS_BONUS_WEAPON = 0.13; // Waffenschaden seit 13.37: +13 % je Plus
+const PLUS_ATK_SPEED = 0.005; // Waffen seit 13.37: +0,5 % Angriffstempo je Plus
 const MAX_BLOCK = 0.4;
 
 // Schmied: Index = aktuelles Plus (also der Schritt von +N auf +N+1).
@@ -295,6 +297,9 @@ const BAG_PAGES = 4;
 const BAG_SIZE = BAG_PAGE * BAG_PAGES;
 
 // Händler im Dorf: was sie verkaufen und zu welchem Preis je Stufe (Lv 1, 5, 10, 15)
+// Händler verkaufen seit 13.37 nur Ausrüstung ab Stufe 5 bis Stufe 15 (Stufen 1–3); Grundausrüstung (Stufe 1)
+// und alles darüber gibt es nur als Beute
+const MERCHANT_MIN_TIER = 1;
 const MERCHANTS = {
   waffen: {
     slots: ['waffe', 'koecher'],
@@ -302,7 +307,8 @@ const MERCHANTS = {
     greeting: 'Jede Klasse kämpft anders. Hier findest du die Waffe, die zu dir passt, von der ersten Klinge bis zum Meisterstück.'
   },
   ruestung: {
-    slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'],
+    // seit 13.37 ohne Schultern (nur noch als Beute)
+    slots: ['ruestung', 'helm', 'umhang', 'schild', 'schuhe', 'guertel'],
     prices: [60, 300, 900, 2200],
     greeting: 'Rüstung hält dich am Leben, Vitalität auch. Such dir aus, was du brauchst.'
   }

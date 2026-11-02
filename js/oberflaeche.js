@@ -1360,6 +1360,7 @@ const ui = {
         return;
       }
       if (id === 'panelLoot') this.renderLoot();
+      if (id === 'panelMats') gear.renderMats();
       if (id === 'panelSocial') social.render();
       if (id === 'panelDaily') renderDaily();
       if (id === 'panelQuests') renderQuestWindow();

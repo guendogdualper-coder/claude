@@ -203,10 +203,13 @@ function itemStats(item, plus = item.plus) {
   }
   const out = {};
   for (const [k, v] of Object.entries(base)) {
-    out[k] = v < 1 ? v * (1 + PLUS_BONUS * plus) : v + plus * Math.max(1, Math.round(v * PLUS_BONUS));
+    // seit 13.37: Waffenschaden wächst stärker je Plus (13 % statt 10 % des Grundwerts)
+    const pb = item.slot === 'waffe' && k === 'atk' ? PLUS_BONUS_WEAPON : PLUS_BONUS;
+    out[k] = v < 1 ? v * (1 + pb * plus) : v + plus * Math.max(1, Math.round(v * pb));
   }
-  // Das Tempo einer Waffe hängt von ihrer Art ab und wächst nicht mit dem Plus
-  if (speed) out.atkSpeed = speed;
+  // Das Tempo einer Waffe hängt von ihrer Art ab; seit 13.37 gibt jedes Plus zusätzlich +0,5 % Angriffstempo
+  if (speed != null && item.slot === 'waffe') out.atkSpeed = speed + plus * PLUS_ATK_SPEED;
+  if (out.atkSpeed === 0) delete out.atkSpeed;
   // Waffenschaden (seit 13.10) als Spanne statt „Angriff +X“: jeder Schlag würfelt in dieser Spanne,
   // der Mittelwert entspricht dem bisherigen Angriffswert der Waffe (Stufe und Plus heben beide Grenzen)
   if (item.slot === 'waffe' && out.atk) out.dmg = weaponDmgRange(out.atk);
@@ -830,6 +833,10 @@ function itemAt(ref) {
 // --- Schmied --------------------------------------------------------------------------
 
 // Text für den Hinweis an einem Monster-Teil: von welchem Monster und auf welcher Map
+// Zahl der verschiedenen Aufwertungsteile im Gepäck (Verstärkungen und Monsterteile)
+function matKinds(p) {
+  return MATERIALS.filter((m) => (p.materials[m.id] || 0) > 0).length + Object.entries(p.upmats || {}).filter(([id, n]) => n > 0 && MOB_MATS[id]).length;
+}
 function mobMatTip(id) {
   const t = MONSTER_TYPES[id];
   return `${MOB_MATS[id].name}: fällt von ${t.name} (Stufe ${t.level}). Fundort: ${monsterWhere(id)}`.replace(/"/g, '&quot;');
@@ -1737,6 +1744,27 @@ const gear = {
     return sortedStats(itemStats(item, plus)).map(([k, v]) => statText(k, v)).join(' · ');
   },
 
+  // Aufwertungsteile (seit 13.37, Taste U): Seelensplitter, Segensschriftrollen, Verstärkungen und Monsterteile
+  // für den Schmied in einem eigenen Fenster, damit der Rucksack übersichtlich bleibt
+  renderMats() {
+    const p = game.player;
+    const el = document.getElementById('matsBody');
+    if (!el || !p) return;
+    const fmt = (n) => (n || 0).toLocaleString('de-DE');
+    const tile = (icon, name, n, tip = '') => `<div class="mat-tile${n ? '' : ' empty'}"${tip ? ` data-tip="${tip}" tabindex="0"` : ''}>` +
+      `<img src="${icon}" alt=""><b>${fmt(n)}</b><span>${name}</span></div>`;
+    const mobs = Object.entries(p.upmats || {}).filter(([id, n]) => n > 0 && MOB_MATS[id]);
+    el.innerHTML =
+      `<h3>Für den Schmied</h3><div class="mat-tiles">` +
+      tile(lootIconUrl('splinter'), 'Seelensplitter', p.splinters) +
+      tile(scrollIconUrl(), 'Segensschriftrollen', p.scrolls, 'Schützt beim Schmied vor dem Zerbrechen.') +
+      `</div><h3>Verstärkungen und Steine</h3><div class="mat-tiles">` +
+      MATERIALS.map((m) => tile(materialIconUrl(m.id), m.name, p.materials[m.id] || 0, m.text || '')).join('') +
+      `</div><h3>Teile von Monstern <small>ab +6, Ausrüstung ab Stufe 30 schon ab +4</small></h3>` +
+      (mobs.length ? `<div class="mat-tiles">` + mobs.map(([id, n]) => tile(mobMatIconUrl(id), MOB_MATS[id].name, n, mobMatTip(id))).join('') + `</div>`
+        : '<p class="hint-text">Noch keine Teile von Monstern. Der Schmied zeigt dir, welche er braucht und wo sie fallen.</p>');
+  },
+
   // Inventar ------------------------------------------------------------------------
   openInventory(sellMode = false) {
     ui.closePanels();
@@ -1792,16 +1820,10 @@ const gear = {
       // Vorräte (seit 11.0): Tränke jeder Größe und Segensschriftrollen, antippen zum Trinken oder Verkaufen
       `<h4 class="sup-head">Vorräte <small>Tränke und Segensschriftrollen</small></h4>` +
       `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x)).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
-      `<p class="inv-sum">Seelensplitter ${p.splinters} · ` +
-      `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrollen ${p.scrolls}<br>` +
-      MATERIALS.map((m) => `<span class="mat-count"><img class="mini-icon" src="${materialIconUrl(m.id)}" alt=""> ${m.tag} ${p.materials[m.id] || 0}</span>`).join(' ') +
-      `</p>` +
-      // Teile für den Schmied (seit 13.2 hier statt im Beutel-Fenster), antippen zeigt den Fundort
-      (Object.entries(p.upmats || {}).some(([id, n]) => n > 0 && MOB_MATS[id])
-        ? `<h4 class="sup-head">Teile für den Schmied <small>ab +6, Ausrüstung ab Stufe 30 schon ab +4</small></h4><div class="loot-purse mob-mats">` +
-          Object.entries(p.upmats).filter(([id, n]) => n > 0 && MOB_MATS[id]).map(([id, n]) =>
-            `<span class="mat-chip" tabindex="0" data-tip="${mobMatTip(id)}"><img src="${mobMatIconUrl(id)}" alt=""> ${MOB_MATS[id].name} <b>${n}</b></span>`).join('') + `</div>`
-        : '') +
+      // Aufwertungsteile (seit 13.37 im eigenen Fenster, Taste U): hier nur eine Zeile mit Knopf
+      `<button type="button" class="mats-open" id="btnMatsOpen"><img src="${lootIconUrl('splinter')}" alt="">` +
+      `<span><b>Aufwertungsteile</b><small>Seelensplitter ${p.splinters} · Segensschriftrollen ${p.scrolls} · ${matKinds(p)} Teile-Arten</small></span>` +
+      (typeof IS_PC !== 'undefined' && IS_PC ? `<kbd>${typeof keyLabel === 'function' && typeof actionKey === 'function' ? keyLabel(actionKey('mats')) : 'U'}</kbd>` : '') + `</button>` +
       `</section>` +
       `</div><div id="invDetail" class="item-detail-wrap"></div><p id="invMsg" class="gear-msg"></p>`;
     drawDoll(document.getElementById('invDoll'));
@@ -1817,6 +1839,8 @@ const gear = {
     }
     goldEl.textContent = p.gold.toLocaleString('de-DE');
     const body = document.getElementById('invBody');
+    const mo = document.getElementById('btnMatsOpen');
+    if (mo) mo.addEventListener('click', () => ui.toggle('panelMats'));
     body.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('click', () => {
       this.selected = { where: 'equip', key: b.dataset.equip };
       this.sellArmed = false;
@@ -2140,6 +2164,7 @@ const gear = {
       const equipped = slot === 'koecher' ? (isQuiver(p.equipment.schild) ? p.equipment.schild : null) : p.equipment[slot];
       const eqStats = equipped ? itemStats(equipped) : {};
       const rows = m.prices.map((p0, tier) => {
+        if (tier < MERCHANT_MIN_TIER) return '';
         const price = merchantPrice(this.merchant, slot, tier);
         const item = makeItem(slot, tier, 0, p.classId, kind);
         const need = ITEM_TIERS[tier].level;
@@ -2230,6 +2255,8 @@ const gear = {
 
   buyGear(slot, tier, equip, kind) {
     const p = game.player;
+    const m = MERCHANTS[this.merchant];
+    if (!m || tier < MERCHANT_MIN_TIER || !m.prices[tier] || !m.slots.includes(slot)) return;
     const price = merchantPrice(this.merchant, slot, tier);
     const item = makeItem(slot, tier, 0, p.classId, kind || null);
     if (p.gold < price) {
@@ -2306,27 +2333,41 @@ const gear = {
     const enough = canPayUpgrade(cost);
     const mat = cost.mat;
     const have = mat ? p.upmats[mat.id] || 0 : 0;
-    const matLine = mat
-      ? `<p class="smith-cost smith-mat" data-tip="${mobMatTip(mat.id)}"><img class="mini-icon" src="${mobMatIconUrl(mat.id)}" alt=""> Dazu: <b class="${have >= mat.count ? '' : 'lack'}">${mat.count} × ${MOB_MATS[mat.id].name}</b> (du hast ${have}) ` +
-        `<small>von: ${MONSTER_TYPES[mat.id].name}, Stufe ${MONSTER_TYPES[mat.id].level} · 📍 ${monsterWhere(mat.id)}</small></p>`
+    // seit 13.37 groß: Gegenstand mit Plus-Sprung, jeder Wert alt → neu mit Zuwachs, Kosten als große Kacheln
+    const fmt = (n) => n.toLocaleString('de-DE');
+    const chip = (icon, big, small, ok, tip = '') => `<div class="cost-chip${ok ? '' : ' lack'}"${tip ? ` data-tip="${tip}"` : ''}>` +
+      `<img src="${icon}" alt=""><b>${big}</b><small>${small}</small></div>`;
+    const costs = chip(lootIconUrl('gold'), fmt(cost.gold) + ' Gold', 'du hast ' + fmt(p.gold), p.gold >= cost.gold) +
+      chip(lootIconUrl('splinter'), cost.splinters + ' Seelensplitter', 'du hast ' + fmt(p.splinters), p.splinters >= cost.splinters) +
+      (mat ? chip(mobMatIconUrl(mat.id), mat.count + ' × ' + MOB_MATS[mat.id].name, `du hast ${have} · von ${MONSTER_TYPES[mat.id].name} (Stufe ${MONSTER_TYPES[mat.id].level})`, have >= mat.count, mobMatTip(mat.id)) : '');
+    const matHint = mat ? `<p class="hint-text">📍 ${MOB_MATS[mat.id].name}: ${MONSTER_TYPES[mat.id].name}, ${monsterWhere(mat.id)}</p>`
       : (item.plus + 1 >= upgradeMatStart(item.tier) ? '' : `<p class="hint-text">Ab +${upgradeMatStart(item.tier)} braucht der Schmied zusätzlich Teile von Monstern.</p>`);
     const risk = step.fail === 'none' ? 'Bei Fehlschlag sind nur die Kosten weg.'
       : step.fail === 'down' ? `Bei Fehlschlag fällt der Gegenstand auf +${item.plus - 1} zurück.`
         : 'Bei Fehlschlag zerbricht der Gegenstand!';
     const next = { ...item, plus: item.plus + 1 };
     const where = this.smithRef.where === 'equip' ? '<span class="smith-where on">angelegt</span>' : '<span class="smith-where">in der Tasche</span>';
-    el.innerHTML = this.anvil(item) +
-      `<p class="smith-step">${where} <strong style="color:${itemColor(item)}">${itemFullName(item)}</strong> → <strong style="color:${itemColor(next)}">+${next.plus}</strong></p>` +
+    const now = itemStats(item);
+    const after = itemStats(item, item.plus + 1);
+    const rows = sortedStats(after).map(([k, v]) => {
+      const a = statText(k, now[k] != null ? now[k] : (k === 'dmg' ? [0, 0] : 0));
+      const b = statText(k, v);
+      const label = k === 'dmg' ? 'Schaden' : STAT_LABELS[k];
+      const strip = (t) => t.replace(label, '').trim();
+      return `<tr><th>${label}</th><td>${strip(a)}</td><td class="arrow">→</td><td class="up">${strip(b)}</td></tr>`;
+    }).join('');
+    el.innerHTML = `<div class="smith-head">${this.anvil(item)}<div class="smith-title">${where}` +
+      `<div class="smith-name" style="color:${itemColor(item)}">${itemName(item)}</div>` +
+      `<div class="smith-plus"><span style="color:${itemColor(item)}">+${item.plus}</span><i>→</i><span style="color:${itemColor(next)}">+${next.plus}</span></div></div></div>` +
       (this.smithRef.where === 'bag' ? compareHtml(item) : '') +
-      `<p class="smith-stats">${this.statsList(item)}<br>→ ${this.statsList(item, item.plus + 1)}</p>` +
+      `<table class="smith-delta">${rows}</table>` +
       `<div class="chance"><i style="width:${step.chance * 100}%"></i><span>Erfolgschance ${Math.round(step.chance * 100)} %</span></div>` +
-      `<p class="smith-cost">Kosten: <b class="${p.gold >= cost.gold ? '' : 'lack'}">${cost.gold.toLocaleString('de-DE')} Gold</b> und ` +
-      `<b class="${p.splinters >= cost.splinters ? '' : 'lack'}">${cost.splinters} Seelensplitter</b> (du hast ${p.splinters})</p>` + matLine +
+      `<div class="smith-costs">${costs}</div>` + matHint +
       `<p class="smith-risk ${step.fail}">${risk}</p>` +
       // Haken für die Segensschriftrolle bleibt gesetzt, bis man ihn selbst wieder herausnimmt
       (step.fail !== 'none' ? `<label class="scroll-opt" for="useScroll"><input id="useScroll" type="checkbox" ${p.scrolls ? '' : 'disabled'} ${p.scrolls && this.scrollPref ? 'checked' : ''}>` +
         `<img class="mini-icon" src="${scrollIconUrl()}" alt=""> Segensschriftrolle verwenden (${p.scrolls} vorhanden)</label>` : '') +
-      `<div class="forge-row"><button id="btnForge" type="button" class="btn btn-primary" ${enough ? '' : 'disabled'}>Verbessern</button>` +
+      `<div class="forge-row"><button id="btnForge" type="button" class="btn btn-primary btn-forge" ${enough ? '' : 'disabled'}>Verbessern auf +${next.plus}</button>` +
       `<button id="btnSound" type="button" class="mini-btn" title="Klänge an oder aus">${sfx.on ? '🔊 Ton an' : '🔇 Ton aus'}</button></div>`;
     const sc = document.getElementById('useScroll');
     if (sc) sc.addEventListener('change', () => { this.scrollPref = sc.checked; });

@@ -3078,3 +3078,54 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .npc-quests-head { font-size: 12px; color: #d9c48a; margin-right: 2px; }
 .npc-quests .npc-turnin { background: linear-gradient(#3d6b2a, #2a4d1c); border-color: #7fbf4f; color: #eaffd8; }
 .npc-quests .npc-other { background: linear-gradient(#2c3550, #1e2438); border-color: #6b7fb8; color: #dfe6ff; }
+
+/* 13.37: Schmied – Gegenstand, Werte und Kosten groß */
+.smith-head { display: flex; align-items: center; gap: 14px; }
+.smith-head .anvil { flex: 0 0 auto; width: 120px; }
+.smith-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.smith-name { font-size: 20px; font-weight: 700; line-height: 1.15; }
+.smith-plus { font-size: 30px; font-weight: 800; display: flex; align-items: center; gap: 10px; text-shadow: 0 2px 6px rgba(0,0,0,.6); }
+.smith-plus i { font-style: normal; color: #d9c48a; font-size: 24px; }
+.smith-delta { width: 100%; border-collapse: collapse; font-size: 16px; }
+.smith-delta th { text-align: left; font-weight: 600; color: #d9c48a; padding: 3px 6px 3px 0; }
+.smith-delta td { padding: 3px 4px; white-space: nowrap; }
+.smith-delta td.arrow { color: #8a7a55; }
+.smith-delta td.up { color: #9fe08f; font-weight: 700; }
+.smith-delta tr + tr { border-top: 1px solid rgba(201,162,74,.15); }
+.smith-costs { display: flex; flex-wrap: wrap; gap: 8px; }
+.cost-chip { display: grid; grid-template-columns: 36px auto; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+  background: rgba(0,0,0,.28); border: 1px solid rgba(201,162,74,.45); border-radius: 10px; padding: 6px 12px 6px 8px; }
+.cost-chip img { grid-row: 1 / span 2; width: 36px; height: 36px; }
+.cost-chip b { font-size: 18px; color: #f3e3b5; }
+.cost-chip small { font-size: 12px; color: var(--muted); }
+.cost-chip.lack { border-color: #c8402f; }
+.cost-chip.lack b { color: #ff9a7a; }
+.btn-forge { font-size: 17px; padding: 10px 22px; }
+@media (max-width: 700px), (max-height: 500px) {
+  .smith-head .anvil { width: 84px; }
+  .smith-name { font-size: 16px; }
+  .smith-plus { font-size: 24px; }
+  .smith-delta { font-size: 14px; }
+  .cost-chip b { font-size: 15px; }
+  .cost-chip img { width: 28px; height: 28px; }
+  .cost-chip { grid-template-columns: 28px auto; }
+}
+
+/* 13.37: Aufwertungsteile im eigenen Fenster */
+.mats-open { display: flex; align-items: center; gap: 10px; width: 100%; margin-top: 8px; padding: 8px 10px; text-align: left; cursor: pointer;
+  background: rgba(0,0,0,.25); border: 1px solid rgba(201,162,74,.45); border-radius: 10px; color: inherit; font: inherit; }
+.mats-open img { width: 32px; height: 32px; }
+.mats-open span { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.mats-open small { color: var(--muted); font-size: 12px; }
+.mats-open kbd { border: 1px solid #8a7a55; border-radius: 4px; padding: 1px 6px; font-size: 12px; color: #d9c48a; }
+.mats-open:hover { border-color: #e0c36a; }
+#matsBody h3 { margin: 10px 0 6px; font-size: 15px; }
+#matsBody h3:first-child { margin-top: 0; }
+#matsBody h3 small { font-weight: 400; color: var(--muted); font-size: 12px; }
+.mat-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px; }
+.mat-tile { display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 6px; align-items: center;
+  background: rgba(0,0,0,.25); border: 1px solid rgba(201,162,74,.3); border-radius: 8px; padding: 5px 7px; }
+.mat-tile img { grid-row: 1 / span 2; width: 34px; height: 34px; }
+.mat-tile b { font-size: 17px; color: #f3e3b5; }
+.mat-tile span { font-size: 11px; color: var(--muted); line-height: 1.15; }
+.mat-tile.empty { opacity: .45; }
