@@ -225,12 +225,12 @@ const CLASSES = {
           // Heilung schwächer, Falkengeist (Krit) statt Schutzgeist
           {
             id: 'geisterfaust', name: 'Lichtsturz', short: 'LS', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
-            type: 'blast', fx: 'licht', range: 320, radius: 100, dmg: 1.5, stun: 1, color: '#fff2a0',
+            type: 'blast', fx: 'licht', range: 320, radius: 100, dmg: 2.1, stun: 1, color: '#fff2a0',
             text: 'Eine Säule aus Himmelslicht stürzt auf das Ziel herab und zerbirst: Alle Gegner im Umkreis nehmen Lichtschaden und sind 1 s betäubt.'
           },
           {
             id: 'windfessel', name: 'Windfessel', short: 'WF', kind: 'fluch', unlock: 3, mp: 14, cooldown: 12,
-            type: 'curse', radius: 170, duration: 6, vulnerable: 0.08, slow: 0.55, color: '#d8fff8', noRunes: true,
+            type: 'curse', radius: 170, duration: 6, vulnerable: 0.15, slow: 0.55, color: '#d8fff8', noRunes: true,
             text: 'Ein Sturm aus Windbändern bricht von dir aus und schnürt jeden Gegner im Umkreis ein: Sie werden stark verlangsamt und nehmen etwas mehr Schaden.'
           },
           {

@@ -217,7 +217,8 @@ function updateBoss(m, dt) {
 // (mit Beute), unter 20 % Raserei. Insgesamt schneller und mit doppeltem Leben.
 const RAID_MOVES = ['slam', 'meteor', 'charge', 'buster', 'leap', 'line', 'nova', 'meteor', 'leap'];
 // seit 11.0 rund 15 % stärker (dazu mehr Grundangriff, siehe monster.js); Vernichtung in endboss.js
-const RAID_MUL = { slam: 3.5, meteor: 3, line: 3.7, buster: 7, nova: 3.9, leap: 4.1, charge: 3.9 };
+// Tankschlag (buster) seit 13.31 ×5 statt ×7: er tötete ab Gorbag selbst einen vollen Tank
+const RAID_MUL = { slam: 3.5, meteor: 3, line: 3.7, buster: 5, nova: 3.9, leap: 4.1, charge: 3.9 };
 const RAID_ADD_EVERY = 20;
 
 // Spieler im Kampf mit dem Endboss: nur wer in seiner Halle ist (nicht Mitspieler irgendwo anders auf der Welt

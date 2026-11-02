@@ -183,11 +183,14 @@ function monsterPower(level) {
   const ramp = Math.min(1, (level - 1) / 14);
   const extra = Math.max(0, level - 15);
   // ab Stufe 15 linear, dazu ein quadratischer Anteil: je höher, desto stärker wächst der Abstand.
-  // Seit Version 6.2 zwischen Stufe 15 und 30 zusätzlich bis +20 % Leben und +40 % Angriff
+  // Seit Version 6.2 zwischen Stufe 15 und 30 zusätzlich bis +20 % Leben und +40 % Angriff.
+  // Seit 13.31 (Balance-Simulation aller Wege, Stufe 5–70): Angriff nur noch linear (vorher quadratisch –
+  // auf Stufe 70 töteten zwei Treffer eines gleichstarken Monsters einen Magier), Leben mit kleinerem
+  // quadratischem Anteil (Kills ab Stufe 50 dauerten 9–11 s, zähe Monster über 30 s)
   const tough = Math.min(1, extra / 15);
   return {
-    hp: (1 + ramp * 1.6 + extra * 0.11 + extra * extra * 0.005) * (1 + 0.2 * tough),
-    atk: (1 + ramp * 1.4 + extra * 0.1 + extra * extra * 0.002) * (1 + 0.4 * tough),
+    hp: (1 + ramp * 1.6 + extra * 0.11 + extra * extra * 0.001) * (1 + 0.2 * tough),
+    atk: (1 + ramp * 1.4 + extra * 0.06) * (1 + 0.4 * tough),
     def: 1 + extra * 0.05
   };
 }

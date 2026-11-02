@@ -56,7 +56,8 @@ function levelPenalty(attackerLevel, targetLevel) {
 function levelBonus(attackerLevel, targetLevel) {
   const diff = attackerLevel - targetLevel;
   if (diff > 0) return 1 + Math.min(0.8, 0.07 * diff);
-  return Math.max(0.3, 1 + 0.035 * diff);
+  // seit 13.31 stärker gedämpft: 20 Stufen darunter nur noch 20 % Schaden (Lv 70 gegen Steine der Stufe 50)
+  return Math.max(0.2, 1 + 0.04 * diff);
 }
 
 // --- Ziele ----------------------------------------------------------------
@@ -159,10 +160,12 @@ function hitMonster(m, mul, opts = {}) {
       m.kx = (m.x - src.x) / d * opts.knockback * 4;
       m.ky = (m.y - src.y) / d * opts.knockback * 4;
     }
-    if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps, until: game.time + opts.poison.duration, tick: 0 };
-    if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps, until: game.time + opts.burn.duration, tick: 0 };
+    // Schaden über Zeit wächst seit 13.31 mit der Fertigkeitsstärke wie direkter Schaden
+    const dotK = s.skillDmg || 1;
+    if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps * dotK, until: game.time + opts.poison.duration, tick: 0 };
+    if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps * dotK, until: game.time + opts.burn.duration, tick: 0 };
     // Blutung (seit 11.7, Nekromant): Schaden über Zeit wie Gift, rote Tropfen
-    if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps, until: game.time + opts.bleed.duration, tick: 0 };
+    if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps * dotK, until: game.time + opts.bleed.duration, tick: 0 };
     if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
@@ -514,7 +517,8 @@ const MELEE_KINDS = new Set(['sword', 'axe', 'greatsword', 'greataxe', 'dagger',
 // Normaler Angriff je Waffenart: der Bogen schießt, Zweihänder und Sense schlagen weiter
 const KIND_BASIC = {
   // Dolche (Ninja, seit 13.4): viele schnelle, kurze Stiche mit weniger Schaden je Stich (gleicher Schaden je Sekunde)
-  dagger: { range: 46, cooldown: 0.36, ranged: false, mul: 0.66 },
+  // seit 13.31 0,5 statt 0,66: der Ninja machte 40–80 % mehr Schaden als der Schnitt aller Wege
+  dagger: { range: 46, cooldown: 0.36, ranged: false, mul: 0.5 },
   bow: { range: 250, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
   greataxe: { range: 60, cooldown: 0.88, ranged: false },

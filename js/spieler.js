@@ -375,7 +375,7 @@ function playerStats(p) {
   s.magic = magic;
   s.crit += (a.dex || 0) * 0.003;
   s.dodge += (a.dex || 0) * 0.0025;
-  s.atkSpeed += (a.dex || 0) * 0.005;
+  s.atkSpeed += (a.dex || 0) * 0.003; // seit 13.31 (vorher 0,005)
   s.def = Math.round(s.def);
   // Klassensegen (seit 13.1): Naturschaden, kritischer Schaden, Omni-Vampir
   s.natureDmg = 0;
