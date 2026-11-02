@@ -717,6 +717,7 @@ function remoteSkillFx(rp, d) {
   const col = skillColor(sk, trim);
   const blade = MELEE_KINDS.has(weaponKindOf(rp)) ? playerBlade(rp) : null;
   if (typeof ninjaFx3 === 'function') ninjaFx3(rp, sk, target, true);
+  if (typeof heilerFx3 === 'function' && heilerFx3(rp, sk, target, true)) return;
   switch (sk.type) {
     case 'cone': {
       const spread = (sk.angle || 90) * Math.PI / 180;

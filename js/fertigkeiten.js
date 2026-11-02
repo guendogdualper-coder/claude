@@ -419,23 +419,16 @@ Object.assign(SKILL_ICONS, {
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 4, 0, Math.PI * 2); }, '#ffffff', '#4aa8a0', 1.5);
   },
   schutzgeist(ctx) {
+    // Falkengeist (seit 13.26)
     iconShape(ctx, () => {
       ctx.beginPath();
-      ctx.arc(0, -6, 10, Math.PI, 0);
-      ctx.lineTo(10, 10); ctx.lineTo(6, 6); ctx.lineTo(2, 12); ctx.lineTo(-2, 6); ctx.lineTo(-6, 12); ctx.lineTo(-10, 6);
+      ctx.moveTo(-17, -8); ctx.quadraticCurveTo(-7, -9, 0, -2); ctx.quadraticCurveTo(7, -9, 17, -8);
+      ctx.lineTo(9, 0); ctx.lineTo(3, 2); ctx.lineTo(4, 12); ctx.lineTo(0, 9); ctx.lineTo(-4, 12); ctx.lineTo(-3, 2); ctx.lineTo(-9, 0);
       ctx.closePath();
-    }, '#ffffff', '#8fe3d8');
-    ctx.fillStyle = '#1a3a3a';
-    ctx.beginPath();
-    ctx.ellipse(-3.5, -6, 2, 3, 0, 0, Math.PI * 2);
-    ctx.ellipse(3.5, -6, 2, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,233,160,0.9)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, -1, 19, 0, Math.PI * 2);
-    ctx.stroke();
+    }, '#fff2a0', '#c8862a');
+    iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, -4, 3.2, 0, Math.PI * 2); }, '#ffffff', '#c8862a', 1.2);
   },
+
   // Seelenkäfig (seit 8.5): aufrechter Käfig aus sechs Rippen auf rissigem Boden, darin ein schreiender Geist
   seelenkaefig(ctx) {
     ctx.strokeStyle = '#7ad36a';
@@ -1211,6 +1204,8 @@ function skillCastFx(sk) {
   skillSignature3(sk, game.player);
   // Ninja-Attacken in 3D (seit 13.2, ninja-fx.js)
   if (typeof ninjaFx3 === 'function') ninjaFx3(game.player, sk, game.target, false);
+  // Heiler-Schamane in 3D (seit 13.26, heiler-fx.js)
+  if (typeof heilerFx3 === 'function') heilerFx3(game.player, sk, game.target, false);
 }
 
 function skillHitFx(id, m, crit, heavy) {
@@ -1551,26 +1546,33 @@ const BUFF_LOOKS = {
     glow(ctx, p.x, fy - 54, 16, '#ffe9a0', 0.35);
     ctx.restore();
   },
-  // Schutzgeist: ein kleiner türkiser Geist kreist um die Figur
+  // Falkengeist (seit 13.26): ein kleiner goldener Geisterfalke kreist über dem Kopf; in 3D fliegt er als
+  // Modell (falke3, heiler-fx.js)
   schutzgeist(ctx, p, fy, t, layer) {
-    const o = orbit(t, 2, 24, 0, 1, 0.45);
+    if (V3.on) return;
+    const o = orbit(t, 1.6, 22, 0, 1, 0.35);
     if ((layer === 'front') !== o.front) return;
     const x = p.x + o.x;
-    const y = fy - 30 + o.y + Math.sin(t * 4) * 3;
+    const y = fy - 62 + o.y + Math.sin(t * 3) * 2;
+    const flap = Math.sin(t * 14) * 3;
+    const dir = Math.cos(t * 1.6) >= 0 ? -1 : 1;
     ctx.save();
-    glow(ctx, x, y, 12, '#8fe3d8', 0.55);
-    ctx.fillStyle = 'rgba(220,255,250,0.9)';
+    glow(ctx, x, y, 12, '#ffd66a', 0.5);
+    ctx.fillStyle = 'rgba(255,226,140,0.95)';
+    ctx.strokeStyle = 'rgba(90,50,8,0.9)';
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.arc(x, y, 4.5, Math.PI, 0);
-    ctx.lineTo(x + 4.5, y + 5);
-    ctx.lineTo(x + 1.5, y + 3);
-    ctx.lineTo(x - 1.5, y + 5);
-    ctx.lineTo(x - 4.5, y + 3);
-    ctx.closePath();
+    ctx.moveTo(x - 9, y - 2 - flap);
+    ctx.quadraticCurveTo(x - 3, y - 4, x, y);
+    ctx.quadraticCurveTo(x + 3, y - 4, x + 9, y - 2 - flap);
+    ctx.quadraticCurveTo(x + 3, y + 1, x, y + 3);
+    ctx.quadraticCurveTo(x - 3, y + 1, x - 9, y - 2 - flap);
     ctx.fill();
-    ctx.fillStyle = '#1a3a3a';
-    ctx.fillRect(x - 2.2, y - 1, 1.3, 1.6);
-    ctx.fillRect(x + 0.9, y - 1, 1.3, 1.6);
+    ctx.stroke();
+    ctx.fillStyle = '#fff6d8';
+    ctx.beginPath();
+    ctx.arc(x + dir * 2, y - 1, 1.8, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   },
   // Dunkle Macht: violett-grüne Flammen am Boden; ohne 3D dazu fünf grüne Seelenflammen über dem Kopf

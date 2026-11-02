@@ -381,8 +381,11 @@ function playerStats(p) {
   s.natureDmg = 0;
   s.critDmg = 0;
   s.omniVamp = 0;
+  // Heilkraft (seit 13.26, Segen des Lichts): verstärkt alle Heilungen
+  s.healPower = 1;
   for (const b of p.buffs) {
     const e = b.effects;
+    if (e.healPower) s.healPower += e.healPower;
     if (e.natureDmg) s.natureDmg += e.natureDmg;
     if (e.critDmg) s.critDmg += e.critDmg;
     if (e.omniVamp) s.omniVamp += e.omniVamp;
@@ -418,6 +421,7 @@ function playerStats(p) {
   s.atkSpeed = Math.min(2.5, s.atkSpeed);
   s.dodge = Math.min(0.45, s.dodge);
   s.reflect = Math.min(0.8, s.reflect);
+  s.regen *= s.healPower;
   s.damageTaken = Math.max(0.4, s.damageTaken);
   return s;
 }

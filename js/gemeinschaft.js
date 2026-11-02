@@ -46,6 +46,15 @@ function onSocial(pid, d) {
     onInteract(pid, d);
     return;
   }
+  // Heilung aus der Lichtkuppel eines Gruppenmitglieds (seit 13.26)
+  if (d.k === 'hh') {
+    const pct = Math.max(0, Math.min(0.3, Number(d.pct) || 0));
+    if (p.dead || !pct || !game.stats) return;
+    const a = Math.round(game.stats.maxHp * pct);
+    p.hp = Math.min(game.stats.maxHp, p.hp + a);
+    addText(p.x + rand(-6, 6), p.y - 44, '+' + a, 'heal');
+    return;
+  }
   // Gruppen stehen in gruppe.js
   if (/^p[iansldr]$/.test(d.k)) {
     onParty(pid, d);

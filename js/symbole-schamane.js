@@ -1,6 +1,6 @@
 // Fertigkeitssymbole Schamane (seit 9.6), Stil und Hilfen in symbol-kunst.js
 // Weg des Drachen: Blitzdrache, Drachenwirbel, Drachenkraft, Blizzard, Donnersturm, Kreis der Elemente
-// Weg der Heilung: Geisterfaust, Windfessel, Segen, Heilung, Schutzgeist, Himmelssegen
+// Weg der Heilung: Lichtsturz, Windfessel, Segen, Heilung, Falkengeist, Lichtkuppel (Ids seit 13.26 unverändert)
 
 // eigene Hintergründe (nur hier benutzt), damit sich alle zwölf Symbole farblich unterscheiden
 ICON_THEME.sch_heil = ['#46b04a', '#082a0c', '#d0ffb0'];
@@ -14,11 +14,11 @@ Object.assign(SKILL_ART_THEME, {
   blitzschlag: 'eis',
   donnersturm: 'm_blitz',
   elementkreis: 'sch_strom',
-  geisterfaust: 'seele',
+  geisterfaust: 'gold',
   windfessel: 'schatten',
   segen: 'licht',
   heilung: 'sch_heil',
-  schutzgeist: 'm_frost',
+  schutzgeist: 'blitz',
   himmelssegen: 'sch_himmel'
 });
 
@@ -528,71 +528,45 @@ Object.assign(SKILL_ART, {
     }, '#ffffff', 0));
     IK.sparkles(ctx, 8, '#ffffff', 12, 20, 0, -2, 1.3);
   },
-  // Geisterfaust: türkise Faust aus Geisterkraft fliegt nach rechts, Geisterschweif, Aufprallstern
+  // Lichtsturz: Lichtsäule schlägt von oben ein, Aufprallring, Betäubungssterne kreisen
   geisterfaust(ctx, IK) {
-    // Aufprallstern
-    ctx.save();
-    ctx.translate(13, -1);
-    IK.glow(ctx, '#a8ffe0', 6, () => IK.fill(ctx, (c) => {
-      for (let k = 0; k < 16; k++) {
-        const a = (k / 16) * Math.PI * 2;
-        const r = k % 2 ? 2.6 : (k % 4 ? 6 : 8.5);
-        if (k) c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-        else c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-      }
-      c.closePath();
-    }, IK.rad(ctx, 0, 0, 0, 8, [[0, '#ffffff'], [0.4, '#d8fff0'], [1, '#4ad8b8']]), 0));
-    ctx.restore();
-    IK.light(ctx, 13, -1, 9, '#a8ffe0', 0.8);
-    // Geisterschweif (hinter der Faust)
+    IK.light(ctx, 0, 10, 18, '#fff2a0', 0.7);
+    ikSchamaneSaeule(ctx, IK, 0, -26, 11, 9, '#ffe08a', '#ffffff', 1);
+    IK.shock(ctx, 0, 12, 16, 4.6, '#fff2a0', 1.6);
+    IK.shock(ctx, 0, 12, 9, 2.6, '#ffffff', 1.1);
+    // Aufprallstrahlen
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (const [dy, w, a] of [[-5, 4, 0.6], [4, 5, 0.6], [0, 8, 0.85]]) {
-      ctx.globalAlpha = a;
-      ctx.fillStyle = IK.lin(ctx, -21, 0, -6, 0, [[0, 'rgba(0,0,0,0)'], [0.6, '#3ac8a8'], [1, '#a8ffe8']]);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 7; k++) {
+      const a = Math.PI + (k / 6) * Math.PI;
+      ctx.strokeStyle = k % 2 ? 'rgba(255,240,170,0.9)' : 'rgba(255,255,255,0.95)';
+      ctx.lineWidth = k % 2 ? 1.2 : 1.8;
       ctx.beginPath();
-      ctx.moveTo(-4, dy - w / 2);
-      ctx.bezierCurveTo(-10, dy - w / 2 - 3, -15, dy + 2, -21, dy - 2);
-      ctx.bezierCurveTo(-15, dy + w / 2 + 2, -10, dy + w / 2 + 2, -4, dy + w / 2);
-      ctx.closePath();
-      ctx.fill();
+      ctx.moveTo(Math.cos(a) * 6, 11 + Math.sin(a) * 2);
+      ctx.lineTo(Math.cos(a) * (k % 2 ? 14 : 19), 11 + Math.sin(a) * (k % 2 ? 9 : 13));
+      ctx.stroke();
     }
     ctx.restore();
-    // Faust (Knöchel nach rechts)
-    ctx.save();
-    ctx.translate(0, -1);
-    ctx.scale(1.25, 1.25);
-    const pal = IK.lin(ctx, -6, -8, 6, 8, [[0, '#f0fff8'], [0.35, '#8ff0d8'], [0.75, '#2aa898'], [1, '#0a4a48']]);
-    const sk = 'rgba(4,30,32,0.9)';
-    IK.glow(ctx, '#6af0d0', 6, () => {
-      // Unterarm/Handgelenk
-      IK.fill(ctx, (c) => { c.moveTo(-5, -4.5); c.lineTo(-11, -3.5); c.lineTo(-11, 4); c.lineTo(-5, 5); c.closePath(); },
-        IK.lin(ctx, -11, 0, -5, 0, [[0, 'rgba(60,200,180,0.2)'], [1, '#5ad8c0']]), 0.7, sk);
-      // Handrücken
-      IK.fill(ctx, (c) => c.roundRect(-6, -6.5, 10, 12.5, 3), pal, 0.8, sk);
-    });
-    // Finger
-    for (let i = 0; i < 4; i++) {
-      const y = -6.6 + i * 3.1;
-      IK.fill(ctx, (c) => c.roundRect(1.5, y, 7.5, 3.3, 1.6), IK.lin(ctx, 0, y, 0, y + 3.3, [[0, '#f0fff8'], [0.5, '#7ae8d0'], [1, '#1a7a70']]), 0.7, sk);
+    // Betäubungssterne
+    for (const [x, y, r] of [[-11, -4, 3.6], [11, -6, 3.2], [0, -12, 2.6]]) {
+      IK.glow(ctx, '#fff2a0', 4, () => IK.fill(ctx, (c) => {
+        for (let k = 0; k < 10; k++) {
+          const a = (k / 10) * Math.PI * 2 - Math.PI / 2;
+          const rr = k % 2 ? r * 0.42 : r;
+          k ? c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : c.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        }
+        c.closePath();
+      }, '#fff6c0', 0.6, 'rgba(90,60,10,0.9)'));
     }
-    // Daumen
-    IK.fill(ctx, (c) => c.ellipse(1.5, 4.8, 4.6, 1.8, -0.12, 0, Math.PI * 2), IK.lin(ctx, 0, 3, 0, 6.6, [[0, '#d8fff0'], [1, '#2a9a8a']]), 0.7, sk);
-    // Glanz auf den Knöcheln
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.lineWidth = 0.45;
-    ctx.beginPath();
-    ctx.moveTo(-4, -5.4);
-    ctx.lineTo(2, -5.6);
-    ctx.stroke();
-    ctx.restore();
-    IK.sparkles(ctx, 6, '#d8fff0', 6, 18, 0, 0, 1.1);
+    IK.light(ctx, 0, 11, 6, '#ffffff', 1);
+    IK.sparkles(ctx, 8, '#fff6d0', 7, 18, 0, 0, 1.1);
   },
 
-  // Windfessel: türkise Windbänder schnüren einen dunklen Gegner ein, Fluchzeichen am Boden
+  // Windfessel: türkise Windbänder schnüren einen dunklen Gegner ein, Windwirbel ringsum
   windfessel(ctx, IK) {
-    ikSchamaneRunen(ctx, IK, 0, 14, 14, 4.2, '#b8a6ff');
     IK.light(ctx, 0, 2, 14, '#6af0d0', 0.35);
+    IK.swirl(ctx, 0, 2, 6, 18, 1.2, 'rgba(160,255,230,0.45)', 1.4, 0.4);
     const bands = [[-9, 13, 3.6, -0.18], [-1, 12, 3.4, 0.14], [7, 11, 3, -0.1]];
     const band = (y, rx, ry, rot, front) => {
       ctx.save();
@@ -690,66 +664,95 @@ Object.assign(SKILL_ART, {
     IK.sparkles(ctx, 9, '#e0ffc8', 31, 18, 0, -1, 1.1);
   },
 
-  // Schutzgeist: großer durchscheinender Geist breitet die Arme schützend über die Figur, ein Geschoss prallt ab
+  // Falkengeist: goldener Geisterfalke stößt mit ausgebreiteten Schwingen herab, Krallen blitzen (Krit)
   schutzgeist(ctx, IK) {
-    ikSchamaneSaeule(ctx, IK, 0, -24, 16, 10, '#6af0d0', '#e0fff6', 0.45);
-    IK.shock(ctx, 0, 14, 13, 3.8, '#8ff0d8', 1.2);
-    // Geist
-    const ghost = (c) => {
-      c.moveTo(0, -18.5);
-      c.bezierCurveTo(5, -18.5, 6, -13, 5, -10);
-      c.bezierCurveTo(9, -10, 15, -9, 18, -4);
-      c.bezierCurveTo(14, -5, 11, -4, 9, -2);
-      c.bezierCurveTo(10, 4, 9, 10, 6, 14);
-      c.quadraticCurveTo(4, 10, 2, 13);
-      c.quadraticCurveTo(0, 9, -2, 13);
-      c.quadraticCurveTo(-4, 10, -6, 14);
-      c.bezierCurveTo(-9, 10, -10, 4, -9, -2);
-      c.bezierCurveTo(-11, -4, -14, -5, -18, -4);
-      c.bezierCurveTo(-15, -9, -9, -10, -5, -10);
-      c.bezierCurveTo(-6, -13, -5, -18.5, 0, -18.5);
+    IK.light(ctx, 0, -2, 18, '#ffd66a', 0.55);
+    IK.trail(ctx, 0, 6, 16, Math.PI * 1.05, Math.PI * 1.95, 1.4, '#fff2a0', 16);
+    const wing = (sx) => (c) => {
+      c.moveTo(sx * 2, -3);
+      c.bezierCurveTo(sx * 8, -12, sx * 15, -15, sx * 21, -13);
+      c.lineTo(sx * 17, -9);
+      c.lineTo(sx * 20, -7);
+      c.lineTo(sx * 15, -4);
+      c.lineTo(sx * 17, -1);
+      c.lineTo(sx * 11, 0);
+      c.quadraticCurveTo(sx * 6, 2, sx * 2, 3);
       c.closePath();
     };
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    IK.glow(ctx, '#6af0d0', 8, () => IK.fill(ctx, ghost, IK.lin(ctx, -8, -18, 6, 14, [[0, 'rgba(230,255,248,0.95)'], [0.4, 'rgba(110,230,205,0.7)'], [1, 'rgba(20,90,110,0.15)']]), 0.8, 'rgba(200,255,240,0.7)'));
-    ctx.restore();
-    // Gesicht des Geistes: leuchtende Augen
-    for (const ex of [-1.8, 1.8]) IK.glow(ctx, '#ffffff', 3, () => IK.fill(ctx, (c) => c.ellipse(ex, -13.5, 0.9, 1.3, 0, 0, Math.PI * 2), '#0a3a3a', 0));
-    // Figur, die er schützt
-    IK.figure(ctx, 0, 14, 15, IK.lin(ctx, -3, 0, 3, 14, [[0, '#1a3a5a'], [1, '#08142a']]));
-    // abprallendes Geschoss rechts
-    IK.light(ctx, 14, -2, 6, '#ffffff', 0.95);
-    IK.trail(ctx, 25, -2, 11, Math.PI * 0.8, Math.PI * 1.15, 1.6, '#ffffff', 12);
-    ikSchamanePfeil(ctx, IK, 15, -6, 9, -0.75);
-    IK.sparkles(ctx, 6, '#e0fff6', 41, 18, 0, 0, 1.1);
+    const pal = (sx) => IK.lin(ctx, 0, -14, sx * 20, 2, [[0, '#fffbe0'], [0.45, '#ffd66a'], [1, '#a8661a']]);
+    IK.glow(ctx, '#ffd66a', 7, () => {
+      IK.fill(ctx, wing(-1), pal(-1), 0.8, 'rgba(60,30,4,0.9)');
+      IK.fill(ctx, wing(1), pal(1), 0.8, 'rgba(60,30,4,0.9)');
+      // Leib
+      IK.fill(ctx, (c) => c.ellipse(0, 1, 4.2, 8, 0, 0, Math.PI * 2), IK.lin(ctx, -4, -6, 4, 9, [[0, '#fffbe0'], [0.5, '#f0b84a'], [1, '#6a3a0a']]), 0.8, 'rgba(60,30,4,0.9)');
+      // Schwanz
+      IK.fill(ctx, (c) => { c.moveTo(-3, 7); c.lineTo(-5, 15); c.lineTo(0, 13); c.lineTo(5, 15); c.lineTo(3, 7); c.closePath(); }, '#d89a3a', 0.7, 'rgba(60,30,4,0.9)');
+      // Kopf
+      IK.fill(ctx, (c) => c.arc(0, -8, 3.6, 0, Math.PI * 2), '#fff6d8', 0.8, 'rgba(60,30,4,0.9)');
+    });
+    // Schnabel und Auge
+    IK.fill(ctx, (c) => { c.moveTo(-1.4, -6.6); c.lineTo(0, -3.4); c.lineTo(1.4, -6.6); c.closePath(); }, '#ffb02a', 0.5, 'rgba(60,30,4,0.9)');
+    for (const ex of [-1.4, 1.4]) IK.fill(ctx, (c) => c.arc(ex, -8.6, 0.7, 0, Math.PI * 2), '#1a0a00', 0);
+    // Krallen-Kritblitz
+    IK.glow(ctx, '#ffffff', 5, () => {
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.3;
+      ctx.lineCap = 'round';
+      for (const dx of [-3, 0, 3]) {
+        ctx.beginPath();
+        ctx.moveTo(dx - 2, 15);
+        ctx.lineTo(dx + 3, 20);
+        ctx.stroke();
+      }
+    });
+    IK.sparkles(ctx, 8, '#fff6d0', 41, 19, 0, 0, 1.2);
   },
 
-  // Himmelssegen: Himmelsstrahl auf die Mitte, Lichtsäulen fahren links und rechts herab, Runenkreis
+  // Lichtkuppel: goldene Wabenkuppel über der Gruppe, Lichtsäulen am Rand, Strahl in die Spitze
   himmelssegen(ctx, IK) {
-    // Wolkenlücke oben
-    IK.light(ctx, 0, -18, 14, '#fff6d0', 0.9);
-    ikSchamaneWolke(ctx, IK, -15, -16, 0.7, ['#ffffff', '#b8c8e8', '#4a5a8a']);
-    ikSchamaneWolke(ctx, IK, 15, -16, 0.7, ['#ffffff', '#b8c8e8', '#4a5a8a']);
-    ikSchamaneRunen(ctx, IK, 0, 13, 17, 5, '#fff2a0');
-    ikSchamaneSaeule(ctx, IK, -12, -10, 13, 4.5, '#fff2a0', '#ffffff', 0.9);
-    ikSchamaneSaeule(ctx, IK, 12, -10, 13, 4.5, '#fff2a0', '#ffffff', 0.9);
-    ikSchamaneSaeule(ctx, IK, 0, -24, 14, 11, '#ffe9a0', '#ffffff', 1);
-    for (const x of [-12, 12]) IK.shock(ctx, x, 13, 4.5, 1.5, '#ffffff', 0.9);
-    // Himmelskrone: Sonnenstrahlen-Stern in der Mitte
-    ctx.save();
-    ctx.translate(0, 0);
-    IK.glow(ctx, '#fff2a0', 6, () => IK.fill(ctx, (c) => {
-      for (let k = 0; k < 16; k++) {
-        const a = (k / 16) * Math.PI * 2 - Math.PI / 2;
-        const r = k % 2 ? 3 : (k % 4 ? 6.5 : 9);
-        if (k) c.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-        else c.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    IK.light(ctx, 0, 4, 20, '#fff2a0', 0.6);
+    ikSchamaneSaeule(ctx, IK, 0, -26, -10, 5, '#fff2a0', '#ffffff', 1);
+    // Kuppel
+    IK.fill(ctx, (c) => { c.moveTo(-19, 13); c.bezierCurveTo(-19, -14, 19, -14, 19, 13); c.closePath(); },
+      IK.rad(ctx, 0, 6, 2, 20, [[0, 'rgba(255,250,220,0.1)'], [0.75, 'rgba(255,214,106,0.28)'], [1, 'rgba(255,230,150,0.6)']]), 0);
+    IK.glow(ctx, '#ffd66a', 5, () => {
+      ctx.strokeStyle = 'rgba(255,240,180,0.95)';
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(-19, 13);
+      ctx.bezierCurveTo(-19, -14, 19, -14, 19, 13);
+      ctx.stroke();
+      // Waben-/Rippenlinien
+      ctx.lineWidth = 0.6;
+      ctx.strokeStyle = 'rgba(255,240,180,0.6)';
+      for (const f of [0.45, 0.8]) {
+        ctx.beginPath();
+        ctx.ellipse(0, 13 - 18 * f * 0.9, 19 * Math.sqrt(1 - f * f * 0.8), 3 * (1 - f * 0.4), 0, Math.PI, Math.PI * 2);
+        ctx.stroke();
       }
-      c.closePath();
-    }, IK.rad(ctx, -1, -1, 0, 9, [[0, '#ffffff'], [0.45, '#fff2a0'], [1, '#e8a82a']]), 0.8, 'rgba(90,60,10,0.8)'));
-    ctx.restore();
-    IK.light(ctx, 0, 0, 8, '#ffffff', 0.7);
-    IK.sparkles(ctx, 10, '#fff6d0', 51, 18, 0, 0, 1.2);
+      for (const x of [-10, 0, 10]) {
+        ctx.beginPath();
+        ctx.moveTo(x * 1.6, 13);
+        ctx.quadraticCurveTo(x * 1.1, -4, 0, -7.5);
+        ctx.stroke();
+      }
+    });
+    IK.shock(ctx, 0, 13, 19, 4, '#fff2a0', 1.3);
+    // Figuren in der Kuppel
+    for (const [x, h] of [[-7, 12], [0, 15], [7, 12]]) IK.figure(ctx, x, 13, h, IK.lin(ctx, -3, 0, 3, 13, [[0, '#3a5a2a'], [1, '#0a1a06']]));
+    // grüne Heilfunken
+    for (const [x, y] of [[-12, 0], [12, -2], [-4, -4], [5, 4]]) {
+      IK.glow(ctx, '#8af06a', 3, () => {
+        ctx.strokeStyle = '#d0ffb0';
+        ctx.lineWidth = 1.1;
+        ctx.beginPath();
+        ctx.moveTo(x - 1.8, y);
+        ctx.lineTo(x + 1.8, y);
+        ctx.moveTo(x, y - 1.8);
+        ctx.lineTo(x, y + 1.8);
+        ctx.stroke();
+      });
+    }
+    IK.sparkles(ctx, 8, '#fff6d0', 51, 19, 0, -2, 1.1);
   }
 });

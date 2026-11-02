@@ -854,12 +854,20 @@ function later(delay, fn) {
   game.timers.push({ at: game.time + delay, fn: r >= 0 ? () => withRank(r, fn) : fn });
 }
 
+// Werte, die nicht mit der allgemeinen Kurve wachsen (seit 13.26): Segen schützt auf Stufe 1 mit 8 %, auf 15 mit 15 %,
+// auf E1 mit 20 % und danach nur noch langsam mehr (vorher auf E1 schon über 30 %)
+function segenReduction(lvl) {
+  if (lvl <= SKILL_POINT_MAX) return -(0.08 + 0.005 * (lvl - 1));
+  return -Math.min(0.4, 0.2 + 0.005 * Math.max(0, lvl - SKILL_RANKS[0].from));
+}
+const SKILL_FIXED_EFFECTS = { segen: { damageTaken: segenReduction } };
 function applyBuff(sk, lvl) {
   const p = game.player;
   const scale = buffScale(lvl);
   const effects = {};
+  const fixed = SKILL_FIXED_EFFECTS[sk.id] || {};
   // Lauftempo seit 8.5 fest (sonst bis +158 % mit Rang und Hauptwert)
-  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = typeof v === 'number' ? (k === 'speed' || k === 'chill' ? v : v * scale) : v;
+  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = fixed[k] ? fixed[k](lvl) : typeof v === 'number' ? (k === 'speed' || k === 'chill' ? v : v * scale) : v;
   const duration = skillDuration(sk, lvl);
   p.buffs = p.buffs.filter((b) => b.id !== sk.id);
   p.buffs.push({ id: sk.id, name: sk.name, short: sk.short, until: game.time + duration, duration, effects, lvl });
@@ -1130,6 +1138,17 @@ const SKILL_TYPES = {
       });
       return;
     }
+    // Lichtsturz (seit 13.26): eine Lichtsäule stürzt herab und zerbirst, trifft alle im Umkreis und betäubt
+    if (sk.fx === 'licht') {
+      if (typeof heilerLicht === 'function') heilerLicht(x, y, sk);
+      later(0.22, () => {
+        particles(x, y - 10, { count: 26, color: ['#fff2a0', '#ffffff', '#ffd36a'], speed: [80, 240], life: [0.25, 0.55], size: [1.5, 3], shape: 'spark', drag: 4 });
+        shakeScreen(5);
+        hitStop(0.05);
+        for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#fff2a0' });
+      });
+      return;
+    }
     const bolts = sk.fx === 'storm' ? 6 : 1;
     for (let k = 0; k < bolts; k++) {
       later(k * 0.08, () => addEffect({ type: 'bolt', x: x + (k ? rand(-sk.radius, sk.radius) * 0.7 : 0), y: y + (k ? rand(-sk.radius, sk.radius) * 0.4 : 0), dur: 0.45, color: '#cfe8ff' }));
@@ -1208,7 +1227,7 @@ const SKILL_TYPES = {
   heal(sk, pw, lvl) {
     const p = game.player;
     const s = game.stats;
-    const amount = Math.round(s.maxHp * sk.amount * buffScale(lvl));
+    const amount = Math.round(s.maxHp * sk.amount * buffScale(lvl) * (s.healPower || 1));
     p.hp = Math.min(s.maxHp, p.hp + amount);
     addText(p.x, p.y - 40, '+' + Math.round(amount), 'heal');
     vfxPillar(p, '#9be59b', 1);
@@ -1275,7 +1294,7 @@ const SKILL_TYPES = {
     const scale = buffScale(lvl);
     const dur = skillDuration(sk, lvl);
     const col = sk.color || '#a774e0';
-    addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: col });
+    if (!sk.noRunes) addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: col });
     const fx = SKILL_FX[sk.id];
     for (const m of enemiesInCircle(p.x, p.y, sk.radius)) {
       // Farbe der Fluchrune über dem Kopf (Zustand in 3D)

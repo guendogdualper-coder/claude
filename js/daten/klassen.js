@@ -220,30 +220,33 @@ const CLASSES = {
         id: 'heilung', name: 'Weg der Heilung', role: 'PvP · Heilung und Schutz',
         description: 'Fesselt Gegner, heilt sich selbst und lässt Angreifer am eigenen Schutzgeist abprallen.',
         skills: [
+          // seit 13.26 überarbeitet (Kennungen bleiben, damit Stufen und Schriftrollen erhalten bleiben):
+          // Lichtsturz statt Geisterfaust, Windfessel als Sturm aus Windbändern (kein Bodenkreis), Segen schwächer,
+          // Heilung schwächer, Falkengeist (Krit) statt Schutzgeist
           {
-            id: 'geisterfaust', name: 'Geisterfaust', short: 'GF', kind: 'angriff', unlock: 1, mp: 9, cooldown: 3,
-            type: 'projectile', range: 320, speed: 520, dmg: 1.9, stun: 1, color: '#8fe3d8', style: 'fist',
-            text: 'Eine Faust aus Geisterkraft trifft ein Ziel und betäubt es 1 s.'
+            id: 'geisterfaust', name: 'Lichtsturz', short: 'LS', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
+            type: 'blast', fx: 'licht', range: 320, radius: 100, dmg: 1.5, stun: 1, color: '#fff2a0',
+            text: 'Eine Säule aus Himmelslicht stürzt auf das Ziel herab und zerbirst: Alle Gegner im Umkreis nehmen Lichtschaden und sind 1 s betäubt.'
           },
           {
             id: 'windfessel', name: 'Windfessel', short: 'WF', kind: 'fluch', unlock: 3, mp: 14, cooldown: 12,
-            type: 'curse', radius: 160, duration: 8, vulnerable: 0.1, slow: 0.6, color: '#8fe3d8',
-            text: 'Wirbelnder Wind fesselt Gegner um dich: Sie werden langsamer und verwundbar.'
+            type: 'curse', radius: 170, duration: 6, vulnerable: 0.08, slow: 0.55, color: '#d8fff8', noRunes: true,
+            text: 'Ein Sturm aus Windbändern bricht von dir aus und schnürt jeden Gegner im Umkreis ein: Sie werden stark verlangsamt und nehmen etwas mehr Schaden.'
           },
           {
             id: 'segen', name: 'Segen', short: 'SG', kind: 'buff', unlock: 5, mp: 22, cooldown: 60,
             type: 'buff', duration: 180, effects: { damageTaken: -0.2, regen: 0.008, crit: 0.08 },
-            text: 'Buff: Weniger erlittener Schaden, Leben regeneriert sich, mehr kritische Treffer.'
+            text: 'Buff: Weniger erlittener Schaden (Stufe 1: 8 %, Stufe 15: 15 %, E1: 20 %, danach langsam mehr), Leben regeneriert sich, mehr kritische Treffer.'
           },
           {
             id: 'heilung', name: 'Heilung', short: 'HE', kind: 'heilung', unlock: 7, mp: 30, cooldown: 20,
-            type: 'heal', amount: 0.45, duration: 120, effects: { atk: 0.12 },
-            text: 'Heilt einen Teil deines Lebens und gibt dir danach mehr Angriff.'
+            type: 'heal', amount: 0.3, duration: 120, effects: { atk: 0.06 },
+            text: 'Heilt einen Teil deines Lebens und gibt dir danach etwas mehr Angriff.'
           },
           {
-            id: 'schutzgeist', name: 'Schutzgeist', short: 'SG', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
-            type: 'buff', duration: 180, effects: { reflect: 0.25, def: 0.25 },
-            text: 'Buff: Ein Schutzgeist wacht über dich. Mehr Verteidigung, ein Teil des Schadens geht an den Angreifer zurück.'
+            id: 'schutzgeist', name: 'Falkengeist', short: 'FG', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
+            type: 'buff', duration: 180, effects: { crit: 0.07, critDmg: 0.15 },
+            text: 'Buff: Ein leuchtender Geisterfalke kreist über dir und zeigt dir die Schwachstellen. Mehr kritische Treffer und mehr kritischer Schaden.'
           }
         ]
       }

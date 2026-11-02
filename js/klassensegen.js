@@ -31,12 +31,23 @@ const SEGEN = {
     text: (e) => `Intelligenz +${e.int} (mehr Fertigkeitsschaden und Mana).`
   }
 };
-const SEGEN_BY_ID = Object.fromEntries(Object.values(SEGEN).map((d) => [d.id, d]));
+// Weg der Heilung (seit 13.26): statt Naturschaden mehr Heilung
+const SEGEN_LICHT = {
+  id: 'segen_licht', name: 'Segen des Lichts', color: '#ffe9a0', colors: ['#fff2a0', '#9be59b', '#ffffff', '#ffd36a'],
+  effects: (lv) => ({ healPower: 0.1 + 0.025 * lv }),
+  text: (e) => `Alle Heilungen +${pctS(e.healPower)} (Heilung, Lichtkuppel, Regeneration und die Heilung deiner Gruppe).`
+};
+const SEGEN_BY_ID = Object.fromEntries(Object.values(SEGEN).concat([SEGEN_LICHT]).map((d) => [d.id, d]));
 function pctS(v) {
   return (Math.round(v * 1000) / 10).toLocaleString('de-DE') + ' %';
 }
 
+// Definition zu einem Auftritts-Schlüssel (Klasse, oder 'licht' für den Heiler-Schamanen, seit 13.26)
+function segenDef(cls) {
+  return cls === 'licht' ? SEGEN_LICHT : SEGEN[cls];
+}
 function segenOf(p) {
+  if (p && p.classId === 'schamane' && (p.path || 0) === 1) return SEGEN_LICHT;
   return p && SEGEN[p.classId] ? SEGEN[p.classId] : null;
 }
 // Stufenschritte: ab Stufe 10 alle 10 Stufen ein Schritt mehr (Stufe 10–19: 0, 20–29: 1, … 70: 6)
@@ -62,15 +73,16 @@ function useSegen() {
   p.buffs = p.buffs.filter((b) => b.id !== d.id);
   p.buffs.push({ id: d.id, name: d.name, short: d.name.slice(0, 2).toUpperCase(), until: game.time + SEGEN_DUR, duration: SEGEN_DUR, effects, lvl: 1, segen: true });
   game.stats = playerStats(p);
-  segenShow(p, p.classId);
+  const key = d === SEGEN_LICHT ? 'licht' : p.classId;
+  segenShow(p, key);
   ui.banner(d.name, d.text(effects) + ' 30 Minuten.');
-  if (typeof netSkillFx === 'function') netSkillFx('_segen', 0, { c: p.classId });
+  if (typeof netSkillFx === 'function') netSkillFx('_segen', 0, { c: key });
   saveGame();
 }
 
 // Auftritt (eigener Spieler und Mitspieler)
 function segenShow(p, cls) {
-  const d = SEGEN[cls];
+  const d = segenDef(cls);
   if (!d) return;
   startSwing(p, 'pose', 0.9);
   p.poseColor = d.color;
@@ -158,6 +170,23 @@ function segenIconUrl(id) {
     g.beginPath();
     g.ellipse(-6, 4, 4, 8, -0.3, 0, Math.PI * 2);
     g.fill();
+  } else if (id === 'segen_licht') {
+    // goldene Sonne mit grünem Heilkreuz
+    g.beginPath();
+    for (let k = 0; k < 24; k++) {
+      const a = (k / 24) * Math.PI * 2;
+      const r = k % 2 ? 20 : 30;
+      k ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    g.closePath();
+    g.fillStyle = '#fff2a0';
+    g.fill();
+    g.fillStyle = '#3aa84a';
+    g.fillRect(-5, -15, 10, 30);
+    g.fillRect(-15, -5, 30, 10);
+    g.fillStyle = '#c8ffb0';
+    g.fillRect(-2, -12, 4, 24);
+    g.fillRect(-12, -2, 24, 4);
   } else {
     // arkaner Stern mit Lichtkranz
     g.beginPath();
@@ -223,7 +252,7 @@ FX3_DRAW.segen3 = function (h, e) {
   const t = game.time - e.start;
   const k = t / e.dur;
   if (k >= 1) return;
-  const d = SEGEN[e.cls];
+  const d = segenDef(e.cls);
   if (!d) return;
   const o = e.follow && !e.follow.dead ? e.follow : null;
   const x = (o ? o.x : e.x) * U3;
@@ -315,6 +344,22 @@ FX3_DRAW.segen3 = function (h, e) {
     const beat = Math.max(0, Math.sin(t * 9)) ** 4;
     n3Glow(h, x, 1.0, z + 0.1, 0.8 + beat * 0.9, '#ff2a3a', (0.4 + beat * 0.5) * fade);
     for (let j = 0; j < (low ? 4 : 8); j++) n3Smoke(h, x + Math.cos(j * 0.8) * 0.8, 0.2, z + Math.sin(j * 0.8) * 0.8, 0.9, '#3a0a10', 0.5 * fade);
+  } else if (e.cls === 'licht') {
+    // Heiler-Schamane (seit 13.26): goldene Lichtstrahlen fallen schräg herab, grüne Heilfunken steigen auf
+    for (let j = 0; j < (low ? 4 : 8); j++) {
+      const a = (j / (low ? 4 : 8)) * Math.PI * 2 + t * 0.6;
+      const q = (k * 1.6 + j * 0.13) % 1;
+      _sg3a.set(x + Math.cos(a) * 1.4, 3.4 - q * 0.6, z + Math.sin(a) * 1.4);
+      _sg3b.set(x + Math.cos(a) * 0.35, 0.3, z + Math.sin(a) * 0.35);
+      const s = fx3Take(h, 'seg');
+      fx3Segment(s, _sg3a, _sg3b, 0.035);
+      fx3Color(s, j % 2 ? '#fff2a0' : '#ffffff', 0.6 * fade * (1 - q * 0.5));
+    }
+    for (let j = 0; j < (low ? 5 : 10); j++) {
+      const q = (t * 0.9 + j / 10) % 1;
+      const a = j * 2.399 + t;
+      n3Glow(h, x + Math.cos(a) * 0.7, 0.2 + q * 2.2, z + Math.sin(a) * 0.7, 0.13, '#9be59b', fade * (1 - q));
+    }
   } else {
     // aufsteigende Lichtringe von den Füßen zum Kopf, darüber ein Sternenkranz
     _sg3b.set(1, 0, 0);
@@ -341,7 +386,7 @@ FX3_DRAW.segen3 = function (h, e) {
   }
 };
 EXTRA_EFFECTS.segen3 = (ctx, e, k, x, y) => {
-  const d = SEGEN[e.cls];
+  const d = segenDef(e.cls);
   if (!d) return;
   const t = game.time - e.start;
   const fade = 1 - k;
@@ -404,6 +449,19 @@ function segenAura3(h, p, b, t) {
         n3Bolt(h, _sg3a, _sg3b, 0.02, '#fff07a', 0.9, 3, 0.08);
       }
       n3Glow(h, px, py, pz, 0.24, SEGEN.schamane.colors[i], 0.35);
+    }
+  } else if (b.id === 'segen_licht') {
+    // seit 13.26: goldener Lichtkranz über dem Kopf, darunter kreisen grüne und goldene Heilfunken um die Hüfte
+    const hy = (typeof v3HeadHeight === 'function' ? v3HeadHeight(p) : 2) + 0.18 + Math.sin(t * 2) * 0.03;
+    const ring = fx3Take(h, 'strip');
+    _sg3a.set(x, hy, z);
+    fx3Strip(ring, _sg3a, _sg3d.set(1, 0, 0), _sg3b.set(0, 0, 1), 0.26, 0.05, 0, Math.PI * 2, '#ffe9a0', 0.85, true);
+    n3Glow(h, x, hy, z, 0.5, '#fff2a0', 0.3);
+    const n = low ? 3 : 6;
+    for (let i = 0; i < n; i++) {
+      const a = t * 1.2 + (i / n) * Math.PI * 2;
+      const py = 0.7 + Math.sin(t * 2.4 + i) * 0.12;
+      n3Glow(h, x + Math.cos(a) * 0.55, py, z + Math.sin(a) * 0.55, i % 2 ? 0.12 : 0.15, i % 2 ? '#9be59b' : '#fff2a0', 0.85);
     }
   } else if (b.id === 'segen_schatten') {
     // seit 13.13: zwei kleine Dolche mit sichelförmig gebogener Klinge kreuzen sich über dem Kopf
@@ -490,12 +548,12 @@ function segenAura3(h, p, b, t) {
     }
   }
 }
-for (const d of Object.values(SEGEN)) {
+for (const d of Object.values(SEGEN).concat([SEGEN_LICHT])) {
   SKILL_FX[d.id] = Object.assign(SKILL_FX[d.id] || {}, { color: d.color, aura3: segenAura3 });
 }
 
 // 2D: kleine kreisende Lichter in den Klassenfarben
-for (const d of Object.values(SEGEN)) {
+for (const d of Object.values(SEGEN).concat([SEGEN_LICHT])) {
   BUFF_LOOKS[d.id] = (ctx, p, fy, t, layer) => {
     // in 3D zeigt die Figur die echte Aura (segenAura3)
     if (typeof V3 !== 'undefined' && V3.on) return;

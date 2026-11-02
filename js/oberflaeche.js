@@ -1823,7 +1823,7 @@ function changeMageElement(n) {
 const SKILL_EFFECT_LABELS = {
   atk: 'Angriff', atkFlat: 'Angriff', crit: 'Krit', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', damageTaken: 'Erlittener Schaden',
   def: 'Verteidigung', dodge: 'Ausweichen', skillDmg: 'Fertigkeitsschaden', regen: 'Leben je s', reflect: 'Rückwurf', hpSteal: 'Lebensraub',
-  chill: 'Kälte für Angreifer'
+  chill: 'Kälte für Angreifer', critDmg: 'Kritischer Schaden'
 };
 // Zahl mit Komma, eine Nachkommastelle (1,3 s)
 const numDe = (v) => String(Math.round(v * 10) / 10).replace('.', ',');
@@ -1889,6 +1889,8 @@ function skillStats(sk, lvl) {
     if (extra.length) out.push(['Rang', extra.join(', ')]);
   }
   if (sk.vulnerable) out.push(['Verwundbar', 'Ziel nimmt +' + skillPct(sk.vulnerable * scale) + ' Schaden']);
+  if (sk.type === 'curse' && sk.slow) out.push(['Verlangsamt', skillPct(sk.slow)]);
+  if (sk.type === 'blast' && sk.stun) out.push(['Betäubung', numDe(sk.stun) + ' s'], ['Umkreis', String(sk.radius)]);
   if (sk.el && sk.type !== 'buff') mageSkillStats(sk, lvl, out);
   if (sk.nk) nekroSkillStats(sk, lvl, out);
   const base = sk.effects && (sk.effects.atk || sk.effects.def || sk.effects.regen) ? statsWithoutBuff(sk) : null;
@@ -1902,6 +1904,9 @@ function skillStats(sk, lvl) {
     // seit 13.6 als Zahl: Angriff und Verteidigung aus den Werten ohne diesen Buff, Regeneration in Leben je Sekunde
     if (base && (k === 'atk' || k === 'def')) { out.push([label, '+' + numText(base[k] * v * scale)]); continue; }
     if (base && k === 'regen') { out.push([label, '+' + skillHpNum(v * scale, base)]); continue; }
+    // feste Kurve (Segen, seit 13.26)
+    const fixed = typeof SKILL_FIXED_EFFECTS !== 'undefined' && SKILL_FIXED_EFFECTS[sk.id] && SKILL_FIXED_EFFECTS[sk.id][k];
+    if (fixed) { const fv = fixed(lvl); out.push([label, (fv < 0 ? '−' : '+') + skillPct(Math.abs(fv))]); continue; }
     // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
     out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' || k === 'chill' ? v : v * scale))]);
   }

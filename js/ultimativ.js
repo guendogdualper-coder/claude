@@ -34,11 +34,12 @@ const ULTIMATES = {
     text: 'Am Ziel leuchtet ein Kreis im Boden auf. Feuer, Wasser, Blitz und Erde winden sich vom Rand in die Mitte, ziehen Gegner mit und verschmelzen zu einem Kern – dann explodiert alles.',
     stats: '7 Sog-Treffer je 0,45×, Explosion 9,5× mit Betäubung 1 s und Brand'
   },
+  // seit 13.26: Lichtkuppel statt Lichtsäulen (Kennung bleibt; Ablauf und 3D in heiler-fx.js)
   heilung: {
-    id: 'himmelssegen', name: 'Himmelssegen', short: 'HS', color: '#fff2a0',
-    text: 'Himmelslicht heilt dich um 60 % und schützt dich 15 s. Lichtsäulen fahren auf bis zu 8 Gegner herab und betäuben sie.',
-    stats: 'je Lichtsäule 3,5× Angriff, Segen: −45 % erlittener Schaden, Regeneration',
-    buff: { id: 'himmelssegen', name: 'Himmelssegen', duration: 15, effects: { damageTaken: -0.45, regen: 0.02, atk: 0.15 } }
+    id: 'himmelssegen', name: 'Lichtkuppel', short: 'LK', color: '#fff2a0',
+    text: 'Eine leuchtende Kuppel aus Himmelslicht wölbt sich 6 s lang über dir. Jeder Lichtschlag darin trifft alle Gegner unter der Kuppel und heilt dich und deine Gruppe darin; zum Schluss zerbirst sie und betäubt die Gegner.',
+    stats: '10 Lichtschläge je 0,6× Angriff, Schlussschlag 3×, Betäubung 1,5 s; heilt 15 % sofort und 3,5 % je Schlag (auch die Gruppe), −30 % erlittener Schaden',
+    buff: { id: 'himmelssegen', name: 'Lichtkuppel', duration: 6, effects: { damageTaken: -0.3 } }
   },
   seelen: {
     id: 'seelenernte', name: 'Seelenernte', short: 'SE', color: '#7fe3a0',
@@ -96,6 +97,18 @@ function useUltimate() {
   p.ultAt = null;
   if (net.mode !== 'off') netUltimateFx(u.id, at.x, at.y);
   saveGame();
+}
+
+// Gruppe heilen (seit 13.26, Lichtkuppel): Mitglieder der eigenen Gruppe im Umkreis bekommen einen Anteil ihres
+// eigenen Lebens zurück (über den Host weitergereicht, verstärkt durch die eigene Heilkraft)
+function healParty(pct, x, y, r) {
+  if (typeof netOnline !== 'function' || !netOnline() || !game.party) return;
+  const hp = (game.stats && game.stats.healPower) || 1;
+  for (const [pid, rp] of net.players) {
+    if (rp.gone || rp.dead || !inMyParty(rp.name)) continue;
+    if (Math.hypot(rp.x - x, rp.y - y) > r) continue;
+    netSocial(pid, { k: 'hh', pct: +(pct * hp).toFixed(4), n: game.player.name });
+  }
 }
 
 function ultBuff(p, b) {
@@ -293,24 +306,37 @@ const ULT_RUN = {
     });
   },
 
+  // Lichtkuppel (seit 13.26): eine Kuppel aus Himmelslicht steht 6 s am Ort. Zehn Lichtschläge treffen alle
+  // Gegner darunter und heilen dich (wenn du drin stehst) und deine Gruppe darin; zum Schluss zerbirst sie.
   himmelssegen(p, u, pw) {
-    const s = game.stats;
-    const amount = Math.round(s.maxHp * 0.6);
-    p.hp = Math.min(s.maxHp, p.hp + amount);
-    addText(p.x, p.y - 44, '+' + Math.round(amount), 'heal');
-    addEffect({ type: 'ultbeam', follow: p, ox: 0, oy: 0, w: 70, dur: 1.2, color: u.color });
-    addEffect({ type: 'ultsigil', ground: true, follow: p, ox: 0, oy: 0, r: 120, dur: 1.6, color: u.color });
-    particles(p.x, feetY(p) - 20, { count: 40, color: [u.color, '#ffffff', '#9be59b'], angle: -Math.PI / 2, spread: 1.2, speed: [60, 200], life: [0.6, 1.2], size: [2, 4], drag: 1.5 });
+    const R = 220;
+    const cx = p.x;
+    const cy = p.y;
+    const heal = (pct) => {
+      const s = game.stats;
+      const a = Math.round(s.maxHp * pct * (s.healPower || 1));
+      if (p.dead || a <= 0) return;
+      p.hp = Math.min(s.maxHp, p.hp + a);
+      addText(p.x + rand(-6, 6), p.y - 44, '+' + a, 'heal');
+    };
+    heal(0.15);
+    healParty(0.15, cx, cy, R);
     ultBuff(p, u.buff);
-    const foes = aliveEnemies().filter((m) => dist(m, p) < 230).sort((a, b) => dist(a, p) - dist(b, p)).slice(0, 8);
-    foes.forEach((m, k) => {
-      later(0.25 + k * 0.1, () => {
-        if (m.dead) return;
-        addEffect({ type: 'ultbeam', x: m.x, y: feetY(m), w: 46, dur: 0.7, color: u.color });
-        addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 50, dur: 0.4, color: '#ffffff', width: 6, grow: true });
-        hitMonster(m, 3.5 * pw, { stun: 2, heavy: true, vfxColor: u.color });
-        shakeScreen(3);
+    if (typeof heilerKuppel === 'function') heilerKuppel(cx, cy, R, 6.3);
+    else addEffect({ type: 'ultsigil', ground: true, x: cx, y: cy, r: R, dur: 6.3, color: u.color });
+    for (let k = 1; k <= 10; k++) {
+      later(k * 0.6, () => {
+        for (const m of enemiesInCircle(cx, cy, R)) hitMonster(m, 0.6 * pw, { vfxColor: u.color });
+        if (Math.hypot(p.x - cx, p.y - cy) < R) heal(0.035);
+        healParty(0.035, cx, cy, R);
+        if (typeof heilerKuppelPuls === 'function') heilerKuppelPuls(cx, cy, R);
       });
+    }
+    later(6.3, () => {
+      for (const m of enemiesInCircle(cx, cy, R)) hitMonster(m, 3 * pw, { stun: 1.5, heavy: true, vfxColor: '#ffffff' });
+      shakeScreen(9);
+      flashScreen('#fff2a0', 0.25);
+      if (typeof heilerKuppelEnde === 'function') heilerKuppelEnde(cx, cy, R);
     });
   },
 
@@ -460,9 +486,10 @@ Object.assign(SKILL_ICONS, {
     iconLine(ctx, '#ffffff', 2, [[-17, 17], [17, -17]]);
   },
   himmelssegen(ctx) {
-    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-6, -20); ctx.lineTo(6, -20); ctx.lineTo(12, 16); ctx.lineTo(-12, 16); ctx.closePath(); }, '#ffffff', '#ffd34d', 2);
-    iconLine(ctx, '#6abd5a', 3.5, [[0, -6], [0, 10]]);
-    iconLine(ctx, '#6abd5a', 3.5, [[-8, 2], [8, 2]]);
+    // Lichtkuppel (seit 13.26)
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-17, 12); ctx.bezierCurveTo(-17, -14, 17, -14, 17, 12); ctx.closePath(); }, 'rgba(255,240,170,0.55)', '#ffd34d', 2);
+    iconLine(ctx, '#6abd5a', 3.5, [[0, -4], [0, 8]]);
+    iconLine(ctx, '#6abd5a', 3.5, [[-6, 2], [6, 2]]);
   },
   seelenernte(ctx) {
     ctx.lineCap = 'round';
