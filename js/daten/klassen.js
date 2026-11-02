@@ -108,7 +108,8 @@ const CLASSES = {
     basic: { range: 48, cooldown: 0.55, ranged: false },
     paths: [
       {
-        id: 'dolch', name: 'Weg des Dolches', role: 'PvE · Hinterhalt und Blitzangriff',
+        // seit 13.50: Fertigkeiten nur mit Dolch (weapon)
+        id: 'dolch', name: 'Weg des Dolches', role: 'PvE · Hinterhalt und Blitzangriff', weapon: 'dagger',
         description: 'Verschwindet in der Tarnung, schlägt aus dem Hinterhalt zu, steht per Blitzangriff sofort beim nächsten Ziel und wirbelt durch Gruppen.',
         skills: [
           {

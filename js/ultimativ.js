@@ -78,6 +78,10 @@ function useUltimate() {
     addText(p.x, p.y - 34, `Noch ${formatBuffTime(Math.ceil(p.ultCd))}`, 'info');
     return;
   }
+  if (typeof pathWeaponOk === 'function' && !pathWeaponOk(p)) {
+    addText(p.x, p.y - 34, pathWeaponText(p), 'info');
+    return;
+  }
   if (inVillage(p.x, p.y) && !duelFighting()) {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;

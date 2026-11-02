@@ -674,6 +674,20 @@ function skillMana(sk, p = game.player) {
   return Math.round(sk.mp * (a + b * p.level));
 }
 
+// Waffe, die ein Weg für seine Fertigkeiten braucht (paths[].weapon, z. B. Ninja: 'dagger' oder 'bow')
+function pathWeapon(p) {
+  const path = p && CLASSES[p.classId] && CLASSES[p.classId].paths[p.path || 0];
+  return path && path.weapon ? path.weapon : null;
+}
+function pathWeaponOk(p) {
+  const w = pathWeapon(p);
+  return !w || weaponKindOf(p) === w;
+}
+function pathWeaponText(p) {
+  const w = pathWeapon(p);
+  return w ? `Nur mit ${WEAPON_KINDS[w].name === 'Bogen' ? 'einem Bogen' : 'einem ' + WEAPON_KINDS[w].name}` : '';
+}
+
 function useSkill(i) {
   const p = game.player;
   if (!p || p.dead || p.dash) return;
@@ -684,6 +698,11 @@ function useSkill(i) {
     return;
   }
   if (p.skillCd[i] > 0) return;
+  // Waffe des Weges (seit 13.50): Ninja-Fertigkeiten des Dolch-Weges nur mit Dolch, die des Bogen-Weges nur mit Bogen
+  if (!pathWeaponOk(p)) {
+    addText(p.x, p.y - 34, pathWeaponText(p), 'info');
+    return;
+  }
   // eine andere Fertigkeit bricht das Zaubern ab (Feuerball, seit 11.5)
   if (p.mcast && p.mcast.sk !== sk) mageCastCancel(p, '');
   // eine andere Fertigkeit beendet den Eisstrahl
