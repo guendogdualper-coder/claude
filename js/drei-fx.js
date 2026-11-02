@@ -2222,7 +2222,7 @@ function v3SyncBounds() {
   if (BOUNDS3.horizon && home && home.B) {
     const u = BOUNDS3.horizon.material.uniforms;
     u.uTop.value.copy(V3.scene.fog.color);
-    u.uBottom.value.copy(home.B.farC || (home.B.farC = new THREE.Color(home.B.far))).lerp(V3.scene.fog.color, 0.4);
+    u.uBottom.value.copy(home.B.farC || (home.B.farC = new THREE.Color(home.B.far))).lerp(V3.scene.fog.color, 0.4 + 0.45 * (V3.nightK || 0));
   }
   const rr = regionRect3(p.x, p.y);
   const key = rr ? rr.key : '';

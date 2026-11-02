@@ -1360,10 +1360,10 @@ const LIQUID3 = {
           float gh = fract(sin(dot(floor(gq), vec2(41.3, 289.1))) * 43758.5453);
           vec2 go = fract(gq) - 0.25 - 0.5 * vec2(fract(gh * 13.7), fract(gh * 7.9));
           float tw = smoothstep(0.55, 1.0, sin(t * 2.2 + gh * 40.0)) * step(gh, 0.6);
-          col += smoothstep(0.1, 0.0, length(go * vec2(1.0, 2.0))) * tw * 0.6;
+          col += smoothstep(0.1, 0.0, length(go * vec2(1.0, 2.0))) * tw * 0.6 * (1.0 - 0.75 * uNight);
           float band = 0.22 + 0.08 * sin(t * 1.6 + p.x * 0.6 + p.y * 0.4);
           float foam = smoothstep(band, band * 0.45, d) * (0.8 + 0.2 * sin(p.x * 7.0 + p.y * 5.0 + t * 1.5));
-          col = mix(col, uFoam, foam * 0.85);
+          col = mix(col, uFoam, foam * (0.85 - 0.4 * uNight));
           float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`
   },
   lava: {
@@ -1408,7 +1408,9 @@ function liquidMat(kind) {
       uDeep: { value: new THREE.Color(P.deep) },
       uFoam: { value: new THREE.Color(P.foam) },
       uSky: { value: new THREE.Color('#a8d4ec') },
-      uAlpha: { value: P.alpha }
+      uAlpha: { value: P.alpha },
+      uNight: { value: 0 },
+      uLight: { value: new THREE.Color(1, 1, 1) }
     }]);
     const m = new THREE.ShaderMaterial({
       uniforms,
@@ -1438,6 +1440,8 @@ function liquidMat(kind) {
         uniform vec3 uFoam;
         uniform vec3 uSky;
         uniform float uAlpha;
+        uniform float uNight;
+        uniform vec3 uLight;
         varying float vDepth;
         varying vec3 vW;
         #include <fog_pars_fragment>
@@ -1446,6 +1450,7 @@ function liquidMat(kind) {
           vec2 p = vW.xz;
           float t = uTime;
           ${P.frag}
+          col *= uLight;
           gl_FragColor = vec4(col, alpha);
           #include <fog_fragment>
         }`
@@ -1963,7 +1968,13 @@ function renderDrei() {
     const lm = MAT3['liquid' + k];
     if (!lm) continue;
     lm.uniforms.uTime.value = V3.time;
-    lm.uniforms.uSky.value.copy(moodState.sky);
+    // Nachts (seit 13.43): Himmel im Wasser ist der Nachthimmel, Wasser und Moor dunkeln wie der Boden ab, Glitzern
+    // und Schaum werden schwach (vorher blitzten sie hell und weiß aus der dunklen Nacht); Lava glüht weiter
+    const nk = V3.nightK || 0;
+    lm.uniforms.uSky.value.copy(V3.scene.background);
+    lm.uniforms.uNight.value = nk;
+    const lk = k === 'lava' ? nk * 0.25 : nk;
+    lm.uniforms.uLight.value.setRGB(1 - 0.58 * lk, 1 - 0.52 * lk, 1 - 0.32 * lk);
   }
   if (MAT3.worldGrass) MAT3.worldGrass.userData.uTime.value = V3.time;
   v3SyncActors(dt);

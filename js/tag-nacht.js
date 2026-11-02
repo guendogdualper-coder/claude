@@ -43,6 +43,8 @@ function minutesToSwitch() {
 const _dn3 = typeof THREE !== 'undefined' ? new THREE.Color() : null;
 function v3NightMood(zone) {
   const nk = zone && zone.dungeon ? 0 : nightAmount();
+  // für Teile ohne Licht (Wasser, Moor, Lava, Horizont; seit 13.43): die dunkeln sonst nachts nicht mit ab
+  V3.nightK = nk < 0.002 ? 0 : nk;
   if (nk < 0.002 || !_dn3) return;
   V3.scene.background.lerp(_dn3.set('#16204a'), nk * 0.8);
   V3.scene.fog.color.copy(V3.scene.background);
