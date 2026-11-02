@@ -83,7 +83,14 @@ function useUltimate() {
     return;
   }
   if (p.riding) toggleRide(false);
-  if (ULT_RUN[u.id](p, u, ultPower(p)) === false) return;
+  // aus der Tarnung (seit 13.39): auch die Ulti trifft mit allen Treffern ×3
+  const sMul = typeof stealthCastBegin === 'function' ? stealthCastBegin(p) : 1;
+  if (ULT_RUN[u.id](p, u, ultPower(p) * sMul) === false) {
+    if (sMul > 1) { p.nextHitMul = sMul; p.stealthCast = 0; p.stealthCrit = false; }
+    return;
+  }
+  if (sMul > 1) addText(p.x, p.y - 52, `Aus der Tarnung ×${sMul}`, 'crit');
+  stealthCastEnd(p, sMul);
   p.ultCd = ULT_COOLDOWN;
   p.lastCombat = game.time;
   startSwing(p, 'pose', 0.7);

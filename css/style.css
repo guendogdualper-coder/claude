@@ -3153,3 +3153,6 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .ql-q.done { box-shadow: 0 0 0 1px #7fbf4f inset, 0 0 10px rgba(127,191,79,.35); }
 .ql-q.main.done { box-shadow: 0 0 0 1px #e0c36a inset, 0 0 10px rgba(224,195,106,.35); }
 @media (prefers-reduced-motion: reduce) { .tq-badge, .tq-btn { animation: none; } }
+
+/* 13.39: Rang-Namen der Fertigkeiten */
+.sk-base, .tip-base { display: block; font-size: 11px; color: var(--muted); font-style: italic; }

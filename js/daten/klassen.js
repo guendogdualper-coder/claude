@@ -119,7 +119,7 @@ const CLASSES = {
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,
             type: 'buff', duration: 30, effects: { invisible: true, speed: 0.12 }, nextHitMul: 3,
-            text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch – mit Hinterhalt sogar 6×.'
+            text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt sogar 6×.'
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
@@ -160,7 +160,7 @@ const CLASSES = {
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
             type: 'buff', duration: 120, effects: { invisible: true, speed: 0.12 }, nextHitMul: 3,
-            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden und ist sicher kritisch – mit Hinterhalt sogar 6×.'
+            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt sogar 6×.'
           },
           {
             id: 'schattenmantel', name: 'Schattenmantel', short: 'SM', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,
@@ -366,14 +366,14 @@ const CLASSES = {
     paths: [
       {
         id: 'feuer', name: 'Weg der Flamme', role: 'PvE · Flächenschaden und Brand',
-        description: 'Setzt alles in Brand: Drachenodem nach vorn, ein riesiger Feuerball mit Zauberzeit, Brand über Zeit auf einzelne Gegner, die Phönixflamme als Burst und ein Flammenkreis, der sich am Boden zusammenzieht.',
+        description: 'Setzt alles in Brand: ein Glutfeld, das den Boden aufreißt, ein riesiger Feuerball mit Zauberzeit, Brand über Zeit auf einzelne Gegner, die Phönixflamme als Burst und ein Flammenkreis, der sich am Boden zusammenzieht.',
         skills: [
           {
-            // seit 11.5 statt der Feuernova: ein Flammenkegel nach vorn (kein Kreis am Boden)
-            id: 'drachenodem', name: 'Drachenodem', short: 'DO', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
-            type: 'mbreath', el: 'feuer', range: 165, angle: 75, dmg: 1.5, burn: { dps: 0.25, duration: 3 }, knockback: 30,
-            anim: 'stoss', animDur: 0.5, color: '#e8362a',
-            text: 'Du reißt die Hände nach vorn und speist einen tosenden Flammenkegel wie ein Drache: Alle Gegner vor dir bis 165 weit werden getroffen, ein Stück zurückgestoßen und brennen 3 s.'
+            // seit 13.39 statt des Drachenodems: Glutfeld – aufgerissener Boden mit Flammensäulen (feuerfeld.js)
+            id: 'glutfeld', name: 'Glutfeld', short: 'GF', kind: 'angriff', unlock: 1, mp: 10, cooldown: 6,
+            type: 'mfield', el: 'feuer', range: 230, radius: 95, delay: 0.35, ticks: 5, every: 0.5, dmg: 0.45,
+            burn: { dps: 0.25, duration: 3 }, anim: 'zauber', animDur: 0.45, color: '#e8362a',
+            text: 'Am Ziel reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem 2,5 s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis (95 weit) nehmen fünfmal Feuerschaden, der letzte Puls setzt sie 3 s in Brand.'
           },
           {
             // seit 11.5 mit 3 s Zauberzeit: viel größer und stärker; Bewegen bricht ab (Mana und Abklingzeit zurück)

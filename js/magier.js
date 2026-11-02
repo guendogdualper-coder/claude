@@ -43,7 +43,7 @@ Object.assign(ELEMENT3, {
 });
 Object.assign(SKILL_ELEMENT, {
   feuernova: 'm_feuer', feuerball: 'm_feuer', flammenschritt: 'm_feuer', glutherz: 'm_feuer', flammenkreis: 'm_feuer',
-  drachenodem: 'm_feuer', brand: 'm_feuer', phoenix: 'm_feuer', blitzspeer: 'm_blitz', gewitter: 'm_blitz',
+  drachenodem: 'm_feuer', glutfeld: 'm_feuer', brand: 'm_feuer', phoenix: 'm_feuer', blitzspeer: 'm_blitz', gewitter: 'm_blitz',
   steinschlag: 'm_erde', erdspitzen: 'm_erde', bergsturz: 'm_erde',
   frostnova: 'm_frost', eisstrahl: 'm_frost', eisschritt: 'm_frost', frostpanzer: 'm_frost', kristallgrab: 'm_frost',
   blitznova: 'm_blitz', kettenblitz: 'm_blitz', blitzschritt: 'm_blitz', ladung: 'm_blitz', kugelblitz: 'm_blitz',
@@ -609,7 +609,7 @@ function mageBuffCast(p, sk) {
 (function () {
   const skills = {
     // alte Ids (bis 11.4) bleiben für laufende Buffs und Mitspieler mit älterer Version
-    feuer: ['feuernova', 'feuerball', 'flammenschritt', 'glutherz', 'flammenkreis', 'drachenodem', 'brand', 'phoenix'],
+    feuer: ['feuernova', 'feuerball', 'flammenschritt', 'glutherz', 'flammenkreis', 'drachenodem', 'brand', 'phoenix', 'glutfeld'],
     frost: ['frostnova', 'eisstrahl', 'eisschritt', 'frostpanzer', 'kristallgrab'],
     blitz: ['blitznova', 'kettenblitz', 'blitzschritt', 'ladung', 'kugelblitz', 'blitzspeer', 'gewitter'],
     erde: ['erdnova', 'steingeschoss', 'erdsprung', 'basalthaut', 'schwerkraft', 'steinschlag', 'erdspitzen', 'bergsturz']

@@ -50,7 +50,8 @@ function skillTipHtml(sk, lvl, key) {
   const p = game.player;
   const locked = p && p.level < sk.unlock;
   const stats = skillStats(sk, lvl).map(([k, v]) => (v === '' ? k : `${k} <b>${v}</b>`)).join(' · ');
-  return `<strong>${sk.name}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` +
+  const rn = skillRankName(sk, lvl);
+  return `<strong>${rn}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` + (rn !== sk.name ? `<small class="tip-base">aus ${sk.name}</small>` : '') +
     `<small>${locked ? `ab Stufe ${sk.unlock}` : `Stufe ${skillLevelText(lvl)}`} · ${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s Abklingzeit</small>` +
     (stats ? `<span class="tip-stats">${stats}</span>` : '') + `<span>${sk.text}</span>` + scaleLine(sk, p) + numNote(p);
 }

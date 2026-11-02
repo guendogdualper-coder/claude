@@ -111,6 +111,30 @@ function breakStealth(p) {
   game.stats = playerStats(p);
 }
 
+// Tarnung (seit 13.39): eine Fertigkeit oder die Ulti aus der Tarnung macht mit ALLEN ihren Treffern den
+// Tarnungs-Schaden (×3), nicht nur mit dem ersten Treffer. Ergebnis: Faktor für die Kraft der Fertigkeit.
+function stealthCastMul(p) {
+  if (!(p.nextHitMul > 1) || !game.stats || !game.stats.invisible) return 1;
+  if (game.time - (p.stealthAt || -99) < STEALTH_GRACE) return 1;
+  return p.nextHitMul;
+}
+function stealthCastBegin(p) {
+  const mul = stealthCastMul(p);
+  if (mul > 1) {
+    p.stealthCast = mul;
+    p.stealthCrit = true; // der erste Treffer bleibt sicher kritisch
+    p.nextHitMul = 1;
+  }
+  return mul;
+}
+function stealthCastEnd(p, mul) {
+  if (!(mul > 1)) return;
+  p.stealthCast = 0;
+  p.stealthCrit = false;
+  p.buffs = p.buffs.filter((b) => !b.effects.invisible);
+  game.stats = playerStats(p);
+}
+
 function hitMonster(m, mul, opts = {}) {
   if (m.dead) return 0;
   // Einschlagklang nach Element (klang-welt.js)
@@ -130,6 +154,10 @@ function hitMonster(m, mul, opts = {}) {
       factor *= p.nextHitMul;
       p.nextHitMul = 1;
       crit = 1;
+    }
+    if (p.stealthCrit) {
+      crit = 1;
+      p.stealthCrit = false;
     }
     if (s.invisible) p.buffs = p.buffs.filter((b) => !b.effects.invisible);
   }
@@ -648,8 +676,15 @@ function useSkill(i) {
   if (p.riding) toggleRide(false);
   const lvl = p.skillLevels[i];
   const rank = skillRank(lvl);
-  const ok = withRank(rank, () => SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1), lvl));
-  if (ok === false) return;
+  // Angriff aus der Tarnung: alle Treffer dieser Fertigkeit ×3 (Buffs wie die Tarnung selbst zählen nicht)
+  const sMul = sk.kind === 'angriff' ? stealthCastBegin(p) : 1;
+  const ok = withRank(rank, () => SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1) * sMul, lvl));
+  if (ok === false) {
+    if (sMul > 1) { p.nextHitMul = sMul; p.stealthCast = 0; p.stealthCrit = false; }
+    return;
+  }
+  if (sMul > 1) addText(p.x, p.y - 52, `Aus der Tarnung ×${sMul}`, 'crit');
+  stealthCastEnd(p, sMul);
   withRank(rank, () => skillCastFx(sk));
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   snd.skill(sk, p);
@@ -879,7 +914,7 @@ function applyBuff(sk, lvl) {
   for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = fixed[k] ? fixed[k](lvl) : typeof v === 'number' ? (k === 'speed' || k === 'chill' ? v : v * scale) : v;
   const duration = skillDuration(sk, lvl);
   p.buffs = p.buffs.filter((b) => b.id !== sk.id);
-  p.buffs.push({ id: sk.id, name: sk.name, short: sk.short, until: game.time + duration, duration, effects, lvl });
+  p.buffs.push({ id: sk.id, name: skillRankName(sk, lvl), short: sk.short, until: game.time + duration, duration, effects, lvl });
 }
 
 // Nach dem Verbessern einer Fertigkeit gilt ein laufender Buff sofort mit den neuen Werten
@@ -1077,7 +1112,7 @@ const SKILL_TYPES = {
   strike(sk, pw) {
     const p = game.player;
     // Hinterhalt aus der Tarnung: weiter Sprung hinter das Ziel und mehrfacher Schaden
-    const ambush = sk.ambushMul && p.nextHitMul > 1 && game.stats.invisible && !(game.time - (p.stealthAt || -99) < STEALTH_GRACE);
+    const ambush = sk.ambushMul && p.stealthCast > 1;
     const t = pickTarget(ambush ? sk.ambushRange : sk.range);
     if (t && ambush) {
       blinkBehind(t, '#8a6ad8');
@@ -1230,7 +1265,7 @@ const SKILL_TYPES = {
     } else {
       vfxPillar(p, c.trim);
     }
-    ui.log(sk.name + ' ist aktiv (' + skillDuration(sk, lvl) + ' s).', 'info');
+    ui.log(skillRankName(sk, lvl) + ' ist aktiv (' + skillDuration(sk, lvl) + ' s).', 'info');
   },
 
   heal(sk, pw, lvl) {

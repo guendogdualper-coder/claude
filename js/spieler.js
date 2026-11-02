@@ -668,7 +668,9 @@ function raiseAttr(id, n = 1) {
 function awakenSkill(p, i, sk) {
   const e1 = SKILL_RANKS[0];
   p.skillLevels[i] = e1.from;
-  ui.banner('Erweckt!', `${sk.name} ist jetzt ${skillLevelText(e1.from)}`);
+  // seit 13.39 mit neuem Namen je Rang (rangnamen.js)
+  ui.banner('Erweckt!', `${skillRankName(sk, 1)} wird zu ${skillRankName(sk, e1.from)} (${skillLevelText(e1.from)})`);
+  ui.log(`${sk.name} ist erwacht und heißt jetzt „${skillRankName(sk, e1.from)}“.`, 'level');
   vfxLevelUp(p);
   rankCastFx(p, 0, e1.color);
   // laufende Diener sofort auf den neuen Rang umbauen (Skelette werden zu Knochenhunden)
@@ -697,12 +699,12 @@ function upgradeSkill(i, type = 'point') {
     else {
       takeBooks(p, sk.id, next.books);
       p.skillLevels[i] = next.from;
-      ui.banner(`${sk.name}: ${next.name}`, `Rang ${skillLevelText(next.from)} erreicht`);
+      ui.banner(`${next.name}: ${skillRankName(sk, next.from)}`, `${skillRankName(sk, lvl)} wird zu ${skillRankName(sk, next.from)} (${skillLevelText(next.from)})`);
       vfxLevelUp(p);
       rankCastFx(p, skillRank(next.from), next.color);
     }
   }
-  ui.log(`${sk.name} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');
+  ui.log(`${skillRankName(sk, p.skillLevels[i])} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');
   refreshBuff(sk, p.skillLevels[i]);
   ui.buildSkillBar();
   ui.renderCharPanel();
@@ -788,10 +790,12 @@ let saveSlot = null;
 const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftnebel: 'blitzangriff', dreifachschlag: 'sichelwelle', sturmangriff: 'sprungschlag', schildstoss: 'felsenfaust',
   seelenpfeil: 'schaedelsalve', seelensturm: 'seelenkaefig', fluch: 'seelenschnitter', frostlanze: 'eisstrahl', seelenschnitter: 'totenruf',
   // 11.5: Feuer- und Blitzmagier umgebaut
-  feuernova: 'drachenodem', flammenschritt: 'brand', glutherz: 'phoenix', blitznova: 'blitzspeer', ladung: 'gewitter',
+  feuernova: 'glutfeld', flammenschritt: 'brand', glutherz: 'phoenix', blitznova: 'blitzspeer', ladung: 'gewitter',
   erdnova: 'steinschlag', erdsprung: 'erdspitzen', basalthaut: 'bergsturz',
   // 11.7: Nekromant ohne Buffs, Weg der Knochen neu
-  schaedelsalve: 'blutsauger', dunklemacht: 'geisterflut', knochenspeer: 'knochenwurf', knochenpanzer: 'blutlarve', laehmung: 'totenhand', blutopfer: 'blutlanzen' };
+  schaedelsalve: 'blutsauger', dunklemacht: 'geisterflut', knochenspeer: 'knochenwurf', knochenpanzer: 'blutlarve', laehmung: 'totenhand', blutopfer: 'blutlanzen',
+  // 13.39: Feuermagier – Glutfeld statt Drachenodem
+  drachenodem: 'glutfeld' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

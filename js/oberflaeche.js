@@ -535,7 +535,7 @@ const ui = {
       btn.id = 'skill' + i;
       // Infofeld beim Darüberfahren (seit 10.8, tipps.js) statt des schlichten Browser-Titels
       btn.dataset.info = skillTipHtml(sk, p.skillLevels[i], keyTxt) + '<small class="tip-hint">Lange drücken: tauschen, auf einen freien Platz oder aus der Leiste ziehen.</small>';
-      btn.setAttribute('aria-label', sk.name);
+      btn.setAttribute('aria-label', skillRankName(sk, p.skillLevels[i]));
       btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(sk, rank)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
@@ -553,7 +553,7 @@ const ui = {
         const plus = document.createElement('button');
         plus.type = 'button';
         plus.className = 'plus' + (awaken ? ' awaken' : '');
-        plus.title = awaken ? sk.name + ' erwecken' : sk.name + ' verbessern';
+        plus.title = awaken ? skillRankName(sk, p.skillLevels[i]) + ' erwecken' : skillRankName(sk, p.skillLevels[i]) + ' verbessern';
         plus.textContent = awaken ? 'E' : '+';
         plus.addEventListener('pointerdown', (e) => e.stopPropagation());
         plus.addEventListener('click', (e) => {
@@ -1953,6 +1953,7 @@ function mageSkillStats(sk, lvl, out) {
   }
   // seit 11.5: neue Feuer- und Blitzzauber
   if (sk.type === 'mbreath') out.push(['Kegel', `${sk.range} weit · ${sk.angle}°`]);
+  if (sk.type === 'mfield') out.push(['Pulse', `${sk.ticks} × ${dmg(sk.dmg)}`], ['Feld', 'r ' + sk.radius], ['Reichweite', String(sk.range)]);
   if (sk.castTime) out.push(['Zauberzeit', numDe(sk.castTime) + ' s']);
   if (sk.type === 'mignite') out.push(['Brand gesamt', dmg(sk.burn.dps * sk.burn.duration) + ' in ' + sk.burn.duration + ' s']);
   if (sk.type === 'mphoenix') out.push(['Auf dem Weg', dmg(sk.dmg * sk.pathMul)], ['Explosion', `r ${sk.blast.r} · ${dmg(sk.dmg * sk.blast.mul)}`], ['Brennt das Ziel', extra(sk.combust)]);
@@ -2030,12 +2031,15 @@ function skillListHtml(skills, p) {
     const rankRow = '<span class="sk-ranks">' + ranks.map((x) => {
       const has = !p || (open && r >= x.r);
       const now = open && p && r === x.r;
-      return `<span class="sk-rank${has ? ' has' : ''}${now ? ' now' : ''}" title="${x.name || 'Normal'}${x.min > 1 ? ' · ab Stufe ' + x.min : ''}">` +
+      const rnm = x.r < 0 ? sk.name : (RANK_NAMES[sk.id] || [])[x.r] || sk.name;
+      return `<span class="sk-rank${has ? ' has' : ''}${now ? ' now' : ''}" title="${rnm} · ${x.name || 'Normal'}${x.min > 1 ? ' · ab Stufe ' + x.min : ''}">` +
         `<img src="${skillIconUrl(sk, x.r)}" alt=""><small style="color:${x.color}">${x.label}</small></span>`;
     }).join('<i class="sk-arrow">›</i>') + '</span>';
-    return `<li${open ? '' : ' class="locked"'} data-info="${escapeHtml('<strong>' + sk.name + '</strong><span>' + sk.text + '</span>')}">` +
+    const rn = p && open ? skillRankName(sk, lvl) : sk.name;
+    return `<li${open ? '' : ' class="locked"'} data-info="${escapeHtml('<strong>' + rn + '</strong><span>' + sk.text + '</span>')}">` +
       `<img class="icon" src="${skillIconUrl(sk, r)}" alt="${sk.short}">` +
-      `<span class="info"><strong>${i + 1}. ${sk.name} <em class="sk-level">${head}</em></strong>` +
+      `<span class="info"><strong>${i + 1}. ${rn} <em class="sk-level">${head}</em></strong>` +
+      (rn !== sk.name ? `<span class="sk-base">aus ${sk.name}</span>` : '') +
       `<span class="sk-short">${shortSkillText(sk.text)}</span>` +
       (p ? `<span class="sk-scale">Wird stärker mit <b>${mainAttrName(p.classId)}</b></span>` : '') +
       (p && open ? skillStatsHtml(sk, lvl, true) : '') + rankRow + `</span>` +

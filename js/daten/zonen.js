@@ -248,7 +248,7 @@ const POTION_SIZES = [
   { id: 'M', name: 'mittel', hp: 180, mp: 115, price: 5, level: 10 },
   { id: 'L', name: 'groß', hp: 340, mp: 210, price: 20, level: 25 },
   { id: 'XL', name: 'sehr groß', hp: 540, mp: 320, price: 80, level: 40 },
-  { id: 'XXL', name: 'riesig', hp: 800, mp: 470, price: 320, level: 55 }
+  { id: 'XXL', name: 'riesig', hp: 1600, mp: 470, price: 320, level: 55 }
 ];
 const potKey = (kind, size) => (size === 'S' ? kind : kind + size);
 const potionTotal = (p, kind) => POTION_SIZES.reduce((n, sz) => n + (p.potions[potKey(kind, sz.id)] || 0), 0);
