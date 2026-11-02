@@ -106,7 +106,7 @@ function mageCastTick() {
   later(0.1, () => {
     if (p.dead) return;
     const tt = t && !t.dead ? t : null;
-    spawnProjectile({ ...mageBolt(p, sk, tt, c.pw, c.lvl, true), big: sk.big, radius: 16, range: tt ? Math.max(sk.range + 40, dist(p, tt) + 80) : sk.range + 40 });
+    spawnProjectile({ ...mageBolt(p, sk, tt, c.pw, c.lvl, true), focusOnly: true, big: sk.big, radius: 16, range: tt ? Math.max(sk.range + 40, dist(p, tt) + 80) : sk.range + 40 });
   });
   addEffect({ type: 'sparks3', x: p.x + p.facing.x * 14, y: feetY(p), h: 1, count: 14, color: '#ffb04a', speed: 2.6, up: 1, dur: 0.5 });
   shakeScreen(4);

@@ -840,7 +840,7 @@ const READY_POSE3 = {
   sword: { r: [-0.5, 0, -0.28], hr: [0.05, 0, 0.12], l: [-0.3, 0, 0.18] },
   axe: { r: [-0.5, 0, -0.28], hr: [0.05, 0, 0.12], l: [-0.3, 0, 0.18] },
   greatsword: { r: [-0.85, 0, 0.3], hr: [0.3, 0, 0], l: [-0.9, 0, -0.38], cy: 0.18 },
-  greataxe: { r: [-0.85, 0, 0.3], hr: [0.3, 0, 0], l: [-0.9, 0, -0.38], cy: 0.18 },
+  greataxe: { r: [-0.5, 0, -0.28], hr: [0.05, 0, 0.12], l: [-0.3, 0, 0.18] },
   dagger: { r: [-0.55, 0, -0.38], hr: [-0.9, 0, 0], l: [-0.55, 0, 0.38], hl: [-0.9, 0, 0] },
   bow: { r: [-0.38, 0, -0.14], hr: [0, 0, 0], l: [-0.2, 0, 0.12] },
   fan: { r: [-0.95, 0, -0.25], hr: [0.25, 0, 0], l: [-0.15, 0, 0.12] },
@@ -921,7 +921,7 @@ let BELL_HANG3 = -2.0;
 let BELL_ARM3 = -0.8;
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
-  bell: [2.0, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45],
+  bell: [2.0, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.6, 0, 0.45], club: [0.6, 0, 0.45],
   rod: [0.22, 0, 0.08]
 };
 
@@ -4418,7 +4418,8 @@ function resetBones(a) {
 // Bein nach vorn, chest.rotation.y positiv = ausgeholt, negativ = durchgezogen; armL sitzt bei +x.
 const poseSeg = (sw, a, b) => clamp01((sw - a) / (b - a));
 const easeInOut3 = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
-const twoHanded3 = (kind) => kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe';
+// Streitaxt seit 13.46 einhändig geführt (wie die Axt, nur wuchtiger) – beidhändig nur Großschwert und Sense
+const twoHanded3 = (kind) => kind === 'greatsword' || kind === 'scythe';
 function setArm(bone, x, y, z) {
   bone.rotation.set(x, y, z);
 }
@@ -4770,6 +4771,14 @@ const BASIC3 = {
     [0.42, { rx: -1.75, rz: 0.05, lx: -1.5, lz: -0.2, cx: 0.12, cy: 0.15, hpz: 0.06, gr: -0.2 }, 'in'],
     [0.6, { rx: -1.65, rz: 0.08, lx: -1.2, lz: 0.4, cx: 0.1, cy: 0.12, hpz: 0.05, gr: -0.15 }, 'out'], [1, N3]]]
 };
+// Streitaxt einhändig (seit 13.46): dieselben wuchtigen Schläge, aber nur die rechte Hand führt die Axt;
+// der linke Arm schwingt als Gegengewicht leicht seitlich mit, statt am Griff zu liegen
+BASIC3.greataxe = BASIC3.greataxe.map((combo) => combo.map(([t, pose, ease]) => {
+  if (!pose.two) return ease ? [t, pose, ease] : [t, pose];
+  const { two, ...rest } = pose;
+  const q = { lx: -0.65 + (rest.cy || 0) * 0.3, lz: 0.42, ...rest };
+  return ease ? [t, q, ease] : [t, q];
+}));
 
 function basicKeys3(kind, p) {
   const list = BASIC3[kind];
@@ -4958,12 +4967,12 @@ function syncPlayer3(p, dt) {
       B[BH.armR].rotation.set(sw < 0.3 ? -2.7 * raise : -2.7 + (sw - 0.3) / 0.7 * 2.4, 0, -0.2);
       B[BH.chest].rotation.y = 0.3 - e * 0.6;
       B[BH.chest].rotation.x = sw < 0.3 ? -0.1 : 0.15;
-      if (kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe') B[BH.armL].rotation.set(B[BH.armR].rotation.x * 0.8, 0, 0.5);
+      if (twoHanded3(kind)) B[BH.armL].rotation.set(B[BH.armR].rotation.x * 0.8, 0, 0.5);
     }
     if (kind === 'dagger' && !(p.equipment && p.equipment.schild && !isOffhand(p.equipment.schild))) B[BH.armL].rotation.set(sw < 0.5 ? -1.2 : -2.0 + sw, 0, 0.2);
   } else if (!p.moving && !p.riding) {
     // Ruhehaltung mit der Waffe
-    if (kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe') B[BH.armL].rotation.set(-0.5, 0, 0.35);
+    if (twoHanded3(kind)) B[BH.armL].rotation.set(-0.5, 0, 0.35);
     if (kind === 'bow') B[BH.armR].rotation.set(-0.38, 0, -0.1);
     // Ninja mit Dolchen (seit 13.20): Kampfstand im Rückhandgriff – Hände leicht vor dem Körper,
     // die Klingen liegen am Unterarm und zeigen nach hinten

@@ -611,6 +611,28 @@ function tryBasicAttack() {
   return true;
 }
 
+// Nahkampf-Grundangriff als Flächenschlag: Gegner in Reichweite und im Bogen von ±65° vor der Figur (ganz nahe
+// auch daneben) bekommen 75 % des Schlags ab – das Ziel selbst den vollen Schlag
+const CLEAVE = { arc: 65 * Math.PI / 180, mul: 0.75, max: 5, near: 26 };
+function cleaveHit(p, main, h) {
+  const fx = p.facing.x;
+  const fy = p.facing.y;
+  const fl = Math.hypot(fx, fy) || 1;
+  const cosArc = Math.cos(CLEAVE.arc);
+  let n = 0;
+  for (const m of aliveEnemies()) {
+    if (n >= CLEAVE.max) break;
+    if (m === main || m.dead || m.hidden) continue;
+    const dx = m.x - p.x;
+    const dy = m.y - p.y;
+    const d = Math.hypot(dx, dy);
+    if (d - (m.r || 0) > h.range + 30) continue;
+    if (d > CLEAVE.near + (m.r || 0) && (dx * fx + dy * fy) / (d * fl) < cosArc) continue;
+    hitMonster(m, h.mul * CLEAVE.mul, { vfxColor: h.color, basic: true });
+    n++;
+  }
+}
+
 // Treffer bzw. Schuss im richtigen Bild der Schlaganimation auslösen (jedes Bild aus updatePlayer)
 function basicTick(p) {
   const h = p.pendingHit;
@@ -620,6 +642,8 @@ function basicTick(p) {
       vfxSwing(p, h.color);
       const t = h.target;
       if (t && !t.dead && dist(p, t) - (t.r || 0) <= h.range + 30) hitMonster(t, h.mul, { vfxColor: h.color, basic: true });
+      // Flächenschlag (seit 13.46): der Schlag trifft auch andere Gegner im Bogen vor der Figur (bis zu 5, je 75 %)
+      cleaveHit(p, t, h);
       breakStealth(p);
       if (typeof snd !== 'undefined') snd.swing(p, !!(t && !t.dead));
     }
@@ -1564,9 +1588,10 @@ function spawnProjectile(o) {
     dy = o.dir.y;
   }
   const len = Math.hypot(dx, dy) || 1;
-  // seit 13.42: Eigene Geschosse ohne Ziel, während ein Ziel gewählt ist, fliegen nur für dieses Ziel –
-  // Monster davor werden nicht getroffen (das Geschoss verfällt am Ende seiner Reichweite)
-  if (o.owner === 'player' && !o.target && !o.pierce && !o.onlyHit) {
+  // seit 13.42, ab 13.46 nur noch für den Feuerball (focusOnly): ohne Ziel abgeschossen, während ein Ziel gewählt
+  // ist, fliegt er nur für dieses Ziel – Monster davor werden nicht getroffen. Alle anderen Geschosse treffen
+  // wieder den ersten Gegner auf ihrem Weg.
+  if (o.owner === 'player' && o.focusOnly && !o.target && !o.pierce && !o.onlyHit) {
     const f = game.target;
     if (f && !f.dead && !f.hidden && !f.duelProxy) o.onlyHit = f;
   }
@@ -1635,8 +1660,8 @@ function updateProjectiles(dt) {
         if (!pr.pierce) { pr.done = true; continue; }
       }
       // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
-      // seit 13.41 gilt das für jedes Geschoss mit Ziel (Feuerball, Pfeile …): wer davor steht, wird nicht getroffen
-      const only = !pr.pierce && pr.target && !pr.target.dead ? pr.target : (pr.onlyHit && !pr.onlyHit.dead ? pr.onlyHit : null);
+      // dazu der Feuerball (focusOnly, seit 13.46 nur er): wer vor seinem Ziel steht, wird nicht getroffen
+      const only = !pr.pierce && (pr.turn || pr.focusOnly) && pr.target && !pr.target.dead ? pr.target : (pr.onlyHit && !pr.onlyHit.dead ? pr.onlyHit : null);
       for (const m of game.monsters) {
         if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
