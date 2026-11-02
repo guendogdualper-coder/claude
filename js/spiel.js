@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.26';
+const GAME_VERSION = '13.27';
 
 const game = {
   world: null,
@@ -43,6 +43,12 @@ function startGame(save, slot) {
   if (np.classId === 'ninja' && !np.quiverGiven && np.equipment && np.equipment.waffe && np.equipment.waffe.kind === 'bow') {
     np.quiverGiven = true;
     if (!np.equipment.schild) np.equipment.schild = makeItem('koecher', 0, 0, 'ninja');
+  }
+  // Test-Gold (seit 13.27): der Charakter „Pugi“ bekommt einmalig 5.000.000 Gold zum Testen
+  if (!np.goldGift && String(np.name || '').trim().toLowerCase() === 'pugi') {
+    np.goldGift = 1;
+    np.gold = (np.gold || 0) + 5000000;
+    setTimeout(() => { if (typeof ui !== 'undefined') ui.log('Test-Geschenk: +5.000.000 Gold', 'level'); if (typeof saveGame === 'function') saveGame(); }, 1500);
   }
   game.stats = playerStats(game.player);
   game.allies = [];
