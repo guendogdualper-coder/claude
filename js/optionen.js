@@ -23,7 +23,8 @@ const FPS_MODES = { auto: { label: 'Auto' }, 60: { label: '60' }, 30: { label: '
 const GRAPHICS = {
   ultra: { label: 'Ultra', dpr: 3, castShadows: true, clouds: true, particles: 1.25 },
   hoch: { label: 'Hoch', dpr: 2, castShadows: true, clouds: true, particles: 1 },
-  mittel: { label: 'Mittel', dpr: 1.6, castShadows: true, clouds: false, particles: 0.7 },
+  // seit 13.34 am Handy schärfer (2 statt 1,6): dafür läuft das Handy fest mit 30 Bildern pro Sekunde (frameCap)
+  mittel: { label: 'Mittel', dpr: IS_PC ? 1.6 : 2, castShadows: true, clouds: false, particles: 0.7 },
   niedrig: { label: 'Niedrig', dpr: 1.25, castShadows: false, clouds: false, particles: 0.4 }
 };
 const CAMERA = { nah: { label: 'Nah', zoom: 1.15 }, normal: { label: 'Normal', zoom: 1 }, weit: { label: 'Weit', zoom: 0.85 }, schulter: { label: 'Schulterblick', zoom: 1.25 } };
@@ -107,7 +108,7 @@ const options = {
       `<section class="opt-group"><h3>Grafik</h3>` +
       seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
       seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Hoch sieht schärfer aus, macht das Handy aber wärmer; Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
-      seg('fps', FPS_MODES, 'Bildrate', 'Auto: 60 Bilder pro Sekunde, wenn das Gerät es schafft, sonst gleichmäßig 30 (kein Ruckeln). 30 spart viel Akku und hält das Handy kühler.') +
+      seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC 60 Bilder pro Sekunde (sonst gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. 60 ist flüssiger, macht das Handy aber warm.') +
       seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
       sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
       sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +

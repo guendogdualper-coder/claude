@@ -55,6 +55,20 @@ $HOST {
 	}
 }
 CADDY
+
+# Hauptdomain (z. B. seelenstein.online und www.…): leitet zum Spiel weiter (gleiche Adresse wie bisher,
+# damit Spielstände und installierte App erhalten bleiben)
+case "$HOST" in
+  server.*)
+    MAIN="${HOST#server.}"
+    cat >> /etc/caddy/Caddyfile <<CADDY
+
+$MAIN, www.$MAIN {
+	redir https://guendogdualper-coder.github.io/claude/ 302
+}
+CADDY
+    ;;
+esac
 systemctl enable caddy
 systemctl restart caddy
 

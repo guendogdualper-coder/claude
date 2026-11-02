@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.33';
+const GAME_VERSION = '13.34';
 
 const game = {
   world: null,
@@ -224,7 +224,9 @@ let lastFrame = 0;
 // nur Startbildschirm und Einstellung „30“ begrenzen
 function frameCap() {
   if (opts.fps === '30' || !game.running) return 30;
-  if (opts.fps === 'auto' && quality.cap30) return 30;
+  // seit 13.34: am Handy heißt „Auto“ gleichmäßig 30 Bilder pro Sekunde. Mit 60 wurde das Handy schnell warm,
+  // drosselte sich, und die automatische Anpassung senkte dann die Auflösung (verpixeltes Bild)
+  if (opts.fps === 'auto' && (quality.cap30 || !IS_PC)) return 30;
   return 0;
 }
 function frame(ts) {
