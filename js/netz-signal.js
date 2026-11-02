@@ -25,7 +25,9 @@ const SIG_ANSWER_WAIT = 12000;
 const SIG_ICE_WAIT = 900;     // ms: höchstens so lange Verbindungswege sammeln (vorher bis zur vollen Suche, 3 s und mehr)
 const SIG_CHUNK = 15000;      // lange Nachrichten in Stücken
 const SIG_RELAY_AFTER = 2500; // ms ohne direkten Kanal, dann Notweg über den Broker (seit 11.4, vorher 5 s)
-const SIG_RELAYS = () => window.SIG_RELAYS_OVERRIDE || ['wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
+// seit 13.32 zuerst der eigene Seelenstein-Server (netcup, Mosquitto hinter Caddy, siehe docs/server-einrichten.md);
+// die öffentlichen Broker bleiben als Ersatz, doppelte Nachrichten werden über ihre Kennung (m) verworfen
+const SIG_RELAYS = () => window.SIG_RELAYS_OVERRIDE || ['wss://server.seelenstein.online/mqtt', 'wss://broker.hivemq.com:8884/mqtt', 'wss://broker.emqx.io:8084/mqtt'];
 const SIG_ICE = [
   { urls: ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'] },
   { urls: 'stun:stun.cloudflare.com:3478' },

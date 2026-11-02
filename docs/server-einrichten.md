@@ -1,6 +1,8 @@
 # Eigenen Spielserver einrichten (netcup VPS)
 
-Server: `v2202611449191550868.powersrv.de` (IPv4 159.195.68.235), Debian 13.
+Server: `server.seelenstein.online` (DNS bei INWX, A-Eintrag auf 159.195.68.235; netcup-Name `v2202611449191550868.powersrv.de`), Debian 13. Seit 13.32 im Spiel als erster Vermittler eingetragen.
+
+Hinweis: Für `*.powersrv.de` stellt Let's Encrypt wegen der Grenze pro Domain oft keine Zertifikate aus, deshalb die eigene Domain.
 
 **Stufe 1 (jetzt):** Ein eigener MQTT-Vermittler (Mosquitto) läuft über `wss://v2202611449191550868.powersrv.de/mqtt` mit kostenlosem Let's-Encrypt-Zertifikat (Caddy). Das Spiel nutzt ihn zusätzlich zu den öffentlichen Brokern (HiveMQ, EMQX). Das macht Kanäle und Weiterleitung zuverlässiger, auch im Mobilfunknetz.
 
@@ -16,7 +18,7 @@ Server: `v2202611449191550868.powersrv.de` (IPv4 159.195.68.235), Debian 13.
    Das neue Passwort nirgends teilen, auch nicht im Chat.
 3. **Einrichtung starten** (ein Befehl, lädt das Skript aus dem Spiel-Repository):
    ```
-   curl -fsSL https://raw.githubusercontent.com/guendogdualper-coder/claude/claude/app-entwicklung-hhewbj/server/setup.sh | bash
+   curl -fsSL https://raw.githubusercontent.com/guendogdualper-coder/claude/claude/app-entwicklung-hhewbj/server/setup.sh | bash -s server.seelenstein.online
    ```
    Am Ende steht `FERTIG: https://…/health antwortet`.
 4. Kurz Bescheid geben. Dann wird der Vermittler im Spiel eingetragen und von außen geprüft.
@@ -31,5 +33,5 @@ Server: `v2202611449191550868.powersrv.de` (IPv4 159.195.68.235), Debian 13.
 
 ## Prüfen
 
-- Im Browser: `https://v2202611449191550868.powersrv.de/health` → „ok“
+- Im Browser: `https://server.seelenstein.online/health` → „ok“
 - Auf dem Server: `systemctl status mosquitto caddy`
