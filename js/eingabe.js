@@ -311,6 +311,39 @@ function setupTouch() {
 
   onPress($('btnTalk'), interact);
 
+  // Mehrere Finger (seit 13.25): iPhones lösen kein „click“ aus, solange ein anderer Finger liegt – wer mit dem
+  // Steuerkreuz lief, konnte Aufträge, Menüs und Fenster nicht antippen. Ein kurzes Tippen mit einem zweiten Finger
+  // wird darum selbst als Klick weitergegeben (Leiste, Steuerkreuz, Angriff und die Spielfläche reagieren schon beim
+  // Aufsetzen und bleiben außen vor). Kommt doch noch ein echter Klick nach, wird er verworfen.
+  const touches = new Map();
+  let synth = null;
+  const SKIP = '#skillBar, #touchControls, canvas, .potion, #quick1, #quick2, input, textarea, select, label';
+  document.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    touches.set(e.pointerId, { x: e.clientX, y: e.clientY, t: performance.now(), target: e.target });
+  }, true);
+  const endTouch = (e, cancel) => {
+    if (e.pointerType !== 'touch') return;
+    const t = touches.get(e.pointerId);
+    touches.delete(e.pointerId);
+    if (cancel || !t || !(t.target instanceof Element)) return;
+    const others = touches.size > 0 || stickId !== null || input.touchAttack;
+    if (!others) return;
+    if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 14 || performance.now() - t.t > 700) return;
+    if (t.target.closest(SKIP) || !t.target.isConnected) return;
+    synth = { el: t.target, at: performance.now() };
+    t.target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, detail: 1, clientX: e.clientX, clientY: e.clientY }));
+  };
+  document.addEventListener('pointerup', (e) => endTouch(e, false), true);
+  document.addEventListener('pointercancel', (e) => endTouch(e, true), true);
+  document.addEventListener('click', (e) => {
+    if (e.isTrusted && synth && performance.now() - synth.at < 600 && (e.target === synth.el || synth.el.contains(e.target))) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      synth = null;
+    }
+  }, true);
+
   // Wer den Bildschirm berührt, bekommt die Touch-Steuerung
   window.addEventListener('touchstart', () => {
     if (input.touchUi) return;

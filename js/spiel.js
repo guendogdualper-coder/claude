@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.24';
+const GAME_VERSION = '13.25';
 
 const game = {
   world: null,
@@ -199,8 +199,10 @@ function update(dt) {
   raidWatch();
   mageCastTick();
 
+  // Selbst speichern alle 30 s (seit 13.25, vorher 10 s: das Schreiben ganzer Spielstände ruckelte auf dem Handy kurz);
+  // beim Wechsel in den Hintergrund, beim Schließen und nach wichtigen Ereignissen wird ohnehin sofort gespeichert
   game.saveTimer += dt;
-  if (game.saveTimer > 10) {
+  if (game.saveTimer > 30) {
     game.saveTimer = 0;
     saveGame();
   }

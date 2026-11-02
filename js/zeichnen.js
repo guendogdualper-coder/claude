@@ -1589,7 +1589,7 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
 // Seit 12.1 geht die Auflösung wieder hoch, wenn das Spiel länger flüssig läuft, und nach dem Zurückkehren
 // aus dem Hintergrund oder dem Drehen wird ein paar Sekunden nicht gemessen (dort ruckelt es immer kurz –
 // das senkte früher die Auflösung dauerhaft, das Bild blieb bis zum Neuladen unscharf).
-const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false, good: 0, pauseUntil: 0 };
+const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false, good: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
 function qualityPause(ms = 3000) {
   quality.frames.length = 0;
   quality.good = 0;
@@ -1613,10 +1613,14 @@ function adaptQuality(dtMs, cap) {
   quality.frames.length = 0;
   const median = sorted[sorted.length >> 1];
   if (median <= 20) {
-    // zweimal hintereinander richtig flüssig: eine Stufe Auflösung zurück
-    if (quality.steps && median <= 15 && ++quality.good >= 2) {
+    // länger richtig flüssig: eine Stufe Auflösung zurück. Seit 13.25 erst nach 60 s ohne Absenken und nur, solange
+    // das nicht gleich wieder zum Ruckeln führt – sonst pendelte die Auflösung auf 120-Hz-Handys hin und her, und jeder
+    // Wechsel baute die Grafikpuffer neu auf (kurzer Hänger)
+    const now = performance.now();
+    if (quality.steps && !quality.noRaise && median <= 15 && now - quality.downAt > 60000 && ++quality.good >= 4) {
       quality.good = 0;
       quality.steps--;
+      quality.upAt = now;
       renderer.maxDpr = Math.min(gfx().dpr, (renderer.maxDpr || 1) + 0.3);
       resizeRenderer();
       if (V3.on) v3ApplyGraphics();
@@ -1630,8 +1634,11 @@ function adaptQuality(dtMs, cap) {
   // seit 13.23 nicht mehr bis 1-fach: auf Handys mit 3-fach-Bildschirm wurde das Bild sonst grob verpixelt.
   // Reicht das nicht, gehen erst die Schatten aus, dann 30 Bilder pro Sekunde.
   const minDpr = Math.min(gfx().dpr, IS_PC ? 1.25 : 1.45);
+  // gleich nach dem Anheben wieder zu langsam: für diese Sitzung nicht mehr anheben
+  if (performance.now() - quality.upAt < 30000) quality.noRaise = true;
   if (quality.steps < 2 && cur > minDpr + 0.05) {
     quality.steps++;
+    quality.downAt = performance.now();
     r.maxDpr = Math.max(minDpr, cur - 0.3);
     resizeRenderer();
     if (V3.on) v3ApplyGraphics();
