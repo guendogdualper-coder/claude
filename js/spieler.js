@@ -795,7 +795,9 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   // 11.7: Nekromant ohne Buffs, Weg der Knochen neu
   schaedelsalve: 'blutsauger', dunklemacht: 'geisterflut', knochenspeer: 'knochenwurf', knochenpanzer: 'blutlarve', laehmung: 'totenhand', blutopfer: 'blutlanzen',
   // 13.39: Feuermagier – Glutfeld statt Drachenodem
-  drachenodem: 'glutfeld' };
+  drachenodem: 'glutfeld',
+  // 13.40: Feuertornados statt Flammenkreis
+  flammenkreis: 'feuertornado' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

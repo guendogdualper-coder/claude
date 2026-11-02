@@ -366,14 +366,14 @@ const CLASSES = {
     paths: [
       {
         id: 'feuer', name: 'Weg der Flamme', role: 'PvE · Flächenschaden und Brand',
-        description: 'Setzt alles in Brand: ein Glutfeld, das den Boden aufreißt, ein riesiger Feuerball mit Zauberzeit, Brand über Zeit auf einzelne Gegner, die Phönixflamme als Burst und ein Flammenkreis, der sich am Boden zusammenzieht.',
+        description: 'Setzt alles in Brand: ein Glutfeld, das den Boden aufreißt, ein riesiger Feuerball mit Zauberzeit, Brand über Zeit auf einzelne Gegner, die Phönixflamme als Burst und Feuertornados, die durch ein Feld wirbeln.',
         skills: [
           {
             // seit 13.39 statt des Drachenodems: Glutfeld – aufgerissener Boden mit Flammensäulen (feuerfeld.js)
             id: 'glutfeld', name: 'Glutfeld', short: 'GF', kind: 'angriff', unlock: 1, mp: 10, cooldown: 6,
-            type: 'mfield', el: 'feuer', range: 230, radius: 95, delay: 0.35, ticks: 5, every: 0.5, dmg: 0.45,
+            type: 'mfield', el: 'feuer', aim: true, range: 260, radius: 95, delay: 0.35, ticks: 5, every: 0.5, dmg: 0.45,
             burn: { dps: 0.25, duration: 3 }, anim: 'zauber', animDur: 0.45, color: '#e8362a',
-            text: 'Am Ziel reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem 2,5 s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis (95 weit) nehmen fünfmal Feuerschaden, der letzte Puls setzt sie 3 s in Brand.'
+            text: 'Du wählst einen Ort (Kreis antippen): Dort reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem 2,5 s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis (95 weit) nehmen fünfmal Feuerschaden, der letzte Puls setzt sie 3 s in Brand.'
           },
           {
             // seit 11.5 mit 3 s Zauberzeit: viel größer und stärker; Bewegen bricht ab (Mana und Abklingzeit zurück)
@@ -397,10 +397,11 @@ const CLASSES = {
             text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf und nimmt deutlich mehr Schaden, und alle bis 105 weit fangen Feuer.'
           },
           {
-            id: 'flammenkreis', name: 'Flammenkreis', short: 'FK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            type: 'sigil', el: 'feuer', aim: true, range: 340, radius: 140, delay: 0.5, ticks: 3, every: 0.5, dmg: 0.7, inward: true,
-            burn: { dps: 0.35, duration: 4 }, last: { ignite: true }, anim: 'zauber', animDur: 0.55, color: '#e8362a',
-            text: 'Du zeichnest ein Feuersiegel an den gewählten Ort. Eine Flammenwand bricht an seinem Rand aus dem Boden und zieht sich dreimal zur Mitte zusammen. Jeder Puls trifft alle im Kreis, der letzte lässt Brennende explodieren.'
+            // seit 13.40 statt des Flammenkreises: Feuertornados im gewählten Kreis (feuerfeld.js); mehr Tornados je Rang
+            id: 'feuertornado', name: 'Feuertornados', short: 'FT', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
+            type: 'mtornado', el: 'feuer', aim: true, range: 340, radius: 150, delay: 0.4, life: 4, every: 0.5, dmg: 0.3, hitR: 44,
+            burn: { dps: 0.3, duration: 3 }, anim: 'zauber', animDur: 0.55, color: '#e8362a',
+            text: 'Du wählst einen Ort: Im Kreis erheben sich Feuertornados und wirbeln 4 s lang umher. Jeder Tornado trifft alles, was er berührt, zweimal pro Sekunde, zieht Gegner zu sich und setzt sie in Brand. Mehr Tornados je Stufe: 2, ab Stufe 8 drei, erweckt 4, heroisch 5, legendär 6, vollendet 7.'
           }
         ]
       },

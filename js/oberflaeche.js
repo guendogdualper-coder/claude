@@ -1953,6 +1953,10 @@ function mageSkillStats(sk, lvl, out) {
   }
   // seit 11.5: neue Feuer- und Blitzzauber
   if (sk.type === 'mbreath') out.push(['Kegel', `${sk.range} weit · ${sk.angle}°`]);
+  if (sk.type === 'mtornado') {
+    const n = typeof tornadoCount === 'function' ? tornadoCount(lvl) : 2;
+    out.push(['Tornados', `${n} × ${dmg(sk.dmg)} je Treffer`], ['Dauer', numDe(sk.life) + ' s'], ['Feld', 'r ' + sk.radius]);
+  }
   if (sk.type === 'mfield') out.push(['Pulse', `${sk.ticks} × ${dmg(sk.dmg)}`], ['Feld', 'r ' + sk.radius], ['Reichweite', String(sk.range)]);
   if (sk.castTime) out.push(['Zauberzeit', numDe(sk.castTime) + ' s']);
   if (sk.type === 'mignite') out.push(['Brand gesamt', dmg(sk.burn.dps * sk.burn.duration) + ' in ' + sk.burn.duration + ' s']);

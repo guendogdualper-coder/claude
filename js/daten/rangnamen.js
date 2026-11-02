@@ -52,7 +52,7 @@ const RANK_NAMES = {
   feuerball: ['Großer Feuerball', 'Flammenkomet', 'Sonnenkugel', 'Sternenfeuer'],
   brand: ['Glutbrand', 'Höllenbrand', 'Ewiges Feuer', 'Seelenbrand'],
   phoenix: ['Feuerphönix', 'Sonnenphönix', 'Ewiger Phönix', 'Phönix der Wiedergeburt'],
-  flammenkreis: ['Feuerring', 'Flammenwall', 'Kreis der Hölle', 'Ring des Weltenbrands'],
+  feuertornado: ['Glutwirbel', 'Flammenzyklon', 'Höllenmahlstrom', 'Weltenbrand'],
   // Magier – Frost
   frostnova: ['Eisnova', 'Gletscherbruch', 'Herz des Winters', 'Absoluter Nullpunkt'],
   eisstrahl: ['Froststrahl', 'Gletscherstrahl', 'Strahl des ewigen Eises', 'Atem des Winters'],
