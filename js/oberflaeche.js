@@ -1433,7 +1433,7 @@ const ui = {
       tabs.map(([id, label, extra]) => `<button type="button" role="tab" data-ctab="${id}" class="${id === tab ? 'on' : ''}" aria-selected="${id === tab}">${label}${extra}</button>`).join('') +
       `</nav><div class="char-page" data-page="${tab}">${pages[tab]}</div>`;
     // Fertigkeiten (seit 13.2) breit in zwei Spalten statt lang nach unten
-    $('panelChar').classList.toggle('char-wide', tab === 'skills');
+    $('panelChar').classList.toggle('char-wide', tab === 'skills' || tab === 'status');
     $('charBody').querySelectorAll('[data-ctab]').forEach((b) => {
       b.addEventListener('click', () => {
         this.charTab = b.dataset.ctab;
@@ -1442,6 +1442,7 @@ const ui = {
       });
     });
     $('btnLook').addEventListener('click', () => this.openLookPanel());
+    if ($('charDoll') && typeof drawDoll === 'function') drawDoll($('charDoll'));
     if ($('btnElement')) $('btnElement').addEventListener('click', () => this.showElementChoice());
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
@@ -1482,7 +1483,9 @@ const ui = {
     const tip = `<p class="attr-tip"><b>Tipp für ${CLASSES[p.classId].name}:</b> Steck deine Punkte vor allem in <b>${mainName}</b> – ` +
       `damit werden alle Fertigkeiten, normalen Angriffe und Buffs stärker. Etwas <b>Vitalität</b> gibt mehr Leben.</p>`;
     return tip + `<section class="attr-panel${pts ? ' has-points' : ''}">` +
-      `<div class="attr-orb"><b>${pts}</b><small>Statuspunkte</small></div>` +
+      // seit 13.22: die eigene Figur mit Ausrüstung und Waffe in der Hand (Antippen dreht), darunter die Punkte
+      `<div class="attr-side"><canvas id="charDoll" class="doll char-doll" title="Antippen zum Drehen"></canvas>` +
+      `<div class="attr-orb"><b>${pts}</b><small>Statuspunkte</small></div></div>` +
       `<div class="attr-cards">` + ATTRS.map((a) => {
         const v = p.attrs[a.id] || 0;
         const can = pts > 0 && v < MAX_ATTR;

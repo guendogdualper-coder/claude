@@ -2053,6 +2053,10 @@ kbd {
 .attr-orb small { margin-top: 4px; font-size: 10.5px; color: var(--muted); }
 .attr-panel.has-points .attr-orb { animation: orb-pulse 1.8s ease-in-out infinite; }
 @keyframes orb-pulse { 50% { box-shadow: inset 0 0 0 1px #ffd98a, inset 0 0 22px rgba(180, 120, 255, 0.55), 0 0 14px rgba(180, 120, 255, 0.45); } }
+.attr-side { flex: 0 0 150px; display: flex; flex-direction: column; gap: 8px; }
+.attr-side .attr-orb { flex: 0 0 auto; padding: 8px 0; }
+.attr-side .char-doll { width: 150px; height: 210px; border-radius: 12px; cursor: pointer;
+  background: radial-gradient(circle at 50% 40%, #3a3024, #15100b 75%); box-shadow: inset 0 0 0 1px rgba(201, 163, 90, 0.45); }
 .attr-cards { flex: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .attr-card {
   --ac: #e0603e;
@@ -2083,7 +2087,8 @@ kbd {
 .attr-plus { width: 36px; height: 30px; border: 0; border-radius: 8px; font-size: 22px; font-weight: 900; line-height: 1; color: #1b130a; background: linear-gradient(#ffe9a8, #c9963a); box-shadow: 0 0 0 1.5px #120c08, 0 0 10px rgba(255, 210, 120, 0.5); cursor: pointer; }
 .attr-plus:disabled { opacity: 0.3; box-shadow: 0 0 0 1.5px #120c08; }
 .attr-btns .mini-btn { padding: 2px 4px; font-size: 11px; }
-@media (max-width: 720px) { .attr-panel { flex-direction: column; } .attr-orb { flex-basis: auto; flex-direction: row; gap: 8px; padding: 6px; } .attr-cards { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .attr-panel { flex-direction: column; } .attr-orb { flex-basis: auto; flex-direction: row; gap: 8px; padding: 6px; } .attr-cards { grid-template-columns: 1fr; }
+  .attr-side { flex-basis: auto; flex-direction: row; align-items: stretch; } .attr-side .char-doll { width: 120px; height: 160px; flex: none; } .attr-side .attr-orb { flex: 1; } }
 /* Knopf am Bild, sobald Punkte frei sind */
 .stat-plus { position: absolute; left: -3px; top: -3px; z-index: 3; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; font-size: 14px; font-weight: 900; line-height: 18px; color: #1b130a; background: linear-gradient(#ffe9a8, #c9963a); box-shadow: 0 0 0 1.5px #120c08, 0 0 8px rgba(255, 210, 120, 0.8); animation: orb-pulse 1.6s ease-in-out infinite; pointer-events: auto; }
 

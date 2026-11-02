@@ -293,6 +293,13 @@ function shineBand3(A, hb, hc, hr, color) {
 
 function hair3(A, hb, hc, hr, style, color, covered, rnd) {
   if (style === 5) return;
+  // Unter Helm, Kapuze, Hut oder Krone (seit 13.22): Frisuren, die hoch über den Schädel ragen, würden durch die
+  // Kopfbedeckung stechen. Kamm und schütteres Haar werden dort zu kurzem Haar, der Knoten oben zum Pferdeschwanz.
+  if (covered && (style === 8 || style === 11)) style = 0;
+  if (covered && style === 9) style = 4;
+  // Stirnband und Kronen (Schamane) lassen das Haar frei, aber nichts darf oben hindurchstechen
+  const band = covered === 'band';
+  if (band) covered = false;
   const [x, y, z] = hc;
   const R = rnd || mulberry32(31 + style * 7);
   const dark = darker(color, 0.07);
@@ -346,7 +353,7 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
         const u = k / 5 - 0.5;
         lock(A, hb, [x + u * hr * 1.35, y + hr * 0.72 - Math.abs(u) * hr * 0.12, z + hr * 0.52], hr * (0.48 - Math.abs(u) * 0.14), hr * 0.16, [2.55 - Math.abs(u) * 0.3, 0, -u * 0.9], k % 2 ? color : darker(color, 0.06));
       }
-      if (style === 3) {
+      if (style === 3 && !band) {
         // stachelig: Spitzen nach oben und hinten
         for (let k = 0; k < 9; k++) {
           const a = -1.3 + (k / 8) * 2.6;
@@ -378,7 +385,7 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
         strand3(A, hb, [x + u * hr * 1.3, y + hr * 0.72 - Math.abs(u) * hr * 0.14, z + hr * 0.52], [u * 0.9 + (R() - 0.5) * 0.6, -0.85, 0.55 + (R() - 0.5) * 0.3], hr * (style === 10 ? 0.6 : 0.46) * (0.85 + R() * 0.3), hr * 0.16, k % 2 ? color : dark, { flat: 0.6 });
       }
       // zerzaust: oben stehen Büschel nach oben und hinten ab
-      if (style === 6) for (let k = 0; k < 7; k++) {
+      if (style === 6 && !band) for (let k = 0; k < 7; k++) {
         const a = -1.2 + (k / 6) * 2.4 + (R() - 0.5) * 0.3;
         strand3(A, hb, [x + Math.sin(a) * hr * 0.55, y + hr * 0.82, z - hr * 0.1 + Math.cos(a) * hr * 0.25], [Math.sin(a) * 0.7, 0.55 + R() * 0.35, -0.75], hr * (0.42 + R() * 0.25), hr * 0.17, k % 2 ? color : lighter(color, 0.08), { flat: 0.6 });
       }
@@ -389,7 +396,8 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
       const u = k / 4 - 0.5;
       strand3(A, hb, [x + u * hr * 1.1, y + hr * 0.52 - Math.abs(u) * hr * 0.1, z + hr * 0.72], [u * 0.8 + (R() - 0.5) * 0.3 * mess, -0.9, 0.5], hr * 0.32 * (0.85 + R() * 0.3), hr * 0.14, k % 2 ? color : dark, { flat: 0.6 });
     }
-    for (const sx of [-1, 1]) hairRing3(A, hb, hc, hr, 3, 0.2, 0.92, sx * 0.72, sx * 1.02, style === 2 ? 1.0 : 0.5, 0.13, 0.12, color, R, mess);
+    // seit 13.22 kurz, auch bei langem Haar (lange Wangensträhnen liefen sonst schräg übers Gesicht)
+    for (const sx of [-1, 1]) hairRing3(A, hb, hc, hr, 3, 0.2, 0.92, sx * 0.72, sx * 1.02, 0.45, 0.13, 0.12, color, R, mess);
   } else if (covered === true) {
     // unter dem Helm schauen ein paar Strähnen hervor
     for (const u of [-0.3, 0, 0.3]) lock(A, hb, [x + u * hr, y + hr * 0.48, z + hr * 0.8], hr * 0.24, hr * 0.11, [2.6, 0, -u * 1.2], color);
@@ -407,14 +415,26 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
   }
   // Seitensträhnen um die Wangen (unter der Kapuze nur die am Gesicht, siehe oben)
   if (covered !== 'hood') {
+    // unter Helm oder Hut (13.22): Wangensträhnen kürzer und weiter hinten, sonst hängen sie schräg übers Gesicht
+    const cz = covered ? -0.05 : 0.2;
     if (!strands) for (const sx of [-1, 1]) {
-      lock(A, hb, [x + sx * hr * 0.86, y + hr * 0.12, z + hr * 0.2], hr * (style === 2 ? 1.05 : 0.55), hr * 0.15, [2.95, 0, sx * 0.1], color);
+      lock(A, hb, [x + sx * hr * 0.86, y + hr * 0.12, z + hr * cz], hr * (style === 2 && !covered ? 1.05 : 0.55), hr * 0.15, [2.95, 0, sx * 0.1], color);
       lock(A, hb, [x + sx * hr * 0.8, y + hr * 0.15, z - hr * 0.2], hr * (style === 2 ? 0.95 : 0.45), hr * 0.15, [-2.95, 0, sx * 0.16], darker(color, 0.06));
     } else if (style !== 7) for (const sx of [-1, 1]) hairRing3(A, hb, hc, hr, 4, 0.12, 0.9, sx * 1.35, sx * 2.0, style === 10 ? 1.25 : 0.55, 0.15, style === 10 ? 0.3 : 0.12, color, R, mess);
   }
   // Hinterkopf: unter der Kapuze nur bei langem Haar und Pferdeschwanz (sonst ganz verdeckt)
   if (covered === 'hood' && style !== 2 && style !== 4) return;
-  A(ball(16), color, { bone: hb, p: [x, y - hr * 0.02, z - hr * 0.22], s: [hr * 1.04, hr * 0.98, hr * 0.84], shade: 0.25 });
+  // unter der Kapuze (13.22) nur der Pferdeschwanz hinten; die breite Haarplatte und die langen Strähnen ragten seitlich vor
+  if (covered === 'hood') {
+    if (style === 4) {
+      const t0 = [x, y - hr * 0.1, z - hr * 1.0];
+      const t2 = [x, y - hr * 1.1, z - hr * 1.15];
+      limbBetween(A, t0, t2, hr * 0.2, hr * 0.08, color, { bone: hb, seg: 9, shine: 0.25 });
+    }
+    return;
+  }
+  // unter der Kapuze kein Hinterkopf-Haar (es stach hinten durch den Stoff), nur das lange Haar und der Schwanz darunter
+  if (covered !== 'hood') A(ball(16), color, { bone: hb, p: [x, y - hr * 0.02, z - hr * 0.22], s: [hr * 1.04, hr * 0.98, hr * 0.84], shade: 0.25 });
   if (!strands) {
     // Strähnen am Hinterkopf
     for (let k = 0; k < 5; k++) {
@@ -428,7 +448,7 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
       strand3(A, hb, [x + u * hr * 0.8, y - hr * 0.12, z - hr * 0.86], [u * 0.8, -0.55, -0.75], hr * 0.5, hr * 0.16, k % 2 ? color : dark, { w: [1, 0, 0], flat: 0.6 });
     }
   } else hairRing3(A, hb, hc, hr, style === 10 ? 9 : 7, -0.2, 0.86, 2.25, Math.PI * 2 - 2.25, style === 10 ? 1.5 : 0.6, 0.17, style === 10 ? 0.25 : 0.1, color, R, mess);
-  if (style === 1 && !covered) {
+  if (style === 1 && !covered && !band) {
     A(ball(12), color, { bone: hb, p: [x, y + hr * 0.95, z - hr * 0.38], s: [hr * 0.38, hr * 0.34, hr * 0.38], shine: 0.25 });
     A(torus3(hr * 0.24, hr * 0.06, Math.PI * 2, 4, 14), '#c8402f', { bone: hb, p: [x, y + hr * 0.75, z - hr * 0.3], r: [Math.PI / 2 - 0.5, 0, 0] });
     A(limb3(hr * 0.9, hr * 0.03, hr * 0.03, 4), '#c9a35a', { bone: hb, p: [x - hr * 0.45, y + hr * 1.05, z - hr * 0.35], r: [0, 0, 1.35] });
@@ -798,6 +818,35 @@ function humanoid3(b, c, P) {
   return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
 }
 
+// Bereitschaftspose fürs Bild der Figur (seit 13.22): Waffe in der Hand, deutlich zu sehen, nie hängend.
+// Werte: Arm (rx vor/zurück, rz seitlich), Hand (wx Klinge kippen, wz drehen), dazu Brust und Hüfte.
+const READY_POSE3 = {
+  sword: { r: [-0.5, 0, -0.28], hr: [0.05, 0, 0.12], l: [-0.3, 0, 0.18] },
+  axe: { r: [-0.5, 0, -0.28], hr: [0.05, 0, 0.12], l: [-0.3, 0, 0.18] },
+  greatsword: { r: [-0.85, 0, 0.3], hr: [0.3, 0, 0], l: [-0.9, 0, -0.38], cy: 0.18 },
+  greataxe: { r: [-0.85, 0, 0.3], hr: [0.3, 0, 0], l: [-0.9, 0, -0.38], cy: 0.18 },
+  dagger: { r: [-0.55, 0, -0.38], hr: [-0.9, 0, 0], l: [-0.55, 0, 0.38], hl: [-0.9, 0, 0] },
+  bow: { r: [-0.38, 0, -0.14], hr: [0, 0, 0], l: [-0.2, 0, 0.12] },
+  fan: { r: [-0.95, 0, -0.25], hr: [0.25, 0, 0], l: [-0.15, 0, 0.12] },
+  bell: { r: [-0.95, 0, -0.25], hr: [-0.2, 0, 0], l: [-0.15, 0, 0.12] },
+  rod: { r: [-0.6, 0, -0.18], hr: [0.38, 0, 0], l: [-0.25, 0, 0.14] },
+  staff: { r: [-0.45, 0, -0.16], hr: [0.23, 0, 0], l: [-0.2, 0, 0.12] },
+  scythe: { r: [-0.45, 0, -0.16], hr: [0.15, 0, 0], l: [-0.2, 0, 0.12] }
+};
+function readyPose3(B, who) {
+  const kind = weaponKindOf(who);
+  const P = READY_POSE3[kind];
+  if (!P) return;
+  B[BH.armR].rotation.set(P.r[0], P.r[1], P.r[2]);
+  if (P.hr) B[BH.handR].rotation.set(P.hr[0], P.hr[1], P.hr[2]);
+  const shield = who.equipment && who.equipment.schild && !isOffhand(who.equipment.schild) && !isQuiver(who.equipment.schild);
+  // Schild: vor den Körper gehoben
+  if (shield) B[BH.armL].rotation.set(-0.7, 0, 0.12);
+  else if (P.l) B[BH.armL].rotation.set(P.l[0], P.l[1], P.l[2]);
+  if (P.hl) B[BH.handL].rotation.set(P.hl[0], P.hl[1], P.hl[2]);
+  if (P.cy) B[BH.chest].rotation.y = P.cy;
+}
+
 // Köcher der Spieler (seit 13.20): schräg auf dem Rücken, Beschläge und Pfeilfedern in der Farbe der Munition
 function quiver3(A, tier, leather, chestY) {
   const arrow = QUIVER_ARROWS[tier].color;
@@ -952,8 +1001,9 @@ function playerConfig3(p) {
     Object.assign(c, { torso: robe, sleeve: robe, robe, hemTrim: gold, wideSleeves: true, cuff: gold, collar: gold, gloves: c.skin, buckle: gold, sash: '#c8402f', beads: '#7a3a2a', belt: null, padStyle: 'cloth' });
     if (c.pads) { c.pads = mixColor(c.pads, robe, 0.55); c.padTrim = gold; }
     c.headgear = shamanHelm3(L.h, lookColor(A0.band, L.h, gold), gold);
-    // Seidenhaube bedeckt das Haar
+    // Seidenhaube bedeckt das Haar; Stirnband und Kronen lassen es frei, ohne dass etwas oben durchsticht (13.22)
     if (L.h === 1) { c.covered = true; if (ap.sex === 1) c.braid = hairOf(ap); }
+    else if (L.h !== -2) c.covered = 'band';
   } else if (p.classId === 'magier') {
     // Magier (seit 8.6): Indigo und Silber, hoher Stehkragen, Glockenstulpen, spitzer Krempenhut; die Farbe des
     // Elements nur an Kristall, Hutband, Runen und Schließen. Männer mit Schultercape, Frauen mit Korsage und Zopf vorn.
@@ -5293,15 +5343,20 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   if (!a.group.parent) P.scene.add(a.group);
   resetBones(a);
   a.bones[BH.head].rotation.x = -0.08;
-  // pose: eigene Haltung (Bildtafeln der Animationen)
+  // pose: eigene Haltung (Bildtafeln der Animationen); sonst seit 13.22 eine Bereitschaftspose mit gut sichtbaren
+  // Waffen wie im Charakterfenster großer MMOs (Charakterfenster, Inventar, Schmied, Betrachten)
   if (pose) pose(a.bones);
+  else readyPose3(a.bones, who);
   a.group.rotation.set(0, yaw, 0);
   a.group.position.set(0, 0, 0);
   a.group.updateMatrixWorld(true);
   // Kamera so weit weg, dass die Figur in Höhe und Breite mit etwas Rand passt
   const sc = a.model.scale;
-  const top = a.box.max.y * sc;
-  const half = Math.max(-a.box.min.x, a.box.max.x, -a.box.min.z, a.box.max.z) * sc;
+  // in der Bereitschaftspose ragen Waffen höher hinaus: oben etwas mehr Platz
+  const top = a.box.max.y * sc * (pose ? 1 : 1.12);
+  // Breite höchstens etwa halb so groß wie die Höhe: lange Waffen (Sense, Streitaxt) ragten in der Ruhehaltung weit
+  // nach vorn und machten die Figur winzig; in der Bereitschaftspose (13.22) stehen sie aufrecht
+  const half = Math.min(Math.max(-a.box.min.x, a.box.max.x, -a.box.min.z, a.box.max.z) * sc, top * (pose ? 1 : 0.42));
   const dpr = Math.min(2, window.devicePixelRatio || 1) * 1.5;
   const W = Math.min(1024, Math.round(w * dpr));
   const H = Math.min(1024, Math.round(h * dpr));
