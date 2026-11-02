@@ -1623,8 +1623,9 @@ const ui = {
       `${bookBack ? ` und ${bookBack} gelesene Schriftrollen` : ''} zurück.</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!canResetSkills(p) || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `</div><h3>${way} wechseln <span class="price">${fmt(skCost)} Gold</span></h3>` +
-      `<p class="hint">Ein neuer ${way} setzt deine Fertigkeiten wie oben zurück (alle Punkte und Schriftrollen zurück). ` +
-      `Schriftrollen deines alten ${way}s werden zu Schriftrollen derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>` +
+      `<p class="hint">Dein jetziger ${way} bleibt mit allen Stufen gespeichert (auch E/H/L/V) – wechselst du zurück, ist alles wieder da. ` +
+      `Ein ${way}, den du schon gespielt hast, kommt genau so zurück; ein neuer beginnt auf Stufe 1 mit allen freien Punkten. ` +
+      `Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>` +
       pathChoiceHtml(c, pick) +
       `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? `Dein jetziger ${way}` : `${way}: ${pickName}`}</strong>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="path" ${pick === cur || p.gold < skCost ? 'disabled' : ''}>${pick === cur ? 'Gewählt' : 'Wechseln'}</button></div></div></div>` +
@@ -1652,7 +1653,7 @@ const ui = {
       const ask = document.createElement('div');
       ask.className = 'buy-confirm';
       ask.innerHTML = (kind === 'path'
-        ? `<p>Für ${fmt(skCost)} Gold zu ${pickName} wechseln? Alle Fertigkeiten gehen auf Stufe 1.</p>`
+        ? `<p>Für ${fmt(skCost)} Gold zu ${pickName} wechseln? ${p.pathSkills && p.pathSkills[pick] ? 'Deine früheren Stufen dort kommen zurück.' : 'Dort beginnen die Fertigkeiten auf Stufe 1.'} Dein jetziger ${way} bleibt gespeichert.</p>`
         : `<p>${what} für ${fmt(resetCost(p, kind === 'stat' ? 'stat' : 'skill'))} Gold zurücksetzen?</p>`) +
         `<button class="mini-btn" type="button" data-yes>Ja</button> <button class="mini-btn" type="button" data-no>Nein</button>`;
       b.closest('.shop-item').appendChild(ask);
@@ -1670,7 +1671,9 @@ const ui = {
           const extra = (res.books ? ` ${res.books} Schriftrollen liegen in deiner Tasche.` : '') +
             (res.moved ? ` ${res.moved === 1 ? 'Ein Teil' : res.moved + ' Teile'} deiner Ausrüstung ${res.moved === 1 ? 'liegt' : 'liegen'} jetzt in der Tasche.` : '');
           text = kind === 'path'
-            ? `Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine ${p.level - 1} Fertigkeitspunkte im Charakterfenster.` + extra
+            ? (res.restored
+              ? `Du folgst wieder dem ${c.paths[pick].name} – deine Fertigkeiten haben ihre alten Stufen.${p.skillPoints ? ` ${p.skillPoints} freie Fertigkeitspunkte warten im Charakterfenster.` : ''}`
+              : `Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine ${p.level - 1} Fertigkeitspunkte im Charakterfenster.`) + ' Dein alter Weg bleibt gespeichert.' + extra
             : `Alle Fertigkeiten sind wieder auf Stufe 1. Du hast ${p.level - 1} Fertigkeitspunkte zum Verteilen.` + extra;
           if (kind === 'path') this.log(`Du folgst jetzt dem ${c.paths[pick].name}.`, 'level');
         }

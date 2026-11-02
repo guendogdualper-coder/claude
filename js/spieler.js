@@ -88,7 +88,7 @@ function barEntryName(p, v) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'dagger2', 'quiverGiven', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'dagger2', 'quiverGiven', 'pathSkills', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 1; // seit 10.1 (vorher 3): sonst ist man zu schnell durch
@@ -529,6 +529,7 @@ function resetSkills(path = game.player.path || 0) {
   const oldPath = p.path || 0;
   const books = p.skillLevels.map(skillBooksSpent);
   let moved = [];
+  let restored = false;
   endSkillEffects(p);
   if (path !== oldPath) {
     // Bücher des alten Wegs in der Tasche werden zu Büchern derselben Plätze im neuen Weg
@@ -536,8 +537,27 @@ function resetSkills(path = game.player.path || 0) {
       const n = bookCount(p, sk.id);
       if (n) { takeBooks(p, sk.id, n); giveBooks(p, c.paths[path].skills[i].id, n); }
     });
+    // Seit 13.24 bleibt jeder Weg mit seinen Stufen gespeichert (z. B. E2, 10, …): der alte Weg wird gemerkt,
+    // ein schon gespielter Weg kommt genau so zurück. Punkte, die dort stecken, bleiben dort; neue Stufen geben
+    // neue Punkte. Gelesene Schriftrollen gehören zu ihrem Weg und kommen deshalb nicht in die Tasche.
+    if (!p.pathSkills || typeof p.pathSkills !== 'object') p.pathSkills = {};
+    p.pathSkills[oldPath] = { levels: p.skillLevels.slice(), spent: Math.max(0, p.level - 1 - (p.skillPoints || 0)) };
     p.path = path;
     moved = enforceGearRules(p);
+    const st = p.pathSkills[path];
+    if (st && Array.isArray(st.levels) && st.levels.length === 5) {
+      p.skillLevels = st.levels.slice();
+      p.skillPoints = Math.max(0, p.level - 1 - (st.spent || 0));
+      restored = true;
+    } else {
+      p.skillLevels = [1, 1, 1, 1, 1];
+      p.skillPoints = p.level - 1;
+    }
+    delete p.pathSkills[path];
+    game.stats = playerStats(p);
+    p.hp = Math.min(p.hp, game.stats.maxHp);
+    p.mp = Math.min(p.mp, game.stats.maxMp);
+    return { books: 0, moved: moved.length, changed: true, restored };
   }
   const skills = classSkills(p);
   books.forEach((n, i) => giveBooks(p, skills[i].id, n));
