@@ -56,15 +56,27 @@ $HOST {
 }
 CADDY
 
-# Hauptdomain (z. B. seelenstein.online und www.…): leitet zum Spiel weiter (gleiche Adresse wie bisher,
-# damit Spielstände und installierte App erhalten bleiben)
+# Hauptdomain (z. B. seelenstein.online): liefert das Spiel unter der eigenen Adresse aus. Caddy holt die Seiten
+# von GitHub Pages (immer die aktuelle Version), oben im Browser steht aber seelenstein.online.
+# www.… leitet auf die Hauptdomain weiter. Spielstände der alten Adresse zieht js/umzug.js mit um.
+PAGES_HOST="guendogdualper-coder.github.io"
+PAGES_PATH="/claude"
 case "$HOST" in
   server.*)
     MAIN="${HOST#server.}"
     cat >> /etc/caddy/Caddyfile <<CADDY
 
-$MAIN, www.$MAIN {
-	redir https://guendogdualper-coder.github.io/claude/ 302
+$MAIN {
+	encode gzip
+	rewrite * $PAGES_PATH{uri}
+	reverse_proxy https://$PAGES_HOST {
+		header_up Host {upstream_hostport}
+		header_down Location https://$PAGES_HOST$PAGES_PATH https://$MAIN
+	}
+}
+
+www.$MAIN {
+	redir https://$MAIN{uri} 301
 }
 CADDY
     ;;

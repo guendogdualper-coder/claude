@@ -44,3 +44,12 @@ Prüfen: `systemctl status 'seelenstein-waechter@*'`, Protokoll: `journalctl -u 
 
 - Im Browser: `https://server.seelenstein.online/health` → „ok“
 - Auf dem Server: `systemctl status mosquitto caddy`
+
+## Eigene Adresse seelenstein.online (seit 13.35)
+
+- DNS bei INWX: `seelenstein.online`, `www` und `server` zeigen als A-Eintrag auf `159.195.68.235`.
+- `setup.sh server.seelenstein.online` richtet in Caddy zusätzlich ein:
+  - `seelenstein.online` holt die Seiten von GitHub Pages (`guendogdualper-coder.github.io/claude`) und liefert sie unter der eigenen Adresse aus. Jede neue Version ist dort sofort live, ohne dass auf dem Server etwas zu tun ist.
+  - `www.seelenstein.online` leitet auf `seelenstein.online` weiter.
+- Spielstände: Browser speichern pro Adresse getrennt. `js/umzug.js` bringt Besucher der alten Adresse samt Charakteren, Konto und Einstellungen zur neuen Adresse (die Daten stehen nur im #-Teil der Adresse, der nie an einen Server geht). Installierte Apps zeigen einen Hinweis „Umziehen“. Der Umzug startet erst, wenn seelenstein.online das Spiel wirklich selbst ausliefert.
+- Der Welt-Wächter läuft weiter über die alte Adresse (`?waechter=1` zieht nicht um); das ist egal, weil alle denselben Server nutzen.
