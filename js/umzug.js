@@ -98,11 +98,29 @@ function umzugHinweis() {
     '<button id="umzugGo" style="background:#c9a24a;color:#1d1810;border:0;border-radius:6px;padding:6px 10px;font-weight:700">Umziehen</button>' +
     '<button id="umzugNo" style="background:none;color:#f3e3b5;border:1px solid #6b5a33;border-radius:6px;padding:6px 10px">Später</button>';
   document.body.appendChild(box);
-  box.querySelector('#umzugGo').onclick = umzugLos;
+  box.querySelector('#umzugGo').onclick = () => {
+    box.querySelector('#umzugGo').disabled = true;
+    umzugZielBereit().then((ok) => {
+      if (ok) umzugLos();
+      else box.remove();
+    });
+  };
   box.querySelector('#umzugNo').onclick = () => {
     try { sessionStorage.setItem('seelenstein.umzug.spaeter', '1'); } catch (e) { /* egal */ }
     box.remove();
   };
+}
+
+// Ist die neue Adresse bereit, d. h. liefert sie das Spiel wirklich selbst aus und leitet nicht nur hierher zurück?
+// (Sonst gäbe es eine Schleife: „Umziehen“ lädt neu, landet wieder hier, der Hinweis kommt wieder; seit 13.45
+// auch für die installierte App geprüft, vorher nur im Browser.)
+function umzugZielBereit() {
+  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
+  const t = setTimeout(() => ctl && ctl.abort(), 5000);
+  return fetch(UMZUG_ZIEL + 'manifest.webmanifest?umzug=' + Date.now(), { cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+    .then((r) => r.ok && !r.redirected && new URL(r.url).hostname === new URL(UMZUG_ZIEL).hostname)
+    .catch(() => false)
+    .finally(() => clearTimeout(t));
 }
 
 function umzugStart() {
@@ -112,20 +130,21 @@ function umzugStart() {
     umzugEmpfangen();
     return;
   }
-  if (umzugInstalliert()) {
-    if (document.body) umzugHinweis(); else addEventListener('DOMContentLoaded', umzugHinweis);
+  // Mit Umzugsdaten wieder hier gelandet: die neue Adresse hat zurückgeleitet – hier weiterspielen, diese Sitzung
+  // nicht noch einmal versuchen
+  if ((location.hash || '').indexOf('#umzug=') === 0) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* egal */ }
+    try { sessionStorage.setItem('seelenstein.umzug.spaeter', '1'); } catch (e) { /* egal */ }
     return;
   }
-  // nur umziehen, wenn die neue Adresse erreichbar ist; sonst einfach hier weiterspielen
-  const ctl = typeof AbortController === 'function' ? new AbortController() : null;
-  const t = setTimeout(() => ctl && ctl.abort(), 5000);
-  // (und das Spiel dort wirklich selbst ausliefert, nicht nur hierher zurückleitet – sonst gäbe es eine Schleife)
-  fetch(UMZUG_ZIEL + 'manifest.webmanifest?umzug=' + Date.now(), { cache: 'no-store', signal: ctl ? ctl.signal : undefined })
-    .then((r) => {
-      clearTimeout(t);
-      if (r.ok && !r.redirected && new URL(r.url).hostname === new URL(UMZUG_ZIEL).hostname) umzugLos();
-    })
-    .catch(() => clearTimeout(t));
+  umzugZielBereit().then((ok) => {
+    if (!ok) return;
+    if (umzugInstalliert()) {
+      if (document.body) umzugHinweis(); else addEventListener('DOMContentLoaded', umzugHinweis);
+    } else {
+      umzugLos();
+    }
+  });
 }
 
 umzugStart();
