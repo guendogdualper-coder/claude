@@ -828,7 +828,7 @@ const READY_POSE3 = {
   dagger: { r: [-0.55, 0, -0.38], hr: [-0.9, 0, 0], l: [-0.55, 0, 0.38], hl: [-0.9, 0, 0] },
   bow: { r: [-0.38, 0, -0.14], hr: [0, 0, 0], l: [-0.2, 0, 0.12] },
   fan: { r: [-0.95, 0, -0.25], hr: [0.25, 0, 0], l: [-0.15, 0, 0.12] },
-  bell: { r: [-0.95, 0, -0.25], hr: [-0.2, 0, 0], l: [-0.15, 0, 0.12] },
+  bell: { r: [-0.85, 0, -0.2], hr: [-1.15, 0, 0], l: [-0.15, 0, 0.12] },
   rod: { r: [-0.6, 0, -0.18], hr: [0.38, 0, 0], l: [-0.25, 0, 0.14] },
   staff: { r: [-0.45, 0, -0.16], hr: [0.23, 0, 0], l: [-0.2, 0, 0.12] },
   scythe: { r: [-0.45, 0, -0.16], hr: [0.15, 0, 0], l: [-0.2, 0, 0.12] }
@@ -900,9 +900,12 @@ function spinBones3(c, list, m) {
 // Haltung der Waffe in der Hand (Drehung des Griffs)
 // ungefähre Länge der Waffe ab der Hand entlang +y im Haltungsrahmen (Klinge, Kopf, Stab)
 const WEAPON_LEN3 = { sword: 0.72, greatsword: 1.05, dagger: 0.38, axe: 0.62, greataxe: 0.95, club: 0.6, scythe: 1.1, staff: 1.0, skullstaff: 1.0, rod: 0.7, fan: 0.35, bell: 0.3, bow: 0.5 };
+// Winkel der Hand, bei dem die Glocke senkrecht hängt (Armwinkel wird ausgeglichen)
+let BELL_HANG3 = -2.0;
+let BELL_ARM3 = -0.8;
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
-  bell: [0.5, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45],
+  bell: [2.0, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.35, 0, 0.42], club: [0.6, 0, 0.45],
   rod: [0.22, 0, 0.08]
 };
 
@@ -4652,6 +4655,8 @@ const SKILL_POSE3 = {
 // Arme: rx −1,5 = waagerecht nach vorn, −2,7 = über dem Kopf; rz < 0 rechter Arm nach außen, > 0 quer vor den Körper
 // (linker Arm umgekehrt). Oberkörper cy > 0 dreht nach links. Zweihänder (two) führen den linken Arm am Griff mit.
 const N3 = { rz: -0.08, lz: 0.08 };
+// Ruhehaltung mit Glocke (wie BELL_ARM3/BELL_HANG3), damit der Angriff ohne Sprung beginnt und endet
+const BELL_N3 = { rx: -0.8, rz: -0.16, lz: 0.08, wx: -1.2 };
 const BASIC3 = {
   sword: [
     [[0, N3], [0.34, { cy: -0.55, cx: -0.12, hy: -0.25, rx: -2.6, rz: -0.55, lx: -1.1, lz: 0.25, gr: 0.2, gl: -0.15 }, 'out'],
@@ -4736,9 +4741,10 @@ const BASIC3 = {
   fan: [[[0, N3], [0.3, { rx: -1.2, rz: -0.9, cy: -0.5, hy: -0.2, wz: 0.6, lx: -0.5, lz: 0.4 }, 'out'],
     [0.45, { rx: -1.45, rz: 0.75, cy: 0.45, hy: 0.2, wz: -0.6, hpz: 0.06, gr: -0.25, gl: 0.2, lx: -0.7, lz: 0.6 }, 'in'],
     [0.7, { rx: -1.35, rz: 0.95, cy: 0.55, hy: 0.25, wz: -0.7, hpz: 0.05, gr: -0.2, gl: 0.15, lx: -0.6, lz: 0.7 }, 'out'], [1, N3]]],
-  bell: [[[0, N3], [0.2, { rx: -2.3, rz: -0.2, cx: -0.08, lx: -0.4, lz: 0.3 }, 'out'], [0.3, { rx: -2.35, rz: -0.45, cx: -0.08 }],
-    [0.4, { rx: -2.3, rz: 0.05, cx: -0.08 }], [0.55, { rx: -1.5, rz: 0.1, cx: 0.15, hpz: 0.06, gr: -0.25, lx: -1.0, lz: 0.2 }, 'in'],
-    [0.75, { rx: -1.3, rz: 0.1, cx: 0.12, hpz: 0.05, gr: -0.2, lx: -0.9, lz: 0.2 }, 'out'], [1, N3]]],
+  // Glocke (seit 13.28): hoch heben und läuten (Hand pendelt, die Glocke bleibt dabei hängend), dann nach vorn schwingen
+  bell: [[[0, BELL_N3], [0.2, { rx: -2.3, rz: -0.2, cx: -0.08, lx: -0.4, lz: 0.3, wx: 0.3 }, 'out'], [0.3, { rx: -2.35, rz: -0.45, cx: -0.08, wx: 0.75 }],
+    [0.4, { rx: -2.3, rz: 0.05, cx: -0.08, wx: -0.15 }], [0.55, { rx: -1.5, rz: 0.1, cx: 0.15, hpz: 0.06, gr: -0.25, lx: -1.0, lz: 0.2, wx: -0.5 }, 'in'],
+    [0.75, { rx: -1.3, rz: 0.1, cx: 0.12, hpz: 0.05, gr: -0.2, lx: -0.9, lz: 0.2, wx: -0.7 }, 'out'], [1, BELL_N3]]],
   staff: [[[0, N3], [0.3, { rx: -2.6, rz: -0.15, cx: -0.15, lx: -0.6, lz: 0.3, hpy: 0.02 }, 'out'],
     [0.5, { rx: -1.45, rz: 0.1, cx: 0.25, lx: -1.35, lz: -0.1, hpz: 0.1, gr: -0.35, gl: 0.25 }, 'in'],
     [0.72, { rx: -1.4, rz: 0.1, cx: 0.22, lx: -1.3, lz: -0.05, hpz: 0.09, gr: -0.3, gl: 0.2 }, 'out'], [1, N3]]],
@@ -4948,6 +4954,12 @@ function syncPlayer3(p, dt) {
       B[BH.armR].rotation.set(-0.42 + br, 0, -0.22);
       B[BH.armL].rotation.set(-0.42 - br, 0, 0.22);
     }
+  }
+  // Glocke (seit 13.28): außerhalb von Angriffen hält der Schamane sie am Griff leicht vor dem Körper,
+  // die Glocke hängt dabei immer senkrecht (Griff oben, Öffnung unten) – auch beim Laufen
+  if (kind === 'bell' && !posing && sw < 0 && !p.riding) {
+    if (!p.moving) B[BH.armR].rotation.set(BELL_ARM3 + Math.sin(game.time * 2.2) * 0.04, 0, -0.16);
+    B[BH.handR].rotation.x = BELL_HANG3 - B[BH.armR].rotation.x;
   }
   // Treffer: kurz nach hinten zucken, rot aufblitzen
   const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;
