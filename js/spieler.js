@@ -307,6 +307,7 @@ function playerStats(p) {
   };
   let atkMul = 1;
   let atkFlat = 0;
+  let defFlat = 0; // feste Rüstung aus Buffs (Frostpanzer, seit 13.52)
   let defMul = 1;
   let speedMul = 1;
   // Boni der Ausrüstung
@@ -413,6 +414,8 @@ function playerStats(p) {
     if (e.regen) s.regen += e.regen;
     if (e.reflect) s.reflect += e.reflect;
     if (e.chill) s.chill = Math.max(s.chill || 0, e.chill);
+    if (e.chillDur) s.chillDur = Math.max(s.chillDur || 0, e.chillDur);
+    if (e.defFlat) defFlat += e.defFlat;
     if (e.invisible) s.invisible = true;
   }
   // fester Angriff aus Buffs (Aura des Schwertes, seit 13.4) kommt nach den Prozenten dazu
@@ -420,7 +423,7 @@ function playerStats(p) {
   if (main > 0 && s.atk > 0) s.skillDmg *= 1 + (main * MAIN_SKILL_FLAT) / s.atk;
   s.wMul = atkMul;
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
-  s.def = Math.round(s.def * defMul);
+  s.def = Math.round(s.def * defMul + defFlat);
   // Obergrenzen, damit hohe Ränge und viele Buffs zusammen nicht ausufern
   // Lauftempo (seit 8.5): Gegenstände, Boni und Buffs zählen zu Fuß und sind auf +25 % begrenzt,
   // das Pferd kommt danach dazu

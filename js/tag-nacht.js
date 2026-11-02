@@ -5,8 +5,8 @@
 //   Feuerbecken und Laternen leuchten dann umso mehr.
 // - Nachts kommen auf jeder Map Nachtmonster dazu (daten/nachtmonster.js); bei Tagesanbruch ziehen sie sich zurück.
 //   Sie rechnet der Host (oder man allein), Mitspieler bekommen sie über den Zustand des Hosts.
-// - Die Wanderer des Tages schlafen nachts, dafür sind Nachtwanderer unterwegs, die Nachtjagden vergeben.
-//   In Vlotho gehen das Kind und der Bauer schlafen, die Nachtwächterin und ein Laternenanzünder sind unterwegs.
+// - Nachtwanderer vergeben Nachtjagden; in Vlotho sind die Nachtwächterin und ein Laternenanzünder unterwegs.
+//   Seit 13.52 sind alle NPCs Tag und Nacht da (vorher schliefen die Wanderer nachts).
 
 const DAY_CYCLE = 2400;
 const DN_LEN = { day: 1500, dusk: 180, night: 540, dawn: 180 };
@@ -179,24 +179,19 @@ function buildNightNpcs() {
   return extra;
 }
 
-// Wer nachts schläft: die Wanderer draußen, in Vlotho Kind und Bauer
-const sleepsAtNight = (n) => n.id === 'wanderer' || (n.wander && (n.id === 'kind' || n.id === 'bauer'));
-
+// Seit 13.52 sind alle NPCs Tag und Nacht da: niemand schläft mehr, und die Nachtwanderer, die Nachtwächterin und
+// der Laternenanzünder stehen auch tagsüber bereit (ihre Nachtjagden zählen aber nur nachts – die Nachtmonster gibt es
+// nur dann). Vorher verschwanden nachts die Wanderer samt ihren Aufgaben und tagsüber die Nachtwanderer.
 function swapNpcs(night) {
   const w = game.world;
   if (!w) return;
   if (!dayNight.extra || dayNight.extraWorld !== w) {
     dayNight.extra = buildNightNpcs();
     dayNight.extraWorld = w;
-    dayNight.hidden = [];
   }
-  if (night) {
-    dayNight.hidden = w.npcs.filter(sleepsAtNight);
-    w.npcs = w.npcs.filter((n) => !sleepsAtNight(n) && !n.night).concat(dayNight.extra);
-  } else {
-    w.npcs = w.npcs.filter((n) => !n.night).concat(dayNight.hidden.filter((n) => !w.npcs.includes(n)));
-    dayNight.hidden = [];
-  }
+  // ältere Stände: versteckte Wanderer zurückholen
+  w.npcs = w.npcs.filter((n) => !n.night).concat((dayNight.hidden || []).filter((n) => !w.npcs.includes(n)), dayNight.extra);
+  dayNight.hidden = [];
   dayNight.npcNight = night;
   if (game.nearNpc && !w.npcs.includes(game.nearNpc)) game.nearNpc = null;
 }

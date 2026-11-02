@@ -430,8 +430,9 @@ const CLASSES = {
           },
           {
             id: 'frostpanzer', name: 'Frostpanzer', short: 'FP', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'frost',
-            type: 'buff', duration: 180, effects: { def: 0.25, damageTaken: -0.1, chill: 0.3 },
-            text: 'Buff: Eisplatten kreisen um dich. Mehr Verteidigung, weniger erlittener Schaden, und wer dich schlägt, wird 1,5 s verlangsamt.'
+            // seit 13.52: feste Rüstung nach Rang und eigener Stufe (frostArmor), Kälte nach Rang (kampf.js)
+            type: 'buff', duration: 180, effects: { def: 0.25, defFlat: 1, damageTaken: -0.1, chill: 0.3, chillDur: 1.5 },
+            text: 'Buff: Eisplatten kreisen um dich. Viel mehr Rüstung (wächst mit Rang und deiner Stufe), weniger erlittener Schaden. Wer dich trifft – auch aus der Ferne –, wird von Reif überzogen: Er läuft und schlägt eine Weile langsamer (stärker und länger je Rang).'
           },
           {
             id: 'kristallgrab', name: 'Kristallgrab', short: 'KG', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,

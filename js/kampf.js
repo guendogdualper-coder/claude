@@ -436,9 +436,16 @@ function damagePlayer(amount, attacker) {
   // In Städten und Lagern gibt es keinen Schaden (außer im Duell) – egal woher er kommt
   if (inVillage(p.x, p.y) && !(attacker && attacker.duelProxy)) return;
   p.lastCombat = game.time;
-  // Frostpanzer (seit 8.6): wer dich aus der Nähe schlägt, wird 1,5 s verlangsamt (feste Verlangsamung)
-  if (s.chill && attacker && !attacker.duelProxy && !attacker.dead && attacker.typeId && dist(attacker, p) < 90) {
-    setSlow(attacker, Math.max(0.1, 1 - s.chill), 1.5);
+  // Frostpanzer (seit 8.6, seit 13.52 nach Rang): wer dich trifft – auch aus der Ferne –, läuft und schlägt langsamer
+  if (s.chill && attacker && !attacker.duelProxy && !attacker.dead && attacker.typeId && dist(attacker, p) < 520) {
+    const dur = s.chillDur || 1.5;
+    setSlow(attacker, Math.max(0.1, 1 - s.chill), dur);
+    attacker.frostAtk = { mul: 1 - s.chill * 0.5, until: game.time + dur };
+    // Reif am Angreifer (höchstens alle 0,4 s)
+    if (!(attacker.chillFxAt > game.time)) {
+      attacker.chillFxAt = game.time + 0.4;
+      addEffect({ type: 'burst', x: attacker.x, y: attacker.y - 14, dur: 0.45, color: '#bff4ff', count: 8 });
+    }
     if (net.mode === 'client') netClientDamage(attacker, 0, false, false);
   }
   if (p.protectUntil > game.time) return;
@@ -992,14 +999,41 @@ function auraFlat(lvl) {
   const bp = (game.stats && game.stats.buffPower) || 1;
   return Math.round(v * (1 + (bp - 1) * 0.5));
 }
-const SKILL_FIXED_EFFECTS = { segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat } };
+// Frostpanzer (seit 13.52): feste Rüstung nach Rang und eigener Stufe, Kälte für Angreifer wächst mit dem Rang.
+// Rüstung je Rang (normal 25–90, E 150–198, H 260–316, L 400–472, V 650), ×0,6 auf Stufe 1 bis ×1,1 auf Stufe 80,
+// dazu die Buff-Stärke halb. Kälte: Angreifer laufen 25–35 % langsamer (E 40, H 45, L 50, V 55 %) und schlagen
+// halb so viel langsamer; 1,5 s, je Rang +0,25 s.
+const FROST_ARMOR = { base: [25, 90], E: [150, 6], H: [260, 7], L: [400, 9], V: 650 };
+function frostArmor(lvl) {
+  const r = skillRank(lvl);
+  let v;
+  if (r < 0) v = FROST_ARMOR.base[0] + (FROST_ARMOR.base[1] - FROST_ARMOR.base[0]) * (Math.min(lvl, SKILL_BASE_MAX) - 1) / (SKILL_BASE_MAX - 1);
+  else if (r === 3) v = FROST_ARMOR.V;
+  else {
+    const [b, step] = FROST_ARMOR['EHL'[r]];
+    v = b + step * (lvl - SKILL_RANKS[r].from);
+  }
+  const pl = game.player ? game.player.level || 1 : 1;
+  const bp = (game.stats && game.stats.buffPower) || 1;
+  return Math.round(v * (0.6 + 0.5 * Math.min(1, (pl - 1) / 79)) * (1 + (bp - 1) * 0.5));
+}
+function frostChill(lvl) {
+  const r = skillRank(lvl);
+  if (r >= 0) return 0.4 + 0.05 * r;
+  return 0.25 + 0.1 * (Math.min(lvl, SKILL_BASE_MAX) - 1) / (SKILL_BASE_MAX - 1);
+}
+const frostChillDur = (lvl) => 1.5 + 0.25 * (skillRank(lvl) + 1);
+const SKILL_FIXED_EFFECTS = {
+  segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat },
+  frostpanzer: { defFlat: frostArmor, chill: frostChill, chillDur: frostChillDur }
+};
 function applyBuff(sk, lvl) {
   const p = game.player;
   const scale = buffScale(lvl);
   const effects = {};
   const fixed = SKILL_FIXED_EFFECTS[sk.id] || {};
   // Lauftempo seit 8.5 fest (sonst bis +158 % mit Rang und Hauptwert)
-  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = fixed[k] ? fixed[k](lvl) : typeof v === 'number' ? (k === 'speed' || k === 'chill' ? v : v * scale) : v;
+  for (const [k, v] of Object.entries(sk.effects || {})) effects[k] = fixed[k] ? fixed[k](lvl) : typeof v === 'number' ? (k === 'speed' || k === 'chill' || k === 'chillDur' ? v : v * scale) : v;
   const duration = skillDuration(sk, lvl);
   p.buffs = p.buffs.filter((b) => b.id !== sk.id);
   p.buffs.push({ id: sk.id, name: skillRankName(sk, lvl), short: sk.short, until: game.time + duration, duration, effects, lvl });

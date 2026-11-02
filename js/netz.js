@@ -415,6 +415,7 @@ function netHostDamage(rp, d) {
     if (st.kx || st.ky) { m.kx = st.kx; m.ky = st.ky; }
     if (st.v) m.vulnerable = { mul: st.v[0], until: game.time + st.v[1] };
     if (st.sl) setSlow(m, st.sl[0], st.sl[1]);
+    if (st.fa) m.frostAtk = { mul: Math.max(0.4, +st.fa[0] || 1), until: game.time + Math.min(4, +st.fa[1] || 0) };
     if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
     if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0 };
@@ -723,6 +724,7 @@ function netClientDamage(m, amount, crit, isDot) {
   const left = (o) => (o && o.until > game.time ? +(o.until - game.time).toFixed(1) : 0);
   if (left(m.vulnerable)) st.v = [m.vulnerable.mul, left(m.vulnerable)];
   if (left(m.slow)) st.sl = [m.slow.mul, left(m.slow)];
+  if (left(m.frostAtk)) st.fa = [m.frostAtk.mul, left(m.frostAtk)];
   if (left(m.poison) && !m.poison.sent) { st.po = [m.poison.dps, left(m.poison)]; m.poison.sent = true; }
   if (left(m.burn) && !m.burn.sent) { st.bu = [m.burn.dps, left(m.burn)]; m.burn.sent = true; }
   if (left(m.bleed) && !m.bleed.sent) { st.bl = [m.bleed.dps, left(m.bleed)]; m.bleed.sent = true; }

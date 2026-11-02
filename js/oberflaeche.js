@@ -1835,7 +1835,7 @@ function changeMageElement(n) {
 const SKILL_EFFECT_LABELS = {
   atk: 'Angriff', atkFlat: 'Angriff', crit: 'Krit', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', damageTaken: 'Erlittener Schaden',
   def: 'Verteidigung', dodge: 'Ausweichen', skillDmg: 'Fertigkeitsschaden', regen: 'Leben je s', reflect: 'Rückwurf', hpSteal: 'Lebensraub',
-  chill: 'Kälte für Angreifer', critDmg: 'Kritischer Schaden'
+  chill: 'Kälte für Angreifer', critDmg: 'Kritischer Schaden', defFlat: 'Rüstung', chillDur: 'Kälte hält'
 };
 // Zahl mit Komma, eine Nachkommastelle (1,3 s)
 const numDe = (v) => String(Math.round(v * 10) / 10).replace('.', ',');
@@ -1910,7 +1910,10 @@ function skillStats(sk, lvl) {
     const label = (sk.labels && sk.labels[k]) || SKILL_EFFECT_LABELS[k];
     if (typeof v !== 'number' || !label) continue;
     // Kälte (Frostpanzer, seit 8.6) verlangsamt fest um diesen Anteil
-    if (k === 'chill') { out.push([label, skillPct(v)]); continue; }
+    // seit 13.52 nach Rang (frostChill), dazu die Dauer und feste Rüstung (frostArmor)
+    if (k === 'chill') { out.push([label, '−' + skillPct(sk.id === 'frostpanzer' && typeof frostChill === 'function' ? frostChill(lvl) : v) + ' Tempo']); continue; }
+    if (k === 'chillDur') { out.push([label, numDe(typeof frostChillDur === 'function' ? frostChillDur(lvl) : v) + ' s']); continue; }
+    if (k === 'defFlat') { out.push([label, '+' + (typeof frostArmor === 'function' ? frostArmor(lvl) : Math.round(v))]); continue; }
     // fester Angriffswert (Aura des Schwertes, seit 13.4)
     if (k === 'atkFlat') { out.push([label, '+' + (sk.id === 'schwertaura' && typeof auraFlat === 'function' ? auraFlat(lvl) : Math.round(v * scale))]); continue; }
     // seit 13.6 als Zahl: Angriff und Verteidigung aus den Werten ohne diesen Buff, Regeneration in Leben je Sekunde
@@ -2225,6 +2228,8 @@ function buffTip(b) {
     if (k === 'invisible' && v) lines.push('Unsichtbar · nächster Treffer stärker');
     else if (k === 'int' && typeof v === 'number') lines.push('Intelligenz +' + Math.round(v));
     else if (k === 'atkFlat' && typeof v === 'number') lines.push('Angriff +' + Math.round(v));
+    else if (k === 'defFlat' && typeof v === 'number') lines.push('Rüstung +' + Math.round(v));
+    else if (k === 'chillDur') continue;
     else if (BUFF_TIP_LABELS[k] && typeof v === 'number' && v) lines.push(BUFF_TIP_LABELS[k] + ' ' + fmt(v));
   }
   const fx = SKILL_FX[b.id];

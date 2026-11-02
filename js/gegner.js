@@ -780,7 +780,8 @@ function updateMonsters(dt) {
       m.stun = 0;
       if (m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
     }
-    m.cd -= dt;
+    // Frostpanzer (seit 13.52): wer den Magier trifft, schlägt eine Weile langsamer
+    m.cd -= m.frostAtk && m.frostAtk.until > game.time ? dt * m.frostAtk.mul : dt;
     const slowMul = m.slow && m.slow.until > game.time ? m.slow.mul : 1;
     const speed = m.type.speed * slowMul * MONSTER_SPEED_MUL;
     m.moving = false;
