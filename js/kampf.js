@@ -834,8 +834,11 @@ function startAim(i, sk) {
   const t = pickTarget(sk.range);
   const pt = { x: t ? t.x : p.x + p.facing.x * 150, y: t ? t.y : p.y + p.facing.y * 150, r: 0 };
   game.aim = { i, sk, pt, until: game.time + AIM_TIMEOUT, go: false };
-  clampAim();
-  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.radius, dur: AIM_TIMEOUT + 1, color: sk.color || '#bfe8ff' });
+  // seit 13.42: der Kreis folgt frei dem Zeiger und ist grün, wenn der Zauber dort wirken kann, sonst rot
+  // (zu weit weg oder im Dorf); Rechtsklick oder Esc bricht ab
+  if (Math.hypot(pt.x - p.x, pt.y - p.y) > sk.range) clampAim();
+  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.radius, dur: AIM_TIMEOUT + 1, color: AIM_OK });
+  aimCheck();
   addText(p.x, p.y - 40, 'Ort antippen', 'info');
   document.body.classList.add('aiming');
 }
@@ -844,6 +847,20 @@ function cancelAim() {
   if (game.aim.fx) game.aim.fx.dur = 0;
   game.aim = null;
   document.body.classList.remove('aiming');
+}
+const AIM_OK = '#5fe07a';
+const AIM_BAD = '#ff4a3a';
+// Kann der Zauber am Kreis wirken? (Reichweite, nicht im Dorf) – färbt den Kreis grün oder rot
+function aimCheck() {
+  const a = game.aim;
+  if (!a) return false;
+  const p = game.player;
+  const far = Math.hypot(a.pt.x - p.x, a.pt.y - p.y) > a.sk.range + 2;
+  const town = inVillage(p.x, p.y) && !duelFighting();
+  a.ok = !far && !town;
+  a.why = far ? 'Zu weit weg' : town ? 'Im Dorf wird nicht gekämpft' : '';
+  if (a.fx) a.fx.color = a.ok ? AIM_OK : AIM_BAD;
+  return a.ok;
 }
 // Punkt auf Reichweite um die Figur begrenzen
 function clampAim() {
@@ -859,12 +876,16 @@ function aimAt(x, y) {
   if (!game.aim) return;
   game.aim.pt.x = x;
   game.aim.pt.y = y;
-  clampAim();
+  aimCheck();
 }
 function aimFire(x, y) {
   const a = game.aim;
   if (!a) return;
   if (x != null) aimAt(x, y);
+  if (!aimCheck()) {
+    addText(game.player.x, game.player.y - 40, a.why || 'Hier nicht', 'info');
+    return;
+  }
   a.go = true;
   useSkill(a.i);
   cancelAim();
@@ -873,7 +894,7 @@ function updateAim() {
   const a = game.aim;
   if (!a) return;
   if (game.time > a.until || !game.player || game.player.dead) cancelAim();
-  else clampAim();
+  else aimCheck();
 }
 // Zielort einer Fertigkeit: der gewählte Kreis, sonst das Ziel oder ein Punkt vor der Figur
 function skillAimPoint(sk) {
@@ -1543,6 +1564,12 @@ function spawnProjectile(o) {
     dy = o.dir.y;
   }
   const len = Math.hypot(dx, dy) || 1;
+  // seit 13.42: Eigene Geschosse ohne Ziel, während ein Ziel gewählt ist, fliegen nur für dieses Ziel –
+  // Monster davor werden nicht getroffen (das Geschoss verfällt am Ende seiner Reichweite)
+  if (o.owner === 'player' && !o.target && !o.pierce && !o.onlyHit) {
+    const f = game.target;
+    if (f && !f.dead && !f.hidden && !f.duelProxy) o.onlyHit = f;
+  }
   game.projectiles.push({
     hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6, trail: [], rank: fxRank,
     ...o,
@@ -1609,7 +1636,7 @@ function updateProjectiles(dt) {
       }
       // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
       // seit 13.41 gilt das für jedes Geschoss mit Ziel (Feuerball, Pfeile …): wer davor steht, wird nicht getroffen
-      const only = !pr.pierce && pr.target && !pr.target.dead ? pr.target : null;
+      const only = !pr.pierce && pr.target && !pr.target.dead ? pr.target : (pr.onlyHit && !pr.onlyHit.dead ? pr.onlyHit : null);
       for (const m of game.monsters) {
         if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;

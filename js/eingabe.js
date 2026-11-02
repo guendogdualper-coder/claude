@@ -124,6 +124,12 @@ function setupInput() {
   });
   const mouseDown = (e) => {
     cv.setPointerCapture(e.pointerId);
+    // Rechtsklick bricht einen offenen Zielkreis ab (seit 13.42)
+    if (e.button === 2 && game.aim) {
+      cancelAim();
+      addText(game.player.x, game.player.y - 40, 'Abgebrochen', 'info');
+      return;
+    }
     if (e.button === 2) {
       if (v3Shoulder()) camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, right: true };
       else selectAt(e.clientX, e.clientY);

@@ -59,7 +59,9 @@ MAGE2_REMOTE.mbreath = (rp, sk, d) => breathFx(rp, d.x ?? rp.x, d.y ?? rp.y, d.a
 SKILL_TYPES.mcast = function (sk, pw, lvl) {
   const p = game.player;
   if (p.mcast) return false;
-  const t = pickTarget(sk.range);
+  // seit 13.42: gewähltes Ziel (auch etwas außer Reichweite) hat Vorrang
+  const f = game.target && !game.target.dead && !game.target.hidden && dist(p, game.target) <= sk.range + 200 ? game.target : null;
+  const t = f || pickTarget(sk.range);
   if (t) faceTowards(t.x, t.y);
   input.walkTo = null;
   clearAttack();
@@ -94,14 +96,17 @@ function mageCastTick() {
   if (game.time - c.t0 < c.dur) return;
   p.mcast = null;
   const sk = c.sk;
-  const t = c.target && !c.target.dead && dist(p, c.target) <= sk.range + 40 ? c.target : pickTarget(sk.range);
+  // seit 13.42: das gewählte Ziel bleibt das Ziel, auch wenn es etwas weiter weg ist (Reichweite wächst mit)
+  const focus = game.target && !game.target.dead && !game.target.hidden && dist(p, game.target) <= sk.range + 200 ? game.target : null;
+  const t = c.target && !c.target.dead && dist(p, c.target) <= sk.range + 200 ? c.target : focus || pickTarget(sk.range);
   if (t) faceTowards(t.x, t.y);
   startSwing(p, 'stoss', 0.35);
   const tx = t ? t.x : p.x + p.facing.x * sk.range;
   const ty = t ? t.y : p.y + p.facing.y * sk.range;
   later(0.1, () => {
     if (p.dead) return;
-    spawnProjectile({ ...mageBolt(p, sk, t && !t.dead ? t : null, c.pw, c.lvl, true), big: sk.big, radius: 16 });
+    const tt = t && !t.dead ? t : null;
+    spawnProjectile({ ...mageBolt(p, sk, tt, c.pw, c.lvl, true), big: sk.big, radius: 16, range: tt ? Math.max(sk.range + 40, dist(p, tt) + 80) : sk.range + 40 });
   });
   addEffect({ type: 'sparks3', x: p.x + p.facing.x * 14, y: feetY(p), h: 1, count: 14, color: '#ffb04a', speed: 2.6, up: 1, dur: 0.5 });
   shakeScreen(4);
