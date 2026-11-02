@@ -233,7 +233,8 @@ function questTick() {
 function enterDungeon(k, viaParty = false) {
   const p = game.player;
   const dg = game.world.dungeons[k];
-  if (!viaParty && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
+  const htTest = dg.def.instanz && typeof htFree === 'function' && htFree();
+  if (!viaParty && !htTest && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
   // Höllenthron: Gruppe, Stufe und Ausrüstung werden bei jedem geprüft (auch über die Einladung)
   if (dg.def.instanz) {
     const err = htEntryError();
@@ -387,6 +388,75 @@ function rewardHtml(reward, xp) {
 }
 
 // Jagdaufträge: drei Angebote mit Monstern nahe der eigenen Stufe
+// --- Abgeben bei jedem NPC (seit 13.36) ----------------------------------------------------------
+// Erledigte Aufträge lassen sich bei jedem ansprechbaren NPC abgeben, egal ob Tag oder Nacht und egal, ob der
+// Auftraggeber gerade schläft: oben im NPC-Fenster erscheint dafür eine Leiste. Das eigentliche Gespräch
+// (Händler, Schmied, Lager …) bleibt darunter voll nutzbar.
+function finishMainQuest() {
+  const q = questState();
+  const main = currentMainQuest();
+  if (!main || !q.accepted || main.goal.type === 'talk' || !goalDone(main.goal, q.progress)) return false;
+  giveReward(main.reward, questXp(main.level, QUEST_XP[main.goal.type] || 0.25));
+  q.main++;
+  q.accepted = false;
+  q.progress = 0;
+  ui.banner('Belohnung erhalten', main.title);
+  return true;
+}
+function sideReward(n, s = sideState(n.key)) {
+  const t = MONSTER_TYPES[sideMon(n, s)];
+  return { reward: { gold: t.level * 45, potions: 2 }, xp: sideQuestXp(t.level) };
+}
+function finishSideQuest(n) {
+  const p = game.player;
+  const s = sideState(n.key);
+  if (s.state !== 'active' || !sideDone(n, s)) return false;
+  const mon = sideMon(n, s);
+  if (n.side.kind === 'collect') p.upmats[mon] -= sideCount(n, s);
+  const r = sideReward(n, s);
+  giveReward(r.reward, r.xp);
+  s.state = 'open';
+  s.progress = 0;
+  s.times++;
+  // nächstes Mal ein anderes Monster der Map
+  s.monster = nextSideMonster(n, s);
+  ui.banner('Nebenaufgabe erledigt', n.name);
+  return true;
+}
+function finishHunt() {
+  const q = questState();
+  const h = q.hunt;
+  if (!h || h.progress < h.count) return false;
+  giveReward({ gold: h.gold, mats: { [h.mat]: 1 } }, sideQuestXp(h.level));
+  q.hunt = null;
+  q.hunts++;
+  q.offers = null;
+  ui.banner('Jagd erledigt', 'Belohnung erhalten');
+  return true;
+}
+// Alles, was gerade abgegeben werden kann: { label, run }
+function readyTurnIns() {
+  const q = questState();
+  const out = [];
+  const main = currentMainQuest();
+  if (main && q.accepted && main.goal.type !== 'talk' && goalDone(main.goal, q.progress)) {
+    out.push({ label: 'Hauptauftrag: ' + main.title, run: finishMainQuest });
+  }
+  for (const n of allWanderers()) {
+    const s = sideState(n.key);
+    if (s.state === 'active' && sideDone(n, s)) out.push({ label: 'Nebenaufgabe von ' + n.name, run: () => finishSideQuest(n) });
+  }
+  const h = q.hunt;
+  if (h && h.progress >= h.count) out.push({ label: 'Jagd: ' + h.count + ' × ' + MONSTER_TYPES[h.monster].name, run: finishHunt });
+  return out;
+}
+// Schlafender Wanderer derselben Map (nachts steht der Nachtwanderer an seiner Stelle)
+function sleepingWandererNear(n) {
+  if (!n || typeof dayNight === 'undefined' || !dayNight.hidden) return null;
+  const map = n.map || npcMapId(n);
+  return dayNight.hidden.find((w) => w.id === 'wanderer' && npcMapId(w) === map) || null;
+}
+
 function huntOffers() {
   const p = game.player;
   const types = Object.entries(MONSTER_TYPES)
@@ -444,6 +514,7 @@ Object.assign(ui, {
   renderQuestTrack() {
     const el = $('questTrack');
     if (!el || !game.player) return;
+    if (this.npcCur && !$('panelNpc').hidden) this.renderNpcQuests(this.npcCur);
     const q = questState();
     const main = currentMainQuest();
     const rows = [];
@@ -567,16 +638,45 @@ Object.assign(ui, {
         ui.log(`Neuer Auftrag: ${main.title}. ${goalText(main.goal)}.`, 'info');
         if (travel) ui.banner(main.title, `Weiter nach ${mapName(main.goal.map)}`);
       } else {
-        giveReward(main.reward, xp);
-        q.main++;
-        q.accepted = false;
-        q.progress = 0;
-        ui.banner('Belohnung erhalten', main.title);
+        finishMainQuest();
       }
       saveGame();
       this.renderQuestTrack();
       if (travel && btn.dataset.quest === 'accept') ui.closePanels();
       else this.renderElder(npc);
+    });
+  },
+
+  // Leiste oben im NPC-Fenster (seit 13.36): erledigte Aufträge abgeben, egal bei wem und egal ob Tag oder Nacht;
+  // beim Nachtwanderer zusätzlich die Aufgabe des schlafenden Wanderers (annehmen, abbrechen, abgeben)
+  renderNpcQuests(npc) {
+    const box = $('npcQuests');
+    if (!box) return;
+    this.npcCur = npc;
+    const gate = ['eingang', 'ausgang', 'riss', 'weltentor'].includes(npc.id);
+    const items = gate ? [] : readyTurnIns();
+    const sleeper = npc.id === 'nachtwanderer' ? sleepingWandererNear(npc) : null;
+    if (!items.length && !sleeper) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+    box.innerHTML = (items.length ? '<span class="npc-quests-head">Abgeben:</span>' : '') +
+      items.map((it, i) => `<button type="button" class="mini-btn npc-turnin" data-turnin="${i}">✔ ${it.label}</button>`).join('') +
+      (sleeper ? `<button type="button" class="mini-btn npc-other" data-sleeper="1">💤 Aufgabe von ${sleeper.name}</button>` : '');
+    box.hidden = false;
+    box.querySelectorAll('[data-turnin]').forEach((b) => b.addEventListener('click', () => {
+      const it = items[Number(b.dataset.turnin)];
+      if (it && it.run()) {
+        saveGame();
+        this.renderQuestTrack();
+      }
+      this.openNpc(npc);
+    }));
+    const sb = box.querySelector('[data-sleeper]');
+    if (sb) sb.addEventListener('click', () => {
+      this.renderWanderer(sleeper);
+      $('npcBody').insertAdjacentHTML('afterbegin', `<p class="hint-text">${sleeper.name} schläft – ${npc.name} richtet es aus.</p>`);
     });
   },
 
@@ -611,14 +711,7 @@ Object.assign(ui, {
         s.state = 'open';
         s.progress = 0;
       } else {
-        if (collect) p.upmats[mon] -= need;
-        giveReward(reward, xp);
-        s.state = 'open';
-        s.progress = 0;
-        s.times++;
-        // nächstes Mal ein anderes Monster der Map
-        s.monster = nextSideMonster(n, s);
-        ui.banner('Nebenaufgabe erledigt', n.name);
+        finishSideQuest(n);
       }
       saveGame();
       this.renderQuestTrack();
@@ -636,10 +729,7 @@ Object.assign(ui, {
       body.innerHTML = `<p>„Saubere Arbeit! Hier ist dein Lohn.“</p>${rewardHtml(reward, xp)}` +
         '<button type="button" class="btn btn-primary" data-hunt="reward">Belohnung abholen</button>';
       body.querySelector('[data-hunt]').addEventListener('click', () => {
-        giveReward(reward, xp);
-        q.hunt = null;
-        q.hunts++;
-        q.offers = null;
+        finishHunt();
         this.renderQuestTrack();
         this.renderHunter();
       });
@@ -813,7 +903,8 @@ Object.assign(ui, {
       : '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p>';
     body.innerHTML = intro + '<div class="travel-list">' +
       list.map((wm) => {
-        const low = p.level < wm.minLevel;
+        // Testzeit Höllenthron (hoellenthron.js): die Map mit dem Höllenportal ist ohne Stufengrenze erreichbar
+        const low = p.level < wm.minLevel && !(typeof htFree === 'function' && htFree() && wm.id === htMapId());
         const cur = wm.id === here;
         return `<div class="travel-item"><strong>${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +
           `<button type="button" class="mini-btn" data-map="${wm.id}" ${cur || low ? 'disabled' : ''}>${cur ? 'Du bist hier' : low ? `ab Stufe ${wm.minLevel}` : 'Reisen'}</button></div>`;

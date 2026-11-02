@@ -3072,3 +3072,9 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .loot-btn .key { top: auto; left: 50%; bottom: 3px; transform: translateX(-50%); font-size: 10px; line-height: 1; padding: 1px 5px; border-radius: 7px; background: rgba(18, 12, 8, 0.78); color: #f0cf6a; }
 .loot-btn:has(.key) svg { margin-bottom: 8px; }
 #hud.touch .loot-btn:has(.key) svg { margin-bottom: 0; }
+
+/* 13.36: Abgabe-Leiste oben im NPC-Fenster */
+.npc-quests { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 14px 4px; border-bottom: 1px solid rgba(201, 162, 74, .25); }
+.npc-quests-head { font-size: 12px; color: #d9c48a; margin-right: 2px; }
+.npc-quests .npc-turnin { background: linear-gradient(#3d6b2a, #2a4d1c); border-color: #7fbf4f; color: #eaffd8; }
+.npc-quests .npc-other { background: linear-gradient(#2c3550, #1e2438); border-color: #6b7fb8; color: #dfe6ff; }

@@ -115,6 +115,15 @@ function htPopulate(dg, zone, groupId) {
 }
 
 // --- Zugang --------------------------------------------------------------------------------------------------
+// Testzeit (13.36, fünf Tage bis einschließlich 7. 11. 2026): Höllenthron ohne Voraussetzungen – keine Stufe,
+// keine göttlichen Teile, keine Boni, Gruppe beliebig groß (auch allein). Auch das Weltentor zur Map mit dem
+// Höllenportal ist so lange ohne Stufengrenze offen. Danach gelten automatisch wieder alle Voraussetzungen.
+const HT_FREE_UNTIL = Date.parse('2026-11-08T00:00:00+01:00');
+const htFree = () => Date.now() < HT_FREE_UNTIL;
+function htMapId() {
+  const n = game.world && game.world.npcs.find((x) => x.id === 'eingang' && x.dungeon === htIndex());
+  return n ? npcMapId(n) : 9;
+}
 function htGear(p) {
   let n = 0;
   for (const it of Object.values(p.equipment || {})) if (it && it.tier >= HT.gearTier) n++;
@@ -131,13 +140,15 @@ function htChecks() {
     const pm = partyMember(name);
     if (pm && pm.rp && (pm.rp.level || 0) < HT.level) lowName = name;
   }
-  return [
+  const list = [
     { ok: p.level >= HT.level, text: `Du bist mindestens Stufe ${HT.level} (jetzt ${p.level})` },
     { ok: g.n >= HT.gearCount, text: `Mindestens ${HT.gearCount} angelegte göttliche Teile, Stufe 60 (jetzt ${g.n})` },
     { ok: g.weapon >= HT.gearBoni && g.armor >= HT.gearBoni, text: `Waffe und Rüstung mit mindestens ${HT.gearBoni} Boni (jetzt ${g.weapon} und ${g.armor})` },
     { ok: !!window.HT_TEST || (n >= HT.party[0] && n <= HT.party[1]), text: `Gruppe aus ${HT.party[0]}–${HT.party[1]} Spielern (jetzt ${n})` },
     { ok: !lowName, text: lowName ? `${lowName} ist noch nicht Stufe ${HT.level}` : `Alle in der Gruppe ab Stufe ${HT.level}` }
   ];
+  if (htFree()) for (const c of list) if (!c.ok) { c.ok = true; c.free = true; }
+  return list;
 }
 function htEntryError() {
   const bad = htChecks().find((c) => !c.ok);
@@ -153,7 +164,8 @@ function htRenderGate(body, npc, dg) {
   body.innerHTML = `<p class="quest-step raid-step">Instanz · ab Stufe ${HT.level} · für ${HT.party[0]}–${HT.party[1]} Spieler</p><h3>${dg.def.name}</h3>` +
     `<p>Hinter dem Höllenportal liegt der Thron von <b>${boss.name}</b>. Kämpft euch durch Höllenhunde und Feuerdämonen, zerstört die vier Seelensteine und besiegt die Wächter <b>${g1}</b> und <b>${g2}</b> – erst dann zerbrechen die Ketten und der Höllenkaiser erwacht.</p>` +
     '<p class="hint-text"><b>Vernichtungsschlag:</b> Er hebt den Dreizack, drei Viertel der Halle glühen rot – lauft ins dunkle, sichere Viertel. <b>Siegel der Unterwelt:</b> Seelenkristalle schützen ihn, zerstört sie alle. Ab der Hälfte seines Lebens nimmt er seine <b>wahre Gestalt</b> an: schneller, stärker, mit Sturmangriffen, und der Schlag wechselt zwischen Viertel, Ring (nur bei ihm sicher) und Kern (nur weit weg sicher).</p>' +
-    '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
+    (htFree() ? '<p class="gear-msg success"><b>Testzeit:</b> Bis einschließlich 7. November ist das Höllenportal ohne Voraussetzungen offen – auch allein oder in kleiner Gruppe. Danach gelten sie wieder.</p>' : '') +
+    '<ul class="raid-roles">' + checks.map((c) => `<li>${c.free ? '🔓' : c.ok ? '✅' : '❌'} ${c.text}${c.free ? ' – <i>entfällt in der Testzeit</i>' : ''}</li>`).join('') + '</ul>' +
     '<p><b class="legend-text">Beute:</b> vier legendäre Teile mit fünf Boni, viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>' +
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Durch das Höllenportal' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {

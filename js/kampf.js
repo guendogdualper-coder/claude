@@ -563,9 +563,12 @@ function tryBasicAttack() {
     startSwing(p, 'cast', tm.dur);
     p.pendingShot = { at: game.time + tm.dur * tm.impact, target, basic };
   } else {
-    p.combo = ((p.combo || 0) + 1) % 3;
+    // Dolche (seit 13.36): Kombo aus vier Schlägen (Wirbel etwas, Kreuzschnitt am Ende deutlich stärker)
+    const dag = weaponKindOf(p) === 'dagger';
+    p.combo = ((p.combo || 0) + 1) % (dag ? 4 : 3);
     startSwing(p, 'combo', tm.dur);
-    p.pendingHit = { at: game.time + tm.dur * tm.impact, target, mul: (p.combo === 2 ? 1.25 : 1) * (basic.mul || 1), range: basic.range, color: c.trim };
+    const cm = dag ? [1, 1, 1.1, 1.3][p.combo] : p.combo === 2 ? 1.25 : 1;
+    p.pendingHit = { at: game.time + tm.dur * tm.impact, target, mul: cm * (basic.mul || 1), range: basic.range, color: c.trim };
   }
   return true;
 }

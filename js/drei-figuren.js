@@ -52,6 +52,9 @@ function cyl3(r1, r2, h, seg = 14) {
 // Schulterpanzer (seit 13.12) statt einer runden Kuppel: flache Hauptplatte mit Rand (und Grat bei Platte),
 // darunter Schienen, die sich als Bänder um die Außenseite des Oberarms legen. sh: Schulterpunkt im Armknochen.
 const PAULDRON_BIG = 1.7;
+// seit 13.36: nur der Krieger trägt die wuchtigen Schulterpanzer; Ninja, Schamane, Nekromant und Magier schmaler
+const PAULDRON_BIG_CLS = { krieger: 1.7, ninja: 1.0, schamane: 1.08, nekromant: 1.08, magier: 1.08 };
+const pauldronBig = (cls) => PAULDRON_BIG_CLS[cls] || 1.1;
 function pauldron3(A, ab, sh, sx, armR, o) {
   const big = o.big || 1;
   const R = o.R * big;
@@ -59,19 +62,20 @@ function pauldron3(A, ab, sh, sx, armR, o) {
   const pp = [sh[0] + sx * R * (big > 1 ? 0.3 : 0.12), sh[1] + R * (big > 1 ? 0.32 : 0.25), 0];
   const W = frame3(A, ab, pp, [0, 0, -sx * 0.42]);
   // Hauptplatte: flach gewölbt und breiter als hoch, damit sie wie Blech und nicht wie eine Kugel wirkt
-  W(cap3(R, Math.PI * 0.4, 0, Math.PI * 2, 18, 5), o.col, { s: [1.2, 0.5, 1.12], shine: o.shine, top: lighter(o.col, 0.15), topK: 0.35 });
-  W(torus3(R * 0.95, R * (big > 1 ? 0.1 : 0.075), Math.PI * 2, 4, 20), big > 1 ? lighter(o.trim, 0.15) : o.trim, { p: [0, R * 0.15, 0], r: [Math.PI / 2, 0, 0], s: [1.2, 1.12, 1], shine: o.shine + 0.2 });
+  const sl = o.slim || 1;
+  W(cap3(R, Math.PI * 0.4, 0, Math.PI * 2, 18, 5), o.col, { s: [1.2 * sl, 0.5 * sl, 1.12 * sl], shine: o.shine, top: lighter(o.col, 0.15), topK: 0.35 });
+  W(torus3(R * 0.95, R * (big > 1 ? 0.1 : 0.075), Math.PI * 2, 4, 20), big > 1 ? lighter(o.trim, 0.15) : o.trim, { p: [0, R * 0.15, 0], r: [Math.PI / 2, 0, 0], s: [1.2 * sl, 1.12 * sl, 1], shine: o.shine + 0.2 });
   // Grat von vorn nach hinten über die Platte
-  if (o.ridge || big > 1) W(torus3(R * 0.94, R * 0.06, Math.PI * 0.9, 3, 14), o.trim, { r: [0, Math.PI / 2, Math.PI * 0.05], s: [1.12, 0.56, 1], shine: o.shine + 0.2 });
+  if (o.ridge || big > 1.3) W(torus3(R * 0.94, R * 0.06, Math.PI * 0.9, 3, 14), o.trim, { r: [0, Math.PI / 2, Math.PI * 0.05], s: [1.12, 0.56, 1], shine: o.shine + 0.2 });
   // Nieten am Rand (vorn, außen, hinten)
-  const riv = o.rivets || (big > 1 ? lighter(o.trim, 0.25) : null);
+  const riv = o.rivets || (big > 1.3 ? lighter(o.trim, 0.25) : null);
   if (riv) for (const a of [-1.1, -0.45, 0.2, 0.85, 1.5]) {
     W(sphere3(R * 0.075, 6, 4), riv, { p: [Math.cos(a) * R * 1.08, R * 0.2, Math.sin(a) * R * 1.02], shine: 1 });
   }
   // Schienen um den Oberarm: jede etwas tiefer und enger, außen herum (gut 200 Grad)
   const arc = Math.PI * 1.2;
   for (let k = 0; k < o.lames; k++) {
-    const rr = armR * (1.6 - k * 0.12) + R * 0.12;
+    const rr = armR * ((o.slim ? 1.35 : 1.6) - k * 0.12) + R * 0.12;
     const y = sh[1] - 0.025 - k * (o.step || 0.052) * big;
     const rz = sx > 0 ? -arc / 2 : Math.PI - arc / 2;
     A(torus3(rr, 0.017 * big, arc, 4, 16), k % 2 ? darker(o.col, 0.06) : lighter(o.col, 0.04), { bone: ab, p: [sh[0] + sx * 0.012, y, 0], r: [Math.PI / 2, 0, rz], s: [1, 1, 2.3], shine: o.shine });
@@ -667,19 +671,19 @@ function humanoid3(b, c, P) {
     if (c.claws) for (let k = -1; k <= 1; k++) A(horn3(0.08 * hs, 0.018 * hs, 5), '#f4ecd8', { bone: hb, p: [hand[0] + k * 0.03 * hs, hand[1] - 0.06 * hs, hand[2] + 0.04], r: [Math.PI + 0.3, 0, 0] });
     if (c.pads && c.padStyle === 'leather') {
       // Ninja (seit 13.12): leichter Lederpanzer, zwei Schienen mit Naht, Riemen um den Oberarm
-      pauldron3(A, ab, sh, sx, armR, { big: c.padBig, R: 0.1, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.3), lames: 2, edge: darker(c.pads, 0.3), shine: 0.15 });
+      pauldron3(A, ab, sh, sx, armR, { big: c.padBig, R: 0.085, slim: 0.85, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.3), lames: 2, edge: darker(c.pads, 0.3), shine: 0.15 });
       A(torus3(armR * 1.08, 0.012, Math.PI * 2, 4, 12), darker(c.pads, 0.2), { bone: ab, p: [sh[0], sh[1] - 0.14, 0], r: [Math.PI / 2, 0, 0] });
     } else if (c.pads && c.padStyle === 'cloth') {
       // Schamane, Magier (seit 13.12): gesteppter Stoffpanzer in Lagen mit Borte, darunter Quasten
-      const { pp } = pauldron3(A, ab, sh, sx, armR, { big: c.padBig, R: 0.13, col: c.pads, trim: c.padTrim || '#e0c36a', lames: 2, edge: c.padTrim || null, shine: 0.1, step: 0.06 });
+      const { pp } = pauldron3(A, ab, sh, sx, armR, { big: c.padBig, R: 0.105, slim: 0.88, col: c.pads, trim: c.padTrim || '#e0c36a', lames: 2, edge: c.padTrim || null, shine: 0.1, step: 0.055 });
       for (const dz of [-0.06, 0, 0.06]) {
-        A(limb3(0.08, 0.006, 0.006, 3), c.padTrim || '#e0c36a', { bone: ab, p: [pp[0] + sx * 0.1, pp[1] - 0.1, dz] });
-        A(sphere3(0.016, 6, 4), '#c8402f', { bone: ab, p: [pp[0] + sx * 0.1, pp[1] - 0.19, dz] });
+        A(limb3(0.07, 0.005, 0.005, 3), c.padTrim || '#e0c36a', { bone: ab, p: [pp[0] + sx * 0.08, pp[1] - 0.09, dz * 0.85] });
+        A(sphere3(0.014, 6, 4), '#c8402f', { bone: ab, p: [pp[0] + sx * 0.08, pp[1] - 0.17, dz * 0.85] });
       }
     } else if (c.pads && c.padStyle === 'bone') {
       // Nekromant: Schädel als Schulterstück, Knochendornen
       // seit 13.12: unter dem Schädel zwei Knochenschienen um den Oberarm
-      for (let k = 0; k < 2; k++) A(torus3(armR * (1.55 - k * 0.12), 0.016, Math.PI * 1.2, 4, 14), k ? '#cfc6ad' : '#e8e0cc', { bone: ab, p: [sh[0] + sx * 0.012, sh[1] - 0.04 - k * 0.05, 0], r: [Math.PI / 2, 0, sx > 0 ? -Math.PI * 0.6 : Math.PI * 0.4], s: [1, 1, 2.3], shade: 0.2 });
+      for (let k = 0; k < 2; k++) A(torus3(armR * (1.3 - k * 0.1), 0.013, Math.PI * 1.2, 4, 14), k ? '#cfc6ad' : '#e8e0cc', { bone: ab, p: [sh[0] + sx * 0.012, sh[1] - 0.04 - k * 0.05, 0], r: [Math.PI / 2, 0, sx > 0 ? -Math.PI * 0.6 : Math.PI * 0.4], s: [1, 1, 2.3], shade: 0.2 });
       const nb = c.padBig || 1;
       const pp = [sx * shX * (1.05 + (nb - 1) * 0.12), shY + 0.05 * nb, 0];
       A(ball(10), '#e8e0cc', { bone: ab, p: pp, s: [0.1 * nb, 0.09 * nb, 0.1 * nb], shade: 0.2 });
@@ -693,7 +697,19 @@ function humanoid3(b, c, P) {
       const pp = [sh[0] + sx * R * bk2 * (bk2 > 1 ? 0.3 : 0.12), sh[1] + R * bk2 * (bk2 > 1 ? 0.32 : 0.25), 0];
       if (c.furCollar && c.padStyle === 'plate') A(ball(10), c.furCollar, { bone: ab, p: [pp[0] - sx * 0.04, pp[1] - 0.02, pp[2]], s: [0.1 * ps, 0.06, 0.12 * ps], shade: 0.2 });
       pauldron3(A, ab, sh, sx, armR * (belly ? 1.3 : 1), { big: c.padBig, R, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.25), lames: c.padStyle === 'plate' ? 3 : 2, ridge: true, rivets: c.padTrim || lighter(c.pads, 0.3), edge: c.padTrim || lighter(c.pads, 0.2), shine: 0.7, step: 0.05 * Math.min(ps, 1.3) });
-      if (c.spikes) for (const dz of [-0.05, 0.05]) A(horn3(0.13 * ps * bk2, 0.035 * ps * bk2, 6), '#d9dde2', { bone: ab, p: [pp[0] + sx * 0.04 * bk2, pp[1] + 0.08 * bk2, dz * bk2], r: [0, 0, -sx * 0.45], shine: 1 });
+      if (c.spikes && bk2 > 1.3) {
+        // seit 13.36: Stachelkamm über den Grat (vorn, Mitte höher, hinten), dunkle Wurzelringe, Nietenreihe außen
+        const spk = c.padTrim ? lighter(c.padTrim, 0.35) : '#d9dde2';
+        for (const [dz, k] of [[-0.075, 0.8], [0, 1.15], [0.075, 0.8]]) {
+          const at = [pp[0] + sx * 0.03 * bk2, pp[1] + 0.085 * bk2 - Math.abs(dz) * 0.35, dz * bk2];
+          A(horn3(0.12 * ps * bk2 * k, 0.03 * ps * bk2, 6), spk, { bone: ab, p: at, r: [dz * 2.2, 0, -sx * 0.5], shine: 1 });
+          A(torus3(0.03 * ps * bk2, 0.008 * bk2, Math.PI * 2, 3, 10), darker(c.pads, 0.35), { bone: ab, p: at, r: [Math.PI / 2, 0, -sx * 0.5], shine: 0.6 });
+        }
+        for (let k = 0; k < 5; k++) {
+          const a = -0.75 + k * 0.375;
+          A(sphere3(0.013 * bk2, 6, 4), spk, { bone: ab, p: [pp[0] + sx * Math.cos(a) * R * bk2 * 1.05, pp[1] - 0.02 * bk2, Math.sin(a) * R * bk2 * 1.0], shine: 1 });
+        }
+      } else if (c.spikes) for (const dz of [-0.05, 0.05]) A(horn3(0.13 * ps * bk2, 0.035 * ps * bk2, 6), '#d9dde2', { bone: ab, p: [pp[0] + sx * 0.04 * bk2, pp[1] + 0.08 * bk2, dz * bk2], r: [0, 0, -sx * 0.45], shine: 1 });
       if (c.padGem) A(sphere3(0.028, 8, 6), c.padGem, { bone: ab, p: [pp[0] + sx * 0.08, pp[1] + 0.02, 0.06], mat: 'glow' });
     }
     if (c.bonePads) {
@@ -941,7 +957,8 @@ function playerConfig3(p) {
     c.pads = GEAR_LOOK.plate[gt('s')];
     c.padTrim = TIER_METAL[gt('s')];
     // seit 13.17: angelegte Schultern deutlich größer und mit hellem Rand, damit man sie von oben erkennt
-    c.padBig = PAULDRON_BIG;
+    c.padBig = pauldronBig(p.classId);
+    if (p.classId === 'krieger') c.spikes = true;
   }
   const capeT = eq.umhang ? eq.umhang.tier : -1;
   if (capeT >= 0) {
@@ -4703,23 +4720,24 @@ const BASIC3 = {
       [0.54, { rx: -0.45, rz: 0.05, cx: 0.65, hpy: -0.16, hpz: 0.1, gr: -0.55, gl: 0.5, two: 1 }, 'in'],
       [0.78, { rx: -0.4, rz: 0.05, cx: 0.6, hpy: -0.15, hpz: 0.09, gr: -0.5, gl: 0.45, two: 1 }, 'out'], [1, N3]]
   ],
-  // Dolche (seit 13.20): jeder Angriff ist ein schneller Doppelstich – rechts vor, sofort links vor („tick-tick“),
-  // fast ohne Ausholen; die Arme schnellen gerade nach vorn und federn zurück, der Körper wippt mit
+  // Dolche (seit 13.36): Kombo aus vier Schlägen statt Doppelstichen – rechter Querschnitt, linker Rückhandschnitt,
+  // Wirbel mit beiden Klingen weit ausgestreckt, zum Schluss Sprung nach vorn mit Kreuzschnitt von oben (X).
+  // Die Klingen schneiden in flachen Bögen, der Oberkörper dreht kräftig mit, die Füße setzen nach.
   dagger: [
-    [[0, N3], [0.08, { rx: -1.0, rz: -0.2, lx: -1.0, lz: 0.2, cy: -0.12, gr: 0.15 }, 'out'],
-      [0.2, { rx: -1.75, rz: 0.08, lx: -0.95, lz: 0.25, cy: 0.22, cx: 0.12, hpz: 0.09, gr: -0.45 }, 'in'],
-      [0.32, { rx: -1.05, rz: -0.15, lx: -1.0, lz: 0.2, cy: 0.0, cx: 0.06, hpz: 0.05 }, 'out'],
-      [0.46, { rx: -0.95, rz: -0.25, lx: -1.75, lz: -0.08, cy: -0.22, cx: 0.12, hpz: 0.09, gl: -0.45 }, 'in'],
-      [0.62, { rx: -1.0, rz: -0.2, lx: -1.05, lz: 0.15, cy: -0.05, cx: 0.05, hpz: 0.04 }, 'out'], [0.85, N3]],
-    [[0, N3], [0.08, { lx: -1.0, lz: 0.2, rx: -1.0, rz: -0.2, cy: 0.12, gl: 0.15 }, 'out'],
-      [0.2, { lx: -1.75, lz: -0.08, rx: -0.95, rz: -0.25, cy: -0.22, cx: 0.12, hpz: 0.09, gl: -0.45 }, 'in'],
-      [0.32, { lx: -1.05, lz: 0.15, rx: -1.0, rz: -0.2, cy: 0.0, cx: 0.06, hpz: 0.05 }, 'out'],
-      [0.46, { lx: -0.95, lz: 0.25, rx: -1.75, rz: 0.08, cy: 0.22, cx: 0.12, hpz: 0.09, gr: -0.45 }, 'in'],
-      [0.62, { lx: -1.0, lz: 0.2, rx: -1.05, rz: -0.15, cy: 0.05, cx: 0.05, hpz: 0.04 }, 'out'], [0.85, N3]],
-    // dritter Schlag: beide Klingen kreuzen schnell nach vorn
-    [[0, N3], [0.14, { rx: -1.6, rz: -0.7, lx: -1.6, lz: 0.7, cx: -0.06, gr: 0.15, gl: 0.15 }, 'out'],
-      [0.3, { rx: -1.3, rz: 0.5, lx: -1.3, lz: -0.5, cx: 0.22, hpz: 0.1, gr: -0.4, gl: -0.4 }, 'in'],
-      [0.5, { rx: -1.2, rz: 0.55, lx: -1.2, lz: -0.55, cx: 0.18, hpz: 0.07, gr: -0.3, gl: -0.3 }, 'out'], [0.8, N3]]
+    [[0, N3], [0.12, { rx: -1.35, rz: -1.0, cy: -0.35, hy: -0.15, lx: -0.9, lz: 0.35, gr: 0.15 }, 'out'],
+      [0.32, { rx: -1.45, rz: 0.75, cy: 0.32, hy: 0.12, cx: 0.12, hpz: 0.08, lx: -0.8, lz: 0.4, gr: -0.4, gl: 0.15 }, 'in'],
+      [0.55, { rx: -1.3, rz: 0.85, cy: 0.36, hy: 0.14, cx: 0.1, hpz: 0.06, lx: -0.85, lz: 0.35, gr: -0.3, gl: 0.1 }, 'out'], [0.85, N3]],
+    [[0, N3], [0.12, { lx: -1.35, lz: 1.0, cy: 0.35, hy: 0.15, rx: -0.9, rz: -0.35, gl: 0.15 }, 'out'],
+      [0.32, { lx: -1.45, lz: -0.75, cy: -0.32, hy: -0.12, cx: 0.12, hpz: 0.08, rx: -0.8, rz: -0.4, gl: -0.4, gr: 0.15 }, 'in'],
+      [0.55, { lx: -1.3, lz: -0.85, cy: -0.36, hy: -0.14, cx: 0.1, hpz: 0.06, rx: -0.85, rz: -0.35, gl: -0.3, gr: 0.1 }, 'out'], [0.85, N3]],
+    // Wirbel: einmal ganz herum, beide Klingen weit draußen
+    [[0, N3], [0.1, { rx: -1.4, rz: -1.2, lx: -1.4, lz: 1.2, cx: 0.1, hpy: -0.05, gr: 0.15 }, 'out'],
+      [0.62, { sy: Math.PI * 2, rx: -1.5, rz: -1.3, lx: -1.5, lz: 1.3, cx: 0.12, hpy: -0.07, gr: -0.2, gl: 0.2 }],
+      [0.78, { sy: Math.PI * 2, rx: -1.2, rz: -0.5, lx: -1.2, lz: 0.5, hpy: -0.03 }, 'out'], [1, { sy: Math.PI * 2, ...N3 }]],
+    // Abschluss: beide Klingen hoch, Satz nach vorn, Kreuzschnitt nach unten
+    [[0, N3], [0.14, { rx: -2.6, rz: -0.55, lx: -2.6, lz: 0.55, cx: -0.18, hpy: 0.06, gr: 0.2, gl: -0.1 }, 'out'],
+      [0.34, { rx: -1.1, rz: 0.6, lx: -1.1, lz: -0.6, cx: 0.35, hpz: 0.16, hpy: -0.08, gr: -0.6, gl: 0.35 }, 'in'],
+      [0.6, { rx: -1.0, rz: 0.65, lx: -1.0, lz: -0.65, cx: 0.3, hpz: 0.13, hpy: -0.07, gr: -0.5, gl: 0.3 }, 'out'], [0.9, N3]]
   ],
   scythe: [
     [[0, N3], [0.38, { cy: -0.9, hy: -0.4, cx: 0.15, rx: -1.0, rz: -1.15, hpy: -0.05, gr: 0.25, two: 1 }, 'out'],

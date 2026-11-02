@@ -228,6 +228,22 @@ function vfxSwing(p, color, radius = 32, width = 14) {
   const hand = handPosition(dir, 0, 'right');
   const { a0, a1 } = swingArc(p, dir);
   const world = (a) => (flip ? Math.PI - a : a);
+  // Dolch-Kombo (seit 13.36): Wirbel = Spur einmal rundherum, Abschluss = zwei gekreuzte Schnitte (X)
+  if (p.swingKind !== 'skill' && weaponKindOf(p) === 'dagger') {
+    const ang = Math.atan2(p.facing.y, p.facing.x);
+    if (p.combo === 2) {
+      addEffect({ type: 'swoosh', follow: p, ox: 0, oy: -14, r: radius * 1.1, width, a0: ang, a1: ang + Math.PI * 2, dur: 0.3, color });
+      return;
+    }
+    if (p.combo === 3) {
+      for (const d of [-0.7, 0.7]) addEffect({ type: 'slash', follow: p, ox: Math.cos(ang) * 24, oy: -16 + Math.sin(ang) * 10, ang: ang + Math.PI / 2 + d, len: 44, w: 7, dur: 0.26, color });
+      return;
+    }
+    if (p.combo === 1) {
+      addEffect({ type: 'swoosh', follow: p, ox: flip ? hand.x : -hand.x, oy: hand.y, r: radius, width, a0: world(localFacingAngle(dir) + 1.4), a1: world(localFacingAngle(dir) - 1.5), dur: 0.24, color });
+      return;
+    }
+  }
   if (p.swingKind !== 'skill' && p.combo === 2) {
     // Stich nach vorn
     const ang = Math.atan2(p.facing.y, p.facing.x);
