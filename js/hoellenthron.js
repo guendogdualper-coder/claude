@@ -355,6 +355,13 @@ function htWatch() {
   htState.rest = rest;
   htState.sealed = sealed;
   htState.el.hidden = false;
+  // seit 13.51: steht ein Boss-Balken oben, rutscht der Hinweis darunter (vorher verdeckte er die Lebenszahlen)
+  const bb = document.getElementById('bossBar');
+  const below = bb && !bb.hidden ? Math.round(bb.getBoundingClientRect().bottom + 6) + 'px' : '';
+  if (htState.el.dataset.top !== below) {
+    htState.el.dataset.top = below;
+    htState.el.style.top = below || 'calc(env(safe-area-inset-top, 0px) + 54px)';
+  }
   htState.el.textContent = sealed
     ? `Thron der Unterwelt · Seelensteine ${r.stonesAll - r.stones}/${r.stonesAll} · Wächter ${r.guardsAll - r.guards}/${r.guardsAll}`
     : 'Thron der Unterwelt · Abaddor ist erwacht!';

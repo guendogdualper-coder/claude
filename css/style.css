@@ -1698,7 +1698,7 @@ kbd {
   background: linear-gradient(#ff7a5a, #b8200e 60%, #6a0a04);
   transition: transform 0.2s ease-out;
 }
-.boss-bar span { font-size: 10px; opacity: 0.85; }
+.boss-bar span { font-size: 12px; font-weight: 700; letter-spacing: 0.02em; }
 
 /* Mehrspieler */
 .net-badge {
