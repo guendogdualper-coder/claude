@@ -69,6 +69,9 @@ function resizeSoon() {
 function resizeRenderer() {
   const r = renderer;
   r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
+  // In 3D zeichnet diese Fläche nur Namen, Balken und Zahlen über der Welt: immer scharf (mindestens 2-fach),
+  // auch wenn die 3D-Welt ihre Auflösung zum Flüssighalten senkt (13.23)
+  if (typeof V3 !== 'undefined' && V3.on) r.dpr = Math.min(window.devicePixelRatio || 1, Math.max(2, r.maxDpr || 2));
   const vs = viewSize();
   r.w = vs.w;
   r.h = vs.h;
@@ -1624,7 +1627,9 @@ function adaptQuality(dtMs, cap) {
   // Schritt für Schritt (seit 9.9): Auflösung runter, dann Schatten aus, zuletzt gleichmäßige 30 Bilder/s
   const r = renderer;
   const cur = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
-  const minDpr = IS_PC ? 1.25 : 1;
+  // seit 13.23 nicht mehr bis 1-fach: auf Handys mit 3-fach-Bildschirm wurde das Bild sonst grob verpixelt.
+  // Reicht das nicht, gehen erst die Schatten aus, dann 30 Bilder pro Sekunde.
+  const minDpr = Math.min(gfx().dpr, IS_PC ? 1.25 : 1.45);
   if (quality.steps < 2 && cur > minDpr + 0.05) {
     quality.steps++;
     r.maxDpr = Math.max(minDpr, cur - 0.3);

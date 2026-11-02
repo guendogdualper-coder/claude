@@ -317,6 +317,15 @@ function skillDragGhost(i, x, y) {
   g.style.left = x + 'px';
   g.style.top = y + 'px';
   document.body.append(g);
+  // Loslassen irgendwo entfernt das Symbol sicher (seit 13.23): wurde die Leiste beim Tauschen neu gebaut, erreichte
+  // das Loslassen den alten Knopf nicht mehr und das Symbol blieb für immer über dem Angriffsknopf stehen
+  const kill = () => {
+    g.remove();
+    document.removeEventListener('pointerup', kill, true);
+    document.removeEventListener('pointercancel', kill, true);
+  };
+  document.addEventListener('pointerup', kill, true);
+  document.addEventListener('pointercancel', kill, true);
   return g;
 }
 // Auswahl über dem Platz: alle Aktionen als Knöpfe, „Leer“ räumt den Platz

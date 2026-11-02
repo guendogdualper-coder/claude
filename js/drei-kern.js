@@ -761,6 +761,8 @@ function v3Init() {
   v3ApplyGraphics();
   V3.on = true;
   document.body.classList.add('drei');
+  // Namen und Balken über der 3D-Welt in voller Schärfe (13.23)
+  if (typeof resizeRenderer === 'function' && renderer.canvas) resizeRenderer();
   return true;
 }
 

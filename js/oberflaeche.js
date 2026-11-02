@@ -487,6 +487,8 @@ const ui = {
     const bar = $('skillBar');
     bar.innerHTML = '';
     bar.classList.remove('swapping');
+    // liegengebliebene Zieh-Symbole (13.23) mit aufräumen
+    document.querySelectorAll('.drag-ghost').forEach((g) => g.remove());
     this.swapFrom = null;
     // Anzeigen der Abklingzeiten neu setzen (die Knöpfe sind neu)
     if (this.cache) for (const k of Object.keys(this.cache)) if (/^(run|cd|cdp|mana)\d$/.test(k)) delete this.cache[k];
