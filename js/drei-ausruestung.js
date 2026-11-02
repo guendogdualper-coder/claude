@@ -1692,6 +1692,45 @@ const fanLeafGeo = (r, h) => geo3(`fanleaf3${r},${h}`, () => new THREE.CylinderG
 // Schaftfarbe des Zepters je Stufe (Magier, seit 8.6)
 const ROD3_SHAFT = ['#6b4a2e', '#3a2e2a', '#2e3448', '#2a3f74', '#2e2450', OBSIDIAN3, '#121a3c', '#e6eaf2'];
 
+// --- Klingenplatten mit Details (seit 13.30) -------------------------------------------------------------
+// Umriss (mit Löchern) als flache Platte, mittig in z
+function plateGeo3(key, pts, holes, depth, bevel = 0.01) {
+  return geo3(key, () => {
+    const sh = new THREE.Shape();
+    sh.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+    sh.closePath();
+    for (const h of holes || []) {
+      const ph = new THREE.Path();
+      ph.moveTo(h[0][0], h[0][1]);
+      for (let i = 1; i < h.length; i++) ph.lineTo(h[i][0], h[i][1]);
+      ph.closePath();
+      sh.holes.push(ph);
+    }
+    return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -depth / 2));
+  });
+}
+// Leuchtfarbe der Klingenader je Stufe (ab Stufe 4)
+const BLADE_VEIN3 = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0'];
+// Klinge mit Details: helle Schneide (die Platte selbst), dunklere geschliffene Mitte auf beiden Seiten,
+// ab Stufe 4 eine leuchtende Ader in der Mitte. o: p, s, r wie die Klinge; inset: Breite der Schneide
+function detailBlade3(W, key, pts, holes, depth, col, tier, o) {
+  const inset = o.inset || 0.026;
+  W(plateGeo3(key, pts, holes, depth, o.bevel || 0.01), col, { p: o.p, s: o.s, r: o.r, shine: 1, top: lighter(col, 0.35), topK: 0.3 });
+  const panelCol = tier === 5 ? '#4a3036' : darker(col, 0.24);
+  const inner = insetPts(pts, inset);
+  const ih = (holes || []).map((h) => insetPts(h, -inset * 0.6));
+  const pz = depth / 2 + 0.008;
+  const panel = plateGeo3(key + ':p', inner, ih, 0.003, 0.002);
+  for (const sz of [-1, 1]) W(panel, panelCol, { p: [o.p[0], o.p[1], o.p[2] + sz * pz * (o.s ? o.s[2] || 1 : 1)], s: o.s, r: o.r, shine: 0.5 });
+  const vein = BLADE_VEIN3[tier];
+  if (vein) {
+    const core = insetPts(pts, inset * 2.4);
+    const vg = plateGeo3(key + ':v', core, (holes || []).map((h) => insetPts(h, -inset * 1.4)), 0.003, 0.0015);
+    for (const sz of [-1, 1]) W(vg, vein, { p: [o.p[0], o.p[1], o.p[2] + sz * (pz + 0.004)], s: o.s, r: o.r, mat: 'glow' });
+  }
+}
+
 // --- Dolche (seit 13.19) ---------------------------------------------------------------------------
 // Eigener Bauplan statt des verkleinerten Schwerts: kurzer Griff, kleine Parierstange, flache Klinge mit eigener
 // Form je Stufe (aus einem Umriss extrudiert, damit sie wie geschliffenes Blech wirkt):
@@ -1747,7 +1786,8 @@ function dagger3(W, tier, shell) {
   // Klinge
   const by = 0.038;
   // Breitseite nach oben (zur Spielkamera), sonst sieht man von oben nur die Schneide als Strich
-  W(daggerBladeGeo3(tier), blade, { p: [0, by, 0], r: [0, DAGGER_TURN3, 0], shine: 1, top: lighter(blade, 0.4), topK: 0.3 });
+  // seit 13.30 mit heller Schneide, dunkler Mitte und Leuchtader
+  detailBlade3(W, 'dag5_' + tier, DAGGER_BLADES3[tier], null, 0.008, blade, tier, { p: [0, by, 0], r: [0, DAGGER_TURN3, 0], inset: 0.007, bevel: 0.004 });
   // Merkmale auf der Klinge
   // Leuchtlinien in der Klinge (folgen der Form: beim Karambit und Götterzahn schräg zum Haken)
   const line = (col, x, y, len, tilt, w = 0.008) => W(roundBox(w, len, 0.02, 0.003), col, { p: [x, by + y, 0], r: [0, DAGGER_TURN3, tilt], mat: 'glow' });
@@ -2000,6 +2040,9 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       if (tier === 5) for (let k = -2; k <= 2; k++) W(sphere3(0.012, 6, 4), '#ffd34d', { p: edge(k * 1.3, 0.26), mat: 'glow' });
       if (tier === 6) for (let k = -2; k <= 2; k++) W(G3.puff(), '#f4f8ff', { p: edge(k * 1.5, 0.24), s: 0.03 });
       if (tier === 7) sun3(W, [0, 0.04, 0.03], 0.07, 10, GOLD3, GLOW3[7]);
+      // Details (seit 13.30): kräftige Außenstäbe aus Metall, Niete am Drehpunkt
+      if (tier !== 7) for (const sd of [-1, 1]) W(limb3(0.33, 0.012, 0.009, 4), tier >= 4 ? metal : '#5a3a22', { p: [0, 0.04, 0.016], r: [0, 0, Math.PI + sd * span * 0.47], shine: tier >= 4 ? 1 : 0.3 });
+      W(torus3(0.024, 0.008, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : gold, { p: [0, 0.04, 0.02], shine: 1 });
       W(limb3(0.16, 0.01, 0.01, 4), '#c8402f', { p: [0, 0.02, 0] });
       W(sphere3(0.03, 8, 6), '#c8402f', { p: [0, -0.15, 0] });
       shell(geo3('fanshell4_' + tier, () => new THREE.CylinderGeometry(0.44, 0.44, 0.06, 16, 1, false, Math.PI - span / 2, span).rotateX(Math.PI / 2)), { p: [0, 0.04, 0] });
@@ -2031,6 +2074,23 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
         case 7: sun3(W, [0, 0.06, 0], 0.06, 10, GOLD3, GLOW3[7]); break;
         default:
       }
+      // Details (seit 13.30): Zierbänder an Rand und Schulter, Runen rundherum (ab Stufe 3 leuchtend), Krone mit Nieten
+      const rAt = (f) => {
+        const y = f * bh;
+        for (let i = 1; i < BP.length; i++) if (BP[i][1] >= y) { const [r0, y0] = BP[i - 1]; const [r1, y1] = BP[i]; return r0 + (r1 - r0) * ((y - y0) / Math.max(1e-4, y1 - y0)); }
+        return BP[BP.length - 1][0];
+      };
+      const by0 = -bh - 0.01;
+      const band = tier === 7 ? GOLD3 : tier >= 4 ? lighter(bc, 0.35) : darker(bc, 0.3);
+      for (const f of [0.06, 0.62]) W(torus3(rAt(f) + 0.004, 0.009, Math.PI * 2, 4, 18), band, { p: [0, by0 + f * bh, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      const runes = tier >= 3 ? STAFF_ORB[tier] : darker(bc, 0.4);
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        const rr = rAt(0.32) + 0.003;
+        W(roundBox(0.012, 0.04, 0.006, 0.003), runes, { p: [Math.sin(a) * rr, by0 + 0.32 * bh, Math.cos(a) * rr], r: [0, a, k % 2 ? 0.4 : -0.4], mat: tier >= 3 ? 'glow' : 'lit' });
+      }
+      W(torus3(0.03, 0.008, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : gold, { p: [0, -0.01, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + 0.4; W(sphere3(0.009, 6, 4), gold, { p: [Math.sin(a) * 0.032, -0.012, Math.cos(a) * 0.032], shine: 1 }); }
       shell(sphere3(0.21, 12, 8), { p: [0, -0.14, 0] });
       return;
     }
@@ -2086,6 +2146,13 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           sun3(W, [0, 1.08, 0], 0.08, 12, GOLD3, GLOW3[7]);
           sun3(sub3(W, [0, 1.08, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.06, 8, GOLD3, null);
       }
+      // Details (seit 13.30): Griffwicklung in der Mitte, Metallschuh unten, Anhänger am Kopf (Schnur, Perlen, Feder)
+      const wrapCol = head === 7 ? '#7a4a1a' : head >= 4 ? '#2a1a24' : '#3a2618';
+      for (let k = 0; k < 7; k++) W(torus3(0.033, 0.009, Math.PI * 2, 4, 10), k % 2 ? wrapCol : lighter(wrapCol, 0.15), { p: [0, 0.3 + k * 0.03, 0], r: [Math.PI / 2 + (k % 2 ? 0.25 : -0.25), 0, 0] });
+      W(lathe3('staffshoe', [[0, -0.06], [0.02, -0.055], [0.034, 0], [0.034, 0.05], [0, 0.05]], 8), head === 7 ? GOLD3 : '#8a8f96', { p: [0, -0.43, 0], shine: 1 });
+      W(limb3(0.16, 0.004, 0.004, 3), '#2a1a12', { p: [0.035, 0.9, 0] });
+      for (let k = 0; k < 3; k++) W(sphere3(0.013, 6, 4), k === 1 ? orb : head === 2 || head === 0 || head === 4 ? BONE3 : '#c9a35a', { p: [0.035, 0.86 - k * 0.03, 0], mat: k === 1 ? 'glow' : 'lit', shine: 0.6 });
+      W(G3.feather(), head >= 5 ? '#2a2224' : FEATHER3, { p: [0.035, 0.74, 0], r: [0, 0, Math.PI], s: 0.09 });
       shell(sphere3(0.19, 12, 8), { p: [0, 1.07, 0] });
       return;
     }
@@ -2188,8 +2255,12 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
         sh.lineTo(pts[0][0], pts[0][1]);
         return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -0.01));
       });
-      W(sGeo(-1, 1), bladeCol, { p: [0, 0.98, 0], shine: 1, top: lighter(bladeCol, 0.3), topK: 0.25 });
-      if (SB.twin) W(sGeo(1, SB.twin), bladeCol, { p: [0, 0.98, 0], shine: 1 });
+      // seit 13.30 mit heller Schneide, dunkler Mitte und Leuchtader (wie Äxte)
+      detailBlade3(W, 'scythe5_' + tier, scythePts(tier, -1, 1), null, 0.02, bladeCol, tier, { p: [0, 0.98, 0], inset: 0.02 });
+      if (SB.twin) detailBlade3(W, 'scythe5t_' + tier, scythePts(tier, 1, SB.twin), null, 0.02, bladeCol, tier, { p: [0, 0.98, 0], inset: 0.016 });
+      // Klingenkragen mit Nieten
+      W(roundBox(0.06, 0.14, 0.08, 0.02), darker(bladeCol, 0.25), { p: [-0.04, 0.98, 0], shine: 0.7 });
+      for (const sz of [-1, 1]) W(sphere3(0.011, 6, 4), lighter(bladeCol, 0.3), { p: [-0.05, 0.98, sz * 0.042], shine: 1 });
       W(roundBox(0.1, 0.09, 0.07, 0.025), accent, { p: [0, 0.98, 0] });
       const ringCol = tier === 2 ? BONE3 : tier === 7 ? GOLD3 : accent;
       for (const y of tier === 2 ? [0.15, 0.3, 0.45, 0.6] : [0.2, 0.5]) W(torus3(0.034, tier === 2 ? 0.014 : 0.01, Math.PI * 2, 4, 10), ringCol, { p: [0, y, 0], r: [Math.PI / 2, 0, 0] });
@@ -2222,39 +2293,48 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       for (let k = 0; k < 3; k++) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), darker(accent, 0.25), { p: [0, 0.02 - k * 0.07, 0], r: [Math.PI / 2, 0, 0] });
       W(sphere3(0.04, 8, 6), gem || darker(metal, 0.2), { p: [0, -shaft * 0.22 - 0.02, 0], mat: gem ? 'glow' : 'lit', shine: 1 });
       const headY = shaft * 0.66;
-      // seit 13.29 je Stufe ein eigener Klingenumriss (AXE_HEADS / GREATAXE_HEADS, wie das Inventarsymbol)
-      const HD = big ? GREATAXE_HEADS[tier] : { pts: AXE_HEADS[tier] };
+      // seit 13.29 je Stufe ein eigener Klingenumriss (AXE_HEADS / GREATAXE_HEADS, wie das Inventarsymbol);
+      // seit 13.30 mit Löchern, heller Schneide, dunkler Mitte, Leuchtader, Nieten und eigenem Rücken
+      const HD = big ? GREATAXE_HEADS[tier] : AXE_HEADS[tier];
       const s = big ? 1.2 : 1;
       const depth = HD.hammer ? 0.19 : 0.03;
-      const blade = geo3((big ? 'gaxehead' : 'axehead') + tier, () => {
-        const sh = new THREE.Shape();
-        sh.moveTo(HD.pts[0][0], HD.pts[0][1]);
-        for (let i = 1; i < HD.pts.length; i++) sh.lineTo(HD.pts[i][0], HD.pts[i][1]);
-        sh.lineTo(HD.pts[0][0], HD.pts[0][1]);
-        return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: HD.hammer ? 0.02 : 0.011, bevelSize: HD.hammer ? 0.018 : 0.012, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -depth / 2));
-      });
       const sides = big && !HD.single ? [1, -1] : [1];
       for (const sx of sides) {
         // zweite Klinge gedreht statt gespiegelt (gespiegelte Flächen wären innen nach außen)
         const k = s * (sx < 0 ? HD.back || 1 : 1);
-        W(blade, bladeCol, { p: [sx * 0.03, headY, 0], s: [k, k, 1], r: [0, sx > 0 ? 0 : Math.PI, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.3 });
-        // Seelenhacker: leuchtende Ader im Blatt; Asche: Glutader
-        if (tier === 4) W(roundBox(0.12 * k, 0.022, 0.045, 0.008), lighter(gem, 0.2), { p: [sx * (0.03 + 0.13 * k), headY, 0], mat: 'glow' });
-        if (tier === 5) W(roundBox(0.022, 0.26 * k, depth + 0.03, 0.006), '#ff7a2a', { p: [sx * (0.03 + 0.2 * k), headY, 0], mat: 'glow' });
-        // Drache: Schuppen auf dem Blatt
-        if (tier === 3) for (let j = 0; j < 2; j++) W(G3.scale(), lighter(accent, 0.1), { p: [sx * (0.03 + (0.1 + j * 0.08) * k), headY, 0.026], r: [Math.PI / 2, 0, sx * 1.2], s: 0.035 * k, shine: 0.6 });
+        const o = { p: [sx * 0.03, headY, 0], s: [k, k, 1], r: [0, sx > 0 ? 0 : Math.PI, 0] };
+        if (HD.hammer) W(plateGeo3('gaxe' + tier, HD.pts, null, depth, 0.02), bladeCol, Object.assign({ shine: 1, top: lighter(bladeCol, 0.35), topK: 0.3 }, o));
+        else detailBlade3(W, (big ? 'gaxe' : 'axe') + tier, HD.pts, HD.holes, depth, bladeCol, tier, o);
+        // Drache: Schuppen auf dem Blatt; Seele/Gott: Kugel im Fenster
+        if (tier === 3) for (let j = 0; j < 2; j++) W(G3.scale(), lighter(accent, 0.1), { p: [sx * (0.03 + (0.24 + j * 0.06) * k), headY + 0.12 * k, 0.026], r: [Math.PI / 2, 0, sx * 1.2], s: 0.03 * k, shine: 0.6 });
+        if (HD.holes && (tier === 3 || tier === 4 || tier === 7)) {
+          const [hx, hy] = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
+          W(sphere3(tier === 3 ? 0.022 : 0.03, 10, 8), tier === 3 ? GLOW3[3] : tier === 4 ? GLOW3[4] : GLOW3[7], { p: [sx * (0.03 + hx * k), headY + hy * k, 0], s: tier === 3 ? [1, 0.6, 0.6] : [1, 1, 1], mat: 'glow' });
+        }
         // Götterhammer: goldene Schlagflächen
         if (HD.hammer) W(roundBox(0.03, 0.36 * k, 0.24, 0.012), GLOW3[7], { p: [sx * (0.03 + 0.255 * k), headY, 0], mat: 'glow' });
       }
-      if (!big && tier >= 2) W(horn3(0.13, 0.03, 6), bladeCol, { p: [-0.03, headY, 0], r: [0, 0, Math.PI / 2], shine: 1 });
-      if (big && HD.single) W(roundBox(0.1, 0.12, 0.06, 0.02), darker(bladeCol, 0.2), { p: [-0.07, headY, 0], shine: 0.6 });
-      W(roundBox(0.08, 0.16 * s, 0.07, 0.025), darker(bladeCol, 0.3), { p: [0, headY, 0], shine: 0.6 });
-      if (big || tier >= 3) W(horn3(big ? 0.2 : 0.12, 0.03, 6), bladeCol, { p: [0, headY + 0.08 * s, 0], shine: 1 });
-      if (tier === 3) W(G3.gem(), GLOW3[3], { p: [0, headY, 0.04], s: [0.022, 0.03, 0.016], mat: 'glow' });
-      else if (tier === 4) floatGem3(W, [0, headY + 0.32 * s, 0], 0.03, GLOW3[4]);
+      // Rücken der Einhandaxt
+      const back = !big ? HD.back : HD.single ? 'poll' : null;
+      if (back === 'poll') {
+        W(roundBox(0.1, 0.12, 0.08, 0.02), darker(bladeCol, 0.15), { p: [-0.08, headY, 0], shine: 0.8 });
+        W(roundBox(0.02, 0.135, 0.095, 0.008), lighter(bladeCol, 0.2), { p: [-0.135, headY, 0], shine: 1 });
+      } else if (back === 'spike') W(horn3(0.15, 0.032, 6), bladeCol, { p: [-0.03, headY, 0], r: [0, 0, Math.PI / 2], shine: 1 });
+      else if (back === 'hook') {
+        coneAlong(W, horn3(1, 0.3, 6), [-0.035, headY + 0.02, 0], [-1, 0.25, 0], 0.17, 0.2, bladeCol, { shine: 1 });
+        coneAlong(W, horn3(1, 0.3, 6), [-0.16, headY + 0.05, 0], [-0.3, -1, 0], 0.09, 0.18, bladeCol, { shine: 1 });
+      } else if (back === 'spikes') for (const [dy, l] of [[-0.06, 0.1], [0, 0.15], [0.06, 0.1]]) coneAlong(W, G3.spike(), [-0.03, headY + dy, 0], [-1, dy * 4, 0], l, 0.2, tier === 5 ? OBSIDIAN3 : bladeCol, { shine: 0.8 });
+      else if (back === 'blade') detailBlade3(W, 'axeback' + tier, HD.pts, HD.holes, 0.03, bladeCol, tier, { p: [-0.03, headY, 0], s: [0.5, 0.5, 1], r: [0, Math.PI, 0] });
+      // Tülle: Ringe oben und unten, Nieten auf beiden Seiten
+      W(roundBox(0.08, 0.17 * s, 0.075, 0.025), darker(bladeCol, 0.3), { p: [0, headY, 0], shine: 0.6 });
+      for (const dy of [-1, 1]) W(torus3(0.042, 0.011, Math.PI * 2, 4, 12), tier === 7 ? GOLD3 : tier >= 3 ? accent : '#4a3a2e', { p: [0, headY + dy * 0.095 * s, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });
+      for (const dy of [-0.045, 0.045]) for (const sz of [-1, 1]) W(sphere3(0.012, 6, 4), tier === 7 ? GOLD3 : lighter(bladeCol, 0.3), { p: [0, headY + dy * s, sz * 0.042], shine: 1 });
+      if (big || tier >= 3) W(horn3(big ? 0.2 : 0.12, 0.03, 6), bladeCol, { p: [0, headY + 0.1 * s, 0], shine: 1 });
+      if (tier === 4) floatGem3(W, [0, headY + 0.34 * s, 0], 0.03, GLOW3[4]);
       else if (tier === 6) for (const sx of [-1, 1]) wing3(W, [sx * 0.03, headY + 0.06 * s, -0.02], sx, 3, 0.16 * s, FEATHER3, '#bfe8ff', {}, 0);
-      else if (tier === 7) sun3(W, [0, headY, 0.045], 0.065 * s, 10, GOLD3, GLOW3[7]);
-      else if (gem) W(sphere3(0.028, 8, 6), gem, { p: [0, headY, 0.04], mat: 'glow' });
+      else if (tier === 7 && HD.hammer) sun3(W, [0, headY, 0.11], 0.07 * s, 10, GOLD3, GLOW3[7]);
+      // Griff: Lederriemen über Kreuz am Schaft
+      for (let j = 0; j < 4; j++) W(roundBox(0.075, 0.018, 0.075, 0.008), j % 2 ? '#3a2618' : '#5a3a22', { p: [0, -0.02 - j * 0.05, 0], r: [0, j * 0.6, j % 2 ? 0.3 : -0.3] });
       shell(roundBox(big ? 0.75 : 0.42, 0.5 * s, 0.09, 0.045), { p: [big ? 0 : 0.14, headY, 0] });
       return;
     }

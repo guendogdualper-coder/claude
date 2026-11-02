@@ -190,6 +190,50 @@ function poly(ctx, pts, color) {
   }, color, minX, minY, Math.max(...xs) - minX, Math.max(...ys) - minY);
 }
 
+// Fläche mit Löchern (seit 13.30): Löcher laufen gegen den Umriss, damit „nonzero“ sie ausspart
+function areaOf(pts) {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[(i + 1) % pts.length];
+    a += x0 * y1 - x1 * y0;
+  }
+  return a;
+}
+function polyHoles(ctx, pts, holes, color) {
+  const sg = Math.sign(areaOf(pts));
+  const hs = (holes || []).map((h) => (Math.sign(areaOf(h)) === sg ? h.slice().reverse() : h));
+  const xs = pts.map((q) => q[0]);
+  const ys = pts.map((q) => q[1]);
+  const minX = Math.min(...xs);
+  const minY = Math.min(...ys);
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    for (const ring of [pts, ...hs]) {
+      ring.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+    }
+  }, color, minX, minY, Math.max(...xs) - minX, Math.max(...ys) - minY);
+}
+// Klinge als Symbol (seit 13.30), passend zur 3D-Klinge: helle Schneide, dunklere Mitte, ab Stufe 4 Leuchtader.
+// pts/holes in Metern wie die 3D-Umrisse, map rechnet in Symbolkoordinaten um
+const BLADE_VEIN = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0'];
+function bladeIcon(ctx, pts, holes, map, col, tier, inset = 0.026) {
+  polyHoles(ctx, pts.map(map), (holes || []).map((h) => h.map(map)), col);
+  const fillRings = (outer, hs, color) => {
+    const sg = Math.sign(areaOf(outer));
+    ctx.beginPath();
+    for (const ring of [outer, ...hs.map((h) => (Math.sign(areaOf(h)) === sg ? h.slice().reverse() : h))]) {
+      ring.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+    }
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+  fillRings(insetPts(pts, inset).map(map), (holes || []).map((h) => insetPts(h, -inset * 0.6).map(map)), tier === 5 ? '#4a3036' : darker(col, 0.26));
+  if (BLADE_VEIN[tier]) fillRings(insetPts(pts, inset * 2.4).map(map), (holes || []).map((h) => insetPts(h, -inset * 1.4).map(map)), BLADE_VEIN[tier]);
+}
+
 function dot(ctx, x, y, rx, ry, color) {
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -759,9 +803,9 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       const blade = tier === 0 ? '#9a6a4a' : tier === 2 ? '#e8dcc0' : tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
       box(ctx, -13, -1.3, 36, 2.6, 1.2, tier === 7 ? '#6a4a1a' : tier >= 5 ? '#2a2024' : '#4a3527');
       const toIcon = ([x, y]) => [HX + y * K, x * K];
-      poly(ctx, scythePts(tier, -1, 1).map(toIcon), blade);
+      bladeIcon(ctx, scythePts(tier, -1, 1), null, toIcon, blade, tier, 0.022);
       const SB = SCYTHE_BLADES[tier];
-      if (SB.twin) poly(ctx, scythePts(tier, 1, SB.twin).map(toIcon), blade);
+      if (SB.twin) bladeIcon(ctx, scythePts(tier, 1, SB.twin), null, toIcon, blade, tier, 0.018);
       // Obsidian: Glutkante, damit die dunkle Klinge auf dunklem Grund sichtbar bleibt
       if (tier === 5) stroke(ctx, '#ff7a2a', 0.8, scythePts(tier, -1, 1).slice(19).map(toIcon));
       box(ctx, HX - 1.5, -2.4, 3.4, 4.8, 1, TIER_ACCENT[tier]);
@@ -821,22 +865,33 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       break;
     }
     case 'axe': {
-      // seit 13.29: Klingenumriss je Stufe wie in 3D (AXE_HEADS); Schaft nach rechts, Klinge nach oben
+      // seit 13.29/13.30: Klinge je Stufe wie in 3D (AXE_HEADS mit Löchern und Rücken); Schaft nach rechts, Klinge nach oben
+      const HD = AXE_HEADS[tier];
       const metal = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
-      const K = 34;
+      const K = 33;
       const HX = 14;
-      box(ctx, -5, -1.3, 24, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
-      for (let x = -4; x < 5; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.3], [x + 1, 1.3]]);
-      poly(ctx, AXE_HEADS[tier].map(([x, y]) => [HX + y * K, -x * K - 1]), metal);
-      if (tier >= 2) poly(ctx, [[HX - 1.5, 1], [HX, 5], [HX + 1.5, 1]], metal);
-      box(ctx, HX - 2.2, -2.6, 4.4, 5.2, 0.8, darker(metal, 0.3));
-      if (tier === 5) stroke(ctx, '#ff7a2a', 1, [[HX - 3, -6], [HX + 3, -6]]);
-      if (tier >= 4) oval(ctx, HX, 0, 1.3, 1.3, STAFF_ORB[tier]);
+      box(ctx, -6, -1.3, 25, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -5; x < 5; x += 2) stroke(ctx, '#2a1c14', 0.7, [[x, -1.3], [x + 1.2, 1.3]]);
+      const map = ([x, y]) => [HX + y * K, -x * K - 1.2];
+      bladeIcon(ctx, HD.pts, HD.holes, map, metal, tier);
+      if (HD.back === 'poll') box(ctx, HX - 2.4, 1.5, 4.8, 3.6, 0.8, darker(metal, 0.15));
+      else if (HD.back === 'spike') poly(ctx, [[HX - 1.4, 1], [HX, 6], [HX + 1.4, 1]], metal);
+      else if (HD.back === 'hook') poly(ctx, [[HX - 1.6, 1], [HX - 0.5, 5], [HX - 3, 7.5], [HX + 1.2, 5.5], [HX + 1.6, 1]], metal);
+      else if (HD.back === 'spikes') for (const dx of [-2, 0, 2]) poly(ctx, [[HX + dx - 0.9, 1], [HX + dx * 1.4, dx ? 4.5 : 6], [HX + dx + 0.9, 1]], metal);
+      else if (HD.back === 'blade') bladeIcon(ctx, HD.pts, HD.holes, ([x, y]) => [HX + y * K * 0.5, x * K * 0.5 + 1.2], metal, tier, 0.05);
+      // Fenster: leuchtende Kugel
+      if (HD.holes && (tier === 3 || tier === 4 || tier === 7)) {
+        const c = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
+        const [cx, cy] = map(c);
+        oval(ctx, cx, cy, tier === 3 ? 0.9 : 1.4, tier === 3 ? 1.4 : 1.4, STAFF_ORB[tier]);
+      }
+      box(ctx, HX - 2.2, -2.8, 4.4, 5.6, 0.8, darker(metal, 0.3));
+      for (const dx of [-1, 1]) dot(ctx, HX + dx * 1.1, 0, 0.55, 0.55, lighter(metal, 0.3));
       break;
     }
     case 'greataxe': {
-      // seit 13.29: Kopf je Stufe wie in 3D (GREATAXE_HEADS): Keil, Schmetterling, Halbmond, Flügel, Mondsicheln,
-      // Henkersbeil, Federklingen, Götterhammer
+      // seit 13.29/13.30: Kopf je Stufe wie in 3D (GREATAXE_HEADS): Keil, Schmetterling, Halbmond, Flügel, Mondsicheln,
+      // Henkersbeil, Federklingen, Götterhammer; mit Löchern, Schneide, Mitte und Ader
       const HD = GREATAXE_HEADS[tier];
       const metal = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
       const K = 30;
@@ -846,13 +901,16 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       const sides = HD.single ? [1] : [1, -1];
       for (const sg of sides) {
         const k = K * (sg < 0 ? HD.back || 1 : 1);
-        poly(ctx, HD.pts.map(([x, y]) => [HX + y * k, -sg * (x * k + 1.5)]), metal);
+        const map = ([x, y]) => [HX + y * k, -sg * (x * k + 1.5)];
+        if (HD.hammer) poly(ctx, HD.pts.map(map), metal);
+        else bladeIcon(ctx, HD.pts, HD.holes, map, metal, tier);
       }
+      if (HD.single) box(ctx, HX - 2.5, 2, 5, 3.5, 0.8, darker(metal, 0.15));
       box(ctx, HX - 3, -3, 6, 6, 1, darker(metal, 0.25));
+      for (const dy of [-1, 1]) dot(ctx, HX, dy * 1.4, 0.6, 0.6, lighter(metal, 0.3));
       if (HD.hammer) for (const sg of [-1, 1]) box(ctx, HX - 5, sg * 9 - 1.2, 10, 2.4, 0.6, '#fff2b0');
       if (tier >= 1 && tier !== 7) poly(ctx, [[HX + 2.5, -1.5], [HX + 8, 0], [HX + 2.5, 1.5]], metal);
-      if (tier === 5) stroke(ctx, '#ff7a2a', 1, [[HX - 4, -7], [HX + 4, -7]]);
-      if (tier >= 4) oval(ctx, HX, 0, 1.6, 1.6, STAFF_ORB[tier]);
+      if (tier >= 4 && !HD.hammer) oval(ctx, HX, 0, 1.4, 1.4, STAFF_ORB[tier]);
       break;
     }
     case 'club':
