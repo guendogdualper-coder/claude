@@ -45,6 +45,7 @@
   <section id="targetFrame" class="hud-target frame" hidden aria-label="Ziel">
     <div id="targetName" class="target-name"></div>
     <div class="bar bar-target"><i id="targetFill"></i><span id="targetText"></span></div>
+    <div id="targetFx" class="target-fx"></div>
   </section>
 
   <div id="lootFeed" class="loot-feed" aria-live="polite"></div>
@@ -136,6 +137,7 @@
       <button type="button" role="tab" data-c="g" class="on">Global</button>
       <button type="button" role="tab" data-c="gi">Gilde</button>
       <button type="button" role="tab" data-c="o">Ort</button>
+      <button type="button" role="tab" data-c="sys">System</button>
     </div>
     <div id="chatLog" class="chat-log" aria-live="polite"></div>
     <button id="chatOpen" class="chat-open" type="button" aria-label="Chat schreiben">
@@ -275,6 +277,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.41 – Ziel und Fokus: Ein gewähltes Ziel (Tab, Antippen) bleibt, bis du ein anderes wählst – auch wenn es kurz außer Reichweite ist; Angriffe gehen dann in seine Richtung statt auf ein anderes Monster. Feuerbälle, Pfeile und andere Geschosse treffen nur noch ihr Ziel und fliegen an Monstern davor vorbei. Am Ziel stehen jetzt seine Zustände mit Restzeit: Brand, Gift und Blutung mit Schaden je Sekunde, Verlangsamung, Betäubung, Eis und Flüche. Neuer Chat-Reiter „System“: Belohnungen, Aufträge, Stufen und alle Spielmeldungen stehen dort statt im Global-Chat. Statuspunkte: Der Hauptwert zählt jetzt mit 1,5 je Punkt für Fertigkeiten, die Leiste zeigt den neuen Schaden sofort. Verstärkungen, Switcher, 5. Bonus und Sternensteine fallen deutlich seltener. Überall „LVL“ statt „Level“/„Lv“.</li>
       <li>Version 13.40 – Feuermagier neu gestaltet: Echte, flackernde Flammenzungen (heller Kern, orange, rote Spitzen) statt roter Kleckse. Glutfeld und Feuertornados zeigen jetzt einen Zielkreis – Ort antippen (oder die Fertigkeit nochmal drücken), dann geht es los. Der Flammenkreis ist jetzt „Feuertornados“: drehende Feuertrichter wirbeln 4 s durch das Feld, ziehen Gegner an und setzen sie in Brand – 2 Tornados, ab Stufe 8 drei, erweckt 4, heroisch 5, legendär 6, vollendet 7. Die Phönixflamme ist ein echter Feuervogel mit schlagenden Federflügeln, Kopf, Flammenschweif und Feuerspur, der am Ziel herabstürzt und in einem Feuersturm vergeht. Neue Symbole für Feuertornados und Phönixflamme.</li>
       <li>Version 13.39 – Feuermagier: neue erste Attacke „Glutfeld“ – am Ziel reißt der Boden glühend auf, ein Flammenring brennt am Rand und Flammensäulen schießen 2,5 s lang aus der Erde; alle im Kreis nehmen fünfmal Feuerschaden und brennen danach (neues Symbol, ersetzt Drachenodem). Fertigkeiten heißen je Rang anders: z. B. Feuerball → Großer Feuerball (E) → Flammenkomet (H) → Sonnenkugel (L) → Sternenfeuer (V). Ninja: aus der Tarnung treffen jetzt alle Attacken und die Ulti mit allen Treffern dreifach, auch Flächenangriffe. Der riesige Trank (XXL) heilt jetzt 1.600 statt 800 Leben.</li>
       <li>Version 13.38 – Fertige Aufträge sind nicht mehr zu übersehen: Im Fenster jedes NPCs stehen sie oben als leuchtende Karten mit „✔ FERTIG · abgabebereit“, dem erfüllten Ziel, der Belohnung und einem großen Knopf „Abgeben“. In der Auftragsliste am Rand steht „✔ FERTIG – bei jedem NPC abgeben“, und die Meldung beim Erfüllen sagt dasselbe. Höllenthron: die Wächter Zerberos und Ifrah lassen je 2–3 legendäre Teile mit vier Boni fallen.</li>

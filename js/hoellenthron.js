@@ -285,7 +285,7 @@ function htLoot(m) {
     clampItemBonuses(item);
     if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
   }
-  for (const [id, n] of Object.entries({ boniPlus: 4, switcher: 3, boni5: 2, star: 2 })) {
+  for (const [id, n] of Object.entries({ boniPlus: 3, switcher: 2, boni5: 1, star: 1 })) {
     p.materials[id] = (p.materials[id] || 0) + n;
     ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
   }

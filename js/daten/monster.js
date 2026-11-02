@@ -253,16 +253,17 @@ function stoneType(level) {
 // Materialien: [Chance, min, max]
 function stoneDrops(type) {
   const t = STONE_TYPES.indexOf(type);
+  // seit 13.41 deutlich seltener (vorher z. B. Verstärkung 65–95 %, Switcher 40–90 %): mehr farmen für Boni
   const d = {
     mats: {
-      boniPlus: [Math.min(0.95, 0.65 + t * 0.02), 1, 2 + Math.floor(t / 4)],
-      switcher: [Math.min(0.9, 0.4 + t * 0.03), 1, 1 + Math.floor(t / 5)],
-      boni5: [Math.min(0.6, 0.1 + t * 0.025), 1, 1],
-      star: [Math.min(0.5, 0.06 + t * 0.02), 1, 1 + Math.floor(t / 10)]
+      boniPlus: [Math.min(0.6, 0.35 + t * 0.015), 1, 1 + Math.floor(t / 6)],
+      switcher: [Math.min(0.45, 0.18 + t * 0.018), 1, 1 + Math.floor(t / 8)],
+      boni5: [Math.min(0.25, 0.04 + t * 0.012), 1, 1],
+      star: [Math.min(0.2, 0.02 + t * 0.01), 1, 1]
     },
     gear: 0.55, plus: [0, 2], slots: null, gold: 1, potions: [0, 1], scroll: 0.1 + Math.max(0, t - 6) * 0.01, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
   };
-  const boost = (id, f) => { d.mats[id][0] = Math.min(1, d.mats[id][0] * f); d.mats[id][2] += 1; };
+  const boost = (id, f) => { d.mats[id][0] = Math.min(0.85, d.mats[id][0] * f); d.mats[id][2] += 1; };
   switch (type.focus) {
     case 'potions': d.potions = [2, 4]; break;
     case 'weapons': d.slots = ['waffe']; d.gear = 0.75; break;

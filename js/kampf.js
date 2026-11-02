@@ -78,7 +78,15 @@ function nearestEnemy(from, range) {
 function pickTarget(range) {
   const p = game.player;
   const t = game.target;
-  if (t && !t.dead && !t.hidden && dist(p, t) - t.r <= range) return t;
+  if (t && !t.dead && !t.hidden) {
+    if (dist(p, t) - t.r <= range) return t;
+    // Fokus bleibt (seit 13.41): Ist das gewählte Ziel außer Reichweite, wird kein anderes Monster gewählt –
+    // der Angriff geht in seine Richtung. Erst wenn es sehr weit weg ist, sucht das Spiel ein neues Ziel.
+    if (dist(p, t) < 900) {
+      faceTowards(t.x, t.y);
+      return null;
+    }
+  }
   const n = nearestEnemy(p, range);
   if (n) game.target = n;
   return n;
@@ -1600,7 +1608,8 @@ function updateProjectiles(dt) {
         if (!pr.pierce) { pr.done = true; continue; }
       }
       // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
-      const only = pr.turn && pr.target && !pr.target.dead ? pr.target : null;
+      // seit 13.41 gilt das für jedes Geschoss mit Ziel (Feuerball, Pfeile …): wer davor steht, wird nicht getroffen
+      const only = !pr.pierce && pr.target && !pr.target.dead ? pr.target : null;
       for (const m of game.monsters) {
         if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
         if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;

@@ -3156,3 +3156,17 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 
 /* 13.39: Rang-Namen der Fertigkeiten */
 .sk-base, .tip-base { display: block; font-size: 11px; color: var(--muted); font-style: italic; }
+
+/* 13.41: Zustände am Ziel */
+.target-fx { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; justify-content: center; }
+.target-fx:empty { display: none; }
+.tfx { display: inline-flex; align-items: center; gap: 3px; padding: 1px 6px 1px 4px; border-radius: 8px; font-size: 11px; line-height: 16px;
+  background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.18); color: #f3e3b5; white-space: nowrap; }
+.tfx b { font-weight: 400; }
+.tfx em { font-style: normal; color: #fff; font-weight: 700; margin-left: 2px; }
+.tfx-burn { border-color: #ff7a2a; color: #ffd0a0; }
+.tfx-poison { border-color: #8fd16a; color: #d6f5c2; }
+.tfx-bleed { border-color: #d8343a; color: #ffc0c0; }
+.tfx-slow, .tfx-frozen { border-color: #7fb8ff; color: #d6e8ff; }
+.tfx-stun { border-color: #ffd34d; color: #fff1b0; }
+.tfx-curse { border-color: #b48cff; color: #e6d8ff; }

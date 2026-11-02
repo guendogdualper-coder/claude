@@ -55,7 +55,7 @@ const pcard = {
     $('playerCard').innerHTML =
       `<div class="pc-head"><canvas id="pcPortrait" width="72" height="72"></canvas>` +
       `<div class="pc-info"><strong>${escapeHtml(rp.name)}</strong>` +
-      `<small>Lv ${rp.level} · ${CLASSES[rp.classId] ? CLASSES[rp.classId].name : '?'}${rp.guild ? ` · <b style="color:${guildColor(rp.guild)}">‹${escapeHtml(rp.guild)}›</b>` : ''}</small>` +
+      `<small>LVL ${rp.level} · ${CLASSES[rp.classId] ? CLASSES[rp.classId].name : '?'}${rp.guild ? ` · <b style="color:${guildColor(rp.guild)}">‹${escapeHtml(rp.guild)}›</b>` : ''}</small>` +
       `<div class="pc-hp"><i id="pcHp"></i></div></div>` +
       `<button type="button" class="pc-close" data-pc="close" aria-label="Schließen">×</button></div>` +
       `<div class="pc-actions">` +
@@ -207,7 +207,7 @@ function showInspect(d) {
   ui.closePanels();
   $('inspectTitle').textContent = d.n;
   $('inspectBody').innerHTML =
-    `<p class="quest-step">Lv ${d.l} · ${C ? C.name + ' · ' + (C.paths[d.path || 0] || C.paths[0]).name : 'Unbekannte Klasse'}${d.guild ? ` · ‹${escapeHtml(d.guild)}›` : ''}</p>` +
+    `<p class="quest-step">LVL ${d.l} · ${C ? C.name + ' · ' + (C.paths[d.path || 0] || C.paths[0]).name : 'Unbekannte Klasse'}${d.guild ? ` · ‹${escapeHtml(d.guild)}›` : ''}</p>` +
     `<div class="inv-layout"><section class="inv-equip"><div class="equip-doll"><canvas id="inspDoll" class="doll"></canvas><div class="equip-grid">${tiles}</div></div>` +
     `<p class="inv-sum">Angriff ${d.s.atk} · Verteidigung ${d.s.def}<br>Leben ${d.s.hp} · Mana ${d.s.mp} · Kritisch ${Math.round(d.s.crit * 100)} %</p></section>` +
     `<section><div id="inspDetail" class="item-detail-wrap"><p class="hint-text">Tippe ein Teil an, um seine Werte und Boni zu sehen. Die Pfeile vergleichen es mit deiner Ausrüstung.</p></div></section></div>`;

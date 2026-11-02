@@ -1439,7 +1439,7 @@ function drawLabel(ctx, e) {
     if (e === p ? game.stats.invisible : e.invisible) ctx.globalAlpha *= 0.5;
     // seit 13.20: „Level 70“ als eigene kleine Zeile über dem Namen, der Name selbst etwas kleiner
     const label = trName(e.name);
-    const lvText = 'Level ' + e.level;
+    const lvText = 'LVL ' + e.level;
     // der Spitzhut des Magiers ist höher: Name etwas darüber
     const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (e.riding ? RIDE_HEIGHT : 0);
     // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
@@ -1516,7 +1516,7 @@ function drawLabel(ctx, e) {
   const big = targeted || e.isStone || boss;
   const lvColor = e.isStone ? lighter(e.stoneType.look.glow, 0.45) : levelColor(e.level);
   const nameColor = e.isStone || targeted ? '#fff3d8' : boss ? '#ffb08a' : 'rgba(240,232,214,0.92)';
-  const lab = monsterLabel('Lv ' + e.level, e.name, big, lvColor, nameColor);
+  const lab = monsterLabel('LVL ' + e.level, e.name, big, lvColor, nameColor);
   ctx.drawImage(lab.c, e.x - lab.w / 2, top - lab.base, lab.w, lab.h);
   if (e.hp < e.maxHp || targeted || e.isStone) {
     drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');

@@ -214,7 +214,7 @@ function segenButton(bar, p) {
   const tip = `<b>${d.name}</b><br>Klassensegen · 30 Minuten · nur aktivieren<br>${d.text(d.effects(segenSteps(Math.max(p.level, SEGEN_UNLOCK))))}<br><i>Wird alle 10 Stufen stärker.</i>`;
   wrap.innerHTML = `<button type="button" id="skillSegen" class="slot skill segen${locked ? ' locked' : ''}" aria-label="${d.name}" data-info="${escTip(tip)}">` +
     `<span class="key">${keyLabel(actionKey('segen'))}</span><img class="skill-icon" src="${segenIconUrl(d.id)}" alt="${d.name}">` +
-    `<span class="segen-left" hidden></span>${locked ? `<span class="lock">ab Lv ${SEGEN_UNLOCK}</span>` : ''}</button>`;
+    `<span class="segen-left" hidden></span>${locked ? `<span class="lock">ab LVL ${SEGEN_UNLOCK}</span>` : ''}</button>`;
   const btn = wrap.firstChild;
   btn.addEventListener('pointerdown', (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;

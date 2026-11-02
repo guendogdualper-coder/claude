@@ -112,7 +112,7 @@ const MAIN_SKILL = 0.012;
 const MAIN_ATTR_CAP = 120;
 // seit 13.37: der Hauptwert zählt für Fertigkeiten zusätzlich wie fester Angriff (je Punkt so viel), damit schon
 // ein einzelner Punkt den Fertigkeitsschaden sichtbar erhöht (vorher nur +1,2 % je Punkt, das ging beim Runden unter)
-const MAIN_SKILL_FLAT = 1.0;
+const MAIN_SKILL_FLAT = 1.5; // seit 13.41 (vorher 1,0)
 const MAIN_BASIC = 0.01;
 const MAIN_BUFF = 0.01;
 
@@ -661,6 +661,13 @@ function raiseAttr(id, n = 1) {
   p.hp += Math.max(0, game.stats.maxHp - before.maxHp);
   p.mp += Math.max(0, game.stats.maxMp - before.maxMp);
   ui.renderCharPanel();
+  // seit 13.41: Leiste neu bauen, damit der höhere Schaden sofort in den Infofeldern der Fertigkeiten steht
+  ui.buildSkillBar();
+  const sk0 = classSkills(p).find((sk) => sk.kind === 'angriff' && p.level >= sk.unlock);
+  if (id === MAIN_ATTR[p.classId] && sk0 && typeof skillHitNum === 'function') {
+    const i0 = classSkills(p).indexOf(sk0);
+    addText(p.x, p.y - 52, `${skillRankName(sk0, p.skillLevels[i0])}: ${skillHitNum(sk0.dmg || 1, p.skillLevels[i0], game.stats)} Schaden`, 'info');
+  }
   saveGame();
 }
 

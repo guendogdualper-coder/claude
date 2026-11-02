@@ -585,7 +585,8 @@ function rollLoot(m) {
     const got = [];
     for (const [id, [chance, min, max]] of Object.entries((drops || sd).mats)) {
       if (id === 'switch67' && !drops) continue; // nur der Stein selbst, nicht seine Monster
-      if (Math.random() >= (drops ? chance : chance * 0.12)) continue;
+      // Monster aus dem Stein: seit 13.41 nur noch selten etwas (vorher 12 % der Steinchance je Monster)
+      if (Math.random() >= (drops ? chance : chance * 0.03)) continue;
       const n = drops ? randInt(min, max) : 1;
       p.materials[id] = (p.materials[id] || 0) + n;
       const mat = MATERIALS.find((x) => x.id === id);
@@ -653,7 +654,7 @@ function raidLoot(m) {
     else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   }
   if (b.mat) addMobMat(b.mat, randInt(8, 12), m);
-  const mats = { boniPlus: 4, switcher: 3, boni5: 2, star: randInt(1, 2), ...(m.level >= SWITCH67.stone ? { switch67: 1 } : {}) };
+  const mats = { boniPlus: 2, switcher: 2, boni5: 1, ...(Math.random() < 0.5 ? { star: 1 } : {}), ...(m.level >= SWITCH67.stone && Math.random() < 0.5 ? { switch67: 1 } : {}) };
   for (const [id, n] of Object.entries(mats)) {
     p.materials[id] = (p.materials[id] || 0) + n;
     ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
@@ -700,7 +701,8 @@ function bossLoot(m) {
     }
   }
   if (b.mat) addMobMat(b.mat, randInt(3, 5), m);
-  const mats = { boniPlus: 2, switcher: 1, ...(Math.random() < 0.5 ? { boni5: 1 } : {}), ...(Math.random() < 0.25 ? { star: 1 } : {}) };
+  // seit 13.41 seltener (vorher 2 Verstärkungen, 1 Switcher, 50 % 5. Bonus, 25 % Sternenstein)
+  const mats = { boniPlus: 1, ...(Math.random() < 0.5 ? { switcher: 1 } : {}), ...(Math.random() < 0.2 ? { boni5: 1 } : {}), ...(Math.random() < 0.1 ? { star: 1 } : {}) };
   for (const [id, n] of Object.entries(mats)) {
     p.materials[id] = (p.materials[id] || 0) + n;
     ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);

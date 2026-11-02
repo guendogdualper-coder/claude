@@ -1111,6 +1111,7 @@ function netStop(silent, reason, keepWorld) {
 const CHAT_RANGE = 1400;
 
 function netChat(text, c = ui.chatChan || 'g') {
+  if (c === 'sys') c = 'g'; // aus dem System-Reiter schreibt man in den Global-Chat
   text = String(text || '').trim().slice(0, 120);
   if (!text || !game.player) return;
   const p = game.player;

@@ -513,7 +513,7 @@ const ui = {
         btn.setAttribute('aria-label', u.name);
         btn.dataset.info = ultTipHtml(u, keyTxt) + '<small class="tip-hint">Lange drücken: mit einer anderen Fertigkeit tauschen.</small>';
         btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(u)}" alt="${u.short}">` +
-          `<span class="cd" hidden></span>${locked ? `<span class="lock">ab Lv ${u.unlock}</span>` : ''}`;
+          `<span class="cd" hidden></span>${locked ? `<span class="lock">ab LVL ${u.unlock}</span>` : ''}`;
         this.pressSkill(btn, ULT_BAR, slot);
         wrap.append(btn);
         bar.append(wrap);
@@ -539,7 +539,7 @@ const ui = {
       btn.innerHTML = `<span class="key">${keyTxt}</span><img class="skill-icon" src="${skillIconUrl(sk, rank)}" alt="${sk.short}">` +
         `<span class="slvl">${p.level >= sk.unlock ? skillLevelText(p.skillLevels[i]) : ''}</span>` +
         `<span class="cd" hidden></span>` +
-        (p.level < sk.unlock ? `<span class="lock">ab Lv ${sk.unlock}</span>` : '');
+        (p.level < sk.unlock ? `<span class="lock">ab LVL ${sk.unlock}</span>` : '');
       this.pressSkill(btn, i, slot);
       wrap.append(btn);
       wrap.insertAdjacentHTML('beforeend', '<span class="runring" hidden></span><span class="run" hidden></span>');
@@ -775,7 +775,7 @@ const ui = {
     let players = '';
     if (online) {
       const names = [`${escapeHtml(p.name)} <small>(du${net.mode === 'host' ? ', deine Welt' : ''})</small>`];
-      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>Lv ${rp.level} · ${CLASSES[rp.classId].name}</small>`);
+      for (const rp of net.players.values()) names.push(`${escapeHtml(rp.name)} <small>LVL ${rp.level} · ${CLASSES[rp.classId].name}</small>`);
       players = `<h3>Im Kanal</h3><ul class="net-list">${names.map((n) => `<li>${n}</li>`).join('')}</ul>` +
         '<div class="net-row"><button type="button" class="btn btn-ghost" data-net="share">Freunde einladen</button><button type="button" class="btn btn-ghost" data-net="solo">Allein spielen</button></div>';
     } else {
@@ -897,8 +897,11 @@ const ui = {
     }
   },
 
+  // seit 13.41: Spielmeldungen (Belohnungen, Aufträge, Stufen …) stehen nur noch im Reiter System, nicht im Global-Chat
   chatShows(c) {
-    return this.chatChan === 'g' || c === this.chatChan;
+    if (this.chatChan === 'sys') return c === 'sys';
+    if (this.chatChan === 'g') return c !== 'sys';
+    return c === this.chatChan;
   },
 
   setChatChan(c) {
@@ -909,7 +912,7 @@ const ui = {
       b.setAttribute(b.getAttribute('role') === 'tab' ? 'aria-selected' : 'aria-pressed', on ? 'true' : 'false');
       if (on) b.classList.remove('new');
     }
-    if (c === 'g') for (const b of document.querySelectorAll('#chatTabs button')) b.classList.remove('new');
+    if (c === 'g') for (const b of document.querySelectorAll('#chatTabs button')) if (b.dataset.c !== 'sys') b.classList.remove('new');
     $('chatInput').placeholder = c === 'gi' ? 'Nachricht an deine Gilde …' : c === 'o' ? 'Nachricht an Spieler in der Nähe …' : 'Nachricht an alle …';
     this.renderChat();
   },
@@ -982,7 +985,7 @@ const ui = {
     const box = $('chatLog');
     if (box.children.length) return;
     const c = this.chatChan;
-    box.innerHTML = '<p class="hint">' + (c === 'gi' ? 'Gildenchat · nur deine Gilde liest mit.' : c === 'o' ? 'Ortschat · nur Spieler in deiner Nähe lesen mit.' : 'Chat · Tippe auf die Sprechblase, um zu schreiben.') + '</p>';
+    box.innerHTML = '<p class="hint">' + (c === 'sys' ? 'System · Belohnungen, Aufträge, Stufenaufstiege und alle Meldungen des Spiels.' : c === 'gi' ? 'Gildenchat · nur deine Gilde liest mit.' : c === 'o' ? 'Ortschat · nur Spieler in deiner Nähe lesen mit.' : 'Chat · Tippe auf die Sprechblase, um zu schreiben.') + '</p>';
   },
 
   // Akku (wenn das Gerät ihn verrät; Safari auf dem iPhone tut das nicht)
@@ -1056,7 +1059,7 @@ const ui = {
       $('bossBar').hidden = !boss;
       document.body.classList.toggle('has-boss', !!boss);
       if (!boss) return;
-      $('bossName').textContent = `Lv ${boss.level} ${boss.name}`;
+      $('bossName').textContent = `LVL ${boss.level} ${boss.name}`;
       $('bossFill').style.transform = `scaleX(${Math.max(0, boss.hp / boss.maxHp)})`;
       $('bossHp').textContent = `${Math.ceil(boss.hp).toLocaleString('de-DE')} / ${boss.maxHp.toLocaleString('de-DE')}`;
     });
@@ -1202,10 +1205,17 @@ const ui = {
       $('targetFrame').hidden = !t;
       document.body.classList.toggle('has-target', !!t);
       if (!t) return;
-      $('targetName').textContent = `Lv ${t.level} ${t.name}`;
+      $('targetName').textContent = `LVL ${t.level} ${t.name}`;
       $('targetName').style.color = t.isStone ? lighter(t.stoneType.look.glow, 0.45) : levelColor(t.level);
       setBar('target', t.hp / t.maxHp);
       $('targetText').textContent = `${Math.ceil(t.hp).toLocaleString('de-DE')} / ${t.maxHp.toLocaleString('de-DE')}`;
+    });
+
+    // Zustände des Ziels (seit 13.41): Brand, Gift, Blutung, Verlangsamung, Betäubung, Eis und Flüche mit Restzeit
+    // und Schaden je Sekunde – wie die eigenen Buffs, nur am Ziel
+    const fx = t ? targetEffects(t) : [];
+    this.set('targetFx', fx.map((e) => e.key).join('|'), () => {
+      $('targetFx').innerHTML = fx.map((e) => `<span class="tfx tfx-${e.kind}" title="${e.tip}"><b>${e.icon}</b>${e.label}<em>${e.time}</em></span>`).join('');
     });
 
     this.set('talk', game.nearNpc ? game.nearNpc.id : '', (v) => {
@@ -2221,4 +2231,30 @@ function buffTip(b) {
   if (fx && fx.weaponGlow) lines.push('Leuchtende Waffe');
   if (b.id === 'knochenpanzer') lines.push('Schild fängt Schaden ab');
   return lines.join('\n');
+}
+
+// Zustände eines Monsters für das Zielfenster (seit 13.41)
+function targetEffects(m) {
+  const now = game.time;
+  const out = [];
+  const sec = (until) => Math.max(0, Math.ceil(until - now));
+  const dot = (o, kind, icon, label) => {
+    if (!o || o.until <= now) return;
+    const d = Math.round(o.dps || 0);
+    out.push({ kind, icon, label: `${label} ${d}/s`, time: `${sec(o.until)} s`, tip: `${label}: ${d} Schaden je Sekunde, noch ${sec(o.until)} s`, key: kind + d + ':' + sec(o.until) });
+  };
+  dot(m.burn, 'burn', '🔥', 'Brand');
+  dot(m.poison, 'poison', '☠', 'Gift');
+  dot(m.bleed, 'bleed', '🩸', 'Blutung');
+  if (m.stun > 0) out.push({ kind: 'stun', icon: '💫', label: 'Betäubt', time: `${Math.max(0.1, m.stun).toFixed(1).replace('.', ',')} s`, tip: 'Betäubt: kann sich nicht bewegen und nicht angreifen', key: 'stun' + Math.ceil(m.stun * 10) });
+  if (m.frozen > now) out.push({ kind: 'frozen', icon: '❄', label: 'Eingefroren', time: `${sec(m.frozen)} s`, tip: 'Eingefroren', key: 'frz' + sec(m.frozen) });
+  if (m.slow && m.slow.until > now && m.slow.mul < 1) {
+    const pc = Math.round((1 - m.slow.mul) * 100);
+    out.push({ kind: 'slow', icon: '🐌', label: `Langsam −${pc} %`, time: `${sec(m.slow.until)} s`, tip: `Verlangsamt um ${pc} %`, key: 'slow' + pc + ':' + sec(m.slow.until) });
+  }
+  if (m.vulnerable && m.vulnerable.until > now && m.vulnerable.mul > 1) {
+    const pc = Math.round((m.vulnerable.mul - 1) * 100);
+    out.push({ kind: 'curse', icon: '✸', label: `Fluch +${pc} % Schaden`, time: `${sec(m.vulnerable.until)} s`, tip: `Verflucht: nimmt ${pc} % mehr Schaden`, key: 'vul' + pc + ':' + sec(m.vulnerable.until) });
+  }
+  return out;
 }
