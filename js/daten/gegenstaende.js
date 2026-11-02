@@ -400,3 +400,129 @@ const BOW_LIMBS = [
   { pts: [[0, 0], [0.02, 0.12], [-0.04, 0.28], [-0.14, 0.42], [-0.19, 0.51]], r: [0.026, 0.011], wood: '#e6eef8' },
   { pts: [[0, 0], [-0.02, 0.1], [-0.1, 0.24], [-0.17, 0.37], [-0.14, 0.47], [-0.06, 0.54]], r: [0.032, 0.014], wood: '#d9a63a' }
 ];
+
+// --- Waffenformen je Stufe (seit 13.29) ------------------------------------------------------------------
+// Wie bei Dolchen und Bögen nutzen 3D-Waffe (drei-ausruestung.js) und Inventarsymbol (figuren.js) dieselben
+// Umrisse, damit jede Stufe auf den ersten Blick eine eigene Form hat (nicht nur eine andere Farbe).
+
+// Einhandäxte: Umriss der Klinge (x vom Schaft nach außen, y entlang des Schafts, Meter)
+// 0 Beil (klein, kantig), 1 Bartaxt (langer Bart nach unten), 2 Wolfsaxt (Reißzähne in der Schneide),
+// 3 Drachenaxt (Flügelblatt mit Zacken), 4 Seelenhacker (Haken nach unten), 5 Aschenaxt (gezackter Obsidian),
+// 6 Himmelsaxt (schmale, weite Mondsichel), 7 Götteraxt (breites Prunkblatt mit Strahlenspitzen)
+const AXE_HEADS = [
+  [[0, -0.06], [0.14, -0.09], [0.2, -0.13], [0.215, 0.11], [0.15, 0.085], [0, 0.06]],
+  [[0, -0.05], [0.07, -0.11], [0.11, -0.27], [0.19, -0.3], [0.24, -0.13], [0.25, 0.06], [0.2, 0.14], [0.1, 0.1], [0, 0.06]],
+  [[0, -0.07], [0.12, -0.13], [0.2, -0.24], [0.245, -0.18], [0.215, -0.12], [0.27, -0.05], [0.24, 0], [0.27, 0.05], [0.215, 0.12], [0.245, 0.18], [0.2, 0.24], [0.12, 0.13], [0, 0.07]],
+  [[0, -0.06], [0.06, -0.16], [0.13, -0.26], [0.19, -0.2], [0.26, -0.29], [0.3, -0.1], [0.31, 0.08], [0.28, 0.25], [0.2, 0.19], [0.13, 0.26], [0.06, 0.15], [0, 0.06]],
+  [[0, -0.05], [0.1, -0.08], [0.21, -0.2], [0.29, -0.34], [0.32, -0.18], [0.28, -0.02], [0.31, 0.14], [0.25, 0.24], [0.14, 0.12], [0, 0.05]],
+  [[0, -0.07], [0.1, -0.1], [0.14, -0.22], [0.2, -0.16], [0.25, -0.28], [0.28, -0.14], [0.33, -0.08], [0.29, 0], [0.34, 0.08], [0.28, 0.15], [0.26, 0.28], [0.2, 0.18], [0.14, 0.23], [0.1, 0.1], [0, 0.07]],
+  [[0, -0.04], [0.12, -0.06], [0.23, -0.18], [0.29, -0.35], [0.33, -0.2], [0.345, 0], [0.33, 0.2], [0.29, 0.35], [0.23, 0.18], [0.12, 0.06], [0, 0.04]],
+  [[0, -0.08], [0.08, -0.16], [0.12, -0.3], [0.21, -0.27], [0.29, -0.37], [0.33, -0.2], [0.37, -0.08], [0.36, 0.08], [0.33, 0.2], [0.29, 0.37], [0.21, 0.27], [0.12, 0.3], [0.08, 0.16], [0, 0.08]]
+];
+
+// Streitäxte: Umriss einer Klinge; single: nur eine Klinge, back: Größe der Gegenklinge (Standard 1), hammer: Hammerkopf
+// 0 Holzfälleraxt (ein schwerer Keil), 1 Doppelaxt (Schmetterling), 2 Barbarenaxt (Halbmond mit Hörnern),
+// 3 Drachenspalter (großer Flügel vorn, kleine Gegenklinge), 4 Seelenschlächter (zwei Mondsicheln),
+// 5 Aschenhenker (Henkersbeil mit Zacken), 6 Himmelsbrecher (Federklingen), 7 Götterhammer (Hammer mit Strahlenklingen)
+const GREATAXE_HEADS = [
+  { pts: [[0, -0.09], [0.2, -0.13], [0.31, -0.22], [0.33, 0.17], [0.22, 0.1], [0, 0.09]], single: true },
+  { pts: [[0, -0.07], [0.1, -0.1], [0.2, -0.24], [0.27, -0.26], [0.3, -0.1], [0.31, 0], [0.3, 0.1], [0.27, 0.26], [0.2, 0.24], [0.1, 0.1], [0, 0.07]] },
+  { pts: [[0, -0.08], [0.12, -0.14], [0.17, -0.31], [0.23, -0.22], [0.3, -0.24], [0.34, 0], [0.3, 0.24], [0.23, 0.22], [0.17, 0.31], [0.12, 0.14], [0, 0.08]] },
+  { pts: [[0, -0.07], [0.07, -0.18], [0.15, -0.3], [0.22, -0.23], [0.3, -0.33], [0.35, -0.12], [0.36, 0.08], [0.33, 0.27], [0.24, 0.21], [0.15, 0.3], [0.07, 0.17], [0, 0.07]], back: 0.55 },
+  { pts: [[0, -0.05], [0.06, -0.1], [0.16, -0.3], [0.3, -0.39], [0.24, -0.22], [0.26, 0], [0.24, 0.22], [0.3, 0.39], [0.16, 0.3], [0.06, 0.1], [0, 0.05]] },
+  { pts: [[0, -0.1], [0.3, -0.14], [0.36, -0.1], [0.33, -0.05], [0.37, 0], [0.33, 0.05], [0.36, 0.1], [0.34, 0.23], [0.2, 0.18], [0, 0.1]], back: 0.6 },
+  { pts: [[0, -0.05], [0.12, -0.1], [0.22, -0.3], [0.26, -0.16], [0.33, -0.21], [0.32, -0.05], [0.36, 0], [0.32, 0.05], [0.33, 0.21], [0.26, 0.16], [0.22, 0.3], [0.12, 0.1], [0, 0.05]] },
+  { pts: [[0, -0.12], [0.15, -0.12], [0.2, -0.17], [0.25, -0.17], [0.25, 0.17], [0.2, 0.17], [0.15, 0.12], [0, 0.12]], hammer: true }
+];
+
+// Fächer: Spannweite (Bogenmaß) und Randform des Blatts je Stufe
+// 0 Papier (glatt), 1 Seide (Bögen), 2 Kranich (Federspitzen), 3 Phönix (Flammenzungen), 4 Drache (Fledermausflügel),
+// 5 Glut (gezackt), 6 Himmel (Wolkenrand), 7 Götter (fast voller Sonnenkreis mit Strahlen)
+const FAN_SHAPES = [
+  { span: 1.75, edge: 'smooth', n: 1, amp: 0 },
+  { span: 2.1, edge: 'scallop', n: 8, amp: 0.06 },
+  { span: 2.35, edge: 'feather', n: 10, amp: 0.13 },
+  { span: 2.5, edge: 'flame', n: 7, amp: 0.24 },
+  { span: 2.4, edge: 'bat', n: 5, amp: 0.2 },
+  { span: 2.2, edge: 'jag', n: 11, amp: 0.15 },
+  { span: 2.75, edge: 'cloud', n: 6, amp: 0.1 },
+  { span: 5.9, edge: 'sun', n: 20, amp: 0.13 }
+];
+// Umriss des Fächerblatts: Drehpunkt bei (0, 0), Blattmitte in Richtung `center` (Bogenmaß), außen R, innen r0
+function fanLeafPts(tier, R, r0, center) {
+  const S = FAN_SHAPES[tier] || FAN_SHAPES[0];
+  const a0 = center - S.span / 2;
+  const steps = Math.max(24, S.n * 8);
+  const out = [];
+  for (let i = 0; i <= steps; i++) {
+    const u = i / steps;
+    const f = (u * S.n) % 1;
+    let k = 1;
+    switch (S.edge) {
+      case 'scallop': k = 1 + S.amp * Math.sin(f * Math.PI); break;
+      case 'feather': k = 1 + S.amp * (1 - Math.abs(f * 2 - 1)) - S.amp * 0.4; break;
+      case 'flame': k = 1 + S.amp * Math.pow(f, 1.6) - S.amp * 0.3; break;
+      case 'bat': k = 1 - S.amp * Math.sin(f * Math.PI); break;
+      case 'jag': k = 1 + S.amp * ((i % 2 ? 0.2 : 1) * (0.6 + 0.4 * Math.sin(i * 2.7))) - S.amp * 0.4; break;
+      case 'cloud': k = 1 + S.amp * Math.sqrt(Math.sin(f * Math.PI)); break;
+      case 'sun': k = 1 + S.amp * (1 - Math.abs(f * 2 - 1)) - S.amp * 0.5; break;
+      default:
+    }
+    const a = a0 + u * S.span;
+    out.push([Math.cos(a) * R * k, Math.sin(a) * R * k]);
+  }
+  for (let i = 8; i >= 0; i--) {
+    const a = a0 + (i / 8) * S.span;
+    out.push([Math.cos(a) * r0, Math.sin(a) * r0]);
+  }
+  return out;
+}
+
+// Glocken: Drehprofil [Radius, Höhe] von der Öffnung (Höhe 0) bis zur Krone
+// 0 Bronze (klassisch), 1 Tempel (hoch und gerade), 2 Kranich (Tulpe mit Taille), 3 Phönix (weit ausgestellter Rand),
+// 4 Drache (bauchig mit Zwiebelkrone), 5 Glut (gedrungen, schwer), 6 Himmel (Kuppel), 7 Götter (doppelt gestuft)
+const BELL_PROFILES = [
+  [[0, 0], [0.14, 0], [0.13, 0.03], [0.09, 0.15], [0.055, 0.22], [0, 0.23]],
+  [[0, 0], [0.11, 0], [0.118, 0.02], [0.095, 0.05], [0.085, 0.2], [0.06, 0.25], [0, 0.26]],
+  [[0, 0], [0.135, 0], [0.1, 0.05], [0.068, 0.12], [0.078, 0.18], [0.05, 0.23], [0, 0.24]],
+  [[0, 0], [0.175, 0], [0.15, 0.015], [0.09, 0.06], [0.07, 0.16], [0.05, 0.22], [0, 0.23]],
+  [[0, 0], [0.115, 0], [0.142, 0.05], [0.132, 0.12], [0.08, 0.19], [0.03, 0.25], [0, 0.275]],
+  [[0, 0], [0.165, 0], [0.158, 0.04], [0.132, 0.07], [0.132, 0.1], [0.1, 0.14], [0, 0.16]],
+  [[0, 0], [0.13, 0], [0.128, 0.04], [0.115, 0.09], [0.09, 0.13], [0.055, 0.16], [0, 0.17]],
+  [[0, 0], [0.155, 0], [0.142, 0.03], [0.1, 0.09], [0.112, 0.11], [0.09, 0.17], [0.06, 0.22], [0, 0.245]]
+];
+
+// Sensen: Bauplan der Klinge je Stufe (Kopf am Schaft bei 0, 0; Klinge zeigt nach −x)
+// len Länge, w Breite, curve Bogen, hook Haken an der Spitze, serr Zähne in der Schneide, spikes Dornen am Rücken,
+// moon Mondsichel (in der Mitte am breitesten), twin zweite kleine Klinge nach +x
+// 0 Rost (kurz, schartig), 1 Grab (lang, schlank), 2 Knochen (Knochenzähne), 3 Seele (starker Haken),
+// 4 Totenkönig (breit mit Dornen), 5 Asche (gezackt), 6 Sterne (Mondsichel), 7 Götter (Doppelklinge)
+const SCYTHE_BLADES = [
+  { len: 0.5, w: 0.1, curve: 0.12, hook: 0, serr: 3 },
+  { len: 0.72, w: 0.1, curve: 0.18, hook: 0.05 },
+  { len: 0.62, w: 0.12, curve: 0.16, hook: 0.02, serr: 7 },
+  { len: 0.76, w: 0.13, curve: 0.22, hook: 0.14 },
+  { len: 0.8, w: 0.18, curve: 0.2, hook: 0.06, spikes: 3 },
+  { len: 0.7, w: 0.14, curve: 0.18, hook: 0.04, serr: 9, spikes: 4 },
+  { len: 0.7, w: 0.2, curve: 0.3, hook: 0.08, moon: true },
+  { len: 0.85, w: 0.16, curve: 0.24, hook: 0.1, twin: 0.45 }
+];
+function scythePts(tier, side = -1, scale = 1) {
+  const B = SCYTHE_BLADES[tier] || SCYTHE_BLADES[1];
+  const n = 18;
+  const top = [];
+  const bot = [];
+  for (let i = 0; i <= n; i++) {
+    const u = i / n;
+    const sx = side * B.len * u * scale;
+    const sy = (B.curve * B.len * Math.sin(Math.PI * u * 0.9) - B.hook * Math.pow(u, 4)) * scale;
+    const wu = (B.moon ? B.w * Math.sin(Math.PI * (0.12 + 0.88 * u)) * 1.15 + 0.01 : B.w * Math.pow(1 - u, 0.8) + 0.004) * scale;
+    let t = sy + wu * 0.35;
+    let b = sy - wu * 0.65;
+    if (B.serr && i > 0 && i < n) b += (i % 2 ? wu * 0.3 : 0) * (i * B.serr % n < n * 0.7 ? 1 : 0.5);
+    if (B.spikes && i > 1 && i < n - 2 && i % Math.max(2, Math.round(n / (B.spikes + 1))) === 0) t += B.w * 0.55 * scale;
+    top.push([sx, t]);
+    bot.push([sx, b]);
+  }
+  return top.concat(bot.reverse());
+}

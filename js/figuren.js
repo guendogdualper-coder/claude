@@ -627,77 +627,146 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       break;
     }
     case 'fan': {
-      paintShape(ctx, () => {
+      // seit 13.29: Blattumriss je Stufe wie in 3D (FAN_SHAPES): glatt, Bögen, Federn, Flammen, Flügel, Zacken, Wolken, Sonne
+      const FS = FAN_SHAPES[tier];
+      const leafPts = fanLeafPts(tier, tier === 7 ? 10.5 : 14, 2, 0);
+      if (tier === 2) {
+        // Kranich: einzelne Federn statt Blatt
+        for (let k = 0; k < 9; k++) {
+          const a = -FS.span / 2 + (k / 8) * FS.span;
+          const c = Math.cos(a);
+          const sn = Math.sin(a);
+          poly(ctx, [[c * 2, sn * 2], [c * 9 - sn * 2.2, sn * 9 + c * 2.2], [c * 15.5, sn * 15.5], [c * 9 + sn * 2.2, sn * 9 - c * 2.2]], k % 2 ? '#e8eef4' : '#c8d2dc');
+          stroke(ctx, '#2a2a30', 0.6, [[c * 12, sn * 12], [c * 15.5, sn * 15.5]]);
+        }
+      } else {
+        poly(ctx, leafPts, FAN_LEAF[tier]);
+        if (FS.edge === 'smooth' || FS.edge === 'scallop') {
+          ctx.strokeStyle = '#e0c36a';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 12.6, -FS.span * 0.48, FS.span * 0.48);
+          ctx.stroke();
+        }
+      }
+      // Rippen über die ganze Spannweite
+      ctx.strokeStyle = tier === 7 ? '#a07a1a' : tier >= 4 ? TIER_METAL[tier] : '#3a2a1c';
+      ctx.lineWidth = 0.7;
+      const nr = tier === 7 ? 14 : Math.max(5, Math.min(9, Math.round(FS.span / 0.3)));
+      for (let k = 0; k < nr; k++) {
+        const a = tier === 7 ? (k / nr) * FS.span - FS.span / 2 : -FS.span * 0.45 + (k / (nr - 1)) * FS.span * 0.9;
         ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.arc(0, 0, 14 + tier * 0.4, -0.8, 0.8);
-        ctx.closePath();
-      }, FAN_LEAF[tier], 0, -10, 14, 20);
-      ctx.strokeStyle = tier >= 4 ? TIER_METAL[tier] : '#e0c36a';
-      ctx.lineWidth = 0.8;
-      const ribs = 5 + Math.min(4, tier);
-      for (let k = 0; k <= ribs; k++) {
-        const a = -0.75 + (1.5 * k) / ribs;
-        ctx.beginPath();
-        ctx.moveTo(1, 0);
-        ctx.lineTo(Math.cos(a) * 14, Math.sin(a) * 14);
+        ctx.moveTo(Math.cos(a) * 2, Math.sin(a) * 2);
+        ctx.lineTo(Math.cos(a) * 12.5, Math.sin(a) * 12.5);
         ctx.stroke();
       }
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      ctx.arc(0, 0, 13.6, -0.8, 0.8);
-      ctx.stroke();
-      // Muster auf dem Blatt: Kranich, Flamme, Wolke
-      if (tier >= 2) oval(ctx, 9, 0, 2.2, 3.2, tier >= 5 ? '#ffb04a' : '#f4f0e0');
-      if (tier >= 3) poly(ctx, [[7, -5], [11, -7], [9, -3]], lighter(FAN_LEAF[tier], 0.4));
-      if (tier >= 6) for (const a of [-0.5, 0.5]) oval(ctx, Math.cos(a) * 11, Math.sin(a) * 11, 1.2, 1.2, '#ffffff');
-      oval(ctx, Math.cos(0.8) * 14 + 1, Math.sin(0.8) * 14 + 2, 1.6, 1.6, '#e0c36a');
-      oval(ctx, Math.cos(-0.8) * 14 + 1, Math.sin(-0.8) * 14 + 2, 1.6, 1.6, '#e0c36a');
+      // Muster auf dem Blatt
+      if (tier === 3) for (const a of [-0.6, 0, 0.6]) poly(ctx, [[Math.cos(a) * 6, Math.sin(a) * 6 - 1], [Math.cos(a) * 10, Math.sin(a) * 10], [Math.cos(a) * 6, Math.sin(a) * 6 + 1]], '#ffd34d');
+      if (tier === 4) oval(ctx, 7, 0, 2.2, 2.2, '#f4e8ff');
+      if (tier === 5) for (const a of [-0.5, 0.1, 0.6]) oval(ctx, Math.cos(a) * 8, Math.sin(a) * 8, 0.9, 0.9, '#ffd34d');
+      if (tier === 6) for (const a of [-0.7, 0, 0.7]) oval(ctx, Math.cos(a) * 8.5, Math.sin(a) * 8.5, 1.6, 1.1, '#ffffff');
+      if (tier === 7) {
+        for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; poly(ctx, [[Math.cos(a) * 3, Math.sin(a) * 3], [Math.cos(a + 0.2) * 6, Math.sin(a + 0.2) * 6], [Math.cos(a + 0.4) * 3, Math.sin(a + 0.4) * 3]], '#ffd34d'); }
+        oval(ctx, 0, 0, 3, 3, '#fff2b0');
+      }
       box(ctx, -2.5, -1.3, 4, 2.6, 1, '#e0c36a');
       if (tier >= 4) stroke(ctx, '#c8402f', 1, [[-2, 1], [-5, 5], [-4, 8]]);
       break;
     }
     case 'bell': {
-      // Stiel mit Glocke am Ende, ab Stufe 3 mit Bändern
-      box(ctx, -6, -1.2, 18, 2.4, 1, '#6b4a2e');
-      box(ctx, 11, -2.2, 3, 4.4, 1, TIER_METAL[tier]);
-      paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(14, -3); ctx.quadraticCurveTo(22, -4, 24, -8); ctx.lineTo(24, 8); ctx.quadraticCurveTo(22, 4, 14, 3); ctx.closePath(); }, TIER_METAL[tier], 14, -8, 10, 16);
-      oval(ctx, 25, 0, 1.4, 1.4, STAFF_ORB[tier]);
-      stroke(ctx, darker(TIER_METAL[tier], 0.35), 0.8, [[18, -4], [18, 4]]);
-      if (tier >= 3) {
-        stroke(ctx, FAN_LEAF[tier], 1.2, [[12, 2], [9, 7], [11, 11]]);
-        stroke(ctx, lighter(FAN_LEAF[tier], 0.3), 1.2, [[13, 2], [12, 8], [15, 11]]);
-      }
+      // seit 13.29: Glockenform je Stufe wie in 3D (BELL_PROFILES); Stiel links, Krone bei x = 13, Öffnung rechts
+      const BP = BELL_PROFILES[tier];
+      const K = 60;
+      const h = BP[BP.length - 1][1];
+      const mouth = 13 + h * K;
+      const metal = tier === 5 ? '#4a3a34' : tier === 7 ? '#ffe9a0' : tier >= 3 ? TIER_METAL[tier] : '#d9a86a';
+      box(ctx, -7, -1.2, 20, 2.4, 1, '#6b4a2e');
+      // Bänder
+      stroke(ctx, tier === 2 ? '#f4f4f0' : '#c8402f', 1.1, [[13, 1.5], [13 + h * K * 0.6, 4.5]]);
+      const pts = BP.map(([r, y]) => [mouth - y * K, -r * K]).concat(BP.slice().reverse().map(([r, y]) => [mouth - y * K, r * K]));
+      poly(ctx, pts, metal);
+      // Rippen bzw. Ringe
+      if (tier === 1 || tier === 5) for (const f of [0.15, 0.4]) stroke(ctx, darker(metal, 0.35), 0.8, [[mouth - h * K * f, -5], [mouth - h * K * f, 5]]);
+      else stroke(ctx, lighter(metal, 0.4), 0.8, [[mouth - h * K * 0.65, -2], [mouth - h * K * 0.2, -4.5]]);
+      oval(ctx, mouth + 1, 0, 1.5, 1.5, STAFF_ORB[tier]);
+      box(ctx, 11, -1.8, 3, 3.6, 1, '#e0c36a');
+      if (tier === 3) for (const y of [-1, 1]) poly(ctx, [[13, y * 2], [9, y * 6], [12, y * 3]], '#ff7a2a');
+      if (tier === 4) for (const y of [-1, 1]) poly(ctx, [[mouth - h * K * 0.8, y * 2], [mouth - h * K * 1.1, y * 7], [mouth - h * K * 0.6, y * 3.5]], '#e8dcc0');
+      if (tier === 6) for (const y of [-1, 1]) poly(ctx, [[13, y * 1.5], [10, y * 7], [15, y * 3]], '#f4f8ff');
+      if (tier === 7) { for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; stroke(ctx, '#ffd34d', 0.9, [[12 + Math.cos(a) * 2.5, Math.sin(a) * 2.5], [12 + Math.cos(a) * 4.5, Math.sin(a) * 4.5]]); } oval(ctx, 12, 0, 2.2, 2.2, '#fff2b0'); }
       break;
     }
     case 'staff': {
-      const wood = tier >= 5 ? '#2a2024' : tier >= 3 ? '#4a3a3a' : '#5c4230';
-      box(ctx, -14, -1.4, 35, 2.8, 1.2, wood);
-      for (let k = -10; k < 18; k += 5) stroke(ctx, darker(wood, 0.35), 0.9, [[k, -1.4], [k + 2, 1.4]]);
-      const head = tier % 4;
-      if (head === 0) poly(ctx, [[19, -1.5], [23, -5], [24, -3], [21.5, 0], [24, 3], [23, 5], [19, 1.5]], '#3e2c1f');
-      else if (head === 1) { stroke(ctx, wood, 1.6, [[19, 0], [24, -5], [27, -6]]); stroke(ctx, wood, 1.6, [[19, 0], [24, 5], [27, 6]]); }
-      else if (head === 2) { oval(ctx, 21, 0, 4, 3.6, '#ddd5bb'); dot(ctx, 22, -1.2, 0.9, 0.9, '#1a1210'); dot(ctx, 22, 1.2, 0.9, 0.9, '#1a1210'); }
-      else poly(ctx, [[19, -2], [24, -7], [23, -2], [28, 0], [23, 2], [24, 7], [19, 2]], TIER_METAL[tier]);
-      if (tier >= 4) for (const y of [-5, 5]) poly(ctx, [[20, y * 0.4], [24, y * 1.4], [22, y * 0.3]], '#2a1416');
-      oval(ctx, 25.5, 0, 3.6 + tier * 0.15, 3.6 + tier * 0.15, STAFF_ORB[tier]);
-      dot(ctx, 24.5, -1.2, 1.1, 1.1, '#efffe0');
-      if (tier >= 6) for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2 + 0.4; stroke(ctx, STAFF_ORB[tier], 0.8, [[25.5 + Math.cos(a) * 5, Math.sin(a) * 5], [25.5 + Math.cos(a) * 7, Math.sin(a) * 7]]); }
+      // seit 13.29: Kopfstück je Stufe wie in 3D: Knochenhörner, Krummholz, Schädel, Krallen mit Kugel, Knochenkrone,
+      // Obsidiandornen, Mondsichel mit Stern, Sonne
+      const wood = tier === 7 ? '#8a6a2a' : tier === 2 ? '#4a3527' : '#5a3f2a';
+      box(ctx, -14, -1.4, 34, 2.8, 1.2, wood);
+      for (const x of [-8, 6]) box(ctx, x, -1.9, 1.6, 3.8, 0.6, tier === 7 ? '#ffd34d' : '#c9a35a');
+      const orb = STAFF_ORB[tier];
+      const H = 22;
+      switch (tier) {
+        case 0:
+          oval(ctx, H, 0, 2.6, 2.2, '#e8dcc0');
+          for (const y of [-1, 1]) poly(ctx, [[H, y * 1.5], [H + 6, y * 6.5], [H + 2.5, y * 1]], '#e8dcc0');
+          oval(ctx, H + 3, 0, 1.6, 1.6, orb);
+          break;
+        case 1:
+          ctx.strokeStyle = '#6a4a2e';
+          ctx.lineWidth = 2.2;
+          ctx.beginPath();
+          ctx.arc(H + 2, -3.2, 3.6, Math.PI * 0.6, Math.PI * 2.1);
+          ctx.stroke();
+          oval(ctx, H + 2.2, -3.2, 1.8, 1.8, orb);
+          break;
+        case 2:
+          oval(ctx, H + 2, 0, 4.4, 4, '#ddd5bb');
+          box(ctx, H - 2.5, -2.5, 3, 5, 1, '#ddd5bb');
+          dot(ctx, H + 3, -1.6, 1.1, 1.1, '#1a1210');
+          dot(ctx, H + 3, 1.6, 1.1, 1.1, '#1a1210');
+          dot(ctx, H + 3, -1.6, 0.5, 0.5, '#9be2ff');
+          dot(ctx, H + 3, 1.6, 0.5, 0.5, '#9be2ff');
+          break;
+        case 3:
+          for (const y of [-1, 0, 1]) poly(ctx, [[H - 1, y * 1.2], [H + 4, y * 5.5], [H + 1.5, y * 1.5]], TIER_METAL[3]);
+          oval(ctx, H + 3.5, 0, 3.4, 3.4, orb);
+          break;
+        case 4:
+          for (let k = -2; k <= 2; k++) poly(ctx, [[H, k * 1.4 - 0.7], [H + 5 + (k % 2 ? 0 : 1.5), k * 2.6], [H, k * 1.4 + 0.7]], '#ddd5bb');
+          oval(ctx, H + 8.5, 0, 1.8, 2.4, orb);
+          break;
+        case 5:
+          for (const [y, l] of [[-1, 7], [-0.35, 5], [0.35, 5], [1, 7]]) poly(ctx, [[H, y * 1.6], [H + l, y * 6], [H + 1.5, y * 0.6]], '#2a2224');
+          oval(ctx, H + 2.5, 0, 2.2, 2.2, '#ff7a2a');
+          break;
+        case 6:
+          ctx.strokeStyle = '#e6eef8';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.arc(H + 3.5, 0, 4, Math.PI * 0.75, Math.PI * 2.25);
+          ctx.stroke();
+          for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; poly(ctx, [[H + 3.5, 0], [H + 3.5 + Math.cos(a) * 3.2, Math.sin(a) * 3.2], [H + 3.5 + Math.cos(a + 0.6) * 1, Math.sin(a + 0.6) * 1]], '#e6f6ff'); }
+          break;
+        default:
+          for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; poly(ctx, [[H + 3.5 + Math.cos(a) * 3, Math.sin(a) * 3], [H + 3.5 + Math.cos(a + 0.26) * 6.5, Math.sin(a + 0.26) * 6.5], [H + 3.5 + Math.cos(a + 0.52) * 3, Math.sin(a + 0.52) * 3]], '#ffd34d'); }
+          oval(ctx, H + 3.5, 0, 3.4, 3.4, '#fff2b0');
+      }
       break;
     }
     case 'scythe': {
-      // langer Schaft, gebogene Klinge am Ende
-      box(ctx, -12, -1.3, 34, 2.6, 1.2, tier >= 5 ? '#2a2024' : '#4a3a2a');
-      box(ctx, 20, -2.4, 3.4, 4.8, 1, TIER_METAL[tier]);
-      paintShape(ctx, () => {
-        ctx.beginPath();
-        ctx.moveTo(22, -2);
-        ctx.quadraticCurveTo(26, -16, 10 - tier * 0.6, -19 - tier * 0.4);
-        ctx.quadraticCurveTo(21, -13, 21.5, -2);
-        ctx.closePath();
-      }, TIER_METAL[tier], 10, -20, 16, 18);
-      stroke(ctx, '#f4f6f8', 0.7, [[24, -6], [20, -14], [13, -17.5]]);
-      if (tier >= 3) oval(ctx, 21.7, 0, 1.4, 1.4, STAFF_ORB[tier]);
+      // seit 13.29: Klingenform je Stufe wie in 3D (SCYTHE_BLADES): Schaft nach rechts, Klinge am Kopf nach oben
+      const K = 26;
+      const HX = 21;
+      const blade = tier === 0 ? '#9a6a4a' : tier === 2 ? '#e8dcc0' : tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
+      box(ctx, -13, -1.3, 36, 2.6, 1.2, tier === 7 ? '#6a4a1a' : tier >= 5 ? '#2a2024' : '#4a3527');
+      const toIcon = ([x, y]) => [HX + y * K, x * K];
+      poly(ctx, scythePts(tier, -1, 1).map(toIcon), blade);
+      const SB = SCYTHE_BLADES[tier];
+      if (SB.twin) poly(ctx, scythePts(tier, 1, SB.twin).map(toIcon), blade);
+      // Obsidian: Glutkante, damit die dunkle Klinge auf dunklem Grund sichtbar bleibt
+      if (tier === 5) stroke(ctx, '#ff7a2a', 0.8, scythePts(tier, -1, 1).slice(19).map(toIcon));
+      box(ctx, HX - 1.5, -2.4, 3.4, 4.8, 1, TIER_ACCENT[tier]);
+      if (tier === 4) { oval(ctx, HX + 1, 0, 2.2, 2, '#ddd5bb'); dot(ctx, HX + 1.6, -0.8, 0.5, 0.5, '#1a1210'); dot(ctx, HX + 1.6, 0.8, 0.5, 0.5, '#1a1210'); }
+      else if (tier >= 3) oval(ctx, HX + 0.2, 0, 1.4, 1.4, STAFF_ORB[tier]);
       break;
     }
     case 'bow': {
@@ -752,29 +821,38 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       break;
     }
     case 'axe': {
-      // Einhandaxt: Bartklinge, ab Stufe 2 mit Dorn hinten, ab 4 mit Edelstein
-      const metal = TIER_METAL[tier];
-      box(ctx, -4, -1.3, 23, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
-      for (let x = -3; x < 6; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.3], [x + 1, 1.3]]);
-      poly(ctx, [[12, -2], [15, -10 - tier * 0.3], [21, -9 - tier * 0.3], [19.5, 0], [21, 8 + tier * 0.3], [15, 9 + tier * 0.3], [12, 2]], metal);
-      stroke(ctx, lighter(metal, 0.45), 0.9, [[20.4, -7], [19, 0], [20.4, 7]]);
-      if (tier >= 2) poly(ctx, [[12, -1.5], [8, -4], [12, 1.5]], metal);
-      box(ctx, 11, -2.6, 3, 5.2, 0.8, darker(metal, 0.3));
-      if (tier >= 4) oval(ctx, 12.5, 0, 1.2, 1.2, STAFF_ORB[tier]);
+      // seit 13.29: Klingenumriss je Stufe wie in 3D (AXE_HEADS); Schaft nach rechts, Klinge nach oben
+      const metal = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
+      const K = 34;
+      const HX = 14;
+      box(ctx, -5, -1.3, 24, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -4; x < 5; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.3], [x + 1, 1.3]]);
+      poly(ctx, AXE_HEADS[tier].map(([x, y]) => [HX + y * K, -x * K - 1]), metal);
+      if (tier >= 2) poly(ctx, [[HX - 1.5, 1], [HX, 5], [HX + 1.5, 1]], metal);
+      box(ctx, HX - 2.2, -2.6, 4.4, 5.2, 0.8, darker(metal, 0.3));
+      if (tier === 5) stroke(ctx, '#ff7a2a', 1, [[HX - 3, -6], [HX + 3, -6]]);
+      if (tier >= 4) oval(ctx, HX, 0, 1.3, 1.3, STAFF_ORB[tier]);
       break;
     }
     case 'greataxe': {
-      // Streitaxt: langer Schaft, Doppelklinge, ab Stufe 3 mit Spitze oben
-      const metal = TIER_METAL[tier];
-      box(ctx, -12, -1.4, 36, 2.8, 1.2, tier >= 5 ? '#2a2024' : tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
-      for (let x = -11; x < -2; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.4], [x + 1, 1.4]]);
-      for (const sg of [-1, 1]) {
-        poly(ctx, [[18, sg * 2], [20, sg * (12 + tier * 0.3)], [26, sg * (13 + tier * 0.3)], [27.5, sg * 6], [26, sg * 2]], metal);
-        stroke(ctx, lighter(metal, 0.45), 0.9, [[26.5, sg * 11], [27.2, sg * 4]]);
+      // seit 13.29: Kopf je Stufe wie in 3D (GREATAXE_HEADS): Keil, Schmetterling, Halbmond, Flügel, Mondsicheln,
+      // Henkersbeil, Federklingen, Götterhammer
+      const HD = GREATAXE_HEADS[tier];
+      const metal = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
+      const K = 30;
+      const HX = 21;
+      box(ctx, -13, -1.4, 37, 2.8, 1.2, tier >= 5 ? '#2a2024' : tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      for (let x = -12; x < -3; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.4], [x + 1, 1.4]]);
+      const sides = HD.single ? [1] : [1, -1];
+      for (const sg of sides) {
+        const k = K * (sg < 0 ? HD.back || 1 : 1);
+        poly(ctx, HD.pts.map(([x, y]) => [HX + y * k, -sg * (x * k + 1.5)]), metal);
       }
-      box(ctx, 17, -3, 10, 6, 1, darker(metal, 0.25));
-      if (tier >= 3) poly(ctx, [[27, -1.5], [33, 0], [27, 1.5]], metal);
-      if (tier >= 4) oval(ctx, 22, 0, 1.5, 1.5, STAFF_ORB[tier]);
+      box(ctx, HX - 3, -3, 6, 6, 1, darker(metal, 0.25));
+      if (HD.hammer) for (const sg of [-1, 1]) box(ctx, HX - 5, sg * 9 - 1.2, 10, 2.4, 0.6, '#fff2b0');
+      if (tier >= 1 && tier !== 7) poly(ctx, [[HX + 2.5, -1.5], [HX + 8, 0], [HX + 2.5, 1.5]], metal);
+      if (tier === 5) stroke(ctx, '#ff7a2a', 1, [[HX - 4, -7], [HX + 4, -7]]);
+      if (tier >= 4) oval(ctx, HX, 0, 1.6, 1.6, STAFF_ORB[tier]);
       break;
     }
     case 'club':

@@ -1969,39 +1969,55 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       if (tier === 2) {
         for (let k = -3; k <= 3; k++) W(G3.feather(), k % 2 ? FEATHER3 : '#e8eef4', { p: [0, 0.04, 0.004 * k], r: [0, 0, k * 0.22], s: 0.38, top: '#2a2a30', topK: 0.3 });
       } else {
-        W(fanLeafGeo(0.36, 0.018), leaf, { p: [0, 0.04, 0], top: lighter(leaf, 0.25), topK: 0.3, shine: tier === 1 ? 0.5 : tier === 7 ? 1 : 0 });
-        W(torus3(0.35, 0.012, Math.PI * 0.88, 4, 18), tier === 5 ? '#ff7a2a' : gold, { p: [0, 0.04, 0.012], r: [0, 0, Math.PI * 0.06], shine: 1, mat: tier === 5 ? 'glow' : 'lit' });
+        // seit 13.29 eigener Blattumriss je Stufe (FAN_SHAPES, wie das Inventarsymbol)
+        const leafGeo = geo3('fanleaf4_' + tier, () => {
+          const pts = fanLeafPts(tier, tier === 7 ? 0.3 : 0.36, 0.05, Math.PI / 2);
+          const sh = new THREE.Shape();
+          sh.moveTo(pts[0][0], pts[0][1]);
+          for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+          sh.lineTo(pts[0][0], pts[0][1]);
+          return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.01, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -0.005));
+        });
+        W(leafGeo, leaf, { p: [0, 0.04, 0], top: lighter(leaf, 0.25), topK: 0.3, shine: tier === 1 ? 0.5 : tier === 7 ? 1 : 0 });
+        const FS = FAN_SHAPES[tier];
+        if (FS.edge === 'smooth' || FS.edge === 'scallop') W(torus3(0.33, 0.011, FS.span * 0.96, 4, 18), gold, { p: [0, 0.04, 0.01], r: [0, 0, Math.PI / 2 - FS.span * 0.48], shine: 1 });
       }
-      for (let k = -3; k <= 3; k++) W(limb3(0.36, 0.007, 0.006, 3), tier === 7 ? GOLD3 : '#3a2a1c', { p: [0, 0.04, 0.014], r: [0, 0, Math.PI + k * 0.2] });
+      const span = FAN_SHAPES[tier].span;
+      const nr = tier === 7 ? 14 : Math.max(5, Math.min(9, Math.round(span / 0.3)));
+      for (let k = 0; k < nr; k++) {
+        const th = tier === 7 ? (k / nr) * span - span / 2 : -span * 0.45 + (k / (nr - 1)) * span * 0.9;
+        W(limb3(tier === 7 ? 0.27 : 0.34, 0.007, 0.006, 3), tier === 7 ? GOLD3 : '#3a2a1c', { p: [0, 0.04, 0.012], r: [0, 0, Math.PI + th] });
+      }
       const edge = (k, r = 0.37) => {
         const a = Math.PI / 2 + k * 0.2;
         return [Math.cos(a) * r, 0.04 + Math.sin(a) * r, 0.01];
       };
-      if (tier === 3) for (let k = -3; k <= 3; k++) flame3(W, edge(k, 0.36), [Math.cos(Math.PI / 2 + k * 0.2), Math.sin(Math.PI / 2 + k * 0.2), 0], 0.1 + (k % 2 ? 0 : 0.04), 0.14, '#ff7a2a', '#ffd34d');
+      if (tier === 3) for (let k = -2; k <= 2; k++) flame3(W, edge(k * 1.4, 0.2), [0, 1, 0], 0.07, 0.1, '#ff7a2a', '#ffd34d');
       if (tier === 4) {
         W(sphere3(0.045, 10, 8), '#f4e8ff', { p: [0, 0.04, 0.03], mat: 'glow' });
         for (let k = -2; k <= 2; k++) W(G3.scale(), '#3a2a6a', { p: edge(k * 1.4, 0.22), r: [Math.PI / 2, 0, k * 0.28], s: 0.03, shine: 0.5 });
       } else W(sphere3(0.035, 8, 6), gold, { p: [0, 0.03, 0.02], shine: 1 });
       if (tier === 5) for (let k = -2; k <= 2; k++) W(sphere3(0.012, 6, 4), '#ffd34d', { p: edge(k * 1.3, 0.26), mat: 'glow' });
-      if (tier === 6) for (let k = -4; k <= 4; k++) W(G3.puff(), k % 2 ? '#f4f8ff' : '#dfefff', { p: edge(k * 0.75, 0.37), s: 0.035 + (k % 2 ? 0 : 0.01) });
-      if (tier === 7) {
-        sun3(W, [0, 0.04, 0.03], 0.06, 8, GOLD3, GLOW3[7]);
-        for (let k = -4; k <= 4; k++) coneAlong(W, G3.ray(), edge(k * 0.75, 0.36), [Math.cos(Math.PI / 2 + k * 0.15), Math.sin(Math.PI / 2 + k * 0.15), 0], 0.07, 0.4, '#fff2b0', { shine: 1 });
-      }
+      if (tier === 6) for (let k = -2; k <= 2; k++) W(G3.puff(), '#f4f8ff', { p: edge(k * 1.5, 0.24), s: 0.03 });
+      if (tier === 7) sun3(W, [0, 0.04, 0.03], 0.07, 10, GOLD3, GLOW3[7]);
       W(limb3(0.16, 0.01, 0.01, 4), '#c8402f', { p: [0, 0.02, 0] });
       W(sphere3(0.03, 8, 6), '#c8402f', { p: [0, -0.15, 0] });
-      shell(geo3('fanshell3', () => new THREE.CylinderGeometry(0.44, 0.44, 0.06, 16, 1, false, Math.PI * 0.54, Math.PI * 0.92).rotateX(Math.PI / 2)), { p: [0, 0.04, 0] });
+      shell(geo3('fanshell4_' + tier, () => new THREE.CylinderGeometry(0.44, 0.44, 0.06, 16, 1, false, Math.PI - span / 2, span).rotateX(Math.PI / 2)), { p: [0, 0.04, 0] });
       return;
     }
     case 'bell': {
       const bc = tier === 5 ? '#4a3a34' : tier === 7 ? GOLD3 : tier >= 3 ? metal : gold;
       W(limb3(0.2, 0.024, 0.024, 7), '#6b4a2e', { p: [0, 0.2, 0] });
       W(torus3(0.04, 0.012, Math.PI * 2, 4, 10), gold, { p: [0, 0.22, 0], shine: 1 });
-      W(lathe3('bell2', [[0, 0], [0.14, 0], [0.13, 0.03], [0.09, 0.15], [0.055, 0.22], [0, 0.23]], 16), bc, { p: [0, -0.24, 0], shine: 1 });
-      W(sphere3(0.035, 8, 6), STAFF_ORB[tier], { p: [0, -0.25, 0], mat: 'glow' });
-      for (const sx of [-1, 1]) W(roundBox(0.03, 0.26, 0.008, 0.004), tier === 2 ? '#f4f4f0' : '#c8402f', { p: [sx * 0.05, -0.12, 0.02], r: [0, 0, sx * 0.25] });
+      // seit 13.29 eigene Glockenform je Stufe (BELL_PROFILES, wie das Inventarsymbol); Krone sitzt am Griff
+      const BP = BELL_PROFILES[tier];
+      const bh = BP[BP.length - 1][1];
+      W(lathe3('bell3_' + tier, BP, 16), bc, { p: [0, -bh - 0.01, 0], shine: 1 });
+      W(sphere3(0.035, 8, 6), STAFF_ORB[tier], { p: [0, -bh - 0.02, 0], mat: 'glow' });
+      // Bänder an der Krone, so lang wie die Glocke (kurze Glocken: kurze Bänder)
+      for (const sx of [-1, 1]) W(roundBox(0.03, bh * 0.85, 0.008, 0.004), tier === 2 ? '#f4f4f0' : '#c8402f', { p: [sx * 0.05, -0.01 - bh * 0.42, 0.02], r: [0, 0, sx * 0.25] });
       switch (tier) {
-        case 1: for (const y of [-0.2, -0.13]) W(torus3(y < -0.15 ? 0.128 : 0.105, 0.008, Math.PI * 2, 3, 16), lighter(bc, 0.2), { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 }); break;
+        case 1: for (const [y, r] of [[0.03, 0.116], [0.08, 0.094], [0.19, 0.088]]) W(torus3(r, 0.008, Math.PI * 2, 3, 16), lighter(bc, 0.2), { p: [0, -bh - 0.01 + y, 0], r: [Math.PI / 2, 0, 0], shine: 1 }); break;
         case 2: W(G3.feather(), FEATHER3, { p: [0.03, -0.02, 0], r: [0, 0, -0.5], s: 0.2, top: '#2a2a30', topK: 0.3 }); break;
         case 3: for (let k = -1; k <= 1; k++) flame3(W, [k * 0.04, -0.02, 0], [k * 0.5, 1, 0], 0.09, 0.14, '#ff7a2a', '#ffd34d'); break;
         case 4:
@@ -2009,7 +2025,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           W(sphere3(0.03, 8, 6), '#f4e8ff', { p: [0, 0.0, 0.05], mat: 'glow' });
           break;
         case 5:
-          for (const [x, r] of [[-0.06, 0.3], [0.05, -0.4], [0.0, 0.1]]) W(roundBox(0.012, 0.09, 0.01, 0.004), '#ff7a2a', { p: [x, -0.14, Math.sqrt(Math.max(0, 0.012 - x * x)) + 0.01], r: [0, Math.atan2(x, 0.1), r], mat: 'glow' });
+          for (const [x, r] of [[-0.06, 0.3], [0.05, -0.4], [0.0, 0.1]]) W(roundBox(0.012, 0.07, 0.01, 0.004), '#ff7a2a', { p: [x, -0.1, Math.sqrt(Math.max(0, 0.018 - x * x)) + 0.01], r: [0, Math.atan2(x, 0.13), r], mat: 'glow' });
           break;
         case 6: for (const sx of [-1, 1]) wing3(W, [sx * 0.03, 0.02, 0], sx, 3, 0.14, FEATHER3, '#bfe8ff', {}, 0); break;
         case 7: sun3(W, [0, 0.06, 0], 0.06, 10, GOLD3, GLOW3[7]); break;
@@ -2162,21 +2178,30 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       // Sense: Sichelklinge am langen Schaft; Rost, Knochen, Seelenglanz, Doppelklinge, Obsidian, Sterne, Gold
       const bladeCol = tier === 0 ? '#9a6a4a' : tier === 2 ? BONE3 : tier === 5 ? OBSIDIAN3 : tier === 7 ? GOLD3 : metal;
       W(limb3(1.5, 0.03, 0.026, 7), tier === 7 ? '#6a4a1a' : '#4a3527', { p: [0, 1.0, 0] });
-      W(scytheGeo(), bladeCol, { p: [0, 0.98, 0], shine: 1 });
+      // seit 13.29 eigene Klingenform je Stufe (SCYTHE_BLADES, wie das Inventarsymbol)
+      const SB = SCYTHE_BLADES[tier];
+      const sGeo = (side, sc) => geo3('scythe4_' + tier + ':' + side + ':' + sc, () => {
+        const pts = scythePts(tier, side, sc);
+        const sh = new THREE.Shape();
+        sh.moveTo(pts[0][0], pts[0][1]);
+        for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]);
+        sh.lineTo(pts[0][0], pts[0][1]);
+        return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.01, bevelSize: 0.01, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -0.01));
+      });
+      W(sGeo(-1, 1), bladeCol, { p: [0, 0.98, 0], shine: 1, top: lighter(bladeCol, 0.3), topK: 0.25 });
+      if (SB.twin) W(sGeo(1, SB.twin), bladeCol, { p: [0, 0.98, 0], shine: 1 });
       W(roundBox(0.1, 0.09, 0.07, 0.025), accent, { p: [0, 0.98, 0] });
       const ringCol = tier === 2 ? BONE3 : tier === 7 ? GOLD3 : accent;
       for (const y of tier === 2 ? [0.15, 0.3, 0.45, 0.6] : [0.2, 0.5]) W(torus3(0.034, tier === 2 ? 0.014 : 0.01, Math.PI * 2, 4, 10), ringCol, { p: [0, y, 0], r: [Math.PI / 2, 0, 0] });
       // Punkte entlang der Klinge (Schneide)
-      const along = (u) => [-0.72 * u, 0.98 + 0.12 * Math.sin(u * Math.PI) - 0.05 * u, 0.012];
+      const along = (u) => [-SB.len * u, 0.98 + SB.curve * SB.len * Math.sin(Math.PI * u * 0.9) - SB.hook * Math.pow(u, 4), 0.016];
       switch (tier) {
         case 1: W(torus3(0.05, 0.01, Math.PI * 2, 4, 12), metal, { p: [0, 0.98, 0.04], shine: 1 }); break;
         case 3: for (let k = 0; k < 4; k++) W(sphere3(0.014, 6, 4), GLOW3[3], { p: along(0.2 + k * 0.2), mat: 'glow' }); break;
         case 4:
-          W(scytheGeo(), bladeCol, { p: [0, 0.98, 0], r: [0, Math.PI, 0], s: 0.6, shine: 1 });
-          skull3(W, [0, 1.02, 0.045], 0.04, GLOW3[4]);
+          skull3(W, [0, 1.02, 0.045], 0.045, GLOW3[4]);
           break;
         case 5:
-          for (let k = 0; k < 4; k++) coneAlong(W, G3.spike(), along(0.15 + k * 0.2), [0.2, 1, 0], 0.07, 0.16, OBSIDIAN3);
           for (let k = 0; k < 3; k++) W(sphere3(0.012, 6, 4), '#ff7a2a', { p: along(0.25 + k * 0.22), mat: 'glow' });
           break;
         case 6: for (let k = 0; k < 3; k++) star3(W, along(0.25 + k * 0.22), 0.022, '#e6f6ff'); break;
@@ -2197,30 +2222,32 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       for (let k = 0; k < 3; k++) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), darker(accent, 0.25), { p: [0, 0.02 - k * 0.07, 0], r: [Math.PI / 2, 0, 0] });
       W(sphere3(0.04, 8, 6), gem || darker(metal, 0.2), { p: [0, -shaft * 0.22 - 0.02, 0], mat: gem ? 'glow' : 'lit', shine: 1 });
       const headY = shaft * 0.66;
-      const s = (big ? 1.35 : 1) * (tier === 0 ? 0.85 : 1 + tier * 0.03);
-      const blade = geo3('axeblade2', () => {
+      // seit 13.29 je Stufe ein eigener Klingenumriss (AXE_HEADS / GREATAXE_HEADS, wie das Inventarsymbol)
+      const HD = big ? GREATAXE_HEADS[tier] : { pts: AXE_HEADS[tier] };
+      const s = big ? 1.2 : 1;
+      const depth = HD.hammer ? 0.19 : 0.03;
+      const blade = geo3((big ? 'gaxehead' : 'axehead') + tier, () => {
         const sh = new THREE.Shape();
-        sh.moveTo(0, -0.07);
-        sh.quadraticCurveTo(0.1, -0.1, 0.17, -0.2);
-        sh.quadraticCurveTo(0.28, -0.08, 0.27, 0);
-        sh.quadraticCurveTo(0.28, 0.1, 0.19, 0.2);
-        sh.quadraticCurveTo(0.1, 0.12, 0, 0.07);
-        sh.lineTo(0, -0.07);
-        return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.032, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.014, bevelSegments: 1, curveSegments: 6 }).translate(0, 0, -0.016));
+        sh.moveTo(HD.pts[0][0], HD.pts[0][1]);
+        for (let i = 1; i < HD.pts.length; i++) sh.lineTo(HD.pts[i][0], HD.pts[i][1]);
+        sh.lineTo(HD.pts[0][0], HD.pts[0][1]);
+        return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: true, bevelThickness: HD.hammer ? 0.02 : 0.011, bevelSize: HD.hammer ? 0.018 : 0.012, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -depth / 2));
       });
-      const sides = big ? [1, -1] : [1];
+      const sides = big && !HD.single ? [1, -1] : [1];
       for (const sx of sides) {
         // zweite Klinge gedreht statt gespiegelt (gespiegelte Flächen wären innen nach außen)
-        W(blade, bladeCol, { p: [sx * 0.03, headY, 0], s: [s, s, 1], r: [0, sx > 0 ? 0 : Math.PI, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.3 });
-        // helle Schneide (Asche: Glut, Gott: Licht)
-        W(roundBox(0.02, 0.32 * s, tier >= 5 && tier !== 6 ? 0.06 : 0.05, 0.008), tier === 5 ? '#ff7a2a' : tier === 7 ? GLOW3[7] : lighter(metal, 0.45), { p: [sx * (0.03 + 0.265 * s), headY, 0], shine: 1, mat: tier === 5 || tier === 7 ? 'glow' : 'lit' });
-        if (tier === 4) W(roundBox(0.1 * s, 0.025, 0.05, 0.008), lighter(gem, 0.2), { p: [sx * (0.03 + 0.12 * s), headY, 0], mat: 'glow' });
-        // Asche: gezackte Schneide
-        if (tier === 5) for (let k = 0; k < 4; k++) coneAlong(W, G3.spike(), [sx * (0.03 + 0.27 * s), headY + (k - 1.5) * 0.08 * s, 0], [sx, (k - 1.5) * 0.35, 0], 0.07 * s, 0.17, OBSIDIAN3);
+        const k = s * (sx < 0 ? HD.back || 1 : 1);
+        W(blade, bladeCol, { p: [sx * 0.03, headY, 0], s: [k, k, 1], r: [0, sx > 0 ? 0 : Math.PI, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.3 });
+        // Seelenhacker: leuchtende Ader im Blatt; Asche: Glutader
+        if (tier === 4) W(roundBox(0.12 * k, 0.022, 0.045, 0.008), lighter(gem, 0.2), { p: [sx * (0.03 + 0.13 * k), headY, 0], mat: 'glow' });
+        if (tier === 5) W(roundBox(0.022, 0.26 * k, depth + 0.03, 0.006), '#ff7a2a', { p: [sx * (0.03 + 0.2 * k), headY, 0], mat: 'glow' });
         // Drache: Schuppen auf dem Blatt
-        if (tier === 3) for (let k = 0; k < 2; k++) W(G3.scale(), lighter(accent, 0.1), { p: [sx * (0.03 + (0.1 + k * 0.07) * s), headY, 0.03], r: [Math.PI / 2, 0, sx * 1.2], s: 0.035 * s, shine: 0.6 });
+        if (tier === 3) for (let j = 0; j < 2; j++) W(G3.scale(), lighter(accent, 0.1), { p: [sx * (0.03 + (0.1 + j * 0.08) * k), headY, 0.026], r: [Math.PI / 2, 0, sx * 1.2], s: 0.035 * k, shine: 0.6 });
+        // Götterhammer: goldene Schlagflächen
+        if (HD.hammer) W(roundBox(0.03, 0.36 * k, 0.24, 0.012), GLOW3[7], { p: [sx * (0.03 + 0.255 * k), headY, 0], mat: 'glow' });
       }
       if (!big && tier >= 2) W(horn3(0.13, 0.03, 6), bladeCol, { p: [-0.03, headY, 0], r: [0, 0, Math.PI / 2], shine: 1 });
+      if (big && HD.single) W(roundBox(0.1, 0.12, 0.06, 0.02), darker(bladeCol, 0.2), { p: [-0.07, headY, 0], shine: 0.6 });
       W(roundBox(0.08, 0.16 * s, 0.07, 0.025), darker(bladeCol, 0.3), { p: [0, headY, 0], shine: 0.6 });
       if (big || tier >= 3) W(horn3(big ? 0.2 : 0.12, 0.03, 6), bladeCol, { p: [0, headY + 0.08 * s, 0], shine: 1 });
       if (tier === 3) W(G3.gem(), GLOW3[3], { p: [0, headY, 0.04], s: [0.022, 0.03, 0.016], mat: 'glow' });
