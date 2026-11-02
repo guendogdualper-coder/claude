@@ -275,6 +275,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.33 – Welt-Wächter: Der Seelenstein-Server kann jetzt selbst Host von Kanal 1 und 2 sein. Monster, Seelensteine und Bosse laufen dann durchgehend weiter, auch wenn niemand online ist, und niemand fliegt mehr raus, wenn ein Spieler geht. Ist gerade ein Spieler Host, gibt er den Kanal automatisch an den Wächter ab und spielt nach wenigen Sekunden in dessen Welt weiter.</li>
       <li>Version 13.32 – Eigener Seelenstein-Server: Kanäle und Mitspieler laufen jetzt zuerst über server.seelenstein.online statt nur über fremde öffentliche Vermittler – zuverlässiger, auch im Handynetz. Die öffentlichen Vermittler bleiben als Ersatz.</li>
       <li>Version 13.31 – Balance überarbeitet (nach einer Simulation aller 12 Wege von Stufe 5 bis 70): Monster ab Stufe 35 treffen deutlich weniger hart (vorher wuchs ihr Schaden viel schneller als dein Leben – auf Stufe 70 reichten zwei Treffer), haben etwas weniger Leben (Kills ab Stufe 50 rund 6 s statt 10 s) und Monster weit unter deiner Stufe machen kaum noch Schaden (Stufe 70 gegen Seelensteine der Stufe 50 ist jetzt sicher). Ninja-Dolche etwas schwächer, Heiler-Schamane stärker (Lichtsturz, Windfessel), Brand/Gift/Blutung wachsen mit deiner Fertigkeitsstärke, der Tankschlag der Endbosse ist nicht mehr tödlich für einen vollen Tank.</li>
       <li>Version 13.30 – Waffen detailreicher: Klingen mit heller Schneide und dunkler Mitte (ab Stufe 5 mit leuchtender Ader), Nieten, Ringe und Lederriemen. Äxte und Streitäxte mit ganz eigenen Formen je Stufe – Hammerrücken, Hakendorn, Dornenkamm, Gegenklinge, Durchbrüche mit leuchtendem Auge, Seelenfenster oder Sonne. Glocken mit Zierbändern und Runen, Stäbe mit Griffwicklung, Metallschuh und Anhänger, Fächer mit kräftigen Außenstäben.</li>
@@ -537,6 +538,7 @@
   <button class="btn btn-ghost" type="button" id="chatClose">×</button>
 </form>
 
+<script src="js/waechter.js"></script>
 <script src="js/sprache.js"></script>
 <script src="js/daten/klassen.js"></script>
 <script src="js/daten/monster.js"></script>

@@ -19,6 +19,8 @@ const NET_SHARE_TIME = 60; // ... oder wer in den letzten 60 s getroffen hat
 const NET_MAX = 8;         // höchstens so viele Spieler pro Kanal
 const NET_STALL = 8000;    // so lange (ms) ohne Nachricht vom Host gilt er als weg
 const NET_KEY = 'seelenstein.kanal';
+// Übergabe an den Welt-Wächter (seit 13.33): so lange warten alle anderen, bis sie sich mit ihm verbinden
+const NET_HANDOVER_WAIT = 4500;
 
 const net = {
   mode: 'off',          // 'off' | 'joining' | 'host' | 'client'
@@ -112,7 +114,8 @@ async function netJoinChannel(srv, ch, attempt = 0) {
     net.hostConn = conn;
     // Antwort des Hosts plus ggf. Notweg über den Broker brauchen etwas länger als ein direkter Kanal
     timer = setTimeout(claim, 20000);
-    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState(), v: GAME_VERSION, a: areaKey(game.player.x, game.player.y) }));
+    // der Welt-Wächter holt die ganze Welt (er übernimmt den Kanal gleich), alle anderen nur ihren Bereich
+    conn.on('open', () => conn.send({ t: 'hello', s: netPlayerState(), v: GAME_VERSION, a: WAECHTER ? undefined : areaKey(game.player.x, game.player.y), w: WAECHTER ? 1 : 0 }));
     conn.on('data', (d) => {
       if (d && d.t === 'welcome') { done = true; clearTimeout(timer); }
       netOnClientData(d);
@@ -132,13 +135,15 @@ function netClaimChannel(srv, ch, attempt) {
     net.mode = 'host';
     netTakeOverWorld();
     netRemember();
+    if (WAECHTER) waechterLog('bin Host');
     ui.chat('', `${serverName(srv)} · Kanal ${ch}: Du bist online. Wer dazukommt, spielt in deiner Welt.`);
     ui.banner(`${serverName(srv)} · Kanal ${ch}`, 'Du bist online');
     $('panelNet').hidden = true;
     ui.renderNet();
     ui.updateNetBadge();
   });
-  peer.count = () => net.players.size + 1;
+  // der Welt-Wächter zählt nicht als Spieler
+  peer.count = () => net.players.size + (WAECHTER ? 0 : 1);
   peer.on('connection', netAccept);
   peer.on('error', (e) => {
     if (net.peer !== peer) return;
@@ -175,7 +180,56 @@ function netMigrate() {
   net.players.clear();
   ui.chat('', 'Der Host ist gegangen, der Kanal wird übernommen …');
   ui.updateNetBadge();
-  setTimeout(() => { if (net.mode === 'joining') netJoinChannel(srv, ch, 1); }, 200 + Math.random() * 1200);
+  // seit 13.33: der Welt-Wächter übernimmt zuerst; Spieler warten, wenn es im Kanal einen Wächter gibt, etwas länger
+  // und verbinden sich dann mit ihm (statt selbst Host zu werden)
+  const wait = WAECHTER ? 700 : 200 + Math.random() * 1200 + (net.waechterSeen ? NET_HANDOVER_WAIT : 0);
+  setTimeout(() => { if (net.mode === 'joining') netJoinChannel(srv, ch, 1); }, wait);
+}
+
+// Der Welt-Wächter ist da (seit 13.33): als Spieler-Host den Kanal an ihn abgeben und als Mitspieler weiterspielen.
+// Alle Mitspieler bekommen „bye“ mit w und warten kurz, der Wächter übernimmt sofort, danach verbinden sich alle mit ihm.
+function netHandOver() {
+  if (net.mode !== 'host' || WAECHTER) return;
+  const srv = net.server;
+  const ch = net.channel;
+  let wid = null;
+  for (const [pid, rp] of net.players) if (rp.waechter) wid = pid;
+  if (!wid || !net.conns.get(wid)) return;
+  ui.chat('', 'Der Welt-Wächter übernimmt den Kanal – du spielst gleich in seiner Welt weiter.');
+  // nur der Wächter übernimmt; alle anderen (und man selbst) warten, bis er Host ist, und verbinden sich dann mit ihm
+  net.conns.get(wid).send({ t: 'handover' });
+  netBroadcast({ t: 'bye', w: 1 }, wid);
+  net.waechterSeen = true;
+  setTimeout(() => {
+    if (net.mode !== 'host' || net.server !== srv || net.channel !== ch) return;
+    net.mode = 'joining';
+    try { if (net.peer) net.peer.destroy(); } catch (e) { /* schon zu */ }
+    net.peer = null;
+    net.hostConn = null;
+    net.conns.clear();
+    for (const rp of net.players.values()) rp.gone = true;
+    net.players.clear();
+    ui.updateNetBadge();
+    setTimeout(() => { if (net.mode === 'joining') netJoinChannel(srv, ch, 1); }, NET_HANDOVER_WAIT);
+  }, 300);
+}
+
+// Beim Wächter: der bisherige Host gibt ab – sofort übernehmen (der Host räumt den Kanal gerade)
+function netTakeHandover() {
+  const srv = net.server;
+  const ch = net.channel;
+  net.mode = 'joining';
+  try { if (net.peer) net.peer.destroy(); } catch (e) { /* schon zu */ }
+  net.peer = null;
+  net.hostConn = null;
+  for (const rp of net.players.values()) rp.gone = true;
+  net.players.clear();
+  setTimeout(() => {
+    if (net.mode !== 'joining') return;
+    // den Kanal als leer vormerken: nicht erst 1,5 s nach einer (gerade gelöschten) Host-Meldung suchen
+    if (typeof sigEmptyAt !== 'undefined') sigEmptyAt.set(channelId(srv, ch), performance.now());
+    netClaimChannel(srv, ch, 0);
+  }, 900);
 }
 
 // Wer den Kanal übernimmt, führt die Welt weiter, die er gerade sieht
@@ -237,7 +291,7 @@ async function netProbe() {
 
 function netAccept(conn) {
   conn.on('open', () => {
-    if (net.conns.size + 1 >= NET_MAX) {
+    if (net.conns.size + (WAECHTER ? 0 : 1) >= NET_MAX) {
       conn.send({ t: 'full' });
       setTimeout(() => conn.close(), 500);
       return;
@@ -281,8 +335,14 @@ function netOnHostData(conn, d) {
     rp.heardAt = game.time;
     netApplyState(rp, d.s);
     // ältere Mitspieler ohne Bereich (a) bekommen weiter die ganze Welt
-    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(d.a ?? null), area: d.a ?? null, v: GAME_VERSION });
+    conn.send({ t: 'welcome', host: game.player.name, mons: netWorldList(d.a ?? null), area: d.a ?? null, v: GAME_VERSION, w: WAECHTER ? 1 : 0 });
     rp.ver = d.v || rp.ver || null;
+    // der Welt-Wächter meldet sich: ihm den Kanal abgeben (er hat jetzt die ganze Welt)
+    if (d.w && !WAECHTER) {
+      rp.waechter = true;
+      setTimeout(netHandOver, 1500);
+      return;
+    }
     netVersionCheck(d.v, rp.name, true);
     ui.chat('', `${rp.name} spielt jetzt mit.`);
     netBroadcast({ t: 'chat', n: '', x: `${rp.name} spielt jetzt mit.` }, id);
@@ -399,8 +459,8 @@ function netSnapshotFor(id, rp) {
     if (!m.respawn) e.push(m.typeId, m.level, m.maxHp);
     mons.push(e);
   }
-  const players = [['host', netPlayerState()]];
-  for (const [pid, o] of net.players) if (pid !== id && o.last && !(o.name === rp.name && o.classId === rp.classId)) players.push([pid, o.last]);
+  const players = WAECHTER ? [] : [['host', netPlayerState()]];
+  for (const [pid, o] of net.players) if (pid !== id && o.last && !o.waechter && !(o.name === rp.name && o.classId === rp.classId)) players.push([pid, o.last]);
   return { t: 'snap', m: mons, p: players };
 }
 
@@ -414,6 +474,11 @@ function netOnClientData(d) {
       net.hostName = d.host;
       netRemote('host').ver = d.v || null;
       netVersionCheck(d.v, d.host, false);
+      // Host ist der Welt-Wächter: keine Figur von ihm anzeigen, bei einem Hostwechsel auf ihn warten
+      if (d.w) {
+        net.waechterSeen = true;
+        net.players.delete('host');
+      }
       net.lastSnapAt = performance.now();
       game.monsters = d.mons.map(netBuildMonster);
       net.mons = new Map(game.monsters.map((m) => [m.id, m]));
@@ -452,8 +517,13 @@ function netOnClientData(d) {
       net.hostConn = null;
       netStop(true);
       break;
+    case 'handover':
+      // nur beim Welt-Wächter: der Spieler-Host gibt ihm den Kanal
+      if (WAECHTER && net.mode === 'client') netTakeHandover();
+      break;
     case 'bye':
-      // Der Host geht (z. B. App im Hintergrund): sofort übernehmen
+      // Der Host geht (z. B. App im Hintergrund): sofort übernehmen; w: er gibt an den Welt-Wächter ab
+      if (d.w) net.waechterSeen = true;
       if (net.mode === 'client') netMigrate();
       break;
     case 'snap':

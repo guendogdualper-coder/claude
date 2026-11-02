@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.32';
+const GAME_VERSION = '13.33';
 
 const game = {
   world: null,
@@ -268,6 +268,11 @@ function boot() {
     }
   });
   window.addEventListener('pagehide', saveGame);
+  // Welt-Wächter (seit 13.33): ohne App-Speicher, ohne Bild, eigene Schleife
+  if (WAECHTER) {
+    waechterStart();
+    return;
+  }
   registerApp();
   lockLandscape();
   portraitQuery.addEventListener('change', () => {
@@ -313,7 +318,10 @@ function checkForUpdate() {
     .then((r) => r.text())
     .then((t) => {
       const m = t.match(/GAME_VERSION = '([\d.]+)'/);
-      if (m && versionNewer(m[1], GAME_VERSION)) showUpdateBar(m[1]);
+      if (m && versionNewer(m[1], GAME_VERSION)) {
+        if (WAECHTER) waechterReload(m[1]);
+        else showUpdateBar(m[1]);
+      }
     })
     .catch(() => {});
 }

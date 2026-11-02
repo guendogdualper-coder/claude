@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v160';
+const VERSION = 'seelenstein-v161';
 const FILES = [
   './',
   'index.html',
@@ -85,6 +85,7 @@ const FILES = [
   'js/daten/nachtmonster.js',
   'js/netz-signal.js',
   'js/netz.js',
+  'js/waechter.js',
   'js/konto-config.js',
   'js/konto.js',
   'js/gemeinschaft.js',

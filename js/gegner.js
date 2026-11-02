@@ -662,7 +662,8 @@ function nextTarget(m, players, leash) {
 }
 
 function huntablePlayers() {
-  const list = [game.player];
+  // der Welt-Wächter (unsichtbarer Host auf dem Server) ist kein Ziel
+  const list = WAECHTER ? [] : [game.player];
   if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead) list.push(rp);
   return list;
 }

@@ -6,7 +6,16 @@ Hinweis: Für `*.powersrv.de` stellt Let's Encrypt wegen der Grenze pro Domain o
 
 **Stufe 1 (jetzt):** Ein eigener MQTT-Vermittler (Mosquitto) läuft über `wss://v2202611449191550868.powersrv.de/mqtt` mit kostenlosem Let's-Encrypt-Zertifikat (Caddy). Das Spiel nutzt ihn zusätzlich zu den öffentlichen Brokern (HiveMQ, EMQX). Das macht Kanäle und Weiterleitung zuverlässiger, auch im Mobilfunknetz.
 
-**Stufe 2 (später):** Die Welt- und Monsterlogik zieht vom Host-Spieler auf den Server. Dann fliegt niemand mehr raus, wenn der Host geht.
+**Stufe 2 (seit 13.33): Welt-Wächter.** Der Server öffnet das Spiel selbst (Chromium ohne Bildschirm, `?waechter=1&kanal=N`) und ist dauerhaft Host von Kanal 1 und 2. Er hat keine sichtbare Figur und zeichnet nichts. Monster, Seelensteine und Bosse laufen so weiter, auch wenn niemand online ist.
+- Ist beim Start ein Spieler Host, holt sich der Wächter die ganze Welt und bekommt den Kanal übergeben (`handover`). Alle anderen verbinden sich nach etwa 5 Sekunden mit ihm.
+- Fällt der Wächter aus, übernimmt wie bisher ein Spieler. Kommt der Wächter zurück, gibt der Spieler wieder an ihn ab.
+- Neue Spielversionen lädt der Wächter selbst (Prüfung alle 5 Minuten). Jede Nacht um 5 Uhr startet er frisch.
+
+Installation (einmalig, als root):
+```
+curl -fsSL https://raw.githubusercontent.com/guendogdualper-coder/claude/claude/app-entwicklung-hhewbj/server/waechter.sh | bash
+```
+Prüfen: `systemctl status 'seelenstein-waechter@*'`, Protokoll: `journalctl -u seelenstein-waechter@1 -f | grep waechter`
 
 ## Schritte (einmalig, ca. 5 Minuten)
 
