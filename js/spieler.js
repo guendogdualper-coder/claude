@@ -88,7 +88,7 @@ function barEntryName(p, v) {
 
 // Diese Felder landen im Spielstand
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
-  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'titanGrip', 'dagger2', 'quiverGiven', 'goldGift', 'pathSkills', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet'];
+  'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'titanGrip', 'dagger2', 'quiverGiven', 'goldGift', 'pathSkills', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet', 'arrows', 'bowPathGift'];
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 2; // seit 13.49 zwei je Stufe (10.1 bis 13.48 einer, davor drei)
@@ -818,7 +818,9 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   // 13.40: Feuertornados statt Flammenkreis
   flammenkreis: 'feuertornado',
   // 13.54: Frostmagier – Blizzard (Schneesturm) statt Kristallgrab
-  kristallgrab: 'schneesturm' };
+  kristallgrab: 'schneesturm',
+  // 13.57: Ninja – Weg des Schattens wird zum Weg des Falken (Bogen); Hinterhalt und Tarnung bleiben beim Dolch-Weg
+  schattensprung: 'pfeilhagel', laehmklinge: 'durchschuss', schattenmantel: 'falkenblick' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

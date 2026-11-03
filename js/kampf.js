@@ -664,9 +664,12 @@ function basicTick(p) {
     const target = s.target && !s.target.dead ? s.target : null;
     if (target) faceTowards(target.x, target.y);
     const hand = bodyCenter(p);
-    particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: basic.color, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: 1, color: basic.color, radius: 5, style: basic.style, el: basic.el, basic: true });
-    netSkillFx('_shot', basic.range, { c: basic.color, st: basic.style, el: basic.el });
+    // Pfeile (seit 13.57, fernninja.js): jeder Bogenschuss verbraucht einen Pfeil der besten Sorte – Bonus und Farbe
+    const ar = basic.style === 'arrow' && typeof bowArrowShot === 'function' ? bowArrowShot(p, 1) : null;
+    const col = ar ? ar.color : basic.color;
+    particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: col, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined });
+    netSkillFx('_shot', basic.range, { c: col, st: basic.style, el: basic.el });
     if (typeof snd !== 'undefined') snd.shot(p, basic);
   }
 }

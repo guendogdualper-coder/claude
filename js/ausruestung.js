@@ -168,9 +168,16 @@ function itemKindText(item) {
     const who = k.path != null ? CLASSES[item.cls].paths[k.path].name : CLASSES[item.cls].name;
     return `${k.name}${k.twoHanded ? ' (Zweihand)' : ''} · ${who}`;
   }
-  if (isQuiver(item)) return `Munition für den Bogen · ${quiverArrows(item).name} (gehen nie aus)`;
+  if (isQuiver(item)) return `Köcher für den Bogen · ${quiverArrows(item).name} als Übungspfeile (gehen nie aus)`;
   if (item.cls) return CLASSES[item.cls].name;
   return 'alle Klassen';
+}
+
+// Waffenart beim Händler (seit 13.57): Bögen nur bei der Bogenmacherin (kinds), nicht beim Waffenhändler (skipKinds)
+function merchantKindOk(m, kind) {
+  if (!kind) return true;
+  if (m.kinds && !m.kinds.includes(kind)) return false;
+  return !(m.skipKinds && m.skipKinds.includes(kind));
 }
 
 // Ladenpreis: Köcher kosten gut die Hälfte einer Waffe gleicher Stufe
@@ -2112,10 +2119,13 @@ const gear = {
       }
     }
     if (p.scrolls > 0) out.push({ key: 'scroll', n: p.scrolls });
+    // Pfeile (seit 13.57, fernninja.js)
+    if (typeof bowArrowSupplies === 'function') out.push(...bowArrowSupplies(p));
     return out;
   },
 
   supplyTile(x) {
+    if (x.arrow != null) return bowArrowTile(x);
     const icon = x.kind ? potionIconUrl(x.kind, x.sz.id) : scrollIconUrl();
     const name = x.kind ? `${potionInfo(x.kind).name} ${x.sz.id}` : BLESSING.name;
     return `<button type="button" class="item-tile sup-tile" data-sup="${x.key}" data-info="${escTip(supplyTipHtml(x))}">` +
@@ -2132,6 +2142,7 @@ const gear = {
     }
     const tileEl = document.querySelector(`#invBody [data-sup="${x.key}"]`);
     if (tileEl) tileEl.classList.add('selected');
+    if (x.arrow != null) return bowArrowDetail(el, x);
     if (!x.kind) {
       el.innerHTML = `<div class="item-detail"><img src="${scrollIconUrl()}" alt="">` +
         `<div class="item-info"><strong style="color:#ffd34d">${BLESSING.name} × ${x.n}</strong>` +
@@ -2298,12 +2309,12 @@ const gear = {
     const m = MERCHANTS[this.merchant];
     // Waffen: jede Art der eigenen Klasse als eigene Liste; Rüstung und Helm nur für die eigene Klasse
     const lists = m.slots.filter((slot) => (slot !== 'schild' || p.classId === 'krieger') && (slot !== 'koecher' || p.classId === 'ninja'))
-      .flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].filter((kind) => canWear(makeItem('waffe', 0, 0, p.classId, kind), p)).map((kind) => ({ slot, kind })) : [{ slot }]));
+      .flatMap((slot) => (slot === 'waffe' ? CLASS_WEAPON_KINDS[p.classId].filter((kind) => merchantKindOk(m, kind) && canWear(makeItem('waffe', 0, 0, p.classId, kind), p)).map((kind) => ({ slot, kind })) : [{ slot }]));
     const groups = lists.map(({ slot, kind }) => {
       const slotName = slotNameOf(slot);
       const wk = WEAPON_KINDS[kind] || { name: 'Waffe', text: '' };
       const title = kind ? `${wk.name} für ${CLASSES[p.classId].name} <small>${wk.text}</small>`
-        : slot === 'koecher' ? `Köcher für den Bogen <small>Munition: Pfeile gehen nie aus, bessere Köcher treffen härter</small>`
+        : slot === 'koecher' ? `Köcher für den Bogen <small>bessere Köcher treffen härter; ohne gekaufte Pfeile schießt du ihre Übungspfeile</small>`
         : CLASS_SLOTS.includes(slot) ? `${slotName} für ${CLASSES[p.classId].name}` : slotName;
       const equipped = slot === 'koecher' ? (isQuiver(p.equipment.schild) ? p.equipment.schild : null) : p.equipment[slot];
       const eqStats = equipped ? itemStats(equipped) : {};
@@ -2343,8 +2354,11 @@ const gear = {
     body.innerHTML = `<div class="merchant-top"><p class="merchant-greet">„${m.greeting}“</p>` +
       `<div class="merchant-gold"><span>Dein Gold</span><b>${p.gold.toLocaleString('de-DE')}</b></div>` +
       `<div class="merchant-sell"><button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button><small>Tasche ${p.inventory.length}/${BAG_SIZE}</small></div></div>` +
-      `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + `<div class="merchant-groups">${groups}</div>`;
+      `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + `<div class="merchant-groups">${groups}` +
+      // Bogenmacherin (seit 13.57): Pfeile je Sorte (fernninja.js)
+      (m.arrows && typeof bowArrowShopHtml === 'function' ? bowArrowShopHtml() : '') + `</div>`;
     this.wireSell(body, () => this.renderMerchant(body, true));
+    if (m.arrows && typeof bowArrowShopWire === 'function') bowArrowShopWire(body, () => this.renderMerchant(body, true));
     const learn = body.querySelector('[data-learn-dual]');
     if (learn) learn.addEventListener('click', () => this.learnDualWield());
     const learnT = body.querySelector('[data-learn-titan]');
@@ -2435,6 +2449,7 @@ const gear = {
     const p = game.player;
     const m = MERCHANTS[this.merchant];
     if (!m || tier < MERCHANT_MIN_TIER || !m.prices[tier] || !m.slots.includes(slot)) return;
+    if (slot === 'waffe' && !merchantKindOk(m, kind)) return;
     const price = merchantPrice(this.merchant, slot, tier);
     const item = makeItem(slot, tier, 0, p.classId, kind || null);
     applyRarity(item, merchantRarity(tier)); // seit 13.56: Händlerware grau oder grün (mit Boni)

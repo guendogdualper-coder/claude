@@ -1848,6 +1848,8 @@ function fx3Projectiles(h) {
   let skulls = 0;
   let mages = 0;
   for (const pr of game.projectiles) {
+    // Pfeile der Spieler sind seit 13.57 echte Körper (bowProj3 in fernninja.js)
+    if (pr.style === 'arrow' && typeof bowProj3 === 'function') continue;
     // Schädel und Magier-Geschosse zeigen auch die Mitspieler (fremde Geschosse sonst nur gezeichnet)
     const skull = pr.style === 'skullfire';
     const mage = MAGE3_STYLES.has(pr.style) && (pr.owner === 'player' || pr.style !== 'mage');

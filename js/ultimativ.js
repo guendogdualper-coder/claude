@@ -28,6 +28,13 @@ const ULTIMATES = {
     stats: '9× Angriff, sicher kritisch, unter 35 % Leben +4×',
     buff: { id: 'schattenschleier', name: 'Schattenschleier', duration: 8, effects: { dodge: 0.3, speed: 0.15 } }
   },
+  // seit 13.57: Weg des Falken (Bogen) statt Weg des Schattens; Ablauf, 3D und Symbol in fernninja.js.
+  // Das Todesmal oben bleibt stehen, damit Mitspieler mit älterer Version es weiter sehen.
+  falke: {
+    id: 'himmelsfalke', name: 'Sturm des Himmelsfalken', short: 'SH', color: '#9fe8ff',
+    text: 'Ein riesiger Geisterfalke stößt vom Himmel auf dein Ziel herab und schlägt mit einer Druckwelle ein, die alle Gegner ringsum betäubt. Danach peitscht ein Sturm aus Pfeilen über die Stelle.',
+    stats: 'Sturzflug 4,5× Angriff im Umkreis, Betäubung 2 s; Pfeilsturm 12 Pfeile je 0,9×'
+  },
   // seit 12.7: Kreis der Elemente statt Strom der Elemente (Ablauf in elementkreis.js)
   drache: {
     id: 'elementkreis', name: 'Kreis der Elemente', short: 'KE', color: '#4ac8ff',

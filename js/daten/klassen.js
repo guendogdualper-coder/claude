@@ -140,33 +140,37 @@ const CLASSES = {
         ]
       },
       {
-        id: 'schatten', name: 'Weg des Schattens', role: 'PvP · Hinterhalt und Ausweichen',
-        description: 'Taucht unsichtbar auf, lähmt ein Ziel und schaltet es mit kritischen Treffern aus. Kaum zu treffen.',
+        // seit 13.57: Weg des Falken statt Weg des Schattens – der Fernkampf-Ninja mit Pfeil und Bogen (fernninja.js).
+        // Der Weg behält Index 1 (Spielstände speichern p.path); seine Fertigkeiten gehen nur mit einem Bogen (weapon).
+        id: 'falke', name: 'Weg des Falken', role: 'Fernkampf · Pfeil und Bogen', weapon: 'bow',
+        description: 'Trifft aus großer Entfernung: ein schwerer Falkenpfeil, ein Pfeilhagel vom Himmel, ein Schuss, der ganze Reihen durchbohrt, ein Salto rückwärts mit Pfeilfächer und der scharfe Falkenblick. Pfeile vom Bogenmacher machen jeden Schuss stärker.',
         skills: [
           {
-            id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
-            type: 'strike', range: 70, dmg: 2.6, critBonus: 0.4, ambushMul: 2, ambushRange: 220,
-            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst doppelt so hart – zusammen mit dem Tarnungs-Bonus 6× Schaden, sicher kritisch.'
+            id: 'falkenpfeil', name: 'Falkenpfeil', short: 'FP', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
+            type: 'bshot', range: 340, speed: 980, dmg: 2.7, knockback: 45, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#ffe6a8',
+            text: 'Du ziehst die Sehne bis ans Ohr und schießt einen schweren Pfeil, den ein Wirbel aus Federn und Wind begleitet (bis 340 weit). Hoher Schaden auf ein Ziel, es wird zurückgestoßen.'
           },
           {
-            id: 'schattensprung', name: 'Schattensprung', short: 'SS', kind: 'angriff', unlock: 3, mp: 12, cooldown: 6,
-            type: 'dash', distance: 180, radius: 36, dmg: 1.6, stun: 0.6, tint: '#8a6ad8',
-            text: 'Du springst durch die Schatten nach vorn und schneidest alles auf dem Weg.'
+            id: 'pfeilhagel', name: 'Pfeilhagel', short: 'PH', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,
+            type: 'brain', aim: true, range: 360, radius: 125, delay: 0.6, waves: 3, every: 0.4, dmg: 0.8, slow: { amount: 0.35, duration: 2 },
+            arrows: 3, anim: 'bogenhimmel', animDur: 0.55, color: '#cfe6ff',
+            text: 'Du wählst einen Ort und schießt drei Pfeile steil in den Himmel. Kurz darauf regnet es dort in drei Wellen Pfeile: Jede Welle trifft alle Gegner im Kreis (125 weit) und bremst sie 2 s um 35 %.'
           },
           {
-            id: 'laehmklinge', name: 'Lähmende Klinge', short: 'LK', kind: 'angriff', unlock: 5, mp: 14, cooldown: 8,
-            type: 'strike', range: 66, dmg: 1.8, stun: 2, poison: { dps: 0.3, duration: 6 }, color: '#8fd16a',
-            text: 'Ein Stich in die Sehnen: Das Ziel ist 2 s betäubt und 6 s vergiftet.'
+            id: 'durchschuss', name: 'Durchbohrender Schuss', short: 'DS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,
+            type: 'bpierce', range: 440, speed: 1250, dmg: 2.0, knockback: 30, pierce: true, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#9ff0ff',
+            text: 'Ein Pfeil, um den sich der Wind zu einer Spirale dreht: Er durchschlägt alle Gegner in einer Linie bis 440 weit und stößt sie zurück.'
           },
           {
-            id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 7, mp: 22, cooldown: 40,
-            type: 'buff', duration: 120, effects: { invisible: true, speed: 0.12 }, nextHitMul: 3,
-            text: 'Buff: unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht dreifachen Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt sogar 6×.'
+            id: 'rueckensprung', name: 'Rückensprung', short: 'RS', kind: 'angriff', unlock: 7, mp: 18, cooldown: 10,
+            type: 'bleap', distance: 140, air: 0.36, count: 5, angle: 50, range: 300, speed: 860, dmg: 1.2, slow: { amount: 0.4, duration: 2.5 },
+            arrows: 5, color: '#b8f0c8',
+            text: 'Ein Salto rückwärts, bis zu 140 weit weg von deinem Ziel. Noch in der Luft schießt du einen Fächer aus fünf Pfeilen nach vorn: Jeder trifft den ersten Gegner auf seinem Weg und bremst ihn 2,5 s um 40 %.'
           },
           {
-            id: 'schattenmantel', name: 'Schattenmantel', short: 'SM', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,
-            type: 'buff', duration: 180, effects: { dodge: 0.2, crit: 0.12 },
-            text: 'Buff: Schatten hüllen dich ein. Mehr Ausweichen und mehr kritische Treffer.'
+            id: 'falkenblick', name: 'Falkenblick', short: 'FB', kind: 'buff', unlock: 10, mp: 25, cooldown: 60,
+            type: 'buff', duration: 180, effects: { crit: 0.08, critDmg: 0.15, atkSpeed: 0.18, bowRange: 0.2 }, labels: { bowRange: 'Bogenreichweite' },
+            text: 'Buff: Deine Augen werden scharf wie die eines Falken, geisterhafte Schwingen breiten sich hinter dir aus. Mehr kritische Treffer und kritischer Schaden, schnellere Schüsse und mehr Reichweite für den Bogen.'
           }
         ]
       }

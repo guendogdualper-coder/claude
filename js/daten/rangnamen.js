@@ -23,6 +23,12 @@ const RANK_NAMES = {
   schattensprung: ['Nachtsprung', 'Schattenflug', 'Sprung durch die Leere', 'Wanderer der Schatten'],
   laehmklinge: ['Nervenklinge', 'Giftzahn', 'Klinge der Starre', 'Todesstarre'],
   schattenmantel: ['Nachtmantel', 'Mantel der Finsternis', 'Umhang der Leere', 'Mantel der ewigen Nacht'],
+  // Ninja – Weg des Falken (seit 13.57, Bogen)
+  falkenpfeil: ['Adlerpfeil', 'Sturmfalkenpfeil', 'Pfeil des Wanderfalken', 'Himmelsjäger'],
+  pfeilhagel: ['Pfeilregen', 'Pfeilgewitter', 'Himmel aus Stahl', 'Regen der tausend Federn'],
+  durchschuss: ['Sturmschuss', 'Wirbelpfeil', 'Pfeil des Orkans', 'Speer des Himmels'],
+  rueckensprung: ['Falkensalto', 'Sturmsprung', 'Flucht des Windes', 'Tanz der Schwingen'],
+  falkenblick: ['Adlerauge', 'Blick des Jägers', 'Auge des Sturms', 'Auge des Himmelsfalken'],
   // Schamane – Weg des Drachen
   talisman: ['Sturmdrache', 'Donnerdrache', 'Himmelsdrache', 'Drachenkaiser des Sturms'],
   drachengebruell: ['Drachenzyklon', 'Drachensturm', 'Mahlstrom des Drachen', 'Wirbel des Drachengottes'],

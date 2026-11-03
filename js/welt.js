@@ -270,6 +270,8 @@ function generateWorld() {
     npc('aeltester', 'Dorfältester Bao', C - VL, C - 10.5, L('w')),
     npc('waffen', 'Waffenhändler Goro', C - VL, C - 3.6, L('w')),
     npc('haendler', 'Händlerin Ayla', C - VL, C + 3.1, L('w')),
+    // seit 13.57: Bogenmacherin (Bögen, Köcher und Pfeile) zwischen Händlerin und Schmied
+    npc('bogenmacher', 'Bogenmacherin Hana', C - VL, C + 6.6, L('w')),
     npc('schmied', 'Schmied Doran', C - VL, C + 10, L('w')),
     npc('stallmeister', 'Stallmeister Jun', C - VL, C + 13.5, L('w')),
     npc('lehrmeister', 'Lehrmeister Wen', C + VL, C - 14, L('e')),
@@ -286,7 +288,8 @@ function generateWorld() {
     haendler: ['Händlerin', 'Händler'], schmied: ['Schmied', 'Schmiedin'], waffen: ['Waffenhändler', 'Waffenhändlerin'],
     ruestung: ['Rüstungshändlerin', 'Rüstungshändler'], alchemist: ['Alchemist', 'Alchemistin'], aeltester: ['Lagerältester', 'Lagerälteste'],
     jaegerin: ['Jägerin', 'Jäger'], teleport: ['Wegweiserin', 'Wegweiser'], stallmeister: ['Stallmeister', 'Stallmeisterin'],
-    lehrmeister: ['Lehrmeister', 'Lehrmeisterin'], lager: ['Lagerverwalter', 'Lagerverwalterin']
+    lehrmeister: ['Lehrmeister', 'Lehrmeisterin'], lager: ['Lagerverwalter', 'Lagerverwalterin'],
+    bogenmacher: ['Bogenmacherin', 'Bogenmacher']
   };
   // je Map: Name und ob die weibliche/männliche Form (Index in ROLE_TITLE) gilt
   const MAP_PEOPLE = {
@@ -299,6 +302,9 @@ function generateWorld() {
     8: { haendler: ['Morla', 0], schmied: ['Grim', 0], waffen: ['Vex', 0], ruestung: ['Nebel', 1], alchemist: ['Hexe Una', 1], aeltester: ['Oswin', 0], jaegerin: ['Moira', 0], teleport: ['Irrlicht', 1], stallmeister: ['Bran', 0], lehrmeister: ['Mortimer', 0], lager: ['Agathe', 1] },
     9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0], lehrmeister: ['Aschea', 1], lager: ['Kohl', 0] }
   };
+  // Bogenmacher je Map (seit 13.57)
+  const BOW_PEOPLE = { 2: ['Amira', 0], 3: ['Torvald', 1], 4: ['Wiebke', 0], 5: ['Grisha', 0], 6: ['Zeynep', 0], 7: ['Liv', 0], 8: ['Rabe', 1], 9: ['Flint', 1] };
+  for (const [k, v] of Object.entries(BOW_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].bogenmacher = v;
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
     return n.startsWith('Hexe') ? n : `${ROLE_TITLE[id][form]} ${n}`.trim();
@@ -310,13 +316,15 @@ function generateWorld() {
   const CAMP_SPOTS = {
     aeltester: [-5.75, -6.6, 'w'], waffen: [-5.75, -3.4, 'w'], haendler: [-5.75, 2.4, 'w'], schmied: [-5.75, 5.6, 'w'],
     teleport: [5.75, -6.6, 'e'], ruestung: [5.75, -3.4, 'e'], alchemist: [5.75, 2.4, 'e'], lager: [5.75, 5.6, 'e'],
-    lehrmeister: [-3.4, -6.2, 'n'], jaegerin: [3.8, -6.2, 'n'], stallmeister: [-3.2, 7, 'n']
+    lehrmeister: [-3.4, -6.2, 'n'], jaegerin: [3.8, -6.2, 'n'], stallmeister: [-3.2, 7, 'n'],
+    bogenmacher: [3.4, 7, 'n'] // seit 13.57: unten rechts, gegenüber dem Stallmeister
   };
   // Städte in Map 2 und 3 (für eine Mauer von 11 gezeichnet, wächst mit CAMP_HALF)
   const TOWN_SPOTS = {
     aeltester: [-9.75, -6.8, 'w'], waffen: [-9.75, -3.2, 'w'], haendler: [-9.75, 2.3, 'w'], schmied: [-9.75, 5.6, 'w'], lehrmeister: [-9.75, 11.6, 'w'],
     teleport: [9.75, -6.8, 'e'], ruestung: [9.75, -3.2, 'e'], alchemist: [9.75, 2.3, 'e'], lager: [9.75, 5.6, 'e'], jaegerin: [9.75, 11.6, 'e'],
-    stallmeister: [-5, 11, 'n']
+    stallmeister: [-5, 11, 'n'],
+    bogenmacher: [-9.75, 8.6, 'w'] // seit 13.57
   };
   for (const mp of maps) {
     const k = mp.scale;

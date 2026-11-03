@@ -350,7 +350,9 @@ const BAG_SIZE = BAG_PAGE * BAG_PAGES;
 const MERCHANT_MIN_TIER = 1;
 const MERCHANTS = {
   waffen: {
-    slots: ['waffe', 'koecher'],
+    // seit 13.57 ohne Bögen und Köcher: die verkauft der Bogenmacher (skipKinds)
+    slots: ['waffe'],
+    skipKinds: ['bow'],
     prices: [80, 400, 1100, 2600],
     greeting: 'Jede Klasse kämpft anders. Hier findest du die Waffe, die zu dir passt, von der ersten Klinge bis zum Meisterstück.'
   },
@@ -359,8 +361,33 @@ const MERCHANTS = {
     slots: ['ruestung', 'helm', 'umhang', 'schild', 'schuhe', 'guertel'],
     prices: [60, 300, 900, 2200],
     greeting: 'Rüstung hält dich am Leben, Vitalität auch. Such dir aus, was du brauchst.'
+  },
+  // seit 13.57: Bogenmacherin neben dem Waffenhändler – Bögen, Köcher und Pfeile (ARROW_TYPES, fernninja.js)
+  bogenmacher: {
+    slots: ['waffe', 'koecher'],
+    kinds: ['bow'],
+    arrows: true,
+    prices: [80, 400, 1100, 2600],
+    greeting: 'Ein guter Bogen ist nur so gut wie seine Pfeile. Hier bekommst du beides – und den Köcher dazu.'
   }
 };
+
+// Pfeile (seit 13.57): Munition für jeden Bogenschuss (Grundangriff und Fertigkeiten des Weges des Falken).
+// p.arrows = { Index: Anzahl }. Geschossen wird immer die beste Sorte, die man hat und schon benutzen darf (level);
+// sind alle verbraucht, schießt der Bogen Übungspfeile ohne Bonus. dmg: Schaden aller Bogenschüsse (+Anteil),
+// price: Gold je Bündel (ARROW_BUNDLE Stück). Namen und Farben wie die Pfeile der Köcher (QUIVER_ARROWS).
+const ARROW_BUNDLE = 500;
+const ARROW_TYPES = [
+  { name: 'Holzpfeile', level: 1, color: '#c9a36a', dmg: 0.03, price: 20 },
+  { name: 'Eisenpfeile', level: 10, color: '#cfd6de', dmg: 0.06, price: 90 },
+  { name: 'Giftpfeile', level: 20, color: '#7ed35a', dmg: 0.1, price: 300 },
+  { name: 'Glutpfeile', level: 30, color: '#ff8a3a', dmg: 0.14, price: 700 },
+  { name: 'Nachtpfeile', level: 40, color: '#6aa8ff', dmg: 0.18, price: 1500 },
+  { name: 'Sternenpfeile', level: 50, color: '#bfe8ff', dmg: 0.22, price: 2800 },
+  { name: 'Götterpfeile', level: 60, color: '#ffd34d', dmg: 0.27, price: 4800 },
+  { name: 'Leerenpfeile', level: 70, color: '#5ee8ff', dmg: 0.32, price: 7500 },
+  { name: 'Sternenfeuerpfeile', level: 80, color: '#ffb8e4', dmg: 0.38, price: 11000 }
+];
 
 // --- Boni -----------------------------------------------------------------------------
 // Jeder Gegenstand kann bis zu 5 normale Boni und 2 besondere Boni (6 und 7) tragen.

@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.56';
+const GAME_VERSION = '13.57';
 
 const game = {
   world: null,
@@ -44,6 +44,8 @@ function startGame(save, slot) {
     np.quiverGiven = true;
     if (!np.equipment.schild) np.equipment.schild = makeItem('koecher', 0, 0, 'ninja');
   }
+  // Weg des Falken (seit 13.57): wer auf dem früheren Weg des Schattens war, bekommt einmalig Bogen, Köcher und Pfeile
+  if (typeof bowPathMigrate === 'function') bowPathMigrate(np);
   // Test-Gold (seit 13.27): der Charakter „Pugi“ bekommt einmalig 5.000.000 Gold zum Testen
   if (!np.goldGift && String(np.name || '').trim().toLowerCase() === 'pugi') {
     np.goldGift = 1;

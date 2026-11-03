@@ -1526,7 +1526,7 @@ const ui = {
     $('npcTitle').textContent = npc.name || 'Dorfbewohner';
     if (npc.id === 'haendler') this.renderShop();
     else if (npc.id === 'schmied') gear.openSmith($('npcBody'));
-    else if (npc.id === 'waffen' || npc.id === 'ruestung') gear.openMerchant(npc.id, $('npcBody'));
+    else if (npc.id === 'waffen' || npc.id === 'ruestung' || npc.id === 'bogenmacher') gear.openMerchant(npc.id, $('npcBody'));
     else if (npc.id === 'aeltester') this.renderElder(npc);
     else if (npc.id === 'jaegerin') this.renderHunter();
     else if (npc.id === 'teleport') this.renderTravel();
@@ -1907,6 +1907,8 @@ function skillStats(sk, lvl) {
   if (sk.type === 'blast' && sk.stun) out.push(['Betäubung', numDe(sk.stun) + ' s'], ['Umkreis', String(sk.radius)]);
   if (sk.el && sk.type !== 'buff') mageSkillStats(sk, lvl, out);
   if (sk.nk) nekroSkillStats(sk, lvl, out);
+  // Weg des Falken (seit 13.57, fernninja.js)
+  if (typeof bowSkillStats === 'function') bowSkillStats(sk, lvl, out);
   const base = sk.effects && (sk.effects.atk || sk.effects.def || sk.effects.regen) ? statsWithoutBuff(sk) : null;
   for (const [k, v] of Object.entries(sk.effects || {})) {
     const label = (sk.labels && sk.labels[k]) || SKILL_EFFECT_LABELS[k];
@@ -2084,7 +2086,7 @@ function ultHtml(u, p) {
 }
 
 // Beschriftung des Knopfes zum Ansprechen am Handy
-const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', lehrmeister: 'Lernen', lager: 'Lager', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
+const NPC_TALK_LABEL = { schmied: 'Schmieden', haendler: 'Handeln', waffen: 'Handeln', ruestung: 'Handeln', bogenmacher: 'Handeln', alchemist: 'Handeln', aeltester: 'Auftrag', jaegerin: 'Jagd', teleport: 'Reisen', stallmeister: 'Auftrag', lehrmeister: 'Lernen', lager: 'Lager', wanderer: 'Auftrag', eingang: 'Betreten', riss: 'Betreten', ausgang: 'Verlassen', weltentor: 'Reisen' };
 
 // Fertigkeit zu einer Buff-Kennung (über alle Klassen und Wege)
 let skillIndex = null;
