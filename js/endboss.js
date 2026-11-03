@@ -194,7 +194,8 @@ function raidWatch() {
   const p = game.player;
   if (!p || !game.running) return;
   if (typeof htWatch === 'function') htWatch();
-  for (const m of game.monsters) {
+  // seit 13.60 nur die Monster der eigenen Map (vorher jedes Bild alle 6.000 der Welt)
+  for (const m of (typeof areaMonsters === 'function' ? areaMonsters() : game.monsters)) {
     if (!m.type || !m.type.raid || m.dead) continue;
     if (Math.abs(m.x - p.x) > 1600 || Math.abs(m.y - p.y) > 1600) continue;
     // Abaddors Versiegelung zählt hier nicht als Schild (eigene Anzeige in hoellenthron.js)

@@ -2274,3 +2274,39 @@ function v3SyncBounds() {
   lid(lw, x0 - FAR / 2, (z0 + z1) / 2, FAR, z1 - z0, H);
   lid(le, x1 + FAR / 2, (z0 + z1) / 2, FAR, z1 - z0, H);
 }
+
+// --- Effekt-Shader vorab übersetzen (seit 13.60) ----------------------------------------------------------
+// Jeder Effekt, der zum ersten Mal erscheint, braucht ein neues Shader-Programm. Das übersetzte der Grafiktreiber
+// bisher mitten im Kampf (erster Treffer, erster Schlag, erster Blizzard …) – kurze, deutliche Hänger, am Handy
+// am stärksten. Kurz nach dem Spielstart zeichnen wir darum jeden Effekt-Typ einmal unsichtbar vor der Kamera
+// vor, lassen alle Shader übersetzen und geben die Teile gleich wieder in den Vorrat zurück. game.effects bleibt
+// dabei unberührt; Effekte, die ohne ihre echten Daten nicht zeichnen können, werden einfach übersprungen.
+function v3WarmFx() {
+  if (!V3.on || !V3.gl || !FX3.group || V3.fxWarm || !game.player) return;
+  V3.fxWarm = true;
+  const p = game.player;
+  const hs = [];
+  const types = new Set([...FX3_TYPES]);
+  for (const t of (typeof HFX3_TYPES !== 'undefined' ? HFX3_TYPES : [])) types.add(t);
+  for (const t of (typeof NFX3_TYPES !== 'undefined' ? NFX3_TYPES : [])) types.add(t);
+  const t0 = game.time;
+  for (const type of types) {
+    const draw = FX3_DRAW[type];
+    if (!draw) continue;
+    const e = { type, x: p.x + 40, y: p.y, tx: p.x + 120, ty: p.y, x2: p.x + 120, y2: p.y, start: t0 - 0.2, dur: 1, color: '#ffffff', r: 40, R: 60, size: 1, count: 3, grow: true, dir: { x: 1, y: 0 }, follow: p, ox: 0, oy: 0, ticks: 2, every: 0.5, delay: 0.1, seed: 1, el: 'feuer' };
+    const h = { parts: [] };
+    try { draw(h, e, 0.3); } catch (err) { /* braucht echte Daten – überspringen */ }
+    hs.push(h);
+  }
+  // Schneepunkte (Blizzard) sind ein eigenes Programm
+  let pts = null;
+  try {
+    pts = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([p.x * U3, 1, feetY(p) * U3], 3)),
+      new THREE.PointsMaterial({ map: fx3Texture('spark'), size: 0.05, sizeAttenuation: true, transparent: true, depthWrite: false, fog: false }));
+    FX3.group.add(pts);
+  } catch (err) { pts = null; }
+  try { V3.gl.compile(V3.scene, V3.camera); } catch (err) { /* nur Vorwärmen */ }
+  for (const h of hs) fx3Release(h);
+  // nicht wegwerfen: ein entsorgtes Material gäbe sein frisch übersetztes Programm gleich wieder frei
+  if (pts) pts.visible = false;
+}

@@ -720,6 +720,9 @@ function v3Init() {
     v3ApplyGraphics();
   });
   const gl = V3.gl;
+  // seit 13.60: keine Fehlerabfrage nach jedem Übersetzen der Shader. Sie wartet jedes Mal, bis der Treiber fertig ist
+  // (getProgramInfoLog/getProgramParameter) – das waren im Kampf bis zu 30 % der Rechenzeit und spürbare Hänger.
+  gl.debug.checkShaderErrors = false;
   gl.shadowMap.enabled = true;
   // weiche Schatten (viele Proben) nur am PC; Handys nehmen die einfache Filterung
   gl.shadowMap.type = IS_PC ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
@@ -1979,6 +1982,12 @@ function renderDrei() {
   if (MAT3.worldGrass) MAT3.worldGrass.userData.uTime.value = V3.time;
   v3SyncActors(dt);
   v3SyncFx();
+  // Effekt-Shader einmal kurz nach dem Start vorab übersetzen (seit 13.60, drei-fx.js)
+  if (!V3.fxWarm && game.running && game.player) {
+    const now = performance.now();
+    if (!V3.warmAt) V3.warmAt = now + 1200;
+    else if (now >= V3.warmAt) v3WarmFx();
+  }
   v3SyncBounds();
   // Durchsicht um die eigene Figur
   const p = game.player;

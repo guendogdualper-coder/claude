@@ -734,12 +734,45 @@ function areaKey(x, y) {
   const wm = mapOfTile(tx, ty);
   return wm ? wm.id : tx >= WORLD_W && ty < DUNGEON_H ? 100 + dungeonIndexAt(tx, ty) : 0;
 }
+// Monster je Map/Dungeon (seit 13.60): die Welt hat über 6.000 Monster, gerechnet werden aber nur die Maps, in denen
+// gerade jemand spielt. Vorher lief jedes Bild eine Schleife über alle – am Handy spürbar. Neu aufgebaut, wenn sich
+// die Liste ändert (neue Nachtmonster, Instanzen …) und sonst alle 2 s. Monster wechseln nie die Map (nur über Tore).
+const MON_INDEX = { arr: null, len: -1, at: -9, map: new Map(), list: [] };
+function monsterIndex() {
+  const ms = game.monsters;
+  if (MON_INDEX.arr === ms && MON_INDEX.len === ms.length && game.time - MON_INDEX.at < 2) return MON_INDEX.map;
+  const map = new Map();
+  for (const m of ms) {
+    if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
+    let l = map.get(m.area);
+    if (!l) map.set(m.area, (l = []));
+    l.push(m);
+  }
+  MON_INDEX.arr = ms;
+  MON_INDEX.len = ms.length;
+  MON_INDEX.at = game.time;
+  MON_INDEX.map = map;
+  return map;
+}
+// Monster der Map/des Dungeons, in dem man gerade steht (für Prüfungen, die nur die Nähe brauchen)
+function areaMonsters() {
+  const p = game.player;
+  if (!p) return game.monsters;
+  return monsterIndex().get(areaKey(p.x, p.y)) || [];
+}
 function updateMonsters(dt) {
   const p = game.player;
   const players = huntablePlayers();
   // Maps und Dungeons, in denen gerade jemand ist: ruhende Monster anderswo brauchen keine Rechnung
   const busy = new Set(players.map((pl) => areaKey(pl.x, pl.y)));
-  for (const m of game.monsters) {
+  const idx = monsterIndex();
+  const list = MON_INDEX.list;
+  list.length = 0;
+  for (const k of busy) {
+    const l = idx.get(k);
+    if (l) for (const m of l) list.push(m);
+  }
+  for (const m of list) {
     if (m.dead) {
       if (m.respawn && game.time >= m.respawnAt) {
         // Besiegte Monster bleiben tot, solange ein Spieler in Sichtweite ihres Platzes ist (seit 13.8 700 statt 420,
@@ -751,7 +784,9 @@ function updateMonsters(dt) {
       }
       continue;
     }
-    if (m.state === 'idle' && !m.poison && !m.burn && !m.bleed) {
+    // Seelensteine haben keinen Zustand (state) – seit 13.60 ruhen sie wie ruhende Monster; vorher liefen alle
+    // ~400 Steine der ganzen Welt jedes Bild durch die volle Rechnung
+    if ((m.state === 'idle' || m.isStone) && !m.poison && !m.burn && !m.bleed) {
       if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
       if (!busy.has(m.area)) {
         if (m.hitFlash > 0) m.hitFlash = 0;
@@ -766,7 +801,7 @@ function updateMonsters(dt) {
       const d = dist(m, pl);
       if (d < distP) { distP = d; near = pl; }
     }
-    if (distP > 1400 && m.state === 'idle') continue;
+    if (distP > 1400 && (m.state === 'idle' || (m.isStone && !m.poison && !m.burn && !m.bleed))) continue;
 
     tickDots(m, dt);
     if (m.dead || m.isStone) continue;

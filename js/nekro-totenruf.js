@@ -15,7 +15,8 @@ function graveTick() {
   const sk = classSkills(p).find((s) => s.type === 'revive');
   const on = sk && p.level >= sk.unlock;
   const graves = game.graves || (game.graves = []);
-  for (const m of game.monsters) {
+  // seit 13.60 nur die Monster der eigenen Map (Gräber entstehen ohnehin nur in 600 Reichweite)
+  for (const m of (typeof areaMonsters === 'function' ? areaMonsters() : game.monsters)) {
     const was = m._grvAlive;
     m._grvAlive = !m.dead;
     if (!on || was !== true || !m.dead) continue;

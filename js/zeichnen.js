@@ -1604,15 +1604,21 @@ function qualityRestore() {
   if (V3.on) v3ApplyGraphics();
 }
 function adaptQuality(dtMs, cap) {
-  // begrenzte Bildrate: die Bildzeit ist gewollt lang, nichts anpassen
-  if (!game.running || dtMs > 120 || document.hidden || cap) return;
+  if (!game.running || dtMs > 120 || document.hidden) return;
+  // begrenzte Bildrate (Handy „Auto“ = 30): die Bildzeit ist gewollt lang. Seit 13.60 wird aber trotzdem nachgeregelt,
+  // wenn das Gerät nicht einmal die 30 schafft – vorher lief am Handy die Anpassung nie, schwache Geräte blieben
+  // auf voller Auflösung mit Schatten und ruckelten dauerhaft
+  if (cap && opts.fps === '30') return;
   if (performance.now() < quality.pauseUntil) return;
   quality.frames.push(dtMs);
-  if (quality.frames.length < 120) return;
+  if (quality.frames.length < (cap ? 60 : 120)) return;
   const sorted = quality.frames.slice().sort((a, b) => a - b);
   quality.frames.length = 0;
   const median = sorted[sorted.length >> 1];
-  if (median <= 20) {
+  if (cap) {
+    // 30er-Takt: nur absenken, wenn die Hälfte der Bilder deutlich länger als 33 ms braucht
+    if (median <= (1000 / cap) * 1.3) return;
+  } else if (median <= 20) {
     // länger richtig flüssig: eine Stufe Auflösung zurück. Seit 13.25 erst nach 60 s ohne Absenken und nur, solange
     // das nicht gleich wieder zum Ruckeln führt – sonst pendelte die Auflösung auf 120-Hz-Handys hin und her, und jeder
     // Wechsel baute die Grafikpuffer neu auf (kurzer Hänger)
