@@ -183,6 +183,8 @@ function makePlayer(save) {
     p.inventory.forEach(clampItemBonuses);
   }
   p.itemsVersion = 3;
+  // 13.56: Seltenheit für alte Gegenstände (frühere legendäre Teile gold/lila/blau, sonst nach Boni)
+  migrateRarity(p);
   // Waffe, Rüstung und Helm gehören jetzt einer Klasse; alte Gegenstände bekommen die eigene
   Object.values(p.equipment).forEach((it) => assignClass(it, p.classId));
   p.inventory.forEach((it) => { if (!isBook(it)) assignClass(it, p.classId); });

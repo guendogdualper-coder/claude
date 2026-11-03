@@ -2293,5 +2293,14 @@
 "Abgrundgürtel": "Cintura dell'Abisso",
 "Ewigkeitsgürtel": "Cintura dell'Eternità",
 "Abgründig": "Abissale",
-"Ewig": "Eterno"
+"Ewig": "Eterno",
+"Gehärtet": "Temprato",
+"Veteran": "Veterano",
+"Meister": "Maestro",
+"Gewöhnlich": "Comune",
+"Episch": "Epico",
+"Legendär!": "Leggendario!",
+"{0}–{1} zufällige Boni": "{0}–{1} bonus casuali",
+"ab Stufe {0} · Gehärtet": "dal livello {0} · Temprato",
+"{0} epische Teile erbeutet": "{0} oggetti epici ottenuti"
 };

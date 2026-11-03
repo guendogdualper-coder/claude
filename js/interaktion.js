@@ -219,8 +219,8 @@ function showInspect(d) {
     const bonuses = (item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('') +
       (item.specials || []).map((x, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(x, true)}</li>`).join('');
     $('inspDetail').innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
-      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
-      `<small>${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
+      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
+      `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
       `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '<small class="hint-text">Keine Boni.</small>') +
       compareHtml(item, 'Im Vergleich zu deinem') + `</div></div>`;
   }));
@@ -433,7 +433,7 @@ const trade = {
       if (!item) return;
       $('tradeDetail').innerHTML = isBook(item)
         ? `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt=""><div class="item-info"><strong>Schriftrolle: ${skillEntry(item.book).sk.name} × ${item.count}</strong></div></div>`
-        : `<div class="item-detail"><img src="${itemIconUrl(item)}" alt=""><div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
+        : `<div class="item-detail"><img src="${itemIconUrl(item)}" alt=""><div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
           `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small><span>${gear.statsList(item)}</span>` +
           `<ul class="bonus-list">${(item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('')}</ul>${compareHtml(item)}</div></div>`;
     }));

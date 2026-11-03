@@ -1,0 +1,74 @@
+/* Seltenheit (seit 13.56): Rahmen, Leuchten und Schrift in der Farbe der Seltenheit.
+   Farben wie RARITIES in js/daten/gegenstaende.js: grau, grün, blau, lila, gold.
+   Die Datei kommt nach style.css und ersetzt dort den Rahmen nach dem Plus (band-1 … band-6) auf den Kacheln. */
+:root {
+  --rar-0: #a4a4a4;
+  --rar-1: #4ccf5a;
+  --rar-2: #4a98ff;
+  --rar-3: #b06cff;
+  --rar-4: #ffb21a;
+}
+
+/* Kacheln in Tasche, Ausrüstung, Lager, Handel, Betrachten und Schmied */
+.item-tile.rar-0 { border-color: #5e554a; box-shadow: none; }
+.item-tile.rar-1 {
+  border-color: var(--rar-1);
+  box-shadow: inset 0 0 10px rgba(76, 207, 90, 0.22);
+}
+.item-tile.rar-2 {
+  border-color: var(--rar-2);
+  box-shadow: 0 0 7px rgba(74, 152, 255, 0.45), inset 0 0 12px rgba(74, 152, 255, 0.25);
+}
+.item-tile.rar-3 {
+  border-color: var(--rar-3);
+  border-width: 2px;
+  background: radial-gradient(circle at 50% 40%, #3a2950, #17120d 75%);
+  box-shadow: 0 0 10px rgba(176, 108, 255, 0.6), inset 0 0 14px rgba(176, 108, 255, 0.3);
+}
+.item-tile.rar-4 {
+  border-color: var(--rar-4);
+  border-width: 2px;
+  background: radial-gradient(circle at 50% 40%, #4a3512, #17120d 75%);
+  box-shadow: 0 0 14px rgba(255, 178, 26, 0.7), inset 0 0 16px rgba(255, 178, 26, 0.35);
+  animation: rar-gold 2.4s ease-in-out infinite;
+}
+@keyframes rar-gold {
+  50% { box-shadow: 0 0 20px rgba(255, 196, 70, 0.95), inset 0 0 18px rgba(255, 196, 70, 0.45); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .item-tile.rar-4 { animation: none; }
+}
+
+/* Zeile „Episch · Göttlich (Lv 60)“ in Hinweis und Fenstern */
+.rar-line { font-size: 12px; letter-spacing: 0.02em; }
+.rar-line b { font-weight: 800; text-shadow: 0 1px 2px #000; }
+.item-info small.rar-line, .mi-info small.rar-line { color: var(--muted); }
+
+/* Großes Bild im Inventar-Detail und beim Händler */
+.item-detail.rar-1 > img { filter: drop-shadow(0 0 4px rgba(76, 207, 90, 0.7)); }
+.item-detail.rar-2 > img { filter: drop-shadow(0 0 5px rgba(74, 152, 255, 0.8)); }
+.item-detail.rar-3 > img { filter: drop-shadow(0 0 6px rgba(176, 108, 255, 0.9)); }
+.item-detail.rar-4 > img { filter: drop-shadow(0 0 8px rgba(255, 178, 26, 1)); }
+.merchant-item img.mi-rar { border-radius: 6px; border: 1px solid #5e554a; background: radial-gradient(circle at 50% 40%, #33291e, #17120d); }
+.merchant-item img.mi-rar.rar-1 { border-color: var(--rar-1); box-shadow: inset 0 0 8px rgba(76, 207, 90, 0.3); }
+
+/* Schmied: das Teil auf dem Amboss leuchtet in seiner Seltenheit */
+.anvil.rar-2 .anvil-item { filter: drop-shadow(0 0 6px rgba(74, 152, 255, 0.8)); }
+.anvil.rar-3 .anvil-item { filter: drop-shadow(0 0 7px rgba(176, 108, 255, 0.9)); }
+.anvil.rar-4 .anvil-item { filter: drop-shadow(0 0 9px rgba(255, 178, 26, 1)); }
+
+/* Beute im Chat (Reiter System): ganze Zeile in der Farbe der Seltenheit */
+.chat-box .chat-log p.lg-rar0 { color: #bdb6a8; font-style: normal; }
+.chat-box .chat-log p.lg-rar1 { color: var(--rar-1); font-style: normal; }
+.chat-box .chat-log p.lg-rar2 { color: #6aacff; font-style: normal; }
+.chat-box .chat-log p.lg-rar3 { color: #c08cff; font-style: normal; font-weight: 600; }
+.chat-box .chat-log p.lg-rar4 { color: var(--rar-4); font-style: normal; font-weight: 700; text-shadow: 0 0 6px rgba(255, 178, 26, 0.55); }
+
+/* Banner für legendäre Beute */
+.banner.rar-4 strong {
+  color: var(--rar-4);
+  text-shadow: 0 0 14px rgba(255, 178, 26, 0.9), 0 0 32px rgba(255, 140, 20, 0.6), 0 2px 8px #000;
+  letter-spacing: 0.08em;
+}
+.banner.rar-4 span { color: #ffe3a0; }
+.banner.rar-3 strong { color: var(--rar-3); text-shadow: 0 0 12px rgba(176, 108, 255, 0.8), 0 2px 8px #000; }

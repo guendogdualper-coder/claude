@@ -27,8 +27,9 @@ function itemTipHtml(item) {
     (item.specials || []).map((b) => `<li class="special">${bonusText(b, true)}</li>`).join('');
   const worn = p && Object.values(p.equipment).includes(item);
   const score = worn || !p ? 0 : compareScore(item);
-  return `<strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
-    `<small>${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
+  // seit 13.56: Seltenheit in ihrer Farbe („Episch · Göttlich (Lv 60)“)
+  return `<strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
+    `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
     `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') +
     (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
     (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '') +

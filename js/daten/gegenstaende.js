@@ -2,7 +2,9 @@
 // Waffe, Rüstung und Helm gehören immer zu einer Klasse, den Schild trägt nur der Krieger;
 // Schultern, Umhang, Schuhe und Gürtel kann jeder tragen.
 // Die Stufen 1 bis 4 (ab Lv 1, 5, 10, 15) verkaufen Waffen- und Rüstungshändler,
-// ab der legendären Stufe (Lv 22, 30, 45, 60, 70, 80) gibt es Ausrüstung nur als Beute.
+// ab der Veteranen-Stufe (Lv 22, 30, 45, 60, 70, 80) gibt es Ausrüstung nur als Beute.
+// Seit 13.56 hat jeder Gegenstand außerdem eine Seltenheit (item.rarity, siehe RARITIES): Stufe = Lv-Klammer,
+// Seltenheit = Farbe (grau, grün, blau, lila, gold).
 // Seit 13.53 reicht die Ausrüstung bis Stufe 80: nach Göttlich (Lv 60) kommen Abgründig (Lv 70, Leere: Obsidian
 // und Violett mit cyanfarbenem Leuchten) und Ewig (Lv 80, Sternenfeuer: Platin mit Roségold und Sternen).
 
@@ -35,19 +37,54 @@ const TITAN_GRIP = { level: 20, path: 1, price: 15000, atk: 0.35, atkSpeed: 0.03
 const DUAL_DAGGER = { atk: 0.45, atkSpeed: 0.04, bonus: 0.5 };
 const GREATSWORD_PATH = 1;
 
-// Ab welcher Spielerstufe ein Gegenstand getragen werden kann
+// Ab welcher Spielerstufe ein Gegenstand getragen werden kann.
+// Seit 13.56 heißen Lv 15, 22 und 30 Gehärtet, Veteran und Meister (vorher Selten, Legendär, Mythisch):
+// „Selten“ und „Legendär“ sind jetzt Seltenheiten (Farben), keine Stufen mehr.
 const ITEM_TIERS = [
   { level: 1, label: 'Grundausrüstung' },
   { level: 5, label: 'Solide' },
   { level: 10, label: 'Gut' },
-  { level: 15, label: 'Selten' },
-  { level: 22, label: 'Legendär' },
-  { level: 30, label: 'Mythisch' },
+  { level: 15, label: 'Gehärtet' },
+  { level: 22, label: 'Veteran' },
+  { level: 30, label: 'Meister' },
   { level: 45, label: 'Himmlisch' },
   { level: 60, label: 'Göttlich' },
   { level: 70, label: 'Abgründig' },
   { level: 80, label: 'Ewig' }
 ];
+
+// --- Seltenheit (seit 13.56) ------------------------------------------------------------------------------------
+// item.rarity 0–4, eine eigene Eigenschaft neben der Stufe (tier). Die Logik steht in seltenheit.js.
+//   color    Farbe von Name, Rahmen, Leuchten und Beutestrahl (auf den dunklen Fenstern gut lesbar)
+//   bonus    so viele Boni (1–5) bringt ein Gegenstand dieser Seltenheit gleich mit
+//   statMul  Faktor auf die Grundwerte Angriff, Rüstung, Leben und Mana (vor dem Plus)
+//   minTier  erst ab dieser Gegenstandsstufe: episch ab Göttlich (Lv 60), legendär nur Ewig (Lv 80)
+// Ein goldenes Teil entspricht etwa den bisherigen legendären Endboss-Teilen (4–5 Boni).
+const RARITIES = [
+  { id: 'normal', name: 'Normal', color: '#a4a4a4', bonus: [0, 0], statMul: 1, minTier: 0 },
+  { id: 'gewoehnlich', name: 'Gewöhnlich', color: '#4ccf5a', bonus: [1, 2], statMul: 1.04, minTier: 0 },
+  { id: 'selten', name: 'Selten', color: '#4a98ff', bonus: [2, 3], statMul: 1.08, minTier: 0 },
+  { id: 'episch', name: 'Episch', color: '#b06cff', bonus: [3, 4], statMul: 1.14, minTier: 7 },
+  { id: 'legendaer', name: 'Legendär', color: '#ffb21a', bonus: [4, 5], statMul: 1.22, minTier: 9 }
+];
+const RARITY_STAT_KEYS = ['atk', 'def', 'hp', 'mp'];
+
+// Woher welche Seltenheit kommt. w: Gewichte für [normal, grün, blau, lila, gold]; die Seltenheit wird danach auf
+// das gekappt, was die Gegenstandsstufe erlaubt (minTier), z. B. ein Endboss-Teil unter Lv 60 höchstens blau.
+//   epic       Chance je Teil auf ein episches Teil (hebt die Stufe auf mindestens Göttlich, Lv 60)
+//   epicFrom   … nur bei Gegnern ab dieser Stufe (Dungeon-Bosse ab Stufe 50)
+//   legendary  Chance je Teil auf ein legendäres Teil (immer Ewig, Lv 80) – nur in Instanzen
+//   minBonus   mindestens so viele Boni (Endboss-Teile hatten schon immer vier)
+const RARITY_DROPS = {
+  merchant: { byTier: [0, 0, 0, 1] }, // Händler: grau, das Meisterstück (Gehärtet, Lv 15) grün mit 1 Bonus
+  mob: { w: [74, 23, 3] }, // normale Monster: meist grau oder grün, selten blau
+  stoneMob: { w: [58, 35, 7] }, // Monster aus Seelensteinen und in Dungeons
+  stone: { w: [0, 62, 38] }, // Seelensteine: grün oder blau
+  boss: { w: [0, 50, 50], epic: 0.05, epicFrom: 50 }, // Dungeon-Bosse: grün/blau, ab Stufe 50 mit 5 % je Teil episch
+  raid: { w: [0, 0, 0, 1], minBonus: 4 }, // Endbosse der Maps: episch (darunter so gut wie die Stufe erlaubt)
+  instance: { w: [0, 0, 0, 1], legendary: 0.02, minBonus: 4 }, // Instanz-Wächter (Höllenthron): episch, 2 % legendär
+  instanceBoss: { w: [0, 0, 0, 1], legendary: 0.12, minBonus: 5 } // Instanzboss (Abaddor): Zusatzteil, 12 % legendär
+};
 
 // Plätze, deren Ausrüstung nur eine Klasse tragen kann
 const CLASS_SLOTS = ['waffe', 'ruestung', 'helm'];

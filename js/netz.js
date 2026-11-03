@@ -858,7 +858,7 @@ function netPlayerState() {
   const eq = {};
   for (const { id: sl } of EQUIP_SLOTS) {
     const it = p.equipment[sl];
-    if (it) eq[sl] = { slot: it.slot, tier: it.tier, plus: it.plus, kind: it.kind, cls: it.cls, ...(it.legend ? { legend: 1 } : {}) };
+    if (it) eq[sl] = { slot: it.slot, tier: it.tier, plus: it.plus, kind: it.kind, cls: it.cls, ...(it.legend ? { legend: 1 } : {}), ...(it.rarity ? { rarity: it.rarity } : {}) };
   }
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),

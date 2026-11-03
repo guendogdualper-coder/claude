@@ -17,6 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Marcellus+SC&display=swap">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/seltenheit.css">
 </head>
 <body>
 <!-- app:start -->
@@ -278,6 +279,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.56 – Seltenheit mit Farben: Jeder Gegenstand hat jetzt eine Seltenheit – Normal (grau), Gewöhnlich (grün), Selten (blau), Episch (lila) und Legendär (gold). Höhere Seltenheit bringt etwas bessere Grundwerte und mehr Boni. Episch gibt es erst ab Stufe 60 (Göttlich) – als seltene Beute der Dungeon-Bosse ab Stufe 50, sicher bei den Endbossen ab Stufe 60 und im Höllenthron; Legendär gibt es nur ab Stufe 80 (Ewig) und nur in Instanzen (vorerst Höllenthron, bald die Lv-60-Instanzen). Name, Rahmen und Leuchten zeigen überall die Farbe; epische Beute leuchtet mit einem lila, legendäre mit einem goldenen Lichtstrahl am Boden. Deine alten Gegenstände bekommen automatisch eine passende Seltenheit. Die Stufen Lv 15/22/30 heißen jetzt Gehärtet, Veteran und Meister. Die Aura bei +20 bleibt für Endboss-Teile und gilt jetzt auch für epische und legendäre Teile.</li>
       <li>Version 13.55 – Gruppenfinder (ab Stufe 30): Knopf unten rechts (PC: Taste J, Handy: unter der Karte). Wähle deine Rolle – Tank, Heiler oder Schaden (Vorschlag je Klasse und Weg) – und eröffne eine Gruppe für einen Dungeon, einen Endboss oder den Höllenthron, oder tritt einer offenen Gruppe bei. Jede Gruppe zeigt, wer drin ist (Klasse, Stufe, Rolle) und welche Rollen noch fehlen; empfohlen sind 1 Tank, 1 Heiler und 3 Schaden, Pflicht ist das nicht. Ist die Gruppe voll oder drückt der Anführer „Los“, kommt eine Bereitschaftsabfrage – dann reisen alle zusammen zum Eingang. Später kommen hier auch die neuen Lv-60-Instanzen dazu.</li>
       <li>Version 13.54 – Frostmagier: Neuer Blizzard statt Kristallgrab (Platz 5, ab Stufe 10, Stufe und Bücher werden übernommen). Du wählst einen Ort, eine dunkle Sturmwolke ballt sich zusammen, dann tobt ein echter Schneesturm: dichter Schnee fällt schräg im Wind, Schneewirbel und Böen ziehen durch den Kreis, dicke Schneeballen schlagen ein und eine Schneedecke wächst am Boden. Alle Gegner im Kreis nehmen zweimal pro Sekunde Schaden und werden immer langsamer (25 % bis 60 %), zum Schluss frieren sie kurz ein (Bosse werden nur verlangsamt). Je Rang tobt der Sturm 0,5 s länger.</li>
       <li>Version 13.53 – Zwei neue Ausrüstungsstufen für alle Klassen und alle Plätze: Abgründig (ab Stufe 70) – schwarz-violetter Stahl mit cyanem Leuchten, Leerenaugen, schwebenden Splittern und Tentakeln – und Ewig (ab Stufe 80) – Platin mit Roségold, achtzackigen Sternen, Prismen und Strahlenkronen. Jede Waffe, Rüstung, jeder Helm, Schild, Umhang, Schulter, Stiefel, Gürtel und Köcher hat ein eigenes Aussehen in 3D und als Symbol. Dazu neue Pfeile (Leerenpfeile, Sternenfeuerpfeile). Die Teile fallen bei den stärksten Bossen; der Schmied braucht dafür Teile von Glutkatze, Steintitan, Gargoyle, Feuerdrache und Donnerriese.</li>
@@ -615,6 +617,7 @@
 <script src="js/nekro-neu.js"></script>
 <script src="js/rang-fx.js"></script>
 <script src="js/legendaura.js"></script>
+<script src="js/seltenheit.js"></script>
 <script src="js/klassensegen.js"></script>
 <script src="js/ninja-fx.js"></script>
 <script src="js/heiler-fx.js"></script>

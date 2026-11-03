@@ -2302,5 +2302,15 @@
 "Abgrundgürtel": "Cinturón del Abismo",
 "Ewigkeitsgürtel": "Cinturón de la Eternidad",
 "Abgründig": "Abisal",
-"Ewig": "Eterno"
+"Ewig": "Eterno",
+"Gehärtet": "Templado",
+"Veteran": "Veterano",
+"Meister": "Maestro",
+"Normal": "Normal",
+"Gewöhnlich": "Común",
+"Episch": "Épico",
+"Legendär!": "¡Legendario!",
+"{0}–{1} zufällige Boni": "{0}–{1} bonificaciones aleatorias",
+"ab Stufe {0} · Gehärtet": "desde nivel {0} · Templado",
+"{0} epische Teile erbeutet": "{0} objetos épicos obtenidos"
 };

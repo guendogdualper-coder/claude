@@ -2295,5 +2295,14 @@
 "Abgrundgürtel": "Pas Otchłani",
 "Ewigkeitsgürtel": "Pas Wieczności",
 "Abgründig": "Otchłanny",
-"Ewig": "Wieczny"
+"Ewig": "Wieczny",
+"Gehärtet": "Hartowany",
+"Veteran": "Weteran",
+"Meister": "Mistrz",
+"Gewöhnlich": "Pospolity",
+"Episch": "Epicki",
+"Legendär!": "Legendarny!",
+"{0}–{1} zufällige Boni": "{0}–{1} losowe bonusy",
+"ab Stufe {0} · Gehärtet": "od poziomu {0} · Hartowany",
+"{0} epische Teile erbeutet": "zdobyto {0} epickie przedmioty"
 };

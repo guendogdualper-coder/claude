@@ -2295,5 +2295,15 @@
 "Abgrundgürtel": "Ceinture de l'Abîme",
 "Ewigkeitsgürtel": "Ceinture de l'Éternité",
 "Abgründig": "Abyssal",
-"Ewig": "Éternel"
+"Ewig": "Éternel",
+"Gehärtet": "Durci",
+"Veteran": "Vétéran",
+"Meister": "Maître",
+"Normal": "Normal",
+"Gewöhnlich": "Commun",
+"Episch": "Épique",
+"Legendär!": "Légendaire !",
+"{0}–{1} zufällige Boni": "{0}–{1} bonus aléatoires",
+"ab Stufe {0} · Gehärtet": "à partir du niveau {0} · Durci",
+"{0} epische Teile erbeutet": "{0} objets épiques obtenus"
 };

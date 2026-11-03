@@ -166,7 +166,7 @@ function htRenderGate(body, npc, dg) {
     '<p class="hint-text"><b>Vernichtungsschlag:</b> Er hebt den Dreizack, drei Viertel der Halle glühen rot – lauft ins dunkle, sichere Viertel. <b>Siegel der Unterwelt:</b> Seelenkristalle schützen ihn, zerstört sie alle. Ab der Hälfte seines Lebens nimmt er seine <b>wahre Gestalt</b> an: schneller, stärker, mit Sturmangriffen, und der Schlag wechselt zwischen Viertel, Ring (nur bei ihm sicher) und Kern (nur weit weg sicher).</p>' +
     (htFree() ? '<p class="gear-msg success"><b>Testzeit:</b> Bis einschließlich 7. November ist das Höllenportal ohne Voraussetzungen offen – auch allein oder in kleiner Gruppe. Danach gelten sie wieder.</p>' : '') +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.free ? '🔓' : c.ok ? '✅' : '❌'} ${c.text}${c.free ? ' – <i>entfällt in der Testzeit</i>' : ''}</li>`).join('') + '</ul>' +
-    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 legendäre Teile fallen. Abaddor: vier legendäre Teile, viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
+    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 epische Teile fallen (mit Glück ein legendäres). Abaddor: vier epische Teile (mit Glück legendär), viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Durch das Höllenportal' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
     const err = enterDungeon(npc.dungeon);
@@ -280,10 +280,12 @@ function htLoot(m) {
     const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
     item.legend = true;
     item.raidMat = m.type.boss.mat;
-    item.bonuses = [];
-    for (let k = 0; k < 5; k++) item.bonuses.push(rollBonus(item, false));
-    clampItemBonuses(item);
-    if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    // seit 13.56: episch mit 5 Boni, mit 12 % Glück legendär (gold, Lv 80) – RARITY_DROPS.instanceBoss
+    rarityRoll(item, 'instanceBoss', m);
+    if (addToBag(item)) {
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+      announceRarity(item);
+    }
   }
   for (const [id, n] of Object.entries({ boniPlus: 3, switcher: 2, boni5: 1, star: 1 })) {
     p.materials[id] = (p.materials[id] || 0) + n;
@@ -295,8 +297,8 @@ function htLoot(m) {
   ui.banner('Der Höllenkaiser ist gefallen!', 'Ihr seid Teufelsbezwinger');
 }
 
-// Wächter der Instanz (Zerberos, Ifrah; seit 13.38): je 2–3 legendäre Teile für die eigene Klasse mit vier Boni,
-// eines davon oft eine Waffe
+// Wächter der Instanz (Zerberos, Ifrah; seit 13.38): je 2–3 Endboss-Teile für die eigene Klasse mit vier Boni,
+// eines davon oft eine Waffe. Seit 13.56 episch, je Teil 2 % Chance auf legendär (RARITY_DROPS.instance).
 function htGuardLoot(m) {
   const i = htIndex();
   if (i < 0 || !m || !DUNGEONS[i].guards.includes(m.typeId) || !htInside(m)) return;
@@ -310,13 +312,13 @@ function htGuardLoot(m) {
     const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
     item.legend = true;
     if (m.type.boss && m.type.boss.mat) item.raidMat = m.type.boss.mat;
-    item.bonuses = [];
-    for (let b = 0; b < 4; b++) item.bonuses.push(rollBonus(item, false));
-    clampItemBonuses(item);
-    if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
-    else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
+    rarityRoll(item, 'instance', m);
+    if (addToBag(item)) {
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+      announceRarity(item);
+    } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   }
-  ui.banner(`${m.name} ist gefallen!`, `${n} legendäre Teile erbeutet`);
+  ui.banner(`${m.name} ist gefallen!`, `${n} epische Teile erbeutet`);
 }
 
 // --- Fortschritt in der Instanz (für alle) ----------------------------------------------------------------------

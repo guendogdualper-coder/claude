@@ -6,7 +6,9 @@
 //   Himmlisch (Lv 45) Himmel: blau-weißes Leuchten mit Lichtfunken
 //   Göttlich (Lv 60)  Gold: strahlendes Gold, Lichtschimmer und Sternfunken
 //   Lv 70 / Lv 80     (neue Stufen) Abgrund: violett-schwarze Leere · Ewig: weißes Sternenlicht in allen Farben
-// Nichts davon liegt am Boden; alles steigt an der Figur auf. Mitspieler sehen die Aura auch (über eq.legend).
+// Nichts davon liegt am Boden; alles steigt an der Figur auf. Mitspieler sehen die Aura auch (über eq.rarity/eq.legend).
+// Seit 13.56 zählen Endboss-Teile (legend) sowie epische und legendäre Teile (Seltenheit 3 und 4) ab +20 –
+// wer die Aura vorher hatte, behält sie. Ältere Mitspieler schicken noch keine Seltenheit: dort zählt eq.legend.
 
 const LEGEND_AURA = {
   minPlus: 20,
@@ -27,7 +29,8 @@ function legendAuraOf(eq) {
   let n = 0;
   let top = -1;
   for (const it of Object.values(eq)) {
-    if (!it || !it.legend || (it.plus || 0) < LEGEND_AURA.minPlus) continue;
+    if (!it || (it.plus || 0) < LEGEND_AURA.minPlus) continue;
+    if (!it.legend && !((it.rarity || 0) >= 3)) continue;
     n++;
     top = Math.max(top, it.tier || 0);
   }

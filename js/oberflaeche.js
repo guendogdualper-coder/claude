@@ -1343,8 +1343,10 @@ const ui = {
     $('btnOpenBag').addEventListener('click', () => this.toggle('panelInv'));
   },
 
-  banner(title, sub) {
+  // cls (seit 13.56): Zusatzklasse, z. B. das goldene Banner für legendäre Beute
+  banner(title, sub, cls) {
     const b = $('banner');
+    b.className = 'banner' + (cls ? ' ' + cls : '');
     b.hidden = true;
     b.innerHTML = '';
     const strong = document.createElement('strong');

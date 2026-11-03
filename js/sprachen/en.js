@@ -2526,5 +2526,16 @@
 "Abgrundgürtel": "Abyssal Belt",
 "Ewigkeitsgürtel": "Belt of Eternity",
 "Abgründig": "Abyssal",
-"Ewig": "Eternal"
+"Ewig": "Eternal",
+"Gehärtet": "Hardened",
+"Veteran": "Veteran",
+"Meister": "Master",
+"Normal": "Normal",
+"Gewöhnlich": "Common",
+"Episch": "Epic",
+"Legendär!": "Legendary!",
+"{0}–{1} zufällige Boni": "{0}–{1} random bonuses",
+"ab Stufe {0} · Gehärtet": "from Level {0} · Hardened",
+"{0} epische Teile erbeutet": "{0} epic items looted",
+"drei Endboss-Teile (+{0} mit vier Boni, darunter eine Waffe; ab Lv {1} episch, darunter selten – ab +{2} braucht der Schmied Teile aus der Map des Endbosses), Seltene Verstärkungen, Sternensteine, ab Stufe {3} ein Sternen-Switcher und sehr viel Gold.": "three final boss pieces (+{0} with four bonuses, including a weapon; epic from Lv {1}, rare below – from +{2} the Blacksmith needs parts from the final boss's map), Rare Enhancements, Star Stones, from Level {3} a Star Switcher and lots of gold."
 };

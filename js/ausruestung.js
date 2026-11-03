@@ -1,11 +1,12 @@
 // Ausrüstung: Gegenstände, Inventar, Beute, Händler, Schmied und die zugehörigen Fenster.
 
 // --- Gegenstände -------------------------------------------------------------------
-// Ein Gegenstand ist { uid, slot, tier, plus, cls, kind }; tier ist der Index in ITEM_TIERS.
+// Ein Gegenstand ist { uid, slot, tier, plus, cls, kind, rarity }; tier ist der Index in ITEM_TIERS.
 // cls: Klasse, die ihn tragen kann (nur Waffe, Rüstung, Helm); kind: Waffenart (siehe WEAPON_KINDS).
+// rarity (seit 13.56): Seltenheit 0–4 (RARITIES, seltenheit.js); neue Teile sind erst einmal Normal.
 
 function makeItem(slot, tier, plus = 0, cls = null, kind = null) {
-  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus };
+  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus, rarity: 0 };
   if (CLASS_SLOTS.includes(slot)) {
     item.cls = cls || (game.player ? game.player.classId : 'krieger');
     if (slot === 'waffe') item.kind = kind || CLASS_WEAPON_KINDS[item.cls][0];
@@ -183,12 +184,17 @@ function quiverArrows(item) {
   return QUIVER_ARROWS[Math.max(0, Math.min(QUIVER_ARROWS.length - 1, item ? item.tier : 0))];
 }
 
+// seit 13.56 ohne „Legendär:“ davor – legendär ist jetzt die goldene Seltenheit (Farbe des Namens)
 function itemFullName(item) {
-  return (item.legend ? 'Legendär: ' : '') + itemName(item) + ' +' + item.plus;
+  return itemName(item) + ' +' + item.plus;
 }
 
+// Farbe des Namens: die Seltenheit (seit 13.56; vorher nach dem Plus)
 function itemColor(item) {
-  if (item.legend) return '#ff9a2a';
+  return rarityColor(item);
+}
+// Farbe des Plus (+7 blau, +10 gold …), wie bisher
+function plusColor(item) {
   return PLUS_COLORS[plusBand(item.plus)] || '#ece2cb';
 }
 
@@ -217,6 +223,9 @@ function itemStats(item, plus = item.plus) {
   // seit 13.49: Klassen-Ausrüstung trägt den Hauptwert der Klasse (Krieger Stärke, Ninja Geschick, sonst Intelligenz)
   let attr = null;
   if (item.cls && CLASS_SLOTS.includes(item.slot) && item.slot !== 'waffe' && CLASS_ATTR_BY_TIER[t]) attr = [MAIN_ATTR[item.cls], CLASS_ATTR_BY_TIER[t]];
+  // seit 13.56: höhere Seltenheit, etwas mehr Angriff, Rüstung, Leben und Mana (Faktor vor dem Plus)
+  const rm = rarityStatMul(item);
+  if (rm !== 1) for (const k of RARITY_STAT_KEYS) if (base[k] >= 1) base[k] = Math.round(base[k] * rm);
   const out = {};
   for (const [k, v] of Object.entries(base)) {
     // seit 13.37: Waffenschaden wächst stärker je Plus (13 % statt 10 % des Grundwerts)
@@ -658,8 +667,10 @@ function rollLoot(m) {
     const slotList = (drops || sd || {}).slots;
     const slots = lootSlots(slotList || EQUIP_SLOTS.map((sl) => sl.id), cls);
     const item = makeItem(slots[randInt(0, slots.length - 1)], tier, plus, cls, lootKind(p, cls));
+    rarityRoll(item, raritySourceOf(m), m); // Seltenheit (seit 13.56)
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+      announceRarity(item);
       later(0.2, () => vfxLootFly(m, itemIconCanvas(item)));
       const c = bodyCenter(m);
       particles(c.x, c.y, { count: 14, color: [itemColor(item), '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 150], life: [0.5, 0.9], size: [2, 3.5] });
@@ -670,8 +681,9 @@ function rollLoot(m) {
 }
 
 // Schilde fallen nur für Krieger
-// Endboss-Beute (seit 6.5): drei legendäre Teile für die eigene Klasse (eine Waffe, zwei andere Teile) mit gleich
-// vier Boni; dazu viele Verstärkungen, Schmiede-Teile und sehr viel Gold.
+// Endboss-Beute (seit 6.5): drei Endboss-Teile (item.legend) für die eigene Klasse (eine Waffe, zwei andere Teile)
+// mit gleich vier Boni; dazu viele Verstärkungen, Schmiede-Teile und sehr viel Gold.
+// Seit 13.56 sind sie episch (lila), unter Lv 60 so selten, wie ihre Stufe erlaubt (blau) – RARITY_DROPS.raid.
 // Seit 11.0 auf +0 (vorher +7 bis +9): Hochschmieden muss man selbst, ab +4 mit Teilen aus der Map des Endbosses
 // (item.raidMat, siehe upgradeMaterial); der Boss lässt davon gleich ein paar fallen.
 function raidLoot(m) {
@@ -685,11 +697,11 @@ function raidLoot(m) {
     const item = makeItem(slot, tier, 0, p.classId, lootKind(p, p.classId));
     item.legend = true;
     if (b.mat) item.raidMat = b.mat;
-    item.bonuses = [];
-    for (let k = 0; k < 4; k++) item.bonuses.push(rollBonus(item, false));
-    clampItemBonuses(item);
-    if (addToBag(item)) ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
-    else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
+    rarityRoll(item, 'raid', m);
+    if (addToBag(item)) {
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+      announceRarity(item);
+    } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   }
   if (b.mat) addMobMat(b.mat, randInt(8, 12), m);
   const mats = { boniPlus: 2, switcher: 2, boni5: 1, ...(Math.random() < 0.5 ? { star: 1 } : {}), ...(m.level >= SWITCH67.stone && Math.random() < 0.5 ? { switch67: 1 } : {}) };
@@ -731,8 +743,11 @@ function bossLoot(m) {
     const cls = Math.random() < 0.85 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
     const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), cls);
     const item = makeItem(slots[randInt(0, slots.length - 1)], tier, randInt(3, 6), cls, lootKind(p, cls));
+    // grün oder blau; Dungeon-Bosse ab Stufe 50 mit kleiner Chance episch (seit 13.56)
+    rarityRoll(item, 'boss', m);
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+      announceRarity(item);
       later(0.2 + k * 0.25, () => vfxLootFly(m, itemIconCanvas(item)));
     } else {
       ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
@@ -1860,9 +1875,10 @@ const gear = {
     const worn = Object.values(game.player.equipment).includes(item);
     const score = worn ? 0 : compareScore(item);
     const arrow = score > 0 ? '<span class="tile-cmp up">▲</span>' : score < 0 ? '<span class="tile-cmp down">▼</span>' : '';
-    return `<button type="button" class="item-tile band-${band}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
+    // Rahmen und Leuchten in der Farbe der Seltenheit (rar-0 … rar-4, css/seltenheit.css)
+    return `<button type="button" class="item-tile band-${band} rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
-      `<span class="item-plus" style="color:${itemColor(item)}">+${item.plus}</span>` +
+      `<span class="item-plus" style="color:${plusColor(item)}">+${item.plus}</span>` +
       // Köcher: Munition wie im Fenster eines Fernkämpfers (Pfeile gehen nie aus)
       (isQuiver(item) ? `<span class="item-ammo" style="color:${quiverArrows(item).color}" title="${quiverArrows(item).name}">∞</span>` : '') +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
@@ -2226,9 +2242,9 @@ const gear = {
       return `<button type="button" class="mat-btn" data-mat="${m.id}" title="${m.name}: ${m.text}" ${have && can[m.id] ? '' : 'disabled'}>` +
         `<img src="${materialIconUrl(m.id)}" alt=""><span>${m.tag}</span><b>${have}</b></button>`;
     }).join('');
-    el.innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
-      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` +
-      `<small>${slotName} · ${itemKindText(item)} · ${ITEM_TIERS[item.tier].label} · ab Stufe ${need}</small>` +
+    el.innerHTML = `<div class="item-detail rar-${rarityOf(item)}"><img src="${itemIconUrl(item)}" alt="">` +
+      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
+      `<small>${slotName} · ${itemKindText(item)} · ab Stufe ${need}</small>` +
       (canWear(item, p) ? '' : `<small class="need">${wearProblem(item, p)} Du kannst es verkaufen.</small>`) +
       (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       `<span>${this.statsList(item)}</span>` +
@@ -2295,6 +2311,7 @@ const gear = {
         if (tier < MERCHANT_MIN_TIER) return '';
         const price = merchantPrice(this.merchant, slot, tier);
         const item = makeItem(slot, tier, 0, p.classId, kind);
+        item.rarity = merchantRarity(tier); // seit 13.56: grau, das teuerste Teil grün
         const need = ITEM_TIERS[tier].level;
         const tooLow = p.level < need;
         // Grün: besser als das, was gerade angelegt ist; rot: schlechter
@@ -2305,9 +2322,10 @@ const gear = {
           return `<span class="${cls}">${statText(k, v)}</span>`;
         }).join(' · ');
         return `<div class="merchant-item${tooLow ? ' locked' : ''}">` +
-          `<img src="${itemIconUrl(item)}" alt="">` +
-          `<div class="mi-info"><strong>${itemName(item)}</strong>` +
+          `<img class="mi-rar rar-${item.rarity}" src="${itemIconUrl(item)}" alt="">` +
+          `<div class="mi-info"><strong style="color:${itemColor(item)}">${itemName(item)}</strong>` +
           `<small class="${tooLow ? 'need' : ''}">ab Stufe ${need} · ${ITEM_TIERS[tier].label}</small>` +
+          (item.rarity ? `<small class="rar-line"><b style="color:${itemColor(item)}">${RARITIES[item.rarity].name}</b> · ${RARITIES[item.rarity].bonus.join('–')} zufällige Boni</small>` : '') +
           `<span class="mi-stats">${stats}</span>${tooLow ? '' : compareHtml(item, 'Gegenüber jetzt')}</div>` +
           `<div class="mi-buy"><span class="price">${price.toLocaleString('de-DE')} Gold</span>` +
           `<button type="button" class="mini-btn" data-buy-gear="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen</button>` +
@@ -2419,6 +2437,7 @@ const gear = {
     if (!m || tier < MERCHANT_MIN_TIER || !m.prices[tier] || !m.slots.includes(slot)) return;
     const price = merchantPrice(this.merchant, slot, tier);
     const item = makeItem(slot, tier, 0, p.classId, kind || null);
+    applyRarity(item, merchantRarity(tier)); // seit 13.56: Händlerware grau oder grün (mit Boni)
     if (p.gold < price) {
       this.message(`Dir fehlen ${(price - p.gold).toLocaleString('de-DE')} Gold.`, 'warn');
       return;
@@ -2517,8 +2536,8 @@ const gear = {
       return `<tr><th>${label}</th><td>${strip(a)}</td><td class="arrow">→</td><td class="up">${strip(b)}</td></tr>`;
     }).join('');
     el.innerHTML = `<div class="smith-head">${this.anvil(item)}<div class="smith-title">${where}` +
-      `<div class="smith-name" style="color:${itemColor(item)}">${itemName(item)}</div>` +
-      `<div class="smith-plus"><span style="color:${itemColor(item)}">+${item.plus}</span><i>→</i><span style="color:${itemColor(next)}">+${next.plus}</span></div></div></div>` +
+      `<div class="smith-name" style="color:${itemColor(item)}">${itemName(item)}</div>` + rarityLineHtml(item) +
+      `<div class="smith-plus"><span style="color:${plusColor(item)}">+${item.plus}</span><i>→</i><span style="color:${plusColor(next)}">+${next.plus}</span></div></div></div>` +
       (this.smithRef.where === 'bag' ? compareHtml(item) : '') +
       `<table class="smith-delta">${rows}</table>` +
       `<div class="chance"><i style="width:${step.chance * 100}%"></i><span>Erfolgschance ${Math.round(step.chance * 100)} %</span></div>` +
@@ -2538,7 +2557,7 @@ const gear = {
   },
 
   anvil(item) {
-    return `<div class="anvil" id="anvil"><img class="anvil-item" src="${itemIconUrl(item)}" alt="">` +
+    return `<div class="anvil rar-${rarityOf(item)}" id="anvil"><img class="anvil-item" src="${itemIconUrl(item)}" alt="">` +
       `<span class="hammer"></span><span class="spark s1"></span><span class="spark s2"></span><span class="spark s3"></span></div>`;
   },
 
@@ -2560,7 +2579,7 @@ const gear = {
     const smith = game.world.npcs.filter((n) => n.id === 'schmied').sort((a, b) => dist(a, game.player) - dist(b, game.player))[0];
     particles(smith.x + 12, feetY(smith) - 14, { count: 24, color: ['#ffd34d', '#ff9a3a', '#ffffff'], speed: [80, 200], life: [0.3, 0.6], size: [1.5, 2.5], shape: 'spark', drag: 4, gravity: 300 });
     const kind = res.result === 'success' ? 'ok' : res.result === 'break' ? 'break' : useScroll && step.fail !== 'none' ? 'saved' : 'fail';
-    forgeScene(iconBefore, kind, { name, from, to: res.result === 'success' ? res.item.plus : from, color: itemColor(res.item) }, () => {
+    forgeScene(iconBefore, kind, { name, from, to: res.result === 'success' ? res.item.plus : from, color: plusColor(res.item) }, () => {
       this.forging = false;
       const msg = document.getElementById('smithMsg');
       if (!msg || !document.getElementById('anvil')) return; // Fenster wurde inzwischen geschlossen
@@ -2570,7 +2589,7 @@ const gear = {
         msg.textContent = `Erfolg! ${name} ist jetzt +${res.item.plus}.`;
         msg.className = 'gear-msg success';
         addText(p.x, feetY(p) - 72, `${name} +${res.item.plus}`, 'crit');
-        particles(p.x, feetY(p) - 20, { count: 30, color: [itemColor(res.item), '#ffffff', '#ffd34d'], speed: [60, 180], life: [0.5, 0.9], size: [2, 3.5] });
+        particles(p.x, feetY(p) - 20, { count: 30, color: [plusColor(res.item), '#ffffff', '#ffd34d'], speed: [60, 180], life: [0.5, 0.9], size: [2, 3.5] });
       } else {
         anvil.classList.add('fail');
         msg.className = 'gear-msg fail';

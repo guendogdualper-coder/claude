@@ -2304,5 +2304,15 @@
 "Abgrundgürtel": "Cinto do Abismo",
 "Ewigkeitsgürtel": "Cinto da Eternidade",
 "Abgründig": "Abissal",
-"Ewig": "Eterno"
+"Ewig": "Eterno",
+"Gehärtet": "Temperado",
+"Veteran": "Veterano",
+"Meister": "Mestre",
+"Normal": "Normal",
+"Gewöhnlich": "Comum",
+"Episch": "Épico",
+"Legendär!": "Lendário!",
+"{0}–{1} zufällige Boni": "{0}–{1} bônus aleatórios",
+"ab Stufe {0} · Gehärtet": "a partir do nível {0} · Temperado",
+"{0} epische Teile erbeutet": "{0} itens épicos obtidos"
 };

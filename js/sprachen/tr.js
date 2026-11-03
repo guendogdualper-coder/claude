@@ -2295,5 +2295,15 @@
 "Abgrundgürtel": "Uçurum Kemeri",
 "Ewigkeitsgürtel": "Sonsuzluk Kemeri",
 "Abgründig": "Uçurumsal",
-"Ewig": "Ebedi"
+"Ewig": "Ebedi",
+"Gehärtet": "Sertleştirilmiş",
+"Veteran": "Kıdemli",
+"Meister": "Usta",
+"Normal": "Normal",
+"Gewöhnlich": "Yaygın",
+"Episch": "Destansı",
+"Legendär!": "Efsanevi!",
+"{0}–{1} zufällige Boni": "{0}–{1} rastgele bonus",
+"ab Stufe {0} · Gehärtet": "Seviye {0}'dan itibaren · Sertleştirilmiş",
+"{0} epische Teile erbeutet": "{0} destansı eşya kazanıldı"
 };

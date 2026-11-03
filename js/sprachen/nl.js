@@ -2259,5 +2259,14 @@
 "Abgrundgürtel": "Afgrondgordel",
 "Ewigkeitsgürtel": "Eeuwigheidsgordel",
 "Abgründig": "Afgrondelijk",
-"Ewig": "Eeuwig"
+"Ewig": "Eeuwig",
+"Gehärtet": "Gehard",
+"Veteran": "Veteraan",
+"Meister": "Meester",
+"Gewöhnlich": "Gewoon",
+"Episch": "Episch",
+"Legendär!": "Legendarisch!",
+"{0}–{1} zufällige Boni": "{0}–{1} willekeurige bonussen",
+"ab Stufe {0} · Gehärtet": "vanaf niveau {0} · Gehard",
+"{0} epische Teile erbeutet": "{0} epische voorwerpen buitgemaakt"
 };
