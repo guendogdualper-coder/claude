@@ -488,6 +488,8 @@ function reviveMonster(m) {
   m.form2 = false;
   m.state = 'idle';
   m.target = null;
+  m.returnAt = null;
+  m.nav = null; // Weg und Steckenbleiben vergessen (seit 13.63)
   m.stun = 0;
   m.kx = m.ky = 0;
   m.slow = m.vulnerable = m.poison = m.burn = m.bleed = null;
@@ -727,6 +729,361 @@ function monsterRush(m, t, dt, reach) {
   }
 }
 
+// --- Wegfindung (seit 13.63) -----------------------------------------------------------------------
+// Verfolgende Monster liefen vorher geradlinig auf ihr Ziel zu und blieben an Mauern, Säulen, Wasser oder Wald
+// hängen – in Dungeons ließen sie sich so aus der Ferne erledigen. Jetzt: freie Sicht (Linie so breit wie das
+// Monster) → direkt hin; sonst A* auf dem Kachelraster in einem Fenster um Monster und Ziel, mit begrenzter
+// Knotenzahl und höchstens NAV_PER_FRAME Suchen pro Bild (der Rest wartet ein Bild und läuft so lange geradeaus).
+// Der Weg wird je Monster gemerkt und erst neu gesucht, wenn das Ziel weiterzieht oder das Monster festhängt.
+// Wer trotzdem kaum vorankommt (Steine, Portale, Gedränge), sucht neu und weicht seitlich aus.
+// Läuft nur, wo updateMonsters läuft: allein und beim Host (Mitspieler bekommen nur die Positionen).
+const NAV_WIN = 112;         // Seitenlänge des Suchfensters in Kacheln
+const NAV_NODES = 1600;      // höchstens so viele Knoten je Suche (sonst: Weg zum nächstbesten Punkt)
+const NAV_PER_FRAME = 3;     // höchstens so viele Suchen pro Bild …
+const NAV_FRAME_MS = 0.8;    // … und höchstens so viel Rechenzeit
+const NAV = (() => {
+  const n = NAV_WIN * NAV_WIN;
+  return {
+    left: 0, ms: 0, gen: 0, x0: 0, y0: 0, lo: 0, hi: 0, off: 0.5, vill: false, searches: 0,
+    g: new Float32Array(n), par: new Int32Array(n), seen: new Uint32Array(n), done: new Uint32Array(n),
+    base: new Uint8Array(n), baseGen: new Uint32Array(n), clr: new Uint8Array(n), clrGen: new Uint32Array(n),
+    solid: new Uint32Array(n), heap: new Int32Array(NAV_NODES * 8 + 16), hf: new Float32Array(NAV_NODES * 8 + 16), hn: 0
+  };
+})();
+const NAV_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+// Breite Sichtlinie: kann ein Monster mit Halbbreite rr von (x0, y0) geradeaus nach (x1, y1) laufen?
+// Gleiche Prüfung wie canStand (vier Ecken gegen gesperrte Kacheln); die letzten Schritte am Ziel zählen nicht.
+function navSight(x0, y0, x1, y1, rr) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const d = Math.hypot(dx, dy);
+  const s = Math.min(12, Math.max(6, rr));
+  const n = Math.floor(Math.max(0, d - rr - 8) / s);
+  for (let i = 1; i <= n; i++) {
+    const x = x0 + (dx * i * s) / d;
+    const y = y0 + (dy * i * s) / d;
+    const ax = Math.floor((x - rr) / TILE);
+    const bx = Math.floor((x + rr) / TILE);
+    const ay = Math.floor((y - rr) / TILE);
+    const by = Math.floor((y + rr) / TILE);
+    if (tileBlocked(ax, ay) || tileBlocked(bx, ay) || tileBlocked(ax, by) || tileBlocked(bx, by)) return false;
+  }
+  return true;
+}
+
+// Kachel im Suchfenster frei? (Wand, Wasser, feste Deko, Seelenstein/Portal, Dorf bzw. Lager)
+function navBase(lx, ly) {
+  if (lx < 0 || ly < 0 || lx >= NAV_WIN || ly >= NAV_WIN) return false;
+  const li = ly * NAV_WIN + lx;
+  if (NAV.baseGen[li] === NAV.gen) return NAV.base[li] === 1;
+  const tx = NAV.x0 + lx;
+  const ty = NAV.y0 + ly;
+  let ok = NAV.solid[li] !== NAV.gen && !tileBlocked(tx, ty) && !SOLID_DECO_R[game.world.deco[ty * MAP_W + tx]];
+  if (ok && NAV.vill && inVillage((tx + 0.5) * TILE, (ty + 0.5) * TILE)) ok = false;
+  NAV.baseGen[li] = NAV.gen;
+  NAV.base[li] = ok ? 1 : 2;
+  return ok;
+}
+// Kann die Mitte des Monsters auf diesem Knoten stehen? Kleine Monster: Kachelmitte, eine freie Kachel. Größere
+// brauchen die Kacheln ringsum, die ihre Ecken berühren (NAV.lo … NAV.hi) – bei Breiten bis zwei Kacheln liegen die
+// Knoten dafür auf den Kachelecken (NAV.off 0), sonst passten sie nicht durch zwei Kacheln breite Lücken
+function navCell(lx, ly) {
+  const lo = NAV.lo;
+  const hi = NAV.hi;
+  if (!lo && !hi) return navBase(lx, ly);
+  if (lx < 0 || ly < 0 || lx >= NAV_WIN || ly >= NAV_WIN) return false;
+  const li = ly * NAV_WIN + lx;
+  if (NAV.clrGen[li] === NAV.gen) return NAV.clr[li] === 1;
+  let ok = true;
+  for (let dy = lo; dy <= hi && ok; dy++) for (let dx = lo; dx <= hi; dx++) if (!navBase(lx + dx, ly + dy)) { ok = false; break; }
+  NAV.clrGen[li] = NAV.gen;
+  NAV.clr[li] = ok ? 1 : 2;
+  return ok;
+}
+// Breite Linie innerhalb des Fensters (zum Glätten des Wegs, kennt auch Steine und Deko)
+function navLine(x0, y0, x1, y1, rr) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const d = Math.hypot(dx, dy);
+  const s = Math.min(12, Math.max(6, rr));
+  const n = Math.ceil(d / s);
+  const ox = NAV.x0;
+  const oy = NAV.y0;
+  for (let i = 1; i <= n; i++) {
+    const x = x0 + (dx * i) / n;
+    const y = y0 + (dy * i) / n;
+    const ax = Math.floor((x - rr) / TILE) - ox;
+    const bx = Math.floor((x + rr) / TILE) - ox;
+    const ay = Math.floor((y - rr) / TILE) - oy;
+    const by = Math.floor((y + rr) / TILE) - oy;
+    if (!navBase(ax, ay) || !navBase(bx, ay) || !navBase(ax, by) || !navBase(bx, by)) return false;
+  }
+  return true;
+}
+function navPush(i, f) {
+  const h = NAV.heap;
+  const hf = NAV.hf;
+  let k = NAV.hn++;
+  while (k > 0) {
+    const p = (k - 1) >> 1;
+    if (hf[p] <= f) break;
+    h[k] = h[p];
+    hf[k] = hf[p];
+    k = p;
+  }
+  h[k] = i;
+  hf[k] = f;
+}
+function navPop() {
+  const h = NAV.heap;
+  const hf = NAV.hf;
+  const top = h[0];
+  const n = --NAV.hn;
+  if (n > 0) {
+    const i = h[n];
+    const f = hf[n];
+    let k = 0;
+    for (;;) {
+      let c = 2 * k + 1;
+      if (c >= n) break;
+      if (c + 1 < n && hf[c + 1] < hf[c]) c++;
+      if (hf[c] >= f) break;
+      h[k] = h[c];
+      hf[k] = hf[c];
+      k = c;
+    }
+    h[k] = i;
+    hf[k] = f;
+  }
+  return top;
+}
+// A* von (sx, sy) nach (gx, gy) in Pixeln. Ergebnis: geglättete Wegpunkte [x, y, x, y, …] (ohne Start) und ob das
+// Ziel erreicht wurde; null, wenn es nicht einmal ein Stück näher geht.
+function navSearch(sx, sy, gx, gy, rr) {
+  NAV.searches++;
+  const W = NAV_WIN;
+  const half = W >> 1;
+  // Knoten: Kachelmitten (off 0,5) oder Kachelecken (off 0), je nach Breite des Monsters (siehe navCell)
+  const big = rr >= 16;
+  const off = (NAV.off = rr < 16 || (rr >= 32 && rr < 48) ? 0.5 : 0);
+  NAV.lo = !big ? 0 : rr < 48 ? -1 : -2;
+  NAV.hi = !big ? 0 : rr < 32 ? 0 : 1;
+  const node = (v) => (off ? Math.floor(v / TILE) : Math.round(v / TILE));
+  const stx = node(sx);
+  const sty = node(sy);
+  // Ziel zu weit weg: nur ein Stück in seine Richtung (das Fenster muss beide enthalten)
+  let gtx = node(gx);
+  let gty = node(gy);
+  const lim = half - 3;
+  const far = Math.max(Math.abs(gtx - stx), Math.abs(gty - sty));
+  if (far > lim) {
+    gtx = stx + Math.round(((gtx - stx) * lim) / far);
+    gty = sty + Math.round(((gty - sty) * lim) / far);
+  }
+  NAV.gen++;
+  const gen = NAV.gen;
+  const x0 = (NAV.x0 = Math.floor((stx + gtx) / 2) - half);
+  const y0 = (NAV.y0 = Math.floor((sty + gty) / 2) - half);
+  // Dorf bzw. Lager: dort hinein dürfen Monster nicht (wie canStand); in Dungeons gibt es keins
+  NAV.vill = !!mapOfTile(stx, sty);
+  // Seelensteine und Portale im Fenster sperren ihre Kacheln
+  const px0 = x0 * TILE;
+  const py0 = y0 * TILE;
+  const px1 = px0 + W * TILE;
+  const py1 = py0 + W * TILE;
+  for (const cell of solidObstacles().values()) {
+    for (const o of cell) {
+      const R = o.R + rr * 0.6;
+      if (o.x < px0 - R || o.y < py0 - R || o.x > px1 + R || o.y > py1 + R) continue;
+      for (let ty = Math.floor((o.y - R) / TILE); ty <= Math.floor((o.y + R) / TILE); ty++) {
+        for (let tx = Math.floor((o.x - R) / TILE); tx <= Math.floor((o.x + R) / TILE); tx++) {
+          const lx = tx - x0;
+          const ly = ty - y0;
+          if (lx < 0 || ly < 0 || lx >= W || ly >= W) continue;
+          if (Math.hypot((tx + 0.5) * TILE - o.x, (ty + 0.5) * TILE - o.y) < R) NAV.solid[ly * W + lx] = gen;
+        }
+      }
+    }
+  }
+  const sl = (sty - y0) * W + (stx - x0);
+  const gl = (gty - y0) * W + (gtx - x0);
+  // ein Ziel in einer gesperrten Kachel (Spieler am Stein, großes Monster) zählt trotzdem
+  const goalOk = far <= lim && !tileBlocked(Math.floor(gx / TILE), Math.floor(gy / TILE));
+  const g = NAV.g;
+  const par = NAV.par;
+  const seen = NAV.seen;
+  const done = NAV.done;
+  const gxl = gtx - x0;
+  const gyl = gty - y0;
+  const heur = (lx, ly) => {
+    const a = Math.abs(lx - gxl);
+    const b = Math.abs(ly - gyl);
+    return (a > b ? a + 0.4142 * b : b + 0.4142 * a) * 1.15;
+  };
+  NAV.hn = 0;
+  g[sl] = 0;
+  par[sl] = -1;
+  seen[sl] = gen;
+  navPush(sl, heur(stx - x0, sty - y0));
+  let best = sl;
+  let bestH = heur(stx - x0, sty - y0);
+  let found = false;
+  let count = 0;
+  while (NAV.hn > 0) {
+    const cur = navPop();
+    if (done[cur] === gen) continue;
+    done[cur] = gen;
+    if (cur === gl) { found = true; break; }
+    if (++count > NAV_NODES) break;
+    const cx = cur % W;
+    const cy = (cur - cx) / W;
+    const hc = heur(cx, cy);
+    if (hc < bestH) { bestH = hc; best = cur; }
+    const gc = g[cur];
+    for (let k = 0; k < 8; k++) {
+      const d = NAV_DIRS[k];
+      const nx = cx + d[0];
+      const ny = cy + d[1];
+      if (nx < 0 || ny < 0 || nx >= W || ny >= W) continue;
+      const nl = ny * W + nx;
+      if (done[nl] === gen) continue;
+      if (!(nl === gl && goalOk) && !navCell(nx, ny)) continue;
+      // diagonal nur, wenn beide Nachbarn frei sind (nicht über Ecken schneiden)
+      if (k >= 4 && (!navCell(cx + d[0], cy) || !navCell(cx, cy + d[1]))) continue;
+      const ng = gc + (k >= 4 ? 1.4142 : 1);
+      if (seen[nl] === gen && ng >= g[nl]) continue;
+      seen[nl] = gen;
+      g[nl] = ng;
+      par[nl] = cur;
+      navPush(nl, ng + heur(nx, ny));
+    }
+  }
+  const end = found ? gl : best;
+  if (end === sl) return null;
+  // Kacheln vom Ziel zurück zum Start
+  const tiles = [];
+  for (let c = end; c !== -1 && c !== sl; c = par[c]) tiles.push(c);
+  tiles.reverse();
+  // glätten: vom aktuellen Punkt aus jeweils zur fernsten Kachel, die man geradeaus erreicht
+  const pts = [];
+  let ax = sx;
+  let ay = sy;
+  let i = 0;
+  const cxOf = (c) => (x0 + (c % W) + off) * TILE;
+  const cyOf = (c) => (y0 + Math.floor(c / W) + off) * TILE;
+  while (i < tiles.length) {
+    let j = i;
+    while (j + 1 < tiles.length && navLine(ax, ay, cxOf(tiles[j + 1]), cyOf(tiles[j + 1]), rr)) j++;
+    ax = cxOf(tiles[j]);
+    ay = cyOf(tiles[j]);
+    pts.push(ax, ay);
+    i = j + 1;
+  }
+  return { pts, found };
+}
+
+// Sieht das Monster sein Ziel (breite Linie)? Gemerkt und nur alle ~0,25 s neu geprüft.
+function navSees(m, tx, ty) {
+  const n = m.nav || (m.nav = navState(m));
+  if (game.time >= n.seeAt || Math.abs(tx - n.sx) + Math.abs(ty - n.sy) > 48) {
+    n.seeAt = game.time + 0.22 + Math.random() * 0.08;
+    n.sx = tx;
+    n.sy = ty;
+    n.clear = navSight(m.x, m.y, tx, ty, m.r * 0.7);
+  }
+  return n.clear;
+}
+function navState(m) {
+  return { clear: true, seeAt: 0, sx: 0, sy: 0, path: null, i: 0, gx: 0, gy: 0, at: -9, retry: 0, force: 0, fail: false,
+    ex: 0, px: m.x, py: m.y, last: -9, stuck: 0, side: 0, sideUntil: 0, sideSign: Math.random() < 0.5 ? 1 : -1 };
+}
+// Schritt eines verfolgenden (oder heimkehrenden) Monsters Richtung (tx, ty) mit Tempo speed (px/s).
+// Gibt wie moveToward zurück, ob es sich bewegt hat.
+function navMove(m, tx, ty, speed, dt) {
+  const n = m.nav || (m.nav = navState(m));
+  const now = game.time;
+  const step = speed * dt;
+  const rr = m.r * 0.7;
+  // Fortschritt messen: nach jeweils ~1,5 Monsterbreiten erwarteter Strecke nachsehen, wie weit es wirklich kam
+  if (now - n.last > 0.2) { n.ex = 0; n.px = m.x; n.py = m.y; }
+  n.last = now;
+  n.ex += step;
+  if (n.ex >= Math.max(40, rr * 3)) {
+    const moved = Math.hypot(m.x - n.px, m.y - n.py);
+    // (dicht am Ziel zählt es nicht: dort drängen sich ohnehin andere Monster)
+    if (moved < n.ex * 0.3 && Math.hypot(tx - m.x, ty - m.y) > rr + 64) {
+      // festgehangen: eine Weile dem Weg folgen statt geradeaus, neu suchen, ab dem zweiten Mal seitlich ausweichen
+      n.stuck++;
+      n.force = now + 3;
+      n.path = null;
+      n.retry = 0;
+      if (n.stuck >= 2) {
+        n.sideSign = -n.sideSign;
+        n.side = Math.atan2(ty - m.y, tx - m.x) + n.sideSign * (Math.PI / 2 - 0.35);
+        n.sideUntil = now + 0.3 + Math.random() * 0.3;
+      }
+    } else if (moved > n.ex * 0.6) n.stuck = 0;
+    n.ex = 0;
+    n.px = m.x;
+    n.py = m.y;
+  }
+  // eingeklemmt (z. B. am Rand eines Beckens erschienen, eine Ecke steckt im Wasser): moveEntity ließe es keinen
+  // Schritt mehr machen – dann ohne Kollision ein Stück Richtung Weg bzw. Ziel, bis es wieder frei steht
+  if (n.stuck >= 2 && !canStand(m.x, m.y, rr, true)) {
+    const wx = n.path && n.i < n.path.length ? n.path[n.i] : tx;
+    const wy = n.path && n.i < n.path.length ? n.path[n.i + 1] : ty;
+    const len = Math.hypot(wx - m.x, wy - m.y) || 1;
+    const k = Math.min(step, len) / len;
+    const nx = m.x + (wx - m.x) * k;
+    const ny = m.y + (wy - m.y) * k;
+    if (!tileBlocked(Math.floor(nx / TILE), Math.floor(ny / TILE))) {
+      if (Math.abs(wx - m.x) > 1) m.facing = wx > m.x ? 1 : -1;
+      m.x = nx;
+      m.y = ny;
+      return true;
+    }
+  }
+  if (now < n.sideUntil) {
+    const ok = moveEntity(m, Math.cos(n.side) * step, Math.sin(n.side) * step, true);
+    if (Math.abs(Math.cos(n.side)) > 0.2) m.facing = Math.cos(n.side) > 0 ? 1 : -1;
+    if (ok) return true;
+    n.sideUntil = 0;
+  }
+  // freie Sicht: geradeaus (wie früher)
+  if (now >= n.force && navSees(m, tx, ty)) {
+    n.path = null;
+    n.fail = false;
+    return moveToward(m, tx, ty, step, true);
+  }
+  // Weg suchen, wenn keiner da ist oder das Ziel weitergezogen ist (Budget pro Bild, sonst nächstes Bild)
+  const gtx = Math.floor(tx / TILE);
+  const gty = Math.floor(ty / TILE);
+  const moved = n.path && Math.max(Math.abs(gtx - n.gx), Math.abs(gty - n.gy)) > 2 && now - n.at > 0.4;
+  if ((!n.path || moved) && now >= n.retry && NAV.left > 0 && NAV.ms < NAV_FRAME_MS) {
+    NAV.left--;
+    const t0 = performance.now();
+    const r = navSearch(m.x, m.y, tx, ty, rr);
+    NAV.ms += performance.now() - t0;
+    n.at = now;
+    n.gx = gtx;
+    n.gy = gty;
+    n.i = 0;
+    n.path = r ? r.pts : null;
+    n.fail = !r;
+    // kein (ganzer) Weg: nicht jedes Bild neu suchen
+    if (!r || !r.found) n.retry = now + 1.2 + Math.random() * 0.8;
+  }
+  const p = n.path;
+  if (p) {
+    while (n.i < p.length && Math.hypot(p[n.i] - m.x, p[n.i + 1] - m.y) < Math.max(5, step)) n.i += 2;
+    if (n.i < p.length) return moveToward(m, p[n.i], p[n.i + 1], step, true);
+    // Ende des Wegs erreicht, Ziel noch nicht in Sicht: bald neu suchen
+    n.path = null;
+  }
+  return moveToward(m, tx, ty, step, true);
+}
+
 // Bereich eines Punktes: Map-Nummer oder Dungeon (für das schnelle Überspringen ruhender Monster, seit 10.7)
 function areaKey(x, y) {
   const tx = Math.floor(x / TILE);
@@ -763,6 +1120,9 @@ function areaMonsters() {
 function updateMonsters(dt) {
   const p = game.player;
   const players = huntablePlayers();
+  // Wegfindung (seit 13.63): Budget dieses Bildes
+  NAV.left = NAV_PER_FRAME;
+  NAV.ms = 0;
   // Maps und Dungeons, in denen gerade jemand ist: ruhende Monster anderswo brauchen keine Rechnung
   const busy = new Set(players.map((pl) => areaKey(pl.x, pl.y)));
   const idx = monsterIndex();
@@ -849,6 +1209,7 @@ function updateMonsters(dt) {
 
     if (m.state === 'chase') {
       const t = m.target;
+      m.returnAt = null;
       const leash = (m.respawn ? LEASH : LEASH * 2) * (m.inDungeon ? 1.7 : 1);
       const lost = !t || t.dead || t.hp <= 0 || t.gone
         || (isPlayerLike(t) && playerHidden(t))
@@ -880,7 +1241,8 @@ function updateMonsters(dt) {
           const ts = t === p ? game.stats.footSpeed : t.footSpeed || (CLASSES[t.classId] ? CLASSES[t.classId].base.speed : 160);
           chaseSpeed = Math.max(m.type.speed, ts * DUNGEON_CHASE) * slowMul;
           if (m.rush) { monsterRush(m, t, dt, reach); continue; }
-          if (!m.type.ranged && !m.windup && d > reach * 1.7 && d < RUSH_RANGE && game.time >= (m.rushAt || 0)) {
+          // seit 13.63 nur bei freier Bahn – sonst rannte es in die Mauer
+          if (!m.type.ranged && !m.windup && d > reach * 1.7 && d < RUSH_RANGE && game.time >= (m.rushAt || 0) && navSees(m, t.x, t.y)) {
             startRush(m);
             continue;
           }
@@ -902,9 +1264,11 @@ function updateMonsters(dt) {
             } else { m.attackAnim = 0.25; monsterStrikeFx(m, null); }
           }
         } else {
-          if (d > reach * 0.85) m.moving = moveToward(m, t.x, t.y, chaseSpeed * dt, true);
+          // seit 13.63 mit Wegfindung um Mauern herum; Fernkämpfer schießen nur bei freier Sicht und kommen sonst näher
+          const blind = m.type.ranged && d <= reach && !navSees(m, t.x, t.y);
+          if (d > reach * 0.85 || blind) m.moving = navMove(m, t.x, t.y, chaseSpeed, dt);
           else if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
-          if (d <= reach && m.cd <= 0) {
+          if (d <= reach && m.cd <= 0 && !blind) {
             m.cd = m.type.cooldown * (m.form2 ? 0.65 : 1);
             m.windup = m.windupMax = windupTime(m.typeId);
           }
@@ -915,9 +1279,17 @@ function updateMonsters(dt) {
     if (m.state === 'return') {
       // Heimweg (seit 11.1 ohne Heilung unterwegs): erst zu Hause und wenn 6 s lang niemand mehr zugeschlagen hat,
       // ist es wieder heil – wer es auf dem Rückweg weiter angreift, holt es in den Kampf zurück
-      m.moving = moveToward(m, m.homeX, m.homeY, speed * 1.4 * dt, true);
-      if (Math.hypot(m.homeX - m.x, m.homeY - m.y) < 8 || !m.moving) {
+      // seit 13.63 mit Wegfindung (vorher blieb es an der ersten Mauer stehen, fern seines Platzes);
+      // gibt es keinen Weg oder dauert es zu lange (20 s), bleibt es wie früher, wo es ist
+      if (m.returnAt == null) {
+        m.returnAt = game.time;
+        m.nav = null; // Weg und Fehlschläge der Verfolgung gelten nicht für den Heimweg
+      }
+      m.moving = navMove(m, m.homeX, m.homeY, speed * 1.4, dt);
+      if (Math.hypot(m.homeX - m.x, m.homeY - m.y) < 8 || (!m.moving && (!m.nav || m.nav.fail)) || game.time - m.returnAt > 20) {
         m.state = 'idle';
+        m.returnAt = null;
+        m.nav = null;
         if (game.time - (m.struckAt || -99) > 6) m.hp = m.maxHp;
         m.wx = m.x;
         m.wy = m.y;
@@ -925,8 +1297,8 @@ function updateMonsters(dt) {
     }
   }
 
-  // Monster drängen sich nicht auf einen Punkt
-  const active = game.monsters.filter((m) => !m.dead && !m.isStone && m.state === 'chase');
+  // Monster drängen sich nicht auf einen Punkt (seit 13.63 nur die gerechneten statt aller der Welt)
+  const active = list.filter((m) => !m.dead && !m.isStone && m.state === 'chase');
   for (let i = 0; i < active.length; i++) {
     for (let j = i + 1; j < active.length; j++) {
       const a = active[i];
