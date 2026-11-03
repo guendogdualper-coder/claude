@@ -2378,7 +2378,7 @@ function dagger3(W, tier, shell) {
 // 4 Nachtbogen (Doppelarm aus blauem Stahl, schwebender Stein), 5 Aschenbogen (Obsidian mit Zacken und Glut),
 // 6 Sternenbogen (weiße Flügel aus Federn), 7 Götterbogen (goldener Reflexbogen mit Sonnenscheibe und Klingen),
 // seit 13.53: 8 Abgrundbogen (Klauenarme mit Leerensplittern und Leerenauge), 9 Ewigkeitsbogen (Platin mit Sternen).
-function bow3(W, tier, shell) {
+function bow3(W, tier, shell, strW) {
   const L = BOW_LIMBS[tier];
   const metal = TIER_METAL[tier];
   const accent = TIER_ACCENT[tier];
@@ -2439,8 +2439,11 @@ function bow3(W, tier, shell) {
       W(torus3(0.03, 0.007, Math.PI * 2, 3, 10), ROSEGOLD3, { p: [L.pts[k][0], L.pts[k][1] * sy, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
     }
   }
-  // Sehne und Griff mit Wicklung
-  W(limb3(+(tip[1] * 2).toFixed(2), 0.005, 0.005, 3), tier === 8 ? VOIDGLOW3 : tier === 9 ? ROSEGLOW3 : tier >= 6 ? '#e6f6ff' : '#efe6cc', { p: [tip[0], tip[1], 0], mat: tier >= 6 ? 'glow' : undefined });
+  // Sehne und Griff mit Wicklung. seit 13.67: an Figuren in zwei Hälften auf eigenen Knochen (strW, Spitze bis Mitte),
+  // damit die Zughand sie beim Schuss zu einem V ziehen kann; ohne Knochen wie bisher ein gerades Stück
+  const strCol = tier === 8 ? VOIDGLOW3 : tier === 9 ? ROSEGLOW3 : tier >= 6 ? '#e6f6ff' : '#efe6cc';
+  if (strW) for (let k = 0; k < 2; k++) limbBetween(strW[k], [tip[0], tip[1] * (k ? -1 : 1), 0], [tip[0], 0, 0], 0.006, 0.006, strCol, { seg: 4, mat: tier >= 6 ? 'glow' : undefined });
+  else W(limb3(+(tip[1] * 2).toFixed(2), 0.005, 0.005, 3), strCol, { p: [tip[0], tip[1], 0], mat: tier >= 6 ? 'glow' : undefined });
   W(limb3(0.18, 0.034, 0.034, 7), tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : tier === 8 ? '#120c1e' : tier === 9 ? '#a8706a' : '#3a2a1c', { p: [0.005, 0.09, 0] });
   for (let k = 0; k < 3; k++) W(torus3(0.036, 0.008, Math.PI * 2, 4, 10), tier === 0 ? '#5a3a22' : tier === 8 ? VOIDMETAL3 : tier === 9 ? ROSEGOLD3 : tier >= 6 ? GOLD3 : metal, { p: [0.005, 0.07 - k * 0.06, 0], r: [Math.PI / 2, 0, 0], shine: tier >= 8 ? 1 : 0 });
   if (tier === 4) floatGem3(W, [0.07, 0, 0], 0.025, GLOW3[4]);
@@ -2615,7 +2618,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       return;
     }
     case 'bow':
-      bow3(W, tier, shell);
+      bow3(W, tier, shell, o.strBones ? o.strBones.map((bi) => framed(A, M, bi)) : null);
       return;
     case 'fan': {
       // Fächer: Blatt nach oben, Rippen, Goldrand; Kranich aus Federn, Phönix mit Flammenspitzen …

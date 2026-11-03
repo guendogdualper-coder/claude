@@ -168,7 +168,8 @@ function itemKindText(item) {
     const who = k.path != null ? CLASSES[item.cls].paths[k.path].name : CLASSES[item.cls].name;
     return `${k.name}${k.twoHanded ? ' (Zweihand)' : ''} · ${who}`;
   }
-  if (isQuiver(item)) return `Köcher für den Bogen · ${quiverArrows(item).name} als Übungspfeile (gehen nie aus)`;
+  // seit 13.67: Köcher geben keine unendlichen Übungspfeile mehr – geschossen wird nur mit gekauften Pfeilen
+  if (isQuiver(item)) return `Köcher für den Bogen · trägt deine Pfeile (Munition kaufst du bei der Bogenmacherin)`;
   if (item.cls) return CLASSES[item.cls].name;
   return 'alle Klassen';
 }
@@ -1886,8 +1887,12 @@ const gear = {
     return `<button type="button" class="item-tile band-${band} rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       `<span class="item-plus" style="color:${plusColor(item)}">+${item.plus}</span>` +
-      // Köcher: Munition wie im Fenster eines Fernkämpfers (Pfeile gehen nie aus)
-      (isQuiver(item) ? `<span class="item-ammo" style="color:${quiverArrows(item).color}" title="${quiverArrows(item).name}">∞</span>` : '') +
+      // Köcher: Pfeilvorrat (seit 13.67 echte Zahl statt ∞, rot bei 0; fernninja.js bowHudTick zählt live mit)
+      (isQuiver(item) && typeof bowArrowUsable === 'function' ? (() => {
+        const n = bowArrowUsable(game.player);
+        const i = bowArrowSort(game.player);
+        return `<span class="item-ammo quiver-ammo" style="color:${i >= 0 ? ARROW_TYPES[i].color : '#ff4a3a'}" title="${i >= 0 ? ARROW_TYPES[i].name : 'Keine Pfeile'}">${n > 9999 ? Math.floor(n / 1000) + 'k' : n}</span>`;
+      })() : '') +
       (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
   },
 
@@ -2314,7 +2319,7 @@ const gear = {
       const slotName = slotNameOf(slot);
       const wk = WEAPON_KINDS[kind] || { name: 'Waffe', text: '' };
       const title = kind ? `${wk.name} für ${CLASSES[p.classId].name} <small>${wk.text}</small>`
-        : slot === 'koecher' ? `Köcher für den Bogen <small>bessere Köcher treffen härter; ohne gekaufte Pfeile schießt du ihre Übungspfeile</small>`
+        : slot === 'koecher' ? `Köcher für den Bogen <small>bessere Köcher treffen härter; geschossen wird nur mit gekauften Pfeilen</small>`
         : CLASS_SLOTS.includes(slot) ? `${slotName} für ${CLASSES[p.classId].name}` : slotName;
       const equipped = slot === 'koecher' ? (isQuiver(p.equipment.schild) ? p.equipment.schild : null) : p.equipment[slot];
       const eqStats = equipped ? itemStats(equipped) : {};

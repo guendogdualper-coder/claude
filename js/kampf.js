@@ -568,7 +568,8 @@ const KIND_BASIC = {
   // Dolche (Ninja, seit 13.4): viele schnelle, kurze Stiche mit weniger Schaden je Stich (gleicher Schaden je Sekunde)
   // seit 13.31 0,5 statt 0,66: der Ninja machte 40–80 % mehr Schaden als der Schnitt aller Wege
   dagger: { range: 46, cooldown: 0.36, ranged: false, mul: 0.5 },
-  bow: { range: 250, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
+  // seit 13.67 weiter (400 statt 250): Pfeile tragen deutlich weiter als Zauber
+  bow: { range: 400, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
   greataxe: { range: 60, cooldown: 0.88, ranged: false },
   scythe: { range: 62, cooldown: 0.85, ranged: false }
@@ -601,6 +602,8 @@ function tryBasicAttack() {
   const basic = basicAttack(p);
   if (p.attackCd > 0 || p.dead || p.dash || p.channel) return false;
   if (inVillage(p.x, p.y) && !duelFighting()) return false; // im Dorf wird nicht gekämpft (außer im Duell)
+  // Bogen (seit 13.67): ohne Pfeile kein Schuss (Hinweis und roter Pfeilzähler, fernninja.js)
+  if (basic.style === 'arrow' && typeof bowCanShoot === 'function' && !bowCanShoot(p, 1)) return false;
   if (p.riding) toggleRide(false);
   // Angreifen geht immer: mit Gegner in Reichweite auf ihn, sonst ein Schlag oder Schuss
   // in Blickrichtung (später auch für Kämpfe gegen andere Spieler)
@@ -611,6 +614,9 @@ function tryBasicAttack() {
   if (basic.ranged) {
     startSwing(p, 'cast', tm.dur);
     p.pendingShot = { at: game.time + tm.dur * tm.impact, target, basic };
+    // Bogen: stehen bleiben und zum Ziel schauen, bis kurz nach dem Loslassen (kein Schuss nach hinten im Laufen);
+    // gedrückte Tasten und Laufziel bleiben und gehen danach weiter
+    if (basic.style === 'arrow') lockPlayer(p, tm.dur * tm.impact + 0.08);
   } else {
     // Dolche (seit 13.36): Kombo aus vier Schlägen (Wirbel etwas, Kreuzschnitt am Ende deutlich stärker)
     const dag = weaponKindOf(p) === 'dagger';
@@ -669,10 +675,17 @@ function basicTick(p) {
     if (target) faceTowards(target.x, target.y);
     const hand = bodyCenter(p);
     // Pfeile (seit 13.57, fernninja.js): jeder Bogenschuss verbraucht einen Pfeil der besten Sorte – Bonus und Farbe
+    // seit 13.67 ohne Übungspfeile: sind die Pfeile inzwischen alle, fliegt nichts
     const ar = basic.style === 'arrow' && typeof bowArrowShot === 'function' ? bowArrowShot(p, 1) : null;
+    if (basic.style === 'arrow' && !ar && p.classId === 'ninja') {
+      if (typeof bowCanShoot === 'function') bowCanShoot(p, 1);
+      return;
+    }
     const col = ar ? ar.color : basic.color;
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: col, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
     spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined });
+    // Bogen (seit 13.67): dunkler Schattenblitz am Bogen (fernninja.js)
+    if (ar && typeof bowBasicFx === 'function') bowBasicFx(p);
     netSkillFx('_shot', basic.range, { c: col, st: basic.style, el: basic.el });
     if (typeof snd !== 'undefined') snd.shot(p, basic);
   }
@@ -732,6 +745,8 @@ function useSkill(i) {
     addText(p.x, p.y - 34, 'Zu wenig Mana', 'info');
     return;
   }
+  // Bogen-Fertigkeiten (seit 13.67): ohne genug Pfeile gar nicht erst zielen oder wirken
+  if (sk.arrows && typeof bowCanShoot === 'function' && !bowCanShoot(p, sk.arrows)) return;
   // Fertigkeiten mit Zielort: erst zielen, beim zweiten Antippen oder Tippen auf den Boden wirken
   if (sk.aim && !(game.aim && game.aim.i === i && game.aim.go)) {
     if (game.aim && game.aim.i === i) aimFire();

@@ -149,8 +149,8 @@ const ITEM_NAMES = {
 };
 
 // Köcher (seit 13.20): die Munition des Bogens. Ein Ninja mit Bogen trägt ihn im Platz der Nebenhand
-// (Bogen und Köcher gehören zusammen, wie Waffe und Munition). Die Pfeile gehen nie aus;
-// bessere Köcher haben bessere Pfeile (mehr Angriff, öfter kritisch) und färben den Schuss.
+// (Bogen und Köcher gehören zusammen). Seit 13.67 gibt der Köcher keine Pfeile mehr (keine Übungspfeile):
+// geschossen wird nur mit gekauften Pfeilen (ARROW_TYPES); bessere Köcher treffen härter (Angriff, Kritisch).
 const QUIVER_ARROWS = [
   { name: 'Holzpfeile', color: '#c9a36a' }, { name: 'Eisenpfeile', color: '#cfd6de' },
   { name: 'Schattenpfeile', color: '#9a7ad8' }, { name: 'Giftpfeile', color: '#7ed35a' },
@@ -374,7 +374,7 @@ const MERCHANTS = {
 
 // Pfeile (seit 13.57): Munition für jeden Bogenschuss (Grundangriff und Fertigkeiten des Weges des Falken).
 // p.arrows = { Index: Anzahl }. Geschossen wird immer die beste Sorte, die man hat und schon benutzen darf (level);
-// sind alle verbraucht, schießt der Bogen Übungspfeile ohne Bonus. dmg: Schaden aller Bogenschüsse (+Anteil),
+// sind alle verbraucht, schießt der Bogen seit 13.67 gar nicht mehr (vorher Übungspfeile). dmg: Schaden aller Bogenschüsse (+Anteil),
 // price: Gold je Bündel (ARROW_BUNDLE Stück). Namen und Farben wie die Pfeile der Köcher (QUIVER_ARROWS).
 const ARROW_BUNDLE = 500;
 const ARROW_TYPES = [

@@ -2585,5 +2585,12 @@
 "Götterpfeile": "Divine Arrows",
 "Leerenpfeile": "Void Arrows",
 "Sternenfeuerpfeile": "Starfire Arrows",
-"Keine Pfeile – Übungspfeile": "No arrows – practice arrows"
+"Keine Pfeile – Übungspfeile": "No arrows – practice arrows",
+"Keine Pfeile!": "No arrows!",
+"Keine Pfeile – kaufe Pfeile bei der Bogenmacherin": "No arrows – buy arrows from the bowyer",
+"Schattenschritt": "Shadow Step",
+"Nachtschritt": "Night Step",
+"Schattenflucht": "Shadow Escape",
+"Pfad der Finsternis": "Path of Darkness",
+"Wandler zwischen den Schatten": "Walker Between Shadows"
 };

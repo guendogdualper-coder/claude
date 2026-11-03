@@ -2,6 +2,8 @@
 // er lässt sich nicht verbessern, hält 30 Minuten und wächst mit der Stufe des Charakters (alle 10 Stufen).
 //   Schamane  – Segen der Natur:       alle Naturschäden (Feuer, Wasser, Blitz, Eis, Erde, Wind, Licht) +5 %, je 10 Stufen +2,5 %
 //   Ninja     – Klingenschatten:        kritische Treffer +3 % (je 10 Stufen +1 %), kritischer Schaden +10 % (je 10 Stufen +5 %)
+//   Ninja mit Bogen (Weg des Falken, seit 13.67) – Falkenblick: Krit +3 % (+1 %), Krit-Schaden +10 % (+5 %),
+//               Angriffstempo +6 % (+2 %), Bogenreichweite +10 % (+2 %); dunkle Schwingen und Schattenaura (fernninja.js)
 //   Nekromant – Blutpakt:               Omni-Vampir 2 % (je 10 Stufen +0,5 %): jeder Schaden heilt, auch über Zeit
 //   Magier    – Arkane Erleuchtung:     Intelligenz +6 (je 10 Stufen +2)
 // Aktivieren: eigener Knopf neben der Ultimativen Attacke oder Taste 9. Erneut aktivieren frischt die 30 Minuten auf.
@@ -37,17 +39,24 @@ const SEGEN_LICHT = {
   effects: (lv) => ({ healPower: 0.1 + 0.025 * lv }),
   text: (e) => `Alle Heilungen +${pctS(e.healPower)} (Heilung, Lichtkuppel, Regeneration und die Heilung deiner Gruppe).`
 };
-const SEGEN_BY_ID = Object.fromEntries(Object.values(SEGEN).concat([SEGEN_LICHT]).map((d) => [d.id, d]));
+// Weg des Falken (seit 13.67): der Falkenblick ist kein Fertigkeits-Buff mehr, sondern der Klassensegen des Bogen-Ninjas
+const SEGEN_FALKE = {
+  id: 'segen_falke', name: 'Falkenblick', color: '#8a5ae0', colors: ['#120a1c', '#5a2aa8', '#b48cff', '#e8d8ff'],
+  effects: (lv) => ({ crit: 0.03 + 0.01 * lv, critDmg: 0.1 + 0.05 * lv, atkSpeed: 0.06 + 0.02 * lv, bowRange: 0.1 + 0.02 * lv }),
+  text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}, Angriffstempo +${pctS(e.atkSpeed)}, Bogenreichweite +${pctS(e.bowRange)}. Dunkle Schwingen und eine Schattenaura umgeben dich.`
+};
+const SEGEN_BY_ID = Object.fromEntries(Object.values(SEGEN).concat([SEGEN_LICHT, SEGEN_FALKE]).map((d) => [d.id, d]));
 function pctS(v) {
   return (Math.round(v * 1000) / 10).toLocaleString('de-DE') + ' %';
 }
 
 // Definition zu einem Auftritts-Schlüssel (Klasse, oder 'licht' für den Heiler-Schamanen, seit 13.26)
 function segenDef(cls) {
-  return cls === 'licht' ? SEGEN_LICHT : SEGEN[cls];
+  return cls === 'licht' ? SEGEN_LICHT : cls === 'falke' ? SEGEN_FALKE : SEGEN[cls];
 }
 function segenOf(p) {
   if (p && p.classId === 'schamane' && (p.path || 0) === 1) return SEGEN_LICHT;
+  if (p && p.classId === 'ninja' && (p.path || 0) === 1) return SEGEN_FALKE;
   return p && SEGEN[p.classId] ? SEGEN[p.classId] : null;
 }
 // Stufenschritte: ab Stufe 10 alle 10 Stufen ein Schritt mehr (Stufe 10–19: 0, 20–29: 1, … 70: 6)
@@ -73,7 +82,7 @@ function useSegen() {
   p.buffs = p.buffs.filter((b) => b.id !== d.id);
   p.buffs.push({ id: d.id, name: d.name, short: d.name.slice(0, 2).toUpperCase(), until: game.time + SEGEN_DUR, duration: SEGEN_DUR, effects, lvl: 1, segen: true });
   game.stats = playerStats(p);
-  const key = d === SEGEN_LICHT ? 'licht' : p.classId;
+  const key = d === SEGEN_LICHT ? 'licht' : d === SEGEN_FALKE ? 'falke' : p.classId;
   segenShow(p, key);
   ui.banner(d.name, d.text(effects) + ' 30 Minuten.');
   if (typeof netSkillFx === 'function') netSkillFx('_segen', 0, { c: key });
@@ -85,7 +94,7 @@ function segenShow(p, cls) {
   const d = segenDef(cls);
   if (!d) return;
   startSwing(p, 'pose', 0.9);
-  p.poseColor = d.color;
+  p.poseColor = cls === 'falke' ? '#3a1a6a' : d.color;
   addEffect({ type: 'segen3', follow: p, ox: 0, oy: 0, x: p.x, y: feetY(p), cls, dur: 1.6, seed: Math.random() * 10 });
   flashScreen(d.color, 0.18);
   if (typeof snd !== 'undefined') snd.player('levelup', { vol: 0.45, rev: 0.6, variants: 1 });
@@ -158,6 +167,52 @@ function segenIconUrl(id) {
       g.fillRect(-3, 16, 6, 12);
       g.restore();
     }
+  } else if (id === 'segen_falke') {
+    // dunkles Falkenauge mit violetter Iris zwischen zwei schwarzen Schwingen
+    g.shadowColor = '#b48cff';
+    for (const s of [-1, 1]) for (let i = 0; i < 5; i++) {
+      g.save();
+      g.translate(s * 9, 4);
+      g.rotate(s * (0.95 + i * 0.3));
+      const fg = g.createLinearGradient(0, 0, 0, -30);
+      fg.addColorStop(0, '#0a0610');
+      fg.addColorStop(0.7, '#2a1640');
+      fg.addColorStop(1, '#8a5ae0');
+      g.fillStyle = fg;
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.quadraticCurveTo(-7, -14, 0, -30 + i * 2.5);
+      g.quadraticCurveTo(7, -14, 0, 0);
+      g.fill();
+      g.restore();
+    }
+    g.shadowBlur = 12;
+    g.fillStyle = '#1a0e28';
+    g.beginPath();
+    g.moveTo(-20, 0);
+    g.quadraticCurveTo(0, -17, 20, 0);
+    g.quadraticCurveTo(0, 17, -20, 0);
+    g.fill();
+    g.lineWidth = 2;
+    g.strokeStyle = '#b48cff';
+    g.stroke();
+    const ir = g.createRadialGradient(0, 0, 1, 0, 0, 10);
+    ir.addColorStop(0, '#f4e8ff');
+    ir.addColorStop(0.45, '#a070f0');
+    ir.addColorStop(1, '#2a0a50');
+    g.fillStyle = ir;
+    g.beginPath();
+    g.arc(0, 0, 9.5, 0, Math.PI * 2);
+    g.fill();
+    g.shadowBlur = 0;
+    g.fillStyle = '#05020a';
+    g.beginPath();
+    g.ellipse(0, 0, 2.2, 7.5, 0, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = '#ffffff';
+    g.beginPath();
+    g.arc(-3.5, -3.5, 1.8, 0, Math.PI * 2);
+    g.fill();
   } else if (id === 'segen_blut') {
     // Blutstropfen mit Herzschlag-Glanz
     g.fillStyle = '#ff4a5a';
@@ -230,6 +285,11 @@ function segenTick() {
   const btn = document.getElementById('skillSegen');
   if (!p || !btn) return;
   const d = segenOf(p);
+  // Segen eines anderen Weges (nach dem Wechsel zwischen Dolch und Bogen, seit 13.67) fällt weg – samt Aura
+  if (d && p.buffs.some((x) => x.segen && x.id !== d.id)) {
+    p.buffs = p.buffs.filter((x) => !x.segen || x.id === d.id);
+    game.stats = playerStats(p);
+  }
   const b = d && p.buffs.find((x) => x.id === d.id);
   const left = b ? Math.max(0, Math.ceil(b.until - game.time)) : 0;
   const txt = left ? (left >= 60 ? Math.ceil(left / 60) + 'm' : left + 's') : '';
@@ -254,6 +314,11 @@ FX3_DRAW.segen3 = function (h, e) {
   if (k >= 1) return;
   const d = segenDef(e.cls);
   if (!d) return;
+  // Falkenblick (seit 13.67): eigener, dunkler Auftritt (fernninja.js)
+  if (e.cls === 'falke' && typeof bowSegen3 === 'function') {
+    bowSegen3(h, e, k);
+    return;
+  }
   const o = e.follow && !e.follow.dead ? e.follow : null;
   const x = (o ? o.x : e.x) * U3;
   const z = (o ? feetY(o) : e.y) * U3;
@@ -553,7 +618,7 @@ for (const d of Object.values(SEGEN).concat([SEGEN_LICHT])) {
 }
 
 // 2D: kleine kreisende Lichter in den Klassenfarben
-for (const d of Object.values(SEGEN).concat([SEGEN_LICHT])) {
+for (const d of Object.values(SEGEN).concat([SEGEN_LICHT, SEGEN_FALKE])) {
   BUFF_LOOKS[d.id] = (ctx, p, fy, t, layer) => {
     // in 3D zeigt die Figur die echte Aura (segenAura3)
     if (typeof V3 !== 'undefined' && V3.on) return;

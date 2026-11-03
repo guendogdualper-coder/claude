@@ -499,6 +499,9 @@ function humanoid3(b, c, P) {
   ];
   // schwebende, sich drehende Teile (seit 8.6, Magier) bekommen eigene Knochen hinter den üblichen 14
   const spin = spinBones3(c, bones, { hipY, shY, hc, hr, handR });
+  // Bogensehne (seit 13.67): zwei eigene Knochen an den Bogenspitzen tragen je eine Hälfte der Sehne. In Ruhe liegen sie
+  // gerade von Spitze zu Spitze; beim Ziehen dreht und streckt bowString3 sie zur Zughand (V-Form, siehe syncPlayer3)
+  const bowStr = c.weapon && c.weapon.kind === 'bow' ? bowStringBones3(c.weapon.tier, handR, bones) : null;
   const rig = rigOf(bones);
   const pants = c.pants || darker(c.torso, 0.2);
   const boots = c.boots || '#3a2a1c';
@@ -815,7 +818,8 @@ function humanoid3(b, c, P) {
     A(horn3(0.14, 0.07, 4), darker(c.tail, 0.3), { bone: BH.tail, p: t2, r: [-0.6, 0, 0] });
   }
   // Waffen (das Zepter hängt seinen Kristall und den Funken an die Drehknochen)
-  const wo = spin && c.weapon ? { accent: c.weapon.accent, hi: c.weapon.hi, gemBone: spin.gem, sparkBone: spin.spark } : undefined;
+  const wo = spin && c.weapon ? { accent: c.weapon.accent, hi: c.weapon.hi, gemBone: spin.gem, sparkBone: spin.spark } : bowStr ? {} : undefined;
+  if (bowStr) wo.strBones = bowStr.bones;
   if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], true, wo);
   // Klingenachse im Modellraum merken (Ansatz und Spitze, für Waffen-Auren in 3D seit 13.2)
   let weaponAxis = null;
@@ -831,7 +835,7 @@ function humanoid3(b, c, P) {
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
-  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff };
+  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff, bowStr };
 }
 
 // Bereitschaftspose fürs Bild der Figur (seit 13.22): Waffe in der Hand, deutlich zu sehen, nie hängend.
@@ -883,8 +887,9 @@ function quiver3(A, tier, leather, chestY, onCape = false) {
     const a = (k / n) * Math.PI * 2 + 0.4;
     const x = Math.cos(a) * 0.04;
     const z = Math.sin(a) * 0.04;
-    const h = 0.52 + (k % 2) * 0.05;
-    W(limb3(h - 0.38, 0.007, 0.007, 3), '#d9c79a', { p: [x, h, z] });
+    // seit 13.67 kürzer aus dem Köcher (wirkten wie Speere)
+    const h = 0.48 + (k % 2) * 0.03;
+    W(limb3(h - 0.4, 0.006, 0.006, 3), '#d9c79a', { p: [x, h, z] });
     for (const fr of [0, Math.PI / 2]) W(roundBox(0.05, 0.08, 0.004, 0.002), k % 2 ? darker(arrow, 0.2) : arrow, Object.assign({ p: [x, h - 0.04, z], r: [0, fr, 0] }, tier >= 5 ? { mat: 'glow' } : {}));
   }
 }
@@ -924,8 +929,25 @@ let BELL_HANG3 = -2.0;
 let BELL_ARM3 = -0.8;
 // Axtkopf um den Stiel drehen (seit 13.48): Schneide nach vorn statt zur Seite
 let AXE_TWIST3 = -Math.PI / 2;
+// Bogen (seit 13.67 um die eigene Achse gedreht): der Griff zeigt nach vorn (zum Ziel), die Wurfarme biegen sich vom
+// Schützen weg und die Sehne liegt zum Körper hin. Vorher stand der Bogen quer, Sehne außen, Arme zum Körper gebogen.
+const BOW_HOLD3 = [0.2, -Math.PI / 2, 0];
+// Knochen der Sehne: an beiden Spitzen des Bogens (Kinder der rechten Hand). Gibt Knochennummern, Ruhevektor
+// Spitze → Mitte der Sehne je Hälfte (Modellraum) und den Griff relativ zum Handknochen zurück
+function bowStringBones3(tier, handR, bones) {
+  const L = BOW_LIMBS[Math.max(0, Math.min(BOW_LIMBS.length - 1, tier || 0))];
+  const tip = L.pts[L.pts.length - 1];
+  const M = partFrame(handR, BOW_HOLD3);
+  const top = new THREE.Vector3(tip[0], tip[1], 0).applyMatrix4(M);
+  const bot = new THREE.Vector3(tip[0], -tip[1], 0).applyMatrix4(M);
+  const mid = new THREE.Vector3(tip[0], 0, 0).applyMatrix4(M);
+  const hb = bones[BH.handR][0];
+  const out = { bones: [bones.length, bones.length + 1], v: [mid.clone().sub(top).toArray(), mid.clone().sub(bot).toArray()], grip: [handR[0] - hb[0], handR[1] - hb[1], handR[2] - hb[2]] };
+  bones.push([top.toArray(), BH.handR], [bot.toArray(), BH.handR]);
+  return out;
+}
 const WEAPON_HOLD = {
-  sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: [0.2, 0, 0], fan: [0.7, 0, 0.3],
+  sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: BOW_HOLD3, fan: [0.7, 0, 0.3],
   bell: [2.0, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.6, 0, 0.45], club: [0.6, 0, 0.45],
   rod: [0.22, 0, 0.08]
 };
@@ -4827,6 +4849,148 @@ function poseKeys3(B, keys, sw) {
   B[BH.legR].rotation.x = v('gr');
 }
 
+// --- Bogenschuss: Zielen, Ziehen, Sehne (seit 13.67) --------------------------------------------------------
+// Während eines Bogenschusses richtet bowAim3 Bogenarm und Bogen genau aufs Ziel aus (Bogen senkrecht, Griff vorn,
+// Sehne zum Körper), legt die Zughand an die Sehne und zieht sie entlang der Pfeillinie bis an die Wange; die beiden
+// Knochen der Sehne werden zu einem V zur Zughand gedreht und gestreckt. Die Posen (BASIC3.bow, BOW_POSE) geben nur
+// noch Körper, Kopf und Beine vor und die Arme außerhalb des Zielens.
+// Zeiten als Anteil der Schwungzeit: [Hand an der Sehne, voll gezogen, Abschuss], dazu die Höhe des Ziels (Bogenmaß)
+const BOW_DRAW3 = {
+  cast: { w: [0.1, 0.5, 0.58], up: 0.04 },
+  bogenzug: { w: [0.1, 0.34, 0.4], up: 0.04 },
+  bogenhimmel: { w: [0.1, 0.36, 0.44], up: 0.95 },
+  skill: { w: [0.04, 0.3, 0.46], up: 0.1 }
+};
+const _bsA = new THREE.Vector3();
+const _bsB = new THREE.Vector3();
+const _bsT = new THREE.Vector3();
+const _bsH = new THREE.Vector3();
+const _bsM = new THREE.Vector3();
+const _bsF = new THREE.Vector3();
+const _bsU = new THREE.Vector3();
+const _bsS = new THREE.Vector3();
+const _bsG = new THREE.Vector3();
+const _bsQ = new THREE.Quaternion();
+const _bsR = new THREE.Quaternion();
+const _bsD = new THREE.Quaternion();
+const _bsP = new THREE.Quaternion();
+const _bsMx = new THREE.Matrix4();
+const _bsDown = new THREE.Vector3(0, -1, 0);
+let _bsHoldQ = null;
+// Zugstärke w 0 … 1 (Hand an der Sehne), full 0 … 1 (wie weit gezogen), aim 0 … 1 (Arme folgen dem Ziel),
+// rel: Sekunden seit dem Abschuss (Nachschwingen der Sehne)
+function bowDrawState3(p, sw) {
+  const D = p.swingKind && BOW_DRAW3[p.swingKind];
+  if (!D || sw < 0 || p.riding || weaponKindOf(p) !== 'bow') return null;
+  const w = D.w;
+  const aim = Math.min(1, sw / Math.max(0.01, w[0])) * (sw > 0.82 ? Math.max(0, (1 - sw) / 0.18) : 1);
+  const st = { D, aim: aim * aim * (3 - 2 * aim), w: 0, full: 0, rel: -1 };
+  if (sw >= w[0] && sw < w[2]) {
+    st.w = Math.min(1, (sw - w[0]) / 0.05);
+    const f = Math.min(1, (sw - w[0]) / Math.max(0.01, w[1] - w[0]));
+    st.full = f * f * (3 - 2 * f);
+  } else if (sw >= w[2]) st.rel = (sw - w[2]) * (p.swingDur || 0.5);
+  return st;
+}
+// Knochen b (Kind von parent) so drehen, dass seine Achse ax (lokal, in Ruhe) in Weltrichtung dir zeigt; Anteil k
+function bowPointBone3(b, ax, dir, k) {
+  b.parent.getWorldQuaternion(_bsP);
+  _bsU.copy(ax).applyQuaternion(_bsP);
+  _bsD.setFromUnitVectors(_bsU, dir);
+  _bsQ.copy(_bsP).invert().multiply(_bsD).multiply(_bsP);
+  b.quaternion.slerp(_bsQ, k);
+}
+function bowString3(a, p, sw) {
+  const S = a.model.bowStr;
+  const B = a.bones;
+  a.bowNock = null;
+  const st = bowDrawState3(p, sw);
+  if (!st || st.aim <= 0.001) return;
+  a.group.updateMatrixWorld(true);
+  const gs = a.group.scale.x;
+  const k = st.aim;
+  // Zielrichtung: Blickrichtung der Figur (Drehung der Gruppe), angehoben um D.up
+  _bsF.set(Math.sin(a.heading), 0, Math.cos(a.heading));
+  const up = st.D.up;
+  _bsF.multiplyScalar(Math.cos(up)).addScaledVector(_bsS.set(0, 1, 0), Math.sin(up)).normalize();
+  // Körper halb seitlich (rechte Schulter zum Ziel), der Kopf schaut weiter aufs Ziel
+  const turn = 0.62 * k;
+  B[BH.chest].rotation.y += turn;
+  B[BH.hips].rotation.y += turn * 0.45;
+  B[BH.head].rotation.y -= turn * 1.05;
+  a.group.updateMatrixWorld(true);
+  // Bogenarm: von der rechten Schulter aufs Ziel, leicht nach innen vor die Brust
+  B[BH.armR].getWorldPosition(_bsA);
+  _bsT.copy(_bsF);
+  bowPointBone3(B[BH.armR], _bsDown, _bsT, k);
+  B[BH.armR].updateMatrixWorld(true);
+  // Bogenhand: Bogen senkrecht (leicht gekantet), Griff vorn – Weltdrehung aus Achsen, dann ohne die Haltedrehung
+  if (!_bsHoldQ) _bsHoldQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(...BOW_HOLD3));
+  _bsU.set(0, 1, 0).addScaledVector(_bsF, -_bsF.y).normalize();
+  _bsS.crossVectors(_bsF, _bsU).normalize();
+  _bsU.applyAxisAngle(_bsF, 0.12);
+  _bsS.crossVectors(_bsF, _bsU).normalize();
+  _bsMx.makeBasis(_bsF, _bsU, _bsS);
+  _bsQ.setFromRotationMatrix(_bsMx);
+  _bsQ.multiply(_bsR.copy(_bsHoldQ).invert());
+  B[BH.armR].getWorldQuaternion(_bsP);
+  _bsR.copy(_bsP).invert().multiply(_bsQ);
+  B[BH.handR].quaternion.slerp(_bsR, k);
+  B[BH.handR].updateMatrixWorld(true);
+  // Griff und Sehnenmitte in Welt
+  _bsG.fromArray(S.grip).applyMatrix4(B[BH.handR].matrixWorld);
+  B[BH.handR].getWorldQuaternion(_bsR);
+  B[S.bones[0]].getWorldPosition(_bsA);
+  _bsM.fromArray(S.v[0]).applyQuaternion(_bsR).multiplyScalar(gs).add(_bsA);
+  // Pfeillinie: vom Griff zurück; Ankerpunkt dort, wo die linke Hand mit gestrecktem Arm die Linie erreicht
+  const brace = _bsG.distanceTo(_bsM);
+  B[BH.armL].getWorldPosition(_bsS);
+  const armLen = B[BH.handL].position.length() * gs;
+  _bsT.copy(_bsG).sub(_bsS);
+  const bb = _bsT.dot(_bsF);
+  const cc = _bsT.lengthSq() - armLen * armLen;
+  const disc = bb * bb - cc;
+  let dFull = disc > 0 ? bb + Math.sqrt(disc) : bb;
+  // Auszug höchstens etwa eine Armlänge: der Pfeil soll nicht länger als ein Arm wirken (kein Speer)
+  dFull = Math.max(brace + 0.1 * gs, Math.min(0.42 * gs, dFull));
+  let d = brace;
+  if (st.w > 0) d = brace + (dFull - brace) * st.full;
+  else if (st.rel >= 0) d = dFull + Math.min(0.1 * gs, st.rel * 0.8 * gs);
+  else d = brace + 0.05 * gs;
+  // Zughand: Ziel ist der Punkt auf der Pfeillinie (Finger ein Stück unter dem Handknochen)
+  _bsH.copy(_bsG).addScaledVector(_bsF, -d);
+  _bsT.copy(_bsH).sub(_bsS).normalize();
+  bowPointBone3(B[BH.armL], _bsDown, _bsT, k);
+  B[BH.armL].updateMatrixWorld(true);
+  if (st.w <= 0 && !(st.rel >= 0 && st.rel < 0.3)) return;
+  // Sehne: Zugpunkt an der Hand bzw. nach dem Abschuss die Mitte (schwingt kurz nach)
+  if (st.w > 0) {
+    B[BH.handL].getWorldPosition(_bsH);
+    _bsT.copy(_bsH).sub(_bsS).normalize();
+    _bsH.addScaledVector(_bsT, 0.035 * gs);
+    _bsT.copy(_bsM).lerp(_bsH, st.w);
+    a.bowNock = { w: st.w, full: st.full, nock: _bsT.clone(), grip: _bsG.clone(), fwd: _bsG.clone().sub(_bsT).normalize() };
+  } else {
+    const q = st.rel / 0.3;
+    _bsT.copy(_bsM).addScaledVector(_bsF, Math.sin(st.rel * 70) * (1 - q) * 0.04 * gs);
+  }
+  for (let i = 0; i < 2; i++) {
+    const bn = B[S.bones[i]];
+    bn.getWorldPosition(_bsA);
+    _bsB.fromArray(S.v[i]);
+    const len0 = _bsB.length() * gs;
+    _bsB.applyQuaternion(_bsR).normalize();
+    _bsH.copy(_bsT).sub(_bsA);
+    const len = _bsH.length();
+    if (len < 1e-4) continue;
+    _bsH.multiplyScalar(1 / len);
+    _bsD.setFromUnitVectors(_bsB, _bsH);
+    _bsQ.copy(_bsR).invert().multiply(_bsD).multiply(_bsR);
+    bn.quaternion.copy(_bsQ);
+    bn.scale.setScalar(len / len0);
+  }
+}
+
 function syncPlayer3(p, dt) {
   const key = playerKey3(p);
   const a = actorFor(entityKey(p), 'p:' + key, (b) => {
@@ -5001,6 +5165,8 @@ function syncPlayer3(p, dt) {
   // Treffer: kurz nach hinten zucken, rot aufblitzen
   const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;
   if (hurtK < 1 && !p.riding) B[BH.chest].rotation.x -= Math.sin(hurtK * Math.PI) * 0.3;
+  // Bogensehne zur Zughand (seit 13.67)
+  if (a.model.bowStr) bowString3(a, p, sw);
   const mat = a.mats.lit;
   const glowUp = p.glowUntil > game.time ? (p.glowUntil - game.time) / 1.5 : 0;
   if (hurtK < 1) mat.emissive.setRGB(0.6 * (1 - hurtK), 0.05, 0.02);

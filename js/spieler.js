@@ -546,6 +546,8 @@ function endSkillEffects(p) {
   Object.values(ULTIMATES).forEach((u) => { if (u.buff) ids.add(u.buff.id); });
   ids.add('steinhaut');
   ids.add('donnerkrone');
+  // seit 13.67 kein Fertigkeits-Buff mehr (Klassensegen), ein noch laufender alter Falkenblick endet trotzdem
+  ids.add('falkenblick');
   p.buffs = p.buffs.filter((b) => !ids.has(b.id));
   if (p.channel) stopChannel(p);
   for (const a of game.allies) allyCrumble(a);
@@ -819,10 +821,12 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   flammenkreis: 'feuertornado',
   // 13.54: Frostmagier – Blizzard (Schneesturm) statt Kristallgrab
   kristallgrab: 'schneesturm',
+  // 13.64: Frostmagier – Eisgefängnis (Flächen-Betäubung) statt Frostpanzer; Platz 4, Stufe und Bücher gehen mit
+  frostpanzer: 'eisgefaengnis',
   // 13.57: Ninja – Weg des Schattens wird zum Weg des Falken (Bogen); Hinterhalt und Tarnung bleiben beim Dolch-Weg
-  schattensprung: 'pfeilhagel', laehmklinge: 'durchschuss', schattenmantel: 'falkenblick',
-  // 13.66: Frostmagier – Eisgefängnis (Flächen-Betäubung) statt Frostpanzer; Platz 4, Stufe und Bücher gehen mit
-  frostpanzer: 'eisgefaengnis' };
+  schattensprung: 'pfeilhagel', laehmklinge: 'durchschuss',
+  // 13.67: Falkenblick wird Klassensegen, auf Platz 5 kommt der Schattenschritt (Stufen und Bücher gehen mit)
+  schattenmantel: 'schattenwechsel', falkenblick: 'schattenwechsel' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

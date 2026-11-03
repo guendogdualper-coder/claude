@@ -29,6 +29,7 @@ const RANK_NAMES = {
   durchschuss: ['Sturmschuss', 'Wirbelpfeil', 'Pfeil des Orkans', 'Speer des Himmels'],
   rueckensprung: ['Falkensalto', 'Sturmsprung', 'Flucht des Windes', 'Tanz der Schwingen'],
   falkenblick: ['Adlerauge', 'Blick des Jägers', 'Auge des Sturms', 'Auge des Himmelsfalken'],
+  schattenwechsel: ['Nachtschritt', 'Schattenflucht', 'Pfad der Finsternis', 'Wandler zwischen den Schatten'],
   // Schamane – Weg des Drachen
   talisman: ['Sturmdrache', 'Donnerdrache', 'Himmelsdrache', 'Drachenkaiser des Sturms'],
   drachengebruell: ['Drachenzyklon', 'Drachensturm', 'Mahlstrom des Drachen', 'Wirbel des Drachengottes'],
