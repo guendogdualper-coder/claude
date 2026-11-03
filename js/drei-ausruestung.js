@@ -1,19 +1,31 @@
 // Ausrüstung in 3D (seit Version 7.9): Jedes Teil hat je Stufe ein eigenes Merkmal, das die Silhouette
 // verändert – nicht nur eine andere Farbe (Bauplan: docs/grafik-prompts.md, Abschnitt 4).
 // Stufen: 0 Grund (Leder), 1 Solide (Bronze), 2 Gut (Mond), 3 Selten (Drache), 4 Legendär (Seele),
-// 5 Mythisch (Asche), 6 Himmlisch (Federn, Sterne), 7 Göttlich (Gold, Sonne).
+// 5 Mythisch (Asche), 6 Himmlisch (Federn, Sterne), 7 Göttlich (Gold, Sonne),
+// seit 13.53: 8 Abgründig (Leere: Obsidianviolett, Tentakel, Splitter und Leerenauge, cyanfarbenes Leuchten),
+// 9 Ewig (Sternenfeuer: Platin und Roségold, achtstrahlige Sterne, Prismensteine).
 //
 // humanoid3 baut den Körper und ruft danach c.gear(A, g) auf; g enthält die Maße der Figur
 // (Hüfte, Brust, Schultern, Hals, Kopf). Hier entstehen Schultern, Stiefel, Gürtel, Umhang, Rüstung,
 // Kopfbedeckung, Schild und Waffen. Kleinteile haben wenige Segmente (Leistungsregeln, Abschnitt 7).
 
 // Leuchtfarbe je Stufe (ab Mond)
-const GLOW3 = [null, null, '#9be2ff', '#ff4a3a', '#c08aff', '#ff7a2a', '#bff4ff', '#fff2b0'];
+const GLOW3 = [null, null, '#9be2ff', '#ff4a3a', '#c08aff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
 // Grundtöne der Motive
 const GOLD3 = '#e8c46a';
 const OBSIDIAN3 = '#2a2224';
 const BONE3 = '#e8e0cc';
 const FEATHER3 = '#f4f8ff';
+// Abgrund (seit 13.53): Leerenobsidian, violetter Stahl, cyanfarbenes und violettes Leuchten
+const VOID3 = '#1c1432';
+const VOIDMETAL3 = '#3a2e66';
+const VOIDGLOW3 = '#5ee8ff';
+const VOIDVIOLET3 = '#a45cff';
+// Ewigkeit (seit 13.53): Platin, Roségold, roséfarbenes Sternenfeuer und Prismenfarben
+const PLATIN3 = '#bcb8d0';
+const ROSEGOLD3 = '#e2957c';
+const ROSEGLOW3 = '#ffb8e0';
+const PRISM3 = ['#ff9ad5', '#ffe59a', '#9affd8', '#9ad8ff', '#c8a8ff'];
 
 // --- Formen ------------------------------------------------------------------------------------
 
@@ -113,6 +125,47 @@ function star3(W, at, s, color, o = {}) {
   W(G3.gem(), '#ffffff', Object.assign({ p: at, s: [s * 0.45, s * 0.45, s * 0.3], mat: 'glow' }, o));
 }
 
+// Leerensplitter (Abgrund): dunkler Kristall, aus dem ein längerer, dünner Leuchtkern an beiden Spitzen hervortritt
+function voidShard3(W, at, dir, len, w, o = {}) {
+  coneAlong(W, G3.gem(), at, dir, len, w, VOID3, Object.assign({ shine: 0.9, top: VOIDMETAL3, topK: 0.5 }, o));
+  coneAlong(W, G3.gem(), at, dir, len * 1.3, w * 0.3, VOIDGLOW3, Object.assign({}, o, { mat: 'glow' }));
+}
+
+// Leerenauge (Abgrund, schaut nach +z): dunkle Mandel mit violettem Rand, cyanfarbene Iris, senkrechte Schlitzpupille
+function voidEye3(W, at, r, o = {}) {
+  const [x, y, z] = at;
+  W(ball(10), VOID3, Object.assign({ p: at, s: [r * 1.5, r * 0.78, r * 0.4], shine: 0.8 }, o));
+  W(torus3(r, r * 0.11, Math.PI * 2, 3, 18), VOIDVIOLET3, Object.assign({ p: [x, y, z + r * 0.12], s: [1.5, 0.8, 1], mat: 'glow' }, o));
+  W(ball(10), VOIDGLOW3, Object.assign({ p: [x, y, z + r * 0.22], s: [r * 0.62, r * 0.62, r * 0.24], mat: 'glow' }, o));
+  W(ball(8), '#06040c', Object.assign({ p: [x, y, z + r * 0.4], s: [r * 0.13, r * 0.52, r * 0.1] }, o));
+}
+
+// Achtstrahliger Stern (Ewigkeit, schaut nach +z): vier lange Platinstrahlen, vier kurze aus Roségold,
+// Roségoldring und ein roséfarbener Kern
+function nova3(W, at, r, o = {}) {
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2 + Math.PI / 2;
+    const long = k % 2 === 0;
+    coneAlong(W, G3.ray(), [at[0] + Math.cos(a) * r * 0.18, at[1] + Math.sin(a) * r * 0.18, at[2]], [Math.cos(a), Math.sin(a), 0], r * (long ? 0.95 : 0.55), r * (long ? 1.25 : 0.95), long ? PLATIN3 : ROSEGOLD3, Object.assign({ shine: 1 }, o));
+  }
+  W(torus3(r * 0.38, r * 0.05, Math.PI * 2, 3, 16), ROSEGOLD3, Object.assign({ p: at, shine: 1 }, o));
+  W(G3.gem(), ROSEGLOW3, Object.assign({ p: [at[0], at[1], at[2] + r * 0.04], s: [r * 0.22, r * 0.22, r * 0.16], mat: 'glow' }, o));
+}
+
+// Kleine Prismensteine im Kreis (Ewigkeit), in der xy-Ebene um at
+function prismRing3(W, at, r, n, size, o = {}) {
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2 + Math.PI / 2;
+    W(G3.gem(), PRISM3[k % PRISM3.length], Object.assign({ p: [at[0] + Math.cos(a) * r, at[1] + Math.sin(a) * r, at[2]], s: [size, size * 1.5, size], mat: 'glow' }, o));
+  }
+}
+
+// Tentakel (Abgrund): eingerolltes Horn aus Leerenobsidian mit leuchtender Spitze
+function tendril3(W, pts, r, o = {}) {
+  curvedHorn3(W, pts, r, VOID3, Object.assign({ shine: 0.6 }, o));
+  W(sphere3(r * 0.45, 6, 4), VOIDGLOW3, { p: pts[pts.length - 1], mat: 'glow' });
+}
+
 // Flamme: äußere Zunge und heller Kern
 function flame3(W, at, dir, len, w, outer, inner, o = {}) {
   coneAlong(W, horn3(1, 0.3, 6), at, dir, len, w, outer, Object.assign({}, o, { mat: 'glow' }));
@@ -176,6 +229,20 @@ function gearShoulders3(A, g, t, cls) {
         // kleiner Federflügel
         wing3(W, [X * R * 0.2, R * 0.55, -R * 0.2], X, 3, R * 2.6, FEATHER3, '#bfe8ff');
         break;
+      case 8:
+        // Leerensplitter wachsen schräg aus der Platte, außen öffnet sich ein Leerenauge
+        voidShard3(W, [X * R * 0.1, R * 0.95, -R * 0.15], [X * 0.3, 1, -0.25], R * 1.0, R * 0.32);
+        voidShard3(W, [X * R * 0.55, R * 0.72, R * 0.2], [X * 0.9, 0.8, 0.2], R * 0.75, R * 0.26);
+        voidShard3(W, [X * R * 0.5, R * 0.6, -R * 0.5], [X * 0.7, 0.6, -0.6], R * 0.6, R * 0.22);
+        voidEye3(sub3(W, [X * R * 0.82, R * 0.36, R * 0.36], [0, X * 0.95, 0]), [0, 0, 0], R * 0.24);
+        break;
+      case 9:
+        // Platinplatte mit Roségoldkante, außen ein achtstrahliger Stern, Prismensteine auf dem Grat
+        W(cap3(R * 1.1, Math.PI * 0.5, 0, Math.PI * 2, 14, 5), PLATIN3, { p: [0, R * 0.05, 0], s: [1, 0.72, 1.08], shine: 1, top: '#f0eef8', topK: 0.35 });
+        W(torus3(R * 1.08, R * 0.07, Math.PI * 2, 3, 18), ROSEGOLD3, { p: [0, R * 0.06, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+        nova3(sub3(W, [X * R * 0.98, R * 0.4, R * 0.1], [0, X * Math.PI / 2, 0]), [0, 0, 0], R * 0.8);
+        for (let k = 0; k < 3; k++) W(G3.gem(), PRISM3[k + 1], { p: [X * R * (0.15 + k * 0.24), R * (0.82 - k * 0.14), -R * 0.2 + k * R * 0.2], s: [R * 0.09, R * 0.14, R * 0.09], mat: 'glow' });
+        break;
       default:
         // breite Goldplatte mit Strahlenkranz und Sonnenstein
         W(cap3(R * 1.12, Math.PI * 0.5, 0, Math.PI * 2, 14, 5), GOLD3, { p: [0, R * 0.05, 0], s: [1, 0.7, 1.08], shine: 1, top: '#fff2b0', topK: 0.4 });
@@ -233,6 +300,20 @@ function gearBoots3(A, g, t) {
       case 6:
         // kleine Flügel außen am Knöchel
         wing3(W, [sx * lr * 1.0, 0.13, -lr * 0.3], sx, 3, 0.13, FEATHER3, '#bfe8ff');
+        break;
+      case 8:
+        // Leerensplitter am Schienbein, cyanfarbene Sohlenkante, eingerollter Tentakelsporn an der Ferse
+        voidShard3(W, [0, 0.17, shin + 0.01], [0, 0.7, 1], lr * 1.3, lr * 0.42);
+        voidShard3(W, [sx * lr * 0.8, 0.22, lr * 0.3], [sx, 0.6, 0.2], lr * 0.9, lr * 0.32);
+        W(roundBox(lr * 2.1, 0.012, lr * 3.3, 0.005), VOIDGLOW3, { p: [0, 0.035, lr * 0.5], mat: 'glow' });
+        tendril3(W, [[0, 0.07, -lr * 0.85], [0, 0.05, -lr * 1.6], [0, 0.1, -lr * 2.2], [0, 0.16, -lr * 2.05]], lr * 0.24);
+        break;
+      case 9:
+        // Platinschiene mit Stern am Knie, Strahlen am Knöchel, roséfarben leuchtende Sohle
+        W(cap3(lr * (g.greaves ? 1.32 : 1.22), Math.PI * 0.62, -Math.PI * 0.5, Math.PI, 10, 5), PLATIN3, { p: [0, 0.2, 0], s: [1, 2.3, 1.1], r: [Math.PI / 2, 0, 0], shine: 1, top: '#f0eef8', topK: 0.35 });
+        nova3(W, [0, g.hipY - g.legLen * 0.5 + 0.01, lr * (g.greaves ? 1.6 : 1.3)], lr * 0.62);
+        for (const a of [0.35, 0.85]) coneAlong(W, G3.ray(), [sx * lr * 1.0, 0.13, -lr * 0.1], [sx * Math.cos(a), Math.sin(a), -0.35], lr * 1.25, lr * 1.6, a < 0.5 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+        W(roundBox(lr * 2.1, 0.012, lr * 3.3, 0.005), ROSEGLOW3, { p: [0, 0.035, lr * 0.5], mat: 'glow' });
         break;
       default:
         // goldene Beinschiene mit Sonnenscheibe am Knie
@@ -297,6 +378,21 @@ function gearBelt3(A, g, t) {
       }
       W(sphere3(0.018, 8, 6), '#bfe8ff', { mat: 'glow' });
       break;
+    case 8:
+      // Leerenauge als Schnalle, darunter hängen drei Splitter
+      voidEye3(W, [0, 0, 0.006], 0.026);
+      for (const sx of [-1, 0, 1]) voidShard3(W, [sx * 0.042, -0.065 - (sx ? 0 : 0.02), -0.002], [sx * 0.2, -1, 0.05], 0.045, 0.016);
+      break;
+    case 9:
+      // Sternschnalle, darunter hängen Prismensteine an Roségoldgliedern
+      nova3(W, [0, 0, 0.008], 0.045);
+      for (let k = 0; k < 4; k++) {
+        const x = (k - 1.5) * 0.042;
+        const y = -0.05 - (k % 3 ? 0.012 : 0);
+        W(sphere3(0.008, 6, 4), ROSEGOLD3, { p: [x, y + 0.02, -0.004], shine: 1 });
+        W(G3.gem(), PRISM3[k], { p: [x, y - 0.006, -0.004], s: [0.009, 0.015, 0.009], mat: 'glow' });
+      }
+      break;
     default:
       // Sonnenschnalle und hängende Goldplättchen
       sun3(W, [0, 0, 0.004], 0.032, 8, GOLD3, GLOW3[7]);
@@ -315,7 +411,10 @@ const CAPE3 = [
   { len: 0.68, r2: 0.34, edge: 'plain' },
   { len: 0.7, r2: 0.36, edge: 'tatter' },
   { len: 0.62, r2: 0.34, edge: 'scallop' },
-  { len: 0.86, r2: 0.4, edge: 'plain' }
+  { len: 0.86, r2: 0.4, edge: 'plain' },
+  // seit 13.53: Abgrund mit Fangsaum (lange und kurze Spitzen im Wechsel), Ewigkeit lang mit Kronensaum (Spitze in der Mitte)
+  { len: 0.8, r2: 0.38, edge: 'fangs' },
+  { len: 0.9, r2: 0.42, edge: 'crown' }
 ];
 const CAPE3_ARC = 1.9;
 const CAPE3_SEG = 14;
@@ -328,6 +427,8 @@ function capeEdge3(edge, u, i, len) {
     case 'wing': return -Math.pow(1 - Math.abs(Math.sin(u * Math.PI * 3)), 3) * 0.13;
     case 'tatter': return -((i * 7919) % 11) / 11 * 0.13 - (i % 2 ? 0 : 0.04);
     case 'scallop': return -Math.abs(Math.sin(u * Math.PI * 4)) * 0.07;
+    case 'fangs': return i % 2 ? -0.02 : -0.15 - (i % 4 ? 0 : 0.05);
+    case 'crown': return -(1 - Math.abs(2 * u - 1)) * 0.14 - Math.abs(Math.sin(u * Math.PI * 3)) * 0.05;
     default: return 0;
   }
 }
@@ -413,9 +514,56 @@ function gearCape3(A, g, t, color, lining) {
       }
       break;
     }
+    case 8: {
+      // Abgrundmantel: Leerenauge auf dem Rücken mit cyanfarbenen Rissen, Splitter hängen an den Fangspitzen,
+      // ein Kragen aus Splittern im Nacken
+      const back = capeAt3(spec, 0.5, 0.36, -0.012);
+      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1], top[2] + back[2]], [0, Math.PI, 0]);
+      voidEye3(Wb, [0, 0, 0], 0.065);
+      for (const [u0, v0, u1, v1] of [[0.44, 0.44, 0.32, 0.7], [0.56, 0.44, 0.7, 0.66], [0.32, 0.7, 0.26, 0.92], [0.7, 0.66, 0.78, 0.9], [0.5, 0.46, 0.52, 0.8]]) {
+        for (let k = 0; k <= 4; k++) {
+          const f = k / 4;
+          W(sphere3(0.008, 5, 4), VOIDGLOW3, { p: capeAt3(spec, u0 + (u1 - u0) * f, v0 + (v1 - v0) * f, -0.005), mat: 'glow' });
+        }
+      }
+      for (let i = 0; i <= CAPE3_SEG; i += 2) {
+        const u = i / CAPE3_SEG;
+        const v = 1 - capeEdge3(spec.edge, u, i, spec.len) / spec.len;
+        voidShard3(W, capeAt3(spec, u, v + 0.02, -0.004), [0, -1, 0], 0.035, 0.012);
+      }
+      for (let k = 0; k < 7; k++) {
+        const a = Math.PI * (0.15 + (k / 6) * 0.7);
+        voidShard3(W, [Math.cos(a) * 0.2, 0.05, -Math.sin(a) * 0.16 + 0.02], [Math.cos(a) * 0.3, 1, -Math.sin(a) * 0.5], 0.05 + (k % 2) * 0.025, 0.02);
+      }
+      W(sphere3(0.014, 6, 4), VOIDGLOW3, { p: [0, 0.01, 0.15], mat: 'glow' });
+      break;
+    }
+    case 9: {
+      // Ewigkeitsmantel: Roségoldperlen entlang des Kronensaums, achtstrahliger Stern mit Sternbild auf dem Rücken,
+      // Strahlenkragen im Nacken
+      for (let i = 0; i <= CAPE3_SEG; i++) {
+        const u = i / CAPE3_SEG;
+        const v = 1 - capeEdge3(spec.edge, u, i, spec.len) / spec.len;
+        W(sphere3(0.011, 6, 4), i % 2 ? ROSEGOLD3 : PLATIN3, { p: capeAt3(spec, u, v - 0.01, -0.006), shine: 1 });
+      }
+      const back = capeAt3(spec, 0.5, 0.34, -0.012);
+      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1], top[2] + back[2]], [0, Math.PI, 0]);
+      nova3(Wb, [0, 0, 0], 0.1);
+      const stars = [[0.3, 0.55], [0.38, 0.72], [0.55, 0.78], [0.68, 0.62], [0.75, 0.84]];
+      stars.forEach(([u, v], k) => {
+        W(sphere3(0.012, 6, 4), '#fff4fa', { p: capeAt3(spec, u, v, -0.006), mat: 'glow' });
+        if (k) limbBetween(W, capeAt3(spec, stars[k - 1][0], stars[k - 1][1], -0.005), capeAt3(spec, u, v, -0.005), 0.0035, 0.0035, '#ffd6f0', { mat: 'glow', seg: 3 });
+      });
+      for (let k = 0; k < 7; k++) {
+        const a = Math.PI * (0.15 + (k / 6) * 0.7);
+        coneAlong(W, G3.ray(), [Math.cos(a) * 0.2, 0.03, -Math.sin(a) * 0.16 + 0.02], [Math.cos(a) * 0.3, 1, -Math.sin(a) * 0.45], k % 2 ? 0.08 : 0.13, 0.4, k % 2 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+      }
+      W(G3.gem(), PRISM3[0], { p: [0, 0.01, 0.15], s: [0.014, 0.02, 0.012], mat: 'glow' });
+      break;
+    }
     default:
   }
-  if (t >= 2 && t !== 4 && t !== 7) W(torus3(0.012, 0.006, Math.PI * 2, 3, 8), metal, { p: [0, 0.01, 0.15], shine: 1 });
+  if (t >= 2 && t !== 4 && t < 7) W(torus3(0.012, 0.006, Math.PI * 2, 3, 8), metal, { p: [0, 0.01, 0.15], shine: 1 });
 }
 
 // --- Kopfbedeckungen -----------------------------------------------------------------------------
@@ -550,6 +698,37 @@ function kriegerHelm3(t, steel, plume, brass) {
         W(COMB3(), '#ffffff', { p: [0, 1.18, -0.12], r: [-0.25, 0, 0], s: 0.8, shade: 0.2 });
         break;
       }
+      case 8: {
+        // Abgrundhelm (seit 13.53): geschlossene Leerenkuppel mit cyanfarbenem Sehschlitz, Leerenauge auf der Stirn,
+        // zwei eingerollte Tentakelhörner nach hinten, darüber schweben Splitter wie eine gebrochene Krone
+        dome(steel, { shine: 0.7, top: VOIDMETAL3 });
+        W(VISOR3(), darker(steel, 0.3), { s: 1.09, shine: 0.8, top: steel, topK: 0.4 });
+        hArc3(W, 1.1, 0.05, -0.12, 0, 1.4, VOIDGLOW3, { mat: 'glow' });
+        voidEye3(sub3(W, [0, 0.56, 1.02], [-0.25, 0, 0]), [0, 0, 0], 0.2);
+        for (const sx of [-1, 1]) {
+          tendril3(W, [[sx * 0.72, 0.55, -0.05], [sx * 1.2, 0.78, -0.4], [sx * 1.42, 0.55, -0.9], [sx * 1.25, 0.22, -1.12], [sx * 1.0, 0.32, -1.02]], 0.17);
+        }
+        for (let k = -2; k <= 2; k++) voidShard3(W, [k * 0.32, 1.42 + (k % 2 ? 0.14 : 0) - Math.abs(k) * 0.08, 0.1 - Math.abs(k) * 0.12], [k * 0.18, 1, 0.1], 0.24 - Math.abs(k) * 0.03, 0.08);
+        cheeks(darker(steel, 0.1), { shine: 0.6 });
+        break;
+      }
+      case 9: {
+        // Ewigkeitshelm (seit 13.53): Platinkuppel mit Roségoldkamm, ein Strahlenkranz aus Platin und Roségold hinter
+        // dem Kopf, achtstrahliger Stern auf der Stirn, Prismensteine an der Krempe
+        dome(steel, { top: '#ffffff' });
+        brim(ROSEGOLD3);
+        W(roundBox(0.12, 0.62, 1.1, 0.06), ROSEGOLD3, { p: [0, 1.05, -0.18], r: [-0.25, 0, 0], shine: 1, top: '#fff4ee', topK: 0.4 });
+        const H = sub3(W, [0, 0.28, -1.0], [0.18, 0, 0]);
+        H(torus3(0.95, 0.05, Math.PI, 3, 18), ROSEGOLD3, { shine: 1 });
+        for (let k = 0; k <= 8; k++) {
+          const a = Math.PI * (0.06 + (k / 8) * 0.88);
+          coneAlong(H, G3.ray(), [Math.cos(a) * 0.95, Math.sin(a) * 0.95, 0], [Math.cos(a), Math.sin(a), 0], k % 2 ? 0.42 : 0.7, 1.1, k % 2 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+        }
+        nova3(sub3(W, [0, 0.6, 1.06], [-0.2, 0, 0]), [0, 0, 0], 0.32);
+        for (let k = -2; k <= 2; k++) W(G3.gem(), PRISM3[k + 2], { p: onBrim(k * 0.55), s: [0.07, 0.1, 0.07], mat: 'glow' });
+        cheeks(steel, { shine: 1 });
+        break;
+      }
       default: {
         // Götterhelm: goldene Kuppel, hoher Kamm mit rotem Schweif, Sonnenscheibe auf der Stirn
         dome(steel, { top: '#fff2b0' });
@@ -652,6 +831,32 @@ function ninjaHelm3(t, hood, scarf) {
         star3(sub3(W, [0, 0.48, 1.09], [-0.3, 0, 0]), [0, 0, 0], 0.17, '#e6f6ff');
         for (const d of HOOD_DOTS3.slice(0, 7)) W(sphere3(0.035, 6, 4), '#e6f6ff', { p: dotOn3(d, 1.13), mat: 'glow' });
         break;
+      case 8:
+        // Abgrundmaske (seit 13.53): schwarze Maske mit cyanfarbenen Tränenrissen, Leerenauge auf der Stirn,
+        // lange Schweife mit Tentakeln, Splitter schweben um die Kapuze
+        mask('#0c0816', { shine: 0.5 });
+        tails(hood, true);
+        voidEye3(sub3(W, [0, 0.5, 1.1], [-0.2, 0, 0]), [0, 0, 0], 0.2);
+        for (const sx of [-1, 1]) {
+          W(roundBox(0.05, 0.32, 0.05, 0.02), VOIDGLOW3, { p: [sx * 0.33, -0.45, 0.97], r: [0.1, sx * 0.3, sx * 0.25], mat: 'glow' });
+          tendril3(W, [[sx * 0.55, 0.0, -0.85], [sx * 0.95, -0.55, -1.15], [sx * 1.25, -1.0, -1.05], [sx * 1.3, -1.3, -0.8]], 0.1);
+        }
+        for (const d of HOOD_DOTS3.slice(0, 4)) voidShard3(W, dotOn3(d, 1.5), d, 0.17, 0.055);
+        break;
+      case 9:
+        // Ewigkeitsmaske (seit 13.53): perlweiße Maske mit Roségoldlinie, Sterndiadem auf der Stirn, lange Bänder mit
+        // Prismensteinen, Sternenstaub auf der Kapuze
+        mask('#f8f2f6', { shade: 0.15 });
+        tails(hood, true);
+        band(ROSEGOLD3, { shine: 1 });
+        hArc3(W, 1.09, 0.028, -0.25, 0, 2.0, ROSEGOLD3, { shine: 1 });
+        nova3(sub3(W, [0, 0.46, 1.14], [-0.2, 0, 0]), [0, 0, 0], 0.32);
+        for (const sx of [-1, 1]) {
+          W(roundBox(0.11, 0.95, 0.02, 0.01), sx > 0 ? ROSEGOLD3 : ROSEGLOW3, { p: [sx * 0.22, -0.3, -1.16], r: [0.25, 0, sx * 0.14], shine: 0.6 });
+          W(G3.gem(), PRISM3[sx > 0 ? 0 : 3], { p: [sx * 0.3, -0.82, -1.3], s: [0.07, 0.11, 0.07], mat: 'glow' });
+        }
+        for (const d of HOOD_DOTS3.slice(0, 7)) W(sphere3(0.035, 6, 4), ROSEGLOW3, { p: dotOn3(d, 1.13), mat: 'glow' });
+        break;
       default:
         // goldene Fuchsmaske mit Schnauze, roten Zeichen und Fuchsohren
         mask('#f4f0e8');
@@ -666,7 +871,7 @@ function ninjaHelm3(t, hood, scarf) {
     }
   };
 }
-const NINJA_EYES3 = { 4: GLOW3[4], 5: '#ff9a4a', 6: '#9fe8ff', 7: '#ffd34d' };
+const NINJA_EYES3 = { 4: GLOW3[4], 5: '#ff9a4a', 6: '#9fe8ff', 7: '#ffd34d', 8: VOIDGLOW3, 9: ROSEGLOW3 };
 
 // Schamane: vom Stirnband bis zum Götterdiadem
 function shamanHelm3(t, band, gold) {
@@ -740,6 +945,33 @@ function shamanHelm3(t, band, gold) {
         }
         for (const sx of [-1, 1]) wing3(W, [sx * 1.0, 0.5, -0.2], sx, 3, 0.75, FEATHER3, '#bfe8ff');
         break;
+      case 8:
+        // Abgrundkrone (seit 13.53): Reif aus Leerenobsidian, eine gebrochene Krone aus Splittern, darüber schwebt ein
+        // Leerenauge
+        ring(VOID3, { shine: 0.7 });
+        for (let k = -3; k <= 3; k++) {
+          const m = k * 0.38;
+          voidShard3(W, ringPt3(1.0, 0.62 + 0.12 * Math.cos(m), m), [Math.sin(m) * 0.35, 1, Math.cos(m) * 0.35], (k === 0 ? 0.55 : 0.42 - Math.abs(k) * 0.05) + (k % 2 ? 0.1 : 0), 0.15);
+        }
+        voidEye3(sub3(W, [0, 1.75, 0.3], [-0.15, 0, 0]), [0, 0, 0], 0.26);
+        break;
+      case 9: {
+        // Ewigkeitsdiadem (seit 13.53): Roségoldreif mit Strahlen aus Platin, Stern auf der Stirn, darüber kreist ein
+        // Sternenkranz
+        ring(ROSEGOLD3, { shine: 1, s: [1, 1, 0.85] });
+        for (let k = -3; k <= 3; k++) {
+          const m = k * 0.36;
+          coneAlong(W, G3.ray(), ringPt3(1.0, 0.5 + 0.12 * Math.cos(m), m), [Math.sin(m) * 0.3, 1, Math.cos(m) * 0.3], k === 0 ? 0.8 : 0.52 - Math.abs(k) * 0.06, 1.3, k % 2 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+        }
+        nova3(sub3(W, [0, 0.55, 1.08], [-0.15, 0, 0]), [0, 0, 0], 0.28);
+        const th = Math.PI / 2 - 0.25;
+        W(torus3(0.78, 0.03, Math.PI * 2, 3, 24), ROSEGLOW3, { p: [0, 1.75, -0.15], r: [th, 0, 0], mat: 'glow' });
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * Math.PI * 2;
+          star3(W, [Math.cos(a) * 0.78, 1.75 + Math.sin(a) * 0.78 * Math.cos(th), -0.15 + Math.sin(a) * 0.78 * Math.sin(th)], 0.13, k % 2 ? ROSEGLOW3 : '#fff4fa');
+        }
+        break;
+      }
       default:
         // Götterdiadem: Goldreif mit Stirnspitze und Edelstein, große Sonnenscheibe hinter dem Kopf
         ring(GOLD3, { shine: 1, s: [1, 1, 0.8] });
@@ -757,7 +989,7 @@ function nekroHelm3(t, hood, glow) {
     const W = headFrame3(A, hb, hc, hr);
     W(hoodShell3(1.14, Math.PI * 0.86, 0.85), hood, { p: [0, 0.05, -0.02], shade: 0.2 });
     W(hoodInner3(1.12, Math.PI * 0.86, 0.85), '#0d120c', { p: [0, 0.05, -0.02] });
-    if (s !== 7) W(horn3(0.95, 0.62, 12), hood, { p: [0, 0.62, -0.25], r: [-0.45, 0, 0] });
+    if (s !== 7 && s !== 9) W(horn3(0.95, 0.62, 12), hood, { p: [0, 0.62, -0.25], r: [-0.45, 0, 0] });
     // Schädelkappe aus Knochen (oder Gold) mit Augenhöhlen und Zahnreihe
     const skullCap = (col, eye) => {
       W(cap3(1.17, Math.PI * 0.36, 0, Math.PI * 2, 16, 6), col, { p: [0, 0.2, 0.06], r: [-0.25, 0, 0], shade: 0.2, top: lighter(col, 0.2), topK: 0.4, shine: col === GOLD3 ? 1 : 0.2 });
@@ -816,6 +1048,31 @@ function nekroHelm3(t, hood, glow) {
         for (const d of HOOD_DOTS3) W(sphere3(0.04, 6, 4), '#e6f6ff', { p: dotOn3(d, 1.16), mat: 'glow' });
         for (const [i, j] of [[0, 4], [4, 5], [1, 7]]) limbBetween(W, dotOn3(HOOD_DOTS3[i], 1.16), dotOn3(HOOD_DOTS3[j], 1.16), 0.012, 0.012, '#bfe8ff', { mat: 'glow', seg: 3 });
         break;
+      case 8:
+        // Abgrundkapuze (seit 13.53): zwei eingerollte Tentakelhörner, ein großes Leerenauge über der Stirn, Splitter schweben um die
+        // Kapuze
+        voidEye3(sub3(W, [0, 0.66, 0.98], [-0.35, 0, 0]), [0, 0, 0], 0.22);
+        for (const sx of [-1, 1]) {
+          tendril3(W, [[sx * 0.55, 0.72, 0.05], [sx * 0.98, 1.0, -0.2], [sx * 1.28, 0.92, -0.62], [sx * 1.3, 0.58, -0.9], [sx * 1.12, 0.46, -0.76]], 0.2);
+        }
+        for (const d of HOOD_DOTS3.slice(2, 6)) voidShard3(W, dotOn3(d, 1.48), d, 0.16, 0.05);
+        break;
+      case 9: {
+        // Ewigkeitskrone (seit 13.53): Platinreif mit Strahlenzacken aus Platin und Roségold, Stern auf der Stirn,
+        // darüber ein schwebendes Sternbild
+        W(torus3(1.02, 0.07, Math.PI * 2, 4, 24), PLATIN3, { p: [0, 0.6, 0], r: [Math.PI / 2 - 0.15, 0, 0], shine: 1, top: '#f0eef8', topK: 0.35 });
+        for (let k = 0; k < 7; k++) {
+          const m = ((k - 3) / 7) * Math.PI * 1.4;
+          coneAlong(W, G3.ray(), ringPt3(1.02, 0.6 + 0.15 * Math.cos(m), m), [Math.sin(m) * 0.25, 1, Math.cos(m) * 0.25], k === 3 ? 0.75 : 0.4 + (k % 2 ? 0 : 0.14), 1.2, k % 2 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+        }
+        nova3(sub3(W, [0, 0.82, 1.06], [-0.25, 0, 0]), [0, 0, 0], 0.22);
+        const pts = [[-0.7, 1.75, -0.3], [-0.25, 2.05, -0.5], [0.3, 1.9, -0.35], [0.75, 2.15, -0.55]];
+        pts.forEach((q, k) => {
+          star3(W, q, k % 2 ? 0.12 : 0.16, k % 2 ? ROSEGLOW3 : '#fff4fa');
+          if (k) limbBetween(W, pts[k - 1], q, 0.012, 0.012, '#ffd6f0', { mat: 'glow', seg: 3 });
+        });
+        break;
+      }
       default:
         // Götterschädel: goldene Schädelkappe mit Lichtaugen und ein Heiligenschein
         skullCap(GOLD3, '#ffe9a0');
@@ -825,7 +1082,7 @@ function nekroHelm3(t, hood, glow) {
 }
 
 // Magier (seit 8.6): spitzer Krempenhut (Krempe 1,3, Kegel gut 2 Kopfradien, Spitze nach hinten), Band in der
-// Elementfarbe ab Stufe 0; Stufe 7 Silberreif mit drei schwebenden Kristallen. Stern, Siegel und Kristalle
+// Elementfarbe ab Stufe 0; Stufe 7 Silberreif mit drei schwebenden Kristallen, ab Stufe 8 (seit 13.53) wieder Hüte. Stern, Siegel und Kristalle
 // am Hut kreisen an einem eigenen Drehknochen (spinBones3), o.tilt neigt den Hut der Magierin etwas zur Seite.
 // Hutkegel je Stufe als ein gebogener Drehkörper (ohne Stufen an den Gelenken): Höhe, Neigung der Spitze nach
 // hinten, Knick (die Spitze fällt herab), Neigung zur Seite
@@ -836,7 +1093,12 @@ const HAT3_CONE = [
   { h: 1.95, bend: 0.2, droop: 0, side: 0 },
   { h: 2.1, bend: 0.3, droop: 0, side: 0 },
   { h: 1.95, bend: 0.35, droop: 0.12, side: 0.16 },
-  { h: 2.0, bend: 0.9, droop: 0.8, side: 0 }
+  { h: 2.0, bend: 0.9, droop: 0.8, side: 0 },
+  // Stufe 7 trägt keinen Hut (Erzmagierreif); seit 13.53: 8 Abgrundhut (hoch, wie ein Tentakel zur Seite geschwungen),
+  // 9 Ewigkeitshut (hoch und gerade)
+  { h: 2.0, bend: 0.3, droop: 0, side: 0 },
+  { h: 2.5, bend: 0.5, droop: 0.3, side: -0.42 },
+  { h: 2.6, bend: 0.18, droop: 0, side: 0 }
 ];
 const hatR3 = (u) => 0.94 * Math.pow(1 - u, 1.35);
 // Punkt auf dem Hutkegel der Stufe s in der Höhe u (0 Krempe, 1 Spitze), Richtung m (0 vorn)
@@ -941,6 +1203,41 @@ function magierHelm3(t, hat, silver, accent, o = {}) {
         for (const [y, m] of [[0.3, 0.3], [0.55, -0.5], [0.25, -1.4], [0.7, 1.2], [0.45, 2.2], [0.35, -2.5], [0.8, -0.1]]) H(sphere3(0.035, 6, 4), '#e6f6ff', { p: pt(y, m, 0.005), mat: 'glow' });
         star3(orbit([0, 1.15, -0.12]), [1.15, 0, 0], 0.14, '#e6f6ff');
         break;
+      case 8: {
+        // Abgrundhut (seit 13.53): Leerenband mit Leerenauge, glühende Saugnäpfe den Kegel hinauf, leuchtende Krempe,
+        // drei Leerensplitter kreisen um den Kegel (Drehknochen wie c.spinHat)
+        band(VOID3, { shine: 0.6 });
+        stripe();
+        H(torus3(1.31, 0.03, Math.PI * 2, 3, 30), VOIDGLOW3, { p: [0, 0.02, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+        voidEye3(H, [0, 0.12, 1.0], 0.15);
+        for (const [y, m] of [[0.55, 0.25], [0.95, -0.2], [1.35, 0.15], [1.75, -0.1], [2.1, 0.1]]) H(sphere3(0.05 - y * 0.012, 6, 4), VOIDGLOW3, { p: pt(y, m, 0.005), mat: 'glow' });
+        const O = orbit([0, 1.5, -0.1]);
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * Math.PI * 2;
+          voidShard3(O, [Math.sin(a) * 1.05, (k % 2) * 0.2, Math.cos(a) * 1.05], [0, 1, 0], 0.2, 0.07);
+        }
+        break;
+      }
+      case 9: {
+        // Ewigkeitshut (seit 13.53): Roségoldband und Krempe, Sternbild den Kegel hinauf, achtstrahliger Stern über
+        // der Spitze, ein Kranz aus vier Sternen kreist um den Hut
+        band(ROSEGOLD3, { shine: 1 });
+        stripe();
+        H(torus3(1.31, 0.03, Math.PI * 2, 3, 30), ROSEGOLD3, { p: [0, 0.02, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+        H(G3.gem(), ROSEGLOW3, { p: [0, 0.12, 1.0], s: [0.1, 0.15, 0.07], mat: 'glow' });
+        const cs = [[0.45, 0.35], [0.85, -0.15], [1.25, 0.3], [1.7, -0.05], [2.05, 0.2]];
+        cs.forEach(([y, m], k) => {
+          H(sphere3(0.04, 6, 4), k % 2 ? ROSEGLOW3 : '#fff4fa', { p: pt(y, m, 0.01), mat: 'glow' });
+          if (k) limbBetween(H, pt(cs[k - 1][0], cs[k - 1][1], 0.012), pt(y, m, 0.012), 0.01, 0.01, '#ffd6f0', { mat: 'glow', seg: 3 });
+        });
+        nova3(H, [tipEnd[0], tipEnd[1] + 0.32, tipEnd[2]], 0.3);
+        const O = orbit([0, 1.3, -0.1]);
+        for (let k = 0; k < 4; k++) {
+          const a = (k / 4) * Math.PI * 2;
+          star3(sub3(O, [Math.sin(a) * 1.15, 0, Math.cos(a) * 1.15], [0, a, 0]), [0, 0, 0], 0.13, k % 2 ? ROSEGLOW3 : '#fff4fa');
+        }
+        break;
+      }
       default:
     }
   };
@@ -1020,13 +1317,14 @@ function arcAt3(W, y, rx, rz, tube, a0, a1, color, o = {}) {
 // Rippenkorb (Knochenrobe, Götterrobe): Brustbein und vier Rippenpaare
 function ribcage3(W, g, col) {
   const F = onBody3(W, g, 0, g.chestY + 0.02, 1, 0.012);
-  F(roundBox(0.035, 0.2, 0.025, 0.012), col, { shine: col === GOLD3 ? 1 : 0.2 });
+  const sh = col === GOLD3 || col === PLATIN3 || col === VOIDMETAL3 ? 1 : 0.2;
+  F(roundBox(0.035, 0.2, 0.025, 0.012), col, { shine: sh });
   for (let k = 0; k < 4; k++) {
     const y = g.chestY + 0.1 - k * 0.055;
     const [rx, rz] = torsoAt3(g, y);
     for (const sx of [-1, 1]) {
       const a0 = sx > 0 ? -1.35 : 0.14;
-      arcAt3(W, y - Math.abs(k) * 0.004, rx + 0.014, rz + 0.014, 0.013, a0, a0 + 1.21, col, { shine: col === GOLD3 ? 1 : 0.2 });
+      arcAt3(W, y - Math.abs(k) * 0.004, rx + 0.014, rz + 0.014, 0.013, a0, a0 + 1.21, col, { shine: sh });
     }
   }
 }
@@ -1066,17 +1364,21 @@ function armorLook3(c, cls, t) {
       c.cuirass = null; c.lamellar = plate;
     }
     if (t === 6) { c.tassets = null; c.featherTassets = true; }
+    // seit 13.53: Abgrund mit cyanfarbenen Rissen im Harnisch, Ewigkeit mit Platin glänzend
+    if (t === 8) c.cracks = VOIDGLOW3;
   } else if (cls === 'ninja') {
     if (t === 0) { c.straps = null; c.kunai = null; c.holster = null; }
     if (t === 1) c.chestPlate = '#5a4030';
     if (t === 3) c.crossStraps = false;
     if (t === 7) c.collar = GOLD3;
+    if (t === 9) c.collar = ROSEGOLD3;
   } else if (cls === 'schamane') {
     if (t === 0) c.hemTrim = darker(c.robe, 0.25);
     if (t === 1) c.robeShine = 0.45;
-    if (t >= 3) c.hemTrim = t === 5 ? '#ff9a4a' : t === 6 ? '#e6f2ff' : GOLD3;
+    if (t >= 3) c.hemTrim = t === 5 ? '#ff9a4a' : t === 6 ? '#e6f2ff' : t === 8 ? VOIDGLOW3 : t === 9 ? ROSEGOLD3 : GOLD3;
+    if (t === 9) c.robeShine = 0.35;
   } else if (cls === 'magier') {
-    // Saum je Stufe: Wolle, Silber, Silber, Eis, Silber, Glut, Sternsilber, Gold
+    // Saum je Stufe: Wolle, Silber, Silber, Eis, Silber, Glut, Sternsilber, Gold, Leerencyan, Roségold
     if (t === 0) c.hemTrim = darker(c.robe, 0.22);
     if (t === 1) c.robeShine = 0.3;
     // Runenmantel: offener Übermantel in der Robenfarbe über einer hellen Unterrobe
@@ -1089,9 +1391,13 @@ function armorLook3(c, cls, t) {
     if (t === 5) c.hemTrim = '#ff8a4a';
     if (t === 6) c.hemTrim = '#e8f0ff';
     if (t === 7) c.hemTrim = GOLD3;
+    if (t === 8) c.hemTrim = VOIDGLOW3;
+    if (t === 9) { c.hemTrim = ROSEGOLD3; c.robeShine = 0.3; }
   } else {
     if (t >= 2) c.runes = null;
     if (t === 7) c.hemTrim = GOLD3;
+    if (t === 8) c.hemTrim = VOIDGLOW3;
+    if (t === 9) c.hemTrim = ROSEGOLD3;
   }
 }
 
@@ -1198,6 +1504,35 @@ const ARMOR3 = {
           Wh(roundBox(0.12 - row * 0.012, 0.15, 0.025, 0.012), row % 2 ? '#fff2b0' : GOLD3, { p: [x * g.bk * (1 + row * 0.04), g.hipY - 0.1 - row * 0.075, z * g.bk * (1 + row * 0.06)], r: [0.18, ry, 0], shine: 1 });
         }
       }
+    },
+    // Abgrundpanzer (seit 13.53): Leerenauge auf der Brust, cyanfarbene Risse laufen von ihm aus, zwei Tentakel
+    // steigen hinter den Schultern auf, Leerensplitter hängen an den Beintaschen
+    (W, g, c, Wh) => {
+      voidEye3(onBody3(W, g, 0, g.chestY + 0.06, 1, 0.016), [0, 0, 0], 0.05);
+      for (const [a, b] of [[[-0.035, g.chestY + 0.03], [-0.12, g.hipY + 0.14]], [[0.04, g.chestY + 0.03], [0.1, g.hipY + 0.1]], [[0.05, g.chestY + 0.1], [0.14, g.chestY + 0.15]], [[-0.05, g.chestY + 0.1], [-0.13, g.chestY + 0.16]]]) bodyLine3(W, g, a, b, 3, 0.012, VOIDGLOW3, { mat: 'glow' });
+      for (const sx of [-1, 1]) tendril3(W, [[sx * 0.1 * g.bk, g.chestY + 0.06, -0.19 * g.bk], [sx * 0.26 * g.bk, g.shY + 0.04, -0.3 * g.bk], [sx * 0.45 * g.bk, g.shY + 0.14, -0.34 * g.bk], [sx * 0.6 * g.bk, g.shY + 0.08, -0.28 * g.bk], [sx * 0.6 * g.bk, g.shY - 0.04, -0.24 * g.bk], [sx * 0.52 * g.bk, g.shY - 0.02, -0.25 * g.bk]], 0.04);
+      for (const [x, z] of [[-0.09, 0.19], [0.09, 0.19], [-0.2, 0.02], [0.2, 0.02]]) voidShard3(Wh, [x * g.bk, g.hipY - 0.2, (z + 0.03) * g.bk], [x * 2, -1, z * 1.5], 0.07, 0.022);
+    },
+    // Ewigkeitspanzer (seit 13.53): achtstrahliger Stern auf der Brust, Strahlenkragen im Nacken, Prismensteine am
+    // Gürtelrand, Beintaschen aus Platin mit Roségoldkante
+    (W, g, c, Wh) => {
+      nova3(onBody3(W, g, 0, g.chestY + 0.06, 1, 0.016), [0, 0, 0], 0.075);
+      for (let k = 0; k < 7; k++) {
+        const m = Math.PI * (0.62 + (k / 6) * 0.76);
+        coneAlong(W, G3.ray(), [Math.sin(m) * 0.15 * g.bk, g.neckY - 0.06, Math.cos(m) * 0.13 * g.bk], [Math.sin(m) * 0.5, 1, Math.cos(m) * 0.5], k % 2 ? 0.1 : 0.16, 0.3, k % 2 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+      }
+      for (let k = -3; k <= 3; k++) {
+        const y = g.hipY + 0.11;
+        const m = k * 0.42;
+        const [rx, rz] = torsoAt3(g, y);
+        W(G3.gem(), PRISM3[(k + 3) % PRISM3.length], { p: [Math.sin(m) * (rx + 0.012), y, Math.cos(m) * (rz + 0.012)], s: [0.012, 0.018, 0.012], mat: 'glow' });
+      }
+      for (const [x, z, ry] of [[-0.09, 0.19, 0.25], [0.09, 0.19, -0.25], [-0.2, 0.02, 1.4], [0.2, 0.02, -1.4]]) {
+        const T = sub3(Wh, [x * g.bk * 1.06, g.hipY - 0.17, z * g.bk * 1.08], [0.18, ry, 0]);
+        T(roundBox(0.11, 0.16, 0.022, 0.011), PLATIN3, { shine: 1, top: '#f0eef8', topK: 0.35 });
+        T(roundBox(0.115, 0.018, 0.026, 0.008), ROSEGOLD3, { p: [0, -0.075, 0.003], shine: 1 });
+        T(G3.gem(), ROSEGLOW3, { p: [0, 0.01, 0.016], s: [0.012, 0.016, 0.008], mat: 'glow' });
+      }
     }
   ],
   ninja: [
@@ -1266,6 +1601,28 @@ const ARMOR3 = {
     (W, g) => {
       sun3(onBody3(W, g, 0, g.chestY + 0.04, -1, 0.012), [0, 0, 0], 0.075, 12, GOLD3, GLOW3[7]);
       W(torus3(0.16 * g.bk, 0.022, Math.PI * 2, 4, 18), GOLD3, { p: [0, g.neckY - 0.07, 0], r: [Math.PI / 2 - 0.2, 0, 0], s: [1, 0.86, 1], shine: 1 });
+    },
+    // Abgrundgewand (seit 13.53): Leerenauge im Rücken, cyanfarbene Risse vorn, Splitter auf der Schulter,
+    // zwei Tentakelbänder hängen vorn von der Hüfte
+    (W, g, c, Wh) => {
+      voidEye3(onBody3(W, g, 0, g.chestY + 0.04, -1, 0.014), [0, 0, 0], 0.06);
+      for (const [a, b] of [[[-0.02, g.hipY + 0.04], [-0.1, g.chestY + 0.1]], [[0.06, g.hipY + 0.12], [0.12, g.chestY + 0.02]], [[0.02, g.chestY + 0.06], [0.07, g.chestY + 0.14]]]) bodyLine3(W, g, a, b, 3, 0.01, VOIDGLOW3, { mat: 'glow' });
+      for (let k = 0; k < 2; k++) voidShard3(W, [(0.3 + k * 0.06) * g.bk, g.shY + 0.08 + k * 0.05, 0.02 - k * 0.05], [0.3, 1, -0.2], 0.05 - k * 0.01, 0.017);
+      for (const sx of [-1, 1]) tendril3(Wh, [[sx * 0.14 * g.bk, g.hipY + 0.02, 0.2 * g.bk], [sx * 0.17 * g.bk, g.hipY - 0.12, 0.24 * g.bk], [sx * 0.14 * g.bk, g.hipY - 0.25, 0.26 * g.bk], [sx * 0.2 * g.bk, g.hipY - 0.32, 0.25 * g.bk]], 0.022);
+    },
+    // Ewigkeitsgewand (seit 13.53): achtstrahliger Stern im Rücken, Sternbild über der Brust, Roségoldkragen,
+    // Knoten mit Prismenstein und zwei langen Bändern
+    (W, g) => {
+      nova3(onBody3(W, g, 0, g.chestY + 0.04, -1, 0.016), [0, 0, 0], 0.085);
+      const pts = [[-0.1, g.chestY + 0.12], [-0.04, g.chestY + 0.04], [0.06, g.chestY + 0.08], [0.11, g.hipY + 0.14]];
+      for (let i = 0; i < pts.length; i++) {
+        star3(onBody3(W, g, pts[i][0] * g.bk, pts[i][1], 1, 0.008), [0, 0, 0], 0.014, i % 2 ? ROSEGLOW3 : '#fff4fa');
+        if (i) bodyLine3(W, g, [pts[i - 1][0] * g.bk, pts[i - 1][1]], [pts[i][0] * g.bk, pts[i][1]], 2, 0.004, '#ffd6f0', { mat: 'glow' });
+      }
+      W(torus3(0.16 * g.bk, 0.02, Math.PI * 2, 4, 18), ROSEGOLD3, { p: [0, g.neckY - 0.07, 0], r: [Math.PI / 2 - 0.2, 0, 0], s: [1, 0.86, 1], shine: 1 });
+      const K = onBody3(W, g, -0.08 * g.bk, g.hipY + 0.08, 1, 0.02);
+      K(G3.gem(), PRISM3[0], { s: [0.016, 0.024, 0.014], mat: 'glow' });
+      for (const sx of [-1, 1]) K(roundBox(0.022, 0.2, 0.006, 0.003), sx > 0 ? ROSEGOLD3 : ROSEGLOW3, { p: [sx * 0.014, -0.1, 0.004], r: [0, 0, sx * 0.12], shine: 0.6 });
     }
   ],
   schamane: [
@@ -1341,6 +1698,43 @@ const ARMOR3 = {
       sun3(onBody3(W, g, 0, g.chestY + 0.05, 1, 0.012), [0, 0, 0], 0.055, 10, GOLD3, GLOW3[7]);
       highCollar3(W, g, GOLD3, 0.13);
       Wh(lathe3('g3over', [[0, 0], [0.3, 0], [0.31, 0.02], [0.26, 0.17], [0.22, 0.28], [0, 0.29]], 20), GOLD3, { p: [0, 0.2, 0], s: [1.04, 1, 0.92], shine: 1, top: '#fff2b0', topK: 0.4 });
+    },
+    // Abgrundrobe (seit 13.53): Saum aus eingerollten Tentakeln mit cyanfarbenen Enden, Leerenauge als Brustschmuck,
+    // Leerensplitter schweben um die Robe
+    (W, g, c, Wh) => {
+      const [rx, rz] = robeAt3(0.06);
+      for (let k = 0; k < 12; k++) {
+        const m = (k / 12) * Math.PI * 2 + 0.13;
+        const at = (r, y, dm = 0) => [Math.sin(m + dm) * (rx + r), y, Math.cos(m + dm) * (rz + r)];
+        tendril3(Wh, [at(0, 0.09), at(0.035, 0.035), at(0.075, 0.03, 0.12), at(0.085, 0.07, 0.2)], 0.022, { shade: 0.15 });
+      }
+      const E = onBody3(W, g, 0, g.chestY + 0.05, 1, 0.012);
+      E(torus3(0.06, 0.008, Math.PI * 2, 3, 16), VOIDMETAL3, { s: [1.3, 0.8, 1], shine: 1 });
+      voidEye3(E, [0, 0, 0.004], 0.045);
+      for (let k = 0; k < 6; k++) {
+        const m = k * 1.05 + 0.3;
+        const y = 0.18 + (k % 3) * 0.12;
+        const [ex, ez] = robeAt3(y);
+        voidShard3(Wh, [Math.sin(m) * (ex + 0.06), y, Math.cos(m) * (ez + 0.06)], [0, 1, 0], 0.035, 0.012);
+      }
+    },
+    // Ewigkeitsrobe (seit 13.53): Lotussaum aus Platin- und Roségoldblättern, Sternmedaillon, Roségoldschärpe mit
+    // Sternen, Prismensteine am Kragen
+    (W, g, c, Wh) => {
+      for (let k = 0; k < 16; k++) {
+        const m = (k / 16) * Math.PI * 2;
+        const [rx, rz] = robeAt3(0.06);
+        sub3(Wh, [Math.sin(m) * (rx + 0.012), 0.03, Math.cos(m) * (rz + 0.012)], [0, m, 0])(G3.feather(), k % 2 ? PLATIN3 : ROSEGOLD3, { r: [0.38, 0, 0], s: 0.15, top: '#f0eef8', topK: 0.355, shine: 0.8 });
+      }
+      nova3(onBody3(W, g, 0, g.chestY + 0.05, 1, 0.016), [0, 0, 0], 0.065);
+      const y = g.hipY + 0.07;
+      const [sx, sz] = robeAt3(y);
+      bodyRing3(Wh, y, sx + 0.012, sz + 0.012, 0.018, ROSEGOLD3, { shine: 1 });
+      for (const [x, yy, side] of [[-0.12, 0.3, 1], [0.13, 0.22, 1], [0.02, 0.36, 1], [-0.08, 0.26, -1], [0.1, 0.34, -1]]) star3(onRobe3(Wh, g, x, yy, side, 0.008), [0, 0, 0], 0.018, side > 0 ? ROSEGLOW3 : '#fff4fa');
+      for (let k = 0; k < 5; k++) {
+        const m = Math.PI + (k - 2) * 0.42;
+        W(G3.gem(), PRISM3[k], { p: [Math.sin(m) * 0.17 * g.bk, g.neckY - 0.02 + (k % 2 ? 0 : 0.02), Math.cos(m) * 0.15 * g.bk], s: [0.013, 0.02, 0.013], mat: 'glow' });
+      }
     }
   ],
   nekromant: [
@@ -1419,6 +1813,32 @@ const ARMOR3 = {
     (W, g) => {
       ribcage3(W, g, GOLD3);
       crescent3(sub3(W, [0, g.neckY + 0.04, -0.12], [-0.35, 0, 0]), [0, 0, 0], 0.3, 0.035, -Math.PI / 2, Math.PI * 1.15, GOLD3);
+    },
+    // Abgrundtalar (seit 13.53): Rippenkorb aus violettem Leerenstahl, ein Leerenauge statt des Herzens,
+    // Schattententakel im Rücken, Kragen aus Splittern
+    (W, g, c, Wh) => {
+      ribcage3(W, g, VOIDMETAL3);
+      voidEye3(onBody3(W, g, 0, g.chestY + 0.01, 1, 0.032), [0, 0, 0], 0.036);
+      for (const sx of [-1, -0.35, 0.35, 1]) tendril3(Wh, [[sx * 0.12, 0.3, -0.22], [sx * 0.2, 0.2, -0.38], [sx * 0.25, 0.24, -0.55], [sx * 0.31, 0.36, -0.62], [sx * 0.34, 0.43, -0.55]], 0.04, { shade: 0.2 });
+      for (let k = 0; k < 7; k++) {
+        const m = (k / 7) * Math.PI * 2;
+        voidShard3(W, [Math.sin(m) * 0.15 * g.bk, g.neckY - 0.04, Math.cos(m) * 0.13 * g.bk], [Math.sin(m) * 0.6, 1, Math.cos(m) * 0.6], 0.06 + (k % 2) * 0.025, 0.022);
+      }
+    },
+    // Ewigkeitstalar (seit 13.53): Rippenkorb aus Platin, der Ouroboros (die Schlange der Ewigkeit, die sich in den
+    // Schwanz beißt) als Roségoldring auf der Brust mit Stern, Strahlenkragen, Sterne auf der Robe
+    (W, g, c, Wh) => {
+      ribcage3(W, g, PLATIN3);
+      const E = onBody3(W, g, 0, g.chestY + 0.0, 1, 0.034);
+      E(torus3(0.05, 0.009, Math.PI * 1.85, 4, 20), ROSEGOLD3, { r: [0, 0, 0.3], shine: 1 });
+      E(ball(8), ROSEGOLD3, { p: [Math.cos(0.3) * 0.05, Math.sin(0.3) * 0.05, 0.004], s: [0.017, 0.012, 0.013], shine: 1 });
+      E(sphere3(0.004, 5, 4), ROSEGLOW3, { p: [Math.cos(0.3) * 0.05 + 0.004, Math.sin(0.3) * 0.05 + 0.006, 0.016], mat: 'glow' });
+      nova3(E, [0, 0, 0.006], 0.032);
+      for (let k = 0; k < 7; k++) {
+        const m = Math.PI * (0.62 + (k / 6) * 0.76);
+        coneAlong(W, G3.ray(), [Math.sin(m) * 0.15 * g.bk, g.neckY - 0.06, Math.cos(m) * 0.13 * g.bk], [Math.sin(m) * 0.45, 1, Math.cos(m) * 0.45], k % 2 ? 0.09 : 0.14, 0.3, k % 2 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
+      }
+      for (const [x, y, side] of [[-0.15, 0.25, 1], [0.12, 0.38, 1], [0.16, 0.16, 1], [-0.1, 0.3, -1], [0.12, 0.2, -1]]) star3(onRobe3(Wh, g, x, y, side, 0.008), [0, 0, 0], 0.02, side > 0 ? ROSEGLOW3 : '#fff4fa');
     }
   ]
 };
@@ -1634,6 +2054,54 @@ ARMOR3.magier = [
       const a = Math.PI / 2 + (k * Math.PI * 2) / 3;
       R(G3.gem(), c.accent, { p: [Math.cos(a) * 0.27, Math.sin(a) * 0.27, 0], s: [0.03, 0.045, 0.03], mat: 'glow' });
     }
+  },
+  // Abgrundmantel (seit 13.53): Leerenschwarz mit cyanfarbenen Rissen, Leerenauge auf der Brust, kurzer Tentakelsaum,
+  // um die Taille kreist ein Ring aus Leerensplittern (Drehknochen wie bei der Arkanrobe)
+  (W, g, c, Wh, Wr) => {
+    mageRobeBase3(W, g, c, Wh, 8);
+    voidEye3(onBody3(W, g, 0, g.chestY + 0.06, 1, 0.016), [0, 0, 0], 0.042);
+    for (const [a, b, side] of [[[-0.2, 0.06], [-0.13, 0.3], 1], [[0.17, 0.05], [0.21, 0.26], 1], [[0.05, 0.08], [-0.08, 0.34], -1], [[-0.15, 0.06], [-0.2, 0.28], -1]]) bodyLine3(Wh, g, a, b, 3, 0.011, VOIDGLOW3, { mat: 'glow' }, side, onRobeAt3);
+    const [rx, rz] = robeAt3(0.06);
+    for (let k = 0; k < 9; k++) {
+      const m = (k / 9) * Math.PI * 2 + 0.35;
+      const at = (r, y, dm = 0) => [Math.sin(m + dm) * (rx + r), y, Math.cos(m + dm) * (rz + r)];
+      tendril3(Wh, [at(0, 0.08), at(0.03, 0.035), at(0.065, 0.035, 0.12), at(0.07, 0.075, 0.2)], 0.02);
+    }
+    const R = sub3(Wr || Wh, [0, g.hipY + 0.07, 0]);
+    const ox = 0.4 * g.bk;
+    const oz = 0.34 * g.bk;
+    R(torus3(0.2, 0.005, Math.PI * 2, 3, 32), VOIDVIOLET3, { r: [Math.PI / 2, 0, 0], s: [ox / 0.2, oz / 0.2, 1], mat: 'glow' });
+    for (let k = 0; k < 6; k++) {
+      const m = (k / 6) * Math.PI * 2;
+      voidShard3(R, [Math.sin(m) * ox, (k % 2) * 0.02, Math.cos(m) * oz], [0, 1, 0], 0.045, 0.016);
+    }
+  },
+  // Ewigkeitsornat (seit 13.53): Perlweiß mit Roségold, hoher Kragen mit Strahlen, achtstrahliger Stern auf der Brust,
+  // Sternbild auf der Robe; um die Taille kreist ein Sternenkranz mit Prismensteinen
+  (W, g, c, Wh, Wr) => {
+    mageRobeBase3(W, g, c, Wh, 9);
+    highCollar3(W, g, PLATIN3, 0.18);
+    for (let k = 0; k < 5; k++) {
+      const m = Math.PI * (0.7 + (k / 4) * 0.6);
+      coneAlong(W, G3.ray(), [Math.sin(m) * 0.19 * g.bk, g.neckY + 0.04, Math.cos(m) * 0.17 * g.bk], [Math.sin(m) * 0.35, 1, Math.cos(m) * 0.35], k % 2 ? 0.08 : 0.13, 0.3, k % 2 ? PLATIN3 : ROSEGOLD3, { shine: 1 });
+    }
+    nova3(onBody3(W, g, 0, g.chestY + 0.06, 1, 0.016), [0, 0, 0], 0.06);
+    const [rx, rz] = robeAt3(0.13);
+    bodyRing3(Wh, 0.13, rx + 0.005, rz + 0.005, 0.012, ROSEGOLD3, { shine: 1 });
+    const pts = [[-0.17, 0.32], [-0.1, 0.22], [-0.15, 0.08], [0.14, 0.38], [0.18, 0.2], [0.12, 0.06]];
+    for (let i = 0; i < pts.length; i++) {
+      star3(onRobe3(Wh, g, pts[i][0], pts[i][1], 1, 0.008), [0, 0, 0], i % 3 ? 0.014 : 0.02, i % 2 ? ROSEGLOW3 : '#fff4fa');
+      if (i % 3) bodyLine3(Wh, g, pts[i - 1], pts[i], 2, 0.005, '#ffd6f0', { mat: 'glow' }, 1, onRobeAt3);
+    }
+    const R = sub3(Wr || Wh, [0, g.hipY + 0.07, 0]);
+    const ox = 0.4 * g.bk;
+    const oz = 0.34 * g.bk;
+    R(torus3(0.2, 0.005, Math.PI * 2, 3, 32), ROSEGLOW3, { r: [Math.PI / 2, 0, 0], s: [ox / 0.2, oz / 0.2, 1], mat: 'glow' });
+    for (let k = 0; k < 8; k++) {
+      const m = (k / 8) * Math.PI * 2;
+      if (k % 2) R(G3.gem(), PRISM3[(k >> 1) % PRISM3.length], { p: [Math.sin(m) * ox, 0, Math.cos(m) * oz], s: [0.012, 0.018, 0.012], mat: 'glow' });
+      else star3(sub3(R, [Math.sin(m) * ox, 0, Math.cos(m) * oz], [0, m, 0]), [0, 0, 0], 0.03, k % 4 ? ROSEGLOW3 : '#fff4fa');
+    }
   }
 ];
 
@@ -1643,7 +2111,8 @@ function gearArmor3(A, g, t, cls, c) {
   const Wh = frame3(A, BH.hips, [0, 0, 0]);
   // Drehknochen (seit 8.6): Runenring um die Taille, Siegelring im Rücken
   const Wr = g.spin && g.spin.ring != null ? frame3(A, g.spin.ring, [0, 0, 0]) : null;
-  ARMOR3[cls][t](W, g, c, Wh, Wr);
+  const build = ARMOR3[cls][t];
+  if (build) build(W, g, c, Wh, Wr);
 }
 
 // Alle Teile der Ausrüstung nach dem Körper (aufgerufen von humanoid3)
@@ -1679,9 +2148,12 @@ const BLADE_EDGE3 = {
   leaf: [[1.05, 0.12], [1.45, 0.5], [1.3, 0.72], [0.7, 0.9]],
   slim: [[0.9, 0.84], [0.6, 0.93]],
   broad: [[1.12, 0.3], [1.18, 0.74], [0.85, 0.9]],
-  jagged: [[1.0, 0.1], [1.4, 0.18], [0.95, 0.28], [1.38, 0.38], [0.92, 0.48], [1.3, 0.58], [0.85, 0.68], [1.15, 0.77], [0.7, 0.86]]
+  jagged: [[1.0, 0.1], [1.4, 0.18], [0.95, 0.28], [1.38, 0.38], [0.92, 0.48], [1.3, 0.58], [0.85, 0.68], [1.15, 0.77], [0.7, 0.86]],
+  // seit 13.53: Abgrund gewellt wie ein Tentakel, Ewigkeit schlank mit einem Strahlenkreuz kurz vor der Spitze
+  rift: [[1.25, 0.08], [0.9, 0.2], [1.35, 0.34], [0.95, 0.48], [1.4, 0.62], [1.0, 0.74], [0.6, 0.88]],
+  nova: [[0.85, 0.2], [0.9, 0.56], [1.75, 0.64], [0.8, 0.7], [0.55, 0.9]]
 };
-const BLADE_OF3 = ['plain', 'leaf', 'plain', 'plain', 'plain', 'jagged', 'slim', 'broad'];
+const BLADE_OF3 = ['plain', 'leaf', 'plain', 'plain', 'plain', 'jagged', 'slim', 'broad', 'rift', 'nova'];
 
 // Fächerblatt (Kreisausschnitt nach oben)
 const fanLeafGeo = (r, h) => geo3(`fanleaf3${r},${h}`, () => new THREE.CylinderGeometry(r, r, h, 18, 1, false, Math.PI * 0.56, Math.PI * 0.88).rotateX(Math.PI / 2));
@@ -1691,7 +2163,7 @@ const fanLeafGeo = (r, h) => geo3(`fanleaf3${r},${h}`, () => new THREE.CylinderG
 // (Bauplan: docs/grafik-prompts.md, Abschnitt 4.11).
 
 // Schaftfarbe des Zepters je Stufe (Magier, seit 8.6)
-const ROD3_SHAFT = ['#6b4a2e', '#3a2e2a', '#2e3448', '#2a3f74', '#2e2450', OBSIDIAN3, '#121a3c', '#e6eaf2'];
+const ROD3_SHAFT = ['#6b4a2e', '#3a2e2a', '#2e3448', '#2a3f74', '#2e2450', OBSIDIAN3, '#121a3c', '#e6eaf2', '#140e24', '#f8f4fa'];
 
 // --- Klingenplatten mit Details (seit 13.30) -------------------------------------------------------------
 // Umriss (mit Löchern) als flache Platte, mittig in z
@@ -1712,7 +2184,7 @@ function plateGeo3(key, pts, holes, depth, bevel = 0.01) {
   });
 }
 // Leuchtfarbe der Klingenader je Stufe (ab Stufe 4)
-const BLADE_VEIN3 = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0'];
+const BLADE_VEIN3 = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0', VOIDGLOW3, ROSEGLOW3];
 // Klinge mit Details: helle Schneide (die Platte selbst), dunklere geschliffene Mitte auf beiden Seiten,
 // ab Stufe 4 eine leuchtende Ader in der Mitte. o: p, s, r wie die Klinge; inset: Breite der Schneide
 function detailBlade3(W, key, pts, holes, depth, col, tier, o) {
@@ -1737,11 +2209,13 @@ function detailBlade3(W, key, pts, holes, depth, col, tier, o) {
 // Form je Stufe (aus einem Umriss extrudiert, damit sie wie geschliffenes Blech wirkt):
 // 0 Kurzdolch (gerade, Holzgriff), 1 Stahldolch (spitzes Dreieck), 2 Schattendolch (gebogene Klinge),
 // 3 Viperzahn (gewellte Schlangenklinge), 4 Nachtklinge (Kunai mit Ringknauf), 5 Aschendolch (gezackter Obsidian),
-// 6 Sternendolch (schmales Stilett, Sternparier), 7 Götterzahn (goldener Hakendolch).
+// 6 Sternendolch (schmales Stilett, Sternparier), 7 Götterzahn (goldener Hakendolch),
+// seit 13.53: 8 Abgrundstachel (Fangzahn mit Tentakelparier), 9 Ewigkeitsdorn (Sternnadel aus Platin).
 // Seit 13.20 kleiner und je Stufe etwas größer (Kurzdolch 0,95-fach bis Götterzahn 1,44-fach), Klingenfläche
 // zur Kamera gedreht: im Rückhandgriff zeigt die Klinge am Unterarm entlang nach hinten
 const DAGGER_SCALE3 = 0.95;
-const daggerScale3 = (tier) => DAGGER_SCALE3 + tier * 0.07;
+// Stufen 8 und 9 (seit 13.53) wachsen nur noch wenig, damit der Dolch ein Dolch bleibt
+const daggerScale3 = (tier) => DAGGER_SCALE3 + Math.min(tier, 7) * 0.07 + Math.max(0, tier - 7) * 0.03;
 const DAGGER_TURN3 = 0;
 const DAGGER_BLADES3 = DAGGER_BLADES;
 function daggerBladeGeo3(tier) {
@@ -1759,11 +2233,11 @@ function daggerBladeGeo3(tier) {
 function dagger3(W, tier, shell) {
   const metal = TIER_METAL[tier];
   const accent = TIER_ACCENT[tier];
-  const blade = tier === 5 ? OBSIDIAN3 : tier === 7 ? '#ffe9a0' : tier === 2 ? '#3a3448' : tier === 4 ? '#5a6a8a' : metal;
+  const blade = tier === 5 ? OBSIDIAN3 : tier === 7 ? '#ffe9a0' : tier === 8 ? VOIDMETAL3 : tier === 9 ? PLATIN3 : tier === 2 ? '#3a3448' : tier === 4 ? '#5a6a8a' : metal;
   const grip = 0.09;
   // Griff mit Wicklung
   W(limb3(grip, 0.022, 0.02, 7), tier === 0 ? '#6b4a2e' : tier === 4 ? '#2a2a3a' : darker(accent, 0.2), { p: [0, 0.02, 0] });
-  for (let k = 0; k < 3; k++) W(torus3(0.023, 0.006, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : '#2a1a12', { p: [0, -grip * (0.2 + k * 0.28), 0], r: [Math.PI / 2, 0, 0] });
+  for (let k = 0; k < 3; k++) W(torus3(0.023, 0.006, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : tier === 8 ? VOIDGLOW3 : tier === 9 ? ROSEGOLD3 : '#2a1a12', { p: [0, -grip * (0.2 + k * 0.28), 0], r: [Math.PI / 2, 0, 0], mat: tier === 8 ? 'glow' : undefined });
   // Knauf
   const py = -grip - 0.01;
   if (tier === 4) W(torus3(0.026, 0.007, Math.PI * 2, 4, 12), '#8a9ab8', { p: [0, py - 0.022, 0], shine: 1 });
@@ -1782,6 +2256,12 @@ function dagger3(W, tier, shell) {
       W(roundBox(0.09, 0.022, 0.03, 0.01), GOLD3, { p: [0, gy, 0], shine: 1 });
       W(G3.gem(), GLOW3[7], { p: [0, gy, 0.018], s: [0.012, 0.016, 0.01], mat: 'glow' });
       break;
+    case 8:
+      // zwei Tentakelhaken rollen sich zur Klinge ein, dazwischen ein kleines Leerenauge
+      for (const sx of [-1, 1]) tendril3(W, [[sx * 0.012, gy, 0], [sx * 0.04, gy - 0.012, 0], [sx * 0.058, gy + 0.018, 0], [sx * 0.042, gy + 0.04, 0]], 0.009);
+      voidEye3(W, [0, gy, 0.012], 0.014);
+      break;
+    case 9: nova3(W, [0, gy, 0.004], 0.04); break;
     default: W(roundBox(tier === 0 ? 0.07 : 0.09, 0.02, 0.032, 0.008), tier === 0 ? '#8a8f96' : metal, { p: [0, gy, 0], shine: 0.8 });
   }
   // Klinge
@@ -1799,6 +2279,8 @@ function dagger3(W, tier, shell) {
   if (tier === 5) { line('#ff7a2a', 0, 0.13, 0.19, 0); for (const sx of [-1, 1]) line('#ff7a2a', sx * 0.026, 0.07, 0.05, sx * 0.9, 0.006); }
   if (tier === 6) line('#bff4ff', 0, 0.17, 0.2, 0, 0.006);
   if (tier === 7) { line(GLOW3[7], 0.03, 0.12, 0.15, -0.3); line(GLOW3[7], 0.075, 0.2, 0.07, -0.6, 0.006); }
+  if (tier === 8) { line(VOIDGLOW3, 0.04, 0.13, 0.15, -0.32); line(VOIDGLOW3, 0.095, 0.27, 0.1, -0.15, 0.006); }
+  if (tier === 9) { line(ROSEGLOW3, 0, 0.17, 0.2, 0, 0.005); for (const y of [0.092, 0.244]) star3(W, [0, by + y, 0.008], 0.022, '#fff4fa'); }
   shell(roundBox(0.12, 0.34, 0.06, 0.03), { p: [0, by + 0.13, 0] });
 }
 
@@ -1809,7 +2291,8 @@ function dagger3(W, tier, shell) {
 // 0 Jagdbogen (schlichter Holzbogen), 1 Kurzbogen (kurzer Reiterbogen mit nach vorn gebogenen Hornspitzen),
 // 2 Schattenbogen (langer, dunkler Bogen mit Mondsicheln), 3 Viperbogen (gewellte Arme, Schlangenköpfe),
 // 4 Nachtbogen (Doppelarm aus blauem Stahl, schwebender Stein), 5 Aschenbogen (Obsidian mit Zacken und Glut),
-// 6 Sternenbogen (weiße Flügel aus Federn), 7 Götterbogen (goldener Reflexbogen mit Sonnenscheibe und Klingen).
+// 6 Sternenbogen (weiße Flügel aus Federn), 7 Götterbogen (goldener Reflexbogen mit Sonnenscheibe und Klingen),
+// seit 13.53: 8 Abgrundbogen (Klauenarme mit Leerensplittern und Leerenauge), 9 Ewigkeitsbogen (Platin mit Sternen).
 function bow3(W, tier, shell) {
   const L = BOW_LIMBS[tier];
   const metal = TIER_METAL[tier];
@@ -1844,6 +2327,8 @@ function bow3(W, tier, shell) {
       case 5: coneAlong(W, G3.spike(), T, dir, 0.06, 0.16, OBSIDIAN3, { shine: 0.6 }); break;
       case 6: for (const a of [-0.4, 0.15]) W(G3.feather(), FEATHER3, { p: T, r: [0, 0, (sy > 0 ? 0.6 : Math.PI - 0.6) + a * sy], s: 0.14, top: '#bfe8ff', topK: 0.5 }); break;
       case 7: coneAlong(W, G3.spike(), T, [0.4, sy, 0], 0.06, 0.18, '#fff2b0', { shine: 1 }); break;
+      case 8: voidShard3(W, [T[0] - 0.01, T[1] + sy * 0.02, 0], [-0.4, sy, 0], 0.05, 0.018); break;
+      case 9: nova3(W, [T[0] + 0.01, T[1] + sy * 0.015, 0], 0.05); break;
       default: W(sphere3(0.016, 6, 5), '#3a2a1c', { p: T });
     }
     // Schmuck an den Armen
@@ -1859,20 +2344,31 @@ function bow3(W, tier, shell) {
     if (tier === 2) limbBetween(W, [0.03, sy * 0.1, 0.02], [-0.06, sy * 0.33, 0.02], 0.006, 0.004, '#b48cff', { mat: 'glow', seg: 4 });
     if (tier === 3) for (let k = 1; k < n - 1; k += 2) W(roundBox(0.03, 0.05, 0.04, 0.012), '#6aa84a', { p: [L.pts[k][0], L.pts[k][1] * sy, 0], r: [0, 0, 0.4 * sy] });
     if (tier === 7) limbBetween(W, [-0.02, sy * 0.1, 0.025], [-0.15, sy * 0.36, 0.025], 0.006, 0.004, GLOW3[7], { mat: 'glow', seg: 4 });
+    // Abgrund: Klauensplitter am Rücken der Arme und eine cyanfarbene Ader; Ewigkeit: Sterne an den Gelenken
+    if (tier === 8) {
+      for (let k = 1; k < n - 1; k++) voidShard3(W, [L.pts[k][0] + 0.02, L.pts[k][1] * sy, 0], [1, sy * 0.6, 0], 0.045, 0.015);
+      for (let k = 1; k < n - 2; k++) limbBetween(W, [L.pts[k][0], L.pts[k][1] * sy, 0.026], [L.pts[k + 1][0], L.pts[k + 1][1] * sy, 0.022], 0.005, 0.004, VOIDGLOW3, { mat: 'glow', seg: 4 });
+    }
+    if (tier === 9) for (let k = 2; k < n - 1; k += 2) {
+      star3(W, [L.pts[k][0], L.pts[k][1] * sy, 0.026], 0.028, k % 4 ? ROSEGLOW3 : '#fff4fa');
+      W(torus3(0.03, 0.007, Math.PI * 2, 3, 10), ROSEGOLD3, { p: [L.pts[k][0], L.pts[k][1] * sy, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+    }
   }
   // Sehne und Griff mit Wicklung
-  W(limb3(+(tip[1] * 2).toFixed(2), 0.005, 0.005, 3), tier >= 6 ? '#e6f6ff' : '#efe6cc', { p: [tip[0], tip[1], 0], mat: tier >= 6 ? 'glow' : undefined });
-  W(limb3(0.18, 0.034, 0.034, 7), tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : '#3a2a1c', { p: [0.005, 0.09, 0] });
-  for (let k = 0; k < 3; k++) W(torus3(0.036, 0.008, Math.PI * 2, 4, 10), tier === 0 ? '#5a3a22' : tier >= 6 ? GOLD3 : metal, { p: [0.005, 0.07 - k * 0.06, 0], r: [Math.PI / 2, 0, 0] });
+  W(limb3(+(tip[1] * 2).toFixed(2), 0.005, 0.005, 3), tier === 8 ? VOIDGLOW3 : tier === 9 ? ROSEGLOW3 : tier >= 6 ? '#e6f6ff' : '#efe6cc', { p: [tip[0], tip[1], 0], mat: tier >= 6 ? 'glow' : undefined });
+  W(limb3(0.18, 0.034, 0.034, 7), tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : tier === 8 ? '#120c1e' : tier === 9 ? '#a8706a' : '#3a2a1c', { p: [0.005, 0.09, 0] });
+  for (let k = 0; k < 3; k++) W(torus3(0.036, 0.008, Math.PI * 2, 4, 10), tier === 0 ? '#5a3a22' : tier === 8 ? VOIDMETAL3 : tier === 9 ? ROSEGOLD3 : tier >= 6 ? GOLD3 : metal, { p: [0.005, 0.07 - k * 0.06, 0], r: [Math.PI / 2, 0, 0], shine: tier >= 8 ? 1 : 0 });
   if (tier === 4) floatGem3(W, [0.07, 0, 0], 0.025, GLOW3[4]);
   if (tier === 5) W(sphere3(0.026, 8, 6), '#ff7a2a', { p: [0.035, 0, 0], mat: 'glow' });
   if (tier === 7) sun3(sub3(W, [0.04, 0, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.055, 8, GOLD3, GLOW3[7]);
   if (tier === 3) W(G3.gem(), '#7ad86a', { p: [0.035, 0, 0], s: [0.018, 0.026, 0.014], mat: 'glow' });
+  if (tier === 8) voidEye3(sub3(W, [0.04, 0, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.03);
+  if (tier === 9) nova3(sub3(W, [0.042, 0, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.06);
   shell(roundBox(0.12, tip[1] * 2 + 0.1, 0.08, 0.04), { p: [tip[0] * 0.5, 0, 0] });
 }
 
 function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
-  tier = Math.max(0, Math.min(7, tier || 0));
+  tier = Math.max(0, Math.min(ITEM_TIERS.length - 1, tier || 0));
   const metal = TIER_METAL[tier];
   const accent = TIER_ACCENT[tier];
   const M = partFrame(at, rot);
@@ -1901,7 +2397,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       const len = big ? 1.0 : dag ? 0.34 : 0.68;
       const wd = big ? 0.17 : dag ? 0.075 : 0.11;
       const grip = big ? 0.26 : 0.16;
-      const bladeCol = tier === 5 ? OBSIDIAN3 : tier === 7 ? '#ffe9a0' : metal;
+      const bladeCol = tier === 5 ? OBSIDIAN3 : tier === 7 ? '#ffe9a0' : tier === 8 ? VOIDMETAL3 : metal;
       // Griff: Holz, Lederwicklung (Bronze) oder Wicklung in der Stufenfarbe
       W(limb3(grip, 0.028, 0.026, 7), tier === 0 ? '#6b4a2e' : accent, { p: [0, 0.03, 0] });
       const wraps = tier === 1 ? 4 : 3;
@@ -1927,6 +2423,11 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           break;
         case 5: coneAlong(W, G3.spike(), [0, py + 0.02, 0], [0, -1, 0], 0.09, 0.22, OBSIDIAN3, { shine: 0.6 }); break;
         case 6: star3(W, [0, py - 0.01, 0], 0.036, '#e6f6ff'); break;
+        case 8: voidShard3(W, [0, py - 0.03, 0], [0, -1, 0], 0.05, 0.026); break;
+        case 9:
+          W(sphere3(0.026, 8, 6), ROSEGOLD3, { p: [0, py + 0.01, 0], shine: 1 });
+          nova3(W, [0, py - 0.035, 0], 0.045);
+          break;
         default: W(G3.gem(), GLOW3[7], { p: [0, py - 0.01, 0], s: [0.03, 0.046, 0.03], mat: 'glow' });
       }
       // Parierstange
@@ -1969,6 +2470,18 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           for (const sx of [-1, 1]) wing3(W, [sx * 0.025, gy, 0], sx, 3, gw * 0.62, FEATHER3, '#bfe8ff', {}, 0);
           W(sphere3(0.022, 8, 6), GLOW3[6], { p: [0, gy, 0.02], mat: 'glow' });
           break;
+        case 8:
+          // zwei Tentakel rollen sich über der Parierstange ein, in der Mitte ein Leerenauge
+          W(roundBox(gw * 0.5, 0.04, 0.05, 0.016), VOID3, { p: [0, gy, 0], shine: 0.8 });
+          for (const sx of [-1, 1]) tendril3(W, [[sx * gw * 0.2, gy, 0], [sx * gw * 0.42, gy - 0.02, 0], [sx * gw * 0.55, gy + 0.05, 0], [sx * gw * 0.45, gy + 0.11, 0], [sx * gw * 0.34, gy + 0.08, 0]], 0.022);
+          voidEye3(W, [0, gy, 0.026], 0.032);
+          break;
+        case 9:
+          // Roségoldsteg mit achtstrahligem Stern und zwei Prismensteinen
+          W(roundBox(gw * 0.9, 0.03, 0.045, 0.014), ROSEGOLD3, { p: [0, gy, 0], shine: 1 });
+          nova3(W, [0, gy + 0.005, 0.02], gw * 0.3);
+          for (const sx of [-1, 1]) W(G3.gem(), PRISM3[sx > 0 ? 0 : 3], { p: [sx * gw * 0.47, gy, 0], s: [0.018, 0.028, 0.018], mat: 'glow' });
+          break;
         default:
           W(roundBox(gw, 0.035, 0.05, 0.015), GOLD3, { p: [0, gy, 0], shine: 1 });
           sun3(W, [0, gy + 0.01, 0.01], gw * 0.22, 10, GOLD3, GLOW3[7]);
@@ -1976,8 +2489,8 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       // Klinge
       const by = 0.08;
       const shape = BLADE_OF3[tier];
-      const bw = wd * (tier === 6 ? 0.75 : tier === 7 ? 1.15 : 1);
-      const bl = len * (tier === 6 ? 1.06 : 1);
+      const bw = wd * (tier === 6 ? 0.75 : tier === 7 ? 1.15 : tier === 8 ? 1.08 : tier === 9 ? 0.92 : 1);
+      const bl = len * (tier === 6 ? 1.06 : tier >= 8 ? 1.08 : 1);
       W(edgeBladeGeo(shape, bl, bw, BLADE_EDGE3[shape], tier === 2 ? 0.28 : dag ? 0.1 : 0), bladeCol, { p: [0, by, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.25 });
       // Hohlkehle auf beiden Seiten
       if (tier !== 5 && tier !== 2) for (const sz of [-1, 1]) W(roundBox(bw * 0.2, bl * 0.6, 0.008, 0.004), darker(bladeCol, 0.32), { p: [0, by + bl * 0.38, sz * bw * 0.1] });
@@ -1998,6 +2511,18 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           break;
         case 7:
           for (const sx of [-1, 1]) W(roundBox(bw * 0.1, bl * 0.7, bw * 0.4, 0.004), GLOW3[7], { p: [sx * bw * 0.45, by + bl * 0.4, 0], mat: 'glow' });
+          break;
+        case 8:
+          // cyanfarbene Ader die Klinge hinauf, an der Wurzel ein Leerenauge, Splitter schweben neben der Spitze
+          W(roundBox(bw * 0.1, bl * 0.74, bw * 0.42, 0.004), VOIDGLOW3, { p: [0, by + bl * 0.42, 0], mat: 'glow' });
+          voidEye3(W, [0, by + bl * 0.1, bw * 0.12], bw * 0.26);
+          for (const sx of [-1, 1]) voidShard3(W, [sx * bw * 1.05, by + bl * (sx > 0 ? 0.78 : 0.62), 0], [sx * 0.2, 1, 0], bw * 0.32, bw * 0.12);
+          break;
+        case 9:
+          // roséfarbene Schneiden, Stern an der Klingenwurzel, Prismensteine im Strahlenkreuz
+          for (const sx of [-1, 1]) W(roundBox(bw * 0.08, bl * 0.5, bw * 0.42, 0.004), ROSEGLOW3, { p: [sx * bw * 0.36, by + bl * 0.32, 0], mat: 'glow' });
+          star3(W, [0, by + bl * 0.12, bw * 0.12], bw * 0.34, ROSEGLOW3);
+          for (const sx of [-1, 1]) W(G3.gem(), PRISM3[sx > 0 ? 1 : 4], { p: [sx * bw * 0.6, by + bl * 0.64, 0], s: [bw * 0.1, bw * 0.15, bw * 0.12], mat: 'glow' });
           break;
         default:
       }
@@ -2022,7 +2547,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           sh.lineTo(pts[0][0], pts[0][1]);
           return smoothGeo(new THREE.ExtrudeGeometry(sh, { depth: 0.01, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 1, curveSegments: 4 }).translate(0, 0, -0.005));
         });
-        W(leafGeo, leaf, { p: [0, 0.04, 0], top: lighter(leaf, 0.25), topK: 0.3, shine: tier === 1 ? 0.5 : tier === 7 ? 1 : 0 });
+        W(leafGeo, leaf, { p: [0, 0.04, 0], top: lighter(leaf, 0.25), topK: 0.3, shine: tier === 1 ? 0.5 : tier === 7 ? 1 : tier >= 8 ? 0.7 : 0 });
         const FS = FAN_SHAPES[tier];
         if (FS.edge === 'smooth' || FS.edge === 'scallop') W(torus3(0.33, 0.011, FS.span * 0.96, 4, 18), gold, { p: [0, 0.04, 0.01], r: [0, 0, Math.PI / 2 - FS.span * 0.48], shine: 1 });
       }
@@ -2030,7 +2555,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       const nr = tier === 7 ? 14 : Math.max(5, Math.min(9, Math.round(span / 0.3)));
       for (let k = 0; k < nr; k++) {
         const th = tier === 7 ? (k / nr) * span - span / 2 : -span * 0.45 + (k / (nr - 1)) * span * 0.9;
-        W(limb3(tier === 7 ? 0.27 : 0.34, 0.007, 0.006, 3), tier === 7 ? GOLD3 : '#3a2a1c', { p: [0, 0.04, 0.012], r: [0, 0, Math.PI + th] });
+        W(limb3(tier === 7 ? 0.27 : 0.34, 0.007, 0.006, 3), tier === 7 ? GOLD3 : tier === 8 ? VOIDMETAL3 : tier === 9 ? ROSEGOLD3 : '#3a2a1c', { p: [0, 0.04, 0.012], r: [0, 0, Math.PI + th] });
       }
       const edge = (k, r = 0.37) => {
         const a = Math.PI / 2 + k * 0.2;
@@ -2044,16 +2569,25 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       if (tier === 5) for (let k = -2; k <= 2; k++) W(sphere3(0.012, 6, 4), '#ffd34d', { p: edge(k * 1.3, 0.26), mat: 'glow' });
       if (tier === 6) for (let k = -2; k <= 2; k++) W(G3.puff(), '#f4f8ff', { p: edge(k * 1.5, 0.24), s: 0.03 });
       if (tier === 7) sun3(W, [0, 0.04, 0.03], 0.07, 10, GOLD3, GLOW3[7]);
+      // seit 13.53: Abgrund mit Leerenauge auf dem Blatt und cyanfarbenen Fangspitzen, Ewigkeit mit Sternen
+      if (tier === 8) {
+        voidEye3(W, [0, 0.27, 0.014], 0.05);
+        for (let k = -2; k <= 2; k++) W(sphere3(0.01, 6, 4), VOIDGLOW3, { p: edge(k * 1.35, 0.34), mat: 'glow' });
+      }
+      if (tier === 9) {
+        nova3(W, [0, 0.04, 0.03], 0.075);
+        for (let k = -2; k <= 2; k++) star3(W, edge(k * 1.5, k % 2 ? 0.22 : 0.27), k % 2 ? 0.022 : 0.03, k % 2 ? ROSEGLOW3 : '#fff4fa');
+      }
       // Details (seit 13.30): kräftige Außenstäbe aus Metall, Niete am Drehpunkt
       if (tier !== 7) for (const sd of [-1, 1]) W(limb3(0.33, 0.012, 0.009, 4), tier >= 4 ? metal : '#5a3a22', { p: [0, 0.04, 0.016], r: [0, 0, Math.PI + sd * span * 0.47], shine: tier >= 4 ? 1 : 0.3 });
-      W(torus3(0.024, 0.008, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : gold, { p: [0, 0.04, 0.02], shine: 1 });
+      W(torus3(0.024, 0.008, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : tier === 9 ? ROSEGOLD3 : gold, { p: [0, 0.04, 0.02], shine: 1 });
       W(limb3(0.16, 0.01, 0.01, 4), '#c8402f', { p: [0, 0.02, 0] });
       W(sphere3(0.03, 8, 6), '#c8402f', { p: [0, -0.15, 0] });
       shell(geo3('fanshell4_' + tier, () => new THREE.CylinderGeometry(0.44, 0.44, 0.06, 16, 1, false, Math.PI - span / 2, span).rotateX(Math.PI / 2)), { p: [0, 0.04, 0] });
       return;
     }
     case 'bell': {
-      const bc = tier === 5 ? '#4a3a34' : tier === 7 ? GOLD3 : tier >= 3 ? metal : gold;
+      const bc = tier === 5 ? '#4a3a34' : tier === 7 ? GOLD3 : tier === 8 ? VOIDMETAL3 : tier === 9 ? PLATIN3 : tier >= 3 ? metal : gold;
       W(limb3(0.2, 0.024, 0.024, 7), '#6b4a2e', { p: [0, 0.2, 0] });
       W(torus3(0.04, 0.012, Math.PI * 2, 4, 10), gold, { p: [0, 0.22, 0], shine: 1 });
       // seit 13.29 eigene Glockenform je Stufe (BELL_PROFILES, wie das Inventarsymbol); Krone sitzt am Griff
@@ -2085,7 +2619,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
         return BP[BP.length - 1][0];
       };
       const by0 = -bh - 0.01;
-      const band = tier === 7 ? GOLD3 : tier >= 4 ? lighter(bc, 0.35) : darker(bc, 0.3);
+      const band = tier === 7 ? GOLD3 : tier === 8 ? VOIDGLOW3 : tier === 9 ? ROSEGOLD3 : tier >= 4 ? lighter(bc, 0.35) : darker(bc, 0.3);
       for (const f of [0.06, 0.62]) W(torus3(rAt(f) + 0.004, 0.009, Math.PI * 2, 4, 18), band, { p: [0, by0 + f * bh, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
       const runes = tier >= 3 ? STAFF_ORB[tier] : darker(bc, 0.4);
       for (let k = 0; k < 6; k++) {
@@ -2093,8 +2627,25 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
         const rr = rAt(0.32) + 0.003;
         W(roundBox(0.012, 0.04, 0.006, 0.003), runes, { p: [Math.sin(a) * rr, by0 + 0.32 * bh, Math.cos(a) * rr], r: [0, a, k % 2 ? 0.4 : -0.4], mat: tier >= 3 ? 'glow' : 'lit' });
       }
-      W(torus3(0.03, 0.008, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : gold, { p: [0, -0.01, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      W(torus3(0.03, 0.008, Math.PI * 2, 4, 10), tier === 7 ? GOLD3 : tier === 9 ? ROSEGOLD3 : gold, { p: [0, -0.01, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
       for (let k = 0; k < 4; k++) { const a = (k / 4) * Math.PI * 2 + 0.4; W(sphere3(0.009, 6, 4), gold, { p: [Math.sin(a) * 0.032, -0.012, Math.cos(a) * 0.032], shine: 1 }); }
+      // seit 13.53: Abgrund mit Leerenauge auf der Flanke und Tentakeln am Schlund, Ewigkeit mit Stern und Prismensteinen
+      if (tier === 8) {
+        voidEye3(W, [0, by0 + 0.45 * bh, rAt(0.45) + 0.006], 0.04);
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2 + 0.3;
+          const r0 = rAt(0.02);
+          tendril3(W, [[Math.sin(a) * r0, by0 + 0.01, Math.cos(a) * r0], [Math.sin(a) * (r0 + 0.02), by0 - 0.04, Math.cos(a) * (r0 + 0.02)], [Math.sin(a + 0.3) * (r0 + 0.04), by0 - 0.07, Math.cos(a + 0.3) * (r0 + 0.04)], [Math.sin(a + 0.5) * (r0 + 0.03), by0 - 0.05, Math.cos(a + 0.5) * (r0 + 0.03)]], 0.012);
+        }
+      }
+      if (tier === 9) {
+        nova3(W, [0, by0 + 0.4 * bh, rAt(0.4) + 0.008], 0.06);
+        for (let k = 0; k < 5; k++) {
+          const a = (k / 5) * Math.PI * 2 + Math.PI / 5;
+          const rr = rAt(0.62) + 0.008;
+          W(G3.gem(), PRISM3[k], { p: [Math.sin(a) * rr, by0 + 0.62 * bh, Math.cos(a) * rr], s: [0.009, 0.014, 0.009], mat: 'glow' });
+        }
+      }
       shell(sphere3(0.21, 12, 8), { p: [0, -0.14, 0] });
       return;
     }
@@ -2102,8 +2653,8 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
     case 'skullstaff': {
       // Stab mit Kopfstück: Knochen, Krummholz, Schädel, Kralle mit Kugel, Dornenkrone, Obsidian, Stern, Sonne
       const head = kind === 'skullstaff' ? 2 : tier;
-      W(limb3(1.45, 0.03, 0.026, 7), head === 2 ? '#4a3527' : head === 7 ? '#8a6a2a' : '#5a3f2a', { p: [0, 1.0, 0], shade: 0.2 });
-      for (const y of [0.1, 0.55]) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), head === 7 ? GOLD3 : gold, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      W(limb3(1.45, 0.03, 0.026, 7), head === 2 ? '#4a3527' : head === 7 ? '#8a6a2a' : head === 8 ? '#1a1228' : head === 9 ? '#e8e0ea' : '#5a3f2a', { p: [0, 1.0, 0], shade: 0.2, shine: head >= 8 ? 0.6 : 0 });
+      for (const y of [0.1, 0.55]) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), head === 7 ? GOLD3 : head === 8 ? VOIDMETAL3 : head === 9 ? ROSEGOLD3 : gold, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
       const orb = STAFF_ORB[tier];
       switch (head) {
         case 0:
@@ -2146,17 +2697,35 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           crescent3(W, [0, 1.06, 0], 0.08, 0.016, -Math.PI / 2, Math.PI * 1.2, '#e6eef8');
           star3(W, [0, 1.12, 0], 0.06, '#e6f6ff');
           break;
+        case 8:
+          // Abgrund (seit 13.53): vier Tentakelklauen halten ein Leerenauge, drei Splitter schweben darüber
+          for (let k = 0; k < 4; k++) {
+            const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+            const P = (r, y) => [Math.cos(a) * r, y, Math.sin(a) * r];
+            tendril3(W, [P(0.025, 0.97), P(0.085, 1.04), P(0.1, 1.14), P(0.07, 1.22), P(0.035, 1.2)], 0.018);
+          }
+          W(ball(10), VOID3, { p: [0, 1.12, -0.01], s: [0.07, 0.06, 0.05], shine: 0.8 });
+          voidEye3(W, [0, 1.12, 0.03], 0.05);
+          for (let k = 0; k < 3; k++) voidShard3(W, [(k - 1) * 0.08, 1.3 + (k % 2) * 0.05, 0], [(k - 1) * 0.3, 1, 0], 0.05, 0.016);
+          break;
+        case 9:
+          // Ewigkeit (seit 13.53): zwei gekreuzte achtstrahlige Sterne im Roségoldring mit Prismensteinen
+          nova3(W, [0, 1.13, 0], 0.13);
+          nova3(sub3(W, [0, 1.13, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.09);
+          W(torus3(0.085, 0.008, Math.PI * 2, 3, 20), ROSEGOLD3, { p: [0, 1.13, 0], shine: 1 });
+          prismRing3(W, [0, 1.13, 0], 0.085, 5, 0.012);
+          break;
         default:
           sun3(W, [0, 1.08, 0], 0.08, 12, GOLD3, GLOW3[7]);
           sun3(sub3(W, [0, 1.08, 0], [0, Math.PI / 2, 0]), [0, 0, 0], 0.06, 8, GOLD3, null);
       }
       // Details (seit 13.30): Griffwicklung in der Mitte, Metallschuh unten, Anhänger am Kopf (Schnur, Perlen, Feder)
-      const wrapCol = head === 7 ? '#7a4a1a' : head >= 4 ? '#2a1a24' : '#3a2618';
+      const wrapCol = head === 7 ? '#7a4a1a' : head === 9 ? '#a8706a' : head >= 4 ? '#2a1a24' : '#3a2618';
       for (let k = 0; k < 7; k++) W(torus3(0.033, 0.009, Math.PI * 2, 4, 10), k % 2 ? wrapCol : lighter(wrapCol, 0.15), { p: [0, 0.3 + k * 0.03, 0], r: [Math.PI / 2 + (k % 2 ? 0.25 : -0.25), 0, 0] });
-      W(lathe3('staffshoe', [[0, -0.06], [0.02, -0.055], [0.034, 0], [0.034, 0.05], [0, 0.05]], 8), head === 7 ? GOLD3 : '#8a8f96', { p: [0, -0.43, 0], shine: 1 });
+      W(lathe3('staffshoe', [[0, -0.06], [0.02, -0.055], [0.034, 0], [0.034, 0.05], [0, 0.05]], 8), head === 7 ? GOLD3 : head === 8 ? VOIDMETAL3 : head === 9 ? ROSEGOLD3 : '#8a8f96', { p: [0, -0.43, 0], shine: 1 });
       W(limb3(0.16, 0.004, 0.004, 3), '#2a1a12', { p: [0.035, 0.9, 0] });
       for (let k = 0; k < 3; k++) W(sphere3(0.013, 6, 4), k === 1 ? orb : head === 2 || head === 0 || head === 4 ? BONE3 : '#c9a35a', { p: [0.035, 0.86 - k * 0.03, 0], mat: k === 1 ? 'glow' : 'lit', shine: 0.6 });
-      W(G3.feather(), head >= 5 ? '#2a2224' : FEATHER3, { p: [0.035, 0.74, 0], r: [0, 0, Math.PI], s: 0.09 });
+      W(G3.feather(), head >= 5 && head !== 9 ? '#2a2224' : FEATHER3, { p: [0.035, 0.74, 0], r: [0, 0, Math.PI], s: 0.09 });
       shell(sphere3(0.19, 12, 8), { p: [0, 1.07, 0] });
       return;
     }
@@ -2170,14 +2739,14 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       const G = o.gemBone != null ? framed(A, M, o.gemBone) : W;
       const S = o.sparkBone != null ? framed(A, M, o.sparkBone) : W;
       const Y = ROD3_GEM_Y;
-      const sv = tier === 7 ? GOLD3 : tier === 0 ? '#a8b0bc' : '#d8e0f0';
+      const sv = tier === 7 ? GOLD3 : tier === 8 ? '#6e5cc0' : tier === 9 ? ROSEGOLD3 : tier === 0 ? '#a8b0bc' : '#d8e0f0';
       const shaft = ROD3_SHAFT[tier];
       W(limb3(1.15, 0.025, 0.02, 7), shaft, { p: [0, 0.8, 0], shade: 0.2, shine: tier >= 1 ? 0.5 : 0 });
       // Manschette am Griff, Knauf unten, Kelch oben
       W(lathe3('rodcuff', [[0.031, -0.06], [0.036, -0.05], [0.034, 0.1], [0.04, 0.12], [0, 0.121]], 10), sv, { shine: 1 });
       W(sphere3(0.034, 8, 6), sv, { p: [0, -0.36, 0], shine: 1 });
       W(lathe3('rodcup', [[0.02, 0], [0.032, 0.03], [0.05, 0.07], [0.045, 0.08], [0, 0.081]], 10), sv, { p: [0, 0.76, 0], shine: 1 });
-      for (const y of tier === 1 || tier === 7 ? [0.28, 0.45, 0.62] : [0.45]) W(torus3(0.027, 0.008, Math.PI * 2, 3, 10), sv, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      for (const y of tier === 1 || tier === 7 || tier === 9 ? [0.28, 0.45, 0.62] : [0.45]) W(torus3(0.027, 0.008, Math.PI * 2, 3, 10), sv, { p: [0, y, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
       switch (tier) {
         case 0:
           // Holzgabel mit kleinem Kristall
@@ -2228,6 +2797,25 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           G(torus3(0.09, 0.006, Math.PI * 2, 3, 18), '#e8f0ff', { p: [0, Y, 0], r: [0.6, Math.PI / 2, 0], shine: 1 });
           star3(W, [0, Y + 0.15, 0], 0.04, '#e6f6ff');
           break;
+        case 8:
+          // Abgrund (seit 13.53): zwei Tentakel greifen aus dem Kelch um den Kristall, ein Leerenring in Augenform
+          // dreht sich mit ihm, drei Splitter kreisen
+          for (const sx of [-1, 1]) tendril3(W, [[sx * 0.02, 0.82, 0], [sx * 0.08, 0.88, 0.01], [sx * 0.11, Y, 0.02], [sx * 0.08, Y + 0.09, 0.02], [sx * 0.03, Y + 0.1, 0.01]], 0.014);
+          G(torus3(0.1, 0.008, Math.PI * 2, 3, 22), VOIDVIOLET3, { p: [0, Y, 0], s: [1.35, 0.8, 1], mat: 'glow' });
+          for (let k = 0; k < 3; k++) {
+            const a = (k / 3) * Math.PI * 2;
+            voidShard3(G, [Math.cos(a) * 0.14, Y + (k % 2 ? 0.02 : -0.02), Math.sin(a) * 0.14], [0, 1, 0], 0.03, 0.011);
+          }
+          break;
+        case 9:
+          // Ewigkeit (seit 13.53): achtstrahliger Stern hinter dem Kristall, darum kreist ein Ring aus Prismensteinen
+          nova3(W, [0, Y, -0.04], 0.17);
+          G(torus3(0.12, 0.005, Math.PI * 2, 3, 24), ROSEGLOW3, { p: [0, Y, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
+          for (let k = 0; k < 5; k++) {
+            const a = (k / 5) * Math.PI * 2;
+            G(G3.gem(), PRISM3[k], { p: [Math.cos(a) * 0.12, Y, Math.sin(a) * 0.12], s: [0.012, 0.018, 0.012], mat: 'glow' });
+          }
+          break;
         default:
           // Goldhalo hinter dem Kristall mit drei Kristallen und Strahlen
           W(torus3(0.13, 0.012, Math.PI * 2, 3, 24), GOLD3, { p: [0, Y, -0.03], shine: 1 });
@@ -2247,8 +2835,8 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
     }
     case 'scythe': {
       // Sense: Sichelklinge am langen Schaft; Rost, Knochen, Seelenglanz, Doppelklinge, Obsidian, Sterne, Gold
-      const bladeCol = tier === 0 ? '#9a6a4a' : tier === 2 ? BONE3 : tier === 5 ? OBSIDIAN3 : tier === 7 ? GOLD3 : metal;
-      W(limb3(1.5, 0.03, 0.026, 7), tier === 7 ? '#6a4a1a' : '#4a3527', { p: [0, 1.0, 0] });
+      const bladeCol = tier === 0 ? '#9a6a4a' : tier === 2 ? BONE3 : tier === 5 ? OBSIDIAN3 : tier === 7 ? GOLD3 : tier === 8 ? VOIDMETAL3 : tier === 9 ? PLATIN3 : metal;
+      W(limb3(1.5, 0.03, 0.026, 7), tier === 7 ? '#6a4a1a' : tier === 8 ? '#1a1228' : tier === 9 ? '#e8e0ea' : '#4a3527', { p: [0, 1.0, 0], shine: tier >= 8 ? 0.6 : 0 });
       // seit 13.29 eigene Klingenform je Stufe (SCYTHE_BLADES, wie das Inventarsymbol)
       const SB = SCYTHE_BLADES[tier];
       const sGeo = (side, sc) => geo3('scythe4_' + tier + ':' + side + ':' + sc, () => {
@@ -2266,7 +2854,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       W(roundBox(0.06, 0.14, 0.08, 0.02), darker(bladeCol, 0.25), { p: [-0.04, 0.98, 0], shine: 0.7 });
       for (const sz of [-1, 1]) W(sphere3(0.011, 6, 4), lighter(bladeCol, 0.3), { p: [-0.05, 0.98, sz * 0.042], shine: 1 });
       W(roundBox(0.1, 0.09, 0.07, 0.025), accent, { p: [0, 0.98, 0] });
-      const ringCol = tier === 2 ? BONE3 : tier === 7 ? GOLD3 : accent;
+      const ringCol = tier === 2 ? BONE3 : tier === 7 ? GOLD3 : tier === 8 ? VOIDMETAL3 : tier === 9 ? ROSEGOLD3 : accent;
       for (const y of tier === 2 ? [0.15, 0.3, 0.45, 0.6] : [0.2, 0.5]) W(torus3(0.034, tier === 2 ? 0.014 : 0.01, Math.PI * 2, 4, 10), ringCol, { p: [0, y, 0], r: [Math.PI / 2, 0, 0] });
       // Punkte entlang der Klinge (Schneide)
       const along = (u) => [-SB.len * u, 0.98 + SB.curve * SB.len * Math.sin(Math.PI * u * 0.9) - SB.hook * Math.pow(u, 4), 0.016];
@@ -2281,6 +2869,16 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           break;
         case 6: for (let k = 0; k < 3; k++) star3(W, along(0.25 + k * 0.22), 0.022, '#e6f6ff'); break;
         case 7: sun3(W, [0, 0.98, 0.045], 0.06, 10, GOLD3, GLOW3[7]); break;
+        case 8:
+          // Leerenauge am Klingenkragen, Splitter an den Zähnen, Tentakel um den Schaft
+          voidEye3(W, [0, 1.0, 0.05], 0.05);
+          for (let k = 0; k < 3; k++) voidShard3(W, along(0.28 + k * 0.22), [0, -1, 0.3], 0.035, 0.012);
+          tendril3(W, [[0.03, 0.9, 0], [0.07, 0.82, 0.03], [0.04, 0.72, 0.06], [-0.01, 0.68, 0.04]], 0.016);
+          break;
+        case 9:
+          nova3(W, [0, 0.98, 0.05], 0.075);
+          for (let k = 0; k < 3; k++) star3(W, along(0.25 + k * 0.24), 0.024, k % 2 ? ROSEGLOW3 : '#fff4fa');
+          break;
         default:
       }
       shell(roundBox(0.8, 0.22, 0.08, 0.04), { p: [-0.35, 0.98, 0] });
@@ -2291,8 +2889,8 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       // Äxte: Schaft mit Wicklung, Bartklinge (Streitaxt: doppelt), Dorn hinten, Spitze oben; je Stufe eigenes Merkmal
       const big = kind === 'greataxe';
       const shaft = big ? 1.25 : 0.78;
-      const wood = tier >= 5 ? '#2a2024' : tier >= 3 ? accent : '#5a3f2a';
-      const bladeCol = tier === 5 ? OBSIDIAN3 : tier === 7 ? GOLD3 : metal;
+      const wood = tier === 9 ? '#e8e0ea' : tier === 8 ? '#1a1228' : tier >= 5 ? '#2a2024' : tier >= 3 ? accent : '#5a3f2a';
+      const bladeCol = tier === 5 ? OBSIDIAN3 : tier === 7 ? GOLD3 : tier === 8 ? VOIDMETAL3 : tier === 9 ? PLATIN3 : metal;
       W(limb3(shaft, 0.032, 0.028, 7), wood, { p: [0, shaft * 0.78, 0], shade: 0.2 });
       for (let k = 0; k < 3; k++) W(torus3(0.034, 0.01, Math.PI * 2, 4, 10), darker(accent, 0.25), { p: [0, 0.02 - k * 0.07, 0], r: [Math.PI / 2, 0, 0] });
       W(sphere3(0.04, 8, 6), gem || darker(metal, 0.2), { p: [0, -shaft * 0.22 - 0.02, 0], mat: gem ? 'glow' : 'lit', shine: 1 });
@@ -2311,9 +2909,13 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
         else detailBlade3(W, (big ? 'gaxe' : 'axe') + tier, HD.pts, HD.holes, depth, bladeCol, tier, o);
         // Drache: Schuppen auf dem Blatt; Seele/Gott: Kugel im Fenster
         if (tier === 3) for (let j = 0; j < 2; j++) W(G3.scale(), lighter(accent, 0.1), { p: [sx * (0.03 + (0.24 + j * 0.06) * k), headY + 0.12 * k, 0.026], r: [Math.PI / 2, 0, sx * 1.2], s: 0.03 * k, shine: 0.6 });
-        if (HD.holes && (tier === 3 || tier === 4 || tier === 7)) {
+        if (HD.holes && (tier === 3 || tier === 4 || tier >= 7)) {
           const [hx, hy] = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
-          W(sphere3(tier === 3 ? 0.022 : 0.03, 10, 8), tier === 3 ? GLOW3[3] : tier === 4 ? GLOW3[4] : GLOW3[7], { p: [sx * (0.03 + hx * k), headY + hy * k, 0], s: tier === 3 ? [1, 0.6, 0.6] : [1, 1, 1], mat: 'glow' });
+          const hp = [sx * (0.03 + hx * k), headY + hy * k, 0];
+          // Abgrund (seit 13.53): ein Leerenauge sieht durch das Fenster (auf beiden Seiten), Ewigkeit: Prismenstein
+          if (tier === 8) for (const ry of [0, Math.PI]) voidEye3(sub3(W, hp, [0, ry, 0]), [0, 0, 0.004], 0.03 * k);
+          else if (tier === 9) W(G3.gem(), PRISM3[sx > 0 ? 0 : 3], { p: hp, s: [0.022 * k, 0.03 * k, 0.022 * k], mat: 'glow' });
+          else W(sphere3(tier === 3 ? 0.022 : 0.03, 10, 8), tier === 3 ? GLOW3[3] : tier === 4 ? GLOW3[4] : GLOW3[7], { p: hp, s: tier === 3 ? [1, 0.6, 0.6] : [1, 1, 1], mat: 'glow' });
         }
         // Götterhammer: goldene Schlagflächen
         if (HD.hammer) W(roundBox(0.03, 0.36 * k, 0.24, 0.012), GLOW3[7], { p: [sx * (0.03 + 0.255 * k), headY, 0], mat: 'glow' });
@@ -2329,14 +2931,20 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
         coneAlong(W, horn3(1, 0.3, 6), [-0.16, headY + 0.05, 0], [-0.3, -1, 0], 0.09, 0.18, bladeCol, { shine: 1 });
       } else if (back === 'spikes') for (const [dy, l] of [[-0.06, 0.1], [0, 0.15], [0.06, 0.1]]) coneAlong(W, G3.spike(), [-0.03, headY + dy, 0], [-1, dy * 4, 0], l, 0.2, tier === 5 ? OBSIDIAN3 : bladeCol, { shine: 0.8 });
       else if (back === 'blade') detailBlade3(W, 'axeback' + tier, HD.pts, HD.holes, 0.03, bladeCol, tier, { p: [-0.03, headY, 0], s: [0.5, 0.5, 1], r: [0, Math.PI, 0] });
+      // seit 13.53: eingerollter Tentakelhaken (Abgrund) bzw. achtstrahliger Stern (Ewigkeit) als Rücken
+      else if (back === 'tendril') tendril3(W, [[-0.03, headY + 0.02, 0], [-0.12, headY + 0.03, 0], [-0.2, headY - 0.03, 0], [-0.19, headY - 0.12, 0], [-0.13, headY - 0.1, 0]], 0.03);
+      else if (back === 'star') nova3(W, [-0.1, headY, 0], 0.08);
       // Tülle: Ringe oben und unten, Nieten auf beiden Seiten
       W(roundBox(0.08, 0.17 * s, 0.075, 0.025), darker(bladeCol, 0.3), { p: [0, headY, 0], shine: 0.6 });
-      for (const dy of [-1, 1]) W(torus3(0.042, 0.011, Math.PI * 2, 4, 12), tier === 7 ? GOLD3 : tier >= 3 ? accent : '#4a3a2e', { p: [0, headY + dy * 0.095 * s, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });
-      for (const dy of [-0.045, 0.045]) for (const sz of [-1, 1]) W(sphere3(0.012, 6, 4), tier === 7 ? GOLD3 : lighter(bladeCol, 0.3), { p: [0, headY + dy * s, sz * 0.042], shine: 1 });
+      const ringC = tier === 7 ? GOLD3 : tier === 8 ? VOIDGLOW3 : tier === 9 ? ROSEGOLD3 : tier >= 3 ? accent : '#4a3a2e';
+      for (const dy of [-1, 1]) W(torus3(0.042, 0.011, Math.PI * 2, 4, 12), ringC, { p: [0, headY + dy * 0.095 * s, 0], r: [Math.PI / 2, 0, 0], shine: 0.8, mat: tier === 8 ? 'glow' : undefined });
+      for (const dy of [-0.045, 0.045]) for (const sz of [-1, 1]) W(sphere3(0.012, 6, 4), tier === 7 ? GOLD3 : tier === 9 ? ROSEGOLD3 : lighter(bladeCol, 0.3), { p: [0, headY + dy * s, sz * 0.042], shine: 1 });
       if (big || tier >= 3) W(horn3(big ? 0.2 : 0.12, 0.03, 6), bladeCol, { p: [0, headY + 0.1 * s, 0], shine: 1 });
       if (tier === 4) floatGem3(W, [0, headY + 0.34 * s, 0], 0.03, GLOW3[4]);
       else if (tier === 6) for (const sx of [-1, 1]) wing3(W, [sx * 0.03, headY + 0.06 * s, -0.02], sx, 3, 0.16 * s, FEATHER3, '#bfe8ff', {}, 0);
       else if (tier === 7 && HD.hammer) sun3(W, [0, headY, 0.11], 0.07 * s, 10, GOLD3, GLOW3[7]);
+      else if (tier === 8) for (let j = -1; j <= 1; j++) voidShard3(W, [j * 0.07, headY + (0.3 - Math.abs(j) * 0.06) * s, 0], [j * 0.35, 1, 0], 0.05 * s, 0.017 * s);
+      else if (tier === 9) nova3(W, [0, headY + 0.28 * s, 0], 0.07 * s);
       // Griff: Lederriemen über Kreuz am Schaft
       for (let j = 0; j < 4; j++) W(roundBox(0.075, 0.018, 0.075, 0.008), j % 2 ? '#3a2618' : '#5a3a22', { p: [0, -0.02 - j * 0.05, 0], r: [0, j * 0.6, j % 2 ? 0.3 : -0.3] });
       shell(roundBox(big ? 0.75 : 0.42, 0.5 * s, 0.09, 0.045), { p: [big ? 0 : 0.14, headY, 0] });
@@ -2356,7 +2964,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
 const SHIELD_FACE3 = new THREE.Matrix4().set(0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1);
 
 function shield3(A, tier, bone, at) {
-  tier = Math.max(0, Math.min(7, tier || 0));
+  tier = Math.max(0, Math.min(ITEM_TIERS.length - 1, tier || 0));
   const W = framed(A, partFrame(at, [0, 0, Math.PI / 2]), bone);
   // Wappenrahmen auf der Schildfläche in Höhe y (über dem Mittelpunkt)
   const E = (lift, rot = [0, 0, 0]) => {
@@ -2460,6 +3068,46 @@ function shield3(A, tier, bone, at) {
       const F = E(0.02);
       for (const sx of [-1, 1]) wing3(F, [sx * 0.2, 0.04, 0], sx, 4, 0.26, FEATHER3, '#bfe8ff', {}, 0.1);
       F(G3.gem(), GLOW3[6], { p: [0, 0, 0.05], s: [0.03, 0.045, 0.02], mat: 'glow' });
+      break;
+    }
+    case 8: {
+      // Abgrundschild (seit 13.53): Leerenobsidian, Tentakel rollen sich um den Rand, cyanfarbene Risse laufen zu
+      // einem großen Leerenauge in der Mitte
+      face(VOID3, { shine: 0.6 });
+      rim(VOIDMETAL3);
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + 0.3;
+        const P = (r, y, da = 0) => [Math.cos(a + da) * r, y, Math.sin(a + da) * r];
+        tendril3(W, [P(0.25, 0.01), P(0.31, 0.02, 0.05), P(0.36, 0.04, 0.25), P(0.33, 0.06, 0.45), P(0.29, 0.06, 0.42)], 0.024);
+      }
+      const F = E(0.05);
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        F(roundBox(0.01, 0.1, 0.008, 0.004), VOIDGLOW3, { p: [Math.cos(a) * 0.16, Math.sin(a) * 0.16, 0], r: [0, 0, a - Math.PI / 2 + (k % 2 ? 0.25 : -0.25)], mat: 'glow' });
+      }
+      voidEye3(E(0.06), [0, 0, 0], 0.085);
+      break;
+    }
+    case 9: {
+      // Ewigkeitsschild (seit 13.53): achtzackiger Sternschild aus Platin, Roségoldring, achtstrahliger Stern in der
+      // Mitte, Prismensteine an den langen Zacken
+      const F = E(0);
+      F(geo3('g3starshield', () => {
+        const pts = [];
+        for (let k = 0; k < 16; k++) {
+          const a = (k / 16) * Math.PI * 2 + Math.PI / 2;
+          const r = k % 4 === 0 ? 0.36 : k % 2 ? 0.235 : 0.3;
+          pts.push([Math.cos(a) * r, Math.sin(a) * r]);
+        }
+        return plateGeo3('g3starshieldp', pts, null, 0.04, 0.014);
+      }), PLATIN3, { shine: 1, top: '#ffffff', topK: 0.35 });
+      face(PLATIN3, { s: [0.82, 1, 0.82], shine: 1 });
+      W(torus3(0.2, 0.016, Math.PI * 2, 4, 24), ROSEGOLD3, { p: [0, 0.05, 0], r: [Math.PI / 2, 0, 0], shine: 1 });
+      nova3(E(0.065), [0, 0, 0], 0.13);
+      for (let k = 0; k < 4; k++) {
+        const a = (k / 4) * Math.PI * 2 + Math.PI / 2;
+        F(G3.gem(), PRISM3[k], { p: [Math.cos(a) * 0.29, Math.sin(a) * 0.29, 0.03], s: [0.02, 0.03, 0.016], mat: 'glow' });
+      }
       break;
     }
     default: {

@@ -217,7 +217,7 @@ function polyHoles(ctx, pts, holes, color) {
 }
 // Klinge als Symbol (seit 13.30), passend zur 3D-Klinge: helle Schneide, dunklere Mitte, ab Stufe 4 Leuchtader.
 // pts/holes in Metern wie die 3D-Umrisse, map rechnet in Symbolkoordinaten um
-const BLADE_VEIN = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0'];
+const BLADE_VEIN = [null, null, null, null, '#d6a8ff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
 function bladeIcon(ctx, pts, holes, map, col, tier, inset = 0.026) {
   polyHoles(ctx, pts.map(map), (holes || []).map((h) => h.map(map)), col);
   const fillRings = (outer, hs, color) => {
@@ -461,13 +461,14 @@ function eyes(ctx, dir, cx, cy, o = {}) {
 
 // --- Waffen (werden als eigenes Sprite gedreht gezeichnet; Griff liegt bei 0,0) --------------
 
-// Farben je Gegenstandsstufe: Stahl, Bronze, Mondsilber, Drachengold, Seelenviolett
-const TIER_METAL = ['#c7ccd3', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0'];
-const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350', '#3a1a10', '#1a3a5a', '#7a5a10'];
-const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a', '#e0602a', '#5ab0e0', '#e8c46a'];
-const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff', '#ff6a2a', '#bff4ff', '#fff2b0'];
+// Farben je Gegenstandsstufe: Stahl, Bronze, Mondsilber, Drachengold, Seelenviolett, Asche, Himmel, Gold,
+// seit 13.53 Leerenviolett (Abgründig, Lv 70) und Platin (Ewig, Lv 80)
+const TIER_METAL = ['#c7ccd3', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0', '#6e5cc0', '#e0dcec'];
+const TIER_ACCENT = ['#6a2a24', '#5a4030', '#2f4f7a', '#9a2f2a', '#3a2350', '#3a1a10', '#1a3a5a', '#7a5a10', '#160f26', '#a8606a'];
+const FAN_LEAF = ['#2f7f78', '#b0587a', '#3a6fa8', '#c8402f', '#5a3a8a', '#e0602a', '#5ab0e0', '#e8c46a', '#1e1636', '#f6eef4'];
+const STAFF_ORB = ['#a7e37f', '#e8e0a0', '#9be2ff', '#ff9a4a', '#d6a8ff', '#ff6a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
 
-// Formen je Stufe: Leder/Eisen, Bronze, Mond, Drache, Seele, Asche, Himmel, Götter
+// Formen je Stufe: Leder/Eisen, Bronze, Mond, Drache, Seele, Asche, Himmel, Götter, Abgrund, Ewigkeit
 const BLADE_SHAPES = [
   { len: 21, w: 2.3, curve: 0, guard: 'bar' },
   { len: 22, w: 3.1, curve: 0, guard: 'bar' },
@@ -476,7 +477,9 @@ const BLADE_SHAPES = [
   { len: 25, w: 2.8, curve: 0.15, guard: 'spikes', gem: '#d6a8ff', runes: true },
   { len: 25, w: 3.2, curve: 0, guard: 'spikes', serrated: true, gem: '#ff7a2a', edge: '#ff9a4a' },
   { len: 26, w: 2.9, curve: 0.1, guard: 'wings', gem: '#9fe8ff', edge: '#e8f8ff' },
-  { len: 27, w: 3.4, curve: 0, guard: 'wings', gem: '#ffffff', edge: '#fff2b0', runes: true }
+  { len: 27, w: 3.4, curve: 0, guard: 'wings', gem: '#ffffff', edge: '#fff2b0', runes: true },
+  { len: 27, w: 3.2, curve: 0.22, guard: 'tendril', serrated: true, gem: '#5ee8ff', edge: '#5ee8ff', runes: true },
+  { len: 28, w: 3, curve: 0, guard: 'star', gem: '#ffb8e0', edge: '#ffd6f0', runes: true }
 ];
 
 // Klinge von x0 bis zur Spitze; curve biegt sie wie einen Säbel, serrated gibt Zacken am Rücken.
@@ -514,6 +517,25 @@ function guardArt(ctx, x, style, metal) {
     poly(ctx, [[x - 1.2, -2.5], [x - 4, -9], [x + 1, -7], [x + 3, -9.5], [x + 2.4, -3], [x + 2.4, 3], [x + 3, 9.5], [x + 1, 7], [x - 4, 9], [x - 1.2, 2.5]], metal);
     stroke(ctx, dark, 0.6, [[x - 2.5, -7], [x + 1, -3.5]]);
     stroke(ctx, dark, 0.6, [[x - 2.5, 7], [x + 1, 3.5]]);
+  } else if (style === 'tendril') {
+    // Abgrund (seit 13.53): zwei eingerollte Tentakelhaken, in der Mitte ein Leerenauge
+    for (const sg of [-1, 1]) {
+      stroke(ctx, OUTLINE, 3, [[x, sg * 2], [x - 1.5, sg * 6], [x + 1.5, sg * 9.5], [x + 4, sg * 8]]);
+      stroke(ctx, metal, 1.7, [[x, sg * 2], [x - 1.5, sg * 6], [x + 1.5, sg * 9.5], [x + 4, sg * 8]]);
+    }
+    oval(ctx, x + 0.4, 0, 2.8, 3.4, '#120c20');
+    oval(ctx, x + 0.4, 0, 1.6, 2.4, '#5ee8ff');
+    oval(ctx, x + 0.4, 0, 0.45, 1.8, '#120c20');
+    return;
+  } else if (style === 'star') {
+    // Ewigkeit (seit 13.53): achtstrahliger Stern als Parierstange
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const r = k % 2 ? 4.2 : 8.5;
+      poly(ctx, [[x + Math.cos(a - 0.35) * 1.6, Math.sin(a - 0.35) * 1.6], [x + Math.cos(a) * r, Math.sin(a) * r], [x + Math.cos(a + 0.35) * 1.6, Math.sin(a + 0.35) * 1.6]], k % 2 ? '#e2957c' : metal);
+    }
+    oval(ctx, x, 0, 2, 2, '#ffb8e0');
+    return;
   } else if (style === 'spikes') {
     poly(ctx, [[x - 1.5, -4.5], [x + 4.5, -8], [x + 1.8, -3], [x + 1.8, 3], [x + 4.5, 8], [x - 1.5, 4.5]], metal);
     poly(ctx, [[x - 1.5, -2], [x - 4, -5], [x - 1.5, -4.5]], dark);
@@ -524,6 +546,26 @@ function guardArt(ctx, x, style, metal) {
   // Mittelstück
   poly(ctx, [[x - 1.6, 0], [x + 0.6, -2.4], [x + 2.6, 0], [x + 0.6, 2.4]], lighter(metal, 0.25));
 }
+
+// Motive der Stufen 8 und 9 (seit 13.53) für Symbole und 2D-Figuren:
+// Leerenauge (dunkle Mandel, cyanfarbene Iris, senkrechte Schlitzpupille) und achtstrahliger Stern (Platin und Roségold)
+function voidEye2D(ctx, x, y, s = 1) {
+  oval(ctx, x, y, 3.4 * s, 2.1 * s, '#0c0816');
+  oval(ctx, x, y, 2.5 * s, 1.6 * s, '#5ee8ff');
+  oval(ctx, x, y, 0.55 * s, 1.45 * s, '#0c0816');
+  dot(ctx, x - 0.9 * s, y - 0.6 * s, 0.45 * s, 0.35 * s, '#ffffff');
+}
+function star2D(ctx, x, y, r, c1 = '#ffffff', c2 = '#e2957c', core = '#ffb8e0') {
+  for (let k = 0; k < 8; k++) {
+    const a = (k / 8) * Math.PI * 2 - Math.PI / 2;
+    const rr = k % 2 ? r * 0.5 : r;
+    poly(ctx, [[x + Math.cos(a - 0.38) * r * 0.24, y + Math.sin(a - 0.38) * r * 0.24], [x + Math.cos(a) * rr, y + Math.sin(a) * rr], [x + Math.cos(a + 0.38) * r * 0.24, y + Math.sin(a + 0.38) * r * 0.24]], k % 2 ? c2 : c1);
+  }
+  if (core) oval(ctx, x, y, r * 0.2, r * 0.2, core);
+}
+
+// Klingenfarbe im Symbol: Obsidian (Asche), helles Gold (Götter), seit 13.53 Leerenviolett (Abgrund), sonst Stufenmetall
+const bladeMetal2D = (tier) => (tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : TIER_METAL[tier]);
 
 function swordArt(ctx, tier, big) {
   const sh = BLADE_SHAPES[tier] || BLADE_SHAPES[0];
@@ -536,15 +578,20 @@ function swordArt(ctx, tier, big) {
   oval(ctx, -grip, 0, 2.3, 2.3, '#c9a35a');
   oval(ctx, -grip, 0, 1.1, 1.1, sh.gem || '#8a6a3a');
   guardArt(ctx, 2.6, sh.guard, tier >= 3 ? TIER_METAL[tier] : '#c9a35a');
-  bladeArt(ctx, 4.4, sh.len * k - 4.4, sh.w * (big ? 1.4 : 1.12), sh.curve, sh.serrated, TIER_METAL[tier], sh.edge);
+  bladeArt(ctx, 4.4, sh.len * k - 4.4, sh.w * (big ? 1.4 : 1.12), sh.curve, sh.serrated, tier === 8 ? '#3a2e66' : TIER_METAL[tier], sh.edge);
+  // Ewigkeit: kleiner Stern auf der Klinge
+  if (tier === 9) {
+    const sx = 4.4 + (sh.len * k - 4.4) * 0.55;
+    for (let j = 0; j < 4; j++) { const a = j * Math.PI / 2; poly(ctx, [[sx, 0], [sx + Math.cos(a) * 2.6, Math.sin(a) * 2.6], [sx + Math.cos(a + 0.6) * 0.8, Math.sin(a + 0.6) * 0.8]], '#ffffff'); }
+  }
   if (sh.gem) oval(ctx, 2.9, 0, 1.3, 1.3, sh.gem);
   if (sh.runes) for (let x = 9; x < sh.len * k - 5; x += 5) stroke(ctx, sh.gem, 0.8, [[x, -0.7], [x + 2, 0.5]]);
 }
 
 // Zepter des Magiers (seit 8.6): kurzer Schaft, Käfig je Stufe, darin schwebt ein Oktaeder-Kristall
 // in der Elementfarbe (accent; ohne Weg Arkan-Blau)
-const ROD_METAL = ['#8a6a44', '#d8e0f0', '#e6eef8', '#cfe6ff', '#b48cff', '#4a4044', '#e8f0ff', '#e8c46a'];
-const ROD_SHAFT = ['#6b4a2e', '#2e3350', '#252a5e', '#2a3f74', '#3b2c72', '#2a2024', '#121a3c', '#f4f0e6'];
+const ROD_METAL = ['#8a6a44', '#d8e0f0', '#e6eef8', '#cfe6ff', '#b48cff', '#4a4044', '#e8f0ff', '#e8c46a', '#6e5cc0', '#e2957c'];
+const ROD_SHAFT = ['#6b4a2e', '#2e3350', '#252a5e', '#2a3f74', '#3b2c72', '#2a2024', '#121a3c', '#f4f0e6', '#140e24', '#f8f4fa'];
 // Oktaeder-Kristall im Profil: Raute, links oben heller; vert: aufrecht statt längs zum Schaft
 function rodCrystal(ctx, x, y, s, accent, vert = false) {
   const a = 5 * s;
@@ -625,6 +672,26 @@ function rodArt(ctx, tier, accent = '#b8c4ff') {
       const a = k * Math.PI / 2 + Math.PI / 4;
       poly(ctx, [[cx + Math.cos(a - 0.2) * 6.4, Math.sin(a - 0.2) * 6.4], [cx + Math.cos(a) * 9.5, Math.sin(a) * 9.5], [cx + Math.cos(a + 0.2) * 6.4, Math.sin(a + 0.2) * 6.4]], m);
     }
+  } else if (tier === 8) {
+    // Abgrund (seit 13.53): Leerenauge als Ring, zwei Tentakel greifen um den Kristall
+    for (const sg of [-1, 1]) {
+      stroke(ctx, OUTLINE, 3, [[16.5, sg * 1], [19, sg * 6.5], [24, sg * 7.5], [27.5, sg * 4.5], [26, sg * 2.5]]);
+      stroke(ctx, m, 1.6, [[16.5, sg * 1], [19, sg * 6.5], [24, sg * 7.5], [27.5, sg * 4.5], [26, sg * 2.5]]);
+    }
+    ctx.strokeStyle = '#5ee8ff';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.ellipse(cx, 0, 7.6, 4.4, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    for (const [x, y] of [[cx - 7, -6], [cx + 6, 6.5], [cx + 8.5, -4]]) poly(ctx, [[x, y - 1.6], [x + 0.9, y], [x, y + 1.6], [x - 0.9, y]], '#2a2048');
+  } else if (tier === 9) {
+    // Ewigkeit (seit 13.53): achtstrahliger Stern aus Platin und Roségold hinter dem Kristall, Prismenpunkte
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const r = k % 2 ? 6 : 10;
+      poly(ctx, [[cx + Math.cos(a - 0.3) * 2.4, Math.sin(a - 0.3) * 2.4], [cx + Math.cos(a) * r, Math.sin(a) * r], [cx + Math.cos(a + 0.3) * 2.4, Math.sin(a + 0.3) * 2.4]], k % 2 ? m : '#efeaf6');
+    }
+    ['#ff9ad5', '#9ad8ff', '#c8a8ff', '#ffe59a'].forEach((col, k) => dot(ctx, cx + Math.cos(k * Math.PI / 2 + Math.PI / 4) * 5.4, Math.sin(k * Math.PI / 2 + Math.PI / 4) * 5.4, 0.8, 0.8, col));
   } else {
     // Goldhalo mit drei Kristallen
     ctx.strokeStyle = OUTLINE;
@@ -694,7 +761,7 @@ function weaponArt(ctx, kind, tier = 0, accent) {
         }
       }
       // Rippen über die ganze Spannweite
-      ctx.strokeStyle = tier === 7 ? '#a07a1a' : tier >= 4 ? TIER_METAL[tier] : '#3a2a1c';
+      ctx.strokeStyle = tier === 7 ? '#a07a1a' : tier === 9 ? '#e2957c' : tier >= 4 ? TIER_METAL[tier] : '#3a2a1c';
       ctx.lineWidth = 0.7;
       const nr = tier === 7 ? 14 : Math.max(5, Math.min(9, Math.round(FS.span / 0.3)));
       for (let k = 0; k < nr; k++) {
@@ -713,6 +780,17 @@ function weaponArt(ctx, kind, tier = 0, accent) {
         for (let k = 0; k < 10; k++) { const a = (k / 10) * Math.PI * 2; poly(ctx, [[Math.cos(a) * 3, Math.sin(a) * 3], [Math.cos(a + 0.2) * 6, Math.sin(a + 0.2) * 6], [Math.cos(a + 0.4) * 3, Math.sin(a + 0.4) * 3]], '#ffd34d'); }
         oval(ctx, 0, 0, 3, 3, '#fff2b0');
       }
+      // seit 13.53: Abgrund mit Leerenauge und cyanfarbenen Fangspitzen, Ewigkeit mit Sternen auf Perlweiß
+      if (tier === 8) {
+        oval(ctx, 8.5, 0, 3, 2, '#5ee8ff');
+        oval(ctx, 8.5, 0, 0.6, 1.7, '#0c0816');
+        for (const a of [-1.1, -0.4, 0.4, 1.1]) dot(ctx, Math.cos(a) * 13, Math.sin(a) * 13, 0.8, 0.8, '#5ee8ff');
+      }
+      if (tier === 9) for (const [a, r, z] of [[-0.9, 9, 1.8], [0, 10, 2.6], [0.9, 9, 1.8], [-0.45, 6, 1.2], [0.45, 6, 1.2]]) {
+        const x = Math.cos(a) * r;
+        const y = Math.sin(a) * r;
+        for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[x, y], [x + Math.cos(b) * z, y + Math.sin(b) * z], [x + Math.cos(b + 0.7) * z * 0.35, y + Math.sin(b + 0.7) * z * 0.35]], j % 2 ? '#e2957c' : '#ffb8e0'); }
+      }
       box(ctx, -2.5, -1.3, 4, 2.6, 1, '#e0c36a');
       if (tier >= 4) stroke(ctx, '#c8402f', 1, [[-2, 1], [-5, 5], [-4, 8]]);
       break;
@@ -723,7 +801,7 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       const K = 60;
       const h = BP[BP.length - 1][1];
       const mouth = 13 + h * K;
-      const metal = tier === 5 ? '#4a3a34' : tier === 7 ? '#ffe9a0' : tier >= 3 ? TIER_METAL[tier] : '#d9a86a';
+      const metal = tier === 5 ? '#4a3a34' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : tier >= 3 ? TIER_METAL[tier] : '#d9a86a';
       box(ctx, -7, -1.2, 20, 2.4, 1, '#6b4a2e');
       // Bänder
       stroke(ctx, tier === 2 ? '#f4f4f0' : '#c8402f', 1.1, [[13, 1.5], [13 + h * K * 0.6, 4.5]]);
@@ -738,14 +816,24 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       if (tier === 4) for (const y of [-1, 1]) poly(ctx, [[mouth - h * K * 0.8, y * 2], [mouth - h * K * 1.1, y * 7], [mouth - h * K * 0.6, y * 3.5]], '#e8dcc0');
       if (tier === 6) for (const y of [-1, 1]) poly(ctx, [[13, y * 1.5], [10, y * 7], [15, y * 3]], '#f4f8ff');
       if (tier === 7) { for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; stroke(ctx, '#ffd34d', 0.9, [[12 + Math.cos(a) * 2.5, Math.sin(a) * 2.5], [12 + Math.cos(a) * 4.5, Math.sin(a) * 4.5]]); } oval(ctx, 12, 0, 2.2, 2.2, '#fff2b0'); }
+      // seit 13.53: Abgrund mit Leerenauge auf der Flanke und Tentakeln an der Krone, Ewigkeit mit Stern und Roségoldringen
+      if (tier === 8) {
+        oval(ctx, mouth - h * K * 0.45, 0, 2.6, 1.8, '#5ee8ff');
+        oval(ctx, mouth - h * K * 0.45, 0, 0.5, 1.5, '#0c0816');
+        for (const y of [-1, 1]) stroke(ctx, '#2a2048', 1.2, [[13, y * 1.5], [10.5, y * 5], [12.5, y * 7.5]]);
+      }
+      if (tier === 9) {
+        for (const f of [0.25, 0.55]) stroke(ctx, '#e2957c', 0.9, [[mouth - h * K * f, -4.6], [mouth - h * K * f, 4.6]]);
+        for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; stroke(ctx, k % 2 ? '#e2957c' : '#ffb8e0', 0.8, [[12 + Math.cos(a) * 2, Math.sin(a) * 2], [12 + Math.cos(a) * (k % 2 ? 3.5 : 5.5), Math.sin(a) * (k % 2 ? 3.5 : 5.5)]]); }
+      }
       break;
     }
     case 'staff': {
       // seit 13.29: Kopfstück je Stufe wie in 3D: Knochenhörner, Krummholz, Schädel, Krallen mit Kugel, Knochenkrone,
       // Obsidiandornen, Mondsichel mit Stern, Sonne
-      const wood = tier === 7 ? '#8a6a2a' : tier === 2 ? '#4a3527' : '#5a3f2a';
+      const wood = tier === 7 ? '#8a6a2a' : tier === 8 ? '#1a1228' : tier === 9 ? '#e8e0ea' : tier === 2 ? '#4a3527' : '#5a3f2a';
       box(ctx, -14, -1.4, 34, 2.8, 1.2, wood);
-      for (const x of [-8, 6]) box(ctx, x, -1.9, 1.6, 3.8, 0.6, tier === 7 ? '#ffd34d' : '#c9a35a');
+      for (const x of [-8, 6]) box(ctx, x, -1.9, 1.6, 3.8, 0.6, tier === 7 ? '#ffd34d' : tier === 8 ? '#5ee8ff' : tier === 9 ? '#e2957c' : '#c9a35a');
       const orb = STAFF_ORB[tier];
       const H = 22;
       switch (tier) {
@@ -790,6 +878,26 @@ function weaponArt(ctx, kind, tier = 0, accent) {
           ctx.stroke();
           for (let k = 0; k < 4; k++) { const a = k * Math.PI / 2; poly(ctx, [[H + 3.5, 0], [H + 3.5 + Math.cos(a) * 3.2, Math.sin(a) * 3.2], [H + 3.5 + Math.cos(a + 0.6) * 1, Math.sin(a + 0.6) * 1]], '#e6f6ff'); }
           break;
+        case 8:
+          // Abgrund (seit 13.53): Tentakelklauen halten ein Leerenauge
+          for (const y of [-1, 1]) {
+            stroke(ctx, OUTLINE, 2.8, [[H - 1, y * 1], [H + 1, y * 6], [H + 6, y * 7], [H + 8.5, y * 4]]);
+            stroke(ctx, '#2a2048', 1.5, [[H - 1, y * 1], [H + 1, y * 6], [H + 6, y * 7], [H + 8.5, y * 4]]);
+          }
+          oval(ctx, H + 4, 0, 3.6, 2.8, '#0c0816');
+          oval(ctx, H + 4, 0, 2.6, 2, orb);
+          oval(ctx, H + 4, 0, 0.6, 1.8, '#0c0816');
+          break;
+        case 9:
+          // Ewigkeit (seit 13.53): achtstrahliger Stern mit Roségoldring
+          for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 4.5 : 7.5; poly(ctx, [[H + 4 + Math.cos(a - 0.35) * 1.8, Math.sin(a - 0.35) * 1.8], [H + 4 + Math.cos(a) * r, Math.sin(a) * r], [H + 4 + Math.cos(a + 0.35) * 1.8, Math.sin(a + 0.35) * 1.8]], k % 2 ? '#e2957c' : '#efeaf6'); }
+          ctx.strokeStyle = '#e2957c';
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.arc(H + 4, 0, 3.6, 0, Math.PI * 2);
+          ctx.stroke();
+          oval(ctx, H + 4, 0, 1.8, 1.8, orb);
+          break;
         default:
           for (let k = 0; k < 12; k++) { const a = (k / 12) * Math.PI * 2; poly(ctx, [[H + 3.5 + Math.cos(a) * 3, Math.sin(a) * 3], [H + 3.5 + Math.cos(a + 0.26) * 6.5, Math.sin(a + 0.26) * 6.5], [H + 3.5 + Math.cos(a + 0.52) * 3, Math.sin(a + 0.52) * 3]], '#ffd34d'); }
           oval(ctx, H + 3.5, 0, 3.4, 3.4, '#fff2b0');
@@ -800,14 +908,15 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       // seit 13.29: Klingenform je Stufe wie in 3D (SCYTHE_BLADES): Schaft nach rechts, Klinge am Kopf nach oben
       const K = 26;
       const HX = 21;
-      const blade = tier === 0 ? '#9a6a4a' : tier === 2 ? '#e8dcc0' : tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
-      box(ctx, -13, -1.3, 36, 2.6, 1.2, tier === 7 ? '#6a4a1a' : tier >= 5 ? '#2a2024' : '#4a3527');
+      const blade = tier === 0 ? '#9a6a4a' : tier === 2 ? '#e8dcc0' : tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : TIER_METAL[tier];
+      box(ctx, -13, -1.3, 36, 2.6, 1.2, tier === 7 ? '#6a4a1a' : tier === 9 ? '#e8e0ea' : tier === 8 ? '#140e22' : tier >= 5 ? '#2a2024' : '#4a3527');
       const toIcon = ([x, y]) => [HX + y * K, x * K];
       bladeIcon(ctx, scythePts(tier, -1, 1), null, toIcon, blade, tier, 0.022);
       const SB = SCYTHE_BLADES[tier];
       if (SB.twin) bladeIcon(ctx, scythePts(tier, 1, SB.twin), null, toIcon, blade, tier, 0.018);
       // Obsidian: Glutkante, damit die dunkle Klinge auf dunklem Grund sichtbar bleibt
       if (tier === 5) stroke(ctx, '#ff7a2a', 0.8, scythePts(tier, -1, 1).slice(19).map(toIcon));
+      if (tier === 8) stroke(ctx, '#5ee8ff', 0.8, scythePts(tier, -1, 1).slice(19).map(toIcon));
       box(ctx, HX - 1.5, -2.4, 3.4, 4.8, 1, TIER_ACCENT[tier]);
       if (tier === 4) { oval(ctx, HX + 1, 0, 2.2, 2, '#ddd5bb'); dot(ctx, HX + 1.6, -0.8, 0.5, 0.5, '#1a1210'); dot(ctx, HX + 1.6, 0.8, 0.5, 0.5, '#1a1210'); }
       else if (tier >= 3) oval(ctx, HX + 0.2, 0, 1.4, 1.4, STAFF_ORB[tier]);
@@ -849,11 +958,14 @@ function weaponArt(ctx, kind, tier = 0, accent) {
         else if (tier === 4 || tier === 5) poly(ctx, [[tx - 1.2, ty], [tx - 2.6, ty + sgn * 3.6], [tx + 1, ty]], tier === 5 ? '#2a2224' : lighter(TIER_METAL[tier], 0.2));
         else if (tier === 6) for (const a of [0.5, 1.1]) poly(ctx, [[tx, ty], [tx + Math.cos(a) * 5, ty + sgn * Math.sin(a) * 5], [tx + Math.cos(a + 0.3) * 2, ty + sgn * Math.sin(a + 0.3) * 2]], '#f4f8ff');
         else if (tier === 7) poly(ctx, [[tx - 1, ty], [tx + 2, ty + sgn * 4.2], [tx + 1.2, ty - sgn * 0.4]], '#fff2b0');
+        else if (tier === 8) poly(ctx, [[tx - 1.4, ty], [tx - 2.4, ty + sgn * 4.6], [tx + 1.2, ty + sgn * 1.2]], '#5ee8ff');
+        else if (tier === 9) for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[tx, ty], [tx + Math.cos(b) * 3, ty + Math.sin(b) * 3], [tx + Math.cos(b + 0.7) * 1, ty + Math.sin(b + 0.7) * 1]], j % 2 ? '#e2957c' : '#ffffff'); }
+        if (tier === 8) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1] - 0.9], [pts[k][0] - 3.2, pts[k][1] + sgn * 1.8], [pts[k][0], pts[k][1] + 0.9]], '#2a2048');
         if (tier === 5) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1] - 1], [pts[k][0] + 3, pts[k][1] + sgn * 1.4], [pts[k][0], pts[k][1] + 1]], '#2a2224');
         if (tier === 6) for (let k = 1; k < n - 1; k++) poly(ctx, [[pts[k][0], pts[k][1]], [pts[k][0] + 4.5, pts[k][1] + sgn * 1.6], [pts[k][0] + 1, pts[k][1] + sgn * 2.6]], '#dfefff');
       }
       // Griff mit Wicklung, Schmuck in der Mitte
-      box(ctx, gx - 1.8, -2.4, 3.6, 4.8, 1, tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : '#3a2a1c');
+      box(ctx, gx - 1.8, -2.4, 3.6, 4.8, 1, tier === 7 ? '#7a4a1a' : tier === 6 ? '#8a9ab8' : tier === 9 ? '#a8706a' : '#3a2a1c');
       if (tier >= 1) stroke(ctx, tier >= 6 ? '#e8c46a' : TIER_METAL[tier], 0.7, [[gx - 1.8, 0], [gx + 1.8, 0]]);
       if (tier === 4) oval(ctx, gx + 3, 0, 1.3, 1.3, STAFF_ORB[4]);
       if (tier === 5) oval(ctx, gx + 1.6, 0, 1.2, 1.2, '#ff7a2a');
@@ -862,12 +974,14 @@ function weaponArt(ctx, kind, tier = 0, accent) {
         for (let k = 0; k < 8; k++) poly(ctx, [[gx + 2, 0], [gx + 2 + Math.cos(k * Math.PI / 4) * 4, Math.sin(k * Math.PI / 4) * 4], [gx + 2 + Math.cos(k * Math.PI / 4 + 0.35) * 1.6, Math.sin(k * Math.PI / 4 + 0.35) * 1.6]], '#ffd34d');
         oval(ctx, gx + 2, 0, 1.8, 1.8, '#fff2b0');
       }
+      if (tier === 8) { oval(ctx, gx + 2.2, 0, 2, 1.4, '#5ee8ff'); oval(ctx, gx + 2.2, 0, 0.45, 1.2, '#0c0816'); }
+      if (tier === 9) oval(ctx, gx + 1.8, 0, 1.4, 1.4, '#ffb8e0');
       break;
     }
     case 'axe': {
       // seit 13.29/13.30: Klinge je Stufe wie in 3D (AXE_HEADS mit Löchern und Rücken); Schaft nach rechts, Klinge nach oben
       const HD = AXE_HEADS[tier];
-      const metal = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
+      const metal = bladeMetal2D(tier);
       const K = 33;
       const HX = 14;
       box(ctx, -6, -1.3, 25, 2.6, 1, tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
@@ -879,8 +993,13 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       else if (HD.back === 'hook') poly(ctx, [[HX - 1.6, 1], [HX - 0.5, 5], [HX - 3, 7.5], [HX + 1.2, 5.5], [HX + 1.6, 1]], metal);
       else if (HD.back === 'spikes') for (const dx of [-2, 0, 2]) poly(ctx, [[HX + dx - 0.9, 1], [HX + dx * 1.4, dx ? 4.5 : 6], [HX + dx + 0.9, 1]], metal);
       else if (HD.back === 'blade') bladeIcon(ctx, HD.pts, HD.holes, ([x, y]) => [HX + y * K * 0.5, x * K * 0.5 + 1.2], metal, tier, 0.05);
+      else if (HD.back === 'tendril') {
+        // Abgrund (seit 13.53): eingerollter Tentakelhaken
+        stroke(ctx, OUTLINE, 3, [[HX, 1], [HX - 1, 5], [HX + 2.5, 7.5], [HX + 3.5, 5.5]]);
+        stroke(ctx, metal, 1.6, [[HX, 1], [HX - 1, 5], [HX + 2.5, 7.5], [HX + 3.5, 5.5]]);
+      } else if (HD.back === 'star') for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[HX, 4.5], [HX + Math.cos(b) * 3.2, 4.5 + Math.sin(b) * 3.2], [HX + Math.cos(b + 0.7) * 1, 4.5 + Math.sin(b + 0.7) * 1]], j % 2 ? '#e2957c' : metal); }
       // Fenster: leuchtende Kugel
-      if (HD.holes && (tier === 3 || tier === 4 || tier === 7)) {
+      if (HD.holes && (tier === 3 || tier === 4 || tier >= 7)) {
         const c = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
         const [cx, cy] = map(c);
         oval(ctx, cx, cy, tier === 3 ? 0.9 : 1.4, tier === 3 ? 1.4 : 1.4, STAFF_ORB[tier]);
@@ -893,10 +1012,10 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       // seit 13.29/13.30: Kopf je Stufe wie in 3D (GREATAXE_HEADS): Keil, Schmetterling, Halbmond, Flügel, Mondsicheln,
       // Henkersbeil, Federklingen, Götterhammer; mit Löchern, Schneide, Mitte und Ader
       const HD = GREATAXE_HEADS[tier];
-      const metal = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : TIER_METAL[tier];
+      const metal = bladeMetal2D(tier);
       const K = 30;
       const HX = 21;
-      box(ctx, -13, -1.4, 37, 2.8, 1.2, tier >= 5 ? '#2a2024' : tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
+      box(ctx, -13, -1.4, 37, 2.8, 1.2, tier === 9 ? '#e8e0ea' : tier >= 5 ? '#2a2024' : tier >= 3 ? TIER_ACCENT[tier] : '#5a4030');
       for (let x = -12; x < -3; x += 2) stroke(ctx, '#2a1c14', 0.6, [[x, -1.4], [x + 1, 1.4]]);
       const sides = HD.single ? [1] : [1, -1];
       for (const sg of sides) {
@@ -911,6 +1030,12 @@ function weaponArt(ctx, kind, tier = 0, accent) {
       if (HD.hammer) for (const sg of [-1, 1]) box(ctx, HX - 5, sg * 9 - 1.2, 10, 2.4, 0.6, '#fff2b0');
       if (tier >= 1 && tier !== 7) poly(ctx, [[HX + 2.5, -1.5], [HX + 8, 0], [HX + 2.5, 1.5]], metal);
       if (tier >= 4 && !HD.hammer) oval(ctx, HX, 0, 1.4, 1.4, STAFF_ORB[tier]);
+      // Fenster in den Klingen (seit 13.53): Leerenauge bzw. Prismenstein
+      if (tier >= 8 && HD.holes) for (const sg of sides) {
+        const k = K * (sg < 0 ? HD.back || 1 : 1);
+        const c = HD.holes[0].reduce((a, q) => [a[0] + q[0] / HD.holes[0].length, a[1] + q[1] / HD.holes[0].length], [0, 0]);
+        oval(ctx, HX + c[1] * k, -sg * (c[0] * k + 1.5), 1.2, 1.2, STAFF_ORB[tier]);
+      }
       break;
     }
     case 'club':
@@ -945,34 +1070,34 @@ function heldWeapon(ctx, kind, x, y, angle, tier = 0) {
 
 // --- Die vier Klassen -------------------------------------------------------------------
 // Aussehen je Rüstungs- und Helmstufe. Index -1 (keine Ausrüstung, z. B. Vorschau) = Grundfarben,
-// -2 beim Helm = kein Helm. Stufen: Leder, Bronze, Eisen, Drache, Seele, Asche, Himmel, Götter
+// -2 beim Helm = kein Helm. Stufen: Leder, Bronze, Eisen, Drache, Seele, Asche, Himmel, Götter, Abgrund, Ewigkeit
 const ARMOR_LOOK = {
   krieger: {
-    torso: ['#7a5a3c', '#8a6a3a', '#6a7480', '#9c3b33', '#4a2f6a', '#3a2a26', '#2a4a7a', '#c8a03a'],
-    trim: ['#a88a5a', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0'],
-    helm: ['#8a6a44', '#c08a4a', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a'],
-    crest: ['#c8402f', '#c8402f', '#c8402f', '#2a1416', '#d6a8ff', '#ff7a2a', '#ffffff', '#c8402f']
+    torso: ['#7a5a3c', '#8a6a3a', '#6a7480', '#9c3b33', '#4a2f6a', '#3a2a26', '#2a4a7a', '#c8a03a', '#1c1430', '#9a4a62'],
+    trim: ['#a88a5a', '#d9a86a', '#e6eef8', '#e8c46a', '#b48cff', '#ff9a5a', '#9fe8ff', '#fff2b0', '#5ee8ff', '#e2957c'],
+    helm: ['#8a6a44', '#c08a4a', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a', '#2a2048', '#b4b0c8'],
+    crest: ['#c8402f', '#c8402f', '#c8402f', '#2a1416', '#d6a8ff', '#ff7a2a', '#ffffff', '#c8402f', '#5ee8ff', '#ff8ac8']
   },
   ninja: {
-    torso: ['#5a5040', '#4a3a2a', '#312c3d', '#203a24', '#2a1a3a', '#3a1a14', '#1a2a4a', '#3a3010'],
-    scarf: ['#8a6a4a', '#9a3a2a', '#6b4f9a', '#3a8a4a', '#9a2a4a', '#e0602a', '#4a9ae0', '#e8c46a'],
-    hood: ['#4a4038', '#5a4030', '#2a2633', '#1e3a24', '#2a1440', '#2a1410', '#14203a', '#3a3010']
+    torso: ['#5a5040', '#4a3a2a', '#312c3d', '#203a24', '#2a1a3a', '#3a1a14', '#1a2a4a', '#3a3010', '#120e1e', '#cfc4d8'],
+    scarf: ['#8a6a4a', '#9a3a2a', '#6b4f9a', '#3a8a4a', '#9a2a4a', '#e0602a', '#4a9ae0', '#e8c46a', '#6a2ad0', '#d8708e'],
+    hood: ['#4a4038', '#5a4030', '#2a2633', '#1e3a24', '#2a1440', '#2a1410', '#14203a', '#3a3010', '#0e0a18', '#b4a6c8']
   },
   schamane: {
-    robe: ['#7a7a6a', '#8a5a7a', '#2c6f6a', '#9a3a2a', '#3a3a8a', '#8a3a1a', '#2a6aa8', '#f0e0b0'],
-    gold: ['#c8b890', '#e0c36a', '#e0c36a', '#ffd34d', '#d6a8ff', '#ffb04a', '#bfe8ff', '#ffe9a0'],
-    band: ['#8a6a44', '#c8402f', '#e0c36a', '#ffd34d', '#b48cff', '#ff7a2a', '#9fe8ff', '#ffffff']
+    robe: ['#7a7a6a', '#8a5a7a', '#2c6f6a', '#9a3a2a', '#3a3a8a', '#8a3a1a', '#2a6aa8', '#f0e0b0', '#1e1838', '#e6dcea'],
+    gold: ['#c8b890', '#e0c36a', '#e0c36a', '#ffd34d', '#d6a8ff', '#ffb04a', '#bfe8ff', '#ffe9a0', '#5ee8ff', '#e2957c'],
+    band: ['#8a6a44', '#c8402f', '#e0c36a', '#ffd34d', '#b48cff', '#ff7a2a', '#9fe8ff', '#ffffff', '#7a5ad8', '#fff4fa']
   },
   nekromant: {
-    robe: ['#4a4438', '#3a3a30', '#334a31', '#4a2a2a', '#2a1a3a', '#1e1a1a', '#2a3a4a', '#3a2a10'],
-    hood: ['#3a3428', '#2e2a24', '#2a3b28', '#3a1e1e', '#24143a', '#141010', '#1e2a3a', '#2e2410'],
-    glow: ['#a7e37f', '#a7e37f', '#a7e37f', '#ff6a5a', '#d6a8ff', '#ff9a4a', '#9fe8ff', '#ffe9a0']
+    robe: ['#4a4438', '#3a3a30', '#334a31', '#4a2a2a', '#2a1a3a', '#1e1a1a', '#2a3a4a', '#3a2a10', '#140e22', '#d8d2e2'],
+    hood: ['#3a3428', '#2e2a24', '#2a3b28', '#3a1e1e', '#24143a', '#141010', '#1e2a3a', '#2e2410', '#0c0816', '#cfc8da'],
+    glow: ['#a7e37f', '#a7e37f', '#a7e37f', '#ff6a5a', '#d6a8ff', '#ff9a4a', '#9fe8ff', '#ffe9a0', '#5ee8ff', '#ffb8e0']
   },
   // Magier (seit 8.6): Indigo und Silber; die Elementfarbe kommt aus MAGE_EL (Hutband, Kristall, Runen)
   magier: {
-    robe: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#2a2428', '#121a3c', '#e6eaf2'],
-    trim: ['#a8b0bc', '#c8d2e4', '#d8e0f0', '#cfe6ff', '#e0d4ff', '#ff8a5a', '#e8f0ff', '#f4f6fb'],
-    hat: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#1e1a1c', '#121a3c', '#e6eaf2']
+    robe: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#2a2428', '#121a3c', '#e6eaf2', '#1a1232', '#e8e0ee'],
+    trim: ['#a8b0bc', '#c8d2e4', '#d8e0f0', '#cfe6ff', '#e0d4ff', '#ff8a5a', '#e8f0ff', '#f4f6fb', '#5ee8ff', '#e2957c'],
+    hat: ['#5a6272', '#2e3a7a', '#252a5e', '#2a3f74', '#3b2c72', '#1e1a1c', '#121a3c', '#e6eaf2', '#140e28', '#e8e0ee']
   }
 };
 
@@ -988,13 +1113,14 @@ function playerLook(p) {
 }
 
 // --- Sichtbare Ausrüstung: Schuhe, Gürtel, Schultern, Umhang ------------------------------------
-// Je Stufe eigene Farben; ab Drache Dornen und Edelsteine, ab Himmel leuchtende Federn.
+// Je Stufe eigene Farben; ab Drache Dornen und Edelsteine, ab Himmel leuchtende Federn,
+// seit 13.53 Abgrund (Leerenschwarz mit Cyan) und Ewigkeit (Platin mit Roségold und Sternen).
 const GEAR_LOOK = {
-  boots: ['#5a3e2a', '#6e4a2a', '#4a4c52', '#7a2a24', '#3a2a4a', '#2a2020', '#30507a', '#b88a2a'],
-  belt: ['#6a4a30', '#7a5030', '#3e3a36', '#6a1e1a', '#2e2040', '#2a1a14', '#1e3050', '#8a6a1a'],
-  plate: ['#7a5a3c', '#b07a40', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a'],
-  cape: ['#6a5a48', '#7a3a2a', '#2f5a3a', '#8a1f1f', '#3a2a6a', '#2a2220', '#2a4a8a', '#d0a63a'],
-  lining: ['#4a3e30', '#a88a5a', '#c9b48a', '#2a1214', '#b48cff', '#ff7a2a', '#e6f2ff', '#fff2b0']
+  boots: ['#5a3e2a', '#6e4a2a', '#4a4c52', '#7a2a24', '#3a2a4a', '#2a2020', '#30507a', '#b88a2a', '#1a1428', '#dcd6e6'],
+  belt: ['#6a4a30', '#7a5030', '#3e3a36', '#6a1e1a', '#2e2040', '#2a1a14', '#1e3050', '#8a6a1a', '#140e22', '#a85a6a'],
+  plate: ['#7a5a3c', '#b07a40', '#8f98a3', '#a8343f', '#6a4a9a', '#3a3436', '#c8dcf0', '#e8c46a', '#2a2048', '#aca8c2'],
+  cape: ['#6a5a48', '#7a3a2a', '#2f5a3a', '#8a1f1f', '#3a2a6a', '#2a2220', '#2a4a8a', '#d0a63a', '#140e26', '#9a4a6a'],
+  lining: ['#4a3e30', '#a88a5a', '#c9b48a', '#2a1214', '#b48cff', '#ff7a2a', '#e6f2ff', '#fff2b0', '#5ee8ff', '#f2d0dc']
 };
 const gearTier = (t) => (t == null ? -1 : t);
 
@@ -1016,7 +1142,13 @@ function gearBoots(ctx, dir, w, tier, robe) {
     box(ctx, x - 0.2, -8.8 - lift, wide + 0.4, 1.8, 0.8, tier >= 2 ? m : lighter(c, 0.2));
     if (tier >= 1) stroke(ctx, m, 0.7, [[x + 1, -5.6 - lift], [x + wide - 1, -5.6 - lift]]);
     if (tier >= 3) poly(ctx, [[x + wide * 0.3, -9 - lift], [x + wide * 0.5, -12 - lift], [x + wide * 0.7, -9 - lift]], m);
-    if (tier >= 6) poly(ctx, [[x + wide - 0.5, -8 - lift], [x + wide + 3.5, -11 - lift], [x + wide + 1.5, -6.5 - lift]], '#ffffff');
+    if (tier === 6 || tier === 7) poly(ctx, [[x + wide - 0.5, -8 - lift], [x + wide + 3.5, -11 - lift], [x + wide + 1.5, -6.5 - lift]], '#ffffff');
+    // seit 13.53: Abgrund mit Leerensplitter und Cyan-Sohle, Ewigkeit mit Stern am Schaft
+    if (tier === 8) {
+      stroke(ctx, '#5ee8ff', 0.7, [[x + 0.4, -0.5 - lift], [x + wide - 0.4, -0.5 - lift]]);
+      poly(ctx, [[x + wide - 1, -7 - lift], [x + wide + 2.6, -11.5 - lift], [x + wide + 0.6, -5.5 - lift]], '#2a2048');
+    }
+    if (tier === 9) for (let j = 0; j < 4; j++) { const b = j * Math.PI / 2; poly(ctx, [[x + wide / 2, -6.6 - lift], [x + wide / 2 + Math.cos(b) * 2.4, -6.6 - lift + Math.sin(b) * 2.4], [x + wide / 2 + Math.cos(b + 0.7) * 0.8, -6.6 - lift + Math.sin(b + 0.7) * 0.8]], j % 2 ? '#e2957c' : '#ffffff'); }
   };
   if (dir === 'side') {
     const s = w.l * (robe ? 2 : 2.6);
@@ -1043,7 +1175,7 @@ function gearBelt(ctx, dir, y, half, tier) {
   if (dir === 'down') {
     box(ctx, -2.6, y - 0.6, 5.2, 4.6, 1, m);
     box(ctx, -1.3, y + 0.5, 2.6, 2.4, 0.6, darker(c, 0.2));
-    if (tier >= 3) oval(ctx, 0, y + 1.7, 1.1, 1.1, tier >= 4 ? '#d6a8ff' : '#c8402f');
+    if (tier >= 3) oval(ctx, 0, y + 1.7, 1.1, 1.1, tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 4 ? '#d6a8ff' : '#c8402f');
     if (tier >= 2) for (const x of [-half + 2.5, half - 2.5]) oval(ctx, x, y + 1.7, 0.9, 0.9, m);
   } else if (dir === 'side') {
     box(ctx, -half + 0.5, y + 1.5, 4, 4.2, 1.2, darker(c, 0.1));
@@ -1068,9 +1200,12 @@ function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
       for (let i = 1; i < pts.length; i += 2) ctx.quadraticCurveTo(...P(pts[i][0], pts[i][1]), ...P(pts[i + 1][0], pts[i + 1][1]));
       ctx.closePath();
     };
-    if (tier >= 6) {
+    if (tier === 6 || tier === 7) {
       for (let k = 0; k < 3; k++) poly(ctx, [P(-2, -1), P(6 + k * 2.5, -7 - k * 2), P(4 + k * 2, 1)], k === 2 ? '#e6f2ff' : '#ffffff');
     }
+    // seit 13.53: Abgrund mit aufragenden Leerensplittern, Ewigkeit mit Sternstrahlen
+    if (tier === 8) for (let k = 0; k < 3; k++) poly(ctx, [P(-1 + k * 2.5, -3), P(-0.5 + k * 3.2, -10 - (k % 2) * 3), P(1.4 + k * 2.5, -3)], k % 2 ? '#2a2048' : '#3a2e66');
+    if (tier === 9) for (let k = 0; k < 5; k++) poly(ctx, [P(0.5, -1), P(1 + Math.cos(-2.4 + k * 0.45) * 9, -1 + Math.sin(-2.4 + k * 0.45) * 9), P(2.5, 0)], k % 2 ? '#e2957c' : '#ffffff');
     for (let k = 1; k >= 0; k--) {
       const v = 3.6 + k * 2.4;
       path([[-4 + k, v - 1], [1.5, v + 0.3], [6.8 - k * 0.5, v + 0.6], [6.6 - k * 0.5, v + 1.8], [6.4 - k * 0.5, v + 2.5], [1.5, v + 2.4], [-3.6 + k, v + 1.2], [-3.8 + k, v], [-4 + k, v - 1]]);
@@ -1097,7 +1232,7 @@ function gearShoulders(ctx, dir, w, tier, y, spread = 11.5) {
       poly(ctx, [P(-2.4, -3.4), P(-1 + 0.5, -9.5 - (tier >= 5 ? 2 : 0)), P(0.4, -4)], m);
       poly(ctx, [P(1.6, -4), P(3.6 + 0.5, -8.5 - (tier >= 5 ? 2 : 0)), P(4.6, -3.2)], m);
     }
-    if (tier >= 4) oval(ctx, ...P(1.4, -0.6), 1.9, 1.9, tier === 5 ? '#ff7a2a' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
+    if (tier >= 4) oval(ctx, ...P(1.4, -0.6), 1.9, 1.9, tier === 5 ? '#ff7a2a' : tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 6 ? '#9fe8ff' : '#d6a8ff');
   };
   if (dir === 'side') pad(w.arm, 1);
   else {
@@ -1188,8 +1323,19 @@ function drawCape(ctx, tier, dir, w, moving, t, layer) {
   // Wappen auf dem Rücken, Spange an den Schultern
   if (dir === 'up' && tier >= 3) {
     const ey = (y0 + y1) / 2 - 1;
-    poly(ctx, [[0, ey - 5], [4, ey], [0, ey + 5], [-4, ey]], m);
-    oval(ctx, 0, ey, 1.6, 1.6, tier >= 6 ? '#ffffff' : lining);
+    if (tier === 8) {
+      // Abgrund (seit 13.53): Leerenauge auf dem Rücken
+      oval(ctx, 0, ey, 5, 3, '#0c0816');
+      oval(ctx, 0, ey, 3.6, 2.2, '#5ee8ff');
+      oval(ctx, 0, ey, 0.7, 2, '#0c0816');
+    } else if (tier === 9) {
+      // Ewigkeit (seit 13.53): achtstrahliger Stern
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 3.2 : 6; poly(ctx, [[Math.cos(a - 0.4) * 1.2, ey + Math.sin(a - 0.4) * 1.2], [Math.cos(a) * r, ey + Math.sin(a) * r], [Math.cos(a + 0.4) * 1.2, ey + Math.sin(a + 0.4) * 1.2]], k % 2 ? '#e2957c' : '#ffffff'); }
+      oval(ctx, 0, ey, 1.4, 1.4, '#ffb8e0');
+    } else {
+      poly(ctx, [[0, ey - 5], [4, ey], [0, ey + 5], [-4, ey]], m);
+      oval(ctx, 0, ey, 1.6, 1.6, tier >= 6 ? '#ffffff' : lining);
+    }
   }
   if (dir !== 'side') {
     oval(ctx, -7, y0 + 0.8, 1.6, 1.6, m);
@@ -1359,9 +1505,9 @@ function mageGlyph2D(ctx, x, y, r, glyph, color, width = 1) {
 function mageHat2D(ctx, dir, cx, cy, ht, hat, silver, E, female) {
   const side = dir === 'side';
   const by = cy - 7.5;
-  const h = ht === 2 ? 25 : ht === 0 ? 20 : 22;
+  const h = ht === 2 || ht === 8 ? 25 : ht === 9 ? 26 : ht === 0 ? 20 : 22;
   // Knick: von vorn zur Seite, von der Seite nach hinten (links)
-  const bend = ht === 0 || ht === 6 ? (side ? -9 : -7) : side ? -3 : -1.5;
+  const bend = ht === 0 || ht === 6 ? (side ? -9 : -7) : ht === 8 ? (side ? -6 : 5) : side ? -3 : -1.5;
   const droop = ht === 0 || ht === 6 ? 5 : 0;
   ctx.save();
   if (female && !side) {
@@ -1422,6 +1568,15 @@ function mageHat2D(ctx, dir, cx, cy, ht, hat, silver, E, female) {
     const sx = cx + (side ? 7 : 12);
     const sy = by - 13;
     poly(ctx, [[sx, sy - 2.4], [sx + 0.7, sy - 0.7], [sx + 2.4, sy], [sx + 0.7, sy + 0.7], [sx, sy + 2.4], [sx - 0.7, sy + 0.7], [sx - 2.4, sy], [sx - 0.7, sy - 0.7]], '#fff2b0');
+  } else if (ht === 8) {
+    // Abgrundhut (seit 13.53): Leerenauge über dem Band, Splitter schweben um die Spitze
+    oval(ctx, cx, by - 6.5, 2.4, 1.5, '#5ee8ff');
+    oval(ctx, cx, by - 6.5, 0.5, 1.3, '#0c0816');
+    for (const [dx, dy] of [[-6, 4], [5, 7], [-2, 10]]) poly(ctx, [[tx + dx, tyy + dy - 2], [tx + dx + 1, tyy + dy], [tx + dx, tyy + dy + 2], [tx + dx - 1, tyy + dy]], '#5ee8ff');
+  } else if (ht === 9) {
+    // Ewigkeitshut (seit 13.53): Sternpunkte und ein achtstrahliger Stern auf der Spitze
+    for (const [dx, dy] of [[-4, 5], [3, 8], [-1, 13]]) dot(ctx, cx + dx + bend * 0.25, by - dy, 0.7, 0.7, '#ffb8e0');
+    for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 1.8 : 3.4; poly(ctx, [[tx + Math.cos(a - 0.4) * 0.7, tyy - 2 + Math.sin(a - 0.4) * 0.7], [tx + Math.cos(a) * r, tyy - 2 + Math.sin(a) * r], [tx + Math.cos(a + 0.4) * 0.7, tyy - 2 + Math.sin(a + 0.4) * 0.7]], k % 2 ? '#e2957c' : '#ffffff'); }
   }
   ctx.restore();
 }
@@ -1502,9 +1657,24 @@ const CHARACTER_ART = {
       poly(ctx, [[cx - 8, cy - 8], [cx - 13, cy - 16], [cx - 6, cy - 10]], '#e0d6bc');
       if (dir === 'down') poly(ctx, [[cx + 8, cy - 8], [cx + 13, cy - 16], [cx + 6, cy - 10]], '#e0d6bc');
     }
-    if (L.h >= 6) {
+    if (L.h === 6 || L.h === 7) {
       poly(ctx, [[cx - 9, cy - 6], [cx - 17, cy - 13], [cx - 15, cy - 7], [cx - 18, cy - 6], [cx - 10, cy - 3]], '#ffffff');
       if (dir !== 'side') poly(ctx, [[cx + 9, cy - 6], [cx + 17, cy - 13], [cx + 15, cy - 7], [cx + 18, cy - 6], [cx + 10, cy - 3]], '#ffffff');
+    }
+    // seit 13.53: Abgrundhelm mit eingerollten Tentakelhörnern und Leerenauge, Ewigkeitshelm mit Sternenkranz
+    if (L.h === 8) {
+      for (const sg of dir === 'side' ? [-1] : [-1, 1]) {
+        stroke(ctx, OUTLINE, 3.4, [[cx + sg * 8, cy - 8], [cx + sg * 14, cy - 13], [cx + sg * 13, cy - 19], [cx + sg * 9, cy - 18]]);
+        stroke(ctx, '#3a2e66', 2, [[cx + sg * 8, cy - 8], [cx + sg * 14, cy - 13], [cx + sg * 13, cy - 19], [cx + sg * 9, cy - 18]]);
+      }
+      if (dir === 'down') { oval(ctx, cx, cy - 6, 2.6, 1.6, '#5ee8ff'); oval(ctx, cx, cy - 6, 0.5, 1.4, '#0c0816'); }
+    }
+    if (L.h === 9 && dir !== 'up') {
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI / 2 + (k - 2) * 0.42;
+        poly(ctx, [[cx + Math.cos(a - 0.12) * 11, cy - 4 + Math.sin(a - 0.12) * 11], [cx + Math.cos(a) * (k % 2 ? 16 : 19), cy - 4 + Math.sin(a) * (k % 2 ? 16 : 19)], [cx + Math.cos(a + 0.12) * 11, cy - 4 + Math.sin(a + 0.12) * 11]], k % 2 ? '#e2957c' : '#ffffff');
+      }
+      if (dir === 'down') oval(ctx, cx, cy - 6, 1.4, 1.4, '#ffb8e0');
     }
   },
 
@@ -1571,7 +1741,7 @@ const CHARACTER_ART = {
       box(ctx, dir === 'side' ? cx - 1 : cx - 9, cy - 6, dir === 'side' ? 11 : 18, 2.4, 1, lookColor(A.scarf, L.h, scarf));
       if (dir === 'down') oval(ctx, cx, cy - 4.8, 1.6, 1.6, '#e8c46a');
     }
-    if (L.h >= 6) eyes(ctx, dir, cx, cy - 0.5, { narrow: true, color: '#bfe8ff', glow: '#9fe8ff' });
+    if (L.h >= 6) eyes(ctx, dir, cx, cy - 0.5, { narrow: true, color: L.h === 8 ? '#bff8ff' : L.h === 9 ? '#fff0fa' : '#bfe8ff', glow: L.h === 8 ? '#5ee8ff' : L.h === 9 ? '#ffb8e0' : '#9fe8ff' });
   },
 
   schamane(ctx, dir, w, f, L = { a: -1, h: -1 }) {
@@ -1717,7 +1887,10 @@ const CHARACTER_ART = {
       eyes(ctx, 'down', cx, cy - 1, { color: lighter(eyeGlow, 0.5), glow: eyeGlow, narrow: true });
     }
     // Ab Stufe Totenkönig eine Knochenkrone auf der Kapuze
-    if (L.h >= 4) for (const [x, h] of [[cx - 7, 5], [cx - 3.5, 7], [cx, 9], [cx + 3.5, 7], [cx + 7, 5]]) poly(ctx, [[x - 1.4, cy - 12], [x, cy - 12 - h], [x + 1.4, cy - 12]], bone);
+    // seit 13.53: Abgrund mit Leerensplittern, Ewigkeit mit Platinzacken
+    if (L.h >= 4) for (const [x, h] of [[cx - 7, 5], [cx - 3.5, 7], [cx, 9], [cx + 3.5, 7], [cx + 7, 5]]) poly(ctx, [[x - 1.4, cy - 12], [x, cy - 12 - h], [x + 1.4, cy - 12]], L.h === 8 ? '#3a2e66' : L.h === 9 ? '#efeaf6' : bone);
+    if (L.h === 8 && dir !== 'up') { oval(ctx, cx, cy - 9, 2.4, 1.5, '#5ee8ff'); oval(ctx, cx, cy - 9, 0.5, 1.3, '#0c0816'); }
+    if (L.h === 9) oval(ctx, cx, cy - 21.5, 1.3, 1.3, '#ffb8e0');
   },
 
   // Magier (seit 8.6): lange gerade Robe mit Mittelschlitz, hoher Stehkragen, schmale Ärmel mit Glockenstulpen,
@@ -1767,7 +1940,8 @@ const CHARACTER_ART = {
       ctx.stroke();
       ctx.restore();
     };
-    if (t === 4) waistRing(true);
+    // seit 13.53 kreisen auch beim Abgrundmantel (Leerensplitter) und Ewigkeitsornat (Sterne) Ringe um die Taille
+    if (t === 4 || t >= 8) waistRing(true);
     hLegs(ctx, dir, w, o);
     gearBoots(ctx, dir, w, L.b, true);
     const wb = hBody(ctx, dir, w, o);
@@ -1781,7 +1955,7 @@ const CHARACTER_ART = {
     } else {
       stroke(ctx, darker(robe, 0.3), 0.6, [[0, ty + 3], [0, -3.5]]);
     }
-    stroke(ctx, t === 7 ? '#e8c46a' : silver, t === 7 ? 1.5 : 1.1, [[-wb + 0.8, -3.3], [wb - 0.8, -3.3]]);
+    stroke(ctx, t === 7 ? '#e8c46a' : t === 9 ? '#e2957c' : silver, t >= 7 ? 1.5 : 1.1, [[-wb + 0.8, -3.3], [wb - 0.8, -3.3]]);
     // Merkmale je Robenstufe
     if (t === 2) {
       // sechs leuchtende Dreiecksrunen auf dem Saumband
@@ -1819,6 +1993,16 @@ const CHARACTER_ART = {
       if (!side) stroke(ctx, '#cfe0ff', 0.4, stars.slice(3));
       ctx.restore();
       for (const [x, y] of stars) dot(ctx, x, y, 0.75, 0.75, '#ffffff');
+    } else if (t === 8) {
+      // Abgrund: cyanfarbene Risse steigen vom Saum auf
+      for (const [x0, h] of (side ? [[-3, 8], [4, 6]] : [[-8, 9], [-2.5, 6], [4, 10], [9, 6]])) {
+        stroke(ctx, '#5ee8ff', 0.8, [[x0, -3.4], [x0 - 1.2, -3.4 - h * 0.4], [x0 + 0.8, -3.4 - h * 0.7], [x0 - 0.4, -3.4 - h]]);
+      }
+      if (front) { oval(ctx, 0, ty + 7, 2.6, 1.6, '#5ee8ff'); oval(ctx, 0, ty + 7, 0.5, 1.4, '#0c0816'); }
+    } else if (t === 9 && dir !== 'up') {
+      // Ewigkeit: achtstrahliger Stern auf der Brust
+      const x0 = side ? 2.5 : 0;
+      for (let k = 0; k < 8; k++) { const a = (k / 8) * Math.PI * 2; const r = k % 2 ? 2 : 3.8; poly(ctx, [[x0 + Math.cos(a - 0.4) * 0.8, ty + 7 + Math.sin(a - 0.4) * 0.8], [x0 + Math.cos(a) * r, ty + 7 + Math.sin(a) * r], [x0 + Math.cos(a + 0.4) * 0.8, ty + 7 + Math.sin(a + 0.4) * 0.8]], k % 2 ? '#e2957c' : '#ffffff'); }
     }
     // Korsage mit Silberschnürung (Frau)
     if (female && dir !== 'up') {
@@ -1861,7 +2045,7 @@ const CHARACTER_ART = {
       dot(ctx, 0.9, ty + 2.4, 1.8, 1.8, robe);
     }
     hArms(ctx, dir, w, o);
-    if (t === 4) waistRing(false);
+    if (t === 4 || t >= 8) waistRing(false);
     // Schultern: Ausrüstung, sonst beim Mann ein kurzes Schultercape mit Silberrand
     if (!gearShoulders(ctx, dir, w, L.s, ty, 10.5) && !female) {
       const hw = side ? 7.5 : 13;

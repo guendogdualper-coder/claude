@@ -866,7 +866,8 @@ function readyPose3(B, who) {
 // Köcher der Spieler (seit 13.20): schräg auf dem Rücken, Beschläge und Pfeilfedern in der Farbe der Munition
 function quiver3(A, tier, leather, chestY) {
   const arrow = QUIVER_ARROWS[tier].color;
-  const trim = tier === 0 ? '#4a301c' : tier >= 6 ? GOLD3 : TIER_METAL[tier];
+  // Beschläge: Gold ab Himmel, seit 13.53 Leerenstahl (Abgrund) bzw. Roségold (Ewigkeit)
+  const trim = tier === 0 ? '#4a301c' : tier === 8 ? '#6e5cc0' : tier === 9 ? ROSEGOLD3 : tier >= 6 ? GOLD3 : TIER_METAL[tier];
   const M = partFrame([0.1, chestY - 0.16, -0.22], [0.12, 0, -0.42]);
   const W = framed(A, M, BH.chest);
   W(lathe3('quiver3', [[0, 0], [0.07, 0], [0.085, 0.2], [0.09, 0.42], [0, 0.43]], 12), leather, {});
@@ -982,7 +983,7 @@ function playerConfig3(p) {
     // Krieger: kräftig, Platte über Brust und Beinen, schwere Schultern, Fell und Wickelbänder (barbarisch)
     const plate = L.a >= 0 ? GEAR_LOOK.plate[L.a] : '#8a6a4a';
     const rim = L.a >= 0 ? TIER_METAL[L.a] : '#c9a35a';
-    const fur = L.a >= 5 ? '#3a3230' : L.a >= 3 ? '#5a4030' : '#8a6a4a';
+    const fur = L.a === 9 ? '#ece8f0' : L.a === 8 ? '#1a1424' : L.a >= 5 ? '#3a3230' : L.a >= 3 ? '#5a4030' : '#8a6a4a';
     Object.assign(c, {
       bulk: ap.sex === 1 ? 1.03 : 1.1, torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030',
       buckle: brass, collar: brass, cuff: brass, rivet: brass, padStyle: 'plate', furCollar: fur, furBoots: gt('b') < 1 ? fur : null, wideBelt: true,
@@ -1002,7 +1003,7 @@ function playerConfig3(p) {
     const torso = lookColor(A0.torso, L.a, '#312c3d');
     const scarf = lookColor(A0.scarf, L.a, '#6b4f9a');
     // Ninja: nur Stoff und Leder – weite gebundene Hose, Wickelbänder, Ledergurte mit Wurfmessern, keine Platten
-    const leather = L.a >= 4 ? '#2a2026' : '#4a3a2a';
+    const leather = L.a === 9 ? '#b88a80' : L.a >= 4 ? '#2a2026' : '#4a3a2a';
     Object.assign(c, {
       torso, sleeve: darker(torso, 0.1), skirt: darker(torso, 0.15), flap: scarf, pants: darker(torso, 0.1), gloves: '#3d3848', scarf, straps: leather, crossStraps: true,
       eyeShape: 1, narrow: true, blush: false, noMouth: true, wraps: '#cdc8dc', collar: scarf, cuff: scarf, pouch: leather,
@@ -1049,9 +1050,10 @@ function playerConfig3(p) {
     c.headgear = magierHelm3(L.h, lookColor(A0.hat, L.h, '#283070'), silver, E.main, { tilt: ap.sex === 1 ? 0.08 : 0, glyph: E.glyph });
     c.covered = hat ? 'hat' : false;
     if (hat) c.tall = 0.36;
-    // Drehknochen: Runenring um die Taille (Arkanrobe), Siegelring im Rücken (Erzmagier), Stern, Siegel, Kristalle am Hut
-    c.spinRing = L.a === 4 ? 'waist' : L.a === 7 ? 'back' : null;
-    c.spinHat = L.h === 4 ? [2.9, -0.15, 1.4] : L.h === 6 ? [1.15, -0.12, 1.1] : L.h === 7 ? [1.05, 0, 0.7] : null;
+    // Drehknochen: Runenring um die Taille (Arkanrobe), Siegelring im Rücken (Erzmagier), Stern, Siegel, Kristalle am Hut;
+    // seit 13.53 kreisen Leerensplitter (Abgrund) und Sterne (Ewigkeit) um Taille und Hut
+    c.spinRing = L.a === 4 || L.a >= 8 ? 'waist' : L.a === 7 ? 'back' : null;
+    c.spinHat = L.h === 4 ? [2.9, -0.15, 1.4] : L.h === 6 ? [1.15, -0.12, 1.1] : L.h === 7 ? [1.05, 0, 0.7] : L.h === 8 ? [1.5, -0.1, 0.8] : L.h === 9 ? [1.3, -0.1, 0.9] : null;
     if (ap.sex === 1) {
       c.braid = hairOf(ap);
       c.braidFront = true;

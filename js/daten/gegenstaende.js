@@ -1,8 +1,10 @@
-// Ausrüstung: acht Plätze, acht Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +20.
+// Ausrüstung: acht Plätze, zehn Gegenstandsstufen und Verbesserungen beim Schmied von +0 bis +20.
 // Waffe, Rüstung und Helm gehören immer zu einer Klasse, den Schild trägt nur der Krieger;
 // Schultern, Umhang, Schuhe und Gürtel kann jeder tragen.
 // Die Stufen 1 bis 4 (ab Lv 1, 5, 10, 15) verkaufen Waffen- und Rüstungshändler,
-// ab der legendären Stufe (Lv 22, 30, 45, 60) gibt es Ausrüstung nur als Beute.
+// ab der legendären Stufe (Lv 22, 30, 45, 60, 70, 80) gibt es Ausrüstung nur als Beute.
+// Seit 13.53 reicht die Ausrüstung bis Stufe 80: nach Göttlich (Lv 60) kommen Abgründig (Lv 70, Leere: Obsidian
+// und Violett mit cyanfarbenem Leuchten) und Ewig (Lv 80, Sternenfeuer: Platin mit Roségold und Sternen).
 
 const EQUIP_SLOTS = [
   { id: 'waffe', name: 'Waffe' },
@@ -42,7 +44,9 @@ const ITEM_TIERS = [
   { level: 22, label: 'Legendär' },
   { level: 30, label: 'Mythisch' },
   { level: 45, label: 'Himmlisch' },
-  { level: 60, label: 'Göttlich' }
+  { level: 60, label: 'Göttlich' },
+  { level: 70, label: 'Abgründig' },
+  { level: 80, label: 'Ewig' }
 ];
 
 // Plätze, deren Ausrüstung nur eine Klasse tragen kann
@@ -73,38 +77,38 @@ const CLASS_WEAPON_KINDS = { krieger: ['sword', 'axe', 'greatsword', 'greataxe']
 // Namen je Stufe. Waffen nach Art, Rüstungen und Helme nach Klasse, der Rest für alle gleich.
 const ITEM_NAMES = {
   waffe: {
-    sword: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer', 'Aschenklinge', 'Himmelsschwert', 'Götterklinge'],
-    axe: ['Beil', 'Bartaxt', 'Wolfsaxt', 'Drachenaxt', 'Seelenhacker', 'Aschenaxt', 'Himmelsaxt', 'Götteraxt'],
-    greataxe: ['Holzfälleraxt', 'Doppelaxt', 'Barbarenaxt', 'Drachenspalter', 'Seelenschlächter', 'Aschenhenker', 'Himmelsbrecher', 'Götterhammer'],
-    greatsword: ['Holzfällerklinge', 'Langschwert', 'Sichelzweihänder', 'Drachentöter', 'Seelenspalter', 'Aschenbrecher', 'Himmelsrichter', 'Götterzorn'],
-    dagger: ['Kurzdolch', 'Stahldolch', 'Schattendolch', 'Viperzahn', 'Nachtklinge', 'Aschendolch', 'Sternendolch', 'Götterzahn'],
-    bow: ['Jagdbogen', 'Kurzbogen', 'Schattenbogen', 'Viperbogen', 'Nachtbogen', 'Aschenbogen', 'Sternenbogen', 'Götterbogen'],
-    fan: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer'],
-    bell: ['Bronzeglocke', 'Tempelglocke', 'Kranichglocke', 'Phönixglocke', 'Drachenglocke', 'Glutglocke', 'Himmelsglocke', 'Götterglocke'],
-    staff: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab', 'Aschenstab', 'Sternenstab', 'Götterstab'],
-    scythe: ['Rostsense', 'Grabsense', 'Knochensense', 'Seelensense', 'Totenkönigssense', 'Aschensense', 'Sternensense', 'Göttersense'],
-    rod: ['Lehrlingszepter', 'Silberzepter', 'Mondzepter', 'Kristallzepter', 'Arkanzepter', 'Aschenzepter', 'Sternzepter', 'Erzmagierzepter']
+    sword: ['Eisenschwert', 'Breitschwert', 'Mondklinge', 'Drachenschwert', 'Seelenreißer', 'Aschenklinge', 'Himmelsschwert', 'Götterklinge', 'Abgrundschwert', 'Ewigkeitsschwert'],
+    axe: ['Beil', 'Bartaxt', 'Wolfsaxt', 'Drachenaxt', 'Seelenhacker', 'Aschenaxt', 'Himmelsaxt', 'Götteraxt', 'Abgrundaxt', 'Ewigkeitsaxt'],
+    greataxe: ['Holzfälleraxt', 'Doppelaxt', 'Barbarenaxt', 'Drachenspalter', 'Seelenschlächter', 'Aschenhenker', 'Himmelsbrecher', 'Götterhammer', 'Abgrundreißer', 'Ewigkeitsspalter'],
+    greatsword: ['Holzfällerklinge', 'Langschwert', 'Sichelzweihänder', 'Drachentöter', 'Seelenspalter', 'Aschenbrecher', 'Himmelsrichter', 'Götterzorn', 'Abgrundfresser', 'Ewigkeitsbrand'],
+    dagger: ['Kurzdolch', 'Stahldolch', 'Schattendolch', 'Viperzahn', 'Nachtklinge', 'Aschendolch', 'Sternendolch', 'Götterzahn', 'Abgrundstachel', 'Ewigkeitsdorn'],
+    bow: ['Jagdbogen', 'Kurzbogen', 'Schattenbogen', 'Viperbogen', 'Nachtbogen', 'Aschenbogen', 'Sternenbogen', 'Götterbogen', 'Abgrundbogen', 'Ewigkeitsbogen'],
+    fan: ['Papierfächer', 'Seidenfächer', 'Kranichfächer', 'Phönixfächer', 'Drachenfächer', 'Glutfächer', 'Himmelsfächer', 'Götterfächer', 'Abgrundfächer', 'Ewigkeitsfächer'],
+    bell: ['Bronzeglocke', 'Tempelglocke', 'Kranichglocke', 'Phönixglocke', 'Drachenglocke', 'Glutglocke', 'Himmelsglocke', 'Götterglocke', 'Abgrundglocke', 'Ewigkeitsglocke'],
+    staff: ['Knochenstab', 'Eschenstab', 'Grabesstab', 'Seelenstab', 'Totenkönigsstab', 'Aschenstab', 'Sternenstab', 'Götterstab', 'Abgrundstab', 'Ewigkeitsstab'],
+    scythe: ['Rostsense', 'Grabsense', 'Knochensense', 'Seelensense', 'Totenkönigssense', 'Aschensense', 'Sternensense', 'Göttersense', 'Abgrundsense', 'Ewigkeitssense'],
+    rod: ['Lehrlingszepter', 'Silberzepter', 'Mondzepter', 'Kristallzepter', 'Arkanzepter', 'Aschenzepter', 'Sternzepter', 'Erzmagierzepter', 'Abgrundzepter', 'Ewigkeitszepter']
   },
   ruestung: {
-    krieger: ['Lederpanzer', 'Kettenhemd', 'Lamellenpanzer', 'Drachenpanzer', 'Seelenpanzer', 'Aschenpanzer', 'Himmelspanzer', 'Götterpanzer'],
-    ninja: ['Leinenwams', 'Lederwams', 'Schattenwams', 'Viperngewand', 'Nachtgewand', 'Aschengewand', 'Sternengewand', 'Göttergewand'],
-    schamane: ['Leinenrobe', 'Seidenrobe', 'Kranichrobe', 'Phönixrobe', 'Drachenrobe', 'Glutrobe', 'Himmelsrobe', 'Götterrobe'],
-    nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe', 'Schattenrobe', 'Sternenrobe', 'Götterrobe'],
-    magier: ['Novizenrobe', 'Gelehrtenrobe', 'Runenmantel', 'Kristallrobe', 'Arkanrobe', 'Aschenmantel', 'Sternenmantel', 'Erzmagierornat']
+    krieger: ['Lederpanzer', 'Kettenhemd', 'Lamellenpanzer', 'Drachenpanzer', 'Seelenpanzer', 'Aschenpanzer', 'Himmelspanzer', 'Götterpanzer', 'Abgrundpanzer', 'Ewigkeitspanzer'],
+    ninja: ['Leinenwams', 'Lederwams', 'Schattenwams', 'Viperngewand', 'Nachtgewand', 'Aschengewand', 'Sternengewand', 'Göttergewand', 'Abgrundgewand', 'Ewigkeitsgewand'],
+    schamane: ['Leinenrobe', 'Seidenrobe', 'Kranichrobe', 'Phönixrobe', 'Drachenrobe', 'Glutrobe', 'Himmelsrobe', 'Götterrobe', 'Abgrundrobe', 'Ewigkeitsrobe'],
+    nekromant: ['Grabtuch', 'Aschenrobe', 'Knochenrobe', 'Seelenrobe', 'Totenkönigsrobe', 'Schattenrobe', 'Sternenrobe', 'Götterrobe', 'Abgrundtalar', 'Ewigkeitstalar'],
+    magier: ['Novizenrobe', 'Gelehrtenrobe', 'Runenmantel', 'Kristallrobe', 'Arkanrobe', 'Aschenmantel', 'Sternenmantel', 'Erzmagierornat', 'Abgrundmantel', 'Ewigkeitsornat']
   },
   helm: {
-    krieger: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenhelm', 'Aschenhelm', 'Himmelshelm', 'Götterhelm'],
-    ninja: ['Stoffkapuze', 'Lederkapuze', 'Schattenkapuze', 'Viperkapuze', 'Nachtmaske', 'Aschenmaske', 'Sternenmaske', 'Göttermaske'],
-    schamane: ['Stirnband', 'Seidenhaube', 'Kranichhaube', 'Phönixkrone', 'Drachenkrone', 'Glutkrone', 'Himmelskrone', 'Götterdiadem'],
-    nekromant: ['Grabkapuze', 'Aschenkapuze', 'Knochenhelm', 'Seelenhaube', 'Totenkönigskrone', 'Schattenkrone', 'Sternenkapuze', 'Götterschädel'],
-    magier: ['Novizenhut', 'Gelehrtenhut', 'Runenhut', 'Kristallhut', 'Arkanhut', 'Aschenhut', 'Sternenhut', 'Erzmagierreif']
+    krieger: ['Lederkappe', 'Bronzehelm', 'Eisenhelm', 'Drachenhelm', 'Seelenhelm', 'Aschenhelm', 'Himmelshelm', 'Götterhelm', 'Abgrundhelm', 'Ewigkeitshelm'],
+    ninja: ['Stoffkapuze', 'Lederkapuze', 'Schattenkapuze', 'Viperkapuze', 'Nachtmaske', 'Aschenmaske', 'Sternenmaske', 'Göttermaske', 'Abgrundmaske', 'Ewigkeitsmaske'],
+    schamane: ['Stirnband', 'Seidenhaube', 'Kranichhaube', 'Phönixkrone', 'Drachenkrone', 'Glutkrone', 'Himmelskrone', 'Götterdiadem', 'Abgrundkrone', 'Ewigkeitsdiadem'],
+    nekromant: ['Grabkapuze', 'Aschenkapuze', 'Knochenhelm', 'Seelenhaube', 'Totenkönigskrone', 'Schattenkrone', 'Sternenkapuze', 'Götterschädel', 'Abgrundkapuze', 'Ewigkeitskrone'],
+    magier: ['Novizenhut', 'Gelehrtenhut', 'Runenhut', 'Kristallhut', 'Arkanhut', 'Aschenhut', 'Sternenhut', 'Erzmagierreif', 'Abgrundhut', 'Ewigkeitshut']
   },
-  schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild', 'Aschenschild', 'Himmelsschild', 'Götterschild'],
-  schultern: ['Lederschultern', 'Bronzeschultern', 'Eisenschultern', 'Drachenschultern', 'Seelenschultern', 'Aschenschultern', 'Himmelsschultern', 'Götterschultern'],
-  umhang: ['Wollumhang', 'Reiseumhang', 'Jägerumhang', 'Drachenumhang', 'Seelenumhang', 'Aschenumhang', 'Himmelsumhang', 'Götterumhang'],
-  schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel', 'Aschenstiefel', 'Himmelsstiefel', 'Götterstiefel'],
-  guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel'],
-  koecher: ['Lederköcher', 'Jägerköcher', 'Schattenköcher', 'Viperköcher', 'Nachtköcher', 'Aschenköcher', 'Sternenköcher', 'Götterköcher']
+  schild: ['Holzschild', 'Bronzeschild', 'Eisenschild', 'Drachenschild', 'Seelenschild', 'Aschenschild', 'Himmelsschild', 'Götterschild', 'Abgrundschild', 'Ewigkeitsschild'],
+  schultern: ['Lederschultern', 'Bronzeschultern', 'Eisenschultern', 'Drachenschultern', 'Seelenschultern', 'Aschenschultern', 'Himmelsschultern', 'Götterschultern', 'Abgrundschultern', 'Ewigkeitsschultern'],
+  umhang: ['Wollumhang', 'Reiseumhang', 'Jägerumhang', 'Drachenumhang', 'Seelenumhang', 'Aschenumhang', 'Himmelsumhang', 'Götterumhang', 'Abgrundumhang', 'Ewigkeitsumhang'],
+  schuhe: ['Stoffschuhe', 'Lederstiefel', 'Wanderstiefel', 'Drachenstiefel', 'Seelenstiefel', 'Aschenstiefel', 'Himmelsstiefel', 'Götterstiefel', 'Abgrundstiefel', 'Ewigkeitsstiefel'],
+  guertel: ['Stoffgürtel', 'Ledergürtel', 'Kettengürtel', 'Drachengürtel', 'Seelengürtel', 'Aschengürtel', 'Himmelsgürtel', 'Göttergürtel', 'Abgrundgürtel', 'Ewigkeitsgürtel'],
+  koecher: ['Lederköcher', 'Jägerköcher', 'Schattenköcher', 'Viperköcher', 'Nachtköcher', 'Aschenköcher', 'Sternenköcher', 'Götterköcher', 'Abgrundköcher', 'Ewigkeitsköcher']
 };
 
 // Köcher (seit 13.20): die Munition des Bogens. Ein Ninja mit Bogen trägt ihn im Platz der Nebenhand
@@ -114,33 +118,34 @@ const QUIVER_ARROWS = [
   { name: 'Holzpfeile', color: '#c9a36a' }, { name: 'Eisenpfeile', color: '#cfd6de' },
   { name: 'Schattenpfeile', color: '#9a7ad8' }, { name: 'Giftpfeile', color: '#7ed35a' },
   { name: 'Nachtpfeile', color: '#6aa8ff' }, { name: 'Glutpfeile', color: '#ff8a3a' },
-  { name: 'Sternenpfeile', color: '#bfe8ff' }, { name: 'Götterpfeile', color: '#ffd34d' }
+  { name: 'Sternenpfeile', color: '#bfe8ff' }, { name: 'Götterpfeile', color: '#ffd34d' },
+  { name: 'Leerenpfeile', color: '#5ee8ff' }, { name: 'Sternenfeuerpfeile', color: '#ffb8e4' }
 ];
 
-// Grundwerte je Stufe. Die Grundausrüstung (Stufe 1) gibt nur Rüstung bzw. bei Waffen nur Angriff,
+// Grundwerte je Stufe (seit 13.53 zehn Stufen; Lv 70 und 80 setzen die Kurve fort, gut +35 % je Stufe). Die Grundausrüstung (Stufe 1) gibt nur Rüstung bzw. bei Waffen nur Angriff,
 // Zusatzeffekte gibt es erst ab Stufe 5. Bedeutung der Werte:
 //   atk Angriff · def Rüstung · hp Vitalität (mehr Leben) · mp Intelligenz (mehr Mana)
 //   crit kritische Treffer · speed Lauftempo · dodge Ausweichen · block Blocken
 //   regen Lebensregeneration pro Sekunde (Anteil am maximalen Leben)
 const BASE_STATS = {
-  waffe: [{ atk: 5 }, { atk: 10 }, { atk: 17 }, { atk: 26 }, { atk: 42 }, { atk: 62 }, { atk: 92 }, { atk: 130 }],
-  ruestung: [{ def: 4 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }, { def: 32, hp: 240 }, { def: 46, hp: 360 }, { def: 64, hp: 520 }],
-  helm: [{ def: 2 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }, { def: 16, mp: 80 }, { def: 23, mp: 115 }, { def: 32, mp: 160 }],
-  schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }, { def: 22, block: 0.14 }, { def: 31, block: 0.16 }, { def: 43, block: 0.18 }],
-  schultern: [{ def: 2 }, { def: 3, hp: 20 }, { def: 5, hp: 35 }, { def: 7, hp: 55 }, { def: 10, hp: 80 }, { def: 14, hp: 120 }, { def: 20, hp: 180 }, { def: 28, hp: 260 }],
-  umhang: [{ def: 1 }, { def: 2, mp: 15, dodge: 0.01 }, { def: 3, mp: 25, dodge: 0.015 }, { def: 5, mp: 35, dodge: 0.02 }, { def: 7, mp: 50, dodge: 0.025 }, { def: 10, mp: 75, dodge: 0.03 }, { def: 14, mp: 110, dodge: 0.035 }, { def: 19, mp: 150, dodge: 0.04 }],
-  schuhe: [{ def: 2 }, { def: 2, speed: 0.02 }, { def: 3, speed: 0.025, dodge: 0.02 }, { def: 4, speed: 0.03, dodge: 0.03 }, { def: 6, speed: 0.035, dodge: 0.05 }, { def: 9, speed: 0.04, dodge: 0.06 }, { def: 13, speed: 0.045, dodge: 0.07 }, { def: 18, speed: 0.05, dodge: 0.08 }],
-  koecher: [{ atk: 2 }, { atk: 4, crit: 0.01 }, { atk: 7, crit: 0.015 }, { atk: 11, crit: 0.02 }, { atk: 17, crit: 0.025 }, { atk: 25, crit: 0.03 }, { atk: 36, crit: 0.035 }, { atk: 50, crit: 0.04 }],
-  guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }]
+  waffe: [{ atk: 5 }, { atk: 10 }, { atk: 17 }, { atk: 26 }, { atk: 42 }, { atk: 62 }, { atk: 92 }, { atk: 130 }, { atk: 180 }, { atk: 245 }],
+  ruestung: [{ def: 4 }, { def: 6, hp: 40 }, { def: 10, hp: 70 }, { def: 15, hp: 110 }, { def: 22, hp: 160 }, { def: 32, hp: 240 }, { def: 46, hp: 360 }, { def: 64, hp: 520 }, { def: 86, hp: 730 }, { def: 112, hp: 1000 }],
+  helm: [{ def: 2 }, { def: 3, mp: 18 }, { def: 5, mp: 28 }, { def: 7, mp: 40 }, { def: 11, mp: 55 }, { def: 16, mp: 80 }, { def: 23, mp: 115 }, { def: 32, mp: 160 }, { def: 43, mp: 220 }, { def: 56, mp: 295 }],
+  schild: [{ def: 3 }, { def: 4, block: 0.05 }, { def: 7, block: 0.07 }, { def: 10, block: 0.09 }, { def: 15, block: 0.12 }, { def: 22, block: 0.14 }, { def: 31, block: 0.16 }, { def: 43, block: 0.18 }, { def: 58, block: 0.2 }, { def: 76, block: 0.22 }],
+  schultern: [{ def: 2 }, { def: 3, hp: 20 }, { def: 5, hp: 35 }, { def: 7, hp: 55 }, { def: 10, hp: 80 }, { def: 14, hp: 120 }, { def: 20, hp: 180 }, { def: 28, hp: 260 }, { def: 38, hp: 365 }, { def: 50, hp: 500 }],
+  umhang: [{ def: 1 }, { def: 2, mp: 15, dodge: 0.01 }, { def: 3, mp: 25, dodge: 0.015 }, { def: 5, mp: 35, dodge: 0.02 }, { def: 7, mp: 50, dodge: 0.025 }, { def: 10, mp: 75, dodge: 0.03 }, { def: 14, mp: 110, dodge: 0.035 }, { def: 19, mp: 150, dodge: 0.04 }, { def: 26, mp: 205, dodge: 0.045 }, { def: 34, mp: 275, dodge: 0.05 }],
+  schuhe: [{ def: 2 }, { def: 2, speed: 0.02 }, { def: 3, speed: 0.025, dodge: 0.02 }, { def: 4, speed: 0.03, dodge: 0.03 }, { def: 6, speed: 0.035, dodge: 0.05 }, { def: 9, speed: 0.04, dodge: 0.06 }, { def: 13, speed: 0.045, dodge: 0.07 }, { def: 18, speed: 0.05, dodge: 0.08 }, { def: 24, speed: 0.055, dodge: 0.085 }, { def: 31, speed: 0.06, dodge: 0.09 }],
+  koecher: [{ atk: 2 }, { atk: 4, crit: 0.01 }, { atk: 7, crit: 0.015 }, { atk: 11, crit: 0.02 }, { atk: 17, crit: 0.025 }, { atk: 25, crit: 0.03 }, { atk: 36, crit: 0.035 }, { atk: 50, crit: 0.04 }, { atk: 70, crit: 0.045 }, { atk: 95, crit: 0.05 }],
+  guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }, { hp: 550, regen: 0.011 }, { hp: 750, regen: 0.012 }]
 };
 
 // Zusatzwerte je Waffenart und Stufe: Dolche und Bögen treffen öfter kritisch,
 // Fächer, Glocken, Stäbe und Sensen geben Mana und Magiestärke (Stufe 1 ohne Zusatzwert)
-const CRIT_BY_TIER = [0, 0.02, 0.03, 0.04, 0.06, 0.07, 0.08, 0.1];
-const MP_BY_TIER = [0, 20, 35, 50, 75, 110, 160, 220];
-const MAGIC_BY_TIER = [0, 0.04, 0.06, 0.09, 0.12, 0.16, 0.21, 0.27];
+const CRIT_BY_TIER = [0, 0.02, 0.03, 0.04, 0.06, 0.07, 0.08, 0.1, 0.115, 0.13];
+const MP_BY_TIER = [0, 20, 35, 50, 75, 110, 160, 220, 300, 400];
+const MAGIC_BY_TIER = [0, 0.04, 0.06, 0.09, 0.12, 0.16, 0.21, 0.27, 0.33, 0.4];
 // Bessere Waffen werden auch etwas schneller
-const SPEED_BY_TIER = [0, 0, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08];
+const SPEED_BY_TIER = [0, 0, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.09, 0.1];
 
 // Rüstung und Helm je Klasse: Krieger halten mehr aus, Ninjas weichen aus, Magier bekommen Mana
 const CLASS_ARMOR = {
@@ -199,7 +204,10 @@ const UPGRADE_MAT_MONSTERS = [
   ['ork', 'orkschamane', 'skorpion', 'orkhauptmann'],
   ['oger', 'daemon', 'hoellenhund'],
   ['eiswolf', 'yeti', 'frostgeist'],
-  ['untoter', 'sumpfhexe', 'ghul', 'lavagolem', 'feuerdaemon', 'feuerdrache']
+  ['untoter', 'sumpfhexe', 'ghul', 'lavagolem', 'feuerdaemon', 'feuerdrache'],
+  // seit 13.53: Abgründig und Ewig brauchen die stärksten Monster der Grate (bis zum Donnerriesen, Lv 72)
+  ['glutkatze', 'steintitan', 'gargoyle', 'feuerdrache'],
+  ['steintitan', 'gargoyle', 'feuerdrache', 'donnerriese']
 ];
 
 const LEGEND_MAT_START = 4;
@@ -391,7 +399,8 @@ const SWITCH67 = { stone: 30, chance: 0.22 };
 // Seit 13.20 neu gezeichnet, mit Zacken und Haken – jede Stufe eine eigene Silhouette:
 // 0 Kurzdolch (Tanto mit schräger Spitze), 1 Stahldolch (Sägerücken), 2 Schattendolch (Karambit-Haken),
 // 3 Viperzahn (gewellte Schlangenklinge), 4 Nachtklinge (Kunai), 5 Aschendolch (Widerhaken an beiden Seiten),
-// 6 Sternendolch (Gabel mit zwei Zinken und Nadelspitze), 7 Götterzahn (Flammenklinge mit Haken).
+// 6 Sternendolch (Gabel mit zwei Zinken und Nadelspitze), 7 Götterzahn (Flammenklinge mit Haken),
+// seit 13.53: 8 Abgrundstachel (gekrümmter Fangzahn mit Widerhaken nach innen), 9 Ewigkeitsdorn (Sternnadel mit zwei Strahlenkreuzen).
 const DAGGER_BLADES = [
   [[-0.022, 0], [0.022, 0], [0.023, 0.16], [0.004, 0.225], [-0.022, 0.185]],
   [[-0.024, 0], [0.026, 0], [0.032, 0.03], [0.02, 0.045], [0.032, 0.07], [0.02, 0.085], [0.032, 0.11], [0.02, 0.125], [0.026, 0.155], [0.003, 0.25], [-0.024, 0.165]],
@@ -400,7 +409,9 @@ const DAGGER_BLADES = [
   [[-0.012, 0], [0.012, 0], [0.042, 0.07], [0.03, 0.15], [0, 0.26], [-0.03, 0.15], [-0.042, 0.07]],
   [[-0.028, 0], [0.028, 0], [0.052, 0.04], [0.03, 0.05], [0.048, 0.095], [0.026, 0.105], [0.04, 0.15], [0.02, 0.16], [0.026, 0.2], [0, 0.28], [-0.026, 0.2], [-0.02, 0.16], [-0.04, 0.15], [-0.026, 0.105], [-0.048, 0.095], [-0.03, 0.05], [-0.052, 0.04]],
   [[-0.014, 0], [0.014, 0], [0.04, 0.03], [0.058, 0.1], [0.044, 0.1], [0.03, 0.058], [0.011, 0.062], [0.01, 0.22], [0, 0.32], [-0.01, 0.22], [-0.011, 0.062], [-0.03, 0.058], [-0.044, 0.1], [-0.058, 0.1], [-0.04, 0.03]],
-  [[-0.03, 0], [0.03, 0], [0.055, 0.04], [0.045, 0.07], [0.075, 0.11], [0.06, 0.135], [0.1, 0.19], [0.125, 0.26], [0.08, 0.225], [0.05, 0.2], [0.03, 0.235], [0, 0.31], [-0.025, 0.22], [-0.045, 0.16], [-0.03, 0.13], [-0.05, 0.085], [-0.034, 0.06], [-0.048, 0.025]]
+  [[-0.03, 0], [0.03, 0], [0.055, 0.04], [0.045, 0.07], [0.075, 0.11], [0.06, 0.135], [0.1, 0.19], [0.125, 0.26], [0.08, 0.225], [0.05, 0.2], [0.03, 0.235], [0, 0.31], [-0.025, 0.22], [-0.045, 0.16], [-0.03, 0.13], [-0.05, 0.085], [-0.034, 0.06], [-0.048, 0.025]],
+  [[-0.028, 0], [0.028, 0], [0.052, 0.06], [0.076, 0.13], [0.098, 0.2], [0.114, 0.27], [0.122, 0.345], [0.094, 0.3], [0.084, 0.262], [0.056, 0.24], [0.068, 0.222], [0.052, 0.185], [0.024, 0.168], [0.038, 0.148], [0.022, 0.112], [-0.006, 0.096], [0.008, 0.076], [-0.012, 0.045]],
+  [[-0.016, 0], [0.016, 0], [0.022, 0.06], [0.072, 0.092], [0.024, 0.112], [0.016, 0.22], [0.044, 0.244], [0.014, 0.262], [0, 0.36], [-0.014, 0.262], [-0.044, 0.244], [-0.016, 0.22], [-0.024, 0.112], [-0.072, 0.092], [-0.022, 0.06]]
 ];
 
 // Bögen (seit 13.20): Mittellinie eines Wurfarms je Stufe (Griff bei 0, 0; x < 0 zur Sehne), Dicke am Griff und an der
@@ -413,7 +424,11 @@ const BOW_LIMBS = [
   { pts: [[0, 0], [-0.015, 0.14], [-0.09, 0.3], [-0.19, 0.44]], r: [0.026, 0.014], wood: '#3a4a6a', rail: true },
   { pts: [[0, 0], [-0.04, 0.14], [-0.12, 0.28], [-0.18, 0.4], [-0.15, 0.49]], r: [0.032, 0.014], wood: '#2a2224' },
   { pts: [[0, 0], [0.02, 0.12], [-0.04, 0.28], [-0.14, 0.42], [-0.19, 0.51]], r: [0.026, 0.011], wood: '#e6eef8' },
-  { pts: [[0, 0], [-0.02, 0.1], [-0.1, 0.24], [-0.17, 0.37], [-0.14, 0.47], [-0.06, 0.54]], r: [0.032, 0.014], wood: '#d9a63a' }
+  { pts: [[0, 0], [-0.02, 0.1], [-0.1, 0.24], [-0.17, 0.37], [-0.14, 0.47], [-0.06, 0.54]], r: [0.032, 0.014], wood: '#d9a63a' },
+  // seit 13.53: 8 Abgrundbogen (weit nach hinten gerissene Klauenarme aus Leerenobsidian), 9 Ewigkeitsbogen
+  // (langer Platinbogen, dessen Spitzen sich wie Sternstrahlen nach vorn biegen)
+  { pts: [[0, 0], [0.04, 0.08], [-0.03, 0.19], [-0.14, 0.31], [-0.19, 0.44], [-0.23, 0.55]], r: [0.034, 0.01], wood: '#1e1632' },
+  { pts: [[0, 0], [0.03, 0.1], [-0.01, 0.21], [-0.09, 0.33], [-0.14, 0.44], [-0.12, 0.53], [-0.05, 0.57]], r: [0.03, 0.011], wood: '#f2eef8' }
 ];
 
 // --- Waffenformen je Stufe (seit 13.29) ------------------------------------------------------------------
@@ -461,7 +476,9 @@ function insetPts(pts, d) {
 // 0 Beil mit Hammerrücken, 1 Bartaxt (langer Bart), 2 Wolfsaxt (Halbmond mit Reißzähnen, Hakendorn),
 // 3 Drachenaxt (Flügel mit Drachenauge), 4 Seelenhacker (Doppelhaken mit Seelenfenster),
 // 5 Aschenaxt (gezacktes Hackbeil mit Dornenkamm), 6 Himmelsaxt (offene Mondsichel an zwei Streben),
-// 7 Götteraxt (Prunkblatt mit Sonnenfenster und Gegenklinge)
+// 7 Götteraxt (Prunkblatt mit Sonnenfenster und Gegenklinge),
+// seit 13.53: 8 Abgrundaxt (eingerollte Fangsichel mit Leerenauge, Rücken aus Tentakelhaken),
+// 9 Ewigkeitsaxt (Sternblatt mit drei Spitzen, Sternfenster, kleiner Stern als Rücken)
 const AXE_HEADS = [
   { pts: [[0, -0.06], [0.13, -0.08], [0.19, -0.12], [0.205, 0.1], [0.13, 0.08], [0, 0.06]], back: 'poll' },
   { pts: [[0, -0.05], [0.06, -0.1], [0.09, -0.3], [0.14, -0.35], [0.22, -0.3], [0.26, -0.12], [0.27, 0.05], [0.22, 0.15], [0.12, 0.12], [0, 0.06]], back: 'spike' },
@@ -470,13 +487,16 @@ const AXE_HEADS = [
   { pts: [[0, -0.05], [0.08, -0.06], [0.16, -0.14], [0.24, -0.28], [0.33, -0.41], [0.335, -0.2], [0.3, -0.05], [0.3, 0.05], [0.335, 0.2], [0.33, 0.41], [0.24, 0.28], [0.16, 0.14], [0.08, 0.06], [0, 0.05]], holes: [ringPts(0.2, 0, 0.05)], back: 'hook' },
   { pts: [[0, -0.1], [0.08, -0.12], [0.12, -0.2], [0.3, -0.25], [0.27, -0.16], [0.33, -0.1], [0.29, -0.04], [0.35, 0.02], [0.3, 0.08], [0.34, 0.15], [0.28, 0.2], [0.3, 0.27], [0.12, 0.2], [0.08, 0.12], [0, 0.1]], back: 'spikes' },
   { pts: [[0, -0.08], [0.12, -0.1], [0.2, -0.22], [0.28, -0.39], [0.36, -0.2], [0.385, 0], [0.36, 0.2], [0.28, 0.39], [0.2, 0.22], [0.12, 0.1], [0, 0.08]], holes: [[[0.15, -0.045], [0.21, -0.14], [0.27, -0.25], [0.315, -0.11], [0.325, 0], [0.315, 0.11], [0.27, 0.25], [0.21, 0.14], [0.15, 0.045]]] },
-  { pts: [[0, -0.09], [0.07, -0.16], [0.1, -0.32], [0.2, -0.28], [0.27, -0.41], [0.32, -0.24], [0.39, -0.12], [0.37, 0], [0.39, 0.12], [0.32, 0.24], [0.27, 0.41], [0.2, 0.28], [0.1, 0.32], [0.07, 0.16], [0, 0.09]], holes: [ringPts(0.21, 0, 0.06)], back: 'blade' }
+  { pts: [[0, -0.09], [0.07, -0.16], [0.1, -0.32], [0.2, -0.28], [0.27, -0.41], [0.32, -0.24], [0.39, -0.12], [0.37, 0], [0.39, 0.12], [0.32, 0.24], [0.27, 0.41], [0.2, 0.28], [0.1, 0.32], [0.07, 0.16], [0, 0.09]], holes: [ringPts(0.21, 0, 0.06)], back: 'blade' },
+  { pts: [[0, -0.07], [0.1, -0.1], [0.16, -0.2], [0.2, -0.34], [0.17, -0.46], [0.26, -0.4], [0.33, -0.28], [0.37, -0.12], [0.36, 0.04], [0.32, 0.18], [0.25, 0.3], [0.15, 0.38], [0.06, 0.4], [0.12, 0.3], [0.16, 0.2], [0.1, 0.1], [0, 0.07]], holes: [ringPts(0.24, -0.02, 0.05, 0.032)], back: 'tendril' },
+  { pts: [[0, -0.08], [0.12, -0.1], [0.2, -0.2], [0.26, -0.38], [0.31, -0.2], [0.36, -0.1], [0.44, 0], [0.36, 0.1], [0.31, 0.2], [0.26, 0.38], [0.2, 0.2], [0.12, 0.1], [0, 0.08]], holes: [[[0.25, -0.07], [0.264, -0.016], [0.315, 0], [0.264, 0.016], [0.25, 0.07], [0.236, 0.016], [0.185, 0], [0.236, -0.016]]], back: 'star' }
 ];
 
 // Streitäxte: Umriss einer Klinge; single: nur eine Klinge, back: Größe der Gegenklinge (Standard 1), hammer: Hammerkopf
 // 0 Holzfälleraxt (ein schwerer Keil), 1 Doppelaxt (Schmetterling), 2 Barbarenaxt (Halbmond mit Hörnern),
 // 3 Drachenspalter (großer Flügel vorn, kleine Gegenklinge), 4 Seelenschlächter (zwei Mondsicheln),
-// 5 Aschenhenker (Henkersbeil mit Zacken), 6 Himmelsbrecher (Federklingen), 7 Götterhammer (Hammer mit Strahlenklingen)
+// 5 Aschenhenker (Henkersbeil mit Zacken), 6 Himmelsbrecher (Federklingen), 7 Götterhammer (Hammer mit Strahlenklingen),
+// seit 13.53: 8 Abgrundreißer (zwei Kiefer mit Fangzähnen und Leerenauge), 9 Ewigkeitsspalter (Sternschwingen mit fünf Spitzen)
 const GREATAXE_HEADS = [
   { pts: [[0, -0.09], [0.2, -0.13], [0.31, -0.22], [0.33, 0.17], [0.22, 0.1], [0, 0.09]], single: true },
   { pts: [[0, -0.07], [0.1, -0.1], [0.2, -0.24], [0.27, -0.26], [0.3, -0.1], [0.31, 0], [0.3, 0.1], [0.27, 0.26], [0.2, 0.24], [0.1, 0.1], [0, 0.07]] },
@@ -485,12 +505,15 @@ const GREATAXE_HEADS = [
   { pts: [[0, -0.05], [0.06, -0.1], [0.16, -0.3], [0.3, -0.39], [0.24, -0.22], [0.26, 0], [0.24, 0.22], [0.3, 0.39], [0.16, 0.3], [0.06, 0.1], [0, 0.05]], holes: [ringPts(0.15, 0, 0.045)] },
   { pts: [[0, -0.1], [0.3, -0.14], [0.36, -0.1], [0.33, -0.05], [0.37, 0], [0.33, 0.05], [0.36, 0.1], [0.34, 0.23], [0.2, 0.18], [0, 0.1]], back: 0.6 },
   { pts: [[0, -0.05], [0.12, -0.1], [0.22, -0.3], [0.26, -0.16], [0.33, -0.21], [0.32, -0.05], [0.36, 0], [0.32, 0.05], [0.33, 0.21], [0.26, 0.16], [0.22, 0.3], [0.12, 0.1], [0, 0.05]], holes: [[[0.13, -0.04], [0.2, -0.16], [0.25, -0.08], [0.27, 0], [0.25, 0.08], [0.2, 0.16], [0.13, 0.04]]] },
-  { pts: [[0, -0.12], [0.15, -0.12], [0.2, -0.17], [0.25, -0.17], [0.25, 0.17], [0.2, 0.17], [0.15, 0.12], [0, 0.12]], hammer: true }
+  { pts: [[0, -0.12], [0.15, -0.12], [0.2, -0.17], [0.25, -0.17], [0.25, 0.17], [0.2, 0.17], [0.15, 0.12], [0, 0.12]], hammer: true },
+  { pts: [[0, -0.06], [0.08, -0.12], [0.18, -0.3], [0.34, -0.42], [0.3, -0.3], [0.26, -0.25], [0.29, -0.18], [0.25, -0.12], [0.29, -0.06], [0.26, 0], [0.29, 0.06], [0.25, 0.12], [0.29, 0.18], [0.26, 0.25], [0.3, 0.3], [0.34, 0.42], [0.18, 0.3], [0.08, 0.12], [0, 0.06]], holes: [ringPts(0.14, 0, 0.042, 0.028)], back: 0.8 },
+  { pts: [[0, -0.07], [0.1, -0.1], [0.16, -0.24], [0.2, -0.4], [0.26, -0.22], [0.33, -0.2], [0.3, -0.1], [0.46, 0], [0.3, 0.1], [0.33, 0.2], [0.26, 0.22], [0.2, 0.4], [0.16, 0.24], [0.1, 0.1], [0, 0.07]], holes: [[[0.2, -0.065], [0.214, -0.016], [0.26, 0], [0.214, 0.016], [0.2, 0.065], [0.186, 0.016], [0.14, 0], [0.186, -0.016]]] }
 ];
 
 // Fächer: Spannweite (Bogenmaß) und Randform des Blatts je Stufe
 // 0 Papier (glatt), 1 Seide (Bögen), 2 Kranich (Federspitzen), 3 Phönix (Flammenzungen), 4 Drache (Fledermausflügel),
-// 5 Glut (gezackt), 6 Himmel (Wolkenrand), 7 Götter (fast voller Sonnenkreis mit Strahlen)
+// 5 Glut (gezackt), 6 Himmel (Wolkenrand), 7 Götter (fast voller Sonnenkreis mit Strahlen),
+// seit 13.53: 8 Abgrund (Fangzähne, die nach innen haken), 9 Ewig (weiter Sternenkranz, lange und kurze Strahlen im Wechsel)
 const FAN_SHAPES = [
   { span: 1.75, edge: 'smooth', n: 1, amp: 0 },
   { span: 2.1, edge: 'scallop', n: 8, amp: 0.06 },
@@ -499,7 +522,9 @@ const FAN_SHAPES = [
   { span: 2.4, edge: 'bat', n: 5, amp: 0.2 },
   { span: 2.2, edge: 'jag', n: 11, amp: 0.15 },
   { span: 2.75, edge: 'cloud', n: 6, amp: 0.1 },
-  { span: 5.9, edge: 'sun', n: 20, amp: 0.13 }
+  { span: 5.9, edge: 'sun', n: 20, amp: 0.13 },
+  { span: 2.9, edge: 'fang', n: 9, amp: 0.2 },
+  { span: 3.4, edge: 'star', n: 9, amp: 0.26 }
 ];
 // Umriss des Fächerblatts: Drehpunkt bei (0, 0), Blattmitte in Richtung `center` (Bogenmaß), außen R, innen r0
 function fanLeafPts(tier, R, r0, center) {
@@ -519,6 +544,8 @@ function fanLeafPts(tier, R, r0, center) {
       case 'jag': k = 1 + S.amp * ((i % 2 ? 0.2 : 1) * (0.6 + 0.4 * Math.sin(i * 2.7))) - S.amp * 0.4; break;
       case 'cloud': k = 1 + S.amp * Math.sqrt(Math.sin(f * Math.PI)); break;
       case 'sun': k = 1 + S.amp * (1 - Math.abs(f * 2 - 1)) - S.amp * 0.5; break;
+      case 'fang': k = 1 + S.amp * Math.pow(1 - f, 3) - S.amp * 0.3; break;
+      case 'star': k = 1 + S.amp * Math.pow(1 - Math.abs(f * 2 - 1), 2.2) * (Math.floor(u * S.n - 1e-9) % 2 ? 0.5 : 1) - S.amp * 0.35; break;
       default:
     }
     const a = a0 + u * S.span;
@@ -533,7 +560,8 @@ function fanLeafPts(tier, R, r0, center) {
 
 // Glocken: Drehprofil [Radius, Höhe] von der Öffnung (Höhe 0) bis zur Krone
 // 0 Bronze (klassisch), 1 Tempel (hoch und gerade), 2 Kranich (Tulpe mit Taille), 3 Phönix (weit ausgestellter Rand),
-// 4 Drache (bauchig mit Zwiebelkrone), 5 Glut (gedrungen, schwer), 6 Himmel (Kuppel), 7 Götter (doppelt gestuft)
+// 4 Drache (bauchig mit Zwiebelkrone), 5 Glut (gedrungen, schwer), 6 Himmel (Kuppel), 7 Götter (doppelt gestuft),
+// seit 13.53: 8 Abgrund (hoher Tropfen mit weit gerissenem Schlund), 9 Ewig (dreifach gestufte Lotusglocke)
 const BELL_PROFILES = [
   [[0, 0], [0.14, 0], [0.13, 0.03], [0.09, 0.15], [0.055, 0.22], [0, 0.23]],
   [[0, 0], [0.11, 0], [0.118, 0.02], [0.095, 0.05], [0.085, 0.2], [0.06, 0.25], [0, 0.26]],
@@ -542,14 +570,17 @@ const BELL_PROFILES = [
   [[0, 0], [0.115, 0], [0.142, 0.05], [0.132, 0.12], [0.08, 0.19], [0.03, 0.25], [0, 0.275]],
   [[0, 0], [0.165, 0], [0.158, 0.04], [0.132, 0.07], [0.132, 0.1], [0.1, 0.14], [0, 0.16]],
   [[0, 0], [0.13, 0], [0.128, 0.04], [0.115, 0.09], [0.09, 0.13], [0.055, 0.16], [0, 0.17]],
-  [[0, 0], [0.155, 0], [0.142, 0.03], [0.1, 0.09], [0.112, 0.11], [0.09, 0.17], [0.06, 0.22], [0, 0.245]]
+  [[0, 0], [0.155, 0], [0.142, 0.03], [0.1, 0.09], [0.112, 0.11], [0.09, 0.17], [0.06, 0.22], [0, 0.245]],
+  [[0, 0], [0.17, 0], [0.135, 0.025], [0.085, 0.07], [0.075, 0.13], [0.06, 0.2], [0.03, 0.26], [0, 0.29]],
+  [[0, 0], [0.15, 0], [0.158, 0.02], [0.11, 0.045], [0.125, 0.075], [0.085, 0.115], [0.095, 0.14], [0.06, 0.185], [0.035, 0.22], [0, 0.24]]
 ];
 
 // Sensen: Bauplan der Klinge je Stufe (Kopf am Schaft bei 0, 0; Klinge zeigt nach −x)
 // len Länge, w Breite, curve Bogen, hook Haken an der Spitze, serr Zähne in der Schneide, spikes Dornen am Rücken,
 // moon Mondsichel (in der Mitte am breitesten), twin zweite kleine Klinge nach +x
 // 0 Rost (kurz, schartig), 1 Grab (lang, schlank), 2 Knochen (Knochenzähne), 3 Seele (starker Haken),
-// 4 Totenkönig (breit mit Dornen), 5 Asche (gezackt), 6 Sterne (Mondsichel), 7 Götter (Doppelklinge)
+// 4 Totenkönig (breit mit Dornen), 5 Asche (gezackt), 6 Sterne (Mondsichel), 7 Götter (Doppelklinge),
+// seit 13.53: 8 Abgrund (langer Fanghaken mit Zahnreihe), 9 Ewig (zwei Mondsicheln)
 const SCYTHE_BLADES = [
   { len: 0.5, w: 0.1, curve: 0.12, hook: 0, serr: 3 },
   { len: 0.72, w: 0.1, curve: 0.18, hook: 0.05 },
@@ -558,7 +589,9 @@ const SCYTHE_BLADES = [
   { len: 0.8, w: 0.18, curve: 0.2, hook: 0.06, spikes: 3 },
   { len: 0.7, w: 0.14, curve: 0.18, hook: 0.04, serr: 9, spikes: 4 },
   { len: 0.7, w: 0.2, curve: 0.3, hook: 0.08, moon: true },
-  { len: 0.85, w: 0.16, curve: 0.24, hook: 0.1, twin: 0.45 }
+  { len: 0.85, w: 0.16, curve: 0.24, hook: 0.1, twin: 0.45 },
+  { len: 0.86, w: 0.17, curve: 0.3, hook: 0.2, serr: 11 },
+  { len: 0.92, w: 0.17, curve: 0.26, hook: 0.08, moon: true, twin: 0.5 }
 ];
 function scythePts(tier, side = -1, scale = 1) {
   const B = SCYTHE_BLADES[tier] || SCYTHE_BLADES[1];
