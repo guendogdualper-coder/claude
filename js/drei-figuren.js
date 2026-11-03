@@ -4757,11 +4757,14 @@ const BASIC3 = {
       [0.74, { rx: -0.5, rz: 0.25, cx: 0.4, hpy: -0.09, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1 }, 'out'], [1, N3]]
   ],
   // Fernkampf: ein Ablauf je Waffe (Bogen in der rechten Hand, die linke zieht die Sehne)
-  // seit 13.20 mit Handgelenk (wx): der Bogen steht beim Zielen senkrecht vor der Figur statt schräg
-  bow: [[[0, N3], [0.25, { rx: -1.5, rz: 0.1, wx: 1.45, lx: -1.5, lz: -0.3, cy: 0.4, hy: 0.2 }, 'out'],
-    [0.55, { rx: -1.55, rz: 0.1, wx: 1.5, lx: -1.35, lz: 0.55, cy: 0.55, hy: 0.25, hx: -0.05 }],
-    [0.62, { rx: -1.45, rz: 0.12, wx: 1.45, lx: -1.0, lz: 0.95, cy: 0.5, hy: 0.25 }, 'in'],
-    [0.82, { rx: -1.4, rz: 0.1, wx: 1.4, lx: -0.9, lz: 0.9, cy: 0.45, hy: 0.2 }, 'out'], [1, N3]]],
+  // seit 13.59 echte Schützenhaltung: Bogen heben und senkrecht aufs Ziel richten (wx), die Zughand holt den Pfeil vor
+  // dem Körper ab und zieht ihn bis an die Wange (lz nach innen statt seitlich weg), Schuss bei 0,58 (BASIC_TIMING),
+  // danach fliegt die Zughand ein Stück zurück und die Haltung bleibt kurz stehen
+  bow: [[[0, N3], [0.2, { rx: -1.55, wx: 1.45, lx: -1.6, lz: -0.5, cy: 0.1, gr: 0.1 }, 'out'],
+    [0.5, { rx: -1.75, wx: 1.5, lx: -1.85, lz: -0.9, cy: 0.05, hx: -0.04, gr: 0.12 }],
+    [0.58, { rx: -1.76, wx: 1.5, lx: -1.88, lz: -0.95, hx: -0.04, gr: 0.12 }],
+    [0.66, { rx: -1.7, wx: 1.5, lx: -1.4, lz: -1.25, hx: -0.04, gr: 0.12 }, 'out'],
+    [0.86, { rx: -1.66, wx: 1.48, lx: -1.35, lz: -1.2, gr: 0.08 }], [1, N3]]],
   fan: [[[0, N3], [0.3, { rx: -1.2, rz: -0.9, cy: -0.5, hy: -0.2, wz: 0.6, lx: -0.5, lz: 0.4 }, 'out'],
     [0.45, { rx: -1.45, rz: 0.75, cy: 0.45, hy: 0.2, wz: -0.6, hpz: 0.06, gr: -0.25, gl: 0.2, lx: -0.7, lz: 0.6 }, 'in'],
     [0.7, { rx: -1.35, rz: 0.95, cy: 0.55, hy: 0.25, wz: -0.7, hpz: 0.05, gr: -0.2, gl: 0.15, lx: -0.6, lz: 0.7 }, 'out'], [1, N3]]],

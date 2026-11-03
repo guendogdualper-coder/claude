@@ -471,14 +471,18 @@ function bowSkillStats(sk, lvl, out) {
 }
 
 // --- Posen (SKILL_POSE3, drei-figuren.js) ------------------------------------------------------------------
-// Bogenzug: weit ausholen, die Sehne bis ans Ohr, Schuss, nachhalten. Bogenhimmel: dasselbe steil nach oben.
+// Bogenzug: Bogen hoch aufs Ziel, die Zughand zieht die Sehne bis an die Wange, Schuss, Zughand fliegt zurück, nachhalten.
+// Bogenhimmel: dasselbe steil nach oben. Seit 13.59 wie der Grundangriff mit der Zughand vor dem Körper
+// (vorher schwang sie seitlich weit vom Körper weg und der Bogen hing tief).
 const BOW_POSE = {
-  bogenzug: [[0, N3], [0.3, { rx: -1.55, rz: 0.1, wx: 1.5, lx: -1.5, lz: 0.75, cy: 0.62, hy: 0.28, hx: -0.06, hpy: -0.03, gr: 0.12 }, 'out'],
-    [0.42, { rx: -1.55, rz: 0.1, wx: 1.5, lx: -1.0, lz: 1.05, cy: 0.66, hy: 0.3, hx: -0.06, hpy: -0.03, gr: 0.12 }, 'in'],
-    [0.55, { rx: -1.5, rz: 0.12, wx: 1.45, lx: -0.7, lz: 1.2, cy: 0.5, hy: 0.25, hpz: -0.04 }, 'out'], [1, N3]],
-  bogenhimmel: [[0, N3], [0.3, { rx: -2.5, rz: 0.1, wx: 1.35, lx: -2.35, lz: 0.55, cy: 0.5, hy: 0.25, hx: -0.35, cx: -0.18 }, 'out'],
-    [0.42, { rx: -2.55, rz: 0.1, wx: 1.35, lx: -1.9, lz: 0.95, cy: 0.55, hy: 0.28, hx: -0.4, cx: -0.2 }, 'in'],
-    [0.6, { rx: -2.4, rz: 0.12, wx: 1.3, lx: -1.5, lz: 1.0, cy: 0.45, hy: 0.22, hx: -0.3, cx: -0.15 }, 'out'], [1, N3]]
+  bogenzug: [[0, N3], [0.22, { rx: -1.6, wx: 1.45, lx: -1.65, lz: -0.55, cy: 0.08, gr: 0.12, hpy: -0.02 }, 'out'],
+    [0.42, { rx: -1.78, wx: 1.5, lx: -1.9, lz: -0.95, hx: -0.05, gr: 0.14, hpy: -0.03 }],
+    [0.5, { rx: -1.74, wx: 1.5, lx: -1.4, lz: -1.3, hx: -0.05, gr: 0.14, hpy: -0.03, hpz: -0.03 }, 'out'],
+    [0.75, { rx: -1.68, wx: 1.48, lx: -1.35, lz: -1.22, gr: 0.1 }], [1, N3]],
+  bogenhimmel: [[0, N3], [0.25, { rx: -2.2, wx: 1.25, lx: -2.15, lz: -0.6, cx: -0.12, hx: -0.25 }, 'out'],
+    [0.42, { rx: -2.3, wx: 1.2, lx: -2.3, lz: -0.85, cx: -0.18, hx: -0.35 }],
+    [0.52, { rx: -2.25, wx: 1.2, lx: -1.95, lz: -1.15, cx: -0.15, hx: -0.3 }, 'out'],
+    [0.75, { rx: -2.15, wx: 1.2, lx: -1.85, lz: -1.1, cx: -0.12, hx: -0.25 }], [1, N3]]
 };
 if (typeof SKILL_POSE3 !== 'undefined' && typeof poseKeys3 === 'function') {
   for (const k of Object.keys(BOW_POSE)) SKILL_POSE3[k] = (B, sw) => poseKeys3(B, BOW_POSE[k], sw);
