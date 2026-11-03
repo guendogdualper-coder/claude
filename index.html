@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Marcellus+SC&display=swap">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/seltenheit.css">
+  <link rel="stylesheet" href="css/handel.css">
 </head>
 <body>
 <!-- app:start -->
@@ -279,6 +280,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.68 – Handel, Herausforderung und größere Städte: <b>Post</b> (Postmeisterin in jeder Stadt) – Briefe an einen Charakternamen mit Text, Gold und bis zu sechs Sachen, Porto 10 Gold. <b>Auktionshaus</b> (Auktionator in jeder Stadt) – Sachen zum Sofortkaufpreis einstellen (12/24/48 Std., 1–3 % Gebühr), Filter nach Waffenart, Rüstungsplatz, Klasse, Seltenheit, Stufe, Plus und Name, dazu Tränke, Schriftrollen, Pfeile und Material; Ware und Erlös kommen per Post. <b>Konto-Lager</b> – den Zugang kauft jeder Charakter selbst, der Inhalt gehört dem ganzen Konto (ohne Konto allen Charakteren auf dem Gerät). Post und Auktionshaus brauchen ein Konto. <b>Prüfungsarena</b> (Arenameister in jeder Stadt, ab Stufe 5): allein Welle um Welle gegen immer stärkere Monster, Elite ab Welle 4, jede fünfte Welle ein Wellenmeister; Gold für jede geschaffte Welle, Bestwelle wird gespeichert. Die Städte und Lager sind größer (Mauern weiter außen), damit die neuen Stände Platz haben.</li>
       <li>Version 13.67 – Bogen-Ninja (Weg des Falken) überarbeitet: Der Bogen sitzt jetzt richtig herum (Griff vorn, Sehne zum Körper), die Hände liegen an Bogen und Sehne, beim Ziehen spannt sich die Sehne sichtbar zu einem V und ein Pfeil liegt auf; Pfeile sind kürzer (keine Speere mehr). Pfeile sind jetzt echte Munition: ohne Pfeile kein Schuss („Keine Pfeile – kaufe Pfeile bei der Bogenmacherin“, roter Pfeilzähler), der Zähler zählt sichtbar herunter. Größere Reichweite (Grundangriff 400, Fertigkeiten 520–680), beim Schießen bleibt der Ninja kurz stehen und dreht sich zum Ziel. Jeder Bogenangriff trägt dunkle Schattenmagie. Falkenblick ist jetzt der 30-Minuten-Klassensegen des Bogen-Ninjas (Krit, Krit-Schaden, Tempo, Reichweite) mit echten, gefiederten dunklen Flügeln; auf Platz 5 kommt der neue Schattenschritt (Ort wählen, im Schatten verschwinden und dort auftauchen). Rückensprung: Fächerpfeile fliegen viel weiter (780) und bremsen länger, machen dafür etwas weniger Schaden.</li>
       <li>Version 13.66 – Frostmagier überarbeitet: Der Blizzard hat keine Wolke mehr – stattdessen ein dichter blauweißer Eissturm mit wirbelnden Eissplittern, Frostnebel, blauem Leuchten und einer Frostwelle zum Schluss; den Ort wählst du per Klick oder Tippen (ein feiner Kreis zeigt jetzt bei allen Ortszaubern die Reichweite). Neu statt Frostpanzer: <b>Eisgefängnis</b> – der Boden überfriert, Kristallsäulen brechen hervor und schließen alle Gegner im Feld in Eis ein (betäubt 1,5–2,5 s je Rang, Schaden, am Ende zersplittert alles und verlangsamt); Bosse werden nur verlangsamt. Kombo: Der Eisstrahl trifft verlangsamte Gegner um bis zu 45 % und eingefrorene oder betäubte um bis zu 90 % härter (hellblaue Kombo-Zahlen). Alte Frostpanzer-Stufen, Leistenplätze und Bücher gehen automatisch aufs Eisgefängnis über.</li>
       <li>Version 13.65 – Klügere Monster: Wer dich verfolgt, sucht sich jetzt einen Weg um Mauern, Säulen, Wasser, Bäume, Felsen und Seelensteine herum, statt daran hängen zu bleiben – in Dungeons kannst du Monster nicht mehr aus der Ferne hinter einer Wand festnageln. Fernkämpfer schießen nur noch bei freier Sicht und kommen sonst näher, der Ansturm startet nur bei freier Bahn, und auf dem Heimweg finden Monster wieder zu ihrem Platz.</li>
@@ -531,6 +533,17 @@
   <div id="npcBody" class="panel-body"></div>
 </div>
 
+<!-- seit 13.63: Post und Auktionshaus (post.js, auktionshaus.js) -->
+<div id="panelPost" class="panel frame panel-wide hd-panel" hidden role="dialog" aria-labelledby="postTitle">
+  <header class="panel-head"><h2 id="postTitle">Post</h2><span class="hd-goldchip">Gold <b id="postGold">0</b></span><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="postBody" class="panel-body"></div>
+</div>
+
+<div id="panelAuktion" class="panel frame panel-wide hd-panel ah-panel" hidden role="dialog" aria-labelledby="ahTitle">
+  <header class="panel-head"><h2 id="ahTitle">Auktionshaus</h2><span class="hd-goldchip">Gold <b id="ahGold">0</b></span><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="ahBody" class="panel-body"></div>
+</div>
+
 <div id="panelPath" class="panel frame panel-wide" hidden role="dialog" aria-labelledby="pathTitle">
   <header class="panel-head"><h2 id="pathTitle">Wähle deinen Weg</h2></header>
   <div id="pathBody" class="panel-body"></div>
@@ -661,11 +674,18 @@
 <script src="js/netz.js"></script>
 <script src="js/konto-config.js"></script>
 <script src="js/konto.js"></script>
+<script src="js/handel-db.js"></script>
+<script src="js/handel-ware.js"></script>
+<script src="js/kontolager.js"></script>
+<script src="js/post.js"></script>
+<script src="js/auktionshaus.js"></script>
+<script src="js/handel-npc.js"></script>
 <script src="js/gemeinschaft.js"></script>
 <script src="js/interaktion.js"></script>
 <script src="js/gruppe.js"></script>
 <script src="js/gruppenfinder.js"></script>
 <script src="js/instanzen.js"></script>
+<script src="js/herausforderung.js"></script>
 <script src="js/spiel.js"></script>
 </body>
 </html>

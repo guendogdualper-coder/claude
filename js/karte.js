@@ -21,6 +21,11 @@ function mapAreaAt(tx, ty) {
     const k = dungeonIndexAt(tx, ty);
     const B = dungeonBlock(k);
     area = { key: `d${k}`, x: B.x, y: B.y, w: B.w, h: B.h, wm: null, dungeon: k };
+  } else if (typeof arenaSlotAt === 'function' && arenaSlotAt(tx * TILE, ty * TILE) >= 0) {
+    // Halle der Prüfungsarena (seit 13.63, herausforderung.js)
+    const s = arenaSlotAt(tx * TILE, ty * TILE);
+    const R = arenaSlotRect(s);
+    area = { key: `a${s}`, x: R.x, y: R.y, w: R.w, h: R.h, wm: null, dungeon: -1 };
   }
   if (area) _areaLast = area;
   return area;

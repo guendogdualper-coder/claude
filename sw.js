@@ -1,12 +1,13 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v195';
+const VERSION = 'seelenstein-v196';
 const FILES = [
   './',
   'index.html',
   'manifest.webmanifest',
   'css/style.css',
   'css/seltenheit.css',
+  'css/handel.css',
   'js/sprache.js',
   'js/daten/klassen.js',
   'js/daten/rangnamen.js',
@@ -98,11 +99,18 @@ const FILES = [
   'js/waechter.js',
   'js/konto-config.js',
   'js/konto.js',
+  'js/handel-db.js',
+  'js/handel-ware.js',
+  'js/kontolager.js',
+  'js/post.js',
+  'js/auktionshaus.js',
+  'js/handel-npc.js',
   'js/gemeinschaft.js',
   'js/interaktion.js',
   'js/gruppe.js',
   'js/gruppenfinder.js',
   'js/instanzen.js',
+  'js/herausforderung.js',
   'js/peerjs.min.js',
   'js/spiel.js',
   'icons/icon-192.png',

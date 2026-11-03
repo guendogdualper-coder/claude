@@ -17,9 +17,12 @@ const MAP_W = WORLD_W + DUNGEON_W;
 const MAP_H = WORLD_H;
 const CENTER_X = 180;     // Mitte von Vlotho (x und y gleich: der Dorfplan rechnet mit einer Zahl)
 const CENTER_Y = 180;
-const VILLAGE_HALF = 18;  // Dorfmauer: Quadrat 18 Kacheln um die Mitte (seit 10.6, vorher 14); drinnen greifen Monster nicht an
-const VS = VILLAGE_HALF / 14; // der Dorfplan ist für 14 gezeichnet: alle Abstände im Dorf wachsen mit
-const SAFE_RING = 28;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
+// seit 13.63: Mauer 23 statt 18 – Platz für Auktionshaus, Post und Herausforderung. Häuser, Plätze und Stände bleiben
+// beim Plan von 18 (VILLAGE_PLAN), nur die Mauer rückt nach außen; Bäume und Wasser draußen bleiben wie vorher
+const VILLAGE_HALF = 23;  // Dorfmauer: Quadrat um die Mitte (10.6 bis 13.62: 18, vorher 14); drinnen greifen Monster nicht an
+const VILLAGE_PLAN = 18;  // Größe, für die der Dorfplan und die Wildnis drumherum erzeugt werden (seit 13.63)
+const VS = VILLAGE_PLAN / 14; // der Dorfplan ist für 14 gezeichnet: alle Abstände im Dorf wachsen mit
+const SAFE_RING = 33;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
 const WORLD_VERSION = 12;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
@@ -172,6 +175,63 @@ function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
   const along = onH ? dx : dy;
   return along < -GATE_HALF || along >= GATE_HALF;
 }
+// Feste Plätze für die neuen Stadtleute (seit 13.63, in den größeren Städten): Herausforderung (Arenameister),
+// Auktionshaus, Post und ein Briefkasten. [dx, dy, Seite des Stands] in Kacheln ab der Mitte der Stadt; die Seite
+// wie bei den anderen Ständen ('w' Stand links, die Person schaut nach rechts · 'e' Stand rechts · 'n' Stand dahinter),
+// null = ohne Stand (Briefkasten). 'frei' ist ein weiterer freier Platz für später.
+// dorf: Vlotho · stadt: Sahra (Map 2) und Klammfeste (Map 3) · lager: die kleinen Lager der übrigen Maps
+const TOWN_PLACES = {
+  dorf: { arena: [-12.75, 17, 'w'], auktion: [12.75, 13.5, 'e'], post: [12.75, 17, 'e'], briefkasten: [10.4, 18.4, null], frei: [-17, -19, 'n'] },
+  stadt: { arena: [-9.75, 14.8, 'w'], auktion: [9.75, 14.8, 'e'], post: [9.75, 8.6, 'e'], briefkasten: [7.4, 10.2, null], frei: [-9.75, -14.5, 'n'] },
+  lager: { arena: [-7.5, -9.6, 'n'], auktion: [7.5, -9.6, 'n'], post: [7.5, 10.4, 'n'], briefkasten: [9.7, 10.8, null], frei: [-7.5, 10.4, 'n'] }
+};
+// Art der Stadt einer Map (siehe TOWN_PLACES)
+function townKind(mapId) {
+  if (mapId === 1) return 'dorf';
+  const wm = WORLD_MAPS.find((m) => m.id === mapId);
+  return wm && (wm.genCamp || wm.camp || CAMP_HALF) < CAMP_HALF ? 'lager' : 'stadt';
+}
+// Platz einer Rolle in der Stadt einer Map: { x, y } in Kacheln (Mitte der Person), stand: Seite des Stands oder null
+function townPlace(mapId, role) {
+  const at = TOWN_PLACES[townKind(mapId)][role];
+  if (!at) return null;
+  const wm = WORLD_MAPS.find((m) => m.id === mapId);
+  const [cx, cy] = mapId === 1 ? [CENTER_X, CENTER_Y] : [wm.cx, wm.cy];
+  return { x: cx + at[0], y: cy + at[1], stand: at[2] };
+}
+
+// Vlotho vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
+// Blumen draußen genau gleich bleiben. Danach gehört alles bis zur neuen Mauer (VILLAGE_HALF) zum Dorf, die alte
+// Mauer verschwindet, und vor der neuen bleiben 4 Kacheln frei (ohne Bäume, Felsen und Wasser). Die neue Mauer steht
+// jetzt auch im Osten und Süden (vorher fehlten dort die Mauerstücke zwischen den Türmen).
+function widenVillage(ground, obj, deco, zoneIdx) {
+  const H = VILLAGE_HALF;
+  for (let y = CENTER_Y - H - 4; y <= CENTER_Y + H + 4; y++) {
+    for (let x = CENTER_X - H - 4; x <= CENTER_X + H + 4; x++) {
+      const i = y * MAP_W + x;
+      const cheb = Math.max(Math.abs(x + 0.5 - CENTER_X), Math.abs(y + 0.5 - CENTER_Y));
+      if (obj[i] === OBJ.WALL) obj[i] = OBJ.NONE;
+      if (cheb < H + 0.5) zoneIdx[i] = 0;
+      // der alte Dorfplatz bleibt, wie er ist; neu dazu: freies Land ohne Hindernisse
+      if (cheb >= VILLAGE_PLAN + 0.5) {
+        if (obj[i] !== OBJ.HOUSE) obj[i] = OBJ.NONE;
+        if (deco[i] === DECO.BRIDGE) {
+          ground[i] = GROUND.PATH;
+          deco[i] = DECO.NONE;
+        } else if (LIQUID.has(ground[i])) {
+          ground[i] = GROUND.GRASS;
+          deco[i] = DECO.NONE;
+        }
+        if (SOLID_DECO_KINDS.has(deco[i])) deco[i] = DECO.NONE;
+      }
+      if (isWallTile(x, y)) {
+        obj[i] = OBJ.WALL;
+        deco[i] = DECO.NONE;
+      }
+    }
+  }
+}
+
 // Mauerstück senkrecht, wenn darüber oder darunter auch Mauer ist
 function wallVertical(w, i) {
   return w.obj[i - MAP_W] === OBJ.WALL || w.obj[i + MAP_W] === OBJ.WALL;
@@ -196,7 +256,8 @@ function generateWorld() {
       const i = y * MAP_W + x;
       const d = Math.hypot(x + 0.5 - CENTER_X, y + 0.5 - CENTER_Y);
       const cheb = Math.max(Math.abs(x + 0.5 - CENTER_X), Math.abs(y + 0.5 - CENTER_Y));
-      const zi = zoneIndexAt(x, y);
+      // seit 13.63 mit dem alten Dorf (VILLAGE_PLAN) erzeugt, damit die Wildnis gleich bleibt; widenVillage vergrößert danach
+      const zi = cheb < VILLAGE_PLAN + 0.5 ? 0 : mapZoneAt(x, y);
       const zone = ZONES[zi];
       zoneIdx[i] = zi;
 
@@ -206,7 +267,8 @@ function generateWorld() {
 
       if (zi === 0) {
         if (d < 6.5 * VS) ground[i] = GROUND.PLAZA;
-        if (isWallTile(x, y)) obj[i] = OBJ.WALL;
+        // alte Mauer (seit 13.63 nur noch für die Zufallszahlen der Verzierungen; widenVillage setzt die neue)
+        if (isWallTile(x, y, CENTER_X, CENTER_Y, VILLAGE_PLAN)) obj[i] = OBJ.WALL;
         continue;
       }
       // Rand der Map: dichter Bewuchs
@@ -215,7 +277,7 @@ function generateWorld() {
         continue;
       }
       // Rund um die Mauer bleibt das Land frei
-      if (cheb < VILLAGE_HALF + 4) continue;
+      if (cheb < VILLAGE_PLAN + 4) continue;
 
       if (zone.water && v < zone.water) {
         ground[i] = zone.liquid === 'ICE' ? GROUND.ICE : GROUND[zone.liquid || 'WATER'];
@@ -280,6 +342,8 @@ function generateWorld() {
     else if ((g === GROUND.PATH || g === GROUND.SAND || g === GROUND.SNOW) && r < 0.12) deco[i] = DECO.PEBBLE;
     else if ((g === GROUND.ASH || g === GROUND.BASALT) && r < 0.16) deco[i] = DECO.CRACK;
   }
+  // seit 13.63: Vlotho größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
+  widenVillage(ground, obj, deco, zoneIdx);
 
   // Dungeons im Streifen östlich der Welt, darunter Map 2 und Map 3
   const dungeons = buildDungeons(ground, obj, zoneIdx, deco);
@@ -307,6 +371,11 @@ function generateWorld() {
     npc('alchemist', 'Alchemist Yun', C + VL, C + 3.1, L('e')),
     npc('jaegerin', 'Jägerin Rin', C + VL, C + 6.6, L('e')),
     npc('lager', 'Lagerverwalter Bo', C + VL, C + 10.1, L('e')),
+    // seit 13.63: Auktionshaus und Post (auktionshaus.js, post.js) unter dem Lager am rechten Rand
+    npc('auktion', 'Auktionator Edo', C + VL, C + 13.5, L('e')),
+    npc('post', 'Postmeisterin Ida', C + VL, C + 17, L('e')),
+    // seit 13.63: Arenameisterin (Herausforderung, herausforderung.js) links unten, gegenüber der Post (TOWN_PLACES)
+    npc('arena', 'Arenameisterin Kaida', townPlace(1, 'arena').x, townPlace(1, 'arena').y, L(townPlace(1, 'arena').stand)),
     npc('weltentor', 'Weltentor', C + 5.1, C - 9)
   ];
   // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
@@ -316,7 +385,9 @@ function generateWorld() {
     ruestung: ['Rüstungshändlerin', 'Rüstungshändler'], alchemist: ['Alchemist', 'Alchemistin'], aeltester: ['Lagerältester', 'Lagerälteste'],
     jaegerin: ['Jägerin', 'Jäger'], teleport: ['Wegweiserin', 'Wegweiser'], stallmeister: ['Stallmeister', 'Stallmeisterin'],
     lehrmeister: ['Lehrmeister', 'Lehrmeisterin'], lager: ['Lagerverwalter', 'Lagerverwalterin'],
-    bogenmacher: ['Bogenmacherin', 'Bogenmacher']
+    bogenmacher: ['Bogenmacherin', 'Bogenmacher'],
+    auktion: ['Auktionator', 'Auktionatorin'], post: ['Postmeisterin', 'Postmeister'], // seit 13.63
+    arena: ['Arenameisterin', 'Arenameister'] // seit 13.63: Herausforderung (herausforderung.js)
   };
   // je Map: Name und ob die weibliche/männliche Form (Index in ROLE_TITLE) gilt
   const MAP_PEOPLE = {
@@ -332,6 +403,14 @@ function generateWorld() {
   // Bogenmacher je Map (seit 13.57)
   const BOW_PEOPLE = { 2: ['Amira', 0], 3: ['Torvald', 1], 4: ['Wiebke', 0], 5: ['Grisha', 0], 6: ['Zeynep', 0], 7: ['Liv', 0], 8: ['Rabe', 1], 9: ['Flint', 1] };
   for (const [k, v] of Object.entries(BOW_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].bogenmacher = v;
+  // Auktionshaus und Post je Map (seit 13.63)
+  const AUCTION_PEOPLE = { 2: ['Bashir', 0], 3: ['Ingvild', 1], 4: ['Konrad', 0], 5: ['Gruk', 0], 6: ['Soraya', 1], 7: ['Eskil', 0], 8: ['Morgana', 1], 9: ['Brand', 0] };
+  const POST_PEOPLE = { 2: ['Leyla', 0], 3: ['Arvid', 1], 4: ['Hanne', 0], 5: ['Durza', 0], 6: ['Karim', 1], 7: ['Tove', 0], 8: ['Krähe', 1], 9: ['Asche', 0] };
+  for (const [k, v] of Object.entries(AUCTION_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].auktion = v;
+  for (const [k, v] of Object.entries(POST_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].post = v;
+  // Arenameister je Map (seit 13.63, Herausforderung)
+  const ARENA_PEOPLE = { 2: ['Zarif', 1], 3: ['Brynja', 0], 4: ['Rasmus', 1], 5: ['Urgash', 1], 6: ['Samira', 0], 7: ['Hedda', 0], 8: ['Vesper', 0], 9: ['Glutfaust', 1] };
+  for (const [k, v] of Object.entries(ARENA_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].arena = v;
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
     return n.startsWith('Hexe') ? n : `${ROLE_TITLE[id][form]} ${n}`.trim();
@@ -344,14 +423,18 @@ function generateWorld() {
     aeltester: [-5.75, -6.6, 'w'], waffen: [-5.75, -3.4, 'w'], haendler: [-5.75, 2.4, 'w'], schmied: [-5.75, 5.6, 'w'],
     teleport: [5.75, -6.6, 'e'], ruestung: [5.75, -3.4, 'e'], alchemist: [5.75, 2.4, 'e'], lager: [5.75, 5.6, 'e'],
     lehrmeister: [-3.4, -6.2, 'n'], jaegerin: [3.8, -6.2, 'n'], stallmeister: [-3.2, 7, 'n'],
-    bogenmacher: [3.4, 7, 'n'] // seit 13.57: unten rechts, gegenüber dem Stallmeister
+    bogenmacher: [3.4, 7, 'n'], // seit 13.57: unten rechts, gegenüber dem Stallmeister
+    // seit 13.63: Post, Auktionshaus und Arenameister an ihren festen Plätzen im größeren Lager (TOWN_PLACES)
+    post: TOWN_PLACES.lager.post, auktion: TOWN_PLACES.lager.auktion, arena: TOWN_PLACES.lager.arena
   };
   // Städte in Map 2 und 3 (für eine Mauer von 11 gezeichnet, wächst mit CAMP_HALF)
   const TOWN_SPOTS = {
     aeltester: [-9.75, -6.8, 'w'], waffen: [-9.75, -3.2, 'w'], haendler: [-9.75, 2.3, 'w'], schmied: [-9.75, 5.6, 'w'], lehrmeister: [-9.75, 11.6, 'w'],
     teleport: [9.75, -6.8, 'e'], ruestung: [9.75, -3.2, 'e'], alchemist: [9.75, 2.3, 'e'], lager: [9.75, 5.6, 'e'], jaegerin: [9.75, 11.6, 'e'],
     stallmeister: [-5, 11, 'n'],
-    bogenmacher: [-9.75, 8.6, 'w'] // seit 13.57
+    bogenmacher: [-9.75, 8.6, 'w'], // seit 13.57
+    // seit 13.63: Post rechts gegenüber der Bogenmacherin, Auktionshaus und Arenameister unten an den Rändern (TOWN_PLACES)
+    post: TOWN_PLACES.stadt.post, auktion: TOWN_PLACES.stadt.auktion, arena: TOWN_PLACES.stadt.arena
   };
   for (const mp of maps) {
     const k = mp.scale;
@@ -376,8 +459,8 @@ function generateWorld() {
         const tx = Math.round(wm.cx + Math.cos(ang) * d);
         const ty = Math.round(wm.cy + Math.sin(ang) * d * 0.4);
         if (tx < rx + 8 || ty < ry + 8 || tx >= rx + rw - 8 || ty >= ry + rh - 8) continue;
-        // nicht in der (vergrößerten) Stadt
-        if (wm.genCamp && Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < wm.camp + 3) continue;
+        // nicht in der (vergrößerten) Stadt – seit 13.63 auch in Vlotho und den Lagern
+        if (Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) + 3) continue;
         let free = true;
         for (let yy = ty - 1; yy <= ty + 1 && free; yy++) for (let xx = tx - 1; xx <= tx + 1; xx++) {
           const i = yy * MAP_W + xx;
@@ -480,7 +563,8 @@ function generateWorld() {
 
   props.push(...wandererFires);
   // Stall des Stallmeisters: ein Pferd und Heuballen
-  props.push({ type: 'horse', ...T(C - 11.3, C + 15.2) }, { type: 'hay', ...T(C - 15.9, C + 15.8) });
+  // seit 13.63 Heu links neben dem Stand (darunter steht jetzt die Arenameisterin)
+  props.push({ type: 'horse', ...T(C - 11.3, C + 15.2) }, { type: 'hay', ...T(C - 16.6, C + 13.4) });
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
     // gewürfelte Dungeons (seit 13.7) schmücken ihre Räume selbst, seit 13.58 auch der Höllenthron mit vielen Räumen
@@ -1058,13 +1142,30 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
         deco[i] = DECO.NONE;
       }
     }
+    // seit 13.63: vor der vergrößerten Mauer bleiben 3 Kacheln frei (keine Bäume, Felsen oder Gewässer direkt davor)
+    if (wm.genCamp) {
+      for (let y = wm.cy - camp - 3; y <= wm.cy + camp + 3; y++) {
+        for (let x = wm.cx - camp - 3; x <= wm.cx + camp + 3; x++) {
+          if (Math.max(Math.abs(x - wm.cx), Math.abs(y - wm.cy)) <= camp) continue;
+          const i = y * MAP_W + x;
+          obj[i] = OBJ.NONE;
+          if (deco[i] === DECO.BRIDGE) {
+            ground[i] = GROUND.PATH;
+            deco[i] = DECO.NONE;
+          } else if (LIQUID.has(ground[i])) ground[i] = GROUND[ZONES[zoneIdx[i]].ground];
+          if (SOLID_DECO_KINDS.has(deco[i])) deco[i] = DECO.NONE;
+        }
+      }
+    }
     // Häuser der Stadt in den vier Ecken des Platzes (kleine Lager haben keine)
     // Plan der Städte für eine Mauer von 11, der Lager für 7; scale streckt ihn auf die echte Mauer (seit 10.6)
-    const scale = camp < CAMP_HALF ? camp / 7 : CAMP_HALF / 11;
+    // seit 13.63 nach dem Plan (genCamp): Stände, Tor und Häuser bleiben, wo sie waren, nur die Mauer rückt nach außen
+    const plan = wm.genCamp || camp;
+    const scale = plan < CAMP_HALF ? plan / 7 : CAMP_HALF / 11;
     // Städte: zwei Häuser oben (seit 12.2; die beiden unteren verdeckten die Stände am Rand)
-    const houses = (camp < CAMP_HALF ? [] : [[-9, -9, 5, 3], [5, -9, 5, 3]]).map(([hx, hy, w, h], k) => ({ x: Math.floor(wm.cx + hx * scale), y: Math.floor(wm.cy + hy * scale), w, h, roof: wm.id === 2 ? ['#b0763a', '#8a4a2a', '#c8a060', '#7a5a3a'][k] : ['#4a4644', '#5a3a2e', '#3a3a4a', '#6a4a3a'][k] }));
+    const houses = (plan < CAMP_HALF ? [] : [[-9, -9, 5, 3], [5, -9, 5, 3]]).map(([hx, hy, w, h], k) => ({ x: Math.floor(wm.cx + hx * scale), y: Math.floor(wm.cy + hy * scale), w, h, roof: wm.id === 2 ? ['#b0763a', '#8a4a2a', '#c8a060', '#7a5a3a'][k] : ['#4a4644', '#5a3a2e', '#3a3a4a', '#6a4a3a'][k] }));
     for (const h of houses) for (let y = h.y; y < h.y + h.h; y++) for (let x = h.x; x < h.x + h.w; x++) obj[y * MAP_W + x] = OBJ.HOUSE;
-    out.push({ id: wm.id, cx: wm.cx, cy: wm.cy, houses, small: camp < CAMP_HALF, scale, spawn: { x: wm.cx * TILE, y: (wm.cy + 1.5 * scale) * TILE } });
+    out.push({ id: wm.id, cx: wm.cx, cy: wm.cy, houses, small: plan < CAMP_HALF, scale, spawn: { x: wm.cx * TILE, y: (wm.cy + 1.5 * scale) * TILE } });
   }
   return out;
 }

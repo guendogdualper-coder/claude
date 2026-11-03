@@ -51,7 +51,7 @@ function moveVector() {
 
 function setupInput() {
   window.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
     // Einstellungen: neue Taste für eine Aktion abfangen (tasten.js)
     if (captureKey(e)) return;
     if (!game.running) return;

@@ -10,11 +10,11 @@
 // ambient           Stimmung: schwebende Teilchen (kind) und eine leichte Färbung des Bildes (tint, RGBA)
 const ZONES = [
   {
-    id: 'dorf', map: 1, name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 19, safe: true,
+    id: 'dorf', map: 1, name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 24, safe: true,
     ground: 'GRASS'
   },
   {
-    id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 19, maxDist: 999,
+    id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 24, maxDist: 999,
     ground: 'GRASS', alt: 'MEADOW', trees: 0.006, treeObj: 'TREE', rocks: 0.0024, water: 0.22, liquid: 'WATER',
     groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1], ['fuchs', 6, 0, 0.5], ['hirsch', 5, 0.45, 1]], groupSize: [3, 5],
     stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
@@ -170,16 +170,18 @@ for (const d of DUNGEONS) {
 // portals: Weltportale draußen (seit Version 6.2 keine mehr – nur noch das Weltentor)
 // camp: halbe Mauerlänge der Stadt/des Lagers; genCamp (seit 13.14, Map 2): der alte Wert, mit dem die Wildnis erzeugt
 // wird, damit Bäume und Felsen der übrigen Maps gleich bleiben, obwohl die Stadt größer geworden ist
+// seit 13.63 sind alle Städte und Lager größer (Platz für Auktionshaus, Post und Herausforderung): Lager 9 → 13,
+// Städte 14 bzw. 18 → 20; Stände und Häuser bleiben beim Plan von genCamp, nur die Mauer rückt nach außen
 const WORLD_MAPS = [
   { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
-  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
-  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
-  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 18, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
-  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
-  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
-  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
-  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
+  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
+  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
+  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 13, genCamp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
+  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 20, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
+  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
+  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 13, genCamp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
+  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 13, genCamp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
@@ -223,6 +225,11 @@ for (const wm of WORLD_MAPS) {
   const [x, y, w, h] = wm.region;
   wm.cx = x + w / 2;
   wm.cy = y + h / 2;
+}
+// Endboss-Eingänge vor den Lagern und Städten (seit 13.63): immer 6 Kacheln vor der (größeren) Mauer
+for (const d of DUNGEONS) {
+  const wm = d.raid && d.entry.map ? WORLD_MAPS.find((m) => m.id === d.entry.map) : null;
+  if (wm) d.entry.dist = Math.max(d.entry.dist, (wm.camp || 14) + 6);
 }
 for (const z of MAP_ZONES) {
   const wm = WORLD_MAPS.find((m) => m.id === z.map);

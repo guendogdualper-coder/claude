@@ -2214,6 +2214,12 @@ function regionRect3(x, y) {
     const B = dungeonBlock(k);
     return { r: [B.x, B.y, B.w, B.h], inset: 1, key: 'd' + k };
   }
+  // Hallen der Prüfungsarena (seit 13.63, herausforderung.js): abgeschlossen wie ein Dungeon-Block
+  const as = typeof arenaSlotAt === 'function' ? arenaSlotAt(x, y) : -1;
+  if (as >= 0) {
+    const R = arenaSlotRect(as);
+    return { r: [R.x, R.y, R.w, R.h], inset: 1, key: 'da' + as };
+  }
   return null;
 }
 function v3SyncBounds() {
