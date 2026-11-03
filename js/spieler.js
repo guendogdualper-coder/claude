@@ -814,7 +814,9 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   // 13.39: Feuermagier – Glutfeld statt Drachenodem
   drachenodem: 'glutfeld',
   // 13.40: Feuertornados statt Flammenkreis
-  flammenkreis: 'feuertornado' };
+  flammenkreis: 'feuertornado',
+  // 13.54: Frostmagier – Blizzard (Schneesturm) statt Kristallgrab
+  kristallgrab: 'schneesturm' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

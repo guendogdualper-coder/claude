@@ -408,7 +408,7 @@ const CLASSES = {
       },
       {
         id: 'frost', name: 'Weg des Frosts', role: 'Kontrolle · Einfrieren',
-        description: 'Lässt Gegner im Eis erstarren, bremst sie mit dem Eisstrahl immer weiter aus und lässt ein Feld aus Kristallen wachsen. Weniger Schaden, sehr viel Kontrolle.',
+        description: 'Lässt Gegner im Eis erstarren, bremst sie mit dem Eisstrahl immer weiter aus und begräbt sie in einem Schneesturm. Weniger Schaden, sehr viel Kontrolle.',
         skills: [
           {
             id: 'frostnova', name: 'Frostnova', short: 'FR', kind: 'angriff', unlock: 1, mp: 9, cooldown: 6,
@@ -435,10 +435,12 @@ const CLASSES = {
             text: 'Buff: Eisplatten kreisen um dich. Viel mehr Rüstung (wächst mit Rang und deiner Stufe), weniger erlittener Schaden. Wer dich trifft – auch aus der Ferne –, wird von Reif überzogen: Er läuft und schlägt eine Weile langsamer (stärker und länger je Rang).'
           },
           {
-            id: 'kristallgrab', name: 'Kristallgrab', short: 'KG', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            type: 'sigil', el: 'frost', aim: true, range: 340, radius: 135, delay: 0.6, ticks: 1, every: 0, dmg: 2.6, freeze: 1.4,
-            slow: { amount: 0.5, duration: 3 }, linger: 3, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
-            text: 'Am gewählten Ort wachsen mannshohe Eiskristalle aus dem Boden. Alle Gegner darin nehmen hohen Schaden und frieren ein; das Eisfeld verlangsamt 3 s lang alles, was es betritt.'
+            // seit 13.54 statt Kristallgrab: Blizzard – ein echter Schneesturm im gewählten Kreis (schneesturm.js).
+            // Verlangsamung wächst je Puls im Sturm (slow.build) bis slow.max; je Rang 0,5 s länger (snowTicks)
+            id: 'schneesturm', name: 'Blizzard', short: 'BZ', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
+            type: 'msnow', el: 'frost', aim: true, range: 340, radius: 150, delay: 0.5, ticks: 8, every: 0.5, dmg: 0.45, freeze: 0.8,
+            slow: { amount: 0.25, max: 0.6, build: 0.07, duration: 1.2 }, duelMul: 1.1, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
+            text: 'Du wählst einen Ort: Über dem Kreis ballt sich eine Sturmwolke, dann tobt 4 s lang ein Schneesturm. Alle Gegner im Kreis (150 weit) nehmen zweimal pro Sekunde Frostschaden und werden immer langsamer, je länger sie drinbleiben (25 % bis 60 %). Zum Schluss frieren sie kurz ein, Bosse werden nur verlangsamt. Je Rang tobt der Sturm 0,5 s länger: erweckt 4,5 s, heroisch 5 s, legendär 5,5 s, vollendet 6 s.'
           }
         ]
       },

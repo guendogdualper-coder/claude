@@ -1011,7 +1011,9 @@ function sndElOf(id, el) {
   return PLAYER_SND['el_' + e] ? e : 'klinge';
 }
 // eigene Klänge großer Zauber
-const SKILL_SND = { donnersturm: 'donner', erdbeben: 'beben', blitzschlag: 'eissturm', heilung: 'wasser', kristallgrab: 'eis', schwerkraft: 'beben' };
+const SKILL_SND = { donnersturm: 'donner', erdbeben: 'beben', blitzschlag: 'eissturm', heilung: 'wasser', kristallgrab: 'eis', schwerkraft: 'beben',
+  // seit 13.54: Blizzard des Frostmagiers – heulender Sturm
+  schneesturm: 'eissturm' };
 
 // --- Echte Aufnahmen (seit 9.8) ----------------------------------------------------------------------
 // Tierfamilien mit echten Aufnahmen (REC_SPRITES, klang-aufnahmen.js); andere nutzen ein Klangblatt mit eigener

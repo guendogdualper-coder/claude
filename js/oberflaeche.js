@@ -1884,7 +1884,7 @@ function skillStats(sk, lvl) {
   const out = [];
   const scale = buffScale(lvl);
   const hit = (f) => skillHitNum(f, lvl);
-  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil') out.push(['Schaden', hit(sk.dmg) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow') out.push(['Schaden', hit(sk.dmg) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
   // Nekromant, Weg der Seelen (seit 8.5): Schädelsalve, Seelenkäfig, Mal des Seelenschnitters
   if (sk.type === 'skulls') out.push(['Schaden', sk.count + ' × ' + hit(sk.dmg)]);
   if (sk.type === 'cage') out.push(['Schrei', hit(sk.dmg) + ' ×' + sk.pulses], ['Verlangsamt', skillPct(sk.slow.amount)]);
@@ -1971,6 +1971,12 @@ function mageSkillStats(sk, lvl, out) {
     out.push(['Tornados', `${n} × ${dmg(sk.dmg)} je Treffer`], ['Dauer', numDe(sk.life) + ' s'], ['Feld', 'r ' + sk.radius]);
   }
   if (sk.type === 'mfield') out.push(['Pulse', `${sk.ticks} × ${dmg(sk.dmg)}`], ['Feld', 'r ' + sk.radius], ['Reichweite', String(sk.range)]);
+  // seit 13.54: Blizzard (schneesturm.js) – Pulse je nach Rang, Verlangsamung wächst, zum Schluss Einfrieren
+  if (sk.type === 'msnow') {
+    const n = typeof snowTicks === 'function' ? snowTicks(sk, lvl) : sk.ticks;
+    out.push(['Pulse', `${n} × ${dmg(sk.dmg)}`], ['Dauer', numDe(n * sk.every) + ' s'], ['Feld', 'r ' + sk.radius], ['Reichweite', String(sk.range)],
+      ['Verlangsamt', `${skillPct(sk.slow.amount)} bis ${skillPct(sk.slow.max)}`], ['Zum Schluss', 'Einfrieren ' + freeze(sk.freeze)]);
+  }
   if (sk.castTime) out.push(['Zauberzeit', numDe(sk.castTime) + ' s']);
   if (sk.type === 'mignite') out.push(['Brand gesamt', dmg(sk.burn.dps * sk.burn.duration) + ' in ' + sk.burn.duration + ' s']);
   if (sk.type === 'mphoenix') out.push(['Auf dem Weg', dmg(sk.dmg * sk.pathMul)], ['Explosion', `r ${sk.blast.r} · ${dmg(sk.dmg * sk.blast.mul)}`], ['Brennt das Ziel', extra(sk.combust)]);
@@ -1985,11 +1991,11 @@ function mageSkillStats(sk, lvl, out) {
   if (sk.discharge) out.push(['Entladung', extra(sk.discharge)]);
   if (sk.pierce) out.push(['Durchbohrt', '']);
   if (sk.arcs) out.push(['Ziele', `${sk.arcs}, Überschlag ${dmg(sk.dmg * (sk.jump ? sk.jump.mul : 0.5))}`]);
-  if (sk.freeze) out.push(['Einfrieren', freeze(sk.freeze)]);
+  if (sk.freeze && sk.type !== 'msnow') out.push(['Einfrieren', freeze(sk.freeze)]);
   const stun = sk.stun || (sk.last && sk.last.stun);
   if (stun) out.push(['Betäubt', numDe(stun) + ' s']);
   if (sk.burn && sk.type !== 'mignite') out.push(['Brand', skillDotNum(sk.burn.dps) + ' je s']);
-  if (sk.slow) out.push(['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
+  if (sk.slow && sk.type !== 'msnow') out.push(['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
   if (sk.lift || (sk.last && sk.last.lift)) out.push(['Hochgeschleudert', '']);
   if (sk.ignite || (sk.last && sk.last.ignite)) out.push(['Explodieren', dmg(0.5)]);
   if (sk.type === 'nova' && skillRank(lvl) >= 0) out.push(['Nachhall', dmg(sk.dmg * 0.35)]);

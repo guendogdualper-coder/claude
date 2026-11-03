@@ -59,6 +59,8 @@ const RANK_NAMES = {
   eisschritt: ['Frostschritt', 'Gletscherschritt', 'Schritt des Winters', 'Geist des Eises'],
   frostpanzer: ['Eispanzer', 'Gletscherpanzer', 'Panzer des Winters', 'Ewiges Eis'],
   kristallgrab: ['Kristallgruft', 'Eisgruft', 'Grab des Winters', 'Ewige Kristallgruft'],
+  // seit 13.54: Blizzard statt Kristallgrab
+  schneesturm: ['Schneegestöber', 'Weißer Sturm', 'Zorn des Winters', 'Ewiger Winter'],
   // Magier – Blitz
   blitzspeer: ['Donnerspeer', 'Sturmlanze', 'Speer des Donnergottes', 'Himmelsspeer'],
   kettenblitz: ['Kettendonner', 'Blitzkaskade', 'Sturm der Ketten', 'Göttlicher Kettenblitz'],
