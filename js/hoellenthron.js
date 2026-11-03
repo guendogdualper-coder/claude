@@ -133,10 +133,10 @@ function htPopulate(dg, zone, groupId) {
 }
 
 // --- Zugang --------------------------------------------------------------------------------------------------
-// Testzeit (13.36, fünf Tage bis einschließlich 7. 11. 2026): Höllenthron ohne Voraussetzungen – keine Stufe,
+// Testzeit (13.36, verlängert in 13.61 bis einschließlich 8. 11. 2026): Höllenthron ohne Voraussetzungen – keine Stufe,
 // keine göttlichen Teile, keine Boni, Gruppe beliebig groß (auch allein). Auch das Weltentor zur Map mit dem
 // Höllenportal ist so lange ohne Stufengrenze offen. Danach gelten automatisch wieder alle Voraussetzungen.
-const HT_FREE_UNTIL = Date.parse('2026-11-08T00:00:00+01:00');
+const HT_FREE_UNTIL = Date.parse('2026-11-09T00:00:00+01:00');
 const htFree = () => Date.now() < HT_FREE_UNTIL;
 function htMapId() {
   const n = game.world && game.world.npcs.find((x) => x.id === 'eingang' && x.dungeon === htIndex());

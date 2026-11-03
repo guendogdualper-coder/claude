@@ -237,7 +237,9 @@ function enterDungeon(k, viaParty = false) {
   const p = game.player;
   const dg = game.world.dungeons[k];
   const htTest = dg.def.instanz && typeof htFree === 'function' && htFree();
-  if (!viaParty && !htTest && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
+  // Testzeit der Instanzen (13.61): ohne Stufengrenze
+  const instTest = dg.def.inst60 && typeof instFree === 'function' && instFree();
+  if (!viaParty && !htTest && !instTest && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
   // Höllenthron: Gruppe, Stufe und Ausrüstung werden bei jedem geprüft (auch über die Einladung)
   if (dg.def.instanz) {
     const err = htEntryError();
@@ -913,7 +915,9 @@ Object.assign(ui, {
     body.innerHTML = intro + '<div class="travel-list">' +
       list.map((wm) => {
         // Testzeit Höllenthron (hoellenthron.js): die Map mit dem Höllenportal ist ohne Stufengrenze erreichbar
-        const low = p.level < wm.minLevel && !(typeof htFree === 'function' && htFree() && wm.id === htMapId());
+        // Testzeit (13.61): die Maps mit Instanzen (ab Stufe 40) sind ohne Stufengrenze erreichbar
+        const low = p.level < wm.minLevel && !(typeof htFree === 'function' && htFree() && wm.id === htMapId()) &&
+          !(typeof instFree === 'function' && instFree() && wm.minLevel >= 40);
         const cur = wm.id === here;
         return `<div class="travel-item"><strong>${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +
           `<button type="button" class="mini-btn" data-map="${wm.id}" ${cur || low ? 'disabled' : ''}>${cur ? 'Du bist hier' : low ? `ab Stufe ${wm.minLevel}` : 'Reisen'}</button></div>`;
