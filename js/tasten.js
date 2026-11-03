@@ -28,6 +28,7 @@ const KEY_ACTIONS = [
   { id: 'mats', label: 'Aufwertungsteile', key: 'KeyU' },
   { id: 'quests', label: 'Quests', key: 'KeyL' },
   { id: 'social', label: 'Freunde & Gilde', key: 'KeyG' },
+  { id: 'gf', label: 'Gruppenfinder (ab Stufe 30)', key: 'KeyJ' },
   { id: 'daily', label: 'Tagesbelohnung', key: 'KeyT' },
   { id: 'net', label: 'Server', key: 'KeyN' },
   { id: 'help', label: 'Hilfe', key: 'KeyH' },
@@ -81,7 +82,7 @@ function resetKeys() {
   refreshKeyLabels();
 }
 // Tastenzeichen an Leiste und Menü nachziehen
-const MENU_KEY_BTN = { char: 'btnChar', inv: 'btnInv', ride: 'btnHorse', net: 'btnNet', social: 'btnSocial', quests: 'btnQuests', daily: 'btnDaily', help: 'btnHelp', opts: 'btnOpts' };
+const MENU_KEY_BTN = { char: 'btnChar', inv: 'btnInv', ride: 'btnHorse', net: 'btnNet', social: 'btnSocial', gf: 'btnGf', quests: 'btnQuests', daily: 'btnDaily', help: 'btnHelp', opts: 'btnOpts' };
 function refreshKeyLabels() {
   for (const [id, btn] of Object.entries(MENU_KEY_BTN)) {
     const kbd = document.querySelector(`#${btn} kbd`);
@@ -128,6 +129,7 @@ function runAction(id, e) {
     case 'loot': if (!rep) ui.toggle('panelInv'); break;
     case 'mats': if (!rep) ui.toggle('panelMats'); break;
     case 'social': if (!rep) ui.toggle('panelSocial'); break;
+    case 'gf': if (!rep && typeof gfToggle === 'function') gfToggle(); break;
     case 'quests': if (!rep) ui.toggle('panelQuests'); break;
     case 'daily': if (!rep) ui.toggle('panelDaily'); break;
     case 'net': if (!rep) ui.toggle('panelNet'); break;

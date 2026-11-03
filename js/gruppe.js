@@ -88,6 +88,7 @@ function leaveParty() {
     if (x) netSocial(x.pid, { k: 'pl', n: partyMe() });
   }
   ui.log('Du hast die Gruppe verlassen.', 'info');
+  if (typeof gfPartyChanged === 'function') gfPartyChanged(true);
   partyRefresh();
 }
 
@@ -235,6 +236,7 @@ function partyTick() {
 
 function partyRefresh() {
   partyHud(true);
+  if (typeof gfPartyChanged === 'function') gfPartyChanged(); // Gruppenfinder (seit 13.55)
   social.refresh();
   if (pcard.pid) pcard.render();
 }

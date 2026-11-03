@@ -55,6 +55,11 @@ function onSocial(pid, d) {
     addText(p.x + rand(-6, 6), p.y - 44, '+' + a, 'heal');
     return;
   }
+  // Gruppenfinder (seit 13.55) steht in gruppenfinder.js
+  if (/^lf[a-z]$/.test(d.k)) {
+    if (typeof onGroupFinder === 'function') onGroupFinder(pid, d);
+    return;
+  }
   // Gruppen stehen in gruppe.js
   if (/^p[iansldr]$/.test(d.k)) {
     onParty(pid, d);
