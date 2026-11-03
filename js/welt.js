@@ -9,7 +9,9 @@ const TILE = 32;          // Größe einer Kachel in Pixeln
 const WORLD_W = 1080;     // Breite des Map-Bereichs in Kacheln
 const WORLD_H = 880;      // Höhe des Map-Bereichs in Kacheln (vier Maps übereinander)
 const DUNGEON_COL = 60;   // Breite einer Dungeon-Spalte in Kacheln
-const DUNGEON_W = DUNGEON_COL * Math.ceil(DUNGEONS.length / 4); // östlich davon Spalten mit je vier Dungeons und Endboss-Arenen (nur per Eingang)
+// seit 13.58: Höllenthron und Lv-60-Instanzen belegen zwei Blöcke übereinander (def.rows, siehe dungeonSlots)
+const DUNGEON_SLOTS = dungeonSlots();
+const DUNGEON_W = DUNGEON_COL * DUNGEON_SLOTS.cols; // östlich davon Spalten mit je vier Dungeons und Endboss-Arenen (nur per Eingang)
 const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
 const MAP_W = WORLD_W + DUNGEON_W;
 const MAP_H = WORLD_H;
@@ -128,8 +130,33 @@ function mapZoneAt(x, y) {
 // Der Dungeon-Streifen hat zwei Spalten, jede von oben nach unten in vier gleich hohe Blöcke geteilt
 const DUNGEON_BLOCK = Math.floor(DUNGEON_H / 4);
 function dungeonIndexAt(x, y) {
-  const col = Math.max(0, Math.min(Math.ceil(DUNGEONS.length / 4) - 1, Math.floor((x - WORLD_W) / DUNGEON_COL)));
-  return Math.min(DUNGEONS.length - 1, col * 4 + Math.min(3, Math.floor(y / DUNGEON_BLOCK)));
+  const col = Math.max(0, Math.min(DUNGEON_SLOTS.cols - 1, Math.floor((x - WORLD_W) / DUNGEON_COL)));
+  return DUNGEON_SLOTS.cell[col * 4 + Math.max(0, Math.min(3, Math.floor(y / DUNGEON_BLOCK)))];
+}
+// Platz jedes Dungeons im Streifen (seit 13.58): der Reihe nach von oben nach unten, vier Blöcke je Spalte; wer
+// zwei Blöcke braucht (def.rows) und nicht mehr in die Spalte passt, beginnt eine neue. cell: Block -> Dungeon
+// (leere Blöcke gehören zum Dungeon davor, sie sind ohnehin Fels)
+function dungeonSlots() {
+  const at = [];
+  let col = 0;
+  let row = 0;
+  for (const d of DUNGEONS) {
+    const rows = Math.min(4, d.rows || 1);
+    if (row + rows > 4) { col++; row = 0; }
+    at.push({ col, row, rows });
+    row += rows;
+    if (row >= 4) { col++; row = 0; }
+  }
+  const cols = col + (row ? 1 : 0);
+  const cell = new Array(cols * 4).fill(-1);
+  at.forEach((s, k) => { for (let r = 0; r < s.rows; r++) cell[s.col * 4 + s.row + r] = k; });
+  for (let i = 0; i < cell.length; i++) if (cell[i] < 0) cell[i] = i ? cell[i - 1] : 0;
+  return { at, cols, cell };
+}
+// Rechteck (Kacheln) des Blocks, in dem Dungeon k liegt
+function dungeonBlock(k) {
+  const s = DUNGEON_SLOTS.at[k];
+  return { x: WORLD_W + s.col * DUNGEON_COL, y: s.row * DUNGEON_BLOCK, w: DUNGEON_COL, h: s.rows * DUNGEON_BLOCK };
 }
 function dungeonZoneAt(x, y) {
   return RING_ZONES + dungeonIndexAt(x, y);
@@ -384,9 +411,10 @@ function generateWorld() {
   }
   // Eingänge zu den Dungeons neben den Wegen, innen je ein Ausgang am Start und im Bossraum
   dungeons.forEach((dg, k) => {
-    const e = placeDungeonEntrance(dg.def.entry, ground, obj, deco, zoneIdx);
+    // Lv-60-Instanzen (seit 13.58): Eingang in einer Ecke der Map (instCornerEntrance in instanzen.js)
+    const e = dg.def.entry.corner && typeof instCornerEntrance === 'function' ? instCornerEntrance(dg.def.entry, ground, obj, deco, zoneIdx) : placeDungeonEntrance(dg.def.entry, ground, obj, deco, zoneIdx);
     dg.entrance = { x: (e.x + 0.5) * TILE, y: (e.y + 1.4) * TILE };
-    npcs.push(npc('eingang', dg.def.instanz ? `Höllenportal: ${dg.def.name}` : dg.def.raid ? `Endboss: ${MONSTER_TYPES[dg.def.boss].name}` : dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k }));
+    npcs.push(npc('eingang', dg.def.instanz ? `Höllenportal: ${dg.def.name}` : dg.def.raid ? `Endboss: ${MONSTER_TYPES[dg.def.boss].name}` : dg.def.inst60 ? `Instanz: ${dg.def.name}` : dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k }));
     const r0 = dg.rooms[0];
     const rb = dg.rooms[dg.rooms.length - 1];
     npcs.push(npc('ausgang', 'Ausgang', r0.x + 1.5, r0.y + 1.2, { dungeon: k }));
@@ -455,8 +483,8 @@ function generateWorld() {
   props.push({ type: 'horse', ...T(C - 11.3, C + 15.2) }, { type: 'hay', ...T(C - 15.9, C + 15.8) });
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
-    // gewürfelte Dungeons (seit 13.7) schmücken ihre Räume selbst
-    if (!dg.def.raid && !dg.def.instanz) {
+    // gewürfelte Dungeons (seit 13.7) schmücken ihre Räume selbst, seit 13.58 auch der Höllenthron mit vielen Räumen
+    if (!dg.def.raid && (!dg.def.instanz || dg.def.rows)) {
       props.push(...dungeonProps(dg, obj, ground).map((pr) => ({ ...pr, ...T(pr.tx, pr.ty) })));
       return;
     }
@@ -734,23 +762,25 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
     }
   }
   return DUNGEONS.map((def, k) => {
-    const col = Math.floor(k / 4);
-    const row = k % 4;
-    const x0 = WORLD_W + col * DUNGEON_COL;
+    const B = dungeonBlock(k);
+    const x0 = B.x;
     const ox = x0 + 2;
-    const oy = row * DUNGEON_BLOCK + 2;
+    const oy = B.y + 2;
     const carve = (x, y) => {
-      if (x <= x0 || x >= x0 + DUNGEON_COL - 1 || y <= row * DUNGEON_BLOCK || y >= (row + 1) * DUNGEON_BLOCK - 1) return;
+      if (x <= x0 || x >= x0 + DUNGEON_COL - 1 || y <= B.y || y >= B.y + B.h - 1) return;
       obj[y * MAP_W + x] = OBJ.NONE;
     };
-    // Endboss-Arena und Höllenthron behalten ihren festen Plan, normale Dungeons würfeln ihren eigenen (seit 13.7)
-    const fixed = def.raid ? RAID_ROOMS : def.instanz ? INSTANZ_ROOMS : null;
+    // Endboss-Arena behält ihren festen Plan, normale Dungeons würfeln ihren eigenen (seit 13.7); Höllenthron und
+    // Lv-60-Instanzen (zwei Blöcke, seit 13.58) bekommen viele Räume als Schlange von unten zur Halle (instPlan)
+    const fixed = def.raid ? RAID_ROOMS : def.instanz && !def.rows ? INSTANZ_ROOMS : null;
     let rooms;
     let side = [];
     let links = [];
     if (fixed) {
       rooms = fixed.map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2), shape: 'hall' }));
       links = rooms.slice(1).map((b, n) => [rooms[n], b]);
+    } else if (def.rows && typeof instPlan === 'function') {
+      ({ rooms, side, links } = instPlan(def, mulberry32(WORLD_SEED + hashText(def.id)), ox, oy, B.h - 4));
     } else {
       const prng = mulberry32(WORLD_SEED + hashText(def.id));
       const plan = dungeonPlan(prng);
@@ -1124,7 +1154,7 @@ function solidObstacles() {
     const R = PORTAL_R[n.id];
     if (!R) continue;
     const d = n.id === 'eingang' && w.dungeons && w.dungeons[n.dungeon] ? w.dungeons[n.dungeon].def : null;
-    list.push({ x: n.x, y: n.id === 'eingang' ? n.y + 0.4 * TILE : n.y, R: d && d.instanz ? 46 : d && d.raid ? 34 : R, ref: n });
+    list.push({ x: n.x, y: n.id === 'eingang' ? n.y + 0.4 * TILE : n.y, R: d && d.instanz ? 46 : d && (d.raid || d.inst60) ? 34 : R, ref: n });
   }
   // in ein Raster einsortiert, damit jede Bewegung nur die Hindernisse in ihrer Nähe prüft
   const grid = new Map();

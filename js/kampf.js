@@ -256,7 +256,8 @@ function showLifeSteal() {
 
 function damageMonster(m, amount, crit, source, isDot) {
   // Endboss hinter dem Kristallschild (seit 11.0): kein Schaden, solange ein Seelenkristall steht
-  if (m.type && m.type.raid && raidShielded(m)) {
+  // Instanzboss (seit 13.58): versiegelt, solange einer seiner Wächter steht
+  if ((m.type && m.type.raid && raidShielded(m)) || (m.type && m.type.inst && typeof instSealed === 'function' && instSealed(m))) {
     raidShieldHit(m);
     return;
   }
@@ -419,7 +420,9 @@ function rewardKillInner(m) {
       ui.loot(MATERIALS.find((x) => x.id === 'boniPlus').name, 1, materialIconUrl('boniPlus'), MATERIAL_COLORS.boniPlus);
     }
   }
-  if (m.type && m.type.raid) raidLoot(m);
+  // Wächter und Bosse der Lv-60-Instanzen und die neuen Wächter im Höllenthron (seit 13.58, instanzen.js)
+  if (m.type && m.type.inst && typeof instLoot === 'function') instLoot(m);
+  else if (m.type && m.type.raid) raidLoot(m);
   else if (m.type && m.type.boss) bossLoot(m);
   // Wächter im Höllenthron (seit 13.38): zusätzlich 2–3 legendäre Teile
   if (typeof htGuardLoot === 'function') htGuardLoot(m);

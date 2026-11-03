@@ -30,7 +30,8 @@ const GF_CATS = [
   { id: 'dungeon', name: 'Dungeons' },
   { id: 'raid', name: 'Endbosse', sub: 'Schlachtzug für 5 Spieler' },
   { id: 'thron', name: 'Höllenthron' },
-  { id: 'inst60', name: 'Instanzen (Lv 60)', soon: 'Die Lv-60-Instanzen kommen bald: je zwei Eingänge auf den Maps ab Stufe 40, nur als Gruppe betretbar.' }
+  // seit 13.58 gefüllt (instanzen.js): acht Instanzen, je zwei Eingänge auf den Maps ab Stufe 40, nur als Gruppe
+  { id: 'inst60', name: 'Instanzen (Lv 60)', sub: 'Gruppe aus 2–5 Spielern' }
 ];
 
 // Alle Aktivitäten des Gruppenfinders. Anderer Code kann eigene anhängen (GROUP_ACTIVITIES.push):
@@ -39,6 +40,7 @@ const GF_CATS = [
 const GROUP_ACTIVITIES = [];
 DUNGEONS.forEach((d, k) => {
   const boss = MONSTER_TYPES[d.boss];
+  if (d.inst60) return; // eigene Einträge mit Sperre und direktem Weg hinein (instanzen.js)
   if (d.instanz) {
     const size = typeof HT !== 'undefined' ? HT.party[1] : 7;
     GROUP_ACTIVITIES.push({ id: 'dg:' + d.id, cat: 'thron', name: d.name, minLevel: d.minLevel, size, comp: { tank: 1, heiler: 2, schaden: size - 3 }, dungeon: k, sub: boss ? `Instanz · ${boss.name}` : 'Instanz' });
@@ -48,6 +50,9 @@ DUNGEONS.forEach((d, k) => {
 });
 
 const gfAct = (id) => GROUP_ACTIVITIES.find((a) => a.id === id) || null;
+// Zustand einer Aktivität für den eigenen Spieler (seit 13.58: Sperre der Instanzen), sonst leer
+const gfStatus = (act) => (act && typeof act.status === 'function' ? act.status() : '');
+const gfStatusHtml = (act) => (gfStatus(act) ? `<p class="gf-note gf-status">⏳ ${escapeHtml(gfStatus(act))}</p>` : '');
 const gfNow = () => performance.now() / 1000;
 
 const gf = {
@@ -636,7 +641,7 @@ function gfMineHtml() {
     const n = l.m.length;
     return `<h3>Deine Gruppe <small>· Anführer</small></h3><div class="gf-card mine">` +
       `<div class="gf-card-head"><div><strong>${escapeHtml(act.name)}</strong><small>${escapeHtml(gfCatName(act.cat))}${act.sub ? ' · ' + escapeHtml(act.sub) : ''} · ab Stufe ${l.ml}</small></div><span class="gf-count">${n}/${l.sz}</span></div>` +
-      (l.note ? `<p class="gf-note">„${escapeHtml(l.note)}“</p>` : '') +
+      (l.note ? `<p class="gf-note">„${escapeHtml(l.note)}“</p>` : '') + gfStatusHtml(act) +
       `<div class="gf-mems">${gfMemberRows(l, act, true)}</div>${gfCompLine(l, act)}` +
       ((gf.mine.reqs || []).length ? '<div class="gf-reqs"><small>Anfragen</small>' + gf.mine.reqs.map((r) => `<div class="gf-mem">${gfRoleIcon(r.r)}<span class="gf-mem-txt"><span class="gf-mem-name">${escapeHtml(r.n)}</span>` +
         `<small>${escapeHtml(CLASSES[r.c].name)} · Stufe ${r.l || '?'}</small></span><button type="button" class="mini-btn primary" data-gfreq="${escapeHtml(r.n)}" data-ok="1">Annehmen</button>` +
@@ -652,7 +657,7 @@ function gfMineHtml() {
     const act = gfAct(jl.a);
     return `<h3>Deine Gruppe</h3><div class="gf-card mine">` +
       `<div class="gf-card-head"><div><strong>${escapeHtml(act.name)}</strong><small>Anführer: ${escapeHtml(jl.lead)} · ab Stufe ${jl.ml}</small></div><span class="gf-count">${jl.m.length}/${jl.sz}</span></div>` +
-      (jl.note ? `<p class="gf-note">„${escapeHtml(jl.note)}“</p>` : '') +
+      (jl.note ? `<p class="gf-note">„${escapeHtml(jl.note)}“</p>` : '') + gfStatusHtml(act) +
       `<div class="gf-mems">${gfMemberRows(jl, act, false)}</div>${gfCompLine(jl, act)}` +
       `<div class="gf-actions"><button type="button" class="btn btn-ghost" id="btnPartyLeave">Gruppe verlassen</button></div>` +
       `<p class="hint-text">Ist die Gruppe voll oder drückt ${escapeHtml(jl.lead)} „Los“, kommt eine Bereitschaftsabfrage – danach geht es gemeinsam zum Eingang.</p></div>`;
@@ -663,7 +668,7 @@ function gfMineHtml() {
   // Formular
   const opts = GF_CATS.filter((c) => !c.soon).map((c) => `<optgroup label="${escapeHtml(c.name)}">` +
     GROUP_ACTIVITIES.filter((a) => a.cat === c.id).sort((a, b) => a.minLevel - b.minLevel).map((a) =>
-      `<option value="${escapeHtml(a.id)}"${a.minLevel > p.level ? ' disabled' : ''}>${escapeHtml(a.name)} · ab ${a.minLevel}${a.minLevel > p.level ? ' (zu hoch)' : ''}</option>`).join('') + '</optgroup>').join('');
+      `<option value="${escapeHtml(a.id)}"${a.minLevel > p.level ? ' disabled' : ''}>${escapeHtml(a.name)} · ab ${a.minLevel}${a.minLevel > p.level ? ' (zu hoch)' : ''}${gfStatus(a) ? ' · ' + escapeHtml(gfStatus(a)) : ''}</option>`).join('') + '</optgroup>').join('');
   const best = GROUP_ACTIVITIES.filter((a) => a.minLevel <= p.level && a.cat === 'dungeon').sort((a, b) => b.minLevel - a.minLevel)[0];
   return `<h3>Gruppe eröffnen</h3><form class="gf-form" id="gfForm">` +
     `<label class="gf-field"><span>Aktivität</span><select id="gfAct" data-best="${best ? escapeHtml(best.id) : ''}">${opts}</select></label>` +
@@ -722,7 +727,7 @@ function gfListHtml() {
     const block = gfJoinBlock(l);
     return `<div class="gf-card"><div class="gf-card-head"><div><strong>${escapeHtml(act.name)}</strong><small>${escapeHtml(gfCatName(act.cat))} · Anführer: ${escapeHtml(l.lead)} · ab Stufe ${l.ml}</small></div>` +
       `<span class="gf-count">${l.m.length}/${l.sz}</span></div>` +
-      (l.note ? `<p class="gf-note">„${escapeHtml(l.note)}“</p>` : '') +
+      (l.note ? `<p class="gf-note">„${escapeHtml(l.note)}“</p>` : '') + gfStatusHtml(act) +
       `<div class="gf-mems">${gfMemberRows(l, act, false)}</div>${gfCompLine(l, act)}` +
       `<div class="gf-actions"><button type="button" class="btn btn-primary" data-gfjoin="${escapeHtml(l.lead)}"${block ? ' disabled' : ''}>${block ? escapeHtml(block) : (l.auto ? 'Beitreten' : 'Beitritt anfragen')}</button>` +
       `<span class="hint-text">als ${gfRoleIcon(gfMyRole(), 'inline')} ${GF_ROLES[gfMyRole()].name}</span></div></div>`;

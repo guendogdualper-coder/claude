@@ -13,6 +13,10 @@
 //     (nur weit weg sicher)
 // Zugang: Gruppe aus 6–7 Spielern, alle ab Stufe 60, jeder mit mindestens 6 göttlichen Teilen (Stufe 60) und
 // mindestens 3 Boni auf Waffe und Rüstung.
+// Seit 13.58: zwei Dungeon-Blöcke hoch mit vielen Räumen (instPlan in instanzen.js), sechs Seelensteinen und sechs
+// Wächtern, die immer stärker werden: Gorvoth (64), Lilith (65), Zerberos (66), Molgrath (67), Ifrah (68), Belzarek (69).
+// Die vier neuen haben die Fähigkeiten der Instanz-Wächter (Feuer). Abaddor (72) bleibt der stärkste und erwacht erst,
+// wenn alle Steine und alle sechs Wächter gefallen sind.
 
 const HT = {
   party: [6, 7], level: 60, gearTier: 7, gearCount: 6, gearBoni: 3, mobLevel: 64,
@@ -42,8 +46,9 @@ function htRest() {
   let g = 0;
   let sa = 0;
   let ga = 0;
+  const wardens = def.minis || def.guards;
   for (const m of game.monsters) {
-    const guard = def.guards.includes(m.typeId);
+    const guard = wardens.includes(m.typeId);
     if (!(m.isStone || guard) || !htInside(m)) continue;
     if (m.isStone) {
       sa++;
@@ -70,7 +75,8 @@ function htBossSealed(m) {
 function htPopulate(dg, zone, groupId) {
   const R = dg.rooms;
   const L = HT.mobLevel;
-  const at = (r, fx, fy) => ({ x: (r.x + r.w * fx) * TILE, y: (r.y + r.h * fy) * TILE });
+  const def = dg.def;
+  const spot = (r, fx, fy) => (typeof instFreeSpot === 'function' ? instFreeSpot(r, fx, fy) : { x: (r.x + r.w * fx) * TILE, y: (r.y + r.h * fy) * TILE });
   const pack = (typeId, c, n, level) => {
     for (let j = 0; j < n; j++) {
       const pos = spotNear(c, 50);
@@ -80,35 +86,47 @@ function htPopulate(dg, zone, groupId) {
     }
     groupId++;
   };
-  const stone = (r, fx, level) => {
-    const s = createStone(zone, level, 0, 1, at(r, fx, 0.28));
+  const stone = (r, level) => {
+    const s = createStone(zone, level, 0, 1, spot(r, 0.5, 0.3));
     s.fixedSpot = true;
     s.stoneRespawn = HT.respawn.stone;
     game.monsters.push(s);
   };
   const guard = (typeId, r) => {
-    const c = at(r, 0.5, 0.55);
+    const c = spot(r, 0.5, 0.55);
     const m = createMonster(typeId, c.x, c.y, { zone });
     m.respawnDelay = HT.respawn.guard;
     m.bossCd = 4;
     m.summoned = 0;
     game.monsters.push(m);
   };
-  const [a, b] = dg.def.mobs;
-  pack(a, at(R[1], 0.25, 0.65), 3, L);
-  pack(a, at(R[1], 0.75, 0.65), 3, L);
-  stone(R[1], 0.3, dg.def.stones[0]);
-  stone(R[1], 0.7, dg.def.stones[1]);
-  guard(dg.def.guards[0], R[2]);
-  pack(a, at(R[2], 0.25, 0.25), 2, L + 1);
-  pack(b, at(R[3], 0.25, 0.65), 3, L + 1);
-  pack(b, at(R[3], 0.75, 0.65), 3, L + 1);
-  stone(R[3], 0.3, dg.def.stones[2]);
-  stone(R[3], 0.7, dg.def.stones[3]);
-  guard(dg.def.guards[1], R[4]);
-  pack(b, at(R[4], 0.75, 0.25), 2, L + 2);
+  // seit 13.58 viele Räume: Höllenhunde und Feuerdämonen im Wechsel, zur Halle hin stärker; sechs Seelensteine
+  // gleichmäßig verteilt, die sechs Wächter in ihren Räumen (instPlan legt sie in der Reihenfolge von def.minis an)
+  const [a, b] = def.mobs;
+  const fights = R.filter((r) => r.role === 'mob');
+  fights.forEach((r, n) => {
+    const lvl = L + Math.min(3, Math.floor((n / Math.max(1, fights.length)) * 4));
+    const first = n % 2 ? b : a;
+    if (r.w * r.h >= 90) {
+      pack(first, spot(r, 0.3, 0.55), 3, lvl);
+      pack(first === a ? b : a, spot(r, 0.7, 0.55), 2, lvl);
+    } else pack(first, spot(r, 0.5, 0.55), 3, lvl);
+  });
+  for (const r of dg.side) {
+    pack(a, spot(r, 0.35, 0.5), 2, L + 2);
+    pack(b, spot(r, 0.65, 0.5), 2, L + 2);
+  }
+  def.stones.forEach((level, k) => {
+    const r = fights[Math.min(fights.length - 1, Math.round(((k + 0.5) * fights.length) / def.stones.length))];
+    if (r) stone(r, level);
+  });
+  for (const r of R.filter((x) => x.role === 'mini')) {
+    const id = def.minis[r.mi];
+    guard(id, r);
+    pack(MONSTER_TYPES[id].boss.summon, spot(r, 0.5, 0.25), 2, L + 1);
+  }
   const hall = R[R.length - 1];
-  const boss = createMonster(dg.def.boss, (hall.cx + 0.5) * TILE, (hall.cy + 0.5) * TILE, { zone });
+  const boss = createMonster(def.boss, (hall.cx + 0.5) * TILE, (hall.cy + 0.5) * TILE, { zone });
   boss.respawnDelay = HT.respawn.boss;
   game.monsters.push(boss);
   return groupId;
@@ -161,12 +179,13 @@ function htRenderGate(body, npc, dg) {
   const ok = checks.every((c) => c.ok);
   const g1 = MONSTER_TYPES[dg.def.guards[0]].name;
   const g2 = MONSTER_TYPES[dg.def.guards[1]].name;
+  const wardens = dg.def.minis || dg.def.guards;
   body.innerHTML = `<p class="quest-step raid-step">Instanz · ab Stufe ${HT.level} · für ${HT.party[0]}–${HT.party[1]} Spieler</p><h3>${dg.def.name}</h3>` +
-    `<p>Hinter dem Höllenportal liegt der Thron von <b>${boss.name}</b>. Kämpft euch durch Höllenhunde und Feuerdämonen, zerstört die vier Seelensteine und besiegt die Wächter <b>${g1}</b> und <b>${g2}</b> – erst dann zerbrechen die Ketten und der Höllenkaiser erwacht.</p>` +
+    `<p>Hinter dem Höllenportal liegt der Thron von <b>${boss.name}</b>. Kämpft euch durch ${dg.rooms.length + dg.side.length} Räume voller Höllenhunde und Feuerdämonen, zerstört die ${dg.def.stones.length} Seelensteine und besiegt die ${wardens.length} Wächter, die immer stärker werden: ${wardens.map((id) => `<b>${MONSTER_TYPES[id].name}</b>`).join(', ')} – erst dann zerbrechen die Ketten und der Höllenkaiser erwacht.</p>` +
     '<p class="hint-text"><b>Vernichtungsschlag:</b> Er hebt den Dreizack, drei Viertel der Halle glühen rot – lauft ins dunkle, sichere Viertel. <b>Siegel der Unterwelt:</b> Seelenkristalle schützen ihn, zerstört sie alle. Ab der Hälfte seines Lebens nimmt er seine <b>wahre Gestalt</b> an: schneller, stärker, mit Sturmangriffen, und der Schlag wechselt zwischen Viertel, Ring (nur bei ihm sicher) und Kern (nur weit weg sicher).</p>' +
     (htFree() ? '<p class="gear-msg success"><b>Testzeit:</b> Bis einschließlich 7. November ist das Höllenportal ohne Voraussetzungen offen – auch allein oder in kleiner Gruppe. Danach gelten sie wieder.</p>' : '') +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.free ? '🔓' : c.ok ? '✅' : '❌'} ${c.text}${c.free ? ' – <i>entfällt in der Testzeit</i>' : ''}</li>`).join('') + '</ul>' +
-    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 epische Teile fallen (mit Glück ein legendäres). Abaddor: vier epische Teile (mit Glück legendär), viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
+    `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 epische Teile fallen (mit Glück ein legendäres), die übrigen Wächter mit etwas Glück ein episches. Abaddor: vier epische Teile (mit Glück legendär), viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Durch das Höllenportal' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
     const err = enterDungeon(npc.dungeon);
@@ -324,6 +343,8 @@ function htGuardLoot(m) {
 // --- Fortschritt in der Instanz (für alle) ----------------------------------------------------------------------
 const htState = { inside: false, rest: -1, sealed: null, el: null };
 function htWatch() {
+  // Lv-60-Instanzen (seit 13.58): Anzeige, Lachen, Torschilder, Neubeginn (instanzen.js)
+  if (typeof instWatch === 'function') instWatch();
   const p = game.player;
   if (!p || !game.running || htIndex() < 0) return;
   const inside = htInside(p);

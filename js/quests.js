@@ -243,6 +243,11 @@ function enterDungeon(k, viaParty = false) {
     const err = htEntryError();
     if (err) return err;
   }
+  // Lv-60-Instanzen (seit 13.58): Gruppe, Stufe 60 und Sperre (instanzen.js); beim Betreten beginnt die Sperre
+  if (dg.def.inst60) {
+    const err = instTryEnter(k);
+    if (err) return err;
+  }
   moveThrough(dg.start, dg.def.portal);
   ui.banner(dg.def.name, `Boss: ${MONSTER_TYPES[dg.def.boss].name} (Stufe ${MONSTER_TYPES[dg.def.boss].level})`);
   // Die Gruppe kommt auf Wunsch mit
@@ -258,7 +263,7 @@ const RIFT = { first: 75, every: [140, 240], life: 300, minLevel: 10 };
 // der nächstniedrigere. Maßstab ist deine Stufe, höchstens die Mitte des Gebiets, in dem der Riss erscheint.
 function riftDungeon(level, zone) {
   const target = zone && zone.minLevel ? Math.min(level, zone.minLevel + 9) : level;
-  const all = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && !DUNGEONS[k].instanz && DUNGEONS[k].minLevel <= Math.max(level, target + 2));
+  const all = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && !DUNGEONS[k].instanz && !DUNGEONS[k].inst60 && DUNGEONS[k].minLevel <= Math.max(level, target + 2));
   const ok = all.filter((k) => DUNGEONS[k].minLevel >= target - 8 && DUNGEONS[k].minLevel <= target + 2);
   if (ok.length) return ok[randInt(0, ok.length - 1)];
   if (!all.length) return -1;
@@ -935,6 +940,10 @@ Object.assign(ui, {
     }
     if (dg.def.instanz) {
       htRenderGate(body, npc, dg);
+      return;
+    }
+    if (dg.def.inst60) {
+      instRenderGate(body, npc, dg);
       return;
     }
     const mobs = dg.def.mobs.map((id) => `${MONSTER_TYPES[id].name} (Stufe ${MONSTER_TYPES[id].level})`).join(', ');

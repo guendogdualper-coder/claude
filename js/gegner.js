@@ -93,6 +93,11 @@ function populateDungeons(groupId) {
       groupId = htPopulate(dg, zone, groupId);
       continue;
     }
+    // Lv-60-Instanzen (seit 13.58): instanzen.js
+    if (dg.def.inst60) {
+      groupId = instPopulate(dg, zone, groupId);
+      continue;
+    }
     if (dg.def.raid) {
       // Endboss-Halle: nur der Boss in der Mitte
       const rb = dg.rooms[1];
@@ -350,6 +355,8 @@ function updateRaidBoss(m, dt) {
 
 // Warnzeichen am Boden (auch beim Mitspieler)
 function raidTelegraph(m, kind, circles, inner, delay) {
+  // Instanzen (seit 13.58): eigene Angriffe und Aufladen im Thema (instanzen.js)
+  if (typeof instTelegraph === 'function' && instTelegraph(m, kind, circles, inner, delay)) return;
   if (kind === 'quarter' || kind === 'qring' || kind === 'qcore') {
     htQuarterShow(m, kind, circles[0], inner, delay);
     return;
@@ -369,6 +376,7 @@ function raidTelegraph(m, kind, circles, inner, delay) {
 
 // Einschlag: Wirkung zeigen, eigener Spieler nimmt Schaden, wenn er in einem Kreis steht
 function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
+  if (typeof instResolve === 'function' && instResolve(m, kind, circles, inner, atk, lvl)) return;
   if (kind === 'quarter' || kind === 'qring' || kind === 'qcore') {
     htQuarterResolve(m, kind, circles[0], inner, atk, lvl);
     return;
@@ -778,7 +786,8 @@ function updateMonsters(dt) {
     if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; m.windup = 0; m.rush = null; continue; }
     if (m.type.boss) {
       m.stun = 0;
-      if (m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
+      // Wächter und Bosse der Instanzen (seit 13.58, instanzen.js)
+      if (m.type.inst ? instBossTick(m, dt) : m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
     }
     // Frostpanzer (seit 13.52): wer den Magier trifft, schlägt eine Weile langsamer
     m.cd -= m.frostAtk && m.frostAtk.until > game.time ? dt * m.frostAtk.mul : dt;

@@ -77,6 +77,60 @@ Stand: 2. 11. 2026, Wunsch des Spielers. Wird nach den laufenden Arbeiten (Stufe
   - Dazu Aufwertungsteile.
 - Abklingzeit: 30 Minuten je Spieler und je Instanz (siehe Antworten unten).
 
+### Umgesetzt (13.58)
+
+- Daten: `js/daten/instanzen.js` (Instanzen, Gegner, Wächter, Bosse), Ablauf: `js/instanzen.js` (Grundriss, Eingänge,
+  Bestückung, Sperre, Fähigkeiten, Beute, Anzeige, Gruppenfinder). Die Instanzen hängen als `DUNGEONS`-Einträge mit
+  `inst60: true` hinter dem Höllenthron und nutzen dessen Weg in die Welt: Dungeon-Streifen, `enterDungeon`,
+  Ausgang, Tod/Wiederbeleben im Lager der Map, der Host rechnet die Monster, Mitspieler bekommen die Angriffe über
+  die Nachricht `raid` und rechnen ihren Schaden selbst.
+- Ein Dungeon kann jetzt zwei Blöcke hoch sein (`def.rows`, `dungeonSlots`/`dungeonBlock` in `welt.js`); Höllenthron
+  und alle acht Instanzen sind es (60 × 150 Kacheln). Der Streifen hat dadurch 9 statt 5 Spalten.
+- Eingänge: je Map zwei, in den Ecken (Frostgipfel oben links + unten rechts, Totenmoor oben rechts + unten links,
+  Donnerklamm wie Frostgipfel, Feuerberg wie Totenmoor), auf einer vom Lager aus erreichbaren Stelle (Breitensuche),
+  Platz frei geräumt. Großes Steintor in der Farbe der Instanz, auf Minikarte und großer Karte („Instanz: …“, bei
+  Sperre mit Restminuten).
+
+| Map | Ecke | Instanz | Thema | Räume* | Wächter (Stufe 60 → 63) | Instanzboss (64) |
+|---|---|---|---|---|---|---|
+| Frostgipfel | oben links | Gletschergruft | Eis | 24 | Skadi, Ilva, Torbjörn, Hrimfang | Frostkönigin Hjelda |
+| Frostgipfel | unten rechts | Feste des Nordlichts | Eis/Nordlicht | 24 | Bjarki, Aurra, Sturmhorn, Jarl Hrimgar | Winterfürst Kaldor |
+| Totenmoor | oben rechts | Versunkene Moorkrypta | Gift | 24 | Fenrik, Hexe Morgrah, Moorschlund, Ertrunkener Ritter | Moormutter Vethra |
+| Totenmoor | unten links | Knochenkathedrale | Tod | 24 | Kantor der Gebeine, Varis, Knochenkoloss, Bischof Mortheim | Totenfürst Azrakel |
+| Donnerklamm | oben links | Donnerschmiede | Sturm | 24 | Raik, Kyra, Grumm, Thorak | Donnerschmied Volund |
+| Donnerklamm | unten rechts | Sturmhorst | Sturm | 27 | Ssyla, Grom, Ugrak, Brontes | Sturmkönigin Tempestra |
+| Feuerberg | oben rechts | Glutkessel | Feuer | 23 | Sahir, Schlackenfaust, Ilyra, Ignaroth | Magmafürst Pyrrhos |
+| Feuerberg | unten links | Aschenzitadelle | Feuer | 29 | Kael, Ishra, Vorr, Barak | Aschenkaiser Vulkhar |
+
+  *mit Halle und zwei Seitenräumen (Schatzkammer, Schrein); vorher hatte der Höllenthron 6, ein Endboss 2 Räume.
+- Grundriss (`instPlan`): unter der Halle ein Raster aus 4 × 8 Feldern, der Weg windet sich von unten nach oben
+  (je Reihe 2–4 Felder), mindestens 24 Felder. Wächterräume liegen gleichmäßig verteilt, oft über zwei Felder. Jeder
+  Kampfraum hat 1–2 Gruppen (Stufe 60–61), zwei Seelensteine (60, 62), jeder Wächter zwei Begleiter.
+- Wächter: Leben ×24/34/46/60, Angriff ×1,7–2,15; Instanzboss Stufe 64, Leben ×105 (≈ 2,3 Mio., Endbosse der Maps
+  5–8 Mio.), Angriff ×2,35. Der Boss ist versiegelt (Kuppel, kein Schaden), bis alle vier Wächter gefallen sind.
+- Fähigkeiten (`instBossTick`, Host): Wechsel aus den Endboss-Angriffen (Stampfer, Meteore, Linie, Tankschlag, Sprung,
+  Sturm; Schaden ×0,6) und eigenen je Thema: Kegel, Dornen unter allen, Hagel/Glut/Blitze, Kreuz (gerade/schräg im
+  Wechsel), Sog (zieht heran, dann Stampfer), Giftlachen (Schaden über Zeit), Kettenblitz (zusammen stehen = mehrfach
+  getroffen), Ring (nur nah sicher), Kern (nur weit weg sicher), Geschossring, Brut. Aufladen im Thema (Eiskugeln,
+  Giftnebel, Gewitterwolke, Flammensäule), Aura aus kreisenden Funken. Bei 60 % Wutschrei mit Helfern, unter 30 %
+  Raserei (+15 % Angriff). Instanzboss ab 50 %: Ult (Ewiger Winter, Fäulnisflut, Totenmesse, Himmelszorn,
+  Weltenbrand) – nur 2–3 grüne Lichtkreise sind sicher, alle 40 s. Keine Runen am Boden, nur Warnkreise.
+- Zugang: Gruppe aus 2–5 Spielern, alle ab Stufe 60. Allein: „nur als Gruppe (2–5 Spieler) betretbar“.
+- Sperre: `p.instLock[id] = { until, mb, done }` im Spielstand, 30 Minuten ab dem Betreten, je Instanz. Solange der
+  Boss nicht gefallen ist, darf man in seinen Durchgang zurück (z. B. nach dem Tod); Wächterbeute (`mb`) und
+  Bossbeute (`done`) gibt es je Sperre einmal. Restzeit am Tor, im Gruppenfinder und an der Karte.
+- Neubeginn: War eine Instanz 8 Minuten leer, lebt beim nächsten Betreten alles wieder (Host).
+- Beute (`instLoot`): Instanzboss 2 epische Teile in der Fünfergruppe, zu viert 1 (30 % 2), sonst 1 – Göttlich
+  (65 %) oder Abgründig (35 %); 6,5 % ein legendäres (Ewig, Lv 80); 2 Verstärkungen, Switcher, Seltene Verstärkung,
+  50 % Sternenstein, 4–6 Schmiede-Teile, Gold. Wächter: 6/8/10/12 % ein episches Teil, Verstärkung, 50 % Switcher,
+  2–3 Schmiede-Teile. Gemessen (je 400 Läufe): 5er 2,0 Teile, 4er 1,32, 2er/3er 1,0; legendär 5,8–7,7 %.
+- Gruppenfinder: Kategorie „Instanzen (Lv 60)“ mit acht Einträgen (5 Spieler, 1 Tank, 1 Heiler, 3 Schaden), „Los“
+  bringt jeden direkt hinein (fehlt etwas, zum Eingang; gesperrt: bleibt, wo er ist).
+- Höllenthron: zwei Blöcke hoch, 26 Räume (mit Halle und zwei Seitenräumen, vorher 6), sechs Seelensteine (64–69), sechs Wächter in
+  steigender Stärke: Gorvoth (64), Lilith (65), Zerberos (66), Molgrath (67), Ifrah (68), Belzarek (69); die vier
+  neuen mit den Instanz-Fähigkeiten (Feuer) und 15 % Chance auf ein episches Teil. Abaddor (72) bleibt unverändert
+  der stärkste und erwacht erst nach allen Steinen und Wächtern.
+
 ## 3. Dungeons ab Stufe 50
 
 - Bosse der Dungeons ab Stufe 50 lassen mit kleiner Chance ein episches Teil fallen (lila, Lv 60).

@@ -17,9 +17,10 @@ function mapAreaAt(tx, ty) {
     const [x, y, w, h] = wm.region;
     area = { key: 'm' + wm.id, x, y, w, h, wm, dungeon: -1 };
   } else if (tx >= WORLD_W && ty < DUNGEON_H) {
-    const col = Math.max(0, Math.floor((tx - WORLD_W) / DUNGEON_COL));
-    const row = Math.max(0, Math.min(3, Math.floor(ty / DUNGEON_BLOCK)));
-    area = { key: `d${col}_${row}`, x: WORLD_W + col * DUNGEON_COL, y: row * DUNGEON_BLOCK, w: DUNGEON_COL, h: row === 3 ? DUNGEON_H - 3 * DUNGEON_BLOCK : DUNGEON_BLOCK, wm: null, dungeon: dungeonIndexAt(tx, ty) };
+    // seit 13.58 kann ein Dungeon zwei Blöcke hoch sein (dungeonBlock)
+    const k = dungeonIndexAt(tx, ty);
+    const B = dungeonBlock(k);
+    area = { key: `d${k}`, x: B.x, y: B.y, w: B.w, h: B.h, wm: null, dungeon: k };
   }
   if (area) _areaLast = area;
   return area;

@@ -5263,7 +5263,7 @@ function syncNpc3(n, dt) {
     // Höllenportal (seit 13.0): das Endboss-Tor in Riesengröße
     const hoelle = n.id === 'eingang' && d.instanz;
     const kind = raid || hoelle ? 'raid' : n.id;
-    a = actorFor(entityKey(n), 'portal2:' + kind + ':' + (d ? d.id : ''), (b) => Object.assign(buildPortal3(b, kind, d), { blob: 0.01, scale: hoelle ? 3.6 : raid ? 2.0 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
+    a = actorFor(entityKey(n), 'portal2:' + kind + ':' + (d ? d.id : ''), (b) => Object.assign(buildPortal3(b, kind, d), { blob: 0.01, scale: hoelle ? 3.6 : raid ? 2.0 : n.id === 'eingang' && d.inst60 ? 1.9 : n.id === 'eingang' ? 1.45 : n.id === 'weltentor' ? 1.25 : 1.1 }));
   } else a = actorFor(entityKey(n), 'npc:' + (n.art || n.id), (b) => {
     const r = buildNpc3(b, n.art || n.id);
     if (r) r.blob = 0.42;

@@ -2209,9 +2209,10 @@ function regionRect3(x, y) {
   const wm = mapOfTile(tx, ty);
   if (wm) return { r: wm.region, inset: MAP_BORDER - 1, key: 'm' + wm.id };
   if (tx >= WORLD_W && ty < DUNGEON_H) {
-    const col = Math.floor((tx - WORLD_W) / DUNGEON_COL);
-    const row = Math.floor(ty / DUNGEON_BLOCK);
-    return { r: [WORLD_W + col * DUNGEON_COL, row * DUNGEON_BLOCK, DUNGEON_COL, DUNGEON_BLOCK], inset: 1, key: 'd' + col + ':' + row };
+    // seit 13.58 kann ein Dungeon zwei Blöcke hoch sein (dungeonBlock)
+    const k = dungeonIndexAt(tx, ty);
+    const B = dungeonBlock(k);
+    return { r: [B.x, B.y, B.w, B.h], inset: 1, key: 'd' + k };
   }
   return null;
 }

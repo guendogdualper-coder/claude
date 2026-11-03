@@ -151,9 +151,13 @@ for (const [boss, name, map, floor, portal, wall, amb] of RAID_DEFS) {
 DUNGEONS.push({
   id: 'hoellenthron', name: 'Thron der Unterwelt', minLevel: 60, instanz: true, floor: 'BASALT', portal: '#ff3a1a',
   wall: { top: '#1a0c0c', face: '#060202', line: '#ff3a1a' },
-  entry: { map: 9, dir: [0, -1], dist: 34, side: 0 }, mobs: ['hoellenhund', 'feuerdaemon'], boss: 'abaddor', stones: [64, 65, 66, 67],
-  guards: ['zerberos', 'ifrah'], ambient: { kind: 'embers', tint: [110, 10, 0, 0.14] }
+  entry: { map: 9, dir: [0, -1], dist: 34, side: 0 }, mobs: ['hoellenhund', 'feuerdaemon'], boss: 'abaddor', stones: [64, 65, 66, 67, 68, 69],
+  guards: ['zerberos', 'ifrah'], ambient: { kind: 'embers', tint: [110, 10, 0, 0.14] },
+  // seit 13.58: zwei Blöcke hoch mit vielen Räumen und sechs Wächtern, die immer stärker werden (daten/instanzen.js)
+  rows: 2, minis: ['gorvoth', 'lilith', 'zerberos', 'molgrath', 'ifrah', 'belzarek']
 });
+// seit 13.58: die acht Lv-60-Instanzen (daten/instanzen.js), je zwei in den Ecken der Maps ab Stufe 40
+if (typeof INSTANCES !== 'undefined') DUNGEONS.push(...INSTANCES);
 for (const d of DUNGEONS) {
   ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
 }
