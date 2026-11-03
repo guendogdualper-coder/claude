@@ -1679,12 +1679,28 @@ const ui = {
           `<strong>${item.name} ${sz.id} <span class="price">${price.toLocaleString('de-DE')} Gold</span></strong>` +
           `<small>${item.kind} (${sz.name}): +${amt.toLocaleString('de-DE')} ${item.id === 'hp' ? 'Leben' : 'Mana'}${low ? ` · ab Stufe ${sz.level}` : ''}. Im Gepäck: <b id="have-${key}">${p.potions[key] || 0}</b></small>` +
           `<div class="buy"><button class="mini-btn" type="button" data-buy="${key}" data-n="1" ${low ? 'disabled' : ''}>1 kaufen</button>` +
-          `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10 kaufen</button></div></div>`;
+          `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10 kaufen</button>` +
+          // seit 13.64: Tränke direkt hier zurückverkaufen (vorher nur über das Inventar)
+          ((p.potions[key] || 0) > 0
+            ? `<button class="mini-btn btn-sell" type="button" data-psell="${key}" data-n="1">1 verkaufen · ${potionSellValue(item.id, sz).toLocaleString('de-DE')}</button>` +
+              ((p.potions[key] || 0) > 1 ? `<button class="mini-btn btn-sell" type="button" data-psell="${key}" data-n="${p.potions[key]}">Alle verkaufen · ${(potionSellValue(item.id, sz) * p.potions[key]).toLocaleString('de-DE')}</button>` : '')
+            : '') +
+          `</div></div>`;
       }).join('')).join('') +
       `</div><p id="shopMsg" class="form-error" hidden></p>` + gear.sellSectionHtml();
     gear.wireSell($('npcBody'), () => this.renderShop());
     $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
       b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
+    });
+    $('npcBody').querySelectorAll('[data-psell]').forEach((b) => {
+      b.addEventListener('click', () => {
+        const key = b.dataset.psell;
+        const kind = key.slice(0, 2);
+        const sz = POTION_SIZES.find((x) => potKey(kind, x.id) === key);
+        const n = sellPotions(key, Number(b.dataset.n));
+        this.renderShop();
+        if (n && sz) this.shopMessage(`${n} × ${potionInfo(kind).name} ${sz.id} für ${(n * potionSellValue(kind, sz)).toLocaleString('de-DE')} Gold verkauft.`, true);
+      });
     });
   },
 
