@@ -213,6 +213,11 @@ function nightReward(t) {
   return { gold: Math.round(questGold(t.level) * 1.2), mats: { boniPlus: 1 } };
 }
 function nightNpcOf(key) {
+  // seit 13.63: gleich nach dem Laden (vor dem ersten Takt) die Nacht-NPCs schon kennen – sonst fehlt der Name in der Auftragsliste
+  if (game.world && (!dayNight.extra || dayNight.extraWorld !== game.world)) {
+    dayNight.extra = buildNightNpcs();
+    dayNight.extraWorld = game.world;
+  }
   return (dayNight.extra || []).find((n) => n.key === key) || null;
 }
 
@@ -273,22 +278,29 @@ Object.assign(ui, {
   }
 });
 
-// Nachtjagden im Questfenster (Nebenquests, abbrechbar)
-SIDE_QUEST_SOURCES.push(() => {
+// Angenommene Nachtjagden als Einträge für Questfenster, Auftragsliste (Tracker) und Wegweiser.
+// Seit 13.63: vorher fehlten sie in der Auftragsliste rechts und ließen sich nicht verfolgen (noTrack).
+function nightQuestList() {
+  if (!game.player) return [];
   const q = questState();
   const out = [];
   for (const [key, s] of Object.entries(q.night || {})) {
-    if (s.state !== 'active' || !s.target) continue;
+    if (s.state !== 'active' || !s.target || !MONSTER_TYPES[s.target]) continue;
     const t = MONSTER_TYPES[s.target];
     const n = nightNpcOf(key);
+    const who = n ? n.name : 'Nachtwanderer';
     out.push({
-      key: 'night:' + key, title: 'Nachtjagd: ' + t.name, sub: (n ? n.name : 'Nachtwanderer') + ' · nur nachts', noTrack: true,
-      goal: `${NIGHT_KILL} × ${t.name} besiegen`, have: s.progress, need: NIGHT_KILL, where: monsterWhere(s.target) + ' (nachts)', active: true, xp: sideQuestXp(t.level),
+      key: 'night:' + key, title: 'Nachtjagd: ' + t.name, sub: (n && n.map ? `${who} · ${mapName(n.map)}` : who) + ' · nur nachts',
+      giver: who, monster: s.target,
+      goal: `${NIGHT_KILL} × ${t.name} besiegen`, have: Math.min(s.progress || 0, NIGHT_KILL), need: NIGHT_KILL, where: monsterWhere(s.target) + ' (nachts)', active: true, xp: sideQuestXp(t.level),
       abandon: () => { s.state = 'open'; s.progress = 0; s.target = null; }
     });
   }
   return out;
-});
+}
+
+// Nachtjagden im Questfenster (Nebenquests, abbrechbar; seit 13.63 auch verfolgbar)
+SIDE_QUEST_SOURCES.push(nightQuestList);
 
 // --- Takt -----------------------------------------------------------------------------------------
 function dayNightTick(dt) {

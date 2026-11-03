@@ -244,6 +244,8 @@ function guideEntries() {
   }
   const h = q.hunt;
   if (h) out.push(h.progress >= h.count ? { key: 'hunt', kind: 'side', title: 'Jagd', role: 'jaegerin', done: true } : { key: 'hunt', kind: 'side', title: 'Jagd', monster: h.monster });
+  // Nachtjagden (seit 13.63 verfolgbar): zu den Nachtmonstern (die Belohnung kommt sofort, keine Abgabe)
+  if (typeof nightQuestList === 'function') for (const e of nightQuestList()) out.push({ key: e.key, kind: 'side', title: e.title, monster: e.monster });
   // Nichts angenommen: zum nächsten Auftrag, den es abzuholen gibt
   if (!out.length) {
     if (main && p.level >= main.level) out.push({ key: 'offer', kind: 'main', title: main.title, ...elder(main.map), offer: true });
@@ -307,7 +309,8 @@ function huntTarget(e, p, area) {
   const mapId = area.wm && area.wm.id;
   const open = zones.find((z) => !z.dungeon && z.map === mapId);
   if (open) {
-    const g = isStone ? open.stones.find((s) => s[0] === e.stone) : open.groups.find((x) => x[0] === e.monster);
+    // seit 13.63 auch Nachtmonster (deren Gruppen stehen in zone.night)
+    const g = isStone ? open.stones.find((s) => s[0] === e.stone) : (open.groups || []).find((x) => x[0] === e.monster) || (open.night || []).find((x) => x[0] === e.monster);
     const s = g ? zoneRingSpot(open, g[2], g[3], p) : zoneRingSpot(open, 0, 1, p);
     return { x: s.x, y: s.y, name: `${name} · ${open.name}` };
   }

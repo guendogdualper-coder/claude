@@ -2305,5 +2305,11 @@
 "Legendär!": "Leggendario!",
 "{0}–{1} zufällige Boni": "{0}–{1} bonus casuali",
 "ab Stufe {0} · Gehärtet": "dal livello {0} · Temprato",
-"{0} epische Teile erbeutet": "{0} oggetti epici ottenuti"
+"{0} epische Teile erbeutet": "{0} oggetti epici ottenuti",
+"Wechseln beim Lehrmeister": "Cambia dal maestro",
+"Dein jetziges Element": "Il tuo elemento attuale",
+"für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "cambiare per {0} oro? I tuoi livelli di abilità restano.",
+"ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "è ora il tuo elemento – le tue abilità mantengono i loro livelli.",
+"ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "è ora il tuo elemento – le tue abilità riprendono i livelli precedenti di questo elemento.",
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Scegli Fuoco, Gelo, Fulmine o Terra. I tuoi livelli di abilità restano durante il cambio (anche E/H/L/V), i buff del vecchio elemento terminano. Le pergamene nella borsa diventano pergamene degli stessi posti del nuovo elemento."
 };

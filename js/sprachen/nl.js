@@ -2271,5 +2271,11 @@
 "Legendär!": "Legendarisch!",
 "{0}–{1} zufällige Boni": "{0}–{1} willekeurige bonussen",
 "ab Stufe {0} · Gehärtet": "vanaf niveau {0} · Gehard",
-"{0} epische Teile erbeutet": "{0} epische voorwerpen buitgemaakt"
+"{0} epische Teile erbeutet": "{0} epische voorwerpen buitgemaakt",
+"Wechseln beim Lehrmeister": "Wisselen bij de leermeester",
+"Dein jetziges Element": "Je huidige element",
+"für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "wisselen voor {0} goud? Je vaardigheidsniveaus blijven behouden.",
+"ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "is nu je element – je vaardigheden houden hun niveaus.",
+"ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "is nu je element – je vaardigheden krijgen hun eerdere niveaus van dit element terug.",
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Kies Vuur, Vorst, Bliksem of Aarde. Je vaardigheidsniveaus blijven bij het wisselen behouden (ook E/H/L/V), de buffs van je oude element eindigen. Rollen in je tas worden rollen van dezelfde plaatsen in het nieuwe element."
 };

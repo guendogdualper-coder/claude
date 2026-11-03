@@ -2307,5 +2307,11 @@
 "Legendär!": "Legendarny!",
 "{0}–{1} zufällige Boni": "{0}–{1} losowe bonusy",
 "ab Stufe {0} · Gehärtet": "od poziomu {0} · Hartowany",
-"{0} epische Teile erbeutet": "zdobyto {0} epickie przedmioty"
+"{0} epische Teile erbeutet": "zdobyto {0} epickie przedmioty",
+"Wechseln beim Lehrmeister": "Zmiana u mistrza",
+"Dein jetziges Element": "Twój obecny żywioł",
+"für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "zmienić za {0} złota? Twoje poziomy umiejętności zostają.",
+"ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "jest teraz twoim żywiołem – twoje umiejętności zachowują poziomy.",
+"ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "jest teraz twoim żywiołem – twoje umiejętności odzyskują dawne poziomy z tego żywiołu.",
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Wybierz Ogień, Mróz, Błyskawicę lub Ziemię. Twoje poziomy umiejętności zostają przy zmianie (także E/H/L/V), wzmocnienia starego żywiołu się kończą. Zwoje w torbie stają się zwojami tych samych miejsc w nowym żywiole."
 };

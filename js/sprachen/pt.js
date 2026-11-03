@@ -2317,5 +2317,11 @@
 "Legendär!": "Lendário!",
 "{0}–{1} zufällige Boni": "{0}–{1} bônus aleatórios",
 "ab Stufe {0} · Gehärtet": "a partir do nível {0} · Temperado",
-"{0} epische Teile erbeutet": "{0} itens épicos obtidos"
+"{0} epische Teile erbeutet": "{0} itens épicos obtidos",
+"Wechseln beim Lehrmeister": "Mudar com o mestre",
+"Dein jetziges Element": "O teu elemento atual",
+"für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "mudar por {0} de ouro? Os teus níveis de habilidade mantêm-se.",
+"ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "é agora o teu elemento – as tuas habilidades mantêm os níveis.",
+"ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "é agora o teu elemento – as tuas habilidades recuperam os níveis anteriores deste elemento.",
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Escolhe Fogo, Gelo, Relâmpago ou Terra. Os teus níveis de habilidade mantêm-se na mudança (também E/H/L/V), os buffs do elemento antigo terminam. Os pergaminhos na mochila passam a ser pergaminhos dos mesmos lugares do novo elemento."
 };

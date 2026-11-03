@@ -564,6 +564,8 @@ Object.assign(ui, {
       row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(mon), '', 'side:' + n.key, `${n.name} (${mapName(npcMapId(n))})`);
     }
     if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster), '', 'hunt', 'einer Jägerin');
+    // Nachtjagden (seit 13.63 auch hier; vorher standen sie nur im Questfenster)
+    if (typeof nightQuestList === 'function') for (const e of nightQuestList()) row('side', e.title, e.goal, e.have, e.need, e.where, '', e.key, e.giver);
     el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
       (this.questLogClosed ? '' : `<ul class="ql-list">${rows.join('')}</ul>`) : '';
     el.hidden = !rows.length;

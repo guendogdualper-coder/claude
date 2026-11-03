@@ -2315,5 +2315,11 @@
 "Legendär!": "¡Legendario!",
 "{0}–{1} zufällige Boni": "{0}–{1} bonificaciones aleatorias",
 "ab Stufe {0} · Gehärtet": "desde nivel {0} · Templado",
-"{0} epische Teile erbeutet": "{0} objetos épicos obtenidos"
+"{0} epische Teile erbeutet": "{0} objetos épicos obtenidos",
+"Wechseln beim Lehrmeister": "Cambiar con el maestro",
+"Dein jetziges Element": "Tu elemento actual",
+"für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "¿cambiar por {0} de oro? Tus niveles de habilidad se conservan.",
+"ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "es ahora tu elemento – tus habilidades conservan sus niveles.",
+"ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "es ahora tu elemento – tus habilidades recuperan sus niveles anteriores de este elemento.",
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Elige Fuego, Escarcha, Rayo o Tierra. Tus niveles de habilidad se conservan al cambiar (también E/H/L/V), los buffs de tu elemento anterior terminan. Los pergaminos de tu bolsa pasan a ser pergaminos de las mismas casillas del nuevo elemento."
 };

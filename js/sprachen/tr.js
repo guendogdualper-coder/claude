@@ -2309,5 +2309,11 @@
 "Legendär!": "Efsanevi!",
 "{0}–{1} zufällige Boni": "{0}–{1} rastgele bonus",
 "ab Stufe {0} · Gehärtet": "Seviye {0}'dan itibaren · Sertleştirilmiş",
-"{0} epische Teile erbeutet": "{0} destansı eşya kazanıldı"
+"{0} epische Teile erbeutet": "{0} destansı eşya kazanıldı",
+"Wechseln beim Lehrmeister": "Öğretmende değiştir",
+"Dein jetziges Element": "Şu anki elementin",
+"für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "{0} altına değiştirilsin mi? Yetenek seviyelerin korunur.",
+"ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "artık senin elementin – yeteneklerin seviyelerini korur.",
+"ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "artık senin elementin – yeteneklerin bu elementteki eski seviyelerine döner.",
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Ateş, Buz, Şimşek veya Toprak seç. Değiştirirken yetenek seviyelerin korunur (E/H/L/V dahil), eski elementinin güçlendirmeleri biter. Çantandaki parşömenler yeni elementte aynı yerlerin parşömenlerine dönüşür."
 };

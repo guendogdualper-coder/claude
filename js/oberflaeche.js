@@ -405,47 +405,8 @@ const ui = {
     $('panelPath').hidden = false;
   },
 
-  // Elementwechsel (seit 8.6, nur Magier): im Dorf oder Lager, nicht im Duell und erst 10 s nach dem letzten Kampf.
-  // Bis Stufe 10 kostenlos, danach 500 Gold je Stufe. Die Fertigkeitsstufen liegen je Platz und bleiben.
-  showElementChoice() {
-    const p = game.player;
-    if (p.classId !== 'magier') return;
-    const c = CLASSES.magier;
-    let pick = p.path || 0;
-    let asking = false;
-    const render = () => {
-      const cost = mageElementCost(p);
-      const same = pick === (p.path || 0);
-      const E = MAGE_EL[MAGE_PATH_EL[pick]];
-      const ok = !same && p.gold >= cost && canChangeElement(p);
-      $('pathBody').innerHTML = `<p>Wähle ein neues Element. Deine Fertigkeitsstufen bleiben erhalten, die Buffs deines alten Elements enden. ` +
-        `Schriftrollen des alten Elements gehören danach zu fremden Fertigkeiten.</p>` +
-        pathChoiceHtml(c, pick) + skillListHtml(c.paths[pick].skills, null) + ultHtml(ULTIMATES[c.paths[pick].id], null) +
-        `<p class="el-cost">${cost ? `Kosten: ${cost.toLocaleString('de-DE')} Gold (du hast ${p.gold.toLocaleString('de-DE')})` : 'Bis Stufe 10 kostenlos.'}</p>` +
-        (asking && ok
-          ? `<p class="el-ask">Element zu ${E.name} wechseln für ${cost.toLocaleString('de-DE')} Gold? Deine Fertigkeitsstufen bleiben erhalten.</p>` +
-            `<div class="create-row"><button id="btnElementOk" class="btn btn-primary" type="button">Wechseln</button>` +
-            `<button id="btnElementNo" class="btn btn-ghost" type="button">Nein</button></div>`
-          : `<button id="btnElementOk" class="btn btn-primary" type="button"${ok ? '' : ' disabled'}>${same ? 'Dein jetziges Element' : `Element zu ${E.name} wechseln`}</button>`);
-      drawPathSigils($('pathBody'));
-      $('pathBody').querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
-        pick = Number(b.dataset.path);
-        asking = false;
-        render();
-      }));
-      if ($('btnElementNo')) $('btnElementNo').addEventListener('click', () => { asking = false; render(); });
-      $('btnElementOk').addEventListener('click', () => {
-        // kostet es Gold, erst nachfragen
-        if (cost && !asking) { asking = true; render(); return; }
-        if (changeMageElement(pick)) $('panelPath').hidden = true;
-        else { asking = false; render(); }
-      });
-    };
-    render();
-    this.closePanels();
-    $('pathTitle').textContent = 'Element wechseln';
-    $('panelPath').hidden = false;
-  },
+  // Der Elementwechsel des Magiers im Menü (showElementChoice, seit 8.6) ist seit 13.63 entfallen:
+  // der Magier wechselt sein Element wie die anderen Klassen ihren Weg beim Lehrmeister (renderTeacher).
 
   enterGame() {
     $('startScreen').hidden = true;
@@ -1398,15 +1359,13 @@ const ui = {
     return [...document.querySelectorAll('.panel')].some((el) => el.id !== 'panelDeath' && !el.hidden);
   },
 
-  // Zeile „Element: Feuer · Wechseln“ im Charakterfenster (nur Magier)
+  // Zeile „Element: Feuer“ im Charakterfenster (nur Magier). Seit 13.63 ohne Knopf zum Wechseln:
+  // das Element wechselt man wie die anderen Klassen ihren Weg beim Lehrmeister.
   elementHtml(p) {
     if (p.classId !== 'magier') return '';
     const E = mageEl(p);
-    const ok = canChangeElement(p);
-    const cost = mageElementCost(p);
     return `<p class="el-change" style="--el:${E.main}">Element: <span class="el-name">${E.name}</span>` +
-      `<button type="button" class="mini-btn" id="btnElement"${ok ? '' : ' disabled'}>Wechseln</button>` +
-      `<span class="hint-text">${ok ? (cost ? `Kosten ${cost.toLocaleString('de-DE')} Gold` : 'bis Stufe 10 kostenlos') : 'Nur im Dorf oder Lager, außerhalb des Kampfes'}</span></p>`;
+      `<span class="hint-text">Wechseln beim Lehrmeister</span></p>`;
   },
 
   renderCharPanel() {
@@ -1458,7 +1417,6 @@ const ui = {
     });
     $('btnLook').addEventListener('click', () => this.openLookPanel());
     if ($('charDoll') && typeof drawDoll === 'function') drawDoll($('charDoll'));
-    if ($('btnElement')) $('btnElement').addEventListener('click', () => this.showElementChoice());
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
       b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
     });
@@ -1619,6 +1577,8 @@ const ui = {
     const pick = this.teacherPath;
     const way = c.paths.length === 4 ? 'Element' : 'Weg';
     const pickName = c.paths.length === 4 ? MAGE_EL[c.paths[pick].id].name : c.paths[pick].name;
+    // Magier (seit 13.63 nur hier): die Fertigkeitsstufen bleiben beim Elementwechsel, siehe changeMageElement
+    const mage = p.classId === 'magier';
     $('npcBody').innerHTML =
       `<p>„Wissen hat seinen Preis. Ich verkaufe Schriftrollen zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg.“</p>` +
       `<p>Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
@@ -1637,11 +1597,14 @@ const ui = {
       `${bookBack ? ` und ${bookBack} gelesene Schriftrollen` : ''} zurück.</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!canResetSkills(p) || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `</div><h3>${way} wechseln <span class="price">${fmt(skCost)} Gold</span></h3>` +
-      `<p class="hint">Dein jetziger ${way} bleibt mit allen Stufen gespeichert (auch E/H/L/V) – wechselst du zurück, ist alles wieder da. ` +
-      `Ein ${way}, den du schon gespielt hast, kommt genau so zurück; ein neuer beginnt auf Stufe 1 mit allen freien Punkten. ` +
-      `Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>` +
+      (mage
+        ? `<p class="hint">Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. ` +
+          `Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.</p>`
+        : `<p class="hint">Dein jetziger ${way} bleibt mit allen Stufen gespeichert (auch E/H/L/V) – wechselst du zurück, ist alles wieder da. ` +
+          `Ein ${way}, den du schon gespielt hast, kommt genau so zurück; ein neuer beginnt auf Stufe 1 mit allen freien Punkten. ` +
+          `Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>`) +
       pathChoiceHtml(c, pick) +
-      `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? `Dein jetziger ${way}` : `${way}: ${pickName}`}</strong>` +
+      `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? (mage ? 'Dein jetziges Element' : `Dein jetziger ${way}`) : `${way}: ${pickName}`}</strong>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="path" ${pick === cur || p.gold < skCost ? 'disabled' : ''}>${pick === cur ? 'Gewählt' : 'Wechseln'}</button></div></div></div>` +
       `<p class="hint">Das erste Zurücksetzen kostet ${fmt(TEACHER.resetBase)} Gold, jedes weitere das Doppelte (Status und Fertigkeiten getrennt, der Wegwechsel zählt zu den Fertigkeiten).</p>`;
     const body = $('npcBody');
@@ -1666,14 +1629,16 @@ const ui = {
       body.querySelector('.buy-confirm')?.remove();
       const ask = document.createElement('div');
       ask.className = 'buy-confirm';
-      ask.innerHTML = (kind === 'path'
-        ? `<p>Für ${fmt(skCost)} Gold zu ${pickName} wechseln? ${p.pathSkills && p.pathSkills[pick] ? 'Deine früheren Stufen dort kommen zurück.' : 'Dort beginnen die Fertigkeiten auf Stufe 1.'} Dein jetziger ${way} bleibt gespeichert.</p>`
-        : `<p>${what} für ${fmt(resetCost(p, kind === 'stat' ? 'stat' : 'skill'))} Gold zurücksetzen?</p>`) +
+      ask.innerHTML = (kind === 'path' && mage
+        ? `<p><b>${pickName}</b>: für ${fmt(skCost)} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.</p>`
+        : kind === 'path'
+          ? `<p>Für ${fmt(skCost)} Gold zu ${pickName} wechseln? ${p.pathSkills && p.pathSkills[pick] ? 'Deine früheren Stufen dort kommen zurück.' : 'Dort beginnen die Fertigkeiten auf Stufe 1.'} Dein jetziger ${way} bleibt gespeichert.</p>`
+          : `<p>${what} für ${fmt(resetCost(p, kind === 'stat' ? 'stat' : 'skill'))} Gold zurücksetzen?</p>`) +
         `<button class="mini-btn" type="button" data-yes>Ja</button> <button class="mini-btn" type="button" data-no>Nein</button>`;
       b.closest('.shop-item').appendChild(ask);
       ask.querySelector('[data-no]').addEventListener('click', () => ask.remove());
       ask.querySelector('[data-yes]').addEventListener('click', () => {
-        const res = kind === 'stat' ? resetStats() : resetSkills(kind === 'path' ? pick : cur);
+        const res = kind === 'stat' ? resetStats() : kind === 'path' && mage ? changeMageElement(pick) : resetSkills(kind === 'path' ? pick : cur);
         if (!res) {
           this.renderTeacher({ ok: false, text: 'Dafür reicht dein Gold nicht.' });
           return;
@@ -1684,7 +1649,9 @@ const ui = {
           drawPortrait($('hudPortrait'), p);
           const extra = (res.books ? ` ${res.books} Schriftrollen liegen in deiner Tasche.` : '') +
             (res.moved ? ` ${res.moved === 1 ? 'Ein Teil' : res.moved + ' Teile'} deiner Ausrüstung ${res.moved === 1 ? 'liegt' : 'liegen'} jetzt in der Tasche.` : '');
-          text = kind === 'path'
+          text = kind === 'path' && mage
+            ? `<b>${pickName}</b> ist jetzt dein Element – deine Fertigkeiten ${res.restored ? 'haben wieder ihre früheren Stufen aus diesem Element.' : 'behalten ihre Stufen.'}` + extra
+            : kind === 'path'
             ? (res.restored
               ? `Du folgst wieder dem ${c.paths[pick].name} – deine Fertigkeiten haben ihre alten Stufen.${p.skillPoints ? ` ${p.skillPoints} freie Fertigkeitspunkte warten im Charakterfenster.` : ''}`
               : `Du folgst jetzt dem ${c.paths[pick].name}. Verteile deine ${p.level - 1} Fertigkeitspunkte im Charakterfenster.`) + ' Dein alter Weg bleibt gespeichert.' + extra
@@ -1801,36 +1768,45 @@ function drawPathSigils(box) {
   });
 }
 
-// Elementwechsel des Magiers (seit 8.6): bis Stufe 10 kostenlos, danach 500 Gold je Stufe
-function mageElementCost(p) {
-  return p.level <= 10 ? 0 : 500 * p.level;
-}
-// Nur im Dorf oder Lager, nicht im Duell und erst 10 s nach dem letzten Kampf
-function canChangeElement(p) {
-  return p.classId === 'magier' && !p.dead && inVillage(p.x, p.y) && !game.duel && game.time - (p.lastCombat ?? -99) > 10;
+// Elementwechsel des Magiers (seit 8.6; seit 13.63 nur noch beim Lehrmeister, wie der Wegwechsel der anderen Klassen).
+// Er kostet dasselbe wie dort (ein Fertigkeiten-Zurücksetzen: 10.000 Gold, jedes weitere das Doppelte). Wie beim
+// früheren Wechsel im Menü liegen die Fertigkeitsstufen des Magiers je Platz und bleiben erhalten (auch E/H/L/V);
+// Schriftrollen des alten Elements in der Tasche werden wie bei den anderen Klassen zu Schriftrollen derselben Plätze.
+// Hat das neue Element noch eigene, gespeicherte Stufen aus einem früheren Wechsel beim Lehrmeister (bis 13.62 lief der
+// dort wie bei den anderen Klassen) und stecken darin mehr Punkte und Schriftrollen, kommen diese zurück und die jetzigen
+// werden für das alte Element gemerkt – so geht nichts verloren.
+function mageSkillWorth(levels) {
+  return skillPointsSpent(levels) + levels.reduce((a, l) => a + skillBooksSpent(l), 0);
 }
 function changeMageElement(n) {
   const p = game.player;
-  const cost = mageElementCost(p);
-  if (!canChangeElement(p) || n === (p.path || 0) || !MAGE_PATH_EL[n]) return false;
-  if (p.gold < cost) {
-    ui.log(`Dir fehlen ${(cost - p.gold).toLocaleString('de-DE')} Gold für den Elementwechsel.`, 'warn');
-    return false;
+  const c = CLASSES.magier;
+  const old = p.path || 0;
+  if (p.classId !== 'magier' || p.dead || n === old || !c.paths[n] || !MAGE_PATH_EL[n]) return false;
+  if (!payReset(p, 'skill')) return false;
+  // Buffs, Diener und Strahl der Klasse enden (wie beim Wegwechsel); Abklingzeiten bleiben je Platz
+  endSkillEffects(p);
+  c.paths[old].skills.forEach((sk, i) => {
+    const k = bookCount(p, sk.id);
+    if (k) { takeBooks(p, sk.id, k); giveBooks(p, c.paths[n].skills[i].id, k); }
+  });
+  let restored = false;
+  const st = p.pathSkills && p.pathSkills[n];
+  if (st && Array.isArray(st.levels) && st.levels.length === 5 && mageSkillWorth(st.levels) > mageSkillWorth(p.skillLevels)) {
+    p.pathSkills[old] = { levels: p.skillLevels.slice(), spent: skillPointsSpent(p.skillLevels) };
+    p.skillLevels = st.levels.slice();
+    p.skillPoints = Math.max(0, p.level - 1 - (st.spent || 0));
+    clampSkillPoints(p);
+    delete p.pathSkills[n];
+    restored = true;
   }
-  p.gold -= cost;
+  // Die Mitspieler sehen das neue Element mit dem nächsten Zustand (pt)
   p.path = n;
-  // Buffs der Magier-Fertigkeiten und -Ultimates enden; Abklingzeiten bleiben je Platz (kein Ausnutzen).
-  // Die Mitspieler sehen das neue Element mit dem nächsten Zustand (pt).
-  const mageIds = new Set(CLASSES.magier.paths.flatMap((pt) => pt.skills.map((s) => s.id)));
-  p.buffs = p.buffs.filter((b) => !mageIds.has(b.id) && b.id !== 'steinhaut' && b.id !== 'donnerkrone');
+  const moved = enforceGearRules(p);
   game.stats = playerStats(p);
   p.hp = Math.min(p.hp, game.stats.maxHp);
   p.mp = Math.min(p.mp, game.stats.maxMp);
-  ui.buildSkillBar();
-  drawPortrait($('hudPortrait'), p);
-  ui.log(`Du folgst jetzt dem ${CLASSES.magier.paths[n].name}.` + (cost ? ` (−${cost.toLocaleString('de-DE')} Gold)` : ''), 'level');
-  saveGame();
-  return true;
+  return { books: 0, moved: moved.length, changed: true, restored };
 }
 
 // Werte einer Fertigkeit auf einer Stufe, z. B. [['Angriff', '+29,6 %'], ['Dauer', '238 s']]
