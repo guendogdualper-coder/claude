@@ -64,6 +64,8 @@ const RANK_NAMES = {
   eisstrahl: ['Froststrahl', 'Gletscherstrahl', 'Strahl des ewigen Eises', 'Atem des Winters'],
   eisschritt: ['Frostschritt', 'Gletscherschritt', 'Schritt des Winters', 'Geist des Eises'],
   frostpanzer: ['Eispanzer', 'Gletscherpanzer', 'Panzer des Winters', 'Ewiges Eis'],
+  // seit 13.64: Eisgefängnis statt Frostpanzer
+  eisgefaengnis: ['Frostkerker', 'Gletschergefängnis', 'Kerker des ewigen Eises', 'Ewige Starre'],
   kristallgrab: ['Kristallgruft', 'Eisgruft', 'Grab des Winters', 'Ewige Kristallgruft'],
   // seit 13.54: Blizzard statt Kristallgrab
   schneesturm: ['Schneegestöber', 'Weißer Sturm', 'Zorn des Winters', 'Ewiger Winter'],

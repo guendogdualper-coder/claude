@@ -424,7 +424,9 @@ const CLASSES = {
             id: 'eisstrahl', name: 'Eisstrahl', short: 'EI', kind: 'angriff', unlock: 3, mp: 6, cooldown: 1.5,
             type: 'beam', el: 'frost', channel: true, range: 300, width: 26, every: 0.2, maxDur: 6, minDur: 0.5, dmg: 0.34, mpPerSec: 9,
             slow: { amount: 0.3, max: 0.7, build: 0.25, duration: 1 }, duelMul: 1.1, color: '#9ff6ff',
-            text: 'Gedrückt halten: Ein eisiger Strahl schießt aus deinen Händen und trifft alle Gegner in einer Linie bis 300 weit, fünfmal pro Sekunde mit leichtem Schaden. Wer im Strahl steht, wird immer langsamer (30 % bis 70 %). Kostet laufend Mana; du kannst dabei langsam gehen. Loslassen beendet den Strahl.'
+            // seit 13.64: Kombo gegen verlangsamte (slow) und eingefrorene oder betäubte (stun) Gegner, je Rang + step (eisstrahl.js)
+            combo: { slow: 0.25, stun: 0.5, step: [0.05, 0.1] },
+            text: 'Gedrückt halten: Ein eisiger Strahl schießt aus deinen Händen und trifft alle Gegner in einer Linie bis 300 weit, fünfmal pro Sekunde mit leichtem Schaden. Wer im Strahl steht, wird immer langsamer (30 % bis 70 %). Kombo: Gegen Gegner, die schon verlangsamt sind (etwa durch Frostnova oder Blizzard), trifft er 25 % härter, gegen eingefrorene oder betäubte 50 % – mehr je Rang, hellblaue Zahlen. Kostet laufend Mana; du kannst dabei langsam gehen. Loslassen beendet den Strahl.'
           },
           {
             id: 'eisschritt', name: 'Eisschritt', short: 'ES', kind: 'angriff', unlock: 5, mp: 16, cooldown: 10,
@@ -433,10 +435,12 @@ const CLASSES = {
             text: 'Du gleitest auf einer Eisbahn bis zu 160 weit davon. Wo du standest, bleibt eine Eisfigur zurück, die nach 0,5 s zerspringt: Alle Gegner bis 95 weit frieren kurz ein.'
           },
           {
-            id: 'frostpanzer', name: 'Frostpanzer', short: 'FP', kind: 'buff', unlock: 7, mp: 22, cooldown: 60, el: 'frost',
-            // seit 13.52: feste Rüstung nach Rang und eigener Stufe (frostArmor), Kälte nach Rang (kampf.js)
-            type: 'buff', duration: 180, effects: { def: 0.25, defFlat: 1, damageTaken: -0.1, chill: 0.3, chillDur: 1.5 },
-            text: 'Buff: Eisplatten kreisen um dich. Viel mehr Rüstung (wächst mit Rang und deiner Stufe), weniger erlittener Schaden. Wer dich trifft – auch aus der Ferne –, wird von Reif überzogen: Er läuft und schlägt eine Weile langsamer (stärker und länger je Rang).'
+            // seit 13.64 statt Frostpanzer: Eisgefängnis – Flächen-Betäubung am gewählten Ort (frostgefaengnis.js).
+            // Eingefroren hold s, je Rang + holdStep (prisonHold); zum Schluss zersplittert das Eis (crack) und verlangsamt (after)
+            id: 'eisgefaengnis', name: 'Eisgefängnis', short: 'EG', kind: 'angriff', unlock: 7, mp: 26, cooldown: 15,
+            type: 'mprison', el: 'frost', aim: true, range: 380, radius: 115, delay: 0.45, dmg: 1.8, crack: 1.1, hold: 1.5, holdStep: 0.25,
+            after: { amount: 0.4, duration: 2 }, bossSlow: 0.5, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
+            text: 'Du wählst einen Ort: Der Boden überfriert und reißt blau leuchtend auf, dann bricht ein Gefängnis aus Eis hervor. Hohe Kristallsäulen schießen aus der Erde, um jeden Gegner im Kreis (115 weit) wachsen Eiszacken zusammen: Alle nehmen Frostschaden und sind im Eis gefangen – 1,5 s lang betäubt (erweckt 1,75 s, heroisch 2 s, legendär 2,25 s, vollendet 2,5 s). Dann zersplittert das Eis: noch einmal Schaden, danach sind sie 2 s langsamer. Bosse werden nicht eingefroren, nur stark verlangsamt. Reichweite 380.'
           },
           {
             // seit 13.54 statt Kristallgrab: Blizzard – ein echter Schneesturm im gewählten Kreis (schneesturm.js).
@@ -444,7 +448,8 @@ const CLASSES = {
             id: 'schneesturm', name: 'Blizzard', short: 'BZ', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
             type: 'msnow', el: 'frost', aim: true, range: 340, radius: 150, delay: 0.5, ticks: 8, every: 0.5, dmg: 0.45, freeze: 0.8,
             slow: { amount: 0.25, max: 0.6, build: 0.07, duration: 1.2 }, duelMul: 1.1, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
-            text: 'Du wählst einen Ort: Über dem Kreis ballt sich eine Sturmwolke, dann tobt 4 s lang ein Schneesturm. Alle Gegner im Kreis (150 weit) nehmen zweimal pro Sekunde Frostschaden und werden immer langsamer, je länger sie drinbleiben (25 % bis 60 %). Zum Schluss frieren sie kurz ein, Bosse werden nur verlangsamt. Je Rang tobt der Sturm 0,5 s länger: erweckt 4,5 s, heroisch 5 s, legendär 5,5 s, vollendet 6 s.'
+            // seit 13.64 ohne Sturmwolke: blauweißer Schnee, Eissplitter, frostblaues Leuchten und Frostnebel
+            text: 'Du wählst einen Ort: Dort bricht 4 s lang ein eisiger Schneesturm los – dichter blauweißer Schnee, wirbelnde Eissplitter, frostblaues Leuchten und Frostnebel am Boden. Alle Gegner im Kreis (150 weit) nehmen zweimal pro Sekunde Frostschaden und werden immer langsamer, je länger sie drinbleiben (25 % bis 60 %). Zum Schluss frieren sie kurz ein, Bosse werden nur verlangsamt. Je Rang tobt der Sturm 0,5 s länger: erweckt 4,5 s, heroisch 5 s, legendär 5,5 s, vollendet 6 s.'
           }
         ]
       },

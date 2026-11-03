@@ -439,7 +439,8 @@ function damagePlayer(amount, attacker) {
   // In Städten und Lagern gibt es keinen Schaden (außer im Duell) – egal woher er kommt
   if (inVillage(p.x, p.y) && !(attacker && attacker.duelProxy)) return;
   p.lastCombat = game.time;
-  // Frostpanzer (seit 8.6, seit 13.52 nach Rang): wer dich trifft – auch aus der Ferne –, läuft und schlägt langsamer
+  // Kälte für Angreifer (s.chill aus Buffs, bis 13.63 der Frostpanzer): wer dich trifft, läuft und schlägt langsamer.
+  // Seit 13.64 gibt es keine Fertigkeit mehr damit; die Regel bleibt allgemein stehen (ohne chill passiert nichts)
   if (s.chill && attacker && !attacker.duelProxy && !attacker.dead && attacker.typeId && dist(attacker, p) < 520) {
     const dur = s.chillDur || 1.5;
     setSlow(attacker, Math.max(0.1, 1 - s.chill), dur);
@@ -894,6 +895,8 @@ function startAim(i, sk) {
   // (zu weit weg oder im Dorf); Rechtsklick oder Esc bricht ab
   if (Math.hypot(pt.x - p.x, pt.y - p.y) > sk.range) clampAim();
   game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.radius, dur: AIM_TIMEOUT + 1, color: AIM_OK });
+  // seit 13.64: feiner Kreis um die Figur zeigt die Reichweite (Bild in frostgefaengnis.js)
+  game.aim.rangeFx = addEffect({ type: 'aimrange', ground: true, follow: p, ox: 0, oy: 0, r: sk.range, dur: AIM_TIMEOUT + 1 });
   aimCheck();
   addText(p.x, p.y - 40, 'Ort antippen', 'info');
   document.body.classList.add('aiming');
@@ -901,6 +904,7 @@ function startAim(i, sk) {
 function cancelAim() {
   if (!game.aim) return;
   if (game.aim.fx) game.aim.fx.dur = 0;
+  if (game.aim.rangeFx) game.aim.rangeFx.dur = 0;
   game.aim = null;
   document.body.classList.remove('aiming');
 }
@@ -1005,33 +1009,9 @@ function auraFlat(lvl) {
   const bp = (game.stats && game.stats.buffPower) || 1;
   return Math.round(v * (1 + (bp - 1) * 0.5));
 }
-// Frostpanzer (seit 13.52): feste Rüstung nach Rang und eigener Stufe, Kälte für Angreifer wächst mit dem Rang.
-// Rüstung je Rang (normal 25–90, E 150–198, H 260–316, L 400–472, V 650), ×0,6 auf Stufe 1 bis ×1,1 auf Stufe 80,
-// dazu die Buff-Stärke halb. Kälte: Angreifer laufen 25–35 % langsamer (E 40, H 45, L 50, V 55 %) und schlagen
-// halb so viel langsamer; 1,5 s, je Rang +0,25 s.
-const FROST_ARMOR = { base: [25, 90], E: [150, 6], H: [260, 7], L: [400, 9], V: 650 };
-function frostArmor(lvl) {
-  const r = skillRank(lvl);
-  let v;
-  if (r < 0) v = FROST_ARMOR.base[0] + (FROST_ARMOR.base[1] - FROST_ARMOR.base[0]) * (Math.min(lvl, SKILL_BASE_MAX) - 1) / (SKILL_BASE_MAX - 1);
-  else if (r === 3) v = FROST_ARMOR.V;
-  else {
-    const [b, step] = FROST_ARMOR['EHL'[r]];
-    v = b + step * (lvl - SKILL_RANKS[r].from);
-  }
-  const pl = game.player ? game.player.level || 1 : 1;
-  const bp = (game.stats && game.stats.buffPower) || 1;
-  return Math.round(v * (0.6 + 0.5 * Math.min(1, (pl - 1) / 79)) * (1 + (bp - 1) * 0.5));
-}
-function frostChill(lvl) {
-  const r = skillRank(lvl);
-  if (r >= 0) return 0.4 + 0.05 * r;
-  return 0.25 + 0.1 * (Math.min(lvl, SKILL_BASE_MAX) - 1) / (SKILL_BASE_MAX - 1);
-}
-const frostChillDur = (lvl) => 1.5 + 0.25 * (skillRank(lvl) + 1);
+// (Frostpanzer mit fester Rüstung und Kälte nach Rang ist seit 13.64 entfernt – Eisgefängnis, frostgefaengnis.js)
 const SKILL_FIXED_EFFECTS = {
-  segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat },
-  frostpanzer: { defFlat: frostArmor, chill: frostChill, chillDur: frostChillDur }
+  segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat }
 };
 function applyBuff(sk, lvl) {
   const p = game.player;

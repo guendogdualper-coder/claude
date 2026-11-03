@@ -1905,11 +1905,10 @@ function skillStats(sk, lvl) {
   for (const [k, v] of Object.entries(sk.effects || {})) {
     const label = (sk.labels && sk.labels[k]) || SKILL_EFFECT_LABELS[k];
     if (typeof v !== 'number' || !label) continue;
-    // Kälte (Frostpanzer, seit 8.6) verlangsamt fest um diesen Anteil
-    // seit 13.52 nach Rang (frostChill), dazu die Dauer und feste Rüstung (frostArmor)
-    if (k === 'chill') { out.push([label, '−' + skillPct(sk.id === 'frostpanzer' && typeof frostChill === 'function' ? frostChill(lvl) : v) + ' Tempo']); continue; }
-    if (k === 'chillDur') { out.push([label, numDe(typeof frostChillDur === 'function' ? frostChillDur(lvl) : v) + ' s']); continue; }
-    if (k === 'defFlat') { out.push([label, '+' + (typeof frostArmor === 'function' ? frostArmor(lvl) : Math.round(v))]); continue; }
+    // Kälte für Angreifer und feste Rüstung (allgemein; der Frostpanzer ist seit 13.64 entfernt)
+    if (k === 'chill') { out.push([label, '−' + skillPct(v) + ' Tempo']); continue; }
+    if (k === 'chillDur') { out.push([label, numDe(v) + ' s']); continue; }
+    if (k === 'defFlat') { out.push([label, '+' + Math.round(v)]); continue; }
     // fester Angriffswert (Aura des Schwertes, seit 13.4)
     if (k === 'atkFlat') { out.push([label, '+' + (sk.id === 'schwertaura' && typeof auraFlat === 'function' ? auraFlat(lvl) : Math.round(v * scale))]); continue; }
     // seit 13.6 als Zahl: Angriff und Verteidigung aus den Werten ohne diesen Buff, Regeneration in Leben je Sekunde
@@ -1995,6 +1994,8 @@ function mageSkillStats(sk, lvl, out) {
   if (sk.lift || (sk.last && sk.last.lift)) out.push(['Hochgeschleudert', '']);
   if (sk.ignite || (sk.last && sk.last.ignite)) out.push(['Explodieren', dmg(0.5)]);
   if (sk.type === 'nova' && skillRank(lvl) >= 0) out.push(['Nachhall', dmg(sk.dmg * 0.35)]);
+  // seit 13.64: Eisgefängnis und die Kombo des Eisstrahls (frostgefaengnis.js)
+  if (typeof frostSkillStats === 'function') frostSkillStats(sk, lvl, out);
 }
 
 // Ultimative Attacken (seit 13.6): „3,5× Angriff“ in den Werten wird zur Schadenszahl mit den aktuellen Werten

@@ -3,6 +3,7 @@
 // leichtem Schaden und bremst sie immer stärker ab (30 % bis 70 %). Kostet laufend Mana; die Figur geht dabei
 // langsam (40 % Tempo) und dreht sich zum Ziel. Loslassen, Mana leer, Betäubung oder Tod beenden ihn.
 // Mitspieler sehen den Strahl über kurze Netzmeldungen (Anfang, Richtung alle 0,25 s, Ende).
+// Seit 13.64 mit Kombo: gegen verlangsamte, eingefrorene oder betäubte Gegner mehr Schaden (hellblaue Zahlen).
 
 const BEAM_WALK = 0.4;
 // andere Kanal-Fertigkeiten (seit 11.7: Blutsauger) tragen ihren eigenen Ablauf je Fertigkeitstyp ein
@@ -100,10 +101,13 @@ function channelTick(p, dt) {
     for (const m of enemiesOnBeam(p, end, sk.width)) {
       const since = c.on.get(m) || game.time;
       c.on.set(m, since);
-      hitMonster(m, sk.dmg * c.pw, { skill: sk.id, duelMul: sk.duelMul, vfxColor: '#d8f6ff' });
+      // Kombo (seit 13.64): mehr Schaden gegen verlangsamte und eingefrorene oder betäubte Gegner
+      const cb = beamComboHit(sk, c.lvl, m);
+      const dealt = hitMonster(m, sk.dmg * c.pw * cb, { skill: sk.id, duelMul: sk.duelMul, vfxColor: cb > 1 ? '#9fe8ff' : '#d8f6ff' });
+      if (cb > 1) beamComboFx(m, dealt);
       if (!m.isStone && !m.duelProxy) {
         const amount = Math.min(sk.slow.max, sk.slow.amount + (game.time - since) * sk.slow.build);
-        setSlow(m, 1 - amount, sk.slow.duration);
+        beamOwnSlow(m, 1 - amount, sk.slow.duration);
         m.chilled = game.time + sk.slow.duration;
       }
       const b = bodyCenter(m);
@@ -115,6 +119,51 @@ function channelTick(p, dt) {
     const t = Math.random();
     particles(p.x + (end.x - p.x) * t, feetY(p) + (end.y - p.y) * t, { count: 2, color: ['#eafcff', '#9ff6ff'], speed: [8, 25], life: [0.4, 0.7], size: [1.5, 2.5], shape: 'spark', drag: 3, gravity: -20 });
   }
+}
+
+// --- Kombo (seit 13.64) -----------------------------------------------------------------------------------
+// Der Strahl trifft härter, wenn der Gegner schon unter Kontrolle steht: gegen verlangsamte +25 %, gegen
+// eingefrorene oder betäubte +50 %; je Rang +5 % bzw. +10 % mehr (vollendet +45 % / +90 %). Die eigene
+// Verlangsamung des Strahls zählt nicht – sie kommt von selbst und wäre sonst nur ein fester Bonus. Verlangsamen
+// müssen Frostnova, Eisschritt, Blizzard, Eisgefängnis oder Zauber der Mitspieler.
+function beamComboOf(sk, lvl) {
+  const c = sk.combo || { slow: 0, stun: 0, step: [0, 0] };
+  const r = (typeof skillRank === 'function' ? skillRank(lvl || 1) : -1) + 1;
+  return { slow: c.slow + c.step[0] * r, stun: c.stun + c.step[1] * r };
+}
+// Verlangsamung des Strahls setzen und merken, welche davon seine eigene ist (m.beamSlowRef). Überschreibt er eine
+// schwächere fremde, zählt die fremde bis zu ihrem Ende weiter (m.beamExtUntil).
+function beamOwnSlow(m, mul, dur) {
+  const before = m.slow;
+  setSlow(m, mul, dur);
+  if (m.slow !== before) {
+    if (before && before.until > game.time && before !== m.beamSlowRef) m.beamExtUntil = Math.max(m.beamExtUntil || 0, before.until);
+    m.beamSlowRef = m.slow;
+  }
+}
+// Schadensfaktor eines Strahltreffers (1 = keine Kombo); Bosse lassen sich nie betäuben, nur verlangsamen
+function beamComboHit(sk, lvl, m) {
+  if (!sk.combo || !m || m.isStone || m.duelProxy) return 1;
+  const c = beamComboOf(sk, lvl);
+  const t = game.time;
+  const boss = m.type && m.type.boss;
+  if (m.frozen > t || (!boss && (m.stun > 0 || m.stunned))) return 1 + c.stun;
+  const slowed = (m.slow && m.slow.until > t && m.slow.mul < 1 && m.slow !== m.beamSlowRef) || m.beamExtUntil > t;
+  return slowed ? 1 + c.slow : 1;
+}
+// Kombo sichtbar machen: Schadenszahl hellblau, kurz „Kombo“ über dem Gegner, helles Eisglitzern
+TEXT_STYLES.combo = { color: '#9fe8ff', size: 19 };
+TEXT_STYLES.combocrit = { color: '#bff4ff', size: 27, glow: '#3a7bff' };
+TEXT_STYLES.combotag = { color: '#9fe8ff', size: 13, center: true };
+function beamComboFx(m, dealt) {
+  const last = game.texts[game.texts.length - 1];
+  if (last && last.start === game.time && last.text === String(dealt) && (last.style === 'dmg' || last.style === 'crit')) last.style = last.style === 'crit' ? 'combocrit' : 'combo';
+  if (!(m.comboTagAt > game.time)) {
+    m.comboTagAt = game.time + 1.2;
+    addText(m.x, feetY(m) - figureHeight(m) - 26, 'Kombo', 'combotag');
+  }
+  const b = bodyCenter(m);
+  particles(b.x, b.y, { count: 3, color: ['#ffffff', '#bff4ff', '#5aa8ff'], speed: [60, 140], life: [0.25, 0.45], size: [2, 3.5], shape: 'square', drag: 3, gravity: 200 });
 }
 
 // Mitspieler: Strahl anzeigen, Richtung nachführen, beenden

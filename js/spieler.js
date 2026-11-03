@@ -820,7 +820,9 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   // 13.54: Frostmagier – Blizzard (Schneesturm) statt Kristallgrab
   kristallgrab: 'schneesturm',
   // 13.57: Ninja – Weg des Schattens wird zum Weg des Falken (Bogen); Hinterhalt und Tarnung bleiben beim Dolch-Weg
-  schattensprung: 'pfeilhagel', laehmklinge: 'durchschuss', schattenmantel: 'falkenblick' };
+  schattensprung: 'pfeilhagel', laehmklinge: 'durchschuss', schattenmantel: 'falkenblick',
+  // 13.66: Frostmagier – Eisgefängnis (Flächen-Betäubung) statt Frostpanzer; Platz 4, Stufe und Bücher gehen mit
+  frostpanzer: 'eisgefaengnis' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;
