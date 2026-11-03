@@ -397,18 +397,24 @@ function setupQuickSlots() {
 
 // --- Einstellungen: Tastenbelegung ------------------------------------------------------------------------
 let keyCapture = null;
-function keyOptionsHtml() {
+// seit 13.62: part = 'quick' (nur Freie Plätze, Reiter „Steuerung“) oder 'keys' (nur Tastenbelegung, eigener Reiter
+// ohne doppelte Überschrift); ohne Angabe beides wie bisher
+function keyOptionsHtml(part) {
   const p = game.player;
   const quick = p ? quickOf(p) : QUICK_DEFAULT;
   const sel = (k) => `<select data-qsel="${k}" aria-label="Freier Platz ${k + 1}"><option value="">Leer</option>` +
     quickChoices(p).map(([id, q]) => `<option value="${id}"${quick[k] === id ? ' selected' : ''}>${q.img ? 'Fertigkeit: ' : ''}${q.label}</option>`).join('') + '</select>';
-  return `<section class="opt-group"><h3>Freie Plätze</h3>` +
+  const quickHtml = `<section class="opt-group"><h3>Freie Plätze</h3>` +
     `<p class="hint-text">Zwei Plätze unten in der Leiste belegst du selbst – mit einer Fertigkeit (z. B. einem Buff), der Ulti, einem Trank, dem Pferd, der Karte oder einem Fenster. Im Spiel: leeren Platz antippen oder Platz lange drücken (am PC Rechtsklick).</p>` +
     (p ? `<div class="opt-row"><div class="opt-text"><strong>Platz 1</strong></div>${sel(0)}</div><div class="opt-row"><div class="opt-text"><strong>Platz 2</strong></div>${sel(1)}</div>` : '') +
-    `</section><section class="opt-group"><h3>Tastenbelegung</h3>` +
+    `</section>`;
+  const keysHtml = `<section class="opt-group">${part === 'keys' ? '' : '<h3>Tastenbelegung</h3>'}` +
     `<p class="hint-text">Für Tastatur: Aktion antippen, dann die neue Taste drücken (Esc bricht ab). Ist die Taste schon belegt, tauschen die beiden. Laufen bleibt auf WASD und den Pfeiltasten.</p>` +
     `<div class="key-grid">${KEY_ACTIONS.map((a) => `<button type="button" class="key-row${keyCapture === a.id ? ' wait' : ''}" data-key="${a.id}"><span>${a.label}</span><kbd>${keyCapture === a.id ? 'Taste drücken …' : keyLabel(actionKey(a.id))}</kbd></button>`).join('')}</div>` +
     `<div class="opt-btns"><button type="button" class="btn btn-ghost" id="keysReset">Standard wiederherstellen</button></div></section>`;
+  if (part === 'quick') return quickHtml;
+  if (part === 'keys') return keysHtml;
+  return quickHtml + keysHtml;
 }
 function wireKeyOptions(body, rerender) {
   body.querySelectorAll('[data-qsel]').forEach((s) => s.addEventListener('change', () => setQuickSlot(Number(s.dataset.qsel), s.value)));

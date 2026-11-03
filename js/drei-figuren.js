@@ -792,7 +792,7 @@ function humanoid3(b, c, P) {
     A(torus3(0.11, 0.045, Math.PI * 2, 5, 16), c.scarf, { bone: BH.chest, p: [0, neckY + 0.0, 0], r: [Math.PI / 2 - 0.1, 0, 0] });
     for (const sx of [-1, 1]) A(roundBox(0.09, 0.55, 0.022, 0.011), sx > 0 ? c.scarf : darker(c.scarf, 0.12), { bone: BH.cape, p: [sx * 0.05, shY - 0.3, -0.21], r: [0.08, 0, sx * 0.08], shade: 0.25 });
   }
-  if (c.quiver && c.quiverTier != null) quiver3(A, c.quiverTier, c.quiver, chestY);
+  if (c.quiver && c.quiverTier != null) quiver3(A, c.quiverTier, c.quiver, chestY, !!(c.cape && c.capeTier != null && c.capeTier >= 0));
   else if (c.quiver) {
     A(lathe3('quiver2', [[0, 0], [0.065, 0], [0.075, 0.36], [0, 0.37]], 10), c.quiver, { bone: BH.chest, p: [0.1, chestY - 0.1, -0.2], r: [0, 0, -0.35] });
     for (const dx of [-0.03, 0, 0.03]) {
@@ -864,12 +864,14 @@ function readyPose3(B, who) {
 }
 
 // Köcher der Spieler (seit 13.20): schräg auf dem Rücken, Beschläge und Pfeilfedern in der Farbe der Munition
-function quiver3(A, tier, leather, chestY) {
+// seit 13.62 mit Umhang: sitzt außen auf dem Tuch und hängt am Umhangknochen, damit beide zusammen schwingen
+// und der Köcher nicht mehr im Umhang steckt
+function quiver3(A, tier, leather, chestY, onCape = false) {
   const arrow = QUIVER_ARROWS[tier].color;
   // Beschläge: Gold ab Himmel, seit 13.53 Leerenstahl (Abgrund) bzw. Roségold (Ewigkeit)
   const trim = tier === 0 ? '#4a301c' : tier === 8 ? '#6e5cc0' : tier === 9 ? ROSEGOLD3 : tier >= 6 ? GOLD3 : TIER_METAL[tier];
-  const M = partFrame([0.1, chestY - 0.16, -0.22], [0.12, 0, -0.42]);
-  const W = framed(A, M, BH.chest);
+  const M = onCape ? partFrame([0.1, chestY - 0.13, -0.385], [-0.05, 0, -0.42]) : partFrame([0.1, chestY - 0.16, -0.22], [0.12, 0, -0.42]);
+  const W = framed(A, M, onCape ? BH.cape : BH.chest);
   W(lathe3('quiver3', [[0, 0], [0.07, 0], [0.085, 0.2], [0.09, 0.42], [0, 0.43]], 12), leather, {});
   W(torus3(0.09, 0.016, Math.PI * 2, 5, 14), trim, { p: [0, 0.42, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });
   W(torus3(0.072, 0.014, Math.PI * 2, 5, 14), trim, { p: [0, 0.02, 0], r: [Math.PI / 2, 0, 0], shine: 0.8 });

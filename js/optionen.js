@@ -1,5 +1,6 @@
 // Einstellungen (Zahnrad oben, Taste O): Ton und Lautstärke, Grafikstufe, Kamera, Bildschirmwackeln,
 // Vibration, Schadenszahlen und Namen. Gespeichert im Browser, gilt für alle Figuren auf dem Gerät.
+// Seit 13.62 in Reiter unterteilt (Grafik, Audio, Sprache, Steuerung, Tastenbelegung, Figur und Spiel).
 
 const OPT_KEY = 'seelenstein.optionen';
 
@@ -88,45 +89,103 @@ for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) {
   document.addEventListener(ev, () => { if (!$('panelOpts').hidden) options.render(); });
 }
 
+// Reiter der Einstellungen (seit 13.62): Jede Option gehört genau einer Kategorie an, angezeigt wird immer nur eine –
+// am PC als Leiste links, am Handy als wischbare Leiste oben. Der zuletzt gewählte Reiter wird gemerkt.
+const OPT_TABS = [
+  { id: 'grafik', icon: '🖥', label: 'Grafik' },
+  { id: 'audio', icon: '🔊', label: 'Audio' },
+  { id: 'sprache', icon: '🌐', label: 'Sprache' },
+  { id: 'steuerung', icon: '🎮', label: 'Steuerung' },
+  { id: 'tasten', icon: '⌨', label: 'Tastenbelegung' },
+  { id: 'spiel', icon: '🧩', label: 'Figur und Spiel' }
+];
+const OPT_TAB_KEY = 'seelenstein.optReiter';
+
 const options = {
+  // seit 13.62: gewählter Reiter (aus dem Browser, sonst Grafik)
+  tab: (() => {
+    let t = null;
+    try { t = localStorage.getItem(OPT_TAB_KEY); } catch (e) { /* privat */ }
+    return OPT_TABS.some((x) => x.id === t) ? t : OPT_TABS[0].id;
+  })(),
+
+  setTab(id) {
+    if (!OPT_TABS.some((x) => x.id === id) || id === this.tab) return;
+    this.tab = id;
+    try { localStorage.setItem(OPT_TAB_KEY, id); } catch (e) { /* privat */ }
+    // eine angefangene Tastenwahl gilt nur im Reiter Tastenbelegung
+    if (keyCapture) keyCapture = null;
+    this.render();
+  },
+
   render() {
     const body = $('optsBody');
+    const tab = this.tab;
+    // seit 13.62: Bildlauf beim Neuzeichnen im selben Reiter behalten (z. B. nach einem Schalter weiter unten)
+    const oldPane = body.querySelector('.opt-pane');
+    const keepScroll = oldPane && oldPane.dataset.tab === tab ? oldPane.scrollTop : 0;
+    const oldNav = body.querySelector('.opt-tabs');
+    const keepNav = oldNav ? oldNav.scrollLeft : 0;
     const sw = (key, label, hint) => `<div class="opt-row"><div class="opt-text"><strong>${label}</strong>${hint ? `<small>${hint}</small>` : ''}</div>` +
       `<button type="button" class="opt-switch${opts[key] ? ' on' : ''}" data-sw="${key}" role="switch" aria-checked="${!!opts[key]}" aria-label="${label}"><i></i></button></div>`;
     const seg = (key, table, label, hint) => `<div class="opt-row"><div class="opt-text"><strong>${label}</strong>${hint ? `<small>${hint}</small>` : ''}</div>` +
       `<div class="opt-seg">${Object.entries(table).map(([id, v]) => `<button type="button" class="${opts[key] === id ? 'on' : ''}" data-seg="${key}:${id}">${v.label}</button>`).join('')}</div></div>`;
-    body.innerHTML =
+    let pane = '';
+    if (tab === 'sprache') {
       // Sprache (seit 13.9): Namen in der eigenen Sprache, darum nicht übersetzen
-      `<section class="opt-group"><h3>Sprache · Language</h3><div class="opt-row no-tr"><div class="opt-seg opt-langs">` +
-      Object.entries(LANGS).map(([id, v]) => `<button type="button" class="${i18n.lang === id ? 'on' : ''}" data-lang="${id}">${v}</button>`).join('') + `</div></div></section>` +
-      `<section class="opt-group"><h3>Ton</h3>` +
-      `<div class="opt-row"><div class="opt-text"><strong>Klänge</strong><small>Kampf, Monster, Beute und Schmied. Der Stummschalter am iPhone schaltet Klänge und Musik ebenfalls stumm.</small></div>` +
-      `<button type="button" class="opt-switch${sfx.on ? ' on' : ''}" id="optSound" role="switch" aria-checked="${sfx.on}" aria-label="Klänge"><i></i></button></div>` +
-      `<div class="opt-row"><div class="opt-text"><strong>Lautstärke</strong></div><input type="range" id="optVolume" min="0" max="1" step="0.05" value="${opts.volume}" aria-label="Lautstärke"><b class="opt-val">${Math.round(opts.volume * 100)} %</b></div>` +
-      sw('music', 'Musik', 'Entspannte Hintergrundmusik, passend zur Gegend (Dorf, Wald, Schnee, Wüste, Dungeon).') +
-      `<div class="opt-row"><div class="opt-text"><strong>Musiklautstärke</strong></div><input type="range" id="optMusicVol" min="0" max="1" step="0.05" value="${opts.musicVol ?? 0.5}" aria-label="Musiklautstärke"><b class="opt-val">${Math.round((opts.musicVol ?? 0.5) * 100)} %</b></div></section>` +
-      `<section class="opt-group"><h3>Grafik</h3>` +
-      seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
-      seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Hoch sieht schärfer aus, macht das Handy aber wärmer; Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
-      seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC 60 Bilder pro Sekunde (sonst gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. 60 ist flüssiger, macht das Handy aber warm.') +
-      seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
-      sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
-      sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +
-      sw('names', 'Namen der Bewohner', 'Namen unter Händlern und Helfern im Dorf.') +
-      (FS_OK ? `<div class="opt-row"><div class="opt-text"><strong>Vollbild</strong><small>Das Spiel füllt den ganzen Bildschirm. Esc beendet das Vollbild.</small></div>` +
-        `<button type="button" class="opt-switch${isFullscreen() ? ' on' : ''}" id="optFull" role="switch" aria-checked="${isFullscreen()}" aria-label="Vollbild"><i></i></button></div>` : '') + `</section>` +
-      `<section class="opt-group"><h3>Steuerung</h3>` +
-      sw('vibrate', 'Vibration', 'Kurzes Rütteln beim Schmieden und Tauschen (wo das Gerät es kann).') +
-      (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. Im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera, das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
-      keyOptionsHtml() +
-      `<section class="opt-group"><h3>Figur und Spiel</h3><div class="opt-btns">` +
-      `<button type="button" class="btn btn-ghost" data-go="hud">🧩 HUD anpassen</button>` +
-      `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
-      `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
-      `<button type="button" class="btn btn-ghost" data-go="help">❓ Hilfe</button>` +
-      `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
-      `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
-      `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>`;
+      pane = `<section class="opt-group"><h3>Sprache · Language</h3><div class="opt-row no-tr"><div class="opt-seg opt-langs">` +
+        Object.entries(LANGS).map(([id, v]) => `<button type="button" class="${i18n.lang === id ? 'on' : ''}" data-lang="${id}">${v}</button>`).join('') + `</div></div></section>`;
+    } else if (tab === 'audio') {
+      pane = `<section class="opt-group">` +
+        `<div class="opt-row"><div class="opt-text"><strong>Klänge</strong><small>Kampf, Monster, Beute und Schmied. Der Stummschalter am iPhone schaltet Klänge und Musik ebenfalls stumm.</small></div>` +
+        `<button type="button" class="opt-switch${sfx.on ? ' on' : ''}" id="optSound" role="switch" aria-checked="${sfx.on}" aria-label="Klänge"><i></i></button></div>` +
+        `<div class="opt-row"><div class="opt-text"><strong>Lautstärke</strong></div><input type="range" id="optVolume" min="0" max="1" step="0.05" value="${opts.volume}" aria-label="Lautstärke"><b class="opt-val">${Math.round(opts.volume * 100)} %</b></div>` +
+        sw('music', 'Musik', 'Entspannte Hintergrundmusik, passend zur Gegend (Dorf, Wald, Schnee, Wüste, Dungeon).') +
+        `<div class="opt-row"><div class="opt-text"><strong>Musiklautstärke</strong></div><input type="range" id="optMusicVol" min="0" max="1" step="0.05" value="${opts.musicVol ?? 0.5}" aria-label="Musiklautstärke"><b class="opt-val">${Math.round((opts.musicVol ?? 0.5) * 100)} %</b></div></section>`;
+    } else if (tab === 'grafik') {
+      pane = `<section class="opt-group">` +
+        seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
+        seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Hoch sieht schärfer aus, macht das Handy aber wärmer; Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
+        seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC 60 Bilder pro Sekunde (sonst gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. 60 ist flüssiger, macht das Handy aber warm.') +
+        seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
+        sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
+        sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +
+        sw('names', 'Namen der Bewohner', 'Namen unter Händlern und Helfern im Dorf.') +
+        (FS_OK ? `<div class="opt-row"><div class="opt-text"><strong>Vollbild</strong><small>Das Spiel füllt den ganzen Bildschirm. Esc beendet das Vollbild.</small></div>` +
+          `<button type="button" class="opt-switch${isFullscreen() ? ' on' : ''}" id="optFull" role="switch" aria-checked="${isFullscreen()}" aria-label="Vollbild"><i></i></button></div>` : '') + `</section>`;
+    } else if (tab === 'steuerung') {
+      pane = `<section class="opt-group"><h3>Steuerung</h3>` +
+        sw('vibrate', 'Vibration', 'Kurzes Rütteln beim Schmieden und Tauschen (wo das Gerät es kann).') +
+        (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. Im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera, das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
+        keyOptionsHtml('quick');
+    } else if (tab === 'tasten') {
+      pane = keyOptionsHtml('keys');
+    } else {
+      pane = `<section class="opt-group"><div class="opt-btns">` +
+        `<button type="button" class="btn btn-ghost" data-go="hud">🧩 HUD anpassen</button>` +
+        `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
+        `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
+        `<button type="button" class="btn btn-ghost" data-go="help">❓ Hilfe</button>` +
+        `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
+        `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
+        `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>`;
+    }
+    body.innerHTML =
+      `<nav class="opt-tabs" role="tablist" aria-label="Kategorien">` +
+      OPT_TABS.map((t) => `<button type="button" role="tab" id="optTab-${t.id}" class="opt-tab${t.id === tab ? ' on' : ''}" aria-selected="${t.id === tab}" aria-controls="optPane" data-tab="${t.id}">` +
+        `<span class="opt-tab-ico" aria-hidden="true">${t.icon}</span><span class="opt-tab-name">${t.label}</span></button>`).join('') +
+      `</nav><div class="opt-pane" id="optPane" role="tabpanel" aria-labelledby="optTab-${tab}" data-tab="${tab}">${pane}</div>`;
+    const nav = body.querySelector('.opt-tabs');
+    const paneEl = body.querySelector('.opt-pane');
+    nav.scrollLeft = keepNav;
+    paneEl.scrollTop = keepScroll;
+    // gewählten Reiter in der wischbaren Leiste (Handy) sichtbar halten, ohne das Fenster selbst zu verschieben
+    const on = nav.querySelector('.opt-tab.on');
+    if (on && nav.scrollWidth > nav.clientWidth) {
+      if (on.offsetLeft < nav.scrollLeft) nav.scrollLeft = on.offsetLeft - 8;
+      else if (on.offsetLeft + on.offsetWidth > nav.scrollLeft + nav.clientWidth) nav.scrollLeft = on.offsetLeft + on.offsetWidth - nav.clientWidth + 8;
+    }
+    nav.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => this.setTab(b.dataset.tab)));
     body.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
     body.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
       setOpt(b.dataset.sw, !opts[b.dataset.sw]);
@@ -143,18 +202,21 @@ const options = {
     }));
     wireKeyOptions(body, () => this.render());
     if ($('optFull')) $('optFull').addEventListener('click', toggleFullscreen);
-    $('optSound').addEventListener('click', () => {
+    // seit 13.62: Ton-Regler gibt es nur im Reiter Audio
+    if ($('optSound')) $('optSound').addEventListener('click', () => {
       sfx.toggle();
       this.render();
     });
     const vol = $('optVolume');
-    vol.addEventListener('input', () => {
-      setOpt('volume', Number(vol.value));
-      vol.nextElementSibling.textContent = Math.round(opts.volume * 100) + ' %';
-    });
-    vol.addEventListener('change', () => sfx.clang(1));
+    if (vol) {
+      vol.addEventListener('input', () => {
+        setOpt('volume', Number(vol.value));
+        vol.nextElementSibling.textContent = Math.round(opts.volume * 100) + ' %';
+      });
+      vol.addEventListener('change', () => sfx.clang(1));
+    }
     const mvol = $('optMusicVol');
-    mvol.addEventListener('input', () => {
+    if (mvol) mvol.addEventListener('input', () => {
       setOpt('musicVol', Number(mvol.value));
       mvol.nextElementSibling.textContent = Math.round(opts.musicVol * 100) + ' %';
     });

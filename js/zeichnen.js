@@ -1521,6 +1521,24 @@ function drawLabel(ctx, e) {
   if (e.hp < e.maxHp || targeted || e.isStone) {
     drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
   }
+  // Ziel (seit 13.62): roter, wippender Zielpfeil über dem Namen – das gewählte Monster (Tab oder Antippen) ist
+  // auf einen Blick zu erkennen, auch im Gedränge
+  if (targeted) {
+    const by = top - lab.base - 7 - Math.abs(Math.sin(game.time * 5)) * 4;
+    ctx.save();
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = 'rgba(20,6,4,0.9)';
+    ctx.fillStyle = '#ff3a2a';
+    ctx.beginPath();
+    ctx.moveTo(e.x - 7, by - 8);
+    ctx.lineTo(e.x + 7, by - 8);
+    ctx.lineTo(e.x, by);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
 // Minikarte, große Karte und Wegweiser: siehe karte.js (seit 8.8)

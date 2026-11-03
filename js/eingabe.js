@@ -363,12 +363,30 @@ function setupTouch() {
   }, { once: true, passive: true });
 }
 
+// Tab: nächstes Ziel (seit 13.62 stabil und weiter): reicht so weit wie der Angriff plus Rand (mindestens 560, mit
+// Bogen weiter). Jeder Druck nimmt das nächstgelegene Monster, das in dieser Runde noch nicht dran war – vorher wurde
+// bei jedem Druck neu nach Entfernung sortiert, und weil die Monster laufen, sprang Tab oft auf dasselbe zurück.
+// Sind alle einmal dran gewesen, beginnt die Runde von vorn (beim nächsten zum aktuellen).
+const TAB = { seen: new Set(), at: 0 };
 function cycleTarget() {
   const p = game.player;
-  const list = aliveEnemies().filter((m) => dist(m, p) < 320).sort((a, b) => dist(a, p) - dist(b, p));
+  if (!p) return;
+  const reach = Math.max(560, (typeof basicAttack === 'function' ? basicAttack(p).range : 0) + 200);
+  const list = aliveEnemies().filter((m) => !m.hidden && !m.duelProxy && dist(m, p) < reach).sort((a, b) => dist(a, p) - dist(b, p));
   if (!list.length) return;
-  const i = list.indexOf(game.target);
-  game.target = list[(i + 1) % list.length];
+  // nach einer Pause von 4 s beginnt eine neue Runde
+  if (game.time - TAB.at > 4) TAB.seen.clear();
+  TAB.at = game.time;
+  if (game.target) TAB.seen.add(game.target.id);
+  let next = list.find((m) => !TAB.seen.has(m.id));
+  if (!next) {
+    TAB.seen.clear();
+    if (game.target) TAB.seen.add(game.target.id);
+    next = list.find((m) => m !== game.target) || list[0];
+  }
+  TAB.seen.add(next.id);
+  game.target = next;
+  faceTowards(next.x, next.y);
 }
 
 function interact() {

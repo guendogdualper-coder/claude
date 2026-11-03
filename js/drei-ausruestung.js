@@ -433,40 +433,125 @@ function capeEdge3(edge, u, i, len) {
   }
 }
 
+// Seit 13.62: Der Umhang ist kein Zylinderstück mehr, das zu eng am Rücken saß (die Brustrüstung stach oben durch,
+// er wirkte wie ein flaches Brett, das erst mitten am Rücken anfing). Jetzt: oben legt er sich als Kragen um den
+// Nacken und über beide Schultern, fällt mit Abstand über Rüstung und Köcherriemen den Rücken hinab, wird zum
+// Saum hin weiter, hat Falten, die unten tiefer werden, und eine Stoffdicke mit Futter. Maße passen sich dem
+// Körperbau an (capeSpec3).
+function capeSpec3(base, g) {
+  const bk = g ? g.shX / 0.25 : 1;
+  const sx = Math.round((g ? g.shX : 0.25) * 1000) / 1000;
+  return Object.assign({}, base, {
+    key: `${base.len},${base.r2},${base.edge},${sx}`,
+    rxTop: sx + 0.035,
+    rzTop: 0.17 * bk,
+    rzBack: 0.27 * bk,
+    rxHem: Math.max(sx + 0.06, base.r2 + 0.05),
+    rzHem: 0.3 * bk + (base.r2 - 0.3) * 0.5
+  });
+}
+const CAPE3_NU = CAPE3_SEG * 2;
+const CAPE3_NV = 12;
+const smooth3 = (a, b, x) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+// Saumverlauf an einer beliebigen Stelle u (zwischen den Saumzacken weich verbunden)
+function capeEdgeAt3(spec, u) {
+  const f = Math.max(0, Math.min(1, u)) * CAPE3_SEG;
+  const i0 = Math.floor(f);
+  const i1 = Math.min(CAPE3_SEG, i0 + 1);
+  const k = f - i0;
+  return capeEdge3(spec.edge, i0 / CAPE3_SEG, i0, spec.len) * (1 - k) + capeEdge3(spec.edge, i1 / CAPE3_SEG, i1, spec.len) * k;
+}
+// Punkt auf dem Umhang: u quer (0 … 1), v nach unten (0 … 1), etwas vor (+) oder hinter (−) dem Tuch
+function capeAt3(spec, u, v, out = 0) {
+  if (!spec.rxTop) spec = capeSpec3(spec, null);
+  // Breite des Tuchs um den Körper: oben über die Schultern (fast bis vorn), ab den Schulterblättern nur noch hinten
+  const arc = 1.78 - 0.62 * smooth3(0, 0.38, v) - 0.08 * smooth3(0.4, 1, v);
+  const th = (u - 0.5) * 2 * arc;
+  // Abstand zum Körper: Kragen eng am Nacken, dann über Rüstung und Riemen, unten weiter ausgestellt
+  const neck = smooth3(0, 0.1, v);
+  const rx = spec.rxTop + (spec.rxHem - spec.rxTop) * smooth3(0.15, 1, v);
+  const rz = spec.rzTop + (spec.rzBack - spec.rzTop) * neck + (spec.rzHem - spec.rzBack) * smooth3(0.3, 1, v);
+  // Falten: laufen am Kragen zusammen und werden zum Saum hin tiefer
+  const fold = Math.sin(u * Math.PI * 9 + 0.6) * (0.004 + 0.02 * smooth3(0.05, 1, v)) + Math.sin(u * Math.PI * 4 + 1.3) * 0.006 * v;
+  const d = fold - out;
+  // über den Schultern sinkt die obere Kante etwas ab
+  const sh = -0.05 * Math.pow(Math.abs(th) / 1.78, 2) * (1 - neck);
+  const hem = capeEdgeAt3(spec, u) * Math.pow(Math.min(1, v), 5);
+  return [Math.sin(th) * (rx + d), -spec.len * v + sh + hem, -Math.cos(th) * (rz + d)];
+}
+
 function capeGeo3(spec, inner) {
-  return geo3(`cape3:${spec.len},${spec.r2},${spec.edge},${inner ? 1 : 0}`, () => {
-    const r1 = inner ? 0.21 : 0.225;
-    const r2 = spec.r2 - (inner ? 0.015 : 0);
-    const hs = 4;
-    const g = new THREE.CylinderGeometry(r1, r2, spec.len, CAPE3_SEG, hs, true, Math.PI - CAPE3_ARC / 2, CAPE3_ARC);
-    const P = g.attributes.position;
-    for (let ix = 0; ix <= CAPE3_SEG; ix++) {
-      const dy = capeEdge3(spec.edge, ix / CAPE3_SEG, ix, spec.len);
-      P.setY(hs * (CAPE3_SEG + 1) + ix, P.getY(hs * (CAPE3_SEG + 1) + ix) + dy);
-      P.setY((hs - 1) * (CAPE3_SEG + 1) + ix, P.getY((hs - 1) * (CAPE3_SEG + 1) + ix) + dy * 0.35);
+  return geo3(`cape4:${spec.key},${inner ? 1 : 0}`, () => {
+    const NU = CAPE3_NU;
+    const NV = CAPE3_NV;
+    const pos = [];
+    const idx = [];
+    for (let j = 0; j <= NV; j++) {
+      // dichter am Kragen und am Saum, wo sich die Form am stärksten ändert
+      const v = 0.5 - Math.cos((j / NV) * Math.PI) * 0.5;
+      for (let i = 0; i <= NU; i++) pos.push(...capeAt3(spec, i / NU, v, inner ? 0.013 : 0));
     }
+    for (let j = 0; j < NV; j++) {
+      for (let i = 0; i < NU; i++) {
+        const a = j * (NU + 1) + i;
+        const b = a + 1;
+        const c = a + NU + 1;
+        const d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
     g.computeVertexNormals();
-    g.translate(0, -spec.len / 2, 0);
     return inner ? flipGeo(g) : g;
   });
 }
 
-// Punkt auf dem Umhang: u quer (0 … 1), v nach unten (0 … 1), etwas vor (+) oder hinter (−) dem Tuch
-function capeAt3(spec, u, v, out = 0) {
-  const th = Math.PI - CAPE3_ARC / 2 + u * CAPE3_ARC;
-  const r = 0.225 + (spec.r2 - 0.225) * v - out;
-  return [Math.sin(th) * r, -spec.len * v, Math.cos(th) * r];
+// Saumborte entlang der wirklichen Unterkante (Goldrand, leuchtender Saum)
+function capeHem3(W, spec, color, r, o = {}) {
+  const n = CAPE3_SEG * 2;
+  let prev = null;
+  for (let i = 0; i <= n; i++) {
+    const p = capeAt3(spec, i / n, 1, -0.004);
+    if (prev) limbBetween(W, prev, p, r, r, color, Object.assign({ seg: 4 }, o));
+    prev = p;
+  }
+}
+
+// Seitenkanten des Tuchs: eine schmale Borte von der Schulter bis zum Saum (ab Stufe 2)
+function capeSides3(W, spec, color, r, o = {}) {
+  for (const u of [0, 1]) {
+    let prev = null;
+    for (let k = 0; k <= 8; k++) {
+      const p = capeAt3(spec, u, k / 8, -0.003);
+      if (prev) limbBetween(W, prev, p, r, r, color, Object.assign({ seg: 4 }, o));
+      prev = p;
+    }
+  }
 }
 
 function gearCape3(A, g, t, color, lining) {
   if (t < 0) return;
-  const spec = CAPE3[t];
-  const top = [0, g.shY + 0.02, 0.02];
+  const spec = capeSpec3(CAPE3[t], g);
+  const top = [0, g.shY + 0.03, 0];
   const W = frame3(A, BH.cape, top);
-  W(capeGeo3(spec, false), color, { shade: 0.25 });
+  W(capeGeo3(spec, false), color, { shade: 0.3, top: lighter(color, 0.1), topK: 0.25 });
   W(capeGeo3(spec, true), lining || darker(color, 0.25), {});
   const metal = TIER_METAL[t];
-  const hem = (c, o = {}) => W(torus3(spec.r2 + 0.002, 0.014, CAPE3_ARC, 3, CAPE3_SEG), c, Object.assign({ p: [0, -spec.len, 0], r: [Math.PI / 2, 0, -Math.PI / 2 - CAPE3_ARC / 2], order: 'XYZ' }, o));
+  const hem = (c, o = {}) => capeHem3(W, spec, c, 0.013, o);
+  // seit 13.62: Saum und Seitenkanten in dunklerem Ton (ab Stufe 2 mit Metallfaden), Schließen vorn an beiden
+  // Schultern mit einer Kordel quer über die Brust
+  if (t !== 4 && t !== 7) capeHem3(W, spec, darker(color, 0.28), 0.009);
+  if (t >= 2) capeSides3(W, spec, t >= 6 ? metal : darker(color, 0.2), 0.006, t >= 6 ? { shine: 0.9 } : {});
+  const clasp = [capeAt3(spec, 0.015, 0.03, -0.006), capeAt3(spec, 0.985, 0.03, -0.006)];
+  for (const c of clasp) W(sphere3(0.022, 8, 6), t >= 1 ? metal : '#5a4632', { p: c, s: [1, 1, 0.7], shine: 1 });
+  const mid = [0, clasp[0][1] - 0.07, 0.19 * (g.shX / 0.25)];
+  limbBetween(W, clasp[0], mid, 0.007, 0.007, t >= 3 ? metal : darker(color, 0.35), { seg: 4, shine: t >= 3 ? 0.8 : 0 });
+  limbBetween(W, mid, clasp[1], 0.007, 0.007, t >= 3 ? metal : darker(color, 0.35), { seg: 4, shine: t >= 3 ? 0.8 : 0 });
   switch (t) {
     case 1:
       // gerollte Kapuze im Nacken und Schließen vorn an den Schultern
