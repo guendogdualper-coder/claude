@@ -24,6 +24,11 @@
     "handleApplicationNotifications": true
   },
   "plugins": {
+    "SystemBars": {
+      "hidden": true,
+      "style": "DARK",
+      "animation": "NONE"
+    },
     "SplashScreen": {
       "launchShowDuration": 1500,
       "launchAutoHide": true,
@@ -33,8 +38,7 @@
     },
     "StatusBar": {
       "overlaysWebView": true,
-      "style": "DARK",
-      "backgroundColor": "#12100C"
+      "style": "DARK"
     }
   }
 }

@@ -5,14 +5,12 @@ import Capacitor
 /// Hauptansicht der App: ein Capacitor-WebView, das https://seelenstein.online/ lädt (siehe capacitor.config.json).
 ///
 /// Hier wird nur eingestellt, was sich nicht über capacitor.config.json regeln lässt:
-/// - Vollbild für ein Spiel: Home-Leiste blendet sich aus, Wischgesten am Rand lösen nicht sofort das System aus
+/// - Wischgesten am Rand lösen nicht sofort das System aus (Statusleiste und Home-Leiste blendet das in Capacitor
+///   eingebaute Plugin „SystemBars“ aus, siehe capacitor.config.json → plugins.SystemBars.hidden)
 /// - kein Gummiband-Effekt, keine Zurück-Wischgeste, keine Link-Vorschau
 /// - Ton und Musik dürfen ohne extra Tippen starten (Web Audio, <audio>)
 /// - Bildschirm bleibt an, solange die App im Vordergrund ist (wie bei Spielen üblich)
 class SeelensteinViewController: CAPBridgeViewController {
-
-    // Home-Leiste (Strich unten) nach kurzer Zeit ausblenden
-    override var prefersHomeIndicatorAutoHidden: Bool { true }
 
     // Wischen vom Rand: erst beim zweiten Wischen reagiert das System – sonst landet man mitten im Kampf im Kontrollzentrum
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }
