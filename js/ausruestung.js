@@ -505,6 +505,32 @@ function allSkills() {
 }
 const skillEntry = (id) => allSkills().find((e) => e.sk.id === id);
 const isBook = (item) => !!(item && item.book);
+
+// Tasche sortieren (seit 13.82): Ausrüstung nach Platz (Waffe, Helm, Rüstung …), darin zuerst, was die Figur tragen
+// kann, dann Seltenheit, Gegenstandsstufe und Plus absteigend; danach Fertigkeitsbücher (eigene Klasse zuerst), dann
+// alles Übrige. Die Reihenfolge innerhalb gleicher Teile bleibt erhalten (stabile Sortierung).
+const SORT_SLOT_ORDER = ['waffe', 'schild', 'helm', 'ruestung', 'schultern', 'umhang', 'guertel', 'schuhe', 'koecher'];
+function sortInventory(p) {
+  if (!p || !Array.isArray(p.inventory) || p.inventory.length < 2) return false;
+  const ownSkills = new Set((typeof classSkills === 'function' ? classSkills(p) : []).map((sk) => sk.id));
+  const key = (it) => {
+    if (!it) return [9, 0, 0, 0, 0, 0];
+    if (isBook(it)) return [7, ownSkills.has(it.book) ? 0 : 1, 0, 0, 0, 0];
+    const slot = SORT_SLOT_ORDER.indexOf(it.slot);
+    if (slot < 0) return [8, 0, 0, 0, 0, 0];
+    let wear = 1;
+    try { wear = canWear(it, p) ? 0 : 1; } catch (e) { /* alte Teile */ }
+    return [0, slot, wear, -rarityOf(it), -(it.tier || 0), -(it.plus || 0)];
+  };
+  const before = p.inventory.slice();
+  const sorted = before.map((it, i) => ({ it, i, k: key(it) })).sort((a, b) => {
+    for (let n = 0; n < a.k.length; n++) if (a.k[n] !== b.k[n]) return a.k[n] - b.k[n];
+    return a.i - b.i;
+  }).map((x) => x.it);
+  const changed = sorted.some((it, i) => it !== before[i]);
+  if (changed) p.inventory.splice(0, p.inventory.length, ...sorted);
+  return changed;
+}
 const ownBook = (p, id) => classSkills(p).some((sk) => sk.id === id);
 
 function bookCount(p, id) {
@@ -1964,7 +1990,8 @@ const gear = {
         `<button type="button" class="mini-btn ${this.multiArmed ? 'danger' : 'btn-sell'}" data-multi="sell" ${this.multi.size ? '' : 'disabled'}>${this.multiArmed ? 'Wirklich verkaufen?' : 'Verkaufen'}</button>` +
         `<button type="button" class="mini-btn" data-multi="cancel">Fertig</button></div>`;
     } else {
-      sellBar = `<div class="multi-bar"><button type="button" class="mini-btn" data-multi="start" ${trader ? '' : 'disabled'}>Mehrere verkaufen</button>` +
+      sellBar = `<div class="multi-bar"><button type="button" class="mini-btn" data-sort-bag title="Tasche nach Art, Seltenheit und Stufe ordnen">⇅ Sortieren</button>` +
+        `<button type="button" class="mini-btn" data-multi="start" ${trader ? '' : 'disabled'}>Mehrere verkaufen</button>` +
         `<small class="hint-text">${trader ? `${trader.name} kauft deine Sachen.` : 'Verkaufen geht nur bei einem Händler im Dorf.'}</small></div>`;
     }
     document.getElementById('invBody').innerHTML =
@@ -2063,6 +2090,16 @@ const gear = {
       this.renderInventory();
     }));
     body.querySelectorAll('[data-multi]').forEach((b) => b.addEventListener('click', () => this.multiAction(b.dataset.multi)));
+    const sortBtn = body.querySelector('[data-sort-bag]');
+    if (sortBtn) sortBtn.addEventListener('click', () => {
+      const changed = sortInventory(p);
+      this.selected = null;
+      this.page = 0;
+      if (changed && typeof saveGame === 'function') saveGame();
+      this.renderInventory();
+      const msg = document.getElementById('invMsg');
+      if (msg) msg.textContent = changed ? 'Tasche sortiert.' : 'Die Tasche ist schon sortiert.';
+    });
     if (this.multi) {
       document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Schriftrollen, die nicht zu deinen Fertigkeiten gehören.</p>';
       return;
