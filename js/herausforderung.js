@@ -173,14 +173,16 @@ function arenaWave(L, w) {
     gaps: Array.from({ length: batches - 1 }, (_, k) => 10 + 2 * k)
   };
 }
-// Gold je geschaffter Welle (seit 13.70 fest): 2.000 × Welle – Welle 1 2.000, Welle 5 10.000, Welle 10 20.000.
+// Gold je geschaffter Welle: seit 13.71 nach Stufe – Schritt je Welle = 200 + 20 × Stufe (Stufe 10: 400, Stufe 30: 800,
+// Stufe 50: 1.200, Stufe 80: 1.800), Welle w bringt Schritt × w. 13.70 zahlte fest 2.000 × Welle, das war vor allem auf
+// niedrigen Stufen viel zu viel (bis 16× normales Farmen); jetzt etwa das 2- bis 3-Fache.
 // Ausgezahlt wird beim Verlassen oder Aufgeben; wer alle drei Leben verliert, verliert das Gold dieses Laufs.
-const ARENA_GOLD_STEP = 2000;
+const arenaGoldStep = (L) => 200 + 20 * Math.max(1, L | 0);
 function arenaGold(L, w) {
-  return ARENA_GOLD_STEP * Math.max(1, w | 0);
+  return arenaGoldStep(L) * Math.max(1, w | 0);
 }
 // Gold aller Wellen bis einschließlich w
-const arenaGoldSum = (w) => (ARENA_GOLD_STEP * w * (w + 1)) / 2;
+const arenaGoldSum = (w, L) => (arenaGoldStep(L) * w * (w + 1)) / 2;
 // Monsterarten aus den Gebieten der Stufe (draußen, keine Bosse, keine Nachtmonster); ab Welle 6 auch Dungeon-Monster.
 // In den ersten drei Wellen nur die leichteren (höchstens 1,6-faches Leben): viele, aber einfache Monster
 function arenaPool(L, w) {
@@ -831,7 +833,7 @@ function arenaRenderMaster(npc) {
     `<p class="quest-step">Herausforderung · allein · ab Stufe ${ARENA.minLevel}</p>` +
     `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du ganz allein gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
     `<p><strong>Gold je geschaffter Welle:</strong></p><ul class="reward-list">${rows}</ul>` +
-    `<p>Bis Welle 10 zusammen: ${arenaFmt(arenaGoldSum(10))} Gold</p>` +
+    `<p>Bis Welle 10 zusammen: ${arenaFmt(arenaGoldSum(10, L))} Gold</p>` +
     `<p class="hint-text">Die Monster kommen in Schüben nach der Uhr, nicht erst, wenn eines fällt. Sie geben volle Erfahrung und ihr normales Gold, aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
     `<p class="hint-text">Du hast ${ARENA.lives} Leben. Nach einem Tod startest du in der Arena neu; beim dritten Tod ist der Lauf vorbei und das gesammelte Gold verloren. Das Wellengold wird ausgezahlt, wenn du die Arena verlässt oder aufgibst.</p>` +
     (party ? '<p class="hint-text">Deine Gruppe wartet draußen – in die Arena geht jeder allein.</p>' : '') +
