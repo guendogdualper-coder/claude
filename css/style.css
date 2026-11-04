@@ -29,6 +29,8 @@
 [hidden] { display: none !important; }
 
 html, body { height: 100%; }
+/* seit 13.75: das Dokument selbst nie verschiebbar (iOS meldet beim Start der App quer die Höhe manchmal zu klein) */
+html { overflow: hidden; overscroll-behavior: none; }
 
 body {
   margin: 0;

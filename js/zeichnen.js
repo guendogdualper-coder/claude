@@ -50,18 +50,29 @@ function checkViewSize() {
   const ae = document.activeElement;
   if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return;
   if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+  if (document.scrollingElement && document.scrollingElement.scrollTop) document.scrollingElement.scrollTop = 0;
   const { w, h } = viewSize();
   // feste Höhe nur, wenn iOS zu wenig meldet; sonst bestimmt wieder das Fenster die Höhe
   const want = h !== window.innerHeight ? h + 'px' : '';
   if (document.documentElement.style.height !== want) {
     document.documentElement.style.height = want;
     document.body.style.height = want;
+    // seit 13.75: auch Spielfläche und Anzeigen auf diese Höhe setzen. Sie hängen mit position: fixed an der
+    // (zu kleinen) Fensterhöhe, die iOS beim Start der Home-Bildschirm-App quer meldet – unten blieb ein Streifen,
+    // die Seite ließ sich dorthin verschieben und wurde zweimal pro Sekunde zurückgeschoben: Flackern unten,
+    // bis man das Handy einmal drehte
+    for (const id of ['welt', 'welt3d', 'hud']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.style.bottom = want ? 'auto' : '';
+      el.style.height = want;
+    }
   }
   if (w !== r.w || h !== r.h || Math.abs(r.canvas.clientWidth - w) > 2 || Math.abs(r.canvas.clientHeight - h) > 2) resizeRenderer();
 }
 function resizeSoon() {
   renderer.resizeDue = true;
-  for (const ms of [150, 450, 1000, 2000]) setTimeout(checkViewSize, ms);
+  for (const ms of [150, 450, 1000, 2000, 3500]) setTimeout(checkViewSize, ms);
 }
 
 // Auflösung der Spielfläche: höchstens 2-fach. Läuft das Spiel zu langsam, senkt adaptQuality
