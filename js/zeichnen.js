@@ -1608,11 +1608,12 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
 // Seit 12.1 geht die Auflösung wieder hoch, wenn das Spiel länger flüssig läuft, und nach dem Zurückkehren
 // aus dem Hintergrund oder dem Drehen wird ein paar Sekunden nicht gemessen (dort ruckelt es immer kurz –
 // das senkte früher die Auflösung dauerhaft, das Bild blieb bis zum Neuladen unscharf).
-const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false, good: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
+const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false, good: 0, bad: 0, runAt: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
 function qualityPause(ms = 3000) {
   quality.frames.length = 0;
   quality.good = 0;
-  quality.pauseUntil = performance.now() + ms;
+  quality.bad = 0;
+  quality.pauseUntil = Math.max(quality.pauseUntil, performance.now() + ms);
 }
 // volle Auflösung der Grafikstufe zurück (z. B. nach dem Drehen ins Querformat)
 function qualityRestore() {
@@ -1623,20 +1624,36 @@ function qualityRestore() {
   if (V3.on) v3ApplyGraphics();
 }
 function adaptQuality(dtMs, cap) {
+  if (!game.running) quality.runAt = 0;
   if (!game.running || dtMs > 120 || document.hidden) return;
   // begrenzte Bildrate (Handy „Auto“ = 30): die Bildzeit ist gewollt lang. Seit 13.60 wird aber trotzdem nachgeregelt,
   // wenn das Gerät nicht einmal die 30 schafft – vorher lief am Handy die Anpassung nie, schwache Geräte blieben
   // auf voller Auflösung mit Schatten und ruckelten dauerhaft
   if (cap && opts.fps === '30') return;
-  if (performance.now() < quality.pauseUntil) return;
+  const now = performance.now();
+  // seit 13.74: im 30er-Takt die ersten 10 s nach dem Spielstart nicht messen. Dort bauen Welt und Shader auf
+  // (Vorwärmen, Kartenblöcke) – die langen Bilder senkten am Handy fast immer gleich Auflösung und Schatten
+  if (cap) {
+    if (!quality.runAt) quality.runAt = now;
+    if (now - quality.runAt < 10000) return;
+  }
+  if (now < quality.pauseUntil) return;
   quality.frames.push(dtMs);
   if (quality.frames.length < (cap ? 60 : 120)) return;
   const sorted = quality.frames.slice().sort((a, b) => a - b);
   quality.frames.length = 0;
   const median = sorted[sorted.length >> 1];
   if (cap) {
-    // 30er-Takt: nur absenken, wenn die Hälfte der Bilder deutlich länger als 33 ms braucht
-    if (median <= (1000 / cap) * 1.3) return;
+    // 30er-Takt: nur absenken, wenn die Hälfte der Bilder deutlich länger als 33 ms braucht – seit 13.74 erst, wenn
+    // das zwei Messungen hintereinander so ist (einzelne Hänger zählen nicht), und in eigener Reihenfolge (capQualityStep)
+    if (median <= (1000 / cap) * 1.3) {
+      quality.bad = 0;
+      return;
+    }
+    if (++quality.bad < 2) return;
+    quality.bad = 0;
+    capQualityStep();
+    return;
   } else if (median <= 20) {
     // länger richtig flüssig: eine Stufe Auflösung zurück. Seit 13.25 erst nach 60 s ohne Absenken und nur, solange
     // das nicht gleich wieder zum Ruckeln führt – sonst pendelte die Auflösung auf 120-Hz-Handys hin und her, und jeder
@@ -1673,4 +1690,29 @@ function adaptQuality(dtMs, cap) {
   } else if (opts.fps === 'auto') {
     quality.cap30 = true;
   }
+}
+// Nachregeln im 30er-Takt (Handy, seit 13.74): zuerst die Schatten aus, erst danach – wenn es dann immer noch zu
+// langsam ist – einmal die Auflösung, und zwar möglichst auf die halbe Bildschirmdichte (3-fach → 1,5: ganzzahlig
+// hochskaliert). Bis 13.71 ging es zuerst in zwei Schritten auf 1,7 und 1,45: krumm hochskaliert und ohne
+// Kantenglättung flimmerten Kanten, Pflaster und das Durchsicht-Raster beim Laufen sichtbar (Flackern am Handy).
+// Nach jeder Änderung 5 s nicht messen (der Neuaufbau der Shader bzw. Puffer ist selbst ein langes Bild).
+function capQualityStep() {
+  const r = renderer;
+  const dev = window.devicePixelRatio || 1;
+  const cur = Math.min(dev, r.maxDpr || 2);
+  if (V3.on && !quality.noShadow && gfx().castShadows) {
+    quality.noShadow = true;
+    v3ApplyGraphics();
+  } else if (quality.steps < 1) {
+    const minDpr = Math.min(gfx().dpr, 1.45);
+    const half = dev / 2;
+    const to = half >= minDpr && half < cur - 0.05 ? half : Math.max(minDpr, cur - 0.3);
+    if (to >= cur - 0.05) return;
+    quality.steps++;
+    quality.downAt = performance.now();
+    r.maxDpr = to;
+    resizeRenderer();
+    if (V3.on) v3ApplyGraphics();
+  } else return;
+  qualityPause(5000);
 }

@@ -1953,7 +1953,11 @@ function renderDrei() {
   // bauen – einmal kurz warten, dafür kein heller Himmel – und dunkel überblenden statt hell aufzublitzen
   const jumped = V3.lastFocus && Math.hypot(fx - V3.lastFocus.x, fy - V3.lastFocus.y) > 12 * TILE;
   V3.lastFocus = { x: fx, y: fy };
-  if (jumped) warpFade();
+  if (jumped) {
+    warpFade();
+    // seit 13.74: nach dem Sprung baut die neue Gegend auf – diese langen Bilder nicht als Ruckeln werten (zeichnen.js)
+    if (typeof qualityPause === 'function') qualityPause(4000);
+  }
   // Vorausschau (seit 11.6): Blöcke dort bauen, wo die Figur in einer knappen Sekunde ist (Pferd, Sprints)
   const vel = V3.vel || (V3.vel = { x: 0, y: 0, px: fx, py: fy });
   if (jumped || dt <= 0) { vel.x = 0; vel.y = 0; }

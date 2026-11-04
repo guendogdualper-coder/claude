@@ -358,7 +358,8 @@ function htWatch() {
     htState.el = el;
   }
   if (!inside) {
-    htState.el.hidden = true;
+    // seit 13.74 nur bei Änderung (vorher jedes Bild neu gesetzt: unnötige Neuberechnung der Seite)
+    if (!htState.el.hidden) htState.el.hidden = true;
     htState.inside = false;
     return;
   }

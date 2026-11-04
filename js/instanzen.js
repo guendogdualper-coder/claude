@@ -960,7 +960,8 @@ function instWatch() {
     instState.el = el;
   }
   if (!def) {
-    instState.el.hidden = true;
+    // seit 13.74 nur bei Änderung (vorher jedes Bild neu gesetzt: unnötige Neuberechnung der Seite)
+    if (!instState.el.hidden) instState.el.hidden = true;
     instState.inside = null;
     return;
   }
