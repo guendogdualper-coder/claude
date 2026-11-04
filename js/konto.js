@@ -289,6 +289,8 @@ async function accountLogin(kind, name, pass) {
   name = (name || '').trim();
   if (!ACCOUNT_NAME.test(name)) throw new Error('Der Kontoname braucht 3 bis 20 Zeichen: Buchstaben, Zahlen, - oder _.');
   if ((pass || '').length < 6) throw new Error('Das Passwort braucht mindestens 6 Zeichen.');
+  // seit 13.80: neue Kontonamen ohne Beleidigungen (spielerschutz.js); bestehende Konten können sich weiter anmelden
+  if (kind === 'register' && typeof nameAnstoessig === 'function' && nameAnstoessig(name)) throw new Error(NAME_ABGELEHNT);
   await accountAuth(kind === 'register' ? 'signUp' : 'signInWithPassword', name, pass);
   await accountSync();
 }

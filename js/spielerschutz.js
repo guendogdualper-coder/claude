@@ -367,19 +367,76 @@ function regelnFragen(then) {
   return false;
 }
 
-// --- Wortfilter (seit 13.79) -----------------------------------------------------------------------------
-// App-Store-Vorgabe (Apple 1.2) für Inhalte von Spielern: grobe Beleidigungen und Hetze in Chat, Sprechblasen und
-// Briefen werden durch *** ersetzt. Die Liste ist bewusst kurz und trifft nur eindeutige Wörter (auch mit
-// Leerzeichen/Zeichen dazwischen kaum umgehbar ist das nicht – dafür gibt es Melden und Blockieren).
-const WORTFILTER = [
-  'fick\\w*', 'gefickt\\w*', 'hurensohn\\w*', 'hurens[oö]hne\\w*', 'huren\\w*', 'hure', 'fotze\\w*', 'wichser\\w*', 'wixer\\w*',
-  'missgeburt\\w*', 'spast(?:i|en|is)?', 'mongos?', 'schlampe\\w*', 'nutte\\w*', 'arschloch\\w*', 'arschl[oö]cher', 'schwuchtel\\w*',
-  'kanake\\w*', 'neger\\w*', 'nigger\\w*', 'nigga\\w*', 'kinderficker\\w*', 'vergewaltig\\w*',
-  'fuck\\w*', 'motherfuck\\w*', 'bitch\\w*', 'cunt\\w*', 'whore\\w*', 'slut\\w*', 'faggot\\w*', 'fag', 'retard\\w*',
-  'asshole\\w*', 'dickhead\\w*', 'sieg\\s*heil', 'heil\\s*hitler', 'kys', 'kill\\s*yourself', 'bring\\s*dich\\s*um'
-];
-const WORTFILTER_RE = new RegExp('(^|[^\\p{L}\\p{N}])(' + WORTFILTER.join('|') + ')(?=$|[^\\p{L}\\p{N}])', 'giu');
+// --- Wortfilter (seit 13.79, gründlicher seit 13.80) --------------------------------------------------------
+// App-Store-Vorgaben (Apple 1.2, Google UGC): grobe Beleidigungen, Hetze und Obszönes werden in Chat, Sprechblasen,
+// Briefen und Gruppenfinder-Notizen durch *** ersetzt; Charakter-, Gilden- und Kontonamen damit werden abgelehnt.
+// Erkannt werden auch Umgehungen: Großschreibung, Umlaute, Ziffern statt Buchstaben (h0r3n…), Zeichen dazwischen
+// (f.i.c.k, f-i-c-k), einzeln getippte Buchstaben (f i c k) und gedehnte Wörter (fiiiick).
+// Die Wortstämme stehen schon „normalisiert“: klein, ä→a, ö→o, ü→u, ß→s, doppelte Buchstaben zu einem.
+// voll: trifft auch mitten im Wort (Drecks-fotze, duhurensohn); sonst nur am Wortanfang (fick, fickt, ficker …)
+const SCHIMPF_VOLL = ['hurensohn', 'hurenkind', 'fotz', 'wichser', 'wixer', 'misgeburt', 'schlampe', 'arschloch', 'arschloecher',
+  'arschlocher', 'schwuchtel', 'kinderficker', 'kinderschander', 'vergewaltig', 'motherfuck', 'muterficker', 'schwanzlutscher',
+  'drecksau', 'kanacke', 'kanake', 'niger', 'niga', 'fagot', 'retard', 'ashole', 'dickhead', 'siegheil', 'heilhitler', 'hitler',
+  'judensau', 'kilyourself', 'bringdichum', 'whore', 'cunt', 'bitch', 'fuck', 'fick'];
+const SCHIMPF_ANFANG = ['hure', 'spast', 'mongo', 'nute', 'neger', 'nazi', 'slut', 'fag', 'kys', 'gefickt', 'bastard', 'pisser',
+  'penner', 'opfa', 'hurn', 'fik', 'fuk', 'schlampn', 'wichs', 'titen', 'muschi', 'pimel', 'porn', 'sex'];
+const SCHIMPF_PAROLEN = ['siegheil', 'heilhitler', 'kilyourself', 'bringdichum', 'hurensohn', 'judensau'];
+// harmlose Wörter, die sonst getroffen würden
+const SCHIMPF_AUSNAHMEN = ['spastik', 'mongolei', 'mongolisch', 'mongole', 'nigeria', 'sexta', 'sext', 'sextant', 'schwanzfeder',
+  'schwanzflosse'];
+// reservierte Namen (Verwechslung mit dem Betreiber)
+const NAMEN_RESERVIERT = ['admin', 'moderator', 'support', 'gamemaster', 'spielleit', 'selensteinteam', 'system', 'betreiber'];
+// alle Listen in dieselbe Form bringen wie schimpfNorm (doppelte Buchstaben zu einem)
+for (const liste of [SCHIMPF_VOLL, SCHIMPF_ANFANG, SCHIMPF_AUSNAHMEN, NAMEN_RESERVIERT, SCHIMPF_PAROLEN]) {
+  liste.forEach((w, k) => { liste[k] = w.replace(/(.)\1+/g, '$1'); });
+}
+const LEET = { 0: 'o', 1: 'i', 2: 'z', 3: 'e', 4: 'a', 5: 's', 6: 'g', 7: 't', 8: 'b', 9: 'g', '@': 'a', $: 's', '!': 'i', '|': 'i', '€': 'e' };
+function schimpfNorm(t) {
+  let s = String(t || '').toLowerCase()
+    .replace(/[0-9@$!|€]/g, (c) => LEET[c] || c)
+    .replace(/ä/g, 'a').replace(/ö/g, 'o').replace(/ü/g, 'u').replace(/ß/g, 's')
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z]/g, '');
+  return s.replace(/(.)\1+/g, '$1');
+}
+// Ist ein schon normalisiertes Wort anstößig?
+function schimpfWort(n) {
+  if (!n || n.length < 3) return false;
+  if (SCHIMPF_AUSNAHMEN.some((a) => n.startsWith(a))) return false;
+  if (SCHIMPF_VOLL.some((w) => n.includes(w))) return true;
+  return SCHIMPF_ANFANG.some((w) => n.startsWith(w));
+}
+// Text: anstößige Wörter durch *** ersetzen (auch über Satzzeichen und einzeln getippte Buchstaben hinweg)
 function chatFilter(text) {
   if (typeof text !== 'string' || !text) return text;
-  return text.replace(WORTFILTER_RE, (m, vor, wort) => vor + '*'.repeat(Math.min(8, Math.max(3, wort.length))));
+  const teile = text.split(/(\s+)/); // gerade Indizes = Wörter, ungerade = Leerraum
+  const stern = (w) => '*'.repeat(Math.min(8, Math.max(3, w.length)));
+  for (let i = 0; i < teile.length; i += 2) if (schimpfWort(schimpfNorm(teile[i]))) teile[i] = stern(teile[i]);
+  // einzeln getippte Buchstaben (f i c k) zusammen prüfen
+  for (let i = 0; i < teile.length; i += 2) {
+    if (schimpfNorm(teile[i]).length !== 1) continue;
+    let j = i;
+    while (j + 2 < teile.length && schimpfNorm(teile[j + 2]).length === 1) j += 2;
+    if (j > i) {
+      const zusammen = schimpfNorm(teile.slice(i, j + 1).filter((_, k) => k % 2 === 0).join(''));
+      if (schimpfWort(zusammen) || SCHIMPF_VOLL.some((w) => zusammen.includes(w))) for (let k = i; k <= j; k += 2) teile[k] = '*';
+    }
+    i = j;
+  }
+  let out = teile.join('');
+  // Parolen über mehrere Wörter (sieg heil, kill yourself …): ganze Nachricht ausblenden
+  const kompakt = schimpfNorm(out);
+  if (SCHIMPF_PAROLEN.some((w) => kompakt.includes(w))) out = '***';
+  return out;
 }
+// Namen (Charakter, Gilde, Konto): anstößig, wenn irgendwo darin ein Schimpfwort steckt oder er reserviert ist
+function nameAnstoessig(name) {
+  const n = schimpfNorm(name);
+  if (!n) return false;
+  if (NAMEN_RESERVIERT.some((r) => n.includes(r))) return true;
+  if (SCHIMPF_AUSNAHMEN.some((a) => n.startsWith(a)) && !SCHIMPF_VOLL.some((w) => n.includes(w))) return false;
+  if (SCHIMPF_VOLL.some((w) => n.includes(w))) return true;
+  // Wortstämme vom Anfang: am Namensanfang oder nach Leerzeichen/Bindestrich/Unterstrich
+  return String(name).toLowerCase().split(/[\s_-]+/).some((t) => schimpfWort(schimpfNorm(t)));
+}
+const NAME_ABGELEHNT = 'Dieser Name ist nicht erlaubt (beleidigend, anstößig oder reserviert). Bitte wähle einen anderen.';

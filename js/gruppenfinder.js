@@ -641,7 +641,7 @@ function gfMineHtml() {
     const n = l.m.length;
     return `<h3>Deine Gruppe <small>· Anführer</small></h3><div class="gf-card mine">` +
       `<div class="gf-card-head"><div><strong>${escapeHtml(act.name)}</strong><small>${escapeHtml(gfCatName(act.cat))}${act.sub ? ' · ' + escapeHtml(act.sub) : ''} · ab Stufe ${l.ml}</small></div><span class="gf-count">${n}/${l.sz}</span></div>` +
-      (l.note ? `<p class="gf-note">„${escapeHtml(l.note)}“</p>` : '') + gfStatusHtml(act) +
+      (l.note ? `<p class="gf-note">„${escapeHtml(typeof chatFilter === 'function' ? chatFilter(l.note) : l.note)}“</p>` : '') + gfStatusHtml(act) +
       `<div class="gf-mems">${gfMemberRows(l, act, true)}</div>${gfCompLine(l, act)}` +
       ((gf.mine.reqs || []).length ? '<div class="gf-reqs"><small>Anfragen</small>' + gf.mine.reqs.map((r) => `<div class="gf-mem">${gfRoleIcon(r.r)}<span class="gf-mem-txt"><span class="gf-mem-name">${escapeHtml(r.n)}</span>` +
         `<small>${escapeHtml(CLASSES[r.c].name)} · Stufe ${r.l || '?'}</small></span><button type="button" class="mini-btn primary" data-gfreq="${escapeHtml(r.n)}" data-ok="1">Annehmen</button>` +
@@ -657,7 +657,7 @@ function gfMineHtml() {
     const act = gfAct(jl.a);
     return `<h3>Deine Gruppe</h3><div class="gf-card mine">` +
       `<div class="gf-card-head"><div><strong>${escapeHtml(act.name)}</strong><small>Anführer: ${escapeHtml(jl.lead)} · ab Stufe ${jl.ml}</small></div><span class="gf-count">${jl.m.length}/${jl.sz}</span></div>` +
-      (jl.note ? `<p class="gf-note">„${escapeHtml(jl.note)}“</p>` : '') + gfStatusHtml(act) +
+      (jl.note ? `<p class="gf-note">„${escapeHtml(typeof chatFilter === 'function' ? chatFilter(jl.note) : jl.note)}“</p>` : '') + gfStatusHtml(act) +
       `<div class="gf-mems">${gfMemberRows(jl, act, false)}</div>${gfCompLine(jl, act)}` +
       `<div class="gf-actions"><button type="button" class="btn btn-ghost" id="btnPartyLeave">Gruppe verlassen</button></div>` +
       `<p class="hint-text">Ist die Gruppe voll oder drückt ${escapeHtml(jl.lead)} „Los“, kommt eine Bereitschaftsabfrage – danach geht es gemeinsam zum Eingang.</p></div>`;
@@ -727,7 +727,7 @@ function gfListHtml() {
     const block = gfJoinBlock(l);
     return `<div class="gf-card"><div class="gf-card-head"><div><strong>${escapeHtml(act.name)}</strong><small>${escapeHtml(gfCatName(act.cat))} · Anführer: ${escapeHtml(l.lead)} · ab Stufe ${l.ml}</small></div>` +
       `<span class="gf-count">${l.m.length}/${l.sz}</span></div>` +
-      (l.note ? `<p class="gf-note">„${escapeHtml(l.note)}“</p>` : '') + gfStatusHtml(act) +
+      (l.note ? `<p class="gf-note">„${escapeHtml(typeof chatFilter === 'function' ? chatFilter(l.note) : l.note)}“</p>` : '') + gfStatusHtml(act) +
       `<div class="gf-mems">${gfMemberRows(l, act, false)}</div>${gfCompLine(l, act)}` +
       `<div class="gf-actions"><button type="button" class="btn btn-primary" data-gfjoin="${escapeHtml(l.lead)}"${block ? ' disabled' : ''}>${block ? escapeHtml(block) : (l.auto ? 'Beitreten' : 'Beitritt anfragen')}</button>` +
       `<span class="hint-text">als ${gfRoleIcon(gfMyRole(), 'inline')} ${GF_ROLES[gfMyRole()].name}</span></div></div>`;

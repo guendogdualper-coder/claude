@@ -127,6 +127,12 @@ const ui = {
         $('createError').hidden = false;
         return;
       }
+      // seit 13.80: keine beleidigenden oder reservierten Namen (spielerschutz.js)
+      if (typeof nameAnstoessig === 'function' && nameAnstoessig(name)) {
+        $('createError').textContent = NAME_ABGELEHNT;
+        $('createError').hidden = false;
+        return;
+      }
       const save = newCharacter(name, this.selectedClass, this.selectedPath, this.createLook || DEFAULT_LOOKS[this.selectedClass]);
       const free = listSaves().findIndex((sv) => !sv);
       if (free < 0) {

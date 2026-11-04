@@ -424,6 +424,7 @@
 "Audio": "Audio",
 "Sprache": "Language",
 "Kategorien": "Categories",
+"Dieser Name ist nicht erlaubt (beleidigend, anstößig oder reserviert). Bitte wähle einen anderen.": "This name is not allowed (offensive, inappropriate or reserved). Please choose another one.",
 "Verhaltensregeln": "Code of Conduct",
 "Damit Seelenstein für alle Spaß macht, gilt im Chat, in Briefen, bei Namen und beim Handeln:": "To keep Seelenstein fun for everyone, these rules apply to chat, letters, names and trading:",
 "keine Beleidigungen, Drohungen oder Belästigung": "no insults, threats or harassment",

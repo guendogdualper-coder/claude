@@ -169,6 +169,8 @@ function foundGuild(rawName) {
   if (p.level < GUILD.level) return `Eine Gilde kannst du ab Stufe ${GUILD.level} gründen.`;
   if (name.length < 3 || name.length > 16) return 'Der Gildenname braucht 3 bis 16 Zeichen.';
   if (!/^[\p{L}\p{N} '-]+$/u.test(name)) return 'Bitte nur Buchstaben, Zahlen, Leerzeichen und Bindestriche.';
+  // seit 13.80: keine beleidigenden oder reservierten Gildennamen (spielerschutz.js)
+  if (typeof nameAnstoessig === 'function' && nameAnstoessig(name)) return NAME_ABGELEHNT;
   if (p.gold < GUILD.price) return `Dir fehlen ${(GUILD.price - p.gold).toLocaleString('de-DE')} Gold.`;
   p.gold -= GUILD.price;
   p.guild = { name, leader: p.name, created: Date.now(), members: [{ n: p.name, c: p.classId, l: p.level, r: 'Anführer' }], left: [] };
