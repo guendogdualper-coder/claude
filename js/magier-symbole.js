@@ -682,6 +682,21 @@ Object.assign(BUFF_LOOKS, {
     }
     ctx.restore();
   },
+  // Glutmantel (Ultimate-Buff des Inferno, seit 13.69): roter Glutschimmer und aufsteigende Funken
+  glutmantel(ctx, p, fy, t, layer) {
+    if (layer === 'back') {
+      glow(ctx, p.x, fy - 18, 26, '#e8362a', 0.18 + 0.06 * Math.sin(t * 4));
+      return;
+    }
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let k = 0; k < 5; k++) {
+      const u = (t * 0.8 + k / 5) % 1;
+      ctx.fillStyle = `rgba(255,${120 + Math.round(100 * (1 - u))},40,${(1 - u) * 0.8})`;
+      ctx.fillRect(p.x + Math.sin(k * 2.3 + t * 2) * 10 - 1, fy - 6 - u * 34, 2, 2);
+    }
+    ctx.restore();
+  },
   // Steinhaut (Ultimate-Buff): bernsteinfarbener Schimmer und Steinsplitter am Boden
   steinhaut(ctx, p, fy, t, layer) {
     if (layer === 'back') {

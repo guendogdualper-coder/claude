@@ -1370,8 +1370,10 @@ Object.assign(SKILL_POSE3, {
 const MAGE_ULTS = {
   feuer: {
     id: 'inferno', name: 'Inferno', short: 'IN', color: '#e8362a',
-    text: 'Drei gewaltige Feuernovas rollen nacheinander von dir aus über das Feld, jede weiter als die letzte. Alles darin brennt.',
-    stats: 'je Welle 2× Angriff (Radius 130 / 200 / 270), Brand 0,5× je s für 4 s'
+    text: 'Drei gewaltige Feuernovas rollen nacheinander von dir aus über das Feld, jede weiter als die letzte. Alles darin brennt. Danach 30 s Glutmantel.',
+    // seit 13.69 mit Glutmantel: der Feuer-Weg hatte keinen Schutz und starb gegen Gruppen nach wenigen Sekunden
+    stats: 'je Welle 2× Angriff (Radius 130 / 200 / 270), Brand 0,5× je s für 4 s; Glutmantel: −35 % erlittener Schaden',
+    buff: { id: 'glutmantel', name: 'Glutmantel', duration: 30, effects: { damageTaken: -0.35 } }
   },
   frost: {
     id: 'eiszeit', name: 'Eiszeit', short: 'EZ', color: '#3a7bff',
@@ -1386,9 +1388,11 @@ const MAGE_ULTS = {
   },
   erde: {
     id: 'weltenbruch', name: 'Weltenbruch', short: 'WB', color: '#f0a830',
-    text: 'Acht Basaltmonolithen brechen im Kreis um dich aus dem Boden und schleudern alle Gegner hoch, dann stürzen sie nach innen. Danach 12 s Steinhaut.',
-    stats: '2× beim Aufbrechen (hochgeschleudert, 1,5 s betäubt), Einsturz 3,5×; Steinhaut: −25 % erlittener Schaden, +25 % Verteidigung',
-    buff: { id: 'steinhaut', name: 'Steinhaut', duration: 12, effects: { damageTaken: -0.25, def: 0.25 } }
+    text: 'Acht Basaltmonolithen brechen im Kreis um dich aus dem Boden und schleudern alle Gegner hoch, dann stürzen sie nach innen. Danach 60 s Steinhaut.',
+    // seit 13.69 hält die Steinhaut bis zur nächsten Ulti (60 statt 12 s) und schützt stärker (−40 %/+40 % statt −25 %/+25 %):
+    // der Schutz-Weg hatte sonst keinen Schutz
+    stats: '2× beim Aufbrechen (hochgeschleudert, 1,5 s betäubt), Einsturz 3,5×; Steinhaut: −40 % erlittener Schaden, +40 % Verteidigung',
+    buff: { id: 'steinhaut', name: 'Steinhaut', duration: 60, effects: { damageTaken: -0.4, def: 0.4 } }
   }
 };
 for (const u of Object.values(MAGE_ULTS)) Object.assign(u, { kind: 'ultimativ', unlock: ULT_UNLOCK, cooldown: ULT_COOLDOWN, mp: 0 });
@@ -1472,6 +1476,8 @@ Object.assign(ULT_RUN, {
         });
       }
     });
+    // seit 13.69: nach der letzten Welle hüllt dich ein Glutmantel ein (u.buff, weniger erlittener Schaden)
+    if (u.buff) later(0.9, () => { if (!p.dead) ultBuff(p, u.buff); });
   },
 
   eiszeit(p, u, pw) {

@@ -174,7 +174,7 @@ function hitMonster(m, mul, opts = {}) {
   if (!opts.ally) {
     factor *= 1 + (s.monsterDmg || 0);
     if (opts.basic) factor *= BASIC_MUL * (1 + (s.basicDmg || 0));
-    // Segen der Natur (Schamane): jede Fertigkeit des Schamanen ist Naturschaden
+    // Segen der Natur (Schamane): jede Fertigkeit des Schamanen ist Naturschaden; seit 13.69 auch die Arkane Erleuchtung des Magiers (Elementschaden)
     if (opts.skill && s.natureDmg) factor *= 1 + s.natureDmg;
   }
   // Waffenschaden (seit 13.10): statt des Mittelwerts würfelt jeder eigene Treffer in der Spanne der Waffe

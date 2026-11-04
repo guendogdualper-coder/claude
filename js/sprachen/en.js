@@ -2786,5 +2786,19 @@
 "Nachtschritt": "Night Step",
 "Schattenflucht": "Shadow Escape",
 "Pfad der Finsternis": "Path of Darkness",
-"Wandler zwischen den Schatten": "Walker Between Shadows"
+"Wandler zwischen den Schatten": "Walker Between Shadows",
+"Buff: Leicht wie eine Feder. Mehr Lauftempo, Angriffstempo und Chance auszuweichen, dazu mehr Angriff und ein wenig Lebensraub.": "Buff: Light as a feather. More movement speed, attack speed and dodge chance, plus more attack and a little life steal.",
+"Buff: Drachenkraft fließt in dich und Drachenschuppen schützen dich. Mehr Angriff, mehr Fertigkeitsschaden und weniger erlittener Schaden.": "Buff: Dragon power flows into you and dragon scales protect you. More attack, more skill damage and less damage taken.",
+"Buff: Ein leuchtender Geisterfalke kreist über dir und zeigt dir die Schwachstellen. Mehr kritische Treffer.": "Buff: A glowing spirit falcon circles above you and shows you the weak spots. More critical hits.",
+"Du wählst einen Ort (Kreis antippen): Dort reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem {0} s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis ({1} weit) nehmen fünfmal Feuerschaden und geraten jedes Mal kurz aus dem Tritt ({2} s betäubt), der letzte Puls setzt sie {3} s in Brand.": "You pick a spot (tap the circle): the ground there cracks open, glowing: a circle of ember fissures with a fringe of flames, where pillars of fire burst from the earth for {0} s. All enemies in the circle ({1} wide) take fire damage five times and are knocked off balance each time (stunned {2} s); the last pulse sets them on fire for {3} s.",
+"Zauberzeit {0} s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, das Ziel wird zurückgeschleudert, Gegner bis {1} weit darum bekommen etwas weniger ab, alle brennen {2} s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).": "Cast time {0} s: a huge fireball grows between your hands. Then it flies to the target and explodes – massive damage, the target is hurled back, enemies up to {1} around take a bit less, all burn for {2} s. If you move or cast something else, it's canceled (mana and cooldown refunded).",
+"Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf und nimmt deutlich mehr Schaden, und alle bis {0} weit fangen Feuer und sind {1} s betäubt.": "A phoenix of flames bursts from your scepter, flies to the target and burns everything in its path. At the target it dives and explodes: if the target is already burning, it flares up and takes much more damage, and everyone up to {0} around catches fire and is stunned for {1} s.",
+"Drei gewaltige Feuernovas rollen nacheinander von dir aus über das Feld, jede weiter als die letzte. Alles darin brennt. Danach {0} s Glutmantel.": "Three massive fire novas roll out from you across the field one after another, each wider than the last. Everything in them burns. Then {0} s of Ember Mantle.",
+"je Welle {0}× Angriff (Radius {1} / {2} / {3}), Brand {4}× je s für {5} s; Glutmantel: −{6} % erlittener Schaden": "per wave {0}× Attack (radius {1} / {2} / {3}), burn {4}× per s for {5} s; Ember Mantle: −{6} % damage taken",
+"{0}× beim Aufbrechen (hochgeschleudert, {1} s betäubt), Einsturz {2}×; Steinhaut: −{3} % erlittener Schaden, +{4} % Verteidigung": "{0}× on eruption (hurled up, stunned {1} s), collapse {2}×; Stoneskin: −{3} % damage taken, +{4} % defense",
+"Elementschaden +{0} %: Alle deine Zauber treffen härter.": "Elemental damage +{0} %: all your spells hit harder.",
+"Elementschaden +{0} %: Alle deine Zauber treffen härter. {1} Minuten.": "Elemental damage +{0} %: all your spells hit harder. {1} minutes.",
+"Elementschaden +{0} %": "Elemental damage +{0} %",
+"Elementschaden": "Elemental Damage",
+"Glutmantel": "Ember Mantle"
 };

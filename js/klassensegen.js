@@ -4,8 +4,9 @@
 //   Ninja     – Klingenschatten:        kritische Treffer +3 % (je 10 Stufen +1 %), kritischer Schaden +10 % (je 10 Stufen +5 %)
 //   Ninja mit Bogen (Weg des Falken, seit 13.67) – Falkenblick: Krit +3 % (+1 %), Krit-Schaden +10 % (+5 %),
 //               Angriffstempo +6 % (+2 %), Bogenreichweite +10 % (+2 %); dunkle Schwingen und Schattenaura (fernninja.js)
-//   Nekromant – Blutpakt:               Omni-Vampir 2 % (je 10 Stufen +0,5 %): jeder Schaden heilt, auch über Zeit
-//   Magier    – Arkane Erleuchtung:     Intelligenz +6 (je 10 Stufen +2)
+//   Nekromant – Blutpakt:               Omni-Vampir 2 % (je 10 Stufen +0,8 %, bis 13.67 +0,5 %): jeder Schaden heilt, auch über Zeit
+//   Magier    – Arkane Erleuchtung:     seit 13.69 Elementschaden +4 % (je 10 Stufen +2 %) auf alle Fertigkeiten; bis 13.67
+//               Intelligenz +6 (je 10 Stufen +2) – die verpuffte ab etwa Stufe 55 an der Hauptwert-Grenze (MAIN_ATTR_CAP 120)
 // Aktivieren: eigener Knopf neben der Ultimativen Attacke oder Taste 9. Erneut aktivieren frischt die 30 Minuten auf.
 // Optik: beim Aktivieren ein großer 3D-Auftritt je Klasse (segen3), solange er läuft eine ruhige 3D-Aura an der Figur.
 
@@ -24,13 +25,14 @@ const SEGEN = {
   },
   nekromant: {
     id: 'segen_blut', name: 'Blutpakt', color: '#d82a3a', colors: ['#5a0a14', '#d82a3a', '#ff6a6a', '#2a0a10'],
-    effects: (lv) => ({ omniVamp: 0.02 + 0.005 * lv }),
+    effects: (lv) => ({ omniVamp: 0.02 + 0.008 * lv }),
     text: (e) => `Omni-Vampir ${pctS(e.omniVamp)}: Jeder Schaden, den du machst (auch über Zeit), heilt dich.`
   },
   magier: {
     id: 'segen_arkan', name: 'Arkane Erleuchtung', color: '#b48cff', colors: ['#6a3ad8', '#b48cff', '#e8d8ff', '#ffffff'],
-    effects: (lv) => ({ int: 6 + 2 * lv }),
-    text: (e) => `Intelligenz +${e.int} (mehr Fertigkeitsschaden und Mana).`
+    // seit 13.69 Elementschaden (natureDmg wirkt in hitMonster auf jede Fertigkeit) statt Intelligenz
+    effects: (lv) => ({ natureDmg: 0.04 + 0.02 * lv }),
+    text: (e) => `Elementschaden +${pctS(e.natureDmg)}: Alle deine Zauber treffen härter.`
   }
 };
 // Weg der Heilung (seit 13.26): statt Naturschaden mehr Heilung

@@ -90,7 +90,8 @@ function fieldFx(owner, x, y, sk, local, pw) {
     later(sk.delay + k * sk.every, () => {
       const last = k === sk.ticks - 1;
       for (const m of enemiesInCircle(x, y, sk.radius)) {
-        hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: last ? sk.burn : null, vfxColor: '#ff8a4a' });
+        // seit 13.69 betäubt jeder Puls kurz (sk.stun): Flammensäulen werfen die Gegner aus dem Tritt
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, burn: last ? sk.burn : null, stun: sk.stun, vfxColor: '#ff8a4a' });
       }
       if (k === 0 && owner === game.player) shakeScreen(2.5);
     });

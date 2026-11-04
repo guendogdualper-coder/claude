@@ -194,7 +194,8 @@ function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
     for (const m of enemiesInCircle(x1, y1, sk.blast.r)) {
       const burning = m.burn && m.burn.until > game.time;
       const mul = (m === main ? 1 : sk.blast.mul) * (burning ? 1 + sk.combust : 1);
-      hitMonster(m, sk.dmg * mul * pw, { skill: sk.id, burn: sk.burn, heavy: true, knockback: 30, from: { x: x1, y: y1 }, vfxColor: burning ? '#ffffff' : '#ffb04a' });
+      // seit 13.69 betäubt die Explosion (sk.stun)
+      hitMonster(m, sk.dmg * mul * pw, { skill: sk.id, burn: sk.burn, stun: sk.stun, heavy: true, knockback: 30, from: { x: x1, y: y1 }, vfxColor: burning ? '#ffffff' : '#ffb04a' });
       if (burning) addEffect({ type: 'column3', x: m.x, y: feetY(m), r: 16, hgt: 1.8, color: '#ff6a1a', core: '#fff1c8', dur: 0.45 });
     }
   });

@@ -29,13 +29,14 @@ const CLASSES = {
           {
             // seit 8.3 (ersetzt den Dreifachschlag): Querhieb, dann das Schwert in den Boden – eine Klingenwelle rast nach vorn
             id: 'sichelwelle', name: 'Sichelwelle', short: 'SI', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
-            type: 'wave', radius: 90, angle: 140, dmg: 0.8, waveDmg: 1.4, waveLen: 180, waveWidth: 64, knockback: 90,
+            type: 'wave', radius: 90, angle: 140, dmg: 0.8, waveDmg: 1.6, waveLen: 180, waveWidth: 64, knockback: 90,
             anim: 'sichel', animDur: 0.62, lock: 0.42, color: '#e6eeff',
             text: 'Ein weiter Querhieb, dann schlägst du das Schwert in den Boden: Eine Klingenwelle rast bis zu 180 weit nach vorn, trifft alle Gegner in ihrer Bahn und stößt sie zurück.'
           },
           {
+            // seit 13.69 (Balance, docs/balance-klassen.md): Schaden 1,7 → 1,9, Welle der Sichelwelle 1,4 → 1,6
             id: 'schwertwirbel', name: 'Schwertwirbel', short: 'SW', kind: 'angriff', unlock: 10, mp: 14, cooldown: 6,
-            type: 'circle', radius: 100, dmg: 1.7, stun: 0.8,
+            type: 'circle', radius: 100, dmg: 1.9, stun: 0.8,
             text: 'Du wirbelst um dich selbst, triffst alle Gegner im Umkreis und betäubst sie kurz.'
           },
           {
@@ -67,7 +68,7 @@ const CLASSES = {
           {
             // seit 8.3 (ersetzt den Schildstoß): Faust in den Boden, ein Riss läuft zum Ziel, ein Felspfeiler schleudert es hoch
             id: 'felsenfaust', name: 'Felsenfaust', short: 'FF', kind: 'angriff', unlock: 1, mp: 9, cooldown: 4.5,
-            type: 'erupt', range: 120, dmg: 2, stun: 1.5, launch: 40, dodge: 40, lock: 0.36,
+            type: 'erupt', range: 120, dmg: 1.6, stun: 1.5, launch: 40, dodge: 40, lock: 0.36,
             anim: 'felsenfaust', animDur: 0.7, color: '#c8a878',
             text: 'Du schlägst die Faust in den Boden: Ein Riss läuft bis zu 120 weit zu deinem Ziel, ein Felspfeiler schießt unter ihm empor, schleudert es hoch und betäubt es 1,5 s.'
           },
@@ -82,8 +83,9 @@ const CLASSES = {
             text: 'Buff: Dein Körper wird hart wie Stein. Mehr Verteidigung und weniger erlittener Schaden.'
           },
           {
+            // seit 13.69: der Tank macht weniger Schaden (Geistesschlag 3,4 → 2,5, Felsenfaust 2,0 → 1,6); Überleben und Kontrolle bleiben
             id: 'geistesschlag', name: 'Geistesschlag', short: 'GS', kind: 'angriff', unlock: 7, mp: 18, cooldown: 7,
-            type: 'strike', range: 72, dmg: 3.4, critBonus: 0.15, knockback: 80, color: '#9fd0ff',
+            type: 'strike', range: 72, dmg: 2.5, critBonus: 0.15, knockback: 80, color: '#9fd0ff',
             text: 'Ein gebündelter Schlag mit voller Kraft auf ein einzelnes Ziel. Sehr hoher Schaden.'
           },
           {
@@ -114,7 +116,7 @@ const CLASSES = {
         skills: [
           {
             id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
-            type: 'strike', range: 70, dmg: 2.6, critBonus: 0.4, ambushMul: 2, ambushRange: 220,
+            type: 'strike', range: 70, dmg: 3.7, critBonus: 0.4, ambushMul: 2, ambushRange: 220,
             text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst doppelt so hart – zusammen mit dem Tarnungs-Bonus 6× Schaden, sicher kritisch.'
           },
           {
@@ -124,18 +126,20 @@ const CLASSES = {
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
-            type: 'circle', radius: 95, dmg: 1.6,
+            type: 'circle', radius: 95, dmg: 2.3,
             text: 'Du drehst dich mit beiden Dolchen und triffst alle Gegner um dich.'
           },
           {
             id: 'blitzangriff', name: 'Blitzangriff', short: 'BA', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
-            type: 'blink', range: 300, dmg: 2.4, stun: 0.8, critBonus: 0.15, color: '#9fd0ff',
+            type: 'blink', range: 300, dmg: 3.0, stun: 1.2, critBonus: 0.15, color: '#9fd0ff',
             text: 'Von einem Moment auf den anderen stehst du hinter deinem Ziel (bis 300 weit) und schlägst zu. Das Ziel ist kurz betäubt.'
           },
           {
+            // seit 13.69 mit Angriff und Lebensraub: Tempo, Krit und Ausweichen stoßen ab etwa Stufe 50 an ihre Obergrenzen,
+            // Angriff und Lebensraub wachsen darüber hinaus (Hinterhalt 2,6 → 3,7, Wirbelklinge 1,6 → 2,3, Blitzangriff 2,4 → 3,0 und 1,2 s)
             id: 'leichtfuessigkeit', name: 'Leichtfüßigkeit', short: 'LF', kind: 'buff', unlock: 10, mp: 20, cooldown: 60,
-            type: 'buff', duration: 180, effects: { speed: 0.12, atkSpeed: 0.25, dodge: 0.15 },
-            text: 'Buff: Leicht wie eine Feder. Mehr Lauftempo, Angriffstempo und Chance auszuweichen.'
+            type: 'buff', duration: 180, effects: { speed: 0.12, atkSpeed: 0.25, dodge: 0.15, atk: 0.08, hpSteal: 0.004 },
+            text: 'Buff: Leicht wie eine Feder. Mehr Lauftempo, Angriffstempo und Chance auszuweichen, dazu mehr Angriff und ein wenig Lebensraub.'
           }
         ]
       },
@@ -200,18 +204,20 @@ const CLASSES = {
           // seit 7.7 ein Blitzdrache statt Glutdrache (gleiche Wirkung) und Blizzard statt Feuerhagel
           {
             id: 'talisman', name: 'Blitzdrache', short: 'BD', kind: 'angriff', unlock: 1, mp: 10, cooldown: 3,
-            type: 'dragon', element: 'blitz', range: 340, radius: 100, speed: 620, dmg: 1.7, color: '#8fd0ff', burn: { dps: 0.25, duration: 3 },
+            type: 'dragon', element: 'blitz', range: 340, radius: 100, speed: 620, dmg: 2.1, color: '#8fd0ff', burn: { dps: 0.25, duration: 3 },
             text: 'Du schleuderst einen Drachen aus Blitzen: Er schlängelt sich im Bogen zum Ziel, entlädt sich dort und trifft alle Gegner im Umkreis, die danach 3 Sekunden lang unter Strom stehen.'
           },
           {
             id: 'drachengebruell', name: 'Drachenwirbel', short: 'DW', kind: 'angriff', unlock: 3, mp: 18, cooldown: 7,
-            type: 'vortex', radius: 170, hits: 3, dmg: 0.95, knockback: 140, color: '#ff7a2a', burn: { dps: 0.3, duration: 3 },
+            type: 'vortex', radius: 170, hits: 3, dmg: 1.05, knockback: 140, color: '#ff7a2a', burn: { dps: 0.3, duration: 3 },
             text: 'Ein Geisterdrache aus Feuer kreist dreimal um dich und trifft jedes Mal alle Gegner im Umkreis. Zum Schluss schleudert er sie zurück und setzt sie in Brand.'
           },
           {
+            // seit 13.69 mit Drachenschuppen (weniger erlittener Schaden): der Flächen-Schamane brach gegen Gruppen sofort zusammen.
+            // Dazu Blitzdrache 1,7 → 2,1, Drachenwirbel 0,95 → 1,05, Donnersturm betäubt 1,5 s statt 1 s
             id: 'drachenkraft', name: 'Drachenkraft', short: 'DK', kind: 'buff', unlock: 5, mp: 24, cooldown: 60,
-            type: 'buff', duration: 180, effects: { atk: 0.15, skillDmg: 0.15 },
-            text: 'Buff: Drachenkraft fließt in dich. Mehr Angriff und mehr Fertigkeitsschaden.'
+            type: 'buff', duration: 180, effects: { atk: 0.15, skillDmg: 0.15, damageTaken: -0.15 },
+            text: 'Buff: Drachenkraft fließt in dich und Drachenschuppen schützen dich. Mehr Angriff, mehr Fertigkeitsschaden und weniger erlittener Schaden.'
           },
           {
             id: 'blitzschlag', name: 'Blizzard', short: 'BZ', kind: 'angriff', unlock: 7, mp: 26, cooldown: 12,
@@ -220,7 +226,7 @@ const CLASSES = {
           },
           {
             id: 'donnersturm', name: 'Donnersturm', short: 'DS', kind: 'angriff', unlock: 10, mp: 34, cooldown: 12,
-            type: 'blast', fx: 'storm', range: 300, radius: 140, dmg: 2.6, stun: 1,
+            type: 'blast', fx: 'storm', range: 300, radius: 140, dmg: 2.6, stun: 1.5,
             text: 'Ein Gewitter entlädt sich über dem Ziel: Viele Blitze treffen alle Gegner im großen Umkreis.'
           }
         ]
@@ -234,7 +240,7 @@ const CLASSES = {
           // Heilung schwächer, Falkengeist (Krit) statt Schutzgeist
           {
             id: 'geisterfaust', name: 'Lichtsturz', short: 'LS', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
-            type: 'blast', fx: 'licht', range: 320, radius: 100, dmg: 2.1, stun: 1, color: '#fff2a0',
+            type: 'blast', fx: 'licht', range: 320, radius: 100, dmg: 1.8, stun: 1, color: '#fff2a0',
             text: 'Eine Säule aus Himmelslicht stürzt auf das Ziel herab und zerbirst: Alle Gegner im Umkreis nehmen Lichtschaden und sind 1 s betäubt.'
           },
           {
@@ -253,9 +259,11 @@ const CLASSES = {
             text: 'Heilt einen Teil deines Lebens und gibt dir danach etwas mehr Angriff.'
           },
           {
+            // seit 13.69 nur noch kritische Treffer (vorher 7 % und +15 % kritischer Schaden; mit Rang und Intelligenz bis ×4 – der Heiler
+            // machte auf hohen Stufen so viel Schaden wie ein Schadensweg); Lichtsturz 2,1 → 1,8
             id: 'schutzgeist', name: 'Falkengeist', short: 'FG', kind: 'buff', unlock: 10, mp: 28, cooldown: 60,
-            type: 'buff', duration: 180, effects: { crit: 0.07, critDmg: 0.15 },
-            text: 'Buff: Ein leuchtender Geisterfalke kreist über dir und zeigt dir die Schwachstellen. Mehr kritische Treffer und mehr kritischer Schaden.'
+            type: 'buff', duration: 180, effects: { crit: 0.04 },
+            text: 'Buff: Ein leuchtender Geisterfalke kreist über dir und zeigt dir die Schwachstellen. Mehr kritische Treffer.'
           }
         ]
       }
@@ -287,7 +295,7 @@ const CLASSES = {
           {
             // seit 8.5 (ersetzt den Seelensturm): ein Käfig aus Rippen bricht beim Ziel aus dem Boden, der gefangene Geist schreit fünfmal
             id: 'seelenkaefig', name: 'Seelenkäfig', short: 'SK', kind: 'angriff', unlock: 3, mp: 18, cooldown: 8,
-            type: 'cage', range: 300, place: 110, radius: 125, rise: 0.35, pulses: 5, every: 1.0, dmg: 0.5, pull: 30,
+            type: 'cage', range: 300, place: 110, radius: 125, rise: 0.35, pulses: 5, every: 1.0, dmg: 0.7, pull: 30,
             slow: { amount: 0.25, duration: 1.2 }, lock: 0.25, color: '#7fe3a0', anim: 'kaefig', animDur: 0.55,
             text: 'Ein Käfig aus riesigen Rippen bricht bei deinem Ziel aus dem Boden. Der Geist darin schreit 5 s lang jede Sekunde: Jeder Schrei trifft und verlangsamt alle Gegner im Umkreis, der erste zieht sie heran.'
           },
@@ -296,11 +304,12 @@ const CLASSES = {
             type: 'summon', count: 3, duration: 90,
             // Index = skillRank(lvl) + 1: 0 = Stufe 1–15, 1 = Erwacht, 2 = Heroisch, 3 = Legendär, 4 = Vollendet
             tiers: [
-              { kind: 'skelett', name: 'Skelettkrieger', hp: 0.4,  atk: 0.45, every: 1.1,  windup: 0.18, speed: 160, def: 0.6, scale: 1.0 },
-              { kind: 'hund',    name: 'Knochenhund',    hp: 0.45, atk: 0.55, every: 0.85, windup: 0.12, speed: 195, def: 0.6, scale: 1.0,  pounce: true },
-              { kind: 'hund',    name: 'Knochenhund',    hp: 0.5,  atk: 0.55, every: 0.85, windup: 0.12, speed: 200, def: 0.6, scale: 1.08, pounce: true, slow: 0.25 },
-              { kind: 'hund',    name: 'Seelenhund',     hp: 0.55, atk: 0.55, every: 0.85, windup: 0.12, speed: 205, def: 0.7, scale: 1.14, pounce: true, slow: 0.25, burst: 1.0 },
-              { kind: 'hund',    name: 'Seelenhund',     hp: 0.6,  atk: 0.55, every: 0.85, windup: 0.1,  speed: 210, def: 0.7, scale: 1.18, pounce: true, slow: 0.3,  burst: 1.2, alpha: 1.15 }
+              // seit 13.69 beißen die Diener härter und je Rang mehr (vorher 0,45 und 0,55 auf allen Rängen); Seelenkäfig 0,5 → 0,7, Geisterflut 0,9 → 1,15
+              { kind: 'skelett', name: 'Skelettkrieger', hp: 0.4,  atk: 0.5, every: 1.1,  windup: 0.18, speed: 160, def: 0.6, scale: 1.0 },
+              { kind: 'hund',    name: 'Knochenhund',    hp: 0.45, atk: 0.62, every: 0.85, windup: 0.12, speed: 195, def: 0.6, scale: 1.0,  pounce: true },
+              { kind: 'hund',    name: 'Knochenhund',    hp: 0.5,  atk: 0.66, every: 0.85, windup: 0.12, speed: 200, def: 0.6, scale: 1.08, pounce: true, slow: 0.25 },
+              { kind: 'hund',    name: 'Seelenhund',     hp: 0.55, atk: 0.7,  every: 0.85, windup: 0.12, speed: 205, def: 0.7, scale: 1.14, pounce: true, slow: 0.25, burst: 1.0 },
+              { kind: 'hund',    name: 'Seelenhund',     hp: 0.6,  atk: 0.74, every: 0.85, windup: 0.1,  speed: 210, def: 0.7, scale: 1.18, pounce: true, slow: 0.3,  burst: 1.2, alpha: 1.15 }
             ],
             text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen 90 s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen.'
           },
@@ -315,7 +324,7 @@ const CLASSES = {
           {
             // seit 11.7 (ersetzt den Buff Dunkle Macht): Geister brechen aus dem Nekromanten und stürzen auf das Zielgebiet
             id: 'geisterflut', name: 'Geisterflut', short: 'GF', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            type: 'ghostflood', aim: true, range: 380, radius: 150, ghosts: 8, rise: 0.55, dmg: 0.9, splash: 45,
+            type: 'ghostflood', aim: true, range: 380, radius: 150, ghosts: 8, rise: 0.55, dmg: 1.15, splash: 45,
             burst: { dmg: 1.4, slow: { amount: 0.35, duration: 2.5 }, knockback: 40 }, color: '#9fe8d0', nk: true, anim: 'kaefig', animDur: 0.6,
             text: 'Zielort wählen: Acht schreiende Geister brechen aus deinem Körper, wirbeln über dir in die Höhe und stürzen sich auf die Gegner im Zielgebiet. Jeder Geist trifft beim Einschlag alle in seiner Nähe, zum Schluss platzt eine Seelenwelle auf, die Gegner zurückwirft und verlangsamt.'
           }
@@ -326,33 +335,35 @@ const CLASSES = {
         description: 'Reißt Leben aus Gegnern, wirft Knochen, lässt Blutlarven platzen, packt Feinde mit einer Totenhand und ruft den Sensenmann.',
         skills: [
           {
-            // seit 11.7 neu: kurz und heftig – ein Blutband reißt die Lebenskraft heraus und heilt sofort (nekro-neu.js)
+            // seit 11.7 neu: kurz und heftig – ein Blutband reißt die Lebenskraft heraus und heilt sofort (nekro-neu.js).
+            // Seit 13.69 stärker (Balance): Lebensentzug 1,6 → 2,2 (heilt 75 % statt 60 %), Knochenwurf 1,9 → 3,0, Blutlarve 1,6 → 2,6,
+            // Totenhand zerdrückt mit 2,2 statt 1,8, Blutlanzen 1,25 → 2,0 (heilen 20 % statt 15 %)
             id: 'lebensentzug', name: 'Lebensentzug', short: 'LE', kind: 'angriff', unlock: 1, mp: 10, cooldown: 4,
-            type: 'lifetap', range: 300, dmg: 1.6, heal: 0.6, color: '#e0203a', nk: true, anim: 'salve', animDur: 0.4,
+            type: 'lifetap', range: 300, dmg: 2.2, heal: 0.75, color: '#e0203a', nk: true, anim: 'salve', animDur: 0.4,
             text: 'Ein Blutband schnellt zu deinem Ziel und reißt in einem Ruck seine Lebenskraft heraus. Die Blutkugel fliegt in deine Brust zurück und heilt dich sofort um einen Großteil des Schadens.'
           },
           {
             // seit 11.7 (ersetzt den Knochenspeer): ein wirbelnder Oberschenkelknochen, der verlangsamt
             id: 'knochenwurf', name: 'Knochenwurf', short: 'KW', kind: 'angriff', unlock: 3, mp: 12, cooldown: 4,
-            type: 'bonethrow', range: 380, speed: 520, width: 24, dmg: 1.9, slow: { amount: 0.4, duration: 2.5 }, color: '#e8dcc0', nk: true, anim: 'salve', animDur: 0.4,
+            type: 'bonethrow', range: 380, speed: 520, width: 24, dmg: 3.0, slow: { amount: 0.4, duration: 2.5 }, color: '#e8dcc0', nk: true, anim: 'salve', animDur: 0.4,
             text: 'Du schleuderst einen großen Knochen, der sich überschlagend durch die Luft wirbelt. Er trifft den ersten Gegner auf seiner Bahn, zersplittert und verlangsamt ihn 2,5 s um 40 %.'
           },
           {
             // seit 11.7 (ersetzt den Knochenpanzer): eine Blutlarve springt zum Ziel und platzt
             id: 'blutlarve', name: 'Blutlarve', short: 'BL', kind: 'angriff', unlock: 5, mp: 18, cooldown: 7,
-            type: 'larva', aim: true, range: 340, radius: 110, hop: 0.55, wriggle: 0.4, dmg: 1.6, bleed: { dps: 0.32, duration: 4 }, color: '#c01828', nk: true, anim: 'kaefig', animDur: 0.5,
+            type: 'larva', aim: true, range: 340, radius: 110, hop: 0.55, wriggle: 0.4, dmg: 2.6, bleed: { dps: 0.32, duration: 4 }, color: '#c01828', nk: true, anim: 'kaefig', animDur: 0.5,
             text: 'Zielort wählen: Eine fette Blutlarve kriecht aus deinem Ärmel, springt in hohem Bogen zum Ziel, windet sich kurz – und platzt. Alle Gegner in der Nähe nehmen Schaden und bluten 4 s lang.'
           },
           {
             // seit 11.7 (ersetzt den Lähmenden Fluch): eine riesige Knochenhand packt das Ziel und zerdrückt es
             id: 'totenhand', name: 'Totenhand', short: 'TH', kind: 'angriff', unlock: 7, mp: 22, cooldown: 12,
-            type: 'gravehand', range: 320, radius: 75, grab: 0.4, hold: 1.6, dmg: 0.8, crush: 1.8, color: '#e8dcc0', nk: true, anim: 'kaefig', animDur: 0.55,
+            type: 'gravehand', range: 320, radius: 75, grab: 0.4, hold: 1.6, dmg: 0.8, crush: 2.2, color: '#e8dcc0', nk: true, anim: 'kaefig', animDur: 0.55,
             text: 'Unter deinem Ziel bricht eine riesige Skeletthand aus der Erde, schließt die Finger um alle Gegner in der Nähe und hält sie 1,6 s fest. Dann ballt sie die Faust und zerdrückt sie.'
           },
           {
             // seit 11.7 (ersetzt den Buff Blutopfer): Blutlanzen schießen aus dem Rücken und suchen bis zu sechs Gegner
             id: 'blutlanzen', name: 'Blutlanzen', short: 'BZ', kind: 'angriff', unlock: 10, mp: 26, cooldown: 10,
-            type: 'bloodlances', range: 280, count: 6, dmg: 1.25, leech: 0.15, color: '#e0203a', nk: true, anim: 'kaefig', animDur: 0.55,
+            type: 'bloodlances', range: 280, count: 6, dmg: 2.0, leech: 0.2, color: '#e0203a', nk: true, anim: 'kaefig', animDur: 0.55,
             text: 'Sechs Lanzen aus Blut wachsen dir wie Flügel aus dem Rücken und schießen auf bis zu sechs Gegner in der Nähe (bei weniger Gegnern treffen mehrere dasselbe Ziel). Jede Lanze heilt dich ein wenig.'
           }
         ]
@@ -379,17 +390,19 @@ const CLASSES = {
         skills: [
           {
             // seit 13.39 statt des Drachenodems: Glutfeld – aufgerissener Boden mit Flammensäulen (feuerfeld.js)
+            // seit 13.69 betäubt jeder Puls kurz (stun, feuerfeld.js): der Feuer-Weg hatte gar keine Kontrolle
             id: 'glutfeld', name: 'Glutfeld', short: 'GF', kind: 'angriff', unlock: 1, mp: 10, cooldown: 6,
-            type: 'mfield', el: 'feuer', aim: true, range: 260, radius: 95, delay: 0.35, ticks: 5, every: 0.5, dmg: 0.45,
+            type: 'mfield', el: 'feuer', aim: true, range: 260, radius: 95, delay: 0.35, ticks: 5, every: 0.5, dmg: 0.45, stun: 0.35,
             burn: { dps: 0.25, duration: 3 }, anim: 'zauber', animDur: 0.45, color: '#e8362a',
-            text: 'Du wählst einen Ort (Kreis antippen): Dort reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem 2,5 s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis (95 weit) nehmen fünfmal Feuerschaden, der letzte Puls setzt sie 3 s in Brand.'
+            text: 'Du wählst einen Ort (Kreis antippen): Dort reißt der Boden glühend auf: Ein Kreis aus Glutrissen mit Flammensaum, in dem 2,5 s lang Flammensäulen aus der Erde schlagen. Alle Gegner im Kreis (95 weit) nehmen fünfmal Feuerschaden und geraten jedes Mal kurz aus dem Tritt (0,35 s betäubt), der letzte Puls setzt sie 3 s in Brand.'
           },
           {
             // seit 11.5 mit 3 s Zauberzeit: viel größer und stärker; Bewegen bricht ab (Mana und Abklingzeit zurück)
             id: 'feuerball', name: 'Feuerball', short: 'FB', kind: 'angriff', unlock: 3, mp: 20, cooldown: 2,
-            type: 'mcast', el: 'feuer', castTime: 3, range: 400, speed: 430, dmg: 5.6, splash: { r: 115, mul: 0.6 }, burn: { dps: 0.4, duration: 4 },
+            // seit 13.69 stößt der Einschlag das Ziel zurück (knockback) und die Explosion trifft mit 80 % statt 60 %
+            type: 'mcast', el: 'feuer', castTime: 3, range: 400, speed: 430, dmg: 5.6, splash: { r: 115, mul: 0.8 }, burn: { dps: 0.4, duration: 4 }, knockback: 80,
             style: 'fireball', big: 2.1, anim: 'zauber', animDur: 3, color: '#e8362a',
-            text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, Gegner bis 115 weit darum bekommen etwas weniger ab, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
+            text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, das Ziel wird zurückgeschleudert, Gegner bis 115 weit darum bekommen etwas weniger ab, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
           },
           {
             // seit 11.5 statt Flammenschritt: Brand – Feuerschaden über Zeit auf ein Ziel (wie Gift)
@@ -401,14 +414,15 @@ const CLASSES = {
           {
             // seit 11.5 statt Glutherz: Phönixflamme – der große Feuer-Burst
             id: 'phoenix', name: 'Phönixflamme', short: 'PH', kind: 'angriff', unlock: 7, mp: 28, cooldown: 14,
-            type: 'mphoenix', el: 'feuer', range: 400, speed: 470, dmg: 3.4, pathR: 42, pathMul: 0.6, blast: { r: 105, mul: 0.7 },
+            // seit 13.69 betäubt die Explosion am Ziel 1,5 s (stun, magier-neu.js)
+            type: 'mphoenix', el: 'feuer', range: 400, speed: 470, dmg: 3.4, pathR: 42, pathMul: 0.6, blast: { r: 105, mul: 0.7 }, stun: 1.5,
             combust: 0.6, burn: { dps: 0.35, duration: 4 }, anim: 'stoss', animDur: 0.45, color: '#e8362a',
-            text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf und nimmt deutlich mehr Schaden, und alle bis 105 weit fangen Feuer.'
+            text: 'Ein Phönix aus Flammen bricht aus deinem Zepter, fliegt zum Ziel und verbrennt alles auf seinem Weg. Am Ziel stürzt er herab und explodiert: Brennt das Ziel schon, lodert es auf und nimmt deutlich mehr Schaden, und alle bis 105 weit fangen Feuer und sind 1,5 s betäubt.'
           },
           {
             // seit 13.40 statt des Flammenkreises: Feuertornados im gewählten Kreis (feuerfeld.js); mehr Tornados je Rang
             id: 'feuertornado', name: 'Feuertornados', short: 'FT', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            type: 'mtornado', el: 'feuer', aim: true, range: 340, radius: 150, delay: 0.4, life: 4, every: 0.5, dmg: 0.3, hitR: 44,
+            type: 'mtornado', el: 'feuer', aim: true, range: 340, radius: 150, delay: 0.4, life: 4, every: 0.5, dmg: 0.5, hitR: 44,
             burn: { dps: 0.3, duration: 3 }, anim: 'zauber', animDur: 0.55, color: '#e8362a',
             text: 'Du wählst einen Ort: Im Kreis erheben sich Feuertornados und wirbeln 4 s lang umher. Jeder Tornado trifft alles, was er berührt, zweimal pro Sekunde, zieht Gegner zu sich und setzt sie in Brand. Mehr Tornados je Stufe: 2, ab Stufe 8 drei, erweckt 4, heroisch 5, legendär 6, vollendet 7.'
           }
@@ -442,15 +456,16 @@ const CLASSES = {
             // seit 13.64 statt Frostpanzer: Eisgefängnis – Flächen-Betäubung am gewählten Ort (frostgefaengnis.js).
             // Eingefroren hold s, je Rang + holdStep (prisonHold); zum Schluss zersplittert das Eis (crack) und verlangsamt (after)
             id: 'eisgefaengnis', name: 'Eisgefängnis', short: 'EG', kind: 'angriff', unlock: 7, mp: 26, cooldown: 15,
-            type: 'mprison', el: 'frost', aim: true, range: 380, radius: 115, delay: 0.45, dmg: 1.8, crack: 1.1, hold: 1.5, holdStep: 0.25,
+            type: 'mprison', el: 'frost', aim: true, range: 380, radius: 115, delay: 0.45, dmg: 1.8, crack: 1.1, hold: 1.5, holdStep: 0.15,
             after: { amount: 0.4, duration: 2 }, bossSlow: 0.5, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
-            text: 'Du wählst einen Ort: Der Boden überfriert und reißt blau leuchtend auf, dann bricht ein Gefängnis aus Eis hervor. Hohe Kristallsäulen schießen aus der Erde, um jeden Gegner im Kreis (115 weit) wachsen Eiszacken zusammen: Alle nehmen Frostschaden und sind im Eis gefangen – 1,5 s lang betäubt (erweckt 1,75 s, heroisch 2 s, legendär 2,25 s, vollendet 2,5 s). Dann zersplittert das Eis: noch einmal Schaden, danach sind sie 2 s langsamer. Bosse werden nicht eingefroren, nur stark verlangsamt. Reichweite 380.'
+            text: 'Du wählst einen Ort: Der Boden überfriert und reißt blau leuchtend auf, dann bricht ein Gefängnis aus Eis hervor. Hohe Kristallsäulen schießen aus der Erde, um jeden Gegner im Kreis (115 weit) wachsen Eiszacken zusammen: Alle nehmen Frostschaden und sind im Eis gefangen – 1,5 s lang betäubt (erweckt 1,65 s, heroisch 1,8 s, legendär 1,95 s, vollendet 2,1 s). Dann zersplittert das Eis: noch einmal Schaden, danach sind sie 2 s langsamer. Bosse werden nicht eingefroren, nur stark verlangsamt. Reichweite 380.'
           },
           {
             // seit 13.54 statt Kristallgrab: Blizzard – ein echter Schneesturm im gewählten Kreis (schneesturm.js).
             // Verlangsamung wächst je Puls im Sturm (slow.build) bis slow.max; je Rang 0,5 s länger (snowTicks)
+            // seit 13.69 (Balance): Schaden 0,45 → 0,36, Eisgefängnis je Rang +0,15 s statt +0,25 s – der Kontroll-Weg führte sonst auch in Fläche und Überleben
             id: 'schneesturm', name: 'Blizzard', short: 'BZ', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            type: 'msnow', el: 'frost', aim: true, range: 340, radius: 150, delay: 0.5, ticks: 8, every: 0.5, dmg: 0.45, freeze: 0.8,
+            type: 'msnow', el: 'frost', aim: true, range: 340, radius: 150, delay: 0.5, ticks: 8, every: 0.5, dmg: 0.36, freeze: 0.8,
             slow: { amount: 0.25, max: 0.6, build: 0.07, duration: 1.2 }, duelMul: 1.1, anim: 'zauber', animDur: 0.55, color: '#3a7bff',
             // seit 13.64 ohne Sturmwolke: blauweißer Schnee, Eissplitter, frostblaues Leuchten und Frostnebel
             text: 'Du wählst einen Ort: Dort bricht 4 s lang ein eisiger Schneesturm los – dichter blauweißer Schnee, wirbelnde Eissplitter, frostblaues Leuchten und Frostnebel am Boden. Alle Gegner im Kreis (150 weit) nehmen zweimal pro Sekunde Frostschaden und werden immer langsamer, je länger sie drinbleiben (25 % bis 60 %). Zum Schluss frieren sie kurz ein, Bosse werden nur verlangsamt. Je Rang tobt der Sturm 0,5 s länger: erweckt 4,5 s, heroisch 5 s, legendär 5,5 s, vollendet 6 s.'
@@ -464,13 +479,14 @@ const CLASSES = {
           {
             // seit 11.5 statt der Blitznova: ein Speer, der alles in einer Linie durchschlägt (kein Bodenkreis)
             id: 'blitzspeer', name: 'Blitzspeer', short: 'SP', kind: 'angriff', unlock: 1, mp: 9, cooldown: 4,
-            type: 'mspear', el: 'blitz', range: 390, width: 34, dmg: 1.5, stun: 0.25, charge: 5,
+            type: 'mspear', el: 'blitz', range: 390, width: 34, dmg: 1.6, stun: 0.25, charge: 5,
             anim: 'stoss', animDur: 0.35, color: '#ffe94a',
             text: 'Du schleuderst einen Speer aus reinem Blitz: Er durchschlägt alle Gegner in einer Linie bis 390 weit, betäubt sie kurz und lädt sie 5 s auf – der Kettenblitz entlädt sie für mehr Schaden.'
           },
           {
+            // seit 13.69 (Balance): Kettenblitz 1,9 → 2,6, Blitzspeer 1,5 → 1,6, Gewitterwolke 0,95 → 1,1 (Entladung 1,8 → 2,2), Kugelblitz 0,55 → 0,85
             id: 'kettenblitz', name: 'Kettenblitz', short: 'KB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
-            type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 1.9, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2,
+            type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 2.6, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2,
             style: 'arc', anim: 'stoss', animDur: 0.3, color: '#ffe94a',
             text: 'Ein Blitz schießt aus deinem Zepter zum Ziel und springt zu zwei weiteren Gegnern. Aufgeladene Gegner entladen sich und nehmen mehr Schaden.'
           },
@@ -483,14 +499,14 @@ const CLASSES = {
           {
             // seit 11.5 statt Statische Ladung: Gewitterwolke – Flächenschaden aus der Ferne
             id: 'gewitter', name: 'Gewitterwolke', short: 'GW', kind: 'angriff', unlock: 7, mp: 26, cooldown: 14,
-            type: 'mstorm', el: 'blitz', aim: true, range: 460, radius: 165, form: 0.6, strikes: 6, every: 0.3, dmg: 0.95,
-            final: { dmg: 1.8, stun: 1.5 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
+            type: 'mstorm', el: 'blitz', aim: true, range: 460, radius: 165, form: 0.6, strikes: 6, every: 0.3, dmg: 1.1,
+            final: { dmg: 2.2, stun: 1.5 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
             text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen. Sechs Blitze schlagen nacheinander in Gegner darunter. Zum Schluss entlädt sich die ganze Wolke: Ein Netz aus Blitzen springt zwischen allen Gegnern im Feld hin und her und lähmt sie 1,5 s lang. Reichweite 460.'
           },
           {
             id: 'kugelblitz', name: 'Kugelblitz', short: 'KU', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
             // seit 13.5 ein Gewitterfeld: Blitze fahren vom Himmel, jeder Treffer betäubt kurz, der letzte länger
-            type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 0.55, zapStun: 0.25,
+            type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 0.85, zapStun: 0.25,
             last: { stun: 0.8 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
             text: 'Über dem gewählten Feld bricht ein Gewitter los: 3 s lang fahren jede halbe Sekunde Blitze vom Himmel in die drei nächsten Gegner – aufgeladene zuerst – und betäuben sie kurz. Der letzte Schlag betäubt länger.'
           }
@@ -503,28 +519,30 @@ const CLASSES = {
           {
             // seit 11.5 statt der Erdnova: zwei Felsbrocken krachen aus der Ferne am Ziel zusammen
             id: 'steinschlag', name: 'Steinschlag', short: 'SS', kind: 'angriff', unlock: 1, mp: 9, cooldown: 5,
-            type: 'mclash', el: 'erde', range: 360, radius: 90, dmg: 1.7, stun: 0.4, lift: 12, duelMul: 1.15,
+            // seit 13.69 (Balance): Steinschlag 1,7 → 1,9 und 0,6 s betäubt, Felsgeschoss 3,0 → 3,8, Erdspitzen 1,7 → 2,0 und 1 s betäubt,
+            // Bergsturz 3,2 → 4,4, Schwerkraftsiegel-Einsturz 1,6 → 2,4; Steinhaut nach dem Weltenbruch hält 60 s (magier.js)
+            type: 'mclash', el: 'erde', range: 360, radius: 90, dmg: 1.9, stun: 0.6, lift: 12, duelMul: 1.15,
             anim: 'stoss', animDur: 0.4, color: '#f0a830',
             text: 'Du reißt zwei Felsbrocken aus der Erde und schleuderst sie von links und rechts auf dein Ziel zu (bis 360 weit). Dort krachen sie zusammen und zerbersten: Alle Gegner bis 90 weit werden getroffen, hochgeworfen und kurz betäubt.'
           },
           {
             // seit 11.5 viel größer: betäubt länger und trifft härter
             id: 'steingeschoss', name: 'Felsgeschoss', short: 'FG', kind: 'angriff', unlock: 3, mp: 14, cooldown: 5,
-            type: 'mbolt', el: 'erde', range: 340, speed: 380, dmg: 3.0, splash: { r: 80, mul: 0.6 }, knockback: 70, stun: 1.2,
+            type: 'mbolt', el: 'erde', range: 340, speed: 380, dmg: 3.8, splash: { r: 80, mul: 0.6 }, knockback: 70, stun: 1.2,
             style: 'stone', big: 2.1, anim: 'stoss', animDur: 0.4, color: '#f0a830',
             text: 'Du schleuderst einen riesigen Basaltfelsen mit glühendem Bernsteinkern. Er trifft hart, betäubt das Ziel 1,2 s, stößt es zurück und zerbirst: Gegner bis 80 weit bekommen etwas weniger ab.'
           },
           {
             // seit 11.5 statt Erdsprung: Steinspitzen brechen in einer Fläche aus der Erde
             id: 'erdspitzen', name: 'Erdspitzen', short: 'ES', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
-            type: 'mspikes', el: 'erde', range: 300, radius: 115, dmg: 1.7, stun: 0.6, lift: 18, duelMul: 1.15,
+            type: 'mspikes', el: 'erde', range: 300, radius: 115, dmg: 2.0, stun: 1.0, lift: 18, duelMul: 1.15,
             anim: 'nova', animDur: 0.55, color: '#f0a830',
             text: 'Du stampfst auf: Beim Ziel (oder vor dir) brechen in zwei Wellen spitze Basaltdornen aus der Erde – erst außen, dann in der Mitte. Alle Gegner bis 115 weit werden aufgespießt, hochgeworfen und kurz betäubt.'
           },
           {
             // seit 11.5 statt Basalthaut: Bergsturz – ein riesiger Fels stürzt vom Himmel
             id: 'bergsturz', name: 'Bergsturz', short: 'BG', kind: 'angriff', unlock: 7, mp: 28, cooldown: 14,
-            type: 'mmeteor', el: 'erde', aim: true, range: 380, radius: 125, fall: 0.9, dmg: 3.2, stun: 1.0, knockback: 90, duelMul: 1.15,
+            type: 'mmeteor', el: 'erde', aim: true, range: 380, radius: 125, fall: 0.9, dmg: 4.4, stun: 1.0, knockback: 90, duelMul: 1.15,
             anim: 'zauber', animDur: 0.55, color: '#f0a830',
             text: 'Du reißt einen Berggipfel aus dem Himmel: Ein gewaltiger Felsen mit glühenden Adern stürzt auf den gewählten Ort, zieht eine Staubfahne hinter sich her und schlägt mit einer Druckwelle ein. Hoher Schaden, alle bis 125 weit werden weggeschleudert und 1 s betäubt.'
           },
@@ -532,7 +550,7 @@ const CLASSES = {
             id: 'schwerkraft', name: 'Schwerkraftsiegel', short: 'SK', kind: 'angriff', unlock: 10, mp: 30, cooldown: 13,
             // seit 11.5 ohne Bodensiegel: nur der Sog und ein Ring kreisender Felsen
             type: 'mgrav', el: 'erde', aim: true, range: 320, radius: 150, delay: 0.45, pull: 70, ticks: 3, every: 0.45, dmg: 0.6, rocks: 8,
-            last: { dmg: 1.6, stun: 1.2, lift: 18 }, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#f0a830',
+            last: { dmg: 2.4, stun: 1.2, lift: 18 }, duelMul: 1.15, anim: 'zauber', animDur: 0.55, color: '#f0a830',
             text: 'Die Schwerkraft am gewählten Ort kippt: Acht Felsbrocken reißen sich aus dem Boden und kreisen immer enger um die Mitte, ziehen alle Gegner hinein und treffen sie dreimal. Zum Schluss krachen alle Felsen in der Mitte zusammen: hoher Schaden, die Gegner fliegen hoch und sind betäubt.'
           }
         ]

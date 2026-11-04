@@ -1394,7 +1394,7 @@ const ui = {
         row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
         `</dl><h3>Boni</h3><dl class="stats">` +
         row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
-        (s.natureDmg ? row('Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +
+        (s.natureDmg ? row(p.classId === 'magier' ? 'Elementschaden' : 'Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +
         `</dl><h3>Erfolge</h3><dl class="stats">` +
         row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
         row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
@@ -2171,7 +2171,7 @@ const BUFF_TIP_LABELS = {
   atk: 'Angriff', def: 'Verteidigung', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', dodge: 'Ausweichen',
   crit: 'Krit. Chance', critDmg: 'Krit. Schaden', damageTaken: 'Erlittener Schaden', regen: 'Leben je Sek.',
   skillDmg: 'Fertigkeitsschaden', reflect: 'Schaden zurück', chill: 'Angreifer verlangsamt', natureDmg: 'Naturschaden',
-  omniVamp: 'Omni-Vampir', int: 'Intelligenz'
+  omniVamp: 'Omni-Vampir', int: 'Intelligenz', hpSteal: 'Lebensraub'
 };
 function buffTip(b) {
   const lines = [b.name];
@@ -2185,6 +2185,8 @@ function buffTip(b) {
     else if (k === 'atkFlat' && typeof v === 'number') lines.push('Angriff +' + Math.round(v));
     else if (k === 'defFlat' && typeof v === 'number') lines.push('Rüstung +' + Math.round(v));
     else if (k === 'chillDur') continue;
+    // seit 13.69: Arkane Erleuchtung des Magiers gibt Elementschaden (gleiche Wirkung wie der Naturschaden des Schamanen)
+    else if (k === 'natureDmg' && b.id === 'segen_arkan' && v) lines.push('Elementschaden ' + fmt(v));
     else if (BUFF_TIP_LABELS[k] && typeof v === 'number' && v) lines.push(BUFF_TIP_LABELS[k] + ' ' + fmt(v));
   }
   const fx = SKILL_FX[b.id];
