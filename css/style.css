@@ -3212,6 +3212,11 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .ss-list li { margin: 2px 0; }
 .ss-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 .ss-small .ss-btns { flex-direction: column; }
+/* Verhaltensregeln (seit 13.77) */
+.ss-rules { margin: 0 0 8px; padding-left: 18px; }
+.ss-rules li { margin: 2px 0; }
+.ss-check { display: flex; gap: 8px; align-items: flex-start; margin: 8px 0 2px; cursor: pointer; }
+.ss-check input { margin-top: 3px; width: 18px; height: 18px; flex: none; }
 .ss-btns .btn, .ss-mail .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--parchment); text-decoration: none; font-size: 14px; padding: 8px 14px; }
 .ss-btns .btn-primary { color: #1b130a; }
 .ss-reasons { margin: 0 0 8px; padding: 6px 10px; border: 1px solid rgba(201, 163, 90, 0.35); border-radius: 8px; display: grid; gap: 4px; }

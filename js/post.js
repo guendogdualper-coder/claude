@@ -316,6 +316,8 @@ function postComposeWire(body) {
 }
 
 async function postSend() {
+  // seit 13.77: vor dem ersten Brief die Verhaltensregeln bestätigen (Google Play)
+  if (typeof regelnOk === 'function' && !regelnOk()) return regelnFragen(() => postSend());
   const p = game.player;
   const c = POST.compose;
   if (POST.busy) return;

@@ -321,10 +321,48 @@ function legalOptionsHtml() {
     `<p class="hint-text">Blockieren: Spieler antippen (Spielerkarte) oder seinen Namen im offenen Chat antippen. Von blockierten Spielern siehst du keine Nachrichten und Sprechblasen; Einladungen zu Handel, Duell, Gruppe, Freundschaft und Gilde werden automatisch abgelehnt. Dort kannst du Spieler auch melden.</p></section>` +
     `<section class="opt-group"><h3>Rechtliches</h3><div class="opt-btns">` +
     `<a class="btn btn-ghost" href="${LINK_DATENSCHUTZ}" target="_blank" rel="noopener">🔒 Datenschutzerklärung</a>` +
+    `<a class="btn btn-ghost" href="regeln.html" target="_blank" rel="noopener">📜 Verhaltensregeln</a>` +
     `<a class="btn btn-ghost" href="${LINK_KONTO_LOESCHEN}" target="_blank" rel="noopener">🗑 Konto löschen (Webseite)</a></div></section>`;
 }
 function wireLegalOptions(body) {
   body.querySelectorAll('[data-unblock]').forEach((b) => b.addEventListener('click', () => setBlocked(b.dataset.unblock, false)));
   const del = body.querySelector('[data-legal="delete"]');
   if (del) del.addEventListener('click', openDeleteAccount);
+}
+
+// --- Verhaltensregeln (seit 13.77) -----------------------------------------------------------------------
+// Google Play verlangt bei Inhalten von Spielern (Chat, Briefe, Namen), dass die Regeln vorher bestätigt werden.
+// Gefragt wird einmal pro Gerät vor dem ersten Chat, dem ersten Brief und beim Registrieren; erhöht man
+// REGELN_VERSION, wird nach einer Änderung der Regeln erneut gefragt.
+const REGELN_KEY = 'seelenstein.regeln';
+const REGELN_VERSION = 1;
+const LINK_REGELN = 'regeln.html';
+let regelnMem = 0;
+function regelnOk() {
+  if (regelnMem >= REGELN_VERSION) return true;
+  try { regelnMem = Number(localStorage.getItem(REGELN_KEY)) || 0; } catch (e) { /* privat */ }
+  return regelnMem >= REGELN_VERSION;
+}
+// fragt nach, falls nötig; then() läuft erst nach der Bestätigung (oder sofort, wenn schon bestätigt)
+function regelnFragen(then) {
+  if (regelnOk()) { if (then) then(); return true; }
+  const dlg = ssDialog(
+    `<h3 class="ss-title">Verhaltensregeln</h3>` +
+    `<p>Damit Seelenstein für alle Spaß macht, gilt im Chat, in Briefen, bei Namen und beim Handeln:</p>` +
+    `<ul class="ss-rules"><li>keine Beleidigungen, Drohungen oder Belästigung</li><li>keine Hetze und keine anstößigen Inhalte</li>` +
+    `<li>kein Betrug, kein Handel mit echtem Geld, kein Spam</li><li>keine persönlichen Daten und niemals dein Passwort teilen</li></ul>` +
+    `<p>Verstöße können gemeldet werden und zur Sperre führen. <a href="${LINK_REGELN}" target="_blank" rel="noopener">Alle Regeln lesen</a></p>` +
+    `<label class="ss-check"><input type="checkbox" id="regelnOk"> <span>Ich habe die Verhaltensregeln gelesen und halte mich daran.</span></label>` +
+    `<div class="ss-btns"><button type="button" class="btn btn-primary" id="regelnGo" disabled>Zustimmen</button>` +
+    `<button type="button" class="btn btn-ghost" data-dlg-close>Abbrechen</button></div>`);
+  const box = dlg.querySelector('#regelnOk');
+  const go = dlg.querySelector('#regelnGo');
+  box.addEventListener('change', () => { go.disabled = !box.checked; });
+  go.addEventListener('click', () => {
+    regelnMem = REGELN_VERSION;
+    try { localStorage.setItem(REGELN_KEY, String(REGELN_VERSION)); } catch (e) { /* privat: gilt bis zum Neuladen */ }
+    ssDialogClose();
+    if (then) then();
+  });
+  return false;
 }

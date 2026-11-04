@@ -24,7 +24,7 @@ Paket-ID, Android-Vorgaben von Google wie ein neues `targetSdk`).
 | Fallback (falls kein TWA-fähiger Browser) | Custom Tabs |
 | minSdk / targetSdk / compileSdk | 24 / 36 / 36 (Bubblewrap 1.27.0, android-browser-helper 2.7.4) |
 
-Google Play verlangt 2026 für neue Apps mindestens `targetSdk 35` – 36 erfüllt das.
+Google Play verlangt seit 31. 8. 2026 für neue Apps und Updates `targetSdk 36` – das ist erfüllt.
 `minSdk 24` (Android 7.0) ist Pflicht, weil android-browser-helper 2.7.4 nichts Älteres unterstützt.
 
 ## Dateien

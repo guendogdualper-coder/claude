@@ -98,10 +98,10 @@ if grep -q "127.0.0.1" app/build.gradle app/src/main/AndroidManifest.xml; then
   echo "FEHLER: lokale Bau-Adresse ist im Projekt gelandet." >&2; exit 1
 fi
 
-# Google Play verlangt ein aktuelles targetSdk (2026: mindestens 35).
+# Google Play verlangt ein aktuelles targetSdk (2026: mindestens 36).
 TARGET_SDK="$(grep -Eo 'targetSdkVersion [0-9]+' app/build.gradle | grep -Eo '[0-9]+')"
-if [ "${TARGET_SDK:-0}" -lt 35 ]; then
-  echo "FEHLER: targetSdkVersion $TARGET_SDK ist zu alt für Google Play (mind. 35). Bubblewrap aktualisieren." >&2
+if [ "${TARGET_SDK:-0}" -lt 36 ]; then
+  echo "FEHLER: targetSdkVersion $TARGET_SDK ist zu alt für Google Play (mind. 36). Bubblewrap aktualisieren." >&2
   exit 1
 fi
 

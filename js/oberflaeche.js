@@ -84,7 +84,11 @@ const ui = {
     }
     $('chatBar').addEventListener('submit', (e) => {
       e.preventDefault();
-      if (netOnline()) netChat($('chatInput').value);
+      const text = $('chatInput').value;
+      // seit 13.77: vor der ersten Nachricht die Verhaltensregeln bestätigen (Google Play)
+      if (text.trim() && netOnline() && typeof regelnOk === 'function' && !regelnOk()) {
+        regelnFragen(() => { if (netOnline()) netChat(text); });
+      } else if (netOnline()) netChat(text);
       $('chatInput').value = '';
       this.closeChat();
     });
@@ -300,6 +304,11 @@ const ui = {
       '<button type="button" class="btn btn-primary" data-acc="login">Anmelden</button><button type="button" class="btn btn-ghost" data-acc="register">Registrieren</button></div>' +
       `<p id="accMsg" class="acc-msg"${account.msg && account.state === 'off' ? '' : ' hidden'}>${escapeHtml(account.msg || '')}</p>`;
     box.querySelectorAll('[data-acc]').forEach((b) => b.addEventListener('click', async () => {
+      // seit 13.77: beim Registrieren erst die Verhaltensregeln bestätigen (Google Play)
+      if (b.dataset.acc === 'register' && typeof regelnOk === 'function' && !regelnOk()) {
+        regelnFragen(() => b.click());
+        return;
+      }
       const name = $('accName').value;
       const pass = $('accPass').value;
       const msg = $('accMsg');
