@@ -172,6 +172,7 @@ for (const d of DUNGEONS) {
 // wird, damit Bäume und Felsen der übrigen Maps gleich bleiben, obwohl die Stadt größer geworden ist
 // seit 13.63 sind alle Städte und Lager größer (Platz für Auktionshaus, Post und Herausforderung): Lager 9 → 13,
 // Städte 14 bzw. 18 → 20; Stände und Häuser bleiben beim Plan von genCamp, nur die Mauer rückt nach außen
+// seit 13.72 stehen die Stände innen an der neuen Mauer (TOWN_PLACES in welt.js), Häuser und Weltentor bleiben beim Plan
 const WORLD_MAPS = [
   { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
   { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },

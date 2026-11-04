@@ -175,16 +175,47 @@ function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
   const along = onH ? dx : dy;
   return along < -GATE_HALF || along >= GATE_HALF;
 }
-// Feste Plätze für die neuen Stadtleute (seit 13.63, in den größeren Städten): Herausforderung (Arenameister),
-// Auktionshaus, Post und ein Briefkasten. [dx, dy, Seite des Stands] in Kacheln ab der Mitte der Stadt; die Seite
-// wie bei den anderen Ständen ('w' Stand links, die Person schaut nach rechts · 'e' Stand rechts · 'n' Stand dahinter),
-// null = ohne Stand (Briefkasten). 'frei' ist ein weiterer freier Platz für später.
-// dorf: Vlotho · stadt: Sahra (Map 2) und Klammfeste (Map 3) · lager: die kleinen Lager der übrigen Maps
+// Plätze aller Stadtleute (seit 13.72 alle hier, vorher nur Arenameister, Auktionshaus, Post und Briefkasten; die
+// übrigen standen in eigenen Listen in der Mitte, obwohl die Mauern in 13.63 nach außen gerückt sind). Seit 13.72
+// stehen alle Stände innen an der Mauer, die Mitte mit Weltentor, Brunnen und den Wegen zu den Toren bleibt frei.
+// [dx, dy, Seite des Stands] in Kacheln ab der Mitte der Stadt (Kachel cx, cy; die Mauer liegt bei ±H, ihre
+// Innenkante bei -H + 1 und +H, die Tore um dx bzw. dy = 0). Seite: 'w' Stand links an der Westmauer, die Person
+// schaut zur Mitte · 'e' Stand rechts an der Ostmauer · 'n' Stand dahinter (Nordmauer; an der Südmauer im Lager
+// steht die Person an der Mauer und der Stand vor ihr, weil ein Stand zwischen Kamera und Person sie verdecken
+// würde) · null = ohne Stand (Briefkasten). 'frei' ist ein weiterer freier Platz für später.
+// Alles feste Zahlen (keine Zufallszahlen): jeder Mitspieler bekommt dieselben Plätze. Die Stände blockieren nicht
+// (Schmuck ohne Kollision) und keine Kachel ändert sich – wer an einem alten Standplatz gespeichert hat, steht frei.
+// dorf: Vlotho (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
 const TOWN_PLACES = {
-  dorf: { arena: [-12.75, 17, 'w'], auktion: [12.75, 13.5, 'e'], post: [12.75, 17, 'e'], briefkasten: [10.4, 18.4, null], frei: [-17, -19, 'n'] },
-  stadt: { arena: [-9.75, 14.8, 'w'], auktion: [9.75, 14.8, 'e'], post: [9.75, 8.6, 'e'], briefkasten: [7.4, 10.2, null], frei: [-9.75, -14.5, 'n'] },
-  lager: { arena: [-7.5, -9.6, 'n'], auktion: [7.5, -9.6, 'n'], post: [7.5, 10.4, 'n'], briefkasten: [9.7, 10.8, null], frei: [-7.5, 10.4, 'n'] }
+  // Vlotho: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 4); um die Tore stehen die Torwachen
+  dorf: {
+    aeltester: [-19.25, -18.5, 'w'], waffen: [-19.25, -14.5, 'w'], haendler: [-19.25, -10.5, 'w'], bogenmacher: [-19.25, -6.5, 'w'],
+    stallmeister: [-19.25, 7.5, 'w'], schmied: [-19.25, 11.5, 'w'], arena: [-19.25, 15.5, 'w'], frei: [-19.25, 19.5, 'w'],
+    lehrmeister: [20.25, -18.5, 'e'], teleport: [20.25, -14.5, 'e'], ruestung: [20.25, -10.5, 'e'], alchemist: [20.25, -6.5, 'e'],
+    jaegerin: [20.25, 7.5, 'e'], lager: [20.25, 11.5, 'e'], auktion: [20.25, 15.5, 'e'], post: [20.25, 19.5, 'e'],
+    briefkasten: [18.2, 20.8, null]
+  },
+  // Städte: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 3,6)
+  stadt: {
+    aeltester: [-16.25, -16.3, 'w'], waffen: [-16.25, -12.7, 'w'], haendler: [-16.25, -9.1, 'w'], schmied: [-16.25, -5.5, 'w'],
+    stallmeister: [-16.25, 5.5, 'w'], bogenmacher: [-16.25, 9.1, 'w'], lehrmeister: [-16.25, 12.7, 'w'], arena: [-16.25, 16.3, 'w'],
+    teleport: [17.25, -16.3, 'e'], ruestung: [17.25, -12.7, 'e'], alchemist: [17.25, -9.1, 'e'], lager: [17.25, -5.5, 'e'],
+    post: [17.25, 5.5, 'e'], jaegerin: [17.25, 9.1, 'e'], auktion: [17.25, 12.7, 'e'], frei: [17.25, 16.3, 'e'],
+    briefkasten: [15.3, 6.7, null]
+  },
+  // Lager (klein): je zwei an West- und Ostmauer über und unter dem Tor, dazu drei an der Nordmauer neben den
+  // Tortürmen (in der Nordwestecke nur einer, dort rückt die Mauer näher ans Tor) und vier an der Südmauer
+  lager: {
+    aeltester: [-9.25, -7.8, 'w'], waffen: [-9.25, -4.5, 'w'], haendler: [-9.25, 4.5, 'w'], schmied: [-9.25, 7.6, 'w'],
+    teleport: [10.25, -7.6, 'e'], ruestung: [10.25, -4.5, 'e'], alchemist: [10.25, 4.5, 'e'], lager: [10.25, 7.6, 'e'],
+    lehrmeister: [-5.4, -9.25, 'n'], jaegerin: [4.75, -9.25, 'n'], auktion: [7.95, -9.25, 'n'],
+    arena: [-3.75, 10.25, 'n'], stallmeister: [-7.4, 10.25, 'n'], bogenmacher: [3.75, 10.25, 'n'], post: [7.6, 10.25, 'n'],
+    briefkasten: [9.4, 11.3, null]
+  }
 };
+// Stadtleute mit Stand, in der Reihenfolge, in der sie in jeder Stadt erzeugt werden (seit 13.72)
+const TOWN_ROLES = ['aeltester', 'waffen', 'haendler', 'schmied', 'lehrmeister', 'teleport', 'ruestung', 'alchemist', 'lager', 'jaegerin',
+  'stallmeister', 'bogenmacher', 'post', 'auktion', 'arena'];
 // Art der Stadt einer Map (siehe TOWN_PLACES)
 function townKind(mapId) {
   if (mapId === 1) return 'dorf';
@@ -198,6 +229,18 @@ function townPlace(mapId, role) {
   const wm = WORLD_MAPS.find((m) => m.id === mapId);
   const [cx, cy] = mapId === 1 ? [CENTER_X, CENTER_Y] : [wm.cx, wm.cy];
   return { x: cx + at[0], y: cy + at[1], stand: at[2] };
+}
+
+// Pferd (und Heu) neben dem Stand des Stallmeisters (seit 13.72, at = townPlace(..., 'stallmeister')): an der
+// West- oder Ostmauer steht das Pferd schräg vor ihm zur Mitte hin, das Heu an der Mauer auf der Seite zum Tor;
+// an der Südmauer (Lager, Stand vor ihm) steht das Pferd links neben ihm in der Ecke
+function stallProps(at, hay) {
+  const P = (x, y) => ({ x: x * TILE, y: y * TILE });
+  if (at.stand === 'n') return [{ type: 'horse', ...P(at.x - 1.9, at.y + 0.7) }];
+  const dir = at.stand === 'w' ? 1 : -1; // zur Mitte hin
+  const out = [{ type: 'horse', ...P(at.x + dir * 1.7, at.y + 1.4) }];
+  if (hay) out.push({ type: 'hay', ...P(at.x - dir * 0.9, at.y - 2.1) });
+  return out;
 }
 
 // Vlotho vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
@@ -354,28 +397,24 @@ function generateWorld() {
   // Seit 12.2 stehen die Stadtleute am linken und rechten Rand einander gegenüber, die Mitte bleibt frei; jede
   // Person vor ihrem Stand (STAND3 in drei-welt.js). stand: 'w' Stand links von ihr (sie schaut nach rechts),
   // 'e' Stand rechts, 'n' Stand dahinter. Lagen in Kacheln ab der Mitte, frei von Häusern, Wegen und Wachen.
+  // Seit 13.72 innen an der Mauer (TOWN_PLACES), damit die Mitte der größeren Städte (13.63) frei bleibt.
   const npc = (id, name, x, y, extra = {}) => ({ id, name, x: x * TILE, y: y * TILE, r: 11, ...extra });
   const L = (side) => ({ stand: side, restYaw: side === 'w' ? 0.75 : side === 'e' ? -0.75 : 0 });
-  const VL = 12.75; // Abstand der Stadtleute von der Mitte in Vlotho
+  // seit 13.72: alle Plätze aus TOWN_PLACES (innen an der Mauer), vorher 12,75 Kacheln links und rechts der Mitte
+  const VLOTHO_PEOPLE = {
+    aeltester: 'Dorfältester Bao', waffen: 'Waffenhändler Goro', haendler: 'Händlerin Ayla', schmied: 'Schmied Doran',
+    lehrmeister: 'Lehrmeister Wen', teleport: 'Wegweiserin Lian', ruestung: 'Rüstungshändlerin Mei', alchemist: 'Alchemist Yun',
+    lager: 'Lagerverwalter Bo', jaegerin: 'Jägerin Rin', stallmeister: 'Stallmeister Jun',
+    bogenmacher: 'Bogenmacherin Hana', // seit 13.57: Bögen, Köcher und Pfeile
+    post: 'Postmeisterin Ida', auktion: 'Auktionator Edo', // seit 13.63 (auktionshaus.js, post.js)
+    arena: 'Arenameisterin Kaida' // seit 13.63: Herausforderung (herausforderung.js)
+  };
+  const townNpc = (mapId, id, name) => {
+    const at = townPlace(mapId, id);
+    return npc(id, name, at.x, at.y, L(at.stand));
+  };
   const npcs = [
-    npc('aeltester', 'Dorfältester Bao', C - VL, C - 10.5, L('w')),
-    npc('waffen', 'Waffenhändler Goro', C - VL, C - 3.6, L('w')),
-    npc('haendler', 'Händlerin Ayla', C - VL, C + 3.1, L('w')),
-    // seit 13.57: Bogenmacherin (Bögen, Köcher und Pfeile) zwischen Händlerin und Schmied
-    npc('bogenmacher', 'Bogenmacherin Hana', C - VL, C + 6.6, L('w')),
-    npc('schmied', 'Schmied Doran', C - VL, C + 10, L('w')),
-    npc('stallmeister', 'Stallmeister Jun', C - VL, C + 13.5, L('w')),
-    npc('lehrmeister', 'Lehrmeister Wen', C + VL, C - 14, L('e')),
-    npc('teleport', 'Wegweiserin Lian', C + VL, C - 10.5, L('e')),
-    npc('ruestung', 'Rüstungshändlerin Mei', C + VL, C - 3.6, L('e')),
-    npc('alchemist', 'Alchemist Yun', C + VL, C + 3.1, L('e')),
-    npc('jaegerin', 'Jägerin Rin', C + VL, C + 6.6, L('e')),
-    npc('lager', 'Lagerverwalter Bo', C + VL, C + 10.1, L('e')),
-    // seit 13.63: Auktionshaus und Post (auktionshaus.js, post.js) unter dem Lager am rechten Rand
-    npc('auktion', 'Auktionator Edo', C + VL, C + 13.5, L('e')),
-    npc('post', 'Postmeisterin Ida', C + VL, C + 17, L('e')),
-    // seit 13.63: Arenameisterin (Herausforderung, herausforderung.js) links unten, gegenüber der Post (TOWN_PLACES)
-    npc('arena', 'Arenameisterin Kaida', townPlace(1, 'arena').x, townPlace(1, 'arena').y, L(townPlace(1, 'arena').stand)),
+    ...TOWN_ROLES.map((id) => townNpc(1, id, VLOTHO_PEOPLE[id])),
     npc('weltentor', 'Weltentor', C + 5.1, C - 9)
   ];
   // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
@@ -415,31 +454,11 @@ function generateWorld() {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
     return n.startsWith('Hexe') ? n : `${ROLE_TITLE[id][form]} ${n}`.trim();
   };
-  // kleines Lager (für eine Mauer von 7 gezeichnet, wächst mit wm.camp): oben Älteste, Weltentor, Wegweiserin;
-  // links Schmied und Waffen, rechts Händlerin und Rüstung, unten Stall, Jägerin, Alchemist
-  // seit 12.2 in Kacheln ab der Mitte: links und rechts am Rand einander gegenüber, oben und unten je ein paar
-  // mit dem Stand im Rücken; [x, y, Seite des Stands]
-  const CAMP_SPOTS = {
-    aeltester: [-5.75, -6.6, 'w'], waffen: [-5.75, -3.4, 'w'], haendler: [-5.75, 2.4, 'w'], schmied: [-5.75, 5.6, 'w'],
-    teleport: [5.75, -6.6, 'e'], ruestung: [5.75, -3.4, 'e'], alchemist: [5.75, 2.4, 'e'], lager: [5.75, 5.6, 'e'],
-    lehrmeister: [-3.4, -6.2, 'n'], jaegerin: [3.8, -6.2, 'n'], stallmeister: [-3.2, 7, 'n'],
-    bogenmacher: [3.4, 7, 'n'], // seit 13.57: unten rechts, gegenüber dem Stallmeister
-    // seit 13.63: Post, Auktionshaus und Arenameister an ihren festen Plätzen im größeren Lager (TOWN_PLACES)
-    post: TOWN_PLACES.lager.post, auktion: TOWN_PLACES.lager.auktion, arena: TOWN_PLACES.lager.arena
-  };
-  // Städte in Map 2 und 3 (für eine Mauer von 11 gezeichnet, wächst mit CAMP_HALF)
-  const TOWN_SPOTS = {
-    aeltester: [-9.75, -6.8, 'w'], waffen: [-9.75, -3.2, 'w'], haendler: [-9.75, 2.3, 'w'], schmied: [-9.75, 5.6, 'w'], lehrmeister: [-9.75, 11.6, 'w'],
-    teleport: [9.75, -6.8, 'e'], ruestung: [9.75, -3.2, 'e'], alchemist: [9.75, 2.3, 'e'], lager: [9.75, 5.6, 'e'], jaegerin: [9.75, 11.6, 'e'],
-    stallmeister: [-5, 11, 'n'],
-    bogenmacher: [-9.75, 8.6, 'w'], // seit 13.57
-    // seit 13.63: Post rechts gegenüber der Bogenmacherin, Auktionshaus und Arenameister unten an den Rändern (TOWN_PLACES)
-    post: TOWN_PLACES.stadt.post, auktion: TOWN_PLACES.stadt.auktion, arena: TOWN_PLACES.stadt.arena
-  };
   for (const mp of maps) {
     const k = mp.scale;
     npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5 * k, mp.cy - 4.5 * k));
-    for (const [id, [dx, dy, side]] of Object.entries(mp.small ? CAMP_SPOTS : TOWN_SPOTS)) npcs.push(npc(id, personName(mp.id, id), mp.cx + dx, mp.cy + dy, L(side)));
+    // seit 13.72 alle an der Mauer (TOWN_PLACES), vorher in CAMP_SPOTS/TOWN_SPOTS nach dem alten, kleineren Plan
+    for (const id of TOWN_ROLES) npcs.push(townNpc(mp.id, id, personName(mp.id, id)));
     houses.push(...mp.houses);
   }
   // Wanderer mit Nebenaufgaben: je Map drei, an freien Plätzen zwischen Lager und Rand
@@ -563,8 +582,8 @@ function generateWorld() {
 
   props.push(...wandererFires);
   // Stall des Stallmeisters: ein Pferd und Heuballen
-  // seit 13.63 Heu links neben dem Stand (darunter steht jetzt die Arenameisterin)
-  props.push({ type: 'horse', ...T(C - 11.3, C + 15.2) }, { type: 'hay', ...T(C - 16.6, C + 13.4) });
+  // seit 13.72 neben seinem Stand an der Westmauer (stallProps): Heu an der Mauer zum Tor hin, das Pferd vor ihm
+  props.push(...stallProps(townPlace(1, 'stallmeister'), true));
   // Feuerbecken in den Dungeon-Räumen
   dungeons.forEach((dg) => {
     // gewürfelte Dungeons (seit 13.7) schmücken ihre Räume selbst, seit 13.58 auch der Höllenthron mit vielen Räumen
@@ -607,14 +626,16 @@ function generateWorld() {
       const KT = (x, y) => T(mp.cx + x, mp.cy + y);
       for (const [dx, dy] of [[-2.2, 4.4], [1.2, 4.4], [-2.2, -2.6], [1.2, -2.6]]) props.push({ type: 'lantern', ...KT(dx, dy) });
       props.push({ type: 'brazier', roof: '#ffb04a', ...KT(-1, -5.8) }, { type: 'brazier', roof: '#ffb04a', ...KT(2.2, -5.8) });
-      props.push({ type: 'well', ...KT(-3, 0.3) }, { type: 'horse', ...KT(-5.2, 7.4) });
+      // seit 13.72 das Pferd beim Stallmeister an der Südmauer (vorher fest bei -5.2, 7.4)
+      props.push({ type: 'well', ...KT(-3, 0.3) }, ...stallProps(townPlace(mp.id, 'stallmeister'), false));
       continue;
     }
     const KT = (x, y) => T(mp.cx + x, mp.cy + y);
     for (const [dx, dy] of [[-2.2, -9], [1.2, -9], [-2.2, 9.5], [1.2, 9.5], [-5.5, -2.2], [-5.5, 1.2], [5.5, -2.2], [5.5, 1.2]]) props.push({ type: 'lantern', ...KT(dx, dy) });
     props.push({ type: 'brazier', roof: '#ffb04a', ...KT(-1.6, -5.8) }, { type: 'brazier', roof: '#ffb04a', ...KT(2.9, -5.8) });
     props.push({ type: 'well', ...KT(-3.5, -3) });
-    props.push({ type: 'horse', ...KT(-6.8, 11.8) }, { type: 'hay', ...KT(-3, 12.4) });
+    // seit 13.72 beim Stallmeister an der Westmauer (vorher fest bei -6.8, 11.8 und -3, 12.4)
+    props.push(...stallProps(townPlace(mp.id, 'stallmeister'), true));
   }
 
   // Stand hinter jeder Stadtperson (seit 12.0): eine Kachel und ein Viertel nördlich, die Person steht davor
