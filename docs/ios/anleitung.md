@@ -185,6 +185,7 @@ App Store Connect (**Widerrufen**, *Revoke*) und legst einen neuen an.
 | `No App record was found` / `bundle id … not found` | Abschnitt 3 und 4 fehlen oder die Bundle-ID ist anders geschrieben. |
 | `The bundle version must be higher than the previously uploaded version` | Einfach noch einmal starten. Die Laufnummer zählt hoch. |
 | `Authentication credentials are missing or invalid` / `401` | Schlüssel-ID, Issuer-ID oder .p8-Inhalt falsch. Secrets prüfen. |
+| Job bleibt lange „Queued“ und endet mit `The job was not acquired by Runner of type hosted` | Kein Fehler im Projekt: GitHub hatte gerade keine freien Mac-Rechner („capacity constraints“). Später im Lauf oben rechts **Re-run jobs → Re-run failed jobs** klicken. |
 | `A required agreement is missing or has expired` | In App Store Connect unter **Geschäftlich** (*Business*) die neuen Vereinbarungen bestätigen (nur der Kontoinhaber). |
 | Beim Export Fehler zur Signatur des Archivs | Workflow noch einmal starten und dabei **„Archiv schon beim Bauen signieren“** anhaken. Dafür muss dein iPhone als Gerät registriert sein: developer.apple.com → *Devices* → **+** → UDID eintragen. Die UDID zeigt z. B. die Seite *udid.tech* in Safari an. |
 
