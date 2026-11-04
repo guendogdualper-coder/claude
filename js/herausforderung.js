@@ -747,77 +747,151 @@ ui.showDeath = function (lostXp) {
 };
 
 // --- Anzeige: Welle, Monster, nächster Schub, Leben, gesammeltes Gold, Aufgeben ---------------------------------
-// seit 13.70 nicht mehr oben in der Mitte (dort liegen Ziel- und Bossleiste), sondern direkt über dem Chat
-const arenaUi = { el: null, key: '', posAt: 0 };
+// seit 13.70 nicht mehr oben in der Mitte (dort liegen Ziel- und Bossleiste); am PC direkt über dem Chat.
+// seit 13.72 am Handy eine schmale Pille links unter der Lebensanzeige („W5 · 12 Mon. · ♥♥♡ · 4.000 G“ und ✕).
+// Antippen klappt sie auf (nächster Schub, Aufgeben mit Rückfrage). Die Lage wird nur beim Erscheinen, beim
+// Auf-/Zuklappen und bei Größenänderung neu gesetzt, nicht in jedem Bild (kein Layout-Rechnen je Bild).
+const arenaUi = { el: null, key: '', open: false, confirm: false, placeDue: true, touch: false };
+const arenaBox = (id) => {
+  const e = document.getElementById(id);
+  if (!e || e.hidden || e.closest('[hidden]')) return null;
+  const r = e.getBoundingClientRect();
+  return r.width > 0 && r.height > 0 ? r : null;
+};
 function arenaHudPlace(el) {
-  const chat = document.getElementById('chatBox');
-  const r = chat && chat.offsetParent !== null ? chat.getBoundingClientRect() : null;
-  if (r && r.width > 0) {
-    // am Handy auch über dem Steuerknüppel und dem Beutel-Knopf (sie sitzen neben bzw. über dem Chat)
-    let top = r.top;
-    for (const id of ['stick', 'btnLoot']) {
-      const e = document.getElementById(id);
-      const rs = e && !e.closest('[hidden]') ? e.getBoundingClientRect() : null;
-      if (rs && rs.width > 0 && rs.left < r.left + 520 && rs.top > window.innerHeight * 0.45) top = Math.min(top, rs.top);
+  arenaUi.placeDue = false;
+  if (arenaUi.touch) {
+    // Handy: unter Lebensanzeige, Buffs und (falls da) Gruppenrahmen, links am Rand
+    const c = arenaBox('hudChar');
+    let bottom = c ? c.bottom : 90;
+    for (const id of ['buffList', 'partyFrame']) {
+      const r = arenaBox(id);
+      if (r && c && r.left < c.right) bottom = Math.max(bottom, r.bottom);
     }
+    const left = Math.round(Math.max(6, c ? c.left : 6));
+    let top = Math.round(bottom + 4);
+    // nicht über Boss- und Zielleiste: liegt eine im Weg, rutscht die Pille darunter
+    const w = el.getBoundingClientRect().width;
+    const h = el.getBoundingClientRect().height;
+    for (const id of ['bossBar', 'targetFrame']) {
+      const r = arenaBox(id);
+      if (r && left < r.right && r.left < left + w && top < r.bottom && r.top < top + h) top = Math.round(r.bottom + 4);
+    }
+    el.style.left = left + 'px';
+    el.style.top = top + 'px';
+    el.style.bottom = '';
+    return;
+  }
+  // PC: direkt über dem Chat
+  const r = arenaBox('chatBox');
+  if (r) {
     el.style.left = Math.round(Math.max(4, r.left)) + 'px';
     el.style.top = '';
-    el.style.bottom = Math.round(window.innerHeight - top + 6) + 'px';
+    el.style.bottom = Math.round(window.innerHeight - r.top + 6) + 'px';
   } else {
-    // ohne Chat: links unter der Lebensanzeige
-    const c = document.getElementById('hudChar');
-    const rc = c ? c.getBoundingClientRect() : { left: 8, bottom: 120 };
-    el.style.left = Math.round(rc.left) + 'px';
-    el.style.top = Math.round(rc.bottom + 6) + 'px';
+    const c = arenaBox('hudChar');
+    el.style.left = Math.round(c ? c.left : 8) + 'px';
+    el.style.top = Math.round((c ? c.bottom : 120) + 6) + 'px';
     el.style.bottom = '';
   }
 }
+function arenaHudBuild() {
+  const touch = !!(typeof input !== 'undefined' && input.touchUi);
+  const el = document.createElement('div');
+  el.id = 'arenaHud';
+  arenaUi.touch = touch;
+  // unter den Fenstern (z-index 10), über der Spielfläche
+  el.style.cssText = 'position:fixed;left:8px;top:90px;z-index:5;max-width:' + (touch ? 'min(300px, 46vw)' : 'min(640px, calc(100vw - 16px))') + ';' +
+    'display:flex;flex-wrap:wrap;align-items:center;color:#ffe9c2;text-shadow:0 1px 2px #000;white-space:nowrap;' +
+    'background:rgba(30,18,8,.78);border:1px solid rgba(255,200,106,.55);box-shadow:0 2px 8px rgba(0,0,0,.4);' +
+    (touch ? 'gap:2px 6px;padding:2px 3px 2px 9px;border-radius:13px;font:600 11px/1.2 system-ui,sans-serif;pointer-events:auto;'
+      : 'gap:4px 9px;padding:5px 7px 5px 11px;border-radius:12px;font:600 12.5px/1.25 system-ui,sans-serif;pointer-events:none;');
+  const btn = (a, txt, css) => `<button type="button" data-a="${a}" style="pointer-events:auto;cursor:pointer;font:700 ${touch ? 11 : 12}px system-ui,sans-serif;color:#fff;background:#7a2a1a;border:1px solid #c86a4a;border-radius:${touch ? 10 : 8}px;${css}">${txt}</button>`;
+  if (touch) {
+    el.innerHTML = '<span data-a="w" style="color:#ffc86a;font-weight:800"></span><span data-a="l"></span>' +
+      '<span data-a="h" style="color:#ff6a5a;letter-spacing:.5px"></span><span data-a="g" style="color:#ffd96a"></span>' +
+      btn('x', '✕', 'width:22px;height:20px;padding:0;line-height:18px') +
+      '<div data-a="d" style="flex-basis:100%;display:none;flex-wrap:wrap;align-items:center;gap:4px 6px;padding:2px 0 3px;white-space:normal">' +
+      '<span data-a="s" style="color:#ffd8a8"></span><span data-a="q" style="color:#ffb8a0"></span>' + btn('y', 'Aufgeben', 'padding:2px 8px') + '</div>';
+    // Antippen: auf- und zuklappen; ✕ fragt erst nach
+    el.addEventListener('click', (ev) => {
+      const a = ev.target.closest('[data-a]') && ev.target.closest('[data-a]').dataset.a;
+      if (a === 'y') { arenaUi.open = false; arenaUi.confirm = false; arenaStop('aufgeben'); return; }
+      if (a === 'x') { arenaUi.confirm = !arenaUi.confirm || !arenaUi.open; arenaUi.open = arenaUi.confirm; }
+      else { arenaUi.open = !arenaUi.open; arenaUi.confirm = false; }
+      arenaUi.key = '';
+      arenaHud();
+    });
+  } else {
+    el.innerHTML = '<span data-a="w" style="color:#ffc86a;font-weight:800"></span><span data-a="l"></span><span data-a="s" style="color:#ffd8a8"></span>' +
+      '<span data-a="h" style="color:#ff6a5a;letter-spacing:1px"></span><span data-a="g" style="color:#ffd96a"></span>' + btn('x', 'Aufgeben', 'padding:3px 9px');
+    el.querySelector('[data-a="x"]').addEventListener('click', () => arenaStop('aufgeben'));
+  }
+  el.hidden = true;
+  document.body.appendChild(el);
+  // neu setzen nur bei Größenänderung (Drehen, Fenster, Lebensanzeige, Buffs, Boss- oder Zielleiste erscheint),
+  // nicht in jedem Bild
+  const due = () => {
+    arenaUi.placeDue = true;
+    // auch wenn das Spiel gerade steht (Hochformat am Handy): gleich neu setzen
+    if (arenaUi.el && !arenaUi.el.hidden) arenaHudPlace(arenaUi.el);
+  };
+  window.addEventListener('resize', due);
+  window.addEventListener('orientationchange', due);
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(due);
+    for (const id of ['hudChar', 'buffList', 'partyFrame', 'bossBar', 'targetFrame', 'chatBox']) {
+      const e = document.getElementById(id);
+      if (e) ro.observe(e);
+    }
+  }
+  arenaUi.el = el;
+}
 function arenaHud() {
   const run = game.arenaRun;
-  if (!arenaUi.el) {
-    const el = document.createElement('div');
-    el.id = 'arenaHud';
-    // unter den Fenstern (z-index 10), über der Spielfläche; am Handy schmaler (zwei Zeilen), damit rechts die Knöpfe frei bleiben
-    el.style.cssText = 'position:fixed;left:8px;bottom:200px;z-index:5;max-width:' + (input.touchUi ? 'min(470px, 56vw)' : 'min(640px, calc(100vw - 16px))') + ';' +
-      'display:flex;flex-wrap:wrap;align-items:center;gap:4px 9px;padding:5px 7px 5px 11px;border-radius:12px;background:rgba(30,18,8,.82);' +
-      'border:1px solid rgba(255,200,106,.65);color:#ffe9c2;font:600 12.5px/1.25 system-ui,sans-serif;text-shadow:0 1px 2px #000;' +
-      'white-space:nowrap;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45)';
-    el.innerHTML = '<span data-a="w" style="color:#ffc86a;font-weight:800"></span><span data-a="l"></span><span data-a="s" style="color:#ffd8a8"></span>' +
-      '<span data-a="h" style="color:#ff6a5a;letter-spacing:1px"></span><span data-a="g" style="color:#ffd96a"></span>' +
-      '<button type="button" data-a="x" style="pointer-events:auto;cursor:pointer;font:700 12px system-ui,sans-serif;color:#fff;background:#7a2a1a;border:1px solid #c86a4a;border-radius:8px;padding:3px 9px">Aufgeben</button>';
-    el.hidden = true;
-    el.querySelector('[data-a="x"]').addEventListener('click', () => arenaStop('aufgeben'));
-    document.body.appendChild(el);
-    arenaUi.el = el;
-  }
+  if (!arenaUi.el) arenaHudBuild();
   const el = arenaUi.el;
   if (!run || run.slot < 0 || !game.running) {
-    if (!el.hidden) el.hidden = true;
+    if (!el.hidden) {
+      el.hidden = true;
+      arenaUi.open = false;
+      arenaUi.confirm = false;
+    }
     return;
   }
+  const t = arenaUi.touch;
   // übrig: die lebenden und die noch kommenden (Verstärkung der Bosse zählt mit, sobald sie da ist)
   const rest = (run.left || 0) + Math.max(0, (run.n || 0) - (run.spawned || 0));
-  const left = run.phase === 'pause' ? `Nächste Welle in ${Math.max(0, Math.ceil(run.until - game.time))} s` : run.phase === 'fight' ? `Noch ${rest} Monster` : 'Gleich geht es los';
-  const next = run.phase === 'fight' && run.nextBatch > game.time ? `Nächster Schub in ${Math.ceil(run.nextBatch - game.time)} s` : '';
-  const w = `Welle ${Math.max(1, run.wave)}`;
-  const h = `${'♥'.repeat(run.lives)}${'♡'.repeat(Math.max(0, ARENA.lives - run.lives))} ${run.lives}/${ARENA.lives}`;
-  const g = `${arenaFmt(run.gold)} Gold gesammelt`;
-  const key = w + '|' + left + '|' + next + '|' + h + '|' + g;
+  const pause = Math.max(0, Math.ceil(run.until - game.time));
+  const left = run.phase === 'pause' ? (t ? `Pause ${pause} s` : `Nächste Welle in ${pause} s`) : run.phase === 'fight' ? (t ? `${rest} Mon.` : `Noch ${rest} Monster`) : (t ? '…' : 'Gleich geht es los');
+  const next = run.phase === 'fight' && run.nextBatch > game.time ? `Nächster Schub in ${Math.ceil(run.nextBatch - game.time)} s` : run.phase === 'pause' && t ? `Nächste Welle in ${pause} s` : '';
+  const w = t ? `W${Math.max(1, run.wave)}` : `Welle ${Math.max(1, run.wave)}`;
+  const hearts = `${'♥'.repeat(run.lives)}${'♡'.repeat(Math.max(0, ARENA.lives - run.lives))}`;
+  const h = t ? hearts : `${hearts} ${run.lives}/${ARENA.lives}`;
+  const g = t ? `${arenaFmt(run.gold)} G` : `${arenaFmt(run.gold)} Gold gesammelt`;
+  const key = w + '|' + left + '|' + next + '|' + h + '|' + g + '|' + arenaUi.open + arenaUi.confirm;
   if (key !== arenaUi.key) {
+    const sizeKey = arenaUi.open + '|' + arenaUi.confirm;
+    if (arenaUi.sizeKey !== sizeKey) { arenaUi.sizeKey = sizeKey; arenaUi.placeDue = true; }
     arenaUi.key = key;
     el.querySelector('[data-a="w"]').textContent = w;
     el.querySelector('[data-a="l"]').textContent = left;
-    el.querySelector('[data-a="s"]').textContent = next;
-    el.querySelector('[data-a="s"]').hidden = !next;
     el.querySelector('[data-a="h"]').textContent = h;
     el.querySelector('[data-a="g"]').textContent = g;
+    const s = el.querySelector('[data-a="s"]');
+    s.textContent = next;
+    s.hidden = !next;
+    if (t) {
+      el.querySelector('[data-a="d"]').style.display = arenaUi.open ? 'flex' : 'none';
+      el.querySelector('[data-a="q"]').textContent = arenaUi.confirm ? `Lauf beenden und ${arenaFmt(run.gold)} Gold auszahlen?` : '';
+      el.querySelector('[data-a="y"]').textContent = arenaUi.confirm ? 'Ja, aufgeben' : 'Aufgeben';
+    }
   }
-  // Lage nachführen (Chat kann verschoben werden, Fenstergröße ändert sich)
-  if (el.hidden || performance.now() - arenaUi.posAt > 500) {
-    arenaUi.posAt = performance.now();
-    arenaHudPlace(el);
+  if (el.hidden) {
+    el.hidden = false;
+    arenaUi.placeDue = true;
   }
-  if (el.hidden) el.hidden = false;
+  if (arenaUi.placeDue) arenaHudPlace(el);
 }
 
 // --- Fenster beim Arenameister und am Ausgang --------------------------------------------------------------------
