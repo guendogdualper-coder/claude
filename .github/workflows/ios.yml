@@ -85,6 +85,20 @@ jobs:
           xcrun --sdk iphonesimulator --show-sdk-version
           ls -d /Applications/Xcode*.app
 
+      - name: Simulator vorstarten (bootet parallel zum Bauen)
+        continue-on-error: true
+        run: |
+          GERAET=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          kand = [(rt, x) for rt, xs in d.items() if "iOS" in rt for x in xs if x["name"].startswith("iPhone")]
+          kand.sort(key=lambda t: t[0])
+          print(kand[-1][1]["udid"] if kand else "")
+          ')
+          echo "Simulator: $GERAET"
+          echo "GERAET=$GERAET" >> "$GITHUB_ENV"
+          if [ -n "$GERAET" ]; then xcrun simctl boot "$GERAET" || true; fi
+
       - name: Abhängigkeiten installieren (npm ci)
         run: npm ci
 
@@ -128,31 +142,26 @@ jobs:
 
       - name: Kurztest im Simulator (Start, Bildschirmfoto, Protokoll)
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
+          # Startet die App im Simulator, wartet, macht ein Bildschirmfoto und sammelt die Ausgabe von Capacitor
+          # (u. a. „Loading app at https://seelenstein.online/…“, „WebView loaded“, Konsolenmeldungen der Seite).
+          # macOS hat kein „timeout“: perl alarm begrenzt hängende simctl-Aufrufe.
+          mit_frist() { local s=$1; shift; perl -e 'alarm shift; exec @ARGV' "$s" "$@"; }
           APP=build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
           test -d "$APP"
-          GERAET=$(xcrun simctl list devices available -j | python3 -c '
-          import json, sys
-          d = json.load(sys.stdin)["devices"]
-          kand = [(rt, x) for rt, xs in d.items() if "iOS" in rt for x in xs if x["name"].startswith("iPhone")]
-          kand.sort(key=lambda t: t[0])
-          print(kand[-1][1]["udid"] if kand else "")
-          ')
-          echo "Simulator: $GERAET"
           test -n "$GERAET"
-          xcrun simctl boot "$GERAET" || true
-          xcrun simctl bootstatus "$GERAET" -b
-          xcrun simctl install "$GERAET" "$APP"
-          (xcrun simctl spawn "$GERAET" log stream --level debug --style compact --predicate 'process == "App"' > build/simulator-protokoll.log 2>&1 &)
-          sleep 2
-          xcrun simctl launch "$GERAET" "$BUNDLE_ID"
-          sleep 45
-          xcrun simctl io "$GERAET" screenshot build/simulator-start.png
-          sleep 2
-          pkill -f "log stream" || true
-          echo '--- Auszug Protokoll (Capacitor) ---'
-          grep -E '⚡️|To Native|WebView|Error|error' build/simulator-protokoll.log | head -n 80 || true
+          mit_frist 900 xcrun simctl bootstatus "$GERAET" -b > build/simulator-boot.log 2>&1 || { tail -n 5 build/simulator-boot.log; exit 1; }
+          echo "Simulator gestartet."
+          mit_frist 300 xcrun simctl install "$GERAET" "$APP"
+          echo "App installiert."
+          mit_frist 60 xcrun simctl launch --terminate-running-process \
+            --stdout="$PWD/build/app-ausgabe.log" --stderr="$PWD/build/app-ausgabe.log" "$GERAET" "$BUNDLE_ID"
+          sleep 60
+          mit_frist 90 xcrun simctl io "$GERAET" screenshot --type=png build/simulator-start.png || echo "Bildschirmfoto nicht möglich"
+          echo '--- Ausgabe der App (Capacitor) ---'
+          grep -a -E 'Loading app|WebView|To Native|Error|error|\[log\]|\[warn\]' build/app-ausgabe.log | head -n 80 || true
+          grep -a -q 'WebView loaded' build/app-ausgabe.log && echo "OK: Seite geladen." || echo "::warning::Keine Meldung „WebView loaded“ – Protokoll im Artefakt ansehen."
 
       - name: Ergebnisse hochladen
         if: always()
