@@ -1,0 +1,329 @@
+# iPhone/iPad-App „Seelenstein“ bauen (Capacitor-Projekt in ios/)
+#
+# Job „simulator“ (immer): baut die App für den iOS-Simulator OHNE Signatur – beweist, dass alles kompiliert –
+#   und startet sie danach kurz im Simulator (Bildschirmfoto + Protokoll als Artefakt).
+# Job „testflight“ (nur wenn die 4 Secrets gesetzt sind): baut die App-Store-Version, signiert sie über Apples
+#   Cloud-Signierung mit dem App-Store-Connect-API-Schlüssel und lädt sie zu TestFlight hoch.
+#   Buildnummer = Laufnummer dieses Workflows (github.run_number), steigt also automatisch.
+#
+# Secrets (Repository → Settings → Secrets and variables → Actions → „New repository secret“):
+#   APP_STORE_CONNECT_API_KEY_ID   Schlüssel-ID, z. B. 2X9R4HXF34
+#   APP_STORE_CONNECT_ISSUER_ID    Issuer-ID (UUID oben auf der Seite „Integrationen“)
+#   APP_STORE_CONNECT_API_KEY_P8   Inhalt der .p8-Datei (Text mit BEGIN/END PRIVATE KEY) oder derselbe Inhalt base64-kodiert
+#   APPLE_TEAM_ID                  Team-ID (10 Zeichen, Mitgliedschaft im Apple-Developer-Konto)
+# Anleitung für alles: docs/ios/anleitung.md
+#
+# Apple verlangt seit 28. 4. 2026 Builds mit Xcode 26 / iOS-26-SDK oder neuer. Das Runner-Abbild macos-26 hat
+# Xcode 26 als Standard; mit der Eingabe „xcode“ lässt sich eine bestimmte Version wählen (z. B. 26.6 oder 27.0).
+
+name: iOS-App
+
+on:
+  workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Nach erfolgreichem Bau zu TestFlight hochladen (nur wenn die Secrets gesetzt sind)'
+        type: boolean
+        default: true
+      version:
+        description: 'Versionsnummer im App Store (MARKETING_VERSION), z. B. 1.0.0'
+        type: string
+        default: '1.0.0'
+      xcode:
+        description: 'Xcode-Version (leer = Standard des Runners), z. B. 26.6'
+        type: string
+        default: ''
+      archiv_signieren:
+        description: 'Archiv schon beim Bauen signieren (nur nötig, falls die Cloud-Signierung beim Export scheitert; braucht ein registriertes Gerät)'
+        type: boolean
+        default: false
+  push:
+    branches:
+      - claude/app-entwicklung-hhewbj
+    paths:
+      - 'ios/**'
+      - '.github/workflows/ios.yml'
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  PROJEKT: App/App.xcodeproj
+  SCHEMA: App
+  BUNDLE_ID: de.seelenstein.spiel
+
+jobs:
+  simulator:
+    name: Bauen (Simulator, ohne Signatur)
+    runs-on: macos-26
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ios/package-lock.json
+
+      - name: Xcode wählen
+        env:
+          XCODE_WUNSCH: ${{ inputs.xcode }}
+        run: |
+          if [ -n "$XCODE_WUNSCH" ]; then
+            sudo xcode-select -s "/Applications/Xcode_${XCODE_WUNSCH}.app"
+          fi
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          ls -d /Applications/Xcode*.app
+
+      - name: Abhängigkeiten installieren (npm ci)
+        run: npm ci
+
+      - name: Capacitor synchronisieren (npx cap sync ios)
+        run: npx cap sync ios
+
+      - name: Konfiguration prüfen
+        run: |
+          plutil -lint App/App/Info.plist App/App/PrivacyInfo.xcprivacy
+          test -f App/App/public/offline.html
+          test -f App/App/capacitor.config.json
+          /usr/libexec/PlistBuddy -c 'Print :WKAppBoundDomains' App/App/Info.plist
+          python3 - <<'EOF'
+          import json
+          c = json.load(open('App/App/capacitor.config.json'))
+          print('server.url =', c['server']['url'])
+          assert c['appId'] == 'de.seelenstein.spiel'
+          EOF
+          # App-Symbol: 1024 × 1024 ohne Alphakanal (sonst lehnt App Store Connect den Upload ab)
+          sips -g pixelWidth -g pixelHeight -g hasAlpha App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png
+          sips -g hasAlpha App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png | grep -q 'hasAlpha: no'
+
+      - name: Swift-Pakete auflösen
+        run: |
+          mkdir -p build
+          xcodebuild -resolvePackageDependencies -project "$PROJEKT" -scheme "$SCHEMA" -derivedDataPath build/DerivedData 2>&1 | tee build/pakete.log
+
+      - name: Für den Simulator bauen
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project "$PROJEKT" \
+            -scheme "$SCHEMA" \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            2>&1 | tee build/xcodebuild-simulator.log | grep -E '(error|warning: .*Seelenstein|BUILD SUCCEEDED|BUILD FAILED|\*\*)' || true
+          grep -q 'BUILD SUCCEEDED' build/xcodebuild-simulator.log
+
+      - name: Kurztest im Simulator (Start, Bildschirmfoto, Protokoll)
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          APP=build/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          test -d "$APP"
+          GERAET=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          d = json.load(sys.stdin)["devices"]
+          kand = [(rt, x) for rt, xs in d.items() if "iOS" in rt for x in xs if x["name"].startswith("iPhone")]
+          kand.sort(key=lambda t: t[0])
+          print(kand[-1][1]["udid"] if kand else "")
+          ')
+          echo "Simulator: $GERAET"
+          test -n "$GERAET"
+          xcrun simctl boot "$GERAET" || true
+          xcrun simctl bootstatus "$GERAET" -b
+          xcrun simctl install "$GERAET" "$APP"
+          (xcrun simctl spawn "$GERAET" log stream --level debug --style compact --predicate 'process == "App"' > build/simulator-protokoll.log 2>&1 &)
+          sleep 2
+          xcrun simctl launch "$GERAET" "$BUNDLE_ID"
+          sleep 45
+          xcrun simctl io "$GERAET" screenshot build/simulator-start.png
+          sleep 2
+          pkill -f "log stream" || true
+          echo '--- Auszug Protokoll (Capacitor) ---'
+          grep -E '⚡️|To Native|WebView|Error|error' build/simulator-protokoll.log | head -n 80 || true
+
+      - name: Ergebnisse hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-${{ github.run_number }}
+          path: |
+            ios/build/*.log
+            ios/build/*.png
+          if-no-files-found: ignore
+          retention-days: 14
+
+  secrets-pruefen:
+    name: Secrets für TestFlight vorhanden?
+    runs-on: ubuntu-latest
+    outputs:
+      vorhanden: ${{ steps.pruefen.outputs.vorhanden }}
+    steps:
+      - id: pruefen
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GEWUENSCHT: ${{ github.event_name != 'workflow_dispatch' || inputs.testflight }}
+        run: |
+          if [ "$GEWUENSCHT" != "true" ]; then
+            echo "TestFlight-Upload wurde beim Start abgewählt – Job „testflight“ wird übersprungen."
+            echo "vorhanden=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$KEY_ID" ] && [ -n "$ISSUER_ID" ] && [ -n "$KEY_P8" ] && [ -n "$TEAM_ID" ]; then
+            echo "Alle 4 Secrets sind gesetzt – TestFlight-Upload läuft nach dem Simulator-Bau."
+            echo "vorhanden=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=TestFlight übersprungen::Nicht alle Secrets gesetzt (APP_STORE_CONNECT_API_KEY_ID, APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_API_KEY_P8, APPLE_TEAM_ID). Nur der Simulator-Bau läuft. Anleitung: docs/ios/anleitung.md"
+            echo "vorhanden=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  testflight:
+    name: App-Store-Build → TestFlight
+    needs: [simulator, secrets-pruefen]
+    if: needs.secrets-pruefen.outputs.vorhanden == 'true'
+    runs-on: macos-26
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ios
+    env:
+      KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+      ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      BUILDNUMMER: ${{ github.run_number }}
+      VERSION: ${{ inputs.version || '1.0.0' }}
+      ARCHIV_SIGNIEREN: ${{ inputs.archiv_signieren || false }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ios/package-lock.json
+
+      - name: Xcode wählen
+        env:
+          XCODE_WUNSCH: ${{ inputs.xcode }}
+        run: |
+          if [ -n "$XCODE_WUNSCH" ]; then
+            sudo xcode-select -s "/Applications/Xcode_${XCODE_WUNSCH}.app"
+          fi
+          xcodebuild -version
+
+      - name: Abhängigkeiten und Capacitor
+        run: |
+          npm ci
+          npx cap sync ios
+
+      - name: API-Schlüssel ablegen
+        env:
+          KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          KEY_DATEI="$RUNNER_TEMP/asc/AuthKey_${KEY_ID}.p8"
+          # Das Secret darf der Text der .p8-Datei sein oder derselbe Text base64-kodiert
+          if printf '%s' "$KEY_P8" | grep -q 'BEGIN PRIVATE KEY'; then
+            printf '%s\n' "$KEY_P8" > "$KEY_DATEI"
+          else
+            printf '%s' "$KEY_P8" | base64 --decode > "$KEY_DATEI"
+          fi
+          chmod 600 "$KEY_DATEI"
+          grep -q 'BEGIN PRIVATE KEY' "$KEY_DATEI" || { echo "::error::APP_STORE_CONNECT_API_KEY_P8 ist weder eine .p8-Datei noch base64 davon."; exit 1; }
+          echo "KEY_DATEI=$KEY_DATEI" >> "$GITHUB_ENV"
+
+      - name: Archiv bauen (Release, Gerät)
+        run: |
+          set -o pipefail
+          mkdir -p build
+          if [ "$ARCHIV_SIGNIEREN" = "true" ]; then
+            echo "Archiv wird mit automatischer Signierung gebaut (Apple Development)."
+            SIGNATUR=(CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" -allowProvisioningUpdates
+              -authenticationKeyPath "$KEY_DATEI" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          else
+            # Standard: Archiv OHNE Signatur. Signiert wird erst beim Export mit Apples Cloud-Zertifikat für den
+            # App Store. So braucht es kein Entwicklerzertifikat und kein registriertes Gerät, und es sammeln sich
+            # keine neuen Entwicklerzertifikate an (Apple begrenzt deren Zahl).
+            SIGNATUR=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="$TEAM_ID")
+          fi
+          xcodebuild archive \
+            -project "$PROJEKT" \
+            -scheme "$SCHEMA" \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Seelenstein.xcarchive" \
+            -derivedDataPath build/DerivedData \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="$BUILDNUMMER" \
+            "${SIGNATUR[@]}" \
+            2>&1 | tee build/xcodebuild-archiv.log | grep -E '(error|ARCHIVE SUCCEEDED|ARCHIVE FAILED|\*\*)' || true
+          grep -q 'ARCHIVE SUCCEEDED' build/xcodebuild-archiv.log
+
+      - name: Unsigniertes Archiv vorbereiten (Ad-hoc-Signatur)
+        if: env.ARCHIV_SIGNIEREN != 'true'
+        run: |
+          # Eingebettete Frameworks und die App einmal „ad hoc“ signieren, damit das Archiv in sich stimmig ist.
+          # Beim Export wird alles mit dem echten Vertriebszertifikat neu signiert. Die App hat keine Entitlements.
+          APP="$RUNNER_TEMP/Seelenstein.xcarchive/Products/Applications/App.app"
+          if [ -d "$APP/Frameworks" ]; then
+            find "$APP/Frameworks" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -print -exec codesign --force --sign - --timestamp=none {} \;
+          fi
+          codesign --force --sign - --timestamp=none "$APP"
+          codesign --verify --deep --verbose=2 "$APP"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' -c 'Print :CFBundleShortVersionString' "$APP/Info.plist"
+
+      - name: Exportieren und zu TestFlight hochladen
+        run: |
+          set -o pipefail
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>teamID</key><string>${TEAM_ID}</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+            <key>testFlightInternalTestingOnly</key><false/>
+          </dict>
+          </plist>
+          EOF
+          plutil -lint "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Seelenstein.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$KEY_DATEI" \
+            -authenticationKeyID "$KEY_ID" \
+            -authenticationKeyIssuerID "$ISSUER_ID" \
+            2>&1 | tee build/xcodebuild-export.log
+          echo "::notice title=TestFlight::Build ${VERSION} (${BUILDNUMMER}) wurde hochgeladen. Apple verarbeitet ihn jetzt (meist 5–30 Minuten); danach erscheint er in App Store Connect unter TestFlight."
+
+      - name: Schlüssel löschen
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
+
+      - name: Protokolle hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-testflight-${{ github.run_number }}
+          path: ios/build/*.log
+          if-no-files-found: ignore
+          retention-days: 14

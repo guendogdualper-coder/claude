@@ -1,0 +1,40 @@
+{
+  "appId": "de.seelenstein.spiel",
+  "appName": "Seelenstein",
+  "webDir": "www",
+  "backgroundColor": "#12100C",
+  "server": {
+    "url": "https://seelenstein.online/?quelle=ios",
+    "errorPath": "offline.html",
+    "allowNavigation": [
+      "seelenstein.online",
+      "www.seelenstein.online"
+    ]
+  },
+  "ios": {
+    "path": ".",
+    "scheme": "App",
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "zoomEnabled": false,
+    "allowsLinkPreview": false,
+    "limitsNavigationsToAppBoundDomains": true,
+    "preferredContentMode": "mobile",
+    "appendUserAgent": "SeelensteinApp/1.0 (iOS)",
+    "handleApplicationNotifications": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 300,
+      "backgroundColor": "#12100C",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DARK",
+      "backgroundColor": "#12100C"
+    }
+  }
+}
