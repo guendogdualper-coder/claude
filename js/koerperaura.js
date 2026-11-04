@@ -141,6 +141,13 @@ function kaTarget(p, now) {
   return k;
 }
 
+// Stufe der Figur (seit 13.84): Die Aura fängt klein an und wird alle 5 Stufen etwas kräftiger –
+// Stufe 1–4 etwa 30 % der vollen Stärke, Stufe 80 etwa 85 % (voll wirkt sie nie mehr so wuchtig wie in 13.83)
+function kaLevelScale(p) {
+  const lv = Math.max(1, (p && (p.level || p.lvl || p.l)) | 0 || 1);
+  const steps = Math.min(16, Math.floor(lv / 5));
+  return 0.3 + 0.55 * (steps / 16);
+}
 // weich nachgeführte Stärke je Figur (einmal je Bild, egal ob 3D oder 2D fragt)
 function kaPower(p) {
   const now = game.time;
@@ -619,11 +626,13 @@ const KA_ACCENT = {
 function kaDraw3(h, p, st, kk, t, q) {
   const A = kaAnchor(p);
   kaBack(A);
-  const k = Math.min(1, kk * 1.7);
-  q *= 0.75 + 0.25 * kk;
+  // seit 13.84: Deckkraft und Teilchenzahl wachsen mit der Stufe (kaLevelScale)
+  const lv = kaLevelScale(p);
+  const k = Math.min(1, kk * 1.7) * lv;
+  q *= (0.75 + 0.25 * kk) * (0.45 + 0.55 * lv);
   const seed = ((p.x * 0.013 + p.y * 0.007) % 1 + 1) % 1;
   kaGlow3(h, st, A, k, t, seed * 6);
-  kaShell3(h, st, A, k, t, seed * 6, kk);
+  kaShell3(h, st, A, k, t, seed * 6, kk * lv);
   if (st.smoke) kaSmoke3(h, st.smoke, A, k, t, q, seed, false);
   if (st.mist) kaSmoke3(h, st.mist, A, k, t, q, seed, true);
   if (st.wisp) kaWisps3(h, st.wisp, A, k, t, q, seed);
@@ -680,7 +689,7 @@ FX3_HOOKS.push(FX3_KA);
 // layer 'back' hinter der Figur (Schein, Rauch, hintere Zungen), 'front' davor (Funken unterhalb des Gesichts)
 function bodyAura2(ctx, p, fy, ride, layer) {
   if (typeof V3 !== 'undefined' && V3.on) return;
-  const k = kaPower(p);
+  const k = kaPower(p) * kaLevelScale(p); // seit 13.84 mit der Stufe
   if (k <= 0.01) return;
   const st = KA_STYLES[kaStyleKey(p)];
   if (!st) return;
