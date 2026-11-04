@@ -334,7 +334,7 @@ Language: the game starts in German. Click the globe icon at the top right of th
 
 Controls: WASD or arrow keys to move, hold Space to attack, Tab or mouse click to select a target, keys 1-6 for skills, C character, I inventory, M map, H help, O settings, Esc closes windows. No gamepad support.
 
-User-generated content: text chat, mail and player names. Players must accept the code of conduct (https://seelenstein.online/regeln.html) before their first chat message, mail or registration. To report or block a player: click the player's name in chat or the player character → player card → "Melden" (Report) or "Blockieren" (Block). Blocked players are hidden and their invites are declined automatically. Reports are reviewed by the operator.
+User-generated content: text chat, mail and player names. Players must accept the code of conduct (https://seelenstein.online/regeln.html) before their first chat message, mail or registration. To report or block a player: click the player's name in chat or the player character → player card → "Melden" (Report) or "Blockieren" (Block). Blocked players are hidden and their invites are declined automatically. Reports are reviewed by the operator. A profanity filter masks offensive words in chat, speech bubbles, letters and group finder notes; offensive or reserved names are rejected for new characters, guilds and accounts.
 
 Account deletion: in game (Settings, key O → Account tab → "Konto löschen" / Delete account) or on the web at https://seelenstein.online/konto-loeschen.html. The start screen also links to the privacy policy, account deletion page and code of conduct.
 
