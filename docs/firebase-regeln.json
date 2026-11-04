@@ -1,0 +1,68 @@
+{
+  "rules": {
+    "konten": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "lager": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "!newData.exists() || (newData.child('items').isString() && newData.child('items').val().length <= 400000)"
+      }
+    },
+    "namen": {
+      ".read": "auth != null",
+      ".indexOn": ["uid"],
+      "$name": {
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid) && (!newData.exists() || newData.child('uid').val() === auth.uid)",
+        ".validate": "!newData.exists() || (newData.child('uid').isString() && newData.child('name').isString() && newData.child('name').val().length <= 14)"
+      }
+    },
+    "post": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".write": "auth != null && !data.exists() && newData.child('vonUid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['an', 'von', 'vonUid', 'at']) && newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.child('betreff').isString() && newData.child('betreff').val().length <= 40 && newData.child('gold').isNumber() && newData.child('gold').val() >= 0 && (!newData.child('ware').exists() || (newData.child('ware').isString() && newData.child('ware').val().length <= 20000))"
+        }
+      }
+    },
+    "auktion": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid && newData.child('at').val() <= now + 60000 && newData.child('ende').val() <= now + 172860000 && !newData.child('kaeufer').exists()) || (data.exists() && !newData.exists() && data.child('kaeufer').exists() && (data.child('kaeufer/uid').val() === auth.uid || (data.child('uid').val() === auth.uid && data.child('kaeufer/at').val() < now - 3600000))) || (data.exists() && newData.exists() && !data.child('kaeufer').exists() && newData.child('kaeufer/uid').val() === auth.uid && newData.child('uid').val() === data.child('uid').val() && newData.child('von').val() === data.child('von').val() && newData.child('ware').val() === data.child('ware').val() && newData.child('preis').val() === data.child('preis').val() && newData.child('ende').val() === data.child('ende').val()))",
+        ".validate": "newData.hasChildren(['uid', 'von', 'ware', 'preis', 'at', 'ende']) && newData.child('ware').isString() && newData.child('ware').val().length <= 5000 && newData.child('preis').isNumber() && newData.child('preis').val() >= 1 && newData.child('preis').val() <= 999999999 && newData.child('ende').val() <= newData.child('at').val() + 172800000",
+        "kaeufer": {
+          ".validate": "newData.hasChildren(['uid', 'art', 'at']) && ((newData.child('art').val() === 'kauf' && now < data.parent().child('ende').val() && data.parent().child('uid').val() !== auth.uid) || (newData.child('art').val() === 'abbruch' && data.parent().child('uid').val() === auth.uid) || (newData.child('art').val() === 'ablauf' && now >= data.parent().child('ende').val()))"
+        }
+      }
+    },
+    "meldungen": {
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['vonUid', 'von', 'gegen', 'grund', 'zeit']) && newData.parent().parent().child('meldezeit/' + auth.uid).val() === now",
+        "vonUid": { ".validate": "newData.val() === auth.uid" },
+        "von": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "figur": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "gegen": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "grund": { ".validate": "newData.isString() && newData.val().matches(/^(beleidigung|betrug|spam|name|sonstiges)$/)" },
+        "text": { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "chat": { ".validate": "newData.isString() && newData.val().length <= 3000" },
+        "ort": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "version": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "zeit": { ".validate": "newData.val() === now" },
+        "$other": { ".validate": false }
+      }
+    },
+    "meldezeit": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 60000)",
+        ".validate": "newData.val() === now"
+      }
+    }
+  }
+}
