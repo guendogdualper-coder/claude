@@ -824,13 +824,19 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   // 13.64: Frostmagier – Eisgefängnis (Flächen-Betäubung) statt Frostpanzer; Platz 4, Stufe und Bücher gehen mit
   frostpanzer: 'eisgefaengnis',
   // 13.57: Ninja – Weg des Schattens wird zum Weg des Falken (Bogen); Hinterhalt und Tarnung bleiben beim Dolch-Weg
-  // (seit 13.70 führt der Schattensprung gleich zur Giftfalle, die Liste wird nur einmal nachgeschlagen)
-  schattensprung: 'giftfalle', laehmklinge: 'durchschuss',
+  // (seit 13.76 führt der Schattensprung gleich zum Pfeilregen, die Liste wird nur einmal nachgeschlagen)
+  schattensprung: 'pfeilregen', laehmklinge: 'durchschuss',
   // 13.67: Falkenblick wird Klassensegen, auf Platz 5 kommt der Schattenschritt (Stufen und Bücher gehen mit)
   schattenmantel: 'schattenwechsel', falkenblick: 'schattenwechsel',
   // 13.70: Giftfalle statt Pfeilhagel (Platz 2: Stufe, Rang und Leistenplatz bleiben, Schriftrollen in Tasche, Lager,
-  // Konto-Lager, Post und Handel werden zu Giftfalle-Schriftrollen)
-  pfeilhagel: 'giftfalle' };
+  // Konto-Lager, Post und Handel werden mitgenommen); seit 13.76 Pfeilregen statt Giftfalle – beide zeigen direkt dorthin
+  pfeilhagel: 'pfeilregen', giftfalle: 'pfeilregen' };
+// seit 13.76: Ketten auflösen (z. B. Seelenpfeil → Schädelsalve → Blutsauger), damit ein einziges Nachschlagen reicht
+for (const k of Object.keys(SKILL_RENAMED)) {
+  let v = SKILL_RENAMED[k];
+  for (let n = 0; n < 10 && SKILL_RENAMED[v] && SKILL_RENAMED[v] !== v; n++) v = SKILL_RENAMED[v];
+  SKILL_RENAMED[k] = v;
+}
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

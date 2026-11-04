@@ -49,7 +49,7 @@ const PATHS = [
   ['magier', 3, 'magier.erde', 'Magier · Erde']
 ];
 // Wege, an denen gerade gebaut wird (Messung = Stand im Arbeitsverzeichnis)
-// Frost ist seit 13.66 fertig; der Weg des Falken wird gerade noch einmal umgebaut (Mehrfachschuss, Giftfalle, Schattenschritt)
+// Frost ist seit 13.66 fertig; der Weg des Falken wird gerade noch einmal umgebaut (Mehrfachschuss, seit 13.76 Pfeilregen, Schattenschritt)
 const IN_ARBEIT = new Set(['ninja.falke']);
 const LEVELS = [10, 30, 50, 70, 80];
 // std: alles +7, Seltenheit Normal, keine Boni · gut: alles +15, Selten (blau) mit 3 Boni je Teil (Hauptwert, Leben, passender Wert)

@@ -147,7 +147,7 @@ const CLASSES = {
         // seit 13.57: Weg des Falken statt Weg des Schattens – der Fernkampf-Ninja mit Pfeil und Bogen (fernninja.js).
         // Der Weg behält Index 1 (Spielstände speichern p.path); seine Fertigkeiten gehen nur mit einem Bogen (weapon).
         id: 'falke', name: 'Weg des Falken', role: 'Fernkampf · Pfeil und Bogen', weapon: 'bow',
-        description: 'Trifft aus großer Entfernung: eine schnelle Salve aus Falkenpfeilen, eine Giftfalle, ein Schuss, der ganze Reihen durchbohrt, ein Salto rückwärts mit Pfeilfächer und ein Schattenschritt. Jeder Schuss trägt dunkle Schattenmagie und braucht Pfeile vom Bogenmacher; der Falkenblick ist der Klassensegen.',
+        description: 'Trifft aus großer Entfernung: eine schnelle Salve aus Falkenpfeilen, ein langer Pfeilregen, ein Schuss, der ganze Reihen durchbohrt, ein Salto rückwärts mit Pfeilfächer und ein Schattenschritt. Jeder Schuss trägt dunkle Schattenmagie und braucht Pfeile vom Bogenmacher; der Falkenblick ist der Klassensegen.',
         skills: [
           {
             id: 'falkenpfeil', name: 'Falkenpfeil', short: 'FP', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
@@ -159,13 +159,16 @@ const CLASSES = {
             text: 'Eine schnelle Salve: Du ziehst Schlag auf Schlag drei Schattenpfeile aus dem Köcher und schießt sie aufs Ziel (bis 520 weit), eingehüllt in eine dunkelviolette Aura. Der letzte Pfeil schlägt mit einem Schattenstoß ein, trifft etwas härter und stößt zurück. Ab Heroisch sind es vier Pfeile. Jeder Pfeil der Salve verbraucht einen Pfeil – reichen sie nicht, fliegen so viele, wie du hast.'
           },
           {
-            // seit 13.70 Giftfalle statt Pfeilhagel (Stufe, Rang, Leistenplatz und Schriftrollen gehen über SKILL_RENAMED mit):
-            // Fallenpfeil an den gewählten Ort, die Falle löst bei jedem Gegner einmal aus (Schaden, Verlangsamung, Gift je
-            // Sekunde, das mit der Stufe wächst), hält life s oder bis maxHits Gegner. Direkt 0,7 statt 3 × 0,8, dazu Gift 5 × 0,3
-            id: 'giftfalle', name: 'Giftfalle', short: 'GF', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,
-            type: 'btrap', aim: true, range: 520, radius: 105, life: 6, maxHits: 6, stun: 1.0, dmg: 1.0, poison: { dps: 0.6, duration: 5 }, slow: { amount: 0.45, duration: 3 },
-            arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#8a4ae8',
-            text: 'Du wählst einen Ort und schießt einen Fallenpfeil dorthin. Er bohrt sich in den Boden und spannt eine Giftfalle auf: eine blubbernde, schwarzviolette Giftlache voller Dampf, umrankt von dornigen Schattenranken. Wer darin steht oder hineinläuft, löst sie aus: leichter Schaden, die Ranken halten ihn 1 s fest, danach 3 s um 45 % verlangsamt und 5 s vergiftet – das Gift schadet jede Sekunde. Die Falle liegt 6 s oder bis sie 6 Gegner erwischt hat.'
+            // seit 13.76 Pfeilregen statt Giftfalle (davor bis 13.69 Pfeilhagel; Stufe, Rang, Leistenplatz und Schriftrollen
+            // gehen über SKILL_RENAMED mit): Ort wählen, Salve in den Himmel, dann regnet es ticks × every s lang Schattenpfeile
+            // in den Kreis (fernninja.js). Je Puls dmg an allen Gegnern im Kreis und Verlangsamung, solange sie drinstehen;
+            // je Rang ein Puls (0,5 s) mehr und rankRate Pfeile je s dichter. Je Puls 0,4 (alter Pfeilhagel 0,8 je Welle),
+            // zusammen 10 × 0,4 = 4,0 (Pfeilhagel 3 × 0,8 = 2,4; die Giftfalle kam mit Gift auf 4,0 und betäubte 1 s) –
+            // nach Balance-Messung so hoch, sonst fiel der Weg aus dem Korridor (0,3 je Puls und 35 % Bremse: 87 statt 95)
+            id: 'pfeilregen', name: 'Pfeilregen', short: 'PR', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,
+            type: 'bregen', aim: true, range: 520, radius: 135, delay: 0.85, ticks: 10, every: 0.5, dmg: 0.4, slow: { amount: 0.5, duration: 0.8 },
+            rate: 24, rankRate: 4, shots: 3, shotEvery: 0.14, arrows: 3, anim: 'bogenregen', animDur: 0.68, color: '#8a4ae8',
+            text: 'Du wählst einen Ort (bis 520 weit) und schießt eine Salve aus drei Pfeilen steil in den Himmel. Über dem Ort zieht eine dunkle Wolke auf, dann regnet es 5 s lang ununterbrochen dunkelviolette Schattenpfeile in den Kreis (135 weit) – sie schlagen ein, wirbeln Staub und Schatten auf und bleiben eine Weile im Boden stecken. Alle Gegner im Kreis nehmen zweimal pro Sekunde leichten Schaden und sind um 50 % verlangsamt, solange sie drinstehen. Je Rang regnet es 0,5 s länger und dichter: erweckt 5,5 s, heroisch 6 s, legendär 6,5 s, vollendet 7 s. Verbraucht 3 Pfeile.'
           },
           {
             id: 'durchschuss', name: 'Durchbohrender Schuss', short: 'DS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,

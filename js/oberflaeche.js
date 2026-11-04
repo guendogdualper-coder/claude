@@ -1853,7 +1853,8 @@ function skillStats(sk, lvl) {
   const out = [];
   const scale = buffScale(lvl);
   const hit = (f) => skillHitNum(f, lvl);
-  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow') out.push(['Schaden', hit(sk.dmg) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  // Pulse statt Einzelschaden: Blizzard (msnow) und seit 13.76 der Pfeilregen (bregen, Werte in bowSkillStats)
+  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow' && sk.type !== 'bregen') out.push(['Schaden', hit(sk.dmg) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
   // Nekromant, Weg der Seelen (seit 8.5): Schädelsalve, Seelenkäfig, Mal des Seelenschnitters
   if (sk.type === 'skulls') out.push(['Schaden', sk.count + ' × ' + hit(sk.dmg)]);
   if (sk.type === 'cage') out.push(['Schrei', hit(sk.dmg) + ' ×' + sk.pulses], ['Verlangsamt', skillPct(sk.slow.amount)]);
