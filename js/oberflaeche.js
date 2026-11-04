@@ -1015,7 +1015,9 @@ const ui = {
   // Lebensbalken eines Bosses oben in der Mitte, sobald man in seiner Nähe ist
   updateBossBar() {
     const p = game.player;
-    const boss = game.monsters.find((m) => m.type && m.type.boss && !m.dead && dist(m, p) < 560);
+    // seit 13.70: der Wellenmeister der eigenen Arena-Halle immer, egal wie weit weg (herausforderung.js)
+    const hall = typeof arenaSlotAt === 'function' ? arenaSlotAt(p.x, p.y) : -1;
+    const boss = game.monsters.find((m) => m.type && m.type.boss && !m.dead && (dist(m, p) < 560 || (hall >= 0 && arenaSlotAt(m.x, m.y) === hall)));
     this.set('boss', boss ? boss.id + ':' + Math.ceil(boss.hp) : '', () => {
       $('bossBar').hidden = !boss;
       document.body.classList.toggle('has-boss', !!boss);
@@ -1688,8 +1690,29 @@ const ui = {
     $('deathText').textContent = 'Starte hier neu, um gleich weiterzukämpfen, oder sicher in der Stadt ohne Verlust.';
     $('reviveHereCost').textContent = lostXp > 0 ? `−${lostXp.toLocaleString('de-DE')} EP · halbes Leben` : 'halbes Leben';
     $('panelDeath').hidden = false;
+    // seit 13.70: „Hier neu starten“ erst nach 5 Sekunden (Countdown auf dem Knopf), die Stadt geht sofort
+    const btn = $('btnReviveHere');
+    btn.hidden = false;
+    const label = [...btn.childNodes].find((n) => n.nodeType === 3);
+    const until = performance.now() + REVIVE_HERE_DELAY * 1000;
+    clearInterval(this.reviveTimer);
+    const tick = () => {
+      const left = Math.ceil((until - performance.now()) / 1000);
+      if (left > 0 && !$('panelDeath').hidden) {
+        btn.disabled = true;
+        if (label) label.textContent = `Hier neu starten (${left})`;
+        return;
+      }
+      clearInterval(this.reviveTimer);
+      btn.disabled = false;
+      if (label) label.textContent = 'Hier neu starten';
+    };
+    tick();
+    this.reviveTimer = setInterval(tick, 200);
   }
 };
+// Wartezeit (Sekunden), bis man nach einem Tod an Ort und Stelle neu starten kann (seit 13.70)
+const REVIVE_HERE_DELAY = 5;
 
 // Karten für die Wege einer Klasse: zwei, beim Magier vier Elemente mit ihrem Dreieck in der Elementfarbe
 function pathChoiceHtml(c, selected) {

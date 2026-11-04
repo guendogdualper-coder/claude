@@ -1056,7 +1056,8 @@ function drawMonsterStatus(ctx, m) {
     }
   }
   if (m.poison || m.burn) {
-    ctx.fillStyle = m.burn ? 'rgba(255,140,60,0.85)' : 'rgba(140,220,90,0.85)';
+    // seit 13.70: Gift der Giftfalle violett
+    ctx.fillStyle = m.burn ? 'rgba(255,140,60,0.85)' : m.poison && m.poison.color ? m.poison.color : 'rgba(140,220,90,0.85)';
     const k = (game.time * 2) % 1;
     circle(ctx, m.x - 5 + Math.sin(game.time * 5) * 3, fy - h * 0.4 - k * h * 0.5, 2);
   }

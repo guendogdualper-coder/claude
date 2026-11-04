@@ -824,9 +824,13 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   // 13.64: Frostmagier – Eisgefängnis (Flächen-Betäubung) statt Frostpanzer; Platz 4, Stufe und Bücher gehen mit
   frostpanzer: 'eisgefaengnis',
   // 13.57: Ninja – Weg des Schattens wird zum Weg des Falken (Bogen); Hinterhalt und Tarnung bleiben beim Dolch-Weg
-  schattensprung: 'pfeilhagel', laehmklinge: 'durchschuss',
+  // (seit 13.70 führt der Schattensprung gleich zur Giftfalle, die Liste wird nur einmal nachgeschlagen)
+  schattensprung: 'giftfalle', laehmklinge: 'durchschuss',
   // 13.67: Falkenblick wird Klassensegen, auf Platz 5 kommt der Schattenschritt (Stufen und Bücher gehen mit)
-  schattenmantel: 'schattenwechsel', falkenblick: 'schattenwechsel' };
+  schattenmantel: 'schattenwechsel', falkenblick: 'schattenwechsel',
+  // 13.70: Giftfalle statt Pfeilhagel (Platz 2: Stufe, Rang und Leistenplatz bleiben, Schriftrollen in Tasche, Lager,
+  // Konto-Lager, Post und Handel werden zu Giftfalle-Schriftrollen)
+  pfeilhagel: 'giftfalle' };
 // Spielstand prüfen und alte Namen nachziehen
 function fixSave(data) {
   if (!data || data.deleted || !CLASSES[data.classId] || typeof data.name !== 'string') return null;

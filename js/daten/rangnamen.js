@@ -24,8 +24,9 @@ const RANK_NAMES = {
   laehmklinge: ['Nervenklinge', 'Giftzahn', 'Klinge der Starre', 'Todesstarre'],
   schattenmantel: ['Nachtmantel', 'Mantel der Finsternis', 'Umhang der Leere', 'Mantel der ewigen Nacht'],
   // Ninja – Weg des Falken (seit 13.57, Bogen)
-  falkenpfeil: ['Adlerpfeil', 'Sturmfalkenpfeil', 'Pfeil des Wanderfalken', 'Himmelsjäger'],
-  pfeilhagel: ['Pfeilregen', 'Pfeilgewitter', 'Himmel aus Stahl', 'Regen der tausend Federn'],
+  // seit 13.70: Falkenpfeil ist eine Salve (ab Heroisch vier Pfeile), Giftfalle statt Pfeilhagel
+  falkenpfeil: ['Falkensalve', 'Vierfache Schattensalve', 'Salve des Nachtfalken', 'Sturm der schwarzen Federn'],
+  giftfalle: ['Natterngrube', 'Dornengift-Falle', 'Grab der Nachtschatten', 'Schlund des Verderbens'],
   durchschuss: ['Sturmschuss', 'Wirbelpfeil', 'Pfeil des Orkans', 'Speer des Himmels'],
   rueckensprung: ['Falkensalto', 'Sturmsprung', 'Flucht des Windes', 'Tanz der Schwingen'],
   falkenblick: ['Adlerauge', 'Blick des Jägers', 'Auge des Sturms', 'Auge des Himmelsfalken'],

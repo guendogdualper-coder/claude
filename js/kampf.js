@@ -900,11 +900,25 @@ function leapLand(p, d) {
 // setzt ihn dorthin und wirkt sofort, nochmal Antippen der Fertigkeit wirkt am Kreis. Nach 8 s ohne Wahl
 // verschwindet er wieder. Der Kreis bleibt immer in Reichweite.
 const AIM_TIMEOUT = 8;
+// Fluchtschritte (seit 13.70, sk.aimAway – Schattenschritt): der Kreis beginnt hinter der Figur, vom Ziel bzw. nächsten
+// Gegner weg (ohne Gegner entgegen der Blickrichtung). Er liegt nie auf einem Gegner und wählt auch kein neues Ziel.
+function aimAwayPoint(p, sk) {
+  const g = game.target;
+  const t = g && !g.dead && !g.hidden && dist(p, g) < 900 ? g : nearestEnemy(p, 600);
+  const f = p.facing || { x: 0, y: 1 };
+  let dx = t ? p.x - t.x : -f.x;
+  let dy = t ? p.y - t.y : -f.y;
+  const l = Math.hypot(dx, dy);
+  if (l < 0.01) { dx = -f.x; dy = -f.y; } else { dx /= l; dy /= l; }
+  const d = Math.min(sk.aimAway || 150, sk.range);
+  return { x: p.x + dx * d, y: p.y + dy * d };
+}
 function startAim(i, sk) {
   const p = game.player;
   cancelAim();
-  const t = pickTarget(sk.range);
-  const pt = { x: t ? t.x : p.x + p.facing.x * 150, y: t ? t.y : p.y + p.facing.y * 150, r: 0 };
+  const t = sk.aimAway ? null : pickTarget(sk.range);
+  const away = sk.aimAway ? aimAwayPoint(p, sk) : null;
+  const pt = away ? { ...away, r: 0 } : { x: t ? t.x : p.x + p.facing.x * 150, y: t ? t.y : p.y + p.facing.y * 150, r: 0 };
   game.aim = { i, sk, pt, until: game.time + AIM_TIMEOUT, go: false };
   // seit 13.42: der Kreis folgt frei dem Zeiger und ist grün, wenn der Zauber dort wirken kann, sonst rot
   // (zu weit weg oder im Dorf); Rechtsklick oder Esc bricht ab

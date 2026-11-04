@@ -1989,7 +1989,8 @@ function fx3Status(h) {
       o.position.set(x + Math.sin(u * 7 + i * 2) * 0.14 + (i - 1) * 0.12, head * 0.2 + u * head * 0.7, z + 0.12);
       const s = 0.1 + 0.07 * u;
       o.scale.set(s, s, 1);
-      fx3Color(o, '#9fe36a', 1 - u * 0.8);
+      // seit 13.70 in der Farbe des Gifts (Giftfalle des Bogen-Ninjas: violett), sonst grün
+      fx3Color(o, m.poison.color || '#9fe36a', 1 - u * 0.8);
     }
     // Blutung: dunkelrote Tropfen rinnen vom Körper und fallen zu Boden
     if (bleed) for (let i = 0; i < 4; i++) {

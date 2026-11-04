@@ -8,7 +8,9 @@
 //   Stufe, mehr Leben und Schaden, ab Welle 4 Elite-Monster (dreifaches Leben), jede 5. Welle ein Dungeon-Boss als
 //   Wellenmeister (Stampfer, Salven, Verstärkung), ab Welle 8 jagen alle wie in Dungeons. Ab etwa Welle 10–15 wird es
 //   wirklich hart.
-// - Belohnung: feste Summe Gold je geschaffter Welle (arenaGold), dazu nur die halbe Erfahrung je Monster – keine Beute,
+// - seit 13.70: Gold je Welle fest 2.000 × Welle, ausgezahlt beim Verlassen; drei Leben (beim dritten Tod ist das Gold
+//   weg); Monster geben volle EP und Kill-Gold (keine Gegenstände); mehr Monster in Schüben nach der Uhr (arenaBatches).
+// - bis 13.69: feste Summe Gold je geschaffter Welle (arenaGold), dazu nur die halbe Erfahrung je Monster – keine Beute,
 //   kein Gold von den Monstern selbst. Bemessen an dem, was dieselben Monster draußen an Gold bringen (3 × Stufe + 1 je
 //   Monster, nach Leben gewichtet), mit einem Faktor, der von 0,45 (Welle 1) bis 1,0 (ab Welle 29) steigt – in der Arena
 //   tötet man etwa doppelt so schnell wie draußen, so liegt ein guter Lauf etwas über normalem Farmen.
@@ -22,7 +24,9 @@ const ARENA = {
   minLevel: 5,          // ab dieser Stufe
   firstPause: 4,        // Sekunden bis zur ersten Welle
   pause: 6,             // Pause nach einer geschafften Welle
-  xpMul: 0.5,           // Erfahrung je Monster (Anteil der normalen)
+  lives: 3,             // seit 13.70: drei Leben je Lauf (beim dritten Tod ist das gesammelte Gold verloren)
+  maxAlive: 50,         // Schutz: mehr gleichzeitig lebende Monster je Halle hält der nächste Schub zurück
+  deadMax: 180,         // so lange (s) darf der Läufer tot in der Halle liegen, dann endet der Lauf
   eliteHp: 3, eliteAtk: 1.3,
   gate: '#ffc86a'       // Farbe von Lichtsäulen und Ausgang
 };
@@ -147,50 +151,36 @@ generateWorld = function () {
 };
 
 // --- Wellen und Gold ----------------------------------------------------------------------------------------------
-// Plan einer Welle für Spielerstufe L: Monsterstufe, Anzahl, Elite, Boss, Leben- und Schadensfaktor
+// Plan einer Welle für Spielerstufe L: Monsterstufe, Anzahl, Elite, Boss, Leben- und Schadensfaktor, Schübe
+// seit 13.70: viel mehr Monster (Welle 1: 12, je Welle +4, höchstens 60), sie kommen in Schüben nach festen Zeiten
+// (erster sofort, dann nach 10 s, 12 s, 14 s …) statt nachzurücken, wenn eines fällt
 function arenaWave(L, w) {
   const boss = w % 5 === 0;
+  const n = Math.round(Math.min(60, 12 + 4 * (w - 1)) * (boss ? 0.6 : 1));
+  const batches = Math.min(10, 2 + Math.floor(w / 2));
   return {
     wave: w,
     ml: Math.max(1, Math.min(L + 8, L - 4 + Math.floor((w - 1) / 2))),
-    // Bosswellen: der Wellenmeister mit kleinem Gefolge (40 %)
-    n: Math.round(Math.min(26, 8 + 2 * (w - 1)) * (boss ? 0.4 : 1)),
-    elites: Math.min(8, Math.floor(w / 4)),
+    // Bosswellen: der Wellenmeister (Mini-Boss) mit etwas kleinerem Gefolge (60 %)
+    n,
+    elites: Math.min(10, Math.floor(w / 3)),
     boss,
     bossHp: 4 + 0.4 * w,
     hpK: 1 + 0.05 * (w - 1),
     atkK: 1 + 0.03 * (w - 1),
-    // gleichzeitig in der Halle (der Wellenmeister zählt mit, in Bosswellen weniger Gefolge)
-    alive: boss ? Math.min(8, 3 + Math.floor(w / 5)) : Math.min(12, 4 + Math.floor(w / 2))
+    batches,
+    // Abstände der Schübe in Sekunden: 10, 12, 14 …
+    gaps: Array.from({ length: batches - 1 }, (_, k) => 10 + 2 * k)
   };
 }
-// Gold je geschaffter Welle: Maßstab ist das Gold, das dieselben Monster draußen bringen würden (Ø 3 × Stufe + 1 je
-// Monster deiner Stufe), gewichtet nach ihrem Leben (Stufe, Art, Welle, Elite, Boss). In der Arena kommen die Monster
-// aber von selbst und in Mengen (kein Suchen und Laufen, Flächenangriffe treffen viele): Gemessen geht das Töten dort
-// etwa doppelt so schnell. Darum der Faktor c: 0,45 in Welle 1, je Welle +0,02, höchstens 1,0 (ab Welle 29) – so bringt
-// ein guter Lauf etwas mehr als normales Farmen, und je höher die Welle, desto mehr lohnt sie sich.
-function arenaUnits(L, w) {
-  const W = arenaWave(L, w);
-  const pool = arenaPool(L, w);
-  const kind = pool.reduce((n, id) => n + (MONSTER_TYPES[id].hpMul || 1), 0) / pool.length / 1.3;
-  const hl = (monsterStats(W.ml).maxHp / monsterStats(Math.max(1, L)).maxHp) * W.hpK;
-  // der Wellenmeister zählt doppelt (Stampfer, Salven, Verstärkung)
-  return hl * ((W.n - W.elites + W.elites * ARENA.eliteHp) * kind + (W.boss ? (W.bossHp * 2) / 1.3 : 0));
-}
-// Ab Stufe 30 je Stufe +0,8 % (Stufe 70: +32 %): die schweren Monster der hohen Gebiete (Titanen, Golems, Drachen,
-// Fernkämpfer) kommen einzeln und langsam, der Vorteil der Arena ist dort gemessen kleiner
-const arenaGoldFactor = (w) => Math.min(1, 0.45 + 0.02 * (w - 1));
-const arenaLevelFactor = (L) => 1 + Math.max(0, L - 30) * 0.008;
-// jede Welle bringt mindestens 8 % mehr als die davor (Bosswellen haben weniger, aber härtere Monster)
-const arenaGoldCache = new Map();
+// Gold je geschaffter Welle (seit 13.70 fest): 2.000 × Welle – Welle 1 2.000, Welle 5 10.000, Welle 10 20.000.
+// Ausgezahlt wird beim Verlassen oder Aufgeben; wer alle drei Leben verliert, verliert das Gold dieses Laufs.
+const ARENA_GOLD_STEP = 2000;
 function arenaGold(L, w) {
-  const key = L * 1000 + w;
-  if (arenaGoldCache.has(key)) return arenaGoldCache.get(key);
-  let g = Math.max(10, Math.round(((3 * L + 1) * arenaUnits(L, w) * arenaGoldFactor(w) * arenaLevelFactor(L)) / 10) * 10);
-  if (w > 1) g = Math.max(g, Math.round((arenaGold(L, w - 1) * 1.08) / 10) * 10);
-  arenaGoldCache.set(key, g);
-  return g;
+  return ARENA_GOLD_STEP * Math.max(1, w | 0);
 }
+// Gold aller Wellen bis einschließlich w
+const arenaGoldSum = (w) => (ARENA_GOLD_STEP * w * (w + 1)) / 2;
 // Monsterarten aus den Gebieten der Stufe (draußen, keine Bosse, keine Nachtmonster); ab Welle 6 auch Dungeon-Monster.
 // In den ersten drei Wellen nur die leichteren (höchstens 1,6-faches Leben): viele, aber einfache Monster
 function arenaPool(L, w) {
@@ -227,6 +217,9 @@ function arenaTune(m, W, role) {
     m.xp = Math.round(monsterStats(W.ml).xp * 6);
     m.bossCd = 4;
     m.summoned = 0;
+    // seit 13.70 klar als Mini-Boss zu erkennen: Name mit „Wellenmeister“ (Bossleiste oben, Banner beim Erscheinen)
+    m.name = 'Wellenmeister: ' + t.name;
+    m.arenaBoss = true;
   }
   if (role === 'elite') {
     m.elite = true;
@@ -279,19 +272,21 @@ function arenaEnd(s, why) {
   arenaTell(S, { k: 'are', r: why, w: S.wave });
   arenaFree(s);
 }
-// Monster der Welle in eine Warteschlange: zuerst normale, dazwischen Elite, der Boss nach den ersten paar
-function arenaQueue(S) {
+// Monster der Welle in Schübe aufteilen (seit 13.70): Elite gleichmäßig verteilt, der Wellenmeister kommt sicher
+// in jeder 5. Welle, mit dem zweiten Schub
+function arenaBatches(S) {
   const W = arenaWave(S.level, S.wave);
   const pool = arenaPool(S.level, S.wave);
   const q = [];
   for (let k = 0; k < W.n; k++) q.push({ type: pool[Math.floor(Math.random() * pool.length)], role: 'mob' });
-  // Elite gleichmäßig verteilt
   for (let k = 0; k < W.elites; k++) q[Math.min(q.length - 1, Math.floor(((k + 1) * q.length) / (W.elites + 1)))].role = 'elite';
+  const out = Array.from({ length: W.batches }, () => []);
+  q.forEach((e, k) => out[Math.min(W.batches - 1, Math.floor((k * W.batches) / q.length))].push(e));
   if (W.boss) {
-    const bt = arenaBossType(S.level);
-    if (bt) q.splice(Math.min(q.length, 3), 0, { type: bt, role: 'boss' });
+    const bt = arenaBossType(S.level) || 'banditenfuerst';
+    out[Math.min(1, out.length - 1)].unshift({ type: bt, role: 'boss' });
   }
-  return q;
+  return out;
 }
 function arenaSpawnOne(s, S, e, owner) {
   const W = arenaWave(S.level, S.wave);
@@ -329,7 +324,18 @@ function arenaTickHost() {
       } else if (now - S.at > 25) arenaFree(s);
       continue;
     }
-    if (o.dead) { arenaEnd(s, 'tod'); continue; }
+    // Tot (seit 13.70 drei Leben): die Halle wartet, Schübe stehen still, bis er wieder steht (oder zu lange liegt)
+    const dt = Math.max(0, Math.min(1, now - (S.last ?? now)));
+    S.last = now;
+    if (o.dead) {
+      if (S.deadSince == null) S.deadSince = now;
+      if (now - S.deadSince > ARENA.deadMax) { arenaEnd(s, 'tod'); continue; }
+      S.until += dt;
+      S.nextAt += dt;
+      if (S.batchAt != null) S.batchAt += dt;
+      continue;
+    }
+    S.deadSince = null;
     if (!here) {
       if (S.absent == null) S.absent = now;
       if (now - S.absent > 3) { arenaEnd(s, 'weg'); continue; }
@@ -337,13 +343,16 @@ function arenaTickHost() {
     if (S.state === 'pause') {
       if (now < S.until) continue;
       S.state = 'fight';
-      S.queue = arenaQueue(S);
+      S.batches = arenaBatches(S);
+      S.batch = 0;
+      S.batchAt = now;
+      S.queue = [];
       S.mons.clear();
       S.nextAt = now;
-      arenaTell(S, { k: 'arf', w: S.wave, n: S.queue.length });
+      arenaTell(S, { k: 'arf', w: S.wave, n: S.batches.reduce((n, b) => n + b.length, 0), b: S.batches.length });
       continue;
     }
-    // Kampf: Verstärkung der Bosse übernehmen (Stufe und Werte der Welle), Nachschub, Ende der Welle
+    // Kampf: Verstärkung der Bosse übernehmen (Stufe und Werte der Welle), Schübe nach der Uhr, Ende der Welle
     const W = arenaWave(S.level, S.wave);
     const list = (typeof monsterIndex === 'function' ? monsterIndex().get(0) : null) || game.monsters;
     for (const m of list) {
@@ -355,9 +364,18 @@ function arenaTickHost() {
     }
     let alive = 0;
     for (const m of S.mons) if (!m.dead) alive++;
-    if (S.queue.length && alive < W.alive && now >= S.nextAt) {
+    // nächster Schub nach seiner Zeit (nicht nach Kills); nur bei sehr vielen lebenden Monstern wartet er
+    if (S.batch < S.batches.length && now >= S.batchAt && alive + S.queue.length < ARENA.maxAlive) {
+      S.queue.push(...S.batches[S.batch]);
+      const gap = W.gaps[S.batch];
+      S.batch++;
+      S.batchAt = gap != null ? now + gap : Infinity;
+      const pending = S.batches.slice(S.batch).reduce((n, b) => n + b.length, 0);
+      arenaTell(S, { k: 'ars', i: S.batch, b: S.batches.length, t: gap != null ? gap : -1, p: pending });
+    }
+    if (S.queue.length && now >= S.nextAt) {
       arenaSpawnOne(s, S, S.queue.shift(), o);
-      S.nextAt = now + 0.35;
+      S.nextAt = now + 0.15;
       alive++;
     }
     // Wer den Läufer verloren hat (getarnt, zu weit weg), sucht ihn wieder
@@ -367,7 +385,7 @@ function arenaTickHost() {
         for (const m of S.mons) if (!m.dead && m.state !== 'chase') { m.state = 'chase'; m.target = o; }
       }
     }
-    if (!S.queue.length && alive === 0) {
+    if (S.batch >= S.batches.length && !S.queue.length && alive === 0) {
       arenaTell(S, { k: 'arw', w: S.wave });
       S.wave++;
       S.state = 'pause';
@@ -379,7 +397,10 @@ function arenaTickHost() {
 }
 
 // --- Der eigene Lauf ---------------------------------------------------------------------------------------------
-// game.arenaRun: { slot, level, mode, phase: 'wait' | 'pause' | 'fight', wave (laufende Welle), cleared, gold, until, n }
+// game.arenaRun: { slot, level, mode, phase: 'wait' | 'pause' | 'fight', wave (laufende Welle), cleared, gold, until, n,
+//   lives (seit 13.70), nextBatch (Zeit des nächsten Schubs), pending (Monster in späteren Schüben) }
+// Das Gold der Wellen wird gesammelt (p.arena.pending, falls das Spiel zwischendurch zugeht) und erst beim Verlassen
+// ausgezahlt; beim dritten Tod ist es verloren.
 const arenaFmt = (n) => Math.round(n).toLocaleString('de-DE');
 function arenaSave(p = game.player) {
   if (!p.arena || typeof p.arena !== 'object') p.arena = { best: 0, runs: 0, gold: 0, ret: null };
@@ -399,7 +420,8 @@ function arenaEnter() {
   if (game.arenaRun) return;
   const A = arenaSave(p);
   A.ret = { x: Math.round(p.x), y: Math.round(p.y) };
-  const run = { p, slot: -1, level: p.level, mode: arenaModeOf(), phase: 'wait', wave: 0, cleared: 0, gold: 0, until: 0, n: 0, askAt: game.time, lastMsgAt: game.time };
+  arenaPayPending(p);
+  const run = { p, slot: -1, level: p.level, mode: arenaModeOf(), phase: 'wait', wave: 0, cleared: 0, gold: 0, until: 0, n: 0, askAt: game.time, lastMsgAt: game.time, lives: ARENA.lives, nextBatch: 0, pending: 0, outSince: null };
   game.arenaRun = run;
   if (run.mode === 'client') {
     netSocial('host', { k: 'arq', l: p.level });
@@ -437,21 +459,41 @@ function arenaGo(s) {
   ui.banner('Prüfungsarena', 'Allein gegen alle Wellen – viel Glück!');
   saveGame();
 }
-// Verlassen (Ausgang, Aufgeben, Tod, Ende vom Host)
+// Gold eines früheren Laufs, das nicht mehr ausgezahlt wurde (Spiel zu, Seite neu geladen): jetzt auszahlen
+function arenaPayPending(p = game.player) {
+  const A = arenaSave(p);
+  const g = Math.max(0, Math.round(A.pending || 0));
+  A.pending = 0;
+  if (!g) return;
+  p.gold += g;
+  A.gold = (A.gold || 0) + g;
+  ui.log(`Gold aus deinem letzten Arena-Lauf ausgezahlt: ${arenaFmt(g)} Gold.`, 'level');
+  saveGame();
+}
+// Verlassen (Ausgang, Aufgeben, Ende vom Host): das gesammelte Gold wird ausgezahlt.
+// why 'verloren' (seit 13.70): alle drei Leben verbraucht – das Gold dieses Laufs ist weg.
 function arenaStop(why) {
   const run = game.arenaRun;
   if (!run) return;
   game.arenaRun = null;
   const p = game.player;
   const A = arenaSave(p);
+  const lost = why === 'verloren';
+  A.pending = 0;
+  if (!lost && run.gold > 0) {
+    p.gold += run.gold;
+    A.gold = (A.gold || 0) + run.gold;
+  }
   if (run.mode === 'client') {
     if (why !== 'host') netSocial('host', { k: 'arx' });
     // Monster der Halle verschwinden auch hier
     arenaPurge(run.slot);
   } else if (run.slot >= 0 && arenaHost.slots[run.slot] && arenaHost.slots[run.slot].owner === 'me') arenaFree(run.slot);
-  const txt = run.cleared ? `${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} geschafft · ${arenaFmt(run.gold)} Gold` : 'Keine Welle geschafft';
-  ui.banner(why === 'tod' ? 'Herausforderung verloren' : 'Herausforderung beendet', txt);
-  ui.log(`Herausforderung beendet: ${txt}. Bestwelle: ${A.best}.`, 'level');
+  const txt = !run.cleared ? 'Keine Welle geschafft' : lost ? `${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} geschafft · ${arenaFmt(run.gold)} Gold verloren`
+    : `${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} geschafft · ${arenaFmt(run.gold)} Gold ausgezahlt`;
+  ui.banner(lost ? 'Herausforderung verloren' : 'Herausforderung beendet', txt);
+  ui.log(`Herausforderung beendet: ${txt}. Bestwelle: ${A.best}.`, lost ? 'warn' : 'level');
+  if (!lost && run.gold > 0) addText(p.x, p.y - 52, `+${arenaFmt(run.gold)} Gold`, 'gold');
   // zurück zum Arenameister (nicht nach dem Tod: dann bringt das Wiederbeleben dorthin)
   if (!p.dead && arenaInside(p)) moveThrough(arenaReturn(), ARENA.gate);
   arenaHud();
@@ -493,27 +535,33 @@ function arenaOnMsg(d) {
     run.wave = d.w | 0;
     run.n = d.n | 0;
     run.spawned = 0;
+    run.pending = run.n;
+    run.nextBatch = 0;
     const W = arenaWave(run.level, run.wave);
     ui.banner(`Welle ${run.wave}`, W.boss ? 'Ein Wellenmeister erscheint!' : W.elites ? `${run.n} Monster, darunter Elite` : `${run.n} Monster`);
+  } else if (d.k === 'ars') {
+    // ein Schub ist losgeschickt: wann der nächste kommt (t < 0: das war der letzte)
+    run.nextBatch = +d.t >= 0 ? game.time + +d.t : 0;
+    run.batch = d.i | 0;
+    run.batches = d.b | 0;
     if (typeof sfx !== 'undefined' && sfx.riser) sfx.riser();
   } else if (d.k === 'arw') {
     const w = d.w | 0;
     if (w <= run.cleared) return;
     const g = arenaGold(run.level, w);
-    p.gold += g;
     run.gold += g;
     run.cleared = w;
     const A = arenaSave(p);
-    A.gold = (A.gold || 0) + g;
+    // gesammelt, ausgezahlt wird beim Verlassen (falls das Spiel vorher zugeht: beim nächsten Start)
+    A.pending = run.gold;
     if (w > (A.best || 0)) A.best = w;
-    ui.banner(`Welle ${w} geschafft`, `+${arenaFmt(g)} Gold`);
+    ui.banner(`Welle ${w} geschafft`, `+${arenaFmt(g)} Gold gesammelt`);
     addText(p.x, p.y - 52, `+${arenaFmt(g)} Gold`, 'gold');
     if (typeof sfx !== 'undefined' && sfx.success) sfx.success();
     vfxPillar(p, ARENA.gate, 1);
     saveGame();
   } else if (d.k === 'are') {
-    if (d.r === 'tod' || p.dead) arenaStop('tod');
-    else arenaStop('host');
+    arenaStop('host');
   }
   arenaHud();
 }
@@ -550,6 +598,8 @@ function arenaSeen(m) {
   const run = game.arenaRun;
   if (run && run.slot >= 0 && arenaSlotAt(m.homeX ?? m.x, m.homeY ?? m.y) === run.slot) run.spawned = (run.spawned || 0) + 1;
   const boss = m.type && m.type.boss;
+  // Mitspieler bauen das Monster aus dem Schnappschuss: Name des Mini-Bosses auch hier (seit 13.70)
+  if (boss && !String(m.name).startsWith('Wellenmeister')) m.name = 'Wellenmeister: ' + m.type.name;
   const y = feetY(m);
   if (V3.on) {
     addEffect({ type: 'column3', x: m.x, y, dur: 1.0, color: boss ? '#ff6a3a' : ARENA.gate, core: '#fff6dc', r: boss ? 44 : 26, hgt: boss ? 4.2 : 2.8 });
@@ -586,6 +636,8 @@ function arenaTick() {
     if (game.riftAt != null && game.riftAt - game.time < 30) game.riftAt = game.time + 30;
   }
   if (!run) {
+    // Gold eines abgebrochenen Laufs (Spiel war zu) gleich auszahlen
+    if (p.arena && p.arena.pending > 0 && !p.dead) arenaPayPending(p);
     // in einer Halle ohne Lauf (z. B. nach dem Neuladen): zurück
     if (here >= 0 && !p.dead) {
       ui.log('Die Arena ist leer. Du kehrst zum Arenameister zurück.', 'info');
@@ -599,8 +651,9 @@ function arenaTick() {
     arenaStop('host');
     return;
   }
+  // tot (seit 13.70): der Lauf wartet auf „Hier neu starten“ (Leben zählt arenaDeath beim Tod)
   if (p.dead) {
-    arenaStop('tod');
+    arenaHud();
     return;
   }
   if (run.slot < 0) {
@@ -615,11 +668,14 @@ function arenaTick() {
   const mons = arenaSlotMonsters(run.slot);
   for (const m of mons) arenaSeen(m);
   run.left = mons.length;
-  // Halle verlassen (sollte nicht gehen) oder lange nichts gehört (Host weg): Ende
-  if (here !== run.slot && game.time - run.lastMsgAt > 3 && run.phase !== 'wait') {
-    arenaStop('weg');
-    return;
-  }
+  // Halle verlassen (z. B. „In der Stadt neu starten“ nach einem Tod): Ende, das Gold wird ausgezahlt
+  if (here !== run.slot && run.phase !== 'wait') {
+    if (run.outSince == null) run.outSince = game.time;
+    if (game.time - run.outSince > 1) {
+      arenaStop('weg');
+      return;
+    }
+  } else run.outSince = null;
   if (run.mode === 'client' && game.time - run.lastMsgAt > 75 && !mons.length) {
     arenaStop('host');
     return;
@@ -632,10 +688,14 @@ raidWatch = function () {
   arenaTick();
 };
 
-// --- Belohnung je Monster: nur Erfahrung (halb), keine Beute, kein Gold --------------------------------------------
+// --- Belohnung je Monster (seit 13.70): volle Erfahrung und normales Kill-Gold, aber keine Gegenstände, Steine,
+// Tränke oder Material ----------------------------------------------------------------------------------------------
 function arenaKillReward(m) {
   const p = game.player;
-  const xp = Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level) * ARENA.xpMul));
+  const xp = Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level)));
+  const gold = m.gold ? randInt(m.gold[0], m.gold[1]) : 0;
+  p.gold += gold;
+  if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold + ' Gold', 'gold');
   p.kills++;
   const bc = bodyCenter(m);
   particles(bc.x, bc.y, { count: 7, color: ['#d6b8ff', '#b48aff', '#ffffff'], angle: Math.atan2(p.y - m.y, p.x - m.x), spread: 0.5, speed: [dist(m, p) * 1.4, dist(m, p) * 2.2], life: [0.35, 0.5], size: [2, 3.2], drag: 0.6 });
@@ -656,19 +716,73 @@ villageSpawn = function (p) {
   return _arenaVillageSpawn(p);
 };
 
-// --- Anzeige oben in der Mitte ----------------------------------------------------------------------------------
-const arenaUi = { el: null, key: '' };
+// Tod in der Arena (seit 13.70): drei Leben. Jeder Tod kostet ein Leben; solange noch eins übrig ist, geht es mit
+// „Hier neu starten“ in der Halle weiter (ohne EP-Verlust, die Schübe warten so lange). Beim dritten Tod endet der
+// Lauf und das gesammelte Gold ist verloren; „In der Stadt neu starten“ bringt dann zum Arenameister.
+function arenaDeath() {
+  const run = game.arenaRun;
+  const p = game.player;
+  if (!run || run.slot < 0 || arenaSlotAt(p.x, p.y) !== run.slot) return false;
+  run.lives = Math.max(0, run.lives - 1);
+  p.deathXpLoss = 0;
+  if (run.lives > 0) {
+    $('deathText').textContent = `Noch ${run.lives} von ${ARENA.lives} Leben. Starte hier in der Arena neu und kämpf weiter – oder geh zurück in die Stadt, dann bekommst du das gesammelte Gold (${arenaFmt(run.gold)}).`;
+    $('reviveHereCost').textContent = `${'♥'.repeat(run.lives)}${'♡'.repeat(ARENA.lives - run.lives)} · halbes Leben`;
+  } else {
+    const lost = run.gold;
+    arenaStop('verloren');
+    $('deathText').textContent = `Alle ${ARENA.lives} Leben verbraucht – die Herausforderung ist vorbei. ${lost > 0 ? `Das gesammelte Gold (${arenaFmt(lost)}) ist verloren.` : ''}`.trim();
+    $('btnReviveHere').hidden = true;
+  }
+  arenaHud();
+  return true;
+}
+const _arenaShowDeath = ui.showDeath;
+ui.showDeath = function (lostXp) {
+  const inArena = !!game.arenaRun && arenaInside(game.player);
+  _arenaShowDeath.call(this, inArena ? 0 : lostXp);
+  if (inArena) arenaDeath();
+};
+
+// --- Anzeige: Welle, Monster, nächster Schub, Leben, gesammeltes Gold, Aufgeben ---------------------------------
+// seit 13.70 nicht mehr oben in der Mitte (dort liegen Ziel- und Bossleiste), sondern direkt über dem Chat
+const arenaUi = { el: null, key: '', posAt: 0 };
+function arenaHudPlace(el) {
+  const chat = document.getElementById('chatBox');
+  const r = chat && chat.offsetParent !== null ? chat.getBoundingClientRect() : null;
+  if (r && r.width > 0) {
+    // am Handy auch über dem Steuerknüppel und dem Beutel-Knopf (sie sitzen neben bzw. über dem Chat)
+    let top = r.top;
+    for (const id of ['stick', 'btnLoot']) {
+      const e = document.getElementById(id);
+      const rs = e && !e.closest('[hidden]') ? e.getBoundingClientRect() : null;
+      if (rs && rs.width > 0 && rs.left < r.left + 520 && rs.top > window.innerHeight * 0.45) top = Math.min(top, rs.top);
+    }
+    el.style.left = Math.round(Math.max(4, r.left)) + 'px';
+    el.style.top = '';
+    el.style.bottom = Math.round(window.innerHeight - top + 6) + 'px';
+  } else {
+    // ohne Chat: links unter der Lebensanzeige
+    const c = document.getElementById('hudChar');
+    const rc = c ? c.getBoundingClientRect() : { left: 8, bottom: 120 };
+    el.style.left = Math.round(rc.left) + 'px';
+    el.style.top = Math.round(rc.bottom + 6) + 'px';
+    el.style.bottom = '';
+  }
+}
 function arenaHud() {
   const run = game.arenaRun;
   if (!arenaUi.el) {
     const el = document.createElement('div');
     el.id = 'arenaHud';
-    el.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top, 0px) + 54px);transform:translateX(-50%);z-index:30;' +
-      'display:flex;align-items:center;gap:10px;padding:6px 8px 6px 14px;border-radius:12px;background:rgba(30,18,8,.8);' +
-      'border:1px solid rgba(255,200,106,.65);color:#ffe9c2;font:600 13px/1.25 system-ui,sans-serif;text-shadow:0 1px 2px #000;' +
+    // unter den Fenstern (z-index 10), über der Spielfläche; am Handy schmaler (zwei Zeilen), damit rechts die Knöpfe frei bleiben
+    el.style.cssText = 'position:fixed;left:8px;bottom:200px;z-index:5;max-width:' + (input.touchUi ? 'min(470px, 56vw)' : 'min(640px, calc(100vw - 16px))') + ';' +
+      'display:flex;flex-wrap:wrap;align-items:center;gap:4px 9px;padding:5px 7px 5px 11px;border-radius:12px;background:rgba(30,18,8,.82);' +
+      'border:1px solid rgba(255,200,106,.65);color:#ffe9c2;font:600 12.5px/1.25 system-ui,sans-serif;text-shadow:0 1px 2px #000;' +
       'white-space:nowrap;pointer-events:none;box-shadow:0 2px 12px rgba(0,0,0,.45)';
-    el.innerHTML = '<span data-a="w" style="color:#ffc86a;font-weight:800"></span><span data-a="l"></span><span data-a="g" style="color:#ffd96a"></span>' +
-      '<button type="button" data-a="x" style="pointer-events:auto;cursor:pointer;font:700 12px system-ui,sans-serif;color:#fff;background:#7a2a1a;border:1px solid #c86a4a;border-radius:8px;padding:4px 10px">Aufgeben</button>';
+    el.innerHTML = '<span data-a="w" style="color:#ffc86a;font-weight:800"></span><span data-a="l"></span><span data-a="s" style="color:#ffd8a8"></span>' +
+      '<span data-a="h" style="color:#ff6a5a;letter-spacing:1px"></span><span data-a="g" style="color:#ffd96a"></span>' +
+      '<button type="button" data-a="x" style="pointer-events:auto;cursor:pointer;font:700 12px system-ui,sans-serif;color:#fff;background:#7a2a1a;border:1px solid #c86a4a;border-radius:8px;padding:3px 9px">Aufgeben</button>';
     el.hidden = true;
     el.querySelector('[data-a="x"]').addEventListener('click', () => arenaStop('aufgeben'));
     document.body.appendChild(el);
@@ -679,21 +793,27 @@ function arenaHud() {
     if (!el.hidden) el.hidden = true;
     return;
   }
-  // übrig: die lebenden und die, die noch kommen (Verstärkung der Bosse zählt mit, sobald sie da ist)
+  // übrig: die lebenden und die noch kommenden (Verstärkung der Bosse zählt mit, sobald sie da ist)
   const rest = (run.left || 0) + Math.max(0, (run.n || 0) - (run.spawned || 0));
   const left = run.phase === 'pause' ? `Nächste Welle in ${Math.max(0, Math.ceil(run.until - game.time))} s` : run.phase === 'fight' ? `Noch ${rest} Monster` : 'Gleich geht es los';
+  const next = run.phase === 'fight' && run.nextBatch > game.time ? `Nächster Schub in ${Math.ceil(run.nextBatch - game.time)} s` : '';
   const w = `Welle ${Math.max(1, run.wave)}`;
-  const g = `${arenaFmt(run.gold)} Gold`;
-  // unter der Bossleiste, falls ein Wellenmeister da ist
-  const bb = document.getElementById('bossBar');
-  const top = bb && !bb.hidden ? Math.round(bb.getBoundingClientRect().bottom + 6) + 'px' : '';
-  const key = w + '|' + left + '|' + g + '|' + top;
+  const h = `${'♥'.repeat(run.lives)}${'♡'.repeat(Math.max(0, ARENA.lives - run.lives))} ${run.lives}/${ARENA.lives}`;
+  const g = `${arenaFmt(run.gold)} Gold gesammelt`;
+  const key = w + '|' + left + '|' + next + '|' + h + '|' + g;
   if (key !== arenaUi.key) {
     arenaUi.key = key;
     el.querySelector('[data-a="w"]').textContent = w;
     el.querySelector('[data-a="l"]').textContent = left;
+    el.querySelector('[data-a="s"]').textContent = next;
+    el.querySelector('[data-a="s"]').hidden = !next;
+    el.querySelector('[data-a="h"]').textContent = h;
     el.querySelector('[data-a="g"]').textContent = g;
-    el.style.top = top || 'calc(env(safe-area-inset-top, 0px) + 54px)';
+  }
+  // Lage nachführen (Chat kann verschoben werden, Fenstergröße ändert sich)
+  if (el.hidden || performance.now() - arenaUi.posAt > 500) {
+    arenaUi.posAt = performance.now();
+    arenaHudPlace(el);
   }
   if (el.hidden) el.hidden = false;
 }
@@ -705,13 +825,15 @@ function arenaRenderMaster(npc) {
   const body = $('npcBody');
   const L = p.level;
   const low = L < ARENA.minLevel;
-  const rows = [1, 5, 10, 15, 20].map((w) => `<li>Welle ${w}: ${arenaFmt(arenaGold(L, w))} Gold</li>`).join('');
+  const rows = [1, 2, 5, 10, 15, 20].map((w) => `<li>Welle ${w}: ${arenaFmt(arenaGold(L, w))} Gold</li>`).join('');
   const party = game.party && game.party.members && game.party.members.length > 1;
   body.innerHTML =
     `<p class="quest-step">Herausforderung · allein · ab Stufe ${ARENA.minLevel}</p>` +
-    `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du ganz allein gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele schwache Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
-    `<p><strong>Gold je geschaffter Welle (für deine Stufe):</strong></p><ul class="reward-list">${rows}</ul>` +
-    `<p class="hint-text">Die Monster lassen nichts fallen und geben nur halbe Erfahrung – die Belohnung ist das Gold. Stirbst du oder verlässt du die Arena, endet der Lauf; das verdiente Gold bleibt dir.</p>` +
+    `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du ganz allein gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
+    `<p><strong>Gold je geschaffter Welle:</strong></p><ul class="reward-list">${rows}</ul>` +
+    `<p>Bis Welle 10 zusammen: ${arenaFmt(arenaGoldSum(10))} Gold</p>` +
+    `<p class="hint-text">Die Monster kommen in Schüben nach der Uhr, nicht erst, wenn eines fällt. Sie geben volle Erfahrung und ihr normales Gold, aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
+    `<p class="hint-text">Du hast ${ARENA.lives} Leben. Nach einem Tod startest du in der Arena neu; beim dritten Tod ist der Lauf vorbei und das gesammelte Gold verloren. Das Wellengold wird ausgezahlt, wenn du die Arena verlässt oder aufgibst.</p>` +
     (party ? '<p class="hint-text">Deine Gruppe wartet draußen – in die Arena geht jeder allein.</p>' : '') +
     `<p>Deine Bestwelle: <b>${A.best || 0}</b></p>` +
     `<p>Läufe: ${A.runs || 0} · Gold aus der Arena: ${arenaFmt(A.gold || 0)}</p>` +
@@ -723,7 +845,7 @@ function arenaRenderExit() {
   const run = game.arenaRun;
   const body = $('npcBody');
   body.innerHTML = `<p>Ein Tor aus warmem Licht führt zurück zum Arenameister.</p>` +
-    (run ? `<p>Geschafft: ${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} · ${arenaFmt(run.gold)} Gold</p><p class="hint-text">Wer geht, beendet den Lauf. Das Gold bleibt dir.</p>` : '') +
+    (run ? `<p>Geschafft: ${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} · ${arenaFmt(run.gold)} Gold</p><p class="hint-text">Wer geht, beendet den Lauf und bekommt das gesammelte Gold ausgezahlt.</p>` : '') +
     '<button type="button" class="btn btn-primary" data-arena="leave">Arena verlassen</button>';
   body.querySelector('[data-arena]').addEventListener('click', () => {
     if (game.arenaRun) arenaStop('aufgeben');

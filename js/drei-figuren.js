@@ -4882,9 +4882,27 @@ let _bsHoldQ = null;
 function bowDrawState3(p, sw) {
   const D = p.swingKind && BOW_DRAW3[p.swingKind];
   if (!D || sw < 0 || p.riding || weaponKindOf(p) !== 'bow') return null;
-  const w = D.w;
-  const aim = Math.min(1, sw / Math.max(0.01, w[0])) * (sw > 0.82 ? Math.max(0, (1 - sw) / 0.18) : 1);
-  const st = { D, aim: aim * aim * (3 - 2 * aim), w: 0, full: 0, rel: -1 };
+  let w = D.w;
+  // Salve (seit 13.70, fernninja.js): mehrere Züge hintereinander (D.cycles); zwischen zwei Schüssen greift die
+  // Zughand in den Köcher (reload 0 … 1) und legt den nächsten Pfeil auf
+  let reload = -1;
+  let relAt = -1;
+  if (D.cycles) {
+    let i = D.cycles.findIndex((c) => sw < c[2]);
+    if (i < 0) i = D.cycles.length - 1;
+    w = D.cycles[i];
+    if (i > 0 && sw < w[0]) {
+      relAt = D.cycles[i - 1][2];
+      reload = (sw - relAt) / Math.max(0.01, w[0] - relAt);
+    }
+  }
+  const w0 = D.cycles ? D.cycles[0][0] : w[0];
+  const aim = Math.min(1, sw / Math.max(0.01, w0)) * (sw > 0.82 ? Math.max(0, (1 - sw) / 0.18) : 1);
+  const st = { D, aim: aim * aim * (3 - 2 * aim), w: 0, full: 0, rel: -1, reload };
+  if (reload >= 0) {
+    st.rel = (sw - relAt) * (p.swingDur || 0.5);
+    return st;
+  }
   if (sw >= w[0] && sw < w[2]) {
     st.w = Math.min(1, (sw - w[0]) / 0.05);
     const f = Math.min(1, (sw - w[0]) / Math.max(0.01, w[1] - w[0]));
@@ -4959,9 +4977,31 @@ function bowString3(a, p, sw) {
   else d = brace + 0.05 * gs;
   // Zughand: Ziel ist der Punkt auf der Pfeillinie (Finger ein Stück unter dem Handknochen)
   _bsH.copy(_bsG).addScaledVector(_bsF, -d);
+  // Salve (seit 13.70): vom Anker über die Schulter zum Köcher auf dem Rücken und mit dem neuen Pfeil zurück an die Sehne
+  const rl = st.reload;
+  if (rl >= 0) {
+    _bsB.set(_bsF.x, 0, _bsF.z).normalize();
+    _bsT.copy(_bsS).addScaledVector(_bsB, -0.22 * gs);
+    _bsT.y += 0.3 * gs;
+    const e3 = (u) => u * u * (3 - 2 * u);
+    if (rl < 0.45) _bsH.lerp(_bsT, e3(rl / 0.45));
+    else {
+      _bsA.copy(_bsG).addScaledVector(_bsF, -brace);
+      _bsH.copy(_bsT).lerp(_bsA, e3((rl - 0.45) / 0.55));
+    }
+  }
   _bsT.copy(_bsH).sub(_bsS).normalize();
   bowPointBone3(B[BH.armL], _bsDown, _bsT, k);
   B[BH.armL].updateMatrixWorld(true);
+  // der neue Pfeil liegt in der Zughand, Spitze schon zum Bogen
+  if (rl >= 0.3) {
+    B[BH.handL].getWorldPosition(_bsH);
+    _bsA.copy(_bsG).addScaledVector(_bsF, -brace);
+    _bsT.copy(_bsA).sub(_bsH);
+    if (_bsT.lengthSq() < 1e-6) _bsT.copy(_bsF);
+    _bsT.normalize().lerp(_bsF, clamp01((rl - 0.3) / 0.7)).normalize();
+    a.bowNock = { w: Math.min(1, (rl - 0.3) / 0.15), full: 0.15, nock: _bsH.clone(), grip: _bsH.clone().addScaledVector(_bsT, 0.3 * gs), fwd: _bsT.clone() };
+  }
   if (st.w <= 0 && !(st.rel >= 0 && st.rel < 0.3)) return;
   // Sehne: Zugpunkt an der Hand bzw. nach dem Abschuss die Mitte (schwingt kurz nach)
   if (st.w > 0) {

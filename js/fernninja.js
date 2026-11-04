@@ -307,67 +307,190 @@ function bowShotFx(p, color) {
 function bowBasicFx(p) {
   addEffect({ type: 'bmuzzle3', follow: p, ox: 0, oy: 0, color: BOW3.violet, dur: 0.35 });
 }
-// Falkenpfeil: kurz ziehen, dann ein schwerer Pfeil mit Federwirbel
-SKILL_TYPES.bshot = function (sk, pw) {
+// Falkenpfeil (seit 13.70 eine Salve statt eines einzelnen schweren Pfeils): drei Schattenpfeile kurz hintereinander
+// aufs Ziel, ab Heroisch vier (sk.rankCount). Vor jedem weiteren Schuss greift die Zughand über die Schulter in den
+// Köcher und legt den nächsten Pfeil auf (Pose BOW_DRAW3 mit cycles, drei-figuren.js); während der Salve hüllt eine
+// dunkelviolette Aura Bogen und Figur ein (bsalvo3). Der letzte Pfeil ist der schwere Falkenpfeil (Federwirbel, kleiner
+// Schattenfalke) und schlägt mit einem Schattenstoß ein (bsalvohit3), nur er stößt zurück und trifft etwas härter
+// (sk.lastMul). Jeder Pfeil verbraucht einen Pfeil; reichen sie nicht, fliegen so viele, wie da sind.
+const BOW_SALVO = { first: 0.2, tail: 0.2 };
+// Pfeile und Schaden je Pfeil auf dieser Stufe
+function bowSalvoSpec(sk, lvl) {
+  const rc = sk.rankCount;
+  if (rc && lvl != null && skillRank(lvl) >= rc.rank) return { count: rc.count, dmg: rc.dmg, every: rc.every || sk.every || 0.15 };
+  return { count: sk.count || 1, dmg: sk.dmg, every: sk.every || 0.15 };
+}
+// Zeitplan: Abschüsse (s nach dem Wirken) und Dauer der Pose
+function bowSalvoPlan(n, every) {
+  const rel = [];
+  for (let k = 0; k < n; k++) rel.push(BOW_SALVO.first + k * every);
+  return { rel, dur: rel[n - 1] + BOW_SALVO.tail };
+}
+// Pose je Pfeilzahl (bogensalve1 … bogensalve4): Zugzeiten für drei-figuren.js und Körperhaltung (BOW_POSE),
+// einmal beim Laden aus den Daten des Falkenpfeils angelegt – Mitspieler brauchen dieselben Namen
+function bowSalvoRegister(n, every) {
+  const kind = 'bogensalve' + n;
+  const { rel, dur } = bowSalvoPlan(n, every);
+  const cycles = rel.map((r, k) => [(k ? rel[k - 1] + every * 0.55 : 0.05) / dur, (r - Math.min(0.03, every * 0.12)) / dur, r / dur]);
+  if (typeof BOW_DRAW3 !== 'undefined') BOW_DRAW3[kind] = { w: cycles[0], cycles, up: 0.04 };
+  // Körper: leicht in die Knie, Brust zum Ziel; bei jedem Abschuss ein kleiner Rückstoß
+  const hold = { rx: -1.7, wx: 1.48, lx: -1.8, lz: -1.0, cy: 0.07, gr: 0.13, hpy: -0.025 };
+  const keys = [[0, N3], [cycles[0][0] * 1.6, hold, 'out']];
+  for (const r of rel) {
+    const t = r / dur;
+    keys.push([t, { ...hold, hx: -0.06, hpz: -0.035, cx: 0.04 }, 'out'], [Math.min(0.97, t + 0.06 / dur), hold]);
+  }
+  keys.push([1, N3]);
+  BOW_POSE[kind] = keys;
+  return kind;
+}
+SKILL_TYPES.bshot = function (sk, pw, lvl) {
   const p = game.player;
   const t = pickTarget(sk.range);
-  const ar = bowArrowShot(p, sk.arrows);
+  const spec = bowSalvoSpec(sk, lvl);
+  const n = Math.max(1, Math.min(spec.count, bowArrowUsable(p)));
+  const ar = bowArrowShot(p, n);
   if (!ar) return false;
   if (t) faceTowards(t.x, t.y);
-  const mul = sk.dmg * pw * ar.mul;
   const col = ar.color;
-  // stehen bleiben und zum Ziel schauen bis kurz nach dem Schuss; das Laufziel bleibt (geht danach weiter)
-  lockPlayer(p, 0.26);
-  later(0.18, () => {
+  const plan = bowSalvoPlan(n, spec.every);
+  // stehen bleiben und zum Ziel schauen, bis der letzte Pfeil fliegt; das Laufziel bleibt (geht danach weiter)
+  lockPlayer(p, plan.rel[n - 1] + 0.08);
+  // useSkill setzt danach die Pose aus den Daten (drei Pfeile) – die Salve stellt sie auf ihre Pfeilzahl
+  later(0, () => { if (!p.dead && BOW_POSE['bogensalve' + n]) startSwing(p, 'bogensalve' + n, plan.dur); });
+  salvoFx(p, plan, fxRank);
+  plan.rel.forEach((at, k) => later(at, () => {
     if (p.dead) return;
     const tt = t && !t.dead ? t : null;
     if (tt) faceTowards(tt.x, tt.y);
     const f = { ...p.facing };
     const m = bowMuzzle(p, f);
+    const last = k === n - 1;
+    const mul = spec.dmg * (last ? sk.lastMul || 1 : 1) * pw * ar.mul;
     spawnProjectile({ owner: 'player', x: m.x, y: m.y, target: tt, dir: tt ? null : f, speed: sk.speed, range: sk.range + 60, mul, color: col,
-      radius: 6, style: 'arrow', skill: sk.id, knockback: sk.knockback, bfx: 'falke', arrow: ar ? ar.sort : -1 });
+      radius: 6, style: 'arrow', skill: sk.id, knockback: last ? sk.knockback : 0, bfx: last ? 'falke' : 'salvo', arrow: ar.sort, afterHit: last ? salvoLastHit : null });
     bowShotFx(p, sk.color);
-    shakeScreen(1.5);
-  });
-  return t ? { c: col } : { c: col, tx: Math.round(p.x + p.facing.x * sk.range), ty: Math.round(p.y + p.facing.y * sk.range) };
+    shakeScreen(last ? 1.8 : 0.8);
+  }));
+  const out = { c: col, n, ev: spec.every };
+  if (!t) Object.assign(out, { tx: Math.round(p.x + p.facing.x * sk.range), ty: Math.round(p.y + p.facing.y * sk.range) });
+  return out;
 };
-MAGE2_REMOTE.bshot = (rp, sk, d) => later(0.18, () => {
-  spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: { x: d.tx, y: d.ty }, speed: sk.speed, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || sk.color, radius: 6, style: 'arrow', bfx: 'falke' });
-  addEffect({ type: 'bmuzzle3', follow: rp, ox: 0, oy: 0, color: BOW3.violet, dur: 0.45 });
-});
+// Aura der Salve an der Figur (eigene und Mitspieler)
+function salvoFx(owner, plan, rk) {
+  addEffect({ type: 'bsalvo3', follow: owner, ox: 0, oy: 0, rel: plan.rel, rk: rk >= 0 ? rk : -1, color: BOW3.violet, dur: plan.dur + 0.3, seed: Math.random() * 9 });
+}
+// Einschlag des letzten Pfeils: Schattenstoß
+function salvoLastHit(m) {
+  addEffect({ type: 'bsalvohit3', x: m.x, y: feetY(m), rk: fxRank, color: BOW3.violet, dur: 0.9, seed: Math.random() * 9 });
+  particles(m.x, feetY(m) - 16, { count: 16, color: ['#0a0610', '#2a1640', '#8a5ae0', '#d8b8ff'], speed: [70, 210], life: [0.3, 0.6], size: [2, 4], drag: 3, glow: false });
+  hitStop(0.04);
+  shakeScreen(3);
+}
+MAGE2_REMOTE.bshot = (rp, sk, d) => {
+  // ältere Mitspieler schicken keine Pfeilzahl: ein Pfeil
+  const n = Math.max(1, Math.min(4, d.n | 0 || 1));
+  const plan = bowSalvoPlan(n, d.ev > 0 && d.ev < 1 ? d.ev : sk.every || 0.15);
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+  withRank(rk, () => {
+    salvoFx(rp, plan, rk);
+    plan.rel.forEach((at, k) => later(at, () => {
+      const last = k === n - 1;
+      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: { x: d.tx, y: d.ty }, speed: sk.speed, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || sk.color,
+        radius: 6, style: 'arrow', bfx: last ? 'falke' : 'salvo', onRemoteHit: last ? (m) => salvoLastHit(m) : null });
+      addEffect({ type: 'bmuzzle3', follow: rp, ox: 0, oy: 0, color: BOW3.violet, dur: 0.45 });
+    }));
+  });
+};
 
-// Pfeilhagel: drei Pfeile steil in den Himmel, dann regnet es am gewählten Ort in Wellen Pfeile
-SKILL_TYPES.brain = function (sk, pw) {
+// Giftfalle (seit 13.70 statt Pfeilhagel): Ort wählen, ein Fallenpfeil fliegt im Bogen dorthin und bohrt sich in den
+// Boden. Um ihn breitet sich eine blubbernde, schwarzviolette Giftlache aus, am Rand wachsen dornige Schattenranken.
+// Wer darin steht oder hineinläuft, löst sie aus: Schaden, Verlangsamung und Gift (m.poison: Schaden jede Sekunde,
+// im Zielfenster als „Gift“). Jeder Gegner nur einmal je Falle; sie hält sk.life s oder bis sk.maxHits Gegner drin
+// waren. Das Gift wächst mit der Stufe der Fertigkeit wie ihr Schaden.
+const TRAP_SHOT = 0.18;
+const TRAP_FLY = 0.32;
+const BOW_GIFT = '#b48cff';
+SKILL_TYPES.btrap = function (sk, pw) {
   const p = game.player;
   const pt = skillAimPoint(sk);
   const ar = bowArrowShot(p, sk.arrows);
   if (!ar) return false;
   faceTowards(pt.x, pt.y);
-  lockPlayer(p, 0.36);
+  lockPlayer(p, 0.3);
   const x = Math.round(pt.x);
   const y = Math.round(pt.y);
   const seed = Math.floor(Math.random() * 1000);
-  rainFx(p, x, y, sk, seed, true, pw * (ar ? ar.mul : 1), ar ? ar.color : sk.color);
-  later(0.24, () => { if (typeof snd !== 'undefined') snd.shot(p, { style: 'arrow' }); });
-  return { tx: x, ty: y, sd: seed, c: ar ? ar.color : sk.color };
+  const e = trapFx(p, x, y, sk, seed, ar.color);
+  later(TRAP_SHOT, () => { if (!p.dead) bowShotFx(p, sk.color); });
+  trapRun(p, e, x, y, sk, pw * ar.mul, true);
+  return { tx: x, ty: y, sd: seed, c: ar.color };
 };
-function rainHitAt(sk, k) {
-  return sk.delay + k * sk.every + 0.22;
+// Bild der Falle (für alle gleich): Flug des Fallenpfeils, Lache, Ranken, Dampf
+function trapFx(owner, x, y, sk, seed, color) {
+  const hand = { x: owner.x + (owner.facing ? owner.facing.x : 0) * 12, y: owner.y };
+  const e = addEffect({ type: 'btrap3', x, y: y + 9, ox: hand.x, oy: hand.y + 9, R: sk.radius, seed, color: color || sk.color, rk: fxRank,
+    t0: TRAP_SHOT + TRAP_FLY, life: sk.life, dur: TRAP_SHOT + TRAP_FLY + sk.life + 0.8 });
+  later(TRAP_SHOT + TRAP_FLY, () => {
+    particles(x, y + 4, { count: 14, color: ['#0a0610', '#2a1640', '#6a3ab0'], angle: -Math.PI / 2, spread: 1.3, speed: [50, 150], life: [0.35, 0.7], size: [2.5, 4.5], drag: 2, glow: false, gravity: 380 });
+    if (typeof snd !== 'undefined') snd.player('imp_wasser', { x, y, vol: owner === game.player ? 0.45 : 0.3, rev: 0.25 });
+    if (owner === game.player) shakeScreen(1.4);
+  });
+  return e;
 }
-function rainFx(owner, x, y, sk, seed, local, pw, color) {
-  const fy = y + 9;
-  const dur = rainHitAt(sk, sk.waves - 1) + 1.1;
-  addEffect({ type: 'brain3', x, y: fy, R: sk.radius, ox: owner.x, oy: feetY(owner), delay: sk.delay, waves: sk.waves, every: sk.every, seed, color: color || sk.color, dur });
-  for (let k = 0; k < sk.waves; k++) {
-    later(rainHitAt(sk, k), () => {
-      if (owner === game.player) shakeScreen(1.6);
-      particles(x, fy - 4, { count: 10, color: ['#1a0e28', '#3a2058', '#8a5ae0'], angle: -Math.PI / 2, spread: 1.4, speed: [40, 110], life: [0.3, 0.6], size: [2, 3.5], shape: 'square', drag: 3, glow: false, gravity: 300 });
-      if (!local) return;
-      for (const m of enemiesInCircle(x, y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, slow: sk.slow, vfxColor: '#b48cff' });
-    });
+// Auslösen: alle 0,1 s prüfen, wer in der Falle steht (local = eigener Spieler: Schaden; sonst nur das Bild)
+function trapRun(owner, e, x, y, sk, pw, local) {
+  const hit = new Set();
+  const dps = local ? sk.poison.dps * pw / ((game.stats && game.stats.skillDmg) || 1) : 0;
+  const t0 = TRAP_SHOT + TRAP_FLY + 0.12;
+  const end = game.time + t0 + sk.life;
+  const step = () => {
+    if (e.closed) return;
+    if (game.time >= end || (local && owner.dead)) {
+      trapClose(e);
+      return;
+    }
+    for (const m of enemiesInCircle(x, y, sk.radius)) {
+      if (hit.has(m) || hit.size >= sk.maxHits) continue;
+      hit.add(m);
+      addEffect({ type: 'bsnap3', follow: m, ox: 0, oy: 0, cx: x, cy: y + 9, rk: fxRank, seed: Math.random() * 9, dur: 1.1 });
+      particles(m.x, feetY(m) - 10, { count: 10, color: ['#120a1a', '#3a1a5a', '#8a4ae8'], angle: -Math.PI / 2, spread: 1.1, speed: [40, 120], life: [0.35, 0.7], size: [2, 4], drag: 2, glow: false, gravity: 260 });
+      if (typeof snd !== 'undefined') snd.player('imp_schatten', { x: m.x, y: m.y, vol: 0.35 });
+      if (local) {
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, slow: sk.slow, stun: sk.stun, poison: { dps, duration: sk.poison.duration }, vfxColor: BOW_GIFT });
+        // violettes Gift statt des grünen (Blasen und Dampf am Gegner, drei-fx.js fx3Status und bowPoison3)
+        if (m.poison) m.poison.color = BOW_GIFT;
+      }
+    }
+    if (hit.size >= sk.maxHits) {
+      trapClose(e);
+      if (local) netSkillFx(sk.id, 160, { cx: 1, tx: x, ty: y, sd: e.seed });
+      return;
+    }
+    later(0.1, step);
+  };
+  later(t0, step);
+}
+// Falle schließen: Lache versickert, Ranken ziehen sich zurück (0,7 s)
+function trapClose(e) {
+  if (e.closed) return;
+  e.closed = game.time;
+  e.dur = Math.min(e.dur, game.time - e.start + 0.75);
+}
+MAGE2_REMOTE.btrap = (rp, sk, d) => {
+  const x = d.tx ?? rp.x;
+  const y = d.ty ?? rp.y;
+  // die Falle hat sich gefüllt: die gezeigte Falle an dieser Stelle schließen
+  if (d.cx) {
+    for (const e of game.effects) if (e.type === 'btrap3' && e.seed === d.sd && Math.abs(e.x - x) < 2) trapClose(e);
+    return;
   }
-}
-MAGE2_REMOTE.brain = (rp, sk, d) => rainFx(rp, d.tx ?? rp.x, d.ty ?? rp.y, sk, d.sd || 1, false, 0, d.c);
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+  withRank(rk, () => {
+    const e = trapFx(rp, x, y, sk, d.sd || 1, d.c);
+    trapRun(rp, e, x, y, sk, 0, false);
+  });
+};
 
 // Durchbohrender Schuss: ein Pfeil, der alles in einer Linie durchschlägt; der Wind dreht sich als Spirale darum
 SKILL_TYPES.bpierce = function (sk, pw) {
@@ -480,9 +603,12 @@ MAGE2_REMOTE.bleap = (rp, sk, d) => {
 // Schattenschritt (seit 13.67, Platz 5 statt Falkenblick): Ort wählen (Zielkreis), in Schattenrauch zerfallen,
 // kurz unsichtbar und am Ziel mit einer Schattenexplosion wieder auftauchen. Wände, Wasser und Dörfer halten auf
 // (wie beim Elementsprung). Am Ziel leichter Schaden und Verlangsamung – vor allem ist es ein Fluchtschritt.
+// Seit 13.70 ausdrücklich ein Fluchtschritt: der Zielkreis beginnt hinter der Figur, vom Gegner weg (sk.aimAway,
+// startAim in kampf.js), der Ort wird frei gewählt – nie automatisch auf den Gegner (vorher begann der Kreis auf dem
+// Ziel, zweimal Antippen sprang mitten hinein)
 SKILL_TYPES.bshadow = function (sk, pw) {
   const p = game.player;
-  const pt = skillAimPoint(sk);
+  const pt = game.aim && game.aim.sk.id === sk.id ? game.aim.pt : aimAwayPoint(p, sk);
   const dx = pt.x - p.x;
   const dy = pt.y - p.y;
   const dl = Math.hypot(dx, dy);
@@ -510,18 +636,22 @@ SKILL_TYPES.bshadow = function (sk, pw) {
   return { ...ret, skipNet: true };
 };
 function shadowStepFx(owner, a, b, sk, local, pw) {
-  addEffect({ type: 'bshadow3', x: b.x, y: b.y + 9, x0: a.x, y0: a.y + 9, hide: sk.hide, R: sk.radius, dur: sk.hide + 0.9, seed: Math.random() * 9 });
+  // seit 13.70 aufwendiger (bshadow3): Figur zerfällt zu Schattenrauch mit peitschenden Schattenranken, ein Schattenfalke
+  // zieht eine violette Spur zum Ziel, dort Sog, Wiedererscheinen und ein Schattenstoß mit Druckwelle und Federn
+  addEffect({ type: 'bshadow3', x: b.x, y: b.y + 9, x0: a.x, y0: a.y + 9, hide: sk.hide, R: sk.radius, rk: fxRank, dur: sk.hide + 1.2, seed: Math.random() * 9 });
   particles(a.x, a.y - 10, { count: 16, color: ['#0a0610', '#2a1640', '#5a2aa8'], speed: [40, 140], life: [0.3, 0.6], size: [3, 6], drag: 3, glow: false });
   later(sk.hide, () => {
     particles(b.x, b.y - 10, { count: 18, color: ['#0a0610', '#2a1640', '#8a5ae0'], speed: [60, 180], life: [0.3, 0.6], size: [3, 6], drag: 3, glow: false });
+    if (typeof snd !== 'undefined') snd.player('imp_schatten', { x: b.x, y: b.y, vol: owner === game.player ? 0.45 : 0.3 });
     if (owner === game.player) shakeScreen(2);
     if (!local || owner.dead) return;
-    for (const m of enemiesInCircle(b.x, b.y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, slow: sk.slow, vfxColor: '#b48cff' });
+    for (const m of enemiesInCircle(b.x, b.y, sk.radius)) hitMonster(m, sk.dmg * pw, { skill: sk.id, slow: sk.slow, stun: sk.stun, vfxColor: '#b48cff' });
   });
 }
 MAGE2_REMOTE.bshadow = (rp, sk, d) => {
   if (!isFinite(d.x1) || !isFinite(d.y1)) return;
-  shadowStepFx(rp, { x: d.x0 ?? rp.x, y: d.y0 ?? rp.y }, { x: d.x1, y: d.y1 }, sk, false, 0);
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+  withRank(rk, () => shadowStepFx(rp, { x: d.x0 ?? rp.x, y: d.y0 ?? rp.y }, { x: d.x1, y: d.y1 }, sk, false, 0));
   rp.blinkHide = game.time + sk.hide;
   rp.glideHold = { x: d.x1, y: d.y1, until: game.time + 0.8 };
   later(sk.hide * 0.5, () => {
@@ -535,15 +665,22 @@ MAGE2_REMOTE.bshadow = (rp, sk, d) => {
 // behält dieselbe Aura, damit Mitspieler mit älterem Stand nichts Kaputtes sehen
 const BOW_HITC = '#b48cff';
 Object.assign(SKILL_FX, {
+  // seit 13.70 Salve: jeder Pfeil ein kleiner Schattenriss, der letzte zusätzlich der Schattenstoß (salvoLastHit)
   falkenpfeil: {
     color: BOW_HITC,
     hit(m, crit) {
       const c = bodyCenter(m);
-      addEffect({ type: 'bhit3', x: c.x, y: feetY(m), color: BOW_HITC, big: true, dur: 0.75, seed: Math.random() * 9 });
-      particles(c.x, c.y, { count: crit ? 18 : 10, color: ['#1a0e28', '#5a2aa8', BOW_HITC], speed: [80, 220], life: [0.2, 0.45], size: [1.5, 3], shape: 'spark', drag: 5 });
+      addEffect({ type: 'bhit3', x: c.x, y: feetY(m), color: BOW_HITC, dur: 0.6, seed: Math.random() * 9 });
+      particles(c.x, c.y, { count: crit ? 14 : 7, color: ['#1a0e28', '#5a2aa8', BOW_HITC], speed: [80, 220], life: [0.2, 0.4], size: [1.5, 3], shape: 'spark', drag: 5 });
     }
   },
-  pfeilhagel: { color: '#9a7ad8' },
+  giftfalle: {
+    color: BOW_GIFT,
+    hit(m) {
+      const c = bodyCenter(m);
+      particles(c.x, c.y, { count: 8, color: ['#120a1a', '#5a2aa8', '#c49aff'], speed: [30, 90], life: [0.4, 0.8], size: [2, 3.5], drag: 2, glow: false });
+    }
+  },
   durchschuss: {
     color: '#a070f0',
     hit(m) {
@@ -572,20 +709,30 @@ Object.assign(SKILL_FX, {
   segen_falke: { color: '#8a5ae0', weaponGlow: '#4a1a90', aura3: bowWings3 }
 });
 // eigene Klänge: Schatten (seit 13.67, vorher Wind)
-Object.assign(SKILL_SND, { falkenpfeil: 'schatten', pfeilhagel: 'schatten', durchschuss: 'schatten', rueckensprung: 'schatten', falkenblick: 'schatten', schattenwechsel: 'schatten' });
+Object.assign(SKILL_SND, { falkenpfeil: 'schatten', giftfalle: 'schatten', durchschuss: 'schatten', rueckensprung: 'schatten', falkenblick: 'schatten', schattenwechsel: 'schatten' });
 
 // Werte im Fertigkeitsfenster (oberflaeche.js skillStats)
 function bowSkillStats(sk, lvl, out) {
-  if (!sk || !sk.type || !['bshot', 'brain', 'bpierce', 'bleap', 'bshadow'].includes(sk.type)) return;
+  if (!sk || !sk.type || !['bshot', 'btrap', 'bpierce', 'bleap', 'bshadow'].includes(sk.type)) return;
   if (sk.type === 'bshadow') {
-    out.push(['Schritt', 'bis ' + sk.range], ['Unsichtbar', numDe(sk.hide) + ' s'], ['Fläche', 'r ' + sk.radius],
+    out.push(['Schritt', 'bis ' + sk.range + ' · Ort frei wählen'], ['Unsichtbar', numDe(sk.hide) + ' s'], ['Fläche', 'r ' + sk.radius],
       ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
     return;
   }
   const dmg = (v) => skillHitNum(v, lvl);
-  if (sk.type === 'bshot') out.push(['Reichweite', String(sk.range)], ['Stößt zurück', '']);
-  if (sk.type === 'brain') out.push(['Wellen', `${sk.waves} × ${dmg(sk.dmg)}`], ['Fläche', 'r ' + sk.radius], ['Reichweite', String(sk.range)],
-    ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
+  // seit 13.70: Salve (Pfeile × Schaden, der letzte härter) und Giftfalle (Gift je Sekunde wächst mit der Stufe)
+  if (sk.type === 'bshot') {
+    const s = bowSalvoSpec(sk, lvl);
+    const lm = sk.lastMul || 1;
+    out.push(['Salve', `${s.count} Pfeile: ${s.count > 1 ? (s.count - 1) + ' × ' + dmg(s.dmg) + ', letzter ' : ''}${dmg(s.dmg * lm)}`],
+      ['Zusammen', dmg(s.dmg * (s.count - 1 + lm))], ['Reichweite', String(sk.range)], ['Stößt zurück', 'letzter Pfeil']);
+    if (sk.rankCount && skillRank(lvl) < sk.rankCount.rank) out.push(['Ab ' + SKILL_RANKS[sk.rankCount.rank].name, sk.rankCount.count + ' Pfeile']);
+  }
+  if (sk.type === 'btrap') {
+    out.push(['Gift', `${skillDotNum(sk.poison.dps * dmgScale(lvl))} je s · ${numDe(sk.poison.duration)} s`],
+      ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`], ['Falle', `${numDe(sk.life)} s · bis ${sk.maxHits} Gegner`],
+      ['Fläche', 'r ' + sk.radius], ['Reichweite', String(sk.range)]);
+  }
   if (sk.type === 'bpierce') out.push(['Durchbohrt', ''], ['Linie', String(sk.range)]);
   if (sk.type === 'bleap') out.push(['Pfeile', `${sk.count} × ${dmg(sk.dmg)}`], ['Flugweite', String(sk.range)], ['Sprung', String(sk.distance) + ' zurück'],
     ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
@@ -596,18 +743,22 @@ function bowSkillStats(sk, lvl, out) {
 
 // --- Posen (SKILL_POSE3, drei-figuren.js) ------------------------------------------------------------------
 // Bogenzug: Bogen hoch aufs Ziel, die Zughand zieht die Sehne bis an die Wange, Schuss, Zughand fliegt zurück, nachhalten.
-// Bogenhimmel: dasselbe steil nach oben. Seit 13.59 wie der Grundangriff mit der Zughand vor dem Körper
-// (vorher schwang sie seitlich weit vom Körper weg und der Bogen hing tief).
+// Seit 13.59 wie der Grundangriff mit der Zughand vor dem Körper (vorher schwang sie seitlich weit vom Körper weg und
+// der Bogen hing tief). Bogenhimmel (Pfeilhagel) ist seit 13.70 mit der Giftfalle weggefallen, dafür die Salven.
 const BOW_POSE = {
   bogenzug: [[0, N3], [0.22, { rx: -1.6, wx: 1.45, lx: -1.65, lz: -0.55, cy: 0.08, gr: 0.12, hpy: -0.02 }, 'out'],
     [0.42, { rx: -1.78, wx: 1.5, lx: -1.9, lz: -0.95, hx: -0.05, gr: 0.14, hpy: -0.03 }],
     [0.5, { rx: -1.74, wx: 1.5, lx: -1.4, lz: -1.3, hx: -0.05, gr: 0.14, hpy: -0.03, hpz: -0.03 }, 'out'],
-    [0.75, { rx: -1.68, wx: 1.48, lx: -1.35, lz: -1.22, gr: 0.1 }], [1, N3]],
-  bogenhimmel: [[0, N3], [0.25, { rx: -2.2, wx: 1.25, lx: -2.15, lz: -0.6, cx: -0.12, hx: -0.25 }, 'out'],
-    [0.42, { rx: -2.3, wx: 1.2, lx: -2.3, lz: -0.85, cx: -0.18, hx: -0.35 }],
-    [0.52, { rx: -2.25, wx: 1.2, lx: -1.95, lz: -1.15, cx: -0.15, hx: -0.3 }, 'out'],
-    [0.75, { rx: -2.15, wx: 1.2, lx: -1.85, lz: -1.1, cx: -0.12, hx: -0.25 }], [1, N3]]
+    [0.75, { rx: -1.68, wx: 1.48, lx: -1.35, lz: -1.22, gr: 0.1 }], [1, N3]]
 };
+// Salven des Falkenpfeils (seit 13.70): eine Pose je Pfeilzahl, aus den Daten (count/every, rankCount)
+(function () {
+  const path = CLASSES.ninja && CLASSES.ninja.paths.find((pt) => pt.id === 'falke');
+  const sk = path && path.skills.find((x) => x.type === 'bshot');
+  if (!sk) return;
+  for (let n = 1; n <= (sk.count || 1); n++) bowSalvoRegister(n, sk.every || 0.15);
+  if (sk.rankCount) bowSalvoRegister(sk.rankCount.count, sk.rankCount.every || sk.every || 0.15);
+})();
 if (typeof SKILL_POSE3 !== 'undefined' && typeof poseKeys3 === 'function') {
   for (const k of Object.keys(BOW_POSE)) SKILL_POSE3[k] = (B, sw) => poseKeys3(B, BOW_POSE[k], sw);
 }
@@ -919,6 +1070,63 @@ function bowTex(kind) {
     g.moveTo(cx + 1, H * 0.3);
     g.lineTo(cx + 1, H - 2);
     g.stroke();
+  } else if (kind === 'pool' || kind === 'poolglow') {
+    // Giftlache (seit 13.70) von oben: unregelmäßiger Fleck, fast schwarz mit violettem Stich, glänzender Rand und
+    // ölige Schlieren; poolglow ist nur der leuchtende Saum (leuchtend gemischt darübergelegt)
+    c.width = 256;
+    c.height = 256;
+    const blob = (k) => {
+      g.beginPath();
+      for (let i = 0; i <= 40; i++) {
+        const a = (i / 40) * Math.PI * 2;
+        const r = (104 + 10 * Math.sin(a * 3 + 1) + 7 * Math.sin(a * 5 + 2) + 5 * Math.sin(a * 9)) * k;
+        const px = 128 + Math.cos(a) * r;
+        const py = 128 + Math.sin(a) * r;
+        if (i) g.lineTo(px, py);
+        else g.moveTo(px, py);
+      }
+      g.closePath();
+    };
+    if (kind === 'poolglow') {
+      g.strokeStyle = 'rgba(160,100,255,0.85)';
+      g.lineWidth = 9;
+      g.filter = 'blur(4px)';
+      blob(1);
+      g.stroke();
+      g.filter = 'none';
+      g.fillStyle = 'rgba(120,60,220,0.25)';
+      for (const [px, py, r] of [[100, 110, 18], [150, 140, 12], [120, 160, 9], [160, 96, 8]]) {
+        g.beginPath();
+        g.arc(px, py, r, 0, Math.PI * 2);
+        g.fill();
+      }
+    } else {
+      const fill = g.createRadialGradient(118, 118, 10, 128, 128, 120);
+      fill.addColorStop(0, 'rgba(10,4,16,0.98)');
+      fill.addColorStop(0.6, 'rgba(26,10,40,0.96)');
+      fill.addColorStop(0.9, 'rgba(58,26,96,0.9)');
+      fill.addColorStop(1, 'rgba(90,42,168,0.75)');
+      g.fillStyle = fill;
+      blob(1);
+      g.fill();
+      // ölige Schlieren und Glanz
+      g.save();
+      blob(0.96);
+      g.clip();
+      for (let i = 0; i < 7; i++) {
+        g.strokeStyle = i % 2 ? 'rgba(120,70,200,0.35)' : 'rgba(40,16,64,0.6)';
+        g.lineWidth = 3 + (i % 3);
+        g.beginPath();
+        g.arc(128 + Math.sin(i * 2.1) * 30, 128 + Math.cos(i * 1.7) * 26, 26 + i * 11, i, i + 1.6);
+        g.stroke();
+      }
+      const sh = g.createRadialGradient(96, 92, 2, 96, 92, 40);
+      sh.addColorStop(0, 'rgba(220,190,255,0.45)');
+      sh.addColorStop(1, 'rgba(220,190,255,0)');
+      g.fillStyle = sh;
+      g.fillRect(40, 40, 120, 110);
+      g.restore();
+    }
   } else if (kind === 'eye') {
     // Schattenauge: mandelförmig, schwarz, violett glühende Iris, schmale Pupille, Lichtpunkt
     c.width = 256;
@@ -1032,7 +1240,9 @@ function bowProj3(h) {
     _bw3d.set(pr.vx, 0, pr.vy).normalize();
     const x = pr.x * U3;
     const z = pr.y * U3;
-    const big = pr.bfx === 'falke' || pr.bfx === 'pierce' ? 1.3 : 1;
+    const big = pr.bfx === 'falke' || pr.bfx === 'pierce' ? 1.3 : pr.bfx === 'salvo' ? 1.12 : 1;
+    // Salve (seit 13.70): Pfeile mit violett leuchtender Spitze, die Farbe der Pfeilsorte bleibt an den Federn
+    const violet = pr.bfx === 'salvo' || pr.bfx === 'falke';
     const col = pr.color || '#c9a36a';
     // seit 13.67 Schattenmagie: dunkler Rauchschweif, violetter Kern, Pfeil mit dunklen Federn
     _bw3s.set(-_bw3d.z, 0, _bw3d.x);
@@ -1049,9 +1259,40 @@ function bowProj3(h) {
     fx3Color(st, '#3a1670', 0.65);
     // Schatten am Boden unter dem Pfeil (Tiefe: man sieht, dass er fliegt)
     mGround(h, 'planeNBowPS', 'disc', pr.x - _bw3d.x * 6, pr.y - _bw3d.z * 6, 0.32 * big, 0.025, 0, BOW3.dark, 0.3);
-    bowArrow3(h, x, y, z, _bw3d, BOW_ARROW_LEN * big, col, 1, 0, pr.arrow >= 2 ? col : BOW3.shadow);
+    bowArrow3(h, x, y, z, _bw3d, BOW_ARROW_LEN * big, violet ? BOW3.violet2 : col, 1, 0, pr.arrow >= 2 || violet ? col : BOW3.shadow);
     n3Glow(h, x + _bw3d.x * 0.35 * big, y, z + _bw3d.z * 0.35 * big, (pr.arrow >= 5 ? 0.6 : 0.42) * big, BOW3.violet, 0.55);
-    if (pr.bfx === 'falke') {
+    if (pr.bfx === 'salvo') {
+      // leuchtender Schaft, violetter Kern an der Spitze und eine gedrehte Schattenspur
+      _bw3a.set(x - _bw3d.x * 0.3, y, z - _bw3d.z * 0.3);
+      _bw3b.set(x + _bw3d.x * 0.2, y, z + _bw3d.z * 0.2);
+      const gl = fx3Take(h, 'seg');
+      fx3Segment(gl, _bw3a, _bw3b, 0.05);
+      fx3Color(gl, BOW3.violet, 0.55);
+      n3Glow(h, x + _bw3d.x * 0.3, y, z + _bw3d.z * 0.3, 0.32, BOW3.violet2, 0.85);
+      const m = low ? 6 : 12;
+      let px = 0;
+      let py = 0;
+      let pz = 0;
+      for (let i = 0; i <= m; i++) {
+        const back = 0.1 + i * 0.09;
+        const a = t * 24 - i * 0.8 + (pr.x + pr.y) * 0.02;
+        const r = 0.1 + i * 0.012;
+        const nx = x - _bw3d.x * back + _bw3s.x * Math.cos(a) * r;
+        const ny = y + Math.sin(a) * r;
+        const nz = z - _bw3d.z * back + _bw3s.z * Math.cos(a) * r;
+        if (i) {
+          _bw3a.set(px, py, pz);
+          _bw3b.set(nx, ny, nz);
+          const sg = fx3Take(h, 'segN');
+          fx3Segment(sg, _bw3a, _bw3b, 0.026 * (1 - i / (m + 3)));
+          fx3Color(sg, i % 2 ? '#7a4ad0' : '#1a0a2a', 0.9 * (1 - i / (m + 1)));
+        }
+        px = nx;
+        py = ny;
+        pz = nz;
+      }
+      if (!low) for (let i = 0; i < 3; i++) n3Glow(h, x - _bw3d.x * (0.6 + i * 0.35), y + 0.04 * i, z - _bw3d.z * (0.6 + i * 0.35), 0.22 - i * 0.04, BOW3.violet, 0.4 - i * 0.1);
+    } else if (pr.bfx === 'falke') {
       // dunkle Federn und zwei Schattenbänder wirbeln um den Falkenpfeil
       for (let i = 0; i < (low ? 2 : 4); i++) {
         const a = t * 16 + i * (Math.PI / 2);
@@ -1170,7 +1411,8 @@ function bowNock3(h) {
 FX3_HOOKS.push({ parts: [], fn: bowNock3 });
 
 // --- 3D: Effekte ------------------------------------------------------------------------------------------
-['bmuzzle3', 'bhit3', 'brain3', 'bpierce3', 'bleap3', 'beye3', 'bult3', 'bshadow3'].forEach((k) => FX3_TYPES.add(k));
+// seit 13.70: brain3 (Pfeilhagel) weg, dazu Salve (bsalvo3, bsalvohit3) und Giftfalle (btrap3, bsnap3)
+['bmuzzle3', 'bhit3', 'bpierce3', 'bleap3', 'beye3', 'bult3', 'bshadow3', 'bsalvo3', 'bsalvohit3', 'btrap3', 'bsnap3'].forEach((k) => FX3_TYPES.add(k));
 const _bwH = new THREE.Vector3();
 
 // Abschuss (seit 13.67 düster): Schattenrauch quillt aus dem Bogen, violetter Schein, ein Ring aus dunkler Energie
@@ -1214,91 +1456,329 @@ FX3_DRAW.bhit3 = function (h, e) {
   mGround(h, 'planeNBowR', 'ring', e.x, e.y, (e.big ? 1.3 : 0.8) * (0.3 + k), 0.05, 0, '#3a1670', 0.6 * (1 - k));
 };
 
-// Pfeilhagel: drei Pfeile steigen auf, danach fallen Wellen aus Pfeilen schräg vom Himmel und bleiben stecken
-function rainArrows(e) {
-  if (e._arr) return e._arr;
-  const out = [];
-  const per = n3low() ? 9 : 16;
-  for (let k = 0; k < e.waves; k++) {
-    for (let i = 0; i < per; i++) {
-      const s = e.seed + k * 31 + i;
-      const a = n2h(s, 1) * Math.PI * 2;
-      const d = Math.sqrt(n2h(s, 2)) * e.R * 0.95;
-      out.push({ k, at: e.delay + k * e.every + n2h(s, 3) * 0.16, x: e.x + Math.cos(a) * d, y: e.y + Math.sin(a) * d * 0.8, tilt: (n2h(s, 4) - 0.5) * 0.3, s });
-    }
-  }
-  e._arr = out;
-  return out;
-}
-const RAIN_FALL = 0.24;
-FX3_DRAW.brain3 = function (h, e) {
+// Salve (seit 13.70): dunkelviolette Aura um Figur und Bogen, solange die Salve läuft. Schwarzvioletter Rauch steigt
+// um die Füße auf, zwei Schattenbänder kreisen um die Bogenhand, bei jedem Abschuss pulsiert der violette Schein;
+// ab Erwacht kreisen Funken in der Rangfarbe mit
+const _bsvH = new THREE.Vector3();
+FX3_DRAW.bsalvo3 = function (h, e) {
+  const o = e.follow;
+  if (!o || o.dead) return;
   const t = game.time - e.start;
   const low = n3low();
-  const out = clamp01((e.dur - t) / 0.45);
-  // Windrichtung: die Pfeile kommen schräg von der Seite des Schützen
-  const wx = e.x - e.ox;
-  const wz = e.y - e.oy;
-  const wl = Math.hypot(wx, wz) || 1;
-  const sx = wx / wl;
-  const sz = wz / wl;
-  // Aufstieg: drei Pfeile steil nach oben aus der Hand
-  if (t < 0.8) {
-    for (let i = 0; i < 3; i++) {
-      const u = clamp01((t - 0.24 - i * 0.04) / 0.45);
-      if (u <= 0 || u >= 1) continue;
-      _bw3d.set(sx * 0.25 + (i - 1) * 0.12, 1, sz * 0.25).normalize();
-      const x = e.ox * U3 + _bw3d.x * u * 9;
-      const y = 1.2 + _bw3d.y * u * 9;
-      const z = e.oy * U3 + _bw3d.z * u * 9;
-      bowArrow3(h, x, y, z, _bw3d, BOW_ARROW_LEN, e.color, 1 - u * 0.5, 0, BOW3.shadow);
-      n3Glow(h, x, y, z, 0.5, BOW3.violet, 0.6 * (1 - u));
-      n3Smoke(h, x - _bw3d.x * 0.8, y - _bw3d.y * 0.8, z - _bw3d.z * 0.8, 0.4, BOW3.smoke, 0.6 * (1 - u));
-      _bw3a.set(x, y, z);
-      _bw3b.set(x - _bw3d.x * 1.6, y - _bw3d.y * 1.6, z - _bw3d.z * 1.6);
-      const st = fx3Take(h, 'segN');
-      fx3Segment(st, _bw3b, _bw3a, 0.03);
-      fx3Color(st, '#3a1670', 0.6 * (1 - u));
+  const fade = Math.min(1, t / 0.1) * clamp01((e.dur - t) / 0.3);
+  const x = o.x * U3;
+  const z = feetY(o) * U3;
+  let pulse = 0;
+  for (const r of e.rel) if (t >= r) pulse = Math.max(pulse, Math.exp(-(t - r) * 10));
+  // Rauch an den Füßen, steigt spiralig auf
+  const n = low ? 6 : 12;
+  for (let i = 0; i < n; i++) {
+    const ph = (t * 1.1 + i / n) % 1;
+    const a = i * 2.399 + t * 1.6 + e.seed;
+    const r = 0.38 + 0.12 * Math.sin(i + t * 3) - ph * 0.1;
+    n3Smoke(h, x + Math.cos(a) * r, 0.1 + ph * 1.9, z + Math.sin(a) * r * 0.8, 0.45 + ph * 0.5, i % 3 ? BOW3.smoke : BOW3.shadow, 0.75 * Math.sin(ph * Math.PI) * fade);
+  }
+  n3Glow(h, x, 1.0, z, 2.1 + pulse * 0.7, BOW3.violet, (0.35 + 0.3 * pulse) * fade);
+  n3Glow(h, x, 0.6, z, 1.2, '#5a2aa8', 0.3 * fade);
+  // Bogenhand: Schattenbänder und Schein
+  const hand = typeof ninjaHand3 === 'function' ? ninjaHand3(o, _bsvH) : _bsvH.set(x, 1.0, z);
+  n3Glow(h, hand.x, hand.y, hand.z, 0.7 + pulse * 0.9, BOW3.violet, (0.45 + 0.4 * pulse) * fade);
+  n3Glow(h, hand.x, hand.y, hand.z, 0.25 + pulse * 0.3, BOW3.violet2, (0.5 + 0.4 * pulse) * fade);
+  const m = low ? 8 : 14;
+  for (let s = 0; s < 2; s++) {
+    let px = 0;
+    let py = 0;
+    let pz = 0;
+    for (let i = 0; i <= m; i++) {
+      const a = t * 9 * (s ? -1 : 1) - i * 0.32 + s * Math.PI;
+      const rr = 0.32 + 0.05 * Math.sin(t * 6 + i);
+      const nx = hand.x + Math.cos(a) * rr;
+      const ny = hand.y + Math.sin(a * 0.5 + s) * 0.25 + (i / m - 0.5) * 0.3;
+      const nz = hand.z + Math.sin(a) * rr;
+      if (i) {
+        _bw3a.set(px, py, pz);
+        _bw3b.set(nx, ny, nz);
+        const sg = fx3Take(h, 'segN');
+        fx3Segment(sg, _bw3a, _bw3b, 0.028 * (1 - i / (m + 2)));
+        fx3Color(sg, s ? '#7a4ad0' : '#16081f', 0.85 * (1 - i / (m + 1)) * fade);
+      }
+      px = nx;
+      py = ny;
+      pz = nz;
     }
   }
-  // Schatten der kommenden Welle am Boden (weicher dunkler Fleck, kein Zeichen)
-  for (let k = 0; k < e.waves; k++) {
-    const t0 = e.delay + k * e.every;
-    const v = (t - (t0 - 0.25)) / 0.5;
-    if (v > 0 && v < 1) mGround(h, 'planeNBowSh', 'disc', e.x, e.y, e.R * U3 * 1.05, 0.03, 0, BOW3.dark, 0.32 * Math.sin(v * Math.PI));
+  // violette Glutfunken steigen auf
+  if (!low) for (let i = 0; i < 6; i++) {
+    const ph = (t * 0.9 + i / 6) % 1;
+    const a = i * 1.7 + t * 2;
+    n3Glow(h, x + Math.cos(a) * 0.5, 0.3 + ph * 1.8, z + Math.sin(a) * 0.4, 0.11, BOW3.violet2, 0.8 * Math.sin(ph * Math.PI) * fade);
   }
-  // fallende und steckende Pfeile
-  _bw3d.set(sx * 0.35, -1, sz * 0.35).normalize();
-  for (const a of rainArrows(e)) {
-    const age = t - a.at;
-    if (age < 0) continue;
-    const gx = a.x * U3;
-    const gz = a.y * U3;
-    if (age < RAIN_FALL) {
-      const u = age / RAIN_FALL;
-      const H = 7 * (1 - u);
-      const x = gx - _bw3d.x * H / -_bw3d.y;
-      const z = gz - _bw3d.z * H / -_bw3d.y;
-      bowArrow3(h, x, H + 0.35, z, _bw3d, BOW_ARROW_LEN, e.color, 1, 0, BOW3.shadow);
-      if (!low) n3Glow(h, x, H + 0.35, z, 0.35, BOW3.violet, 0.5);
-      _bw3a.set(x, H + 0.35, z);
-      _bw3b.set(x - _bw3d.x * 1.8, H + 0.35 - _bw3d.y * 1.8, z - _bw3d.z * 1.8);
-      const st = fx3Take(h, 'segN');
-      fx3Segment(st, _bw3b, _bw3a, 0.022);
-      fx3Color(st, '#3a1670', 0.55);
-    } else {
-      // steckt schräg im Boden, wackelt kurz nach
-      const v = age - RAIN_FALL;
-      const wob = Math.sin(v * 40) * Math.exp(-v * 8) * 0.15;
-      _bw3c.set(_bw3d.x + wob + a.tilt * 0.3, _bw3d.y, _bw3d.z + a.tilt * 0.3).normalize();
-      bowArrow3(h, gx - _bw3c.x * 0.14, 0.14, gz - _bw3c.z * 0.14, _bw3c, BOW_ARROW_LEN, e.color, out, 0, BOW3.shadow);
-      if (v < 0.35) {
-        const q = v / 0.35;
-        n3Smoke(h, gx, 0.15 + q * 0.4, gz, 0.4 + q * 0.5, BOW3.smoke, 0.55 * (1 - q));
-        if (!low && a.s % 2 === 0) n3Glow(h, gx, 0.2, gz, 0.6 * (1 - q), BOW3.violet, 0.7 * (1 - q));
-      }
+  // Rang: Funkenkranz in der Rangfarbe um die Brust (E klein … V größer und dichter)
+  if (e.rk >= 0) {
+    const col = SKILL_RANKS[e.rk].color;
+    const k = 5 + e.rk * 2;
+    for (let i = 0; i < k; i++) {
+      const a = (i / k) * Math.PI * 2 + t * 3.5;
+      n3Glow(h, x + Math.cos(a) * (0.55 + e.rk * 0.05), 1.0 + Math.sin(a * 2 + t * 4) * 0.08, z + Math.sin(a) * (0.5 + e.rk * 0.05), 0.14 + e.rk * 0.02, col, 0.75 * fade);
     }
   }
 };
+
+// Einschlag des letzten Pfeils der Salve: violetter Blitz, Schattenwand als Druckwelle, Rauchring, dunkle Federn
+// und ein kurzer Schattenschaft nach oben (alles räumlich, nichts am Boden gezeichnet)
+FX3_DRAW.bsalvohit3 = function (h, e) {
+  const t = game.time - e.start;
+  const k = clamp01(t / e.dur);
+  const low = n3low();
+  const x = e.x * U3;
+  const z = e.y * U3;
+  const rs = 1 + 0.15 * (e.rk + 1);
+  if (t < 0.25) {
+    n3Glow(h, x, 0.9, z, 2.6 * rs * (0.5 + t / 0.25), BOW3.violet, 0.75 * (1 - t / 0.25));
+    n3Glow(h, x, 0.9, z, 0.9 * rs, '#f0e2ff', 0.8 * (1 - t / 0.25));
+  }
+  for (let i = 0; i < 2; i++) {
+    const w = fx3Take(h, 'wall');
+    fx3Wall(w, e.x, e.y, (0.4 + easeOut(k) * 1.9 * rs) * (1 - i * 0.25), 0.9 * (1 - k) + 0.1);
+    fx3Color(w, i ? '#7a4ad0' : '#2a1040', 0.45 * (1 - k));
+  }
+  const n = low ? 8 : 16;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + e.seed;
+    const r = (0.3 + easeOut(k) * 1.6) * rs;
+    n3Smoke(h, x + Math.cos(a) * r, 0.25 + k * 0.7 + 0.2 * n2h(i, e.seed), z + Math.sin(a) * r * 0.85, 0.45 + k * 0.6, i % 2 ? BOW3.smoke : BOW3.shadow, 0.75 * (1 - k));
+  }
+  if (!low) for (let i = 0; i < 8; i++) {
+    const a = n2h(i, e.seed + 4) * Math.PI * 2;
+    const r = (0.4 + 1.3 * n2h(i, e.seed + 5)) * easeOut(k) * rs;
+    bowFeather3(h, x + Math.cos(a) * r, 0.7 + Math.sin(k * Math.PI) * 0.8 - k * 0.5, z + Math.sin(a) * r, 0.3, a + k * 5, 1 - k);
+  }
+  if (k < 0.5) {
+    _bw3a.set(x, 0, z);
+    _bw3b.set(x, 2.4 * rs, z);
+    const col = fx3Take(h, 'seg');
+    fx3Segment(col, _bw3a, _bw3b, 0.35 * (1 - k * 2) + 0.03);
+    fx3Color(col, BOW3.violet, 0.4 * (1 - k * 2));
+  }
+  if (e.rk >= 0 && k < 0.6) n3Glow(h, x, 1.0, z, 1.4 * rs, SKILL_RANKS[e.rk].color, 0.4 * (1 - k / 0.6));
+};
+
+// Giftfalle (seit 13.70): Fallenpfeil im Bogen, steckt schräg im Boden; um ihn eine blubbernde schwarzviolette
+// Giftlache, violetter Dampf, dornige Schattenranken am Rand, die sich im Wind wiegen. Höhere Ränge: mehr und
+// längere Ranken, Rangfarbe an den Rankenspitzen und in den Blasen
+const _btD = new THREE.Vector3();
+const _btX = new THREE.Vector3();
+const _btY = new THREE.Vector3();
+FX3_DRAW.btrap3 = function (h, e) {
+  const t = game.time - e.start;
+  const low = n3low();
+  const rk = e.rk >= 0 ? e.rk : -1;
+  const x = e.x * U3;
+  const z = e.y * U3;
+  const R = e.R * U3;
+  const sx = e.ox * U3;
+  const sz = e.oy * U3;
+  const L = Math.hypot(x - sx, z - sz) || 1;
+  const fx = (x - sx) / L;
+  const fz = (z - sz) / L;
+  // Flug des Fallenpfeils: Bogen von der Hand zum Ort, dunkler Rauchschweif
+  if (t < e.t0) {
+    const u = (t - TRAP_SHOT) / TRAP_FLY;
+    if (u <= 0) return;
+    const arcH = 0.7 + L * 0.05;
+    const yAt = (q) => 1.1 * (1 - q) + 0.2 * q + arcH * 4 * q * (1 - q);
+    const px = sx + (x - sx) * u;
+    const pz = sz + (z - sz) * u;
+    const py = yAt(u);
+    _btD.set(x - sx, -0.9 + arcH * 4 * (1 - 2 * u), z - sz).normalize();
+    bowArrow3(h, px, py, pz, _btD, BOW_ARROW_LEN * 1.15, BOW3.violet2, 1, 0, '#3a8a2a');
+    n3Glow(h, px, py, pz, 0.6, BOW3.violet, 0.7);
+    for (let i = 1; i <= (low ? 3 : 7); i++) {
+      const q = Math.max(0, u - i * 0.06);
+      n3Smoke(h, sx + (x - sx) * q, yAt(q), sz + (z - sz) * q, 0.25 + i * 0.05, i % 2 ? BOW3.smoke : '#2a1440', 0.6 * (1 - i / 8));
+    }
+    return;
+  }
+  const v = t - e.t0;
+  const endAt = e.closed ? e.closed - e.start : e.t0 + e.life;
+  const out = clamp01((t - endAt) / 0.7);
+  const alive = 1 - out;
+  const grow = easeOut(clamp01(v / 0.35));
+  const wob = 1 + 0.025 * Math.sin(t * 2.3);
+  // Giftlache: dunkle, unregelmäßige Fläche (normal gemischt) und ein violetter Schimmer am Rand (leuchtend)
+  const rot = e.seed * 0.7;
+  _btX.set(Math.cos(rot), 0, Math.sin(rot));
+  _btY.set(-Math.sin(rot), 0, Math.cos(rot));
+  const pr = R * grow * (1 - out * 0.35) * wob;
+  bowPlane(h, 'planeNBowPool', 'pool', x, 0.035, z, _btX, _btY, pr * 1.08, pr * 0.92, 0.94 * alive);
+  bowPlane(h, 'planeBowPoolG', 'poolglow', x, 0.045, z, _btX, _btY, pr * 1.16, pr * 1.0, (0.35 + 0.15 * Math.sin(t * 3)) * alive, true);
+  // Spritzer beim Aufschlag
+  if (v < 0.45) {
+    const q = v / 0.45;
+    n3Glow(h, x, 0.4, z, 1.8 * (1 - q) + 0.4, BOW3.violet, 0.6 * (1 - q));
+    for (let i = 0; i < (low ? 6 : 12); i++) {
+      const a = n2h(i, e.seed) * Math.PI * 2;
+      const r = (0.2 + 0.9 * n2h(i, e.seed + 1)) * q * R * 0.8;
+      const b = fx3Take(h, 'ball');
+      b.position.set(x + Math.cos(a) * r, 0.1 + Math.sin(q * Math.PI) * (0.5 + 0.6 * n2h(i, e.seed + 2)), z + Math.sin(a) * r * 0.85);
+      const s = 0.06 * (1 - q * 0.5);
+      b.scale.set(s, s, s);
+      fx3Color(b, i % 2 ? '#2a1040' : '#5a2aa8', 1 - q * 0.6);
+    }
+  }
+  // Fallenpfeil steckt schräg in der Mitte, an der Nocke glimmt Gift
+  _btD.set(fx * 0.45, -1, fz * 0.45).normalize();
+  const sink = 0.12 + out * 0.25;
+  bowArrow3(h, x - _btD.x * (0.2 - sink), 0.2 - sink, z - _btD.z * (0.2 - sink), _btD, BOW_ARROW_LEN * 1.15, BOW3.violet2, alive, 0, '#3a8a2a');
+  n3Glow(h, x - _btD.x * 0.45, 0.55 - sink, z - _btD.z * 0.45, 0.45 + 0.12 * Math.sin(t * 5), BOW3.violet, 0.6 * alive);
+  // Blasen steigen auf und platzen; dunkle Wölbungen auf der Oberfläche
+  const nb = (low ? 6 : 12) + 3 * (rk + 1);
+  const bcol = rk >= 0 ? SKILL_RANKS[rk].color : BOW3.violet2;
+  for (let i = 0; i < nb; i++) {
+    const a = n2h(i, e.seed + 7) * Math.PI * 2;
+    const d = Math.sqrt(n2h(i, e.seed + 8)) * pr * 0.85;
+    const ph = (t * (0.7 + 0.5 * n2h(i, e.seed + 9)) + n2h(i, e.seed + 10)) % 1;
+    const bx = x + Math.cos(a) * d;
+    const bz = z + Math.sin(a) * d * 0.9;
+    if (ph < 0.55) {
+      const s = 0.08 + ph * 0.28;
+      n3Smoke(h, bx, 0.06 + ph * 0.06, bz, s, '#1a0a26', 0.85 * alive);
+      fx3MageSprite(h, 'spriteBubble', 'bubble', bx, 0.08 + ph * 0.1, bz, s * 0.9, s * 0.9, i % 3 ? BOW3.violet2 : bcol, 0.8 * alive);
+    } else {
+      const q = (ph - 0.55) / 0.45;
+      fx3MageSprite(h, 'spriteBubble', 'bubble', bx, 0.15 + q * 0.7, bz, 0.16 + q * 0.1, 0.16 + q * 0.1, i % 3 ? BOW3.violet2 : bcol, 0.9 * (1 - q) * alive);
+      if (q < 0.25 && !low) n3Glow(h, bx, 0.15, bz, 0.25, BOW3.violet, 0.6 * (1 - q * 4) * alive);
+    }
+  }
+  // violetter Dampf steigt aus der Lache
+  const nv = low ? 4 : 9;
+  for (let i = 0; i < nv; i++) {
+    const ph = (t * 0.45 + i / nv) % 1;
+    const a = i * 2.399 + e.seed;
+    const r = pr * (0.2 + 0.6 * n2h(i, e.seed + 11));
+    n3Smoke(h, x + Math.cos(a) * r + Math.sin(t + i) * 0.1, 0.15 + ph * 1.5, z + Math.sin(a) * r * 0.85, 0.5 + ph * 0.8, i % 2 ? '#2a1440' : '#4a2272', 0.62 * Math.sin(ph * Math.PI) * alive * grow);
+    if (!low && i % 2 === 0) n3Glow(h, x + Math.cos(a) * r, 0.25 + ph * 1.2, z + Math.sin(a) * r * 0.85, 0.3, BOW3.violet, 0.3 * Math.sin(ph * Math.PI) * alive);
+  }
+  // dornige Schattenranken am Rand: wachsen aus dem Boden, neigen sich über die Lache, wiegen sich
+  const nr = (low ? 5 : 8) + 2 * (rk + 1);
+  const m = low ? 4 : 7;
+  const tipCol = rk >= 0 ? SKILL_RANKS[rk].color : BOW3.violet2;
+  for (let i = 0; i < nr; i++) {
+    const a = (i / nr) * Math.PI * 2 + n2h(i, e.seed + 12) * 0.5 + e.seed;
+    const ax = x + Math.cos(a) * pr * 0.92;
+    const az = z + Math.sin(a) * pr * 0.85;
+    const hv = (0.75 + 0.5 * n2h(i, e.seed + 13)) * (1 + 0.12 * (rk + 1)) * clamp01((v - 0.1 - i * 0.02) / 0.35) * alive;
+    if (hv <= 0.02) continue;
+    const sw = Math.sin(t * 1.8 + i * 1.3) * 0.08;
+    let px = ax;
+    let py = 0;
+    let pz = az;
+    for (let k = 1; k <= m; k++) {
+      const s = k / m;
+      const lean = s * s * 0.45;
+      const nx = ax - Math.cos(a) * lean + Math.cos(a + 1.57) * sw * s;
+      const ny = s * hv;
+      const nz = az - Math.sin(a) * lean * 0.9 + Math.sin(a + 1.57) * sw * s;
+      _bw3a.set(px, py, pz);
+      _bw3b.set(nx, ny, nz);
+      const sg = fx3Take(h, 'segN');
+      fx3Segment(sg, _bw3a, _bw3b, 0.07 * (1 - s * 0.7) + 0.01);
+      fx3Color(sg, k % 2 ? '#1a0a24' : '#2a1238', 0.97);
+      // violetter Schimmer entlang der Ranke
+      if (!low) {
+        const gl = fx3Take(h, 'seg');
+        fx3Segment(gl, _bw3a, _bw3b, 0.085 * (1 - s * 0.7) + 0.012);
+        fx3Color(gl, BOW3.violet, 0.22 * alive);
+      }
+      // Dornen: kleine dunkle Kegel schräg nach außen
+      if (k % 2 === 1 && k < m) {
+        _btD.set(Math.cos(a + (k % 4 ? 0.8 : -0.8)), 0.6, Math.sin(a + (k % 4 ? 0.8 : -0.8))).normalize();
+        const th = fx3Take(h, 'cone');
+        fx3Cone(th, _bw3b, _btD, 0.14 * (1 + 0.1 * (rk + 1)), 0.03);
+        fx3Color(th, '#0e0614', 1);
+      }
+      px = nx;
+      py = ny;
+      pz = nz;
+    }
+    if (!low) n3Glow(h, px, py, pz, 0.26, tipCol, 0.8 * alive);
+  }
+  // Abschluss: letzter Dampfstoß
+  if (out > 0 && out < 1) for (let i = 0; i < (low ? 3 : 6); i++) {
+    const a = i * 1.05 + e.seed;
+    n3Smoke(h, x + Math.cos(a) * R * 0.5 * out, 0.2 + out * 0.8, z + Math.sin(a) * R * 0.45 * out, 0.6 + out * 0.5, '#2a1440', 0.5 * (1 - out));
+  }
+};
+
+// Ausgelöst: Schattenranken schnellen um den Gegner hoch und umschlingen ihn, Gift spritzt (follow = Gegner)
+FX3_DRAW.bsnap3 = function (h, e) {
+  const o = e.follow;
+  if (!o || o.dead) return;
+  const t = game.time - e.start;
+  const k = clamp01(t / e.dur);
+  const low = n3low();
+  const x = o.x * U3;
+  const z = feetY(o) * U3;
+  const H = Math.min(1.6, (typeof v3HeadHeight === 'function' ? v3HeadHeight(o) : 1.6) * 0.7);
+  const rr = Math.max(0.3, (o.r || 14) * U3 * 1.1);
+  const up = easeOut(clamp01(t / 0.18));
+  const fade = 1 - clamp01((k - 0.55) / 0.45);
+  const nr = 3 + (e.rk >= 0 ? 1 : 0);
+  const m = low ? 6 : 12;
+  for (let j = 0; j < nr; j++) {
+    let px = 0;
+    let py = 0;
+    let pz = 0;
+    for (let i = 0; i <= m; i++) {
+      const s = (i / m) * up;
+      const a = j * (Math.PI * 2 / nr) + s * 5 + e.seed;
+      const r = rr * (1.1 - s * 0.35);
+      const nx = x + Math.cos(a) * r;
+      const ny = s * H;
+      const nz = z + Math.sin(a) * r * 0.85;
+      if (i) {
+        _bw3a.set(px, py, pz);
+        _bw3b.set(nx, ny, nz);
+        const sg = fx3Take(h, 'segN');
+        fx3Segment(sg, _bw3a, _bw3b, 0.045 * (1 - i / (m + 2)));
+        fx3Color(sg, i % 2 ? '#1a0a24' : '#3a1a5a', 0.95 * fade);
+      }
+      px = nx;
+      py = ny;
+      pz = nz;
+    }
+    n3Glow(h, px, py, pz, 0.2, BOW3.violet2, 0.8 * fade);
+  }
+  if (t < 0.3) n3Glow(h, x, 0.6, z, 1.4 * (1 - t / 0.3) + 0.3, BOW3.violet, 0.6 * (1 - t / 0.3));
+  for (let i = 0; i < (low ? 3 : 6); i++) {
+    const a = i * 1.05 + e.seed;
+    n3Smoke(h, x + Math.cos(a) * rr * (0.6 + k), 0.2 + k * 1.0, z + Math.sin(a) * rr * (0.6 + k) * 0.8, 0.35 + k * 0.4, '#2a1440', 0.55 * (1 - k));
+  }
+};
+
+// Vergiftet von der Giftfalle (m.poison.color): violette Blasen steigen am Körper auf, dazu violetter Dampf
+// (die Blasen selbst zeichnet fx3Status in drei-fx.js in der Farbe des Gifts)
+function bowPoison3(h) {
+  if (typeof V3 === 'undefined' || !V3.on) return;
+  const t = game.time;
+  const low = n3low();
+  let n = 0;
+  for (const m of game.monsters) {
+    if (m.dead || !m.poison || m.poison.color !== BOW_GIFT || m.poison.until <= t) continue;
+    if (++n > 24 || !v3InView(m.x, m.y, 60)) continue;
+    const x = m.x * U3;
+    const z = feetY(m) * U3;
+    const head = typeof v3HeadHeight === 'function' ? v3HeadHeight(m) : 1.6;
+    const ph0 = ((m.id | 0) % 7) * 0.3;
+    for (let i = 0; i < (low ? 2 : 4); i++) {
+      const ph = (t * 0.6 + i / 4 + ph0) % 1;
+      const a = i * 1.9 + t * 0.8;
+      n3Smoke(h, x + Math.cos(a) * 0.25, head * (0.3 + ph * 0.9), z + Math.sin(a) * 0.2, 0.3 + ph * 0.35, '#3a1a5a', 0.45 * Math.sin(ph * Math.PI));
+    }
+    n3Glow(h, x, head * 0.55, z, 0.9, BOW3.violet, 0.18 + 0.06 * Math.sin(t * 4 + ph0));
+  }
+}
+FX3_HOOKS.push({ parts: [], fn: bowPoison3 });
 
 // Durchbohrender Schuss: Windtunnel entlang der Bahn – zwei Spiralbänder, die hinter dem Pfeil aufgehen und verwehen
 FX3_DRAW.bpierce3 = function (h, e) {
@@ -1399,8 +1879,11 @@ FX3_DRAW.bleap3 = function (h, e) {
   }
 };
 
-// Schattenschritt (seit 13.67): Die Figur zerfällt in schwarzvioletten Rauch, ein Schattenstreif huscht zum Ziel,
-// dort zieht sich der Rauch zusammen und platzt mit violettem Schein und dunklen Federn auseinander
+// Schattenschritt (seit 13.67, seit 13.70 deutlich aufwendiger): Die Figur zerfällt von den Füßen aufwärts in
+// schwarzvioletten Rauch, Schattenranken peitschen aus dem Boden, ein Schattenfalke reißt eine violette Spur zum Ziel.
+// Dort zieht sich ein Rauchwirbel zusammen, die Figur erscheint und ein Schattenstoß bricht aus: dunkle Druckwelle,
+// Rauchring, aufschießende Schattenranken, Federn, violetter Schein. Höhere Ränge: mehr Ranken, Schein in der Rangfarbe
+const _bshA = new THREE.Vector3();
 FX3_DRAW.bshadow3 = function (h, e) {
   const t = game.time - e.start;
   const low = n3low();
@@ -1409,62 +1892,143 @@ FX3_DRAW.bshadow3 = function (h, e) {
   const x1 = e.x * U3;
   const z1 = e.y * U3;
   const H = e.hide;
-  // Abgang: Rauch quillt auf und steigt, kurzer violetter Blitz
-  if (t < 0.7) {
-    const q = t / 0.7;
+  const rk = e.rk >= 0 ? e.rk : -1;
+  const L = Math.hypot(x1 - x0, z1 - z0) || 1;
+  const dx = (x1 - x0) / L;
+  const dz = (z1 - z0) / L;
+  // Abgang: zerfallende Gestalt aus Rauch (von unten nach oben), peitschende Ranken, Blitz, Federn
+  if (t < 0.85) {
+    const q = t / 0.85;
     const n = low ? 6 : 12;
     for (let i = 0; i < n; i++) {
+      const hy = 0.15 + (i / n) * 1.7;
+      const lag = (i / n) * 0.25;
+      const u = clamp01((q - lag) / (1 - lag));
+      const r = 0.22 * (1 - i / n * 0.4) + u * (0.5 + 0.6 * n2h(i, e.seed));
       const a = i * 2.399 + e.seed;
-      const r = (0.15 + 0.9 * n2h(i, e.seed)) * easeOut(Math.min(1, q * 1.6));
-      n3Smoke(h, x0 + Math.cos(a) * r, 0.25 + q * (0.6 + 0.9 * n2h(i, e.seed + 1)), z0 + Math.sin(a) * r * 0.8, 0.45 + q * 0.7, i % 3 ? BOW3.smoke : BOW3.shadow, 0.75 * (1 - q));
+      n3Smoke(h, x0 + Math.cos(a) * r * 0.6 - dx * u * 0.3, hy + u * 0.8, z0 + Math.sin(a) * r * 0.5 - dz * u * 0.3, 0.42 + u * 0.6, i % 3 ? BOW3.smoke : BOW3.shadow, 0.85 * (1 - u));
     }
-    if (t < 0.25) n3Glow(h, x0, 0.9, z0, 1.6 * (1 - t / 0.25) + 0.4, BOW3.violet, 0.6 * (1 - t / 0.25));
+    if (t < 0.25) {
+      n3Glow(h, x0, 0.9, z0, 1.8 * (1 - t / 0.25) + 0.5, BOW3.violet, 0.7 * (1 - t / 0.25));
+      n3Glow(h, x0, 1.0, z0, 0.6, BOW3.violet2, 0.6 * (1 - t / 0.25));
+    }
+    const nt = (low ? 4 : 7) + 2 * (rk + 1);
+    const g = easeOut(clamp01(t / 0.2));
+    for (let j = 0; j < nt; j++) {
+      const a = (j / nt) * Math.PI * 2 + e.seed;
+      const len = (0.7 + 0.5 * n2h(j, e.seed + 3)) * g;
+      let px = x0;
+      let py = 0.05;
+      let pz = z0;
+      const m = low ? 4 : 7;
+      for (let i = 1; i <= m; i++) {
+        const s = i / m;
+        const whip = Math.sin(t * 14 + j + s * 3) * 0.12 * s;
+        // Schattenfahnen züngeln an der Figur hoch und verwehen (nicht flach wie Beine)
+        const nx = x0 + Math.cos(a) * (0.25 + len * s * 0.35) + Math.cos(a + 1.57) * whip;
+        const ny = 0.05 + s * len * 1.5 + q * 0.5;
+        const nz = z0 + Math.sin(a) * (0.22 + len * s * 0.3) + Math.sin(a + 1.57) * whip;
+        _bw3a.set(px, py, pz);
+        _bw3b.set(nx, ny, nz);
+        const sg = fx3Take(h, 'segN');
+        fx3Segment(sg, _bw3a, _bw3b, 0.045 * (1 - s * 0.8) + 0.006);
+        fx3Color(sg, i % 2 ? '#14081e' : '#2a1238', 0.95 * (1 - q));
+        px = nx;
+        py = ny;
+        pz = nz;
+      }
+    }
   }
-  // Schattenstreif zum Ziel (während die Figur verborgen ist)
-  if (t < H + 0.35) {
-    const n = low ? 6 : 12;
+  // Spur: ein Schattenfalke stößt in flachem Bogen zum Ziel, hinter ihm hängt violetter Schatten in der Luft
+  const arc = (u) => 0.9 + Math.sin(u * Math.PI) * (0.5 + L * 0.05);
+  if (t < H + 0.7) {
+    const u = clamp01(t / Math.max(0.05, H));
+    if (t < H + 0.05 && !low) {
+      _bw3d.set(dx, (arc(Math.min(1, u + 0.05)) - arc(u)) * 4, dz).normalize();
+      bowFalcon3(h, x0 + (x1 - x0) * u, arc(u) + 0.2, z0 + (z1 - z0) * u, _bw3d, 1.6, 0.3 + 0.5 * Math.sin(t * 30), 0.9, true);
+    }
+    const n = low ? 10 : 22;
+    let px = 0;
+    let py = 0;
+    let pz = 0;
     for (let i = 0; i <= n; i++) {
-      const v = i / n;
-      const at = H * v;
-      const age = t - at;
-      if (age < 0 || age > 0.45) continue;
-      const q = age / 0.45;
-      const px = x0 + (x1 - x0) * v;
-      const pz = z0 + (z1 - z0) * v;
-      n3Smoke(h, px, 0.55 + Math.sin(v * Math.PI) * 0.35 + q * 0.3, pz, 0.5 + q * 0.4, BOW3.smoke, 0.7 * (1 - q));
-      if (!low && i % 2 === 0) n3Glow(h, px, 0.7 + Math.sin(v * Math.PI) * 0.35, pz, 0.35, BOW3.violet, 0.45 * (1 - q));
+      const v = (i / n) * u;
+      const age = t - H * v;
+      const q = clamp01(age / 0.7);
+      const nx = x0 + (x1 - x0) * v + Math.cos(v * 20 + t * 6) * 0.08 * dz;
+      const ny = arc(v) + Math.sin(v * 20 + t * 6) * 0.08;
+      const nz = z0 + (z1 - z0) * v - Math.cos(v * 20 + t * 6) * 0.08 * dx;
+      if (i) {
+        _bw3a.set(px, py, pz);
+        _bw3b.set(nx, ny, nz);
+        const sg = fx3Take(h, 'seg');
+        fx3Segment(sg, _bw3a, _bw3b, 0.16 * (1 - q) + 0.02);
+        fx3Color(sg, BOW3.violet, 0.55 * (1 - q));
+        const sd = fx3Take(h, 'segN');
+        fx3Segment(sd, _bw3a, _bw3b, 0.07 * (1 - q) + 0.008);
+        fx3Color(sd, '#14081e', 0.8 * (1 - q));
+      }
+      n3Smoke(h, nx, ny + q * 0.35, nz, 0.45 + q * 0.6, i % 3 ? BOW3.smoke : '#2a1440', 0.55 * (1 - q));
+      px = nx;
+      py = ny;
+      pz = nz;
     }
   }
-  // Ankunft: Rauch zieht sich zusammen …
-  if (t > H - 0.14 && t < H) {
-    const q = (t - (H - 0.14)) / 0.14;
-    for (let i = 0; i < (low ? 5 : 9); i++) {
-      const a = i * 0.7 + e.seed;
-      const r = 1.3 * (1 - q) + 0.1;
-      n3Smoke(h, x1 + Math.cos(a) * r, 0.5 + Math.sin(i) * 0.25, z1 + Math.sin(a) * r * 0.8, 0.45, BOW3.smoke, 0.6 * q);
+  // Ankunft: Rauch wirbelt spiralig zusammen
+  if (t > H - 0.16 && t < H + 0.02) {
+    const q = clamp01((t - (H - 0.16)) / 0.16);
+    for (let i = 0; i < (low ? 6 : 12); i++) {
+      const a = i * 0.52 + q * 4 + e.seed;
+      const r = 1.5 * (1 - q) + 0.12;
+      n3Smoke(h, x1 + Math.cos(a) * r, 0.3 + (i % 4) * 0.35, z1 + Math.sin(a) * r * 0.8, 0.45, BOW3.smoke, 0.7 * q);
     }
-    n3Glow(h, x1, 0.8, z1, 0.6 + q * 0.8, BOW3.violet, 0.5 * q);
+    n3Glow(h, x1, 0.9, z1, 0.6 + q * 1.2, BOW3.violet, 0.6 * q);
   }
-  // … und platzt auseinander: dunkle Rauchwand, violetter Schein, Federn, Schatten am Boden
+  // Schattenstoß: dunkle Druckwelle, Rauchring, aufschießende Ranken, Federn, Schein
   if (t >= H) {
     const v = t - H;
-    const q = clamp01(v / 0.75);
+    const q = clamp01(v / 0.9);
     const R = (e.R || 70) * U3;
-    const n = low ? 8 : 16;
-    for (let i = 0; i < n; i++) {
-      const a = (i / n) * Math.PI * 2 + e.seed;
-      const r = R * (0.25 + 0.95 * easeOut(q));
-      n3Smoke(h, x1 + Math.cos(a) * r, 0.2 + q * 0.5 + 0.2 * n2h(i, e.seed), z1 + Math.sin(a) * r * 0.85, 0.5 + q * 0.6, i % 2 ? BOW3.smoke : BOW3.shadow, 0.8 * (1 - q));
+    if (q < 1) {
+      for (let i = 0; i < 2; i++) {
+        const w = fx3Take(h, 'wall');
+        fx3Wall(w, e.x, e.y, R * (0.3 + easeOut(q) * 1.15) * (1 - i * 0.22), 1.1 * (1 - q) + 0.1);
+        fx3Color(w, i ? '#6a3ab0' : '#1e0a30', 0.5 * (1 - q));
+      }
+      const n = low ? 9 : 18;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + e.seed;
+        const r = R * (0.25 + 1.0 * easeOut(q));
+        n3Smoke(h, x1 + Math.cos(a) * r, 0.2 + q * 0.6 + 0.2 * n2h(i, e.seed), z1 + Math.sin(a) * r * 0.85, 0.55 + q * 0.6, i % 2 ? BOW3.smoke : BOW3.shadow, 0.85 * (1 - q));
+      }
     }
-    if (v < 0.3) {
-      n3Glow(h, x1, 0.8, z1, 2.4 * (0.4 + v / 0.3), BOW3.violet, 0.65 * (1 - v / 0.3));
-      n3Glow(h, x1, 0.8, z1, 0.8, BOW3.violet2, 0.6 * (1 - v / 0.3));
+    if (v < 0.35) {
+      const f = 1 - v / 0.35;
+      n3Glow(h, x1, 0.9, z1, 2.8 * (0.4 + v / 0.35), rk >= 0 ? SKILL_RANKS[rk].color : BOW3.violet, 0.65 * f);
+      n3Glow(h, x1, 0.9, z1, 0.9, BOW3.violet2, 0.7 * f);
+      _bw3a.set(x1, 0, z1);
+      _bw3b.set(x1, 2.6, z1);
+      const col = fx3Take(h, 'seg');
+      fx3Segment(col, _bw3a, _bw3b, 0.4 * f + 0.03);
+      fx3Color(col, BOW3.violet, 0.35 * f);
     }
-    mGround(h, 'planeNBowSh', 'disc', e.x, e.y, R * 1.3, 0.03, 0, BOW3.dark, 0.4 * (1 - q));
-    if (!low) for (let i = 0; i < 6; i++) {
-      const a = i * 1.05 + e.seed;
-      const r = R * 0.9 * easeOut(q);
-      bowFeather3(h, x1 + Math.cos(a) * r, 0.6 + Math.sin(q * Math.PI) * 0.6 - q * 0.3, z1 + Math.sin(a) * r * 0.8, 0.28, a + q * 4, 1 - q);
+    // aufschießende Schattenranken (wie Dornen aus Schatten, schräg nach außen, dann zurück in den Boden)
+    const ns = (low ? 5 : 9) + 2 * (rk + 1);
+    const up = v < 0.15 ? easeOut(v / 0.15) : 1 - clamp01((v - 0.35) / 0.45);
+    if (up > 0) for (let j = 0; j < ns; j++) {
+      const a = (j / ns) * Math.PI * 2 + e.seed * 2;
+      const len = R * (0.55 + 0.4 * n2h(j, e.seed + 5)) * up;
+      _bshA.set(x1 + Math.cos(a) * R * 0.25, 0.02, z1 + Math.sin(a) * R * 0.22);
+      _bw3d.set(Math.cos(a), 1.1 + 0.4 * n2h(j, e.seed + 6), Math.sin(a) * 0.85).normalize();
+      const th = fx3Take(h, 'cone');
+      fx3Cone(th, _bshA, _bw3d, len * 0.9, 0.06 + 0.02 * n2h(j, e.seed));
+      fx3Color(th, j % 2 ? '#14081e' : '#24103a', 1);
+      if (!low) n3Glow(h, _bshA.x + _bw3d.x * len * 0.9, _bshA.y + _bw3d.y * len * 0.9, _bshA.z + _bw3d.z * len * 0.9, 0.15, BOW3.violet2, 0.6 * up);
+    }
+    if (!low) for (let i = 0; i < 8; i++) {
+      const a = i * 0.785 + e.seed;
+      const r = R * 1.05 * easeOut(q);
+      bowFeather3(h, x1 + Math.cos(a) * r, 0.6 + Math.sin(q * Math.PI) * 0.7 - q * 0.3, z1 + Math.sin(a) * r * 0.8, 0.3, a + q * 4, 1 - q);
     }
   }
 };
@@ -1476,8 +2040,37 @@ EXTRA_EFFECTS.bshadow3 = (ctx, e, k, x, y) => {
   ctx.beginPath();
   ctx.ellipse(x + (e.x0 - e.x), y + (e.y0 - e.y) - 14, 18 + t * 30, 12 + t * 20, 0, 0, Math.PI * 2);
   ctx.fill();
+  // seit 13.70: violette Schattenspur zum Zielort
+  if (t < e.hide + 0.6) {
+    const u = Math.min(1, t / Math.max(0.05, e.hide));
+    const q = Math.max(0, (t - e.hide) / 0.6);
+    const ax = x + (e.x0 - e.x);
+    const ay = y + (e.y0 - e.y) - 18;
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.75 * (1 - q);
+    ctx.strokeStyle = '#8a4ae8';
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 7 * (1 - q) + 1;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.quadraticCurveTo((ax + x) / 2, (ay + y) / 2 - 30, ax + (x - ax) * u, ay + (y - 18 - ay) * u);
+    ctx.stroke();
+    ctx.restore();
+  }
   if (t >= e.hide) {
     const q = Math.min(1, (t - e.hide) / 0.6);
+    ctx.strokeStyle = '#2a1238';
+    ctx.lineWidth = 3;
+    ctx.globalAlpha = 0.8 * (1 - q);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + e.seed;
+      const r = (e.R || 70) * (0.3 + 0.7 * q);
+      ctx.beginPath();
+      ctx.moveTo(x + Math.cos(a) * r * 0.3, y + Math.sin(a) * r * 0.15);
+      ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.5 - 18 * (1 - q));
+      ctx.stroke();
+    }
     ctx.globalAlpha = 0.7 * (1 - q);
     ctx.beginPath();
     ctx.ellipse(x, y - 12, 10 + q * 40, 8 + q * 26, 0, 0, Math.PI * 2);
@@ -1819,35 +2412,123 @@ EXTRA_EFFECTS.bhit3 = (ctx, e, k, x, y) => {
   glow2(ctx, x, y - 24, 18 + k * 12, e.color, 0.6 * (1 - k));
   ctx.restore();
 };
-EXTRA_EFFECTS.brain3 = (ctx, e, k, x, y) => {
+// seit 13.70: Salve, Schattenstoß, Giftfalle und Ranken in 2D
+EXTRA_EFFECTS.bsalvo3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  let pulse = 0;
+  for (const r of e.rel) if (t >= r) pulse = Math.max(pulse, Math.exp(-(t - r) * 10));
+  const fade = Math.min(1, t / 0.1) * clamp01((e.dur - t) / 0.3);
+  ctx.save();
+  ctx.globalAlpha = 0.45 * fade;
+  ctx.fillStyle = '#120a1a';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 20, 20, 30, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, y - 22, 30 + pulse * 14, '#8a4ae8', (0.35 + 0.4 * pulse) * fade);
+  const f = (e.follow && e.follow.facing) || { x: 0, y: 1 };
+  glow2(ctx, x + f.x * 14, y - 22 + f.y * 8, 10 + pulse * 10, '#c49aff', (0.5 + 0.5 * pulse) * fade);
+  ctx.restore();
+};
+EXTRA_EFFECTS.bsalvohit3 = (ctx, e, k, x, y) => {
+  ctx.save();
+  ctx.globalAlpha = 0.7 * (1 - k);
+  ctx.fillStyle = '#120a1a';
+  ctx.beginPath();
+  ctx.ellipse(x, y - 14, 12 + k * 46, 8 + k * 26, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, y - 20, 22 + k * 30, '#8a4ae8', 0.8 * (1 - k));
+  ctx.restore();
+};
+EXTRA_EFFECTS.btrap3 = (ctx, e, k, x, y) => {
   const t = game.time - e.start;
   ctx.save();
-  ctx.strokeStyle = '#9a7ad8';
-  ctx.lineCap = 'round';
-  for (const a of rainArrows(e)) {
-    const age = t - a.at;
-    if (age < 0) continue;
-    const ax = x + (a.x - e.x);
-    const ay = y + (a.y - e.y);
-    if (age < RAIN_FALL) {
-      const h = 160 * (1 - age / RAIN_FALL);
-      ctx.globalAlpha = 0.8;
+  if (t < e.t0) {
+    // Fallenpfeil im Bogen
+    const u = (t - TRAP_SHOT) / TRAP_FLY;
+    if (u > 0) {
+      const ax = x + (e.ox - e.x);
+      const ay = y + (e.oy - e.y) - 24;
+      const px = ax + (x - ax) * u;
+      const py = ay + (y - ay) * u - Math.sin(u * Math.PI) * 60;
+      ctx.globalCompositeOperation = 'lighter';
+      glow2(ctx, px, py, 12, '#8a4ae8', 0.9);
+      ctx.strokeStyle = '#c49aff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(ax - h * 0.2, ay - h - 18);
-      ctx.lineTo(ax - h * 0.2 + 4, ay - h);
+      ctx.moveTo(px, py);
+      ctx.lineTo(px - (x - ax) * 0.05, py - ((y - ay) * 0.05 - Math.cos(u * Math.PI) * 6));
       ctx.stroke();
-    } else {
-      ctx.globalAlpha = clamp01((e.dur - t) / 0.4);
-      ctx.strokeStyle = '#7a5634';
-      ctx.lineWidth = 1.6;
-      ctx.beginPath();
-      ctx.moveTo(ax, ay);
-      ctx.lineTo(ax - 4, ay - 12);
-      ctx.stroke();
-      ctx.strokeStyle = '#9a7ad8';
     }
+    ctx.restore();
+    return;
   }
+  const v = t - e.t0;
+  const endAt = e.closed ? e.closed - e.start : e.t0 + e.life;
+  const alive = 1 - clamp01((t - endAt) / 0.7);
+  const g = easeOut(clamp01(v / 0.35)) * (1 - (1 - alive) * 0.35);
+  const R = e.R * g;
+  ctx.globalAlpha = 0.85 * alive;
+  const gr = ctx.createRadialGradient(x, y, 2, x, y, R);
+  gr.addColorStop(0, 'rgba(10,4,16,0.95)');
+  gr.addColorStop(0.75, 'rgba(30,12,48,0.9)');
+  gr.addColorStop(1, 'rgba(90,42,168,0.55)');
+  ctx.fillStyle = gr;
+  ctx.beginPath();
+  ctx.ellipse(x, y, R, R * 0.55, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // Ranken am Rand
+  ctx.strokeStyle = '#1a0a24';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  const nr = 8 + 2 * ((e.rk >= 0 ? e.rk : -1) + 1);
+  for (let i = 0; i < nr; i++) {
+    const a = (i / nr) * Math.PI * 2 + e.seed;
+    const bx = x + Math.cos(a) * R * 0.92;
+    const by = y + Math.sin(a) * R * 0.5;
+    const hv = (22 + 14 * n2h(i, e.seed)) * g * alive;
+    const sw = Math.sin(t * 1.8 + i) * 4;
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.quadraticCurveTo(bx + sw, by - hv * 0.6, bx - Math.cos(a) * 10 + sw, by - hv);
+    ctx.stroke();
+  }
+  // Blasen und Dampf
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 10; i++) {
+    const a = n2h(i, e.seed + 7) * Math.PI * 2;
+    const d = Math.sqrt(n2h(i, e.seed + 8)) * R * 0.8;
+    const ph = (t * 0.8 + n2h(i, e.seed + 10)) % 1;
+    ctx.globalAlpha = 0.8 * (1 - ph) * alive;
+    ctx.strokeStyle = '#c49aff';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * d, y + Math.sin(a) * d * 0.5 - ph * 24, 2 + ph * 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  glow2(ctx, x, y - 6, R * 0.6 + 8, '#8a4ae8', 0.3 * alive);
+  ctx.restore();
+};
+EXTRA_EFFECTS.bsnap3 = (ctx, e, k, x, y) => {
+  ctx.save();
+  ctx.globalAlpha = 0.9 * (1 - k);
+  ctx.strokeStyle = '#2a1238';
+  ctx.lineWidth = 3;
+  for (let j = 0; j < 3; j++) {
+    ctx.beginPath();
+    for (let i = 0; i <= 10; i++) {
+      const s = i / 10;
+      const a = j * 2.1 + s * 5 + e.seed;
+      const px = x + Math.cos(a) * 14 * (1 - s * 0.3);
+      const py = y + 6 - s * 34 * Math.min(1, k * 6) + Math.sin(a) * 5;
+      if (i) ctx.lineTo(px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, y - 14, 18, '#8a4ae8', 0.6 * (1 - k));
   ctx.restore();
 };
 EXTRA_EFFECTS.bpierce3 = (ctx, e, k, x, y) => {
@@ -1906,7 +2587,7 @@ Object.assign(ICON_THEME, {
   falke: ['#6a3ab0', '#0c0618', '#e8d8ff'],
   nachtfalke: ['#5a2aa8', '#06030c', '#c8a8ff']
 });
-Object.assign(SKILL_ART_THEME, { falkenpfeil: 'falke', pfeilhagel: 'himmel', durchschuss: 'nachtfalke', rueckensprung: 'himmel', falkenblick: 'nachtfalke', schattenwechsel: 'nachtfalke', himmelsfalke: 'nachtfalke' });
+Object.assign(SKILL_ART_THEME, { falkenpfeil: 'falke', giftfalle: 'nachtfalke', durchschuss: 'nachtfalke', rueckensprung: 'himmel', falkenblick: 'nachtfalke', schattenwechsel: 'nachtfalke', himmelsfalke: 'nachtfalke' });
 
 // Pfeil im Symbol: Spitze bei (x1,y1), Ende bei (x0,y0); head = Farbe der Spitze. Federn und Spitze passen sich
 // der Länge an, damit auch kurze Pfeile wie Pfeile aussehen
@@ -1983,47 +2664,85 @@ function ikFeather(ctx, IK, x, y, len, ang, pal = ['#ffffff', '#cfe8ff', '#5aa8e
   ctx.restore();
 }
 
-// Falkenpfeil: schwerer Pfeil schräg nach oben rechts, goldene Windbögen und Federn um den Schaft
+// Falkenpfeil (seit 13.70 Salve): drei violett leuchtende Pfeile hintereinander schräg nach oben rechts, jeder mit
+// dunkler Schattenspur, der vorderste größer mit hellem Kern; dunkelvioletter Schein dahinter
 SKILL_ART.falkenpfeil = function (ctx, IK) {
-  IK.light(ctx, 8, -8, 22, '#b48cff', 0.6);
-  // Windbögen quer um den Schaft
-  ctx.save();
-  ctx.globalCompositeOperation = 'lighter';
-  for (const [d, r, c] of [[-4, 7, 'rgba(180,140,255,0.95)'], [-11, 8.5, 'rgba(255,255,255,0.8)'], [3, 5.5, 'rgba(140,90,230,0.9)']]) {
+  IK.light(ctx, 4, -4, 24, '#8a4ae8', 0.7);
+  // drei Pfeile nebeneinander, der mittlere vorn (die Salve fliegt Schlag auf Schlag)
+  const shots = [[-21, 3, 1, -19, 1.7, 0.8], [-4, 20, 18, -2, 1.7, 0.8], [-13, 12, 14, -15, 2.5, 1]];
+  for (const [x0, y0, x1, y1, w, a] of shots) {
+    // Schattenspur hinter dem Pfeil
     ctx.save();
-    ctx.translate(d * 0.7071, -d * 0.7071);
-    ctx.rotate(-Math.PI / 4);
-    ctx.strokeStyle = c;
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 2.4, r, 0, -1.2, 2.6);
-    ctx.stroke();
-    ctx.restore();
-  }
-  ctx.restore();
-  ikBowArrow(ctx, IK, -18, 18, 19, -19, { w: 2.6, head: '#d8c8ff', glow: '#b48cff', fletch: '#6a3ab0' });
-  ikFeather(ctx, IK, -10, 4, 8, -2.4);
-  ikFeather(ctx, IK, -3, 13, 7, -1.5, ['#8a6ab8', '#3a2058', '#120a1c']);
-  IK.sparkles(ctx, 6, '#e8d8ff', 17, 8, 13, -13, 1.4);
-};
-// Pfeilhagel: fünf Pfeile stürzen schräg vom Himmel, unten stecken schon welche im Boden
-SKILL_ART.pfeilhagel = function (ctx, IK) {
-  IK.light(ctx, -4, -16, 20, '#c8b0ff', 0.5);
-  IK.fill(ctx, (c) => c.ellipse(2, 17, 20, 4.5, 0, 0, Math.PI * 2), IK.rad(ctx, 2, 17, 1, 20, [[0, 'rgba(150,130,100,0.9)'], [1, 'rgba(40,30,20,0)']]), 0);
-  for (const [x, y] of [[-10, 18], [13, 17]]) ikBowArrow(ctx, IK, x - 4, y - 10, x, y, { w: 1.5, head: '#c8b0ff' });
-  for (const [x, y] of [[-12, 0], [-2, 8], [8, -2], [16, 6], [3, -12]]) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = 'rgba(150,110,230,0.5)';
-    ctx.lineWidth = 2.4;
+    ctx.globalAlpha = a;
+    const tg = ctx.createLinearGradient(x0 - 9, y0 + 9, x0 + 4, y0 - 4);
+    tg.addColorStop(0, 'rgba(20,8,32,0)');
+    tg.addColorStop(1, 'rgba(90,40,170,0.9)');
+    ctx.strokeStyle = tg;
+    ctx.lineWidth = w * 2.4;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x - 9, y - 17);
-    ctx.lineTo(x - 4.5, y - 8.5);
+    ctx.moveTo(x0 - 9, y0 + 9);
+    ctx.lineTo(x0 + 3, y0 - 3);
     ctx.stroke();
     ctx.restore();
-    ikBowArrow(ctx, IK, x - 5, y - 9.5, x, y, { w: 1.7, head: '#e0d0ff', glow: '#a070f0', fletch: '#3a1a6a' });
+    ikBowArrow(ctx, IK, x0, y0, x1, y1, { w, head: '#e8d8ff', glow: '#b48cff', fletch: '#3a1a6a' });
   }
+  // violetter Kern an der vordersten Spitze
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const cg = ctx.createRadialGradient(14, -15, 0, 14, -15, 8);
+  cg.addColorStop(0, 'rgba(240,226,255,0.95)');
+  cg.addColorStop(0.4, 'rgba(180,140,255,0.7)');
+  cg.addColorStop(1, 'rgba(120,60,220,0)');
+  ctx.fillStyle = cg;
+  ctx.fillRect(4, -25, 20, 20);
+  ctx.restore();
+  IK.sparkles(ctx, 5, '#e8d8ff', 17, 9, 8, -8, 1.3);
+};
+// Giftfalle (seit 13.70): schwarzviolette Giftlache von schräg oben, darin steckt ein Fallenpfeil, Blasen steigen,
+// dornige Schattenranken wachsen am Rand, violetter Dampf
+SKILL_ART.giftfalle = function (ctx, IK) {
+  IK.light(ctx, 0, 6, 22, '#8a4ae8', 0.6);
+  // Lache
+  IK.fill(ctx, (c) => {
+    for (let i = 0; i <= 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      const r = 1 + 0.08 * Math.sin(a * 3 + 1) + 0.05 * Math.sin(a * 5);
+      const px = Math.cos(a) * 19 * r;
+      const py = 10 + Math.sin(a) * 8 * r;
+      if (i) c.lineTo(px, py);
+      else c.moveTo(px, py);
+    }
+    c.closePath();
+  }, IK.rad(ctx, -3, 8, 1, 20, [[0, '#0a0410'], [0.55, '#1e0c30'], [0.85, '#5a2aa8'], [1, '#b48cff']]), 1.6, 'rgba(200,160,255,0.95)');
+  // Glanz
+  IK.fill(ctx, (c) => c.ellipse(-7, 7, 5, 1.6, -0.2, 0, Math.PI * 2), 'rgba(210,180,255,0.45)', 0);
+  // Ranken mit Dornen links und rechts
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.strokeStyle = '#120818';
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(s * 16, 12);
+    ctx.quadraticCurveTo(s * 21, -2, s * 11, -12);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(150,100,240,0.7)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    for (const [tx, ty] of [[19, 3], [17, -5], [13, -10]]) {
+      IK.fill(ctx, (c) => { c.moveTo(s * tx, ty); c.lineTo(s * (tx + 4.5), ty - 1.5); c.lineTo(s * (tx + 0.5), ty + 2.2); c.closePath(); }, '#1a0a24', 0.5, 'rgba(150,100,240,0.8)');
+    }
+    IK.glow(ctx, '#b48cff', 5, () => IK.fill(ctx, (c) => c.arc(s * 11, -12, 1.4, 0, Math.PI * 2), '#e8d8ff', 0));
+    ctx.restore();
+  }
+  // Fallenpfeil steckt schräg
+  ikBowArrow(ctx, IK, 6, -16, -1, 9, { w: 2, head: '#e8d8ff', glow: '#b48cff', fletch: '#3a8a2a' });
+  // Blasen und Dampf
+  for (const [bx, by, r] of [[-9, 4, 2.6], [-2, -3, 1.8], [8, 2, 2.1], [-5, -10, 1.3], [3, -14, 1]]) {
+    IK.fill(ctx, (c) => c.arc(bx, by, r, 0, Math.PI * 2), IK.rad(ctx, bx - r * 0.3, by - r * 0.3, 0.2, r, [[0, '#f0e2ff'], [0.5, '#a070f0'], [1, 'rgba(90,40,170,0.6)']]), 0.5, 'rgba(30,10,50,0.8)');
+  }
+  IK.sparkles(ctx, 4, '#d8b8ff', 41, 14, 0, -6, 1.2);
 };
 // Durchbohrender Schuss: waagrechter Pfeil, um den sich ein Windwirbel dreht, vorn heller Durchschlag
 SKILL_ART.durchschuss = function (ctx, IK) {

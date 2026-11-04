@@ -147,38 +147,47 @@ const CLASSES = {
         // seit 13.57: Weg des Falken statt Weg des Schattens – der Fernkampf-Ninja mit Pfeil und Bogen (fernninja.js).
         // Der Weg behält Index 1 (Spielstände speichern p.path); seine Fertigkeiten gehen nur mit einem Bogen (weapon).
         id: 'falke', name: 'Weg des Falken', role: 'Fernkampf · Pfeil und Bogen', weapon: 'bow',
-        description: 'Trifft aus großer Entfernung: ein schwerer Falkenpfeil, ein Pfeilhagel vom Himmel, ein Schuss, der ganze Reihen durchbohrt, ein Salto rückwärts mit Pfeilfächer und ein Schattenschritt. Jeder Schuss trägt dunkle Schattenmagie und braucht Pfeile vom Bogenmacher; der Falkenblick ist der Klassensegen.',
+        description: 'Trifft aus großer Entfernung: eine schnelle Salve aus Falkenpfeilen, eine Giftfalle, ein Schuss, der ganze Reihen durchbohrt, ein Salto rückwärts mit Pfeilfächer und ein Schattenschritt. Jeder Schuss trägt dunkle Schattenmagie und braucht Pfeile vom Bogenmacher; der Falkenblick ist der Klassensegen.',
         skills: [
           {
             id: 'falkenpfeil', name: 'Falkenpfeil', short: 'FP', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
-            type: 'bshot', range: 520, speed: 980, dmg: 2.7, knockback: 45, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#b48cff',
-            text: 'Du ziehst die Sehne bis an die Wange und schießt einen schweren Pfeil, den ein Wirbel aus Schatten begleitet (bis 520 weit). Hoher Schaden auf ein Ziel, es wird zurückgestoßen.'
+            // seit 13.70 eine Salve (fernninja.js): drei Pfeile im Abstand von 0,15 s, ab Heroisch vier (rankCount, je 0,8);
+            // dmg je Pfeil, der letzte ×lastMul und stößt zurück. Zusammen 1,3 + 1,3 + 1,63 ≈ 4,2 (seit 13.70 nach Balance-Messung angehoben).
+            // arrows: 1 = mindestens ein Pfeil nötig; verbraucht wird je geschossenem Pfeil einer
+            type: 'bshot', range: 520, speed: 1050, dmg: 1.3, lastMul: 1.25, count: 3, every: 0.15, rankCount: { rank: 1, count: 4, dmg: 1.1, every: 0.13 },
+            knockback: 45, arrows: 1, anim: 'bogensalve3', animDur: 0.7, color: '#b48cff',
+            text: 'Eine schnelle Salve: Du ziehst Schlag auf Schlag drei Schattenpfeile aus dem Köcher und schießt sie aufs Ziel (bis 520 weit), eingehüllt in eine dunkelviolette Aura. Der letzte Pfeil schlägt mit einem Schattenstoß ein, trifft etwas härter und stößt zurück. Ab Heroisch sind es vier Pfeile. Jeder Pfeil der Salve verbraucht einen Pfeil – reichen sie nicht, fliegen so viele, wie du hast.'
           },
           {
-            id: 'pfeilhagel', name: 'Pfeilhagel', short: 'PH', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,
-            type: 'brain', aim: true, range: 540, radius: 125, delay: 0.6, waves: 3, every: 0.4, dmg: 0.8, slow: { amount: 0.35, duration: 2 },
-            arrows: 3, anim: 'bogenhimmel', animDur: 0.55, color: '#9a7ad8',
-            text: 'Du wählst einen Ort und schießt drei Pfeile steil in den Himmel. Kurz darauf regnet es dort in drei Wellen Schattenpfeile: Jede Welle trifft alle Gegner im Kreis (125 weit) und bremst sie 2 s um 35 %.'
+            // seit 13.70 Giftfalle statt Pfeilhagel (Stufe, Rang, Leistenplatz und Schriftrollen gehen über SKILL_RENAMED mit):
+            // Fallenpfeil an den gewählten Ort, die Falle löst bei jedem Gegner einmal aus (Schaden, Verlangsamung, Gift je
+            // Sekunde, das mit der Stufe wächst), hält life s oder bis maxHits Gegner. Direkt 0,7 statt 3 × 0,8, dazu Gift 5 × 0,3
+            id: 'giftfalle', name: 'Giftfalle', short: 'GF', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,
+            type: 'btrap', aim: true, range: 520, radius: 105, life: 6, maxHits: 6, stun: 1.0, dmg: 1.0, poison: { dps: 0.6, duration: 5 }, slow: { amount: 0.45, duration: 3 },
+            arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#8a4ae8',
+            text: 'Du wählst einen Ort und schießt einen Fallenpfeil dorthin. Er bohrt sich in den Boden und spannt eine Giftfalle auf: eine blubbernde, schwarzviolette Giftlache voller Dampf, umrankt von dornigen Schattenranken. Wer darin steht oder hineinläuft, löst sie aus: leichter Schaden, die Ranken halten ihn 1 s fest, danach 3 s um 45 % verlangsamt und 5 s vergiftet – das Gift schadet jede Sekunde. Die Falle liegt 6 s oder bis sie 6 Gegner erwischt hat.'
           },
           {
             id: 'durchschuss', name: 'Durchbohrender Schuss', short: 'DS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,
-            type: 'bpierce', range: 680, speed: 1250, dmg: 2.0, knockback: 30, pierce: true, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#a070f0',
+            type: 'bpierce', range: 680, speed: 1250, dmg: 2.8, knockback: 30, pierce: true, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#a070f0',
             text: 'Ein Pfeil, um den sich dunkle Schatten zu einer Spirale drehen: Er durchschlägt alle Gegner in einer Linie bis 680 weit und stößt sie zurück.'
           },
           {
             id: 'rueckensprung', name: 'Rückensprung', short: 'RS', kind: 'angriff', unlock: 7, mp: 18, cooldown: 10,
             // Pfeile fliegen viel weiter (780 statt 460, etwas langsamer), bremsen länger, treffen dafür schwächer (0,85 statt 1,2);
             // aimRange: Ziel, von dem man wegspringt, wie bisher in der Nähe
-            type: 'bleap', distance: 140, air: 0.36, count: 5, angle: 50, range: 780, aimRange: 460, speed: 760, dmg: 0.85, slow: { amount: 0.4, duration: 3.5 },
+            type: 'bleap', distance: 140, air: 0.36, count: 5, angle: 50, range: 780, aimRange: 460, speed: 760, dmg: 1.35, slow: { amount: 0.55, duration: 3.5 },
             arrows: 5, color: '#9a6ae0',
-            text: 'Ein Salto rückwärts, bis zu 140 weit weg von deinem Ziel. Noch in der Luft schießt du einen Fächer aus fünf Schattenpfeilen nach vorn, die sehr weit fliegen (bis 780): Jeder trifft den ersten Gegner auf seinem Weg und bremst ihn 3,5 s um 40 %.'
+            text: 'Ein Salto rückwärts, bis zu 140 weit weg von deinem Ziel. Noch in der Luft schießt du einen Fächer aus fünf Schattenpfeilen nach vorn, die sehr weit fliegen (bis 780): Jeder trifft den ersten Gegner auf seinem Weg und bremst ihn 3,5 s um 55 %.'
           },
           {
             // seit 13.67 statt Falkenblick (der ist jetzt der Klassensegen des Bogen-Ninjas, klassensegen.js):
             // Schattenschritt – Ort wählen, in Schattenrauch zerfallen und dort wieder auftauchen (fernninja.js)
             id: 'schattenwechsel', name: 'Schattenschritt', short: 'SS', kind: 'angriff', unlock: 10, mp: 22, cooldown: 10,
-            type: 'bshadow', aim: true, range: 300, radius: 70, hide: 0.2, dmg: 0.7, slow: { amount: 0.3, duration: 1.5 }, color: '#8a5ae0',
-            text: 'Du wählst einen Ort bis 300 weit, zerfällst in schwarzen Schattenrauch und tauchst einen Augenblick später dort wieder auf – Wände, Wasser und Dörfer halten dich auf. Wo du erscheinst, platzen die Schatten auseinander: Gegner bis 70 weit nehmen leichten Schaden und werden 1,5 s um 30 % verlangsamt.'
+            // seit 13.70 ein reiner Fluchtschritt: aimAway – der Zielkreis beginnt 200 hinter der Figur (vom Gegner weg),
+            // der Ort wird frei gewählt, erst der Klick (oder ein zweites Antippen) wirkt
+            type: 'bshadow', aim: true, aimAway: 200, range: 300, radius: 80, hide: 0.2, stun: 0.8, dmg: 0.9, slow: { amount: 0.3, duration: 1.5 }, color: '#8a5ae0',
+            text: 'Ein Fluchtschritt: Der Zielkreis erscheint hinter dir, vom Gegner weg – du wählst frei einen Ort bis 300 weit, zerfällst in schwarzen Schattenrauch, ein Schattenfalke reißt dich als violette Spur dorthin und du tauchst einen Augenblick später wieder auf. Wände, Wasser und Dörfer halten dich auf. Wo du erscheinst, platzen die Schatten auseinander: Gegner bis 80 weit nehmen leichten Schaden, sind 0,8 s betäubt und werden 1,5 s um 30 % verlangsamt.'
           }
         ]
       }
