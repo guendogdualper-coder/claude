@@ -240,7 +240,7 @@ Apple nutzt seit 2025 die Stufen **4+, 9+, 13+, 16+, 18+** und fragt in mehreren
 | Waffen (*Guns or Other Weapons*) | **Selten/mild** (*Infrequent/Mild*) | Schwerter, Bögen, Zauberstäbe, keine Schusswaffen. Fehlt die Frage, entfällt sie. |
 | **Erwachsene Themen** | | |
 | Horror- oder Gruselthemen (*Horror/Fear Themes*) | **Selten/mild** | Untote, Skelette, Dämonenfürst, keine Schockeffekte |
-| Grober Humor, Anstößige Sprache (*Profanity or Crude Humor*) | **Keine** | in den Spieltexten keine. Der Spieler-Chat hat keinen Wortfilter, dafür Regeln, Melden und Blockieren (fällt unter „Nutzergenerierte Inhalte“) |
+| Grober Humor, Anstößige Sprache (*Profanity or Crude Humor*) | **Keine** | in den Spieltexten keine. Der Spieler-Chat hat einen Wortfilter (grobe Beleidigungen/Hetze werden zu ***), dazu Regeln, Melden und Blockieren (fällt unter „Nutzergenerierte Inhalte“) |
 | Erwachsene/anzügliche Themen, Sexualität, Nacktheit | **Keine** | |
 | Alkohol, Tabak, Drogen | **Keine** | Heiltränke sind keine Drogen |
 | **Glücksspiel und Wettbewerbe** | | |
@@ -292,7 +292,7 @@ USER-GENERATED CONTENT (Guideline 1.2)
   first mail and registration.
 - Players can report another player (tap the name in the chat or open the player card > "Melden"/Report, with reason, text
   and the last chat lines attached) and block them ("Blockieren"/Block: their messages and invitations are hidden).
-  Reports are reviewed by the developer within 24 hours; offending accounts are banned.
+  Reports are reviewed by the developer within 24 hours; offending accounts are banned. A profanity filter masks offensive words in chat, speech bubbles and letters.
 
 ACCOUNT DELETION (Guideline 5.1.1(v))
 - Settings > Account > "Konto löschen" (Delete account) deletes the account and all cloud data in the app.
@@ -356,8 +356,8 @@ Vorher selbst prüfen: Läuft `https://seelenstein.online/` gerade? Ist das Test
 Antwort: die Punkte aus den Prüfer-Notizen (Regeln vor dem ersten Chat, Melden, Blockieren, Reaktion binnen 24 h)
 nennen und den Weg im Spiel beschreiben.
 
-Apple verlangt bei Chat-Apps oft zusätzlich einen **Filter für anstößige Wörter** (Richtlinie 1.2). Den gibt es noch nicht.
-Verlangt Apple ihn, Bescheid geben: Er lässt sich in `js/spielerschutz.js` nachrüsten.
+Apple verlangt bei Chat-Apps zusätzlich einen **Filter für anstößige Wörter** (Richtlinie 1.2). Den gibt es seit 13.79
+(`chatFilter` in `js/spielerschutz.js`, gilt für Chat, Sprechblasen und Briefe); in der Antwort an Apple erwähnen.
 
 ### 6.4 Richtlinie 5.1.1(v) – Account Deletion
 

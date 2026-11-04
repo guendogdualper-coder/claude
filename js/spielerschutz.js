@@ -366,3 +366,20 @@ function regelnFragen(then) {
   });
   return false;
 }
+
+// --- Wortfilter (seit 13.79) -----------------------------------------------------------------------------
+// App-Store-Vorgabe (Apple 1.2) für Inhalte von Spielern: grobe Beleidigungen und Hetze in Chat, Sprechblasen und
+// Briefen werden durch *** ersetzt. Die Liste ist bewusst kurz und trifft nur eindeutige Wörter (auch mit
+// Leerzeichen/Zeichen dazwischen kaum umgehbar ist das nicht – dafür gibt es Melden und Blockieren).
+const WORTFILTER = [
+  'fick\\w*', 'gefickt\\w*', 'hurensohn\\w*', 'hurens[oö]hne\\w*', 'huren\\w*', 'hure', 'fotze\\w*', 'wichser\\w*', 'wixer\\w*',
+  'missgeburt\\w*', 'spast(?:i|en|is)?', 'mongos?', 'schlampe\\w*', 'nutte\\w*', 'arschloch\\w*', 'arschl[oö]cher', 'schwuchtel\\w*',
+  'kanake\\w*', 'neger\\w*', 'nigger\\w*', 'nigga\\w*', 'kinderficker\\w*', 'vergewaltig\\w*',
+  'fuck\\w*', 'motherfuck\\w*', 'bitch\\w*', 'cunt\\w*', 'whore\\w*', 'slut\\w*', 'faggot\\w*', 'fag', 'retard\\w*',
+  'asshole\\w*', 'dickhead\\w*', 'sieg\\s*heil', 'heil\\s*hitler', 'kys', 'kill\\s*yourself', 'bring\\s*dich\\s*um'
+];
+const WORTFILTER_RE = new RegExp('(^|[^\\p{L}\\p{N}])(' + WORTFILTER.join('|') + ')(?=$|[^\\p{L}\\p{N}])', 'giu');
+function chatFilter(text) {
+  if (typeof text !== 'string' || !text) return text;
+  return text.replace(WORTFILTER_RE, (m, vor, wort) => vor + '*'.repeat(Math.min(8, Math.max(3, wort.length))));
+}

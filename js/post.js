@@ -182,8 +182,8 @@ function postReadHtml(m) {
   return `<article class="hd-letter">` +
     `<button type="button" class="mini-btn" id="btnPostBack">← Zurück</button>` +
     `<header><span>Von <b class="${m.sys ? '' : 'no-tr'}">${escapeHtml(m.von)}</b></span><small>${postDate(m.at)}</small></header>` +
-    `<h3 class="no-tr">${escapeHtml(m.betreff || '(ohne Betreff)')}</h3>` +
-    (m.text ? `<p class="hd-text${m.sys ? '' : ' no-tr'}">${escapeHtml(m.text)}</p>` : '') +
+    `<h3 class="no-tr">${escapeHtml(m.betreff ? (m.sys || typeof chatFilter !== 'function' ? m.betreff : chatFilter(m.betreff)) : '(ohne Betreff)')}</h3>` +
+    (m.text ? `<p class="hd-text${m.sys ? '' : ' no-tr'}">${escapeHtml(m.sys || typeof chatFilter !== 'function' ? m.text : chatFilter(m.text))}</p>` : '') +
     (m.kaputt ? `<p class="form-error">Die Anhänge dieses Briefs sind beschädigt und können nicht abgeholt werden.</p>` : '') +
     (has ? `<section class="hd-attach"><h4>Anhänge</h4><div class="bag-grid">${tiles}</div>` +
       (m.gold ? `<p class="hd-gold-line"><img src="${lootIconUrl('gold')}" alt=""> <b class="price">${fmtN(m.gold)}</b> Gold</p>` : '') + `</section>` : '') +

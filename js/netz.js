@@ -1140,6 +1140,8 @@ function netReceiveChat(name, d, who) {
 // seit 13.77: Nachrichten blockierter Spieler bleiben im Verlauf (für eine Meldung), werden aber nicht gezeigt
 // und bekommen keine Sprechblase (spielerschutz.js)
 function netShowChat(name, text, who, c = 'g') {
+  // seit 13.79: Wortfilter für Chat und Sprechblasen (spielerschutz.js)
+  if (typeof chatFilter === 'function') text = chatFilter(text);
   ui.chat(name, text, c);
   const blocked = typeof isBlocked === 'function' && isBlocked(name);
   if (who && c !== 'gi' && !blocked) {
