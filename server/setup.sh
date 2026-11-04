@@ -70,7 +70,8 @@ $MAIN {
 	encode gzip
 	rewrite * $PAGES_PATH{uri}
 	reverse_proxy https://$PAGES_HOST {
-		header_up Host {upstream_hostport}
+		# fester Host ohne :443, damit GitHub Pages die Seite sicher erkennt (seit 13.77)
+		header_up Host $PAGES_HOST
 		header_down Location https://$PAGES_HOST$PAGES_PATH https://$MAIN
 	}
 }
