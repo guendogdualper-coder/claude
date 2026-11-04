@@ -19,7 +19,8 @@ Einstellungen hier im Ordner, neue Xcode-Vorgaben von Apple).
 | Start-URL | `https://seelenstein.online/?quelle=ios` |
 | Ohne Internet | eingebaute Seite „Keine Verbindung – erneut versuchen“ (`www/offline.html`, Deutsch/Englisch) |
 | Navigation | nur `seelenstein.online` bleibt in der App; Links auf andere Seiten öffnen Safari |
-| Service Worker | an (über *App-Bound Domains*): einmal geladen, startet das Spiel auch offline (allein spielen) |
+| Service Worker | an (über *App-Bound Domains*): einmal geladen, soll das Spiel auch offline starten (allein spielen). Auf dem Gerät in TestFlight prüfen (Flugmodus), im Simulator nicht testbar |
+| Andere Server (Firebase, MQTT-Broker, STUN/TURN) | brauchen keinen Eintrag: `allowNavigation` regelt nur, welche *Seiten* im WebView öffnen dürfen. `fetch`, WebSocket und WebRTC zu Firebase, `server.seelenstein.online`, HiveMQ, EMQX usw. laufen unabhängig davon. Stünden sie in `allowNavigation`, könnte das WebView sie als Seite öffnen, und das soll es nicht |
 | Native Funktionen | Vibration (Haptik), Erinnerung an die Tagesbelohnung (lokale Mitteilung, freiwillig), Teilen („Freunde einladen“), In-App-Browser, Pause von Ton und Musik im Hintergrund, Bildschirm bleibt an |
 | Buildnummer | automatisch = Laufnummer des GitHub-Workflows |
 | Version | 1.0.0 (beim Start des Workflows änderbar) |
