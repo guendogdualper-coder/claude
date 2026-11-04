@@ -7,7 +7,7 @@ beantwortet hat, und der Wortlaut ändert sich gelegentlich. Die Antworten unten
 
 Wo in der Play Console: **App-Inhalte → Altersfreigaben → Fragebogen starten** (engl. *App content → Content ratings*).
 
-1. **E-Mail-Adresse** für den IARC-Bescheid: `[E-MAIL-ADRESSE]` (dorthin kommt das Zertifikat).
+1. **E-Mail-Adresse** für den IARC-Bescheid: `kontakt@seelenstein.online` (dorthin kommt das Zertifikat).
 2. **Kategorie:** „Spiel“ (*Game*).
 
 ---

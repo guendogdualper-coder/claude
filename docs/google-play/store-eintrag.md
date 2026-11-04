@@ -174,7 +174,7 @@ Diese Tabelle hilft, wenn Google nachfragt oder sich das Spiel ändert.
 
 | Feld | Wert |
 |---|---|
-| E-Mail-Adresse (Pflicht, öffentlich sichtbar) | `[E-MAIL-ADRESSE]`, dieselbe wie in `datenschutz.html` |
+| E-Mail-Adresse (Pflicht, öffentlich sichtbar) | `kontakt@seelenstein.online` (wie in `datenschutz.html`) |
 | Telefonnummer (optional) | `[TELEFONNUMMER]` oder leer lassen |
 | Website | `https://seelenstein.online/` |
 | Datenschutzerklärung (unter App-Inhalte und in den Store-Einstellungen) | `https://seelenstein.online/datenschutz.html` |

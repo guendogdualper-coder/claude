@@ -12,7 +12,7 @@
 
 // Kontakt des Betreibers für Meldungen ohne Konto – bitte eintragen (wie in datenschutz.html).
 // Solange hier der Platzhalter steht, erscheint statt der E-Mail nur der Verweis auf die Datenschutzerklärung.
-const KONTAKT_EMAIL = '[E-MAIL-ADRESSE]';
+const KONTAKT_EMAIL = 'kontakt@seelenstein.online';
 const BLOCK_KEY = 'seelenstein.blockiert';
 const MELDE_KEY = 'seelenstein.meldezeit';
 const MELDE_GAP = 60000; // ms zwischen zwei Meldungen

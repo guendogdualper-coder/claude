@@ -41,7 +41,7 @@ auch die nur, wenn man einen Kanal betritt. Allein spielen geht ganz ohne Server
 | Werden alle erhobenen Nutzerdaten bei der Übertragung verschlüsselt? | **Ja** | Firebase nur über HTTPS, MQTT nur über `wss://`, WebRTC immer mit DTLS verschlüsselt, Website über HTTPS |
 | Welche Methoden zur Kontoerstellung unterstützt Ihre App? | **Nutzername und Passwort** | Kontoname (3–20 Zeichen) und Passwort, keine E-Mail, kein Google-Login |
 | Link zum Löschen des Kontos | `https://seelenstein.online/konto-loeschen.html` | Seite löscht Konto und alle Kontodaten nach Anmeldung (`js/konto-loeschen.js`) |
-| Können Nutzer das Löschen einiger oder aller Daten beantragen, ohne ihr Konto zu löschen? | **Ja** (empfohlen) | Charaktere lassen sich im Spiel löschen (auch in der Cloud), Briefe im Postfach löschen, Blockierliste bearbeiten. Weitere Wünsche per E-Mail an `[E-MAIL-ADRESSE]`. Als Link kann die Datenschutzerklärung dienen (`…/datenschutz.html`, Abschnitt 8 und 9). |
+| Können Nutzer das Löschen einiger oder aller Daten beantragen, ohne ihr Konto zu löschen? | **Ja** (empfohlen) | Charaktere lassen sich im Spiel löschen (auch in der Cloud), Briefe im Postfach löschen, Blockierliste bearbeiten. Weitere Wünsche per E-Mail an `kontakt@seelenstein.online`. Als Link kann die Datenschutzerklärung dienen (`…/datenschutz.html`, Abschnitt 8 und 9). |
 
 Hinweis zu „Konto löschen“: Google verlangt, dass die Seite ohne Neuinstallation der App erreichbar ist, den App-Namen nennt, die
 Schritte erklärt und sagt, welche Daten gelöscht oder aufbewahrt werden. Das deckt `konto-loeschen.html` ab. Vorher prüfen, dass die

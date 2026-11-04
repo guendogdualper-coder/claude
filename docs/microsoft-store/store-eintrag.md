@@ -251,7 +251,7 @@ liegen Figur und Effekte in der Bildmitte.
 | Datenschutzrichtlinie: „Greift die App auf personenbezogene Daten zu?“ | **Ja** (Kontoname, Chat, Spielstand im Konto) |
 | Datenschutzrichtlinien-URL | `https://seelenstein.online/datenschutz.html` |
 | Website | `https://seelenstein.online/` |
-| Supportkontakt (E-Mail oder URL) | `[E-MAIL-ADRESSE]` |
+| Supportkontakt (E-Mail oder URL) | `kontakt@seelenstein.online` |
 
 ## 9. Spieleinstellungen (erscheinen nur bei Kategorie „Spiele“)
 
@@ -303,7 +303,7 @@ die ID einfügen. Dann übernimmt Microsoft die vorhandenen Freigaben.
 
 Sonst den Fragebogen neu ausfüllen:
 
-1. E-Mail-Adresse für IARC: `[E-MAIL-ADRESSE]`
+1. E-Mail-Adresse für IARC: `kontakt@seelenstein.online`
 2. Kategorie: **Spiel**
 3. Gewalt: **Ja**, comichaft und gegen Fantasiewesen sowie menschenähnliche Figuren (Banditen, Orks, Spieler-Duelle). Nicht realistisch,
    keine Verstümmelung. Blut nur stilisiert (rote Magie-Partikel beim Nekromanten).

@@ -150,7 +150,7 @@ Kurz durchtesten: Charakter erstellen, kämpfen, Kanal betreten, Chat, Konto anl
    und `vorstellungsgrafik-1024x500-en.jpg` als englische Vorstellungsgrafik hochladen. Die Screenshots werden übernommen, ihre
    Oberfläche ist deutsch. Wer englische Screenshots möchte, kann sie mit der Sprache „English“ im Spiel nachaufnehmen.
 5. **Store-Einstellungen** (*Store settings*): Kategorie **Spiel → Rollenspiel**, Tags (Vorschläge in `store-eintrag.md`),
-   Kontakt-E-Mail `[E-MAIL-ADRESSE]`, Website `https://seelenstein.online/`.
+   Kontakt-E-Mail `kontakt@seelenstein.online`, Website `https://seelenstein.online/`.
 
 ---
 

@@ -149,7 +149,7 @@ Der App-Name und die Kategorie zählen bei Apple automatisch mit. „Seelenstein
 |---|---|
 | Support-URL (Pflicht) | `https://seelenstein.online/regeln.html` (enthält Kontakt). Besser später eine eigene Hilfeseite mit E-Mail-Adresse |
 | Marketing-URL (optional) | `https://seelenstein.online/` |
-| Copyright | `2026 [NAME DES BETREIBERS]` (dein voller Name) |
+| Copyright | `2026 Alper Gündogdu` |
 
 ### Neuerungen in dieser Version (*What's New*, erst ab Version 1.0.1)
 
