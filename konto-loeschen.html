@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!-- Konto löschen (seit 13.77): eigenständige Seite für die „Delete account URL“ in der Google Play Console.
+     Läuft ohne das Spiel: braucht nur js/konto-config.js (Firebase-Zugang) und js/konto-loeschen.js (Ablauf).
+     Deutsch und Englisch auf einer Seite, keine externen Schriften oder Skripte. -->
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Seelenstein – Konto löschen · Delete account</title>
+  <link rel="icon" href="icons/icon-192.png" type="image/png">
+  <style>
+    :root { --night: #12100c; --card: #1b1611; --brass: #c9a35a; --brass-dim: #6e5a34; --text: #ece2cb; --muted: #a8997c; --danger: #a3372b; color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: radial-gradient(circle at 50% 0, #2a2219, var(--night) 70%) fixed; color: var(--text);
+      font: 16px/1.55 "Alegreya Sans", "Segoe UI", system-ui, sans-serif; }
+    main { width: min(760px, 100%); margin: 0 auto; padding: 24px 16px 48px; }
+    h1, h2, h3 { font-family: "Marcellus SC", "Palatino Linotype", Georgia, serif; font-weight: 400; color: var(--brass); line-height: 1.25; }
+    h1 { font-size: 30px; margin: 0 0 4px; }
+    h2 { font-size: 22px; margin: 28px 0 8px; border-bottom: 1px solid var(--brass-dim); padding-bottom: 4px; }
+    h3 { font-size: 18px; margin: 18px 0 6px; }
+    a { color: #f0cf6a; }
+    .sub { color: var(--muted); margin: 0 0 18px; }
+    .card { background: rgba(24, 19, 14, 0.92); border: 1px solid var(--brass-dim); border-radius: 8px; padding: 16px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); }
+    .lang-nav { display: flex; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+    label { display: block; margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+    input[type=text], input[type=password] { display: block; width: 100%; margin-top: 4px; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(201, 163, 90, 0.45); background: rgba(0, 0, 0, 0.35); color: #f3e2b0; font: inherit; }
+    .check { display: flex; gap: 10px; align-items: flex-start; color: var(--text); }
+    .check input { margin-top: 5px; }
+    button { border-radius: 6px; padding: 11px 18px; font: inherit; font-weight: 700; cursor: pointer; border: 1px solid #d0594b; background: var(--danger); color: #fff; }
+    button:disabled { opacity: 0.5; cursor: default; }
+    #msg { margin: 12px 0 0; min-height: 1.5em; }
+    #msg.err { color: #ffb48a; }
+    #msg.ok { color: #b8f0a4; font-weight: 700; }
+    ul { padding-left: 22px; }
+    li { margin: 3px 0; }
+    .note { color: var(--muted); font-size: 14px; }
+    footer { margin-top: 32px; color: var(--muted); font-size: 14px; text-align: center; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Seelenstein</h1>
+  <p class="sub">Konto löschen · Delete account</p>
+  <nav class="lang-nav"><a href="#de">Deutsch</a><a href="#en">English</a><a href="#form">Zum Formular · To the form</a><a href="datenschutz.html">Datenschutz · Privacy</a></nav>
+
+  <section id="de" lang="de">
+    <h2>Konto löschen</h2>
+    <p>Hier kannst du dein Seelenstein-Konto mit allen dazugehörigen Daten löschen – ohne das Spiel zu öffnen.
+      Im Spiel geht es auch: Startbildschirm → Konto → „Konto löschen“ oder Einstellungen → Konto.</p>
+    <h3>Was gelöscht wird</h3>
+    <ul>
+      <li>dein Konto bei Firebase Authentication (Kontoname und Passwort)</li>
+      <li>alle Charaktere, die im Konto gespeichert sind, und deine Blockierliste</li>
+      <li>das Konto-Lager mit allen Gegenständen</li>
+      <li>alle Briefe in deiner Post, auch nicht abgeholtes Gold und nicht abgeholte Gegenstände</li>
+      <li>deine Angebote im Auktionshaus (die Gegenstände darin gehen verloren)</li>
+      <li>die Reservierung deiner Charakternamen (andere können sie danach verwenden)</li>
+      <li>der Zeitstempel deiner letzten Meldung (Schutz gegen Massenmeldungen)</li>
+    </ul>
+    <p>Die Daten werden sofort aus der Datenbank gelöscht. Das lässt sich nicht rückgängig machen.</p>
+    <h3>Was nicht gelöscht wird</h3>
+    <ul>
+      <li><b>Chatnachrichten</b> werden nirgends gespeichert: Sie gehen nur live an die Mitspieler im Kanal und sind weg, sobald das Spiel geschlossen wird.</li>
+      <li><b>Briefe, die du anderen geschickt hast,</b> gehören dem Empfänger und bleiben in seiner Post, bis er sie löscht (Absender ist dort dein Charaktername).</li>
+      <li><b>Ein Angebot, das ein anderer Spieler gerade gekauft hat,</b> wird vom Käufer abgerechnet und verschwindet dann von selbst.</li>
+      <li><b>Meldungen</b> über Verstöße (von dir oder über dich) bewahrt der Betreiber zur Moderation auf und löscht sie spätestens 6 Monate nach Eingang.</li>
+      <li><b>Charaktere auf deinem Gerät</b> (im Browser bzw. in der App) löscht diese Seite nicht. Sie bleiben ohne Konto spielbar. Entfernen kannst du sie im Spiel in der Charakterauswahl (✕) oder indem du die App deinstallierst bzw. die Websitedaten löschst.</li>
+    </ul>
+  </section>
+
+  <section id="en" lang="en">
+    <h2>Delete account</h2>
+    <p>Here you can delete your Seelenstein account with all associated data – without opening the game.
+      You can also do it in the game: start screen → Account → “Delete account”, or Settings → Account.</p>
+    <h3>What is deleted</h3>
+    <ul>
+      <li>your account in Firebase Authentication (account name and password)</li>
+      <li>all characters stored in the account, and your block list</li>
+      <li>the account storage with all items</li>
+      <li>all letters in your mailbox, including unclaimed gold and items</li>
+      <li>your offers in the auction house (the items in them are lost)</li>
+      <li>the reservation of your character names (others can use them afterwards)</li>
+      <li>the timestamp of your last report (protection against mass reports)</li>
+    </ul>
+    <p>The data is deleted from the database immediately. This cannot be undone.</p>
+    <h3>What is not deleted</h3>
+    <ul>
+      <li><b>Chat messages</b> are not stored anywhere: they are only sent live to the players in the channel and are gone once the game is closed.</li>
+      <li><b>Letters you sent to others</b> belong to the recipient and stay in their mailbox until they delete them (the sender shown is your character name).</li>
+      <li><b>An offer another player has just bought</b> is settled by the buyer and then disappears by itself.</li>
+      <li><b>Reports</b> about violations (by you or about you) are kept by the operator for moderation and deleted no later than 6 months after receipt.</li>
+      <li><b>Characters on your device</b> (in the browser or the app) are not deleted by this page. They stay playable without an account. You can remove them in the game's character selection (✕), or by uninstalling the app or clearing the site data.</li>
+    </ul>
+  </section>
+
+  <section id="form">
+    <h2>Konto jetzt löschen · Delete account now</h2>
+    <div class="card">
+      <form id="delForm" autocomplete="on">
+        <label>Kontoname · Account name
+          <input id="name" type="text" maxlength="20" autocomplete="username" spellcheck="false" required></label>
+        <label>Passwort · Password
+          <input id="pass" type="password" maxlength="64" autocomplete="current-password" required></label>
+        <label class="check"><input id="sure" type="checkbox">
+          <span>Ich verstehe, dass mein Konto und alle Daten darin endgültig gelöscht werden.<br>
+            <i lang="en">I understand that my account and all its data will be permanently deleted.</i></span></label>
+        <button id="go" type="submit" disabled>Konto endgültig löschen · Permanently delete account</button>
+        <p id="msg" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+    <p class="note">Passwort vergessen? Da das Konto keine E-Mail-Adresse hat, kann es nicht zurückgesetzt werden. Schreib dann an die
+      Kontaktadresse in der <a href="datenschutz.html">Datenschutzerklärung</a> – wir löschen das Konto nach Prüfung für dich.<br>
+      <i lang="en">Forgot your password? The account has no e-mail address, so it cannot be reset. Please write to the contact address in the
+      <a href="datenschutz.html#en">privacy policy</a> – we will delete the account for you after verification.</i></p>
+  </section>
+
+  <footer>Seelenstein · <a href="./">Zum Spiel · Play</a> · <a href="datenschutz.html">Datenschutz · Privacy</a></footer>
+</main>
+
+<script src="js/konto-config.js"></script>
+<script src="js/konto-loeschen.js"></script>
+<script>
+  // Englische Fassung der Meldungen aus konto-loeschen.js (die Seite zeigt beide Sprachen)
+  const EN = {
+    'Anmelden …': 'Signing in …',
+    'Charakternamen freigeben …': 'Releasing character names …',
+    'Angebote im Auktionshaus entfernen …': 'Removing auction house offers …',
+    'Konto-Lager, Post und Charaktere löschen …': 'Deleting account storage, mail and characters …',
+    'Konto löschen …': 'Deleting account …',
+    'Name oder Passwort stimmt nicht.': 'Wrong name or password.',
+    'Zu viele Versuche – bitte kurz warten.': 'Too many attempts – please wait a moment.',
+    'Dieses Konto ist gesperrt.': 'This account is banned.',
+    'Keine Verbindung zum Server.': 'No connection to the server.',
+    'Bitte das Passwort eingeben.': 'Please enter the password.',
+    'Der Kontoname braucht 3 bis 20 Zeichen: Buchstaben, Zahlen, - oder _.': 'The account name needs 3 to 20 characters: letters, numbers, - or _.',
+    'Auf diesem Spiel sind keine Konten eingerichtet.': 'Accounts are not set up for this game.'
+  };
+  const en = (t) => EN[t] || (/Deine Spieldaten sind gelöscht|Deine Spieldaten sind schon gelöscht/.test(t)
+    ? 'Your game data has been deleted, but the account itself not yet. Please try again.'
+    : /konnte nicht gelöscht werden|konnten nicht gelesen werden|konnte nicht entfernt werden/.test(t) ? 'Some data could not be deleted. Please try again later.' : 'That did not work.');
+  const $ = (id) => document.getElementById(id);
+  const msg = (t, cls) => {
+    $('msg').className = cls || '';
+    $('msg').textContent = '';
+    const de = document.createElement('span');
+    de.textContent = t;
+    const e = document.createElement('i');
+    e.lang = 'en';
+    e.textContent = en(t);
+    $('msg').append(de, document.createElement('br'), e);
+  };
+  const check = () => { $('go').disabled = !($('name').value.trim() && $('pass').value && $('sure').checked); };
+  ['name', 'pass', 'sure'].forEach((id) => $(id).addEventListener('input', check));
+  $('sure').addEventListener('change', check);
+  $('delForm').addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if ($('go').disabled) return;
+    const fields = document.querySelectorAll('#delForm input, #delForm button');
+    fields.forEach((x) => { x.disabled = true; });
+    try {
+      const name = $('name').value.trim();
+      const res = await kontoLoeschen(name, $('pass').value, (t) => msg(t));
+      $('pass').value = '';
+      // Wer auf diesem Gerät mit dem Konto angemeldet war, ist jetzt abgemeldet (Charaktere bleiben auf dem Gerät)
+      try {
+        const s = JSON.parse(localStorage.getItem('seelenstein.konto') || 'null');
+        if (s && s.uid === res.uid) localStorage.removeItem('seelenstein.konto');
+      } catch (e) { /* privat */ }
+      $('msg').className = 'ok';
+      $('msg').innerHTML = '';
+      $('msg').append('Dein Konto „' + name + '“ und alle Daten darin wurden gelöscht.', document.createElement('br'));
+      const e = document.createElement('i');
+      e.lang = 'en';
+      e.textContent = 'Your account “' + name + '” and all its data have been deleted.';
+      $('msg').append(e);
+    } catch (e) {
+      msg((e && e.message) || 'Das hat nicht geklappt.', 'err');
+      fields.forEach((x) => { x.disabled = false; });
+      check();
+    }
+  });
+  if (typeof kldCfg !== 'function' || !kldCfg()) msg('Auf diesem Spiel sind keine Konten eingerichtet.', 'err');
+</script>
+</body>
+</html>

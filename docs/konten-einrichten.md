@@ -186,3 +186,120 @@ Die ganze Spiellogik läuft im Browser. Die Regeln verhindern doppelte Käufe, f
 fremder Angebote, aber nicht, dass jemand mit einem manipulierten Spiel Gold oder Gegenstände „aus dem Nichts“ in einen
 Brief oder ein Angebot schreibt (das gilt genauso für die Spielstände selbst). Echter Betrugsschutz bräuchte einen
 eigenen Server, der Gold und Gegenstände verwaltet.
+
+
+## Melden, Blockieren und Konto löschen (seit 13.77)
+
+Für Google Play braucht das Spiel drei Dinge, die ebenfalls die Datenbank nutzen:
+
+- **Konto löschen** (im Spiel: Startbildschirm → Konto → „Konto löschen“ oder Einstellungen → Konto; ohne Spiel:
+  `konto-loeschen.html`, diese Adresse kommt in der Play Console unter „URL zum Löschen des Kontos“). Der Ablauf steht in
+  `js/konto-loeschen.js`: Anmelden mit Name und Passwort (Firebase verlangt für das Löschen eine frische Anmeldung), dann
+  `namen/<name>` (nur Namen mit der eigenen uid), eigene Auktionen (offene werden zuerst als „abbruch“ übernommen und dann
+  gelöscht), `lager/<uid>`, `post/<uid>`, `meldezeit/<uid>` und `konten/<uid>` löschen und zuletzt das Konto selbst
+  (`accounts:delete`). Das klappt schon mit den bisherigen Regeln; neu ist nur `.indexOn` bei `namen` (damit das Spiel die
+  eigenen Namen gezielt findet statt alle zu lesen).
+- **Blockieren**: Die Liste liegt auf dem Gerät und mit Konto zusätzlich in `konten/<uid>/blockiert` (keine neue Regel nötig).
+- **Melden**: schreibt nach `meldungen/<id>` (nur schreiben, niemand außer dir in der Firebase-Konsole kann sie lesen) und
+  gleichzeitig den Zeitpunkt nach `meldezeit/<uid>`. Die Regeln lassen höchstens eine Meldung pro Minute und Konto zu.
+
+Dafür die Regeln (Firebase-Konsole → **Realtime Database** → **Regeln**) komplett durch diesen Block ersetzen
+→ **Veröffentlichen** (enthält alle bisherigen Regeln):
+
+```json
+{
+  "rules": {
+    "konten": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "lager": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        ".validate": "!newData.exists() || (newData.child('items').isString() && newData.child('items').val().length <= 400000)"
+      }
+    },
+    "namen": {
+      ".read": "auth != null",
+      ".indexOn": ["uid"],
+      "$name": {
+        ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid) && (!newData.exists() || newData.child('uid').val() === auth.uid)",
+        ".validate": "!newData.exists() || (newData.child('uid').isString() && newData.child('name').isString() && newData.child('name').val().length <= 14)"
+      }
+    },
+    "post": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$id": {
+          ".write": "auth != null && !data.exists() && newData.child('vonUid').val() === auth.uid",
+          ".validate": "newData.hasChildren(['an', 'von', 'vonUid', 'at']) && newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.child('betreff').isString() && newData.child('betreff').val().length <= 40 && newData.child('gold').isNumber() && newData.child('gold').val() >= 0 && (!newData.child('ware').exists() || (newData.child('ware').isString() && newData.child('ware').val().length <= 20000))"
+        }
+      }
+    },
+    "auktion": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && ((!data.exists() && newData.child('uid').val() === auth.uid && newData.child('at').val() <= now + 60000 && newData.child('ende').val() <= now + 172860000 && !newData.child('kaeufer').exists()) || (data.exists() && !newData.exists() && data.child('kaeufer').exists() && (data.child('kaeufer/uid').val() === auth.uid || (data.child('uid').val() === auth.uid && data.child('kaeufer/at').val() < now - 3600000))) || (data.exists() && newData.exists() && !data.child('kaeufer').exists() && newData.child('kaeufer/uid').val() === auth.uid && newData.child('uid').val() === data.child('uid').val() && newData.child('von').val() === data.child('von').val() && newData.child('ware').val() === data.child('ware').val() && newData.child('preis').val() === data.child('preis').val() && newData.child('ende').val() === data.child('ende').val()))",
+        ".validate": "newData.hasChildren(['uid', 'von', 'ware', 'preis', 'at', 'ende']) && newData.child('ware').isString() && newData.child('ware').val().length <= 5000 && newData.child('preis').isNumber() && newData.child('preis').val() >= 1 && newData.child('preis').val() <= 999999999 && newData.child('ende').val() <= newData.child('at').val() + 172800000",
+        "kaeufer": {
+          ".validate": "newData.hasChildren(['uid', 'art', 'at']) && ((newData.child('art').val() === 'kauf' && now < data.parent().child('ende').val() && data.parent().child('uid').val() !== auth.uid) || (newData.child('art').val() === 'abbruch' && data.parent().child('uid').val() === auth.uid) || (newData.child('art').val() === 'ablauf' && now >= data.parent().child('ende').val()))"
+        }
+      }
+    },
+    "meldungen": {
+      "$id": {
+        ".write": "auth != null && !data.exists() && newData.exists()",
+        ".validate": "newData.hasChildren(['vonUid', 'von', 'gegen', 'grund', 'zeit']) && newData.parent().parent().child('meldezeit/' + auth.uid).val() === now",
+        "vonUid": { ".validate": "newData.val() === auth.uid" },
+        "von": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "figur": { ".validate": "newData.isString() && newData.val().length <= 40" },
+        "gegen": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 40" },
+        "grund": { ".validate": "newData.isString() && newData.val().matches(/^(beleidigung|betrug|spam|name|sonstiges)$/)" },
+        "text": { ".validate": "newData.isString() && newData.val().length <= 500" },
+        "chat": { ".validate": "newData.isString() && newData.val().length <= 3000" },
+        "ort": { ".validate": "newData.isString() && newData.val().length <= 60" },
+        "version": { ".validate": "newData.isString() && newData.val().length <= 20" },
+        "zeit": { ".validate": "newData.val() === now" },
+        "$other": { ".validate": false }
+      }
+    },
+    "meldezeit": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 60000)",
+        ".validate": "newData.val() === now"
+      }
+    }
+  }
+}
+```
+
+Was die neuen Regeln sicherstellen:
+
+- `meldungen/<id>`: Jedes angemeldete Konto darf **neue** Meldungen anlegen, aber keine lesen, ändern oder löschen. Absender
+  (`vonUid`) muss das eigene Konto sein, Grund ist einer von `beleidigung`, `betrug`, `spam`, `name`, `sonstiges`, Text höchstens
+  500 Zeichen, Chatauszug höchstens 3000 Zeichen, keine weiteren Felder, Zeit = Serverzeit.
+- `meldezeit/<uid>`: Zeitpunkt der letzten Meldung. Eine Meldung wird nur angenommen, wenn im selben Schreibvorgang dieser Zeitpunkt
+  auf die Serverzeit gesetzt wird – und das geht nur, wenn die letzte Meldung über 60 Sekunden her ist.
+
+### Meldungen bearbeiten
+
+- Firebase-Konsole → **Realtime Database** → **Daten** → `meldungen`. Jede Meldung enthält `von` (Kontoname), `figur`, `vonUid`,
+  `gegen` (gemeldeter Charaktername), `grund`, `text`, `chat` (die letzten bis zu 10 Chatnachrichten des Gemeldeten als JSON-Text),
+  `ort` (Server · Kanal), `version` und `zeit` (Millisekunden seit 1970).
+- Die Konto-Kennung zum gemeldeten Namen steht unter `namen/<name klein>` → `uid`. Ein Konto sperren: Firebase-Konsole →
+  **Authentication** → Nutzer suchen (Kennung) → **Konto deaktivieren** (das Spiel meldet dann „Dieses Konto ist gesperrt.“).
+- Laut Datenschutzerklärung werden Meldungen nach der Prüfung, spätestens nach 6 Monaten gelöscht – bitte erledigte Meldungen in der
+  Konsole löschen.
+- Kontaktadresse: In `js/spielerschutz.js` (`KONTAKT_EMAIL`) und in `datenschutz.html` die Platzhalter durch die echte Adresse ersetzen.
+  Dann bietet das Spiel Spielern ohne Konto beim Melden eine E-Mail an.
+
+### Grenzen beim Löschen
+
+- Kauft gerade jemand ein Angebot des gelöschten Kontos, rechnet der Käufer es ab; der Erlös-Brief landet dann unter `post/<alte uid>`,
+  ohne dass es das Konto noch gibt (selten, kann in der Konsole gelöscht werden).
+- Ist das Spiel mit dem Konto auf einem anderen Gerät noch offen, gilt dessen Anmeldeschlüssel noch bis zu einer Stunde; lädt es in der
+  Zeit hoch, entsteht `konten/<alte uid>` neu (ohne Konto dahinter). Danach meldet das Gerät sich von selbst ab.

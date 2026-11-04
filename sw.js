@@ -1,11 +1,12 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v204';
+const VERSION = 'seelenstein-v205';
 const FILES = [
   './',
   'index.html',
   'manifest.webmanifest',
   'css/style.css',
+  'css/schriften.css', 'fonts/alegreya-sans-400-latin-ext.woff2', 'fonts/alegreya-sans-400-latin.woff2', 'fonts/alegreya-sans-500-latin-ext.woff2', 'fonts/alegreya-sans-500-latin.woff2', 'fonts/alegreya-sans-700-latin-ext.woff2', 'fonts/alegreya-sans-700-latin.woff2', 'fonts/alegreya-sans-800-latin-ext.woff2', 'fonts/alegreya-sans-800-latin.woff2', 'fonts/marcellus-sc-400-latin-ext.woff2', 'fonts/marcellus-sc-400-latin.woff2',
   'css/seltenheit.css',
   'css/handel.css',
   'js/sprache.js',
@@ -99,6 +100,7 @@ const FILES = [
   'js/waechter.js',
   'js/konto-config.js',
   'js/konto.js',
+  'js/konto-loeschen.js',
   'js/handel-db.js',
   'js/handel-ware.js',
   'js/kontolager.js',
@@ -107,12 +109,15 @@ const FILES = [
   'js/handel-npc.js',
   'js/gemeinschaft.js',
   'js/interaktion.js',
+  'js/spielerschutz.js',
   'js/gruppe.js',
   'js/gruppenfinder.js',
   'js/instanzen.js',
   'js/herausforderung.js',
   'js/peerjs.min.js',
   'js/spiel.js',
+  'datenschutz.html',
+  'konto-loeschen.html',
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png'

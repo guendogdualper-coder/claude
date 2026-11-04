@@ -13,9 +13,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Seelenstein">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans:wght@400;500;700;800&family=Marcellus+SC&display=swap">
+  <link rel="stylesheet" href="css/schriften.css">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/seltenheit.css">
   <link rel="stylesheet" href="css/handel.css">
@@ -211,6 +209,7 @@
       </div>
     </div>
     <p id="versionText" class="version"></p>
+    <p class="legal-links"><a href="datenschutz.html" target="_blank" rel="noopener">Datenschutz</a> · <a href="konto-loeschen.html" target="_blank" rel="noopener">Konto löschen</a></p>
   </div>
 </div>
 
@@ -280,6 +279,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 13.77 – Vorbereitung für Google Play: Konto löschen direkt im Spiel (Einstellungen → Konto) und auf der Seite konto-loeschen.html. Andere Spieler blockieren (Chat, Sprechblasen und Einladungen verschwinden) und melden – über die Spielerkarte oder durch Antippen des Namens im Chat. Neue Datenschutzerklärung. Die Schriften kommen jetzt vom eigenen Webspace statt von Google. Die Android-App (Trusted Web Activity) ist gebaut.</li>
       <li>Version 13.76 – Bogen-Ninja: Auf Platz 2 liegt jetzt der Pfeilregen statt der Giftfalle. Ort wählen, der Ninja schießt eine Salve steil in den Himmel, dann regnet es 5 Sekunden lang Schattenpfeile aus einer dunklen Wolke. Alle 0,5 s trifft ein Puls alle Gegner im Kreis (weniger Schaden je Treffer, insgesamt mehr) und bremst sie um 50 %, solange sie drinstehen. Jeder Rang verlängert den Regen um einen Puls. Stufe, Rang, Leistenplatz und Bücher gehen von der Giftfalle mit. Außerdem werden ganz alte Fertigkeitsnamen jetzt in einem Schritt richtig umgestellt.</li>
       <li>Version 13.75 – Handy (App vom Home-Bildschirm, quer): Beim Start meldet das iPhone die Bildschirmhöhe oft zu klein. Die Spielfläche und die Anzeigen blieben dann an der kleineren Höhe hängen, unten entstand ein Streifen und die Seite wurde ständig zurückgeschoben – das Flackern unten, das erst nach einmal Drehen verschwand. Jetzt füllen Spielfläche und Anzeigen gleich die volle Höhe, die Seite lässt sich nicht mehr verschieben, und nach dem Start wird die Größe mehrmals nachgemessen.</li>
       <li>Version 13.74 – Handy: Die automatische Grafikanpassung war zu schreckhaft – schon die Ladebilder nach dem Start ließen sie Auflösung und Schatten für die ganze Sitzung senken, und jeder Wechsel baute das Bild neu auf. Jetzt misst sie erst nach 10 Sekunden, senkt nur nach zwei schlechten Messungen hintereinander und höchstens in kleinen Schritten (zuerst Schatten, dann einmal die Auflösung). Reisen und Wiederbeleben zählen nicht mehr als Ruckler. Außerdem weniger unnötige Änderungen an der Oberfläche (Instanz-Anzeigen).</li>
@@ -682,6 +682,7 @@
 <script src="js/netz.js"></script>
 <script src="js/konto-config.js"></script>
 <script src="js/konto.js"></script>
+<script src="js/konto-loeschen.js"></script>
 <script src="js/handel-db.js"></script>
 <script src="js/handel-ware.js"></script>
 <script src="js/kontolager.js"></script>
@@ -690,6 +691,7 @@
 <script src="js/handel-npc.js"></script>
 <script src="js/gemeinschaft.js"></script>
 <script src="js/interaktion.js"></script>
+<script src="js/spielerschutz.js"></script>
 <script src="js/gruppe.js"></script>
 <script src="js/gruppenfinder.js"></script>
 <script src="js/instanzen.js"></script>

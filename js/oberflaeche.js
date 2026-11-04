@@ -280,8 +280,12 @@ const ui = {
     if (accountOn()) {
       const st = account.state === 'sync' ? '☁ gleiche ab …' : account.state === 'error' ? `⚠ ${escapeHtml(account.msg)}` : '☁ im Konto gespeichert';
       box.innerHTML = `<div class="acc-row"><span class="acc-name">👤 ${escapeHtml(account.name || '')}</span><span class="acc-state ${account.state}">${st}</span>` +
-        '<button type="button" class="btn btn-ghost acc-out">Abmelden</button></div>' +
+        '<button type="button" class="btn btn-ghost acc-out">Abmelden</button>' +
+        // seit 13.77: Konto löschen (Google Play), Dialog in spielerschutz.js
+        (typeof openDeleteAccount === 'function' ? '<button type="button" class="btn btn-ghost acc-del">Konto löschen</button>' : '') + '</div>' +
         this.pendingNote();
+      const del = box.querySelector('.acc-del');
+      if (del) del.addEventListener('click', () => openDeleteAccount());
       box.querySelector('.acc-out').addEventListener('click', async () => {
         box.querySelector('.acc-out').disabled = true;
         await accountLogout();
@@ -851,6 +855,8 @@ const ui = {
     c = c || (name ? 'g' : 'sys');
     this.chatLines.push({ name, text, c, type });
     if (this.chatLines.length > 200) this.chatLines.shift();
+    // seit 13.77: Nachrichten blockierter Spieler nicht zeigen (bleiben für eine Meldung im Verlauf)
+    if (name && typeof isBlocked === 'function' && isBlocked(name)) return;
     if (this.chatShows(c)) this.renderChat();
     else {
       const tab = document.querySelector(`#chatTabs button[data-c="${c}"]`);
@@ -884,7 +890,7 @@ const ui = {
     const atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 12;
     box.textContent = '';
     const tags = { gi: 'Gilde', o: 'Ort' };
-    const all = this.chatLines.filter((l) => this.chatShows(l.c));
+    const all = this.chatLines.filter((l) => this.chatShows(l.c) && !(l.name && typeof isBlocked === 'function' && isBlocked(l.name)));
     const lines = this.chatOpen ? all : all.slice(-12);
     for (const l of lines) {
       const row = document.createElement('p');
@@ -900,6 +906,11 @@ const ui = {
         const b = document.createElement('b');
         b.textContent = l.name + ': ';
         b.style.color = l.name === (game.player && game.player.name) ? '#ffd38a' : '';
+        // seit 13.77: Namen anderer Spieler antippen (offener Chat) → Spielerkarte, Blockieren, Melden
+        if (l.name !== (game.player && game.player.name) && typeof chatNameMenu === 'function') {
+          b.className = 'ch-name';
+          b.addEventListener('click', () => chatNameMenu(l.name));
+        }
         row.append(b);
       }
       row.append(document.createTextNode(l.text));

@@ -97,7 +97,9 @@ const OPT_TABS = [
   { id: 'sprache', icon: '🌐', label: 'Sprache' },
   { id: 'steuerung', icon: '🎮', label: 'Steuerung' },
   { id: 'tasten', icon: '⌨', label: 'Tastenbelegung' },
-  { id: 'spiel', icon: '🧩', label: 'Figur und Spiel' }
+  { id: 'spiel', icon: '🧩', label: 'Figur und Spiel' },
+  // seit 13.77: Konto, blockierte Spieler, Datenschutz und Konto löschen (spielerschutz.js)
+  { id: 'konto', icon: '👤', label: 'Konto' }
 ];
 const OPT_TAB_KEY = 'seelenstein.optReiter';
 
@@ -160,6 +162,8 @@ const options = {
         keyOptionsHtml('quick');
     } else if (tab === 'tasten') {
       pane = keyOptionsHtml('keys');
+    } else if (tab === 'konto') {
+      pane = typeof legalOptionsHtml === 'function' ? legalOptionsHtml() : '';
     } else {
       pane = `<section class="opt-group"><div class="opt-btns">` +
         `<button type="button" class="btn btn-ghost" data-go="hud">🧩 HUD anpassen</button>` +
@@ -201,6 +205,7 @@ const options = {
       this.render();
     }));
     wireKeyOptions(body, () => this.render());
+    if (typeof wireLegalOptions === 'function') wireLegalOptions(body);
     if ($('optFull')) $('optFull').addEventListener('click', toggleFullscreen);
     // seit 13.62: Ton-Regler gibt es nur im Reiter Audio
     if ($('optSound')) $('optSound').addEventListener('click', () => {

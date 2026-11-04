@@ -3199,3 +3199,40 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .tfx-slow, .tfx-frozen { border-color: #7fb8ff; color: #d6e8ff; }
 .tfx-stun { border-color: #ffd34d; color: #fff1b0; }
 .tfx-curse { border-color: #b48cff; color: #e6d8ff; }
+
+/* --- Spielerschutz (seit 13.77): Melden, Blockieren, Konto löschen, Links zu Datenschutz ----------------- */
+.ss-dlg { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px)); background: rgba(6, 4, 2, 0.62); user-select: text; }
+.ss-dlg-box { width: min(460px, 100%); max-height: 100%; overflow-y: auto; padding: 14px 16px; background: rgba(24, 19, 14, 0.98); font-size: 14px; line-height: 1.4; overscroll-behavior: contain; }
+.ss-dlg-box.ss-small { width: min(300px, 100%); }
+.ss-dlg-box p { margin: 0 0 8px; }
+.ss-dlg-box a { color: #f0cf6a; }
+.ss-title { margin: 0 0 10px; font-family: var(--font-display); font-weight: 400; font-size: 20px; color: var(--brass); }
+.ss-who { font-weight: 800; color: #f3e2b0; }
+.ss-list { margin: 0 0 8px; padding-left: 20px; }
+.ss-list li { margin: 2px 0; }
+.ss-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.ss-small .ss-btns { flex-direction: column; }
+.ss-btns .btn, .ss-mail .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--parchment); text-decoration: none; font-size: 14px; padding: 8px 14px; }
+.ss-btns .btn-primary { color: #1b130a; }
+.ss-reasons { margin: 0 0 8px; padding: 6px 10px; border: 1px solid rgba(201, 163, 90, 0.35); border-radius: 8px; display: grid; gap: 4px; }
+.ss-reasons legend { padding: 0 4px; color: var(--muted); font-size: 12px; }
+.ss-reasons label, .ss-check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.ss-check { margin: 0 0 8px; }
+.ss-field { display: flex; flex-direction: column; gap: 4px; margin: 0 0 8px; font-size: 13px; color: var(--muted); }
+.ss-field input, .ss-field textarea { padding: 7px 9px; border-radius: 8px; border: 1px solid rgba(201, 163, 90, 0.4); background: rgba(0, 0, 0, 0.35); color: #f3e2b0; font: inherit; font-size: 15px; resize: vertical; }
+.ss-msg { color: #ffb48a; font-size: 13px; }
+.ss-msg.ok { color: #f0d79a; }
+.ss-blocklist { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
+.ss-blocklist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.25); font-weight: 700; }
+.ss-blocklist .btn { padding: 6px 10px; font-size: 13px; }
+.opt-btns a.btn { text-decoration: none; color: var(--parchment); text-align: center; }
+/* Spielerkarte: zweite Zeile mit Blockieren und Melden */
+.pc-mod { display: flex; gap: 6px; margin-top: 6px; }
+.pc-mod-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 5px; padding: 4px 6px; border: 1px solid rgba(201, 163, 90, 0.45); border-radius: 8px; background: rgba(0, 0, 0, 0.35); color: #e8d6b0; font: inherit; font-size: 11.5px; cursor: pointer; }
+.pc-mod-btn.on { border-color: #e8603e; color: #ffb48a; }
+.pc-mod-btn:active { transform: scale(0.95); }
+/* Namen im offenen Chat antippen */
+#chatBox.open .chat-log b.ch-name { cursor: pointer; text-decoration: underline dotted rgba(240, 207, 106, 0.5); text-underline-offset: 2px; }
+.legal-links { margin: 6px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
+.legal-links a { color: var(--muted); }
+.account-box .acc-del { padding: 6px 10px; font-size: 12px; color: #e9b8a8; border-color: rgba(208, 89, 75, 0.6); }

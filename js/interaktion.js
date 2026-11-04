@@ -65,7 +65,11 @@ const pcard = {
       btn('party', inParty ? 'In Gruppe' : 'Gruppe', '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 19c.6-3.4 2.8-5.5 5.5-5.5s4.9 2.1 5.5 5.5M10.5 19c.6-3.4 2.8-5.5 5.5-5.5s4.9 2.1 5.5 5.5"/>', canParty) +
       btn('trade', 'Handeln', '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', !game.trade) +
       btn('inspect', 'Betrachten', '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>') +
-      `</div>`;
+      `</div>` +
+      // seit 13.77: Blockieren und Melden (spielerschutz.js)
+      (typeof isBlocked === 'function' ? `<div class="pc-mod">` +
+        `<button type="button" class="pc-mod-btn${isBlocked(rp.name) ? ' on' : ''}" data-pc="block"><span aria-hidden="true">⛔</span><span>${isBlocked(rp.name) ? 'Blockierung aufheben' : 'Blockieren'}</span></button>` +
+        `<button type="button" class="pc-mod-btn" data-pc="report"><span aria-hidden="true">⚑</span><span>Melden</span></button></div>` : '');
     drawPortrait($('pcPortrait'), rp);
     this.update();
     $('playerCard').querySelectorAll('[data-pc]').forEach((b) => b.addEventListener('click', () => this.act(b.dataset.pc)));
@@ -76,6 +80,14 @@ const pcard = {
     const rp = net.players.get(pid);
     if (a === 'close' || !rp) {
       this.close();
+      return;
+    }
+    if (a === 'block') {
+      setBlocked(rp.name, !isBlocked(rp.name));
+      return;
+    }
+    if (a === 'report') {
+      openReport(rp.name);
       return;
     }
     if (a === 'friend') askFriend(pid);

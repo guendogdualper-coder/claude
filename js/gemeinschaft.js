@@ -41,6 +41,8 @@ function netSocial(pid, d) {
 function onSocial(pid, d) {
   const p = game.player;
   if (!p || !d) return;
+  // seit 13.77: Einladungen und Anfragen blockierter Spieler automatisch ablehnen (spielerschutz.js)
+  if (typeof blockedSocial === 'function' && blockedSocial(pid, d)) return;
   // Betrachten, Handel und Duell stehen in interaktion.js
   if (/^(iq|ir|t[qantkxo]|d[qanhde])$/.test(d.k)) {
     onInteract(pid, d);

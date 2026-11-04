@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "de.seelenstein.spiel",
+      "sha256_cert_fingerprints": [
+        "EE:8E:7F:F9:ED:35:4E:30:9F:35:0B:5B:35:03:D1:02:8F:F8:DF:2D:60:4C:A1:FE:43:2C:94:B2:D3:08:9E:A8"
+      ]
+    }
+  }
+]

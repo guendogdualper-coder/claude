@@ -9,7 +9,7 @@ const CLOUD_PUSH_GAP = 15000; // ms: höchstens so oft hochladen (dazu beim Verl
 const cloudCfg = () => window.SEELENSTEIN_CLOUD || (typeof CLOUD_CONFIG !== 'undefined' ? CLOUD_CONFIG : null);
 const cloudReady = () => { const c = cloudCfg(); return !!(c && c.apiKey && c.databaseURL); };
 
-const account = { name: null, uid: null, idToken: null, refreshToken: null, expires: 0, state: 'off', msg: '', at: 0, pushTimer: 0, lastPush: 0, dirty: false, stale: false };
+const account = { name: null, uid: null, idToken: null, refreshToken: null, expires: 0, state: 'off', msg: '', at: 0, pushTimer: 0, lastPush: 0, dirty: false, stale: false, deleting: false };
 const accountOn = () => !!(account.uid && account.refreshToken);
 
 // Kennung dieses Geräts (für „wer spielt den Charakter gerade“)
@@ -95,7 +95,7 @@ async function cloudGet() {
   if (!r.ok) throw new Error('Laden fehlgeschlagen (' + r.status + ')');
   const d = await r.json();
   if (!d || !d.slots) return null;
-  const st = { slots: [], claims: [], last: d.last != null ? d.last : null };
+  const st = { slots: [], claims: [], last: d.last != null ? d.last : null, blockiert: typeof d.blockiert === 'string' ? d.blockiert : null };
   const claims = d.claims || {};
   for (let k = 0; k < MAX_CHARS; k++) {
     const raw = d.slots[k] != null ? d.slots[k] : d.slots[String(k)];
@@ -111,7 +111,8 @@ async function cloudPut(st, keepalive) {
   (st.claims || []).forEach((c, k) => { if (c) claims[k] = c; });
   const r = await fetch(await cloudUrl(), {
     method: 'PUT', keepalive: !!keepalive, headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ v: 1, at: Date.now(), last: st.last, slots, claims })
+    // seit 13.77: Blockierliste (spielerschutz.js) liegt mit im Konto, damit sie auf jedem Gerät gilt
+    body: JSON.stringify({ v: 1, at: Date.now(), last: st.last, slots, claims, blockiert: typeof blockForCloud === 'function' ? blockForCloud() : undefined })
   });
   if (!r.ok) throw new Error('Speichern fehlgeschlagen (' + r.status + ')');
 }
@@ -191,8 +192,13 @@ function adoptLocal(local, remote) {
 }
 
 async function cloudExchange(keepalive) {
+  // seit 13.77: während das Konto gelöscht wird, nichts mehr hochladen (sonst entstünde es gleich wieder)
+  if (account.deleting) throw new Error('Das Konto wird gerade gelöscht.');
   let local = readSlots();
   const remote = await cloudGet();
+  if (account.deleting) throw new Error('Das Konto wird gerade gelöscht.');
+  // seit 13.77: neuere Blockierliste aus dem Konto übernehmen
+  if (remote && typeof blockFromCloud === 'function') blockFromCloud(remote.blockiert);
   if (local.owner !== account.uid) {
     local = adoptLocal(local, remote);
     writeSlots(local, true);
@@ -243,7 +249,7 @@ function accountStale() {
 }
 
 async function accountSync() {
-  if (!accountOn()) return;
+  if (!accountOn() || account.deleting) return;
   accountStatus('sync', 'Gleiche ab …');
   try {
     await cloudExchange();
@@ -266,7 +272,7 @@ function cloudSoon() {
 async function cloudPush(keepalive) {
   clearTimeout(account.pushTimer);
   account.pushTimer = 0;
-  if (!accountOn() || !account.dirty) return;
+  if (!accountOn() || !account.dirty || account.deleting) return;
   account.dirty = false;
   account.lastPush = Date.now();
   try {
@@ -311,6 +317,32 @@ async function accountLogout() {
   accountStatus('off');
 }
 
+// Konto gelöscht (seit 13.77, konto-loeschen.js): Die Charaktere bleiben auf diesem Gerät, gehören aber zu keinem
+// Konto mehr. Gelöschte Plätze (Grabsteine), Übernahmen und der Abgleichstand fallen weg; Charaktere, die noch auf
+// einen Platz im Konto gewartet haben, kommen auf freie Plätze (passt keiner mehr, warten sie weiter auf dem Gerät).
+function accountDeleted() {
+  clearTimeout(account.pushTimer);
+  account.pushTimer = 0;
+  const st = readSlots();
+  const slots = st.slots.map((sv) => (liveSave(sv) ? sv : null));
+  const pending = [];
+  for (const sv of st.pending || []) {
+    if (!liveSave(sv)) continue;
+    const at = slots.findIndex((x) => !x);
+    if (at >= 0) slots[at] = sv;
+    else pending.push(sv);
+  }
+  const out = { slots, last: st.last != null && slots[st.last] ? st.last : null };
+  if (pending.length) out.pending = pending;
+  writeSlots(out, true);
+  accountClear();
+  account.dirty = false;
+  account.deleting = false;
+  account.stale = false;
+  account.msg = '';
+  accountStatus('off');
+}
+
 // Beim Start: gespeicherte Anmeldung wieder aufnehmen
 function accountInit() {
   if (!cloudReady()) return;
@@ -325,7 +357,7 @@ function accountInit() {
   } catch { /* nichts gespeichert */ }
   // App geht in den Hintergrund: sofort hochladen. Kommt sie zurück: nachsehen, ob woanders weitergespielt wurde
   document.addEventListener('visibilitychange', () => {
-    if (!accountOn()) return;
+    if (!accountOn() || account.deleting) return;
     if (!document.hidden) {
       if (account.stale) location.reload();
       else if (game.running) cloudExchange().then(() => accountStatus('ok'), (e) => accountStatus('error', e.message));

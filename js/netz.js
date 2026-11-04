@@ -1137,9 +1137,12 @@ function netReceiveChat(name, d, who) {
 }
 
 // Nachricht unten links und als Sprechblase über der Figur (Gildenchat ohne Sprechblase)
+// seit 13.77: Nachrichten blockierter Spieler bleiben im Verlauf (für eine Meldung), werden aber nicht gezeigt
+// und bekommen keine Sprechblase (spielerschutz.js)
 function netShowChat(name, text, who, c = 'g') {
   ui.chat(name, text, c);
-  if (who && c !== 'gi') {
+  const blocked = typeof isBlocked === 'function' && isBlocked(name);
+  if (who && c !== 'gi' && !blocked) {
     who.say = text;
     who.sayUntil = game.time + 5;
   }
