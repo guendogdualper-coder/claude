@@ -2057,7 +2057,7 @@ FX3_DRAW.beye3 = function (h, e) {
 // Schulterblättern der Figur. Sie hängen am Brustknochen (folgen Drehung, Laufen, Sprung) und bestehen aus Lagen:
 // Handschwingen (lang, außen), Armschwingen (entlang des Arms), große und kleine Deckfedern oben drüber.
 // Im Stehen liegen sie angelegt am Rücken und atmen, beim Laufen öffnen sie sich etwas und schlagen sanft,
-// beim Schießen und Zaubern breiten sie sich aus. Dazu eine dunkle Aura: schwarzvioletter Rauch steigt auf.
+// beim Schießen und Zaubern breiten sie sich aus. Die dunkle Aura dazu kommt seit 13.83 aus koerperaura.js.
 const _bwN = new THREE.Vector3();
 const _wgX = new THREE.Vector3();
 const _wgY = new THREE.Vector3();
@@ -2158,8 +2158,6 @@ function bowWing3(h, R, X, Y, Z, k, sp, fl, op, low, t, side) {
 function bowWings3(h, p, b, t) {
   const low = n3low();
   const a = typeof actors3 !== 'undefined' ? actors3.get(entityKey(p)) : null;
-  const x = p.x * U3;
-  const z = feetY(p) * U3;
   const left = clamp01((b.until - t) / 1.5);
   // Öffnung: Stehen angelegt, Laufen halb, Schießen/Zaubern weit; weich nachgeführt
   const dt = Math.min(0.1, Math.max(0, t - (p._wingT ?? t)));
@@ -2185,20 +2183,7 @@ function bowWings3(h, p, b, t) {
       bowWing3(h, _wgR, _wgS, _wgY, _wgZ, k, sp, fl, op, low, t, sx);
     }
   }
-  // dunkle Aura: schwarzvioletter Rauch steigt von den Füßen auf, dazu ein schwacher violetter Schein
-  const n = low ? 4 : 9;
-  for (let i = 0; i < n; i++) {
-    const ph = (t * 0.45 + i / n) % 1;
-    const ang = i * 2.399 + t * 0.4;
-    const r = 0.32 + 0.18 * Math.sin(i * 1.3 + t);
-    n3Smoke(h, x + Math.cos(ang) * r, 0.1 + ph * 1.6, z + Math.sin(ang) * r * 0.8, 0.35 + ph * 0.45, BOW3.smoke, 0.42 * Math.sin(ph * Math.PI) * left);
-  }
-  n3Glow(h, x, 0.8, z, 1.5, BOW3.violet, (0.16 + 0.04 * Math.sin(t * 2.2)) * left);
-  if (!low) for (let i = 0; i < 4; i++) {
-    const ph = (t * 0.7 + i / 4) % 1;
-    const ang = i * 1.9 + t * 1.3;
-    n3Glow(h, x + Math.cos(ang) * 0.45, 0.25 + ph * 1.8, z + Math.sin(ang) * 0.35, 0.1, BOW3.violet2, 0.7 * Math.sin(ph * Math.PI) * left);
-  }
+  // die dunkle Aura (Rauch und violetter Schein) zeichnet seit 13.83 die Körperaura (koerperaura.js, Stil „falke“)
 }
 
 // Ulti: Riesenfalke stößt herab, Druckwelle, Federn, dann Pfeilsturm

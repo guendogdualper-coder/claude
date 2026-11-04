@@ -193,9 +193,9 @@ function falke3(h, p, b, t) {
     const aa = a - j * 0.14;
     n3Glow(h, x + Math.cos(aa) * R, fy - j * 0.01, z + Math.sin(aa) * R, 0.4 - j * 0.045, j % 2 ? gold : col, 0.65 - j * 0.08);
   }
-  // ab und zu stößt er glitzernd herab (zeigt den Krit-Buff deutlich)
+  // ab und zu glüht er golden auf (zeigt den Krit-Buff deutlich; seit 13.83 ein weicher Schein statt Glitzerstern)
   const tw = Math.pow(Math.max(0, Math.sin(t * 1.3)), 10);
-  if (tw > 0.05) nfxStar(h, fx, fy + 0.25, fz, 0.35 + tw * 0.5, gold, tw);
+  if (tw > 0.05) n3Glow(h, fx, fy + 0.1, fz, 0.6 + tw * 0.6, gold, 0.6 * tw);
 }
 if (SKILL_FX.schutzgeist) {
   SKILL_FX.schutzgeist.aura3 = falke3;

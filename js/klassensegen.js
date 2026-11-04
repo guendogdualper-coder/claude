@@ -8,7 +8,8 @@
 //   Magier    – Arkane Erleuchtung:     seit 13.69 Elementschaden +4 % (je 10 Stufen +2 %) auf alle Fertigkeiten; bis 13.67
 //               Intelligenz +6 (je 10 Stufen +2) – die verpuffte ab etwa Stufe 55 an der Hauptwert-Grenze (MAIN_ATTR_CAP 120)
 // Aktivieren: eigener Knopf neben der Ultimativen Attacke oder Taste 9. Erneut aktivieren frischt die 30 Minuten auf.
-// Optik: beim Aktivieren ein großer 3D-Auftritt je Klasse (segen3), solange er läuft eine ruhige 3D-Aura an der Figur.
+// Optik: beim Aktivieren ein großer 3D-Auftritt je Klasse (segen3), solange er läuft die Körperaura der Klasse
+// (seit 13.83, koerperaura.js – kräftiger als bei einem einfachen Buff).
 
 const SEGEN_DUR = 1800;
 const SEGEN_UNLOCK = 10;
@@ -309,7 +310,6 @@ FX3_TYPES.add('segen3');
 const _sg3a = new THREE.Vector3();
 const _sg3b = new THREE.Vector3();
 const _sg3v = new THREE.Vector3(0, 0, 1);
-const _sg3d = new THREE.Vector3();
 FX3_DRAW.segen3 = function (h, e) {
   const t = game.time - e.start;
   const k = t / e.dur;
@@ -482,155 +482,11 @@ EXTRA_EFFECTS.segen3 = (ctx, e, k, x, y) => {
   ctx.restore();
 };
 
-// --- 3D: ruhige Aura, solange der Segen läuft ----------------------------------------------------------------
-function segenAura3(h, p, b, t) {
-  const x = p.x * U3;
-  const z = feetY(p) * U3;
-  const low = n3low();
-  if (b.id === 'segen_natur') {
-    // Feuerzunge, Wassertropfen, Blatt und Funke kreisen langsam um die Hüfte
-    for (let i = 0; i < 4; i++) {
-      const a = t * 1.1 + i * Math.PI / 2;
-      const px = x + Math.cos(a) * 0.55;
-      const pz = z + Math.sin(a) * 0.55;
-      const py = 0.75 + Math.sin(t * 2 + i) * 0.08;
-      if (i === 0) {
-        n3Flame(h, px, py + 0.08, pz, 0.2, 0.38, '#ff6a1a', 0.95, 0, true);
-        n3Flame(h, px, py + 0.04, pz, 0.1, 0.2, '#ffd34d', 0.9);
-      }
-      else if (i === 1) {
-        const o = fx3Take(h, 'ball');
-        o.position.set(px, py, pz);
-        o.scale.set(0.08, 0.11, 0.08);
-        fx3Color(o, '#2a86f0', 0.9);
-      } else if (i === 2) {
-        const o = fx3Take(h, 'ball');
-        o.position.set(px, py, pz);
-        o.scale.set(0.13, 0.035, 0.08);
-        o.rotation.set(0, a, 0.4);
-        fx3Color(o, '#6ac84a', 1);
-      } else {
-        n3Glow(h, px, py, pz, 0.2, '#fff07a', 0.95);
-        _sg3a.set(px, py + 0.12, pz);
-        _sg3b.set(px + 0.05, py - 0.12, pz);
-        n3Bolt(h, _sg3a, _sg3b, 0.02, '#fff07a', 0.9, 3, 0.08);
-      }
-      n3Glow(h, px, py, pz, 0.24, SEGEN.schamane.colors[i], 0.35);
-    }
-  } else if (b.id === 'segen_licht') {
-    // seit 13.26: goldener Lichtkranz über dem Kopf, darunter kreisen grüne und goldene Heilfunken um die Hüfte
-    const hy = (typeof v3HeadHeight === 'function' ? v3HeadHeight(p) : 2) + 0.18 + Math.sin(t * 2) * 0.03;
-    const ring = fx3Take(h, 'strip');
-    _sg3a.set(x, hy, z);
-    fx3Strip(ring, _sg3a, _sg3d.set(1, 0, 0), _sg3b.set(0, 0, 1), 0.26, 0.05, 0, Math.PI * 2, '#ffe9a0', 0.85, true);
-    n3Glow(h, x, hy, z, 0.5, '#fff2a0', 0.3);
-    const n = low ? 3 : 6;
-    for (let i = 0; i < n; i++) {
-      const a = t * 1.2 + (i / n) * Math.PI * 2;
-      const py = 0.7 + Math.sin(t * 2.4 + i) * 0.12;
-      n3Glow(h, x + Math.cos(a) * 0.55, py, z + Math.sin(a) * 0.55, i % 2 ? 0.12 : 0.15, i % 2 ? '#9be59b' : '#fff2a0', 0.85);
-    }
-  } else if (b.id === 'segen_schatten') {
-    // seit 13.13: zwei kleine Dolche mit sichelförmig gebogener Klinge kreuzen sich über dem Kopf
-    // (13.11 waren es gerade, breite Klingen mit rosa Schimmer – die sahen wie Schwerter aus)
-    const cy = 2.62 + Math.sin(t * 1.8) * 0.04;
-    const sway = Math.sin(t * 1.3) * 0.06;
-    const glint = (t * 0.55) % 1;
-    const L = 1.0;
-    for (const s of [-1, 1]) {
-      const ang = Math.PI / 4 + sway * s;
-      const dx = Math.sin(ang) * s;
-      const dy = Math.cos(ang);
-      // Querrichtung in der Bildebene: die Klinge biegt sich nach außen (weg von der Mitte)
-      const nx = dy * s;
-      const ny = -dx * s;
-      const at = (u, w = 0) => _sg3d.set(x + (dx * u + nx * w) * L, cy + (dy * u + ny * w) * L, z + 0.02 * s);
-      // Knaufring, umwickelter Griff, kurze Parierstange
-      const pm = fx3Take(h, 'ball');
-      at(-0.3);
-      pm.position.copy(_sg3d);
-      pm.scale.setScalar(0.028);
-      fx3Color(pm, '#c84a6a', 1);
-      at(-0.29); _sg3a.copy(_sg3d);
-      at(-0.12); _sg3b.copy(_sg3d);
-      const grip = fx3Take(h, 'segN');
-      fx3Segment(grip, _sg3a, _sg3b, 0.022);
-      fx3Color(grip, '#2a1a3a', 1);
-      at(-0.12, -0.07); _sg3a.copy(_sg3d);
-      at(-0.12, 0.07); _sg3b.copy(_sg3d);
-      const guard = fx3Take(h, 'segN');
-      fx3Segment(guard, _sg3a, _sg3b, 0.016);
-      fx3Color(guard, '#8a7a5a', 1);
-      // gebogene Klinge: vier Stücke, immer schmaler, die Spitze ein Kegel
-      const pts = [[-0.11, 0], [0.0, 0.012], [0.09, 0.04], [0.16, 0.085], [0.21, 0.15]];
-      const rad = [0.03, 0.026, 0.02, 0.016];
-      for (let i = 0; i < pts.length - 1; i++) {
-        at(pts[i][0], pts[i][1]); _sg3a.copy(_sg3d);
-        at(pts[i + 1][0], pts[i + 1][1]); _sg3b.copy(_sg3d);
-        const piece = fx3Take(h, i === pts.length - 2 ? 'cone' : 'segN');
-        fx3Segment(piece, _sg3a, _sg3b, rad[i] * L);
-        fx3Color(piece, '#b9c1d6', 1);
-      }
-      // schmaler Glanz läuft über die Schneide
-      const gi = Math.min(pts.length - 2, Math.floor(glint * (pts.length - 1)));
-      at(pts[gi][0], pts[gi][1] + 0.01);
-      n3Glow(h, _sg3d.x, _sg3d.y, _sg3d.z + 0.03, 0.06, '#ffffff', 0.55 * Math.sin(glint * Math.PI));
-    }
-    // Kreuzungspunkt pulsiert rot, kleiner Funkenkranz
-    const pulse = 0.5 + 0.5 * Math.sin(t * 3.2);
-    n3Glow(h, x, cy - 0.08, z + 0.05, 0.2 + pulse * 0.06, '#c84a6a', 0.3 + pulse * 0.2);
-    if (!low) for (let i = 0; i < 3; i++) {
-      const q = (t * 0.9 + i / 3) % 1;
-      const a = i * 2.1 + t * 1.5;
-      n3Glow(h, x + Math.cos(a) * 0.16, cy - 0.15 + q * 0.3, z + Math.sin(a) * 0.1, 0.04 * (1 - q), '#ff8aa8', 0.8 * (1 - q));
-    }
-    if (!low) for (let i = 0; i < 4; i++) {
-      const q = (t * 0.6 + i / 4) % 1;
-      n3Smoke(h, x + Math.cos(i * 1.6) * 0.3, 0.1 + q * 0.4, z + Math.sin(i * 1.6) * 0.3, 0.35 + q * 0.3, '#1a1022', 0.45 * (1 - q));
-    }
-  } else if (b.id === 'segen_blut') {
-    // Blutstropfen kreisen um die Brust, das Herz schlägt rot
-    for (let i = 0; i < 6; i++) {
-      const a = t * 1.4 + i * Math.PI / 3;
-      const o = fx3Take(h, 'ball');
-      o.position.set(x + Math.cos(a) * 0.45, 0.95 + Math.sin(t * 2 + i) * 0.06, z + Math.sin(a) * 0.45);
-      o.scale.set(0.035, 0.075, 0.035);
-      fx3Color(o, i % 2 ? '#b81a2a' : '#ff4a5a', 0.95);
-    }
-    const beat = Math.max(0, Math.sin(t * 5)) ** 6;
-    n3Glow(h, x, 0.95, z + 0.12, 0.35 + beat * 0.3, '#ff2a3a', 0.25 + beat * 0.35);
-  } else if (b.id === 'segen_arkan') {
-    // Lichtkranz über dem Kopf und kleine Sterne, die um ihn kreisen
-    _sg3a.set(x, 1.95 + Math.sin(t * 2) * 0.03, z);
-    _sg3b.set(1, 0, 0);
-    const s = fx3Take(h, 'strip');
-    fx3Strip(s, _sg3a, _sg3b, _sg3v, 0.26, 0.05, 0, Math.PI * 2, '#e8d8ff', 1.1, true);
-    for (let i = 0; i < 3; i++) {
-      const a = t * 1.8 + i * 2.09;
-      const sx = x + Math.cos(a) * 0.26;
-      const sz = z + Math.sin(a) * 0.26;
-      fx3MageSprite(h, 'sprite', 'disc', sx, _sg3a.y, sz, 0.16, 0.04, '#ffffff', 0.9);
-      fx3MageSprite(h, 'sprite', 'disc', sx, _sg3a.y, sz, 0.04, 0.16, '#ffffff', 0.9);
-      n3Glow(h, sx, _sg3a.y, sz, 0.14, '#b48cff', 0.8);
-    }
-  }
-}
+// --- Aura, solange der Segen läuft --------------------------------------------------------------------------
+// seit 13.83 zeigt die Körperaura (koerperaura.js) jeden laufenden Buff im Stil von Klasse und Weg – der Segen macht
+// sie dichter und heller. Die eigenen Segen-Auren (Kranz mit Sternen, gekreuzte Dolche, Blutstropfen, Elementlichter)
+// und die kreisenden 2D-Lichter sind entfallen, damit nicht zwei Auren übereinander liegen. Die Schwingen des
+// Falkenblicks bleiben (fernninja.js).
 for (const d of Object.values(SEGEN).concat([SEGEN_LICHT])) {
-  SKILL_FX[d.id] = Object.assign(SKILL_FX[d.id] || {}, { color: d.color, aura3: segenAura3 });
-}
-
-// 2D: kleine kreisende Lichter in den Klassenfarben
-for (const d of Object.values(SEGEN).concat([SEGEN_LICHT, SEGEN_FALKE])) {
-  BUFF_LOOKS[d.id] = (ctx, p, fy, t, layer) => {
-    // in 3D zeigt die Figur die echte Aura (segenAura3)
-    if (typeof V3 !== 'undefined' && V3.on) return;
-    for (let k = 0; k < 4; k++) {
-      const o = orbit(t, 1.3, 20, k, 4, 0.4);
-      if ((layer === 'front') !== o.front) continue;
-      ctx.fillStyle = d.colors[k % d.colors.length];
-      ctx.beginPath();
-      ctx.arc(p.x + o.x, fy - 22 + o.y, 2.6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  };
+  SKILL_FX[d.id] = Object.assign(SKILL_FX[d.id] || {}, { color: d.color });
 }

@@ -2124,9 +2124,14 @@ function drawPlayerExtras3(ctx, p) {
   const invisible = (p === game.player && game.stats && game.stats.invisible) || (p.remote && p.invisible);
   ctx.save();
   if (invisible) ctx.globalAlpha = 0.35;
-  drawBuffLooks(ctx, p, fy, 'back');
-  drawBuffLooks(ctx, p, fy, 'front');
-  for (const b of p.buffs) {
+  // seit 13.83 zeigt die Körperaura (koerperaura.js) die Buffs räumlich an der Figur; die flachen 2D-Bilder
+  // (gestrichelte Ringe am Boden, gezeichnete Blitze und Schalen) liegen in 3D nicht mehr darüber
+  const flatBuffs = typeof FX3_KA === 'undefined';
+  if (flatBuffs) {
+    drawBuffLooks(ctx, p, fy, 'back');
+    drawBuffLooks(ctx, p, fy, 'front');
+  }
+  if (flatBuffs) for (const b of p.buffs) {
     const fx = SKILL_FX[b.id];
     if (!fx || !fx.ring) continue;
     ctx.save();

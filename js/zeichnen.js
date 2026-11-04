@@ -471,7 +471,9 @@ function drawPlayer(ctx, p) {
   if (!p.riding) castShadow(ctx, sp, p.x, fy, flip);
   drawShadow(ctx, p.x, fy, 12);
 
-  if (p.buffs.length) {
+  // seit 13.83 statt des Rings am Boden die Körperaura der Klasse (koerperaura.js) hinter der Figur
+  if (typeof bodyAura2 === 'function') bodyAura2(ctx, p, fy, ride, 'back');
+  else if (p.buffs.length) {
     const pulse = 0.5 + 0.5 * Math.sin(game.time * 4);
     ctx.save();
     ctx.strokeStyle = CLASSES[p.classId].trim;
@@ -658,6 +660,7 @@ function drawPlayer(ctx, p) {
   ctx.restore();
 
   drawBuffLooks(ctx, p, fy, 'front');
+  if (typeof bodyAura2 === 'function') bodyAura2(ctx, p, fy, ride, 'front');
   drawGearSparkles(ctx, p, fy, { x: (flip ? -1 : 1) * hand.x, y: hand.y }, flip ? Math.PI - angle : angle, kind);
 
   if (p.classId === 'nekromant') {
@@ -671,8 +674,8 @@ function drawPlayer(ctx, p) {
     ctx.globalAlpha = invisible ? 0.35 : 1;
   }
 
-  // Ringe aktiver Buffs unter den Füßen
-  for (const b of p.buffs) {
+  // Ringe aktiver Buffs unter den Füßen (seit 13.83 nicht mehr: die Körperaura zeigt die Buffs, koerperaura.js)
+  if (typeof bodyAura2 !== 'function') for (const b of p.buffs) {
     const fx = SKILL_FX[b.id];
     if (!fx || !fx.ring) continue;
     ctx.save();

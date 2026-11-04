@@ -1289,6 +1289,8 @@ function updateBuffAuras(dt) {
     if (!fx || !fx.aura) continue;
     const a = fx.aura;
     if (a.onlyMoving && !p.moving) continue;
+    // seit 13.83 steigen Funken und Rauch aus der Körperaura (koerperaura.js); nur der Fahrtwind bleibt
+    if (!a.wind && typeof bodyAura2 === 'function') continue;
     p.auraTimers[b.id] = (p.auraTimers[b.id] || 0) + dt;
     while (p.auraTimers[b.id] >= a.every) {
       p.auraTimers[b.id] -= a.every;
@@ -1440,24 +1442,11 @@ const BUFF_LOOKS = {
     }
     ctx.restore();
   },
-  // Aura des Schwertes: goldener Kreis am Boden mit Runen, aufsteigende Lichtfunken
+  // Aura des Schwertes: goldener Schein und aufsteigende Lichtfunken (seit 13.83 ohne Kreis am Boden)
   schwertaura(ctx, p, fy, t, layer) {
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     if (layer === 'back') {
-      ctx.strokeStyle = 'rgba(255,214,120,0.7)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([10, 6]);
-      ctx.lineDashOffset = -t * 40;
-      ctx.beginPath();
-      ctx.ellipse(p.x, fy, 26, 10, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      for (let k = 0; k < 6; k++) {
-        const o = orbit(t, 1.2, 26, k, 6);
-        ctx.fillStyle = 'rgba(255,233,160,0.9)';
-        ctx.fillRect(p.x + o.x - 1.5, fy + o.y - 1.5, 3, 3);
-      }
       glow(ctx, p.x, fy - 6, 28, '#ffd38a', 0.25);
     } else {
       for (let k = 0; k < 4; k++) {

@@ -530,8 +530,9 @@ function schwertaura3(h, p, b, t) {
       _sa3p.copy(_sa3b).addScaledVector(_sa3d, len * f);
       n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 0.8 + f * 0.35, '#ffd36a', 0.7 * pulse);
     }
+    // seit 13.83 kein Glanzstern mehr an der Spitze, nur ein weicher Lichtfleck, der ab und zu aufglüht
     const tw = Math.pow(Math.max(0, Math.sin(t * 3.1)), 6);
-    nfxStar(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.5 + tw * 0.9, '#ffe9a0', 0.6 + tw * 0.4);
+    n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.35 + tw * 0.35, '#ffe9a0', 0.5 + tw * 0.4);
     // Funken wehen von der Klinge nach oben weg
     if (!low) for (let j = 0; j < 8; j++) {
       const ph = (t * 1.6 + j / 8) % 1;
@@ -544,16 +545,7 @@ function schwertaura3(h, p, b, t) {
     ninjaHand3(p, _sa3p);
     n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 1.0, '#ffd36a', 0.7 * pulse);
   }
-  // goldener Lichtkranz am Boden, langsam drehend
-  const x = p.x;
-  const z = feetY(p);
-  const g = fx3Take(h, 'plane');
-  fx3Ground(g, x, z, 1.05 + 0.05 * pulse, 0.04, 'ring', t * 0.6);
-  fx3Color(g, '#ffd36a', 0.55);
-  if (!low) for (let j = 0; j < 6; j++) {
-    const ph = (t * 0.6 + j / 6) % 1;
-    const a = j * 1.047 + t * 0.8;
-    n3Glow(h, x * U3 + Math.cos(a) * 0.75, 0.1 + ph * 1.6, z * U3 + Math.sin(a) * 0.75, 0.16, '#fff2c0', 0.9 * (1 - ph));
-  }
+  // seit 13.83 ohne Lichtkranz am Boden und ohne eigenen Funkenkreis: um den Körper liegt die Körperaura
+  // (koerperaura.js), die Klinge bleibt das Zeichen der Schwertaura
 }
 if (SKILL_FX.schwertaura) SKILL_FX.schwertaura.aura3 = schwertaura3;

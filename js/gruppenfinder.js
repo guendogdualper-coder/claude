@@ -465,6 +465,8 @@ function onGroupFinder(pid, d) {
 // --- Takt --------------------------------------------------------------------------------------
 
 function gfTick() {
+  // seit 13.83: läuft der Zeitgeber, bevor spiel.js geladen ist (langsames Laden), gibt es game noch nicht
+  if (typeof game === 'undefined') return;
   const p = game.player;
   const btn = $('btnGf');
   if (!p || !game.running) {
