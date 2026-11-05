@@ -117,6 +117,8 @@ const FILES = [
   'js/instanzen.js',
   'js/herausforderung.js',
   'js/turnierarena.js',
+  'js/daten/ratgeber-wissen.js',
+  'js/ratgeber.js',
   'js/peerjs.min.js',
   'js/nativ.js',
   'js/spiel.js',
