@@ -21,7 +21,8 @@ const RATGEBER = {
 };
 // Standort in Kacheln: rechts neben dem Brunnen am zentralen Platz von Vlotho, schräg über dem Startplatz.
 // Zum Verschieben nur diese Zahlen ändern – ist die Stelle belegt, nimmt rgPlace die nächste freie.
-const RATGEBER_SPOT = { x: CENTER_X + 2.4, y: CENTER_Y - 1.6 };
+// seit 13.97 auf dem freien Platz des neuen Dorfplans (VLOTHO_FREE_SPOT in welt.js, südwestlich des Brunnens)
+const RATGEBER_SPOT = { x: CENTER_X - 3, y: CENTER_Y + 2 };
 
 // --- Namen und Tasten für die Antworten ------------------------------------------------------------------------
 const RG_ROLE = {
