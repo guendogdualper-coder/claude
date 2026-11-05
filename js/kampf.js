@@ -828,13 +828,17 @@ function setSkillCd(p, i, v) {
 // auf einmal wirken – nach jeder Fertigkeit haben ihre übrigen Fertigkeiten mindestens GCD_TIME s Abklingzeit
 // (längere bleiben, wie sie sind). Ulti, Klassensegen, Tränke und Grundangriff zählen nicht, ein Kanal (Eisstrahl,
 // Blutsauger) zählt als ein Zauber. Nur die eigene Figur: Mitspieler sehen nur die Optik.
+// Seit 13.91 auch der Krieger, kürzer (1,5 s): Sichelwelle, Wirbel und Sprung kamen sonst alle im selben Augenblick.
 const GCD_TIME = 2;
-const GCD_CLASSES = new Set(['schamane', 'nekromant', 'magier']);
+const GCD_CLASS_TIME = { schamane: 2, nekromant: 2, magier: 2, krieger: 1.5 };
+const GCD_CLASSES = new Set(Object.keys(GCD_CLASS_TIME));
+const gcdTime = (p) => (p && GCD_CLASS_TIME[p.classId]) || 0;
 function applyGcd(p, i) {
-  if (!GCD_CLASSES.has(p.classId)) return;
+  const g = gcdTime(p);
+  if (!g) return;
   p.gcdPrev = { at: game.time, i, cd: p.skillCd.slice(), full: (p.cdFull || []).slice() };
   for (let j = 0; j < p.skillCd.length; j++) {
-    if (j !== i && p.skillCd[j] < GCD_TIME) setSkillCd(p, j, GCD_TIME);
+    if (j !== i && p.skillCd[j] < g) setSkillCd(p, j, g);
   }
 }
 // Zauber abgebrochen (Feuerball, Mana und Abklingzeit zurück): die übrigen Fertigkeiten wieder wie vorher
