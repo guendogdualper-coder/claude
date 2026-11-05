@@ -5,7 +5,9 @@
 //   stufe  – dieselbe Gesamtmenge, aber nach Stufe aufgeteilt: wer höher ist, bekommt mehr.
 // Die Gruppe lebt nur im Kanal und wird nicht gespeichert.
 
-const PARTY = { max: 8, bonus: 0.1, dropAfter: 10 };
+// levelGap (seit 13.92): höchstens so viele Stufen zwischen dem höchsten und dem niedrigsten Mitglied – sonst zogen
+// hohe Figuren niedrige über die geteilte Erfahrung in kurzer Zeit hoch
+const PARTY = { max: 8, bonus: 0.1, dropAfter: 10, levelGap: 15 };
 const PARTY_MODES = {
   gleich: { label: 'Gleich verteilen', text: 'Jeder in der Nähe bekommt seine EP plus 10 % je weiterem Mitglied.' },
   stufe: { label: 'Höhere Stufe bekommt mehr', text: 'Die EP der Gruppe werden nach Stufe aufgeteilt: Wer höher ist, bekommt mehr.' }
@@ -55,9 +57,18 @@ function partySync(extra = []) {
   partyRefresh();
 }
 
+// Stufen aller Mitglieder (die gerade da sind) plus extra; null, wenn der Abstand zu groß wäre
+function partyGapOk(extra) {
+  const lv = [...(game.party ? game.party.members : [partyMe()]).map((n) => { const x = partyMember(n); return x && x.rp ? x.rp.level || 0 : 0; }).filter(Boolean), ...extra];
+  return !lv.length || Math.max(...lv) - Math.min(...lv) <= PARTY.levelGap;
+}
 function inviteParty(pid) {
   const rp = net.players.get(pid);
   if (!rp || !netOnline()) return;
+  if (!partyGapOk([game.player.level, rp.level || 0])) {
+    ui.log(`${rp.name} (Stufe ${rp.level}) kannst du nicht einladen: In einer Gruppe dürfen höchstens ${PARTY.levelGap} Stufen zwischen den Mitgliedern liegen.`, 'warn');
+    return;
+  }
   if (game.party && !partyLead()) {
     ui.log('Nur der Anführer der Gruppe kann einladen.', 'warn');
     return;
@@ -140,13 +151,19 @@ function onParty(pid, d) {
         netSocial(pid, { k: 'pn', n: p.name, why: 'ist schon in einer Gruppe' });
         break;
       }
+      // seit 13.92: höchstens PARTY.levelGap Stufen Abstand (auch wenn der Einladende eine ältere Version spielt)
+      if (rp && Math.abs((rp.level || p.level) - p.level) > PARTY.levelGap) {
+        netSocial(pid, { k: 'pn', n: p.name, why: `ist mehr als ${PARTY.levelGap} Stufen von dir entfernt – ihr könnt keine Gruppe bilden` });
+        break;
+      }
       inviteToast(`<b>${escapeHtml(name)}</b> lädt dich in eine Gruppe ein.`,
         () => netSocial(pid, { k: 'pa', n: p.name }),
         () => netSocial(pid, { k: 'pn', n: p.name, why: 'hat die Gruppe abgelehnt' }));
       break;
     case 'pa':
       if (!game.party) game.party = { leader: p.name, mode: 'gleich', members: [p.name] };
-      if (!partyLead() || game.party.members.length >= PARTY.max) {
+      if (!partyLead() || game.party.members.length >= PARTY.max || !partyGapOk([rp ? rp.level || 0 : 0].filter(Boolean))) {
+        if (partyLead() && game.party.members.length < PARTY.max) ui.log(`${name} passt nicht in die Gruppe: höchstens ${PARTY.levelGap} Stufen Abstand.`, 'warn');
         netSocial(pid, { k: 'ps', n: p.name, p: { leader: p.name, mode: 'gleich', members: [] } });
         break;
       }

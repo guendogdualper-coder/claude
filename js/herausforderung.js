@@ -154,20 +154,33 @@ generateWorld = function () {
 // Plan einer Welle für Spielerstufe L: Monsterstufe, Anzahl, Elite, Boss, Leben- und Schadensfaktor, Schübe
 // seit 13.70: viel mehr Monster (Welle 1: 12, je Welle +4, höchstens 60), sie kommen in Schüben nach festen Zeiten
 // (erster sofort, dann nach 10 s, 12 s, 14 s …) statt nachzurücken, wenn eines fällt
+// seit 13.92 baut sich die Stärke langsamer auf (nicht die Menge): Welle 1 deutlich leichter (Stufe −7, 60 % Leben und
+// Schaden), Welle 2–3 noch angenehm, 4–7 ungefähr wie draußen, ab Welle 8 spürbar härter (über der eigenen Stufe,
+// jede Welle +6 % Leben und +4 % Schaden). Vorher: Welle 1 schon Stufe −4 mit vollen Werten, Elite ab Welle 3.
+const ARENA_STR = [0, 0.6, 0.72, 0.82, 0.9, 0.95, 1.0, 1.05, 1.15];
+function arenaStr(w) {
+  return w < ARENA_STR.length ? ARENA_STR[Math.max(1, w)] : ARENA_STR[ARENA_STR.length - 1] + 0.06 * (w - ARENA_STR.length + 1);
+}
+function arenaWaveLevel(L, w) {
+  const ml = w < 8 ? L - 8 + w : L + Math.floor((w - 8) / 2);
+  return Math.max(1, Math.min(L + 8, ml));
+}
 function arenaWave(L, w) {
   const boss = w % 5 === 0;
+  const str = arenaStr(w);
   const n = Math.round(Math.min(60, 12 + 4 * (w - 1)) * (boss ? 0.6 : 1));
   const batches = Math.min(10, 2 + Math.floor(w / 2));
   return {
     wave: w,
-    ml: Math.max(1, Math.min(L + 8, L - 4 + Math.floor((w - 1) / 2))),
+    ml: arenaWaveLevel(L, w),
     // Bosswellen: der Wellenmeister (Mini-Boss) mit etwas kleinerem Gefolge (60 %)
     n,
-    elites: Math.min(10, Math.floor(w / 3)),
+    // Elite erst ab Welle 4 (seit 13.92)
+    elites: w < 4 ? 0 : Math.min(10, Math.floor(w / 3)),
     boss,
     bossHp: 4 + 0.4 * w,
-    hpK: 1 + 0.05 * (w - 1),
-    atkK: 1 + 0.03 * (w - 1),
+    hpK: str,
+    atkK: w <= 8 ? str : ARENA_STR[8] + 0.04 * (w - 8),
     batches,
     // Abstände der Schübe in Sekunden: 10, 12, 14 …
     gaps: Array.from({ length: batches - 1 }, (_, k) => 10 + 2 * k)
@@ -603,6 +616,7 @@ function arenaOnMsg(d) {
     run.phase = 'pause';
     run.wave = d.w | 0;
     run.until = game.time + (+d.t || ARENA.pause);
+    run.pauseLen = +d.t || ARENA.pause;
     if (run.wave === 1) ui.banner('Welle 1', 'Gleich geht es los!');
   } else if (d.k === 'arf') {
     run.phase = 'fight';
@@ -902,9 +916,14 @@ function arenaHudBuild() {
       arenaHud();
     });
   } else {
-    el.innerHTML = '<span data-a="w" style="color:#ffc86a;font-weight:800"></span><span data-a="l"></span><span data-a="s" style="color:#ffd8a8"></span>' +
-      '<span data-a="h" style="color:#ff6a5a;letter-spacing:1px"></span><span data-a="g" style="color:#ffd96a"></span>' + btn('x', 'Aufgeben', 'padding:3px 9px');
-    el.querySelector('[data-a="x"]').addEventListener('click', () => arenaStop('aufgeben'));
+    // PC (seit 13.92): eine Karte wie in der Turnierarena – Kopf mit Welle, Balken der besiegten Monster, Leben als
+    // Herzen, Gold, nächster Schub bzw. Pause mit Fortschritt; der Inhalt wird in arenaHud geschrieben
+    arenaPcCss();
+    el.className = 'ar-pc';
+    el.style.cssText = 'position:fixed;left:8px;top:90px;z-index:5;pointer-events:none';
+    el.addEventListener('click', (ev) => {
+      if (ev.target.closest('[data-a="x"]')) arenaStop('aufgeben');
+    });
   }
   el.hidden = true;
   document.body.appendChild(el);
@@ -941,6 +960,15 @@ function arenaHud() {
   const t = arenaUi.touch;
   // übrig: die lebenden und die noch kommenden (Verstärkung der Bosse zählt mit, sobald sie da ist)
   const rest = (run.left || 0) + Math.max(0, (run.n || 0) - (run.spawned || 0));
+  if (!t) {
+    arenaHudPc(el, run, rest);
+    if (el.hidden) {
+      el.hidden = false;
+      arenaUi.placeDue = true;
+    }
+    if (arenaUi.placeDue) arenaHudPlace(el);
+    return;
+  }
   const pause = Math.max(0, Math.ceil(run.until - game.time));
   const left = run.phase === 'pause' ? (t ? `Pause ${pause} s` : `Nächste Welle in ${pause} s`) : run.phase === 'fight' ? (t ? `${rest} Mon.` : `Noch ${rest} Monster`) : (t ? '…' : 'Gleich geht es los');
   const next = run.phase === 'fight' && run.nextBatch > game.time ? `Nächster Schub in ${Math.ceil(run.nextBatch - game.time)} s` : run.phase === 'pause' && t ? `Nächste Welle in ${pause} s` : '';
@@ -971,6 +999,51 @@ function arenaHud() {
     arenaUi.placeDue = true;
   }
   if (arenaUi.placeDue) arenaHudPlace(el);
+}
+
+// PC-Karte der Prüfungsarena (seit 13.92)
+function arenaPcCss() {
+  if (document.getElementById('arenaPcCss')) return;
+  const st = document.createElement('style');
+  st.id = 'arenaPcCss';
+  st.textContent =
+    '#arenaHud.ar-pc{width:290px;border-radius:12px;overflow:hidden;color:#ffe9c2;text-shadow:0 1px 2px #000;font:600 12.5px/1.3 system-ui,sans-serif;' +
+    'background:linear-gradient(180deg,rgba(58,34,16,.93),rgba(24,14,6,.9));border:1px solid rgba(255,200,106,.55);box-shadow:0 4px 16px rgba(0,0,0,.5)}' +
+    '#arenaHud .hd{display:flex;align-items:center;justify-content:space-between;padding:6px 11px;background:rgba(255,200,106,.12);border-bottom:1px solid rgba(255,200,106,.3)}' +
+    '#arenaHud .hd b{color:#ffc86a;font-size:13px}#arenaHud .hd .wv{font:900 16px/1 system-ui,sans-serif;color:#fff}' +
+    '#arenaHud .bd{display:grid;gap:6px;padding:7px 11px 9px}' +
+    '#arenaHud .row{display:flex;align-items:center;justify-content:space-between;gap:8px}' +
+    '#arenaHud .bar{height:9px;border-radius:5px;background:rgba(255,255,255,.14);overflow:hidden}#arenaHud .bar i{display:block;height:100%;transition:width .3s}' +
+    '#arenaHud .hearts{color:#ff5a4a;font-size:15px;letter-spacing:2px}#arenaHud .gold{color:#ffd96a;font-weight:800}' +
+    '#arenaHud .nx{padding:5px 8px;border-radius:8px;background:rgba(255,200,90,.1);border:1px solid rgba(255,200,90,.3);color:#ffe0a0;text-align:center}' +
+    '#arenaHud .nx .bar{height:5px;margin-top:4px}#arenaHud .nx b{font-size:15px}' +
+    '#arenaHud button{pointer-events:auto;cursor:pointer;font:700 12px system-ui,sans-serif;color:#fff;background:rgba(122,42,26,.85);border:1px solid #c86a4a;border-radius:8px;padding:4px 12px}' +
+    '#arenaHud button:hover{background:#9a3a26}#arenaHud small{opacity:.8;font-weight:600}';
+  document.head.appendChild(st);
+}
+function arenaHudPc(el, run, rest) {
+  const now = game.time;
+  const wave = Math.max(1, run.wave);
+  const n = Math.max(1, run.n || 0);
+  const done = run.phase === 'fight' ? Math.max(0, Math.min(1, 1 - rest / n)) : run.phase === 'pause' && run.cleared ? 1 : 0;
+  const W = typeof arenaWave === 'function' ? arenaWave(run.level, wave) : null;
+  let nx = '';
+  if (run.phase === 'pause') {
+    const left = Math.max(0, run.until - now);
+    nx = `<div class="nx">${run.cleared ? 'Nächste Welle' : 'Welle 1'} in <b>${Math.ceil(left)}</b> s<div class="bar"><i style="width:${Math.round(Math.max(0, 1 - left / (run.pauseLen || ARENA.pause)) * 100)}%;background:#ffc85a"></i></div></div>`;
+  } else if (run.phase === 'fight' && run.nextBatch > now) {
+    nx = `<div class="nx">Nächster Schub in <b>${Math.ceil(run.nextBatch - now)}</b> s</div>`;
+  } else if (run.phase !== 'fight') nx = '<div class="nx">Gleich geht es los …</div>';
+  const kind = W && W.boss ? '<small>Wellenmeister</small>' : W && W.elites ? '<small>mit Elite</small>' : '';
+  const hearts = `${'♥'.repeat(run.lives)}${'♡'.repeat(Math.max(0, ARENA.lives - run.lives))}`;
+  const key = [wave, rest, run.phase, Math.ceil((run.until || 0) - now), Math.ceil((run.nextBatch || 0) - now), run.lives, run.gold].join('|');
+  if (key === arenaUi.key) return;
+  arenaUi.key = key;
+  el.innerHTML = `<div class="hd"><b>Prüfungsarena</b><span class="wv">Welle ${wave}</span></div>` +
+    `<div class="bd"><div class="row"><span>${run.phase === 'fight' ? `Noch <b>${rest}</b> von ${n} Monstern` : run.phase === 'pause' && run.cleared ? `Welle ${run.cleared} geschafft!` : 'Bereit machen'}</span>${kind}</div>` +
+    `<div class="bar"><i style="width:${Math.round(done * 100)}%;background:linear-gradient(90deg,#c8642a,#ffc86a)"></i></div>` +
+    `${nx}<div class="row"><span class="hearts" title="Leben in diesem Lauf">${hearts}</span><span class="gold">${arenaFmt(run.gold)} Gold</span></div>` +
+    `<div class="row"><small>Bestwelle ${arenaFmt((arenaSave().best) || 0)}</small><button type="button" data-a="x">Aufgeben</button></div></div>`;
 }
 
 // --- Fenster beim Arenameister und am Ausgang --------------------------------------------------------------------

@@ -1,7 +1,8 @@
 // Lv-60-Instanzen (seit 13.58). Daten: js/daten/instanzen.js (INSTANCES, Gegner, Wächter, Bosse).
 // - Zwei Eingänge je Map ab Stufe 40, in den Ecken (instCornerEntrance), auf Minikarte und großer Karte.
 // - Betreten nur als Gruppe aus 2–5 Spielern, alle ab Stufe 60 (empfohlen 5: 1 Tank, 1 Heiler, 3 Schaden).
-// - Sperre: 30 Minuten je Spieler und je Instanz, ab dem Betreten (p.instLock[id] = { until, mb, done }).
+// - Sperre: 60 Minuten (seit 13.92, vorher 30) je Spieler und je Instanz, ab dem Betreten (p.instLock[id] = { until, mb, done });
+//   seit 13.92 auch in der Testzeit und für alle Figuren auf demselben Gerät (instDevMark).
 //   Solange der Boss nicht gefallen ist, kann man in seinen Durchgang zurück (z. B. nach dem Tod); die Beute der
 //   Wächter (mb) und des Bosses (done) gibt es je Sperre nur einmal. Andere Instanzen sind sofort frei.
 // - Aufbau (instPlan): zwei Dungeon-Blöcke hoch, eine Schlange aus vielen Räumen von unten zur Halle oben, in jedem
@@ -23,7 +24,7 @@
 const INST_FREE_UNTIL = Date.parse('2026-11-09T00:00:00+01:00');
 const instFree = () => Date.now() < INST_FREE_UNTIL;
 const INST = {
-  level: 60, party: [2, 5], lockMin: 30, legendary: 0.065, resetAfter: 480, respawn: 3600,
+  level: 60, party: [2, 5], lockMin: 60, legendary: 0.065, resetAfter: 480, respawn: 3600,
   miniEpic: [0.06, 0.08, 0.1, 0.12], htMiniEpic: 0.15, epic70: 0.35,
   stdAtk: 0.6, ultFirst: 0.5, ultEvery: 40, ultCast: 4.5, reach: 560, reachFinal: 760
 };
@@ -272,16 +273,38 @@ function instPopulate(dg, zone, groupId) {
 
 // --- Sperre -------------------------------------------------------------------------------------------------------
 // Eintrag der laufenden Sperre (oder null); create: neu anlegen, wenn keine läuft
+// Seit 13.92 gilt die Sperre auch für alle Figuren auf demselben Gerät (localStorage 'seelenstein.instsperre'): wer mit
+// einer Figur durch ist, kann nicht mit der nächsten Figur gleich wieder hinein. Gemerkt werden Ende, Boss und Wächter.
+const INST_DEV_KEY = 'seelenstein.instsperre';
+function instDevAll() {
+  try { return JSON.parse(localStorage.getItem(INST_DEV_KEY) || '{}') || {}; } catch (e) { return {}; }
+}
+function instDevMark(id, r) {
+  try {
+    const all = instDevAll();
+    for (const k of Object.keys(all)) if (!all[k] || all[k].until <= Date.now()) delete all[k];
+    const o = all[id];
+    all[id] = { until: Math.max(r.until, o ? o.until : 0), mb: (r.mb | 0) | (o ? o.mb | 0 : 0), done: r.done || (o && o.done) ? 1 : 0 };
+    localStorage.setItem(INST_DEV_KEY, JSON.stringify(all));
+  } catch (e) { /* ohne Speicher nur je Figur */ }
+}
 function instRecord(id, create) {
   const p = game.player;
   if (!p) return null;
   if (!p.instLock || typeof p.instLock !== 'object') p.instLock = {};
   let r = p.instLock[id];
   if (typeof r === 'number') r = p.instLock[id] = { until: r, mb: 0, done: 1 };
+  const dev = instDevAll()[id];
+  if (dev && dev.until > Date.now()) {
+    // eine andere Figur auf diesem Gerät hat die Sperre schon: übernehmen (längere Zeit, Beute schon vergeben)
+    if (!r || r.until <= Date.now()) r = p.instLock[id] = { until: dev.until, mb: dev.mb | 0, done: dev.done ? 1 : 0 };
+    else { r.until = Math.max(r.until, dev.until); r.mb |= dev.mb | 0; if (dev.done) r.done = 1; }
+  }
   if (r && r.until > Date.now()) return r;
   if (r) delete p.instLock[id];
   if (!create) return null;
   r = p.instLock[id] = { until: Date.now() + INST.lockMin * 60000, mb: 0, done: 0 };
+  instDevMark(id, r);
   return r;
 }
 // Restzeit in Minuten (aufgerundet) oder 0
@@ -309,12 +332,14 @@ function instChecks(def) {
   }
   const rec = instRecord(def.id);
   const left = instLockMin(def.id);
-  if (instFree()) return [{ ok: true, text: 'Testzeit bis einschließlich 8. 11.: ohne Stufe, ohne Gruppe (auch allein), ohne Sperre' }];
+  const lockRow = { ok: !(rec && rec.done), text: rec && rec.done ? `Sperre: Du warst schon drin – wieder frei in ${left} Min.` : rec ? `Dein Durchgang läuft noch ${left} Min. – du kannst zurück` : `Keine Sperre (${INST.lockMin} Minuten ab dem Betreten)`, err: `gesperrt – für dich wieder frei in ${left} Minuten` };
+  // Testzeit: ohne Stufe und Gruppe, aber seit 13.92 mit Sperre (vorher ging es beliebig oft hintereinander)
+  if (instFree()) return [{ ok: true, text: 'Testzeit bis einschließlich 8. 11.: ohne Stufe, ohne Gruppe (auch allein)' }, lockRow];
   return [
     { ok: p.level >= instMinLevel(def), text: `Du bist mindestens Stufe ${instMinLevel(def)} (jetzt ${p.level})`, err: `erst ab Stufe ${instMinLevel(def)}` },
     { ok: !!party && n >= INST.party[0] && n <= INST.party[1], text: `Gruppe aus ${INST.party[0]}–${INST.party[1]} Spielern (jetzt ${party ? n : 'keine Gruppe'})`, err: party ? `nur für Gruppen aus ${INST.party[0]}–${INST.party[1]} Spielern` : 'nur als Gruppe (2–5 Spieler) betretbar' },
     { ok: !lowName, text: lowName ? `${lowName} ist noch nicht Stufe ${instMinLevel(def)}` : `Alle in der Gruppe ab Stufe ${instMinLevel(def)}`, err: `${lowName} ist noch nicht Stufe ${instMinLevel(def)}` },
-    { ok: !(rec && rec.done), text: rec && rec.done ? `Sperre: Du warst schon drin – wieder frei in ${left} Min.` : rec ? `Dein Durchgang läuft noch ${left} Min. – du kannst zurück` : 'Keine Sperre (30 Minuten ab dem Betreten)', err: `gesperrt – für dich wieder frei in ${left} Minuten` }
+    lockRow
   ];
 }
 // Betreten (aus enterDungeon): Fehlertext oder null; beim Erfolg beginnt die Sperre
@@ -322,7 +347,6 @@ function instTryEnter(k) {
   const def = DUNGEONS[k];
   const bad = instChecks(def).find((c) => !c.ok);
   if (bad) return `${def.name}: ${bad.err}.`;
-  if (instFree()) return null; // Testzeit: keine Sperre
   const fresh = !instRecord(def.id);
   instRecord(def.id, true);
   if (fresh) ui.log(`${def.name}: Deine Sperre läuft ab jetzt ${INST.lockMin} Minuten. Andere Instanzen bleiben frei.`, 'info');
@@ -341,7 +365,7 @@ function instRenderGate(body, npc, dg) {
     `<p>${def.text} ${nRooms} Räume voller Gegner, dazwischen vier Wächter, die immer stärker werden: ${minis}. Oben in der Halle wartet <b>${boss.name}</b> – versiegelt, bis alle Wächter gefallen sind.</p>` +
     '<p class="hint-text">Rote Kreise am Boden: gleich schlägt es dort ein, raus da! Grüne Kreise sind sicher. Wächter schreien bei 60 % und rufen Helfer, unter 30 % rasen sie. Ab der Hälfte seines Lebens entfesselt der Instanzboss seine Ult: Nur in den Lichtkreisen überlebt man sie.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
-    `<p class="inst-lock" data-instlock="${def.id}">${instLockText(def.id) ? 'Sperre: ' + instLockText(def.id) : (instFree() ? 'Testzeit: keine Sperre – so oft du willst.' : 'Für dich frei. Die Sperre (30 Min.) beginnt beim Betreten und gilt nur für diese Instanz.')}</p>` +
+    `<p class="inst-lock" data-instlock="${def.id}">${instLockText(def.id) ? 'Sperre: ' + instLockText(def.id) : `Für dich frei. Die Sperre (${INST.lockMin} Min.) beginnt beim Betreten und gilt nur für diese Instanz.`}</p>` +
     `<p><b class="legend-text">Beute:</b> Der Instanzboss lässt in einer Fünfergruppe 2 epische Teile fallen (${instMobLevel(def) >= 75 ? 'Lv 70–80' : 'Lv 60–70'}, in kleineren Gruppen 1), mit Glück dazu ein legendäres (Lv 80), außerdem Verstärkungen, Switcher und Schmiede-Teile. Wächter: mit etwas Glück ein episches Teil.</p>` +
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Instanz betreten' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
@@ -353,7 +377,7 @@ function instRenderGate(body, npc, dg) {
   const tick = setInterval(() => {
     if (!document.body.contains(el)) { clearInterval(tick); return; }
     const t = instLockText(def.id);
-    el.textContent = t ? 'Sperre: ' + t : (instFree() ? 'Testzeit: keine Sperre – so oft du willst.' : 'Für dich frei. Die Sperre (30 Min.) beginnt beim Betreten und gilt nur für diese Instanz.');
+    el.textContent = t ? 'Sperre: ' + t : `Für dich frei. Die Sperre (${INST.lockMin} Min.) beginnt beim Betreten und gilt nur für diese Instanz.`;
   }, 1000);
 }
 
@@ -903,7 +927,7 @@ function instFinalLoot(m, def) {
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${def.name} bezwungen!`, `${n} epische${n > 1 ? '' : 's'} Teil${n > 1 ? 'e' : ''}${leg ? ' und ein legendäres!' : ''}`);
   flashScreen(leg ? '#ffb21a' : '#b06cff', 0.45);
-  ui.log(`${def.name}: ${m.name} besiegt (Gruppe ${size}). ${instFree() ? 'Testzeit: gleich wieder möglich.' : `Wieder frei in ${instLockMin(def.id)} Min.`}`, 'level');
+  ui.log(`${def.name}: ${m.name} besiegt (Gruppe ${size}). Wieder frei in ${instLockMin(def.id)} Min.`, 'level');
 }
 function instLoot(m) {
   const I = m.type.inst;
@@ -913,13 +937,6 @@ function instLoot(m) {
     instMiniLoot(m, I.ht ? INST.htMiniEpic : INST.miniEpic[I.rank] || 0.1);
     return;
   }
-  // Testzeit: Beute bei jedem Sieg, ohne Sperre
-  if (instFree()) {
-    if (I.final) instFinalLoot(m, def);
-    else instMiniLoot(m, INST.miniEpic[I.rank] || 0.1);
-    saveGame();
-    return;
-  }
   const rec = instRecord(def.id, true);
   if (I.final) {
     if (rec.done) {
@@ -927,6 +944,7 @@ function instLoot(m) {
       return;
     }
     rec.done = 1;
+    instDevMark(def.id, rec);
     instFinalLoot(m, def);
   } else {
     const bit = 1 << Math.max(0, def.minis.indexOf(m.typeId));
@@ -935,6 +953,7 @@ function instLoot(m) {
       return;
     }
     rec.mb |= bit;
+    instDevMark(def.id, rec);
     instMiniLoot(m, INST.miniEpic[I.rank] || 0.1);
   }
   saveGame();
