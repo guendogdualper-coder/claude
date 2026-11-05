@@ -42,7 +42,8 @@ function minutesToSwitch() {
 // 3D: wird am Ende von v3UpdateMood aufgerufen (Werte des Gebiets stehen dann schon in V3)
 const _dn3 = typeof THREE !== 'undefined' ? new THREE.Color() : null;
 function v3NightMood(zone) {
-  const nk = zone && zone.dungeon ? 0 : nightAmount();
+  // seit 13.86 auch nicht in den Hallen der Turnierarena (zone.pvp): Spieler gegen Spieler braucht freie Sicht
+  const nk = zone && (zone.dungeon || zone.pvp) ? 0 : nightAmount();
   // für Teile ohne Licht (Wasser, Moor, Lava, Horizont; seit 13.43): die dunkeln sonst nachts nicht mit ab
   V3.nightK = nk < 0.002 ? 0 : nk;
   if (nk < 0.002 || !_dn3) return;
@@ -61,7 +62,7 @@ function drawNightTint(ctx, w, h) {
   const p = game.player;
   if (!p) return;
   const zone = zoneAt(p.x, p.y);
-  const nk = zone.dungeon ? 0 : nightAmount();
+  const nk = zone.dungeon || zone.pvp ? 0 : nightAmount();
   if (nk < 0.01) return;
   // in 3D dunkeln schon Licht und Himmel ab, dort nur ein Hauch
   ctx.fillStyle = `rgba(10,16,46,${((V3.on ? 0.12 : 0.45) * nk).toFixed(3)})`;

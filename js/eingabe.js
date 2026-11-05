@@ -206,6 +206,12 @@ function selectAt(clientX, clientY) {
         setTarget(game.duel.proxy, true);
         return 'monster';
       }
+      // seit 13.86: in der Turnierarena wird ein Gegner zum Ziel (Mitspieler im eigenen Team nie)
+      const foe = typeof pvpProxyFor === 'function' ? pvpProxyFor(pid) : null;
+      if (foe) {
+        setTarget(foe, true);
+        return 'monster';
+      }
       pcard.open(pid);
       return 'player';
     }
@@ -374,7 +380,8 @@ function cycleTarget() {
   if (!p) return;
   const reach = Math.max(560, (typeof basicAttack === 'function' ? basicAttack(p).range : 0) + 200);
   // seit 13.85: Seelensteine kommen erst nach den Monstern dran
-  const list = aliveEnemies().filter((m) => !m.hidden && !m.duelProxy && dist(m, p) < reach).sort((a, b) => (a.isStone ? 1 : 0) - (b.isStone ? 1 : 0) || dist(a, p) - dist(b, p));
+  // seit 13.86 auch die Gegner in der Turnierarena (m.pvp), aber weiter nicht der Duellgegner
+  const list = aliveEnemies().filter((m) => !m.hidden && !(m.duelProxy && !m.pvp) && dist(m, p) < reach).sort((a, b) => (a.isStone ? 1 : 0) - (b.isStone ? 1 : 0) || dist(a, p) - dist(b, p));
   if (!list.length) return;
   // nach einer Pause von 4 s beginnt eine neue Runde
   if (game.time - TAB.at > 4) TAB.seen.clear();

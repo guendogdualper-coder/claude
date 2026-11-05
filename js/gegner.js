@@ -1428,6 +1428,13 @@ function allyPickTarget(a, p) {
     }
   }
   if (duelFighting() && !game.duel.proxy.dead && allyScore(game.duel.proxy, a, p, proxyOk) < bestScore) best = game.duel.proxy;
+  // seit 13.86: Diener kämpfen in der Turnierarena gegen die gegnerischen Spieler mit (wie im Duell nur halb so stark)
+  if (typeof pvpFoes === 'function') {
+    for (const f of pvpFoes()) {
+      const sc = allyScore(f, a, p, proxyOk);
+      if (sc < bestScore) { best = f; bestScore = sc; }
+    }
+  }
   return best;
 }
 
@@ -1476,7 +1483,9 @@ function updateAllies(dt) {
     }
     let t = a.target;
     // vorbei: totes Ziel, zu weit weg oder Duell-Stellvertreter nach dem Duell
-    if (t && (t.dead || dist(t, p) > ALLY_KEEP || (t.duelProxy && (!duelFighting() || t !== game.duel.proxy)))) {
+    // seit 13.86: Gegner der Turnierarena gelten, solange sie in pvpFoes stehen
+    const pvpGone = t && t.pvp && !(typeof pvpFoes === 'function' && pvpFoes().includes(t));
+    if (t && (t.dead || dist(t, p) > ALLY_KEEP || pvpGone || (t.duelProxy && !t.pvp && (!duelFighting() || t !== game.duel.proxy)))) {
       t = a.target = null;
       a.windup = 0;
     }

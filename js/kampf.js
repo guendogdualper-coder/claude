@@ -27,9 +27,11 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // Im Duell steht der Gegner als Stellvertreter mit in der Liste
+// seit 13.86 auch die gegnerischen Spieler in der Turnierarena (pvpFoes, turnierarena.js) – nie das eigene Team
 function aliveEnemies() {
   const list = game.monsters.filter((m) => !m.dead);
   if (duelFighting() && !game.duel.proxy.dead) list.push(game.duel.proxy);
+  if (typeof pvpFoes === 'function') for (const f of pvpFoes()) list.push(f);
   return list;
 }
 
@@ -225,7 +227,8 @@ function hitMonster(m, mul, opts = {}) {
     m._sEl = sndElOf(opts.skill);
     m._sElAt = game.time;
   }
-  if (m.duelProxy) return duelHit(m, mul, opts);
+  // seit 13.86: Gegner in der Turnierarena gehen denselben Weg wie im Duell (pvpHit, turnierarena.js)
+  if (m.duelProxy) return m.pvp ? pvpHit(m, mul, opts) : duelHit(m, mul, opts);
   m.struckAt = game.time;
   const p = game.player;
   const s = game.stats;
@@ -554,7 +557,8 @@ function damagePlayer(amount, attacker) {
     }
   }
   // Im Duell fällt niemand: wer auf 1 Leben kommt, hat verloren
-  const duelBlow = attacker && attacker.duelProxy;
+  // seit 13.86 nicht in der Turnierarena (attacker.pvp): dort fällt man wirklich und scheidet aus
+  const duelBlow = attacker && attacker.duelProxy && !attacker.pvp;
   if (duelBlow && dmg > 0 && p.hp - dmg < 1) {
     dmg = Math.max(0, Math.floor(p.hp - 1));
     later(0, () => duelLose(null));
@@ -570,7 +574,7 @@ function damagePlayer(amount, attacker) {
     game.hurtFlash = 0.35;
     shakeScreen(2.5);
   }
-  if (s.reflect > 0 && attacker && !attacker.dead && !duelBlow) {
+  if (s.reflect > 0 && attacker && !attacker.dead && !attacker.duelProxy) {
     damageMonster(attacker, Math.max(1, Math.round(amount * s.reflect)), false, p, false);
   }
   if (p.hp <= 0) playerDie();
@@ -1892,17 +1896,19 @@ function updateProjectiles(dt) {
       continue;
     }
     if (pr.owner === 'player') {
-      // Duellgegner: Geschosse treffen auch ihn
-      const foe = duelFighting() ? game.duel.proxy : null;
-      if (foe && !pr.hit.has('duel') && Math.hypot(foe.x - pr.x, foe.y - pr.y) < foe.r + pr.radius) {
-        pr.hit.add('duel');
+      // Duellgegner: Geschosse treffen auch ihn (seit 13.86 auch die Gegner in der Turnierarena, pvpFoes)
+      const foes = duelFighting() ? [game.duel.proxy] : typeof pvpFoes === 'function' ? pvpFoes() : [];
+      for (const foe of foes) {
+        if (foe.dead || pr.hit.has(foe.id) || Math.hypot(foe.x - pr.x, foe.y - pr.y) >= foe.r + pr.radius) continue;
+        pr.hit.add(foe.id);
         // Schädelsalve im Duell: der erste Schädel voll, jeder weitere nur mit duelExtra (zusammen 1,5×)
         const mul = pr.mul * (pr.salve && pr.salve.duel++ > 0 ? pr.salve.extra : 1);
         const hm = pr.hitMul ? pr.hitMul(foe) : 1;
         hitMonster(foe, mul * hm, { stun: pr.stun, slow: pr.slow, burn: pr.burn, vfxColor: pr.color, skill: pr.skill, basic: pr.basic, duelMul: pr.duelMul });
         if (pr.afterHit) pr.afterHit(foe, pr);
-        if (!pr.pierce) { pr.done = true; continue; }
+        if (!pr.pierce) { pr.done = true; break; }
       }
+      if (pr.done) continue;
       // Kurvenflug (Schädelsalve): trifft nur sein eigenes Ziel, solange es lebt (fliegt an anderen vorbei)
       // dazu der Feuerball (focusOnly, seit 13.46 nur er): wer vor seinem Ziel steht, wird nicht getroffen
       const only = !pr.pierce && (pr.turn || pr.focusOnly) && pr.target && !pr.target.dead ? pr.target : (pr.onlyHit && !pr.onlyHit.dead ? pr.onlyHit : null);

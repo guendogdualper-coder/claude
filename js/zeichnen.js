@@ -1598,12 +1598,15 @@ function drawLabel(ctx, e) {
     const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (e.riding ? RIDE_HEIGHT : 0);
     // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
     const mate = e.remote && inMyParty(e.name);
+    // seit 13.86: in der Turnierarena Name und Leben in der Teamfarbe, vor der Stufe ein kleiner Rang-Stein
+    const pv = typeof pvpLabelInfo === 'function' ? pvpLabelInfo(e) : null;
     const lvY = y - (mate ? 14 : 11);
     ctx.font = (mate ? '700 11px' : '700 9px') + ' "Alegreya Sans", sans-serif';
     ctx.lineWidth = 2.5;
     ctx.strokeText(lvText, e.x, lvY);
     ctx.fillStyle = '#ffd98a';
     ctx.fillText(lvText, e.x, lvY);
+    if (pv) pvpDrawGem(ctx, e.x - ctx.measureText(lvText).width / 2 - 7, lvY - 3.5, pv.tier);
     // Gildenname in der Gildenfarbe über der Stufe
     const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
     if (guild) {
@@ -1616,10 +1619,10 @@ function drawLabel(ctx, e) {
     ctx.font = (mate ? '800 13px' : '600 10px') + ' "Alegreya Sans", sans-serif';
     ctx.lineWidth = mate ? 3.5 : 2.5;
     ctx.strokeText(label, e.x, y);
-    ctx.fillStyle = mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
+    ctx.fillStyle = pv ? pv.color : mate ? '#5dff6e' : e.remote ? '#a8f0a0' : '#9fe0ff';
     ctx.fillText(label, e.x, y);
     // Mitspieler zeigen ihr Leben unter dem Namen
-    if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), mate ? '#3ee05a' : '#4ad04a');
+    if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), pv ? pv.bar : mate ? '#3ee05a' : '#4ad04a');
     // seit 13.85: eigener Lebensbalken über der Figur (Einstellung „Eigener Lebensbalken“, Größe einstellbar)
     if (e === p && opts.selfBar && !p.dead) {
       const k = Math.max(0.5, Math.min(2, +opts.selfBarSize || 1));

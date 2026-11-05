@@ -82,7 +82,8 @@ function renderGroundChunk(cx, cy) {
       const px = x * TILE;
       const py = y * TILE;
       if (w.obj[i] === OBJ.CAVEWALL) {
-        drawCaveWall(ctx, x, y, px, py, h, ZONES[w.zoneIdx[i]].dungeon);
+        // seit 13.86: Hallen der Turnierarena mit eigenen Wandfarben (zone.wallLook wie dungeon.wall)
+        drawCaveWall(ctx, x, y, px, py, h, ZONES[w.zoneIdx[i]].dungeon || ZONES[w.zoneIdx[i]].wallLook);
         continue;
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA || LIQUID.has(g) || g === GROUND.ICE || g === GROUND.FLAGSTONE) {

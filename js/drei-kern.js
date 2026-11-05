@@ -1084,7 +1084,8 @@ function tileSample(x, y, out) {
   if (w.obj[i] === OBJ.CAVEWALL) {
     out.h = WALL3_H;
     const zone = ZONES[w.zoneIdx[i]];
-    _c.set(lighter(zone.dungeon ? zone.dungeon.wall.top : '#3a3430', 0.22));
+    // seit 13.86: auch eigene Wandfarben ohne Dungeon (zone.wallLook, Hallen der Turnierarena)
+    _c.set(lighter(zone.dungeon ? zone.dungeon.wall.top : zone.wallLook ? zone.wallLook.wall.top : '#3a3430', 0.22));
     out.r = _c.r; out.g = _c.g; out.b = _c.b;
     return out;
   }

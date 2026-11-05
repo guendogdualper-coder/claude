@@ -213,7 +213,10 @@ const TOWN_PLACES = {
     briefkasten: [18.2, 20.8, null],
     // seit 13.85 ohne Stand mitten in der Stadt: links oben schräg hinter dem Brunnen, frei von Wegen, Weltentor und
     // den Wegen der umherlaufenden Leute (Bauer, Mönch, Nachtwächterin, Laternenanzünder); vorher [-19.25, 15.5, 'w']
-    arena: [-3.9, -4.5, null]
+    arena: [-3.9, -4.5, null],
+    // seit 13.86: Turniermeister (Spieler gegen Spieler, turnierarena.js) ohne Stand links neben dem Arenameister, etwas
+    // tiefer, damit sich die Namen über den Köpfen nicht berühren
+    pvp: [-6.9, -3.3, null]
   },
   // Städte: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 3,6)
   stadt: {
@@ -223,7 +226,9 @@ const TOWN_PLACES = {
     post: [17.25, 5.5, 'e'], jaegerin: [17.25, 9.1, 'e'], auktion: [17.25, 12.7, 'e'], frei: [17.25, 16.3, 'e'],
     briefkasten: [15.3, 6.7, null],
     // seit 13.85 ohne Stand in der Mitte, rechts unten (der Brunnen steht links oben); vorher [-16.25, 16.3, 'w']
-    arena: [3.6, 3.4, null]
+    arena: [3.6, 3.4, null],
+    // seit 13.86: Turniermeister rechts unten neben dem Arenameister
+    pvp: [6.1, 4.4, null]
   },
   // Lager (klein): je zwei an West- und Ostmauer über und unter dem Tor, dazu drei an der Nordmauer neben den
   // Tortürmen (in der Nordwestecke nur einer, dort rückt die Mauer näher ans Tor) und vier an der Südmauer
@@ -234,12 +239,14 @@ const TOWN_PLACES = {
     stallmeister: [-7.4, 10.25, 'n'], bogenmacher: [3.75, 10.25, 'n'], post: [7.6, 10.25, 'n'],
     briefkasten: [9.4, 11.3, null],
     // seit 13.85 ohne Stand in der Mitte, rechts unten (Brunnen links, Weltentor oben); vorher [-3.75, 10.25, 'n']
-    arena: [3.9, 2.7, null]
+    arena: [3.9, 2.7, null],
+    // seit 13.86: Turniermeister schräg über dem Arenameister (nicht genau darüber: dort läge sein Name auf dessen Plakette)
+    pvp: [5.4, -1.3, null]
   }
 };
 // Stadtleute mit Stand, in der Reihenfolge, in der sie in jeder Stadt erzeugt werden (seit 13.72)
 const TOWN_ROLES = ['aeltester', 'waffen', 'haendler', 'schmied', 'lehrmeister', 'teleport', 'ruestung', 'alchemist', 'lager', 'jaegerin',
-  'stallmeister', 'bogenmacher', 'post', 'auktion', 'arena'];
+  'stallmeister', 'bogenmacher', 'post', 'auktion', 'arena', 'pvp'];
 // Art der Stadt einer Map (siehe TOWN_PLACES)
 function townKind(mapId) {
   if (mapId === 1) return 'dorf';
@@ -540,7 +547,8 @@ function generateWorld() {
     lager: 'Lagerverwalter Bo', jaegerin: 'Jägerin Rin', stallmeister: 'Stallmeister Jun',
     bogenmacher: 'Bogenmacherin Hana', // seit 13.57: Bögen, Köcher und Pfeile
     post: 'Postmeisterin Ida', auktion: 'Auktionator Edo', // seit 13.63 (auktionshaus.js, post.js)
-    arena: 'Arenameisterin Kaida' // seit 13.63: Herausforderung (herausforderung.js)
+    arena: 'Arenameisterin Kaida', // seit 13.63: Herausforderung (herausforderung.js)
+    pvp: 'Turniermeister Tamo' // seit 13.86: Turnierarena, Spieler gegen Spieler (turnierarena.js)
   };
   const townNpc = (mapId, id, name) => {
     const at = townPlace(mapId, id);
@@ -559,7 +567,8 @@ function generateWorld() {
     lehrmeister: ['Lehrmeister', 'Lehrmeisterin'], lager: ['Lagerverwalter', 'Lagerverwalterin'],
     bogenmacher: ['Bogenmacherin', 'Bogenmacher'],
     auktion: ['Auktionator', 'Auktionatorin'], post: ['Postmeisterin', 'Postmeister'], // seit 13.63
-    arena: ['Arenameisterin', 'Arenameister'] // seit 13.63: Herausforderung (herausforderung.js)
+    arena: ['Arenameisterin', 'Arenameister'], // seit 13.63: Herausforderung (herausforderung.js)
+    pvp: ['Turniermeisterin', 'Turniermeister'] // seit 13.86: Turnierarena (turnierarena.js)
   };
   // je Map: Name und ob die weibliche/männliche Form (Index in ROLE_TITLE) gilt
   const MAP_PEOPLE = {
@@ -585,6 +594,9 @@ function generateWorld() {
   // Arenameister je Map (seit 13.63, Herausforderung)
   const ARENA_PEOPLE = { 2: ['Zarif', 1], 3: ['Brynja', 0], 4: ['Rasmus', 1], 5: ['Urgash', 1], 6: ['Samira', 0], 7: ['Hedda', 0], 8: ['Vesper', 0], 9: ['Glutfaust', 1], 10: ['Varik', 1] };
   for (const [k, v] of Object.entries(ARENA_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].arena = v;
+  // Turniermeister je Map (seit 13.86, Turnierarena)
+  const PVP_PEOPLE = { 2: ['Faruk', 1], 3: ['Ragnhild', 0], 4: ['Wendel', 1], 5: ['Morga', 0], 6: ['Kamal', 1], 7: ['Asta', 0], 8: ['Dorn', 1], 9: ['Zinder', 1], 10: ['Liora', 0] };
+  for (const [k, v] of Object.entries(PVP_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].pvp = v;
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
     return n.startsWith('Hexe') ? n : `${ROLE_TITLE[id][form]} ${n}`.trim();

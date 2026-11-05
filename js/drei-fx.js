@@ -2221,6 +2221,12 @@ function regionRect3(x, y) {
     const R = arenaSlotRect(as);
     return { r: [R.x, R.y, R.w, R.h], inset: 1, key: 'da' + as };
   }
+  // Hallen der Turnierarena (seit 13.86, turnierarena.js): ebenso abgeschlossen
+  const ps = typeof pvpSlotAt === 'function' ? pvpSlotAt(x, y) : -1;
+  if (ps >= 0) {
+    const R = PVP_SLOTS[ps];
+    return { r: [R.x, R.y, R.w, R.h], inset: 1, key: 'dp' + ps };
+  }
   return null;
 }
 function v3SyncBounds() {

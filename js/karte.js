@@ -26,6 +26,11 @@ function mapAreaAt(tx, ty) {
     const s = arenaSlotAt(tx * TILE, ty * TILE);
     const R = arenaSlotRect(s);
     area = { key: `a${s}`, x: R.x, y: R.y, w: R.w, h: R.h, wm: null, dungeon: -1 };
+  } else if (typeof pvpSlotAt === 'function' && pvpSlotAt(tx * TILE, ty * TILE) >= 0) {
+    // Halle der Turnierarena (seit 13.86, turnierarena.js)
+    const s = pvpSlotAt(tx * TILE, ty * TILE);
+    const R = PVP_SLOTS[s];
+    area = { key: `p${s}`, x: R.x, y: R.y, w: R.w, h: R.h, wm: null, dungeon: -1 };
   }
   if (area) _areaLast = area;
   return area;
