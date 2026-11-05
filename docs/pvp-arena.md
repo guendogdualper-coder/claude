@@ -36,7 +36,8 @@ Code: `js/turnierarena.js` (dazu kleine Haken in `kampf.js`, `gegner.js`, `einga
 
 ### Turmschlacht (4 gegen 4, ohne Rang)
 
-- Zwei Teams: **Blau** (Basis im Westen) und **Rot** (Basis im Osten).
+- Zwei Teams: **Blau** (Basis im Westen) und **Rot** (Basis im Osten). Seit 13.89 ist die Wiese 99 × 55 Kacheln groß, die Basen liegen 42 Kacheln vom Turm entfernt (vorher 30).
+- Anzeige am PC (seit 13.89): oben in der Mitte eine Tafel mit den Kills beider Teams, der Zeit und dem Turm; unten links eine Karte mit Teams, Turm, Wiedereinstieg (mit Fortschritt), eigenen Kills/Toden und „Verlassen“.
 - Beginnt schon ab 2 Spielern (dann 1 gegen 1). Wer sich später anmeldet, kommt in das laufende Spiel und füllt das
   kleinere Team auf (höchstens 4 je Team).
 - Wer fällt, steht nach 6 Sekunden in der kleinen Basis seines Teams wieder auf (2 Sekunden geschützt) und läuft zurück

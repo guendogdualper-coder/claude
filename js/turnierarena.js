@@ -102,7 +102,8 @@ const PVP_DIM = {
     mood: { sky: '#5a2a20', sun: '#ffb080', sunI: 0.78, hemi: '#ffb890', ground: '#3a1a14', hemiI: 0.58, near: 24, far: 56 }
   },
   f4: {
-    w: 75, h: 47, hw: 34, hh: 20, spawnX: 29.5, name: 'Turmwiese', ground: 'GRASS',
+    // seit 13.89 größer (vorher 75 × 47, Basis 25 Kacheln von der Mitte): längerer Weg von der Basis zum Turm
+    w: 99, h: 55, hw: 46, hh: 24, spawnX: 41.5, baseX: 37, name: 'Turmwiese', ground: 'GRASS',
     wall: { top: '#4a5a3a', face: '#26301e', line: '#6a7a50' }, theme: '#6a6a5a|#c9c0a0|#ffe08a', fire: '#ffc86a',
     ambient: { kind: 'pollen', tint: [255, 240, 200, 0.03] },
     mood: { sky: '#a8d8ee', sun: '#fff2d0', sunI: 0.98, hemi: '#e8f6ff', ground: '#6a8a40', hemiI: 0.64, near: 34, far: 72 }
@@ -121,7 +122,7 @@ for (const id of PVP_MODE_IDS) {
 const PVP_SLOTS = [];
 (() => {
   const X0 = WORLD_W + 14;
-  const rows = { r1: [X0, DUNGEON_H + 112, 35], r2: [X0 + 145, DUNGEON_H + 112, 43], r3: [X0, DUNGEON_H + 148, 53], f4: [X0, DUNGEON_H + 190, 79] };
+  const rows = { r1: [X0, DUNGEON_H + 112, 35], r2: [X0 + 145, DUNGEON_H + 112, 43], r3: [X0, DUNGEON_H + 148, 53], f4: [X0, DUNGEON_H + 190, 103] };
   for (const id of PVP_MODE_IDS) {
     const D = PVP_DIM[id];
     const [x0, y0, step] = rows[id];
@@ -159,18 +160,20 @@ function pvpInHall(mode, dx, dy) {
 }
 // Lavabecken im Glutkessel (zwei flache Ellipsen ober- und unterhalb der Mitte): dazwischen drei Gassen
 const pvpLava = (dx, dy) => ((dx / 6.5) ** 2 + ((Math.abs(dy) - 6.5) / 2.4) ** 2) <= 1;
-// Basis der Turmwiese: Platz an der West- (Blau) bzw. Ostwand, Mauer mit Tor zur Mitte
-const pvpBaseIn = (dx, dy) => Math.abs(dx) >= 26 && Math.abs(dy) <= 8;
-const pvpBaseWall = (dx, dy) => (Math.abs(dx) === 25 && Math.abs(dy) >= 3 && Math.abs(dy) <= 9) || (Math.abs(dy) === 9 && Math.abs(dx) >= 25);
+// Basis der Turmwiese: Platz an der West- (Blau) bzw. Ostwand, Mauer mit Tor zur Mitte (BX = Abstand der Mauer)
+const PVP_BX = PVP_DIM.f4.baseX;
+const pvpBaseIn = (dx, dy) => Math.abs(dx) >= PVP_BX + 1 && Math.abs(dy) <= 8;
+const pvpBaseWall = (dx, dy) => (Math.abs(dx) === PVP_BX && Math.abs(dy) >= 3 && Math.abs(dy) <= 9) || (Math.abs(dy) === 9 && Math.abs(dx) >= PVP_BX);
 // Deckung je Halle (Säulen p, Felsen r) in Kacheln ab der Mitte; alle Hallen sind links und rechts gleich (gerecht)
 const PVP_COVER = {
   r1: { p: [[0, -3], [0, 3], [-6, -6], [6, 6], [-6, 6], [6, -6]], r: [] },
   r2: { p: [[0, -5], [0, 5], [-10, 0], [10, 0]], r: [[-7, -6], [-6, -6], [7, 6], [6, 6], [-7, 6], [-6, 6], [7, -6], [6, -6], [-3, 0], [3, 0]] },
   r3: { p: [[-7, -2], [7, 2], [-7, 2], [7, -2], [-13, -11], [13, 11], [-13, 11], [13, -11]], r: [[0, -11], [0, 11], [-15, 0], [15, 0]] },
+  // seit 13.89 auf die größere Wiese verteilt: Deckung nahe am Turm, auf halbem Weg und vor den Basen
   f4: {
-    p: [[-9, -11], [9, 11], [-9, 11], [9, -11], [-19, -3], [19, 3], [-19, 3], [19, -3]],
-    r: [[-12, -6], [-13, -6], [12, 6], [13, 6], [-12, 6], [-13, 6], [12, -6], [13, -6], [-18, -13], [-18, -14], [18, 13], [18, 14], [-18, 13], [-18, 14], [18, -13], [18, -14],
-      [-5, -15], [5, 15], [-5, 15], [5, -15]]
+    p: [[-10, -12], [10, 12], [-10, 12], [10, -12], [-21, -3], [21, 3], [-21, 3], [21, -3], [-31, -12], [31, 12], [-31, 12], [31, -12]],
+    r: [[-13, -6], [-14, -6], [13, 6], [14, 6], [-13, 6], [-14, 6], [13, -6], [14, -6], [-20, -15], [-20, -16], [20, 15], [20, 16], [-20, 15], [-20, 16], [20, -15], [20, -16],
+      [-5, -17], [5, 17], [-5, 17], [5, -17], [-27, -6], [-28, -6], [27, 6], [28, 6], [-27, 6], [-28, 6], [27, -6], [28, -6], [-33, -19], [33, 19], [-33, 19], [33, -19]]
   }
 };
 
@@ -214,7 +217,7 @@ function pvpBuild(w) {
           // Wiese mit Wegen von den Basen zur Mitte, Platten im Turmkreis und in den Basen
           const r = Math.hypot(dx, dy);
           g = h % 7 === 0 ? G.MEADOW : G.GRASS;
-          if (Math.abs(dy) <= 1 && Math.abs(dx) >= PVP.capR + 1 && Math.abs(dx) < 25) g = G.PATH;
+          if (Math.abs(dy) <= 1 && Math.abs(dx) >= PVP.capR + 1 && Math.abs(dx) < PVP_BX) g = G.PATH;
           if (r <= PVP.capR) g = G.PLAZA;
           if (pvpBaseIn(dx, dy)) g = G.FLAGSTONE;
           if (pvpBaseWall(dx, dy)) {
@@ -243,9 +246,10 @@ function pvpBuild(w) {
     const fires = mode === 'r1' ? [[-8, -6.5], [8, -6.5], [-8, 6.5], [8, 6.5], [-11, 0], [11, 0]]
       : mode === 'r2' ? [[-15, -9.5], [15, -9.5], [-15, 9.5], [15, 9.5], [0, -10.2], [0, 10.2]]
         : mode === 'r3' ? [[-19, -9], [19, -9], [-19, 9], [19, 9], [-9, -13], [9, -13], [-9, 13], [9, 13]]
-          : [[-24, -10.5], [24, -10.5], [-24, 10.5], [24, 10.5], [-12, -19], [12, -19], [-12, 19], [12, 19], [0, -19], [0, 19]];
+          : [[-(PVP_BX - 1), -10.5], [PVP_BX - 1, -10.5], [-(PVP_BX - 1), 10.5], [PVP_BX - 1, 10.5], [-15, -(D.hh - 1)], [15, -(D.hh - 1)], [-15, D.hh - 1], [15, D.hh - 1], [0, -(D.hh - 1)], [0, D.hh - 1],
+            [-28, -(D.hh - 1)], [28, -(D.hh - 1)], [-28, D.hh - 1], [28, D.hh - 1]];
     for (const [dx, dy] of fires) w.props.push({ type: 'brazier', roof: D.fire, ...P(S.cx + dx, S.cy + dy + 0.4) });
-    const bx = mode === 'r1' ? 11.4 : mode === 'r2' ? 15.4 : mode === 'r3' ? 20.4 : 33.4;
+    const bx = mode === 'r1' ? 11.4 : mode === 'r2' ? 15.4 : mode === 'r3' ? 20.4 : D.hw - 0.6;
     for (const [side, team] of [[-1, 'A'], [1, 'B']]) {
       for (const dy of mode === 'r1' ? [-2.5, 2.5] : [-4, 4]) w.props.push({ type: 'dbanner', roof: PVP_TEAM[team].theme, ...P(S.cx + side * bx, S.cy + dy), rot: -side * Math.PI / 2 });
     }
@@ -260,7 +264,7 @@ function pvpBuild(w) {
         w.props.push({ type: 'lantern', ...P(S.cx + Math.cos(a) * (PVP.capR + 0.7), S.cy + Math.sin(a) * (PVP.capR + 0.7)) });
       }
       for (const [side, team] of [[-1, 'A'], [1, 'B']]) {
-        for (const dy of [-7.2, 7.2]) w.props.push({ type: 'brazier', roof: PVP_TEAM[team].color, ...P(S.cx + side * 26.6, S.cy + dy) });
+        for (const dy of [-7.2, 7.2]) w.props.push({ type: 'brazier', roof: PVP_TEAM[team].color, ...P(S.cx + side * (PVP_BX + 1.6), S.cy + dy) });
       }
     }
   }
@@ -1202,6 +1206,30 @@ function pvpCss() {
     '#pvpHud button{pointer-events:auto;cursor:pointer;font:700 12px system-ui,sans-serif;color:#fff;background:#2a3a6a;border:1px solid #6a8ad8;border-radius:8px;padding:3px 9px}' +
     '#pvpHud.touch button{font-size:11px;border-radius:10px}#pvpHud button.x{width:22px;height:20px;padding:0;line-height:18px}' +
     '#pvpHud .det{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:2px 0 3px;white-space:normal}' +
+    // seit 13.89: am PC eine Karte mit Kopfzeile, Teams, Turmbalken, Wiedereinstieg mit Fortschritt und Knopf
+    '#pvpHud.pc{display:block;width:300px;padding:0;overflow:hidden;border-radius:12px;background:linear-gradient(180deg,rgba(26,34,58,.92),rgba(12,16,28,.9));border:1px solid rgba(160,190,255,.45);box-shadow:0 4px 16px rgba(0,0,0,.5)}' +
+    '#pvpHud.pc .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 11px;background:rgba(255,217,138,.1);border-bottom:1px solid rgba(255,217,138,.25)}' +
+    '#pvpHud.pc .hd .md{font-size:13px;letter-spacing:.2px}#pvpHud.pc .hd .tm{font:800 14px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;color:#fff}' +
+    '#pvpHud.pc .bd{padding:7px 11px 9px;display:grid;gap:6px}' +
+    '#pvpHud.pc .tm2{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:3px 8px}#pvpHud.pc .tm2 .nm{font-weight:800}' +
+    '#pvpHud.pc .tm2 .bars{margin:0;gap:3px}#pvpHud.pc .pb{width:auto;flex:1;min-width:20px;height:8px;border-radius:3px}#pvpHud.pc .tm2 .bars{display:flex}' +
+    '#pvpHud.pc .twr{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px}#pvpHud.pc .twb{width:auto;height:9px;margin:0;border-radius:5px}' +
+    '#pvpHud.pc .twr small{font-weight:600;opacity:.85}' +
+    '#pvpHud.pc .rsp{padding:6px 8px;border-radius:8px;background:rgba(255,200,90,.12);border:1px solid rgba(255,200,90,.35);color:#ffe0a0;font-weight:700;text-align:center}' +
+    '#pvpHud.pc .rsp .rb{height:5px;margin-top:5px;border-radius:3px;background:rgba(255,255,255,.15);overflow:hidden}#pvpHud.pc .rsp .rb i{display:block;height:100%;background:#ffc85a;transition:width .3s linear}' +
+    '#pvpHud.pc .rsp b{font-size:16px}#pvpHud.pc .ft{display:flex;align-items:center;justify-content:flex-end;gap:8px}#pvpHud.pc .ft .info{flex:1;white-space:normal;font-size:11.5px}#pvpHud.pc .ft .kd{flex:1;font-size:11.5px;opacity:.9}' +
+    '#pvpHud.pc button{padding:4px 12px;background:rgba(60,80,140,.6);border-color:rgba(140,170,255,.6)}#pvpHud.pc button:hover{background:rgba(80,110,190,.8)}' +
+    '#pvpScore{position:fixed;left:50%;top:8px;transform:translateX(-50%);z-index:5;pointer-events:none;color:#fff;text-shadow:0 1px 3px #000;text-align:center;font:600 12px/1.2 system-ui,sans-serif}' +
+    '#pvpScore .sc{display:inline-flex;align-items:stretch;border-radius:10px;overflow:hidden;box-shadow:0 3px 12px rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.25)}' +
+    '#pvpScore .t{display:flex;align-items:center;gap:8px;padding:4px 12px;font-weight:800;font-size:13px}' +
+    '#pvpScore .t b{font:900 24px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums;min-width:30px}' +
+    '#pvpScore .tA{background:linear-gradient(90deg,rgba(30,58,106,.95),rgba(74,154,255,.85))}#pvpScore .tA b{text-align:right}' +
+    '#pvpScore .tB{background:linear-gradient(90deg,rgba(255,90,74,.85),rgba(106,30,26,.95))}#pvpScore .tB b{text-align:left}' +
+    '#pvpScore .mid{display:flex;flex-direction:column;justify-content:center;padding:3px 10px;background:rgba(12,16,28,.92);min-width:62px}' +
+    '#pvpScore .mid .clk{font:800 15px/1 system-ui,sans-serif;font-variant-numeric:tabular-nums}#pvpScore .mid small{font-size:10px;opacity:.75;margin-top:2px}' +
+    '#pvpScore .t.me{box-shadow:inset 0 -3px 0 #fff}' +
+    '#pvpScore .twl{width:min(260px,60vw);height:6px;margin:5px auto 0;border-radius:4px;background:rgba(0,0,0,.45);overflow:hidden;border:1px solid rgba(255,255,255,.2)}#pvpScore .twl i{display:block;height:100%}' +
+    '#pvpScore .cap{margin-top:3px;font-size:11px;opacity:.9}' +
     '.pvp-badge{display:inline-flex;align-items:center;gap:4px;font-weight:700;vertical-align:middle;white-space:nowrap}' +
     '.pvp-badge svg{flex:none}.pvp-rank{display:flex;align-items:center;gap:12px;padding:8px 10px;margin:6px 0 10px;border-radius:10px;background:rgba(0,0,0,.18);border:1px solid rgba(255,255,255,.12)}' +
     '.pvp-rank .pr-main{flex:1;min-width:0}.pvp-rank b.tier{font-size:17px}.pvp-prog{height:7px;border-radius:4px;background:rgba(255,255,255,.15);overflow:hidden;margin:4px 0 2px}' +
@@ -1314,6 +1342,12 @@ function pvpHudBuild() {
     pvpHud();
   });
   document.body.appendChild(el);
+  // seit 13.89: Anzeigetafel oben in der Mitte (nur am PC): Punkte beider Teams, Zeit, Turm
+  const sc = document.createElement('div');
+  sc.id = 'pvpScore';
+  sc.hidden = true;
+  document.body.appendChild(sc);
+  pvpUi.score = sc;
   const due = () => { pvpUi.placeAt = 0; };
   window.addEventListener('resize', due);
   window.addEventListener('orientationchange', due);
@@ -1347,6 +1381,7 @@ function pvpHud() {
       pvpUi.open = false;
       pvpUi.confirm = false;
     }
+    if (pvpUi.score && !pvpUi.score.hidden) pvpUi.score.hidden = true;
     return;
   }
   const touch = !!(typeof input !== 'undefined' && input.touchUi);
@@ -1384,8 +1419,20 @@ function pvpHud() {
         `<button type="button" class="x" data-pv="x" aria-label="Mehr">${pvpUi.open ? '▴' : '▾'}</button>` +
         (pvpUi.open ? `<div class="det">${teams}${twBar}${pvpUi.confirm ? '<span class="info">Wer geht, verliert den Rangkampf.</span>' : ''}${leaveBtn}</div>` : '');
     } else {
-      el.innerHTML = `<span class="md">${def.name}</span><span>${time}</span>${teams}${twBar}` + (info ? `<span class="info">${info}</span>` : '') +
-        (pvpUi.confirm ? '<span class="info">Wer geht, verliert den Rangkampf.</span>' : '') + leaveBtn;
+      // seit 13.89 eine aufgeräumte Karte statt einer Zeile
+      const mine = M.roster.get(M.me);
+      const kd = mine ? `Du: <b>${mine.kills}</b> Kills · <b>${mine.deaths}</b> Tode` : '';
+      const row = (team) => `<span class="nm ${team === 'A' ? 'ta' : 'tb'}">${PVP_TEAM[team].name}${du(team)}</span>${pvpBarsHtml(M, team)}`;
+      const twRow = M.ranked ? '' : `<div class="twr"><span class="tw">Turm</span><span class="twb"><i style="width:${Math.round(tw.pct)}%;background:${twCol}"></i></span>` +
+        `<small>${Math.floor(tw.pct)} %${tw.owner ? ' · ' + PVP_TEAM[tw.owner].name : ''}${tw.a && tw.b ? ' · umkämpft' : inCircle ? ' · du lädst' : ''}</small></div>`;
+      let rsp = '';
+      if (M.state !== 'end' && p.dead && M.respawnAt) {
+        const left = Math.max(0, M.respawnAt - t);
+        rsp = `<div class="rsp">Wiedereinstieg in <b>${Math.ceil(left)}</b> s<div class="rb"><i style="width:${Math.round((1 - left / PVP.respawn) * 100)}%"></i></div></div>`;
+      } else if (info) rsp = `<div class="rsp">${info}</div>`;
+      el.innerHTML = `<div class="hd"><span class="md">${def.name}</span><span class="tm">${time}</span></div>` +
+        `<div class="bd"><div class="tm2">${row('A')}${row('B')}</div>${twRow}${rsp}` +
+        `<div class="ft">${pvpUi.confirm ? '<span class="info">Wer geht, verliert den Rangkampf.</span>' : `<span class="kd">${kd}</span>`}${leaveBtn}</div></div>`;
     }
     pvpUi.placeAt = 0;
   }
@@ -1397,6 +1444,33 @@ function pvpHud() {
     pvpUi.placeAt = t || 0.001;
     pvpHudPlace(el);
   }
+  pvpScoreBoard(M, touch, time);
+}
+// Anzeigetafel oben in der Mitte (PC): Turmschlacht = Kills je Team bis 100 und Turm, Rangkampf = wer noch steht
+function pvpScoreBoard(M, touch, time) {
+  const sc = pvpUi.score;
+  if (!sc) return;
+  if (touch) {
+    if (!sc.hidden) sc.hidden = true;
+    return;
+  }
+  const alive = (team) => [...M.roster.values()].filter((e) => e.team === team && !e.left && pvpLife(M, e) >= 0).length;
+  const a = M.ranked ? alive('A') : M.score.A;
+  const b = M.ranked ? alive('B') : M.score.B;
+  const tw = M.tower;
+  const key = [a, b, time, M.ranked ? '' : Math.floor(tw.pct) + tw.owner, M.team].join('|');
+  if (key !== pvpUi.scoreKey) {
+    pvpUi.scoreKey = key;
+    const me = (team) => (team === M.team ? ' me' : '');
+    const sub = M.ranked ? 'stehen noch' : `bis ${PVP.funKills} Kills`;
+    const twCol = tw.owner ? PVP_TEAM[tw.owner].bar : '#c8c8d8';
+    sc.innerHTML = `<div class="sc"><span class="t tA${me('A')}">Blau <b>${a}</b></span>` +
+      `<span class="mid"><span class="clk">${time}</span><small>${sub}</small></span>` +
+      `<span class="t tB${me('B')}"><b>${b}</b> Rot</span></div>` +
+      (M.ranked ? '' : `<div class="twl"><i style="width:${Math.round(tw.pct)}%;background:${twCol}"></i></div>` +
+        `<div class="cap">Turm ${Math.floor(tw.pct)} %${tw.owner ? ' · ' + PVP_TEAM[tw.owner].name : ''}</div>`);
+  }
+  if (sc.hidden) sc.hidden = false;
 }
 
 // --- Ergebnis: Sieger, Kills und Tode je Spieler, Rangpunkte mit Stein, Knopf zurück in die Stadt ---------------
