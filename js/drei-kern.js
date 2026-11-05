@@ -1528,7 +1528,8 @@ const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], stand:
   dpillar: [1.4, 0.6, 0.4], dbanner: [1.2, 0.45, 0.25], dstatue: [1.0, 0.6, 0.35], dthrone: [1.4, 1.0, 0.4], dchest: [0.4, 0.55, 0.3], dshrine: [0.8, 0.8, 0.35],
   // Stadtschmuck (seit 13.85, welt.js TOWN_DECO)
   planter: [0.3, 0.42, 0.22], bench: [0.4, 0.62, 0.24], goods: [0.45, 0.62, 0.3], woodpile: [0.3, 0.5, 0.25], sacks: [0.25, 0.45, 0.22],
-  pots: [0.3, 0.4, 0.22], totem: [0.9, 0.35, 0.22], ore: [0.15, 0.45, 0.22], wallbanner: [1.0, 0.35, 0.2], barrel: [0.3, 0.35, 0.22], crate: [0.25, 0.35, 0.22] };
+  pots: [0.3, 0.4, 0.22], totem: [0.9, 0.35, 0.22], ore: [0.15, 0.45, 0.22], wallbanner: [1.0, 0.35, 0.2], barrel: [0.3, 0.35, 0.22], crate: [0.25, 0.35, 0.22],
+  waesche: [0.9, 0.5, 0.2], karren: [0.5, 0.65, 0.28] }; // seit 13.91: Wäscheleine, Handkarren
 // Schmuck ohne Kollision (seit 7.9): kleiner Schatten und dunkler Fuß, wie bei Bäumen und Felsen
 // (seit 8.4 auf die echten Größen der neuen Modelle abgestimmt)
 const DECO_CASTER3 = {
@@ -2063,6 +2064,8 @@ function renderDrei() {
   } else {
     V3.fadeScreen[2] = 0;
   }
+  // seit 13.91: Dach und Vorderwand des Hauses, in dem man steht, ausblenden (drei-welt.js)
+  v3SyncHouses();
   V3.gl.render(V3.scene, V3.camera);
   drawOverlay3(ctx);
   r.miniTimer -= 1;

@@ -133,52 +133,13 @@ const WORLD3 = {
     if (style === 'vulkan' || style === 'titanenkamm') b.add(limb3(0.3, 0.025, 0.02, 5), '#ff7a2a', { parent: M, p: [-0.15, 0.42, 0.25], r: [0.3, 0, 1.2], mat: 'glow' });
   },
 
-  // Haus: Steinsockel, helle Putzwände mit dunklen Balken, Papierfenster, geschwungenes Ziegeldach
-  house(b, h) {
-    const W = h.w;
-    const D = h.h;
-    const M = placeAt(h.x + W / 2, h.y + D / 2);
-    const wallW = W - 0.5;
-    const wallD = D - 0.7;
-    const wh = 1.55;
-    const timber = '#5a3a22';
-    b.add(wbox(W - 0.2, 0.3, D - 0.35, 0.08), '#8a8478', { parent: M, p: [0, 0.15, 0], shade: 0.3 });
-    b.add(wbox(wallW, wh, wallD, 0.06), '#e2d0aa', { parent: M, p: [0, 0.3 + wh / 2, 0], shade: 0.18 });
-    const posts = Math.max(3, W + 1);
-    for (let k = 0; k < posts; k++) {
-      const x = -wallW / 2 + (wallW * k) / (posts - 1);
-      for (const z of [-wallD / 2, wallD / 2]) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), timber, { parent: M, p: [x, 0.3 + wh / 2, z] });
-    }
-    for (const x of [-wallW / 2, wallW / 2]) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), timber, { parent: M, p: [x, 0.3 + wh / 2, 0] });
-    b.add(wbox(wallW + 0.1, 0.13, wallD + 0.1, 0.04), timber, { parent: M, p: [0, 0.3 + wh - 0.02, 0] });
-    b.add(wbox(wallW + 0.1, 0.1, wallD + 0.1, 0.03), timber, { parent: M, p: [0, 0.36, 0] });
-    // Tür und Fenster an der Vorderseite (Süden)
-    b.add(wbox(0.62, 1.05, 0.08, 0.03), '#4a2e1c', { parent: M, p: [0, 0.3 + 0.53, wallD / 2 + 0.03] });
-    b.add(wbox(0.24, 0.92, 0.06, 0.02), '#6b4a2e', { parent: M, p: [-0.15, 0.3 + 0.5, wallD / 2 + 0.07] });
-    b.add(wbox(0.24, 0.92, 0.06, 0.02), '#6b4a2e', { parent: M, p: [0.15, 0.3 + 0.5, wallD / 2 + 0.07] });
-    for (let k = 0; k < posts - 1; k++) {
-      const xa = -wallW / 2 + (wallW * k) / (posts - 1);
-      const xb = -wallW / 2 + (wallW * (k + 1)) / (posts - 1);
-      const mid = (xa + xb) / 2;
-      if (Math.abs(mid) < 0.5) continue;
-      const ww = Math.min(0.7, xb - xa - 0.28);
-      b.add(tinyBox(ww, 0.45, 0.06), '#f3e2b0', { parent: M, p: [mid, 0.3 + wh * 0.62, wallD / 2 + 0.03], mat: 'glowWin' });
-      for (let gx = -1; gx <= 1; gx++) b.add(tinyBox(0.025, 0.45, 0.07), '#8a6a44', { parent: M, p: [mid + gx * ww / 4, 0.3 + wh * 0.62, wallD / 2 + 0.04] });
-      b.add(tinyBox(ww, 0.025, 0.07), '#8a6a44', { parent: M, p: [mid, 0.3 + wh * 0.62, wallD / 2 + 0.04] });
-    }
-    // Dach mit Überstand, hochgezogenen Ecken, First und Zierenden
-    const ry = 0.3 + wh;
-    b.add(roofGeo(W + 0.9, D + 0.8, 1.35, 0.42), h.roof, { parent: M, p: [0, ry - 0.06, 0], shade: 0.25, top: lighter(h.roof, 0.18), topK: 0.6 });
-    b.add(wbox(Math.max(0.6, W - D + 0.6), 0.16, 0.2, 0.07), darker(h.roof, 0.4), { parent: M, p: [0, ry + 1.25, 0] });
-    for (const sx of [-1, 1]) b.add(horn3(0.32, 0.07, 8), darker(h.roof, 0.4), { parent: M, p: [sx * Math.max(0.3, (W - D) / 2 + 0.3), ry + 1.25, 0], r: [0, 0, -sx * 0.7] });
-    // Rote Laternen an den vorderen Ecken
-    for (const sx of [-1, 1]) {
-      const p = [sx * (W / 2 - 0.05), ry - 0.25, D / 2 - 0.05];
-      b.add(limb3(0.12, 0.012, 0.012, 4), '#2a1c14', { parent: M, p: [p[0], p[1] + 0.14, p[2]] });
-      b.add(sphere3(0.12, 8, 6), '#ff6a3a', { parent: M, p, s: [1, 1.25, 1], mat: 'glow' });
-      b.add(tinyBox(0.18, 0.04, 0.18), '#c9a35a', { parent: M, p: [p[0], p[1] + 0.14, p[2]] });
-      b.add(tinyBox(0.18, 0.04, 0.18), '#c9a35a', { parent: M, p: [p[0], p[1] - 0.14, p[2]] });
-    }
+  // Haus: seit 13.91 in Varianten (welt.js look: Dach, Wand, Schornstein, Anbau, Tür) und begehbar (house3Open).
+  // Bis 13.90 hatte jedes Haus Steinsockel, Putzwände mit Balken, Papierfenster und das geschwungene Ziegeldach –
+  // so sieht heute ein Haus ohne look aus ('pagode' mit 'fachwerk'). shell: bei begehbaren Häusern kommen Dach und
+  // Vorderwand in diese Bake3 (eigenes Mesh, das v3SyncHouses ausblendet, solange man drinnen ist)
+  house(b, h, shell) {
+    if (h.enter) house3Open(b, shell || b, h);
+    else house3Closed(b, h);
   },
 
   // Dorfmauer je Kachel: Steinsockel, Putzwand mit Balken, kleines Ziegeldach obenauf
@@ -199,6 +160,390 @@ const WORLD3 = {
     }
   }
 };
+
+// --- Häuser in Varianten und begehbare Häuser (seit 13.91, welt.js look/enter) ------------------------------------
+// Wandarten: Farbe der Wand, des Sockels, der Balken/Rahmen und der Fensterscheiben
+const HOUSE3_WALL = {
+  fachwerk: { face: '#e2d0aa', base: '#8a8478', trim: '#5a3a22', win: '#f3e2b0', inner: '#e8dcc0' },
+  stein: { face: '#a8a196', base: '#77716a', trim: '#5e584f', win: '#efd9a0', inner: '#d8cdb8' },
+  holz: { face: '#9a7044', base: '#7a746a', trim: '#5a3a22', win: '#f3e2b0', inner: '#c8a878' },
+  lehm: { face: '#d8b888', base: '#b0906a', trim: '#7a5a3a', win: '#f0d8a0', inner: '#e4cca0' }
+};
+const HOUSE3_FLOOR = '#9a7448';
+// Dreiseitiges Prisma (Giebel): Grundfläche x und z von -0,5 bis 0,5, First längs x in Höhe 1
+function prismGeo() {
+  return geo3('prism3', () => {
+    const A = [-0.5, 0, -0.5];
+    const B = [0.5, 0, -0.5];
+    const C = [0.5, 0, 0.5];
+    const D = [-0.5, 0, 0.5];
+    const E = [-0.5, 1, 0];
+    const F = [0.5, 1, 0];
+    const tris = [D, C, F, D, F, E, B, A, E, B, E, F, A, D, E, C, B, F, A, B, C, A, C, D];
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Dach über einem Grundriss (Mitte cx, cz; Breite W in x, Tiefe D in z) auf Höhe ry. Gibt die Höhe des Firsts zurück.
+function house3Roof(b, M, L, color, cx, cz, W, D, ry, wallC) {
+  const form = L.roof || 'pagode';
+  const dark = darker(color, 0.4);
+  if (form === 'pagode') {
+    b.add(roofGeo(W + 0.9, D + 0.8, 1.35, 0.42), color, { parent: M, p: [cx, ry - 0.06, cz], shade: 0.25, top: lighter(color, 0.18), topK: 0.6 });
+    b.add(wbox(Math.max(0.6, W - D + 0.6), 0.16, 0.2, 0.07), dark, { parent: M, p: [cx, ry + 1.25, cz] });
+    for (const sx of [-1, 1]) b.add(horn3(0.32, 0.07, 8), dark, { parent: M, p: [cx + sx * Math.max(0.3, (W - D) / 2 + 0.3), ry + 1.25, cz], r: [0, 0, -sx * 0.7] });
+    return 1.3;
+  }
+  if (form === 'walm') {
+    b.add(roofGeo(W + 0.7, D + 0.7, 1.15, 0.02), color, { parent: M, p: [cx, ry - 0.05, cz], shade: 0.25, top: lighter(color, 0.15), topK: 0.6 });
+    b.add(wbox(Math.max(0.4, W - D + 0.3), 0.12, 0.16, 0.05), dark, { parent: M, p: [cx, ry + 1.08, cz] });
+    return 1.1;
+  }
+  if (form === 'flach') {
+    b.add(wbox(W + 0.2, 0.18, D + 0.2, 0.05), lighter(wallC.face, 0.05), { parent: M, p: [cx, ry + 0.06, cz], shade: 0.2 });
+    b.add(wbox(W - 0.1, 0.04, D - 0.1, 0.02), color, { parent: M, p: [cx, ry + 0.16, cz], mat: 'detail' });
+    for (const sz of [-1, 1]) b.add(tinyBox(W + 0.24, 0.2, 0.12), wallC.face, { parent: M, p: [cx, ry + 0.25, cz + sz * (D / 2 + 0.04)] });
+    for (const sx of [-1, 1]) b.add(tinyBox(0.12, 0.2, D + 0.24), wallC.face, { parent: M, p: [cx + sx * (W / 2 + 0.04), ry + 0.25, cz] });
+    // Balkenköpfe unter der Dachkante und ein kleiner Aufbau
+    for (let k = 0; k < Math.floor(W / 0.7); k++) b.add(tinyBox(0.09, 0.09, 0.22), wallC.trim, { parent: M, p: [cx - W / 2 + 0.45 + k * 0.7, ry - 0.08, cz + D / 2 + 0.02] });
+    b.add(wbox(0.9, 0.4, 0.7, 0.05), wallC.face, { parent: M, p: [cx + W * 0.22, ry + 0.35, cz - D * 0.18], shade: 0.2 });
+    return 0.5;
+  }
+  // Satteldach: Giebel in Wandfarbe, zwei Dachflächen mit Überstand, First. 'sattel': First quer (längs x),
+  // 'giebel': Giebel nach vorn (First längs z)
+  const front = form === 'giebel';
+  const len = front ? D : W;
+  const span = front ? W : D;
+  const rise = Math.min(1.25, 0.45 + span * 0.24);
+  const RM = M.clone().multiply(placeAt(cx, cz, front ? -Math.PI / 2 : 0, 1, ry));
+  b.add(prismGeo(), wallC.face, { parent: RM, s: [len - 0.5, rise, span - 0.7], shade: 0.15 });
+  if (L.wall === 'fachwerk' || L.wall === 'holz') {
+    // Balken im Giebeldreieck (beide Enden)
+    for (const sx of [-1, 1]) {
+      const x = sx * (len - 0.5) / 2 + sx * 0.01;
+      b.add(tinyBox(0.04, rise * 0.85, 0.09), wallC.trim, { parent: RM, p: [x, rise * 0.42, 0] });
+      b.add(tinyBox(0.04, 0.08, (span - 0.7) * 0.7), wallC.trim, { parent: RM, p: [x, rise * 0.35, 0] });
+    }
+  }
+  const ov = 0.42;
+  const a = Math.atan2(rise, (span - 0.7) / 2);
+  const half = (span - 0.7) / 2 + ov;
+  const Ls = half / Math.cos(a);
+  for (const sz of [-1, 1]) {
+    const zc = sz * half / 2;
+    const yc = rise - Math.tan(a) * half / 2;
+    b.add(wbox(len + 0.6, 0.11, Ls + 0.04, 0.04), color, {
+      parent: RM, p: [0, yc + Math.cos(a) * 0.06, zc + sz * Math.sin(a) * 0.06], r: [sz * a, 0, 0], shade: 0.15, top: lighter(color, 0.15), topK: 0.6
+    });
+    // Ziegelreihen quer über die Dachfläche
+    for (let k = 1; k <= 3; k++) {
+      const t = k / 4;
+      b.add(tinyBox(len + 0.58, 0.03, 0.06), darker(color, 0.22), {
+        parent: RM, p: [0, rise - Math.tan(a) * half * t + Math.cos(a) * 0.125, sz * (half * t + Math.sin(a) * 0.125)], r: [sz * a, 0, 0]
+      });
+    }
+  }
+  b.add(wbox(len + 0.66, 0.12, 0.18, 0.04), dark, { parent: RM, p: [0, rise + 0.07, 0] });
+  return rise;
+}
+// Schornstein: Steinschaft vom Dachfuß bis über den First
+function house3Chimney(b, M, L, cx, cz, W, D, ry, rise) {
+  if (L.chimney == null) return;
+  const front = L.roof === 'giebel';
+  const x = front ? cx + (-W * 0.2) : cx + L.chimney * W * 0.75;
+  const z = front ? cz + L.chimney * D * 0.7 : cz - D * 0.18;
+  const h = rise + 0.55;
+  b.add(wbox(0.34, h, 0.34, 0.04), '#8a8276', { parent: M, p: [x, ry - 0.1 + h / 2, z], shade: 0.25 });
+  b.add(tinyBox(0.42, 0.08, 0.42), '#5e584f', { parent: M, p: [x, ry - 0.1 + h, z] });
+  b.add(tinyBox(0.2, 0.04, 0.2), '#2a2420', { parent: M, p: [x, ry - 0.05 + h, z] });
+}
+// Fenster in der Vorderseite (z = Fläche): Scheibe (leuchtet nachts), Sprossen, bei Stein Fensterläden
+function house3Window(b, M, L, wallC, x, y, z, ww, roof) {
+  const w = L.wall || 'fachwerk';
+  const hh = w === 'stein' || w === 'lehm' ? 0.38 : 0.45;
+  const wd = w === 'lehm' ? Math.min(ww, 0.36) : ww;
+  b.add(tinyBox(wd, hh, 0.06), wallC.win, { parent: M, p: [x, y, z], mat: 'glowWin' });
+  if (w === 'fachwerk') {
+    for (let gx = -1; gx <= 1; gx++) b.add(tinyBox(0.025, hh, 0.07), '#8a6a44', { parent: M, p: [x + gx * wd / 4, y, z + 0.01] });
+    b.add(tinyBox(wd, 0.025, 0.07), '#8a6a44', { parent: M, p: [x, y, z + 0.01] });
+    return;
+  }
+  b.add(tinyBox(wd + 0.08, 0.06, 0.1), wallC.trim, { parent: M, p: [x, y - hh / 2 - 0.02, z + 0.02] });
+  b.add(tinyBox(0.025, hh, 0.07), wallC.trim, { parent: M, p: [x, y, z + 0.01] });
+  if (w === 'stein' || w === 'holz') for (const sx of [-1, 1]) b.add(wbox(wd * 0.48, hh + 0.04, 0.04, 0.012), darker(roof, 0.1), { parent: M, p: [x + sx * (wd * 0.74 + 0.02), y, z + 0.02] });
+}
+// Wandschmuck auf einer Vorderseite von x0 bis x1 (Höhe 0,3 bis 0,3 + wh, Fläche bei z): Balken, Bretter, Ecksteine
+function house3Face(b, M, L, wallC, x0, x1, z, wh) {
+  const w = L.wall || 'fachwerk';
+  const y0 = 0.3;
+  if (w === 'fachwerk') {
+    const posts = Math.max(3, Math.round(x1 - x0) + 2);
+    for (let k = 0; k < posts; k++) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), wallC.trim, { parent: M, p: [x0 + ((x1 - x0) * k) / (posts - 1), y0 + wh / 2, z] });
+    b.add(tinyBox(x1 - x0 + 0.1, 0.12, 0.14), wallC.trim, { parent: M, p: [(x0 + x1) / 2, y0 + wh - 0.04, z] });
+    b.add(tinyBox(x1 - x0 + 0.1, 0.09, 0.14), wallC.trim, { parent: M, p: [(x0 + x1) / 2, y0 + 0.05, z] });
+    return;
+  }
+  if (w === 'holz') {
+    for (let y = y0 + 0.22; y < y0 + wh - 0.05; y += 0.26) b.add(tinyBox(x1 - x0, 0.025, 0.03), darker(wallC.face, 0.3), { parent: M, p: [(x0 + x1) / 2, y, z + 0.005] });
+    for (const x of [x0, x1]) b.add(wbox(0.16, wh + 0.05, 0.16, 0.04), wallC.trim, { parent: M, p: [x, y0 + wh / 2, z - 0.05] });
+    return;
+  }
+  if (w === 'stein') {
+    // Ecksteine abwechselnd hell, ein paar dunklere Steine in der Fläche
+    for (const x of [x0, x1]) for (let k = 0; k < 4; k++) b.add(tinyBox(0.26 - (k % 2) * 0.08, wh / 4 - 0.04, 0.05), k % 2 ? '#bcb4a6' : '#948c80', { parent: M, p: [x + (x === x0 ? 1 : -1) * (0.13 - (k % 2) * 0.04), y0 + wh * (k + 0.5) / 4, z + 0.01] });
+    for (let k = 0; k < Math.floor((x1 - x0) / 0.9); k++) b.add(tinyBox(0.3, 0.12, 0.03), k % 2 ? '#948c80' : '#b4ac9e', { parent: M, p: [x0 + 0.6 + k * 0.9, y0 + 0.25 + ((k * 37) % 5) * wh * 0.15, z + 0.01] });
+    return;
+  }
+  // Lehm: dunkler Streifen am Fuß
+  b.add(tinyBox(x1 - x0, 0.18, 0.03), darker(wallC.face, 0.18), { parent: M, p: [(x0 + x1) / 2, y0 + 0.09, z + 0.005] });
+}
+// Tür: zweiflüglig (Fachwerk wie bisher), Brettertür, Scheunentor (tor)
+function house3Door(b, M, L, wallC, x, z) {
+  if (L.tor) {
+    b.add(wbox(1.5, 1.35, 0.08, 0.03), '#5a3a22', { parent: M, p: [x, 0.3 + 0.68, z + 0.03] });
+    for (const sx of [-1, 1]) {
+      b.add(wbox(0.7, 1.25, 0.05, 0.02), '#7a5434', { parent: M, p: [x + sx * 0.36, 0.3 + 0.64, z + 0.07] });
+      b.add(tinyBox(0.06, 1.3, 0.06), '#4a2e1c', { parent: M, p: [x + sx * 0.36, 0.3 + 0.64, z + 0.1], r: [0, 0, sx * 0.48] });
+    }
+    b.add(tinyBox(1.6, 0.1, 0.12), wallC.trim, { parent: M, p: [x, 0.3 + 1.38, z + 0.04] });
+    return;
+  }
+  b.add(wbox(0.62, 1.05, 0.08, 0.03), '#4a2e1c', { parent: M, p: [x, 0.3 + 0.53, z + 0.03] });
+  if (L.wall && L.wall !== 'fachwerk') {
+    b.add(wbox(0.52, 0.95, 0.06, 0.02), L.wall === 'lehm' ? '#8a5a34' : '#6b4a2e', { parent: M, p: [x, 0.3 + 0.48, z + 0.07] });
+    b.add(sphere3(0.035, 6, 5), '#c9a35a', { parent: M, p: [x + 0.17, 0.3 + 0.5, z + 0.11] });
+    b.add(tinyBox(0.74, 0.08, 0.12), wallC.trim, { parent: M, p: [x, 0.3 + 1.09, z + 0.03] });
+  } else {
+    b.add(wbox(0.24, 0.92, 0.06, 0.02), '#6b4a2e', { parent: M, p: [x - 0.15, 0.3 + 0.5, z + 0.07] });
+    b.add(wbox(0.24, 0.92, 0.06, 0.02), '#6b4a2e', { parent: M, p: [x + 0.15, 0.3 + 0.5, z + 0.07] });
+  }
+}
+// Laternen: rote an den Ecken beim geschwungenen Dach, sonst eine kleine Lampe neben der Tür
+function house3Lamps(b, M, L, W, D, ry, doorX, z) {
+  if ((L.roof || 'pagode') === 'pagode') {
+    for (const sx of [-1, 1]) {
+      const p = [sx * (W / 2 - 0.05), ry - 0.25, D / 2 - 0.05];
+      b.add(limb3(0.12, 0.012, 0.012, 4), '#2a1c14', { parent: M, p: [p[0], p[1] + 0.14, p[2]] });
+      b.add(sphere3(0.12, 8, 6), '#ff6a3a', { parent: M, p, s: [1, 1.25, 1], mat: 'glow' });
+      b.add(tinyBox(0.18, 0.04, 0.18), '#c9a35a', { parent: M, p: [p[0], p[1] + 0.14, p[2]] });
+      b.add(tinyBox(0.18, 0.04, 0.18), '#c9a35a', { parent: M, p: [p[0], p[1] - 0.14, p[2]] });
+    }
+    return;
+  }
+  const x = doorX + (L.tor ? 1.0 : 0.6);
+  b.add(tinyBox(0.05, 0.05, 0.16), '#2a1c14', { parent: M, p: [x, 1.25, z + 0.08] });
+  b.add(wbox(0.14, 0.18, 0.14, 0.03), '#ffcf6a', { parent: M, p: [x, 1.16, z + 0.16], mat: 'glow' });
+  b.add(tinyBox(0.18, 0.04, 0.18), '#3a2a1c', { parent: M, p: [x, 1.27, z + 0.16] });
+}
+// Geschlossenes Haus (wie bisher, jetzt mit look)
+function house3Closed(b, h) {
+  const L = h.look || {};
+  const C = HOUSE3_WALL[L.wall] || HOUSE3_WALL.fachwerk;
+  const W = h.w;
+  const D = h.h;
+  const M = placeAt(h.x + W / 2, h.y + D / 2);
+  // Anbau: niedriger Schuppen an einer Seite, das Haus selbst wird schmaler
+  const aw = L.annex ? 1.5 : 0;
+  const x0 = -W / 2 + (L.annex === 'w' ? aw : 0);
+  const x1 = W / 2 - (L.annex === 'e' ? aw : 0);
+  const mx = (x0 + x1) / 2;
+  const mW = x1 - x0;
+  const wallW = mW - 0.5;
+  const wallD = D - 0.7;
+  const wh = 1.55 * (L.tall || 1);
+  b.add(wbox(mW - 0.2, 0.3, D - 0.35, 0.08), C.base, { parent: M, p: [mx, 0.15, 0], shade: 0.3 });
+  b.add(wbox(wallW, wh, wallD, L.wall === 'lehm' ? 0.12 : 0.06), C.face, { parent: M, p: [mx, 0.3 + wh / 2, 0], shade: 0.18 });
+  const fz = wallD / 2;
+  house3Face(b, M, L, C, mx - wallW / 2, mx + wallW / 2, fz, wh);
+  if ((L.wall || 'fachwerk') === 'fachwerk') {
+    // Balken hinten und an den Seiten wie bisher
+    const posts = Math.max(3, Math.round(mW) + 1);
+    for (let k = 0; k < posts; k++) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), C.trim, { parent: M, p: [mx - wallW / 2 + (wallW * k) / (posts - 1), 0.3 + wh / 2, -fz] });
+    for (const x of [mx - wallW / 2, mx + wallW / 2]) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), C.trim, { parent: M, p: [x, 0.3 + wh / 2, 0] });
+    b.add(wbox(wallW + 0.1, 0.13, wallD + 0.1, 0.04), C.trim, { parent: M, p: [mx, 0.3 + wh - 0.02, 0] });
+  }
+  const doorX = L.door != null ? L.door - W / 2 : mx;
+  house3Door(b, M, L, C, doorX, fz);
+  // Fenster: gleichmäßig über die Vorderseite, nicht an der Tür
+  const n = Math.max(2, Math.round(wallW / 1.05));
+  for (let k = 0; k < n; k++) {
+    const x = mx - wallW / 2 + (wallW * (k + 0.5)) / n;
+    if (Math.abs(x - doorX) < (L.tor ? 1.15 : 0.62)) continue;
+    house3Window(b, M, L, C, x, 0.3 + wh * 0.62, fz + 0.03, Math.min(0.62, wallW / n - 0.3), h.roof);
+  }
+  const ry = 0.3 + wh;
+  const rise = house3Roof(b, M, L, h.roof, mx, 0, mW, D, ry, C);
+  house3Chimney(b, M, L, mx, 0, mW, D, ry, rise);
+  house3Lamps(b, M, L, W, D, ry, doorX, fz);
+  if (aw) {
+    // Anbau: niedrige Bretterwand, schräges Pultdach nach außen, Brennholz davor
+    const sx = L.annex === 'e' ? 1 : -1;
+    const ax = sx * (W / 2 - aw / 2);
+    const ah = wh * 0.62;
+    b.add(wbox(aw - 0.1, 0.22, D - 0.6, 0.05), C.base, { parent: M, p: [ax, 0.11, 0], shade: 0.3 });
+    b.add(wbox(aw - 0.25, ah, D - 1.0, 0.04), L.wall === 'lehm' ? C.face : '#8a6440', { parent: M, p: [ax, 0.22 + ah / 2, -0.05], shade: 0.2 });
+    for (let y = 0.4; y < ah; y += 0.24) b.add(tinyBox(aw - 0.25, 0.022, 0.03), '#5a3a22', { parent: M, p: [ax, y, D / 2 - 0.54] });
+    b.add(wbox(aw + 0.2, 0.09, D - 0.3, 0.03), h.roof, { parent: M, p: [ax + sx * 0.05, 0.22 + ah + 0.18, 0], r: [0, 0, -sx * 0.3], shade: 0.15, top: lighter(h.roof, 0.15), topK: 0.5 });
+    for (const [x, y] of [[-0.2, 0.12], [0.1, 0.12], [-0.05, 0.3]]) b.add(cyl3(0.09, 0.09, 0.55, 7), '#7a5434', { parent: M, p: [ax + x, y, D / 2 - 0.2], r: [Math.PI / 2, 0, 0], shade: 0.15 });
+  }
+}
+// Begehbares Haus: Mauern auf den Randkacheln (0,5 dick, Außenseite wie bei den übrigen Häusern 0,25 eingerückt),
+// Dielenboden, Möbel. In shell (ausblendbar): Dach, Schornstein, Lampen und die Vorderwand über dem Sockel.
+function house3Open(b, S, h) {
+  const L = h.look || {};
+  const C = HOUSE3_WALL[L.wall] || HOUSE3_WALL.fachwerk;
+  const W = h.w;
+  const D = h.h;
+  const M = placeAt(h.x + W / 2, h.y + D / 2);
+  const wh = 1.75 * (L.tall || 1);
+  const t = 0.5;
+  const zb = -D / 2 + 0.5;
+  const zf = D / 2 - 0.5;
+  const xl = -W / 2 + 0.5;
+  const xr = W / 2 - 0.5;
+  const d0 = h.enter.door - W / 2;
+  const d1 = d0 + 2;
+  // Boden: Dielen mit Fugen
+  b.add(wbox(W - 1.1, 0.06, D - 1.1, 0.02), HOUSE3_FLOOR, { parent: M, p: [0, 0.03, 0], top: lighter(HOUSE3_FLOOR, 0.08), topK: 0.5 });
+  for (let x = -W / 2 + 0.95; x < W / 2 - 0.6; x += 0.42) b.add(tinyBox(0.02, 0.01, D - 1.2), darker(HOUSE3_FLOOR, 0.3), { parent: M, p: [x, 0.062, 0], mat: 'detail' });
+  // Sockel rundum (vorn mit Lücke für die Tür), Rückwand, Seitenwände, Mauerkrone
+  b.add(wbox(W - 0.35, 0.3, t + 0.15, 0.06), C.base, { parent: M, p: [0, 0.15, zb], shade: 0.3 });
+  for (const x of [xl, xr]) b.add(wbox(t + 0.15, 0.3, D - 0.35, 0.06), C.base, { parent: M, p: [x, 0.15, 0], shade: 0.3 });
+  for (const [a, c] of [[-W / 2 + 0.2, d0], [d1, W / 2 - 0.2]]) if (c - a > 0.1) b.add(wbox(c - a, 0.3, t + 0.15, 0.06), C.base, { parent: M, p: [(a + c) / 2, 0.15, zf], shade: 0.3 });
+  b.add(wbox(2.2, 0.06, t + 0.3, 0.02), '#8a8478', { parent: M, p: [(d0 + d1) / 2, 0.03, zf + 0.05] });
+  b.add(wbox(W - 0.5, wh - 0.3, t, 0.05), C.face, { parent: M, p: [0, 0.3 + (wh - 0.3) / 2, zb], shade: 0.15 });
+  for (const x of [xl, xr]) b.add(wbox(t, wh - 0.3, D - 0.5, 0.05), C.face, { parent: M, p: [x, 0.3 + (wh - 0.3) / 2, 0], shade: 0.15 });
+  b.add(tinyBox(W - 0.42, 0.1, t + 0.08), C.trim, { parent: M, p: [0, wh, zb] });
+  for (const x of [xl, xr]) b.add(tinyBox(t + 0.08, 0.1, D - 0.42), C.trim, { parent: M, p: [x, wh, 0] });
+  // innen: heller Putz, zwei Fenster in der Rückwand, Balken an der Decke der Wände
+  b.add(tinyBox(W - 1.6, wh - 0.45, 0.03), C.inner, { parent: M, p: [0, 0.3 + (wh - 0.45) / 2 + 0.05, zb + t / 2 + 0.015] });
+  for (const sx of [-1, 1]) b.add(tinyBox(0.03, wh - 0.45, D - 1.6), C.inner, { parent: M, p: [sx * (W / 2 - 0.5 - t / 2 - 0.015), 0.3 + (wh - 0.45) / 2 + 0.05, 0] });
+  for (const x of [-0.42, 0.55]) {
+    b.add(tinyBox(0.5, 0.42, 0.04), C.win, { parent: M, p: [x, 1.15, zb + t / 2 + 0.035], mat: 'glowWin' });
+    b.add(tinyBox(0.58, 0.05, 0.08), C.trim, { parent: M, p: [x, 0.92, zb + t / 2 + 0.05] });
+  }
+  // Ecken außen
+  for (const x of [-W / 2 + 0.25, W / 2 - 0.25]) for (const z of [-D / 2 + 0.25, D / 2 - 0.25]) (z > 0 ? S : b).add(wbox(0.18, wh, 0.18, 0.04), C.trim, { parent: M, p: [x, wh / 2, z] });
+  // Vorderwand über dem Sockel (shell): links und rechts der Tür, Sturz über der Tür
+  const fz = zf + t / 2;
+  for (const [a, c] of [[-W / 2 + 0.25, d0], [d1, W / 2 - 0.25]]) {
+    if (c - a < 0.1) continue;
+    S.add(wbox(c - a, wh - 0.3, t, 0.05), C.face, { parent: M, p: [(a + c) / 2, 0.3 + (wh - 0.3) / 2, zf], shade: 0.15 });
+    house3Face(S, M, L, C, a + 0.08, c - 0.08, fz, wh - 0.3);
+    const n = Math.round((c - a) / 1.1);
+    for (let k = 0; k < n; k++) house3Window(S, M, L, C, a + ((c - a) * (k + 0.5)) / n, 0.3 + wh * 0.58, fz + 0.03, 0.5, h.roof);
+  }
+  S.add(wbox(d1 - d0, wh - 1.55, t, 0.04), C.face, { parent: M, p: [(d0 + d1) / 2, 1.55 + (wh - 1.55) / 2, zf] });
+  S.add(tinyBox(d1 - d0 + 0.2, 0.12, t + 0.1), C.trim, { parent: M, p: [(d0 + d1) / 2, 1.52, zf] });
+  for (const x of [d0 + 0.05, d1 - 0.05]) S.add(wbox(0.12, 1.55, t + 0.06, 0.03), C.trim, { parent: M, p: [x, 0.78, zf] });
+  S.add(tinyBox(W - 0.42, 0.1, t + 0.08), C.trim, { parent: M, p: [0, wh, zf] });
+  const rise = house3Roof(S, M, L, h.roof, 0, 0, W, D, wh, C);
+  house3Chimney(S, M, L, 0, 0, W, D, wh, rise);
+  house3Lamps(S, M, L, W, D, wh, (d0 + d1) / 2 + 0.5, fz);
+  // Möbel (welt.js HOUSE_ROOMS)
+  const room = HOUSE_ROOMS[h.enter.room];
+  if (!room) return;
+  for (const [kind, fx, fy, rot] of room.furn) {
+    const f = FURN3[kind];
+    if (f) f(b, M.clone().multiply(placeAt(fx - W / 2, fy - D / 2, rot || 0)));
+  }
+}
+// Möbel in begehbaren Häusern (Vorderseite nach Süden, Mitte am Boden)
+const FURN3 = {
+  kamin(b, M) {
+    b.add(wbox(1.15, 1.25, 0.5, 0.05), '#8a8276', { parent: M, p: [0, 0.68, -0.02], shade: 0.25 });
+    b.add(wbox(0.62, 0.52, 0.08, 0.03), '#1e1612', { parent: M, p: [0, 0.38, 0.22] });
+    b.add(tinyBox(1.3, 0.09, 0.6), '#6b4a2e', { parent: M, p: [0, 0.92, 0.02] });
+    b.add(wbox(0.62, 0.6, 0.4, 0.04), '#7a7268', { parent: M, p: [0, 1.55, -0.06] });
+    for (const sx of [-1, 1]) b.add(cyl3(0.05, 0.05, 0.42, 6), '#5a3a22', { parent: M, p: [sx * 0.08, 0.18, 0.12], r: [0, sx * 0.5, Math.PI / 2] });
+    b.add(sphere3(0.13, 8, 6), '#ff8a3a', { parent: M, p: [0, 0.27, 0.13], s: [1.5, 1.1, 0.8], mat: 'glow' });
+    b.add(sphere3(0.07, 6, 5), '#ffd27a', { parent: M, p: [0.04, 0.3, 0.18], mat: 'glow' });
+    for (const [x, c] of [[-0.35, '#c07a4a'], [0.38, '#5a6a8a']]) b.add(cyl3(0.06, 0.07, 0.16, 8), c, { parent: M, p: [x, 1.05, 0.05] });
+  },
+  regal(b, M) {
+    stShelf3(b, M, 1.15, 3, 0.42, 0.42, 0);
+    for (let k = 0; k < 5; k++) stBook3(b, M, -0.45 + k * 0.07, 0.44, 0.02, ['#7a2a2a', '#2a4a7a', '#4a6a3a', '#8a6a2a', '#5a3a6a'][k], 0.22, k === 4 ? 0.3 : 0);
+    for (let k = 0; k < 3; k++) stFlask3(b, M, 0.15 + k * 0.17, 0.86, 0.02, 0.9, ['#7ac85a', '#c8a03a', '#5ab8c8'][k]);
+    stCrate3(b, M, -0.3, 1.28, 0.02, 0.26, '#a07a4a');
+    b.add(cyl3(0.09, 0.07, 0.14, 8), '#c07a4a', { parent: M, p: [0.3, 1.35, 0.02] });
+  },
+  kraeuter(b, M) {
+    for (const sx of [-1, 1]) b.add(wbox(0.06, 1.45, 0.06, 0.02), '#5a3a22', { parent: M, p: [sx * 0.5, 0.72, 0] });
+    b.add(limb3(1.1, 0.025, 0.025, 5), '#6b4a2e', { parent: M, p: [-0.55, 1.38, 0], r: [0, 0, Math.PI / 2] });
+    for (let k = 0; k < 5; k++) {
+      const x = -0.38 + k * 0.19;
+      b.add(limb3(0.12, 0.008, 0.008, 3), '#4a3a22', { parent: M, p: [x, 1.38, 0], mat: 'detail' });
+      b.add(horn3(0.24, 0.06, 5), ['#6a9a46', '#8aa040', '#a8a04a'][k % 3], { parent: M, p: [x, 1.26, 0], r: [Math.PI, 0, 0], mat: 'detail' });
+    }
+    b.add(wbox(1.0, 0.08, 0.36, 0.02), '#8a6440', { parent: M, p: [0, 0.5, 0.02] });
+    for (const [x, c] of [[-0.3, '#d8c49a'], [0.05, '#6a9a46'], [0.32, '#b06a3a']]) b.add(cyl3(0.1, 0.07, 0.08, 8), c, { parent: M, p: [x, 0.58, 0.02] });
+  },
+  tisch(b, M) {
+    b.add(wbox(1.05, 0.07, 0.62, 0.02), '#9a7448', { parent: M, p: [0, 0.56, 0], top: '#b08c5c', topK: 0.4 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(tinyBox(0.07, 0.53, 0.07), '#5a3a22', { parent: M, p: [sx * 0.44, 0.27, sz * 0.24] });
+    for (const sx of [-1, 1]) {
+      b.add(cyl3(0.16, 0.14, 0.05, 10), '#8a6440', { parent: M, p: [sx * 0.75, 0.36, 0.05] });
+      for (let k = 0; k < 3; k++) b.add(tinyBox(0.04, 0.34, 0.04), '#5a3a22', { parent: M, p: [sx * 0.75 + Math.cos(k * 2.1) * 0.1, 0.17, 0.05 + Math.sin(k * 2.1) * 0.1] });
+    }
+    b.add(cyl3(0.05, 0.045, 0.12, 8), '#c8b088', { parent: M, p: [-0.25, 0.65, 0.05] });
+    b.add(cyl3(0.12, 0.07, 0.06, 10), '#7a5434', { parent: M, p: [0.15, 0.62, -0.05] });
+    b.add(cyl3(0.03, 0.03, 0.1, 6), '#f4ecd8', { parent: M, p: [0.35, 0.65, 0.12] });
+    b.add(sphere3(0.03, 5, 4), '#ffd27a', { parent: M, p: [0.35, 0.73, 0.12], s: [1, 1.5, 1], mat: 'glow' });
+  },
+  bett(b, M) {
+    b.add(wbox(0.86, 0.3, 1.6, 0.04), '#7a5434', { parent: M, p: [0, 0.18, 0], shade: 0.2 });
+    b.add(wbox(0.76, 0.12, 1.46, 0.05), '#ece4d2', { parent: M, p: [0, 0.38, 0.02] });
+    b.add(wbox(0.8, 0.09, 0.95, 0.04), '#7a3a4a', { parent: M, p: [0, 0.45, 0.3], top: '#8a4a5a', topK: 0.4 });
+    b.add(wbox(0.5, 0.11, 0.3, 0.05), '#f4f0e4', { parent: M, p: [0, 0.49, -0.55] });
+    b.add(wbox(0.86, 0.6, 0.08, 0.03), '#5a3a22', { parent: M, p: [0, 0.45, -0.78] });
+  },
+  fass(b, M) {
+    deco3Barrel(b, M, 0, 0, 1.0);
+  },
+  kiste(b, M) {
+    stCrate3(b, M, 0, 0, 0, 0.5, '#a07a4a');
+  },
+  krug(b, M) {
+    for (const [x, z, s, c] of [[-0.12, 0, 1.0, '#c07a4a'], [0.14, -0.08, 0.8, '#8a6a4a']]) {
+      b.add(lathe3('decoamph', [[0, 0], [0.08, 0], [0.18, 0.12], [0.2, 0.26], [0.12, 0.42], [0.07, 0.48], [0.09, 0.52], [0, 0.52]], 12), c, { parent: M, p: [x, 0.06, z], s: [s, s, s], shade: 0.3 });
+    }
+  },
+  teppich(b, M) {
+    b.add(tinyBox(2.1, 0.015, 1.4), '#8a3a3a', { parent: M, p: [0, 0.07, 0], mat: 'detail' });
+    b.add(tinyBox(1.8, 0.017, 1.1), '#a85a4a', { parent: M, p: [0, 0.072, 0], mat: 'detail' });
+    b.add(tinyBox(1.2, 0.019, 0.5), '#d8b060', { parent: M, p: [0, 0.074, 0], mat: 'detail' });
+  },
+  werkbank(b, M) {
+    b.add(wbox(1.6, 0.1, 0.55, 0.03), '#b08c5c', { parent: M, p: [0, 0.74, 0], top: '#c8a470', topK: 0.4 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(tinyBox(0.08, 0.7, 0.08), '#5a3a22', { parent: M, p: [sx * 0.7, 0.35, sz * 0.2] });
+    b.add(tinyBox(1.45, 0.05, 0.4), '#8a6440', { parent: M, p: [0, 0.22, 0] });
+    for (let k = 0; k < 3; k++) b.add(wbox(1.2, 0.05, 0.14, 0.01), '#d8b88a', { parent: M, p: [0, 0.27 + k * 0.05, -0.05 + k * 0.03] });
+    b.add(wbox(0.16, 0.14, 0.2, 0.02), '#4e535c', { parent: M, p: [0.62, 0.85, 0.12], shine: 0.6 });
+    // Werkzeug an der Wand: Säge, Hammer, Winkel
+    b.add(wbox(0.55, 0.16, 0.02, 0.01), '#a4adb8', { parent: M, p: [-0.4, 1.3, -0.25], shine: 0.8 });
+    b.add(tinyBox(0.14, 0.18, 0.04), '#6b4a2e', { parent: M, p: [-0.72, 1.3, -0.25] });
+    b.add(tinyBox(0.04, 0.4, 0.04), '#6b4a2e', { parent: M, p: [0.2, 1.25, -0.25] });
+    b.add(tinyBox(0.16, 0.07, 0.07), '#4e535c', { parent: M, p: [0.2, 1.45, -0.25] });
+    b.add(tinyBox(0.32, 0.03, 0.03), '#c9a35a', { parent: M, p: [0.55, 1.3, -0.25] });
+    b.add(tinyBox(0.03, 0.22, 0.03), '#c9a35a', { parent: M, p: [0.4, 1.2, -0.25] });
+  },
+  holz(b, M) {
+    PROP3.woodpile(b, M, { roof: '' });
+  }
+};
+// Dach und Vorderwand begehbarer Häuser aus- und einblenden (je Bild, aus renderDrei): weg, solange der eigene
+// Spieler drinnen ist, damit man ins Haus sieht
+function v3SyncHouses() {
+  const p = game.player;
+  const inside = p && game.running && !p.dead ? houseAt(p.x, p.y) : null;
+  for (const g of V3.objects.children) {
+    const sh = g.userData.shells;
+    if (!sh) continue;
+    for (const s of sh) s.visible = s.userData.house !== inside;
+  }
+}
 
 // --- Stände der Stadtleute (seit 12.0) -------------------------------------------------------------
 // Jede Rolle hat einen eigenen Stand hinter sich (Vorderseite nach Süden, zur Kamera; die Person steht davor).
@@ -920,6 +1265,32 @@ Object.assign(PROP3, {
     b.add(lathe3('decoore', [[0, 0], [0.42, 0], [0.32, 0.12], [0.16, 0.24], [0, 0.27]], 8), '#3a3430', { parent: M, shade: 0.3 });
     for (let k = 0; k < 5; k++) b.add(sphere3(0.08, 5, 4), k % 2 ? '#4a4440' : '#2e2a28', { parent: M, p: [Math.cos(k * 1.3) * 0.26, 0.12, Math.sin(k * 1.3) * 0.2], s: [1, 0.8, 1] });
     for (const [x, z] of [[0.08, 0.05], [-0.14, -0.08]]) b.add(sphere3(0.045, 5, 4), '#ff8a3a', { parent: M, p: [x, 0.24, z], mat: 'glow' });
+  },
+  // Wäscheleine (seit 13.91): zwei Pfosten, Leine, vier Tücher (eines in der Farbe der Stadt)
+  waesche(b, M, pr) {
+    for (const sx of [-1, 1]) b.add(wbox(0.07, 1.35, 0.07, 0.02), '#5a3a22', { parent: M, p: [sx * 0.78, 0.67, 0] });
+    b.add(limb3(1.56, 0.008, 0.008, 4), '#e8e0d0', { parent: M, p: [-0.78, 1.26, 0], r: [0, 0, Math.PI / 2], mat: 'detail' });
+    const cloth = [[-0.5, 0.34, 0.42, pr.roof || '#9a2f2a'], [-0.1, 0.3, 0.55, '#f4f0e4'], [0.26, 0.24, 0.36, '#8ab0d0'], [0.56, 0.2, 0.3, '#d8c49a']];
+    for (const [x, w, h, c] of cloth) {
+      b.add(wbox(w, h, 0.025, 0.01), c, { parent: M, p: [x, 1.25 - h / 2, 0], r: [0.05, 0, (x * 7) % 0.1 - 0.05], shade: 0.2 });
+      for (const dx of [-w / 2 + 0.03, w / 2 - 0.03]) b.add(tinyBox(0.025, 0.06, 0.035), '#c8a878', { parent: M, p: [x + dx, 1.26, 0] });
+    }
+  },
+  // Handkarren (seit 13.91): Ladefläche mit Brettern, zwei Speichenräder, Deichsel, Säcke und eine Kiste
+  karren(b, M, pr) {
+    b.add(wbox(1.1, 0.09, 0.66, 0.02), '#8a6440', { parent: M, p: [0, 0.48, 0], shade: 0.2, top: '#9a7448', topK: 0.4 });
+    for (const sz of [-1, 1]) b.add(wbox(1.1, 0.16, 0.05, 0.015), '#7a5434', { parent: M, p: [0, 0.6, sz * 0.32] });
+    b.add(wbox(0.05, 0.16, 0.66, 0.015), '#7a5434', { parent: M, p: [0.53, 0.6, 0] });
+    for (const sz of [-1, 1]) {
+      b.add(torus3(0.27, 0.035, Math.PI * 2, 4, 14), '#5a3a22', { parent: M, p: [0.05, 0.3, sz * 0.4] });
+      for (let k = 0; k < 3; k++) b.add(tinyBox(0.5, 0.03, 0.03), '#6b4a2e', { parent: M, p: [0.05, 0.3, sz * 0.4], r: [0, 0, k * Math.PI / 3] });
+      b.add(limb3(0.95, 0.025, 0.02, 5), '#6b4a2e', { parent: M, p: [-0.5, 0.5, sz * 0.25], r: [0, 0, -Math.PI / 2 - 0.35] });
+    }
+    b.add(limb3(0.86, 0.03, 0.03, 5), '#5a3a22', { parent: M, p: [0.05, 0.3, 0.43], r: [Math.PI / 2, 0, 0] });
+    b.add(ball(10), '#c8b088', { parent: M, p: [-0.3, 0.68, -0.1], s: [0.2, 0.18, 0.17], shade: 0.25 });
+    b.add(ball(10), '#b8a07a', { parent: M, p: [-0.15, 0.68, 0.05], s: [0.19, 0.16, 0.16] });
+    stCrate3(b, M, 0.25, 0.53, -0.02, 0.36, '#a07a4a', 0.2);
+    if (deco3Snow(pr)) deco3Cap(b, M, 0, 0.9, 0, 0.4, 0.26);
   },
   // Banner an der Mauer: Stange mit Querholz, Tuch in der Farbe der Stadt mit goldenem Rand und Zeichen
   wallbanner(b, M, pr) {
@@ -2065,11 +2436,15 @@ function* objectJob(cx, cy) {
     }
     if (y % 4 === 3) yield;
   }
+  // begehbare Häuser (seit 13.91): Dach und Vorderwand in eine eigene Bake3, die ein eigenes Mesh wird
+  const shells = [];
   for (const h of w.houses) {
     const hx = h.x + h.w / 2;
     const hy = h.y + h.h / 2;
     if (hx >= x0 && hx < x1 && hy >= y0 && hy < y1 && !(H && homeOut3(H, Math.floor(hx), Math.floor(hy)))) {
-      WORLD3.house(bakeAt(Math.floor(hx), Math.floor(hy)), h);
+      const shell = h.enter ? new Bake3(false) : null;
+      WORLD3.house(bakeAt(Math.floor(hx), Math.floor(hy)), h, shell);
+      if (shell) shells.push({ h, shell });
       yield;
     }
   }
@@ -2093,6 +2468,18 @@ function* objectJob(cx, cy) {
       yield;
       worldMesh(group, key, mergeParts(list, false), lowGfx);
     }
+  }
+  // Dach und Vorderwand begehbarer Häuser (seit 13.91): je Haus eine Gruppe, v3SyncHouses blendet sie aus
+  for (const { h, shell } of shells) {
+    const sg = new THREE.Group();
+    for (const key of ['lit', 'detail', 'glow', 'glowWin']) {
+      const list = shell.lists[key];
+      if (list && list.length) worldMesh(sg, key, mergeParts(list, false), lowGfx);
+    }
+    sg.userData.house = h;
+    group.add(sg);
+    (group.userData.shells || (group.userData.shells = [])).push(sg);
+    yield;
   }
   // Randkulisse (seit 8.4): Wand und Ferne in einem eigenen Mesh ohne Umriss
   const farList = bakes.flatMap((b) => b.lists.far || []);
@@ -2146,6 +2533,12 @@ function v3CollectLights() {
     // Dungeon-Schmuck (seit 13.7): Schrein, Thron und Schatz leuchten
     if (pr.type === 'dshrine' || pr.type === 'dthrone') lightSpots3.push({ x, y: 1.6, z, color: String(pr.roof).split('|')[2], power: 0.8, range: 5.5, flicker: 2 });
     if (pr.type === 'dchest') lightSpots3.push({ x, y: 0.9, z, color: '#ffd34d', power: 0.6, range: 4, flicker: 1 });
+  }
+  // Kamine in begehbaren Häusern (seit 13.91)
+  for (const h of w.houses) {
+    const room = h.enter && HOUSE_ROOMS[h.enter.room];
+    const k = room && room.furn.find((f) => f[0] === 'kamin');
+    if (k) lightSpots3.push({ x: h.x + k[1], y: 0.7, z: h.y + k[2] + 0.5, color: '#ff9a4a', power: 0.7, range: 4, flicker: 6 });
   }
   for (const n of w.npcs) {
     if (n.id === 'weltentor') lightSpots3.push({ x: n.x * U3, y: 1.2, z: n.y * U3, color: '#7ab8ff', power: 0.55, range: 4.5 });

@@ -171,7 +171,8 @@ function updatePlayer(dt) {
   let nd = 70;
   for (const n of game.world.npcs) {
     const d = dist(n, p);
-    if (d < nd) { near = n; nd = d; }
+    // seit 13.91 nicht durch die Wand eines begehbaren Hauses (sameRoom, welt.js)
+    if (d < nd && sameRoom(n, p)) { near = n; nd = d; }
   }
   game.nearNpc = near;
 
