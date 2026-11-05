@@ -25,7 +25,7 @@ const VS = VILLAGE_PLAN / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 33;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 12;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 13;  // seit 13.91 (geschwungene Wege); erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -474,7 +474,10 @@ function generateWorld() {
     }
   }
 
-  // Vier Wege vom Dorf bis an den Rand
+  // Vier Wege vom Dorf bis an den Rand – seit 13.91 nur noch vorläufig: Die Zufallszahlen für Blumen und Schmuck
+  // (auch in Vlotho) werden so genau wie früher verbraucht. Nach dem Schmuck werden sie außerhalb der Tore wieder
+  // zurückgebaut (oldRoad merkt sich, was vorher dort war), und layRoads legt die neuen, geschwungenen Wege.
+  const oldRoad = new Map();
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   dirs.forEach(([dx, dy], k) => {
     for (let s = 0; s < WORLD_W / 2 - 2; s++) {
@@ -484,6 +487,7 @@ function generateWorld() {
         const y = Math.floor(CENTER_Y + dy * s + (dx ? w + wobble : 0));
         if (x < m1x0 + MAP_BORDER || y < m1y0 + MAP_BORDER || x >= m1x1 - MAP_BORDER || y >= m1y1 - MAP_BORDER) continue;
         const i = y * MAP_W + x;
+        if (s > VILLAGE_HALF + 4 && !oldRoad.has(i)) oldRoad.set(i, [ground[i], obj[i], deco[i]]);
         // über Wasser eine Brücke (das Wasser bleibt darunter), sonst Weg; tidyBridges räumt danach auf
         if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
         else {
@@ -527,11 +531,26 @@ function generateWorld() {
   }
   // seit 13.63: Vlotho größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
   widenVillage(ground, obj, deco, zoneIdx);
+  // seit 13.91: die alten geraden Wege außerhalb der Tore zurückbauen (Bäume, Wasser und Boden wie vor dem Weg, dazu
+  // Schmuck mit eigenem Zufallsgenerator), dann die neuen Wege (layRoads)
+  const orng = mulberry32(WORLD_SEED + 1392);
+  for (const [i, [g0, o0, d0]] of oldRoad) {
+    ground[i] = g0;
+    obj[i] = o0;
+    deco[i] = d0;
+    if (o0 || d0) continue;
+    const r = orng();
+    if (g0 === GROUND.MEADOW && r < 0.3) deco[i] = DECO.FLOWER_RED + Math.floor(orng() * 3);
+    else if ((g0 === GROUND.GRASS || g0 === GROUND.FOREST || g0 === GROUND.MEADOW || g0 === GROUND.SWAMP) && r < 0.14) deco[i] = DECO.TUFT;
+  }
+  const roads = [];
+  layRoads(WORLD_MAPS.find((m) => m.id === 1), ground, obj, deco, zoneIdx, roads);
 
   // Dungeons im Streifen östlich der Welt, darunter Map 2 und Map 3
   const dungeons = buildDungeons(ground, obj, zoneIdx, deco);
-  const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom);
+  const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads);
   tidyBridges(ground, deco, obj);
+  const roadFixes = repairRoads(ground, obj, deco, roads);
 
   // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher.
   // Seit 12.2 stehen die Stadtleute am linken und rechten Rand einander gegenüber, die Mitte bleibt frei; jede
@@ -798,7 +817,8 @@ function generateWorld() {
   props.push(...townDecoProps(1, CENTER_X, CENTER_Y, VILLAGE_HALF, npcs, props, obj, ground));
   for (const mp of maps) props.push(...townDecoProps(mp.id, mp.cx, mp.cy, WORLD_MAPS.find((m) => m.id === mp.id).camp || CAMP_HALF, npcs, props, obj, ground));
 
-  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps };
+  // roads (seit 13.91): Mittellinien der Wege für die große Karte, roadFixes: Kacheln, die repairRoads trocken legte
+  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps, roads, roadFixes };
 }
 
 // --- Dungeons ------------------------------------------------------------------------------
@@ -907,6 +927,445 @@ function tidyBridges(ground, deco, obj) {
       }
     }
   }
+}
+
+// --- Wege (seit 13.91) ---------------------------------------------------------------------------------------
+// Bis 13.90 liefen von jeder Stadt vier gerade Wege bis an den Rand: auf jeder Map dasselbe Kreuz, und die
+// Instanz-Tore in den Ecken lagen abseits im Gelände. Seit 13.91 bekommt jede Map ihr eigenes Wegenetz (layRoads):
+//   - durch jedes Tor ein kurzes gerades Stück wie bisher (das Innere der Städte und Lager bleibt genau gleich),
+//   - von dort geschwungene Hauptwege zu vier bis sechs Zielen in der Wildnis und zu den Instanz-Toren in den Ecken,
+//   - Abzweigungen zu den Dungeon-Eingängen und Endboss-Toren, meist eine Schleife und schmale Seitenpfade.
+// Jeder Weg sucht sich seinen Lauf über ein Kostenfeld (Rauschen, Wald, Wasser – wie ein Trampelpfad, der Hügeln
+// und Seen ausweicht), wird geglättet, leicht geschlängelt und mit wechselnder Breite gezeichnet. Gewässer quert er
+// nur gerade (dort entsteht eine Brücke, tidyBridges räumt sie auf). Nur aus festen Startwerten je Map: alle Spieler
+// im Kanal haben dieselbe Welt. roads sammelt die Wege: geglättete Mittellinie (pts, für die große Karte) und die
+// Kacheln der Mittellinie (tiles, für repairRoads).
+const ROAD_R = { main: [1.0, 1.65], branch: [0.85, 1.3], trail: [0.5, 0.62] };
+const ROAD_TREES = new Set([OBJ.TREE, OBJ.PINE, OBJ.BLOSSOM, OBJ.DEADTREE]);
+
+function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
+  const [rx, ry, rw, rh] = wm.region;
+  const cx = wm.id === 1 ? CENTER_X : wm.cx;
+  const cy = wm.id === 1 ? CENTER_Y : wm.cy;
+  const half = wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF;
+  const rng = mulberry32(WORLD_SEED + 1391 * wm.id + 77);
+  const hill = makeNoise(rng, 15);
+  const fine = makeNoise(rng, 5);
+  const sway = makeNoise(rng, 9);
+  const N = rw * rh;
+  const cost = new Float32Array(N);
+  const wet = new Uint8Array(N);
+  const net = new Uint8Array(N);
+  const noJoin = new Uint8Array(N);
+  const netList = [];
+  const netGate = new Int8Array(N).fill(-1); // durch welches Tor ein Wegstück zur Stadt führt
+  const L = (x, y) => (y - ry) * rw + (x - rx);
+  const cheb = (x, y) => Math.max(Math.abs(x + 0.5 - cx), Math.abs(y + 0.5 - cy));
+  const inner = (x, y) => x >= rx + MAP_BORDER + 2 && y >= ry + MAP_BORDER + 2 && x < rx + rw - MAP_BORDER - 2 && y < ry + rh - MAP_BORDER - 2;
+  // Kostenfeld: billig entlang der Höhenlinien des Rauschens (dort schlängeln sich die Wege), teurer durch Wald und
+  // Felsen, sehr teuer durch Wasser; die Stadt mit Mauer und der Felsrand sind gesperrt
+  for (let y = ry; y < ry + rh; y++) {
+    for (let x = rx; x < rx + rw; x++) {
+      const j = L(x, y);
+      if (!inner(x, y) || cheb(x, y) < half + 1.5) { cost[j] = Infinity; continue; }
+      const i = y * MAP_W + x;
+      let c = 1 + 5 * Math.pow(Math.abs(hill(x, y) - 0.5) * 2, 1.6) + 1.4 * fine(x, y);
+      const o = obj[i];
+      if (ROAD_TREES.has(o)) c += 2.5;
+      else if (o === OBJ.ROCK) c += 1.5;
+      else if (o !== OBJ.NONE) c = Infinity;
+      if (LIQUID.has(ground[i])) { wet[j] = 1; c += 32; }
+      else if (ground[i] === GROUND.ICE) c += 3;
+      cost[j] = c;
+    }
+  }
+  const markNet = (j, gate) => {
+    if (net[j] || noJoin[j]) return;
+    net[j] = 1;
+    netGate[j] = gate;
+    netList.push(j);
+  };
+  const paint = (x, y) => {
+    if (!inner(x, y) || cheb(x, y) < half + 1.5) return;
+    const i = y * MAP_W + x;
+    // über Wasser eine Brücke (das Wasser bleibt darunter), sonst Weg – wie bisher; tidyBridges räumt danach auf
+    if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
+    else {
+      deco[i] = DECO.NONE;
+      if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+    }
+    obj[i] = OBJ.NONE;
+    const j = L(x, y);
+    if (cost[j] > 0.55 && cost[j] < Infinity) cost[j] = 0.55;
+  };
+  // 1. Kurze gerade Stücke durch die vier Tore, genau wie die alten Wege (Vlotho mit seinem leichten Schwung)
+  const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  DIRS.forEach(([dx, dy], k) => {
+    const pts = [];
+    for (let s = 0; s <= half + 3; s++) {
+      const wobble = wm.id === 1 && s > 10 ? Math.round(Math.sin(s * 0.21 + k * 1.7) * 1.6) : 0;
+      for (let w = -1; w <= 0; w++) {
+        const x = Math.floor(cx + dx * s + (dy ? w + wobble : 0));
+        const y = Math.floor(cy + dy * s + (dx ? w + wobble : 0));
+        if (x < rx + MAP_BORDER || y < ry + MAP_BORDER || x >= rx + rw - MAP_BORDER || y >= ry + rh - MAP_BORDER) continue;
+        const i = y * MAP_W + x;
+        // in Vlotho liegen diese Stücke schon (die alten Wege bis zum Tor, generateWorld): nichts ändern
+        if (wm.id !== 1) {
+          if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
+          else {
+            deco[i] = DECO.NONE;
+            if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
+          }
+          obj[i] = OBJ.NONE;
+        }
+        if (s >= half + 1) markNet(L(x, y), k);
+      }
+      pts.push(dx ? cx + dx * s + 0.5 : cx + wobble, dy ? cy + dy * s + 0.5 : cy + wobble);
+    }
+    roads.push({ map: wm.id, kind: 'gate', pts: new Float32Array(pts), tiles: new Int32Array(0) });
+  });
+
+  // 2. Wegsuche (A* mit etwas Übergewicht auf der Schätzung, damit sie schnell bleibt): von einem Ziel bis zur
+  // ersten Kachel, für die stop() gilt. Im Wasser nur geradeaus, schräg nie ins Wasser oder an Sperren vorbei.
+  const gS = new Float32Array(N);
+  const from = new Int32Array(N);
+  const seen = new Uint32Array(N);
+  const done = new Uint32Array(N);
+  let run = 0;
+  const search = (s, stop) => {
+    // Richtung: die nächste Kachel, an der die Suche enden darf
+    const sx = s % rw;
+    const sy = (s - sx) / rw;
+    let gx = cx - rx;
+    let gy = cy - ry;
+    let bd = Infinity;
+    for (const j of netList) {
+      if (!stop(j)) continue;
+      const x = j % rw;
+      const y = (j - x) / rw;
+      const d = (x - sx) ** 2 + (y - sy) ** 2;
+      if (d < bd) { bd = d; gx = x; gy = y; }
+    }
+    run++;
+    const hI = [];
+    const hF = [];
+    const push = (j, f) => {
+      let k = hI.length;
+      hI.push(j);
+      hF.push(f);
+      while (k > 0) {
+        const p = (k - 1) >> 1;
+        if (hF[p] <= f) break;
+        hI[k] = hI[p]; hF[k] = hF[p];
+        k = p;
+      }
+      hI[k] = j; hF[k] = f;
+    };
+    const pop = () => {
+      const top = hI[0];
+      const lj = hI.pop();
+      const lf = hF.pop();
+      if (hI.length) {
+        let k = 0;
+        const n = hI.length;
+        for (;;) {
+          let c = 2 * k + 1;
+          if (c >= n) break;
+          if (c + 1 < n && hF[c + 1] < hF[c]) c++;
+          if (hF[c] >= lf) break;
+          hI[k] = hI[c]; hF[k] = hF[c];
+          k = c;
+        }
+        hI[k] = lj; hF[k] = lf;
+      }
+      return top;
+    };
+    const h = (x, y) => Math.hypot(x - gx, y - gy) * 2.1;
+    seen[s] = run;
+    gS[s] = 0;
+    from[s] = -1;
+    push(s, h(sx, sy));
+    let steps = 0;
+    while (hI.length) {
+      const j = pop();
+      if (done[j] === run) continue;
+      done[j] = run;
+      if (j !== s && stop(j)) {
+        const path = [];
+        for (let k = j; k >= 0; k = from[k]) path.push(k);
+        return path; // von der Anschlussstelle zum Ziel
+      }
+      if (++steps > 120000) break;
+      const x = j % rw;
+      const y = (j - x) / rw;
+      const pj = from[j];
+      const pdx = pj >= 0 ? x - (pj % rw) : 0;
+      const pdy = pj >= 0 ? y - ((pj - (pj % rw)) / rw) : 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= rw || ny >= rh) continue;
+          const n = ny * rw + nx;
+          const c = cost[n];
+          if (c === Infinity) continue;
+          if (dx && dy && (wet[n] || wet[j] || cost[y * rw + nx] === Infinity || cost[ny * rw + x] === Infinity)) continue;
+          if (wet[j] && pj >= 0 && (dx !== pdx || dy !== pdy)) continue;
+          const ng = gS[j] + c * (dx && dy ? 1.4142 : 1);
+          if (seen[n] === run && ng >= gS[n]) continue;
+          seen[n] = run;
+          gS[n] = ng;
+          from[n] = j;
+          push(n, ng + h(nx, ny));
+        }
+      }
+    }
+    return null;
+  };
+
+  // 3. Weg glätten, sanft schlängeln, mit wechselnder Breite zeichnen und ins Netz aufnehmen
+  const lay = (path, kind, taper) => {
+    const n = path.length;
+    if (n < 2) return null;
+    let P = new Float64Array(n * 2);
+    const fixed = new Uint8Array(n);
+    for (let k = 0; k < n; k++) {
+      const j = path[k];
+      P[k * 2] = (j % rw) + rx + 0.5;
+      P[k * 2 + 1] = Math.floor(j / rw) + ry + 0.5;
+      if (wet[j]) for (let q = Math.max(0, k - 2); q <= Math.min(n - 1, k + 2); q++) fixed[q] = 1;
+    }
+    fixed[0] = fixed[n - 1] = 1;
+    const smooth = (times) => {
+      for (let t = 0; t < times; t++) {
+        const Q = P.slice();
+        for (let k = 1; k < n - 1; k++) {
+          if (fixed[k]) continue;
+          Q[k * 2] = (P[k * 2 - 2] + 2 * P[k * 2] + P[k * 2 + 2]) / 4;
+          Q[k * 2 + 1] = (P[k * 2 - 1] + 2 * P[k * 2 + 1] + P[k * 2 + 3]) / 4;
+        }
+        P = Q;
+      }
+    };
+    smooth(5);
+    // seitlich schlängeln (nicht an den Enden und nicht an Brücken, nie ins Wasser oder in Sperren)
+    const amp = kind === 'trail' ? 0.9 : 1.7;
+    for (let k = 2; k < n - 2; k++) {
+      if (fixed[k]) continue;
+      const tx = P[k * 2 + 2] - P[k * 2 - 2];
+      const ty = P[k * 2 + 3] - P[k * 2 - 1];
+      const tl = Math.hypot(tx, ty) || 1;
+      const fade = Math.min(1, k / 8, (n - 1 - k) / 8);
+      const off = (sway(P[k * 2], P[k * 2 + 1]) - 0.5) * 2 * amp * fade;
+      const nx = P[k * 2] - (ty / tl) * off;
+      const ny = P[k * 2 + 1] + (tx / tl) * off;
+      const fx = Math.floor(nx);
+      const fy = Math.floor(ny);
+      if (fx < rx || fy < ry || fx >= rx + rw || fy >= ry + rh) continue;
+      const lj = L(fx, fy);
+      if (wet[lj] || cost[lj] === Infinity) continue;
+      P[k * 2] = nx;
+      P[k * 2 + 1] = ny;
+    }
+    smooth(2);
+    // zeichnen: Mittellinie lückenlos (keine Ecke-an-Ecke-Schritte), dazu eine Scheibe mit wechselndem Radius
+    const [r0, r1] = ROAD_R[kind];
+    const tiles = [];
+    let lx = null;
+    let ly = null;
+    let total = 0;
+    for (let k = 1; k < n; k++) total += Math.hypot(P[k * 2] - P[k * 2 - 2], P[k * 2 + 1] - P[k * 2 - 1]);
+    let walked = 0;
+    const center = (x, y) => {
+      if (x === lx && y === ly) return;
+      if (lx !== null && x !== lx && y !== ly) {
+        paint(x, ly);
+        if (inner(x, ly) && cheb(x, ly) >= half + 1.5) tiles.push(ly * MAP_W + x);
+      }
+      paint(x, y);
+      if (inner(x, y) && cheb(x, y) >= half + 1.5) tiles.push(y * MAP_W + x);
+      lx = x;
+      ly = y;
+    };
+    for (let k = 1; k < n; k++) {
+      const ax = P[k * 2 - 2];
+      const ay = P[k * 2 - 1];
+      const bx = P[k * 2];
+      const by = P[k * 2 + 1];
+      const len = Math.hypot(bx - ax, by - ay);
+      const steps = Math.max(1, Math.ceil(len / 0.3));
+      for (let s = 0; s <= steps; s++) {
+        const px = ax + ((bx - ax) * s) / steps;
+        const py = ay + ((by - ay) * s) / steps;
+        const at = (walked + (len * s) / steps) / (total || 1);
+        center(Math.floor(px), Math.floor(py));
+        let r = r0 + (r1 - r0) * fine(px * 1.7, py * 1.7);
+        if (taper && at > 0.75) r = r + (ROAD_R.trail[0] - r) * Math.min(1, (at - 0.75) / 0.2);
+        const ir = Math.ceil(r);
+        for (let yy = Math.floor(py) - ir; yy <= Math.floor(py) + ir; yy++) {
+          for (let xx = Math.floor(px) - ir; xx <= Math.floor(px) + ir; xx++) {
+            if (Math.hypot(xx + 0.5 - px, yy + 0.5 - py) < r) paint(xx, yy);
+          }
+        }
+      }
+      walked += len;
+    }
+    const gate = netGate[path[0]];
+    for (const i of tiles) {
+      const x = i % MAP_W;
+      markNet(L(x, (i - x) / MAP_W), gate);
+    }
+    // Mittellinie für die Karte: etwa ein Punkt je Kachel
+    const pts = [];
+    for (let k = 0; k < n; k++) pts.push(P[k * 2], P[k * 2 + 1]);
+    const road = { map: wm.id, kind, pts: new Float32Array(pts), tiles: new Int32Array(tiles) };
+    roads.push(road);
+    return road;
+  };
+  // freie Kachel in der Nähe (kein Wasser, keine Sperre)
+  const dryNear = (x, y, R = 12) => {
+    for (let r = 0; r <= R; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+          const tx = x + dx;
+          const ty = y + dy;
+          if (tx < rx || ty < ry || tx >= rx + rw || ty >= ry + rh) continue;
+          const j = L(tx, ty);
+          if (!wet[j] && cost[j] < Infinity) return { x: tx, y: ty };
+        }
+      }
+    }
+    return null;
+  };
+  const block = (x0, y0, x1, y1) => {
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (x >= rx && y >= ry && x < rx + rw && y < ry + rh) cost[L(x, y)] = Infinity;
+  };
+  const keepFree = (x, y, R) => {
+    for (let yy = y - R; yy <= y + R; yy++) for (let xx = x - R; xx <= x + R; xx++) if (xx >= rx && yy >= ry && xx < rx + rw && yy < ry + rh) noJoin[L(xx, yy)] = 1;
+  };
+
+  // 4. Ziele: Dungeon-Eingänge (wie placeDungeonEntrance sie legt), Endboss-Tore, Instanz-Tore in den Ecken
+  // (Zielpunkt von instCornerEntrance) und drei bis fünf Punkte in der Wildnis
+  const mains = [];
+  const branches = [];
+  for (const d of DUNGEONS) {
+    const e = d.entry;
+    if (!e || (e.map || 1) !== wm.id) continue;
+    if (e.corner) {
+      const gx = e.corner[1] === 'r' ? rx + rw - 22 : rx + 22;
+      const gy = e.corner[0] === 'b' ? ry + rh - 16 : ry + 16;
+      keepFree(gx, gy, 4);
+      mains.push({ x: gx, y: gy, taper: false });
+      continue;
+    }
+    const [dx, dy] = e.dir;
+    const x = Math.round(cx + dx * e.dist + (dy ? 1 : 0) * e.side);
+    const y = Math.round(cy + dy * e.dist + (dx ? 1 : 0) * e.side);
+    // das Tor selbst bleibt frei (kein anderer Weg läuft hindurch), der Weg endet davor
+    block(x - 2, y - 2, x + 2, y + 2);
+    keepFree(x, y + 3, 3);
+    branches.push({ x, y: y + 3, taper: false });
+  }
+  const far = 4 + Math.floor(rng() * 3);
+  const a0 = rng() * Math.PI * 2;
+  const ex = rw / 2 - 18;
+  const ey = rh / 2 - 15;
+  const farAngles = [];
+  for (let k = 0; k < far; k++) {
+    const a = a0 + (k * Math.PI * 2) / far + (rng() - 0.5) * 1.1;
+    const reach = Math.min(ex / Math.max(1e-3, Math.abs(Math.cos(a))), ey / Math.max(1e-3, Math.abs(Math.sin(a))));
+    const f = 0.55 + rng() * 0.43;
+    const t = dryNear(Math.round(cx + Math.cos(a) * reach * f), Math.round(cy + Math.sin(a) * reach * f));
+    if (!t || Math.hypot(t.x - cx, t.y - cy) < half + 22) continue;
+    if (mains.some((m) => Math.hypot(m.x - t.x, m.y - t.y) < 34)) continue;
+    farAngles.push(a);
+    mains.push({ x: t.x, y: t.y, taper: true });
+  }
+  // weite Ziele zuerst: sie legen die Hauptwege, die näheren zweigen davon ab
+  mains.sort((a, b) => Math.hypot(b.x - cx, b.y - cy) - Math.hypot(a.x - cx, a.y - cy));
+  for (const m of mains) {
+    const path = search(L(m.x, m.y), (j) => net[j] === 1);
+    if (path) lay(path, 'main', m.taper);
+  }
+  // jedes Tor bekommt einen Weg: führt noch keiner hinaus, einer in seine Richtung (schräg versetzt)
+  DIRS.forEach(([dx, dy], k) => {
+    if (netList.some((j) => netGate[j] === k && cheb((j % rw) + rx, Math.floor(j / rw) + ry) > half + 5)) return;
+    const a = Math.atan2(dy, dx) + (rng() - 0.5) * 1.2;
+    const reach = Math.min(ex / Math.max(1e-3, Math.abs(Math.cos(a))), ey / Math.max(1e-3, Math.abs(Math.sin(a))));
+    const f = 0.35 + rng() * 0.4;
+    const t = dryNear(Math.round(cx + Math.cos(a) * reach * f), Math.round(cy + Math.sin(a) * reach * f));
+    if (!t || net[L(t.x, t.y)]) return;
+    const path = search(L(t.x, t.y), (j) => net[j] === 1 && netGate[j] === k);
+    if (path) lay(path, 'main', true);
+  });
+  for (const b of branches) {
+    if (net[L(b.x, b.y)]) continue;
+    const path = search(L(b.x, b.y), (j) => net[j] === 1);
+    if (path) lay(path, 'branch', false);
+  }
+  // 5. eine Schleife: von einem Punkt zwischen zwei Hauptwegen zu beiden hin
+  if (farAngles.length >= 2 && rng() < 0.85) {
+    farAngles.sort((a, b) => a - b);
+    const k = Math.floor(rng() * farAngles.length);
+    let a1 = farAngles[k];
+    let a2 = farAngles[(k + 1) % farAngles.length];
+    if (a2 < a1) a2 += Math.PI * 2;
+    const a = (a1 + a2) / 2;
+    const reach = Math.min(ex / Math.max(1e-3, Math.abs(Math.cos(a))), ey / Math.max(1e-3, Math.abs(Math.sin(a))));
+    const t = dryNear(Math.round(cx + Math.cos(a) * reach * (0.42 + rng() * 0.2)), Math.round(cy + Math.sin(a) * reach * (0.42 + rng() * 0.2)));
+    if (t && !net[L(t.x, t.y)]) {
+      const s = L(t.x, t.y);
+      const p1 = search(s, (j) => net[j] === 1);
+      if (p1) {
+        const join = p1[0];
+        const mine = new Set(p1);
+        const jx = join % rw;
+        const jy = (join - jx) / rw;
+        lay(p1, 'branch', false);
+        const p2 = search(s, (j) => net[j] === 1 && !mine.has(j) && Math.hypot((j % rw) - jx, Math.floor(j / rw) - jy) > 36);
+        if (p2) lay(p2, 'branch', false);
+      }
+    }
+  }
+  // 6. schmale Seitenpfade, die irgendwo in der Wildnis enden
+  const trails = 4 + Math.floor(rng() * 4);
+  for (let k = 0; k < trails; k++) {
+    for (let tries = 0; tries < 8; tries++) {
+      const j0 = netList[Math.floor(rng() * netList.length)];
+      const x0 = (j0 % rw) + rx;
+      const y0 = Math.floor(j0 / rw) + ry;
+      const a = rng() * Math.PI * 2;
+      const len = 12 + rng() * 24;
+      if (Math.hypot(x0 - cx, y0 - cy) < half + 14) continue;
+      const t = dryNear(Math.round(x0 + Math.cos(a) * len), Math.round(y0 + Math.sin(a) * len), 4);
+      if (!t || net[L(t.x, t.y)]) continue;
+      const path = search(L(t.x, t.y), (j) => net[j] === 1);
+      if (path && path.length > 8) {
+        lay(path, 'trail', false);
+        break;
+      }
+    }
+  }
+}
+
+// Wege nach dem Aufräumen der Brücken prüfen (seit 13.91): Liegt auf der Mittellinie eines Weges Wasser ohne Brücke
+// (tidyBridges hat eine schräg angeschnittene Brücke zurückgebaut), wird die Kachel trockener Weg. So bleibt jedes
+// Ziel zu Fuß erreichbar.
+function repairRoads(ground, obj, deco, roads) {
+  let fixed = 0;
+  for (const r of roads) {
+    for (const i of r.tiles) {
+      if (LIQUID.has(ground[i]) && deco[i] !== DECO.BRIDGE) {
+        ground[i] = GROUND.PATH;
+        deco[i] = DECO.NONE;
+        fixed++;
+      }
+      if (obj[i] !== OBJ.NONE && obj[i] !== OBJ.HOUSE && obj[i] !== OBJ.WALL) obj[i] = OBJ.NONE;
+    }
+  }
+  return fixed;
 }
 
 // Zahl aus einem Text (Startwert für den Grundriss eines Dungeons)
@@ -1232,7 +1691,7 @@ function dungeonProps(dg, obj, ground) {
 // --- Maps 2 bis 9 ---------------------------------------------------------------------------
 // Ringe um ein sicheres Lager bzw. eine Stadt in der Mitte, Gewässer und Bewuchs aus Rauschen,
 // vier Wege vom Lager zum Rand und ein Rand aus Felsen.
-function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
+function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads = []) {
   const rng = mulberry32(WORLD_SEED + 202);
   const out = [];
   for (const wm of WORLD_MAPS) {
@@ -1288,23 +1747,8 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
         else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL ? DECO.CRACK : DECO.TUFT;
       }
     }
-    // Wege vom Lager zum Rand
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      for (let s = 0; s < Math.max(rw, rh) / 2; s++) {
-        for (let w = -1; w <= 0; w++) {
-          const x = Math.floor(wm.cx + dx * s + (dy ? w : 0));
-          const y = Math.floor(wm.cy + dy * s + (dx ? w : 0));
-          if (x < rx + MAP_BORDER || y < ry + MAP_BORDER || x >= rx + rw - MAP_BORDER || y >= ry + rh - MAP_BORDER) continue;
-          const i = y * MAP_W + x;
-          if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
-          else {
-            deco[i] = DECO.NONE;
-            if (ground[i] !== GROUND.PLAZA) ground[i] = GROUND.PATH;
-          }
-          obj[i] = OBJ.NONE;
-        }
-      }
-    }
+    // Wege: seit 13.91 ein eigenes, geschwungenes Netz je Map (layRoads), vorher vier gerade Wege bis an den Rand
+    layRoads(wm, ground, obj, deco, zoneIdx, roads);
     // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Vlotho)
     for (let y = wm.cy - camp; y <= wm.cy + camp; y++) {
       for (let x = wm.cx - camp; x <= wm.cx + camp; x++) {
