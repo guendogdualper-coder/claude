@@ -52,10 +52,576 @@ function mapArt(area) {
   if (a && a.world === game.world) return a;
   // höchstens zwei Gebiete im Speicher (eine Map sind etwa 5 MB)
   if (MAP_ART.size >= 2) MAP_ART.delete(MAP_ART.keys().next().value);
-  a = { world: game.world, S: area.wm ? 6 : 8, c: null };
-  a.c = buildMapArt(area, a.S);
+  // seit 13.91: Maps mit eigener, detailreicher Grafik (buildWorldArt) in 5 Bildpunkten je Kachel (vorher 6, schlicht).
+  // Sie entsteht in kleinen Häppchen zwischen den Bildern (mapArtSlices), damit beim Betreten einer Map nichts
+  // ruckelt; bis dahin zeigt die Minikarte nur die Zeichen. Die große Karte baut, was noch fehlt, sofort fertig.
+  // Dungeons und Arenahallen bleiben scharf und schlicht (buildMapArt, sofort).
+  a = { world: game.world, S: area.wm ? MAP_ART_S : 8, c: null, gen: null };
   MAP_ART.set(area.key, a);
+  if (area.wm) {
+    a.gen = buildWorldArt(area, a.S);
+    mapArtSlices(a, area.key);
+  } else a.c = buildMapArt(area, a.S);
   return a;
+}
+
+// Kartengrafik weiterbauen, höchstens budget Millisekunden (seit 13.91)
+function mapArtStep(a, budget) {
+  if (a.c || !a.gen) return a;
+  const t0 = performance.now();
+  for (;;) {
+    const r = a.gen.next();
+    if (r.done) {
+      a.c = r.value;
+      a.gen = null;
+      break;
+    }
+    if (performance.now() - t0 >= budget) break;
+  }
+  return a;
+}
+function mapArtSlices(a, key) {
+  const tick = () => {
+    if (a.c || !a.gen || MAP_ART.get(key) !== a) return;
+    mapArtStep(a, 6);
+    if (!a.c) setTimeout(tick, 0);
+  };
+  setTimeout(tick, 0);
+}
+
+// --- Kartengrafik der Maps (seit 13.91) -----------------------------------------------------------------------
+// Für Minikarte und große Karte, einmal je Map gezeichnet und danach nur noch als Bild benutzt:
+//   - Gelände in weichen, etwas wärmeren Farben mit Licht und Schatten: Hügel aus dem Helligkeitsrauschen der Welt
+//     (world.shade), von Nordwesten beleuchtet; Wälder dunkeln den Boden darunter ab (Waldflächen statt Einzelbäume)
+//   - Gewässer mit hellem Ufersaum, flachem Rand und dunklerer Mitte (je Art: Wasser, Moor, Lava, Eis, Abgrund)
+//   - Wege als geschwungene helle Bänder mit dunklem Rand (Mittellinien aus world.roads, siehe layRoads in welt.js)
+//   - Bäume als Baumgruppen: dunkler Kronenteppich, darauf einzelne Kronen mit Schatten und Glanzlicht
+//   - Städte mit Pflaster, Mauer, runden Türmen, kleinen Häusern, Ständen und Brunnen; feine Punktlinien an den
+//     Gebietsgrenzen; der Felsrand der Map als dunkles Band
+// Alles in wenigen Pfaden je Farbe gezeichnet (nicht je Baum einzeln), damit das Bauen schnell bleibt.
+const MAP_ART_S = 5;
+const MAP_TAU = Math.PI * 2;
+// Gewässer: Ufersaum (mit Deckkraft), flach, tief
+const MAP_LIQ = {
+  [GROUND.WATER]: [[226, 214, 168, 0.9], [79, 147, 184], [53, 111, 156]],
+  [GROUND.BOG]: [[122, 128, 86, 0.9], [74, 106, 84], [51, 80, 62]],
+  [GROUND.LAVA]: [[48, 30, 26, 0.95], [240, 138, 50], [212, 80, 28]],
+  [GROUND.ICE]: [[244, 250, 255, 0.9], [191, 224, 242], [166, 208, 234]],
+  [GROUND.ABGRUND]: [[126, 110, 176, 0.85], [42, 32, 80], [14, 10, 28]]
+};
+// Kronen: Grundfarbe, zweite Farbe, Glanzlicht, Größe
+const MAP_TREE_LOOK = {
+  [OBJ.TREE]: ['#3a6a2c', '#467a34', '#6ea04e', 0.62],
+  [OBJ.PINE]: ['#24452c', '#2c5236', '#4e7e5a', 0.54],
+  [OBJ.BLOSSOM]: ['#c87a98', '#d690ae', '#f6c4d6', 0.6],
+  [OBJ.DEADTREE]: ['#5e4636', '#6e5444', '#94785e', 0.34]
+};
+const MAP_STAND_COLORS = ['#b8452e', '#2e6ab8', '#c89a2e', '#3a8a4a', '#8a3ab8', '#2e9aa0'];
+
+// weicher Mittelwert über (2r+1)² Kacheln, am Rand geklemmt (getrennt nach x und y, gleitende Summe)
+function mapBlur(src, W, H, r) {
+  const tmp = new Float32Array(src.length);
+  const out = new Float32Array(src.length);
+  const k = 2 * r + 1;
+  for (let y = 0; y < H; y++) {
+    const row = y * W;
+    let s = 0;
+    for (let d = -r; d <= r; d++) s += src[row + Math.max(0, Math.min(W - 1, d))];
+    for (let x = 0; x < W; x++) {
+      tmp[row + x] = s / k;
+      s += src[row + Math.min(W - 1, x + r + 1)] - src[row + Math.max(0, x - r)];
+    }
+  }
+  for (let x = 0; x < W; x++) {
+    let s = 0;
+    for (let d = -r; d <= r; d++) s += tmp[Math.max(0, Math.min(H - 1, d)) * W + x];
+    for (let y = 0; y < H; y++) {
+      out[y * W + x] = s / k;
+      s += tmp[Math.min(H - 1, y + r + 1) * W + x] - tmp[Math.max(0, y - r) * W + x];
+    }
+  }
+  return out;
+}
+
+// Farbe der Karte: etwas wärmer und weicher als die Bodenfarbe (Pergament-Ton)
+function mapSoftColor(g) {
+  const c = MAP_COLORS[g] || MAP_COLORS[GROUND.CAVE];
+  const grey = (c[0] + c[1] + c[2]) / 3;
+  return [
+    (c[0] * 0.86 + grey * 0.06 + 222 * 0.08),
+    (c[1] * 0.86 + grey * 0.06 + 204 * 0.08),
+    (c[2] * 0.86 + grey * 0.06 + 160 * 0.08)
+  ];
+}
+
+function* buildWorldArt(area, S) {
+  const w = game.world;
+  const W = area.w;
+  const H = area.h;
+  const N = W * H;
+  const at = (x, y) => (area.y + y) * MAP_W + area.x + x;
+  const B = MAP_BORDER;
+  const inBorder = (x, y) => x < B || y < B || x >= W - B || y >= H - B;
+  // 1. Felder je Kachel: Wasser, Bäume, Höhe
+  const wet = new Float32Array(N);
+  const trees = new Float32Array(N);
+  const hgt = new Float32Array(N);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = at(x, y);
+      const k = y * W + x;
+      const g = w.ground[i];
+      const o = w.obj[i];
+      wet[k] = LIQUID.has(g) || g === GROUND.ICE ? 1 : 0;
+      trees[k] = ROAD_TREES.has(o) ? 1 : 0;
+      // Höhe: etwas Rauschen der Welt, Felsen und Wald heben, Gewässer liegen in Senken
+      hgt[k] = (w.shade[i] / 255) * 0.35 + (o === OBJ.ROCK ? 1 : 0) + trees[k] * 0.3 - wet[k] * 0.7 + (inBorder(x, y) ? 0.6 : 0);
+    }
+  }
+  const hs = mapBlur(mapBlur(hgt, W, H, 3), W, H, 3);
+  const forest = mapBlur(mapBlur(trees, W, H, 2), W, H, 1);
+  yield;
+  // Gewässer: Art je Kachel (auch für die Ufer daneben) und zwei geglättete Felder für weiche Umrisse
+  const liqKeys = Object.keys(MAP_LIQ).map(Number);
+  const kind = new Uint8Array(N);
+  const M = new Float32Array(N);
+  for (let y = B; y < H - B; y++) {
+    for (let x = B; x < W - B; x++) {
+      const k = y * W + x;
+      if (!wet[k]) continue;
+      const g = w.ground[at(x, y)];
+      kind[k] = liqKeys.indexOf(MAP_LIQ[g] ? g : GROUND.WATER) + 1;
+      M[k] = 1;
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    for (let y = 1; y < H - 1; y++) {
+      for (let x = 1; x < W - 1; x++) {
+        const k = y * W + x;
+        if (kind[k]) continue;
+        kind[k] = kind[k - 1] || kind[k + 1] || kind[k - W] || kind[k + W] || 0;
+      }
+    }
+  }
+  yield;
+  const near = mapBlur(M, W, H, 1);
+  const far = mapBlur(M, W, H, 2);
+  const F = new Float32Array(N);
+  const D = new Float32Array(N);
+  for (let k = 0; k < N; k++) {
+    F[k] = M[k] * 0.5 + near[k] * 0.5;
+    D[k] = M[k] * 0.3 + far[k] * 0.7;
+  }
+  // 2. Boden und Gewässer: zwei Bildpunkte je Kachel, alle Werte zwischen den Kachelmitten weich gemischt
+  // (Farbe, Licht, Wasserfelder), dann weich vergrößert. Ufer: heller Saum, flaches Wasser, dunklere Mitte.
+  const pathCol = mapSoftColor(GROUND.PATH);
+  // Grundfarben je Kachel, weich verwischt (keine Kachelflecken); unter Wasser der Boden des Gebiets
+  const cr = new Float32Array(N);
+  const cg = new Float32Array(N);
+  const cb = new Float32Array(N);
+  // Farben einmal je Bodenart bzw. je Gebiet (unter Wegen und Gewässern) ausrechnen, nicht je Kachel
+  const soft = [];
+  const zoneCol = [];
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = at(x, y);
+      const k = y * W + x;
+      const g = w.ground[i];
+      let col;
+      let m = 0;
+      if (g === GROUND.PATH || wet[k]) {
+        // Wege zeichnet der Vektor-Teil, Gewässer die eigene Ebene; darunter der Boden des Gebiets (beim Weg getönt)
+        const zi = w.zoneIdx[i];
+        if (!zoneCol[zi]) {
+          const zg = GROUND[ZONES[zi].ground];
+          zoneCol[zi] = mapSoftColor(zg != null ? zg : GROUND.GRASS);
+        }
+        col = zoneCol[zi];
+        m = wet[k] ? 0 : 0.4;
+      } else col = soft[g] || (soft[g] = mapSoftColor(g));
+      cr[k] = col[0] * (1 - m) + pathCol[0] * m;
+      cg[k] = col[1] * (1 - m) + pathCol[1] * m;
+      cb[k] = col[2] * (1 - m) + pathCol[2] * m;
+    }
+  }
+  yield;
+  const R1 = mapBlur(mapBlur(cr, W, H, 1), W, H, 1);
+  const G1 = mapBlur(mapBlur(cg, W, H, 1), W, H, 1);
+  const B1 = mapBlur(mapBlur(cb, W, H, 1), W, H, 1);
+  yield;
+  // Licht je Kachel: Hügel von Nordwesten beleuchtet, oben heller, Waldflächen dunkler und grüner
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const k = y * W + x;
+      const xa = Math.max(0, x - 1);
+      const ya = Math.max(0, y - 1);
+      const xb = Math.min(W - 1, x + 1);
+      const yb = Math.min(H - 1, y + 1);
+      const slope = (hs[ya * W + xa] - hs[yb * W + xb]) * 4;
+      const f = forest[k];
+      const light = (1 + Math.max(-0.12, Math.min(0.12, slope)) + (hs[k] - 0.15) * 0.08) * (1 - f * 0.34);
+      R1[k] = R1[k] * light - f * 6;
+      G1[k] = G1[k] * light + f * 4;
+      B1[k] = B1[k] * light - f * 4;
+    }
+  }
+  yield;
+  // Boden: eine Kachel ein Bildpunkt, beim Vergrößern weich gemischt
+  const lo = document.createElement('canvas');
+  lo.width = W;
+  lo.height = H;
+  const lx = lo.getContext('2d');
+  const img = lx.createImageData(W, H);
+  const d = img.data;
+  for (let k = 0; k < N; k++) {
+    const n = ((tileHash(area.x + (k % W), area.y + ((k / W) | 0)) % 5) - 2) * 0.8;
+    d[k * 4] = R1[k] + n;
+    d[k * 4 + 1] = G1[k] + n;
+    d[k * 4 + 2] = B1[k] + n;
+    d[k * 4 + 3] = 255;
+  }
+  lx.putImageData(img, 0, 0);
+  yield;
+  // Gewässer: eigene Ebene mit zwei Bildpunkten je Kachel, nur rund um das Wasser berechnet; die Felder werden
+  // zwischen den Kachelmitten gemischt, so entstehen weiche, runde Ufer statt Kachelecken
+  const Q = 2;
+  const wl = document.createElement('canvas');
+  wl.width = W * Q;
+  wl.height = H * Q;
+  const wx = wl.getContext('2d');
+  const wimg = wx.createImageData(W * Q, H * Q);
+  const wd = wimg.data;
+  const LC = liqKeys.map((g) => MAP_LIQ[g]);
+  const step = (a, b, v) => (v <= a ? 0 : v >= b ? 1 : (v - a) / (b - a));
+  for (let y0 = 0; y0 < H - 1; y0++) {
+    if (y0 % 40 === 39) yield;
+    for (let x0 = 0; x0 < W - 1; x0++) {
+      const k00 = y0 * W + x0;
+      const k10 = k00 + 1;
+      const k01 = k00 + W;
+      const k11 = k01 + 1;
+      if (F[k00] < 0.15 && F[k10] < 0.15 && F[k01] < 0.15 && F[k11] < 0.15) continue;
+      for (let sy = 0; sy < Q; sy++) {
+        const fy = (sy + 0.5) / Q;
+        for (let sx = 0; sx < Q; sx++) {
+          const fx = (sx + 0.5) / Q;
+          const w00 = (1 - fx) * (1 - fy);
+          const w10 = fx * (1 - fy);
+          const w01 = (1 - fx) * fy;
+          const w11 = fx * fy;
+          const fw = F[k00] * w00 + F[k10] * w10 + F[k01] * w01 + F[k11] * w11;
+          if (fw < 0.17) continue;
+          const kk = kind[(fx < 0.5 ? x0 : x0 + 1) + (fy < 0.5 ? y0 : y0 + 1) * W] || kind[k00] || kind[k11] || 1;
+          const [shore, shallow, deepC] = LC[kk - 1];
+          const a1 = step(0.17, 0.23, fw) * shore[3];
+          const a2 = step(0.33, 0.39, fw);
+          let r = shore[0];
+          let g = shore[1];
+          let b = shore[2];
+          if (a2 > 0) {
+            const dw = D[k00] * w00 + D[k10] * w10 + D[k01] * w01 + D[k11] * w11;
+            const a3 = step(0.62, 0.9, dw);
+            r += (shallow[0] + (deepC[0] - shallow[0]) * a3 - r) * a2;
+            g += (shallow[1] + (deepC[1] - shallow[1]) * a3 - g) * a2;
+            b += (shallow[2] + (deepC[2] - shallow[2]) * a3 - b) * a2;
+          }
+          const p = (((y0 * Q + sy + 1) * W * Q) + x0 * Q + sx + 1) * 4;
+          wd[p] = r;
+          wd[p + 1] = g;
+          wd[p + 2] = b;
+          wd[p + 3] = (a2 + a1 * (1 - a2)) * 255;
+        }
+      }
+    }
+  }
+  wx.putImageData(wimg, 0, 0);
+  const c = document.createElement('canvas');
+  c.width = W * S;
+  c.height = H * S;
+  const cx = c.getContext('2d');
+  cx.imageSmoothingEnabled = true;
+  cx.imageSmoothingQuality = 'high';
+  cx.drawImage(lo, 0, 0, c.width, c.height);
+  cx.drawImage(wl, 0, 0, c.width, c.height);
+  const disc = (list, r, style) => {
+    if (!list.length) return;
+    cx.fillStyle = style;
+    cx.beginPath();
+    for (let q = 0; q < list.length; q += 3) {
+      const rr = list[q + 2] * r;
+      cx.moveTo(list[q] + rr, list[q + 1]);
+      cx.arc(list[q], list[q + 1], rr, 0, MAP_TAU);
+    }
+    cx.fill();
+  };
+  yield;
+  // 3. Feine Punktlinien an den Gebietsgrenzen (nicht am Rand der Stadt)
+  const dots = [];
+  for (let y = B; y < H - B - 1; y++) {
+    for (let x = B; x < W - B - 1; x++) {
+      if ((x + y) % 3) continue;
+      const i = at(x, y);
+      const z = w.zoneIdx[i];
+      if (ZONES[z].safe) continue;
+      const zr = w.zoneIdx[i + 1];
+      const zd = w.zoneIdx[i + MAP_W];
+      if ((zr !== z && !ZONES[zr].safe) || (zd !== z && !ZONES[zd].safe)) dots.push((x + 1) * S, (y + 1) * S, 1);
+    }
+  }
+  disc(dots, S * 0.2, 'rgba(58,38,18,0.38)');
+  yield;
+  // 4. Kleine Wellen auf tiefem Wasser, glühende Adern in der Lava
+  const waves = new Map();
+  for (let y = B; y < H - B; y++) {
+    for (let x = B; x < W - B; x++) {
+      const k = y * W + x;
+      if (D[k] < 0.7 || !kind[k]) continue;
+      const g = liqKeys[kind[k] - 1];
+      if (tileHash(area.x + x, area.y + y) % (g === GROUND.LAVA ? 4 : 6)) continue;
+      if (!waves.has(g)) waves.set(g, []);
+      waves.get(g).push((x + 0.5) * S, (y + 0.5) * S, 1);
+    }
+  }
+  for (const [g, marks] of waves) {
+    if (g === GROUND.LAVA) {
+      disc(marks, S * 0.32, 'rgba(255,214,110,0.55)');
+      continue;
+    }
+    cx.strokeStyle = g === GROUND.ABGRUND ? 'rgba(168,150,255,0.35)' : g === GROUND.ICE ? 'rgba(255,255,255,0.6)' : 'rgba(235,248,255,0.45)';
+    cx.lineWidth = Math.max(0.8, S * 0.16);
+    cx.beginPath();
+    for (let q = 0; q < marks.length; q += 3) {
+      const px = marks[q];
+      const py = marks[q + 1];
+      cx.moveTo(px - S * 0.45, py);
+      cx.quadraticCurveTo(px, py - S * 0.35, px + S * 0.45, py);
+    }
+    cx.stroke();
+  }
+  yield;
+  // 5. Wege: dunkler Rand, helles Band, feine Mittellinie; das Ende weiter Wege läuft schmal aus
+  const ROAD_W = { gate: 2.0, main: 2.3, branch: 1.9, trail: 1.05 };
+  const segs = [];
+  for (const r of w.roads || []) {
+    if (!area.wm || r.map !== area.wm.id) continue;
+    const pts = r.pts;
+    const n = pts.length / 2;
+    if (n < 2) continue;
+    // in Stücke zu etwa 12 Punkten (für die wechselnde Breite), die sich überlappen
+    const step = 12;
+    for (let s0 = 0; s0 < n - 1; s0 += step) {
+      const s1 = Math.min(n - 1, s0 + step);
+      const fr = s1 / (n - 1);
+      let wd = ROAD_W[r.kind] || 2;
+      if (r.kind === 'main' && fr > 0.8) wd = wd + (ROAD_W.trail - wd) * Math.min(1, (fr - 0.8) / 0.2);
+      segs.push({ pts, a: s0, b: s1, wd });
+    }
+  }
+  const strokeSegs = (extra, style, k) => {
+    cx.strokeStyle = style;
+    cx.lineCap = 'round';
+    cx.lineJoin = 'round';
+    for (const sg of segs) {
+      cx.lineWidth = Math.max(1, (sg.wd * k + extra) * S);
+      cx.beginPath();
+      const P = sg.pts;
+      const X = (q) => (P[q * 2] - area.x) * S;
+      const Y = (q) => (P[q * 2 + 1] - area.y) * S;
+      cx.moveTo(X(sg.a), Y(sg.a));
+      for (let q = sg.a + 1; q < sg.b; q++) cx.quadraticCurveTo(X(q), Y(q), (X(q) + X(q + 1)) / 2, (Y(q) + Y(q + 1)) / 2);
+      cx.lineTo(X(sg.b), Y(sg.b));
+      cx.stroke();
+    }
+  };
+  strokeSegs(0.75, 'rgba(78,58,34,0.72)', 1);
+  strokeSegs(0, '#dcc59a', 1);
+  strokeSegs(0, 'rgba(250,238,205,0.5)', 0.32);
+  // Brücken: Bretter quer zum Weg
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (w.deco[at(x, y)] !== DECO.BRIDGE) continue;
+      cx.fillStyle = '#8a6440';
+      cx.fillRect(x * S - 0.5, y * S - 0.5, S + 1, S + 1);
+      cx.fillStyle = 'rgba(40,24,10,0.5)';
+      const horiz = typeof bridgeHoriz === 'function' && bridgeHoriz(area.x + x, area.y + y);
+      for (let q = 1; q < 3; q++) {
+        if (horiz) cx.fillRect(x * S + (q * S) / 3, y * S, 1, S);
+        else cx.fillRect(x * S, y * S + (q * S) / 3, S, 1);
+      }
+    }
+  }
+  // 6. Felsrand der Map als dunkles Band mit hellerer Kante
+  cx.fillStyle = 'rgba(28,22,16,0.5)';
+  cx.fillRect(0, 0, c.width, B * S);
+  cx.fillRect(0, c.height - B * S, c.width, B * S);
+  cx.fillRect(0, B * S, B * S, c.height - 2 * B * S);
+  cx.fillRect(c.width - B * S, B * S, B * S, c.height - 2 * B * S);
+  cx.strokeStyle = 'rgba(232,214,170,0.35)';
+  cx.lineWidth = Math.max(1, S * 0.3);
+  cx.strokeRect(B * S, B * S, c.width - 2 * B * S, c.height - 2 * B * S);
+  yield;
+  // 7. Felsen und Bäume: erst der Kronenteppich der Wälder, dann alle Schatten, dann Kronen und Glanzlichter
+  const rocks = [];
+  const under = [];
+  const shadow = [];
+  const crowns = new Map();
+  for (let y = B; y < H - B; y++) {
+    for (let x = B; x < W - B; x++) {
+      const o = w.obj[at(x, y)];
+      if (o !== OBJ.ROCK && !ROAD_TREES.has(o)) continue;
+      const h = tileHash(area.x + x, area.y + y);
+      const jx = (((h >> 3) % 7) - 3) * 0.06;
+      const jy = (((h >> 6) % 7) - 3) * 0.06;
+      const sz = 0.86 + ((h >> 9) % 5) * 0.07;
+      const px = (x + 0.5 + jx) * S;
+      const py = (y + 0.5 + jy) * S;
+      if (o === OBJ.ROCK) {
+        rocks.push(px, py, sz);
+        continue;
+      }
+      const look = MAP_TREE_LOOK[o];
+      if (o !== OBJ.DEADTREE) under.push(px, py, sz);
+      shadow.push(px + S * 0.24, py + S * 0.3, sz * look[3]);
+      if (!crowns.has(o)) crowns.set(o, [[], [], []]);
+      const lists = crowns.get(o);
+      lists[(h >> 12) & 1].push(px, py, sz * look[3]);
+      lists[2].push(px - S * 0.18, py - S * 0.2, sz * look[3] * 0.42);
+    }
+  }
+  disc(under, S * 1.15, 'rgba(22,44,20,0.28)');
+  disc(shadow, S, 'rgba(10,14,8,0.34)');
+  disc(rocks, S * 0.48, 'rgba(20,18,16,0.6)');
+  disc(rocks, S * 0.4, '#8f8a80');
+  disc(rocks.map((v, q) => (q % 3 === 0 ? v - S * 0.1 : q % 3 === 1 ? v - S * 0.12 : v)), S * 0.2, '#c2bcb0');
+  for (const [o, lists] of crowns) {
+    const look = MAP_TREE_LOOK[o];
+    disc(lists[0], S, look[0]);
+    disc(lists[1], S, look[1]);
+    disc(lists[2], S, look[2]);
+  }
+  yield;
+  // 8. Städte: Pflasterfugen, Mauer, Türme, Häuser, Stände, Brunnen (nur im Quadrat um die Stadt gesucht)
+  const tcx = (area.wm.id === 1 ? CENTER_X : area.wm.cx) - area.x;
+  const tcy = (area.wm.id === 1 ? CENTER_Y : area.wm.cy) - area.y;
+  const th = (area.wm.id === 1 ? VILLAGE_HALF : area.wm.camp || CAMP_HALF) + 2;
+  const tx0 = Math.max(0, tcx - th);
+  const tx1 = Math.min(W - 1, tcx + th);
+  const ty0 = Math.max(0, tcy - th);
+  const ty1 = Math.min(H - 1, tcy + th);
+  const fugen = new Path2D();
+  const wallDark = new Path2D();
+  const wallStone = new Path2D();
+  const wallTop = new Path2D();
+  for (let y = ty0; y <= ty1; y++) {
+    for (let x = tx0; x <= tx1; x++) {
+      const i = at(x, y);
+      if (w.obj[i] === OBJ.WALL) {
+        wallDark.rect(x * S - 1, y * S - 1, S + 2, S + 2);
+        wallStone.rect(x * S + 0.5, y * S + 0.5, S - 1, S - 1);
+        wallTop.rect(x * S + 0.5, y * S + 0.5, S - 1, S * 0.35);
+      } else if (w.ground[i] === GROUND.PLAZA) {
+        const h = tileHash(area.x + x, area.y + y);
+        fugen.rect(x * S + (h % 3), y * S + ((h >> 2) % 3), S * 0.45, 1);
+      }
+    }
+  }
+  cx.fillStyle = 'rgba(80,66,48,0.22)';
+  cx.fill(fugen);
+  cx.fillStyle = '#2c2a30';
+  cx.fill(wallDark);
+  cx.fillStyle = '#8e8a84';
+  cx.fill(wallStone);
+  cx.fillStyle = '#b8b2a8';
+  cx.fill(wallTop);
+  const inArt = (px, py) => px >= area.x * TILE && py >= area.y * TILE && px < (area.x + W) * TILE && py < (area.y + H) * TILE;
+  const AX = (px) => (px / TILE - area.x) * S;
+  const AY = (py) => (py / TILE - area.y) * S;
+  for (const pr of w.props || []) {
+    if (!inArt(pr.x, pr.y)) continue;
+    const px = AX(pr.x);
+    const py = AY(pr.y) - S * 0.5;
+    if (pr.type === 'tower') {
+      cx.fillStyle = 'rgba(0,0,0,0.35)';
+      cx.beginPath();
+      cx.arc(px + S * 0.25, py + S * 0.3, S * 0.95, 0, MAP_TAU);
+      cx.fill();
+      cx.fillStyle = '#2c2a30';
+      cx.beginPath();
+      cx.arc(px, py, S * 0.95, 0, MAP_TAU);
+      cx.fill();
+      cx.fillStyle = '#a8a298';
+      cx.beginPath();
+      cx.arc(px, py, S * 0.72, 0, MAP_TAU);
+      cx.fill();
+      cx.fillStyle = '#d2ccc0';
+      cx.beginPath();
+      cx.arc(px - S * 0.2, py - S * 0.22, S * 0.3, 0, MAP_TAU);
+      cx.fill();
+    } else if (pr.type === 'stand') {
+      const k = Math.abs(hashText(String(pr.roof || ''))) % MAP_STAND_COLORS.length;
+      cx.fillStyle = 'rgba(0,0,0,0.35)';
+      cx.fillRect(px - S * 0.45 + 1, py - S * 0.1 + 1.5, S * 0.9, S * 0.6);
+      cx.fillStyle = MAP_STAND_COLORS[k];
+      cx.fillRect(px - S * 0.45, py - S * 0.1, S * 0.9, S * 0.6);
+      cx.fillStyle = 'rgba(255,245,220,0.55)';
+      cx.fillRect(px - S * 0.45, py - S * 0.1, S * 0.9, S * 0.16);
+    } else if (pr.type === 'well') {
+      cx.fillStyle = '#4a4440';
+      cx.beginPath();
+      cx.arc(px, py + S * 0.5, S * 0.62, 0, MAP_TAU);
+      cx.fill();
+      cx.fillStyle = '#5aa0d0';
+      cx.beginPath();
+      cx.arc(px, py + S * 0.5, S * 0.38, 0, MAP_TAU);
+      cx.fill();
+    }
+  }
+  // Häuser als kleine Hausbilder: Wand mit Tür, darüber das Dach mit First
+  for (const h of w.houses || []) {
+    if (h.x + h.w <= area.x || h.y + h.h <= area.y || h.x >= area.x + W || h.y >= area.y + H) continue;
+    const hx = (h.x - area.x) * S;
+    const hy = (h.y - area.y) * S;
+    const hw = h.w * S;
+    const hh = h.h * S;
+    const eave = hy + hh * 0.52;
+    cx.fillStyle = 'rgba(0,0,0,0.38)';
+    cx.fillRect(hx + S * 0.35, hy + S * 0.45, hw, hh);
+    cx.fillStyle = '#d8c8a4';
+    cx.fillRect(hx + hw * 0.08, eave, hw * 0.84, hh * 0.48);
+    cx.fillStyle = '#3a2614';
+    cx.fillRect(hx + hw * 0.44, eave + hh * 0.16, hw * 0.12, hh * 0.32);
+    cx.fillStyle = 'rgba(60,40,20,0.6)';
+    cx.fillRect(hx + hw * 0.18, eave + hh * 0.14, hw * 0.12, hh * 0.12);
+    cx.fillRect(hx + hw * 0.7, eave + hh * 0.14, hw * 0.12, hh * 0.12);
+    cx.fillStyle = h.roof || '#7c3a2c';
+    cx.beginPath();
+    cx.moveTo(hx, eave + 0.5);
+    cx.lineTo(hx + hw * 0.16, hy);
+    cx.lineTo(hx + hw * 0.84, hy);
+    cx.lineTo(hx + hw, eave + 0.5);
+    cx.closePath();
+    cx.fill();
+    cx.fillStyle = 'rgba(255,255,255,0.2)';
+    cx.fillRect(hx + hw * 0.16, hy, hw * 0.68, hh * 0.16);
+    cx.strokeStyle = 'rgba(24,14,8,0.85)';
+    cx.lineWidth = 1.2;
+    cx.stroke();
+    cx.strokeRect(hx + hw * 0.08, eave, hw * 0.84, hh * 0.48);
+  }
+  yield;
+  // 9. warmer Pergament-Ton und leichter Schatten am Rand
+  cx.globalCompositeOperation = 'multiply';
+  cx.fillStyle = 'rgba(246,228,192,0.4)';
+  cx.fillRect(0, 0, c.width, c.height);
+  cx.globalCompositeOperation = 'source-over';
+  const vg = cx.createLinearGradient(0, 0, 0, c.height);
+  vg.addColorStop(0, 'rgba(0,0,0,0.16)');
+  vg.addColorStop(0.07, 'rgba(0,0,0,0)');
+  vg.addColorStop(0.93, 'rgba(0,0,0,0)');
+  vg.addColorStop(1, 'rgba(0,0,0,0.16)');
+  cx.fillStyle = vg;
+  cx.fillRect(0, 0, c.width, c.height);
+  return c;
 }
 
 function buildMapArt(area, S) {
@@ -577,6 +1143,11 @@ function drawMapMarks(ctx, v, area) {
     const x = X(m.x);
     const y = Y(m.y);
     if (!inside(x, y, 0)) continue;
+    if (v.big) {
+      // seit 13.91 auf der großen Karte als Kristall (Raute) mit Schein
+      mapCrystal(ctx, x, y, u, m.stoneType.look.glow);
+      continue;
+    }
     const s = 2.8 * u;
     ctx.fillStyle = m.stoneType.look.glow;
     ctx.strokeStyle = '#000000';
@@ -586,6 +1157,11 @@ function drawMapMarks(ctx, v, area) {
   }
   // Bewohner, Tore, Risse, Auftraggeber
   const labels = v.big ? [] : null;
+  // seit 13.91: gleiche Namen dicht beieinander nur einmal (am Weltentor standen zwei)
+  const label = (x, y, t, col) => {
+    if (labels.some((l) => l[2] === t && Math.abs(l[0] - x) < 30 * u && Math.abs(l[1] - y) < 24 * u)) return;
+    labels.push([x, y, t, col]);
+  };
   for (const n of game.world.npcs) {
     if (n.silent || (n.wander && n.id !== 'wanderer')) continue;
     const x = X(n.x);
@@ -601,7 +1177,14 @@ function drawMapMarks(ctx, v, area) {
       ctx.beginPath();
       ctx.arc(x, y, r, 0, Math.PI * 2);
       ctx.fill();
-      if (labels) labels.push([x, y + 9 * u, 'Dungeon-Riss', '#e8d0ff']);
+      if (labels) label(x, y + 9 * u, 'Dungeon-Riss', '#e8d0ff');
+      continue;
+    }
+    if (v.big && (n.id === 'eingang' || n.id === 'ausgang' || n.id === 'weltentor')) {
+      // seit 13.91: Tore als kleine Torbögen mit leuchtender Öffnung in ihrer Farbe
+      const gate = n.id === 'weltentor';
+      mapArch(ctx, x, y, u * (gate || (n.dungeon != null && DUNGEONS[n.dungeon].inst60) ? 1.15 : 1), gate ? '#9fd8ff' : DUNGEONS[n.dungeon].portal);
+      label(x, gate ? y - 11 * u : y + 11 * u, gate ? 'Weltentor' : n.name, gate ? '#cfeaff' : '#e8d0ff');
       continue;
     }
     if (n.id === 'eingang' || n.id === 'ausgang') {
@@ -610,7 +1193,7 @@ function drawMapMarks(ctx, v, area) {
       ctx.fillRect(x - s, y - s, s * 2, s * 2);
       ctx.fillStyle = DUNGEONS[n.dungeon].portal;
       ctx.fillRect(x - s + u, y - s + u, s * 2 - 2 * u, s * 2 - 2 * u);
-      if (labels) labels.push([x, y + 10 * u, n.name, '#e8d0ff']);
+      if (labels) label(x, y + 10 * u, n.name, '#e8d0ff');
       continue;
     }
     if (n.id === 'weltentor') {
@@ -621,7 +1204,7 @@ function drawMapMarks(ctx, v, area) {
       ctx.stroke();
       ctx.fillStyle = 'rgba(160,220,255,0.5)';
       ctx.fill();
-      if (labels) labels.push([x, y - 9 * u, 'Weltentor', '#cfeaff']);
+      if (labels) label(x, y - 9 * u, 'Weltentor', '#cfeaff');
       continue;
     }
     const mk = questMarkChar(n);
@@ -674,7 +1257,7 @@ function drawMapMarks(ctx, v, area) {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-      if (labels) labels.push([x, y - 16 * u, c.name, '#ffe08a']);
+      if (labels) label(x, y - 16 * u, c.name, '#ffe08a');
     }
   }
   // Mitspieler: Gruppe grün, Gilde lila, andere hellblau; Gruppe außerhalb der Minikarte als Randpfeil
@@ -702,7 +1285,7 @@ function drawMapMarks(ctx, v, area) {
       ctx.beginPath();
       ctx.arc(x, y, pulse + 2 * u, 0, Math.PI * 2);
       ctx.stroke();
-      if (labels) labels.push([x, y - 10 * u, rp.name, col]);
+      if (labels) label(x, y - 10 * u, rp.name, col);
     }
     ctx.fillStyle = col;
     ctx.strokeStyle = mate || guildMate ? '#ffffff' : '#000000';
@@ -737,7 +1320,7 @@ function drawMapMarks(ctx, v, area) {
     ctx.fill();
     ctx.stroke();
     ctx.restore();
-    if (labels) labels.push([px, py + 13 * u, 'Du', '#fff6d8']);
+    if (labels) label(px, py + 13 * u, 'Du', '#fff6d8');
   }
   // Namen der großen Karte zuletzt, damit nichts sie verdeckt
   if (labels) {
@@ -746,13 +1329,69 @@ function drawMapMarks(ctx, v, area) {
     ctx.textBaseline = 'middle';
     ctx.lineWidth = 3 * u;
     ctx.strokeStyle = 'rgba(16,10,4,0.9)';
-    for (const [x, y, t0, col] of labels) {
+    for (const [x0, y, t0, col] of labels) {
       const t = typeof trName === 'function' ? trName(t0) : t0;
+      // seit 13.91 nicht mehr über den Kartenrand hinaus (Instanz-Tore in den Ecken)
+      const tw = ctx.measureText(t).width / 2 + 4 * u;
+      const x = Math.max(tw, Math.min(v.w - tw, x0));
       ctx.strokeText(t, x, y);
       ctx.fillStyle = col;
       ctx.fillText(t, x, y);
     }
   }
+}
+
+// Torbogen (seit 13.91, große Karte): zwei Pfeiler mit Bogen aus dunklem Stein, die Öffnung leuchtet in der Farbe
+// des Tores
+function mapArch(ctx, x, y, u, col) {
+  glow(ctx, x, y - u, 8 * u, col, 0.45);
+  const w = 4.6 * u;
+  const top = y - 1.5 * u;
+  ctx.fillStyle = '#2a2018';
+  ctx.strokeStyle = '#0c0804';
+  ctx.lineWidth = 1 * u;
+  ctx.beginPath();
+  ctx.moveTo(x - w, y + 4.2 * u);
+  ctx.lineTo(x - w, top);
+  ctx.arc(x, top, w, Math.PI, 0);
+  ctx.lineTo(x + w, y + 4.2 * u);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  const g = ctx.createLinearGradient(0, top - w, 0, y + 4 * u);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(0.45, col);
+  g.addColorStop(1, col);
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(x - w * 0.55, y + 4.2 * u);
+  ctx.lineTo(x - w * 0.55, top);
+  ctx.arc(x, top, w * 0.55, Math.PI, 0);
+  ctx.lineTo(x + w * 0.55, y + 4.2 * u);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Seelenstein (seit 13.91, große Karte): Kristall als Raute mit Glanz
+function mapCrystal(ctx, x, y, u, col) {
+  glow(ctx, x, y, 7 * u, col, 0.4);
+  ctx.fillStyle = col;
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1 * u;
+  ctx.beginPath();
+  ctx.moveTo(x, y - 4.6 * u);
+  ctx.lineTo(x + 3 * u, y);
+  ctx.lineTo(x, y + 4.6 * u);
+  ctx.lineTo(x - 3 * u, y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+  ctx.lineWidth = 1 * u;
+  ctx.beginPath();
+  ctx.moveTo(x - 0.4 * u, y - 3.2 * u);
+  ctx.lineTo(x - 1.9 * u, y - 0.3 * u);
+  ctx.stroke();
 }
 
 function edgeArrow(ctx, x, y, a, u, col) {
@@ -789,7 +1428,8 @@ function renderMinimap() {
   const cy = p && game.running ? p.y / TILE : CENTER_Y;
   const area = mapAreaAt(cx, cy);
   if (!area || !game.world) return;
-  const art = mapArt(area);
+  // noch im Bau (seit 13.91): hier ein weiteres Stück mitbauen, falls zwischen den Bildern wenig Zeit bleibt
+  const art = mapArtStep(mapArt(area), 8);
   const T = MINIMAP_TILES;
   const ox = area.w <= T ? area.x + (area.w - T) / 2 : Math.max(area.x, Math.min(area.x + area.w - T, cx - T / 2));
   const oy = area.h <= T ? area.y + (area.h - T) / 2 : Math.max(area.y, Math.min(area.y + area.h - T, cy - T / 2));
@@ -806,8 +1446,11 @@ function renderMinimap() {
   const sy0 = Math.max(area.y, oy);
   const sx1 = Math.min(area.x + area.w, ox + T);
   const sy1 = Math.min(area.y + area.h, oy + T);
-  ctx.drawImage(art.c, (sx0 - area.x) * art.S, (sy0 - area.y) * art.S, (sx1 - sx0) * art.S, (sy1 - sy0) * art.S,
-    (sx0 - ox) * sc, (sy0 - oy) * sc, (sx1 - sx0) * sc, (sy1 - sy0) * sc);
+  // seit 13.91 kann die Grafik einer eben betretenen Map noch im Bau sein (mapArtSlices): dann nur die Zeichen
+  if (art.c) {
+    ctx.drawImage(art.c, (sx0 - area.x) * art.S, (sy0 - area.y) * art.S, (sx1 - sx0) * art.S, (sy1 - sy0) * art.S,
+      (sx0 - ox) * sc, (sy0 - oy) * sc, (sx1 - sx0) * sc, (sy1 - sy0) * sc);
+  }
   // leichter Schatten zum Rand hin, damit die Karte wie eine Linse im Messingring wirkt
   const vig = ctx.createRadialGradient(W / 2, W / 2, W * 0.3, W / 2, W / 2, W / 2);
   vig.addColorStop(0, 'rgba(0,0,0,0)');
@@ -833,7 +1476,8 @@ function openBigMap() {
   if (!el.hidden) {
     bigMap.timer = 0;
     bigMap.boxAt = 0;
-    bigMap.baseKey = '';
+    // seit 13.91 bleibt das gezeichnete Gelände beim Schließen stehen: Wieder öffnen auf derselben Map (gleiche Welt,
+    // Größe und Sprache) zeichnet nur die Markierungen neu (vorher wurde das Gelände bei jedem Öffnen neu gezeichnet)
     renderBigMap();
   }
 }
@@ -871,22 +1515,28 @@ function renderBigMap() {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const view = { ox: area.x, oy: area.y, sc: scale, w: cw, h: ch, big: true, round: false, u: Math.max(1, Math.min(1.6, cw / 620)) };
   // Gelände nur, wenn sich etwas geändert hat
-  const key = `${area.key}|${cw}|${ch}|${dpr}`;
-  if (bigMap.baseKey !== key) {
+  const key = `${area.key}|${cw}|${ch}|${dpr}|${typeof i18n !== 'undefined' ? i18n.lang : ''}`;
+  if (bigMap.baseKey !== key || bigMap.world !== game.world) {
     bigMap.baseKey = key;
+    bigMap.world = game.world;
     for (const c of [cv, fx]) {
       c.width = Math.round(cw * dpr);
       c.height = Math.round(ch * dpr);
       c.style.width = cw + 'px';
       c.style.height = ch + 'px';
     }
-    const art = mapArt(area);
+    const art = mapArtStep(mapArt(area), Infinity);
     const ctx = cv.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(art.c, 0, 0, cw, ch);
-    drawZoneLabels(ctx, area, view);
+    // seit 13.91: Rahmen im Pergament-Stil, Kompass und schön gesetzte Gebietsnamen (nur auf den Maps)
+    if (area.wm) {
+      drawZoneLabels(ctx, area, view);
+      drawMapFrame(ctx, cw, ch, area);
+      drawMapCompass(ctx, cw, ch, area, view);
+    } else drawZoneLabels(ctx, area, view);
   }
   bigMap.area = area;
   bigMap.view = view;
@@ -920,32 +1570,254 @@ function drawZoneLabels(ctx, area, v) {
     if (z.safe) {
       // Vlotho über dem Dorf, Lager und Städte darunter (über ihnen steht das Weltentor)
       x = wm.cx;
-      y = wm.id === 1 ? wm.cy - VILLAGE_HALF - 2 : wm.cy + (wm.camp || CAMP_HALF) + 3;
+      // seit 13.91 überall über der Stadt (darunter liegt das Tor zum Endboss)
+      y = wm.cy - (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) - 3;
     } else {
       const outer = Math.min(z.maxDist, wm.region[2] / 2 - MAP_BORDER - 4);
-      const r = (Math.max(z.minDist, wm.id === 1 ? SAFE_RING : 0) + outer) / 2;
+      let r = (Math.max(z.minDist, wm.id === 1 ? SAFE_RING : 0) + outer) / 2;
+      // seit 13.91: nie in die Mauer der Stadt hinein (in den großen Städten lag der Name halb auf der Mauer)
+      ctx.font = `400 ${Math.round(16 * v.u)}px "Marcellus SC", "Palatino Linotype", Georgia, serif`;
+      const half = ctx.measureText(typeof trName === 'function' ? trName(z.name) : z.name).width / 2 / v.sc;
+      r = Math.max(r, (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) + 8 + half);
       x = wm.cx + side * r;
       y = wm.cy + (side > 0 ? -1 : 1) * Math.min(r * 0.35, wm.region[3] / 2 - 10);
       side = -side;
     }
     const sx = (x - v.ox) * v.sc;
     const sy = (y - v.oy) * v.sc;
-    ctx.font = `700 ${Math.round((z.safe ? 13 : 14) * v.u)}px "Cinzel", "Alegreya Sans", serif`;
-    ctx.lineWidth = 3.5 * v.u;
-    ctx.strokeStyle = 'rgba(16,10,4,0.85)';
     const zn = typeof trName === 'function' ? trName(z.name) : z.name;
+    if (z.safe) {
+      mapRibbon(ctx, sx, sy, zn, v.u);
+      continue;
+    }
+    // seit 13.91 wie auf einer gezeichneten Landkarte: dunkle Schrift in Kapitälchen mit hellem Saum, darunter die
+    // Stufen kursiv zwischen zwei feinen Strichen (vorher helle Schrift mit schwarzem Rand)
+    const u = v.u;
+    ctx.font = `400 ${Math.round(16 * u)}px "Marcellus SC", "Palatino Linotype", Georgia, serif`;
+    mapSpacing(ctx, 1.6 * u);
+    ctx.lineJoin = 'round';
+    ctx.lineWidth = 4.5 * u;
+    ctx.strokeStyle = 'rgba(248,236,206,0.88)';
     ctx.strokeText(zn, sx, sy);
-    ctx.fillStyle = '#ffe6a8';
+    ctx.fillStyle = '#3a2410';
     ctx.fillText(zn, sx, sy);
-    if (z.levels && !z.safe) {
-      ctx.font = `600 ${Math.round(10 * v.u)}px "Alegreya Sans", sans-serif`;
-      ctx.lineWidth = 3 * v.u;
+    mapSpacing(ctx, 0);
+    if (z.levels) {
       const zl = typeof trName === 'function' ? trName(z.levels) : z.levels;
-      ctx.strokeText(zl, sx, sy + 13 * v.u);
-      ctx.fillStyle = '#e8d8b0';
-      ctx.fillText(zl, sx, sy + 13 * v.u);
+      ctx.font = `italic 600 ${Math.round(11 * u)}px "Alegreya Sans", sans-serif`;
+      const tw = ctx.measureText(zl).width;
+      const ly = sy + 14 * u;
+      ctx.lineWidth = 3.5 * u;
+      ctx.strokeText(zl, sx, ly);
+      ctx.fillStyle = '#5a3a18';
+      ctx.fillText(zl, sx, ly);
+      ctx.strokeStyle = 'rgba(58,36,16,0.75)';
+      ctx.lineWidth = 1 * u;
+      ctx.beginPath();
+      ctx.moveTo(sx - tw / 2 - 18 * u, ly);
+      ctx.lineTo(sx - tw / 2 - 5 * u, ly);
+      ctx.moveTo(sx + tw / 2 + 5 * u, ly);
+      ctx.lineTo(sx + tw / 2 + 18 * u, ly);
+      ctx.stroke();
     }
   }
+}
+
+// Buchstabenabstand, wo der Browser ihn kann (seit 13.91)
+function mapSpacing(ctx, px) {
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${px}px`;
+}
+
+// Name einer Stadt auf einem Schriftband mit eingekerbten Enden (seit 13.91)
+function mapRibbon(ctx, x, y, text, u) {
+  ctx.save();
+  ctx.font = `400 ${Math.round(13 * u)}px "Marcellus SC", "Palatino Linotype", Georgia, serif`;
+  mapSpacing(ctx, 1.2 * u);
+  const tw = ctx.measureText(text).width;
+  const hw = tw / 2 + 11 * u;
+  const hh = 8.5 * u;
+  // Enden hinter dem Band
+  ctx.fillStyle = '#a8864a';
+  ctx.strokeStyle = '#3a2814';
+  ctx.lineWidth = 1.2 * u;
+  for (const s of [-1, 1]) {
+    const x0 = x + s * (hw - 4 * u);
+    const x1 = x + s * (hw + 9 * u);
+    ctx.beginPath();
+    ctx.moveTo(x0, y - hh + 4 * u);
+    ctx.lineTo(x1, y - hh + 4 * u);
+    ctx.lineTo(x1 - s * 4 * u, y + 2 * u);
+    ctx.lineTo(x1, y + hh + 4 * u);
+    ctx.lineTo(x0, y + hh + 4 * u);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fillRect(x - hw + 1.5 * u, y - hh + 2 * u, hw * 2, hh * 2);
+  const g = ctx.createLinearGradient(0, y - hh, 0, y + hh);
+  g.addColorStop(0, '#f4e6c0');
+  g.addColorStop(1, '#d8bc84');
+  ctx.fillStyle = g;
+  ctx.fillRect(x - hw, y - hh, hw * 2, hh * 2);
+  ctx.strokeRect(x - hw, y - hh, hw * 2, hh * 2);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#3a2410';
+  ctx.fillText(text, x, y + 0.5 * u);
+  ctx.restore();
+}
+
+// Körnung für den Pergament-Rand (einmal erzeugt, fest aus der Lage berechnet)
+let _mapGrain = null;
+function mapGrain(ctx) {
+  if (!_mapGrain) {
+    const c = document.createElement('canvas');
+    c.width = c.height = 96;
+    const x = c.getContext('2d');
+    for (let k = 0; k < 900; k++) {
+      const h = tileHash(k * 7, k * 13);
+      x.fillStyle = h & 1 ? 'rgba(90,60,20,0.16)' : 'rgba(255,248,220,0.18)';
+      x.fillRect(h % 96, (h >> 7) % 96, 1 + ((h >> 14) & 1), 1);
+    }
+    _mapGrain = c;
+  }
+  return ctx.createPattern(_mapGrain, 'repeat');
+}
+
+// Rahmen der großen Karte (seit 13.91): Pergament-Band mit Maßstrichen, doppelter Linie und Eckstücken; er liegt
+// über dem Felsrand der Map, den man ohnehin nicht betreten kann
+function drawMapFrame(ctx, cw, ch, area) {
+  const b = Math.max(7, Math.min(16, Math.round(Math.min(cw, ch) * 0.02)));
+  ctx.save();
+  // innere Schattenkante: die Karte liegt etwas tiefer als der Rand
+  const sh = b * 1.4;
+  for (const [x0, y0, x1, y1, w, h] of [[b, b, b, b + sh, cw - 2 * b, sh], [b, ch - b, b, ch - b - sh, cw - 2 * b, -sh], [b, b, b + sh, b, sh, ch - 2 * b], [cw - b, b, cw - b - sh, b, -sh, ch - 2 * b]]) {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    g.addColorStop(0, 'rgba(40,24,8,0.45)');
+    g.addColorStop(1, 'rgba(40,24,8,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.min(x0, x0 + w), Math.min(y0, y0 + h), Math.abs(w), Math.abs(h));
+  }
+  ctx.beginPath();
+  ctx.rect(0, 0, cw, ch);
+  ctx.rect(b, b, cw - 2 * b, ch - 2 * b);
+  const pg = ctx.createLinearGradient(0, 0, cw, ch);
+  pg.addColorStop(0, '#ecd8a8');
+  pg.addColorStop(0.5, '#dcc28a');
+  pg.addColorStop(1, '#c8a86a');
+  ctx.fillStyle = pg;
+  ctx.fill('evenodd');
+  ctx.fillStyle = mapGrain(ctx);
+  ctx.fill('evenodd');
+  // Maßstriche
+  ctx.strokeStyle = 'rgba(70,44,16,0.7)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  const nx = 24;
+  const ny = Math.max(8, Math.round((nx * (ch - 2 * b)) / (cw - 2 * b)));
+  for (let k = 1; k < nx; k++) {
+    const x = Math.round(b + ((cw - 2 * b) * k) / nx) + 0.5;
+    const l = k % 4 === 0 ? b * 0.62 : b * 0.34;
+    ctx.moveTo(x, b);
+    ctx.lineTo(x, b - l);
+    ctx.moveTo(x, ch - b);
+    ctx.lineTo(x, ch - b + l);
+  }
+  for (let k = 1; k < ny; k++) {
+    const y = Math.round(b + ((ch - 2 * b) * k) / ny) + 0.5;
+    const l = k % 4 === 0 ? b * 0.62 : b * 0.34;
+    ctx.moveTo(b, y);
+    ctx.lineTo(b - l, y);
+    ctx.moveTo(cw - b, y);
+    ctx.lineTo(cw - b + l, y);
+  }
+  ctx.stroke();
+  // Linien: außen dunkel, innen dunkel mit goldener Begleitlinie
+  ctx.strokeStyle = '#3a2814';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(0.75, 0.75, cw - 1.5, ch - 1.5);
+  ctx.strokeRect(b - 0.75, b - 0.75, cw - 2 * b + 1.5, ch - 2 * b + 1.5);
+  ctx.strokeStyle = 'rgba(176,132,60,0.9)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(b + 1.5, b + 1.5, cw - 2 * b - 3, ch - 2 * b - 3);
+  // Eckstücke
+  const e = Math.round(b * 1.5);
+  for (const [x, y] of [[0, 0], [cw - e, 0], [0, ch - e], [cw - e, ch - e]]) {
+    ctx.fillStyle = '#3a2814';
+    ctx.fillRect(x, y, e, e);
+    ctx.fillStyle = '#c9a35a';
+    ctx.fillRect(x + 2, y + 2, e - 4, e - 4);
+    ctx.fillStyle = '#6a4a20';
+    ctx.fillRect(x + e * 0.32, y + e * 0.32, e * 0.36, e * 0.36);
+  }
+  ctx.restore();
+}
+
+// Kompass (seit 13.91): eine Nadel auf einer Pergament-Scheibe, in einer Ecke ohne Instanz-Tor
+function drawMapCompass(ctx, cw, ch, area, v) {
+  const used = new Set(DUNGEONS.filter((d) => d.entry && d.entry.corner && d.entry.map === area.wm.id).map((d) => d.entry.corner));
+  const corner = ['bl', 'tl', 'br', 'tr'].find((c) => !used.has(c)) || 'bl';
+  const b = Math.max(7, Math.min(16, Math.round(Math.min(cw, ch) * 0.02)));
+  const R = Math.max(15, Math.min(32, Math.min(cw, ch) * 0.05));
+  const x = corner[1] === 'l' ? b + R + 12 : cw - b - R - 12;
+  const y = corner[0] === 't' ? b + R + 14 : ch - b - R - 12;
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.arc(x + 2, y + 3, R, 0, MAP_TAU);
+  ctx.fill();
+  const g = ctx.createRadialGradient(x - R * 0.3, y - R * 0.3, R * 0.1, x, y, R);
+  g.addColorStop(0, 'rgba(250,240,212,0.95)');
+  g.addColorStop(1, 'rgba(214,188,132,0.95)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, R, 0, MAP_TAU);
+  ctx.fill();
+  ctx.strokeStyle = '#3a2814';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  // Ost-West-Nadel, dann Nord-Süd-Nadel (Norden rot)
+  const needle = (ang, len, wd, a, b2) => {
+    const cs = Math.cos(ang);
+    const sn = Math.sin(ang);
+    const P = (f, s2) => [x + cs * f * len - sn * s2 * wd, y + sn * f * len + cs * s2 * wd];
+    for (const [s2, col] of [[-1, a], [1, b2]]) {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(...P(1, 0));
+      ctx.lineTo(...P(0, s2));
+      ctx.lineTo(...P(0, 0));
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(30,18,6,0.85)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(...P(1, 0));
+    ctx.lineTo(...P(0, -1));
+    ctx.lineTo(...P(0, 1));
+    ctx.closePath();
+    ctx.stroke();
+  };
+  needle(0, R * 0.5, R * 0.11, '#8a7a62', '#5e4e38');
+  needle(Math.PI, R * 0.5, R * 0.11, '#8a7a62', '#5e4e38');
+  needle(-Math.PI / 2, R * 0.66, R * 0.16, '#c8402a', '#8a2414');
+  needle(Math.PI / 2, R * 0.66, R * 0.16, '#5a4630', '#3a2814');
+  ctx.fillStyle = '#3a2814';
+  ctx.beginPath();
+  ctx.arc(x, y, R * 0.08, 0, MAP_TAU);
+  ctx.fill();
+  ctx.font = `400 ${Math.round(R * 0.36)}px "Marcellus SC", Georgia, serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#3a2410';
+  ctx.fillText('N', x, y - R * 0.8);
+  ctx.font = `400 ${Math.round(R * 0.26)}px "Marcellus SC", Georgia, serif`;
+  ctx.fillText(typeof i18n !== 'undefined' && i18n.lang === 'en' ? 'E' : 'O', x + R * 0.8, y);
+  ctx.fillText('S', x, y + R * 0.8);
+  ctx.fillText('W', x - R * 0.8, y);
+  ctx.restore();
 }
 
 // Antippen der großen Karte: Markierung setzen (nochmal auf die Markierung: entfernen)

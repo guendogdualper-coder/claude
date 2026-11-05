@@ -266,6 +266,11 @@ function makePlayer(save) {
       const tx = save.x / TILE;
       const ty = save.y / TILE;
       for (const [id, [x, y]] of Object.entries(OLD.at)) if (tx >= x && tx < x + OLD.w && ty >= y && ty < y + OLD.h) campOf = Number(id);
+    } else if ((save.worldVersion === 12 || save.worldVersion === 13) && save.x != null) {
+      // seit 13.96 (Welt 14, davor 13.95 Welt 13 mit neuem Dorfplan): Wege und Dorf sind neu, die Maps liegen gleich –
+      // im Lager derselben Map weiter
+      const wm = mapOfTile(Math.floor(save.x / TILE), Math.floor(save.y / TILE));
+      if (wm && wm.id !== 1) campOf = wm.id;
     }
     p.x = null;
     p.y = null;
