@@ -314,7 +314,9 @@ function sortedStats(stats) {
 // Ergebnis: [[Name, Unterschied als Text, +1 besser / -1 schlechter], ...]
 const COMPARE_STATS = [
   ['atk', 'Angriff', 'flat'], ['def', 'Verteidigung', 'flat'], ['maxHp', 'Leben', 'flat'], ['maxMp', 'Mana', 'flat'],
-  ['crit', 'Kritisch', 'pct'], ['atkSpeed', 'Angriffstempo', 'pct'], ['skillDmg', 'Fertigkeitsschaden', 'pct'],
+  // seit 13.87: Fertigkeitsschaden als Änderung des echten Treffers (Angriff × Faktor, playerStats.skillPower) statt
+  // des Faktors allein – der sank mit mehr Angriff, so sah ein Lv-5-Zepter besser aus als ein Lv-80-Zepter
+  ['crit', 'Kritisch', 'pct'], ['atkSpeed', 'Angriffstempo', 'pct'], ['skillPower', 'Fertigkeitsschaden', 'rel'],
   ['dodge', 'Ausweichen', 'pct'], ['block', 'Blocken', 'pct'], ['hpSteal', 'Lebensraub', 'pct'],
   ['monsterDmg', 'Gegen Monster', 'pct'], ['regen', 'Regeneration', 'pct1'], ['speed', 'Lauftempo', 'speed'],
   ['damageTaken', 'Erlittener Schaden', 'lessPct']
@@ -334,7 +336,7 @@ function compareItem(item, hand) {
     const a = now[k] || 0;
     const b = test[k] || 0;
     let d = b - a;
-    if (fmt === 'speed') d = a ? d / a : 0;
+    if (fmt === 'speed' || fmt === 'rel') d = a ? d / a : 0;
     if (Math.abs(d) < (fmt === 'flat' ? 0.5 : 0.0005)) continue;
     const better = fmt === 'lessPct' ? d < 0 : d > 0;
     const sign = d > 0 ? '+' : '−';

@@ -125,7 +125,9 @@ const CLASSES = {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,
             // seit 13.85 doppelter statt dreifacher Schaden aus der Tarnung
             type: 'buff', duration: 30, effects: { invisible: true, speed: 0.12 }, nextHitMul: 2,
-            text: 'Buff: 30 s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht doppelten Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt 3×.'
+            // seit 13.87 {dauer}: die Dauer wächst mit der Stufe (skillDuration: Stufe 1 30 s, Stufe 15 38 s, E1 41 s …),
+            // skillText (kampf.js) setzt die echte Zahl ein – vorher stand fest „30 s“ da (und wurde für die Abklingzeit gehalten)
+            text: 'Buff: {dauer} s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht doppelten Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt 3×.'
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
@@ -146,7 +148,7 @@ const CLASSES = {
             // (SKILL_RENAMED in spieler.js)
             id: 'schattenkette', name: 'Schattenkette', short: 'SK', kind: 'angriff', unlock: 10, mp: 22, cooldown: 11,
             type: 'chainblink', range: 300, hopRange: 220, hops: 4, rankHops: [5, 6, 6, 7], every: 0.13, dmg: 1.5, stun: 0.6, repeatMul: 0.5, color: '#8a5ae0',
-            text: 'Du zerfällst zu Schatten und springst von Gegner zu Gegner: Beginnend bei deinem Ziel (bis 300 weit) tauchst du viermal (je Rang öfter) hinter dem nächsten Gegner auf und schneidest ihn – er taumelt 0,6 s. Sind weniger Gegner da, springst du zwischen ihnen hin und her – jeder weitere Schnitt am selben Gegner macht nur halben Schaden. Während der Sprünge nimmst du keinen Schaden.'
+            text: 'Du zerfällst zu Schatten und springst von Gegner zu Gegner: Beginnend bei deinem Ziel (bis 300 weit) tauchst du viermal (erweckt fünfmal, heroisch und legendär sechsmal, vollendet siebenmal) hinter dem nächsten Gegner auf und schneidest ihn – er taumelt 0,6 s. Sind weniger Gegner da, springst du zwischen ihnen hin und her – jeder weitere Schnitt am selben Gegner macht nur halben Schaden. Während der Sprünge nimmst du keinen Schaden.'
           }
         ]
       },
@@ -258,7 +260,8 @@ const CLASSES = {
       },
       {
         id: 'heilung', name: 'Weg der Heilung', role: 'PvP · Heilung und Schutz',
-        description: 'Fesselt Gegner, heilt sich selbst und lässt Angreifer am eigenen Schutzgeist abprallen.',
+        // seit 13.87: der Schutzgeist (Rückwurf) ist seit 13.26 der Falkengeist (kritische Treffer)
+        description: 'Fesselt Gegner, heilt sich selbst und findet mit dem Falkengeist die Schwachstellen der Gegner.',
         skills: [
           // seit 13.26 überarbeitet (Kennungen bleiben, damit Stufen und Schriftrollen erhalten bleiben):
           // Lichtsturz statt Geisterfaust, Windfessel als Sturm aus Windbändern (kein Bodenkreis), Segen schwächer,
@@ -316,7 +319,7 @@ const CLASSES = {
             id: 'blutsauger', name: 'Blutsauger', short: 'BS', kind: 'angriff', unlock: 1, mp: 8, cooldown: 2,
             type: 'siphon', channel: true, range: 300, every: 0.2, maxDur: 8, minDur: 0.4, dmg: 0.4, leech: 0.35, mpPerSec: 6,
             color: '#e0203a', nk: true,
-            text: 'Gedrückt halten: Ein pulsierender Blutfaden spannt sich von deinem Ziel zu deiner Hand. Fünfmal pro Sekunde reißt er Blut heraus – Schaden – und ein Drittel davon fließt als Leben zu dir. Er läuft, solange du gedrückt hältst – bis zu 8 s. Stirbt das Ziel, springt der Faden auf den nächsten Gegner in der Nähe. Loslassen oder Mana leer beenden ihn.'
+            text: 'Gedrückt halten: Ein pulsierender Blutfaden spannt sich von deinem Ziel zu deiner Hand. Fünfmal pro Sekunde reißt er Blut heraus – Schaden – und 35 % davon fließen als Leben zu dir. Er läuft, solange du gedrückt hältst – bis zu 8 s. Stirbt das Ziel, springt der Faden auf den nächsten Gegner in der Nähe. Loslassen oder Mana leer beenden ihn.'
           },
           {
             // seit 8.5 (ersetzt den Seelensturm): ein Käfig aus Rippen bricht beim Ziel aus dem Boden, der gefangene Geist schreit fünfmal
@@ -338,7 +341,8 @@ const CLASSES = {
               { kind: 'hund',    name: 'Seelenhund',     hp: 0.55, atk: 0.7,  every: 0.85, windup: 0.12, speed: 205, def: 0.7, scale: 1.14, pounce: true, slow: 0.25, burst: 1.0 },
               { kind: 'hund',    name: 'Seelenhund',     hp: 0.6,  atk: 0.74, every: 0.85, windup: 0.1,  speed: 210, def: 0.7, scale: 1.18, pounce: true, slow: 0.3,  burst: 1.2, alpha: 1.15 }
             ],
-            text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen 90 s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen.'
+            // seit 13.87 {dauer}: die Diener bleiben skillDuration lang (wächst mit der Stufe), nicht fest 90 s
+            text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen {dauer} s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen.'
           },
           {
             // seit 10.0 (ersetzt den Seelenschnitter): getötete Monster hinterlassen 2 Minuten Gräber; der Totenruf weckt
@@ -409,7 +413,8 @@ const CLASSES = {
   magier: {
     name: 'Magier',
     role: 'Fernkampf · Elementmagie',
-    description: 'Gelehrter der vier Elemente. Du wählst Feuer, Frost, Blitz oder Erde – jeder Weg hat seine eigenen Zauber, von Drachenodem und Feuerball bis Blitzspeer und Gewitterwolke.',
+    // seit 13.87: Glutfeld statt Drachenodem (der ist seit 13.39 ersetzt)
+    description: 'Gelehrter der vier Elemente. Du wählst Feuer, Frost, Blitz oder Erde – jeder Weg hat seine eigenen Zauber, von Glutfeld und Feuerball bis Blitzspeer und Gewitterwolke.',
     color: '#283070',
     trim: '#d8e0f0',
     weapon: 'rod',
@@ -445,7 +450,7 @@ const CLASSES = {
             id: 'brand', name: 'Brand', short: 'BR', kind: 'angriff', unlock: 5, mp: 14, cooldown: 6,
             type: 'mignite', el: 'feuer', range: 340, dmg: 0.6, burn: { dps: 1.42, duration: 6 },
             anim: 'zauber', animDur: 0.4, color: '#e8362a',
-            text: 'Du schnippst einen Funken auf einen Gegner: Er fängt Feuer und brennt 6 s lang – jede Sekunde Feuerschaden, zusammen fast das Sechsfache eines Treffers. Wie Gift, nur heißer.'
+            text: 'Du schnippst einen Funken auf einen Gegner: Er fängt Feuer und brennt 6 s lang – jede Sekunde Feuerschaden, zusammen gut das Vierzehnfache des Funkens selbst. Wie Gift, nur heißer.'
           },
           {
             // seit 11.5 statt Glutherz: Phönixflamme – der große Feuer-Burst

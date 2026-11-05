@@ -785,6 +785,23 @@ function skillMana(sk, p = game.player) {
   const [a, b] = MANA_COST[p.classId] || [1, 0];
   return Math.round(sk.mp * (a + b * p.level));
 }
+// Mana je Sekunde beim Gedrückthalten (Eisstrahl, Blutsauger), wie channelTick sie abzieht (seit 13.87 im Infofeld)
+function skillManaPerSec(sk, p = game.player) {
+  return sk.mpPerSec ? skillMana(sk, p) / sk.mp * sk.mpPerSec : 0;
+}
+// Abklingzeit einer Fertigkeit (seit 13.87 eine Stelle für Spiel und Infofeld): fest je Fertigkeit, weder Stufe,
+// Rang noch Angriffstempo verkürzen sie. Dazu kommt bei den Zauberern die globale Abklingzeit (GCD_TIME, applyGcd).
+// Die Uhr läuft in Spielzeit: Trefferstopps (hitStop, je kritischem Treffer 0,06 s) halten sie kurz an.
+function skillCooldown(sk) {
+  return sk.cooldown;
+}
+// Beschreibung mit Werten der Stufe (seit 13.87): {dauer} im Text wird zur echten Dauer (skillDuration),
+// ohne Stufe (Klassenwahl, Wiki) zur Dauer auf Stufe 1
+function skillText(sk, lvl) {
+  const t = String((sk && sk.text) || '');
+  if (!t.includes('{')) return t;
+  return t.replace(/\{dauer\}/g, () => String(sk.duration ? skillDuration(sk, lvl || 1) : 0));
+}
 
 // Waffe, die ein Weg für seine Fertigkeiten braucht (paths[].weapon, z. B. Ninja: 'dagger' oder 'bow')
 function pathWeapon(p) {
@@ -887,7 +904,7 @@ function useSkill(i) {
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   snd.skill(sk, p);
   p.mp -= skillMana(sk, p);
-  setSkillCd(p, i, sk.cooldown);
+  setSkillCd(p, i, skillCooldown(sk));
   // seit 13.85: globale Abklingzeit der Zauberer (Schamane, Nekromant, Magier)
   applyGcd(p, i);
   // Fertigkeiten mit eigener Bahn (Welle, Riss, Sprung) geben ihre Eckdaten für Mitspieler zurück

@@ -18,7 +18,9 @@ const SEGEN = {
   schamane: {
     id: 'segen_natur', name: 'Segen der Natur', color: '#7ad36a', colors: ['#ff7a1a', '#2a9aff', '#7ad36a', '#fff07a'],
     effects: (lv) => ({ natureDmg: 0.05 + 0.025 * lv }),
-    text: (e) => `Alle Naturschäden (Feuer, Wasser, Blitz, Eis, Erde, Wind, Licht) +${pctS(e.natureDmg)}.`
+    // seit 13.87 genauer: natureDmg wirkt in hitMonster nur auf Treffer von Fertigkeiten (opts.skill), unter den Ultis
+    // nur auf den Kreis der Elemente – nicht auf Grundangriff und Brand über Zeit
+    text: (e) => `Naturschaden +${pctS(e.natureDmg)}: Alle Treffer deiner Fertigkeiten (Feuer, Wasser, Blitz, Eis, Erde, Wind, Licht) und des Kreises der Elemente werden härter.`
   },
   ninja: {
     id: 'segen_schatten', name: 'Klingenschatten', color: '#c84a6a', colors: ['#2a1a3a', '#c84a6a', '#ff8aa8', '#ffffff'],
@@ -30,13 +32,16 @@ const SEGEN = {
   nekromant: {
     id: 'segen_blut', name: 'Blutpakt', color: '#d82a3a', colors: ['#5a0a14', '#d82a3a', '#ff6a6a', '#2a0a10'],
     effects: (lv) => ({ omniVamp: 0.02 + 0.008 * lv }),
-    text: (e) => `Omni-Vampir ${pctS(e.omniVamp)}: Jeder Schaden, den du machst (auch über Zeit), heilt dich.`
+    // seit 13.87 ohne „auch über Zeit“: Brand und Blutung laufen über damageMonster (tickDots), nicht über hitMonster –
+    // sie heilen nicht; je Treffer höchstens 3 % des Lebens, Diener-Treffer zählen nicht
+    text: (e) => `Omni-Vampir ${pctS(e.omniVamp)}: Jeder deiner Treffer heilt dich um diesen Anteil des Schadens, je Treffer höchstens 3 % deines Lebens (nicht Schaden über Zeit und nicht deine Diener).`
   },
   magier: {
     id: 'segen_arkan', name: 'Arkane Erleuchtung', color: '#b48cff', colors: ['#6a3ad8', '#b48cff', '#e8d8ff', '#ffffff'],
     // seit 13.69 Elementschaden (natureDmg wirkt in hitMonster auf jede Fertigkeit) statt Intelligenz
     effects: (lv) => ({ natureDmg: 0.04 + 0.02 * lv }),
-    text: (e) => `Elementschaden +${pctS(e.natureDmg)}: Alle deine Zauber treffen härter.`
+    // seit 13.87 genauer: wie beim Schamanen nur Treffer von Fertigkeiten (die Magier-Ultis laufen ohne opts.skill)
+    text: (e) => `Elementschaden +${pctS(e.natureDmg)}: Alle Treffer deiner Fertigkeiten werden härter (nicht Grundangriff, Ulti und Brand über Zeit).`
   }
 };
 // Weg der Heilung (seit 13.26): statt Naturschaden mehr Heilung
@@ -49,7 +54,8 @@ const SEGEN_LICHT = {
 const SEGEN_FALKE = {
   id: 'segen_falke', name: 'Falkenblick', color: '#8a5ae0', colors: ['#120a1c', '#5a2aa8', '#b48cff', '#e8d8ff'],
   effects: (lv) => ({ crit: 0.03 + 0.01 * lv, critDmg: 0.1 + 0.05 * lv, atkSpeed: 0.06 + 0.02 * lv, bowRange: 0.1 + 0.02 * lv }),
-  text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}, Angriffstempo +${pctS(e.atkSpeed)}, Bogenreichweite +${pctS(e.bowRange)}. Dunkle Schwingen und eine Schattenaura umgeben dich.`
+  // seit 13.87: bowRange verlängert nur den Grundangriff (bowRangeBonus in fernninja.js), nicht die Fertigkeiten
+  text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}, Angriffstempo +${pctS(e.atkSpeed)}, Reichweite des Grundangriffs mit dem Bogen +${pctS(e.bowRange)}. Dunkle Schwingen und eine Schattenaura umgeben dich.`
 };
 const SEGEN_BY_ID = Object.fromEntries(Object.values(SEGEN).concat([SEGEN_LICHT, SEGEN_FALKE]).map((d) => [d.id, d]));
 function pctS(v) {
@@ -90,7 +96,7 @@ function useSegen() {
   game.stats = playerStats(p);
   const key = d === SEGEN_LICHT ? 'licht' : d === SEGEN_FALKE ? 'falke' : p.classId;
   segenShow(p, key);
-  ui.banner(d.name, d.text(effects) + ' 30 Minuten.');
+  ui.banner(d.name, d.text(effects) + ` ${SEGEN_DUR / 60} Minuten.`);
   if (typeof netSkillFx === 'function') netSkillFx('_segen', 0, { c: key });
   saveGame();
 }
@@ -272,7 +278,8 @@ function segenButton(bar, p) {
   const wrap = document.createElement('div');
   wrap.className = 'skill-wrap segen-wrap';
   const locked = p.level < SEGEN_UNLOCK;
-  const tip = `<b>${d.name}</b><br>Klassensegen · 30 Minuten · nur aktivieren<br>${d.text(d.effects(segenSteps(Math.max(p.level, SEGEN_UNLOCK))))}<br><i>Wird alle 10 Stufen stärker.</i>`;
+  // seit 13.87: Dauer aus SEGEN_DUR statt fest im Text
+  const tip = `<b>${d.name}</b><br>Klassensegen · ${SEGEN_DUR / 60} Minuten · nur aktivieren<br>${d.text(d.effects(segenSteps(Math.max(p.level, SEGEN_UNLOCK))))}<br><i>Wird alle 10 Stufen stärker.</i>`;
   wrap.innerHTML = `<button type="button" id="skillSegen" class="slot skill segen${locked ? ' locked' : ''}" aria-label="${d.name}" data-info="${escTip(tip)}">` +
     `<span class="key">${keyLabel(actionKey('segen'))}</span><img class="skill-icon" src="${segenIconUrl(d.id)}" alt="${d.name}">` +
     `<span class="segen-left" hidden></span>${locked ? `<span class="lock">ab LVL ${SEGEN_UNLOCK}</span>` : ''}</button>`;

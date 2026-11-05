@@ -427,6 +427,10 @@ function playerStats(p) {
   // fester Angriff aus Buffs (Aura des Schwertes, seit 13.4) kommt nach den Prozenten dazu
   s.atk = Math.round(s.atk * atkMul + atkFlat);
   if (main > 0 && s.atk > 0) s.skillDmg *= 1 + (main * MAIN_SKILL_FLAT) / s.atk;
+  // seit 13.87: Stärke der Fertigkeiten = Angriff × Fertigkeitsschaden (so rechnet jeder Treffer). skillDmg allein
+  // taugt nicht zum Vergleichen: der feste Hauptwert-Anteil oben wird durch den Angriff geteilt, eine bessere Waffe
+  // senkt den Faktor also, obwohl jeder Treffer härter wird (Lv-5-Zepter zeigte „+8 % Fertigkeitsschaden“ gegen Lv 80)
+  s.skillPower = s.atk * s.skillDmg;
   s.wMul = atkMul;
   s.maxHp = Math.round(s.maxHp * (1 + (bonus.hpPct || 0)));
   s.def = Math.round(s.def * defMul + defFlat);

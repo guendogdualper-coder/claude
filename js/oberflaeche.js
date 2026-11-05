@@ -1139,7 +1139,7 @@ const ui = {
       const left = p.skillCd[i];
       // seit 13.85: Dauer, von der die Uhr ausgeht (globale Abklingzeit kann länger sein als die eigene)
       const cf = p.cdFull && p.cdFull[i];
-      const full = Math.max(0.01, cf && cf >= left - 0.01 ? cf : Math.max(sk.cooldown, left));
+      const full = Math.max(0.01, cf && cf >= left - 0.01 ? cf : Math.max(skillCooldown(sk), left));
       const key = 'cd' + i;
       const shown = left > 0 ? left.toFixed(left < 1 ? 1 : 0) : '';
       this.set(key, shown, () => {
@@ -1863,9 +1863,9 @@ function skillHitNum(f, lvl, s = skillStatsBase()) {
   if (!s) return numDe(f * dmgScale(lvl)) + '× Angriff';
   return numText(s.atk * f * dmgScale(lvl) * (s.skillDmg || 1) * (1 + (s.monsterDmg || 0)) * (1 + (s.natureDmg || 0)));
 }
-// Schaden über Zeit (Brand, Blutung): Angriff × Anteil je Sekunde
+// Schaden über Zeit (Brand, Blutung): Angriff × Anteil je Sekunde × Fertigkeitsschaden (seit 13.87 wie hitMonster: dotK)
 function skillDotNum(dps, s = skillStatsBase()) {
-  return s ? numText(s.atk * dps) : numDe(dps) + '× Angriff';
+  return s ? numText(s.atk * dps * (s.skillDmg || 1)) : numDe(dps) + '× Angriff';
 }
 // Leben aus einem Anteil des höchsten Lebens (Heilung, Schild, Regeneration, Diener)
 function skillHpNum(f, s = skillStatsBase()) {
@@ -1883,12 +1883,30 @@ function skillStats(sk, lvl) {
   const scale = buffScale(lvl);
   const hit = (f) => skillHitNum(f, lvl);
   // Pulse statt Einzelschaden: Blizzard (msnow) und seit 13.76 der Pfeilregen (bregen, Werte in bowSkillStats)
-  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow' && sk.type !== 'bregen') out.push(['Schaden', hit(sk.dmg) + (sk.hits > 1 ? ' ×' + sk.hits : '')]);
+  // seit 13.87: Treffer je Wirken auch beim Blizzard des Schamanen (sk.ticks, blizzardFx)
+  const hits = sk.hits > 1 ? sk.hits : sk.type === 'blizzard' ? sk.ticks || 8 : 0;
+  if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow' && sk.type !== 'bregen') out.push(['Schaden', hit(sk.dmg) + (hits > 1 ? ' ×' + hits : '')]);
+  // seit 13.87: Sichelwelle – die Klingenwelle trifft mit waveDmg (waveFx), stärker als der Querhieb davor
+  if (sk.waveDmg) out.push(['Welle', hit(sk.waveDmg)]);
+  // seit 13.87: Tarnung und Hinterhalt mit ihren Faktoren (nextHitMul, ambushMul in kampf.js)
+  if (sk.nextHitMul) out.push(['Nächster Angriff', '×' + numDe(sk.nextHitMul) + ', sicher kritisch']);
+  if (sk.ambushMul) {
+    const tarn = typeof skillById === 'function' && skillById('tarnung');
+    out.push(['Aus der Tarnung', '×' + numDe(sk.ambushMul) + (tarn && tarn.nextHitMul ? ' (mit Tarnung ×' + numDe(sk.ambushMul * tarn.nextHitMul) + ')' : '')]);
+  }
+  // seit 13.87: Schattenkette – Sprünge je Rang (chainHops, ninja-fx.js), weitere Schnitte am selben Gegner × repeatMul
+  if (sk.type === 'chainblink') {
+    const n = typeof chainHops === 'function' ? chainHops(sk, skillRank(lvl)) : sk.hops;
+    out.push(['Sprünge', String(n)], ['Erneut am selben Gegner', '×' + numDe(sk.repeatMul)], ['Taumeln', numDe(sk.stun) + ' s']);
+  }
+  // seit 13.87: Totenruf – Geister je Rang (sk.counts, nekro-totenruf.js)
+  if (sk.type === 'revive') out.push(['Geister', 'bis ' + sk.counts[Math.min(sk.counts.length - 1, skillRank(lvl) + 1)]]);
   // Nekromant, Weg der Seelen (seit 8.5): Schädelsalve, Seelenkäfig, Mal des Seelenschnitters
   if (sk.type === 'skulls') out.push(['Schaden', sk.count + ' × ' + hit(sk.dmg)]);
   if (sk.type === 'cage') out.push(['Schrei', hit(sk.dmg) + ' ×' + sk.pulses], ['Verlangsamt', skillPct(sk.slow.amount)]);
   if (sk.mark) out.push(['Mal', 'Ziel nimmt +' + skillPct(sk.mark.vulnerable * scale) + ' Schaden (' + sk.mark.duration + ' s)']);
-  if (sk.type === 'heal') out.push(['Heilung', '+' + skillHpNum(sk.amount * scale) + ' Leben']);
+  // seit 13.87 mit der Heilkraft (Segen des Lichts) wie SKILL_TYPES.heal
+  if (sk.type === 'heal') { const hs = skillStatsBase(); out.push(['Heilung', '+' + skillHpNum(sk.amount * scale * ((hs && hs.healPower) || 1)) + ' Leben']); }
   if (sk.shield) out.push(['Schild', skillHpNum(sk.shield * scale) + ' Leben']);
   if (sk.type === 'summon') {
     // Diener nach Rang (seit 8.5): Skelettkrieger, ab E1 Knochenhunde
@@ -1920,12 +1938,15 @@ function skillStats(sk, lvl) {
     // feste Kurve (Segen, seit 13.26); seit 13.85 auch für Angriff und Rüstung
     const fixed = typeof SKILL_FIXED_EFFECTS !== 'undefined' && SKILL_FIXED_EFFECTS[sk.id] && SKILL_FIXED_EFFECTS[sk.id][k];
     if (base && (k === 'atk' || k === 'def')) { out.push([label, '+' + numText(base[k] * (fixed ? fixed(lvl) : v * scale))]); continue; }
-    if (base && k === 'regen') { out.push([label, '+' + skillHpNum(v * scale, base)]); continue; }
+    // Regeneration × Heilkraft (playerStats: s.regen *= s.healPower, seit 13.87 auch hier)
+    if (base && k === 'regen') { out.push([label, '+' + skillHpNum(v * scale * (base.healPower || 1), base)]); continue; }
     if (fixed) { const fv = fixed(lvl); out.push([label, (fv < 0 ? '−' : '+') + skillPct(Math.abs(fv))]); continue; }
     // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
     out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' || k === 'chill' ? v : v * scale))]);
   }
-  if (sk.duration) out.push(['Dauer', skillDuration(sk, lvl) + ' s']);
+  // seit 13.87: Blizzard des Schamanen (blizzardFx) und Totenruf (Geister) halten fest sk.duration, nur Buffs, Flüche,
+  // Heilung und Diener wachsen mit der Stufe (skillDuration)
+  if (sk.duration) out.push(['Dauer', (sk.type === 'blizzard' || sk.type === 'revive' ? numDe(sk.duration) : skillDuration(sk, lvl)) + ' s']);
   return out;
 }
 
@@ -1978,7 +1999,9 @@ function mageSkillStats(sk, lvl, out) {
       ['Verlangsamt', `${skillPct(sk.slow.amount)} bis ${skillPct(sk.slow.max)}`], ['Zum Schluss', 'Einfrieren ' + freeze(sk.freeze)]);
   }
   if (sk.castTime) out.push(['Zauberzeit', numDe(sk.castTime) + ' s']);
-  if (sk.type === 'mignite') out.push(['Brand gesamt', dmg(sk.burn.dps * sk.burn.duration) + ' in ' + sk.burn.duration + ' s']);
+  // seit 13.87 wie SKILL_TYPES.mignite: der Brand wächst mit der Fertigkeit (× Kraft der Fertigkeit, dazu wie jeder
+  // Schaden über Zeit × Fertigkeitsschaden), ohne Verteidigung, Monster- und Elementschaden
+  if (sk.type === 'mignite') { const ms = skillStatsBase(); out.push(['Brand gesamt', skillDotNum(sk.burn.dps * sk.burn.duration * dmgScale(lvl) * ((ms && ms.skillDmg) || 1)) + ' in ' + sk.burn.duration + ' s']); }
   if (sk.type === 'mphoenix') out.push(['Auf dem Weg', dmg(sk.dmg * sk.pathMul)], ['Explosion', `r ${sk.blast.r} · ${dmg(sk.dmg * sk.blast.mul)}`], ['Brennt das Ziel', extra(sk.combust)]);
   if (sk.type === 'mspear') out.push(['Linie', String(sk.range)], ['Aufgeladen', sk.charge + ' s']);
   if (sk.type === 'mstorm') out.push(['Blitze', `${sk.strikes} × ${dmg(sk.dmg)}`], ['Entladung', `${dmg(sk.final.dmg)} · alle im Feld`], ['Lähmt', numDe(sk.final.stun) + ' s'], ['Feld', String(sk.radius)], ['Reichweite', String(sk.range)]);
@@ -2010,8 +2033,12 @@ function ultStatsText(u) {
   if (!s || typeof ULT_UNLOCK === 'undefined') return u.stats;
   // wie ultPower: Fertigkeitsschaden und +2,5 % je Stufe über 30
   const pw = (s.skillDmg || 1) * (1 + 0.025 * Math.max(0, p.level - ULT_UNLOCK));
-  const atk = s.atk * pw * (1 + (s.monsterDmg || 0)) * (1 + (s.natureDmg || 0));
-  return u.stats.replace(/(\d+(?:,\d+)?)×(\s*Angriff)?/g, (m0, n) => numText(atk * Number(n.replace(',', '.'))) + ' Schaden');
+  // seit 13.87: Natur- und Elementschaden (Klassensegen) zählt nur, wo die Treffer als Fertigkeit laufen (hitMonster
+  // mit opts.skill) – unter den Ultis nur der Kreis der Elemente
+  const atk = s.atk * pw * (1 + (s.monsterDmg || 0)) * (u.id === 'elementkreis' ? 1 + (s.natureDmg || 0) : 1);
+  // Brand je Sekunde (Inferno) wie jeder Schaden über Zeit: Angriff × Anteil × Fertigkeitsschaden, ohne Stufenbonus
+  return u.stats.replace(/(\d+(?:,\d+)?)× je s/g, (m0, n) => numText(s.atk * (s.skillDmg || 1) * Number(n.replace(',', '.'))) + ' Schaden je s')
+    .replace(/(\d+(?:,\d+)?)×(\s*Angriff)?/g, (m0, n) => numText(atk * Number(n.replace(',', '.'))) + ' Schaden');
 }
 
 // Aktuelle Werte, darunter die nächste Stufe mit den Zuwächsen
@@ -2061,11 +2088,14 @@ function skillListHtml(skills, p) {
         `<img src="${skillIconUrl(sk, x.r)}" alt=""><small style="color:${x.color}">${x.label}</small></span>`;
     }).join('<i class="sk-arrow">›</i>') + '</span>';
     const rn = p && open ? skillRankName(sk, lvl) : sk.name;
-    return `<li${open ? '' : ' class="locked"'} data-info="${escapeHtml('<strong>' + rn + '</strong><span>' + sk.text + '</span>')}">` +
+    // seit 13.87: Text mit den Werten der Stufe (skillText), mit Figur dasselbe Infofeld wie in der Leiste (Mana, Abklingzeit)
+    const txt = skillText(sk, lvl || 1);
+    const info = p ? skillTipHtml(sk, Math.max(1, lvl)) : '<strong>' + rn + '</strong><span>' + txt + '</span>';
+    return `<li${open ? '' : ' class="locked"'} data-info="${escapeHtml(info)}">` +
       `<img class="icon" src="${skillIconUrl(sk, r)}" alt="${sk.short}">` +
       `<span class="info"><strong>${i + 1}. ${rn} <em class="sk-level">${head}</em></strong>` +
       (rn !== sk.name ? `<span class="sk-base">aus ${sk.name}</span>` : '') +
-      `<span class="sk-short">${shortSkillText(sk.text)}</span>` +
+      `<span class="sk-short">${shortSkillText(txt)}</span>` +
       (p ? `<span class="sk-scale">Wird stärker mit <b>${mainAttrName(p.classId)}</b></span>` : '') +
       (p && open ? skillStatsHtml(sk, lvl, true) : '') + rankRow + `</span>` +
       `<span class="meta">${btns}</span></li>`;
@@ -2224,16 +2254,23 @@ const BUFF_TIP_LABELS = {
   atk: 'Angriff', def: 'Verteidigung', atkSpeed: 'Angriffstempo', speed: 'Lauftempo', dodge: 'Ausweichen',
   crit: 'Krit. Chance', critDmg: 'Krit. Schaden', damageTaken: 'Erlittener Schaden', regen: 'Leben je Sek.',
   skillDmg: 'Fertigkeitsschaden', reflect: 'Schaden zurück', chill: 'Angreifer verlangsamt', natureDmg: 'Naturschaden',
-  omniVamp: 'Omni-Vampir', int: 'Intelligenz', hpSteal: 'Lebensraub'
+  omniVamp: 'Omni-Vampir', int: 'Intelligenz', hpSteal: 'Lebensraub',
+  // seit 13.87: Falkenblick (nur der Grundangriff mit dem Bogen, bowRangeBonus) und Segen des Lichts
+  bowRange: 'Reichweite Bogen-Grundangriff', healPower: 'Heilung'
 };
 function buffTip(b) {
   const lines = [b.name];
   const fmt = (v) => {
     const pct = Math.abs(v) * 100;
-    return (v < 0 ? '−' : '+') + (pct < 1 ? pct.toFixed(1).replace('.', ',') : Math.round(pct)) + ' %';
+    // seit 13.87 unter 10 % mit einer Nachkommastelle (Lebensraub 1,15 % stand als „+1 %“ da)
+    return (v < 0 ? '−' : '+') + (pct < 10 ? String(Math.round(pct * 10) / 10).replace('.', ',') : Math.round(pct)) + ' %';
   };
   for (const [k, v] of Object.entries(b.effects || {})) {
-    if (k === 'invisible' && v) lines.push('Unsichtbar · nächster Treffer stärker');
+    // seit 13.87 mit dem echten Faktor (p.nextHitMul, bis zum ersten Angriff)
+    if (k === 'invisible' && v) {
+      const nm = game.player && game.player.nextHitMul > 1 ? game.player.nextHitMul : 0;
+      lines.push(nm ? `Unsichtbar · nächster Angriff ×${numDe(nm)}, sicher kritisch` : 'Unsichtbar');
+    }
     else if (k === 'int' && typeof v === 'number') lines.push('Intelligenz +' + Math.round(v));
     else if (k === 'atkFlat' && typeof v === 'number') lines.push('Angriff +' + Math.round(v));
     else if (k === 'defFlat' && typeof v === 'number') lines.push('Rüstung +' + Math.round(v));

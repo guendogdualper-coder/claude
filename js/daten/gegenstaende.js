@@ -174,7 +174,9 @@ const BASE_STATS = {
   umhang: [{ def: 1 }, { def: 2, mp: 15, dodge: 0.01 }, { def: 3, mp: 25, dodge: 0.015 }, { def: 5, mp: 35, dodge: 0.02 }, { def: 7, mp: 50, dodge: 0.025 }, { def: 10, mp: 75, dodge: 0.03 }, { def: 14, mp: 110, dodge: 0.035 }, { def: 19, mp: 150, dodge: 0.04 }, { def: 26, mp: 205, dodge: 0.045 }, { def: 34, mp: 275, dodge: 0.05 }],
   schuhe: [{ def: 2 }, { def: 2, speed: 0.02 }, { def: 3, speed: 0.025, dodge: 0.02 }, { def: 4, speed: 0.03, dodge: 0.03 }, { def: 6, speed: 0.035, dodge: 0.05 }, { def: 9, speed: 0.04, dodge: 0.06 }, { def: 13, speed: 0.045, dodge: 0.07 }, { def: 18, speed: 0.05, dodge: 0.08 }, { def: 24, speed: 0.055, dodge: 0.085 }, { def: 31, speed: 0.06, dodge: 0.09 }],
   koecher: [{ atk: 2 }, { atk: 4, crit: 0.01 }, { atk: 7, crit: 0.015 }, { atk: 11, crit: 0.02 }, { atk: 17, crit: 0.025 }, { atk: 25, crit: 0.03 }, { atk: 36, crit: 0.035 }, { atk: 50, crit: 0.04 }, { atk: 70, crit: 0.045 }, { atk: 95, crit: 0.05 }],
-  guertel: [{ def: 1 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }, { hp: 550, regen: 0.011 }, { hp: 750, regen: 0.012 }]
+  // seit 13.87: Gürtel Stufe 1 mit Leben statt 1 Rüstung – alle höheren Gürtel haben keine Rüstung, das war die
+  // einzige Stufe, die einen Wert hatte, den keine bessere mehr bot
+  guertel: [{ hp: 15 }, { hp: 30, regen: 0.002 }, { hp: 50, regen: 0.003 }, { hp: 80, regen: 0.004 }, { hp: 120, regen: 0.006 }, { hp: 180, regen: 0.007 }, { hp: 270, regen: 0.008 }, { hp: 390, regen: 0.01 }, { hp: 550, regen: 0.011 }, { hp: 750, regen: 0.012 }]
 };
 
 // Zusatzwerte je Waffenart und Stufe: Dolche und Bögen treffen öfter kritisch,

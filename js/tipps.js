@@ -52,11 +52,15 @@ function skillTipHtml(sk, lvl, key) {
   const locked = p && p.level < sk.unlock;
   const stats = skillStats(sk, lvl).map(([k, v]) => (v === '' ? k : `${k} <b>${v}</b>`)).join(' · ');
   const rn = skillRankName(sk, lvl);
+  // seit 13.87: Abklingzeit aus skillCooldown (dieselbe Stelle wie useSkill), beim Gedrückthalten auch das laufende
+  // Mana (skillManaPerSec) und dass die Abklingzeit erst nach dem Loslassen beginnt (stopChannel, eisstrahl.js)
+  const perSec = p && sk.channel ? skillManaPerSec(sk, p) : 0;
+  const mana = `${p ? skillMana(sk, p) : sk.mp} Mana` + (perSec ? ` + ${numDe(perSec)} je s` : '');
   return `<strong>${rn}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` + (rn !== sk.name ? `<small class="tip-base">aus ${sk.name}</small>` : '') +
-    `<small>${locked ? `ab Stufe ${sk.unlock}` : `Stufe ${skillLevelText(lvl)}`} · ${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s Abklingzeit` +
+    `<small>${locked ? `ab Stufe ${sk.unlock}` : `Stufe ${skillLevelText(lvl)}`} · ${mana} · ${numDe(skillCooldown(sk))} s Abklingzeit${sk.channel ? ' ab dem Loslassen' : ''}` +
     // seit 13.85: globale Abklingzeit der Zauberer (applyGcd, kampf.js)
     `${p && typeof GCD_CLASSES !== 'undefined' && GCD_CLASSES.has(p.classId) ? ` · danach ${GCD_TIME} s für alle anderen Fertigkeiten` : ''}</small>` +
-    (stats ? `<span class="tip-stats">${stats}</span>` : '') + `<span>${sk.text}</span>` + scaleLine(sk, p) + numNote(p);
+    (stats ? `<span class="tip-stats">${stats}</span>` : '') + `<span>${skillText(sk, lvl)}</span>` + scaleLine(sk, p) + numNote(p);
 }
 // seit 13.6: Schaden und Leben stehen als feste Zahlen mit den aktuellen Werten da
 function numNote(p) {
@@ -72,7 +76,7 @@ function scaleLine(sk, p) {
 function ultTipHtml(u, key) {
   const p = game.player;
   return `<strong>${u.name}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` +
-    `<small>Ultimative Attacke · ${p && p.level < u.unlock ? `ab Stufe ${u.unlock}` : '60 s Abklingzeit'}</small>` +
+    `<small>Ultimative Attacke · ${p && p.level < u.unlock ? `ab Stufe ${u.unlock}` : `${ULT_COOLDOWN} s Abklingzeit`}</small>` +
     `<span class="tip-stats">${ultStatsText(u)}</span><span>${u.text}</span>` + scaleLine(u, p) + numNote(p);
 }
 

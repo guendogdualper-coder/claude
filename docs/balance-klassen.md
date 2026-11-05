@@ -5,6 +5,8 @@
 > - **Vorher** = 13.67/13.69 ohne Balance-Änderung. **Nachher** = mit den in diesem Bericht umgesetzten Werten (Abschnitt 5).
 > - Alle Zahlen kommen aus dem Simulator `tools/balance-sim.js`, der mit dem **echten Spielcode** rechnet (Playwright, headless Chromium).
 >
+> **Nachtrag 13.87:** Die Leichtfüßigkeit gibt es seit 13.85 nicht mehr. An ihrer Stelle steht die Attacke Schattenkette; der Lebensraub kommt jetzt aus dem Klassensegen Klingenschatten. Was dieser Bericht über die Leichtfüßigkeit sagt, beschreibt den Stand 13.69. Seit 13.85 gibt es außerdem den Dolch-Nerf (Tarnung ×2, Hinterhalt ×1,5) und 2 s globale Abklingzeit für Schamane, Nekromant und Magier.
+>
 > **Nachtrag 13.76:** Beim Falken ersetzt der Pfeilregen (10 Pulse × 0,4 über 5 s, 50 % Bremse im Kreis) die Giftfalle. Neu gemessen: Falke Ø 93 (Stufe 10/30/50/70/80: 84/95/105/91/92), die übrigen Wege 94–102.
 >
 > **⚒ Ninja · Weg des Falken ist ausgenommen.** Er wird gerade noch einmal umgebaut: Mehrfachschuss, Giftfalle, Schattenschritt mit Ortswahl.

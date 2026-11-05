@@ -74,7 +74,7 @@ window.collectWiki = async function () {
     for (const [k, v] of stats) facts.push([k + ' (Stufe 1)', String(v)]);
     add({
       id: 'fertigkeit/' + sid, cat: 'fertigkeit', group: c.name + ' · ' + pt.name, name: sk.name, img: pic('fertigkeit-' + sid, skillIconUrl(sk)),
-      sub: `${c.name} · ${pt.name} · ab Stufe ${sk.unlock}`, text: sk.text, facts, prio: 10,
+      sub: `${c.name} · ${pt.name} · ab Stufe ${sk.unlock}`, text: typeof skillText === 'function' ? skillText(sk, 1) : sk.text, facts, prio: 10, // seit 13.87: {dauer} → Zahl
       tags: 'fertigkeit attacke skill ' + (KIND[sk.kind] || ''),
       sections: [{ title: 'Fertigkeitsbuch', html: `<p><img src="${pic('buch-' + sid, bookIconUrl(sid))}" alt="" style="width:48px;vertical-align:middle"> Mit Fertigkeitsbüchern steigerst du die Fertigkeit über die Ränge (siehe [[system/raenge|Ränge und Erwecken]]). Bücher bekommst du beim [[npc/lehrmeister|Lehrmeister]], beim [[npc/alchemist|Alchemisten]], aus Hauptquests, der Tagesbelohnung und als Fertigkeitsschriftrolle aus [[kat/stein|Seelensteinen]] ab Stufe 40.</p>` }]
     });

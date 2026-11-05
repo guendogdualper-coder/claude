@@ -69,7 +69,7 @@ function stopChannel(p) {
   if (!c) return;
   p.channel = null;
   if (c.fx) c.fx.dur = game.time - c.fx.start + 0.18;
-  setSkillCd(p, c.i, c.sk.cooldown);
+  setSkillCd(p, c.i, skillCooldown(c.sk));
   if (p.swingKind === 'strahl') p.swing = Math.min(p.swing, 0.5);
   if (typeof snd !== 'undefined') snd.beamStop();
   netSkillFx(c.sk.id, c.sk.range, { bm: 0 });
