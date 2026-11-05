@@ -765,7 +765,7 @@ function pvpRosterIn(M, r) {
   }
   M.roster = map;
 }
-// Rückkehrpunkt: beim Turniermeister, bei dem man sich angemeldet hat (sonst in Vlotho)
+// Rückkehrpunkt: beim Turniermeister, bei dem man sich angemeldet hat (sonst in Kazehana)
 function pvpReturnSpot() {
   const r = pvpSave().ret;
   if (r && Number.isFinite(r.x) && Number.isFinite(r.y) && pvpSlotAt(r.x, r.y) < 0 && (typeof arenaSlotAt !== 'function' || arenaSlotAt(r.x, r.y) < 0)) return { x: r.x, y: r.y };

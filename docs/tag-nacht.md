@@ -41,7 +41,7 @@ Auf jeder Map kommen Nachtmonster dazu (`js/daten/nachtmonster.js`). Bei Tagesan
 
 - Die Wanderer des Tages schlafen.
 - Auf jeder Map ist dafür ein **Nachtwanderer** unterwegs.
-- In Vlotho schlafen das Kind und der Bauer. Die **Nachtwächterin Yuki** und ein Laternenanzünder sind unterwegs.
+- In Kazehana schlafen das Kind und der Bauer. Die **Nachtwächterin Yuki** und ein Laternenanzünder sind unterwegs.
 
 ### Nachtjagden
 

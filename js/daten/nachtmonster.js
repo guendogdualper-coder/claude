@@ -55,7 +55,7 @@ const NIGHT_GROUPS = {
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
 
 // Nachtwanderer: tauchen nachts draußen auf (die Wanderer des Tages schlafen dann) und vergeben Nachtjagden.
-// Je Map einer, in Vlotho dazu die Nachtwächterin am Brunnen.
+// Je Map einer, in Kazehana dazu die Nachtwächterin am Brunnen.
 const NIGHT_WANDERERS = [
   ['Mondpriester Tsuki', 'moench'], ['Geisterjägerin Kage', 'jaegerin'], ['Laternenträger Hiro', 'bauer'],
   ['Sterndeuterin Hoshi', 'alte'], ['Totengräber Bram', 'bauer'], ['Schattenläuferin Yoru', 'jaegerin'],

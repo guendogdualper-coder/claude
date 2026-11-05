@@ -181,7 +181,7 @@ Player combat sound set for a stylized fantasy MMORPG: weapon swooshes in three 
 ## 4. Musik
 
 **Ziel:** entspannt und ruhig, man kann stundenlang zuhören. Fünftonleitern mit einem leichten fernöstlichen
-Klang (passend zum Stil von Vlotho), viel Hall und keine harten Schläge.
+Klang (passend zum Stil von Kazehana), viel Hall und keine harten Schläge.
 
 - **Instrumente:**
   - Weiche Fläche: zwei leicht verstimmte Sägezähne, tiefpassgefiltert.

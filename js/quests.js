@@ -6,7 +6,7 @@ function questState() {
   if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
   if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
   // Alte Hauptkette (bis 11.1, 20 Aufträge) auf die Questreihe je Map umrechnen: weiter beim ersten Auftrag
-  // ab der Stufe des alten (alles erledigt: Heimkehr nach Vlotho vor dem Finale)
+  // ab der Stufe des alten (alles erledigt: Heimkehr nach Kazehana vor dem Finale)
   if (p.quests.chain !== 2) {
     const q = p.quests;
     const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
@@ -20,7 +20,7 @@ function questState() {
   return p.quests;
 }
 
-// Ältester einer Map (Bao in Vlotho, sonst der Lagerälteste) und die Map eines NPCs
+// Ältester einer Map (Bao in Kazehana, sonst der Lagerälteste) und die Map eines NPCs
 function npcMapId(n) {
   const wm = mapOfTile(n.x / TILE, n.y / TILE);
   return wm ? wm.id : 1;
@@ -152,7 +152,7 @@ function questEvent(kind, m) {
       q.raidsDone.push(m.typeId);
       q.progress = q.raidsDone.length;
       ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
-      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Vlotho zurück.', 'level');
+      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Kazehana zurück.', 'level');
     }
   }
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
@@ -168,7 +168,7 @@ function questEvent(kind, m) {
     if (st.progress >= STABLE_QUEST.count) {
       st.state = 'done';
       ui.banner('Prüfung bestanden', 'Kehre zu einem Stallmeister zurück');
-      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Vlotho oder beim Stallmeister in jedem Lager.', 'level');
+      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Kazehana oder beim Stallmeister in jedem Lager.', 'level');
     }
   }
   if (kind === 'kill' && q.side) {

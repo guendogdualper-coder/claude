@@ -804,7 +804,7 @@ rewardKill = function (m) {
   }
   return _arenaRewardKill(m);
 };
-// Wiederbeleben nach dem Tod in der Arena: beim Arenameister, nicht in Vlotho
+// Wiederbeleben nach dem Tod in der Arena: beim Arenameister, nicht in Kazehana
 const _arenaVillageSpawn = villageSpawn;
 villageSpawn = function (p) {
   if (p && arenaInside(p)) return arenaReturn();

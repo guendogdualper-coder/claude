@@ -201,7 +201,7 @@ window.collectWiki = async function () {
         cx.fillText(label, mx, my - 16);
       };
       for (const dg of game.world.dungeons) if (dg.entrance && mapOfTile(Math.floor(dg.entrance.x / TILE), Math.floor(dg.entrance.y / TILE)) === wm) mark(dg.entrance.x, dg.entrance.y, dg.def.raid ? '#ff5a5a' : '#c58cff', dg.def.name);
-      mark(wm.cx * TILE, wm.cy * TILE, '#ffd34d', wm.id === 1 ? 'Vlotho' : 'Lager');
+      mark(wm.cx * TILE, wm.cy * TILE, '#ffd34d', wm.id === 1 ? 'Kazehana' : 'Lager');
       mimg = c.toDataURL('image/png');
     } catch (err) { mimg = null; }
     const zones = ZONES.filter((z) => !z.dungeon && zoneMap(z) === wm.id);
@@ -481,8 +481,8 @@ window.collectWiki = async function () {
       <ol>
         <li><b>Klasse wählen:</b> [[klasse/krieger|Krieger]] (robust, Nahkampf), [[klasse/ninja|Ninja]] (schnell, Dolche oder Bogen), [[klasse/schamane|Schamane]] (Drachenmagie oder Heilung), [[klasse/nekromant|Nekromant]] (Diener, Blut und Knochen) oder [[klasse/magier|Magier]] (vier Elemente). Jede Klasse hat zwei Wege.</li>
         <li><b>Steuerung lernen:</b> siehe [[system/steuerung|Steuerung]]. Taste <kbd>H</kbd> öffnet die Hilfe im Spiel.</li>
-        <li><b>Hauptquest:</b> Sprich in Vlotho mit dem [[npc/aeltester|Dorfältesten]]. Der goldene Pfeil zeigt dir immer das nächste Ziel.</li>
-        <li><b>Erste Monster:</b> Um Vlotho in den Sonnenwiesen leben Hunde, Wölfe und Wildschweine – siehe [[karte/1|Vlotho]].</li>
+        <li><b>Hauptquest:</b> Sprich in Kazehana mit dem [[npc/aeltester|Dorfältesten]]. Der goldene Pfeil zeigt dir immer das nächste Ziel.</li>
+        <li><b>Erste Monster:</b> Um Kazehana in den Sonnenwiesen leben Hunde, Wölfe und Wildschweine – siehe [[karte/1|Kazehana]].</li>
         <li><b>Tränke:</b> Bei der [[npc/haendler|Händlerin]] kaufen, mit <kbd>Q</kbd> (Leben) und <kbd>E</kbd> (Mana) trinken.</li>
         <li><b>Jeden Tag:</b> [[system/tagesbelohnung|Tagesbelohnung]] abholen, Aufträge der [[npc/jaegerin|Jägerin]] und der [[npc/wanderer|Wanderer]] machen.</li>
         <li><b>Stärker werden:</b> Bessere Ausrüstung beim [[npc/waffen|Waffen-]] und [[npc/ruestung|Rüstungshändler]], aufwerten beim [[npc/schmied|Schmied]], Boni mit [[kat/material|Materialien]].</li>
