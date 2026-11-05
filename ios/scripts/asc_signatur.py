@@ -14,6 +14,7 @@ Ausgabe im Ordner: key.pem (privater Schlüssel), cert.cer (DER), profil.mobilep
 import base64
 import json
 import os
+import shlex
 import subprocess
 import sys
 import time
@@ -90,7 +91,13 @@ def bundle_id_holen():
 def zertifikat_anlegen(ordner):
     schluessel = os.path.join(ordner, 'key.pem')
     csr = os.path.join(ordner, 'csr.pem')
-    subprocess.run(['openssl', 'genrsa', '-out', schluessel, '2048'], check=True, capture_output=True)
+    roh = os.path.join(ordner, 'key-roh.pem')
+    subprocess.run(['openssl', 'genrsa', '-out', roh, '2048'], check=True, capture_output=True)
+    # in das klassische PKCS#1-Format („BEGIN RSA PRIVATE KEY“) bringen, das „security import -f openssl“ sicher
+    # versteht: OpenSSL 3 braucht dafür -traditional, LibreSSL (macOS) schreibt es ohnehin so
+    if subprocess.run(['openssl', 'rsa', '-in', roh, '-out', schluessel, '-traditional'], capture_output=True).returncode:
+        subprocess.run(['openssl', 'rsa', '-in', roh, '-out', schluessel], check=True, capture_output=True)
+    os.remove(roh)
     subprocess.run(['openssl', 'req', '-new', '-key', schluessel, '-out', csr,
                     '-subj', '/emailAddress=kontakt@seelenstein.online/CN=Seelenstein CI/C=DE'],
                    check=True, capture_output=True)
@@ -151,7 +158,8 @@ def main():
     zert_id = zertifikat_anlegen(ordner)
     uuid = profil_anlegen(ordner, bundle, zert_id)
     with open(os.path.join(ordner, 'werte.env'), 'w') as f:
-        f.write(f'PROFIL_UUID={uuid}\nPROFIL_NAME={PROFIL_NAME}\n')
+        # Werte in Anführungszeichen, damit „source“ in der Shell den Namen mit Leerzeichen richtig liest
+        f.write(f'PROFIL_UUID={shlex.quote(uuid)}\nPROFIL_NAME={shlex.quote(PROFIL_NAME)}\n')
 
 
 if __name__ == '__main__':
