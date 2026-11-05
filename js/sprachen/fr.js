@@ -2313,5 +2313,16 @@
 "für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "changer pour {0} or ? Tes niveaux de compétence sont conservés.",
 "ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "est maintenant ton élément – tes compétences gardent leurs niveaux.",
 "ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "est maintenant ton élément – tes compétences retrouvent leurs anciens niveaux de cet élément.",
-"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Choisis Feu, Givre, Foudre ou Terre. Tes niveaux de compétence sont conservés lors du changement (E/H/L/V compris), les buffs de ton ancien élément prennent fin. Les parchemins dans ton sac deviennent des parchemins des mêmes emplacements du nouvel élément."
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Choisis Feu, Givre, Foudre ou Terre. Tes niveaux de compétence sont conservés lors du changement (E/H/L/V compris), les buffs de ton ancien élément prennent fin. Les parchemins dans ton sac deviennent des parchemins des mêmes emplacements du nouvel élément.",
+"Knochendrache": "Dragon d'os",
+"Großer Knochendrache": "Grand dragon d'os",
+"Seelenkoloss": "Colosse d'âmes",
+"Feueratem": "Souffle de feu",
+"Faustschlag": "Coup de poing",
+"Splitterschaden": "Dégâts de zone",
+"Bodenstampfer": "Piétinement",
+"{0} im Kegel (jeder {1}. Angriff)": "{0} en cône (toutes les {1} attaques)",
+"{0} neben dem Ziel": "{0} autour de la cible",
+"{0} rundum (jeder {1}. Schlag)": "{0} tout autour (tous les {1} coups)",
+"fliegt, Fernkampf": "vole, à distance",
 };

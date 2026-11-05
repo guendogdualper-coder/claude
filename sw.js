@@ -63,6 +63,7 @@ const FILES = [
   'js/hoellenthron.js',
   'js/magier-neu.js',
   'js/nekro-neu.js',
+  'js/nekro-diener.js',
   'js/rang-fx.js',
   'js/legendaura.js',
   'js/seltenheit.js',

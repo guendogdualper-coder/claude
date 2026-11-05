@@ -2314,5 +2314,16 @@
 "für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "{0} altına değiştirilsin mi? Yetenek seviyelerin korunur.",
 "ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "artık senin elementin – yeteneklerin seviyelerini korur.",
 "ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "artık senin elementin – yeteneklerin bu elementteki eski seviyelerine döner.",
-"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Ateş, Buz, Şimşek veya Toprak seç. Değiştirirken yetenek seviyelerin korunur (E/H/L/V dahil), eski elementinin güçlendirmeleri biter. Çantandaki parşömenler yeni elementte aynı yerlerin parşömenlerine dönüşür."
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Ateş, Buz, Şimşek veya Toprak seç. Değiştirirken yetenek seviyelerin korunur (E/H/L/V dahil), eski elementinin güçlendirmeleri biter. Çantandaki parşömenler yeni elementte aynı yerlerin parşömenlerine dönüşür.",
+"Knochendrache": "Kemik Ejderha",
+"Großer Knochendrache": "Büyük Kemik Ejderha",
+"Seelenkoloss": "Ruh Devi",
+"Feueratem": "Ateş Nefesi",
+"Faustschlag": "Yumruk",
+"Splitterschaden": "Alan Hasarı",
+"Bodenstampfer": "Yer Tepmesi",
+"{0} im Kegel (jeder {1}. Angriff)": "{0} koni içinde (her {1} saldırıda)",
+"{0} neben dem Ziel": "{0} hedefin yanında",
+"{0} rundum (jeder {1}. Schlag)": "{0} çevresine (her {1} vuruşta)",
+"fliegt, Fernkampf": "uçar, menzilli",
 };

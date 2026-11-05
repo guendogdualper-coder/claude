@@ -865,7 +865,8 @@ function netPlayerState() {
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
     hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
     // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
-    ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0), a.slot | 0, a.ghost ? a.typeId : 0]) } : {}),
+    // seit 13.94: Bit 16 = Feueratem des Drachen bzw. Bodenstampfer des Kolosses (sonst Feuerball bzw. Faustschlag)
+    ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0) | (a.altAttack ? 16 : 0), a.slot | 0, a.ghost ? a.typeId : 0]) } : {}),
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
     sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0,
     // Weg (seit 8.6, beim Magier das Element) und Spielversion (Handel mit Magier-Gegenständen erst ab 8.6)
@@ -958,8 +959,10 @@ function netRemoteAllies(rp, list) {
     for (const o of old) if (o.slot === slot && !o.seen) { al = o; break; }
     // neu beschworen oder erweckt: neues Objekt (neue Figur), steigt wieder aus dem Boden
     if (!al || al.tier !== tier || (al.typeId || 0) !== ghostOf || (f & 8 && !al.rising)) {
+      // seit 13.94: Art aus der Stufe (Knochendrache, Seelenkoloss)
+      const T = tiers[tier];
       al = {
-        id: 2e6 + slot, slot, remoteAlly: true, kind: tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: tier ? 12 : 10,
+        id: 2e6 + slot, slot, remoteAlly: true, kind: T ? T.kind : tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: T && T.r ? T.r : tier ? 12 : 10,
         facing: 1, moving: false, attackAnim: 0, swing: 0, windup: 0, windupMax: 0.15, alpha: false, scale: 1,
         born: f & 8 ? game.time : game.time - 1, rise: 0.6, target: null, rising: false
       };
@@ -971,10 +974,12 @@ function netRemoteAllies(rp, list) {
     al.ty = y;
     if (Math.abs(al.x - x) + Math.abs(al.y - y) > 400) { al.x = x; al.y = y; }
     // steigende Flanke: ein Biss oder Hieb, zum nächsten Monster gedreht
+    // seit 13.94: Drachen speien auf Abstand (Ziel bis Reichweite), Drachen und Kolosse zeigen ihren Angriff
+    al.altAttack = !!(f & 16);
     if (f & 1 && !al.hitBit) {
       al.attackAnim = 0.25;
       let best = null;
-      let bd = 70;
+      let bd = al.kind === 'drache' ? ((tiers[tier] && tiers[tier].range) || 145) + 40 : 70;
       for (const m of game.monsters) {
         if (m.dead) continue;
         const d = Math.hypot(m.x - al.x, m.y - al.y);
@@ -982,6 +987,7 @@ function netRemoteAllies(rp, list) {
       }
       al.target = best;
       if (best && Math.abs(best.x - al.x) > 1) al.facing = best.x > al.x ? 1 : -1;
+      if (typeof allyRemoteAttack === 'function') allyRemoteAttack(al, best, al.altAttack);
     }
     al.hitBit = !!(f & 1);
     al.rising = !!(f & 8);

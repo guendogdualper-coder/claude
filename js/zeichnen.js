@@ -742,8 +742,8 @@ function drawPlayer(ctx, p) {
   ctx.restore();
 }
 
-// Diener des Nekromanten (eigene und die der Mitspieler): Skelettkrieger oder Knochenhund,
-// steigen aus dem Boden, stehen auf einem weichen grünen Ring, springen an (Hunde)
+// Diener des Nekromanten (eigene und die der Mitspieler): Skelettkrieger oder Knochenhund, seit 13.94 auch
+// Knochendrache und Seelenkoloss; steigen aus dem Boden, stehen auf einem weichen grünen Ring, springen an (Hunde)
 const ALLY_HOUND_BOUNDS = { x: -36, y: -44, w: 72, h: 50 };
 const ALLY_HOUND_KEYS = [0, 1].map((soul) => [0, 1, 2, 3].map((f) => 'ally:hund:' + soul + ':' + f));
 function allyHoundSprite(soul, frame) {
@@ -756,27 +756,35 @@ function drawSkeleton(ctx, a) {
   const fy = feetY(a);
   const k = Math.max(0, Math.min(1, (game.time - (a.born || 0)) / (a.rise || 0.6)));
   const hound = a.kind === 'hund';
+  // seit 13.94: Knochendrachen (fliegen) und Seelenkolosse (nekro-diener.js)
+  const dragon = a.kind === 'drache';
+  const colossus = a.kind === 'koloss';
+  const sc = a.scale || 1;
   ctx.save();
   // fremde Diener haben kein until (sie verschwinden mit der Liste des Mitspielers)
   ctx.globalAlpha = (a.until ? Math.max(0.2, Math.min(1, (a.until - game.time) / 1.5)) : 1) * (0.25 + 0.75 * k);
   ctx.fillStyle = 'rgba(127,227,160,0.3)';
   ctx.beginPath();
-  ctx.ellipse(a.x, fy, hound ? 17 : 13, hound ? 7 : 5.5, 0, 0, Math.PI * 2);
+  const rr = dragon ? 15 * sc : colossus ? 19 : hound ? 17 : 13;
+  ctx.ellipse(a.x, fy, rr, rr * 0.4, 0, 0, Math.PI * 2);
   ctx.fill();
-  drawShadow(ctx, a.x, fy, hound ? 13 : 10);
+  drawShadow(ctx, a.x, fy, dragon ? 10 * sc : colossus ? 16 : hound ? 13 : 10);
   // Aufstieg: nur was über dem Boden ist, ist zu sehen
   if (k < 1) {
     ctx.beginPath();
-    ctx.rect(a.x - 50, fy - 90, 100, 91);
+    ctx.rect(a.x - 70, fy - 120, 140, 121);
     ctx.clip();
   }
   const lunge = a.attackAnim > 0 ? Math.sin(a.attackAnim / 0.25 * Math.PI) * 5 * (a.facing < 0 ? -1 : 1) : 0;
   const hop = a.leap ? Math.sin(Math.PI * leapK(a)) * 10 : 0;
-  ctx.translate(a.x + lunge, fy + (1 - k) * 14 - hop);
-  const sc = a.scale || 1;
+  // Drachen schweben mit Flügelschlag über dem Boden und wiegen sich
+  const fly = dragon ? (DRAGON_FLY.hover2 + Math.sin(game.time * 4 + (a.id || 0)) * 3) * sc * easeOut(k) : 0;
+  ctx.translate(a.x + lunge, fy + (1 - k) * 14 - hop - fly);
+  if (dragon) ctx.rotate(Math.sin(game.time * 1.7 + (a.id || 0)) * 0.06);
   if (sc !== 1) ctx.scale(sc, sc);
-  const frame = a.moving ? Math.floor(game.time * (hound ? 12 : 9) + (a.id || 0) * 0.37) % 4 : 0;
-  blitSprite(ctx, hound ? allyHoundSprite(a.tier >= 3 ? 1 : 0, frame) : skeletonSprite(frame), 0, 0, a.facing < 0);
+  const frame = dragon ? Math.floor(game.time * 9 + (a.id || 0) * 0.37) % 4 : a.moving ? Math.floor(game.time * (hound ? 12 : colossus ? 7 : 9) + (a.id || 0) * 0.37) % 4 : 0;
+  const sp = dragon ? dragonSprite2(a.tier >= 3 ? 1 : 0, frame) : colossus ? colossusSprite2(frame) : hound ? allyHoundSprite(a.tier >= 3 ? 1 : 0, frame) : skeletonSprite(frame);
+  blitSprite(ctx, sp, 0, 0, a.facing < 0);
   ctx.restore();
 }
 
