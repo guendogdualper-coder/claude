@@ -544,10 +544,10 @@ const CLASSES = {
           {
             // seit 13.85 stärker (Ausgleich für die globale Abklingzeit): dmg 1,5 → 2,17, trail.dmg 0,45 → 0,65
             id: 'blitzschritt', name: 'Blitzschritt', short: 'BS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 8,
-            // seit 13.85 mit Zielkreis: Zielort frei wählbar (auf einem Gegner knapp hinter ihm)
-            type: 'shift', el: 'blitz', at: 'line', aim: true, aimMax: 200, aimR: 34, distance: 200, width: 40, dmg: 2.17, stun: 0.5, trail: { n: 5, r: 44, dmg: 0.65, every: 0.08 },
+            // 13.85–13.92 mit Zielkreis; seit 13.93 wieder ohne: sofort in Blickrichtung (facing), volle Weite
+            type: 'shift', el: 'blitz', at: 'line', facing: true, distance: 200, width: 40, dmg: 2.17, stun: 0.5, trail: { n: 5, r: 44, dmg: 0.65, every: 0.08 },
             anim: 'schritt', animDur: 0.3, color: '#ffe94a',
-            text: 'Du wirst selbst zum Blitz und schlägst bis zu 200 weit ein – dort, wo du den Zielkreis setzt (steht dort ein Gegner, schlägst du knapp hinter ihm ein). Alle Gegner auf der Strecke werden getroffen und kurz betäubt. Hinter dir krachen fünf Blitze vom Himmel auf deinen Weg und treffen, wer dort steht.'
+            text: 'Du wirst selbst zum Blitz und schlägst sofort bis zu 200 weit in Blickrichtung ein – ohne Zielen. Alle Gegner auf der Strecke werden getroffen und kurz betäubt. Hinter dir krachen fünf Blitze vom Himmel auf deinen Weg und treffen, wer dort steht.'
           },
           {
             // seit 11.5 statt Statische Ladung: Gewitterwolke – Flächenschaden aus der Ferne

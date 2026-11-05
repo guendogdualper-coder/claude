@@ -334,6 +334,8 @@ SKILL_TYPES.shift = function (sk, pw, lvl) {
 // Richtung und gewünschte Weite: beim Laufen in Blickrichtung; 'line'/'end' mit Ziel zum Ziel;
 // sonst weg vom nächsten Gegner (Flucht)
 function shiftPlan(p, sk) {
+  // seit 13.93: Blitzschritt springt ohne Zielkreis immer in Blickrichtung (so weit es geht)
+  if (sk.facing) return { dir: { ...p.facing }, want: sk.distance };
   // seit 13.85 mit Zielkreis (sk.aim): Richtung und Weite zum gewählten Ort (Eisschritt: Kreis beginnt hinter der
   // Figur, aimAway). Steht dort ein Gegner, schlägt der Blitzschritt wie bisher knapp hinter ihm ein.
   if (sk.aim) {
