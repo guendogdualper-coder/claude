@@ -828,14 +828,21 @@ function humanoid3(b, c, P) {
     const wl = WEAPON_LEN3[c.weapon.kind] || 0.6;
     weaponAxis = { base: new THREE.Vector3(0, 0.02, 0).applyMatrix4(M), tip: new THREE.Vector3(0, wl, 0).applyMatrix4(M) };
   }
+  // Nebenhand-Waffe (seit 13.90 mit Leuchthülle und eigener Klingenachse: Waffenauren wie die Schwertaura lassen
+  // bei zwei Schwertern oder zwei Äxten beide Waffen leuchten, vorher nur die rechte)
+  let offhandAxis = null;
   if (c.offhand) {
     const h = WEAPON_HOLD[c.offhand.kind] || [1.1, 0, 0];
-    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, [h[0], -h[1], -h[2]], false, { left: true });
+    const rotL = [h[0], -h[1], -h[2]];
+    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, rotL, true, { left: true });
+    const M = partFrame(handL, rotL);
+    const wl = WEAPON_LEN3[c.offhand.kind] || 0.6;
+    offhandAxis = { base: new THREE.Vector3(0, 0.02, 0).applyMatrix4(M), tip: new THREE.Vector3(0, wl, 0).applyMatrix4(M) };
   }
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
-  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff, bowStr };
+  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, offhandAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff, bowStr };
 }
 
 // Bereitschaftspose fürs Bild der Figur (seit 13.22): Waffe in der Hand, deutlich zu sehen, nie hängend.

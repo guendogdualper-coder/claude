@@ -439,6 +439,29 @@ function drawPlayer(ctx, p) {
       drawWeaponSprite(ctx, shield.kind, left.x + (dir === 'side' ? -4 : 0), left.y, offAngle, shield.tier);
       const ob = plusBand(shield.plus);
       if (ob >= 2) glow(ctx, left.x + Math.cos(offAngle) * 16, left.y + Math.sin(offAngle) * 16, 10 + ob * 3, PLUS_COLORS[ob], 0.3 + ob * 0.08);
+      // seit 13.90: Waffenaura (Schwertaura) auch auf der zweiten Waffe – leuchtende Hülle und Lichtflecken entlang der Klinge
+      const oa = p.buffs && p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
+      if (oa) {
+        const col = SKILL_FX[oa.id].weaponGlow;
+        const power = 1 + (skillRank(oa.lvl || 1) + 1) * 0.3;
+        const pulse = 0.65 + 0.35 * Math.sin(game.time * 8 + 1.3);
+        const reach = shield.kind === 'greatsword' || shield.kind === 'greataxe' ? 34 : 26;
+        const osp = weaponSprite(shield.kind, shield.tier);
+        const ob2 = osp.bounds;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.translate(left.x + (dir === 'side' ? -4 : 0), left.y);
+        ctx.rotate(offAngle);
+        for (const [sc, a] of [[1.08 + 0.05 * power, 0.55], [1.2 + 0.08 * power, 0.3]]) {
+          ctx.save();
+          ctx.globalAlpha *= a * pulse;
+          ctx.scale(sc, sc);
+          ctx.drawImage(tintOf(osp, col), ob2.x, ob2.y, ob2.w, ob2.h);
+          ctx.restore();
+        }
+        ctx.restore();
+        for (const f of [0.3, 0.55, 0.8, 1]) glow(ctx, left.x + Math.cos(offAngle) * reach * f, left.y + Math.sin(offAngle) * reach * f, 7 + 3 * power, col, pulse * 0.45);
+      }
       return;
     }
     const sp = shieldSprite(shield.tier);

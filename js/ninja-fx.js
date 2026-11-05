@@ -462,13 +462,15 @@ const _sa3h = new THREE.Vector3();
 const _sa3d = new THREE.Vector3();
 const _sa3p = new THREE.Vector3();
 const _sa3m = new THREE.Matrix4();
-function weaponAxis3(p, base, tip) {
+// left: die Waffe in der linken Hand (seit 13.90, zwei Schwerter oder zwei Äxte)
+function weaponAxis3(p, base, tip, left = false) {
   const a = typeof actors3 !== 'undefined' ? actors3.get(entityKey(p)) : null;
-  const ax = a && a.model && a.model.weaponAxis;
+  const ax = a && a.model && (left ? a.model.offhandAxis : a.model.weaponAxis);
   const mesh = a && a.meshes && (a.meshes.wglow || a.meshes.lit);
   if (!ax || !mesh || !a.group.visible || !a.group.parent || !a.skeleton) return false;
-  // Haut-Formel von three.js für einen Punkt, der nur an der rechten Hand hängt
-  _sa3m.multiplyMatrices(a.bones[BH.handR].matrixWorld, a.skeleton.boneInverses[BH.handR]);
+  // Haut-Formel von three.js für einen Punkt, der nur an einer Hand hängt
+  const hb = left ? BH.handL : BH.handR;
+  _sa3m.multiplyMatrices(a.bones[hb].matrixWorld, a.skeleton.boneInverses[hb]);
   for (const [src, out] of [[ax.base, base], [ax.tip, tip]]) {
     out.copy(src).applyMatrix4(mesh.bindMatrix).applyMatrix4(_sa3m).applyMatrix4(mesh.bindMatrixInverse).applyMatrix4(mesh.matrixWorld);
   }
@@ -478,7 +480,21 @@ function weaponAxis3(p, base, tip) {
 function schwertaura3(h, p, b, t) {
   const low = n3low();
   const pulse = 0.8 + 0.2 * Math.sin(t * 7);
-  if (weaponAxis3(p, _sa3b, _sa3t)) {
+  const main = weaponAxis3(p, _sa3b, _sa3t);
+  if (main) schwertBlade3(h, t, pulse, low, 0);
+  // seit 13.90: zweite Waffe (Schwert oder Axt in der linken Hand) bekommt dieselbe Lichtklinge
+  if (weaponAxis3(p, _sa3b, _sa3t, true)) schwertBlade3(h, t + 0.37, pulse, low, 1);
+  if (!main) {
+    // ohne 3D-Waffe: Licht an der Hand
+    ninjaHand3(p, _sa3p);
+    n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 1.0, '#ffd36a', 0.7 * pulse);
+  }
+  // seit 13.83 ohne Lichtkranz am Boden und ohne eigenen Funkenkreis: um den Körper liegt die Körperaura
+  // (koerperaura.js), die Klinge bleibt das Zeichen der Schwertaura
+}
+// Lichtklinge entlang der Achse _sa3b → _sa3t (k: 0 rechte, 1 linke Waffe, verschiebt die Funken)
+function schwertBlade3(h, t, pulse, low, k) {
+  {
     _sa3d.subVectors(_sa3t, _sa3b);
     const len = _sa3d.length();
     _sa3d.divideScalar(len);
@@ -503,15 +519,9 @@ function schwertaura3(h, p, b, t) {
       const ph = (t * 1.6 + j / 8) % 1;
       const f = ((j * 0.618) % 1) * 1.2 - 0.1;
       _sa3p.copy(_sa3b).addScaledVector(_sa3d, len * f);
-      n3Glow(h, _sa3p.x + Math.sin(j * 3 + t) * ph * 0.3, _sa3p.y + ph * 0.7, _sa3p.z + Math.cos(j * 2 + t) * ph * 0.3, 0.12, j % 3 ? '#ffe9a0' : '#ffffff', 1 - ph);
+      n3Glow(h, _sa3p.x + Math.sin(j * 3 + t + k) * ph * 0.3, _sa3p.y + ph * 0.7, _sa3p.z + Math.cos(j * 2 + t + k) * ph * 0.3, 0.12, j % 3 ? '#ffe9a0' : '#ffffff', 1 - ph);
     }
-  } else {
-    // ohne 3D-Waffe: Licht an der Hand
-    ninjaHand3(p, _sa3p);
-    n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 1.0, '#ffd36a', 0.7 * pulse);
   }
-  // seit 13.83 ohne Lichtkranz am Boden und ohne eigenen Funkenkreis: um den Körper liegt die Körperaura
-  // (koerperaura.js), die Klinge bleibt das Zeichen der Schwertaura
 }
 if (SKILL_FX.schwertaura) SKILL_FX.schwertaura.aura3 = schwertaura3;
 

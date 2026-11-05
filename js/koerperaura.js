@@ -388,8 +388,10 @@ function kaHash(a, b) {
 }
 
 // Ort und Größe der Figur: Mitte, Fußhöhe (mit Sattel und Sprung) und Körpergröße aus dem 3D-Modell
-const KA_A = { x: 0, y: 0, z: 0, H: 1.9 };
+const KA_A = { x: 0, y: 0, z: 0, H: 1.9, ride: false };
 function kaAnchor(p) {
+  // seit 13.90: auf dem Pferd schlichter (siehe kaShell3D und kaDraw3)
+  KA_A.ride = !!p.riding;
   const a = p.__k3 && typeof actors3 !== 'undefined' ? actors3.get(p.__k3) : null;
   if (a && a.group && a.group.parent && a.model) {
     KA_A.x = a.group.position.x;
@@ -1001,13 +1003,14 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
   const ts = t % 600;
   const dim = 1 - 0.3 * (V3.nightK || 0);
   const op = Math.min(1, kk * 1.6) * (fl.op || 1);
-  const trail = 0.045 + 0.035 * L;
+  // auf dem Pferd (seit 13.90): kaum Nachziehen – beim Galopp zogen die Flammen sonst weit nach hinten und zur Seite
+  const trail = (0.045 + 0.035 * L) * (A.ride ? 0.2 : 1);
   // Hauptlage: auf niedriger Stufe ein dünnes Flackern dicht am Körper, ab Stufe 30–50 deutliche Flammen, ab 80 hoch lodernd
   const u = S.outer.material.uniforms;
   kaSetColors(u, fl);
   u.uT.value = ts;
   u.uH.value = mh;
-  u.uInf.value = mh * (0.022 + 0.056 * L) * fl.inf;
+  u.uInf.value = mh * (0.022 + 0.056 * L) * fl.inf * (A.ride ? 0.7 : 1);
   u.uRise.value = H * (0.035 + 0.2 * Math.pow(L, 1.3)) * fl.rise;
   u.uWob.value = 0.5 + 0.45 * L;
   u.uOp.value = op * (0.72 + 0.28 * L);
@@ -1017,7 +1020,7 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
   u.uVel.value.set(S.vx * trail, 0, S.vz * trail);
   S.outer.visible = u.uOp.value > 0.01;
   // weite Lage: erst ab mittlerer Stufe, langsamer, dunkler und durchscheinender – gibt der Aura Tiefe
-  const w2 = wide ? Math.max(0, Math.min(1, (L - 0.3) / 0.45)) : 0;
+  const w2 = wide && !A.ride ? Math.max(0, Math.min(1, (L - 0.3) / 0.45)) : 0;
   const u2 = S.outer2.material.uniforms;
   if (w2 > 0.01) {
     kaSetColors(u2, fl);
@@ -1138,11 +1141,13 @@ function kaDraw3(h, p, st, kk, t, q, gfx, rich) {
     kaShell3(h, st, A, k, t, seed * 6, kk * lv);
     if (st.wisp) kaWisps3(h, st.wisp, A, k, t, q, seed);
   }
-  if (st.smoke) kaSmoke3(h, st.smoke, A, k * (a ? 0.7 : 1), t, q, seed, false);
-  if (st.mist) kaSmoke3(h, st.mist, A, k, t, q, seed, true);
-  if (st.ribbons) kaRibbons3(h, st.ribbons, A, k, t, q);
+  // auf dem Pferd (seit 13.90) ohne Rauch, Bodennebel und Bänder um die Figur: die lagen breit um das ganze Pferd
+  const plain = A.ride;
+  if (st.smoke && !plain) kaSmoke3(h, st.smoke, A, k * (a ? 0.7 : 1), t, q, seed, false);
+  if (st.mist && !plain) kaSmoke3(h, st.mist, A, k, t, q, seed, true);
+  if (st.ribbons && !plain) kaRibbons3(h, st.ribbons, A, k, t, q);
   if (st.arcs) kaArcs3(h, st.arcs, A, k, t, q, seed);
-  if (st.pebbles) kaPebbles3(h, st.pebbles, A, k, t, q);
+  if (st.pebbles && !plain) kaPebbles3(h, st.pebbles, A, k, t, q);
   if (st.motes) kaMotes3(h, st.motes, A, k, t, q, seed);
   if (st.motes2) kaMotes3(h, st.motes2, A, k, t, q, seed + 0.5);
   for (const b of p.buffs) {
