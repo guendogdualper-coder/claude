@@ -616,92 +616,483 @@ function wallSprite(dir) {
   return getSprite('wall:' + dir, { x: -22, y: -56, w: 44, h: 60 }, (ctx) => wallArt(ctx, dir));
 }
 
-// --- Häuser im ostasiatischen Stil --------------------------------------------------------
-// Ursprung ist die Mitte der unteren Hauskante.
-
+// --- Häuser ------------------------------------------------------------------------------------------------
+// Ursprung ist die Mitte der unteren Hauskante. Seit 13.91 in Varianten wie in 3D (welt.js look): Dachform, Wand,
+// Schornstein, Anbau, Tür; begehbare Häuser (enter) mit offener Tür. Bis 13.90 sahen alle Häuser aus wie heute
+// 'pagode' mit 'fachwerk' (ostasiatisches Ziegeldach, Putz mit Balken, Papierfenster).
+const HOUSE2_WALL = {
+  fachwerk: { face: '#dcc8a0', base: '#8a8478', trim: '#5a3a22', inner: '#e8dcc0' },
+  stein: { face: '#a8a196', base: '#77716a', trim: '#5e584f', inner: '#d8cdb8' },
+  holz: { face: '#9a7044', base: '#7a746a', trim: '#5a3a22', inner: '#c8a878' },
+  lehm: { face: '#d8b888', base: '#b0906a', trim: '#7a5a3a', inner: '#e4cca0' }
+};
+// Mitte der Tür (Pixel ab der Hausmitte)
+function houseDoorX(h) {
+  const L = h.look || {};
+  if (h.enter) return (h.enter.door + 1 - h.w / 2) * TILE;
+  if (L.door != null) return (L.door - h.w / 2) * TILE;
+  const aw = L.annex ? 1.5 * TILE : 0;
+  return L.annex === 'e' ? -aw / 2 : L.annex === 'w' ? aw / 2 : 0;
+}
+// Wandschmuck zwischen x0 und x1 (Wand von top bis -6)
+function houseFace2(ctx, L, C, x0, x1, top) {
+  const w = L.wall || 'fachwerk';
+  if (w === 'fachwerk') {
+    const posts = Math.max(3, Math.round((x1 - x0) / TILE) + 2);
+    for (let k = 0; k < posts; k++) box(ctx, x0 + ((x1 - x0) * k) / (posts - 1) - 2.5, top, 5, -top - 6, 1, C.trim);
+    box(ctx, x0, top + 2, x1 - x0, 4, 1, C.trim);
+    return;
+  }
+  if (w === 'holz') {
+    for (let y = top + 5; y < -7; y += 4.5) stroke(ctx, darker(C.face, 0.3), 0.8, [[x0 + 1, y], [x1 - 1, y]]);
+    for (const x of [x0 - 1, x1 - 4]) box(ctx, x, top - 1, 5, -top - 5, 1, C.trim);
+    return;
+  }
+  if (w === 'stein') {
+    let row = 0;
+    for (let y = top + 6; y < -7; y += 6, row++) {
+      stroke(ctx, darker(C.face, 0.18), 0.7, [[x0 + 1, y], [x1 - 1, y]]);
+      for (let x = x0 + 4 + (row % 2) * 6; x < x1 - 2; x += 12) stroke(ctx, darker(C.face, 0.18), 0.7, [[x, y - 6], [x, y]]);
+    }
+    for (const x of [x0, x1 - 6]) for (let y = top; y < -8; y += 8) box(ctx, x, y, 6, 6, 0.5, ((y - top) / 8) % 2 ? '#bcb4a6' : '#948c80');
+    return;
+  }
+  box(ctx, x0, -12, x1 - x0, 5, 1, darker(C.face, 0.18));
+}
+// Fenster (Mitte x, Wand oben bei top)
+function houseWindow2(ctx, L, C, x, top, w, roof) {
+  const k = L.wall || 'fachwerk';
+  if (k === 'fachwerk') {
+    box(ctx, x - w / 2, top + 10, w, 14, 1, '#f3e2b0');
+    for (let gx = x - w / 2 + 4; gx < x + w / 2 - 2; gx += 5) stroke(ctx, '#8a6a44', 0.7, [[gx, top + 10], [gx, top + 24]]);
+    stroke(ctx, '#8a6a44', 0.7, [[x - w / 2, top + 17], [x + w / 2, top + 17]]);
+    return;
+  }
+  if (k === 'lehm') {
+    box(ctx, x - 5, top + 10, 10, 11, 4, '#3a2a1c');
+    box(ctx, x - 6, top + 21, 12, 2.5, 1, C.trim);
+    return;
+  }
+  box(ctx, x - 6, top + 10, 12, 12, 1, '#efd9a0');
+  stroke(ctx, C.trim, 1, [[x, top + 10], [x, top + 22]]);
+  box(ctx, x - 7.5, top + 21, 15, 2.5, 0.5, C.trim);
+  for (const sx of [-1, 1]) box(ctx, x + sx * 9.5 - 3, top + 9, 6, 14, 1, darker(roof, 0.1));
+}
+// große Dachfläche ohne den runden Glanz von paintShape (der wirkt auf ganzen Dächern wie Flecken): oben etwas heller
+function roofFill2(ctx, path, color, y0, y1) {
+  ctx.save();
+  path();
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, lighter(color, 0.1));
+  g.addColorStop(1, darker(color, 0.14));
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.restore();
+  path();
+  ctx.strokeStyle = darker(color, 0.5);
+  ctx.lineWidth = 0.7;
+  ctx.stroke();
+}
+// Dach über x0..x1; gibt die Höhe des Firsts (y) zurück
+function houseRoof2(ctx, L, C, roof, x0, x1, eave, ridge) {
+  const form = L.roof || 'pagode';
+  const W = x1 - x0;
+  const mx = (x0 + x1) / 2;
+  const shingles = (path, x0s, x1s, top, bottom) => {
+    ctx.save();
+    path();
+    ctx.clip();
+    ctx.strokeStyle = darker(roof, 0.35);
+    ctx.lineWidth = 0.9;
+    for (let k = 1; k < 5; k++) {
+      const y = top + ((bottom - top) * k) / 5;
+      ctx.beginPath();
+      ctx.moveTo(x0s, y);
+      ctx.lineTo(x1s, y);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = lighter(roof, 0.12);
+    for (let x = x0s; x < x1s; x += 7) {
+      ctx.beginPath();
+      ctx.moveTo(x, top);
+      ctx.lineTo(x, bottom);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+  if (form === 'pagode') {
+    const ext = 14;
+    const roofPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(x0 - ext - 7, eave - 11);
+      ctx.quadraticCurveTo(x0 - ext + 4, eave + 3, x0, eave + 3);
+      ctx.lineTo(x1, eave + 3);
+      ctx.quadraticCurveTo(x1 + ext - 4, eave + 3, x1 + ext + 7, eave - 11);
+      ctx.quadraticCurveTo(x1 + 2, (eave + ridge) / 2, x1 - 12, ridge);
+      ctx.lineTo(x0 + 12, ridge);
+      ctx.quadraticCurveTo(x0 - 2, (eave + ridge) / 2, x0 - ext - 7, eave - 11);
+      ctx.closePath();
+    };
+    paintShape(ctx, roofPath, roof, x0 - ext - 7, ridge, W + 2 * ext + 14, eave + 3 - ridge);
+    ctx.save();
+    roofPath();
+    ctx.clip();
+    ctx.strokeStyle = darker(roof, 0.35);
+    ctx.lineWidth = 0.9;
+    for (let x = -W / 2 - ext; x < W / 2 + ext; x += 6) {
+      ctx.beginPath();
+      ctx.moveTo(mx + x * 0.82, ridge);
+      ctx.lineTo(mx + x, eave + 3);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = lighter(roof, 0.18);
+    for (let k = 1; k < 5; k++) {
+      const y = ridge + ((eave - ridge) * k) / 5;
+      ctx.beginPath();
+      ctx.moveTo(x0 - ext, y + 3);
+      ctx.quadraticCurveTo(mx, y - 2, x1 + ext, y + 3);
+      ctx.stroke();
+    }
+    ctx.restore();
+    stroke(ctx, lighter(roof, 0.3), 2.2, [[x0 - 2, eave + 2], [x1 + 2, eave + 2]]);
+    box(ctx, x0 + 8, ridge - 5, W - 16, 7, 2, darker(roof, 0.4));
+    poly(ctx, [[x0 + 8, ridge - 5], [x0 + 2, ridge - 13], [x0 + 6, ridge - 13], [x0 + 13, ridge - 4]], darker(roof, 0.4));
+    poly(ctx, [[x1 - 8, ridge - 5], [x1 - 2, ridge - 13], [x1 - 6, ridge - 13], [x1 - 13, ridge - 4]], darker(roof, 0.4));
+    return ridge;
+  }
+  if (form === 'walm') {
+    const path = () => {
+      ctx.beginPath();
+      ctx.moveTo(x0 - 9, eave + 3);
+      ctx.lineTo(x1 + 9, eave + 3);
+      ctx.lineTo(x1 - 14, ridge + 5);
+      ctx.lineTo(x0 + 14, ridge + 5);
+      ctx.closePath();
+    };
+    roofFill2(ctx, path, roof, ridge + 5, eave + 3);
+    shingles(path, x0 - 9, x1 + 9, ridge + 5, eave + 3);
+    stroke(ctx, lighter(roof, 0.3), 2, [[x0 - 8, eave + 2], [x1 + 8, eave + 2]]);
+    box(ctx, x0 + 12, ridge + 2, W - 24, 5, 2, darker(roof, 0.4));
+    return ridge + 5;
+  }
+  if (form === 'flach') {
+    const top = ridge + 18;
+    roofFill2(ctx, () => { ctx.beginPath(); ctx.roundRect(x0 - 4, top, W + 8, eave + 4 - top, 2); }, lighter(C.face, 0.05), top, eave + 4);
+    roofFill2(ctx, () => { ctx.beginPath(); ctx.roundRect(x0 + 1, top + 4, W - 2, eave - top - 6, 1); }, roof, top + 4, eave - 2);
+    box(ctx, x0 - 4, eave - 1, W + 8, 5, 1, C.face);
+    for (let x = x0 + 8; x < x1 - 4; x += 16) box(ctx, x, eave + 4, 4, 4, 0.5, C.trim);
+    box(ctx, mx + W * 0.18, top - 8, 26, 16, 2, C.face);
+    return top;
+  }
+  if (form === 'sattel') {
+    const front = () => {
+      ctx.beginPath();
+      ctx.moveTo(x0 - 9, eave + 3);
+      ctx.lineTo(x1 + 9, eave + 3);
+      ctx.lineTo(x1 + 6, ridge + 9);
+      ctx.lineTo(x0 - 6, ridge + 9);
+      ctx.closePath();
+    };
+    poly(ctx, [[x0 - 6, ridge + 9], [x1 + 6, ridge + 9], [x1 + 4, ridge], [x0 - 4, ridge]], darker(roof, 0.22));
+    roofFill2(ctx, front, roof, ridge + 9, eave + 3);
+    shingles(front, x0 - 9, x1 + 9, ridge + 9, eave + 3);
+    stroke(ctx, lighter(roof, 0.3), 2, [[x0 - 8, eave + 2], [x1 + 8, eave + 2]]);
+    box(ctx, x0 - 6, ridge + 6, W + 12, 5, 2, darker(roof, 0.4));
+    return ridge;
+  }
+  // Giebel nach vorn: Dreieck in Wandfarbe, zwei Dachflächen nach links und rechts
+  const rise = 24;
+  const apex = eave + 3 - rise;
+  poly(ctx, [[x0 + 9, eave + 4], [x1 - 9, eave + 4], [mx, apex + 6]], C.face);
+  if (L.wall === 'fachwerk' || L.wall === 'holz') {
+    stroke(ctx, C.trim, 2.2, [[mx, apex + 7], [mx, eave + 4]]);
+    stroke(ctx, C.trim, 2, [[x0 + 20, eave + 1], [x1 - 20, eave + 1]]);
+  } else box(ctx, mx - 4, apex + 13, 8, 7, 3, '#3a2a1c');
+  for (const s of [-1, 1]) {
+    const ex = s < 0 ? x0 - 8 : x1 + 8;
+    const pts = [[ex, eave + 3], [mx, apex], [mx, ridge], [ex, ridge + rise]];
+    const path = () => {
+      ctx.beginPath();
+      pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.closePath();
+    };
+    const col = s < 0 ? roof : darker(roof, 0.15);
+    roofFill2(ctx, path, col, ridge, eave + 3);
+    ctx.save();
+    path();
+    ctx.clip();
+    ctx.strokeStyle = darker(roof, 0.35);
+    ctx.lineWidth = 0.9;
+    for (let k = 1; k < 6; k++) {
+      const t = k / 6;
+      ctx.beginPath();
+      ctx.moveTo(ex + (mx - ex) * t, eave + 3 + (apex - eave - 3) * t);
+      ctx.lineTo(ex + (mx - ex) * t, ridge + rise + (ridge - ridge - rise) * t);
+      ctx.stroke();
+    }
+    ctx.restore();
+    stroke(ctx, lighter(roof, 0.3), 2, [[ex, eave + 2], [mx, apex - 1]]);
+  }
+  stroke(ctx, darker(roof, 0.4), 4, [[mx, apex], [mx, ridge]]);
+  return ridge;
+}
 function houseArt(ctx, h) {
+  const L = h.look || {};
+  const C = HOUSE2_WALL[L.wall] || HOUSE2_WALL.fachwerk;
   const W = h.w * TILE;
   const H = h.h * TILE;
-  const wallTop = -H * 0.52;
+  const wallTop = -Math.min(H * 0.52, 58) - ((L.tall || 1) - 1) * 26 - (h.enter ? 6 : 0);
+  const aw = L.annex ? 1.5 * TILE : 0;
+  const x0 = -W / 2 + (L.annex === 'w' ? aw : 0);
+  const x1 = W / 2 - (L.annex === 'e' ? aw : 0);
   const roof = h.roof;
-  // Fundament und Wände
-  box(ctx, -W / 2 + 4, -7, W - 8, 9, 2, '#8a8478');
-  box(ctx, -W / 2 + 9, wallTop, W - 18, -wallTop - 6, 1.5, '#dcc8a0');
-  const posts = Math.max(3, h.w + 1);
-  for (let k = 0; k < posts; k++) {
-    const x = -W / 2 + 9 + ((W - 18) * k) / (posts - 1);
-    box(ctx, x - 2.5, wallTop, 5, -wallTop - 6, 1, '#5a3a22');
+  // Anbau: niedriger Schuppen mit Pultdach und Brennholz
+  if (aw) {
+    const sx = L.annex === 'e' ? 1 : -1;
+    const a0 = sx > 0 ? x1 - 6 : -W / 2 + 2;
+    const a1 = sx > 0 ? W / 2 - 2 : x0 + 6;
+    const at = wallTop * 0.62;
+    box(ctx, a0, -6, a1 - a0, 7, 1.5, C.base);
+    box(ctx, a0 + 2, at, a1 - a0 - 4, -at - 5, 1, L.wall === 'lehm' ? C.face : '#8a6440');
+    for (let y = at + 5; y < -7; y += 4.5) stroke(ctx, '#5a3a22', 0.7, [[a0 + 3, y], [a1 - 3, y]]);
+    const hi = sx > 0 ? [a0 - 2, at - 12] : [a1 + 2, at - 12];
+    const lo = sx > 0 ? [a1 + 5, at + 2] : [a0 - 5, at + 2];
+    poly(ctx, [hi, lo, [lo[0], lo[1] + 6], [hi[0], hi[1] + 6]], roof);
+    for (const [x, y] of [[-7, -4], [0, -4], [7, -4], [-3.5, -10], [3.5, -10]]) {
+      oval(ctx, (a0 + a1) / 2 + x, y, 3.6, 3.3, '#7a5434');
+      dot(ctx, (a0 + a1) / 2 + x, y, 2.2, 2, '#d8b88a');
+    }
   }
-  box(ctx, -W / 2 + 9, wallTop + 2, W - 18, 4, 1, '#5a3a22');
-  // Papierfenster zwischen den Pfosten, die Tür in der Mitte
-  for (let k = 0; k < posts - 1; k++) {
-    const x0 = -W / 2 + 9 + ((W - 18) * k) / (posts - 1) + 5;
-    const x1 = -W / 2 + 9 + ((W - 18) * (k + 1)) / (posts - 1) - 5;
-    const mid = (x0 + x1) / 2;
-    if (Math.abs(mid) < 14) continue;
-    box(ctx, x0 + 2, wallTop + 10, x1 - x0 - 4, 14, 1, '#f3e2b0');
-    for (let gx = x0 + 6; gx < x1 - 4; gx += 5) stroke(ctx, '#8a6a44', 0.7, [[gx, wallTop + 10], [gx, wallTop + 24]]);
-    stroke(ctx, '#8a6a44', 0.7, [[x0 + 2, wallTop + 17], [x1 - 2, wallTop + 17]]);
+  // Sockel und Wände
+  box(ctx, x0 + 4, -7, x1 - x0 - 8, 9, 2, C.base);
+  box(ctx, x0 + 9, wallTop, x1 - x0 - 18, -wallTop - 6, L.wall === 'lehm' ? 4 : 1.5, C.face);
+  houseFace2(ctx, L, C, x0 + 9, x1 - 9, wallTop);
+  const doorX = houseDoorX(h);
+  const doorW = h.enter ? 2 * TILE - 12 : L.tor ? 44 : 20;
+  // Fenster zwischen den Balken bzw. gleichmäßig, nicht an der Tür
+  const n = Math.max(2, Math.round((x1 - x0 - 18) / 34));
+  for (let k = 0; k < n; k++) {
+    const x = x0 + 9 + ((x1 - x0 - 18) * (k + 0.5)) / n;
+    if (Math.abs(x - doorX) < doorW / 2 + 12) continue;
+    houseWindow2(ctx, L, C, x, wallTop, Math.min(22, (x1 - x0 - 18) / n - 10), roof);
   }
-  box(ctx, -10, -33, 20, 27, 1.5, '#4a2e1c');
-  box(ctx, -8, -31, 7, 24, 1, '#6b4a2e');
-  box(ctx, 1, -31, 7, 24, 1, '#6b4a2e');
-  // Dach mit hochgezogenen Ecken
+  // Tür: offen bei begehbaren Häusern, Scheunentor, Brettertür oder zweiflüglig
+  if (h.enter) {
+    box(ctx, doorX - doorW / 2 - 3, -40, doorW + 6, 36, 1.5, C.trim);
+    box(ctx, doorX - doorW / 2, -37, doorW, 31, 1, '#2a1c14');
+    box(ctx, doorX - doorW / 2 + 2, -14, doorW - 4, 8, 1, '#6a5034');
+    dot(ctx, doorX + doorW / 2 - 9, -28, 5, 4, 'rgba(255,170,80,0.25)');
+  } else if (L.tor) {
+    box(ctx, doorX - 22, -38, 44, 32, 1.5, '#5a3a22');
+    for (const sx of [-1, 1]) {
+      box(ctx, doorX + sx * 10.5 - 9.5, -36, 19, 29, 1, '#7a5434');
+      stroke(ctx, '#4a2e1c', 2, [[doorX + sx * 10.5 - 8, -35], [doorX + sx * 10.5 + 8, -9]]);
+    }
+  } else {
+    box(ctx, doorX - 10, -33, 20, 27, 1.5, '#4a2e1c');
+    if (L.wall && L.wall !== 'fachwerk') {
+      box(ctx, doorX - 8, -31, 16, 24, 1, L.wall === 'lehm' ? '#8a5a34' : '#6b4a2e');
+      dot(ctx, doorX + 4.5, -19, 1.3, 1.3, '#c9a35a');
+      box(ctx, doorX - 12, -36, 24, 3.5, 1, C.trim);
+    } else {
+      box(ctx, doorX - 8, -31, 7, 24, 1, '#6b4a2e');
+      box(ctx, doorX + 1, -31, 7, 24, 1, '#6b4a2e');
+    }
+  }
+  // Dach, Schornstein, Laternen
   const eave = wallTop + 8;
-  const ridge = -H - 16;
-  const ext = 14;
-  const roofPath = () => {
-    ctx.beginPath();
-    ctx.moveTo(-W / 2 - ext - 7, eave - 11);
-    ctx.quadraticCurveTo(-W / 2 - ext + 4, eave + 3, -W / 2, eave + 3);
-    ctx.lineTo(W / 2, eave + 3);
-    ctx.quadraticCurveTo(W / 2 + ext - 4, eave + 3, W / 2 + ext + 7, eave - 11);
-    ctx.quadraticCurveTo(W / 2 + 2, (eave + ridge) / 2, W / 2 - 12, ridge);
-    ctx.lineTo(-W / 2 + 12, ridge);
-    ctx.quadraticCurveTo(-W / 2 - 2, (eave + ridge) / 2, -W / 2 - ext - 7, eave - 11);
-    ctx.closePath();
-  };
-  paintShape(ctx, roofPath, roof, -W / 2 - ext - 7, ridge, W + 2 * ext + 14, eave + 3 - ridge);
-  // Ziegelreihen
-  ctx.save();
-  roofPath();
-  ctx.clip();
-  ctx.strokeStyle = darker(roof, 0.35);
-  ctx.lineWidth = 0.9;
-  for (let x = -W / 2 - ext; x < W / 2 + ext; x += 6) {
-    ctx.beginPath();
-    ctx.moveTo(x * 0.82, ridge);
-    ctx.lineTo(x, eave + 3);
-    ctx.stroke();
+  const ridge = Math.min(-H - 16, wallTop - 40);
+  const top = houseRoof2(ctx, L, C, roof, x0, x1, eave, ridge);
+  if (L.chimney != null) {
+    const cx = L.roof === 'giebel' ? (x0 + x1) / 2 - (x1 - x0) * 0.27 : (x0 + x1) / 2 + L.chimney * (x1 - x0) * 0.75;
+    const cy = L.roof === 'giebel' ? top + 14 : top + 2;
+    box(ctx, cx - 5.5, cy - 14, 11, 20, 1, '#8a8276');
+    box(ctx, cx - 7, cy - 17, 14, 4, 1, '#5e584f');
   }
-  ctx.strokeStyle = lighter(roof, 0.18);
-  for (let k = 1; k < 5; k++) {
-    const y = ridge + ((eave - ridge) * k) / 5;
-    ctx.beginPath();
-    ctx.moveTo(-W / 2 - ext, y + 3);
-    ctx.quadraticCurveTo(0, y - 2, W / 2 + ext, y + 3);
-    ctx.stroke();
-  }
-  ctx.restore();
-  stroke(ctx, lighter(roof, 0.3), 2.2, [[-W / 2 - 2, eave + 2], [W / 2 + 2, eave + 2]]);
-  // First mit verzierten Enden
-  box(ctx, -W / 2 + 8, ridge - 5, W - 16, 7, 2, darker(roof, 0.4));
-  poly(ctx, [[-W / 2 + 8, ridge - 5], [-W / 2 + 2, ridge - 13], [-W / 2 + 6, ridge - 13], [-W / 2 + 13, ridge - 4]], darker(roof, 0.4));
-  poly(ctx, [[W / 2 - 8, ridge - 5], [W / 2 - 2, ridge - 13], [W / 2 - 6, ridge - 13], [W / 2 - 13, ridge - 4]], darker(roof, 0.4));
-  // Rote Laternen an den Ecken
-  for (const x of [-W / 2 + 4, W / 2 - 4]) {
-    stroke(ctx, '#2a1c14', 0.8, [[x, eave + 2], [x, eave + 7]]);
-    oval(ctx, x, eave + 12, 4.2, 5.2, '#c8402f');
-    box(ctx, x - 3, eave + 6, 6, 1.6, 0.5, '#c9a35a');
-    box(ctx, x - 3, eave + 16.5, 6, 1.6, 0.5, '#c9a35a');
+  if ((L.roof || 'pagode') === 'pagode') {
+    for (const x of [-W / 2 + 4, W / 2 - 4]) {
+      stroke(ctx, '#2a1c14', 0.8, [[x, eave + 2], [x, eave + 7]]);
+      oval(ctx, x, eave + 12, 4.2, 5.2, '#c8402f');
+      box(ctx, x - 3, eave + 6, 6, 1.6, 0.5, '#c9a35a');
+      box(ctx, x - 3, eave + 16.5, 6, 1.6, 0.5, '#c9a35a');
+    }
+  } else {
+    const lx = doorX + doorW / 2 + 8;
+    box(ctx, lx - 3, -44, 6, 7, 1.5, '#ffcf6a');
+    box(ctx, lx - 3.5, -46, 7, 2, 0.5, '#3a2a1c');
   }
 }
 
 function houseSprite(h) {
   const W = h.w * TILE;
   const H = h.h * TILE;
-  return getSprite(`h:${h.w}:${h.h}:${h.roof}`, { x: -W / 2 - 28, y: -H - 34, w: W + 56, h: H + 44 }, (ctx) => houseArt(ctx, h));
+  const L = h.look || {};
+  const key = `h:${h.w}:${h.h}:${h.roof}:${L.roof || ''}:${L.wall || ''}:${L.chimney ?? ''}:${L.annex || ''}:${L.tall || ''}:${L.door ?? ''}:${L.tor ? 1 : ''}:${h.enter ? h.enter.door : ''}`;
+  return getSprite(key, { x: -W / 2 - 28, y: -H - 64, w: W + 56, h: H + 74 }, (ctx) => houseArt(ctx, h));
 }
+// Lage der Laterne(n) eines Hauses für das Leuchten (Pixel ab der Mitte der unteren Kante)
+function houseLamps2(h) {
+  const L = h.look || {};
+  const W = h.w * TILE;
+  const H = h.h * TILE;
+  if ((L.roof || 'pagode') === 'pagode') {
+    const eave = -Math.min(H * 0.52, 58) - ((L.tall || 1) - 1) * 26 - (h.enter ? 6 : 0) + 8;
+    return [[-W / 2 + 4, eave + 12], [W / 2 - 4, eave + 12]];
+  }
+  const doorW = h.enter ? 2 * TILE - 12 : L.tor ? 44 : 20;
+  return [[houseDoorX(h) + doorW / 2 + 8, -41]];
+}
+
+// --- Innenraum begehbarer Häuser (seit 13.91, 2D) -----------------------------------------------------------
+// Ist der eigene Spieler drinnen, zeichnet collectWorldObjects statt des Hauses: den Raum (Boden, Teppich, Rückwand
+// mit Fenstern, Seitenwände; Ursprung links oben am Haus), die Möbel einzeln (nach ihrer Fußlinie sortiert) und vorn
+// eine niedrige, angeschnittene Vorderwand mit der Tür.
+const ROOM2_WALL = 52; // Höhe der Wände im Bild
+function houseRoomArt(ctx, h) {
+  const L = h.look || {};
+  const C = HOUSE2_WALL[L.wall] || HOUSE2_WALL.fachwerk;
+  const T = TILE;
+  const W = h.w * T;
+  const H = h.h * T;
+  const hp = ROOM2_WALL;
+  // Dielenboden
+  box(ctx, 0.75 * T, 0.75 * T, W - 1.5 * T, H - 1.25 * T, 1, '#9a7448');
+  for (let x = 0.75 * T + 13; x < W - 0.75 * T; x += 13) stroke(ctx, '#7a5a36', 0.8, [[x, 0.75 * T], [x, H - 0.5 * T]]);
+  for (let k = 0; k < 9; k++) {
+    const x = 0.75 * T + ((k * 41) % (W - 1.6 * T));
+    const y = 0.8 * T + ((k * 67) % (H - 1.5 * T));
+    stroke(ctx, '#7a5a36', 0.8, [[x - 6, y], [x + 6, y]]);
+  }
+  const room = HOUSE_ROOMS[h.enter.room];
+  const rug = room && room.furn.find((f) => f[0] === 'teppich');
+  if (rug) {
+    const [, fx, fy] = rug;
+    box(ctx, fx * T - 33, fy * T - 22, 66, 44, 3, '#8a3a3a');
+    box(ctx, fx * T - 28, fy * T - 17, 56, 34, 2, '#a85a4a');
+    box(ctx, fx * T - 18, fy * T - 8, 36, 16, 2, '#d8b060');
+  }
+  // Rückwand: Krone und Innenseite mit zwei Fenstern
+  box(ctx, 0.25 * T, 0.25 * T - hp, W - 0.5 * T, 0.5 * T, 1, C.trim);
+  box(ctx, 0.25 * T, 0.75 * T - hp, W - 0.5 * T, hp, 1, C.inner);
+  box(ctx, 0.25 * T, 0.75 * T - 8, W - 0.5 * T, 8, 1, darker(C.inner, 0.25));
+  for (const fx of [W / 2 - 0.42 * T, W / 2 + 0.55 * T]) {
+    box(ctx, fx - 8, 0.75 * T - hp + 12, 16, 15, 1, '#f3e2b0');
+    stroke(ctx, C.trim, 1, [[fx, 0.75 * T - hp + 12], [fx, 0.75 * T - hp + 27]]);
+    box(ctx, fx - 9.5, 0.75 * T - hp + 26, 19, 3, 0.5, C.trim);
+  }
+  // Seitenwände (Krone von oben, vorn die Stirnseite)
+  for (const x of [0.25 * T, W - 0.75 * T]) {
+    box(ctx, x, 0.25 * T - hp, 0.5 * T, H - 0.5 * T + hp, 1, darker(C.face, 0.12));
+    box(ctx, x, 0.25 * T - hp, 0.5 * T, H - 0.5 * T, 1, C.trim);
+    box(ctx, x + (x < W / 2 ? 0.5 * T - 3 : 0), 0.75 * T - hp, 3, H - 1.0 * T, 0.5, darker(C.inner, 0.3));
+  }
+}
+// angeschnittene Vorderwand: Sockel und Krone links und rechts der Tür
+function houseFrontArt(ctx, h) {
+  const L = h.look || {};
+  const C = HOUSE2_WALL[L.wall] || HOUSE2_WALL.fachwerk;
+  const T = TILE;
+  const W = h.w * T;
+  const H = h.h * T;
+  const d0 = h.enter.door * T;
+  const d1 = d0 + 2 * T;
+  for (const [a, b] of [[0.25 * T, d0], [d1, W - 0.25 * T]]) {
+    if (b - a < 2) continue;
+    box(ctx, a, H - 0.75 * T - 10, b - a, 0.5 * T, 1, C.trim);
+    box(ctx, a, H - 0.25 * T - 10, b - a, 10, 1, C.face);
+  }
+  box(ctx, d0, H - 0.4 * T, 2 * T, 0.3 * T, 1, '#8a8478');
+}
+function houseRoomSprite(h) {
+  const W = h.w * TILE;
+  const H = h.h * TILE;
+  return getSprite(`hr:${h.x}:${h.y}`, { x: -2, y: -ROOM2_WALL - 4, w: W + 4, h: H + ROOM2_WALL + 8 }, (ctx) => houseRoomArt(ctx, h));
+}
+function houseFrontSprite(h) {
+  const W = h.w * TILE;
+  const H = h.h * TILE;
+  return getSprite(`hf:${h.x}:${h.y}`, { x: -2, y: H - TILE - 14, w: W + 4, h: TILE + 18 }, (ctx) => houseFrontArt(ctx, h));
+}
+// Möbel (Ursprung: Mitte der Fußlinie)
+const FURN2 = {
+  kamin(ctx) {
+    box(ctx, -18, -40, 36, 40, 2, '#8a8276');
+    box(ctx, -10, -18, 20, 17, 3, '#1e1612');
+    oval(ctx, 0, -6, 7, 4, '#ff8a3a');
+    dot(ctx, 0, -8, 3.5, 3, '#ffd27a');
+    box(ctx, -21, -24, 42, 4, 1, '#6b4a2e');
+    box(ctx, -10, -56, 20, 17, 1, '#7a7268');
+  },
+  regal(ctx) {
+    box(ctx, -19, -48, 38, 48, 1, '#5a3a22');
+    box(ctx, -17, -46, 34, 45, 1, darker('#8a6440', 0.2));
+    for (const y of [-33, -18, -3]) box(ctx, -18, y, 36, 3, 0.5, '#b08c5c');
+    for (let k = 0; k < 5; k++) box(ctx, -15 + k * 4, -31 - 14 + 2, 3, 12, 0.5, ['#7a2a2a', '#2a4a7a', '#4a6a3a', '#8a6a2a', '#5a3a6a'][k]);
+    for (let k = 0; k < 3; k++) oval(ctx, 5 + k * 5, -22, 2.3, 3, ['#7ac85a', '#c8a03a', '#5ab8c8'][k]);
+    box(ctx, -12, -15, 10, 10, 1, '#a07a4a');
+  },
+  kraeuter(ctx) {
+    for (const x of [-17, 15]) box(ctx, x, -46, 2.5, 46, 0.5, '#5a3a22');
+    box(ctx, -18, -46, 36, 2.5, 1, '#6b4a2e');
+    for (let k = 0; k < 5; k++) poly(ctx, [[-12 + k * 6 - 2.5, -43], [-12 + k * 6 + 2.5, -43], [-12 + k * 6, -34]], ['#6a9a46', '#8aa040', '#a8a04a'][k % 3]);
+    box(ctx, -16, -18, 32, 3, 1, '#8a6440');
+    for (const [x, c] of [[-9, '#d8c49a'], [1, '#6a9a46'], [10, '#b06a3a']]) box(ctx, x - 3.5, -23, 7, 5, 2, c);
+  },
+  tisch(ctx) {
+    for (const sx of [-1, 1]) {
+      oval(ctx, sx * 24, -11, 5.5, 3.5, '#8a6440');
+      box(ctx, sx * 24 - 1, -10, 2, 10, 0.5, '#5a3a22');
+    }
+    for (const sx of [-1, 1]) box(ctx, sx * 14 - 1.5, -16, 3, 16, 0.5, '#5a3a22');
+    box(ctx, -17, -22, 34, 11, 2, '#9a7448');
+    box(ctx, -8, -27, 4, 6, 1, '#c8b088');
+    oval(ctx, 5, -23, 4.5, 2, '#7a5434');
+    box(ctx, 11, -28, 2, 6, 0.5, '#f4ecd8');
+    dot(ctx, 12, -30, 1.4, 2, '#ffd27a');
+  },
+  bett(ctx) {
+    box(ctx, -14, -52, 28, 52, 2, '#7a5434');
+    box(ctx, -12, -48, 24, 46, 2, '#ece4d2');
+    box(ctx, -13, -30, 26, 28, 2, '#7a3a4a');
+    box(ctx, -8, -46, 16, 8, 3, '#f4f0e4');
+    box(ctx, -14, -56, 28, 7, 1.5, '#5a3a22');
+  },
+  fass(ctx) {
+    box(ctx, -7, -17, 14, 17, 4, '#8a5a34');
+    stroke(ctx, '#3a2a1c', 1.4, [[-7, -13], [7, -13]]);
+    stroke(ctx, '#3a2a1c', 1.4, [[-7, -4], [7, -4]]);
+    dot(ctx, 0, -17, 6.5, 2, '#6b4426');
+  },
+  kiste(ctx) {
+    box(ctx, -8, -15, 16, 15, 1, '#a07a4a');
+    stroke(ctx, '#5a3f26', 1, [[-8, -7.5], [8, -7.5]]);
+    stroke(ctx, '#5a3f26', 1, [[-6, -13], [6, -2]]);
+  },
+  krug(ctx) {
+    oval(ctx, -4, -7, 5, 7, '#c07a4a');
+    box(ctx, -6, -16, 4, 3, 1, '#a0603a');
+    oval(ctx, 5, -5, 4, 5, '#8a6a4a');
+  },
+  werkbank(ctx) {
+    for (const sx of [-1, 1]) box(ctx, sx * 22 - 1.5, -22, 3, 22, 0.5, '#5a3a22');
+    box(ctx, -26, -26, 52, 6, 1.5, '#b08c5c');
+    box(ctx, -22, -9, 44, 3, 1, '#8a6440');
+    box(ctx, 16, -31, 6, 5, 1, '#4e535c');
+    box(ctx, -20, -44, 18, 5, 1, '#a4adb8');
+    box(ctx, 4, -48, 2, 13, 0.5, '#6b4a2e');
+    box(ctx, 2, -50, 6, 3, 0.5, '#4e535c');
+  },
+  holz(ctx) {
+    for (const [row, xs] of [[0, [-8, 0, 8]], [1, [-4, 4]], [2, [0]]]) {
+      for (const x of xs) {
+        oval(ctx, x, -4 - row * 7, 4, 3.6, '#7a5434');
+        dot(ctx, x, -4 - row * 7, 2.6, 2.3, '#d8b88a');
+      }
+    }
+  }
+};
+// Tiefe der Möbel (Kacheln) für die Fußlinie: Bett und Teppich liegen flach, Wandmöbel stehen an der Wand
+const FURN2_DEPTH = { bett: 0.8, kamin: 0.25, regal: 0.2, kraeuter: 0.2, werkbank: 0.28, tisch: 0.3 };
 
 // --- Dorfschmuck -------------------------------------------------------------------------
 
@@ -1103,6 +1494,29 @@ Object.assign(PROP_ART, {
     dot(ctx, 2, -9, 1.5, 1.5, '#ff8a3a');
     dot(ctx, -5, -8, 1.2, 1.2, '#ff8a3a');
   },
+  // Wäscheleine und Handkarren (seit 13.91)
+  waesche(ctx, pr) {
+    for (const x of [-25, 23]) box(ctx, x, -42, 2.5, 42, 0.5, '#5a3a22');
+    stroke(ctx, '#e8e0d0', 0.8, [[-24, -40], [0, -38], [24, -40]]);
+    for (const [x, w, h, c] of [[-16, 11, 14, pr.roof || '#9a2f2a'], [-3, 10, 18, '#f4f0e4'], [8, 8, 12, '#8ab0d0'], [17, 7, 10, '#d8c49a']]) {
+      box(ctx, x - w / 2, -39, w, h, 1, c);
+      dot(ctx, x - w / 2 + 1.5, -39.5, 1, 1.2, '#c8a878');
+      dot(ctx, x + w / 2 - 1.5, -39.5, 1, 1.2, '#c8a878');
+    }
+  },
+  karren(ctx, pr) {
+    stroke(ctx, '#6b4a2e', 2, [[-14, -14], [-30, -24]]);
+    box(ctx, -16, -20, 32, 8, 1.5, '#8a6440');
+    box(ctx, -16, -24, 32, 4, 1, '#7a5434');
+    oval(ctx, -5, -27, 7, 5.5, '#c8b088');
+    box(ctx, 3, -33, 11, 11, 1, '#a07a4a');
+    for (const x of [-7, 9]) {
+      oval(ctx, x, -8, 8, 8, '#5a3a22');
+      oval(ctx, x, -8, 5.5, 5.5, '#8a6440');
+      dot(ctx, x, -8, 2, 2, '#3a2a1c');
+    }
+    if (deco2Snow(pr)) box(ctx, -14, -26, 28, 3, 1.5, DECO2_SNOW);
+  },
   wallbanner(ctx, pr) {
     const cloth = pr.roof || '#9a2f2a';
     box(ctx, -1.5, -66, 3, 66, 1, '#3a2a1c');
@@ -1117,7 +1531,9 @@ Object.assign(PROP_BOUNDS, {
   planter: { x: -24, y: -56, w: 48, h: 58 },
   bench: { x: -26, y: -32, w: 52, h: 36 },
   totem: { x: -18, y: -62, w: 36, h: 64 },
-  wallbanner: { x: -18, y: -70, w: 36, h: 72 }
+  wallbanner: { x: -18, y: -70, w: 36, h: 72 },
+  waesche: { x: -30, y: -48, w: 60, h: 50 }, // seit 13.91
+  karren: { x: -34, y: -40, w: 52, h: 42 }
 });
 
 function propSprite(pr) {
@@ -1156,9 +1572,22 @@ function collectWorldObjects(list, x0, y0, x1, y1) {
       });
     }
   }
+  // seit 13.91: im begehbaren Haus, in dem man steht, statt des Hauses Raum, Möbel und angeschnittene Vorderwand
+  const p = game.player;
+  const inside = p && game.running && !p.dead ? houseAt(p.x, p.y) : null;
   for (const h of w.houses) {
     if (h.x + h.w < x0 - 1 || h.x > x1 + 1 || h.y + h.h < y0 || h.y > y1 + 4) continue;
-    list.push({ worldObj: 'house', house: h, x: (h.x + h.w / 2) * TILE, y: (h.y + h.h) * TILE });
+    if (h !== inside) {
+      list.push({ worldObj: 'house', house: h, x: (h.x + h.w / 2) * TILE, y: (h.y + h.h) * TILE });
+      continue;
+    }
+    list.push({ worldObj: 'hroom', house: h, x: h.x * TILE, y: (h.y + 0.75) * TILE });
+    list.push({ worldObj: 'hfront', house: h, x: h.x * TILE, y: (h.y + h.h) * TILE });
+    const room = HOUSE_ROOMS[h.enter.room];
+    for (const f of room ? room.furn : []) {
+      if (!FURN2[f[0]]) continue;
+      list.push({ worldObj: 'furn', house: h, kind: f[0], x: (h.x + f[1]) * TILE, y: (h.y + f[2] + (FURN2_DEPTH[f[0]] || 0.2)) * TILE });
+    }
   }
   for (const pr of w.props) {
     if (pr.x < (x0 - 3) * TILE || pr.x > (x1 + 3) * TILE || pr.y < y0 * TILE || pr.y > (y1 + 4) * TILE) continue;
@@ -1172,6 +1601,7 @@ function collectWorldObjects(list, x0, y0, x1, y1) {
 function occludesPlayer(o) {
   const p = game.player;
   if (!p || !game.running || p.dead) return false;
+  if (o.worldObj === 'hroom' || o.worldObj === 'hfront' || o.worldObj === 'furn') return false;
   const fy = feetY(p);
   if (o.worldObj === 'house') {
     const W = o.house.w * TILE;
@@ -1189,7 +1619,25 @@ function occludesPlayer(o) {
   return Math.abs(p.x - o.x) < 26 && fy < o.y - 4 && fy > o.y - 74;
 }
 
+// Raum, Vorderwand und Möbel begehbarer Häuser (seit 13.91)
+function drawHouseInside(ctx, o) {
+  const h = o.house;
+  if (o.worldObj === 'furn') {
+    const sp = getSprite('f2:' + o.kind, { x: -30, y: -62, w: 60, h: 66 }, (c) => FURN2[o.kind](c));
+    ctx.drawImage(sp.img, o.x + sp.bounds.x, o.y + sp.bounds.y, sp.bounds.w, sp.bounds.h);
+    if (o.kind === 'kamin') glow(ctx, o.x, o.y - 10, 26, '#ff8a3a', 0.45 + 0.1 * Math.sin(game.time * 8 + o.x));
+    if (o.kind === 'tisch') glow(ctx, o.x + 12, o.y - 30, 10, '#ffcf6a', 0.4);
+    return;
+  }
+  const sp = o.worldObj === 'hroom' ? houseRoomSprite(h) : houseFrontSprite(h);
+  ctx.drawImage(sp.img, h.x * TILE + sp.bounds.x, h.y * TILE + sp.bounds.y, sp.bounds.w, sp.bounds.h);
+}
+
 function drawWorldObject(ctx, o) {
+  if (o.worldObj === 'hroom' || o.worldObj === 'hfront' || o.worldObj === 'furn') {
+    drawHouseInside(ctx, o);
+    return;
+  }
   const sp = o.worldObj === 'house' ? houseSprite(o.house)
     : o.worldObj === 'prop' ? propSprite(o.prop)
       : o.worldObj === 'wall' ? wallSprite(o.dir)
@@ -1208,11 +1656,8 @@ function drawWorldObject(ctx, o) {
   if (type === 'tower') for (const lx of [-24, 24]) glow(ctx, o.x + lx, o.y - 62, 11, '#ff8a4a', 0.3);
   if (type === 'portal') glow(ctx, o.x, o.y - 24, 22, '#9fd0ff', 0.35 + 0.15 * Math.sin(game.time * 2.5));
   if (type === 'brazier') glow(ctx, o.x, o.y - 30, 34, o.prop.roof || '#ff8a4a', 0.4 + 0.12 * Math.sin(game.time * 9 + o.x));
-  if (o.worldObj === 'house') {
-    const W = o.house.w * TILE;
-    const eave = -o.house.h * TILE * 0.52 + 8;
-    for (const lx of [-W / 2 + 4, W / 2 - 4]) glow(ctx, o.x + lx, o.y + eave + 12, 12, '#ff8a4a', 0.3);
-  }
+  // seit 13.91 je nach Haus: rote Laternen am geschwungenen Dach oder die Lampe neben der Tür
+  if (o.worldObj === 'house') for (const [lx, ly] of houseLamps2(o.house)) glow(ctx, o.x + lx, o.y + ly, 12, '#ff8a4a', 0.3);
 }
 
 // --- Stimmung je Gebiet ------------------------------------------------------------------------

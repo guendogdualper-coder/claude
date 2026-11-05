@@ -48,7 +48,7 @@ function sideQuestEntries() {
       const mon = sideMon(n, s);
       const t = MONSTER_TYPES[mon];
       out.push({
-        key: 'side:' + n.key, title: n.name, sub: `Wanderer · ${mapName(npcMapId(n))}`,
+        key: 'side:' + n.key, title: n.name, sub: `${n.resident ? 'Bewohner' : 'Wanderer'} · ${mapName(npcMapId(n))}`, // Bewohner seit 13.91 (begehbare Häuser)
         goal: n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`,
         have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(mon), active: true, xp: sideReward(n, s).xp,
         abandon: () => { s.state = 'open'; s.progress = 0; }
@@ -104,7 +104,7 @@ function renderQuestWindow() {
     `</div>` +
     `<p class="qw-stats">Hauptquests erledigt: <b>${c.mainDone} / ${c.mainTotal}</b> · Nebenquests erledigt: <b>${c.sideDone}</b></p>` +
     (list.length ? `<ul class="qw-list">${list.map(card).join('')}</ul>`
-      : `<p class="qw-empty">${questWin.tab === 'main' ? 'Alle Hauptquests sind erledigt.' : 'Keine Nebenquest angenommen. Wanderer draußen auf den Maps, die Jägerin und nachts die Nachtwanderer vergeben welche.'}</p>`);
+      : `<p class="qw-empty">${questWin.tab === 'main' ? 'Alle Hauptquests sind erledigt.' : 'Keine Nebenquest angenommen. Wanderer draußen auf den Maps, Bewohner in den Häusern der Städte, die Jägerin und nachts die Nachtwanderer vergeben welche.'}</p>`);
   body.querySelectorAll('[data-qtab]').forEach((b) => b.addEventListener('click', () => {
     questWin.tab = b.dataset.qtab;
     renderQuestWindow();

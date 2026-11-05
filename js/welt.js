@@ -25,7 +25,7 @@ const VS = VILLAGE_PLAN / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 33;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 12;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen)
+const WORLD_VERSION = 13;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen); 13 seit 13.91: neuer Dorfplan
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -204,13 +204,17 @@ function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
 // (Schmuck ohne Kollision) und keine Kachel ändert sich – wer an einem alten Standplatz gespeichert hat, steht frei.
 // dorf: Vlotho (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
 const TOWN_PLACES = {
-  // Vlotho: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 4); um die Tore stehen die Torwachen
+  // Vlotho: West- und Ostmauer, Stände über und unter dem Tor; um die Tore stehen die Torwachen.
+  // Seit 13.91 nicht mehr im festen Abstand von 4 und nicht genau in einer Linie (das Dorf wirkte wie ein Raster),
+  // und drei Leute stehen ohne Stand im Dorf (4. Zahl: Blickrichtung, 0 = nach Süden): die Wegweiserin neben dem
+  // Weltentor, der Lehrmeister unter dem Kirschbaum bei der Bank, der Lagerverwalter vor dem Lagerhaus (vlothoHouses).
+  // Vorher: West -18,5 / -14,5 / -10,5 / -6,5 / 7,5 / 11,5, Ost -18,5 … 19,5 alle bei x = ±19,25 bzw. 20,25.
   dorf: {
-    aeltester: [-19.25, -18.5, 'w'], waffen: [-19.25, -14.5, 'w'], haendler: [-19.25, -10.5, 'w'], bogenmacher: [-19.25, -6.5, 'w'],
-    stallmeister: [-19.25, 7.5, 'w'], schmied: [-19.25, 11.5, 'w'], frei: [-19.25, 19.5, 'w'],
-    lehrmeister: [20.25, -18.5, 'e'], teleport: [20.25, -14.5, 'e'], ruestung: [20.25, -10.5, 'e'], alchemist: [20.25, -6.5, 'e'],
-    jaegerin: [20.25, 7.5, 'e'], lager: [20.25, 11.5, 'e'], auktion: [20.25, 15.5, 'e'], post: [20.25, 19.5, 'e'],
-    briefkasten: [18.2, 20.8, null],
+    aeltester: [-19.25, -18.3, 'w'], waffen: [-19.0, -14.1, 'w'], haendler: [-19.25, -10.2, 'w'], bogenmacher: [-18.95, -5.9, 'w'],
+    stallmeister: [-19.25, 7.5, 'w'], schmied: [-19.0, 12.3, 'w'], frei: [-19.25, 19.5, 'w'],
+    lehrmeister: [16.3, -4.15, null, -0.35], teleport: [7.5, -7.75, null, -0.55], ruestung: [20.25, -17.7, 'e'], alchemist: [20.0, -12.9, 'e'],
+    jaegerin: [20.25, 7.9, 'e'], lager: [14.6, 14.75, null, 0.25], auktion: [20.0, 12.6, 'e'], post: [20.25, 18.9, 'e'],
+    briefkasten: [18.2, 20.5, null],
     // seit 13.85 ohne Stand mitten in der Stadt: links oben schräg hinter dem Brunnen, frei von Wegen, Weltentor und
     // den Wegen der umherlaufenden Leute (Bauer, Mönch, Nachtwächterin, Laternenanzünder); vorher [-19.25, 15.5, 'w']
     arena: [-3.9, -4.5, null],
@@ -259,7 +263,7 @@ function townPlace(mapId, role) {
   if (!at) return null;
   const wm = WORLD_MAPS.find((m) => m.id === mapId);
   const [cx, cy] = mapId === 1 ? [CENTER_X, CENTER_Y] : [wm.cx, wm.cy];
-  return { x: cx + at[0], y: cy + at[1], stand: at[2] };
+  return { x: cx + at[0], y: cy + at[1], stand: at[2], yaw: at[3] }; // yaw seit 13.91 (nur ohne Stand)
 }
 
 // Pferd (und Heu) neben dem Stand des Stallmeisters (seit 13.72, at = townPlace(..., 'stallmeister')): an der
@@ -283,20 +287,28 @@ function stallProps(at, hay) {
 // X Haufen (Holz, Heu, Säcke, Krüge, Totem, Erz – je Map, der Reihe nach) · F Banner an der Mauer · K Fass · C Kiste ·
 // H Heu. Auf niedriger Grafik fallen Kübel, einzelne Fässer und Kisten weg (fine).
 const TOWN_DECO = {
+  // seit 13.91 zum neuen Dorfplan (vlothoHouses): nicht mehr links und rechts spiegelgleich, mehr Kleinkram an den
+  // Häusern, Wäscheleinen (W) und ein Handkarren (R). Vorher je Hausecke ein Kübel und gegenüber dasselbe.
   dorf: [
-    // Nordmauer: Banner, zwei Bänke zwischen Blumenkästen, außen Waren und ein Haufen
-    [-17.3, -20.9, 'G'], [-15.5, -21.55, 'F'], [-12.3, -20.9, 'P'], [-10.5, -20.7, 'B'], [-8.7, -20.9, 'P'], [-6, -21.55, 'F'],
-    [6, -21.55, 'F'], [8.7, -20.9, 'P'], [10.5, -20.7, 'B'], [12.3, -20.9, 'P'], [15.5, -21.55, 'F'], [17.3, -20.9, 'X'],
-    // an den Häusern: vor den Ecken (die Tür in der Mitte bleibt frei) und an der Seite
-    [-14.45, -11.4, 'P'], [-10.55, -11.4, 'G'], [-15.7, -13.2, 'X'], [-7.45, -11.4, 'P'],
-    [-14.45, -5.4, 'P'], [-12.55, -5.4, 'C'],
-    [9.45, -11.4, 'P'], [10.7, -13.3, 'G'],
-    [12.55, -5.4, 'P'], [15.45, -5.4, 'G'], [16.7, -7.8, 'X'],
-    [6.55, 9.6, 'P'], [9.45, 9.6, 'P'], [10.7, 7.3, 'G'],
-    [-9.45, 15.6, 'P'], [-6.55, 15.6, 'G'], [-10.7, 13.3, 'X'],
-    [4.55, 16.6, 'P'], [7.45, 16.6, 'C'], [8.7, 14.3, 'K'],
+    // Nordmauer
+    [-17.6, -20.8, 'G'], [-14.2, -21.55, 'F'], [-10.8, -20.9, 'P'], [-8.9, -20.6, 'B'], [-6.6, -21.0, 'K'], [-5.7, -20.6, 'C'],
+    [5.6, -21.55, 'F'], [9.6, -20.9, 'P'], [11.5, -20.6, 'B'], [13.9, -21.55, 'F'], [16.8, -20.8, 'X'], [18.3, -20.5, 'K'],
+    // Fachwerkhaus oben links, Kräuterstube, Schuppen
+    [-16.5, -14.6, 'P'], [-11.5, -14.7, 'K'], [-11.2, -17.3, 'X'],
+    [-13.6, -5.7, 'P'], [-8.3, -5.6, 'C'], [-7.5, -6.3, 'K'], [-7.4, -10.6, 'H'],
+    [-6.6, -13.5, 'X'], [-3.2, -14.3, 'K'], [-2.9, -16.4, 'C'],
+    // Pagodenhaus oben rechts, Werkstatt, Kirschbaum mit Bank beim Lehrmeister
+    [3.5, -14.6, 'P'], [8.6, -14.4, 'G'], [10.1, -17.0, 'W'],
+    [10.4, -7.6, 'P'], [15.9, -7.5, 'X'], [14.5, -4.5, 'B'], [17.8, -3.4, 'P'],
+    // links unten: Haus mit Anbau, kleines Steinhaus, Wäsche dazwischen, Bank am Platz, Handkarren am Westtor
+    [-11.6, 13.6, 'P'], [-5.6, 13.5, 'G'], [-12.1, 11.0, 'K'], [-8.8, 16.6, 'W'],
+    [-16.5, 18.6, 'P'], [-12.4, 18.5, 'C'], [-12.3, 16.3, 'X'], [-6.4, 5.3, 'B'], [-16.6, 3.2, 'R'],
+    // rechts unten: Lagerhaus mit Kisten und Fässern, Pagodenhaus, Giebelhaus
+    [11.3, 14.6, 'G'], [11.4, 12.4, 'C'], [11.5, 10.8, 'K'], [17.7, 14.6, 'G'], [16.9, 15.3, 'K'],
+    [4.6, 8.6, 'P'], [8.7, 8.5, 'K'], [9.4, 6.0, 'G'],
+    [2.5, 18.6, 'P'], [7.7, 18.5, 'C'], [8.3, 16.3, 'K'],
     // Südmauer und der alte Platz des Arenameisters an der Westmauer
-    [-15, 20.6, 'G'], [-11, 20.8, 'P'], [-6.5, 20.8, 'X'], [6.5, 20.8, 'X'], [11, 20.8, 'P'], [15, 20.6, 'G'],
+    [-15.2, 20.6, 'G'], [-10.4, 20.8, 'P'], [-6.8, 20.7, 'X'], [5.8, 20.9, 'X'], [10.6, 20.7, 'P'], [12.4, 21.0, 'K'], [14.8, 20.6, 'G'],
     [-20.9, 15.5, 'G'], [-20.6, 17.4, 'P']
   ],
   stadt: [
@@ -305,14 +317,18 @@ const TOWN_DECO = {
     [-11.45, -8.4, 'P'], [-7.55, -8.4, 'G'], [-12.7, -10.3, 'X'],
     [6.55, -8.4, 'G'], [10.45, -8.4, 'P'], [11.7, -10.3, 'X'],
     [-13, 17.6, 'G'], [-9, 17.8, 'P'], [-5.5, 17.6, 'X'], [5.5, 17.6, 'X'], [9, 17.8, 'P'], [13, 17.6, 'G'],
-    [-17.9, 16.3, 'G'], [-17.6, 18.0, 'P']
+    [-17.9, 16.3, 'G'], [-17.6, 18.0, 'P'],
+    // seit 13.91 am begehbaren Haus links unten (townHouses) und an den Häusern oben
+    [-12.6, 14.6, 'P'], [-5.4, 14.4, 'K'], [-4.9, 12.2, 'C'], [-12.9, -8.6, 'K'], [11.8, -7.6, 'C'], [4.4, 12.6, 'W']
   ],
   lager: [
     [-11, -11, 'G'], [-8.8, -11.55, 'F'], [10.3, -11.55, 'F'], [11.4, -10.6, 'X'],
     // zwischen den Ständen an der Westmauer je ein Fass (an der Ostmauer stehen sie zu dicht)
     [-11.45, -6.2, 'K'], [-11.45, 6.05, 'K'],
     // Heu beim Pferd, am alten Platz des Arenameisters Waren und ein Kübel, rechts unten Waren
-    [-11.3, 11.5, 'H'], [-4.6, 11.4, 'G'], [-5.9, 11.6, 'P'], [11.2, 11.3, 'G']
+    [-11.3, 11.5, 'H'], [-4.6, 11.4, 'G'], [-5.9, 11.6, 'P'], [11.2, 11.3, 'G'],
+    // seit 13.91 etwas Leben im Lager: Kiste und Fass schräg neben dem Weg, eine Bank am Brunnen
+    [-6.4, -2.6, 'C'], [6.6, 6.9, 'K'], [-5.4, 2.9, 'B']
   ]
 };
 // Stil je Map: Pflanzkübel, Bank, Waren, Haufen (der Reihe nach), Bannerfarbe, Schnee obendrauf
@@ -335,6 +351,8 @@ function townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground) {
   const dx = x - cx;
   const dy = y - cy;
   if (Math.hypot(dx, dy) < 6.5) return false;
+  // seit 13.91: nicht in begehbaren Häusern, vor ihren Türen und auf freigehaltenen Plätzen (TOWN_KEEP)
+  for (const [ox, oy] of [[-0.45, -0.3], [0.45, -0.3], [-0.45, 0.3], [0.45, 0.3]]) if (TOWN_KEEP.has(Math.floor(y + oy) * MAP_W + Math.floor(x + ox))) return false;
   if ((Math.abs(dx) < 3 && Math.abs(dy) > H - 5) || (Math.abs(dy) < 3 && Math.abs(dx) > H - 5)) return false;
   for (const [ox, oy] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
     const i = Math.floor(y + oy) * MAP_W + Math.floor(x + ox);
@@ -361,26 +379,232 @@ function townDecoProps(mapId, cx, cy, H, npcs, props, obj, ground) {
   const snow = th.snow ? '|schnee' : '';
   const out = [];
   let pile = 0;
-  for (const [dx, dy, code] of TOWN_DECO[townKind(mapId)]) {
-    const x = cx + dx;
-    const y = cy + dy;
+  const tk = townKind(mapId);
+  for (const [dx, dy, code] of TOWN_DECO[tk]) {
+    // seit 13.91: Städte und Lager teilen sich eine Liste – je Map ein kleiner fester Versatz, damit nicht jede
+    // Stadt genau gleich aussieht (Banner bleiben an der Mauer)
+    const j = tk === 'dorf' || code === 'F' ? 0 : ((((mapId * 31 + Math.round(dx * 5) * 7 + Math.round(dy * 5) * 3) % 7) + 7) % 7 - 3) * 0.06;
+    const x = cx + dx + j;
+    const y = cy + dy - j * 0.6;
     if (!townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground)) continue;
     // kleine feste Drehung je Platz, damit nicht alles in Reih und Glied steht (nur 3D)
-    const rot = (((Math.round(dx * 7 + dy * 13) % 5) + 5) % 5 - 2) * 0.16;
+    const rot = (((Math.round(dx * 7 + dy * 13 + mapId) % 5) + 5) % 5 - 2) * 0.16;
     const at = { x: x * TILE, y: y * TILE };
     if (code === 'P') out.push({ type: 'planter', roof: th.planter + snow, fine: true, ...at });
-    else if (code === 'B') out.push({ type: 'bench', roof: th.bench + snow, ...at });
+    else if (code === 'B') out.push({ type: 'bench', roof: th.bench + snow, rot: rot * 0.5, ...at }); // seit 13.91 leicht schräg
     else if (code === 'G') out.push({ type: 'goods', roof: th.goods + snow, rot, ...at });
     else if (code === 'F') out.push({ type: 'wallbanner', roof: th.banner, ...at });
     else if (code === 'K') out.push({ type: 'barrel', fine: true, rot, ...at });
     else if (code === 'C') out.push({ type: 'crate', fine: true, rot, ...at });
     else if (code === 'H') out.push({ type: 'hay', ...at });
+    // seit 13.91: Wäscheleine (Stoffe in den Farben der Map) und Handkarren
+    else if (code === 'W') out.push({ type: 'waesche', roof: th.banner, rot: rot * 0.5, ...at });
+    else if (code === 'R') out.push({ type: 'karren', roof: snow.slice(1), rot: 0.35 + rot, ...at });
     else {
       const kind = PILE_PROP[th.pile[pile++ % th.pile.length]];
       out.push({ type: kind, roof: kind === 'woodpile' || kind === 'sacks' ? snow.slice(1) : '', rot, ...at });
     }
   }
   return out;
+}
+
+// --- Häuser, Gassen und Bewohner (seit 13.91) ----------------------------------------------------------------
+// Jedes Haus hat ein Aussehen (look): Dachform roof ('pagode' geschwungen, 'walm' Walmdach, 'sattel' Satteldach mit
+// dem First quer, 'giebel' Satteldach mit dem Giebel nach vorn, 'flach' Flachdach mit Brüstung), Wand wall
+// ('fachwerk', 'stein', 'holz', 'lehm'), Schornstein chimney (Lage auf dem Dach von -0,5 bis 0,5, fehlt = keiner),
+// Anbau annex ('w' oder 'e', ein niedriger Schuppen an der Seite), Wandhöhe tall (Faktor), Tür door (Mitte in Kacheln
+// ab der linken Kante, sonst mittig) und tor (breites Scheunentor). 3D: drei-welt.js WORLD3.house, 2D: umgebung.js.
+// Begehbare Häuser (enter) haben rundum eine Mauer von einer Kachel (OBJ.HOUSE); innen und in der Tür (zwei Kacheln
+// breit, enter.door = linke Türkachel ab der linken Kante) ist frei. Möbel und der Platz des Bewohners kommen aus
+// HOUSE_ROOMS (Kacheln ab der linken oberen Ecke). Ist der eigene Spieler drinnen, fehlen Dach und Vorderwand, und
+// ansprechen lässt sich nur, wer im selben Raum steht (sameRoom). Alles feste Zahlen: alle sehen dasselbe Dorf.
+// Möbel: [Art, x, y, Drehung]; npc: [x, y, Blickrichtung]
+const HOUSE_ROOMS = {
+  // Kräuterstube: Kamin, Kräuterregal, getrocknete Kräuter, Tisch mit Hockern, Bett, Fass, Teppich
+  kraeuter: {
+    furn: [['teppich', 3.5, 3.1, 0], ['kamin', 1.9, 1.05, 0], ['kraeuter', 3.35, 0.98, 0], ['regal', 4.75, 1.0, 0], ['tisch', 2.35, 3.3, 0],
+      ['bett', 5.6, 3.35, 0], ['fass', 1.25, 4.5, 0], ['krug', 5.75, 4.65, 0]],
+    npc: [4.25, 2.35, -0.3]
+  },
+  // Werkstatt: Hobelbank, Regal mit Werkzeug, Holzstapel, Kisten, Fass, Tisch
+  werkstatt: {
+    furn: [['werkbank', 2.3, 1.05, 0], ['regal', 5.0, 1.0, 0], ['holz', 5.6, 2.75, Math.PI / 2], ['kiste', 1.25, 4.45, 0.2],
+      ['kiste', 1.3, 3.65, -0.15], ['fass', 5.7, 4.55, 0], ['tisch', 3.4, 3.55, 0.08]],
+    npc: [4.35, 2.4, -0.25]
+  },
+  // Stube in den Städten: Kamin, Regal, Tisch, Bett, Teppich, Kiste
+  stube: {
+    furn: [['teppich', 3.4, 3.0, 0], ['kamin', 2.0, 1.05, 0], ['regal', 4.8, 1.0, 0], ['tisch', 2.5, 3.3, 0], ['bett', 5.6, 3.35, 0],
+      ['kiste', 1.3, 4.45, 0.1], ['krug', 5.7, 4.65, 0]],
+    npc: [4.2, 2.4, -0.3]
+  }
+};
+// Vlotho: [dx, dy, Breite, Tiefe, Dachfarbe, Aussehen, begehbar] ab der Mitte (linke obere Kachel). Zehn statt acht
+// Häuser, zwei davon begehbar (Kräuterstube links oben, Werkstatt rechts oben), dazu das Lagerhaus rechts unten, vor
+// dem der Lagerverwalter steht. Vorher acht gleiche Häuser, je zwei pro Viertel fast spiegelgleich.
+const VLOTHO_HOUSES = [
+  [-16, -18, 5, 3, '#7c3a2c', { roof: 'sattel', wall: 'fachwerk', chimney: 0.28 }],
+  [-14, -12, 7, 6, '#4f5f3a', { roof: 'giebel', wall: 'stein', chimney: -0.3 }, { door: 2, room: 'kraeuter', npc: ['Kräuterfrau Elsa', 'alte', 'collect'] }],
+  [-6, -17, 3, 3, '#5a4a3a', { roof: 'walm', wall: 'holz', tall: 0.85 }],
+  [4, -18, 5, 3, '#5b4a6b', { roof: 'pagode', wall: 'fachwerk' }],
+  [10, -14, 7, 6, '#8a4a2a', { roof: 'sattel', wall: 'holz', chimney: 0.32 }, { door: 2, room: 'werkstatt', npc: ['Zimmermann Holm', 'bauer', 'kill'] }],
+  [-11, 10, 6, 3, '#7c3a2c', { roof: 'sattel', wall: 'fachwerk', annex: 'e', door: 2.2 }],
+  [-16, 15, 4, 3, '#4a4644', { roof: 'walm', wall: 'stein', chimney: -0.2 }],
+  [12, 10, 6, 4, '#6a4a3a', { roof: 'sattel', wall: 'holz', tor: true, tall: 1.15, door: 3 }],
+  [5, 5, 4, 3, '#4f5f3a', { roof: 'pagode', wall: 'fachwerk' }],
+  [3, 15, 5, 3, '#5b4a6b', { roof: 'giebel', wall: 'fachwerk', chimney: 0.25, door: 1.8 }]
+];
+// Gassen in Vlotho: von den Türen in leichten Bögen zu den großen Wegen (Punkte ab der Mitte)
+const VLOTHO_LANES = [
+  [[-11, -5.6], [-10.3, -4.1], [-11.2, -2.6], [-10.6, -1]],
+  [[13, -8.4], [12.2, -6.6], [12.9, -4.6], [12.1, -2.6], [12.6, -1]],
+  [[15, 14.6], [13.5, 15.6], [11.2, 15.9], [10.0, 13.8], [9.9, 10.6], [10.6, 7.2], [10.0, 3.6], [10.4, 1.0]],
+  [[-8.8, 13.4], [-6.5, 14.6], [-4.2, 13.2], [-2.6, 11.8], [-1.5, 11]],
+  [[4.8, 18.4], [3.2, 19.4], [1.0, 19.6]]
+];
+// Kirschbäume im Dorf (Kachel ab der Mitte): beim Lehrmeister, am Westtor und unten rechts
+const VLOTHO_TREES = [[17, -6], [-14, 3], [8, 19]];
+// Freier Platz am Brunnen (2 × 2 Kacheln, links unter dem Brunnen südlich des Querwegs) für einen weiteren Helfer
+// in der Mitte: Kacheln dx -4 und -3, dy 1 und 2 ab der Mitte (Mitte des Platzes: dx -3, dy 2). Bleibt frei von
+// Schmuck, Häusern und Gassen.
+const VLOTHO_FREE_SPOT = { dx: -4, dy: 1, w: 2, h: 2 };
+// Städte (Map 2, 3, 10): Aussehen der beiden Häuser oben und ein begehbares Haus links unten
+const TOWN_HOUSE_STYLE = {
+  2: { looks: [{ roof: 'flach', wall: 'lehm' }, { roof: 'flach', wall: 'lehm', chimney: 0.3, annex: 'w' }],
+    enter: ['#b0763a', { roof: 'flach', wall: 'lehm' }, 'stube', ['Teppichknüpferin Yara', 'alte', 'collect']] },
+  3: { looks: [{ roof: 'walm', wall: 'stein', chimney: 0.3 }, { roof: 'sattel', wall: 'stein', annex: 'w' }],
+    enter: ['#5a3a2e', { roof: 'sattel', wall: 'stein', chimney: -0.3 }, 'werkstatt', ['Braumeister Hrolf', 'bauer', 'kill']] },
+  10: { looks: [{ roof: 'giebel', wall: 'stein' }, { roof: 'pagode', wall: 'stein', chimney: -0.25 }],
+    enter: ['#3a3a6a', { roof: 'giebel', wall: 'stein', chimney: 0.25 }, 'stube', ['Lichtmönch Mirel', 'moench', 'kill']] }
+};
+// Kacheln, auf die kein Stadtschmuck darf (Innenräume, vor den Türen, der freie Platz am Brunnen)
+const TOWN_KEEP = new Set();
+
+// Haus in die Karte setzen: Mauern blockieren, begehbare Häuser sind innen und in der Tür frei (Boden Platz)
+function placeHouse(h, ground, obj, deco) {
+  const e = h.enter;
+  for (let y = h.y; y < h.y + h.h; y++) {
+    for (let x = h.x; x < h.x + h.w; x++) {
+      const i = y * MAP_W + x;
+      deco[i] = DECO.NONE;
+      const lx = x - h.x;
+      const inner = !!e && lx > 0 && lx < h.w - 1 && y > h.y && (y < h.y + h.h - 1 || lx === e.door || lx === e.door + 1);
+      obj[i] = inner ? OBJ.NONE : OBJ.HOUSE;
+      if (inner) {
+        ground[i] = GROUND.PLAZA;
+        TOWN_KEEP.add(i);
+      }
+    }
+  }
+  if (e) for (const lx of [e.door, e.door + 1]) for (let k = 0; k < 2; k++) TOWN_KEEP.add((h.y + h.h + k) * MAP_W + h.x + lx);
+}
+// Gasse entlang der Punkte (ab cx, cy): Gras wird Weg, Blumen weichen; Platz, Häuser und Mauern bleiben
+function townLane(ground, obj, deco, cx, cy, pts) {
+  for (let k = 0; k < pts.length - 1; k++) {
+    const [ax, ay] = pts[k];
+    const [bx, by] = pts[k + 1];
+    const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+    for (let j = 0; j <= n; j++) {
+      const t = j / n;
+      const x = Math.floor(cx + ax + (bx - ax) * t);
+      const y = Math.floor(cy + ay + (by - ay) * t);
+      const i = y * MAP_W + x;
+      if (obj[i] || ground[i] === GROUND.PLAZA || LIQUID.has(ground[i])) continue;
+      ground[i] = GROUND.PATH;
+      if (deco[i] !== DECO.PEBBLE) deco[i] = DECO.NONE;
+    }
+  }
+}
+// Rand des Dorfplatzes unregelmäßig (vorher ein genauer Kreis): Wellen über den Winkel, auf den großen Wegen Weg
+function roughPlaza(ground, obj, cx, cy, R) {
+  const r = Math.ceil(R + 3);
+  for (let y = cy - r; y <= cy + r; y++) {
+    for (let x = cx - r; x <= cx + r; x++) {
+      const i = y * MAP_W + x;
+      if (obj[i]) continue;
+      const dx = x + 0.5 - cx;
+      const dy = y + 0.5 - cy;
+      const a = Math.atan2(dy, dx);
+      const edge = R + 1.1 * Math.sin(3 * a + 0.7) + 0.7 * Math.sin(5 * a + 2.1) + 0.4 * Math.sin(7 * a + 0.3);
+      const onWay = x - cx === -1 || x - cx === 0 || y - cy === -1 || y - cy === 0;
+      if (Math.hypot(dx, dy) < edge) ground[i] = GROUND.PLAZA;
+      else if (ground[i] === GROUND.PLAZA) ground[i] = onWay ? GROUND.PATH : GROUND.GRASS;
+    }
+  }
+}
+// Dorfplan von Vlotho (nach widenVillage): alte Häuser weg, Platz, Gassen, Bäume und die neuen Häuser
+function vlothoHouses(ground, obj, deco) {
+  const C = CENTER_X;
+  TOWN_KEEP.clear();
+  const R = VILLAGE_HALF - 1;
+  for (let y = C - R; y <= C + R; y++) for (let x = C - R; x <= C + R; x++) if (obj[y * MAP_W + x] === OBJ.HOUSE) obj[y * MAP_W + x] = OBJ.NONE;
+  roughPlaza(ground, obj, C, C, 6.5 * VS);
+  for (const lane of VLOTHO_LANES) townLane(ground, obj, deco, C, C, lane);
+  for (const [dx, dy] of VLOTHO_TREES) {
+    obj[(C + dy) * MAP_W + C + dx] = OBJ.BLOSSOM;
+    deco[(C + dy) * MAP_W + C + dx] = DECO.NONE;
+  }
+  const f = VLOTHO_FREE_SPOT;
+  for (let y = f.dy - 1; y < f.dy + f.h + 1; y++) for (let x = f.dx - 1; x < f.dx + f.w + 1; x++) TOWN_KEEP.add((C + y) * MAP_W + C + x);
+  return VLOTHO_HOUSES.map(([dx, dy, w, h, roof, look, enter]) => {
+    const hs = { x: C + dx, y: C + dy, w, h, roof, look };
+    if (enter) hs.enter = { door: enter.door, room: enter.room, npc: enter.npc };
+    placeHouse(hs, ground, obj, deco);
+    return hs;
+  });
+}
+// Häuser der übrigen Städte (nach buildWorldMaps): Aussehen je Map und ein begehbares Haus links unten
+function townHouses(mp, ground, obj, deco) {
+  const st = TOWN_HOUSE_STYLE[mp.id];
+  if (!st || mp.small) return;
+  mp.houses.forEach((h, k) => {
+    h.look = st.looks[k % st.looks.length];
+  });
+  const [roof, look, room, who] = st.enter;
+  const hs = { x: mp.cx - 12, y: mp.cy + 8, w: 7, h: 6, roof, look, enter: { door: 2, room, npc: who } };
+  placeHouse(hs, ground, obj, deco);
+  townLane(ground, obj, deco, mp.cx, mp.cy, [[-9, 14.4], [-7, 15.2], [-4.4, 14.0], [-2.4, 15.0], [-1.5, 15.4]]);
+  mp.houses.push(hs);
+}
+// Bewohner der begehbaren Häuser: Nebenaufgaben wie bei den Wanderern (quests.js, id 'wanderer' mit resident), nur
+// kleiner (5 Teile bringen oder 10 Monster besiegen, danach etwas mehr) und mit Monstern aus der Nähe der Stadt.
+// Erfahrung wie bei allen wiederholbaren Aufträgen (seit 13.88): nur das erste Mal voll (sideXp).
+function houseResidents(houses) {
+  const out = [];
+  const seen = {};
+  for (const h of houses) {
+    const e = h.enter;
+    if (!e || !e.npc) continue;
+    const wm = mapOfTile(h.x, h.y);
+    const mapId = wm ? wm.id : 1;
+    seen[mapId] = (seen[mapId] || 0) + 1;
+    const [name, art, kind] = e.npc;
+    const mons = [...new Set(ZONES.filter((z) => z.map === mapId && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])))]
+      .filter((id) => MONSTER_TYPES[id] && (kind !== 'collect' || MOB_MATS[id]))
+      .sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
+    if (!mons.length) continue;
+    const [nx, ny, yaw] = HOUSE_ROOMS[e.room].npc;
+    out.push({
+      id: 'wanderer', name, x: (h.x + nx) * TILE, y: (h.y + ny) * TILE, r: 11, art, restYaw: yaw, resident: true, house: h,
+      key: `h${mapId}-${seen[mapId]}`, side: { monster: mons[Math.min(mons.length - 1, kind === 'collect' ? 0 : 1)], kind, base: kind === 'collect' ? 5 : 10 }
+    });
+  }
+  return out;
+}
+// Begehbares Haus an einer Stelle (Pixel): innen oder in der Tür, sonst null
+function houseAt(x, y) {
+  const w = typeof game !== 'undefined' ? game.world : null;
+  if (!w || !w.houses) return null;
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  for (const h of w.houses) {
+    if (h.enter && tx > h.x && tx < h.x + h.w - 1 && ty > h.y && ty < h.y + h.h) return h;
+  }
+  return null;
+}
+// Stehen a und b im selben Raum (beide draußen oder im selben Haus)? Durch Wände spricht man nicht
+function sameRoom(a, b) {
+  return (a.house || houseAt(a.x, a.y)) === houseAt(b.x, b.y);
 }
 
 // Vlotho vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
@@ -527,11 +751,15 @@ function generateWorld() {
   }
   // seit 13.63: Vlotho größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
   widenVillage(ground, obj, deco, zoneIdx);
+  // seit 13.91: neuer Dorfplan (vlothoHouses) – die alten Häuser oben standen nur noch für die Zufallszahlen da
+  houses.splice(0, houses.length, ...vlothoHouses(ground, obj, deco));
 
   // Dungeons im Streifen östlich der Welt, darunter Map 2 und Map 3
   const dungeons = buildDungeons(ground, obj, zoneIdx, deco);
   const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom);
   tidyBridges(ground, deco, obj);
+  // seit 13.91: Aussehen der Stadthäuser und je ein begehbares Haus in den großen Städten
+  for (const mp of maps) townHouses(mp, ground, obj, deco);
 
   // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher.
   // Seit 12.2 stehen die Stadtleute am linken und rechten Rand einander gegenüber, die Mitte bleibt frei; jede
@@ -552,7 +780,8 @@ function generateWorld() {
   };
   const townNpc = (mapId, id, name) => {
     const at = townPlace(mapId, id);
-    return npc(id, name, at.x, at.y, L(at.stand));
+    // seit 13.91: wer ohne Stand im Dorf steht, kann eine eigene Blickrichtung haben
+    return npc(id, name, at.x, at.y, at.yaw != null ? { ...L(at.stand), restYaw: at.yaw } : L(at.stand));
   };
   const npcs = [
     ...TOWN_ROLES.map((id) => townNpc(1, id, VLOTHO_PEOPLE[id])),
@@ -608,6 +837,8 @@ function generateWorld() {
     for (const id of TOWN_ROLES) npcs.push(townNpc(mp.id, id, personName(mp.id, id)));
     houses.push(...mp.houses);
   }
+  // seit 13.91: Bewohner in den begehbaren Häusern (Nebenaufgaben, houseResidents)
+  npcs.push(...houseResidents(houses));
   // Wanderer mit Nebenaufgaben: je Map drei, an freien Plätzen zwischen Lager und Rand
   const wrng = mulberry32(WORLD_SEED + 505);
   const wandererFires = [];
@@ -684,7 +915,8 @@ function generateWorld() {
     [GN, C - 1.6], [GN, C + 3.6], [GS, C - 1.6], [GS, C + 3.6]]) {
     npcs.push(npc('wache', 'Torwache', x, y, { silent: true }));
   }
-  for (const [id, x, y] of [['bauer', V(-6), V(-6)], ['kind', V(2), V(7)], ['alte', V(-2), V(-9)], ['moench', V(5), V(-3)]]) {
+  // seit 13.91 geht der Bauer links unten am Platz umher (vorher V(-6), V(-6): dort steht jetzt die Kräuterstube)
+  for (const [id, x, y] of [['bauer', C - 10, C + 6], ['kind', V(2), V(7)], ['alte', V(-2), V(-9)], ['moench', V(5), V(-3)]]) {
     npcs.push(npc(id, '', x, y, { wander: true, homeX: x * TILE, homeY: y * TILE, wx: x * TILE, wy: y * TILE, wanderAt: 0, facing: 1, moving: false }));
   }
 
@@ -712,10 +944,12 @@ function generateWorld() {
   const VT = (x, y) => T(V(x), V(y));
   const props = [
     { type: 'well', ...VT(-1.6, -1.4) },
-    ...[[-3.1, -9.8], [2.1, -9.8], [-3.1, 10], [2.1, 10], [-9.5, -2.2], [-9.5, 1.2], [9.5, -2.2], [9.5, 1.2]]
+    // seit 13.91 nicht mehr genau gegenüber (vorher ±3,1/2,1 bei ±9,8 und ±9,5 bei -2,2/1,2)
+    ...[[-3.4, -10.2], [2.3, -9.5], [-2.8, 10.4], [2.5, 9.7], [-9.9, -2.4], [-9.2, 1.6], [9.3, -2.1], [9.8, 1.5]]
       .map(([x, y]) => ({ type: 'lantern', ...T(C + x, C + y) })),
-    { type: 'barrel', ...T(C - 10.3, C - 6.4) },
-    { type: 'barrel', ...T(C - 9.7, C - 5.9) }
+    // seit 13.91 an der Werkstatt (vorher C - 10,3 / C - 6,4: dort ist jetzt die Tür der Kräuterstube)
+    { type: 'barrel', ...T(C + 9.35, C - 11.9) },
+    { type: 'barrel', ...T(C + 9.6, C - 11.2) }
   ];
   // Türme an den Ecken und links und rechts jedes Tores, dazu Torbögen im Norden und Süden
   for (const [x, y] of [[-H, -H], [H, -H], [-H, H], [H, H]]) props.push({ type: 'tower', ...T(C + x + 0.5, C + y + 1) });

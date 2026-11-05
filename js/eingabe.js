@@ -230,7 +230,8 @@ function selectAt(clientX, clientY) {
       return 'monster';
     }
     for (const n of game.world.npcs) {
-      if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90) {
+      // seit 13.91 nur im selben Raum (begehbare Häuser, sameRoom in welt.js)
+      if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90 && sameRoom(n, game.player)) {
         ui.openNpc(n);
         return 'npc';
       }

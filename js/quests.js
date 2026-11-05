@@ -67,7 +67,9 @@ function nextSideMonster(n, s) {
   return pool.length ? pool[Math.floor(Math.random() * pool.length)] : sideMon(n, s);
 }
 // seit 13.10 wächst die Menge langsamer (vorher 8 → 16 Hunde, jetzt höchstens 6 mehr)
+// seit 13.91: Bewohner der begehbaren Häuser (welt.js houseResidents) wollen weniger (side.base: 5 Teile, 10 Monster)
 function sideCount(n, s) {
+  if (n.side.base) return n.side.base + (n.side.kind === 'collect' ? Math.min(3, Math.floor(s.times / 2)) : Math.min(5, s.times));
   return n.side.kind === 'collect' ? SIDE_COLLECT + Math.min(3, Math.floor(s.times / 2)) : SIDE_KILL + Math.min(6, s.times);
 }
 function sideHave(n, s) {
@@ -714,9 +716,14 @@ Object.assign(ui, {
     const xp = sideReward(n, s).xp;
     const reward = { gold: t.level * 45, potions: 2 };
     const body = $('npcBody');
-    const ask = collect
-      ? `„Ich brauche ${need} × ${mat.name} (fällt von ${t.name}). Solange du für mich sammelst, findest du es viel öfter.“`
-      : `„${t.name} machen die Gegend unsicher. Besiege ${need} von ihnen, dann kann ich weiterziehen.“`;
+    // seit 13.91: Bewohner der begehbaren Häuser sprechen von daheim aus (keine Wanderer, die weiterziehen)
+    const ask = n.resident
+      ? (collect
+        ? `„Schön, dass du hereinschaust! Für meine Arbeit fehlen mir ${need} × ${mat.name} (fällt von ${t.name}, draußen vor der Stadt). Solange du für mich sammelst, findest du es viel öfter.“`
+        : `„Draußen vor der Stadt treibt sich allerlei herum, ich trau mich kaum noch vor die Tür. Besiege ${need} × ${t.name}, und ich zahle dir etwas dafür.“`)
+      : collect
+        ? `„Ich brauche ${need} × ${mat.name} (fällt von ${t.name}). Solange du für mich sammelst, findest du es viel öfter.“`
+        : `„${t.name} machen die Gegend unsicher. Besiege ${need} von ihnen, dann kann ich weiterziehen.“`;
     let action;
     if (s.state === 'open') action = '<button type="button" class="btn btn-primary" data-side="accept">Aufgabe annehmen</button>';
     else if (sideDone(n, s)) action = '<button type="button" class="btn btn-primary" data-side="reward">' + (collect ? `${need} × ${mat.name} abgeben` : 'Belohnung abholen') + '</button>';
@@ -1026,7 +1033,8 @@ function updateVillagers(dt) {
     const step = Math.min(len, 38 * dt);
     const nx = n.x + dx / len * step;
     const ny = n.y + dy / len * step;
-    if (canStand(nx, ny, 7, false) && inVillage(nx, ny)) {
+    // seit 13.91 nicht in die begehbaren Häuser (houseAt, welt.js)
+    if (canStand(nx, ny, 7, false) && inVillage(nx, ny) && !houseAt(nx, ny)) {
       n.x = nx;
       n.y = ny;
       n.moving = true;
