@@ -832,7 +832,14 @@ function setSkillCd(p, i, v) {
 const GCD_TIME = 2;
 const GCD_CLASS_TIME = { schamane: 2, nekromant: 2, magier: 2, krieger: 1.5 };
 const GCD_CLASSES = new Set(Object.keys(GCD_CLASS_TIME));
-const gcdTime = (p) => (p && GCD_CLASS_TIME[p.classId]) || 0;
+// Frostmagier seit 13.94 nur 0,5 s: Eisstrahl, Blizzard und Frostgefängnis sollen sich flüssig verbinden lassen, aber nicht
+// im selben Augenblick
+const GCD_PATH_TIME = { frost: 0.5 };
+const gcdTime = (p) => {
+  if (!p) return 0;
+  const path = CLASSES[p.classId] && CLASSES[p.classId].paths[p.path || 0];
+  return (path && GCD_PATH_TIME[path.id]) || GCD_CLASS_TIME[p.classId] || 0;
+};
 function applyGcd(p, i) {
   const g = gcdTime(p);
   if (!g) return;
