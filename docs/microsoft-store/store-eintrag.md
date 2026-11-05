@@ -41,7 +41,7 @@ FÜNF KLASSEN, ZWÖLF WEGE
 • Gestalte das Aussehen deiner Figur selbst – Mitspieler sehen es
 
 EINE WELT VOLLER GEFAHREN
-• Neun Karten von der Stadt Kazehana über Dunkelwald, Orktal und Frostgipfel bis zum Feuerberg, Stufe 1 bis 80
+• Neun Karten von der Stadt Vlotho über Dunkelwald, Orktal und Frostgipfel bis zum Feuerberg, Stufe 1 bis 80
 • Mehr als 100 Monster- und Bossarten
 • 14 Seelensteine: Greif sie an, wehre die Monsterwellen ab und sichere dir ihre Beute
 • Tag und Nacht im Wechsel – nachts erscheinen eigene Monster und Nachtjagden
@@ -93,7 +93,7 @@ FIVE CLASSES, TWELVE PATHS
 • Design your character's look – other players see it
 
 A WORLD FULL OF DANGER
-• Nine maps from the city of Kazehana through Darkwood, Orc Valley and Frost Peak to Fire Mountain, levels 1 to 80
+• Nine maps from the city of Vlotho through Darkwood, Orc Valley and Frost Peak to Fire Mountain, levels 1 to 80
 • More than 100 kinds of monsters and bosses
 • 14 Soulstones: attack them, fight off the monster waves and claim their loot
 • Day and night – at night, special monsters and night hunts appear
@@ -229,7 +229,7 @@ Reihenfolge und Bildunterschriften der Screenshots (je max. 200 Zeichen, in jede
 | `pc-01.png` | Ultimative Attacke „Klingenhimmel“ des Kriegers gegen Eiswölfe am Frostgipfel | The Warrior's Ultimate Attack "Blade Heaven" against Ice Wolves on Frost Peak |
 | `pc-02.png` | Frost-Magier im Bosskampf gegen die Spinnenkönigin im Dungeon Spinnenhöhle | Frost Mage in a boss fight against the Spider Queen in the Spider Cave dungeon |
 | `pc-03.png` | Feuer-Magier mit Phönixflamme gegen Lavagolems am Feuerberg | Fire Mage casting Phoenix Flame against Lava Golems on Fire Mountain |
-| `pc-04.png` | Die Stadt Kazehana mit Händlerständen, Weltentor und Bewohnern | The city of Kazehana with market stalls, World Gate and townsfolk |
+| `pc-04.png` | Die Stadt Vlotho mit Händlerständen, Weltentor und Bewohnern | The city of Vlotho with market stalls, World Gate and townsfolk |
 | `pc-05.png` | Charakterfenster: Fertigkeiten mit ihren Rängen | Character window: skills and their ranks |
 | `pc-06.png` | Große Karte des Dunkelwalds mit Weltentor, Lager, Dungeons und Endboss | Map of Darkwood with World Gate, camp, dungeons and end boss |
 

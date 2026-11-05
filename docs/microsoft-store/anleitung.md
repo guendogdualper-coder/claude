@@ -261,7 +261,7 @@ denselben Dienst, den auch die Website aufruft (`https://pwabuilder-windows-dock
 | `pc-01.png` | Krieger (Weg der Klinge, Stufe 46) wirkt die Ultimative Attacke „Klingenhimmel“ gegen Eiswölfe am Frostgipfel |
 | `pc-02.png` | Magier (Weg des Frosts) gegen die Spinnenkönigin im Dungeon Spinnenhöhle, mit Boss-Balken |
 | `pc-03.png` | Magier (Weg des Feuers) mit Phönixflamme gegen Lavagolems am Feuerberg |
-| `pc-04.png` | Stadt Kazehana mit Händlerständen, Häusern, Weltentor und Bewohnern |
+| `pc-04.png` | Stadt Vlotho mit Händlerständen, Häusern, Weltentor und Bewohnern |
 | `pc-05.png` | Charakterfenster, Reiter Fertigkeiten, mit Rängen (Legendär, Heroisch) |
 | `pc-06.png` | Große Karte des Dunkelwalds mit Weltentor, Waldlager, Dungeons und Endboss |
 | `poster-2x3-1440x2160.png` | Spielszene Feuerberg (Phönixflamme zwischen Lavagolems) mit Spielsymbol und Titel „Seelenstein“ im oberen Drittel |

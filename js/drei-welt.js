@@ -1112,7 +1112,7 @@ function deco3Sack(b, M, x, z, s = 1, c = '#c8b088') {
   b.add(torus3(0.05 * s, 0.012, Math.PI * 2, 3, 8), '#6b4a2e', { parent: M, p: [x, 0.35 * s, z], r: [Math.PI / 2, 0, 0], mat: 'detail' });
 }
 Object.assign(PROP3, {
-  // Pflanzkübel: Holzkasten mit Blumen (Kazehana), Tonkrug mit Palme (Wüste), Steintrog mit dürrem Dornbusch,
+  // Pflanzkübel: Holzkasten mit Blumen (Vlotho), Tonkrug mit Palme (Wüste), Steintrog mit dürrem Dornbusch,
   // Baumstumpf-Kübel mit Farn (Wald), Bottich mit Tanne (Frost) oder mit leuchtenden Pilzen (Moor)
   planter(b, M, pr) {
     const style = String(pr.roof).split('|')[0];

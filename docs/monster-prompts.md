@@ -40,7 +40,7 @@ Faustregel: schwere Brocken (slam, charge, breath) holen am längsten aus, Hufti
 
 ## Sonnenwiesen (Map 1)
 
-Grüne, sonnige Startwiesen rund um Kazehana. Echte, bodenständige Tiere in warmen Erdtönen – die Monster sollen glaubwürdig wirken, aber noch nicht bedrohlich. Hier lernt der Spieler, die rote Ausholwarnung zu lesen.
+Grüne, sonnige Startwiesen rund um Vlotho. Echte, bodenständige Tiere in warmen Erdtönen – die Monster sollen glaubwürdig wirken, aber noch nicht bedrohlich. Hier lernt der Spieler, die rote Ausholwarnung zu lesen.
 
 ### Wilder Hund (Stufe 1) – hund
 **Design:** Ein verwilderter Hofhund, mager und hochbeinig, mit sichtbaren Rippen, eingefallenen Flanken und schlaff hängender Rute. Fell `#8a6748` mit zotteligen, ungleichmäßigen Büscheln, heller Bauch und Kehle `#c8a47e`, kleine braune Augen `#7a4a1a`. Ein Ohr steht, das andere ist eingerissen und knickt ab – das macht ihn von oben sofort vom Wolf unterscheidbar. Größe 12, also etwa hüfthoch zum Helden.

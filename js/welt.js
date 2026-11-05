@@ -4,7 +4,7 @@
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
 // Seit Version 6.4 sind alle neun Maps gleich groß: 10.6 je 360 × 150, seit 10.7 je 360 × 220 (nach oben und unten
-// größer, Platz für viele Spieler; ursprünglich 300 × 120). Kazehana links,
+// größer, Platz für viele Spieler; ursprünglich 300 × 120). Vlotho links,
 // die anderen acht in zwei Spalten mit je vier Maps rechts daneben (WORLD_MAPS.region). Freie Flächen sind Fels.
 const WORLD_W = 1080;     // Breite des Map-Bereichs in Kacheln
 const WORLD_H = 880;      // Höhe des Map-Bereichs in Kacheln (vier Maps übereinander)
@@ -15,7 +15,7 @@ const DUNGEON_W = DUNGEON_COL * DUNGEON_SLOTS.cols; // östlich davon Spalten mi
 const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
 const MAP_W = WORLD_W + DUNGEON_W;
 const MAP_H = WORLD_H;
-const CENTER_X = 180;     // Mitte von Kazehana (x und y gleich: der Dorfplan rechnet mit einer Zahl)
+const CENTER_X = 180;     // Mitte von Vlotho (x und y gleich: der Dorfplan rechnet mit einer Zahl)
 const CENTER_Y = 180;
 // seit 13.63: Mauer 23 statt 18 – Platz für Auktionshaus, Post und Herausforderung. Häuser, Plätze und Stände bleiben
 // beim Plan von 18 (VILLAGE_PLAN), nur die Mauer rückt nach außen; Bäume und Wasser draußen bleiben wie vorher
@@ -118,7 +118,7 @@ function makeNoise(rng, cell) {
   };
 }
 
-// Jede Map ist ein eigenes Rechteck (WORLD_MAPS.region). In Kazehana ist das Dorf ein Quadrat innerhalb der
+// Jede Map ist ein eigenes Rechteck (WORLD_MAPS.region). In Vlotho ist das Dorf ein Quadrat innerhalb der
 // Mauer, sonst liegen die Gebiete als Ringe um die Mitte der Map. Was zu keiner Map gehört, ist Fels.
 function zoneIndexAt(x, y) {
   const wm = mapOfTile(x, y);
@@ -202,9 +202,9 @@ function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
 // 'frei' ist ein weiterer freier Platz für später.
 // Alles feste Zahlen (keine Zufallszahlen): jeder Mitspieler bekommt dieselben Plätze. Die Stände blockieren nicht
 // (Schmuck ohne Kollision) und keine Kachel ändert sich – wer an einem alten Standplatz gespeichert hat, steht frei.
-// dorf: Kazehana (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
+// dorf: Vlotho (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
 const TOWN_PLACES = {
-  // Kazehana: West- und Ostmauer, Stände über und unter dem Tor; um die Tore stehen die Torwachen.
+  // Vlotho: West- und Ostmauer, Stände über und unter dem Tor; um die Tore stehen die Torwachen.
   // Seit 13.91 nicht mehr im festen Abstand von 4 und nicht genau in einer Linie (das Dorf wirkte wie ein Raster),
   // und drei Leute stehen ohne Stand im Dorf (4. Zahl: Blickrichtung, 0 = nach Süden): die Wegweiserin neben dem
   // Weltentor, der Lehrmeister unter dem Kirschbaum bei der Bank, der Lagerverwalter vor dem Lagerhaus (vlothoHouses).
@@ -439,7 +439,7 @@ const HOUSE_ROOMS = {
     npc: [4.2, 2.4, -0.3]
   }
 };
-// Kazehana: [dx, dy, Breite, Tiefe, Dachfarbe, Aussehen, begehbar] ab der Mitte (linke obere Kachel). Zehn statt acht
+// Vlotho: [dx, dy, Breite, Tiefe, Dachfarbe, Aussehen, begehbar] ab der Mitte (linke obere Kachel). Zehn statt acht
 // Häuser, zwei davon begehbar (Kräuterstube links oben, Werkstatt rechts oben), dazu das Lagerhaus rechts unten, vor
 // dem der Lagerverwalter steht. Vorher acht gleiche Häuser, je zwei pro Viertel fast spiegelgleich.
 const VLOTHO_HOUSES = [
@@ -454,7 +454,7 @@ const VLOTHO_HOUSES = [
   [5, 5, 4, 3, '#4f5f3a', { roof: 'pagode', wall: 'fachwerk' }],
   [3, 15, 5, 3, '#5b4a6b', { roof: 'giebel', wall: 'fachwerk', chimney: 0.25, door: 1.8 }]
 ];
-// Gassen in Kazehana: von den Türen in leichten Bögen zu den großen Wegen (Punkte ab der Mitte)
+// Gassen in Vlotho: von den Türen in leichten Bögen zu den großen Wegen (Punkte ab der Mitte)
 const VLOTHO_LANES = [
   [[-11, -5.6], [-10.3, -4.1], [-11.2, -2.6], [-10.6, -1]],
   [[13, -8.4], [12.2, -6.6], [12.9, -4.6], [12.1, -2.6], [12.6, -1]],
@@ -532,7 +532,7 @@ function roughPlaza(ground, obj, cx, cy, R) {
     }
   }
 }
-// Dorfplan von Kazehana (nach widenVillage): alte Häuser weg, Platz, Gassen, Bäume und die neuen Häuser
+// Dorfplan von Vlotho (nach widenVillage): alte Häuser weg, Platz, Gassen, Bäume und die neuen Häuser
 function vlothoHouses(ground, obj, deco) {
   const C = CENTER_X;
   TOWN_KEEP.clear();
@@ -607,7 +607,7 @@ function sameRoom(a, b) {
   return (a.house || houseAt(a.x, a.y)) === houseAt(b.x, b.y);
 }
 
-// Kazehana vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
+// Vlotho vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
 // Blumen draußen genau gleich bleiben. Danach gehört alles bis zur neuen Mauer (VILLAGE_HALF) zum Dorf, die alte
 // Mauer verschwindet, und vor der neuen bleiben 4 Kacheln frei (ohne Bäume, Felsen und Wasser). Die neue Mauer steht
 // jetzt auch im Osten und Süden (vorher fehlten dort die Mauerstücke zwischen den Türmen).
@@ -655,7 +655,7 @@ function generateWorld() {
   const deco = new Uint8Array(size);
   const zoneIdx = new Uint8Array(size);
 
-  // Map 1 (Kazehana mit den Sonnenwiesen) in ihrer Region; die anderen Maps baut buildWorldMaps
+  // Map 1 (Vlotho mit den Sonnenwiesen) in ihrer Region; die anderen Maps baut buildWorldMaps
   const M1 = WORLD_MAPS[0].region;
   const [m1x0, m1y0, m1x1, m1y1] = [M1[0], M1[1], M1[0] + M1[2], M1[1] + M1[3]];
   for (let y = m1y0; y < m1y1; y++) {
@@ -699,7 +699,7 @@ function generateWorld() {
   }
 
   // Vier Wege vom Dorf bis an den Rand – seit 13.91 nur noch vorläufig: Die Zufallszahlen für Blumen und Schmuck
-  // (auch in Kazehana) werden so genau wie früher verbraucht. Nach dem Schmuck werden sie außerhalb der Tore wieder
+  // (auch in Vlotho) werden so genau wie früher verbraucht. Nach dem Schmuck werden sie außerhalb der Tore wieder
   // zurückgebaut (oldRoad merkt sich, was vorher dort war), und layRoads legt die neuen, geschwungenen Wege.
   const oldRoad = new Map();
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -753,7 +753,7 @@ function generateWorld() {
     else if ((g === GROUND.PATH || g === GROUND.SAND || g === GROUND.SNOW) && r < 0.12) deco[i] = DECO.PEBBLE;
     else if ((g === GROUND.ASH || g === GROUND.BASALT) && r < 0.16) deco[i] = DECO.CRACK;
   }
-  // seit 13.63: Kazehana größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
+  // seit 13.63: Vlotho größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
   widenVillage(ground, obj, deco, zoneIdx);
   // seit 13.91: neuer Dorfplan (vlothoHouses) – die alten Häuser oben standen nur noch für die Zufallszahlen da
   houses.splice(0, houses.length, ...vlothoHouses(ground, obj, deco));
@@ -806,7 +806,7 @@ function generateWorld() {
     ...TOWN_ROLES.map((id) => townNpc(1, id, VLOTHO_PEOPLE[id])),
     npc('weltentor', 'Weltentor', C + 5.1, C - 9)
   ];
-  // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Kazehana (jede Map mit eigenen Namen),
+  // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
   // damit man Aufträge, Jagden und die Stallmeister-Prüfung überall annehmen und abgeben kann
   const ROLE_TITLE = {
     haendler: ['Händlerin', 'Händler'], schmied: ['Schmied', 'Schmiedin'], waffen: ['Waffenhändler', 'Waffenhändlerin'],
@@ -875,7 +875,7 @@ function generateWorld() {
         const tx = Math.round(wm.cx + Math.cos(ang) * d);
         const ty = Math.round(wm.cy + Math.sin(ang) * d * 0.4);
         if (tx < rx + 8 || ty < ry + 8 || tx >= rx + rw - 8 || ty >= ry + rh - 8) continue;
-        // nicht in der (vergrößerten) Stadt – seit 13.63 auch in Kazehana und den Lagern
+        // nicht in der (vergrößerten) Stadt – seit 13.63 auch in Vlotho und den Lagern
         if (Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) + 3) continue;
         let free = true;
         for (let yy = ty - 1; yy <= ty + 1 && free; yy++) for (let xx = tx - 1; xx <= tx + 1; xx++) {
@@ -1232,7 +1232,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
     const j = L(x, y);
     if (cost[j] > 0.55 && cost[j] < Infinity) cost[j] = 0.55;
   };
-  // 1. Kurze gerade Stücke durch die vier Tore, genau wie die alten Wege (Kazehana mit seinem leichten Schwung)
+  // 1. Kurze gerade Stücke durch die vier Tore, genau wie die alten Wege (Vlotho mit seinem leichten Schwung)
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   DIRS.forEach(([dx, dy], k) => {
     const pts = [];
@@ -1243,7 +1243,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
         const y = Math.floor(cy + dy * s + (dx ? w + wobble : 0));
         if (x < rx + MAP_BORDER || y < ry + MAP_BORDER || x >= rx + rw - MAP_BORDER || y >= ry + rh - MAP_BORDER) continue;
         const i = y * MAP_W + x;
-        // in Kazehana liegen diese Stücke schon (die alten Wege bis zum Tor, generateWorld): nichts ändern
+        // in Vlotho liegen diese Stücke schon (die alten Wege bis zum Tor, generateWorld): nichts ändern
         if (wm.id !== 1) {
           if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
           else {
@@ -1983,7 +1983,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads 
     }
     // Wege: seit 13.91 ein eigenes, geschwungenes Netz je Map (layRoads), vorher vier gerade Wege bis an den Rand
     layRoads(wm, ground, obj, deco, zoneIdx, roads);
-    // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Kazehana)
+    // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Vlotho)
     for (let y = wm.cy - camp; y <= wm.cy + camp; y++) {
       for (let x = wm.cx - camp; x <= wm.cx + camp; x++) {
         if (!isWallTile(x, y, wm.cx, wm.cy, camp)) continue;
@@ -2071,7 +2071,7 @@ function rockSolid(tx, ty) {
   return tx < rx + MAP_BORDER || ty < ry + MAP_BORDER || tx >= rx + rw - MAP_BORDER || ty >= ry + rh - MAP_BORDER;
 }
 
-// Sicher: das Dorf Kazehana, die Städte und die Lager der anderen Maps
+// Sicher: das Dorf Vlotho, die Städte und die Lager der anderen Maps
 const CAMP_HALF = 14; // seit 10.6 (vorher 11) – Städte in Map 2 und 3: sicheres Quadrat um die Mitte (kleine Lager: WORLD_MAPS.camp)
 function inVillage(x, y) {
   const tx = x / TILE;
@@ -2181,7 +2181,7 @@ function moveEntity(e, dx, dy, isMonster) {
 // Zufälliger begehbarer Punkt in einer Zone (in Pixeln).
 // from/to grenzen den Ring ein: 0 = dorfnaher Rand, 1 = äußerer Rand.
 function randomSpotInZone(zone, from = 0, to = 1) {
-  // Gebiete liegen als Ringe um die Mitte ihrer Map (Kazehana: um das Dorf)
+  // Gebiete liegen als Ringe um die Mitte ihrer Map (Vlotho: um das Dorf)
   const wm = WORLD_MAPS.find((m) => m.id === zone.map) || WORLD_MAPS[0];
   const cx = wm.cx;
   const cy = wm.cy;
@@ -2208,7 +2208,7 @@ function randomSpotInZone(zone, from = 0, to = 1) {
 }
 
 // Wiederbeleben: im Lager bzw. in der Stadt der Map, in der man ist (im Dungeon: der Map seines Eingangs),
-// in Kazehana im Dorf
+// in Vlotho im Dorf
 function villageSpawn(p) {
   if (p && game.world && game.world.maps) {
     let wm = mapOfTile(p.x / TILE, p.y / TILE);

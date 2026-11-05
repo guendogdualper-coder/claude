@@ -1,5 +1,5 @@
 // Auktionator und Postmeisterin (seit 13.63): Figuren (2D-Bild, 3D-Aussehen), Plaketten über dem Kopf und ihre Stände.
-// Die Plätze stehen in welt.js (Kazehana, Städte und Lager); was beim Ansprechen passiert, in oberflaeche.js openNpc.
+// Die Plätze stehen in welt.js (Vlotho, Städte und Lager); was beim Ansprechen passiert, in oberflaeche.js openNpc.
 // Wie bei der Bogenmacherin (fernninja.js) hängt sich alles an die vorhandenen Tabellen, drei-*.js bleibt unverändert.
 
 STAND_COLORS.auktion = '#6a1e2a';

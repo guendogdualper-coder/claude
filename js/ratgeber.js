@@ -1,4 +1,4 @@
-// Ratgeberin (seit 13.91): eine Person mitten in Kazehana, die neuen Spielern Fragen beantwortet.
+// Ratgeberin (seit 13.91): eine Person mitten in Vlotho, die neuen Spielern Fragen beantwortet.
 // - Steht am zentralen Platz (RATGEBER_SPOT, Kacheln). Ist die Stelle belegt (z. B. nach einem Umbau der Stadt), sucht
 //   rgPlace beim Weltbau die nächste freie Stelle drumherum (keine Mauer, kein Wasser, Abstand zu Leuten, Ständen,
 //   Schmuck und dem Startplatz). Alles feste Zahlen: Jeder Mitspieler bekommt dieselbe Stelle.
@@ -19,7 +19,7 @@ const RATGEBER = {
   maxHits: 14,          // so viele Treffer zeigt die Suche höchstens
   newbieLevel: 5        // bis zu dieser Stufe gibt es die Hinweise für Neue
 };
-// Standort in Kacheln: rechts neben dem Brunnen am zentralen Platz von Kazehana, schräg über dem Startplatz.
+// Standort in Kacheln: rechts neben dem Brunnen am zentralen Platz von Vlotho, schräg über dem Startplatz.
 // Zum Verschieben nur diese Zahlen ändern – ist die Stelle belegt, nimmt rgPlace die nächste freie.
 // seit 13.97 auf dem freien Platz des neuen Dorfplans (VLOTHO_FREE_SPOT in welt.js, südwestlich des Brunnens)
 const RATGEBER_SPOT = { x: CENTER_X - 3, y: CENTER_Y + 2 };
@@ -30,7 +30,7 @@ const RG_ROLE = {
   lehrmeister: 'Lehrmeister', teleport: 'Wegweiserin', alchemist: 'Alchemist', lager: 'Lagerverwalter', jaegerin: 'Jägerin',
   stallmeister: 'Stallmeister', bogenmacher: 'Bogenmacherin', post: 'Postmeisterin', auktion: 'Auktionator', arena: 'Arenameisterin', pvp: 'Turniermeister'
 };
-// Name der Person mit dieser Rolle in Kazehana (aus der Welt, damit Umbenennungen von selbst stimmen)
+// Name der Person mit dieser Rolle in Vlotho (aus der Welt, damit Umbenennungen von selbst stimmen)
 function rgName(id) {
   const w = game.world;
   const n = w && w.npcs.find((x) => x.id === id && x.name && typeof npcMapId === 'function' && npcMapId(x) === 1);
@@ -517,7 +517,7 @@ ui.closePanels = function () {
 
 // --- Hinweise für Neue -----------------------------------------------------------------------------------------
 if (!SAVE_FIELDS.includes('ratgeber')) SAVE_FIELDS.push('ratgeber');
-const rgWelcomeText = () => `❓ Fragen? Sprich mit ${RATGEBER.name} in der Stadtmitte von Kazehana (blaues „?“ über dem Kopf). Sie erklärt dir, was du am Anfang tun solltest, und beantwortet alle Fragen.`;
+const rgWelcomeText = () => `❓ Fragen? Sprich mit ${RATGEBER.name} in der Stadtmitte von Vlotho (blaues „?“ über dem Kopf). Sie erklärt dir, was du am Anfang tun solltest, und beantwortet alle Fragen.`;
 // einmal je Charakter, nur Stufe 1–5, kurz nach dem Start: ein Hinweis oben in der Mitte (wie eine Einladung, mit
 // „Fragen“ und ×, verschwindet nach 15 Sekunden) und dieselbe Zeile im Reiter System des Chats zum Nachlesen
 function rgWelcome() {
@@ -545,7 +545,7 @@ ui.enterGame = function () {
   return r;
 };
 // Questfenster (Taste L): oben ein Hinweis mit Knopf, solange man neu ist
-const rgQuestHint = () => `Neu hier? ${RATGEBER.name} in der Stadtmitte von Kazehana beantwortet alle Fragen – auch, was du am Anfang tun solltest.`;
+const rgQuestHint = () => `Neu hier? ${RATGEBER.name} in der Stadtmitte von Vlotho beantwortet alle Fragen – auch, was du am Anfang tun solltest.`;
 if (typeof renderQuestWindow === 'function') {
   const _rgRenderQuestWindow = renderQuestWindow;
   renderQuestWindow = function () {
@@ -564,7 +564,7 @@ if (typeof renderQuestWindow === 'function') {
 RG_TXT.askBtn = 'Fragen';
 RG_TXT.close = 'Schließen';
 RG_TXT.helpBtn = `❓ ${RATGEBER.name} fragen`;
-RG_TXT.help = `Steht in der Stadtmitte von Kazehana (blaues „?“ über dem Kopf) und beantwortet Fragen mit Suche – Steuerung, Klassen, Schmied, Pferd, Gilde und mehr.`;
+RG_TXT.help = `Steht in der Stadtmitte von Vlotho (blaues „?“ über dem Kopf) und beantwortet Fragen mit Suche – Steuerung, Klassen, Schmied, Pferd, Gilde und mehr.`;
 // Hilfe (H): Knopf unter dem Wiki-Verweis, öffnet das Fenster direkt
 document.addEventListener('DOMContentLoaded', () => {
   const wiki = document.querySelector('#panelHelp .help-wiki');
@@ -691,11 +691,11 @@ function rgCss() {
   add(RG_TXT.topics, 'Topics');
   add(RG_TXT.askBtn, 'Ask');
   add(RG_TXT.close, 'Close');
-  add(rgWelcomeText().replace(/^❓ /, ''), `Questions? Talk to ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')} in the middle of Kazehana (blue “?” above her head). She explains what to do first and answers all your questions.`);
+  add(rgWelcomeText().replace(/^❓ /, ''), `Questions? Talk to ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')} in the middle of Vlotho (blue “?” above her head). She explains what to do first and answers all your questions.`);
   add(RG_TXT.helpBtn, `❓ Ask ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')}`);
-  add(RG_TXT.help, 'Stands in the middle of Kazehana (blue “?” above her head) and answers questions with a search – controls, classes, blacksmith, horse, guild and more.');
-  add(rgWelcomeText(), `❓ Questions? Talk to ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')} in the middle of Kazehana (blue “?” above her head). She explains what to do first and answers all your questions.`);
-  add(rgQuestHint(), `New here? ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')} in the middle of Kazehana answers all your questions – including what to do first.`);
+  add(RG_TXT.help, 'Stands in the middle of Vlotho (blue “?” above her head) and answers questions with a search – controls, classes, blacksmith, horse, guild and more.');
+  add(rgWelcomeText(), `❓ Questions? Talk to ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')} in the middle of Vlotho (blue “?” above her head). She explains what to do first and answers all your questions.`);
+  add(rgQuestHint(), `New here? ${RATGEBER.name.replace(/^Ratgeberin /, 'Advisor ')} in the middle of Vlotho answers all your questions – including what to do first.`);
   const CAT_EN = {
     start: 'First Steps', sinn: 'Point of the Game', steuerung: 'Controls PC & Mobile', kampf: 'Combat & Skills', klassen: 'Classes & Paths',
     ausruestung: 'Gear & Blacksmith', quests: 'Quests', steine: 'Soulstones', dungeons: 'Dungeons & End Bosses', karten: 'Maps & Travel',

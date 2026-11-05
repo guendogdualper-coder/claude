@@ -8,7 +8,7 @@
 // Eintrag: { c: Kategorie, q: Frage, a: Antwort (HTML oder Funktion, die HTML liefert), k: Stichwörter für die Suche,
 //            p: Vorrang bei gleicher Trefferzahl (optional) }
 // Platzhalter in Fragen und Antworten:
-//   {n:rolle}  Name der Person in Kazehana, z. B. {n:schmied} → „Schmied Doran“ (aus der Welt gelesen, siehe rgName)
+//   {n:rolle}  Name der Person in Vlotho, z. B. {n:schmied} → „Schmied Doran“ (aus der Welt gelesen, siehe rgName)
 //   {k:aktion} Taste dieser Aktion, z. B. {k:inv} → I (beachtet die eigene Tastenbelegung, tasten.js)
 
 const RATGEBER_KATEGORIEN = [
@@ -38,13 +38,13 @@ const RATGEBER_WISSEN = [
   // --- Erste Schritte ---------------------------------------------------------------------------------------
   {
     c: 'start', p: 6, q: 'Ich bin neu – was soll ich als Erstes machen?',
-    a: 'Sprich mit <b>{n:aeltester}</b> in Kazehana (goldenes „!“ über dem Kopf) und nimm die Hauptquest an. Dann geh vor das Tor und jag die ersten Monster. ' +
+    a: 'Sprich mit <b>{n:aeltester}</b> in Vlotho (goldenes „!“ über dem Kopf) und nimm die Hauptquest an. Dann geh vor das Tor und jag die ersten Monster. ' +
       'Der goldene Pfeil an deiner Figur zeigt dir immer den Weg zum nächsten Ziel. Mein Leitfaden „Erste Schritte“ erklärt alles der Reihe nach.',
     k: 'anfang anfangen start starten neu noob anfaenger beginner einstieg erstes zuerst machen tun was soll ich machen wie fange ich an hilfe tutorial'
   },
   {
     c: 'start', p: 3, q: 'Wo bekomme ich die Hauptquest?',
-    a: 'Beim Ältesten: in Kazehana <b>{n:aeltester}</b>, auf den anderen Maps der Lagerälteste. Ein goldenes „!“ heißt neuer Auftrag, ein goldenes „?“ heißt abgeben. ' +
+    a: 'Beim Ältesten: in Vlotho <b>{n:aeltester}</b>, auf den anderen Maps der Lagerälteste. Ein goldenes „!“ heißt neuer Auftrag, ein goldenes „?“ heißt abgeben. ' +
       'Den laufenden Auftrag siehst du oben rechts unter der Karte, alle Quests mit Taste {k:quests}.',
     k: 'hauptquest hauptmission auftrag kapitel aeltester quest mission story geschichte'
   },
@@ -66,7 +66,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'start', q: 'Bin ich in der Stadt sicher?',
-    a: 'Ja. Innerhalb der Stadtmauer von Kazehana und in jeder Stadt und jedem Lager greifen dich Monster nicht an. Sie folgen dir auch nicht durch die Tore.',
+    a: 'Ja. Innerhalb der Stadtmauer von Vlotho und in jeder Stadt und jedem Lager greifen dich Monster nicht an. Sie folgen dir auch nicht durch die Tore.',
     k: 'sicher stadt mauer lager schutz angriff monster folgen tor safe'
   },
   {
@@ -135,7 +135,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'sinn', q: 'Gibt es Tag und Nacht?',
     a: 'Ja, nach der echten Uhrzeit, für alle gleich: Eine Runde dauert 40 Minuten – 25 Minuten Tag, 3 Minuten Dämmerung, 9 Minuten Nacht, 3 Minuten Morgendämmerung. ' +
-      'Nachts kommen Nachtmonster dazu. Nachtjagden gibt es bei den Nachtwanderern auf den anderen Maps, in Kazehana (Map 1) seit 13.88 nicht mehr.',
+      'Nachts kommen Nachtmonster dazu. Nachtjagden gibt es bei den Nachtwanderern auf den anderen Maps, in Vlotho (Map 1) seit 13.88 nicht mehr.',
     k: 'tag nacht dunkel uhrzeit nachtmonster nachtjagd nachtwanderer daemmerung'
   },
 
@@ -530,7 +530,7 @@ const RATGEBER_WISSEN = [
     c: 'karten', p: 3, q: 'Welche Maps gibt es und für welche Stufe?',
     a: () => (typeof WORLD_MAPS !== 'undefined')
       ? '<ul>' + WORLD_MAPS.slice().sort((a, b) => a.minLevel - b.minLevel || a.id - b.id).map((m) => {
-        const town = m.id === 1 ? 'Kazehana' : (ZONES.find((z) => z.map === m.id && z.safe) || { name: '' }).name;
+        const town = m.id === 1 ? 'Vlotho' : (ZONES.find((z) => z.map === m.id && z.safe) || { name: '' }).name;
         return `<li><b>Map ${m.id} · ${m.name}</b> – ${m.levels}${town ? ` (Stadt: ${town})` : ''}</li>`;
       }).join('') + '</ul>'
       : '',
@@ -547,7 +547,7 @@ const RATGEBER_WISSEN = [
     k: 'wegweiserin teleport reisen jagdgebiet schnell gold'
   },
   {
-    c: 'karten', q: 'Wer ist wer in Kazehana?',
+    c: 'karten', q: 'Wer ist wer in Vlotho?',
     a: () => {
       const roles = [['aeltester', 'Hauptquest'], ['haendler', 'Tränke'], ['waffen', 'Waffen'], ['ruestung', 'Rüstung'], ['bogenmacher', 'Bögen, Köcher, Pfeile'],
         ['schmied', 'Aufwerten'], ['lehrmeister', 'Schriftrollen, Zurücksetzen, Weg wechseln'], ['alchemist', 'Materialien'], ['teleport', 'Reisen in die Jagdgebiete'],

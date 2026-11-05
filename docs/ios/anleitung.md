@@ -310,7 +310,7 @@ ohne Transparenz. Lade sie in der Reihenfolge der Nummern hoch:
 3. Frost-Magierin gegen die Spinnenkönigin in der Spinnenhöhle (Boss-Balken)
 4. Schamanin gegen Steinoger im Ödland
 5. Bogen-Ninja bei Nacht im Totenmoor gegen Untote
-6. Stadt Kazehana mit Händlern
+6. Stadt Vlotho mit Händlern
 7. Inventar mit Ausrüstung und Seltenheitsfarben
 
 Alle Bilder stammen aus dem laufenden Spiel (Version 13.78, 3D, Grafik „Hoch“), aufgenommen mit Playwright in genau der
