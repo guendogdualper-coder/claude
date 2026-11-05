@@ -1319,7 +1319,8 @@ function updateMonsters(dt) {
   game.monsters = game.monsters.filter((m) => !(m.dead && !m.respawn));
 }
 
-// --- Diener des Nekromanten (seit 8.5: drei Diener, ab E1 Knochenhunde) -------------------------------
+// --- Diener des Nekromanten (seit 8.5: drei Diener, ab E1 Knochenhunde; seit 13.94 ab H Knochendrachen,
+// ab V Seelenkolosse – deren Angriffe und Bilder in nekro-diener.js) ------------------------------------
 
 // Diener bekommen Zahlen-IDs ab 1e6 (kollidieren nicht mit Monster-IDs in pr.hit), fremde Diener ab 2e6
 let nextAllyId = 1e6;
@@ -1338,7 +1339,7 @@ function allyRiseFx(x, y, kind) {
   addEffect({ type: 'shards3', x, y: y + 8, r: 26, count: 5, color: '#e8e0c8', glow: false, size: 0.7, dur: 1 });
   addEffect({ type: 'smoke3', x, y: y + 8, count: 5, color: '#14281a', size: 0.7, dur: 1 });
   particles(x, y + 6, { count: 14, color: ['#ddd5bb', '#a7e37f'], angle: -Math.PI / 2, spread: 0.6, speed: [60, 140], life: [0.4, 0.7], size: [2, 3.5], shape: 'square', gravity: 200 });
-  if (kind === 'hund') particles(x, y + 4, { count: 8, color: ['#7fe3a0', '#e0ffd0'], angle: -Math.PI / 2, spread: 0.5, speed: [50, 110], life: [0.5, 0.8], size: [2, 3] });
+  if (kind !== 'skelett') particles(x, y + 4, { count: 8, color: ['#7fe3a0', '#e0ffd0'], angle: -Math.PI / 2, spread: 0.5, speed: [50, 110], life: [0.5, 0.8], size: [2, 3] });
 }
 
 // Ein Diener zerfällt sichtbar zu Knochen und Rauch
@@ -1365,10 +1366,13 @@ function allyTierStats(sk, lvl, k) {
   const T = sk.tiers[ti];
   const big = T.alpha && k === 0 ? T.alpha : 1;
   return {
-    kind: T.kind, tier: ti, lvl, r: T.kind === 'hund' ? 12 : 10, maxHp: Math.round(s.maxHp * T.hp * buffScale(lvl) * big),
+    kind: T.kind, tier: ti, lvl, r: T.r || (T.kind === 'hund' ? 12 : 10), maxHp: Math.round(s.maxHp * T.hp * buffScale(lvl) * big),
     atkMul: T.atk * big, def: Math.round(s.def * T.def), every: T.every, windupMax: T.windup, speed: T.speed,
     slow: T.slow || 0, burst: T.burst || 0, pounce: !!T.pounce, scale: T.scale * (big > 1 ? 1.35 : 1), alpha: big > 1,
-    name: big > 1 ? 'Alpha' : T.name
+    name: big > 1 ? 'Alpha' : T.name,
+    // seit 13.94: Drachen (Fernkampf aus der Luft) und Kolosse (Faust, Bodenstampfer); hits zählt die Angriffe
+    range: T.range || 0, hold: T.hold || 0, breath: T.breath || null, splash: T.splash || null, stomp: T.stomp || null,
+    fly: T.kind === 'drache', hits: 0, altAttack: false
   };
 }
 
@@ -1398,6 +1402,8 @@ function allyStrike(a, t, mul) {
   a.attackAnim = 0.25;
   a.swing = 0.25;
   const bc = bodyCenter(t);
+  // seit 13.94: Seelenkoloss mit Faustschlag und Bodenstampfer (nekro-diener.js)
+  if (a.kind === 'koloss') return colossusStrike(a, t);
   if (a.kind === 'hund') addEffect({ type: 'bite3', x: bc.x, y: bc.y, dur: 0.28, color: '#a7e37f', size: a.alpha ? 1.3 : 0.9 });
   else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: a.facing < 0 ? -0.75 : 0.75, len: 30, w: 5, dur: 0.22, color: a.ghost ? '#bff0ff' : '#cfd8b0' });
   hitMonster(t, mul, { atk: allyAtk(a), ally: true, source: t.isStone ? game.player : a, slow: a.slow ? { amount: a.slow, duration: 1.5 } : null });
@@ -1504,9 +1510,16 @@ function updateAllies(dt) {
         a.windup -= dt;
         if (a.windup <= 0) {
           a.windup = 0;
-          if (d <= reach * 1.3 + 10) allyStrike(a, t, 1);
+          // seit 13.94: Drachen speien auf Abstand (Feuerball oder Feueratem, nekro-diener.js)
+          if (a.range) {
+            if (d <= a.range + t.r + 30) dragonShoot(a, t);
+            else a.attackAnim = a.swing = 0.25;
+          } else if (d <= reach * 1.3 + 10) allyStrike(a, t, 1);
           else a.attackAnim = a.swing = 0.25;
         }
+      } else if (a.range) {
+        // seit 13.94: Drachen halten Abstand zum Ziel, statt sich anzuschmiegen
+        dragonKeepRange(a, t, d, dt);
       } else if (a.pounce && a.pounceCd <= 0 && d >= 60 && d <= 130) {
         // Ansprung bis kurz vor das Ziel
         const ux = (t.x - a.x) / d;
@@ -1522,6 +1535,12 @@ function updateAllies(dt) {
       } else if (a.cd <= 0) {
         a.windup = a.windupMax;
         a.cd = a.every;
+        // seit 13.94: jeder dritte Schlag des Kolosses ist ein Bodenstampfer (holt länger aus)
+        if (a.stomp) {
+          a.hits++;
+          a.altAttack = a.hits % a.stomp.every === 0;
+          if (a.altAttack) a.windup *= 1.4;
+        }
       }
     } else {
       // folgen: jeder Diener hält seinen Platz neben dem Spieler (schnell genug für das Pferd)

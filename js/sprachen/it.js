@@ -2310,5 +2310,16 @@
 "für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "cambiare per {0} oro? I tuoi livelli di abilità restano.",
 "ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "è ora il tuo elemento – le tue abilità mantengono i loro livelli.",
 "ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "è ora il tuo elemento – le tue abilità riprendono i livelli precedenti di questo elemento.",
-"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Scegli Fuoco, Gelo, Fulmine o Terra. I tuoi livelli di abilità restano durante il cambio (anche E/H/L/V), i buff del vecchio elemento terminano. Le pergamene nella borsa diventano pergamene degli stessi posti del nuovo elemento."
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Scegli Fuoco, Gelo, Fulmine o Terra. I tuoi livelli di abilità restano durante il cambio (anche E/H/L/V), i buff del vecchio elemento terminano. Le pergamene nella borsa diventano pergamene degli stessi posti del nuovo elemento.",
+"Knochendrache": "Drago d'ossa",
+"Großer Knochendrache": "Grande drago d'ossa",
+"Seelenkoloss": "Colosso d'anime",
+"Feueratem": "Soffio di fuoco",
+"Faustschlag": "Pugno",
+"Splitterschaden": "Danni ad area",
+"Bodenstampfer": "Pestone",
+"{0} im Kegel (jeder {1}. Angriff)": "{0} a cono (ogni {1} attacchi)",
+"{0} neben dem Ziel": "{0} accanto al bersaglio",
+"{0} rundum (jeder {1}. Schlag)": "{0} tutto intorno (ogni {1} colpi)",
+"fliegt, Fernkampf": "vola, a distanza",
 };

@@ -3460,8 +3460,11 @@ function monsterSprite(typeId, frame) {
 }
 
 // Höhe einer Figur über ihren Füßen, für Namen und Lebensbalken
+// seit 13.94: Höhe der fliegenden Knochendrachen (samt Flughöhe) und der Seelenkolosse
+const ALLY_FIG_H = { drache: 50, koloss: 66 };
 function figureHeight(e) {
   if (e.isStone) return stoneHeight(e);
+  if ((e.ally || e.remoteAlly) && ALLY_FIG_H[e.kind]) return ALLY_FIG_H[e.kind] * (e.scale || 1);
   if (e.typeId && MONSTER_ART[e.typeId]) return MONSTER_ART[e.typeId].h;
   return 47;
 }

@@ -2276,5 +2276,16 @@
 "für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "wisselen voor {0} goud? Je vaardigheidsniveaus blijven behouden.",
 "ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "is nu je element – je vaardigheden houden hun niveaus.",
 "ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "is nu je element – je vaardigheden krijgen hun eerdere niveaus van dit element terug.",
-"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Kies Vuur, Vorst, Bliksem of Aarde. Je vaardigheidsniveaus blijven bij het wisselen behouden (ook E/H/L/V), de buffs van je oude element eindigen. Rollen in je tas worden rollen van dezelfde plaatsen in het nieuwe element."
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Kies Vuur, Vorst, Bliksem of Aarde. Je vaardigheidsniveaus blijven bij het wisselen behouden (ook E/H/L/V), de buffs van je oude element eindigen. Rollen in je tas worden rollen van dezelfde plaatsen in het nieuwe element.",
+"Knochendrache": "Botdraak",
+"Großer Knochendrache": "Grote botdraak",
+"Seelenkoloss": "Zielenkolos",
+"Feueratem": "Vuuradem",
+"Faustschlag": "Vuistslag",
+"Splitterschaden": "Spatschade",
+"Bodenstampfer": "Grondstamp",
+"{0} im Kegel (jeder {1}. Angriff)": "{0} in een kegel (elke {1} aanvallen)",
+"{0} neben dem Ziel": "{0} naast het doel",
+"{0} rundum (jeder {1}. Schlag)": "{0} rondom (elke {1} slagen)",
+"fliegt, Fernkampf": "vliegt, afstand",
 };

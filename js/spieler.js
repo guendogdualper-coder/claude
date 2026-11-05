@@ -731,6 +731,8 @@ function upgradeSkill(i, type = 'point') {
       ui.banner(`${next.name}: ${skillRankName(sk, next.from)}`, `${skillRankName(sk, lvl)} wird zu ${skillRankName(sk, next.from)} (${skillLevelText(next.from)})`);
       vfxLevelUp(p);
       rankCastFx(p, skillRank(next.from), next.color);
+      // seit 13.94: auch beim Aufstieg nach H, L und V werden laufende Diener umgebaut (Hunde werden zu Drachen)
+      if (sk.type === 'summon') convertAllies(sk, p.skillLevels[i]);
     }
   }
   ui.log(`${skillRankName(sk, p.skillLevels[i])} ist jetzt auf Stufe ${skillLevelText(p.skillLevels[i])}.`, 'info');

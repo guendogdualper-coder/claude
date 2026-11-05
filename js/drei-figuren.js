@@ -4233,12 +4233,279 @@ function boneHound3(b, al) {
   return Object.assign(res, { family: 'beast', style: 'bite', blob: 0.5, scale: 1.0 });
 }
 
-// Modellschlüssel der Diener ohne neue Zeichenketten je Bild: Skelett, Knochenhund, Seelenhund, Alpha
-const ALLY_KEYS3 = ['ally:skelett', 'ally:hund', 'ally:hund:soul', 'ally:hund:soul:alpha'];
-const allyKeyIndex3 = (al) => (al.kind !== 'hund' ? 0 : al.tier >= 3 ? (al.alpha ? 3 : 2) : 1);
-const ALLY_LOOK3 = [null, { tier: 1, alpha: false }, { tier: 3, alpha: false }, { tier: 4, alpha: true }];
+// Knochendrache (seit 13.94, Totenbeschwörung ab Heroisch): kleiner Drache aus Knochen – Schädel mit langer
+// Schnauze, Zähnen und gebogenen dunklen Hörnern, Wirbelsäule mit Zacken, offener Brustkorb mit grüner Seelenflamme
+// und violettem Schein, zerfetzte Hautflügel mit Fingerknochen, dünne Beine mit Krallen, Schwanz mit Knochenklinge.
+// big (Legendär): violett glühende Rückenzacken und ein zweites Hornpaar. Fliegt (dragonFly3).
+const DRAGON3_BONE = '#e2dac2';
+const DRAGON3_SHADE = '#b8b096';
+const DRAGON3_DARK = '#2a2630';
+function dragonMembraneGeo(mirror) {
+  // rechter Flügel gespiegelt mit umgedrehtem Umlauf (Bake3 dreht bei negativer Größe die Dreiecke nicht um,
+  // sonst sähe man von oben die dunkle Unterseite)
+  if (mirror) return geo3('dragonmem1m', () => {
+    const g = dragonMembraneGeo(false).clone();
+    const out = g.index ? g.toNonIndexed() : g;
+    out.scale(-1, 1, 1);
+    for (const k in out.attributes) {
+      const A = out.attributes[k];
+      const n = A.itemSize;
+      for (let i = 0; i + 2 < A.count; i += 3) {
+        for (let c = 0; c < n; c++) {
+          const t = A.array[(i + 1) * n + c];
+          A.array[(i + 1) * n + c] = A.array[(i + 2) * n + c];
+          A.array[(i + 2) * n + c] = t;
+        }
+      }
+    }
+    return out;
+  });
+  return geo3('dragonmem1', () => {
+    const V = (x, y) => new THREE.Vector2(x, y);
+    const s = new THREE.Shape([V(0, 0.06), V(0.3, 0.13), V(0.56, 0.08), V(0.92, -0.06), V(0.8, -0.11), V(0.84, -0.18), V(0.78, -0.33),
+      V(0.66, -0.27), V(0.6, -0.37), V(0.46, -0.46), V(0.36, -0.35), V(0.27, -0.43), V(0.15, -0.3), V(0.06, -0.26), V(0, -0.18)]);
+    // ausgerissene Löcher in der Haut
+    s.holes.push(new THREE.Path([V(0.6, -0.1), V(0.56, -0.15), V(0.62, -0.2), V(0.69, -0.15)]));
+    s.holes.push(new THREE.Path([V(0.34, -0.2), V(0.3, -0.26), V(0.38, -0.29)]));
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.012, bevelEnabled: false, curveSegments: 1 });
+    g.rotateX(Math.PI / 2);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+function boneDragon3(b, big) {
+  const A = adder(b);
+  const bone = DRAGON3_BONE;
+  const shade = DRAGON3_SHADE;
+  const bodyY = 0.5;
+  const len = 0.4;
+  const hp = [0, bodyY + 0.36, len + 0.42];
+  const rig = rigOf([
+    [[0, 0, 0], -1], [[0, bodyY, 0], 0], [hp, 1],
+    [[0.11, bodyY - 0.08, len * 0.55], 1], [[-0.11, bodyY - 0.08, len * 0.55], 1], [[0.12, bodyY - 0.06, -len * 0.5], 1], [[-0.12, bodyY - 0.06, -len * 0.5], 1],
+    [[0, bodyY + 0.02, -len * 0.85], 1], [[0.1, bodyY + 0.13, len * 0.3], 1], [[-0.1, bodyY + 0.13, len * 0.3], 1], [[0, bodyY + 0.1, len * 0.75], 1],
+    [[0, hp[1] - 0.05, hp[2] + 0.02], 2]
+  ]);
+  // dunkler Kern im Brustkorb, darin die Seelenflamme (grün, violetter Schein)
+  A(ball(12), DRAGON3_DARK, { bone: BQ.body, p: [0, bodyY - 0.01, 0.02], s: [0.12, 0.11, 0.34] });
+  A(ball(10), '#7fe3a0', { bone: BQ.body, p: [0, bodyY - 0.01, len * 0.32], s: [0.085, 0.085, 0.1], mat: 'glow' });
+  A(ball(8), '#e0ffe8', { bone: BQ.body, p: [0, bodyY - 0.01, len * 0.36], s: [0.045, 0.045, 0.05], mat: 'glow' });
+  A(ball(10), '#8a5ae0', { bone: BQ.body, p: [0, bodyY - 0.01, len * 0.3], s: [0.17, 0.16, 0.2], mat: 'aura' });
+  // Wirbelsäule mit Zacken (Legendär: violett glühend)
+  for (let k = 0; k < 8; k++) {
+    const z = len * (0.95 - k * 0.27);
+    A(ball(8), k % 2 ? shade : bone, { bone: BQ.body, p: [0, bodyY + 0.15 - Math.abs(k - 3) * 0.006, z], s: [0.045, 0.04, 0.05] });
+    A(horn3(big ? 0.1 : 0.08, 0.022, 5), big ? '#c58cff' : bone, { bone: BQ.body, p: [0, bodyY + 0.17, z], r: [-0.55, 0, 0], mat: big ? 'glow' : 'lit', noShadow: true });
+  }
+  // offener Brustkorb: Rippen als Ringe mit Lücke am Bauch, Brustbein, Becken, Schulterblätter
+  for (let k = 0; k < 5; k++) {
+    const rr = 0.165 - Math.abs(k - 1.5) * 0.014;
+    A(torus3(+rr.toFixed(3), 0.016, Math.PI * 1.6, 3, 14), k % 2 ? shade : bone, { bone: BQ.body, p: [0, bodyY, len * (0.58 - k * 0.22)], r: [0, 0, -Math.PI * 0.3], s: [1, 1.05, 1], noShadow: true });
+  }
+  A(roundBox(0.035, 0.028, len * 1.1, 0.012), shade, { bone: BQ.body, p: [0, bodyY - 0.165, len * 0.2] });
+  A(ball(10), shade, { bone: BQ.body, p: [0, bodyY + 0.03, -len * 0.72], s: [0.12, 0.07, 0.1] });
+  for (const sx of [-1, 1]) A(roundBox(0.1, 0.02, 0.14, 0.01), bone, { bone: BQ.body, p: [sx * 0.09, bodyY + 0.12, len * 0.35], r: [0.2, 0, sx * 0.5] });
+  // Hals aus Wirbeln
+  for (let k = 0; k < 4; k++) {
+    const u = (k + 0.5) / 4;
+    const p = [0, bodyY + 0.12 + (hp[1] - 0.08 - bodyY - 0.12) * u, len * 0.75 + (hp[2] - 0.16 - len * 0.75) * u];
+    A(ball(8), k % 2 ? shade : bone, { bone: BQ.neck, p, s: [0.05 - k * 0.003, 0.045, 0.05] });
+    A(horn3(0.06, 0.016, 4), bone, { bone: BQ.neck, p: [0, p[1] + 0.035, p[2]], r: [-0.6, 0, 0], noShadow: true });
+  }
+  // Schädel: Hirnschale, lange Schnauze, Nasenlöcher, Augenhöhlen mit grünem Glühen, Zähne, Hörner
+  const hy = hp[1];
+  const hz = hp[2];
+  A(ball(12), bone, { bone: BQ.head, p: [0, hy + 0.02, hz - 0.03], s: [0.11, 0.1, 0.13], top: '#f0e8d4', topK: 0.4 });
+  A(roundBox(0.12, 0.07, 0.24, 0.03), bone, { bone: BQ.head, p: [0, hy - 0.01, hz + 0.15], r: [0.1, 0, 0], top: '#f0e8d4', topK: 0.4 });
+  A(roundBox(0.03, 0.02, 0.18, 0.01), shade, { bone: BQ.head, p: [0, hy + 0.03, hz + 0.13], r: [0.12, 0, 0] });
+  for (const sx of [-1, 1]) {
+    A(ball(8), '#14100c', { bone: BQ.head, p: [sx * 0.025, hy + 0.01, hz + 0.27], s: [0.014, 0.012, 0.01], mat: 'face' });
+    A(ball(10), '#14100c', { bone: BQ.head, p: [sx * 0.07, hy + 0.035, hz + 0.05], s: [0.042, 0.036, 0.034], mat: 'face' });
+    A(ball(10), '#a7ffcf', { bone: BQ.head, p: [sx * 0.08, hy + 0.035, hz + 0.07], s: [0.024, 0.021, 0.014], mat: 'glow' });
+    A(roundBox(0.06, 0.018, 0.05, 0.008), shade, { bone: BQ.head, p: [sx * 0.07, hy + 0.075, hz + 0.05], r: [0, 0, sx * 0.3] });
+    for (let k = 0; k < 4; k++) A(horn3(0.035, 0.01, 4), '#f4eedc', { bone: BQ.head, p: [sx * 0.05, hy - 0.045, hz + 0.08 + k * 0.045], r: [Math.PI, 0, 0], noShadow: true });
+    A(tube3([[sx * 0.06, hy + 0.08, hz - 0.04], [sx * 0.1, hy + 0.15, hz - 0.13], [sx * 0.12, hy + 0.17, hz - 0.26], [sx * 0.1, hy + 0.13, hz - 0.36]], 0.035, 0.005), '#3a3440', { bone: BQ.head, shine: 0.6 });
+    if (big) A(tube3([[sx * 0.09, hy + 0.04, hz - 0.08], [sx * 0.16, hy + 0.06, hz - 0.16], [sx * 0.19, hy + 0.04, hz - 0.26]], 0.025, 0.004), '#3a3440', { bone: BQ.head, shine: 0.6 });
+    // Unterkiefer mit Zähnen (eigenes Glied, geht beim Speien auf)
+    for (let k = 0; k < 3; k++) A(horn3(0.03, 0.009, 4), '#f4eedc', { bone: 11, p: [sx * 0.04, hy - 0.07, hz + 0.1 + k * 0.05], noShadow: true });
+  }
+  A(roundBox(0.1, 0.03, 0.22, 0.012), shade, { bone: 11, p: [0, hy - 0.08, hz + 0.13] });
+  // Flügel: Armknochen bis zum Handgelenk, drei Fingerknochen, zerfetzte Haut (oben heller)
+  for (const [sx, wb] of [[1, BQ.wingL], [-1, BQ.wingR]]) {
+    const y0 = bodyY + 0.135;
+    const z0 = len * 0.3 - 0.06;
+    const wp = (x, z) => [sx * (0.1 + x), y0 + 0.01, z0 + z];
+    A(dragonMembraneGeo(sx < 0), '#3e3248', { bone: wb, p: [sx * 0.1, y0, z0], top: '#6a5878', topK: 0.6, noShadow: true });
+    limbBetween(A, wp(0, 0.06), wp(0.3, 0.13), 0.03, 0.024, bone, { bone: wb });
+    limbBetween(A, wp(0.3, 0.13), wp(0.56, 0.08), 0.024, 0.018, bone, { bone: wb });
+    A(ball(8), shade, { bone: wb, p: wp(0.3, 0.13), s: 0.032 });
+    A(ball(8), shade, { bone: wb, p: wp(0.56, 0.08), s: 0.028 });
+    for (const [x, z] of [[0.92, -0.06], [0.78, -0.33], [0.46, -0.46]]) limbBetween(A, wp(0.56, 0.08), wp(x, z), 0.015, 0.007, bone, { bone: wb, noShadow: true });
+    pointAt3(A, horn3(0.07, 0.016, 5), '#f0e8d4', wp(0.56, 0.08), [sx * 0.2, 0.3, 1], { bone: wb, noShadow: true });
+  }
+  // Beine mit Krallen (hängen im Flug nach hinten)
+  for (const [lb, sx, front] of [[BQ.legFL, 1, 1], [BQ.legFR, -1, 1], [BQ.legBL, 1, 0], [BQ.legBR, -1, 0]]) {
+    const z = front ? len * 0.55 : -len * 0.5;
+    const top = [sx * (front ? 0.11 : 0.12), bodyY - (front ? 0.08 : 0.06), z];
+    const knee = [sx * 0.14, bodyY - 0.2, z + (front ? -0.05 : 0.12)];
+    const foot = [sx * 0.13, bodyY - (front ? 0.3 : 0.34), z + (front ? 0.06 : -0.06)];
+    if (!front) A(ball(8), shade, { bone: lb, p: top, s: [0.05, 0.06, 0.07] });
+    limbBetween(A, top, knee, front ? 0.022 : 0.03, 0.02, bone, { bone: lb });
+    limbBetween(A, knee, foot, 0.02, 0.015, shade, { bone: lb });
+    for (const dx of [-0.025, 0, 0.025]) pointAt3(A, horn3(0.045, 0.01, 4), '#f4eedc', [foot[0] + dx, foot[1], foot[2]], [dx * 4, -0.5, 1], { bone: lb, noShadow: true });
+  }
+  // Schwanz aus Wirbeln mit Knochenklinge
+  const tail = [[0, bodyY + 0.02, -len * 0.9], [0, bodyY - 0.01, -len - 0.12], [0, bodyY - 0.04, -len - 0.32], [0, bodyY, -len - 0.5], [0, bodyY + 0.07, -len - 0.64]];
+  for (let k = 0; k < 9; k++) {
+    const u = k / 8;
+    const i = Math.min(3, Math.floor(u * 4));
+    const f = u * 4 - i;
+    const p = [0, tail[i][1] + (tail[i + 1][1] - tail[i][1]) * f, tail[i][2] + (tail[i + 1][2] - tail[i][2]) * f];
+    A(ball(8), k % 2 ? shade : bone, { bone: BQ.tail, p, s: [0.04 - k * 0.003, 0.035 - k * 0.0025, 0.045] });
+    if (k % 2 === 0 && k < 8) A(horn3(0.05, 0.014, 4), big ? '#c58cff' : bone, { bone: BQ.tail, p: [0, p[1] + 0.03, p[2]], r: [-0.7, 0, 0], mat: big ? 'glow' : 'lit', noShadow: true });
+  }
+  pointAt3(A, horn3(0.16, 0.05, 4), bone, tail[4], [0, 0.35, -1], { bone: BQ.tail, s: [1, 1, 0.35], shine: 0.4 });
+  return { rig, height: 1.05, family: 'beast', bodyY, jaw: true, len, bw: 1, hp, legLen: 0.3, style: 'breath', blob: 0.45, scale: 0.64, fly: true };
+}
+
+// Seelenkoloss (seit 13.94, Totenbeschwörung Vollendet): eigener Entwurf – massiger Riese aus schwarzem Obsidian
+// mit Knochen als Panzer: Schädelhelm mit dunklen gebogenen Hörnern und grün glühenden Augen, breite Schultern mit
+// Knochenplatten und Zacken, Rippen vor der Brust und darin der grüne Seelenkern, glühende Risse im Obsidian,
+// lange Arme mit riesigen Fäusten, kurze Säulenbeine. Etwa 1,2-mal so groß wie die Spielerfigur.
+function soulColossus3(b) {
+  const A = adder(b);
+  const obs = '#272325';
+  const obsHi = '#4c4648';
+  const bone = '#e2dac2';
+  const shade = '#b8b096';
+  const glow = '#7fe3a0';
+  const hipY = 0.82;
+  const chestY = 1.12;
+  const neckY = 1.6;
+  const shY = 1.5;
+  const shX = 0.48;
+  const armLen = 0.62;
+  const hipX = 0.19;
+  const hc = [0, 1.74, 0.1];
+  const rig = rigOf([
+    [[0, 0, 0], -1], [[0, hipY, 0], 0], [[0, chestY, 0], 1], [[0, neckY, 0], 2],
+    [[shX, shY, 0], 2], [[-shX, shY, 0], 2], [[shX + 0.06, shY - armLen, 0.04], 4], [[-shX - 0.06, shY - armLen, 0.04], 5],
+    [[hipX, hipY, 0], 1], [[-hipX, hipY, 0], 1], [[0, shY, -0.25], 2], [[0, hipY, -0.25], 1],
+    [[0.15, shY, -0.25], 2], [[-0.15, shY, -0.25], 2]
+  ]);
+  const ob = (x) => Object.assign({ top: obsHi, topK: 0.45, shine: 0.7, shade: 0.2 }, x);
+  const crack = (bn, p, r, h) => A(box3(), glow, { bone: bn, p, r, s: [0.024, h, 0.02], mat: 'glow', noShadow: true });
+  // Beine: Obsidiansäulen mit Knochen an Knie und Schienbein, breite Füße mit Knochenkrallen
+  for (const [sx, lb] of [[1, BH.legL], [-1, BH.legR]]) {
+    const top = [sx * hipX, hipY + 0.05, 0];
+    const knee = [sx * hipX * 1.05, 0.45, 0.03];
+    const ankle = [sx * hipX, 0.12, 0];
+    limbBetween(A, top, knee, 0.15, 0.12, obs, ob({ bone: lb }));
+    limbBetween(A, knee, ankle, 0.12, 0.11, obs, ob({ bone: lb }));
+    A(ball(10), bone, { bone: lb, p: [knee[0], knee[1], 0.13], s: [0.09, 0.09, 0.06], top: '#f0e8d4', topK: 0.4 });
+    A(roundBox(0.1, 0.24, 0.04, 0.015), bone, { bone: lb, p: [sx * hipX, 0.28, 0.115], r: [-0.05, 0, 0] });
+    A(roundBox(0.25, 0.12, 0.34, 0.05), obs, ob({ bone: lb, p: [sx * hipX, 0.06, 0.06] }));
+    for (const dx of [-0.07, 0, 0.07]) pointAt3(A, horn3(0.09, 0.03, 5), bone, [sx * hipX + dx, 0.05, 0.22], [0, -0.25, 1], { bone: lb, noShadow: true });
+    crack(lb, [sx * (hipX + 0.1), 0.64, 0.09], [0, 0, sx * 0.4], 0.16);
+  }
+  // Becken, Leib, Schulterwulst, Buckel
+  A(ball(12), obs, ob({ bone: BH.hips, p: [0, hipY + 0.02, 0], s: [0.3, 0.17, 0.23] }));
+  A(roundBox(0.2, 0.08, 0.06, 0.02), bone, { bone: BH.hips, p: [0, hipY - 0.04, 0.2], r: [0.2, 0, 0] });
+  A(ball(16), obs, ob({ bone: BH.chest, p: [0, chestY + 0.14, 0], s: [0.42, 0.38, 0.3] }));
+  A(ball(12), obs, ob({ bone: BH.chest, p: [0, hipY + 0.16, 0.01], s: [0.29, 0.2, 0.22] }));
+  A(ball(14), obs, ob({ bone: BH.chest, p: [0, shY - 0.05, -0.03], s: [0.5, 0.17, 0.28] }));
+  A(ball(12), obs, ob({ bone: BH.chest, p: [0, chestY + 0.24, -0.15], s: [0.34, 0.3, 0.2] }));
+  // Wirbelsäule mit Zacken auf dem Rücken
+  for (let k = 0; k < 4; k++) {
+    A(ball(8), shade, { bone: BH.chest, p: [0, chestY - 0.05 + k * 0.13, -0.3 + Math.abs(k - 2) * 0.02], s: [0.06, 0.05, 0.05] });
+    A(horn3(0.16 - k * 0.015, 0.04, 5), bone, { bone: BH.chest, p: [0, chestY - 0.03 + k * 0.13, -0.33], r: [-1.0, 0, 0], noShadow: true });
+  }
+  // Rippen vor der Brust, Brustbein, darin der grüne Seelenkern
+  // je Seite ein Rippenbogen vom Rücken um die Flanke bis kurz vor das Brustbein, nach vorn abfallend
+  for (let k = 0; k < 4; k++) {
+    for (const a0 of [-Math.PI / 2 + 0.3, Math.PI / 2 + 0.16]) {
+      A(torus3(0.38, 0.022, Math.PI - 0.46, 3, 12), k % 2 ? shade : bone, { bone: BH.chest, p: [0, chestY + 0.34 - k * 0.09, 0.0], r: [Math.PI / 2 + 0.28, 0, a0], s: [1.13 - k * 0.04, 0.86 - k * 0.02, 1] });
+    }
+  }
+  A(roundBox(0.06, 0.3, 0.04, 0.015), bone, { bone: BH.chest, p: [0, chestY + 0.17, 0.335], r: [0.1, 0, 0] });
+  A(ball(12), glow, { bone: BH.chest, p: [0, chestY + 0.17, 0.27], s: [0.11, 0.11, 0.08], mat: 'glow' });
+  A(ball(8), '#e0ffe8', { bone: BH.chest, p: [0, chestY + 0.17, 0.33], s: [0.05, 0.05, 0.03], mat: 'glow' });
+  A(ball(10), '#5ad890', { bone: BH.chest, p: [0, chestY + 0.17, 0.28], s: [0.22, 0.22, 0.13], mat: 'aura' });
+  // glühende Risse im Obsidian
+  crack(BH.chest, [-0.24, chestY + 0.02, 0.22], [0.2, 0, 0.5], 0.2);
+  crack(BH.chest, [0.27, chestY + 0.26, 0.17], [0.3, 0, -0.7], 0.18);
+  crack(BH.chest, [0.16, hipY + 0.13, 0.2], [0.2, 0, 0.9], 0.12);
+  crack(BH.chest, [-0.12, chestY + 0.3, -0.28], [-0.2, 0, 0.6], 0.2);
+  // Hals
+  A(cyl3(0.12, 0.15, 0.14, 10), obs, ob({ bone: BH.chest, p: [0, neckY - 0.04, 0.03] }));
+  // Schultern: Knochenplatten mit Zacken; Arme aus Obsidian mit Knochenschienen; riesige Fäuste
+  for (const [sx, ab, hb] of [[1, BH.armL, BH.handL], [-1, BH.armR, BH.handR]]) {
+    A(cap3(0.2, Math.PI * 0.5, 0, Math.PI * 2, 12, 5), bone, { bone: ab, p: [sx * (shX + 0.02), shY + 0.06, 0], s: [0.95, 0.5, 0.9], r: [0, 0, -sx * 0.35], top: '#f0e8d4', topK: 0.4 });
+    A(torus3(0.2, 0.025, Math.PI * 2, 3, 16), shade, { bone: ab, p: [sx * (shX + 0.02), shY + 0.06, 0], r: [Math.PI / 2, -sx * 0.35, 0], s: [0.95, 0.9, 1] });
+    for (let k = 0; k < 3; k++) A(horn3(0.22 - k * 0.04, 0.05, 5), k === 1 ? shade : bone, { bone: ab, p: [sx * (shX + 0.04 + k * 0.05), shY + 0.16 - k * 0.03, -0.08 + k * 0.08], r: [-0.25, 0, -sx * (0.25 + k * 0.3)], noShadow: true });
+    const sh = [sx * shX, shY, 0];
+    const el = [sx * (shX + 0.04), shY - 0.32, 0.02];
+    const wr = [sx * (shX + 0.06), shY - armLen + 0.06, 0.04];
+    limbBetween(A, sh, el, 0.14, 0.12, obs, ob({ bone: ab }));
+    A(ball(10), bone, { bone: ab, p: [el[0] + sx * 0.02, el[1], el[2] - 0.08], s: [0.08, 0.08, 0.07] });
+    limbBetween(A, el, wr, 0.12, 0.15, obs, ob({ bone: ab }));
+    A(roundBox(0.06, 0.24, 0.16, 0.02), bone, { bone: ab, p: [sx * (shX + 0.17), shY - 0.46, 0.04], r: [0, 0, -sx * 0.05] });
+    crack(ab, [sx * (shX + 0.1), shY - 0.15, 0.1], [0.3, 0, sx * 0.4], 0.14);
+    const hand = [sx * (shX + 0.06), shY - armLen - 0.05, 0.06];
+    A(roundBox(0.25, 0.23, 0.27, 0.07), obs, ob({ bone: hb, p: hand }));
+    for (let k = 0; k < 4; k++) A(ball(8), bone, { bone: hb, p: [hand[0] - 0.08 + k * 0.055, hand[1] - 0.02, hand[2] + 0.13], s: [0.034, 0.04, 0.03] });
+    crack(hb, [hand[0] + sx * 0.12, hand[1] + 0.02, hand[2]], [0, 0, 0.3], 0.12);
+  }
+  // Kopf: Obsidian unter einem Schädelhelm mit tiefen Augenhöhlen, grünen Augen, Zähnen und gebogenen Hörnern
+  const hy = hc[1];
+  const hz = hc[2];
+  A(ball(12), obs, ob({ bone: BH.head, p: hc, s: [0.15, 0.15, 0.15] }));
+  A(ball(14), bone, { bone: BH.head, p: [0, hy + 0.04, hz + 0.01], s: [0.18, 0.15, 0.19], top: '#f0e8d4', topK: 0.45 });
+  A(roundBox(0.3, 0.06, 0.08, 0.025), bone, { bone: BH.head, p: [0, hy + 0.03, hz + 0.16], r: [0.15, 0, 0] });
+  A(roundBox(0.2, 0.1, 0.12, 0.035), bone, { bone: BH.head, p: [0, hy - 0.07, hz + 0.13] });
+  A(ball(8), '#14100c', { bone: BH.head, p: [0, hy - 0.04, hz + 0.2], s: [0.025, 0.02, 0.012], mat: 'face' });
+  for (let k = -2; k <= 2; k++) A(roundBox(0.028, 0.045, 0.02, 0.008), '#f4eedc', { bone: BH.head, p: [k * 0.035, hy - 0.125, hz + 0.18 - Math.abs(k) * 0.01] });
+  for (const sx of [-1, 1]) {
+    A(ball(10), '#14100c', { bone: BH.head, p: [sx * 0.065, hy - 0.005, hz + 0.16], s: [0.045, 0.038, 0.03], mat: 'face' });
+    A(ball(10), glow, { bone: BH.head, p: [sx * 0.065, hy - 0.005, hz + 0.18], s: [0.026, 0.022, 0.014], mat: 'glow' });
+    A(ball(8), bone, { bone: BH.head, p: [sx * 0.14, hy + 0.07, hz - 0.01], s: [0.06, 0.05, 0.06] });
+    A(tube3([[sx * 0.14, hy + 0.08, hz], [sx * 0.29, hy + 0.12, hz - 0.05], [sx * 0.39, hy + 0.25, hz - 0.01], [sx * 0.36, hy + 0.39, hz + 0.09]], 0.06, 0.008), '#2a2630', { bone: BH.head, shine: 0.7, top: '#4a4458', topK: 0.4 });
+  }
+  return { rig, height: 2.1, family: 'human', shY, hipY, shX, hc, hr: 0.17, style: 'slam', hunch: 0.1, blob: 0.75, scale: 1 };
+}
+
+// Flug der Knochendrachen (seit 13.94): schweben über dem Boden (eigener Knochen; Ring und Schatten bleiben unten),
+// schlagen mit den Flügeln, legen die Beine an, wiegen sich und schauen zum Ziel
+function dragonFly3(a, al, dt) {
+  const B = a.bones;
+  const t = game.time + (al.id || 0) * 0.37;
+  const gs = (al.scale || 1) * a.model.scale;
+  const f = Math.sin(t * 8);
+  const hov = dragonHover(al) + (0.05 - f * 0.05) * (al.scale || 1);
+  B[0].position.y += hov / gs;
+  a.lift = hov;
+  B[0].rotation.z = Math.sin(t * 1.7) * 0.08;
+  B[BQ.body].rotation.x += Math.sin(t * 1.3) * 0.04 - (al.moving ? 0.12 : 0);
+  B[BQ.wingL].rotation.z = 0.12 + f * 0.45;
+  B[BQ.wingR].rotation.z = -0.12 - f * 0.45;
+  for (const lb of [BQ.legFL, BQ.legFR, BQ.legBL, BQ.legBR]) B[lb].rotation.x = 0.8 + Math.sin(t * 2 + lb) * 0.08;
+  B[BQ.tail].rotation.x = Math.sin(t * 2.2) * 0.12;
+  const foe = al.target && !al.target.dead ? al.target : null;
+  if (foe) {
+    turnToward(a, Math.atan2(foe.x - al.x, foe.y - al.y), Math.min(1, dt * 8));
+    a.group.rotation.y = a.heading;
+  }
+}
+
+// Modellschlüssel der Diener ohne neue Zeichenketten je Bild: Skelett, Knochenhund, seit 13.94 Knochendrache,
+// großer Knochendrache (Legendär) und Seelenkoloss (vorher Seelen- und Alphahund)
+const ALLY_KEYS3 = ['ally:skelett', 'ally:hund', 'ally:drache', 'ally:drache:gross', 'ally:koloss'];
+const allyKeyIndex3 = (al) => (al.kind === 'hund' ? 1 : al.kind === 'drache' ? (al.tier >= 3 ? 3 : 2) : al.kind === 'koloss' ? 4 : 0);
 function allyBuild3(b, i) {
-  return i ? boneHound3(b, ALLY_LOOK3[i]) : skeletonWarrior3(b);
+  if (i === 1) return boneHound3(b, { tier: 1, alpha: false });
+  if (i === 2 || i === 3) return boneDragon3(b, i === 3);
+  if (i === 4) return soulColossus3(b);
+  return skeletonWarrior3(b);
 }
 // --- Modelle bauen, zwischenspeichern und als Figuren aufstellen ---------------------------------------
 
@@ -4537,7 +4804,8 @@ function v3Prewarm() {
     model3(key, (b) => monsterBuild(b, m.typeId, m.__v3));
     return;
   }
-  // Diener (seit 8.5): Skelettkrieger, Knochen-, Seelen- und Alphahund, wenn man selbst beschwört oder Mitspieler Diener haben
+  // Diener (seit 8.5): Skelettkrieger, Knochenhund, seit 13.94 Knochendrachen und Seelenkoloss, wenn man selbst beschwört
+  // oder Mitspieler Diener haben
   let summoner = game.allies.length > 0 || classSkills(p).some((sk) => sk.type === 'summon');
   if (!summoner) for (const rp of net.players.values()) if (rp.allies && rp.allies.length) summoner = true;
   if (summoner) for (let i = 0; i < ALLY_KEYS3.length; i++) {
@@ -5782,9 +6050,14 @@ function syncAlly3(al, dt) {
   const ki = allyKeyIndex3(al);
   const a = actorFor(entityKey(al), ALLY_KEYS3[ki], (b) => allyBuild3(b, ki));
   if (!a) return;
+  // seit 13.94: der Koloss holt zum Bodenstampfer mit beiden Fäusten aus, sonst zum Faustschlag
+  const style = a.model.style;
+  if (al.kind === 'koloss') a.model.style = al.altAttack ? 'slam' : 'swing';
   animateCreature(a, al, dt, al.moving, al.attackAnim > 0 ? al.attackAnim / 0.25 : 0, 0, al.windup > 0 ? 1 - al.windup / (al.windupMax || 0.15) : 0);
+  a.model.style = style;
   // beim Ausholen glüht ein Diener grün statt rot (keine Warnung, er gehört zu dir)
-  if (al.windup > 0 && a.mats.lit) a.mats.lit.emissive.setRGB(0.02, 0.14 * (1 - al.windup / (al.windupMax || 0.15)), 0.05);
+  // (seit 13.94 nie unter null: der Bodenstampfer des Kolosses holt länger aus als windupMax)
+  if (al.windup > 0 && a.mats.lit) a.mats.lit.emissive.setRGB(0.02, 0.14 * Math.max(0, 1 - al.windup / (al.windupMax || 0.15)), 0.05);
   const k = Math.max(0, Math.min(1, (game.time - al.born) / (al.rise || 0.6)));
   const ek = easeOut(k);
   // steigt aus dem Boden, das Skelett klettert vornübergebeugt heraus
@@ -5795,11 +6068,12 @@ function syncAlly3(al, dt) {
     a.bones[BH.head].rotation.x -= 0.22;
   }
   if (al.leap) a.group.position.y += 0.35 * Math.sin(Math.PI * leapK(al));
+  if (a.model.fly) dragonFly3(a, al, dt);
   a.group.scale.setScalar((al.scale || 1) * a.model.scale);
   if (!a.mark) {
     a.mark = groundRing(new THREE.Color('#7fe3a0'), false);
     a.mark.position.y = 0.03;
-    a.mark.scale.setScalar(al.kind === 'hund' ? 0.5 : 0.42);
+    a.mark.scale.setScalar(al.kind === 'hund' ? 0.5 : al.kind === 'drache' ? 0.55 : al.kind === 'koloss' ? 0.48 : 0.42);
     a.group.add(a.mark);
   }
   a.mark.material.opacity = 0.3 * ek;

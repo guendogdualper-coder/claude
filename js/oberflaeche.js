@@ -1909,12 +1909,17 @@ function skillStats(sk, lvl) {
   if (sk.type === 'heal') { const hs = skillStatsBase(); out.push(['Heilung', '+' + skillHpNum(sk.amount * scale * ((hs && hs.healPower) || 1)) + ' Leben']); }
   if (sk.shield) out.push(['Schild', skillHpNum(sk.shield * scale) + ' Leben']);
   if (sk.type === 'summon') {
-    // Diener nach Rang (seit 8.5): Skelettkrieger, ab E1 Knochenhunde
+    // Diener nach Rang (seit 8.5): Skelettkrieger, ab E1 Knochenhunde, seit 13.94 ab H Knochendrachen, ab V Seelenkolosse
     const ti = Math.min(sk.tiers.length - 1, skillRank(lvl) + 1);
     const T = sk.tiers[ti];
     out.push([T.name + ' ×' + sk.count, skillHpNum(T.hp * scale) + ' Leben']);
-    out.push([T.kind === 'hund' ? 'Biss' : 'Hieb', hit(T.atk) + ' je ' + String(T.every).replace('.', ',') + ' s']);
-    const extra = [T.pounce && 'Ansprung', T.slow && 'verlangsamt ' + Math.round(T.slow * 100) + ' %', T.burst && 'Seelenfeuer ' + T.burst.toFixed(1).replace('.', ',') + '×', T.alpha && 'Alpha'].filter(Boolean);
+    // seit 13.94: Drachen (Feuerball, Feueratem) und Kolosse (Faustschlag, Bodenstampfer)
+    const atkName = T.kind === 'hund' ? 'Biss' : T.kind === 'drache' ? 'Feuerball' : T.kind === 'koloss' ? 'Faustschlag' : 'Hieb';
+    out.push([atkName, hit(T.atk) + ' je ' + String(T.every).replace('.', ',') + ' s']);
+    if (T.breath) out.push(['Feueratem', hit(T.atk * T.breath.mul) + ' im Kegel (jeder ' + T.breath.every + '. Angriff)']);
+    if (T.splash) out.push(['Splitter', hit(T.atk * T.splash.mul) + ' neben dem Ziel']);
+    if (T.stomp) out.push(['Bodenstampfer', hit(T.atk * T.stomp.mul) + ' rundum (jeder ' + T.stomp.every + '. Schlag)']);
+    const extra = [T.pounce && 'Ansprung', T.range && 'fliegt, Fernkampf', T.slow && 'verlangsamt ' + Math.round(T.slow * 100) + ' %', T.burst && 'Seelenfeuer ' + T.burst.toFixed(1).replace('.', ',') + '×', T.alpha && 'Alpha'].filter(Boolean);
     if (extra.length) out.push(['Rang', extra.join(', ')]);
   }
   if (sk.vulnerable) out.push(['Verwundbar', 'Ziel nimmt +' + skillPct(sk.vulnerable * scale) + ' Schaden']);

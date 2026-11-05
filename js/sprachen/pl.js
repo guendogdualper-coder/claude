@@ -2312,5 +2312,16 @@
 "für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "zmienić za {0} złota? Twoje poziomy umiejętności zostają.",
 "ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "jest teraz twoim żywiołem – twoje umiejętności zachowują poziomy.",
 "ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "jest teraz twoim żywiołem – twoje umiejętności odzyskują dawne poziomy z tego żywiołu.",
-"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Wybierz Ogień, Mróz, Błyskawicę lub Ziemię. Twoje poziomy umiejętności zostają przy zmianie (także E/H/L/V), wzmocnienia starego żywiołu się kończą. Zwoje w torbie stają się zwojami tych samych miejsc w nowym żywiole."
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Wybierz Ogień, Mróz, Błyskawicę lub Ziemię. Twoje poziomy umiejętności zostają przy zmianie (także E/H/L/V), wzmocnienia starego żywiołu się kończą. Zwoje w torbie stają się zwojami tych samych miejsc w nowym żywiole.",
+"Knochendrache": "Kościany smok",
+"Großer Knochendrache": "Wielki kościany smok",
+"Seelenkoloss": "Kolos dusz",
+"Feueratem": "Ognisty oddech",
+"Faustschlag": "Cios pięścią",
+"Splitterschaden": "Obrażenia obszarowe",
+"Bodenstampfer": "Tąpnięcie",
+"{0} im Kegel (jeder {1}. Angriff)": "{0} w stożku (co {1} ataki)",
+"{0} neben dem Ziel": "{0} obok celu",
+"{0} rundum (jeder {1}. Schlag)": "{0} dookoła (co {1} ciosy)",
+"fliegt, Fernkampf": "lata, dystansowy",
 };

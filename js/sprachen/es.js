@@ -2320,5 +2320,16 @@
 "für {0} Gold wechseln? Deine Fertigkeitsstufen bleiben erhalten.": "¿cambiar por {0} de oro? Tus niveles de habilidad se conservan.",
 "ist jetzt dein Element – deine Fertigkeiten behalten ihre Stufen.": "es ahora tu elemento – tus habilidades conservan sus niveles.",
 "ist jetzt dein Element – deine Fertigkeiten haben wieder ihre früheren Stufen aus diesem Element.": "es ahora tu elemento – tus habilidades recuperan sus niveles anteriores de este elemento.",
-"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Elige Fuego, Escarcha, Rayo o Tierra. Tus niveles de habilidad se conservan al cambiar (también E/H/L/V), los buffs de tu elemento anterior terminan. Los pergaminos de tu bolsa pasan a ser pergaminos de las mismas casillas del nuevo elemento."
+"Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.": "Elige Fuego, Escarcha, Rayo o Tierra. Tus niveles de habilidad se conservan al cambiar (también E/H/L/V), los buffs de tu elemento anterior terminan. Los pergaminos de tu bolsa pasan a ser pergaminos de las mismas casillas del nuevo elemento.",
+"Knochendrache": "Dragón óseo",
+"Großer Knochendrache": "Gran dragón óseo",
+"Seelenkoloss": "Coloso de almas",
+"Feueratem": "Aliento de fuego",
+"Faustschlag": "Puñetazo",
+"Splitterschaden": "Daño en área",
+"Bodenstampfer": "Pisotón",
+"{0} im Kegel (jeder {1}. Angriff)": "{0} en cono (cada {1} ataques)",
+"{0} neben dem Ziel": "{0} junto al objetivo",
+"{0} rundum (jeder {1}. Schlag)": "{0} alrededor (cada {1} golpes)",
+"fliegt, Fernkampf": "vuela, a distancia",
 };

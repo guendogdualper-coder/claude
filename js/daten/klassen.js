@@ -312,7 +312,7 @@ const CLASSES = {
     paths: [
       {
         id: 'seelen', name: 'Weg der Seelen', role: 'PvE · Beschwörung und Flächenschaden',
-        description: 'Saugt mit einem Blutfaden Leben aus, ruft Skelette – erweckt Knochenhunde –, sperrt Seelen in Knochenkäfige, holt getötete Monster als Geister zurück und lässt eine Geisterflut niedergehen.',
+        description: 'Saugt mit einem Blutfaden Leben aus, ruft Skelette, Knochenhunde, Knochendrachen und Seelenkolosse, sperrt Seelen in Knochenkäfige, holt getötete Monster als Geister zurück und lässt eine Geisterflut niedergehen.',
         skills: [
           {
             // seit 11.7 (ersetzt die Schädelsalve): gedrückt halten – ein Blutfaden saugt dem Ziel Leben aus (nekro-neu.js)
@@ -337,12 +337,19 @@ const CLASSES = {
               // seit 13.69 beißen die Diener härter und je Rang mehr (vorher 0,45 und 0,55 auf allen Rängen); Seelenkäfig 0,5 → 0,7, Geisterflut 0,9 → 1,15
               { kind: 'skelett', name: 'Skelettkrieger', hp: 0.4,  atk: 0.5, every: 1.1,  windup: 0.18, speed: 160, def: 0.6, scale: 1.0 },
               { kind: 'hund',    name: 'Knochenhund',    hp: 0.45, atk: 0.62, every: 0.85, windup: 0.12, speed: 195, def: 0.6, scale: 1.0,  pounce: true },
-              { kind: 'hund',    name: 'Knochenhund',    hp: 0.5,  atk: 0.66, every: 0.85, windup: 0.12, speed: 200, def: 0.6, scale: 1.08, pounce: true, slow: 0.25 },
-              { kind: 'hund',    name: 'Seelenhund',     hp: 0.55, atk: 0.7,  every: 0.85, windup: 0.12, speed: 205, def: 0.7, scale: 1.14, pounce: true, slow: 0.25, burst: 1.0 },
-              { kind: 'hund',    name: 'Seelenhund',     hp: 0.6,  atk: 0.74, every: 0.85, windup: 0.1,  speed: 210, def: 0.7, scale: 1.18, pounce: true, slow: 0.3,  burst: 1.2, alpha: 1.15 }
+              // seit 13.94 ab Heroisch Skelett-Minidrachen (fliegen, speien auf Abstand), ab Vollendet Seelenkolosse
+              // (vorher Knochen-, Seelen- und Alphahunde). Drachen: range = Reichweite, hold = Abstand zum Ziel,
+              // jeder dritte Angriff in Reichweite des Atems ist ein Feueratem (breath.mul je Getroffenem), sonst ein
+              // Feuerball (×1). Kolosse: Faustschlag mit Splitterschaden (splash), jeder dritte ein Bodenstampfer (stomp).
+              { kind: 'drache',  name: 'Knochendrache',  many: 'Knochendrachen', hp: 0.42, atk: 1.05, every: 1.15, windup: 0.3, speed: 200, def: 0.5, scale: 1.0, r: 12,
+                range: 145, hold: 85, breath: { mul: 0.7, len: 95, angle: 60, every: 3 } },
+              { kind: 'drache',  name: 'Großer Knochendrache', many: 'Große Knochendrachen', hp: 0.5, atk: 1.08, every: 1.1, windup: 0.3, speed: 205, def: 0.55, scale: 1.45, r: 14,
+                range: 160, hold: 100, breath: { mul: 0.75, len: 130, angle: 70, every: 3 } },
+              { kind: 'koloss',  name: 'Seelenkoloss',   many: 'Seelenkolosse', hp: 1.0, atk: 2.0, every: 1.8, windup: 0.45, speed: 150, def: 1.0, scale: 1.0, r: 16,
+                splash: { r: 50, mul: 0.4 }, stomp: { r: 85, mul: 1.0, every: 3, slow: 0.3 } }
             ],
             // seit 13.87 {dauer}: die Diener bleiben skillDuration lang (wächst mit der Stufe), nicht fest 90 s
-            text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen {dauer} s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen.'
+            text: 'Drei Skelettkrieger steigen aus dem Boden und kämpfen {dauer} s an deiner Seite. Ab dem Erwecken (E1) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen. Heroisch: drei fliegende Knochendrachen, die aus der Luft Seelenfeuerbälle speien und mit ihrem Feueratem ganze Gruppen treffen. Legendär: größere Drachen mit weiterem Atem. Vollendet: drei Seelenkolosse aus Knochen und Obsidian, die mit wuchtigen Fäusten zuschlagen und mit jedem dritten Schlag den Boden aufreißen.'
           },
           {
             // seit 10.0 (ersetzt den Seelenschnitter): getötete Monster hinterlassen 2 Minuten Gräber; der Totenruf weckt
@@ -350,7 +357,7 @@ const CLASSES = {
             id: 'totenruf', name: 'Totenruf', short: 'TR', kind: 'beschwörung', unlock: 7, mp: 24, cooldown: 15,
             type: 'revive', radius: 320, duration: 180, counts: [2, 3, 4, 4, 5], hp: 0.3, atk: 0.42,
             color: '#9fe8d0', anim: 'kaefig', animDur: 0.55,
-            text: 'Jedes Monster, das in deiner Nähe stirbt, hinterlässt 2 Minuten lang ein Grab. Der Totenruf weckt die Gräber um dich: Die Monster steigen als weiße Geister in ihrer eigenen Gestalt auf und kämpfen 3 Minuten an deiner Seite – 2 Geister, mit dem Rang bis zu 5. Solange deine Geister wandeln, ruft der Totenruf keine weiteren. Sie bleiben neben deinen Knochenhunden.'
+            text: 'Jedes Monster, das in deiner Nähe stirbt, hinterlässt 2 Minuten lang ein Grab. Der Totenruf weckt die Gräber um dich: Die Monster steigen als weiße Geister in ihrer eigenen Gestalt auf und kämpfen 3 Minuten an deiner Seite – 2 Geister, mit dem Rang bis zu 5. Solange deine Geister wandeln, ruft der Totenruf keine weiteren. Sie bleiben neben den Dienern deiner Totenbeschwörung.'
           },
           {
             // seit 11.7 (ersetzt den Buff Dunkle Macht): Geister brechen aus dem Nekromanten und stürzen auf das Zielgebiet

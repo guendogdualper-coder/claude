@@ -1622,7 +1622,8 @@ const SKILL_TYPES = {
     particles(bc.x, bc.y, { count: 16, color: ['#ff6a7a', '#c43a5a'], angle: ang, spread: 0.3, speed: [dist(t, p) * 1.6, dist(t, p) * 2.6], life: [0.3, 0.45], size: [2, 3.5], drag: 0.5 });
   },
 
-  // Totenbeschwörung (seit 8.5): drei Diener nach Rang – Skelettkrieger, ab E1 Knochenhunde (Werte in sk.tiers)
+  // Totenbeschwörung (seit 8.5): drei Diener nach Rang – Skelettkrieger, ab E1 Knochenhunde, seit 13.94 ab H
+  // Knochendrachen und ab V Seelenkolosse (Werte in sk.tiers)
   summon(sk, pw, lvl) {
     const p = game.player;
     const ti = Math.min(sk.tiers.length - 1, skillRank(lvl) + 1);
@@ -1650,7 +1651,8 @@ const SKILL_TYPES = {
       later(k * 0.12, () => allyRiseFx(x, y, T.kind));
       pts.push([Math.round(x), Math.round(y)]);
     }
-    ui.log('Drei ' + (T.kind === 'hund' ? T.name.replace('hund', 'hunde') : 'Skelettkrieger') + ' erheben sich aus dem Boden.', 'info');
+    // seit 13.94 mit Mehrzahl aus den Stufen (Knochendrachen, Seelenkolosse)
+    ui.log('Drei ' + (T.many || (T.kind === 'hund' ? T.name.replace('hund', 'hunde') : 'Skelettkrieger')) + ' erheben sich aus dem Boden.', 'info');
     return { k: ti, pts };
   },
 
