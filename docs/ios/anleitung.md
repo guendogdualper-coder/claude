@@ -103,8 +103,10 @@ Die Bundle-ID muss es geben, bevor man die App in App Store Connect anlegen kann
 4. Bei *Capabilities* nichts ankreuzen. Lokale Mitteilungen brauchen keine Push-Berechtigung.
 5. *Continue* → *Register*.
 
-Zertifikate und Provisioning-Profile musst du **nicht** anlegen. Das erledigt Xcode im Workflow selbst über den API-Schlüssel
-(„Cloud-Signierung“).
+Zertifikate und Provisioning-Profile musst du **nicht** anlegen. Seit 13.85 holt sich der Workflow über den API-Schlüssel
+selbst ein „Apple Distribution“-Zertifikat und das App-Store-Profil „Seelenstein CI App Store“ (`ios/scripts/asc_signatur.py`)
+und signiert damit. Ist die Höchstzahl an Vertriebszertifikaten erreicht, zieht er das älteste zurück. Die Cloud-Signierung
+beim Export hatte das unsignierte Archiv nicht neu signiert (Upload-Fehler 90035 „Invalid Signature“).
 
 ---
 
@@ -181,6 +183,7 @@ App Store Connect (**Widerrufen**, *Revoke*) und legst einen neuen an.
 
 | Meldung | Lösung |
 |---|---|
+| `Invalid Signature` (90035) | Trat mit der alten Cloud-Signierung auf; seit 13.85 signiert der Workflow selbst. Kommt er wieder, Protokoll des Schritts „Vertriebszertifikat und Profil holen“ ansehen. |
 | `Cloud signing permission error` / `No signing certificate "iOS Distribution" found` | Der API-Schlüssel hat nicht die Rolle **Admin** → neuen Schlüssel mit Admin anlegen, Secrets aktualisieren. |
 | `No App record was found` / `bundle id … not found` | Abschnitt 3 und 4 fehlen oder die Bundle-ID ist anders geschrieben. |
 | `The bundle version must be higher than the previously uploaded version` | Einfach noch einmal starten. Die Laufnummer zählt hoch. |

@@ -33,10 +33,6 @@ on:
         description: 'Xcode-Version (leer = Standard des Runners), z. B. 26.6'
         type: string
         default: ''
-      archiv_signieren:
-        description: 'Archiv schon beim Bauen signieren (nur nötig, falls die Cloud-Signierung beim Export scheitert; braucht ein registriertes Gerät)'
-        type: boolean
-        default: false
   push:
     branches:
       - claude/app-entwicklung-hhewbj
@@ -214,7 +210,6 @@ jobs:
       TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       BUILDNUMMER: ${{ github.run_number }}
       VERSION: ${{ inputs.version || '1.0.0' }}
-      ARCHIV_SIGNIEREN: ${{ inputs.archiv_signieren || false }}
     steps:
       - uses: actions/checkout@v4
 
@@ -254,20 +249,65 @@ jobs:
           grep -q 'BEGIN PRIVATE KEY' "$KEY_DATEI" || { echo "::error::APP_STORE_CONNECT_API_KEY_P8 ist weder eine .p8-Datei noch base64 davon."; exit 1; }
           echo "KEY_DATEI=$KEY_DATEI" >> "$GITHUB_ENV"
 
-      - name: Archiv bauen (Release, Gerät)
+      # Seit 13.85: von Hand signieren. Das unsignierte Archiv wurde beim Export nicht mit Apples Cloud-Zertifikat
+      # neu signiert (Upload-Fehler 90035 „Invalid Signature“). Darum holt sich der Bau über die API selbst ein
+      # „Apple Distribution“-Zertifikat und ein App-Store-Profil (scripts/asc_signatur.py) und legt beides in einen
+      # eigenen Schlüsselbund. Beim Erreichen der Höchstzahl zieht das Skript das älteste Vertriebszertifikat zurück.
+      - name: Vertriebszertifikat und Profil holen
+        run: |
+          SIG="$RUNNER_TEMP/sig"
+          python3 scripts/asc_signatur.py "$SIG"
+          source "$SIG/werte.env"
+          KC="$SIG/ci.keychain-db"
+          KC_PW="$(uuidgen)"
+          security create-keychain -p "$KC_PW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KC_PW" "$KC"
+          if grep -q 'BEGIN RSA PRIVATE KEY' "$SIG/key.pem"; then FORMAT=openssl; else FORMAT=pkcs8; fi
+          security import "$SIG/key.pem" -k "$KC" -f "$FORMAT" -t priv -T /usr/bin/codesign -T /usr/bin/security
+          security import "$SIG/cert.cer" -k "$KC" -f x509 -T /usr/bin/codesign
+          # Apples Zwischenzertifikat (WWDR G3), damit die Kette vollständig ist
+          curl -fsSL https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer -o "$SIG/wwdr.cer" \
+            && security import "$SIG/wwdr.cer" -k "$KC" -f x509 || echo "WWDR-Zwischenzertifikat nicht nachgeladen (meist schon vorhanden)."
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KC_PW" "$KC" > /dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+          for D in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$D"
+            cp "$SIG/profil.mobileprovision" "$D/$PROFIL_UUID.mobileprovision"
+          done
+          {
+            echo "KC=$KC"
+            echo "PROFIL_UUID=$PROFIL_UUID"
+            echo "PROFIL_NAME=$PROFIL_NAME"
+          } >> "$GITHUB_ENV"
+
+      - name: Projekt auf Hand-Signierung stellen
+        run: |
+          # Nur das App-Ziel (die Swift-Pakete von Capacitor bleiben unsigniert, sie werden beim Einbetten signiert)
+          python3 - <<'PY'
+          import os, re
+          pfad = 'App/App.xcodeproj/project.pbxproj'
+          text = open(pfad).read()
+          team, profil = os.environ['TEAM_ID'], os.environ['PROFIL_NAME']
+          def anpassen(block):
+              if 'PRODUCT_BUNDLE_IDENTIFIER = de.seelenstein.spiel;' not in block.group(0):
+                  return block.group(0)
+              b = block.group(0).replace('CODE_SIGN_STYLE = Automatic;',
+                  'CODE_SIGN_STYLE = Manual;\n\t\t\t\tCODE_SIGN_IDENTITY = "Apple Distribution";\n'
+                  '\t\t\t\t"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "Apple Distribution";\n'
+                  f'\t\t\t\tDEVELOPMENT_TEAM = {team};\n\t\t\t\tPROVISIONING_PROFILE_SPECIFIER = "{profil}";')
+              return b
+          neu, n = re.subn(r'buildSettings = \{.*?\n\t\t\t\};', anpassen, text, flags=re.S)
+          assert 'PROVISIONING_PROFILE_SPECIFIER' in neu, 'App-Ziel nicht gefunden'
+          open(pfad, 'w').write(neu)
+          print('Hand-Signierung eingetragen.')
+          PY
+
+      - name: Archiv bauen (Release, Gerät, signiert)
         run: |
           set -o pipefail
           mkdir -p build
-          if [ "$ARCHIV_SIGNIEREN" = "true" ]; then
-            echo "Archiv wird mit automatischer Signierung gebaut (Apple Development)."
-            SIGNATUR=(CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM="$TEAM_ID" -allowProvisioningUpdates
-              -authenticationKeyPath "$KEY_DATEI" -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
-          else
-            # Standard: Archiv OHNE Signatur. Signiert wird erst beim Export mit Apples Cloud-Zertifikat für den
-            # App Store. So braucht es kein Entwicklerzertifikat und kein registriertes Gerät, und es sammeln sich
-            # keine neuen Entwicklerzertifikate an (Apple begrenzt deren Zahl).
-            SIGNATUR=(CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" DEVELOPMENT_TEAM="$TEAM_ID")
-          fi
           xcodebuild archive \
             -project "$PROJEKT" \
             -scheme "$SCHEMA" \
@@ -275,23 +315,13 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Seelenstein.xcarchive" \
             -derivedDataPath build/DerivedData \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KC" \
             MARKETING_VERSION="$VERSION" \
             CURRENT_PROJECT_VERSION="$BUILDNUMMER" \
-            "${SIGNATUR[@]}" \
             2>&1 | tee build/xcodebuild-archiv.log | grep -E '(error|ARCHIVE SUCCEEDED|ARCHIVE FAILED|\*\*)' || true
           grep -q 'ARCHIVE SUCCEEDED' build/xcodebuild-archiv.log
-
-      - name: Unsigniertes Archiv vorbereiten (Ad-hoc-Signatur)
-        if: env.ARCHIV_SIGNIEREN != 'true'
-        run: |
-          # Eingebettete Frameworks und die App einmal „ad hoc“ signieren, damit das Archiv in sich stimmig ist.
-          # Beim Export wird alles mit dem echten Vertriebszertifikat neu signiert. Die App hat keine Entitlements.
           APP="$RUNNER_TEMP/Seelenstein.xcarchive/Products/Applications/App.app"
-          if [ -d "$APP/Frameworks" ]; then
-            find "$APP/Frameworks" -maxdepth 1 \( -name '*.framework' -o -name '*.dylib' \) -print -exec codesign --force --sign - --timestamp=none {} \;
-          fi
-          codesign --force --sign - --timestamp=none "$APP"
-          codesign --verify --deep --verbose=2 "$APP"
+          codesign -dvv "$APP" 2>&1 | grep -E 'Authority|TeamIdentifier' || true
           /usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' -c 'Print :CFBundleShortVersionString' "$APP/Info.plist"
 
       - name: Exportieren und zu TestFlight hochladen
@@ -304,7 +334,12 @@ jobs:
           <dict>
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>${BUNDLE_ID}</key><string>${PROFIL_NAME}</string>
+            </dict>
             <key>teamID</key><string>${TEAM_ID}</string>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
@@ -317,16 +352,19 @@ jobs:
             -archivePath "$RUNNER_TEMP/Seelenstein.xcarchive" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_DATEI" \
             -authenticationKeyID "$KEY_ID" \
             -authenticationKeyIssuerID "$ISSUER_ID" \
             2>&1 | tee build/xcodebuild-export.log
+          grep -qE 'EXPORT SUCCEEDED|Upload succeeded|Uploaded' build/xcodebuild-export.log
           echo "::notice title=TestFlight::Build ${VERSION} (${BUILDNUMMER}) wurde hochgeladen. Apple verarbeitet ihn jetzt (meist 5–30 Minuten); danach erscheint er in App Store Connect unter TestFlight."
 
       - name: Schlüssel löschen
         if: always()
-        run: rm -rf "$RUNNER_TEMP/asc"
+        run: |
+          rm -rf "$RUNNER_TEMP/asc"
+          if [ -n "${KC:-}" ]; then security delete-keychain "$KC" || true; fi
+          rm -rf "$RUNNER_TEMP/sig"
 
       - name: Protokolle hochladen
         if: always()
