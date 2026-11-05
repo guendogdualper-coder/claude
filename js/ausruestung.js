@@ -90,35 +90,63 @@ function wearProblem(item, who) {
   return '';
 }
 
-// Kann die Figur ein zweites Schwert in der Nebenhand (Platz des Schildes) führen?
+// Kann die Figur eine zweite Einhandwaffe (Schwert oder Axt) in der Nebenhand (Platz des Schildes) führen?
 function canDualWield(p) {
   return p.classId === 'krieger' && !!p.dualWield && (p.path || 0) === DUAL_WIELD.path;
+}
+// Beidhändigkeit gelernt, wirkt aber auf dem jetzigen Weg nicht (seit 13.85: wird erklärt statt still zu scheitern)
+function dualWieldIdle(p) {
+  return p.classId === 'krieger' && !!p.dualWield && (p.path || 0) !== DUAL_WIELD.path;
 }
 // Titanengriff: Krieger des Leibes ab Stufe 20, gelernt beim Waffenhändler
 function canTitanGrip(p) {
   return p.classId === 'krieger' && !!p.titanGrip && (p.path || 0) === TITAN_GRIP.path && p.level >= TITAN_GRIP.level;
 }
-// Waffenart, die in die Nebenhand darf: Schwert (Krieger der Klinge mit Beidhändigkeit), Dolch (Ninja) oder mit
-// Titanengriff die Zweihandwaffe der Haupthand (zweite Streitaxt bzw. zweiter Zweihänder)
-function offhandKind(p) {
-  if (p.classId === 'ninja') return 'dagger';
+// Waffenarten, die in die Nebenhand dürfen: Schwert oder Axt, auch gemischt (Krieger der Klinge mit
+// Beidhändigkeit, seit 13.85 – vorher nur das Schwert), Dolch (Ninja) oder mit Titanengriff die Zweihandwaffe der
+// Haupthand (zweite Streitaxt bzw. zweiter Zweihänder). Leer: keine Nebenhand.
+function offhandKinds(p) {
+  if (!p) return [];
+  if (p.classId === 'ninja') return ['dagger'];
   if (canTitanGrip(p)) {
     const main = p.equipment && p.equipment.waffe;
-    return main && (main.kind === 'greataxe' || main.kind === 'greatsword') ? main.kind : 'greataxe';
+    return [main && (main.kind === 'greataxe' || main.kind === 'greatsword') ? main.kind : 'greataxe'];
   }
-  return canDualWield(p) ? 'sword' : null;
+  return canDualWield(p) ? DUAL_WIELD.kinds : [];
+}
+// Erste dieser Arten (für Texte) bzw. null ohne Nebenhand
+function offhandKind(p) {
+  return offhandKinds(p)[0] || null;
+}
+// Darf dieses Teil in die Nebenhand der Figur?
+function offhandAllows(p, item) {
+  return !!item && item.slot === 'waffe' && offhandKinds(p).includes(item.kind);
+}
+// Zwei Waffen führen (seit 13.85 für alle gleich): passt das Teil in die Nebenhand und hält die Haupthand schon eine
+// Waffe, die selbst dorthin passen würde (Dolch zu Dolch, Schwert/Axt zu Schwert/Axt, Streitaxt zu Streitaxt)?
+function offhandPair(p, item) {
+  const main = p && p.equipment && p.equipment.waffe;
+  return offhandAllows(p, item) && !!main && offhandAllows(p, main);
+}
+// Text, warum ein Teil nicht in die Nebenhand passt
+function offhandProblem(p, item) {
+  if (p.classId === 'ninja') return 'In die Nebenhand passt nur ein Dolch.';
+  if (canTitanGrip(p)) return `Mit dem Titanengriff passt in die Nebenhand nur eine zweite Waffe wie in der Haupthand (${WEAPON_KINDS[offhandKind(p)].name}).`;
+  if (canDualWield(p)) return 'In die Nebenhand passt nur ein Schwert oder eine Axt.';
+  if (dualWieldIdle(p)) return `Deine Beidhändigkeit wirkt nur auf dem ${CLASSES.krieger.paths[DUAL_WIELD.path].name}. Auf dem ${CLASSES.krieger.paths[p.path || 0].name} führst du keine zweite Einhandwaffe.`;
+  return 'Eine zweite Waffe führt nur ein Krieger der Klinge mit Beidhändigkeit (Schwert oder Axt) oder ein Krieger des Leibes mit Titanengriff (Zweihänder).';
 }
 // Daten der Nebenhand (Anteil am Angriff, Tempo, Boni)
 function offhandRules(p) {
   return p.classId === 'ninja' ? DUAL_DAGGER : canTitanGrip(p) ? TITAN_GRIP : DUAL_WIELD;
 }
 
-// Schwert in der Nebenhand
+// Waffe in der Nebenhand (zweites Schwert oder zweite Axt, zweiter Dolch, zweiter Zweihänder)
 function isOffhand(item) {
   return !!item && item.slot === 'waffe';
 }
 
-// Name des Schildplatzes: mit Beidhändigkeit auch für ein zweites Schwert
+// Name des Schildplatzes: mit Beidhändigkeit auch für eine zweite Waffe
 function slotLabel(slotId, p = game.player) {
   if (slotId === 'schild' && quiverMode(p)) return 'Köcher';
   if (slotId === 'schild' && p && offhandKind(p)) return 'Nebenhand';
@@ -145,7 +173,7 @@ function enforceGearRules(p) {
     moved.push(eq.waffe);
   }
   if (eq.waffe && !canWear(eq.waffe, p)) off('waffe');
-  if (isOffhand(eq.schild) && eq.schild.kind !== offhandKind(p)) off('schild');
+  if (isOffhand(eq.schild) && !offhandAllows(p, eq.schild)) off('schild');
   if (eq.schild && !isOffhand(eq.schild) && !canWear(eq.schild, p)) off('schild');
   // Köcher nur zusammen mit einem Bogen, und ein Bogen lässt außer dem Köcher nichts in der Nebenhand zu
   if (isQuiver(eq.schild) && !quiverMode(p)) off('schild');
@@ -318,12 +346,12 @@ function compareItem(item, hand) {
 }
 
 // Grobe Gesamtbewertung für die Pfeile auf den Kacheln: >0 besser, <0 schlechter.
-// Seit 13.20 zählt bei Waffen, die in die Nebenhand passen (zweiter Dolch, zweites Schwert), auch der Vergleich
-// mit der Nebenhand: ist das Teil dort besser, zeigt die Kachel ▲.
+// Seit 13.20 zählt bei Waffen, die in die Nebenhand passen (zweiter Dolch, zweites Schwert oder Axt), auch der
+// Vergleich mit der Nebenhand: ist das Teil dort besser, zeigt die Kachel ▲.
 function compareScore(item) {
   const p = game.player;
   const main = compareScoreHand(item);
-  if (p && item && item.slot === 'waffe' && item.kind === offhandKind(p) && p.equipment.waffe && p.equipment.waffe.kind === item.kind) {
+  if (p && item && offhandPair(p, item)) {
     return Math.max(main, compareScoreHand(item, 'off'));
   }
   return main;
@@ -805,7 +833,8 @@ function bossLoot(m) {
   shakeScreen(10);
 }
 
-// hand 'off': ein Schwert in die Nebenhand (nur mit Beidhändigkeit)
+// hand 'off': eine zweite Waffe in die Nebenhand (Beidhändigkeit, Titanengriff, Dolch des Ninjas);
+// 'main': ausdrücklich in die Haupthand; ohne Angabe wandert eine zweite passende Waffe von selbst in die leere Nebenhand
 function equipFromBag(index, hand) {
   const p = game.player;
   const item = p.inventory[index];
@@ -824,11 +853,12 @@ function equipFromBag(index, hand) {
     gear.message(`${itemName(item)}: Einen Köcher trägst du zusammen mit einem Bogen.`, 'warn');
     return false;
   }
-  // Ninja: ein zweiter Dolch wandert von selbst in die Nebenhand, wenn die Haupthand schon einen hat (seit 13.10)
+  // Ninja: ein zweiter Dolch wandert von selbst in die Nebenhand, wenn die Haupthand schon einen hat (seit 13.10);
+  // seit 13.85 genauso Schwert oder Axt beim Krieger mit Beidhändigkeit (der Titanengriff bleibt beim Knopf „Nebenhand“)
   let off = hand === 'off';
-  if (hand == null && p.classId === 'ninja' && item.kind === 'dagger' && p.equipment.waffe && p.equipment.waffe.kind === 'dagger' && !p.equipment.schild) off = true;
-  if (off && item.kind !== offhandKind(p)) {
-    gear.message(p.classId === 'ninja' ? 'In die Nebenhand passt nur ein Dolch.' : canTitanGrip(p) ? `Mit dem Titanengriff passt in die Nebenhand nur eine zweite Waffe wie in der Haupthand (${WEAPON_KINDS[offhandKind(p)].name}).` : 'Eine zweite Waffe führt nur ein Krieger der Klinge mit Beidhändigkeit (Schwert) oder ein Krieger des Leibes mit Titanengriff (Zweihänder).', 'warn');
+  if (hand == null && !p.equipment.schild && !canTitanGrip(p) && offhandPair(p, item)) off = true;
+  if (off && !offhandAllows(p, item)) {
+    gear.message(offhandProblem(p, item), 'warn');
     return false;
   }
   // Schild oder Zweihandwaffe: beides zusammen geht nicht
@@ -862,6 +892,10 @@ function equipFromBag(index, hand) {
       p.equipment.schild = makeItem('koecher', 0, 0, 'ninja');
       gear.message('Zum Bogen gehört ein Köcher: Du bekommst einen Lederköcher. Bessere Köcher verkauft der Waffenhändler.', 'success');
     }
+  }
+  // Beidhändigkeit auf dem falschen Weg (seit 13.85): sagen, warum die neue Waffe die alte ersetzt hat
+  if (!off && hand == null && old && dualWieldIdle(p) && !p.equipment.schild && DUAL_WIELD.kinds.includes(item.kind) && DUAL_WIELD.kinds.includes(old.kind)) {
+    gear.message(offhandProblem(p, item), 'info');
   }
   afterGearChange();
   gear.selected = { where: 'equip', key: slot };
@@ -2275,10 +2309,13 @@ const gear = {
     const inOff = this.selected.where === 'equip' && this.selected.key === 'schild' && isOffhand(item);
     const slotName = inOff ? 'Nebenhand' : slotNameOf(item.slot);
     const blocked = p.level < need || !canWear(item, p);
-    const offOk = this.selected.where === 'bag' && item.slot === 'waffe' && item.kind === offhandKind(p);
+    const offOk = this.selected.where === 'bag' && offhandAllows(p, item);
+    // Beidhändigkeit gelernt, aber auf dem anderen Weg (seit 13.85): Knopf bleibt, ein Druck erklärt es
+    const offIdle = this.selected.where === 'bag' && !offOk && item.slot === 'waffe' && DUAL_WIELD.kinds.includes(item.kind) && dualWieldIdle(p);
     const actions = this.selected.where === 'equip'
       ? `<button type="button" class="mini-btn" data-act="unequip">Ablegen</button>`
-      : `<button type="button" class="mini-btn" data-act="equip" ${blocked ? 'disabled' : ''}>${offOk ? 'Haupthand' : 'Anlegen'}</button>` +
+      : `<button type="button" class="mini-btn" data-act="${offOk ? 'equipMain' : 'equip'}" ${blocked ? 'disabled' : ''}>${offOk ? 'Haupthand' : 'Anlegen'}</button>` +
+        (offIdle ? `<button type="button" class="mini-btn" data-act="equipOff">Nebenhand</button>` : '') +
         (offOk ? `<button type="button" class="mini-btn" data-act="equipOff" ${blocked ? 'disabled' : ''}>Nebenhand</button>` : '') +
         `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell" ${trader ? '' : 'disabled title="Nur bei einem Händler"'}>${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item).toLocaleString('de-DE') + ' Gold)'}</button>`;
     const bonuses = (item.bonuses || []).map((b, i) => `<li><span class="bn">${i + 1}</span>${bonusText(b)}</li>`).join('') +
@@ -2300,6 +2337,7 @@ const gear = {
       `<small>${slotName} · ${itemKindText(item)} · ab Stufe ${need}</small>` +
       (canWear(item, p) ? '' : `<small class="need">${wearProblem(item, p)} Du kannst es verkaufen.</small>`) +
       (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
+      (offIdle ? `<small class="need">${offhandProblem(p, item)}</small>` : '') +
       `<span>${this.statsList(item)}</span>` +
       (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
       (this.selected.where === 'bag' ? compareHtml(item) + (offOk ? compareHtml(item, 'In der Nebenhand', 'off') : '') : '') +
@@ -2320,6 +2358,7 @@ const gear = {
     el.querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => {
       const act = b.dataset.act;
       if (act === 'equip') equipFromBag(this.selected.key);
+      if (act === 'equipMain') equipFromBag(this.selected.key, 'main');
       if (act === 'equipOff') equipFromBag(this.selected.key, 'off');
       if (act === 'unequip') unequip(this.selected.key);
       if (act === 'sell') {
@@ -2426,7 +2465,9 @@ const gear = {
     else if ((p.path || 0) !== TITAN_GRIP.path) state = `<span class="need">Nur für den ${path}.</span>`;
     else if (p.level < TITAN_GRIP.level) state = `<span class="need">Ab Stufe ${TITAN_GRIP.level}.</span>`;
     else state = `<button type="button" class="mini-btn primary" data-learn-titan ${p.gold < TITAN_GRIP.price ? 'disabled' : ''}>Lernen für ${TITAN_GRIP.price.toLocaleString('de-DE')} Gold</button>`;
-    return `<div class="learn-box"><h3>Titanengriff <small>· ${path} · ab Stufe ${TITAN_GRIP.level}</small></h3><p>${info}</p><p>${state}</p></div>`;
+    // Beidhändigkeit vom Weg der Klinge mitgebracht (seit 13.85): sagen, dass sie hier ruht
+    const dual = dualWieldIdle(p) ? `<p><b>Beidhändigkeit gelernt</b>, wirkt aber nur auf dem ${CLASSES.krieger.paths[DUAL_WIELD.path].name}. Auf dem ${path} passt keine zweite Einhandwaffe in die Nebenhand.</p>` : '';
+    return `<div class="learn-box"><h3>Titanengriff <small>· ${path} · ab Stufe ${TITAN_GRIP.level}</small></h3><p>${info}</p><p>${state}</p>${dual}</div>`;
   },
 
   learnTitanGrip() {
@@ -2445,15 +2486,16 @@ const gear = {
   },
 
   // Beidhändigkeit: nur Krieger der Klinge, ab Stufe 30, einmalig gegen Gold
+  // seit 13.85 Schwert oder Axt in der Nebenhand, auch gemischt
   dualWieldHtml() {
     const p = game.player;
     if (p.classId !== 'krieger') return '';
     if ((p.path || 0) === TITAN_GRIP.path) return this.titanGripHtml();
     const path = CLASSES.krieger.paths[DUAL_WIELD.path].name;
-    const info = `Ein zweites Schwert in der Nebenhand statt Schild: +${Math.round(DUAL_WIELD.atk * 100)} % seines Angriffs, ` +
-      `+${Math.round(DUAL_WIELD.atkSpeed * 100)} % Angriffstempo, seine Boni zur Hälfte. Dafür kein Blocken.`;
+    const info = `Ein zweites Schwert oder eine Axt in der Nebenhand statt Schild (auch gemischt): +${Math.round(DUAL_WIELD.atk * 100)} % ihres Angriffs, ` +
+      `+${Math.round(DUAL_WIELD.atkSpeed * 100)} % Angriffstempo, ihre Boni zur Hälfte. Dafür kein Blocken.`;
     let state;
-    if (p.dualWield) state = canDualWield(p) ? '<b class="up">Gelernt.</b> Lege ein Schwert im Inventar mit „Nebenhand“ an.' : `<b>Gelernt</b>, wirkt aber nur auf dem ${path}.`;
+    if (p.dualWield) state = canDualWield(p) ? '<b class="up">Gelernt.</b> Lege ein Schwert oder eine Axt im Inventar mit „Nebenhand“ an – hält die Haupthand schon eine, wandert die zweite von selbst dorthin.' : `<b>Gelernt</b>, wirkt aber nur auf dem ${path}.`;
     else if ((p.path || 0) !== DUAL_WIELD.path) state = `<span class="need">Nur für den ${path}.</span> Zweihänder bleiben dem Weg des Leibes.`;
     else if (p.level < DUAL_WIELD.level) state = `<span class="need">Ab Stufe ${DUAL_WIELD.level}.</span>`;
     else state = `<button type="button" class="mini-btn primary" data-learn-dual ${p.gold < DUAL_WIELD.price ? 'disabled' : ''}>Lernen für ${DUAL_WIELD.price.toLocaleString('de-DE')} Gold</button>`;
@@ -2470,9 +2512,9 @@ const gear = {
     p.gold -= DUAL_WIELD.price;
     p.dualWield = true;
     saveGame();
-    ui.banner('Beidhändigkeit gelernt', 'Ein zweites Schwert passt jetzt in die Nebenhand');
+    ui.banner('Beidhändigkeit gelernt', 'Ein Schwert oder eine Axt passt jetzt in die Nebenhand');
     this.renderMerchant(undefined, true);
-    this.message('Du kannst jetzt ein zweites Schwert in der Nebenhand führen.', 'success');
+    this.message('Du kannst jetzt ein zweites Schwert oder eine Axt in der Nebenhand führen.', 'success');
   },
 
   // Verkaufen: öffnet die Tasche gleich zum Auswählen

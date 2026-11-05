@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '13.84';
+const GAME_VERSION = '13.85';
 
 const game = {
   world: null,
@@ -117,7 +117,8 @@ function updatePlayer(dt) {
       const spd = s.speed * (p.channel ? BEAM_WALK : 1);
       p.moving = moveEntity(p, mv.x * spd * dt, mv.y * spd * dt, false);
       const len = Math.hypot(mv.x, mv.y);
-      p.facing = { x: mv.x / len, y: mv.y / len };
+      // seit 13.85: kurz nach einem Angriff schaut die Figur weiter zum Ziel (holdFacing, kampf.js)
+      if (!holdFacing(p)) p.facing = { x: mv.x / len, y: mv.y / len };
     }
     // Leertaste, linke Maustaste auf einem Monster (PC) oder Angriffsknopf (Handy) gehalten: jeder Frame ist ein neuer Tipp
     if (input.keys.has('Space') || input.mouseAttack || input.touchAttack) input.attackAt = game.time;
@@ -127,7 +128,7 @@ function updatePlayer(dt) {
       const wt = input.walkTo;
       if (Math.hypot(wt.x - p.x, wt.y - p.y) < 6 || !moveToward(p, wt.x, wt.y, s.speed * (p.channel ? BEAM_WALK : 1) * dt, false)) input.walkTo = input.mouseWalk ? wt : null;
       else p.moving = true;
-      faceTowards(wt.x, wt.y);
+      if (!holdFacing(p)) faceTowards(wt.x, wt.y);
     }
     // offener Tipp: kurz gültig, beim Hinlaufen zum Ziel bis zu 3 Sekunden
     const tapAge = game.time - input.attackAt;
@@ -137,9 +138,12 @@ function updatePlayer(dt) {
     if (!(mv.x || mv.y) && wantAttack) {
       // Angriff gedrückt, aber nichts in Reichweite: zum Ziel laufen
       const c = CLASSES[p.classId];
-      const t = (game.target && !game.target.dead && dist(game.target, p) < 420) ? game.target : nearestEnemy(p, 260);
+      // seit 13.85: nur ein bewusst gewähltes Ziel (Antippen, Klick, Tab) hat Vorrang; sonst das nächste Monster
+      // (Seelensteine erst, wenn kein Monster in der Nähe ist), danach das alte Auto-Ziel
+      const g = game.target && !game.target.dead && !game.target.hidden && dist(game.target, p) < 420 ? game.target : null;
+      const t = (g && targetIsManual(g) ? g : null) || nearestEnemy(p, 260) || g;
       if (t && (dist(t, p) - t.r > basicAttack(p).range || inVillage(p.x, p.y))) {
-        game.target = t;
+        setTarget(t, targetIsManual(t));
         p.moving = moveToward(p, t.x, t.y, s.speed * dt, false);
         faceTowards(t.x, t.y);
         approaching = true;

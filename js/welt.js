@@ -29,9 +29,10 @@ const WORLD_VERSION = 12;  // erhöhen, wenn sich die Karte ändert (alte Positi
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
-const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15 };
+// seit 13.85: KRISTALL (violetter Fels des Kristallabgrunds) und ABGRUND (Spalte ins Dunkle, wie ein Gewässer nicht begehbar)
+const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15, KRISTALL: 16, ABGRUND: 17 };
 // Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
-const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG]);
+const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG, GROUND.ABGRUND]);
 // Objekte auf dem Boden (alle blockieren den Weg)
 // CAVEWALL: Wände der Dungeons, werden mit dem Boden vorgezeichnet
 // PILLAR (seit 13.7): Säule in einem Dungeon-Raum; blockiert, gezeichnet wird sie als Prop 'dpillar'
@@ -45,7 +46,8 @@ const ZONE_DECO = {
   wiesen: ['SHRUB', 'STUMP', 'SHRUB'], wald: ['STUMP', 'MUSHROOM', 'LOG', 'SHRUB'], orktal: ['BONES', 'DEADTREE', 'BONES'],
   oedland: ['DEADTREE', 'BONES', 'DEADTREE', 'CRYSTAL'], frost: ['CRYSTAL', 'DRIFT', 'STUMP', 'DRIFT'], moor: ['MUSHROOM', 'BONES', 'LOG', 'DEADTREE'],
   vulkan: ['CRYSTAL', 'BONES', 'DEADTREE'], sandwueste: ['BONES', 'DEADTREE'], nagadschungel: ['SHRUB', 'MUSHROOM', 'LOG'],
-  donnerklamm: ['BONES', 'DEADTREE', 'CRYSTAL'], titanenkamm: ['CRYSTAL', 'BONES']
+  donnerklamm: ['BONES', 'DEADTREE', 'CRYSTAL'], titanenkamm: ['CRYSTAL', 'BONES'],
+  kristallhang: ['CRYSTAL', 'BONES', 'CRYSTAL', 'DEADTREE'], leerenschlund: ['CRYSTAL', 'CRYSTAL', 'BONES'] // seit 13.85
 };
 const DECO_RATE = 0.022;
 function zoneDeco(zone, r) {
@@ -64,8 +66,22 @@ function thinDrop(x, y) {
   h ^= h >>> 12;
   return (h & 1) === 0;
 }
-function thinDeco(kind, x, y) {
-  return SOLID_DECO_KINDS.has(kind) && thinDrop(x, y) ? DECO.NONE : kind;
+// Noch weniger Stolperteile (seit 13.85): von den übrigen Felsen und festen Bodenteilen fällt auf jeder Map gut ein
+// Drittel weg, auf dem Feuerberg (Map 9) gut die Hälfte – dort auch Knochen. Wieder über die Lage der Kachel (andere
+// Bits als thinDrop), der Zufallsgenerator und damit alles andere bleibt gleich.
+const CLUTTER_DROP = { 9: 0.56 };
+function clutterDrop(x, y, mapId) {
+  if (mapId == null) return false; // Dungeons bleiben, wie sie sind
+  let h = Math.imul(x + 0x7f4a7c15, 0x9e3779b1) ^ Math.imul(y + 0x2545f491, 0x6c8e9cf5);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0x5bd1e995);
+  h ^= h >>> 15;
+  return ((h >>> 8) & 255) / 256 < (CLUTTER_DROP[mapId] || 0.36);
+}
+function thinDeco(kind, x, y, mapId) {
+  if (SOLID_DECO_KINDS.has(kind) && thinDrop(x, y)) return DECO.NONE;
+  if ((SOLID_DECO_KINDS.has(kind) || (mapId === 9 && kind === DECO.BONES)) && clutterDrop(x, y, mapId)) return DECO.NONE;
+  return kind;
 }
 
 // Zufallsgenerator mit Startwert: gleiche Zahl → gleiche Welt
@@ -182,7 +198,8 @@ function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
 // Innenkante bei -H + 1 und +H, die Tore um dx bzw. dy = 0). Seite: 'w' Stand links an der Westmauer, die Person
 // schaut zur Mitte · 'e' Stand rechts an der Ostmauer · 'n' Stand dahinter (Nordmauer; an der Südmauer im Lager
 // steht die Person an der Mauer und der Stand vor ihr, weil ein Stand zwischen Kamera und Person sie verdecken
-// würde) · null = ohne Stand (Briefkasten). 'frei' ist ein weiterer freier Platz für später.
+// würde) · null = ohne Stand (Briefkasten; seit 13.85 auch der Arenameister, der ohne Stand in der Mitte steht).
+// 'frei' ist ein weiterer freier Platz für später.
 // Alles feste Zahlen (keine Zufallszahlen): jeder Mitspieler bekommt dieselben Plätze. Die Stände blockieren nicht
 // (Schmuck ohne Kollision) und keine Kachel ändert sich – wer an einem alten Standplatz gespeichert hat, steht frei.
 // dorf: Vlotho (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
@@ -190,18 +207,23 @@ const TOWN_PLACES = {
   // Vlotho: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 4); um die Tore stehen die Torwachen
   dorf: {
     aeltester: [-19.25, -18.5, 'w'], waffen: [-19.25, -14.5, 'w'], haendler: [-19.25, -10.5, 'w'], bogenmacher: [-19.25, -6.5, 'w'],
-    stallmeister: [-19.25, 7.5, 'w'], schmied: [-19.25, 11.5, 'w'], arena: [-19.25, 15.5, 'w'], frei: [-19.25, 19.5, 'w'],
+    stallmeister: [-19.25, 7.5, 'w'], schmied: [-19.25, 11.5, 'w'], frei: [-19.25, 19.5, 'w'],
     lehrmeister: [20.25, -18.5, 'e'], teleport: [20.25, -14.5, 'e'], ruestung: [20.25, -10.5, 'e'], alchemist: [20.25, -6.5, 'e'],
     jaegerin: [20.25, 7.5, 'e'], lager: [20.25, 11.5, 'e'], auktion: [20.25, 15.5, 'e'], post: [20.25, 19.5, 'e'],
-    briefkasten: [18.2, 20.8, null]
+    briefkasten: [18.2, 20.8, null],
+    // seit 13.85 ohne Stand mitten in der Stadt: links oben schräg hinter dem Brunnen, frei von Wegen, Weltentor und
+    // den Wegen der umherlaufenden Leute (Bauer, Mönch, Nachtwächterin, Laternenanzünder); vorher [-19.25, 15.5, 'w']
+    arena: [-3.9, -4.5, null]
   },
   // Städte: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 3,6)
   stadt: {
     aeltester: [-16.25, -16.3, 'w'], waffen: [-16.25, -12.7, 'w'], haendler: [-16.25, -9.1, 'w'], schmied: [-16.25, -5.5, 'w'],
-    stallmeister: [-16.25, 5.5, 'w'], bogenmacher: [-16.25, 9.1, 'w'], lehrmeister: [-16.25, 12.7, 'w'], arena: [-16.25, 16.3, 'w'],
+    stallmeister: [-16.25, 5.5, 'w'], bogenmacher: [-16.25, 9.1, 'w'], lehrmeister: [-16.25, 12.7, 'w'],
     teleport: [17.25, -16.3, 'e'], ruestung: [17.25, -12.7, 'e'], alchemist: [17.25, -9.1, 'e'], lager: [17.25, -5.5, 'e'],
     post: [17.25, 5.5, 'e'], jaegerin: [17.25, 9.1, 'e'], auktion: [17.25, 12.7, 'e'], frei: [17.25, 16.3, 'e'],
-    briefkasten: [15.3, 6.7, null]
+    briefkasten: [15.3, 6.7, null],
+    // seit 13.85 ohne Stand in der Mitte, rechts unten (der Brunnen steht links oben); vorher [-16.25, 16.3, 'w']
+    arena: [3.6, 3.4, null]
   },
   // Lager (klein): je zwei an West- und Ostmauer über und unter dem Tor, dazu drei an der Nordmauer neben den
   // Tortürmen (in der Nordwestecke nur einer, dort rückt die Mauer näher ans Tor) und vier an der Südmauer
@@ -209,8 +231,10 @@ const TOWN_PLACES = {
     aeltester: [-9.25, -7.8, 'w'], waffen: [-9.25, -4.5, 'w'], haendler: [-9.25, 4.5, 'w'], schmied: [-9.25, 7.6, 'w'],
     teleport: [10.25, -7.6, 'e'], ruestung: [10.25, -4.5, 'e'], alchemist: [10.25, 4.5, 'e'], lager: [10.25, 7.6, 'e'],
     lehrmeister: [-5.4, -9.25, 'n'], jaegerin: [4.75, -9.25, 'n'], auktion: [7.95, -9.25, 'n'],
-    arena: [-3.75, 10.25, 'n'], stallmeister: [-7.4, 10.25, 'n'], bogenmacher: [3.75, 10.25, 'n'], post: [7.6, 10.25, 'n'],
-    briefkasten: [9.4, 11.3, null]
+    stallmeister: [-7.4, 10.25, 'n'], bogenmacher: [3.75, 10.25, 'n'], post: [7.6, 10.25, 'n'],
+    briefkasten: [9.4, 11.3, null],
+    // seit 13.85 ohne Stand in der Mitte, rechts unten (Brunnen links, Weltentor oben); vorher [-3.75, 10.25, 'n']
+    arena: [3.9, 2.7, null]
   }
 };
 // Stadtleute mit Stand, in der Reihenfolge, in der sie in jeder Stadt erzeugt werden (seit 13.72)
@@ -240,6 +264,115 @@ function stallProps(at, hay) {
   const dir = at.stand === 'w' ? 1 : -1; // zur Mitte hin
   const out = [{ type: 'horse', ...P(at.x + dir * 1.7, at.y + 1.4) }];
   if (hay) out.push({ type: 'hay', ...P(at.x - dir * 0.9, at.y - 2.1) });
+  return out;
+}
+
+// Stadtschmuck (seit 13.85): Fässer, Kisten, Blumenkästen, Bänke, Holzstapel und Banner an Häusern und Mauern, je
+// Map im Stil des Gebiets. Alles ist Schmuck ohne Kollision (game.world.props): Spieler und NPCs laufen hindurch,
+// und es steht ohnehin nur dort, wo niemand läuft – vor den Hausecken (nicht vor der Tür), an der Nord- und Südmauer
+// und in den Ecken. Die Mitte, die Wege zu den Toren, das Weltentor, die Stände und alle Leute bleiben frei
+// (townDecoProps prüft jeden Platz und lässt ihn sonst weg). Feste Zahlen, keine Zufallszahlen: alle sehen dasselbe.
+// [dx, dy, Art] in Kacheln ab der Mitte der Stadt (Bänke schauen nach Süden). Arten: P Pflanzkübel · B Bank · G Warenstapel ·
+// X Haufen (Holz, Heu, Säcke, Krüge, Totem, Erz – je Map, der Reihe nach) · F Banner an der Mauer · K Fass · C Kiste ·
+// H Heu. Auf niedriger Grafik fallen Kübel, einzelne Fässer und Kisten weg (fine).
+const TOWN_DECO = {
+  dorf: [
+    // Nordmauer: Banner, zwei Bänke zwischen Blumenkästen, außen Waren und ein Haufen
+    [-17.3, -20.9, 'G'], [-15.5, -21.55, 'F'], [-12.3, -20.9, 'P'], [-10.5, -20.7, 'B'], [-8.7, -20.9, 'P'], [-6, -21.55, 'F'],
+    [6, -21.55, 'F'], [8.7, -20.9, 'P'], [10.5, -20.7, 'B'], [12.3, -20.9, 'P'], [15.5, -21.55, 'F'], [17.3, -20.9, 'X'],
+    // an den Häusern: vor den Ecken (die Tür in der Mitte bleibt frei) und an der Seite
+    [-14.45, -11.4, 'P'], [-10.55, -11.4, 'G'], [-15.7, -13.2, 'X'], [-7.45, -11.4, 'P'],
+    [-14.45, -5.4, 'P'], [-12.55, -5.4, 'C'],
+    [9.45, -11.4, 'P'], [10.7, -13.3, 'G'],
+    [12.55, -5.4, 'P'], [15.45, -5.4, 'G'], [16.7, -7.8, 'X'],
+    [6.55, 9.6, 'P'], [9.45, 9.6, 'P'], [10.7, 7.3, 'G'],
+    [-9.45, 15.6, 'P'], [-6.55, 15.6, 'G'], [-10.7, 13.3, 'X'],
+    [4.55, 16.6, 'P'], [7.45, 16.6, 'C'], [8.7, 14.3, 'K'],
+    // Südmauer und der alte Platz des Arenameisters an der Westmauer
+    [-15, 20.6, 'G'], [-11, 20.8, 'P'], [-6.5, 20.8, 'X'], [6.5, 20.8, 'X'], [11, 20.8, 'P'], [15, 20.6, 'G'],
+    [-20.9, 15.5, 'G'], [-20.6, 17.4, 'P']
+  ],
+  stadt: [
+    [-14.6, -17.9, 'G'], [-12.5, -18.55, 'F'], [-10.8, -17.9, 'P'], [-9, -17.7, 'B'], [-7.2, -17.9, 'P'], [-5.2, -18.55, 'F'],
+    [5.2, -18.55, 'F'], [7.2, -17.9, 'P'], [9, -17.7, 'B'], [10.8, -17.9, 'P'], [12.5, -18.55, 'F'], [14.6, -17.9, 'X'],
+    [-11.45, -8.4, 'P'], [-7.55, -8.4, 'G'], [-12.7, -10.3, 'X'],
+    [6.55, -8.4, 'G'], [10.45, -8.4, 'P'], [11.7, -10.3, 'X'],
+    [-13, 17.6, 'G'], [-9, 17.8, 'P'], [-5.5, 17.6, 'X'], [5.5, 17.6, 'X'], [9, 17.8, 'P'], [13, 17.6, 'G'],
+    [-17.9, 16.3, 'G'], [-17.6, 18.0, 'P']
+  ],
+  lager: [
+    [-11, -11, 'G'], [-8.8, -11.55, 'F'], [10.3, -11.55, 'F'], [11.4, -10.6, 'X'],
+    // zwischen den Ständen an der Westmauer je ein Fass (an der Ostmauer stehen sie zu dicht)
+    [-11.45, -6.2, 'K'], [-11.45, 6.05, 'K'],
+    // Heu beim Pferd, am alten Platz des Arenameisters Waren und ein Kübel, rechts unten Waren
+    [-11.3, 11.5, 'H'], [-4.6, 11.4, 'G'], [-5.9, 11.6, 'P'], [11.2, 11.3, 'G']
+  ]
+};
+// Stil je Map: Pflanzkübel, Bank, Waren, Haufen (der Reihe nach), Bannerfarbe, Schnee obendrauf
+const TOWN_THEME = {
+  1: { planter: 'blumen', bench: 'holz', goods: 'markt', pile: ['heu', 'holz'], banner: '#9a2f2a' },
+  2: { planter: 'palme', bench: 'stein', goods: 'krug', pile: ['krug', 'sack'], banner: '#c8902a' },
+  3: { planter: 'dorn', bench: 'stein', goods: 'markt', pile: ['holz', 'sack'], banner: '#4a5a7a' },
+  4: { planter: 'farn', bench: 'holz', goods: 'markt', pile: ['holz'], banner: '#3a6a3a' },
+  5: { planter: 'dorn', bench: 'holz', goods: 'markt', pile: ['totem', 'sack'], banner: '#8a2a1a' },
+  6: { planter: 'dorn', bench: 'stein', goods: 'markt', pile: ['sack', 'holz'], banner: '#5a4a5a' },
+  7: { planter: 'tanne', bench: 'holz', goods: 'markt', pile: ['holz'], banner: '#2f5a7a', snow: true },
+  8: { planter: 'pilz', bench: 'holz', goods: 'markt', pile: ['holz', 'sack'], banner: '#4a5a3a' },
+  9: { planter: 'dorn', bench: 'stein', goods: 'erz', pile: ['erz', 'sack'], banner: '#a83a1a' },
+  10: { planter: 'dorn', bench: 'stein', goods: 'krug', pile: ['sack', 'krug'], banner: '#5a3aa8' } // seit 13.85: Lichtwacht
+};
+const PILE_PROP = { heu: 'hay', holz: 'woodpile', sack: 'sacks', krug: 'pots', totem: 'totem', erz: 'ore' };
+// Ist (x, y) (Kacheln) ein guter Platz für Schmuck? Nicht auf Weg, Haus oder Mauer, nicht in der Mitte oder vor
+// einem Tor, mit Abstand zu Leuten (und dem Gebiet, in dem die Umherlaufenden gehen), Weltentor, Ständen und Bauten
+function townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground) {
+  const dx = x - cx;
+  const dy = y - cy;
+  if (Math.hypot(dx, dy) < 6.5) return false;
+  if ((Math.abs(dx) < 3 && Math.abs(dy) > H - 5) || (Math.abs(dy) < 3 && Math.abs(dx) > H - 5)) return false;
+  for (const [ox, oy] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
+    const i = Math.floor(y + oy) * MAP_W + Math.floor(x + ox);
+    if (obj[i] !== OBJ.NONE || ground[i] === GROUND.PATH) return false;
+  }
+  for (const n of npcs) {
+    const nx = n.x / TILE;
+    const ny = n.y / TILE;
+    if (Math.abs(nx - x) > 8 || Math.abs(ny - y) > 8) continue;
+    if (n.wander) {
+      if (Math.abs(n.homeX / TILE - x) < 3.1 && Math.abs(n.homeY / TILE - y) < 2.6) return false;
+    } else if (Math.hypot(nx - x, ny - y) < (n.id === 'weltentor' ? 3.2 : 1.5)) return false;
+  }
+  const keep = { stand: 1.7, horse: 1.4, well: 1.5, lantern: 0.9, brazier: 1.0 };
+  for (const pr of props) {
+    const R = keep[pr.type];
+    if (R && Math.hypot(pr.x / TILE - x, pr.y / TILE - y) < R) return false;
+  }
+  return true;
+}
+// Schmuck einer Stadt (Map mapId, Mitte cx, cy, Mauer H): Liste von Props
+function townDecoProps(mapId, cx, cy, H, npcs, props, obj, ground) {
+  const th = TOWN_THEME[mapId] || TOWN_THEME[1];
+  const snow = th.snow ? '|schnee' : '';
+  const out = [];
+  let pile = 0;
+  for (const [dx, dy, code] of TOWN_DECO[townKind(mapId)]) {
+    const x = cx + dx;
+    const y = cy + dy;
+    if (!townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground)) continue;
+    // kleine feste Drehung je Platz, damit nicht alles in Reih und Glied steht (nur 3D)
+    const rot = (((Math.round(dx * 7 + dy * 13) % 5) + 5) % 5 - 2) * 0.16;
+    const at = { x: x * TILE, y: y * TILE };
+    if (code === 'P') out.push({ type: 'planter', roof: th.planter + snow, fine: true, ...at });
+    else if (code === 'B') out.push({ type: 'bench', roof: th.bench + snow, ...at });
+    else if (code === 'G') out.push({ type: 'goods', roof: th.goods + snow, rot, ...at });
+    else if (code === 'F') out.push({ type: 'wallbanner', roof: th.banner, ...at });
+    else if (code === 'K') out.push({ type: 'barrel', fine: true, rot, ...at });
+    else if (code === 'C') out.push({ type: 'crate', fine: true, rot, ...at });
+    else if (code === 'H') out.push({ type: 'hay', ...at });
+    else {
+      const kind = PILE_PROP[th.pile[pile++ % th.pile.length]];
+      out.push({ type: kind, roof: kind === 'woodpile' || kind === 'sacks' ? snow.slice(1) : '', rot, ...at });
+    }
+  }
   return out;
 }
 
@@ -329,8 +462,8 @@ function generateWorld() {
       const cluster = v > 0.55 ? 1.8 : 0.5;
       const r = rng();
       if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
-      else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y)) obj[i] = OBJ.ROCK; }
-      else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y);
+      else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y) && !clutterDrop(x, y, 1)) obj[i] = OBJ.ROCK; }
+      else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y, 1);
     }
   }
 
@@ -437,18 +570,20 @@ function generateWorld() {
     6: { haendler: ['Rami', 1], schmied: ['Zahra', 1], waffen: ['Tarik', 0], ruestung: ['Amal', 0], alchemist: ['Faris', 0], aeltester: ['Idris', 0], jaegerin: ['Layla', 0], teleport: ['Samir', 1], stallmeister: ['Nadia', 1], lehrmeister: ['Yasmin', 1], lager: ['Malik', 0] },
     7: { haendler: ['Frida', 0], schmied: ['Sten', 0], waffen: ['Bjarne', 0], ruestung: ['Ylva', 0], alchemist: ['Eira', 1], aeltester: ['Olaf', 0], jaegerin: ['Ingrid', 0], teleport: ['Torvi', 0], stallmeister: ['Knut', 0], lehrmeister: ['Hjalmar', 0], lager: ['Sigrid', 1] },
     8: { haendler: ['Morla', 0], schmied: ['Grim', 0], waffen: ['Vex', 0], ruestung: ['Nebel', 1], alchemist: ['Hexe Una', 1], aeltester: ['Oswin', 0], jaegerin: ['Moira', 0], teleport: ['Irrlicht', 1], stallmeister: ['Bran', 0], lehrmeister: ['Mortimer', 0], lager: ['Agathe', 1] },
-    9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0], lehrmeister: ['Aschea', 1], lager: ['Kohl', 0] }
+    9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0], lehrmeister: ['Aschea', 1], lager: ['Kohl', 0] },
+    // seit 13.85: Lichtwacht im Kristallabgrund
+    10: { haendler: ['Selene', 0], schmied: ['Brannoc', 0], waffen: ['Corvin', 0], ruestung: ['Ilse', 0], alchemist: ['Sorel', 0], aeltester: ['Aurelia', 1], jaegerin: ['Nerys', 0], teleport: ['Elian', 1], stallmeister: ['Maren', 1], lehrmeister: ['Castor', 0], lager: ['Odo', 0] }
   };
   // Bogenmacher je Map (seit 13.57)
-  const BOW_PEOPLE = { 2: ['Amira', 0], 3: ['Torvald', 1], 4: ['Wiebke', 0], 5: ['Grisha', 0], 6: ['Zeynep', 0], 7: ['Liv', 0], 8: ['Rabe', 1], 9: ['Flint', 1] };
+  const BOW_PEOPLE = { 2: ['Amira', 0], 3: ['Torvald', 1], 4: ['Wiebke', 0], 5: ['Grisha', 0], 6: ['Zeynep', 0], 7: ['Liv', 0], 8: ['Rabe', 1], 9: ['Flint', 1], 10: ['Siv', 0] };
   for (const [k, v] of Object.entries(BOW_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].bogenmacher = v;
   // Auktionshaus und Post je Map (seit 13.63)
-  const AUCTION_PEOPLE = { 2: ['Bashir', 0], 3: ['Ingvild', 1], 4: ['Konrad', 0], 5: ['Gruk', 0], 6: ['Soraya', 1], 7: ['Eskil', 0], 8: ['Morgana', 1], 9: ['Brand', 0] };
-  const POST_PEOPLE = { 2: ['Leyla', 0], 3: ['Arvid', 1], 4: ['Hanne', 0], 5: ['Durza', 0], 6: ['Karim', 1], 7: ['Tove', 0], 8: ['Krähe', 1], 9: ['Asche', 0] };
+  const AUCTION_PEOPLE = { 2: ['Bashir', 0], 3: ['Ingvild', 1], 4: ['Konrad', 0], 5: ['Gruk', 0], 6: ['Soraya', 1], 7: ['Eskil', 0], 8: ['Morgana', 1], 9: ['Brand', 0], 10: ['Lucan', 0] };
+  const POST_PEOPLE = { 2: ['Leyla', 0], 3: ['Arvid', 1], 4: ['Hanne', 0], 5: ['Durza', 0], 6: ['Karim', 1], 7: ['Tove', 0], 8: ['Krähe', 1], 9: ['Asche', 0], 10: ['Fenja', 0] };
   for (const [k, v] of Object.entries(AUCTION_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].auktion = v;
   for (const [k, v] of Object.entries(POST_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].post = v;
   // Arenameister je Map (seit 13.63, Herausforderung)
-  const ARENA_PEOPLE = { 2: ['Zarif', 1], 3: ['Brynja', 0], 4: ['Rasmus', 1], 5: ['Urgash', 1], 6: ['Samira', 0], 7: ['Hedda', 0], 8: ['Vesper', 0], 9: ['Glutfaust', 1] };
+  const ARENA_PEOPLE = { 2: ['Zarif', 1], 3: ['Brynja', 0], 4: ['Rasmus', 1], 5: ['Urgash', 1], 6: ['Samira', 0], 7: ['Hedda', 0], 8: ['Vesper', 0], 9: ['Glutfaust', 1], 10: ['Varik', 1] };
   for (const [k, v] of Object.entries(ARENA_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].arena = v;
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
@@ -642,10 +777,14 @@ function generateWorld() {
   const STAND_ROLES = new Set(Object.keys(ROLE_TITLE));
   const SIDE = { w: [-1.25, 0, Math.PI / 2], e: [1.25, 0, -Math.PI / 2], n: [0, -1.25, 0] };
   for (const n of npcs) {
-    if (!STAND_ROLES.has(n.id)) continue;
+    // seit 13.85: wer ohne Stand steht (stand null, der Arenameister), bekommt auch keinen
+    if (!STAND_ROLES.has(n.id) || n.stand === null) continue;
     const [dx, dy, rot] = SIDE[n.stand || 'n'];
     props.push({ type: 'stand', roof: n.id, x: n.x + dx * TILE, y: n.y + dy * TILE, rot });
   }
+  // Stadtschmuck (seit 13.85, nach den Ständen, damit townDecoFree sie kennt)
+  props.push(...townDecoProps(1, CENTER_X, CENTER_Y, VILLAGE_HALF, npcs, props, obj, ground));
+  for (const mp of maps) props.push(...townDecoProps(mp.id, mp.cx, mp.cy, WORLD_MAPS.find((m) => m.id === mp.id).camp || CAMP_HALF, npcs, props, obj, ground));
 
   return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps };
 }
@@ -1132,9 +1271,9 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
         const cluster = v > 0.55 ? 1.8 : 0.5;
         const r = rng();
         if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
-        else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y)) obj[i] = OBJ.ROCK; }
-        else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y);
-        else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT ? DECO.CRACK : DECO.TUFT;
+        else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y) && !clutterDrop(x, y, wm.id)) obj[i] = OBJ.ROCK; }
+        else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y, wm.id);
+        else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL ? DECO.CRACK : DECO.TUFT;
       }
     }
     // Wege vom Lager zum Rand
@@ -1184,7 +1323,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom) {
     const plan = wm.genCamp || camp;
     const scale = plan < CAMP_HALF ? plan / 7 : CAMP_HALF / 11;
     // Städte: zwei Häuser oben (seit 12.2; die beiden unteren verdeckten die Stände am Rand)
-    const houses = (plan < CAMP_HALF ? [] : [[-9, -9, 5, 3], [5, -9, 5, 3]]).map(([hx, hy, w, h], k) => ({ x: Math.floor(wm.cx + hx * scale), y: Math.floor(wm.cy + hy * scale), w, h, roof: wm.id === 2 ? ['#b0763a', '#8a4a2a', '#c8a060', '#7a5a3a'][k] : ['#4a4644', '#5a3a2e', '#3a3a4a', '#6a4a3a'][k] }));
+    const houses = (plan < CAMP_HALF ? [] : [[-9, -9, 5, 3], [5, -9, 5, 3]]).map(([hx, hy, w, h], k) => ({ x: Math.floor(wm.cx + hx * scale), y: Math.floor(wm.cy + hy * scale), w, h, roof: wm.id === 2 ? ['#b0763a', '#8a4a2a', '#c8a060', '#7a5a3a'][k] : wm.id === 10 ? ['#4a3a8a', '#2e4a7a', '#5a4a9a', '#3a3a6a'][k] : ['#4a4644', '#5a3a2e', '#3a3a4a', '#6a4a3a'][k] }));
     for (const h of houses) for (let y = h.y; y < h.y + h.h; y++) for (let x = h.x; x < h.x + h.w; x++) obj[y * MAP_W + x] = OBJ.HOUSE;
     out.push({ id: wm.id, cx: wm.cx, cy: wm.cy, houses, small: plan < CAMP_HALF, scale, spawn: { x: wm.cx * TILE, y: (wm.cy + 1.5 * scale) * TILE } });
   }
@@ -1228,9 +1367,18 @@ function tileIndex(tx, ty) {
 function tileBlocked(tx, ty) {
   if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
   const i = tileIndex(tx, ty);
-  return LIQUID.has(game.world.ground[i]) && game.world.deco[i] !== DECO.BRIDGE
-    ? true
-    : game.world.obj[i] !== OBJ.NONE;
+  if (LIQUID.has(game.world.ground[i]) && game.world.deco[i] !== DECO.BRIDGE) return true;
+  const o = game.world.obj[i];
+  // seit 13.85: Felsbrocken (kniehoch) halten nicht mehr auf – nur der Felsrand der Maps bleibt fest
+  if (o === OBJ.ROCK) return rockSolid(tx, ty);
+  return o !== OBJ.NONE;
+}
+// Fester Fels (seit 13.85): der Felsrand jeder Map (MAP_BORDER) und alles außerhalb der Maps
+function rockSolid(tx, ty) {
+  const wm = mapOfTile(tx, ty);
+  if (!wm) return true;
+  const [rx, ry, rw, rh] = wm.region;
+  return tx < rx + MAP_BORDER || ty < ry + MAP_BORDER || tx >= rx + rw - MAP_BORDER || ty >= ry + rh - MAP_BORDER;
 }
 
 // Sicher: das Dorf Vlotho, die Städte und die Lager der anderen Maps
@@ -1260,10 +1408,12 @@ function canStand(x, y, r, isMonster) {
   return true;
 }
 
-// Feste Hindernisse ohne eigene Kachel (seit 13.14): Äste, Baumstümpfe, Stämme und Kristalle (Büsche, Pilze, Gras,
-// Blumen, Knochen und Schneewehen bleiben begehbar), dazu Seelensteine und Portale (Weltentor, Dungeon-Eingang,
-// Riss, Ausgang). Rund um ihre Mitte; man kommt nur nicht näher heran, weg geht immer (niemand bleibt stecken).
-const SOLID_DECO_R = { [DECO.STUMP]: 9, [DECO.LOG]: 12, [DECO.DEADTREE]: 9, [DECO.CRYSTAL]: 10 };
+// Feste Hindernisse ohne eigene Kachel (seit 13.14): Seelensteine und Portale (Weltentor, Dungeon-Eingang, Riss,
+// Ausgang). Rund um ihre Mitte; man kommt nur nicht näher heran, weg geht immer (niemand bleibt stecken).
+// Bis 13.84 hielten auch Äste, Baumstümpfe, Stämme und Kristalle auf ({ STUMP: 9, LOG: 12, DEADTREE: 9, CRYSTAL: 10 });
+// seit 13.85 ist kleiner und mittlerer Bodenschmuck begehbar, nur Häuser, Mauern, Bäume, Felsrand, Seelensteine und
+// Portale halten auf. Die Tabelle bleibt (leer), damit Aufrufer wie die Wegsuche der Monster unverändert gehen.
+const SOLID_DECO_R = {};
 const PORTAL_R = { weltentor: 22, eingang: 26, riss: 22, ausgang: 20 };
 const solidCache = { at: -1, world: null, grid: new Map() };
 const SOLID_CELL = 128;

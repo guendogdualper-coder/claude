@@ -26,9 +26,10 @@ function equipSlotsFor(classId) {
 }
 
 // Beidhändig: Krieger auf dem Weg der Klinge lernen ab Stufe 30 beim Waffenhändler,
-// ein zweites Schwert in der Nebenhand zu führen. Die Nebenhand gibt einen Teil des Angriffs
+// eine zweite Einhandwaffe in der Nebenhand zu führen. Die Nebenhand gibt einen Teil des Angriffs
 // und etwas Tempo, aber kein Blocken. Zweihänder führt nur der Weg des Leibes.
-const DUAL_WIELD = { level: 30, path: 0, price: 20000, atk: 0.3, atkSpeed: 0.05, bonus: 0.5 };
+// seit 13.85: Schwert oder Axt (kinds), auch gemischt – vorher passte nur ein Schwert
+const DUAL_WIELD = { level: 30, path: 0, price: 20000, atk: 0.3, atkSpeed: 0.05, bonus: 0.5, kinds: ['sword', 'axe'] };
 // Titanengriff (seit 13.49): Krieger des Leibes führen ab Stufe 20 eine Zweihandwaffe in einer Hand – und damit zwei
 // gleiche Zweihänder (zwei Streitäxte oder zwei Zweihänder). Die zweite zählt wie bei der Beidhändigkeit zum Teil.
 const TITAN_GRIP = { level: 20, path: 1, price: 15000, atk: 0.35, atkSpeed: 0.03, bonus: 0.5 };
@@ -315,7 +316,14 @@ const MOB_MATS = {
   mammut: { name: 'Mammutelfenbein', art: 'horn', color: '#f2ead6' },
   moorwolf: { name: 'Moorfell', art: 'fur', color: '#4a5a4a' },
   donnerbock: { name: 'Donnerhorn', art: 'horn', color: '#9fd0ff' },
-  glutkatze: { name: 'Glutschnurrhaar', art: 'core', color: '#ff7a2a' }
+  glutkatze: { name: 'Glutschnurrhaar', art: 'core', color: '#ff7a2a' },
+  // seit 13.85: Kristallabgrund (Map 10)
+  kristallgolem: { name: 'Kristallherz', art: 'crystal', color: '#b8a0ff' },
+  splitterspinne: { name: 'Glasseide', art: 'silk', color: '#cfe4ff' },
+  schattenpirscher: { name: 'Schattenkralle der Leere', art: 'claw', color: '#6a4aa8' },
+  abgrundgeist: { name: 'Abgrundessenz', art: 'dust', color: '#9aa8ff' },
+  leerenritter: { name: 'Leerensiegel', art: 'badge', color: '#8a6ad8' },
+  kristallwyrm: { name: 'Wyrmkristall', art: 'scale', color: '#9fd8ff' }
 };
 
 

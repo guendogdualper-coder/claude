@@ -1,11 +1,13 @@
 // Körperaura (seit 13.83): Solange auf einer Figur irgendein Buff läuft (Buff-Fertigkeit, Klassensegen, Buff der
 // Ultimativen Attacke), umgibt sie eine Aura im Stil ihrer Klasse und ihres Weges. Ein Buff gibt eine ruhige Aura,
 // der Klassensegen und mehrere Buffs zugleich machen sie dichter und heller. Ein- und Ausblenden geht weich.
-// Alles ist räumlich an der Figur: eine lodernde Hülle aus Flammenzungen dicht hinter dem Körper (entlang des
-// Blickstrahls dahinter gesetzt – der Körper verdeckt ihre Mitte, sichtbar bleibt der Saum um Schultern und Kopf),
-// aufsteigende Zungen und Rauch an der Silhouette, Funken, Asche, Splitter, Federn, Blätter, kreisende Bänder,
-// Bogenblitze und Steinchen. Nichts liegt flach am Boden (keine Ringe, Runen oder Sterne),
-// und was vor dem Gesicht wäre, blendet aus.
+// In 3D klebt die Aura am Körper wie eine Anime-Aura beim Aufladen: eine flüssig wabernde Flammenhülle um die ganze
+// Silhouette (Kopf, Schultern, Arme, Rumpf, Beine), an das Skelett der Figur gebunden – sie läuft und dreht mit, ihre
+// Zungen lecken nach oben und wehen beim Laufen nach hinten; innen heiß und hell, außen ein dunkler Saum; dazu ein
+// heller Randschein auf dem Körper und Zungen, die sich von Kopf und Schultern lösen und aufsteigen (KA_FLAME,
+// kaShell3D). Darüber je Stil Rauch, Funken, Asche, Splitter, Federn, Blätter, kreisende Bänder, Bogenblitze und
+// Steinchen. Nichts liegt flach am Boden (keine Ringe, Runen oder Sterne), und was vor dem Gesicht wäre, blendet aus.
+// Ohne 3D-Figur (und in 2D) bleibt die alte Hülle aus Flammenbildern hinter der Figur.
 //   Krieger   Klinge: rot-goldene Flammen, goldene Glut · Leib: goldene Hitze mit rotem Kern
 //   Ninja     Dolch: violett-schwarzer Schattenrauch, karminrotes Flackern · Falke: purpur-schwarz, dunkle Federn
 //             (die Schwingen des Falkenblicks bleiben, fernninja.js)
@@ -107,6 +109,27 @@ const KA_STYLES = {
     motes: { n: 12, colors: ['#fff2a0', '#9be59b', '#ffffff'], size: 0.05, speed: 0.32, tex: 'disc', spiral: true }
   }
 };
+
+// Flammenhülle am Körper (nur 3D): Farben von außen nach innen – edge (dunkler Saum), body, core,
+// hot (weißglühend, erst auf hoher Stufe) – und rim (heller Randschein direkt auf der Figur).
+// occl: wie stark der Saum den Hintergrund abdeckt (0 = rein leuchtend, 1 = deckend wie Rauch),
+// rise: Höhe der Zungen, inf: Abstand vom Körper, spd: Tempo, freq: Feinheit der Zungen, op: Deckkraft (sonst 1)
+const KA_FLAME = {
+  klinge: { edge: '#5a0308', body: '#c80e0a', core: '#ff4a10', hot: '#ffc23a', rim: '#ff8a24', occl: 0.75, rise: 1, inf: 1, spd: 1, freq: 1 },
+  leib: { edge: '#7a1404', body: '#e05a0c', core: '#ffa424', hot: '#ffd890', rim: '#ffd070', op: 0.9, occl: 0.66, rise: 0.85, inf: 1.15, spd: 0.8, freq: 0.85 },
+  schatten: { edge: '#050208', body: '#1a0a24', core: '#a8102c', hot: '#ff4a64', rim: '#ff2a48', occl: 0.92, rise: 0.9, inf: 1, spd: 0.85, freq: 1.1 },
+  falke: { edge: '#06040c', body: '#22104a', core: '#7a3ae0', hot: '#d0b4ff', rim: '#a874ff', occl: 0.9, rise: 0.9, inf: 1, spd: 0.75, freq: 1 },
+  seelen: { edge: '#030a06', body: '#0c3418', core: '#3ad064', hot: '#c8ffd4', rim: '#9a6aff', occl: 0.88, rise: 1, inf: 1, spd: 0.7, freq: 0.95 },
+  blut: { edge: '#0c0103', body: '#4a060e', core: '#d01a28', hot: '#ff8a8a', rim: '#ff3040', occl: 0.88, rise: 0.9, inf: 1, spd: 0.7, freq: 1 },
+  feuer: { edge: '#7a1004', body: '#f2300e', core: '#ff8a1e', hot: '#fff0b0', rim: '#ffc24a', occl: 0.62, rise: 1.1, inf: 1, spd: 1.15, freq: 1.05 },
+  frost: { edge: '#06205e', body: '#2a6aff', core: '#7ad0ff', hot: '#ffffff', rim: '#bff6ff', occl: 0.45, rise: 0.6, inf: 1.1, spd: 0.55, freq: 0.8 },
+  blitz: { edge: '#1a0660', body: '#5a2ef0', core: '#b49aff', hot: '#fff7b0', rim: '#ffe94a', occl: 0.45, rise: 0.75, inf: 1, spd: 1.7, freq: 1.4 },
+  erde: { edge: '#2a1808', body: '#8a5014', core: '#f0a830', hot: '#ffe0a0', rim: '#ffd98a', occl: 0.7, rise: 0.6, inf: 1.15, spd: 0.55, freq: 0.8 },
+  arkan: { edge: '#10186a', body: '#4a5ad8', core: '#9aaaff', hot: '#ffffff', rim: '#e0e6ff', occl: 0.45, rise: 0.85, inf: 1, spd: 0.8, freq: 1 },
+  natur: { edge: '#06402e', body: '#14a07a', core: '#4ae8b4', hot: '#e0fff0', rim: '#9cff7a', occl: 0.5, rise: 0.8, inf: 1.05, spd: 0.8, freq: 0.9 },
+  licht: { edge: '#6a4a08', body: '#c89420', core: '#ffe08a', hot: '#fffbe8', rim: '#fff2c0', op: 0.75, occl: 0.5, rise: 0.8, inf: 1.05, spd: 0.6, freq: 0.85 }
+};
+for (const k in KA_FLAME) KA_STYLES[k].fl = KA_FLAME[k];
 
 // Stil einer Figur aus Klasse und Weg (Mitspieler senden den Weg als pt; ohne Weg: erster Weg, Magier arkan)
 function kaStyleKey(p) {
@@ -617,25 +640,506 @@ function kaPebbles3(h, pb, A, k, t, q) {
   }
 }
 
+// --- Flammenhülle am Körper ------------------------------------------------------------------------
+// Die Aura klebt an der Figur: Zu jedem Modell gibt es eine glatte Hülle aus einem Ellipsoid je Knochen (Kopf, Brust,
+// Hüfte, Arme, Hände, Beine, Umhang …), gebunden an das Skelett der Figur – sie läuft, dreht und schwingt also mit.
+// Ein Shader bläst sie wellig auf, zieht oben Zungen in die Höhe (immer nach Welt-oben, beim Laufen nach hinten
+// geweht) und malt lodernde Flammen hinein, die nach oben ziehen: innen heiß und hell, außen ein dunkler Saum, der
+// in einzelne Zungen zerfasert. Gezeichnet wird die Rückseite: der Körper verdeckt, was hinter ihm liegt, sichtbar ist
+// der Flammensaum um die Silhouette. Dazu ein heller Randschein direkt auf dem Körper (das echte Modell, minimal
+// aufgeblasen) und Flammenzungen, die sich von Kopf, Schultern, Armen und Beinen lösen und aufsteigen.
+// Kosten: Hülle ~9000 Dreiecke je Lage, Randschein so viel wie die Figur; drei Zeichenaufrufe je Figur, Geometrie je
+// Modell und Materialien je Figur nur einmal angelegt, keine Neuanlage je Bild. Mitspieler nach KA_REMOTE_MAX, Randschein
+// und weite Lage nur bei der eigenen Figur und den KA_RICH nächsten. 'mittel': ohne weite Lage. 'niedrig': nur die
+// Hülle mit einfacherem Rauschen.
+
+// Wertrauschen 0–1 (billig, ohne Texturen)
+const KA_NOISE = `
+float kaH(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float kaN(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(kaH(i), kaH(i + vec3(1.0, 0.0, 0.0)), f.x), mix(kaH(i + vec3(0.0, 1.0, 0.0)), kaH(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+    mix(mix(kaH(i + vec3(0.0, 0.0, 1.0)), kaH(i + vec3(1.0, 0.0, 1.0)), f.x), mix(kaH(i + vec3(0.0, 1.0, 1.0)), kaH(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+`;
+const KA_VS = `
+#include <common>
+#include <skinning_pars_vertex>
+uniform float uT;
+uniform float uInf;
+uniform float uRise;
+uniform float uH;
+uniform float uWob;
+uniform float uSeed;
+uniform vec3 uVel;
+varying vec3 vN;
+varying vec3 vV;
+varying vec3 vO;
+varying float vTip;
+${KA_NOISE}
+void main() {
+  #include <beginnormal_vertex>
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
+  #include <begin_vertex>
+  #include <skinning_vertex>
+  vec3 n = normalize(objectNormal);
+  vec3 q = transformed / uH;
+  vO = q + vec3(uSeed, 0.0, uSeed * 0.7);
+  float w = kaN(q * vec3(6.0, 3.0, 6.0) + vec3(uSeed, -uT * 2.0, uT * 0.4));
+  float w2 = kaN(q * vec3(14.0, 6.0, 14.0) + vec3(3.7 + uSeed, -uT * 3.6, 1.3));
+  vec3 p = transformed + n * uInf * (1.0 + uWob * ((w - 0.5) * 1.6 + (w2 - 0.5) * 1.1));
+  vec4 wp = modelMatrix * vec4(p, 1.0);
+  vec3 wn = normalize(mat3(modelMatrix) * n);
+  float up = smoothstep(-0.2, 0.85, wn.y);
+  float hgt = clamp(q.y, 0.0, 1.2);
+  float lick = up * (0.1 + w * w * w * 2.6 + w2 * 0.4) * (0.3 + 0.7 * hgt);
+  wp.y += uRise * lick;
+  wp.xz -= uVel.xz * (0.2 + up) * hgt;
+  vTip = clamp(lick * 0.5, 0.0, 1.0) * step(0.001, uRise);
+  vec4 mv = viewMatrix * wp;
+  gl_Position = projectionMatrix * mv;
+  vN = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
+  vV = -mv.xyz;
+}`;
+const KA_FS = `
+uniform vec3 uEdge;
+uniform vec3 uBody;
+uniform vec3 uCore;
+uniform vec3 uHot;
+uniform float uT;
+uniform float uOp;
+uniform float uOcc;
+uniform float uSpd;
+uniform float uFreq;
+uniform float uDim;
+uniform float uLv;
+uniform float uHeat;
+varying vec3 vN;
+varying vec3 vV;
+varying vec3 vO;
+varying float vTip;
+${KA_NOISE}
+void main() {
+  float e = abs(dot(normalize(vN), normalize(vV)));
+  float t = uT * uSpd;
+  vec3 q = vO * uFreq;
+  float foot = smoothstep(0.02, 0.22, vO.y);
+#ifdef KA_RIM
+  // Randschein auf dem Körper: hell an den Kanten, in Bändern flackernd, die nach oben ziehen
+  float f = kaN(vec3(q.x * 7.0, q.y * 4.0 - t * 3.4, q.z * 7.0));
+  float a = pow(1.0 - e, 3.0) * smoothstep(0.25, 0.8, f) * uOp * foot;
+  gl_FragColor = vec4(uCore * a * uDim, 0.0);
+#else
+  // senkrecht gestreckte Flammenstreifen, die nach oben ziehen
+  float f = kaN(vec3(q.x * 8.0, q.y * 3.2 - t * 2.6, q.z * 8.0));
+#ifndef KA_LOW
+  f = f * 0.6 + kaN(vec3(q.x * 17.0, q.y * 6.5 - t * 4.6, q.z * 17.0) + 4.3) * 0.4;
+#endif
+  // innen (nahe am Körper) dicht und heiß, außen nur noch die Spitzen des Rauschens: Zungen mit dunklem Saum
+  float inner = smoothstep(0.0, 0.62, e);
+  float d = inner + (f - 0.5) * 1.35 - vTip * 0.55;
+  float a = smoothstep(0.06, 0.38, d) * foot * smoothstep(0.0, 0.2, e + vTip * 0.15);
+  float h = clamp((d - 0.24) * 1.15, 0.0, 1.0) * uHeat;
+  vec3 c = mix(uEdge, uBody, smoothstep(0.0, 0.32, h));
+  c = mix(c, uCore, smoothstep(0.38, 0.75, h));
+  c = mix(c, uHot, smoothstep(0.78, 1.0, h) * uLv);
+  a *= uOp;
+  gl_FragColor = vec4(c * a * uDim, min(1.0, a * uOcc * (1.0 - 0.45 * h)));
+#endif
+}`;
+
+// Hülle eines Modells: je Knochen ein Ellipsoid um seine Teile. Die Maße kommen beim Bau des Modells aus den
+// Eckpunkten (danach gibt drei-kern.js die Daten frei), sonst aus dem Skelett mit Chibi-Maßen.
+const KA_BONE_MIN = 24;
+function kaFitModel(m) {
+  if (!m || m.kaEll !== undefined) return;
+  m.kaEll = null;
+  const g = m.geos && m.geos.lit;
+  if (!g || !m.rig || m.rig.length < 10 || !g.attributes.skinIndex) return;
+  const P = g.attributes.position.array;
+  const S = g.attributes.skinIndex.array;
+  if (!P || !S) return;
+  const nb = m.rig.length;
+  const box = new Float32Array(nb * 7);
+  for (let b = 0; b < nb; b++) {
+    box[b * 7] = box[b * 7 + 1] = box[b * 7 + 2] = 1e9;
+    box[b * 7 + 3] = box[b * 7 + 4] = box[b * 7 + 5] = -1e9;
+  }
+  for (let i = 0, n = P.length / 3; i < n; i++) {
+    const b = S[i * 4];
+    if (b >= nb) continue;
+    const o = b * 7;
+    for (let a = 0; a < 3; a++) {
+      const v = P[i * 3 + a];
+      if (v < box[o + a]) box[o + a] = v;
+      if (v > box[o + 3 + a]) box[o + 3 + a] = v;
+    }
+    box[o + 6]++;
+  }
+  const E = [];
+  for (let b = 1; b < nb; b++) {
+    const o = b * 7;
+    if (box[o + 6] < KA_BONE_MIN) continue;
+    // Hände: Waffen und Stäbe hängen am Handknochen – nur eine kleine Kugel um die Hand
+    if (b === BH.handL || b === BH.handR) {
+      const r = m.rig[b].pos;
+      E.push({ b, c: [r[0], r[1] - 0.04, r[2] + 0.01], s: [0.075, 0.08, 0.075] });
+      continue;
+    }
+    const c = [0, 0, 0];
+    const s = [0, 0, 0];
+    for (let a = 0; a < 3; a++) {
+      c[a] = (box[o + a] + box[o + 3 + a]) / 2;
+      s[a] = Math.max(0.05, (box[o + 3 + a] - box[o + a]) / 2);
+    }
+    E.push({ b, c, s });
+  }
+  if (E.length >= 4) m.kaEll = E;
+}
+// Ersatz ohne Eckpunkte: Maße aus dem Skelett und der Modellhöhe
+function kaRigEll(m) {
+  const top = m.height || 1.44;
+  const R = (b) => m.rig[b].pos;
+  const E = [
+    { b: BH.hips, c: [0, 0.38, 0], s: [0.26, 0.17, 0.22] },
+    { b: BH.chest, c: [0, 0.73, 0], s: [0.22, 0.25, 0.19] },
+    { b: BH.head, c: [0, (0.86 + top) / 2, -0.03], s: [0.3, (top - 0.86) / 2, 0.31] }
+  ];
+  for (const [arm, hand, leg] of [[BH.armL, BH.handL, BH.legL], [BH.armR, BH.handR, BH.legR]]) {
+    const ar = R(arm);
+    E.push({ b: arm, c: [ar[0] * 0.92, ar[1] - 0.15, 0], s: [0.09, 0.22, 0.09] });
+    const hr = R(hand);
+    E.push({ b: hand, c: [hr[0], hr[1] - 0.04, hr[2] + 0.01], s: [0.075, 0.08, 0.075] });
+    const lr = R(leg);
+    E.push({ b: leg, c: [lr[0] * 0.9, lr[1] / 2, 0.03], s: [0.11, lr[1] / 2, 0.14] });
+  }
+  return E;
+}
+// Maße beim Bau jedes Modells mitnehmen (nur ein Durchlauf über die Eckpunkte, bevor sie freigegeben werden)
+if (typeof model3 === 'function') {
+  const kaModel3 = model3;
+  // eslint-disable-next-line no-global-assign
+  model3 = function (key, build) {
+    const m = kaModel3(key, build);
+    if (m && m.kaEll === undefined) kaFitModel(m);
+    return m;
+  };
+}
+
+// Hüllgeometrie eines Modells (einmal, liegt bei den Modellteilen und wird mit ihnen freigegeben)
+function kaShellGeo(m) {
+  if (m.geos.kaShell) return m.geos.kaShell;
+  const E = m.kaEll || (m.kaEll = kaRigEll(m));
+  const base = new THREE.SphereGeometry(1, 28, 18);
+  const bp = base.attributes.position.array;
+  const bi = base.index.array;
+  const nv = bp.length / 3;
+  const pos = new Float32Array(E.length * nv * 3);
+  const nor = new Float32Array(E.length * nv * 3);
+  const si = new Uint16Array(E.length * nv * 4);
+  const sw = new Float32Array(E.length * nv * 4);
+  const idx = new Uint16Array(E.length * bi.length);
+  E.forEach((e, j) => {
+    for (let i = 0; i < nv; i++) {
+      const v = j * nv + i;
+      let nx = bp[i * 3] / e.s[0];
+      let ny = bp[i * 3 + 1] / e.s[1];
+      let nz = bp[i * 3 + 2] / e.s[2];
+      const l = Math.hypot(nx, ny, nz) || 1;
+      pos[v * 3] = e.c[0] + bp[i * 3] * e.s[0];
+      pos[v * 3 + 1] = e.c[1] + bp[i * 3 + 1] * e.s[1];
+      pos[v * 3 + 2] = e.c[2] + bp[i * 3 + 2] * e.s[2];
+      nor[v * 3] = nx / l;
+      nor[v * 3 + 1] = ny / l;
+      nor[v * 3 + 2] = nz / l;
+      si[v * 4] = e.b;
+      sw[v * 4] = 1;
+    }
+    for (let i = 0; i < bi.length; i++) idx[j * bi.length + i] = bi[i] + j * nv;
+  });
+  base.dispose();
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+  g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.computeBoundingSphere();
+  // Platz für die Zungen über dem Kopf
+  g.boundingSphere.radius *= 1.7;
+  g.shared = true;
+  m.geos.kaShell = g;
+  // Startpunkte der aufsteigenden Zungen: Kopf und Schultern öfter, Hände und Füße seltener
+  const pick = [];
+  E.forEach((e, j) => {
+    const w = e.b === BH.head ? 6 : e.b === BH.armL || e.b === BH.armR || e.b === BH.chest ? 4 : e.b === BH.handL || e.b === BH.handR ? 1 : 2;
+    for (let i = 0; i < w; i++) pick.push(j);
+  });
+  m.kaPick = pick;
+  return g;
+}
+
+function kaShellMat(rim, low) {
+  const m = new THREE.ShaderMaterial({
+    uniforms: {
+      uT: { value: 0 }, uInf: { value: 0.03 }, uRise: { value: 0 }, uH: { value: 1.44 }, uWob: { value: 0.5 }, uSeed: { value: 0 },
+      uVel: { value: new THREE.Vector3() }, uEdge: { value: new THREE.Color() }, uBody: { value: new THREE.Color() },
+      uCore: { value: new THREE.Color() }, uHot: { value: new THREE.Color() }, uOp: { value: 0 }, uOcc: { value: 0.5 },
+      uSpd: { value: 1 }, uFreq: { value: 1 }, uDim: { value: 1 }, uLv: { value: 0 }, uHeat: { value: 1 }
+    },
+    vertexShader: KA_VS,
+    fragmentShader: KA_FS,
+    defines: rim ? { KA_RIM: 1 } : low ? { KA_LOW: 1 } : {},
+    skinning: true,
+    transparent: true,
+    depthWrite: false,
+    side: rim ? THREE.FrontSide : THREE.BackSide,
+    blending: THREE.CustomBlending,
+    blendEquation: THREE.AddEquation,
+    blendSrc: THREE.OneFactor,
+    blendDst: THREE.OneMinusSrcAlphaFactor
+  });
+  m.userData.low = !!low;
+  return m;
+}
+
+// Figuren mit Hülle; was in diesem Bild nicht gezeichnet wird, wird ausgeblendet
+const KA_HOLDERS = new Set();
+let kaFrameNo = 0;
+function kaActor(p) {
+  const a = p.__k3 && typeof actors3 !== 'undefined' ? actors3.get(p.__k3) : null;
+  return a && a.group && a.group.parent && a.model && a.model.rig && a.model.rig.length >= 10 && a.meshes && a.meshes.lit && a.skeleton ? a : null;
+}
+function kaShellOf(a) {
+  // auch eine Figur aus dem Pool, die ihre Hülle schon hat, wieder beobachten (sonst bliebe sie nach dem Buff sichtbar)
+  KA_HOLDERS.add(a);
+  if (a.kaS) return a.kaS;
+  const geo = kaShellGeo(a.model);
+  // Reihenfolge bei gleichem Abstand: außen, innen, Randschein (nach Anlage); sonst wie alle Effekte nach Abstand
+  const mk = (key, g, mat) => {
+    a.mats[key] = mat;
+    const me = new THREE.SkinnedMesh(g, mat);
+    // gleiche Bindung wie das Modell (ohne bind() neu zu rechnen: das würde das Skelett umstellen)
+    me.bind(a.skeleton, a.meshes.lit.bindMatrix);
+    me.visible = false;
+    a.group.add(me);
+    return me;
+  };
+  const S = (a.kaS = { f: 0, px: 0, pz: 0, vx: 0, vz: 0, tv: -1, low: false });
+  // außen die weite, dunklere Lage, darin die Hauptlage, auf dem Körper der Randschein
+  S.outer2 = mk('kaOuter2', geo, kaShellMat(false, false));
+  S.outer = mk('kaOuter', geo, kaShellMat(false, false));
+  S.rim = mk('kaRim', a.model.geos.lit, kaShellMat(true, false));
+  S.outer2.material.uniforms.uSeed.value = 3.1;
+  return S;
+}
+function kaSetLow(S, low) {
+  if (S.low === low) return;
+  S.low = low;
+  for (const me of [S.outer, S.outer2]) {
+    me.material.defines = low ? { KA_LOW: 1 } : {};
+    me.material.needsUpdate = true;
+  }
+}
+// Shader der Hülle beim Vorwärmen der Effekte gleich mit übersetzen (v3WarmFx, drei-fx.js): unsichtbar mitzeichnen,
+// bis das Vorwärmen gelaufen ist – sonst ruckelt der erste Buff
+function kaWarm(p, gfx) {
+  const a = kaActor(p);
+  if (!a) return;
+  const S = kaShellOf(a);
+  S.f = kaFrameNo;
+  kaSetLow(S, gfx === 'niedrig');
+  for (const me of [S.outer, S.rim]) {
+    me.material.uniforms.uOp.value = 0;
+    me.visible = me !== S.rim || gfx !== 'niedrig';
+  }
+}
+function kaSetColors(u, fl) {
+  u.uEdge.value.copy(kaCol(fl.edge));
+  u.uBody.value.copy(kaCol(fl.body));
+  u.uCore.value.copy(kaCol(fl.core));
+  u.uHot.value.copy(kaCol(fl.hot));
+  u.uSpd.value = fl.spd;
+  u.uFreq.value = fl.freq;
+}
+
+// Hülle einer Figur in diesem Bild einstellen. kk: Buff-Stärke 0–1, L: Stufe 0 (Stufe 1–4) bis 1 (Stufe 80+)
+function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
+  const S = kaShellOf(a);
+  const fl = st.fl;
+  S.f = kaFrameNo;
+  kaSetLow(S, low);
+  // Bewegung der Figur (für Zungen, die beim Laufen nach hinten wehen), weich nachgeführt
+  const gp = a.group.position;
+  if (S.tv >= 0 && t > S.tv) {
+    const dt = Math.min(0.1, t - S.tv);
+    const kv = Math.min(1, dt * 6);
+    S.vx += (Math.max(-12, Math.min(12, (gp.x - S.px) / dt)) - S.vx) * kv;
+    S.vz += (Math.max(-12, Math.min(12, (gp.z - S.pz) / dt)) - S.vz) * kv;
+  } else if (S.tv < 0 || t < S.tv) {
+    S.vx = 0;
+    S.vz = 0;
+  }
+  // Sprünge (Teleport, Blinzeln): nicht als Bewegung werten
+  if (Math.abs(gp.x - S.px) + Math.abs(gp.z - S.pz) > 3) {
+    S.vx = 0;
+    S.vz = 0;
+  }
+  S.px = gp.x;
+  S.pz = gp.z;
+  S.tv = t;
+  const H = A.H;
+  const mh = a.model.height || 1.44;
+  // Zeit für den Shader klein halten (Genauigkeit am Handy); der Sprung alle 10 Minuten fällt im Flackern nicht auf
+  const ts = t % 600;
+  const dim = 1 - 0.3 * (V3.nightK || 0);
+  const op = Math.min(1, kk * 1.6) * (fl.op || 1);
+  const trail = 0.045 + 0.035 * L;
+  // Hauptlage: auf niedriger Stufe ein dünnes Flackern dicht am Körper, ab Stufe 30–50 deutliche Flammen, ab 80 hoch lodernd
+  const u = S.outer.material.uniforms;
+  kaSetColors(u, fl);
+  u.uT.value = ts;
+  u.uH.value = mh;
+  u.uInf.value = mh * (0.022 + 0.056 * L) * fl.inf;
+  u.uRise.value = H * (0.035 + 0.2 * Math.pow(L, 1.3)) * fl.rise;
+  u.uWob.value = 0.5 + 0.45 * L;
+  u.uOp.value = op * (0.72 + 0.28 * L);
+  u.uOcc.value = fl.occl;
+  u.uDim.value = dim;
+  u.uLv.value = 0.35 + 0.65 * L;
+  u.uVel.value.set(S.vx * trail, 0, S.vz * trail);
+  S.outer.visible = u.uOp.value > 0.01;
+  // weite Lage: erst ab mittlerer Stufe, langsamer, dunkler und durchscheinender – gibt der Aura Tiefe
+  const w2 = wide ? Math.max(0, Math.min(1, (L - 0.3) / 0.45)) : 0;
+  const u2 = S.outer2.material.uniforms;
+  if (w2 > 0.01) {
+    kaSetColors(u2, fl);
+    u2.uSpd.value = fl.spd * 0.72;
+    u2.uFreq.value = fl.freq * 0.8;
+    u2.uT.value = ts;
+    u2.uH.value = mh;
+    u2.uInf.value = u.uInf.value * 1.5 + mh * 0.025 * fl.inf;
+    u2.uRise.value = u.uRise.value * 1.5;
+    u2.uWob.value = 0.7;
+    u2.uOp.value = op * 0.5 * w2;
+    u2.uOcc.value = fl.occl * 0.8;
+    u2.uDim.value = dim;
+    u2.uLv.value = 0;
+    u2.uHeat.value = 0.62;
+    u2.uVel.value.set(S.vx * trail * 1.5, 0, S.vz * trail * 1.5);
+    S.outer2.visible = true;
+  } else S.outer2.visible = false;
+  // Randschein auf dem Körper
+  const ur = S.rim.material.uniforms;
+  if (rimOn) {
+    ur.uCore.value.copy(kaCol(fl.rim));
+    ur.uSpd.value = fl.spd;
+    ur.uFreq.value = fl.freq;
+    ur.uT.value = ts;
+    ur.uH.value = mh;
+    ur.uInf.value = mh * 0.009;
+    ur.uRise.value = 0;
+    ur.uWob.value = 0.3;
+    ur.uOp.value = op * (0.5 + 0.25 * L);
+    ur.uDim.value = dim;
+    ur.uVel.value.set(0, 0, 0);
+    S.rim.visible = true;
+  } else S.rim.visible = false;
+}
+function kaHideIdle() {
+  for (const a of KA_HOLDERS) {
+    const S = a.kaS;
+    if (S.f === kaFrameNo) continue;
+    S.outer.visible = false;
+    S.outer2.visible = false;
+    S.rim.visible = false;
+    // Figur verschwunden (Pool oder freigegeben): nicht mehr festhalten
+    if (!a.group.parent) KA_HOLDERS.delete(a);
+  }
+}
+
+// Zungen lösen sich vom Körper: Startpunkt auf der Hülle eines Knochens (Kopf und Schultern am häufigsten), steigen
+// auf, werden schmal und verlöschen. Sie folgen der Figur, solange sie leben.
+const _kaM = new THREE.Matrix4();
+const _kaV = new THREE.Vector3();
+function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
+  const m = a.model;
+  const E = m.kaEll;
+  const pick = m.kaPick;
+  if (!E || !pick) return;
+  const { x, y, z, H } = A;
+  const n = Math.max(2, Math.round(w.n * q * (0.4 + 0.75 * L)));
+  const inf = (m.height || 1.44) * (0.02 + 0.06 * L);
+  const big = 0.55 + 0.6 * L;
+  for (let i = 0; i < n; i++) {
+    const sp = w.speed * 1.25 * (0.8 + 0.4 * ((i * 0.37) % 1));
+    const u = t * sp + i / n + seed;
+    const ph = u % 1;
+    const cyc = Math.floor(u);
+    const e = E[pick[Math.floor((kaHash(i, cyc) + 0.5) * pick.length) % pick.length]];
+    // Richtung auf der Hülle: eher seitlich und nach oben
+    let dx = kaHash(i + 11, cyc) * 2;
+    let dy = 0.35 + (kaHash(i + 17, cyc) + 0.5) * 0.65;
+    let dz = kaHash(i + 23, cyc) * 2;
+    const dl = Math.hypot(dx, dy, dz) || 1;
+    dx /= dl;
+    dy /= dl;
+    dz /= dl;
+    _kaV.set(e.c[0] + dx * (e.s[0] + inf), e.c[1] + dy * (e.s[1] + inf), e.c[2] + dz * (e.s[2] + inf));
+    _kaM.multiplyMatrices(a.bones[e.b].matrixWorld, a.skeleton.boneInverses[e.b]);
+    _kaV.applyMatrix4(_kaM);
+    const life = Math.sin(ph * Math.PI);
+    const ox = _kaV.x - x;
+    const oz = _kaV.z - z;
+    const yk = (_kaV.y - y) / H + ph * w.rise * (0.25 + 0.3 * L);
+    let op = Math.pow(life, 0.8) * k * kaFace(ox, oz, Math.hypot(ox, oz), yk + 0.05);
+    if (w.flicker) op *= 0.7 + 0.3 * Math.sin(t * 23 + i * 5);
+    if (op < 0.02) continue;
+    const sx = H * w.w * 0.75 * (1 - ph * 0.5) * big;
+    const sy = H * w.h * 0.8 * (0.5 + 0.6 * life) * big;
+    const sway = Math.sin(t * 3.1 + i * 1.7) * H * 0.03 * ph;
+    const py = y + H * yk + sy * 0.35;
+    const rot = Math.sin(t * 2.6 + i * 1.9) * 0.25;
+    if (w.bodyOp > 0) kaSprite(h, 'kaWispN', 'kaWisp', true, x + ox + sway, py, z + oz, sx, sy, w.body, Math.min(1, w.bodyOp * op * 0.55), rot);
+    kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway, py - sy * 0.08, z + oz, sx * 0.62, sy * 0.7, w.core, Math.min(1, w.coreOp * op), rot);
+  }
+}
+
 // Zeichen einzelner Buffs obendrauf: Kampfrausch knistert rot (früher die flachen 2D-Blitze)
 const KA_ACCENT = {
   kampfrausch: { arcs: { n: 2, color: '#ff4a1a', core: '#fff0d0' } }
 };
 // alle Lagen eines Stils
 // k: Stärke 0–1 (Dichte); die Deckkraft erreicht schon bei einem einzelnen Buff fast den vollen Wert
-function kaDraw3(h, p, st, kk, t, q) {
+function kaDraw3(h, p, st, kk, t, q, gfx, rich) {
   const A = kaAnchor(p);
   kaBack(A);
   // seit 13.84: Deckkraft und Teilchenzahl wachsen mit der Stufe (kaLevelScale)
   const lv = kaLevelScale(p);
+  const L = (lv - 0.3) / 0.55;
   const k = Math.min(1, kk * 1.7) * lv;
   q *= (0.75 + 0.25 * kk) * (0.45 + 0.55 * lv);
   const seed = ((p.x * 0.013 + p.y * 0.007) % 1 + 1) % 1;
-  kaGlow3(h, st, A, k, t, seed * 6);
-  kaShell3(h, st, A, k, t, seed * 6, kk * lv);
-  if (st.smoke) kaSmoke3(h, st.smoke, A, k, t, q, seed, false);
+  const a = st.fl ? kaActor(p) : null;
+  if (a) {
+    // Flammenhülle am Körper statt Lichtbildern hinter der Figur
+    a.group.updateMatrixWorld(true);
+    kaShell3D(a, st, kk, L, t + seed * 7, gfx === 'niedrig', rich && gfx !== 'niedrig', rich && (gfx === 'hoch' || gfx === 'ultra'), A);
+    if (st.wisp) kaBodyWisps3(h, st.wisp, a, A, Math.min(1, kk * 1.7) * (0.55 + 0.45 * L), L, t, q, seed);
+  } else {
+    kaGlow3(h, st, A, k, t, seed * 6);
+    kaShell3(h, st, A, k, t, seed * 6, kk * lv);
+    if (st.wisp) kaWisps3(h, st.wisp, A, k, t, q, seed);
+  }
+  if (st.smoke) kaSmoke3(h, st.smoke, A, k * (a ? 0.7 : 1), t, q, seed, false);
   if (st.mist) kaSmoke3(h, st.mist, A, k, t, q, seed, true);
-  if (st.wisp) kaWisps3(h, st.wisp, A, k, t, q, seed);
   if (st.ribbons) kaRibbons3(h, st.ribbons, A, k, t, q);
   if (st.arcs) kaArcs3(h, st.arcs, A, k, t, q, seed);
   if (st.pebbles) kaPebbles3(h, st.pebbles, A, k, t, q);
@@ -649,10 +1153,12 @@ function kaDraw3(h, p, st, kk, t, q) {
 
 // Mitspieler: höchstens so viele Auren zugleich (die nächsten zuerst), damit volle Städte flüssig bleiben
 const KA_REMOTE_MAX = { niedrig: 2, mittel: 4, hoch: 8, ultra: 10 };
+const KA_RICH = 3;
 const _kaList = [];
 const _kaByDist = (a, b) => a._kaD - b._kaD;
 function kaFrame(h) {
   const t = game.time;
+  kaFrameNo++;
   const g = typeof GRAPHICS !== 'undefined' && GRAPHICS[opts.graphics];
   const q = g ? Math.min(1.15, g.particles) : 1;
   const f = FX3.cam.f;
@@ -674,13 +1180,17 @@ function kaFrame(h) {
   const max = KA_REMOTE_MAX[opts.graphics] ?? 6;
   if (list.length > max) list.length = max;
   if (me && game.running && !me.dead) list.push(me);
-  for (const p of list) {
+  if (!V3.fxWarm && me && game.running) kaWarm(me, opts.graphics);
+  for (let i = 0; i < list.length; i++) {
+    const p = list[i];
     const k = kaPower(p);
     if (k <= 0.01 || p.blinkHide > t) continue;
     if (p === me && !v3InView(p.x, p.y, 60)) continue;
     const st = KA_STYLES[kaStyleKey(p)];
-    if (st) kaDraw3(h, p, st, k, t, q);
+    // Randschein und weite Lage nur an der eigenen Figur und den nächsten Mitspielern (KA_RICH), die übrigen nur die Hülle
+    if (st) kaDraw3(h, p, st, k, t, q, opts.graphics, p === me || i < KA_RICH);
   }
+  kaHideIdle();
 }
 const FX3_KA = { parts: [], fn: kaFrame };
 FX3_HOOKS.push(FX3_KA);

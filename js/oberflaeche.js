@@ -1137,6 +1137,9 @@ const ui = {
         el.textContent = v;
       });
       const left = p.skillCd[i];
+      // seit 13.85: Dauer, von der die Uhr ausgeht (globale Abklingzeit kann länger sein als die eigene)
+      const cf = p.cdFull && p.cdFull[i];
+      const full = Math.max(0.01, cf && cf >= left - 0.01 ? cf : Math.max(sk.cooldown, left));
       const key = 'cd' + i;
       const shown = left > 0 ? left.toFixed(left < 1 ? 1 : 0) : '';
       this.set(key, shown, () => {
@@ -1152,11 +1155,11 @@ const ui = {
           btn.classList.add('ready');
         }
         btn.classList.toggle('on-cd', !!shown);
-        el.style.setProperty('--p', String(left / sk.cooldown));
+        el.style.setProperty('--p', String(Math.min(1, left / full)));
       });
       // Die Uhr der Abklingzeit in 48 Schritten statt in jedem Bild neu setzen
       if (left > 0) {
-        this.set('cdp' + i, Math.ceil(left / sk.cooldown * 48), (v) => {
+        this.set('cdp' + i, Math.ceil(Math.min(1, left / full) * 48), (v) => {
           const el = document.querySelector('#skill' + i + ' .cd');
           if (el) el.style.setProperty('--p', String(v / 48));
         });
@@ -1914,10 +1917,10 @@ function skillStats(sk, lvl) {
     // fester Angriffswert (Aura des Schwertes, seit 13.4)
     if (k === 'atkFlat') { out.push([label, '+' + (sk.id === 'schwertaura' && typeof auraFlat === 'function' ? auraFlat(lvl) : Math.round(v * scale))]); continue; }
     // seit 13.6 als Zahl: Angriff und Verteidigung aus den Werten ohne diesen Buff, Regeneration in Leben je Sekunde
-    if (base && (k === 'atk' || k === 'def')) { out.push([label, '+' + numText(base[k] * v * scale)]); continue; }
-    if (base && k === 'regen') { out.push([label, '+' + skillHpNum(v * scale, base)]); continue; }
-    // feste Kurve (Segen, seit 13.26)
+    // feste Kurve (Segen, seit 13.26); seit 13.85 auch für Angriff und Rüstung
     const fixed = typeof SKILL_FIXED_EFFECTS !== 'undefined' && SKILL_FIXED_EFFECTS[sk.id] && SKILL_FIXED_EFFECTS[sk.id][k];
+    if (base && (k === 'atk' || k === 'def')) { out.push([label, '+' + numText(base[k] * (fixed ? fixed(lvl) : v * scale))]); continue; }
+    if (base && k === 'regen') { out.push([label, '+' + skillHpNum(v * scale, base)]); continue; }
     if (fixed) { const fv = fixed(lvl); out.push([label, (fv < 0 ? '−' : '+') + skillPct(Math.abs(fv))]); continue; }
     // Lauftempo wächst seit 8.5 nicht mehr mit der Stufe
     out.push([label, (v < 0 ? '−' : '+') + skillPct(Math.abs(k === 'speed' || k === 'chill' ? v : v * scale))]);

@@ -150,11 +150,11 @@ const MONSTER_TYPES = {
   // Höllenthron (seit 13.0): zwei Wächter in der Instanz und der Endendboss Abaddor (Gruppe aus 6–7 Spielern ab 60).
   // look/lookScale: Aussehen eines anderen Monsters, vergrößert (ohne Endboss-Mechanik)
   zerberos: {
-    name: 'Zerberos, Wächter des Höllentors', level: 66, shape: 'beast', color: '#2a1010', size: 44, speed: 128, range: 80, cooldown: 1.8, aggressive: true, hpMul: 140, atkMul: 2.7, look: 'hoellenhund', lookScale: 2.6,
+    name: 'Zerberos, Wächter des Höllentors', level: 66, shape: 'beast', color: '#2a1010', size: 44, speed: 128, range: 80, cooldown: 1.8, aggressive: true, hpMul: 140, atkMul: 3.9, look: 'hoellenhund', lookScale: 2.6,
     boss: { color: '#ff5a1a', slam: 175, volley: 8, shot: '#ff7a3a', summon: 'hoellenhund', mat: 'hoellenhund' }
   },
   ifrah: {
-    name: 'Ifrah, die Flammenfürstin', level: 68, shape: 'demon', color: '#c8402f', size: 40, speed: 122, range: 85, cooldown: 1.7, aggressive: true, hpMul: 150, atkMul: 2.8, look: 'feuerdaemon', lookScale: 2.3,
+    name: 'Ifrah, die Flammenfürstin', level: 68, shape: 'demon', color: '#c8402f', size: 40, speed: 122, range: 85, cooldown: 1.7, aggressive: true, hpMul: 150, atkMul: 4.05, look: 'feuerdaemon', lookScale: 2.3,
     boss: { color: '#ffb04a', slam: 185, volley: 12, shot: '#ffd34d', summon: 'feuerdaemon', mat: 'feuerdaemon' }
   },
   // kein raidBoss: zählt nicht zur Endboss-Mission der Maps, nutzt aber die Endboss-Mechanik (type.raid)
@@ -175,6 +175,31 @@ const MONSTER_TYPES = {
     boss: { color: '#9fd0ff', slam: 250, volley: 10, shot: '#cfe8ff', summon: 'gargoyle', mat: 'donnerriese' }, raid: { art: 'donnerriese', scale: 2.4, map: 3 }
   }
 };
+
+// Map 10 (seit 13.85): Kristallabgrund, Stufe 75–80. Aussehen aus den bekannten Familien (Golem, Spinne, Katze,
+// Geist, Ritter, Drache) mit eigenen Farben und Teilen: MONSTER_ART in karte80.js, daraus entsteht das 3D-Modell.
+Object.assign(MONSTER_TYPES, {
+  // Kristallhänge, Stufe 75–77
+  kristallgolem: { name: 'Kristallgolem', level: 75, shape: 'brute', color: '#4a3e78', size: 22, speed: 72, range: 36, cooldown: 2.1, aggressive: true, hpMul: 2.3, atkMul: 1.4 },
+  splitterspinne: { name: 'Splitterspinne', level: 76, shape: 'beast', color: '#2e2850', size: 16, speed: 120, range: 28, cooldown: 1.25, aggressive: true, hpMul: 1.3, atkMul: 1.4 },
+  schattenpirscher: { name: 'Schattenpirscher', level: 77, shape: 'beast', color: '#1c1830', size: 16, speed: 135, range: 28, cooldown: 1.15, aggressive: true, hpMul: 1.35, atkMul: 1.45 },
+  // Leerenschlund, Stufe 78–80
+  abgrundgeist: { name: 'Abgrundgeist', level: 78, shape: 'ghost', color: '#7a86d8', size: 14, speed: 100, range: 230, cooldown: 1.9, aggressive: true, ranged: true, hpMul: 1.1, atkMul: 1.45, shot: '#b8a8ff' },
+  leerenritter: { name: 'Leerenritter', level: 79, shape: 'humanoid', color: '#2a2444', accent: '#9a7aff', size: 15, speed: 105, range: 32, cooldown: 1.4, aggressive: true, hpMul: 1.7, atkMul: 1.45 },
+  kristallwyrm: { name: 'Kristallwyrm', level: 80, shape: 'beast', color: '#4a5aa8', size: 21, speed: 105, range: 170, cooldown: 1.8, aggressive: true, ranged: true, hpMul: 2.3, atkMul: 1.5, shot: '#9fd8ff' },
+  // Dungeon Kristallkaverne
+  kavernenwaechter: { name: 'Kavernenwächter', level: 77, shape: 'brute', color: '#5a6aa8', size: 21, speed: 78, range: 36, cooldown: 2, aggressive: true, hpMul: 2.2, atkMul: 1.4, dungeon: true },
+  leerenseherin: { name: 'Leerenseherin', level: 78, shape: 'humanoid', color: '#2a2050', size: 13, speed: 92, range: 225, cooldown: 2, aggressive: true, ranged: true, hpMul: 1.1, atkMul: 1.45, shot: '#c8b8ff', dungeon: true },
+  vaelith: {
+    name: 'Kristallseherin Vaelith', level: 80, shape: 'humanoid', color: '#3a2a6a', size: 28, speed: 95, range: 60, cooldown: 1.6, aggressive: true, hpMul: 32, atkMul: 1.75, dungeon: true,
+    boss: { color: '#b8a8ff', slam: 190, volley: 10, shot: '#cfc0ff', summon: 'kavernenwaechter', mat: 'kristallgolem' }
+  },
+  // Endboss der Map (kein raidBoss: das Finale „Die neun Endbosse“ bleibt, wie es ist; er hat ein eigenes Kapitel)
+  aelvyr: {
+    name: 'Aelvyr, Wyrm des Abgrunds', level: 80, shape: 'beast', color: '#2a2a5a', size: 74, speed: 132, range: 110, cooldown: 2.3, aggressive: true, hpMul: 390, atkMul: 3.75,
+    boss: { color: '#a88cff', slam: 250, volley: 12, shot: '#cfc0ff', summon: 'splitterspinne', mat: 'kristallwyrm' }, raid: { art: 'kristallwyrm', scale: 2.3, map: 10 }
+  }
+});
 
 // Schwierigkeit: Bis Stufe 15 werden Monster schrittweise zäher und stärker als die Grundformel,
 // danach wächst der Abstand mit jeder Stufe deutlich weiter (seit Version 5.7–6.2 stärker), damit man
@@ -240,7 +265,10 @@ const STONE_TYPES = [
   { level: 55, name: 'Stein der Fäulnis', look: { shape: 'twin', base: '#3a4228', top: '#4e5a34', rune: '#a8f04a', glow: '#7ad03a', smoke: true }, focus: 'rot', drop: 'Tränke und viel Gold' },
   { level: 60, name: 'Stein der Pein', look: { shape: 'spire', base: '#5a0e16', top: '#8a1a24', rune: '#1a0a0a', glow: '#ff3a4a', crystal: true }, focus: 'gear', drop: 'Ausrüstung mit +1 bis +2' },
   { level: 65, name: 'Stein der Flamme', look: { shape: 'monolith', base: '#1a1416', top: '#2e2428', rune: '#ff9a2a', glow: '#ff6a1a', lava: true }, focus: 'flame', drop: 'Waffen, 5. Bonus und Sternensteine' },
-  { level: 70, name: 'Stein des Untergangs', look: { shape: 'monolith', base: '#141018', top: '#2a2030', rune: '#ffd34d', glow: '#d07aff', crown: true }, focus: 'all', drop: 'von allem mehr' }
+  { level: 70, name: 'Stein des Untergangs', look: { shape: 'monolith', base: '#141018', top: '#2a2030', rune: '#ffd34d', glow: '#d07aff', crown: true }, focus: 'all', drop: 'von allem mehr' },
+  // seit 13.85: die Steine des Kristallabgrunds (Map 10)
+  { level: 75, name: 'Stein der Leere', look: { shape: 'cluster', base: '#221c3c', top: '#3e3470', rune: '#cfe4ff', glow: '#9a7aff', crystal: true }, focus: 'gear', drop: 'Ausrüstung mit +1 bis +2' },
+  { level: 80, name: 'Stein des Abgrunds', look: { shape: 'spire', base: '#120e22', top: '#2a2450', rune: '#9fe8ff', glow: '#b48cff', crystal: true, crown: true }, focus: 'all', drop: 'von allem mehr' }
 ];
 
 // Steinart einer Stufe; Zwischenstufen (Höllenthron 64, 66, 67) nehmen die nächstniedrigere Art statt der ersten

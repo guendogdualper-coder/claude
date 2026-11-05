@@ -8,11 +8,11 @@
 //  Schattensprung   – Schattenbilder und Rauch entlang der Sprungbahn
 //  Tarnung          – Rauchbombe: Lichtblitz, Rauchring, aufsteigende Funken
 //  Schattenmantel   – Schattenranken winden sich an der Figur hinauf
-//  Leichtfüßigkeit  – Windbänder spiralen nach oben, Federn schweben
+//  Schattenkette    – (seit 13.85 statt Leichtfüßigkeit) Sprünge von Gegner zu Gegner: Rauch, Schattenlinie, Nachbild, Schnitt
 // Nur Optik; 2D zeigt weiter die alten Effekte. Mitspieler sehen dasselbe über remoteSkillFx.
 // Am Ende: Aura des Schwertes (Krieger) als helle Lichtklinge.
 
-const NFX3_TYPES = ['nstab3', 'nblink3', 'nwhirl3', 'ndash3', 'nvanish3', 'nshroud3', 'nwind3'];
+const NFX3_TYPES = ['nstab3', 'nblink3', 'nwhirl3', 'ndash3', 'nvanish3', 'nshroud3', 'nchain3'];
 for (const t of NFX3_TYPES) FX3_TYPES.add(t);
 
 const _nf3a = new THREE.Vector3();
@@ -389,38 +389,6 @@ FX3_DRAW.nshroud3 = function (h, e) {
   fx3Color(g, '#6a4aa8', 0.7 * fade);
 };
 
-// --- Leichtfüßigkeit: Windbänder und Federn ------------------------------------------------------------------
-FX3_DRAW.nwind3 = function (h, e) {
-  const t = game.time - e.start;
-  const k = t / e.dur;
-  if (k >= 1) return;
-  const o = e.follow;
-  if (!o) return;
-  const low = n3low();
-  const x = o.x * U3;
-  const z = feetY(o) * U3;
-  const fade = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
-  for (let j = 0; j < 3; j++) {
-    const q = (k * 1.3 + j / 3) % 1;
-    const a = t * 9 + j * 2.1;
-    _nf3c.set(x, 0.1 + q * 1.9, z);
-    const s = fx3Take(h, 'strip');
-    fx3Strip(s, _nf3c, _nf3u, _nf3v, 0.85 - q * 0.35, 0.16, a - 2.4, a, j % 2 ? '#c8d8f0' : '#ffffff', fade * Math.sin(Math.PI * q), false);
-  }
-  for (let j = 0; j < (low ? 3 : 7); j++) {
-    const ph = (t * 0.7 + j / 7) % 1;
-    const a = j * 2.399 + t * 1.5;
-    const b = fx3Take(h, 'ball');
-    b.position.set(x + Math.cos(a) * (0.6 + ph * 0.5), 0.3 + ph * 1.8 + Math.sin(t * 6 + j) * 0.08, z + Math.sin(a) * (0.6 + ph * 0.5));
-    b.scale.set(0.09, 0.015, 0.035);
-    b.rotation.set(Math.sin(t * 5 + j) * 0.6, a, 0);
-    fx3Color(b, '#ffffff', fade * (1 - ph));
-  }
-  const g = fx3Take(h, 'plane');
-  fx3Ground(g, o.x, feetY(o), 0.6 + k * 1.2, 0.05, 'ring');
-  fx3Color(g, '#c8d8f0', 0.6 * fade);
-};
-
 // --- Auslösen (eigener Ninja und Mitspieler) ----------------------------------------------------------------
 // p: Wirker, t: Ziel (Monster oder Punkt mit x/y), remote: Mitspieler (Ziel nur als Punkt bekannt)
 function nfxTargetPoint(p, t) {
@@ -459,9 +427,6 @@ const NINJA_FX3 = {
   },
   schattenmantel(p) {
     addEffect({ type: 'nshroud3', follow: p, dur: 1.2 });
-  },
-  leichtfuessigkeit(p) {
-    addEffect({ type: 'nwind3', follow: p, dur: 1.1 });
   }
 };
 // zeichnet ninja-fx.js diese Fertigkeit in 3D selbst? (dann entfällt die flache 2D-Riesenklinge)
@@ -549,3 +514,170 @@ function schwertaura3(h, p, b, t) {
   // (koerperaura.js), die Klinge bleibt das Zeichen der Schwertaura
 }
 if (SKILL_FX.schwertaura) SKILL_FX.schwertaura.aura3 = schwertaura3;
+
+
+// === Schattenkette (seit 13.85, Platz 5 des Dolch-Weges statt Leichtfüßigkeit) ================================
+// Der Ninja springt von Gegner zu Gegner: Er beginnt beim Fokus (sonst beim nächsten Monster bis sk.range, Seelensteine
+// nur, wenn kein Monster da ist), zerfällt bei jedem Sprung zu Schattenrauch, taucht hinter oder neben dem nächsten
+// Gegner wieder auf und schneidet ihn. Sprünge: sk.hops, je Rang sk.rankHops (E 5, H 6, L 6, V 7), alle sk.every s.
+// Jeder Sprung nimmt den nächsten noch nicht getroffenen Gegner bis sk.hopRange vom aktuellen Platz; sind alle schon
+// getroffen, springt er zwischen ihnen hin und her – jeder weitere Treffer am selben Gegner macht nur sk.repeatMul.
+// Während der Sprünge ist die Figur festgehalten und nimmt keinen Schaden (protectUntil); sie bleibt am letzten Platz
+// stehen, der wie beim Blitzangriff nie in Wand, Wasser oder Dorf liegt. Mitspieler sehen die Sprünge über
+// MAGE2_REMOTE.chainblink (Plätze und Ziele je Sprung, Rang).
+const CHAIN = { lift: 0.82 };
+function chainHops(sk, rk) {
+  return rk >= 0 && sk.rankHops ? sk.rankHops[Math.min(rk, sk.rankHops.length - 1)] : sk.hops;
+}
+// freier Platz hinter dem Gegner m (von from aus gesehen), sonst seitlich; null = keiner frei
+function chainSpot(p, m, from) {
+  const a0 = Math.atan2(m.y - from.y, m.x - from.x);
+  const r = (m.r || 14) + 16;
+  for (const off of [0, 0.7, -0.7, 1.4, -1.4, 2.1, -2.1, Math.PI]) {
+    const a = a0 + off;
+    const x = m.x + Math.cos(a) * r;
+    const y = m.y + Math.sin(a) * r;
+    if (canStand(x, y, (p.r || 11) * 0.8, false) && (!inVillage(x, y) || duelFighting())) return { x, y };
+  }
+  return null;
+}
+// Reihenfolge der Sprünge (beim Wirken geplant): frische Gegner zuerst, dann hin und her
+function chainPlan(p, first, n, sk) {
+  const steps = [];
+  const count = new Map();
+  let cur = { x: p.x, y: p.y };
+  let m = first;
+  let last = null;
+  for (let k = 0; k < n && m; k++) {
+    const spot = chainSpot(p, m, cur) || { x: cur.x, y: cur.y };
+    steps.push({ m, x: spot.x, y: spot.y, rep: count.get(m.id) || 0 });
+    count.set(m.id, (count.get(m.id) || 0) + 1);
+    last = m;
+    cur = spot;
+    const near = aliveEnemies().filter((o) => !o.hidden && Math.hypot(o.x - cur.x, o.y - cur.y) - (o.r || 0) <= sk.hopRange);
+    const mobs = near.filter((o) => !o.isStone);
+    const pool = mobs.length ? mobs : near;
+    const fresh = pool.filter((o) => !count.has(o.id)).sort((a, b) => Math.hypot(a.x - cur.x, a.y - cur.y) - Math.hypot(b.x - cur.x, b.y - cur.y));
+    m = fresh[0] || pool.slice().sort((a, b) => (a === last) - (b === last) || count.get(a.id) - count.get(b.id) || dist(a, cur) - dist(b, cur))[0] || null;
+  }
+  return steps;
+}
+SKILL_TYPES.chainblink = function (sk, pw, lvl) {
+  const p = game.player;
+  let t = pickTarget(sk.range);
+  // nie zuerst auf einen Seelenstein, solange ein Monster in Reichweite ist
+  if (t && t.isStone) {
+    const mob = aliveEnemies().filter((o) => !o.isStone && !o.hidden && dist(p, o) - (o.r || 0) <= sk.range).sort((a, b) => dist(a, p) - dist(b, p))[0];
+    if (mob) t = mob;
+  }
+  if (!t) {
+    addText(p.x, p.y - 34, 'Kein Ziel', 'info');
+    return false;
+  }
+  const rk = typeof skillRank === 'function' ? skillRank(lvl || 1) : -1;
+  const plan = chainPlan(p, t, chainHops(sk, rk), sk);
+  const total = plan.length * sk.every;
+  lockPlayer(p, total + 0.08);
+  p.protectUntil = Math.max(p.protectUntil || 0, game.time + total + 0.08);
+  input.walkTo = null;
+  plan.forEach((st, k) => later(k * sk.every, () => {
+    if (p.dead) return;
+    const m = st.m;
+    const from = { x: p.x, y: p.y };
+    // folgt dem Gegner, falls er sich seit dem Wirken bewegt hat
+    const spot = (!m.dead && chainSpot(p, m, from)) || { x: st.x, y: st.y };
+    p.x = spot.x;
+    p.y = spot.y;
+    p.blinkHide = game.time + 0.04;
+    if (!m.dead) faceTowards(m.x, m.y);
+    p.combo = k % 3;
+    startSwing(p, 'combo', Math.min(0.2, sk.every + 0.04));
+    ninjaBladeFlash(p, sk.color, 0.18);
+    chainHopFx(p, from, spot, m.dead ? spot : m, sk, k === plan.length - 1, true);
+    // sk.stun: kurz taumeln (nur der erste Schnitt je Gegner)
+    if (!m.dead) hitMonster(m, sk.dmg * (st.rep ? sk.repeatMul : 1) * pw, { skill: sk.id, stun: st.rep ? 0 : sk.stun, heavy: k === plan.length - 1, vfxColor: '#d8c8ff' });
+  }));
+  return { h: plan.map((st) => [Math.round(st.x), Math.round(st.y), Math.round(st.m.x), Math.round(st.m.y)]) };
+};
+// Bild eines Sprungs (für alle gleich): Nachbild und Rauch am alten Platz, Schattenlinie, Schnitt am Gegner
+function chainHopFx(owner, from, to, tgt, sk, last, mine) {
+  const col = fxRank >= 0 ? SKILL_RANKS[fxRank].color : sk.color;
+  const dir = facingDir(owner.facing || { x: 0, y: 1 });
+  addEffect({ type: 'afterimage', sprite: characterSprite(owner.classId, dir, 1, playerLook(owner)), x: from.x, y: from.y + (owner.r || 11) * 0.8, flip: dir === 'side' && owner.facing && owner.facing.x < 0, dur: 0.32, tint: sk.color });
+  particles(from.x, from.y + 4, { count: 10, color: ['#0a0610', '#2a1640', '#5a2aa8'], speed: [20, 80], life: [0.25, 0.5], size: [3, 6], jitter: 6, drag: 3, glow: false });
+  addEffect({ type: 'nchain3', x: to.x, y: to.y, x0: from.x, y0: from.y, x1: to.x, y1: to.y, tx: tgt.x, ty: tgt.y, a: Math.atan2(tgt.y - to.y, tgt.x - to.x), color: col, last, dur: 0.6 });
+  // 2D: dünne Schattenlinie und Schnitt (in 3D zeichnet nchain3)
+  const len = Math.hypot(to.x - from.x, to.y - from.y);
+  if (len > 12) addEffect({ type: 'slash', x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 14, ang: Math.atan2(to.y - from.y, to.x - from.x), len, w: 3, dur: 0.22, color: '#3a1670' });
+  const bc = tgt.r != null ? bodyCenter(tgt) : { x: tgt.x, y: tgt.y - 14 };
+  const ang = Math.atan2(tgt.y - to.y, tgt.x - to.x) + Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+  addEffect({ type: 'slash', x: bc.x, y: bc.y, ang, len: last ? 74 : 58, w: last ? 9 : 7, dur: 0.26, color: col });
+  addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: ang + 0.25, len: last ? 46 : 34, w: 3, dur: 0.2, color: '#ffffff' });
+  addEffect({ type: 'sparks3', x: tgt.x, y: tgt.r != null ? feetY(tgt) : tgt.y, h: 0.75, count: last ? 10 : 6, color: '#e0d0ff', speed: 2.4, up: 0.9, dur: 0.35 });
+  particles(bc.x, bc.y, { count: last ? 14 : 8, color: ['#ffffff', col, '#5a2aa8'], speed: [80, 220], life: [0.15, 0.3], size: [1.2, 2.4], shape: 'spark', drag: 6 });
+  if (typeof snd !== 'undefined' && snd.swing) snd.swing(owner, true);
+  if (mine && last) shakeScreen(3);
+}
+MAGE2_REMOTE.chainblink = (rp, sk, d) => {
+  // ältere Mitspieler melden noch die Leichtfüßigkeit (gleiche Kennung über SKILL_RENAMED): ohne Sprünge nichts zeigen
+  if (!Array.isArray(d.h) || !d.h.length) return;
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+  const hops = d.h.slice(0, 12).filter((h) => Array.isArray(h) && h.length === 4 && h.every(isFinite));
+  withRank(rk, () => hops.forEach(([x, y, tx, ty], k) => later(k * sk.every, () => {
+    const from = { x: rp.x, y: rp.y };
+    rp.x = rp.tx = x;
+    rp.y = rp.ty = y;
+    rp.glideHold = { x, y, until: game.time + 0.5 };
+    rp.blinkHide = game.time + 0.04;
+    rp.facing = unitVec(tx - x, ty - y);
+    chainHopFx(rp, from, { x, y }, { x: tx, y: ty }, sk, k === hops.length - 1, false);
+  })));
+};
+
+// 3D: Schattenrauch und Nachbild am alten Platz, dünne violette Linie zum neuen Platz (verblasst schnell),
+// heller Klingenbogen und dunkle Schnittspur quer über den Gegner; Farbe je Rang (color)
+FX3_DRAW.nchain3 = function (h, e) {
+  const t = game.time - e.start;
+  const k = t / e.dur;
+  if (k >= 1) return;
+  const low = n3low();
+  const x0 = e.x0 * U3;
+  const z0 = (e.y0 + 9) * U3;
+  const x1 = e.x1 * U3;
+  const z1 = (e.y1 + 9) * U3;
+  // Schattenlinie zwischen den Plätzen: dunkler Kern mit leuchtendem Saum, wird dünner und verblasst
+  {
+    const op = 1 - k;
+    _nf3a.set(x0, CHAIN.lift, z0);
+    _nf3b.set(x1, CHAIN.lift, z1);
+    const sg = fx3Take(h, 'segN');
+    fx3Segment(sg, _nf3a, _nf3b, 0.05 * op + 0.01);
+    fx3Color(sg, '#1a0a2a', 0.85 * op);
+    const gl = fx3Take(h, 'seg');
+    fx3Segment(gl, _nf3a, _nf3b, 0.075 * op + 0.02);
+    fx3Color(gl, e.color, 0.7 * op);
+    if (!low) for (let j = 1; j < 4; j++) n3Glow(h, x0 + (x1 - x0) * j / 4, CHAIN.lift, z0 + (z1 - z0) * j / 4, 0.35, e.color, 0.45 * op);
+  }
+  // Nachbild am alten Platz zerfällt zu Rauch (leuchtender Umriss, dunkler Kern)
+  nfxGhost(h, x0, z0, e.color, Math.max(0, 0.55 - k * 0.8));
+  nfxGhost(h, x0, z0, '#2a1640', Math.max(0, 0.8 - k * 1.1), true);
+  for (let j = 0; j < (low ? 3 : 6); j++) {
+    const a = j * 2.4 + e.start * 3;
+    const rise = k * (0.6 + j * 0.15);
+    n3Smoke(h, x0 + Math.cos(a) * (0.2 + k * 0.4), 0.3 + rise + j * 0.12, z0 + Math.sin(a) * (0.2 + k * 0.4), 0.38 + k * 0.3, j % 2 ? '#3a1e5a' : '#0a0610', 0.7 * (1 - k));
+  }
+  // Klingenbogen und Schnittspur am Gegner
+  if (k < 0.55) {
+    const op = 1 - k / 0.55;
+    const tx = e.tx * U3;
+    const tz = (e.ty + 9) * U3;
+    _nf3c.set(tx, CHAIN.lift + 0.1, tz);
+    const sw = Math.min(1, k / 0.25);
+    const a0 = e.a - 1.1;
+    const s = fx3Take(h, 'strip');
+    fx3Strip(s, _nf3c, _nf3u, _nf3v, e.last ? 0.62 : 0.5, 0.09, a0, a0 + 2.2 * sw, '#ffffff', 0.9 * op, false);
+    const s2 = fx3Take(h, 'stripN');
+    fx3Strip(s2, _nf3c, _nf3u, _nf3v, e.last ? 0.7 : 0.58, 0.06, a0, a0 + 2.2 * sw, '#3a1670', 0.85 * op, false);
+    n3Glow(h, tx, CHAIN.lift + 0.1, tz, e.last ? 0.9 : 0.6, e.color, 0.7 * op);
+  }
+};

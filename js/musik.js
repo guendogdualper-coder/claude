@@ -74,7 +74,7 @@ const music = {
     if (z.dungeon) return 'dunkel';
     if (z.safe) return 'dorf';
     const g = z.ground;
-    if (g === 'SNOW' || g === 'ICE' || z.liquid === 'ICE') return 'kalt';
+    if (g === 'SNOW' || g === 'ICE' || g === 'KRISTALL' || z.liquid === 'ICE') return 'kalt';
     if (g === 'SAND' || g === 'BASALT' || z.liquid === 'LAVA') return 'heiss';
     if (g === 'ASH' || g === 'SWAMP' || z.liquid === 'BOG') return 'dunkel';
     if (g === 'FOREST') return 'wald';

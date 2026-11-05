@@ -54,6 +54,9 @@ function instDefAt(e) {
   return k >= 0 && DUNGEONS[k].inst60 ? DUNGEONS[k] : null;
 }
 const instOfMonster = (m) => (m && m.zone && m.zone.dungeon) || null;
+// Stufe der Gegner und Mindeststufe einer Instanz (seit 13.85: die Lv-80-Instanzen im Kristallabgrund haben eigene)
+const instMobLevel = (def) => (def && def.instLevel) || INST.level;
+const instMinLevel = (def) => (def && def.minLevel) || INST.level;
 
 // --- Grundriss (für Instanzen und Höllenthron, aus buildDungeons in welt.js) ----------------------------------
 // Raster aus 4 Spalten zu 14 Kacheln unter der Halle; Weg von unten nach oben: je Reihe 2–4 Felder in eine Richtung,
@@ -230,7 +233,7 @@ function instPopulate(dg, zone, groupId) {
   const fights = dg.rooms.filter((r) => r.role === 'mob');
   fights.forEach((r, n) => {
     const t = n / Math.max(1, fights.length - 1);
-    const lvl = INST.level + (t > 0.55 ? 1 : 0);
+    const lvl = instMobLevel(def) + (t > 0.55 ? 1 : 0);
     const a = mobs[n % mobs.length];
     const b = mobs[(n + 1) % mobs.length];
     if (r.w * r.h >= 90) {
@@ -239,8 +242,8 @@ function instPopulate(dg, zone, groupId) {
     } else pack(r, a, 0.5, 0.5, randInt(3, 4), lvl);
   });
   for (const r of dg.side) {
-    pack(r, mobs[0], 0.35, 0.5, 2, INST.level + 1);
-    pack(r, mobs[2 % mobs.length], 0.65, 0.5, 2, INST.level + 1);
+    pack(r, mobs[0], 0.35, 0.5, 2, instMobLevel(def) + 1);
+    pack(r, mobs[2 % mobs.length], 0.65, 0.5, 2, instMobLevel(def) + 1);
   }
   // zwei Seelensteine auf etwa einem und zwei Dritteln des Wegs
   def.stones.forEach((level, j) => {
@@ -258,7 +261,7 @@ function instPopulate(dg, zone, groupId) {
     add(createMonster(id, c.x, c.y, { zone, groupId }));
     for (let j = 0; j < 2; j++) {
       const pos = spotNear({ x: c.x + (j ? 70 : -70), y: c.y + 40 }, 30);
-      add(createMonster(MONSTER_TYPES[id].boss.summon, pos.x, pos.y, { groupId, zone, level: INST.level + 1 }));
+      add(createMonster(MONSTER_TYPES[id].boss.summon, pos.x, pos.y, { groupId, zone, level: instMobLevel(def) + 1 }));
     }
     groupId++;
   }
@@ -302,15 +305,15 @@ function instChecks(def) {
   let lowName = null;
   if (party) for (const name of party.members) {
     const pm = partyMember(name);
-    if (pm && pm.rp && (pm.rp.level || 0) < INST.level) lowName = name;
+    if (pm && pm.rp && (pm.rp.level || 0) < instMinLevel(def)) lowName = name;
   }
   const rec = instRecord(def.id);
   const left = instLockMin(def.id);
   if (instFree()) return [{ ok: true, text: 'Testzeit bis einschließlich 8. 11.: ohne Stufe, ohne Gruppe (auch allein), ohne Sperre' }];
   return [
-    { ok: p.level >= INST.level, text: `Du bist mindestens Stufe ${INST.level} (jetzt ${p.level})`, err: `erst ab Stufe ${INST.level}` },
+    { ok: p.level >= instMinLevel(def), text: `Du bist mindestens Stufe ${instMinLevel(def)} (jetzt ${p.level})`, err: `erst ab Stufe ${instMinLevel(def)}` },
     { ok: !!party && n >= INST.party[0] && n <= INST.party[1], text: `Gruppe aus ${INST.party[0]}–${INST.party[1]} Spielern (jetzt ${party ? n : 'keine Gruppe'})`, err: party ? `nur für Gruppen aus ${INST.party[0]}–${INST.party[1]} Spielern` : 'nur als Gruppe (2–5 Spieler) betretbar' },
-    { ok: !lowName, text: lowName ? `${lowName} ist noch nicht Stufe ${INST.level}` : `Alle in der Gruppe ab Stufe ${INST.level}`, err: `${lowName} ist noch nicht Stufe ${INST.level}` },
+    { ok: !lowName, text: lowName ? `${lowName} ist noch nicht Stufe ${instMinLevel(def)}` : `Alle in der Gruppe ab Stufe ${instMinLevel(def)}`, err: `${lowName} ist noch nicht Stufe ${instMinLevel(def)}` },
     { ok: !(rec && rec.done), text: rec && rec.done ? `Sperre: Du warst schon drin – wieder frei in ${left} Min.` : rec ? `Dein Durchgang läuft noch ${left} Min. – du kannst zurück` : 'Keine Sperre (30 Minuten ab dem Betreten)', err: `gesperrt – für dich wieder frei in ${left} Minuten` }
   ];
 }
@@ -334,12 +337,12 @@ function instRenderGate(body, npc, dg) {
   const ok = checks.every((c) => c.ok);
   const nRooms = dg.rooms.length + dg.side.length;
   const minis = def.minis.map((id) => `<b>${MONSTER_TYPES[id].name}</b>`).join(', ');
-  body.innerHTML = `<p class="quest-step raid-step">Instanz · ${instFree() ? '<b>Testzeit bis 8. 11.: frei für alle, auch allein</b>' : `ab Stufe ${INST.level} · Gruppe aus ${INST.party[0]}–${INST.party[1]} (empfohlen 5)`}</p><h3>${def.name}</h3>` +
+  body.innerHTML = `<p class="quest-step raid-step">Instanz · ${instFree() ? '<b>Testzeit bis 8. 11.: frei für alle, auch allein</b>' : `ab Stufe ${instMinLevel(def)} · Gruppe aus ${INST.party[0]}–${INST.party[1]} (empfohlen 5)`}</p><h3>${def.name}</h3>` +
     `<p>${def.text} ${nRooms} Räume voller Gegner, dazwischen vier Wächter, die immer stärker werden: ${minis}. Oben in der Halle wartet <b>${boss.name}</b> – versiegelt, bis alle Wächter gefallen sind.</p>` +
     '<p class="hint-text">Rote Kreise am Boden: gleich schlägt es dort ein, raus da! Grüne Kreise sind sicher. Wächter schreien bei 60 % und rufen Helfer, unter 30 % rasen sie. Ab der Hälfte seines Lebens entfesselt der Instanzboss seine Ult: Nur in den Lichtkreisen überlebt man sie.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
     `<p class="inst-lock" data-instlock="${def.id}">${instLockText(def.id) ? 'Sperre: ' + instLockText(def.id) : (instFree() ? 'Testzeit: keine Sperre – so oft du willst.' : 'Für dich frei. Die Sperre (30 Min.) beginnt beim Betreten und gilt nur für diese Instanz.')}</p>` +
-    `<p><b class="legend-text">Beute:</b> Der Instanzboss lässt in einer Fünfergruppe 2 epische Teile fallen (Lv 60–70, in kleineren Gruppen 1), mit Glück dazu ein legendäres (Lv 80), außerdem Verstärkungen, Switcher und Schmiede-Teile. Wächter: mit etwas Glück ein episches Teil.</p>` +
+    `<p><b class="legend-text">Beute:</b> Der Instanzboss lässt in einer Fünfergruppe 2 epische Teile fallen (${instMobLevel(def) >= 75 ? 'Lv 70–80' : 'Lv 60–70'}, in kleineren Gruppen 1), mit Glück dazu ein legendäres (Lv 80), außerdem Verstärkungen, Switcher und Schmiede-Teile. Wächter: mit etwas Glück ein episches Teil.</p>` +
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Instanz betreten' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
     const err = enterDungeon(npc.dungeon);
@@ -873,7 +876,9 @@ function instMats(m, mats, matN) {
   if (mat && MOB_MATS[mat] && matN) addMobMat(mat, matN, m);
 }
 function instEpicItem(m, slot) {
-  const item = rollRarityItem(Math.random() < INST.epic70 ? 70 : 60, 3, null, slot);
+  // Lv-80-Instanzen (seit 13.85): Lv 70 oder (mit derselben Chance wie sonst Lv 70) Lv 80
+  const hi = instMobLevel(instOfMonster(m)) >= 75;
+  const item = rollRarityItem(Math.random() < INST.epic70 ? (hi ? 80 : 70) : hi ? 70 : 60, 3, null, slot);
   return giveRarityItem(item, m) ? item : null;
 }
 function instMiniLoot(m, chance) {
@@ -1119,7 +1124,7 @@ function fx3Inst(h) {
 for (const def of instDefs()) {
   const boss = MONSTER_TYPES[def.boss];
   GROUP_ACTIVITIES.push({
-    id: 'inst:' + def.id, cat: 'inst60', name: def.name, minLevel: instFree() ? 1 : INST.level, size: INST.party[1], comp: { tank: 1, heiler: 1, schaden: 3 },
+    id: 'inst:' + def.id, cat: 'inst60', name: def.name, minLevel: instFree() ? 1 : instMinLevel(def), size: INST.party[1], comp: { tank: 1, heiler: 1, schaden: 3 },
     dungeon: DUNGEONS.indexOf(def), sub: `Instanz · ${WORLD_MAPS.find((w) => w.id === def.entry.map).name} · Boss: ${boss.name}`,
     status: () => instLockText(def.id),
     go: instGfGo
@@ -1149,7 +1154,7 @@ function instGfGo(act) {
     if (typeof RIFT_LOOK !== 'undefined' && d.gate) RIFT_LOOK[d.id] = { ...d.gate, id: d.id };
     if (typeof MON3_ZONE_THEME !== 'undefined') MON3_ZONE_THEME[d.id] = theme3[d.theme];
     const z = ZONES.find((x) => x.dungeon === d);
-    if (z) z.levels = `Instanz · ab Stufe ${INST.level} · Gruppe`;
+    if (z) z.levels = `Instanz · ab Stufe ${instMinLevel(d)} · Gruppe`;
   }
   if (typeof MON3_ZONE_THEME !== 'undefined') MON3_ZONE_THEME.hoellenthron = 'hell';
   // Schmuck der 3D-Modelle (Stacheln, Leuchtpunkte, Schnee, Asche …) im Thema auch für Wächter und Bosse

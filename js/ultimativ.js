@@ -20,7 +20,8 @@ const ULTIMATES = {
   dolch: {
     id: 'schattenklone', name: 'Schattendoppelgänger', short: 'SD', color: '#c9b8ff',
     text: 'Du zerfällst in Rauch: Sechs Schattendoppelgänger umzingeln dein Ziel und stoßen alle im selben Augenblick zu. Dann tauchst du hinter ihm auf und vollendest mit einem Kreuzschnitt.',
-    stats: '6 Doppelgänger je 3,2× Angriff (Gegner daneben 1,2×), Kreuzschnitt 6× aufs Ziel und 2,5× im Umkreis mit Betäubung'
+    // seit 13.85 schwächer: Doppelgänger 2,6× statt 3,2×, Kreuzschnitt 5× statt 6×
+    stats: '6 Doppelgänger je 2,6× Angriff (Gegner daneben 1,2×), Kreuzschnitt 5× aufs Ziel und 2,5× im Umkreis mit Betäubung'
   },
   schatten: {
     id: 'todesmal', name: 'Todesmal', short: 'TM', color: '#ff4a6a',
@@ -95,7 +96,7 @@ function useUltimate() {
     return;
   }
   if (p.riding) toggleRide(false);
-  // aus der Tarnung (seit 13.39): auch die Ulti trifft mit allen Treffern ×3
+  // aus der Tarnung (seit 13.39): auch die Ulti trifft mit allen Treffern × nextHitMul (seit 13.85 ×2)
   const sMul = typeof stealthCastBegin === 'function' ? stealthCastBegin(p) : 1;
   if (ULT_RUN[u.id](p, u, ultPower(p) * sMul) === false) {
     if (sMul > 1) { p.nextHitMul = sMul; p.stealthCast = 0; p.stealthCrit = false; }
@@ -111,6 +112,12 @@ function useUltimate() {
   ui.banner(u.name, 'Ultimative Attacke');
   flashScreen(u.color, 0.28);
   hitStop(0.08);
+  // seit 13.85: zum Ziel bzw. zur Mitte der Flächen-Ulti schauen (attackFace, kampf.js)
+  if (typeof attackFace === 'function') {
+    const ft = game.target && !game.target.dead && !game.target.hidden && dist(p, game.target) < 900 ? game.target : null;
+    const fa = p.ultAt && Math.hypot(p.ultAt.x - p.x, p.ultAt.y - p.y) > 8 ? { x: p.ultAt.x, y: p.ultAt.y } : ft;
+    if (fa) attackFace(p, fa, 0.7);
+  }
   // Flächen-Ultis am Ziel (Kreis der Elemente) schicken ihre Mitte, sonst die Position der Figur
   const at = p.ultAt || p;
   p.ultAt = null;
@@ -252,7 +259,8 @@ const ULT_RUN = {
           startSwing(c, 'combo', 0.16);
           const bc = bodyCenter(t);
           addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: Math.atan2(t.y - c.y, t.x - c.x) + rand(-0.4, 0.4), len: 66, w: 9, dur: 0.3, color: k % 2 ? '#ffffff' : u.color });
-          hitMonster(t, 3.2 * pw, { heavy: k === n - 1, vfxColor: u.color });
+          // seit 13.85 2,6× statt 3,2× (der Dolch-Ninja war mit Tarnung und Ulti viel zu stark)
+          hitMonster(t, 2.6 * pw, { heavy: k === n - 1, vfxColor: u.color });
         });
       });
       // Gegner direkt daneben bekommen die Streifschläge ab
@@ -280,7 +288,8 @@ const ULT_RUN = {
       particles(bc.x, bc.y, { count: 40, color: [u.color, '#3d3848', '#ffffff'], speed: [100, 300], life: [0.3, 0.6], size: [2, 4], shape: 'spark', drag: 4 });
       shakeScreen(9);
       hitStop(0.1);
-      for (const m of enemiesInCircle(cx, cy, 110)) hitMonster(m, (m === t ? 6 : 2.5) * pw, { stun: 1.5, heavy: true, vfxColor: u.color });
+      // seit 13.85 5× statt 6× aufs Ziel
+      for (const m of enemiesInCircle(cx, cy, 110)) hitMonster(m, (m === t ? 5 : 2.5) * pw, { stun: 1.5, heavy: true, vfxColor: u.color });
     });
   },
 

@@ -6,7 +6,7 @@
 //                   0 = innerer Rand (dorfnah), 1 = äußerer Rand
 // groupSize         [min, max] Monster pro Gruppe
 // stones            [Steinstufe, Anzahl, von, bis] – welche Seelensteine wo stehen (siehe STONE_TYPES)
-// liquid            Art der Gewässer: WATER, BOG (Sumpf), LAVA oder ICE (zugefroren, begehbar)
+// liquid            Art der Gewässer: WATER, BOG (Sumpf), LAVA, ICE (zugefroren, begehbar) oder ABGRUND (Spalte, seit 13.85)
 // ambient           Stimmung: schwebende Teilchen (kind) und eine leichte Färbung des Bildes (tint, RGBA)
 const ZONES = [
   {
@@ -58,7 +58,8 @@ const ZONES = [
   {
     id: 'vulkan', map: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, minDist: 8, maxDist: 999,
     ground: 'BASALT', trees: 0.003, treeObj: 'DEADTREE', rocks: 0.024, water: 0.2, liquid: 'LAVA',
-    groups: [['lavagolem', 13, 0, 0.6], ['feuerdaemon', 14, 0.2, 1], ['feuerdrache', 10, 0.4, 1], ['glutkatze', 8, 0.15, 0.9]], groupSize: [2, 4],
+    // seit 13.85 rund ein Viertel mehr Gruppen (vorher 13, 14, 10, 8 = 45), dafür weniger Felsen und Geröll
+    groups: [['lavagolem', 16, 0, 0.6], ['feuerdaemon', 18, 0.2, 1], ['feuerdrache', 12, 0.4, 1], ['glutkatze', 10, 0.15, 0.9]], groupSize: [2, 4],
     stones: [[65, 6, 0, 0.6], [70, 4, 0.4, 1]],
     ambient: { kind: 'embers', tint: [120, 42, 0, 0.12] }
   }
@@ -137,14 +138,16 @@ const RAID_DEFS = [
   ['ignar', 'Hort des Weltendrachen', 9, 'BASALT', '#ff6a2a', { top: '#1a1210', face: '#080404', line: '#ff6a2a' }, 'embers'],
   ['tarkon', 'Gipfel des Donnertitans', 3, 'BASALT', '#9fd0ff', { top: '#3a3a44', face: '#14141a', line: '#9fd0ff' }, 'dust']
 ];
-for (const [boss, name, map, floor, portal, wall, amb] of RAID_DEFS) {
+// Endboss-Arena aus einer Zeile von RAID_DEFS (seit 13.85 als Funktion, auch für den Endboss von Map 10)
+function raidDungeon([boss, name, map, floor, portal, wall, amb], tint = [40, 20, 20, 0.08]) {
   const lvl = MONSTER_TYPES[boss].level;
-  DUNGEONS.push({
+  return {
     id: 'raid_' + boss, name, minLevel: Math.max(1, lvl - 6), raid: true, floor, wall, portal, mobs: [], boss, stones: [],
     entry: map ? { map, dir: [0, 1], dist: 18, side: 6 } : { dir: [0, 1], dist: 29, side: 6 },
-    ambient: { kind: amb, tint: [40, 20, 20, 0.08] }
-  });
+    ambient: { kind: amb, tint }
+  };
 }
+for (const row of RAID_DEFS) DUNGEONS.push(raidDungeon(row));
 // Version 13.0: der Höllenthron – eine Instanz für 6–7 Spieler ab Stufe 60 hinter einem Riesenportal im Feuerberg
 // (der letzten Map): Räume mit Seelensteinen und Höllenbrut, zwei Wächter und am Ende Abaddor, der Höllenkaiser.
 // Abaddor ist versiegelt, bis alle Seelensteine und beide Wächter der Instanz besiegt sind (hoellenthron.js).
@@ -158,6 +161,15 @@ DUNGEONS.push({
 });
 // seit 13.58: die acht Lv-60-Instanzen (daten/instanzen.js), je zwei in den Ecken der Maps ab Stufe 40
 if (typeof INSTANCES !== 'undefined') DUNGEONS.push(...INSTANCES);
+// seit 13.85: Dungeon und Endboss des Kristallabgrunds (Map 10). Hinten angehängt (wie die Lv-80-Instanzen am Ende von
+// INSTANCES), damit alle älteren Dungeons ihren Platz im Streifen behalten (Spielstände in einem Dungeon bleiben gültig)
+DUNGEONS.push({
+  id: 'kristallkaverne', name: 'Kristallkaverne', minLevel: 75, entry: { map: 10, dir: [-1, 0], dist: 84, side: 4 }, floor: 'KRISTALL',
+  wall: { top: '#2e2850', face: '#0e0a1c', line: '#9fd8ff' }, portal: '#9fd8ff',
+  mobs: ['kavernenwaechter', 'leerenseherin'], boss: 'vaelith', stones: [75, 80],
+  ambient: { kind: 'shards', tint: [30, 30, 90, 0.13] }
+});
+DUNGEONS.push(raidDungeon(['aelvyr', 'Hort des Abgrundwyrms', 10, 'KRISTALL', '#a88cff', { top: '#2a2444', face: '#0c0a18', line: '#a88cff' }, 'shards'], [30, 20, 70, 0.1]));
 for (const d of DUNGEONS) {
   ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
 }
@@ -182,7 +194,10 @@ const WORLD_MAPS = [
   { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
   { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 13, genCamp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
   { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
-  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 13, genCamp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] }
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 13, genCamp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] },
+  // seit 13.85: Map 10, das Endgebiet unten links (vorher Fels): die Kristallzitadelle Lichtwacht, darum violette
+  // Felsplateaus mit Kristallen und Abgrundspalten (GROUND.ABGRUND), innen die Hänge, außen der Leerenschlund
+  { id: 10, name: 'Kristallabgrund', levels: 'Stufe 75–80', minLevel: 75, region: [0, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Kristallzitadelle Lichtwacht über dem Abgrund, darum Plateaus voller Kristalle, Golems und Spinnen, außen der Leerenschlund mit Rittern und Wyrmen. Kristallkaverne.', portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
@@ -220,6 +235,23 @@ const MAP_ZONES = [
     groups: [['steintitan', 12, 0, 0.6], ['gargoyle', 12, 0.3, 1], ['donnerriese', 10, 0.5, 1]], groupSize: [2, 4],
     stones: [[65, 3, 0, 0.6], [70, 3, 0.4, 1]],
     ambient: { kind: 'embers', tint: [80, 30, 10, 0.12] }
+  },
+  // Map 10 · Kristallabgrund (seit 13.85): Boden KRISTALL, Gewässer sind Abgrundspalten (ABGRUND, nicht begehbar),
+  // Bäume sind Kristallbäume (DEADTREE, in 3D mit Kristallästen, karte80.js)
+  { id: 'lichtwacht', map: 10, name: 'Lichtwacht', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'KRISTALL' },
+  {
+    id: 'kristallhang', map: 10, name: 'Kristallhänge', levels: 'Stufe 75–77', minLevel: 75, minDist: 15, maxDist: 66,
+    ground: 'KRISTALL', trees: 0.004, treeObj: 'DEADTREE', rocks: 0.02, water: 0.12, liquid: 'ABGRUND',
+    groups: [['kristallgolem', 12, 0, 0.6], ['splitterspinne', 11, 0.2, 1], ['schattenpirscher', 9, 0.45, 1]], groupSize: [2, 4],
+    stones: [[75, 4, 0, 1]],
+    ambient: { kind: 'shards', tint: [40, 50, 120, 0.1] }
+  },
+  {
+    id: 'leerenschlund', map: 10, name: 'Leerenschlund', levels: 'Stufe 78–80', minLevel: 78, minDist: 66, maxDist: 999,
+    ground: 'KRISTALL', trees: 0.003, treeObj: 'DEADTREE', rocks: 0.022, water: 0.17, liquid: 'ABGRUND',
+    groups: [['abgrundgeist', 11, 0, 0.7], ['leerenritter', 11, 0.25, 1], ['kristallwyrm', 9, 0.45, 1], ['schattenpirscher', 5, 0, 0.5]], groupSize: [2, 4],
+    stones: [[75, 2, 0, 0.5], [80, 4, 0.3, 1]],
+    ambient: { kind: 'shards', tint: [50, 30, 110, 0.14] }
   }
 ];
 for (const wm of WORLD_MAPS) {

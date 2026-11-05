@@ -19,7 +19,8 @@ const RANK_NAMES = {
   tarnung: ['Nebelschleier', 'Schattengestalt', 'Geist der Nacht', 'Herr der Schatten'],
   wirbelklinge: ['Klingentanz', 'Dolchsturm', 'Tanz der tausend Schnitte', 'Todeswirbel'],
   blitzangriff: ['Donnerstoß', 'Phantomangriff', 'Schatten des Blitzes', 'Augenblick des Todes'],
-  leichtfuessigkeit: ['Windschritt', 'Sturmfuß', 'Schwingen des Windes', 'Schritt der Ewigkeit'],
+  // seit 13.85 Schattenkette statt Leichtfüßigkeit
+  schattenkette: ['Kette der Nacht', 'Tanz der Schatten', 'Fesseln der Finsternis', 'Tausend Schatten'],
   schattensprung: ['Nachtsprung', 'Schattenflug', 'Sprung durch die Leere', 'Wanderer der Schatten'],
   laehmklinge: ['Nervenklinge', 'Giftzahn', 'Klinge der Starre', 'Todesstarre'],
   schattenmantel: ['Nachtmantel', 'Mantel der Finsternis', 'Umhang der Leere', 'Mantel der ewigen Nacht'],

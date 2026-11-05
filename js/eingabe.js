@@ -203,7 +203,7 @@ function selectAt(clientX, clientY) {
     const pid = remotePlayerAt(w.x, w.y);
     if (pid) {
       if (duelFighting() && game.duel.pid === pid) {
-        game.target = game.duel.proxy;
+        setTarget(game.duel.proxy, true);
         return 'monster';
       }
       pcard.open(pid);
@@ -219,7 +219,8 @@ function selectAt(clientX, clientY) {
       if (d < Math.max(m.r + 10, h * 0.5) && d < bestD + h * 0.2) { best = m; bestD = d; }
     }
     if (best) {
-      game.target = best;
+      // seit 13.85 als bewusster Fokus (setTarget, kampf.js)
+      setTarget(best, true);
       return 'monster';
     }
     for (const n of game.world.npcs) {
@@ -372,7 +373,8 @@ function cycleTarget() {
   const p = game.player;
   if (!p) return;
   const reach = Math.max(560, (typeof basicAttack === 'function' ? basicAttack(p).range : 0) + 200);
-  const list = aliveEnemies().filter((m) => !m.hidden && !m.duelProxy && dist(m, p) < reach).sort((a, b) => dist(a, p) - dist(b, p));
+  // seit 13.85: Seelensteine kommen erst nach den Monstern dran
+  const list = aliveEnemies().filter((m) => !m.hidden && !m.duelProxy && dist(m, p) < reach).sort((a, b) => (a.isStone ? 1 : 0) - (b.isStone ? 1 : 0) || dist(a, p) - dist(b, p));
   if (!list.length) return;
   // nach einer Pause von 4 s beginnt eine neue Runde
   if (game.time - TAB.at > 4) TAB.seen.clear();
@@ -385,7 +387,7 @@ function cycleTarget() {
     next = list.find((m) => m !== game.target) || list[0];
   }
   TAB.seen.add(next.id);
-  game.target = next;
+  setTarget(next, true);
   faceTowards(next.x, next.y);
 }
 

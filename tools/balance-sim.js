@@ -348,8 +348,11 @@ function pageLib() {
     game.monsters = [];
     skills.forEach((sk, i) => {
       if (p.level < sk.unlock) return;
-      if (sk.kind === 'buff' && !(sk.effects && sk.effects.invisible)) { p.mp = 1e6; useSkill(i); S.run(0.8); }
-      if (sk.kind === 'beschwörung' && sk.type === 'summon') { p.mp = 1e6; useSkill(i); S.run(1.2); }
+      const pre = sk.kind === 'buff' ? !(sk.effects && sk.effects.invisible) : sk.kind === 'beschwörung' && sk.type === 'summon';
+      if (!pre) return;
+      // seit 13.85: globale Abklingzeit der Zauberer (applyGcd, kampf.js) abwarten, wie ein Spieler beim Vorbereiten
+      if (p.skillCd[i] > 0) S.run(p.skillCd[i] + 0.05);
+      p.mp = 1e6; useSkill(i); S.run(sk.kind === 'buff' ? 0.8 : 1.2);
     });
     game.monsters = keep;
     game.stats = playerStats(p);

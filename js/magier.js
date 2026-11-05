@@ -334,6 +334,22 @@ SKILL_TYPES.shift = function (sk, pw, lvl) {
 // Richtung und gewünschte Weite: beim Laufen in Blickrichtung; 'line'/'end' mit Ziel zum Ziel;
 // sonst weg vom nächsten Gegner (Flucht)
 function shiftPlan(p, sk) {
+  // seit 13.85 mit Zielkreis (sk.aim): Richtung und Weite zum gewählten Ort (Eisschritt: Kreis beginnt hinter der
+  // Figur, aimAway). Steht dort ein Gegner, schlägt der Blitzschritt wie bisher knapp hinter ihm ein.
+  if (sk.aim) {
+    const pt = game.aim && game.aim.sk.id === sk.id ? game.aim.pt : sk.aimAway ? aimAwayPoint(p, sk) : skillAimPoint(sk);
+    const dx = pt.x - p.x;
+    const dy = pt.y - p.y;
+    const dl = Math.hypot(dx, dy);
+    const dir = dl > 4 ? { x: dx / dl, y: dy / dl } : { ...p.facing };
+    let want = Math.min(sk.distance, Math.max(dl, 40));
+    if (sk.at === 'line') {
+      for (const m of aliveEnemies()) {
+        if (!m.hidden && Math.hypot(m.x - pt.x, m.y - pt.y) <= (m.r || 14) + 8) want = Math.min(sk.distance, Math.max(want, dist(p, m) + 40));
+      }
+    }
+    return { dir, want };
+  }
   if (p.moving) return { dir: { ...p.facing }, want: sk.distance };
   const t = pickTarget(sk.distance + 60);
   if (t && (sk.at === 'line' || sk.at === 'end')) {

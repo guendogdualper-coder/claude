@@ -512,10 +512,24 @@ SKILL_TYPES.bleap = function (sk, pw) {
   if (!bowCanShoot(p, sk.arrows)) return false;
   const t = pickTarget(sk.aimRange || sk.range);
   if (t) faceTowards(t.x, t.y);
-  const f = { ...p.facing };
-  const back = { x: -f.x, y: -f.y };
+  let f = { ...p.facing };
+  let back = { x: -f.x, y: -f.y };
+  let want = sk.distance;
+  // seit 13.85 mit Zielkreis (sk.aim/aimAway): Landeplatz frei gewählt, der Kreis beginnt hinter der Figur.
+  // Die Pfeile fliegen weiter zum Ziel; ohne Ziel entgegen der Sprungrichtung.
+  if (sk.aim) {
+    const pt = game.aim && game.aim.sk.id === sk.id ? game.aim.pt : aimAwayPoint(p, sk);
+    const dx = pt.x - p.x;
+    const dy = pt.y - p.y;
+    const dl = Math.hypot(dx, dy);
+    if (dl > 4) {
+      back = { x: dx / dl, y: dy / dl };
+      want = Math.min(sk.distance, Math.max(dl, 30));
+      if (!t) { f = { x: -back.x, y: -back.y }; p.facing = { ...f }; }
+    }
+  }
   let reach = 0;
-  for (let s = 6; s <= sk.distance; s += 6) {
+  for (let s = 6; s <= want; s += 6) {
     const nx = p.x + back.x * s;
     const ny = p.y + back.y * s;
     if (!canStand(nx, ny, p.r * 0.7, false) || (inVillage(nx, ny) && !duelFighting())) break;

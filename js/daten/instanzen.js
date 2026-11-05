@@ -47,19 +47,21 @@ const INST_MOBS = [
 for (const [id, base, name, t3] of INST_MOBS) {
   const b = MONSTER_TYPES[base];
   MONSTER_TYPES[id] = {
-    ...b, name, level: 60, look: base, lookScale: 1.08, hpMul: +((b.hpMul || 1) * 1.15).toFixed(2), atkMul: +((b.atkMul || 1) * 1.05).toFixed(2),
+    ...b, name, level: 60, look: base, lookScale: 1.08, hpMul: +((b.hpMul || 1) * 1.15).toFixed(2), atkMul: +((b.atkMul || 1) * 1.3).toFixed(2),
     aggressive: true, dungeon: true, t3
   };
 }
 
 // Wächter und Bosse: [id, Vorlage, Name, Titel, Thema, Rang (0–3 Wächter, 4 Boss), Größe in 3D, Farbe, Angriffe, Färbung, Brut]
 // Rang bestimmt Stufe, Leben, Angriff und Größe (INST_RANKS); die Brut sind die Helfer bei Wutschrei und Beschwörung
+// seit 13.85 deutlich mehr Angriff (vorher 1,7 / 1,85 / 2,0 / 2,15 / 2,35): Wächter und Boss sind nur noch in der Gruppe
+// zu schaffen, auch ein gut ausgerüsteter Tank spürt jeden Schlag
 const INST_RANKS = [
-  { level: 60, hpMul: 24, atkMul: 1.7, size: 28 },
-  { level: 61, hpMul: 34, atkMul: 1.85, size: 30 },
-  { level: 62, hpMul: 46, atkMul: 2.0, size: 32 },
-  { level: 63, hpMul: 60, atkMul: 2.15, size: 34 },
-  { level: 64, hpMul: 105, atkMul: 2.35, size: 44 }
+  { level: 60, hpMul: 24, atkMul: 2.7, size: 28 },
+  { level: 61, hpMul: 34, atkMul: 2.95, size: 30 },
+  { level: 62, hpMul: 46, atkMul: 3.2, size: 32 },
+  { level: 63, hpMul: 60, atkMul: 3.45, size: 34 },
+  { level: 64, hpMul: 105, atkMul: 3.8, size: 44 }
 ];
 const INST_BOSSES = [
   // Gletschergruft (Frostgipfel, oben links)
@@ -131,11 +133,12 @@ for (const [id, base, name, title, fx, rank, scale, color, moves, t3, summon] of
 
 // Höllenthron (seit 13.58): vier neue Wächter zwischen Zerberos und Ifrah, immer stärker, Abaddor bleibt der stärkste
 // Reihenfolge der Räume: Gorvoth (64) → Lilith (65) → Zerberos (66) → Molgrath (67) → Ifrah (68) → Belzarek (69) → Abaddor (72)
+// seit 13.85 Angriff etwa × 1,45 (vorher 2,5 / 2,6 / 2,75 / 2,9)
 const HT_MINIS = [
-  ['gorvoth', 'oger', 'Gorvoth, Kerkermeister der Hölle', 'Er reißt Gefangene an seine Ketten', 64, 105, 2.5, 40, 2.4, '#ff5a1a', ['slam', 'pull', 'charge', 'buster'], { skin: '#5a3a30' }, 'hoellenhund'],
-  ['lilith', 'sumpfhexe', 'Lilith, Hexe der Asche', 'Ihre Glut sammelt sich in Lachen', 65, 120, 2.6, 36, 2.3, '#ff7a3a', ['pools', 'rain', 'ringout', 'volley'], { robe: '#3a0a0a', skin: '#c86a5a' }, 'feuerdaemon'],
-  ['molgrath', 'lavagolem', 'Molgrath, der Glutkoloss', 'Er bebt vor Hitze', 67, 145, 2.75, 44, 2.1, '#ff6a1a', ['slam', 'cross', 'rain', 'pull', 'buster'], null, 'hoellenhund'],
-  ['belzarek', 'daemon', 'Belzarek, Fürst der Schatten', 'Der letzte Wächter vor dem Thron', 69, 165, 2.9, 44, 3.2, '#ff3a5a', ['leap', 'fan', 'cross', 'core', 'chain', 'charge'], { skin: '#2a0a14', torso: '#1a0610', wings: '#3a0a1a' }, 'feuerdaemon']
+  ['gorvoth', 'oger', 'Gorvoth, Kerkermeister der Hölle', 'Er reißt Gefangene an seine Ketten', 64, 105, 3.6, 40, 2.4, '#ff5a1a', ['slam', 'pull', 'charge', 'buster'], { skin: '#5a3a30' }, 'hoellenhund'],
+  ['lilith', 'sumpfhexe', 'Lilith, Hexe der Asche', 'Ihre Glut sammelt sich in Lachen', 65, 120, 3.75, 36, 2.3, '#ff7a3a', ['pools', 'rain', 'ringout', 'volley'], { robe: '#3a0a0a', skin: '#c86a5a' }, 'feuerdaemon'],
+  ['molgrath', 'lavagolem', 'Molgrath, der Glutkoloss', 'Er bebt vor Hitze', 67, 145, 3.95, 44, 2.1, '#ff6a1a', ['slam', 'cross', 'rain', 'pull', 'buster'], null, 'hoellenhund'],
+  ['belzarek', 'daemon', 'Belzarek, Fürst der Schatten', 'Der letzte Wächter vor dem Thron', 69, 165, 4.15, 44, 3.2, '#ff3a5a', ['leap', 'fan', 'cross', 'core', 'chain', 'charge'], { skin: '#2a0a14', torso: '#1a0610', wings: '#3a0a1a' }, 'feuerdaemon']
 ];
 for (const [id, base, name, title, level, hpMul, atkMul, size, scale, color, moves, t3, summon] of HT_MINIS) {
   const b = MONSTER_TYPES[base];
@@ -207,3 +210,69 @@ const INSTANCES = [
   }
 ];
 for (const d of INSTANCES) Object.assign(d, { minLevel: 60, inst60: true, rows: 2, stones: [60, 62] });
+
+// Lv-80-Instanzen (seit 13.85): zwei Instanzen im Kristallabgrund (Map 10), wie die Lv-60-Instanzen in den Ecken der
+// Map und genauso aufgebaut (zwei Blöcke hoch, vier Wächter, versiegelter Boss), nur auf Stufe 76–80.
+// instLevel: Stufe der Gegner in den Räumen (js/instanzen.js nimmt sie statt INST.level); minLevel: Betreten ab Stufe
+// (Gegner: Aussehen der neuen Monster des Abgrunds, siehe daten/monster.js und karte80.js)
+const INST80_MOBS = [
+  ['i_spiegelgolem', 'kristallgolem', 'Spiegelgolem', { skin: '#6a7ac8', cracks: '#e0f4ff' }],
+  ['i_glasspinne', 'splitterspinne', 'Glasspinne', { body: '#4a5a9a', mark: '#e0f4ff' }],
+  ['i_frostseele', 'abgrundgeist', 'Spiegelseele', { body: '#a8c8ff', crown: '#ffffff' }],
+  ['i_leerenwache', 'leerenritter', 'Leerenwache', { torso: '#1e1830', cape: '#2a1050' }],
+  ['i_schattenjaeger', 'schattenpirscher', 'Schattenjäger', { fur: '#120e1e', stripes: '#c86aff' }],
+  ['i_leerenwyrmling', 'kristallwyrm', 'Leerenwyrmling', { fur: '#2a2050', belly: '#b48cff' }]
+];
+for (const [id, base, name, t3] of INST80_MOBS) {
+  const b = MONSTER_TYPES[base];
+  MONSTER_TYPES[id] = {
+    ...b, name, level: 78, look: base, lookScale: 1.05, hpMul: +((b.hpMul || 1) * 1.15).toFixed(2), atkMul: +((b.atkMul || 1) * 1.3).toFixed(2),
+    aggressive: true, dungeon: true, t3
+  };
+}
+// Wächter (Rang 0–3) und Boss (Rang 4): Leben und Angriff wie INST_RANKS, Stufe 76–80
+const INST80_BOSSES = [
+  // Spiegelgruft (oben links): Kristall und Eis
+  ['glimra', 'splitterspinne', 'Glimra, die Splitterweberin', 'Ihre Fäden schneiden wie Glas', 'eis', 0, 2.3, '#cfe4ff', ['leap', 'fan', 'spikes', 'volley'], { body: '#5a6ab8', mark: '#ffffff' }, 'i_glasspinne'],
+  ['korvald', 'kristallgolem', 'Korvald Spiegelfaust', 'Er zerschlägt den Boden zu Scherben', 'eis', 1, 1.8, '#9fd8ff', ['slam', 'spikes', 'pull', 'buster'], { skin: '#7a8ad8', cracks: '#ffffff' }, 'i_spiegelgolem'],
+  ['ysolde', 'abgrundgeist', 'Ysolde, Stimme im Spiegel', 'Ihr Hagel deckt den ganzen Saal', 'eis', 2, 2.1, '#e0f0ff', ['rain', 'ringout', 'volley', 'chain'], { body: '#c8dcff', crown: '#9fd8ff' }, 'i_frostseele'],
+  ['brakkar', 'kristallwyrm', 'Brakkar Glasschwinge', 'Der letzte Wächter vor der Herrin', 'eis', 3, 1.5, '#bfe4ff', ['fan', 'charge', 'rain', 'line', 'buster'], { fur: '#8a9ae8', belly: '#ffffff' }, 'i_glasspinne'],
+  ['aelthys', 'vaelith', 'Aelthys, Herrin der Spiegel', 'Herrin der Spiegelgruft', 'eis', 4, 1.25, '#cfe4ff', ['rain', 'fan', 'ringout', 'spikes', 'pull', 'slam', 'volley'], { robe: '#c8d4ff', torso: '#c8d4ff' }, 'i_frostseele'],
+  // Thron der Leere (unten rechts): Schatten und Leere
+  ['nachtkralle', 'schattenpirscher', 'Nachtkralle', 'Sie springt aus dem Dunkel', 'tod', 0, 2.3, '#c8a8ff', ['leap', 'fan', 'charge', 'spikes'], { fur: '#0e0a18', stripes: '#e08aff' }, 'i_schattenjaeger'],
+  ['xul', 'abgrundgeist', 'Xul, der Hohle', 'Seine Blitze springen von Spieler zu Spieler', 'tod', 1, 2.1, '#b48cff', ['chain', 'volley', 'ringout', 'rain'], { body: '#6a4ab8', crown: '#2a1a4a' }, 'i_leerenwache'],
+  ['gharon', 'kristallgolem', 'Gharon, Wächter des Schlunds', 'Er zieht euch in die Tiefe', 'tod', 2, 1.8, '#a88cff', ['pull', 'slam', 'cross', 'buster'], { skin: '#2a2050', cracks: '#c86aff' }, 'i_leerenwache'],
+  ['morvaine', 'leerenritter', 'Ritter Morvaine', 'Die Klinge des Leerenfürsten', 'tod', 3, 1.9, '#c8a8ff', ['charge', 'cross', 'line', 'core', 'leap'], { cape: '#1a0a3a', torso: '#141024' }, 'i_schattenjaeger'],
+  ['nihilor', 'leerenritter', 'Nihilor, Fürst der Leere', 'Herr des Throns der Leere', 'tod', 4, 2.6, '#b48cff', ['cross', 'rain', 'chain', 'pull', 'fan', 'slam', 'leap'], { cape: '#2a0a4a', torso: '#0e0a18', skin: '#6a6488' }, 'i_leerenwyrmling']
+];
+for (const [id, base, name, title, fx, rank, scale, color, moves, t3, summon] of INST80_BOSSES) {
+  const b = MONSTER_TYPES[base];
+  const R = INST_RANKS[rank];
+  const final = rank === 4;
+  const mat = (b.boss && b.boss.mat) || base;
+  MONSTER_TYPES[id] = {
+    name, level: 76 + rank, shape: b.shape, color: b.color, accent: b.accent, size: R.size, speed: Math.min(130, (b.speed || 100) + 10),
+    range: final ? 80 : 56, cooldown: final ? 1.8 : 1.6, aggressive: true, hpMul: R.hpMul, atkMul: R.atkMul, dungeon: true,
+    look: base, lookScale: scale, t3,
+    boss: { color, slam: final ? 210 : 150 + rank * 10, volley: final ? 12 : 8, shot: color, summon, mat },
+    inst: { rank, final, fx, title, moves, ult: final ? INST_ULT_NAME[fx] : null }
+  };
+}
+const INSTANCES80 = [
+  {
+    id: 'spiegelgruft', name: 'Spiegelgruft', theme: 'eis', entry: { map: 10, corner: 'tl' }, floor: 'KRISTALL', portal: '#9fd8ff',
+    wall: { top: '#7a80c0', face: '#1e2048', line: '#cfe4ff' }, ambient: { kind: 'shards', tint: [60, 80, 160, 0.12] },
+    mobs: ['i_spiegelgolem', 'i_glasspinne', 'i_frostseele'], minis: ['glimra', 'korvald', 'ysolde', 'brakkar'], boss: 'aelthys',
+    gate: { stone: '#6a6ea8', top: '#c8d4ff', topK: 0.6, accent: '#9fd8ff', deep: '#0e1442', mid: '#9fd8ff', core: '#ffffff', motes: 'snow', spin: 0.8, emblem: 'flake' },
+    text: 'Eine Gruft aus Spiegelkristall unter den Hängen. Golems, Spinnen und Seelen aus Glas dienen ihrer Herrin.'
+  },
+  {
+    id: 'leerenthron', name: 'Thron der Leere', theme: 'tod', entry: { map: 10, corner: 'br' }, floor: 'FLAGSTONE', portal: '#b48cff',
+    wall: { top: '#2a2444', face: '#0a0816', line: '#b48cff' }, ambient: { kind: 'shards', tint: [40, 20, 80, 0.16] },
+    mobs: ['i_leerenwache', 'i_schattenjaeger', 'i_leerenwyrmling'], minis: ['nachtkralle', 'xul', 'gharon', 'morvaine'], boss: 'nihilor',
+    gate: { stone: '#3a3458', top: '#5a5080', accent: '#b48cff', deep: '#120830', mid: '#b48cff', core: '#f0e4ff', motes: 'wisp', spin: 1.1, emblem: 'skull' },
+    text: 'Tief im Abgrund steht ein Thron, auf dem die Leere selbst sitzt. Ritter, Schatten und Wyrmlinge halten Wache.'
+  }
+];
+for (const d of INSTANCES80) Object.assign(d, { minLevel: 75, instLevel: 78, inst60: true, rows: 2, stones: [75, 80] });
+INSTANCES.push(...INSTANCES80);

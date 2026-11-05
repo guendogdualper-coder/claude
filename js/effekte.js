@@ -88,6 +88,23 @@ function vfxLevelUp(p) {
   shakeScreen(3);
 }
 
+// Auftrag abgegeben (seit 13.85): statt des Stufenaufstiegs nur ein kleiner, weicher Blinker – ein goldener Schimmer
+// an der Brust für etwa eine halbe Sekunde, ein paar langsam aufsteigende Lichtpünktchen, die Figur leuchtet kaum
+// merklich auf, dazu ein leiser Glockenton. Kein Lichtstrahl, keine Ringe, kein Bildschirmblitz und kein Wackeln;
+// Belohnungstext und Banner bleiben. Der Stufenaufstieg (vfxLevelUp) bleibt groß.
+function vfxQuestDone(p) {
+  addEffect({ type: 'questglow', follow: p, ox: 0, oy: 0, dur: 0.55 });
+  particles(p.x, feetY(p) - 24, { count: 9, color: ['#ffe9a0', '#fff6d8', '#ffd34d'], angle: -Math.PI / 2, spread: 0.7, speed: [18, 46], life: [0.5, 0.8], size: [1.4, 2.4], drag: 1.4, jitter: 10 });
+  p.glowUntil = Math.max(p.glowUntil || 0, game.time + 0.3);
+  if (typeof snd !== 'undefined') snd.player('item', { vol: 0.25 });
+}
+EXTRA_EFFECTS.questglow = (ctx, e, k, x, y) => {
+  ctx.globalCompositeOperation = 'lighter';
+  const a = Math.sin(Math.min(1, k) * Math.PI);
+  glow(ctx, x, y - 26, 30, '#ffe9a0', 0.5 * a);
+  glow(ctx, x, y - 28, 12, '#fffbe8', 0.45 * a);
+};
+
 // Roter Rand, wenn die Figur getroffen wird (in Bildschirmkoordinaten)
 function drawHurtVignette(ctx, w, h) {
   if (game.hurtFlash <= 0) return;

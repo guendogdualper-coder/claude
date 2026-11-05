@@ -748,6 +748,193 @@ const PROP3 = {
   }
 };
 
+// --- Stadtschmuck (seit 13.85, welt.js TOWN_DECO): ohne Kollision, Art und Stil in pr.roof ("Stil|schnee") --------
+// Kleine, sparsame Formen; Blüten, Halme und Schneekappen ohne Umriss ('detail'). Schnee als flache weiße Kuppen.
+const DECO3_SNOW = '#eef4fa';
+const deco3Snow = (pr) => String(pr.roof || '').includes('schnee');
+function deco3Cap(b, M, x, y, z, sx, sz) {
+  b.add(cap3(1, Math.PI / 2, 0, Math.PI * 2, 10, 3), DECO3_SNOW, { parent: M, p: [x, y, z], s: [sx, 0.06, sz], mat: 'detail', ao: 0 });
+}
+// Fass am Boden (stBarrel3 steht auf dem Tresenbrett)
+function deco3Barrel(b, M, x, z, s, c = '#8a5a34') {
+  b.add(lathe3('barrel', [[0, 0], [0.2, 0], [0.24, 0.12], [0.26, 0.27], [0.24, 0.42], [0.2, 0.54], [0, 0.54]], 14), c, { parent: M, p: [x, 0, z], s: [s, s, s], shade: 0.25 });
+  for (const y of [0.12, 0.42]) b.add(torus3(0.245, 0.018, Math.PI * 2, 4, 14), '#3a2a1c', { parent: M, p: [x, y * s, z], r: [Math.PI / 2, 0, 0], s: [s, s, s], mat: 'detail' });
+}
+// Sack am Boden (stSack3 steht auf dem Tresenbrett)
+function deco3Sack(b, M, x, z, s = 1, c = '#c8b088') {
+  b.add(ball(10), c, { parent: M, p: [x, 0.16 * s, z], s: [0.2 * s, 0.19 * s, 0.17 * s], shade: 0.25 });
+  b.add(horn3(0.1 * s, 0.07 * s, 6), c, { parent: M, p: [x, 0.32 * s, z] });
+  b.add(torus3(0.05 * s, 0.012, Math.PI * 2, 3, 8), '#6b4a2e', { parent: M, p: [x, 0.35 * s, z], r: [Math.PI / 2, 0, 0], mat: 'detail' });
+}
+Object.assign(PROP3, {
+  // Pflanzkübel: Holzkasten mit Blumen (Vlotho), Tonkrug mit Palme (Wüste), Steintrog mit dürrem Dornbusch,
+  // Baumstumpf-Kübel mit Farn (Wald), Bottich mit Tanne (Frost) oder mit leuchtenden Pilzen (Moor)
+  planter(b, M, pr) {
+    const style = String(pr.roof).split('|')[0];
+    const snow = deco3Snow(pr);
+    if (style === 'palme') {
+      b.add(lathe3('decopot', [[0, 0], [0.16, 0], [0.24, 0.12], [0.26, 0.26], [0.2, 0.4], [0.22, 0.44], [0, 0.44]], 12), '#c07a4a', { parent: M, shade: 0.3, top: '#d89a62', topK: 0.4 });
+      b.add(torus3(0.2, 0.025, Math.PI * 2, 4, 12), '#8a4a2a', { parent: M, p: [0, 0.3, 0], r: [Math.PI / 2, 0, 0], mat: 'detail' });
+      b.add(limb3(0.9, 0.035, 0.05, 6), '#8a6a44', { parent: M, p: [0.04, 1.3, 0], r: [0, 0, -0.08] });
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + 0.3;
+        b.add(horn3(0.62, 0.07, 5), k % 2 ? '#4a8a3a' : '#5a9a42', { parent: M, p: [0.1, 1.28, 0], r: [Math.sin(a) * 1.9, 0, -Math.cos(a) * 1.9], s: [1, 1, 0.35], mat: 'detail' });
+      }
+      return;
+    }
+    if (style === 'dorn') {
+      b.add(wbox(0.72, 0.3, 0.38, 0.06), '#8a8276', { parent: M, p: [0, 0.15, 0], shade: 0.3, top: '#a49c90', topK: 0.4 });
+      b.add(tinyBox(0.62, 0.02, 0.28), '#4a3a2a', { parent: M, p: [0, 0.3, 0] });
+      const twig = '#6a5a44';
+      for (const [x, a, L] of [[-0.18, -0.5, 0.42], [0, 0.1, 0.55], [0.2, 0.55, 0.4], [-0.05, -0.15, 0.36]]) {
+        b.add(limb3(L, 0.018, 0.012, 4), twig, { parent: M, p: [x + Math.sin(a) * L, 0.3 + Math.cos(a) * L, 0], r: [0, 0, a + Math.PI], mat: 'detail' });
+      }
+      for (const [x, y, z, c] of [[-0.22, 0.55, 0.02, '#7a8a5a'], [0.06, 0.72, -0.04, '#8a9a62'], [0.24, 0.52, 0.04, '#6a7a4e']]) b.add(sphere3(0.07, 6, 5), c, { parent: M, p: [x, y, z], mat: 'detail' });
+      return;
+    }
+    if (style === 'farn') {
+      b.add(lathe3('decostump', [[0, 0], [0.3, 0], [0.28, 0.06], [0.26, 0.32], [0.22, 0.34], [0, 0.32]], 10), '#6b4a2e', { parent: M, shade: 0.35, top: '#b08c5c', topK: 0.3 });
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        b.add(horn3(0.46, 0.06, 5), k % 2 ? '#3f7a34' : '#4f8a3c', { parent: M, p: [0, 0.32, 0], r: [Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0], s: [1, 1, 0.3], mat: 'detail' });
+      }
+      b.add(cyl3(0.025, 0.03, 0.12, 6), '#efe4c4', { parent: M, p: [0.28, 0.06, 0.18], mat: 'detail' });
+      b.add(cap3(0.07, Math.PI / 2, 0, Math.PI * 2, 8, 3), '#c8402f', { parent: M, p: [0.28, 0.12, 0.18], mat: 'detail' });
+      return;
+    }
+    // Holzkasten oder Bottich
+    const tub = style === 'tanne' || style === 'pilz';
+    if (tub) {
+      b.add(cyl3(0.3, 0.26, 0.34, 12), '#7a5434', { parent: M, p: [0, 0.17, 0], shade: 0.3 });
+      for (const y of [0.07, 0.27]) b.add(torus3(0.285, 0.016, Math.PI * 2, 4, 12), '#3a2a1c', { parent: M, p: [0, y, 0], r: [Math.PI / 2, 0, 0], mat: 'detail' });
+      b.add(cyl3(0.27, 0.27, 0.02, 12), '#4a3a2a', { parent: M, p: [0, 0.33, 0], mat: 'detail' });
+    } else {
+      b.add(wbox(0.8, 0.28, 0.34, 0.04), '#8a6440', { parent: M, p: [0, 0.14, 0], shade: 0.3 });
+      for (const sx of [-1, 1]) b.add(tinyBox(0.05, 0.3, 0.36), '#5a3a22', { parent: M, p: [sx * 0.38, 0.14, 0] });
+      b.add(tinyBox(0.72, 0.02, 0.26), '#4a3424', { parent: M, p: [0, 0.28, 0] });
+    }
+    if (style === 'tanne') {
+      for (const [y, r, h] of [[0.34, 0.26, 0.42], [0.58, 0.2, 0.36], [0.8, 0.13, 0.3]]) {
+        b.add(cyl3(0.01, r, h, 7), '#2f5a3a', { parent: M, p: [0, y + h / 2, 0], shade: 0.2 });
+        if (snow) b.add(cyl3(0.01, r * 0.8, h * 0.35, 7), DECO3_SNOW, { parent: M, p: [0, y + h * 0.82, 0], mat: 'detail' });
+      }
+      if (snow) deco3Cap(b, M, 0, 0.33, 0, 0.24, 0.24);
+      return;
+    }
+    if (style === 'pilz') {
+      for (const [x, z, h, r, c] of [[-0.1, 0.02, 0.16, 0.11, '#9a6ad8'], [0.1, -0.06, 0.24, 0.13, '#6aa8d8'], [0.05, 0.12, 0.1, 0.07, '#9a6ad8']]) {
+        b.add(cyl3(0.025, 0.03, h, 6), '#e8e0d0', { parent: M, p: [x, 0.33 + h / 2, z], mat: 'detail' });
+        b.add(cap3(r, Math.PI / 2, 0, Math.PI * 2, 8, 3), c, { parent: M, p: [x, 0.33 + h, z], s: [1, 0.7, 1], mat: 'glow' });
+      }
+      return;
+    }
+    // Blumen in drei Farben über grünen Büscheln
+    const cols = ['#d8403a', '#f0c84a', '#f4f0e4', '#c8509a'];
+    for (let k = 0; k < 6; k++) {
+      const x = -0.3 + k * 0.12;
+      const z = (k % 2 ? 0.05 : -0.05);
+      b.add(sphere3(0.08, 6, 5), k % 2 ? '#4f8a34' : '#5a9a3c', { parent: M, p: [x, 0.33, z], s: [1, 0.8, 1], mat: 'detail' });
+      b.add(sphere3(0.05, 6, 5), cols[k % 4], { parent: M, p: [x + 0.02, 0.44 + (k % 3) * 0.03, z], mat: 'detail' });
+    }
+  },
+  // Bank: Holz mit Lehne (die Front zeigt nach Süden) oder ein Steinblock; im Frost mit Schnee auf der Sitzfläche
+  bench(b, M, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'stein') {
+      for (const sx of [-1, 1]) b.add(wbox(0.24, 0.32, 0.36, 0.05), '#a49880', { parent: M, p: [sx * 0.5, 0.16, 0], shade: 0.3 });
+      b.add(wbox(1.4, 0.12, 0.46, 0.05), '#b8ac92', { parent: M, p: [0, 0.38, 0], top: '#cabea4', topK: 0.4 });
+    } else {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.07, 0.36, 0.07, 0.02), '#5a3a22', { parent: M, p: [sx * 0.55, 0.18, sz * 0.14] });
+      b.add(wbox(1.35, 0.07, 0.4, 0.02), '#9a7448', { parent: M, p: [0, 0.38, 0], top: '#b08c5c', topK: 0.4 });
+      for (const sx of [-1, 1]) b.add(wbox(0.07, 0.42, 0.06, 0.02), '#5a3a22', { parent: M, p: [sx * 0.55, 0.6, -0.17] });
+      b.add(wbox(1.35, 0.14, 0.05, 0.02), '#9a7448', { parent: M, p: [0, 0.72, -0.18] });
+    }
+    if (deco3Snow(pr)) deco3Cap(b, M, 0, 0.42, 0, 0.6, 0.18);
+  },
+  // Warenstapel: Fass, zwei Kisten und ein Sack (markt), Krüge und Säcke (krug), Erzkisten mit Glut (erz)
+  goods(b, M, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'krug') {
+      for (const [x, z, s, c] of [[-0.28, -0.05, 1.15, '#c07a4a'], [0.05, -0.18, 0.95, '#b06a3a'], [0.02, 0.2, 0.8, '#d0905a']]) {
+        b.add(lathe3('decoamph', [[0, 0], [0.08, 0], [0.18, 0.12], [0.2, 0.26], [0.12, 0.42], [0.07, 0.48], [0.09, 0.52], [0, 0.52]], 12), c, { parent: M, p: [x, 0, z], s: [s, s, s], shade: 0.3 });
+        b.add(torus3(0.06, 0.015, Math.PI, 3, 6), c, { parent: M, p: [x + 0.1 * s, 0.4 * s, z], r: [0, 0, -Math.PI / 2], mat: 'detail' });
+      }
+      deco3Sack(b, M, 0.36, 0.06, 1.0, '#d8c08a');
+      b.add(cyl3(0.1, 0.1, 0.62, 8), '#9a3a2a', { parent: M, p: [0.25, 0.1, 0.32], r: [0, 0, Math.PI / 2], shade: 0.2 });
+      for (const dx of [-0.2, 0, 0.2]) b.add(torus3(0.102, 0.012, Math.PI * 2, 3, 8), '#e8c46a', { parent: M, p: [0.25 + dx, 0.1, 0.32], r: [0, Math.PI / 2, 0], mat: 'detail' });
+      return;
+    }
+    if (style === 'erz') {
+      stCrate3(b, M, -0.15, 0, 0, 0.5, '#6a5a4a');
+      for (let k = 0; k < 5; k++) b.add(sphere3(0.09, 5, 4), k % 2 ? '#3a3632' : '#4a4440', { parent: M, p: [-0.3 + (k % 3) * 0.14, 0.48, -0.1 + Math.floor(k / 3) * 0.18], s: [1, 0.75, 1] });
+      b.add(sphere3(0.05, 5, 4), '#ff8a3a', { parent: M, p: [-0.12, 0.52, 0.02], mat: 'glow' });
+      deco3Barrel(b, M, 0.4, 0.05, 0.9, '#5a4a3a');
+      b.add(cyl3(0.2, 0.2, 0.02, 10), '#2a2420', { parent: M, p: [0.4, 0.49, 0.05], mat: 'detail' });
+      return;
+    }
+    deco3Barrel(b, M, -0.38, 0.02, 1.0);
+    stCrate3(b, M, 0.15, 0, -0.05, 0.46, '#a07a4a', 0.15);
+    stCrate3(b, M, 0.15, 0.42, -0.05, 0.36, '#b08c5c', -0.2);
+    deco3Sack(b, M, 0.0, 0.3, 0.85, '#c8b088');
+    if (deco3Snow(pr)) {
+      deco3Cap(b, M, -0.38, 0.54, 0.02, 0.2, 0.2);
+      deco3Cap(b, M, 0.15, 0.74, -0.05, 0.2, 0.2);
+    }
+  },
+  // Brennholz: gestapelte Scheite auf zwei Querhölzern
+  woodpile(b, M, pr) {
+    for (const z of [-0.18, 0.18]) b.add(wbox(0.9, 0.06, 0.08, 0.02), '#5a3a22', { parent: M, p: [0, 0.03, z] });
+    const rows = [[-0.3, -0.1, 0.1, 0.3], [-0.2, 0, 0.2], [-0.1, 0.1]];
+    rows.forEach((xs, j) => xs.forEach((x, k) => {
+      const y = 0.15 + j * 0.15;
+      b.add(cyl3(0.075, 0.075, 0.62, 7), (j + k) % 2 ? '#8a6440' : '#7a5434', { parent: M, p: [x, y, 0], r: [Math.PI / 2, 0, 0], shade: 0.15 });
+      b.add(cyl3(0.06, 0.06, 0.625, 7), '#d8b88a', { parent: M, p: [x, y, 0], r: [Math.PI / 2, 0, 0], mat: 'detail', s: [1, 1.0, 1] });
+    }));
+    if (deco3Snow(pr)) deco3Cap(b, M, 0, 0.5, 0, 0.26, 0.34);
+  },
+  // Säcke, an die Mauer gelehnt
+  sacks(b, M, pr) {
+    deco3Sack(b, M, -0.22, -0.08, 1.1, '#c8b088');
+    deco3Sack(b, M, 0.2, -0.04, 1.0, '#b8a07a');
+    deco3Sack(b, M, 0.0, 0.16, 0.9, '#d8c49a');
+    if (deco3Snow(pr)) deco3Cap(b, M, -0.2, 0.46, -0.08, 0.14, 0.12);
+  },
+  // Krüge (Wüste)
+  pots(b, M) {
+    for (const [x, z, s, c] of [[-0.2, 0, 1.2, '#c07a4a'], [0.18, -0.08, 0.9, '#b06a3a'], [0.12, 0.2, 0.7, '#d8a06a']]) {
+      b.add(lathe3('decoamph', [[0, 0], [0.08, 0], [0.18, 0.12], [0.2, 0.26], [0.12, 0.42], [0.07, 0.48], [0.09, 0.52], [0, 0.52]], 12), c, { parent: M, p: [x, 0, z], s: [s, s, s], shade: 0.3 });
+    }
+  },
+  // Totem der Orks: Pfahl mit Schädel, Hörnern und Fellbändern
+  totem(b, M) {
+    b.add(lathe3('decototem', [[0, 0], [0.12, 0], [0.1, 0.1], [0.09, 1.5], [0, 1.52]], 8), '#6b4a2e', { parent: M, shade: 0.3 });
+    b.add(sphere3(0.16, 8, 6), '#e8dcc0', { parent: M, p: [0, 1.42, 0.05], s: [1, 1.1, 1] });
+    for (const sx of [-1, 1]) {
+      b.add(sphere3(0.04, 5, 4), '#2a1c14', { parent: M, p: [sx * 0.06, 1.44, 0.18], mat: 'detail' });
+      b.add(horn3(0.32, 0.05, 6), '#d8ccb0', { parent: M, p: [sx * 0.12, 1.5, 0], r: [0, 0, -sx * 1.1] });
+    }
+    for (const [y, c] of [[0.85, '#8a2a1a'], [1.05, '#5a3a22']]) b.add(cyl3(0.11, 0.11, 0.08, 8), c, { parent: M, p: [0, y, 0], mat: 'detail' });
+  },
+  // Erzhaufen mit glühenden Brocken (Feuerberg)
+  ore(b, M) {
+    b.add(lathe3('decoore', [[0, 0], [0.42, 0], [0.32, 0.12], [0.16, 0.24], [0, 0.27]], 8), '#3a3430', { parent: M, shade: 0.3 });
+    for (let k = 0; k < 5; k++) b.add(sphere3(0.08, 5, 4), k % 2 ? '#4a4440' : '#2e2a28', { parent: M, p: [Math.cos(k * 1.3) * 0.26, 0.12, Math.sin(k * 1.3) * 0.2], s: [1, 0.8, 1] });
+    for (const [x, z] of [[0.08, 0.05], [-0.14, -0.08]]) b.add(sphere3(0.045, 5, 4), '#ff8a3a', { parent: M, p: [x, 0.24, z], mat: 'glow' });
+  },
+  // Banner an der Mauer: Stange mit Querholz, Tuch in der Farbe der Stadt mit goldenem Rand und Zeichen
+  wallbanner(b, M, pr) {
+    const cloth = pr.roof || '#9a2f2a';
+    b.add(limb3(2.0, 0.04, 0.035, 6), '#3a2a1c', { parent: M, p: [0, 2.0, -0.1] });
+    b.add(limb3(0.8, 0.025, 0.025, 5), '#3a2a1c', { parent: M, p: [-0.4, 1.86, -0.06], r: [0, 0, -Math.PI / 2] });
+    b.add(wbox(0.66, 1.0, 0.035, 0.015), cloth, { parent: M, p: [0, 1.32, -0.04], shade: 0.25 });
+    for (const sx of [-1, 1]) b.add(tinyBox(0.22, 0.24, 0.035), cloth, { parent: M, p: [sx * 0.22, 0.76, -0.04], r: [0, 0, sx * 0.25] });
+    b.add(tinyBox(0.68, 0.05, 0.04), '#c9a35a', { parent: M, p: [0, 1.81, -0.03] });
+    b.add(sphere3(0.1, 8, 6), '#e8c46a', { parent: M, p: [0, 1.38, -0.01], s: [1, 1, 0.3] });
+    b.add(sphere3(0.05, 6, 5), cloth, { parent: M, p: [0, 1.38, 0.01], s: [1, 1, 0.3], mat: 'detail' });
+    for (const sx of [-1, 1]) b.add(sphere3(0.045, 6, 5), '#c9a35a', { parent: M, p: [sx * 0.4, 1.86, -0.06], mat: 'detail' });
+  }
+});
+
 // --- Gras, Klee und Blumen (seit 7.9) -------------------------------------------------------------
 // Flache Halme und Blätter mit Farbverlauf in den Ecken: am Fuß dunkel, an der Spitze hell. Die Normalen
 // zeigen nach oben, so wird Gras wie der Boden beleuchtet. Halme sind von beiden Seiten sichtbar,
@@ -1891,6 +2078,8 @@ function* objectJob(cx, cy) {
     const py = pr.y * U3;
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
     if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
+    // Stadtschmuck (seit 13.85): Kübel, einzelne Fässer und Kisten nur ab mittlerer Grafik
+    if (lowGfx && pr.fine) continue;
     const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' || pr.type === 'dpillar' ? 0 : 0.25;
     bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back, pr.rot || 0));
   }

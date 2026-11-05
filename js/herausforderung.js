@@ -423,7 +423,7 @@ function arenaEnter() {
   const A = arenaSave(p);
   A.ret = { x: Math.round(p.x), y: Math.round(p.y) };
   arenaPayPending(p);
-  const run = { p, slot: -1, level: p.level, mode: arenaModeOf(), phase: 'wait', wave: 0, cleared: 0, gold: 0, until: 0, n: 0, askAt: game.time, lastMsgAt: game.time, lives: ARENA.lives, nextBatch: 0, pending: 0, outSince: null };
+  const run = { p, slot: -1, level: p.level, mode: arenaModeOf(), phase: 'wait', wave: 0, cleared: 0, gold: 0, until: 0, n: 0, askAt: game.time, lastMsgAt: game.time, lives: ARENA.lives, nextBatch: 0, pending: 0, outSince: null, t0: null, xp: 0, mobGold: 0, kills: 0 };
   game.arenaRun = run;
   if (run.mode === 'client') {
     netSocial('host', { k: 'arq', l: p.level });
@@ -455,6 +455,7 @@ function arenaGo(s) {
   run.slot = s;
   run.phase = 'wait';
   run.lastMsgAt = game.time;
+  if (run.t0 == null) run.t0 = game.time; // Uhr für die Abschlussübersicht (seit 13.85)
   const p = game.player;
   moveThrough(arenaEntry(s), ARENA.gate);
   arenaSave(p).runs++;
@@ -499,7 +500,78 @@ function arenaStop(why) {
   // zurück zum Arenameister (nicht nach dem Tod: dann bringt das Wiederbeleben dorthin)
   if (!p.dead && arenaInside(p)) moveThrough(arenaReturn(), ARENA.gate);
   arenaHud();
+  if (run.t0 != null) arenaSummary(run, lost, A.best);
   saveGame();
+}
+// Abschlussübersicht (seit 13.85): kleines Fenster in der Mitte nach dem Lauf – Zeit, EP, Gold der Monster und der
+// Wellen. Schließt sich mit ✕, per Antippen daneben oder nach 20 s von selbst. Liegt die Figur noch tot da, erscheint
+// es erst nach dem Wiederbeleben.
+function arenaSummaryCss() {
+  if (document.getElementById('arenaSumCss')) return;
+  const st = document.createElement('style');
+  st.id = 'arenaSumCss';
+  st.textContent = '#arenaSum{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%) scale(.92);opacity:0;z-index:60;' +
+    'min-width:230px;max-width:min(320px,calc(100vw - 32px));padding:14px 16px 12px;border-radius:12px;' +
+    'background:rgba(24,18,12,.92);border:1px solid rgba(255,200,106,.55);box-shadow:0 6px 24px rgba(0,0,0,.55);' +
+    'color:#f3e6cf;font-size:14px;transition:opacity .25s,transform .25s;pointer-events:auto}' +
+    '#arenaSum.on{opacity:1;transform:translate(-50%,-50%) scale(1)}' +
+    '#arenaSum h3{margin:0 26px 8px 0;font-size:16px;color:#ffc86a}' +
+    '#arenaSum .x{position:absolute;top:6px;right:8px;width:30px;height:30px;border:0;border-radius:8px;' +
+    'background:rgba(255,255,255,.08);color:#f3e6cf;font-size:16px;cursor:pointer}' +
+    '#arenaSum dl{display:grid;grid-template-columns:auto auto;gap:4px 14px;margin:0}' +
+    '#arenaSum dt{opacity:.8}#arenaSum dd{margin:0;text-align:right;font-weight:600}' +
+    '#arenaSum dd.g{color:#ffd56a}#arenaSum dd.lost{color:#ff8a7a;text-decoration:line-through}' +
+    '#arenaSum .sum{border-top:1px solid rgba(255,200,106,.3);padding-top:5px;margin-top:2px}';
+  document.head.appendChild(st);
+}
+const arenaClock = (sec) => {
+  const s = Math.max(0, Math.round(sec));
+  const m = Math.floor(s / 60);
+  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')} h`
+    : `${m}:${String(s % 60).padStart(2, '0')} min`;
+};
+function arenaSummary(run, lost, best) {
+  const info = {
+    time: game.time - run.t0, xp: run.xp, kills: run.kills, mob: run.mobGold, wave: run.gold, cleared: run.cleared, lost, best
+  };
+  const show = () => {
+    const p = game.player;
+    if (p && p.dead) { later(0.5, show); return; }
+    arenaSummaryCss();
+    let el = document.getElementById('arenaSum');
+    if (el) el.remove();
+    el = document.createElement('div');
+    el.id = 'arenaSum';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'Arena-Ergebnis');
+    const total = info.mob + (info.lost ? 0 : info.wave);
+    el.innerHTML = `<button class="x" type="button" aria-label="Schließen">✕</button>` +
+      `<h3>${info.lost ? 'Arena verloren' : 'Arena beendet'}</h3><dl>` +
+      `<dt>Zeit</dt><dd>${arenaClock(info.time)}</dd>` +
+      `<dt>Wellen</dt><dd>${info.cleared}${info.best ? ` <small style="opacity:.7">(Beste: ${info.best})</small>` : ''}</dd>` +
+      `<dt>Monster besiegt</dt><dd>${arenaFmt(info.kills)}</dd>` +
+      `<dt>Erfahrung</dt><dd>+${arenaFmt(info.xp)} EP</dd>` +
+      `<dt>Gold von Monstern</dt><dd class="g">+${arenaFmt(info.mob)}</dd>` +
+      `<dt>Gold aus Wellen</dt><dd class="${info.lost && info.wave > 0 ? 'lost' : 'g'}">+${arenaFmt(info.wave)}</dd>` +
+      `<dt class="sum">Gold gesamt</dt><dd class="sum g">+${arenaFmt(total)}</dd></dl>`;
+    document.body.appendChild(el);
+    let timer = 0;
+    const close = () => {
+      clearTimeout(timer);
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', esc, true);
+      el.classList.remove('on');
+      setTimeout(() => el.remove(), 260);
+    };
+    const outside = (e) => { if (!el.contains(e.target)) close(); };
+    const esc = (e) => { if (e.key === 'Escape' && el.isConnected) { e.stopPropagation(); close(); } };
+    document.addEventListener('keydown', esc, true);
+    el.querySelector('.x').addEventListener('click', (e) => { e.stopPropagation(); close(); });
+    requestAnimationFrame(() => el.classList.add('on'));
+    setTimeout(() => document.addEventListener('pointerdown', outside, true), 400);
+    timer = setTimeout(close, 20000);
+  };
+  show();
 }
 // Rückkehr: zum Arenameister, bei dem man losging (sonst in die Stadt)
 function arenaReturn() {
@@ -699,6 +771,13 @@ function arenaKillReward(m) {
   p.gold += gold;
   if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold + ' Gold', 'gold');
   p.kills++;
+  // für die Abschlussübersicht mitzählen (EP wie gainXp sie gutschreibt, samt Startbonus)
+  const run = game.arenaRun;
+  if (run) {
+    run.mobGold += gold;
+    run.kills++;
+    if (p.level < MAX_LEVEL) run.xp += typeof eventXpActive === 'function' && eventXpActive() ? Math.round(xp * (1 + EVENT_XP.mul)) : xp;
+  }
   const bc = bodyCenter(m);
   particles(bc.x, bc.y, { count: 7, color: ['#d6b8ff', '#b48aff', '#ffffff'], angle: Math.atan2(p.y - m.y, p.x - m.x), spread: 0.5, speed: [dist(m, p) * 1.4, dist(m, p) * 2.2], life: [0.35, 0.5], size: [2, 3.2], drag: 0.6 });
   gainXp(xp);

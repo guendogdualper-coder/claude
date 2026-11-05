@@ -16,6 +16,12 @@ const dirOf = (fx, fy) => {
 };
 // Ziel oder Punkt vor der Figur (bis range)
 function mage2Point(p, sk, front = 0.6) {
+  // seit 13.85: Fertigkeiten mit Zielkreis (sk.aim, Erdspitzen) wirken am gewählten Ort
+  if (sk.aim) {
+    const pt = skillAimPoint(sk);
+    faceTowards(pt.x, pt.y);
+    return { x: pt.x, y: pt.y, t: null };
+  }
   const t = pickTarget(sk.range);
   if (t) {
     faceTowards(t.x, t.y);
@@ -60,7 +66,8 @@ SKILL_TYPES.mcast = function (sk, pw, lvl) {
   const p = game.player;
   if (p.mcast) return false;
   // seit 13.42: gewähltes Ziel (auch etwas außer Reichweite) hat Vorrang
-  const f = game.target && !game.target.dead && !game.target.hidden && dist(p, game.target) <= sk.range + 200 ? game.target : null;
+  // seit 13.85 nur ein bewusst gewähltes Ziel (setTarget); ein Auto-Ziel wählt pickTarget neu
+  const f = targetIsManual(game.target) && !game.target.dead && !game.target.hidden && dist(p, game.target) <= sk.range + 200 ? game.target : null;
   const t = f || pickTarget(sk.range);
   if (t) faceTowards(t.x, t.y);
   input.walkTo = null;
@@ -78,6 +85,8 @@ function mageCastCancel(p, why) {
   p.mcast = null;
   p.mp = Math.min(game.stats.maxMp, p.mp + c.mana);
   if (c.i >= 0) p.skillCd[c.i] = 0;
+  // seit 13.85: auch die globale Abklingzeit der übrigen Zauber zurücknehmen
+  if (c.i >= 0) undoGcd(p, c.i);
   for (const e of [c.fx, c.bar]) if (e) e.dur = Math.max(0, game.time - e.start);
   if (p.swingKind === 'zauber') p.swing = 0;
   if (why) addText(p.x, p.y - 40, why, 'info');
@@ -97,7 +106,7 @@ function mageCastTick() {
   p.mcast = null;
   const sk = c.sk;
   // seit 13.42: das gewählte Ziel bleibt das Ziel, auch wenn es etwas weiter weg ist (Reichweite wächst mit)
-  const focus = game.target && !game.target.dead && !game.target.hidden && dist(p, game.target) <= sk.range + 200 ? game.target : null;
+  const focus = targetIsManual(game.target) && !game.target.dead && !game.target.hidden && dist(p, game.target) <= sk.range + 200 ? game.target : null;
   const t = c.target && !c.target.dead && dist(p, c.target) <= sk.range + 200 ? c.target : focus || pickTarget(sk.range);
   if (t) faceTowards(t.x, t.y);
   startSwing(p, 'stoss', 0.35);

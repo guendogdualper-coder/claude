@@ -2462,7 +2462,10 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   const M = partFrame(at, rot);
   // Äxte (seit 13.48): Kopf um den Stiel gedreht, damit die Schneide in Blickrichtung zeigt und nach vorn hackt
   // (vorher stand die Klinge seitlich ab und der Hieb traf mit der flachen Seite)
-  if ((kind === 'axe' || kind === 'greataxe') && typeof AXE_TWIST3 !== 'undefined') M.multiply(new THREE.Matrix4().makeRotationY(o.left ? -AXE_TWIST3 : AXE_TWIST3));
+  // Nebenhand (seit 13.85): Spiegelbild der Haupthand. Die Haltung wird gespiegelt ([x, −y, −z]); der Kopf sitzt nur
+  // auf einer Seite des Stiels, darum dreht er π − Twist um den Stiel (vorher −Twist: die zweite Axt stand schräg
+  // zur ersten, ihre Schneide zeigte nicht wie bei der Haupthand nach vorn)
+  if ((kind === 'axe' || kind === 'greataxe') && typeof AXE_TWIST3 !== 'undefined') M.multiply(new THREE.Matrix4().makeRotationY(o.left ? Math.PI - AXE_TWIST3 : AXE_TWIST3));
   const W = framed(A, M, bone);
   const shell = (geo, o) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: M.clone().multiply(partMatrix(o)) });
   const gold = '#c9a35a';
@@ -2473,6 +2476,9 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       // in Spielgröße (seit 13.19): als Ganzes größer, damit man die Dolchform auch von oben erkennt
       const S = daggerScale3(tier);
       const MD = new THREE.Matrix4().compose(new THREE.Vector3(...at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(S, S, S));
+      // Nebenhand (seit 13.85): um die Klinge gewendet, damit Haken und Zacken (Karambit, Kris) spiegelbildlich zur
+      // rechten Hand liegen statt beide zur selben Seite zu zeigen
+      if (o.left) MD.multiply(new THREE.Matrix4().makeRotationY(Math.PI));
       const WD = framed(A, MD, bone);
       const shellD = (geo, oo) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: MD.clone().multiply(partMatrix(oo)) });
       dagger3(WD, tier, shellD);
@@ -2601,10 +2607,11 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
           for (const sx of [-1, 1]) W(roundBox(bw * 0.1, bl * 0.7, bw * 0.4, 0.004), GLOW3[7], { p: [sx * bw * 0.45, by + bl * 0.4, 0], mat: 'glow' });
           break;
         case 8:
-          // cyanfarbene Ader die Klinge hinauf, an der Wurzel ein Leerenauge, Splitter schweben neben der Spitze
+          // cyanfarbene Ader die Klinge hinauf, an der Wurzel ein Leerenauge, Splitter wachsen als Widerhaken aus den
+          // Schneiden (seit 13.85; vorher schwebten sie frei neben der Klinge und sahen in der Hand wie abgebrochen aus)
           W(roundBox(bw * 0.1, bl * 0.74, bw * 0.42, 0.004), VOIDGLOW3, { p: [0, by + bl * 0.42, 0], mat: 'glow' });
           voidEye3(W, [0, by + bl * 0.1, bw * 0.12], bw * 0.26);
-          for (const sx of [-1, 1]) voidShard3(W, [sx * bw * 1.05, by + bl * (sx > 0 ? 0.78 : 0.62), 0], [sx * 0.2, 1, 0], bw * 0.32, bw * 0.12);
+          for (const sx of [-1, 1]) voidShard3(W, [sx * bw * 0.56, by + bl * (sx > 0 ? 0.7 : 0.5), 0], [sx * 0.85, 0.75, 0], bw * 0.4, bw * 0.12);
           break;
         case 9:
           // roséfarbene Schneiden, Stern an der Klingenwurzel, Prismensteine im Strahlenkreuz

@@ -1,7 +1,8 @@
 // Klassensegen (seit 13.1): ein eigener Buff je Klasse (außer Krieger), ab Stufe 10. Man muss ihn nur aktivieren –
 // er lässt sich nicht verbessern, hält 30 Minuten und wächst mit der Stufe des Charakters (alle 10 Stufen).
 //   Schamane  – Segen der Natur:       alle Naturschäden (Feuer, Wasser, Blitz, Eis, Erde, Wind, Licht) +5 %, je 10 Stufen +2,5 %
-//   Ninja     – Klingenschatten:        kritische Treffer +3 % (je 10 Stufen +1 %), kritischer Schaden +10 % (je 10 Stufen +5 %)
+//   Ninja     – Klingenschatten:        kritische Treffer +3 % (je 10 Stufen +1 %), kritischer Schaden +10 % (je 10 Stufen +3 %, bis 13.84 +5 %),
+//               seit 13.85 Lebensraub 0,4 % (je 10 Stufen +0,15 %)
 //   Ninja mit Bogen (Weg des Falken, seit 13.67) – Falkenblick: Krit +3 % (+1 %), Krit-Schaden +10 % (+5 %),
 //               Angriffstempo +6 % (+2 %), Bogenreichweite +10 % (+2 %); dunkle Schwingen und Schattenaura (fernninja.js)
 //   Nekromant – Blutpakt:               Omni-Vampir 2 % (je 10 Stufen +0,8 %, bis 13.67 +0,5 %): jeder Schaden heilt, auch über Zeit
@@ -21,8 +22,10 @@ const SEGEN = {
   },
   ninja: {
     id: 'segen_schatten', name: 'Klingenschatten', color: '#c84a6a', colors: ['#2a1a3a', '#c84a6a', '#ff8aa8', '#ffffff'],
-    effects: (lv) => ({ crit: 0.03 + 0.01 * lv, critDmg: 0.1 + 0.05 * lv }),
-    text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}.`
+    // seit 13.85 kritischer Schaden je 10 Stufen +3 % statt +5 % (Dolch-Ninja zu stark; der Falke hat seinen eigenen Segen),
+    // dafür Lebensraub 0,4 % (je 10 Stufen +0,15 %): er kam bisher aus der Leichtfüßigkeit, die der Schattenkette weicht
+    effects: (lv) => ({ crit: 0.03 + 0.01 * lv, critDmg: 0.1 + 0.03 * lv, hpSteal: 0.004 + 0.0015 * lv }),
+    text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}, Lebensraub +${pctS(e.hpSteal)}.`
   },
   nekromant: {
     id: 'segen_blut', name: 'Blutpakt', color: '#d82a3a', colors: ['#5a0a14', '#d82a3a', '#ff6a6a', '#2a0a10'],

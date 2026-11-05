@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'ultra' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'ultra' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1 };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -153,6 +153,8 @@ const options = {
         sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
         sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +
         sw('names', 'Namen der Bewohner', 'Namen unter Händlern und Helfern im Dorf.') +
+        sw('selfBar', 'Eigener Lebensbalken', 'Ein kleiner Lebensbalken über deiner eigenen Figur (grün, bei wenig Leben gelb und rot).') +
+        (opts.selfBar ? `<div class="opt-row"><div class="opt-text"><strong>Größe des Lebensbalkens</strong></div><input type="range" id="optSelfBar" min="0.5" max="2" step="0.1" value="${+opts.selfBarSize || 1}" aria-label="Größe des Lebensbalkens"><b class="opt-val">${Math.round((+opts.selfBarSize || 1) * 100)} %</b></div>` : '') +
         (FS_OK ? `<div class="opt-row"><div class="opt-text"><strong>Vollbild</strong><small>Das Spiel füllt den ganzen Bildschirm. Esc beendet das Vollbild.</small></div>` +
           `<button type="button" class="opt-switch${isFullscreen() ? ' on' : ''}" id="optFull" role="switch" aria-checked="${isFullscreen()}" aria-label="Vollbild"><i></i></button></div>` : '') + `</section>`;
     } else if (tab === 'steuerung') {
@@ -220,6 +222,11 @@ const options = {
       });
       vol.addEventListener('change', () => sfx.clang(1));
     }
+    const sbar = $('optSelfBar');
+    if (sbar) sbar.addEventListener('input', () => {
+      setOpt('selfBarSize', Number(sbar.value));
+      sbar.nextElementSibling.textContent = Math.round(opts.selfBarSize * 100) + ' %';
+    });
     const mvol = $('optMusicVol');
     if (mvol) mvol.addEventListener('input', () => {
       setOpt('musicVol', Number(mvol.value));

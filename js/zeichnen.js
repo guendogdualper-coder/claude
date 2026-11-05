@@ -1079,16 +1079,31 @@ function drawMonsterStatus(ctx, m) {
 
 // --- Seelensteine ---------------------------------------------------------------------
 // Sechs Grundformen; Farben und Zusätze (Dornen, Lava, Eis, Krone) kommen aus STONE_TYPES.
-// body: Umriss, face: hellere Lichtseite, runes: leuchtende Zeichen (je eine Linie)
-// Seelensteine (Version 4.3): ein stumpfes Ei in einer steinernen Wiege mit Krallen.
-// eggs: [x, halbe Breite, Höhe] je Ei (der Doppelstein hat zwei), h: Gesamthöhe für Namen und 3D-Größe
+// Seelensteine (seit 13.x, vorher ein Ei in einer Krallen-Wiege): geschliffene Seelenkristalle auf einem
+// kantigen Felssockel, wie in 3D. bodies: je Kristall x, w (halbe Breite), h (Höhe), cut (Schliff, siehe
+// STONE_CUTS), tilt (Neigung), y (Fuß über dem Sockel), back (hinter dem Hauptkristall); der erste ist der
+// Hauptkristall (Herz, Adern). h: Gesamthöhe für Namen und 3D-Größe
+const STONE_CUTS = {
+  // edges: sichtbare senkrechte Kanten von links nach rechts [x unten, x oben, Schulterhöhe] (x in halben
+  // Breiten, Höhe 0..1); dazwischen liegen die Facetten. apex: Spitze [x, Höhe] oder null (schräg abgebrochen)
+  point: { edges: [[-0.86, -1, 0.66], [-0.26, -0.3, 0.73], [0.4, 0.42, 0.7], [0.88, 1, 0.62]], apex: [0.06, 1] },
+  obelisk: { edges: [[-1, -0.6, 0.74], [0.16, 0.1, 0.77], [1, 0.6, 0.72]], apex: [0.06, 1] },
+  rock: { edges: [[-0.86, -1, 0.6], [-0.3, -0.36, 0.86], [0.42, 0.48, 0.8], [0.9, 0.86, 0.58]], apex: null },
+  slab: { edges: [[-1, -0.96, 0.82], [-0.46, -0.44, 0.88], [1, 0.94, 0.98]], apex: null }
+};
 const STONE_SHAPES = {
-  spire: { eggs: [[0, 12, 46]], h: 50 },
-  obelisk: { eggs: [[0, 14, 48]], h: 52, bands: true },
-  cluster: { eggs: [[0, 14, 44]], h: 48, shards: true },
-  boulder: { eggs: [[0, 18, 36]], h: 40 },
-  twin: { eggs: [[-8, 10, 42], [9, 10, 36]], h: 46 },
-  monolith: { eggs: [[0, 14, 52]], h: 56, bands: true }
+  spire: { bodies: [{ x: 0, w: 11.5, h: 48, cut: 'point' }, { x: -11, w: 3.6, h: 14, cut: 'point', tilt: -0.5 }, { x: 11, w: 4, h: 18, cut: 'point', tilt: 0.45 }], h: 50 },
+  obelisk: { bodies: [{ x: 0, w: 13, h: 48, cut: 'obelisk' }], h: 52, bands: true },
+  cluster: {
+    bodies: [{ x: 0, w: 11, h: 44, cut: 'point' }, { x: -12, w: 6, h: 29, cut: 'point', tilt: -0.42, back: true }, { x: 12, w: 6.5, h: 32, cut: 'point', tilt: 0.38, back: true },
+      { x: -7, w: 4.5, h: 18, cut: 'point', tilt: -0.22, y: 3 }, { x: 8, w: 4, h: 15, cut: 'point', tilt: 0.3, y: 3 }], h: 48
+  },
+  boulder: {
+    bodies: [{ x: 0, w: 18, h: 32, cut: 'rock', rock: true }, { x: -5, w: 5, h: 17, cut: 'point', tilt: -0.35, y: -22 }, { x: 8, w: 4.5, h: 14, cut: 'point', tilt: 0.45, y: -19 },
+      { x: 16, w: 3.5, h: 10, cut: 'point', tilt: 1.0, y: -8 }], h: 40
+  },
+  twin: { bodies: [{ x: -7, w: 8.5, h: 42, cut: 'point', tilt: -0.14 }, { x: 9, w: 7.5, h: 34, cut: 'point', tilt: 0.2, back: true }], h: 46 },
+  monolith: { bodies: [{ x: 0, w: 14, h: 52, cut: 'slab' }], h: 56, bands: true }
 };
 const STONE_BASE_Y = -4;
 
@@ -1100,18 +1115,45 @@ function stoneHeight(s) {
   return STONE_SHAPES[s.stoneType.look.shape].h * stoneScale(s.level) + (s.stoneType.look.crown ? 14 : 0);
 }
 
-// Eiform: unten breiter, oben stumpf gerundet; Fuß bei y = 0
-function eggPath(ctx, x, w, h) {
+// Kante i eines Kristalls bei Höhe u (0..1): x in halben Breiten
+function stoneEdgeX(e, u) {
+  return e[0] + (e[1] - e[0]) * Math.min(1, u / e[2]);
+}
+
+// Umriss eines Kristalls im eigenen Rahmen (Fuß bei y = 0): kantiges Vieleck mit Spitze oder Bruchkante
+function stoneBodyPath(ctx, b) {
+  const C = STONE_CUTS[b.cut];
+  const E = C.edges;
+  const n = E.length - 1;
   ctx.beginPath();
-  ctx.moveTo(x, -h);
-  ctx.bezierCurveTo(x + w * 0.62, -h, x + w * 1.02, -h * 0.5, x + w, -h * 0.28);
-  ctx.bezierCurveTo(x + w * 0.98, -h * 0.04, x + w * 0.6, 0, x, 0);
-  ctx.bezierCurveTo(x - w * 0.6, 0, x - w * 0.98, -h * 0.04, x - w, -h * 0.28);
-  ctx.bezierCurveTo(x - w * 1.02, -h * 0.5, x - w * 0.62, -h, x, -h);
+  ctx.moveTo(E[0][0] * b.w, 0);
+  ctx.lineTo(E[n][0] * b.w, 0);
+  ctx.lineTo(E[n][1] * b.w, -E[n][2] * b.h);
+  if (C.apex) ctx.lineTo(C.apex[0] * b.w, -C.apex[1] * b.h);
+  else for (let i = n; i >= 0; i--) ctx.lineTo(E[i][1] * b.w * 0.9, -(E[i][2] + 0.07) * b.h);
+  ctx.lineTo(E[0][1] * b.w, -E[0][2] * b.h);
   ctx.closePath();
 }
 
-// Adern und Risse eines Steins: feste Zufallslinien über die Schale (je Sorte gleich)
+// halbe Breite (0..1) bei Höhe u, für Adern, Risse und Dornen
+function stoneHalf(b, u) {
+  const C = STONE_CUTS[b.cut];
+  const E = C.edges;
+  const n = E.length - 1;
+  const half = (stoneEdgeX(E[n], u) - stoneEdgeX(E[0], u)) / 2;
+  const sh = Math.min(E[0][2], E[n][2]);
+  if (!C.apex || u <= sh) return half;
+  return half * Math.max(0, 1 - (u - sh) / (C.apex[1] - sh));
+}
+
+// Punkt eines Kristalls (lokal x, Höhe u) im Bild des Steins (mit Neigung und Fuß)
+function stoneBodyPt(b, lx, u) {
+  const t = b.tilt || 0;
+  const ly = -u * b.h;
+  return [b.x + lx * Math.cos(t) - ly * Math.sin(t), STONE_BASE_Y + (b.y || 0) + lx * Math.sin(t) + ly * Math.cos(t)];
+}
+
+// Adern und Risse eines Steins: feste Zufallslinien über die großen Kristalle (je Sorte gleich)
 const stoneVeinCache = new Map();
 function stoneVeins(type, count, seed) {
   const key = type.level + ':' + seed;
@@ -1119,17 +1161,20 @@ function stoneVeins(type, count, seed) {
   let r = (type.level * 97 + seed * 31) % 2147483647 || 7;
   const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
   const lines = [];
-  for (const [ex, w, h] of STONE_SHAPES[type.look.shape].eggs) {
+  const bodies = STONE_SHAPES[type.look.shape].bodies;
+  for (const b of bodies.filter((o) => o === bodies[0] || o.h >= 30)) {
+    const top = STONE_CUTS[b.cut].apex ? 0.68 : 0.84;
     for (let v = 0; v < count; v++) {
-      let u = seed ? 0.3 + rnd() * 0.4 : 0.08 + rnd() * 0.1;
+      let u = seed ? 0.3 + rnd() * 0.35 : 0.08 + rnd() * 0.1;
       let a = (rnd() - 0.5) * 1.6;
       const pts = [];
       for (let k = 0; k < 5; k++) {
-        // u: Höhe 0..1, a: seitlich −1..1 (sichtbare Vorderseite)
-        const half = Math.sin(Math.acos(1 - 2 * Math.min(0.98, u)));
-        pts.push([ex + a * w * 0.85 * half, STONE_BASE_Y - u * h]);
-        u = Math.min(0.95, u + (seed ? (rnd() - 0.5) * 0.3 : 0.12 + rnd() * 0.08));
-        a = Math.max(-1, Math.min(1, a + (rnd() - 0.5) * 0.6));
+        // u: Höhe 0..1, a: seitlich −1..1 (sichtbare Vorderseite); Risse springen zackig hin und her
+        const E = STONE_CUTS[b.cut].edges;
+        const mid = (stoneEdgeX(E[0], u) + stoneEdgeX(E[E.length - 1], u)) / 2;
+        pts.push(stoneBodyPt(b, (mid + a * 0.85 * stoneHalf(b, u)) * b.w, u));
+        u = Math.min(top, u + (seed ? (k % 2 ? 0.12 : -0.1) * (0.6 + rnd() * 0.8) : 0.1 + rnd() * 0.08));
+        a = Math.max(-1, Math.min(1, a + (seed ? (k % 2 ? -1 : 1) * (0.25 + rnd() * 0.3) : (rnd() - 0.5) * 0.6)));
       }
       lines.push(pts);
     }
@@ -1138,113 +1183,199 @@ function stoneVeins(type, count, seed) {
   return lines;
 }
 
+// Ein Kristall: Facetten von hell (links, zum Licht) nach dunkel (rechts), Spitze bzw. Bruchfläche heller,
+// feine Kanten, darüber der Umriss
+function stoneBodyArt(ctx, b, look) {
+  const C = STONE_CUTS[b.cut];
+  const E = C.edges;
+  const n = E.length - 1;
+  const shell = b.rock ? mixColor(lighter(look.base, 0.12), mixColor('#77716a', look.base, 0.45), 0.45) : mixColor(lighter(look.base, 0.12), look.glow, 0.12);
+  const lite = b.rock ? lighter(shell, 0.18) : lighter(look.top, 0.22);
+  const dark = darker(shell, 0.28);
+  const P = (x, u) => [x * b.w, -u * b.h];
+  const poly = (pts, fill) => {
+    ctx.beginPath();
+    pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+  };
+  ctx.save();
+  ctx.translate(b.x, STONE_BASE_Y + (b.y || 0));
+  ctx.rotate(b.tilt || 0);
+  for (let i = 0; i < n; i++) {
+    const t = n > 1 ? i / (n - 1) : 0.5;
+    const face = t < 0.5 ? mixColor(lite, shell, t * 2) : mixColor(shell, dark, (t - 0.5) * 2);
+    poly([P(E[i][0], 0), P(E[i + 1][0], 0), P(E[i + 1][1], E[i + 1][2]), P(E[i][1], E[i][2])], face);
+    if (C.apex) poly([P(E[i][1], E[i][2]), P(E[i + 1][1], E[i + 1][2]), P(C.apex[0], C.apex[1])], lighter(face, 0.14));
+  }
+  if (!C.apex) {
+    // Bruchfläche oben (von oben gesehen ein schmales, helles Vieleck)
+    const top = [];
+    for (let i = 0; i <= n; i++) top.push(P(E[i][1], E[i][2]));
+    for (let i = n; i >= 0; i--) top.push(P(E[i][1] * 0.9, E[i][2] + 0.07));
+    poly(top, lighter(lite, 0.12));
+  }
+  // inneres Leuchten: weicher Schein in der Mitte der vorderen Facetten
+  if (!b.rock) {
+    ctx.save();
+    stoneBodyPath(ctx, b);
+    ctx.clip();
+    glow(ctx, 0, -b.h * 0.42, b.w * 1.3, look.glow, 0.55);
+    ctx.restore();
+  }
+  // Kanten der Facetten
+  ctx.strokeStyle = 'rgba(20,12,10,0.4)';
+  ctx.lineWidth = 0.9;
+  ctx.beginPath();
+  for (let i = 1; i < n; i++) {
+    ctx.moveTo(...P(E[i][0], 0));
+    ctx.lineTo(...P(E[i][1], E[i][2]));
+    if (C.apex) ctx.lineTo(...P(C.apex[0], C.apex[1]));
+  }
+  ctx.moveTo(...P(E[0][1], E[0][2]));
+  for (let i = 1; i <= n; i++) ctx.lineTo(...P(E[i][1], E[i][2]));
+  ctx.stroke();
+  // heller Grat an der linken Kante
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(...P(E[1][0], 0.06));
+  ctx.lineTo(...P(E[1][1], E[1][2] - 0.04));
+  ctx.stroke();
+  stoneBodyPath(ctx, b);
+  ctx.strokeStyle = 'rgba(20,12,10,0.75)';
+  ctx.lineWidth = 1.4;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+  ctx.restore();
+}
+
+// Kleiner spitzer Splitter (Sockel, Eis, Krone, Dornen): Fuß bei x, y, Länge len, Breite w, Neigung ang
+function stoneShard(ctx, x, y, len, w, ang, fill, side) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.moveTo(-w, 0);
+  ctx.lineTo(-w * 0.8, -len * 0.6);
+  ctx.lineTo(0, -len);
+  ctx.lineTo(w, 0);
+  ctx.closePath();
+  ctx.fill();
+  if (side) {
+    ctx.fillStyle = side;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.1, 0);
+    ctx.lineTo(0, -len);
+    ctx.lineTo(w, 0);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 // Fester Teil des Steins, einmal gebacken
 function stoneArt(ctx, type) {
   const look = type.look;
   const sh = STONE_SHAPES[look.shape];
   const k = stoneScale(type.level);
-  const stone = mixColor('#8c867c', look.base, 0.35);
+  const stone = mixColor('#77716a', look.base, 0.45);
+  const shell = mixColor(lighter(look.base, 0.12), look.glow, 0.12);
   ctx.scale(k, k);
-  // Wiege: flacher Sockel mit Geröll
-  dot(ctx, 0, 4, 24, 8, darker(stone, 0.2));
-  dot(ctx, 0, 1, 21, 6.5, stone);
-  if (look.lava) dot(ctx, 0, 1, 16, 4.5, '#ff7a2a');
-  for (const [x, y, r] of [[-22, 6, 4], [20, 7, 3.5], [-10, 9, 3], [11, 9, 3]]) dot(ctx, x, y, r, r * 0.7, darker(stone, 0.12));
+  // Sockel: kantiger Felshügel mit Brocken (statt Wiege mit Krallen)
+  dot(ctx, 0, 5, 23, 7, 'rgba(0,0,0,0.25)');
+  if (look.lava) {
+    ctx.fillStyle = '#ff7a2a';
+    ctx.beginPath();
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2;
+      const r = i % 2 ? 1 : 0.82;
+      ctx.lineTo(Math.cos(a) * 25 * r, 3 + Math.sin(a) * 8.5 * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  const mound = [[-20, 4], [-21, 0], [-15, -4], [-6, -6.5], [5, -6], [14, -4.5], [20, -1], [19, 4], [10, 7], [-2, 7.5], [-13, 7]];
+  ctx.fillStyle = darker(stone, 0.12);
+  ctx.beginPath();
+  mound.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(20,12,10,0.6)';
+  ctx.lineWidth = 1.1;
+  ctx.stroke();
+  ctx.fillStyle = lighter(stone, 0.12);
+  ctx.beginPath();
+  for (const [x, y] of [[-21, 0], [-15, -4], [-6, -6.5], [5, -6], [14, -4.5], [20, -1], [8, 1.5], [-8, 2]]) ctx.lineTo(x, y);
+  ctx.closePath();
+  ctx.fill();
+  for (const [x, y, r] of [[-22, 6, 4], [20, 7, 3.5], [-10, 9, 3], [11, 9, 3]]) {
+    ctx.fillStyle = darker(stone, 0.18);
+    ctx.beginPath();
+    ctx.moveTo(x - r, y + r * 0.4);
+    ctx.lineTo(x - r * 0.6, y - r * 0.6);
+    ctx.lineTo(x + r * 0.3, y - r * 0.8);
+    ctx.lineTo(x + r, y - r * 0.1);
+    ctx.lineTo(x + r * 0.6, y + r * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = stone;
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.6, y - r * 0.6);
+    ctx.lineTo(x + r * 0.3, y - r * 0.8);
+    ctx.lineTo(x + r, y - r * 0.1);
+    ctx.lineTo(x, y);
+    ctx.closePath();
+    ctx.fill();
+  }
   if (look.ice) {
-    ctx.fillStyle = '#e8f6ff';
-    for (const [x, hgt] of [[-20, 14], [-14, 9], [16, 12], [21, 8]]) {
+    for (const [x, hgt] of [[-20, 14], [-14, 9], [16, 12], [21, 8]]) stoneShard(ctx, x, 4, hgt, 3, x < 0 ? -0.18 : 0.18, '#e8f6ff', '#b8d8ee');
+  }
+  // Kristalle: die hinteren zuerst, dann der Hauptkristall, dann die vorderen
+  const order = [...sh.bodies.filter((b) => b.back), sh.bodies[0], ...sh.bodies.slice(1).filter((b) => !b.back)];
+  for (const b of order) stoneBodyArt(ctx, b, look);
+  // kleine Splitter, die vorn aus dem Fels wachsen
+  if (look.shape !== 'cluster') {
+    stoneShard(ctx, -15, 3, 7, 2.2, -0.6, lighter(look.top, 0.15), darker(shell, 0.2));
+    stoneShard(ctx, 15, 4, 6, 2, 0.55, shell, darker(shell, 0.25));
+  }
+  const m0 = sh.bodies[0];
+  ctx.save();
+  ctx.translate(0, STONE_BASE_Y);
+  if (sh.bands) {
+    // kantige Gürtel: Linie über die Facetten, an der vorderen Kante etwas tiefer
+    ctx.strokeStyle = look.shape === 'monolith' ? '#c9a35a' : darker(look.base, 0.3);
+    ctx.lineWidth = 2.4;
+    const E = STONE_CUTS[m0.cut].edges;
+    for (const u of [0.3, 0.62]) {
       ctx.beginPath();
-      ctx.moveTo(x - 3, 4);
-      ctx.lineTo(x + (x < 0 ? -2 : 2), 4 - hgt);
-      ctx.lineTo(x + 3, 4);
-      ctx.fill();
+      E.forEach((e, i) => {
+        const x = m0.x + stoneEdgeX(e, u) * m0.w * 1.04;
+        const y = -u * m0.h + (i && i < E.length - 1 ? 1.6 : 0);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      });
+      ctx.stroke();
     }
   }
-  // Eier mit Verlauf, Umriss und Glanz
-  for (const [ex, w, h] of sh.eggs) {
-    ctx.save();
-    ctx.translate(0, STONE_BASE_Y);
-    const shell = lighter(look.base, 0.12);
-    const g = ctx.createLinearGradient(ex - w, -h, ex + w, 0);
-    g.addColorStop(0, lighter(look.top, 0.2));
-    g.addColorStop(0.55, shell);
-    g.addColorStop(1, darker(look.base, 0.15));
-    ctx.fillStyle = g;
-    eggPath(ctx, ex, w, h);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(20,12,10,0.75)';
-    ctx.lineWidth = 1.4;
-    ctx.stroke();
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.beginPath();
-    ctx.ellipse(ex - w * 0.38, -h * 0.68, w * 0.22, h * 0.16, -0.35, 0, Math.PI * 2);
-    ctx.fill();
-    if (sh.bands) {
-      ctx.strokeStyle = look.shape === 'monolith' ? '#c9a35a' : darker(look.base, 0.3);
-      ctx.lineWidth = 2.2;
-      for (const u of [0.32, 0.68]) {
-        const half = Math.sin(Math.acos(1 - 2 * u)) * w;
-        ctx.beginPath();
-        ctx.ellipse(ex, -u * h, half, half * 0.22, 0, 0, Math.PI);
-        ctx.stroke();
-      }
+  if (look.thorns) {
+    for (const [u, a] of [[0.25, -0.9], [0.5, 0.95], [0.62, -0.7], [0.4, 0.2]]) {
+      const x = m0.x + a * stoneHalf(m0, u) * m0.w;
+      stoneShard(ctx, x, -u * m0.h, 6, 2.2, a * 1.1, '#4a3220', '#2e1e12');
     }
-    if (look.thorns) {
-      ctx.fillStyle = '#4a3220';
-      for (const [u, a] of [[0.25, -0.9], [0.5, 0.95], [0.7, -0.7], [0.4, 0.2]]) {
-        const half = Math.sin(Math.acos(1 - 2 * u)) * w;
-        const x = ex + a * half;
-        ctx.beginPath();
-        ctx.moveTo(x - 2.5, -u * h);
-        ctx.lineTo(x + a * 5, -u * h - 5);
-        ctx.lineTo(x + 2.5, -u * h);
-        ctx.fill();
-      }
-    }
-    if (look.crystal || sh.shards) {
-      ctx.fillStyle = look.crystal ? '#ff8a9a' : look.top;
-      for (const [dx, ang] of [[-0.4, -0.5], [0.35, 0.45]]) {
-        ctx.save();
-        ctx.translate(ex + dx * w, -h * 0.82);
-        ctx.rotate(ang);
-        ctx.beginPath();
-        ctx.moveTo(-2.5, 0);
-        ctx.lineTo(0, -9);
-        ctx.lineTo(2.5, 0);
-        ctx.fill();
-        ctx.restore();
-      }
-    }
-    if (look.crown) {
-      ctx.fillStyle = '#e8c46a';
-      for (let c = -2; c <= 2; c++) {
-        const x = ex + c * w * 0.32;
-        const y = -h * (0.9 - Math.abs(c) * 0.06);
-        ctx.beginPath();
-        ctx.moveTo(x - 2.5, y);
-        ctx.lineTo(x + c * 1.2, y - 9 + Math.abs(c) * 1.5);
-        ctx.lineTo(x + 2.5, y);
-        ctx.fill();
-      }
-    }
-    ctx.restore();
   }
-  // Krallen der Wiege, vorn über dem Ei
-  ctx.strokeStyle = darker(stone, 0.35);
-  ctx.lineCap = 'round';
-  const [ex0, w0, h0] = sh.eggs[0];
-  for (const side of [-1, 1]) {
-    const x0 = ex0 + side * (w0 + 4);
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(x0, 2);
-    ctx.quadraticCurveTo(x0 + side * 2, STONE_BASE_Y - h0 * 0.3, ex0 + side * w0 * 0.55, STONE_BASE_Y - h0 * 0.5);
-    ctx.stroke();
-    ctx.strokeStyle = stone;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    ctx.strokeStyle = darker(stone, 0.35);
+  if (look.crystal) {
+    for (const [dx, ang] of [[-0.45, -0.6], [0.4, 0.55]]) stoneShard(ctx, m0.x + dx * m0.w, -m0.h * 0.6, 10, 2.6, ang, '#ff8a9a', '#d85a6a');
   }
+  if (look.crown) {
+    for (let c = -2; c <= 2; c++) {
+      const x = m0.x + c * m0.w * 0.3;
+      const y = -m0.h * (0.92 - Math.abs(c) * 0.04);
+      stoneShard(ctx, x, y, 9 - Math.abs(c) * 1.5, 2.5, c * 0.22, '#e8c46a', '#b8943a');
+    }
+  }
+  ctx.restore();
 }
 
 function stoneSprite(type) {
@@ -1280,13 +1411,21 @@ function drawStone(ctx, s) {
     line.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
     ctx.stroke();
   }
-  const [ex0, , h0] = sh.eggs[0];
-  ctx.lineWidth = 1.8;
+  // Herz: geschliffener, glühender Kern vorn im Hauptkristall
+  const m0 = sh.bodies[0];
+  const [ex0, hy0] = stoneBodyPt(m0, 0, 0.42);
+  ctx.lineWidth = 1.6;
+  ctx.fillStyle = lighter(look.glow, 0.35);
   ctx.beginPath();
-  ctx.arc(ex0, STONE_BASE_Y - h0 * 0.42, 4.5, 0, Math.PI * 2);
+  ctx.moveTo(ex0, hy0 - 5.5);
+  ctx.lineTo(ex0 + 3.6, hy0);
+  ctx.lineTo(ex0, hy0 + 5.5);
+  ctx.lineTo(ex0 - 3.6, hy0);
+  ctx.closePath();
+  ctx.fill();
   ctx.stroke();
   ctx.globalAlpha = 1;
-  glow(ctx, ex0, STONE_BASE_Y - h0 * 0.42, 8, look.glow, 0.3 + pulse * 0.25);
+  glow(ctx, ex0, hy0, 9, look.glow, 0.3 + pulse * 0.25);
   // Risse: bei 75, 50 und 25 % Leben bricht die Schale weiter auf und glüht
   const hpk = s.hp / s.maxHp;
   const stage = hpk <= 0.25 ? 3 : hpk <= 0.5 ? 2 : hpk <= 0.75 ? 1 : 0;
@@ -1481,6 +1620,16 @@ function drawLabel(ctx, e) {
     ctx.fillText(label, e.x, y);
     // Mitspieler zeigen ihr Leben unter dem Namen
     if (e.remote) drawBar(ctx, e.x, y + 4, mate ? 58 : 34, e.hp / Math.max(1, e.maxHp), mate ? '#3ee05a' : '#4ad04a');
+    // seit 13.85: eigener Lebensbalken über der Figur (Einstellung „Eigener Lebensbalken“, Größe einstellbar)
+    if (e === p && opts.selfBar && !p.dead) {
+      const k = Math.max(0.5, Math.min(2, +opts.selfBarSize || 1));
+      const frac = p.hp / Math.max(1, (game.stats && game.stats.maxHp) || p.hp || 1);
+      ctx.save();
+      ctx.translate(e.x, y + 4);
+      ctx.scale(k, k);
+      drawBar(ctx, 0, 2, 32, frac, frac < 0.3 ? '#e0402a' : frac < 0.6 ? '#e0b02a' : '#3ee05a');
+      ctx.restore();
+    }
     if (e.say && e.sayUntil > game.time) drawSpeech(ctx, e.x, lvY - (guild ? 22 : 12), e.say);
     ctx.restore();
     return;

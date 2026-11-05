@@ -315,10 +315,12 @@ function playerStats(p) {
   // Boni der Ausrüstung
   const bonus = {};
   const eq = p.equipment || {};
-  // Ein zweites Schwert in der Nebenhand zählt nur zum Teil
+  // Eine zweite Waffe in der Nebenhand (Schwert oder Axt, Dolch, Zweihänder) zählt nur zum Teil
   const offhand = isOffhand(eq.schild) ? eq.schild : null;
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
+    // seit 13.85: eine Waffe, die gerade nicht in die Nebenhand passt, bringt auch keine Boni
+    if (item === offhand && !offhandAllows(p, item)) continue;
     const share = item === offhand ? offhandRules(p).bonus : 1;
     for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v * share;
   }
@@ -342,7 +344,7 @@ function playerStats(p) {
     if (!item || !canWear(item, p)) continue;
     if (item === offhand) {
       const dw = offhandRules(p);
-      if (item.kind !== offhandKind(p)) continue;
+      if (!offhandAllows(p, item)) continue;
       const ost = itemStats(item);
       s.atk += Math.round((ost.atk || 0) * dw.atk);
       s.wAvg += Math.round((ost.atk || 0) * dw.atk);
@@ -830,7 +832,10 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   schattenmantel: 'schattenwechsel', falkenblick: 'schattenwechsel',
   // 13.70: Giftfalle statt Pfeilhagel (Platz 2: Stufe, Rang und Leistenplatz bleiben, Schriftrollen in Tasche, Lager,
   // Konto-Lager, Post und Handel werden mitgenommen); seit 13.76 Pfeilregen statt Giftfalle – beide zeigen direkt dorthin
-  pfeilhagel: 'pfeilregen', giftfalle: 'pfeilregen' };
+  pfeilhagel: 'pfeilregen', giftfalle: 'pfeilregen',
+  // 13.85: Dolch-Ninja – Schattenkette (Angriff) statt Leichtfüßigkeit (Buff), Platz 5: Stufe, Rang, Leistenplatz und
+  // Bücher (Tasche, Lager, Konto-Lager, Post, Handel) gehen mit
+  leichtfuessigkeit: 'schattenkette' };
 // seit 13.76: Ketten auflösen (z. B. Seelenpfeil → Schädelsalve → Blutsauger), damit ein einziges Nachschlagen reicht
 for (const k of Object.keys(SKILL_RENAMED)) {
   let v = SKILL_RENAMED[k];

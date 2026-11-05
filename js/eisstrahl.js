@@ -24,13 +24,19 @@ SKILL_TYPES.beam = function (sk, pw, lvl) {
 // Ziel des Strahls: gewähltes Ziel in Reichweite, sonst nächster Gegner vor der Figur, sonst geradeaus
 function beamEnd(p, sk) {
   let t = game.target && !game.target.dead && dist(game.target, p) < sk.range + (game.target.r || 0) ? game.target : null;
-  if (!t) {
+  // seit 13.85: ein selbst gewählter Seelenstein zählt nur, wenn kein Monster vor der Figur steht
+  const autoStone = t && t.isStone && !(typeof targetIsManual === 'function' && targetIsManual(t));
+  if (!t || autoStone) {
     const front = enemiesInCone(p.x, p.y, p.facing, sk.range, 70);
     let bd = Infinity;
+    let mob = null;
     for (const m of front) {
+      if (m.isStone) continue;
       const d = dist(m, p);
-      if (d < bd) { bd = d; t = m; }
+      if (d < bd) { bd = d; mob = m; }
     }
+    if (mob) t = mob;
+    else if (!t) t = front[0] || null;
   }
   if (t) faceTowards(t.x, t.y);
   // der Strahl geht durch das Ziel hindurch bis zur vollen Reichweite (trifft alle in der Linie), Wände halten ihn auf
@@ -63,7 +69,7 @@ function stopChannel(p) {
   if (!c) return;
   p.channel = null;
   if (c.fx) c.fx.dur = game.time - c.fx.start + 0.18;
-  p.skillCd[c.i] = c.sk.cooldown;
+  setSkillCd(p, c.i, c.sk.cooldown);
   if (p.swingKind === 'strahl') p.swing = Math.min(p.swing, 0.5);
   if (typeof snd !== 'undefined') snd.beamStop();
   netSkillFx(c.sk.id, c.sk.range, { bm: 0 });

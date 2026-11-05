@@ -34,6 +34,8 @@ Auf jeder Map kommen Nachtmonster dazu (`js/daten/nachtmonster.js`). Bei Tagesan
 | 2 | Nagadschungel | Dschungelgeist (46) |
 | 3 | Donnerklamm | Sturmgeist (56) |
 | 3 | Titanenkamm | Schattengargoyle (70) |
+| 10 | Kristallhänge | Leerenwolf (77) |
+| 10 | Leerenschlund | Sternenschemen (79), Leerenwolf (77) |
 
 ### NPCs
 

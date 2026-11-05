@@ -336,7 +336,8 @@ function moveThrough(spot, color) {
   saveGame();
 }
 
-function giveReward(reward, xp) {
+// big (seit 13.85): großer Lichteffekt wie beim Stufenaufstieg (Tagesbelohnung); Aufträge nur ein kleiner Blinker
+function giveReward(reward, xp, big = false) {
   const p = game.player;
   const parts = [];
   if (xp) parts.push(`${xp.toLocaleString('de-DE')} EP`);
@@ -373,7 +374,8 @@ function giveReward(reward, xp) {
     else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
   }
   ui.log('Belohnung: ' + parts.join(', ') + '.', 'level');
-  vfxLevelUp(p);
+  if (big) vfxLevelUp(p);
+  else vfxQuestDone(p);
   if (xp) gainXp(xp);
   saveGame();
   return parts;

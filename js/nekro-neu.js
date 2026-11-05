@@ -343,7 +343,8 @@ MAGE2_REMOTE.larva = (rp, sk, d) => larvaFx(rp, d.x ?? rp.x, d.y ?? rp.y, d.tx, 
 // === Weg der Knochen: Totenhand (packt und zerdrückt) =============================================
 SKILL_TYPES.gravehand = function (sk, pw, lvl) {
   const p = game.player;
-  const t = pickTarget(sk.range);
+  // seit 13.85 mit Zielkreis (sk.aim): die Hand bricht am gewählten Ort hervor, auch ohne Ziel
+  const t = sk.aim ? skillAimPoint(sk) : pickTarget(sk.range);
   if (!t) {
     addText(p.x, p.y - 34, 'Kein Ziel', 'info');
     return false;

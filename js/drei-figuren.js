@@ -951,6 +951,18 @@ const WEAPON_HOLD = {
   bell: [2.0, 0, 0], staff: [0.22, 0, 0.08], skullstaff: [0.22, 0, 0.08], scythe: [0.3, 0, 0.1], axe: [0.6, 0, 0.45], greataxe: [0.6, 0, 0.45], club: [0.6, 0, 0.45],
   rod: [0.22, 0, 0.08]
 };
+// Handgelenk im Schlag (seit 13.85): In der Haltung oben zeigt die Klinge bei hängendem Arm nach oben (Ruhe), also
+// zurück zur Schulter. Ohne Handgelenk zeigte sie darum bei jedem Hieb, Stich und Stoß nach hinten über die Schulter
+// statt zum Ziel. Um so viel dreht die Hand (rotation.x) die Waffe nach vorn, dass sie den Arm leicht angewinkelt
+// verlängert – für Hiebwaffen und Stäbe; Dolche (Rückhandgriff), Bogen, Fächer, Glocke und Zepter haben eigene Haltungen.
+const WRIST_KINDS3 = new Set(['sword', 'axe', 'greatsword', 'greataxe', 'scythe', 'staff']);
+function wristExt3(kind) {
+  return WRIST_KINDS3.has(kind) ? Math.PI - 0.35 - WEAPON_HOLD[kind][0] : 0;
+}
+// Handgelenk in Ruhe und beim Gehen (seit 13.85): Schwert und Axt leicht nach vorn gekippt, damit man sie aus der
+// Spielkamera als Waffe in der Hand sieht (vorher stand die Klinge senkrecht am Körper und wirkte von oben wie ein
+// Klotz an der Hüfte); Schlag-Posen beginnen und enden mit diesem Wert, damit nichts springt
+const IDLE_WRIST3 = { sword: 1.0, axe: 0.7, greatsword: 0.9, greataxe: 0.5 };
 
 // --- Spielerfiguren ---------------------------------------------------------------------------------
 
@@ -3706,152 +3718,420 @@ function buildPortal3(b, id, d) {
   return { rig, height: 0.6, family: 'portal', extra };
 }
 
-// Seelenstein: Grundform, hellere Spitze, leuchtende Runen
-// --- Seelenstein (Version 4.3): stumpfes Ei in einer Krallen-Wiege -----------------------------------
+// --- Seelenstein (seit 13.x): geschliffener Seelenkristall statt Ei ------------------------------------
+// Jeder Stein ist ein facettierter Kristall (oder mehrere) auf einem kantigen Felssockel. Ein Kristall:
+// Querschnitt mit n Ecken (Winkel und Radius je Ecke leicht verschieden, damit er nicht gedrechselt wirkt),
+// Profil aus Ringen [u (0..1 der Höhe), Maßstab, Versatz x, Versatz z], oben eine Spitze (tip: [x, z])
+// oder ein schräger Bruch (cut: [Neigung x, Neigung z]). Flach schattiert: jede Facette ein eigener Ton.
 
-function eggPts(R, H, k = 0.14, n = 16) {
-  const pts = [];
-  for (let i = 0; i <= n; i++) {
-    const t = (i / n) * Math.PI;
-    pts.push([R * Math.sin(t) * (1 + k * Math.cos(t)), H * (1 - Math.cos(t)) / 2]);
+function scSpec(n, R, H, rings, o = {}) {
+  const rnd = mulberry32(o.seed || 1);
+  const step = (Math.PI * 2) / n;
+  const jit = o.jit == null ? 0.14 : o.jit;
+  // o.poly: eigener Querschnitt [[x, z], ...] im Kreis herum (z. B. die Platte des Monolithen)
+  const poly = o.poly ? o.poly.slice() : [];
+  for (let i = poly.length; i < n; i++) {
+    const t = (o.rot || 0) + i * step + (rnd() - 0.5) * (o.twist == null ? 0.35 : o.twist) * step;
+    const r = R * (1 - jit / 2 + rnd() * jit);
+    poly.push([+(Math.sin(t) * r * (o.sx || 1)).toFixed(4), +(Math.cos(t) * r * (o.sz || 1)).toFixed(4)]);
   }
-  return pts;
+  const sp = { n, H, poly, rings, tip: o.tip || null, cut: o.cut || null };
+  sp.key = JSON.stringify([H, poly, rings, sp.tip, sp.cut]);
+  return sp;
 }
-function eggGeo(R, H, k) {
-  return lathe3(`egg${R},${H},${k}`, eggPts(R, H, k), 24);
+
+// Eckpunkte der Ringe (der oberste folgt bei einem Bruch der schrägen Schnittebene)
+function scRings(sp) {
+  const last = sp.rings.length - 1;
+  return sp.rings.map(([u, s, cx = 0, cz = 0], k) => sp.poly.map(([px, pz]) => {
+    const x = px * s;
+    const z = pz * s;
+    const y = u * sp.H + (k === last && sp.cut ? sp.cut[0] * x + sp.cut[1] * z : 0);
+    return [cx + x, y, cz + z];
+  }));
 }
-// Punkt auf der Eioberfläche (Höhe 0..1, Winkel) – für Adern und Platten
-function eggAt(R, H, k, u, a, out = 1) {
-  const t = Math.acos(1 - 2 * u);
-  const r = R * Math.sin(t) * (1 + k * Math.cos(t)) * out;
-  return [Math.sin(a) * r, H * u, Math.cos(a) * r];
+
+// Dreiecke nach außen gedreht (ref: ein Punkt im Inneren bzw. hinter der Fläche)
+function scTri(out, a, b, c, ref) {
+  const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+  const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+  const mx = (a[0] + b[0] + c[0]) / 3 - ref[0], my = (a[1] + b[1] + c[1]) / 3 - ref[1], mz = (a[2] + b[2] + c[2]) / 3 - ref[2];
+  if (nx * mx + ny * my + nz * mz < 0) out.push(a, c, b);
+  else out.push(a, b, c);
+}
+
+// Alle Flächen eines Kristalls als Liste von Dreiecken [a, b, c] (Seiten, Spitze bzw. Bruchfläche, Boden)
+function scFaces(sp) {
+  const R = scRings(sp);
+  const n = sp.n;
+  const faces = [];
+  const axis = (k) => {
+    const [u, , cx = 0, cz = 0] = sp.rings[k];
+    return [cx, u * sp.H, cz];
+  };
+  for (let k = 0; k < R.length - 1; k++) {
+    const c0 = axis(k), c1 = axis(k + 1);
+    const ref = [(c0[0] + c1[0]) / 2, (c0[1] + c1[1]) / 2, (c0[2] + c1[2]) / 2];
+    for (let i = 0; i < n; i++) {
+      const j = (i + 1) % n;
+      const quad = [];
+      scTri(quad, R[k][i], R[k][j], R[k + 1][j], ref);
+      scTri(quad, R[k][i], R[k + 1][j], R[k + 1][i], ref);
+      faces.push({ tris: [quad.slice(0, 3), quad.slice(3, 6)], corners: [R[k][i], R[k][j], R[k + 1][j], R[k + 1][i]] });
+    }
+  }
+  const top = R[R.length - 1];
+  const tc = axis(R.length - 1);
+  if (sp.tip) {
+    const apex = [sp.tip[0], sp.H, sp.tip[1]];
+    for (let i = 0; i < n; i++) {
+      const t = [];
+      scTri(t, top[i], top[(i + 1) % n], apex, tc);
+      faces.push({ tris: [t], corners: [top[i], top[(i + 1) % n], apex] });
+    }
+  } else {
+    const mid = [0, 0, 0];
+    for (const p of top) for (let c = 0; c < 3; c++) mid[c] += p[c] / n;
+    const t = [];
+    for (let i = 0; i < n; i++) scTri(t, top[i], top[(i + 1) % n], mid, [mid[0], mid[1] - 1, mid[2]]);
+    faces.push({ tris: [], cap: t });
+  }
+  const bot = R[0];
+  const bc = axis(0);
+  const t = [];
+  for (let i = 0; i < n; i++) scTri(t, bot[i], bot[(i + 1) % n], bc, [bc[0], bc[1] + 1, bc[2]]);
+  faces.push({ tris: [], cap: t });
+  return faces;
+}
+
+// Körper des Kristalls: ohne gemeinsame Eckpunkte, damit die Normalen je Facette flach sind
+function scGeo(sp) {
+  return geo3('cry' + sp.key, () => {
+    const pos = [];
+    for (const f of scFaces(sp)) {
+      for (const tri of f.tris) for (const p of tri) pos.push(p[0], p[1], p[2]);
+      if (f.cap) for (const p of f.cap) pos.push(p[0], p[1], p[2]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Inneres Leuchten: auf jeder Seitenfacette ein Fächer, in der Mitte die Farbe des Kerns, an den Kanten
+// schwarz (addiert nichts). Mit dem Schein-Material sieht es aus, als leuchte der Kern durch den Kristall.
+function scCoreGeo(sp, color, k = 1) {
+  return geo3('cryc' + sp.key + color + k, () => {
+    const c = new THREE.Color(color);
+    const pos = [];
+    const col = [];
+    for (const f of scFaces(sp)) {
+      if (!f.tris.length) continue;
+      const P = f.corners;
+      const m = [0, 0, 0];
+      for (const p of P) for (let i = 0; i < 3; i++) m[i] += p[i] / P.length;
+      // Normale der Facette aus dem ersten (schon nach außen gedrehten) Dreieck
+      const [a, b, d] = f.tris[0];
+      const n = new THREE.Vector3(b[0] - a[0], b[1] - a[1], b[2] - a[2]).cross(new THREE.Vector3(d[0] - a[0], d[1] - a[1], d[2] - a[2])).normalize().multiplyScalar(0.006);
+      const lift = (p) => [p[0] + n.x, p[1] + n.y, p[2] + n.z];
+      const h = m[1] / sp.H;
+      const w = k * (0.3 + 0.7 * Math.exp(-(((h - 0.42) / 0.3) ** 2)));
+      const mid = lift(m);
+      const ref = [m[0] - n.x * 50, m[1] - n.y * 50, m[2] - n.z * 50];
+      for (let i = 0; i < P.length; i++) {
+        const t = [];
+        scTri(t, lift(P[i]), lift(P[(i + 1) % P.length]), mid, ref);
+        for (const p of t) {
+          pos.push(p[0], p[1], p[2]);
+          const on = p === mid ? w : 0;
+          col.push(c.r * on, c.g * on, c.b * on);
+        }
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Kantiger Gürtel um einen Kristall (Obelisk, Monolith): sein Querschnitt bei Höhe u, etwas größer
+function scBandGeo(sp, u, thick, grow = 1.08) {
+  const [s, cx, cz] = scProfile(sp, u);
+  const band = { n: sp.n, H: thick, poly: sp.poly.map(([x, z]) => [+(x * s * grow).toFixed(4), +(z * s * grow).toFixed(4)]), rings: [[0, 1, cx, cz], [1, 1, cx, cz]], tip: null, cut: [0, 0] };
+  band.key = JSON.stringify(['band', thick, band.poly, cx, cz]);
+  return scGeo(band);
+}
+
+// Maßstab und Mittelpunkt des Querschnitts bei Höhe u (0..1)
+function scProfile(sp, u) {
+  const R = sp.rings;
+  const ring = (r) => [r[1], r[2] || 0, r[3] || 0];
+  if (u <= R[0][0]) return ring(R[0]);
+  for (let k = 0; k < R.length - 1; k++) {
+    if (u <= R[k + 1][0]) {
+      const f = (u - R[k][0]) / Math.max(1e-6, R[k + 1][0] - R[k][0]);
+      const a = ring(R[k]), b = ring(R[k + 1]);
+      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+    }
+  }
+  const last = ring(R[R.length - 1]);
+  if (!sp.tip) return last;
+  const f = Math.min(1, (u - R[R.length - 1][0]) / Math.max(1e-6, 1 - R[R.length - 1][0]));
+  return [last[0] * (1 - f), last[1] + (sp.tip[0] - last[1]) * f, last[2] + (sp.tip[1] - last[2]) * f];
+}
+
+// Abstand von der Achse bis zur Kante des Querschnitts in Richtung a (Winkel wie sin/cos: 0 = vorn)
+function scRadius(sp, a) {
+  const dx = Math.sin(a), dz = Math.cos(a);
+  let best = 0;
+  for (let i = 0; i < sp.n; i++) {
+    const [px, pz] = sp.poly[i];
+    const [qx, qz] = sp.poly[(i + 1) % sp.n];
+    const ex = qx - px, ez = qz - pz;
+    const det = ex * dz - dx * ez;
+    if (Math.abs(det) < 1e-9) continue;
+    const t = (ex * pz - ez * px) / det;
+    const w = (dx * pz - dz * px) / det;
+    if (t > 0 && w >= -1e-6 && w <= 1 + 1e-6) best = Math.max(best, t);
+  }
+  return best;
+}
+
+// Winkel der Facettenmitte, die am ehesten in Richtung a zeigt (für das Herz vorn)
+function scFaceAngle(sp, a) {
+  let best = a, bd = 9;
+  for (let i = 0; i < sp.n; i++) {
+    const [px, pz] = sp.poly[i];
+    const [qx, qz] = sp.poly[(i + 1) % sp.n];
+    const fa = Math.atan2((px + qx) / 2, (pz + qz) / 2);
+    const d = Math.abs(Math.atan2(Math.sin(fa - a), Math.cos(fa - a)));
+    if (d < bd) { bd = d; best = fa; }
+  }
+  return best;
+}
+
+// Punkt auf der Kristalloberfläche (Höhe 0..1, Winkel; out > 1 etwas davor) – ersetzt eggAt für Adern,
+// Risse, Dornen, Krone. body: { sp, p, r, s } (Lage des Kristalls im Stein)
+function stoneAt(body, u, a, out = 1) {
+  const sp = body.sp;
+  const [s, cx, cz] = scProfile(sp, u);
+  const r = scRadius(sp, a) * s * out;
+  if (!body.M) {
+    const rr = body.r || [0, 0, 0];
+    body.M = new THREE.Matrix4().compose(new THREE.Vector3(...body.p), new THREE.Quaternion().setFromEuler(new THREE.Euler(rr[0], rr[1], rr[2])), new THREE.Vector3(body.s, body.s, body.s));
+  }
+  const v = new THREE.Vector3(cx + Math.sin(a) * r, u * sp.H, cz + Math.cos(a) * r).applyMatrix4(body.M);
+  return [v.x, v.y, v.z];
+}
+
+const octa3 = () => geo3('octa1', () => new THREE.OctahedronGeometry(1, 0));
+
+// Kantige Felsbrocken: Ikosaeder ohne Glättung, Ecken verschoben, unten abgeschnitten
+function scRock3(v) {
+  return geo3('frock' + v, () => {
+    const g = new THREE.IcosahedronGeometry(1, 0).toNonIndexed();
+    const P = g.attributes.position;
+    const rnd = mulberry32(53 + v * 29);
+    const moved = new Map();
+    for (let i = 0; i < P.count; i++) {
+      const key = `${P.getX(i).toFixed(3)},${P.getY(i).toFixed(3)},${P.getZ(i).toFixed(3)}`;
+      if (!moved.has(key)) moved.set(key, 0.75 + rnd() * 0.45);
+      const k = moved.get(key);
+      P.setXYZ(i, P.getX(i) * k, Math.max(-0.2, P.getY(i) * k * 0.75), P.getZ(i) * k);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Kristalle je Form: [Spezifikation, Lage, Drehung, Maßstab]; der erste ist der Hauptkristall
+function stoneBodies3(sh) {
+  const b = (sp, p, r = [0, 0, 0], s = 1) => ({ sp, p, r, s });
+  const y = 0.05;
+  if (sh === 'spire') return [
+    b(scSpec(6, 0.36, 2.0, [[0, 0.86], [0.1, 1], [0.6, 0.93], [0.7, 0.74]], { seed: 3, tip: [0.04, -0.02] }), [0, y, 0]),
+    b(scSpec(5, 0.13, 0.75, [[0, 1], [0.6, 0.85]], { seed: 4, tip: [0, 0] }), [0.34, y, 0.1], [0.15, 0, -0.55]),
+    b(scSpec(5, 0.11, 0.55, [[0, 1], [0.55, 0.8]], { seed: 5, tip: [0, 0] }), [-0.3, y, 0.16], [0.3, 0, 0.6])
+  ];
+  if (sh === 'obelisk') {
+    const ob = scSpec(4, 0.5, 1.9, [[0, 1], [0.08, 0.97], [0.72, 0.6]], { seed: 6, rot: Math.PI / 4, jit: 0.04, twist: 0.08, tip: [0.02, 0] });
+    return [b(ob, [0, y, 0], [0, 0.55, 0])];
+  }
+  if (sh === 'cluster') return [
+    b(scSpec(6, 0.3, 1.65, [[0, 0.9], [0.1, 1], [0.66, 0.92], [0.76, 0.7]], { seed: 7, tip: [0.03, 0.02] }), [0, y, -0.04]),
+    b(scSpec(6, 0.21, 1.15, [[0, 1], [0.66, 0.9]], { seed: 8, tip: [0, 0] }), [0.26, y, 0.08], [0.12, 0, -0.42]),
+    b(scSpec(5, 0.2, 1.05, [[0, 1], [0.62, 0.88]], { seed: 9, tip: [0.02, 0] }), [-0.27, y, 0.04], [-0.1, 0, 0.46]),
+    b(scSpec(5, 0.15, 0.8, [[0, 1], [0.6, 0.85]], { seed: 10, tip: [0, 0] }), [0.1, y, 0.3], [0.6, 0, -0.15]),
+    b(scSpec(6, 0.18, 1.2, [[0, 1], [0.65, 0.9]], { seed: 11, tip: [0, 0] }), [-0.06, y, -0.3], [-0.45, 0, 0.12]),
+    b(scSpec(4, 0.1, 0.5, [[0, 1], [0.55, 0.8]], { seed: 12, tip: [0, 0] }), [-0.2, y, 0.3], [0.55, 0, 0.5])
+  ];
+  if (sh === 'boulder') return [
+    Object.assign(b(scSpec(7, 0.58, 1.15, [[0, 0.84], [0.14, 1], [0.48, 1.0], [0.72, 0.8], [0.86, 0.52]], { seed: 13, sx: 1.1, sz: 0.92, jit: 0.24, cut: [0.16, 0.1] }), [0, y, 0], [0, 0.4, 0]), { rock: true }),
+    b(scSpec(6, 0.17, 0.85, [[0, 1], [0.6, 0.88]], { seed: 14, tip: [0.02, 0] }), [0.1, 0.78, 0.06], [0.22, 0, -0.42]),
+    b(scSpec(5, 0.14, 0.68, [[0, 1], [0.58, 0.85]], { seed: 15, tip: [0, 0] }), [-0.24, 0.7, 0.1], [0.25, 0, 0.62]),
+    b(scSpec(5, 0.11, 0.48, [[0, 1], [0.55, 0.82]], { seed: 16, tip: [0, 0] }), [0.42, 0.45, 0.22], [0.35, 0, -1.05]),
+    b(scSpec(6, 0.1, 0.42, [[0, 1], [0.55, 0.8]], { seed: 22, tip: [0, 0] }), [-0.12, 0.42, 0.4], [1.0, 0, 0.25])
+  ];
+  if (sh === 'twin') return [
+    b(scSpec(6, 0.3, 1.85, [[0, 0.88], [0.1, 1], [0.64, 0.92], [0.74, 0.72]], { seed: 17, tip: [0.03, 0] }), [-0.2, y, -0.02], [0.04, 0, 0.2]),
+    b(scSpec(5, 0.27, 1.5, [[0, 0.88], [0.1, 1], [0.62, 0.9], [0.72, 0.7]], { seed: 18, tip: [-0.02, 0.02] }), [0.22, y, 0.06], [0.1, 0, -0.26]),
+    b(scSpec(5, 0.1, 0.45, [[0, 1], [0.55, 0.8]], { seed: 19, tip: [0, 0] }), [0.02, y, 0.28], [0.6, 0, 0.1])
+  ];
+  // monolith: breite, flache Platte, oben schräg abgebrochen
+  const slab = [[0.47, 0.23], [0.57, 0.13], [0.55, -0.16], [0.49, -0.21], [-0.48, -0.22], [-0.57, -0.12], [-0.55, 0.15], [-0.5, 0.22]];
+  const mono = scSpec(8, 0.56, 2.0, [[0, 0.96], [0.08, 1.03], [0.86, 0.94]], { poly: slab, cut: [0.3, 0.05] });
+  return [b(mono, [0, y, 0], [0, 0.28, 0])];
 }
 
 function buildStone3(b, st) {
   const A = adder(b, null);
   const L = st.look;
   const sh = L.shape;
-  // Form des Eis je Stein (alle stumpf und rund, aber unterscheidbar)
-  const R = sh === 'spire' ? 0.44 : sh === 'boulder' ? 0.6 : sh === 'monolith' ? 0.5 : 0.5;
-  const H = sh === 'spire' ? 1.95 : sh === 'boulder' ? 1.5 : sh === 'monolith' ? 1.95 : 1.75;
-  const k = sh === 'boulder' ? 0.16 : 0.12;
-  const stone = mixColor('#8c867c', L.base, 0.35);
+  const bodies = stoneBodies3(sh);
+  const main = bodies[0];
+  const H = Math.max(...bodies.map((o) => o.p[1] + o.sp.H * o.s * Math.cos(Math.hypot(o.r[0], o.r[2]))));
+  const stone = mixColor('#77716a', L.base, 0.45);
   const dark = new THREE.Color(L.base).getHSL({}).l < 0.14;
-  const shell = lighter(L.base, dark ? 0.24 : 0.12);
+  // Kristall leicht in der Farbe seines Scheins
+  const shell = mixColor(lighter(L.base, dark ? 0.24 : 0.12), L.glow, 0.12);
+  const topC = lighter(L.top, 0.15);
   const y0 = 0.3;
-  // Knochen: 0 Sockel, 1 Ei, 2 Runenring, 3–5 Risse, die bei 75/50/25 % Leben erscheinen
-  const mid = [0, y0 - 0.3 + H * 0.5, 0];
+  // Knochen: 0 Sockel, 1 Kristall, 2 Schwebendes (Splitter, Rauch), 3–5 Risse, die bei 75/50/25 % Leben erscheinen
+  const mid = [0, H * 0.5, 0];
   const rig = rigOf([[[0, 0, 0], -1], [[0, 0.3, 0], 0], [[0, 0.3, 0], 0], [mid, 1], [mid, 1], [mid, 1]]);
   const vein = L.rune;
-  // Sockel: flacher Felsring und Krallen, die das Ei halten
-  A(lathe3('stbase3', [[0.72, 0], [0.74, 0.06], [0.66, 0.14], [0.68, 0.18], [0.5, 0.3], [0, 0.31]], 24), stone, { bone: 0, top: lighter(stone, 0.12), topK: 0.6 });
-  A(torus3(0.69, 0.025, Math.PI * 2, 4, 32), L.rune, { bone: 0, p: [0, 0.16, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
-  for (let i = 0; i < 6; i++) {
-    const a = (i / 6) * Math.PI * 2 + 0.3;
-    A(rockGeo(i % 3), darker(stone, 0.12), { bone: 0, p: [Math.sin(a) * 0.86, 0.05, Math.cos(a) * 0.86], s: [0.1, 0.08 + (i % 2) * 0.04, 0.1], top: stone, topK: 0.5 });
-  }
-  const claws = sh === 'twin' ? 3 : 4;
-  for (let i = 0; i < claws; i++) {
-    const a = (i / claws) * Math.PI * 2 + Math.PI / claws;
-    const p0 = [Math.sin(a) * 0.58, 0.24, Math.cos(a) * 0.58];
-    const p1 = eggAt(R, H, k, 0.28, a, 1.12); p1[1] += y0;
-    const p2 = eggAt(R, H, k, 0.52, a, 0.98); p2[1] += y0;
-    limbBetween(A, p0, p1, 0.075, 0.06, stone, { bone: 0, seg: 8 });
-    limbBetween(A, p1, p2, 0.06, 0.02, stone, { bone: 0, seg: 8 });
-    A(ball(8), L.rune, { bone: 0, p: [p1[0] * 1.02, p1[1], p1[2] * 1.02], s: 0.045, mat: 'glow' });
-  }
-  // Das Ei (bei "twin" zwei verschmolzene Eier)
-  const eggs = sh === 'twin' ? [[-0.24, 0.85, -0.12], [0.26, 0.75, 0.12]] : [[0, 1, 0]];
-  for (const [ex, es, er] of eggs) {
-    A(eggGeo(R, H, k), shell, { bone: 1, p: [ex, y0 - 0.3, 0], s: es, r: [0, 0, er], top: lighter(L.top, 0.15), topK: 0.4, shade: 0.3, shine: 0.6, ao: 0.05 });
-  }
-  // glühende Naht, wo das Ei in der Wiege sitzt, und weicher Schein um die Schale
-  if (sh !== 'twin') {
-    const q = eggAt(R, H, k, 0.1, 0, 1.0);
-    A(torus3(Math.hypot(q[0], q[2]) + 0.01, 0.03, Math.PI * 2, 4, 32), L.rune, { bone: 1, p: [0, q[1] + y0 - 0.3, 0], r: [Math.PI / 2, 0, 0], mat: 'glow' });
-    A(eggGeo(R, H, k), darker(L.glow, 0.72), { bone: 1, p: [0, y0 - 0.3 - H * 0.03, 0], s: 1.07, mat: 'aura' });
-  }
-  // Glühende Adern: verzweigte Risse von unten nach oben über die Schale
   const rnd = mulberry32(7 + STONE_TYPES.indexOf(st) * 13);
-  const veins = sh === 'twin' ? 3 : 5;
-  for (let v = 0; v < veins; v++) {
-    let a = (v / veins) * Math.PI * 2 + rnd() * 0.5;
-    let u = 0.12 + rnd() * 0.1;
-    let prev = eggAt(R, H, k, u, a, 1.005);
-    const steps = 4 + Math.floor(rnd() * 3);
-    for (let s = 0; s < steps; s++) {
-      u = Math.min(0.92, u + 0.1 + rnd() * 0.08);
-      a += (rnd() - 0.5) * 0.7;
-      const next = eggAt(R, H, k, u, a, 1.005);
-      limbBetween(A, [prev[0], prev[1] + y0 - 0.3, prev[2]], [next[0], next[1] + y0 - 0.3, next[2]], 0.032, 0.022, vein, { bone: 1, mat: 'glow', seg: 5 });
-      if (rnd() < 0.35) {
-        const side = eggAt(R, H, k, u - 0.05, a + (rnd() < 0.5 ? -0.45 : 0.45), 1.005);
-        limbBetween(A, [next[0], next[1] + y0 - 0.3, next[2]], [side[0], side[1] + y0 - 0.3, side[2]], 0.016, 0.008, vein, { bone: 1, mat: 'glow', seg: 5 });
-      }
+  // Sockel: kantiger Felshügel, Brocken und Geröll drumherum
+  const mound = scSpec(9, 0.58, 0.26, [[0, 1.04], [0.5, 0.9], [1, 0.62]], { seed: 21, jit: 0.2, cut: [0.06, -0.05] });
+  A(scGeo(mound), stone, { bone: 0, top: lighter(stone, 0.14), topK: 0.6, ao: 0.1 });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2 + 0.4;
+    const big = i % 3 === 0;
+    A(scRock3(i % 4), i % 2 ? darker(stone, 0.12) : darker(stone, 0.04), { bone: 0, p: [Math.sin(a) * (big ? 0.6 : 0.72), 0.04, Math.cos(a) * (big ? 0.6 : 0.72)], r: [0, a * 1.7, 0], s: big ? [0.17, 0.19, 0.15] : [0.09, 0.08 + (i % 2) * 0.04, 0.09], top: lighter(stone, 0.1), topK: 0.5 });
+  }
+  // kleine Kristallsplitter, die aus dem Fels wachsen
+  const chips = sh === 'cluster' ? 2 : 4;
+  for (let i = 0; i < chips; i++) {
+    const a = (i / chips) * Math.PI * 2 + 0.9 + rnd() * 0.4;
+    const len = 0.22 + rnd() * 0.16;
+    const sp = scSpec(4 + (i % 2), 0.06 + rnd() * 0.02, len, [[0, 1], [0.55, 0.8]], { seed: 30 + i, tip: [0, 0] });
+    A(scGeo(sp), i % 2 ? shell : topC, { bone: 0, p: [Math.sin(a) * 0.5, 0.1, Math.cos(a) * 0.5], r: [Math.cos(a) * 0.75, 0, -Math.sin(a) * 0.75], top: topC, topK: 0.4, shine: 0.6 });
+  }
+  // Kristallkörper (flache Facetten) und darüber das Leuchten des Kerns
+  // (der Brocken ist Fels, aus dem die Kristalle brechen)
+  for (const o of bodies) {
+    A(scGeo(o.sp), o.rock ? mixColor(shell, stone, 0.45) : sh === 'boulder' ? mixColor(shell, L.glow, 0.45) : shell, { bone: 1, p: o.p, r: o.r, s: o.s, top: o.rock ? lighter(stone, 0.1) : topC, topK: 0.45, shade: 0.28, shine: o.rock ? 0.2 : 0.6, ao: 0.08 });
+    A(scCoreGeo(o.sp, lighter(L.glow, 0.15), o.rock ? 0.6 : o === main ? 1.7 : 1.3), null, { bone: 1, p: o.p, r: o.r, s: o.s, mat: 'aura', ao: 0 });
+  }
+  // Linie entlang der Oberfläche (in kleinen Stücken, damit sie über die Kanten nicht einsinkt)
+  const surfLine = (o, u0, a0, u1, a1, out, r1, r2, color, opt) => {
+    let prev = stoneAt(o, u0, a0, out);
+    for (let k = 1; k <= 2; k++) {
+      const next = stoneAt(o, u0 + (u1 - u0) * (k / 2), a0 + (a1 - a0) * (k / 2), out);
+      limbBetween(A, prev, next, r1, r2, color, opt);
       prev = next;
     }
-  }
-  // Risse, die mit dem Schaden wachsen (hell glühend, breiter als die Adern)
-  for (let stage = 0; stage < 3; stage++) {
-    for (let v = 0; v < 2 + stage; v++) {
-      let a = rnd() * Math.PI * 2;
-      let u = 0.35 + rnd() * 0.35;
-      let prev = eggAt(R, H, k, u, a, 1.01);
-      for (let s = 0; s < 4; s++) {
-        u = Math.max(0.08, Math.min(0.94, u + (rnd() - 0.5) * 0.3));
-        a += (rnd() - 0.5) * 0.6;
-        const next = eggAt(R, H, k, u, a, 1.01);
-        limbBetween(A, [prev[0], prev[1] + y0 - 0.3, prev[2]], [next[0], next[1] + y0 - 0.3, next[2]], 0.045, 0.03, lighter(L.rune, 0.35), { bone: 3 + stage, mat: 'glow', seg: 5 });
-        prev = next;
-      }
+  };
+  // Glühende Adern von unten nach oben (auf den großen Kristallen)
+  const big = bodies.filter((o) => o.sp.H * o.s >= 1);
+  const veins = big.length > 1 ? 2 : 4;
+  for (const o of big.slice(0, 2)) for (let v = 0; v < veins; v++) {
+    let a = (v / veins) * Math.PI * 2 + rnd() * 0.5;
+    let u = 0.1 + rnd() * 0.08;
+    const steps = 3 + Math.floor(rnd() * 3);
+    for (let s = 0; s < steps; s++) {
+      const u1 = Math.min(o.sp.tip ? 0.66 : 0.82, u + 0.1 + rnd() * 0.08);
+      const a1 = a + (rnd() - 0.5) * 0.8;
+      surfLine(o, u, a, u1, a1, 1.01, 0.026, 0.02, vein, { bone: 1, mat: 'glow', seg: 4 });
+      if (rnd() < 0.3) surfLine(o, u1, a1, u1 - 0.06, a1 + (rnd() < 0.5 ? -0.4 : 0.4), 1.01, 0.014, 0.008, vein, { bone: 1, mat: 'glow', seg: 4 });
+      u = u1;
+      a = a1;
     }
   }
-  // Rune vorn: glühendes Auge / Zeichen im Ei
-  const front = eggAt(R, H, k, 0.5, 0, 1.0);
-  A(torus3(0.13, 0.022, Math.PI * 2, 4, 18), vein, { bone: 1, p: [front[0], front[1] + y0 - 0.3, front[2] + 0.005], mat: 'glow' });
-  A(ball(10), lighter(L.glow, 0.3), { bone: 1, p: [front[0], front[1] + y0 - 0.3, front[2] - 0.01], s: [0.08, 0.1, 0.03], mat: 'glow' });
-  // Schwebender Runenring (dreht sich)
-  const ringY = y0 + H * 0.55;
-  A(torus3(R + 0.32, 0.012, Math.PI * 2, 3, 40), L.glow, { bone: 2, p: [0, ringY - 0.3, 0], r: [Math.PI / 2 + 0.25, 0, 0], mat: 'aura' });
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    A(lathe3('shard', [[0, 0], [0.06, 0.08], [0.04, 0.18], [0, 0.24]], 5), vein, { bone: 2, p: [Math.sin(a) * (R + 0.32), ringY - 0.3 + Math.cos(a) * 0.08, Math.cos(a) * (R + 0.32)], mat: 'glow' });
+  // Risse, die mit dem Schaden wachsen (zackig, hell glühend); ab 25 % platzen Splitter ab
+  for (let stage = 0; stage < 3; stage++) {
+    const bone = 3 + stage;
+    for (let v = 0; v < 2 + stage; v++) {
+      const o = big[v % big.length];
+      let a = (v % 2 ? 1 : -1) * (0.2 + rnd() * 1.1) + (rnd() < 0.3 ? Math.PI : 0);
+      let u = 0.3 + rnd() * 0.32;
+      for (let s = 0; s < 4; s++) {
+        const u1 = Math.max(0.08, Math.min(o.sp.tip ? 0.7 : 0.84, u + (s % 2 ? 0.14 : -0.12) * (0.6 + rnd() * 0.8)));
+        const a1 = a + (s % 2 ? -1 : 1) * (0.18 + rnd() * 0.25);
+        surfLine(o, u, a, u1, a1, 1.02, 0.036, 0.026, lighter(L.rune, 0.35), { bone, mat: 'glow', seg: 4 });
+        u = u1;
+        a = a1;
+      }
+    }
+    // abgeplatzte Splitter am Riss (Stufe 2 einer, Stufe 3 drei)
+    for (let i = 0; i < stage; i++) {
+      const o = big[i % big.length];
+      const a = (i - 1) * 0.9 + rnd() * 0.3;
+      const p = stoneAt(o, 0.35 + i * 0.16, a, 1.0);
+      const sp = scSpec(3, 0.09, 0.2, [[0, 1], [0.4, 0.8]], { seed: 40 + i + stage * 3, tip: [0, 0] });
+      A(scGeo(sp), shell, { bone, p, r: [Math.cos(a) * 1.3, 0, -Math.sin(a) * 1.3], top: topC, topK: 0.4, shine: 0.5 });
+    }
   }
+  // Herz: ein glühender, geschliffener Kern in der vorderen Facette
+  const fa = scFaceAngle(main.sp, -main.r[1]);
+  const heart = stoneAt(main, sh === 'boulder' ? 0.5 : 0.4, fa, 1.0);
+  A(octa3(), lighter(L.glow, 0.35), { bone: 1, p: heart, r: [0, fa + main.r[1], 0], s: [0.09, 0.15, 0.06], mat: 'glow' });
+  A(octa3(), L.glow, { bone: 1, p: heart, r: [0, fa + main.r[1], 0], s: [0.17, 0.26, 0.08], mat: 'aura' });
   // Besonderheiten je Stein
   if (L.thorns) for (let i = 0; i < 9; i++) {
-    const a = i * 0.7, u = 0.15 + (i % 4) * 0.18;
-    const p = eggAt(R, H, k, u, a, 0.98);
-    A(horn3(0.22, 0.05, 6), '#4a3220', { bone: 1, p: [p[0], p[1] + y0 - 0.3, p[2]], r: [Math.cos(a) * 1.2, 0, -Math.sin(a) * 1.2] });
+    const a = i * 0.7, u = 0.15 + (i % 4) * 0.15;
+    const p = stoneAt(main, u, a, 0.96);
+    const sp = scSpec(4, 0.05, 0.24, [[0, 1], [0.25, 0.8]], { seed: 50 + (i % 3), tip: [0, 0] });
+    A(scGeo(sp), '#4a3220', { bone: 1, p, r: [Math.cos(a) * 1.2, 0, -Math.sin(a) * 1.2], top: '#6a4a30', topK: 0.4 });
   }
   if (L.lava) {
-    A(new THREE.CircleGeometry(0.75, 28).rotateX(-Math.PI / 2), '#ff6a1a', { bone: 0, p: [0, 0.32, 0], mat: 'glow' });
-    for (let i = 0; i < 6; i++) { const a = i * 1.05; A(ball(8), '#ffb04a', { bone: 0, p: [Math.sin(a) * 0.7, 0.33, Math.cos(a) * 0.7], s: [0.06, 0.03, 0.06], mat: 'glow' }); }
+    A(geo3('stlava', () => {
+      // Lavalache mit unregelmäßigem, zackigem Rand
+      const g = new THREE.CircleGeometry(1, 16).rotateX(-Math.PI / 2);
+      const P = g.attributes.position;
+      const r = mulberry32(91);
+      const k0 = 0.8 + r() * 0.3;
+      for (let i = 1; i < P.count; i++) { const k = i === 1 || i === P.count - 1 ? k0 : 0.8 + r() * 0.3; P.setXYZ(i, P.getX(i) * k, 0, P.getZ(i) * k); }
+      return g;
+    }), '#ff6a1a', { bone: 0, p: [0, 0.035, 0], mat: 'glow' });
+    for (let i = 0; i < 6; i++) { const a = i * 1.05; A(octa3(), '#ffb04a', { bone: 0, p: [Math.sin(a) * 0.78, 0.07, Math.cos(a) * 0.78], s: [0.06, 0.03, 0.06], mat: 'glow' }); }
   }
   if (L.ice) for (let i = 0; i < 7; i++) {
     const a = i * 0.9;
-    A(lathe3('icespike2', [[0.09, 0], [0.07, 0.35], [0, 0.55]], 6), '#e8f6ff', { bone: 0, p: [Math.sin(a) * 0.78, 0.15, Math.cos(a) * 0.78], s: 0.7 + (i % 3) * 0.25, r: [Math.cos(a) * 0.45, 0, -Math.sin(a) * 0.45], shine: 0.9 });
+    const sp = scSpec(5 + (i % 2), 0.09, 0.55, [[0, 1], [0.62, 0.8]], { seed: 60 + (i % 3), tip: [0, 0] });
+    A(scGeo(sp), '#e8f6ff', { bone: 0, p: [Math.sin(a) * 0.8, 0.08, Math.cos(a) * 0.8], s: 0.7 + (i % 3) * 0.25, r: [Math.cos(a) * 0.45, 0, -Math.sin(a) * 0.45], top: '#ffffff', topK: 0.5, shine: 0.9 });
   }
-  if (L.crystal || sh === 'cluster') for (let i = 0; i < 4; i++) {
+  if (L.crystal) for (let i = 0; i < 4; i++) {
     const a = i * 1.6 + 0.4;
-    const p = eggAt(R, H, k, 0.75 + (i % 2) * 0.1, a, 0.85);
-    A(lathe3('crystal2', [[0.08, 0], [0.1, 0.25], [0.05, 0.38], [0, 0.44]], 6), L.crystal ? '#ff8a9a' : L.top, { bone: 1, p: [p[0], p[1] + y0 - 0.3, p[2]], r: [Math.cos(a) * 0.7, 0, -Math.sin(a) * 0.7], mat: L.crystal ? 'glow' : 'lit', shine: 0.8 });
+    const p = stoneAt(main, 0.5 + (i % 2) * 0.12, a, 0.85);
+    const sp = scSpec(5, 0.08, 0.44, [[0, 1], [0.6, 0.85]], { seed: 70 + i, tip: [0, 0] });
+    A(scGeo(sp), '#ff8a9a', { bone: 1, p, r: [Math.cos(a) * 0.9, 0, -Math.sin(a) * 0.9], mat: 'glow' });
   }
-  if (sh === 'obelisk' || sh === 'monolith') for (const u of [0.3, 0.68]) {
-    const p = eggAt(R, H, k, u, 0, 1.0);
-    const rr = Math.hypot(p[0], p[2]);
-    A(torus3(rr + 0.01, 0.035, Math.PI * 2, 5, 32), sh === 'monolith' ? '#c9a35a' : darker(L.base, 0.3), { bone: 1, p: [0, p[1] + y0 - 0.3, 0], r: [Math.PI / 2, 0, 0], shine: 0.7 });
+  if (sh === 'obelisk' || sh === 'monolith') for (const u of sh === 'obelisk' ? [0.28, 0.6] : [0.3, 0.66]) {
+    const [s] = scProfile(main.sp, u);
+    A(scBandGeo(main.sp, u, 0.07), sh === 'monolith' ? '#c9a35a' : darker(L.base, 0.3), { bone: 1, p: [0, main.p[1] + u * main.sp.H - 0.035, 0], r: main.r, top: sh === 'monolith' ? '#e8c87a' : null, topK: 0.5, shine: 0.7 });
   }
   if (L.crown) for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    const p = eggAt(R, H, k, 0.88, a, 1.0);
-    A(horn3(0.32, 0.06, 6), '#e8c46a', { bone: 1, p: [p[0], p[1] + y0 - 0.3, p[2]], r: [Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5], shine: 0.8 });
+    const p = stoneAt(main, 0.86, a, 0.98);
+    const sp = scSpec(4, 0.065, 0.34, [[0, 1], [0.3, 0.85]], { seed: 80 + i, tip: [0, 0], jit: 0.05 });
+    A(scGeo(sp), '#e8c46a', { bone: 1, p, r: [Math.cos(a) * 0.5, 0, -Math.sin(a) * 0.5], top: '#fff0b0', topK: 0.5, shine: 0.8 });
+  }
+  // schwebende Splitter über der Spitze (Monolithen und Krone, wie im 2D-Bild)
+  if (sh === 'monolith' || L.crown) for (let i = 0; i < (L.crown ? 5 : 3); i++) {
+    const a = (i / (L.crown ? 5 : 3)) * Math.PI * 2;
+    A(octa3(), i % 2 ? L.rune : L.glow, { bone: 2, p: [Math.sin(a) * 0.62, H + 0.12 + (i % 2) * 0.12, Math.cos(a) * 0.62], s: [0.05, 0.1, 0.05], r: [0, a, 0.3], mat: 'glow' });
   }
   if (L.smoke) for (let i = 0; i < 5; i++) {
     const a = i * 1.3;
     A(ball(10), darker(L.base, 0.4), { bone: 2, p: [Math.sin(a) * 0.75, 0.45 + (i % 3) * 0.25, Math.cos(a) * 0.75], s: [0.22, 0.14, 0.22], mat: 'aura' });
   }
-  A(new THREE.CircleGeometry(1.15, 32).rotateX(-Math.PI / 2), L.glow, { bone: 0, p: [0, 0.03, 0], mat: 'aura' });
-  return { rig, height: y0 + H + 0.1, family: 'stone' };
+  A(geo3('stglow', () => new THREE.CircleGeometry(1.15, 32).rotateX(-Math.PI / 2)), L.glow, { bone: 0, p: [0, 0.03, 0], mat: 'aura' });
+  return { rig, height: y0 + H + 0.05, family: 'stone' };
 }
 
 // --- Diener des Nekromanten (seit 8.5) -----------------------------------------------------------------
@@ -4500,7 +4780,8 @@ const SKILL_POSE3 = {
       const d = Math.pow(poseSeg(sw, 0.58, 0.65), 3);
       setArm(B[BH.armR], (-3.0 + 2.55 * d) * w, 0, -0.15 * w);
       setArm(B[BH.armL], (-2.7 + 2.1 * d) * w, 0, -0.15 * w);
-      B[BH.handR].rotation.x = 0.5 * d * (sw >= 0.8 ? 1 - easeInOut3(poseSeg(sw, 0.8, 0.9)) : 1);
+      // seit 13.85 kippt das Handgelenk die Klinge nach unten in den Boden (vorher 0,5: die Klinge zeigte nach oben)
+      B[BH.handR].rotation.x = Math.max(0.5, wristExt3(kind)) * d * (sw >= 0.8 ? 1 - easeInOut3(poseSeg(sw, 0.8, 0.9)) : 1);
       B[BH.chest].rotation.x = (-0.3 + 0.85 * d) * w;
       B[BH.hips].position.y -= 0.14 * d * w;
       B[BH.hips].position.z += 0.2 * d * w;
@@ -4601,7 +4882,8 @@ const SKILL_POSE3 = {
       const i = Math.min(1, (T - 0.55) / 0.04);
       const w = T >= 0.64 ? 1 - easeInOut3(poseSeg(T, 0.64, 0.8)) : 1;
       setArm(B[BH.armR], (-2.2 + 1.9 * i) * w, 0, -0.25 * w);
-      B[BH.handR].rotation.x = 0.8 * i * (T >= 0.64 ? 1 - easeInOut3(poseSeg(T, 0.64, 0.72)) : 1);
+      // seit 13.85: Klinge beim Aufschlag nach vorn unten in den Boden (vorher 0,8: sie zeigte schräg nach oben)
+      B[BH.handR].rotation.x = Math.max(0.8, wristExt3(kind)) * i * (T >= 0.64 ? 1 - easeInOut3(poseSeg(T, 0.64, 0.72)) : 1);
       if (two) setArm(B[BH.armL], -0.5 * w, 0, -0.3 * w);
       else setArm(B[BH.armL], -0.4 * w, 0, 1.0 * w);
       B[BH.hips].position.y -= 0.24 * w;
@@ -4631,6 +4913,8 @@ const SKILL_POSE3 = {
     const w = T < 0.25 ? 1 : 1 - easeInOut3(poseSeg(T, 0.25, 0.4));
     const b = easeOut(poseSeg(T, 0.12, 0.2));
     setArm(B[BH.armR], (0.5 - 2.05 * b) * w, 0, -0.35 * (1 - b) * w);
+    // seit 13.85: der Stabkopf zeigt beim Stoß nach vorn zum Ziel (vorher über die Schulter nach hinten)
+    B[BH.handR].rotation.x = 0.85 * wristExt3(kind) * b * w;
     setArm(B[BH.armL], -0.3 * w, 0, (0.3 + 1.0 * b) * w);
     B[BH.chest].rotation.y = (0.4 - 0.7 * b) * w;
     B[BH.chest].rotation.x = 0.17 * b * w;
@@ -4697,7 +4981,8 @@ const SKILL_POSE3 = {
 // Schlüsselposen je Waffe und Kombo-Schlag: [Zeit 0…1, Pose, Übergang]. Übergang 'in' beschleunigt (der Schlag),
 // 'out' bremst (Ausholen, Durchziehen), sonst weich. Kanäle (fehlend = 0):
 //   hy Hüfte drehen, hpy/hpz Hüfte heben/vor, cx/cy/cz Oberkörper beugen/drehen/kippen, hx Kopf,
-//   rx/ry/rz rechter Arm, lx/ly/lz linker Arm, wx/wz rechtes Handgelenk, gl/gr Beine, sy ganze Figur drehen.
+//   rx/ry/rz rechter Arm, lx/ly/lz linker Arm, wx/wz rechtes Handgelenk, wl linkes Handgelenk (seit 13.85),
+//   gl/gr Beine, sy ganze Figur drehen.
 // Arme: rx −1,5 = waagerecht nach vorn, −2,7 = über dem Kopf; rz < 0 rechter Arm nach außen, > 0 quer vor den Körper
 // (linker Arm umgekehrt). Oberkörper cy > 0 dreht nach links. Zweihänder (two) führen den linken Arm am Griff mit.
 const N3 = { rz: -0.08, lz: 0.08 };
@@ -4705,50 +4990,52 @@ const N3 = { rz: -0.08, lz: 0.08 };
 const BELL_N3 = { rx: -0.8, rz: -0.16, lz: 0.08, wx: -1.2 };
 const BASIC3 = {
   sword: [
-    [[0, N3], [0.34, { cy: -0.55, cx: -0.12, hy: -0.25, rx: -2.6, rz: -0.55, lx: -1.1, lz: 0.25, gr: 0.2, gl: -0.15 }, 'out'],
-      [0.42, { cy: 0.5, cx: 0.2, hy: 0.25, rx: -1.0, rz: 0.6, lx: -1.2, lz: 0.2, gr: -0.35, gl: 0.3, hpz: 0.08, hpy: -0.04 }, 'in'],
-      [0.66, { cy: 0.62, cx: 0.24, hy: 0.3, rx: -0.55, rz: 0.75, lx: -1.0, lz: 0.2, gr: -0.3, gl: 0.25, hpz: 0.06, hpy: -0.04 }, 'out'], [1, N3]],
-    [[0, N3], [0.32, { cy: 0.6, cx: 0.15, hy: 0.25, rx: -0.75, rz: 0.85, lx: -0.9, lz: 0.35, gl: -0.2, gr: 0.15, hpy: -0.03 }, 'out'],
-      [0.42, { cy: -0.45, cx: -0.1, hy: -0.2, rx: -2.3, rz: -0.55, lx: -1.15, lz: 0.25, gl: 0.3, gr: -0.25, hpz: 0.06 }, 'in'],
-      [0.66, { cy: -0.6, cx: -0.12, hy: -0.25, rx: -2.55, rz: -0.7, lx: -1.0, lz: 0.25, gl: 0.25, gr: -0.2, hpz: 0.05 }, 'out'], [1, N3]],
-    [[0, N3], [0.32, { cy: -0.45, hy: -0.2, cx: -0.08, rx: -1.2, rz: -0.35, lx: -1.3, lz: 0.2, hpz: -0.06, gr: 0.25, gl: -0.1 }, 'out'],
-      [0.42, { cy: 0.2, hy: 0.1, cx: 0.22, rx: -1.62, rz: 0.05, lx: -1.5, lz: 0.05, hpz: 0.26, hpy: -0.07, gr: -0.75, gl: 0.5 }, 'in'],
-      [0.68, { cy: 0.22, hy: 0.1, cx: 0.2, rx: -1.55, rz: 0.05, lx: -1.35, lz: 0.1, hpz: 0.22, hpy: -0.06, gr: -0.65, gl: 0.45 }, 'out'], [1, N3]]
+    [[0, N3], [0.34, { cy: -0.55, cx: -0.12, hy: -0.25, rx: -2.6, rz: -0.55, lx: -1.1, lz: 0.25, gr: 0.2, gl: -0.15, wx: 0.7 }, 'out'],
+      [0.42, { cy: 0.5, cx: 0.2, hy: 0.25, rx: -1.0, rz: 0.6, lx: -1.2, lz: 0.2, gr: -0.35, gl: 0.3, hpz: 0.08, hpy: -0.04, wx: 2.3 }, 'in'],
+      [0.66, { cy: 0.62, cx: 0.24, hy: 0.3, rx: -0.55, rz: 0.75, lx: -1.0, lz: 0.2, gr: -0.3, gl: 0.25, hpz: 0.06, hpy: -0.04, wx: 2.4 }, 'out'], [1, N3]],
+    [[0, N3], [0.32, { cy: 0.6, cx: 0.15, hy: 0.25, rx: -0.75, rz: 0.85, lx: -0.9, lz: 0.35, gl: -0.2, gr: 0.15, hpy: -0.03, wx: 2.2 }, 'out'],
+      [0.42, { cy: -0.45, cx: -0.1, hy: -0.2, rx: -2.3, rz: -0.55, lx: -1.15, lz: 0.25, gl: 0.3, gr: -0.25, hpz: 0.06, wx: 1.4 }, 'in'],
+      [0.66, { cy: -0.6, cx: -0.12, hy: -0.25, rx: -2.55, rz: -0.7, lx: -1.0, lz: 0.25, gl: 0.25, gr: -0.2, hpz: 0.05, wx: 1.2 }, 'out'], [1, N3]],
+    [[0, N3], [0.32, { cy: -0.45, hy: -0.2, cx: -0.08, rx: -0.5, rz: -0.2, lx: -1.3, lz: 0.2, hpz: -0.06, gr: 0.25, gl: -0.1, wx: 1.55 }, 'out'],
+      [0.42, { cy: 0.2, hy: 0.1, cx: 0.22, rx: -1.62, rz: 0.05, lx: -1.5, lz: 0.05, hpz: 0.26, hpy: -0.07, gr: -0.75, gl: 0.5, wx: 2.75 }, 'in'],
+      [0.68, { cy: 0.22, hy: 0.1, cx: 0.2, rx: -1.55, rz: 0.05, lx: -1.35, lz: 0.1, hpz: 0.22, hpy: -0.06, gr: -0.65, gl: 0.45, wx: 2.7 }, 'out'], [1, N3]]
   ],
   // Axt (seit 13.48): nur Hiebe nach vorn – senkrecht von oben, schräg von der Schulter, wuchtig mit Ausfallschritt
   axe: [
-    [[0, N3], [0.36, { rx: -2.95, rz: -0.15, cx: -0.25, cy: -0.2, lx: -0.6, lz: 0.4, hpy: 0.02, gr: 0.15 }, 'out'],
-      [0.45, { rx: -0.7, rz: 0.15, cx: 0.35, cy: 0.15, hpy: -0.08, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3 }, 'in'],
-      [0.68, { rx: -0.45, rz: 0.2, cx: 0.3, cy: 0.15, hpy: -0.07, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.7, lz: 0.3 }, 'out'], [1, N3]],
-    [[0, N3], [0.34, { rx: -2.6, rz: -0.65, cy: -0.4, cx: -0.15, hy: -0.18, lx: -0.6, lz: 0.4, gr: 0.15, gl: -0.1 }, 'out'],
-      [0.45, { rx: -0.65, rz: 0.4, cy: 0.32, cx: 0.32, hy: 0.15, hpy: -0.06, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3 }, 'in'],
-      [0.68, { rx: -0.5, rz: 0.45, cy: 0.36, cx: 0.28, hy: 0.16, hpy: -0.05, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.75, lz: 0.3 }, 'out'], [1, N3]],
-    [[0, N3], [0.38, { rx: -3.05, rz: -0.05, cx: -0.32, hpy: 0.06, gr: 0.2, gl: -0.1, lx: -1.8, lz: 0.45 }, 'out'],
-      [0.5, { rx: -0.4, rz: 0.05, cx: 0.55, hpy: -0.14, hpz: 0.12, gr: -0.6, gl: 0.45, lx: -0.6, lz: 0.5 }, 'in'],
-      [0.74, { rx: -0.35, rz: 0.05, cx: 0.5, hpy: -0.12, hpz: 0.1, gr: -0.5, gl: 0.4, lx: -0.55, lz: 0.5 }, 'out'], [1, N3]]
+    [[0, N3], [0.36, { rx: -2.95, rz: -0.15, cx: -0.25, cy: -0.2, lx: -0.6, lz: 0.4, hpy: 0.02, gr: 0.15, wx: 0.8 }, 'out'],
+      [0.45, { rx: -0.7, rz: 0.15, cx: 0.35, cy: 0.15, hpy: -0.08, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3, wx: 1.6 }, 'in'],
+      [0.68, { rx: -0.45, rz: 0.2, cx: 0.3, cy: 0.15, hpy: -0.07, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.7, lz: 0.3, wx: 1.7 }, 'out'], [1, N3]],
+    [[0, N3], [0.34, { rx: -2.6, rz: -0.65, cy: -0.4, cx: -0.15, hy: -0.18, lx: -0.6, lz: 0.4, gr: 0.15, gl: -0.1, wx: 0.7 }, 'out'],
+      [0.45, { rx: -0.65, rz: 0.4, cy: 0.32, cx: 0.32, hy: 0.15, hpy: -0.06, hpz: 0.08, gr: -0.35, gl: 0.3, lx: -0.9, lz: 0.3, wx: 1.6 }, 'in'],
+      [0.68, { rx: -0.5, rz: 0.45, cy: 0.36, cx: 0.28, hy: 0.16, hpy: -0.05, hpz: 0.07, gr: -0.3, gl: 0.25, lx: -0.75, lz: 0.3, wx: 1.7 }, 'out'], [1, N3]],
+    // seit 13.85 trifft der Hieb zur Trefferzeit (0,45 statt 0,5: vorher kam der Schaden, als die Axt noch oben war)
+    [[0, N3], [0.36, { rx: -3.05, rz: -0.05, cx: -0.32, hpy: 0.06, gr: 0.2, gl: -0.1, lx: -1.8, lz: 0.45, wx: 0.9 }, 'out'],
+      [0.46, { rx: -0.4, rz: 0.05, cx: 0.55, hpy: -0.14, hpz: 0.12, gr: -0.6, gl: 0.45, lx: -0.6, lz: 0.5, wx: 1.6 }, 'in'],
+      [0.72, { rx: -0.35, rz: 0.05, cx: 0.5, hpy: -0.12, hpz: 0.1, gr: -0.5, gl: 0.4, lx: -0.55, lz: 0.5, wx: 1.6 }, 'out'], [1, N3]]
   ],
   greatsword: [
-    [[0, N3], [0.38, { cy: -0.95, hy: -0.45, cx: -0.05, rx: -1.35, rz: -1.0, gr: 0.3, gl: -0.2, hpy: -0.03, two: 1 }, 'out'],
-      [0.5, { cy: 0.75, hy: 0.4, rx: -1.35, rz: 0.75, gr: -0.4, gl: 0.35, hpz: 0.08, hpy: -0.06, two: 1 }, 'in'],
-      [0.72, { cy: 0.95, hy: 0.5, rx: -1.2, rz: 0.9, gr: -0.35, gl: 0.3, hpz: 0.07, hpy: -0.05, two: 1 }, 'out'], [1, N3]],
-    [[0, N3], [0.36, { cy: 0.8, hy: 0.35, cx: -0.1, rx: -2.3, rz: 0.6, gl: 0.2, gr: -0.1, two: 1 }, 'out'],
-      [0.5, { cy: -0.6, hy: -0.3, cx: 0.2, rx: -0.9, rz: -0.7, hpy: -0.06, hpz: 0.06, gl: -0.3, gr: 0.35, two: 1 }, 'in'],
-      [0.72, { cy: -0.75, hy: -0.35, cx: 0.22, rx: -0.7, rz: -0.8, hpy: -0.05, gl: -0.25, gr: 0.3, two: 1 }, 'out'], [1, N3]],
-    [[0, N3], [0.4, { rx: -3.0, rz: -0.1, cx: -0.3, hpy: 0.12, gr: -0.4, gl: 0.2, two: 1 }, 'out'],
-      [0.52, { rx: -0.55, rz: 0.05, cx: 0.5, hpy: -0.12, hpz: 0.12, gr: -0.6, gl: 0.45, two: 1 }, 'in'],
-      [0.74, { rx: -0.5, rz: 0.05, cx: 0.45, hpy: -0.1, hpz: 0.1, gr: -0.5, gl: 0.4, two: 1 }, 'out'], [1, N3]]
+    [[0, N3], [0.38, { cy: -0.95, hy: -0.45, cx: -0.05, rx: -1.35, rz: -1.0, gr: 0.3, gl: -0.2, hpy: -0.03, two: 1, wx: 1.8 }, 'out'],
+      [0.5, { cy: 0.75, hy: 0.4, rx: -1.35, rz: 0.75, gr: -0.4, gl: 0.35, hpz: 0.08, hpy: -0.06, two: 1, wx: 2.4 }, 'in'],
+      [0.72, { cy: 0.95, hy: 0.5, rx: -1.2, rz: 0.9, gr: -0.35, gl: 0.3, hpz: 0.07, hpy: -0.05, two: 1, wx: 2.4 }, 'out'], [1, N3]],
+    [[0, N3], [0.36, { cy: 0.8, hy: 0.35, cx: -0.1, rx: -2.3, rz: 0.6, gl: 0.2, gr: -0.1, two: 1, wx: 0.9 }, 'out'],
+      [0.5, { cy: -0.6, hy: -0.3, cx: 0.2, rx: -0.9, rz: -0.7, hpy: -0.06, hpz: 0.06, gl: -0.3, gr: 0.35, two: 1, wx: 2.3 }, 'in'],
+      [0.72, { cy: -0.75, hy: -0.35, cx: 0.22, rx: -0.7, rz: -0.8, hpy: -0.05, gl: -0.25, gr: 0.3, two: 1, wx: 2.4 }, 'out'], [1, N3]],
+    [[0, N3], [0.38, { rx: -3.0, rz: -0.1, cx: -0.3, hpy: 0.12, gr: -0.4, gl: 0.2, two: 1, wx: 0.8 }, 'out'],
+      [0.48, { rx: -0.55, rz: 0.05, cx: 0.5, hpy: -0.12, hpz: 0.12, gr: -0.6, gl: 0.45, two: 1, wx: 1.7 }, 'in'],
+      [0.74, { rx: -0.5, rz: 0.05, cx: 0.45, hpy: -0.1, hpz: 0.1, gr: -0.5, gl: 0.4, two: 1, wx: 1.8 }, 'out'], [1, N3]]
   ],
   greataxe: [
-    [[0, N3], [0.4, { cy: 0.7, hy: 0.3, cx: -0.15, rx: -2.6, rz: 0.4, gl: 0.2, two: 1 }, 'out'],
-      [0.52, { cy: -0.5, hy: -0.25, cx: 0.35, rx: -0.7, rz: -0.55, hpy: -0.1, hpz: 0.08, gl: -0.35, gr: 0.4, two: 1 }, 'in'],
-      [0.74, { cy: -0.6, hy: -0.3, cx: 0.32, rx: -0.55, rz: -0.6, hpy: -0.09, gl: -0.3, gr: 0.35, two: 1 }, 'out'], [1, N3]],
+    [[0, N3], [0.4, { cy: 0.7, hy: 0.3, cx: -0.15, rx: -2.6, rz: 0.4, gl: 0.2, two: 1, wx: 0.8 }, 'out'],
+      [0.52, { cy: -0.5, hy: -0.25, cx: 0.35, rx: -0.7, rz: -0.55, hpy: -0.1, hpz: 0.08, gl: -0.35, gr: 0.4, two: 1, wx: 1.6 }, 'in'],
+      [0.74, { cy: -0.6, hy: -0.3, cx: 0.32, rx: -0.55, rz: -0.6, hpy: -0.09, gl: -0.3, gr: 0.35, two: 1, wx: 1.7 }, 'out'], [1, N3]],
     // schräger Hieb von der Schulter nach vorn (seit 13.48 statt des Wirbels zur Seite)
-    [[0, N3], [0.4, { cy: -0.5, hy: -0.22, cx: -0.18, rx: -2.7, rz: -0.6, gr: 0.2, two: 1 }, 'out'],
-      [0.52, { cy: 0.38, hy: 0.18, cx: 0.4, rx: -0.6, rz: 0.4, hpy: -0.1, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1 }, 'in'],
-      [0.74, { cy: 0.42, hy: 0.2, cx: 0.36, rx: -0.5, rz: 0.45, hpy: -0.09, hpz: 0.08, gr: -0.4, gl: 0.3, two: 1 }, 'out'], [1, N3]],
-    [[0, N3], [0.42, { rx: -3.05, rz: -0.05, cx: -0.35, hpy: 0.08, gr: 0.2, gl: -0.1, two: 1 }, 'out'],
-      [0.54, { rx: -0.45, rz: 0.05, cx: 0.65, hpy: -0.16, hpz: 0.1, gr: -0.55, gl: 0.5, two: 1 }, 'in'],
-      [0.78, { rx: -0.4, rz: 0.05, cx: 0.6, hpy: -0.15, hpz: 0.09, gr: -0.5, gl: 0.45, two: 1 }, 'out'], [1, N3]]
+    [[0, N3], [0.4, { cy: -0.5, hy: -0.22, cx: -0.18, rx: -2.7, rz: -0.6, gr: 0.2, two: 1, wx: 0.8 }, 'out'],
+      [0.52, { cy: 0.38, hy: 0.18, cx: 0.4, rx: -0.6, rz: 0.4, hpy: -0.1, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1, wx: 1.6 }, 'in'],
+      [0.74, { cy: 0.42, hy: 0.2, cx: 0.36, rx: -0.5, rz: 0.45, hpy: -0.09, hpz: 0.08, gr: -0.4, gl: 0.3, two: 1, wx: 1.7 }, 'out'], [1, N3]],
+    // seit 13.85 eher unten (0,4/0,5 statt 0,42/0,54), damit die Axt zur Trefferzeit (0,52) vorn ist
+    [[0, N3], [0.4, { rx: -3.05, rz: -0.05, cx: -0.35, hpy: 0.08, gr: 0.2, gl: -0.1, two: 1, wx: 0.9 }, 'out'],
+      [0.5, { rx: -0.45, rz: 0.05, cx: 0.65, hpy: -0.16, hpz: 0.1, gr: -0.55, gl: 0.5, two: 1, wx: 1.6 }, 'in'],
+      [0.78, { rx: -0.4, rz: 0.05, cx: 0.6, hpy: -0.15, hpz: 0.09, gr: -0.5, gl: 0.45, two: 1, wx: 1.6 }, 'out'], [1, N3]]
   ],
   // Dolche (seit 13.36): Kombo aus vier Schlägen statt Doppelstichen – rechter Querschnitt, linker Rückhandschnitt,
   // Wirbel mit beiden Klingen weit ausgestreckt, zum Schluss Sprung nach vorn mit Kreuzschnitt von oben (X).
@@ -4770,15 +5057,15 @@ const BASIC3 = {
       [0.6, { rx: -1.0, rz: 0.65, lx: -1.0, lz: -0.65, cx: 0.3, hpz: 0.13, hpy: -0.07, gr: -0.5, gl: 0.3 }, 'out'], [0.9, N3]]
   ],
   scythe: [
-    [[0, N3], [0.38, { cy: -0.9, hy: -0.4, cx: 0.15, rx: -1.0, rz: -1.15, hpy: -0.05, gr: 0.25, two: 1 }, 'out'],
-      [0.5, { cy: 0.85, hy: 0.4, cx: 0.2, rx: -1.0, rz: 0.85, hpy: -0.08, gr: -0.35, gl: 0.3, hpz: 0.06, two: 1 }, 'in'],
-      [0.72, { cy: 1.0, hy: 0.45, cx: 0.18, rx: -0.9, rz: 0.95, hpy: -0.07, gr: -0.3, gl: 0.25, two: 1 }, 'out'], [1, N3]],
-    [[0, N3], [0.38, { cy: 0.85, hy: 0.4, cx: 0.15, rx: -1.0, rz: 0.8, hpy: -0.05, gl: 0.25, two: 1 }, 'out'],
-      [0.5, { cy: -0.85, hy: -0.4, cx: 0.2, rx: -1.0, rz: -1.1, hpy: -0.08, gl: -0.35, gr: 0.3, hpz: 0.06, two: 1 }, 'in'],
-      [0.72, { cy: -1.0, hy: -0.45, cx: 0.18, rx: -0.9, rz: -1.15, hpy: -0.07, gl: -0.3, gr: 0.25, two: 1 }, 'out'], [1, N3]],
-    [[0, N3], [0.4, { rx: -2.9, rz: -0.3, cx: -0.25, hpy: 0.03, gr: 0.2, two: 1 }, 'out'],
-      [0.52, { rx: -0.6, rz: 0.2, cx: 0.45, hpy: -0.1, hpz: 0.1, gr: -0.5, gl: 0.4, two: 1 }, 'in'],
-      [0.74, { rx: -0.5, rz: 0.25, cx: 0.4, hpy: -0.09, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1 }, 'out'], [1, N3]]
+    [[0, N3], [0.38, { cy: -0.9, hy: -0.4, cx: 0.15, rx: -1.0, rz: -1.15, hpy: -0.05, gr: 0.25, two: 1, wx: 1.9 }, 'out'],
+      [0.5, { cy: 0.85, hy: 0.4, cx: 0.2, rx: -1.0, rz: 0.85, hpy: -0.08, gr: -0.35, gl: 0.3, hpz: 0.06, two: 1, wx: 2.3 }, 'in'],
+      [0.72, { cy: 1.0, hy: 0.45, cx: 0.18, rx: -0.9, rz: 0.95, hpy: -0.07, gr: -0.3, gl: 0.25, two: 1, wx: 2.3 }, 'out'], [1, N3]],
+    [[0, N3], [0.38, { cy: 0.85, hy: 0.4, cx: 0.15, rx: -1.0, rz: 0.8, hpy: -0.05, gl: 0.25, two: 1, wx: 1.9 }, 'out'],
+      [0.5, { cy: -0.85, hy: -0.4, cx: 0.2, rx: -1.0, rz: -1.1, hpy: -0.08, gl: -0.35, gr: 0.3, hpz: 0.06, two: 1, wx: 2.3 }, 'in'],
+      [0.72, { cy: -1.0, hy: -0.45, cx: 0.18, rx: -0.9, rz: -1.15, hpy: -0.07, gl: -0.3, gr: 0.25, two: 1, wx: 2.3 }, 'out'], [1, N3]],
+    [[0, N3], [0.38, { rx: -2.9, rz: -0.3, cx: -0.25, hpy: 0.03, gr: 0.2, two: 1, wx: 1.0 }, 'out'],
+      [0.48, { rx: -0.6, rz: 0.2, cx: 0.45, hpy: -0.1, hpz: 0.1, gr: -0.5, gl: 0.4, two: 1, wx: 2.1 }, 'in'],
+      [0.74, { rx: -0.5, rz: 0.25, cx: 0.4, hpy: -0.09, hpz: 0.09, gr: -0.45, gl: 0.35, two: 1, wx: 2.2 }, 'out'], [1, N3]]
   ],
   // Fernkampf: ein Ablauf je Waffe (Bogen in der rechten Hand, die linke zieht die Sehne)
   // seit 13.59 echte Schützenhaltung: Bogen heben und senkrecht aufs Ziel richten (wx), die Zughand holt den Pfeil vor
@@ -4789,19 +5076,19 @@ const BASIC3 = {
     [0.58, { rx: -1.76, wx: 1.5, lx: -1.88, lz: -0.95, hx: -0.04, gr: 0.12 }],
     [0.66, { rx: -1.7, wx: 1.5, lx: -1.4, lz: -1.25, hx: -0.04, gr: 0.12 }, 'out'],
     [0.86, { rx: -1.66, wx: 1.48, lx: -1.35, lz: -1.2, gr: 0.08 }], [1, N3]]],
-  fan: [[[0, N3], [0.3, { rx: -1.2, rz: -0.9, cy: -0.5, hy: -0.2, wz: 0.6, lx: -0.5, lz: 0.4 }, 'out'],
-    [0.45, { rx: -1.45, rz: 0.75, cy: 0.45, hy: 0.2, wz: -0.6, hpz: 0.06, gr: -0.25, gl: 0.2, lx: -0.7, lz: 0.6 }, 'in'],
-    [0.7, { rx: -1.35, rz: 0.95, cy: 0.55, hy: 0.25, wz: -0.7, hpz: 0.05, gr: -0.2, gl: 0.15, lx: -0.6, lz: 0.7 }, 'out'], [1, N3]]],
+  fan: [[[0, N3], [0.3, { rx: -1.2, rz: -0.9, cy: -0.5, hy: -0.2, wz: 0.6, lx: -0.5, lz: 0.4, wx: 1.0 }, 'out'],
+    [0.45, { rx: -1.45, rz: 0.75, cy: 0.45, hy: 0.2, wz: -0.6, hpz: 0.06, gr: -0.25, gl: 0.2, lx: -0.7, lz: 0.6, wx: 1.4 }, 'in'],
+    [0.7, { rx: -1.35, rz: 0.95, cy: 0.55, hy: 0.25, wz: -0.7, hpz: 0.05, gr: -0.2, gl: 0.15, lx: -0.6, lz: 0.7, wx: 1.4 }, 'out'], [1, N3]]],
   // Glocke (seit 13.28): hoch heben und läuten (Hand pendelt, die Glocke bleibt dabei hängend), dann nach vorn schwingen
   bell: [[[0, BELL_N3], [0.2, { rx: -2.3, rz: -0.2, cx: -0.08, lx: -0.4, lz: 0.3, wx: 0.3 }, 'out'], [0.3, { rx: -2.35, rz: -0.45, cx: -0.08, wx: 0.75 }],
     [0.4, { rx: -2.3, rz: 0.05, cx: -0.08, wx: -0.15 }], [0.55, { rx: -1.5, rz: 0.1, cx: 0.15, hpz: 0.06, gr: -0.25, lx: -1.0, lz: 0.2, wx: -0.5 }, 'in'],
     [0.75, { rx: -1.3, rz: 0.1, cx: 0.12, hpz: 0.05, gr: -0.2, lx: -0.9, lz: 0.2, wx: -0.7 }, 'out'], [1, BELL_N3]]],
-  staff: [[[0, N3], [0.3, { rx: -2.6, rz: -0.15, cx: -0.15, lx: -0.6, lz: 0.3, hpy: 0.02 }, 'out'],
-    [0.5, { rx: -1.45, rz: 0.1, cx: 0.25, lx: -1.35, lz: -0.1, hpz: 0.1, gr: -0.35, gl: 0.25 }, 'in'],
-    [0.72, { rx: -1.4, rz: 0.1, cx: 0.22, lx: -1.3, lz: -0.05, hpz: 0.09, gr: -0.3, gl: 0.2 }, 'out'], [1, N3]]],
-  rod: [[[0, N3], [0.25, { rx: -0.9, rz: -0.3, lx: -1.4, lz: 0.6, cy: -0.2 }, 'out'],
-    [0.42, { rx: -1.75, rz: 0.05, lx: -1.5, lz: -0.2, cx: 0.12, cy: 0.15, hpz: 0.06, gr: -0.2 }, 'in'],
-    [0.6, { rx: -1.65, rz: 0.08, lx: -1.2, lz: 0.4, cx: 0.1, cy: 0.12, hpz: 0.05, gr: -0.15 }, 'out'], [1, N3]]]
+  staff: [[[0, N3], [0.3, { rx: -2.6, rz: -0.15, cx: -0.15, lx: -0.6, lz: 0.3, hpy: 0.02, wx: 2.4 }, 'out'],
+    [0.5, { rx: -1.45, rz: 0.1, cx: 0.25, lx: -1.35, lz: -0.1, hpz: 0.1, gr: -0.35, gl: 0.25, wx: 2.2 }, 'in'],
+    [0.72, { rx: -1.4, rz: 0.1, cx: 0.22, lx: -1.3, lz: -0.05, hpz: 0.09, gr: -0.3, gl: 0.2, wx: 2.2 }, 'out'], [1, N3]]],
+  rod: [[[0, N3], [0.25, { rx: -0.9, rz: -0.3, lx: -1.4, lz: 0.6, cy: -0.2, wx: 1.0 }, 'out'],
+    [0.42, { rx: -1.75, rz: 0.05, lx: -1.5, lz: -0.2, cx: 0.12, cy: 0.15, hpz: 0.06, gr: -0.2, wx: 2.6 }, 'in'],
+    [0.6, { rx: -1.65, rz: 0.08, lx: -1.2, lz: 0.4, cx: 0.1, cy: 0.12, hpz: 0.05, gr: -0.15, wx: 2.5 }, 'out'], [1, N3]]]
 };
 // Streitaxt einhändig (seit 13.46): dieselben wuchtigen Schläge, aber nur die rechte Hand führt die Axt;
 // der linke Arm schwingt als Gegengewicht leicht seitlich mit, statt am Griff zu liegen
@@ -4813,22 +5100,55 @@ BASIC3.greataxe = BASIC3.greataxe.map((combo) => combo.map(([t, pose, ease]) => 
 }));
 
 function basicKeys3(kind, p) {
-  const list = BASIC3[kind];
+  let list = BASIC3[kind];
   if (!list) return null;
+  if (DUAL_MIRROR3[kind] != null && p.swingKind === 'combo' && p.equipment && isOffhand(p.equipment.schild)) list = dualKeys3(kind);
   return list[(p.swingKind === 'combo' ? p.combo || 0 : 0) % list.length];
+}
+
+// Zwei Waffen beim Krieger (seit 13.85): Beidhändigkeit (Schwert oder Axt, auch gemischt) und Titanengriff (zwei
+// Zweihänder) schlagen den zweiten Hieb der Kombo mit der Nebenhand – das Spiegelbild eines Hiebs der Haupthand
+// (rechts ↔ links, Drehungen um die Hochachse umgekehrt). Zweihänder werden dabei einhändig geführt wie die Streitaxt.
+// DUAL_MIRROR3: welcher Hieb gespiegelt wird (Schwert: der Schrägschlag, Axt: der Hieb von der Schulter)
+const DUAL_MIRROR3 = { sword: 0, axe: 1, greatsword: 0, greataxe: 1 };
+const MIRROR_KEY3 = { rx: 'lx', ry: 'ly', rz: 'lz', lx: 'rx', ly: 'ry', lz: 'rz', wx: 'wl', wl: 'wx', gr: 'gl', gl: 'gr' };
+const MIRROR_FLIP3 = new Set(['ry', 'rz', 'ly', 'lz', 'cy', 'cz', 'hy', 'sy']);
+const DUAL_KEYS3 = {};
+function oneHand3(pose) {
+  if (!pose.two) return pose;
+  const { two, ...rest } = pose;
+  return { lx: -0.65 + (rest.cy || 0) * 0.3, lz: 0.42, ...rest };
+}
+function mirrorPose3(pose) {
+  const q = {};
+  for (const [k, val] of Object.entries(pose)) {
+    if (k === 'wz') continue;
+    const m = MIRROR_KEY3[k] || k;
+    q[m] = MIRROR_FLIP3.has(m) ? -val : val;
+  }
+  return q;
+}
+function dualKeys3(kind) {
+  if (DUAL_KEYS3[kind]) return DUAL_KEYS3[kind];
+  const base = BASIC3[kind].map((combo) => combo.map(([t, pose, ease]) => (ease ? [t, oneHand3(pose), ease] : [t, oneHand3(pose)])));
+  const left = base[DUAL_MIRROR3[kind]].map(([t, pose, ease]) => (ease ? [t, mirrorPose3(pose), ease] : [t, mirrorPose3(pose)]));
+  DUAL_KEYS3[kind] = [base[0], left, base[2] || base[0]];
+  return DUAL_KEYS3[kind];
 }
 
 const easeIn3 = (u) => u * u;
 const easeOut3 = (u) => 1 - (1 - u) * (1 - u);
 const easeIO3 = (u) => u * u * (3 - 2 * u);
-function poseKeys3(B, keys, sw) {
+function poseKeys3(B, keys, sw, def = null) {
   let i = 0;
   while (i < keys.length - 2 && sw > keys[i + 1][0]) i++;
   const [t0, a] = keys[i];
   const [t1, b, ease] = keys[i + 1];
   const u0 = Math.max(0, Math.min(1, (sw - t0) / Math.max(1e-4, t1 - t0)));
   const u = ease === 'in' ? easeIn3(u0) : ease === 'out' ? easeOut3(u0) : easeIO3(u0);
-  const v = (k) => (a[k] || 0) + ((b[k] || 0) - (a[k] || 0)) * u;
+  // def: Werte für Kanäle, die eine Pose nicht setzt (Handgelenke in Ruhe, seit 13.85)
+  const g = (o, k) => (o[k] != null ? o[k] : def && def[k] != null ? def[k] : 0);
+  const v = (k) => g(a, k) + (g(b, k) - g(a, k)) * u;
   const two = (a.two || 0) + ((b.two || 0) - (a.two || 0)) * u;
   B[BH.root].rotation.y = v('sy');
   B[BH.hips].rotation.y = v('hy');
@@ -4843,8 +5163,14 @@ function poseKeys3(B, keys, sw) {
   const lx = v('lx');
   const lz = v('lz');
   B[BH.armL].rotation.set(lx + (rx * 0.95 - lx) * two, v('ly'), lz + (rz - 0.62 - lz) * two);
-  B[BH.handR].rotation.x = v('wx');
+  // Handgelenke (seit 13.85 bei allen Nahkampfwaffen und Stäben): wx kippt die Waffe aus der Ruhe (Klinge zur Schulter)
+  // nach vorn – beim Ausholen wenig (Klinge hinter dem Kopf), im Treffer so weit, dass sie den Arm verlängert;
+  // wl ist das linke Handgelenk (Nebenhand), beim Zweihänder folgt es dem rechten
+  const wx = v('wx');
+  B[BH.handR].rotation.x = wx;
   B[BH.handR].rotation.z = v('wz');
+  const wl = v('wl');
+  B[BH.handL].rotation.x = wl + (wx - wl) * two;
   B[BH.legL].rotation.x = v('gl');
   B[BH.legR].rotation.x = v('gr');
 }
@@ -5066,7 +5392,8 @@ function syncPlayer3(p, dt) {
   // Blickrichtung (beim Wirbel dreht sich die Figur)
   const f = p.facing || { x: 0, y: 1 };
   if (p.spin > 0) a.heading += dt * 28;
-  else turnToward(a, Math.atan2(f.x, f.y), Math.min(1, dt * 16));
+  // seit 13.85: beim Angreifen (faceHold, kampf.js) dreht die Figur doppelt so schnell zum Ziel
+  else turnToward(a, Math.atan2(f.x, f.y), Math.min(1, dt * (p.faceHold && p.faceHold.until > game.time ? 32 : 16)));
   // Sprung
   let lift = 0;
   if (p.leap) {
@@ -5150,7 +5477,8 @@ function syncPlayer3(p, dt) {
     SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
   } else if (sw >= 0 && (p.swingKind === 'combo' || p.swingKind === 'cast') && basicKeys3(kind, p)) {
     // Grundangriff (seit 9.3): Schlüsselposen je Waffe und Kombo, ganzer Körper
-    poseKeys3(B, basicKeys3(kind, p), sw);
+    const iw = IDLE_WRIST3[kind] || 0;
+    poseKeys3(B, basicKeys3(kind, p), sw, iw ? { wx: iw, wl: p.equipment && isOffhand(p.equipment.schild) ? iw : 0 } : null);
   } else if (sw >= 0) {
     const e = easeOut(sw);
     if (kind === 'bow') {
@@ -5162,23 +5490,29 @@ function syncPlayer3(p, dt) {
       B[BH.armR].rotation.set(-0.6 - k * 1.8, 0, 0);
       B[BH.armL].rotation.set(-0.4 - k * 1.2, 0, 0.3);
       B[BH.chest].rotation.x = -0.15 * k;
+      // Stab (seit 13.85): bleibt beim Heben aufrecht, statt mit dem Kopf nach hinten zu kippen
+      if (kind === 'staff') B[BH.handR].rotation.x = wristExt3(kind) * k;
     } else if (p.swingKind === 'combo' && p.combo === 2) {
-      // Stich nach vorn mit Ausfallschritt
+      // Stich nach vorn mit Ausfallschritt (seit 13.85 zeigt die Klinge dabei nach vorn)
       const k = Math.sin(sw * Math.PI);
       B[BH.armR].rotation.set(-1.55, 0, 0);
+      B[BH.handR].rotation.x = wristExt3(kind) * (0.6 + 0.5 * k);
       B[BH.chest].rotation.y = -0.4 * k;
       B[BH.hips].position.z += k * 0.18;
       B[BH.legR].rotation.x = -0.5 * k;
       B[BH.legL].rotation.x = 0.4 * k;
     } else if (p.swingKind === 'combo' && p.combo === 1 || p.swingKind === 'skill') {
-      // waagerechter Schwung
+      // waagerechter Schwung (seit 13.85 mit gestreckter Klinge statt nach hinten zeigend)
       B[BH.armR].rotation.set(-1.45, 0, 0);
+      B[BH.handR].rotation.x = wristExt3(kind);
       B[BH.chest].rotation.y = 1.1 - e * 2.3;
       B[BH.hips].rotation.y = 0.3 - e * 0.6;
     } else {
       // Schlag von oben
       const raise = sw < 0.3 ? sw / 0.3 : 1 - (sw - 0.3) / 0.7;
       B[BH.armR].rotation.set(sw < 0.3 ? -2.7 * raise : -2.7 + (sw - 0.3) / 0.7 * 2.4, 0, -0.2);
+      // Handgelenk (seit 13.85): Klinge hinter dem Kopf ausholen, im Schlag nach vorn unten
+      B[BH.handR].rotation.x = wristExt3(kind) * (sw < 0.3 ? 0.3 * raise : Math.min(1, 0.3 + (sw - 0.3) / 0.25));
       B[BH.chest].rotation.y = 0.3 - e * 0.6;
       B[BH.chest].rotation.x = sw < 0.3 ? -0.1 : 0.15;
       if (twoHanded3(kind)) B[BH.armL].rotation.set(B[BH.armR].rotation.x * 0.8, 0, 0.5);
@@ -5195,6 +5529,11 @@ function syncPlayer3(p, dt) {
       B[BH.armR].rotation.set(-0.42 + br, 0, -0.22);
       B[BH.armL].rotation.set(-0.42 - br, 0, 0.22);
     }
+  }
+  // Schwert und Axt in Ruhe und beim Gehen leicht nach vorn gekippt (seit 13.85, IDLE_WRIST3), die zweite Waffe ebenso
+  if (IDLE_WRIST3[kind] && !posing && sw < 0 && !p.riding) {
+    B[BH.handR].rotation.x = IDLE_WRIST3[kind];
+    if (p.equipment && isOffhand(p.equipment.schild)) B[BH.handL].rotation.x = IDLE_WRIST3[kind];
   }
   // Glocke (seit 13.28): außerhalb von Angriffen hält der Schamane sie am Griff leicht vor dem Körper,
   // die Glocke hängt dabei immer senkrecht (Griff oben, Öffnung unten) – auch beim Laufen
@@ -5417,7 +5756,7 @@ function syncStone3(s, dt) {
   const B = a.bones;
   a.group.position.set(s.x * U3, 0, s.y * U3);
   a.group.scale.setScalar(Math.max(0.8, stoneHeight(s) * U3 / a.model.height) * 1.05);
-  // Ei schwebt leicht, pocht kurz, wenn eine Welle kommt; Runenring dreht sich
+  // Kristall schwebt leicht, pocht kurz, wenn eine Welle kommt; Splitter und Rauch kreisen langsam
   const pulse = s.crackFx ? Math.max(0, 1 - (game.time - s.crackFx) / 0.4) : 0;
   B[1].position.y = a.rest[1].y + Math.sin(game.time * 1.6 + s.x) * 0.03;
   B[1].scale.setScalar(1 + pulse * 0.08);

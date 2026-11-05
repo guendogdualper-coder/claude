@@ -1294,7 +1294,8 @@ function groundTextures() {
 }
 
 // Boden: vier Texturabfragen je Pixel (Feinstruktur nah und mittel, Großrauschen, Pflaster). Die Bodenart
-// kommt als Gewichte aus den Ecken: soil = Gras, Weg, Sand, Pflaster; soil2 = Schnee, Asche. Der Reihe nach:
+// kommt als Gewichte aus den Ecken: soil = Gras, Weg, Sand, Pflaster; soil2 = Schnee, Asche, Hitze (seit 13.85: der
+// Boden am Lavaufer glüht orange nach). Der Reihe nach:
 // feines Rauschen; große Flecken über viele Kacheln (hier heller und wärmer, dort dunkler und kühler);
 // Grasstriche auf grünem Boden; heller Kies und stellenweise dunkle Trittspuren auf Wegen; weiche, vom
 // Rauschen verbogene Rippeln im Sand; dunkle Risse in der Asche; Schnee etwas gedämpft (sonst überstrahlt
@@ -1310,10 +1311,10 @@ function groundMat() {
       sh.uniforms.tCobble = { value: tex.cobble };
       sh.uniforms.tMacro = { value: tex.macro };
       sh.vertexShader = sh.vertexShader
-        .replace('void main() {', 'attribute vec4 soil;\nattribute vec2 soil2;\nvarying vec4 vSoil;\nvarying vec2 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
+        .replace('void main() {', 'attribute vec4 soil;\nattribute vec3 soil2;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvSoil = soil;\n\tvSoil2 = soil2;\n\tvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
       sh.fragmentShader = sh.fragmentShader
-        .replace('void main() {', 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec2 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
+        .replace('void main() {', 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
         .replace('#include <color_fragment>', `#include <color_fragment>
 	vec4 d1 = texture2D(tNoise, vGW.xz * 0.21);
 	vec4 d2 = texture2D(tNoise, vGW.xz * 0.053);
@@ -1333,7 +1334,8 @@ function groundMat() {
 	diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * (0.62 + cb * 0.62), smoothstep(0.35, 0.75, vSoil.w));`)
         .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 	float spark = max(d1.a - 0.5, 0.0) * 2.0 * smoothstep(0.2, 0.6, fract(dot(vGW.xz, vec2(1.7, 2.9)) + dot(normalize(vViewPosition), vec3(6.0, 9.0, 4.0))));
-	totalEmissiveRadiance += spark * vSoil2.x * 1.2;`);
+	totalEmissiveRadiance += spark * vSoil2.x * 1.2;
+	totalEmissiveRadiance += vec3(1.0, 0.34, 0.07) * vSoil2.z * vSoil2.z * (0.3 + 0.16 * d2.g);`);
     };
     m.customProgramCacheKey = () => 'ground';
     return addFade(m, 0.45);
@@ -1369,8 +1371,55 @@ const LIQUID3 = {
           col = mix(col, uFoam, foam * (0.85 - 0.4 * uNight));
           float alpha = mix(uAlpha * 0.78, uAlpha, smoothstep(0.0, 0.5, d)) + foam * 0.16;`
   },
+  // seit 13.85 echte Lava: Krustenschollen (Zellmuster), die langsam treiben und sich drehen, dazwischen hell glühende
+  // Risse; offene, heiße Ströme, wo die Kruste aufreißt; abgekühlte, dunklere Flecken; am Ufer dickere Kruste mit
+  // glühender Naht und einzelne aufblitzende Funken. Auf niedriger Grafik das einfache Bild von vorher (fragLow).
   lava: {
-    shallow: '#ff6a14', deep: '#4a180c', foam: '#ffe890', alpha: 1, frag: `
+    shallow: '#ff6a14', deep: '#2a0f08', foam: '#ffe890', alpha: 1, frag: `
+          vec2 q = p * 0.5 + vec2(t * 0.045, t * 0.028);
+          q += vec2(sin(q.y * 1.3 + t * 0.12), cos(q.x * 1.1 - t * 0.1)) * 0.42;
+          vec2 sc = q * 1.35;
+          vec2 ci = floor(sc);
+          vec2 cf = fract(sc);
+          float f1 = 8.0;
+          float f2 = 8.0;
+          vec2 cid = ci;
+          for (int j = -1; j <= 1; j++) {
+            for (int i = -1; i <= 1; i++) {
+              vec2 g = vec2(float(i), float(j));
+              vec2 o = fract(sin(vec2(dot(ci + g, vec2(127.1, 311.7)), dot(ci + g, vec2(269.5, 183.3)))) * 43758.5453);
+              o = 0.5 + 0.36 * sin(t * 0.18 + 6.2831 * o);
+              float dd = length(g + o - cf);
+              if (dd < f1) { f2 = f1; f1 = dd; cid = ci + g; } else if (dd < f2) { f2 = dd; }
+            }
+          }
+          float ch = fract(sin(dot(cid, vec2(12.9898, 78.233))) * 43758.5453);
+          float edge = f2 - f1;
+          float crack = 1.0 - smoothstep(0.0, 0.2, edge);
+          float core = 1.0 - smoothstep(0.0, 0.06, edge);
+          float flow = sin(q.x * 0.8 + t * 0.07) * sin(q.y * 1.05 - t * 0.06) + 0.4 * sin((q.x + q.y) * 1.9 - t * 0.09);
+          float crust = smoothstep(-0.45, 0.35, flow + (ch - 0.5) * 0.5) * 0.9 + smoothstep(0.45, 0.0, d) * 0.5;
+          crust = clamp(crust, 0.0, 1.0);
+          float streak = sin(dot(q, vec2(2.6, 1.1)) * 3.0 + sin(q.y * 2.0 + t * 0.2) * 2.0 - t * 0.5);
+          float pulse = 0.5 + 0.5 * sin(t * 1.3 + q.x * 2.1 - q.y * 1.7);
+          vec3 molten = mix(vec3(0.9, 0.25, 0.04), vec3(1.0, 0.72, 0.2), 0.3 + 0.3 * pulse + 0.3 * smoothstep(0.4, 1.0, streak));
+          vec3 plate = mix(uDeep, vec3(0.32, 0.08, 0.03), ch * 0.7) * (0.75 + 0.35 * f1 + 0.12 * sin(q.x * 9.0 + q.y * 7.0));
+          plate += vec3(0.45, 0.1, 0.0) * smoothstep(0.32, 0.02, edge) * 0.6;
+          vec3 col = mix(molten, plate, crust * (1.0 - crack * 0.85));
+          col = mix(col, mix(vec3(1.0, 0.45, 0.08), uFoam, core), crack * crust);
+          col = mix(col, uFoam, core * (1.0 - crust) * 0.35);
+          float bn = sin(p.x * 3.1 + sin(p.y * 2.3) * 1.5) * sin(p.y * 2.7 - p.x * 0.9) + 0.5 * sin((p.x - p.y) * 5.3);
+          float edgeD = 0.36 + 0.13 * bn;
+          float bank = smoothstep(edgeD + 0.1, edgeD - 0.06, d);
+          vec3 rock = vec3(0.15, 0.075, 0.055) * (0.8 + 0.25 * sin(p.x * 9.0 + p.y * 7.0));
+          col = mix(col, rock, bank);
+          col += vec3(1.0, 0.45, 0.1) * bank * (1.0 - bank) * 2.8;
+          vec2 eq = p * 3.0 + vec2(0.0, t * 0.2);
+          float eh = fract(sin(dot(floor(eq), vec2(41.3, 289.1))) * 43758.5453);
+          float spark = smoothstep(0.16, 0.0, length(fract(eq) - 0.5)) * step(0.88, eh) * smoothstep(0.6, 1.0, sin(t * 3.0 + eh * 50.0));
+          col += vec3(1.0, 0.85, 0.5) * spark * (1.0 - 0.6 * crust) * (1.0 - bank);
+          float alpha = 1.0;`,
+    fragLow: `
           vec2 q = p * 0.62;
           q += vec2(sin(q.y * 1.3 + t * 0.22), cos(q.x * 1.1 - t * 0.18)) * 0.7;
           float f = sin(q.x * 2.1 + t * 0.3) * sin(q.y * 2.5 - t * 0.25) + 0.35 * sin((q.x - q.y) * 3.3 + t * 0.4);
@@ -1403,8 +1452,11 @@ const LIQUID3 = {
   }
 };
 function liquidMat(kind) {
-  return mat3('liquid' + kind, () => {
+  // niedrige Grafik (seit 13.85): einfacheres Bild, wo es eines gibt (Lava), als eigenes Material 'liquidlavaL'
+  const low = opts.graphics === 'niedrig' && !!LIQUID3[kind].fragLow;
+  return mat3('liquid' + kind + (low ? 'L' : ''), () => {
     const P = LIQUID3[kind];
+    const frag = low ? P.fragLow : P.frag;
     const uniforms = THREE.UniformsUtils.merge([THREE.UniformsLib.fog, {
       uTime: { value: 0 },
       uShallow: { value: new THREE.Color(P.shallow) },
@@ -1452,7 +1504,7 @@ function liquidMat(kind) {
           float d = clamp(vDepth / 0.36, 0.0, 1.0);
           vec2 p = vW.xz;
           float t = uTime;
-          ${P.frag}
+          ${frag}
           col *= uLight;
           gl_FragColor = vec4(col, alpha);
           #include <fog_fragment>
@@ -1472,7 +1524,10 @@ const CASTER3 = {
   [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
 };
 const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25],
-  dpillar: [1.4, 0.6, 0.4], dbanner: [1.2, 0.45, 0.25], dstatue: [1.0, 0.6, 0.35], dthrone: [1.4, 1.0, 0.4], dchest: [0.4, 0.55, 0.3], dshrine: [0.8, 0.8, 0.35] };
+  dpillar: [1.4, 0.6, 0.4], dbanner: [1.2, 0.45, 0.25], dstatue: [1.0, 0.6, 0.35], dthrone: [1.4, 1.0, 0.4], dchest: [0.4, 0.55, 0.3], dshrine: [0.8, 0.8, 0.35],
+  // Stadtschmuck (seit 13.85, welt.js TOWN_DECO)
+  planter: [0.3, 0.42, 0.22], bench: [0.4, 0.62, 0.24], goods: [0.45, 0.62, 0.3], woodpile: [0.3, 0.5, 0.25], sacks: [0.25, 0.45, 0.22],
+  pots: [0.3, 0.4, 0.22], totem: [0.9, 0.35, 0.22], ore: [0.15, 0.45, 0.22], wallbanner: [1.0, 0.35, 0.2], barrel: [0.3, 0.35, 0.22], crate: [0.25, 0.35, 0.22] };
 // Schmuck ohne Kollision (seit 7.9): kleiner Schatten und dunkler Fuß, wie bei Bäumen und Felsen
 // (seit 8.4 auf die echten Größen der neuen Modelle abgestimmt)
 const DECO_CASTER3 = {
@@ -1549,7 +1604,7 @@ function* terrainJob(cx, cy) {
   const pos = new Float32Array(n * n * 3);
   const col = new Uint8Array(n * n * 3);
   const soil = new Uint8Array(n * n * 4);
-  const soil2 = new Uint8Array(n * n * 2);
+  const soil2 = new Uint8Array(n * n * 3); // Schnee, Asche, seit 13.85 Hitze am Lavaufer (Glühen im Boden)
   for (let j = -1; j <= n; j++) {
     for (let i = -1; i <= n; i++) {
       const vx = x0 + i / S;
@@ -1602,8 +1657,9 @@ function* terrainJob(cx, cy) {
       col[v * 3 + 1] = Math.min(255, cg * 255);
       col[v * 3 + 2] = Math.min(255, cb * 255);
       for (let c = 0; c < 4; c++) soil[v * 4 + c] = Math.round(mix(ts[c]) * 255);
-      soil2[v * 2] = Math.round(mix(ts[4]) * 255);
-      soil2[v * 2 + 1] = Math.round(mix(ts[5]) * 255);
+      soil2[v * 3] = Math.round(mix(ts[4]) * 255);
+      soil2[v * 3 + 1] = Math.round(mix(ts[5]) * 255);
+      soil2[v * 3 + 2] = Math.round(hot * 255);
     }
     if (j % 6 === 5) yield;
   }
@@ -1637,7 +1693,7 @@ function* terrainJob(cx, cy) {
   g.setAttribute('normal', new THREE.BufferAttribute(nor, 3, true));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
   g.setAttribute('soil', new THREE.BufferAttribute(soil, 4, true));
-  g.setAttribute('soil2', new THREE.BufferAttribute(soil2, 2, true));
+  g.setAttribute('soil2', new THREE.BufferAttribute(soil2, 3, true));
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.computeBoundingSphere();
   yield;
@@ -1647,10 +1703,10 @@ function* terrainJob(cx, cy) {
   group.add(mesh);
 
   // Flüssigkeiten: nur Zellen, in denen der Boden unter der Oberfläche liegt
-  const kinds = { water: [], lava: [], bog: [] };
+  const kinds = { water: [], lava: [], bog: [], abyss: [] };
   const kindAt = (tx, ty) => {
     const gg = w.ground[Math.max(0, Math.min(MAP_H - 1, ty)) * MAP_W + Math.max(0, Math.min(MAP_W - 1, tx))];
-    return gg === GROUND.LAVA ? 'lava' : gg === GROUND.BOG ? 'bog' : gg === GROUND.WATER ? 'water' : null;
+    return gg === GROUND.LAVA ? 'lava' : gg === GROUND.BOG ? 'bog' : gg === GROUND.WATER ? 'water' : gg === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : null;
   };
   for (let j = 0; j < n - 1; j++) {
     for (let i = 0; i < n - 1; i++) {
@@ -1971,7 +2027,7 @@ function renderDrei() {
   v3UpdateUnder(fx, fy, dt);
   v3UpdateChunks(_vc.x, _vc.y, chunks3.size < 4 || jumped ? 1500 : 5, vel.x * 0.9, vel.y * 0.9);
   v3UpdateLights(fx, fy);
-  for (const k of ['water', 'lava', 'bog']) {
+  for (const k of ['water', 'lava', 'bog', 'abyss', 'lavaL']) {
     const lm = MAT3['liquid' + k];
     if (!lm) continue;
     lm.uniforms.uTime.value = V3.time;
@@ -1980,7 +2036,7 @@ function renderDrei() {
     const nk = V3.nightK || 0;
     lm.uniforms.uSky.value.copy(V3.scene.background);
     lm.uniforms.uNight.value = nk;
-    const lk = k === 'lava' ? nk * 0.25 : nk;
+    const lk = k === 'lava' || k === 'lavaL' || k === 'abyss' ? nk * 0.25 : nk;
     lm.uniforms.uLight.value.setRGB(1 - 0.58 * lk, 1 - 0.52 * lk, 1 - 0.32 * lk);
   }
   if (MAT3.worldGrass) MAT3.worldGrass.userData.uTime.value = V3.time;

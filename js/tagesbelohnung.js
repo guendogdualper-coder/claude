@@ -63,7 +63,7 @@ function claimDaily() {
   }
   p.daily = { last: dailyKey(), streak: st.streak };
   if (extra.length) ui.log('Tagesbelohnung: ' + extra.join(', ') + '.', 'level');
-  if (Object.keys(rest).length) giveReward(rest, 0);
+  if (Object.keys(rest).length) giveReward(rest, 0, true); // seit 13.85 mit big: die Tagesbelohnung leuchtet weiter groß
   else {
     vfxLevelUp(p);
     saveGame();

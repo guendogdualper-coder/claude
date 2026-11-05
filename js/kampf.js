@@ -62,16 +62,46 @@ function levelBonus(attackerLevel, targetLevel) {
 
 // --- Ziele ----------------------------------------------------------------
 
+// seit 13.85: Seelensteine nur, wenn kein Monster in Reichweite ist – vorher nahm das Spiel oft den Stein
+// (auch beim Sprungschlag), obwohl die Monster seiner Welle direkt vor der Figur standen.
+// Gleich weit weg: Monster vor der Figur (Blickrichtung) zählen etwas näher als solche hinter ihr.
 function nearestEnemy(from, range) {
   let best = null;
   let bestD = Infinity;
+  let stone = null;
+  let stoneD = Infinity;
+  const f = from === game.player && from.facing ? from.facing : null;
   for (const m of aliveEnemies()) {
     if (m.dead) continue;
     if (m.hidden) continue;
-    const d = dist(from, m) - m.r;
-    if (d <= range && d < bestD) { best = m; bestD = d; }
+    const raw = dist(from, m) - m.r;
+    if (raw > range) continue;
+    if (m.isStone) {
+      if (raw < stoneD) { stone = m; stoneD = raw; }
+      continue;
+    }
+    // seit 13.85: bis zu 20 Punkte Vorteil für Gegner vor der Figur
+    let d = raw;
+    if (f) {
+      const l = Math.max(1, dist(from, m));
+      d -= 10 * ((m.x - from.x) * f.x + (m.y - from.y) * f.y) / l;
+    }
+    if (d < bestD) { best = m; bestD = d; }
   }
-  return best;
+  return best || stone;
+}
+
+// Ziel bewusst gewählt (Antippen, Klick, Tab, Duell)? Nur so ein Ziel bleibt als Fokus stehen (seit 13.85).
+// Ein Ziel, das das Spiel selbst gewählt hat, wechselt zum nächsten Monster, sobald es außer Reichweite ist
+// oder ein Seelenstein ist, während ein Monster in Reichweite steht.
+// game.targetManual hält das bewusst gewählte Monster selbst (nicht nur ein Ja/Nein), damit ein später direkt
+// gesetztes game.target nie versehentlich als Fokus gilt
+function setTarget(m, manual) {
+  game.target = m || null;
+  game.targetManual = m && manual ? m : null;
+}
+function targetIsManual(t) {
+  return !!t && t === game.target && t === game.targetManual;
 }
 
 // Ausgewähltes Ziel, falls in Reichweite, sonst das nächste Monster
@@ -79,16 +109,26 @@ function pickTarget(range) {
   const p = game.player;
   const t = game.target;
   if (t && !t.dead && !t.hidden) {
-    if (dist(p, t) - t.r <= range) return t;
+    const manual = targetIsManual(t);
+    const inRange = dist(p, t) - t.r <= range;
+    // seit 13.85: ein selbst gewählter Seelenstein weicht dem nächsten Monster in Reichweite
+    if (inRange && (manual || !t.isStone)) return t;
+    if (inRange) {
+      const n = nearestEnemy(p, range);
+      if (n && !n.isStone) { setTarget(n, false); return n; }
+      return t;
+    }
     // Fokus bleibt (seit 13.41): Ist das gewählte Ziel außer Reichweite, wird kein anderes Monster gewählt –
     // der Angriff geht in seine Richtung. Erst wenn es sehr weit weg ist, sucht das Spiel ein neues Ziel.
-    if (dist(p, t) < 900) {
+    // Seit 13.85 gilt das nur für bewusst gewählte Ziele; ein Auto-Ziel wechselt zum nächsten Monster in Reichweite.
+    if (manual && dist(p, t) < 900) {
       faceTowards(t.x, t.y);
       return null;
     }
   }
   const n = nearestEnemy(p, range);
-  if (n) game.target = n;
+  if (n) setTarget(n, false);
+  else if (t && !t.dead && !t.hidden && dist(p, t) < 900) faceTowards(t.x, t.y);
   return n;
 }
 
@@ -98,6 +138,41 @@ function faceTowards(x, y) {
   const dy = y - p.y;
   const len = Math.hypot(dx, dy);
   if (len > 0.01) p.facing = { x: dx / len, y: dy / len };
+}
+
+// Blick beim Angreifen (seit 13.85): Jeder Angriff und jeder Zauber dreht die Figur sofort zum Ziel bzw. zum
+// gewählten Ort und hält diesen Blick für die Dauer der Bewegung (dur), auch wenn sie dabei weiterläuft –
+// erst danach schaut sie wieder in Laufrichtung (kurzes Umdrehen beim Schnellzauber, wie beim Bogen-Ninja).
+// at: Monster (folgt ihm) oder Punkt { x, y }
+function attackFace(p, at, dur) {
+  if (!p || !at || !isFinite(at.x) || !isFinite(at.y)) return;
+  faceTowards(at.x, at.y);
+  const ent = at.r != null && (at.hp != null || at.isStone || at.duelProxy) ? at : null;
+  const until = game.time + Math.max(0.2, dur || 0.45);
+  p.faceHold = { x: at.x, y: at.y, t: ent, until: Math.max(until, (p.faceHold && p.faceHold.until) || 0) };
+}
+// jedes Bild beim Laufen (spiel.js): true = Blick bleibt beim Angriffsziel, nicht in Laufrichtung
+function holdFacing(p) {
+  const h = p.faceHold;
+  if (!h) return false;
+  if (game.time >= h.until) {
+    p.faceHold = null;
+    return false;
+  }
+  const t = h.t && !h.t.dead && !h.t.hidden ? h.t : null;
+  if (t) { h.x = t.x; h.y = t.y; }
+  if (Math.hypot(h.x - p.x, h.y - p.y) > 4) faceTowards(h.x, h.y);
+  return true;
+}
+// Fertigkeiten, die selbst bestimmen, wohin die Figur schaut (Sprünge, Schritte, Sprint)
+const FACE_FREE_TYPES = new Set(['leap', 'shift', 'bshadow', 'bleap', 'dash', 'chainblink']);
+// Wohin schaut die Figur nach dieser Fertigkeit? Gewählter Ort, sonst das Ziel (Fokus oder Auto-Ziel in der Nähe)
+function skillFaceAt(sk) {
+  const p = game.player;
+  if (game.aim && game.aim.sk === sk && !sk.aimAway) return { x: game.aim.pt.x, y: game.aim.pt.y };
+  const t = game.target;
+  if (t && !t.dead && !t.hidden && dist(p, t) < 900) return t;
+  return null;
 }
 
 // Blickrichtung für Flächenangriffe: zum nächsten Gegner, sonst Laufrichtung
@@ -120,7 +195,7 @@ function breakStealth(p) {
 }
 
 // Tarnung (seit 13.39): eine Fertigkeit oder die Ulti aus der Tarnung macht mit ALLEN ihren Treffern den
-// Tarnungs-Schaden (×3), nicht nur mit dem ersten Treffer. Ergebnis: Faktor für die Kraft der Fertigkeit.
+// Tarnungs-Schaden (nextHitMul, seit 13.85 ×2 statt ×3), nicht nur mit dem ersten Treffer. Ergebnis: Faktor für die Kraft der Fertigkeit.
 function stealthCastMul(p) {
   if (!(p.nextHitMul > 1) || !game.stats || !game.stats.invisible) return 1;
   if (game.time - (p.stealthAt || -99) < STEALTH_GRACE) return 1;
@@ -567,7 +642,9 @@ const MELEE_KINDS = new Set(['sword', 'axe', 'greatsword', 'greataxe', 'dagger',
 const KIND_BASIC = {
   // Dolche (Ninja, seit 13.4): viele schnelle, kurze Stiche mit weniger Schaden je Stich (gleicher Schaden je Sekunde)
   // seit 13.31 0,5 statt 0,66: der Ninja machte 40–80 % mehr Schaden als der Schnitt aller Wege
-  dagger: { range: 46, cooldown: 0.36, ranged: false, mul: 0.5 },
+  // seit 13.85 langsamer (0,46 statt 0,36), dafür 0,6 statt 0,5 je Stich: der Dolch-Ninja stach mit Tempo-Buffs bis zu
+  // siebenmal je Sekunde (Schaden je Sekunde etwa −6 %)
+  dagger: { range: 46, cooldown: 0.46, ranged: false, mul: 0.6 },
   // seit 13.67 weiter (400 statt 250): Pfeile tragen deutlich weiter als Zauber
   bow: { range: 400, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
@@ -608,9 +685,13 @@ function tryBasicAttack() {
   // Angreifen geht immer: mit Gegner in Reichweite auf ihn, sonst ein Schlag oder Schuss
   // in Blickrichtung (später auch für Kämpfe gegen andere Spieler)
   const target = pickTarget(basic.range);
-  if (target) faceTowards(target.x, target.y);
   p.attackCd = basic.cooldown / game.stats.atkSpeed;
   const tm = basicTiming(p);
+  // seit 13.85: zum Ziel schauen, solange der Schlag bzw. Schuss dauert (auch im Laufen) – ist der bewusst gewählte
+  // Fokus noch außer Reichweite, geht der Schlag trotzdem in seine Richtung
+  const g = game.target;
+  const look = target || (g && !g.dead && !g.hidden && targetIsManual(g) && dist(p, g) < 900 ? g : null);
+  if (look) attackFace(p, look, tm.dur + 0.08);
   if (basic.ranged) {
     startSwing(p, 'cast', tm.dur);
     p.pendingShot = { at: game.time + tm.dur * tm.impact, target, basic };
@@ -715,6 +796,39 @@ function pathWeaponText(p) {
   return w ? `Nur mit ${WEAPON_KINDS[w].name === 'Bogen' ? 'einem Bogen' : 'einem ' + WEAPON_KINDS[w].name}` : '';
 }
 
+// Abklingzeit setzen und merken, von welcher Dauer sie ausging (Uhr in der Leiste, seit 13.85)
+function setSkillCd(p, i, v) {
+  p.skillCd[i] = v;
+  if (!p.cdFull) p.cdFull = [0, 0, 0, 0, 0];
+  p.cdFull[i] = v;
+}
+
+// Globale Abklingzeit (seit 13.85, wie in anderen MMORPGs): Schamane, Nekromant und Magier können nicht zwei Zauber
+// auf einmal wirken – nach jeder Fertigkeit haben ihre übrigen Fertigkeiten mindestens GCD_TIME s Abklingzeit
+// (längere bleiben, wie sie sind). Ulti, Klassensegen, Tränke und Grundangriff zählen nicht, ein Kanal (Eisstrahl,
+// Blutsauger) zählt als ein Zauber. Nur die eigene Figur: Mitspieler sehen nur die Optik.
+const GCD_TIME = 2;
+const GCD_CLASSES = new Set(['schamane', 'nekromant', 'magier']);
+function applyGcd(p, i) {
+  if (!GCD_CLASSES.has(p.classId)) return;
+  p.gcdPrev = { at: game.time, i, cd: p.skillCd.slice(), full: (p.cdFull || []).slice() };
+  for (let j = 0; j < p.skillCd.length; j++) {
+    if (j !== i && p.skillCd[j] < GCD_TIME) setSkillCd(p, j, GCD_TIME);
+  }
+}
+// Zauber abgebrochen (Feuerball, Mana und Abklingzeit zurück): die übrigen Fertigkeiten wieder wie vorher
+function undoGcd(p, i) {
+  const g = p.gcdPrev;
+  if (!g || g.i !== i) return;
+  p.gcdPrev = null;
+  const gone = game.time - g.at;
+  for (let j = 0; j < p.skillCd.length; j++) {
+    if (j === i) continue;
+    p.skillCd[j] = Math.max(0, g.cd[j] - gone);
+    if (p.cdFull) p.cdFull[j] = g.full[j] || 0;
+  }
+}
+
 function useSkill(i) {
   const p = game.player;
   if (!p || p.dead || p.dash) return;
@@ -756,7 +870,7 @@ function useSkill(i) {
   if (p.riding) toggleRide(false);
   const lvl = p.skillLevels[i];
   const rank = skillRank(lvl);
-  // Angriff aus der Tarnung: alle Treffer dieser Fertigkeit ×3 (Buffs wie die Tarnung selbst zählen nicht)
+  // Angriff aus der Tarnung: alle Treffer dieser Fertigkeit × nextHitMul (seit 13.85 ×2) (Buffs wie die Tarnung selbst zählen nicht)
   const sMul = sk.kind === 'angriff' ? stealthCastBegin(p) : 1;
   const ok = withRank(rank, () => SKILL_TYPES[sk.type](sk, dmgScale(lvl) * (game.stats.skillDmg || 1) * sMul, lvl));
   if (ok === false) {
@@ -769,7 +883,9 @@ function useSkill(i) {
   if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
   snd.skill(sk, p);
   p.mp -= skillMana(sk, p);
-  p.skillCd[i] = sk.cooldown;
+  setSkillCd(p, i, sk.cooldown);
+  // seit 13.85: globale Abklingzeit der Zauberer (Schamane, Nekromant, Magier)
+  applyGcd(p, i);
   // Fertigkeiten mit eigener Bahn (Welle, Riss, Sprung) geben ihre Eckdaten für Mitspieler zurück
   const extra = ok && typeof ok === 'object' ? ok : sk.aim ? { tx: Math.round(skillAimPoint(sk).x), ty: Math.round(skillAimPoint(sk).y) } : {};
   // Rang mitschicken (seit 8.5): Mitspieler sehen Augen und Kern in der Rangfarbe
@@ -789,7 +905,11 @@ function useSkill(i) {
   } else {
     startSwing(p, 'skill', 0.34);
   }
-  if (sk.kind === 'angriff' || sk.kind === 'fluch') p.lastCombat = game.time;
+  if (sk.kind === 'angriff' || sk.kind === 'fluch') {
+    p.lastCombat = game.time;
+    // seit 13.85: beim Angriff zum Ziel bzw. zum gewählten Ort schauen (Sprünge und Schritte lenken selbst)
+    if (!FACE_FREE_TYPES.has(sk.type)) attackFace(p, skillFaceAt(sk), Math.max(0.45, (sk.animDur || 0.34) + 0.12));
+  }
 }
 
 // --- Hilfen für Sichelwelle, Felsenfaust und Sprungschlag (seit 8.3) ------------------------------
@@ -910,22 +1030,28 @@ function aimAwayPoint(p, sk) {
   let dy = t ? p.y - t.y : -f.y;
   const l = Math.hypot(dx, dy);
   if (l < 0.01) { dx = -f.x; dy = -f.y; } else { dx /= l; dy /= l; }
-  const d = Math.min(sk.aimAway || 150, sk.range);
+  const d = Math.min(sk.aimAway || 150, aimReach(sk));
   return { x: p.x + dx * d, y: p.y + dy * d };
+}
+// Größte Entfernung des Zielkreises (seit 13.85): aimMax für Sprünge und Schritte (Sprungweite statt Pfeil- oder
+// Zauberreichweite), sonst die Reichweite der Fertigkeit
+function aimReach(sk) {
+  return sk.aimMax || sk.range || sk.distance || 150;
 }
 function startAim(i, sk) {
   const p = game.player;
   cancelAim();
-  const t = sk.aimAway ? null : pickTarget(sk.range);
+  const t = sk.aimAway ? null : pickTarget(aimReach(sk) + (sk.aimMax ? 40 : 0));
   const away = sk.aimAway ? aimAwayPoint(p, sk) : null;
   const pt = away ? { ...away, r: 0 } : { x: t ? t.x : p.x + p.facing.x * 150, y: t ? t.y : p.y + p.facing.y * 150, r: 0 };
   game.aim = { i, sk, pt, until: game.time + AIM_TIMEOUT, go: false };
   // seit 13.42: der Kreis folgt frei dem Zeiger und ist grün, wenn der Zauber dort wirken kann, sonst rot
   // (zu weit weg oder im Dorf); Rechtsklick oder Esc bricht ab
-  if (Math.hypot(pt.x - p.x, pt.y - p.y) > sk.range) clampAim();
-  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.radius, dur: AIM_TIMEOUT + 1, color: AIM_OK });
+  if (Math.hypot(pt.x - p.x, pt.y - p.y) > aimReach(sk)) clampAim();
+  // aimR (seit 13.85): eigene Kreisgröße für Sprünge und Schritte (Landeplatz statt Wirkungsfläche)
+  game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.aimR || sk.radius || 30, dur: AIM_TIMEOUT + 1, color: AIM_OK });
   // seit 13.64: feiner Kreis um die Figur zeigt die Reichweite (Bild in frostgefaengnis.js)
-  game.aim.rangeFx = addEffect({ type: 'aimrange', ground: true, follow: p, ox: 0, oy: 0, r: sk.range, dur: AIM_TIMEOUT + 1 });
+  game.aim.rangeFx = addEffect({ type: 'aimrange', ground: true, follow: p, ox: 0, oy: 0, r: aimReach(sk), dur: AIM_TIMEOUT + 1 });
   aimCheck();
   addText(p.x, p.y - 40, 'Ort antippen', 'info');
   document.body.classList.add('aiming');
@@ -944,7 +1070,7 @@ function aimCheck() {
   const a = game.aim;
   if (!a) return false;
   const p = game.player;
-  const far = Math.hypot(a.pt.x - p.x, a.pt.y - p.y) > a.sk.range + 2;
+  const far = Math.hypot(a.pt.x - p.x, a.pt.y - p.y) > aimReach(a.sk) + 2;
   const town = inVillage(p.x, p.y) && !duelFighting();
   a.ok = !far && !town;
   a.why = far ? 'Zu weit weg' : town ? 'Im Dorf wird nicht gekämpft' : '';
@@ -956,9 +1082,10 @@ function clampAim() {
   const a = game.aim;
   const p = game.player;
   const d = Math.hypot(a.pt.x - p.x, a.pt.y - p.y);
-  if (d > a.sk.range) {
-    a.pt.x = p.x + (a.pt.x - p.x) / d * a.sk.range;
-    a.pt.y = p.y + (a.pt.y - p.y) / d * a.sk.range;
+  const r = aimReach(a.sk);
+  if (d > r) {
+    a.pt.x = p.x + (a.pt.x - p.x) / d * r;
+    a.pt.y = p.y + (a.pt.y - p.y) / d * r;
   }
 }
 function aimAt(x, y) {
@@ -985,12 +1112,26 @@ function updateAim() {
   if (game.time > a.until || !game.player || game.player.dead) cancelAim();
   else aimCheck();
 }
+// Gegner am Zielkreis (seit 13.85, Blitzangriff): der nächste am Punkt innerhalb des Kreises (aimR), Monster vor Steinen
+function aimEnemyAt(pt, sk) {
+  const p = game.player;
+  const R = sk.aimR || sk.radius || 40;
+  let best = null;
+  let bd = Infinity;
+  for (const m of aliveEnemies()) {
+    if (m.hidden || dist(p, m) - (m.r || 0) > aimReach(sk) + 20) continue;
+    const d = Math.hypot(m.x - pt.x, m.y - pt.y) - (m.r || 0) + (m.isStone ? 1000 : 0);
+    if (d <= R + (m.isStone ? 1000 : 0) && d < bd) { best = m; bd = d; }
+  }
+  return best;
+}
 // Zielort einer Fertigkeit: der gewählte Kreis, sonst das Ziel oder ein Punkt vor der Figur
 function skillAimPoint(sk) {
   const p = game.player;
   if (game.aim && game.aim.sk.id === sk.id) return game.aim.pt;
-  const t = pickTarget(sk.range);
-  return t ? { x: t.x, y: t.y } : { x: p.x + p.facing.x * 150, y: p.y + p.facing.y * 150 };
+  const t = pickTarget(aimReach(sk));
+  const d = Math.min(150, aimReach(sk));
+  return t ? { x: t.x, y: t.y } : { x: p.x + p.facing.x * d, y: p.y + p.facing.y * d };
 }
 
 function enemiesInCone(x, y, dir, radius, angleDeg) {
@@ -1220,10 +1361,24 @@ const SKILL_TYPES = {
   // Sprungschlag (seit 8.3): kurze Hocke, Sprung nach vorn (vor das Ziel), Landung mit Krater und Betäubung
   leap(sk, pw) {
     const p = game.player;
-    const t = pickTarget(sk.distance + 40);
-    if (t) faceTowards(t.x, t.y);
+    let want;
+    if (sk.aim) {
+      // seit 13.85: Landeplatz mit dem Zielkreis gewählt (wie ein Zauber). Liegt er auf einem Gegner,
+      // landet die Figur knapp davor (sonst stünde sie in ihm); getroffen wird im Kreis um die Landung.
+      const pt = skillAimPoint(sk);
+      const dl = Math.hypot(pt.x - p.x, pt.y - p.y);
+      if (dl > 4) faceTowards(pt.x, pt.y);
+      want = Math.min(sk.distance, dl);
+      for (const m of aliveEnemies()) {
+        if (m.hidden || Math.hypot(m.x - pt.x, m.y - pt.y) > (m.r || 14) + 6) continue;
+        want = Math.max(0, Math.min(want, dist(p, m) - ((m.r || 14) + 12)));
+      }
+    } else {
+      const t = pickTarget(sk.distance + 40);
+      if (t) faceTowards(t.x, t.y);
+      want = t ? Math.max(0, Math.min(sk.distance, dist(p, t) - ((t.r || 14) + 12))) : sk.distance;
+    }
     const dir = { ...p.facing };
-    const want = t ? Math.max(0, Math.min(sk.distance, dist(p, t) - ((t.r || 14) + 12))) : sk.distance;
     let reach = 0;
     for (let s = 6; s <= want; s += 6) {
       const nx = p.x + dir.x * s;
@@ -1273,7 +1428,9 @@ const SKILL_TYPES = {
   // Blitzangriff: sofort hinter dem Ziel stehen und zuschlagen
   blink(sk, pw) {
     const p = game.player;
-    const t = pickTarget(sk.range);
+    // seit 13.85 mit Zielkreis: hinter dem Gegner, der dem gewählten Punkt am nächsten ist (aimR um den Punkt)
+    const t = sk.aim ? aimEnemyAt(skillAimPoint(sk), sk) : pickTarget(sk.range);
+    if (t && sk.aim && !targetIsManual(t)) setTarget(t, false);
     if (!t) {
       addText(p.x, p.y - 34, 'Kein Ziel', 'info');
       return false;
@@ -1305,10 +1462,12 @@ const SKILL_TYPES = {
   // Blitz schlägt beim Ziel ein
   blast(sk, pw) {
     const p = game.player;
-    const t = pickTarget(sk.range);
-    const x = t ? t.x : p.x + p.facing.x * 120;
-    const y = t ? t.y : p.y + p.facing.y * 120;
-    if (t) faceTowards(t.x, t.y);
+    // seit 13.85 mit Zielkreis (sk.aim, Donnersturm): am gewählten Ort statt beim Ziel
+    const ap = sk.aim ? skillAimPoint(sk) : null;
+    const t = ap ? null : pickTarget(sk.range);
+    const x = ap ? ap.x : t ? t.x : p.x + p.facing.x * 120;
+    const y = ap ? ap.y : t ? t.y : p.y + p.facing.y * 120;
+    if (ap || t) faceTowards(x, y);
     if (sk.fx === 'poison') {
       // Giftwolke statt Blitz
       later(0.1, () => {
@@ -1530,8 +1689,9 @@ const SKILL_TYPES = {
   // Seelenkäfig (seit 8.5): beim Ziel bricht ein Rippenkäfig aus dem Boden, der Geist darin schreit jede Sekunde
   cage(sk, pw) {
     const p = game.player;
-    const t = pickTarget(sk.range);
-    if (t) faceTowards(t.x, t.y);
+    // seit 13.85 mit Zielkreis (sk.aim): der Käfig bricht am gewählten Ort aus dem Boden
+    const t = sk.aim ? skillAimPoint(sk) : pickTarget(sk.range);
+    if (t && Math.hypot(t.x - p.x, t.y - p.y) > 4) faceTowards(t.x, t.y);
     const dir = { ...p.facing };
     let x = t ? t.x : p.x + dir.x * sk.place;
     let y = t ? t.y : p.y + dir.y * sk.place;

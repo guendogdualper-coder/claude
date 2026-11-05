@@ -45,7 +45,8 @@ function buildGroundImage() {
     else if (g === GROUND.LAVA) g = GROUND.BASALT;
     else if (g === GROUND.BOG) g = GROUND.SWAMP;
     if (g === GROUND.PATH || g === GROUND.PLAZA) g = GROUND[ZONES[w.zoneIdx[i]].ground];
-    img.data.set([...rgb(GROUND_PALETTE[g][w.shade[i] >> 5]), 255], i * 4);
+    // seit 13.85 mit Ersatzfarbe, falls eine Bodenart (noch) keine Farben hat (sonst bricht das ganze Bild ab)
+    img.data.set([...rgb((GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.BASALT])[w.shade[i] >> 5]), 255], i * 4);
   }
   cx.putImageData(img, 0, 0);
   return c;
@@ -85,7 +86,7 @@ function renderGroundChunk(cx, cy) {
         continue;
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA || LIQUID.has(g) || g === GROUND.ICE || g === GROUND.FLAGSTONE) {
-        ctx.fillStyle = GROUND_PALETTE[g][Math.min(7, (w.shade[i] >> 6) + 3)];
+        ctx.fillStyle = (GROUND_PALETTE[g] || GROUND_PALETTE[GROUND.BASALT])[Math.min(7, (w.shade[i] >> 6) + 3)];
         ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
       }
       if (LIQUID.has(g) && w.deco[i] !== DECO.BRIDGE) drawShore(ctx, x, y, px, py, g);
@@ -945,6 +946,179 @@ const PROP_BOUNDS = {
   dshrine: { x: -28, y: -68, w: 56, h: 70 }
 };
 
+// Stadtschmuck (seit 13.85, welt.js TOWN_DECO): wie in 3D, pr.roof = "Stil|schnee"
+const DECO2_SNOW = '#eef4fa';
+const deco2Snow = (pr) => String(pr.roof || '').includes('schnee');
+function deco2Barrel(ctx, x, s = 1, c = '#8a5a34') {
+  box(ctx, x - 7 * s, -17 * s, 14 * s, 17 * s, 4 * s, c);
+  stroke(ctx, '#3a2a1c', 1.3, [[x - 7 * s, -13 * s], [x + 7 * s, -13 * s]]);
+  stroke(ctx, '#3a2a1c', 1.3, [[x - 7 * s, -4 * s], [x + 7 * s, -4 * s]]);
+  dot(ctx, x, -17 * s, 6 * s, 2 * s, darker(c, 0.2));
+}
+function deco2Crate(ctx, x, y, s, c = '#a07a4a') {
+  box(ctx, x - 8 * s, y - 15 * s, 16 * s, 15 * s, 1, c);
+  stroke(ctx, '#5a3f26', 1, [[x - 8 * s, y - 7.5 * s], [x + 8 * s, y - 7.5 * s]]);
+  stroke(ctx, '#5a3f26', 1, [[x - 6 * s, y - 13 * s], [x + 6 * s, y - 2 * s]]);
+}
+function deco2Sack(ctx, x, s = 1, c = '#c8b088') {
+  oval(ctx, x, -6 * s, 6.5 * s, 6 * s, c);
+  poly(ctx, [[x - 2.5 * s, -11 * s], [x + 2.5 * s, -11 * s], [x + 1.5 * s, -15 * s], [x - 1.5 * s, -15 * s]], c);
+  stroke(ctx, '#6b4a2e', 1, [[x - 2.5 * s, -11.5 * s], [x + 2.5 * s, -11.5 * s]]);
+}
+function deco2Jar(ctx, x, s = 1, c = '#c07a4a') {
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(x - 3 * s, 0);
+    ctx.quadraticCurveTo(x - 8 * s, -6 * s, x - 6 * s, -11 * s);
+    ctx.lineTo(x - 2.5 * s, -16 * s);
+    ctx.lineTo(x + 2.5 * s, -16 * s);
+    ctx.lineTo(x + 6 * s, -11 * s);
+    ctx.quadraticCurveTo(x + 8 * s, -6 * s, x + 3 * s, 0);
+    ctx.closePath();
+  }, c, x - 8 * s, -16 * s, 16 * s, 16 * s);
+  box(ctx, x - 3 * s, -18 * s, 6 * s, 2.5 * s, 0.8, darker(c, 0.15));
+}
+Object.assign(PROP_ART, {
+  planter(ctx, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'palme') {
+      deco2Jar(ctx, 0, 0.9);
+      stroke(ctx, '#8a6a44', 2.2, [[0, -15], [1, -30], [2, -38]]);
+      for (const [dx, dy] of [[-13, -32], [13, -33], [-9, -42], [10, -43], [0, -46]]) poly(ctx, [[2, -38], [2 + dx, -38 + (dy + 38)], [2 + dx * 0.6, -36 + (dy + 38) * 0.4]], dx < 0 ? '#4a8a3a' : '#5a9a42');
+      return;
+    }
+    if (style === 'dorn') {
+      box(ctx, -12, -9, 24, 9, 1.5, '#8a8276');
+      for (const pts of [[[-5, -9], [-10, -20]], [[0, -9], [1, -24]], [[5, -9], [10, -19]], [[1, -18], [-4, -22]]]) stroke(ctx, '#6a5a44', 1.2, pts);
+      for (const [x, y] of [[-9, -18], [2, -22], [9, -17]]) dot(ctx, x, y, 2.5, 2, '#7a8a5a');
+      return;
+    }
+    if (style === 'farn') {
+      box(ctx, -10, -10, 20, 10, 3, '#6b4a2e');
+      oval(ctx, 0, -10, 9, 2.5, '#b08c5c');
+      for (const a of [-1.1, -0.6, -0.15, 0.3, 0.75, 1.15]) poly(ctx, [[0, -11], [Math.sin(a) * 14, -11 - Math.cos(a) * 13], [Math.sin(a) * 6 + 2, -13]], '#4f8a3c');
+      oval(ctx, 9, -3, 3, 2, '#c8402f');
+      return;
+    }
+    const tub = style === 'tanne' || style === 'pilz';
+    if (tub) {
+      box(ctx, -9, -11, 18, 11, 2, '#7a5434');
+      stroke(ctx, '#3a2a1c', 1, [[-9, -8], [9, -8]]);
+      stroke(ctx, '#3a2a1c', 1, [[-9, -3], [9, -3]]);
+    } else {
+      box(ctx, -13, -9, 26, 9, 1.5, '#8a6440');
+      for (const x of [-13, 11]) box(ctx, x, -9, 2, 9, 0.5, '#5a3a22');
+    }
+    if (style === 'tanne') {
+      poly(ctx, [[-9, -12], [9, -12], [0, -26]], '#2f5a3a');
+      poly(ctx, [[-7, -20], [7, -20], [0, -33]], '#2f5a3a');
+      if (deco2Snow(pr)) {
+        poly(ctx, [[-4, -27], [4, -27], [0, -33]], DECO2_SNOW);
+        poly(ctx, [[-5, -19], [5, -19], [0, -25]], DECO2_SNOW);
+      }
+      return;
+    }
+    if (style === 'pilz') {
+      for (const [x, h, r, c] of [[-4, 6, 4, '#9a6ad8'], [3, 9, 5, '#6aa8d8']]) {
+        box(ctx, x - 1, -11 - h, 2, h, 0.5, '#e8e0d0');
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        dot(ctx, x, -11 - h, r + 2, r * 0.7 + 1.5, 'rgba(160,140,255,0.25)');
+        ctx.restore();
+        oval(ctx, x, -11 - h, r, r * 0.6, c);
+      }
+      return;
+    }
+    const cols = ['#d8403a', '#f0c84a', '#f4f0e4', '#c8509a'];
+    for (let k = 0; k < 6; k++) dot(ctx, -10 + k * 4, -10, 3, 2.5, k % 2 ? '#4f8a34' : '#5a9a3c');
+    for (let k = 0; k < 6; k++) oval(ctx, -10 + k * 4, -13 - (k % 3), 1.8, 1.8, cols[k % 4]);
+  },
+  bench(ctx, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'stein') {
+      for (const x of [-16, 10]) box(ctx, x, -10, 6, 10, 1, '#a49880');
+      box(ctx, -22, -14, 44, 5, 1.5, '#b8ac92');
+    } else {
+      for (const x of [-18, 16]) box(ctx, x, -24, 2.5, 24, 0.5, '#5a3a22');
+      box(ctx, -21, -24, 42, 5, 1, '#9a7448');
+      box(ctx, -21, -13, 42, 4, 1, '#9a7448');
+      for (const x of [-17, 15]) box(ctx, x, -10, 2.5, 10, 0.5, '#5a3a22');
+    }
+    if (deco2Snow(pr)) box(ctx, -19, -15, 38, 2.5, 1, DECO2_SNOW);
+  },
+  goods(ctx, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'krug') {
+      deco2Jar(ctx, -9, 1.1, '#c07a4a');
+      deco2Jar(ctx, 3, 0.85, '#b06a3a');
+      deco2Sack(ctx, 12, 0.9, '#d8c08a');
+      return;
+    }
+    if (style === 'erz') {
+      deco2Crate(ctx, -5, 0, 1.1, '#6a5a4a');
+      for (const [x, y] of [[-9, -17], [-4, -18], [0, -17]]) oval(ctx, x, y, 3, 2.4, '#3a3632');
+      dot(ctx, -5, -18.5, 1.4, 1.4, '#ff8a3a');
+      deco2Barrel(ctx, 12, 0.9, '#5a4a3a');
+      return;
+    }
+    deco2Barrel(ctx, -11, 1);
+    deco2Crate(ctx, 5, 0, 1);
+    deco2Crate(ctx, 5, -15, 0.75, '#b08c5c');
+    deco2Sack(ctx, -2, 0.75);
+    if (deco2Snow(pr)) {
+      box(ctx, -17, -19.5, 12, 3, 1.5, DECO2_SNOW);
+      box(ctx, -1, -28, 12, 3, 1.5, DECO2_SNOW);
+    }
+  },
+  woodpile(ctx, pr) {
+    for (const [row, xs] of [[0, [-12, -4, 4, 12]], [1, [-8, 0, 8]], [2, [-4, 4]]]) {
+      for (const x of xs) {
+        oval(ctx, x, -4 - row * 7, 4, 3.6, '#7a5434');
+        dot(ctx, x, -4 - row * 7, 2.6, 2.3, '#d8b88a');
+      }
+    }
+    if (deco2Snow(pr)) box(ctx, -8, -25, 16, 3, 1.5, DECO2_SNOW);
+  },
+  sacks(ctx, pr) {
+    deco2Sack(ctx, -7, 1.1);
+    deco2Sack(ctx, 7, 1.0, '#b8a07a');
+    deco2Sack(ctx, 0, 0.9, '#d8c49a');
+    if (deco2Snow(pr)) box(ctx, -11, -16, 8, 2.5, 1, DECO2_SNOW);
+  },
+  pots(ctx) {
+    deco2Jar(ctx, -6, 1.15, '#c07a4a');
+    deco2Jar(ctx, 7, 0.9, '#b06a3a');
+  },
+  totem(ctx) {
+    box(ctx, -3, -46, 6, 46, 1.5, '#6b4a2e');
+    for (const [y, c] of [[-26, '#8a2a1a'], [-33, '#5a3a22']]) box(ctx, -4, y, 8, 3, 0.5, c);
+    oval(ctx, 0, -46, 6, 6.5, '#e8dcc0');
+    for (const x of [-2.2, 2.2]) dot(ctx, x, -46, 1.3, 1.5, '#2a1c14');
+    for (const sx of [-1, 1]) poly(ctx, [[sx * 4, -50], [sx * 14, -56], [sx * 6, -47]], '#d8ccb0');
+  },
+  ore(ctx) {
+    oval(ctx, 0, -4, 14, 6, '#3a3430');
+    for (const [x, y] of [[-7, -6], [5, -7], [-1, -10]]) oval(ctx, x, y, 3.5, 2.8, '#4a4440');
+    dot(ctx, 2, -9, 1.5, 1.5, '#ff8a3a');
+    dot(ctx, -5, -8, 1.2, 1.2, '#ff8a3a');
+  },
+  wallbanner(ctx, pr) {
+    const cloth = pr.roof || '#9a2f2a';
+    box(ctx, -1.5, -66, 3, 66, 1, '#3a2a1c');
+    box(ctx, -13, -62, 26, 2.5, 1, '#3a2a1c');
+    poly(ctx, [[-11, -60], [11, -60], [11, -26], [0, -31], [-11, -26]], cloth);
+    box(ctx, -11, -60, 22, 2, 0.5, '#c9a35a');
+    oval(ctx, 0, -44, 3.5, 3.5, '#e8c46a');
+    dot(ctx, 0, -44, 1.6, 1.6, cloth);
+  }
+});
+Object.assign(PROP_BOUNDS, {
+  planter: { x: -24, y: -56, w: 48, h: 58 },
+  bench: { x: -26, y: -32, w: 52, h: 36 },
+  totem: { x: -18, y: -62, w: 36, h: 64 },
+  wallbanner: { x: -18, y: -70, w: 36, h: 72 }
+});
+
 function propSprite(pr) {
   const b = PROP_BOUNDS[pr.type] || { x: -24, y: -46, w: 48, h: 50 };
   return getSprite('p:' + pr.type + ':' + (pr.roof || ''), b, (ctx) => PROP_ART[pr.type](ctx, pr));
@@ -987,6 +1161,8 @@ function collectWorldObjects(list, x0, y0, x1, y1) {
   }
   for (const pr of w.props) {
     if (pr.x < (x0 - 3) * TILE || pr.x > (x1 + 3) * TILE || pr.y < y0 * TILE || pr.y > (y1 + 4) * TILE) continue;
+    // seit 13.85: Bauten ohne 2D-Bild auslassen statt das ganze Bild abzubrechen
+    if (typeof PROP_ART[pr.type] !== 'function') continue;
     list.push({ worldObj: 'prop', prop: pr, x: pr.x, y: pr.y });
   }
 }

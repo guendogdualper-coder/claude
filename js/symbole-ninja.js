@@ -200,69 +200,6 @@ function ikNinjaStar(ctx, IK, x, y, r, pal = ['#fffbe0', '#ffd84a', '#b8780a']) 
   }, IK.rad(ctx, x - r * 0.3, y - r * 0.3, 0, r * 1.2, [[0, pal[0]], [0.5, pal[1]], [1, pal[2]]]), 0.7));
 }
 
-// Vogelfeder: Kiel bei (x,y), Länge len, Winkel ang (0 = nach oben)
-function ikNinjaFeather(ctx, IK, x, y, len, ang) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(ang);
-  const k = len / 30;
-  ctx.scale(k, k);
-  // Fahne: links schmal, rechts breit, Spitze rund, zwei Kerben
-  const vane = (c) => {
-    c.moveTo(0, -2);
-    c.bezierCurveTo(-4.6, -6, -5.2, -14, -4.4, -19);
-    c.lineTo(-2.6, -18.4);
-    c.bezierCurveTo(-4.4, -22, -3.6, -27, -1.2, -29.4);
-    c.quadraticCurveTo(1, -31, 2.6, -28.4);
-    c.bezierCurveTo(6.4, -24, 7.4, -18, 6.6, -14);
-    c.lineTo(4.2, -13.6);
-    c.bezierCurveTo(6.6, -10, 5.6, -6, 0.8, -2);
-    c.closePath();
-  };
-  IK.glow(ctx, '#e0fff0', 6, () => IK.fill(ctx, vane, IK.lin(ctx, -5, -10, 7, -18, [[0, '#ffffff'], [0.45, '#f2fffa'], [0.55, '#c8eee2'], [1, '#78b8a8']]), 1 / k, 'rgba(10,30,24,0.9)'));
-  // Fahnenstrahlen
-  ctx.save();
-  ctx.beginPath();
-  vane(ctx);
-  ctx.clip();
-  ctx.lineWidth = 0.45;
-  for (let i = 0; i < 13; i++) {
-    const yy = -4 - i * 2;
-    ctx.strokeStyle = 'rgba(70,130,115,0.5)';
-    ctx.beginPath();
-    ctx.moveTo(0.3, yy);
-    ctx.quadraticCurveTo(-2, yy - 1.2, -6, yy - 4);
-    ctx.moveTo(0.3, yy);
-    ctx.quadraticCurveTo(3, yy - 1.2, 8, yy - 4.4);
-    ctx.stroke();
-  }
-  // Glanz auf der linken Fahne
-  ctx.fillStyle = IK.rad(ctx, -2, -16, 0, 6, [[0, 'rgba(255,255,255,0.8)'], [1, 'rgba(255,255,255,0)']]);
-  ctx.fillRect(-8, -24, 10, 16);
-  ctx.restore();
-  // Kiel, leicht gebogen
-  ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(30,60,50,0.8)';
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.moveTo(-0.6, 4);
-  ctx.quadraticCurveTo(0.8, -14, 0.6, -28.5);
-  ctx.stroke();
-  ctx.strokeStyle = '#fffdf0';
-  ctx.lineWidth = 0.9;
-  ctx.stroke();
-  // Flaum am Kiel
-  ctx.strokeStyle = 'rgba(255,255,255,0.8)';
-  ctx.lineWidth = 0.5;
-  for (const [dx, dy] of [[-2.6, -1.4], [-2.2, 0.2], [2.4, -1.2], [2.8, 0.4]]) {
-    ctx.beginPath();
-    ctx.moveTo(-0.2, -1 + dy * 0.3);
-    ctx.quadraticCurveTo(dx * 0.6, dy - 1, dx, dy);
-    ctx.stroke();
-  }
-  ctx.restore();
-}
-
 // --- Motive -----------------------------------------------------------------------------------------
 Object.assign(SKILL_ART, {
   // Hinterhalt: aus einer Rauchwolke (mit leuchtenden Augen) stößt ein großer Dolch schräg nach unten,
@@ -321,16 +258,21 @@ Object.assign(SKILL_ART, {
     IK.light(ctx, 13, -13, 4, '#ffffff', 1);
   },
 
-  // Leichtfüßigkeit: weiße Feder schwebt in Windbändern
-  leichtfuessigkeit(ctx, IK) {
-    IK.light(ctx, 1, -2, 14, '#e0fff0', 0.65);
-    // Windbänder umströmen die Feder
-    ikNinjaWisp(ctx, IK, 17, -9, 2, -17, -14, -8, 2.2, '255,255,255', 0.9);
-    ikNinjaWisp(ctx, IK, -17, 7, -4, 16, 13, 10, 2.2, '255,255,255', 0.9);
-    ikNinjaWisp(ctx, IK, 16, 2, 8, -2, 0, 3, 1.4, '224,255,240', 0.8);
-    ikNinjaWisp(ctx, IK, -16, -2, -8, 2, -2, -4, 1.4, '224,255,240', 0.8);
-    ikNinjaFeather(ctx, IK, -8, 13, 32, 0.7);
-    IK.sparkles(ctx, 6, '#ffffff', 11, 18);
+  // Schattenkette (seit 13.85 statt Leichtfüßigkeit): zwei blasse Schattenbilder im Zickzack, dazwischen Rauch und
+  // eine violette Schattenlinie; vorn der Ninja im Ausfall mit Dolch, Kreuzschnitt am Ziel
+  schattenkette(ctx, IK) {
+    const pal = ['#c8b8f0', '#5a4a8a', '#140c24'];
+    IK.light(ctx, 4, -2, 16, '#b48cff', 0.55);
+    ikNinjaWisp(ctx, IK, 12, -6, 2, 10, -10, 2, 2.2, '184,150,255', 0.9);
+    ikNinjaWisp(ctx, IK, -10, 2, -16, -8, -12, -14, 2, '184,150,255', 0.8);
+    ikNinjaSmoke(ctx, IK, -12, -12, 4.2, 3, pal, 5, 0.6);
+    ikNinjaSmoke(ctx, IK, -10, 6, 4.6, 5, pal, 5, 0.75);
+    ikNinjaFigure(ctx, IK, -13, -4, 14, { alpha: 0.38, body: ['#d8c8ff', '#6a4aa8', '#1a1030'], rim: 'rgba(255,255,255,0.7)', scarfCol: ['#d8c8ff', '#6a4aa8'], eye: '#ffffff' });
+    ikNinjaFigure(ctx, IK, -8, 16, 15, { alpha: 0.55, body: ['#d8c8ff', '#6a4aa8', '#1a1030'], rim: 'rgba(255,255,255,0.75)', scarfCol: ['#d8c8ff', '#6a4aa8'], eye: '#ffffff' });
+    ikNinjaSlash(ctx, IK, 10, -18, 19, -6, 3, '#ffffff', '#c890ff');
+    ikNinjaSlash(ctx, IK, 19, -17, 10, -6, 3, '#ffffff', '#c890ff');
+    ikNinjaFigure(ctx, IK, 4, 17, 25, { pose: 'lunge', lean: 0.15, dagger: [Math.PI * 0.3, 13] });
+    IK.sparkles(ctx, 5, '#f0e0ff', 14, 19);
   },
   // Schattensprung: Ninja im Sprung nach rechts, Rauchschleppe dahinter, X-Schnitt am Ziel
   schattensprung(ctx, IK) {
@@ -484,6 +426,7 @@ Object.assign(SKILL_ART, {
 // Hintergründe: jede Fertigkeit eigene Farbe
 Object.assign(SKILL_ART_THEME, {
   hinterhalt: 'schatten',
+  schattenkette: 'schatten',
   tarnung: 'knochen',
   laehmklinge: 'seele',
   schattensprung: 'm_blitz',

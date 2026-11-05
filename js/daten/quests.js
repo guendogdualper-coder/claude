@@ -104,6 +104,23 @@ const QUEST_CHAPTERS = [
     { level: 70, title: 'Die neun Endbosse', goal: { type: 'raids', count: 9 },
       text: 'Willkommen daheim, Held. In jeder Map wartet noch ein Endboss in seiner Halle – der Urwolf, der Waldtyrann, der Großkhan, der Höllenfürst, die Schlangengöttin, der Frostriese, der Lichkönig, der Donnertitan und der Weltendrache. Sammle Gefährten und besiege sie alle. Dann ist die Welt für immer frei.',
       reward: { gold: 1000000, books: 8, mats: { star: 5, boni5: 5, switch67: 3 } } }
+  ] },
+  // seit 13.85: nach dem Finale geht es ab Stufe 75 in den Kristallabgrund (Map 10). Hinten angehängt, damit die
+  // Nummern aller älteren Aufträge (p.quests.main) gleich bleiben; wer das Finale schon hat, macht hier weiter.
+  { map: 1, title: 'Epilog · Der Ruf aus dem Abgrund', quests: [
+    QT(75, 10, 'Licht über dem Abgrund', 'Die neun Endbosse sind gefallen, doch die Steine wachsen weiter – tief im Süden, wo die Welt in einen Abgrund aus Kristall bricht. Reise durch das Weltentor in den Kristallabgrund und sprich mit Aurelia in der Zitadelle Lichtwacht.')
+  ] },
+  { map: 10, title: 'Kapitel 10 · Kristallabgrund', quests: [
+    QK(75, 'kristallgolem', 20, 'Golems aus Kristall', 'Bao schickt dich? Dann bist du der Held, von dem man in Lichtwacht flüstert. Golems aus lebendem Kristall stampfen gegen unsere Mauern. Zerschlag sie.', { books: 2 }),
+    QK(76, 'splitterspinne', 15, 'Netze aus Glas', 'Splitterspinnen spannen Fäden, scharf wie Glas, über die Pfade der Hänge. Wer hindurchläuft, kommt nicht heil heraus.'),
+    QS(76, 75, 2, 'Stein der Leere', 'Zwei Steine der Leere saugen das Licht aus den Kristallen. Zerstöre sie, bevor die Hänge erlöschen.', { books: 2, mats: { star: 2, boni5: 1 } }),
+    QK(77, 'schattenpirscher', 15, 'Schatten auf der Lauer', 'Schattenpirscher jagen zwischen den Kristallbäumen. Man sieht sie erst, wenn sie springen.', { items: [['ruestung', 8, 3]] }),
+    QK(78, 'abgrundgeist', 15, 'Stimmen aus der Tiefe', 'Aus den Spalten steigen Geister und flüstern von der Leere. Bring sie zum Schweigen.', { mats: { boni5: 2 } }),
+    QK(78, 'vaelith', 1, 'Die Kristallseherin', 'Vaelith sieht in ihren Spiegeln jeden unserer Schritte. Sie haust in der Kristallkaverne. Brich ihre Spiegel.', { items: [['waffe', 8, 3]], books: 2 }),
+    QK(79, 'leerenritter', 15, 'Ritter der Leere', 'Einst schützten diese Ritter die Zitadelle. Jetzt dienen sie der Leere. Erlöse sie.', { items: [['helm', 8, 3]] }),
+    QK(80, 'kristallwyrm', 12, 'Wyrme über dem Schlund', 'Kristallwyrme kreisen über dem Leerenschlund. Ihr Atem lässt alles zu Glas erstarren.', { books: 3, mats: { star: 2, boni5: 2 } }),
+    QS(80, 80, 1, 'Stein des Abgrunds', 'Der Stein des Abgrunds ist der Ursprung aller Seelensteine. Zerstöre ihn, und die Welt atmet auf.', { books: 3, mats: { star: 3, boni5: 3, switch67: 1 } }),
+    QK(80, 'aelvyr', 1, 'Der Wyrm des Abgrunds', 'Ganz unten im Abgrund schläft Aelvyr, der alles Licht frisst. Sammle Gefährten und stelle dich ihm in seinem Hort – es ist der letzte Kampf.', { gold: 1500000, books: 6, mats: { star: 5, boni5: 5, switch67: 3 } })
   ] }
 ];
 const MAIN_QUESTS = QUEST_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `k${ci + 1}_${k + 1}`, map: ch.map, chapter: ci, chapterTitle: ch.title })));

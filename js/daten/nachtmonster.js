@@ -30,7 +30,10 @@ Object.assign(MONSTER_TYPES, {
   dschungelgeist: { name: 'Dschungelgeist', level: 46, shape: 'ghost', color: '#6ad8b0', size: 13, speed: 95, range: 220, cooldown: 2, aggressive: true, ranged: true, hpMul: 0.95, atkMul: 1.3, shot: '#ffe86a', night: true },
   // Map 3 · Donnerklamm und Titanenkamm
   sturmgeist: { name: 'Sturmgeist', level: 56, shape: 'ghost', color: '#a8c0ff', size: 14, speed: 100, range: 230, cooldown: 1.9, aggressive: true, ranged: true, hpMul: 1, atkMul: 1.35, shot: '#9fd0ff', night: true },
-  schattengargoyle: { name: 'Schattengargoyle', level: 70, shape: 'demon', color: '#2a2a34', size: 15, speed: 125, range: 30, cooldown: 1.15, aggressive: true, hpMul: 1.35, atkMul: 1.45, look: 'gargoyle', night: true }
+  schattengargoyle: { name: 'Schattengargoyle', level: 70, shape: 'demon', color: '#2a2a34', size: 15, speed: 125, range: 30, cooldown: 1.15, aggressive: true, hpMul: 1.35, atkMul: 1.45, look: 'gargoyle', night: true },
+  // Map 10 · Kristallabgrund (seit 13.85; Aussehen in karte80.js)
+  leerenwolf: { name: 'Leerenwolf', level: 77, shape: 'beast', color: '#2a2848', size: 16, speed: 125, range: 28, cooldown: 1.2, aggressive: true, hpMul: 1.35, atkMul: 1.45, night: true },
+  sternenschemen: { name: 'Sternenschemen', level: 79, shape: 'ghost', color: '#c8c0ff', size: 14, speed: 100, range: 230, cooldown: 1.9, aggressive: true, ranged: true, hpMul: 1.05, atkMul: 1.5, shot: '#e0f0ff', night: true }
 });
 
 // Wo und wie viele Nachtgruppen erscheinen (Gebiet → Gruppen)
@@ -45,7 +48,9 @@ const NIGHT_GROUPS = {
   sandwueste: [['mondkobra', 6, 0.2, 1]],
   nagadschungel: [['dschungelgeist', 6, 0.2, 1]],
   donnerklamm: [['sturmgeist', 6, 0.2, 1]],
-  titanenkamm: [['schattengargoyle', 6, 0.2, 1]]
+  titanenkamm: [['schattengargoyle', 6, 0.2, 1]],
+  kristallhang: [['leerenwolf', 6, 0.1, 0.9]],
+  leerenschlund: [['sternenschemen', 6, 0.2, 1], ['leerenwolf', 3, 0, 0.6]]
 };
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
 
@@ -54,6 +59,7 @@ for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
 const NIGHT_WANDERERS = [
   ['Mondpriester Tsuki', 'moench'], ['Geisterjägerin Kage', 'jaegerin'], ['Laternenträger Hiro', 'bauer'],
   ['Sterndeuterin Hoshi', 'alte'], ['Totengräber Bram', 'bauer'], ['Schattenläuferin Yoru', 'jaegerin'],
-  ['Eulenmönch Fuku', 'moench'], ['Kräuterhexe Nyx', 'alte'], ['Nachtfalke Ren', 'jaegerin']
+  ['Eulenmönch Fuku', 'moench'], ['Kräuterhexe Nyx', 'alte'], ['Nachtfalke Ren', 'jaegerin'],
+  ['Sternwächterin Lyra', 'jaegerin'] // seit 13.85: Map 10
 ];
 const NIGHT_KILL = 12;

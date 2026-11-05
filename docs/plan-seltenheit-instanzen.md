@@ -101,6 +101,12 @@ Stand: 2. 11. 2026, Wunsch des Spielers. Wird nach den laufenden Arbeiten (Stufe
 | Donnerklamm | unten rechts | Sturmhorst | Sturm | 27 | Ssyla, Grom, Ugrak, Brontes | Sturmkönigin Tempestra |
 | Feuerberg | oben rechts | Glutkessel | Feuer | 23 | Sahir, Schlackenfaust, Ilyra, Ignaroth | Magmafürst Pyrrhos |
 | Feuerberg | unten links | Aschenzitadelle | Feuer | 29 | Kael, Ishra, Vorr, Barak | Aschenkaiser Vulkhar |
+| Kristallabgrund (seit 13.85) | oben links | Spiegelgruft | Eis | – | Glimra, Korvald, Ysolde, Brakkar (76 → 79) | Aelthys, Herrin der Spiegel (80) |
+| Kristallabgrund (seit 13.85) | unten rechts | Thron der Leere | Tod | – | Nachtkralle, Xul, Gharon, Ritter Morvaine (76 → 79) | Nihilor, Fürst der Leere (80) |
+
+  Die beiden Lv-80-Instanzen (seit 13.85, `INSTANCES80` in `js/daten/instanzen.js`) sind gleich gebaut, aber ab
+  Stufe 75 (`minLevel`), Gegner in den Räumen Stufe 78–79 (`instLevel`), Steine 75 und 80; epische Beute Lv 70/80.
+  Sie hängen hinten an `INSTANCES`, damit alle älteren Dungeons ihren Platz im Streifen behalten.
 
   *mit Halle und zwei Seitenräumen (Schatzkammer, Schrein); vorher hatte der Höllenthron 6, ein Endboss 2 Räume.
 - Grundriss (`instPlan`): unter der Halle ein Raster aus 4 × 8 Feldern, der Weg windet sich von unten nach oben

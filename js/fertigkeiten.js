@@ -121,15 +121,15 @@ const SKILL_ICONS = {
     iconShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 0, 15, 0.6, Math.PI * 2 - 0.6); ctx.arc(9, 0, 11, Math.PI * 2 - 1.2, 1.2, true); ctx.closePath(); }, '#e0d0ff', '#5a3a8a');
     iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(-4, -1, 3, 1.6, 0, 0, Math.PI * 2); }, '#ffffff', '#c9b8ff', 1.5);
   },
-  leichtfuessigkeit(ctx) {
-    iconShape(ctx, () => {
-      ctx.beginPath();
-      ctx.moveTo(-14, 16);
-      ctx.quadraticCurveTo(-10, -6, 14, -17);
-      ctx.quadraticCurveTo(10, 2, -14, 16);
-      ctx.closePath();
-    }, '#ffffff', '#b8c8e8');
-    iconLine(ctx, '#7a8aa8', 1.5, [[-12, 14], [10, -14]]);
+  // seit 13.85 Schattenkette statt Leichtfüßigkeit: drei Schattenfiguren im Zickzack, verbunden durch eine violette Linie
+  schattenkette(ctx) {
+    iconLine(ctx, '#b48cff', 2.2, [[-14, 12], [-2, -10], [6, 10], [15, -12]]);
+    for (const [x, y, a] of [[-14, 12, 0.45], [-2, -10, 0.7], [6, 10, 1]]) {
+      ctx.globalAlpha = a;
+      iconShape(ctx, () => { ctx.beginPath(); ctx.arc(x, y - 6, 3.2, 0, Math.PI * 2); ctx.moveTo(x - 3.5, y - 2); ctx.lineTo(x + 3.5, y - 2); ctx.lineTo(x + 2.5, y + 6); ctx.lineTo(x - 2.5, y + 6); ctx.closePath(); }, '#c9b8ff', '#2a1640', 1.5);
+    }
+    ctx.globalAlpha = 1;
+    iconShape(ctx, () => { ctx.beginPath(); ctx.moveTo(10, -6); ctx.lineTo(19, -17); ctx.lineTo(13, -4); ctx.closePath(); }, '#ffffff', '#b8a6ff', 1.5);
   },
   // Schamane
   // Blitzdrache: Drachenkopf mit Hörnern und gezacktem Blitzschweif
@@ -738,11 +738,9 @@ const SKILL_FX = {
     // seit 13.3 statt großer grauer Blasen ein feiner violetter Schimmer
     aura: { every: 0.22, color: ['#c9b8ff', '#9a86d8', '#ffffff'], shape: 'spark', up: true, size: [1.2, 2.2] }
   },
-  leichtfuessigkeit: {
-    cast(p) {
-      vfxPillar(p, '#c8d8f0', 0.7);
-    },
-    aura: { every: 0.05, color: ['#ffffff', '#c8d8f0'], shape: 'spark', wind: true, onlyMoving: true }
+  // seit 13.85 Schattenkette statt Leichtfüßigkeit: Treffer-Funken kommen aus chainHopFx (ninja-fx.js)
+  schattenkette: {
+    color: '#b48cff'
   },
   talisman: {
     color: '#8fd0ff',
@@ -1245,7 +1243,7 @@ const SKILL_ELEMENT = {
   kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
   blitzangriff: 'blitz', blitzschlag: 'eis', donnersturm: 'blitz',
-  leichtfuessigkeit: 'wind', windfessel: 'wind',
+  windfessel: 'wind',
   geisterfaust: 'licht', segen: 'licht', heilung: 'licht', schutzgeist: 'licht', talisman: 'blitz', geistesschlag: 'licht',
   schaedelsalve: 'seele', seelenkaefig: 'seele', seelenschnitter: 'schatten', totenruf: 'seele', dunklemacht: 'schatten', laehmung: 'seele',
   blutopfer: 'blut', knochenspeer: 'knochen', knochenpanzer: 'knochen'
@@ -1261,8 +1259,10 @@ function skillSignature3(sk, p) {
   if (sk.type === 'skulls' || sk.type === 'cage' || sk.type === 'reaper' || sk.type === 'summon') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;
+  // seit 13.85: mit Zielkreis (Donnersturm) am gewählten Ort
+  const ap = sk.aim && game.aim && game.aim.sk === sk && sk.type === 'blast' ? { x: game.aim.pt.x, y: game.aim.pt.y, r: 0 } : null;
   // Angriffe auf ein Ziel wirken dort, Flächen und Buffs an der Figur
-  const at = t && (sk.type === 'blast' || sk.type === 'strike' || sk.type === 'curse' || sk.type === 'drain' || sk.type === 'blink') ? t : p;
+  const at = ap || (t && (sk.type === 'blast' || sk.type === 'strike' || sk.type === 'curse' || sk.type === 'drain' || sk.type === 'blink') ? t : p);
   const fy = feetY(at);
   const big = sk.radius ? sk.radius : 60;
   addEffect({ type: 'sparks3', x: at.x, y: fy, h: 0.8, count: 18, color: c.spark, speed: 3, up: 1.4, dur: 0.8 });
@@ -1477,22 +1477,6 @@ const BUFF_LOOKS = {
         if (x === -15) ctx.moveTo(p.x + x, yy);
         else ctx.lineTo(p.x + x, yy);
       }
-      ctx.stroke();
-    }
-    ctx.restore();
-  },
-  // Leichtfüßigkeit: weiße Windbänder wirbeln um die Beine
-  leichtfuessigkeit(ctx, p, fy, t, layer) {
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.strokeStyle = 'rgba(230,245,255,0.7)';
-    ctx.lineWidth = 1.6;
-    for (let k = 0; k < 2; k++) {
-      const a0 = t * 8 + k * Math.PI;
-      const front = Math.sin(a0 + 0.6) > 0;
-      if ((layer === 'front') !== front) continue;
-      ctx.beginPath();
-      ctx.ellipse(p.x, fy - 6 - k * 10, 17, 6, 0, a0, a0 + 1.6);
       ctx.stroke();
     }
     ctx.restore();

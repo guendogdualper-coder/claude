@@ -53,7 +53,9 @@ function skillTipHtml(sk, lvl, key) {
   const stats = skillStats(sk, lvl).map(([k, v]) => (v === '' ? k : `${k} <b>${v}</b>`)).join(' · ');
   const rn = skillRankName(sk, lvl);
   return `<strong>${rn}${key ? ` <kbd>${key}</kbd>` : ''}</strong>` + (rn !== sk.name ? `<small class="tip-base">aus ${sk.name}</small>` : '') +
-    `<small>${locked ? `ab Stufe ${sk.unlock}` : `Stufe ${skillLevelText(lvl)}`} · ${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s Abklingzeit</small>` +
+    `<small>${locked ? `ab Stufe ${sk.unlock}` : `Stufe ${skillLevelText(lvl)}`} · ${p ? skillMana(sk, p) : sk.mp} Mana · ${sk.cooldown} s Abklingzeit` +
+    // seit 13.85: globale Abklingzeit der Zauberer (applyGcd, kampf.js)
+    `${p && typeof GCD_CLASSES !== 'undefined' && GCD_CLASSES.has(p.classId) ? ` · danach ${GCD_TIME} s für alle anderen Fertigkeiten` : ''}</small>` +
     (stats ? `<span class="tip-stats">${stats}</span>` : '') + `<span>${sk.text}</span>` + scaleLine(sk, p) + numNote(p);
 }
 // seit 13.6: Schaden und Leben stehen als feste Zahlen mit den aktuellen Werten da
