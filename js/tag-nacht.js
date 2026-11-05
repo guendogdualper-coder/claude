@@ -164,9 +164,11 @@ function buildNightNpcs() {
   const w = game.world;
   const extra = [];
   const npc = (id, name, x, y, more = {}) => ({ id, name, x, y, r: 11, night: true, ...more });
-  // je Map ein Nachtwanderer neben dem ersten Wanderer des Tages
+  // je Map ein Nachtwanderer neben dem ersten Wanderer des Tages – seit 13.88 nicht mehr auf Map 1 (Sonnenwiesen):
+  // Für Anfänger war das verwirrend. Die Nachtwächterin in Vlotho ist darum auch weg (der Laternenanzünder bleibt).
   let k = 0;
   for (const wm of WORLD_MAPS) {
+    if (wm.id === 1) continue;
     const day = w.npcs.find((n) => n.id === 'wanderer' && n.key === `w${wm.id}-0`) || w.npcs.find((n) => n.id === 'wanderer' && npcMapId(n) === wm.id);
     if (!day) continue;
     const [name, art] = NIGHT_WANDERERS[k++ % NIGHT_WANDERERS.length];
@@ -175,7 +177,6 @@ function buildNightNpcs() {
   // Vlotho: Nachtwächterin am Brunnen und ein Laternenanzünder, der durch die Gassen geht
   const C = CENTER_X;
   const V = (d) => C + d;
-  extra.push(npc('nachtwanderer', 'Nachtwächterin Yuki', V(3.5) * TILE, V(2.6) * TILE, { art: 'jaegerin', key: 'n1v', map: 1 }));
   extra.push(npc('moench', '', V(-4) * TILE, V(4) * TILE, { wander: true, homeX: V(-4) * TILE, homeY: V(4) * TILE, wx: V(-4) * TILE, wy: V(4) * TILE, wanderAt: 0, facing: 1, moving: false }));
   return extra;
 }
@@ -210,6 +211,10 @@ function nightTargetOf(n, s) {
   if (!types.length) return 'schattenwolf';
   return s.target && types.includes(s.target) ? s.target : types[(s.times || 0) % types.length];
 }
+// Erfahrung einer Nachtjagd: die erste bei jedem Nachtwanderer voll, danach wie jede Wiederholung (seit 13.88)
+function nightXp(t, s) {
+  return sideXp(t.level, NIGHT_KILL, (s && s.times) || 0);
+}
 function nightReward(t) {
   return { gold: Math.round(questGold(t.level) * 1.2), mats: { boniPlus: 1 } };
 }
@@ -228,11 +233,14 @@ function nightQuestKill(m) {
   if (!q.night || !m.typeId) return;
   for (const [key, s] of Object.entries(q.night)) {
     if (s.state !== 'active' || s.target !== m.typeId) continue;
-    s.progress++;
-    if (s.progress < NIGHT_KILL) continue;
-    const t = MONSTER_TYPES[s.target];
     const n = nightNpcOf(key);
-    giveReward(nightReward(t), sideQuestXp(t.level));
+    // Nachtjagden von Nachtwanderern, die es nicht mehr gibt (seit 13.88 Map 1 und Vlotho), fallen weg
+    if (!n) { s.state = 'open'; s.progress = 0; s.target = null; continue; }
+    // ein Kill zählt nur für eine Nachtjagd (vorher zählte er für jede mit demselben Ziel doppelt)
+    s.progress++;
+    if (s.progress < NIGHT_KILL) break;
+    const t = MONSTER_TYPES[s.target];
+    giveReward(nightReward(t), nightXp(t, s));
     s.state = 'open';
     s.progress = 0;
     s.times = (s.times || 0) + 1;
@@ -240,6 +248,7 @@ function nightQuestKill(m) {
     q.nightDone = (q.nightDone || 0) + 1;
     ui.banner('Nachtjagd erfüllt', n ? `${n.name} dankt dir – Belohnung erhalten` : 'Belohnung erhalten');
     saveGame();
+    break;
   }
 }
 
@@ -264,7 +273,7 @@ Object.assign(ui, {
     }
     const reward = nightReward(t);
     body.innerHTML = `<p>„Nachts kriechen andere Wesen aus ihren Verstecken. Hilf mir: Besiege ${NIGHT_KILL} × <b>${t.name}</b> (Stufe ${t.level}). Sie zeigen sich nur in der Nacht.“</p>` +
-      rewardHtml(reward, sideQuestXp(t.level)) +
+      rewardHtml(reward, nightXp(t, s)) +
       `<p class="hint-text">Erledigte Nachtjagden bei mir: ${s.times || 0}</p>` +
       '<button type="button" class="btn btn-primary" data-night="take">Nachtjagd annehmen</button>';
     body.querySelector('[data-night]').addEventListener('click', () => {
@@ -289,11 +298,12 @@ function nightQuestList() {
     if (s.state !== 'active' || !s.target || !MONSTER_TYPES[s.target]) continue;
     const t = MONSTER_TYPES[s.target];
     const n = nightNpcOf(key);
-    const who = n ? n.name : 'Nachtwanderer';
+    if (!n) continue; // Nachtwanderer gibt es nicht mehr (seit 13.88 Map 1 und Vlotho)
+    const who = n.name;
     out.push({
       key: 'night:' + key, title: 'Nachtjagd: ' + t.name, sub: (n && n.map ? `${who} · ${mapName(n.map)}` : who) + ' · nur nachts',
       giver: who, monster: s.target,
-      goal: `${NIGHT_KILL} × ${t.name} besiegen`, have: Math.min(s.progress || 0, NIGHT_KILL), need: NIGHT_KILL, where: monsterWhere(s.target) + ' (nachts)', active: true, xp: sideQuestXp(t.level),
+      goal: `${NIGHT_KILL} × ${t.name} besiegen`, have: Math.min(s.progress || 0, NIGHT_KILL), need: NIGHT_KILL, where: monsterWhere(s.target) + ' (nachts)', active: true, xp: nightXp(t, s),
       abandon: () => { s.state = 'open'; s.progress = 0; s.target = null; }
     });
   }

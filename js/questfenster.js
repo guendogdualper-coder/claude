@@ -50,7 +50,7 @@ function sideQuestEntries() {
       out.push({
         key: 'side:' + n.key, title: n.name, sub: `Wanderer · ${mapName(npcMapId(n))}`,
         goal: n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`,
-        have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(mon), active: true, xp: sideQuestXp(t.level),
+        have: sideHave(n, s), need: sideCount(n, s), where: monsterWhere(mon), active: true, xp: sideReward(n, s).xp,
         abandon: () => { s.state = 'open'; s.progress = 0; }
       });
     }
@@ -59,7 +59,7 @@ function sideQuestEntries() {
     const h = q.hunt;
     out.push({
       key: 'hunt', title: 'Jagd: ' + MONSTER_TYPES[h.monster].name, sub: 'Jägerin',
-      goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegen`, have: h.progress, need: h.count, where: monsterWhere(h.monster), active: true, xp: sideQuestXp(h.level),
+      goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegen`, have: h.progress, need: h.count, where: monsterWhere(h.monster), active: true, xp: huntXp(h),
       abandon: () => { q.hunt = null; q.offers = null; }
     });
   }

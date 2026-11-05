@@ -152,6 +152,19 @@ function sideQuestXp(monLevel) {
   const own = typeof game !== 'undefined' && game.player ? game.player.level : monLevel;
   return questXp(Math.max(monLevel, Math.min(own, monLevel + 5)), QUEST_XP.kill);
 }
+// Seit 13.88: Wiederholte Nebenaufgaben (Wanderer, Jägerin, Nachtwanderer) geben nicht mehr jedes Mal gut ein Drittel
+// einer Stufe. Das wuchs mit der Stufe viel schneller als die Erfahrung der Monster (Stufe 40: eine Nachtjagd mit 12 Kills
+// brachte so viel wie 144 Kills, Stufe 70 so viel wie 320) – man kam in wenigen Stunden auf Stufe 70.
+// Jetzt gilt: Das erste Mal bei jedem Auftraggeber gibt es die volle Belohnung wie bisher, jede Wiederholung bringt
+// das Doppelte dessen, was die verlangten Kills selbst an Erfahrung geben (höchstens die volle Belohnung).
+const REPEAT_XP_MUL = 2;
+function repeatQuestXp(monLevel, kills) {
+  const perKill = (10 * Math.pow(monLevel, 1.5) + 2) * MOB_XP_MUL;
+  return Math.min(sideQuestXp(monLevel), Math.round(perKill * kills * REPEAT_XP_MUL));
+}
+function sideXp(monLevel, kills, times) {
+  return times > 0 ? repeatQuestXp(monLevel, kills) : sideQuestXp(monLevel);
+}
 // Monster geben seit 13.10 etwas mehr Erfahrung (+10 %)
 const MOB_XP_MUL = 1.1;
 // Startbonus (seit 13.10): +20 % Erfahrung für alle Charaktere bis einschließlich 22.11.2026.

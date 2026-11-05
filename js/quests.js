@@ -415,9 +415,17 @@ function finishMainQuest() {
   ui.banner('Belohnung erhalten', main.title);
   return true;
 }
+// Sammelaufträge zählen wie drei Kills je Teil (seit 13.88 für die Erfahrung der Wiederholungen)
+function sideKills(n, s) {
+  return n.side.kind === 'collect' ? sideCount(n, s) * 3 : sideCount(n, s);
+}
 function sideReward(n, s = sideState(n.key)) {
   const t = MONSTER_TYPES[sideMon(n, s)];
-  return { reward: { gold: t.level * 45, potions: 2 }, xp: sideQuestXp(t.level) };
+  return { reward: { gold: t.level * 45, potions: 2 }, xp: sideXp(t.level, sideKills(n, s), s.times || 0) };
+}
+// Jagden der Jägerin: die erste volle Erfahrung, danach wie jede Wiederholung (seit 13.88)
+function huntXp(h) {
+  return sideXp(h.level, h.count, questState().hunts || 0);
 }
 function finishSideQuest(n) {
   const p = game.player;
@@ -439,7 +447,7 @@ function finishHunt() {
   const q = questState();
   const h = q.hunt;
   if (!h || h.progress < h.count) return false;
-  giveReward({ gold: h.gold, mats: { [h.mat]: 1 } }, sideQuestXp(h.level));
+  giveReward({ gold: h.gold, mats: { [h.mat]: 1 } }, huntXp(h));
   q.hunt = null;
   q.hunts++;
   q.offers = null;
@@ -466,7 +474,7 @@ function readyTurnIns(npc) {
     }
   }
   const h = q.hunt;
-  if (h && h.progress >= h.count && at(npc.id === 'jaegerin')) out.push({ kind: 'Jagd', label: MONSTER_TYPES[h.monster].name, goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegt`, reward: { gold: h.gold }, xp: sideQuestXp(h.level), run: finishHunt });
+  if (h && h.progress >= h.count && at(npc.id === 'jaegerin')) out.push({ kind: 'Jagd', label: MONSTER_TYPES[h.monster].name, goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegt`, reward: { gold: h.gold }, xp: huntXp(h), run: finishHunt });
   return out;
 }
 
@@ -703,7 +711,7 @@ Object.assign(ui, {
     const mat = MOB_MATS[mon];
     const need = sideCount(n, s);
     const collect = n.side.kind === 'collect';
-    const xp = sideQuestXp(t.level);
+    const xp = sideReward(n, s).xp;
     const reward = { gold: t.level * 45, potions: 2 };
     const body = $('npcBody');
     const ask = collect
@@ -739,7 +747,7 @@ Object.assign(ui, {
     const body = $('npcBody');
     const h = q.hunt;
     if (h && h.progress >= h.count) {
-      const xp = sideQuestXp(h.level);
+      const xp = huntXp(h);
       const reward = { gold: h.gold, mats: { [h.mat]: 1 } };
       body.innerHTML = `<p>„Saubere Arbeit! Hier ist dein Lohn.“</p>${rewardHtml(reward, xp)}` +
         '<button type="button" class="btn btn-primary" data-hunt="reward">Belohnung abholen</button>';
@@ -765,7 +773,7 @@ Object.assign(ui, {
     body.innerHTML = `<p>„Ich zahle gut für jede Bestie weniger da draußen. Such dir eine Jagd aus.“ <small class="hint-text">Erledigte Jagden: ${q.hunts}</small></p>` +
       '<div class="hunt-list">' + q.offers.map((o, i) =>
         `<div class="hunt-item"><strong>${o.count} × ${MONSTER_TYPES[o.monster].name}</strong> <small>Stufe ${MONSTER_TYPES[o.monster].level}</small>` +
-        `<span>${sideQuestXp(o.level).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · 1 × ${MATERIALS.find((m) => m.id === o.mat).name}</span>` +
+        `<span>${huntXp(o).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · 1 × ${MATERIALS.find((m) => m.id === o.mat).name}</span>` +
         `<button type="button" class="mini-btn" data-offer="${i}">Annehmen</button></div>`
       ).join('') + '</div>';
     body.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
