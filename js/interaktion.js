@@ -6,7 +6,8 @@
 // des Lebens pro Treffer, damit niemand mit einem Schlag fällt und Duelle eine Weile dauern
 // seit 13.2 zählen im Duell die echten Werte: kein Deckel mehr bei großem Stufenabstand (Stufe 60 haut Stufe 10
 // mit einem Schlag um); bei ähnlicher Stufe (unter 10 Stufen Abstand) höchstens 35 % bzw. 50 % (krit.) je Treffer
-const DUEL = { countdown: 3, maxTime: 210, arena: 400, pvpMul: 0.7, maxHit: 0.35, maxCrit: 0.5, capGap: 10 };
+// seit 14.6: Spieler gegen Spieler 0,6 statt 0,7; ein Treffer höchstens 25 % (Krit 35 %) des Lebens statt 35/50 %
+const DUEL = { countdown: 3, maxTime: 210, arena: 400, pvpMul: 0.6, maxHit: 0.25, maxCrit: 0.35, capGap: 10 };
 const TRADE_SLOTS = 8;
 
 // --- Spielerkarte oben in der Mitte -------------------------------------------------------------

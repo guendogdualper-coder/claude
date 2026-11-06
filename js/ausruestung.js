@@ -407,7 +407,7 @@ function sellValue(item) {
 function bonusValue(def, tier) {
   const [lo, hi] = def.range;
   const r = lo + Math.random() * (hi - lo);
-  if (def.fmt === 'flat') return Math.max(1, Math.round(r * (1 + tier * (def.tierScale || 0.35))));
+  if (def.fmt === 'flat') return Math.max(1, Math.min(def.max || Infinity, Math.round(r * (1 + tier * (def.tierScale || 0.35)))));
   const v = Math.min(def.max || Infinity, r * (1 + tier * 0.1));
   if (def.fmt === 'pct1') return Math.round(v * 10000) / 10000;
   return Math.round(v * 1000) / 1000;
@@ -724,6 +724,13 @@ function addMobMat(id, n, from) {
   if (from && !ui.dropAt) later(0.15, () => vfxLootFly(from, mobMatSprite(id).img));
 }
 
+// Seelensplitter geben und in der Beuteanzeige zeigen (seit 14.6 Ersatz für Boni-Materialien bei Bossen)
+function giveSplinters(n) {
+  if (!(n > 0)) return;
+  game.player.splinters += n;
+  ui.loot('Seelensplitter', n, lootIconUrl('splinter'), '#c9a8ff');
+}
+
 // Beute: normale Monster selten, Seelensteine oft
 function rollLoot(m) {
   const p = game.player;
@@ -738,13 +745,12 @@ function rollLoot(m) {
     p.scrolls++;
     ui.loot(BLESSING.name, 1, scrollIconUrl(), '#f3e2b0');
   }
-  if (drops || sd) {
+  // Boni-Materialien nur vom Seelenstein selbst (seit 14.6 nicht mehr von den Monstern, die er ruft)
+  if (drops) {
     const got = [];
-    for (const [id, [chance, min, max]] of Object.entries((drops || sd).mats)) {
-      if (id === 'switch67' && !drops) continue; // nur der Stein selbst, nicht seine Monster
-      // Monster aus dem Stein: seit 13.41 nur noch selten etwas (vorher 12 % der Steinchance je Monster)
-      if (Math.random() >= (drops ? chance : chance * 0.03)) continue;
-      const n = drops ? randInt(min, max) : 1;
+    for (const [id, [chance, min, max]] of Object.entries(drops.mats)) {
+      if (Math.random() >= chance) continue;
+      const n = randInt(min, max);
       p.materials[id] = (p.materials[id] || 0) + n;
       const mat = MATERIALS.find((x) => x.id === id);
       got.push(id);
@@ -817,11 +823,8 @@ function raidLoot(m) {
     } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   }
   if (b.mat) addMobMat(b.mat, randInt(8, 12), m);
-  const mats = { boniPlus: 2, switcher: 2, boni5: 1, ...(Math.random() < 0.5 ? { star: 1 } : {}), ...(m.level >= SWITCH67.stone && Math.random() < 0.5 ? { switch67: 1 } : {}) };
-  for (const [id, n] of Object.entries(mats)) {
-    p.materials[id] = (p.materials[id] || 0) + n;
-    ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
-  }
+  // seit 14.6 keine Boni-Materialien mehr (die gibt es nur aus Seelensteinen), dafür Seelensplitter
+  giveSplinters(randInt(15, 25));
   const gold = m.level * 1500;
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
@@ -867,12 +870,8 @@ function bossLoot(m) {
     }
   }
   if (b.mat) addMobMat(b.mat, randInt(3, 5), m);
-  // seit 13.41 seltener (vorher 2 Verstärkungen, 1 Switcher, 50 % 5. Bonus, 25 % Sternenstein)
-  const mats = { boniPlus: 1, ...(Math.random() < 0.5 ? { switcher: 1 } : {}), ...(Math.random() < 0.2 ? { boni5: 1 } : {}), ...(Math.random() < 0.1 ? { star: 1 } : {}) };
-  for (const [id, n] of Object.entries(mats)) {
-    p.materials[id] = (p.materials[id] || 0) + n;
-    ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
-  }
+  // seit 14.6 keine Boni-Materialien mehr (nur aus Seelensteinen), dafür Seelensplitter
+  giveSplinters(randInt(4, 7));
   const gold = m.level * 300;
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');

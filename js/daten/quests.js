@@ -172,12 +172,9 @@ const MOB_XP_MUL = 1.1;
 const EVENT_XP = { mul: 0.2, from: Date.UTC(2026, 10, 1), until: Date.UTC(2026, 10, 23), name: 'Startbonus' };
 const eventXpActive = () => Date.now() < EVENT_XP.until;
 
-// Materialien beim Alchemisten (teuer: eigentlich sind sie Beute der Seelensteine)
+// Beim Alchemisten (seit 14.6 nur noch Fertigkeitsbücher; Verstärkung 1.500, Switcher 3.000, 5. Bonus 25.000 und
+// Sternenstein 60.000 Gold sind raus – Boni-Materialien gibt es nur noch aus Seelensteinen)
 const ALCHEMIST_WARES = [
-  { id: 'boniPlus', price: 1500 },
-  { id: 'switcher', price: 3000 },
-  { id: 'boni5', price: 25000 },
-  { id: 'star', price: 60000 },
   { id: 'book', price: 40000 }
 ];
 

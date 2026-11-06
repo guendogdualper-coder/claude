@@ -107,7 +107,7 @@ const CLASSES = {
     color: '#3f3658',
     trim: '#c9c2d9',
     weapon: 'daggers',
-    base: { hp: 130, mp: 50, atk: 15, def: 4, crit: 0.12, speed: 142 },
+    base: { hp: 130, mp: 50, atk: 15, def: 4, crit: 0.08, speed: 142 }, // seit 14.6 Krit 8 % statt 12 %
     perLevel: { hp: 20, mp: 6, atk: 4.4, def: 1.2 },
     basic: { range: 48, cooldown: 0.55, ranged: false },
     paths: [
@@ -119,16 +119,17 @@ const CLASSES = {
           {
             id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
             // seit 13.85 Hinterhalt ×1,5 statt ×2 (mit Tarnung ×3 statt ×6)
-            type: 'strike', range: 70, dmg: 3.7, critBonus: 0.4, ambushMul: 1.5, ambushRange: 220,
-            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst 1,5-mal so hart – zusammen mit dem Tarnungs-Bonus 3× Schaden, sicher kritisch.'
+            // seit 14.6 Schaden 3,0 statt 3,7; mit der Tarnung (×1,6 statt ×2) zusammen 2,4× statt 3×
+            type: 'strike', range: 70, dmg: 3.0, critBonus: 0.4, ambushMul: 1.5, ambushRange: 220,
+            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst 1,5-mal so hart – zusammen mit dem Tarnungs-Bonus 2,4× Schaden, sicher kritisch.'
           },
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,
             // seit 13.85 doppelter statt dreifacher Schaden aus der Tarnung
-            type: 'buff', duration: 30, effects: { invisible: true, speed: 0.12 }, nextHitMul: 2,
+            type: 'buff', duration: 30, effects: { invisible: true, speed: 0.12 }, nextHitMul: 1.6, // seit 14.6 ×1,6 statt ×2
             // seit 13.87 {dauer}: die Dauer wächst mit der Stufe (skillDuration: Stufe 1 30 s, Stufe 15 38 s, E1 41 s …),
             // skillText (kampf.js) setzt die echte Zahl ein – vorher stand fest „30 s“ da (und wurde für die Abklingzeit gehalten)
-            text: 'Buff: {dauer} s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht doppelten Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt 3×.'
+            text: 'Buff: {dauer} s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht 1,6-fachen Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt 2,4×.'
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
@@ -164,7 +165,8 @@ const CLASSES = {
             // seit 13.70 eine Salve (fernninja.js): drei Pfeile im Abstand von 0,15 s, ab Heroisch vier (rankCount, je 0,8);
             // dmg je Pfeil, der letzte ×lastMul und stößt zurück. Zusammen 1,3 + 1,3 + 1,63 ≈ 4,2 (seit 13.70 nach Balance-Messung angehoben).
             // arrows: 1 = mindestens ein Pfeil nötig; verbraucht wird je geschossenem Pfeil einer
-            type: 'bshot', range: 520, speed: 1050, dmg: 1.3, lastMul: 1.25, count: 3, every: 0.15, rankCount: { rank: 1, count: 4, dmg: 1.1, every: 0.13 },
+            // seit 14.6 1,15 statt 1,3 je Pfeil (Rang 0,98 statt 1,1) – der Weg lag in der Balance-Messung bei 117 statt um 100
+            type: 'bshot', range: 520, speed: 1050, dmg: 1.15, lastMul: 1.25, count: 3, every: 0.15, rankCount: { rank: 1, count: 4, dmg: 0.98, every: 0.13 },
             knockback: 45, arrows: 1, anim: 'bogensalve3', animDur: 0.7, color: '#b48cff',
             text: 'Eine schnelle Salve: Du ziehst Schlag auf Schlag drei Schattenpfeile aus dem Köcher und schießt sie aufs Ziel (bis 520 weit), eingehüllt in eine dunkelviolette Aura. Der letzte Pfeil schlägt mit einem Schattenstoß ein, trifft etwas härter und stößt zurück. Ab Heroisch sind es vier Pfeile. Jeder Pfeil der Salve verbraucht einen Pfeil – reichen sie nicht, fliegen so viele, wie du hast.'
           },
@@ -182,7 +184,8 @@ const CLASSES = {
           },
           {
             id: 'durchschuss', name: 'Durchbohrender Schuss', short: 'DS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,
-            type: 'bpierce', range: 680, speed: 1250, dmg: 2.8, knockback: 30, pierce: true, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#a070f0',
+            type: 'bpierce', range: 680, speed: 1250, dmg: 2.5, // seit 14.6 2,5 statt 2,8
+            knockback: 30, pierce: true, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#a070f0',
             text: 'Ein Pfeil, um den sich dunkle Schatten zu einer Spirale drehen: Er durchschlägt alle Gegner in einer Linie bis 680 weit und stößt sie zurück.'
           },
           {

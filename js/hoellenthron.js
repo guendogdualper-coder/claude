@@ -306,10 +306,8 @@ function htLoot(m) {
       announceRarity(item);
     }
   }
-  for (const [id, n] of Object.entries({ boniPlus: 3, switcher: 2, boni5: 1, star: 1 })) {
-    p.materials[id] = (p.materials[id] || 0) + n;
-    ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
-  }
+  // seit 14.6 Seelensplitter statt Boni-Materialien (die gibt es nur aus Seelensteinen)
+  giveSplinters(randInt(30, 40));
   const gold = m.level * 3000;
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');

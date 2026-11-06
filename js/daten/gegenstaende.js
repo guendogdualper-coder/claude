@@ -408,7 +408,8 @@ const ARROW_TYPES = [
 // Dazu begrenzt BONUS_CAPS die Summe aller angelegten Gegenstände.
 const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel', 'koecher'];
 const BONUS_TYPES = {
-  hp: { name: 'Max. Leben', fmt: 'flat', range: [20, 90], slots: ALL_SLOTS },
+  // seit 14.6 25–120 je Stufe statt 20–90, höchstens 500 je Bonuszeile (max) – vorher endete es bei rund 370
+  hp: { name: 'Max. Leben', fmt: 'flat', range: [25, 120], max: 500, slots: ALL_SLOTS },
   mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'umhang', 'guertel'] },
   atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'schultern', 'guertel', 'koecher'] },
   def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'] },
@@ -490,7 +491,22 @@ function skillMatChance(id, level) {
 // Farben der Materialien in der Beuteanzeige
 const MATERIAL_COLORS = { boniPlus: '#9fd0ff', boni5: '#d6a8ff', switcher: '#9fe08f', star: '#ffd34d', switch67: '#ffb85a', rolle: '#f0c87a', seelenstein: '#7fe0ff' };
 // Sternen-Switcher: ab dieser Steinstufe, mit dieser Chance je Stein
-const SWITCH67 = { stone: 30, chance: 0.22 };
+// (seit 14.6 4 % bei Stufe 30, je Stufe +0,16 %, höchstens 12 % – vorher fest 22 %)
+const SWITCH67 = { stone: 30, chance: 0.04, step: 0.0016, cap: 0.12 };
+// Seelensplitter je Stück, wenn eine alte Belohnung noch Boni-Materialien nennt (stoneOnlyReward, quests.js)
+const BONUS_MAT_SPLINTERS = { boniPlus: 2, switcher: 3, boni5: 6, star: 8, switch67: 10 };
+// Bonus-Materialien aus Seelensteinen (seit 14.6 die einzige Quelle; stoneDrops in monster.js):
+// Steine unter fullFrom (erste Karte, Stufe 5–15) mit festen kleinen Chancen (early), ab fullFrom
+// base + (Stufe − fullFrom) × step, höchstens cap. Ein Stein mit Schwerpunkt verstärkt höchstens bis boostCap.
+const STONE_MATS = {
+  fullFrom: 20, boostCap: 0.6,
+  rates: {
+    boniPlus: { early: 0.12, base: 0.18, step: 0.004, cap: 0.4 },
+    switcher: { early: 0.02, base: 0.08, step: 0.003, cap: 0.25 },
+    boni5: { early: 0.005, base: 0.03, step: 0.0015, cap: 0.12 },
+    star: { early: 0.003, base: 0.02, step: 0.0013, cap: 0.1 }
+  }
+};
 
 // Was ein Seelenstein fallen lässt, steht bei den Steinen in monster.js (stoneDrops).
 // Ausrüstung von Seelensteinen hat höchstens +2.
