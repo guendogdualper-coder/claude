@@ -525,6 +525,7 @@ function travelTo(spot) {
   ui.closePanels();
   vfxPillar(p, '#9fd0ff', 1);
   if (!V3.on) flashScreen('#cfe8ff', 0.25);
+  if (typeof sfxFiles !== 'undefined') sfxFiles.play('portal', { vol: 0.7, rev: 0.3 });
   saveGame();
   return null;
 }

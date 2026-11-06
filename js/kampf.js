@@ -227,6 +227,9 @@ function hitMonster(m, mul, opts = {}) {
     m._sEl = sndElOf(opts.skill);
     m._sElAt = game.time;
   }
+  // Hieb nach Waffe (seit 14.5): der Grundangriff klingt je Waffenart anders
+  m._sKind = opts.basic ? weaponKindOf(game.player) : null;
+  m._sKindAt = game.time;
   // seit 13.86: Gegner in der Turnierarena gehen denselben Weg wie im Duell (pvpHit, turnierarena.js)
   if (m.duelProxy) return m.pvp ? pvpHit(m, mul, opts) : duelHit(m, mul, opts);
   m.struckAt = game.time;
@@ -342,6 +345,12 @@ function damageMonster(m, amount, crit, source, isDot) {
   // nach dem Bruch taumelt er und nimmt mehr Schaden
   if (m.raid && m.raid.stagger > game.time) amount = Math.round(amount * RAID.staggerDmg);
   // Im Mehrspieler entscheidet der Host über Leben und Tod der Monster
+  // für den Trefferklang (klang-welt.js, seit 14.5): eigener Treffer, kritisch, Schaden über Zeit
+  if (!source || !source.remote) {
+    m._sHitAt = game.time;
+    m._sCrit = !!crit;
+    m._sDot = !!isDot;
+  }
   if (net.mode === 'client') {
     netClientDamage(m, amount, crit, isDot);
     return;
@@ -539,7 +548,7 @@ function damagePlayer(amount, attacker) {
   if (s.block > 0 && Math.random() < s.block) {
     addText(p.x, p.y - 30, 'Geblockt', 'block');
     vfxBlock(p, attacker);
-    snd.player('el_klinge', { vol: 0.5, rate: 1.4 });
+    snd.block(p);
     return;
   }
   let dmg = Math.max(1, Math.round(amount * s.damageTaken));
@@ -566,6 +575,7 @@ function damagePlayer(amount, attacker) {
   if (dmg > 0 && game.time - (p.sndHurtAt || -9) > 0.4) {
     p.sndHurtAt = game.time;
     snd.hurt(p);
+    snd.struck(p);
   }
   if (dmg > 0) {
     p.hp -= dmg;
@@ -743,11 +753,13 @@ function basicTick(p) {
     if (!p.dead) {
       vfxSwing(p, h.color);
       const t = h.target;
-      if (t && !t.dead && dist(p, t) - (t.r || 0) <= h.range + 30) hitMonster(t, h.mul, { vfxColor: h.color, basic: true });
+      const struck = !!(t && !t.dead && dist(p, t) - (t.r || 0) <= h.range + 30);
+      if (struck) hitMonster(t, h.mul, { vfxColor: h.color, basic: true });
       // Flächenschlag (seit 13.46): der Schlag trifft auch andere Gegner im Bogen vor der Figur (bis zu 5, je 75 %)
       cleaveHit(p, t, h);
       breakStealth(p);
-      if (typeof snd !== 'undefined') snd.swing(p, !!(t && !t.dead));
+      // Klang (seit 14.5): getroffen → der Hieb am Ziel trägt den Schwung, sonst nur das Sausen
+      if (typeof snd !== 'undefined') snd.swing(p, struck);
     }
   }
   const s = p.pendingShot;

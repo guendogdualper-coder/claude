@@ -1,4 +1,5 @@
-// Hintergrundmusik (seit 9.4): ruhig und entspannt, im Browser erzeugt (keine Tondateien). Fünftonleitern
+// Hintergrundmusik (seit 9.4): ruhig und entspannt, im Browser erzeugt. Seit 14.5 spielen je Stimmung Musikdateien
+// (snd/musik, klang-dateien.js); diese erzeugte Musik ist der Rückfall, solange eine Datei lädt oder fehlt. Fünftonleitern
 // mit leicht fernöstlichem Klang: weiche Flächen, gezupfte Töne (wie eine Zither), ab und zu eine Flöte, eine
 // sanfte Trommel und viel Hall. Die Stimmung folgt der Gegend: Dorf und Lager warm und hell, Wiesen offen,
 // Wald ruhig in Moll, Schnee mit Glöckchen, Wüste und Feuerberg mit Trommel, Moor und Dungeons dunkel.
@@ -8,6 +9,9 @@
 // alle vier Takte ein anschwellendes Rauschen. Ist der Boss besiegt, klingt ein kurzer Siegesakkord aus.
 
 const MIDI = (n) => 440 * Math.pow(2, (n - 69) / 12);
+// Musikdateien (−19 LUFS) im Verhältnis zur erzeugten Musik: im Browser gemessen (Effektivwert am Musikausgang),
+// mit 0,8 liegen die Dateien 1–3 dB unter der erzeugten Musik und bleiben unter den Klängen
+const MUSIC_FILE_GAIN = 0.8;
 
 const MOODS = {
   dorf: { root: 50, scale: [0, 2, 4, 7, 9], bpm: 70, chords: [[[0, 4, 7], [-3, 0, 4], [5, 9, 12], [0, 4, 7]], [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]]],
@@ -35,17 +39,43 @@ const music = {
   key: '',
   mel: 0,
 
-  // Start nach der ersten Berührung (Browser verlangen das)
+  // Start nach der ersten Berührung (Browser verlangen das).
+  // Seit 14.5 drei Wege zur Musiklautstärke (sfx.music): proc (erzeugte Musik, mit Hall; wird leise, sobald eine
+  // Musikdatei läuft), fileBus (Musikdateien aus snd/musik, ohne zusätzlichen Hall) und fx (Bossschlag, Siegesakkord)
   start() {
     if (this.timer) return;
     const c = sfx.graph();
     if (!c) return;
+    this.proc = c.createGain();
+    this.proc.connect(sfx.music);
     this.send = c.createGain();
     this.send.gain.value = 0.6;
-    sfx.music.connect(this.send);
+    this.proc.connect(this.send);
     this.send.connect(sfx.verb);
+    this.fx = c.createGain();
+    this.fx.connect(sfx.music);
+    this.fx.connect(this.send);
+    this.fileBus = c.createGain();
+    this.fileBus.gain.value = MUSIC_FILE_GAIN;
+    this.fileBus.connect(sfx.music);
+    this.out = this.proc;
     this.nextBar = c.currentTime + 0.4;
     this.timer = setInterval(() => this.tick(), 200);
+  },
+
+  // erzeugte Musik ein- oder ausblenden (v 0…1, Dauer in s)
+  procFade(v, dur) {
+    const c = sfx.ctx;
+    if (!c || !this.proc) return;
+    const g = this.proc.gain;
+    g.cancelScheduledValues(c.currentTime);
+    g.setValueAtTime(g.value, c.currentTime);
+    g.setTargetAtTime(v, c.currentTime, Math.max(0.05, dur / 3));
+  },
+
+  // Musik erlaubt (Option an, Lautstärke > 0, Spiel sichtbar)?
+  allowed() {
+    return opts.music !== false && opts.musicVol > 0 && !document.hidden;
   },
 
   // lebender Boss in Reichweite? (Boss-Räume und Weltbosse)
@@ -70,7 +100,13 @@ const music = {
       return 'boss';
     }
     if (this.key === 'boss' && this.bossRef && !this.bossRef.dead && now - (this.bossSeen || 0) < 4) return 'boss';
-    const z = zoneAt(p.x, p.y);
+    return this.moodAt(p.x, p.y);
+  },
+
+  // Stimmung der Gegend an einem Ort (ohne Boss)
+  moodAt(x, y) {
+    const z = zoneAt(x, y);
+    if (!z) return 'feld';
     if (z.dungeon) return 'dunkel';
     if (z.safe) return 'dorf';
     const g = z.ground;
@@ -84,23 +120,35 @@ const music = {
   tick() {
     const c = sfx.ctx;
     if (!c || c.state !== 'running') return;
-    // Musik aus: Zeit läuft weiter, es wird nur nichts geplant
-    if (opts.music === false || !(opts.musicVol > 0) || document.hidden) {
+    // Musik aus: Zeit läuft weiter, es wird nur nichts geplant (laufende Musikdatei blendet aus)
+    if (!this.allowed()) {
+      if (typeof musicFiles !== 'undefined') musicFiles.off();
       this.nextBar = Math.max(this.nextBar, c.currentTime + 0.3);
       return;
+    }
+    const files = typeof musicFiles !== 'undefined' ? musicFiles : null;
+    // alle 5 s die Musik der Nachbargegenden vorab holen (nur die Bytes)
+    if (files && c.currentTime - (this.preAt || -99) > 5) {
+      this.preAt = c.currentTime;
+      files.prefetch(game.player);
     }
     while (this.nextBar < c.currentTime + 1.2) {
       const k = this.mood();
       if (k !== this.key) {
-        // Einstieg in den Bosskampf mit Schlag und Rauschen, Ende nach Sieg mit Siegesakkord
+        // Einstieg in den Bosskampf mit Schlag und Rauschen, Ende nach Sieg mit Siegesakkord (über fx, auch zur Datei)
+        this.out = this.fx;
         if (k === 'boss') this.impact(this.nextBar, 1);
         else if (this.key === 'boss' && this.bossRef && this.bossRef.dead) this.victory(this.nextBar);
+        this.out = this.proc;
+        // Musikdatei der neuen Stimmung (Boss schnell, sonst weich überblendet)
+        if (files) files.want(k, k === 'boss' || this.key === 'boss' ? 0.9 : 2.5);
         this.key = k;
         this.bar = 0;
-      }
+      } else if (files && !files.playing(k)) files.want(k, 2.5);
       const M = MOODS[k];
       if (this.bar % 8 === 0) this.prog = Math.floor(Math.random() * M.chords.length);
-      this.scheduleBar(M, this.nextBar);
+      // läuft die Datei, plant die erzeugte Musik nichts (der Takt zählt aber weiter)
+      if (!files || !files.playing(k)) this.scheduleBar(M, this.nextBar);
       this.nextBar += (60 / M.bpm) * 4;
       this.bar++;
     }
@@ -199,7 +247,7 @@ const music = {
     g.gain.exponentialRampToValueAtTime(0.001, t + dur);
     o.connect(lp);
     lp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     o.start(t);
     o.stop(t + dur + 0.05);
   },
@@ -215,7 +263,7 @@ const music = {
     g.gain.linearRampToValueAtTime(0.55 * vol, t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0008, t + 0.6);
     o.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     o.start(t);
     o.stop(t + 0.65);
     const n = c.createBufferSource();
@@ -230,7 +278,7 @@ const music = {
     ng.gain.exponentialRampToValueAtTime(0.0008, t + 0.14);
     n.connect(bp);
     bp.connect(ng);
-    ng.connect(sfx.music);
+    ng.connect(music.out);
     n.start(t, Math.random());
     n.stop(t + 0.16);
   },
@@ -261,7 +309,7 @@ const music = {
       }
     }
     lp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
   },
 
   // Chor „Aah“: zwei verstimmte Sägezähne durch drei Formantfilter, langsames Vibrato
@@ -299,7 +347,7 @@ const music = {
       bp.connect(fg);
       fg.connect(g);
     }
-    g.connect(sfx.music);
+    g.connect(music.out);
     lfo.start(t);
     lfo.stop(t + dur + 0.05);
   },
@@ -321,7 +369,7 @@ const music = {
     g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.06);
     n.connect(hp);
     hp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     n.start(t);
     n.stop(t + dur + 0.1);
   },
@@ -342,7 +390,7 @@ const music = {
     g.gain.exponentialRampToValueAtTime(0.0008, t + 1.8);
     n.connect(hp);
     hp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     n.start(t);
     n.stop(t + 1.9);
   },
@@ -389,7 +437,7 @@ const music = {
       o.stop(t + dur + 0.05);
     }
     lp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
   },
 
   bass(f, t, dur, k = 1) {
@@ -406,7 +454,7 @@ const music = {
     lp.frequency.value = 420;
     o.connect(lp);
     lp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     o.start(t);
     o.stop(t + dur + 0.05);
   },
@@ -428,7 +476,7 @@ const music = {
     g.gain.linearRampToValueAtTime(vol, t + 0.004);
     g.gain.exponentialRampToValueAtTime(0.0005, t + 1.6);
     car.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     car.start(t);
     mod.start(t);
     car.stop(t + 1.7);
@@ -459,7 +507,7 @@ const music = {
     g.gain.linearRampToValueAtTime(0.0001, t + dur);
     o.connect(g);
     g2.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     for (const x of [o, o2, lfo]) {
       x.start(t);
       x.stop(t + dur + 0.05);
@@ -476,7 +524,7 @@ const music = {
     g.gain.linearRampToValueAtTime(0.38 * vol, t + 0.006);
     g.gain.exponentialRampToValueAtTime(0.0006, t + 0.45);
     o.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     o.start(t);
     o.stop(t + 0.5);
   },
@@ -497,7 +545,7 @@ const music = {
     g.gain.linearRampToValueAtTime(vol, t + 0.003);
     g.gain.exponentialRampToValueAtTime(0.0003, t + 2.2);
     car.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     car.start(t);
     mod.start(t);
     car.stop(t + 2.3);

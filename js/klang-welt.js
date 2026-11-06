@@ -1,4 +1,6 @@
-// Klänge der Welt (seit 9.4): Monsterstimmen, Schläge, Treffer, Zauber, Beute – alles im Browser erzeugt.
+// Klänge der Welt (seit 9.4): Monsterstimmen, Schläge, Treffer, Zauber, Beute. Seit 14.5 klingen sie zuerst aus
+// Dateien (klang-dateien.js, ElevenLabs); die hier im Browser erzeugten Klänge sind der Rückfall, solange eine Datei
+// lädt oder fehlt (offline), und bleiben für Kampfrufe, Trank, Strahl-Schleifen und einige Familien.
 // Jeder Klang wird beim ersten Gebrauch einmal vorberechnet (OfflineAudioContext) und danach nur noch
 // abgespielt; das schont das Handy. Höhe und Lautstärke ändern sich beim Abspielen (Größe des Monsters,
 // Zufall, Entfernung), links/rechts nach der Lage zur Figur.
@@ -752,9 +754,18 @@ const VOICE_OF = {
   feuerdrache: 'dragon', drachenbrut: 'dragon', urdrache: 'dragon', ignar: 'dragon'
 };
 const VOICE_OF_SHAPE = { beast: 'wolf', boar: 'boar', humanoid: 'human', orc: 'orc', brute: 'brute', demon: 'demon', ghost: 'ghost', snake: 'snake' };
+// seit 14.5: Arten ohne Eintrag nach ihrem Namen (Nacht- und Höhlenmonster: Schattenwolf, Mondspinne, Abgrundgeist …)
+const VOICE_OF_NAME = [[/spinne/, 'spider'], [/skorpion/, 'scorpion'], [/wolf|warg/, 'wolf'], [/hund|schakal/, 'dog'],
+  [/hyaene/, 'hyena'], [/katze|luchs|panther|pirscher/, 'cat'], [/baer/, 'bear'], [/keiler|schwein/, 'boar'], [/hirsch|bock/, 'deer'],
+  [/kobra|viper|python|schlange|naga/, 'snake'], [/drache|wyrm/, 'dragon'], [/geist|schemen|irrlicht|schatten(?!wolf|katze)/, 'ghost'],
+  [/golem|titan|waechter|kristall/, 'golem'], [/daemon|gargoyle/, 'demon'], [/untot|ghul|grab|knochen/, 'undead'], [/ork/, 'orc'],
+  [/oger|troll|yeti|riese|minotaur/, 'brute'], [/bandit|schuetze|wache|ritter|seherin/, 'human']];
 function voiceOf(m) {
   if (m.isStone) return 'stone';
-  return VOICE_OF[m.typeId] || VOICE_OF_SHAPE[m.type && m.type.shape] || 'brute';
+  if (m._sv) return m._sv;
+  let v = VOICE_OF[m.typeId];
+  if (!v && m.typeId) for (const [re, n] of VOICE_OF_NAME) if (re.test(m.typeId)) { v = n; break; }
+  return (m._sv = v || VOICE_OF_SHAPE[m.type && m.type.shape] || 'brute');
 }
 
 // --- Klänge der Spieler ----------------------------------------------------------------------------
@@ -1018,12 +1029,9 @@ const SKILL_SND = { donnersturm: 'donner', erdbeben: 'beben', blitzschlag: 'eiss
 // --- Echte Aufnahmen (seit 9.8) ----------------------------------------------------------------------
 // Tierfamilien mit echten Aufnahmen (REC_SPRITES, klang-aufnahmen.js); andere nutzen ein Klangblatt mit eigener
 // Tonhöhe. Je Ereignis: [Klangblatt, Tonhöhe]. Solange ein Blatt lädt, klingt die bisherige Stimme (VOICES).
-const REC_VOICE = {
-  hellhound: { aggro: ['wolf', 0.78], attack: ['wolf', 0.8], hurt: ['wolf', 0.85], death: ['wolf', 0.8] },
-  mammoth: { aggro: ['deer', 0.62], attack: ['brute', 0.85], hurt: ['brute', 0.9], death: ['brute', 0.75] },
-  dragon: { aggro: ['bear', 0.66], attack: ['bear', 0.7], hurt: ['bear', 0.75], death: ['bear', 0.62] },
-  demon: { aggro: ['bear', 0.74], attack: ['brute', 0.8], hurt: ['bear', 0.8], death: ['brute', 0.7] }
-};
+// Seit 14.5 klingen Wolf, Bär, Keiler, Katze, Riesen, Untote, Orks, Höllenhund, Mammut, Drache und Dämon aus den
+// neuen Dateien (MOB_FILE, klang-dateien.js); Aufnahmen bleiben für Hund, Fuchs, Hyäne, Hirsch und das Pferd.
+const REC_VOICE = {};
 function recOf(name, ev) {
   if (REC_VOICE[name] && REC_VOICE[name][ev]) {
     const [sheet, rate] = REC_VOICE[name][ev];
@@ -1039,8 +1047,9 @@ function recSheet(name) {
   if (!c || !window.fetch) return null;
   const e = { buf: null };
   recSheets.set(name, e);
-  fetch('snd/tier-' + name + '.mp3').then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
-    .then((ab) => new Promise((res, rej) => c.decodeAudioData(ab, res, rej)))
+  // seit 14.5 über sndFetch/sndDecode (klang-dateien.js): offline ohne Speicher (204) und Dekodierfehler bleiben still
+  sndFetch('snd/tier-' + name + '.mp3')
+    .then((ab) => sndDecode(c, ab))
     .then((buf) => { e.buf = buf; })
     .catch(() => { setTimeout(() => recSheets.delete(name), 20000); });
   return null;
@@ -1088,7 +1097,7 @@ const snd = {
   // Abspielen: o.x/o.y Weltort (sonst mittig), o.vol, o.rate, o.rev (Hallanteil)
   out(buf, o) {
     const c = sfx.ac();
-    if (!c || !buf || this.active >= 18) return;
+    if (!c || !buf || this.active >= 18) return null;
     let vol = o.vol == null ? 1 : o.vol;
     let pan = 0;
     const p = game.player;
@@ -1096,7 +1105,7 @@ const snd = {
       let dx = o.x - p.x;
       const dy = o.y - p.y;
       const d = Math.hypot(dx, dy);
-      if (d > 900) return;
+      if (d > 900) return null;
       vol *= d < 140 ? 1 : Math.pow(Math.max(0, 1 - (d - 140) / 760), 1.6);
       // im Schulterblick zur Kamera gedreht
       if (typeof V3 !== 'undefined' && V3.on && V3.yaw) {
@@ -1106,7 +1115,7 @@ const snd = {
       }
       pan = Math.max(-0.85, Math.min(0.85, dx / 420));
     }
-    if (vol < 0.02) return;
+    if (vol < 0.02) return null;
     const src = c.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = o.rate || 1;
@@ -1130,9 +1139,17 @@ const snd = {
     }
     this.active++;
     src.onended = () => { this.active--; };
-    // Ausschnitt aus einem Klangblatt (echte Aufnahmen)
-    if (o.off != null) src.start(0, o.off, o.dur);
-    else src.start();
+    const at = c.currentTime + (o.delay || 0);
+    // gekürzt (seit 14.5): die letzten 60 ms ausblenden, damit nichts knackt
+    if (o.cut && o.dur) {
+      const end = at + o.dur / (o.rate || 1);
+      g.gain.setValueAtTime(vol * 0.9, Math.max(at, end - 0.06));
+      g.gain.linearRampToValueAtTime(0.0001, end);
+    }
+    // Ausschnitt aus einem Klangblatt (echte Aufnahmen, seit 14.5 auch die Klangdateien)
+    if (o.off != null) src.start(at, o.off, o.dur);
+    else src.start(at);
+    return src;
   },
 
   play(key, build, o = {}) {
@@ -1152,13 +1169,23 @@ const snd = {
   },
 
   player(key, o = {}) {
+    const F = PLAYER_FILE[key];
+    if (F && sfxFiles.play(F[0], { ...o, vol: (o.vol == null ? 1 : o.vol) * F[1], grp: 'welt' })) return;
     const b = PLAYER_SND[key];
     if (b) this.play('p:' + key, b, o);
+  },
+
+  // Klangdatei, sonst der erzeugte Klang fb (PLAYER_SND) mit fo
+  file(id, o, fb, fo) {
+    if (sfxFiles.play(id, o)) return true;
+    if (fb) this.player(fb, fo || o);
+    return false;
   },
 
   // Monsterlaut: Höhe nach Größe (große Monster tiefer), Bosse lauter und mit mehr Hall
   mob(m, ev) {
     const name = voiceOf(m);
+    if (this.mobFile(m, name, ev)) return;
     // echte Aufnahme, wenn das Klangblatt schon geladen ist (Tonhöhe nur leicht nach Größe)
     const R = recOf(name, ev);
     const rb = R && recSheet(R.sheet);
@@ -1183,19 +1210,89 @@ const snd = {
     this.play('m:' + name + ':' + ev, build, { x: m.x, y: m.y, rate, vol: (boss ? 0.9 : 0.6) * (ev === 'hurt' ? 0.7 : ev === 'death' ? 0.85 : 1), rev: boss ? 0.4 : 0.2 });
   },
 
-  // Schwung der Waffe (im Treffer-Bild)
-  swing(p) {
+  // Monsterlaut aus Datei (seit 14.5): Höhe nach Größe und Familie, Bosse lauter mit mehr Hall und eigenem Brüllen.
+  // Angriffslaut je Monster höchstens alle 0,9 s, sonst wird es bei vielen Monstern zu dicht.
+  mobFile(m, name, ev) {
+    const F = MOB_FILE[name];
+    if (!F) return false;
+    const boss = !!(m.type && (m.type.boss || m.type.raid));
+    if (ev === 'attack') {
+      const t = game.time;
+      if (t - (m._sAtkAt || -9) < 0.9) return true;
+      m._sAtkAt = t;
+    }
+    const id = ev === 'aggro' || ev === 'attack' ? F[0] : F[1];
+    const size = (m.type && m.type.size) || 14;
+    const k = Math.max(0.8, Math.min(1.15, Math.pow(14 / size, 0.2))) * F[2];
+    const vol = (boss ? 1 : 0.72) * (ev === 'hurt' ? 0.62 : ev === 'death' ? 0.9 : ev === 'aggro' ? 0.85 : 0.75);
+    const ok = sfxFiles.play(id, { role: ev, x: m.x, y: m.y, rate: k, vary: 0.05, vol, rev: boss ? 0.32 : 0.12, grp: 'mob' });
+    if (ok && boss && (ev === 'aggro' || ev === 'death')) sfxFiles.play(ev === 'aggro' ? 'boss_wut' : 'boss_tod', { x: m.x, y: m.y, vol: 0.75, rate: k, vary: 0.03, rev: 0.4 });
+    return ok;
+  },
+
+  // Treffer an einem Monster (seit 14.5 aus Dateien): Einschlag der Fertigkeit, sonst Hieb der Waffe (kritisch wuchtiger),
+  // dazu leise der Stoff (Knochen, Stein, Rüstung); Seelensteine klingen nach Stein. Fehlt eine Datei: erzeugter Klang.
+  impact(m, t) {
+    const own = t - (m._sHitAt || -9) < 0.2;
+    const crit = own && m._sCrit;
+    const kind = own && t - (m._sKindAt || -9) < 0.2 ? m._sKind : null;
+    const el = m._sEl && t - m._sElAt < 0.15 ? m._sEl : null;
+    const pos = { x: m.x, y: m.y };
+    if (m.isStone) {
+      sfxFiles.play('treffer_stein', { ...pos, vol: 0.5, rate: 0.95, vary: 0.08, grp: 'hit', rev: 0.25 });
+      if (el && IMP_FILE[el]) sfxFiles.play(IMP_FILE[el][0], { ...pos, vol: IMP_FILE[el][1] * 0.6, rate: IMP_FILE[el][2], maxDur: IMP_FILE[el][3], grp: 'imp' });
+      return;
+    }
+    if (el) {
+      const I = IMP_FILE[el];
+      if (!(I && sfxFiles.play(I[0], { ...pos, vol: I[1], rate: I[2], maxDur: I[3], fromPeak: 0.03, grp: 'imp' })) && PLAYER_SND['imp_' + el]) {
+        this.player('imp_' + el, { ...pos, vol: 0.5, rate: 0.92 + Math.random() * 0.16 });
+      }
+      if (crit) sfxFiles.play('krit', { ...pos, vol: 0.4, fromPeak: 0.04, grp: 'hit' });
+      return;
+    }
+    const H = (kind && HIT_FILE[kind]) || ['hieb_schwert', 1];
+    const id = crit && !/pfeil|magie/.test(H[0]) ? 'krit' : H[0];
+    const played = sfxFiles.play(id, { ...pos, vol: crit ? 0.9 : own ? 0.75 : 0.4, rate: id === 'krit' ? 1 : H[1], fromPeak: 0.05, grp: 'hit' });
+    if (!played) this.player('hit', { ...pos, vol: 0.55, rate: 0.9 + Math.random() * 0.2 });
+    else if (crit && id !== 'krit') sfxFiles.play('krit', { ...pos, vol: 0.45, fromPeak: 0.04, grp: 'hit2' });
+    // Stoff: Knochen, Stein, Rüstung (nur Nahkampf; Rüstung jedes zweite Mal)
+    const mat = MAT_FILE[voiceOf(m)];
+    if (played && mat && kind && HIT_FILE[kind] && /hieb/.test(HIT_FILE[kind][0]) && (mat !== 'treffer_ruestung' || Math.random() < 0.5)) {
+      sfxFiles.play(mat, { ...pos, vol: 0.32, rate: 1, vary: 0.1, fromPeak: 0.01, grp: 'hit2' });
+    }
+  },
+
+  // Schwung der Waffe (im Treffer-Bild). hit: das Ziel wurde getroffen – dann trägt der Hieb (impact) den Schwung mit
+  swing(p, hit) {
     const kind = weaponKindOf(p);
-    const key = kind === 'dagger' ? 'whoosh_l' : kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe' ? 'whoosh_h' : 'whoosh_m';
-    this.player(key, { x: p.x, y: p.y, vol: p === game.player ? 0.42 : 0.28, rate: 0.92 + Math.random() * 0.16 });
+    const mine = p === game.player;
+    const S = SWING_FILE[kind];
+    if (!(hit && S && sfxFiles.ready(HIT_FILE[kind][0]))) {
+      const key = kind === 'dagger' ? 'whoosh_l' : kind === 'greatsword' || kind === 'greataxe' || kind === 'scythe' ? 'whoosh_h' : 'whoosh_m';
+      if (!(S && sfxFiles.play(S[0], { x: p.x, y: p.y, vol: mine ? 0.42 : 0.26, rate: S[1], vary: 0.07, grp: 'swing' }))) {
+        this.player(key, { x: p.x, y: p.y, vol: mine ? 0.42 : 0.28, rate: 0.92 + Math.random() * 0.16 });
+      }
+    }
     // Kampflaut: beim dritten Schlag der Kette immer, sonst ab und zu
     if (p.combo === 2) this.kiai(p, true);
-    else if (Math.random() < 0.35) this.kiai(p, false);
+    else if (Math.random() < 0.2) this.kiai(p, false);
   },
 
   // Schuss des Grundangriffs
   shot(p, basic) {
-    if (Math.random() < 0.25) this.kiai(p, false);
+    if (Math.random() < 0.15) this.kiai(p, false);
+    // seit 14.5 aus Dateien: Bogen (zwei Aufnahmen), Magier nach Element, Fächer, Glocke, Stab
+    const mine = p === game.player;
+    const pos = { x: p.x, y: p.y };
+    if (basic.style === 'arrow') {
+      const id = Math.random() < 0.5 ? 'bogen_schuss' : 'bogen_schuss2';
+      if (sfxFiles.play(sfxFiles.ready(id) ? id : 'bogen_schuss', { ...pos, vol: mine ? 0.55 : 0.32, fromPeak: 0.06, vary: 0.05, grp: 'swing' })) return;
+    } else {
+      const kind = weaponKindOf(p);
+      const S = SHOT_FILE[basic.el || (kind === 'fan' || kind === 'bell' || kind === 'staff' ? kind : 'arkan')] || SHOT_FILE.arkan;
+      if (sfxFiles.play(S[0], { ...pos, vol: mine ? 0.42 : 0.26, rate: S[1], maxDur: S[2], grp: 'swing' })) return;
+    }
     if (basic.style === 'arrow') this.player('bow', { x: p.x, y: p.y, vol: 0.5 });
     else if (basic.el) this.player('el_' + (basic.el === 'frost' ? 'eis' : basic.el), { x: p.x, y: p.y, vol: 0.45, rate: 1.25 });
     else if (basic.style === 'wind') this.player('el_wind', { x: p.x, y: p.y, vol: 0.5, rate: 1.3 });
@@ -1205,8 +1302,21 @@ const snd = {
   // Fertigkeit nach Element (Magier: eigenes Element); einige große Zauber haben einen eigenen Klang
   skill(sk, p) {
     const el = SKILL_SND[sk.id] || sndElOf(sk.id, sk.el);
-    this.player('el_' + el, { x: p.x, y: p.y, vol: p === game.player ? 0.6 : 0.4, rev: 0.3 });
+    const mine = p === game.player;
+    // seit 14.5 aus Dateien (je Fertigkeit oder nach Element), sonst erzeugt
+    const F = SKILL_FILE[sk.id] || [EL_FILE[el] || 'klinge', 1];
+    if (!sfxFiles.play(F[0], { x: p.x, y: p.y, vol: (mine ? 0.62 : 0.4) * (F[2] || 1), rate: F[1], vary: 0.04, rev: 0.22, grp: 'skill' })) {
+      this.player('el_' + el, { x: p.x, y: p.y, vol: mine ? 0.6 : 0.4, rev: 0.3 });
+    }
     this.kiai(p, true);
+  },
+
+  // Block mit dem Schild, Treffer am eigenen Körper (kampf.js)
+  block() {
+    this.file('block', { vol: 0.55, fromPeak: 0.04, grp: 'hit' }, 'el_klinge', { vol: 0.5, rate: 1.4 });
+  },
+  struck() {
+    sfxFiles.play('spieler_getroffen', { vol: 0.42, vary: 0.08, fromPeak: 0.02, grp: 'hit2' });
   },
 
   // Dauerklang (Eisstrahl, Strom der Elemente): Schleife solange er läuft (je Figur und Klang eine), am Ende ein Schlussklang
@@ -1284,9 +1394,24 @@ const snd = {
         m._sDead = m.dead;
         continue;
       }
+      // Laute dieser Monsterfamilie vorab laden (seit 14.5)
+      if (!m._sPre) {
+        m._sPre = true;
+        const F = MOB_FILE[voiceOf(m)];
+        if (F) {
+          sfxFiles.load(F[0]);
+          sfxFiles.load(F[1]);
+        }
+        if (m.type && (m.type.boss || m.type.raid)) {
+          sfxFiles.load('boss_wut');
+          sfxFiles.load('boss_tod');
+        }
+      }
       if (m.dead) {
         if (!m._sDead) {
           m._sDead = true;
+          // Seelenstein zerbricht (seit 14.5 eigene Aufnahme)
+          if (m.isStone && sfxFiles.play('stein_bruch', { x: m.x, y: m.y, vol: 0.95, rev: 0.35 })) continue;
           this.mob(m, 'death');
         }
         continue;
@@ -1295,11 +1420,12 @@ const snd = {
       const s = m._snd || (m._snd = { atk: false, hit: 0, hurtAt: -9, aggroAt: -99, state: m.state });
       // Treffer: Aufprall immer, Schmerzlaut höchstens alle 0,5 s
       if (m.hitFlash > s.hit + 0.02) {
-        // Einschlag nach Element, wenn gerade eine Fertigkeit traf (seit 9.6), sonst dumpfer Schlag
-        const el = m._sEl && t - m._sElAt < 0.15 && PLAYER_SND['imp_' + m._sEl] ? m._sEl : null;
-        if (el) this.player('imp_' + el, { x: m.x, y: m.y, vol: 0.5, rate: 0.92 + Math.random() * 0.16 });
-        else if (!m.isStone) this.player('hit', { x: m.x, y: m.y, vol: 0.55, rate: 0.9 + Math.random() * 0.2 });
-        if (t - s.hurtAt > 0.5) {
+        // Einschlag nach Element, wenn gerade eine Fertigkeit traf (seit 9.6), sonst Hieb der Waffe (seit 14.5 aus
+        // Dateien, impact); Schaden über Zeit (Gift, Brand, Blutung) ohne Einschlag und mit seltenerem Schmerzlaut
+        const dot = t - (m._sHitAt || -9) < 0.2 && m._sDot;
+        if (!dot) this.impact(m, t);
+        // Seelenstein: die Steinaufnahme ersetzt den erzeugten Glockenton
+        if (t - s.hurtAt > (dot ? 1.6 : 0.5) && !(m.isStone && sfxFiles.ready('treffer_stein'))) {
           s.hurtAt = t;
           this.mob(m, 'hurt');
         }
@@ -1330,7 +1456,8 @@ const snd = {
 
   // Häufige Klänge vorab berechnen, damit der erste Schlag nicht stumm bleibt
   warm() {
-    // Klangblätter der Tiere im Hintergrund laden
+    // Klangdateien (seit 14.5) und Klangblätter der Tiere im Hintergrund laden
+    sfxFiles.warm();
     for (const n of Object.keys(REC_SPRITES)) recSheet(n);
     for (const k of ['whoosh_l', 'whoosh_m', 'whoosh_h', 'hit', 'bow', 'coin', 'item', 'potion', 'hurt_m', 'hurt_f', 'kiai_m', 'kiai_f', 'shout_m', 'shout_f']) {
       const n = k.startsWith('kiai') || k.startsWith('shout') ? 5 : k.startsWith('hurt') ? 4 : SND_VARIANTS;

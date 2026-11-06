@@ -197,8 +197,8 @@ Object.assign(music, {
     ng.gain.linearRampToValueAtTime(0.0001, t + dur + 0.05);
     n.connect(bp);
     bp.connect(ng);
-    ng.connect(sfx.music);
-    g.connect(sfx.music);
+    ng.connect(music.out);
+    g.connect(music.out);
     for (const x of [o, o2, lfo]) {
       x.start(t);
       x.stop(t + dur + 0.1);
@@ -243,7 +243,7 @@ Object.assign(music, {
     g.gain.linearRampToValueAtTime(0.0001, t + dur + 0.08);
     sum.connect(lp);
     lp.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     for (const x of [o, lfo]) {
       x.start(t);
       x.stop(t + dur + 0.12);
@@ -259,7 +259,7 @@ Object.assign(music, {
     const g = c.createGain();
     g.gain.value = vol;
     src.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     src.start(t);
   },
   zhengBuf(c, midi) {
@@ -309,7 +309,7 @@ Object.assign(music, {
     g.gain.linearRampToValueAtTime(0.12 * vol, t + 0.002);
     g.gain.exponentialRampToValueAtTime(0.0005, t + 0.09);
     o.connect(g);
-    g.connect(sfx.music);
+    g.connect(music.out);
     o.start(t);
     o.stop(t + 0.1);
   }

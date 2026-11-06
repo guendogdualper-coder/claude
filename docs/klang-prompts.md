@@ -1,9 +1,34 @@
 # Klang-Bibel – Seelenstein (seit Version 9.4, erweitert in 9.5 bis 9.8)
 
-Alle Klänge und die Musik werden im Browser erzeugt, es gibt keine Tondateien. Der Code steht in
-`js/klang.js` (Mischpult), `js/klang-welt.js` (Klänge) und `js/musik.js` (Musik). Dieses Dokument
-beschreibt, wie es klingen soll. Die englischen Prompts lassen sich auch für Tonerzeuger nutzen,
-falls später echte Aufnahmen dazukommen.
+Bis 14.4 wurden alle Klänge und die Musik im Browser erzeugt. Seit 14.5 kommen Musik, Kampf, Fertigkeiten,
+Monster und Welt aus mit ElevenLabs erzeugten Dateien (Abschnitt 0); die im Browser erzeugten Klänge bleiben als
+Rückfall. Der Code steht in `js/klang.js` (Mischpult), `js/klang-welt.js` (Klänge), `js/klang-dateien.js`
+(Dateien) und `js/musik.js` (Musik). Dieses Dokument beschreibt, wie es klingen soll.
+
+## 0. Klangdateien (seit 14.5, ElevenLabs)
+
+- **Liste und Erzeugung:** `tools/klang-liste.json` enthält jeden Klang mit englischem Prompt, Dauer, Schnitt
+  (`schnitte`, `max`, `ausklang` …) und Rollen (welcher Laut zu Schrei, Angriff, Schmerz, Tod gehört).
+  `ELK=<Schlüssel> python3 tools/klang-erzeugen.py` erzeugt fehlende Rohdateien (Schlüssel nur aus der
+  Umgebungsvariable) und baut daraus `snd/sfx/<id>.mp3`, `snd/musik/<stimmung>.mp3` und
+  `js/daten/klang-dateien.js`; `python3 tools/klang-erzeugen.py bauen` baut nur neu (ohne Netz). Rohdateien liegen
+  außerhalb des Repos (`~/.cache/seelenstein-klang-roh` oder `--roh <ordner>`).
+- **Soundeffekte:** mono, 64 kbit/s, Stille vorn und hinten weg, Hochpass gegen Rumpeln, Kurzzeitlautheit
+  um −14 LUFS, Spitzen ≤ −1,5 dBFS. Mehrere Varianten je Datei; das Spiel wählt nie zweimal dieselbe
+  hintereinander und ändert Höhe (±6 %) und Lautstärke (±10 %) leicht. Treffer beginnen kurz vor dem
+  Aufschlag (dritte Zahl je Laut in `SFX_FILES`), damit Bild und Klang zusammenfallen.
+- **Musik:** Stereo, 128 kbit/s (Vlotho, Boss) bzw. 96 kbit/s, um −19 LUFS. Je Stück Vorspiel, Schleife A–B und
+  0,6 s Nachlauf (= Anfang der Schleife); das Ende der Schleife ist in den Klang vor A übergeblendet, die Punkte
+  sind nach Harmonie, Klangfarbe und Rhythmus gesucht. Vlotho (Dorf): zwei Proben, die ruhigere, wärmere spielt in
+  den Städten, die zweite auf den Wiesen.
+- **Laden:** Kampf, Fertigkeiten und Welt nach der ersten Berührung im Hintergrund; Monsterlaute, sobald ein
+  Monster der Familie in der Nähe ist; Musik nur für die aktuelle Stimmung (die der Nachbargegenden werden als
+  Bytes vorab geholt). Der Service Worker legt `snd/` in einen eigenen Speicher (übersteht Updates) und antwortet
+  offline ohne Datei mit 204 – dann klingt still der erzeugte Klang.
+- **Stimmen begrenzen:** Gruppen (Treffer, Monster, Schwünge, Fertigkeiten) mit Höchstzahl und Mindestabstand;
+  Angriffslaut je Monster höchstens alle 0,9 s; Schmerzlaut bei Schaden über Zeit höchstens alle 1,6 s.
+- **Aufnahmen behalten:** Hund, Fuchs, Hyäne, Hirsch und Pferd bleiben bei den CC0-Aufnahmen (Abschnitt 1b);
+  Hexe und Harpyie bleiben erzeugt.
 
 ## 1. Grundregeln
 

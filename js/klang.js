@@ -1,4 +1,4 @@
-// Klänge, direkt im Browser erzeugt (Web Audio), keine Tondateien nötig.
+// Klänge, direkt im Browser erzeugt (Web Audio); seit 14.5 kommen die meisten aus Dateien (klang-dateien.js).
 // Auf dem iPhone darf Ton erst nach einer Berührung starten; das passiert hier beim ersten Klang,
 // der immer durch einen Tipp (z. B. „Verbessern“) ausgelöst wird. Der Stummschalter des iPhones
 // schaltet die Klänge ebenfalls stumm.
@@ -113,6 +113,8 @@ const sfx = {
 
   // Hammer auf Amboss: heller Metallklang, jeder Schlag etwas höher
   clang(i = 0) {
+    // seit 14.5: echter Amboss (Datei), jeder Schlag etwas höher; ohne Datei der erzeugte Klang
+    if (typeof sfxFiles !== 'undefined' && this.on && sfxFiles.play('amboss', { clip: i % 3, rate: 1 + i * 0.03, vary: 0.01, vol: 0.75, rev: 0.25 })) return;
     const k = 1 + i * 0.06;
     this.tone(1180 * k, 0, 0.45, 'triangle', 0.16);
     this.tone(1645 * k, 0, 0.3, 'square', 0.035);
@@ -129,6 +131,7 @@ const sfx = {
 
   // Erfolg: aufsteigender Dreiklang mit Glitzern
   success() {
+    if (typeof sfxFiles !== 'undefined' && this.on && sfxFiles.play('schmied_erfolg', { vol: 0.85, vary: 0, rev: 0.3 })) return;
     [523, 659, 784, 1047].forEach((f, i) => this.tone(f, i * 0.09, 0.5, 'triangle', 0.16));
     this.tone(1568, 0.36, 0.7, 'sine', 0.08);
     for (let i = 0; i < 6; i++) this.tone(2000 + Math.random() * 2400, 0.36 + i * 0.06, 0.25, 'sine', 0.04);
@@ -143,6 +146,7 @@ const sfx = {
 
   // Zerbrochen: Splittern, klirrende Scherben, tiefes Dröhnen
   shatter() {
+    if (typeof sfxFiles !== 'undefined' && this.on && sfxFiles.play('schmied_bruch', { vol: 0.9, vary: 0, rev: 0.3 })) return;
     this.noise(0, 0.5, 0.5, 1800);
     this.noise(0, 0.35, 0.3, 400, 'lowpass');
     this.tone(90, 0, 0.7, 'sine', 0.3, 40);

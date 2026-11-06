@@ -1,6 +1,10 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
 const VERSION = 'seelenstein-v232';
+// Klänge und Musik (snd/, seit 14.5) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
+// sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
+// nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
+const KLANG = 'seelenstein-klang-1';
 const FILES = [
   './',
   'index.html',
@@ -26,20 +30,15 @@ const FILES = [
   'js/figuren.js',
   'js/umgebung.js',
   'js/klang.js',
-  'snd/tier-bear.mp3',
-  'snd/tier-boar.mp3',
-  'snd/tier-brute.mp3',
-  'snd/tier-cat.mp3',
   'snd/tier-deer.mp3',
   'snd/tier-dog.mp3',
   'snd/tier-fox.mp3',
   'snd/tier-hyena.mp3',
-  'snd/tier-orc.mp3',
   'snd/tier-horse.mp3',
-  'snd/tier-undead.mp3',
-  'snd/tier-wolf.mp3',
   'js/klang-aufnahmen.js',
   'js/klang-welt.js',
+  'js/daten/klang-dateien.js',
+  'js/klang-dateien.js',
   'js/musik.js',
   'js/musik-lieder.js',
   'js/optionen.js',
@@ -137,7 +136,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION && k !== KLANG).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -148,6 +147,10 @@ self.addEventListener('fetch', (e) => {
   const sameOrigin = new URL(e.request.url).origin === self.location.origin;
   // das Wiki (seit 11.9) läuft am Spiel-Speicher vorbei: viele Bilder, die das Spiel nicht braucht
   if (sameOrigin && new URL(e.request.url).pathname.includes('/wiki/')) return;
+  if (sameOrigin && new URL(e.request.url).pathname.includes('/snd/')) {
+    e.respondWith(klang(e));
+    return;
+  }
   e.respondWith(
     caches.open(VERSION).then(async (cache) => {
       try {
@@ -161,3 +164,29 @@ self.addEventListener('fetch', (e) => {
     })
   );
 });
+
+// Klänge und Musik: aus dem Speicher, wenn vorhanden (schnell, offline), und einmal je Sitzung im Hintergrund
+// nachsehen, ob es eine neue Fassung gibt. Fehlt eine Datei offline, antwortet der Worker mit 204 (leer):
+// das Spiel nimmt dann still den im Browser erzeugten Klang, ohne Fehlermeldung.
+const klangGeprueft = new Set();
+async function klang(e) {
+  const url = e.request.url.split('#')[0];
+  const cache = await caches.open(KLANG);
+  const hit = (await cache.match(url, { ignoreSearch: true })) || (await caches.match(url, { ignoreSearch: true }));
+  const holen = () => fetch(new Request(url, { cache: 'no-cache' })).then((res) => {
+    if (res.ok && res.status === 200) cache.put(url, res.clone());
+    return res;
+  });
+  if (hit) {
+    if (!klangGeprueft.has(url)) {
+      klangGeprueft.add(url);
+      e.waitUntil(holen().catch(() => {}));
+    }
+    return hit;
+  }
+  try {
+    return await holen();
+  } catch {
+    return new Response(null, { status: 204, statusText: 'offline' });
+  }
+}
