@@ -557,19 +557,19 @@ const STONE_MATS = {
 
 // Klingenumrisse der Dolche je Stufe (seit 13.19): x quer, y entlang der Klinge ab der Parierstange (in 3D-Einheiten).
 // Dieselben Formen zeichnen das Inventarsymbol (ausruestung.js) und die Waffe in der Hand (drei-ausruestung.js).
-// Seit 13.20 neu gezeichnet, mit Zacken und Haken – jede Stufe eine eigene Silhouette:
-// 0 Kurzdolch (Tanto mit schräger Spitze), 1 Stahldolch (Sägerücken), 2 Schattendolch (Karambit-Haken),
-// 3 Viperzahn (gewellte Schlangenklinge), 4 Nachtklinge (Kunai), 5 Aschendolch (Widerhaken an beiden Seiten),
-// 6 Sternendolch (Gabel mit zwei Zinken und Nadelspitze), 7 Götterzahn (Flammenklinge mit Haken),
-// seit 13.53: 8 Abgrundstachel (gekrümmter Fangzahn mit Widerhaken nach innen), 9 Ewigkeitsdorn (Sternnadel mit zwei Strahlenkreuzen).
+// Seit 13.20 neu gezeichnet, mit Zacken und Haken, seit 14.20 noch einmal klarer – jede Stufe eine eigene Silhouette:
+// 0 Kurzdolch (gerade Blattklinge), 1 Stahldolch (breites Dreieck mit Sägerücken), 2 Schattendolch (Karambit-Sichel),
+// 3 Viperzahn (Kris, gewellte Schlangenklinge), 4 Nachtklinge (Doppelklinge: gespalten in zwei Spitzen),
+// 5 Aschendolch (Widerhaken an beiden Seiten), 6 Sternendolch (schiefe Kristallklinge), 7 Götterzahn (Flammenklinge
+// mit Haken), 8 Abgrundstachel (gekrümmter Fangzahn mit Widerhaken nach innen), 9 Ewigkeitsdorn (Nadel mit zwei Strahlenkreuzen).
 const DAGGER_BLADES = [
-  [[-0.022, 0], [0.022, 0], [0.023, 0.16], [0.004, 0.225], [-0.022, 0.185]],
-  [[-0.024, 0], [0.026, 0], [0.032, 0.03], [0.02, 0.045], [0.032, 0.07], [0.02, 0.085], [0.032, 0.11], [0.02, 0.125], [0.026, 0.155], [0.003, 0.25], [-0.024, 0.165]],
-  [[-0.02, 0], [0.022, 0], [0.03, 0.04], [0.05, 0.085], [0.078, 0.12], [0.118, 0.158], [0.08, 0.162], [0.045, 0.138], [0.016, 0.098], [-0.005, 0.052]],
+  [[-0.022, 0], [0.022, 0], [0.026, 0.05], [0.028, 0.13], [0.017, 0.2], [0, 0.25], [-0.017, 0.2], [-0.028, 0.13], [-0.026, 0.05]],
+  [[-0.03, 0], [0.032, 0], [0.038, 0.04], [0.028, 0.14], [0.012, 0.22], [0, 0.28], [-0.012, 0.22], [-0.022, 0.2], [-0.017, 0.18], [-0.028, 0.165], [-0.021, 0.145], [-0.032, 0.13], [-0.025, 0.11], [-0.035, 0.095], [-0.028, 0.075], [-0.036, 0.06], [-0.034, 0.03]],
+  [[-0.02, 0], [0.022, 0], [0.034, 0.04], [0.056, 0.085], [0.088, 0.122], [0.13, 0.152], [0.11, 0.166], [0.074, 0.16], [0.04, 0.136], [0.012, 0.098], [-0.008, 0.052]],
   [[-0.024, 0], [0.024, 0], [0.04, 0.04], [0.016, 0.085], [0.038, 0.13], [0.014, 0.175], [0.028, 0.21], [0, 0.27], [-0.026, 0.205], [-0.01, 0.165], [-0.034, 0.12], [-0.012, 0.075], [-0.036, 0.035]],
-  [[-0.012, 0], [0.012, 0], [0.042, 0.07], [0.03, 0.15], [0, 0.26], [-0.03, 0.15], [-0.042, 0.07]],
+  [[-0.032, 0], [0.032, 0], [0.046, 0.05], [0.044, 0.19], [0.026, 0.3], [0.009, 0.2], [0, 0.13], [-0.009, 0.2], [-0.026, 0.3], [-0.044, 0.19], [-0.046, 0.05]],
   [[-0.028, 0], [0.028, 0], [0.052, 0.04], [0.03, 0.05], [0.048, 0.095], [0.026, 0.105], [0.04, 0.15], [0.02, 0.16], [0.026, 0.2], [0, 0.28], [-0.026, 0.2], [-0.02, 0.16], [-0.04, 0.15], [-0.026, 0.105], [-0.048, 0.095], [-0.03, 0.05], [-0.052, 0.04]],
-  [[-0.014, 0], [0.014, 0], [0.04, 0.03], [0.058, 0.1], [0.044, 0.1], [0.03, 0.058], [0.011, 0.062], [0.01, 0.22], [0, 0.32], [-0.01, 0.22], [-0.011, 0.062], [-0.03, 0.058], [-0.044, 0.1], [-0.058, 0.1], [-0.04, 0.03]],
+  [[-0.014, 0], [0.014, 0], [0.034, 0.05], [0.026, 0.11], [0.044, 0.17], [0.012, 0.3], [0, 0.33], [-0.014, 0.28], [-0.04, 0.16], [-0.024, 0.1], [-0.034, 0.05]],
   [[-0.03, 0], [0.03, 0], [0.055, 0.04], [0.045, 0.07], [0.075, 0.11], [0.06, 0.135], [0.1, 0.19], [0.125, 0.26], [0.08, 0.225], [0.05, 0.2], [0.03, 0.235], [0, 0.31], [-0.025, 0.22], [-0.045, 0.16], [-0.03, 0.13], [-0.05, 0.085], [-0.034, 0.06], [-0.048, 0.025]],
   [[-0.028, 0], [0.028, 0], [0.052, 0.06], [0.076, 0.13], [0.098, 0.2], [0.114, 0.27], [0.122, 0.345], [0.094, 0.3], [0.084, 0.262], [0.056, 0.24], [0.068, 0.222], [0.052, 0.185], [0.024, 0.168], [0.038, 0.148], [0.022, 0.112], [-0.006, 0.096], [0.008, 0.076], [-0.012, 0.045]],
   [[-0.016, 0], [0.016, 0], [0.022, 0.06], [0.072, 0.092], [0.024, 0.112], [0.016, 0.22], [0.044, 0.244], [0.014, 0.262], [0, 0.36], [-0.014, 0.262], [-0.044, 0.244], [-0.016, 0.22], [-0.024, 0.112], [-0.072, 0.092], [-0.022, 0.06]]
@@ -577,20 +577,34 @@ const DAGGER_BLADES = [
 
 // Bögen (seit 13.20): Mittellinie eines Wurfarms je Stufe (Griff bei 0, 0; x < 0 zur Sehne), Dicke am Griff und an der
 // Spitze, Holzfarbe. 3D (drei-ausruestung.js, bow3) und Inventarsymbol (figuren.js) nutzen dieselben Linien.
+// Seit 14.20 länger, dicker und mit mehr Unterschied je Stufe (Holz → Horn → Stahl → Obsidian → Kristall/Schatten):
+// vein Leuchtader auf beiden Seiten der Arme, band Ringe an den Armen, tip Form der Enden, str Sehnenfarbe (glow: leuchtet)
+// 0 Jagdbogen: schlichter heller Holzbogen, 1 Kurzbogen: kurzer Reiterbogen aus Horn mit hochgebogenen Ohren,
+// 2 Schattenbogen: langer schwarzvioletter Langbogen mit Silberringen und Mondsicheln, 3 Viperbogen: gewellte Schlangenarme,
+// 4 Nachtbogen: Doppelbogen aus blauem Stahl mit Klingenspitzen, 5 Aschenbogen: Obsidian-Recurve mit Glutader und Klingen,
+// 6 Sternenbogen: weißer Kristallbogen mit Federn, 7 Götterbogen: goldener Reflexbogen mit Sichelklingen und Sonnenscheibe,
+// 8 Abgrundbogen: Klauenarme aus Leerenobsidian, 9 Ewigkeitsbogen: Platinbogen mit Prismen und Kristallklingen
 const BOW_LIMBS = [
-  { pts: [[0, 0], [-0.03, 0.15], [-0.09, 0.3], [-0.16, 0.42]], r: [0.026, 0.012], wood: '#8a5a34' },
-  { pts: [[0, 0], [-0.045, 0.11], [-0.1, 0.22], [-0.125, 0.3], [-0.095, 0.37]], r: [0.03, 0.013], wood: '#6b3a22', tip: '#e8dcc0' },
-  { pts: [[0, 0], [0.03, 0.1], [-0.02, 0.25], [-0.11, 0.42], [-0.15, 0.53]], r: [0.028, 0.012], wood: '#2e2a3a' },
-  { pts: [[0, 0], [-0.05, 0.08], [0, 0.17], [-0.07, 0.27], [-0.04, 0.36], [-0.12, 0.45]], r: [0.03, 0.014], wood: '#3e6a34' },
-  { pts: [[0, 0], [-0.015, 0.14], [-0.09, 0.3], [-0.19, 0.44]], r: [0.026, 0.014], wood: '#3a4a6a', rail: true },
-  { pts: [[0, 0], [-0.04, 0.14], [-0.12, 0.28], [-0.18, 0.4], [-0.15, 0.49]], r: [0.032, 0.014], wood: '#2a2224' },
-  { pts: [[0, 0], [0.02, 0.12], [-0.04, 0.28], [-0.14, 0.42], [-0.19, 0.51]], r: [0.026, 0.011], wood: '#e6eef8' },
-  { pts: [[0, 0], [-0.02, 0.1], [-0.1, 0.24], [-0.17, 0.37], [-0.14, 0.47], [-0.06, 0.54]], r: [0.032, 0.014], wood: '#d9a63a' },
-  // seit 13.53: 8 Abgrundbogen (weit nach hinten gerissene Klauenarme aus Leerenobsidian), 9 Ewigkeitsbogen
-  // (langer Platinbogen, dessen Spitzen sich wie Sternstrahlen nach vorn biegen)
-  { pts: [[0, 0], [0.04, 0.08], [-0.03, 0.19], [-0.14, 0.31], [-0.19, 0.44], [-0.23, 0.55]], r: [0.034, 0.01], wood: '#1e1632' },
-  { pts: [[0, 0], [0.03, 0.1], [-0.01, 0.21], [-0.09, 0.33], [-0.14, 0.44], [-0.12, 0.53], [-0.05, 0.57]], r: [0.03, 0.011], wood: '#f2eef8' }
+  { pts: [[0, 0], [-0.03, 0.15], [-0.09, 0.3], [-0.17, 0.45]], r: [0.034, 0.016], wood: '#b07a44', tip: '#3a2a1c', str: '#efe6cc' },
+  { pts: [[0, 0], [-0.05, 0.1], [-0.11, 0.2], [-0.15, 0.29], [-0.13, 0.36], [-0.06, 0.42]], r: [0.038, 0.016], wood: '#7a2e1e', belly: '#eadcbc', tip: '#eadcbc', band: '#d9a86a', str: '#efe6cc' },
+  { pts: [[0, 0], [0.02, 0.12], [-0.02, 0.27], [-0.1, 0.44], [-0.16, 0.6]], r: [0.032, 0.013], wood: '#2c2840', vein: '#b48cff', band: '#d6dbe8', tip: '#d6c8ff', str: '#d8ccff' },
+  { pts: [[0, 0], [-0.05, 0.08], [0, 0.17], [-0.07, 0.27], [-0.03, 0.36], [-0.12, 0.46], [-0.16, 0.52]], r: [0.038, 0.016], wood: '#3e7a34', belly: '#a8d870', vein: '#9dff6a', tip: '#4e8a3e', str: '#e0f0c0' },
+  { pts: [[0, 0], [-0.015, 0.14], [-0.09, 0.3], [-0.2, 0.47]], r: [0.03, 0.014], wood: '#4a5e8a', rail: true, vein: '#7ac8ff', band: '#c8d8f0', tip: '#dfe8f8', str: '#cfe6ff' },
+  { pts: [[0, 0], [-0.04, 0.14], [-0.12, 0.28], [-0.19, 0.41], [-0.16, 0.5], [-0.1, 0.55]], r: [0.04, 0.015], wood: '#2a2224', vein: '#ff7a2a', tip: '#2a2224', str: '#ffb070', glow: true },
+  { pts: [[0, 0], [0.03, 0.12], [-0.03, 0.28], [-0.14, 0.44], [-0.2, 0.56]], r: [0.032, 0.012], wood: '#e6eef8', vein: '#9fe8ff', band: '#b8d8ff', tip: '#bff4ff', str: '#e6f6ff', glow: true },
+  { pts: [[0, 0], [-0.02, 0.1], [-0.1, 0.24], [-0.18, 0.38], [-0.16, 0.48], [-0.08, 0.56]], r: [0.04, 0.015], wood: '#d9a63a', belly: '#7a4a1a', vein: '#fff2b0', band: '#fff2b0', tip: '#fff2b0', str: '#fff2b0', glow: true },
+  { pts: [[0, 0], [0.04, 0.08], [-0.03, 0.19], [-0.14, 0.32], [-0.2, 0.46], [-0.25, 0.58]], r: [0.04, 0.01], wood: '#1e1632', vein: '#5ee8ff', tip: '#3a2e66', str: '#5ee8ff', glow: true },
+  { pts: [[0, 0], [0.03, 0.1], [-0.01, 0.22], [-0.09, 0.35], [-0.15, 0.47], [-0.13, 0.56], [-0.06, 0.62]], r: [0.036, 0.012], wood: '#f2eef8', vein: '#ffb8e0', band: '#e2957c', tip: '#e0dcec', str: '#ffb8e0', glow: true }
 ];
+
+// Klingen an den Bogenenden (seit 14.20, 3D und Symbol): Umriss entlang +y, Schneide nach vorn (+x); unten gespiegelt
+const BOW_TIP_BLADES = {
+  4: [[-0.012, 0], [0.016, 0], [0.03, 0.05], [0.012, 0.1], [0, 0.13], [-0.01, 0.06]],
+  5: [[-0.014, 0], [0.018, 0], [0.04, 0.03], [0.026, 0.05], [0.044, 0.08], [0.02, 0.1], [0, 0.15], [-0.012, 0.07]],
+  7: [[-0.014, 0], [0.016, 0], [0.05, 0.04], [0.076, 0.1], [0.07, 0.16], [0.05, 0.11], [0.02, 0.08], [-0.004, 0.06]],
+  8: [[-0.016, 0], [0.016, 0], [0.026, 0.06], [0.05, 0.11], [0.03, 0.16], [0.016, 0.1], [-0.004, 0.07]],
+  9: [[-0.012, 0], [0.012, 0], [0.034, 0.05], [0.014, 0.1], [0, 0.17], [-0.014, 0.1], [-0.034, 0.05]]
+};
 
 // --- Waffenformen je Stufe (seit 13.29) ------------------------------------------------------------------
 // Wie bei Dolchen und Bögen nutzen 3D-Waffe (drei-ausruestung.js) und Inventarsymbol (figuren.js) dieselben
