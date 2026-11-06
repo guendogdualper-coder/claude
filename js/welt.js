@@ -208,12 +208,15 @@ const TOWN_PLACES = {
   // Seit 13.91 nicht mehr im festen Abstand von 4 und nicht genau in einer Linie (das Dorf wirkte wie ein Raster),
   // und drei Leute stehen ohne Stand im Dorf (4. Zahl: Blickrichtung, 0 = nach Süden): die Wegweiserin neben dem
   // Weltentor, der Lehrmeister unter dem Kirschbaum bei der Bank, der Lagerverwalter vor dem Lagerhaus (vlothoHouses).
-  // Vorher: West -18,5 / -14,5 / -10,5 / -6,5 / 7,5 / 11,5, Ost -18,5 … 19,5 alle bei x = ±19,25 bzw. 20,25.
+  // Seit 14.7 einen Stand haben nur noch, die etwas verkaufen oder bearbeiten (Schmied, Stallmeister, Waffen,
+  // Rüstung, Lager, Post, Auktion). Ältester, Händlerin (Tränke), Bogenmacherin, Alchemist und Jägerin stehen ohne
+  // Stand verstreut im Dorf (vorher alle an West- und Ostmauer: Ältester [-19.25, -18.3, 'w'], Händlerin
+  // [-19.25, -10.2, 'w'], Bogenmacherin [-18.95, -5.9, 'w'], Alchemist [20.0, -12.9, 'e'], Jägerin [20.25, 7.9, 'e']).
   dorf: {
-    aeltester: [-19.25, -18.3, 'w'], waffen: [-19.0, -14.1, 'w'], haendler: [-19.25, -10.2, 'w'], bogenmacher: [-18.95, -5.9, 'w'],
+    aeltester: [-9.6, -14.6, null, 0.2], waffen: [-19.0, -14.1, 'w'], haendler: [2.6, 4.6, null, -0.45], bogenmacher: [-15.5, 2.8, null, 0.6],
     stallmeister: [-19.25, 7.5, 'w'], schmied: [-19.0, 12.3, 'w'], frei: [-19.25, 19.5, 'w'],
-    lehrmeister: [16.3, -4.15, null, -0.35], teleport: [7.5, -7.75, null, -0.55], ruestung: [20.25, -17.7, 'e'], alchemist: [20.0, -12.9, 'e'],
-    jaegerin: [20.25, 7.9, 'e'], lager: [14.6, 14.75, null, 0.25], auktion: [20.0, 12.6, 'e'], post: [20.25, 18.9, 'e'],
+    lehrmeister: [16.3, -4.15, null, -0.35], teleport: [7.5, -7.75, null, -0.55], ruestung: [20.25, -17.7, 'e'], alchemist: [7.0, -12.6, null, -0.3],
+    jaegerin: [7.2, 11.8, null, 0.35], lager: [14.6, 14.75, null, 0.25], auktion: [20.0, 12.6, 'e'], post: [20.25, 18.9, 'e'],
     briefkasten: [18.2, 20.5, null],
     // seit 13.85 ohne Stand mitten in der Stadt: links oben schräg hinter dem Brunnen, frei von Wegen, Weltentor und
     // den Wegen der umherlaufenden Leute (Bauer, Mönch, Nachtwächterin, Laternenanzünder); vorher [-19.25, 15.5, 'w']
@@ -222,26 +225,32 @@ const TOWN_PLACES = {
     // tiefer, damit sich die Namen über den Köpfen nicht berühren
     pvp: [-6.9, -3.3, null]
   },
-  // Städte: West- und Ostmauer, je vier Stände über und unter dem Tor (Abstand 3,6)
+  // Städte: Stände an West- und Ostmauer (seit 14.7 nur noch sieben und nicht mehr im festen Abstand von 3,6),
+  // Ältester, Händler, Bogenmacher, Alchemist, Jäger, Lehrmeister und Wegweiser ohne Stand in der Stadt verteilt.
+  // Vorher alle an der Mauer: West aeltester -16,3 · waffen -12,7 · haendler -9,1 · schmied -5,5 · stallmeister 5,5 ·
+  // bogenmacher 9,1 · lehrmeister 12,7; Ost teleport -16,3 · ruestung -12,7 · alchemist -9,1 · lager -5,5 · post 5,5 ·
+  // jaegerin 9,1 · auktion 12,7 (x = -16,25 bzw. 17,25)
   stadt: {
-    aeltester: [-16.25, -16.3, 'w'], waffen: [-16.25, -12.7, 'w'], haendler: [-16.25, -9.1, 'w'], schmied: [-16.25, -5.5, 'w'],
-    stallmeister: [-16.25, 5.5, 'w'], bogenmacher: [-16.25, 9.1, 'w'], lehrmeister: [-16.25, 12.7, 'w'],
-    teleport: [17.25, -16.3, 'e'], ruestung: [17.25, -12.7, 'e'], alchemist: [17.25, -9.1, 'e'], lager: [17.25, -5.5, 'e'],
-    post: [17.25, 5.5, 'e'], jaegerin: [17.25, 9.1, 'e'], auktion: [17.25, 12.7, 'e'], frei: [17.25, 16.3, 'e'],
-    briefkasten: [15.3, 6.7, null],
+    aeltester: [-5.5, -14.5, null, 0.15], waffen: [-16.25, -13.4, 'w'], haendler: [-6.4, 2.6, null, 0.5], schmied: [-16.25, -6.2, 'w'],
+    stallmeister: [-16.25, 6.4, 'w'], bogenmacher: [-3.2, 11.6, null, -0.4], lehrmeister: [-9.8, -7.6, null, 0.4],
+    teleport: [3.6, -7.4, null, -0.5], ruestung: [17.25, -11.6, 'e'], alchemist: [11.5, -7.4, null, -0.6], lager: [17.25, -4.6, 'e'],
+    post: [17.25, 6.0, 'e'], jaegerin: [9.2, 14.2, null, -0.25], auktion: [17.25, 11.4, 'e'], frei: [17.25, 16.3, 'e'],
+    briefkasten: [15.3, 7.2, null],
     // seit 13.85 ohne Stand in der Mitte, rechts unten (der Brunnen steht links oben); vorher [-16.25, 16.3, 'w']
     arena: [3.6, 3.4, null],
     // seit 13.86: Turniermeister rechts unten neben dem Arenameister
     pvp: [6.1, 4.4, null]
   },
-  // Lager (klein): je zwei an West- und Ostmauer über und unter dem Tor, dazu drei an der Nordmauer neben den
-  // Tortürmen (in der Nordwestecke nur einer, dort rückt die Mauer näher ans Tor) und vier an der Südmauer
+  // Lager (klein): Stände an West- und Ostmauer und an der Nord- und Südmauer neben den Tortürmen; seit 14.7 stehen
+  // Ältester, Händler, Bogenmacher, Alchemist, Jäger, Lehrmeister und Wegweiser ohne Stand im Lager verteilt
+  // (vorher aeltester [-9.25, -7.8, 'w'], haendler [-9.25, 4.5, 'w'], teleport [10.25, -7.6, 'e'], alchemist
+  // [10.25, 4.5, 'e'], lehrmeister [-5.4, -9.25, 'n'], jaegerin [4.75, -9.25, 'n'], bogenmacher [3.75, 10.25, 'n'])
   lager: {
-    aeltester: [-9.25, -7.8, 'w'], waffen: [-9.25, -4.5, 'w'], haendler: [-9.25, 4.5, 'w'], schmied: [-9.25, 7.6, 'w'],
-    teleport: [10.25, -7.6, 'e'], ruestung: [10.25, -4.5, 'e'], alchemist: [10.25, 4.5, 'e'], lager: [10.25, 7.6, 'e'],
-    lehrmeister: [-5.4, -9.25, 'n'], jaegerin: [4.75, -9.25, 'n'], auktion: [7.95, -9.25, 'n'],
-    stallmeister: [-7.4, 10.25, 'n'], bogenmacher: [3.75, 10.25, 'n'], post: [7.6, 10.25, 'n'],
-    briefkasten: [9.4, 11.3, null],
+    aeltester: [-5.6, -5.0, null, 0.3], waffen: [-9.25, -4.5, 'w'], haendler: [-6.2, 3.4, null, 0.45], schmied: [-9.25, 7.6, 'w'],
+    teleport: [2.8, -7.8, null, -0.35], ruestung: [10.25, -6.2, 'e'], alchemist: [6.8, -6.4, null, -0.5], lager: [10.25, 7.6, 'e'],
+    lehrmeister: [-2.4, -9.0, null, 0.1], jaegerin: [-1.6, 6.6, null, -0.2], auktion: [7.95, -9.25, 'n'],
+    stallmeister: [-7.4, 10.25, 'n'], bogenmacher: [7.6, 5.4, null, -0.55], post: [5.2, 10.25, 'n'],
+    briefkasten: [7.0, 11.3, null],
     // seit 13.85 ohne Stand in der Mitte, rechts unten (Brunnen links, Weltentor oben); vorher [-3.75, 10.25, 'n']
     arena: [3.9, 2.7, null],
     // seit 13.86: Turniermeister schräg über dem Arenameister (nicht genau darüber: dort läge sein Name auf dessen Plakette)
