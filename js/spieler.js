@@ -235,6 +235,8 @@ function makePlayer(save) {
   // 13.49: Statuswerte auf der Ausrüstung passend zur Klasse
   Object.values(p.equipment).forEach((it) => fitItemAttrs(it, p.classId));
   p.inventory.forEach((it) => { if (!isBook(it)) fitItemAttrs(it, p.classId); });
+  // 14.21: Leben-Boni auch im Lager auf die festen Stufen (und nicht mehr auf Waffe/Köcher)
+  if (p.storage) p.storage.items.forEach((it) => fixLifeBonus(it));
   // Seit Version 3.2: Schild nur Krieger, Zweihänder nur Weg des Leibes. Was nicht mehr passt, kommt in die Tasche.
   p.gearMoved = enforceGearRules(p);
   p.upmats = { ...(save.upmats || {}) };

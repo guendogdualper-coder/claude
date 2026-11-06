@@ -372,6 +372,34 @@ function stoneOnlyReward(reward) {
   return out;
 }
 
+// Ein Ausrüstungsteil als Quest-Belohnung (seit 14.21, QUEST_GEAR): eigene Klasse, Waffe passend zum Weg
+function questGearItem(kind, slot) {
+  const p = game.player;
+  const g = QUEST_GEAR[kind] || QUEST_GEAR.side;
+  const tier = rarityTierFor(p.level);
+  // nur Plätze, die die Figur auch tragen kann (Köcher nur beim Bogen, Schild nur beim Krieger mit Einhandwaffe …)
+  let slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), p.classId);
+  const wkind = questWeaponKind(p);
+  slots = slots.filter((sl) => (sl !== 'koecher' || wkind === 'bow') && (sl !== 'schild' || (offhandAllowsShield(p))));
+  slot = slot && slots.includes(slot) ? slot : slots[randInt(0, slots.length - 1)];
+  const item = makeItem(slot, tier, randInt(g.plus[0], g.plus[1]), p.classId, wkind);
+  return applyRarity(item, capRarity(rarityPick(g.rarity), tier));
+}
+function offhandAllowsShield(p) {
+  if (p.classId !== 'krieger') return false;
+  const w = p.equipment && p.equipment.waffe;
+  return !(w && WEAPON_KINDS[w.kind] && WEAPON_KINDS[w.kind].twoHanded && !p.titanGrip);
+}
+// Waffenart für die eigene Klasse und den eigenen Weg (nie die Waffe des anderen Wegs)
+function questWeaponKind(p) {
+  const need = typeof pathWeapon === 'function' ? pathWeapon(p) : null; // Weg mit fester Waffe (Ninja: Dolch oder Bogen)
+  if (need) return need;
+  const kinds = CLASS_WEAPON_KINDS[p.classId] || [];
+  const own = kinds.filter((k) => WEAPON_KINDS[k]?.path == null || WEAPON_KINDS[k].path === (p.path || 0));
+  const list = own.length ? own : kinds;
+  return list[randInt(0, list.length - 1)];
+}
+
 // big (seit 13.85): großer Lichteffekt wie beim Stufenaufstieg (Tagesbelohnung); Aufträge nur ein kleiner Blinker
 function giveReward(reward, xp, big = false) {
   reward = stoneOnlyReward(reward);
@@ -411,9 +439,18 @@ function giveReward(reward, xp, big = false) {
     parts.push(`${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   }
   for (const [slot, tier, plus] of reward.items || []) {
-    const item = makeItem(slot, tier, plus);
+    // seit 14.21: Waffen passend zum eigenen Weg (vorher immer die erste Waffenart der Klasse)
+    const item = makeItem(slot, tier, plus, p.classId, slot === 'waffe' ? questWeaponKind(p) : null);
     if (addToBag(item)) parts.push(itemFullName(item));
     else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
+  }
+  // seit 14.21: Ausrüstung für die eigene Klasse (immer oder mit Chance, QUEST_GEAR)
+  if (reward.gear && Math.random() < (QUEST_GEAR[reward.gear] || {}).chance) {
+    const item = questGearItem(reward.gear);
+    if (addToBag(item)) {
+      parts.push(itemFullName(item));
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    } else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
   }
   ui.log('Belohnung: ' + parts.join(', ') + '.', 'level');
   if (big) vfxLevelUp(p);
@@ -446,6 +483,11 @@ function rewardHtml(reward, xp) {
     const item = makeItem(slot, tier, plus);
     li.push(`<img class="mini-icon" src="${itemIconUrl(item)}" alt=""> ${itemFullName(item)} <small>(ab Stufe ${ITEM_TIERS[tier].level})</small>`);
   }
+  if (reward.gear && QUEST_GEAR[reward.gear]) {
+    const g = QUEST_GEAR[reward.gear];
+    const lvl = ITEM_TIERS[rarityTierFor(game.player.level)].level;
+    li.push(`<b class="reward-gear">${g.chance >= 1 ? 'Ein Ausrüstungsteil' : `${Math.round(g.chance * 100)} % Chance auf ein Ausrüstungsteil`}</b> für deine Klasse <small>(Stufe ${lvl}, grün oder blau)</small>`);
+  }
   return '<ul class="reward-list">' + li.map((x) => `<li>${x}</li>`).join('') + '</ul>';
 }
 
@@ -454,11 +496,16 @@ function rewardHtml(reward, xp) {
 // Erledigte Aufträge gibt man dort ab, wo man sie angenommen hat: Hauptaufträge beim Ältesten, Nebenaufgaben beim
 // Wanderer, Jagden bei einer Jägerin. Oben im NPC-Fenster erscheint dafür eine Leiste. Nachtjagden brauchen keine
 // Abgabe – ihre Belohnung kommt sofort, egal wo man ist. Alle NPCs sind seit 13.52 Tag und Nacht da.
+// Hauptaufträge ohne festes Teil geben seit 14.21 ein Ausrüstungsteil für die eigene Klasse
+function mainReward(main) {
+  if (!main || main.goal.type === 'talk' || (main.reward && main.reward.items)) return main ? main.reward || {} : {};
+  return { ...(main.reward || {}), gear: 'main' };
+}
 function finishMainQuest() {
   const q = questState();
   const main = currentMainQuest();
   if (!main || !q.accepted || main.goal.type === 'talk' || !goalDone(main.goal, q.progress)) return false;
-  giveReward(main.reward, questXp(main.level, QUEST_XP[main.goal.type] || 0.25));
+  giveReward(mainReward(main), questXp(main.level, QUEST_XP[main.goal.type] || 0.25));
   q.main++;
   q.accepted = false;
   q.progress = 0;
@@ -471,7 +518,7 @@ function sideKills(n, s) {
 }
 function sideReward(n, s = sideState(n.key)) {
   const t = MONSTER_TYPES[sideMon(n, s)];
-  return { reward: { gold: t.level * 45, potions: 2 }, xp: sideXp(t.level, sideKills(n, s), s.times || 0) };
+  return { reward: { gold: t.level * 45, potions: 2, gear: 'side' }, xp: sideXp(t.level, sideKills(n, s), s.times || 0) };
 }
 // Jagden der Jägerin: die erste volle Erfahrung, danach wie jede Wiederholung (seit 13.88)
 function huntXp(h) {
@@ -495,7 +542,7 @@ function finishSideQuest(n) {
 }
 // Lohn einer Jagd: Gold und (seit 14.6 statt einer Verstärkung oder eines Switchers) Seelensplitter
 function huntReward(h) {
-  return { gold: h.gold, splinters: 2 + Math.floor((h.level || 1) / 15) };
+  return { gold: h.gold, splinters: 2 + Math.floor((h.level || 1) / 15), gear: 'hunt' };
 }
 function finishHunt() {
   const q = questState();
@@ -711,7 +758,7 @@ Object.assign(ui, {
       `<p class="quest-step">${main.chapterTitle} · Auftrag ${step} von ${inChapter.length} · ab Stufe ${main.level}</p>` +
       `<h3>${main.title}</h3><p>„${main.text}“</p>` +
       `<p><strong>Ziel:</strong> ${goalText(main.goal)}${where}</p>` + bosses +
-      `<p><strong>Belohnung:</strong></p>${rewardHtml(main.reward, xp)}${action}`;
+      `<p><strong>Belohnung:</strong></p>${rewardHtml(mainReward(main), xp)}${action}`;
     const btn = body.querySelector('[data-quest]');
     if (btn) btn.addEventListener('click', () => {
       const travel = main.goal.type === 'talk';

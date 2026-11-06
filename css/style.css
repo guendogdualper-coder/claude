@@ -3406,3 +3406,5 @@ body.dnd-on, body.dnd-on * { cursor: grabbing !important; user-select: none; }
 }
 /* seit 14.20: in einer Gruppe öffnet der eigene Name das Gruppenfenster */
 .pc-party { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+/* seit 14.21: Ausrüstung als Quest-Belohnung */
+.reward-gear { color: #7fd0ff; }

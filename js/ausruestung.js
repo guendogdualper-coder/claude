@@ -407,7 +407,15 @@ function sellValue(item) {
 
 // --- Boni ---------------------------------------------------------------------------------
 
+// Leben (seit 14.21): eine der festen Stufen; je höher die Gegenstandsstufe, desto öfter die großen Werte
+const LIFE_STEP_WEIGHTS = (tier) => [Math.max(1, 6 - tier * 0.55), 3, 1.4 + tier * 0.22, 0.35 + tier * 0.14];
 function bonusValue(def, tier) {
+  if (def.steps) {
+    const w = LIFE_STEP_WEIGHTS(tier || 0);
+    let r = Math.random() * w.reduce((a, x) => a + x, 0);
+    for (let k = 0; k < def.steps.length; k++) { r -= w[k]; if (r <= 0) return def.steps[k]; }
+    return def.steps[def.steps.length - 1];
+  }
   const [lo, hi] = def.range;
   const r = lo + Math.random() * (hi - lo);
   if (def.fmt === 'flat') return Math.max(1, Math.min(def.max || Infinity, Math.round(r * (1 + tier * (def.tierScale || 0.35)))));
@@ -451,6 +459,27 @@ function fitItemAttrs(item, classId) {
     }
     item.bonuses = item.bonuses.filter((b) => b.t);
   }
+  fixLifeBonus(item);
+}
+
+// seit 14.21: Leben-Boni auf feste Stufen (200/350/500/1000, kleinere Werte rücken auf 200); auf Waffe und Köcher
+// gibt es kein Leben mehr – dort wird der Bonus durch einen anderen passenden ersetzt (die Anzahl bleibt gleich)
+function snapLife(v) {
+  const steps = BONUS_TYPES.hp.steps;
+  return steps.find((s) => s >= v) || steps[steps.length - 1]; // aufrunden: niemand verliert Leben
+}
+function fixLifeBonus(item) {
+  if (!item || !item.bonuses || isBook(item)) return;
+  const noLife = !BONUS_TYPES.hp.slots.includes(item.slot);
+  for (const b of item.bonuses) {
+    if (b.t !== 'hp') continue;
+    if (noLife) {
+      b.t = null;
+      const nb = rollBonus(item, false);
+      if (nb && nb.t) { b.t = nb.t; b.v = nb.v; }
+    } else if (!BONUS_TYPES.hp.steps.includes(b.v)) b.v = snapLife(b.v);
+  }
+  item.bonuses = item.bonuses.filter((b) => b.t);
 }
 
 // Zufälliger Bonus, der auf diesem Gegenstand noch nicht vorkommt
@@ -594,6 +623,7 @@ function bagSlotOf(p, idx, layout = bagLayout(p)) {
 function addToBag(item) {
   const p = game.player;
   if (p.inventory.length >= BAG_SIZE) return false;
+  fixLifeBonus(item); // seit 14.21: auch Teile aus Handel, Post und Auktionshaus
   p.inventory.push(item);
   return true;
 }

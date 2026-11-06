@@ -409,7 +409,8 @@ const ARROW_TYPES = [
 const ALL_SLOTS = ['waffe', 'ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel', 'koecher'];
 const BONUS_TYPES = {
   // seit 14.6 25–120 je Stufe statt 20–90, höchstens 500 je Bonuszeile (max) – vorher endete es bei rund 370
-  hp: { name: 'Max. Leben', fmt: 'flat', range: [25, 120], max: 500, slots: ALL_SLOTS },
+  // seit 14.21: Leben nur auf Rüstungsteilen (nicht auf Waffe und Köcher) und in festen Stufen 200 / 350 / 500 / 1000
+  hp: { name: 'Max. Leben', fmt: 'flat', range: [200, 1000], max: 1000, steps: [200, 350, 500, 1000], slots: ALL_SLOTS.filter((s) => s !== 'waffe' && s !== 'koecher') },
   mp: { name: 'Max. Mana', fmt: 'flat', range: [15, 60], slots: ['waffe', 'ruestung', 'helm', 'umhang', 'guertel'] },
   atk: { name: 'Angriffswert', fmt: 'flat', range: [3, 14], slots: ['waffe', 'helm', 'schultern', 'guertel', 'koecher'] },
   def: { name: 'Verteidigung', fmt: 'flat', range: [2, 10], slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel'] },

@@ -204,3 +204,15 @@ const WANDERERS = [
 const SIDE_KILL = 14;
 const SIDE_COLLECT = 6;
 const SIDE_DROP = 0.35;
+
+// Ausrüstung als Quest-Belohnung (seit 14.21): immer für die eigene Klasse und den eigenen Weg (Waffe passend, z. B.
+// Bogen beim Bogen-Ninja), in der Gegenstandsstufe der eigenen Spielerstufe. Hauptaufträge geben immer ein Teil
+// (wenn sie nicht schon ein festes Teil vergeben), Nebenaufgaben, Jagden und Nachtjagden mit einer Chance.
+// rarity: Gewichte für grau, grün, blau (wie RARITY_DROPS), plus: [von, bis]
+const QUEST_GEAR = {
+  main: { chance: 1, rarity: [0, 45, 55], plus: [0, 2] },
+  side: { chance: 0.3, rarity: [10, 65, 25], plus: [0, 1] },
+  hunt: { chance: 0.35, rarity: [5, 60, 35], plus: [0, 1] },
+  night: { chance: 0.3, rarity: [5, 60, 35], plus: [0, 2] }
+};
+

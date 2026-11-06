@@ -216,7 +216,7 @@ function nightXp(t, s) {
   return sideXp(t.level, NIGHT_KILL, (s && s.times) || 0);
 }
 function nightReward(t) {
-  return { gold: Math.round(questGold(t.level) * 1.2), splinters: 2 }; // seit 14.6 Splitter statt einer Verstärkung
+  return { gold: Math.round(questGold(t.level) * 1.2), splinters: 2, gear: 'night' }; // seit 14.6 Splitter statt einer Verstärkung, seit 14.21 Chance auf Ausrüstung
 }
 function nightNpcOf(key) {
   // seit 13.63: gleich nach dem Laden (vor dem ersten Takt) die Nacht-NPCs schon kennen – sonst fehlt der Name in der Auftragsliste
