@@ -1805,7 +1805,7 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
 // Seit 12.1 geht die Auflösung wieder hoch, wenn das Spiel länger flüssig läuft, und nach dem Zurückkehren
 // aus dem Hintergrund oder dem Drehen wird ein paar Sekunden nicht gemessen (dort ruckelt es immer kurz –
 // das senkte früher die Auflösung dauerhaft, das Bild blieb bis zum Neuladen unscharf).
-const quality = { frames: [], at: 0, steps: 0, noShadow: false, cap30: false, good: 0, bad: 0, runAt: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
+const quality = { frames: [], at: 0, steps: 0, noPost: false, noShadow: false, cap30: false, good: 0, bad: 0, runAt: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
 function qualityPause(ms = 3000) {
   quality.frames.length = 0;
   quality.good = 0;
@@ -1875,7 +1875,11 @@ function adaptQuality(dtMs, cap) {
   const minDpr = Math.min(gfx().dpr, IS_PC ? 1.25 : 1.45);
   // gleich nach dem Anheben wieder zu langsam: für diese Sitzung nicht mehr anheben
   if (performance.now() - quality.upAt < 30000) quality.noRaise = true;
-  if (quality.steps < 2 && cur > minDpr + 0.05) {
+  // Grafik Plus (seit 14.11): zuerst die Nachbearbeitung aus, sie kostet am meisten
+  if (V3.on && opts.graphics === 'plus' && !quality.noPost && GP.on) {
+    quality.noPost = true;
+    v3ApplyGraphics();
+  } else if (quality.steps < 2 && cur > minDpr + 0.05) {
     quality.steps++;
     quality.downAt = performance.now();
     r.maxDpr = Math.max(minDpr, cur - 0.3);
@@ -1897,7 +1901,10 @@ function capQualityStep() {
   const r = renderer;
   const dev = window.devicePixelRatio || 1;
   const cur = Math.min(dev, r.maxDpr || 2);
-  if (V3.on && !quality.noShadow && gfx().castShadows) {
+  if (V3.on && opts.graphics === 'plus' && !quality.noPost && GP.on) {
+    quality.noPost = true; // Grafik Plus (seit 14.11) zuerst aus
+    v3ApplyGraphics();
+  } else if (V3.on && !quality.noShadow && gfx().castShadows) {
     quality.noShadow = true;
     v3ApplyGraphics();
   } else if (quality.steps < 1) {

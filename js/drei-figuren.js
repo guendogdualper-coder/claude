@@ -3325,7 +3325,7 @@ function portalTick(a, t) {
   if (a.rune) a.rune.rotation.y = t * 0.3;
   if (a.halo) a.halo.material.opacity = (0.3 + 0.08 * Math.sin(t * 2.5)) * (a.haloK || 1);
   if (a.motes) a.motes.visible = on && opts.graphics !== 'niedrig';
-  if (a.vortexBack) a.vortexBack.visible = on && (opts.graphics === 'hoch' || opts.graphics === 'ultra');
+  if (a.vortexBack) a.vortexBack.visible = on && (opts.graphics === 'hoch' || opts.graphics === 'ultra' || opts.graphics === 'plus');
 }
 
 // Für warmPrograms: je ein Wirbel, Funken und Schein, damit die Shader beim Start übersetzt werden

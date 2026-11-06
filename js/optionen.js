@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'ultra' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1 };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1 };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -22,6 +22,8 @@ const FPS_MODES = { auto: { label: 'Auto' }, 60: { label: '60' }, 30: { label: '
 // Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln.
 // Ultra (für PC): volle Auflösung, scharfe große Schatten, weitere Sicht, schärfere Böden
 const GRAPHICS = {
+  // seit 14.11: Plus = Ultra mit Nachbearbeitung (grafik-plus.js: Leuchten, Farbstimmung, Randunschärfe, am PC Weltschatten)
+  plus: { label: 'Plus', dpr: IS_PC ? 3 : 2, castShadows: true, clouds: true, particles: 1.25 },
   ultra: { label: 'Ultra', dpr: 3, castShadows: true, clouds: true, particles: 1.25 },
   hoch: { label: 'Hoch', dpr: 2, castShadows: true, clouds: true, particles: 1 },
   // seit 13.34 am Handy schärfer (2 statt 1,6): dafür läuft das Handy fest mit 30 Bildern pro Sekunde (frameCap)
@@ -37,6 +39,12 @@ const opts = (() => {
   if ((o.optsVer || 0) < 2) {
     if (!IS_PC && (o.graphics === 'hoch' || o.graphics === 'ultra')) o.graphics = 'mittel';
     o.optsVer = 2;
+    try { localStorage.setItem(OPT_KEY, JSON.stringify(o)); } catch (e) { /* privat */ }
+  }
+  // 14.11: am PC einmalig von Ultra auf das neue Plus
+  if ((o.optsVer || 0) < 3) {
+    if (IS_PC && o.graphics === 'ultra') o.graphics = 'plus';
+    o.optsVer = 3;
     try { localStorage.setItem(OPT_KEY, JSON.stringify(o)); } catch (e) { /* privat */ }
   }
   return o;
@@ -147,7 +155,7 @@ const options = {
     } else if (tab === 'grafik') {
       pane = `<section class="opt-group">` +
         seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
-        seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Ultra ist empfohlen (volle Auflösung, scharfe Schatten, weite Sicht).' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Hoch sieht schärfer aus, macht das Handy aber wärmer; Ultra ist für PCs gedacht.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
+        seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Plus ist empfohlen – wie Ultra, dazu Leuchten von Feuer, Magie und Laternen, kräftigere Farben, weiche Ränder und Schatten für die ganze Welt.' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Plus (Leuchten, kräftige Farben, weiche Ränder) sieht am schönsten aus, braucht aber ein neueres Handy und mehr Akku; Hoch und Ultra sind schärfer, machen das Handy aber wärmer.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
         seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC 60 Bilder pro Sekunde (sonst gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. 60 ist flüssiger, macht das Handy aber warm.') +
         seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
         sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +

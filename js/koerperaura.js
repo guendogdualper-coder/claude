@@ -1154,7 +1154,7 @@ function kaDraw3(h, p, st, kk, t, q, gfx, rich) {
   if (a) {
     // Flammenhülle am Körper statt Lichtbildern hinter der Figur
     a.group.updateMatrixWorld(true);
-    kaShell3D(a, st, kk, L, t + seed * 7, gfx === 'niedrig', rich && gfx !== 'niedrig', rich && (gfx === 'hoch' || gfx === 'ultra'), A);
+    kaShell3D(a, st, kk, L, t + seed * 7, gfx === 'niedrig', rich && gfx !== 'niedrig', rich && (gfx === 'hoch' || gfx === 'ultra' || gfx === 'plus'), A);
     if (st.wisp) kaBodyWisps3(h, st.wisp, a, A, Math.min(1, kk * 1.7) * (0.55 + 0.45 * L), L, t, q, seed);
   } else {
     kaGlow3(h, st, A, k, t, seed * 6);

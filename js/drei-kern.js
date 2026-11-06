@@ -775,7 +775,7 @@ function v3ApplyGraphics() {
   const g = gfx();
   if (V3.builtFor && V3.builtFor !== opts.graphics) v3ClearChunks();
   V3.builtFor = opts.graphics;
-  V3.ultra = opts.graphics === 'ultra';
+  V3.ultra = opts.graphics === 'ultra' || opts.graphics === 'plus'; // Plus (seit 14.11) baut auf Ultra auf
   V3.sun.castShadow = g.castShadows && !quality.noShadow;
   const size = V3.ultra ? 2048 : opts.graphics === 'hoch' ? 1024 : 512;
   // Ultra: größerer Schattenbereich, schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte)
@@ -796,6 +796,7 @@ function v3ApplyGraphics() {
       V3.sun.shadow.map = null;
     }
   }
+  if (typeof gpApply === 'function') gpApply();
   v3Resize();
 }
 
@@ -2066,7 +2067,8 @@ function renderDrei() {
   }
   // seit 13.91: Dach und Vorderwand des Hauses, in dem man steht, ausblenden (drei-welt.js)
   v3SyncHouses();
-  V3.gl.render(V3.scene, V3.camera);
+  // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
+  if (!(typeof gpRender === 'function' && gpRender())) V3.gl.render(V3.scene, V3.camera);
   drawOverlay3(ctx);
   r.miniTimer -= 1;
   if (r.miniTimer <= 0) {
