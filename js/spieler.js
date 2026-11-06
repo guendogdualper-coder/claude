@@ -388,6 +388,7 @@ function playerStats(p) {
   s.atk += bonus.atk || 0;
   s.def += bonus.def || 0;
   s.maxHp += bonus.hp || 0;
+  s.bonusHp = bonus.hp || 0; // seit 14.23: für PvP (zählt dort nur zum Teil, PVP_DMG.lifeShare)
   s.maxMp += bonus.mp || 0;
   s.crit += bonus.crit || 0;
   s.atkSpeed += bonus.atkSpeed || 0;

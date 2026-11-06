@@ -2183,7 +2183,10 @@ const PVP_DMG = {
   mulLow: 0.38, mulHigh: 0.3, mulFrom: 50, mulTo: 80,
   defMul: 2, armorMax: 0.6, otherMax: 0.5, maxReduce: 0.8, pad: 0.02, dodgeMul: 0.5,
   maxHit: 0.25, maxCrit: 0.35, capGap: 10, window: 1.5, windowMax: 0.45,
-  heal: 0.6, toxinTick: 0.015, allyMul: 0.5
+  heal: 0.6, toxinTick: 0.015, allyMul: 0.5,
+  // seit 14.23: Leben aus Ausrüstungs-Boni (200–1000 je Teil) zählt im PvP nur zu diesem Teil, sonst dauern Duelle mit
+  // guter Ausrüstung auf niedriger Stufe über eine Minute
+  lifeShare: 0.3
 };
 function pvpMulAt(L) {
   return PVP_DMG.mulLow - (PVP_DMG.mulLow - PVP_DMG.mulHigh) * clamp01(((L || 1) - PVP_DMG.mulFrom) / (PVP_DMG.mulTo - PVP_DMG.mulFrom));
@@ -2235,6 +2238,8 @@ function pvpIncoming(level, s, d, win, now) {
   const other = Math.min(PVP_DMG.otherMax, 1 - (s.damageTaken != null ? s.damageTaken : 1) + attackResist(s, d.at, true));
   a *= Math.max(1 - PVP_DMG.maxReduce, (1 - Math.min(PVP_DMG.armorMax, armor)) * (1 - other));
   a /= 1 + PVP_DMG.pad * level;
+  const bh = Math.min(s.bonusHp || 0, (s.maxHp || 1) * 0.9);
+  if (bh > 0) a *= s.maxHp / Math.max(1, s.maxHp - bh * (1 - PVP_DMG.lifeShare));
   if (L - level < PVP_DMG.capGap) {
     a = Math.min(a, Math.floor(s.maxHp * (d.c ? PVP_DMG.maxCrit : PVP_DMG.maxHit)));
     if (win) {
