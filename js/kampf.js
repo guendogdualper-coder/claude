@@ -655,9 +655,12 @@ const KIND_BASIC = {
   // seit 13.31 0,5 statt 0,66: der Ninja machte 40–80 % mehr Schaden als der Schnitt aller Wege
   // seit 13.85 langsamer (0,46 statt 0,36), dafür 0,6 statt 0,5 je Stich: der Dolch-Ninja stach mit Tempo-Buffs bis zu
   // siebenmal je Sekunde (Schaden je Sekunde etwa −6 %)
-  dagger: { range: 46, cooldown: 0.46, ranged: false, mul: 0.6 },
+  // seit 14.13 0,66 statt 0,6 (der Dolch-Ninja war nach 14.6/14.10 der schwächste Weg)
+  dagger: { range: 46, cooldown: 0.46, ranged: false, mul: 0.66 },
   // seit 13.67 weiter (400 statt 250): Pfeile tragen deutlich weiter als Zauber
-  bow: { range: 400, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow' },
+  // seit 14.13 mul 0,72: ein Bogenschuss machte so viel wie ein Krieger-Hieb (aus sicherer Entfernung) und mehr Schaden
+  // je Sekunde als jeder Nahkämpfer; jetzt etwa wie die anderen Fernkämpfer (Magier, Schamane, Nekromant)
+  bow: { range: 400, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow', mul: 0.72 },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
   greataxe: { range: 60, cooldown: 0.88, ranged: false },
   scythe: { range: 62, cooldown: 0.85, ranged: false }

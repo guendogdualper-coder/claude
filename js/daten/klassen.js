@@ -114,7 +114,7 @@ const CLASSES = {
       {
         // seit 13.50: Fertigkeiten nur mit Dolch (weapon)
         id: 'dolch', name: 'Weg des Dolches', role: 'PvE · Hinterhalt und Blitzangriff', weapon: 'dagger',
-        description: 'Verschwindet in der Tarnung, schlägt aus dem Hinterhalt zu, steht per Blitzangriff sofort beim nächsten Ziel und wirbelt durch Gruppen.',
+        description: 'Verschwindet in der Tarnung, schlägt aus dem Hinterhalt zu, steht per Blitzangriff sofort beim nächsten Ziel und wirbelt durch Gruppen. Jeder Treffer heilt 5 % des Schadens.',
         skills: [
           {
             id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
@@ -133,13 +133,14 @@ const CLASSES = {
           },
           {
             id: 'wirbelklinge', name: 'Wirbelklinge', short: 'WK', kind: 'angriff', unlock: 5, mp: 16, cooldown: 6,
-            type: 'circle', radius: 95, dmg: 2.3,
+            type: 'circle', radius: 110, dmg: 3.1, // seit 14.13 3,1 statt 2,3 und 110 statt 95 weit (Seelensteine mit Wellen)
             text: 'Du drehst dich mit beiden Dolchen und triffst alle Gegner um dich.'
           },
           {
             id: 'blitzangriff', name: 'Blitzangriff', short: 'BA', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
             // seit 13.85 mit Zielkreis: hinter dem Gegner am gewählten Punkt (aimR)
-            type: 'blink', aim: true, aimR: 55, range: 300, dmg: 3.0, stun: 1.2, critBonus: 0.15, color: '#9fd0ff',
+            type: 'blink', aim: true, aimR: 55, range: 300, dmg: 3.4, stun: 1.2, // seit 14.13 3,4 statt 3,0
+            critBonus: 0.15, color: '#9fd0ff',
             text: 'Von einem Moment auf den anderen stehst du hinter deinem Ziel (bis 300 weit) und schlägst zu. Das Ziel ist kurz betäubt. Mit dem Zielkreis wählst du, hinter welchem Gegner du auftauchst.'
           },
           {
@@ -149,7 +150,8 @@ const CLASSES = {
             // Treffer am selben Gegner machen repeatMul, der erste Schnitt je Gegner betäubt stun s. Stufe, Rang, Leistenplatz und Bücher der Leichtfüßigkeit gehen mit
             // (SKILL_RENAMED in spieler.js)
             id: 'schattenkette', name: 'Schattenkette', short: 'SK', kind: 'angriff', unlock: 10, mp: 22, cooldown: 11,
-            type: 'chainblink', range: 300, hopRange: 220, hops: 4, rankHops: [5, 6, 6, 7], every: 0.13, dmg: 1.5, stun: 0.6, repeatMul: 0.5, color: '#8a5ae0',
+            type: 'chainblink', range: 300, hopRange: 220, hops: 4, rankHops: [5, 6, 6, 7], every: 0.13, dmg: 1.95, // seit 14.13 1,95 statt 1,5
+            stun: 0.6, repeatMul: 0.5, color: '#8a5ae0',
             text: 'Du zerfällst zu Schatten und springst von Gegner zu Gegner: Beginnend bei deinem Ziel (bis 300 weit) tauchst du viermal (erweckt fünfmal, heroisch und legendär sechsmal, vollendet siebenmal) hinter dem nächsten Gegner auf und schneidest ihn – er taumelt 0,6 s. Sind weniger Gegner da, springst du zwischen ihnen hin und her – jeder weitere Schnitt am selben Gegner macht nur halben Schaden. Während der Sprünge nimmst du keinen Schaden.'
           }
         ]

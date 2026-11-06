@@ -501,6 +501,8 @@ function playerStats(p) {
   s.dodge = Math.min(0.45, s.dodge);
   // seit 14.6: kritische Treffer höchstens 40 % (der Ninja kam mit Geschick, Segen und Ausrüstung auf fast 60 %)
   s.crit = Math.min(PLAYER_CRIT_CAP, s.crit);
+  // Weg des Dolches (seit 14.13): 5 % Lebensraub, damit der Nahkampf-Ninja an Seelensteinen mit Wellen länger durchhält
+  if (p.classId === 'ninja' && (p.path | 0) === 0) s.hpSteal = (s.hpSteal || 0) + 0.05;
   s.reflect = Math.min(0.8, s.reflect);
   s.regen *= s.healPower;
   s.damageTaken = Math.max(0.4, s.damageTaken);
