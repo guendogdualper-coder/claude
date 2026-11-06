@@ -592,6 +592,12 @@ const RATGEBER_WISSEN = [
     a: 'Über das <b>Weltentor</b> in jeder Stadt und jedem Lager: kostenlos auf jede Map, deren Mindeststufe du hast.',
     k: 'andere map reisen weltentor portal teleport wechseln'
   },
+  // seit 14.16: Stadtformen und Teleportsteine (daten/stadtformen.js, teleportsteine.js)
+  {
+    c: 'karten', q: 'Was sind Teleportsteine?',
+    a: 'Ab der Rostschlucht hat jede Stadt ihre eigene Form – Achteck, Ringstadt, Oase mit Insel, Terrassen, Pfahldorf, Schlucht, Inselring und Kristallplattformen. Wo kein Weg hinführt, stehen <b>Teleportsteine</b>: zwei Steinpfosten mit leuchtendem Kristall. Bleib kurz darauf stehen oder tipp ihn an, dann stehst du sofort auf seinem Partnerstein – auch zu Pferd. Auf der großen Karte siehst du jeden Stein mit einer gestrichelten Linie zu seinem Partner. Im Feuerberg verbinden sie die fünf Inseln im Kreis, in der Klammfeste die beiden Hälften, in der Lichtwacht die Seitenplattformen.',
+    k: 'teleportstein teleportsteine stein steine teleport insel inseln stadt städte form steg brücke partnerstein feuerberg klammfeste lichtwacht'
+  },
   {
     c: 'karten', q: 'Was macht die Wegweiserin?',
     a: '<b>{n:teleport}</b> bringt dich gegen Gold an den Rand jedes Jagdgebiets. Der Preis ist die Mindeststufe des Gebiets × 25 Gold.',

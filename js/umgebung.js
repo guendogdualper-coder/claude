@@ -103,7 +103,7 @@ function renderGroundChunk(cx, cy) {
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA) drawGrassFringe(ctx, x, y, px, py, h);
       const d = w.deco[i];
-      if (d === DECO.BRIDGE) drawBridge2(ctx, px, py, bridgeHoriz(x, y));
+      if (d === DECO.BRIDGE) drawBridge2(ctx, px, py, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null);
       else if (d) drawDeco(ctx, d, g, px, py, h);
     }
   }
@@ -454,12 +454,42 @@ function drawDeco(ctx, d, g, px, py, h) {
 
 // Brücke (seit 13.2 je nach Wegrichtung): Bretter quer zum Weg, Geländer an beiden Seiten
 function bridgeHoriz(x, y) {
+  // seit 14.16: Brücken und Stege in den Städten wissen ihre Richtung (welt.js BRIDGE_DIR)
+  const fix = typeof bridgeDirAt === 'function' ? bridgeDirAt(x, y) : undefined;
+  if (fix !== undefined) return fix;
   const w = game.world;
   const way = (tx, ty) => w.ground[ty * MAP_W + tx] === GROUND.PATH || w.deco[ty * MAP_W + tx] === DECO.BRIDGE;
   return way(x - 1, y) && way(x + 1, y);
 }
 
-function drawBridge2(ctx, px, py, horiz) {
+// Brückenarten in den Städten (seit 14.16, bridgeStyleAt in welt.js): Steg über dem Moor, Steinbrücke über Lava,
+// Lichtbrücke über dem Abgrund; sonst die Holzbrücke wie bisher
+const BRIDGE2 = {
+  steg: { deck: '#6e5a40', line: 'rgba(30,20,10,0.45)', rail: null, post: '#3e3022' },
+  stein: { deck: '#5a5250', line: 'rgba(20,14,12,0.5)', rail: '#3a3230', post: null },
+  licht: { deck: '#8a86d8', line: 'rgba(230,226,255,0.55)', rail: '#d8d4ff', post: null }
+};
+function drawBridge2(ctx, px, py, horiz, style) {
+  const B = BRIDGE2[style];
+  if (B) {
+    ctx.fillStyle = B.deck;
+    ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
+    ctx.fillStyle = B.line;
+    for (let k = 0; k < 4; k++) {
+      if (horiz) ctx.fillRect(px + k * 8 + 3, py, 1.2, TILE);
+      else ctx.fillRect(px, py + k * 8 + 3, TILE, 1.2);
+    }
+    if (B.rail) {
+      ctx.fillStyle = B.rail;
+      if (horiz) { ctx.fillRect(px, py, TILE, 2.5); ctx.fillRect(px, py + TILE - 2.5, TILE, 2.5); }
+      else { ctx.fillRect(px, py, 2.5, TILE); ctx.fillRect(px + TILE - 2.5, py, 2.5, TILE); }
+    }
+    if (B.post) {
+      ctx.fillStyle = B.post;
+      for (const [a, b] of horiz ? [[2, 1], [24, 1], [12, TILE - 5]] : [[1, 2], [1, 24], [TILE - 5, 12]]) ctx.fillRect(px + a, py + b, 4, 4);
+    }
+    return;
+  }
   ctx.fillStyle = '#8a6a44';
   ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
   ctx.fillStyle = 'rgba(40,25,10,0.35)';
@@ -612,7 +642,56 @@ function wallArt(ctx, dir) {
   box(ctx, -2, -51, 4, 37, 1, darker(WALL_ROOF, 0.35));
 }
 
-function wallSprite(dir) {
+// Mauerarten der Städte mit eigener Form (seit 14.16, welt.js WALL_STYLE): Palisade aus angespitzten Pfählen,
+// niedrige Stützmauer einer Terrasse mit Schnee obendrauf, Kristallwand aus violetten Blöcken mit hellem Saum
+const WALL2 = {
+  palisade(ctx, dir) {
+    const wood = '#7a5434';
+    if (dir === 'h') {
+      for (let k = 0; k < 6; k++) {
+        const x = -16.5 + k * 5.5;
+        const top = -36 - ((k * 7) % 3) * 2;
+        poly(ctx, [[x, 0], [x, top + 5], [x + 2.75, top], [x + 5.5, top + 5], [x + 5.5, 0]], k % 2 ? wood : lighter(wood, 0.08));
+      }
+      box(ctx, -17, -26, 34, 3, 1, '#5a3a22');
+      box(ctx, -17, -11, 34, 3, 1, '#5a3a22');
+      return;
+    }
+    for (let y = -40; y < 0; y += 6) {
+      oval(ctx, 0, y + 3, 4.4, 3.4, wood);
+      dot(ctx, -1, y + 2.2, 1.6, 1.1, lighter(wood, 0.3));
+    }
+  },
+  terrasse(ctx, dir) {
+    const st = '#8a8a92';
+    if (dir === 'h') {
+      box(ctx, -16.5, -15, 33, 15, 1, st);
+      for (const [x, y] of [[-10, -15], [3, -15], [-4, -8], [9, -8]]) stroke(ctx, darker(st, 0.25), 0.8, [[x, y], [x, y + 7]]);
+      stroke(ctx, darker(st, 0.25), 0.8, [[-16, -8], [16, -8]]);
+      box(ctx, -17, -18, 34, 5, 2.5, '#f4f8fc');
+      return;
+    }
+    box(ctx, -7, -24, 14, 24, 1, st);
+    box(ctx, -7.5, -26, 15, 8, 3, '#f4f8fc');
+  },
+  kristall(ctx, dir) {
+    const c = '#6a5ac8';
+    if (dir === 'h') {
+      box(ctx, -16.5, -8, 33, 8, 1, '#2e2850');
+      for (let k = 0; k < 3; k++) {
+        const x = -16 + k * 11;
+        poly(ctx, [[x, -8], [x + 1, -30 - (k % 2) * 4], [x + 5.5, -34 - (k % 2) * 4], [x + 10, -30 - (k % 2) * 4], [x + 11, -8]], k % 2 ? c : lighter(c, 0.1));
+        stroke(ctx, '#d8d0ff', 1, [[x + 5.5, -31 - (k % 2) * 4], [x + 5.5, -10]]);
+      }
+      return;
+    }
+    box(ctx, -7, -12, 14, 12, 1, '#2e2850');
+    poly(ctx, [[-6, -12], [-5, -40], [0, -44], [5, -40], [6, -12]], c);
+    stroke(ctx, '#d8d0ff', 1, [[0, -40], [0, -14]]);
+  }
+};
+function wallSprite(dir, style) {
+  if (style && WALL2[style]) return getSprite('wall:' + dir + ':' + style, { x: -22, y: -56, w: 44, h: 60 }, (ctx) => WALL2[style](ctx, dir));
   return getSprite('wall:' + dir, { x: -22, y: -56, w: 44, h: 60 }, (ctx) => wallArt(ctx, dir));
 }
 
@@ -1536,9 +1615,60 @@ Object.assign(PROP_BOUNDS, {
   karren: { x: -34, y: -40, w: 52, h: 42 }
 });
 
+// Bauten der Städte mit eigener Form (seit 14.16): Holzturm an der Palisade, Kristallpfeiler an der Kristallwand,
+// Holztor über breiten Toren der Palisade, Treppe in einer Stützmauer (pr.w Kacheln breit, roof 'schnee')
+Object.assign(PROP_ART, {
+  holzturm(ctx) {
+    for (const x of [-15, 11]) box(ctx, x, -62, 4, 62, 1, '#6b4a2e');
+    for (const x of [-7, 3]) box(ctx, x, -62, 4, 62, 1, '#5a3a22');
+    stroke(ctx, '#4a3020', 1.6, [[-14, -8], [14, -40]]);
+    stroke(ctx, '#4a3020', 1.6, [[14, -8], [-14, -40]]);
+    box(ctx, -20, -68, 40, 7, 1.5, '#7a5434');
+    for (let x = -18; x <= 18; x += 4.5) poly(ctx, [[x - 1.6, -68], [x, -77], [x + 1.6, -68]], '#6b4a2e');
+    poly(ctx, [[-22, -76], [0, -98], [22, -76]], '#8a3a22');
+    stroke(ctx, darker('#8a3a22', 0.4), 1, [[-22, -76], [22, -76]]);
+  },
+  kristallturm(ctx) {
+    box(ctx, -12, -14, 24, 14, 2, '#2e2850');
+    box(ctx, -9, -20, 18, 7, 1.5, '#4a4278');
+    poly(ctx, [[-7, -20], [-6, -62], [0, -78], [6, -62], [7, -20]], '#8a7aff');
+    poly(ctx, [[-2, -22], [-1.5, -60], [0, -70], [1.5, -60], [2, -22]], '#e8e4ff');
+  },
+  holztor(ctx) {
+    for (const x of [-60, 60]) {
+      box(ctx, x - 5, -80, 10, 80, 2, '#6b4a2e');
+      poly(ctx, [[x - 5, -80], [x, -90], [x + 5, -80]], '#5a3a22');
+    }
+    box(ctx, -66, -74, 132, 8, 2, '#7a5434');
+    box(ctx, -60, -60, 120, 5, 1.5, '#5a3a22');
+    for (const x of [-30, 0, 30]) {
+      oval(ctx, x, -70, 5, 5, '#e8e0c8');
+      dot(ctx, x - 1.5, -71, 1.2, 1.2, '#3a2a1c');
+      dot(ctx, x + 1.5, -71, 1.2, 1.2, '#3a2a1c');
+    }
+  },
+  treppe(ctx, pr) {
+    const w = (pr.w || 2) * TILE;
+    const snow = String(pr.roof || '').includes('schnee');
+    // Ursprung ist die obere Kante der Kachel (so liegt die Treppe unter Figuren, die darauf stehen)
+    for (let k = 0; k < 3; k++) {
+      const y = k * 10.5;
+      box(ctx, -w / 2 + 1, y, w - 2, 11, 1, k % 2 ? '#8a8a92' : '#9a9aa2');
+      stroke(ctx, '#5e5e66', 1, [[-w / 2 + 2, y + 10.5], [w / 2 - 2, y + 10.5]]);
+      if (snow) box(ctx, -w / 2 + 3, y + 0.5, w - 6, 2.5, 1, '#f4f8fc');
+    }
+  }
+});
+Object.assign(PROP_BOUNDS, {
+  holzturm: { x: -26, y: -102, w: 52, h: 106 },
+  kristallturm: { x: -16, y: -82, w: 32, h: 86 },
+  holztor: { x: -72, y: -96, w: 144, h: 100 },
+  treppe: { x: -50, y: -4, w: 100, h: 40 }
+});
+
 function propSprite(pr) {
   const b = PROP_BOUNDS[pr.type] || { x: -24, y: -46, w: 48, h: 50 };
-  return getSprite('p:' + pr.type + ':' + (pr.roof || ''), b, (ctx) => PROP_ART[pr.type](ctx, pr));
+  return getSprite('p:' + pr.type + ':' + (pr.roof || '') + (pr.w ? ':' + pr.w : ''), b, (ctx) => PROP_ART[pr.type](ctx, pr));
 }
 
 // --- Welt-Objekte für die Tiefensortierung sammeln -------------------------------------------
@@ -1551,7 +1681,7 @@ let towerTiles = null;
 function collectWorldObjects(list, x0, y0, x1, y1) {
   const w = game.world;
   if (!towerTiles) {
-    towerTiles = new Set(w.props.filter((pr) => pr.type === 'tower').map((pr) => Math.floor(pr.y / TILE - 1) * MAP_W + Math.floor(pr.x / TILE)));
+    towerTiles = new Set(w.props.filter((pr) => TOWER_TYPES.has(pr.type)).map((pr) => Math.floor(pr.y / TILE - 1) * MAP_W + Math.floor(pr.x / TILE)));
   }
   for (let y = y0; y <= Math.min(MAP_H - 1, y1 + 3); y++) {
     for (let x = x0; x <= x1; x++) {
@@ -1559,7 +1689,7 @@ function collectWorldObjects(list, x0, y0, x1, y1) {
       if (w.obj[i] === OBJ.WALL) {
         if (!towerTiles.has(i)) {
           const vertical = wallVertical(w, i);
-          list.push({ worldObj: 'wall', dir: vertical ? 'v' : 'h', x: x * TILE + 16, y: (y + 1) * TILE });
+          list.push({ worldObj: 'wall', dir: vertical ? 'v' : 'h', style: WALL_STYLE.get(i), x: x * TILE + 16, y: (y + 1) * TILE });
         }
         continue;
       }
@@ -1611,7 +1741,7 @@ function occludesPlayer(o) {
   if (o.worldObj === 'prop') {
     const t = o.prop.type;
     if (t === 'gate') return Math.abs(p.x - o.x) < 80 && fy < o.y + 4 && fy > o.y - 110;
-    if (t === 'tower') return Math.abs(p.x - o.x) < 28 && fy < o.y - 4 && fy > o.y - 100;
+    if (TOWER_TYPES.has(t)) return Math.abs(p.x - o.x) < 28 && fy < o.y - 4 && fy > o.y - 100;
     return false;
   }
   if (o.worldObj === 'wall') return Math.abs(p.x - o.x) < 20 && fy < o.y - 2 && fy > o.y - 48;
@@ -1640,11 +1770,11 @@ function drawWorldObject(ctx, o) {
   }
   const sp = o.worldObj === 'house' ? houseSprite(o.house)
     : o.worldObj === 'prop' ? propSprite(o.prop)
-      : o.worldObj === 'wall' ? wallSprite(o.dir)
+      : o.worldObj === 'wall' ? wallSprite(o.dir, o.style)
         : objectSprite(o.worldObj, o.v, o.style);
   const type = o.worldObj === 'prop' ? o.prop.type : '';
   if (o.worldObj !== 'wall' && type !== 'gate') {
-    const shadowW = o.worldObj === 'house' ? o.house.w * TILE * 0.55 : type === 'tower' ? 24 : type === 'stall' ? 26 : o.worldObj === 'prop' ? 10 : o.worldObj === 'rock' ? 15 : 17;
+    const shadowW = o.worldObj === 'house' ? o.house.w * TILE * 0.55 : TOWER_TYPES.has(type) ? 24 : type === 'stall' ? 26 : o.worldObj === 'prop' ? 10 : o.worldObj === 'rock' ? 15 : 17;
     softShadow(ctx, o.x + 3, o.y, shadowW, shadowW * (o.worldObj === 'house' ? 0.2 : 0.38), 0.32);
   }
   ctx.save();
@@ -1654,6 +1784,9 @@ function drawWorldObject(ctx, o) {
   // Laternen leuchten warm
   if (type === 'lantern') glow(ctx, o.x, o.y - 24, 16, '#ffcf6a', 0.35 + 0.08 * Math.sin(game.time * 3 + o.x));
   if (type === 'tower') for (const lx of [-24, 24]) glow(ctx, o.x + lx, o.y - 62, 11, '#ff8a4a', 0.3);
+  // seit 14.16: Kristallpfeiler und Teleportsteine leuchten
+  if (type === 'kristallturm') glow(ctx, o.x, o.y - 52, 14, '#b8a8ff', 0.35);
+  if (type === 'tpstein') for (const lx of [-13, 13]) glow(ctx, o.x + lx, o.y - 40, 9, o.prop.roof || '#9fd8ff', 0.35 + 0.1 * Math.sin(game.time * 3 + lx));
   if (type === 'portal') glow(ctx, o.x, o.y - 24, 22, '#9fd0ff', 0.35 + 0.15 * Math.sin(game.time * 2.5));
   if (type === 'brazier') glow(ctx, o.x, o.y - 30, 34, o.prop.roof || '#ff8a4a', 0.4 + 0.12 * Math.sin(game.time * 9 + o.x));
   // seit 13.91 je nach Haus: rote Laternen am geschwungenen Dach oder die Lampe neben der Tür

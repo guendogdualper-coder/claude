@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.23';
+const GAME_VERSION = '14.24';
 
 const game = {
   world: null,
@@ -203,6 +203,8 @@ function update(dt) {
   updateTimers();
   updateAim();
   updatePlayer(dt);
+  // Teleportsteine in den Städten (seit 14.16, teleportsteine.js)
+  if (typeof tpTick === 'function') tpTick();
   // Beim Mitspieler führt der Host die Monster (netUpdate zieht sie nur nach)
   if (net.mode !== 'client') updateMonsters(dt);
   netUpdate(dt);
