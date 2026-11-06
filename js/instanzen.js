@@ -893,6 +893,7 @@ function instMats(m, mats, matN) {
   const p = game.player;
   for (const [id, n] of Object.entries(mats)) {
     if (!n) continue;
+    if (id === 'splinters') { giveSplinters(n); continue; }
     p.materials[id] = (p.materials[id] || 0) + n;
     ui.loot(MATERIALS.find((x) => x.id === id).name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
   }
@@ -909,7 +910,7 @@ function instMiniLoot(m, chance) {
   const p = game.player;
   let got = 0;
   if (Math.random() < chance && instEpicItem(m, null)) got = 1;
-  instMats(m, { boniPlus: 1, switcher: Math.random() < 0.5 ? 1 : 0 }, randInt(2, 3));
+  instMats(m, { splinters: randInt(3, 5) }, randInt(2, 3)); // seit 14.6 Splitter statt Verstärkung/Switcher
   const gold = m.level * 150;
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
@@ -921,7 +922,7 @@ function instFinalLoot(m, def) {
   const n = instEpicCount(size);
   for (let k = 0; k < n; k++) instEpicItem(m, k === 0 && Math.random() < 0.4 ? 'waffe' : null);
   const leg = Math.random() < INST.legendary ? dropLegendary(m) : null;
-  instMats(m, { boniPlus: 2, switcher: 1, boni5: 1, star: Math.random() < 0.5 ? 1 : 0 }, randInt(4, 6));
+  instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6)); // seit 14.6 Splitter statt Boni-Materialien
   const gold = m.level * 800;
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');

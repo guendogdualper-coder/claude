@@ -5,12 +5,13 @@
 const DAILY_DAYS = [
   { name: 'Goldbeutel', icon: 'gold', reward: (L) => ({ gold: 300 + L * 80, potions: 4 }) },
   { name: 'Seelensplitter', icon: 'splinter', reward: (L) => ({ splinters: 3 + Math.floor(L / 12), potions: 4 }) },
-  { name: 'Verstärkungen', icon: 'boniPlus', reward: (L) => ({ gold: 500 + L * 100, mats: { boniPlus: 2 } }) },
+  // seit 14.6 ohne Boni-Materialien (nur aus Seelensteinen): Splitter und mehr Gold statt Verstärkungen/Switcher
+  { name: 'Splitterbeutel', icon: 'splinter', reward: (L) => ({ gold: 600 + L * 110, splinters: 4 + Math.floor(L / 10) }) },
   // seit 10.4 keine Segensschriftrollen mehr (die geben nur noch Seelensteine ab Stufe 35)
   { name: 'Tränkekorb', icon: 'gold', reward: (L) => ({ gold: 800 + L * 120, potions: 8 }) },
-  { name: 'Switcher', icon: 'switcher', reward: (L) => ({ splinters: 4 + Math.floor(L / 10), mats: { switcher: 2 } }) },
-  { name: 'Schatztruhe', icon: 'gold', reward: (L) => ({ gold: 1500 + L * 250, mats: { boniPlus: 3 } }) },
-  { name: 'Großer Preis', icon: 'book', reward: (L) => ({ books: 1, gold: 2000 + L * 300, mats: L >= 30 ? { boni5: 1, switcher: 2 } : { switcher: 3 } }) }
+  { name: 'Splitterkiste', icon: 'splinter', reward: (L) => ({ splinters: 8 + Math.floor(L / 6) }) },
+  { name: 'Schatztruhe', icon: 'gold', reward: (L) => ({ gold: 2000 + L * 300 }) },
+  { name: 'Großer Preis', icon: 'book', reward: (L) => ({ books: 1, gold: 3000 + L * 400, splinters: 6 + Math.floor(L / 8) }) }
 ];
 
 // Datum als Text (Gerätezeit) und Abstand zweier Tage

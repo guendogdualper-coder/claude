@@ -350,13 +350,16 @@ function setupTouch() {
     if (!others) return;
     if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 14 || performance.now() - t.t > 700) return;
     if (t.target.closest(SKIP) || !t.target.isConnected) return;
-    synth = { el: t.target, at: performance.now() };
+    synth = { el: t.target, at: performance.now(), x: e.clientX, y: e.clientY };
     t.target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, detail: 1, clientX: e.clientX, clientY: e.clientY }));
   };
   document.addEventListener('pointerup', (e) => endTouch(e, false), true);
   document.addEventListener('pointercancel', (e) => endTouch(e, true), true);
   document.addEventListener('click', (e) => {
-    if (e.isTrusted && synth && performance.now() - synth.at < 600 && (e.target === synth.el || synth.el.contains(e.target))) {
+    // seit 14.5 auch nach Ort: schließt der weitergegebene Klick ein Fenster (z. B. × der großen Karte), trifft der echte
+    // Klick danach das, was darunter liegt (die kleine Karte) – und öffnete das Fenster sofort wieder
+    if (e.isTrusted && synth && performance.now() - synth.at < 600 &&
+        (e.target === synth.el || synth.el.contains(e.target) || Math.hypot(e.clientX - synth.x, e.clientY - synth.y) < 30)) {
       e.stopImmediatePropagation();
       e.preventDefault();
       synth = null;

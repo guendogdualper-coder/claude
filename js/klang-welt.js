@@ -754,7 +754,7 @@ const VOICE_OF = {
   feuerdrache: 'dragon', drachenbrut: 'dragon', urdrache: 'dragon', ignar: 'dragon'
 };
 const VOICE_OF_SHAPE = { beast: 'wolf', boar: 'boar', humanoid: 'human', orc: 'orc', brute: 'brute', demon: 'demon', ghost: 'ghost', snake: 'snake' };
-// seit 14.5: Arten ohne Eintrag nach ihrem Namen (Nacht- und Höhlenmonster: Schattenwolf, Mondspinne, Abgrundgeist …)
+// seit 14.8: Arten ohne Eintrag nach ihrem Namen (Nacht- und Höhlenmonster: Schattenwolf, Mondspinne, Abgrundgeist …)
 const VOICE_OF_NAME = [[/spinne/, 'spider'], [/skorpion/, 'scorpion'], [/wolf|warg/, 'wolf'], [/hund|schakal/, 'dog'],
   [/hyaene/, 'hyena'], [/katze|luchs|panther|pirscher/, 'cat'], [/baer/, 'bear'], [/keiler|schwein/, 'boar'], [/hirsch|bock/, 'deer'],
   [/kobra|viper|python|schlange|naga/, 'snake'], [/drache|wyrm/, 'dragon'], [/geist|schemen|irrlicht|schatten(?!wolf|katze)/, 'ghost'],
@@ -1047,7 +1047,7 @@ function recSheet(name) {
   if (!c || !window.fetch) return null;
   const e = { buf: null };
   recSheets.set(name, e);
-  // seit 14.5 über sndFetch/sndDecode (klang-dateien.js): offline ohne Speicher (204) und Dekodierfehler bleiben still
+  // seit 14.8 über sndFetch/sndDecode (klang-dateien.js): offline ohne Speicher (204) und Dekodierfehler bleiben still
   sndFetch('snd/tier-' + name + '.mp3')
     .then((ab) => sndDecode(c, ab))
     .then((buf) => { e.buf = buf; })
@@ -1140,13 +1140,13 @@ const snd = {
     this.active++;
     src.onended = () => { this.active--; };
     const at = c.currentTime + (o.delay || 0);
-    // gekürzt (seit 14.5): die letzten 60 ms ausblenden, damit nichts knackt
+    // gekürzt (seit 14.8): die letzten 60 ms ausblenden, damit nichts knackt
     if (o.cut && o.dur) {
       const end = at + o.dur / (o.rate || 1);
       g.gain.setValueAtTime(vol * 0.9, Math.max(at, end - 0.06));
       g.gain.linearRampToValueAtTime(0.0001, end);
     }
-    // Ausschnitt aus einem Klangblatt (echte Aufnahmen, seit 14.5 auch die Klangdateien)
+    // Ausschnitt aus einem Klangblatt (echte Aufnahmen, seit 14.8 auch die Klangdateien)
     if (o.off != null) src.start(at, o.off, o.dur);
     else src.start(at);
     return src;
@@ -1210,7 +1210,7 @@ const snd = {
     this.play('m:' + name + ':' + ev, build, { x: m.x, y: m.y, rate, vol: (boss ? 0.9 : 0.6) * (ev === 'hurt' ? 0.7 : ev === 'death' ? 0.85 : 1), rev: boss ? 0.4 : 0.2 });
   },
 
-  // Monsterlaut aus Datei (seit 14.5): Höhe nach Größe und Familie, Bosse lauter mit mehr Hall und eigenem Brüllen.
+  // Monsterlaut aus Datei (seit 14.8): Höhe nach Größe und Familie, Bosse lauter mit mehr Hall und eigenem Brüllen.
   // Angriffslaut je Monster höchstens alle 0,9 s, sonst wird es bei vielen Monstern zu dicht.
   mobFile(m, name, ev) {
     const F = MOB_FILE[name];
@@ -1230,7 +1230,7 @@ const snd = {
     return ok;
   },
 
-  // Treffer an einem Monster (seit 14.5 aus Dateien): Einschlag der Fertigkeit, sonst Hieb der Waffe (kritisch wuchtiger),
+  // Treffer an einem Monster (seit 14.8 aus Dateien): Einschlag der Fertigkeit, sonst Hieb der Waffe (kritisch wuchtiger),
   // dazu leise der Stoff (Knochen, Stein, Rüstung); Seelensteine klingen nach Stein. Fehlt eine Datei: erzeugter Klang.
   impact(m, t) {
     const own = t - (m._sHitAt || -9) < 0.2;
@@ -1282,7 +1282,7 @@ const snd = {
   // Schuss des Grundangriffs
   shot(p, basic) {
     if (Math.random() < 0.15) this.kiai(p, false);
-    // seit 14.5 aus Dateien: Bogen (zwei Aufnahmen), Magier nach Element, Fächer, Glocke, Stab
+    // seit 14.8 aus Dateien: Bogen (zwei Aufnahmen), Magier nach Element, Fächer, Glocke, Stab
     const mine = p === game.player;
     const pos = { x: p.x, y: p.y };
     if (basic.style === 'arrow') {
@@ -1303,7 +1303,7 @@ const snd = {
   skill(sk, p) {
     const el = SKILL_SND[sk.id] || sndElOf(sk.id, sk.el);
     const mine = p === game.player;
-    // seit 14.5 aus Dateien (je Fertigkeit oder nach Element), sonst erzeugt
+    // seit 14.8 aus Dateien (je Fertigkeit oder nach Element), sonst erzeugt
     const F = SKILL_FILE[sk.id] || [EL_FILE[el] || 'klinge', 1];
     if (!sfxFiles.play(F[0], { x: p.x, y: p.y, vol: (mine ? 0.62 : 0.4) * (F[2] || 1), rate: F[1], vary: 0.04, rev: 0.22, grp: 'skill' })) {
       this.player('el_' + el, { x: p.x, y: p.y, vol: mine ? 0.6 : 0.4, rev: 0.3 });
@@ -1394,7 +1394,7 @@ const snd = {
         m._sDead = m.dead;
         continue;
       }
-      // Laute dieser Monsterfamilie vorab laden (seit 14.5)
+      // Laute dieser Monsterfamilie vorab laden (seit 14.8)
       if (!m._sPre) {
         m._sPre = true;
         const F = MOB_FILE[voiceOf(m)];
@@ -1410,7 +1410,7 @@ const snd = {
       if (m.dead) {
         if (!m._sDead) {
           m._sDead = true;
-          // Seelenstein zerbricht (seit 14.5 eigene Aufnahme)
+          // Seelenstein zerbricht (seit 14.8 eigene Aufnahme)
           if (m.isStone && sfxFiles.play('stein_bruch', { x: m.x, y: m.y, vol: 0.95, rev: 0.35 })) continue;
           this.mob(m, 'death');
         }
@@ -1420,7 +1420,7 @@ const snd = {
       const s = m._snd || (m._snd = { atk: false, hit: 0, hurtAt: -9, aggroAt: -99, state: m.state });
       // Treffer: Aufprall immer, Schmerzlaut höchstens alle 0,5 s
       if (m.hitFlash > s.hit + 0.02) {
-        // Einschlag nach Element, wenn gerade eine Fertigkeit traf (seit 9.6), sonst Hieb der Waffe (seit 14.5 aus
+        // Einschlag nach Element, wenn gerade eine Fertigkeit traf (seit 9.6), sonst Hieb der Waffe (seit 14.8 aus
         // Dateien, impact); Schaden über Zeit (Gift, Brand, Blutung) ohne Einschlag und mit seltenerem Schmerzlaut
         const dot = t - (m._sHitAt || -9) < 0.2 && m._sDot;
         if (!dot) this.impact(m, t);
@@ -1456,7 +1456,7 @@ const snd = {
 
   // Häufige Klänge vorab berechnen, damit der erste Schlag nicht stumm bleibt
   warm() {
-    // Klangdateien (seit 14.5) und Klangblätter der Tiere im Hintergrund laden
+    // Klangdateien (seit 14.8) und Klangblätter der Tiere im Hintergrund laden
     sfxFiles.warm();
     for (const n of Object.keys(REC_SPRITES)) recSheet(n);
     for (const k of ['whoosh_l', 'whoosh_m', 'whoosh_h', 'hit', 'bow', 'coin', 'item', 'potion', 'hurt_m', 'hurt_f', 'kiai_m', 'kiai_f', 'shout_m', 'shout_f']) {

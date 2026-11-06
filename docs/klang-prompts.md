@@ -5,7 +5,7 @@ Monster und Welt aus mit ElevenLabs erzeugten Dateien (Abschnitt 0); die im Brow
 Rückfall. Der Code steht in `js/klang.js` (Mischpult), `js/klang-welt.js` (Klänge), `js/klang-dateien.js`
 (Dateien) und `js/musik.js` (Musik). Dieses Dokument beschreibt, wie es klingen soll.
 
-## 0. Klangdateien (seit 14.5, ElevenLabs)
+## 0. Klangdateien (seit 14.8, ElevenLabs)
 
 - **Liste und Erzeugung:** `tools/klang-liste.json` enthält jeden Klang mit englischem Prompt, Dauer, Schnitt
   (`schnitte`, `max`, `ausklang` …) und Rollen (welcher Laut zu Schrei, Angriff, Schmerz, Tod gehört).

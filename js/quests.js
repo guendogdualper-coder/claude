@@ -338,8 +338,24 @@ function moveThrough(spot, color) {
   saveGame();
 }
 
+// Seit 14.6 gibt es Verstärkung, Switcher, 5. Bonus, Sternenstein und Sternen-Switcher nur noch aus Seelensteinen:
+// stehen sie noch in einer Belohnung (Aufträge, alte Jagden im Spielstand), werden sie zu Seelensplittern
+// (BONUS_MAT_SPLINTERS je Stück, daten/gegenstaende.js). Andere Materialien (Schriftrollen …) bleiben.
+function stoneOnlyReward(reward) {
+  if (!reward || !reward.mats) return reward;
+  const out = { ...reward, mats: {} };
+  let sp = 0;
+  for (const [id, n] of Object.entries(reward.mats)) {
+    if (BONUS_MAT_SPLINTERS[id]) sp += BONUS_MAT_SPLINTERS[id] * n;
+    else out.mats[id] = n;
+  }
+  if (sp) out.splinters = (out.splinters || 0) + sp;
+  return out;
+}
+
 // big (seit 13.85): großer Lichteffekt wie beim Stufenaufstieg (Tagesbelohnung); Aufträge nur ein kleiner Blinker
 function giveReward(reward, xp, big = false) {
+  reward = stoneOnlyReward(reward);
   const p = game.player;
   const parts = [];
   if (xp) parts.push(`${xp.toLocaleString('de-DE')} EP`);
@@ -348,13 +364,18 @@ function giveReward(reward, xp, big = false) {
     parts.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
   }
   if (reward.potions) {
-    p.potions.hp += reward.potions;
-    p.potions.mp += reward.potions;
-    parts.push(`${reward.potions * 2} Tränke`);
+    // seit 14.5 in der Größe passend zur Stufe (wie Beute und Tagesbelohnung), vorher immer klein
+    const sz = potionSizeFor(p.level).id;
+    for (const kind of ['hp', 'mp']) p.potions[potKey(kind, sz)] = (p.potions[potKey(kind, sz)] || 0) + reward.potions;
+    parts.push(`${reward.potions} × ${potionInfo('hp').name} (${sz})`, `${reward.potions} × ${potionInfo('mp').name} (${sz})`);
   }
   if (reward.scrolls) {
     p.scrolls += reward.scrolls;
     parts.push(`${reward.scrolls} × ${BLESSING.name}`);
+  }
+  if (reward.splinters) {
+    p.splinters += reward.splinters;
+    parts.push(`${reward.splinters} × Seelensplitter`);
   }
   if (reward.horse) {
     p.horse = true;
@@ -383,12 +404,20 @@ function giveReward(reward, xp, big = false) {
   return parts;
 }
 
+// Tränke einer Belohnung mit echten Symbolen (seit 14.5; vorher nur Text bzw. ein grünes 🧪)
+function questPotionHtml(n, long) {
+  const sz = potionSizeFor(game.player ? game.player.level : 1).id;
+  const one = (kind) => `<img class="mini-icon" src="${potionIconUrl(kind, sz)}" alt=""> ${n} × ${long ? `${potionInfo(kind).name} (${sz})` : ''}`.trim();
+  return long ? `${one('hp')} und ${one('mp')}` : `${one('hp')} ${one('mp')}`;
+}
 function rewardHtml(reward, xp) {
+  reward = stoneOnlyReward(reward);
   const li = [];
   if (xp) li.push(`${xp.toLocaleString('de-DE')} Erfahrung`);
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
-  if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
+  if (reward.potions) li.push(questPotionHtml(reward.potions, true));
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
+  if (reward.splinters) li.push(`<img class="mini-icon" src="${lootIconUrl('splinter')}" alt=""> ${reward.splinters} × Seelensplitter`);
   if (reward.horse) li.push(`<b class="reward-horse">Ein eigenes Reitpferd</b> (+${Math.round(HORSES[1].speed * 100)} % Lauftempo, Taste R oder Pferdeknopf)`);
   if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch zu deinen Fertigkeiten`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
@@ -445,11 +474,15 @@ function finishSideQuest(n) {
   ui.banner('Nebenaufgabe erledigt', n.name);
   return true;
 }
+// Lohn einer Jagd: Gold und (seit 14.6 statt einer Verstärkung oder eines Switchers) Seelensplitter
+function huntReward(h) {
+  return { gold: h.gold, splinters: 2 + Math.floor((h.level || 1) / 15) };
+}
 function finishHunt() {
   const q = questState();
   const h = q.hunt;
   if (!h || h.progress < h.count) return false;
-  giveReward({ gold: h.gold, mats: { [h.mat]: 1 } }, huntXp(h));
+  giveReward(huntReward(h), huntXp(h));
   q.hunt = null;
   q.hunts++;
   q.offers = null;
@@ -489,7 +522,7 @@ function huntOffers() {
   return pool.slice(0, 3).map(([id, t]) => {
     const count = 15 + Math.floor(Math.random() * 3) * 5;
     const level = Math.max(1, Math.min(p.level, t.level));
-    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10), mat: ['boniPlus', 'switcher', 'boniPlus'][Math.floor(Math.random() * 3)] };
+    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10) };
   });
 }
 
@@ -688,7 +721,7 @@ Object.assign(ui, {
     // seit 13.38 als Karten: Art, Name, erfülltes Ziel, Belohnung und ein großer Knopf
     const fmt = (n) => Math.round(n).toLocaleString('de-DE');
     const rew = (it) => [it.reward && it.reward.gold ? `💰 ${fmt(it.reward.gold)} Gold` : '', it.xp ? `✨ ${fmt(it.xp)} EP` : '',
-      it.reward && it.reward.potions ? `🧪 ${it.reward.potions} Tränke` : ''].filter(Boolean).join(' · ');
+      it.reward && it.reward.potions ? questPotionHtml(it.reward.potions, false) : ''].filter(Boolean).join(' · ');
     box.innerHTML = (items.length ? `<div class="tq-head"><span class="tq-badge">✔</span><b>${items.length === 1 ? 'Ein Auftrag ist fertig' : items.length + ' Aufträge sind fertig'}</b>` +
       `<small>Hier kannst du ${items.length === 1 ? 'ihn' : 'sie'} abgeben.</small></div>` : '') +
       items.map((it, i) => `<div class="tq-card${it.main ? ' main' : ''}"><div class="tq-info"><span class="tq-kind">${it.kind}</span>` +
@@ -756,7 +789,7 @@ Object.assign(ui, {
     const h = q.hunt;
     if (h && h.progress >= h.count) {
       const xp = huntXp(h);
-      const reward = { gold: h.gold, mats: { [h.mat]: 1 } };
+      const reward = huntReward(h);
       body.innerHTML = `<p>„Saubere Arbeit! Hier ist dein Lohn.“</p>${rewardHtml(reward, xp)}` +
         '<button type="button" class="btn btn-primary" data-hunt="reward">Belohnung abholen</button>';
       body.querySelector('[data-hunt]').addEventListener('click', () => {
@@ -781,7 +814,7 @@ Object.assign(ui, {
     body.innerHTML = `<p>„Ich zahle gut für jede Bestie weniger da draußen. Such dir eine Jagd aus.“ <small class="hint-text">Erledigte Jagden: ${q.hunts}</small></p>` +
       '<div class="hunt-list">' + q.offers.map((o, i) =>
         `<div class="hunt-item"><strong>${o.count} × ${MONSTER_TYPES[o.monster].name}</strong> <small>Stufe ${MONSTER_TYPES[o.monster].level}</small>` +
-        `<span>${huntXp(o).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · 1 × ${MATERIALS.find((m) => m.id === o.mat).name}</span>` +
+        `<span>${huntXp(o).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · ${huntReward(o).splinters} × Seelensplitter</span>` +
         `<button type="button" class="mini-btn" data-offer="${i}">Annehmen</button></div>`
       ).join('') + '</div>';
     body.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
@@ -818,7 +851,8 @@ Object.assign(ui, {
   renderAlchemist() {
     const p = game.player;
     const body = $('npcBody');
-    body.innerHTML = '<p>„Seelensteine geben diese Materialien umsonst. Wer es eilig hat, kauft bei mir.“</p>' +
+    // seit 14.6 nur noch Fertigkeitsbücher: Verstärkung, Switcher, 5. Bonus und Sternenstein gibt es nur aus Seelensteinen
+    body.innerHTML = '<p>„Verstärkungen und Switcher? Die geben nur die Seelensteine her – dafür musst du selbst raus. Bei mir gibt es Wissen.“</p>' +
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="shop">` +
       ALCHEMIST_WARES.map((w) => {
         const book = w.id === 'book';

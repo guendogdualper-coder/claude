@@ -337,6 +337,7 @@ function makePlayer(save) {
 const FOOT_SPEED_CAP = 1.25;
 
 // Endwerte aus Klasse, Stufe und aktiven Buffs
+const PLAYER_CRIT_CAP = 0.4;
 function playerStats(p) {
   const c = CLASSES[p.classId];
   const L = p.level - 1;
@@ -495,6 +496,8 @@ function playerStats(p) {
   s.speed = c.base.speed * (foot + ride);
   s.atkSpeed = Math.min(2.5, s.atkSpeed);
   s.dodge = Math.min(0.45, s.dodge);
+  // seit 14.6: kritische Treffer höchstens 40 % (der Ninja kam mit Geschick, Segen und Ausrüstung auf fast 60 %)
+  s.crit = Math.min(PLAYER_CRIT_CAP, s.crit);
   s.reflect = Math.min(0.8, s.reflect);
   s.regen *= s.healPower;
   s.damageTaken = Math.max(0.4, s.damageTaken);

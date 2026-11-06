@@ -227,7 +227,7 @@ function hitMonster(m, mul, opts = {}) {
     m._sEl = sndElOf(opts.skill);
     m._sElAt = game.time;
   }
-  // Hieb nach Waffe (seit 14.5): der Grundangriff klingt je Waffenart anders
+  // Hieb nach Waffe (seit 14.8): der Grundangriff klingt je Waffenart anders
   m._sKind = opts.basic ? weaponKindOf(game.player) : null;
   m._sKindAt = game.time;
   // seit 13.86: Gegner in der Turnierarena gehen denselben Weg wie im Duell (pvpHit, turnierarena.js)
@@ -345,7 +345,7 @@ function damageMonster(m, amount, crit, source, isDot) {
   // nach dem Bruch taumelt er und nimmt mehr Schaden
   if (m.raid && m.raid.stagger > game.time) amount = Math.round(amount * RAID.staggerDmg);
   // Im Mehrspieler entscheidet der Host über Leben und Tod der Monster
-  // für den Trefferklang (klang-welt.js, seit 14.5): eigener Treffer, kritisch, Schaden über Zeit
+  // für den Trefferklang (klang-welt.js, seit 14.8): eigener Treffer, kritisch, Schaden über Zeit
   if (!source || !source.remote) {
     m._sHitAt = game.time;
     m._sCrit = !!crit;
@@ -489,7 +489,7 @@ function rewardKillInner(m) {
       ui.loot(`${potionInfo(kind).name} (${sz})`, 1, potionIconUrl(kind, sz), potionInfo(kind).color);
     }
   }
-  // Helfer der Endbosse: mit etwas Glück Tränke, Splitter oder eine Verstärkung
+  // Helfer der Endbosse: mit etwas Glück Tränke oder Splitter
   if (m.raidAdd) {
     const sz = potionSizeFor(m.level).id;
     if (Math.random() < 0.35) {
@@ -502,10 +502,7 @@ function rewardKillInner(m) {
       p.splinters += n;
       ui.loot('Seelensplitter', n, lootIconUrl('splinter'), '#c9a8ff');
     }
-    if (Math.random() < 0.12) {
-      p.materials.boniPlus = (p.materials.boniPlus || 0) + 1;
-      ui.loot(MATERIALS.find((x) => x.id === 'boniPlus').name, 1, materialIconUrl('boniPlus'), MATERIAL_COLORS.boniPlus);
-    }
+    // seit 14.6 keine Verstärkung mehr (12 %): Boni-Materialien gibt es nur aus Seelensteinen
   }
   // Wächter und Bosse der Lv-60-Instanzen und die neuen Wächter im Höllenthron (seit 13.58, instanzen.js)
   if (m.type && m.type.inst && typeof instLoot === 'function') instLoot(m);
@@ -758,7 +755,7 @@ function basicTick(p) {
       // Flächenschlag (seit 13.46): der Schlag trifft auch andere Gegner im Bogen vor der Figur (bis zu 5, je 75 %)
       cleaveHit(p, t, h);
       breakStealth(p);
-      // Klang (seit 14.5): getroffen → der Hieb am Ziel trägt den Schwung, sonst nur das Sausen
+      // Klang (seit 14.8): getroffen → der Hieb am Ziel trägt den Schwung, sonst nur das Sausen
       if (typeof snd !== 'undefined') snd.swing(p, struck);
     }
   }

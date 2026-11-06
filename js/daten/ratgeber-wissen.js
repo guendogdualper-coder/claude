@@ -400,7 +400,9 @@ const RATGEBER_WISSEN = [
   {
     c: 'ausruestung', q: 'Was sind Boni und wie bekomme ich mehr davon?',
     a: 'Ein Gegenstand trägt bis zu 5 normale und 2 besondere Boni. <b>Verstärkung</b> fügt Boni hinzu (bis zum 4.), <b>Seltene Verstärkung</b> den 5. (braucht genau 4), der <b>Switcher</b> würfelt Bonus 1–5 neu, ' +
-      'der <b>Sternenstein</b> gibt Bonus 6 und dann 7, der <b>Sternen-Switcher</b> würfelt 6 und 7 neu. Anwenden im Inventar am Gegenstand.',
+      'der <b>Sternenstein</b> gibt Bonus 6 und dann 7, der <b>Sternen-Switcher</b> würfelt 6 und 7 neu. Anwenden im Inventar am Gegenstand. ' +
+      'Alle diese Materialien gibt es <b>nur aus Seelensteinen</b>: Die Steine der ersten Karte (Stufe 5–15) geben vor allem Verstärkungen, Switcher nur sehr selten; ' +
+      'ab Stufe 20 (zweite Karte) kommen Switcher, Seltene Verstärkung und Sternensteine richtig, je höher der Stein, desto öfter.',
     k: 'boni bonus verstaerkung switcher sternenstein sternen-switcher seltene verstaerkung wuerfeln'
   },
   {
@@ -439,9 +441,9 @@ const RATGEBER_WISSEN = [
   {
     c: 'ausruestung', q: 'Was verkauft der Alchemist?',
     a: () => {
-      if (!(typeof ALCHEMIST_WARES !== 'undefined')) return '<b>{n:alchemist}</b> verkauft Materialien für Boni und Fertigkeitsbücher.';
+      if (!(typeof ALCHEMIST_WARES !== 'undefined')) return '<b>{n:alchemist}</b> verkauft Fertigkeitsbücher.';
       const name = (id) => (id === 'book' ? 'Fertigkeitsbuch (zufällig, deine Klasse)' : (MATERIALS.find((m) => m.id === id) || { name: id }).name);
-      return '<b>{n:alchemist}</b> verkauft: ' + ALCHEMIST_WARES.map((w) => `${name(w.id)} ${rgFmt(w.price)} Gold`).join(' · ') + '. Seelensteine geben diese Materialien umsonst.';
+      return '<b>{n:alchemist}</b> verkauft: ' + ALCHEMIST_WARES.map((w) => `${name(w.id)} ${rgFmt(w.price)} Gold`).join(' · ') + '. Verstärkungen, Switcher und Sternensteine verkauft er nicht mehr – die gibt es nur aus Seelensteinen.';
     },
     k: 'alchemist materialien kaufen verstaerkung switcher sternenstein preis'
   },
@@ -504,7 +506,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'steine', q: 'Was lassen Seelensteine ab bestimmten Stufen fallen?',
-    a: 'Jeder Seelenstein kann ein Fertigkeitsbuch für deine Klasse fallen lassen. Ab Stufe 30 Sternen-Switcher, ab 35 Segensschriftrollen, ab 40 Schriftrollen (für H1–H10) ' +
+    a: 'Jeder Seelenstein kann ein Fertigkeitsbuch für deine Klasse fallen lassen – und nur Seelensteine geben Verstärkung, Switcher, Seltene Verstärkung und Sternenstein. Ab Stufe 30 Sternen-Switcher, ab 35 Segensschriftrollen, ab 40 Schriftrollen (für H1–H10) ' +
       'und ab 45 Seelensteine als Gegenstand (für L1–V) – alles selten, je höher der Stein, desto öfter.',
     k: 'seelenstein drop beute stufe 30 35 40 45 segensschriftrolle sternen-switcher schriftrolle fertigkeitsbuch'
   },
@@ -530,7 +532,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'dungeons', q: 'Was sind Endbosse?',
     a: 'Jede Map hat einen Endboss in einer großen Halle – gebaut für 5 Spieler: einer hält ihn (Tank), einer heilt, die anderen machen Schaden. Raus aus roten Kreisen, Kristalle zerstören, bei der Vernichtung in die grünen Lichtkreise. ' +
-      'Jeder in der Gruppe bekommt besondere Endboss-Ausrüstung, Verstärkungen und viel Gold.',
+      'Jeder in der Gruppe bekommt besondere Endboss-Ausrüstung, Seelensplitter, Aufwertungsteile und viel Gold.',
     k: 'endboss raid boss halle gruppe 5 spieler tank heiler'
   },
   {

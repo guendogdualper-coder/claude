@@ -26,7 +26,8 @@ const SEGEN = {
     id: 'segen_schatten', name: 'Klingenschatten', color: '#c84a6a', colors: ['#2a1a3a', '#c84a6a', '#ff8aa8', '#ffffff'],
     // seit 13.85 kritischer Schaden je 10 Stufen +3 % statt +5 % (Dolch-Ninja zu stark; der Falke hat seinen eigenen Segen),
     // dafür Lebensraub 0,4 % (je 10 Stufen +0,15 %): er kam bisher aus der Leichtfüßigkeit, die der Schattenkette weicht
-    effects: (lv) => ({ crit: 0.03 + 0.01 * lv, critDmg: 0.1 + 0.03 * lv, hpSteal: 0.004 + 0.0015 * lv }),
+    // seit 14.6 schwächer (Krit 2 % + 0,5 % je 10 Stufen statt 3 % + 1 %, Krit-Schaden 8 % + 2 % statt 10 % + 3 %)
+    effects: (lv) => ({ crit: 0.02 + 0.005 * lv, critDmg: 0.08 + 0.02 * lv, hpSteal: 0.004 + 0.0015 * lv }),
     text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}, Lebensraub +${pctS(e.hpSteal)}.`
   },
   nekromant: {
@@ -53,7 +54,8 @@ const SEGEN_LICHT = {
 // Weg des Falken (seit 13.67): der Falkenblick ist kein Fertigkeits-Buff mehr, sondern der Klassensegen des Bogen-Ninjas
 const SEGEN_FALKE = {
   id: 'segen_falke', name: 'Falkenblick', color: '#8a5ae0', colors: ['#120a1c', '#5a2aa8', '#b48cff', '#e8d8ff'],
-  effects: (lv) => ({ crit: 0.03 + 0.01 * lv, critDmg: 0.1 + 0.05 * lv, atkSpeed: 0.06 + 0.02 * lv, bowRange: 0.1 + 0.02 * lv }),
+  // seit 14.6 schwächer (Krit 2 % + 0,5 %, Krit-Schaden 8 % + 3 % je 10 Stufen)
+  effects: (lv) => ({ crit: 0.02 + 0.005 * lv, critDmg: 0.08 + 0.03 * lv, atkSpeed: 0.06 + 0.02 * lv, bowRange: 0.1 + 0.02 * lv }),
   // seit 13.87: bowRange verlängert nur den Grundangriff (bowRangeBonus in fernninja.js), nicht die Fertigkeiten
   text: (e) => `Kritische Treffer +${pctS(e.crit)}, kritischer Schaden +${pctS(e.critDmg)}, Angriffstempo +${pctS(e.atkSpeed)}, Reichweite des Grundangriffs mit dem Bogen +${pctS(e.bowRange)}. Dunkle Schwingen und eine Schattenaura umgeben dich.`
 };

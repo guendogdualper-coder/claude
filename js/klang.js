@@ -1,4 +1,4 @@
-// Klänge, direkt im Browser erzeugt (Web Audio); seit 14.5 kommen die meisten aus Dateien (klang-dateien.js).
+// Klänge, direkt im Browser erzeugt (Web Audio); seit 14.8 kommen die meisten aus Dateien (klang-dateien.js).
 // Auf dem iPhone darf Ton erst nach einer Berührung starten; das passiert hier beim ersten Klang,
 // der immer durch einen Tipp (z. B. „Verbessern“) ausgelöst wird. Der Stummschalter des iPhones
 // schaltet die Klänge ebenfalls stumm.
@@ -113,7 +113,7 @@ const sfx = {
 
   // Hammer auf Amboss: heller Metallklang, jeder Schlag etwas höher
   clang(i = 0) {
-    // seit 14.5: echter Amboss (Datei), jeder Schlag etwas höher; ohne Datei der erzeugte Klang
+    // seit 14.8: echter Amboss (Datei), jeder Schlag etwas höher; ohne Datei der erzeugte Klang
     if (typeof sfxFiles !== 'undefined' && this.on && sfxFiles.play('amboss', { clip: i % 3, rate: 1 + i * 0.03, vary: 0.01, vol: 0.75, rev: 0.25 })) return;
     const k = 1 + i * 0.06;
     this.tone(1180 * k, 0, 0.45, 'triangle', 0.16);

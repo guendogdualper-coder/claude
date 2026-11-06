@@ -282,17 +282,21 @@ function stoneType(level) {
 // Materialien: [Chance, min, max]
 function stoneDrops(type) {
   const t = STONE_TYPES.indexOf(type);
-  // seit 13.41 deutlich seltener (vorher z. B. Verstärkung 65–95 %, Switcher 40–90 %): mehr farmen für Boni
+  // seit 14.6 kommen Verstärkung, Switcher, 5. Bonus und Sternenstein nur noch aus Seelensteinen (STONE_MATS,
+  // daten/gegenstaende.js): die Steine der ersten Karte (Stufe 5–15) geben kaum Switcher und fast nie 5./6. Bonus,
+  // ab Stufe 20 (zweite Karte) steigen die Chancen mit der Stufe.
+  const L = type.level, sm = STONE_MATS, early = L < sm.fullFrom;
+  const rate = (id) => { const r = sm.rates[id]; return early ? r.early : Math.min(r.cap, r.base + (L - sm.fullFrom) * r.step); };
   const d = {
     mats: {
-      boniPlus: [Math.min(0.6, 0.35 + t * 0.015), 1, 1 + Math.floor(t / 6)],
-      switcher: [Math.min(0.45, 0.18 + t * 0.018), 1, 1 + Math.floor(t / 8)],
-      boni5: [Math.min(0.25, 0.04 + t * 0.012), 1, 1],
-      star: [Math.min(0.2, 0.02 + t * 0.01), 1, 1]
+      boniPlus: [rate('boniPlus'), 1, 1 + Math.floor(L / 40)],
+      switcher: [rate('switcher'), 1, 1],
+      boni5: [rate('boni5'), 1, 1],
+      star: [rate('star'), 1, 1]
     },
     gear: 0.55, plus: [0, 2], slots: null, gold: 1, potions: [0, 1], scroll: 0.1 + Math.max(0, t - 6) * 0.01, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
   };
-  const boost = (id, f) => { d.mats[id][0] = Math.min(0.85, d.mats[id][0] * f); d.mats[id][2] += 1; };
+  const boost = (id, f) => { d.mats[id][0] = Math.min(sm.boostCap, d.mats[id][0] * f); if (!early) d.mats[id][2] += 1; };
   switch (type.focus) {
     case 'potions': d.potions = [2, 4]; break;
     case 'weapons': d.slots = ['waffe']; d.gear = 0.75; break;
@@ -311,7 +315,7 @@ function stoneDrops(type) {
       d.gear = 1; d.plus = [1, 2]; d.gold = 2; d.scroll = 0.25; d.potions = [1, 3];
       break;
   }
-  // Sternen-Switcher (seit 11.0): erst ab Stufe 30, selten und nicht verstärkt
-  if (type.level >= SWITCH67.stone) d.mats.switch67 = [SWITCH67.chance, 1, 1];
+  // Sternen-Switcher (seit 11.0): erst ab Stufe 30, selten und nicht verstärkt (seit 14.6 4 % bei Stufe 30, bis 12 %)
+  if (L >= SWITCH67.stone) d.mats.switch67 = [Math.min(SWITCH67.cap, SWITCH67.chance + (L - SWITCH67.stone) * SWITCH67.step), 1, 1];
   return d;
 }

@@ -1,4 +1,4 @@
-// Klänge und Musik aus Dateien (seit 14.5): mit ElevenLabs erzeugte Aufnahmen. Liste, Prompts und Schnitt stehen
+// Klänge und Musik aus Dateien (seit 14.8): mit ElevenLabs erzeugte Aufnahmen. Liste, Prompts und Schnitt stehen
 // in tools/klang-liste.json, gebaut mit tools/klang-erzeugen.py; die Lage der Laute in js/daten/klang-dateien.js.
 //
 // Soundeffekte (sfxFiles): je Klang eine kleine Datei snd/sfx/<id>.mp3 mit mehreren Varianten hintereinander. Gespielt
