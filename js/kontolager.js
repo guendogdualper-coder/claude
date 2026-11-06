@@ -282,7 +282,7 @@ function klRender(msg) {
   const note = msg && msg.text ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '';
   const who = handelOn() ? 'allen Charakteren deines Kontos' : 'allen Charakteren auf diesem Gerät';
   if (!p.storage) {
-    body.innerHTML = `<div id="klRoot"><p>„Hier lagert ganz Vlotho seine Schätze. Für einmalig ${fmtN(STORAGE.price)} Gold bekommst du Zugang zum Lager – ` +
+    body.innerHTML = `<div id="klRoot"><p>„Hier lagert ganz Kazehana seine Schätze. Für einmalig ${fmtN(STORAGE.price)} Gold bekommst du Zugang zum Lager – ` +
       `bei jedem Lagerverwalter in jeder Stadt und jedem Lager kommst du an dieselben Sachen.“</p>` +
       `<p class="hint-text">Der Inhalt gehört ${who}: Was ein Charakter einlagert, kann jeder andere mit eigenem Zugang herausnehmen.</p>` + note +
       `<p>${STORAGE_SIZE} Plätze (${STORAGE.pages} Seiten zu je ${STORAGE.page}). Dein Gold: <span class="price">${fmtN(p.gold)}</span></p>` +

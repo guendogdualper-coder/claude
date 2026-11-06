@@ -1062,7 +1062,9 @@ const ui = {
     if (!pct) {
       pct = document.createElement('span');
       pct.className = 'horse-pct';
-      btn.append(pct);
+      // seit 14.17 direkt hinter dem Wort „Pferd“ (vorher unter dem Knopf, dort vom nächsten Knopf verdeckt)
+      const label = btn.querySelector('.menu-text');
+      if (label) label.after(pct); else btn.append(pct);
     }
     const horse = p && p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
     pct.hidden = !horse;

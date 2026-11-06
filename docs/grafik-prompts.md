@@ -430,7 +430,7 @@ geschlossene Kulisse in Schichten:
 | Wiese, Dorf | Blütenhecke: gestapelte Laubkronen, jede fünfte rosa blühend |
 | Dunkelwald | Tannenwall aus überlappenden Tannen |
 | Schlangendschungel | Dschungelwand mit Lianen, Fächerblättern, roten Blüten |
-| Orktal, Donnerklamm | Sandsteinklippe in Schichten |
+| Rostschlucht, Donnerklamm | Sandsteinklippe in Schichten |
 | Ödland | Aschenklippe mit Felsnadeln, toten Bäumen und Glutadern |
 | Frostgipfel | Eisklippe mit Schneekappen, Eiszacken und verschneiten Tannen |
 | Totenmoor | Trauerweiden mit hängendem Moos und Nebelband |

@@ -6,7 +6,7 @@ function questState() {
   if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
   if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
   // Alte Hauptkette (bis 11.1, 20 Aufträge) auf die Questreihe je Map umrechnen: weiter beim ersten Auftrag
-  // ab der Stufe des alten (alles erledigt: Heimkehr nach Vlotho vor dem Finale)
+  // ab der Stufe des alten (alles erledigt: Heimkehr nach Kazehana vor dem Finale)
   if (p.quests.chain !== 2) {
     const q = p.quests;
     const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
@@ -20,7 +20,7 @@ function questState() {
   return p.quests;
 }
 
-// Ältester einer Map (Bao in Vlotho, sonst der Lagerälteste) und die Map eines NPCs
+// Ältester einer Map (Bao in Kazehana, sonst der Lagerälteste) und die Map eines NPCs
 function npcMapId(n) {
   const wm = mapOfTile(n.x / TILE, n.y / TILE);
   return wm ? wm.id : 1;
@@ -152,7 +152,7 @@ function questEvent(kind, m) {
       q.raidsDone.push(m.typeId);
       q.progress = q.raidsDone.length;
       ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
-      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Vlotho zurück.', 'level');
+      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Kazehana zurück.', 'level');
     }
   }
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
@@ -168,7 +168,7 @@ function questEvent(kind, m) {
     if (st.progress >= STABLE_QUEST.count) {
       st.state = 'done';
       ui.banner('Prüfung bestanden', 'Kehre zu einem Stallmeister zurück');
-      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Vlotho oder beim Stallmeister in jedem Lager.', 'level');
+      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Kazehana oder beim Stallmeister in jedem Lager.', 'level');
     }
   }
   if (kind === 'kill' && q.side) {
@@ -278,6 +278,8 @@ function riftDungeon(level, zone) {
 function updateRifts() {
   const p = game.player;
   const w = game.world;
+  // seit 14.17: Dungeon-Eingänge ziehen alle 3 Stunden um (dungeon-wandern.js)
+  if (typeof updateDungeonEntrances === 'function') updateDungeonEntrances();
   if (!p || p.dead || p.level < RIFT.minLevel) return;
   if (w.npcs.some((n) => n.id === 'riss' && game.time > n.until)) {
     w.npcs = w.npcs.filter((n) => n.id !== 'riss' || game.time <= n.until);
@@ -1033,7 +1035,8 @@ Object.assign(ui, {
     body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name}. Allein schließt er sich, sobald du hindurchgehst; in einer Gruppe bleibt er offen, bis seine Zeit um ist.</p>` : '') +
       `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
       `<p>Drei Räume voller Monster: ${mobs}. Am Ende ${boss.name} (Stufe ${boss.level}), der ${bossInfo}.</p>` +
-      '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +3 bis +6, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
+      '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +1 bis +4, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
+      (!rift && typeof entryMovable === 'function' && entryMovable(dg) ? `<p class="hint-text">Dieser Eingang zieht alle 3 Stunden an einen anderen Ort der Karte – nächster Umzug in ${entryNextShiftText()}.</p>` : '') +
       `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Betreten'}</button>`;
     body.querySelector('[data-dg]').addEventListener('click', () => {
       const err = rift ? enterRift(npc) : enterDungeon(npc.dungeon);

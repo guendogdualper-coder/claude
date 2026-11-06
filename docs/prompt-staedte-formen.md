@@ -9,14 +9,14 @@ Die Städte und Lager sollen nicht mehr alle gleich aussehen (heute: Quadrat mit
 Mauern, Weltentor in der Mitte). Die ersten beiden Karten (Kazehana, Dunkelwald) dürfen viereckig bleiben. Ab der
 dritten Karte in Spielreihenfolge bekommt jede Stadt eine **eigene Form** und einen eigenen Aufbau.
 
-Spielreihenfolge: Kazehana (1) → Dunkelwald (4) → Orktal (5) → Ödland (6) → Schlangental/Sahra (2) →
+Spielreihenfolge: Kazehana (1) → Dunkelwald (4) → Rostschlucht (5) → Ödland (6) → Schlangental/Sahra (2) →
 Frostgipfel (7) → Totenmoor (8) → Donnerklamm (3) → Feuerberg (9) → Kristallabgrund (10).
 
 ## Vorschläge je Karte (Richtwert, darf angepasst werden)
 
 | Karte | Idee |
 |---|---|
-| Orktal (5) | Festungslager in **Achteckform** mit Palisaden statt Steinmauer, zwei Tore statt vier, Stände im Kreis um einen Kampfplatz |
+| Rostschlucht (5) | Festungslager in **Achteckform** mit Palisaden statt Steinmauer, zwei Tore statt vier, Stände im Kreis um einen Kampfplatz |
 | Ödland (6) | **Ringstadt** um einen Aschekrater, Wege wie Speichen, innen ein erhöhter Platz mit dem Weltentor |
 | Schlangental (2) | **Oasenstadt um einen See**: Häuser auf dem Ufer, das Weltentor auf einer Insel in der Mitte, zwei Holzbrücken |
 | Frostgipfel (7) | **Terrassen** am Hang (L-Form), Treppen zwischen den Ebenen, Schneewehen an den Mauern |

@@ -5,7 +5,7 @@
 //   Feuerbecken und Laternen leuchten dann umso mehr.
 // - Nachts kommen auf jeder Map Nachtmonster dazu (daten/nachtmonster.js); bei Tagesanbruch ziehen sie sich zurück.
 //   Sie rechnet der Host (oder man allein), Mitspieler bekommen sie über den Zustand des Hosts.
-// - Nachtwanderer vergeben Nachtjagden; in Vlotho sind die Nachtwächterin und ein Laternenanzünder unterwegs.
+// - Nachtwanderer vergeben Nachtjagden; in Kazehana sind die Nachtwächterin und ein Laternenanzünder unterwegs.
 //   Seit 13.52 sind alle NPCs Tag und Nacht da (vorher schliefen die Wanderer nachts).
 
 const DAY_CYCLE = 2400;
@@ -165,7 +165,7 @@ function buildNightNpcs() {
   const extra = [];
   const npc = (id, name, x, y, more = {}) => ({ id, name, x, y, r: 11, night: true, ...more });
   // je Map ein Nachtwanderer neben dem ersten Wanderer des Tages – seit 13.88 nicht mehr auf Map 1 (Sonnenwiesen):
-  // Für Anfänger war das verwirrend. Die Nachtwächterin in Vlotho ist darum auch weg (der Laternenanzünder bleibt).
+  // Für Anfänger war das verwirrend. Die Nachtwächterin in Kazehana ist darum auch weg (der Laternenanzünder bleibt).
   let k = 0;
   for (const wm of WORLD_MAPS) {
     if (wm.id === 1) continue;
@@ -174,7 +174,7 @@ function buildNightNpcs() {
     const [name, art] = NIGHT_WANDERERS[k++ % NIGHT_WANDERERS.length];
     extra.push(npc('nachtwanderer', name, day.x - TILE * 1.2, day.y + TILE * 0.4, { art, key: `n${wm.id}`, map: wm.id }));
   }
-  // Vlotho: Nachtwächterin am Brunnen und ein Laternenanzünder, der durch die Gassen geht
+  // Kazehana: Nachtwächterin am Brunnen und ein Laternenanzünder, der durch die Gassen geht
   const C = CENTER_X;
   const V = (d) => C + d;
   extra.push(npc('moench', '', V(-4) * TILE, V(4) * TILE, { wander: true, homeX: V(-4) * TILE, homeY: V(4) * TILE, wx: V(-4) * TILE, wy: V(4) * TILE, wanderAt: 0, facing: 1, moving: false }));
@@ -234,7 +234,7 @@ function nightQuestKill(m) {
   for (const [key, s] of Object.entries(q.night)) {
     if (s.state !== 'active' || s.target !== m.typeId) continue;
     const n = nightNpcOf(key);
-    // Nachtjagden von Nachtwanderern, die es nicht mehr gibt (seit 13.88 Map 1 und Vlotho), fallen weg
+    // Nachtjagden von Nachtwanderern, die es nicht mehr gibt (seit 13.88 Map 1 und Kazehana), fallen weg
     if (!n) { s.state = 'open'; s.progress = 0; s.target = null; continue; }
     // ein Kill zählt nur für eine Nachtjagd (vorher zählte er für jede mit demselben Ziel doppelt)
     s.progress++;
@@ -298,7 +298,7 @@ function nightQuestList() {
     if (s.state !== 'active' || !s.target || !MONSTER_TYPES[s.target]) continue;
     const t = MONSTER_TYPES[s.target];
     const n = nightNpcOf(key);
-    if (!n) continue; // Nachtwanderer gibt es nicht mehr (seit 13.88 Map 1 und Vlotho)
+    if (!n) continue; // Nachtwanderer gibt es nicht mehr (seit 13.88 Map 1 und Kazehana)
     const who = n.name;
     out.push({
       key: 'night:' + key, title: 'Nachtjagd: ' + t.name, sub: (n && n.map ? `${who} · ${mapName(n.map)}` : who) + ' · nur nachts',

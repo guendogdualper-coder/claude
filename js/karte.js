@@ -1568,7 +1568,7 @@ function drawZoneLabels(ctx, area, v) {
     let x;
     let y;
     if (z.safe) {
-      // Vlotho über dem Dorf, Lager und Städte darunter (über ihnen steht das Weltentor)
+      // Kazehana über dem Dorf, Lager und Städte darunter (über ihnen steht das Weltentor)
       x = wm.cx;
       // seit 13.91 überall über der Stadt (darunter liegt das Tor zum Endboss)
       y = wm.cy - (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) - 3;

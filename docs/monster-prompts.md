@@ -40,7 +40,7 @@ Faustregel: schwere Brocken (slam, charge, breath) holen am längsten aus, Hufti
 
 ## Sonnenwiesen (Map 1)
 
-Grüne, sonnige Startwiesen rund um Vlotho. Echte, bodenständige Tiere in warmen Erdtönen – die Monster sollen glaubwürdig wirken, aber noch nicht bedrohlich. Hier lernt der Spieler, die rote Ausholwarnung zu lesen.
+Grüne, sonnige Startwiesen rund um Kazehana. Echte, bodenständige Tiere in warmen Erdtönen – die Monster sollen glaubwürdig wirken, aber noch nicht bedrohlich. Hier lernt der Spieler, die rote Ausholwarnung zu lesen.
 
 ### Wilder Hund (Stufe 1) – hund
 **Design:** Ein verwilderter Hofhund, mager und hochbeinig, mit sichtbaren Rippen, eingefallenen Flanken und schlaff hängender Rute. Fell `#8a6748` mit zotteligen, ungleichmäßigen Büscheln, heller Bauch und Kehle `#c8a47e`, kleine braune Augen `#7a4a1a`. Ein Ohr steht, das andere ist eingerissen und knickt ab – das macht ihn von oben sofort vom Wolf unterscheidbar. Größe 12, also etwa hüfthoch zum Helden.
@@ -202,7 +202,7 @@ Stylized 3D toon MMORPG concept sheet of a real Eurasian lynx: compact body on l
 Stylized 3D toon MMORPG concept sheet of a real brown bear: massive shoulder hump, plantigrade broad paws with long pale front claws, dished face profile, small round ears, brown fur #6a4a30, lighter belly #9a7a58 and muzzle #b89a78, small dark eyes, bared fangs. Side, front, top-down three-quarter views; wind-up (rearing up on hind legs, both paws raised, mouth open) and strike (crashing down with a paw swipe, three claw marks). Thick outlines, cel shading.
 ```
 
-## Orktal (Map 5)
+## Rostschlucht (Map 5)
 
 Ockerfarbene Schlucht mit Palisaden, Kriegszelten und Totems. Orks sind breitschultrig, mit kurzen Beinen, langen Armen und kräftigen Hauern im Unterkiefer; ihr Grün wird mit zunehmendem Rang dunkler und ihre Rüstung goldener. Dazu Steppentiere aus der Schlucht.
 

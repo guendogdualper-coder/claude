@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v244';
+const VERSION = 'seelenstein-v245';
 // Klänge und Musik (snd/, seit 14.8) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
 // sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
 // nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
@@ -88,6 +88,7 @@ const FILES = [
   'js/symbole-nekro2.js',
   'js/oberflaeche.js',
   'js/quests.js',
+  'js/dungeon-wandern.js',
   'js/karte.js',
   'js/karte80.js',
   'js/tagesbelohnung.js',

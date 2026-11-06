@@ -10,7 +10,7 @@ Object.assign(MONSTER_TYPES, {
   // Map 4 · Dunkelwald
   mondspinne: { name: 'Mondspinne', level: 17, shape: 'beast', color: '#5a6278', size: 15, speed: 115, range: 28, cooldown: 1.3, aggressive: true, hpMul: 1.2, atkMul: 1.15, night: true },
   nachtluchs: { name: 'Nachtluchs', level: 16, shape: 'beast', color: '#3a3a4a', size: 13, speed: 130, range: 26, cooldown: 1.15, aggressive: true, atkMul: 1.2, night: true },
-  // Map 5 · Orktal
+  // Map 5 · Rostschlucht
   nachtskorpion: { name: 'Nachtskorpion', level: 27, shape: 'beast', color: '#2a2230', size: 16, speed: 105, range: 30, cooldown: 1.3, aggressive: true, hpMul: 1.3, atkMul: 1.2, night: true },
   grabhyaene: { name: 'Grabhyäne', level: 25, shape: 'beast', color: '#4a4438', size: 14, speed: 120, range: 26, cooldown: 1.25, aggressive: true, hpMul: 1.15, atkMul: 1.1, night: true },
   // Map 6 · Ödland
@@ -55,7 +55,7 @@ const NIGHT_GROUPS = {
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
 
 // Nachtwanderer: tauchen nachts draußen auf (die Wanderer des Tages schlafen dann) und vergeben Nachtjagden.
-// Je Map einer, in Vlotho dazu die Nachtwächterin am Brunnen.
+// Je Map einer, in Kazehana dazu die Nachtwächterin am Brunnen.
 const NIGHT_WANDERERS = [
   ['Mondpriester Tsuki', 'moench'], ['Geisterjägerin Kage', 'jaegerin'], ['Laternenträger Hiro', 'bauer'],
   ['Sterndeuterin Hoshi', 'alte'], ['Totengräber Bram', 'bauer'], ['Schattenläuferin Yoru', 'jaegerin'],

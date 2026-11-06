@@ -543,7 +543,7 @@ const TREE_ART = {
   }
 };
 
-// Felsen je Zone: graues Gestein, bemoost im Wald, Sandstein im Orktal, Basalt im Ödland
+// Felsen je Zone: graues Gestein, bemoost im Wald, Sandstein in der Rostschlucht, Basalt im Ödland
 const ROCK_STYLES = {
   wiesen: ['#7d7a74', '#9c9890', null],
   dorf: ['#7d7a74', '#9c9890', null],

@@ -692,7 +692,7 @@ function resetSkills(path = game.player.path || 0) {
   return { books: items.book, items, moved: moved.length, changed: path !== oldPath };
 }
 // --- Lager (seit 9.1) ------------------------------------------------------------------------------
-// Bei jedem Lagerverwalter (Vlotho und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,
+// Bei jedem Lagerverwalter (Kazehana und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,
 // danach frei nutzbar, ohne Passwort. 6 Seiten zu je 30 Plätzen. Bücher stapeln sich wie in der Tasche.
 const STORAGE = { price: 1000, page: 30, pages: 6 };
 const STORAGE_SIZE = STORAGE.page * STORAGE.pages;
@@ -830,7 +830,7 @@ const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
 function toggleRide(on) {
   const p = game.player;
   if (!p || p.dead || !p.horse) {
-    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Vlotho und in jedem Lager) hat eine Prüfung für dich (ab Stufe 20).', 'warn');
+    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Kazehana und in jedem Lager) hat eine Prüfung für dich (ab Stufe 20).', 'warn');
     return;
   }
   const next = on == null ? !p.riding : on;

@@ -8,7 +8,8 @@
 // Braucht WebGL 2. Ohne WebGL 2 oder wenn das Gerät zu langsam ist (quality.noPost, zeichnen.js) zeichnet die Welt
 // wie bei „Ultra“ direkt auf den Bildschirm. Werte in GP (zum Nachstellen in der Konsole).
 const GP = { on: false, bloom: 0.5, thr: 0.965, // seit 14.12 höher: sonniges Gras (bis ~0,95) leuchtete mit
-  tilt: 0.6, sat: 1.1, contrast: 1.08, vignette: 0.28, expo: 0.98, shadows: false, msaa: false };
+  tilt: 0.35, sat: 1.1, // seit 14.17 Randunschärfe 0,35 statt 0,6 (wirkte zusammen mit dem Nebel wie Dunst)
+  contrast: 1.08, vignette: 0.28, expo: 0.98, shadows: false, msaa: false };
 const _gp = { ready: false, key: '', sz: null, shadowed: -1 };
 
 function gpSupported() {

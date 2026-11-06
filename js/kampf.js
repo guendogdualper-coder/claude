@@ -781,7 +781,9 @@ function basicTick(p) {
     }
     const col = ar ? ar.color : basic.color;
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: col, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined });
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined,
+      // seit 14.17: Pfeile mit Ziel fliegen durch alle anderen Monster und treffen nur das Ziel (focusOnly)
+      focusOnly: basic.style === 'arrow' });
     // Bogen (seit 13.67): dunkler Schattenblitz am Bogen (fernninja.js)
     if (ar && typeof bowBasicFx === 'function') bowBasicFx(p);
     netSkillFx('_shot', basic.range, { c: col, st: basic.style, el: basic.el });
@@ -1918,9 +1920,9 @@ function spawnProjectile(o) {
     dy = o.dir.y;
   }
   const len = Math.hypot(dx, dy) || 1;
-  // seit 13.42, ab 13.46 nur noch für den Feuerball (focusOnly): ohne Ziel abgeschossen, während ein Ziel gewählt
-  // ist, fliegt er nur für dieses Ziel – Monster davor werden nicht getroffen. Alle anderen Geschosse treffen
-  // wieder den ersten Gegner auf ihrem Weg.
+  // seit 13.42, ab 13.46 nur noch für den Feuerball (focusOnly), seit 14.17 auch Bogen-Grundschuss und Falkenpfeil:
+  // ohne Ziel abgeschossen, während ein Ziel gewählt ist, fliegt er nur für dieses Ziel – Monster davor werden nicht
+  // getroffen. Alle anderen Geschosse treffen den ersten Gegner auf ihrem Weg (Durchschuss: alle).
   if (o.owner === 'player' && o.focusOnly && !o.target && !o.pierce && !o.onlyHit) {
     const f = game.target;
     if (f && !f.dead && !f.hidden && !f.duelProxy) o.onlyHit = f;

@@ -17,9 +17,9 @@ Rückfall. Der Code steht in `js/klang.js` (Mischpult), `js/klang-welt.js` (Klä
   um −14 LUFS, Spitzen ≤ −1,5 dBFS. Mehrere Varianten je Datei; das Spiel wählt nie zweimal dieselbe
   hintereinander und ändert Höhe (±6 %) und Lautstärke (±10 %) leicht. Treffer beginnen kurz vor dem
   Aufschlag (dritte Zahl je Laut in `SFX_FILES`), damit Bild und Klang zusammenfallen.
-- **Musik:** Stereo, 128 kbit/s (Vlotho, Boss) bzw. 96 kbit/s, um −19 LUFS. Je Stück Vorspiel, Schleife A–B und
+- **Musik:** Stereo, 128 kbit/s (Kazehana, Boss) bzw. 96 kbit/s, um −19 LUFS. Je Stück Vorspiel, Schleife A–B und
   0,6 s Nachlauf (= Anfang der Schleife); das Ende der Schleife ist in den Klang vor A übergeblendet, die Punkte
-  sind nach Harmonie, Klangfarbe und Rhythmus gesucht. Vlotho (Dorf): zwei Proben, die ruhigere, wärmere spielt in
+  sind nach Harmonie, Klangfarbe und Rhythmus gesucht. Kazehana (Dorf): zwei Proben, die ruhigere, wärmere spielt in
   den Städten, die zweite auf den Wiesen.
 - **Laden:** Kampf, Fertigkeiten und Welt nach der ersten Berührung im Hintergrund; Monsterlaute, sobald ein
   Monster der Familie in der Nähe ist; Musik nur für die aktuelle Stimmung (die der Nachbargegenden werden als
@@ -206,7 +206,7 @@ Player combat sound set for a stylized fantasy MMORPG: weapon swooshes in three 
 ## 4. Musik
 
 **Ziel:** entspannt und ruhig, man kann stundenlang zuhören. Fünftonleitern mit einem leichten fernöstlichen
-Klang (passend zum Stil von Vlotho), viel Hall und keine harten Schläge.
+Klang (passend zum Stil von Kazehana), viel Hall und keine harten Schläge.
 
 - **Instrumente:**
   - Weiche Fläche: zwei leicht verstimmte Sägezähne, tiefpassgefiltert.

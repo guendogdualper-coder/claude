@@ -16,8 +16,8 @@ const QS = (L, level, count, title, text, extra = {}) => ({ level: L, title, tex
 const QT = (L, map, title, text, extra = {}) => ({ level: L, title, text, goal: { type: 'talk', map, count: 1 }, reward: { gold: Math.round(questGold(L) / 2), potions: 10, ...extra } });
 
 const QUEST_CHAPTERS = [
-  { map: 1, title: 'Kapitel 1 · Vlotho', quests: [
-    QK(1, 'hund', 10, 'Wilde Hunde', 'Vor dem Südtor streunen wilde Hunde und reißen unsere Hühner. Zeig ihnen, dass Vlotho nicht wehrlos ist.', { potions: 5 }),
+  { map: 1, title: 'Kapitel 1 · Kazehana', quests: [
+    QK(1, 'hund', 10, 'Wilde Hunde', 'Vor dem Südtor streunen wilde Hunde und reißen unsere Hühner. Zeig ihnen, dass Kazehana nicht wehrlos ist.', { potions: 5 }),
     QK(2, 'fuchs', 10, 'Füchse im Hühnerstall', 'Kaum sind die Hunde fort, schleichen die Füchse um die Ställe. Jag sie zurück in die Wiesen.', { potions: 5 }),
     QS(3, 5, 1, 'Der erste Seelenstein', 'In den Sonnenwiesen ist ein Stein der Trauer aus der Erde gebrochen. Zerstöre ihn, bevor er noch mehr Monster ruft.', { mats: { boniPlus: 2 } }),
     QK(4, 'wolf', 15, 'Wolfsplage', 'Die Wölfe werden mutiger. Dünne das Rudel aus, ehe sie das Tor erreichen.', { items: [['helm', 1, 1]] }),
@@ -25,7 +25,7 @@ const QUEST_CHAPTERS = [
     QK(6, 'alphawolf', 8, 'Der Alpha', 'Hinter den Wölfen stehen ihre Anführer, die Alpha-Wölfe. Ohne sie zerfällt das Rudel.', { items: [['schuhe', 1, 2]], mats: { switcher: 1 } }),
     QK(8, 'wildschwein', 12, 'Keiler in den Rüben', 'Die Wildschweine fressen den Bauern die Ernte weg. Ein Winter ohne Vorräte wäre unser Ende.'),
     QS(9, 10, 1, 'Stein der Wut', 'Am Rand der Wiesen glüht ein Stein der Wut. Seine Wut macht die Tiere rasend – zerschlag ihn.', { mats: { switcher: 2 } }),
-    QT(10, 4, 'Auf in den Dunkelwald', 'Vlotho ist sicher, dank dir. Doch die Steine brechen überall aus der Erde. Reise durch das Weltentor in den Dunkelwald und sprich mit Hagen im Waldlager – er braucht jemanden wie dich.')
+    QT(10, 4, 'Auf in den Dunkelwald', 'Kazehana ist sicher, dank dir. Doch die Steine brechen überall aus der Erde. Reise durch das Weltentor in den Dunkelwald und sprich mit Hagen im Waldlager – er braucht jemanden wie dich.')
   ] },
   { map: 4, title: 'Kapitel 2 · Dunkelwald', quests: [
     QK(10, 'bandit', 20, 'Banditen im Dunkelwald', 'Gut, dass Bao dich schickt. Banditen überfallen jeden Händler auf dem Waldweg. Vertreib sie.', { items: [['waffe', 2, 2]] }),
@@ -37,9 +37,9 @@ const QUEST_CHAPTERS = [
     QK(17, 'banditenfuerst', 1, 'Der Banditenfürst', 'Die Banditen gehorchen einem Fürsten, der sich im Banditenkeller verkriecht. Geh hinein und beende seine Herrschaft.', { items: [['ruestung', 2, 3]] }),
     QK(18, 'braunbaer', 10, 'Der Braunbär', 'Ein Rudel Braunbären hat den Holzfällerpfad besetzt. Sie sind stark, sei vorsichtig.', { items: [['ruestung', 3, 2]] }),
     QS(19, 20, 1, 'Stein der Dornen', 'Mitten im Wald wächst ein Stein der Dornen. Seine Ranken ersticken jeden Baum. Zerstöre ihn.', { mats: { switcher: 2 } }),
-    QT(20, 5, 'Krieg im Orktal', 'Der Wald atmet wieder. Doch Späher melden, dass sich im Orktal ein Heer sammelt. Reise ins Orktal und berichte Thrak in der Talwacht, was du hier gesehen hast.')
+    QT(20, 5, 'Krieg in der Rostschlucht', 'Der Wald atmet wieder. Doch Späher melden, dass sich in der Rostschlucht ein Heer sammelt. Reise in die Rostschlucht und berichte Thrak in der Talwacht, was du hier gesehen hast.')
   ] },
-  { map: 5, title: 'Kapitel 3 · Orktal', quests: [
+  { map: 5, title: 'Kapitel 3 · Rostschlucht', quests: [
     QK(20, 'ork', 25, 'Orks vor der Talwacht', 'Hagen schickt dich? Dann komm, die Orks stehen schon vor unseren Palisaden. Schwäche ihr Heer.', { mats: { switcher: 3 } }),
     QK(22, 'hyaene', 12, 'Hyänen der Orks', 'Die Orks halten Hyänen wie Hunde und hetzen sie auf unsere Kundschafter. Erledige die Meute.'),
     QK(24, 'orkschamane', 15, 'Die Schamanen', 'Ihre Schamanen rufen Flüche über das Tal. Ohne sie verlieren die Orks ihren Mut.', { books: 1 }),
@@ -98,7 +98,7 @@ const QUEST_CHAPTERS = [
     QK(66, 'feuerdaemon', 15, 'Feuerdämonen', 'Aus den Kratern steigen Feuerdämonen. Treib sie zurück ins Feuer.', { items: [['waffe', 7, 2]] }),
     QK(68, 'feuerdrache', 15, 'Feuerdrachen', 'Am Feuerberg nisten Drachen. Wenn sie flügge werden, ist kein Dorf mehr sicher.', { books: 2, mats: { boni5: 2 } }),
     QS(69, 70, 1, 'Stein des Untergangs', 'Der letzte und mächtigste aller Seelensteine. Zerstöre ihn, und die Steine hören auf zu wachsen.', { books: 3, mats: { star: 3, boni5: 2 } }),
-    QT(70, 1, 'Heimkehr nach Vlotho', 'Du hast jede Map befreit. Kehr heim nach Vlotho – Bao wartet auf dich, und er hat eine letzte, die größte Aufgabe.')
+    QT(70, 1, 'Heimkehr nach Kazehana', 'Du hast jede Map befreit. Kehr heim nach Kazehana – Bao wartet auf dich, und er hat eine letzte, die größte Aufgabe.')
   ] },
   { map: 1, title: 'Finale · Die neun Endbosse', quests: [
     { level: 70, title: 'Die neun Endbosse', goal: { type: 'raids', count: 9 },
@@ -182,13 +182,13 @@ const ALCHEMIST_WARES = [
 const NPC_LINES = {
   wache: [
     'Halt die Augen offen. Hinter den Wiesen beginnt der Dunkelwald, und dort lauern Banditen.',
-    'Ich habe gehört, im Orktal steht ein Stein der Schwärze. Wer ihn zerschlägt, findet Sternensteine.',
+    'Ich habe gehört, in der Rostschlucht steht ein Stein der Schwärze. Wer ihn zerschlägt, findet Sternensteine.',
     'Die Mauer hält die Monster draußen. Solange du drinnen bist, bist du sicher.',
     'Im Norden liegt der Frostgipfel. Nimm warme Kleidung mit, und viele Tränke.'
   ],
   bauer: ['Seit die Seelensteine aus der Erde brechen, wächst kaum noch etwas auf den Feldern.', 'Die Wildschweine fressen mir die Rüben weg. Wenn du welche siehst, jag sie!'],
   kind: ['Wenn ich groß bin, werde ich auch Abenteurer!', 'Hast du schon mal einen Drachen gesehen? Lian sagt, am Feuerberg gibt es welche.'],
-  alte: ['Früher war Vlotho eine ruhige Stadt. Dann kamen die Steine.', 'Der Stein der Gier lässt viel Gold fallen, sagt man. Aber Gier hat noch keinem gutgetan.'],
+  alte: ['Früher war Kazehana eine ruhige Stadt. Dann kamen die Steine.', 'Der Stein der Gier lässt viel Gold fallen, sagt man. Aber Gier hat noch keinem gutgetan.'],
   moench: ['Jeder Stein hat seine eigene Seele. Und jeder lässt etwas anderes zurück.', 'Wer den Stein des Untergangs bricht, braucht die besten Boni auf jeder Rüstung.']
 };
 

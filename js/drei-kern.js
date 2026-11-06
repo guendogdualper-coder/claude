@@ -856,8 +856,10 @@ function v3UpdateMood(dt, x, y) {
   V3.scene.fog.color.copy(s.sky);
   // Im Schulterblick sieht man weiter in die Ferne: Nebel etwas näher, damit kein Rand der Welt auftaucht
   const fogK = v3Shoulder() ? 0.62 : V3.ultra ? 1.25 : 1;
-  V3.scene.fog.near = s.near * fogK;
-  V3.scene.fog.far = s.far * fogK;
+  // Einstellung Nebel (seit 14.17, FOG_MODES in optionen.js)
+  const fm = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog]) || { near: 1, far: 1 };
+  V3.scene.fog.near = s.near * fogK * fm.near;
+  V3.scene.fog.far = s.far * fogK * fm.far;
   V3.sun.color.copy(s.sun);
   V3.sun.intensity = s.sunI;
   V3.hemi.color.copy(s.hemi);
@@ -1762,7 +1764,7 @@ function* terrainJob(cx, cy) {
 const chunks3 = new Map();
 // Ultra (PC): ein Ring Blöcke mehr bleibt geladen, man sieht weiter
 const CHUNK3_KEEP = 2;
-const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP);
+const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP) + ((typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0);
 let chunkJob = null;
 
 // Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
@@ -1795,11 +1797,13 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   // Feste Kamera: Blick nach Norden, oben mehr Blöcke (Ultra: ein Ring mehr). Schulterblick: Kreis um die
   // Mitte des Sichtbaren vor der Figur (dahinter und hinter dem Nebel braucht es nichts)
   const shoulder = v3Shoulder();
-  const reach = shoulder ? 2 : V3.ultra ? 3 : 2;
-  const side = shoulder ? 2 : V3.ultra ? 2 : 1;
-  for (let dy = -reach; dy <= (shoulder ? 2 : 1); dy++) {
+  // Nebel „Wenig“ (seit 14.17): ein Ring Blöcke mehr, weil man weiter sieht
+  const ring = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0;
+  const reach = (shoulder ? 2 : V3.ultra ? 3 : 2) + ring;
+  const side = (shoulder ? 2 : V3.ultra ? 2 : 1) + ring;
+  for (let dy = -reach; dy <= (shoulder ? 2 : 1) + ring; dy++) {
     for (let dx = -side; dx <= side; dx++) {
-      if (shoulder && dx * dx + dy * dy > 3.2) continue;
+      if (shoulder && dx * dx + dy * dy > 3.2 + ring * 4.5) continue;
       const x = ccx + dx;
       const y = ccy + dy;
       if (x < minX || y < minY || x > maxX || y > maxY) continue;

@@ -369,7 +369,8 @@ SKILL_TYPES.bshot = function (sk, pw, lvl) {
     const last = k === n - 1;
     const mul = spec.dmg * (last ? sk.lastMul || 1 : 1) * pw * ar.mul;
     spawnProjectile({ owner: 'player', x: m.x, y: m.y, target: tt, dir: tt ? null : f, speed: sk.speed, range: sk.range + 60, mul, color: col,
-      radius: 6, style: 'arrow', skill: sk.id, knockback: last ? sk.knockback : 0, bfx: last ? 'falke' : 'salvo', arrow: ar.sort, afterHit: last ? salvoLastHit : null });
+      radius: 6, style: 'arrow', skill: sk.id, knockback: last ? sk.knockback : 0, bfx: last ? 'falke' : 'salvo', arrow: ar.sort, afterHit: last ? salvoLastHit : null,
+      focusOnly: true }); // seit 14.17: mit Ziel nur das Ziel, durch andere Monster hindurch
     bowShotFx(p, sk.color);
     shakeScreen(last ? 1.8 : 0.8);
   }));
