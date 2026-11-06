@@ -562,11 +562,15 @@ const ui = {
     let lifted = false;
     let channeling = false;
     let ghost = null;
+    // Zielen durch Ziehen (seit 14.2, Handy): Fertigkeiten mit Zielkreis vom Knopf aus in die gewünschte Richtung
+    // ziehen, loslassen wirkt. Kurzes Tippen öffnet wie bisher den Kreis, langes Drücken ohne Ziehen hebt sie zum Tauschen an.
+    let drag = null;
     const dropGhost = () => { if (ghost) ghost.remove(); ghost = null; };
     btn.addEventListener('pointerdown', (e) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       e.preventDefault();
       lifted = false;
+      drag = null;
       if (this.swapFrom != null) {
         timer = null;
         this.finishSwap(slot);
@@ -586,14 +590,31 @@ const ui = {
       }
       const sx = e.clientX;
       const sy = e.clientY;
+      if (sk && sk.aim && e.pointerType !== 'mouse' && !skillTouchDirect(sk)) drag = { x: sx, y: sy, on: false };
       timer = setTimeout(() => {
+        if (drag && drag.on) return;
         timer = null;
         lifted = true;
         this.startSwap(slot);
         ghost = skillDragGhost(i, sx, sy);
-      }, SKILL_HOLD_MS);
+        // Fertigkeiten mit Zielkreis: erst nach längerem ruhigem Halten anheben, vorher hat das Ziehen zum Zielen Vorrang
+      }, drag ? SKILL_HOLD_AIM_MS : SKILL_HOLD_MS);
     });
     btn.addEventListener('pointermove', (e) => {
+      if (drag && !lifted) {
+        const dx = e.clientX - drag.x;
+        const dy = e.clientY - drag.y;
+        if (!drag.on && Math.hypot(dx, dy) < 14) return;
+        if (!drag.on) {
+          drag.on = true;
+          clearTimeout(timer);
+          timer = null;
+          // Kreis öffnen (prüft Abklingzeit, Mana, Dorf); ist er für diese Fertigkeit schon offen, nur verschieben
+          if (!(game.aim && game.aim.i === i)) useSkill(i);
+        }
+        if (game.aim && game.aim.i === i) aimDrag(dx, dy);
+        return;
+      }
       if (!ghost) return;
       ghost.style.left = e.clientX + 'px';
       ghost.style.top = e.clientY + 'px';
@@ -604,6 +625,13 @@ const ui = {
         releaseChannel(i);
         return;
       }
+      if (drag && drag.on) {
+        drag = null;
+        // zurück auf den Knopf gezogen: nicht wirken, der Kreis bleibt offen
+        if (game.aim && game.aim.i === i && Math.hypot(e.clientX - btn.getBoundingClientRect().left - btn.offsetWidth / 2, e.clientY - btn.getBoundingClientRect().top - btn.offsetHeight / 2) > btn.offsetWidth * 0.6) aimFire();
+        return;
+      }
+      drag = null;
       if (timer) {
         clearTimeout(timer);
         timer = null;
@@ -633,6 +661,7 @@ const ui = {
       else if (out) { this.endSwap(); this.buildSkillBar(); }
     });
     btn.addEventListener('pointercancel', () => {
+      drag = null;
       if (channeling) releaseChannel(i);
       channeling = false;
       clearTimeout(timer);

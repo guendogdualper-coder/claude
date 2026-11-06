@@ -281,7 +281,12 @@ function setupTouch() {
   const releaseStick = (e) => {
     if (e.pointerId !== stickId) return;
     // Kurzes Antippen ohne Ziehen wählt wie gewohnt ein Monster aus
-    if (!moved && performance.now() - downAt < 250) selectAt(e.clientX, e.clientY);
+    // (seit 14.2: bei offenem Zielkreis wirkt es dort – die linke Bildhälfte gehört sonst ganz dem Knüppel)
+    if (!moved && performance.now() - downAt < 300) {
+      const w = game.aim ? screenToWorld(e.clientX, e.clientY) : null;
+      if (w && isFinite(w.x) && isFinite(w.y)) aimFire(w.x, w.y);
+      else selectAt(e.clientX, e.clientY);
+    }
     stickId = null;
     knob.style.transform = '';
     input.stick.x = 0;

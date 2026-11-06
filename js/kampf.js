@@ -894,7 +894,7 @@ function useSkill(i) {
   // Bogen-Fertigkeiten (seit 13.67): ohne genug Pfeile gar nicht erst zielen oder wirken
   if (sk.arrows && typeof bowCanShoot === 'function' && !bowCanShoot(p, sk.arrows)) return;
   // Fertigkeiten mit Zielort: erst zielen, beim zweiten Antippen oder Tippen auf den Boden wirken
-  if (sk.aim && !(game.aim && game.aim.i === i && game.aim.go)) {
+  if (sk.aim && !skillTouchDirect(sk) && !(game.aim && game.aim.i === i && game.aim.go)) {
     if (game.aim && game.aim.i === i) aimFire();
     else startAim(i, sk);
     return;
@@ -1067,6 +1067,10 @@ function aimAwayPoint(p, sk) {
 }
 // Größte Entfernung des Zielkreises (seit 13.85): aimMax für Sprünge und Schritte (Sprungweite statt Pfeil- oder
 // Zauberreichweite), sonst die Reichweite der Fertigkeit
+// Am Handy ohne Zielkreis (seit 14.2, sk.touchDirect – Sprungschlag): direkt zum Ziel bzw. nächsten Gegner
+function skillTouchDirect(sk) {
+  return !!(sk && sk.touchDirect && typeof input !== 'undefined' && input.touchUi);
+}
 function aimReach(sk) {
   return sk.aimMax || sk.range || sk.distance || 150;
 }
@@ -1085,7 +1089,7 @@ function startAim(i, sk) {
   // seit 13.64: feiner Kreis um die Figur zeigt die Reichweite (Bild in frostgefaengnis.js)
   game.aim.rangeFx = addEffect({ type: 'aimrange', ground: true, follow: p, ox: 0, oy: 0, r: aimReach(sk), dur: AIM_TIMEOUT + 1 });
   aimCheck();
-  addText(p.x, p.y - 40, 'Ort antippen', 'info');
+  addText(p.x, p.y - 40, input.touchUi ? 'Ort antippen oder Knopf ziehen' : 'Ort antippen', 'info');
   document.body.classList.add('aiming');
 }
 function cancelAim() {
@@ -1125,6 +1129,25 @@ function aimAt(x, y) {
   game.aim.pt.x = x;
   game.aim.pt.y = y;
   aimCheck();
+}
+// Ziehen am Fertigkeitsknopf (seit 14.2, Handy): der Zielkreis liegt in Zugrichtung um die Figur, so weit wie gezogen
+// (AIM_DRAG_PX Finger-Weg = volle Reichweite). dx/dy sind Bildschirm-Pixel; die Richtung wird über den Bildschirmpunkt
+// der Figur in die Welt umgerechnet, damit sie auch bei gedrehter 3D-Kamera stimmt.
+const AIM_DRAG_PX = 110;
+function aimDrag(dx, dy) {
+  const a = game.aim;
+  const p = game.player;
+  const len = Math.hypot(dx, dy);
+  if (!a || !p || len < 1) return;
+  const ps = V3.on ? v3Project(p.x, p.y, 0) : { x: (p.x - renderer.camX) * renderer.zoom, y: (p.y - renderer.camY) * renderer.zoom };
+  const w = screenToWorld(ps.x + dx / len * 60, ps.y + dy / len * 60);
+  if (!w || !isFinite(w.x) || !isFinite(w.y)) return;
+  let wx = w.x - p.x;
+  let wy = w.y - p.y;
+  const wl = Math.hypot(wx, wy);
+  if (wl < 0.01) return;
+  const d = Math.min(1, len / AIM_DRAG_PX) * aimReach(a.sk);
+  aimAt(p.x + wx / wl * d, p.y + wy / wl * d);
 }
 function aimFire(x, y) {
   const a = game.aim;
@@ -1394,7 +1417,7 @@ const SKILL_TYPES = {
   leap(sk, pw) {
     const p = game.player;
     let want;
-    if (sk.aim) {
+    if (sk.aim && !skillTouchDirect(sk)) {
       // seit 13.85: Landeplatz mit dem Zielkreis gewählt (wie ein Zauber). Liegt er auf einem Gegner,
       // landet die Figur knapp davor (sonst stünde sie in ihm); getroffen wird im Kreis um die Landung.
       const pt = skillAimPoint(sk);

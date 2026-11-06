@@ -2313,6 +2313,8 @@ kbd {
 /* --- Version 3.8: kein Zoomen beim Doppeltippen, Installationshilfe ------------------------ */
 *, *::before, *::after { touch-action: manipulation; }
 #welt, .stick-zone, .stick, .touch-attack { touch-action: none; }
+/* seit 14.2: Fertigkeitsknöpfe ziehen zum Zielen (und zum Tauschen) – der Browser darf daraus kein Scrollen machen */
+#skillBar .slot, #skillBar .slot *, #quick1, #quick2 { touch-action: none; }
 .install-box { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-top: 8px; }
 .install-help { max-width: 560px; padding: 8px 12px; border-radius: 10px; font-size: 13px; line-height: 1.45; background: rgba(255, 240, 210, 0.06); border: 1px solid rgba(201, 163, 90, 0.35); }
 .install-help p { margin: 4px 0; }

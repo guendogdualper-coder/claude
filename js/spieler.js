@@ -97,6 +97,7 @@ function skillActions(p, i) {
 
 // Reihenfolge der Fertigkeiten in der Leiste: Platz -> Fertigkeit
 const SKILL_HOLD_MS = 500;
+const SKILL_HOLD_AIM_MS = 1100; // seit 14.2: Fertigkeiten mit Zielkreis am Handy (Ziehen zielt)
 // Seit 10.7 darf ein Platz leer sein (null): Fertigkeiten lassen sich aus der Leiste ziehen.
 // Seit 13.20 hat die Leiste sechs Plätze (Tasten 1–5 und 6): die Ultimative Attacke (Wert ULT_BAR) liegt auf einem
 // davon und lässt sich wie jede Fertigkeit tauschen. Alte Spielstände (fünf Plätze) bekommen sie auf Platz 6.
