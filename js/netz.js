@@ -16,7 +16,13 @@ const NET_RATE = 0.1;      // Sekunden zwischen zwei Zustandsmeldungen
 const NET_VIEW = 1200;     // Monster in diesem Umkreis bekommt ein Mitspieler geschickt
 const NET_SHARE = 700;     // wer so nah ist, bekommt Erfahrung und Beute mit
 const NET_SHARE_TIME = 60; // ... oder wer in den letzten 60 s getroffen hat
-const NET_MAX = 8;         // höchstens so viele Spieler pro Kanal
+const NET_MAX = 100;       // höchstens so viele Spieler pro Kanal (seit 14.4, vorher 8)
+// Seit 14.4: In jedem Zustand schickt der Host nur die Spieler in der Nähe (NET_NEAR) und die eigene Gilde mit,
+// alle NET_FULL_EVERY Meldungen (etwa alle 5 s) einmal die ganze Liste – sonst wüchse der Verkehr mit 100 Spielern
+// quadratisch. Bei bis zu NET_SMALL Spielern geht wie bisher immer die ganze Liste raus.
+const NET_NEAR = 1800;
+const NET_FULL_EVERY = 50;
+const NET_SMALL = 12;
 const NET_STALL = 8000;    // so lange (ms) ohne Nachricht vom Host gilt er als weg
 const NET_KEY = 'seelenstein.kanal';
 // Übergabe an den Welt-Wächter (seit 13.33): so lange warten alle anderen, bis sie sich mit ihm verbinden
@@ -447,8 +453,9 @@ function netBroadcastProjectile(pr, m) {
     sp: pr.speed, rg: pr.range, atk: pr.atk, lvl: m.level, col: pr.color, st: pr.style || null, rad: pr.radius });
 }
 
-// Zustand für einen Mitspieler: Monster in seiner Nähe und alle anderen Spieler
-function netSnapshotFor(id, rp) {
+// Zustand für einen Mitspieler: Monster in seiner Nähe und die anderen Spieler (seit 14.4 nur nahe und die eigene Gilde,
+// mit full alle; f: 1 sagt dem Mitspieler, dass die Liste vollständig ist und Fehlende gegangen sind)
+function netSnapshotFor(id, rp, full) {
   const mons = [];
   for (const m of game.monsters) {
     if (Math.abs(m.x - rp.x) > NET_VIEW || Math.abs(m.y - rp.y) > NET_VIEW * 0.75) continue;
@@ -461,8 +468,14 @@ function netSnapshotFor(id, rp) {
     mons.push(e);
   }
   const players = WAECHTER ? [] : [['host', netPlayerState()]];
-  for (const [pid, o] of net.players) if (pid !== id && o.last && !o.waechter && !(o.name === rp.name && o.classId === rp.classId)) players.push([pid, o.last]);
-  return { t: 'snap', m: mons, p: players };
+  const all = full || net.players.size <= NET_SMALL;
+  const g = rp.last && rp.last.g;
+  for (const [pid, o] of net.players) {
+    if (pid === id || !o.last || o.waechter || (o.name === rp.name && o.classId === rp.classId)) continue;
+    if (!all && !(g && o.last.g === g) && (Math.abs(o.last.x - rp.x) > NET_NEAR || Math.abs(o.last.y - rp.y) > NET_NEAR)) continue;
+    players.push([pid, o.last]);
+  }
+  return { t: 'snap', m: mons, p: players, f: all ? 1 : 0 };
 }
 
 // --- Mitspieler --------------------------------------------------------------------------
@@ -472,6 +485,7 @@ function netOnClientData(d) {
   switch (d.t) {
     case 'welcome': {
       net.mode = 'client';
+      net.autoJoin = false;
       net.hostName = d.host;
       netRemote('host').ver = d.v || null;
       netVersionCheck(d.v, d.host, false);
@@ -513,11 +527,17 @@ function netOnClientData(d) {
       net.areas.add(d.a);
       break;
     }
-    case 'full':
-      ui.log(`Kanal ${net.channel} ist voll (höchstens ${NET_MAX} Spieler). Versuch den anderen Kanal.`, 'warn');
+    case 'full': {
+      // seit 14.4: beim automatischen Beitreten gleich den nächsten Kanal versuchen
+      const srv = net.server;
+      const sv = SERVERS.find((x) => x.id === srv);
+      const next = net.autoJoin && sv && net.channel < sv.channels ? net.channel + 1 : 0;
+      ui.log(`Kanal ${net.channel} ist voll (höchstens ${NET_MAX} Spieler).${next ? ` Du kommst in Kanal ${next}.` : ' Versuch einen anderen Kanal.'}`, 'warn');
       net.hostConn = null;
       netStop(true);
+      if (next) setTimeout(() => { if (net.mode === 'off' && game.player) netJoinChannel(srv, next); }, 400);
       break;
+    }
     case 'handover':
       // nur beim Welt-Wächter: der Spieler-Host gibt ihm den Kanal
       if (WAECHTER && net.mode === 'client') netTakeHandover();
@@ -711,7 +731,8 @@ function netApplySnapshot(d) {
     seen.add(pid);
     netApplyState(netRemote(pid), s);
   }
-  for (const pid of [...net.players.keys()]) if (!seen.has(pid)) net.players.delete(pid);
+  // nur eine vollständige Liste (f ≠ 0; ältere Hosts schicken kein f) entfernt Spieler, die fehlen
+  if (d.f !== 0) for (const pid of [...net.players.keys()]) if (!seen.has(pid)) net.players.delete(pid);
 }
 
 const NET_PEND_KEEP = 2;
@@ -1078,9 +1099,13 @@ function netUpdate(dt) {
   if (net.timer < NET_RATE) return;
   net.timer = 0;
   if (net.mode === 'client') netSend({ t: 'st', s: netPlayerState() });
-  else for (const [id, c] of net.conns) {
-    const rp = net.players.get(id);
-    if (c.open && rp && rp.last) c.send(netSnapshotFor(id, rp));
+  else {
+    net.snapN = (net.snapN || 0) + 1;
+    const full = net.snapN % NET_FULL_EVERY === 0;
+    for (const [id, c] of net.conns) {
+      const rp = net.players.get(id);
+      if (c.open && rp && rp.last) c.send(netSnapshotFor(id, rp, full));
+    }
   }
 }
 
@@ -1171,7 +1196,17 @@ function netAutoJoin() {
     netJoinChannel(sv.id, ch);
     return;
   }
-  if (!navigator.webdriver) ui.toggle('panelNet');
+  // seit 14.4: ohne Link direkt in den zuletzt genutzten Kanal (sonst Kanal 1) statt der Server-Auswahl;
+  // wechseln geht jederzeit über Optionen → „Server und Kanal“ bzw. den Server-Knopf
+  // nicht in automatischen Tests und nicht beim Welt-Wächter (der tritt selbst seinem Kanal bei, waechter.js)
+  if (navigator.webdriver || WAECHTER) return;
+  let last = null;
+  try { last = (localStorage.getItem(NET_KEY) || '').split(':'); } catch (e) { /* privat */ }
+  const lsv = last && SERVERS.find((x) => x.id === last[0]);
+  const lch = lsv ? Number(last[1]) : 0;
+  const pick = lsv && lch >= 1 && lch <= lsv.channels ? [lsv.id, lch] : [SERVERS[0].id, 1];
+  net.autoJoin = true;
+  netJoinChannel(pick[0], pick[1]);
 }
 
 // App im Hintergrund (Handy gesperrt, anderes Programm): Kanal verlassen, damit sofort ein

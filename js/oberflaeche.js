@@ -798,6 +798,7 @@ const ui = {
       '<p id="netMsg" class="hint-text"></p>';
     body.querySelectorAll('[data-ch]').forEach((b) => b.addEventListener('click', () => {
       const [srv, ch] = b.dataset.ch.split(':');
+      net.autoJoin = false;
       netJoinChannel(srv, Number(ch));
     }));
     body.querySelectorAll('[data-net]').forEach((b) => b.addEventListener('click', async () => {

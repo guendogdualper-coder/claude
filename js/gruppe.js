@@ -1,4 +1,4 @@
-// Gruppen: bis zu 8 Spieler im Kanal. Einladen über die Spielerkarte oder den Reiter „Gruppe“ im Fenster
+// Gruppen: Mitspieler aus dem Kanal (seit 14.4 bis zu 100 je Kanal). Einladen über die Spielerkarte oder den Reiter „Gruppe“ im Fenster
 // Freunde & Gilde. Der Anführer verwaltet die Gruppe und schickt allen Mitgliedern den Stand (ps).
 // EP für Mitglieder in der Nähe des besiegten Monsters:
 //   gleich – jeder bekommt seine EP plus 10 % je weiterem Mitglied in der Nähe;
