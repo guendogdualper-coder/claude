@@ -84,6 +84,8 @@ const hudLayout = {
       el.addEventListener('pointerdown', this.onDown);
       el.addEventListener('wheel', this.onWheel, { passive: false });
     }
+    // ohne Gruppe zeigt die Gruppenanzeige Beispiel-Mitglieder, damit man sieht, was man verschiebt (gruppe.js)
+    if (typeof partyHud === 'function') partyHud(true);
     const bar = document.createElement('div');
     bar.id = 'hudEditBar';
     bar.innerHTML = `<b>HUD anpassen</b><small>${input.touchUi ? 'Teile mit dem Finger ziehen, − / + ändert die Größe.' : 'Teile mit der Maus ziehen, Mausrad oder − / + ändert die Größe.'}</small>` +
@@ -107,6 +109,7 @@ const hudLayout = {
     }
     for (const el of this.shown) el.hidden = true;
     this.shown = [];
+    if (typeof partyHud === 'function') partyHud(true);
     if ($('hudEditBar')) $('hudEditBar').remove();
     this.save();
     // Ziel, Gruppe und Bossleiste zeigt die Oberfläche beim nächsten Bild wieder richtig an
