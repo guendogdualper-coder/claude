@@ -19,7 +19,7 @@ const CLASSES = {
     trim: '#d7cdb8',
     weapon: 'sword',
     base: { hp: 160, mp: 40, atk: 14, def: 6, crit: 0.05, speed: 132 },
-    perLevel: { hp: 26, mp: 5, atk: 4, def: 1.6 },
+    perLevel: { hp: 26, mp: 15, atk: 4, def: 1.6 }, // seit 14.15 Mana 15 statt 5 je Stufe: Helm und Umhang geben Kriegern kein Mana mehr
     basic: { range: 54, cooldown: 0.8, ranged: false },
     paths: [
       {
@@ -108,7 +108,7 @@ const CLASSES = {
     trim: '#c9c2d9',
     weapon: 'daggers',
     base: { hp: 130, mp: 50, atk: 15, def: 4, crit: 0.08, speed: 142 }, // seit 14.6 Krit 8 % statt 12 %
-    perLevel: { hp: 20, mp: 6, atk: 4.4, def: 1.2 },
+    perLevel: { hp: 20, mp: 16, atk: 4.4, def: 1.2 }, // seit 14.15 Mana 16 statt 6 je Stufe: Helm und Umhang geben Ninjas kein Mana mehr
     basic: { range: 48, cooldown: 0.55, ranged: false },
     paths: [
       {

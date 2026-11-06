@@ -256,6 +256,8 @@ function itemStats(item, plus = item.plus) {
     if (c.mp && base.hp) base.mp = (base.mp || 0) + Math.round(base.hp * c.mp);
     if (c.dodge && t) base.dodge = c.dodge * t;
   }
+  // seit 14.15: Krieger und Ninja bekommen auf Helm und Umhang Leben statt Mana (gleicher Wert)
+  if (base.mp && item.slot !== 'waffe' && noManaFor(item)) { base.hp = (base.hp || 0) + base.mp; delete base.mp; }
   // seit 13.49: Klassen-Ausrüstung trägt den Hauptwert der Klasse (Krieger Stärke, Ninja Geschick, sonst Intelligenz)
   let attr = null;
   if (item.cls && CLASS_SLOTS.includes(item.slot) && item.slot !== 'waffe' && CLASS_ATTR_BY_TIER[t]) attr = [MAIN_ATTR[item.cls], CLASS_ATTR_BY_TIER[t]];
@@ -414,6 +416,15 @@ function bonusValue(def, tier) {
 }
 
 // Statuswerte, die auf diesem Gegenstand passen: nach seiner Klasse, sonst nach der eigenen Klasse
+// Mana nur für Zauberer (seit 14.15): Krieger und Ninja bekommen auf Helm und Umhang Leben statt Mana und würfeln
+// keinen Mana-Bonus mehr. Ihr Mana kommt aus der Klasse (perLevel.mp seit 14.15 höher, klassen.js).
+const NO_MANA_CLASSES = ['krieger', 'ninja'];
+function itemWearerClass(item, classId) {
+  return item && item.cls && CLASS_BONUS_ATTRS[item.cls] ? item.cls : classId || (typeof game !== 'undefined' && game.player ? game.player.classId : null);
+}
+function noManaFor(item, classId) {
+  return NO_MANA_CLASSES.includes(itemWearerClass(item, classId));
+}
 function bonusAttrsFor(item, classId) {
   const cls = item.cls && CLASS_BONUS_ATTRS[item.cls] ? item.cls : classId || (game.player ? game.player.classId : 'krieger');
   return CLASS_BONUS_ATTRS[cls] || ATTR_BONUS_IDS;
@@ -429,6 +440,16 @@ function fitItemAttrs(item, classId) {
     if (other) { other.v += b.v; b.t = null; } else b.t = main;
   }
   item.bonuses = item.bonuses.filter((b) => b.t);
+  // seit 14.15: Mana-Bonus bei Krieger und Ninja wird zu Leben (doppelter Wert, wie die Spannen 15–60 und 25–120)
+  if (noManaFor(item, classId)) {
+    for (const b of item.bonuses) {
+      if (b.t !== 'mp') continue;
+      const hp = item.bonuses.find((x) => x.t === 'hp');
+      const v = Math.round(b.v * 2);
+      if (hp) { hp.v = Math.min(BONUS_TYPES.hp.max || Infinity, hp.v + v); b.t = null; } else { b.t = 'hp'; b.v = Math.min(BONUS_TYPES.hp.max || Infinity, v); }
+    }
+    item.bonuses = item.bonuses.filter((b) => b.t);
+  }
 }
 
 // Zufälliger Bonus, der auf diesem Gegenstand noch nicht vorkommt
@@ -436,7 +457,8 @@ function rollBonus(item, special) {
   const pool = special ? SPECIAL_BONUS_TYPES : BONUS_TYPES;
   const taken = new Set((special ? item.specials : item.bonuses || []).map((b) => b.t));
   const fit = bonusAttrsFor(item);
-  const ids = Object.keys(pool).filter((id) => !taken.has(id) && (special || pool[id].slots.includes(item.slot)) && (special || !ATTR_BONUS_IDS.includes(id) || fit.includes(id)));
+  const noMana = !special && noManaFor(item);
+  const ids = Object.keys(pool).filter((id) => !taken.has(id) && (special || pool[id].slots.includes(item.slot)) && (special || !ATTR_BONUS_IDS.includes(id) || fit.includes(id)) && !(noMana && id === 'mp'));
   const t = ids[Math.floor(Math.random() * ids.length)];
   return { t, v: bonusValue(pool[t], item.tier) };
 }
