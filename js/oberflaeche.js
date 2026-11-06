@@ -113,7 +113,9 @@ const ui = {
     $('zoneList').innerHTML = ZONES.map((z) => `<li>${z.name} <span>· ${z.levels}</span></li>`).join('');
     $('stoneList').innerHTML = STONE_TYPES.map((t) => {
       const zone = ZONES.find((z) => (z.stones || []).some(([lv]) => lv === t.level));
-      return `<li><b style="color:${t.look.glow}">■</b> Stufe ${t.level} · ${t.name} <span>· ${zone ? zone.name : ''} · ${t.drop}</span></li>`;
+      // seit 14.1: dazu, welche Gegenstände für die Fertigkeits-Ränge der Stein geben kann
+      const sk = t.level >= SKILL_MAT_DROP.seelenstein.stone ? 'Bücher, Schriftrollen, Seelensteine' : t.level >= SKILL_MAT_DROP.rolle.stone ? 'Bücher, Schriftrollen' : 'Fertigkeitsbücher';
+      return `<li><b style="color:${t.look.glow}">■</b> Stufe ${t.level} · ${t.name} <span>· ${zone ? zone.name : ''} · ${t.drop} · ${sk}</span></li>`;
     }).join('');
 
     // Startbildschirm: Charakterauswahl (4 Plätze) und Konto
@@ -523,8 +525,8 @@ const ui = {
       this.pressSkill(btn, i, slot);
       wrap.append(btn);
       wrap.insertAdjacentHTML('beforeend', '<span class="runring" hidden></span><span class="run" hidden></span>');
-      // Plus-Knopf, wenn etwas geht: Punkt setzen (der Punkt auf 15 erweckt), Buch lesen.
-      // Nur der Schritt in einen höheren Rang (kostet mehrere Bücher) läuft über das Charakterfenster.
+      // Plus-Knopf, wenn etwas geht: Punkt setzen (der Punkt auf 15 erweckt), Buch lesen bzw. seit 14.1 auch
+      // Schriftrolle oder Seelenstein nutzen. Nur der Schritt in einen höheren Rang läuft über das Charakterfenster.
       const acts = skillActions(p, i).filter((a) => a.ok);
       if (acts.length) {
         const act = acts.find((a) => a.type === 'point') || acts.find((a) => a.type === 'rankup' && rank < 0) || acts.find((a) => a.type === 'book');
@@ -1314,7 +1316,9 @@ const ui = {
       `<span><img src="${lootIconUrl('gold')}" alt=""> ${p.gold.toLocaleString('de-DE')}</span>` +
       `<span><img src="${lootIconUrl('splinter')}" alt=""> ${p.splinters}</span>` +
       `<span><img src="${scrollIconUrl()}" alt=""> ${p.scrolls}</span>` +
-      `<span title="Fertigkeitsschriftrollen in der Tasche"><img src="${lootIconUrl('book')}" alt=""> ${totalBooks(p)}</span>` +
+      `<span title="Fertigkeitsbücher in der Tasche"><img src="${lootIconUrl('book')}" alt=""> ${totalBooks(p)}</span>` +
+      // seit 14.1: Schriftrollen (H) und Seelensteine als Gegenstand (L, V)
+      SKILL_MATS.map((m) => `<span title="${m.id === 'seelenstein' ? 'Seelensteine (Gegenstand)' : 'Schriftrollen'} · ${m.tag}"><img src="${materialIconUrl(m.id)}" alt=""> ${p.materials[m.id] || 0}</span>`).join('') +
       POTION_SIZES.flatMap((sz) => ['hp', 'mp'].map((kind) => {
         const n = p.potions[potKey(kind, sz.id)] || 0;
         return n ? `<span title="${potionInfo(kind).name} (${sz.id})"><img src="${potionIconUrl(kind, sz.id)}" alt=""> ${n}</span>` : '';
@@ -1413,8 +1417,12 @@ const ui = {
     const pages = {
       status: this.elementHtml(p) + this.attrHtml(p),
       skills:
-        `<p class="sk-summary">Punkte <span class="points">${p.skillPoints}</span> · Schriftrollen <span class="points">${totalBooks(p, true)}</span>` +
-        `<span class="hint-text">1–15 mit Punkten · dann Erwacht · Heroisch, Legendär, Vollendet mit Schriftrollen</span></p>` +
+        // seit 14.1: E mit Büchern, H mit Schriftrollen, L und V mit Seelensteinen (Gegenstand)
+        `<p class="sk-summary">Punkte <span class="points">${p.skillPoints}</span>` +
+        `<span class="sk-item" title="Fertigkeitsbücher deiner Fertigkeiten · E1–E10"><img src="${lootIconUrl('book')}" alt=""> Bücher <span class="points">${totalBooks(p, true)}</span></span>` +
+        `<span class="sk-item" title="Schriftrollen · H1–H10, nur aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.rolle.stone}"><img src="${materialIconUrl('rolle')}" alt=""> Schriftrollen <span class="points">${p.materials.rolle || 0}</span></span>` +
+        `<span class="sk-item" title="Seelensteine (Gegenstand) · L1–V, nur aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.seelenstein.stone}"><img src="${materialIconUrl('seelenstein')}" alt=""> Seelensteine <span class="points">${p.materials.seelenstein || 0}</span></span>` +
+        `<span class="hint-text">1–15 mit Punkten · E1–E10 mit Fertigkeitsbüchern · H1–H10 mit Schriftrollen · L1–L10 und V mit Seelensteinen · je Stufe und Rangaufstieg einer</span></p>` +
         skillListHtml(classSkills(p), p) + ultHtml(ultimateOf(p), p),
       werte:
         `<h3>Kampf</h3><dl class="stats">` +
@@ -1544,7 +1552,8 @@ const ui = {
     klRender(msg);
   },
 
-  // Lehrmeister (seit 8.7): Fertigkeitsbücher kaufen, Status- und Fertigkeitspunkte zurücksetzen
+  // Lehrmeister (seit 8.7): Fertigkeitsbücher kaufen, Status- und Fertigkeitspunkte zurücksetzen.
+  // Seit 14.1 verkauft er nur Bücher (E1–E10); Schriftrollen und Seelensteine gibt es nur aus Seelensteinen.
   renderTeacher(msg) {
     const p = game.player;
     const c = CLASSES[p.classId];
@@ -1552,7 +1561,10 @@ const ui = {
     const skills = classSkills(p);
     const statSpent = statPointsSpent(p);
     const skillBack = skillPointsBack(p);
-    const bookBack = p.skillLevels.reduce((a, l) => a + skillBooksSpent(l), 0);
+    // seit 14.1: jede Sorte ein eigener Textteil (so lassen sich die Teile einzeln übersetzen)
+    const itemsHtml = (n) => ['book', 'rolle', 'seelenstein'].filter((k) => n[k] > 0)
+      .map((k) => `<span class="nowrap">${n[k]} ${n[k] === 1 ? SKILL_ITEMS[k].name : SKILL_ITEMS[k].many}</span>`).join(', ');
+    const itemsBack = itemsHtml(skillItemsBack(p.skillLevels));
     const stCost = resetCost(p, 'stat');
     const skCost = resetCost(p, 'skill');
     const cur = p.path || 0;
@@ -1563,29 +1575,30 @@ const ui = {
     // Magier (seit 13.63 nur hier): die Fertigkeitsstufen bleiben beim Elementwechsel, siehe changeMageElement
     const mage = p.classId === 'magier';
     $('npcBody').innerHTML =
-      `<p>„Wissen hat seinen Preis. Ich verkaufe Schriftrollen zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg.“</p>` +
+      `<p>„Wissen hat seinen Preis. Ich verkaufe Fertigkeitsbücher zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg. Schriftrollen und Seelensteine habe ich nicht – die musst du den Seelensteinen draußen abringen.“</p>` +
       `<p>Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
       (msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '') +
-      `<h3>Fertigkeitsschriftrollen <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
-      `<p class="hint">Schriftrollen braucht man ab dem Erwecken (E2–E10, Heroisch, Legendär, Vollendet).</p><div class="shop">` +
+      `<h3>Fertigkeitsbücher <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
+      `<p class="hint">Ein Fertigkeitsbuch hebt eine erweckte Fertigkeit um eine Stufe (E1–E10). Für Heroisch (H1–H10) brauchst du Schriftrollen aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.rolle.stone}, ` +
+      `für Legendär und Vollendet (L1–V) Seelensteine als Gegenstand aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.seelenstein.stone} – je Stufe und je Rangaufstieg einen.</p><div class="shop">` +
       skills.map((sk) => `<div class="shop-item"><img class="shop-icon" src="${bookIconUrl(sk.id)}" alt="">` +
-        `<strong>${sk.name}</strong><small>Fertigkeitsschriftrolle · im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
+        `<strong>${sk.name}</strong><small>Fertigkeitsbuch · im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
         `<div class="buy"><button class="mini-btn" type="button" data-book="${sk.id}" ${p.gold < TEACHER.bookPrice ? 'disabled' : ''}>Kaufen</button></div></div>`).join('') +
       `</div><h3>Punkte zurücksetzen</h3><div class="shop">` +
       `<div class="shop-item"><strong>Statuspunkte <span class="price">${fmt(stCost)} Gold</span></strong>` +
       `<small>Alle ${statSpent} verteilten Statuspunkte kommen zurück und lassen sich neu verteilen.</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="stat" ${!statSpent || p.gold < stCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `<div class="shop-item"><strong>Fertigkeitspunkte <span class="price">${fmt(skCost)} Gold</span></strong>` +
-      `<small>Alle Fertigkeiten gehen auf Stufe 1 zurück, auch erweckte (E/H/L/V). Du bekommst alle ${p.level - 1} Fertigkeitspunkte` +
-      `${bookBack ? ` und ${bookBack} gelesene Schriftrollen` : ''} zurück.</small>` +
+      `<small>Alle Fertigkeiten gehen auf Stufe 1 zurück, auch erweckte (E/H/L/V). Du bekommst alle ${p.level - 1} Fertigkeitspunkte zurück.` +
+      `${itemsBack ? `<br><span>Dazu zurück:</span> ${itemsBack}` : ''}</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!canResetSkills(p) || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
       `</div><h3>${way} wechseln <span class="price">${fmt(skCost)} Gold</span></h3>` +
       (mage
         ? `<p class="hint">Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. ` +
-          `Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen Element.</p>`
+          `Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen Element. Schriftrollen und Seelensteine gelten ohnehin für jede Fertigkeit.</p>`
         : `<p class="hint">Dein jetziger ${way} bleibt mit allen Stufen gespeichert (auch E/H/L/V) – wechselst du zurück, ist alles wieder da. ` +
           `Ein ${way}, den du schon gespielt hast, kommt genau so zurück; ein neuer beginnt auf Stufe 1 mit allen freien Punkten. ` +
-          `Schriftrollen in der Tasche werden zu Schriftrollen derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>`) +
+          `Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>`) +
       pathChoiceHtml(c, pick) +
       `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? (mage ? 'Dein jetziges Element' : `Dein jetziger ${way}`) : `${way}: ${pickName}`}</strong>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="path" ${pick === cur || p.gold < skCost ? 'disabled' : ''}>${pick === cur ? 'Gewählt' : 'Wechseln'}</button></div></div></div>` +
@@ -1603,7 +1616,7 @@ const ui = {
       const r = buyBook(sk.id);
       if (r === 'ok') {
         saveGame();
-        this.renderTeacher({ ok: true, text: `Schriftrolle „${sk.name}“ gekauft.` });
+        this.renderTeacher({ ok: true, text: `Fertigkeitsbuch „${sk.name}“ gekauft.` });
       } else this.renderTeacher({ ok: false, text: r === 'bag' ? 'Deine Tasche ist voll.' : 'Dafür reicht dein Gold nicht.' });
     }));
     body.querySelectorAll('[data-reset]').forEach((b) => b.addEventListener('click', () => {
@@ -1630,7 +1643,8 @@ const ui = {
         if (kind !== 'stat') {
           this.buildSkillBar();
           drawPortrait($('hudPortrait'), p);
-          const extra = (res.books ? ` ${res.books} Schriftrollen liegen in deiner Tasche.` : '') +
+          const back = res.items ? itemsHtml(res.items) : '';
+          const extra = (back ? ` <span>Zurück in Tasche und Aufwertungsteilen:</span> ${back}.` : '') +
             (res.moved ? ` ${res.moved === 1 ? 'Ein Teil' : res.moved + ' Teile'} deiner Ausrüstung ${res.moved === 1 ? 'liegt' : 'liegen'} jetzt in der Tasche.` : '');
           text = kind === 'path' && mage
             ? `<b>${pickName}</b> ist jetzt dein Element – deine Fertigkeiten ${res.restored ? 'haben wieder ihre früheren Stufen aus diesem Element.' : 'behalten ihre Stufen.'}` + extra
@@ -1791,12 +1805,14 @@ function drawPathSigils(box) {
 // Elementwechsel des Magiers (seit 8.6; seit 13.63 nur noch beim Lehrmeister, wie der Wegwechsel der anderen Klassen).
 // Er kostet dasselbe wie dort (ein Fertigkeiten-Zurücksetzen: 10.000 Gold, jedes weitere das Doppelte). Wie beim
 // früheren Wechsel im Menü liegen die Fertigkeitsstufen des Magiers je Platz und bleiben erhalten (auch E/H/L/V);
-// Schriftrollen des alten Elements in der Tasche werden wie bei den anderen Klassen zu Schriftrollen derselben Plätze.
+// Fertigkeitsbücher des alten Elements in der Tasche werden wie bei den anderen Klassen zu Büchern derselben Plätze.
 // Hat das neue Element noch eigene, gespeicherte Stufen aus einem früheren Wechsel beim Lehrmeister (bis 13.62 lief der
-// dort wie bei den anderen Klassen) und stecken darin mehr Punkte und Schriftrollen, kommen diese zurück und die jetzigen
+// dort wie bei den anderen Klassen) und stecken darin mehr Punkte und Gegenstände, kommen diese zurück und die jetzigen
 // werden für das alte Element gemerkt – so geht nichts verloren.
 function mageSkillWorth(levels) {
-  return skillPointsSpent(levels) + levels.reduce((a, l) => a + skillBooksSpent(l), 0);
+  // seit 14.1: Bücher, Schriftrollen und Seelensteine zählen zusammen
+  const n = skillItemsBack(levels);
+  return skillPointsSpent(levels) + n.book + n.rolle + n.seelenstein;
 }
 function changeMageElement(n) {
   const p = game.player;
@@ -2081,8 +2097,13 @@ function skillListHtml(skills, p) {
     if (p && open) {
       const acts = skillActions(p, i);
       head = r < 0 ? `Stufe ${lvl}/${SKILL_POINT_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
-      btns = acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${a.ok ? '' : a.why}">${a.label}</button>`).join('') ||
+      // seit 14.1: Symbol des Gegenstands im Knopf, Grund bei fehlendem Gegenstand sichtbar darunter (nicht nur als Titel)
+      const ico = (a) => (a.item ? `<img class="act-ico" src="${a.item === 'book' ? bookIconUrl(sk.id) : materialIconUrl(a.item)}" alt="">` : '');
+      btns = acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${escapeHtml(a.ok ? a.skip || '' : a.why)}">${ico(a)}${a.label}</button>`).join('') ||
         (r === SKILL_RANKS.length - 1 ? '<span class="hint-text">Höchste Stufe</span>' : '');
+      for (const w of new Set(acts.filter((a) => !a.ok && a.why && a.type !== 'point').map((a) => a.why))) btns += `<small class="sk-why">${escapeHtml(w)}</small>`;
+      const skip = acts.find((a) => a.ok && a.skip);
+      if (skip) btns += `<small class="sk-why ok">${escapeHtml(skip.skip)}</small>`;
     }
     const ranks = [{ r: -1, label: '1–15', color: '#cfc4a8', min: 1 }, ...SKILL_RANKS.map((rk, k) => ({ r: k, label: rk.levels > 1 ? rk.id + '1–' + rk.levels : rk.id, color: rk.color, min: rk.minLevel, name: rk.name }))];
     const rankRow = '<span class="sk-ranks">' + ranks.map((x) => {

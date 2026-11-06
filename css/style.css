@@ -2945,6 +2945,14 @@ body.aiming canvas { cursor: crosshair; }
 .sk-rank small { font-size: 10px; font-weight: 700; line-height: 1; }
 .sk-arrow { font-style: normal; color: var(--muted); font-size: 14px; margin: 0 1px 12px; }
 @media (max-width: 720px) { .sk-rank img { width: 28px; height: 28px; } .sk-cards .icon { width: 44px !important; height: 44px !important; } }
+/* seit 14.1: Gegenstände der Ränge (Bücher, Schriftrollen, Seelensteine) in der Kopfzeile und an den Knöpfen */
+.sk-summary .sk-item { display: inline-flex; align-items: center; gap: 4px; }
+.sk-summary .sk-item img { width: 22px; height: 22px; }
+.sk-cards .meta { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.sk-cards .meta .mini-btn { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+.sk-cards .meta .act-ico { width: 18px; height: 18px; margin: -2px 0; }
+.sk-cards .meta .sk-why { display: block; white-space: normal; max-width: 210px; margin: 0; font-size: 11px; line-height: 1.25; color: #ffb08a; text-align: right; }
+.sk-cards .meta .sk-why.ok { color: #b9e39a; }
 
 /* --- Version 13.1: Klassensegen (30 Minuten, nur aktivieren) ------------------------------------ */
 .slot.skill.segen { border-radius: 50%; overflow: visible; box-shadow: 0 0 0 2px #120c08, 0 0 0 3px #b8e8ff, 0 0 0 5px #120c08, 0 3px 10px rgba(0, 0, 0, 0.6); }

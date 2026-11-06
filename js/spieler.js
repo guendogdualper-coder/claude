@@ -3,17 +3,40 @@
 const SAVE_KEY = 'seelenstein.spielstand.v1';
 const MAX_LEVEL = 80; // seit 13.37 (vorher 99)
 // Fertigkeiten: Stufe 1–15 mit Fertigkeitspunkten. Auf Stufe 15 erweckt ein Klick die Fertigkeit
-// (E1, kostet einen Punkt). In den Rängen steigt man mit Fertigkeitsbüchern; aus den letzten drei
-// Stufen eines Rangs geht es mit mehreren Büchern in den nächsten Rang.
-// E1 bleibt intern Stufe 18, die Stufen 16/17 werden seit 8.5 nicht mehr erreicht.
+// (E1, kostet einen Punkt). E1 bleibt intern Stufe 18, die Stufen 16/17 werden seit 8.5 nicht mehr erreicht.
+// Seit 14.1 kostet jede Stufe in einem Rang genau einen Gegenstand dieses Rangs (item, siehe SKILL_ITEMS):
+//   E1–E10  je 1 Fertigkeitsbuch der Fertigkeit       (Seelensteine aller Stufen, Lehrmeister, Belohnungen)
+//   H1–H10  je 1 Schriftrolle, für jede Fertigkeit     (nur Seelensteine ab Stufe 40)
+//   L1–V    je 1 Seelenstein (Gegenstand), für jede    (nur Seelensteine ab Stufe 45)
+// Der Aufstieg in den nächsten Rang kostet einen Gegenstand des NEUEN Rangs (books = 1) und geht wie bisher schon aus
+// den letzten drei Stufen eines Rangs (z. B. E8, E9, E10 → H1). Die übersprungenen Stufen kosten nichts extra: Das war
+// schon vor 14.1 so, H1 ist von E8 aus dasselbe wie von E10, und das Zurücksetzen gibt genau diesen kürzesten Weg zurück.
+// Vorher (bis 14.0) brauchte alles Fertigkeitsschriftrollen der Fertigkeit, der Aufstieg 3/5/10 Stück.
 const SKILL_POINT_MAX = 15;
 const SKILL_BASE_MAX = 17; // Kurvenanker für dmgScale/buffScale, nicht ändern
 const SKILL_RANKS = [
-  { id: 'E', name: 'Erwacht', from: 18, levels: 10, minLevel: 1, books: 0, color: '#9fd0ff' },
-  { id: 'H', name: 'Heroisch', from: 28, levels: 10, minLevel: 35, books: 3, color: '#c58cff' },
-  { id: 'L', name: 'Legendär', from: 38, levels: 10, minLevel: 50, books: 5, color: '#ffd34d' },
-  { id: 'V', name: 'Vollendet', from: 48, levels: 1, minLevel: 65, books: 10, color: '#ff6a4a' }
+  { id: 'E', name: 'Erwacht', from: 18, levels: 10, minLevel: 1, books: 0, item: 'book', color: '#9fd0ff' },
+  { id: 'H', name: 'Heroisch', from: 28, levels: 10, minLevel: 35, books: 1, item: 'rolle', color: '#c58cff' },
+  { id: 'L', name: 'Legendär', from: 38, levels: 10, minLevel: 50, books: 1, item: 'seelenstein', color: '#ffd34d' },
+  { id: 'V', name: 'Vollendet', from: 48, levels: 1, minLevel: 65, books: 1, item: 'seelenstein', color: '#ff6a4a' }
 ];
+// seit 14.1: die Gegenstände der Ränge (Namen, Knöpfe, Gründe). books in SKILL_RANKS = Anzahl für den Aufstieg.
+const SKILL_ITEMS = {
+  book: { name: 'Fertigkeitsbuch', many: 'Fertigkeitsbücher', use: 'Buch lesen',
+    missing: () => 'Kein Fertigkeitsbuch dieser Fertigkeit – aus Seelensteinen, beim Lehrmeister oder als Belohnung' },
+  rolle: { name: 'Schriftrolle', many: 'Schriftrollen', use: 'Schriftrolle nutzen',
+    missing: () => `Keine Schriftrolle – Schriftrollen gibt es nur aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.rolle.stone}` },
+  seelenstein: { name: 'Seelenstein', many: 'Seelensteine', use: 'Seelenstein nutzen',
+    missing: () => `Kein Seelenstein (Gegenstand) – den gibt es nur aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.seelenstein.stone}` }
+};
+// Wie viele Gegenstände einer Sorte die Figur hat (Bücher je Fertigkeit, Schriftrollen und Seelensteine für alle)
+function skillItemHave(p, item, skId) {
+  return item === 'book' ? bookCount(p, skId) : Math.max(0, (p.materials && p.materials[item]) || 0);
+}
+function skillItemTake(p, item, skId, n = 1) {
+  if (item === 'book') takeBooks(p, skId, n);
+  else p.materials[item] = Math.max(0, (p.materials[item] || 0) - n);
+}
 const MAX_SKILL_LEVEL = 48;
 
 // Rang einer Fertigkeitsstufe: -1 = normal, sonst Index in SKILL_RANKS
@@ -49,13 +72,25 @@ function skillActions(p, i) {
     else out.push({ type: 'rankup', label: `Erwecken → ${SKILL_RANKS[0].id}1`, ok: true, why: '' });
     return out;
   }
+  // seit 14.1: type 'book' heißt „eine Stufe im Rang“, item sagt womit (Buch, Schriftrolle oder Seelenstein)
   const rank = SKILL_RANKS[r];
   const pos = lvl - rank.from + 1;
-  const have = bookCount(p, sk.id);
-  if (pos < rank.levels) out.push({ type: 'book', label: `Schriftrolle lesen (${have})`, ok: have > 0, why: `Keine Schriftrolle „${sk.name}“` });
+  const it = SKILL_ITEMS[rank.item];
+  const have = skillItemHave(p, rank.item, sk.id);
+  if (pos < rank.levels) out.push({ type: 'book', item: rank.item, label: `${it.use} (${have})`, ok: have > 0, why: have > 0 ? '' : it.missing(sk) });
   const next = SKILL_RANKS[r + 1];
   if (next && pos >= rank.levels - 2) {
-    out.push({ type: 'rankup', label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} (${have}/${next.books} Schriftrollen)`, ok: have >= next.books && p.level >= next.minLevel, why: p.level < next.minLevel ? `ab Stufe ${next.minLevel}` : `${next.books} Schriftrollen „${sk.name}“ nötig` });
+    const nit = SKILL_ITEMS[next.item];
+    const nhave = skillItemHave(p, next.item, sk.id);
+    const lack = nhave < next.books;
+    // übersprungene Stufen (Aufstieg aus E8 oder E9) kosten nichts extra
+    const skip = pos < rank.levels ? `Überspringt ${rank.id}${pos + 1}${pos + 1 < rank.levels ? '–' + rank.id + rank.levels : ''} ohne Mehrkosten.` : '';
+    out.push({
+      type: 'rankup', item: next.item, skip,
+      label: `${next.name} → ${next.levels === 1 ? next.id : next.id + '1'} · ${nit.name} (${nhave})`,
+      ok: !lack && p.level >= next.minLevel,
+      why: p.level < next.minLevel ? `${next.name} ab Stufe ${next.minLevel}` : lack ? nit.missing(sk) : ''
+    });
   }
   return out;
 }
@@ -90,7 +125,10 @@ function barEntryName(p, v) {
 const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoints', 'skillLevels', 'potions',
   'splinters', 'kills', 'stones', 'deaths', 'hp', 'mp', 'x', 'y', 'playTime', 'equipment', 'inventory', 'scrolls', 'itemsVersion', 'attrs', 'statPoints', 'materials', 'worldVersion', 'quests', 'upmats', 'books', 'skillOrder', 'horse', 'riding', 'dualWield', 'titanGrip', 'dagger2', 'quiverGiven', 'goldGift', 'pathSkills', 'ultCd', 'friends', 'guild', 'look', 'daily', 'horseTier', 'resets', 'storage', 'quick', 'quickSet', 'arrows', 'bowPathGift',
   // seit 13.86: Turnierarena (turnierarena.js) – Rangpunkte, Siege, Niederlagen, offener Rangkampf
-  'pvp'];
+  'pvp',
+  // seit 14.1: Stand des Rang-Aufstiegs (Bücher, Schriftrollen, Seelensteine) für den einmaligen Hinweis
+  'skillCostVer'];
+const SKILL_COST_VER = 1;
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
 const STAT_POINTS_PER_LEVEL = 2; // seit 13.49 zwei je Stufe (10.1 bis 13.48 einer, davor drei)
@@ -140,8 +178,8 @@ function newCharacter(name, classId, path = 0, look = null) {
     hp: null, mp: null, x: null, y: null, playTime: 0,
     equipment: starterEquipment(classId), inventory: [], scrolls: 0, itemsVersion: 3,
     attrs: { str: 0, vit: 0, int: 0, dex: 0 }, statPoints: 0,
-    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0, switch67: 0 },
-    worldVersion: WORLD_VERSION, quests: null, upmats: {}, books: 0
+    materials: { boniPlus: 0, boni5: 0, switcher: 0, star: 0, switch67: 0, rolle: 0, seelenstein: 0 },
+    worldVersion: WORLD_VERSION, quests: null, upmats: {}, books: 0, skillCostVer: SKILL_COST_VER
   };
 }
 
@@ -211,7 +249,13 @@ function makePlayer(save) {
     }
     return lvl;
   });
-  p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, switch67: 0, ...(save.materials || {}) };
+  p.materials = { boniPlus: 0, boni5: 0, switcher: 0, star: 0, switch67: 0, rolle: 0, seelenstein: 0, ...(save.materials || {}) };
+  // seit 14.1: neuer Aufstieg der Ränge. Fertigkeiten auf E/H/L/V behalten ihre Stufe, Bücher in Tasche und Lager
+  // bleiben (gelten jetzt für E1–E10). Beim ersten Start danach erklärt ein Hinweis im Log den neuen Weg (spiel.js).
+  if ((save.skillCostVer || 0) < SKILL_COST_VER) {
+    p.skillCostNotice = true;
+    p.skillCostVer = SKILL_COST_VER;
+  }
   // Spielstände ohne Statuswerte bekommen die Punkte aller bisherigen Stufen nachträglich
   if (!save.attrs) {
     p.attrs = { str: 0, vit: 0, int: 0, dex: 0 };
@@ -529,17 +573,33 @@ function resetStats() {
   return true;
 }
 // Fertigkeiten zurücksetzen (seit 10.2): alle fünf auf Stufe 1, auch erweckte (E/H/L/V), alle Fertigkeitspunkte
-// zurück (eine je Stufe ab 2). Die gelesenen Bücher kommen als Bücher zurück – so viele, wie der Rang mindestens
-// gekostet hat (Rangaufstieg geht schon 2 Stufen vor dem Ende eines Rangs). Wahlweise mit neuem Weg der Klasse.
-function skillBooksSpent(lvl) {
+// zurück (eine je Stufe ab 2). Wahlweise mit neuem Weg der Klasse.
+// Seit 14.1 kommen die Gegenstände zurück, die die Stufe mindestens gekostet hat (Rangaufstieg geht schon 2 Stufen vor
+// dem Ende eines Rangs): Bücher für E, Schriftrollen für H, Seelensteine für L und V. V kostet so 7 Bücher,
+// 8 Schriftrollen und 9 Seelensteine. Gezählt wird nach der Stufe, nicht danach, womit sie vor 14.1 bezahlt wurde.
+function skillItemsSpent(lvl) {
+  const out = { book: 0, rolle: 0, seelenstein: 0 };
   const r = skillRank(lvl);
-  if (r < 0) return 0;
-  let n = lvl - SKILL_RANKS[r].from;
-  for (let k = 1; k <= r; k++) n += Math.max(0, SKILL_RANKS[k - 1].levels - 3) + SKILL_RANKS[k].books;
-  return n;
+  if (r < 0) return out;
+  // abgeschlossene Ränge auf dem kürzesten Weg (bis zur drittletzten Stufe), dazu je ein Gegenstand für den Aufstieg
+  for (let k = 0; k < r; k++) out[SKILL_RANKS[k].item] += Math.max(0, SKILL_RANKS[k].levels - 3);
+  for (let k = 1; k <= r; k++) out[SKILL_RANKS[k].item] += SKILL_RANKS[k].books;
+  out[SKILL_RANKS[r].item] += lvl - SKILL_RANKS[r].from;
+  return out;
+}
+// Summe über alle Fertigkeiten (für Lehrmeister und Elementwechsel)
+function skillItemsBack(levels) {
+  const out = { book: 0, rolle: 0, seelenstein: 0 };
+  for (const l of levels || []) { const n = skillItemsSpent(l); for (const k in out) out[k] += n[k]; }
+  return out;
+}
+// Text wie „3 Fertigkeitsbücher, 1 Schriftrolle“ (leer, wenn nichts)
+function skillItemsText(n) {
+  return ['book', 'rolle', 'seelenstein'].filter((k) => n[k] > 0)
+    .map((k) => `${n[k]} ${n[k] === 1 ? SKILL_ITEMS[k].name : SKILL_ITEMS[k].many}`).join(', ');
 }
 // Fertigkeitspunkte (seit 13.37 begrenzt): mehr als nötig, um alle fünf Fertigkeiten auf E1 zu bringen
-// (je 14 Punkte), gibt es nicht. Danach geht es nur noch mit Schriftrollen weiter.
+// (je 14 Punkte), gibt es nicht. Danach geht es mit Büchern, Schriftrollen und Seelensteinen weiter (seit 14.1).
 const SKILL_POINT_CAP = 5 * (SKILL_POINT_MAX - 1);
 function skillPointsSpent(levels) {
   return (levels || []).reduce((a, l) => a + (skillRank(l) >= 0 ? SKILL_POINT_MAX - 1 : Math.max(0, Math.min(l, SKILL_POINT_MAX) - 1)), 0);
@@ -575,7 +635,7 @@ function resetSkills(path = game.player.path || 0) {
   const c = CLASSES[p.classId];
   if (!c.paths[path] || !canResetSkills(p, path) || !payReset(p, 'skill')) return false;
   const oldPath = p.path || 0;
-  const books = p.skillLevels.map(skillBooksSpent);
+  const books = p.skillLevels.map(skillItemsSpent);
   let moved = [];
   let restored = false;
   endSkillEffects(p);
@@ -587,7 +647,7 @@ function resetSkills(path = game.player.path || 0) {
     });
     // Seit 13.24 bleibt jeder Weg mit seinen Stufen gespeichert (z. B. E2, 10, …): der alte Weg wird gemerkt,
     // ein schon gespielter Weg kommt genau so zurück. Punkte, die dort stecken, bleiben dort; neue Stufen geben
-    // neue Punkte. Gelesene Schriftrollen gehören zu ihrem Weg und kommen deshalb nicht in die Tasche.
+    // neue Punkte. Gelesene Bücher, Schriftrollen und Seelensteine gehören zu ihrem Weg und kommen nicht zurück.
     if (!p.pathSkills || typeof p.pathSkills !== 'object') p.pathSkills = {};
     p.pathSkills[oldPath] = { levels: p.skillLevels.slice(), spent: skillPointsSpent(p.skillLevels) };
     p.path = path;
@@ -606,17 +666,21 @@ function resetSkills(path = game.player.path || 0) {
     game.stats = playerStats(p);
     p.hp = Math.min(p.hp, game.stats.maxHp);
     p.mp = Math.min(p.mp, game.stats.maxMp);
-    return { books: 0, moved: moved.length, changed: true, restored };
+    return { books: 0, items: null, moved: moved.length, changed: true, restored };
   }
   const skills = classSkills(p);
-  books.forEach((n, i) => giveBooks(p, skills[i].id, n));
+  // seit 14.1: Bücher zur jeweiligen Fertigkeit, Schriftrollen und Seelensteine als Zähler
+  const items = skillItemsBack(p.skillLevels);
+  books.forEach((n, i) => giveBooks(p, skills[i].id, n.book));
+  p.materials.rolle = (p.materials.rolle || 0) + items.rolle;
+  p.materials.seelenstein = (p.materials.seelenstein || 0) + items.seelenstein;
   p.skillLevels = [1, 1, 1, 1, 1];
   p.skillPoints = p.level - 1;
   clampSkillPoints(p);
   game.stats = playerStats(p);
   p.hp = Math.min(p.hp, game.stats.maxHp);
   p.mp = Math.min(p.mp, game.stats.maxMp);
-  return { books: books.reduce((a, n) => a + n, 0), moved: moved.length, changed: path !== oldPath };
+  return { books: items.book, items, moved: moved.length, changed: path !== oldPath };
 }
 // --- Lager (seit 9.1) ------------------------------------------------------------------------------
 // Bei jedem Lagerverwalter (Vlotho und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,
@@ -667,7 +731,8 @@ function takeItem(p, i) {
   return 'ok';
 }
 
-// Ein Fertigkeitsbuch der eigenen Klasse kaufen
+// Ein Fertigkeitsbuch der eigenen Klasse kaufen (seit 14.1 nur noch für E1–E10; Schriftrollen und Seelensteine
+// gibt es beim Lehrmeister nicht)
 function buyBook(id) {
   const p = game.player;
   if (p.gold < TEACHER.bookPrice) return 'gold';
@@ -724,14 +789,15 @@ function upgradeSkill(i, type = 'point') {
     // Stufe 15 erreicht: sofort erweckt (E1)
     if (p.skillLevels[i] >= SKILL_POINT_MAX) awakenSkill(p, i, sk);
   } else if (type === 'book') {
+    // seit 14.1: E mit Buch, H mit Schriftrolle, L mit Seelenstein
+    skillItemTake(p, act.item, sk.id, 1);
     p.skillLevels[i]++;
-    takeBooks(p, sk.id, 1);
   } else {
     // in den nächsten Rang (Erwecken kostet seit 8.9 nichts mehr, es passiert auf 15 von selbst)
     const next = SKILL_RANKS[skillRank(lvl) + 1];
     if (next === SKILL_RANKS[0]) awakenSkill(p, i, sk);
     else {
-      takeBooks(p, sk.id, next.books);
+      skillItemTake(p, next.item, sk.id, next.books);
       p.skillLevels[i] = next.from;
       ui.banner(`${next.name}: ${skillRankName(sk, next.from)}`, `${skillRankName(sk, lvl)} wird zu ${skillRankName(sk, next.from)} (${skillLevelText(next.from)})`);
       vfxLevelUp(p);

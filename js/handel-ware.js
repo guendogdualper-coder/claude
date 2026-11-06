@@ -1,11 +1,12 @@
 // Waren für Post und Auktionshaus (seit 13.63). Eine Ware ist entweder ein Gegenstand aus der Tasche (Ausrüstung oder
-// ein Stapel Fertigkeitsschriftrollen, Format wie im Spielstand, siehe ausruestung.js) oder eine Menge eines Vorrats:
+// ein Stapel Fertigkeitsbücher, Format wie im Spielstand, siehe ausruestung.js) oder eine Menge eines Vorrats:
 //   { t: 'it', it: { uid, slot, tier, plus, rarity, cls, kind, bonuses, specials, legend, raidMat } }  Ausrüstung
-//   { t: 'it', it: { uid, book, count } }                                                         Schriftrollen
+//   { t: 'it', it: { uid, book, count } }                                                         Fertigkeitsbücher
 //   { t: 'trank', k: 'hp' | 'mpL' …, n }    Tränke (Schlüssel wie p.potions)
 //   { t: 'segen', n }                       Segensschriftrollen (p.scrolls)
 //   { t: 'pfeil', i, n }                    Pfeile einer Sorte (p.arrows[i])
-//   { t: 'mat', id, n }                     Verstärkungen und Steine (p.materials)
+//   { t: 'mat', id, n }                     Verstärkungen und Steine (p.materials), seit 14.1 auch Schriftrollen
+//                                           und Seelensteine (Gegenstand) für die Fertigkeiten (ALL_MATS)
 //   { t: 'teil', id, n }                    Teile von Monstern (p.upmats)
 //   { t: 'splitter', n }                    Seelensplitter
 // In der Datenbank liegen Waren als Text (JSON). Was von dort kommt, prüft wareClean Feld für Feld: nur bekannte
@@ -72,7 +73,7 @@ function wareClean(raw) {
     case 'trank': return warePot(raw.k) && isInt(n, 1, WARE_MAX_N) ? { t: 'trank', k: raw.k, n } : null;
     case 'segen': return isInt(n, 1, WARE_MAX_N) ? { t: 'segen', n } : null;
     case 'pfeil': return isInt(raw.i, 0, ARROW_TYPES.length - 1) && isInt(n, 1, WARE_MAX_N) ? { t: 'pfeil', i: raw.i, n } : null;
-    case 'mat': return MATERIALS.some((m) => m.id === raw.id) && isInt(n, 1, WARE_MAX_N) ? { t: 'mat', id: raw.id, n } : null;
+    case 'mat': return ALL_MATS.some((m) => m.id === raw.id) && isInt(n, 1, WARE_MAX_N) ? { t: 'mat', id: raw.id, n } : null;
     case 'teil': return typeof raw.id === 'string' && Object.prototype.hasOwnProperty.call(MOB_MATS, raw.id) && isInt(n, 1, WARE_MAX_N) ? { t: 'teil', id: raw.id, n } : null;
     case 'splitter': return isInt(n, 1, WARE_MAX_N) ? { t: 'splitter', n } : null;
     default: return null;
@@ -99,7 +100,7 @@ function wareSupplies(p) {
   }
   if (p.scrolls > 0) out.push({ t: 'segen', n: p.scrolls });
   for (let i = 0; i < ARROW_TYPES.length; i++) if (p.arrows && p.arrows[i] > 0) out.push({ t: 'pfeil', i, n: p.arrows[i] });
-  for (const m of MATERIALS) if ((p.materials[m.id] || 0) > 0) out.push({ t: 'mat', id: m.id, n: p.materials[m.id] });
+  for (const m of ALL_MATS) if ((p.materials[m.id] || 0) > 0) out.push({ t: 'mat', id: m.id, n: p.materials[m.id] });
   for (const [id, n] of Object.entries(p.upmats || {})) if (n > 0 && MOB_MATS[id]) out.push({ t: 'teil', id, n });
   if (p.splinters > 0) out.push({ t: 'splitter', n: p.splinters });
   return out;
@@ -167,7 +168,7 @@ function wareGive(p, w) {
     case 'splitter': p.splinters = (p.splinters || 0) + w.n; break;
   }
 }
-// Passt das alles in die Tasche? (Ausrüstung braucht je einen Platz, Schriftrollen höchstens einen je Stapel)
+// Passt das alles in die Tasche? (Ausrüstung braucht je einen Platz, Fertigkeitsbücher höchstens einen je Stapel)
 function wareRoom(p, list) {
   const need = list.reduce((a, w) => a + (w.t !== 'it' ? 0 : isBook(w.it) ? Math.ceil(w.it.count / BOOK_STACK) : 1), 0);
   return p.inventory.length + need <= BAG_SIZE;
@@ -176,11 +177,11 @@ function wareRoom(p, list) {
 // --- Anzeige ---------------------------------------------------------------------------------------------
 function wareName(w) {
   switch (w.t) {
-    case 'it': return isBook(w.it) ? `Schriftrolle: ${skillEntry(w.it.book).sk.name}` : itemFullName(w.it);
+    case 'it': return isBook(w.it) ? `Fertigkeitsbuch: ${skillEntry(w.it.book).sk.name}` : itemFullName(w.it);
     case 'trank': { const x = warePot(w.k); return `${potionInfo(x.kind).name} ${x.sz.id}`; }
     case 'segen': return BLESSING.name;
     case 'pfeil': return ARROW_TYPES[w.i].name;
-    case 'mat': return MATERIALS.find((m) => m.id === w.id).name;
+    case 'mat': return w.id === 'seelenstein' ? 'Seelenstein (Gegenstand)' : matDef(w.id).name;
     case 'teil': return MOB_MATS[w.id].name;
     case 'splitter': return 'Seelensplitter';
   }
@@ -223,7 +224,11 @@ function wareTip(w) {
     case 'trank': { const x = warePot(w.k); const info = potionInfo(x.kind); return name + `<small>${info.kind} (${x.sz.name}) · ab Stufe ${x.sz.level}</small><span>+${fmtN(x.kind === 'hp' ? x.sz.hp : x.sz.mp)} ${x.kind === 'hp' ? 'Leben' : 'Mana'} je Trank</span>`; }
     case 'segen': return name + `<small>Für den Schmied</small><span>${BLESSING.text}</span>`;
     case 'pfeil': { const a = ARROW_TYPES[w.i]; return name + `<small>Munition für den Bogen · ab Stufe ${a.level}</small><span>+${Math.round(a.dmg * 100)} % Schaden aller Bogenschüsse</span>`; }
-    case 'mat': { const m = MATERIALS.find((x) => x.id === w.id); return name + `<small>Verstärkung für den Gegenstand</small><span>${m.text}</span>`; }
+    case 'mat': {
+      const m = matDef(w.id);
+      // seit 14.1: Schriftrollen und Seelensteine sind für die Fertigkeiten, nicht für den Schmied
+      return name + `<small>${SKILL_MATS.includes(m) ? 'Für deine Fertigkeiten · ' + m.tag : 'Verstärkung für den Gegenstand'}</small><span>${m.text}</span>`;
+    }
     case 'teil': return name + `<small>Teil von Monstern · für den Schmied</small>` + (typeof mobMatTip === 'function' ? `<span>${mobMatTip(w.id)}</span>` : '');
     case 'splitter': return name + '<small>Für den Schmied</small><span>Seelensplitter braucht der Schmied zum Verbessern.</span>';
   }
@@ -246,15 +251,17 @@ function wareInfo(w) {
     return { kat: 'ruestung', art: it.slot, cls: it.cls || null, selt: rarityOf(it), stufe: lv, plus: it.plus };
   }
   const v = { kat: 'verbrauch', cls: null, selt: 0, plus: 0, stufe: 1 };
-  if (w.t === 'it') return Object.assign(v, { art: 'schrift', cls: skillEntry(w.it.book).cls });
+  if (w.t === 'it') return Object.assign(v, { art: 'buch', cls: skillEntry(w.it.book).cls }); // seit 14.1 eigene Art
   if (w.t === 'trank') return Object.assign(v, { art: 'trank', stufe: warePot(w.k).sz.level });
   if (w.t === 'segen') return Object.assign(v, { art: 'schrift' });
   if (w.t === 'pfeil') return Object.assign(v, { art: 'pfeil', cls: 'ninja', stufe: ARROW_TYPES[w.i].level });
+  // seit 14.1: Schriftrollen zu den Schriftrollen, Seelensteine (Gegenstand) zur Aufwertung
+  if (w.t === 'mat' && w.id === 'rolle') return Object.assign(v, { art: 'schrift' });
   return Object.assign(v, { art: 'aufwertung' });
 }
 
 // --- Auswahl von Waren (Brief schreiben, Auktion einstellen) ----------------------------------------------
-// Zeigt Tasche (mit Seiten) und Vorräte; Antippen wählt aus bzw. ab. Bei Vorräten und Schriftrollen-Stapeln lässt sich
+// Zeigt Tasche (mit Seiten) und Vorräte; Antippen wählt aus bzw. ab. Bei Vorräten und Bücherstapeln lässt sich
 // die Anzahl einstellen. state: { sel: [{ key, w, n }], page, max }
 function warePickHtml(st) {
   const p = game.player;
@@ -302,7 +309,7 @@ function warePickWire(el, st, onChange) {
         if (st.max !== 1) return;
         st.sel.length = 0;
       }
-      // Vorräte: erst einmal alles, Schriftrollen der ganze Stapel
+      // Vorräte: erst einmal alles, Fertigkeitsbücher der ganze Stapel
       st.sel.push({ key, w: w.t === 'it' ? { t: 'it', it: w.it } : w, n: wareCount(w) });
     }
     onChange();

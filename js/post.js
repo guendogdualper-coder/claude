@@ -1,5 +1,5 @@
 // Post (seit 13.63): Briefe an andere Charaktere, auch an Spieler, die gerade nicht online sind. In einen Brief kann
-// man Gold und bis zu sechs Sachen legen (Ausrüstung, Schriftrollen, Tränke, Pfeile, Material). Briefkasten ist die
+// man Gold und bis zu sechs Sachen legen (Ausrüstung, Fertigkeitsbücher, Tränke, Pfeile, Material – seit 14.1 auch Schriftrollen und Seelensteine). Briefkasten ist die
 // Postmeisterin in jeder Stadt und jedem Lager (welt.js, Bild und Stand in handel-npc.js).
 // Gespeichert wird in der Datenbank des Kontos (handel-db.js):
 //   namen/<name klein>  → { uid, name, cls, at }   Wer einen Charakter mit Konto spielt, meldet seinen Namen an.

@@ -520,9 +520,10 @@ function addToBag(item) {
 }
 
 // --- Fertigkeitsbücher --------------------------------------------------------------------
-// Jedes Buch gehört zu genau einer Fertigkeit, aus allen Klassen und Wegen. Seelensteine lassen
-// Bücher zu zufälligen Fertigkeiten fallen: Oft ist es nicht das eigene, dann verkauft man es.
-// In der Tasche liegen Bücher gestapelt: { book: 'schwertaura', count: 3 }
+// Jedes Buch gehört zu genau einer Fertigkeit, aus allen Klassen und Wegen. Bücher fremder Klassen
+// (aus dem Handel) verkauft oder tauscht man. In der Tasche liegen Bücher gestapelt: { book: 'schwertaura', count: 3 }
+// Seit 14.1 heißen sie wieder „Fertigkeitsbuch“ (10.4 bis 14.0 „Fertigkeitsschriftrolle“, das Format blieb gleich) und
+// tragen eine Fertigkeit nur noch von E1 bis E10. Für H gibt es Schriftrollen, für L und V Seelensteine (SKILL_MATS).
 const BOOK_STACK = 99;
 const BOOK_PRICE = 2500;
 let allSkillsCache = null;
@@ -597,8 +598,9 @@ function addBookItem(p, id, n = 1, force = false) {
 // Ohne pool zieht jedes Buch mit OWN_BOOK_BIAS aus den eigenen Fertigkeiten: Mit dem Magier (8.6) wuchs der
 // Pool von 38 auf 58 Bücher; so bleiben eigene Bücher so häufig wie vorher (0,05 + 0,95 · 5/58 ≈ 13 %).
 const OWN_BOOK_BIAS = 0.05;
-// Seit 10.4: Fertigkeitsschriftrollen fallen erst aus Seelensteinen ab dieser Stufe, immer für die eigene Klasse
-const SKILL_SCROLL_STONE = 40;
+// Seit 10.4 fielen die Bücher (damals Fertigkeitsschriftrollen) erst aus Seelensteinen ab Stufe 40. Seit 14.1 fallen
+// sie aus Seelensteinen aller Stufen und ganz selten von Monstern; ab dieser Stufe fallen Schriftrollen (SKILL_MAT_DROP).
+const SKILL_SCROLL_STONE = SKILL_MAT_DROP.rolle.stone;
 const ownClassSkillIds = (p) => [...new Set(CLASSES[p.classId].paths.flatMap((pt) => pt.skills.map((sk) => sk.id)))];
 function addBooks(n, from, pool) {
   const p = game.player;
@@ -609,23 +611,67 @@ function addBooks(n, from, pool) {
     const id = mine ? mine[Math.floor(Math.random() * mine.length)] : ids[Math.floor(Math.random() * ids.length)];
     const sk = skillEntry(id).sk;
     if (!addBookItem(p, id, 1)) {
-      ui.log(`Deine Tasche ist voll: Schriftrolle „${sk.name}“ bleibt liegen.`, 'warn');
+      ui.log(`Deine Tasche ist voll: Fertigkeitsbuch „${sk.name}“ bleibt liegen.`, 'warn');
       continue;
     }
     got.push(sk.name);
     const own = ownBook(p, id);
-    ui.loot('Schriftrolle: ' + sk.name, 1, bookIconUrl(id), own ? '#ffd34d' : '#c58cff');
-    if (own) ui.log(`Eine Schriftrolle für deine Fertigkeit ${sk.name}!`, 'level');
+    ui.loot('Fertigkeitsbuch: ' + sk.name, 1, bookIconUrl(id), own ? '#ffd34d' : '#c58cff');
+    if (own) ui.log(`Ein Fertigkeitsbuch für deine Fertigkeit ${sk.name}!`, 'level');
     if (from && !ui.dropAt) later(0.2 + k * 0.12, () => vfxLootFly(from, bookSprite(id).img));
   }
   if (got.length) ui.buildSkillBar();
   return got;
 }
 
-// Fertigkeitsschriftrolle (seit 10.4, vorher ein Buch): aufrechte Hängerolle wie ein fernöstliches Rollbild –
-// Pergament mit Rand in der Farbe der Klasse, oben und unten ein dunkler Holzstab mit goldenen Knäufen, in der Mitte
-// das Symbol der Fertigkeit in einem goldenen Siegel, unten eine Quaste. (Die Segensschriftrolle liegt quer.)
+// Schriftrolle oder Seelenstein (Gegenstand) aufheben (seit 14.1): Zähler in p.materials, wie die Verstärkungen
+function addSkillMat(id, n, from) {
+  const p = game.player;
+  p.materials[id] = (p.materials[id] || 0) + n;
+  const m = matDef(id);
+  ui.loot(id === 'seelenstein' ? 'Seelenstein (Gegenstand)' : m.name, n, materialIconUrl(id), MATERIAL_COLORS[id]);
+  ui.log(id === 'seelenstein' ? 'Ein Seelenstein als Gegenstand! Er hebt eine Fertigkeit in L oder V um eine Stufe.' : 'Eine Schriftrolle! Sie hebt eine Fertigkeit in H um eine Stufe.', 'level');
+  if (from && !ui.dropAt) later(0.25, () => vfxLootFly(from, materialIconCanvas(id)));
+  ui.buildSkillBar();
+}
+
+// Fertigkeitsbuch (seit 14.1 wieder ein Buch; 10.4 bis 14.0 eine Hängerolle): gebundenes Buch mit Einband in der
+// Farbe der Klasse, dunklem Rücken mit Goldbändern, Seitenschnitt rechts und unten, goldenen Eckbeschlägen, einem
+// Lesebändchen und dem Symbol der Fertigkeit in einem goldenen Medaillon auf dem Deckel.
 const BOOK_COVERS = { krieger: ['#8a2a1a', '#c8502a'], ninja: ['#3a2a5a', '#6a4a9a'], schamane: ['#145a5a', '#2a8a8a'], nekromant: ['#2a4a1a', '#4a7a2a'], magier: ['#1e2458', '#4a5ab8'] };
+function drawSkillBook(ctx, dark, light, icon) {
+  // Rückdeckel und Seitenblock (rechts und unten sichtbar)
+  box(ctx, -11, -14, 24, 30, 2.2, dark);
+  box(ctx, -11, -15.5, 23, 29.5, 1.2, '#f1e6c4');
+  for (const x of [10.2, 11.2]) stroke(ctx, '#c9b583', 0.5, [[x, -13.5], [x, 12.5]]);
+  for (const y of [12.6, 13.4]) stroke(ctx, '#c9b583', 0.5, [[-8, y], [10.5, y]]);
+  // Lesebändchen
+  poly(ctx, [[4.5, 12], [7.5, 12], [7.5, 19], [6, 17.4], [4.5, 19]], '#c8302a');
+  // Vorderdeckel mit Rücken
+  box(ctx, -13.5, -17, 23, 29, 2.2, light);
+  box(ctx, -13.5, -17, 5.2, 29, 2, dark);
+  for (const y of [-13, -9.5, 4.5, 8]) stroke(ctx, '#e8b83a', 1.1, [[-13.2, y], [-8.6, y]]);
+  // Zierrahmen und Eckbeschläge
+  ctx.strokeStyle = 'rgba(255, 220, 140, 0.55)';
+  ctx.lineWidth = 0.7;
+  ctx.strokeRect(-6.6, -14.4, 14, 23.8);
+  poly(ctx, [[9.5, -17], [9.5, -12.5], [5, -17]], '#e8b83a');
+  poly(ctx, [[9.5, 12], [9.5, 7.5], [5, 12]], '#e8b83a');
+  // Medaillon mit dem Symbol der Fertigkeit
+  oval(ctx, 0.4, -2.5, 7.6, 7.6, '#e8b83a');
+  oval(ctx, 0.4, -2.5, 6.6, 6.6, dark);
+  if (icon) {
+    ctx.save();
+    ctx.translate(0.4, -2.5);
+    ctx.beginPath();
+    ctx.arc(0, 0, 6.4, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.scale(0.27, 0.27);
+    icon(ctx);
+    ctx.restore();
+  }
+}
+// Die Hängerolle bis 14.0 (wird nicht mehr gezeichnet, bleibt für Werkzeuge erhalten)
 function drawSkillScroll(ctx, dark, light, icon) {
   // Pergament mit Rand in Klassenfarbe
   box(ctx, -9.5, -12, 19, 24, 1, light);
@@ -660,12 +706,12 @@ function bookSprite(id) {
   return getSprite('book:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
     const e = skillEntry(id);
     const [dark, light] = BOOK_COVERS[e.cls] || BOOK_COVERS.krieger;
-    // gleiches Bild wie in der Fertigkeitsleiste (seit 9.6)
-    drawSkillScroll(ctx, dark, light, (c) => drawSkillIcon(c, e.sk));
+    // gleiches Bild wie in der Fertigkeitsleiste (seit 9.6), seit 14.1 als Buch
+    drawSkillBook(ctx, dark, light, (c) => drawSkillIcon(c, e.sk));
   });
 }
 function bookIconUrl(id) {
-  const key = 'bookicon:' + id;
+  const key = 'bookicon2:' + id;
   if (!iconCache.has(key)) iconCache.set(key, bookSprite(id).img.toDataURL());
   return iconCache.get(key);
 }
@@ -709,11 +755,14 @@ function rollLoot(m) {
   // Monster-Teile für den Schmied: jedes Monster lässt selten sein eigenes Teil fallen,
   // Seelensteine einige Teile der Monster ihres Gebiets
   if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < (sideCollecting(m.typeId) ? SIDE_DROP : MOB_MAT_CHANCE)) addMobMat(m.typeId, 1, m);
-  // Fertigkeitsschriftrollen (seit 10.4, vorher Bücher aus jedem Stein und selten von Monstern): nur noch aus
-  // Seelensteinen ab Stufe 40, seltener (40: 22 %, 70: 37 %), und immer zu den Fertigkeiten der eigenen Klasse
-  if (m.isStone && m.level >= SKILL_SCROLL_STONE && Math.random() < 0.22 + (m.level - SKILL_SCROLL_STONE) * 0.005) {
-    addBooks(1, m, ownClassSkillIds(p));
-  }
+  // Gegenstände für die Fertigkeiten (seit 14.1, Raten in SKILL_MAT_DROP, daten/gegenstaende.js):
+  // Fertigkeitsbücher aus jedem Seelenstein (18 %) und ganz selten von Monstern ab Stufe 20 (0,3 %), immer zur
+  // eigenen Klasse; Schriftrollen nur aus Seelensteinen ab Stufe 40 (40: 22 %, 80: 42 %);
+  // Seelensteine (Gegenstand) nur aus Seelensteinen ab Stufe 45 (45: 12 %, 60: 18 %, 80: 26 %).
+  const bd = SKILL_MAT_DROP.book;
+  if (m.isStone ? Math.random() < bd.stone : m.level >= bd.mobLevel && Math.random() < bd.mob) addBooks(1, m, ownClassSkillIds(p));
+  if (m.isStone && Math.random() < skillMatChance('rolle', m.level)) addSkillMat('rolle', 1, m);
+  if (m.isStone && Math.random() < skillMatChance('seelenstein', m.level)) addSkillMat('seelenstein', 1, m);
   if (m.isStone) {
     // Dungeon-Steine geben die Teile, die auch ihr Boss fallen lässt
     const all = m.zone.dungeon ? [MONSTER_TYPES[m.zone.dungeon.boss].boss.mat] : m.zone.groups.map((g) => g[0]).filter((id) => MOB_MATS[id]);
@@ -924,7 +973,7 @@ function sellFromBag(index) {
   const value = sellValue(item);
   p.inventory.splice(index, 1);
   p.gold += value;
-  gear.message(`${isBook(item) ? 'Schriftrolle: ' + skillEntry(item.book).sk.name : itemFullName(item)} für ${value.toLocaleString('de-DE')} Gold verkauft.`, 'info');
+  gear.message(`${isBook(item) ? 'Fertigkeitsbuch: ' + skillEntry(item.book).sk.name : itemFullName(item)} für ${value.toLocaleString('de-DE')} Gold verkauft.`, 'info');
   gear.selected = null;
   saveGame();
 }
@@ -1626,6 +1675,49 @@ const MATERIAL_ART = {
     dot(ctx, -2, -2, 3, 3, '#fff6d0');
   },
   // Sternen-Switcher: dunkle Rune mit goldenem Stern, zwei Pfeile drehen sich darum
+  // Schriftrolle (seit 14.1, für H1–H10): zusammengerollte Pergamentrolle schräg, mit rotem Band und Wachssiegel
+  rolle(ctx) {
+    ctx.save();
+    ctx.rotate(-0.55);
+    box(ctx, -15.5, -6, 31, 12, 5.5, '#e6d3a0');
+    box(ctx, -13, -5.2, 26, 3, 1.5, '#f6ebcc');
+    oval(ctx, 15.5, 0, 3, 6, '#cdb47a');
+    stroke(ctx, '#9a7c44', 0.8, [[15.5, -3.4], [16.6, -1], [15.6, 1.2], [14.8, 0]]);
+    oval(ctx, -15.5, 0, 2.6, 6, '#d9c38c');
+    box(ctx, -3.6, -6.6, 3.2, 13.2, 1, '#b8282a');
+    ctx.restore();
+    // Bänder und Siegel hängen unter der Rolle
+    stroke(ctx, '#b8282a', 1.6, [[-1.5, 1], [-5, 13]]);
+    stroke(ctx, '#b8282a', 1.6, [[-1.5, 1], [2.5, 13.5]]);
+    oval(ctx, -1.5, 8, 6, 6, '#a81e22');
+    oval(ctx, -1.5, 8, 4.4, 4.4, '#d23a34');
+    const pts = [];
+    for (let k = 0; k < 10; k++) {
+      const a = -Math.PI / 2 + k * Math.PI / 5;
+      const r = k % 2 ? 1.3 : 3;
+      pts.push([-1.5 + Math.cos(a) * r, 8 + Math.sin(a) * r]);
+    }
+    poly(ctx, pts, '#ffcf4a');
+  },
+  // Seelenstein (seit 14.1, für L1–V): kantiger, leuchtender Kristall wie die Seelensteine der Welt (seit 13.85),
+  // violett mit türkisem Kern, zwei kleine Splitter am Fuß
+  seelenstein(ctx) {
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 19);
+    g.addColorStop(0, 'rgba(159, 232, 255, 0.55)');
+    g.addColorStop(1, 'rgba(180, 140, 255, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-20, -20, 40, 40);
+    poly(ctx, [[-10, 15], [-13, 7], [-8, 9]], '#5a3a9a');
+    poly(ctx, [[10, 15], [13.5, 5], [8, 10]], '#6a4ab0');
+    poly(ctx, [[0, -18], [8, -8], [7, 9], [0, 17], [-7, 9], [-8, -8]], '#6a4ab8');
+    poly(ctx, [[0, -18], [-8, -8], [-7, 9], [0, 17], [-2.5, -6]], '#4a2e8a');
+    poly(ctx, [[0, -18], [8, -8], [2.5, -6]], '#c8b4ff');
+    poly(ctx, [[-2.5, -6], [2.5, -6], [3, 8], [0, 12], [-3, 8]], '#8fd8ff');
+    dot(ctx, 0, 2, 2.2, 4, '#e8fbff');
+    stroke(ctx, '#ffffff', 0.8, [[-5.5, -9], [-1.5, -15]]);
+    dot(ctx, 9.5, -13, 0.9, 2.6, '#ffffff');
+    dot(ctx, 9.5, -13, 2.6, 0.9, '#ffffff');
+  },
   switch67(ctx) {
     oval(ctx, 0, 0, 14, 14, '#3a1e4a');
     oval(ctx, 0, 0, 11.5, 11.5, '#5a2e6a');
@@ -1860,9 +1952,9 @@ const LOOT_ICON_ART = {
     stroke(ctx, '#f0e0ff', 1, [[-2, -6], [0, 4]]);
   },
   potHp(ctx) { drawPotion(ctx, 'hp'); },
-  // Fertigkeitsschriftrolle allgemein (seit 10.4 statt eines Buchs)
+  // Fertigkeitsbuch allgemein (10.4 bis 14.0 eine Hängerolle, seit 14.1 wieder ein Buch)
   book(ctx) {
-    drawSkillScroll(ctx, '#5a2a8a', '#7a3aaa', (c) => {
+    drawSkillBook(ctx, '#5a2a8a', '#7a3aaa', (c) => {
       oval(c, 0, 0, 14, 14, '#ffd34d');
       stroke(c, '#5a2a8a', 4, [[-8, 0], [8, 0]]);
       stroke(c, '#5a2a8a', 4, [[0, -8], [0, 8]]);
@@ -1898,7 +1990,7 @@ function potionIconUrl(kind, size = 'S') {
 }
 
 function lootIconUrl(kind) {
-  const key = 'loot:' + kind;
+  const key = (kind === 'book' ? 'loot2:' : 'loot:') + kind;
   if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx)).img.toDataURL());
   return iconCache.get(key);
 }
@@ -1937,7 +2029,7 @@ const gear = {
     if (isBook(item)) {
       const own = ownBook(game.player, item.book);
       return `<button type="button" class="item-tile book-tile${own ? ' own' : ''}" ${attrs} data-info="${escTip(itemTipHtml(item))}">` +
-        `<img src="${bookIconUrl(item.book)}" alt="Schriftrolle: ${skillEntry(item.book).sk.name}">` +
+        `<img src="${bookIconUrl(item.book)}" alt="Fertigkeitsbuch: ${skillEntry(item.book).sk.name}">` +
         `<span class="item-count">${item.count}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
     }
     const band = plusBand(item.plus);
@@ -1972,7 +2064,15 @@ const gear = {
     const tile = (icon, name, n, tip = '') => `<div class="mat-tile${n ? '' : ' empty'}"${tip ? ` data-tip="${tip}" tabindex="0"` : ''}>` +
       `<img src="${icon}" alt=""><b>${fmt(n)}</b><span>${name}</span></div>`;
     const mobs = Object.entries(p.upmats || {}).filter(([id, n]) => n > 0 && MOB_MATS[id]);
+    // seit 14.1: Gegenstände für die Ränge der Fertigkeiten (nicht für den Schmied)
+    const books = totalBooks(p, true);
+    const skillTiles = `<h3>Für Fertigkeiten <small>je Stufe und je Rangaufstieg ein Gegenstand</small></h3><div class="mat-tiles">` +
+      tile(lootIconUrl('book'), 'Fertigkeitsbücher · E1–E10', books, 'Fertigkeitsbücher deiner Fertigkeiten in der Tasche. Für E1–E10. Aus Seelensteinen aller Stufen, beim Lehrmeister und als Belohnung.') +
+      tile(materialIconUrl('rolle'), 'Schriftrollen · Für H1–H10', p.materials.rolle || 0, matDef('rolle').text) +
+      tile(materialIconUrl('seelenstein'), 'Seelensteine · Für L1–V', p.materials.seelenstein || 0, matDef('seelenstein').text) +
+      `</div>`;
     el.innerHTML =
+      skillTiles +
       `<h3>Für den Schmied</h3><div class="mat-tiles">` +
       tile(lootIconUrl('splinter'), 'Seelensplitter', p.splinters) +
       tile(scrollIconUrl(), 'Segensschriftrollen', p.scrolls, 'Schützt beim Schmied vor dem Zerbrechen.') +
@@ -2041,7 +2141,9 @@ const gear = {
       `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x)).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
       // Aufwertungsteile (seit 13.37 im eigenen Fenster, Taste U): hier nur eine Zeile mit Knopf
       `<button type="button" class="mats-open" id="btnMatsOpen"><img src="${lootIconUrl('splinter')}" alt="">` +
-      `<span><b>Aufwertungsteile</b><small>Seelensplitter ${p.splinters} · Segensschriftrollen ${p.scrolls} · ${matKinds(p)} Teile-Arten</small></span>` +
+      `<span><b>Aufwertungsteile</b><small>Seelensplitter ${p.splinters} · Segensschriftrollen ${p.scrolls} · ${matKinds(p)} Teile-Arten` +
+      // seit 14.1: Schriftrollen und Seelensteine (Gegenstand) für die Fertigkeiten
+      `${p.materials.rolle || p.materials.seelenstein ? ` · Schriftrollen ${p.materials.rolle || 0} · Seelensteine ${p.materials.seelenstein || 0}` : ''}</small></span>` +
       (typeof IS_PC !== 'undefined' && IS_PC ? `<kbd>${typeof keyLabel === 'function' && typeof actionKey === 'function' ? keyLabel(actionKey('mats')) : 'U'}</kbd>` : '') + `</button>` +
       `</section>` +
       `</div><div id="invDetail" class="item-detail-wrap"></div><p id="invMsg" class="gear-msg"></p>`;
@@ -2137,7 +2239,7 @@ const gear = {
       if (msg) msg.textContent = changed ? 'Tasche sortiert.' : 'Die Tasche ist schon sortiert.';
     });
     if (this.multi) {
-      document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Schriftrollen, die nicht zu deinen Fertigkeiten gehören.</p>';
+      document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Fertigkeitsbücher, die nicht zu deinen Fertigkeiten gehören.</p>';
       return;
     }
     this.renderDetail();
@@ -2257,15 +2359,20 @@ const gear = {
     const e = skillEntry(item.book);
     const own = ownBook(p, item.book);
     const idx = classSkills(p).findIndex((sk) => sk.id === item.book);
-    const read = idx >= 0 ? skillActions(p, idx).find((a) => a.type === 'book') : null;
+    // seit 14.1: Bücher tragen nur E1–E10 (Lesen nur, solange die Fertigkeit in E steht)
+    const read = idx >= 0 ? skillActions(p, idx).find((a) => a.type === 'book' && a.item === 'book') : null;
+    const lvl = idx >= 0 ? p.skillLevels[idx] : 0;
     const trader = nearTrader();
     const owner = `${CLASSES[e.cls].name} · ${CLASSES[e.cls].paths[e.path].name}`;
     const info = own
-      ? (read ? `Gehört zu deiner Fertigkeit, die auf ${skillLevelText(p.skillLevels[idx])} steht.` : `Gehört zu deiner Fertigkeit. Lesen kannst du sie, sobald die Fertigkeit erweckt ist (ab E1), für den Rangaufstieg zählen die Schriftrollen automatisch.`)
-      : 'Gehört nicht zu deinen Fertigkeiten. Verkaufe sie beim Händler oder handle sie.';
+      ? (read ? `Gehört zu deiner Fertigkeit, die auf ${skillLevelText(lvl)} steht. Ein Buch hebt sie um eine Stufe (bis E10).`
+        : idx >= 0 && skillRank(lvl) > 0 ? `Deine Fertigkeit steht schon auf ${skillLevelText(lvl)}. Bücher gelten nur für E1–E10 – weiter geht es mit Schriftrollen (H) und Seelensteinen (L, V). Verkaufe es oder lege es fürs Zurücksetzen ins Lager.`
+          : idx >= 0 && skillRank(lvl) === 0 ? `Deine Fertigkeit steht auf ${skillLevelText(lvl)}, höher geht es mit Büchern nicht – der Aufstieg nach Heroisch kostet eine Schriftrolle.`
+            : `Gehört zu deiner Fertigkeit. Lesen kannst du es, sobald die Fertigkeit erweckt ist (ab E1), dann hebt jedes Buch sie um eine Stufe bis E10.`)
+      : 'Gehört nicht zu deinen Fertigkeiten. Verkaufe es beim Händler oder handle es.';
     el.innerHTML = `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt="">` +
-      `<div class="item-info"><strong style="color:${own ? '#ffd34d' : '#c58cff'}">Schriftrolle: ${e.sk.name} × ${item.count}</strong>` +
-      `<small>Fertigkeitsschriftrolle · ${owner}</small><span>${info}</span></div>` +
+      `<div class="item-info"><strong style="color:${own ? '#ffd34d' : '#c58cff'}">Fertigkeitsbuch: ${e.sk.name} × ${item.count}</strong>` +
+      `<small>Fertigkeitsbuch · ${owner}</small><span>${info}</span></div>` +
       `<div class="item-actions">` +
       (read ? `<button type="button" class="mini-btn" data-act="read" ${read.ok ? '' : 'disabled'}>Lesen</button>` : '') +
       `<button type="button" class="mini-btn ${this.sellArmed ? 'danger' : ''}" data-act="sell" ${trader ? '' : 'disabled title="Nur bei einem Händler"'}>${this.sellArmed ? 'Wirklich verkaufen?' : 'Verkaufen (' + sellValue(item).toLocaleString('de-DE') + ' Gold)'}</button>` +

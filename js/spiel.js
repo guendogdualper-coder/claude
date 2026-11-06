@@ -69,6 +69,11 @@ function startGame(save, slot) {
     game.player.statNotice = false;
     ui.log(`Neu: ${STAT_POINTS_PER_LEVEL} Statuspunkte pro Stufe. Deine Statuspunkte wurden zurückgesetzt – verteile jetzt ${game.player.statPoints} Punkte neu (kostenlos).`, 'level');
   }
+  // seit 14.1: einmal erklären, wie die Ränge jetzt steigen (nur bei Spielständen von vor 14.1)
+  if (game.player.skillCostNotice) {
+    game.player.skillCostNotice = false;
+    ui.log('Neu: E1–E10 steigst du mit Fertigkeitsbüchern, H1–H10 mit Schriftrollen (Seelensteine ab Stufe 40), L1–L10 und V mit Seelensteinen als Gegenstand (Seelensteine ab Stufe 45). Je Stufe und je Rangaufstieg ein Gegenstand. Deine Stufen und Bücher bleiben.', 'level');
+  }
   ui.chat('', input.touchUi ? `Willkommen, ${game.player.name}! Hilfe findest du unter dem Buch-Knopf oben.` : `Willkommen, ${game.player.name}! Drücke H für die Steuerung.`);
   // seit 13.63: Konto-Lager, Namen für die Post anmelden, neue Briefe (handel-db.js)
   if (typeof handelStart === 'function') handelStart();

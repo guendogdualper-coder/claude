@@ -83,7 +83,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'start', q: 'Was ist die Tagesbelohnung?',
-    a: 'Einmal am Tag holst du dir eine Belohnung ab (Taste {k:daily} oder Knopf „Tagesbelohnung“). Sieben Tage in Folge bilden eine Reihe, jeder Tag gibt etwas Besseres, Tag 7 ist der große Preis mit einer Fertigkeitsschriftrolle. ' +
+    a: 'Einmal am Tag holst du dir eine Belohnung ab (Taste {k:daily} oder Knopf „Tagesbelohnung“). Sieben Tage in Folge bilden eine Reihe, jeder Tag gibt etwas Besseres, Tag 7 ist der große Preis mit einem Fertigkeitsbuch. ' +
       'Wer einen Tag auslässt, beginnt wieder bei Tag 1. Die Mengen wachsen mit deiner Stufe.',
     k: 'tagesbelohnung daily login belohnung taeglich jeden tag geschenk reihe streak'
   },
@@ -225,14 +225,18 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'kampf', q: 'Kann ich Statuspunkte oder Fertigkeiten zurücksetzen?',
-    a: 'Ja, bei <b>{n:lehrmeister}</b>. Das erste Zurücksetzen kostet 10.000 Gold, jedes weitere das Doppelte (höchstens 5 Millionen) – Statuspunkte und Fertigkeiten zählen getrennt.',
-    k: 'zuruecksetzen reset neu verteilen statuspunkte fertigkeiten lehrmeister fehler'
+    a: 'Ja, bei <b>{n:lehrmeister}</b>. Das erste Zurücksetzen kostet 10.000 Gold, jedes weitere das Doppelte (höchstens 5 Millionen) – Statuspunkte und Fertigkeiten zählen getrennt. ' +
+      'Beim Zurücksetzen der Fertigkeiten bekommst du alle Punkte zurück und die Gegenstände, die die Stufen mindestens gekostet haben: Fertigkeitsbücher für E, Schriftrollen für H, Seelensteine für L und V.',
+    k: 'zuruecksetzen reset neu verteilen statuspunkte fertigkeiten lehrmeister fehler buecher schriftrollen seelensteine zurueck'
   },
   {
     c: 'kampf', p: 3, q: 'Wie steigere ich meine Fertigkeiten?',
+    // seit 14.1: E mit Büchern, H mit Schriftrollen, L und V mit Seelensteinen (Gegenstand)
     a: 'Pro Stufe gibt es einen Fertigkeitspunkt. Im Charakterfenster steigst du damit jede Fertigkeit bis Stufe 15; der Punkt auf 15 erweckt sie zu E1. ' +
-      'Danach geht es mit Fertigkeitsschriftrollen weiter: E2–E10, Heroisch (H, ab Stufe 35), Legendär (L, ab 50) und Vollendet (V, ab 65).',
-    k: 'fertigkeiten skills steigern fertigkeitspunkt erwecken e1 heroisch legendaer vollendet rang'
+      'Danach kostet jede Stufe einen Gegenstand: <b>E1–E10</b> je ein Fertigkeitsbuch der Fertigkeit, <b>Heroisch H1–H10</b> (ab Stufe 35) je eine Schriftrolle, ' +
+      '<b>Legendär L1–L10</b> (ab Stufe 50) und <b>Vollendet V</b> (ab Stufe 65) je einen Seelenstein als Gegenstand. Der Aufstieg in den nächsten Rang kostet einen Gegenstand des neuen Rangs ' +
+      '(E10 → H1 eine Schriftrolle, H10 → L1 und L10 → V je einen Seelenstein) und geht schon aus den letzten drei Stufen eines Rangs – die übersprungenen Stufen kosten nichts extra.',
+    k: 'fertigkeiten skills steigern fertigkeitspunkt erwecken e1 heroisch legendaer vollendet rang aufstieg buch schriftrolle seelenstein'
   },
   {
     c: 'kampf', q: 'Wann bekomme ich neue Fertigkeiten?',
@@ -240,10 +244,25 @@ const RATGEBER_WISSEN = [
     k: 'neue fertigkeit freischalten skill unlock stufe gesperrt ab lvl'
   },
   {
-    c: 'kampf', q: 'Wo bekomme ich Fertigkeitsschriftrollen (Bücher)?',
-    a: () => `Bei {n:lehrmeister} (jede Fertigkeit deiner Klasse, ${(typeof TEACHER !== 'undefined') ? rgFmt(TEACHER.bookPrice) : '100.000'} Gold), bei {n:alchemist} (zufällige Fertigkeit deiner Klasse), aus Seelensteinen ab Stufe 40, ` +
-      'aus Dungeons, Hauptquests und der Tagesbelohnung. Rollen fremder Klassen kannst du verkaufen oder tauschen.',
-    k: 'buch buecher fertigkeitsschriftrolle schriftrolle skillbuch e2 lernen'
+    c: 'kampf', q: 'Wo bekomme ich Fertigkeitsbücher (E1–E10)?',
+    a: () => `Aus jedem Seelenstein (etwa jeder fünfte bis sechste lässt eins fallen, immer für deine Klasse), ganz selten von Monstern ab Stufe 20, ` +
+      `bei {n:lehrmeister} (jede Fertigkeit deiner Klasse, ${(typeof TEACHER !== 'undefined') ? rgFmt(TEACHER.bookPrice) : '100.000'} Gold), bei {n:alchemist} (zufällige Fertigkeit deiner Klasse), ` +
+      'aus Hauptquests und der Tagesbelohnung. Ein Buch gilt nur für seine Fertigkeit und nur von E1 bis E10. Bücher fremder Klassen kannst du verkaufen oder tauschen.',
+    k: 'buch buecher fertigkeitsbuch fertigkeitsschriftrolle skillbuch e2 e10 lernen lehrmeister'
+  },
+  {
+    c: 'kampf', q: 'Wo bekomme ich Schriftrollen (Heroisch)?',
+    a: () => `Nur aus Seelensteinen ab Stufe ${(typeof SKILL_MAT_DROP !== 'undefined') ? SKILL_MAT_DROP.rolle.stone : 40} – je höher der Stein, desto öfter (Stufe 40 etwa 22 %, Stufe 80 etwa 42 %). ` +
+      'Der Lehrmeister verkauft keine. Eine Schriftrolle gilt für jede Fertigkeit deiner Klasse: Sie bringt E10 (schon ab E8) nach H1 und hebt danach jede Stufe von H1 bis H10. ' +
+      'Du findest sie im Fenster Aufwertungsteile (Taste {k:mats}); per Post und im Auktionshaus kannst du sie handeln.',
+    k: 'schriftrolle schriftrollen heroisch h1 h10 rolle scroll woher drop seelenstein 40'
+  },
+  {
+    c: 'kampf', q: 'Wo bekomme ich Seelensteine als Gegenstand (Legendär, Vollendet)?',
+    a: () => `Nur aus Seelensteinen ab Stufe ${(typeof SKILL_MAT_DROP !== 'undefined') ? SKILL_MAT_DROP.seelenstein.stone : 45} – und selten (Stufe 45 etwa 12 %, Stufe 60 etwa 18 %, Stufe 80 etwa 26 %), hier heißt es farmen. ` +
+      'Ein Seelenstein (Gegenstand) gilt für jede Fertigkeit: H10 (schon ab H8) → L1, jede Stufe L1–L10 und L10 (schon ab L8) → V kosten je einen. ' +
+      'Nicht verwechseln: Die großen Seelensteine in der Welt sind die Steine, die du zerschlägst; der Gegenstand fällt aus ihnen.',
+    k: 'seelenstein gegenstand legendaer vollendet l1 l10 v woher drop farmen 45'
   },
   {
     c: 'kampf', q: 'Was ist die Ultimative Attacke?',
@@ -420,8 +439,8 @@ const RATGEBER_WISSEN = [
   {
     c: 'ausruestung', q: 'Was verkauft der Alchemist?',
     a: () => {
-      if (!(typeof ALCHEMIST_WARES !== 'undefined')) return '<b>{n:alchemist}</b> verkauft Materialien für Boni und Fertigkeitsschriftrollen.';
-      const name = (id) => (id === 'book' ? 'Fertigkeitsschriftrolle (zufällig, deine Klasse)' : (MATERIALS.find((m) => m.id === id) || { name: id }).name);
+      if (!(typeof ALCHEMIST_WARES !== 'undefined')) return '<b>{n:alchemist}</b> verkauft Materialien für Boni und Fertigkeitsbücher.';
+      const name = (id) => (id === 'book' ? 'Fertigkeitsbuch (zufällig, deine Klasse)' : (MATERIALS.find((m) => m.id === id) || { name: id }).name);
       return '<b>{n:alchemist}</b> verkauft: ' + ALCHEMIST_WARES.map((w) => `${name(w.id)} ${rgFmt(w.price)} Gold`).join(' · ') + '. Seelensteine geben diese Materialien umsonst.';
     },
     k: 'alchemist materialien kaufen verstaerkung switcher sternenstein preis'
@@ -485,8 +504,9 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'steine', q: 'Was lassen Seelensteine ab bestimmten Stufen fallen?',
-    a: 'Ab Stufe 30 Sternen-Switcher, ab 35 Segensschriftrollen und ab 40 Fertigkeitsschriftrollen für deine eigene Klasse – alles selten, je höher der Stein, desto öfter.',
-    k: 'seelenstein drop beute stufe 30 35 40 segensschriftrolle sternen-switcher schriftrolle'
+    a: 'Jeder Seelenstein kann ein Fertigkeitsbuch für deine Klasse fallen lassen. Ab Stufe 30 Sternen-Switcher, ab 35 Segensschriftrollen, ab 40 Schriftrollen (für H1–H10) ' +
+      'und ab 45 Seelensteine als Gegenstand (für L1–V) – alles selten, je höher der Stein, desto öfter.',
+    k: 'seelenstein drop beute stufe 30 35 40 45 segensschriftrolle sternen-switcher schriftrolle fertigkeitsbuch'
   },
 
   // --- Dungeons & Endbosse ----------------------------------------------------------------------------------
@@ -497,7 +517,7 @@ const RATGEBER_WISSEN = [
         .sort((a, b) => a.minLevel - b.minLevel)
         .map((d) => `${d.name} (ab ${d.minLevel}, ${(WORLD_MAPS.find((m) => m.id === d.entry.map) || { name: '' }).name})`).join(' · ') : '';
       return 'Drei Räume voller Monster, am Ende ein Boss. Kündigt er seinen Stampfer mit einem roten Kreis an: raus da! Bosse kommen nach 10 Minuten wieder. ' +
-        'Beute: Ausrüstung +3 bis +6, Fertigkeitsschriftrollen, Schmiede-Teile und viel Gold. Die Eingänge sind farbige Quadrate auf der Karte' + (list ? ': ' + list : '') + '.';
+        'Beute: Ausrüstung +3 bis +6, Schmiede-Teile und viel Gold. Die Eingänge sind farbige Quadrate auf der Karte' + (list ? ': ' + list : '') + '.';
     },
     k: 'dungeon dungeons hoehle boss eingang spinnenhoehle orkfestung banditenkeller'
   },
@@ -550,7 +570,7 @@ const RATGEBER_WISSEN = [
     c: 'karten', q: 'Wer ist wer in Vlotho?',
     a: () => {
       const roles = [['aeltester', 'Hauptquest'], ['haendler', 'Tränke'], ['waffen', 'Waffen'], ['ruestung', 'Rüstung'], ['bogenmacher', 'Bögen, Köcher, Pfeile'],
-        ['schmied', 'Aufwerten'], ['lehrmeister', 'Schriftrollen, Zurücksetzen, Weg wechseln'], ['alchemist', 'Materialien'], ['teleport', 'Reisen in die Jagdgebiete'],
+        ['schmied', 'Aufwerten'], ['lehrmeister', 'Fertigkeitsbücher, Zurücksetzen, Weg wechseln'], ['alchemist', 'Materialien'], ['teleport', 'Reisen in die Jagdgebiete'],
         ['lager', 'Lager'], ['jaegerin', 'Jagdaufträge'], ['stallmeister', 'Pferd'], ['post', 'Briefe'], ['auktion', 'Auktionshaus'], ['arena', 'Prüfungsarena'], ['pvp', 'Turnierarena']];
       return '<ul>' + roles.map(([id, what]) => `<li><b>${rgName(id)}</b> – ${what}</li>`).join('') + '</ul>Dazu das Weltentor zu den anderen Maps. Dieselben Leute stehen in jeder Stadt und jedem Lager.';
     },

@@ -222,7 +222,10 @@ const RG_SYN = {
   bag: ['tasche', 'inventar'], inventar: ['tasche'], rucksack: ['tasche', 'inventar'], inventory: ['tasche', 'inventar'],
   bank: ['lager'], shop: ['haendler', 'kaufen'], laden: ['haendler', 'kaufen'],
   trank: ['traenke'], potion: ['traenke', 'trank'], potions: ['traenke'], heiltrank: ['traenke'],
-  buch: ['schriftrolle', 'fertigkeitsschriftrolle'], buecher: ['schriftrolle', 'fertigkeitsschriftrolle'], book: ['schriftrolle'],
+  // seit 14.1: Fertigkeitsbuch (E), Schriftrolle (H), Seelenstein als Gegenstand (L, V)
+  buch: ['fertigkeitsbuch'], buecher: ['fertigkeitsbuch'], book: ['fertigkeitsbuch'], skillbuch: ['fertigkeitsbuch'],
+  fertigkeitsschriftrolle: ['fertigkeitsbuch', 'schriftrolle'], scroll: ['schriftrolle'], rolle: ['schriftrolle'],
+  heroisch: ['schriftrolle', 'rang'], legendaer: ['seelenstein', 'rang'], vollendet: ['seelenstein', 'rang'],
   heiler: ['heilung'], dps: ['schaden'],
   einstellung: ['einstellungen'], optionen: ['einstellungen'], settings: ['einstellungen'], menue: ['einstellungen'],
   sound: ['audio', 'ton'], musik: ['audio'], lautstaerke: ['audio', 'ton'],
