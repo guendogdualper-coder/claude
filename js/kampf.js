@@ -511,6 +511,7 @@ function rewardKillInner(m) {
   // Wächter im Höllenthron (seit 13.38): zusätzlich 2–3 legendäre Teile
   if (typeof htGuardLoot === 'function') htGuardLoot(m);
   rollLoot(m);
+  forgeCoreDrop(m); // seit 14.16: seltene Ätherkerne aus Steinen ab Stufe 40 und Bossen
   gainXp(xp);
 }
 

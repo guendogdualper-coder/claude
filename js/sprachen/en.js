@@ -3193,4 +3193,7 @@
 "Schriftrolle × {0}": "Scroll × {0}",
 "Seelenstein (Gegenstand) × {0}": "Soulstone (item) × {0}",
 "Dein jetziger Weg bleibt mit allen Stufen gespeichert (auch E/H/L/V) – wechselst du zurück, ist alles wieder da. Ein Weg, den du schon gespielt hast, kommt genau so zurück; ein neuer beginnt auf Stufe {0} mit allen freien Punkten. Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen Weg. Was du im neuen Weg nicht tragen kannst, kommt in die Tasche.": "Your current path is saved with all its levels (including E/H/L/V) – switch back and everything returns. A path you have played comes back exactly as it was; a new one starts at level {0} with all free points. Skill books in your bag become books for the same slots in the new path. Whatever the new path can't hold goes into your bag.",
+"Ätherkern": "Aether Core",
+"Ätherkerne": "Aether Cores",
+"Seltenes Schmiede-Teil. Ausrüstung ab Stufe 45 braucht es ab +4 zusätzlich zum Monster-Teil. Aus Seelensteinen ab Stufe 40, Dungeon-, Riss-, Instanz- und Endbossen.": "Rare forging part. Gear of level 45 and up needs it from +4 on, in addition to the monster part. From soulstones of level 40 and up and from dungeon, rift, instance and world bosses.",
 };

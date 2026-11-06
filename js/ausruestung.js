@@ -6,7 +6,8 @@
 // rarity (seit 13.56): Seltenheit 0–4 (RARITIES, seltenheit.js); neue Teile sind erst einmal Normal.
 
 function makeItem(slot, tier, plus = 0, cls = null, kind = null) {
-  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus, rarity: 0 };
+  // seit 14.16: keine Beute über +4 (MAX_DROP_PLUS), egal woher
+  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus: Math.max(0, Math.min(MAX_DROP_PLUS, plus | 0)), rarity: 0 };
   if (CLASS_SLOTS.includes(slot)) {
     item.cls = cls || (game.player ? game.player.classId : 'krieger');
     if (slot === 'waffe') item.kind = kind || CLASS_WEAPON_KINDS[item.cls][0];
@@ -646,6 +647,21 @@ function addBooks(n, from, pool) {
   return got;
 }
 
+// Ätherkern (seit 14.16): seltenes Schmiede-Teil, Raten in FORGE_CORE (daten/gegenstaende.js)
+function forgeCoreDrop(m) {
+  const c = FORGE_CORE;
+  let n = 0;
+  if (m.isStone) { if (m.level >= c.stoneLevel && Math.random() < c.stone + (m.level - c.stoneLevel) * c.stoneStep) n = 1; }
+  else if (m.type && m.type.inst) { if (Math.random() < c.inst) n = randInt(1, 2); }
+  else if (m.type && m.type.raid) n = randInt(c.raid[0], c.raid[1]);
+  else if (m.type && m.type.boss && m.level >= 35) { if (Math.random() < c.boss) n = 1; }
+  if (!n) return;
+  const p = game.player;
+  p.materials.aetherkern = (p.materials.aetherkern || 0) + n;
+  ui.loot('Ätherkern', n, materialIconUrl('aetherkern'), MATERIAL_COLORS.aetherkern);
+  if (!ui.dropAt) later(0.3, () => vfxLootFly(m, materialIconCanvas('aetherkern')));
+}
+
 // Schriftrolle oder Seelenstein (Gegenstand) aufheben (seit 14.1): Zähler in p.materials, wie die Verstärkungen
 function addSkillMat(id, n, from) {
   const p = game.player;
@@ -882,7 +898,9 @@ function bossLoot(m) {
   for (let k = 0; k < 2; k++) {
     const cls = Math.random() < 0.85 ? p.classId : CLASS_ORDER[randInt(0, CLASS_ORDER.length - 1)];
     const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), cls);
-    const item = makeItem(slots[randInt(0, slots.length - 1)], tier, randInt(3, 6), cls, lootKind(p, cls));
+    // seit 14.16 +1 bis +4 statt +3 bis +6, +4 selten (8 %)
+    const r = Math.random();
+    const item = makeItem(slots[randInt(0, slots.length - 1)], tier, r < 0.08 ? 4 : r < 0.3 ? 3 : r < 0.65 ? 2 : 1, cls, lootKind(p, cls));
     // grün oder blau; Dungeon-Bosse ab Stufe 50 mit kleiner Chance episch (seit 13.56)
     rarityRoll(item, 'boss', m);
     if (addToBag(item)) {
@@ -1041,12 +1059,13 @@ function mobMatTip(id) {
 
 function upgradeCost(item) {
   const step = UPGRADE_STEPS[item.plus];
-  return { gold: step.gold * (item.tier + 1), splinters: step.splinters, mat: upgradeMaterial(item) };
+  return { gold: step.gold * (item.tier + 1), splinters: step.splinters, mat: upgradeMaterial(item), core: upgradeCore(item) };
 }
 
 function canPayUpgrade(cost) {
   const p = game.player;
-  return p.gold >= cost.gold && p.splinters >= cost.splinters && (!cost.mat || (p.upmats[cost.mat.id] || 0) >= cost.mat.count);
+  return p.gold >= cost.gold && p.splinters >= cost.splinters && (!cost.mat || (p.upmats[cost.mat.id] || 0) >= cost.mat.count) &&
+    (!cost.core || (p.materials[cost.core.id] || 0) >= cost.core.count);
 }
 
 // Gibt das Ergebnis zurück: success, fail (nur Kosten weg), down (Plus sinkt), break (zerbrochen)
@@ -1060,6 +1079,7 @@ function upgradeItem(ref, useScroll) {
   p.gold -= cost.gold;
   p.splinters -= cost.splinters;
   if (cost.mat) p.upmats[cost.mat.id] -= cost.mat.count;
+  if (cost.core) p.materials[cost.core.id] -= cost.core.count;
   if (useScroll) p.scrolls--;
   const step = UPGRADE_STEPS[item.plus];
   let result;
@@ -1741,6 +1761,20 @@ const MATERIAL_ART = {
     dot(ctx, 9.5, -13, 0.9, 2.6, '#ffffff');
     dot(ctx, 9.5, -13, 2.6, 0.9, '#ffffff');
   },
+  // Ätherkern (seit 14.16): runder, türkis leuchtender Kern in einer dunklen Steinfassung mit drei Klammern
+  aetherkern(ctx) {
+    const g = ctx.createRadialGradient(0, 0, 2, 0, 0, 19);
+    g.addColorStop(0, 'rgba(127, 240, 208, 0.6)');
+    g.addColorStop(1, 'rgba(60, 200, 180, 0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-20, -20, 40, 40);
+    poly(ctx, [[-13, -4], [-6, -14], [6, -14], [13, -4], [11, 9], [0, 15], [-11, 9]], '#3a4a52');
+    poly(ctx, [[-13, -4], [-6, -14], [0, -10], [-9, -1]], '#56666e');
+    oval(ctx, 0, 0, 8.5, 8.5, '#1e8a78');
+    oval(ctx, 0, 0, 6, 6, '#4fe0c0');
+    oval(ctx, -1.5, -1.8, 2.6, 2.6, '#e8fff8');
+    for (const [x, y] of [[0, -11], [9.5, 6], [-9.5, 6]]) dot(ctx, x, y, 2, 2, '#c8b070');
+  },
   switch67(ctx) {
     oval(ctx, 0, 0, 14, 14, '#3a1e4a');
     oval(ctx, 0, 0, 11.5, 11.5, '#5a2e6a');
@@ -2099,6 +2133,7 @@ const gear = {
       `<h3>Für den Schmied</h3><div class="mat-tiles">` +
       tile(lootIconUrl('splinter'), 'Seelensplitter', p.splinters) +
       tile(scrollIconUrl(), 'Segensschriftrollen', p.scrolls, 'Schützt beim Schmied vor dem Zerbrechen.') +
+      tile(materialIconUrl('aetherkern'), 'Ätherkerne', p.materials.aetherkern || 0, matDef('aetherkern').text) +
       `</div><h3>Verstärkungen und Steine</h3><div class="mat-tiles">` +
       MATERIALS.map((m) => tile(materialIconUrl(m.id), m.name, p.materials[m.id] || 0, m.text || '')).join('') +
       `</div><h3>Teile von Monstern <small>ab +6, Ausrüstung ab Stufe 30 schon ab +4</small></h3>` +
@@ -2935,9 +2970,12 @@ const gear = {
       `<img src="${icon}" alt=""><b>${big}</b><small>${small}</small></div>`;
     const costs = chip(lootIconUrl('gold'), fmt(cost.gold) + ' Gold', 'du hast ' + fmt(p.gold), p.gold >= cost.gold) +
       chip(lootIconUrl('splinter'), cost.splinters + ' Seelensplitter', 'du hast ' + fmt(p.splinters), p.splinters >= cost.splinters) +
-      (mat ? chip(mobMatIconUrl(mat.id), mat.count + ' × ' + MOB_MATS[mat.id].name, `du hast ${have} · von ${MONSTER_TYPES[mat.id].name} (Stufe ${MONSTER_TYPES[mat.id].level})`, have >= mat.count, mobMatTip(mat.id)) : '');
-    const matHint = mat ? `<p class="hint-text">📍 ${MOB_MATS[mat.id].name}: ${MONSTER_TYPES[mat.id].name}, ${monsterWhere(mat.id)}</p>`
-      : (item.plus + 1 >= upgradeMatStart(item.tier) ? '' : `<p class="hint-text">Ab +${upgradeMatStart(item.tier)} braucht der Schmied zusätzlich Teile von Monstern.</p>`);
+      (mat ? chip(mobMatIconUrl(mat.id), mat.count + ' × ' + MOB_MATS[mat.id].name, `du hast ${have} · von ${MONSTER_TYPES[mat.id].name} (Stufe ${MONSTER_TYPES[mat.id].level})`, have >= mat.count, mobMatTip(mat.id)) : '') +
+      (cost.core ? chip(materialIconUrl('aetherkern'), cost.core.count + ' × Ätherkern', `du hast ${p.materials.aetherkern || 0} · selten`, (p.materials.aetherkern || 0) >= cost.core.count, matDef('aetherkern').text) : '');
+    const coreHint = cost.core ? '<p class="hint-text">💠 Ätherkern: aus Seelensteinen ab Stufe 40, Dungeon-, Riss-, Instanz- und Endbossen.</p>'
+      : ITEM_TIERS[item.tier].level >= FORGE_CORE.minLevel && item.plus + 1 >= FORGE_CORE.from ? '' : ITEM_TIERS[item.tier].level >= FORGE_CORE.minLevel ? `<p class="hint-text">Ab +${FORGE_CORE.from} braucht diese Ausrüstung zusätzlich seltene Ätherkerne.</p>` : '';
+    const matHint = coreHint + (mat ? `<p class="hint-text">📍 ${MOB_MATS[mat.id].name}: ${MONSTER_TYPES[mat.id].name}, ${monsterWhere(mat.id)}</p>`
+      : (item.plus + 1 >= upgradeMatStart(item.tier) ? '' : `<p class="hint-text">Ab +${upgradeMatStart(item.tier)} braucht der Schmied zusätzlich Teile von Monstern.</p>`));
     const risk = step.fail === 'none' ? 'Bei Fehlschlag sind nur die Kosten weg.'
       : step.fail === 'down' ? `Bei Fehlschlag fällt der Gegenstand auf +${item.plus - 1} zurück.`
         : 'Bei Fehlschlag zerbricht der Gegenstand!';

@@ -471,8 +471,24 @@ const SKILL_MATS = [
   { id: 'rolle', name: 'Schriftrolle', tag: 'H1–H10', text: 'Aus Seelensteinen ab Stufe 40. Hebt eine Fertigkeit deiner Klasse um eine Stufe im Rang Heroisch (H1–H10); auch der Aufstieg nach H1 kostet eine.' },
   { id: 'seelenstein', name: 'Seelenstein', tag: 'L1–V', text: 'Aus Seelensteinen ab Stufe 45. Hebt eine Fertigkeit um eine Stufe in L oder V; auch die Aufstiege nach L1 und V kosten je einen.' }
 ];
+// Ätherkern (seit 14.16): seltenes Schmiede-Teil für Ausrüstung ab Stufe 45 ab +4 (zusätzlich zum Monster-Teil).
+// Fällt nur aus Seelensteinen ab Stufe 40, Dungeon- und Riss-Bossen, Instanz-Bossen und Endbossen (FORGE_CORE).
+const FORGE_MATS = [
+  { id: 'aetherkern', name: 'Ätherkern', tag: 'ab +4', text: 'Seltenes Schmiede-Teil. Ausrüstung ab Stufe 45 braucht es ab +4 zusätzlich zum Monster-Teil. Aus Seelensteinen ab Stufe 40, Dungeon-, Riss-, Instanz- und Endbossen.' }
+];
+// minTier: ab welcher Gegenstandsstufe (Stufe 45 = Index 6), from: ab welchem Plus; count(plus) = Anzahl je Schritt
+// Chancen: Seelenstein ab Stufe 40 (4 % + 0,1 % je Stufe darüber), Dungeon-/Riss-Boss 30 %, Instanz-Boss 55 % (1–2),
+// Endboss immer 2–3
+const FORGE_CORE = { minLevel: 45, from: 4, stoneLevel: 40, stone: 0.04, stoneStep: 0.001, boss: 0.3, inst: 0.55, raid: [2, 3] };
+function upgradeCore(item) {
+  if (!item || item.plus < FORGE_CORE.from || ITEM_TIERS[item.tier].level < FORGE_CORE.minLevel) return null;
+  return { id: 'aetherkern', count: Math.min(5, 1 + Math.floor((item.plus - FORGE_CORE.from) / 3)) };
+}
+// Höchstes Plus, mit dem Ausrüstung irgendwo fällt (seit 14.16; Quests, Steine, Bosse, Dungeons, Risse, Instanzen) –
+// alles darüber gibt es nur beim Schmied. makeItem deckelt hart darauf.
+const MAX_DROP_PLUS = 4;
 // Alle Zähler in p.materials (Schmied-Materialien und Fertigkeits-Gegenstände) – für Post, Auktionshaus und Beute
-const ALL_MATS = MATERIALS.concat(SKILL_MATS);
+const ALL_MATS = MATERIALS.concat(SKILL_MATS, FORGE_MATS);
 const matDef = (id) => ALL_MATS.find((m) => m.id === id);
 // Woher die Gegenstände für Fertigkeiten fallen (seit 14.1; rollLoot in ausruestung.js):
 //   book         jeder Seelenstein (alle Stufen) mit stone, normale Monster ab Stufe mobLevel mit mob
@@ -491,7 +507,7 @@ function skillMatChance(id, level) {
 }
 
 // Farben der Materialien in der Beuteanzeige
-const MATERIAL_COLORS = { boniPlus: '#9fd0ff', boni5: '#d6a8ff', switcher: '#9fe08f', star: '#ffd34d', switch67: '#ffb85a', rolle: '#f0c87a', seelenstein: '#7fe0ff' };
+const MATERIAL_COLORS = { boniPlus: '#9fd0ff', boni5: '#d6a8ff', switcher: '#9fe08f', star: '#ffd34d', switch67: '#ffb85a', rolle: '#f0c87a', seelenstein: '#7fe0ff', aetherkern: '#7ff0d0' };
 // Sternen-Switcher: ab dieser Steinstufe, mit dieser Chance je Stein
 // (seit 14.6 4 % bei Stufe 30, je Stufe +0,16 %, höchstens 12 % – vorher fest 22 %)
 const SWITCH67 = { stone: 30, chance: 0.04, step: 0.0016, cap: 0.12 };
