@@ -5,6 +5,8 @@
 const TEXT_STYLES = {
   dmg: { color: '#fff7e6', size: 18 },
   dot: { color: '#c6e8a0', size: 14 },
+  // Gift aus der Ausrüstung (seit 14.15)
+  toxin: { color: '#7ee05a', size: 14 },
   crit: { color: '#ffd34d', size: 27, glow: '#ff7a1a' },
   hurt: { color: '#ff5a4a', size: 18 },
   heal: { color: '#8ff08f', size: 17 },

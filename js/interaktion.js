@@ -7,7 +7,9 @@
 // seit 13.2 zählen im Duell die echten Werte: kein Deckel mehr bei großem Stufenabstand (Stufe 60 haut Stufe 10
 // mit einem Schlag um); bei ähnlicher Stufe (unter 10 Stufen Abstand) höchstens 35 % bzw. 50 % (krit.) je Treffer
 // seit 14.6: Spieler gegen Spieler 0,6 statt 0,7; ein Treffer höchstens 25 % (Krit 35 %) des Lebens statt 35/50 %
-const DUEL = { countdown: 3, maxTime: 210, arena: 400, pvpMul: 0.6, maxHit: 0.25, maxCrit: 0.35, capGap: 10 };
+// seit 14.15 steht die ganze Schadensrechnung zwischen Spielern in PVP (kampf.js): Faktor nach Stufe, doppelte Rüstung,
+// Lebenspolster, Deckel je Treffer und je 1,5 s – gemeinsam für Duell und Turnierarena
+const DUEL = { countdown: 3, maxTime: 210, arena: 400 };
 const TRADE_SLOTS = 8;
 
 // --- Spielerkarte oben in der Mitte -------------------------------------------------------------
@@ -200,7 +202,11 @@ function onInteract(pid, d) {
     case 'dd':
       if (game.duel && game.duel.pid === pid && game.duel.proxy) {
         const m = game.duel.proxy;
+        // p: Gift-Tick (grüne Zahl, seit 14.15); sonst Treffer – dann wirkt auch der Lebensraub (zu 60 %)
+        if (d.p) { if (d.a > 0) addText(m.x, feetY(m) - 50, String(d.a), 'toxin'); break; }
         addText(m.x, feetY(m) - 50, d.a > 0 ? String(d.a) : d.t, d.a > 0 ? (d.c ? 'crit' : 'dmg') : 'info');
+        if (!d.al && d.r > 0) pvpNoteDealt(d.r, d.a);
+        if (!d.al && d.a > 0) pvpLifeSteal(d.a);
       }
       break;
     case 'de':
@@ -484,6 +490,7 @@ function startDuel(pid, name) {
   const rp = net.players.get(pid);
   if (!rp) return;
   pcard.close();
+  p.pvpRatio = 0;
   game.duel = {
     pid, name: name || rp.name, fightAt: game.time + DUEL.countdown, endAt: game.time + DUEL.countdown + DUEL.maxTime,
     cx: (p.x + rp.x) / 2, cy: (p.y + rp.y) / 2, proxy: null, shown: DUEL.countdown + 1
@@ -527,38 +534,28 @@ function updateDuel() {
   if (Math.hypot(p.x - d.cx, p.y - d.cy) > DUEL.arena && game.time >= d.fightAt) duelLose('Du hast den Duellkreis verlassen.');
 }
 
-// Treffer auf den Stellvertreter: rohen Schaden an den Gegner schicken.
+// Treffer auf den Stellvertreter: rohen Schaden an den Gegner schicken (pvpOutgoing, kampf.js).
 // Diener (opts.ally) treffen mit ihrem eigenen Angriffswert (opts.atk), im Duell nur halb und nie kritisch.
-const DUEL_ALLY_MUL = 0.5;
 function duelHit(m, mul, opts) {
   const p = game.player;
-  const s = game.stats;
   if (!duelFighting()) return 0;
-  const base = opts.atk != null ? opts.atk : s.atk;
-  const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
-  if (!opts.ally && !opts.dot) breakStealth(p);
-  // duelMul (seit 8.6): Kontroll-Fertigkeiten des Magiers gleichen im Duell aus, dass Zustände dort nur als Schaden zählen
-  const raw = base * mul * (opts.ally ? DUEL_ALLY_MUL : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1);
-  netSocial(game.duel.pid, { k: 'dh', a: Math.round(raw), c: crit ? 1 : 0, l: p.level });
-  vfxImpact(m, crit, opts.vfxColor);
-  if (opts.skill) skillHitFx(opts.skill, m, crit, opts.heavy);
+  const d = pvpOutgoing(mul, opts);
+  netSocial(game.duel.pid, { k: 'dh', ...d });
+  vfxImpact(m, !!d.c, opts.vfxColor);
+  if (opts.skill) skillHitFx(opts.skill, m, !!d.c, opts.heavy);
   p.lastCombat = game.time;
-  if (crit) shakeScreen(4);
-  return Math.round(raw * 0.5);
+  if (d.c) shakeScreen(4);
+  // geschätzter echter Schaden (Lebensentzug heilt davon), seit 14.15 aus den Rückmeldungen des Gegners
+  return Math.round(d.a * pvpDealtRatio(m));
 }
 
+// getroffen: mit eigenen Werten abrechnen (pvpReceiveHit, kampf.js); Gift-Ticks melden sich einzeln (p: 1)
 function duelReceive(pid, d) {
   const g = game.duel;
   const p = game.player;
   if (!g || g.pid !== pid || !duelFighting() || p.dead) return;
-  const s = game.stats;
-  const raw = d.a * DUEL.pvpMul * (1 - s.def / (s.def + 40 + 5 * ((d.l || 1) - 1)));
-  const capped = (d.l || 1) - p.level < DUEL.capGap;
-  const amount = Math.max(1, Math.round(capped ? Math.min(raw, s.maxHp * (d.c ? DUEL.maxCrit : DUEL.maxHit)) : raw));
-  const before = p.hp;
-  damagePlayer(amount, g.proxy);
-  const dealt = Math.max(0, Math.round(before - p.hp));
-  netSocial(pid, { k: 'dd', a: dealt, c: d.c, t: dealt ? '' : 'Abgewehrt' });
+  const dealt = pvpReceiveHit(d, g.proxy, (a) => { if (game.duel && game.duel.pid === pid) netSocial(pid, { k: 'dd', a, p: 1 }); });
+  netSocial(pid, { k: 'dd', a: dealt, r: d.a, c: d.c, al: d.al ? 1 : 0, t: dealt ? '' : 'Abgewehrt' });
 }
 
 function duelLose(why) {
@@ -574,6 +571,7 @@ function endDuel(winner, why) {
   if (!g) return;
   const p = game.player;
   game.duel = null;
+  p.toxin = null;
   if (game.target && game.target.duelProxy) game.target = null;
   if (why) ui.log(why, 'info');
   if (winner === p.name) {

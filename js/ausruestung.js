@@ -319,7 +319,13 @@ const COMPARE_STATS = [
   ['crit', 'Kritisch', 'pct'], ['atkSpeed', 'Angriffstempo', 'pct'], ['skillPower', 'Fertigkeitsschaden', 'rel'],
   ['dodge', 'Ausweichen', 'pct'], ['block', 'Blocken', 'pct'], ['hpSteal', 'Lebensraub', 'pct'],
   ['monsterDmg', 'Gegen Monster', 'pct'], ['regen', 'Regeneration', 'pct1'], ['speed', 'Lauftempo', 'speed'],
-  ['damageTaken', 'Erlittener Schaden', 'lessPct']
+  ['damageTaken', 'Erlittener Schaden', 'lessPct'],
+  // seit 14.15
+  ['critDmg', 'Kritischer Schaden', 'pct'], ['poison', 'Vergiftungschance', 'pct'],
+  ['vsBeast', 'Gegen Tiere', 'pct'], ['vsHuman', 'Gegen Menschen', 'pct'], ['vsOrc', 'Gegen Orks und Riesen', 'pct'],
+  ['vsUndead', 'Gegen Untote und Geister', 'pct'], ['vsDemon', 'Gegen Teufel und Dämonen', 'pct'],
+  ['resHuman', 'Abwehr gegen Menschen', 'pct'], ['resMagic', 'Abwehr gegen Magie', 'pct'], ['resMelee', 'Abwehr gegen Nahkampf', 'pct'],
+  ['resRanged', 'Abwehr gegen Fernkampf', 'pct'], ['goldFind', 'Mehr Gold', 'pct'], ['dropFind', 'Mehr Beute', 'pct']
 ];
 function compareItem(item, hand) {
   const p = game.player;
@@ -437,7 +443,13 @@ function rollBonus(item, special) {
   const taken = new Set((special ? item.specials : item.bonuses || []).map((b) => b.t));
   const fit = bonusAttrsFor(item);
   const ids = Object.keys(pool).filter((id) => !taken.has(id) && (special || pool[id].slots.includes(item.slot)) && (special || !ATTR_BONUS_IDS.includes(id) || fit.includes(id)));
-  const t = ids[Math.floor(Math.random() * ids.length)];
+  // seit 14.15 gewichtet (BONUS_WEIGHTS): Grundwerte und Hauptwert 3, Gold und Beute 0,7, sonst 1
+  const w = ids.map((id) => (special ? 1 : id === fit[0] ? BONUS_WEIGHT_MAIN : BONUS_WEIGHTS[id] || 1));
+  let x = Math.random() * w.reduce((a, b) => a + b, 0);
+  let k = 0;
+  while (k < ids.length - 1 && (x -= w[k]) >= 0) k++;
+  const t = ids[k];
+  if (!t) return { t, v: 0 };
   return { t, v: bonusValue(pool[t], item.tier) };
 }
 
@@ -732,6 +744,9 @@ function giveSplinters(n) {
 }
 
 // Beute: normale Monster selten, Seelensteine oft
+// Mehr Beute (Bonus, seit 14.15: dropChance/dropCount in kampf.js) wirkt auf Ausrüstung, Tränke und Monsterteile –
+// nicht auf Seelensplitter, Segensschriftrollen, Fertigkeitsbücher, Schriftrollen, Seelensteine (Gegenstand),
+// Verstärkungen, Switcher und Sternensteine: die bleiben bewusst selten
 function rollLoot(m) {
   const p = game.player;
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
@@ -760,7 +775,7 @@ function rollLoot(m) {
   }
   // Monster-Teile für den Schmied: jedes Monster lässt selten sein eigenes Teil fallen,
   // Seelensteine einige Teile der Monster ihres Gebiets
-  if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < (sideCollecting(m.typeId) ? SIDE_DROP : MOB_MAT_CHANCE)) addMobMat(m.typeId, 1, m);
+  if (!m.isStone && MOB_MATS[m.typeId] && Math.random() < dropChance(sideCollecting(m.typeId) ? SIDE_DROP : MOB_MAT_CHANCE)) addMobMat(m.typeId, 1, m);
   // Gegenstände für die Fertigkeiten (seit 14.1, Raten in SKILL_MAT_DROP, daten/gegenstaende.js):
   // Fertigkeitsbücher aus jedem Seelenstein (18 %) und ganz selten von Monstern ab Stufe 20 (0,3 %), immer zur
   // eigenen Klasse; Schriftrollen nur aus Seelensteinen ab Stufe 40 (40: 22 %, 80: 42 %);
@@ -773,11 +788,11 @@ function rollLoot(m) {
     // Dungeon-Steine geben die Teile, die auch ihr Boss fallen lässt
     const all = m.zone.dungeon ? [MONSTER_TYPES[m.zone.dungeon.boss].boss.mat] : m.zone.groups.map((g) => g[0]).filter((id) => MOB_MATS[id]);
     const pool = all.filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
-    for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || all[0], 1, m);
+    for (let k = dropCount(randInt(1, 3)); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || all[0], 1, m);
   }
   // seit 14.10 seltener: Monster 1,2 % (vorher 2,5 %), Monster aus Steinen 6 % ihres Steins (vorher 12 %);
   // die Chancen der Steine selbst stehen in stoneDrops (monster.js)
-  if (Math.random() < (drops ? drops.gear : sd ? sd.gear * 0.06 : 0.012)) {
+  if (Math.random() < dropChance(drops ? drops.gear : sd ? sd.gear * 0.06 : 0.012)) {
     // Seelensteine ab Stufe 20 lassen schon Ausrüstung der nächsthöheren Gebiete fallen (Lv 30 ab Stein 20)
     const lootLevel = m.isStone && m.level >= 20 ? m.level + 10 : m.level;
     let tier = 0;
@@ -824,10 +839,10 @@ function raidLoot(m) {
       announceRarity(item);
     } else ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
   }
-  if (b.mat) addMobMat(b.mat, randInt(8, 12), m);
+  if (b.mat) addMobMat(b.mat, dropCount(randInt(8, 12)), m);
   // seit 14.6 keine Boni-Materialien mehr (die gibt es nur aus Seelensteinen), dafür Seelensplitter
   giveSplinters(randInt(15, 25));
-  const gold = m.level * 1500;
+  const gold = monsterGold(m.level * 1500);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner('Endboss besiegt!', m.name);
@@ -871,10 +886,10 @@ function bossLoot(m) {
       ui.log('Dein Inventar ist voll. ' + itemFullName(item) + ' ist verloren.', 'warn');
     }
   }
-  if (b.mat) addMobMat(b.mat, randInt(3, 5), m);
+  if (b.mat) addMobMat(b.mat, dropCount(randInt(3, 5)), m);
   // seit 14.6 keine Boni-Materialien mehr (nur aus Seelensteinen), dafür Seelensplitter
   giveSplinters(randInt(4, 7));
-  const gold = m.level * 300;
+  const gold = monsterGold(m.level * 300);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} besiegt!`, 'Die Beute gehört dir');

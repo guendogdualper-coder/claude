@@ -167,7 +167,10 @@ function updatePlayer(dt) {
 
   // Regeneration: außerhalb des Kampfes deutlich schneller
   const calm = game.time - p.lastCombat > 5;
-  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * ((calm ? 0.02 : 0.003) + s.regen) * dt);
+  // im PvP zu 60 % wie jede Heilung (seit 14.15)
+  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * ((calm ? 0.02 : 0.003) + s.regen) * dt * pvpHealMul());
+  // Gift eines anderen Spielers (Bonus Vergiftungschance, seit 14.15)
+  if (p.toxin) playerToxinTick(p, dt);
   p.mp = Math.min(s.maxMp, p.mp + s.maxMp * (calm ? 0.03 : 0.012) * dt);
 
   // Händlerin oder Schmied in der Nähe?

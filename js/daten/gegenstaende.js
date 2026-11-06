@@ -425,8 +425,30 @@ const BONUS_TYPES = {
   regen: { name: 'Lebensregeneration', fmt: 'pct1', range: [0.001, 0.003], max: 0.006, slots: ['ruestung', 'helm', 'schultern', 'guertel'] },
   monsterDmg: { name: 'Stark gegen Monster', fmt: 'pct', range: [0.02, 0.06], max: 0.1, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
   dmgReduce: { name: 'Schadensreduktion', fmt: 'pct', range: [0.01, 0.03], max: 0.06, slots: ['ruestung', 'helm', 'schultern', 'umhang', 'schild'] },
-  hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['waffe'] }
+  hpSteal: { name: 'Lebensraub', fmt: 'pct', range: [0.01, 0.03], max: 0.05, slots: ['waffe'] },
+  // seit 14.15: Gift, kritischer Schaden, „Stark gegen …“ je Monsterart (monsterKind, kampf.js), Abwehr je Angriffsart,
+  // mehr Gold und mehr Beute. Gift: jeder Treffer vergiftet mit dieser Chance (6 s, 40 % des Treffers, TOXIN in kampf.js).
+  poison: { name: 'Vergiftungschance', fmt: 'pct', range: [0.01, 0.04], max: 0.12, slots: ['waffe'] },
+  critDmg: { name: 'Kritischer Schaden', fmt: 'pct', range: [0.03, 0.08], max: 0.15, slots: ['waffe', 'koecher', 'helm'] },
+  vsBeast: { name: 'Stark gegen Tiere', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
+  vsHuman: { name: 'Stark gegen Menschen', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
+  vsOrc: { name: 'Stark gegen Orks und Riesen', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
+  vsUndead: { name: 'Stark gegen Untote und Geister', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
+  vsDemon: { name: 'Stark gegen Teufel und Dämonen', fmt: 'pct', range: [0.02, 0.06], max: 0.12, slots: ['waffe', 'helm', 'guertel', 'koecher'] },
+  // Abwehr gegen Menschen wirkt gegen menschliche Monster und gegen andere Spieler (der Verteidigungswert im PvP)
+  resHuman: { name: 'Abwehr gegen Menschen', fmt: 'pct', range: [0.02, 0.05], max: 0.1, slots: ['ruestung', 'helm', 'schild', 'umhang', 'schuhe'] },
+  resMagic: { name: 'Abwehr gegen Magie', fmt: 'pct', range: [0.02, 0.05], max: 0.1, slots: ['ruestung', 'helm', 'schild', 'umhang', 'schultern'] },
+  resMelee: { name: 'Abwehr gegen Nahkampf', fmt: 'pct', range: [0.02, 0.05], max: 0.08, slots: ['ruestung', 'schild', 'schultern', 'schuhe'] },
+  resRanged: { name: 'Abwehr gegen Fernkampf', fmt: 'pct', range: [0.02, 0.05], max: 0.08, slots: ['ruestung', 'umhang', 'schuhe', 'guertel'] },
+  // Gold von Monstern und Seelensteinen; Beute: Ausrüstung, Tränke und Monsterteile (nicht Bücher, Schriftrollen,
+  // Seelensteine, Verstärkungen, Switcher und Sternensteine – die bleiben bewusst selten)
+  goldFind: { name: 'Mehr Gold', fmt: 'pct', range: [0.02, 0.05], max: 0.08, slots: ['helm', 'schuhe', 'guertel', 'umhang', 'schultern'] },
+  dropFind: { name: 'Mehr Beute', fmt: 'pct', range: [0.02, 0.05], max: 0.08, slots: ['helm', 'schuhe', 'guertel', 'umhang', 'schultern'] }
 };
+// Gewichte beim Würfeln (seit 14.15, rollBonus): die vielen neuen Arten verwässern sonst den Topf. Grundwerte (Leben,
+// Angriff, Verteidigung und der Hauptwert der Klasse) 3, Gold und Beute 0,7, alles andere 1.
+const BONUS_WEIGHTS = { hp: 3, atk: 3, def: 3, goldFind: 0.7, dropFind: 0.7 };
+const BONUS_WEIGHT_MAIN = 3;
 
 // Besondere Boni 6 und 7, nur über den Sternenstein
 const SPECIAL_BONUS_TYPES = {
@@ -439,7 +461,10 @@ const SPECIAL_BONUS_TYPES = {
 // Obergrenzen für die Summe der Boni aller angelegten Gegenstände
 const BONUS_CAPS = {
   crit: 0.25, atkSpeed: 0.35, speed: 0.08, dodge: 0.2, regen: 0.015, monsterDmg: 0.2, dmgReduce: 0.2, hpSteal: 0.06,
-  skillDmg: 0.4, basicDmg: 0.4, hpPct: 0.3, resist: 0.15
+  skillDmg: 0.4, basicDmg: 0.4, hpPct: 0.3, resist: 0.15,
+  // seit 14.15
+  poison: 0.12, critDmg: 0.4, vsBeast: 0.25, vsHuman: 0.25, vsOrc: 0.25, vsUndead: 0.25, vsDemon: 0.25,
+  resHuman: 0.3, resMagic: 0.25, resMelee: 0.2, resRanged: 0.2, goldFind: 0.25, dropFind: 0.25
 };
 
 // Statuswerte, die je Klasse als Bonus gewürfelt werden (seit 13.49): ein Krieger bekommt keine Intelligenz,

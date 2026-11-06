@@ -425,6 +425,11 @@ function netHostDamage(rp, d) {
     if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
     if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0 };
+    // Gift aus der Ausrüstung (seit 14.15): erneuert die Dauer, der höhere Tickwert bleibt
+    if (st.tx) {
+      const old = m.toxin && m.toxin.until > game.time ? m.toxin : null;
+      m.toxin = { dps: Math.max(+st.tx[0] || 1, old ? old.dps : 0), until: game.time + Math.min(TOXIN.dur, +st.tx[1] || 0), tick: old ? old.tick : 0 };
+    }
     // Einfrieren (seit 8.6, Magier): Restdauer im Eis (nie kürzen: der Mitspieler sieht fremdes Eis nur kurz gespiegelt),
     // uf = die Frostlanze hat das Eis zerschlagen
     if (st.fz) {
@@ -749,6 +754,7 @@ function netClientDamage(m, amount, crit, isDot) {
   if (left(m.poison) && !m.poison.sent) { st.po = [m.poison.dps, left(m.poison)]; m.poison.sent = true; }
   if (left(m.burn) && !m.burn.sent) { st.bu = [m.burn.dps, left(m.burn)]; m.burn.sent = true; }
   if (left(m.bleed) && !m.bleed.sent) { st.bl = [m.bleed.dps, left(m.bleed)]; m.bleed.sent = true; }
+  if (left(m.toxin) && !m.toxin.sent) { st.tx = [m.toxin.dps, left(m.toxin)]; m.toxin.sent = true; }
   // Einfrieren (seit 8.6): Restdauer schicken; zerschlagenes Eis einmal melden
   // nur eigenes Eis melden; das vom Host gespiegelte zurückzuschicken hielte den Gegner ewig eingefroren
   if (m.unfreeze) {
@@ -764,7 +770,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.hitFlash = 0.12;
     m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
     m.lastText = game.time;
-    addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+    addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot === 'toxin' ? 'toxin' : isDot ? 'dot' : 'dmg');
     (m.pendList || (m.pendList = [])).push({ a: amount, at: game.time });
     m.hp -= amount;
   }
@@ -777,7 +783,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.dead = true;
     m.predictedDead = game.time;
     m.killResent = false;
-    m.poison = m.burn = null;
+    m.poison = m.burn = m.toxin = null;
     if (game.target === m) game.target = null;
     monsterDeathFx(m);
   }
@@ -805,7 +811,7 @@ function netClientKill(m) {
   m.killResent = false;
   m.dead = true;
   m.hp = 0;
-  m.poison = m.burn = null;
+  m.poison = m.burn = m.toxin = null;
   if (game.target === m) game.target = null;
   if (!shown) monsterDeathFx(m);
   if (netShares(m, m.myHitAt)) rewardKill(m);

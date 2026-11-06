@@ -1141,17 +1141,21 @@ const ui = {
     const shield = p.shield > 0 ? Math.ceil(p.shield) : 0;
     // Startbonus (seit 13.10): steht vorn in der Leiste, solange er läuft (Restzeit in Tagen)
     const evDays = eventXpActive() ? Math.ceil((EVENT_XP.until - Date.now()) / 86400000) : 0;
-    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays, () => {
+    // Gift eines anderen Spielers (seit 14.15) als Debuff in der Leiste: „Vergiftet · 4 s · 312/s“
+    const tox = p.toxin && p.toxin.until > game.time ? { left: Math.max(1, Math.ceil(p.toxin.until - game.time - 0.01)), dps: Math.round(p.toxin.dps) } : null;
+    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays + '|' + (tox ? tox.left + ':' + tox.dps : ''), () => {
       const ev = evDays ? `<div class="buff-ico buff-event" style="--p:${(evDays / 22).toFixed(3)}" data-tip="${escapeHtml(`${EVENT_XP.name}\n+${Math.round(EVENT_XP.mul * 100)} % Erfahrung für alle Charaktere\nnoch ${evDays} ${evDays === 1 ? 'Tag' : 'Tage'} (bis 22.11.), bleibt auch beim Tod`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.8l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z"/></svg><span>${evDays} T</span></div>` : '';
-      $('buffList').innerHTML = ev + buffs.map(({ b, left }) => {
+      const debuff = tox ? `<div class="buff-ico buff-debuff" style="--p:${(tox.left / TOXIN.dur).toFixed(3)}" data-tip="${escapeHtml(`Vergiftet · ${tox.left} s · ${tox.dps}/s\nGift eines anderen Spielers`)}">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.6 4.6 6.2 8.3 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.8 8.4 7.1 12 2.5z"/><circle cx="9.6" cy="14.2" r="1.3"/><circle cx="13.8" cy="16.6" r="1"/></svg><span>${tox.left} s</span></div>` : '';
+      $('buffList').innerHTML = ev + debuff + buffs.map(({ b, left }) => {
         const sk = skillById(b.id);
         const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
         return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" data-tip="${escapeHtml(buffTip(b))}">` +
           `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
-      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0);
+      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0 || !!tox);
     });
 
     if (typeof segenTick === 'function') segenTick();
@@ -1440,6 +1444,8 @@ const ui = {
     const c = CLASSES[p.classId];
     const row = (k, v) => `<div><dt>${k}</dt><dd>${v}</dd></div>`;
     const pct = (v) => Math.round(v * 100) + ' %';
+    // Summe der Boni mit Obergrenze (BONUS_CAPS), z. B. „8 % / 25 %“
+    const capPct = (v, k) => pct(v || 0) + (BONUS_CAPS[k] ? ` <small class="cap">/ ${pct(BONUS_CAPS[k])}</small>` : '');
     // Seit 12.4 auf Seiten verteilt (kein langes Scrollen): Status, Fertigkeiten, Werte
     const tab = this.charTab || 'status';
     const dot = (n) => (n > 0 ? `<i class="tab-dot">${n}</i>` : '');
@@ -1462,8 +1468,10 @@ const ui = {
         row('Magiestärke', '+' + pct(s.magic || 0)) + row('Lauftempo', speedText(p, s)) +
         row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
         `</dl><h3>Boni</h3><dl class="stats">` +
-        row('Stark gegen Monster', pct(s.monsterDmg || 0)) + row('Lebensraub', pct(s.hpSteal || 0)) +
+        row('Stark gegen Monster', capPct(s.monsterDmg, 'monsterDmg')) + row('Lebensraub', pct(s.hpSteal || 0)) +
         (s.natureDmg ? row(p.classId === 'magier' ? 'Elementschaden' : 'Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +
+        // seit 14.15: neue Boni als Summe aller Teile mit ihrer Obergrenze (nur, was die Ausrüstung hat)
+        CHAR_NEW_BONI.filter(([k]) => s[k] > 0).map(([k, label]) => row(label, capPct(s[k], k))).join('') +
         `</dl><h3>Erfolge</h3><dl class="stats">` +
         row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
         row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
@@ -2304,6 +2312,14 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
   render();
 }
 
+// Neue Boni (seit 14.15) auf der Seite „Werte“ des Charakterfensters
+const CHAR_NEW_BONI = [
+  ['poison', 'Vergiftungschance'], ['vsBeast', 'Stark gegen Tiere'], ['vsHuman', 'Stark gegen Menschen'],
+  ['vsOrc', 'Stark gegen Orks und Riesen'], ['vsUndead', 'Stark gegen Untote und Geister'], ['vsDemon', 'Stark gegen Teufel und Dämonen'],
+  ['resHuman', 'Abwehr gegen Menschen'], ['resMagic', 'Abwehr gegen Magie'], ['resMelee', 'Abwehr gegen Nahkampf'],
+  ['resRanged', 'Abwehr gegen Fernkampf'], ['goldFind', 'Mehr Gold'], ['dropFind', 'Mehr Beute']
+];
+
 // Kurze Wirkungsliste eines Buffs für den Hinweis in der Buff-Leiste (seit 13.2), z. B.
 // „Kampfrausch · 2:10 / Angriffstempo +30 % / Lauftempo +6 %“
 const BUFF_TIP_LABELS = {
@@ -2354,6 +2370,11 @@ function targetEffects(m) {
   dot(m.burn, 'burn', '🔥', 'Brand');
   dot(m.poison, 'poison', '☠', 'Gift');
   dot(m.bleed, 'bleed', '🩸', 'Blutung');
+  // Gift aus der Ausrüstung (seit 14.15): „Vergiftet · 4 s · 312/s“
+  if (m.toxin && m.toxin.until > now) {
+    const d = Math.round(m.toxin.dps || 0);
+    out.push({ kind: 'toxin', icon: '☣', label: 'Vergiftet', time: `${sec(m.toxin.until)} s · ${d}/s`, tip: `Vergiftet: ${d} Schaden je Sekunde, noch ${sec(m.toxin.until)} s`, key: 'tox' + d + ':' + sec(m.toxin.until) });
+  }
   if (m.stun > 0) out.push({ kind: 'stun', icon: '💫', label: 'Betäubt', time: `${Math.max(0.1, m.stun).toFixed(1).replace('.', ',')} s`, tip: 'Betäubt: kann sich nicht bewegen und nicht angreifen', key: 'stun' + Math.ceil(m.stun * 10) });
   if (m.frozen > now) out.push({ kind: 'frozen', icon: '❄', label: 'Eingefroren', time: `${sec(m.frozen)} s`, tip: 'Eingefroren', key: 'frz' + sec(m.frozen) });
   if (m.slow && m.slow.until > now && m.slow.mul < 1) {

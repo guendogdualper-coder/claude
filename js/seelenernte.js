@@ -32,7 +32,7 @@ ULT_RUN.seelenernte = function (p, u, pw) {
       n++;
     }
     later(0.45, () => {
-      const heal = Math.round(game.stats.maxHp * Math.min(0.3, 0.03 * n));
+      const heal = Math.round(game.stats.maxHp * Math.min(0.3, 0.03 * n) * pvpHealMul());
       if (heal > 0 && !p.dead) {
         p.hp = Math.min(game.stats.maxHp, p.hp + heal);
         addText(p.x, p.y - 44, '+' + Math.round(heal), 'heal');

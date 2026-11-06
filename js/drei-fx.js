@@ -1908,7 +1908,8 @@ function fx3Status(h) {
     const poison = m.poison && m.poison.until > t;
     const bleed = m.bleed && m.bleed.until > t;
     const curse = m.vulnerable && m.vulnerable.until > t;
-    if (!(stun || slow || burn || poison || bleed || curse) || !v3InView(m.x, m.y, 60)) continue;
+    const toxin = m.toxin && m.toxin.until > t;
+    if (!(stun || slow || burn || poison || bleed || curse || toxin) || !v3InView(m.x, m.y, 60)) continue;
     if (++n > STATUS3_MAX) break;
     const fy = feetY(m);
     const x = m.x * U3;
@@ -2004,6 +2005,30 @@ function fx3Status(h) {
       fx3Ground(o, m.x, fy, 0.44, head + 0.12, 'rune', t * 1.3);
       fx3Color(o, m.vulnerable.color || '#b48cff', 0.95);
     }
+    if (toxin) fx3ToxinHaze(h, m.x, fy, head, rr, ph, t);
+  }
+  // Gift eines anderen Spielers an der eigenen Figur (PvP, seit 14.15)
+  const p = game.player;
+  if (p && p.toxin && p.toxin.until > t && !p.dead && v3InView(p.x, p.y, 60)) {
+    fx3ToxinHaze(h, p.x, feetY(p), v3HeadHeight(p), Math.max(0.32, (p.r || 11) * U3 * 1.25), 0.7, t);
+  }
+}
+
+// Gift aus der Ausrüstung (seit 14.15): ein dezenter grüner Dunst, der langsam am Körper aufsteigt und vergeht –
+// weiche Schwaden in Körperhöhe, kein Zeichen am Boden
+function fx3ToxinHaze(h, wx, fy, head, rr, ph, t) {
+  const x = wx * U3;
+  const z = fy * U3;
+  for (let i = 0; i < 6; i++) {
+    const u = (t * 0.35 + i / 6 + ph) % 1;
+    const a = i * 1.047 + ph + t * 0.4;
+    const o = fx3Take(h, 'smoke');
+    // leicht vor dem Körper, damit der Dunst nicht im Modell verschwindet
+    o.position.set(x + Math.cos(a) * rr * 0.6, head * (0.2 + u * 0.75), z + Math.sin(a) * rr * 0.3 + rr * 0.45);
+    const sc = (0.4 + 0.35 * u) * Math.max(0.8, rr * 1.6);
+    o.scale.set(sc, sc * 0.8, 1);
+    o.material.color.set(i % 2 ? '#4fc72e' : '#8fe35c');
+    o.material.opacity = 0.5 * Math.sin(u * Math.PI);
   }
 }
 

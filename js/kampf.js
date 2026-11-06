@@ -62,6 +62,101 @@ function levelBonus(attackerLevel, targetLevel) {
   return Math.max(0.2, 1 + 0.04 * diff);
 }
 
+// --- Monsterarten (seit 14.15) ----------------------------------------------
+// Für die Boni „Stark gegen …“ und „Abwehr gegen Menschen“. Die Art folgt der Gestalt (shape); wo die Gestalt täuscht
+// (Untote in Menschengestalt, Knochenwolf, Höllenhund, Höllenthron-Wächter), steht die Kennung in MONSTER_KIND_IDS.
+// Bosse, Instanz-Gegner und Nachtmonster mit Vorlage (type.look) erben die Art ihrer Vorlage, Seelensteine die Art
+// der Monster ihres Gebiets (die ersten Monster der Zone bzw. der Dungeon-Boss), andere Spieler sind Menschen.
+const MONSTER_KINDS = {
+  beast: { name: 'Tiere', bonus: 'vsBeast' },
+  human: { name: 'Menschen', bonus: 'vsHuman' },
+  orc: { name: 'Orks und Riesen', bonus: 'vsOrc' },
+  undead: { name: 'Untote und Geister', bonus: 'vsUndead' },
+  demon: { name: 'Teufel und Dämonen', bonus: 'vsDemon' }
+};
+const SHAPE_KINDS = { beast: 'beast', boar: 'beast', snake: 'beast', humanoid: 'human', orc: 'orc', brute: 'orc', golem: 'orc', ghost: 'undead', demon: 'demon' };
+const MONSTER_KIND_IDS = {
+  untoter: 'undead', grabwaechter: 'undead', gruftkoenig: 'undead', morrak: 'undead', ghul: 'undead', knochenwolf: 'undead',
+  hoellenhund: 'demon', zerberos: 'demon', gorvoth: 'demon', lilith: 'demon', molgrath: 'demon', belzarek: 'demon',
+  raidkristall: null
+};
+function monsterTypeKind(id) {
+  for (let k = 0; k < 4 && id; k++) {
+    if (id in MONSTER_KIND_IDS) return MONSTER_KIND_IDS[id];
+    const t = MONSTER_TYPES[id];
+    if (!t) return null;
+    if (t.crystal) return null;
+    if (t.look && t.look !== id && MONSTER_TYPES[t.look]) { id = t.look; continue; }
+    return SHAPE_KINDS[t.shape] || null;
+  }
+  return null;
+}
+function monsterKind(m) {
+  if (!m) return null;
+  if (m.duelProxy) return 'human';
+  if (m._kind !== undefined) return m._kind;
+  let kind = null;
+  if (m.isStone) {
+    const z = m.zone;
+    const id = z && z.dungeon ? z.dungeon.boss : z && z.groups && z.groups[0] ? z.groups[0][0] : null;
+    kind = monsterTypeKind(id);
+  } else kind = monsterTypeKind(m.typeId);
+  m._kind = kind;
+  return kind;
+}
+// Zusatzschaden aus „Stark gegen …“ gegen dieses Ziel (Spieler: nur gegen Menschen, andere Spieler zählen dazu)
+function kindDmgBonus(s, m) {
+  const k = MONSTER_KINDS[monsterKind(m)];
+  return k ? s[k.bonus] || 0 : 0;
+}
+// Art eines Monsterangriffs auf die Figur: Zauber (s), Fernkampf (r) oder Nahkampf (m). Zaubernde Monster sind die
+// Fernkämpfer ohne Bogen, die keine Tiere sind (Ork-Schamane, Frostgeist, Sumpfhexe, Harpyie …); Tiere spucken oder
+// speien (Fernkampf).
+function monsterAttackKind(m) {
+  const t = m && m.type;
+  if (!t || !t.ranged) return 'm';
+  if (t.bow || monsterKind(m) === 'beast') return 'r';
+  return 's';
+}
+// Abwehr der Figur gegen einen Treffer dieser Art (Summe; ohne Deckel, den setzt der Aufrufer)
+function attackResist(s, kind, human) {
+  return (kind === 's' ? s.resMagic || 0 : kind === 'r' ? s.resRanged || 0 : s.resMelee || 0) + (human ? s.resHuman || 0 : 0);
+}
+
+// --- Gift aus der Ausrüstung (seit 14.15) ---------------------------------------------
+// Vergiftungschance (Bonus der Waffe): jeder Treffer vergiftet mit dieser Chance. 6 s, ein Tick je Sekunde,
+// zusammen 40 % des auslösenden Treffers. Gegen Bosse, Endboss-Kristalle und Seelensteine höchstens 2 % ihres Lebens.
+// Stapelt nicht: ein neues Gift erneuert die Dauer und behält den höheren Tickwert. Im PvP je Tick höchstens 1,5 %
+// des Lebens des Getroffenen (PVP_DMG.toxinTick). Getrennt vom Gift der Fertigkeiten (m.poison): m.toxin bzw. p.toxin.
+const TOXIN = { dur: 6, share: 0.4, bossCap: 0.02, color: '#7ee05a' };
+const toxinBossLike = (m) => !!(m.isStone || (m.type && (m.type.boss || m.type.raid || m.type.raidBoss || m.type.crystal || m.type.inst)));
+function applyToxin(m, hit) {
+  if (!m || m.dead || !(hit > 0)) return;
+  let dps = (hit * TOXIN.share) / TOXIN.dur;
+  if (toxinBossLike(m)) dps = Math.min(dps, (m.maxHp * TOXIN.bossCap) / TOXIN.dur);
+  dps = Math.max(1, Math.round(dps));
+  const old = m.toxin && m.toxin.until > game.time ? m.toxin : null;
+  m.toxin = { dps: old ? Math.max(old.dps, dps) : dps, until: game.time + TOXIN.dur, tick: old ? old.tick : 0 };
+}
+
+// Mehr Gold (Bonus): Gold von Monstern, Bossen und Seelensteinen (nicht Aufträge oder Arena)
+function monsterGold(g) {
+  const f = (game.stats && game.stats.goldFind) || 0;
+  return f > 0 ? Math.round(g * (1 + f)) : g;
+}
+// Mehr Beute (Bonus): Chance einer Beute (Ausrüstung, Tränke, Monsterteile)
+function dropChance(c) {
+  const f = (game.stats && game.stats.dropFind) || 0;
+  return f > 0 ? c * (1 + f) : c;
+}
+// … und eine Anzahl (zufällig auf- oder abgerundet, im Mittel n × (1 + Bonus)); ohne Bonus unverändert
+function dropCount(n) {
+  const f = (game.stats && game.stats.dropFind) || 0;
+  if (!(f > 0) || !(n > 0)) return n;
+  const x = n * (1 + f);
+  return Math.floor(x) + (Math.random() < x - Math.floor(x) ? 1 : 0);
+}
+
 // --- Ziele ----------------------------------------------------------------
 
 // seit 13.85: Seelensteine nur, wenn kein Monster in Reichweite ist – vorher nahm das Spiel oft den Stein
@@ -253,7 +348,8 @@ function hitMonster(m, mul, opts = {}) {
   if (!opts.ally && !opts.dot) p.lastCombat = game.time;
   if (m.vulnerable && m.vulnerable.until > game.time) factor *= m.vulnerable.mul;
   if (!opts.ally) {
-    factor *= 1 + (s.monsterDmg || 0);
+    // „Stark gegen …“ der Monsterart (seit 14.15) zählt zu „Stark gegen Monster“ dazu
+    factor *= 1 + (s.monsterDmg || 0) + kindDmgBonus(s, m);
     if (opts.basic) factor *= BASIC_MUL * (1 + (s.basicDmg || 0));
     // Segen der Natur (Schamane): jede Fertigkeit des Schamanen ist Naturschaden; seit 13.69 auch die Arkane Erleuchtung des Magiers (Elementschaden)
     if (opts.skill && s.natureDmg) factor *= 1 + s.natureDmg;
@@ -285,6 +381,9 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps * dotK, until: game.time + opts.bleed.duration, tick: 0 };
     if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
+  // Gift aus der Ausrüstung (seit 14.15): jeder eigene Treffer, je Ziel einmal (nicht Diener, nicht Schaden über Zeit).
+  // Vor damageMonster, damit ein Mitspieler das Gift gleich mit dem Treffer an den Host schickt
+  if (!opts.ally && !opts.dot && s.poison > 0 && Math.random() < s.poison) applyToxin(m, amount);
   damageMonster(m, amount, isCrit, opts.source || p, opts.dot);
   // Omni-Vampir (Blutpakt des Nekromanten): jeder eigene Schaden heilt, auch über Zeit (je Treffer höchstens 3 %)
   if (!opts.ally && s.omniVamp > 0 && !p.dead && !m.isStone) {
@@ -364,7 +463,7 @@ function damageMonster(m, amount, crit, source, isDot) {
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken
   m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
   m.lastText = game.time;
-  if (opts.numbers) addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+  if (opts.numbers) addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot === 'toxin' ? 'toxin' : isDot ? 'dot' : 'dmg');
   if (m.isStone) {
     checkStoneWaves(m);
   } else {
@@ -386,6 +485,7 @@ function killMonster(m) {
   m.poison = null;
   m.burn = null;
   m.bleed = null;
+  m.toxin = null;
   if (game.target === m) game.target = null;
   monsterDeathFx(m);
   m.respawnAt = game.time + monsterRespawnDelay(m);
@@ -453,7 +553,8 @@ function rewardKillInner(m) {
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
   const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
-  const gold = Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : sd ? Math.max(1.2, sd.gold * 0.7) : 1));
+  // Mehr Gold (Bonus, seit 14.15) gilt für Monster und Seelensteine
+  const gold = monsterGold(Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : sd ? Math.max(1.2, sd.gold * 0.7) : 1)));
   p.gold += gold;
   p.kills++;
   // Gold erscheint klein beim Monster, die Erfahrung groß über der eigenen Figur (gainXp)
@@ -464,7 +565,8 @@ function rewardKillInner(m) {
 
   if (m.isStone) {
     const splinters = randInt(drops.splinters[0], drops.splinters[1]);
-    const potHp = randInt(drops.potions[0], drops.potions[1]);
+    // Mehr Beute (seit 14.15): auch mehr Tränke
+    const potHp = dropCount(randInt(drops.potions[0], drops.potions[1]));
     const potMp = Math.round(potHp * 0.6);
     const size = potionSizeFor(m.level);
     p.splinters += splinters;
@@ -483,7 +585,7 @@ function rewardKillInner(m) {
     // Seit 6.6 deutlich seltener: Tränke kauft man bei der Händlerin
     const potMul = sd ? (sd.potions[0] >= 2 ? 2 : 1.5) : 1;
     for (const [kind, chance] of [['hp', 0.012 * potMul], ['mp', 0.008 * potMul]]) {
-      if (Math.random() >= chance) continue;
+      if (Math.random() >= dropChance(chance)) continue;
       const key = potKey(kind, sz);
       p.potions[key] = (p.potions[key] || 0) + 1;
       ui.loot(`${potionInfo(kind).name} (${sz})`, 1, potionIconUrl(kind, sz), potionInfo(kind).color);
@@ -492,7 +594,7 @@ function rewardKillInner(m) {
   // Helfer der Endbosse: mit etwas Glück Tränke oder Splitter
   if (m.raidAdd) {
     const sz = potionSizeFor(m.level).id;
-    if (Math.random() < 0.35) {
+    if (Math.random() < dropChance(0.35)) {
       const key = potKey('hp', sz);
       p.potions[key] = (p.potions[key] || 0) + 1;
       ui.loot(`${potionInfo('hp').name} (${sz})`, 1, potionIconUrl('hp', sz), potionInfo('hp').color);
@@ -516,7 +618,9 @@ function rewardKillInner(m) {
 
 // --- Schaden am Spieler ----------------------------------------------------------
 
-function damagePlayer(amount, attacker) {
+// o.pvp: Treffer eines anderen Spielers, schon mit allen Abzügen gerechnet (pvpIncoming); o.dot: Gift (kein Ausweichen
+// oder Blocken, grüne Zahl)
+function damagePlayer(amount, attacker, o = {}) {
   const p = game.player;
   const s = game.stats;
   if (p.dead) return;
@@ -537,18 +641,25 @@ function damagePlayer(amount, attacker) {
     if (net.mode === 'client') netClientDamage(attacker, 0, false, false);
   }
   if (p.protectUntil > game.time) return;
-  if (Math.random() < s.dodge) {
+  if (!o.dot && Math.random() < s.dodge * (o.pvp ? PVP_DMG.dodgeMul : 1)) {
     addText(p.x, p.y - 30, 'Ausgewichen', 'info');
     return;
   }
   // Ein Schild kann Treffer ganz abblocken
-  if (s.block > 0 && Math.random() < s.block) {
+  if (!o.dot && s.block > 0 && Math.random() < s.block * (o.pvp ? PVP_DMG.dodgeMul : 1)) {
     addText(p.x, p.y - 30, 'Geblockt', 'block');
     vfxBlock(p, attacker);
     snd.block(p);
     return;
   }
-  let dmg = Math.max(1, Math.round(amount * s.damageTaken));
+  // Abwehr gegen Magie, Nahkampf, Fernkampf und (menschliche Monster) Menschen (seit 14.15); zusammen mit
+  // Schadensreduktion und „Erlittener Schaden“ höchstens 60 % weniger (wie bisher damageTaken ≥ 0,4)
+  let taken = s.damageTaken;
+  if (attacker && attacker.type && !attacker.duelProxy && !o.pvp) {
+    const res = attackResist(s, monsterAttackKind(attacker), monsterKind(attacker) === 'human');
+    if (res > 0) taken = Math.max(0.4, taken - res);
+  }
+  let dmg = Math.max(1, Math.round(o.pvp ? amount : amount * taken));
   if (p.shield > 0) {
     const absorbed = Math.min(p.shield, dmg);
     p.shield -= absorbed;
@@ -569,7 +680,7 @@ function damagePlayer(amount, attacker) {
     dmg = Math.max(0, Math.floor(p.hp - 1));
     later(0, () => duelLose(null));
   }
-  if (dmg > 0 && game.time - (p.sndHurtAt || -9) > 0.4) {
+  if (dmg > 0 && !o.dot && game.time - (p.sndHurtAt || -9) > 0.4) {
     p.sndHurtAt = game.time;
     snd.hurt(p);
     snd.struck(p);
@@ -577,9 +688,11 @@ function damagePlayer(amount, attacker) {
   if (dmg > 0) {
     p.hp -= dmg;
     p.hurtAt = game.time;
-    addText(p.x + (Math.random() - 0.5) * 16, p.y - 34, '-' + dmg, 'hurt');
-    game.hurtFlash = 0.35;
-    shakeScreen(2.5);
+    addText(p.x + (Math.random() - 0.5) * 16, p.y - 34, '-' + dmg, o.dot ? 'toxin' : 'hurt');
+    if (!o.dot) {
+      game.hurtFlash = 0.35;
+      shakeScreen(2.5);
+    }
   }
   if (s.reflect > 0 && attacker && !attacker.dead && !attacker.duelProxy) {
     damageMonster(attacker, Math.max(1, Math.round(amount * s.reflect)), false, p, false);
@@ -1650,7 +1763,8 @@ const SKILL_TYPES = {
   heal(sk, pw, lvl) {
     const p = game.player;
     const s = game.stats;
-    const amount = Math.round(s.maxHp * sk.amount * buffScale(lvl) * (s.healPower || 1));
+    // im PvP zu 60 % (seit 14.15, pvpHealMul)
+    const amount = Math.round(s.maxHp * sk.amount * buffScale(lvl) * (s.healPower || 1) * pvpHealMul());
     p.hp = Math.min(s.maxHp, p.hp + amount);
     addText(p.x, p.y - 40, '+' + Math.round(amount), 'heal');
     vfxPillar(p, '#9be59b', 1);
@@ -1670,7 +1784,7 @@ const SKILL_TYPES = {
     }
     faceTowards(t.x, t.y);
     const dmg = hitMonster(t, sk.dmg * pw, { skill: sk.id, vfxColor: '#ff6a7a' });
-    const heal = Math.round(dmg * sk.heal);
+    const heal = Math.round(dmg * sk.heal * pvpHealMul());
     p.hp = Math.min(game.stats.maxHp, p.hp + heal);
     addText(p.x, p.y - 40, '+' + Math.round(heal), 'heal');
     const bc = bodyCenter(t);
@@ -2041,4 +2155,157 @@ function updateProjectiles(dt) {
   }
   fxRank = -1;
   game.projectiles = game.projectiles.filter((pr) => !pr.done);
+}
+
+// --- Spieler gegen Spieler (seit 14.15) ------------------------------------------------------------------------------
+// Gemeinsame Rechnung für Duell (interaktion.js) und Turnierarena (Rangkampf und 4 gegen 4, turnierarena.js).
+// Der Angreifer schickt den rohen Schaden (pvpOutgoing), der Getroffene rechnet in vier Schichten ab (pvpIncoming).
+// Die Werte sind mit tools/balance-sim.js --pvp eingestellt (Bericht docs/balance-pvp.md):
+//   1. PvP-Faktor nach Stufe des Angreifers: 0,38 bis Stufe 50, dann fallend bis 0,30 auf Stufe 80 (vorher fest 0,6)
+//   2. Rüstung zählt doppelt (2 × Verteidigung in der üblichen Formel), höchstens 60 %. Dazu – getrennt, sonst wären sie
+//      wertlos, weil die doppelte Rüstung allein schon auf jeder Stufe die 60 % erreicht – Schadensreduktion,
+//      „Erlittener Schaden“ (auch aus Buffs) und die Abwehr gegen Menschen und gegen Magie, Nahkampf oder Fernkampf
+//      (je nach Angriff), zusammen höchstens 50 %. Beides zusammen also höchstens 80 % weniger.
+//   3. Lebenspolster: Schaden geteilt durch 1 + 0,02 × Stufe des Getroffenen (Stufe 80: 2,6-fach); Lebensbalken,
+//      Tränke und Heilung bleiben, wie sie sind
+//   4. Deckel je Treffer 25 % (kritisch 35 %) des Lebens und höchstens 45 % in 1,5 s (Kombos, mehrere Gegner im 4v4) –
+//      nur bei weniger als 10 Stufen Abstand; Stufe 60 darf Stufe 10 weiter umhauen (so gewünscht seit 13.2)
+// Ausweichen und Blocken wirken im PvP halb (dodgeMul): mit guter Ausrüstung haben fast alle 45 % Ausweichen, das
+// halbierte jeden Kampf und machte ihn zum Würfelspiel.
+// Heilung und Lebensraub wirken im PvP zu 60 %. „Stark gegen Menschen“ zählt gegen Spieler, „Stark gegen Monster“ nicht.
+// Betäuben, Einfrieren und Wurf gehen im PvP nicht über das Netz (sie zählen dort nur als Schaden, duelMul) – die
+// Regel „halb so lang, danach 4 s Schutz“ hat deshalb nichts, worauf sie wirken könnte.
+const PVP_DMG = {
+  mulLow: 0.38, mulHigh: 0.3, mulFrom: 50, mulTo: 80,
+  defMul: 2, armorMax: 0.6, otherMax: 0.5, maxReduce: 0.8, pad: 0.02, dodgeMul: 0.5,
+  maxHit: 0.25, maxCrit: 0.35, capGap: 10, window: 1.5, windowMax: 0.45,
+  heal: 0.6, toxinTick: 0.015, allyMul: 0.5
+};
+function pvpMulAt(L) {
+  return PVP_DMG.mulLow - (PVP_DMG.mulLow - PVP_DMG.mulHigh) * clamp01(((L || 1) - PVP_DMG.mulFrom) / (PVP_DMG.mulTo - PVP_DMG.mulFrom));
+}
+// Läuft gerade ein Kampf gegen andere Spieler (Duell oder Turnierarena)?
+function pvpActive() {
+  if (typeof duelFighting === 'function' && duelFighting()) return true;
+  return !!(game.pvpMatch && game.pvpMatch.state === 'fight');
+}
+// Heilung und Lebensraub im PvP
+function pvpHealMul() {
+  return pvpActive() ? PVP_DMG.heal : 1;
+}
+// Art des eigenen Angriffs für die Abwehr des Getroffenen: Zauber (s) sind Fertigkeiten und Ultis von Magier, Schamane
+// und Nekromant; der Grundangriff ist Fern- (r) oder Nahkampf (m) nach Waffe; Krieger und Dolch-Ninja Nahkampf,
+// der Bogen-Ninja Fernkampf; Diener Nahkampf
+function pvpAttackKind(p, opts) {
+  if (opts.ally) return 'm';
+  if (opts.basic) return basicAttack(p).ranged ? 'r' : 'm';
+  if (p.classId === 'magier' || p.classId === 'schamane' || p.classId === 'nekromant') return 's';
+  return p.classId === 'ninja' && (p.path | 0) === 1 ? 'r' : 'm';
+}
+// Treffer auf einen anderen Spieler: Nachricht mit rohem Schaden (a), krit (c), Stufe (l), Angriffsart (at: m/r/s) und Gift (pz)
+// (nicht „k“: das ist die Art der Nachricht, 'dh' bzw. 'pvh')
+function pvpOutgoing(mul, opts) {
+  const p = game.player;
+  const s = game.stats;
+  const base = opts.atk != null ? opts.atk : s.atk;
+  const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
+  if (!opts.ally && !opts.dot) breakStealth(p);
+  // duelMul (seit 8.6): Kontroll-Fertigkeiten des Magiers gleichen im Duell aus, dass Zustände dort nur als Schaden zählen
+  const raw = base * mul * (opts.ally ? PVP_DMG.allyMul : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 + (s.critDmg || 0) : 1) *
+    (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1) * (opts.ally ? 1 : 1 + (s.vsHuman || 0));
+  const d = { a: Math.round(raw), c: crit ? 1 : 0, l: p.level, at: pvpAttackKind(p, opts) };
+  if (opts.ally) d.al = 1; // Treffer eines Dieners: kein Lebensraub für den Herrn
+  if (!opts.ally && !opts.dot && s.poison > 0 && Math.random() < s.poison) d.pz = Math.max(1, Math.round((raw * TOXIN.share) / TOXIN.dur));
+  return d;
+}
+// Schaden, den ein Treffer d beim Getroffenen (Stufe level, Werte s) anrichtet. win: Liste der wirklich erlittenen
+// Treffer ({ t, a }) für den Deckel in 1,5 s (null = ohne; alte Einträge fallen heraus, den neuen trägt der Aufrufer
+// ein). Ergebnis ganzzahlig, 0 = gedeckelt.
+function pvpIncoming(level, s, d, win, now) {
+  const L = Math.max(1, d.l || 1);
+  let a = (+d.a || 0) * pvpMulAt(L);
+  const defP = PVP_DMG.defMul * (s.def || 0);
+  const armor = defP / (defP + 40 + 5 * (L - 1));
+  // Rüstung höchstens armorMax; Schadensreduktion, „Erlittener Schaden“ (auch aus Buffs) und Abwehr zusammen höchstens
+  // otherMax, beides zusammen höchstens maxReduce
+  const other = Math.min(PVP_DMG.otherMax, 1 - (s.damageTaken != null ? s.damageTaken : 1) + attackResist(s, d.at, true));
+  a *= Math.max(1 - PVP_DMG.maxReduce, (1 - Math.min(PVP_DMG.armorMax, armor)) * (1 - other));
+  a /= 1 + PVP_DMG.pad * level;
+  if (L - level < PVP_DMG.capGap) {
+    a = Math.min(a, Math.floor(s.maxHp * (d.c ? PVP_DMG.maxCrit : PVP_DMG.maxHit)));
+    if (win) {
+      while (win.length && now - win[0].t >= PVP_DMG.window) win.shift();
+      const sum = win.reduce((x, h) => x + h.a, 0);
+      a = Math.max(0, Math.min(a, s.maxHp * PVP_DMG.windowMax - sum));
+    }
+  }
+  return Math.max(0, Math.round(a));
+}
+// Getroffen von einem anderen Spieler: abrechnen, Gift übernehmen; Rückgabe: wirklich abgezogenes Leben.
+// src: Stellvertreter des Angreifers, fb(dealt): Rückmeldung eines Gift-Ticks an den Angreifer
+function pvpReceiveHit(d, src, fb) {
+  const p = game.player;
+  const s = game.stats;
+  p.pvpWin = p.pvpWin || [];
+  const amount = pvpIncoming(p.level, s, d, p.pvpWin, game.time);
+  const before = p.hp;
+  if (amount > 0) damagePlayer(amount, src, { pvp: true });
+  const dealt = Math.max(0, Math.round(before - p.hp));
+  // ausgewichen, geblockt oder vom Schild geschluckt zählt nicht zum Deckel in 1,5 s
+  if (dealt > 0) p.pvpWin.push({ t: game.time, a: dealt });
+  if (d.pz > 0 && !p.dead) pvpToxinIn(d, src, fb);
+  return dealt;
+}
+// Gift eines anderen Spielers: je Tick höchstens 1,5 % des Lebens; PvP-Faktor, Abwehr gegen Menschen und Lebenspolster
+function pvpToxinIn(d, src, fb) {
+  const p = game.player;
+  const s = game.stats;
+  const L = Math.max(1, d.l || 1);
+  let tick = (d.pz * pvpMulAt(L) * (1 - Math.min(PVP_DMG.maxReduce, s.resHuman || 0))) / (1 + PVP_DMG.pad * p.level);
+  tick = Math.max(1, Math.round(Math.min(tick, s.maxHp * PVP_DMG.toxinTick)));
+  const old = p.toxin && p.toxin.until > game.time ? p.toxin : null;
+  p.toxin = { dps: old ? Math.max(old.dps, tick) : tick, until: game.time + TOXIN.dur, tick: old ? old.tick : 0, src, fb };
+}
+// jedes Bild (spiel.js): Gift an der eigenen Figur ticken lassen; endet mit dem Kampf
+function playerToxinTick(p, dt) {
+  const t = p.toxin;
+  if (!t) return;
+  if (p.dead || t.until <= game.time || !pvpActive()) {
+    p.toxin = null;
+    return;
+  }
+  t.tick += dt;
+  if (t.tick < 1) return;
+  t.tick -= 1;
+  const before = p.hp;
+  damagePlayer(t.dps, t.src, { pvp: true, dot: true });
+  if (t.fb) t.fb(Math.max(0, Math.round(before - p.hp)));
+}
+// Wie viel vom rohen Schaden beim Gegner wirklich ankommt (gleitender Schnitt aus seinen Rückmeldungen 'dd'/'pvf').
+// duelHit/pvpHit geben damit eine Schätzung des echten Schadens zurück, von der Fertigkeiten mit Lebensentzug heilen
+// (vorher die Hälfte des rohen Schadens – auf hohen Stufen ein Vielfaches dessen, was wirklich ankam)
+function pvpDealtRatio(m) {
+  const p = game.player;
+  if (p.pvpRatio > 0) return p.pvpRatio;
+  const L = (m && m.level) || p.level;
+  return (pvpMulAt(p.level) * 0.35) / (1 + PVP_DMG.pad * L);
+}
+function pvpNoteDealt(raw, dealt) {
+  const p = game.player;
+  if (!(raw > 0) || !(dealt >= 0)) return;
+  const r = Math.min(1, dealt / raw);
+  p.pvpRatio = p.pvpRatio > 0 ? p.pvpRatio * 0.7 + r * 0.3 : r;
+}
+// Rückmeldung des Getroffenen (wirklicher Schaden): Lebensraub und Omni-Vampir im PvP zu 60 %, je Treffer höchstens 3 %
+function pvpLifeSteal(dealt) {
+  const p = game.player;
+  const s = game.stats;
+  const k = (s.hpSteal || 0) + (s.omniVamp || 0);
+  if (!(dealt > 0) || !(k > 0) || p.dead) return;
+  const gain = Math.min(s.maxHp - p.hp, dealt * k * PVP_DMG.heal, s.maxHp * 0.03);
+  if (gain > 0) {
+    p.hp += gain;
+    p.stealSum = (p.stealSum || 0) + gain;
+    later(0.3, showLifeSteal);
+  }
 }

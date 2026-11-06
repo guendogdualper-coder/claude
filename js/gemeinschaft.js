@@ -52,7 +52,7 @@ function onSocial(pid, d) {
   if (d.k === 'hh') {
     const pct = Math.max(0, Math.min(0.3, Number(d.pct) || 0));
     if (p.dead || !pct || !game.stats) return;
-    const a = Math.round(game.stats.maxHp * pct);
+    const a = Math.round(game.stats.maxHp * pct * pvpHealMul()); // im PvP zu 60 % (seit 14.15)
     p.hp = Math.min(game.stats.maxHp, p.hp + a);
     addText(p.x + rand(-6, 6), p.y - 44, '+' + a, 'heal');
     return;
