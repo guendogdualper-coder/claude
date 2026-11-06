@@ -60,11 +60,15 @@ const KA_STYLES = {
     wisp: { n: 9, body: '#480a12', core: '#ff2a3a', bodyOp: 0.84, coreOp: 0.75, w: 0.2, h: 0.55, rise: 0.76, speed: 0.55, r: 0.3 },
     motes: { n: 7, colors: ['#b81a2a', '#ff4a5a', '#7a0a14'], size: 0.06, speed: 0.4, tex: 'kaDrop', normal: true }
   },
-  // Magier Feuer: Karmin-Flammen, weißgelber Kern, viel Glut
+  // Magier Feuer: Karmin-Flammen, weißgelber Kern, viel Glut. Seit 14.3 lebendiger: lodernde Flammenzungen (die
+  // Flammenbilder der Feuerzauber statt glatter Tropfen) lösen sich von Kopf und Schultern, Glut fliegt als kurze
+  // Striche taumelnd auf, dunkler Rauch und Asche steigen mit, und das Feuer leuchtet Boden und Figur flackernd an
   feuer: {
-    glow: '#ff5a1a', glowOp: 0.36,
-    wisp: { n: 12, body: '#e8362a', core: '#ffb04a', bodyOp: 0.81, coreOp: 1, w: 0.21, h: 0.55, rise: 0.82, speed: 0.85, r: 0.3 },
-    motes: { n: 14, colors: ['#ffd36a', '#ff8a4a', '#fff1c8'], size: 0.05, speed: 0.55, tex: 'disc' }
+    glow: '#ff5a1a', glowOp: 0.36, light: 1,
+    smoke: { n: 5, color: '#1c0c08', op: 0.34, size: 0.34, speed: 0.42 },
+    wisp: { n: 14, body: '#e8362a', core: '#ffb04a', bodyOp: 0.95, coreOp: 0.8, w: 0.22, h: 0.62, rise: 1, speed: 1, r: 0.3, fire: true },
+    motes: { n: 16, colors: ['#ffd36a', '#ff8a4a', '#fff1c8'], size: 0.03, speed: 0.7, tex: 'disc', streak: true, sway: true },
+    motes2: { n: 6, colors: ['#2a201c', '#3e302a'], size: 0.028, speed: 0.28, tex: 'kaSmoke', normal: true, sway: true, asp: 1 }
   },
   // Magier Frost: königsblauer Eisnebel, kalte Zungen, Eissplitter blitzen
   frost: {
@@ -121,7 +125,8 @@ const KA_FLAME = {
   falke: { edge: '#06040c', body: '#22104a', core: '#7a3ae0', hot: '#d0b4ff', rim: '#a874ff', occl: 0.9, rise: 0.9, inf: 1, spd: 0.75, freq: 1 },
   seelen: { edge: '#030a06', body: '#0c3418', core: '#3ad064', hot: '#c8ffd4', rim: '#9a6aff', occl: 0.88, rise: 1, inf: 1, spd: 0.7, freq: 0.95 },
   blut: { edge: '#0c0103', body: '#4a060e', core: '#d01a28', hot: '#ff8a8a', rim: '#ff3040', occl: 0.88, rise: 0.9, inf: 1, spd: 0.7, freq: 1 },
-  feuer: { edge: '#7a1004', body: '#f2300e', core: '#ff8a1e', hot: '#fff0b0', rim: '#ffc24a', occl: 0.62, rise: 1.1, inf: 1, spd: 1.15, freq: 1.05 },
+  // seit 14.3 rauer: dunkler, rauchiger Saum, höhere und feinere Zungen, schnelleres Lodern
+  feuer: { edge: '#2a0604', body: '#d8280a', core: '#ff7a14', hot: '#fff4c8', rim: '#ffb43a', occl: 0.8, rise: 1.45, inf: 1.08, spd: 1.4, freq: 1.3 },
   frost: { edge: '#06205e', body: '#2a6aff', core: '#7ad0ff', hot: '#ffffff', rim: '#bff6ff', occl: 0.45, rise: 0.6, inf: 1.1, spd: 0.55, freq: 0.8 },
   blitz: { edge: '#1a0660', body: '#5a2ef0', core: '#b49aff', hot: '#fff7b0', rim: '#ffe94a', occl: 0.45, rise: 0.75, inf: 1, spd: 1.7, freq: 1.4 },
   erde: { edge: '#2a1808', body: '#8a5014', core: '#f0a830', hot: '#ffe0a0', rim: '#ffd98a', occl: 0.7, rise: 0.6, inf: 1.15, spd: 0.55, freq: 0.8 },
@@ -357,7 +362,8 @@ function kaTake(h, kind, tex, normal) {
   const o = fx3Take(h, kind);
   if (!o.userData.kaInit) {
     o.userData.kaInit = true;
-    o.material.map = tex === 'disc' ? fx3Texture('disc') : kaTex(tex);
+    // kaFire0–3 (seit 14.3): die Flammenbilder der Feuerzauber (fireTex, feuerfeld.js)
+    o.material.map = tex === 'disc' ? fx3Texture('disc') : tex.startsWith('kaFire') ? fireTex(+tex[6]) : kaTex(tex);
     if (normal) o.material.blending = THREE.NormalBlending;
     o.material.needsUpdate = true;
   }
@@ -548,8 +554,13 @@ function kaMotes3(h, m, A, k, t, q, seed) {
     let op = (ph < 0.15 ? ph / 0.15 : 1 - (ph - 0.15) / 0.85) * k * kaFace(ox, oz, r, yk);
     if (op < 0.03) continue;
     const s = H * m.size * (1 - ph * 0.35);
-    const rot = m.spin || m.sway ? t * (1.2 + (i % 3) * 0.5) + i : 0;
-    const asp = m.tex === 'disc' ? 1 : 2;
+    let rot = m.spin || m.sway ? t * (1.2 + (i % 3) * 0.5) + i : 0;
+    let asp = m.asp || (m.tex === 'disc' ? 1 : 2);
+    // Glut als kurzer Strich (seit 14.3), leicht schräg in Richtung des Taumelns
+    if (m.streak) {
+      asp = 3.2;
+      rot = Math.cos(t * 1.7 + i * 2) * 0.35;
+    }
     kaSprite(h, kind, m.tex, m.normal, x + ox, y + H * yk, z + oz, s, s * asp, m.colors[i % m.colors.length], Math.min(1, op * 1.1), rot);
   }
 }
@@ -1068,6 +1079,8 @@ function kaHideIdle() {
   }
 }
 
+const KA_FIRE_KIND = ['kaFireN0', 'kaFireN1', 'kaFireN2', 'kaFireN3'];
+const KA_FIRE_TEX = ['kaFire0', 'kaFire1', 'kaFire2', 'kaFire3'];
 // Zungen lösen sich vom Körper: Startpunkt auf der Hülle eines Knochens (Kopf und Schultern am häufigsten), steigen
 // auf, werden schmal und verlöschen. Sie folgen der Figur, solange sie leben.
 const _kaM = new THREE.Matrix4();
@@ -1110,6 +1123,13 @@ function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
     const sway = Math.sin(t * 3.1 + i * 1.7) * H * 0.03 * ph;
     const py = y + H * yk + sy * 0.35;
     const rot = Math.sin(t * 2.6 + i * 1.9) * 0.25;
+    if (w.fire) {
+      // lodernde Flamme (Daumenkino aus vier Bildern), darunter nur ein kleiner heller Kern
+      const f = (Math.floor(t * 13 + i * 3.7) & 3);
+      kaSprite(h, KA_FIRE_KIND[f], KA_FIRE_TEX[f], true, x + ox + sway, py + sy * 0.1, z + oz, sx, sy * 1.12, '#ffffff', Math.min(1, w.bodyOp * op), rot);
+      kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway, py - sy * 0.15, z + oz, sx * 0.45, sy * 0.5, w.core, Math.min(1, w.coreOp * op * 0.7), rot);
+      continue;
+    }
     if (w.bodyOp > 0) kaSprite(h, 'kaWispN', 'kaWisp', true, x + ox + sway, py, z + oz, sx, sy, w.body, Math.min(1, w.bodyOp * op * 0.55), rot);
     kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway, py - sy * 0.08, z + oz, sx * 0.62, sy * 0.7, w.core, Math.min(1, w.coreOp * op), rot);
   }
@@ -1150,6 +1170,8 @@ function kaDraw3(h, p, st, kk, t, q, gfx, rich) {
   if (st.pebbles && !plain) kaPebbles3(h, st.pebbles, A, k, t, q);
   if (st.motes) kaMotes3(h, st.motes, A, k, t, q, seed);
   if (st.motes2) kaMotes3(h, st.motes2, A, k, t, q, seed + 0.5);
+  // Feuer leuchtet Boden und Figur flackernd an (seit 14.3; auf dem Pferd nicht)
+  if (st.light && !plain && typeof fireLight3 === 'function') fireLight3(A.x, A.y + A.H * 0.55, A.z, (0.55 + 0.75 * L) * Math.min(1, kk * 1.5), 4.5 + 2 * L);
   for (const b of p.buffs) {
     const ac = KA_ACCENT[b.id];
     if (ac && b.until > t && ac.arcs) kaArcs3(h, ac.arcs, A, k, t + 0.37, q, seed);
@@ -1199,6 +1221,11 @@ function kaFrame(h) {
 }
 const FX3_KA = { parts: [], fn: kaFrame };
 FX3_HOOKS.push(FX3_KA);
+// Licht der Feuer (feuerfeld.js) erst nach der Aura setzen, damit ihr Lichtwunsch im selben Bild gilt
+if (typeof FLM3_HOOK !== 'undefined' && FX3_HOOKS.includes(FLM3_HOOK)) {
+  FX3_HOOKS.splice(FX3_HOOKS.indexOf(FLM3_HOOK), 1);
+  FX3_HOOKS.push(FLM3_HOOK);
+}
 
 // --- 2D (ohne 3D): getönter Schein, aufsteigende Zungen und Funken um die Figur -------------------------------
 // layer 'back' hinter der Figur (Schein, Rauch, hintere Zungen), 'front' davor (Funken unterhalb des Gesichts)

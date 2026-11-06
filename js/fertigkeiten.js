@@ -1368,7 +1368,9 @@ function rankHitFx(m, rank) {
     }
   }
   if (rank >= 3) {
-    addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 60, dur: 0.4, color: '#ff6a4a', width: 8, grow: true });
+    // seit 14.3 nur noch in 2D: in 3D legte jeder Treffer einen Ring (mit Rang-Runen) auf den Boden – bei Feuertornados
+    // und Glutfeld dutzende große rote Bodenringe; rankHit3 zeigt dort Glutwelle und Meteor in der Luft
+    if (!V3.on) addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 60, dur: 0.4, color: '#ff6a4a', width: 8, grow: true });
     particles(c.x, c.y, { count: 14, color: ['#ff6a4a', '#ffd34d'], speed: [80, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'ember', drag: 3 });
   }
 }
