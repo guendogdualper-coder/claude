@@ -160,7 +160,7 @@ const CLASSES = {
         // seit 13.57: Weg des Falken statt Weg des Schattens – der Fernkampf-Ninja mit Pfeil und Bogen (fernninja.js).
         // Der Weg behält Index 1 (Spielstände speichern p.path); seine Fertigkeiten gehen nur mit einem Bogen (weapon).
         id: 'falke', name: 'Weg des Falken', role: 'Fernkampf · Pfeil und Bogen', weapon: 'bow',
-        description: 'Trifft aus großer Entfernung: eine schnelle Salve aus Falkenpfeilen, ein langer Pfeilregen, ein Schuss, der ganze Reihen durchbohrt, ein Salto rückwärts mit Pfeilfächer und ein Schattenschritt. Jeder Schuss trägt dunkle Schattenmagie und braucht Pfeile vom Bogenmacher; der Falkenblick ist der Klassensegen.',
+        description: 'Trifft aus großer Entfernung: eine schnelle Salve aus Falkenpfeilen, ein langer Pfeilregen, ein Schuss, der ganze Reihen durchbohrt, ein Schattenfalke, der beim Einschlag in Splitter zerbirst, und ein Schattenschritt. Jeder Schuss trägt dunkle Schattenmagie und braucht Pfeile vom Bogenmacher; der Falkenblick ist der Klassensegen.',
         skills: [
           {
             id: 'falkenpfeil', name: 'Falkenpfeil', short: 'FP', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
@@ -191,13 +191,15 @@ const CLASSES = {
             text: 'Ein Pfeil, um den sich dunkle Schatten zu einer Spirale drehen: Er durchschlägt alle Gegner in einer Linie bis 680 weit und stößt sie zurück.'
           },
           {
-            id: 'rueckensprung', name: 'Rückensprung', short: 'RS', kind: 'angriff', unlock: 7, mp: 18, cooldown: 10,
-            // Pfeile fliegen viel weiter (780 statt 460, etwas langsamer), bremsen länger, treffen dafür schwächer (0,85 statt 1,2);
-            // aimRange: Ziel, von dem man wegspringt, wie bisher in der Nähe
-            // seit 13.85 mit Zielkreis (aimAway wie Schattenschritt): Landeplatz hinter der Figur frei wählbar
-            type: 'bleap', aim: true, aimAway: 140, aimMax: 140, aimR: 34, distance: 140, air: 0.36, count: 5, angle: 50, range: 780, aimRange: 460, speed: 760, dmg: 1.35, slow: { amount: 0.55, duration: 3.5 },
-            arrows: 5, color: '#9a6ae0',
-            text: 'Ein Salto rückwärts, bis zu 140 weit weg von deinem Ziel. Noch in der Luft schießt du einen Fächer aus fünf Schattenpfeilen nach vorn, die sehr weit fliegen (bis 780): Jeder trifft den ersten Gegner auf seinem Weg und bremst ihn 3,5 s um 55 %. Den Landeplatz wählst du mit dem Zielkreis – er beginnt hinter dir, vom Gegner weg.'
+            // seit 14.14 Splitterfalke statt Rückensprung (Salto rückwärts mit Pfeilfächer): Ort wählen, ein schwerer
+            // Schattenpfeil fliegt im hohen Bogen hin, wird im Sturz zum Schattenfalken und zerbirst beim Einschlag in
+            // Splitter aus Schattenglas (fernninja.js). Ein Treffer dmg an allen Gegnern im Kreis (radius) und Verlangsamung.
+            // Schaden wie Durchbohrender Schuss (2,5) bzw. der alte Fächer, der selten mehr als zwei Pfeile ins Ziel brachte.
+            // Stufe, Rang, Leistenplatz und Bücher des Rückensprungs gehen mit (SKILL_RENAMED in spieler.js)
+            id: 'splitterfalke', name: 'Splitterfalke', short: 'SF', kind: 'angriff', unlock: 7, mp: 18, cooldown: 10,
+            type: 'bsplitter', aim: true, range: 520, radius: 110, dmg: 2.4, slow: { amount: 0.4, duration: 2 },
+            arrows: 1, anim: 'bogenlob', animDur: 0.4, color: '#9a6ae0',
+            text: 'Du wählst einen Ort (bis 520 weit) und schießt einen schweren Schattenpfeil im hohen Bogen dorthin. Im Sturz entfaltet er sich zu einem Schattenfalken, der in den Boden stößt und in Splitter aus schwarzem Schattenglas zerbirst – sie fliegen nach allen Seiten und bleiben kurz im Boden stecken, Schattenrauch quillt auf. Alle Gegner im Kreis (110 weit) nehmen hohen Schaden und sind 2 s um 40 % verlangsamt. Je Rang zerbirst er in mehr Splitter.'
           },
           {
             // seit 13.67 statt Falkenblick (der ist jetzt der Klassensegen des Bogen-Ninjas, klassensegen.js):

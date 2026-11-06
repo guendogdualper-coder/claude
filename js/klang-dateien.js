@@ -183,7 +183,7 @@ const SKILL_FILE = {
   // Ninja
   hinterhalt: ['klinge', 1.2], tarnung: ['schatten', 1.1, 0.5], wirbelklinge: ['wirbel', 1.2], blitzangriff: ['blitz_wirken', 1.3],
   schattenkette: ['schatten', 1.25], falkenpfeil: ['bogen_schuss', 0.9], pfeilregen: ['pfeilregen', 1], durchschuss: ['bogen_schuss', 0.82],
-  rueckensprung: ['wind', 1.2], schattenwechsel: ['schatten', 1.35],
+  splitterfalke: ['bogen_schuss', 0.7], schattenwechsel: ['schatten', 1.35],
   // Schamane
   talisman: ['blitz_wirken', 1], drachengebruell: ['feuer_wirken', 0.9], drachenkraft: ['licht', 0.9], blitzschlag: ['eissturm', 1],
   donnersturm: ['donner', 1], geisterfaust: ['licht', 1.05], windfessel: ['wind', 1], segen: ['licht', 1], heilung: ['heilung', 1],

@@ -475,7 +475,7 @@ function pageLib() {
   };
 
   // Mobilität: Fußtempo (mit Buffs) + Sprung-/Teleportweite je Sekunde Abklingzeit; Reichweite des Grundangriffs
-  const MOVE = { leap: 'distance', blink: 'range', shift: 'distance', bleap: 'distance', bshadow: 'range' };
+  const MOVE = { leap: 'distance', blink: 'range', shift: 'distance', bshadow: 'range' };
   S.mobility = (cls, path, L, opt = {}) => {
     S.make(cls, path, L, opt);
     S.prebuff();

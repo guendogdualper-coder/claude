@@ -506,93 +506,65 @@ MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
   pierceFx(rp, rp.x, rp.y, f, sk);
 });
 
-// Rückensprung: Salto nach hinten (vom Ziel weg), in der Luft ein Fächer aus Pfeilen nach vorn
-SKILL_TYPES.bleap = function (sk, pw) {
+// Splitterfalke (seit 14.14, Platz 4 statt Rückensprung): Ort wählen (Zielkreis, sk.aim), der Ninja hebt den Bogen
+// schräg nach oben (Pose bogenlob) und schießt einen schweren Schattenpfeil im hohen Bogen dorthin. Im Sturz entfaltet
+// sich um den Pfeil ein Schattenfalke mit angelegten Flügeln, er stößt in den Boden und zerbirst: Splitter aus
+// schwarzem Schattenglas fliegen nach allen Seiten und bleiben kurz im Boden stecken, Schattenrauch quillt auf, dunkle
+// Federn stieben, der Geist des Falken steigt aus dem Rauch auf. Ein Treffer an allen Gegnern im Kreis (sk.radius) mit
+// Verlangsamung, sie werden dabei kurz angehoben. Je Rang mehr Splitter (nur Bild), ab Erweckt glüht ein Teil in der
+// Rangfarbe. Alle Splitter kommen aus einem Samen (seed): Mitspieler sehen dasselbe Bild.
+// rel: Abschuss nach dem Wirken (wie die Salve, BOW_SALVO.first); Flugzeit fly0 + Entfernung / speed;
+// stick/sink: so lange stecken die Splitter, bevor sie einsinken und zu Schatten zerfallen; up: Bogen gehoben (Pose)
+const BOW_SPLIT = { rel: 0.2, fly0: 0.32, speed: 1150, stick: 1.1, sink: 0.5, up: 0.5 };
+function splitFlight(ox, oy, x, y) {
+  return BOW_SPLIT.fly0 + Math.hypot(x - ox, y - oy) / BOW_SPLIT.speed;
+}
+SKILL_TYPES.bsplitter = function (sk, pw) {
   const p = game.player;
-  if (!bowCanShoot(p, sk.arrows)) return false;
-  const t = pickTarget(sk.aimRange || sk.range);
-  if (t) faceTowards(t.x, t.y);
-  let f = { ...p.facing };
-  let back = { x: -f.x, y: -f.y };
-  let want = sk.distance;
-  // seit 13.85 mit Zielkreis (sk.aim/aimAway): Landeplatz frei gewählt, der Kreis beginnt hinter der Figur.
-  // Die Pfeile fliegen weiter zum Ziel; ohne Ziel entgegen der Sprungrichtung.
-  if (sk.aim) {
-    const pt = game.aim && game.aim.sk.id === sk.id ? game.aim.pt : aimAwayPoint(p, sk);
-    const dx = pt.x - p.x;
-    const dy = pt.y - p.y;
-    const dl = Math.hypot(dx, dy);
-    if (dl > 4) {
-      back = { x: dx / dl, y: dy / dl };
-      want = Math.min(sk.distance, Math.max(dl, 30));
-      if (!t) { f = { x: -back.x, y: -back.y }; p.facing = { ...f }; }
-    }
-  }
-  let reach = 0;
-  for (let s = 6; s <= want; s += 6) {
-    const nx = p.x + back.x * s;
-    const ny = p.y + back.y * s;
-    if (!canStand(nx, ny, p.r * 0.7, false) || (inVillage(nx, ny) && !duelFighting())) break;
-    reach = s;
-  }
+  const pt = skillAimPoint(sk);
   const ar = bowArrowShot(p, sk.arrows);
   if (!ar) return false;
-  const mul = sk.dmg * pw * ar.mul;
-  const col = ar.color;
-  const x0 = p.x;
-  const y0 = p.y;
-  const now = game.time;
-  p.dash = { lock: true, until: now + sk.air + 0.06, rank: fxRank };
-  p.leap = { start: now, dur: sk.air, h: 30 };
-  input.walkTo = null;
-  addEffect({ type: 'bleap3', x: x0, y: feetY(p), bx: back.x, by: back.y, reach, color: sk.color, dur: 1.0 });
-  particles(x0, feetY(p), { count: 12, color: ['#120a1a', '#2a1840', '#6a3ab0'], speed: [40, 120], life: [0.3, 0.6], size: [2, 4], shape: 'square', drag: 3, glow: false });
-  // Flug in kleinen Schritten (Wände und Wasser halten die Figur auf)
-  const steps = 10;
-  let moved = 0;
-  for (let k = 1; k <= steps; k++) {
-    later((k / steps) * sk.air, () => {
-      if (p.dead) return;
-      const want = reach * easeOut(k / steps);
-      const d = want - moved;
-      if (d > 0 && moveEntity(p, back.x * d, back.y * d, false)) moved = want;
-      if (t && !t.dead) faceTowards(t.x, t.y);
-      else p.facing = { ...f };
-    });
-  }
-  // Pfeilfächer am höchsten Punkt
-  later(sk.air * 0.45, () => {
-    if (p.dead) return;
-    const tt = t && !t.dead ? t : null;
-    if (tt) faceTowards(tt.x, tt.y);
-    fanVolley(p, p.facing, sk, mul, col, true);
-    bowShotFx(p, sk.color);
-  });
-  later(sk.air, () => {
-    if (p.dead) return;
-    addEffect({ type: 'smoke3', x: p.x, y: feetY(p), count: 4, color: '#120a1a', size: 0.5, dur: 0.5 });
-  });
-  return { c: col, bx: +back.x.toFixed(2), by: +back.y.toFixed(2), rc: Math.round(reach) };
+  faceTowards(pt.x, pt.y);
+  // stehen bleiben, bis der Pfeil von der Sehne ist; das Laufziel bleibt
+  lockPlayer(p, BOW_SPLIT.rel + 0.1);
+  const x = Math.round(pt.x);
+  const y = Math.round(pt.y);
+  const seed = Math.floor(Math.random() * 1000);
+  later(BOW_SPLIT.rel, () => { if (!p.dead) bowShotFx(p, sk.color); });
+  splitFx(p, x, y, sk, seed, true, sk.dmg * pw * ar.mul, ar.color);
+  return { tx: x, ty: y, sd: seed, c: ar.color };
 };
-// Fächer aus count Pfeilen über angle Grad um die Blickrichtung
-function fanVolley(owner, f, sk, mul, color, local) {
-  const a0 = Math.atan2(f.y, f.x);
-  const half = (sk.angle * Math.PI) / 360;
-  for (let i = 0; i < sk.count; i++) {
-    const a = a0 - half + (2 * half * i) / Math.max(1, sk.count - 1);
-    const dir = { x: Math.cos(a), y: Math.sin(a) };
-    if (local) {
-      spawnProjectile({ owner: 'player', x: owner.x + dir.x * 8, y: owner.y + dir.y * 6, target: null, dir, speed: sk.speed, range: sk.range, mul, color, radius: 6,
-        style: 'arrow', skill: sk.id, slow: sk.slow, bfx: 'fan' });
-    } else {
-      spawnProjectile({ owner: 'remote', x: owner.x + dir.x * 8, y: owner.y + dir.y * 6, dir, speed: sk.speed, range: sk.range, mul: 0, color, radius: 6, style: 'arrow', bfx: 'fan' });
+// Bild (für alle gleich) und Einschlag (local = eigener Spieler: Schaden; sonst nur Bild und Klang)
+function splitFx(owner, x, y, sk, seed, local, mul, color) {
+  const rk = fxRank >= 0 ? fxRank : -1;
+  const fly = splitFlight(owner.x, owner.y, x, y);
+  const hit = BOW_SPLIT.rel + fly;
+  addEffect({ type: 'bsplit3', x, y: y + 9, ox: owner.x, oy: owner.y + 9, shooter: owner, rel: BOW_SPLIT.rel, fly, R: sk.radius, seed, rk,
+    color: color || sk.color, dur: hit + BOW_SPLIT.stick + BOW_SPLIT.sink + 0.4 });
+  const mine = owner === game.player;
+  later(hit, () => {
+    // Einschlag: dumpfer Schattenschlag und klirrendes Schattenglas
+    if (typeof snd !== 'undefined') {
+      snd.player('imp_schatten', { x, y, vol: mine ? 0.5 : 0.32, rate: 0.8 });
+      if (snd.file) snd.file('eis_splitter', { x, y, vol: mine ? 0.42 : 0.26, rate: 0.72, rev: 0.3 });
     }
-  }
+    particles(x, y - 6, { count: 12, color: ['#5a2aa8', '#8a5ae0', '#d8b8ff'], speed: [80, 240], life: [0.3, 0.6], size: [1.5, 3], shape: 'spark', drag: 3 });
+    if (mine) {
+      shakeScreen(4);
+      hitStop(0.05);
+    }
+    if (!local || owner.dead) return;
+    for (const m of enemiesInCircle(x, y, sk.radius)) {
+      hitMonster(m, mul, { skill: sk.id, slow: sk.slow, heavy: true, vfxColor: '#b48cff' });
+      if (canLift(m)) m.lift = { start: game.time, dur: 0.3, h: 10 };
+    }
+  });
 }
-MAGE2_REMOTE.bleap = (rp, sk, d) => {
-  addEffect({ type: 'bleap3', x: rp.x, y: feetY(rp), bx: d.bx || -d.fx, by: d.by || -d.fy, reach: d.rc || sk.distance, color: sk.color, dur: 1.0 });
-  rp.leap = { start: game.time, dur: sk.air, h: 30 };
-  later(sk.air * 0.45, () => fanVolley(rp, { x: d.fx, y: d.fy }, sk, 0, d.c || sk.color, false));
+MAGE2_REMOTE.bsplitter = (rp, sk, d) => {
+  if (!isFinite(d.tx) || !isFinite(d.ty)) return;
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+  withRank(rk, () => splitFx(rp, d.tx, d.ty, sk, d.sd || 1, false, 0, d.c));
+  later(BOW_SPLIT.rel, () => addEffect({ type: 'bmuzzle3', follow: rp, ox: 0, oy: 0, color: BOW3.violet, dur: 0.45 }));
 };
 
 // Schattenschritt (seit 13.67, Platz 5 statt Falkenblick): Ort wählen (Zielkreis), in Schattenrauch zerfallen,
@@ -684,10 +656,11 @@ Object.assign(SKILL_FX, {
       addEffect({ type: 'bhit3', x: c.x, y: feetY(m), color: '#a070f0', dur: 0.55, seed: Math.random() * 9 });
     }
   },
-  rueckensprung: {
+  // seit 14.14 Splitterfalke statt Rückensprung: großer Schattenriss mit vielen Federn (der Einschlag selbst ist bsplit3)
+  splitterfalke: {
     color: '#9a6ae0',
     hit(m) {
-      addEffect({ type: 'bhit3', x: m.x, y: feetY(m), color: '#9a6ae0', dur: 0.5, seed: Math.random() * 9 });
+      addEffect({ type: 'bhit3', x: m.x, y: feetY(m), color: '#9a6ae0', big: true, dur: 0.6, seed: Math.random() * 9 });
     }
   },
   schattenwechsel: { color: '#8a5ae0' },
@@ -705,11 +678,11 @@ Object.assign(SKILL_FX, {
   segen_falke: { color: '#8a5ae0', weaponGlow: '#4a1a90', aura3: bowWings3 }
 });
 // eigene Klänge: Schatten (seit 13.67, vorher Wind)
-Object.assign(SKILL_SND, { falkenpfeil: 'schatten', pfeilregen: 'schatten', durchschuss: 'schatten', rueckensprung: 'schatten', falkenblick: 'schatten', schattenwechsel: 'schatten' });
+Object.assign(SKILL_SND, { falkenpfeil: 'schatten', pfeilregen: 'schatten', durchschuss: 'schatten', splitterfalke: 'schatten', falkenblick: 'schatten', schattenwechsel: 'schatten' });
 
 // Werte im Fertigkeitsfenster (oberflaeche.js skillStats)
 function bowSkillStats(sk, lvl, out) {
-  if (!sk || !sk.type || !['bshot', 'bregen', 'bpierce', 'bleap', 'bshadow'].includes(sk.type)) return;
+  if (!sk || !sk.type || !['bshot', 'bregen', 'bpierce', 'bsplitter', 'bshadow'].includes(sk.type)) return;
   if (sk.type === 'bshadow') {
     out.push(['Schritt', 'bis ' + sk.range + ' · Ort frei wählen'], ['Unsichtbar', numDe(sk.hide) + ' s'], ['Fläche', 'r ' + sk.radius],
       ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
@@ -731,8 +704,9 @@ function bowSkillStats(sk, lvl, out) {
       ['Pfeilverbrauch', String(sk.arrows)]);
   }
   if (sk.type === 'bpierce') out.push(['Durchbohrt', ''], ['Linie', String(sk.range)]);
-  if (sk.type === 'bleap') out.push(['Pfeile', `${sk.count} × ${dmg(sk.dmg)}`], ['Flugweite', String(sk.range)], ['Sprung', String(sk.distance) + ' zurück'],
-    ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);
+  // seit 14.14 Splitterfalke (Schaden zeigt skillStats): ein Treffer an allen Gegnern im Kreis
+  if (sk.type === 'bsplitter') out.push(['Fläche', 'r ' + sk.radius + ' · alle Gegner'], ['Reichweite', String(sk.range)],
+    ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`], ['Pfeilverbrauch', String(sk.arrows)]);
   const p = game.player;
   const i = p ? bowArrowSort(p) : -1;
   if (i >= 0) out.push(['Pfeile', `${ARROW_TYPES[i].name} +${Math.round(ARROW_TYPES[i].dmg * 100)} %`]);
@@ -761,6 +735,10 @@ const BOW_POSE = {
   const rain = path.skills.find((x) => x.type === 'bregen');
   if (rain) bowSalvoRegister(rain.shots || 3, rain.shotEvery || 0.14, { kind: rain.anim, up: BOW_RAIN.up,
     hold: { rx: -2.2, wx: 1.25, lx: -2.15, lz: -0.8, cx: -0.14, cy: 0.05, hx: -0.28, gl: -0.12, gr: 0.18, hpy: -0.03 } });
+  // seit 14.14 Splitterfalke: ein schwerer Schuss mit schräg gehobenem Bogen (hoher Bogenschuss), Oberkörper leicht zurück
+  const lob = path.skills.find((x) => x.type === 'bsplitter');
+  if (lob) bowSalvoRegister(1, 0.15, { kind: lob.anim, up: BOW_SPLIT.up,
+    hold: { rx: -1.95, wx: 1.36, lx: -1.98, lz: -0.9, cx: -0.08, cy: 0.06, hx: -0.15, gl: -0.06, gr: 0.16, hpy: -0.03 } });
 })();
 if (typeof SKILL_POSE3 !== 'undefined' && typeof poseKeys3 === 'function') {
   for (const k of Object.keys(BOW_POSE)) SKILL_POSE3[k] = (B, sw) => poseKeys3(B, BOW_POSE[k], sw);
@@ -1283,12 +1261,6 @@ function bowProj3(h) {
         _bw3e.copy(_bw3d);
         bowFalcon3(h, x - _bw3d.x * 0.45, y + 0.35, z - _bw3d.z * 0.45, _bw3e, 1.0, 0.25 + 0.45 * Math.sin(t * 14 + pr.x * 0.01), 0.85, true);
       }
-    } else if (pr.bfx === 'fan') {
-      // Fächerpfeile (lange Flugbahn): zusätzliche, lange dunkle Schattenspur
-      for (let i = 0; i < (low ? 3 : 6); i++) {
-        const back = (0.7 + i * 0.16) * big; // seit 14.12 näher am Pfeil (vorher ab 2,1)
-        n3Smoke(h, x - _bw3d.x * back, y + 0.05 * i, z - _bw3d.z * back, 0.3 + i * 0.05, BOW3.smoke, 0.35 * (1 - i / 6));
-      }
     } else if (pr.bfx === 'pierce') {
       // zwei Schattenbänder spiralen um die Flugbahn
       const m = low ? 6 : 10; // seit 14.12 kürzer (vorher 16 Glieder, 2,4 lang)
@@ -1361,7 +1333,7 @@ FX3_HOOKS.push({ parts: [], fn: bowNock3 });
 
 // --- 3D: Effekte ------------------------------------------------------------------------------------------
 // seit 13.70: brain3 (Pfeilhagel) weg, dazu Salve (bsalvo3, bsalvohit3); seit 13.76 Pfeilregen (bregen3) statt Giftfalle
-['bmuzzle3', 'bhit3', 'bpierce3', 'bleap3', 'beye3', 'bult3', 'bshadow3', 'bsalvo3', 'bsalvohit3', 'bregen3'].forEach((k) => FX3_TYPES.add(k));
+['bmuzzle3', 'bhit3', 'bpierce3', 'bsplit3', 'beye3', 'bult3', 'bshadow3', 'bsalvo3', 'bsalvohit3', 'bregen3'].forEach((k) => FX3_TYPES.add(k));
 const _bwH = new THREE.Vector3();
 
 // Abschuss (seit 13.67 düster): Schattenrauch quillt aus dem Bogen, violetter Schein, ein Ring aus dunkler Energie
@@ -1778,28 +1750,258 @@ FX3_DRAW.bpierce3 = function (h, e) {
   if (t < fly + 0.1) n3Glow(h, x0, y, z0, 1.2 * (1 - clamp01(t / 0.3)), BOW3.violet, 0.6);
 };
 
-// Rückensprung: Windstoß am Absprung, Federn auf der Bahn
-FX3_DRAW.bleap3 = function (h, e) {
+// Splitterfalke (seit 14.14): Der schwere Schattenpfeil steigt aus der Bogenhand in einem hohen Bogen auf, zieht einen
+// dunklen Kern mit violettem Schein und Schattenrauch hinter sich her. Ab dem Scheitel entfaltet sich ein Schattenfalke
+// um ihn und stößt mit ihm herab, unten zieht sich schon Schatten zusammen. Beim Einschlag: greller violetter Blitz,
+// der Falke reißt auseinander, ein Büschel großer Schattenglas-Zacken bricht in der Mitte aus dem Boden und Splitter
+// (Doppelspitzen aus dunklem Glas mit leuchtendem Kern) fliegen im Bogen nach allen Seiten, überschlagen sich und
+// bleiben schräg im Boden stecken. Schattenrauch rollt nach außen und steigt als Säule auf, Staub und dunkle Federn
+// stieben, der Geist des Falken steigt mit Flügelschlägen aus dem Rauch auf. Zum Schluss sinken die Splitter ein und
+// zerfallen zu Schatten. Nichts davon ist flach auf den Boden gemalt.
+const _bspA = new THREE.Vector3();
+const _bspB = new THREE.Vector3();
+const _bspC = new THREE.Vector3();
+const _bspD = new THREE.Vector3();
+const _bspE = new THREE.Vector3();
+const _bspH = new THREE.Vector3();
+// Bahn des Pfeils: Wurfparabel von der Bogenhand (e._s0) zum Boden am Ziel, Scheitelhöhe e._H; Punkt und Richtung
+function splitPath(e, u, out, dir) {
+  const s0 = e._s0;
+  const x1 = e.x * U3;
+  const z1 = e.y * U3;
+  const y1 = 0.12;
+  out.set(s0.x + (x1 - s0.x) * u, s0.y + (y1 - s0.y) * u + 4 * e._H * u * (1 - u), s0.z + (z1 - s0.z) * u);
+  if (dir) dir.set(x1 - s0.x, y1 - s0.y + 4 * e._H * (1 - 2 * u), z1 - s0.z).normalize();
+  return out;
+}
+// Splitter aus dem Samen (für eigene und fremde gleich): Richtung, Landeweite, Wurfhöhe, Flugzeit, Größe, Drehung;
+// core: die großen Zacken, die in der Mitte aus dem Boden brechen
+function splitShards(e) {
+  if (e._shards) return e._shards;
+  const out = [];
+  const R = e.R * U3;
+  const n = 16 + 4 * (e.rk + 1);
+  for (let i = 0; i < n; i++) {
+    const s = e.seed * 0.173 + i * 1.913;
+    const a = (i / n) * Math.PI * 2 + (n2h(s, 1) - 0.5) * 0.7;
+    const d = R * (0.28 + 0.66 * Math.sqrt(n2h(s, 2)));
+    // steckt schräg nach außen geneigt im Boden
+    const tilt = 0.35 + 0.5 * n2h(s, 6);
+    const sx = Math.cos(a) * tilt + (n2h(s, 7) - 0.5) * 0.3;
+    const sz = Math.sin(a) * tilt + (n2h(s, 8) - 0.5) * 0.3;
+    const sl = Math.hypot(sx, 1, sz);
+    out.push({ i, a, d, hp: 0.5 + 1.4 * n2h(s, 3), tf: 0.3 + 0.28 * n2h(s, 4), s: 0.95 + 0.85 * n2h(s, 5), spin: 9 + 12 * n2h(s, 9),
+      ax: n2h(s, 10) * Math.PI * 2, stick: { x: sx / sl, y: 1 / sl, z: sz / sl }, rc: n2h(s, 11), core: false });
+  }
+  // große Zacken in der Mitte: brechen aus dem Boden, leicht nach außen gefächert
+  const nc = 4 + (e.rk >= 2 ? 1 : 0);
+  for (let i = 0; i < nc; i++) {
+    const s = e.seed * 0.291 + i * 2.377;
+    const a = (i / nc) * Math.PI * 2 + n2h(s, 1) * 0.8;
+    const tilt = 0.25 + 0.3 * n2h(s, 2);
+    const sl = Math.hypot(Math.cos(a) * tilt, 1, Math.sin(a) * tilt);
+    out.push({ i: 100 + i, a, d: 0.12 + 0.2 * n2h(s, 3), s: 2.6 + 1.1 * n2h(s, 4), stick: { x: Math.cos(a) * tilt / sl, y: 1 / sl, z: Math.sin(a) * tilt / sl }, rc: n2h(s, 5), core: true });
+  }
+  e._shards = out;
+  return out;
+}
+// ein Splitter aus Schattenglas: Doppelspitze (lange Spitze nach d, kurze nach hinten) mit leuchtendem Kern
+function splitShard3(h, c, d, s, op, glowCol, gk) {
+  if (op <= 0.01) return;
+  const w = 0.075 * s;
+  const a = fx3Take(h, 'cone');
+  fx3Cone(a, c, d, 0.4 * s, w);
+  fx3Color(a, '#2a1a42', op);
+  _bspE.copy(d).negate();
+  const b = fx3Take(h, 'cone');
+  fx3Cone(b, c, _bspE, 0.14 * s, w);
+  fx3Color(b, '#160c24', op);
+  const g = fx3Take(h, 'coneG');
+  fx3Cone(g, c, d, 0.36 * s, w * 0.55);
+  fx3Color(g, glowCol, gk * op);
+}
+FX3_DRAW.bsplit3 = function (h, e) {
   const t = game.time - e.start;
-  const k = clamp01(t / e.dur);
+  const low = n3low();
+  const rk = e.rk >= 0 ? e.rk : -1;
+  const rcol = rk >= 0 ? SKILL_RANKS[rk].color : null;
   const x = e.x * U3;
   const z = e.y * U3;
-  mGround(h, 'planeNBowR', 'ring', e.x, e.y, 0.5 + k * 1.6, 0.05, 0, '#3a1670', 0.6 * (1 - k));
-  for (let i = 0; i < (n3low() ? 3 : 7); i++) {
-    const a = i * 0.9;
-    n3Smoke(h, x + Math.cos(a) * (0.3 + k * 1.1), 0.2 + k * 0.6, z + Math.sin(a) * (0.3 + k * 0.9), 0.4 + k * 0.5, BOW3.smoke, 0.65 * (1 - k));
+  const R = e.R * U3;
+  const hit = e.rel + e.fly;
+  const ti = t - hit;
+  if (t < e.rel) return;
+  // Abschuss: Startpunkt an der Bogenhand merken, Scheitelhöhe nach Entfernung
+  if (!e._s0) {
+    const o = e.shooter;
+    const hp = o && !o.dead && typeof ninjaHand3 === 'function' ? ninjaHand3(o, _bspH) : _bspH.set(e.ox * U3, 1.1, e.oy * U3);
+    e._s0 = { x: hp.x, y: hp.y, z: hp.z };
+    e._H = Math.min(4.2, 1.3 + Math.hypot(x - hp.x, z - hp.z) * 0.2);
   }
-  _bw3c.set(x, 0.3, z);
-  _bw3s.set(e.by, 0, -e.bx);
-  for (let i = 0; i < 2; i++) {
-    const s = fx3Take(h, 'strip');
-    fx3Strip(s, _bw3c, _bw3s, _bw3Up, 0.6 + k * 1.2 + i * 0.25, 0.12, -0.3, Math.PI + 0.3, i ? '#5a2aa8' : '#3a1670', 0.5 * (1 - k), true);
+  // --- Flug ---
+  if (ti < 0) {
+    const u = (t - e.rel) / e.fly;
+    splitPath(e, u, _bspA, _bspD);
+    const p = _bspA;
+    // Spur: dunkler Kern mit violettem Schein entlang der Bahn, dahinter Schattenrauch
+    const nTr = low ? 4 : 9;
+    for (let k = 0; k < nTr; k++) {
+      const u0 = u - k * 0.03;
+      const u1 = u - (k + 1) * 0.03;
+      if (u1 < 0) break;
+      splitPath(e, u0, _bspB);
+      splitPath(e, u1, _bspC);
+      const f = 1 - k / nTr;
+      const core = fx3Take(h, 'segN');
+      fx3Segment(core, _bspC, _bspB, 0.035 * f + 0.01);
+      fx3Color(core, '#1a0a2a', 0.8 * f);
+      const gl = fx3Take(h, 'seg');
+      fx3Segment(gl, _bspC, _bspB, 0.13 * f + 0.03);
+      fx3Color(gl, BOW3.violet, 0.45 * f);
+      if (!low && k % 2 === 1) n3Smoke(h, _bspC.x, _bspC.y + 0.05 * k, _bspC.z, 0.3 + k * 0.06, k % 4 === 1 ? BOW3.smoke : BOW3.shadow, 0.5 * f);
+    }
+    // der schwere Pfeil selbst
+    bowArrow3(h, p.x, p.y, p.z, _bspD, BOW_ARROW_LEN * 1.7, e.color, 1, 0.55, BOW3.shadow);
+    n3Glow(h, p.x, p.y, p.z, 0.9, BOW3.violet, 0.55);
+    // Schattenranken winden sich um den Pfeil
+    if (!low) {
+      _bspE.set(-_bspD.z, 0, _bspD.x).normalize();
+      for (let k = 0; k < 2; k++) {
+        const an = t * 16 + k * Math.PI;
+        n3Smoke(h, p.x + _bspE.x * Math.cos(an) * 0.22, p.y + Math.sin(an) * 0.22, p.z + _bspE.z * Math.cos(an) * 0.22, 0.28, BOW3.smoke, 0.6);
+      }
+    }
+    // ab dem Scheitel entfaltet sich der Schattenfalke um den Pfeil und stößt mit ihm herab (Flügel angelegt)
+    const m = clamp01((u - 0.3) / 0.3);
+    if (m > 0) {
+      const fold = 0.25 + 0.5 * m;
+      n3Glow(h, p.x, p.y, p.z, 1.0 + 0.6 * m, '#5a2aa8', 0.35 * m);
+      bowFalcon3(h, p.x - _bspD.x * 0.12, p.y + 0.06, p.z - _bspD.z * 0.12, _bspD, 0.8 + 1.8 * m, fold + Math.sin(t * 20) * 0.08 * (1 - m), m, true);
+    }
+    // am Ziel zieht sich schon Schatten zusammen (Rauch kreist niedrig nach innen)
+    const g = clamp01((u - 0.45) / 0.55);
+    if (g > 0) {
+      const nG = low ? 3 : 7;
+      for (let k = 0; k < nG; k++) {
+        const an = (k / nG) * Math.PI * 2 + t * 3.5;
+        const r = R * (0.95 - 0.75 * g) * (0.8 + 0.2 * n2h(k, e.seed));
+        n3Smoke(h, x + Math.cos(an) * r, 0.25 + 0.15 * Math.sin(k + t * 4), z + Math.sin(an) * r * 0.85, 0.45 + 0.25 * g, k % 2 ? BOW3.smoke : '#2a1640', 0.5 * g);
+      }
+      n3Glow(h, x, 0.3, z, 0.6 + 1.0 * g, BOW3.violet, 0.35 * g);
+    }
+    return;
   }
-  const L = e.reach * U3;
-  for (let i = 0; i < 6; i++) {
-    const v = (i + 0.5) / 6;
-    const u = clamp01(k * 1.6 - v * 0.3);
-    bowFeather3(h, x + e.bx * L * v + Math.sin(i * 2.3) * 0.25, 0.6 + Math.sin(v * Math.PI) * 0.9 - u * 0.6, z + e.by * L * v, 0.26, i + t * 3, (1 - k) * 0.95);
+  // --- Einschlag ---
+  // kurzer violetter Blitz mit hellem Kern (gedämpft: additives Violett wird auf hellem Gras sonst weißlich), dazu
+  // schießen dunkle Schattenballen senkrecht aus dem Einschlag
+  if (ti < 0.3) {
+    const q = ti / 0.3;
+    n3Glow(h, x, 0.6, z, R * 1.1 * (0.5 + q), '#6a2ad0', 0.6 * (1 - q));
+    n3Glow(h, x, 0.5, z, 0.9 * (1 - q) + 0.25, '#e8d8ff', 0.8 * (1 - q));
+    if (rcol) n3Glow(h, x, 0.8, z, R * (0.4 + q * 0.5), rcol, 0.2 * (1 - q));
+    for (let k = 0; k < (low ? 3 : 6); k++) {
+      const hh = 0.3 + easeOut(q) * (1.2 + k * 0.45);
+      n3Smoke(h, x + Math.sin(k * 2.1) * 0.15, hh, z + Math.cos(k * 2.1) * 0.12, 0.85 + k * 0.1 + q * 0.6, k % 2 ? '#1a0a2a' : '#2e1450', 0.6 * (1 - q));
+    }
+  }
+  // der Falke reißt auseinander: Flügel schlagen weit auf, er wird groß und verweht
+  if (ti < 0.22) {
+    const q = ti / 0.22;
+    _bspD.set(0, -0.35, -1).normalize();
+    bowFalcon3(h, x, 0.9 + q * 0.6, z, _bspD, 2.4 + q * 1.6, -0.2 - q * 0.5, 0.95 * (1 - q), true);
+  }
+  // Splitter: fliegen, stecken, sinken ein
+  const end = BOW_SPLIT.stick;
+  const sinkAll = clamp01((ti - end) / BOW_SPLIT.sink);
+  for (const sh of splitShards(e)) {
+    if (low && !sh.core && sh.i % 2) continue;
+    const gc = rcol && sh.rc < 0.2 + 0.12 * rk ? rcol : sh.rc < 0.5 ? BOW3.violet : BOW3.violet2;
+    const gx = x + Math.cos(sh.a) * sh.d;
+    const gz = z + Math.sin(sh.a) * sh.d * 0.9;
+    if (sh.core) {
+      // große Zacken: brechen in 0,1 s aus dem Boden, zittern kurz nach
+      const grow = easeOut(clamp01(ti / 0.1));
+      const sz = sh.s * (0.3 + 0.7 * grow);
+      const wob = Math.sin(ti * 38 + sh.i) * Math.exp(-ti * 7) * 0.12;
+      _bspD.set(sh.stick.x + wob, sh.stick.y, sh.stick.z - wob).normalize();
+      _bspC.set(gx, -0.08 * sh.s - sinkAll * 0.45 * sh.s, gz);
+      splitShard3(h, _bspC, _bspD, sz, 1 - sinkAll * 0.8, gc, 0.95 - 0.35 * clamp01(ti / 0.8));
+      if (!low) n3Glow(h, gx + _bspD.x * 0.25 * sh.s, 0.3 * sh.s, gz + _bspD.z * 0.25 * sh.s, 0.35 * sh.s, '#5a2aa8', (0.25 + 0.35 * Math.exp(-ti * 4)) * (1 - sinkAll));
+      continue;
+    }
+    if (ti < sh.tf) {
+      // im Flug: Wurfbogen von der Mitte nach außen, der Splitter überschlagt sich, violette Spur
+      const q = ti / sh.tf;
+      const r = 0.15 + (sh.d - 0.15) * q;
+      _bspC.set(x + Math.cos(sh.a) * r, 0.35 + 4 * sh.hp * q * (1 - q) - 0.25 * q, z + Math.sin(sh.a) * r * 0.9);
+      const an = sh.ax + ti * sh.spin;
+      _bspD.set(Math.cos(an) * Math.cos(sh.a), Math.sin(an), Math.cos(an) * Math.sin(sh.a)).normalize();
+      // am Ende dreht er sich in die Lage, in der er stecken bleibt
+      const lk = clamp01((q - 0.7) / 0.3);
+      _bspD.lerp(_bspE.set(sh.stick.x, sh.stick.y, sh.stick.z), lk).normalize();
+      splitShard3(h, _bspC, _bspD, sh.s, 1, gc, 0.9);
+      const qb = Math.max(0, q - 0.12);
+      const rb = 0.15 + (sh.d - 0.15) * qb;
+      _bspB.set(x + Math.cos(sh.a) * rb, 0.35 + 4 * sh.hp * qb * (1 - qb) - 0.25 * qb, z + Math.sin(sh.a) * rb * 0.9);
+      const tr = fx3Take(h, 'segN');
+      fx3Segment(tr, _bspB, _bspC, 0.022 * sh.s);
+      fx3Color(tr, '#3a1a6a', 0.55 * (1 - q * 0.5));
+      if (!low) n3Glow(h, _bspC.x, _bspC.y, _bspC.z, 0.3 * sh.s, '#6a2ad0', 0.45);
+      continue;
+    }
+    // steckt schräg im Boden, zittert nach dem Aufprall; zum Schluss sinkt er ein
+    const age = ti - sh.tf;
+    const wob = Math.sin(age * 44 + sh.i) * Math.exp(-age * 10) * 0.2;
+    _bspD.set(sh.stick.x + wob, sh.stick.y, sh.stick.z + wob * 0.6).normalize();
+    _bspC.set(gx, 0.02 - sinkAll * 0.3 * sh.s, gz);
+    splitShard3(h, _bspC, _bspD, sh.s, 1 - sinkAll, gc, 0.35 + 0.55 * Math.exp(-age * 3));
+    if (age < 0.3) {
+      // Aufprall: Staub und ein Schattenwölkchen
+      const q = age / 0.3;
+      n3Smoke(h, gx, 0.15 + q * 0.3, gz, 0.25 + q * 0.45, '#5a4a3a', 0.45 * (1 - q));
+      if (!low && age < 0.12) n3Glow(h, gx, 0.15, gz, 0.4, '#6a2ad0', 0.5 * (1 - age / 0.12));
+    }
+    if (sinkAll > 0 && !low && sh.i % 2 === 0) n3Smoke(h, gx, 0.2 + sinkAll * 0.5, gz, 0.25 + sinkAll * 0.3, BOW3.smoke, 0.5 * Math.sin(sinkAll * Math.PI));
+  }
+  // Schattenrauch: rollt am Boden nach außen und steigt in der Mitte als Säule auf
+  const rq = clamp01(ti / 1.1);
+  if (rq < 1) {
+    const nO = low ? 6 : 12;
+    for (let k = 0; k < nO; k++) {
+      const an = (k / nO) * Math.PI * 2 + e.seed;
+      const r = R * (0.15 + 0.8 * easeOut(rq)) * (0.85 + 0.25 * n2h(k, e.seed + 3));
+      n3Smoke(h, x + Math.cos(an) * r, 0.35 + rq * 0.4, z + Math.sin(an) * r * 0.85, 1.0 + rq * 1.1, k % 2 ? BOW3.smoke : '#2a1640', 0.5 * (1 - rq) * Math.min(1, ti / 0.06));
+    }
+    const nC = low ? 3 : 6;
+    for (let k = 0; k < nC; k++) {
+      const hh = (0.4 + k * 0.5) * (0.4 + 0.6 * easeOut(rq));
+      const sw = Math.sin(ti * 3 + k) * 0.12;
+      n3Smoke(h, x + sw, hh, z - sw, 0.7 + k * 0.12 + rq * 0.6, k % 2 ? '#1a0e28' : BOW3.smoke, 0.65 * (1 - rq) * (1 - k / (nC + 1)));
+    }
+  }
+  if (ti < 0.5) {
+    // Staub und Erdkrumen
+    const q = ti / 0.5;
+    n3Smoke(h, x, 0.3 + q * 0.4, z, 1.2 + q * 1.4, '#6a5a46', 0.45 * (1 - q));
+  }
+  // dunkle Federn stieben auf und trudeln herab
+  if (!low) for (let k = 0; k < 10; k++) {
+    const life = 1.5 + 0.4 * n2h(k, e.seed + 50);
+    if (ti > life) continue;
+    const q = ti / life;
+    const an = n2h(k, e.seed + 51) * Math.PI * 2;
+    const r = (0.4 + R * 0.5 * n2h(k, e.seed + 52)) * easeOut(Math.min(1, q * 2));
+    const yy = 0.4 + (1.4 + 1.2 * n2h(k, e.seed + 53)) * Math.sin(Math.min(1, q * 1.6) * Math.PI * 0.5) - q * q * 1.2;
+    bowFeather3(h, x + Math.cos(an) * r + Math.sin(ti * 5 + k) * 0.12, Math.max(0.1, yy), z + Math.sin(an) * r * 0.85, 0.32, an + ti * 4, 1 - q);
+  }
+  // der Geist des Falken steigt mit langsamen Flügelschlägen aus dem Rauch auf und verweht
+  if (ti > 0.12 && ti < 1.4) {
+    const q = (ti - 0.12) / 1.28;
+    _bspD.set(0, 0.45, -0.9).normalize();
+    const op = Math.sin(Math.min(1, q * 3) * Math.PI * 0.5) * (1 - q * q);
+    // nur die dunklen Flächen (ohne additiven Schein: der machte den Falken auf hellem Gras grauweiß)
+    n3Glow(h, x, 1.0 + easeOut(q) * 2.8, z - q * 0.8, 1.4, rcol || '#5a2aa8', 0.3 * op);
+    bowFalcon3(h, x, 1.0 + easeOut(q) * 2.8, z - q * 0.8, _bspD, 2.6 + q * 0.8, Math.sin(ti * 9) * 0.55, 0.95 * op, true);
   }
 };
 
@@ -2471,14 +2673,50 @@ EXTRA_EFFECTS.bpierce3 = (ctx, e, k, x, y) => {
   ctx.stroke();
   ctx.restore();
 };
-EXTRA_EFFECTS.bleap3 = (ctx, e, k, x, y) => {
+// Splitterfalke in 2D (seit 14.14): leuchtender Pfeil im hohen Bogen, am Ziel dunkle Wolke, Blitz und Splitter,
+// die nach außen fliegen und kurz stecken bleiben
+EXTRA_EFFECTS.bsplit3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const ti = t - e.rel - e.fly;
+  if (t < e.rel) return;
   ctx.save();
-  ctx.globalAlpha = 0.6 * (1 - k);
-  ctx.strokeStyle = e.color;
-  ctx.lineWidth = 3;
+  if (ti < 0) {
+    const u = (t - e.rel) / e.fly;
+    const sx = x + (e.ox - e.x);
+    const sy = y + (e.oy - e.y) - 24;
+    const H = 50 + Math.hypot(e.ox - e.x, e.oy - e.y) * 0.3;
+    const px = sx + (x - sx) * u;
+    const py = sy + (y - sy) * u - 4 * H * u * (1 - u);
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, px, py, 14 + u * 10, '#8a4ae8', 0.8);
+    glow2(ctx, px, py, 5, '#e8d8ff', 0.9);
+    glow2(ctx, x, y - 6, 10 + u * 30, '#5a2aa8', 0.35 * u);
+    ctx.restore();
+    return;
+  }
+  const q = clamp01(ti / (BOW_SPLIT.stick + BOW_SPLIT.sink));
+  ctx.globalAlpha = 0.6 * (1 - q);
+  ctx.fillStyle = '#120a1a';
   ctx.beginPath();
-  ctx.ellipse(x, y, 16 + k * 40, (16 + k * 40) * 0.45, 0, 0, Math.PI * 2);
-  ctx.stroke();
+  ctx.ellipse(x, y - 10, 14 + Math.min(1, ti * 3) * e.R * 0.7, 8 + Math.min(1, ti * 3) * e.R * 0.35, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'lighter';
+  if (ti < 0.35) glow2(ctx, x, y - 14, 30 + ti * 200, '#8a4ae8', 0.85 * (1 - ti / 0.35));
+  ctx.strokeStyle = '#b48cff';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 14; i++) {
+    const a = (i / 14) * Math.PI * 2 + n2h(i, e.seed) * 0.4;
+    const d = e.R * (0.3 + 0.6 * n2h(i, e.seed + 1)) * Math.min(1, ti / 0.35);
+    const sx = x + Math.cos(a) * d;
+    const sy = y + Math.sin(a) * d * 0.6;
+    ctx.globalAlpha = 0.8 * (1 - q);
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + Math.cos(a) * 4, sy - 9);
+    ctx.stroke();
+  }
   ctx.restore();
 };
 EXTRA_EFFECTS.beye3 = (ctx, e, k, x, y) => {
@@ -2512,7 +2750,7 @@ Object.assign(ICON_THEME, {
   falke: ['#6a3ab0', '#0c0618', '#e8d8ff'],
   nachtfalke: ['#5a2aa8', '#06030c', '#c8a8ff']
 });
-Object.assign(SKILL_ART_THEME, { falkenpfeil: 'falke', pfeilregen: 'nachtfalke', durchschuss: 'nachtfalke', rueckensprung: 'himmel', falkenblick: 'nachtfalke', schattenwechsel: 'nachtfalke', himmelsfalke: 'nachtfalke' });
+Object.assign(SKILL_ART_THEME, { falkenpfeil: 'falke', pfeilregen: 'nachtfalke', durchschuss: 'nachtfalke', splitterfalke: 'nachtfalke', falkenblick: 'nachtfalke', schattenwechsel: 'nachtfalke', himmelsfalke: 'nachtfalke' });
 
 // Pfeil im Symbol: Spitze bei (x1,y1), Ende bei (x0,y0); head = Farbe der Spitze. Federn und Spitze passen sich
 // der Länge an, damit auch kurze Pfeile wie Pfeile aussehen
@@ -2700,13 +2938,77 @@ SKILL_ART.durchschuss = function (ctx, IK) {
   ikBowArrow(ctx, IK, -21, 0, 21, 0, { w: 2.4, head: '#e0d0ff', glow: '#a070f0', fletch: '#3a1a6a' });
   IK.sparkles(ctx, 6, '#e0d0ff', 23, 7, 16, 0, 1.3);
 };
-// Rückensprung: helle Gestalt im Salto nach hinten links, nach rechts fliegt ein Fächer aus drei Pfeilen
-SKILL_ART.rueckensprung = function (ctx, IK) {
-  IK.light(ctx, 6, -4, 20, '#9a6ae0', 0.5);
-  IK.trail(ctx, -9, 2, 12, Math.PI * 0.05, Math.PI * 1.15, 3.2, '#c8a8ff', 18);
-  IK.glow(ctx, '#6a3ab0', 7, () => IK.figure(ctx, -9, 12, 21, '#1a0e28', -1.25));
-  for (const a of [-0.42, 0, 0.42]) ikBowArrow(ctx, IK, -1 + Math.cos(a) * 3, -2 + Math.sin(a) * 3, 2 + Math.cos(a) * 20, -2 + Math.sin(a) * 20, { w: 1.9, head: '#e0d0ff', fletch: '#6a3ab0' });
-  IK.fill(ctx, (c) => c.ellipse(-6, 20, 12, 2.5, 0, 0, Math.PI * 2), 'rgba(10,4,20,0.6)', 0);
+// Splitterfalke (seit 14.14 statt Rückensprung): oben stößt ein kleiner Schattenfalke kopfüber herab, darunter zerbirst
+// er in einem violetten Blitz – Splitter aus dunklem Schattenglas fliegen nach allen Seiten, zwei stecken schräg im Boden
+SKILL_ART.splitterfalke = function (ctx, IK) {
+  IK.light(ctx, 0, 8, 24, '#8a4ae8', 0.7);
+  const cx = 0;
+  const cy = 9;
+  // Splitter: Doppelspitzen aus Schattenglas, violett gesäumt, mit hellem Kern
+  const shard = (x, y, a, len, wid, a0 = 1) => {
+    ctx.save();
+    ctx.globalAlpha = a0;
+    ctx.translate(x, y);
+    ctx.rotate(a);
+    IK.fill(ctx, (c) => { c.moveTo(len, 0); c.lineTo(len * 0.25, -wid); c.lineTo(-len * 0.35, 0); c.lineTo(len * 0.25, wid); c.closePath(); },
+      IK.lin(ctx, -len * 0.35, 0, len, 0, [[0, '#120a1c'], [0.55, '#3a2260'], [1, '#c8a8ff']]), 0.7, 'rgba(180,140,255,0.95)');
+    ctx.strokeStyle = 'rgba(240,226,255,0.8)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.moveTo(-len * 0.1, 0);
+    ctx.lineTo(len * 0.85, 0);
+    ctx.stroke();
+    ctx.restore();
+  };
+  for (const [a, d, len, wid] of [[-2.75, 9, 9, 2.4], [-2.2, 12, 8, 2.1], [-0.4, 12, 8, 2.1], [0.2, 10, 9, 2.4], [2.9, 9, 7, 2], [0.55, 8, 6, 1.8], [2.55, 7, 6, 1.8], [-1.0, 13, 6, 1.6], [-1.95, 14, 6, 1.6]]) {
+    shard(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.8, a, len, wid);
+  }
+  // zwei Splitter stecken schon im Boden
+  for (const [x, y, a] of [[-16, 20, -1.95], [16, 21, -1.2]]) {
+    IK.fill(ctx, (c) => c.ellipse(x, y + 1, 5, 1.6, 0, 0, Math.PI * 2), 'rgba(10,4,20,0.6)', 0);
+    shard(x, y, a, 8, 2.2);
+  }
+  // Blitz in der Mitte
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const cg = ctx.createRadialGradient(cx, cy, 0, cx, cy, 11);
+  cg.addColorStop(0, 'rgba(250,244,255,1)');
+  cg.addColorStop(0.35, 'rgba(190,150,255,0.85)');
+  cg.addColorStop(1, 'rgba(120,60,220,0)');
+  ctx.fillStyle = cg;
+  ctx.fillRect(cx - 12, cy - 12, 24, 24);
+  ctx.restore();
+  // Schattenfalke stößt herab: Flügel im V nach oben, Kopf unten zum Blitz
+  ctx.save();
+  ctx.translate(0, -9);
+  ctx.scale(0.62, 0.62);
+  for (const s of [-1, 1]) {
+    ctx.save();
+    ctx.scale(s, 1);
+    const wing = (c) => {
+      c.moveTo(2.5, -2);
+      c.quadraticCurveTo(9, -10, 21, -19);
+      c.lineTo(19, -13.5);
+      c.lineTo(21.5, -12);
+      c.lineTo(17.5, -8.5);
+      c.lineTo(19.5, -6.5);
+      c.lineTo(14.5, -4);
+      c.lineTo(15.5, -1.5);
+      c.lineTo(9, 0.5);
+      c.quadraticCurveTo(5, 2, 3, 5);
+      c.closePath();
+    };
+    IK.glow(ctx, '#a070f0', 6, () => IK.fill(ctx, wing, IK.lin(ctx, 3, 4, 20, -18, [[0, '#3a2058'], [0.45, '#1a0e28'], [1, '#8a5ae0']]), 1.2, 'rgba(150,110,240,0.9)'));
+    ctx.restore();
+  }
+  IK.fill(ctx, (c) => { c.moveTo(-2.5, -6); c.lineTo(-5.5, -15); c.quadraticCurveTo(0, -17.5, 5.5, -15); c.lineTo(2.5, -6); c.closePath(); },
+    IK.lin(ctx, 0, -17, 0, -6, [[0, '#8a5ae0'], [1, '#1a0e28']]), 1.2, 'rgba(150,110,240,0.9)');
+  IK.fill(ctx, (c) => { c.moveTo(0, -8); c.quadraticCurveTo(5, -2, 3.2, 6); c.quadraticCurveTo(0, 10, -3.2, 6); c.quadraticCurveTo(-5, -2, 0, -8); c.closePath(); },
+    IK.lin(ctx, 0, -8, 0, 9, [[0, '#2a1840'], [1, '#120a1c']]), 1.2, 'rgba(150,110,240,0.9)');
+  IK.fill(ctx, (c) => { c.moveTo(-1.8, 8); c.lineTo(0, 12.5); c.lineTo(1.8, 8); c.closePath(); }, '#6a3ab0', 0.8);
+  for (const ex of [-1.6, 1.6]) IK.fill(ctx, (c) => c.arc(ex, 5.5, 0.9, 0, Math.PI * 2), '#e8d8ff', 0);
+  ctx.restore();
+  IK.sparkles(ctx, 6, '#e8d8ff', 41, 18, 0, 8, 1.3);
 };
 // Falkenblick: Falkenauge mit goldener Iris zwischen zwei Schwingen
 SKILL_ART.falkenblick = function (ctx, IK) {
