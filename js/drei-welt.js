@@ -150,7 +150,54 @@ const WORLD3 = {
     b.add(wbox(1.12, 0.16, 0.72, 0.06), WALL3_ROOF, { parent: M, p: [0, 1.32, 0], top: lighter(WALL3_ROOF, 0.15), topK: 0.5 });
   },
 
-  bridge(b, x, z, vertical) {
+  // Mauerarten der Städte mit eigener Form (seit 14.16, welt.js WALL_STYLE)
+  // Palisade: angespitzte Pfähle mit zwei Querriegeln, ungleich hoch
+  palisade(b) {
+    const M = placeAt(0, 0);
+    for (let k = 0; k < 5; k++) {
+      const h = 1.32 + ((k * 7) % 3) * 0.08;
+      b.add(lathe3('pfahl' + h.toFixed(2), [[0.1, 0], [0.1, h - 0.18], [0.07, h - 0.08], [0, h]], 7), k % 2 ? '#7a5434' : '#86603c', { parent: M, p: [-0.42 + k * 0.21, 0, ((k * 5) % 3 - 1) * 0.02], shade: 0.3 });
+    }
+    for (const y of [0.42, 0.95]) b.add(wbox(1.08, 0.09, 0.08, 0.03), '#5a3a22', { parent: M, p: [0, y, 0.12] });
+  },
+  // Stützmauer einer Terrasse: niedriger Bruchstein, oben Schnee
+  terrasse(b) {
+    const M = placeAt(0, 0);
+    b.add(wbox(1.06, 0.5, 0.7, 0.06), '#8a8a92', { parent: M, p: [0, 0.25, 0], shade: 0.3, top: '#a2a2aa', topK: 0.4 });
+    b.add(wbox(1.08, 0.1, 0.74, 0.05), '#f4f8fc', { parent: M, p: [0, 0.53, 0] });
+  },
+  // Kristallwand: dunkler Sockel, darauf drei Kristallblöcke mit hellem Saum
+  kristall(b) {
+    const M = placeAt(0, 0);
+    b.add(wbox(1.06, 0.3, 0.62, 0.06), '#2e2850', { parent: M, p: [0, 0.15, 0], shade: 0.3 });
+    for (let k = 0; k < 3; k++) {
+      const h = 1.05 + (k % 2) * 0.18;
+      b.add(wbox(0.32, h, 0.36, 0.05), k % 2 ? '#6a5ac8' : '#7a6ad8', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h / 2, 0], shade: 0.2, top: '#c8bfff', topK: 0.7 });
+      b.add(tinyBox(0.04, h * 0.85, 0.37), '#d8d0ff', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h * 0.48, 0], mat: 'glow' });
+    }
+  },
+
+  bridge(b, x, z, vertical, style) {
+    // seit 14.16: Steg über dem Moor, Steinbrücke über Lava, Lichtbrücke über dem Abgrund (in den Städten)
+    if (style === 'steg') {
+      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
+      for (let k = -2; k <= 2; k++) b.add(wbox(0.19, 0.07, 1.06, 0.02), k % 2 ? '#6e5a40' : '#7a6448', { parent: M, p: [k * 0.21, 0.04 + (k % 2) * 0.01, ((k * 3) % 2) * 0.03], shade: 0.3 });
+      for (const [px, pz] of [[-0.46, -0.46], [0.46, 0.46]]) b.add(cyl3(0.05, 0.06, 0.55, 6), '#3e3022', { parent: M, p: [px, 0.08, pz] });
+      return;
+    }
+    if (style === 'stein') {
+      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
+      b.add(wbox(1.06, 0.2, 1.1, 0.05), '#5a5250', { parent: M, p: [0, 0.06, 0], shade: 0.3, top: '#6e6664', topK: 0.5 });
+      for (const sz of [-1, 1]) b.add(wbox(1.06, 0.22, 0.12, 0.04), '#3a3230', { parent: M, p: [0, 0.27, sz * 0.5] });
+      return;
+    }
+    if (style === 'licht') {
+      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
+      b.add(wbox(1.06, 0.08, 1.06, 0.03), '#6a64b0', { parent: M, p: [0, 0.03, 0], shade: 0.2, top: '#a8a2f0', topK: 0.8 });
+      for (const sz of [-1, 1]) b.add(tinyBox(1.06, 0.05, 0.05), '#d8d4ff', { parent: M, p: [0, 0.38, sz * 0.5], mat: 'glow' });
+      for (const sz of [-1, 1]) b.add(tinyBox(0.04, 0.36, 0.04), '#b8b0ff', { parent: M, p: [0, 0.2, sz * 0.5], mat: 'glow' });
+      return;
+    }
     const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
     b.add(wbox(1.06, 0.12, 1.1, 0.04), '#8a6440', { parent: M, p: [0, 0.02, 0], shade: 0.3 });
     for (let k = -2; k <= 2; k++) b.add(tinyBox(0.03, 0.13, 1.08), '#5a3f26', { parent: M, p: [k * 0.21, 0.025, 0] });
@@ -343,7 +390,12 @@ function house3Closed(b, h) {
   const C = HOUSE3_WALL[L.wall] || HOUSE3_WALL.fachwerk;
   const W = h.w;
   const D = h.h;
-  const M = placeAt(h.x + W / 2, h.y + D / 2);
+  // seit 14.16: Hütten im Pfahldorf stehen auf Pfählen über dem Boden und sind leicht schief (lean)
+  const M = placeAt(h.x + W / 2, h.y + D / 2, 0, 1, L.stilts ? 0.32 : 0);
+  if (L.stilts) {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.07, 0.08, 0.62, 6), '#3e3022', { parent: M, p: [sx * (W / 2 - 0.35), -0.2, sz * (D / 2 - 0.3)], shade: 0.3 });
+  }
+  if (L.lean) M.multiply(new THREE.Matrix4().makeRotationZ(L.lean));
   // Anbau: niedriger Schuppen an einer Seite, das Haus selbst wird schmaler
   const aw = L.annex ? 1.5 : 0;
   const x0 = -W / 2 + (L.annex === 'w' ? aw : 0);
@@ -933,6 +985,47 @@ const PROP3 = {
     b.add(wbox(1.15, 0.45, 0.08, 0.04), '#2a1c14', { parent: M, p: [0, 2.33, 0.18] });
     b.add(wbox(1.0, 0.33, 0.06, 0.03), '#c9a35a', { parent: M, p: [0, 2.33, 0.21] });
   },
+  // seit 14.16: Holzturm an der Palisade (vier Pfosten, Plattform mit Spitzen, Spitzdach)
+  holzturm(b, M) {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.09, 0.11, 2.1, 7), '#6b4a2e', { parent: M, p: [sx * 0.42, 1.05, sz * 0.42], shade: 0.3 });
+    for (const sz of [-1, 1]) b.add(wbox(0.95, 0.07, 0.07, 0.02), '#4a3020', { parent: M, p: [0, 1.0, sz * 0.43], r: [0, 0, 0.75] });
+    b.add(wbox(1.3, 0.14, 1.3, 0.04), '#7a5434', { parent: M, p: [0, 2.05, 0], shade: 0.25 });
+    for (let k = 0; k < 4; k++) {
+      const a = (k * Math.PI) / 2;
+      for (let j = -2; j <= 2; j++) b.add(lathe3('spitze', [[0.05, 0], [0.05, 0.2], [0, 0.32]], 5), '#6b4a2e', { parent: M, p: [Math.cos(a) * 0.6 - Math.sin(a) * j * 0.27, 2.1, Math.sin(a) * 0.6 + Math.cos(a) * j * 0.27] });
+    }
+    b.add(lathe3('holzdach', [[0.95, 0], [0.9, 0.08], [0, 0.85]], 4), '#8a3a22', { parent: M, p: [0, 2.5, 0], r: [0, Math.PI / 4, 0], shade: 0.2 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.04, 0.04, 0.4, 5), '#5a3a22', { parent: M, p: [sx * 0.5, 2.3, sz * 0.5] });
+  },
+  // Kristallpfeiler an der Kristallwand: Steinsockel, darauf ein hoher Kristall
+  kristallturm(b, M) {
+    b.add(wbox(0.95, 0.4, 0.95, 0.08), '#2e2850', { parent: M, p: [0, 0.2, 0], shade: 0.3 });
+    b.add(wbox(0.7, 0.22, 0.7, 0.05), '#4a4278', { parent: M, p: [0, 0.51, 0] });
+    b.add(crystalGeo('body'), '#8a7aff', { parent: M, p: [0, 0.6, 0], s: [0.26, 1.45, 0.26], shade: 0.2, top: '#d8d0ff', topK: 0.7 });
+    b.add(crystalGeo('tip'), '#b8a8ff', { parent: M, p: [0, 2.05, 0], s: [0.26, 1.1, 0.26], mat: 'glow' });
+    for (const [x, z, s] of [[0.28, 0.18, 0.6], [-0.26, -0.2, 0.5]]) b.add(crystalGeo('body'), '#7a6ad8', { parent: M, p: [x, 0.55, z], s: [0.12 * s, 0.8 * s, 0.12 * s], mat: 'glow' });
+  },
+  // Holztor über breiten Toren der Palisade: zwei hohe Pfosten, Querbalken mit Schädeln
+  holztor(b, M) {
+    for (const sx of [-1, 1]) {
+      b.add(lathe3('torpfahl', [[0.16, 0], [0.16, 2.5], [0.1, 2.65], [0, 2.85]], 7), '#6b4a2e', { parent: M, p: [sx * 1.88, 0, 0], shade: 0.3 });
+    }
+    b.add(wbox(4.3, 0.24, 0.26, 0.06), '#7a5434', { parent: M, p: [0, 2.3, 0], shade: 0.2 });
+    b.add(wbox(3.8, 0.14, 0.18, 0.04), '#5a3a22', { parent: M, p: [0, 1.85, 0] });
+    for (const x of [-0.95, 0, 0.95]) {
+      b.add(sphere3(0.16, 8, 6), '#e8e0c8', { parent: M, p: [x, 2.3, 0.18], s: [1, 0.9, 0.9] });
+      for (const ex of [-0.06, 0.06]) b.add(sphere3(0.035, 5, 4), '#2a1c14', { parent: M, p: [x + ex, 2.32, 0.31] });
+    }
+  },
+  // Treppe in einer Stützmauer (pr.w Kacheln breit): drei flache Stufen, die nach Norden ansteigen
+  treppe(b, M, pr) {
+    const w = (pr.w || 2) - 0.1;
+    const snow = String(pr.roof || '').includes('schnee');
+    for (let k = 0; k < 3; k++) {
+      const h = 0.06 + k * 0.06;
+      b.add(wbox(w, h, 0.34, 0.03), k % 2 ? '#8a8a92' : '#9a9aa2', { parent: M, p: [0, h / 2, 0.83 - k * 0.33], shade: 0.25, top: snow ? '#f4f8fc' : '#b0b0b8', topK: snow ? 0.8 : 0.4 });
+    }
+  },
   stall(b, M, pr) {
     const roof = pr.roof || '#9a2f2a';
     for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.08, 1.25, 0.08, 0.03), '#5a3a22', { parent: M, p: [sx * 0.68, 0.62, sz * 0.32] });
@@ -1434,8 +1527,8 @@ const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) =>
   if (kind === 'blossom') WORLD3.tree(b, null, v, 'blossom');
   else WORLD3[kind](b, null, v, style);
 });
-const tplWall = () => bakeTemplate('wall', (b) => WORLD3.wall(b, 0, 0, false));
-const tplBridge = () => bakeTemplate('bridge', (b) => WORLD3.bridge(b, 0, 0, false));
+const tplWall = (style) => (style ? bakeTemplate('wall:' + style, (b) => WORLD3[style](b)) : bakeTemplate('wall', (b) => WORLD3.wall(b, 0, 0, false)));
+const tplBridge = (style) => bakeTemplate('bridge' + (style || ''), (b) => WORLD3.bridge(b, 0, 0, false, style));
 const tplTuft = (color, form) => bakeTemplate('tuft' + color + form, (b) => b.add(tuftGeo(color, form), null, { mat: 'grass' }));
 const tplFlower = (color, grass) => bakeTemplate('flower' + color + grass, (b) => {
   b.add(flowerGeo(color), null, { mat: 'grass' });
@@ -2361,7 +2454,7 @@ function* objectJob(cx, cy) {
   const x1 = H ? x0 + CHUNK3 : Math.min(MAP_W, x0 + CHUNK3);
   const y1 = H ? y0 + CHUNK3 : Math.min(MAP_H, y0 + CHUNK3);
   const bakeAt = (x, y) => bakes[(y - y0 >= QUARTER3 ? 2 : 0) + (x - x0 >= QUARTER3 ? 1 : 0)];
-  if (!towerTiles) towerTiles = new Set(w.props.filter((pr) => pr.type === 'tower').map((pr) => Math.floor(pr.y / TILE - 1) * MAP_W + Math.floor(pr.x / TILE)));
+  if (!towerTiles) towerTiles = new Set(w.props.filter((pr) => TOWER_TYPES.has(pr.type)).map((pr) => Math.floor(pr.y / TILE - 1) * MAP_W + Math.floor(pr.x / TILE)));
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const b = bakeAt(x, y);
@@ -2376,7 +2469,7 @@ function* objectJob(cx, cy) {
       const sc = 0.9 + ((h >> 12) % 20) / 100;
       if (o === OBJ.WALL) {
         const vertical = wallVertical(w, i);
-        if (!towerTiles.has(i)) b.addTemplate(tplWall(), placeAt(x + 0.5, y + 0.5, vertical ? Math.PI / 2 : 0));
+        if (!towerTiles.has(i)) b.addTemplate(tplWall(WALL_STYLE.get(i)), placeAt(x + 0.5, y + 0.5, vertical ? Math.PI / 2 : 0));
         continue;
       }
       const kind = OBJ_KIND[o];
@@ -2392,8 +2485,10 @@ function* objectJob(cx, cy) {
         // Der Weg läuft waagerecht, wenn links und rechts Weg oder Brücke liegt (bei einer zwei Kacheln breiten
         // senkrechten Brücke liegt nur auf einer Seite Brücke)
         const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || (w.deco[ty * MAP_W + tx] === DECO.BRIDGE);
-        const horiz = way(x - 1, y) && way(x + 1, y);
-        b.addTemplate(tplBridge(), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+        // seit 14.16: in den Städten mit fester Richtung und je nach Flüssigkeit als Steg, Stein- oder Lichtbrücke
+        const fix = bridgeDirAt(x, y);
+        const horiz = fix !== undefined ? fix : way(x - 1, y) && way(x + 1, y);
+        b.addTemplate(tplBridge(bridgeStyleAt(i, g)), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
         continue;
       }
       if (d >= DECO.STUMP) {
@@ -2455,7 +2550,7 @@ function* objectJob(cx, cy) {
     if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
     // Stadtschmuck (seit 13.85): Kübel, einzelne Fässer und Kisten nur ab mittlerer Grafik
     if (lowGfx && pr.fine) continue;
-    const back = pr.type === 'tower' || pr.type === 'gate' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' || pr.type === 'dpillar' ? 0 : 0.25;
+    const back = TOWER_TYPES.has(pr.type) || pr.type === 'gate' || pr.type === 'holztor' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' || pr.type === 'dpillar' || pr.type === 'treppe' ? 0 : 0.25;
     bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back, pr.rot || 0));
   }
   const group = new THREE.Group();
@@ -2530,6 +2625,9 @@ function v3CollectLights() {
     if (pr.type === 'lantern') lightSpots3.push({ x, y: 1.0, z, color: '#ffb860', power: 0.6, range: 5, flicker: 2 });
     if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: pr.x * U3 + Math.cos(pr.rot || 0) * -0.65, y: 1.0, z: pr.y * U3 + Math.sin(pr.rot || 0) * 0.65, color: '#ff8a3a', power: 0.8, range: 4.5, flicker: 7 });
     if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.0, range: 6.5, flicker: 9 });
+    // seit 14.16: Teleportsteine und Kristallpfeiler der Städte mit eigener Form
+    if (pr.type === 'tpstein') lightSpots3.push({ x, y: 0.9, z, color: pr.roof || '#9fd8ff', power: 0.5, range: 3.5, flicker: 1 });
+    if (pr.type === 'kristallturm') lightSpots3.push({ x, y: 1.8, z: z - 0.25, color: '#b8a8ff', power: 0.45, range: 4, flicker: 1 });
     // Dungeon-Schmuck (seit 13.7): Schrein, Thron und Schatz leuchten
     if (pr.type === 'dshrine' || pr.type === 'dthrone') lightSpots3.push({ x, y: 1.6, z, color: String(pr.roof).split('|')[2], power: 0.8, range: 5.5, flicker: 2 });
     if (pr.type === 'dchest') lightSpots3.push({ x, y: 0.9, z, color: '#ffd34d', power: 0.6, range: 4, flicker: 1 });

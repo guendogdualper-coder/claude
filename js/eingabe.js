@@ -229,6 +229,8 @@ function selectAt(clientX, clientY) {
       setTarget(best, true);
       return 'monster';
     }
+    // seit 14.16: Teleportstein antippen (nah dran: sofort, sonst hinlaufen; teleportsteine.js)
+    if (typeof tpTap === 'function' && tpTap(w.x, w.y)) return 'npc';
     for (const n of game.world.npcs) {
       // seit 13.91 nur im selben Raum (begehbare Häuser, sameRoom in welt.js)
       if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90 && sameRoom(n, game.player)) {

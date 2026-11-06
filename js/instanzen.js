@@ -166,8 +166,11 @@ function instCornerEntrance(entry, ground, obj, deco, zoneIdx) {
       const i = y * MAP_W + x;
       return obj[i] === OBJ.NONE && !(LIQUID.has(ground[i]) && deco[i] !== DECO.BRIDGE);
     };
-    const q = [[wm.cx, wm.cy + 2]];
-    seen[(wm.cy + 2 - ry) * rw + wm.cx - rx] = 1;
+    // seit 14.16: in Städten mit eigener Form (Inseln, Schlucht) vor dem Südtor auf dem Weg beginnen – draußen ist
+    // dieselbe Fläche erreichbar wie früher durch die Stadt, die Eingänge bleiben, wo sie waren
+    const sy = typeof townLayoutHalf === 'function' && townLayoutHalf(wm.id) != null ? wm.cy + townLayoutHalf(wm.id) + 2 : wm.cy + 2;
+    const q = [[wm.cx, sy]];
+    seen[(sy - ry) * rw + wm.cx - rx] = 1;
     while (q.length) {
       const [x, y] = q.pop();
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {

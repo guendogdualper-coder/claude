@@ -200,6 +200,8 @@ function update(dt) {
   updateTimers();
   updateAim();
   updatePlayer(dt);
+  // Teleportsteine in den Städten (seit 14.16, teleportsteine.js)
+  if (typeof tpTick === 'function') tpTick();
   // Beim Mitspieler führt der Host die Monster (netUpdate zieht sie nur nach)
   if (net.mode !== 'client') updateMonsters(dt);
   netUpdate(dt);

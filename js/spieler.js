@@ -330,8 +330,10 @@ function makePlayer(save) {
   const camp = campOf && game.world && game.world.maps ? game.world.maps.find((m) => m.id === campOf) : null;
   const spawn = camp ? camp.spawn : villageSpawn();
   if (p.x == null || !canStand(p.x, p.y, p.r * 0.7, false)) {
-    p.x = spawn.x;
-    p.y = spawn.y;
+    // seit 14.16: wer in einer Stadt mit neuer Form auf Wasser, Mauer oder Haus stünde, kommt zum Weltentor dieser Stadt
+    const rescue = p.x != null && typeof townRescue === 'function' ? townRescue(p.x, p.y) : null;
+    p.x = (rescue || spawn).x;
+    p.y = (rescue || spawn).y;
   }
   return p;
 }

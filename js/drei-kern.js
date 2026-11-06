@@ -1525,7 +1525,8 @@ const CASTER3 = {
   [OBJ.TREE]: [1.9, 1.05, 0.42], [OBJ.BLOSSOM]: [1.9, 1.05, 0.4], [OBJ.PINE]: [1.6, 0.9, 0.45],
   [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
 };
-const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25],
+const CASTER3_LOW = [0.35, 0.7, 0.3];
+const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], holzturm: [1.8, 1.0, 0.4], kristallturm: [1.6, 0.6, 0.3], holztor: [1.6, 0.5, 0.25], tpstein: [0.4, 0.5, 0.22], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25],
   dpillar: [1.4, 0.6, 0.4], dbanner: [1.2, 0.45, 0.25], dstatue: [1.0, 0.6, 0.35], dthrone: [1.4, 1.0, 0.4], dchest: [0.4, 0.55, 0.3], dshrine: [0.8, 0.8, 0.35],
   // Stadtschmuck (seit 13.85, welt.js TOWN_DECO)
   planter: [0.3, 0.42, 0.22], bench: [0.4, 0.62, 0.24], goods: [0.45, 0.62, 0.3], woodpile: [0.3, 0.5, 0.25], sacks: [0.25, 0.45, 0.22],
@@ -1549,7 +1550,8 @@ function shadowCasters(x0, y0, x1, y1) {
   for (let y = Math.max(0, y0); y < Math.min(MAP_H, y1); y++) {
     for (let x = Math.max(0, x0); x < Math.min(MAP_W, x1); x++) {
       const i = y * MAP_W + x;
-      const c = CASTER3[w.obj[i]];
+      // seit 14.16: Stützmauern der Terrassen sind niedrig
+      const c = w.obj[i] === OBJ.WALL && WALL_STYLE.get(i) === 'terrasse' ? CASTER3_LOW : CASTER3[w.obj[i]];
       if (c) push(x + 0.5, y + 0.55, c[0], c[1], c[2]);
       const d = !w.obj[i] && DECO_CASTER3[w.deco[i]];
       if (d) {

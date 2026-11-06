@@ -925,7 +925,9 @@ function netApplyState(rp, s) {
     rp.tx = s.x;
     rp.ty = s.y;
   }
-  if (first || Math.abs(rp.x - s.x) + Math.abs(rp.y - s.y) > 400) { rp.x = s.x; rp.y = s.y; }
+  // seit 14.16 auch nach einem Teleportstein (sonst gleitet die Figur über Wasser oder Lava)
+  const jump = Math.abs(rp.x - s.x) + Math.abs(rp.y - s.y);
+  if (first || jump > 400 || (jump > 64 && typeof tpNear === 'function' && tpNear(s.x, s.y))) { rp.x = rp.tx = s.x; rp.y = rp.ty = s.y; }
   rp.facing = { x: s.fx, y: s.fy };
   rp.moving = !!s.m;
   if (!first && s.hp < rp.hp) rp.hurtAt = game.time;
