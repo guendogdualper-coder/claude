@@ -348,9 +348,10 @@ function giveReward(reward, xp, big = false) {
     parts.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
   }
   if (reward.potions) {
-    p.potions.hp += reward.potions;
-    p.potions.mp += reward.potions;
-    parts.push(`${reward.potions * 2} Tränke`);
+    // seit 14.5 in der Größe passend zur Stufe (wie Beute und Tagesbelohnung), vorher immer klein
+    const sz = potionSizeFor(p.level).id;
+    for (const kind of ['hp', 'mp']) p.potions[potKey(kind, sz)] = (p.potions[potKey(kind, sz)] || 0) + reward.potions;
+    parts.push(`${reward.potions} × ${potionInfo('hp').name} (${sz})`, `${reward.potions} × ${potionInfo('mp').name} (${sz})`);
   }
   if (reward.scrolls) {
     p.scrolls += reward.scrolls;
@@ -383,11 +384,17 @@ function giveReward(reward, xp, big = false) {
   return parts;
 }
 
+// Tränke einer Belohnung mit echten Symbolen (seit 14.5; vorher nur Text bzw. ein grünes 🧪)
+function questPotionHtml(n, long) {
+  const sz = potionSizeFor(game.player ? game.player.level : 1).id;
+  const one = (kind) => `<img class="mini-icon" src="${potionIconUrl(kind, sz)}" alt=""> ${n} × ${long ? `${potionInfo(kind).name} (${sz})` : ''}`.trim();
+  return long ? `${one('hp')} und ${one('mp')}` : `${one('hp')} ${one('mp')}`;
+}
 function rewardHtml(reward, xp) {
   const li = [];
   if (xp) li.push(`${xp.toLocaleString('de-DE')} Erfahrung`);
   if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
-  if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
+  if (reward.potions) li.push(questPotionHtml(reward.potions, true));
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
   if (reward.horse) li.push(`<b class="reward-horse">Ein eigenes Reitpferd</b> (+${Math.round(HORSES[1].speed * 100)} % Lauftempo, Taste R oder Pferdeknopf)`);
   if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch zu deinen Fertigkeiten`);
@@ -687,7 +694,7 @@ Object.assign(ui, {
     // seit 13.38 als Karten: Art, Name, erfülltes Ziel, Belohnung und ein großer Knopf
     const fmt = (n) => Math.round(n).toLocaleString('de-DE');
     const rew = (it) => [it.reward && it.reward.gold ? `💰 ${fmt(it.reward.gold)} Gold` : '', it.xp ? `✨ ${fmt(it.xp)} EP` : '',
-      it.reward && it.reward.potions ? `🧪 ${it.reward.potions} Tränke` : ''].filter(Boolean).join(' · ');
+      it.reward && it.reward.potions ? questPotionHtml(it.reward.potions, false) : ''].filter(Boolean).join(' · ');
     box.innerHTML = (items.length ? `<div class="tq-head"><span class="tq-badge">✔</span><b>${items.length === 1 ? 'Ein Auftrag ist fertig' : items.length + ' Aufträge sind fertig'}</b>` +
       `<small>Hier kannst du ${items.length === 1 ? 'ihn' : 'sie'} abgeben.</small></div>` : '') +
       items.map((it, i) => `<div class="tq-card${it.main ? ' main' : ''}"><div class="tq-info"><span class="tq-kind">${it.kind}</span>` +
