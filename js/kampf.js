@@ -167,7 +167,7 @@ function holdFacing(p) {
   return true;
 }
 // Fertigkeiten, die selbst bestimmen, wohin die Figur schaut (Sprünge, Schritte, Sprint)
-const FACE_FREE_TYPES = new Set(['leap', 'shift', 'bshadow', 'bleap', 'dash', 'chainblink']);
+const FACE_FREE_TYPES = new Set(['leap', 'shift', 'bshadow', 'dash', 'chainblink']);
 // Wohin schaut die Figur nach dieser Fertigkeit? Gewählter Ort, sonst das Ziel (Fokus oder Auto-Ziel in der Nähe)
 function skillFaceAt(sk) {
   const p = game.player;

@@ -923,7 +923,10 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   pfeilhagel: 'pfeilregen', giftfalle: 'pfeilregen',
   // 13.85: Dolch-Ninja – Schattenkette (Angriff) statt Leichtfüßigkeit (Buff), Platz 5: Stufe, Rang, Leistenplatz und
   // Bücher (Tasche, Lager, Konto-Lager, Post, Handel) gehen mit
-  leichtfuessigkeit: 'schattenkette' };
+  leichtfuessigkeit: 'schattenkette',
+  // 14.14: Bogen-Ninja – Splitterfalke (Flächenschaden am gewählten Ort) statt Rückensprung, Platz 4: Stufe, Rang,
+  // Leistenplatz und Bücher (Tasche, Lager, Konto-Lager, Post, Handel) gehen mit
+  rueckensprung: 'splitterfalke' };
 // seit 13.76: Ketten auflösen (z. B. Seelenpfeil → Schädelsalve → Blutsauger), damit ein einziges Nachschlagen reicht
 for (const k of Object.keys(SKILL_RENAMED)) {
   let v = SKILL_RENAMED[k];
