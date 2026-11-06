@@ -29,7 +29,7 @@ const RANK_NAMES = {
   falkenpfeil: ['Falkensalve', 'Vierfache Schattensalve', 'Salve des Nachtfalken', 'Sturm der schwarzen Federn'],
   pfeilregen: ['Schattenschauer', 'Regen der Nachtfedern', 'Wolkenbruch der Schatten', 'Sintflut der schwarzen Pfeile'],
   durchschuss: ['Sturmschuss', 'Wirbelpfeil', 'Pfeil des Orkans', 'Speer des Himmels'],
-  // seit 14.14 Splitterfalke statt Rückensprung
+  // seit 14.16 Splitterfalke statt Rückensprung
   splitterfalke: ['Glasfalke', 'Falke der tausend Splitter', 'Zerberstende Nacht', 'Scherbensturm des Schattenfalken'],
   falkenblick: ['Adlerauge', 'Blick des Jägers', 'Auge des Sturms', 'Auge des Himmelsfalken'],
   schattenwechsel: ['Nachtschritt', 'Schattenflucht', 'Pfad der Finsternis', 'Wandler zwischen den Schatten'],

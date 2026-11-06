@@ -506,7 +506,7 @@ MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
   pierceFx(rp, rp.x, rp.y, f, sk);
 });
 
-// Splitterfalke (seit 14.14, Platz 4 statt Rückensprung): Ort wählen (Zielkreis, sk.aim), der Ninja hebt den Bogen
+// Splitterfalke (seit 14.16, Platz 4 statt Rückensprung): Ort wählen (Zielkreis, sk.aim), der Ninja hebt den Bogen
 // schräg nach oben (Pose bogenlob) und schießt einen schweren Schattenpfeil im hohen Bogen dorthin. Im Sturz entfaltet
 // sich um den Pfeil ein Schattenfalke mit angelegten Flügeln, er stößt in den Boden und zerbirst: Splitter aus
 // schwarzem Schattenglas fliegen nach allen Seiten und bleiben kurz im Boden stecken, Schattenrauch quillt auf, dunkle
@@ -656,7 +656,7 @@ Object.assign(SKILL_FX, {
       addEffect({ type: 'bhit3', x: c.x, y: feetY(m), color: '#a070f0', dur: 0.55, seed: Math.random() * 9 });
     }
   },
-  // seit 14.14 Splitterfalke statt Rückensprung: großer Schattenriss mit vielen Federn (der Einschlag selbst ist bsplit3)
+  // seit 14.16 Splitterfalke statt Rückensprung: großer Schattenriss mit vielen Federn (der Einschlag selbst ist bsplit3)
   splitterfalke: {
     color: '#9a6ae0',
     hit(m) {
@@ -704,7 +704,7 @@ function bowSkillStats(sk, lvl, out) {
       ['Pfeilverbrauch', String(sk.arrows)]);
   }
   if (sk.type === 'bpierce') out.push(['Durchbohrt', ''], ['Linie', String(sk.range)]);
-  // seit 14.14 Splitterfalke (Schaden zeigt skillStats): ein Treffer an allen Gegnern im Kreis
+  // seit 14.16 Splitterfalke (Schaden zeigt skillStats): ein Treffer an allen Gegnern im Kreis
   if (sk.type === 'bsplitter') out.push(['Fläche', 'r ' + sk.radius + ' · alle Gegner'], ['Reichweite', String(sk.range)],
     ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`], ['Pfeilverbrauch', String(sk.arrows)]);
   const p = game.player;
@@ -735,7 +735,7 @@ const BOW_POSE = {
   const rain = path.skills.find((x) => x.type === 'bregen');
   if (rain) bowSalvoRegister(rain.shots || 3, rain.shotEvery || 0.14, { kind: rain.anim, up: BOW_RAIN.up,
     hold: { rx: -2.2, wx: 1.25, lx: -2.15, lz: -0.8, cx: -0.14, cy: 0.05, hx: -0.28, gl: -0.12, gr: 0.18, hpy: -0.03 } });
-  // seit 14.14 Splitterfalke: ein schwerer Schuss mit schräg gehobenem Bogen (hoher Bogenschuss), Oberkörper leicht zurück
+  // seit 14.16 Splitterfalke: ein schwerer Schuss mit schräg gehobenem Bogen (hoher Bogenschuss), Oberkörper leicht zurück
   const lob = path.skills.find((x) => x.type === 'bsplitter');
   if (lob) bowSalvoRegister(1, 0.15, { kind: lob.anim, up: BOW_SPLIT.up,
     hold: { rx: -1.95, wx: 1.36, lx: -1.98, lz: -0.9, cx: -0.08, cy: 0.06, hx: -0.15, gl: -0.06, gr: 0.16, hpy: -0.03 } });
@@ -1750,7 +1750,7 @@ FX3_DRAW.bpierce3 = function (h, e) {
   if (t < fly + 0.1) n3Glow(h, x0, y, z0, 1.2 * (1 - clamp01(t / 0.3)), BOW3.violet, 0.6);
 };
 
-// Splitterfalke (seit 14.14): Der schwere Schattenpfeil steigt aus der Bogenhand in einem hohen Bogen auf, zieht einen
+// Splitterfalke (seit 14.16): Der schwere Schattenpfeil steigt aus der Bogenhand in einem hohen Bogen auf, zieht einen
 // dunklen Kern mit violettem Schein und Schattenrauch hinter sich her. Ab dem Scheitel entfaltet sich ein Schattenfalke
 // um ihn und stößt mit ihm herab, unten zieht sich schon Schatten zusammen. Beim Einschlag: greller violetter Blitz,
 // der Falke reißt auseinander, ein Büschel großer Schattenglas-Zacken bricht in der Mitte aus dem Boden und Splitter
@@ -2673,7 +2673,7 @@ EXTRA_EFFECTS.bpierce3 = (ctx, e, k, x, y) => {
   ctx.stroke();
   ctx.restore();
 };
-// Splitterfalke in 2D (seit 14.14): leuchtender Pfeil im hohen Bogen, am Ziel dunkle Wolke, Blitz und Splitter,
+// Splitterfalke in 2D (seit 14.16): leuchtender Pfeil im hohen Bogen, am Ziel dunkle Wolke, Blitz und Splitter,
 // die nach außen fliegen und kurz stecken bleiben
 EXTRA_EFFECTS.bsplit3 = (ctx, e, k, x, y) => {
   const t = game.time - e.start;
@@ -2938,7 +2938,7 @@ SKILL_ART.durchschuss = function (ctx, IK) {
   ikBowArrow(ctx, IK, -21, 0, 21, 0, { w: 2.4, head: '#e0d0ff', glow: '#a070f0', fletch: '#3a1a6a' });
   IK.sparkles(ctx, 6, '#e0d0ff', 23, 7, 16, 0, 1.3);
 };
-// Splitterfalke (seit 14.14 statt Rückensprung): oben stößt ein kleiner Schattenfalke kopfüber herab, darunter zerbirst
+// Splitterfalke (seit 14.16 statt Rückensprung): oben stößt ein kleiner Schattenfalke kopfüber herab, darunter zerbirst
 // er in einem violetten Blitz – Splitter aus dunklem Schattenglas fliegen nach allen Seiten, zwei stecken schräg im Boden
 SKILL_ART.splitterfalke = function (ctx, IK) {
   IK.light(ctx, 0, 8, 24, '#8a4ae8', 0.7);

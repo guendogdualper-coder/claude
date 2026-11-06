@@ -192,7 +192,7 @@ const CLASSES = {
             text: 'Ein Pfeil, um den sich dunkle Schatten zu einer Spirale drehen: Er durchschlägt alle Gegner in einer Linie bis 680 weit und stößt sie zurück.'
           },
           {
-            // seit 14.14 Splitterfalke statt Rückensprung (Salto rückwärts mit Pfeilfächer): Ort wählen, ein schwerer
+            // seit 14.16 Splitterfalke statt Rückensprung (Salto rückwärts mit Pfeilfächer): Ort wählen, ein schwerer
             // Schattenpfeil fliegt im hohen Bogen hin, wird im Sturz zum Schattenfalken und zerbirst beim Einschlag in
             // Splitter aus Schattenglas (fernninja.js). Ein Treffer dmg an allen Gegnern im Kreis (radius) und Verlangsamung.
             // Schaden wie Durchbohrender Schuss (2,5) bzw. der alte Fächer, der selten mehr als zwei Pfeile ins Ziel brachte.

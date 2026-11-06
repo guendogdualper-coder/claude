@@ -17,7 +17,9 @@ const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, grap
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
-const FPS_MODES = { auto: { label: 'Auto' }, 60: { label: '60' }, 30: { label: '30 (Akku)' } };
+// seit 14.16 heißt „60“ „Max“: diese Stufe hatte nie eine Grenze, sie läuft so schnell wie der Bildschirm (60, 120, 144 Hz).
+// Der Schlüssel bleibt '60', damit gespeicherte Einstellungen gelten.
+const FPS_MODES = { auto: { label: 'Auto' }, 60: { label: 'Max' }, 30: { label: '30 (Akku)' } };
 
 // Grafikstufen: Auflösung, Schlagschatten, Wolkenschatten, Menge an Partikeln.
 // Ultra (für PC): volle Auflösung, scharfe große Schatten, weitere Sicht, schärfere Böden
@@ -156,7 +158,7 @@ const options = {
       pane = `<section class="opt-group">` +
         seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
         seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Plus ist empfohlen – wie Ultra, dazu Leuchten von Feuer, Magie und Laternen, kräftigere Farben, weiche Ränder und Schatten für die ganze Welt.' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Plus (Leuchten, kräftige Farben, weiche Ränder) sieht am schönsten aus, braucht aber ein neueres Handy und mehr Akku; Hoch und Ultra sind schärfer, machen das Handy aber wärmer.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
-        seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC 60 Bilder pro Sekunde (sonst gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. 60 ist flüssiger, macht das Handy aber warm.') +
+        seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC so viele Bilder, wie der Bildschirm zeigt (60, 120 oder 144; ist der Rechner zu langsam, gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. Max: immer so viele Bilder wie der Bildschirm (auch 90 oder 120 am Handy) – flüssiger, macht das Handy aber warm.') +
         seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
         sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
         sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +
