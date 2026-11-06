@@ -775,7 +775,9 @@ function rollLoot(m) {
     const pool = all.filter((id) => MONSTER_TYPES[id].level <= m.level + 2);
     for (let k = randInt(1, 3); k > 0; k--) addMobMat(pool[randInt(0, pool.length - 1)] || all[0], 1, m);
   }
-  if (Math.random() < (drops ? drops.gear : sd ? sd.gear * 0.12 : 0.025)) {
+  // seit 14.10 seltener: Monster 1,2 % (vorher 2,5 %), Monster aus Steinen 6 % ihres Steins (vorher 12 %);
+  // die Chancen der Steine selbst stehen in stoneDrops (monster.js)
+  if (Math.random() < (drops ? drops.gear : sd ? sd.gear * 0.06 : 0.012)) {
     // Seelensteine ab Stufe 20 lassen schon Ausrüstung der nächsthöheren Gebiete fallen (Lv 30 ab Stein 20)
     const lootLevel = m.isStone && m.level >= 20 ? m.level + 10 : m.level;
     let tier = 0;

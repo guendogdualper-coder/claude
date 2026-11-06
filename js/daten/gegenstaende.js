@@ -268,7 +268,7 @@ function upgradeMaterial(item) {
 
 // Monster-Teile: jedes Monster lässt mit kleiner Chance sein eigenes Teil fallen
 // art: Form des Symbols (siehe MOB_MAT_ART in ausruestung.js)
-const MOB_MAT_CHANCE = 0.05;
+const MOB_MAT_CHANCE = 0.035; // seit 14.10 (vorher 5 %)
 const MOB_MATS = {
   hund: { name: 'Hundezahn', art: 'fang', color: '#f4ecd8' },
   wolf: { name: 'Wolfspelz', art: 'fur', color: '#8a8e96' },

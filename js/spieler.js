@@ -135,10 +135,12 @@ const SKILL_COST_VER = 1;
 const STAT_POINTS_PER_LEVEL = 2; // seit 13.49 zwei je Stufe (10.1 bis 13.48 einer, davor drei)
 const MAX_ATTR = 90;
 const ATTRS = [
-  { id: 'str', name: 'Stärke', short: 'STR', text: '+1 Angriff je Punkt' },
+  // seit 14.10 alle Statuswerte halb so stark (2 Punkte je Stufe bleiben): Stufe 12 mit 22 Punkten im Hauptwert gab
+  // +26 % Fertigkeitsschaden, +22 % Angriffsschaden und dazu +33 festen Fertigkeitsangriff – fast doppelter Schaden
+  { id: 'str', name: 'Stärke', short: 'STR', text: '+0,5 Angriff je Punkt' },
   { id: 'vit', name: 'Vitalität', short: 'VIT', text: '+6 Leben und +0,3 Rüstung je Punkt' },
-  { id: 'int', name: 'Intelligenz', short: 'INT', text: '+5 Mana und +1 % Fertigkeitsschaden je Punkt' },
-  { id: 'dex', name: 'Geschick', short: 'DEX', text: '+0,3 % kritische Treffer, +0,25 % Ausweichen und +0,5 % Angriffstempo je Punkt' }
+  { id: 'int', name: 'Intelligenz', short: 'INT', text: '+5 Mana und +0,5 % Fertigkeitsschaden je Punkt' },
+  { id: 'dex', name: 'Geschick', short: 'DEX', text: '+0,15 % kritische Treffer, +0,15 % Ausweichen und +0,15 % Angriffstempo je Punkt' }
 ];
 // Hauptwert jeder Klasse: stärkt je Punkt zusätzlich Fertigkeiten, normale Angriffe und Buffs (Auren, Heilung, Schilde).
 // Bei Intelligenz als Hauptwert ersetzt das den allgemeinen Fertigkeitsschaden der Intelligenz.
@@ -148,14 +150,15 @@ function mainAttrName(classId) {
   const a = ATTRS.find((x) => x.id === MAIN_ATTR[classId]);
   return a ? a.name : '';
 }
-const MAIN_SKILL = 0.012;
+const ATTR_PT = { str: 0.5, int: 0.005, crit: 0.0015, dodge: 0.0015, speed: 0.0015 }; // seit 14.10 (vorher 1 / 0,01 / 0,003 / 0,0025 / 0,003)
+const MAIN_SKILL = 0.006; // seit 14.10 (vorher 0,012)
 // Mehr als so viele Punkte (eigene plus Ausrüstung) zählen für den Hauptwert-Bonus nicht
 const MAIN_ATTR_CAP = 120;
 // seit 13.37: der Hauptwert zählt für Fertigkeiten zusätzlich wie fester Angriff (je Punkt so viel), damit schon
 // ein einzelner Punkt den Fertigkeitsschaden sichtbar erhöht (vorher nur +1,2 % je Punkt, das ging beim Runden unter)
-const MAIN_SKILL_FLAT = 1.5; // seit 13.41 (vorher 1,0)
-const MAIN_BASIC = 0.01;
-const MAIN_BUFF = 0.01;
+const MAIN_SKILL_FLAT = 0.6; // seit 14.10 (13.41 bis 14.9: 1,5, davor 1,0)
+const MAIN_BASIC = 0.005; // seit 14.10 (vorher 0,01)
+const MAIN_BUFF = 0.005; // seit 14.10 (vorher 0,01)
 
 // Erfahrung, die für die nächste Stufe nötig ist. Wächst stark – so entsteht der Grind.
 // Ab Stufe 10 braucht jede Stufe 40 % mehr Erfahrung als die Grundformel (davor steigt es langsam an)
@@ -432,19 +435,19 @@ function playerStats(p) {
   let buffInt = 0;
   for (const b of p.buffs) if (b.effects && b.effects.int) buffInt += b.effects.int;
   const a = { str: (own.str || 0) + (bonus.str || 0), vit: (own.vit || 0) + (bonus.vit || 0), int: (own.int || 0) + (bonus.int || 0) + buffInt, dex: (own.dex || 0) + (bonus.dex || 0) };
-  s.atk += (a.str || 0) * 1;
+  s.atk += Math.round((a.str || 0) * ATTR_PT.str);
   s.maxHp += (a.vit || 0) * 6;
   s.def += (a.vit || 0) * 0.3;
   s.maxMp += (a.int || 0) * 5;
   const mainId = MAIN_ATTR[p.classId];
   const main = Math.min(MAIN_ATTR_CAP, a[mainId] || 0);
-  s.skillDmg = 1 + (mainId === 'int' ? 0 : (a.int || 0) * 0.01) + main * MAIN_SKILL + (bonus.skillDmg || 0) + magic;
+  s.skillDmg = 1 + (mainId === 'int' ? 0 : (a.int || 0) * ATTR_PT.int) + main * MAIN_SKILL + (bonus.skillDmg || 0) + magic;
   s.basicDmg += main * MAIN_BASIC;
   s.buffPower = 1 + main * MAIN_BUFF;
   s.magic = magic;
-  s.crit += (a.dex || 0) * 0.003;
-  s.dodge += (a.dex || 0) * 0.0025;
-  s.atkSpeed += (a.dex || 0) * 0.003; // seit 13.31 (vorher 0,005)
+  s.crit += (a.dex || 0) * ATTR_PT.crit;
+  s.dodge += (a.dex || 0) * ATTR_PT.dodge;
+  s.atkSpeed += (a.dex || 0) * ATTR_PT.speed; // 13.31 bis 14.9: 0,003, davor 0,005
   s.def = Math.round(s.def);
   // Klassensegen (seit 13.1): Naturschaden, kritischer Schaden, Omni-Vampir
   s.natureDmg = 0;

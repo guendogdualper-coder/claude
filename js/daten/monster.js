@@ -294,25 +294,26 @@ function stoneDrops(type) {
       boni5: [rate('boni5'), 1, 1],
       star: [rate('star'), 1, 1]
     },
-    gear: 0.55, plus: [0, 2], slots: null, gold: 1, potions: [0, 1], scroll: 0.1 + Math.max(0, t - 6) * 0.01, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
+    gear: 0.35, plus: [0, 2], // seit 14.10 35 % statt 55 % (Schwerpunkt-Steine unten ebenfalls gesenkt)
+    slots: null, gold: 1, potions: [0, 1], scroll: 0.1 + Math.max(0, t - 6) * 0.01, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
   };
   const boost = (id, f) => { d.mats[id][0] = Math.min(sm.boostCap, d.mats[id][0] * f); if (!early) d.mats[id][2] += 1; };
   switch (type.focus) {
     case 'potions': d.potions = [2, 4]; break;
-    case 'weapons': d.slots = ['waffe']; d.gear = 0.75; break;
+    case 'weapons': d.slots = ['waffe']; d.gear = 0.5; break;
     case 'gold': d.gold = 3; break;
-    case 'armor': d.slots = ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel']; d.gear = 0.75; break;
+    case 'armor': d.slots = ['ruestung', 'helm', 'schultern', 'umhang', 'schild', 'schuhe', 'guertel']; d.gear = 0.5; break;
     case 'boniPlus': boost('boniPlus', 1.5); break;
     case 'splinters': d.splinters = d.splinters.map((n) => n * 2); break;
     case 'switcher': boost('switcher', 2); break;
     case 'boni5': boost('boni5', 2); break;
     case 'star': boost('star', 2); break;
     case 'rot': d.potions = [2, 3]; d.gold = 2; break;
-    case 'gear': d.gear = 0.85; d.plus = [1, 2]; break;
-    case 'flame': d.slots = ['waffe']; d.gear = 0.7; boost('boni5', 1.5); boost('star', 1.5); break;
+    case 'gear': d.gear = 0.6; d.plus = [1, 2]; break;
+    case 'flame': d.slots = ['waffe']; d.gear = 0.5; boost('boni5', 1.5); boost('star', 1.5); break;
     case 'all':
       for (const id of Object.keys(d.mats)) boost(id, 1.5);
-      d.gear = 1; d.plus = [1, 2]; d.gold = 2; d.scroll = 0.25; d.potions = [1, 3];
+      d.gear = 0.7; d.plus = [1, 2]; d.gold = 2; d.scroll = 0.25; d.potions = [1, 3];
       break;
   }
   // Sternen-Switcher (seit 11.0): erst ab Stufe 30, selten und nicht verstärkt (seit 14.6 4 % bei Stufe 30, bis 12 %)

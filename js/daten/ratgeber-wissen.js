@@ -214,7 +214,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'kampf', p: 4, q: 'Wie verteile ich Statuspunkte?',
     a: () => `Pro Stufe bekommst du ${(typeof STAT_POINTS_PER_LEVEL !== 'undefined') ? STAT_POINTS_PER_LEVEL : 2} Statuspunkte. Öffne das Charakterfenster (Taste ${rgKey('char')}) und verteile sie mit „+“, „+5“ oder „Alle“. ` +
-      `Stärke: +1 Angriff · Vitalität: +6 Leben und +0,3 Rüstung · Intelligenz: +5 Mana und +1 % Fertigkeitsschaden · Geschick: kritische Treffer, Ausweichen und Angriffstempo. ` +
+      `Stärke: +0,5 Angriff · Vitalität: +6 Leben und +0,3 Rüstung · Intelligenz: +5 Mana und +0,5 % Fertigkeitsschaden · Geschick: kritische Treffer, Ausweichen und Angriffstempo. ` +
       `Höchstens ${(typeof MAX_ATTR !== 'undefined') ? MAX_ATTR : 90} Punkte je Wert. Ein Plus am Bild oben links zeigt freie Punkte.`,
     k: 'statuspunkte status punkte attribute verteilen staerke vitalitaet intelligenz geschick stats skillen'
   },

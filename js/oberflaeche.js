@@ -1504,14 +1504,14 @@ const ui = {
     const fmt = (v, d = 0) => v.toFixed(d).replace('.', ',');
     const mainId = MAIN_ATTR[p.classId];
     const effects = {
-      str: (a) => [`+${a} Angriff`],
+      str: (a) => [`+${Math.round(a * ATTR_PT.str)} Angriff`],
       vit: (a) => [`+${a * 6} Leben`, `+${fmt(a * 0.3, 1)} Rüstung`],
-      int: (a) => [`+${a * 5} Mana`, `+${a} % Fertigkeitsschaden`],
-      dex: (a) => [`+${fmt(a * 0.3, 1)} % Kritisch`, `+${fmt(a * 0.25, 2)} % Ausweichen`, `+${fmt(a * 0.5, 1)} % Tempo`]
+      int: (a) => [`+${a * 5} Mana`, `+${fmt(a * ATTR_PT.int * 100, 1)} % Fertigkeitsschaden`],
+      dex: (a) => [`+${fmt(a * ATTR_PT.crit * 100, 1)} % Kritisch`, `+${fmt(a * ATTR_PT.dodge * 100, 1)} % Ausweichen`, `+${fmt(a * ATTR_PT.speed * 100, 1)} % Tempo`]
     };
     // Hauptwert der Klasse: zuerst die Schadens- und Buff-Boni
     const base = effects[mainId];
-    effects[mainId] = (a) => [`+${fmt(a * MAIN_SKILL * 100, 1)} % Fertigkeitsschaden`, `+${fmt(a * MAIN_BASIC * 100)} % Angriffsschaden`, `+${fmt(a * MAIN_BUFF * 100)} % Buff-Stärke`,
+    effects[mainId] = (a) => [`+${fmt(a * MAIN_SKILL * 100, 1)} % Fertigkeitsschaden`, `+${fmt(a * MAIN_BASIC * 100, 1)} % Angriffsschaden`, `+${fmt(a * MAIN_BUFF * 100, 1)} % Buff-Stärke`,
       ...base(a).filter((t) => !t.includes('Fertigkeitsschaden'))];
     const icons = {
       str: '<path d="M5 19l9-9"/><path class="f" d="M13 5l6 0 0 6-3.2-.6L9 17.2 6.8 15z"/><path d="M4 16l4 4"/>',
