@@ -82,7 +82,7 @@ function dailyLines(day, level) {
   if (r.splinters) out.push(`${r.splinters} Splitter`);
   if (r.potions) out.push(`${r.potions}+${r.potions} Tränke`);
   if (r.scrolls) out.push(`${r.scrolls} Segensrolle${r.scrolls > 1 ? 'n' : ''}`);
-  if (r.books) out.push(`${r.books} Fertigkeitsschriftrolle${r.books > 1 ? 'n' : ''}`);
+  if (r.books) out.push(`${r.books} ${r.books > 1 ? 'Fertigkeitsbücher' : 'Fertigkeitsbuch'}`); // seit 14.1 Buch statt Schriftrolle
   for (const [id, n] of Object.entries(r.mats || {})) out.push(`${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   return out;
 }

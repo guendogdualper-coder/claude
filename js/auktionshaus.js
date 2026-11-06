@@ -27,7 +27,7 @@ const AH_CATS = [
   { id: 'alle', name: 'Alle Angebote' },
   { id: 'waffe', name: 'Waffen', sub: () => Object.entries(WEAPON_KINDS).map(([k, v]) => [k, v.name]) },
   { id: 'ruestung', name: 'Rüstung', sub: () => [['ruestung', 'Rüstung'], ['helm', 'Helm'], ['schultern', 'Schultern'], ['umhang', 'Umhang'], ['schild', 'Schild'], ['schuhe', 'Schuhe'], ['guertel', 'Gürtel'], ['koecher', 'Köcher']] },
-  { id: 'verbrauch', name: 'Verbrauchsgüter', sub: () => [['trank', 'Tränke'], ['schrift', 'Schriftrollen'], ['pfeil', 'Pfeile'], ['aufwertung', 'Aufwertung']] }
+  { id: 'verbrauch', name: 'Verbrauchsgüter', sub: () => [['trank', 'Tränke'], ['buch', 'Fertigkeitsbücher'], ['schrift', 'Schriftrollen'], ['pfeil', 'Pfeile'], ['aufwertung', 'Aufwertung']] } // Bücher seit 14.1 eigene Art
 ];
 const AH_SORTS = [['preis', 'Preis aufsteigend'], ['preis-', 'Preis absteigend'], ['stufe', 'Stufe aufsteigend'], ['stufe-', 'Stufe absteigend'], ['neu', 'Neueste zuerst'], ['ende', 'Endet bald']];
 
@@ -268,7 +268,7 @@ function ahSubline(a) {
     parts.push(RARITIES[i.selt].name);
     parts.push(`ab Stufe ${i.stufe}`);
   } else {
-    parts.push({ trank: 'Trank', schrift: 'Schriftrolle', pfeil: 'Pfeile', aufwertung: 'Aufwertung' }[i.art]);
+    parts.push({ trank: 'Trank', buch: 'Fertigkeitsbuch', schrift: 'Schriftrolle', pfeil: 'Pfeile', aufwertung: 'Aufwertung' }[i.art]);
     if (i.cls) parts.push(CLASSES[i.cls].name);
     if (i.stufe > 1) parts.push(`ab Stufe ${i.stufe}`);
   }

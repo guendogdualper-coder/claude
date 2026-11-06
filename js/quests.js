@@ -364,7 +364,7 @@ function giveReward(reward, xp, big = false) {
   if (reward.books) {
     // Aufträge geben Bücher zu den eigenen Fertigkeiten
     const got = addBooks(reward.books, null, classSkills(p).map((sk) => sk.id));
-    if (got.length) parts.push('Schriftrollen: ' + got.join(', '));
+    if (got.length) parts.push('Fertigkeitsbücher: ' + got.join(', '));
   }
   for (const [id, n] of Object.entries(reward.mats || {})) {
     p.materials[id] = (p.materials[id] || 0) + n;
@@ -390,7 +390,7 @@ function rewardHtml(reward, xp) {
   if (reward.potions) li.push(`${reward.potions} × ${potionInfo('hp').name} und ${reward.potions} × ${potionInfo('mp').name}`);
   if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
   if (reward.horse) li.push(`<b class="reward-horse">Ein eigenes Reitpferd</b> (+${Math.round(HORSES[1].speed * 100)} % Lauftempo, Taste R oder Pferdeknopf)`);
-  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Schriftrolle zu deinen Fertigkeiten`);
+  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch zu deinen Fertigkeiten`);
   for (const [id, n] of Object.entries(reward.mats || {})) {
     li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   }
@@ -821,7 +821,7 @@ Object.assign(ui, {
       `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="shop">` +
       ALCHEMIST_WARES.map((w) => {
         const book = w.id === 'book';
-        const m = book ? { id: 'book', name: 'Fertigkeitsschriftrolle', text: 'Eine Schriftrolle zu einer zufälligen Fertigkeit deiner Klasse.' } : MATERIALS.find((x) => x.id === w.id);
+        const m = book ? { id: 'book', name: 'Fertigkeitsbuch', text: 'Ein Buch zu einer zufälligen Fertigkeit deiner Klasse (für E1–E10).' } : MATERIALS.find((x) => x.id === w.id);
         const have = book ? totalBooks(p, true) : p.materials[m.id] || 0;
         return `<div class="shop-item"><img class="shop-icon" src="${book ? lootIconUrl('book') : materialIconUrl(m.id)}" alt=""><strong>${m.name} <span class="price">${w.price.toLocaleString('de-DE')} Gold</span></strong>` +
           `<small>${m.text} Im Gepäck: <b>${have}</b></small>` +

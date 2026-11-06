@@ -1,4 +1,4 @@
-// Infofelder (seit 10.8): Fährt die Maus über einen Gegenstand, eine Schriftrolle, eine Fertigkeit oder einen freien
+// Infofelder (seit 10.8): Fährt die Maus über einen Gegenstand, ein Fertigkeitsbuch, eine Fertigkeit oder einen freien
 // Platz, erscheint daneben ein kleines Feld mit Namen und Werten. Am Handy: Gegenstand gedrückt halten.
 // Jedes Element mit data-info zeigt dessen Inhalt (fertiges HTML); gear.tile und die Leiste setzen es.
 
@@ -16,11 +16,14 @@ function itemTipHtml(item) {
     const own = p && ownBook(p, item.book);
     const idx = p ? classSkills(p).findIndex((sk) => sk.id === item.book) : -1;
     const where = `${CLASSES[e.cls].name} · ${CLASSES[e.cls].paths[e.path].name}`;
+    // seit 14.1: Bücher gelten für E1–E10 (H mit Schriftrollen, L/V mit Seelensteinen)
     const info = own
-      ? (idx >= 0 ? `Für deine Fertigkeit (jetzt ${skillLevelText(p.skillLevels[idx])}). Lesbar ab dem Erwecken (E1).` : 'Für deine Klasse, anderer Weg.')
+      ? (idx < 0 ? 'Für deine Klasse, anderer Weg. Gilt für E1–E10.'
+        : skillRank(p.skillLevels[idx]) > 0 ? `Deine Fertigkeit steht schon auf ${skillLevelText(p.skillLevels[idx])} – Bücher gelten nur für E1–E10 (weiter mit Schriftrollen und Seelensteinen).`
+          : `Für deine Fertigkeit (jetzt ${skillLevelText(p.skillLevels[idx])}). Hebt sie um eine Stufe von E1 bis E10, lesbar ab dem Erwecken.`)
       : 'Gehört nicht zu deinen Fertigkeiten – verkaufen oder handeln.';
-    return `<strong style="color:${own ? '#ffd34d' : '#c58cff'}">Schriftrolle: ${e.sk.name}${item.count > 1 ? ' × ' + item.count : ''}</strong>` +
-      `<small>Fertigkeitsschriftrolle · ${where}</small><span>${info}</span>`;
+    return `<strong style="color:${own ? '#ffd34d' : '#c58cff'}">Fertigkeitsbuch: ${e.sk.name}${item.count > 1 ? ' × ' + item.count : ''}</strong>` +
+      `<small>Fertigkeitsbuch · ${where}</small><span>${info}</span>`;
   }
   if (!item.slot || !ITEM_TIERS[item.tier]) return '';
   const bonuses = (item.bonuses || []).map((b) => `<li>${bonusText(b)}</li>`).join('') +

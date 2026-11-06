@@ -28,7 +28,7 @@ const klShared = (owner) => owner !== 'figur';
 const klPath = () => 'lager/' + account.uid;
 const klCopy = (x) => JSON.parse(JSON.stringify(x));
 
-// Inhalt aus Datenbank oder Gerät lesen (nur Gegenstände und Schriftrollen-Stapel, jeder mit Kennung)
+// Inhalt aus Datenbank oder Gerät lesen (nur Gegenstände und Bücherstapel, jeder mit Kennung)
 function klParse(items) {
   if (typeof items === 'string') {
     try { items = JSON.parse(items); } catch { items = null; }
