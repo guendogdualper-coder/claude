@@ -13,6 +13,7 @@
 //       lager/<uid>       Konto-Lager
 //       post/<uid>        alle Briefe an die Charaktere des Kontos
 //       meldezeit/<uid>   Zeitpunkt der letzten Meldung (Sperre gegen Massenmeldungen)
+//       rangliste/<uid>_<platz>  Einträge der Charaktere in der Bestenliste (bestenliste.js)
 //       konten/<uid>      Charakterplätze, Blockierliste
 //  3. Erst wenn das alles geklappt hat: das Konto selbst bei Firebase Auth löschen (accounts:delete).
 // Schlägt ein Schritt fehl, bricht der Ablauf ab und meldet den Fehler; ein erneuter Versuch macht dort weiter
@@ -20,6 +21,7 @@
 
 const KLD_DOMAIN = '@spieler.seelenstein.app'; // muss zu accountEmail in konto.js passen
 const KLD_NAME = /^[A-Za-z0-9_-]{3,20}$/;
+const KLD_RANK_SLOTS = 8; // Charakterplätze, deren Bestenlisten-Eintrag gelöscht wird (MAX_CHARS ist 4, mit Reserve)
 
 function kldCfg() {
   return window.SEELENSTEIN_CLOUD || (typeof CLOUD_CONFIG !== 'undefined' ? CLOUD_CONFIG : null);
@@ -140,6 +142,11 @@ async function kontoLoeschen(name, pass, step = () => {}) {
   step('Angebote im Auktionshaus entfernen …');
   const ah = await kldAuctions(uid, idToken, s.name);
   step('Konto-Lager, Post und Charaktere löschen …');
+  // Bestenliste: alle Plätze des Kontos auf einmal (null löscht); fehlen die Regeln dafür, gab es dort auch nie Einträge
+  const rl = {};
+  for (let k = 0; k < KLD_RANK_SLOTS; k++) rl[`rangliste/${uid}_${k}`] = null;
+  const rr = await kldDb('PATCH', '', idToken, { body: rl });
+  if (!rr.ok && rr.status !== 401 && rr.status !== 403) throw kldError(`Die Einträge in der Bestenliste konnten nicht gelöscht werden (Fehler ${rr.status}).`, 'rangliste');
   // Pfade ohne Regel (lager/post seit 13.63, meldezeit seit 13.77 – solange die Regeln in der Datenbank fehlen) lehnt der
   // Server ab: Dort konnte dann auch nie etwas gespeichert werden. konten/<uid> gibt es immer, dort zählt jeder Fehler.
   for (const [path, what, optional] of [['lager/' + uid, 'Das Konto-Lager konnte', true], ['post/' + uid, 'Die Post konnte', true],

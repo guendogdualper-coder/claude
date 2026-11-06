@@ -58,6 +58,23 @@
         "$other": { ".validate": false }
       }
     },
+    "rangliste": {
+      ".read": true,
+      ".indexOn": ["level", "rp"],
+      "$id": {
+        ".write": "auth != null && $id.beginsWith(auth.uid + '_') && $id.length === auth.uid.length + 2",
+        ".validate": "newData.hasChildren(['name', 'cls', 'level', 'xp', 'rp', 'at'])",
+        "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+        "cls": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{3,20}$/)" },
+        "path": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9" },
+        "level": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 80" },
+        "xp": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "rp": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000" },
+        "liga": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+        "$other": { ".validate": false }
+      }
+    },
     "meldezeit": {
       "$uid": {
         ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 60000)",

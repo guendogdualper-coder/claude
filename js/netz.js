@@ -884,7 +884,7 @@ function netPlayerState() {
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
-    hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
+    hp: Math.round(p.hp), mh: s.maxHp, mp: Math.round(p.mp || 0), mm: s.maxMp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
     // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
     // seit 13.94: Bit 16 = Feueratem des Drachen bzw. Bodenstampfer des Kolosses (sonst Feuerball bzw. Faustschlag)
     ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0) | (a.altAttack ? 16 : 0), a.slot | 0, a.ghost ? a.typeId : 0]) } : {}),
@@ -931,6 +931,9 @@ function netApplyState(rp, s) {
   if (!first && s.hp < rp.hp) rp.hurtAt = game.time;
   rp.hp = s.hp;
   rp.maxHp = s.mh;
+  // Mana (für die Gruppenanzeige; ältere Versionen senden es nicht, dann fehlt dort der Manabalken)
+  rp.mp = Number.isFinite(s.mp) ? s.mp : null;
+  rp.maxMp = Number.isFinite(s.mm) ? s.mm : null;
   rp.dead = !!s.d;
   rp.riding = !!s.r;
   rp.horseTier = s.r || 1;

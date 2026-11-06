@@ -258,34 +258,151 @@ function partyRefresh() {
   if (pcard.pid) pcard.render();
 }
 
-// Kleine Liste unter der eigenen Lebensanzeige: Name, Stufe, Leben der anderen Mitglieder
+// Gruppenanzeige unter der eigenen Lebensanzeige: pro Mitglied ein kleiner Rahmen im selben Stil (etwa 70 % so groß) –
+// rundes Bild in der Klassenfarbe mit Stufenplakette, Name, Lebensbalken mit Zahl, dünner Manabalken (Mitspieler schicken
+// ihr Mana mit, siehe netPlayerState; ältere Versionen nicht, dann fehlt der Balken), Krone für den Anführer.
+// Zustände: tot = grau mit Totenkopf; andere Karte, weit weg (außerhalb der geteilten Erfahrung) oder nicht im Kanal =
+// gedimmt mit Hinweis. Schaden lässt den Rahmen kurz rot aufblitzen.
+// Leistung: Neu aufgebaut wird nur, wenn sich die Mitglieder ändern; die Werte höchstens zehnmal je Sekunde abgeglichen
+// und nur dann ins DOM geschrieben, wenn sie sich geändert haben. Das Bild wird nur bei neuer Klasse/Weg/Waffe neu gemalt.
+// Im HUD-Bearbeitungsmodus (hud-layout.js) zeigt der Rahmen ohne Gruppe zwei Beispiel-Mitglieder zum Verschieben.
+const PARTY_HUD = { every: 0.1, many: 4 };
+const PARTY_NOTE = { ok: '', far: 'weit weg', away: 'andere Karte', off: 'nicht im Kanal', dead: 'tot' };
+const partyHudRows = new Map(); // Name → Verweise auf die Teile des Rahmens und zuletzt gezeigte Werte
 let partyHudKey = '';
+let partyHudAt = -1;
+
+function partyHudList(el) {
+  let list = el.querySelector(':scope > .pf-list');
+  if (!list) {
+    list = document.createElement('div');
+    list.className = 'pf-list';
+    el.prepend(list);
+  }
+  return list;
+}
+
+function partyHudBuild(el, names) {
+  const list = partyHudList(el);
+  partyHudRows.clear();
+  list.innerHTML = names.map((n) => `<div class="pm" data-n="${escapeHtml(n)}"><div class="pm-por"><canvas width="64" height="64"></canvas>` +
+    '<span class="pm-lvl"></span><b class="pm-crown" hidden>♛</b><i class="pm-skull" aria-hidden="true">☠</i></div>' +
+    '<div class="pm-main"><div class="pm-line"><span class="pm-name no-tr"></span><span class="pm-note"></span></div>' +
+    '<div class="bar-row"><svg class="bar-ico ico-hp" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.4C.9 8 3 4 6.8 4c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3C21 4 23.1 8 21.6 11.6 19.5 16.4 12 21 12 21z"/></svg>' +
+    '<div class="bar bar-hp pm-hp"><i></i><span></span></div></div><div class="pm-mp"><i></i></div></div></div>').join('');
+  list.querySelectorAll('.pm').forEach((row, i) => {
+    row.querySelector('.pm-name').textContent = names[i];
+    partyHudRows.set(names[i], {
+      el: row, cv: row.querySelector('canvas'), lvl: row.querySelector('.pm-lvl'), crown: row.querySelector('.pm-crown'), note: row.querySelector('.pm-note'),
+      hpI: row.querySelector('.pm-hp i'), hpT: row.querySelector('.pm-hp span'), mpI: row.querySelector('.pm-mp i'), v: {}, flip: false
+    });
+  });
+  el.classList.toggle('many', names.length > PARTY_HUD.many);
+}
+
+// kleiner Schlüssel fürs Bild: neu malen nur, wenn sich Klasse, Weg oder sichtbare Ausrüstung ändern
+function partyPicKey(rp) {
+  const e = rp.equipment || {};
+  const t = (it) => (it ? `${it.kind || ''}${it.tier || 0}` : '');
+  return `${rp.classId}|${rp.path}|${t(e.waffe)}|${t(e.helm)}|${t(e.ruestung)}|${rp.look ? rp.look.hair + '.' + rp.look.hc + '.' + rp.look.helm : ''}`;
+}
+
+// Werte abgleichen; get(name) liefert die Figur des Mitglieds (oder null, wenn es nicht im Kanal ist)
+function partyHudUpdate(leader, get) {
+  const me = game.player;
+  const myArea = areaKey(me.x, me.y);
+  for (const [n, r] of partyHudRows) {
+    const rp = get(n);
+    const v = r.v;
+    let st = 'ok';
+    if (!rp) st = 'off';
+    else if (rp.dead) st = 'dead';
+    else if (rp.area !== undefined ? rp.area !== myArea : areaKey(rp.x, rp.y) !== myArea) st = 'away';
+    else if (Math.hypot(rp.x - me.x, rp.y - me.y) > NET_SHARE) st = 'far';
+    if (v.st !== st) {
+      r.el.dataset.st = st;
+      r.note.textContent = PARTY_NOTE[st];
+      v.st = st;
+    }
+    const lead = leader === n;
+    if (v.lead !== lead) { r.crown.hidden = !lead; v.lead = lead; }
+    if (!rp) continue;
+    const lvl = rp.level || '?';
+    if (v.lvl !== lvl) { r.lvl.textContent = lvl; v.lvl = lvl; }
+    const pic = partyPicKey(rp);
+    if (v.pic !== pic && CLASSES[rp.classId]) {
+      drawPortrait(r.cv, rp);
+      v.pic = pic;
+    }
+    const hp = rp.dead ? 0 : Math.max(0, rp.hp || 0);
+    const max = Math.max(1, rp.maxHp || 1);
+    const txt = `${Math.ceil(hp)}/${max}`;
+    if (v.txt !== txt) {
+      // Schaden: kurz aufblitzen (zwei gleiche Animationen im Wechsel starten neu, ohne das Layout anzufassen)
+      if (v.hp != null && hp < v.hp && st !== 'dead') {
+        r.flip = !r.flip;
+        r.el.classList.remove(r.flip ? 'hit-b' : 'hit-a');
+        r.el.classList.add(r.flip ? 'hit-a' : 'hit-b');
+      }
+      r.hpT.textContent = txt;
+      r.hpI.style.transform = `scaleX(${Math.min(1, hp / max)})`;
+      const low = hp > 0 && hp / max < 0.3;
+      if (v.low !== low) { r.el.classList.toggle('low', low); v.low = low; }
+      v.txt = txt;
+      v.hp = hp;
+    }
+    const mm = Number(rp.maxMp) || 0;
+    const mp = mm > 0 ? Math.round((Math.max(0, Math.min(mm, rp.mp || 0)) / mm) * 100) : -1;
+    if (v.mp !== mp) {
+      r.el.classList.toggle('nomp', mp < 0);
+      if (mp >= 0) r.mpI.style.transform = `scaleX(${mp / 100})`;
+      v.mp = mp;
+    }
+  }
+}
+
+// Beispiel-Mitglieder für den HUD-Bearbeitungsmodus ohne Gruppe
+const PARTY_DEMO = ['Mitglied 1', 'Mitglied 2'];
+function partyDemoMember(n) {
+  const p = game.player;
+  const k = PARTY_DEMO.indexOf(n);
+  const cls = CLASS_ORDER[(CLASS_ORDER.indexOf(p.classId) + 1 + k) % CLASS_ORDER.length];
+  return { classId: cls, path: 0, level: p.level, hp: k ? 40 : 85, maxHp: 100, mp: k ? 70 : 30, maxMp: 100, x: p.x, y: p.y, area: areaKey(p.x, p.y), equipment: null, look: null };
+}
+
 function partyHud(force) {
   const el = $('partyFrame');
-  if (!el) return;
+  if (!el || !game.player) return;
   const party = game.party;
+  const editing = typeof hudLayout !== 'undefined' && hudLayout.editing;
   if (!party) {
+    if (editing) {
+      if (partyHudKey !== '#demo') {
+        partyHudKey = '#demo';
+        partyHudBuild(el, PARTY_DEMO);
+        partyHudUpdate(PARTY_DEMO[0], partyDemoMember);
+      }
+      return;
+    }
+    if (partyHudKey) {
+      partyHudList(el).innerHTML = '';
+      partyHudRows.clear();
+      partyHudKey = '';
+    }
     if (!el.hidden) el.hidden = true;
-    partyHudKey = '';
     return;
   }
-  const rows = party.members.filter((n) => n !== partyMe()).map((n) => {
-    const x = partyMember(n);
-    const rp = x && x.rp;
-    return { n, on: !!x, lvl: rp ? rp.level : '?', hp: rp ? Math.max(0, rp.hp / Math.max(1, rp.maxHp)) : 0, dead: rp && rp.dead, lead: party.leader === n };
-  });
-  const key = JSON.stringify([party.leader, party.mode, rows.map((r) => [r.n, r.on, r.lvl, r.dead])]);
-  if (force || key !== partyHudKey) {
+  const names = party.members.filter((n) => n !== partyMe());
+  const key = names.join('\n');
+  if (key !== partyHudKey) {
     partyHudKey = key;
-    el.innerHTML = rows.map((r) => `<div class="pt-row${r.on ? '' : ' off'}${r.dead ? ' dead' : ''}" data-n="${escapeHtml(r.n)}">` +
-      `<span class="pt-name">${r.lead ? '<b class="pt-crown">♛</b>' : ''}${escapeHtml(r.n)}</span><span class="pt-lvl">${r.lvl}</span>` +
-      `<span class="pt-hp"><i></i></span></div>`).join('');
-    el.hidden = false;
+    partyHudBuild(el, names);
+    force = true;
   }
-  el.querySelectorAll('.pt-row').forEach((row, i) => {
-    const fill = row.querySelector('.pt-hp i');
-    if (fill && rows[i]) fill.style.transform = `scaleX(${rows[i].hp})`;
-  });
+  if (el.hidden) el.hidden = false;
+  if (!force && game.time - partyHudAt < PARTY_HUD.every && game.time >= partyHudAt) return;
+  partyHudAt = game.time;
+  partyHudUpdate(party.leader, (n) => { const x = partyMember(n); return x ? x.rp : null; });
 }
 
 // Reiter „Gruppe“ im Fenster Freunde & Gilde
@@ -331,8 +448,15 @@ function partyPanelBind(body) {
   if (leave) leave.addEventListener('click', leaveParty);
 }
 
-// Antippen der Gruppenliste öffnet den Reiter „Gruppe“
-$('partyFrame').addEventListener('click', () => {
+// Antippen eines Mitglieds öffnet seine Spielerkarte (wie ein Tipp auf die Figur in der Welt); ist es nicht im Kanal
+// oder trifft der Tipp den Rand, öffnet sich der Reiter „Gruppe“
+$('partyFrame').addEventListener('click', (e) => {
+  const row = e.target.closest ? e.target.closest('.pm') : null;
+  const x = row && game.party ? partyMember(row.dataset.n) : null;
+  if (x && x.pid && typeof pcard !== 'undefined') {
+    pcard.open(x.pid);
+    return;
+  }
   social.tab = 'gruppe';
   social.open();
 });

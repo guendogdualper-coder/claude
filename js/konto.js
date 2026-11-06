@@ -255,10 +255,16 @@ async function accountSync() {
     await cloudExchange();
     account.dirty = false;
     accountStatus('ok');
+    rankSoon();
   } catch (e) {
     accountStatus(accountOn() ? 'error' : 'off', e.message);
   }
   if (typeof ui !== 'undefined' && !game.running) ui.showStart();
+}
+
+// Bestenliste (bestenliste.js): nach jedem Hochladen die Einträge der Charaktere abgleichen (schreibt nur Änderungen)
+function rankSoon() {
+  if (typeof rankSync === 'function') rankSync().catch(() => {});
 }
 
 // nach dem Speichern: bald hochladen (zusammengefasst)
@@ -278,6 +284,7 @@ async function cloudPush(keepalive) {
   try {
     const placed = await cloudExchange(keepalive);
     accountStatus('ok');
+    rankSoon();
     if (placed && typeof ui !== 'undefined' && !game.running) ui.showStart();
   } catch (e) {
     account.dirty = true;
@@ -337,6 +344,7 @@ function accountDeleted() {
   const out = { slots, last: st.last != null && slots[st.last] ? st.last : null };
   if (pending.length) out.pending = pending;
   writeSlots(out, true);
+  if (typeof rankForget === 'function') rankForget();
   accountClear();
   account.dirty = false;
   account.deleting = false;
