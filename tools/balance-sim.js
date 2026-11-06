@@ -12,6 +12,10 @@
 //   node tools/balance-sim.js --vorschlag             dasselbe mit den Wertänderungen aus VORSCHLAG (nur zur Laufzeit)
 //   node tools/balance-sim.js --tabellen ergebnis.json  nur die Tabellen aus einer früheren Messung drucken
 //   node tools/balance-sim.js --vorschlag-datei v.json  eigene Wertänderungen (gleiches Format wie VORSCHLAG) ausprobieren
+//   node tools/balance-sim.js --pvp                   PvP (seit 14.15, Bericht docs/balance-pvp.md): jeder Weg gegen jeden,
+//                                                     Stufe 20/50/80, Ausrüstung std und top; --alt misst die Rechnung bis
+//                                                     14.14, --wuerfe <n> Würfe je Paar (4), --pvp-zeit <s> längstes Duell (60),
+//                                                     --pvp-tabellen <datei.json> druckt die Tabellen einer Messung
 // Optionen: --out <datei.json> (Standard: balance-ergebnis.json bzw. balance-vorschlag.json im aktuellen Ordner),
 //           --worker <n> (parallele Seiten, Standard 3), --url <http://…/> (statt des eigenen Servers),
 //           --kurz (kürzere Läufe zum schnellen Probieren), --ohne-farm (Farm-Lauf weglassen), --root <repo> (Spielordner)
@@ -53,7 +57,12 @@ const PATHS = [
 const IN_ARBEIT = new Set(['ninja.falke']);
 const LEVELS = [10, 30, 50, 70, 80];
 // std: alles +7, Seltenheit Normal, keine Boni · gut: alles +15, Selten (blau) mit 3 Boni je Teil (Hauptwert, Leben, passender Wert)
-const GEARS = { std: { plus: 7, prof: 'std' }, gut: { plus: 15, prof: 'gut' } };
+// top (seit 14.15, für --pvp): alles +20, so selten wie die Stufe erlaubt (bis Episch), 5 Boni je Teil: die drei von „gut“ und zwei
+// für den Kampf gegen Spieler (Stark/Abwehr gegen Menschen, Abwehr gegen Magie/Nahkampf/Fernkampf, kritischer Schaden)
+const GEARS = { std: { plus: 7, prof: 'std' }, gut: { plus: 15, prof: 'gut' }, top: { plus: 20, prof: 'top' } };
+// ohne --ausr misst der normale Lauf (PvE) wie bisher std und gut, der PvP-Lauf std und top
+const PVE_GEARS = ['std', 'gut'];
+const PVP_GEARS = ['std', 'top'];
 
 // Gewichte der Gesamtwertung (Summe 1)
 const WEIGHTS = { st: 0.25, aoe: 0.25, surv: 0.20, ctrl: 0.15, mob: 0.15 };
@@ -168,12 +177,19 @@ function pageLib() {
   // --- Ausrüstung ---
   S.tierFor = (L) => { let t = 0; ITEM_TIERS.forEach((x, i) => { if (L >= x.level) t = i; }); return t; };
   const MID = (def, tier) => {
+    // feste Stufen (seit 14.21 „Max. Leben“ 200/350/500/1000): Mittelwert der Stufen
+    if (def.steps) return Math.round(def.steps.reduce((a, b) => a + b, 0) / def.steps.length);
     const r = (def.range[0] + def.range[1]) / 2;
     if (def.fmt === 'flat') return Math.max(1, Math.round(r * (1 + tier * (def.tierScale || 0.35))));
     const v = Math.min(def.max || Infinity, r * (1 + tier * 0.1));
     return def.fmt === 'pct1' ? Math.round(v * 10000) / 10000 : Math.round(v * 1000) / 1000;
   };
   const SLOT_BONUS = { waffe: 'atk', ruestung: 'dmgReduce', helm: 'crit', schultern: 'atk', umhang: 'dodge', schuhe: 'atkSpeed', guertel: 'atk', schild: 'block', koecher: 'atk' };
+  // top: zwei Boni für den Kampf gegen Spieler je Platz (seit 14.15)
+  const SLOT_PVP = { waffe: ['vsHuman', 'critDmg'], ruestung: ['resHuman', 'resMagic'], helm: ['resHuman', 'vsHuman'], schultern: ['resMagic', 'resMelee'],
+    umhang: ['resHuman', 'resRanged'], schuhe: ['resHuman', 'resMelee'], guertel: ['vsHuman', 'resRanged'], schild: ['resHuman', 'resMagic'], koecher: ['vsHuman', 'critDmg'] };
+  // nur Boni, die auf diesem Platz vorkommen können (seit 14.21 z. B. kein „Max. Leben“ auf Waffe und Köcher)
+  const fits = (it) => (b) => !BONUS_TYPES[b].slots || BONUS_TYPES[b].slots.includes(it.slot) || ATTR_BONUS_IDS.includes(b);
   S.gear = (cls, path, L, plus, prof) => {
     const t = S.tierFor(L);
     const kind = cls === 'ninja' && path === 1 ? 'bow' : CLASS_WEAPON_KINDS[cls][0];
@@ -188,7 +204,12 @@ function pageLib() {
     if (prof === 'gut') for (const it of Object.values(eq)) {
       if (!it) continue;
       it.rarity = 2;
-      it.bonuses = [MAIN_ATTR[cls], 'hp', SLOT_BONUS[it.slot] || 'atk'].map((b) => ({ t: b, v: MID(BONUS_TYPES[b], it.tier) }));
+      it.bonuses = [MAIN_ATTR[cls], 'hp', SLOT_BONUS[it.slot] || 'atk'].filter(fits(it)).map((b) => ({ t: b, v: MID(BONUS_TYPES[b], it.tier) }));
+    }
+    if (prof === 'top') for (const it of Object.values(eq)) {
+      if (!it) continue;
+      it.rarity = capRarity(3, it.tier);
+      it.bonuses = [MAIN_ATTR[cls], 'hp', SLOT_BONUS[it.slot] || 'atk', ...(SLOT_PVP[it.slot] || [])].filter(fits(it)).map((b) => ({ t: b, v: MID(BONUS_TYPES[b], it.tier) }));
     }
     return eq;
   };
@@ -274,12 +295,13 @@ function pageLib() {
 
   // --- Spieler-KI ---
   S.ai = { mode: 'rotult', potHp: 0, potMp: 0.3, pots: 0, mpPots: 0 };
+  S.pvpMode = false; // im PvP-Lauf zählt der Duellgegner (Stellvertreter) als Ziel
   const reach = (sk) => sk.range || (sk.distance ? sk.distance + 30 : 0) || sk.waveLen || sk.radius || 120;
   const prio = (sk) => (sk.channel || sk.castTime ? -1 : sk.cooldown);
   S.aiTick = () => {
     const p = game.player; const A = S.ai;
     if (p.dead || A.mode === 'none') return;
-    const alive = game.monsters.filter((m) => !m.dead);
+    const alive = (S.pvpMode ? aliveEnemies() : game.monsters).filter((m) => !m.dead);
     if (!alive.length) return;
     let t = game.target && !game.target.dead ? game.target : null;
     if (!t) { let bd = Infinity; for (const m of alive) { const d = dist(m, p); if (d < bd) { bd = d; t = m; } } game.target = t; }
@@ -523,6 +545,125 @@ function pageLib() {
     return { kpm: +(kills / T * 60).toFixed(1), deaths, potsPerMin: +(S.ai.pots / T * 60).toFixed(1) };
   };
 
+  // --- PvP (seit 14.15, --pvp) -------------------------------------------------------------------------------------
+  // Ein Duell braucht zwei Figuren, das Spiel hat aber nur eine. Darum in zwei Schritten, beide mit dem echten Spielcode:
+  //   1. Angriffsfolge (S.pvpStream): Figur A kämpft mit ihrer Rotation gegen einen Duell-Stellvertreter; jeder Treffer
+  //      geht wie im Spiel über duelHit → pvpOutgoing und wird mit Zeitpunkt mitgeschrieben (Nachricht 'dh').
+  //   2. Verteidigung (S.pvpDefend): Figur B kämpft genauso (Buffs, Heilung, Schilde, Ausweichen, Blocken), und die
+  //      Treffer von A kommen zu ihren Zeitpunkten über duelReceive → pvpReceiveHit → damagePlayer bei ihr an (Gift,
+  //      Deckel, Lebenspolster). B fällt, sobald sie auf 1 Leben kommt (duelLose). Ihr eigener Lebensraub läuft über
+  //      die Rückmeldung, die A geschickt hätte (pvpIncoming mit den Werten von A).
+  // Wer später fällt, gewinnt; die Dauer eines Duells ist die Zeit, bis der erste fällt. Bewegung, Reichweite und
+  // Ausweichen durch Laufen zählen nicht (beide stehen), Betäubungen gehen im PvP ohnehin nicht über das Netz.
+  const DUEL_PID = 'SIMGEGNER';
+  S.netHook = null;
+  window.netSocial = (pid, d) => { if (S.netHook) S.netHook(pid, d); };
+  window.updateDuel = () => {};
+  // Diener greifen den Duellgegner im Spiel nur im Netz an (allyScore, gegner.js: proxyOk); offline wie im Netz
+  const origAllyScore = window.allyScore;
+  window.allyScore = function (m, a, p, proxyOk) { return origAllyScore(m, a, p, proxyOk || S.pvpMode); };
+  S.lostAt = null;
+  S.t = 0;
+  window.duelLose = () => { if (S.lostAt == null) S.lostAt = S.t; };
+  S.duelSetup = (L) => {
+    const p = game.player;
+    game.duel = {
+      pid: DUEL_PID, name: 'Gegner', fightAt: -1e9, endAt: 1e12, cx: p.x, cy: p.y, shown: 0,
+      proxy: { id: 'duel', duelProxy: true, name: 'Gegner', r: 11, level: L, x: p.x + 60, y: p.y, hp: 1, maxHp: 1, def: 0, dead: false, hidden: false, isStone: false, type: {}, stun: 0 }
+    };
+    game.target = game.duel.proxy;
+  };
+  // Werte des Getroffenen, die pvpIncoming braucht
+  S.recvSnap = () => {
+    const s = game.stats;
+    const o = { level: game.player.level };
+    for (const k of ['def', 'damageTaken', 'resHuman', 'resMagic', 'resMelee', 'resRanged', 'maxHp', 'dodge', 'block']) o[k] = s[k] || 0;
+    return o;
+  };
+  // vorher (bis 14.14): pvpMul fest 0,6, einfache Rüstung, Deckel 25/35 % je Treffer, kein Polster, kein Deckel je 1,5 s,
+  // volle Heilung, kein Lebensraub im PvP, Krit immer ×1,8; „Erlittener Schaden“ wirkte über damagePlayer
+  const NEW_PVP = { out: window.pvpOutgoing, recv: window.pvpReceiveHit, heal: window.pvpHealMul, ratio: window.pvpDealtRatio };
+  S.legacy = false;
+  S.pvpLegacy = (on) => {
+    S.legacy = !!on;
+    if (!on) { window.pvpOutgoing = NEW_PVP.out; window.pvpReceiveHit = NEW_PVP.recv; window.pvpHealMul = NEW_PVP.heal; window.pvpDealtRatio = NEW_PVP.ratio; return; }
+    window.pvpHealMul = () => 1;
+    window.pvpDealtRatio = () => 0.5;
+    window.pvpOutgoing = (mul, opts) => {
+      const p = game.player; const s = game.stats;
+      const base = opts.atk != null ? opts.atk : s.atk;
+      const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
+      if (!opts.ally && !opts.dot) breakStealth(p);
+      const raw = base * mul * (opts.ally ? 0.5 : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1);
+      return { a: Math.round(raw), c: crit ? 1 : 0, l: p.level };
+    };
+    window.pvpReceiveHit = (d, src) => {
+      const p = game.player; const s = game.stats;
+      const raw = d.a * 0.6 * (1 - s.def / (s.def + 40 + 5 * ((d.l || 1) - 1)));
+      const capped = (d.l || 1) - p.level < 10;
+      const amount = Math.max(1, Math.round(capped ? Math.min(raw, s.maxHp * (d.c ? 0.35 : 0.25)) : raw));
+      const before = p.hp;
+      damagePlayer(amount, src);
+      return Math.max(0, Math.round(before - p.hp));
+    };
+  };
+  const pvpPrep = (cls, path, L, gear, seed) => {
+    // freier Platz einmal mit festem Wurf suchen (ein 680er-Quadrat ohne Hindernis ist selten; je nach Wurf fände
+    // findArena in 800 Versuchen keinen)
+    for (let k = 0; !S.arena && k < 20; k++) { S.seed(7 + k); S.arena = S.findArena('wiesen'); }
+    S.seed(seed);
+    S.make(cls, path, L, { plus: gear.plus, prof: gear.prof });
+    S.ai.mode = 'rotult'; S.ai.potHp = 0; S.ai.potMp = 0.3; S.ai.mpPots = 0;
+    S.prebuff();
+    S.duelSetup(L);
+    S.pvpMode = true;
+    S.lostAt = null;
+    S.t = 0;
+    return game.player;
+  };
+  const pvpDone = () => { S.pvpMode = false; S.netHook = null; game.duel = null; game.player.toxin = null; };
+  S.pvpStream = (cls, path, L, gear, seed, T) => {
+    pvpPrep(cls, path, L, gear, seed);
+    const snap = S.recvSnap();
+    const hits = [];
+    S.netHook = (pid, d) => { if (d.k === 'dh') { const h = Object.assign({}, d); h.t = +S.t.toFixed(3); hits.push(h); } };
+    const n = Math.round(T / S.dt);
+    for (let f = 0; f < n; f++) { S.t = f * S.dt; S.aiTick(); update(S.dt); }
+    pvpDone();
+    return { hits, snap };
+  };
+  S.pvpDefend = (cls, path, L, gear, seed, stream, opp, T) => {
+    const p = pvpPrep(cls, path, L, gear, seed);
+    const maxHp = game.stats.maxHp;
+    let i = 0, maxHit = 0, maxHitCrit = 0, taken = 0, nHits = 0;
+    // eigene Treffer: Rückmeldung wie vom Gegner (Lebensraub zu 60 %); im alten Stand gab es im PvP keinen Lebensraub
+    S.netHook = (pid, d) => {
+      if (d.k !== 'dh' || S.legacy || d.al) return;
+      const dealt = pvpIncoming(opp.level, opp, d, null, 0);
+      pvpNoteDealt(d.a, dealt);
+      pvpLifeSteal(dealt);
+    };
+    const n = Math.round(T / S.dt);
+    for (let f = 0; f < n && S.lostAt == null; f++) {
+      S.t = f * S.dt;
+      while (i < stream.length && stream[i].t <= S.t && S.lostAt == null) {
+        const d = stream[i++];
+        const before = p.hp;
+        duelReceive(DUEL_PID, d);
+        const pct = Math.max(0, before - p.hp) / maxHp;
+        taken += Math.max(0, before - p.hp);
+        nHits++;
+        if (pct > maxHit) maxHit = pct;
+        if (d.c && pct > maxHitCrit) maxHitCrit = pct;
+      }
+      S.aiTick();
+      update(S.dt);
+    }
+    const res = { t: S.lostAt, maxHit: +maxHit.toFixed(4), maxHitCrit: +maxHitCrit.toFixed(4), hp: Math.round(p.hp), maxHp, taken: Math.round(taken), nHits };
+    pvpDone();
+    return res;
+  };
+
   // Alles für eine Figur
   S.measure = (cls, path, L, gear, o) => {
     const opt = { plus: gear.plus, prof: gear.prof };
@@ -576,12 +717,17 @@ async function openPage(browser, url) {
 }
 
 function parseArgs(argv) {
-  const a = { stufen: LEVELS, ausr: Object.keys(GEARS), wege: null, vorschlag: false, out: null, worker: 3, url: null, kurz: false, farm: true, tabellen: null };
+  const a = { stufen: LEVELS, ausr: PVE_GEARS, wege: null, vorschlag: false, out: null, worker: 3, url: null, kurz: false, farm: true, tabellen: null, pvp: false, alt: false, seeds: 4, pvpZeit: 60 };
   for (let i = 0; i < argv.length; i++) {
     const k = argv[i];
     const v = () => argv[++i];
-    if (k === '--stufen') a.stufen = v().split(',').map(Number);
-    else if (k === '--ausr') a.ausr = v().split(',');
+    if (k === '--stufen') { a.stufen = v().split(',').map(Number); a.stufenSet = true; }
+    else if (k === '--ausr') { a.ausr = v().split(','); a.ausrSet = true; }
+    else if (k === '--pvp') a.pvp = true;
+    else if (k === '--alt') a.alt = true;
+    else if (k === '--wuerfe') a.seeds = +v();
+    else if (k === '--pvp-zeit') a.pvpZeit = +v();
+    else if (k === '--pvp-tabellen') a.pvpTabellen = v();
     else if (k === '--wege') a.wege = v().split(',');
     else if (k === '--vorschlag') a.vorschlag = true;
     else if (k === '--vorschlag-datei') { a.vorschlag = true; a.vdatei = v(); }
@@ -692,8 +838,158 @@ function totalsTable(data, gear) {
   return lines.join('\n');
 }
 
+// --- PvP-Lauf (--pvp, seit 14.15) --------------------------------------------------------------------------------
+// Jede Klasse und jeder Weg gegen jede andere (auch gegen sich selbst), je Stufe und Ausrüstung, mit mehreren Würfen.
+// Ausgabe: Dauer bis zum Sieg (Median, 10 %/90 %), größter Einzeltreffer in % des Lebens, Siegquote je Paar.
+const PVP_LEVELS = [20, 50, 80];
+const median = (xs) => { const a = xs.slice().sort((x, y) => x - y); if (!a.length) return null; const m = a.length >> 1; return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2; };
+const quant = (xs, q) => { const a = xs.slice().sort((x, y) => x - y); if (!a.length) return null; return a[Math.min(a.length - 1, Math.max(0, Math.round(q * (a.length - 1))))]; };
+
+async function runJobs(pages, jobs, fn, label) {
+  let next = 0, done = 0;
+  const t0 = Date.now();
+  await Promise.all(pages.map(async (pg) => {
+    while (next < jobs.length) {
+      const j = jobs[next++];
+      await fn(pg, j);
+      done++;
+      if (done % 100 === 0 || done === jobs.length) console.log(`  [${label}] ${done}/${jobs.length} (${((Date.now() - t0) / 1000).toFixed(0)} s)`);
+    }
+  }));
+}
+
+// Auswertung: je Paar (A gegen B, Wurf s) fällt B nach tB (A hat getroffen) und A nach tA; wer später (oder gar nicht)
+// fällt, gewinnt. Dauer = früherer Zeitpunkt; fällt keiner in T Sekunden, ist es unentschieden (Dauer T).
+function pvpAnalyse(data) {
+  const { results, T } = data;
+  const key = (g, L, r, a, s) => `${g}|${L}|${r}|${a}|${s}`;
+  const D = new Map(results.map((r) => [key(r.gear, r.L, r.recv, r.att, r.seed), r]));
+  const ids = PATHS.map((p) => p[2]);
+  const out = {};
+  for (const g of data.gears) for (const L of data.levels) {
+    const times = [], pairs = [];
+    let maxHit = 0, maxHitWho = '', maxCrit = 0;
+    for (let i = 0; i < ids.length; i++) for (let j = i; j < ids.length; j++) {
+      const A = ids[i], B = ids[j];
+      let winA = 0, n = 0;
+      const pt = [];
+      for (const s of data.seeds) {
+        const rB = D.get(key(g, L, B, A, s)); // B wird von A getroffen
+        const rA = D.get(key(g, L, A, B, s));
+        if (!rA || !rB) continue;
+        const tB = rB.t == null ? Infinity : rB.t, tA = rA.t == null ? Infinity : rA.t;
+        const t = Math.min(tA, tB);
+        const dur = isFinite(t) ? t : T;
+        times.push(dur); pt.push(dur);
+        n++;
+        if (tB < tA) winA += 1; else if (tA === tB) winA += 0.5;
+        for (const r of [rA, rB]) {
+          if (r.maxHit > maxHit) { maxHit = r.maxHit; maxHitWho = `${r.att} → ${r.recv}`; }
+          if (r.maxHitCrit > maxCrit) maxCrit = r.maxHitCrit;
+        }
+      }
+      if (n) pairs.push({ A, B, n, quoteA: winA / n, t: median(pt) });
+    }
+    out[g + '|' + L] = { g, L, median: median(times), p10: quant(times, 0.1), p90: quant(times, 0.9), draws: times.filter((t) => t >= T).length, n: times.length, maxHit, maxHitWho, maxCrit, pairs };
+  }
+  return out;
+}
+
+const pathLabel = (id) => { const p = PATHS.find((x) => x[2] === id); return p ? p[3] : id; };
+function pvpTables(data, A) {
+  const lines = [];
+  lines.push('| Ausrüstung | Stufe | Median bis Sieg | 10 % / 90 % | Unentschieden | größter Treffer | größter Krit | Paare über 65 % | höchste Siegquote |');
+  lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---|');
+  for (const x of Object.values(A)) {
+    const non = x.pairs.filter((p) => p.A !== p.B);
+    const over = non.filter((p) => Math.max(p.quoteA, 1 - p.quoteA) > 0.65);
+    const top = non.slice().sort((a, b) => Math.max(b.quoteA, 1 - b.quoteA) - Math.max(a.quoteA, 1 - a.quoteA))[0];
+    const tq = top ? (top.quoteA >= 0.5 ? `${pathLabel(top.A)} gegen ${pathLabel(top.B)} ${fmt(top.quoteA * 100)} %` : `${pathLabel(top.B)} gegen ${pathLabel(top.A)} ${fmt((1 - top.quoteA) * 100)} %`) : '–';
+    lines.push(`| ${x.g} | ${x.L} | ${fmt(x.median, 1)} s | ${fmt(x.p10, 1)} / ${fmt(x.p90, 1)} s | ${x.draws}/${x.n} | ${fmt(x.maxHit * 100, 1)} % | ${fmt(x.maxCrit * 100, 1)} % | ${over.length}/${non.length} | ${tq} |`);
+  }
+  return lines.join('\n');
+}
+// Siegquote je Weg (Durchschnitt gegen alle anderen Wege) und Matrix über alle Stufen und Ausrüstungen
+function pvpMatrix(data, A) {
+  const ids = PATHS.map((p) => p[2]);
+  const agg = {};
+  for (const x of Object.values(A)) for (const p of x.pairs) {
+    if (p.A === p.B) continue;
+    const k = p.A + '|' + p.B;
+    (agg[k] = agg[k] || { w: 0, n: 0 });
+    agg[k].w += p.quoteA * p.n; agg[k].n += p.n;
+  }
+  const q = (a, b) => { if (a === b) return null; const x = agg[a + '|' + b]; if (x) return x.w / x.n; const y = agg[b + '|' + a]; return y ? 1 - y.w / y.n : null; };
+  const short = (id) => pathLabel(id).replace('Krieger', 'Kr').replace('Ninja', 'Ni').replace('Schamane', 'Sch').replace('Nekromant', 'Nek').replace('Magier', 'Mag').replace(' · ', ' ');
+  const lines = ['| Weg (Zeile gewinnt gegen Spalte) | ' + ids.map(short).join(' | ') + ' | Ø |', '|---|' + ids.map(() => '---:').join('|') + '|---:|'];
+  for (const a of ids) {
+    const vals = ids.map((b) => q(a, b));
+    const nn = vals.filter((v) => v != null);
+    lines.push(`| ${pathLabel(a)} | ${vals.map((v) => (v == null ? '–' : (v > 0.65 ? '**' : '') + fmt(v * 100) + (v > 0.65 ? '**' : ''))).join(' | ')} | ${fmt(nn.reduce((s, v) => s + v, 0) / nn.length * 100)} |`);
+  }
+  const over = [];
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { const v = q(ids[i], ids[j]); if (v != null && Math.max(v, 1 - v) > 0.65) over.push([ids[i], ids[j], v]); }
+  return { table: lines.join('\n'), over, q };
+}
+
+async function mainPvp(a) {
+  const gears = a.ausrSet ? a.ausr : PVP_GEARS;
+  const levels = a.stufenSet ? a.stufen : PVP_LEVELS;
+  const seeds = Array.from({ length: a.seeds || 4 }, (_, i) => 101 + i * 7);
+  const T = a.pvpZeit || 60;
+  const ids = PATHS.filter((p) => !a.wege || a.wege.includes(p[2]));
+  const out = a.out || (a.alt ? 'balance-pvp-vorher.json' : 'balance-pvp.json');
+  let srv = null;
+  let url = a.url;
+  if (!url) { const s = await startServer(); srv = s.srv; url = s.url; }
+  const browser = await chromium.launch();
+  const pages = await Promise.all(Array.from({ length: a.worker }, () => openPage(browser, url)));
+  for (const pg of pages) await pg.evaluate((on) => SIM.pvpLegacy(on), !!a.alt);
+  // Wertänderungen zum Ausprobieren (--vorschlag-datei, gleiches Format wie VORSCHLAG, z. B. { set: 'PVP_DMG.defMul', v: 1 })
+  const vlist = a.vdatei ? JSON.parse(fs.readFileSync(a.vdatei, 'utf8')) : [];
+  if (vlist.length) for (const pg of pages) await pg.evaluate((ov) => SIM.applyOverrides(ov), vlist);
+  console.log(`[pvp] ${ids.length} Wege, Stufen ${levels.join('/')}, Ausrüstung ${gears.join('/')}, ${seeds.length} Würfe, ${a.alt ? 'ALTE Rechnung (bis 14.14)' : 'neue Rechnung'} · ${a.worker} Seiten`);
+  const t0 = Date.now();
+  // 1. Angriffsfolgen
+  const streams = new Map();
+  const sJobs = [];
+  for (const g of gears) for (const L of levels) for (const [cls, pa, id] of ids) for (const seed of seeds) sJobs.push({ g, L, cls, pa, id, seed });
+  await runJobs(pages, sJobs, async (pg, j) => {
+    const r = await pg.evaluate(({ j, gear, T }) => { try { return SIM.pvpStream(j.cls, j.pa, j.L, gear, j.seed, T); } catch (e) { return { err: e.message + ' | ' + (e.stack || '').split('\n').slice(0, 3).join(' | ') }; } }, { j, gear: GEARS[j.g], T });
+    if (r.err) console.log(`  ${j.id} L${j.L} ${j.g}: FEHLER ${r.err}`);
+    streams.set(`${j.g}|${j.L}|${j.id}|${j.seed}`, r);
+  }, 'Angriffe');
+  // 2. Verteidigung: jeder Weg gegen jede Angriffsfolge
+  const results = [];
+  const dJobs = [];
+  for (const g of gears) for (const L of levels) for (const [cls, pa, id] of ids) for (const [, , att] of ids) for (const seed of seeds) dJobs.push({ g, L, cls, pa, id, att, seed });
+  await runJobs(pages, dJobs, async (pg, j) => {
+    const st = streams.get(`${j.g}|${j.L}|${j.att}|${j.seed}`);
+    if (!st || st.err) return;
+    const r = await pg.evaluate(({ j, gear, st, T }) => { try { return SIM.pvpDefend(j.cls, j.pa, j.L, gear, j.seed + 5000, st.hits, st.snap, T); } catch (e) { return { err: e.message }; } }, { j, gear: GEARS[j.g], st, T });
+    if (r.err) { console.log(`  ${j.id} ← ${j.att} L${j.L} ${j.g}: FEHLER ${r.err}`); return; }
+    results.push({ gear: j.g, L: j.L, recv: j.id, att: j.att, seed: j.seed, ...r });
+  }, 'Duelle');
+  await browser.close();
+  if (srv) srv.close();
+  const data = { when: new Date().toISOString(), alt: !!a.alt, T, gears, levels, seeds, results };
+  fs.writeFileSync(out, JSON.stringify(data));
+  console.log(`[pvp] fertig in ${((Date.now() - t0) / 1000).toFixed(0)} s → ${out}`);
+  pvpReport(data);
+}
+function pvpReport(data) {
+  const A = pvpAnalyse(data);
+  console.log('\n' + pvpTables(data, A));
+  const M = pvpMatrix(data, A);
+  console.log('\nSiegquoten über alle Stufen und Ausrüstungen:\n' + M.table);
+  console.log(`\nPaare über 65 %: ${M.over.length}` + (M.over.length ? ' – ' + M.over.map(([x, y, v]) => `${pathLabel(v >= 0.5 ? x : y)} gegen ${pathLabel(v >= 0.5 ? y : x)} ${fmt(Math.max(v, 1 - v) * 100)} %`).join(', ') : ''));
+  return { A, M };
+}
+
 async function main() {
   const a = parseArgs(process.argv.slice(2));
+  if (a.pvpTabellen) { pvpReport(JSON.parse(fs.readFileSync(a.pvpTabellen, 'utf8'))); return; }
+  if (a.pvp) return mainPvp(a);
   if (a.tabellen) {
     const data = JSON.parse(fs.readFileSync(a.tabellen, 'utf8'));
     for (const g of [...new Set(data.results.map((r) => r.gear))]) console.log(`\n### Gesamtwertung (${g})\n\n` + totalsTable(data, g));
@@ -741,4 +1037,4 @@ async function main() {
 }
 
 if (require.main === module) main().catch((e) => { console.error(e); process.exit(1); });
-module.exports = { PATHS, LEVELS, GEARS, WEIGHTS, VORSCHLAG, score, raw, tables, totalsTable, IN_ARBEIT, survEst };
+module.exports = { PATHS, LEVELS, GEARS, WEIGHTS, VORSCHLAG, score, raw, tables, totalsTable, IN_ARBEIT, survEst, pvpAnalyse, pvpTables, pvpMatrix };

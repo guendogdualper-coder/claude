@@ -3203,6 +3203,13 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .tfx-slow, .tfx-frozen { border-color: #7fb8ff; color: #d6e8ff; }
 .tfx-stun { border-color: #ffd34d; color: #fff1b0; }
 .tfx-curse { border-color: #b48cff; color: #e6d8ff; }
+/* 14.15: Gift aus der Ausrüstung (am Ziel und als Debuff in der eigenen Leiste) */
+.tfx-toxin { border-color: #5ec83a; color: #c8f5b0; }
+.buff-ico.buff-debuff { border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2e5a1e, #10200a); box-shadow: 0 0 0 1px #5ec83a inset; }
+.buff-ico.buff-debuff svg { width: 70%; height: 70%; margin: 15%; fill: #7ee05a; filter: drop-shadow(0 0 3px rgba(126, 224, 90, 0.7)); }
+.buff-ico.buff-debuff span { color: #c8f5b0; }
+.stats small.cap { color: var(--muted); font-size: 0.85em; white-space: nowrap; }
+.stats dd:has(small.cap) { white-space: nowrap; }
 
 /* --- Spielerschutz (seit 13.77): Melden, Blockieren, Konto löschen, Links zu Datenschutz ----------------- */
 .ss-dlg { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px)); background: rgba(6, 4, 2, 0.62); user-select: text; }

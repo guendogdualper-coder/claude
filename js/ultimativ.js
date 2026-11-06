@@ -342,7 +342,7 @@ const ULT_RUN = {
     const cy = p.y;
     const heal = (pct) => {
       const s = game.stats;
-      const a = Math.round(s.maxHp * pct * (s.healPower || 1));
+      const a = Math.round(s.maxHp * pct * (s.healPower || 1) * pvpHealMul());
       if (p.dead || a <= 0) return;
       p.hp = Math.min(s.maxHp, p.hp + a);
       addText(p.x + rand(-6, 6), p.y - 44, '+' + a, 'heal');
@@ -386,7 +386,7 @@ const ULT_RUN = {
         shakeScreen(5);
         total += ultHitCircle(cx, cy, r + 20, 4 * pw, { stun: 3.5, vfxColor: '#ddd5bb' }, seen);
         if (ring === 2) {
-          const heal = Math.round(total * 0.25);
+          const heal = Math.round(total * 0.25 * pvpHealMul());
           if (heal > 0 && !p.dead) {
             p.hp = Math.min(game.stats.maxHp, p.hp + heal);
             addText(p.x, p.y - 44, '+' + Math.round(heal), 'heal');

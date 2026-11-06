@@ -129,7 +129,8 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'sinn', q: 'Wie komme ich an Gold?',
-    a: 'Monster und Aufträge geben Gold, der Stein der Gier sogar dreimal so viel. Dazu kommen Verkaufen beim Händler, die Prüfungsarena, die Tagesbelohnung und das Auktionshaus.',
+    a: 'Monster und Aufträge geben Gold, der Stein der Gier sogar dreimal so viel. Dazu kommen Verkaufen beim Händler, die Prüfungsarena, die Tagesbelohnung und das Auktionshaus. ' +
+      'Der Bonus <b>Mehr Gold</b> auf Helm, Schultern, Umhang, Gürtel oder Schuhen erhöht das Gold von Monstern und Seelensteinen.',
     k: 'gold geld reich verdienen muenzen farmen'
   },
   {
@@ -405,6 +406,34 @@ const RATGEBER_WISSEN = [
       'ab Stufe 20 (zweite Karte) kommen Switcher, Seltene Verstärkung und Sternensteine richtig, je höher der Stein, desto öfter.',
     k: 'boni bonus verstaerkung switcher sternenstein sternen-switcher seltene verstaerkung wuerfeln'
   },
+  // seit 14.15: neue Boni
+  {
+    c: 'ausruestung', q: 'Was bewirkt die Vergiftungschance (Gift)?',
+    a: () => {
+      const T = typeof TOXIN !== 'undefined' ? TOXIN : { dur: 6, share: 0.4, bossCap: 0.02 };
+      return `Die <b>Vergiftungschance</b> gibt es nur auf Waffen (insgesamt höchstens ${(typeof BONUS_CAPS !== 'undefined') ? rgPct(BONUS_CAPS.poison) : '12 %'}). ` +
+        `Jeder Treffer – Grundangriff und Fertigkeit, je Ziel einmal – vergiftet mit dieser Chance: ${T.dur} Sekunden lang, jede Sekunde ein Tick, zusammen ${rgPct(T.share)} des Treffers. ` +
+        `Das Ziel zeigt „Vergiftet“ mit Restzeit und Schaden je Sekunde, die Zahlen sind grün. Ein neues Gift stapelt nicht, es erneuert die Dauer und behält den stärkeren Tick. ` +
+        `Bosse, Endboss-Kristalle und Seelensteine verlieren durch ein Gift höchstens ${rgPct(T.bossCap)} ihres Lebens. Im PvP nimmt ein Tick höchstens 1,5 % des Lebens.`;
+    },
+    k: 'gift giftig vergiftung vergiftet vergiftungschance poison toxin gruen schaden ueber zeit'
+  },
+  {
+    c: 'ausruestung', q: 'Wie bekomme ich mehr Gold und mehr Beute?',
+    a: 'Die Boni <b>Mehr Gold</b> und <b>Mehr Beute</b> gibt es auf Helm, Schultern, Umhang, Gürtel und Schuhen (je Teil bis 8 %, zusammen bis 25 %). ' +
+      'Mehr Gold erhöht das Gold von Monstern, Bossen und Seelensteinen, nicht die Belohnung von Aufträgen oder der Arena. ' +
+      'Mehr Beute erhöht die Chance auf Ausrüstung, Tränke und Monsterteile. Fertigkeitsbücher, Schriftrollen, Seelensteine (Gegenstand), Verstärkungen, Switcher und Sternensteine bleiben bewusst so selten wie bisher.',
+    k: 'gold beute mehr gold mehr beute drop drops loot goldfund glueck finden'
+  },
+  {
+    c: 'ausruestung', q: 'Was heißt „Stark gegen …“ und „Abwehr gegen …“?',
+    a: '<b>Stark gegen</b> Tiere, Menschen, Orks und Riesen, Untote und Geister oder Teufel und Dämonen macht mehr Schaden gegen diese Art und zählt zu „Stark gegen Monster“ dazu. ' +
+      'Tiere sind auch Spinnen, Schlangen und Drachen, zu Orks und Riesen zählen Oger, Trolle und Golems, Untote sind Untote Krieger, Ghule, Skelette und Geister, Teufel und Dämonen auch der Höllenhund und Abaddor. ' +
+      'Seelensteine zählen wie die Monster ihres Gebiets. Andere Spieler sind Menschen: gegen sie zählt nur „Stark gegen Menschen“. ' +
+      '<b>Abwehr gegen</b> Magie (Zauber von Magier, Schamane, Nekromant und zaubernden Monstern), Nahkampf oder Fernkampf senkt den Schaden dieser Angriffe, <b>Abwehr gegen Menschen</b> den von menschlichen Monstern und anderen Spielern. ' +
+      'Alle Boni stehen im Charakterfenster auf der Seite „Werte“, mit ihrer Obergrenze.',
+    k: 'stark gegen tiere menschen orks riesen untote geister teufel daemonen abwehr magie nahkampf fernkampf kritischer schaden boni'
+  },
   {
     c: 'ausruestung', q: 'Wo kaufe ich Ausrüstung?',
     a: 'Waffen für deine Klasse hat <b>{n:waffen}</b>, Rüstung, Helm, Schultern, Umhang, Schild, Schuhe und Gürtel <b>{n:ruestung}</b>, Bögen und Köcher <b>{n:bogenmacher}</b>. ' +
@@ -659,6 +688,18 @@ const RATGEBER_WISSEN = [
     a: 'Blau gegen Rot, 4 gegen 4, zum Spaß ohne Rang. Wer fällt, steht nach ein paar Sekunden in der eigenen Basis wieder auf. Steht nur ein Team im Kreis um den Turm, lädt es ihn auf. ' +
       'Gewonnen hat, wer den Turm auf 100 % bringt oder zuerst 100 Kills holt; nach 15 Minuten, wer mehr Kills hat.',
     k: 'turmschlacht turm 4v4 blau rot basis kills'
+  },
+  {
+    c: 'pvp', q: 'Wie viel Schaden macht man im PvP? Gibt es One-Shots?',
+    a: () => {
+      const P = typeof PVP_DMG !== 'undefined' ? PVP_DMG : { maxHit: 0.25, maxCrit: 0.35, windowMax: 0.45, window: 1.5, mulLow: 0.38, mulHigh: 0.3, mulFrom: 50, mulTo: 80, armorMax: 0.6, otherMax: 0.5, pad: 0.02, heal: 0.6, dodgeMul: 0.5 };
+      return `Bei ähnlicher Stufe (weniger als 10 Stufen Abstand) nicht: Ein Treffer nimmt höchstens ${rgPct(P.maxHit)} des Lebens (kritisch ${rgPct(P.maxCrit)}), und in ${String(P.window).replace('.', ',')} Sekunden höchstens ${rgPct(P.windowMax)} – auch bei mehreren Gegnern. ` +
+        `Der Schaden zwischen Spielern zählt weniger (bis Stufe ${P.mulFrom} zu ${rgPct(P.mulLow)}, auf Stufe ${P.mulTo} zu ${rgPct(P.mulHigh)}), Rüstung zählt doppelt (höchstens ${rgPct(P.armorMax)} weniger), ` +
+        `dazu Schadensreduktion und <b>Abwehr gegen Menschen</b>, Magie, Nahkampf oder Fernkampf (zusammen höchstens ${rgPct(P.otherMax)}), und je Stufe hält man ${rgPct(P.pad)} mehr aus. ` +
+        `Ausweichen und Blocken wirken im PvP halb, Heilung und Lebensraub zu ${rgPct(P.heal)}. Gute Werte gegen Spieler: Abwehr gegen Menschen und <b>Stark gegen Menschen</b>. ` +
+        'Ein Duell dauert so bei gleicher Stufe meist 10 bis 20 Sekunden. Bei großem Stufenabstand bleibt es hart.';
+    },
+    k: 'pvp duell schaden one-shot oneshot einschlag ruestung abwehr menschen stark gegen menschen turnierarena rangkampf deckel heilung'
   },
 
   // --- Prüfungsarena ----------------------------------------------------------------------------------------

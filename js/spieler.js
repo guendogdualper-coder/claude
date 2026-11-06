@@ -343,6 +343,8 @@ const FOOT_SPEED_CAP = 1.25;
 
 // Endwerte aus Klasse, Stufe und aktiven Buffs
 const PLAYER_CRIT_CAP = 0.4;
+// Boni, die unverändert als Wert in playerStats landen (seit 14.15)
+const PLAYER_BONUS_KEYS = ['poison', 'vsBeast', 'vsHuman', 'vsOrc', 'vsUndead', 'vsDemon', 'resHuman', 'resMagic', 'resMelee', 'resRanged', 'goldFind', 'dropFind'];
 function playerStats(p) {
   const c = CLASSES[p.classId];
   const L = p.level - 1;
@@ -397,6 +399,8 @@ function playerStats(p) {
   s.hpSteal = bonus.hpSteal || 0;
   s.basicDmg = bonus.basicDmg || 0;
   s.damageTaken -= (bonus.dmgReduce || 0) + (bonus.resist || 0);
+  // seit 14.15: Gift, „Stark gegen …“ je Monsterart, Abwehr je Angriffsart, Gold und Beute (Summe, gedeckelt mit BONUS_CAPS)
+  for (const k of PLAYER_BONUS_KEYS) s[k] = bonus[k] || 0;
   let magic = 0;
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
@@ -453,7 +457,7 @@ function playerStats(p) {
   s.def = Math.round(s.def);
   // Klassensegen (seit 13.1): Naturschaden, kritischer Schaden, Omni-Vampir
   s.natureDmg = 0;
-  s.critDmg = 0;
+  s.critDmg = bonus.critDmg || 0; // seit 14.15 auch als Bonus der Ausrüstung
   s.omniVamp = 0;
   // Heilkraft (seit 13.26, Segen des Lichts): verstärkt alle Heilungen
   s.healPower = 1;

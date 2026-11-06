@@ -308,7 +308,7 @@ function htLoot(m) {
   }
   // seit 14.6 Seelensplitter statt Boni-Materialien (die gibt es nur aus Seelensteinen)
   giveSplinters(randInt(30, 40));
-  const gold = m.level * 3000;
+  const gold = monsterGold(m.level * 3000);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner('Der Höllenkaiser ist gefallen!', 'Ihr seid Teufelsbezwinger');

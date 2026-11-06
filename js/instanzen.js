@@ -911,7 +911,7 @@ function instMiniLoot(m, chance) {
   let got = 0;
   if (Math.random() < chance && instEpicItem(m, null)) got = 1;
   instMats(m, { splinters: randInt(3, 5) }, randInt(2, 3)); // seit 14.6 Splitter statt Verstärkung/Switcher
-  const gold = m.level * 150;
+  const gold = monsterGold(m.level * 150);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} ist gefallen!`, got ? 'Ein episches Teil!' : 'Wächter besiegt');
@@ -923,7 +923,7 @@ function instFinalLoot(m, def) {
   for (let k = 0; k < n; k++) instEpicItem(m, k === 0 && Math.random() < 0.4 ? 'waffe' : null);
   const leg = Math.random() < INST.legendary ? dropLegendary(m) : null;
   instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6)); // seit 14.6 Splitter statt Boni-Materialien
-  const gold = m.level * 800;
+  const gold = monsterGold(m.level * 800);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${def.name} bezwungen!`, `${n} epische${n > 1 ? '' : 's'} Teil${n > 1 ? 'e' : ''}${leg ? ' und ein legendäres!' : ''}`);
