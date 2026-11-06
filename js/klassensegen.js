@@ -336,6 +336,11 @@ FX3_DRAW.segen3 = function (h, e) {
   const z = (o ? feetY(o) : e.y) * U3;
   const low = n3low();
   const fade = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.55) / 0.45);
+  // Feuermagier (seit 14.3): Feuerspirale statt Lichtsäule und Ring (feuerfeld.js)
+  if (e.cls === 'magier' && o && typeof segenFeuer3 === 'function' && typeof kaStyleKey === 'function' && kaStyleKey(o) === 'feuer') {
+    segenFeuer3(h, e, k, x, z, t);
+    return;
+  }
   const C = d.colors;
   // Lichtsäule und Blitz zu Beginn
   fx3MageSprite(h, 'sprite', 'disc', x, 1.6, z, 0.7, 4.2, d.color, 0.45 * fade);

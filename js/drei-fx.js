@@ -1766,25 +1766,22 @@ function fx3MageBolt(h, pr) {
   // Größe (seit 11.5): Feuerball mit Zauberzeit und Felsgeschoss sind etwa doppelt so groß
   const B = pr.big || 1;
   if (pr.style === 'fireball') {
-    // weißglühender Kern, zwei Flammen nach hinten, zwei gegenläufig drehende Siegelringe quer zur Flugbahn
-    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.6 * B, 0.6 * B, E.core, 1);
-    if (B > 1) fx3MageSprite(h, 'sprite', 'disc', x, y, z, 1.6 * B, 1.6 * B, E.main, 0.45);
-    for (let i = 0; i < 2; i++) {
-      const d = i ? 0.26 : 0.42;
-      const w = 0.9 + 0.12 * Math.sin(t * 23 + id + i);
-      const fl = fx3MageSprite(h, 'spriteFlame', 'flame', x - _x3md.x * d * B, y, z - _x3md.z * d * B, (i ? 0.36 : 0.55) * w * B, (i ? 0.7 : 1.05) * w * B, i ? E.hi : E.main, 1);
-      fl.material.rotation = rot;
+    // seit 14.3: brodelnde Feuerkugel mit nach hinten gezogenem Flammenschweif (flmBall, feuerfeld.js), dahinter
+    // lodernde Flammen, eine Funkenspur und Rauch; das Feuer wirft Licht (statt Kern, Flammenbild und Siegelringen)
+    const r = 0.28 * B;
+    flmBall(h, x, y, z, r, r, r, 1, id, t, 1.25, 0, 0.7 + 0.2 * B, _x3md, 0.55, 3.2);
+    fx3MageSprite(h, 'sprite', 'disc', x, y, z, 1.3 * B, 1.3 * B, E.main, 0.3);
+    for (let i = 1; i <= (low ? 2 : 4); i++) {
+      const d = (0.35 + i * 0.32) * B;
+      const k = 1 - i / 5;
+      fire3(h, x - _x3md.x * d + Math.sin(t * 13 + i + id) * 0.06 * B, y - 0.25 * B * k, z - _x3md.z * d, 0.42 * B * k, 0.7 * B * k, t + i * 0.3, id + i, 0.8 * k, rot * 0.25);
     }
-    _x3mq.setFromUnitVectors(_x3mz, _x3md);
-    for (let i = 0; i < 2; i++) {
-      const ring = fx3Take(h, 'planeMs0');
-      fx3Map(ring, 'msig0');
-      ring.position.set(x + _x3md.x * (i ? -0.06 : 0.06), y, z + _x3md.z * (i ? -0.06 : 0.06));
-      _x3mq2.setFromAxisAngle(_x3mz, (i ? -1 : 1) * t * 7 + id);
-      ring.quaternion.multiplyQuaternions(_x3mq, _x3mq2);
-      ring.scale.set(0.3 * B, 0.3 * B, 1);
-      fx3Color(ring, i ? E.hi : E.main, 0.95);
+    for (let i = 0; i < (low ? 3 : 7); i++) {
+      const ph = (t * 3 + n2h(i, id)) % 1;
+      const d = (0.3 + ph * 1.6) * B;
+      flmSpark(h, x - _x3md.x * d + (n2h(i, 3) - 0.5) * 0.5 * B * ph, y + ph * 0.5 * B, z - _x3md.z * d + (n2h(i, 4) - 0.5) * 0.5 * B * ph, -_x3md.x, 1.2, -_x3md.z, 0.18 * B, 0.05 * B, i % 2 ? '#ffd36a' : '#fff1c8', 1 - ph);
     }
+    if (typeof fireLight3 === 'function') fireLight3(x, y, z, 1.2 + 0.4 * B, 7);
     if (!low && t >= (pr.puffAt || 0)) {
       pr.puffAt = t + 0.06;
       addEffect({ type: 'smoke3', x: pr.x - pr.vx * 10, y: pr.y - pr.vy * 10, count: 1, color: '#2a0a0a', size: 0.3, op: 0.5, dur: 0.45 });

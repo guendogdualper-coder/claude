@@ -182,8 +182,8 @@ function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
   const fly = len / sk.speed;
   addEffect({ type: 'mphoenix3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.9 });
   later(fly, () => {
-    addEffect({ type: 'mburst3', x: x1, y: y1 + 9, R: sk.blast.r, dur: 1.1 });
-    addEffect({ type: 'decal', kind: 'scorch', x: x1, y: y1 + 9, r: sk.blast.r * 0.55, dur: 3, color: '#2a0a0a' });
+    addEffect({ type: 'mburst3', x: x1, y: y1 + 9, R: sk.blast.r, dur: 2.6 });
+    if (!V3.on) addEffect({ type: 'decal', kind: 'scorch', x: x1, y: y1 + 9, r: sk.blast.r * 0.55, dur: 3, color: '#2a0a0a' });
     if (owner === game.player) shakeScreen(7);
   });
   if (!local) return;
@@ -498,14 +498,85 @@ EXTRA_EFFECTS.mbreath3 = (ctx, e, k, x, y) => {
   }
   ctx.restore();
 };
-EXTRA_EFFECTS.mcast3 = (ctx, e, k, x, y) => glow2(ctx, x + 10, y - 30, 8 + 14 * k, '#ff8a2a', 0.8);
-EXTRA_EFFECTS.mburst3 = (ctx, e, k, x, y) => glow2(ctx, x, y - 10, e.R * (0.4 + 0.8 * k), k < 0.3 ? '#fff1c8' : '#ff5a1a', 0.8 * (1 - k));
-EXTRA_EFFECTS.mignite3 = (ctx, e, k, x, y) => glow2(ctx, x, y - 16, 14, '#ff6a1a', 0.5 + 0.3 * Math.sin(game.time * 20));
+// seit 14.3 mit den Flammenbildern aus feuerfeld.js (flame2d, spark2d, smoke2d): Feuer statt runder Lichtflecken
+EXTRA_EFFECTS.mcast3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const r = 8 + 14 * k;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x + 10, y - 30, r * 1.6, '#ff6a1a', 0.5);
+  glow2(ctx, x + 10, y - 30, r * 0.7, '#fff1c8', 0.9);
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < 4; i++) {
+    const a = t * 3.2 + i * 1.57;
+    flame2d(ctx, x + 10 + Math.cos(a) * r * 0.6, y - 26 + Math.sin(a) * r * 0.3, r * 0.9, r * 1.8, t, i + 11, 0.85);
+  }
+  ctx.restore();
+};
+EXTRA_EFFECTS.mburst3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  if (t > 1.15) return;
+  const u = t / 1.15;
+  const g = easeOut(Math.min(1, t / 0.3));
+  ctx.save();
+  // Glutkugel steigt auf und wird zu Rauch, Rauchring rollt nach außen
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, y - 20 - u * 50, e.R * (0.3 + 0.5 * g), u < 0.3 ? '#fff1c8' : '#ff5a1a', 0.85 * (1 - u));
+  ctx.globalCompositeOperation = 'source-over';
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const rr = e.R * (0.3 + 0.7 * easeOut(u));
+    smoke2d(ctx, x + Math.cos(a) * rr, y - 30 - u * 50 + Math.sin(a) * rr * 0.35, 14 + u * 16, 0.5 * (1 - u));
+  }
+  if (u < 0.5) for (let i = 0; i < 7; i++) {
+    const a = (i / 7) * Math.PI * 2;
+    flame2d(ctx, x + Math.cos(a) * e.R * 0.5 * g, y + Math.sin(a) * e.R * 0.3 * g, 18, 36 * (1 - u * 2), t, i + 40, 1 - u * 2);
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 12; i++) {
+    const a = n2h(i, 5) * 6.28;
+    const vh = 80 + 120 * n2h(i, 6);
+    const vy = 90 + 140 * n2h(i, 7);
+    const py = vy * t - 160 * t * t;
+    if (py < 0) continue;
+    spark2d(ctx, x + Math.cos(a) * vh * t, y + Math.sin(a) * vh * t * 0.5 - py, 6, i % 2 ? '#ffd36a' : '#fff1c8', 1 - u);
+  }
+  ctx.restore();
+};
+EXTRA_EFFECTS.mignite3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  ctx.save();
+  for (let i = 0; i < 3; i++) flame2d(ctx, x - 8 + i * 8, y + 2, 14, 30 + 8 * Math.sin(t * 9 + i), t, i, 0.85);
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, x, y - 16, 16, '#ff6a1a', 0.35 + 0.15 * Math.sin(game.time * 20));
+  for (let i = 0; i < 3; i++) {
+    const ph = (t * 0.9 + i / 3) % 1;
+    spark2d(ctx, x + Math.sin(i * 2 + t * 3) * 8, y - 20 - ph * 30, 4, '#ffd36a', 1 - ph);
+  }
+  ctx.restore();
+};
 EXTRA_EFFECTS.mphoenix3 = (ctx, e, k, x, y) => {
   const t = game.time - e.start;
   const u = Math.min(1, t / e.fly);
   if (u >= 1) return;
-  glow2(ctx, x + (e.x0 + (e.x1 - e.x0) * u - e.x), y + (e.y0 + (e.y1 - e.y0) * u - e.y) - 30, 26, '#ffb04a', 0.9);
+  const bx = x + (e.x0 + (e.x1 - e.x0) * u - e.x);
+  const by = y + (e.y0 + (e.y1 - e.y0) * u - e.y) - 34 - Math.sin(u * Math.PI) * 20;
+  const dir = Math.sign(e.x1 - e.x0) || 1;
+  const flap = Math.sin(t * 10.5);
+  ctx.save();
+  // Flügel aus Flammen (seitlich gelegte Flammenbilder), Schweif, Leib
+  for (const s of [-1, 1]) {
+    for (let j = 0; j < 4; j++) {
+      const v = (j + 1) / 4;
+      const ang = s * (1.25 - 0.5 * v) - flap * 0.45 * v * s;
+      flame2d(ctx, bx + s * 6 * v, by + 4, 16 - 4 * v, 26 + 14 * v, t, j + (s > 0 ? 4 : 0), 0.95, ang);
+    }
+  }
+  for (let j = 0; j < 3; j++) flame2d(ctx, bx - dir * (10 + j * 9), by + 8 + j * 2, 14 - j * 3, 26 - j * 4, t, 20 + j, 0.85 - j * 0.2, -dir * 1.4);
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, bx, by, 22, '#ffb04a', 0.8);
+  glow2(ctx, bx + dir * 6, by - 4, 8, '#ffffff', 0.9);
+  ctx.restore();
 };
 EXTRA_EFFECTS.mspear3 = (ctx, e, k, x, y) => {
   ctx.save();
@@ -731,87 +802,111 @@ FX3_DRAW.mbreath3 = function (h, e) {
   }
 };
 
-// Feuerball beim Zaubern: wächst zwischen den Händen, Funken strömen spiralförmig hinein, Hitzeringe
+// Feuerball beim Zaubern: wächst zwischen den Händen. Seit 14.3 eine brodelnde Feuerkugel (flmBall, feuerfeld.js)
+// mit Flammenzungen, die um sie lecken; Funken und Glut strömen spiralförmig hinein, Hitze flimmert darüber, das
+// Feuer leuchtet die Figur an. Keine flachen Ringe mehr.
 FX3_DRAW.mcast3 = function (h, e) {
   const p = e.owner;
   if (!p || p.dead || p.gone) return;
   const t = game.time - e.start;
   const k = Math.min(1, t / Math.max(0.1, e.dur - 0.05));
   const low = n3low();
-  mageHand3(p, _n3a, 1.55);
-  const s = 0.25 + 1.05 * Math.pow(k, 0.8);
-  const pulse = 1 + 0.06 * Math.sin(t * 18);
-  // Kugel: deckende rote Hülle, darin ein heller Kern (kein weißer Fleck auf hellem Boden)
-  const ball = mTake(h, 'n2BallN', 'disc', true);
-  ball.position.copy(_n3a);
-  ball.scale.set(s * 1.1 * pulse, s * 1.1 * pulse, 1);
-  fx3Color(ball, FIRE3.deep, 0.9);
-  n3Glow(h, _n3a.x, _n3a.y, _n3a.z, s * 1.4 * pulse, FIRE3.main, 0.35);
-  n3Glow(h, _n3a.x, _n3a.y, _n3a.z, s * 0.75, FIRE3.hot, 0.8);
-  n3Glow(h, _n3a.x, _n3a.y, _n3a.z, s * 0.35, FIRE3.core, 0.9);
-  // Flammenzungen um die Kugel
-  for (let i = 0; i < (low ? 4 : 8); i++) {
-    const a = t * 4 + (i / 8) * Math.PI * 2;
-    n3Flame(h, _n3a.x + Math.cos(a) * s * 0.5, _n3a.y + Math.sin(a) * s * 0.38, _n3a.z + Math.sin(a) * s * 0.22, s * 0.55, s * 0.95, i % 2 ? FIRE3.main : FIRE3.deep, 0.9, a + Math.PI / 2, true);
-  }
-  // Funken strömen hinein
-  for (let i = 0; i < (low ? 6 : 16); i++) {
+  // seit 14.3 über dem Kopf (vorher vor der Brust: die große Kugel verdeckte die Figur)
+  const r = (0.14 + 0.42 * Math.pow(k, 0.8)) * (1 + 0.05 * Math.sin(t * 18));
+  const f = p.facing || { x: 0, y: 1 };
+  _n3a.set((p.x + f.x * 6) * U3, 1.95 + r * 1.1 + 0.08 * Math.sin(t * 2.5), (feetY(p) + f.y * 6) * U3);
+  flmBall(h, _n3a.x, _n3a.y, _n3a.z, r, r, r, 1, 1.3, t, 1.1 + 0.3 * k, 0, 0, null, 0.42, 2.6);
+  n3Glow(h, _n3a.x, _n3a.y, _n3a.z, r * 4.5, FIRE3.main, 0.22 + 0.12 * k);
+  // Glut löst sich oben ab, Funken strömen spiralförmig hinein
+  for (let i = 0; i < (low ? 6 : flmN(16)); i++) {
     const u = 1 - ((t * 0.9 + n2h(i, 2)) % 1);
     const a = n2h(i, 3) * 6.28 + u * 5;
-    const r = 0.25 + 2.2 * u;
-    n3Glow(h, _n3a.x + Math.cos(a) * r, _n3a.y + (n2h(i, 4) - 0.3) * 1.6 * u, _n3a.z + Math.sin(a) * r, 0.16, i % 3 ? '#ffb04a' : '#fff1c8', 0.9 * (1 - u * 0.5));
+    const rr = r + 1.9 * u;
+    const px = _n3a.x + Math.cos(a) * rr;
+    const py = _n3a.y + (n2h(i, 4) - 0.6) * 1.8 * u;
+    const pz = _n3a.z + Math.sin(a) * rr;
+    flmSpark(h, px, py, pz, (_n3a.x - px) * 3 - Math.sin(a) * 2, (_n3a.y - py) * 3, (_n3a.z - pz) * 3 + Math.cos(a) * 2, 0.24, 0.055, i % 3 ? '#ffb04a' : '#fff1c8', 0.9 * (1 - u * 0.5));
   }
-  // Hitzeringe im Raum (senkrecht, drehend) – kein Kreis am Boden
+  for (let i = 0; i < (low ? 2 : 5); i++) {
+    const ph = (t * 1.3 + i / 5) % 1;
+    const a = i * 2.4 + t;
+    flmSpark(h, _n3a.x + Math.cos(a) * r * 0.6, _n3a.y + r * 0.6 + ph * 1.1, _n3a.z + Math.sin(a) * r * 0.5, 0, 2, 0, 0.18, 0.05, FIRE3.hot, (1 - ph) * k);
+  }
+  // Rauch zieht über der Kugel ab
   if (!low) {
-    for (let i = 0; i < 2; i++) {
-      const ring = fx3Take(h, 'planeMs0');
-      fx3Map(ring, 'ring');
-      ring.position.copy(_n3a);
-      ring.rotation.set(t * (i ? 1.7 : -1.3), t * 1.1 + i, 0);
-      const rs = s * (1.5 + 0.3 * i);
-      ring.scale.set(rs, rs, 1);
-      fx3Color(ring, i ? FIRE3.hot : FIRE3.main, 0.6 * k);
-    }
+    const ph = (t * 0.7) % 1;
+    n3Smoke(h, _n3a.x + Math.sin(t * 3) * 0.12, _n3a.y + r + 0.2 + ph * 1.1, _n3a.z, (0.35 + ph * 0.6) * (0.4 + k), '#2a1c18', 0.32 * Math.sin(ph * Math.PI) * k);
   }
+  fireLight3(_n3a.x, _n3a.y, _n3a.z, 0.5 + 0.9 * k, 7);
 };
 
-// Explosion (Feuerball groß, Phönix): Feuerkugel wächst, Flammen nach außen, Rauchpilz, Glutfunken
+// Explosion (Feuerball groß, Phönix). Seit 14.3: grelle Glutkugel, die aufsteigt, sich zum Feuerpilz aufbläht und
+// zu Rauch auskühlt (flmBall mit uCool), darunter ein Stiel aus Feuer; ein Rauchring rollt in der Luft nach außen und
+// oben, Glutsplitter fliegen im Bogen davon. Am Boden nur eine unregelmäßige Brandspur, die erkaltet – kein Ring.
 FX3_DRAW.mburst3 = function (h, e) {
   const t = game.time - e.start;
-  const k = Math.min(1, t / e.dur);
   const x = e.x * U3;
   const z = e.y * U3;
   const R = e.R * U3;
   const low = n3low();
-  const g = easeOut(Math.min(1, t / 0.25));
-  const fade = Math.max(0, 1 - k * 1.3);
-  n3Glow(h, x, 0.9 + 0.6 * g, z, R * 1.3 * g, FIRE3.main, 0.4 * fade);
-  if (t < 0.15) n3Glow(h, x, 1, z, R * 0.8, FIRE3.hot, 0.8 * (1 - t / 0.15));
-  for (let i = 0; i < (low ? 8 : 18); i++) {
+  const end = clamp01((e.dur - t) / 0.8);
+  flmScorch(h, e.x, e.y, R * 0.75, end * clamp01(t / 0.15), clamp01(1 - t / 1.6), e.rot || (e.x * 0.37) % 6.28);
+  const B = 1.15;
+  if (t > B) return;
+  const k = t / B;
+  const g = easeOut(Math.min(1, t / 0.3));
+  // Blitz
+  if (t < 0.14) n3Glow(h, x, 1, z, R * 1.1 * (0.6 + t * 3), FIRE3.core, 0.85 * (1 - t / 0.14));
+  // Glutkugel: wächst, steigt und kühlt zu Rauch
+  const br = R * (0.17 + 0.27 * g);
+  const by = 0.55 + br * 0.7 + k * 1.6;
+  const cool = Math.max(0, (k - 0.25) / 0.75) * 1.05;
+  flmBall(h, x, by, z, br, br * 0.82, br, Math.min(1, 1.6 - k), 1.9, t, 1.2, cool, 0, null, 0.5, 1.6);
+  // Stiel des Feuerpilzes
+  if (k > 0.12) flmFunnel(h, x, 0, z, by * (0.95 - 0.2 * k), br * 0.45, br * 0.32, 0.9 * (1 - k), 2.7, FLM_PILLAR, t);
+  // Rauchring in der Luft: rollt nach außen und oben, unten noch rot angeleuchtet
+  const ring = low ? 8 : flmN(14);
+  for (let i = 0; i < ring; i++) {
+    const a = (i / ring) * Math.PI * 2 + n2h(i, 13) * 0.4;
+    const rr = R * (0.35 + 0.75 * easeOut(Math.min(1, k * 1.2)));
+    const roll = Math.sin(a * 3 + t * 4) * 0.12;
+    const s = (0.8 + 0.9 * k) * (0.85 + 0.3 * n2h(i, 14));
+    const col = k < 0.25 ? '#6a2a14' : '#2c2420';
+    n3Smoke(h, x + Math.cos(a) * rr, 0.5 + k * 1.7 + roll, z + Math.sin(a) * rr * 0.92, s, col, 0.62 * (1 - k) * Math.min(1, t * 8));
+  }
+  // Flammen schlagen kurz nach außen
+  if (k < 0.45) {
+    const n = low ? 4 : 8;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + 0.3;
+      const d = R * (0.25 + 0.6 * g);
+      fire3(h, x + Math.cos(a) * d, 0, z + Math.sin(a) * d, 0.6, 1.1 * (1 - k / 0.45), t, i + 40, 1 - k / 0.45, Math.cos(a) * 0.5);
+    }
+  }
+  // Glutsplitter im Bogen
+  const sp = low ? 8 : flmN(18);
+  for (let i = 0; i < sp; i++) {
     const a = n2h(i, 5) * 6.28;
-    const up = n2h(i, 6);
-    const d = R * (0.3 + 0.8 * g) * (0.5 + 0.5 * n2h(i, 7));
-    n3Fire(h, x + Math.cos(a) * d, 0.4 + up * 1.6 * g, z + Math.sin(a) * d, 0.7 + R * 0.25, 1.1 + R * 0.35, i % 3 ? FIRE3.main : FIRE3.deep, fade, (n2h(i, 8) - 0.5));
+    const vh = 2.5 + 4 * n2h(i, 6);
+    const vy = 2.5 + 4.5 * n2h(i, 7);
+    const py = 0.8 + vy * t - 5 * t * t;
+    if (py < 0.04) continue;
+    flmSpark(h, x + Math.cos(a) * vh * t, py, z + Math.sin(a) * vh * t, Math.cos(a) * vh, vy - 10 * t, Math.sin(a) * vh, 0.42, 0.08, i % 3 ? FIRE3.hot : FIRE3.core, 1 - k);
   }
-  // Rauch steigt auf
-  for (let i = 0; i < (low ? 4 : 9); i++) {
-    const u = Math.min(1, t / e.dur);
-    const a = n2h(i, 11) * 6.28;
-    n3Smoke(h, x + Math.cos(a) * R * 0.4 * u, 1 + u * 2.4 + n2h(i, 12), z + Math.sin(a) * R * 0.4 * u, 1 + u * 1.8, '#2a1a14', 0.55 * (1 - u) * Math.min(1, t * 6));
+  if (!low) {
+    for (let i = 0; i < flmN(5); i++) flmAsh(h, x + Math.cos(i * 2.4) * R * 0.5 * k, 1 + k * 3 + n2h(i, 3), z + Math.sin(i * 2.4) * R * 0.4 * k, 0.08, 0.8 * (1 - k));
   }
-  // Druckwelle in der Luft
-  const ring = fx3Take(h, 'plane');
-  fx3Ground(ring, e.x, e.y, Math.max(0.1, R * 1.4 * easeOut(Math.min(1, t / 0.4))), 0.3, 'ring');
-  fx3Color(ring, FIRE3.hot, 0.8 * Math.max(0, 1 - t / 0.4));
+  fireLight3(x, 1.4, z, 2.6 * (1 - k) + 0.3, R * 3);
 };
 
-// Brand: ein Funke fliegt zum Ziel, dann lodern Flammen am ganzen Körper, Glut steigt auf, Rauchfahne
+// Brand: ein Funke fliegt zum Ziel, dann hüllt ein Flammenmantel den ganzen Körper ein (seit 14.3 flmFunnel: Zungen
+// lecken nach oben, vorn durchscheinend, damit man den Gegner sieht), Glut steigt auf, Rauchfahne, Asche, Lichtschein
 FX3_DRAW.mignite3 = function (h, e) {
   const m = e.follow;
   if (!m || m.dead) return;
   const t = game.time - e.start;
   const low = n3low();
-  const ht = Math.max(0.8, figureHeight(m) * U3 * 0.9);
+  const ht = Math.max(1.1, figureHeight(m) * U3 * 1.25);
   const x = m.x * U3;
   const z = feetY(m) * U3;
   if (t < e.fly) {
@@ -821,83 +916,37 @@ FX3_DRAW.mignite3 = function (h, e) {
     const px = sx + (x - sx) * u;
     const pz = sz + (z - sz) * u;
     const py = 1.3 + Math.sin(u * Math.PI) * 0.6;
-    n3Glow(h, px, py, pz, 0.5, FIRE3.hot, 1);
-    n3Flame(h, px, py, pz, 0.3, 0.55, FIRE3.main, 0.9);
+    _n3a.set(x - sx, 0, z - sz).normalize();
+    flmBall(h, px, py, pz, 0.16, 0.16, 0.16, 1, 0.7, t, 1.5, 0, 1.6, _n3a, 0.3, 3);
+    n3Glow(h, px, py, pz, 0.6, FIRE3.hot, 0.8);
+    for (let i = 1; i <= 4; i++) flmSpark(h, px - _n3a.x * i * 0.18, py - 0.05 * i, pz - _n3a.z * i * 0.18, -_n3a.x * 3, 0.5, -_n3a.z * 3, 0.16, 0.05, FIRE3.hot, 1 - i * 0.2);
     return;
   }
-  const fade = Math.min(1, (e.dur - t) / 0.4);
-  const flick = (i) => 0.85 + 0.25 * Math.sin(t * (13 + i) + i * 1.7);
-  for (let i = 0; i < (low ? 3 : 6); i++) {
-    const a = (i / 6) * Math.PI * 2 + t * 0.6;
-    const r = Math.max(0.25, (m.r || 12) * U3 * 0.55);
-    const yy = ht * (0.25 + 0.55 * n2h(i, 3));
-    n3Fire(h, x + Math.cos(a) * r, yy, z + Math.sin(a) * r * 0.6, 0.5 * flick(i), 0.95 * flick(i), i % 2 ? FIRE3.main : FIRE3.deep, 0.9 * fade, Math.sin(t * 6 + i) * 0.2);
+  const fade = Math.min(1, (e.dur - t) / 0.4, (t - e.fly) / 0.15);
+  // etwas weiter als der Körper (sonst verdeckt das Modell die vordere Flammenwand)
+  const r = Math.max(0.42, (m.r || 12) * U3 * 1.2);
+  flmFunnel(h, x, 0.02, z, ht * 1.3, r, r * 0.55, 0.95 * fade, (m.id || 1) * 0.37, FLM_SHEATH, t);
+  n3Glow(h, x, ht * 0.5, z, ht * 0.9, FIRE3.main, 0.18 * fade);
+  // dazu lodernde Zungen an Schultern und Seiten (klar lesbarer Umriss)
+  for (let i = 0; i < (low ? 2 : 4); i++) {
+    const a = (i / 4) * Math.PI * 2 + t * 0.7 + (m.id || 0);
+    fire3(h, x + Math.cos(a) * r * 0.9, ht * (0.2 + 0.4 * n2h(i, 3)), z + Math.sin(a) * r * 0.7, r * 1.2, ht * 0.85, t + i * 0.3, i + (m.id || 0), 0.9 * fade, Math.cos(a) * 0.25);
   }
-  n3Glow(h, x, ht * 0.5, z, ht * 0.8, FIRE3.main, 0.25 * fade);
-  for (let i = 0; i < (low ? 3 : 7); i++) {
-    const u = (t * 0.8 + n2h(i, 5)) % 1;
-    n3Glow(h, x + (n2h(i, 6) - 0.5) * 0.6, ht * 0.4 + u * 1.8, z + (n2h(i, 7) - 0.5) * 0.6, 0.12, '#ffc070', (1 - u) * fade);
+  for (let i = 0; i < (low ? 3 : flmN(8)); i++) {
+    const u = (t * (0.7 + 0.3 * n2h(i, 4)) + n2h(i, 5)) % 1;
+    flmSpark(h, x + (n2h(i, 6) - 0.5) * r * 1.6 + Math.sin(t * 4 + i) * 0.1, ht * 0.5 + u * 2, z + (n2h(i, 7) - 0.5) * r, 0, 2, 0, 0.18, 0.055, i % 3 ? '#ffc070' : FIRE3.core, (1 - u) * fade);
   }
   if (!low) {
-    const u = (t * 0.5) % 1;
-    n3Smoke(h, x, ht + 0.3 + u * 1.2, z, 0.6 + u, '#1a0a06', 0.35 * (1 - u) * fade);
+    for (let i = 0; i < 2; i++) {
+      const u = (t * 0.45 + i * 0.5) % 1;
+      n3Smoke(h, x + Math.sin(t + i * 3) * 0.2, ht * 1.1 + u * 1.5, z, 0.55 + u * 0.9, '#1e120e', 0.4 * (1 - u) * fade);
+    }
+    flmAsh(h, x + Math.sin(t * 3) * r, ht + ((t * 0.5) % 1) * 1.5, z, 0.06, 0.7 * fade);
   }
+  fireLight3(x, ht * 0.7, z, 0.9 * fade, 5);
 };
 
-// Phönix: Körper aus Feuer, zwei schlagende Flügel aus Flammen, langer Schweif, Funkenspur; stürzt am Ziel herab
-FX3_DRAW.mphoenix3 = function (h, e) {
-  const t = game.time - e.start;
-  if (t > e.fly + 0.08) return;
-  const low = n3low();
-  const u = Math.min(1, t / e.fly);
-  const x0 = e.x0 * U3;
-  const z0 = e.y0 * U3;
-  const x1 = e.x1 * U3;
-  const z1 = e.y1 * U3;
-  // Bahn: steigt auf, am Ende Sturzflug
-  const yAt = (v) => 1.4 + Math.sin(Math.min(1, v) * Math.PI * 0.85) * 1.4 - Math.pow(Math.max(0, v - 0.75) / 0.25, 2) * 1.6;
-  const x = x0 + (x1 - x0) * u;
-  const z = z0 + (z1 - z0) * u;
-  const y = yAt(u);
-  const dx = x1 - x0;
-  const dz = z1 - z0;
-  const L = Math.hypot(dx, dz) || 1;
-  const fx = dx / L;
-  const fz = dz / L;
-  // Seite (quer zur Flugrichtung)
-  const sx = -fz;
-  const sz = fx;
-  const flap = Math.sin(t * 12);
-  n3Glow(h, x, y, z, 1.6, FIRE3.main, 0.3);
-  // Körper: deckend rot-orange, heller Kern
-  n3Fire(h, x, y, z, 0.9, 1.3, FIRE3.main, 1, Math.atan2(fz, fx) * 0.3);
-  n3Glow(h, x, y + 0.1, z, 0.45, FIRE3.core, 0.9);
-  // Kopf vorn
-  n3Fire(h, x + fx * 0.6, y + 0.35, z + fz * 0.6, 0.5, 0.8, '#ff9a2a', 1, 0);
-  // Flügel: je Seite eine Kette aus Flammen, Spitzen schlagen auf und ab
-  for (const side of [-1, 1]) {
-    const n = low ? 4 : 7;
-    for (let i = 1; i <= n; i++) {
-      const v = i / n;
-      const span = 2.9 * v;
-      const lift = (0.3 + flap * 1.1) * v * v;
-      n3Fire(h, x + sx * side * span - fx * 0.5 * v, y + lift, z + sz * side * span - fz * 0.5 * v, 0.75 * (1.1 - v * 0.4), 1.2 * (1.1 - v * 0.3), i % 2 ? FIRE3.main : FIRE3.deep, 0.95, side * (0.6 + flap * 0.4));
-    }
-  }
-  // Schweif: Flammen und Funken hinter dem Körper entlang der Bahn
-  const tail = low ? 5 : 10;
-  for (let i = 1; i <= tail; i++) {
-    const v = Math.max(0, u - i * 0.035);
-    const tx = x0 + dx * v;
-    const tz = z0 + dz * v;
-    const s = 0.9 * (1 - i / (tail + 2));
-    n3Flame(h, tx, yAt(v) - 0.05 * i, tz, s * 0.8, s * 1.3, i < 3 ? FIRE3.main : FIRE3.deep, 0.85 * (1 - i / (tail + 2)), Math.atan2(fz, fx), true);
-  }
-  if (!low && t >= (e.puff || 0)) {
-    e.puff = t + 0.05;
-    addEffect({ type: 'sparks3', x: e.x0 + (e.x1 - e.x0) * u, y: e.y0 + (e.y1 - e.y0) * u, h: y, count: 3, color: '#ffc070', speed: 1, up: -0.4, dur: 0.5 });
-  }
-};
+// Phönix: FX3_DRAW.mphoenix3 in feuerfeld.js (seit 13.40)
 
 // Blitzspeer: Spitze schießt nach vorn, dahinter eine gleißende Bahn, die noch zuckt und verglimmt
 FX3_DRAW.mspear3 = function (h, e) {

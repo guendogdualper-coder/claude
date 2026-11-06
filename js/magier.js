@@ -260,8 +260,9 @@ function boltImpactFx(sk, m) {
   const c = bodyCenter(m);
   if (sk.style === 'fireball' && sk.big) {
     // Feuerball mit Zauberzeit (seit 11.5): große Explosion
-    addEffect({ type: 'mburst3', x: m.x, y: fy, R: sk.splash ? sk.splash.r : 100, dur: 1.1 });
-    addEffect({ type: 'decal', kind: 'scorch', x: m.x, y: fy, r: 50, dur: 3, color: '#2a0a0a' });
+    // seit 14.3 länger (2,6 s): die Explosion lässt in 3D selbst eine Brandspur zurück, das flache Oval nur noch in 2D
+    addEffect({ type: 'mburst3', x: m.x, y: fy, R: sk.splash ? sk.splash.r : 100, dur: 2.6 });
+    if (!V3.on) addEffect({ type: 'decal', kind: 'scorch', x: m.x, y: fy, r: 50, dur: 3, color: '#2a0a0a' });
     if (!V3.on) particles(c.x, c.y, { count: 30, color: ['#e8362a', '#ff8a4a', '#fff1c8'], speed: [90, 260], life: [0.3, 0.7], size: [2.5, 5], shape: 'ember', drag: 3 });
     shakeScreen(6);
   } else if (sk.style === 'fireball') {
@@ -1427,16 +1428,21 @@ const EISZEIT_CRYS = Array.from({ length: 18 }, (_, i) => {
 
 // Optik der Ultimates für alle (owner: eigener Spieler oder Mitspieler)
 function infernoFx(x, fy, near) {
+  // seit 14.3 in 3D (inferno3, feuerfeld.js): eine Feuerhose bricht um die Figur aus, drei Flammenwände rollen
+  // nach außen, Rauch wälzt sich über ihnen, Glut fliegt, der Boden reißt glühend auf – kein Bodenring, kein Siegel,
+  // kein flaches Brandoval. 2D wie bisher.
+  const three = V3.on && typeof FX3_DRAW !== 'undefined' && FX3_DRAW.inferno3;
+  if (three) addEffect({ type: 'inferno3', x, y: fy, dur: 4.4, seed: Math.random() * 10 });
   // Dreieckssiegel statt ultsigil: dessen Runentextur ist das Hexagramm des Schamanen (Bodenregel)
-  addEffect({ type: 'sigil3', ground: true, el: 'feuer', x, y: fy, R: 150, flash: true, dur: 1.8 });
+  else addEffect({ type: 'sigil3', ground: true, el: 'feuer', x, y: fy, R: 150, flash: true, dur: 1.8 });
   INFERNO_WAVES.forEach(([R, grow], k) => {
     later(k * 0.45, () => {
-      addEffect({ type: 'nova3', ground: true, el: 'feuer', x, y: fy, R, grow, dur: grow + 0.55, owner: 'ult', group: 'ult' + k, rot: Math.random() * 6.28 });
+      if (!three) addEffect({ type: 'nova3', ground: true, el: 'feuer', x, y: fy, R, grow, dur: grow + 0.55, owner: 'ult', group: 'ult' + k, rot: Math.random() * 6.28 });
       if (!V3.on) novaParticles2d(x, fy, R, 'feuer', false);
       if (near) shakeScreen(4 + k * 1.5);
     });
   });
-  later(0.9 + 0.45, () => addEffect({ type: 'decal', kind: 'scorch', x, y: fy, r: 200, dur: 4, color: '#2a0a0a' }));
+  if (!three) later(0.9 + 0.45, () => addEffect({ type: 'decal', kind: 'scorch', x, y: fy, r: 200, dur: 4, color: '#2a0a0a' }));
 }
 function eiszeitFx(x, fy, near) {
   addEffect({ type: 'mground3', ground: true, x, y: fy, R: 260, tex: 'hex', color: '#3a7bff', fadeIn: 0.25, dur: 3, op: 0.8 });
