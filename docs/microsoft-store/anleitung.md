@@ -6,6 +6,8 @@ Partner Center ist meist auf Deutsch eingestellt. Der englische Name des Menüpu
 
 **Das Wichtigste vorab**
 
+- **Neu (6. 11. 2026):** Es gibt jetzt eine eigenständige Desktop-App (Electron) als Nachfolger des PWA-Pakets.
+  Wie man sie baut und als neue Version dieser Store-App einreicht, steht in `docs/desktop-app.md`.
 - Seelenstein kommt als **PWA-Paket** in den Store. Das Paket ist eine kleine Windows-Hülle (MSIX), die
   `https://seelenstein.online/` mit dem Edge-Unterbau von Windows im Vollbild startet. Gebaut hat es PWABuilder, so wie Microsoft es
   für PWAs empfiehlt.

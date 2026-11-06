@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self'; font-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https: http:">
+<meta name="color-scheme" content="dark">
+<title>Seelenstein – keine Verbindung</title>
+<!--
+  Diese Seite liegt IN der Desktop-App (desktop/offline) und wird angezeigt, wenn https://seelenstein.online/
+  nicht geladen werden kann (kein Internet, Server nicht erreichbar) und der Service Worker des Spiels auch nichts
+  im Speicher hat. main.js lädt sie mit ?ziel=<Spieladresse>. Sie braucht kein Internet: Schriften und Symbol
+  liegen daneben. „Erneut versuchen“ prüft zuerst, ob der Server erreichbar ist, und lädt dann das Spiel.
+  Vorlage: ios/www/offline.html (iPhone-App).
+-->
+<style>
+  @font-face { font-family: 'Marcellus SC'; src: url('marcellus-sc.woff2') format('woff2'); font-display: swap; }
+  @font-face { font-family: 'Alegreya Sans'; src: url('alegreya-sans.woff2') format('woff2'); font-weight: 500; font-display: swap; }
+  :root { --bg: #12100c; --panel: #1d1810; --gold: #c9a24a; --gold-hell: #f1d58a; --text: #f3e3b5; --leise: #b9a77c; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); overflow: hidden; overscroll-behavior: none; }
+  body {
+    font: 500 17px/1.45 'Alegreya Sans', system-ui, -apple-system, sans-serif;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    display: flex; align-items: center; justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: radial-gradient(ellipse at 50% 40%, #2a1f3f 0%, #17130e 55%, var(--bg) 100%);
+  }
+  main { display: flex; align-items: center; gap: 28px; max-width: 760px; width: 100%; }
+  img { width: 132px; height: 132px; flex: 0 0 auto; border-radius: 28px; box-shadow: 0 8px 30px rgba(0, 0, 0, .6); }
+  .text { flex: 1 1 auto; min-width: 0; }
+  h1 { font: 400 30px/1.15 'Marcellus SC', Georgia, serif; color: var(--gold-hell); margin: 0 0 6px; letter-spacing: .02em; }
+  p { margin: 0 0 10px; }
+  .zweit { color: var(--leise); font-size: 15px; }
+  .knoepfe { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
+  button {
+    font: inherit; font-weight: 700; color: #1d1810; background: linear-gradient(#e2c06a, var(--gold)); border: 0; border-radius: 10px;
+    padding: 12px 22px; min-height: 48px; cursor: pointer; box-shadow: 0 3px 0 #7a5f22;
+  }
+  button:active { transform: translateY(2px); box-shadow: 0 1px 0 #7a5f22; }
+  button[disabled] { opacity: .6; }
+  #status { color: var(--leise); font-size: 15px; min-height: 1.4em; }
+  @media (max-height: 360px) { img { width: 96px; height: 96px; } h1 { font-size: 25px; } body { font-size: 15px; } }
+  @media (orientation: portrait) { main { flex-direction: column; text-align: center; } .knoepfe { justify-content: center; } }
+</style>
+</head>
+<body>
+<main>
+  <img src="symbol.png" alt="">
+  <div class="text">
+    <h1 id="titel">Keine Verbindung</h1>
+    <p id="haupt">Seelenstein braucht beim Start eine Internetverbindung. Prüfe die Internetverbindung (WLAN oder Kabel) und versuche es erneut.</p>
+    <p id="zweit" class="zweit">No connection. Seelenstein needs the internet to start. Check your internet connection (Wi-Fi or cable) and try again.</p>
+    <div class="knoepfe">
+      <button id="nochmal" type="button">Erneut versuchen</button>
+      <span id="status" role="status" aria-live="polite"></span>
+    </div>
+  </div>
+</main>
+<script>
+  (function () {
+    'use strict';
+    // Spieladresse kommt von main.js (?ziel=…); nur http(s) zulassen, sonst die normale Adresse
+    var SPIEL = 'https://seelenstein.online/?quelle=desktop';
+    try {
+      var z = new URL(new URLSearchParams(location.search).get('ziel') || '');
+      if (z.protocol === 'https:' || z.protocol === 'http:') SPIEL = z.href;
+    } catch (e) { /* Standard behalten */ }
+    var PRUEF = new URL('manifest.webmanifest', SPIEL).href;
+    var deutsch = /^de\b/i.test(navigator.language || 'de');
+    var T = deutsch ? {
+      titel: 'Keine Verbindung', knopf: 'Erneut versuchen', pruefe: 'Verbindung wird geprüft …',
+      nochNicht: 'Immer noch keine Verbindung. Wir versuchen es automatisch weiter.', laedt: 'Verbunden – Seelenstein lädt …'
+    } : {
+      titel: 'No connection', knopf: 'Try again', pruefe: 'Checking connection …',
+      nochNicht: 'Still no connection. We will keep trying automatically.', laedt: 'Connected – loading Seelenstein …'
+    };
+    if (!deutsch) {
+      // Englisch zuerst, Deutsch als zweite Zeile
+      var h = document.getElementById('haupt'), z = document.getElementById('zweit');
+      var tmp = h.textContent; h.textContent = z.textContent; z.textContent = tmp;
+      document.documentElement.lang = 'en';
+    }
+    document.getElementById('titel').textContent = T.titel;
+    var knopf = document.getElementById('nochmal');
+    var status = document.getElementById('status');
+    knopf.textContent = T.knopf;
+    var laeuft = false;
+
+    // Ist der Server erreichbar? (no-cors: wir brauchen nur „kommt eine Antwort“, nicht den Inhalt)
+    function erreichbar() {
+      var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+      var t = setTimeout(function () { if (ctl) ctl.abort(); }, 6000);
+      return fetch(PRUEF + '?t=' + Date.now(), { mode: 'no-cors', cache: 'no-store', signal: ctl ? ctl.signal : undefined })
+        .then(function () { return true; }, function () { return false; })
+        .then(function (ok) { clearTimeout(t); return ok; });
+    }
+
+    function versuchen(leise) {
+      if (laeuft) return;
+      laeuft = true;
+      knopf.disabled = true;
+      if (!leise) status.textContent = T.pruefe;
+      erreichbar().then(function (ok) {
+        laeuft = false;
+        knopf.disabled = false;
+        if (ok && leise && zuOft()) {
+          // Server antwortet, aber das Spiel lädt trotzdem nicht: nicht endlos neu laden, auf den Knopf warten
+          return;
+        }
+        if (ok) {
+          status.textContent = T.laedt;
+          merken();
+          location.replace(SPIEL);
+        } else if (!leise) {
+          status.textContent = T.nochNicht;
+        }
+      });
+    }
+
+    // Schutz vor einer Endlosschleife: höchstens 3 automatische Versuche pro Minute
+    function versuche() {
+      try { return JSON.parse(sessionStorage.getItem('seelenstein.offline.versuche') || '[]'); } catch (e) { return []; }
+    }
+    function zuOft() {
+      var jetzt = Date.now();
+      return versuche().filter(function (t) { return jetzt - t < 60000; }).length >= 3;
+    }
+    function merken() {
+      var jetzt = Date.now();
+      var v = versuche().filter(function (t) { return jetzt - t < 60000; });
+      v.push(jetzt);
+      try { sessionStorage.setItem('seelenstein.offline.versuche', JSON.stringify(v)); } catch (e) { /* egal */ }
+    }
+
+    knopf.addEventListener('click', function () { versuchen(false); });
+    window.addEventListener('online', function () { versuchen(true); });
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) versuchen(true); });
+    // alle 8 Sekunden still nachsehen, ob das Netz wieder da ist
+    setInterval(function () { if (!document.hidden) versuchen(true); }, 8000);
+    // Beim Öffnen einmal still prüfen: War es nur ein kurzer Aussetzer, geht es sofort weiter.
+    setTimeout(function () { versuchen(true); }, 1200);
+  })();
+</script>
+</body>
+</html>

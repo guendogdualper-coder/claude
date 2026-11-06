@@ -1,0 +1,103 @@
+# Windows-Desktop-App „Seelenstein“ bauen (Electron-Projekt in desktop/)
+#
+# Startet von Hand (Actions → „Desktop-App (Windows)“ → „Run workflow“) oder beim Hochladen eines Tags desktop-v*,
+# z. B. desktop-v1.1.0 (dann gilt 1.1.0 als Versionsnummer).
+#
+# Ergebnis (als Artefakte unten auf der Seite des Laufs):
+#   Seelenstein-Windows-Installer   Seelenstein-Setup-<version>.exe   zum Installieren per Doppelklick
+#   Seelenstein-Microsoft-Store     Seelenstein-Store-<version>-x64.appx   zum Hochladen in Partner Center
+#                                   (unsigniert – Microsoft signiert Store-Pakete selbst)
+#
+# Signieren des Installers ist freiwillig (ohne Signatur zeigt Windows SmartScreen beim ersten Start eine Warnung).
+# Dafür zwei Secrets anlegen (Repository → Settings → Secrets and variables → Actions → „New repository secret“):
+#   WINDOWS_ZERTIFIKAT_PFX       Code-Signing-Zertifikat als .pfx, base64-kodiert
+#                                (PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("zertifikat.pfx")))
+#   WINDOWS_ZERTIFIKAT_PASSWORT  Passwort der .pfx-Datei
+# Fehlen die Secrets, wird unsigniert gebaut. Das Store-Paket wird nie mit diesem Zertifikat signiert.
+# Anleitung: docs/desktop-app.md
+
+name: Desktop-App (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versionsnummer der App, z. B. 1.1.0 (leer = Wert aus desktop/package.json). Für den Store höher als die letzte Einreichung.'
+        type: string
+        default: ''
+  push:
+    tags:
+      - 'desktop-v*'
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Bauen (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Versionsnummer setzen
+        env:
+          EINGABE: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          V="$EINGABE"
+          if [ -z "$V" ] && [ "$REF_TYPE" = "tag" ]; then V="${REF_NAME#desktop-v}"; fi
+          if [ -n "$V" ]; then
+            if ! [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Versionsnummer '$V' ist ungültig. Erwartet: drei Zahlen wie 1.1.0"
+              exit 1
+            fi
+            npm pkg set version="$V"
+          fi
+          echo "Version: $(node -p "require('./package.json').version")"
+
+      - name: Code prüfen
+        run: npm run pruefen
+
+      - name: Installer bauen (NSIS, .exe)
+        env:
+          CSC_LINK: ${{ secrets.WINDOWS_ZERTIFIKAT_PFX }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_ZERTIFIKAT_PASSWORT }}
+        run: npm run bauen:installer
+
+      - name: Store-Paket bauen (appx)
+        run: npm run bauen:store
+
+      - name: Installer hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Seelenstein-Windows-Installer
+          path: desktop/dist/Seelenstein-Setup-*.exe
+          if-no-files-found: error
+
+      - name: Store-Paket hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Seelenstein-Microsoft-Store
+          path: desktop/dist/Seelenstein-Store-*.appx
+          if-no-files-found: error
