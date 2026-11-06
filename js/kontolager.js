@@ -318,11 +318,12 @@ function klRender(msg) {
   gear.page = Math.max(0, Math.min(BAG_PAGES - 1, gear.page || 0));
   const roman = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV', 'XVI'];
   const tabs = (n, per, list, cur, attr) => Array.from({ length: n }, (_, k) =>
-    `<button type="button" class="bag-tab${k === cur ? ' on' : ''}${k >= STORAGE.pages ? ' kl-over' : ''}" ${attr}="${k}">${roman[k] || k + 1}<small>${list.slice(k * per, (k + 1) * per).length}</small></button>`).join('');
+    `<button type="button" class="bag-tab${k === cur ? ' on' : ''}${k >= STORAGE.pages ? ' kl-over' : ''}" ${attr}="${k}">${roman[k] || k + 1}<small>${list.slice(k * per, (k + 1) * per).filter(Boolean).length}</small></button>`).join('');
   let sGrid = '';
   for (let i = ui.stPage * STORAGE.page; i < (ui.stPage + 1) * STORAGE.page; i++) sGrid += gear.tile(items[i], items[i] ? `data-take="${items[i].uid}"` : '');
   let bGrid = '';
-  for (let i = gear.page * BAG_PAGE; i < (gear.page + 1) * BAG_PAGE; i++) bGrid += gear.tile(p.inventory[i], p.inventory[i] ? `data-store="${p.inventory[i].uid}"` : '');
+  const bagLay = bagLayout(p); // seit 14.20: dieselben Plätze wie im Rucksack
+  for (const it of bagPageItems(p, gear.page, bagLay)) bGrid += gear.tile(it, it ? `data-store="${it.uid}"` : '');
   const over = items.length > STORAGE_SIZE;
   const solo = own === 'figur';
   const waiting = solo ? klLocalRead().length : 0;
@@ -332,7 +333,7 @@ function klRender(msg) {
     (over ? `<p class="form-error">Das Lager ist übervoll (${items.length} von ${STORAGE_SIZE} Plätzen) – beim Zusammenlegen der alten Lager kam mehr zusammen. Nimm erst etwas heraus, bevor du wieder einlagerst.</p>` : '') +
     `<section class="store-box"><h3>${handelOn() && !solo ? 'Konto-Lager' : 'Lager'} <small>${items.length}/${STORAGE_SIZE}</small><span class="bag-tabs">${tabs(pages, STORAGE.page, items, ui.stPage, 'data-spage')}</span></h3>` +
     `<div class="bag-grid">${sGrid}</div></section>` +
-    `<section class="store-box"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs(BAG_PAGES, BAG_PAGE, p.inventory, gear.page, 'data-bpage')}</span>` +
+    `<section class="store-box"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs(BAG_PAGES, BAG_PAGE, bagLay.map((i) => i >= 0), gear.page, 'data-bpage')}</span>` +
     `<button type="button" class="mini-btn" id="btnStorePage">Ganze Seite einlagern</button></h3>` +
     `<div class="bag-grid">${bGrid}</div></section></div>`;
   const run = async (fn) => {
@@ -359,7 +360,7 @@ function klRender(msg) {
   body.querySelectorAll('[data-spage]').forEach((b) => b.addEventListener('click', () => { ui.stPage = Number(b.dataset.spage); klRender(); }));
   body.querySelectorAll('[data-bpage]').forEach((b) => b.addEventListener('click', () => { gear.page = Number(b.dataset.bpage); klRender(); }));
   document.getElementById('btnStorePage').addEventListener('click', () => run(async () => {
-    const uids = p.inventory.slice(gear.page * BAG_PAGE, (gear.page + 1) * BAG_PAGE).map((x) => x.uid);
+    const uids = bagPageItems(p, gear.page).filter(Boolean).map((x) => x.uid);
     const r = await klStore(p, uids);
     if (!r.ok) return r.msg ? { ok: false, text: r.msg } : null;
     return r.full ? { ok: false, text: 'Dein Lager ist voll, nicht alles passte hinein.' } : null;

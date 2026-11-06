@@ -1136,6 +1136,14 @@ kbd {
 .mat-btn b { color: var(--brass); }
 .mat-btn:disabled { opacity: 0.4; cursor: default; }
 .mat-btn:not(:disabled):hover { border-color: var(--brass); }
+/* seit 14.20: passende Verstärkung leuchtet golden, Boni-Hinweis am Gegenstand */
+.mat-btn.can { border-color: #ffd34d; box-shadow: 0 0 0 1px rgba(255, 211, 77, 0.35), 0 0 10px rgba(255, 200, 60, 0.45); animation: matCan 1.8s ease-in-out infinite; }
+@keyframes matCan { 50% { box-shadow: 0 0 0 1px rgba(255, 211, 77, 0.55), 0 0 16px rgba(255, 200, 60, 0.7); } }
+.bonus-hint { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 2px; padding: 6px 9px; border-radius: 8px; border: 1px solid rgba(255, 211, 77, 0.55);
+  background: linear-gradient(90deg, rgba(255, 196, 60, 0.18), rgba(255, 196, 60, 0.04)); font-size: 12px; line-height: 1.35; }
+.bonus-hint > b { color: #ffd34d; }
+.bonus-hint span b { color: #ffe9a6; }
+.tip-boni { display: block; color: #ffd34d; font-size: 11px; margin-top: 3px; }
 .mat-count { white-space: nowrap; }
 .item-detail.enchanted { animation: enchant 0.7s ease-out; }
 @keyframes enchant {
@@ -3396,3 +3404,5 @@ body.dnd-on, body.dnd-on * { cursor: grabbing !important; user-select: none; }
   .rk-foot > small:first-child { display: none; }
   .rk-foot { justify-content: flex-end; }
 }
+/* seit 14.20: in einer Gruppe öffnet der eigene Name das Gruppenfenster */
+.pc-party { border-top: 1px solid rgba(255, 255, 255, 0.08); }

@@ -67,6 +67,11 @@ const pcard = {
       btn('trade', 'Handeln', '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', !game.trade) +
       btn('inspect', 'Betrachten', '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>') +
       `</div>` +
+      // seit 14.20: Mitglieder der eigenen Gruppe: verlassen, entfernen (nur Anführer) und Gruppenfenster
+      (inParty ? `<div class="pc-mod pc-party">` +
+        `<button type="button" class="pc-mod-btn" data-pc="partywin"><span aria-hidden="true">👥</span><span>Gruppe</span></button>` +
+        (game.party.leader === p.name ? `<button type="button" class="pc-mod-btn" data-pc="kick"><span aria-hidden="true">✕</span><span>Aus der Gruppe entfernen</span></button>` : '') +
+        `<button type="button" class="pc-mod-btn" data-pc="leave"><span aria-hidden="true">⇥</span><span>Gruppe verlassen</span></button></div>` : '') +
       // seit 13.77: Blockieren und Melden (spielerschutz.js)
       (typeof isBlocked === 'function' ? `<div class="pc-mod">` +
         `<button type="button" class="pc-mod-btn${isBlocked(rp.name) ? ' on' : ''}" data-pc="block"><span aria-hidden="true">⛔</span><span>${isBlocked(rp.name) ? 'Blockierung aufheben' : 'Blockieren'}</span></button>` +
@@ -89,6 +94,13 @@ const pcard = {
     }
     if (a === 'report') {
       openReport(rp.name);
+      return;
+    }
+    if (a === 'leave' || a === 'kick' || a === 'partywin') {
+      this.close();
+      if (a === 'leave') leaveParty();
+      else if (a === 'kick') kickParty(rp.name);
+      else { social.tab = 'gruppe'; social.open(); }
       return;
     }
     if (a === 'friend') askFriend(pid);
@@ -368,8 +380,7 @@ const trade = {
       return html;
     };
     let bag = '';
-    for (let i = this.page * BAG_PAGE; i < (this.page + 1) * BAG_PAGE; i++) {
-      const it = p.inventory[i];
+    for (const it of bagPageItems(p, this.page)) { // seit 14.20: dieselben Plätze wie im Rucksack
       const picked = it && t.mine.uids.includes(it.uid);
       bag += gear.tile(it, it ? `data-tbag="${it.uid}"${picked ? ' data-picked="1"' : ''}` : '');
     }

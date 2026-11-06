@@ -3228,4 +3228,11 @@
 "andere Karte": "other map",
 "nicht im Kanal": "not in channel",
 "tot": "dead",
+"Alle Tränke": "All potions",
+"Aus der Gruppe entfernen": "Remove from group",
+"Auf dieser Seite ist kein Platz frei.": "There is no free slot on this page.",
+"Noch keine Boni": "No bonuses yet",
+"Der 5. Bonus ist noch frei": "The 5th bonus is still free",
+"Bonus 6 und 7 sind noch frei": "Bonus 6 and 7 are still free",
+"Bonus 7 ist noch frei": "Bonus 7 is still free",
 };

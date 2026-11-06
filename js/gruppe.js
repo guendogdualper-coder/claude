@@ -460,3 +460,16 @@ $('partyFrame').addEventListener('click', (e) => {
   social.tab = 'gruppe';
   social.open();
 });
+
+// seit 14.20: Tipp auf den eigenen Namen oder das eigene Bild öffnet in einer Gruppe den Reiter „Gruppe“
+// (dort stehen „Gruppe verlassen“, Mitglieder entfernen und die EP-Teilung)
+['hudName', 'hudPortrait'].forEach((id) => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('click', (e) => {
+    if (!game.party || (typeof hudLayout !== 'undefined' && hudLayout.editing)) return;
+    e.stopPropagation();
+    social.tab = 'gruppe';
+    social.open();
+  });
+});

@@ -535,6 +535,62 @@ function itemBonusStats(item) {
   return out;
 }
 
+// Boni-Hinweis (seit 14.20): Hat ein Gegenstand noch freie Boni, sagt ein goldenes Feld, womit sie dazukommen
+// (die Knöpfe stehen direkt darunter im Rucksack). short = eine Zeile fürs Infofeld beim Drüberfahren.
+function bonusFreeInfo(item) {
+  if (!item || isBook(item) || !item.slot) return null;
+  const n = (item.bonuses || []).length;
+  const sp = (item.specials || []).length;
+  if (n < 4) return { mat: 'boniPlus', free: MAX_NORMAL_BONUS - n, text: n ? `Noch ${MAX_NORMAL_BONUS - n} von ${MAX_NORMAL_BONUS} Boni frei` : 'Noch keine Boni' };
+  if (n === 4) return { mat: 'boni5', free: 1, text: 'Der 5. Bonus ist noch frei' };
+  if (sp < MAX_SPECIAL_BONUS) return { mat: 'star', free: MAX_SPECIAL_BONUS - sp, text: sp ? 'Bonus 7 ist noch frei' : 'Bonus 6 und 7 sind noch frei' };
+  return null;
+}
+function bonusHintHtml(item, p, short) {
+  const f = bonusFreeInfo(item);
+  if (!f) return '';
+  const m = MATERIALS.find((x) => x.id === f.mat);
+  if (short) return `<span class="tip-boni">✦ ${f.text} – im Rucksack mit ${m.name} hinzufügen</span>`;
+  const have = (p && p.materials && p.materials[f.mat]) || 0;
+  const sw = (item.bonuses || []).length && p && p.materials && p.materials.switcher > 0
+    ? ` Mit dem Switcher würfelst du die vorhandenen Boni neu.` : '';
+  return `<div class="bonus-hint"><b>✦ ${f.text}</b><span>` +
+    (have ? `Tippe unten auf <b>${m.tag}</b> (${m.name}, ${have}×), um einen Bonus hinzuzufügen.`
+      : `Mit einer <b>${m.name}</b> kommt ein Bonus dazu. ${f.mat === 'boniPlus' ? 'Verstärkungen fallen aus Seelensteinen, man bekommt sie auch im Auktionshaus und per Handel.' : f.mat === 'boni5' ? 'Seltene Verstärkungen fallen selten aus Seelensteinen.' : 'Sternensteine fallen aus Seelensteinen.'}`) +
+    sw + `</span></div>`;
+}
+
+// Freie Plätze in der Tasche (seit 14.20): p.inventory bleibt eine lückenlose Liste (alles im Spiel rechnet damit),
+// jedes Teil merkt sich aber seinen Platz im Raster (item.bagPos, 0 … BAG_SIZE-1). Teile ohne Platz oder mit einem
+// schon belegten Platz rücken auf den ersten freien. Ziehen und Ablegen setzt nur bagPos, „Sortieren“ löscht es.
+function bagLayout(p) {
+  const inv = (p && p.inventory) || [];
+  const slots = new Array(BAG_SIZE).fill(-1);
+  const rest = [];
+  inv.forEach((it, i) => {
+    const s = it && Number.isInteger(it.bagPos) ? it.bagPos : -1;
+    if (s >= 0 && s < BAG_SIZE && slots[s] < 0) slots[s] = i; else rest.push(i);
+  });
+  let f = 0;
+  for (const i of rest) {
+    while (f < BAG_SIZE && slots[f] >= 0) f++;
+    if (f >= BAG_SIZE) break;
+    slots[f] = i;
+    if (inv[i]) inv[i].bagPos = f;
+  }
+  return slots;
+}
+// Teile einer Seite (Länge BAG_PAGE, null = frei) und Anzahl belegter Plätze je Seite
+function bagPageItems(p, page, layout = bagLayout(p)) {
+  return layout.slice(page * BAG_PAGE, (page + 1) * BAG_PAGE).map((i) => (i >= 0 ? p.inventory[i] : null));
+}
+function bagPageCount(p, page, layout = bagLayout(p)) {
+  return layout.slice(page * BAG_PAGE, (page + 1) * BAG_PAGE).filter((i) => i >= 0).length;
+}
+function bagSlotOf(p, idx, layout = bagLayout(p)) {
+  return layout.indexOf(idx);
+}
+
 function addToBag(item) {
   const p = game.player;
   if (p.inventory.length >= BAG_SIZE) return false;
@@ -581,8 +637,11 @@ function sortInventory(p) {
     for (let n = 0; n < a.k.length; n++) if (a.k[n] !== b.k[n]) return a.k[n] - b.k[n];
     return a.i - b.i;
   }).map((x) => x.it);
-  const changed = sorted.some((it, i) => it !== before[i]);
+  // seit 14.20: Sortieren räumt auch frei gewählte Plätze wieder lückenlos von vorn ein
+  const gaps = sorted.some((it, i) => it && it.bagPos !== i);
+  const changed = sorted.some((it, i) => it !== before[i]) || gaps;
   if (changed) p.inventory.splice(0, p.inventory.length, ...sorted);
+  p.inventory.forEach((it, i) => { if (it) it.bagPos = i; });
   return changed;
 }
 const ownBook = (p, id) => classSkills(p).some((sk) => sk.id === id);
@@ -962,7 +1021,9 @@ function equipFromBag(index, hand) {
   const slot = off ? 'schild' : equipSlotOf(item);
   const old = p.equipment[slot];
   p.inventory.splice(index, 1);
-  if (old) p.inventory.splice(index, 0, old);
+  // das abgelegte Teil übernimmt den Platz in der Tasche (seit 14.20)
+  if (old) { if (Number.isInteger(item.bagPos)) old.bagPos = item.bagPos; else delete old.bagPos; p.inventory.splice(index, 0, old); }
+  delete item.bagPos;
   p.equipment[slot] = item;
   const bow = item.slot === 'waffe' && !off && item.kind === 'bow';
   if (item.slot === 'waffe' && !off && p.equipment.schild && (bow ? !isQuiver(p.equipment.schild) : WEAPON_KINDS[item.kind]?.twoHanded || isQuiver(p.equipment.schild))) {
@@ -998,6 +1059,7 @@ function unequip(slot) {
   const p = game.player;
   const item = p.equipment[slot];
   if (!item) return;
+  delete item.bagPos; // seit 14.20: kommt auf den ersten freien Platz (dropItem setzt ihn beim Ziehen gezielt)
   if (!addToBag(item)) {
     gear.message('Kein Platz im Inventar.', 'warn');
     return;
@@ -2147,6 +2209,7 @@ const gear = {
     this.selected = null;
     this.sellArmed = false;
     this.multi = sellMode && nearTrader() ? new Set() : null;
+    this.multiSup = this.multi ? new Set() : null; // seit 14.20: Tränke gleich mit verkaufen (ganzer Stapel je Sorte)
     this.multiArmed = false;
     this.renderInventory();
     document.getElementById('panelInv').hidden = false;
@@ -2154,6 +2217,7 @@ const gear = {
 
   page: 0,
   multi: null,
+  multiSup: null,
   multiArmed: false,
 
   renderInventory() {
@@ -2161,27 +2225,34 @@ const gear = {
     const s = playerStats(p);
     const trader = nearTrader();
     if (this.multi && !trader) this.multi = null;
+    if (this.multi && !this.multiSup) this.multiSup = new Set();
+    if (!this.multi) this.multiSup = null;
     // Ausgewählter Gegenstand auf einer anderen Seite: dorthin blättern
-    if (this.selected && this.selected.where === 'bag' && p.inventory[this.selected.key]) this.page = Math.floor(this.selected.key / BAG_PAGE);
+    const layout = bagLayout(p);
+    if (this.selected && this.selected.where === 'bag' && p.inventory[this.selected.key]) this.page = Math.floor(bagSlotOf(p, this.selected.key, layout) / BAG_PAGE);
     this.page = Math.max(0, Math.min(BAG_PAGES - 1, this.page));
     const equip = equipSlotsFor(p.classId).map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, slotLabel(sl.id, p), sl.id)).join('');
     let bag = '';
-    for (let i = this.page * BAG_PAGE; i < (this.page + 1) * BAG_PAGE; i++) {
-      const picked = this.multi && this.multi.has(i);
-      bag += this.tile(p.inventory[i], `data-bag="${i}"${picked ? ' data-picked="1"' : ''}`);
+    // seit 14.20: jedes Teil liegt auf seinem eigenen Platz (bagLayout), freie Plätze sind Ablageziele (data-bagslot)
+    for (let s = this.page * BAG_PAGE; s < (this.page + 1) * BAG_PAGE; s++) {
+      const i = layout[s];
+      const picked = i >= 0 && this.multi && this.multi.has(i);
+      bag += i >= 0 ? this.tile(p.inventory[i], `data-bag="${i}"${picked ? ' data-picked="1"' : ''}`) : this.tile(null, `data-bagslot="${s}"`);
     }
     const tabs = Array.from({ length: BAG_PAGES }, (_, k) => {
-      const used = p.inventory.slice(k * BAG_PAGE, (k + 1) * BAG_PAGE).length;
+      const used = bagPageCount(p, k, layout);
       return `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}" data-page="${k}">${['I', 'II', 'III', 'IV'][k]}<small>${used}</small></button>`;
     }).join('');
     // Mehrere verkaufen: nur bei einem Händler
     let sellBar;
     if (this.multi) {
-      const value = [...this.multi].reduce((n, i) => n + (p.inventory[i] ? sellValue(p.inventory[i]) : 0), 0);
-      sellBar = `<div class="multi-bar"><span><b>${this.multi.size}</b> ausgewählt · <span class="price">${value.toLocaleString('de-DE')} Gold</span></span>` +
+      const value = [...this.multi].reduce((n, i) => n + (p.inventory[i] ? sellValue(p.inventory[i]) : 0), 0) + this.multiSupValue();
+      const picked = this.multi.size + this.multiSupCount();
+      sellBar = `<div class="multi-bar"><span><b>${picked}</b> ausgewählt · <span class="price">${value.toLocaleString('de-DE')} Gold</span></span>` +
         `<button type="button" class="mini-btn" data-multi="page">Ganze Seite</button>` +
+        (this.supplyList().some((x) => x.kind) ? `<button type="button" class="mini-btn" data-multi="potions">Alle Tränke</button>` : '') +
         `<button type="button" class="mini-btn" data-multi="useless">Nicht nutzbar</button>` +
-        `<button type="button" class="mini-btn ${this.multiArmed ? 'danger' : 'btn-sell'}" data-multi="sell" ${this.multi.size ? '' : 'disabled'}>${this.multiArmed ? 'Wirklich verkaufen?' : 'Verkaufen'}</button>` +
+        `<button type="button" class="mini-btn ${this.multiArmed ? 'danger' : 'btn-sell'}" data-multi="sell" ${picked ? '' : 'disabled'}>${this.multiArmed ? 'Wirklich verkaufen?' : 'Verkaufen'}</button>` +
         `<button type="button" class="mini-btn" data-multi="cancel">Fertig</button></div>`;
     } else {
       sellBar = `<div class="multi-bar"><button type="button" class="mini-btn" data-sort-bag title="Tasche nach Art, Seltenheit und Stufe ordnen">⇅ Sortieren</button>` +
@@ -2196,7 +2267,7 @@ const gear = {
       sellBar + `<div class="bag-grid">${bag}</div>` +
       // Vorräte (seit 11.0): Tränke jeder Größe und Segensschriftrollen, antippen zum Trinken oder Verkaufen
       `<h4 class="sup-head">Vorräte <small>Tränke und Segensschriftrollen</small></h4>` +
-      `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x)).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
+      `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x, !!(this.multiSup && this.multiSup.has(x.key)))).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
       // Aufwertungsteile (seit 13.37 im eigenen Fenster, Taste U): hier nur eine Zeile mit Knopf
       `<button type="button" class="mats-open" id="btnMatsOpen"><img src="${lootIconUrl('splinter')}" alt="">` +
       `<span><b>Aufwertungsteile</b><small>Seelensplitter ${p.splinters} · Segensschriftrollen ${p.scrolls} · ${matKinds(p)} Teile-Arten` +
@@ -2275,7 +2346,15 @@ const gear = {
       }
     }));
     body.querySelectorAll('[data-sup]').forEach((b) => b.addEventListener('click', () => {
-      if (this.multi) return;
+      if (this.multi) {
+        // seit 14.20: Tränke lassen sich mit auswählen (ganzer Stapel), Segensschriftrollen und Pfeile nicht
+        const x = this.supplyList().find((s) => s.key === b.dataset.sup);
+        if (!x || !x.kind) return;
+        if (this.multiSup.has(x.key)) this.multiSup.delete(x.key); else this.multiSup.add(x.key);
+        this.multiArmed = false;
+        this.renderInventory();
+        return;
+      }
       this.selected = { where: 'sup', key: b.dataset.sup };
       this.sellArmed = false;
       this.renderDetail();
@@ -2298,16 +2377,15 @@ const gear = {
     });
     this.bindDrag(body);
     if (this.multi) {
-      document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Fertigkeitsbücher, die nicht zu deinen Fertigkeiten gehören.</p>';
+      document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst – auch Tränke unter „Vorräte“ (immer der ganze Stapel). Mit den Reitern I–IV blätterst du durch alle Seiten der Tasche. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Fertigkeitsbücher, die nicht zu deinen Fertigkeiten gehören.</p>';
       return;
     }
     this.renderDetail();
   },
 
   // Ziehen und Ablegen (seit 14.14): Teile in der Tasche verschieben (auf ein Teil = tauschen, auf einen freien
-  // Platz = ans Ende, auf einen Reiter I–IV = auf diese Seite), aus der Tasche auf die Puppe ziehen = anlegen, von
-  // der Puppe in die Tasche = ablegen. Maus: einfach ziehen. Handy: kurz gedrückt halten, dann ziehen.
-  // Die Tasche bleibt eine lückenlose Liste (alles andere im Spiel rechnet damit).
+  // Platz = genau dorthin (seit 14.20), auf einen Reiter I–IV = auf diese Seite), aus der Tasche auf die Puppe ziehen =
+  // anlegen, von der Puppe in die Tasche = ablegen. Maus: einfach ziehen. Handy: kurz gedrückt halten, dann ziehen.
   dnd: null,
   dndBlockClick: false,
   bindDrag(body) {
@@ -2322,7 +2400,7 @@ const gear = {
     };
     const targetAt = (x, y) => {
       const el = document.elementFromPoint(x, y);
-      const t = el && el.closest && el.closest('#invBody [data-bag], #invBody [data-equip], #invBody [data-page]');
+      const t = el && el.closest && el.closest('#invBody [data-bag], #invBody [data-bagslot], #invBody [data-equip], #invBody [data-page]');
       return t || null;
     };
     const start = (d) => {
@@ -2376,7 +2454,8 @@ const gear = {
       if (drop) {
         const t = targetAt(d.x, d.y);
         if (t) this.dropItem(d.src, t.dataset.bag != null ? { where: 'bag', key: Number(t.dataset.bag) }
-          : t.dataset.equip != null ? { where: 'equip', key: t.dataset.equip } : { where: 'page', key: Number(t.dataset.page) });
+          : t.dataset.bagslot != null ? { where: 'slot', key: Number(t.dataset.bagslot) }
+            : t.dataset.equip != null ? { where: 'equip', key: t.dataset.equip } : { where: 'page', key: Number(t.dataset.page) });
       }
     };
     body.addEventListener('click', (e) => { if (this.dndBlockClick) { e.stopPropagation(); e.preventDefault(); } }, true);
@@ -2438,30 +2517,43 @@ const gear = {
     body.addEventListener('contextmenu', (e) => { if (this.dnd && this.dnd.touch) { e.preventDefault(); e.stopPropagation(); } }, true);
   },
 
+  // seit 14.20: Ziel ist ein Platz im Raster. Freier Platz = das Teil liegt jetzt genau dort, anderes Teil = die
+  // beiden tauschen die Plätze, Reiter = erster freier Platz dieser Seite. Die Liste p.inventory ändert sich dabei nicht.
   dropItem(src, dst) {
     const p = game.player;
     const inv = p.inventory;
     let text = '';
     let cls = 'success';
+    const layout = bagLayout(p);
+    // Platz im Raster, auf den gezogen wurde (-1 = keiner frei)
+    const slotFor = (d) => {
+      if (d.where === 'slot') return d.key;
+      if (d.where === 'bag') return bagSlotOf(p, d.key, layout);
+      if (d.where === 'page') {
+        for (let s = d.key * BAG_PAGE; s < (d.key + 1) * BAG_PAGE; s++) if (layout[s] < 0) return s;
+        return -1;
+      }
+      return -1;
+    };
     if (src.where === 'bag') {
       const a = src.key;
       const item = inv[a];
       if (!item) return;
-      if (dst.where === 'bag') {
-        const b = dst.key;
-        if (a === b) return;
-        if (b < inv.length) { inv[a] = inv[b]; inv[b] = item; }
-        else { inv.splice(a, 1); inv.push(item); }
-      } else if (dst.where === 'page') {
-        inv.splice(a, 1);
-        const at = Math.min(inv.length, dst.key * BAG_PAGE);
-        inv.splice(at, 0, item);
-        this.page = Math.floor(at / BAG_PAGE); // die Tasche hat keine Lücken: ganz hinten, wenn die Seite noch leer ist
+      if (dst.where === 'bag' || dst.where === 'slot' || dst.where === 'page') {
+        const from = bagSlotOf(p, a, layout);
+        const to = slotFor(dst);
+        if (to < 0) { text = 'Auf dieser Seite ist kein Platz frei.'; cls = 'warn'; }
+        else if (to !== from) {
+          const other = layout[to] >= 0 ? inv[layout[to]] : null;
+          item.bagPos = to;
+          if (other) other.bagPos = from;
+        }
+        if (dst.where === 'page' && to >= 0) this.page = dst.key;
       } else if (dst.where === 'equip') {
         if (isBook(item) || !item.slot) { text = 'Das lässt sich nicht anlegen.'; cls = 'warn'; }
         else {
           const hand = dst.key === 'schild' && !isQuiver(item) && item.slot === 'waffe' ? 'off' : undefined;
-          const ok = equipFromBag(a, hand);
+          const ok = equipFromBag(a, hand); // ein getauschtes Teil übernimmt dort den Platz
           const msgEl = document.getElementById('invMsg');
           text = ok ? itemName(item) + ' angelegt.' : (msgEl ? msgEl.textContent : '');
           cls = ok ? 'success' : 'warn';
@@ -2470,13 +2562,16 @@ const gear = {
     } else if (src.where === 'equip') {
       const item = p.equipment[src.key];
       if (!item || dst.where === 'equip') return;
+      const to = slotFor(dst);
       const before = inv.length;
       unequip(src.key);
       if (inv.length > before) {
-        // an die Stelle legen, auf die es gezogen wurde
-        const at = Math.min(inv.length - 1, dst.where === 'bag' ? dst.key : dst.key * BAG_PAGE);
-        if (at < inv.length - 1) inv.splice(at, 0, inv.pop());
-        if (dst.where === 'page') this.page = Math.floor(at / BAG_PAGE);
+        // auf den Platz legen, auf den es gezogen wurde; liegt dort schon etwas, rückt das auf einen freien Platz
+        if (to >= 0) {
+          if (layout[to] >= 0 && inv[layout[to]]) delete inv[layout[to]].bagPos;
+          item.bagPos = to;
+          if (dst.where === 'page') this.page = dst.key;
+        }
         text = itemName(item) + ' abgelegt – liegt jetzt in der Tasche.';
       } else { text = 'Kein Platz im Inventar.'; cls = 'warn'; }
     }
@@ -2494,11 +2589,17 @@ const gear = {
     if (act === 'start') {
       if (!nearTrader()) return;
       this.multi = new Set();
+      this.multiSup = new Set();
     } else if (act === 'cancel') {
       this.multi = null;
+      this.multiSup = null;
+    } else if (act === 'potions') {
+      const keys = this.supplyList().filter((x) => x.kind).map((x) => x.key);
+      const all = keys.every((k) => this.multiSup.has(k));
+      keys.forEach((k) => (all ? this.multiSup.delete(k) : this.multiSup.add(k)));
     } else if (act === 'page') {
-      const ids = [];
-      for (let i = this.page * BAG_PAGE; i < Math.min(p.inventory.length, (this.page + 1) * BAG_PAGE); i++) ids.push(i);
+      const lay = bagLayout(p);
+      const ids = lay.slice(this.page * BAG_PAGE, (this.page + 1) * BAG_PAGE).filter((i) => i >= 0);
       const all = ids.every((i) => this.multi.has(i));
       ids.forEach((i) => (all ? this.multi.delete(i) : this.multi.add(i)));
     } else if (act === 'useless') {
@@ -2513,23 +2614,44 @@ const gear = {
       }
       const ids = [...this.multi].sort((a, b) => b - a);
       let gold = 0;
+      let count = 0;
       for (const i of ids) {
         const it = p.inventory[i];
         if (!it) continue;
         gold += sellValue(it);
+        count++;
         p.inventory.splice(i, 1);
       }
       p.gold += gold;
+      // Tränke (ganze Stapel) gleich mit
+      let pots = 0;
+      for (const x of this.supplyList().filter((s) => s.kind && this.multiSup && this.multiSup.has(s.key))) {
+        const n = sellPotions(x.key, x.n);
+        pots += n;
+        gold += n * potionSellValue(x.kind, x.sz);
+      }
       this.multi = new Set();
+      this.multiSup = new Set();
       this.selected = null;
       saveGame();
       this.multiArmed = false;
       this.renderInventory();
-      this.message(`${ids.length} Sachen für ${gold.toLocaleString('de-DE')} Gold verkauft.`, 'success');
+      const what = [count ? `${count} ${count === 1 ? 'Sache' : 'Sachen'}` : '', pots ? `${pots} ${pots === 1 ? 'Trank' : 'Tränke'}` : ''].filter(Boolean).join(' und ');
+      this.message(`${what} für ${gold.toLocaleString('de-DE')} Gold verkauft.`, 'success');
       return;
     }
     this.multiArmed = false;
     this.renderInventory();
+  },
+
+  // Mehrfachverkauf (seit 14.20): ausgewählte Trankstapel zählen mit (immer der ganze Stapel einer Sorte)
+  multiSupValue() {
+    if (!this.multiSup) return 0;
+    return this.supplyList().filter((x) => x.kind && this.multiSup.has(x.key)).reduce((n, x) => n + potionSellValue(x.kind, x.sz) * x.n, 0);
+  },
+  multiSupCount() {
+    if (!this.multiSup) return 0;
+    return this.supplyList().filter((x) => x.kind && this.multiSup.has(x.key)).reduce((n, x) => n + x.n, 0);
   },
 
   // Vorräte: Tränke (je Sorte und Größe) und Segensschriftrollen
@@ -2548,11 +2670,11 @@ const gear = {
     return out;
   },
 
-  supplyTile(x) {
+  supplyTile(x, picked) {
     if (x.arrow != null) return bowArrowTile(x);
     const icon = x.kind ? potionIconUrl(x.kind, x.sz.id) : scrollIconUrl();
     const name = x.kind ? `${potionInfo(x.kind).name} ${x.sz.id}` : BLESSING.name;
-    return `<button type="button" class="item-tile sup-tile" data-sup="${x.key}" data-info="${escTip(supplyTipHtml(x))}">` +
+    return `<button type="button" class="item-tile sup-tile" data-sup="${x.key}"${picked ? ' data-picked="1"' : ''} data-info="${escTip(supplyTipHtml(x))}">` +
       `<img src="${icon}" alt="${name}"><span class="item-count">${x.n > 999 ? '999+' : x.n}</span></button>`;
   },
 
@@ -2682,7 +2804,8 @@ const gear = {
     };
     const matBtns = MATERIALS.map((m) => {
       const have = p.materials[m.id] || 0;
-      return `<button type="button" class="mat-btn" data-mat="${m.id}" title="${m.name}: ${m.text}" ${have && can[m.id] ? '' : 'disabled'}>` +
+      // seit 14.20: was jetzt auf diesen Gegenstand passt, leuchtet golden
+      return `<button type="button" class="mat-btn${have && can[m.id] ? ' can' : ''}" data-mat="${m.id}" title="${m.name}: ${m.text}" ${have && can[m.id] ? '' : 'disabled'}>` +
         `<img src="${materialIconUrl(m.id)}" alt=""><span>${m.tag}</span><b>${have}</b></button>`;
     }).join('');
     el.innerHTML = `<div class="item-detail rar-${rarityOf(item)}"><img src="${itemIconUrl(item)}" alt="">` +
@@ -2692,7 +2815,7 @@ const gear = {
       (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       (offIdle ? `<small class="need">${offhandProblem(p, item)}</small>` : '') +
       `<span>${this.statsList(item)}</span>` +
-      (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : `<small class="hint-text">Noch keine Boni.</small>`) +
+      (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '') + bonusHintHtml(item, p) +
       (this.selected.where === 'bag' ? compareHtml(item) + (offOk ? compareHtml(item, 'In der Nebenhand', 'off') : '') : '') +
       `</div><div class="item-actions">${actions}</div></div>` +
       `<div class="mat-row" id="matRow">${matBtns}</div>`;
@@ -2873,7 +2996,7 @@ const gear = {
   // Verkaufen: öffnet die Tasche gleich zum Auswählen
   sellSectionHtml() {
     const p = game.player;
-    return `<h3>Verkaufen</h3><p class="hint-text">Tippe in der Tasche alles an, was weg soll, und verkaufe es auf einmal. Tasche ${p.inventory.length}/${BAG_SIZE}.</p>` +
+    return `<h3>Verkaufen</h3><p class="hint-text">Tippe in der Tasche alles an, was weg soll – Ausrüstung, Bücher und Tränke, auf allen Seiten I–IV – und verkaufe es auf einmal. Tasche ${p.inventory.length}/${BAG_SIZE}.</p>` +
       `<button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button>`;
   },
 

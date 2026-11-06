@@ -268,10 +268,10 @@ function warePickHtml(st) {
   st.page = Math.max(0, Math.min(BAG_PAGES - 1, st.page || 0));
   const picked = new Set(st.sel.map((s) => s.key));
   const roman = ['I', 'II', 'III', 'IV'];
-  const tabs = Array.from({ length: BAG_PAGES }, (_, k) => `<button type="button" class="bag-tab${k === st.page ? ' on' : ''}" data-wpage="${k}">${roman[k]}<small>${p.inventory.slice(k * BAG_PAGE, (k + 1) * BAG_PAGE).length}</small></button>`).join('');
+  const layout = bagLayout(p); // seit 14.20: dieselben Plätze wie im Rucksack
+  const tabs = Array.from({ length: BAG_PAGES }, (_, k) => `<button type="button" class="bag-tab${k === st.page ? ' on' : ''}" data-wpage="${k}">${roman[k]}<small>${bagPageCount(p, k, layout)}</small></button>`).join('');
   let bag = '';
-  for (let i = st.page * BAG_PAGE; i < (st.page + 1) * BAG_PAGE; i++) {
-    const it = p.inventory[i];
+  for (const it of bagPageItems(p, st.page, layout)) {
     bag += it ? wareTile({ t: 'it', it }, `data-wpick="it:${it.uid}"${picked.has('it:' + it.uid) ? ' data-picked="1"' : ''}`) : gear.tile(null, '');
   }
   const sup = wareSupplies(p).map((w) => wareTile(w, `data-wpick="${wareKey(w)}"${picked.has(wareKey(w)) ? ' data-picked="1"' : ''}`)).join('');
