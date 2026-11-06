@@ -980,6 +980,27 @@ function clearLen(x, y, dir, want, r) {
   return len;
 }
 
+// Sprung- und Teleport-Weite (seit 14.14): man fliegt über Bäume, Felsen, Säulen, Wasser und Lava hinweg und landet
+// auf dem letzten freien Platz vor dem gewünschten Ziel (bis want). Nur Mauern, Höhlenwände, Häuser, der Kartenrand
+// und (außerhalb des Duells) das Dorf halten auf – vorher endete jeder Sprung vor dem ersten Baum.
+function hopBarrier(x, y) {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  if (tx < 0 || ty < 0 || tx >= MAP_W || ty >= MAP_H) return true;
+  const o = game.world.obj[ty * MAP_W + tx];
+  return o === OBJ.WALL || o === OBJ.CAVEWALL || o === OBJ.HOUSE;
+}
+function hopReach(x, y, dir, want, r) {
+  let best = 0;
+  for (let s = 6; s <= want; s += 6) {
+    const nx = x + dir.x * s;
+    const ny = y + dir.y * s;
+    if (hopBarrier(nx, ny) || (inVillage(nx, ny) && !duelFighting())) break;
+    if (canStand(nx, ny, r, false)) best = s;
+  }
+  return best;
+}
+
 // Darf ein Monster sichtbar hochgeschleudert werden? (nur Optik)
 function canLift(m) {
   return !!m && !m.dead && !m.isStone && !(m.type && m.type.boss) && !m.duelProxy;
@@ -1446,13 +1467,8 @@ const SKILL_TYPES = {
       want = t ? Math.max(0, Math.min(sk.distance, dist(p, t) - ((t.r || 14) + 12))) : sk.distance;
     }
     const dir = { ...p.facing };
-    let reach = 0;
-    for (let s = 6; s <= want; s += 6) {
-      const nx = p.x + dir.x * s;
-      const ny = p.y + dir.y * s;
-      if (!canStand(nx, ny, p.r * 0.7, false) || (inVillage(nx, ny) && !duelFighting())) break;
-      reach = s;
-    }
+    // seit 14.14 über Bäume und Felsen hinweg (hopReach)
+    const reach = hopReach(p.x, p.y, dir, want, p.r * 0.7);
     const x1 = p.x + dir.x * reach;
     const y1 = p.y + dir.y * reach;
     const h = Math.max(44, Math.min(60, 44 + 0.08 * reach));

@@ -2239,11 +2239,197 @@ const gear = {
       const msg = document.getElementById('invMsg');
       if (msg) msg.textContent = changed ? 'Tasche sortiert.' : 'Die Tasche ist schon sortiert.';
     });
+    this.bindDrag(body);
     if (this.multi) {
       document.getElementById('invDetail').innerHTML = '<p class="hint-text">Tippe alles an, was du verkaufen willst. „Nicht nutzbar“ wählt Ausrüstung anderer Klassen und Fertigkeitsbücher, die nicht zu deinen Fertigkeiten gehören.</p>';
       return;
     }
     this.renderDetail();
+  },
+
+  // Ziehen und Ablegen (seit 14.14): Teile in der Tasche verschieben (auf ein Teil = tauschen, auf einen freien
+  // Platz = ans Ende, auf einen Reiter I–IV = auf diese Seite), aus der Tasche auf die Puppe ziehen = anlegen, von
+  // der Puppe in die Tasche = ablegen. Maus: einfach ziehen. Handy: kurz gedrückt halten, dann ziehen.
+  // Die Tasche bleibt eine lückenlose Liste (alles andere im Spiel rechnet damit).
+  dnd: null,
+  dndBlockClick: false,
+  bindDrag(body) {
+    if (!body || body.dataset.dnd) return;
+    body.dataset.dnd = '1';
+    const srcOf = (el) => {
+      const p = game.player;
+      if (!el || this.multi || !p) return null;
+      if (el.dataset.bag != null) { const i = Number(el.dataset.bag); return p.inventory[i] ? { where: 'bag', key: i } : null; }
+      if (el.dataset.equip != null) return p.equipment[el.dataset.equip] ? { where: 'equip', key: el.dataset.equip } : null;
+      return null;
+    };
+    const targetAt = (x, y) => {
+      const el = document.elementFromPoint(x, y);
+      const t = el && el.closest && el.closest('#invBody [data-bag], #invBody [data-equip], #invBody [data-page]');
+      return t || null;
+    };
+    const start = (d) => {
+      d.active = true;
+      const img = d.el.querySelector('img:not(.ghost)');
+      const g = document.createElement('div');
+      g.className = 'dnd-ghost';
+      if (img) g.append(img.cloneNode());
+      document.body.append(g);
+      d.ghost = g;
+      d.el.classList.add('dnd-src');
+      document.body.classList.add('dnd-on');
+      if (d.touch && navigator.vibrate) try { navigator.vibrate(12); } catch (e) { /* egal */ }
+      move(d, d.x, d.y);
+    };
+    const move = (d, x, y) => {
+      d.x = x; d.y = y;
+      if (!d.active) return;
+      d.ghost.style.transform = `translate(${x - 28}px, ${y - 28}px)`;
+      const t = targetAt(x, y);
+      if (t !== d.over) {
+        if (d.over) d.over.classList.remove('dnd-over');
+        d.over = t;
+        if (t) t.classList.add('dnd-over');
+        clearTimeout(d.pageTimer);
+        // über einem Reiter kurz verweilen blättert um
+        if (t && t.dataset.page != null && Number(t.dataset.page) !== this.page) {
+          d.pageTimer = setTimeout(() => {
+            if (this.dnd !== d) return;
+            this.page = Number(t.dataset.page);
+            this.selected = null;
+            this.renderInventory();
+            const src = document.querySelector(d.src.where === 'bag' ? `#invBody [data-bag="${d.src.key}"]` : `#invBody [data-equip="${d.src.key}"]`);
+            if (src) src.classList.add('dnd-src');
+            d.over = null;
+          }, 380);
+        }
+      }
+    };
+    const stop = (d, drop) => {
+      clearTimeout(d.timer);
+      clearTimeout(d.pageTimer);
+      if (this.dnd === d) this.dnd = null;
+      if (!d.active) return;
+      if (d.ghost) d.ghost.remove();
+      document.body.classList.remove('dnd-on');
+      document.querySelectorAll('#invBody .dnd-src, #invBody .dnd-over').forEach((e) => e.classList.remove('dnd-src', 'dnd-over'));
+      // den Klick, der nach dem Loslassen kommt, schlucken
+      this.dndBlockClick = true;
+      setTimeout(() => { this.dndBlockClick = false; }, 60);
+      if (drop) {
+        const t = targetAt(d.x, d.y);
+        if (t) this.dropItem(d.src, t.dataset.bag != null ? { where: 'bag', key: Number(t.dataset.bag) }
+          : t.dataset.equip != null ? { where: 'equip', key: t.dataset.equip } : { where: 'page', key: Number(t.dataset.page) });
+      }
+    };
+    body.addEventListener('click', (e) => { if (this.dndBlockClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+    body.addEventListener('dragstart', (e) => e.preventDefault());
+    // Maus
+    body.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      const el = e.target.closest('[data-bag], [data-equip]');
+      const src = srcOf(el);
+      if (!src) return;
+      e.preventDefault();
+      const d = { el, src, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, active: false };
+      this.dnd = d;
+      const mm = (ev) => {
+        if (!d.active && Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) > 6) start(d);
+        move(d, ev.clientX, ev.clientY);
+      };
+      const mu = () => {
+        document.removeEventListener('mousemove', mm);
+        document.removeEventListener('mouseup', mu);
+        stop(d, true);
+      };
+      document.addEventListener('mousemove', mm);
+      document.addEventListener('mouseup', mu);
+    });
+    // Finger: gedrückt halten startet das Ziehen, vorher scrollt das Fenster wie gewohnt
+    body.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const el = e.target.closest('[data-bag], [data-equip]');
+      const src = srcOf(el);
+      if (!src) return;
+      const t0 = e.touches[0];
+      const d = { el, src, x: t0.clientX, y: t0.clientY, x0: t0.clientX, y0: t0.clientY, active: false, touch: true };
+      if (this.dnd) stop(this.dnd, false);
+      this.dnd = d;
+      d.timer = setTimeout(() => { if (this.dnd === d) start(d); }, 260);
+      const tm = (ev) => {
+        const t = ev.touches[0];
+        if (!t) return;
+        if (!d.active) {
+          if (Math.hypot(t.clientX - d.x0, t.clientY - d.y0) > 10) { clearTimeout(d.timer); end(); stop(d, false); }
+          return;
+        }
+        ev.preventDefault();
+        move(d, t.clientX, t.clientY);
+      };
+      const end = () => {
+        document.removeEventListener('touchmove', tm);
+        document.removeEventListener('touchend', te);
+        document.removeEventListener('touchcancel', tc);
+      };
+      const te = (ev) => { end(); if (d.active) ev.preventDefault(); stop(d, true); };
+      const tc = () => { end(); stop(d, false); };
+      document.addEventListener('touchmove', tm, { passive: false });
+      document.addEventListener('touchend', te, { passive: false });
+      document.addEventListener('touchcancel', tc);
+    }, { passive: true });
+    // langes Drücken am Handy öffnet sonst das Kontextmenü (= Anlegen): während des Ziehens nicht
+    body.addEventListener('contextmenu', (e) => { if (this.dnd && this.dnd.touch) { e.preventDefault(); e.stopPropagation(); } }, true);
+  },
+
+  dropItem(src, dst) {
+    const p = game.player;
+    const inv = p.inventory;
+    let text = '';
+    let cls = 'success';
+    if (src.where === 'bag') {
+      const a = src.key;
+      const item = inv[a];
+      if (!item) return;
+      if (dst.where === 'bag') {
+        const b = dst.key;
+        if (a === b) return;
+        if (b < inv.length) { inv[a] = inv[b]; inv[b] = item; }
+        else { inv.splice(a, 1); inv.push(item); }
+      } else if (dst.where === 'page') {
+        inv.splice(a, 1);
+        const at = Math.min(inv.length, dst.key * BAG_PAGE);
+        inv.splice(at, 0, item);
+        this.page = Math.floor(at / BAG_PAGE); // die Tasche hat keine Lücken: ganz hinten, wenn die Seite noch leer ist
+      } else if (dst.where === 'equip') {
+        if (isBook(item) || !item.slot) { text = 'Das lässt sich nicht anlegen.'; cls = 'warn'; }
+        else {
+          const hand = dst.key === 'schild' && !isQuiver(item) && item.slot === 'waffe' ? 'off' : undefined;
+          const ok = equipFromBag(a, hand);
+          const msgEl = document.getElementById('invMsg');
+          text = ok ? itemName(item) + ' angelegt.' : (msgEl ? msgEl.textContent : '');
+          cls = ok ? 'success' : 'warn';
+        }
+      }
+    } else if (src.where === 'equip') {
+      const item = p.equipment[src.key];
+      if (!item || dst.where === 'equip') return;
+      const before = inv.length;
+      unequip(src.key);
+      if (inv.length > before) {
+        // an die Stelle legen, auf die es gezogen wurde
+        const at = Math.min(inv.length - 1, dst.where === 'bag' ? dst.key : dst.key * BAG_PAGE);
+        if (at < inv.length - 1) inv.splice(at, 0, inv.pop());
+        if (dst.where === 'page') this.page = Math.floor(at / BAG_PAGE);
+        text = itemName(item) + ' abgelegt – liegt jetzt in der Tasche.';
+      } else { text = 'Kein Platz im Inventar.'; cls = 'warn'; }
+    }
+    this.selected = null;
+    if (typeof saveGame === 'function') saveGame();
+    this.renderInventory();
+    if (text) {
+      const m2 = document.getElementById('invMsg');
+      if (m2) { m2.textContent = text; m2.className = 'gear-msg ' + cls; }
+    }
   },
 
   multiAction(act) {

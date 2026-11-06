@@ -69,7 +69,8 @@ function thinDrop(x, y) {
 // Noch weniger Stolperteile (seit 13.85): von den übrigen Felsen und festen Bodenteilen fällt auf jeder Map gut ein
 // Drittel weg, auf dem Feuerberg (Map 9) gut die Hälfte – dort auch Knochen. Wieder über die Lage der Kachel (andere
 // Bits als thinDrop), der Zufallsgenerator und damit alles andere bleibt gleich.
-const CLUTTER_DROP = { 9: 0.56 };
+// Seit 14.14 im Dunkelwald (Map 4) und im Totenmoor (Map 8) noch mehr weg: dort lagen zu viele Äste und Stämme.
+const CLUTTER_DROP = { 9: 0.56, 4: 0.66, 8: 0.5 };
 function clutterDrop(x, y, mapId) {
   if (mapId == null) return false; // Dungeons bleiben, wie sie sind
   let h = Math.imul(x + 0x7f4a7c15, 0x9e3779b1) ^ Math.imul(y + 0x2545f491, 0x6c8e9cf5);
@@ -77,6 +78,19 @@ function clutterDrop(x, y, mapId) {
   h = Math.imul(h, 0x5bd1e995);
   h ^= h >>> 15;
   return ((h >>> 8) & 255) / 256 < (CLUTTER_DROP[mapId] || 0.36);
+}
+// Weniger Bäume (seit 14.14): im Dunkelwald war es zu dicht, in Dschungel, Frost und Moor auch. Wieder über die Lage
+// der Kachel (eigene Bits), damit die Zufallszahlen und damit Wasser, Wege, Felsen und Schmuck gleich bleiben. Der
+// dichte Rand der Maps bleibt.
+const TREE_DROP = { 4: 0.5, 2: 0.3, 7: 0.25, 8: 0.25 };
+function treeDrop(x, y, mapId) {
+  const k = TREE_DROP[mapId];
+  if (!k) return false;
+  let h = Math.imul(x + 0x1b873593, 0xcc9e2d51) ^ Math.imul(y + 0x6a09e667, 0xbb67ae85);
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x7feb352d);
+  h ^= h >>> 15;
+  return ((h >>> 4) & 1023) / 1024 < k;
 }
 function thinDeco(kind, x, y, mapId) {
   if (SOLID_DECO_KINDS.has(kind) && thinDrop(x, y)) return DECO.NONE;
@@ -1984,7 +1998,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads 
         }
         const cluster = v > 0.55 ? 1.8 : 0.5;
         const r = rng();
-        if (r < zone.trees * cluster) obj[i] = OBJ[zone.treeObj];
+        if (r < zone.trees * cluster) { if (!treeDrop(x, y, wm.id)) obj[i] = OBJ[zone.treeObj]; }
         else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y) && !clutterDrop(x, y, wm.id)) obj[i] = OBJ.ROCK; }
         else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y, wm.id);
         else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL ? DECO.CRACK : DECO.TUFT;

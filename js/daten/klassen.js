@@ -168,7 +168,7 @@ const CLASSES = {
             // dmg je Pfeil, der letzte ×lastMul und stößt zurück. Zusammen 1,3 + 1,3 + 1,63 ≈ 4,2 (seit 13.70 nach Balance-Messung angehoben).
             // arrows: 1 = mindestens ein Pfeil nötig; verbraucht wird je geschossenem Pfeil einer
             // seit 14.6 1,15 statt 1,3 je Pfeil (Rang 0,98 statt 1,1) – der Weg lag in der Balance-Messung bei 117 statt um 100
-            type: 'bshot', range: 520, speed: 1050, dmg: 1.15, lastMul: 1.25, count: 3, every: 0.15, rankCount: { rank: 1, count: 4, dmg: 0.98, every: 0.13 },
+            type: 'bshot', range: 520, speed: 1050, dmg: 1.0, lastMul: 1.25, count: 3, every: 0.15, rankCount: { rank: 1, count: 4, dmg: 0.85, every: 0.13 }, // seit 14.14 1,0 statt 1,15
             knockback: 45, arrows: 1, anim: 'bogensalve3', animDur: 0.7, color: '#b48cff',
             text: 'Eine schnelle Salve: Du ziehst Schlag auf Schlag drei Schattenpfeile aus dem Köcher und schießt sie aufs Ziel (bis 520 weit), eingehüllt in eine dunkelviolette Aura. Der letzte Pfeil schlägt mit einem Schattenstoß ein, trifft etwas härter und stößt zurück. Ab Heroisch sind es vier Pfeile. Jeder Pfeil der Salve verbraucht einen Pfeil – reichen sie nicht, fliegen so viele, wie du hast.'
           },
@@ -180,13 +180,14 @@ const CLASSES = {
             // zusammen 10 × 0,4 = 4,0 (Pfeilhagel 3 × 0,8 = 2,4; die Giftfalle kam mit Gift auf 4,0 und betäubte 1 s) –
             // nach Balance-Messung so hoch, sonst fiel der Weg aus dem Korridor (0,3 je Puls und 35 % Bremse: 87 statt 95)
             id: 'pfeilregen', name: 'Pfeilregen', short: 'PR', kind: 'angriff', unlock: 3, mp: 16, cooldown: 9,
-            type: 'bregen', aim: true, range: 520, radius: 135, delay: 0.85, ticks: 10, every: 0.5, dmg: 0.4, slow: { amount: 0.5, duration: 0.8 },
+            // seit 14.14 0,22 statt 0,4 je Puls (zusammen 2,2 statt 4,0): der Regen hielt lange UND traf hart
+            type: 'bregen', aim: true, range: 520, radius: 135, delay: 0.85, ticks: 10, every: 0.5, dmg: 0.22, slow: { amount: 0.5, duration: 0.8 },
             rate: 24, rankRate: 4, shots: 3, shotEvery: 0.14, arrows: 3, anim: 'bogenregen', animDur: 0.68, color: '#8a4ae8',
             text: 'Du wählst einen Ort (bis 520 weit) und schießt eine Salve aus drei Pfeilen steil in den Himmel. Über dem Ort zieht eine dunkle Wolke auf, dann regnet es 5 s lang ununterbrochen dunkelviolette Schattenpfeile in den Kreis (135 weit) – sie schlagen ein, wirbeln Staub und Schatten auf und bleiben eine Weile im Boden stecken. Alle Gegner im Kreis nehmen zweimal pro Sekunde leichten Schaden und sind um 50 % verlangsamt, solange sie drinstehen. Je Rang regnet es 0,5 s länger und dichter: erweckt 5,5 s, heroisch 6 s, legendär 6,5 s, vollendet 7 s. Verbraucht 3 Pfeile.'
           },
           {
             id: 'durchschuss', name: 'Durchbohrender Schuss', short: 'DS', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,
-            type: 'bpierce', range: 680, speed: 1250, dmg: 2.5, // seit 14.6 2,5 statt 2,8
+            type: 'bpierce', range: 680, speed: 1250, dmg: 2.2, // seit 14.14 2,2 (14.6: 2,5, davor 2,8)
             knockback: 30, pierce: true, arrows: 1, anim: 'bogenzug', animDur: 0.46, color: '#a070f0',
             text: 'Ein Pfeil, um den sich dunkle Schatten zu einer Spirale drehen: Er durchschlägt alle Gegner in einer Linie bis 680 weit und stößt sie zurück.'
           },
@@ -206,7 +207,7 @@ const CLASSES = {
             // seit 13.70 ein reiner Fluchtschritt: aimAway – der Zielkreis beginnt 200 hinter der Figur (vom Gegner weg),
             // der Ort wird frei gewählt, erst der Klick (oder ein zweites Antippen) wirkt
             type: 'bshadow', aim: true, aimAway: 200, range: 300, radius: 80, hide: 0.2, stun: 0.8, dmg: 0.9, slow: { amount: 0.3, duration: 1.5 }, color: '#8a5ae0',
-            text: 'Ein Fluchtschritt: Der Zielkreis erscheint hinter dir, vom Gegner weg – du wählst frei einen Ort bis 300 weit, zerfällst in schwarzen Schattenrauch, ein Schattenfalke reißt dich als violette Spur dorthin und du tauchst einen Augenblick später wieder auf. Wände, Wasser und Dörfer halten dich auf. Wo du erscheinst, platzen die Schatten auseinander: Gegner bis 80 weit nehmen leichten Schaden, sind 0,8 s betäubt und werden 1,5 s um 30 % verlangsamt.'
+            text: 'Ein Fluchtschritt: Der Zielkreis erscheint hinter dir, vom Gegner weg – du wählst frei einen Ort bis 300 weit, zerfällst in schwarzen Schattenrauch, ein Schattenfalke reißt dich als violette Spur dorthin und du tauchst einen Augenblick später wieder auf. Über Bäume, Felsen und Wasser fliegst du hinweg, nur Mauern, Häuser und Dörfer halten dich auf. Wo du erscheinst, platzen die Schatten auseinander: Gegner bis 80 weit nehmen leichten Schaden, sind 0,8 s betäubt und werden 1,5 s um 30 % verlangsamt.'
           }
         ]
       }

@@ -367,16 +367,10 @@ function shiftPlan(p, sk) {
   return { dir: n ? unitVec(p.x - n.x, p.y - n.y) : { ...p.facing }, want: sk.distance };
 }
 
-// Freie Strecke ohne Wand, Wasser, Lava und (außerhalb des Duells) ohne Dorf
+// seit 14.14 über Bäume, Felsen und Wasser hinweg (hopReach, kampf.js): der Elementsprung und der Schattenschritt
+// landen hinter dem Hindernis statt davor
 function shiftReach(p, dir, want) {
-  let len = 0;
-  for (let s = 6; s <= want; s += 6) {
-    const nx = p.x + dir.x * s;
-    const ny = p.y + dir.y * s;
-    if (!canStand(nx, ny, p.r || 11, false) || (inVillage(nx, ny) && !duelFighting())) break;
-    len = s;
-  }
-  return len;
+  return hopReach(p.x, p.y, dir, want, p.r || 11);
 }
 
 // Optik (für alle) und Treffer (nur local) des Elementsprungs von a nach b
