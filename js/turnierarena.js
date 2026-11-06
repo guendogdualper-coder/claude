@@ -765,7 +765,7 @@ function pvpRosterIn(M, r) {
   }
   M.roster = map;
 }
-// Rückkehrpunkt: beim Turniermeister, bei dem man sich angemeldet hat (sonst in Vlotho)
+// Rückkehrpunkt: beim Turniermeister, bei dem man sich angemeldet hat (sonst in Kazehana)
 function pvpReturnSpot() {
   const r = pvpSave().ret;
   if (r && Number.isFinite(r.x) && Number.isFinite(r.y) && pvpSlotAt(r.x, r.y) < 0 && (typeof arenaSlotAt !== 'function' || arenaSlotAt(r.x, r.y) < 0)) return { x: r.x, y: r.y };
@@ -1028,42 +1028,41 @@ function pvpUpdateFoes() {
 function pvpHit(m, mul, opts) {
   const M = game.pvpMatch;
   const p = game.player;
-  const s = game.stats;
   if (!M || M.state !== 'fight' || p.dead || m.dead) return 0;
-  const base = opts.atk != null ? opts.atk : s.atk;
-  const crit = !opts.ally && Math.random() < s.crit + (opts.critBonus || 0);
-  if (!opts.ally && !opts.dot) breakStealth(p);
-  const raw = base * mul * (opts.ally ? DUEL_ALLY_MUL : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 : 1) * (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1);
-  pvpSend(m.pid, { k: 'pvh', id: M.id, a: Math.round(raw), c: crit ? 1 : 0, l: p.level });
-  vfxImpact(m, crit, opts.vfxColor);
-  if (opts.skill) skillHitFx(opts.skill, m, crit, opts.heavy);
+  // gleiche Rechnung wie im Duell (pvpOutgoing, kampf.js, seit 14.15)
+  const d = pvpOutgoing(mul, opts);
+  pvpSend(m.pid, { k: 'pvh', id: M.id, ...d });
+  vfxImpact(m, !!d.c, opts.vfxColor);
+  if (opts.skill) skillHitFx(opts.skill, m, !!d.c, opts.heavy);
   p.lastCombat = game.time;
-  if (crit) shakeScreen(4);
-  return Math.round(raw * 0.5);
+  if (d.c) shakeScreen(4);
+  return Math.round(d.a * pvpDealtRatio(m));
 }
-// getroffen: mit eigener Verteidigung abrechnen (wie duelReceive); nie vom eigenen Team
+// getroffen: mit eigenen Werten abrechnen (pvpReceiveHit wie im Duell); nie vom eigenen Team
 function pvpReceive(pid, d) {
   const M = game.pvpMatch;
   const p = game.player;
   if (!M || d.id !== M.id || M.state !== 'fight' || p.dead) return;
   const e = M.roster.get(pid);
   if (!e || e.team === M.team || pvpSlotAt(p.x, p.y) !== M.slot) return;
-  const s = game.stats;
-  const raw = (+d.a || 0) * DUEL.pvpMul * (1 - s.def / (s.def + 40 + 5 * ((d.l || 1) - 1)));
-  const capped = (d.l || 1) - p.level < DUEL.capGap;
-  const amount = Math.max(1, Math.round(capped ? Math.min(raw, s.maxHp * (d.c ? DUEL.maxCrit : DUEL.maxHit)) : raw));
-  const before = p.hp;
   M.lastHit = { pid, at: game.time };
   const src = pvpState.proxies.get(pid) || { pvp: true, duelProxy: true, pid, x: p.x, y: p.y, r: 11, dead: false };
-  damagePlayer(amount, src);
-  const dealt = Math.max(0, Math.round(before - p.hp));
-  pvpSend(pid, { k: 'pvf', id: M.id, a: dealt, c: d.c ? 1 : 0, t: dealt ? '' : 'Abgewehrt' });
+  const id = M.id;
+  const dealt = pvpReceiveHit(d, src, (a) => {
+    const N = game.pvpMatch;
+    if (N && N.id === id) { N.lastHit = { pid, at: game.time }; pvpSend(pid, { k: 'pvf', id, a, p: 1 }); }
+  });
+  pvpSend(pid, { k: 'pvf', id: M.id, a: dealt, r: d.a, c: d.c ? 1 : 0, al: d.al ? 1 : 0, t: dealt ? '' : 'Abgewehrt' });
 }
 function pvpFeedback(pid, d) {
   const M = game.pvpMatch;
   const m = pvpState.proxies.get(pid);
   if (!M || d.id !== M.id || !m) return;
+  // p: Gift-Tick (grüne Zahl, seit 14.15); sonst Treffer mit Lebensraub (zu 60 %)
+  if (d.p) { if (d.a > 0) addText(m.x, feetY(m) - 50, String(d.a), 'toxin'); return; }
   addText(m.x, feetY(m) - 50, d.a > 0 ? String(d.a) : d.t || 'Abgewehrt', d.a > 0 ? (d.c ? 'crit' : 'dmg') : 'info');
+  if (!d.al && d.r > 0) pvpNoteDealt(d.r, d.a);
+  if (!d.al && d.a > 0) pvpLifeSteal(d.a);
 }
 // Heilen der Lichtkuppel wirkt in der Turnierarena auch auf das eigene Team (nicht nur auf die Gruppe)
 if (typeof healParty === 'function') {

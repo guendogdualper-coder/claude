@@ -44,7 +44,7 @@ FÜNF KLASSEN, ZWÖLF WEGE
 • Gestalte das Aussehen deiner Figur selbst – Mitspieler sehen es
 
 EINE WELT VOLLER GEFAHREN
-• Neun Karten von der Stadt Vlotho über Dunkelwald, Orktal und Frostgipfel bis zum Feuerberg, Stufe 1 bis 80
+• Neun Karten von der Stadt Kazehana über Dunkelwald, Rostschlucht und Frostgipfel bis zum Feuerberg, Stufe 1 bis 80
 • Mehr als 100 Monster- und Bossarten
 • 14 Seelensteine: Greif sie an, wehre die Monsterwellen ab und sichere dir ihre Beute
 • Tag und Nacht im Wechsel – nachts erscheinen eigene Monster und Nachtjagden
@@ -92,7 +92,7 @@ FIVE CLASSES, TWELVE PATHS
 • Design your character's look – other players see it
 
 A WORLD FULL OF DANGER
-• Nine maps from the city of Vlotho through Darkwood, Orc Valley and Frost Peak to Fire Mountain, levels 1 to 80
+• Nine maps from the city of Kazehana through Darkwood, Orc Valley and Frost Peak to Fire Mountain, levels 1 to 80
 • More than 100 kinds of monsters and bosses
 • 14 Soulstones: attack them, fight off the monster waves and claim their loot
 • Day and night – at night, special monsters and night hunts appear
@@ -209,12 +209,12 @@ Telefon-Screenshots, in der Reihenfolge im Store:
 3. Frost-Magierin gegen die Spinnenkönigin im Dungeon „Spinnenhöhle“, mit Boss-Balken.
 4. Schamanin (Weg des Drachen) gegen Steinoger im Ödland.
 5. Bogen-Ninja mit „Pfeilregen“ in der Dämmerung im Totenmoor (Tag und Nacht).
-6. Stadt Vlotho mit Händlerständen und Bewohnern.
+6. Stadt Kazehana mit Händlerständen und Bewohnern.
 7. Charakterfenster mit den Fertigkeiten und ihren Rängen (Legendär, Heroisch).
 8. Inventar mit angelegter Ausrüstung, Seltenheitsfarben und Aufwertungsteilen.
 
-Tablet 7 Zoll: Stadt Vlotho, Feuer-Magierin mit Phönixflamme, Charakterfenster (Status), große Karte des Dunkelwalds.
-Tablet 10 Zoll: Krieger gegen Orks im Orktal, Frost-Magierin gegen die Spinnenkönigin, Nekromant am Seelenstein, Inventar.
+Tablet 7 Zoll: Stadt Kazehana, Feuer-Magierin mit Phönixflamme, Charakterfenster (Status), große Karte des Dunkelwalds.
+Tablet 10 Zoll: Krieger gegen Orks in der Rostschlucht, Frost-Magierin gegen die Spinnenkönigin, Nekromant am Seelenstein, Inventar.
 
 So sind die Bilder entstanden: Alle stammen aus dem laufenden Spiel (3D-Ansicht, Grafik „Hoch“), aufgenommen mit Playwright. Für das
 Handy lief das Spiel mit 960 × 540 CSS-Pixeln (Faktor 2), für Tablets mit 1280 × 720 (Faktor 1,5 bzw. 2). Die Oberfläche ist vollständig

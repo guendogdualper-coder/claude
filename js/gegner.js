@@ -492,7 +492,7 @@ function reviveMonster(m) {
   m.nav = null; // Weg und Steckenbleiben vergessen (seit 13.63)
   m.stun = 0;
   m.kx = m.ky = 0;
-  m.slow = m.vulnerable = m.poison = m.burn = m.bleed = null;
+  m.slow = m.vulnerable = m.poison = m.burn = m.bleed = m.toxin = null;
 }
 
 // Ein angegriffenes Monster und seine Gruppe greifen den Angreifer an
@@ -570,15 +570,16 @@ function killStoneMinions(stone) {
   }
 }
 
+// toxin: Gift aus der Ausrüstung (seit 14.15, applyToxin in kampf.js), grüne Zahlen
 function tickDots(m, dt) {
-  for (const key of ['poison', 'burn', 'bleed']) {
+  for (const key of ['poison', 'burn', 'bleed', 'toxin']) {
     const d = m[key];
     if (!d) continue;
     if (d.until <= game.time) { m[key] = null; continue; }
     d.tick += dt;
     if (d.tick >= 1) {
       d.tick -= 1;
-      damageMonster(m, Math.max(1, Math.round(d.dps)), false, m.lastAttacker && !m.lastAttacker.gone ? m.lastAttacker : game.player, true);
+      damageMonster(m, Math.max(1, Math.round(d.dps)), false, m.lastAttacker && !m.lastAttacker.gone ? m.lastAttacker : game.player, key === 'toxin' ? 'toxin' : true);
       if (m.dead) return;
     }
   }
@@ -1146,7 +1147,7 @@ function updateMonsters(dt) {
     }
     // Seelensteine haben keinen Zustand (state) – seit 13.60 ruhen sie wie ruhende Monster; vorher liefen alle
     // ~400 Steine der ganzen Welt jedes Bild durch die volle Rechnung
-    if ((m.state === 'idle' || m.isStone) && !m.poison && !m.burn && !m.bleed) {
+    if ((m.state === 'idle' || m.isStone) && !m.poison && !m.burn && !m.bleed && !m.toxin) {
       if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
       if (!busy.has(m.area)) {
         if (m.hitFlash > 0) m.hitFlash = 0;
@@ -1161,7 +1162,7 @@ function updateMonsters(dt) {
       const d = dist(m, pl);
       if (d < distP) { distP = d; near = pl; }
     }
-    if (distP > 1400 && (m.state === 'idle' || (m.isStone && !m.poison && !m.burn && !m.bleed))) continue;
+    if (distP > 1400 && (m.state === 'idle' || (m.isStone && !m.poison && !m.burn && !m.bleed && !m.toxin))) continue;
 
     tickDots(m, dt);
     if (m.dead || m.isStone) continue;

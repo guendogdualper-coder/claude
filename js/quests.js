@@ -6,7 +6,7 @@ function questState() {
   if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
   if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
   // Alte Hauptkette (bis 11.1, 20 Aufträge) auf die Questreihe je Map umrechnen: weiter beim ersten Auftrag
-  // ab der Stufe des alten (alles erledigt: Heimkehr nach Vlotho vor dem Finale)
+  // ab der Stufe des alten (alles erledigt: Heimkehr nach Kazehana vor dem Finale)
   if (p.quests.chain !== 2) {
     const q = p.quests;
     const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
@@ -20,7 +20,7 @@ function questState() {
   return p.quests;
 }
 
-// Ältester einer Map (Bao in Vlotho, sonst der Lagerälteste) und die Map eines NPCs
+// Ältester einer Map (Bao in Kazehana, sonst der Lagerälteste) und die Map eines NPCs
 function npcMapId(n) {
   const wm = mapOfTile(n.x / TILE, n.y / TILE);
   return wm ? wm.id : 1;
@@ -152,7 +152,7 @@ function questEvent(kind, m) {
       q.raidsDone.push(m.typeId);
       q.progress = q.raidsDone.length;
       ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
-      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Vlotho zurück.', 'level');
+      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Kazehana zurück.', 'level');
     }
   }
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
@@ -168,7 +168,7 @@ function questEvent(kind, m) {
     if (st.progress >= STABLE_QUEST.count) {
       st.state = 'done';
       ui.banner('Prüfung bestanden', 'Kehre zu einem Stallmeister zurück');
-      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Vlotho oder beim Stallmeister in jedem Lager.', 'level');
+      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Kazehana oder beim Stallmeister in jedem Lager.', 'level');
     }
   }
   if (kind === 'kill' && q.side) {
@@ -218,6 +218,23 @@ function questMarker(npcId, n) {
   if (npcId === 'jaegerin') return (!q.hunt || q.hunt.progress >= q.hunt.count) && 'side';
   if (npcId === 'nachtwanderer' && n && typeof nightState === 'function') return nightState(n.key).state === 'open' && 'side';
   return false;
+}
+
+// Tod während der Stallmeister-Prüfung (seit 14.18): bis zu STABLE_QUEST.lives Tode sind erlaubt, der nächste beendet sie
+function stableOnDeath() {
+  const st = questState().stable;
+  if (!st || st.state !== 'active') return;
+  st.deaths = (st.deaths || 0) + 1;
+  const left = STABLE_QUEST.lives - st.deaths;
+  if (left < 0) {
+    st.state = 'open';
+    st.progress = 0;
+    ui.banner('Prüfung gescheitert', STABLE_QUEST.title);
+    ui.log(`Du bist ${st.deaths}-mal gefallen. Sprich mit einem Stallmeister, um die Prüfung noch einmal zu beginnen.`, 'warn');
+  } else {
+    ui.log(left ? `Prüfung des Stallmeisters: Du darfst noch ${left}-mal fallen.` : 'Prüfung des Stallmeisters: Fällst du noch einmal, ist sie gescheitert.', 'warn');
+  }
+  ui.renderQuestTrack();
 }
 
 // Zeitlimit der Stallmeister-Prüfung (läuft über die Spielzeit, auch nach dem Neuladen)
@@ -278,6 +295,8 @@ function riftDungeon(level, zone) {
 function updateRifts() {
   const p = game.player;
   const w = game.world;
+  // seit 14.17: Dungeon-Eingänge ziehen alle 3 Stunden um (dungeon-wandern.js)
+  if (typeof updateDungeonEntrances === 'function') updateDungeonEntrances();
   if (!p || p.dead || p.level < RIFT.minLevel) return;
   if (w.npcs.some((n) => n.id === 'riss' && game.time > n.until)) {
     w.npcs = w.npcs.filter((n) => n.id !== 'riss' || game.time <= n.until);
@@ -353,6 +372,34 @@ function stoneOnlyReward(reward) {
   return out;
 }
 
+// Ein Ausrüstungsteil als Quest-Belohnung (seit 14.21, QUEST_GEAR): eigene Klasse, Waffe passend zum Weg
+function questGearItem(kind, slot) {
+  const p = game.player;
+  const g = QUEST_GEAR[kind] || QUEST_GEAR.side;
+  const tier = rarityTierFor(p.level);
+  // nur Plätze, die die Figur auch tragen kann (Köcher nur beim Bogen, Schild nur beim Krieger mit Einhandwaffe …)
+  let slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), p.classId);
+  const wkind = questWeaponKind(p);
+  slots = slots.filter((sl) => (sl !== 'koecher' || wkind === 'bow') && (sl !== 'schild' || (offhandAllowsShield(p))));
+  slot = slot && slots.includes(slot) ? slot : slots[randInt(0, slots.length - 1)];
+  const item = makeItem(slot, tier, randInt(g.plus[0], g.plus[1]), p.classId, wkind);
+  return applyRarity(item, capRarity(rarityPick(g.rarity), tier));
+}
+function offhandAllowsShield(p) {
+  if (p.classId !== 'krieger') return false;
+  const w = p.equipment && p.equipment.waffe;
+  return !(w && WEAPON_KINDS[w.kind] && WEAPON_KINDS[w.kind].twoHanded && !p.titanGrip);
+}
+// Waffenart für die eigene Klasse und den eigenen Weg (nie die Waffe des anderen Wegs)
+function questWeaponKind(p) {
+  const need = typeof pathWeapon === 'function' ? pathWeapon(p) : null; // Weg mit fester Waffe (Ninja: Dolch oder Bogen)
+  if (need) return need;
+  const kinds = CLASS_WEAPON_KINDS[p.classId] || [];
+  const own = kinds.filter((k) => WEAPON_KINDS[k]?.path == null || WEAPON_KINDS[k].path === (p.path || 0));
+  const list = own.length ? own : kinds;
+  return list[randInt(0, list.length - 1)];
+}
+
 // big (seit 13.85): großer Lichteffekt wie beim Stufenaufstieg (Tagesbelohnung); Aufträge nur ein kleiner Blinker
 function giveReward(reward, xp, big = false) {
   reward = stoneOnlyReward(reward);
@@ -392,9 +439,18 @@ function giveReward(reward, xp, big = false) {
     parts.push(`${n} × ${MATERIALS.find((m) => m.id === id).name}`);
   }
   for (const [slot, tier, plus] of reward.items || []) {
-    const item = makeItem(slot, tier, plus);
+    // seit 14.21: Waffen passend zum eigenen Weg (vorher immer die erste Waffenart der Klasse)
+    const item = makeItem(slot, tier, plus, p.classId, slot === 'waffe' ? questWeaponKind(p) : null);
     if (addToBag(item)) parts.push(itemFullName(item));
     else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
+  }
+  // seit 14.21: Ausrüstung für die eigene Klasse (immer oder mit Chance, QUEST_GEAR)
+  if (reward.gear && Math.random() < (QUEST_GEAR[reward.gear] || {}).chance) {
+    const item = questGearItem(reward.gear);
+    if (addToBag(item)) {
+      parts.push(itemFullName(item));
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    } else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
   }
   ui.log('Belohnung: ' + parts.join(', ') + '.', 'level');
   if (big) vfxLevelUp(p);
@@ -427,6 +483,11 @@ function rewardHtml(reward, xp) {
     const item = makeItem(slot, tier, plus);
     li.push(`<img class="mini-icon" src="${itemIconUrl(item)}" alt=""> ${itemFullName(item)} <small>(ab Stufe ${ITEM_TIERS[tier].level})</small>`);
   }
+  if (reward.gear && QUEST_GEAR[reward.gear]) {
+    const g = QUEST_GEAR[reward.gear];
+    const lvl = ITEM_TIERS[rarityTierFor(game.player.level)].level;
+    li.push(`<b class="reward-gear">${g.chance >= 1 ? 'Ein Ausrüstungsteil' : `${Math.round(g.chance * 100)} % Chance auf ein Ausrüstungsteil`}</b> für deine Klasse <small>(Stufe ${lvl}, grün oder blau)</small>`);
+  }
   return '<ul class="reward-list">' + li.map((x) => `<li>${x}</li>`).join('') + '</ul>';
 }
 
@@ -435,11 +496,16 @@ function rewardHtml(reward, xp) {
 // Erledigte Aufträge gibt man dort ab, wo man sie angenommen hat: Hauptaufträge beim Ältesten, Nebenaufgaben beim
 // Wanderer, Jagden bei einer Jägerin. Oben im NPC-Fenster erscheint dafür eine Leiste. Nachtjagden brauchen keine
 // Abgabe – ihre Belohnung kommt sofort, egal wo man ist. Alle NPCs sind seit 13.52 Tag und Nacht da.
+// Hauptaufträge ohne festes Teil geben seit 14.21 ein Ausrüstungsteil für die eigene Klasse
+function mainReward(main) {
+  if (!main || main.goal.type === 'talk' || (main.reward && main.reward.items)) return main ? main.reward || {} : {};
+  return { ...(main.reward || {}), gear: 'main' };
+}
 function finishMainQuest() {
   const q = questState();
   const main = currentMainQuest();
   if (!main || !q.accepted || main.goal.type === 'talk' || !goalDone(main.goal, q.progress)) return false;
-  giveReward(main.reward, questXp(main.level, QUEST_XP[main.goal.type] || 0.25));
+  giveReward(mainReward(main), questXp(main.level, QUEST_XP[main.goal.type] || 0.25));
   q.main++;
   q.accepted = false;
   q.progress = 0;
@@ -452,7 +518,7 @@ function sideKills(n, s) {
 }
 function sideReward(n, s = sideState(n.key)) {
   const t = MONSTER_TYPES[sideMon(n, s)];
-  return { reward: { gold: t.level * 45, potions: 2 }, xp: sideXp(t.level, sideKills(n, s), s.times || 0) };
+  return { reward: { gold: t.level * 45, potions: 2, gear: 'side' }, xp: sideXp(t.level, sideKills(n, s), s.times || 0) };
 }
 // Jagden der Jägerin: die erste volle Erfahrung, danach wie jede Wiederholung (seit 13.88)
 function huntXp(h) {
@@ -476,7 +542,7 @@ function finishSideQuest(n) {
 }
 // Lohn einer Jagd: Gold und (seit 14.6 statt einer Verstärkung oder eines Switchers) Seelensplitter
 function huntReward(h) {
-  return { gold: h.gold, splinters: 2 + Math.floor((h.level || 1) / 15) };
+  return { gold: h.gold, splinters: 2 + Math.floor((h.level || 1) / 15), gear: 'hunt' };
 }
 function finishHunt() {
   const q = questState();
@@ -515,14 +581,19 @@ function readyTurnIns(npc) {
 
 function huntOffers() {
   const p = game.player;
-  const types = Object.entries(MONSTER_TYPES)
-    .filter(([, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && t.level <= p.level + 3 && t.level >= p.level - 6)
-    .sort((a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level));
+  // seit 14.18: nur Monster der Karte, auf der man den Auftrag annimmt (vorher nach Stufe aus der ganzen Welt –
+  // in der Rostschlucht gab es dann Aufträge für den Dunkelwald). Passt keins zur Stufe, die nächstliegenden der Karte.
+  const here = mapOfTile(p.x / TILE, p.y / TILE);
+  const local = new Set(ZONES.filter((z) => here && z.map === here.id && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])));
+  const ok = ([id, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && (!local.size || local.has(id));
+  const near = (a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level);
+  let types = Object.entries(MONSTER_TYPES).filter((e) => ok(e) && e[1].level <= p.level + 3 && e[1].level >= p.level - 6).sort(near);
+  if (types.length < 3) types = types.concat(Object.entries(MONSTER_TYPES).filter((e) => ok(e) && !types.includes(e)).sort(near)).slice(0, 3);
   const pool = types.length ? types : [['hund', MONSTER_TYPES.hund]];
   return pool.slice(0, 3).map(([id, t]) => {
     const count = 15 + Math.floor(Math.random() * 3) * 5;
     const level = Math.max(1, Math.min(p.level, t.level));
-    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10) };
+    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10), map: here ? here.id : 0 };
   });
 }
 
@@ -598,7 +669,7 @@ Object.assign(ui, {
     const st = q.stable;
     if (st.state === 'active' || st.state === 'done') {
       const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
-      const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
+      const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} · ❤ ${Math.max(0, STABLE_QUEST.lives - (st.deaths || 0))}` : '';
       row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time, 'stable');
     }
     if (q.side) for (const n of allWanderers()) {
@@ -687,7 +758,7 @@ Object.assign(ui, {
       `<p class="quest-step">${main.chapterTitle} · Auftrag ${step} von ${inChapter.length} · ab Stufe ${main.level}</p>` +
       `<h3>${main.title}</h3><p>„${main.text}“</p>` +
       `<p><strong>Ziel:</strong> ${goalText(main.goal)}${where}</p>` + bosses +
-      `<p><strong>Belohnung:</strong></p>${rewardHtml(main.reward, xp)}${action}`;
+      `<p><strong>Belohnung:</strong></p>${rewardHtml(mainReward(main), xp)}${action}`;
     const btn = body.querySelector('[data-quest]');
     if (btn) btn.addEventListener('click', () => {
       const travel = main.goal.type === 'talk';
@@ -810,7 +881,9 @@ Object.assign(ui, {
       });
       return;
     }
-    if (!q.offers) q.offers = huntOffers();
+    // Angebote gelten für die Karte, auf der sie gemacht wurden (seit 14.18)
+    const pm = game.player ? mapOfTile(game.player.x / TILE, game.player.y / TILE) : null;
+    if (!q.offers || q.offers.some((o) => (o.map || 0) !== (pm ? pm.id : 0))) q.offers = huntOffers();
     body.innerHTML = `<p>„Ich zahle gut für jede Bestie weniger da draußen. Such dir eine Jagd aus.“ <small class="hint-text">Erledigte Jagden: ${q.hunts}</small></p>` +
       '<div class="hunt-list">' + q.offers.map((o, i) =>
         `<div class="hunt-item"><strong>${o.count} × ${MONSTER_TYPES[o.monster].name}</strong> <small>Stufe ${MONSTER_TYPES[o.monster].level}</small>` +
@@ -909,11 +982,16 @@ Object.assign(ui, {
       if (st.state === 'open') action = '<button type="button" class="btn btn-primary" data-stable="start">Prüfung beginnen</button>';
       else if (st.state === 'active') {
         const left = Math.max(0, Math.ceil(st.deadline - p.playTime));
-        action = `<p class="hint-text">Fortschritt: ${st.progress} / ${STABLE_QUEST.count} · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} Minuten</p>` +
+        action = `<p class="hint-text">Fortschritt: ${st.progress} / ${STABLE_QUEST.count} · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} Minuten · ${Math.max(0, STABLE_QUEST.lives - (st.deaths || 0))} von ${STABLE_QUEST.lives} Leben übrig</p>` +
           '<button type="button" class="btn btn-ghost" data-stable="drop">Prüfung abbrechen</button>';
-      } else action = '<button type="button" class="btn btn-primary" data-stable="reward">Pferd abholen</button>';
+      } else {
+        const price = HORSES[1].price || 0;
+        action = `<p class="hint-text">Bestanden! Das Reitpferd kostet ${price.toLocaleString('de-DE')} Gold – du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>` +
+          `<button type="button" class="btn btn-primary" data-stable="reward" ${p.gold >= price ? '' : 'disabled'}>Reitpferd kaufen – ${price.toLocaleString('de-DE')} Gold</button>`;
+      }
       html = `<p class="quest-step main-quest">Hauptmission · ab Stufe ${STABLE_QUEST.level}</p><h3>${STABLE_QUEST.title}</h3><p>„${STABLE_QUEST.text}“</p>` +
-        `<p><strong>Ziel:</strong> ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in ${STABLE_QUEST.time / 60} Minuten besiegen</p>` +
+        `<p><strong>Ziel:</strong> ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in ${STABLE_QUEST.time / 60} Minuten besiegen – bis zu ${STABLE_QUEST.lives}-mal sterben ist erlaubt</p>` +
+        `<p class="hint-text">Danach kaufst du dein Reitpferd für ${(HORSES[1].price || 0).toLocaleString('de-DE')} Gold.</p>` +
         `<p><strong>Belohnung:</strong></p>${rewardHtml(STABLE_QUEST.reward, xp)}${action}`;
     }
     body.innerHTML = html;
@@ -937,6 +1015,7 @@ Object.assign(ui, {
       if (act === 'start') {
         st.state = 'active';
         st.progress = 0;
+        st.deaths = 0;
         st.deadline = p.playTime + STABLE_QUEST.time;
         ui.log(`Die Prüfung läuft: ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in 20 Minuten.`, 'info');
         ui.banner(STABLE_QUEST.title, 'Die Zeit läuft!');
@@ -944,6 +1023,10 @@ Object.assign(ui, {
         st.state = 'open';
         st.progress = 0;
       } else {
+        // seit 14.18: das Reitpferd kostet 100.000 Gold
+        const price = HORSES[1].price || 0;
+        if (p.gold < price) return;
+        p.gold -= price;
         giveReward(STABLE_QUEST.reward, xp);
         st.state = 'finished';
         ui.banner('Ein eigenes Pferd!', 'Pferdeknopf oder Taste R zum Aufsteigen');
@@ -1033,7 +1116,8 @@ Object.assign(ui, {
     body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name}. Allein schließt er sich, sobald du hindurchgehst; in einer Gruppe bleibt er offen, bis seine Zeit um ist.</p>` : '') +
       `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
       `<p>Drei Räume voller Monster: ${mobs}. Am Ende ${boss.name} (Stufe ${boss.level}), der ${bossInfo}.</p>` +
-      '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +3 bis +6, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
+      '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +1 bis +4, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
+      (!rift && typeof entryMovable === 'function' && entryMovable(dg) ? `<p class="hint-text">Dieser Eingang zieht alle 3 Stunden an einen anderen Ort der Karte – nächster Umzug in ${entryNextShiftText()}.</p>` : '') +
       `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Betreten'}</button>`;
     body.querySelector('[data-dg]').addEventListener('click', () => {
       const err = rift ? enterRift(npc) : enterDungeon(npc.dungeon);

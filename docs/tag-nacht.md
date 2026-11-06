@@ -25,7 +25,7 @@ Auf jeder Map kommen Nachtmonster dazu (`js/daten/nachtmonster.js`). Bei Tagesan
 |---|---|---|
 | 1 | Sonnenwiesen | Schattenwolf (7), Irrlicht (8) |
 | 4 | Dunkelwald | Nachtluchs (16), Mondspinne (17) |
-| 5 | Orktal | Grabhyäne (25), Nachtskorpion (27) |
+| 5 | Rostschlucht | Grabhyäne (25), Nachtskorpion (27) |
 | 6 | Ödland | Schattendämon (37), Aschegeist (38) |
 | 7 | Frostgipfel | Frostschatten (46), Nordlichtgeist (47) |
 | 8 | Totenmoor | Knochenwolf (56), Moorgeist (57) |
@@ -41,7 +41,7 @@ Auf jeder Map kommen Nachtmonster dazu (`js/daten/nachtmonster.js`). Bei Tagesan
 
 - Die Wanderer des Tages schlafen.
 - Auf jeder Map ist dafür ein **Nachtwanderer** unterwegs.
-- In Vlotho schlafen das Kind und der Bauer. Die **Nachtwächterin Yuki** und ein Laternenanzünder sind unterwegs.
+- In Kazehana schlafen das Kind und der Bauer. Die **Nachtwächterin Yuki** und ein Laternenanzünder sind unterwegs.
 
 ### Nachtjagden
 

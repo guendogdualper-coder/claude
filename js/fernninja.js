@@ -369,7 +369,8 @@ SKILL_TYPES.bshot = function (sk, pw, lvl) {
     const last = k === n - 1;
     const mul = spec.dmg * (last ? sk.lastMul || 1 : 1) * pw * ar.mul;
     spawnProjectile({ owner: 'player', x: m.x, y: m.y, target: tt, dir: tt ? null : f, speed: sk.speed, range: sk.range + 60, mul, color: col,
-      radius: 6, style: 'arrow', skill: sk.id, knockback: last ? sk.knockback : 0, bfx: last ? 'falke' : 'salvo', arrow: ar.sort, afterHit: last ? salvoLastHit : null });
+      radius: 6, style: 'arrow', skill: sk.id, knockback: last ? sk.knockback : 0, bfx: last ? 'falke' : 'salvo', arrow: ar.sort, afterHit: last ? salvoLastHit : null,
+      focusOnly: true }); // seit 14.17: mit Ziel nur das Ziel, durch andere Monster hindurch
     bowShotFx(p, sk.color);
     shakeScreen(last ? 1.8 : 0.8);
   }));
@@ -515,7 +516,8 @@ MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
 // Rangfarbe. Alle Splitter kommen aus einem Samen (seed): Mitspieler sehen dasselbe Bild.
 // rel: Abschuss nach dem Wirken (wie die Salve, BOW_SALVO.first); Flugzeit fly0 + Entfernung / speed;
 // stick/sink: so lange stecken die Splitter, bevor sie einsinken und zu Schatten zerfallen; up: Bogen gehoben (Pose)
-const BOW_SPLIT = { rel: 0.2, fly0: 0.32, speed: 1150, stick: 1.1, sink: 0.5, up: 0.5 };
+// spike: so lange nach dem Einschlag brechen die Schattendornen aus dem Boden (zweiter Treffer, seit 14.18)
+const BOW_SPLIT = { rel: 0.2, fly0: 0.32, speed: 1150, stick: 1.1, sink: 0.5, up: 0.5, spike: 0.55 };
 function splitFlight(ox, oy, x, y) {
   return BOW_SPLIT.fly0 + Math.hypot(x - ox, y - oy) / BOW_SPLIT.speed;
 }
@@ -531,11 +533,11 @@ SKILL_TYPES.bsplitter = function (sk, pw) {
   const y = Math.round(pt.y);
   const seed = Math.floor(Math.random() * 1000);
   later(BOW_SPLIT.rel, () => { if (!p.dead) bowShotFx(p, sk.color); });
-  splitFx(p, x, y, sk, seed, true, sk.dmg * pw * ar.mul, ar.color);
+  splitFx(p, x, y, sk, seed, true, sk.dmg * pw * ar.mul, ar.color, (sk.spikeDmg || 0) * pw * ar.mul);
   return { tx: x, ty: y, sd: seed, c: ar.color };
 };
 // Bild (für alle gleich) und Einschlag (local = eigener Spieler: Schaden; sonst nur Bild und Klang)
-function splitFx(owner, x, y, sk, seed, local, mul, color) {
+function splitFx(owner, x, y, sk, seed, local, mul, color, mul2 = 0) {
   const rk = fxRank >= 0 ? fxRank : -1;
   const fly = splitFlight(owner.x, owner.y, x, y);
   const hit = BOW_SPLIT.rel + fly;
@@ -557,6 +559,16 @@ function splitFx(owner, x, y, sk, seed, local, mul, color) {
     for (const m of enemiesInCircle(x, y, sk.radius)) {
       hitMonster(m, mul, { skill: sk.id, slow: sk.slow, heavy: true, vfxColor: '#b48cff' });
       if (canLift(m)) m.lift = { start: game.time, dur: 0.3, h: 10 };
+    }
+  });
+  // zweiter Treffer (seit 14.18): Schattendornen brechen aus dem Boden der ganzen Fläche, verlangsamen erneut
+  later(hit + BOW_SPLIT.spike, () => {
+    if (typeof snd !== 'undefined') snd.player('imp_schatten', { x, y, vol: mine ? 0.4 : 0.25, rate: 1.15 });
+    if (mine) shakeScreen(2.5);
+    if (!local || owner.dead || !mul2) return;
+    for (const m of enemiesInCircle(x, y, sk.radius)) {
+      hitMonster(m, mul2, { skill: sk.id, slow: sk.slow, vfxColor: '#8a5ae0' });
+      if (canLift(m)) m.lift = { start: game.time, dur: 0.25, h: 14 };
     }
   });
 }
@@ -705,7 +717,7 @@ function bowSkillStats(sk, lvl, out) {
   }
   if (sk.type === 'bpierce') out.push(['Durchbohrt', ''], ['Linie', String(sk.range)]);
   // seit 14.16 Splitterfalke (Schaden zeigt skillStats): ein Treffer an allen Gegnern im Kreis
-  if (sk.type === 'bsplitter') out.push(['Fläche', 'r ' + sk.radius + ' · alle Gegner'], ['Reichweite', String(sk.range)],
+  if (sk.type === 'bsplitter') out.push(['Schattendornen', `danach ${dmg(sk.spikeDmg || 0)} · verlangsamt erneut`], ['Fläche', 'r ' + sk.radius + ' · alle Gegner'], ['Reichweite', String(sk.range)],
     ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`], ['Pfeilverbrauch', String(sk.arrows)]);
   const p = game.player;
   const i = p ? bowArrowSort(p) : -1;
@@ -1994,16 +2006,35 @@ FX3_DRAW.bsplit3 = function (h, e) {
     const yy = 0.4 + (1.4 + 1.2 * n2h(k, e.seed + 53)) * Math.sin(Math.min(1, q * 1.6) * Math.PI * 0.5) - q * q * 1.2;
     bowFeather3(h, x + Math.cos(an) * r + Math.sin(ti * 5 + k) * 0.12, Math.max(0.1, yy), z + Math.sin(an) * r * 0.85, 0.32, an + ti * 4, 1 - q);
   }
-  // der Geist des Falken steigt mit langsamen Flügelschlägen aus dem Rauch auf und verweht
-  if (ti > 0.12 && ti < 1.4) {
-    const q = (ti - 0.12) / 1.28;
-    _bspD.set(0, 0.45, -0.9).normalize();
-    const op = Math.sin(Math.min(1, q * 3) * Math.PI * 0.5) * (1 - q * q);
-    // nur die dunklen Flächen (ohne additiven Schein: der machte den Falken auf hellem Gras grauweiß)
-    n3Glow(h, x, 1.0 + easeOut(q) * 2.8, z - q * 0.8, 1.4, rcol || '#5a2aa8', 0.3 * op);
-    bowFalcon3(h, x, 1.0 + easeOut(q) * 2.8, z - q * 0.8, _bspD, 2.6 + q * 0.8, Math.sin(ti * 9) * 0.55, 0.95 * op, true);
+  // seit 14.18 statt des aufsteigenden Falkengeists: Schattendornen brechen aus dem Boden der ganzen Fläche
+  // (zweiter Treffer, BOW_SPLIT.spike nach dem Einschlag). Schwarzviolette Zacken schießen in Wellen von innen nach
+  // außen hoch, stehen kurz, ziehen sich wieder in den Boden zurück; an ihrem Fuß quillt dunkler Rauch.
+  const ts = ti - BOW_SPLIT.spike;
+  if (ts > -0.05 && ts < 1.0) {
+    const nS = low ? 9 : 18;
+    for (let k = 0; k < nS; k++) {
+      const ring = k < 4 ? 0.25 : k < 10 ? 0.6 : 0.9;
+      const an = n2h(k, e.seed + 70) * Math.PI * 2;
+      const rr = R * ring * (0.75 + 0.35 * n2h(k, e.seed + 71));
+      const gx = x + Math.cos(an) * rr;
+      const gz = z + Math.sin(an) * rr * 0.9;
+      const tk = ts - ring * 0.12; // Welle von innen nach außen
+      if (tk < 0 || tk > 0.75) continue;
+      const up = tk < 0.1 ? easeOut(tk / 0.1) : tk < 0.45 ? 1 : 1 - (tk - 0.45) / 0.3;
+      const s = (1.5 + 1.2 * n2h(k, e.seed + 72)) * (1.1 - ring * 0.3);
+      const tilt = 0.18 + 0.2 * n2h(k, e.seed + 73);
+      _bspD.set(Math.cos(an) * tilt, 1, Math.sin(an) * tilt).normalize();
+      _bspC.set(gx, -0.45 * s * (1 - up), gz);
+      splitShard3(h, _bspC, _bspD, s, Math.max(0, up), rcol || gcCol(e), 0.5 * up);
+      if (tk < 0.25) n3Smoke(h, gx, 0.15 + tk, gz, 0.35 + tk * 1.2, k % 2 ? BOW3.smoke : '#1a0e28', 0.5 * (1 - tk / 0.25));
+    }
+    if (!low && ts > 0 && ts < 0.18) n3Glow(h, x, 0.3, z, R * 0.9, rcol || '#6a2ad0', 0.35 * (1 - ts / 0.18));
   }
 };
+// Leuchtfarbe der Splitter (wie im Einschlag: Rangfarbe, sonst Pfeilfarbe)
+function gcCol(e) {
+  return e.color || '#8a5ae0';
+}
 
 // Schattenschritt (seit 13.67, seit 13.70 deutlich aufwendiger): Die Figur zerfällt von den Füßen aufwärts in
 // schwarzvioletten Rauch, Schattenranken peitschen aus dem Boden, ein Schattenfalke reißt eine violette Spur zum Ziel.
@@ -2716,6 +2747,32 @@ EXTRA_EFFECTS.bsplit3 = (ctx, e, k, x, y) => {
     ctx.moveTo(sx, sy);
     ctx.lineTo(sx + Math.cos(a) * 4, sy - 9);
     ctx.stroke();
+  }
+  // Schattendornen (seit 14.18): dunkle Zacken schießen in einer Welle aus dem Boden der Fläche
+  const ts = ti - BOW_SPLIT.spike;
+  if (ts > 0 && ts < 0.9) {
+    ctx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 16; i++) {
+      const ring = i < 4 ? 0.25 : i < 9 ? 0.6 : 0.9;
+      const tk = ts - ring * 0.12;
+      if (tk < 0 || tk > 0.75) continue;
+      const up = tk < 0.1 ? tk / 0.1 : tk < 0.45 ? 1 : 1 - (tk - 0.45) / 0.3;
+      const a = n2h(i, e.seed + 70) * Math.PI * 2;
+      const d = e.R * ring * (0.75 + 0.35 * n2h(i, e.seed + 71));
+      const bx = x + Math.cos(a) * d;
+      const by = y + Math.sin(a) * d * 0.6;
+      const hh = (18 + 14 * n2h(i, e.seed + 72)) * up;
+      ctx.globalAlpha = 0.9 * up;
+      ctx.fillStyle = '#2a1a42';
+      ctx.beginPath();
+      ctx.moveTo(bx - 4, by);
+      ctx.lineTo(bx + Math.cos(a) * 3, by - hh);
+      ctx.lineTo(bx + 4, by);
+      ctx.fill();
+      ctx.strokeStyle = '#b48cff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
   }
   ctx.restore();
 };

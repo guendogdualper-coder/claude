@@ -52,7 +52,7 @@ function onSocial(pid, d) {
   if (d.k === 'hh') {
     const pct = Math.max(0, Math.min(0.3, Number(d.pct) || 0));
     if (p.dead || !pct || !game.stats) return;
-    const a = Math.round(game.stats.maxHp * pct);
+    const a = Math.round(game.stats.maxHp * pct * pvpHealMul()); // im PvP zu 60 % (seit 14.15)
     p.hp = Math.min(game.stats.maxHp, p.hp + a);
     addText(p.x + rand(-6, 6), p.y - 44, '+' + a, 'heal');
     return;
@@ -284,7 +284,9 @@ const social = {
       `<button type="button" class="mini-btn primary" data-pend="${i}:yes">Annehmen</button><button type="button" class="mini-btn" data-pend="${i}:no">Ablehnen</button></div>`).join('');
     const tabs = `<div class="soc-tabs"><button type="button" class="bag-tab${this.tab === 'freunde' ? ' on' : ''}" data-tab="freunde">Freunde <small>${(p.friends || []).length}</small></button>` +
       `<button type="button" class="bag-tab${this.tab === 'gilde' ? ' on' : ''}" data-tab="gilde">Gilde${p.guild ? ` <small>${p.guild.members.length}</small>` : ''}</button>` +
-      `<button type="button" class="bag-tab${this.tab === 'gruppe' ? ' on' : ''}" data-tab="gruppe">Gruppe${game.party ? ` <small>${game.party.members.length}</small>` : ''}</button></div>`;
+      `<button type="button" class="bag-tab${this.tab === 'gruppe' ? ' on' : ''}" data-tab="gruppe">Gruppe${game.party ? ` <small>${game.party.members.length}</small>` : ''}</button>` +
+      // Bestenliste (bestenliste.js): am Handy passt im Menü oben nicht immer ein Knopf mehr, hier ist sie immer erreichbar
+      (typeof rankOpen === 'function' ? '<button type="button" class="bag-tab soc-rank" data-rank-open>🏆 Bestenliste</button>' : '') + '</div>';
     let html = '';
     if (this.tab === 'gruppe') {
       html = partyPanelHtml();
@@ -335,6 +337,8 @@ const social = {
     body.innerHTML = pend + tabs + '<p id="socialMsg" class="gear-msg"></p>' + html;
     partyPanelBind(body);
     body.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => { this.tab = b.dataset.tab; this.confirm = null; this.render(); }));
+    const rk = body.querySelector('[data-rank-open]');
+    if (rk) rk.addEventListener('click', () => rankOpen());
     body.querySelectorAll('[data-friend]').forEach((b) => b.addEventListener('click', () => askFriend(b.dataset.friend)));
     body.querySelectorAll('[data-unfriend]').forEach((b) => b.addEventListener('click', () => removeFriend(b.dataset.unfriend)));
     body.querySelectorAll('[data-invite]').forEach((b) => b.addEventListener('click', () => inviteGuild(b.dataset.invite)));

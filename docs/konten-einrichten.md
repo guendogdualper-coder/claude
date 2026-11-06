@@ -303,3 +303,45 @@ Was die neuen Regeln sicherstellen:
   ohne dass es das Konto noch gibt (selten, kann in der Konsole gelöscht werden).
 - Ist das Spiel mit dem Konto auf einem anderen Gerät noch offen, gilt dessen Anmeldeschlüssel noch bis zu einer Stunde; lädt es in der
   Zeit hoch, entsteht `konten/<alte uid>` neu (ohne Konto dahinter). Danach meldet das Gerät sich von selbst ab.
+
+## Bestenliste
+
+Das Fenster **Bestenliste** (Startbildschirm, im Spiel Taste P bzw. Menü, am Handy auch unter „Freunde & Gilde“) zeigt die
+besten 50 Charaktere nach **Stufe** und nach **Rangpunkten der Turnierarena**. Die Einträge liegen unter
+`rangliste/<uid>_<platz>` als `{ name, cls, path, level, xp, rp, liga, at }` (ein Eintrag je Charakterplatz). Das Spiel
+schreibt sie nach dem Hochladen ins Konto (`js/bestenliste.js`): Stufe, Rangpunkte, Name, Klasse oder Weg geändert →
+sofort, nur Erfahrung → höchstens alle 5 Minuten. Gelöschte Charaktere verlieren ihren Eintrag beim nächsten Abgleich,
+„Konto löschen“ entfernt alle Einträge des Kontos.
+
+**Die Regeln müssen dafür neu eingespielt werden**, sonst zeigt das Fenster „Bestenliste gerade nicht erreichbar“ (das
+Spiel läuft trotzdem normal weiter): Firebase-Konsole → **Build → Realtime Database** → Reiter **Regeln** → alles durch den
+Inhalt von `docs/firebase-regeln.json` ersetzen → **Veröffentlichen**. Neu darin ist nur dieser Teil:
+
+```json
+"rangliste": {
+  ".read": true,
+  ".indexOn": ["level", "rp"],
+  "$id": {
+    ".write": "auth != null && $id.beginsWith(auth.uid + '_') && $id.length === auth.uid.length + 2",
+    ".validate": "newData.hasChildren(['name', 'cls', 'level', 'xp', 'rp', 'at'])",
+    "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 16" },
+    "cls": { ".validate": "newData.isString() && newData.val().matches(/^[a-z]{3,20}$/)" },
+    "path": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9" },
+    "level": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 80" },
+    "xp": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+    "rp": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000" },
+    "liga": { ".validate": "newData.isString() && newData.val().length <= 12" },
+    "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
+    "$other": { ".validate": false }
+  }
+}
+```
+
+- `.read: true`: Die Liste kann jeder lesen, auch ohne Anmeldung (Startbildschirm). Sichtbar sind nur Charaktername,
+  Klasse, Weg, Stufe, Erfahrung und Rangpunkte – und die uid im Schlüssel, aber kein Kontoname.
+- Schreiben darf jedes Konto nur unter dem eigenen uid-Präfix (`<uid>_` plus eine Ziffer für den Platz).
+- `.indexOn` ist nötig, weil das Spiel mit `orderBy="level"` bzw. `orderBy="rp"` und `limitToLast=100` abfragt; ohne Index
+  lehnt der Server die Abfrage ab.
+- Das Spiel blendet zusätzlich unplausible Einträge aus (Stufe über 80, Rangpunkte unter Stufe 10, unbekannte Klasse) und zeigt
+  Namen nur als Text. Wer die Werte über die Schnittstelle fälscht, kann trotzdem eine falsche Stufe bis 80 eintragen –
+  solche Einträge in der Konsole unter `rangliste` löschen.

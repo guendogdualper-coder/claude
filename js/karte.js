@@ -117,6 +117,13 @@ const MAP_TREE_LOOK = {
   [OBJ.DEADTREE]: ['#5e4636', '#6e5444', '#94785e', 0.34]
 };
 const MAP_STAND_COLORS = ['#b8452e', '#2e6ab8', '#c89a2e', '#3a8a4a', '#8a3ab8', '#2e9aa0'];
+// Mauern auf der Karte je Art (seit 14.16): Umriss, Fläche, helle Oberkante
+const MAP_WALL_LOOK = {
+  stein: ['#2c2a30', '#a8a298', '#d2ccc0'],
+  palisade: ['#2a1a0e', '#7a5434', '#a8804e'],
+  terrasse: ['#3a3a44', '#9a9aa4', '#f2f6fa'],
+  kristall: ['#1a1430', '#6a5ac8', '#c8bfff']
+};
 
 // weicher Mittelwert über (2r+1)² Kacheln, am Rand geklemmt (getrennt nach x und y, gleitende Summe)
 function mapBlur(src, W, H, r) {
@@ -512,10 +519,18 @@ function* buildWorldArt(area, S) {
   const wallDark = new Path2D();
   const wallStone = new Path2D();
   const wallTop = new Path2D();
+  // seit 14.16: Palisade, Stützmauer und Kristallwand in eigenen Farben (welt.js WALL_STYLE)
+  const styled = {};
   for (let y = ty0; y <= ty1; y++) {
     for (let x = tx0; x <= tx1; x++) {
       const i = at(x, y);
-      if (w.obj[i] === OBJ.WALL) {
+      const ws = w.obj[i] === OBJ.WALL ? WALL_STYLE.get((area.y + y) * MAP_W + area.x + x) : null;
+      if (ws) {
+        const P = styled[ws] || (styled[ws] = [new Path2D(), new Path2D(), new Path2D()]);
+        P[0].rect(x * S - 1, y * S - 1, S + 2, S + 2);
+        P[1].rect(x * S + 0.5, y * S + 0.5, S - 1, S - 1);
+        P[2].rect(x * S + 0.5, y * S + 0.5, S - 1, S * 0.35);
+      } else if (w.obj[i] === OBJ.WALL) {
         wallDark.rect(x * S - 1, y * S - 1, S + 2, S + 2);
         wallStone.rect(x * S + 0.5, y * S + 0.5, S - 1, S - 1);
         wallTop.rect(x * S + 0.5, y * S + 0.5, S - 1, S * 0.35);
@@ -533,6 +548,15 @@ function* buildWorldArt(area, S) {
   cx.fill(wallStone);
   cx.fillStyle = '#b8b2a8';
   cx.fill(wallTop);
+  for (const [ws, P] of Object.entries(styled)) {
+    const [dark, base, top] = MAP_WALL_LOOK[ws];
+    cx.fillStyle = dark;
+    cx.fill(P[0]);
+    cx.fillStyle = base;
+    cx.fill(P[1]);
+    cx.fillStyle = top;
+    cx.fill(P[2]);
+  }
   const inArt = (px, py) => px >= area.x * TILE && py >= area.y * TILE && px < (area.x + W) * TILE && py < (area.y + H) * TILE;
   const AX = (px) => (px / TILE - area.x) * S;
   const AY = (py) => (py / TILE - area.y) * S;
@@ -540,20 +564,21 @@ function* buildWorldArt(area, S) {
     if (!inArt(pr.x, pr.y)) continue;
     const px = AX(pr.x);
     const py = AY(pr.y) - S * 0.5;
-    if (pr.type === 'tower') {
+    if (TOWER_TYPES.has(pr.type)) {
+      const [dark, base, top] = MAP_WALL_LOOK[pr.type === 'holzturm' ? 'palisade' : pr.type === 'kristallturm' ? 'kristall' : 'stein'];
       cx.fillStyle = 'rgba(0,0,0,0.35)';
       cx.beginPath();
       cx.arc(px + S * 0.25, py + S * 0.3, S * 0.95, 0, MAP_TAU);
       cx.fill();
-      cx.fillStyle = '#2c2a30';
+      cx.fillStyle = dark;
       cx.beginPath();
       cx.arc(px, py, S * 0.95, 0, MAP_TAU);
       cx.fill();
-      cx.fillStyle = '#a8a298';
+      cx.fillStyle = base;
       cx.beginPath();
       cx.arc(px, py, S * 0.72, 0, MAP_TAU);
       cx.fill();
-      cx.fillStyle = '#d2ccc0';
+      cx.fillStyle = top;
       cx.beginPath();
       cx.arc(px - S * 0.2, py - S * 0.22, S * 0.3, 0, MAP_TAU);
       cx.fill();
@@ -749,9 +774,10 @@ function buildMapArt(area, S) {
   for (let y = 0; y < area.h; y++) {
     for (let x = 0; x < area.w; x++) {
       if (w.obj[(area.y + y) * MAP_W + area.x + x] !== OBJ.WALL) continue;
-      cx.fillStyle = '#3c3e48';
+      const look = MAP_WALL_LOOK[WALL_STYLE.get((area.y + y) * MAP_W + area.x + x)];
+      cx.fillStyle = look ? look[0] : '#3c3e48';
       cx.fillRect(x * S - 0.5, y * S - 0.5, S + 1, S + 1);
-      cx.fillStyle = '#7a7e8e';
+      cx.fillStyle = look ? look[2] : '#7a7e8e';
       cx.fillRect(x * S + 1, y * S + 1, S - 2, S * 0.4);
     }
   }
@@ -1155,6 +1181,8 @@ function drawMapMarks(ctx, v, area) {
     ctx.fillRect(x - s, y - s, s * 2, s * 2);
     ctx.strokeRect(x - s, y - s, s * 2, s * 2);
   }
+  // Teleportsteine (seit 14.16): kleines Zeichen, auf der großen Karte mit Linie zum Partner (teleportsteine.js)
+  if (typeof tpDrawMap === 'function') tpDrawMap(ctx, X, Y, inside, u, v.big);
   // Bewohner, Tore, Risse, Auftraggeber
   const labels = v.big ? [] : null;
   // seit 13.91: gleiche Namen dicht beieinander nur einmal (am Weltentor standen zwei)
@@ -1568,7 +1596,7 @@ function drawZoneLabels(ctx, area, v) {
     let x;
     let y;
     if (z.safe) {
-      // Vlotho über dem Dorf, Lager und Städte darunter (über ihnen steht das Weltentor)
+      // Kazehana über dem Dorf, Lager und Städte darunter (über ihnen steht das Weltentor)
       x = wm.cx;
       // seit 13.91 überall über der Stadt (darunter liegt das Tor zum Endboss)
       y = wm.cy - (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) - 3;

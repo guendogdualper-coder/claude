@@ -383,7 +383,7 @@ Set of six faint ghost silhouette icons for empty equipment slots in a 2D fantas
 
 ### Reisen mit der Wegweiserin
 ```
-2D fantasy MMORPG travel window UI mockup in East Asian style: list of regions with level ranges and gold prices (Sonnenwiesen, Dunkelwald, Orktal, Ödland, Frostgipfel, Totenmoor, Feuerberg), each row with a small brass button. In the game world next to it a stone circle teleport gate with a glowing blue rune and a pillar of blue light as the hero vanishes. Dark lacquer and brass style.
+2D fantasy MMORPG travel window UI mockup in East Asian style: list of regions with level ranges and gold prices (Sonnenwiesen, Dunkelwald, Rostschlucht, Ödland, Frostgipfel, Totenmoor, Feuerberg), each row with a small brass button. In the game world next to it a stone circle teleport gate with a glowing blue rune and a pillar of blue light as the hero vanishes. Dark lacquer and brass style.
 ```
 
 ### Zwei Wege je Klasse
@@ -918,16 +918,16 @@ Mobile game trade window, dark leather and gold fantasy style: two panels side b
 Mobile game inspect window, dark fantasy style: a framed chibi warrior doll wearing purple soul armor, helmet, shoulders and a cape, eight equipment slots around it with +5 badges, small green and red arrows comparing them to your own gear, and on the right the detail card of his sword with stats and bonuses. Clean readable UI.
 ```
 
-## Vlotho, Ping, neue Symbole und Aussehen (Version 3.5)
+## Kazehana, Ping, neue Symbole und Aussehen (Version 3.5)
 
-### Die Stadt Vlotho
+### Die Stadt Kazehana
 ```
-2D fantasy MMORPG town square, three-quarter top-down view, cozy East Asian inspired style: a walled town with stone gates, curved roofs, lanterns, market stalls, a well and a portal ring; a wooden sign and a golden banner text "Vlotho" floating over the square, chibi heroes and merchants walking around. Cute game art, bold outlines, warm afternoon light.
+2D fantasy MMORPG town square, three-quarter top-down view, cozy East Asian inspired style: a walled town with stone gates, curved roofs, lanterns, market stalls, a well and a portal ring; a wooden sign and a golden banner text "Kazehana" floating over the square, chibi heroes and merchants walking around. Cute game art, bold outlines, warm afternoon light.
 ```
 
 ### Ping unter der Karte
 ```
-Mobile game minimap corner, fantasy style: a round minimap with the town name "Vlotho", below it a tiny status line with a battery, the time "14:32" and green signal bars with "68 ms"; a second variant shows grey bars and "offline". Small, crisp, readable on a phone.
+Mobile game minimap corner, fantasy style: a round minimap with the town name "Kazehana", below it a tiny status line with a battery, the time "14:32" and green signal bars with "68 ms"; a second variant shows grey bars and "offline". Small, crisp, readable on a phone.
 ```
 
 ### Rucksack und Beutesack
@@ -1022,7 +1022,7 @@ CHARACTERS – chibi proportions: head about 40 % of the body height, big friend
 
 OUTLINE AND SHADING – thin dark-brown outline (#1a1210) around every object, like a cel-shaded cartoon; soft three- to four-step toon shading with a smooth falloff instead of hard bands; a warm rim light from the sun side; ambient occlusion under arms, roofs and tree crowns; soft round contact shadows plus real cast shadows from a warm afternoon sun in the south-east.
 
-LIGHT AND COLOR – warm, saturated but not neon. Sky light pale blue from above, bounce light from the ground. Each region has its own mood: Sonnenwiesen sunny green with flowers and pollen, Dunkelwald deep green with fireflies and blue fog, Orktal dusty ochre, Ödland grey-brown ash, Frostgipfel white-blue snow with sparkling ice, Totenmoor murky green with will-o'-wisps, Feuerberg black basalt with glowing lava rivers and embers, Schlangental golden sand with oases, Donnerklamm grey canyon with storm-blue light. Dungeons are dark caves lit by colored braziers.
+LIGHT AND COLOR – warm, saturated but not neon. Sky light pale blue from above, bounce light from the ground. Each region has its own mood: Sonnenwiesen sunny green with flowers and pollen, Dunkelwald deep green with fireflies and blue fog, Rostschlucht dusty ochre, Ödland grey-brown ash, Frostgipfel white-blue snow with sparkling ice, Totenmoor murky green with will-o'-wisps, Feuerberg black basalt with glowing lava rivers and embers, Schlangental golden sand with oases, Donnerklamm grey canyon with storm-blue light. Dungeons are dark caves lit by colored braziers.
 
 MATERIALS – plaster walls cream, dark timber posts, glazed roof tiles in red, teal, plum and moss green, polished metal with a soft highlight, cloth with soft folds, water translucent blue-green with gentle waves and a bright shoreline foam, lava glowing orange with dark crust, ice glossy pale blue.
 
@@ -1057,7 +1057,7 @@ Bosses are two to three times larger, with a pulsing colored aura on the ground.
 ### Welt und Gebiete
 ```
 Stylized 3D fantasy landscape diorama, three-quarter top-down view, smooth rounded shapes, soft toon shading, warm sunlight with long soft shadows:
-the walled village Vlotho in the center – square palisade/stone wall with four corner towers, two gate arches with red roofs, a cobblestone plaza with a well, market stalls with striped awnings, paper lanterns, cream plaster houses with dark timber posts and curved glazed-tile roofs with upturned corners, barrels, crates, training targets, herb garden, a stable with a horse and hay bales.
+the walled village Kazehana in the center – square palisade/stone wall with four corner towers, two gate arches with red roofs, a cobblestone plaza with a well, market stalls with striped awnings, paper lanterns, cream plaster houses with dark timber posts and curved glazed-tile roofs with upturned corners, barrels, crates, training targets, herb garden, a stable with a horse and hay bales.
 Around it the regions: flower meadows with cherry blossom trees, a dark pine forest, an ochre orc valley with rocks, a grey ash wasteland with dead trees, snowy frost peaks with frozen lakes, a misty swamp with bog pools, a volcano with glowing lava rivers. Four dirt roads lead from the village gates to the edges; small wooden bridges cross rivers. Ground types blend softly into each other, no visible tile grid. Water has gentle animated waves and light foam at the shore.
 ```
 
@@ -1158,19 +1158,19 @@ Character sheet of four stylized 3D chibi fantasy classes, each shown as a male 
 
 ### Auftragsliste
 ```
-Compact quest tracker for a landscape mobile MMORPG UI on the right side next to the minimap: dark translucent wood-brown panel with brass border, header "Aufträge" with a count and a fold arrow. Each quest: a golden (main) or green (side) exclamation mark and title, a thin progress bar with "3/10", and a small blue location line with a pin icon "Sonnenwiesen · Map Vlotho". Clean, readable at phone size.
+Compact quest tracker for a landscape mobile MMORPG UI on the right side next to the minimap: dark translucent wood-brown panel with brass border, header "Aufträge" with a count and a fold arrow. Each quest: a golden (main) or green (side) exclamation mark and title, a thin progress bar with "3/10", and a small blue location line with a pin icon "Sonnenwiesen · Map Kazehana". Clean, readable at phone size.
 ```
 
 ### Schmied-Teile mit Fundort
 ```
-Blacksmith upgrade materials UI: a row of small material chips (wolf fur, orc tooth, frost crystal) with counts; tapping one opens a dark tooltip with a brass border: "Wolfspelz: fällt von Wolf (Stufe 3). Fundort: Sonnenwiesen · Map Vlotho". Cozy East-Asian fantasy style.
+Blacksmith upgrade materials UI: a row of small material chips (wolf fur, orc tooth, frost crystal) with counts; tapping one opens a dark tooltip with a brass border: "Wolfspelz: fällt von Wolf (Stufe 3). Fundort: Sonnenwiesen · Map Kazehana". Cozy East-Asian fantasy style.
 ```
 
 ## Große Maps mit Städten und Weltportalen (Version 4.5)
 
 ### Weltkarte
 ```
-Illustrated world map for a cozy East-Asian fantasy MMORPG, three separate regions shown as parchment map panels that are not connected by land. Map 1 "Vlotho": a large walled city with curved roofs in the center, concentric regions around it getting more dangerous outward – green Sonnenwiesen with cherry trees (level 1–9), dark pine Dunkelwald (10–19), dusty Orktal (20–29), grey Ödland (30–39), snowy Frostgipfel (40–49), misty Totenmoor (50–59) and the volcanic Feuerberg in the corners (60–70); four roads from the city gates to the edge, dungeon entrances beside the roads. Map 2 "Schlangental": the desert oasis city Sahra in the middle with palms, sandstone houses and a glowing world gate, a snake desert around it (30–39) and a swampy naga jungle outside (40–50). Map 3 "Donnerklamm": the stone fortress city Klammfeste in a canyon, troll and minotaur cliffs around it (50–61), the lava ridge of the titans outside (62–75). In every map a glowing stone world portal sits in the top-left and bottom-right area, with arrows showing travel to the other maps. Soul stones marked as small glowing eggs, stronger toward the edges. Hand-painted, warm colors, clear labels.
+Illustrated world map for a cozy East-Asian fantasy MMORPG, three separate regions shown as parchment map panels that are not connected by land. Map 1 "Kazehana": a large walled city with curved roofs in the center, concentric regions around it getting more dangerous outward – green Sonnenwiesen with cherry trees (level 1–9), dark pine Dunkelwald (10–19), dusty Rostschlucht (20–29), grey Ödland (30–39), snowy Frostgipfel (40–49), misty Totenmoor (50–59) and the volcanic Feuerberg in the corners (60–70); four roads from the city gates to the edge, dungeon entrances beside the roads. Map 2 "Schlangental": the desert oasis city Sahra in the middle with palms, sandstone houses and a glowing world gate, a snake desert around it (30–39) and a swampy naga jungle outside (40–50). Map 3 "Donnerklamm": the stone fortress city Klammfeste in a canyon, troll and minotaur cliffs around it (50–61), the lava ridge of the titans outside (62–75). In every map a glowing stone world portal sits in the top-left and bottom-right area, with arrows showing travel to the other maps. Soul stones marked as small glowing eggs, stronger toward the edges. Hand-painted, warm colors, clear labels.
 ```
 
 ### Stadt in Map 2 und 3
@@ -1221,7 +1221,7 @@ STYLE: stylized 3D toy-like fantasy MMORPG in the spirit of classic East-Asian o
 
 ### Welt und Regionen
 ```
-[STYLE] Map 1 "Vlotho": the walled starting city in the middle of a huge land, rings of regions around it: Sonnenwiesen (green meadow, flowers, cherry trees, level 1–9), Dunkelwald (deep pine forest, blue fog, fireflies, 10–19), Orktal (dusty ochre canyon with orc camps, 20–29), Ödland (grey ash plains, dead trees, 30–39), Frostgipfel (snow, ice crystals, 40–49), Totenmoor (murky swamp, will-o'-wisps, 50–59), Feuerberg (black basalt, lava rivers, embers, 60–70). Bird's-eye diorama view.
+[STYLE] Map 1 "Kazehana": the walled starting city in the middle of a huge land, rings of regions around it: Sonnenwiesen (green meadow, flowers, cherry trees, level 1–9), Dunkelwald (deep pine forest, blue fog, fireflies, 10–19), Rostschlucht (dusty ochre canyon with orc camps, 20–29), Ödland (grey ash plains, dead trees, 30–39), Frostgipfel (snow, ice crystals, 40–49), Totenmoor (murky swamp, will-o'-wisps, 50–59), Feuerberg (black basalt, lava rivers, embers, 60–70). Bird's-eye diorama view.
 ```
 ```
 [STYLE] Map 2 "Schlangental": golden desert with dunes, sandstone ruins and oases with palms around the oasis city Sahra, a humid naga jungle with lianas and turquoise pools at the outer edge.
@@ -1310,7 +1310,7 @@ STYLE: stylized 3D toy-like fantasy MMORPG in the spirit of classic East-Asian o
 [STYLE] App icon: a glowing purple soul-stone egg with golden cracks on a dark round background, small crossed swords behind it, title "Seelenstein" in a carved golden fantasy font, readable at small size.
 ```
 ```
-[STYLE] Loading screen, landscape: four chibi heroes (Krieger, Ninja, Schamane, Nekromant) standing on a hill at sunset, a huge glowing soul stone in the valley below, the walled city Vlotho in the distance, title "Seelenstein" in gold.
+[STYLE] Loading screen, landscape: four chibi heroes (Krieger, Ninja, Schamane, Nekromant) standing on a hill at sunset, a huge glowing soul stone in the valley below, the walled city Kazehana in the distance, title "Seelenstein" in gold.
 ```
 
 ## Schlanke Handy-Anzeige (Version 4.8)
@@ -1446,7 +1446,7 @@ Small dark game notification bar with a golden rim at the top center of a mobile
 
 ### Weltkarte mit getrennten Maps
 ```
-Illustrated world map overview for a cozy East-Asian fantasy MMORPG, drawn like an atlas page on aged parchment: nine separate island-like map panels floating apart from each other, connected only by thin glowing blue teleport lines between their central camps – Vlotho (walled city with green Sonnenwiesen meadows and cherry trees, level 1–9), Dunkelwald (dark pine forest, 10–19), Orktal (dusty ochre canyon with orc camps, 20–29), Ödland (grey ash plain, 30–39), Schlangental (desert oasis city with naga jungle, 30–50), Frostgipfel (snowy peaks, 40–49), Totenmoor (misty swamp, 50–59), Donnerklamm (storm canyon fortress, 50–75), Feuerberg (black basalt with lava rivers, 60–70). Each panel has a small safe camp in the center with a ring-shaped world gate, a rocky border, dungeon entrances marked with colored arches. Clear labels and level ranges, hand-painted, warm colors.
+Illustrated world map overview for a cozy East-Asian fantasy MMORPG, drawn like an atlas page on aged parchment: nine separate island-like map panels floating apart from each other, connected only by thin glowing blue teleport lines between their central camps – Kazehana (walled city with green Sonnenwiesen meadows and cherry trees, level 1–9), Dunkelwald (dark pine forest, 10–19), Rostschlucht (dusty ochre canyon with orc camps, 20–29), Ödland (grey ash plain, 30–39), Schlangental (desert oasis city with naga jungle, 30–50), Frostgipfel (snowy peaks, 40–49), Totenmoor (misty swamp, 50–59), Donnerklamm (storm canyon fortress, 50–75), Feuerberg (black basalt with lava rivers, 60–70). Each panel has a small safe camp in the center with a ring-shaped world gate, a rocky border, dungeon entrances marked with colored arches. Clear labels and level ranges, hand-painted, warm colors.
 ```
 
 ### Lager mit Weltentor
@@ -1456,7 +1456,7 @@ Top-down three-quarter view of a small safe camp in the middle of a dark pine fo
 
 ### Weltentor-Fenster
 ```
-Fantasy game travel window "Weltentor" in dark wood with gold trim: a list of map cards sorted by level – Vlotho (Stufe 1–9), Dunkelwald (10–19), Orktal (20–29), Ödland (30–39), Schlangental (30–50), Frostgipfel (40–49), Totenmoor (50–59), Donnerklamm (50–75), Feuerberg (60–70) – each with a short description and a button "Reisen", "Du bist hier" or a greyed "ab Stufe 40". Clean, readable.
+Fantasy game travel window "Weltentor" in dark wood with gold trim: a list of map cards sorted by level – Kazehana (Stufe 1–9), Dunkelwald (10–19), Rostschlucht (20–29), Ödland (30–39), Schlangental (30–50), Frostgipfel (40–49), Totenmoor (50–59), Donnerklamm (50–75), Feuerberg (60–70) – each with a short description and a button "Reisen", "Du bist hier" or a greyed "ab Stufe 40". Clean, readable.
 ```
 
 ### Ausgewogener Kampf
@@ -1495,7 +1495,7 @@ Top-down three-quarter view of a small safe camp in the middle of a snowy mounta
 
 ### Weltkarte mit neun gleich großen Maps
 ```
-Illustrated world atlas page for a cozy East-Asian fantasy MMORPG on aged parchment: nine equally sized wide rectangular map panels (each 300 × 120 tiles, landscape format), Vlotho with its walled city and green Sonnenwiesen on the left, the other eight arranged in two columns of four to the right – Dunkelwald (pine forest), Orktal (ochre canyon), Ödland (ash plain), Schlangental (desert oasis city with jungle at both ends), Frostgipfel (snowy peaks), Totenmoor (misty swamp), Donnerklamm (storm canyon fortress), Feuerberg (basalt and lava). Every panel has a small safe camp in the center with a glowing ring gate, roads to the four edges, monster groups spread evenly, dungeon arches near the roads. Thin blue teleport lines between the camps, clear labels and level ranges.
+Illustrated world atlas page for a cozy East-Asian fantasy MMORPG on aged parchment: nine equally sized wide rectangular map panels (each 300 × 120 tiles, landscape format), Kazehana with its walled city and green Sonnenwiesen on the left, the other eight arranged in two columns of four to the right – Dunkelwald (pine forest), Rostschlucht (ochre canyon), Ödland (ash plain), Schlangental (desert oasis city with jungle at both ends), Frostgipfel (snowy peaks), Totenmoor (misty swamp), Donnerklamm (storm canyon fortress), Feuerberg (basalt and lava). Every panel has a small safe camp in the center with a glowing ring gate, roads to the four edges, monster groups spread evenly, dungeon arches near the roads. Thin blue teleport lines between the camps, clear labels and level ranges.
 ```
 
 ### Fertigkeiten in 3D
@@ -1945,7 +1945,7 @@ Four-panel key pose strip, stylized 3D chibi warrior with sword and round shield
 
 ## Größere Welt und Städte (seit 10.6)
 
-- Vlotho: `Top-down 3D toon MMORPG town square seen at 50 degrees, wide cobblestone plaza with a well in the center, four colorful market stalls spaced far apart, merchants standing with plenty of room between them, red-roofed East Asian houses along a stone wall with corner towers and four gates, lanterns at the corners, sunny, painterly`
+- Kazehana: `Top-down 3D toon MMORPG town square seen at 50 degrees, wide cobblestone plaza with a well in the center, four colorful market stalls spaced far apart, merchants standing with plenty of room between them, red-roofed East Asian houses along a stone wall with corner towers and four gates, lanterns at the corners, sunny, painterly`
 - Lager: `Small fortified camp in a pine forest, square plaza inside a low wall with towers and red roofs, world gate portal at the top, eleven villagers spread evenly around the plaza with space between them, stall, anvil, well, painterly toon 3D`
 
 ## Leiste umbauen (seit 10.7)

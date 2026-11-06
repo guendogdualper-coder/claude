@@ -1136,6 +1136,14 @@ kbd {
 .mat-btn b { color: var(--brass); }
 .mat-btn:disabled { opacity: 0.4; cursor: default; }
 .mat-btn:not(:disabled):hover { border-color: var(--brass); }
+/* seit 14.20: passende Verstärkung leuchtet golden, Boni-Hinweis am Gegenstand */
+.mat-btn.can { border-color: #ffd34d; box-shadow: 0 0 0 1px rgba(255, 211, 77, 0.35), 0 0 10px rgba(255, 200, 60, 0.45); animation: matCan 1.8s ease-in-out infinite; }
+@keyframes matCan { 50% { box-shadow: 0 0 0 1px rgba(255, 211, 77, 0.55), 0 0 16px rgba(255, 200, 60, 0.7); } }
+.bonus-hint { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 2px; padding: 6px 9px; border-radius: 8px; border: 1px solid rgba(255, 211, 77, 0.55);
+  background: linear-gradient(90deg, rgba(255, 196, 60, 0.18), rgba(255, 196, 60, 0.04)); font-size: 12px; line-height: 1.35; }
+.bonus-hint > b { color: #ffd34d; }
+.bonus-hint span b { color: #ffe9a6; }
+.tip-boni { display: block; color: #ffd34d; font-size: 11px; margin-top: 3px; }
 .mat-count { white-space: nowrap; }
 .item-detail.enchanted { animation: enchant 0.7s ease-out; }
 @keyframes enchant {
@@ -1663,6 +1671,9 @@ kbd {
 /* Pferdetempo als Abzeichen unten am Knopf (seit 8.5), beim Reiten in Gold */
 .horse-pct { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); padding: 0 4px; border-radius: 7px; font-size: 8.5px; font-weight: 800; line-height: 13px; white-space: nowrap; pointer-events: none; color: #f4d48a; background: rgba(20, 14, 8, 0.92); box-shadow: 0 0 0 1px rgba(201, 163, 90, 0.75); }
 .horse-pct[hidden] { display: none; }
+/* seit 14.17 am PC in der Zeile hinter „Pferd“ statt darunter (wurde vom nächsten Knopf verdeckt) */
+#hud:not(.touch) .horse-pct { position: static; transform: none; margin-left: auto; font-size: 10.5px; line-height: 15px; padding: 0 5px; }
+#hud.touch .horse-pct { bottom: auto; top: -9px; }
 #btnHorse.on .horse-pct { color: #2a1a06; background: #ffd34d; box-shadow: 0 0 0 1px #120c08, 0 0 8px rgba(255, 211, 77, 0.8); }
 .speed-parts { color: var(--muted); font-weight: 400; }
 .speed-parts .on { color: #ffd34d; font-weight: 700; }
@@ -2552,18 +2563,6 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 #hud.touch .party-frame { left: calc(var(--corner-l, var(--edge-l)) + 8px); top: calc(var(--edge-t) + 54px); width: 128px; gap: 2px; }
 #hud.has-buffs .party-frame { top: calc(var(--edge-t) + 100px); }
 #hud.touch.has-buffs .party-frame { top: calc(var(--edge-t) + 76px); }
-.pt-row { display: grid; grid-template-columns: 1fr auto; gap: 0 6px; padding: 2px 6px 3px; border-radius: 6px; background: rgba(14, 10, 7, 0.55); border: 1px solid rgba(201, 163, 90, 0.35); }
-.pt-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; font-weight: 700; color: #f3e6c8; text-shadow: 0 1px 2px #000; }
-.pt-crown { color: #ffd34d; margin-right: 3px; font-weight: 400; }
-.pt-lvl { font-size: 11px; color: #ffd98a; font-weight: 700; }
-.pt-hp { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: rgba(0, 0, 0, 0.6); overflow: hidden; }
-.pt-hp i { display: block; height: 100%; background: linear-gradient(#ff8a6a, #c8321e); transform-origin: left; }
-.pt-row.off { opacity: 0.45; }
-.pt-row.dead .pt-hp i { background: #555; }
-#hud.touch .pt-row { padding: 1px 5px 2px; }
-#hud.touch .pt-name { font-size: 9.5px; }
-#hud.touch .pt-lvl { font-size: 9px; }
-#hud.touch .pt-hp { height: 4px; }
 .party-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .party-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .party-mode { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; text-align: left; border-radius: 9px; border: 1px solid var(--brass-dim); background: rgba(14, 10, 7, 0.5); color: var(--parchment); font: inherit; cursor: pointer; }
@@ -2600,11 +2599,6 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 #hud:not(.touch) .purse { font-size: 13px; }
 #hud:not(.touch) .status-line { font-size: 12px; }
 #hud:not(.touch) .quest-log { top: calc(var(--edge-t) + 336px); max-height: max(132px, calc(100vh - 620px)); }
-/* Gruppenliste auf dem Handy etwas größer */
-#hud.touch .party-frame { width: 140px; }
-#hud.touch .pt-name { font-size: 11px; }
-#hud.touch .pt-lvl { font-size: 10px; }
-#hud.touch .pt-hp { height: 5px; }
 
 /* --- Version 6.1: Hinweis auf eine neue Version ----------------------------------------- */
 .update-bar { position: fixed; z-index: 2000; top: max(8px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; max-width: calc(100vw - 24px); padding: 8px 10px 8px 14px; border-radius: 12px; background: rgba(20, 14, 9, 0.96); color: #fff3d8; font-size: 14px; box-shadow: 0 0 0 1px #120c08, 0 0 0 2.5px #ffd34d, 0 8px 18px rgba(0, 0, 0, 0.6); }
@@ -3209,6 +3203,13 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .tfx-slow, .tfx-frozen { border-color: #7fb8ff; color: #d6e8ff; }
 .tfx-stun { border-color: #ffd34d; color: #fff1b0; }
 .tfx-curse { border-color: #b48cff; color: #e6d8ff; }
+/* 14.15: Gift aus der Ausrüstung (am Ziel und als Debuff in der eigenen Leiste) */
+.tfx-toxin { border-color: #5ec83a; color: #c8f5b0; }
+.buff-ico.buff-debuff { border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2e5a1e, #10200a); box-shadow: 0 0 0 1px #5ec83a inset; }
+.buff-ico.buff-debuff svg { width: 70%; height: 70%; margin: 15%; fill: #7ee05a; filter: drop-shadow(0 0 3px rgba(126, 224, 90, 0.7)); }
+.buff-ico.buff-debuff span { color: #c8f5b0; }
+.stats small.cap { color: var(--muted); font-size: 0.85em; white-space: nowrap; }
+.stats dd:has(small.cap) { white-space: nowrap; }
 
 /* --- Spielerschutz (seit 13.77): Melden, Blockieren, Konto löschen, Links zu Datenschutz ----------------- */
 .ss-dlg { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(12px, env(safe-area-inset-bottom, 0px)); background: rgba(6, 4, 2, 0.62); user-select: text; }
@@ -3262,3 +3263,155 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 body.dnd-on, body.dnd-on * { cursor: grabbing !important; user-select: none; }
 .item-tile.dnd-src { opacity: 0.35; }
 .item-tile.dnd-over, .bag-tab.dnd-over { outline: 2px solid #ffd27a; outline-offset: 1px; box-shadow: 0 0 10px #ffd27a88; }
+
+/* --- Gruppenanzeige im Stil der eigenen Lebensanzeige (gruppe.js partyHud) ----------------------------
+   Pro Mitglied ein kleiner Rahmen (etwa 70 % der eigenen Anzeige): rundes Bild mit Stufenplakette, Name, Lebensbalken mit
+   Herz und Zahl, dünner Manabalken, Krone für den Anführer. Alle zusammen auf einem dezenten gemeinsamen Hintergrund. */
+.party-frame { padding: 5px 6px; gap: 4px; border-radius: 10px; background: linear-gradient(rgba(22, 16, 10, 0.62), rgba(14, 10, 7, 0.4)); border: 1px solid rgba(201, 163, 90, 0.28); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); }
+.pf-list { display: flex; flex-direction: column; gap: inherit; }
+#hud:not(.touch) .party-frame { width: 236px; }
+.pm { position: relative; display: flex; align-items: center; gap: 8px; padding: 2px 5px 2px 2px; border-radius: 8px; }
+#hud:not(.touch) .pm:hover { background: rgba(255, 240, 210, 0.06); }
+.pm-por { position: relative; flex: none; width: 44px; height: 44px; }
+.pm-por canvas { display: block; width: 100%; height: 100%; border-radius: 50%; background: #120c08; border: 2px solid #d8b46a; box-shadow: 0 0 0 1px #120c08, 0 0 0 2.5px rgba(216, 180, 106, 0.3), inset 0 0 6px rgba(0, 0, 0, 0.6); }
+.pm-lvl { position: absolute; right: -5px; bottom: -4px; min-width: 18px; height: 18px; padding: 0 3px; border-radius: 9px; display: grid; place-items: center; font-family: var(--font-body); font-size: 10px; font-weight: 800; color: #1b130a; background: linear-gradient(#f2d48a, #b8913f); border: 1px solid #120c08; }
+.pm-crown { position: absolute; left: -5px; top: -8px; font-size: 15px; font-weight: 400; line-height: 1; color: #ffd34d; transform: rotate(-18deg); text-shadow: 0 1px 2px #000, 0 0 6px rgba(255, 211, 77, 0.75); }
+.pm-skull { position: absolute; inset: 0; display: none; place-items: center; font-size: 22px; font-style: normal; line-height: 1; color: #eee8dc; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+.pm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pm-line { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.pm-name { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 13px; font-weight: 700; color: #fff3d8; text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.9); }
+.pm-note { margin-left: auto; flex: none; font-size: 10px; font-style: italic; color: #cfc4a8; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+#hud .party-frame .bar { height: 15px; padding: 2px 3px; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7)); }
+#hud .party-frame .bar::before, #hud .party-frame .bar i { inset: 2px 3px; }
+#hud .party-frame .bar span { font-size: 10px; line-height: 11px; }
+#hud .party-frame .bar-ico { width: 17px; height: 17px; margin-right: -6px; }
+.pm-mp { height: 5px; margin: 0 4px 0 13px; border-radius: 3px; overflow: hidden; background: rgba(0, 0, 0, 0.65); box-shadow: 0 0 0 1px rgba(18, 12, 8, 0.9); }
+.pm-mp i { display: block; height: 100%; transform-origin: left; transition: transform 0.18s ease-out; background: linear-gradient(90deg, #142a8a, #2a6ae0 55%, #6ab0ff); }
+.pm.nomp .pm-mp { display: none; }
+.pm.low .bar-hp i { animation: low-hp 0.8s ease-in-out infinite; }
+.pm.low .pm-por canvas { border-color: #ff5a4a; }
+/* Zustände: weit weg leicht, andere Karte / nicht im Kanal stärker gedimmt; tot grau mit Totenkopf */
+.pm[data-st="far"] { opacity: 0.75; }
+.pm[data-st="away"], .pm[data-st="off"] { opacity: 0.5; }
+.pm[data-st="away"] .pm-note { color: #9fd0ff; }
+.pm[data-st="dead"] .pm-por canvas { filter: grayscale(1) brightness(0.55); border-color: #8a8478; }
+.pm[data-st="dead"] .pm-skull { display: grid; }
+.pm[data-st="dead"] .pm-name { color: #b8b0a0; }
+.pm[data-st="dead"] .pm-note { color: #ff9a7a; }
+.pm[data-st="dead"] .bar-ico { fill: #77716a; }
+.pm[data-st="dead"] .bar i, .pm[data-st="dead"] .pm-mp i { background: #5a5650; }
+/* Schaden: kurzes rotes Aufblitzen (zwei gleiche Animationen im Wechsel, damit jede neu startet) */
+.pm.hit-a { animation: pm-hit-a 0.45s ease-out; }
+.pm.hit-b { animation: pm-hit-b 0.45s ease-out; }
+@keyframes pm-hit-a { from { background-color: rgba(255, 60, 40, 0.5); box-shadow: 0 0 0 1px rgba(255, 110, 90, 0.9), 0 0 12px rgba(255, 60, 40, 0.6); } to { background-color: rgba(255, 60, 40, 0); box-shadow: none; } }
+@keyframes pm-hit-b { from { background-color: rgba(255, 60, 40, 0.5); box-shadow: 0 0 0 1px rgba(255, 110, 90, 0.9), 0 0 12px rgba(255, 60, 40, 0.6); } to { background-color: rgba(255, 60, 40, 0); box-shadow: none; } }
+/* Handy: kleiner, damit nichts mit Chat, Rucksack-Knopf und Steuerung überlappt; ab fünf Mitgliedern noch knapper */
+#hud.touch .party-frame { width: 138px; padding: 3px 4px; gap: 2px; border-radius: 8px; }
+#hud.touch .pm { gap: 5px; padding: 1px 3px 1px 1px; border-radius: 6px; }
+#hud.touch .pm-por { width: 24px; height: 24px; }
+#hud.touch .pm-por canvas { border-width: 1.5px; }
+#hud.touch .pm-lvl { min-width: 12px; height: 12px; padding: 0 2px; right: -4px; bottom: -3px; font-size: 7.5px; border-radius: 6px; }
+#hud.touch .pm-crown { font-size: 10px; left: -4px; top: -6px; }
+#hud.touch .pm-skull { font-size: 13px; }
+#hud.touch .pm-main { gap: 1px; }
+#hud.touch .pm-name { font-size: 9.5px; }
+#hud.touch .pm-note { font-size: 7.5px; }
+#hud.touch .party-frame .bar { height: 9px; padding: 1.5px 2px; }
+#hud.touch .party-frame .bar::before, #hud.touch .party-frame .bar i { inset: 1.5px 2px; }
+#hud.touch .party-frame .bar i::before { display: none; }
+#hud.touch .party-frame .bar span { font-size: 7px; line-height: 6px; }
+#hud.touch .party-frame .bar-ico { width: 11px; height: 11px; margin-right: -4px; }
+#hud.touch .pm-mp { height: 3px; margin-left: 8px; }
+/* ab fünf Mitgliedern: je Mitglied eine Zeile (Name neben dem Balken, ohne Mana und Hinweistext – Zustand bleibt an
+   Dimmen und Totenkopf erkennbar), damit auch acht Mitglieder über den Rucksack-Knopf passen */
+#hud.touch .party-frame.many .pm { padding: 0 3px 0 1px; }
+#hud.touch .party-frame.many .pm-por { width: 17px; height: 17px; }
+#hud.touch .party-frame.many .pm-lvl { min-width: 10px; height: 10px; font-size: 6.5px; right: -5px; bottom: -3px; }
+#hud.touch .party-frame.many .pm-crown { font-size: 8px; top: -5px; }
+#hud.touch .party-frame.many .pm-skull { font-size: 10px; }
+#hud.touch .party-frame.many .pm-main { flex-direction: row; align-items: center; gap: 3px; }
+#hud.touch .party-frame.many .pm-line { flex: 0 0 44px; }
+#hud.touch .party-frame.many .pm-note, #hud.touch .party-frame.many .pm-mp { display: none; }
+#hud.touch .party-frame.many .bar-row { flex: 1; min-width: 0; }
+
+/* --- Bestenliste (bestenliste.js) --------------------------------------------------------------------- */
+.start-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.start-links .btn { flex: 1 1 200px; max-width: 320px; margin: 0; text-align: center; }
+.rank-panel { width: min(620px, calc(100vw - 24px)); }
+.rank-body { flex: 1 1 auto; min-height: 0; overflow: hidden; gap: 8px; padding: 10px 12px 12px; }
+.rk-tabs { display: flex; gap: 6px; flex: none; }
+.rk-tabs .bag-tab { flex: 1; height: auto; min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.rk-cls { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 1px 1px 3px; flex: none; }
+.rk-cls::-webkit-scrollbar { display: none; }
+.rk-chip { flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 3px 11px 3px 4px; border-radius: 15px; border: 1px solid var(--brass-dim); background: rgba(14, 10, 7, 0.5); color: var(--parchment); font: inherit; font-size: 12.5px; cursor: pointer; touch-action: manipulation; }
+.rk-chip[data-rcls=""] { padding: 3px 13px; }
+.rk-chip.on { border-color: #ffd34d; color: #ffe9a8; background: rgba(80, 60, 20, 0.55); box-shadow: inset 0 0 0 1px #ffd34d; }
+.rk-scroll { flex: 1 1 auto; min-height: 140px; overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 2px 4px; }
+.rk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.rk-row { display: grid; grid-template-columns: 32px 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 10px 5px 4px; border-radius: 8px; background: rgba(255, 240, 210, 0.035); border: 1px solid rgba(201, 163, 90, 0.18); }
+.rk-place { text-align: center; font-family: var(--font-display); font-size: 16px; color: #e8dcc0; font-variant-numeric: tabular-nums; }
+.rk-top .rk-place { display: grid; place-items: center; width: 28px; height: 28px; margin: 0 auto; border-radius: 50%; font-family: var(--font-body); font-size: 14px; font-weight: 800; color: #1b130a; background: var(--medal); box-shadow: 0 0 0 1.5px #120c08, 0 0 10px var(--glow); }
+.rk-top1 { --medal: linear-gradient(#fff3b0, #e8b028 60%, #a8740c); --glow: rgba(255, 210, 80, 0.6); border-color: rgba(255, 211, 77, 0.65); background: linear-gradient(90deg, rgba(255, 211, 77, 0.18), rgba(255, 240, 210, 0.03) 65%); }
+.rk-top2 { --medal: linear-gradient(#ffffff, #c8d2dc 60%, #8a96a4); --glow: rgba(210, 225, 240, 0.45); border-color: rgba(200, 210, 220, 0.55); background: linear-gradient(90deg, rgba(200, 210, 220, 0.14), rgba(255, 240, 210, 0.03) 65%); }
+.rk-top3 { --medal: linear-gradient(#ffd8b0, #c8803e 60%, #7a4618); --glow: rgba(220, 140, 70, 0.45); border-color: rgba(200, 128, 62, 0.6); background: linear-gradient(90deg, rgba(200, 128, 62, 0.16), rgba(255, 240, 210, 0.03) 65%); }
+.rk-top1 .rk-val b { color: #ffe27a; }
+.rk-me { border-color: #7fdc8a; box-shadow: inset 0 0 0 1px rgba(127, 220, 138, 0.6), 0 0 10px rgba(127, 220, 138, 0.25); background: linear-gradient(90deg, rgba(127, 220, 138, 0.16), rgba(127, 220, 138, 0.04)); }
+.rk-me .rk-who b { color: #b8ffc0; }
+.rk-ico { flex: none; display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--cc) 60%, #ffffff), var(--cc) 55%, #120c08); box-shadow: 0 0 0 1.5px #120c08, 0 0 0 2.5px rgba(216, 180, 106, 0.5); }
+.rk-ico svg { width: 70%; height: 70%; fill: none; stroke: #fff3d8; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.rk-ico svg .f { fill: #fff3d8; stroke: #120c08; stroke-width: 1; }
+.rk-ico svg .d { fill: #120c08; stroke: none; }
+.rk-ico svg .k { fill: none; stroke: #120c08; stroke-width: 1.3; }
+.rk-chip .rk-ico { box-shadow: 0 0 0 1px #120c08; }
+.rk-who { min-width: 0; display: flex; flex-direction: column; }
+.rk-who b { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14.5px; color: #fff3d8; }
+.rk-who small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11.5px; color: var(--muted); }
+.rk-val { display: flex; flex-direction: column; align-items: flex-end; text-align: right; line-height: 1.1; }
+.rk-val b { font-family: var(--font-display); font-size: 19px; font-weight: 400; color: #f0cf6a; font-variant-numeric: tabular-nums; }
+.rk-val small { font-size: 10.5px; color: var(--muted); }
+.rk-val .pvp-badge { font-size: 11px; }
+.rk-own { flex: none; padding-top: 6px; border-top: 1px dashed rgba(201, 163, 90, 0.4); }
+.panel-body .rk-note { margin: 4px 0 0; font-size: 11.5px; color: var(--muted); text-align: center; }
+.rk-msg { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 28px 12px; text-align: center; color: var(--muted); }
+.rk-err b { font-size: 15px; color: #ffb08a; }
+.rk-wait { animation: rk-wait 1.2s ease-in-out infinite; }
+@keyframes rk-wait { 50% { opacity: 0.5; } }
+.rk-foot { flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rk-foot > small:first-child { flex: 1 1 200px; font-size: 11.5px; color: var(--muted); }
+.rk-time { font-size: 11px; color: var(--muted); }
+.soc-rank { margin-left: auto; }
+@media (max-width: 560px) {
+  .rank-body { padding: 8px 8px 10px; }
+  .rk-row { grid-template-columns: 26px 26px minmax(0, 1fr) auto; gap: 6px; padding: 4px 8px 4px 2px; }
+  .rk-row .rk-ico { width: 26px !important; height: 26px !important; }
+  .rk-top .rk-place { width: 24px; height: 24px; font-size: 12.5px; }
+  .rk-who b { font-size: 13.5px; }
+  .rk-who small { font-size: 10.5px; }
+  .rk-val b { font-size: 17px; }
+}
+/* Handy quer: oben ist nur Platz für den Knopf, wenn der Bildschirm breit genug ist (sonst über „Freunde & Gilde“) */
+@media (max-width: 719px) { #hud.touch #btnRank { display: none; } }
+/* Hochkant am Handy (Hinweis „Dreh dein Handy“ deckt alles ab): die Bestenliste liegt darüber und ist dort lesbar */
+.rank-panel { z-index: 101; background: rgba(22, 17, 12, 0.985); box-shadow: inset 0 0 0 1px rgba(201, 163, 90, 0.12), 0 10px 40px rgba(0, 0, 0, 0.7); }
+.rotate-hint .btn { margin-top: 6px; }
+/* Handy quer (wenig Höhe): Reiter, Filter und Zeilen enger, damit die Liste und „Aktualisieren“ ins Fenster passen */
+@media (max-height: 500px) {
+  .rank-body { gap: 5px; padding: 6px 10px 8px; }
+  .rk-tabs .bag-tab { min-height: 28px; padding: 3px 10px; font-size: 13px; }
+  .rk-chip { min-height: 24px; padding: 2px 9px 2px 3px; font-size: 11.5px; }
+  .rk-chip .rk-ico { width: 15px !important; height: 15px !important; }
+  .rk-scroll { min-height: 60px; }
+  .rk-row { gap: 6px; padding: 3px 8px 3px 2px; }
+  .rk-row .rk-ico { width: 24px !important; height: 24px !important; }
+  .rk-top .rk-place { width: 22px; height: 22px; font-size: 12px; }
+  .rk-who b { font-size: 13px; }
+  .rk-who small { font-size: 10px; }
+  .rk-val b { font-size: 16px; }
+  .rk-own { padding-top: 4px; }
+  .rk-foot > small:first-child { display: none; }
+  .rk-foot { justify-content: flex-end; }
+}
+/* seit 14.20: in einer Gruppe öffnet der eigene Name das Gruppenfenster */
+.pc-party { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+/* seit 14.21: Ausrüstung als Quest-Belohnung */
+.reward-gear { color: #7fd0ff; }

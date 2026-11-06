@@ -44,7 +44,7 @@ function nkHand(out, f) {
   return out;
 }
 function nkHeal(p, amount) {
-  const heal = Math.round(amount);
+  const heal = Math.round(amount * pvpHealMul()); // im PvP zu 60 % (seit 14.15)
   if (heal <= 0 || p.dead) return 0;
   p.hp = Math.min(game.stats.maxHp, p.hp + heal);
   addText(p.x, p.y - 44, '+' + Math.round(heal), 'heal');
@@ -183,7 +183,7 @@ CHANNEL_TICK.siphon = function (p, dt, c) {
   c.next += sk.every;
   withRank(c.rank, () => {
     const dmg = hitMonster(t, sk.dmg * c.pw, { skill: sk.id, vfxColor: '#ff8a9a' }) || 0;
-    const heal = Math.round(dmg * sk.leech);
+    const heal = Math.round(dmg * sk.leech * pvpHealMul());
     if (heal > 0 && !p.dead) {
       p.hp = Math.min(game.stats.maxHp, p.hp + heal);
       c.healAcc += heal;
@@ -405,7 +405,7 @@ function lanceFx(owner, pts, sk, local, pw) {
       if (!V3.on) particles(q.x, q.y - 14, { count: 8, color: [NK.bright, NK.blood], speed: [50, 140], life: [0.25, 0.5], size: [2, 3.5], drag: 3, gravity: 200 });
       if (!local || !q.m || q.m.dead) return;
       const dmg = hitMonster(q.m, sk.dmg * pw, { skill: sk.id, heavy: true, vfxColor: '#ff8a9a' }) || 0;
-      const heal = Math.round(dmg * sk.leech);
+      const heal = Math.round(dmg * sk.leech * pvpHealMul());
       if (heal > 0 && !owner.dead) owner.hp = Math.min(game.stats.maxHp, owner.hp + heal);
       if (k === pts.length - 1) later(0.05, () => addText(owner.x, owner.y - 44, 'Lebensraub', 'heal'));
     });

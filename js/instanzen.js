@@ -166,8 +166,11 @@ function instCornerEntrance(entry, ground, obj, deco, zoneIdx) {
       const i = y * MAP_W + x;
       return obj[i] === OBJ.NONE && !(LIQUID.has(ground[i]) && deco[i] !== DECO.BRIDGE);
     };
-    const q = [[wm.cx, wm.cy + 2]];
-    seen[(wm.cy + 2 - ry) * rw + wm.cx - rx] = 1;
+    // seit 14.16: in Städten mit eigener Form (Inseln, Schlucht) vor dem Südtor auf dem Weg beginnen – draußen ist
+    // dieselbe Fläche erreichbar wie früher durch die Stadt, die Eingänge bleiben, wo sie waren
+    const sy = typeof townLayoutHalf === 'function' && townLayoutHalf(wm.id) != null ? wm.cy + townLayoutHalf(wm.id) + 2 : wm.cy + 2;
+    const q = [[wm.cx, sy]];
+    seen[(sy - ry) * rw + wm.cx - rx] = 1;
     while (q.length) {
       const [x, y] = q.pop();
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -911,7 +914,7 @@ function instMiniLoot(m, chance) {
   let got = 0;
   if (Math.random() < chance && instEpicItem(m, null)) got = 1;
   instMats(m, { splinters: randInt(3, 5) }, randInt(2, 3)); // seit 14.6 Splitter statt Verstärkung/Switcher
-  const gold = m.level * 150;
+  const gold = monsterGold(m.level * 150);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} ist gefallen!`, got ? 'Ein episches Teil!' : 'Wächter besiegt');
@@ -923,7 +926,7 @@ function instFinalLoot(m, def) {
   for (let k = 0; k < n; k++) instEpicItem(m, k === 0 && Math.random() < 0.4 ? 'waffe' : null);
   const leg = Math.random() < INST.legendary ? dropLegendary(m) : null;
   instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6)); // seit 14.6 Splitter statt Boni-Materialien
-  const gold = m.level * 800;
+  const gold = monsterGold(m.level * 800);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${def.name} bezwungen!`, `${n} epische${n > 1 ? '' : 's'} Teil${n > 1 ? 'e' : ''}${leg ? ' und ein legendäres!' : ''}`);

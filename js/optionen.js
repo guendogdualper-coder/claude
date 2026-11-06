@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1 };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1 };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -32,6 +32,9 @@ const GRAPHICS = {
   mittel: { label: 'Mittel', dpr: IS_PC ? 1.6 : 2, castShadows: true, clouds: false, particles: 0.7 },
   niedrig: { label: 'Niedrig', dpr: 1.25, castShadows: false, clouds: false, particles: 0.4 }
 };
+// Nebel (seit 14.17): wie weit man sieht. „Wenig“ schiebt den Nebel weit nach hinten und lädt dafür einen Ring
+// Kartenblöcke mehr (v3UpdateChunks), damit kein Weltrand auftaucht. near/far = Faktor auf den Nebel der Gegend.
+const FOG_MODES = { wenig: { label: 'Wenig', near: 1.7, far: 1.5, ring: 1 }, normal: { label: 'Normal', near: 1, far: 1, ring: 0 }, viel: { label: 'Viel', near: 0.8, far: 0.85, ring: 0 } };
 const CAMERA = { nah: { label: 'Nah', zoom: 1.15 }, normal: { label: 'Normal', zoom: 1 }, weit: { label: 'Weit', zoom: 0.85 }, schulter: { label: 'Schulterblick', zoom: 1.25 } };
 
 const opts = (() => {
@@ -48,7 +51,12 @@ const opts = (() => {
     if (IS_PC && o.graphics === 'ultra') o.graphics = 'plus';
     o.optsVer = 3;
     try { localStorage.setItem(OPT_KEY, JSON.stringify(o)); } catch (e) { /* privat */ }
+  }  // 14.17: neue Einstellung Nebel – am PC einmalig auf „Wenig“ (zu viel Dunst, vor allem mit Grafik Plus)
+  if ((o.optsVer || 0) < 4) {
+    if (!o.fog) o.fog = IS_PC ? 'wenig' : 'normal';
+    o.optsVer = 4;
   }
+
   return o;
 })();
 
@@ -159,6 +167,7 @@ const options = {
         seg('view', VIEWS, 'Ansicht', V3.on || opts.view === '2d' ? '3D: echte Welt mit Licht und Schatten. 2D: die klassische Ansicht, spart Akku.' : '3D wird von diesem Gerät nicht unterstützt, darum läuft 2D.') +
         seg('graphics', GRAPHICS, 'Qualität', `${IS_PC ? 'PC erkannt: Plus ist empfohlen – wie Ultra, dazu Leuchten von Feuer, Magie und Laternen, kräftigere Farben, weiche Ränder und Schatten für die ganze Welt.' : 'Handy oder Tablet erkannt: Mittel ist empfohlen. Plus (Leuchten, kräftige Farben, weiche Ränder) sieht am schönsten aus, braucht aber ein neueres Handy und mehr Akku; Hoch und Ultra sind schärfer, machen das Handy aber wärmer.'} Niedrig spart Akku und läuft auf älteren Handys flüssiger. Ruckelt es, senkt das Spiel die Auflösung und die Schatten von selbst.`) +
         seg('fps', FPS_MODES, 'Bildrate', 'Auto: am PC so viele Bilder, wie der Bildschirm zeigt (60, 120 oder 144; ist der Rechner zu langsam, gleichmäßig 30), am Handy 30 – scharfes Bild und das Handy bleibt kühl. Max: immer so viele Bilder wie der Bildschirm (auch 90 oder 120 am Handy) – flüssiger, macht das Handy aber warm.') +
+        seg('fog', FOG_MODES, 'Nebel', 'Wie weit du in die Ferne siehst. Wenig: klare Sicht weit nach hinten (lädt etwas mehr Welt, am PC empfohlen). Normal: wie bisher. Viel: dichter Dunst, spart am Handy etwas Leistung.') +
         seg('camera', CAMERA, 'Kamera', 'Wie nah die Kamera an deiner Figur ist. Schulterblick (3D): tief und nah hinter der Figur wie in der 3D-Vorschau; zum Drehen auf der rechten Bildhälfte wischen oder mit gedrückter rechter Maustaste ziehen, Mausrad zoomt.') +
         sw('shake', 'Bildschirmwackeln', 'Bei kritischen Treffern, Bossen und Explosionen.') +
         sw('numbers', 'Schadenszahlen', 'Zahlen über getroffenen Monstern.') +

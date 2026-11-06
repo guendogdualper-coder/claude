@@ -30,6 +30,7 @@ const KEY_ACTIONS = [
   { id: 'social', label: 'Freunde & Gilde', key: 'KeyG' },
   { id: 'gf', label: 'Gruppenfinder (ab Stufe 30)', key: 'KeyJ' },
   { id: 'daily', label: 'Tagesbelohnung', key: 'KeyT' },
+  { id: 'rank', label: 'Bestenliste', key: 'KeyP' },
   { id: 'net', label: 'Server', key: 'KeyN' },
   { id: 'help', label: 'Hilfe', key: 'KeyH' },
   { id: 'opts', label: 'Einstellungen', key: 'KeyO' },
@@ -82,7 +83,7 @@ function resetKeys() {
   refreshKeyLabels();
 }
 // Tastenzeichen an Leiste und Menü nachziehen
-const MENU_KEY_BTN = { char: 'btnChar', inv: 'btnInv', ride: 'btnHorse', net: 'btnNet', social: 'btnSocial', gf: 'btnGf', quests: 'btnQuests', daily: 'btnDaily', help: 'btnHelp', opts: 'btnOpts' };
+const MENU_KEY_BTN = { char: 'btnChar', inv: 'btnInv', ride: 'btnHorse', net: 'btnNet', social: 'btnSocial', gf: 'btnGf', quests: 'btnQuests', daily: 'btnDaily', rank: 'btnRank', help: 'btnHelp', opts: 'btnOpts' };
 function refreshKeyLabels() {
   for (const [id, btn] of Object.entries(MENU_KEY_BTN)) {
     const kbd = document.querySelector(`#${btn} kbd`);
@@ -132,6 +133,7 @@ function runAction(id, e) {
     case 'gf': if (!rep && typeof gfToggle === 'function') gfToggle(); break;
     case 'quests': if (!rep) ui.toggle('panelQuests'); break;
     case 'daily': if (!rep) ui.toggle('panelDaily'); break;
+    case 'rank': if (!rep && typeof rankToggle === 'function') rankToggle(); break;
     case 'net': if (!rep) ui.toggle('panelNet'); break;
     case 'help': if (!rep) ui.toggle('panelHelp'); break;
     case 'opts': if (!rep) ui.toggle('panelOpts'); break;
@@ -157,7 +159,8 @@ const QUICK_ACTIONS = {
   loot: { label: 'Beutel', menu: 'btnLoot' },
   daily: { label: 'Tagesbelohnung', menu: 'btnDaily' },
   social: { label: 'Freunde & Gilde', menu: 'btnSocial' },
-  quests: { label: 'Quests', menu: 'btnQuests' }
+  quests: { label: 'Quests', menu: 'btnQuests' },
+  rank: { label: 'Bestenliste', menu: 'btnRank' }
 };
 const QUICK_DEFAULT = [null, null];
 

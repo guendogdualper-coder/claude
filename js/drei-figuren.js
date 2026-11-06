@@ -1491,24 +1491,28 @@ function horseParts3(b, unused, o = {}) {
   seg([0, 1.48, 0.66], [0, 1.66, 0.85], 0.1, 0.085, coat, { bone: 10 });
   seg([0, 0.98, 0.56], [0, 1.44, 0.84], 0.12, 0.08, coat, { bone: 10, shade: 0.15 });
   // --- Kopf: Stirn, Ganaschen, langes Gesicht, weiches Maul mit Nüstern
+  // seit 14.21: Augen in den Kopf eingelassen statt als Kugeln davor, Maul etwas kleiner, Blesse als flacher
+  // Streifen direkt auf dem Nasenrücken (vorher ein weißer Stab, der vor dem Gesicht stand)
   A(ball(14), coat, { bone: 2, p: [0, 1.6, 0.92], s: [0.095, 0.1, 0.12], shine: 0.15 });
   A(ball(12), coat, { bone: 2, p: [0, 1.5, 0.88], s: [0.1, 0.11, 0.11], shade: 0.15 });
   seg([0, 1.57, 0.97], [0, 1.33, 1.2], 0.085, 0.062, coat, { bone: 2, shade: 0.1 });
   const muzzle = war ? '#4a4452' : '#6a4630';
-  A(ball(12), muzzle, { bone: 2, p: [0, 1.3, 1.21], s: [0.07, 0.07, 0.08] });
-  A(ball(10), muzzle, { bone: 2, p: [0, 1.25, 1.17], s: [0.05, 0.035, 0.06] });
-  for (const sx of [-1, 1]) A(sphere3(0.017, 6, 4), '#120a08', { bone: 2, p: [sx * 0.034, 1.31, 1.28] });
-  A(roundBox(0.09, 0.008, 0.035, 0.004), '#1e100c', { bone: 2, p: [0, 1.265, 1.25] });
+  A(ball(12), muzzle, { bone: 2, p: [0, 1.302, 1.205], s: [0.064, 0.062, 0.074] });
+  A(ball(10), muzzle, { bone: 2, p: [0, 1.254, 1.165], s: [0.046, 0.03, 0.056] });
+  for (const sx of [-1, 1]) A(ball(6), '#120a08', { bone: 2, p: [sx * 0.032, 1.312, 1.266], s: [0.014, 0.019, 0.01], r: [0, sx * 0.4, 0] });
+  A(roundBox(0.08, 0.007, 0.032, 0.004), '#1e100c', { bone: 2, p: [0, 1.262, 1.236] });
   if (!war) {
-    // Blesse: weißer Streifen von der Stirn bis zur Nase
-    seg([0, 1.65, 1.0], [0, 1.39, 1.23], 0.032, 0.026, white, { bone: 2, s: [1, 1, 0.6] });
-    A(ball(8), white, { bone: 2, p: [0, 1.66, 0.99], s: [0.04, 0.035, 0.02], r: [-0.8, 0, 0] });
+    // Nasenrücken-Normale (0, 0.69, 0.72): die Mitte des Streifens liegt knapp unter der Oberfläche
+    seg([0, 1.62, 1.023], [0, 1.366, 1.237], 0.021, 0.014, white, { bone: 2 });
+    A(ball(8), white, { bone: 2, p: [0, 1.655, 0.995], s: [0.036, 0.03, 0.016], r: [-0.8, 0, 0] });
   }
   for (const sx of [-1, 1]) {
-    if (war) A(ball(8), '#ff6a2a', { bone: 2, p: [sx * 0.09, 1.56, 0.96], s: [0.028, 0.022, 0.03], mat: 'glow' });
+    if (war) A(ball(8), '#ff6a2a', { bone: 2, p: [sx * 0.085, 1.565, 0.965], s: [0.022, 0.018, 0.026], mat: 'glow' });
     else {
-      A(ball(8), '#120a06', { bone: 2, p: [sx * 0.088, 1.56, 0.96], s: [0.026, 0.03, 0.03], shine: 0.9 });
-      A(sphere3(0.008, 5, 4), '#ffffff', { bone: 2, p: [sx * 0.1, 1.572, 0.975], mat: 'glow' });
+      // Auge seitlich am Kopf, mandelförmig, mit dunklem Lid darüber
+      A(ball(8), '#120a06', { bone: 2, p: [sx * 0.078, 1.565, 0.962], s: [0.014, 0.02, 0.026], shine: 0.9 });
+      A(sphere3(0.005, 5, 4), '#ffffff', { bone: 2, p: [sx * 0.09, 1.572, 0.972], mat: 'glow' });
+      A(ball(8), darker(coat, 0.2), { bone: 2, p: [sx * 0.077, 1.585, 0.96], s: [0.016, 0.008, 0.03] });
     }
     // Ohren: gespitzt, leicht nach vorn, innen dunkler
     A(horn3(0.13, 0.036, 7), coat, { bone: 2, p: [sx * 0.045, 1.69, 0.86], r: [0.25, 0, -sx * 0.22], s: [1, 1, 0.6] });
@@ -1575,12 +1579,12 @@ function horseParts3(b, unused, o = {}) {
   }
   // --- Zaumzeug: Genickstück, Backenstücke, Nasenriemen, Trensenringe, Zügel
   const strap = war ? '#3a2a1e' : '#4e301a';
-  A(torus3(0.08, 0.012, Math.PI * 2, 4, 14), strap, { bone: 2, p: [0, 1.4, 1.13], r: [0.76, 0, 0] });
-  A(torus3(0.105, 0.012, Math.PI * 2, 4, 14), strap, { bone: 2, p: [0, 1.6, 0.89], r: [0.3, 0, 0] });
+  A(torus3(0.073, 0.011, Math.PI * 2, 4, 14), strap, { bone: 2, p: [0, 1.4, 1.133], r: [0.76, 0, 0] });
+  A(torus3(0.103, 0.012, Math.PI * 2, 4, 14), strap, { bone: 2, p: [0, 1.6, 0.89], r: [0.3, 0, 0] });
   for (const sx of [-1, 1]) {
-    seg([sx * 0.095, 1.6, 0.9], [sx * 0.072, 1.4, 1.12], 0.012, 0.012, strap, { bone: 2 });
-    A(torus3(0.022, 0.006, Math.PI * 2, 3, 8), gold, { bone: 2, p: [sx * 0.072, 1.29, 1.17], r: [0, Math.PI / 2, 0], shine: 1 });
-    seg([sx * 0.075, 1.29, 1.16], [sx * 0.15, 1.38, 0.74], 0.007, 0.007, strap, { bone: 10 });
+    seg([sx * 0.095, 1.6, 0.9], [sx * 0.07, 1.4, 1.12], 0.011, 0.011, strap, { bone: 2 });
+    A(torus3(0.02, 0.006, Math.PI * 2, 3, 8), gold, { bone: 2, p: [sx * 0.066, 1.29, 1.17], r: [0, Math.PI / 2, 0], shine: 1 });
+    seg([sx * 0.068, 1.29, 1.16], [sx * 0.15, 1.38, 0.74], 0.007, 0.007, strap, { bone: 10 });
     seg([sx * 0.15, 1.38, 0.74], [sx * 0.1, 1.27, 0.14], 0.007, 0.007, strap, { bone: 10 });
   }
   // --- Satteldecke (schmiegt sich an den Rücken), Sattel mit Knauf und Hinterzwiesel, Gurt, Steigbügel

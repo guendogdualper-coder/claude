@@ -948,8 +948,10 @@ function v3UpdateMood(dt, x, y) {
   V3.scene.fog.color.copy(s.sky);
   // Im Schulterblick sieht man weiter in die Ferne: Nebel etwas näher, damit kein Rand der Welt auftaucht
   const fogK = v3Shoulder() ? 0.62 : V3.ultra ? 1.25 : 1;
-  V3.scene.fog.near = s.near * fogK;
-  V3.scene.fog.far = s.far * fogK;
+  // Einstellung Nebel (seit 14.17, FOG_MODES in optionen.js)
+  const fm = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog]) || { near: 1, far: 1 };
+  V3.scene.fog.near = s.near * fogK * fm.near;
+  V3.scene.fog.far = s.far * fogK * fm.far;
   V3.sun.color.copy(s.sun);
   V3.sun.intensity = s.sunI;
   V3.hemi.color.copy(s.hemi);
@@ -1667,7 +1669,8 @@ const CASTER3 = {
   [OBJ.TREE]: [1.9, 1.05, 0.42], [OBJ.BLOSSOM]: [1.9, 1.05, 0.4], [OBJ.PINE]: [1.6, 0.9, 0.45],
   [OBJ.DEADTREE]: [1.1, 0.55, 0.22], [OBJ.ROCK]: [0.3, 0.6, 0.32], [OBJ.WALL]: [0.9, 0.78, 0.4]
 };
-const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25],
+const CASTER3_LOW = [0.35, 0.7, 0.3];
+const PROP_CASTER3 = { tower: [2.0, 1.1, 0.45], holzturm: [1.8, 1.0, 0.4], kristallturm: [1.6, 0.6, 0.3], holztor: [1.6, 0.5, 0.25], tpstein: [0.4, 0.5, 0.22], stall: [1.0, 0.85, 0.35], stand: [1.3, 1.0, 0.4], well: [0.8, 0.65, 0.35], lantern: [0.7, 0.35, 0.22], board: [0.8, 0.55, 0.28], hay: [0.4, 0.6, 0.3], horse: [0.9, 0.7, 0.3], brazier: [0.5, 0.4, 0.25],
   dpillar: [1.4, 0.6, 0.4], dbanner: [1.2, 0.45, 0.25], dstatue: [1.0, 0.6, 0.35], dthrone: [1.4, 1.0, 0.4], dchest: [0.4, 0.55, 0.3], dshrine: [0.8, 0.8, 0.35],
   // Stadtschmuck (seit 13.85, welt.js TOWN_DECO)
   planter: [0.3, 0.42, 0.22], bench: [0.4, 0.62, 0.24], goods: [0.45, 0.62, 0.3], woodpile: [0.3, 0.5, 0.25], sacks: [0.25, 0.45, 0.22],
@@ -1691,7 +1694,8 @@ function shadowCasters(x0, y0, x1, y1) {
   for (let y = Math.max(0, y0); y < Math.min(MAP_H, y1); y++) {
     for (let x = Math.max(0, x0); x < Math.min(MAP_W, x1); x++) {
       const i = y * MAP_W + x;
-      const c = CASTER3[w.obj[i]];
+      // seit 14.16: Stützmauern der Terrassen sind niedrig
+      const c = w.obj[i] === OBJ.WALL && WALL_STYLE.get(i) === 'terrasse' ? CASTER3_LOW : CASTER3[w.obj[i]];
       if (c) push(x + 0.5, y + 0.55, c[0], c[1], c[2]);
       const d = !w.obj[i] && DECO_CASTER3[w.deco[i]];
       if (d) {
@@ -1904,7 +1908,7 @@ function* terrainJob(cx, cy) {
 const chunks3 = new Map();
 // Ultra (PC): ein Ring Blöcke mehr bleibt geladen, man sieht weiter
 const CHUNK3_KEEP = 2;
-const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP);
+const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP) + ((typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0);
 let chunkJob = null;
 
 // Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
@@ -1937,11 +1941,13 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   // Feste Kamera: Blick nach Norden, oben mehr Blöcke (Ultra: ein Ring mehr). Schulterblick: Kreis um die
   // Mitte des Sichtbaren vor der Figur (dahinter und hinter dem Nebel braucht es nichts)
   const shoulder = v3Shoulder();
-  const reach = shoulder ? 2 : V3.ultra ? 3 : 2;
-  const side = shoulder ? 2 : V3.ultra ? 2 : 1;
-  for (let dy = -reach; dy <= (shoulder ? 2 : 1); dy++) {
+  // Nebel „Wenig“ (seit 14.17): ein Ring Blöcke mehr, weil man weiter sieht
+  const ring = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0;
+  const reach = (shoulder ? 2 : V3.ultra ? 3 : 2) + ring;
+  const side = (shoulder ? 2 : V3.ultra ? 2 : 1) + ring;
+  for (let dy = -reach; dy <= (shoulder ? 2 : 1) + ring; dy++) {
     for (let dx = -side; dx <= side; dx++) {
-      if (shoulder && dx * dx + dy * dy > 3.2) continue;
+      if (shoulder && dx * dx + dy * dy > 3.2 + ring * 4.5) continue;
       const x = ccx + dx;
       const y = ccy + dy;
       if (x < minX || y < minY || x > maxX || y > maxY) continue;

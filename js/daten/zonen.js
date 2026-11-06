@@ -1,5 +1,5 @@
 // Seit Version 6.2 ist jedes Gebiet eine eigene Map (WORLD_MAPS), erreichbar nur über das Weltentor im
-// Lager der Map. Map 1 ist Vlotho mit den Sonnenwiesen; jede andere Map hat in der Mitte ein kleines Lager.
+// Lager der Map. Map 1 ist Kazehana mit den Sonnenwiesen; jede andere Map hat in der Mitte ein kleines Lager.
 // map               Map, zu der das Gebiet gehört
 // minDist/maxDist   Abstand von der Mitte der Map in Kacheln
 // groups            [Monsterart, Anzahl Gruppen, von, bis] – von/bis: Bereich innerhalb des Rings,
@@ -10,7 +10,7 @@
 // ambient           Stimmung: schwebende Teilchen (kind) und eine leichte Färbung des Bildes (tint, RGBA)
 const ZONES = [
   {
-    id: 'dorf', map: 1, name: 'Vlotho', levels: 'Sicherer Ort', minDist: 0, maxDist: 24, safe: true,
+    id: 'dorf', map: 1, name: 'Kazehana', levels: 'Sicherer Ort', minDist: 0, maxDist: 24, safe: true,
     ground: 'GRASS'
   },
   {
@@ -28,7 +28,7 @@ const ZONES = [
     ambient: { kind: 'fireflies', tint: [10, 42, 20, 0.12] }
   },
   {
-    id: 'orktal', map: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999,
+    id: 'orktal', map: 5, name: 'Rostschlucht', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999,
     ground: 'SAND', trees: 0.0045, treeObj: 'DEADTREE', rocks: 0.018, water: 0.12, liquid: 'WATER',
     groups: [['ork', 12, 0, 0.6], ['orkschamane', 9, 0.3, 0.9], ['skorpion', 10, 0.2, 1], ['orkhauptmann', 6, 0.65, 1], ['hyaene', 7, 0.1, 0.8]], groupSize: [3, 5],
     stones: [[25, 4, 0, 0.6], [30, 3, 0.55, 1]],
@@ -186,9 +186,9 @@ for (const d of DUNGEONS) {
 // Städte 14 bzw. 18 → 20; Stände und Häuser bleiben beim Plan von genCamp, nur die Mauer rückt nach außen
 // seit 13.72 stehen die Stände innen an der neuen Mauer (TOWN_PLACES in welt.js), Häuser und Weltentor bleiben beim Plan
 const WORLD_MAPS = [
-  { id: 1, name: 'Vlotho', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Vlotho mit den grünen Sonnenwiesen.', portals: [] },
+  { id: 1, name: 'Kazehana', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Kazehana mit den grünen Sonnenwiesen.', portals: [] },
   { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
-  { id: 5, name: 'Orktal', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
+  { id: 5, name: 'Rostschlucht', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
   { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 13, genCamp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
   { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 20, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
   { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },

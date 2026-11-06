@@ -425,6 +425,11 @@ function netHostDamage(rp, d) {
     if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
     if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
     if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0 };
+    // Gift aus der Ausrüstung (seit 14.15): erneuert die Dauer, der höhere Tickwert bleibt
+    if (st.tx) {
+      const old = m.toxin && m.toxin.until > game.time ? m.toxin : null;
+      m.toxin = { dps: Math.max(+st.tx[0] || 1, old ? old.dps : 0), until: game.time + Math.min(TOXIN.dur, +st.tx[1] || 0), tick: old ? old.tick : 0 };
+    }
     // Einfrieren (seit 8.6, Magier): Restdauer im Eis (nie kürzen: der Mitspieler sieht fremdes Eis nur kurz gespiegelt),
     // uf = die Frostlanze hat das Eis zerschlagen
     if (st.fz) {
@@ -749,6 +754,7 @@ function netClientDamage(m, amount, crit, isDot) {
   if (left(m.poison) && !m.poison.sent) { st.po = [m.poison.dps, left(m.poison)]; m.poison.sent = true; }
   if (left(m.burn) && !m.burn.sent) { st.bu = [m.burn.dps, left(m.burn)]; m.burn.sent = true; }
   if (left(m.bleed) && !m.bleed.sent) { st.bl = [m.bleed.dps, left(m.bleed)]; m.bleed.sent = true; }
+  if (left(m.toxin) && !m.toxin.sent) { st.tx = [m.toxin.dps, left(m.toxin)]; m.toxin.sent = true; }
   // Einfrieren (seit 8.6): Restdauer schicken; zerschlagenes Eis einmal melden
   // nur eigenes Eis melden; das vom Host gespiegelte zurückzuschicken hielte den Gegner ewig eingefroren
   if (m.unfreeze) {
@@ -764,7 +770,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.hitFlash = 0.12;
     m.textStack = game.time - (m.lastText || -9) < 0.3 ? ((m.textStack || 0) + 1) % 4 : 0;
     m.lastText = game.time;
-    addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot ? 'dot' : 'dmg');
+    addText(m.x, feetY(m) - figureHeight(m) * 0.85 - m.textStack * 15, String(amount), crit ? 'crit' : isDot === 'toxin' ? 'toxin' : isDot ? 'dot' : 'dmg');
     (m.pendList || (m.pendList = [])).push({ a: amount, at: game.time });
     m.hp -= amount;
   }
@@ -777,7 +783,7 @@ function netClientDamage(m, amount, crit, isDot) {
     m.dead = true;
     m.predictedDead = game.time;
     m.killResent = false;
-    m.poison = m.burn = null;
+    m.poison = m.burn = m.toxin = null;
     if (game.target === m) game.target = null;
     monsterDeathFx(m);
   }
@@ -805,7 +811,7 @@ function netClientKill(m) {
   m.killResent = false;
   m.dead = true;
   m.hp = 0;
-  m.poison = m.burn = null;
+  m.poison = m.burn = m.toxin = null;
   if (game.target === m) game.target = null;
   if (!shown) monsterDeathFx(m);
   if (netShares(m, m.myHitAt)) rewardKill(m);
@@ -884,7 +890,7 @@ function netPlayerState() {
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
-    hp: Math.round(p.hp), mh: s.maxHp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
+    hp: Math.round(p.hp), mh: s.maxHp, mp: Math.round(p.mp || 0), mm: s.maxMp, d: p.dead ? 1 : 0, r: p.riding ? (p.horseTier || 1) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
     // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
     // seit 13.94: Bit 16 = Feueratem des Drachen bzw. Bodenstampfer des Kolosses (sonst Feuerball bzw. Faustschlag)
     ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0) | (a.altAttack ? 16 : 0), a.slot | 0, a.ghost ? a.typeId : 0]) } : {}),
@@ -925,12 +931,17 @@ function netApplyState(rp, s) {
     rp.tx = s.x;
     rp.ty = s.y;
   }
-  if (first || Math.abs(rp.x - s.x) + Math.abs(rp.y - s.y) > 400) { rp.x = s.x; rp.y = s.y; }
+  // seit 14.16 auch nach einem Teleportstein (sonst gleitet die Figur über Wasser oder Lava)
+  const jump = Math.abs(rp.x - s.x) + Math.abs(rp.y - s.y);
+  if (first || jump > 400 || (jump > 64 && typeof tpNear === 'function' && tpNear(s.x, s.y))) { rp.x = rp.tx = s.x; rp.y = rp.ty = s.y; }
   rp.facing = { x: s.fx, y: s.fy };
   rp.moving = !!s.m;
   if (!first && s.hp < rp.hp) rp.hurtAt = game.time;
   rp.hp = s.hp;
   rp.maxHp = s.mh;
+  // Mana (für die Gruppenanzeige; ältere Versionen senden es nicht, dann fehlt dort der Manabalken)
+  rp.mp = Number.isFinite(s.mp) ? s.mp : null;
+  rp.maxMp = Number.isFinite(s.mm) ? s.mm : null;
   rp.dead = !!s.d;
   rp.riding = !!s.r;
   rp.horseTier = s.r || 1;

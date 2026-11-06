@@ -1100,6 +1100,12 @@ function drawMonsterStatus(ctx, m) {
       circle(ctx, m.x + Math.cos(a) * 9, fy - h - 2 + Math.sin(a) * 3, 2);
     }
   }
+  // Gift aus der Ausrüstung (seit 14.15): ein blasser grüner Schleier am Körper
+  if (m.toxin && m.toxin.until > game.time) {
+    ctx.fillStyle = 'rgba(126,224,90,0.16)';
+    const k = (game.time * 0.6) % 1;
+    for (let i = 0; i < 3; i++) circle(ctx, m.x + Math.sin(game.time * 1.3 + i * 2.1) * 6, fy - h * (0.25 + ((k + i / 3) % 1) * 0.55), 5 + i);
+  }
   if (m.poison || m.burn) {
     // seit 13.70: Gift der Giftfalle violett
     ctx.fillStyle = m.burn ? 'rgba(255,140,60,0.85)' : m.poison && m.poison.color ? m.poison.color : 'rgba(140,220,90,0.85)';

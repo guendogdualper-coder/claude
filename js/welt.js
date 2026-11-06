@@ -4,7 +4,7 @@
 
 const TILE = 32;          // Größe einer Kachel in Pixeln
 // Seit Version 6.4 sind alle neun Maps gleich groß: 10.6 je 360 × 150, seit 10.7 je 360 × 220 (nach oben und unten
-// größer, Platz für viele Spieler; ursprünglich 300 × 120). Vlotho links,
+// größer, Platz für viele Spieler; ursprünglich 300 × 120). Kazehana links,
 // die anderen acht in zwei Spalten mit je vier Maps rechts daneben (WORLD_MAPS.region). Freie Flächen sind Fels.
 const WORLD_W = 1080;     // Breite des Map-Bereichs in Kacheln
 const WORLD_H = 880;      // Höhe des Map-Bereichs in Kacheln (vier Maps übereinander)
@@ -15,7 +15,7 @@ const DUNGEON_W = DUNGEON_COL * DUNGEON_SLOTS.cols; // östlich davon Spalten mi
 const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
 const MAP_W = WORLD_W + DUNGEON_W;
 const MAP_H = WORLD_H;
-const CENTER_X = 180;     // Mitte von Vlotho (x und y gleich: der Dorfplan rechnet mit einer Zahl)
+const CENTER_X = 180;     // Mitte von Kazehana (x und y gleich: der Dorfplan rechnet mit einer Zahl)
 const CENTER_Y = 180;
 // seit 13.63: Mauer 23 statt 18 – Platz für Auktionshaus, Post und Herausforderung. Häuser, Plätze und Stände bleiben
 // beim Plan von 18 (VILLAGE_PLAN), nur die Mauer rückt nach außen; Bäume und Wasser draußen bleiben wie vorher
@@ -132,7 +132,7 @@ function makeNoise(rng, cell) {
   };
 }
 
-// Jede Map ist ein eigenes Rechteck (WORLD_MAPS.region). In Vlotho ist das Dorf ein Quadrat innerhalb der
+// Jede Map ist ein eigenes Rechteck (WORLD_MAPS.region). In Kazehana ist das Dorf ein Quadrat innerhalb der
 // Mauer, sonst liegen die Gebiete als Ringe um die Mitte der Map. Was zu keiner Map gehört, ist Fels.
 function zoneIndexAt(x, y) {
   const wm = mapOfTile(x, y);
@@ -216,9 +216,9 @@ function isWallTile(x, y, cx = CENTER_X, cy = CENTER_Y, half = VILLAGE_HALF) {
 // 'frei' ist ein weiterer freier Platz für später.
 // Alles feste Zahlen (keine Zufallszahlen): jeder Mitspieler bekommt dieselben Plätze. Die Stände blockieren nicht
 // (Schmuck ohne Kollision) und keine Kachel ändert sich – wer an einem alten Standplatz gespeichert hat, steht frei.
-// dorf: Vlotho (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
+// dorf: Kazehana (Mauer 23) · stadt: Sahra (Map 2) und Klammfeste (Map 3, Mauer 20) · lager: die übrigen (Mauer 13)
 const TOWN_PLACES = {
-  // Vlotho: West- und Ostmauer, Stände über und unter dem Tor; um die Tore stehen die Torwachen.
+  // Kazehana: West- und Ostmauer, Stände über und unter dem Tor; um die Tore stehen die Torwachen.
   // Seit 13.91 nicht mehr im festen Abstand von 4 und nicht genau in einer Linie (das Dorf wirkte wie ein Raster),
   // und drei Leute stehen ohne Stand im Dorf (4. Zahl: Blickrichtung, 0 = nach Süden): die Wegweiserin neben dem
   // Weltentor, der Lehrmeister unter dem Kirschbaum bei der Bank, der Lagerverwalter vor dem Lagerhaus (vlothoHouses).
@@ -282,7 +282,9 @@ function townKind(mapId) {
 }
 // Platz einer Rolle in der Stadt einer Map: { x, y } in Kacheln (Mitte der Person), stand: Seite des Stands oder null
 function townPlace(mapId, role) {
-  const at = TOWN_PLACES[townKind(mapId)][role];
+  // seit 14.16: Städte mit eigener Form haben eigene Plätze (daten/stadtformen.js)
+  const lay = townLayout(mapId);
+  const at = (lay ? lay.places : TOWN_PLACES[townKind(mapId)])[role];
   if (!at) return null;
   const wm = WORLD_MAPS.find((m) => m.id === mapId);
   const [cx, cy] = mapId === 1 ? [CENTER_X, CENTER_Y] : [wm.cx, wm.cy];
@@ -373,10 +375,11 @@ const PILE_PROP = { heu: 'hay', holz: 'woodpile', sack: 'sacks', krug: 'pots', t
 function townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground) {
   const dx = x - cx;
   const dy = y - cy;
-  if (Math.hypot(dx, dy) < 6.5) return false;
+  // H null (seit 14.16): Stadt mit eigener Form – Mitte und Tore prüft townLayoutFree
+  if (H != null && Math.hypot(dx, dy) < 6.5) return false;
   // seit 13.91: nicht in begehbaren Häusern, vor ihren Türen und auf freigehaltenen Plätzen (TOWN_KEEP)
   for (const [ox, oy] of [[-0.45, -0.3], [0.45, -0.3], [-0.45, 0.3], [0.45, 0.3]]) if (TOWN_KEEP.has(Math.floor(y + oy) * MAP_W + Math.floor(x + ox))) return false;
-  if ((Math.abs(dx) < 3 && Math.abs(dy) > H - 5) || (Math.abs(dy) < 3 && Math.abs(dx) > H - 5)) return false;
+  if (H != null && ((Math.abs(dx) < 3 && Math.abs(dy) > H - 5) || (Math.abs(dy) < 3 && Math.abs(dx) > H - 5))) return false;
   for (const [ox, oy] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
     const i = Math.floor(y + oy) * MAP_W + Math.floor(x + ox);
     if (obj[i] !== OBJ.NONE || ground[i] === GROUND.PATH) return false;
@@ -403,13 +406,15 @@ function townDecoProps(mapId, cx, cy, H, npcs, props, obj, ground) {
   const out = [];
   let pile = 0;
   const tk = townKind(mapId);
-  for (const [dx, dy, code] of TOWN_DECO[tk]) {
+  // seit 14.16: Städte mit eigener Form haben ihre eigene Liste (daten/stadtformen.js)
+  const lay = townLayout(mapId);
+  for (const [dx, dy, code] of lay ? lay.deco || [] : TOWN_DECO[tk]) {
     // seit 13.91: Städte und Lager teilen sich eine Liste – je Map ein kleiner fester Versatz, damit nicht jede
     // Stadt genau gleich aussieht (Banner bleiben an der Mauer)
-    const j = tk === 'dorf' || code === 'F' ? 0 : ((((mapId * 31 + Math.round(dx * 5) * 7 + Math.round(dy * 5) * 3) % 7) + 7) % 7 - 3) * 0.06;
+    const j = tk === 'dorf' || code === 'F' || lay ? 0 : ((((mapId * 31 + Math.round(dx * 5) * 7 + Math.round(dy * 5) * 3) % 7) + 7) % 7 - 3) * 0.06;
     const x = cx + dx + j;
     const y = cy + dy - j * 0.6;
-    if (!townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground)) continue;
+    if (lay ? !(code === 'F' || townLayoutFree(mapId, x, y)) || !townDecoFree(x, y, cx, cy, null, npcs, props, obj, ground) : !townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground)) continue;
     // kleine feste Drehung je Platz, damit nicht alles in Reih und Glied steht (nur 3D)
     const rot = (((Math.round(dx * 7 + dy * 13 + mapId) % 5) + 5) % 5 - 2) * 0.16;
     const at = { x: x * TILE, y: y * TILE };
@@ -462,7 +467,7 @@ const HOUSE_ROOMS = {
     npc: [4.2, 2.4, -0.3]
   }
 };
-// Vlotho: [dx, dy, Breite, Tiefe, Dachfarbe, Aussehen, begehbar] ab der Mitte (linke obere Kachel). Zehn statt acht
+// Kazehana: [dx, dy, Breite, Tiefe, Dachfarbe, Aussehen, begehbar] ab der Mitte (linke obere Kachel). Zehn statt acht
 // Häuser, zwei davon begehbar (Kräuterstube links oben, Werkstatt rechts oben), dazu das Lagerhaus rechts unten, vor
 // dem der Lagerverwalter steht. Vorher acht gleiche Häuser, je zwei pro Viertel fast spiegelgleich.
 const VLOTHO_HOUSES = [
@@ -477,7 +482,7 @@ const VLOTHO_HOUSES = [
   [5, 5, 4, 3, '#4f5f3a', { roof: 'pagode', wall: 'fachwerk' }],
   [3, 15, 5, 3, '#5b4a6b', { roof: 'giebel', wall: 'fachwerk', chimney: 0.25, door: 1.8 }]
 ];
-// Gassen in Vlotho: von den Türen in leichten Bögen zu den großen Wegen (Punkte ab der Mitte)
+// Gassen in Kazehana: von den Türen in leichten Bögen zu den großen Wegen (Punkte ab der Mitte)
 const VLOTHO_LANES = [
   [[-11, -5.6], [-10.3, -4.1], [-11.2, -2.6], [-10.6, -1]],
   [[13, -8.4], [12.2, -6.6], [12.9, -4.6], [12.1, -2.6], [12.6, -1]],
@@ -555,7 +560,7 @@ function roughPlaza(ground, obj, cx, cy, R) {
     }
   }
 }
-// Dorfplan von Vlotho (nach widenVillage): alte Häuser weg, Platz, Gassen, Bäume und die neuen Häuser
+// Dorfplan von Kazehana (nach widenVillage): alte Häuser weg, Platz, Gassen, Bäume und die neuen Häuser
 function vlothoHouses(ground, obj, deco) {
   const C = CENTER_X;
   TOWN_KEEP.clear();
@@ -579,7 +584,7 @@ function vlothoHouses(ground, obj, deco) {
 // Häuser der übrigen Städte (nach buildWorldMaps): Aussehen je Map und ein begehbares Haus links unten
 function townHouses(mp, ground, obj, deco) {
   const st = TOWN_HOUSE_STYLE[mp.id];
-  if (!st || mp.small) return;
+  if (!st || mp.small || mp.layout) return; // seit 14.16: Städte mit eigener Form bringen ihre Häuser selbst mit
   mp.houses.forEach((h, k) => {
     h.look = st.looks[k % st.looks.length];
   });
@@ -630,7 +635,7 @@ function sameRoom(a, b) {
   return (a.house || houseAt(a.x, a.y)) === houseAt(b.x, b.y);
 }
 
-// Vlotho vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
+// Kazehana vergrößern (seit 13.63): Das Dorf wird mit dem alten Plan (VILLAGE_PLAN) erzeugt, damit Bäume, Wasser und
 // Blumen draußen genau gleich bleiben. Danach gehört alles bis zur neuen Mauer (VILLAGE_HALF) zum Dorf, die alte
 // Mauer verschwindet, und vor der neuen bleiben 4 Kacheln frei (ohne Bäume, Felsen und Wasser). Die neue Mauer steht
 // jetzt auch im Osten und Süden (vorher fehlten dort die Mauerstücke zwischen den Türmen).
@@ -667,6 +672,193 @@ function wallVertical(w, i) {
   return w.obj[i - MAP_W] === OBJ.WALL || w.obj[i + MAP_W] === OBJ.WALL;
 }
 
+// --- Stadtformen (seit 14.16, Daten in daten/stadtformen.js) -------------------------------------------------
+// Ab der dritten Map hat jede Stadt ihren eigenen Grundriss. Die Wildnis wird wie bisher erzeugt (gleiche
+// Zufallszahlen), danach belegt applyTownLayout nur das Quadrat der alten Mauer neu. Merkt sich je Kachel, was die
+// Zeichner und Abfragen brauchen: sichere Kacheln (inVillage), Art der Mauer und Richtung der Brücken.
+const TOWN_SAFE = new Map();   // Map-Id -> Uint8Array über das Quadrat (1 = sicher)
+const WALL_STYLE = new Map();  // Kachelindex -> 'palisade' | 'terrasse' | 'kristall' (ohne Eintrag: Steinmauer)
+const BRIDGE_DIR = new Map();  // Kachelindex -> true: Weg läuft waagrecht, false: senkrecht
+const TOWN_WALL_CH = { '#': null, P: 'palisade', S: 'terrasse', K: 'kristall' };
+// Türme (blockieren über die Mauerkachel darunter, dort wird kein Mauerstück gezeichnet)
+const TOWER_TYPES = new Set(['tower', 'holzturm', 'kristallturm']);
+// Art einer Brücke (Kachelindex i, Boden g): in den Städten nach der Flüssigkeit darunter, sonst die Holzbrücke
+function bridgeStyleAt(i, g) {
+  if (!BRIDGE_DIR.has(i)) return null;
+  return g === GROUND.BOG ? 'steg' : g === GROUND.LAVA ? 'stein' : g === GROUND.ABGRUND ? 'licht' : null;
+}
+const townLayout = (mapId) => (typeof TOWN_LAYOUTS !== 'undefined' && TOWN_LAYOUTS[mapId]) || null;
+// Halbe Seite des Quadrats einer Map mit Stadtform (null ohne)
+function townLayoutHalf(mapId) {
+  const L = townLayout(mapId);
+  return L ? (L.grid.length - 1) / 2 : null;
+}
+// Brückenrichtung einer Kachel in einer Stadt (undefined: wie bisher aus den Nachbarn bestimmen)
+const bridgeDirAt = (x, y) => BRIDGE_DIR.get(y * MAP_W + x);
+// Kleiner fester Wert je Kachel (für Schmuck in der Wildnis der Stadt, ohne Zufallsgenerator)
+function townTileHash(x, y) {
+  let h = Math.imul(x + 0x2f6b1c3d, 0x85ebca6b) ^ Math.imul(y + 0x61c88647, 0xc2b2ae35);
+  h ^= h >>> 15;
+  h = Math.imul(h, 0x27d4eb2d);
+  return (h ^ (h >>> 13)) >>> 0;
+}
+// Grundriss einer Stadt in die Karte legen (nach tidyBridges, damit Brücken und Stege bleiben, wie sie sind)
+function applyTownLayout(mp, ground, obj, deco, zoneIdx) {
+  const L = townLayout(mp.id);
+  if (!L) return;
+  const H = (L.grid.length - 1) / 2;
+  const safeZi = ZONES.findIndex((z) => z.map === mp.id && z.safe);
+  const wildZi = MAP_ZONE_LIST[mp.id].find((i) => !ZONES[i].safe);
+  const wild = ZONES[wildZi];
+  const liquid = GROUND[L.liquid || 'WATER'];
+  const cityGround = GROUND[ZONES[safeZi].ground];
+  const mask = new Uint8Array((2 * H + 1) * (2 * H + 1));
+  for (let gy = 0; gy <= 2 * H; gy++) {
+    const row = L.grid[gy];
+    for (let gx = 0; gx <= 2 * H; gx++) {
+      const x = mp.cx - H + gx;
+      const y = mp.cy - H + gy;
+      const i = y * MAP_W + x;
+      const c = row[gx];
+      obj[i] = OBJ.NONE;
+      deco[i] = DECO.NONE;
+      WALL_STYLE.delete(i);
+      BRIDGE_DIR.delete(i);
+      if (c === '"' || c === 'T') {
+        // Wildnis: Boden des Gebiets draußen, ein wenig Schmuck nach der Lage der Kachel
+        zoneIdx[i] = wildZi;
+        ground[i] = GROUND[wild.ground];
+        if (c === 'T') obj[i] = OBJ[wild.treeObj];
+        else {
+          const h = townTileHash(x, y) % 100;
+          if (h < 4) deco[i] = zoneDeco(wild, (h + 0.5) / 4);
+          else if (h > 86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL ? DECO.CRACK : DECO.TUFT;
+        }
+        continue;
+      }
+      mask[gy * (2 * H + 1) + gx] = 1;
+      zoneIdx[i] = safeZi;
+      ground[i] = c === '.' ? GROUND.PLAZA : c === '_' || c === 'o' || c === '%' ? GROUND.PATH : cityGround;
+      if (c === '^') deco[i] = DECO.DRIFT;
+      else if (c === '~') ground[i] = liquid;
+      else if (c === '=' || c === 'H') {
+        ground[i] = liquid;
+        deco[i] = DECO.BRIDGE;
+        BRIDGE_DIR.set(i, c === '=');
+      } else if (c in TOWN_WALL_CH) {
+        obj[i] = OBJ.WALL;
+        if (TOWN_WALL_CH[c]) WALL_STYLE.set(i, TOWN_WALL_CH[c]);
+      }
+    }
+  }
+  TOWN_SAFE.set(mp.id, mask);
+  // Häuser: geschlossene aus der Liste (Aussehen je Map aus TOWN_HOUSE_STYLE oder eigenes), dazu das begehbare
+  const st = TOWN_HOUSE_STYLE[mp.id];
+  mp.houses = (L.houses || []).map(([dx, dy, w, h, roof, look]) => {
+    const hs = { x: mp.cx + dx, y: mp.cy + dy, w, h, roof, look: typeof look === 'number' ? (st ? st.looks[look % st.looks.length] : {}) : look };
+    placeHouse(hs, ground, obj, deco);
+    return hs;
+  });
+  if (L.enter && st) {
+    const [roof, look, room, who] = st.enter;
+    const hs = { x: mp.cx + L.enter[0], y: mp.cy + L.enter[1], w: 7, h: 6, roof, look, enter: { door: 2, room, npc: who } };
+    placeHouse(hs, ground, obj, deco);
+    mp.houses.push(hs);
+  }
+  mp.layout = L;
+  mp.half = H;
+  mp.spawn = { x: (mp.cx + L.spawn[0]) * TILE, y: (mp.cy + L.spawn[1]) * TILE };
+  // Teleportsteine: je Paar zwei Steine, die aufeinander zeigen (Mitte der Kachel, Pixel)
+  mp.stones = [];
+  for (const [ax, ay, bx, by] of L.stones || []) {
+    const a = mp.stones.length;
+    mp.stones.push({ map: mp.id, tx: mp.cx + ax, ty: mp.cy + ay, x: (mp.cx + ax + 0.5) * TILE, y: (mp.cy + ay + 0.5) * TILE, to: a + 1 });
+    mp.stones.push({ map: mp.id, tx: mp.cx + bx, ty: mp.cy + by, x: (mp.cx + bx + 0.5) * TILE, y: (mp.cy + by + 0.5) * TILE, to: a });
+  }
+}
+// Bauten einer Stadt mit eigener Form: Türme und Torbögen an den Toren (je nach Mauerart), Treppen zwischen den
+// Terrassen, Laternen, Feuerbecken, Brunnen, das Pferd beim Stallmeister und die Teleportsteine
+const TOWN_TOWER = { stein: 'tower', palisade: 'holzturm', kristall: 'kristallturm' };
+function townLayoutProps(mp, T) {
+  const L = mp.layout;
+  const H = mp.half;
+  const at = (dx, dy) => (Math.abs(dx) > H || Math.abs(dy) > H ? '"' : L.grid[dy + H][dx + H]);
+  const wallKind = (c) => (c === '#' ? 'stein' : c === 'P' ? 'palisade' : c === 'K' ? 'kristall' : null);
+  const out = [];
+  const towers = new Set();
+  // Tore: zusammenhängende Läufe aus 'o' (waagrecht oder senkrecht), an beiden Enden ein Turm auf der Mauer
+  for (let dy = -H; dy <= H; dy++) {
+    for (let dx = -H; dx <= H; dx++) {
+      if (at(dx, dy) !== 'o') continue;
+      const horiz = at(dx - 1, dy) === 'o' || at(dx + 1, dy) === 'o' || (at(dx, dy - 1) !== 'o' && at(dx, dy + 1) !== 'o' && !!wallKind(at(dx - 1, dy)));
+      const [sx, sy] = horiz ? [1, 0] : [0, 1];
+      if (at(dx - sx, dy - sy) === 'o') continue; // nur am Anfang eines Laufs
+      let n = 0;
+      while (at(dx + sx * n, dy + sy * n) === 'o') n++;
+      for (const [ex, ey] of [[dx - sx, dy - sy], [dx + sx * n, dy + sy * n]]) {
+        const kind = wallKind(at(ex, ey));
+        const key = ex + ',' + ey;
+        if (!kind || towers.has(key)) continue;
+        towers.add(key);
+        out.push({ type: TOWN_TOWER[kind], ...T(mp.cx + ex + 0.5, mp.cy + ey + 1) });
+      }
+      // Torbogen über breiten Toren in Nord- und Südmauer (Stein oder Palisade)
+      const kind = wallKind(at(dx - sx, dy - sy));
+      if (horiz && n >= 4 && Math.abs(dy) === H && (kind === 'stein' || kind === 'palisade')) {
+        out.push({ type: kind === 'stein' ? 'gate' : 'holztor', ...T(mp.cx + dx + n / 2, mp.cy + dy + 1) });
+      }
+    }
+  }
+  // Treppen: Läufe aus '%' in einer Stützmauer
+  for (let dy = -H; dy <= H; dy++) {
+    for (let dx = -H; dx <= H; dx++) {
+      if (at(dx, dy) !== '%' || at(dx - 1, dy) === '%') continue;
+      let n = 0;
+      while (at(dx + n, dy) === '%') n++;
+      out.push({ type: 'treppe', roof: (TOWN_THEME[mp.id] || {}).snow ? 'schnee' : '', w: n, ...T(mp.cx + dx + n / 2, mp.cy + dy) });
+    }
+  }
+  const th = TOWN_THEME[mp.id] || {};
+  const fire = { 8: '#8fe36a', 10: '#9fd8ff' }[mp.id] || '#ffb04a';
+  for (const [type, dx, dy] of L.lights || []) {
+    out.push(type === 'brazier' ? { type, roof: fire, ...T(mp.cx + dx, mp.cy + dy) } : { type, ...T(mp.cx + dx, mp.cy + dy) });
+  }
+  // Pferd und Heu nur auf freiem Stadtboden (nicht auf Mauer, Wasser oder Lava)
+  out.push(...stallProps(townPlace(mp.id, 'stallmeister'), true).filter((pr) => '.,_^'.includes(at(Math.floor(pr.x / TILE) - mp.cx, Math.floor(pr.y / TILE) - mp.cy))));
+  for (const s of mp.stones) out.push({ type: 'tpstein', roof: th.stone || TP_STONE_COLOR[mp.id] || '#9fd8ff', x: s.x, y: s.y + 0.5 * TILE });
+  return out;
+}
+// Farbe des Lichts in den Teleportsteinen je Map
+const TP_STONE_COLOR = { 3: '#9fd0ff', 9: '#ffb46a', 10: '#b8a8ff' };
+// Ist (x, y) (Kacheln) in einer Stadt mit eigener Form ein freier Platz für Schmuck? Begehbarer, sicherer Stadtboden
+// ohne Weg, nicht vor einem Tor, nicht an Treppen und Teleportsteinen
+function townLayoutFree(mapId, x, y) {
+  const L = townLayout(mapId);
+  const wm = WORLD_MAPS.find((m) => m.id === mapId);
+  const H = (L.grid.length - 1) / 2;
+  for (const [ox, oy] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
+    const dx = Math.floor(x + ox) - wm.cx;
+    const dy = Math.floor(y + oy) - wm.cy;
+    if (Math.abs(dx) > H || Math.abs(dy) > H) return false;
+    const c = L.grid[dy + H][dx + H];
+    if (c !== ',' && c !== '.' && c !== '^') return false;
+  }
+  for (const [ax, ay, bx, by] of L.stones || []) {
+    if (Math.hypot(wm.cx + ax + 0.5 - x, wm.cy + ay + 0.5 - y) < 1.6 || Math.hypot(wm.cx + bx + 0.5 - x, wm.cy + by + 0.5 - y) < 1.6) return false;
+  }
+  return true;
+}
+// Spielstand in einer Stadt mit neuer Form, der auf Wasser, Mauer oder Haus landen würde: zum Weltentor der Stadt
+function townRescue(x, y) {
+  const tx = Math.floor(x / TILE);
+  const ty = Math.floor(y / TILE);
+  const wm = mapOfTile(tx, ty);
+  const H = wm ? townLayoutHalf(wm.id) : null;
+  if (H == null || Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) > H + 1) return null;
+  const mp = game.world && game.world.maps ? game.world.maps.find((m) => m.id === wm.id) : null;
+  return mp ? { ...mp.spawn } : null;
+}
+
 function generateWorld() {
   const rng = mulberry32(WORLD_SEED);
   const shape = makeNoise(rng, 11);
@@ -677,8 +869,11 @@ function generateWorld() {
   const obj = new Uint8Array(size);
   const deco = new Uint8Array(size);
   const zoneIdx = new Uint8Array(size);
+  TOWN_SAFE.clear();
+  WALL_STYLE.clear();
+  BRIDGE_DIR.clear();
 
-  // Map 1 (Vlotho mit den Sonnenwiesen) in ihrer Region; die anderen Maps baut buildWorldMaps
+  // Map 1 (Kazehana mit den Sonnenwiesen) in ihrer Region; die anderen Maps baut buildWorldMaps
   const M1 = WORLD_MAPS[0].region;
   const [m1x0, m1y0, m1x1, m1y1] = [M1[0], M1[1], M1[0] + M1[2], M1[1] + M1[3]];
   for (let y = m1y0; y < m1y1; y++) {
@@ -722,7 +917,7 @@ function generateWorld() {
   }
 
   // Vier Wege vom Dorf bis an den Rand – seit 13.91 nur noch vorläufig: Die Zufallszahlen für Blumen und Schmuck
-  // (auch in Vlotho) werden so genau wie früher verbraucht. Nach dem Schmuck werden sie außerhalb der Tore wieder
+  // (auch in Kazehana) werden so genau wie früher verbraucht. Nach dem Schmuck werden sie außerhalb der Tore wieder
   // zurückgebaut (oldRoad merkt sich, was vorher dort war), und layRoads legt die neuen, geschwungenen Wege.
   const oldRoad = new Map();
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -776,7 +971,7 @@ function generateWorld() {
     else if ((g === GROUND.PATH || g === GROUND.SAND || g === GROUND.SNOW) && r < 0.12) deco[i] = DECO.PEBBLE;
     else if ((g === GROUND.ASH || g === GROUND.BASALT) && r < 0.16) deco[i] = DECO.CRACK;
   }
-  // seit 13.63: Vlotho größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
+  // seit 13.63: Kazehana größer – Mauer nach außen, alter Mauerring weg (erst jetzt, die Zufallszahlen sind verbraucht)
   widenVillage(ground, obj, deco, zoneIdx);
   // seit 13.91: neuer Dorfplan (vlothoHouses) – die alten Häuser oben standen nur noch für die Zufallszahlen da
   houses.splice(0, houses.length, ...vlothoHouses(ground, obj, deco));
@@ -799,6 +994,8 @@ function generateWorld() {
   const dungeons = buildDungeons(ground, obj, zoneIdx, deco);
   const maps = buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads);
   tidyBridges(ground, deco, obj);
+  // seit 14.16: eigene Stadtformen ab der dritten Map (nach tidyBridges, die Wildnis ist fertig)
+  for (const mp of maps) applyTownLayout(mp, ground, obj, deco, zoneIdx);
   // seit 13.91: Aussehen der Stadthäuser und je ein begehbares Haus in den großen Städten
   for (const mp of maps) townHouses(mp, ground, obj, deco);
   const roadFixes = repairRoads(ground, obj, deco, roads);
@@ -829,7 +1026,7 @@ function generateWorld() {
     ...TOWN_ROLES.map((id) => townNpc(1, id, VLOTHO_PEOPLE[id])),
     npc('weltentor', 'Weltentor', C + 5.1, C - 9)
   ];
-  // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Vlotho (jede Map mit eigenen Namen),
+  // Städte und Lager der anderen Maps: Weltentor und dieselben Leute wie in Kazehana (jede Map mit eigenen Namen),
   // damit man Aufträge, Jagden und die Stallmeister-Prüfung überall annehmen und abgeben kann
   const ROLE_TITLE = {
     haendler: ['Händlerin', 'Händler'], schmied: ['Schmied', 'Schmiedin'], waffen: ['Waffenhändler', 'Waffenhändlerin'],
@@ -874,7 +1071,8 @@ function generateWorld() {
   };
   for (const mp of maps) {
     const k = mp.scale;
-    npcs.push(npc('weltentor', 'Weltentor', mp.cx + 0.5 * k, mp.cy - 4.5 * k));
+    const wt = mp.layout ? mp.layout.weltentor : [0.5 * k, -4.5 * k];
+    npcs.push(npc('weltentor', 'Weltentor', mp.cx + wt[0], mp.cy + wt[1]));
     // seit 13.72 alle an der Mauer (TOWN_PLACES), vorher in CAMP_SPOTS/TOWN_SPOTS nach dem alten, kleineren Plan
     for (const id of TOWN_ROLES) npcs.push(townNpc(mp.id, id, personName(mp.id, id)));
     houses.push(...mp.houses);
@@ -898,7 +1096,7 @@ function generateWorld() {
         const tx = Math.round(wm.cx + Math.cos(ang) * d);
         const ty = Math.round(wm.cy + Math.sin(ang) * d * 0.4);
         if (tx < rx + 8 || ty < ry + 8 || tx >= rx + rw - 8 || ty >= ry + rh - 8) continue;
-        // nicht in der (vergrößerten) Stadt – seit 13.63 auch in Vlotho und den Lagern
+        // nicht in der (vergrößerten) Stadt – seit 13.63 auch in Kazehana und den Lagern
         if (Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) + 3) continue;
         let free = true;
         for (let yy = ty - 1; yy <= ty + 1 && free; yy++) for (let xx = tx - 1; xx <= tx + 1; xx++) {
@@ -1031,6 +1229,11 @@ function generateWorld() {
   // Hinter jedem Turm steht die Mauer; die Türme selbst blockieren über die Mauerkacheln
   // Städte in Map 2 und 3: Laternen, Feuerbecken, Marktstände, Brunnen, Fässer
   for (const mp of maps) {
+    // seit 14.16: Städte mit eigener Form (Türme an ihren Toren, Treppen, Lichter, Teleportsteine)
+    if (mp.layout) {
+      props.push(...townLayoutProps(mp, T));
+      continue;
+    }
     // Türme an den Ecken und an jedem Tor, Torbögen im Norden und Süden
     const H2 = WORLD_MAPS.find((m) => m.id === mp.id).camp || CAMP_HALF;
     const k = mp.scale;
@@ -1075,7 +1278,13 @@ function generateWorld() {
   for (const mp of maps) props.push(...townDecoProps(mp.id, mp.cx, mp.cy, WORLD_MAPS.find((m) => m.id === mp.id).camp || CAMP_HALF, npcs, props, obj, ground));
 
   // roads (seit 13.91): Mittellinien der Wege für die große Karte, roadFixes: Kacheln, die repairRoads trocken legte
-  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps, roads, roadFixes };
+  // tpStones (seit 14.16): alle Teleportsteine der Städte, to = Index des Partnersteins
+  const tpStones = [];
+  for (const mp of maps) {
+    const base = tpStones.length;
+    for (const s of mp.stones || []) tpStones.push({ ...s, to: base + s.to });
+  }
+  return { ground, obj, deco, zoneIdx, houses, npcs, shade, props, dungeons, maps, roads, roadFixes, tpStones };
 }
 
 // --- Dungeons ------------------------------------------------------------------------------
@@ -1255,7 +1464,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
     const j = L(x, y);
     if (cost[j] > 0.55 && cost[j] < Infinity) cost[j] = 0.55;
   };
-  // 1. Kurze gerade Stücke durch die vier Tore, genau wie die alten Wege (Vlotho mit seinem leichten Schwung)
+  // 1. Kurze gerade Stücke durch die vier Tore, genau wie die alten Wege (Kazehana mit seinem leichten Schwung)
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   DIRS.forEach(([dx, dy], k) => {
     const pts = [];
@@ -1266,7 +1475,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
         const y = Math.floor(cy + dy * s + (dx ? w + wobble : 0));
         if (x < rx + MAP_BORDER || y < ry + MAP_BORDER || x >= rx + rw - MAP_BORDER || y >= ry + rh - MAP_BORDER) continue;
         const i = y * MAP_W + x;
-        // in Vlotho liegen diese Stücke schon (die alten Wege bis zum Tor, generateWorld): nichts ändern
+        // in Kazehana liegen diese Stücke schon (die alten Wege bis zum Tor, generateWorld): nichts ändern
         if (wm.id !== 1) {
           if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
           else {
@@ -2006,7 +2215,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads 
     }
     // Wege: seit 13.91 ein eigenes, geschwungenes Netz je Map (layRoads), vorher vier gerade Wege bis an den Rand
     layRoads(wm, ground, obj, deco, zoneIdx, roads);
-    // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Vlotho)
+    // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Kazehana)
     for (let y = wm.cy - camp; y <= wm.cy + camp; y++) {
       for (let x = wm.cx - camp; x <= wm.cx + camp; x++) {
         if (!isWallTile(x, y, wm.cx, wm.cy, camp)) continue;
@@ -2094,7 +2303,7 @@ function rockSolid(tx, ty) {
   return tx < rx + MAP_BORDER || ty < ry + MAP_BORDER || tx >= rx + rw - MAP_BORDER || ty >= ry + rh - MAP_BORDER;
 }
 
-// Sicher: das Dorf Vlotho, die Städte und die Lager der anderen Maps
+// Sicher: das Dorf Kazehana, die Städte und die Lager der anderen Maps
 const CAMP_HALF = 14; // seit 10.6 (vorher 11) – Städte in Map 2 und 3: sicheres Quadrat um die Mitte (kleine Lager: WORLD_MAPS.camp)
 function inVillage(x, y) {
   const tx = x / TILE;
@@ -2102,6 +2311,14 @@ function inVillage(x, y) {
   const wm = mapOfTile(tx, ty);
   if (!wm) return false;
   if (wm.id === 1) return Math.max(Math.abs(tx - CENTER_X), Math.abs(ty - CENTER_Y)) < VILLAGE_HALF + 0.5;
+  // seit 14.16: Städte mit eigener Form – sicher ist genau die Fläche der Form (Wildnis davor nicht)
+  const mask = TOWN_SAFE.get(wm.id);
+  if (mask) {
+    const H = townLayoutHalf(wm.id);
+    const dx = Math.floor(tx) - wm.cx + H;
+    const dy = Math.floor(ty) - wm.cy + H;
+    return dx >= 0 && dy >= 0 && dx <= 2 * H && dy <= 2 * H && mask[dy * (2 * H + 1) + dx] === 1;
+  }
   return Math.max(Math.abs(tx - wm.cx), Math.abs(ty - wm.cy)) < (wm.camp || CAMP_HALF);
 }
 
@@ -2204,7 +2421,7 @@ function moveEntity(e, dx, dy, isMonster) {
 // Zufälliger begehbarer Punkt in einer Zone (in Pixeln).
 // from/to grenzen den Ring ein: 0 = dorfnaher Rand, 1 = äußerer Rand.
 function randomSpotInZone(zone, from = 0, to = 1) {
-  // Gebiete liegen als Ringe um die Mitte ihrer Map (Vlotho: um das Dorf)
+  // Gebiete liegen als Ringe um die Mitte ihrer Map (Kazehana: um das Dorf)
   const wm = WORLD_MAPS.find((m) => m.id === zone.map) || WORLD_MAPS[0];
   const cx = wm.cx;
   const cy = wm.cy;
@@ -2231,7 +2448,7 @@ function randomSpotInZone(zone, from = 0, to = 1) {
 }
 
 // Wiederbeleben: im Lager bzw. in der Stadt der Map, in der man ist (im Dungeon: der Map seines Eingangs),
-// in Vlotho im Dorf
+// in Kazehana im Dorf
 function villageSpawn(p) {
   if (p && game.world && game.world.maps) {
     let wm = mapOfTile(p.x / TILE, p.y / TILE);

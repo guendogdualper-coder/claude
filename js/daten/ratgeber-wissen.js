@@ -8,7 +8,7 @@
 // Eintrag: { c: Kategorie, q: Frage, a: Antwort (HTML oder Funktion, die HTML liefert), k: Stichwörter für die Suche,
 //            p: Vorrang bei gleicher Trefferzahl (optional) }
 // Platzhalter in Fragen und Antworten:
-//   {n:rolle}  Name der Person in Vlotho, z. B. {n:schmied} → „Schmied Doran“ (aus der Welt gelesen, siehe rgName)
+//   {n:rolle}  Name der Person in Kazehana, z. B. {n:schmied} → „Schmied Doran“ (aus der Welt gelesen, siehe rgName)
 //   {k:aktion} Taste dieser Aktion, z. B. {k:inv} → I (beachtet die eigene Tastenbelegung, tasten.js)
 
 const RATGEBER_KATEGORIEN = [
@@ -38,13 +38,13 @@ const RATGEBER_WISSEN = [
   // --- Erste Schritte ---------------------------------------------------------------------------------------
   {
     c: 'start', p: 6, q: 'Ich bin neu – was soll ich als Erstes machen?',
-    a: 'Sprich mit <b>{n:aeltester}</b> in Vlotho (goldenes „!“ über dem Kopf) und nimm die Hauptquest an. Dann geh vor das Tor und jag die ersten Monster. ' +
+    a: 'Sprich mit <b>{n:aeltester}</b> in Kazehana (goldenes „!“ über dem Kopf) und nimm die Hauptquest an. Dann geh vor das Tor und jag die ersten Monster. ' +
       'Der goldene Pfeil an deiner Figur zeigt dir immer den Weg zum nächsten Ziel. Mein Leitfaden „Erste Schritte“ erklärt alles der Reihe nach.',
     k: 'anfang anfangen start starten neu noob anfaenger beginner einstieg erstes zuerst machen tun was soll ich machen wie fange ich an hilfe tutorial'
   },
   {
     c: 'start', p: 3, q: 'Wo bekomme ich die Hauptquest?',
-    a: 'Beim Ältesten: in Vlotho <b>{n:aeltester}</b>, auf den anderen Maps der Lagerälteste. Ein goldenes „!“ heißt neuer Auftrag, ein goldenes „?“ heißt abgeben. ' +
+    a: 'Beim Ältesten: in Kazehana <b>{n:aeltester}</b>, auf den anderen Maps der Lagerälteste. Ein goldenes „!“ heißt neuer Auftrag, ein goldenes „?“ heißt abgeben. ' +
       'Den laufenden Auftrag siehst du oben rechts unter der Karte, alle Quests mit Taste {k:quests}.',
     k: 'hauptquest hauptmission auftrag kapitel aeltester quest mission story geschichte'
   },
@@ -66,7 +66,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'start', q: 'Bin ich in der Stadt sicher?',
-    a: 'Ja. Innerhalb der Stadtmauer von Vlotho und in jeder Stadt und jedem Lager greifen dich Monster nicht an. Sie folgen dir auch nicht durch die Tore.',
+    a: 'Ja. Innerhalb der Stadtmauer von Kazehana und in jeder Stadt und jedem Lager greifen dich Monster nicht an. Sie folgen dir auch nicht durch die Tore.',
     k: 'sicher stadt mauer lager schutz angriff monster folgen tor safe'
   },
   {
@@ -129,13 +129,14 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'sinn', q: 'Wie komme ich an Gold?',
-    a: 'Monster und Aufträge geben Gold, der Stein der Gier sogar dreimal so viel. Dazu kommen Verkaufen beim Händler, die Prüfungsarena, die Tagesbelohnung und das Auktionshaus.',
+    a: 'Monster und Aufträge geben Gold, der Stein der Gier sogar dreimal so viel. Dazu kommen Verkaufen beim Händler, die Prüfungsarena, die Tagesbelohnung und das Auktionshaus. ' +
+      'Der Bonus <b>Mehr Gold</b> auf Helm, Schultern, Umhang, Gürtel oder Schuhen erhöht das Gold von Monstern und Seelensteinen.',
     k: 'gold geld reich verdienen muenzen farmen'
   },
   {
     c: 'sinn', q: 'Gibt es Tag und Nacht?',
     a: 'Ja, nach der echten Uhrzeit, für alle gleich: Eine Runde dauert 40 Minuten – 25 Minuten Tag, 3 Minuten Dämmerung, 9 Minuten Nacht, 3 Minuten Morgendämmerung. ' +
-      'Nachts kommen Nachtmonster dazu. Nachtjagden gibt es bei den Nachtwanderern auf den anderen Maps, in Vlotho (Map 1) seit 13.88 nicht mehr.',
+      'Nachts kommen Nachtmonster dazu. Nachtjagden gibt es bei den Nachtwanderern auf den anderen Maps, in Kazehana (Map 1) seit 13.88 nicht mehr.',
     k: 'tag nacht dunkel uhrzeit nachtmonster nachtjagd nachtwanderer daemmerung'
   },
 
@@ -405,6 +406,34 @@ const RATGEBER_WISSEN = [
       'ab Stufe 20 (zweite Karte) kommen Switcher, Seltene Verstärkung und Sternensteine richtig, je höher der Stein, desto öfter.',
     k: 'boni bonus verstaerkung switcher sternenstein sternen-switcher seltene verstaerkung wuerfeln'
   },
+  // seit 14.15: neue Boni
+  {
+    c: 'ausruestung', q: 'Was bewirkt die Vergiftungschance (Gift)?',
+    a: () => {
+      const T = typeof TOXIN !== 'undefined' ? TOXIN : { dur: 6, share: 0.4, bossCap: 0.02 };
+      return `Die <b>Vergiftungschance</b> gibt es nur auf Waffen (insgesamt höchstens ${(typeof BONUS_CAPS !== 'undefined') ? rgPct(BONUS_CAPS.poison) : '12 %'}). ` +
+        `Jeder Treffer – Grundangriff und Fertigkeit, je Ziel einmal – vergiftet mit dieser Chance: ${T.dur} Sekunden lang, jede Sekunde ein Tick, zusammen ${rgPct(T.share)} des Treffers. ` +
+        `Das Ziel zeigt „Vergiftet“ mit Restzeit und Schaden je Sekunde, die Zahlen sind grün. Ein neues Gift stapelt nicht, es erneuert die Dauer und behält den stärkeren Tick. ` +
+        `Bosse, Endboss-Kristalle und Seelensteine verlieren durch ein Gift höchstens ${rgPct(T.bossCap)} ihres Lebens. Im PvP nimmt ein Tick höchstens 1,5 % des Lebens.`;
+    },
+    k: 'gift giftig vergiftung vergiftet vergiftungschance poison toxin gruen schaden ueber zeit'
+  },
+  {
+    c: 'ausruestung', q: 'Wie bekomme ich mehr Gold und mehr Beute?',
+    a: 'Die Boni <b>Mehr Gold</b> und <b>Mehr Beute</b> gibt es auf Helm, Schultern, Umhang, Gürtel und Schuhen (je Teil bis 8 %, zusammen bis 25 %). ' +
+      'Mehr Gold erhöht das Gold von Monstern, Bossen und Seelensteinen, nicht die Belohnung von Aufträgen oder der Arena. ' +
+      'Mehr Beute erhöht die Chance auf Ausrüstung, Tränke und Monsterteile. Fertigkeitsbücher, Schriftrollen, Seelensteine (Gegenstand), Verstärkungen, Switcher und Sternensteine bleiben bewusst so selten wie bisher.',
+    k: 'gold beute mehr gold mehr beute drop drops loot goldfund glueck finden'
+  },
+  {
+    c: 'ausruestung', q: 'Was heißt „Stark gegen …“ und „Abwehr gegen …“?',
+    a: '<b>Stark gegen</b> Tiere, Menschen, Orks und Riesen, Untote und Geister oder Teufel und Dämonen macht mehr Schaden gegen diese Art und zählt zu „Stark gegen Monster“ dazu. ' +
+      'Tiere sind auch Spinnen, Schlangen und Drachen, zu Orks und Riesen zählen Oger, Trolle und Golems, Untote sind Untote Krieger, Ghule, Skelette und Geister, Teufel und Dämonen auch der Höllenhund und Abaddor. ' +
+      'Seelensteine zählen wie die Monster ihres Gebiets. Andere Spieler sind Menschen: gegen sie zählt nur „Stark gegen Menschen“. ' +
+      '<b>Abwehr gegen</b> Magie (Zauber von Magier, Schamane, Nekromant und zaubernden Monstern), Nahkampf oder Fernkampf senkt den Schaden dieser Angriffe, <b>Abwehr gegen Menschen</b> den von menschlichen Monstern und anderen Spielern. ' +
+      'Alle Boni stehen im Charakterfenster auf der Seite „Werte“, mit ihrer Obergrenze.',
+    k: 'stark gegen tiere menschen orks riesen untote geister teufel daemonen abwehr magie nahkampf fernkampf kritischer schaden boni'
+  },
   {
     c: 'ausruestung', q: 'Wo kaufe ich Ausrüstung?',
     a: 'Waffen für deine Klasse hat <b>{n:waffen}</b>, Rüstung, Helm, Schultern, Umhang, Schild, Schuhe und Gürtel <b>{n:ruestung}</b>, Bögen und Köcher <b>{n:bogenmacher}</b>. ' +
@@ -552,7 +581,7 @@ const RATGEBER_WISSEN = [
     c: 'karten', p: 3, q: 'Welche Maps gibt es und für welche Stufe?',
     a: () => (typeof WORLD_MAPS !== 'undefined')
       ? '<ul>' + WORLD_MAPS.slice().sort((a, b) => a.minLevel - b.minLevel || a.id - b.id).map((m) => {
-        const town = m.id === 1 ? 'Vlotho' : (ZONES.find((z) => z.map === m.id && z.safe) || { name: '' }).name;
+        const town = m.id === 1 ? 'Kazehana' : (ZONES.find((z) => z.map === m.id && z.safe) || { name: '' }).name;
         return `<li><b>Map ${m.id} · ${m.name}</b> – ${m.levels}${town ? ` (Stadt: ${town})` : ''}</li>`;
       }).join('') + '</ul>'
       : '',
@@ -563,13 +592,19 @@ const RATGEBER_WISSEN = [
     a: 'Über das <b>Weltentor</b> in jeder Stadt und jedem Lager: kostenlos auf jede Map, deren Mindeststufe du hast.',
     k: 'andere map reisen weltentor portal teleport wechseln'
   },
+  // seit 14.16: Stadtformen und Teleportsteine (daten/stadtformen.js, teleportsteine.js)
+  {
+    c: 'karten', q: 'Was sind Teleportsteine?',
+    a: 'Ab der Rostschlucht hat jede Stadt ihre eigene Form – Achteck, Ringstadt, Oase mit Insel, Terrassen, Pfahldorf, Schlucht, Inselring und Kristallplattformen. Wo kein Weg hinführt, stehen <b>Teleportsteine</b>: zwei Steinpfosten mit leuchtendem Kristall. Bleib kurz darauf stehen oder tipp ihn an, dann stehst du sofort auf seinem Partnerstein – auch zu Pferd. Auf der großen Karte siehst du jeden Stein mit einer gestrichelten Linie zu seinem Partner. Im Feuerberg verbinden sie die fünf Inseln im Kreis, in der Klammfeste die beiden Hälften, in der Lichtwacht die Seitenplattformen.',
+    k: 'teleportstein teleportsteine stein steine teleport insel inseln stadt städte form steg brücke partnerstein feuerberg klammfeste lichtwacht'
+  },
   {
     c: 'karten', q: 'Was macht die Wegweiserin?',
     a: '<b>{n:teleport}</b> bringt dich gegen Gold an den Rand jedes Jagdgebiets. Der Preis ist die Mindeststufe des Gebiets × 25 Gold.',
     k: 'wegweiserin teleport reisen jagdgebiet schnell gold'
   },
   {
-    c: 'karten', q: 'Wer ist wer in Vlotho?',
+    c: 'karten', q: 'Wer ist wer in Kazehana?',
     a: () => {
       const roles = [['aeltester', 'Hauptquest'], ['haendler', 'Tränke'], ['waffen', 'Waffen'], ['ruestung', 'Rüstung'], ['bogenmacher', 'Bögen, Köcher, Pfeile'],
         ['schmied', 'Aufwerten'], ['lehrmeister', 'Fertigkeitsbücher, Zurücksetzen, Weg wechseln'], ['alchemist', 'Materialien'], ['teleport', 'Reisen in die Jagdgebiete'],
@@ -659,6 +694,18 @@ const RATGEBER_WISSEN = [
     a: 'Blau gegen Rot, 4 gegen 4, zum Spaß ohne Rang. Wer fällt, steht nach ein paar Sekunden in der eigenen Basis wieder auf. Steht nur ein Team im Kreis um den Turm, lädt es ihn auf. ' +
       'Gewonnen hat, wer den Turm auf 100 % bringt oder zuerst 100 Kills holt; nach 15 Minuten, wer mehr Kills hat.',
     k: 'turmschlacht turm 4v4 blau rot basis kills'
+  },
+  {
+    c: 'pvp', q: 'Wie viel Schaden macht man im PvP? Gibt es One-Shots?',
+    a: () => {
+      const P = typeof PVP_DMG !== 'undefined' ? PVP_DMG : { maxHit: 0.25, maxCrit: 0.35, windowMax: 0.45, window: 1.5, mulLow: 0.38, mulHigh: 0.3, mulFrom: 50, mulTo: 80, armorMax: 0.6, otherMax: 0.5, pad: 0.02, heal: 0.6, dodgeMul: 0.5 };
+      return `Bei ähnlicher Stufe (weniger als 10 Stufen Abstand) nicht: Ein Treffer nimmt höchstens ${rgPct(P.maxHit)} des Lebens (kritisch ${rgPct(P.maxCrit)}), und in ${String(P.window).replace('.', ',')} Sekunden höchstens ${rgPct(P.windowMax)} – auch bei mehreren Gegnern. ` +
+        `Der Schaden zwischen Spielern zählt weniger (bis Stufe ${P.mulFrom} zu ${rgPct(P.mulLow)}, auf Stufe ${P.mulTo} zu ${rgPct(P.mulHigh)}), Rüstung zählt doppelt (höchstens ${rgPct(P.armorMax)} weniger), ` +
+        `dazu Schadensreduktion und <b>Abwehr gegen Menschen</b>, Magie, Nahkampf oder Fernkampf (zusammen höchstens ${rgPct(P.otherMax)}), und je Stufe hält man ${rgPct(P.pad)} mehr aus. ` +
+        `Ausweichen und Blocken wirken im PvP halb, Heilung und Lebensraub zu ${rgPct(P.heal)}. Gute Werte gegen Spieler: Abwehr gegen Menschen und <b>Stark gegen Menschen</b>. ` +
+        'Ein Duell dauert so bei gleicher Stufe meist 10 bis 20 Sekunden. Bei großem Stufenabstand bleibt es hart.';
+    },
+    k: 'pvp duell schaden one-shot oneshot einschlag ruestung abwehr menschen stark gegen menschen turnierarena rangkampf deckel heilung'
   },
 
   // --- Prüfungsarena ----------------------------------------------------------------------------------------

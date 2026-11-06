@@ -235,6 +235,8 @@ function makePlayer(save) {
   // 13.49: Statuswerte auf der Ausrüstung passend zur Klasse
   Object.values(p.equipment).forEach((it) => fitItemAttrs(it, p.classId));
   p.inventory.forEach((it) => { if (!isBook(it)) fitItemAttrs(it, p.classId); });
+  // 14.21: Leben-Boni auch im Lager auf die festen Stufen (und nicht mehr auf Waffe/Köcher)
+  if (p.storage) p.storage.items.forEach((it) => fixLifeBonus(it));
   // Seit Version 3.2: Schild nur Krieger, Zweihänder nur Weg des Leibes. Was nicht mehr passt, kommt in die Tasche.
   p.gearMoved = enforceGearRules(p);
   p.upmats = { ...(save.upmats || {}) };
@@ -330,8 +332,10 @@ function makePlayer(save) {
   const camp = campOf && game.world && game.world.maps ? game.world.maps.find((m) => m.id === campOf) : null;
   const spawn = camp ? camp.spawn : villageSpawn();
   if (p.x == null || !canStand(p.x, p.y, p.r * 0.7, false)) {
-    p.x = spawn.x;
-    p.y = spawn.y;
+    // seit 14.16: wer in einer Stadt mit neuer Form auf Wasser, Mauer oder Haus stünde, kommt zum Weltentor dieser Stadt
+    const rescue = p.x != null && typeof townRescue === 'function' ? townRescue(p.x, p.y) : null;
+    p.x = (rescue || spawn).x;
+    p.y = (rescue || spawn).y;
   }
   return p;
 }
@@ -341,6 +345,8 @@ const FOOT_SPEED_CAP = 1.25;
 
 // Endwerte aus Klasse, Stufe und aktiven Buffs
 const PLAYER_CRIT_CAP = 0.4;
+// Boni, die unverändert als Wert in playerStats landen (seit 14.15)
+const PLAYER_BONUS_KEYS = ['poison', 'vsBeast', 'vsHuman', 'vsOrc', 'vsUndead', 'vsDemon', 'resHuman', 'resMagic', 'resMelee', 'resRanged', 'goldFind', 'dropFind'];
 function playerStats(p) {
   const c = CLASSES[p.classId];
   const L = p.level - 1;
@@ -384,6 +390,7 @@ function playerStats(p) {
   s.atk += bonus.atk || 0;
   s.def += bonus.def || 0;
   s.maxHp += bonus.hp || 0;
+  s.bonusHp = bonus.hp || 0; // seit 14.23: für PvP (zählt dort nur zum Teil, PVP_DMG.lifeShare)
   s.maxMp += bonus.mp || 0;
   s.crit += bonus.crit || 0;
   s.atkSpeed += bonus.atkSpeed || 0;
@@ -395,6 +402,8 @@ function playerStats(p) {
   s.hpSteal = bonus.hpSteal || 0;
   s.basicDmg = bonus.basicDmg || 0;
   s.damageTaken -= (bonus.dmgReduce || 0) + (bonus.resist || 0);
+  // seit 14.15: Gift, „Stark gegen …“ je Monsterart, Abwehr je Angriffsart, Gold und Beute (Summe, gedeckelt mit BONUS_CAPS)
+  for (const k of PLAYER_BONUS_KEYS) s[k] = bonus[k] || 0;
   let magic = 0;
   for (const item of Object.values(eq)) {
     if (!item || !canWear(item, p)) continue;
@@ -451,7 +460,7 @@ function playerStats(p) {
   s.def = Math.round(s.def);
   // Klassensegen (seit 13.1): Naturschaden, kritischer Schaden, Omni-Vampir
   s.natureDmg = 0;
-  s.critDmg = 0;
+  s.critDmg = bonus.critDmg || 0; // seit 14.15 auch als Bonus der Ausrüstung
   s.omniVamp = 0;
   // Heilkraft (seit 13.26, Segen des Lichts): verstärkt alle Heilungen
   s.healPower = 1;
@@ -692,7 +701,7 @@ function resetSkills(path = game.player.path || 0) {
   return { books: items.book, items, moved: moved.length, changed: path !== oldPath };
 }
 // --- Lager (seit 9.1) ------------------------------------------------------------------------------
-// Bei jedem Lagerverwalter (Vlotho und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,
+// Bei jedem Lagerverwalter (Kazehana und jede Stadt bzw. jedes Lager) liegt dasselbe Lager. Einmal 1.000 Gold,
 // danach frei nutzbar, ohne Passwort. 6 Seiten zu je 30 Plätzen. Bücher stapeln sich wie in der Tasche.
 const STORAGE = { price: 1000, page: 30, pages: 6 };
 const STORAGE_SIZE = STORAGE.page * STORAGE.pages;
@@ -825,12 +834,14 @@ function upgradeSkill(i, type = 'point') {
 // Pferd (seit 7.3, Tempo seit 8.5): Reitpferd aus der Stallmeister-Prüfung (ab Stufe 20) +35 %,
 // Kriegsross (ab Stufe 40 beim Stallmeister für 200.000 Gold) +65 %. Das Tempo zählt zusätzlich zum Fußtempo.
 // Wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
-const HORSES = [null, { name: 'Reitpferd', speed: 0.35 }, { name: 'Kriegsross', speed: 0.65, level: 40, price: 200000 }];
+// seit 14.18: Reitpferd 100.000 Gold (nach der Prüfung des Stallmeisters), Kriegsross +90 % statt +65 % (insgesamt
+// gut 15 % schneller als vorher: 1,65 → 1,90 des Lauftempos zu Fuß)
+const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 }];
 const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
 function toggleRide(on) {
   const p = game.player;
   if (!p || p.dead || !p.horse) {
-    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Vlotho und in jedem Lager) hat eine Prüfung für dich (ab Stufe 20).', 'warn');
+    if (p && !p.horse) ui.log('Du hast noch kein Pferd. Jeder Stallmeister (Jun in Kazehana und in jedem Lager) hat eine Prüfung für dich (ab Stufe 20).', 'warn');
     return;
   }
   const next = on == null ? !p.riding : on;

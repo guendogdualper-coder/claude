@@ -118,6 +118,9 @@
     <button id="btnChat" class="menu-btn" type="button" aria-label="Chat" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M4 4.5h16a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5H10l-5 4v-4H4A1.5 1.5 0 0 1 2.5 15V6A1.5 1.5 0 0 1 4 4.5z"/><path d="M7 9h10M7 12h6"/></svg>
       <span class="menu-text">Chat</span> <kbd>Enter</kbd></button>
+    <button id="btnRank" class="menu-btn" type="button" aria-label="Bestenliste">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M7 3.5h10v5.2a5 5 0 0 1-10 0z"/><path d="M7 5.2H4.2c0 3 1.2 4.6 3.3 5M17 5.2h2.8c0 3-1.2 4.6-3.3 5"/><path d="M12 13.7v3.4"/><path class="fill" d="M8.4 20.5c.3-2 1.6-3.4 3.6-3.4s3.3 1.4 3.6 3.4z"/></svg>
+      <span class="menu-text">Bestenliste</span> <kbd>P</kbd></button>
     <button id="btnHelp" class="menu-btn" type="button" aria-label="Hilfe">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M6 3.5h10.5a2 2 0 0 1 2 2v13a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2z"/><path d="M4 5.5a2 2 0 0 1 4 0V7H4z"/><path d="M10.4 9.4a2 2 0 1 1 2.8 1.9c-.6.3-.8.7-.8 1.3"/><path d="M12.4 15.4h.01"/></svg>
       <span class="menu-text">Hilfe</span> <kbd>H</kbd></button>
@@ -200,7 +203,10 @@
         <button id="btnCreateBack" class="btn btn-ghost" type="button" hidden>Zurück zur Auswahl</button>
       </div>
     </form>
-    <a class="btn btn-ghost wiki-link" href="wiki/" target="_blank" rel="noopener">📖 Wiki – alles zum Nachschlagen</a>
+    <div class="start-links">
+      <button id="btnRankStart" class="btn btn-ghost rank-link" type="button">🏆 Bestenliste</button>
+      <a class="btn btn-ghost wiki-link" href="wiki/" target="_blank" rel="noopener">📖 Wiki – alles zum Nachschlagen</a>
+    </div>
     <div id="installBox" class="install-box" hidden>
       <button id="btnInstall" class="btn btn-ghost" type="button">📲 Als App installieren</button>
       <div id="installHelp" class="install-help" hidden>
@@ -249,13 +255,14 @@
     <h3>So kommst du voran</h3>
     <ul>
       <li>Jedes besiegte Monster gibt Erfahrung und Gold. Monster, die viel schwächer sind als du, geben kaum noch Erfahrung. Zieh dann in die nächste Zone weiter.</li>
-      <li>Weltentor (in Vlotho neben der Wegweiserin): bringt dich kostenlos in Map 2 Schlangental (ab Stufe 30: Sandschlangenwüste und Nagadschungel) und Map 3 Donnerklamm (ab Stufe 50: Donnerklamm und Titanenkamm). In der Mitte jeder Map liegt ein sicheres Lager mit Weltentor zurück; wer dort stirbt, wacht im Lager auf.</li>
+      <li>Weltentor (in Kazehana neben der Wegweiserin): bringt dich kostenlos in Map 2 Schlangental (ab Stufe 30: Sandschlangenwüste und Nagadschungel) und Map 3 Donnerklamm (ab Stufe 50: Donnerklamm und Titanenkamm). In der Mitte jeder Map liegt ein sicheres Lager mit Weltentor zurück; wer dort stirbt, wacht im Lager auf.</li>
+      <li>Städte: Ab der Rostschlucht hat jede Stadt ihre eigene Form (Achteck, Ringstadt, Oase mit Insel, Terrassen, Pfahldorf, zweigeteilte Schlucht, Inselring, Kristallplattformen). Sicher ist genau die Fläche der Stadt. Teleportsteine (zwei Steinpfosten mit leuchtendem Kristall) bringen dich zu ihrem Partnerstein: kurz darauf stehen bleiben oder antippen, auch zu Pferd. Die große Karte zeigt jedes Steinpaar mit einer gestrichelten Linie.</li>
       <li>Tränke gibt es in fünf Größen, jede für ihren Stufenbereich: S (+170 Leben / +60 Mana), M ab Stufe 10 (+330 / +115), L ab 25 (+620 / +210), XL ab 40 (+980 / +320) und XXL ab 55 (+1.450 / +470). Q bzw. E nimmt automatisch die kleinste Größe, die das Fehlende auffüllt. Seelensteine und Monster lassen größere Tränke fallen, je höher ihre Stufe.</li>
       <li>Vergleich: In der Tasche zeigt ein grüner Pfeil ▲, dass ein Teil besser ist als dein angelegtes, ein roter ▼, dass es schlechter ist. Tippst du es an, siehst du jeden Wert einzeln: grün mehr, rot weniger. Beim Schmied siehst du links deine Figur mit der angelegten Ausrüstung, daneben die Tasche.</li>
       <li>Server: Beim Start kommst du automatisch in deinen letzten Kanal (beim ersten Mal Kanal 1 auf ERFOO; ist er voll, in den nächsten). Wechseln oder allein spielen kannst du jederzeit in den Optionen unter „Server und Kanal“. Alle im selben Kanal spielen in derselben Welt, jeder mit seiner eigenen Figur, bis zu 100 pro Kanal. Wer einen leeren Kanal betritt, führt dessen Welt für alle; geht er (oder sperrt sein Handy), übernimmt automatisch ein anderer, der Kanal bleibt also immer offen. Den Kanal wechselst du über den Server-Knopf (Taste N). Mit „Freunde einladen“ schickst du einen Link direkt in deinen Kanal. Chat über den Sprechblasen-Knopf oder Enter. Oben im Chat wählst du den Kanal: Global (alle im Kanal), Gilde (nur deine Gildenmitglieder, ohne Sprechblase) oder Ort (nur Spieler in deiner Nähe). Der gewählte Reiter bestimmt, was du liest und wohin du schreibst; unter Global stehen alle Nachrichten mit [Gilde]/[Ort]-Kennzeichen. Ein roter Punkt zeigt neue Nachrichten in einem anderen Reiter.</li>
       <li>Ausrufezeichen über Personen: golden = Hauptmission (Dorfältester Bao, Stallmeister Jun), grün = Nebenmission (Jägerin Rin). Auch in der Auftragsliste oben rechts sind Hauptmissionen golden und Nebenmissionen grün.</li>
       <li>Ab Stufe 20 hat Stallmeister Jun (und jeder Stallmeister in den Lagern) eine Hauptmission: 120 Monster ab Stufe 15 in 20 Minuten. Belohnung ist ein eigenes Reitpferd (+35 % Lauftempo). Ab Stufe 40 verkauft der Stallmeister das Kriegsross für 200.000 Gold (+65 %). Das Pferdetempo kommt zum Lauftempo zu Fuß dazu, der Pferdeknopf zeigt es in Prozent. Zu Fuß ist das Tempo mit Schuhen, Boni und Buffs auf +25 % begrenzt. Aufsteigen mit dem Pferdeknopf oder Taste R, wer angreift, steigt ab.</li>
-      <li>Dungeons: Spinnenhöhle (ab Stufe 18, Dunkelwald), Orkfestung (ab 28, Orktal), Eisgrotte (ab 45, Frostgipfel) und Drachenhort (ab 63, Feuerberg). Die Eingänge stehen neben den Wegen und sind auf der Minikarte als farbige Quadrate zu sehen. Drei Räume voller Monster, am Ende ein Boss: Sein Stampfer wird mit einem roten Kreis angekündigt, bei zwei Dritteln und einem Drittel Leben ruft er Verstärkung. Bosse kommen nach 10 Minuten wieder.</li>
+      <li>Dungeons: Spinnenhöhle (ab Stufe 18, Dunkelwald), Orkfestung (ab 28, Rostschlucht), Eisgrotte (ab 45, Frostgipfel) und Drachenhort (ab 63, Feuerberg). Die Eingänge stehen neben den Wegen und sind auf der Minikarte als farbige Quadrate zu sehen. Drei Räume voller Monster, am Ende ein Boss: Sein Stampfer wird mit einem roten Kreis angekündigt, bei zwei Dritteln und einem Drittel Leben ruft er Verstärkung. Bosse kommen nach 10 Minuten wieder.</li>
       <li>Monster über deiner Stufe sind deutlich stärker: Sie nehmen pro Stufe Unterschied 8 % weniger Schaden und treffen 7 % härter. Jage am besten Monster deiner Stufe oder knapp darüber, für höhere brauchst du gute Ausrüstung (+7 und mehr, Boni).</li>
       <li>Pro Stufe bekommst du einen Fertigkeitspunkt und zwei Statuspunkte (seit 13.49; vorher einen). Verteile sie im Charakterfenster: Stärke (Angriff), Vitalität (Leben und Rüstung), Intelligenz (Mana und Fertigkeitsschaden), Geschick (kritische Treffer, Ausweichen, Angriffstempo). Ein roter Punkt am Charakter-Knopf zeigt freie Punkte an.</li>
       <li>Bei der Erstellung wählst du einen Weg deiner Klasse: Krieger, Ninja, Schamane und Nekromant haben zwei Wege (einen für Monster in Massen, einen für Zweikämpfe), der Magier vier Elemente. Jeder Weg hat fünf eigene Fertigkeiten. Buffs halten je nach Fertigkeit eine halbe Minute (Tarnung) bis drei Minuten und mit jeder Fertigkeitsstufe länger; die genaue Dauer steht in den Werten der Fertigkeit.</li>
@@ -267,6 +274,7 @@
       <li>Verkaufen geht nur bei einem Händler im Dorf. In der Tasche (vier Seiten I–IV) „Mehrere verkaufen“ antippen, Sachen auswählen oder mit „Ganze Seite“ und „Nicht nutzbar“ automatisch wählen, dann „Verkaufen“ und bestätigen.</li>
       <li>Halte eine Fertigkeit lange gedrückt, um sie auf einen anderen Platz zu ziehen oder einen anderen Platz anzutippen: Die beiden tauschen. Läuft ein Buff, läuft ein Lichtring um seine Fertigkeit und die Restzeit steht darüber.</li>
       <li>Seelensteine lassen Materialien und Ausrüstung bis +2 fallen, die automatisch aufgehoben werden. Im Inventar fügt „Boni +“ die Boni 1 bis 4 hinzu, „5. Bonus“ den fünften, der Switcher würfelt alle Boni neu und der Sternenstein gibt die besonderen Boni 6 und 7.</li>
+      <li>Boni gegen bestimmte Gegner: „Stark gegen Tiere“, „… Menschen“, „… Orks und Riesen“, „… Untote und Geister“ und „… Teufel und Dämonen“ machen mehr Schaden gegen diese Art (zusätzlich zu „Stark gegen Monster“; andere Spieler sind Menschen). „Abwehr gegen Magie“, „… Nahkampf“, „… Fernkampf“ und „… Menschen“ senken den Schaden dieser Angriffe. Die Vergiftungschance (nur Waffen) vergiftet mit jedem Treffer: 6 Sekunden lang grüne Zahlen, zusammen 40 % des Treffers, bei Bossen und Seelensteinen höchstens 2 % ihres Lebens. „Mehr Gold“ und „Mehr Beute“ gelten für Monster und Seelensteine (Beute: Ausrüstung, Tränke und Monsterteile, nicht Bücher, Schriftrollen, Seelensteine oder Boni-Materialien). Alle Summen stehen im Charakterfenster unter „Werte“.</li>
       <li>Die Grundausrüstung (Stufe 1) gibt nur Rüstung, Waffen nur Angriff. Ab Stufe 5 hat jede Ausrüstung eigene Effekte: Rüstung, Vitalität (mehr Leben), Intelligenz (mehr Mana), Blocken, Ausweichen, Lauftempo, Regeneration oder kritische Treffer. Ausrüstung ab Stufe 22, 30, 45 und 60 gibt es nur als Beute.</li>
       <li>Der Schmied verbessert Ausrüstung bis +20 mit Gold und Seelensplittern. Schon ab +0 kann ein Fehlschlag den Gegenstand zerbrechen (die Erfolgschance steht beim Schmied, von 95 % bei +0 abwärts). Eine Segensschriftrolle verhindert das. Beim Verbessern zeigt eine Schmiede-Szene drei Hammerschläge und das Ergebnis mit eigenem Klang (Erfolg, Fehlschlag, geschützt, zerbrochen); antippen schließt sie. Den Ton schaltest du beim Schmied mit „Ton an/aus“, der Stummschalter des iPhones schaltet ihn ebenfalls stumm. Ab +6 (Ausrüstung ab Stufe 30 schon ab +4) braucht er zusätzlich Teile von Monstern, zum Beispiel Hundezahn oder Wolfspelz. Monster lassen sie selten fallen, Seelensteine öfter.</li>
       <li>Fertigkeiten steigen mit Punkten bis Stufe 15. Der Punkt, der eine Fertigkeit auf Stufe 15 bringt, erweckt sie automatisch zu E1 (an der Fertigkeit leuchtet dann vorher ein blaues „E“ statt „+“). Jede Stufe macht die Fertigkeit stärker und Buffs halten länger, im Charakterfenster siehst du die Werte jetzt und für die nächste Stufe. Danach kostet jede Stufe einen Gegenstand: E1–E10 je ein Fertigkeitsbuch der Fertigkeit (aus Seelensteinen aller Stufen, ganz selten von Monstern ab Stufe 20, beim Lehrmeister, aus Aufträgen und der Tagesbelohnung), Heroisch H1–H10 (ab Stufe 35) je eine Schriftrolle (nur aus Seelensteinen ab Stufe 40, gilt für jede Fertigkeit deiner Klasse), Legendär L1–L10 (ab Stufe 50) und Vollendet V (ab Stufe 65) je einen Seelenstein als Gegenstand (nur aus Seelensteinen ab Stufe 45, gilt für jede Fertigkeit). Der Aufstieg in den nächsten Rang kostet einen Gegenstand des neuen Rangs und geht schon aus den letzten drei Stufen eines Rangs (z. B. E8 → H1), die übersprungenen Stufen kosten nichts extra. Schriftrollen und Seelensteine stehen im Fenster Aufwertungsteile (Taste U). Beim Zurücksetzen beim Lehrmeister kommen Bücher, Schriftrollen und Seelensteine zurück.</li>
@@ -279,6 +287,14 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 14.24 – Jede Stadt sieht anders aus: ab der Rostschlucht hat jedes Lager seine eigene Form – Festungsachteck mit Palisade und Kampfplatz (Rostschlucht), Ringstadt um einen Glutkrater (Ödland), Oase mit dem Weltentor auf einer Insel (Schlangental), Terrassen am Hang (Frostgipfel), Pfahldorf aus Inseln und Stegen (Totenmoor), zwei Hälften links und rechts einer Schlucht mit großer Brücke (Donnerklamm), fünf Inseln im Lavasee (Feuerberg) und schwebende Kristallplattformen mit Lichtbrücken (Kristallabgrund). Neue Teleportsteine verbinden Inseln und Hälften: kurz darauf stehen bleiben oder antippen, auch zu Pferd; die große Karte zeigt jedes Steinpaar. Sicher ist genau die Fläche der Stadt, Monster bleiben draußen.</li>
+      <li>Version 14.23 – PvP: Leben aus Ausrüstungs-Boni zählt im Duell und in der Turnierarena nur zu 30 %. Mit guter Ausrüstung dauerten Duelle auf niedriger Stufe sonst über eine Minute; jetzt meist 15–25 Sekunden. Gegen Monster zählt das Leben weiter voll.</li>
+      <li>Version 14.22 – Neue Boni: Vergiftungschance (bis 12 %, Gift mit Schaden je Sekunde, am Ziel angezeigt), Kritischer Schaden, „Stark gegen Tiere / Menschen / Orks und Riesen / Untote und Geister / Teufel und Dämonen“, Abwehr gegen Menschen, Magie, Nahkampf und Fernkampf, Mehr Gold und Mehr Beute (je bis 25 %). PvP ohne One-Shots bei ähnlicher Stufe: ein Treffer nimmt höchstens 25 % des Lebens (kritisch 35 %, in 1,5 s höchstens 45 %), Heilung und Lebensraub im PvP zu 60 %, Ausweichen und Blocken halb; ab 10 Stufen Abstand gilt kein Deckel.</li>
+      <li>Version 14.21 – Quests geben jetzt auch Ausrüstung für deine Klasse und deinen Weg (der Bogen-Ninja bekommt Bögen und Köcher, kein Teil, das du nicht tragen kannst): jeder Hauptauftrag ein Teil (grün oder blau, Stufe passend zu dir), Nebenaufgaben, Jagden und Nachtjagden mit 30–35 % Chance. Bonus „Max. Leben“: nur noch auf Rüstungsteilen (nicht mehr auf Waffe und Köcher) und in festen Stufen 200, 350, 500 oder 1000; alte Teile werden aufgerundet, Leben auf Waffen wird zu einem anderen Bonus. Der Kopf des Reitpferds sieht natürlicher aus (Blesse flach auf dem Nasenrücken, Augen und Maul neu).</li>
+      <li>Version 14.20 – Tasche: Teile lassen sich jetzt wirklich frei verschieben – auf einen leeren Platz gezogen bleiben sie genau dort liegen (auf ein anderes Teil = tauschen, auf einen Reiter I–IV = auf diese Seite); „Sortieren“ räumt wieder lückenlos ein. Gegenstände mit freien Boni zeigen einen goldenen Hinweis („Noch keine Boni“, „Noch 3 von 5 Boni frei“ …) und die passende Verstärkung darunter leuchtet. Beim Händler verkaufst du unter „Tasche öffnen und verkaufen“ auch Tränke (ganzer Stapel oder „Alle Tränke“) zusammen mit Ausrüstung, auf allen Seiten. In einer Gruppe öffnet ein Tipp auf deinen Namen oder dein Bild das Gruppenfenster; die Spielerkarte eines Mitglieds hat „Gruppe verlassen“ und für Anführer „Aus der Gruppe entfernen“.</li>
+      <li>Version 14.19 – Neue Bestenliste (🏆, am PC Taste P, auch schon vor dem Einloggen): die besten Charaktere nach Stufe und nach Rangpunkten der Turnierarena, mit Klasse, Weg und Klassenfilter; dein eigener Platz ist grün markiert. Neue Gruppenanzeige: Jedes Mitglied hat einen eigenen Rahmen wie deine Lebensanzeige, nur kleiner – Porträt, Stufe, Lebens- und Manabalken, rotes Aufblitzen bei Treffern, grau wenn tot, blass auf einer anderen Karte. Antippen öffnet die Spielerkarte.</li>
+      <li>Version 14.18 – Splitterfalke trifft zweimal: beim Einschlag (verlangsamt) und kurz danach brechen Schattendornen aus dem Boden der ganzen Fläche (noch ein Treffer, verlangsamt erneut); der aufsteigende Falke ist weg. Prüfung des Stallmeisters: Du darfst bis zu 3-mal sterben, erst der 4. Tod lässt sie scheitern (Leben im Questfenster). Das Reitpferd kostet danach 100.000 Gold, das Kriegsross (ab Stufe 40) ist schneller: +90 % statt +65 % Lauftempo. Die Jägerin gibt nur noch Jagden auf Monster der Karte, auf der du gerade bist.</li>
+      <li>Version 14.17 – Neue Einstellung Nebel (Grafik): Wenig, Normal oder Viel. Am PC jetzt „Wenig“ – man sieht viel weiter, ohne Dunst; mit Grafik Plus ist die Randunschärfe schwächer. Bogen-Ninja: Grundschuss und Falkenpfeil fliegen mit Ziel oder Fokus durch alle anderen Monster und treffen nur das Ziel (Durchschuss trifft weiter alle in der Linie). Dungeon-Eingänge (Spinnenhöhle, Banditenkeller, Orkfestung …) ziehen alle 3 Stunden an einen anderen Ort ihrer Karte – die Karte zeigt, wo sie gerade sind; Risse öffnen sich wie bisher zufällig in deiner Nähe. Die Hauptstadt heißt jetzt Kazehana, das Orktal heißt Rostschlucht. Das Pferdetempo (+ %) steht am PC jetzt direkt hinter „Pferd“ im Menü, statt vom nächsten Knopf verdeckt zu werden.</li>
       <li>Version 14.16 – Bogen-Ninja: neue Fertigkeit Splitterfalke statt Rückensprung (Platz 4): Ort wählen, ein schwerer Schattenpfeil fliegt im hohen Bogen dorthin, ein Schattenfalke stößt mit ihm herab und zerbirst in Schattenglas-Splitter – Schaden an allen Gegnern im Umkreis und kurz verlangsamt. Alte Rückensprung-Bücher werden zu Splitterfalke-Büchern. Beute höchstens +4, egal ob von Monstern, Seelensteinen, Dungeons, Rissen, Instanzen oder Quests; Bosse geben +1 bis +4 statt +3 bis +6, +4 nur selten. Neues seltenes Schmiede-Teil Ätherkern: Ausrüstung ab Stufe 45 braucht es ab +4 zusätzlich (aus Seelensteinen ab Stufe 40, Dungeon-, Riss-, Instanz- und Endbossen). Bildrate „60“ heißt jetzt „Max“ – sie lief schon immer so schnell wie der Bildschirm (120/144 Hz am PC).</li>
       <li>Version 14.15 – Mana nur noch für Zauberer: Krieger und Ninja bekommen auf Helm und Umhang Leben statt Mana (gleicher Wert) und würfeln keinen Mana-Bonus mehr. Vorhandene Mana-Boni auf ihren Teilen werden zu Leben (doppelter Wert). Damit ihr Mana trotzdem reicht, wächst es bei Krieger und Ninja jetzt aus der Klasse: 15 bzw. 16 Mana je Stufe statt 5 bzw. 6. Magier, Schamane und Nekromant behalten Mana auf ihrer Ausrüstung.</li>
       <li>Version 14.14 – Inventar: Gegenstände lassen sich jetzt verschieben – am PC einfach ziehen, am Handy kurz gedrückt halten und ziehen. Auf ein anderes Teil = tauschen, auf einen Reiter I–IV = auf diese Seite, auf die Figur = anlegen, von der Figur in die Tasche = ablegen. Schattenschritt, Krieger-Sprung und Magier-Blitzschritt fliegen über Bäume, Felsen und Wasser hinweg und landen dahinter (nur Mauern, Häuser und Dörfer halten auf). Weniger Bäume und Äste: Dunkelwald halb so viele Bäume und gut die Hälfte weniger Äste am Boden, auch Nagadschungel, Frostgipfel und Totenmoor lichter. Bogen-Ninja: Pfeilregen hält gleich lange, macht aber je Treffer 0,22- statt 0,4-fachen Schaden; Falkenpfeil 1,0-fach, Durchschuss 2,2-fach.</li>
@@ -532,6 +548,11 @@
   <div id="socialBody" class="panel-body social"></div>
 </div>
 
+<div id="panelRank" class="panel frame panel-wide rank-panel" hidden role="dialog" aria-labelledby="rankTitle">
+  <header class="panel-head"><h2 id="rankTitle">Bestenliste</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
+  <div id="rankBody" class="panel-body rank-body"></div>
+</div>
+
 <div id="panelNet" class="panel frame" hidden role="dialog" aria-labelledby="netTitle">
   <header class="panel-head"><h2 id="netTitle">Server wählen</h2><button class="close" type="button" data-close aria-label="Schließen">×</button></header>
   <div id="netBody" class="panel-body"></div>
@@ -610,6 +631,7 @@
   <div class="rotate-phone"></div>
   <p>Dreh dein Handy ins Querformat</p>
   <small>Seelenstein wird quer gespielt. Das Spiel ist so lange pausiert.</small>
+  <button id="btnRankRotate" class="btn btn-ghost" type="button">🏆 Bestenliste ansehen</button>
 </div>
 <!-- app:end -->
 
@@ -649,6 +671,7 @@
 <script src="js/daten/monster.js"></script>
 <script src="js/daten/instanzen.js"></script>
 <script src="js/daten/zonen.js"></script>
+<script src="js/daten/stadtformen.js"></script>
 <script src="js/daten/nachtmonster.js"></script>
 <script src="js/daten/gegenstaende.js"></script>
 <script src="js/daten/quests.js"></script>
@@ -714,10 +737,12 @@
 <script src="js/symbole-nekro2.js"></script>
 <script src="js/oberflaeche.js"></script>
 <script src="js/quests.js"></script>
+<script src="js/dungeon-wandern.js"></script>
 <script src="js/questfenster.js"></script>
 <script src="js/tag-nacht.js"></script>
 <script src="js/karte.js"></script>
 <script src="js/karte80.js"></script>
+<script src="js/teleportsteine.js"></script>
 <script src="js/tagesbelohnung.js"></script>
 <script src="js/eingabe.js"></script>
 <script src="js/tasten.js"></script>
@@ -741,6 +766,7 @@
 <script src="js/instanzen.js"></script>
 <script src="js/herausforderung.js"></script>
 <script src="js/turnierarena.js"></script>
+<script src="js/bestenliste.js"></script>
 <script src="js/daten/ratgeber-wissen.js"></script>
 <script src="js/ratgeber.js"></script>
 <script src="js/nativ.js"></script>

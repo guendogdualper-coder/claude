@@ -15,7 +15,7 @@ const MONSTER_TYPES = {
   banditschuetze: { name: 'Bandit-Schütze', level: 13, shape: 'humanoid', color: '#4f6a3e', accent: '#9a2f2a', size: 12, speed: 95, range: 220, cooldown: 2, aggressive: true, ranged: true, hpMul: 0.8, bow: true },
   waldspinne: { name: 'Waldspinne', level: 15, shape: 'beast', color: '#3a3328', size: 14, speed: 115, range: 28, cooldown: 1.3, aggressive: true, hpMul: 1.1 },
   braunbaer: { name: 'Braunbär', level: 18, shape: 'beast', color: '#6a4a30', size: 19, speed: 95, range: 32, cooldown: 1.8, aggressive: true, hpMul: 1.9, atkMul: 1.2 },
-  // Orktal, Stufe 20–29
+  // Rostschlucht, Stufe 20–29
   ork: { name: 'Ork-Krieger', level: 21, shape: 'orc', color: '#5e7d3a', size: 15, speed: 100, range: 30, cooldown: 1.5, aggressive: true, hpMul: 1.3 },
   orkschamane: { name: 'Ork-Schamane', level: 24, shape: 'orc', color: '#3e6d5d', size: 14, speed: 90, range: 230, cooldown: 2.2, aggressive: true, ranged: true, hpMul: 0.9, atkMul: 1.2, shot: '#9be2ff' },
   skorpion: { name: 'Wüstenskorpion', level: 26, shape: 'beast', color: '#b07a3a', size: 15, speed: 105, range: 30, cooldown: 1.3, aggressive: true, hpMul: 1.2, atkMul: 1.15 },
