@@ -198,9 +198,10 @@ const CLASSES = {
             // Schaden wie Durchbohrender Schuss (2,5) bzw. der alte Fächer, der selten mehr als zwei Pfeile ins Ziel brachte.
             // Stufe, Rang, Leistenplatz und Bücher des Rückensprungs gehen mit (SKILL_RENAMED in spieler.js)
             id: 'splitterfalke', name: 'Splitterfalke', short: 'SF', kind: 'angriff', unlock: 7, mp: 18, cooldown: 10,
-            type: 'bsplitter', aim: true, range: 520, radius: 110, dmg: 2.4, slow: { amount: 0.4, duration: 2 },
+            // seit 14.18 zwei Treffer: Einschlag 1,5 und Schattendornen 1,1 (vorher ein Treffer 2,4)
+            type: 'bsplitter', aim: true, range: 520, radius: 110, dmg: 1.5, spikeDmg: 1.1, slow: { amount: 0.4, duration: 2 },
             arrows: 1, anim: 'bogenlob', animDur: 0.4, color: '#9a6ae0',
-            text: 'Du wählst einen Ort (bis 520 weit) und schießt einen schweren Schattenpfeil im hohen Bogen dorthin. Im Sturz entfaltet er sich zu einem Schattenfalken, der in den Boden stößt und in Splitter aus schwarzem Schattenglas zerbirst – sie fliegen nach allen Seiten und bleiben kurz im Boden stecken, Schattenrauch quillt auf. Alle Gegner im Kreis (110 weit) nehmen hohen Schaden und sind 2 s um 40 % verlangsamt. Je Rang zerbirst er in mehr Splitter.'
+            text: 'Du wählst einen Ort (bis 520 weit) und schießt einen schweren Schattenpfeil im hohen Bogen dorthin. Im Sturz entfaltet er sich zu einem Schattenfalken, der in den Boden stößt und in Splitter aus schwarzem Schattenglas zerbirst – alle Gegner im Kreis (110 weit) nehmen Schaden und sind 2 s um 40 % verlangsamt. Kurz darauf brechen Schattendornen aus dem Boden der ganzen Fläche: ein zweiter Treffer, der noch einmal verlangsamt. Je Rang zerbirst er in mehr Splitter.'
           },
           {
             // seit 13.67 statt Falkenblick (der ist jetzt der Klassensegen des Bogen-Ninjas, klassensegen.js):

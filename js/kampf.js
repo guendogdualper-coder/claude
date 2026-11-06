@@ -597,6 +597,7 @@ function playerDie() {
   p.buffs = [];
   p.shield = 0;
   p.deaths++;
+  if (typeof stableOnDeath === 'function') stableOnDeath(); // seit 14.18: Leben der Stallmeister-Prüfung
   game.target = null;
   game.allies = [];
   // EP kostet nur das Wiederbeleben an Ort und Stelle

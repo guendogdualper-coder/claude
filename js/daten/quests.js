@@ -130,11 +130,13 @@ const RAID_BOSSES = Object.keys(MONSTER_TYPES).filter((id) => MONSTER_TYPES[id].
 const OLD_MAIN_LEVELS = [1, 3, 4, 6, 8, 10, 14, 15, 18, 20, 24, 27, 30, 35, 40, 48, 50, 58, 62, 68];
 
 // Hauptmission des Stallmeisters ab Stufe 20: in 20 Minuten 120 Monster ab Stufe 15 besiegen.
-// Belohnung: ein eigenes Reitpferd (+35 % Lauftempo, siehe HORSES), Gold und Erfahrung. Ab Stufe 40 verkauft er das Kriegsross.
+// Belohnung: das Recht, ein Reitpferd zu kaufen (+35 % Lauftempo, siehe HORSES), und Erfahrung. Ab Stufe 40 verkauft er
+// das Kriegsross. Seit 14.18: man darf während der Prüfung bis zu 3-mal sterben (lives), erst der 4. Tod beendet sie;
+// das Reitpferd kostet dann 100.000 Gold (HORSES[1].price), statt 15.000 Gold Belohnung obendrauf.
 const STABLE_QUEST = {
-  level: 20, count: 120, minLevel: 15, time: 1200, title: 'Prüfung des Stallmeisters',
-  text: 'Ein Pferd trägt nur, wem es vertraut. Zeig mir, dass du draußen bestehen kannst: Besiege in 20 Minuten 120 Monster ab Stufe 15. Schaffst du es, gehört dir eines meiner Reitpferde.',
-  reward: { gold: 15000, horse: true }
+  level: 20, count: 120, minLevel: 15, time: 1200, lives: 3, title: 'Prüfung des Stallmeisters',
+  text: 'Ein Pferd trägt nur, wem es vertraut. Zeig mir, dass du draußen bestehen kannst: Besiege in 20 Minuten 120 Monster ab Stufe 15. Dreimal darfst du dabei fallen, beim vierten Mal beginnt alles von vorn. Schaffst du es, verkaufe ich dir eines meiner Reitpferde.',
+  reward: { horse: true }
 };
 
 // Erfahrung für einen Auftrag: ein Teil der Erfahrung, die auf dieser Stufe für den Aufstieg nötig ist

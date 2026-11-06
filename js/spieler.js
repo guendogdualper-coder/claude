@@ -825,7 +825,9 @@ function upgradeSkill(i, type = 'point') {
 // Pferd (seit 7.3, Tempo seit 8.5): Reitpferd aus der Stallmeister-Prüfung (ab Stufe 20) +35 %,
 // Kriegsross (ab Stufe 40 beim Stallmeister für 200.000 Gold) +65 %. Das Tempo zählt zusätzlich zum Fußtempo.
 // Wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
-const HORSES = [null, { name: 'Reitpferd', speed: 0.35 }, { name: 'Kriegsross', speed: 0.65, level: 40, price: 200000 }];
+// seit 14.18: Reitpferd 100.000 Gold (nach der Prüfung des Stallmeisters), Kriegsross +90 % statt +65 % (insgesamt
+// gut 15 % schneller als vorher: 1,65 → 1,90 des Lauftempos zu Fuß)
+const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 }];
 const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
 function toggleRide(on) {
   const p = game.player;

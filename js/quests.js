@@ -220,6 +220,23 @@ function questMarker(npcId, n) {
   return false;
 }
 
+// Tod während der Stallmeister-Prüfung (seit 14.18): bis zu STABLE_QUEST.lives Tode sind erlaubt, der nächste beendet sie
+function stableOnDeath() {
+  const st = questState().stable;
+  if (!st || st.state !== 'active') return;
+  st.deaths = (st.deaths || 0) + 1;
+  const left = STABLE_QUEST.lives - st.deaths;
+  if (left < 0) {
+    st.state = 'open';
+    st.progress = 0;
+    ui.banner('Prüfung gescheitert', STABLE_QUEST.title);
+    ui.log(`Du bist ${st.deaths}-mal gefallen. Sprich mit einem Stallmeister, um die Prüfung noch einmal zu beginnen.`, 'warn');
+  } else {
+    ui.log(left ? `Prüfung des Stallmeisters: Du darfst noch ${left}-mal fallen.` : 'Prüfung des Stallmeisters: Fällst du noch einmal, ist sie gescheitert.', 'warn');
+  }
+  ui.renderQuestTrack();
+}
+
 // Zeitlimit der Stallmeister-Prüfung (läuft über die Spielzeit, auch nach dem Neuladen)
 function questTick() {
   const p = game.player;
@@ -517,14 +534,19 @@ function readyTurnIns(npc) {
 
 function huntOffers() {
   const p = game.player;
-  const types = Object.entries(MONSTER_TYPES)
-    .filter(([, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && t.level <= p.level + 3 && t.level >= p.level - 6)
-    .sort((a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level));
+  // seit 14.18: nur Monster der Karte, auf der man den Auftrag annimmt (vorher nach Stufe aus der ganzen Welt –
+  // in der Rostschlucht gab es dann Aufträge für den Dunkelwald). Passt keins zur Stufe, die nächstliegenden der Karte.
+  const here = mapOfTile(p.x / TILE, p.y / TILE);
+  const local = new Set(ZONES.filter((z) => here && z.map === here.id && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])));
+  const ok = ([id, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && (!local.size || local.has(id));
+  const near = (a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level);
+  let types = Object.entries(MONSTER_TYPES).filter((e) => ok(e) && e[1].level <= p.level + 3 && e[1].level >= p.level - 6).sort(near);
+  if (types.length < 3) types = types.concat(Object.entries(MONSTER_TYPES).filter((e) => ok(e) && !types.includes(e)).sort(near)).slice(0, 3);
   const pool = types.length ? types : [['hund', MONSTER_TYPES.hund]];
   return pool.slice(0, 3).map(([id, t]) => {
     const count = 15 + Math.floor(Math.random() * 3) * 5;
     const level = Math.max(1, Math.min(p.level, t.level));
-    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10) };
+    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10), map: here ? here.id : 0 };
   });
 }
 
@@ -600,7 +622,7 @@ Object.assign(ui, {
     const st = q.stable;
     if (st.state === 'active' || st.state === 'done') {
       const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
-      const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : '';
+      const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} · ❤ ${Math.max(0, STABLE_QUEST.lives - (st.deaths || 0))}` : '';
       row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time, 'stable');
     }
     if (q.side) for (const n of allWanderers()) {
@@ -812,7 +834,9 @@ Object.assign(ui, {
       });
       return;
     }
-    if (!q.offers) q.offers = huntOffers();
+    // Angebote gelten für die Karte, auf der sie gemacht wurden (seit 14.18)
+    const pm = game.player ? mapOfTile(game.player.x / TILE, game.player.y / TILE) : null;
+    if (!q.offers || q.offers.some((o) => (o.map || 0) !== (pm ? pm.id : 0))) q.offers = huntOffers();
     body.innerHTML = `<p>„Ich zahle gut für jede Bestie weniger da draußen. Such dir eine Jagd aus.“ <small class="hint-text">Erledigte Jagden: ${q.hunts}</small></p>` +
       '<div class="hunt-list">' + q.offers.map((o, i) =>
         `<div class="hunt-item"><strong>${o.count} × ${MONSTER_TYPES[o.monster].name}</strong> <small>Stufe ${MONSTER_TYPES[o.monster].level}</small>` +
@@ -911,11 +935,16 @@ Object.assign(ui, {
       if (st.state === 'open') action = '<button type="button" class="btn btn-primary" data-stable="start">Prüfung beginnen</button>';
       else if (st.state === 'active') {
         const left = Math.max(0, Math.ceil(st.deadline - p.playTime));
-        action = `<p class="hint-text">Fortschritt: ${st.progress} / ${STABLE_QUEST.count} · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} Minuten</p>` +
+        action = `<p class="hint-text">Fortschritt: ${st.progress} / ${STABLE_QUEST.count} · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} Minuten · ${Math.max(0, STABLE_QUEST.lives - (st.deaths || 0))} von ${STABLE_QUEST.lives} Leben übrig</p>` +
           '<button type="button" class="btn btn-ghost" data-stable="drop">Prüfung abbrechen</button>';
-      } else action = '<button type="button" class="btn btn-primary" data-stable="reward">Pferd abholen</button>';
+      } else {
+        const price = HORSES[1].price || 0;
+        action = `<p class="hint-text">Bestanden! Das Reitpferd kostet ${price.toLocaleString('de-DE')} Gold – du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>` +
+          `<button type="button" class="btn btn-primary" data-stable="reward" ${p.gold >= price ? '' : 'disabled'}>Reitpferd kaufen – ${price.toLocaleString('de-DE')} Gold</button>`;
+      }
       html = `<p class="quest-step main-quest">Hauptmission · ab Stufe ${STABLE_QUEST.level}</p><h3>${STABLE_QUEST.title}</h3><p>„${STABLE_QUEST.text}“</p>` +
-        `<p><strong>Ziel:</strong> ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in ${STABLE_QUEST.time / 60} Minuten besiegen</p>` +
+        `<p><strong>Ziel:</strong> ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in ${STABLE_QUEST.time / 60} Minuten besiegen – bis zu ${STABLE_QUEST.lives}-mal sterben ist erlaubt</p>` +
+        `<p class="hint-text">Danach kaufst du dein Reitpferd für ${(HORSES[1].price || 0).toLocaleString('de-DE')} Gold.</p>` +
         `<p><strong>Belohnung:</strong></p>${rewardHtml(STABLE_QUEST.reward, xp)}${action}`;
     }
     body.innerHTML = html;
@@ -939,6 +968,7 @@ Object.assign(ui, {
       if (act === 'start') {
         st.state = 'active';
         st.progress = 0;
+        st.deaths = 0;
         st.deadline = p.playTime + STABLE_QUEST.time;
         ui.log(`Die Prüfung läuft: ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in 20 Minuten.`, 'info');
         ui.banner(STABLE_QUEST.title, 'Die Zeit läuft!');
@@ -946,6 +976,10 @@ Object.assign(ui, {
         st.state = 'open';
         st.progress = 0;
       } else {
+        // seit 14.18: das Reitpferd kostet 100.000 Gold
+        const price = HORSES[1].price || 0;
+        if (p.gold < price) return;
+        p.gold -= price;
         giveReward(STABLE_QUEST.reward, xp);
         st.state = 'finished';
         ui.banner('Ein eigenes Pferd!', 'Pferdeknopf oder Taste R zum Aufsteigen');
