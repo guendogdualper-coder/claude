@@ -841,7 +841,8 @@ const _bw3q = new THREE.Quaternion();
 const _bw3q2 = new THREE.Quaternion();
 
 // Länge eines fliegenden Pfeils in Einheiten (seit 13.67 0,5 statt 0,85: so lang wie ein Arm der Figur, kein Speer)
-const BOW_ARROW_LEN = 0.5;
+// seit 14.12 kürzer (0,34 statt 0,5): fliegende und steckende Pfeile wirkten viel zu lang
+const BOW_ARROW_LEN = 0.34;
 // Ein Pfeil im Raum: Mitte (x,y,z), Richtung d (Einheitsvektor), Länge len; head = Farbe der Spitze (Sorte)
 function bowArrow3(h, x, y, z, d, len, head, op, glow, fletch) {
   const k = len / 0.8;
@@ -1192,21 +1193,23 @@ function bowProj3(h) {
     const col = pr.color || '#c9a36a';
     // seit 13.67 Schattenmagie: dunkler Rauchschweif, violetter Kern, Pfeil mit dunklen Federn
     _bw3s.set(-_bw3d.z, 0, _bw3d.x);
-    const puffs = low ? 4 : 8;
+    // seit 14.12 ein kurzer Schweif direkt hinter dem Pfeil (vorher 8 Wolken bis 2 weit und eine 1,1 lange Spur:
+    // der Pfeil sah aus wie ein langer Strich)
+    const puffs = low ? 3 : 5;
     for (let i = 0; i < puffs; i++) {
-      const back = (0.35 + i * 0.24) * big;
+      const back = (0.24 + i * 0.1) * big;
       const wob = Math.sin(t * 9 + i * 1.7 + (pr.x + pr.y) * 0.01) * 0.06 * i / puffs;
-      n3Smoke(h, x - _bw3d.x * back + _bw3s.x * wob, y + i * 0.02 + wob * 0.5, z - _bw3d.z * back + _bw3s.z * wob, (0.24 + i * 0.05) * big, i % 2 ? BOW3.smoke : BOW3.shadow, 0.62 * (1 - i / puffs));
+      n3Smoke(h, x - _bw3d.x * back + _bw3s.x * wob, y + i * 0.02 + wob * 0.5, z - _bw3d.z * back + _bw3s.z * wob, (0.14 + i * 0.03) * big, i % 2 ? BOW3.smoke : BOW3.shadow, 0.5 * (1 - i / puffs));
     }
-    _bw3a.set(x - _bw3d.x * 0.4 * big, y, z - _bw3d.z * 0.4 * big);
-    _bw3b.set(x - _bw3d.x * (0.4 + 1.1 * big), y, z - _bw3d.z * (0.4 + 1.1 * big));
+    _bw3a.set(x - _bw3d.x * 0.24 * big, y, z - _bw3d.z * 0.24 * big);
+    _bw3b.set(x - _bw3d.x * (0.24 + 0.32 * big), y, z - _bw3d.z * (0.24 + 0.32 * big));
     const st = fx3Take(h, 'segN');
-    fx3Segment(st, _bw3b, _bw3a, 0.022 * big);
+    fx3Segment(st, _bw3b, _bw3a, 0.016 * big);
     fx3Color(st, '#3a1670', 0.65);
     // Schatten am Boden unter dem Pfeil (Tiefe: man sieht, dass er fliegt)
     mGround(h, 'planeNBowPS', 'disc', pr.x - _bw3d.x * 6, pr.y - _bw3d.z * 6, 0.32 * big, 0.025, 0, BOW3.dark, 0.3);
     bowArrow3(h, x, y, z, _bw3d, BOW_ARROW_LEN * big, violet ? BOW3.violet2 : col, 1, 0, pr.arrow >= 2 || violet ? col : BOW3.shadow);
-    n3Glow(h, x + _bw3d.x * 0.35 * big, y, z + _bw3d.z * 0.35 * big, (pr.arrow >= 5 ? 0.6 : 0.42) * big, BOW3.violet, 0.55);
+    n3Glow(h, x + _bw3d.x * 0.22 * big, y, z + _bw3d.z * 0.22 * big, (pr.arrow >= 5 ? 0.42 : 0.3) * big, BOW3.violet, 0.5);
     if (pr.bfx === 'salvo') {
       // leuchtender Schaft, violetter Kern an der Spitze und eine gedrehte Schattenspur
       _bw3a.set(x - _bw3d.x * 0.3, y, z - _bw3d.z * 0.3);
@@ -1215,12 +1218,12 @@ function bowProj3(h) {
       fx3Segment(gl, _bw3a, _bw3b, 0.05);
       fx3Color(gl, BOW3.violet, 0.55);
       n3Glow(h, x + _bw3d.x * 0.3, y, z + _bw3d.z * 0.3, 0.32, BOW3.violet2, 0.85);
-      const m = low ? 6 : 12;
+      const m = low ? 5 : 8; // seit 14.12 kürzer (vorher 12 Glieder bis 1,2 weit)
       let px = 0;
       let py = 0;
       let pz = 0;
       for (let i = 0; i <= m; i++) {
-        const back = 0.1 + i * 0.09;
+        const back = 0.08 + i * 0.06;
         const a = t * 24 - i * 0.8 + (pr.x + pr.y) * 0.02;
         const r = 0.1 + i * 0.012;
         const nx = x - _bw3d.x * back + _bw3s.x * Math.cos(a) * r;
@@ -1237,7 +1240,7 @@ function bowProj3(h) {
         py = ny;
         pz = nz;
       }
-      if (!low) for (let i = 0; i < 3; i++) n3Glow(h, x - _bw3d.x * (0.6 + i * 0.35), y + 0.04 * i, z - _bw3d.z * (0.6 + i * 0.35), 0.22 - i * 0.04, BOW3.violet, 0.4 - i * 0.1);
+      if (!low) for (let i = 0; i < 2; i++) n3Glow(h, x - _bw3d.x * (0.35 + i * 0.2), y + 0.04 * i, z - _bw3d.z * (0.35 + i * 0.2), 0.18 - i * 0.04, BOW3.violet, 0.35 - i * 0.1);
     } else if (pr.bfx === 'falke') {
       // dunkle Federn und zwei Schattenbänder wirbeln um den Falkenpfeil
       for (let i = 0; i < (low ? 2 : 4); i++) {
@@ -1250,7 +1253,7 @@ function bowProj3(h) {
         bowFeather3(h, fx, fy, fz, 0.32 - i * 0.04, a, 0.95 - i * 0.15);
         if (!low) n3Glow(h, fx, fy, fz, 0.18, BOW3.violet, 0.45);
       }
-      const m = low ? 8 : 16;
+      const m = low ? 6 : 10; // seit 14.12 kürzer (vorher 16 Glieder)
       for (let s2 = 0; s2 < 2; s2++) {
         let px = 0;
         let py = 0;
@@ -1283,18 +1286,18 @@ function bowProj3(h) {
     } else if (pr.bfx === 'fan') {
       // Fächerpfeile (lange Flugbahn): zusätzliche, lange dunkle Schattenspur
       for (let i = 0; i < (low ? 3 : 6); i++) {
-        const back = (2.1 + i * 0.32) * big;
+        const back = (0.7 + i * 0.16) * big; // seit 14.12 näher am Pfeil (vorher ab 2,1)
         n3Smoke(h, x - _bw3d.x * back, y + 0.05 * i, z - _bw3d.z * back, 0.3 + i * 0.05, BOW3.smoke, 0.35 * (1 - i / 6));
       }
     } else if (pr.bfx === 'pierce') {
       // zwei Schattenbänder spiralen um die Flugbahn
-      const m = low ? 8 : 16;
+      const m = low ? 6 : 10; // seit 14.12 kürzer (vorher 16 Glieder, 2,4 lang)
       for (let s2 = 0; s2 < 2; s2++) {
         let px = 0;
         let py = 0;
         let pz = 0;
         for (let i = 0; i <= m; i++) {
-          const back = i * 0.15;
+          const back = i * 0.08;
           const a = t * 22 - i * 0.75 + s2 * Math.PI;
           const r = 0.17 + i * 0.014;
           const nx = x - _bw3d.x * back + _bw3s.x * Math.cos(a) * r;

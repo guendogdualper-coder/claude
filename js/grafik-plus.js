@@ -7,7 +7,8 @@
 //  - am PC zusätzlich echte Schatten für die ganze Welt (Häuser, Bäume, Laternen), sonst nur für Figuren
 // Braucht WebGL 2. Ohne WebGL 2 oder wenn das Gerät zu langsam ist (quality.noPost, zeichnen.js) zeichnet die Welt
 // wie bei „Ultra“ direkt auf den Bildschirm. Werte in GP (zum Nachstellen in der Konsole).
-const GP = { on: false, bloom: 0.5, thr: 0.9, tilt: 0.6, sat: 1.1, contrast: 1.08, vignette: 0.28, expo: 0.98, shadows: false, msaa: false };
+const GP = { on: false, bloom: 0.5, thr: 0.965, // seit 14.12 höher: sonniges Gras (bis ~0,95) leuchtete mit
+  tilt: 0.6, sat: 1.1, contrast: 1.08, vignette: 0.28, expo: 0.98, shadows: false, msaa: false };
 const _gp = { ready: false, key: '', sz: null, shadowed: -1 };
 
 function gpSupported() {
@@ -40,7 +41,7 @@ function gpInit() {
     void main(){ vec3 c = texture2D(t, vUv).rgb; float l = max(c.r, max(c.g, c.b));
       float s = (l - min(c.r, min(c.g, c.b))) / max(l, 1e-3);
       // satte Farben ab der Schwelle (Feuer, Magie, Laternen), dazu alles, was heller als Weiß ist (sich überlagernde Effekte)
-      float k = smoothstep(thr, thr + 0.12, min(l, 1.0)) * smoothstep(0.35, 0.75, s) * 1.4 + smoothstep(1.05, 1.8, l) * 0.7;
+      float k = smoothstep(thr, thr + 0.05, min(l, 1.0)) * smoothstep(0.35, 0.75, s) * 1.4 + smoothstep(1.02, 1.6, l) * 0.8;
       gl_FragColor = vec4(c * k * min(1.0, 1.2 / max(l, 1.0)), 1.0); }`);
   // 9er-Gauß in zwei Richtungen (5 Lesezugriffe dank linearer Filterung)
   _gp.blur = mat({ t: { value: null }, dir: { value: new THREE.Vector2() } }, `uniform sampler2D t; uniform vec2 dir; varying vec2 vUv;
@@ -139,7 +140,7 @@ function gpRender() {
   gl.render(V3.scene, V3.camera);
   const nk = V3.nightK || 0;
   _gp.bright.uniforms.t.value = _gp.main.texture;
-  _gp.bright.uniforms.thr.value = GP.thr - 0.4 * nk;
+  _gp.bright.uniforms.thr.value = GP.thr - 0.42 * nk;
   gpPass(_gp.bright, _gp.half);
   gpBlur(_gp.half, _gp.h2, W >> 1, H >> 1, 1.0);
   gpCopy(_gp.half, _gp.q1);
