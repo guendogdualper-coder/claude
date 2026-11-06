@@ -764,7 +764,7 @@ function rollLoot(m) {
   // Gegenstände für die Fertigkeiten (seit 14.1, Raten in SKILL_MAT_DROP, daten/gegenstaende.js):
   // Fertigkeitsbücher aus jedem Seelenstein (18 %) und ganz selten von Monstern ab Stufe 20 (0,3 %), immer zur
   // eigenen Klasse; Schriftrollen nur aus Seelensteinen ab Stufe 40 (40: 22 %, 80: 42 %);
-  // Seelensteine (Gegenstand) nur aus Seelensteinen ab Stufe 45 (45: 12 %, 60: 18 %, 80: 26 %).
+  // Seelensteine (Gegenstand) nur aus Seelensteinen ab Stufe 45 (seit 14.9: 45: 3,5 %, 60: 5 %, 80: 7 %).
   const bd = SKILL_MAT_DROP.book;
   if (m.isStone ? Math.random() < bd.stone : m.level >= bd.mobLevel && Math.random() < bd.mob) addBooks(1, m, ownClassSkillIds(p));
   if (m.isStone && Math.random() < skillMatChance('rolle', m.level)) addSkillMat('rolle', 1, m);

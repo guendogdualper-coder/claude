@@ -481,11 +481,13 @@ const matDef = (id) => ALL_MATS.find((m) => m.id === id);
 const SKILL_MAT_DROP = {
   book: { stone: 0.18, mobLevel: 20, mob: 0.003 },
   rolle: { stone: 40, base: 0.22, step: 0.005 },
-  seelenstein: { stone: 45, base: 0.12, step: 0.004 }
+  // seit 14.9 viel seltener (vorher 12 % bei Stufe 45 bis 26 % bei 80 – zehn Steine gaben oft vier): 3,5 % bei 45,
+  // je Stufe +0,1 %, höchstens 7 % (Stufe 60 etwa 5 %, Stufe 80 etwa 7 %)
+  seelenstein: { stone: 45, base: 0.035, step: 0.001, cap: 0.07 }
 };
 function skillMatChance(id, level) {
   const d = SKILL_MAT_DROP[id];
-  return level < d.stone ? 0 : Math.min(1, d.base + (level - d.stone) * d.step);
+  return level < d.stone ? 0 : Math.min(d.cap || 1, d.base + (level - d.stone) * d.step);
 }
 
 // Farben der Materialien in der Beuteanzeige

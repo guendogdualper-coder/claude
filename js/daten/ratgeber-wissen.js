@@ -259,7 +259,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'kampf', q: 'Wo bekomme ich Seelensteine als Gegenstand (Legendär, Vollendet)?',
-    a: () => `Nur aus Seelensteinen ab Stufe ${(typeof SKILL_MAT_DROP !== 'undefined') ? SKILL_MAT_DROP.seelenstein.stone : 45} – und selten (Stufe 45 etwa 12 %, Stufe 60 etwa 18 %, Stufe 80 etwa 26 %), hier heißt es farmen. ` +
+    a: () => `Nur aus Seelensteinen ab Stufe ${(typeof SKILL_MAT_DROP !== 'undefined') ? SKILL_MAT_DROP.seelenstein.stone : 45} – und sehr selten (Stufe 45 etwa 3,5 %, Stufe 60 etwa 5 %, Stufe 80 etwa 7 %, also grob einer aus 15 bis 30 Steinen) – freu dich über jeden. ` +
       'Ein Seelenstein (Gegenstand) gilt für jede Fertigkeit: H10 (schon ab H8) → L1, jede Stufe L1–L10 und L10 (schon ab L8) → V kosten je einen. ' +
       'Nicht verwechseln: Die großen Seelensteine in der Welt sind die Steine, die du zerschlägst; der Gegenstand fällt aus ihnen.',
     k: 'seelenstein gegenstand legendaer vollendet l1 l10 v woher drop farmen 45'
