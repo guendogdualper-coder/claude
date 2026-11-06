@@ -382,17 +382,23 @@ function fx3Mat(map, vertexColors) {
 // plane: flach am Boden; wall: offener Zylinder; seg: dünner Zylinder für Blitze und Strahlen;
 // strip: gebogener Streifen (Schnitte, Schwünge); sprite: Lichtfleck zur Kamera gedreht
 const FX3_STRIP_N = 18;
+// Feste Formen (Scheibe, Wand, Stab, Kegel) seit 14.17 je Art einmal und von allen Teilen geteilt: vorher bekam jedes
+// Teil seine eigene Geometrie (im Kampf über 2.000 Puffer auf der Grafikkarte, jeder neue Teil ein Hochladen)
+function fx3Geo(key, make) {
+  return FX3.geo[key] || (FX3.geo[key] = make());
+}
 function fx3Make(kind) {
   let o;
   if (kind.startsWith('plane')) {
-    o = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), fx3Mat(fx3Texture('ring')));
+    o = new THREE.Mesh(fx3Geo('plane', () => new THREE.PlaneGeometry(2, 2)), fx3Mat(fx3Texture('ring')));
     // planeN…: normal gemischt – Warnkreise bleiben auch auf hellem Schnee und Eis sichtbar (seit 8.6 auch Reif und Siegel)
     if (kind.startsWith('planeN')) o.material.blending = THREE.NormalBlending;
     o.rotation.x = -Math.PI / 2;
   } else if (kind === 'wall') {
-    o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 28, 1, true), fx3Mat(fx3Texture('beam')));
+    o = new THREE.Mesh(fx3Geo('wall', () => new THREE.CylinderGeometry(1, 1, 1, 28, 1, true)), fx3Mat(fx3Texture('beam')));
   } else if (kind === 'seg' || kind === 'segTop' || kind === 'segN') {
-    o = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, kind === 'segN' ? 12 : 6, 1, true), fx3Mat(null));
+    const n = kind === 'segN' ? 12 : 6;
+    o = new THREE.Mesh(fx3Geo('seg' + n, () => new THREE.CylinderGeometry(1, 1, 1, n, 1, true)), fx3Mat(null));
     // segN (seit 9.7): normal gemischt, deckt auch auf hellem Boden (Wasserstrahl)
     if (kind === 'segN') o.material.blending = THREE.NormalBlending;
   } else if (kind === 'strip' || kind === 'stripN') {
@@ -415,7 +421,7 @@ function fx3Make(kind) {
     const mat = kind === 'cone'
       ? new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 1 })
       : fx3Mat(null);
-    o = new THREE.Mesh(new THREE.ConeGeometry(1, 1, 5), mat);
+    o = new THREE.Mesh(fx3Geo('cone', () => new THREE.ConeGeometry(1, 1, 5)), mat);
   } else if (kind === 'rock' || kind === 'rockcol') {
     // Erdbrocken und Felspfeiler (seit 8.3): eine gemeinsame Geometrie je Art, fest und facettiert
     if (!FX3.geo.rock) {
@@ -526,7 +532,11 @@ const _x3fy = new THREE.Vector3(0, 1, 0);
 
 function fx3Map(o, kind) {
   const t = kind ? fx3Texture(kind) : null;
-  if (o.material.map !== t) { o.material.map = t; o.material.needsUpdate = true; }
+  if (o.material.map === t) return;
+  // Nur „Textur ja/nein“ braucht ein anderes Shader-Programm (seit 14.17). Vorher löste jeder Wechsel zwischen zwei
+  // Texturen (Teile aus dem Vorrat wechseln je Bild ihre Aufgabe) die volle Programmprüfung von three.js aus
+  if (!o.material.map !== !t) o.material.needsUpdate = true;
+  o.material.map = t;
 }
 
 // Leuchtende (additive) Effekte nachts etwas gedämpft (seit 13.47): auf dem dunklen Bild wirkten Schwünge,
@@ -1891,7 +1901,8 @@ function fx3Status(h) {
   const t = game.time;
   let n = 0;
   let ice = 0;
-  for (const m of game.monsters) {
+  // seit 14.17 nur die Monster der Gebiete in der Nähe (v3Monsters, drei-kern.js) statt aller ~7.000 der Welt
+  for (const m of v3Monsters()) {
     // Eis taut oder bricht: Splitter und Funken (zählen zum Effekt-Budget)
     if (m.ice3 && !(m.frozen > t)) {
       m.ice3 = false;
@@ -2140,6 +2151,271 @@ function v3SyncFx() {
   fx3Crown(FX3_CROWN);
   fx3BuffAuras(FX3_AURA);
   for (const hk of FX3_HOOKS) hk.fn(hk);
+  fx3BatchSprites();
+}
+
+// --- Leuchtflecken gebündelt (seit 14.17) ------------------------------------------------------------------
+// Die Fertigkeiten zeichnen ihre Funken, Glutpunkte, Sterne, Lichtflecken und Rang-Effekte als viele einzelne
+// THREE.Sprite – jeder ein eigener Zeichenaufruf mit eigener Programm- und Materialprüfung. Mit 30 Monstern und
+// Rang-Effekten an jedem Treffer waren das über 3.000 Zeichenaufrufe je Bild (der Hänger beim Draufhauen).
+// Jetzt sammelt dieses Stück nach dem Verteilen alle additiven Sprites (Licht addiert sich – die Reihenfolge ändert
+// am Ergebnis nichts) und zeichnet sie je Textur in einem einzigen Aufruf: gleicher Shader-Inhalt wie SpriteMaterial
+// (zur Kamera gedreht, Größe in Welteinheiten, Drehung, Farbe × Deckkraft × Textur). Die Sprites selbst bleiben,
+// wie die Effekte sie gesetzt haben; sie werden nur für dieses eine Bild ausgeblendet (fx3BatchDone stellt sie zurück).
+// Ebenso die additiven Stäbe, Wände, Scheiben und Kegel mit geteilter Form (Blitze, Strahlen, Treffer-Zacken – im Kampf
+// weit über 1.000 je Bild): je Form, Textur und Seite ein THREE.InstancedMesh; Farbe × Deckkraft je Teil (bei additivem
+// Licht ergibt das genau dasselbe wie Farbe mit Deckkraft).
+// hidden/nh: ausgeblendete Teile dieses Bildes (Liste bleibt stehen, nur nh zählt – kein neuer Speicher je Bild)
+const FXB3 = { batches: new Map(), meshes: new Map(), hidden: [], nh: 0, shared: null, drop: [] };
+const FXB3_ATTR = [['iPos', 3], ['iScl', 3], ['iCol', 4]];
+const FXB3_SHARED = ['plane', 'wall', 'seg6', 'seg12', 'cone'];
+const FXB3_VS = `attribute vec3 iPos;
+attribute vec3 iScl;
+attribute vec4 iCol;
+varying vec2 vUv;
+varying vec4 vCol;
+void main() {
+	vUv = uv;
+	vCol = iCol;
+	vec4 mv = viewMatrix * vec4(iPos, 1.0);
+	vec2 p = position.xy * iScl.xy;
+	float c = cos(iScl.z);
+	float s = sin(iScl.z);
+	mv.xy += vec2(c * p.x - s * p.y, s * p.x + c * p.y);
+	gl_Position = projectionMatrix * mv;
+}`;
+const FXB3_FS = `uniform sampler2D map;
+varying vec2 vUv;
+varying vec4 vCol;
+void main() {
+	vec4 c = vCol;
+	#ifdef USE_MAP
+	c *= texture2D(map, vUv);
+	#endif
+	gl_FragColor = c;
+}`;
+// Textur ohne Verschiebung, Wiederholung oder Drehung (sonst bleibt das Sprite einzeln)
+const fxb3Plain = (t) => !t || (t.repeat.x === 1 && t.repeat.y === 1 && t.offset.x === 0 && t.offset.y === 0 && t.rotation === 0);
+function fxb3Batch(map, depthTest, order) {
+  const key = (map ? map.id : 0) + (depthTest ? 'd' : 'n') + order;
+  let b = FXB3.batches.get(key);
+  if (b) return b;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: map } }, vertexShader: FXB3_VS, fragmentShader: FXB3_FS, defines: map ? { USE_MAP: '' } : {},
+    transparent: true, depthWrite: false, depthTest, blending: THREE.AdditiveBlending
+  });
+  const mesh = new THREE.Mesh(new THREE.InstancedBufferGeometry(), mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = order;
+  mesh.visible = false;
+  b = { mesh, cap: 0, n: 0, pos: null, scl: null, col: null, sx: 0, sz: 0 };
+  FX3.group.add(mesh);
+  FXB3.batches.set(key, b);
+  return b;
+}
+function fxb3Grow(b, need) {
+  let cap = Math.max(64, b.cap);
+  while (cap < need) cap *= 2;
+  const old = b.mesh.geometry;
+  const g = new THREE.InstancedBufferGeometry();
+  // Rechteck wie bei THREE.Sprite: -0,5…0,5, UV 0…1
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-0.5, -0.5, 0, 0.5, -0.5, 0, 0.5, 0.5, 0, -0.5, 0.5, 0], 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  const pos = new Float32Array(cap * 3);
+  const scl = new Float32Array(cap * 3);
+  const col = new Float32Array(cap * 4);
+  if (b.pos) {
+    pos.set(b.pos);
+    scl.set(b.scl);
+    col.set(b.col);
+  }
+  g.setAttribute('iPos', new THREE.InstancedBufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('iScl', new THREE.InstancedBufferAttribute(scl, 3).setUsage(THREE.DynamicDrawUsage));
+  g.setAttribute('iCol', new THREE.InstancedBufferAttribute(col, 4).setUsage(THREE.DynamicDrawUsage));
+  b.mesh.geometry = g;
+  old.dispose();
+  b.cap = cap;
+  b.pos = pos;
+  b.scl = scl;
+  b.col = col;
+}
+// Bündel für additive Teile mit geteilter Form
+function fxb3MeshBatch(geo, m0, order) {
+  const map = m0.map;
+  const key = geo.id + ':' + (map ? map.id : 0) + (m0.depthTest ? 'd' : 'n') + m0.side + ':' + order;
+  let b = FXB3.meshes.get(key);
+  if (b) return b;
+  const mat = new THREE.MeshBasicMaterial({
+    map, color: 0xffffff, transparent: true, opacity: 1, depthWrite: false, depthTest: m0.depthTest, blending: THREE.AdditiveBlending, side: m0.side, fog: false
+  });
+  b = { geo, mat, mesh: null, cap: 0, n: 0, order, sx: 0, sy: 0, sz: 0 };
+  FXB3.meshes.set(key, b);
+  return b;
+}
+function fxb3MeshGrow(b, need) {
+  let cap = Math.max(32, b.cap);
+  while (cap < need) cap *= 2;
+  const mesh = new THREE.InstancedMesh(b.geo, b.mat, cap);
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3).setUsage(THREE.DynamicDrawUsage);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = b.order;
+  mesh.castShadow = false;
+  mesh.receiveShadow = false;
+  mesh.userData.fxb3 = true;
+  if (b.mesh) {
+    mesh.instanceMatrix.array.set(b.mesh.instanceMatrix.array.subarray(0, b.n * 16));
+    mesh.instanceColor.array.set(b.mesh.instanceColor.array.subarray(0, b.n * 3));
+    // erst nach dem Durchgang über die Teile entfernen (die Liste wird gerade durchlaufen)
+    FXB3.drop.push(b.mesh);
+  }
+  FX3.group.add(mesh);
+  b.mesh = mesh;
+  b.cap = cap;
+}
+function fx3BatchSprites() {
+  const G = FX3.group;
+  if (!G || !V3.on || !V3.gl) return;
+  // Mehrfachzeichnen braucht WebGL 2 oder die Erweiterung (alte Geräte: Sprites einzeln wie bisher)
+  if (FXB3.ok === undefined) FXB3.ok = !!(V3.gl.capabilities.isWebGL2 || V3.gl.extensions.get('ANGLE_instanced_arrays'));
+  if (!FXB3.ok) return;
+  for (const b of FXB3.batches.values()) {
+    b.n = 0;
+    b.sx = 0;
+    b.sy = 0;
+    b.sz = 0;
+  }
+  for (const b of FXB3.meshes.values()) {
+    b.n = 0;
+    b.sx = 0;
+    b.sy = 0;
+    b.sz = 0;
+  }
+  // geteilte Formen aus fx3Make (dürfen gebündelt werden; eigene Formen einzelner Teile nicht)
+  const shared = FXB3.shared || (FXB3.shared = new Set());
+  for (const k of FXB3_SHARED) if (FX3.geo[k]) shared.add(FX3.geo[k]);
+  const hidden = FXB3.hidden;
+  fx3BatchDone();
+  const ok = G.position.x === 0 && G.position.y === 0 && G.position.z === 0 && G.scale.x === 1 && G.scale.y === 1 && G.scale.z === 1 && G.quaternion.w === 1;
+  if (ok) {
+    const kids = G.children;
+    for (let i = 0; i < kids.length; i++) {
+      const o = kids[i];
+      if (!o.visible) continue;
+      if (o.isMesh) {
+        if (shared.has(o.geometry)) fxb3Mesh(o, hidden);
+        continue;
+      }
+      if (!o.isSprite) continue;
+      const m = o.material;
+      if (m.blending !== THREE.AdditiveBlending || m.depthWrite || m.fog || m.alphaTest || m.alphaMap || m.sizeAttenuation === false || !m.visible
+        || m.premultipliedAlpha || o.center.x !== 0.5 || o.center.y !== 0.5 || o.layers.mask !== 1 || !fxb3Plain(m.map)) continue;
+      hidden[FXB3.nh++] = o;
+      o.visible = false;
+      // trägt nichts bei: nur ausblenden
+      if (m.opacity <= 0) continue;
+      // Bündel am Teil merken (spart die Schlüssel-Zeichenkette je Teil und Bild)
+      let c = o.userData.fxb3;
+      if (!c || c.map !== m.map || c.dt !== m.depthTest || c.ro !== o.renderOrder) c = o.userData.fxb3 = { map: m.map, dt: m.depthTest, ro: o.renderOrder, b: fxb3Batch(m.map, m.depthTest, o.renderOrder) };
+      const b = c.b;
+      if (b.n >= b.cap) fxb3Grow(b, b.n + 1);
+      const k = b.n++;
+      const p = o.position;
+      b.pos[k * 3] = p.x;
+      b.pos[k * 3 + 1] = p.y;
+      b.pos[k * 3 + 2] = p.z;
+      b.sx += p.x;
+      b.sy += p.y;
+      b.sz += p.z;
+      b.scl[k * 3] = Math.abs(o.scale.x);
+      b.scl[k * 3 + 1] = Math.abs(o.scale.y);
+      b.scl[k * 3 + 2] = m.rotation;
+      b.col[k * 4] = m.color.r;
+      b.col[k * 4 + 1] = m.color.g;
+      b.col[k * 4 + 2] = m.color.b;
+      b.col[k * 4 + 3] = m.opacity;
+    }
+  }
+  for (const b of FXB3.batches.values()) {
+    b.mesh.visible = b.n > 0;
+    if (!b.n) continue;
+    const g = b.mesh.geometry;
+    g.instanceCount = b.n;
+    for (const [k, w] of FXB3_ATTR) {
+      const at = g.attributes[k];
+      at.updateRange.offset = 0;
+      at.updateRange.count = b.n * w;
+      at.needsUpdate = true;
+    }
+    // Sortierung unter den durchsichtigen Teilen: an der Mitte der gebündelten Flecken
+    b.mesh.position.set(b.sx / b.n, b.sy / b.n, b.sz / b.n);
+  }
+  for (const d of FXB3.drop) {
+    FX3.group.remove(d);
+    d.dispose();
+  }
+  FXB3.drop.length = 0;
+  for (const b of FXB3.meshes.values()) {
+    if (!b.mesh) continue;
+    b.mesh.visible = b.n > 0;
+    if (!b.n) continue;
+    b.mesh.count = b.n;
+    const im = b.mesh.instanceMatrix;
+    // Sortierung unter den durchsichtigen Teilen wie oben: das Bündel steht in der Mitte seiner Teile, die Matrizen
+    // der Teile werden darauf bezogen
+    const cx = b.sx / b.n;
+    const cy = b.sy / b.n;
+    const cz = b.sz / b.n;
+    const e = im.array;
+    for (let i = 0; i < b.n; i++) {
+      e[i * 16 + 12] -= cx;
+      e[i * 16 + 13] -= cy;
+      e[i * 16 + 14] -= cz;
+    }
+    b.mesh.position.set(cx, cy, cz);
+    im.updateRange.offset = 0;
+    im.updateRange.count = b.n * 16;
+    im.needsUpdate = true;
+    const ic = b.mesh.instanceColor;
+    ic.updateRange.offset = 0;
+    ic.updateRange.count = b.n * 3;
+    ic.needsUpdate = true;
+  }
+}
+// ein additives Teil mit geteilter Form ins Bündel (sonst bleibt es einzeln)
+function fxb3Mesh(o, hidden) {
+  const m = o.material;
+  if (o.isInstancedMesh || o.isSkinnedMesh || o.children.length || !m.isMeshBasicMaterial || m.blending !== THREE.AdditiveBlending || m.vertexColors
+    || m.depthWrite || m.fog || m.alphaTest || m.alphaMap || m.envMap || m.lightMap || m.aoMap || m.specularMap || m.wireframe || !m.visible
+    || m.polygonOffset || !m.colorWrite || m.stencilWrite || m.depthFunc !== THREE.LessEqualDepth || m.premultipliedAlpha || m.opacity > 1
+    || o.layers.mask !== 1 || !fxb3Plain(m.map)) return;
+  hidden[FXB3.nh++] = o;
+  o.visible = false;
+  if (m.opacity <= 0) return;
+  let c = o.userData.fxb3;
+  if (!c || c.geo !== o.geometry || c.map !== m.map || c.dt !== m.depthTest || c.side !== m.side || c.ro !== o.renderOrder) {
+    c = o.userData.fxb3 = { geo: o.geometry, map: m.map, dt: m.depthTest, side: m.side, ro: o.renderOrder, b: fxb3MeshBatch(o.geometry, m, o.renderOrder) };
+  }
+  const b = c.b;
+  if (b.n >= b.cap) fxb3MeshGrow(b, b.n + 1);
+  const k = b.n++;
+  if (o.matrixAutoUpdate) o.updateMatrix();
+  o.matrix.toArray(b.mesh.instanceMatrix.array, k * 16);
+  const col = b.mesh.instanceColor.array;
+  col[k * 3] = m.color.r * m.opacity;
+  col[k * 3 + 1] = m.color.g * m.opacity;
+  col[k * 3 + 2] = m.color.b * m.opacity;
+  const p = o.position;
+  b.sx += p.x;
+  b.sy += p.y;
+  b.sz += p.z;
+}
+// nach dem Zeichnen (drei-kern.js renderDrei): die gebündelten Sprites wieder einblenden
+function fx3BatchDone() {
+  const hidden = FXB3.hidden;
+  for (let i = 0; i < FXB3.nh; i++) hidden[i].visible = true;
+  FXB3.nh = 0;
 }
 
 // --- Rand der aktuellen Map (seit 6.6) -----------------------------------------------------------
@@ -2315,7 +2591,13 @@ function v3WarmFx() {
       new THREE.PointsMaterial({ map: fx3Texture('spark'), size: 0.05, sizeAttenuation: true, transparent: true, depthWrite: false, fog: false }));
     FX3.group.add(pts);
   } catch (err) { pts = null; }
+  // gebündelte Leuchtflecken (seit 14.17) mit übersetzen; in diesem einen Bild zeichnen die Sprites einzeln
+  fx3BatchDone();
+  fx3BatchSprites();
   try { V3.gl.compile(V3.scene, V3.camera); } catch (err) { /* nur Vorwärmen */ }
+  fx3BatchDone();
+  for (const b of FXB3.batches.values()) b.mesh.visible = false;
+  for (const b of FXB3.meshes.values()) if (b.mesh) b.mesh.visible = false;
   for (const h of hs) fx3Release(h);
   // nicht wegwerfen: ein entsorgtes Material gäbe sein frisch übersetztes Programm gleich wieder frei
   if (pts) pts.visible = false;

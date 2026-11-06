@@ -140,7 +140,8 @@ function ghostify(a) {
     a.mats.glow.needsUpdate = true;
   }
   if (a.meshes.lit) {
-    const shell = new THREE.SkinnedMesh(a.meshes.lit.geometry, ghostShellMat());
+    // Körper ohne Gesicht (seit 14.17 liegt das Gesicht der Monster mit im Körpermodell, drei-figuren.js mergeFace3)
+    const shell = new THREE.SkinnedMesh(a.model.geos.outline || a.model.geos.lit, ghostShellMat());
     shell.bind(a.skeleton);
     a.group.add(shell);
     a.meshes.ghostShell = shell;

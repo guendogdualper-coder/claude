@@ -1315,8 +1315,12 @@ function updateMonsters(dt) {
     }
   }
 
-  // Monster aus Steinwellen verschwinden nach dem Tod endgültig
-  game.monsters = game.monsters.filter((m) => !(m.dead && !m.respawn));
+  // Monster aus Steinwellen verschwinden nach dem Tod endgültig. Seit 14.17 nur dann eine neue Liste: vorher entstand
+  // jedes Bild eine Kopie aller ~7.000 Monster (Müll für die Speicherbereinigung), und monsterIndex baute sich
+  // deshalb in jedem Bild neu auf statt alle 2 s
+  let gone = false;
+  for (const m of game.monsters) if (m.dead && !m.respawn) { gone = true; break; }
+  if (gone) game.monsters = game.monsters.filter((m) => !(m.dead && !m.respawn));
 }
 
 // --- Diener des Nekromanten (seit 8.5: drei Diener, ab E1 Knochenhunde; seit 13.94 ab H Knochendrachen,
