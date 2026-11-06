@@ -5,7 +5,9 @@
 // und Playwright (Chromium) ist installiert. Der Drache wird nur in der Vorschau geladen (addScriptTag),
 // das Spiel selbst (index.html, Stallmeister, Spielstand) bleibt unberührt.
 // Bilder (1280×720): Drehung in 4 Ansichten, mit Reiter (Stand und Flug), Flügelschlag in 8 Bildern (+ Reihe),
-// Abheben und Landen, Größenvergleich mit dem Kriegsross, Spielszene über Bäumen, dazu ein Kontaktbogen.
+// Abheben und Landen, Größenvergleich mit dem Kriegsross, Spielszene über Bäumen, Strecken im Stand, Gleiten,
+// dazu ein Kontaktbogen. Mit VORHER_JS=<ältere drei-drache.js> außerdem eine Vorher/Nachher-Gegenüberstellung der
+// Flügel (dieselben Haltungen und Kameras mit beiden Fassungen).
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -15,21 +17,33 @@ const URL = process.argv[3] || 'http://localhost:8795/';
 const ONLY = process.env.NUR ? new Set(process.env.NUR.split(',')) : null;
 const ROOT = path.join(__dirname, '..');
 
+// Seite mit Spiel laden und den Drachen (dragonJs) sowie die Vorschau-Bühne dazu
+async function openPage(ctx, dragonJs, errs) {
+  const p = await ctx.newPage();
+  p.on('pageerror', (e) => errs.push(e.message));
+  p.on('console', (m) => { if (m.text().startsWith('[drache]')) console.log(m.text()); });
+  await p.addInitScript(() => localStorage.setItem('seelenstein.optionen', JSON.stringify({ graphics: 'hoch', optsVer: 2, sound: false, music: false })));
+  // „load“ kann hängen, wenn externe Dienste (Schriften, Anmeldung) nicht erreichbar sind; auf einem ausgelasteten
+  // Rechner (zweite Seite neben dem laufenden Spiel) einmal neu versuchen
+  try {
+    await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 300000 });
+  } catch (e) {
+    console.log('[drache] Seite lädt langsam, zweiter Versuch');
+    await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 300000 });
+  }
+  await p.waitForFunction(() => typeof startGame === 'function' && typeof model3 === 'function', null, { timeout: 60000 });
+  await p.waitForTimeout(1500);
+  await p.addScriptTag({ path: dragonJs });
+  await p.addScriptTag({ path: path.join(__dirname, 'drache-vorschau-seite.js') });
+  return p;
+}
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const b = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const ctx = await b.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-  const p = await ctx.newPage();
   const errs = [];
-  p.on('pageerror', (e) => errs.push(e.message));
-  p.on('console', (m) => { if (m.text().startsWith('[drache]')) console.log(m.text()); });
-  await p.addInitScript(() => localStorage.setItem('seelenstein.optionen', JSON.stringify({ graphics: 'hoch', optsVer: 2, sound: false, music: false })));
-  // „load“ kann hängen, wenn externe Dienste (Schriften, Anmeldung) nicht erreichbar sind
-  await p.goto(URL, { waitUntil: 'domcontentloaded', timeout: 180000 });
-  await p.waitForFunction(() => typeof startGame === 'function' && typeof model3 === 'function', null, { timeout: 60000 });
-  await p.waitForTimeout(1500);
-  await p.addScriptTag({ path: path.join(ROOT, 'js', 'drei-drache.js') });
-  await p.addScriptTag({ path: path.join(__dirname, 'drache-vorschau-seite.js') });
+  const p = await openPage(ctx, path.join(ROOT, 'js', 'drei-drache.js'), errs);
   await p.evaluate(() => {
     const s = newCharacter('Drachenreiter', 'krieger', 0);
     s.level = 60;
@@ -198,6 +212,45 @@ const ROOT = path.join(__dirname, '..');
     await p.waitForTimeout(4000);
     buf = await p.screenshot({ type: 'png', timeout: 180000 });
     save('14-spielszene-gelandet', 'data:image/png;base64,' + buf.toString('base64'), 'Spielszene: gelandet im Wald');
+  }
+
+  // --- 8. Lebendigkeit: Strecken und Ausschütteln im Stand, Gleiten mit flatterndem Hinterrand
+  if (want('leben')) {
+    let url = await p.evaluate(() => {
+      DV.clear();
+      const d = DV.dragon(0, 0, 0.75, DRACHE3.stretchAt + 1.1, { air: 0 });
+      DV.riderOn(d);
+      return DV.shot([0, 3.8, 13.5], [0, 1.6, 0], { label: 'Stehen – Flügel strecken', sub: 'alle 12 s: Flügel halb auf, danach kurz ausschütteln (rechts etwas später)' });
+    });
+    save('15-stand-strecken', url, 'Stehen: Flügel strecken und ausschütteln');
+    url = await p.evaluate(() => {
+      DV.clear();
+      const g = DRACHE3.glideEvery * (DRACHE3.glideFrom + DRACHE3.glideTo) / 2;
+      const d = DV.dragon(0, 0, 0.55, g, { air: 1, ph: 0.3, moving: true });
+      DV.riderOn(d);
+      return DV.shot([0, 6.5, 13], [0, 2.2, 0], { label: 'Gleiten', sub: 'Flügel fast ruhig gespannt, der Hinterrand flattert' });
+    });
+    save('16-gleiten', url, 'Gleiten mit flatterndem Hinterrand');
+  }
+
+  // --- 9. Vorher/Nachher der Flügel (ältere Fassung in einer zweiten Seite)
+  if (want('vorher') && process.env.VORHER_JS) {
+    const poses = [
+      { name: 'Stehen (angelegt)', yaw: 0.75, t: 2.0, o: { air: 0 }, rider: false, cam: [0, 3.6, 12.5], look: [0, 1.25, 0] },
+      { name: 'Abschlag', yaw: 0.35, t: 3.2, o: { air: 1, ph: 0.22 }, rider: true, cam: [0, 3.0, 14], look: [0, 2.2, 0] },
+      { name: 'Aufschlag', yaw: 0.35, t: 3.6, o: { air: 1, ph: 0.68 }, rider: true, cam: [0, 3.0, 14], look: [0, 2.2, 0] },
+      { name: 'Von oben (Spielkamera)', yaw: 2.4, t: 3.0, o: { air: 1, ph: 0.3, moving: true }, rider: false, cam: [0, 13, 9], look: [0, 1.6, 0] }
+    ];
+    const old = await openPage(ctx, path.resolve(process.env.VORHER_JS), errs);
+    const items = [];
+    for (const d of poses) {
+      const a = await old.evaluate((x) => DV.poseShot(x), Object.assign({ label: 'Vorher', sub: d.name }, d));
+      const n = await p.evaluate((x) => DV.poseShot(x), Object.assign({ label: 'Nachher', sub: d.name }, d));
+      items.push({ url: a, label: 'Vorher – ' + d.name }, { url: n, label: 'Nachher – ' + d.name });
+    }
+    await old.close();
+    const url = await p.evaluate(([it]) => DV.sheet(it, 2, 'Flügel vorher / nachher'), [items]);
+    save('17-vorher-nachher-fluegel', url, 'Flügel vorher / nachher');
   }
 
   // --- Kontaktbogen

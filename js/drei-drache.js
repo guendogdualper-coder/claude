@@ -6,7 +6,8 @@
 // Aussehen: schlanker, langer Leib in dunklem Rot mit hellem, gebändertem Bauch, Bronze an Hörnern, Rückenplatten,
 // Flügelfingern und Krallen; kurzer Keilkopf mit zwei nach hinten geschwungenen, an der Spitze aufgebogenen
 // Hörnern, zwei kleinen Wangenhörnern und Wangenfächern; bernsteinfarben glimmende Augen; große Hautflügel
-// (oben dunkelrot, unten warm rötlich), deren Handteil an einer Scharnierlinie umklappt; langer Schwanz mit einem
+// (oben dunkelrot, unten warm rötlich) mit bauchig gewölbter Haut, leicht gebogenen, ungleich langen Fingern und
+// bogenförmig eingebuchtetem Hinterrand, die beim Schlag von innen nach außen nachschwingen; langer Schwanz mit einem
 // flachen Bronzeblatt am Ende. Sattel auf den Schultern vor den Flügelansätzen (die Flügel kreuzen nie die Beine
 // des Reiters), mit Haltegriff, Rückenlehne, Steigbügeln und Bauchgurt.
 //
@@ -33,9 +34,14 @@ const DRACHE3 = {
   // Dauer Abheben bzw. Landen (Sekunden)
   upTime: 1.2,
   downTime: 1.1,
-  // angelegte Flügel: Heben (z), nach hinten schwenken (y), Kippen (x), Handteil umklappen; armZ/handZ stauchen
-  // die Haut von vorn nach hinten (die Finger schließen sich wie ein Fächer)
-  fold: { arm: 0.55, sweep: 0.85, tilt: 0.0, hand: 3.0, armZ: 0.7, handZ: 0.55 },
+  // angelegte Flügel: Heben (z), nach hinten schwenken (y), Kippen (x), Innenteil stauchen (armZ), Unterarm nach
+  // hinten (fore), Handteil als Ganzes über die Kante W–P umklappen (hand) und zusammenschieben (handZ), Finger
+  // nur leicht zusammen (fan je Finger). Ein stark geschlossener Fächer würde die Haut umstülpen (Blend-Skinning).
+  fold: { arm: 0.55, sweep: 0.85, tilt: 0.0, armZ: 0.72, fore: 0.12, hand: 2.95, handZ: 0.6, fan: [0.16, 0.09, 0.03] },
+  // Strecken/Schütteln im Stand: alle stretchEvery s (Versatz stretchAt), rechter Flügel etwas später
+  stretchEvery: 12, stretchAt: 6,
+  // Gleiten beim Vorwärtsfliegen: Zyklus in s, Anteil (von–bis) mit fast ruhigen, gespannten Flügeln
+  glideEvery: 7, glideFrom: 0.62, glideTo: 0.92,
   colors: {
     scale: '#5c1517', scaleHi: '#7d231f', scaleDark: '#3c0e10',
     belly: '#e3c999', bellyLine: '#bf9c68',
@@ -49,46 +55,215 @@ const DRACHE3 = {
 // Knochen
 const DRB3 = {
   root: 0, body: 1, head: 2, legFL: 3, legFR: 4, legBL: 5, legBR: 6, tail: 7, wingL: 8, wingR: 9, neck: 10,
-  handL: 11, handR: 12, neck2: 13, jaw: 14, tail2: 15, tail3: 16, tail4: 17, lowFL: 18, lowFR: 19, lowBL: 20, lowBR: 21
+  handL: 11, handR: 12, neck2: 13, jaw: 14, tail2: 15, tail3: 16, tail4: 17, lowFL: 18, lowFR: 19, lowBL: 20, lowBR: 21,
+  // Hüfte: Hinterbeine und Schwanz hängen daran, der Leib biegt sich weich zwischen Brust und Hüfte
+  hips: 36
 };
+// Flügelknochen je Seite: Arm (Scharnier am Rumpf), Unterarm (ab Ellbogen), Hand (klappt um W–P), Finger 1 in zwei
+// Gliedern, Finger 2 und 3, dazu je ein „Segel“ für Innen- und Handteil: es schiebt die Hautmitte quer zur Fläche
+// (Wölbung im Luftdruck, Flattern), die Ränder an den Knochen bleiben fest.
+const DM_WB3 = (sx) => (sx > 0
+  ? { arm: 8, fore: 22, hand: 11, f1a: 24, f1b: 25, f2: 26, f3: 27, sailIn: 28, sailOut: 29 }
+  : { arm: 9, fore: 23, hand: 12, f1a: 30, f1b: 31, f2: 32, f3: 33, sailIn: 34, sailOut: 35 });
 
-// Flügelumriss (linker Flügel; x = Abstand von der Scharnierlinie nach außen, z wie im Modell).
-// Innenteil: Schulter (R0) – Ellbogen (E) – Handgelenk (W) – Hinterkante (P) – Bogen – Wurzel hinten (R1).
-// Handteil: W – drei Fingerspitzen mit Bögen dazwischen – P. Beide teilen sich die Kante W–P: um genau diese
-// Linie klappt der Handteil (kein Spalt beim Falten), und der Innenteil dreht um die Scharnierlinie am Rumpf.
+// Flügel im Grundriss (linker Flügel; x = Abstand von der Scharnierlinie am Rumpf nach außen, z wie im Modell).
+// Innenteil: Vorderkante Schulter R0 – Ellbogen E – Handgelenk W, Hinterkante als Bogen von R1 nach P.
+// Handteil: Fächer um das Handgelenk W mit drei leicht gebogenen, ungleich langen Fingern und dem Rand W–P;
+// zwischen den Fingerspitzen ist der Hinterrand bogenförmig eingebuchtet. Innen- und Handteil teilen sich die
+// Kante W–P: um genau diese Linie klappt der Handteil, dort entsteht auch beim Falten kein Spalt.
 const WING3 = {
-  R0: [0, 0.22], E: [0.62, 0.4], W: [1.2, 0.12], P: [0.98, -0.68], R1: [0, -0.44],
-  F1: [2.15, -0.1], F2: [1.98, -0.66], F3: [1.45, -1.12],
-  inner: [['m', 0, 0.22], ['l', 0.62, 0.4], ['l', 1.2, 0.12], ['l', 0.98, -0.68], ['q', 0.5, -0.4, 0, -0.44]],
-  outer: [['m', 1.2, 0.12], ['l', 2.15, -0.1], ['q', 1.8, -0.32, 1.98, -0.66], ['q', 1.52, -0.66, 1.45, -1.12], ['q', 1.16, -0.72, 0.98, -0.68]]
+  R0: [0, 0.22], R1: [0, -0.44], E: [0.62, 0.42], W: [1.2, 0.14], P: [0.98, -0.66],
+  // Fingerspitzen [x, z] und Biegung (Bogen nach vorn, Anteil der Fingerlänge)
+  F: [[2.2, -0.04, 0.06], [1.96, -0.72, 0.05], [1.38, -1.12, 0.04]],
+  // Einbuchtung des Hinterrands F1–F2, F2–F3, F3–P und am Innenteil R1–P
+  scallop: [0.27, 0.22, 0.15], innerScallop: 0.17,
+  // Wölbung der Haut in Ruhe (nach oben bauchig) und halbe Dicke (Ober- und Unterseite)
+  camber: 0.05, thick: 0.007,
+  // Unterteilung: Fächer (Schritte je Bogen, Ringe), Innenteil (Spanne, Tiefe)
+  segA: 10, rings: 6, segS: 10, segT: 5
 };
 
-// Flügelhaut als dünne Platte (Ober- und Unterseite, flache Facetten); sx = -1 spiegelt für den rechten Flügel
-function dmMembrane3(part, sx) {
-  return geo3('drache3mem' + part + sx, () => {
-    const s = new THREE.Shape();
-    for (const c of WING3[part]) {
-      if (c[0] === 'm') s.moveTo(sx * c[1], c[2]);
-      else if (c[0] === 'l') s.lineTo(sx * c[1], c[2]);
-      else s.quadraticCurveTo(sx * c[1], c[2], sx * c[3], c[4]);
+const dmMix2 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+// Strahlen des Fächers: drei Finger und der Rand W–P (ohne Finger)
+const dmRays3 = () => WING3.F.map(([x, z, bend]) => ({ tip: [x, z], bend })).concat([{ tip: WING3.P, bend: 0 }]);
+
+// Punkt im Handteil: Bogen seg (0: F1–F2, 1: F2–F3, 2: F3–P), u entlang des Bogens (0 = erster Strahl), rho vom
+// Handgelenk (0) zum Rand (1). Ergebnis [x, z, Wölbung 0–1]; die Strahlen u = 0 sind die (gebogenen) Finger.
+function dmOuterPt3(seg, u, rho) {
+  const R = dmRays3();
+  const a = R[seg], c = R[seg + 1];
+  const W = WING3.W;
+  const mid = dmMix2(a.tip, c.tip, 0.5);
+  const ix = W[0] - mid[0], iz = W[1] - mid[1];
+  const il = Math.hypot(ix, iz);
+  const d = WING3.scallop[seg] * Math.sin(Math.PI * u);
+  const e = dmMix2(a.tip, c.tip, u);
+  const dx = e[0] + (ix / il) * d - W[0], dz = e[1] + (iz / il) * d - W[1];
+  const len = Math.hypot(dx, dz);
+  // Biegung quer zum Strahl nach vorn, in der Mitte am stärksten
+  const bend = (a.bend + (c.bend - a.bend) * u) * len * Math.sin(Math.PI * rho);
+  return [W[0] + dx * rho - (dz / len) * bend, W[1] + dz * rho + (dx / len) * bend, Math.sin(Math.PI * u) * Math.sin(0.8 * Math.PI * rho)];
+}
+
+// Punkt im Innenteil: s entlang der Spanne (0 Rumpf, 1 Kante W–P), t von der Vorderkante (0) zur Hinterkante (1)
+function dmInnerPt3(s, t) {
+  const { R0, R1, E, W, P } = WING3;
+  const lead = s < 0.5 ? dmMix2(R0, E, s * 2) : dmMix2(E, W, s * 2 - 1);
+  const tr = dmMix2(R1, P, s);
+  tr[1] += WING3.innerScallop * Math.sin(Math.PI * s);
+  const q = dmMix2(lead, tr, t);
+  return [q[0], q[1], Math.sin(Math.PI * s) * Math.sin(0.8 * Math.PI * t)];
+}
+
+// Knochengewichte im Handteil: zwischen den beiden Strahlen gemischt (Finger 1 innen/außen, Finger 2, 3, Hand am
+// Rand W–P); zur Mitte zwischen den Fingern hin wächst der Anteil des Segels
+function dmOuterW3(sx, seg, u, rho) {
+  const b = DM_WB3(sx);
+  const f1b = dmSmooth3((rho - 0.35) / 0.4);
+  const ray = [[[b.f1a, 1 - f1b], [b.f1b, f1b]], [[b.f2, 1]], [[b.f3, 1]], [[b.hand, 1]]];
+  const sail = 0.85 * Math.sin(Math.PI * u) * Math.sin(0.8 * Math.PI * rho);
+  const out = new Map();
+  const add = (list, k) => {
+    for (const [bn, w] of list) out.set(bn, (out.get(bn) || 0) + w * k);
+  };
+  add(ray[seg], (1 - u) * (1 - sail));
+  add(ray[seg + 1], u * (1 - sail));
+  out.set(b.sailOut, (out.get(b.sailOut) || 0) + sail);
+  return out;
+}
+// Innenteil: vom Rumpf (Arm) zum Unterarm überblendet (die Kante W–P gehört ganz zum Unterarm), Mitte am Segel
+function dmInnerW3(sx, x, s, t) {
+  const b = DM_WB3(sx);
+  const fw = dmSmooth3((x - 0.3) / 0.65);
+  const sail = 0.8 * Math.sin(Math.PI * s) * Math.sin(0.8 * Math.PI * t);
+  return new Map([[b.arm, (1 - fw) * (1 - sail)], [b.fore, fw * (1 - sail)], [b.sailIn, sail]]);
+}
+
+// Haut als gewölbte Fläche aus einem Raster (Ober- bzw. Unterseite, je mit eigener Farbe). pt(i, j) → [x, z, Wölbung],
+// wt(i, j, x) → Map Knochen → Gewicht. Die Gewichte stehen in der Form (Bake3 übernimmt skinIndex/skinWeight).
+function dmSheet3(key, sx, ni, nj, pt, wt, top) {
+  return geo3('drache3haut' + key + sx + (top ? 'o' : 'u'), () => {
+    const HX = DRACHE3.hx, HY = DRACHE3.hy;
+    const pos = [], si = [], sw = [], idx = [];
+    const y0 = top ? WING3.thick : -WING3.thick;
+    for (let i = 0; i <= ni; i++) {
+      for (let j = 0; j <= nj; j++) {
+        const [x, z, c] = pt(i, j);
+        pos.push(sx * (HX + x), HY + y0 + WING3.camber * c, z);
+        const w = [...wt(i, j, x)].filter(([, v]) => v > 1e-4).sort((p, q) => q[1] - p[1]).slice(0, 4);
+        const sum = w.reduce((acc, [, v]) => acc + v, 0) || 1;
+        for (let k = 0; k < 4; k++) {
+          si.push(w[k] ? w[k][0] : 0);
+          sw.push(w[k] ? w[k][1] / sum : 0);
+        }
+      }
     }
-    const depth = 0.024;
-    const g = new THREE.ExtrudeGeometry(s, { depth, bevelEnabled: false, curveSegments: 3 });
-    // Umriss lag in x/y: y wird zu z, die Dicke zeigt nach unten; Mitte auf die Scharnierhöhe
-    g.rotateX(Math.PI / 2);
-    g.translate(0, depth / 2, 0);
+    const V = (i, j) => i * (nj + 1) + j;
+    // Dreieck so herum, dass die Oberseite nach oben und die Unterseite nach unten zeigt; entartete (Fächermitte) weg
+    const tri = (a, b2, c) => {
+      const d1x = pos[b2 * 3] - pos[a * 3], d1z = pos[b2 * 3 + 2] - pos[a * 3 + 2];
+      const d2x = pos[c * 3] - pos[a * 3], d2z = pos[c * 3 + 2] - pos[a * 3 + 2];
+      const ny = d1z * d2x - d1x * d2z;
+      if (Math.abs(ny) < 1e-7) return;
+      if (ny > 0 === top) idx.push(a, b2, c);
+      else idx.push(a, c, b2);
+    };
+    for (let i = 0; i < ni; i++) {
+      for (let j = 0; j < nj; j++) {
+        tri(V(i, j), V(i + 1, j), V(i + 1, j + 1));
+        tri(V(i, j), V(i + 1, j + 1), V(i, j + 1));
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('skinIndex', new THREE.Float32BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+const dmOuterSheet3 = (sx, top) => dmSheet3('aussen', sx, 3 * WING3.segA, WING3.rings, (i, j) => {
+  const seg = Math.min(2, Math.floor(i / WING3.segA));
+  return dmOuterPt3(seg, (i - seg * WING3.segA) / WING3.segA, j / WING3.rings);
+}, (i, j) => {
+  const seg = Math.min(2, Math.floor(i / WING3.segA));
+  return dmOuterW3(sx, seg, (i - seg * WING3.segA) / WING3.segA, j / WING3.rings);
+}, top);
+const dmInnerSheet3 = (sx, top) => dmSheet3('innen', sx, WING3.segS, WING3.segT, (i, j) => dmInnerPt3(i / WING3.segS, j / WING3.segT),
+  (i, j, x) => dmInnerW3(sx, x, i / WING3.segS, j / WING3.segT), top);
+
+// Gebogener Fingerknochen k (0–2) von rho0 bis rho1, verjüngt; Finger 1 biegt sich in zwei Gliedern
+function dmFinger3(sx, k, rho0, rho1, r0, r1) {
+  return geo3('drache3finger' + k + sx + ',' + rho0 + ',' + rho1, () => {
+    const b = DM_WB3(sx);
+    const HX = DRACHE3.hx, HY = DRACHE3.hy;
+    const seg = 8, rad = 6;
+    const pts = [];
+    for (let i = 0; i <= 6; i++) {
+      const [x, z] = dmOuterPt3(k, 0, rho0 + ((rho1 - rho0) * i) / 6);
+      pts.push(new THREE.Vector3(sx * (HX + x), HY + 0.012, z));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const g = new THREE.TubeGeometry(curve, seg, 1, rad, false);
+    const P = g.attributes.position;
+    const c = new THREE.Vector3();
+    const si = [], sw = [];
+    for (let i = 0; i <= seg; i++) {
+      const u = i / seg;
+      curve.getPointAt(u, c);
+      const r = r0 + (r1 - r0) * Math.pow(u, 0.85);
+      const rho = rho0 + (rho1 - rho0) * u;
+      const f1b = k === 0 ? dmSmooth3((rho - 0.35) / 0.4) : 0;
+      const bones = k === 0 ? [b.f1a, b.f1b] : [k === 1 ? b.f2 : b.f3, 0];
+      for (let j = 0; j <= rad; j++) {
+        const q = i * (rad + 1) + j;
+        P.setXYZ(q, c.x + (P.getX(q) - c.x) * r, c.y + (P.getY(q) - c.y) * r, c.z + (P.getZ(q) - c.z) * r);
+        si.push(bones[0], bones[1], 0, 0);
+        sw.push(1 - f1b, f1b, 0, 0);
+      }
+    }
+    g.setAttribute('skinIndex', new THREE.Float32BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
     g.computeVertexNormals();
     return g;
   });
 }
 
-// Achse, um die der Handteil klappt (im Raum des Armknochens), je Seite
-function dmHandAxis3(sx) {
-  const [wx, wz] = WING3.W;
-  const [px, pz] = WING3.P;
-  return new THREE.Vector3(sx * (px - wx), 0, pz - wz).normalize();
+// Leib weich zwischen Brust (body) und Hüfte (hips) gewichtet: so biegt sich der Rücken im Flug ohne Knick
+function dmSpine3(key, geo) {
+  return geo3('drache3rumpf' + key, () => {
+    const g = geo.clone();
+    const P = g.attributes.position;
+    const si = [], sw = [];
+    for (let i = 0; i < P.count; i++) {
+      const h = dmSmooth3((0.05 - P.getZ(i)) / 0.5);
+      si.push(DRB3.body, DRB3.hips, 0, 0);
+      sw.push(1 - h, h, 0, 0);
+    }
+    g.setAttribute('skinIndex', new THREE.Float32BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sw, 4));
+    return g;
+  });
 }
+
+// Drehachsen (je Seite, im Raum des Elternknochens): Hand klappt um W–P; Unterarm und Finger heben bzw. senken
+// sich um die waagerechte Achse quer zu ihrer eigenen Richtung (+ = Spitze nach oben, auf beiden Seiten)
 const DM_AXIS3 = { L: null, R: null };
+function dmAxes3() {
+  if (DM_AXIS3.L) return DM_AXIS3;
+  const lift = (sx, from, to) => new THREE.Vector3(-(to[1] - from[1]), 0, sx * (to[0] - from[0])).normalize();
+  for (const [k, sx] of [['L', 1], ['R', -1]]) {
+    const [wx, wz] = WING3.W;
+    const [px, pz] = WING3.P;
+    DM_AXIS3[k] = {
+      hand: new THREE.Vector3(sx * (px - wx), 0, pz - wz).normalize(),
+      fore: lift(sx, WING3.E, WING3.W),
+      f: [0, 1, 2].map((q) => lift(sx, WING3.W, WING3.F[q]))
+    };
+  }
+  return DM_AXIS3;
+}
 
 // Linear zwischen Stationen [z, ...] eines Leibes (für Bauchbänder und Platten)
 function dmStationAt3(st, z) {
@@ -112,14 +287,22 @@ function dragonMount3(b, o = {}) {
   const cloth = o.saddle || C.saddle;
   const bodyY = DRACHE3.bodyY;
   const HX = DRACHE3.hx, HY = DRACHE3.hy;
-  const [wx, wz] = WING3.W;
+  // Flügelpunkt im Modell (linke Seite sx = 1)
+  const WP = (sx, [x, z]) => [sx * (HX + x), HY, z];
+  const M1 = dmOuterPt3(0, 0, 0.5);
   const rig = rigOf([
     [[0, 0, 0], -1], [[0, bodyY, 0], 0], [[0, 1.74, 1.04], 13],
-    [[0.22, 0.9, 0.42], 1], [[-0.22, 0.9, 0.42], 1], [[0.24, 0.95, -0.48], 1], [[-0.24, 0.95, -0.48], 1],
-    [[0, 1.0, -0.72], 1], [[HX, HY, -0.1], 1], [[-HX, HY, -0.1], 1], [[0, 1.1, 0.62], 1],
-    [[HX + wx, HY, wz], 8], [[-HX - wx, HY, wz], 9], [[0, 1.45, 0.9], 10], [[0, 1.71, 1.08], 2],
+    [[0.22, 0.9, 0.42], 1], [[-0.22, 0.9, 0.42], 1], [[0.24, 0.95, -0.48], 36], [[-0.24, 0.95, -0.48], 36],
+    [[0, 1.0, -0.72], 36], [[HX, HY, -0.1], 1], [[-HX, HY, -0.1], 1], [[0, 1.1, 0.62], 1],
+    [WP(1, WING3.W), 22], [WP(-1, WING3.W), 23], [[0, 1.45, 0.9], 10], [[0, 1.71, 1.08], 2],
     [[0, 0.9, -1.16], 7], [[0, 0.77, -1.6], 15], [[0, 0.71, -2.0], 16],
-    [[0.27, 0.52, 0.32], 3], [[-0.27, 0.52, 0.32], 4], [[0.3, 0.55, -0.3], 5], [[-0.3, 0.55, -0.3], 6]
+    [[0.27, 0.52, 0.32], 3], [[-0.27, 0.52, 0.32], 4], [[0.3, 0.55, -0.3], 5], [[-0.3, 0.55, -0.3], 6],
+    // 22/23 Unterarm (Ellbogen), 24–29 links: Finger 1 innen/außen, Finger 2, 3, Segel innen, Segel außen
+    [WP(1, WING3.E), 8], [WP(-1, WING3.E), 9],
+    [WP(1, WING3.W), 11], [WP(1, M1), 24], [WP(1, WING3.W), 11], [WP(1, WING3.W), 11], [[HX, HY, -0.1], 8], [WP(1, WING3.W), 11],
+    [WP(-1, WING3.W), 12], [WP(-1, M1), 30], [WP(-1, WING3.W), 12], [WP(-1, WING3.W), 12], [[-HX, HY, -0.1], 9], [WP(-1, WING3.W), 12],
+    // 36 Hüfte
+    [[0, 0.98, -0.38], 1]
   ]);
 
   // --- Rumpf: ein glatter Leib (tiefe Brust, schlanke Taille, Hüfte), darunter der helle Bauch mit Bändern
@@ -132,14 +315,14 @@ function dragonMount3(b, o = {}) {
     [0.8, 1.17, 0.15, 0.13, 0.15],
     [0.9, 1.21, 0.1, 0.09, 0.1]
   ];
-  A(loft3(BODY, 14, 4), red, { bone: DRB3.body, top: redHi, topK: 0.45, shade: 0.25, shine: 0.2 });
+  A(dmSpine3('leib', loft3(BODY, 14, 4)), red, { bone: DRB3.body, top: redHi, topK: 0.45, shade: 0.25, shine: 0.2 });
   const BELLY = BODY.map(([z, y, w, u, d]) => [z, y - 0.035, w * 0.8, u * 0.45, d - 0.02]);
-  A(loft3(BELLY, 14, 4), C.belly, { bone: DRB3.body, shade: 0.12 });
+  A(dmSpine3('bauch', loft3(BELLY, 14, 4)), C.belly, { bone: DRB3.body, shade: 0.12 });
   for (let k = 0; k < 9; k++) {
     const z = -0.62 + k * 0.15;
     const [, y, w, , d] = dmStationAt3(BELLY, z);
     const arc = Math.PI * 0.7;
-    A(torus3(1, 0.06, arc, 3, 12), C.bellyLine, { bone: DRB3.body, p: [0, y, z], r: [0, 0, -Math.PI / 2 - arc / 2], s: [w * 1.01, d * 1.01, 0.25], noShadow: true });
+    A(torus3(1, 0.06, arc, 3, 12), C.bellyLine, { bone: z < -0.2 ? DRB3.hips : DRB3.body, p: [0, y, z], r: [0, 0, -Math.PI / 2 - arc / 2], s: [w * 1.01, d * 1.01, 0.25], noShadow: true });
   }
   // Schulterwülste an den Flügelansätzen
   for (const sx of [-1, 1]) A(ball(12), red, { bone: DRB3.body, p: [sx * 0.19, 1.16, 0.02], s: [0.12, 0.12, 0.22], top: redHi, topK: 0.4 });
@@ -196,9 +379,9 @@ function dragonMount3(b, o = {}) {
   plate(DRB3.neck, 1.47, 0.74, 0.06, 0.07);
   plate(DRB3.body, 1.27, 0.08, 0.055, 0.07);
   plate(DRB3.body, 1.25, -0.12, 0.06, 0.075);
-  plate(DRB3.body, 1.24, -0.33, 0.065, 0.08);
-  plate(DRB3.body, 1.22, -0.53, 0.06, 0.075);
-  plate(DRB3.body, 1.17, -0.71, 0.05, 0.07);
+  plate(DRB3.hips, 1.24, -0.33, 0.065, 0.08);
+  plate(DRB3.hips, 1.22, -0.53, 0.06, 0.075);
+  plate(DRB3.hips, 1.17, -0.71, 0.05, 0.07);
   plate(DRB3.tail, 1.11, -0.86, 0.05, 0.065);
   plate(DRB3.tail, 1.05, -1.05, 0.045, 0.06);
   plate(DRB3.tail2, 0.95, -1.3, 0.04, 0.055);
@@ -252,27 +435,28 @@ function dragonMount3(b, o = {}) {
     claws(hl, Fh, 1);
   }
 
-  // --- Flügel: Innenteil am Armknochen (dreht um die Scharnierlinie), Handteil mit drei Fingern
+  // --- Flügel: gewölbte Haut (Ober- und Unterseite) mit fließenden Knochengewichten, Vorderkante aus Ober- und
+  // Unterarm, drei gebogene Finger (rot, zur Spitze Bronze), Daumenkralle und Kralle an der Spitze von Finger 1
   for (const sx of [-1, 1]) {
-    const arm = sx > 0 ? DRB3.wingL : DRB3.wingR;
-    const hand = sx > 0 ? DRB3.handL : DRB3.handR;
+    const wb = DM_WB3(sx);
     const at = ([x, z], dy = 0.014) => [sx * (HX + x), HY + dy, z];
-    A(dmMembrane3('inner', sx), C.memUnder, { bone: arm, p: [sx * HX, HY, 0], top: C.memTop, topK: 1, noShadow: true });
-    A(dmMembrane3('outer', sx), C.memUnder, { bone: hand, p: [sx * HX, HY, 0], top: C.memTop, topK: 1, noShadow: true });
-    // Vorderkante: Oberarm und Unterarm, Gelenkknoten, Daumenkralle aus Bronze
-    limbBetween(A, at(WING3.R0), at(WING3.E), 0.07, 0.05, red, { bone: arm, top: redHi, topK: 0.4 });
-    limbBetween(A, at(WING3.E), at(WING3.W), 0.05, 0.04, red, { bone: arm, top: redHi, topK: 0.4 });
-    A(ball(10), redD, { bone: arm, p: at(WING3.E), s: 0.055 });
-    A(ball(10), redD, { bone: hand, p: at(WING3.W), s: 0.048 });
-    pointAt3(A, horn3(0.13, 0.03, 6), bronze, at(WING3.W, 0.03), [sx * 0.25, 0.35, 1], { bone: hand, shine: 0.7, noShadow: true });
-    // Finger (Bronze zur Spitze hin), außen eine kleine Kralle
-    for (const [k, F] of [[0, WING3.F1], [1, WING3.F2], [2, WING3.F3]]) {
-      const r0 = k ? 0.026 : 0.034;
-      const mid = [(WING3.W[0] + F[0]) / 2, (WING3.W[1] + F[1]) / 2];
-      limbBetween(A, at(WING3.W, 0.012), at(mid, 0.012), r0, r0 * 0.75, redD, { bone: hand, noShadow: true });
-      limbBetween(A, at(mid, 0.012), at(F, 0.012), r0 * 0.75, 0.01, bronzeD, { bone: hand, noShadow: true });
+    for (const top of [true, false]) {
+      const col = top ? C.memTop : C.memUnder;
+      A(dmInnerSheet3(sx, top), col, { bone: wb.arm, noShadow: true });
+      A(dmOuterSheet3(sx, top), col, { bone: wb.hand, noShadow: true });
     }
-    pointAt3(A, horn3(0.08, 0.016, 5), bronze, at(WING3.F1, 0.01), [sx * 0.9, 0, -0.2], { bone: hand, shine: 0.7, noShadow: true });
+    limbBetween(A, at(WING3.R0), at(WING3.E), 0.07, 0.05, red, { bone: wb.arm, top: redHi, topK: 0.4 });
+    limbBetween(A, at(WING3.E), at(WING3.W), 0.05, 0.04, red, { bone: wb.fore, top: redHi, topK: 0.4 });
+    A(ball(10), redD, { bone: wb.fore, p: at(WING3.E), s: 0.055 });
+    A(ball(10), redD, { bone: wb.hand, p: at(WING3.W), s: 0.048 });
+    pointAt3(A, horn3(0.13, 0.03, 6), bronze, at(WING3.W, 0.03), [sx * 0.25, 0.35, 1], { bone: wb.hand, shine: 0.7, noShadow: true });
+    for (let k = 0; k < 3; k++) {
+      const r0 = k ? 0.026 : 0.034;
+      A(dmFinger3(sx, k, 0, 0.56, r0, r0 * 0.7), redD, { bone: wb.hand, noShadow: true });
+      A(dmFinger3(sx, k, 0.54, 1, r0 * 0.72, 0.008), bronzeD, { bone: wb.hand, shine: 0.4, noShadow: true });
+    }
+    const [tx, tz] = dmOuterPt3(0, 0, 1);
+    pointAt3(A, horn3(0.08, 0.016, 5), bronze, at([tx, tz], 0.012), [sx * 0.9, 0, -0.2], { bone: wb.f1b, shine: 0.7, noShadow: true });
   }
 
   // --- Sattel auf den Schultern vor den Flügelansätzen: Decke mit Bronzeborte, Sitz, Haltegriff, hohe Rückenlehne,
@@ -306,9 +490,9 @@ const dmSmooth3 = (x) => {
 };
 const dmLerp3 = (a, b, k) => a + (b - a) * k;
 
-// Flügelschlag: schneller, kräftiger Abschlag (42 % des Zyklus), langsamer Aufschlag. Liefert für den linken
-// Flügel [Arm um die Scharnierlinie, Handteil um W–P (+ = Spitze nach unten)]. Im Abschlag bleibt die Spitze
-// etwas zurück (nach oben gebogen), im Aufschlag knickt der Handteil ein (weniger Luftwiderstand).
+// Flügelschlag: schneller, kräftiger Abschlag (42 % des Zyklus), langsamer Aufschlag. dmFlap3(ph)[0] ist der
+// Winkel des Arms um die Scharnierlinie (+ = oben). Unterarm, Finger und Fingerspitzen folgen ihm jeweils etwas
+// später (Welle von innen nach außen), siehe dragonMountPose3.
 const DM_DOWN3 = 0.42;
 function dmFlap3(ph) {
   const UP = 0.95, DN = -0.55;
@@ -318,6 +502,74 @@ function dmFlap3(ph) {
   }
   const u = (ph - DM_DOWN3) / (1 - DM_DOWN3);
   return [DN + (UP - DN) * (0.5 - 0.5 * Math.cos(Math.PI * u)), 0.85 * Math.sin(Math.PI * u)];
+}
+
+// Flügel-Haltung beider Seiten. Zwei Haltungen werden nach o.open gemischt:
+// - angelegt (Stand): Arm gehoben und nach hinten geschwenkt, Unterarm nach hinten, Finger wie ein Fächer
+//   geschlossen; locker statt steif: atmet mit, die Finger spielen leicht, alle paar Sekunden streckt sich der
+//   Drache (Flügel halb auf) und schüttelt sie kurz aus – der rechte Flügel etwas später als der linke.
+// - Flügelschlag: Unterarm, Finger 1–3 und die Spitze von Finger 1 folgen dem Arm jeweils etwas später (Welle von
+//   innen nach außen, die Spitze zieht nach). Im Abschlag drückt der Luftdruck die Hautmitte nach oben, im
+//   Aufschlag falten Hand und Finger weich ein und die Haut sinkt; beim Gleiten (vorwärts, alle paar Sekunden)
+//   bleiben die Flügel fast still, dafür flattert der Hinterrand.
+const _dmQa = new THREE.Quaternion();
+const _dmQb = new THREE.Quaternion();
+const _dmUp = new THREE.Vector3(0, 1, 0);
+function dmWings3(B, t, o) {
+  const AX = dmAxes3();
+  const FO = DRACHE3.fold;
+  const { open, ph, flare, mov, L, idle, breath } = o;
+  const ow = dmSmooth3(open * 1.25);
+  // Gleiten
+  const gt = (t % DRACHE3.glideEvery) / DRACHE3.glideEvery;
+  const glide = mov * L * (gt > DRACHE3.glideFrom && gt < DRACHE3.glideTo ? Math.sin((Math.PI * (gt - DRACHE3.glideFrom)) / (DRACHE3.glideTo - DRACHE3.glideFrom)) : 0);
+  const amp = 1 - 0.85 * glide;
+  const Af = (p) => 0.12 + (dmFlap3(((p % 1) + 1) % 1)[0] - 0.12) * amp;
+  const a0 = Af(ph), a1 = Af(ph - 0.06), a2 = Af(ph - 0.12), a3 = Af(ph - 0.18);
+  const down = ph < DM_DOWN3 ? Math.sin((Math.PI * ph) / DM_DOWN3) : 0;
+  const up = ph >= DM_DOWN3 ? Math.sin((Math.PI * (ph - DM_DOWN3)) / (1 - DM_DOWN3)) : 0;
+  const flutter = (0.25 + glide) * (0.6 * Math.sin(t * 29) + 0.4 * Math.sin(t * 43 + 1.3));
+  const fly = {
+    arm: a0 * (1 + 0.15 * flare), sweep: -0.05 + 0.08 * mov - 0.12 * up * amp, tilt: 0, armZ: 1, handZ: 1,
+    foreLift: 0.9 * (a1 - a0), foreFold: 0.18 * up * amp,
+    hand: 0.45 * up * amp * (1 - 0.5 * flare),
+    // Heben: Finger 1 innen, Finger 1 außen, Finger 2, Finger 3
+    lift: [0.85 * (a2 - a1), 0.9 * (a3 - a2), 0.7 * (a2 - a1), 0.5 * (a2 - a1)],
+    fan: [0.32 * up * amp - 0.1 * flare, 0.2 * up * amp - 0.06 * flare, 0.08 * up * amp],
+    sailIn: (0.07 * down - 0.04 * up) * amp + 0.006 * flutter + 0.04 * flare,
+    sailOut: (0.11 * down - 0.06 * up) * amp + 0.016 * flutter + 0.07 * flare
+  };
+  for (const sx of [1, -1]) {
+    // Strecken und Ausschütteln im Stand
+    const tau = (((t - DRACHE3.stretchAt + (sx < 0 ? 0.35 : 0)) % DRACHE3.stretchEvery) + DRACHE3.stretchEvery) % DRACHE3.stretchEvery;
+    const lazy = idle * (1 - ow);
+    const st = (tau < 2.2 ? Math.pow(Math.sin((Math.PI * tau) / 2.2), 2) : 0) * lazy;
+    const sh = (tau > 1.9 && tau < 2.6 ? Math.sin((Math.PI * (tau - 1.9)) / 0.7) * Math.sin(tau * 34) : 0) * lazy;
+    const rest = {
+      arm: FO.arm + 0.03 * breath + 0.45 * st + 0.05 * sh, sweep: FO.sweep - 0.35 * st, tilt: FO.tilt,
+      armZ: dmLerp3(FO.armZ, 1, st), foreLift: 0.05 * st, foreFold: FO.fore * (1 - 0.6 * st),
+      hand: FO.hand * (1 - 0.75 * st) + 0.15 * sh, handZ: dmLerp3(FO.handZ, 1, st),
+      lift: [-0.05 + 0.2 * st, 0.1 * st + 0.08 * sh, 0.02, 0],
+      fan: FO.fan.map((f, k) => f * (1 - 0.65 * st) + 0.035 * Math.sin(t * 0.7 + k * 1.1)),
+      sailIn: 0.008 * breath + 0.03 * sh, sailOut: 0.01 * breath + 0.05 * sh
+    };
+    const m = (k) => dmLerp3(rest[k], fly[k], ow);
+    const ma = (k, i) => dmLerp3(rest[k][i], fly[k][i], ow);
+    const wb = DM_WB3(sx);
+    const ax = AX[sx > 0 ? 'L' : 'R'];
+    B[wb.arm].rotation.set(m('tilt'), sx * m('sweep'), sx * m('arm'));
+    B[wb.arm].scale.z = m('armZ');
+    B[wb.fore].quaternion.copy(_dmQa.setFromAxisAngle(_dmUp, sx * m('foreFold'))).multiply(_dmQb.setFromAxisAngle(ax.fore, m('foreLift')));
+    B[wb.hand].quaternion.setFromAxisAngle(ax.hand, sx * m('hand'));
+    B[wb.hand].scale.z = m('handZ');
+    const fingers = [[wb.f1a, 0, 0], [wb.f2, 1, 2], [wb.f3, 2, 3]];
+    for (const [bn, k, li] of fingers) {
+      B[bn].quaternion.copy(_dmQa.setFromAxisAngle(_dmUp, sx * ma('fan', k))).multiply(_dmQb.setFromAxisAngle(ax.f[k], ma('lift', li)));
+    }
+    B[wb.f1b].quaternion.setFromAxisAngle(ax.f[0], ma('lift', 1));
+    B[wb.sailIn].position.y += m('sailIn');
+    B[wb.sailOut].position.y += m('sailOut');
+  }
 }
 
 // Haltung zu einem Zeitpunkt (ohne eigenen Zustand – die Vorschau ruft sie für einzelne Bilder direkt auf).
@@ -350,31 +602,23 @@ function dragonMountPose3(a, t, o) {
   B[DRB3.root].rotation.z = 0.05 * Math.sin(t * 0.8) * L;
 
   // Flügel
-  if (!DM_AXIS3.L) {
-    DM_AXIS3.L = dmHandAxis3(1);
-    DM_AXIS3.R = dmHandAxis3(-1);
-  }
-  const F = DRACHE3.fold;
-  const [fa, fh] = dmFlap3(ph);
-  // beim Landen größere, langsamere Schläge mit weit offener Hand
-  const armA = dmLerp3(F.arm + 0.025 * breath, fa * (1 + 0.15 * flare), open);
-  const handA = dmLerp3(F.hand, fh * (1 - 0.5 * flare), dmSmooth3(open * 1.25));
-  const sweep = dmLerp3(F.sweep, -0.05 + 0.08 * mov, dmSmooth3(open * 1.4));
-  const tilt = dmLerp3(F.tilt, 0, open);
-  for (const [sx, arm, hand, axis] of [[1, DRB3.wingL, DRB3.handL, DM_AXIS3.L], [-1, DRB3.wingR, DRB3.handR, DM_AXIS3.R]]) {
-    B[arm].rotation.set(tilt, sx * sweep, sx * armA);
-    B[arm].scale.z = dmLerp3(F.armZ, 1, dmSmooth3(open * 1.3));
-    B[hand].quaternion.setFromAxisAngle(axis, sx * handA);
-    B[hand].scale.z = dmLerp3(F.handZ, 1, dmSmooth3(open * 1.3));
-  }
+  dmWings3(B, t, { open, ph, flare, mov, L, idle, breath });
 
   // Hals und Kopf: im Stand aufrecht mit ruhigem Atmen und Umschauen, im Flug weiter vorgestreckt
-  const nb = Math.sin(TAU * (ph - 0.1));
-  B[DRB3.neck].rotation.x = idle * (0.03 * Math.sin(t * 1.5 + 0.6)) + L * (0.28 + 0.05 * nb * open) - 0.15 * flare + 0.12 * crouch;
-  B[DRB3.neck2].rotation.x = L * (0.12 - 0.03 * nb) - 0.1 * flare;
-  B[DRB3.head].rotation.x = idle * 0.04 * Math.sin(t * 0.7) - L * 0.42 + 0.2 * flare - body.rotation.x * 0.5;
-  B[DRB3.head].rotation.y = idle * 0.32 * Math.sin(t * 0.33) + L * 0.06 * Math.sin(t * 0.5);
-  B[DRB3.neck].rotation.y = idle * 0.1 * Math.sin(t * 0.33 - 0.5);
+  // Welle im Flug: Hals schwingt im Flügeltakt gegen den Rumpf, der Kopf hält die Blickrichtung
+  const n1 = 0.07 * Math.sin(TAU * ph + 0.8) * L * open;
+  const n2 = 0.08 * Math.sin(TAU * ph - 0.3) * L * open;
+  const sway = Math.sin(t * 1.3);
+  B[DRB3.neck].rotation.x = idle * (0.03 * Math.sin(t * 1.5 + 0.6)) + L * 0.28 + n1 - 0.15 * flare + 0.12 * crouch;
+  B[DRB3.neck2].rotation.x = L * 0.12 + n2 - 0.1 * flare;
+  B[DRB3.head].rotation.x = idle * 0.04 * Math.sin(t * 0.7) - L * 0.42 - 0.8 * (n1 + n2) + 0.2 * flare - body.rotation.x * 0.5;
+  B[DRB3.neck].rotation.y = idle * 0.1 * Math.sin(t * 0.33 - 0.5) + L * 0.07 * Math.sin(t * 1.3 + 0.6);
+  B[DRB3.neck2].rotation.y = L * 0.08 * Math.sin(t * 1.3 - 0.2);
+  B[DRB3.head].rotation.y = idle * 0.32 * Math.sin(t * 0.33) - L * 0.1 * Math.sin(t * 1.3 - 0.2);
+  // Rücken: die Hüfte wiegt sich gegen die Brust (im Stand nur ein Hauch Atmen)
+  B[DRB3.hips].rotation.x = L * 0.07 * Math.sin(TAU * ph - 1.2) * open + idle * 0.01 * breath;
+  B[DRB3.hips].rotation.y = L * 0.06 * Math.sin(t * 1.3 - 0.9);
+  body.rotation.y = L * 0.03 * sway;
   // Maul öffnet sich ab und zu ein wenig (im Stand), beim Abheben kurz weit
   const jt = (t + 2.3) % 9.5;
   B[DRB3.jaw].rotation.x = idle * (jt < 1 ? 0.22 * Math.sin(Math.PI * jt) : 0) + 0.3 * crouch;
@@ -384,8 +628,8 @@ function dragonMountPose3(a, t, o) {
   for (let k = 0; k < 4; k++) {
     const bn = B[tails[k]];
     const droop = [-0.1, -0.18, -0.12, 0.12][k];
-    bn.rotation.x = (1 - L) * droop + L * (0.06 + 0.07 * Math.sin(TAU * ph - 0.9 * (k + 1))) + flare * 0.12;
-    bn.rotation.y = (1 - L) * (0.1 + 0.04 * k) * Math.sin(t * 0.9 - k * 0.6) + L * (0.05 + 0.03 * k) * Math.sin(t * 1.3 - k * 0.8);
+    bn.rotation.x = (1 - L) * droop + L * (0.06 + 0.12 * Math.sin(TAU * ph - 0.9 * (k + 1))) + flare * 0.12;
+    bn.rotation.y = (1 - L) * (0.1 + 0.04 * k) * Math.sin(t * 0.9 - k * 0.6) + L * (0.07 + 0.05 * k) * Math.sin(t * 1.6 - k * 0.9);
   }
 
   // Beine: im Stand gerade (ein Hinterbein entlastet), beim Ducken gebeugt, im Flug angelegt,

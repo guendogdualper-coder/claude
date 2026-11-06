@@ -159,6 +159,14 @@ window.DV = (function () {
     }
   }
 
+  // Ein Bild aus einer Beschreibung { yaw, t, o (Haltung), rider, cam, look, label, sub } (Vorher/Nachher)
+  function poseShot(d) {
+    clear();
+    const a = dragon(0, 0, d.yaw, d.t, d.o);
+    if (d.rider) riderOn(a);
+    return shot(d.cam, d.look, { label: d.label, sub: d.sub });
+  }
+
   // Kontaktbogen aus fertigen Bildern [{ url, label }]
   async function sheet(items, cols, title) {
     const tw = 640, th = 360, pad = 14, head = 70, lab = 30;
@@ -179,7 +187,12 @@ window.DV = (function () {
       const cx = pad + (i % cols) * (tw + pad);
       const cy = head + Math.floor(i / cols) * (th + lab + pad);
       x.imageSmoothingQuality = 'high';
-      x.drawImage(img, cx, cy, tw, th);
+      // einpassen statt verzerren (Bildreihen und Tafeln haben ein anderes Seitenverhältnis)
+      const k = Math.min(tw / img.width, th / img.height);
+      const w = img.width * k, h = img.height * k;
+      x.fillStyle = '#2e2522';
+      x.fillRect(cx, cy, tw, th);
+      x.drawImage(img, cx + (tw - w) / 2, cy + (th - h) / 2, w, h);
       x.fillStyle = '#e8e0d8';
       x.font = '20px system-ui, sans-serif';
       x.fillText(items[i].label, cx + 2, cy + th + 22);
@@ -289,5 +302,5 @@ window.DV = (function () {
     if (pa.blob) pa.blob.visible = false;
   }
 
-  return { init, clear, dragon, riderOn, standing, horse, shot, sheet, strip, findForest, gameStart, G };
+  return { init, clear, dragon, riderOn, standing, horse, shot, poseShot, sheet, strip, findForest, gameStart, G };
 })();
