@@ -1316,7 +1316,7 @@ function updateMonsters(dt) {
     }
   }
 
-  // Monster aus Steinwellen verschwinden nach dem Tod endgültig. Seit 14.17 nur dann eine neue Liste: vorher entstand
+  // Monster aus Steinwellen verschwinden nach dem Tod endgültig. Seit 14.26 nur dann eine neue Liste: vorher entstand
   // jedes Bild eine Kopie aller ~7.000 Monster (Müll für die Speicherbereinigung), und monsterIndex baute sich
   // deshalb in jedem Bild neu auf statt alle 2 s
   let gone = false;

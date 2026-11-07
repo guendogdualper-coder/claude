@@ -23,7 +23,7 @@ const V3 = {
   fadeScreen: new Float32Array(4)
 };
 
-// Farben aus Zeichenketten merken (seit 14.17): THREE.Color.set('#ff8800') zerlegt die Zeichenkette jedes Mal mit
+// Farben aus Zeichenketten merken (seit 14.26): THREE.Color.set('#ff8800') zerlegt die Zeichenkette jedes Mal mit
 // regulären Ausdrücken. Lichter und Effekte tun das hundertfach je Bild – das kostete Rechenzeit und erzeugte viel
 // Müll für die Speicherbereinigung (kleine Hänger alle paar Sekunden). Ungültige Angaben werden nicht gemerkt.
 (() => {
@@ -164,7 +164,7 @@ function mat3(key, make) {
 // --- Formen mit weichen Kanten -----------------------------------------------------------------
 
 const GEO3 = new Map();
-// Detailstufe beim Bauen (seit 14.17): 1 = volles Modell; kleiner baut dieselben Teile mit weniger Unterteilungen
+// Detailstufe beim Bauen (seit 14.26): 1 = volles Modell; kleiner baut dieselben Teile mit weniger Unterteilungen
 // (vereinfachtes Monstermodell für Figuren, die im Bild klein sind, drei-figuren.js modelLod3). Nur während eines
 // solchen Baus kleiner als 1; die Teile landen unter eigenen Schlüsseln im Vorrat.
 let GEO3_LOD = 1;
@@ -293,7 +293,7 @@ function limbBetween(A, a, b, r1, r2, color, o = {}) {
 
 // Spitzer Kegel mit runder Basis und weicher Spitze (Hörner, Ohren, Dornen, Stacheln)
 function horn3(len, r, seg = 10) {
-  // vereinfachtes Modell (seit 14.17): drei statt sechs Ringe, ab drei Seiten (Stacheln, Fellbüschel, Zähne)
+  // vereinfachtes Modell (seit 14.26): drei statt sechs Ringe, ab drei Seiten (Stacheln, Fellbüschel, Zähne)
   if (GEO3_LOD < 1) {
     const s = Math.max(3, Math.round(seg * GEO3_LOD));
     return geo3(`hornL${len},${r},${s}`, () => {
@@ -439,7 +439,7 @@ function loft3(stations, rad = 16, sub = 4) {
   });
 }
 
-// Vereinfachtes Modell (seit 14.17): Jede vereinfachte Form merkt sich ihre volle Fassung. Große Teile (Rumpf, Kopf,
+// Vereinfachtes Modell (seit 14.26): Jede vereinfachte Form merkt sich ihre volle Fassung. Große Teile (Rumpf, Kopf,
 // Leuchtring, Panzerplatten) behalten beim Backen die volle Form (Bake3.add, lodBig3) – so bleiben Umriss und große
 // Rundungen gleich, gespart wird an den vielen kleinen Teilen (Zähne, Krallen, Schnallen, Nieten, Stacheln, Fellbüschel).
 function lodWrap3(fn) {
@@ -981,7 +981,7 @@ function v3ViewCenter(out) {
 }
 const _vc = { x: 0, y: 0 };
 
-// Monster, die überhaupt ins Bild kommen können (seit 14.17). Die Welt hat über 7.000 Monster; vorher gingen
+// Monster, die überhaupt ins Bild kommen können (seit 14.26). Die Welt hat über 7.000 Monster; vorher gingen
 // Figuren, Namen, Zustandsanzeigen und Vorwärmen in jedem Bild alle durch. Jetzt nur die Gebiete (Maps, Dungeons),
 // deren Monster in der Nähe der Kamera stehen können – aus dem Gebietsverzeichnis von gegner.js (monsterIndex).
 // Je Gebiet ein Rechteck um die Startplätze plus die größte Verfolgungsstrecke (Leine, mehr gehen Monster nicht weg).
@@ -2218,7 +2218,7 @@ function renderDrei() {
   v3SyncHouses();
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
   if (!(typeof gpRender === 'function' && gpRender())) V3.gl.render(V3.scene, V3.camera);
-  // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.17, drei-fx.js)
+  // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
   if (typeof fx3BatchDone === 'function') fx3BatchDone();
   drawOverlay3(ctx);
   r.miniTimer -= 1;

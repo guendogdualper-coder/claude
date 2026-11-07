@@ -1,4 +1,4 @@
-# Leistung: viele Monster und Fertigkeiten (Messung und Maßnahmen, 14.17)
+# Leistung: viele Monster und Fertigkeiten (Messung und Maßnahmen)
 
 Auftrag: `docs/prompt-leistung.md`. Gemessen in Headless-Chromium mit Software-Grafik (SwiftShader) auf einer stark
 ausgelasteten Maschine (4 Kerne, Systemlast 10–30 durch parallele Läufe). **Absolute Zeiten sind darum viel höher und
@@ -53,4 +53,122 @@ Werkzeuge:
 
 ## Ergebnisse
 
-ERGEBNISSE
+### 1. Abnahme-Messung `tools/leistung-test.js` (echte Bildwiederholung)
+
+960×540, Grafik „Ultra“, normale Kamera, 30 Orks, 90 Bilder je Lage, je Zelle **vorher (14.24) → nachher**.
+Software-Grafik: die Bildzeiten sind vom Rastern (Pixel, Dreiecke) bestimmt und rund 50–100× länger als auf einer
+echten Grafikkarte; „Rechnen“ ist die Zeit im Spieltakt `frame()` (inklusive Warten auf die Grafik), „GC-Pausen“ zählt
+Sprünge im JS-Speicher und streut stark.
+
+| Klasse | Lage | Bild Ø (ms) | 95 % (ms) | schlechtestes (ms) | Rechnen Ø (ms) | Zeichenaufrufe | Dreiecke | Texturen | Geometrien | GC-Pausen |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| krieger | leer | 566 → 196 | 1150 → 367 | 1550 → 433 | 13.9 → 6.3 | 40 → 37 | 96.938 → 91.266 | 22 → 24 | 63 → 57 | 12 → 12 |
+| krieger | 30 Orks | 1526 → 592 | 3466 → 1267 | 4700 → 1566 | 21.3 → 12.5 | 287 → 214 | 1.058.699 → 704.342 | 54 → 56 | 91 → 96 | 15 → 16 |
+| krieger | + Fertigkeiten 3× | 1992 → 769 | 9416 → 1683 | 23349 → 15083 | 1400.1 → 182.5 | 2462 → 212 | 726.645 → 430.221 | 61 → 63 | 2182 → 253 | 24 → 30 |
+| krieger | Erscheinen (1. Bild) | | | 450 → 200 | 32.2 → 29.5 | | | | | |
+| ninja | leer | 378 → 187 | 767 → 367 | 950 → 383 | 10.0 → 5.8 | 44 → 37 | 98.358 → 76.762 | 26 → 24 | 70 → 61 | 27 → 16 |
+| ninja | 30 Orks | 1648 → 597 | 3500 → 1350 | 4400 → 1383 | 27.8 → 11.5 | 292 → 218 | 1.059.075 → 697.862 | 57 → 55 | 103 → 89 | 16 → 20 |
+| ninja | + Fertigkeiten 3× | 1490 → 550 | 2417 → 1533 | 44215 → 13683 | 605.3 → 77.8 | 1438 → 161 | 368.545 → 284.488 | 63 → 61 | 2330 → 377 | 37 → 29 |
+| ninja | Erscheinen (1. Bild) | | | 550 → 183 | 36.4 → 28.2 | | | | | |
+| schamane | leer | 565 → 191 | 1217 → 350 | 1700 → 400 | 12.9 → 6.3 | 45 → 43 | 89.152 → 83.130 | 25 → 25 | 72 → 68 | 17 → 15 |
+| schamane | 30 Orks | 1548 → 607 | 4166 → 1417 | 4716 → 1450 | 23.3 → 12.8 | 292 → 223 | 1.050.772 → 699.321 | 57 → 56 | 102 → 100 | 13 → 30 |
+| schamane | + Fertigkeiten 3× | 1948 → 755 | 7050 → 1483 | 41382 → 13266 | 1317.3 → 255.1 | 2297 → 179 | 336.716 → 280.016 | 63 → 61 | 3567 → 441 | 30 → 35 |
+| schamane | Erscheinen (1. Bild) | | | 467 → 200 | 65.4 → 27.2 | | | | | |
+| nekromant | leer | 424 → 237 | 767 → 450 | 950 → 533 | 9.0 → 5.6 | 44 → 41 | 93.196 → 114.990 | 26 → 24 | 70 → 65 | 18 → 12 |
+| nekromant | 30 Orks | 1385 → 649 | 3333 → 1450 | 4283 → 1633 | 21.1 → 11.8 | 291 → 222 | 1.054.668 → 736.306 | 57 → 55 | 102 → 91 | 22 → 17 |
+| nekromant | + Fertigkeiten 3× | 1102 → 921 | 6050 → 1900 | 17966 → 16733 | 770.2 → 204.3 | 3037 → 413 | 824.884 → 670.946 | 72 → 70 | 4095 → 366 | 32 → 29 |
+| nekromant | Erscheinen (1. Bild) | | | 450 → 267 | 35.9 → 42.0 | | | | | |
+| magier | leer | 194 → 184 | 350 → 333 | 367 → 383 | 7.5 → 5.8 | 45 → 40 | 100.248 → 74.078 | 24 → 24 | 70 → 63 | 4 → 15 |
+| magier | 30 Orks | 790 → 597 | 1833 → 1400 | 1950 → 1467 | 14.9 → 11.5 | 292 → 221 | 1.061.320 → 695.397 | 55 → 55 | 100 → 91 | 15 → 37 |
+| magier | + Fertigkeiten 3× | 755 → 635 | 3100 → 1433 | 18533 → 14350 | 521.8 → 171.5 | 2395 → 266 | 500.932 → 403.748 | 65 → 65 | 2899 → 423 | 26 → 30 |
+| magier | Erscheinen (1. Bild) | | | 133 → 183 | 31.8 → 30.7 | | | | | |
+
+Die übrig gebliebenen sehr langen Einzelbilder im Kampf (13–17 s) sind in beiden Fassungen da und kommen vom Füllen
+großer, sich überlagernder Leuchtflächen in der Software-Grafik (gleich viele Bildpunkte wie vorher, auf einer
+Grafikkarte im Bereich weniger Millisekunden); neue Shader-Programme entstehen im Kampf keine (geprüft für alle Klassen).
+
+Handy-Profil (844×390, 2-fach, Touch, Grafik „Mittel“, Magier/Krieger, 60 Bilder): Zeichenaufrufe im Kampf
+2.965 → 324 bzw. 2.855 → 241, Dreiecke mit 30 Orks 1,03 Mio. → 0,72 Mio.; Bildzeiten innerhalb der Streuung (die
+Maschine war bei diesem Lauf stark ausgelastet) – kein Rückschritt.
+
+### 2. Zähler je Bild mit virtueller Uhr (Magier, 960×540, vorher 14.16 → nachher)
+
+JS = Rechenzeit ohne Warten auf die Grafik (aus dem CPU-Profil), GC = Speicherbereinigung, Speicher = neu angelegter
+JS-Speicher (Heap-Stichproben).
+
+| Lage | Zeichenaufrufe | Dreiecke | Texturen | Geometrien | JS je Bild | GC je Bild | Speicher je Bild |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| leer | 43 → 43 | 120.030 → 120.030 | 7 → 7 | 37 → 37 | 8,7 → 4,0 ms | 3,5 → 0,1 ms | 1.193 → 440 KB |
+| 30 Orks erscheinen (1. Bild) | 253 → 73 (6 Figuren je Bild) | 986.494 → 228.546 | 37 → 13 | 52 → 49 | 33,6 → 32,2 ms | – | 4.725 → 2.743 KB |
+| Bild 2–10 danach | 253 → 173 | 986.494 → 589.973 | 37 → 37 | 52 → 49 | 15,1 → 10,9 ms | 2,9 → 0,2 ms | 1.540 → 1.239 KB |
+| 30 Orks (60 Bilder) | 257 → 197 | 986.581 → 662.349 | 39 → 39 | 61 → 61 | 37,5 → 27,3 ms | 2,5 → 6,8 ms* | 1.728 → 1.154 KB |
+| + Fertigkeiten (90 Bilder) | **3.724 → 321** | 748.531 → 527.587 | 47 → 47 | **2.919 → 267** | **126,5 → 35,4 ms** | **16,6 → 3,8 ms** | **6.230 → 2.346 KB** |
+
+\* GC-Zeit in kurzen Fenstern streut (fällt an, wann sie anfällt); der angelegte Speicher ist die verlässliche Größe.
+Heap-Profil Kampf (60 Bilder, Magier): **6,0–6,3 MB → 2,5 MB** neuer Speicher je Bild.
+
+Spitze der Zeichenaufrufe im Kampf (30 Orks, alle Fertigkeiten, höchster Wert eines Bildes, 14.16 → nachher):
+Krieger 5.434 → 394, Ninja 5.429 → 548, Schamane 7.981 → 470, Nekromant 2.471 → 495, Magier 6.878 → 518.
+
+Erscheinen von 30 Orks, Rechenzeit der ersten Bilder (Modelle vorgewärmt, Figuren neu; zwei Läufe):
+vorher 109, 70, 79, 54, **260**, 125, 34 ms bzw. 76, **249**, 13 … → nachher 39, 23, 14, 11, 20, 25, 15 ms bzw.
+27, 19, 14, 5, 18 … ms. Schlechtestes Bild beim Erscheinen damit **≈ 250 → ≤ 40 ms** (auf dieser langsamen Maschine).
+
+Monstermodell Ork: 12.100 Dreiecke (+ 12.100 Umriss) → vereinfacht 7.500 (+ 7.200 Umriss), 7 → 5 Zeichenaufrufe.
+
+### 3. Aussehen (Bildvergleich, deviceScaleFactor 1, 960×540, vorher 14.24 → nachher)
+
+Monster aller zehn Karten (normale Kamera, also mit vereinfachtem Modell), je Karte eine Art nah im Schulterblick
+(volles Modell) und je Klasse eine Fertigkeit auf eine Ork-Gruppe. Abweichung: mittlerer Unterschied je Farbkanal
+(0–255) und Anteil der Bildpunkte, die um mehr als 16 bzw. 48 abweichen.
+
+| Bild | mittlere Abweichung | > 16 | > 48 |
+|---|---:|---:|---:|
+| Karten 1–10, 12 Bilder mit je 3–6 Monsterarten | 0,10 – 0,79 | 0,25 – 1,14 % | 0,11 – 0,77 % |
+| nah im Schulterblick, 10 Arten | 0,02 – 0,17 | 0,02 – 0,18 % | 0,01 – 0,15 % |
+| Fertigkeit Krieger / Ninja / Schamane / Nekromant / Magier | 0,31 / 1,46 / 0,38 / 0,19 / 0,13 | 0,71 / 2,21 / 1,01 / 0,67 / 0,52 % | 0,29 / 1,57 / 0,38 / 0,23 / 0,14 % |
+
+Die Abweichungen sitzen an feinen Kanten kleiner Teile (Krallen, Zähne, Schnallen), an zufälligen Schneeflocken und
+Funken (anderer Zufallsverlauf beim Zeichnen) und beim Ninja an der Pose eines getroffenen Orks und der Reihenfolge
+additiver Leuchtflecken gegenüber normal gemischten Flammen. Auch in doppelter Vergrößerung sehen Monster und Effekte
+gleich aus; Umriss, Rumpf, Kopf und Leuchtringe sind unverändert (große Teile bleiben im vereinfachten Modell voll).
+
+### 4. Spielverhalten
+
+- Laufweg in 2 s, Abklingzeit nach 1 s und Schaden von 4 s Grundangriff bei 60/120/144 Bildern (Zufall gesät,
+  Kampfzufall fest): **identisch** vorher/nachher in 2D und in 3D (dort ohne Zeichnen, weil das Zeichnen selbst
+  Zufallszahlen verbraucht). Laufweg 279,8 bei allen Bildraten, Abklingzeit 2,05/2,042/2,042 s.
+- Mehrspieler: keine Nachricht geändert (`js/netz.js` unberührt).
+- Rauchtests s72 (2D und 3D: Auktion, Post, Arena, Lager, Händler) und s73 (alle 12 Wege, alle Fertigkeiten,
+  Segen): grün, keine Seitenfehler.
+- Balance-Sim (`--stufen 20,50,80 --ausr std --kurz --ohne-farm`): Gesamtwertung je Weg innerhalb der Streuung
+  zweier Läufe derselben Fassung (±1–3, einzelne Zellen wie Falke L80 schwanken auch ohne Änderung um bis zu 19).
+  14.25 vorher → nachher (Ø): Klinge 102/103, Leib 96/96, Dolch 106/106, Falke 95/97, Drache 91/91, Heilung 82/82,
+  Seelen 92/92, Knochen 100/101, Feuer 97/98, Frost 121/122, Blitz 94/94, Erde 90/90.
+
+## Ziele aus dem Auftrag
+
+| Ziel | Ergebnis |
+|---|---|
+| schlechtestes Bild beim Erscheinen von 30 Monstern ≤ 50 ms | erreicht für die Rechenzeit (≈ 250 → ≤ 40 ms auf dieser langsamen Maschine; 6 neue Figuren je Bild) |
+| 95-%-Wert im Kampf halbiert | erreicht bei Krieger, Schamane, Nekromant, Magier (−54 … −82 %), Ninja −37 % |
+| Dreiecke mit 30 Monstern ≤ 300.000 | **nicht** erreicht: 1,06 Mio. → 0,70 Mio. (bewusst – siehe unten) |
+| Texturen wachsen nicht mehr je Monster | **nicht** umgesetzt (siehe unten) |
+| Monster und Effekte sehen nah gleich aus | ja (Bildvergleich oben) |
+| Handy: kein Rückschritt | ja (deutlich weniger Zeichenaufrufe und Dreiecke) |
+
+## Bewusst nicht gemacht
+
+- **Dreiecke ≤ 300.000 / ≤ 6.000 je Monster nah:** dafür müssten auch Rumpf, Kopf und Ringe gröber werden – das sah
+  im Vergleich schon bei 90 Bildpunkten Figurenhöhe eckig aus (ein erster Versuch mit einer zweiten, gröberen Stufe
+  wurde verworfen). Auf einem starken PC sind 0,7 Mio. Dreiecke kein Engpass; die Hänger lagen auf dem Prozessor.
+- **Knochen-Textur je Monster:** das ist kein Namensschild, sondern die Skelett-Textur von three.js (8×8 Gleitkomma,
+  1 KB). Die Umstellung auf Uniform-Felder würde je Zeichenaufruf mehr hochladen und bei großen Skeletten am Handy an
+  die Grenze der Uniforms stoßen – kein Gewinn.
+- **Fester Logik-Takt mit Interpolation:** Laufweg, Abklingzeiten und Schaden sind bei 60/120/144 Bildern schon gleich;
+  der Umbau hätte Spieler, Kamera, Netz und Treffer berührt (Risiko) und die gemessene Last liegt im Zeichnen.
+- **Grafik Plus:** das Leuchten rechnet schon in halber, viertel und achtel Auflösung, und `adaptQuality` schaltet die
+  Nachbearbeitung als erstes ab, wenn es ruckelt.
+- **DOM:** die HUD-Anzeigen schreiben schon nur bei Änderung (`ui.set`); Schadenszahlen und Namen malt das 2D-Canvas.
+- **Gebogene Streifen** (Schwünge, 100–200 je Bild) haben je Teil eigene, jedes Bild neu geschriebene Formen – nicht
+  gebündelt. Die 2D-Ansicht geht weiter alle Monster durch (nicht Teil des 3D-Problems).

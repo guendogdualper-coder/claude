@@ -382,7 +382,7 @@ function fx3Mat(map, vertexColors) {
 // plane: flach am Boden; wall: offener Zylinder; seg: dünner Zylinder für Blitze und Strahlen;
 // strip: gebogener Streifen (Schnitte, Schwünge); sprite: Lichtfleck zur Kamera gedreht
 const FX3_STRIP_N = 18;
-// Feste Formen (Scheibe, Wand, Stab, Kegel) seit 14.17 je Art einmal und von allen Teilen geteilt: vorher bekam jedes
+// Feste Formen (Scheibe, Wand, Stab, Kegel) seit 14.26 je Art einmal und von allen Teilen geteilt: vorher bekam jedes
 // Teil seine eigene Geometrie (im Kampf über 2.000 Puffer auf der Grafikkarte, jeder neue Teil ein Hochladen)
 function fx3Geo(key, make) {
   return FX3.geo[key] || (FX3.geo[key] = make());
@@ -533,7 +533,7 @@ const _x3fy = new THREE.Vector3(0, 1, 0);
 function fx3Map(o, kind) {
   const t = kind ? fx3Texture(kind) : null;
   if (o.material.map === t) return;
-  // Nur „Textur ja/nein“ braucht ein anderes Shader-Programm (seit 14.17). Vorher löste jeder Wechsel zwischen zwei
+  // Nur „Textur ja/nein“ braucht ein anderes Shader-Programm (seit 14.26). Vorher löste jeder Wechsel zwischen zwei
   // Texturen (Teile aus dem Vorrat wechseln je Bild ihre Aufgabe) die volle Programmprüfung von three.js aus
   if (!o.material.map !== !t) o.material.needsUpdate = true;
   o.material.map = t;
@@ -1901,7 +1901,7 @@ function fx3Status(h) {
   const t = game.time;
   let n = 0;
   let ice = 0;
-  // seit 14.17 nur die Monster der Gebiete in der Nähe (v3Monsters, drei-kern.js) statt aller ~7.000 der Welt
+  // seit 14.26 nur die Monster der Gebiete in der Nähe (v3Monsters, drei-kern.js) statt aller ~7.000 der Welt
   for (const m of v3Monsters()) {
     // Eis taut oder bricht: Splitter und Funken (zählen zum Effekt-Budget)
     if (m.ice3 && !(m.frozen > t)) {
@@ -2179,7 +2179,7 @@ function v3SyncFx() {
   fx3BatchSprites();
 }
 
-// --- Leuchtflecken gebündelt (seit 14.17) ------------------------------------------------------------------
+// --- Leuchtflecken gebündelt (seit 14.26) ------------------------------------------------------------------
 // Die Fertigkeiten zeichnen ihre Funken, Glutpunkte, Sterne, Lichtflecken und Rang-Effekte als viele einzelne
 // THREE.Sprite – jeder ein eigener Zeichenaufruf mit eigener Programm- und Materialprüfung. Mit 30 Monstern und
 // Rang-Effekten an jedem Treffer waren das über 3.000 Zeichenaufrufe je Bild (der Hänger beim Draufhauen).
@@ -2616,7 +2616,7 @@ function v3WarmFx() {
       new THREE.PointsMaterial({ map: fx3Texture('spark'), size: 0.05, sizeAttenuation: true, transparent: true, depthWrite: false, fog: false }));
     FX3.group.add(pts);
   } catch (err) { pts = null; }
-  // gebündelte Leuchtflecken (seit 14.17) mit übersetzen; in diesem einen Bild zeichnen die Sprites einzeln
+  // gebündelte Leuchtflecken (seit 14.26) mit übersetzen; in diesem einen Bild zeichnen die Sprites einzeln
   fx3BatchDone();
   fx3BatchSprites();
   try { V3.gl.compile(V3.scene, V3.camera); } catch (err) { /* nur Vorwärmen */ }

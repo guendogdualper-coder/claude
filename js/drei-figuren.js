@@ -4559,7 +4559,7 @@ function allyBuild3(b, i) {
 
 const MODELS3 = new Map();
 
-// Monster (seit 14.17): Gesicht und Körper in einem Zeichenaufruf. Beide nutzen dasselbe Material; der Umriss zeichnet
+// Monster (seit 14.26): Gesicht und Körper in einem Zeichenaufruf. Beide nutzen dasselbe Material; der Umriss zeichnet
 // weiter nur den Körper – über eine zweite Geometrie mit denselben Daten auf der Grafikkarte und kürzerem Bereich.
 // Nur, wenn das Modell ein Schattenmodell hat (dann wirft und empfängt der Körper wie das Gesicht keine Schatten).
 function mergeFace3(b) {
@@ -4658,7 +4658,7 @@ function makeActor(model) {
   if (model.geos.aura) add('aura', model.geos.aura, figAura());
   if (model.geos.wglow) {
     a.mats.wglow = figWeaponGlowMat();
-    // seit 14.17 erst sichtbar, wenn die Waffe leuchtet (syncPlayer3): bei Monstern und Dienern bleibt das Leuchten aus,
+    // seit 14.26 erst sichtbar, wenn die Waffe leuchtet (syncPlayer3): bei Monstern und Dienern bleibt das Leuchten aus,
     // vorher kostete es trotzdem je Figur einen Zeichenaufruf
     add('wglow', model.geos.wglow, a.mats.wglow).visible = false;
   }
@@ -4768,7 +4768,7 @@ function dropPool(modelKey) {
   pool3.delete(modelKey);
 }
 
-// Neue Monsterfiguren je Bild begrenzen (seit 14.17): tauchen 30 Monster auf einmal auf, wurden vorher alle in einem
+// Neue Monsterfiguren je Bild begrenzen (seit 14.26): tauchen 30 Monster auf einmal auf, wurden vorher alle in einem
 // Bild gebaut – Skelett, Materialien, Shader-Prüfung beim ersten Zeichnen, dazu ggf. das ganze Modell. Das war der
 // längste Hänger beim Ziehen vieler Monster. Jetzt höchstens NEW3_PER_FRAME je Bild (aus dem Vorrat zählt nicht), ein
 // noch nicht gebautes Modell zählt wie alle; die übrigen folgen in den nächsten Bildern (sie kommen ohnehin meist vom
@@ -4895,7 +4895,7 @@ function v3Prewarm() {
     const key = monModelKey3(m);
     const have = MODELS3.get(key);
     if (have) {
-      // seit 14.17: danach die vereinfachten Modelle (eines je Aufruf)
+      // seit 14.26: danach die vereinfachten Modelle (eines je Aufruf)
       let lv = 0;
       for (let i = 1; i <= LOD3.length && !lv; i++) {
         const l = have.lods ? have.lods[i - 1] : undefined;
@@ -4952,7 +4952,7 @@ function monsterBuild(b, typeId, v) {
   return r;
 }
 
-// --- Vereinfachte Monstermodelle (seit 14.17) ---------------------------------------------------------------
+// --- Vereinfachte Monstermodelle (seit 14.26) ---------------------------------------------------------------
 // Ein Monster, das im Bild klein ist, zeichnet ein zweites Modell aus genau denselben Teilen, Farben und Knochen,
 // nur die kleinen Teile mit etwa halb so vielen Unterteilungen je Kugel, Ring und Röhre (GEO3_LOD, drei-kern.js;
 // große Teile bleiben voll): rund 40 % weniger Dreiecke. In der normalen Ansicht ist ein Monster am PC nur gut 130 Bildpunkte hoch – die
@@ -5036,7 +5036,7 @@ function v3SyncActors(dt) {
   if (V3.extra) for (const ep of V3.extra) safe(syncPlayer3, ep);
   for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && near(rp)) safe(syncPlayer3, rp);
   for (const c of game.clones) if (near(c)) safe(syncPlayer3, c);
-  // seit 14.17 nur die Monster der Gebiete in der Nähe (v3Monsters, drei-kern.js) statt aller der Welt
+  // seit 14.26 nur die Monster der Gebiete in der Nähe (v3Monsters, drei-kern.js) statt aller der Welt
   for (const m of v3Monsters()) if (!m.dead && near(m)) syncMonster3(m, dt);
   for (const al of game.allies) if (near(al)) safe(syncAlly3, al);
   // Diener der Mitspieler (seit 8.5, Netzliste al)
