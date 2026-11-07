@@ -306,7 +306,10 @@ const ui = {
       return;
     }
     if (this.accBusy) return;
-    box.innerHTML = '<p class="acc-hint">Mit Konto liegen deine Charaktere sicher auf dem Server – spiel auf Handy, PC oder Tablet weiter.</p>' +
+    // seit 14.31: in der alten Store-App mit Charakteren ohne Konto deutlich auf den Umzug in die Desktop-App hinweisen
+    const storeMove = MS_STORE_PWA && (readSlots().slots || []).some((sv) => sv && !sv.deleted);
+    box.innerHTML = (storeMove ? '<p class="acc-store">Seelenstein wird im Microsoft Store zur eigenen Desktop-App. Lege jetzt ein kostenloses Konto an – nur dann ziehen deine Charaktere mit.</p>' : '') +
+      '<p class="acc-hint">Mit Konto liegen deine Charaktere sicher auf dem Server – spiel auf Handy, PC oder Tablet weiter.</p>' +
       '<div class="acc-form"><input id="accName" type="text" maxlength="20" autocomplete="username" spellcheck="false" placeholder="Kontoname">' +
       '<input id="accPass" type="password" maxlength="64" autocomplete="current-password" placeholder="Passwort (mind. 6 Zeichen)">' +
       '<button type="button" class="btn btn-primary" data-acc="login">Anmelden</button><button type="button" class="btn btn-ghost" data-acc="register">Registrieren</button></div>' +

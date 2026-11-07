@@ -1096,6 +1096,7 @@
 "Gelehrtenhut": "Scholar's Hat",
 "Runenhut": "Rune Hat",
 "Kristallhut": "Crystal Hat",
+"Seelenstein wird im Microsoft Store zur eigenen Desktop-App. Lege jetzt ein kostenloses Konto an – nur dann ziehen deine Charaktere mit.": "In the Microsoft Store, Seelenstein is becoming a standalone desktop app. Create a free account now – only then will your characters move with you.",
 "Mit Konto liegen deine Charaktere sicher auf dem Server – spiel auf Handy, PC oder Tablet weiter.": "With an account your characters are stored safely on the server – keep playing on phone, PC or tablet.",
 "Hält am meisten aus und trifft ganze Gruppen auf einmal. Der sicherste Weg, Monster in Massen zu farmen.": "The toughest of all and hits whole groups at once. The safest way to farm monsters en masse.",
 "Trifft ganze Gruppen auf einmal und stärkt seinen Angriff mit der Aura des Schwertes. Ideal zum Farmen.": "Hits whole groups at once and boosts its attack with Sword Aura. Ideal for farming.",

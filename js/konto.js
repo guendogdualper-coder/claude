@@ -11,6 +11,15 @@ const cloudReady = () => { const c = cloudCfg(); return !!(c && c.apiKey && c.da
 
 const account = { name: null, uid: null, idToken: null, refreshToken: null, expires: 0, state: 'off', msg: '', at: 0, pushTimer: 0, lastPush: 0, dirty: false, stale: false, deleting: false };
 const accountOn = () => !!(account.uid && account.refreshToken);
+// seit 14.31: Start aus der alten Microsoft-Store-App (PWA-Paket im Edge-Unterbau). Windows setzt beim Start aus dem
+// Store document.referrer auf app-info://platform/microsoft-store; gemerkt, weil der Verweis nur beim ersten Laden da
+// ist. Die neue Desktop-App (Electron) hat einen eigenen Speicher: Charaktere ohne Konto ziehen nicht mit um.
+const MS_STORE_PWA = (() => {
+  try {
+    if (String(document.referrer || '').startsWith('app-info://platform/microsoft-store')) localStorage.setItem('seelenstein.msstore', '1');
+    return localStorage.getItem('seelenstein.msstore') === '1' && !/Electron\//.test(navigator.userAgent);
+  } catch { return false; }
+})();
 
 // Kennung dieses Geräts (für „wer spielt den Charakter gerade“)
 const DEVICE_KEY = 'seelenstein.geraet';

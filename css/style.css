@@ -2649,6 +2649,7 @@ html[data-notch="r"] #hud.touch { --safe-l: 0px; }
 .acc-state { font-size: 12px; opacity: 0.85; flex: 1; }
 .acc-state.error { color: #ffb48a; opacity: 1; }
 .acc-pending { margin: 8px 0 0; font-size: 12px; color: #ffd27a; }
+.acc-store { margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; font-size: 13px; color: #fff3d8; background: rgba(255, 211, 77, 0.14); box-shadow: inset 0 0 0 1px rgba(255, 211, 77, 0.55); }
 .char-select h2 { margin: 2px 0 8px; font-size: 16px; color: #f3e2b0; }
 .char-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 .char-slot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px 10px; border-radius: 12px; text-align: center;

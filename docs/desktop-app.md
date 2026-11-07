@@ -98,8 +98,10 @@ Produktidentität**. Weicht dort etwas ab, die Werte im Abschnitt `"appx"` von `
 
 **Vor dem Umstieg wichtig:** Die alte Store-App speichert Spielstände **ohne Konto** im Speicher von Edge, die neue App in
 ihrem eigenen Speicher. Wer mit einem **Konto** spielt, merkt nichts, denn die Charaktere liegen in der Cloud. Spieler ohne
-Konto sehen ihre lokalen Charaktere in der neuen App nicht. Am besten im Spiel oder in den Neuerungen darauf hinweisen:
-„Lege vor dem Update ein kostenloses Konto an, dann ziehen deine Charaktere mit.“
+Konto sehen ihre lokalen Charaktere in der neuen App nicht. Seit Spielversion 14.31 zeigt der Startbildschirm in der alten
+Store-App deshalb Spielern ohne Konto (mit Charakteren auf dem Gerät) den Hinweis „Seelenstein wird im Microsoft Store zur
+eigenen Desktop-App. Lege jetzt ein kostenloses Konto an – nur dann ziehen deine Charaktere mit.“ Am besten nach dem Update
+eine Woche warten, bevor das neue Paket eingereicht wird, und den Satz zusätzlich in die Neuerungen schreiben.
 
 So geht die Einreichung:
 
