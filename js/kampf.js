@@ -2190,8 +2190,22 @@ const PVP_DMG = {
 };
 // seit 14.29: Ausgleich je Weg (Klasse:Weg) für Schaden gegen Spieler (pvp) und gegen Monster (pve). Der Dolch-Ninja
 // gewann rund 90 % seiner Duelle (hoher Schaden je Sekunde, sichere Krits aus Tarnung und Hinterhalt); gegen Spieler
-// macht er deshalb weniger Schaden, gegen Monster dafür etwas mehr.
-const PATH_DMG = { 'ninja:0': { pvp: 0.6, pve: 1.1 } };
+// macht er deshalb weniger Schaden, gegen Monster dafür etwas mehr. Seit 14.30 für alle Wege nach der Messung mit
+// tools/balance-sim.js --pvp eingestellt (Siegquoten 11–95 % → 42–55 %, docs/balance-pvp.md). Fehlt ein Weg, gilt 1.
+const PATH_DMG = {
+  // Krieger · Leib (krieger:1): 1
+  'krieger:0': { pvp: 0.8 },  // Krieger · Klinge
+  'ninja:0': { pvp: 0.55, pve: 1.1 },  // Ninja · Dolch
+  'ninja:1': { pvp: 0.75 },  // Ninja · Falke
+  'schamane:0': { pvp: 1.05 },  // Schamane · Drache
+  'schamane:1': { pvp: 1.2 },  // Schamane · Heilung
+  'nekromant:0': { pvp: 1.1 },  // Nekromant · Seelen
+  'nekromant:1': { pvp: 1.1 },  // Nekromant · Knochen
+  'magier:0': { pvp: 1.5 },  // Magier · Feuer
+  'magier:1': { pvp: 1.3 },  // Magier · Frost
+  'magier:2': { pvp: 1.0 },  // Magier · Blitz (zum Nachstellen)
+  'magier:3': { pvp: 1.35 }  // Magier · Erde
+};
 function pathDmgMul(p, kind) {
   const e = p && PATH_DMG[p.classId + ':' + (p.path | 0)];
   return (e && e[kind]) || 1;

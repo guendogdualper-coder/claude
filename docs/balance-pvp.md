@@ -1,7 +1,33 @@
-# PvP-Balancing (Stand 14.15, gemessen mit `tools/balance-sim.js --pvp`)
+# PvP-Balancing (Stand 14.30, Grundrechnung 14.15, gemessen mit `tools/balance-sim.js --pvp`)
 
 Auftrag: [prompt-boni-und-pvp-balancing.md](prompt-boni-und-pvp-balancing.md), Teil 2 „PvP ohne One-Shots“.
 
+## Nachtrag 14.30: Ausgleich für alle Wege
+
+Nach 14.29 lagen Ninja · Falke (92 %) und Krieger · Klinge (84 %) oben, die Magier Feuer, Frost und Erde sowie
+Schamane · Heilung weit unten. `PATH_DMG` hat jetzt für jeden Weg einen eigenen Faktor auf den **Schaden gegen
+Spieler** (Duell und Turnierarena); gegen Monster ändert sich nur beim Dolch-Ninja etwas (×1,1). Eingestellt in vier
+Durchgängen (v1–v3 mit 2 Würfen je Paar, Abschluss v4 mit 4 Würfen; Ergebnisse `pvp-v*.json` im Arbeitsordner).
+Die Werte streuen zwischen zwei Messungen um etwa ±8 Punkte je Weg (Blitz: 40 % und 69 % bei fast gleichen Werten),
+deshalb gilt die Messung mit 4 Würfen.
+
+| Weg | Schaden gegen Spieler | 14.28 | 14.29 | 14.30 |
+|---|---:|---:|---:|---:|
+| Krieger · Klinge | ×0,8 | 77 % | 84 % | **48 %** |
+| Krieger · Leib | ×1 | 45 % | 55 % | **50 %** |
+| Ninja · Dolch | ×0,55 | 95 % | 62 % | **49 %** |
+| Ninja · Falke | ×0,75 | 86 % | 92 % | **49 %** |
+| Schamane · Drache | ×1,05 | 56 % | 58 % | **55 %** |
+| Schamane · Heilung | ×1,2 | 39 % | 39 % | **42 %** |
+| Nekromant · Seelen | ×1,1 | 50 % | 50 % | **53 %** |
+| Nekromant · Knochen | ×1,1 | 44 % | 48 % | **51 %** |
+| Magier · Feuer | ×1,5 | 11 % | 15 % | **53 %** |
+| Magier · Frost | ×1,3 | 18 % | 20 % | **49 %** |
+| Magier · Blitz | ×1 | 55 % | 52 % | **47 %** |
+| Magier · Erde | ×1,35 | 23 % | 24 % | **55 %** |
+
+Paare über 65 %: 56 (14.28) → **16**. Median bis zum Sieg: std 9,1 / 10,5 / 10,3 s, top 25,8 / 19,0 / 16,2 s
+(Stufe 20/50/80), also wie vorher. Krieger · Leib bleibt ohne Faktor.
 
 ## Nachtrag 14.29: Dolch-Ninja im PvP gedeckelt, im PvE etwas stärker
 
