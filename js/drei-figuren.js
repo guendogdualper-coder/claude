@@ -41,14 +41,24 @@ function figWeaponGlowMat() {
 // --- Teilformen ---------------------------------------------------------------------------------
 
 function cap3(r, thetaLen, phiStart = 0, phiLen = Math.PI * 2, ws = 16, hs = 8) {
+  ws = lodSeg3(ws, 5);
+  hs = lodSeg3(hs, 3);
   return geo3(`cap${r},${thetaLen},${phiStart},${phiLen},${ws}`, () => new THREE.SphereGeometry(r, ws, hs, phiStart, phiLen, 0, thetaLen));
 }
 function torus3(r, t, arc = Math.PI * 2, rs = 5, ts = 16) {
+  rs = lodSeg3(rs, 3);
+  ts = lodSeg3(ts, 5);
   return geo3(`to${r},${t},${arc},${rs},${ts}`, () => new THREE.TorusGeometry(r, t, rs, ts, arc));
 }
 function cyl3(r1, r2, h, seg = 14) {
+  seg = lodSeg3(seg, 5);
   return geo3(`cy${r1},${r2},${h},${seg}`, () => new THREE.CylinderGeometry(r1, r2, h, seg));
 }
+/* eslint-disable no-func-assign */
+cap3 = lodWrap3(cap3);
+torus3 = lodWrap3(torus3);
+cyl3 = lodWrap3(cyl3);
+/* eslint-enable no-func-assign */
 // Schulterpanzer (seit 13.12) statt einer runden Kuppel: flache Hauptplatte mit Rand (und Grat bei Platte),
 // darunter Schienen, die sich als Bänder um die Außenseite des Oberarms legen. sh: Schulterpunkt im Armknochen.
 const PAULDRON_BIG = 1.7;
@@ -4548,21 +4558,51 @@ function allyBuild3(b, i) {
 // --- Modelle bauen, zwischenspeichern und als Figuren aufstellen ---------------------------------------
 
 const MODELS3 = new Map();
+
+// Monster (seit 14.26): Gesicht und Körper in einem Zeichenaufruf. Beide nutzen dasselbe Material; der Umriss zeichnet
+// weiter nur den Körper – über eine zweite Geometrie mit denselben Daten auf der Grafikkarte und kürzerem Bereich.
+// Nur, wenn das Modell ein Schattenmodell hat (dann wirft und empfängt der Körper wie das Gesicht keine Schatten).
+function mergeFace3(b) {
+  const L = b.lists;
+  if (!L.lit || !L.face || !L.shadow) return -1;
+  let n = 0;
+  for (const it of L.lit) n += it.tpl ? it.tpl.idx.length : it.geo.index ? it.geo.index.count : it.geo.attributes.position.count;
+  L.lit = L.lit.concat(L.face);
+  delete L.face;
+  return n;
+}
+function bodyGeo3(lit, n) {
+  const g = new THREE.BufferGeometry();
+  for (const k in lit.attributes) g.setAttribute(k, lit.attributes[k]);
+  g.setIndex(lit.index);
+  g.setDrawRange(0, n);
+  g.boundingSphere = lit.boundingSphere && lit.boundingSphere.clone();
+  g.boundingBox = lit.boundingBox && lit.boundingBox.clone();
+  g.shared = true;
+  return g;
+}
+function finishGeos3(geos, litN) {
+  for (const k in geos) {
+    geos[k].shared = true;
+    // Maße merken, solange die Daten noch da sind (für das Figurenbild in Fenstern, seit 9.1)
+    if (!geos[k].boundingBox) geos[k].computeBoundingBox();
+    // Spielraum für Bewegungen, damit Figuren am Bildrand nicht zu früh weggeschnitten werden
+    if (geos[k].boundingSphere) geos[k].boundingSphere.radius *= 1.5;
+  }
+  if (litN >= 0 && geos.lit) geos.outline = bodyGeo3(geos.lit, litN);
+  return geos;
+}
+
 function model3(key, build) {
   let m = MODELS3.get(key);
   if (m) return m;
   const b = new Bake3(true);
   const info = build(b);
   if (!info) return null;
-  m = Object.assign({ geos: b.build() }, info);
+  const litN = key.startsWith('m:') ? mergeFace3(b) : -1;
+  m = Object.assign({ geos: finishGeos3(b.build(), litN) }, info);
   m.scale = m.scale || 1;
-  for (const k in m.geos) {
-    m.geos[k].shared = true;
-    // Maße merken, solange die Daten noch da sind (für das Figurenbild in Fenstern, seit 9.1)
-    if (!m.geos[k].boundingBox) m.geos[k].computeBoundingBox();
-    // Spielraum für Bewegungen, damit Figuren am Bildrand nicht zu früh weggeschnitten werden
-    if (m.geos[k].boundingSphere) m.geos[k].boundingSphere.radius *= 1.5;
-  }
+  m.key = key;
   MODELS3.set(key, m);
   // Spielerfiguren mit alter Ausrüstung nicht ewig behalten
   if (MODELS3.size > 160) {
@@ -4573,6 +4613,7 @@ function model3(key, build) {
       MODELS3.delete(k);
       dropPool(k);
       for (const g in old.geos) old.geos[g].dispose();
+      if (old.lods) for (const l of old.lods) if (l) for (const g in l.geos) l.geos[g].dispose();
       break;
     }
   }
@@ -4606,7 +4647,7 @@ function makeActor(model) {
     // empfängt keine Schatten: sonst fielen die groben Kugeln als dunkle Flecken auf die eigene Figur.
     lit.castShadow = !model.geos.shadow;
     lit.receiveShadow = !model.geos.shadow;
-    add('outline', model.geos.lit, figOutline());
+    add('outline', model.geos.outline || model.geos.lit, figOutline());
   }
   if (model.geos.shadow) add('shadow', model.geos.shadow, figShadowProxy()).castShadow = true;
   if (model.geos.face) add('face', model.geos.face, a.mats.lit || (a.mats.lit = figLitMat()));
@@ -4617,7 +4658,9 @@ function makeActor(model) {
   if (model.geos.aura) add('aura', model.geos.aura, figAura());
   if (model.geos.wglow) {
     a.mats.wglow = figWeaponGlowMat();
-    add('wglow', model.geos.wglow, a.mats.wglow);
+    // seit 14.26 erst sichtbar, wenn die Waffe leuchtet (syncPlayer3): bei Monstern und Dienern bleibt das Leuchten aus,
+    // vorher kostete es trotzdem je Figur einen Zeichenaufruf
+    add('wglow', model.geos.wglow, a.mats.wglow).visible = false;
   }
   // nicht gebackene Teile (Portal-Wirbel, Schein, Funken) an die Knochen hängen
   if (model.extra) model.extra(a, bones);
@@ -4725,7 +4768,14 @@ function dropPool(modelKey) {
   pool3.delete(modelKey);
 }
 
-function actorFor(key, modelKey, build) {
+// Neue Monsterfiguren je Bild begrenzen (seit 14.26): tauchen 30 Monster auf einmal auf, wurden vorher alle in einem
+// Bild gebaut – Skelett, Materialien, Shader-Prüfung beim ersten Zeichnen, dazu ggf. das ganze Modell. Das war der
+// längste Hänger beim Ziehen vieler Monster. Jetzt höchstens NEW3_PER_FRAME je Bild (aus dem Vorrat zählt nicht), ein
+// noch nicht gebautes Modell zählt wie alle; die übrigen folgen in den nächsten Bildern (sie kommen ohnehin meist vom
+// Bildrand herein). Spieler, Diener, Händler und Gefallene sind davon ausgenommen.
+const NEW3_PER_FRAME = 6;
+let new3Left = NEW3_PER_FRAME;
+function actorFor(key, modelKey, build, lazy) {
   let a = actors3.get(key);
   if (a && a.modelKey !== modelKey) {
     dropActor(key, a);
@@ -4748,6 +4798,11 @@ function actorFor(key, modelKey, build) {
       a.group.rotation.set(0, 0, 0);
       a.group.scale.setScalar(a.model.scale);
     } else {
+      if (lazy) {
+        const built = MODELS3.has(modelKey);
+        if (new3Left <= 0 || (!built && new3Left < NEW3_PER_FRAME)) return null;
+        new3Left -= built ? 1 : NEW3_PER_FRAME;
+      }
       const model = model3(modelKey, build);
       if (!model) return null;
       a = makeActor(model);
@@ -4835,10 +4890,24 @@ function v3Prewarm() {
   prewarmAt = V3.time + 0.25;
   const p = game.player;
   if (!p) return;
-  for (const m of game.monsters) {
+  for (const m of v3Monsters()) {
     if (m.isStone || Math.abs(m.x - p.x) > 1400 || Math.abs(m.y - p.y) > 1100) continue;
     const key = monModelKey3(m);
-    if (MODELS3.has(key)) continue;
+    const have = MODELS3.get(key);
+    if (have) {
+      // seit 14.26: danach die vereinfachten Modelle (eines je Aufruf)
+      let lv = 0;
+      for (let i = 1; i <= LOD3.length && !lv; i++) {
+        const l = have.lods ? have.lods[i - 1] : undefined;
+        if (l === undefined) lv = i;
+        else if (!l) break;
+      }
+      if (lv) {
+        modelLod3(have, lv);
+        return;
+      }
+      continue;
+    }
     model3(key, (b) => monsterBuild(b, m.typeId, m.__v3));
     return;
   }
@@ -4883,10 +4952,76 @@ function monsterBuild(b, typeId, v) {
   return r;
 }
 
+// --- Vereinfachte Monstermodelle (seit 14.26) ---------------------------------------------------------------
+// Ein Monster, das im Bild klein ist, zeichnet ein zweites Modell aus genau denselben Teilen, Farben und Knochen,
+// nur die kleinen Teile mit etwa halb so vielen Unterteilungen je Kugel, Ring und Röhre (GEO3_LOD, drei-kern.js;
+// große Teile bleiben voll): rund 40 % weniger Dreiecke. In der normalen Ansicht ist ein Monster am PC nur gut 130 Bildpunkte hoch – die
+// feinen Rundungen des vollen Modells (über 12.000 Dreiecke beim Ork, mit Umriss doppelt) sieht man dort nicht.
+// Groß im Bild (Schulterblick nah, hohe Auflösung, Figurenbild in Fenstern) bleibt es beim vollen Modell.
+// Gebaut wird das einfache Modell nebenbei beim Vorwärmen (v3Prewarm), nie mitten im Bild.
+// Stufen: k = Anteil der Unterteilungen, px = Höhe im Bild (Bildpunkte der Zeichenfläche), unter der sie gilt.
+// (Eine zweite, gröbere Stufe brachte kaum weniger Dreiecke, weil große Teile ohnehin voll bleiben – lodBig3.)
+const LOD3 = [{ k: 0.5, px: 170 }];
+const LOD3_KEYS = ['lit', 'outline', 'face', 'glow', 'aura', 'wglow'];
+// Stufe i (1 oder 2) bauen; m.lods[i - 1] = { geos } oder null (nicht möglich)
+function modelLod3(m, i) {
+  const lods = m.lods || (m.lods = []);
+  if (lods[i - 1] !== undefined) return lods[i - 1];
+  lods[i - 1] = null;
+  const mk = /^m:(.+?)(?:#(\d+))?$/.exec(m.key || '');
+  if (!mk || !MONSTER_TYPES[mk[1]]) return null;
+  GEO3_LOD = LOD3[i - 1].k;
+  try {
+    const b = new Bake3(true);
+    const info = monsterBuild(b, mk[1], mk[2] ? +mk[2] : -1);
+    const litN = m.geos.outline ? mergeFace3(b) : -1;
+    // Schatten wirft weiter das grobe Schattenmodell des vollen Modells
+    delete b.lists.shadow;
+    const geos = finishGeos3(b.build(), litN);
+    // nur, wenn es wirklich dasselbe Modell ist (gleiche Knochen, gleiche Teile)
+    let ok = info && info.rig && info.rig.length === m.rig.length;
+    for (const k of LOD3_KEYS) if (!m.geos[k] !== !geos[k]) ok = false;
+    if (ok) lods[i - 1] = { geos };
+    else for (const k in geos) geos[k].dispose();
+  } catch (err) {
+    console.warn('3D-Detailstufe:', err);
+  } finally {
+    GEO3_LOD = 1;
+  }
+  return lods[i - 1];
+}
+// Volles oder vereinfachtes Modell je nach Größe im Bild (mit etwas Spielraum, damit es an der Grenze nicht flackert)
+function lodPick3(a) {
+  const m = a.model;
+  const cur = a.lodOn || 0;
+  let want = 0;
+  if (m.lods && m.lods[0]) {
+    const cam = V3.camera;
+    const d = cam.position.distanceTo(a.group.position) || 1;
+    const px = ((m.height || 1.5) * a.group.scale.y * V3.gl.domElement.height) / (2 * d * Math.tan((cam.fov * Math.PI) / 360));
+    for (let i = LOD3.length; i >= 1; i--) {
+      if (m.lods[i - 1] && px < LOD3[i - 1].px * (cur >= i ? 1.15 : 1)) {
+        want = i;
+        break;
+      }
+    }
+  }
+  if (want === cur) return;
+  a.lodOn = want;
+  const G = want ? m.lods[want - 1].geos : m.geos;
+  for (const k of LOD3_KEYS) {
+    const mesh = a.meshes[k];
+    if (!mesh) continue;
+    const g = k === 'outline' ? G.outline || G.lit : G[k];
+    if (g) mesh.geometry = g;
+  }
+}
+
 // --- Figuren mit dem Spielgeschehen abgleichen ----------------------------------------------------------
 
 function v3SyncActors(dt) {
   for (const a of actors3.values()) a.seen = false;
+  new3Left = NEW3_PER_FRAME;
   const w = game.world;
   // nur, was im Bild ist (feste Kamera: nach Norden sieht man weiter; Schulterblick: Kreis vor der Figur)
   const near = (e) => v3InView(e.x, e.y);
@@ -4901,7 +5036,8 @@ function v3SyncActors(dt) {
   if (V3.extra) for (const ep of V3.extra) safe(syncPlayer3, ep);
   for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && near(rp)) safe(syncPlayer3, rp);
   for (const c of game.clones) if (near(c)) safe(syncPlayer3, c);
-  for (const m of game.monsters) if (!m.dead && near(m)) syncMonster3(m, dt);
+  // seit 14.26 nur die Monster der Gebiete in der Nähe (v3Monsters, drei-kern.js) statt aller der Welt
+  for (const m of v3Monsters()) if (!m.dead && near(m)) syncMonster3(m, dt);
   for (const al of game.allies) if (near(al)) safe(syncAlly3, al);
   // Diener der Mitspieler (seit 8.5, Netzliste al)
   for (const rp of net.players.values()) if (rp.allies && !remoteHidden(rp)) for (const al of rp.allies) if (near(al)) safe(syncAlly3, al);
@@ -5916,10 +6052,13 @@ function syncMonster3(m, dt) {
     syncStone3(m, dt);
     return;
   }
-  const a = actorFor(entityKey(m), monModelKey3(m), (b) => monsterBuild(b, m.typeId, m.__v3));
+  const a = actorFor(entityKey(m), monModelKey3(m), (b) => monsterBuild(b, m.typeId, m.__v3), true);
+  // noch nicht gebaut (Grenze je Bild): Name und Balken erst mit der Figur zeigen (drawOverlay3)
+  m.__wait3 = !a;
   if (!a) return;
   a.corpse = false;
   animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
+  lodPick3(a);
   // Höllenkaiser: eigene Aura (hoellenthron.js)
   if (a.model.teufel && typeof teufelAura3 === 'function') teufelAura3(a, m);
   // Bosse stehen in einem pulsierenden Schein

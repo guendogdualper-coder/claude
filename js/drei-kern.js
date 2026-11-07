@@ -23,6 +23,35 @@ const V3 = {
   fadeScreen: new Float32Array(4)
 };
 
+// Farben aus Zeichenketten merken (seit 14.26): THREE.Color.set('#ff8800') zerlegt die Zeichenkette jedes Mal mit
+// regulären Ausdrücken. Lichter und Effekte tun das hundertfach je Bild – das kostete Rechenzeit und erzeugte viel
+// Müll für die Speicherbereinigung (kleine Hänger alle paar Sekunden). Ungültige Angaben werden nicht gemerkt.
+(() => {
+  if (typeof THREE === 'undefined' || THREE.Color.prototype.__memo) return;
+  const parse = THREE.Color.prototype.setStyle;
+  const memo = new Map();
+  THREE.Color.prototype.setStyle = function (style) {
+    const c = memo.get(style);
+    if (c) {
+      this.r = c[0];
+      this.g = c[1];
+      this.b = c[2];
+      return this;
+    }
+    const r = this.r;
+    this.r = NaN;
+    parse.call(this, style);
+    if (this.r !== this.r) {
+      this.r = r;
+      return this;
+    }
+    if (memo.size > 4000) memo.clear();
+    memo.set(style, [this.r, this.g, this.b]);
+    return this;
+  };
+  THREE.Color.prototype.__memo = true;
+})();
+
 function v3Supported() {
   if (typeof THREE === 'undefined') return false;
   try {
@@ -135,7 +164,13 @@ function mat3(key, make) {
 // --- Formen mit weichen Kanten -----------------------------------------------------------------
 
 const GEO3 = new Map();
+// Detailstufe beim Bauen (seit 14.26): 1 = volles Modell; kleiner baut dieselben Teile mit weniger Unterteilungen
+// (vereinfachtes Monstermodell für Figuren, die im Bild klein sind, drei-figuren.js modelLod3). Nur während eines
+// solchen Baus kleiner als 1; die Teile landen unter eigenen Schlüsseln im Vorrat.
+let GEO3_LOD = 1;
+const lodSeg3 = (n, min = 3) => (GEO3_LOD >= 1 ? n : Math.max(Math.min(n, min), Math.round(n * GEO3_LOD)));
 function geo3(key, make) {
+  if (GEO3_LOD < 1) key = 'L' + GEO3_LOD + ':' + key;
   let g = GEO3.get(key);
   if (!g) {
     g = make();
@@ -149,6 +184,11 @@ function roundBox(w, h, d, r, k) {
   r = Math.max(0.001, Math.min(r, w / 2, h / 2, d / 2) * 0.999);
   // kleine Teile brauchen weniger Unterteilung, große Kanten bleiben schön rund
   if (k == null) k = r < 0.045 ? 1 : r < 0.13 ? 2 : 3;
+  // vereinfachtes Modell: eine Stufe weniger Rundung, kleinste Teile als Quader mit weichen Normalen (8 Ecken)
+  if (GEO3_LOD < 1) {
+    k = Math.max(0, k - (GEO3_LOD <= 0.4 ? 2 : 1));
+    if (k === 0) return geo3(`rb0${w},${h},${d}`, () => smoothGeo(new THREE.BoxGeometry(w, h, d)));
+  }
   return geo3(`rb${w},${h},${d},${r},${k}`, () => {
     const n = 2 * k + 1;
     const g = new THREE.BoxGeometry(1, 1, 1, n, n, n);
@@ -208,11 +248,14 @@ function smoothGeo(g) {
 }
 
 function sphere3(r, ws = 12, hs = 9) {
+  ws = lodSeg3(ws, 5);
+  hs = lodSeg3(hs, 4);
   return geo3(`sp${r},${ws},${hs}`, () => new THREE.SphereGeometry(r, ws, hs));
 }
 
 // Drehkörper aus einem Profil [[radius, höhe], ...] von unten nach oben
 function lathe3(key, pts, seg = 12) {
+  seg = lodSeg3(seg, 4);
   return geo3('la' + key + seg, () => {
     const g = new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(Math.max(0, x), y)), seg);
     g.computeVertexNormals();
@@ -250,6 +293,15 @@ function limbBetween(A, a, b, r1, r2, color, o = {}) {
 
 // Spitzer Kegel mit runder Basis und weicher Spitze (Hörner, Ohren, Dornen, Stacheln)
 function horn3(len, r, seg = 10) {
+  // vereinfachtes Modell (seit 14.26): drei statt sechs Ringe, ab drei Seiten (Stacheln, Fellbüschel, Zähne)
+  if (GEO3_LOD < 1) {
+    const s = Math.max(3, Math.round(seg * GEO3_LOD));
+    return geo3(`hornL${len},${r},${s}`, () => {
+      const g = new THREE.LatheGeometry([[0, 0], [r, 0.12 * len], [r * 0.55, 0.55 * len], [0, len]].map(([x, y]) => new THREE.Vector2(x, y)), s);
+      g.computeVertexNormals();
+      return g;
+    });
+  }
   const pts = [[0, 0], [r * 0.9, 0.02 * len], [r, 0.12 * len], [r * 0.72, 0.45 * len], [r * 0.38, 0.75 * len], [r * 0.12, 0.95 * len], [0, len]];
   return lathe3(`horn${len},${r}`, pts, seg);
 }
@@ -257,6 +309,8 @@ function horn3(len, r, seg = 10) {
 // Glattes, sich verjüngendes Rohr entlang einer weichen Kurve durch pts (seit 12.7.1): Hörner, Stoßzähne,
 // Rüssel – ohne Ringe und ohne Knicke zwischen Gliedern. r0 am Anfang, r1 am Ende; die Spitze ist geschlossen.
 function tube3(pts, r0, r1, seg = 18, rad = 9) {
+  seg = lodSeg3(seg, 4);
+  rad = lodSeg3(rad, 4);
   const key = 'tube' + pts.map((p) => p.map((v) => v.toFixed(3)).join(',')).join(';') + r0.toFixed(3) + r1.toFixed(3) + seg + rad;
   return geo3(key, () => {
     const curve = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
@@ -281,6 +335,8 @@ function tube3(pts, r0, r1, seg = 18, rad = 9) {
 // verteilt, dazwischen linear), t0/t1 schneiden ein Stück heraus (z. B. die helle Schwanzspitze), flat staucht
 // den Querschnitt seitlich (< 1 = flacher, z. B. ein buschiger Schwanz von oben breiter als hoch)
 function tubeProfile3(pts, radii, seg = 18, rad = 10, t0 = 0, t1 = 1, flat = 1) {
+  seg = lodSeg3(seg, 4);
+  rad = lodSeg3(rad, 4);
   const key = 'tubeP' + pts.map((p) => p.map((v) => v.toFixed(3)).join(',')).join(';') + '|' + radii.map((r) => r.toFixed(3)).join(',') + '|' + seg + ',' + rad + ',' + t0 + ',' + t1 + ',' + flat;
   return geo3(key, () => {
     const full = new THREE.CatmullRomCurve3(pts.map((p) => new THREE.Vector3(...p)));
@@ -329,6 +385,8 @@ function tubeProfile3(pts, radii, seg = 18, rad = 10, t0 = 0, t1 = 1, flat = 1) 
 // [z, Mitte y, halbe Breite, Höhe nach oben, Höhe nach unten]; dazwischen weich (Catmull-Rom) verbunden,
 // an beiden Enden geschlossen. So entstehen tiefe Brust, eingezogene Taille und runde Hinterhand in einem Stück.
 function loft3(stations, rad = 16, sub = 4) {
+  rad = lodSeg3(rad, 6);
+  sub = lodSeg3(sub, 2);
   const key = 'loft' + stations.map((s) => s.map((v) => v.toFixed(3)).join(',')).join(';') + rad + ',' + sub;
   return geo3(key, () => {
     const cr = (a, b, c, d, t) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
@@ -380,6 +438,38 @@ function loft3(stations, rad = 16, sub = 4) {
     return g;
   });
 }
+
+// Vereinfachtes Modell (seit 14.26): Jede vereinfachte Form merkt sich ihre volle Fassung. Große Teile (Rumpf, Kopf,
+// Leuchtring, Panzerplatten) behalten beim Backen die volle Form (Bake3.add, lodBig3) – so bleiben Umriss und große
+// Rundungen gleich, gespart wird an den vielen kleinen Teilen (Zähne, Krallen, Schnallen, Nieten, Stacheln, Fellbüschel).
+function lodWrap3(fn) {
+  return function (...args) {
+    const g = fn.apply(this, args);
+    if (GEO3_LOD < 1 && g && !g.userData.full) {
+      const k = GEO3_LOD;
+      GEO3_LOD = 1;
+      try { g.userData.full = fn.apply(this, args); } finally { GEO3_LOD = k; }
+    }
+    return g;
+  };
+}
+// Teile ab diesem Halbmesser (Einheiten des Modells, ein Ork ist etwa 1,6 hoch) bleiben voll
+const LOD3_BIG = 0.14;
+function lodBig3(geo, m, parent) {
+  if (!geo.boundingSphere) geo.computeBoundingSphere();
+  let s = geo.boundingSphere.radius * m.getMaxScaleOnAxis();
+  if (parent) s *= parent.getMaxScaleOnAxis();
+  return s > LOD3_BIG ? geo.userData.full : geo;
+}
+/* eslint-disable no-func-assign */
+roundBox = lodWrap3(roundBox);
+sphere3 = lodWrap3(sphere3);
+lathe3 = lodWrap3(lathe3);
+horn3 = lodWrap3(horn3);
+tube3 = lodWrap3(tube3);
+tubeProfile3 = lodWrap3(tubeProfile3);
+loft3 = lodWrap3(loft3);
+/* eslint-enable no-func-assign */
 
 // Ohrmuschel (seit 12.7.1): gewölbte halbe Schale, Öffnung nach vorn (+z), Spitze oben; inner = Innenseite
 function earGeo3(inner) {
@@ -463,6 +553,7 @@ class Bake3 {
   add(geo, color, o = {}) {
     const key = o.mat || 'lit';
     const m = partMatrix(o);
+    if (GEO3_LOD < 1 && geo.userData && geo.userData.full) geo = lodBig3(geo, m, o.parent);
     (this.lists[key] = this.lists[key] || []).push({
       geo, color, m, bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null,
       top: o.top ? new THREE.Color(o.top) : null, topK: o.topK == null ? 0.5 : o.topK, shine: o.shine || 0, ao: o.ao == null ? 0.22 : o.ao
@@ -514,6 +605,7 @@ function shadowPart(b, geo, m, o) {
 // Vorlage: ein Objekt einmal aus seinen Teilen backen und als Rohdaten behalten
 const TPL3 = new Map();
 function bakeTemplate(key, make) {
+  if (GEO3_LOD < 1) key = 'L' + GEO3_LOD + ':' + key;
   let t = TPL3.get(key);
   if (!t) {
     const b = new Bake3(false);
@@ -888,6 +980,56 @@ function v3ViewCenter(out) {
   return out;
 }
 const _vc = { x: 0, y: 0 };
+
+// Monster, die überhaupt ins Bild kommen können (seit 14.26). Die Welt hat über 7.000 Monster; vorher gingen
+// Figuren, Namen, Zustandsanzeigen und Vorwärmen in jedem Bild alle durch. Jetzt nur die Gebiete (Maps, Dungeons),
+// deren Monster in der Nähe der Kamera stehen können – aus dem Gebietsverzeichnis von gegner.js (monsterIndex).
+// Je Gebiet ein Rechteck um die Startplätze plus die größte Verfolgungsstrecke (Leine, mehr gehen Monster nicht weg).
+const MONS3 = { list: [], frame: -1, map: null, boxes: new Map() };
+const MONS3_PAD = LEASH * 2 * 1.7 * 1.5 + 4 * TILE;
+function v3Monsters() {
+  const M = MONS3;
+  if (M.frame === V3.frame) return M.list;
+  M.frame = V3.frame;
+  const idx = typeof monsterIndex === 'function' ? monsterIndex() : null;
+  const L = M.list;
+  // Liste nur kürzen statt leeren (leeren gäbe ihren Speicher frei, das Auffüllen legte ihn jedes Bild neu an)
+  let n = 0;
+  if (!idx) {
+    for (const m of game.monsters) L[n++] = m;
+    L.length = n;
+    return L;
+  }
+  if (M.map !== idx) {
+    M.map = idx;
+    M.boxes.clear();
+    for (const [k, l] of idx) {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (const m of l) {
+        const hx = m.homeX ?? m.x;
+        const hy = m.homeY ?? m.y;
+        if (hx < x0) x0 = hx;
+        if (hx > x1) x1 = hx;
+        if (hy < y0) y0 = hy;
+        if (hy > y1) y1 = hy;
+      }
+      M.boxes.set(k, [x0 - MONS3_PAD, y0 - MONS3_PAD, x1 + MONS3_PAD, y1 + MONS3_PAD]);
+    }
+  }
+  const r = renderer;
+  const R = (Math.max(r.w, r.h) / Math.max(0.5, r.zoom || 1) + 40 * TILE) * (V3.zoomMul || 1);
+  const fx = V3.focus.x;
+  const fy = V3.focus.y;
+  for (const k of idx.keys()) {
+    const b = M.boxes.get(k);
+    if (b && (fx + R < b[0] || fx - R > b[2] || fy + R < b[1] || fy - R > b[3])) continue;
+    const l = idx.get(k);
+    for (let i = 0; i < l.length; i++) L[n++] = l[i];
+  }
+  if (L.length !== n) L.length = n;
+  return L;
+}
+
 // Liegt ein Weltpunkt im Bild? Feste Kamera: Rechteck mit mehr Sicht nach Norden; Schulterblick: Kreis
 function v3InView(x, y, pad = 0) {
   const r = renderer;
@@ -1968,6 +2110,7 @@ function renderDrei() {
   const dt = Math.min(0.1, (now - (v3Last || now)) / 1000);
   v3Last = now;
   V3.time += dt;
+  V3.frame = (V3.frame || 0) + 1;
   if (!game.world) return;
   let fx;
   let fy;
@@ -2075,6 +2218,8 @@ function renderDrei() {
   v3SyncHouses();
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
   if (!(typeof gpRender === 'function' && gpRender())) V3.gl.render(V3.scene, V3.camera);
+  // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
+  if (typeof fx3BatchDone === 'function') fx3BatchDone();
   drawOverlay3(ctx);
   r.miniTimer -= 1;
   if (r.miniTimer <= 0) {
@@ -2131,7 +2276,7 @@ function drawOverlay3(ctx) {
   // Namen, Lebensbalken, Zeichen über den Köpfen
   const list = _ovList;
   list.length = 0;
-  for (const m of game.monsters) if (!m.dead && inView(m.x, m.y)) list.push(m);
+  for (const m of v3Monsters()) if (!m.dead && inView(m.x, m.y) && !m.__wait3) list.push(m);
   for (const a of game.allies) list.push(a);
   for (const n of game.world.npcs) if (inView(n.x, n.y)) list.push(n);
   for (const pl of players) {
