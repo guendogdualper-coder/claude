@@ -746,6 +746,23 @@ const RATGEBER_WISSEN = [
     k: 'kriegsross pferd schneller kaufen stallmeister'
   },
   {
+    c: 'pferd', p: 3, q: 'Was ist der Drache (Glutschwinge)?',
+    a: () => {
+      const D = (typeof HORSES !== 'undefined' && HORSES[3]) ? HORSES[3] : { level: 60, price: 500000, speed: 1.1 };
+      const W = (typeof HORSES !== 'undefined') ? HORSES[2] : { speed: 0.9 };
+      return `Ab Stufe ${D.level} verkauft der Stallmeister die <b>Glutschwinge</b>, einen Drachen, für ${rgFmt(D.price)} Gold – ein Pferd brauchst du dafür schon. ` +
+        `Sie gibt +${rgPct(D.speed)} Lauftempo (Kriegsross +${rgPct(W.speed)}) und schwebt knapp über dem Boden: Bäume, Felsen, Wasser, Lava und Abgründe überfliegt sie einfach.`;
+    },
+    k: 'drache drachen glutschwinge fliegen flug reittier kaufen stallmeister stufe 60 schneller dragon'
+  },
+  {
+    c: 'pferd', q: 'Wo kann mein Drache fliegen?',
+    a: 'Draußen in der Welt fast überall – nur Mauern und Palisaden, Häuser, Säulen und der Felsrand einer Karte halten ihn auf. ' +
+      'In Dungeons, Instanzen, der Prüfungs- und der Turnierarena und im Duell fliegt er nicht: dort kannst du nicht aufsteigen, und wer hineingeht, landet vorher. ' +
+      'Steigst du über Wasser oder Bäumen ab, landest du an der nächsten freien Stelle. Wer angreift oder eine Fertigkeit nutzt, steigt wie beim Pferd ab.',
+    k: 'drache fliegen wasser baeume mauer dungeon instanz arena duell landen absteigen glutschwinge'
+  },
+  {
     c: 'pferd', q: 'Wie steige ich auf mein Pferd?',
     a: 'Mit dem Pferdeknopf oder Taste {k:ride}. Wer angreift, steigt ab. Zu Fuß ist das Tempo mit Schuhen, Boni und Buffs auf +25 % begrenzt – das Pferdetempo kommt noch oben drauf.',
     k: 'aufsteigen absteigen reiten pferd taste r tempo'

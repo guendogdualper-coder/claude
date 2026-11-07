@@ -1069,7 +1069,16 @@ const ui = {
     const horse = p && p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
     pct.hidden = !horse;
     if (horse) pct.textContent = '+' + Math.round(horse.speed * 100) + ' %';
-    btn.title = horse ? `${horse.name} (+${Math.round(horse.speed * 100)} % Lauftempo)` : '';
+    // seit 14.26: mit der Glutschwinge heißt der Knopf „Drache“, der Hinweis nennt das Fliegen
+    const label = btn.querySelector('.menu-text');
+    const word = horse && horse.fly ? 'Drache' : 'Pferd';
+    // nur bei einem Wechsel setzen (die Übersetzung tauscht den Text danach aus; kein Hin und Her)
+    if (label && btn.dataset.mount !== word) {
+      btn.dataset.mount = word;
+      label.textContent = word;
+      btn.setAttribute('aria-label', word);
+    }
+    btn.title = horse ? `${horse.name} (+${Math.round(horse.speed * 100)} % Lauftempo)` + (horse.fly ? ' · fliegt über Bäume, Felsen und Wasser' : '') : '';
   },
 
   // Lebensbalken eines Bosses oben in der Mitte, sobald man in seiner Nähe ist
@@ -1902,7 +1911,7 @@ function speedText(p, s) {
   const foot = Math.round(((s.footMul || 1) - 1) * 100);
   const horse = p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
   return `${Math.round(s.speed)} <small class="speed-parts">· zu Fuß +${foot} %` +
-    (horse ? ` · <span class="${p.riding ? 'on' : ''}">Pferd +${Math.round(horse.speed * 100)} %</span>` : '') + '</small>';
+    (horse ? ` · <span class="${p.riding ? 'on' : ''}">${horse.fly ? 'Drache' : 'Pferd'} +${Math.round(horse.speed * 100)} %</span>` : '') + '</small>';
 }
 // Schaden und Leben als feste Zahlen (seit 13.6) statt Prozent: aus den aktuellen Werten der Figur, also
 // Angriff mit Waffe (+ Stufe), Ausrüstungsboni, Statuspunkten und laufenden Buffs × Faktor der Fertigkeit ×

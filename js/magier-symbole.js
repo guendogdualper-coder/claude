@@ -565,7 +565,7 @@ function mageFreeHand(p, fy) {
   const dir = facingDir(p.facing || { x: 0, y: 1 });
   const flip = dir === 'side' && p.facing.x < 0;
   const h = handPosition(dir, 0, 'left');
-  return { x: p.x + (flip ? -h.x : dir === 'side' ? h.x - 4 : h.x), y: fy + h.y - (p.riding ? RIDE_HEIGHT : 0) };
+  return { x: p.x + (flip ? -h.x : dir === 'side' ? h.x - 4 : h.x), y: fy + h.y - rideHeight(p) };
 }
 
 Object.assign(BUFF_LOOKS, {
@@ -635,7 +635,7 @@ Object.assign(BUFF_LOOKS, {
     ctx.save();
     for (const [dx, dy, r] of pts) {
       const x = p.x + dx;
-      const y = fy + dy - (p.riding ? RIDE_HEIGHT : 0);
+      const y = fy + dy - rideHeight(p);
       ctx.fillStyle = '#3e3532';
       ctx.strokeStyle = '#120c08';
       ctx.lineWidth = 1;
@@ -663,7 +663,7 @@ Object.assign(BUFF_LOOKS, {
   // Donnerkrone (Ultimate-Buff): kleine Blitzzacken kreisen über dem Kopf
   donnerkrone(ctx, p, fy, t, layer) {
     if (layer !== 'front') return;
-    const y = fy - 60 - (p.riding ? RIDE_HEIGHT : 0);
+    const y = fy - 60 - rideHeight(p);
     const seed = Math.floor(t * 12);
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';

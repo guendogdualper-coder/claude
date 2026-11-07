@@ -770,6 +770,22 @@ function voiceOf(m) {
 
 // --- Klänge der Spieler ----------------------------------------------------------------------------
 const PLAYER_SND = {
+  // Drache „Glutschwinge“ (seit 14.26, erzeugt): kurzer, grollender Ruf mit zwei kräftigen Flügelschlägen beim
+  // Aufsitzen; beim Landen zwei Flügelschläge, ein dumpfes Aufsetzen und ein leises Schnauben
+  drache_ruf: (c, out, r) => {
+    sVoice(c, out, { f: [[0, 95 + r() * 10], [0.18, 150], [0.55, 120], [0.85, 70]], amp: [[0, 0], [0.08, 0.55], [0.45, 0.45], [0.85, 0]], sub: 1, jit: 0.03, vib: [7, 35], rnd: r,
+      form: [[380, 2.5, 1], [900, 3, 0.7], [2100, 4, 0.3]], mouth: [[0, 0.8], [0.2, 1.15], [0.85, 0.75]], rough: [32, 0.6], drive: 0.6, lp: 3500, breath: 0.25 });
+    sNoise(c, out, { f: [[0, 700], [0.3, 1400], [0.85, 500]], q: 0.9, amp: [[0, 0], [0.1, 0.22], [0.6, 0.16], [0.85, 0]], rough: [38, 0.7] });
+    for (const at of [0.62, 1.02]) sNoise(c, out, { at, f: [[0, 300], [0.12, 900], [0.3, 250]], type: 'lowpass', q: 0.8, amp: [[0, 0], [0.06, 0.75], [0.3, 0]], color: 'brown' });
+    return 1.35;
+  },
+  drache_land: (c, out, r) => {
+    for (const at of [0, 0.34]) sNoise(c, out, { at, f: [[0, 260], [0.12, 800], [0.3, 220]], type: 'lowpass', q: 0.8, amp: [[0, 0], [0.06, 0.7], [0.3, 0]], color: 'brown' });
+    sTone(c, out, { at: 0.72, f: [[0, 90 + r() * 10], [0.2, 45]], amp: [[0, 0], [0.01, 0.8], [0.25, 0]] });
+    sNoise(c, out, { at: 0.72, f: 300, type: 'lowpass', amp: [[0, 0], [0.01, 0.5], [0.22, 0]], color: 'brown' });
+    sNoise(c, out, { at: 0.95, f: [[0, 1800], [0.25, 900]], q: 1.2, amp: [[0, 0], [0.05, 0.3], [0.3, 0]] });
+    return 1.3;
+  },
   // Schwung: Luft zischt vorbei (leicht, mittel, schwer)
   whoosh_l: (c, out) => { sNoise(c, out, { f: [[0, 900], [0.09, 3200], [0.18, 1500]], q: 1.6, amp: [[0, 0], [0.05, 0.55], [0.18, 0]] }); return 0.2; },
   whoosh_m: (c, out) => { sNoise(c, out, { f: [[0, 600], [0.12, 2400], [0.26, 900]], q: 1.4, amp: [[0, 0], [0.08, 0.65], [0.26, 0]] }); return 0.28; },
@@ -1452,6 +1468,13 @@ const snd = {
     if (!rb || !p) return;
     const clip = clips[Math.floor(Math.random() * clips.length)];
     this.out(rb, { x: p.x, y: p.y, off: clip[0], dur: clip[1], rate: 0.97 + Math.random() * 0.06, vol: ev === 'neigh' ? 0.95 : 0.7, rev: 0.12 });
+  },
+
+  // Eigener Drache (seit 14.26): erzeugter Ruf beim Aufsitzen, Flügelschläge und Aufsetzen beim Landen
+  dragon(p, ev) {
+    const k = 'drache_' + ev;
+    if (!p || !PLAYER_SND[k]) return;
+    this.play('p:' + k, PLAYER_SND[k], { x: p.x, y: p.y, vol: ev === 'ruf' ? 0.85 : 0.75, rev: 0.2, variants: 2 });
   },
 
   // Häufige Klänge vorab berechnen, damit der erste Schlag nicht stumm bleibt
