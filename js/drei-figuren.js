@@ -882,6 +882,8 @@ function readyPose3(B, who) {
   else if (P.l) B[BH.armL].rotation.set(P.l[0], P.l[1], P.l[2]);
   if (P.hl) B[BH.handL].rotation.set(P.hl[0], P.hl[1], P.hl[2]);
   if (P.cy) B[BH.chest].rotation.y = P.cy;
+  // Bogen (seit 14.20) wie im Spiel getragen: Wurfarme schräg nach vorn und hinten, Sehne oben zur Figur
+  if (kind === 'bow') bowCarry3(B, 'stand');
 }
 
 // Köcher der Spieler (seit 13.20): schräg auf dem Rücken, Beschläge und Pfeilfedern in der Farbe der Munition
@@ -962,6 +964,38 @@ function bowStringBones3(tier, handR, bones) {
   const out = { bones: [bones.length, bones.length + 1], v: [mid.clone().sub(top).toArray(), mid.clone().sub(bot).toArray()], grip: [handR[0] - hb[0], handR[1] - hb[1], handR[2] - hb[2]] };
   bones.push([top.toArray(), BH.handR], [bot.toArray(), BH.handR]);
   return out;
+}
+// Bogen tragen (seit 14.20) in Ruhe, beim Gehen und auf dem Pferd: Griff mittig in der Faust, der obere Wurfarm zeigt
+// schräg nach vorn oben, der untere nach hinten unten, die Sehne liegt oben zur Figur hin. Vorher hing der Bogen
+// senkrecht neben dem Bein, steckte unten im Boden und oben in der Kapuze. Die Richtung des Bogens gilt im Rahmen der
+// Hüfte; die Hand dreht so weit, dass Brust- und Armbewegung ausgeglichen werden (der Bogen schwankt beim Gehen nicht
+// wild mit). up: Richtung des oberen Wurfarms, str: Richtung vom Griff zur Sehne (x zur Figur, y hoch, z nach vorn).
+// Beim Schuss dreht bowString3 die Hand aus dieser Haltung weich aufs Ziel und am Ende wieder zurück.
+const BOW_CARRY3 = {
+  stand: { arm: [-0.22, 0, -0.2], up: [0.02, 0.62, 1], str: [0.55, 1, -0.25] },
+  walk: { arm: [-0.18, 0, -0.22], up: [0, 0.5, 1], str: [0.55, 1, -0.2], swing: 0.12 },
+  ride: { arm: [-0.75, 0, -0.32], up: [0.12, 1, 0.42], str: [0.35, 0.1, -1] }
+};
+const _bcX = new THREE.Vector3();
+const _bcY = new THREE.Vector3();
+const _bcZ = new THREE.Vector3();
+const _bcM = new THREE.Matrix4();
+const _bcQ = new THREE.Quaternion();
+const _bcP = new THREE.Quaternion();
+let _bcHoldInv = null;
+function bowCarry3(B, mode, w = 0) {
+  const C = BOW_CARRY3[mode];
+  const sw = C.swing ? Math.sin(w) : 0;
+  B[BH.armR].rotation.set(C.arm[0] + sw * (C.swing || 0), C.arm[1], C.arm[2]);
+  // Achsen des Bogens: y oberer Wurfarm, x Bauch (von der Sehne weg), z senkrecht zur Bogenebene
+  _bcY.set(C.up[0], C.up[1] + sw * 0.08, C.up[2]).normalize();
+  _bcX.set(-C.str[0], -C.str[1], -C.str[2]);
+  _bcX.addScaledVector(_bcY, -_bcX.dot(_bcY)).normalize();
+  _bcZ.crossVectors(_bcX, _bcY);
+  _bcQ.setFromRotationMatrix(_bcM.makeBasis(_bcX, _bcY, _bcZ));
+  if (!_bcHoldInv) _bcHoldInv = new THREE.Quaternion().setFromEuler(new THREE.Euler(...BOW_HOLD3)).invert();
+  _bcP.copy(B[BH.chest].quaternion).multiply(B[BH.armR].quaternion).invert();
+  B[BH.handR].quaternion.copy(_bcP).multiply(_bcQ).multiply(_bcHoldInv);
 }
 const WEAPON_HOLD = {
   sword: [0.45, 0, 0.5], greatsword: [0.35, 0, 0.42], dagger: [-1.35, 0, 0.6], bow: BOW_HOLD3, fan: [0.7, 0, 0.3],
@@ -5858,9 +5892,7 @@ function syncPlayer3(p, dt) {
     B[BH.legR].rotation.x = -Math.sin(w) * 0.65;
     B[BH.armL].rotation.x = -Math.sin(w) * 0.5;
     B[BH.armR].rotation.x = Math.sin(w) * 0.5;
-    // Bogen (seit 13.20): der Bogenarm schwingt kaum mit und hält den Bogen aufrecht neben dem Körper,
-    // statt ihn wie einen Stock nach vorn und hinten zu schleudern
-    if (weaponKindOf(p) === 'bow') B[BH.armR].rotation.set(-0.38 + Math.sin(w) * 0.07, 0, -0.12);
+    // Bogen: der Bogenarm schwingt kaum mit (bowCarry3 weiter unten)
     B[BH.hips].position.y += Math.abs(Math.cos(w)) * 0.035;
     B[BH.hips].rotation.y = Math.sin(w) * 0.08;
     B[BH.chest].rotation.x = 0.08;
@@ -5936,7 +5968,6 @@ function syncPlayer3(p, dt) {
   } else if (!p.moving && !p.riding) {
     // Ruhehaltung mit der Waffe
     if (twoHanded3(kind)) B[BH.armL].rotation.set(-0.5, 0, 0.35);
-    if (kind === 'bow') B[BH.armR].rotation.set(-0.38, 0, -0.1);
     // Ninja mit Dolchen (seit 13.20): Kampfstand im Rückhandgriff – Hände leicht vor dem Körper,
     // die Klingen liegen am Unterarm und zeigen nach hinten
     if (kind === 'dagger') {
@@ -5950,6 +5981,9 @@ function syncPlayer3(p, dt) {
     B[BH.handR].rotation.x = IDLE_WRIST3[kind];
     if (p.equipment && isOffhand(p.equipment.schild)) B[BH.handL].rotation.x = IDLE_WRIST3[kind];
   }
+  // Bogen (seit 14.20) natürlich in der Hand tragen: in Ruhe, beim Gehen, auf dem Pferd und zu Beginn und Ende eines
+  // Schusses (bowString3 blendet daraus aufs Ziel über, darum hier auch während der gezielten Schüsse)
+  if (kind === 'bow' && !posing && (sw < 0 || (!p.riding && BOW_DRAW3[p.swingKind]))) bowCarry3(B, p.riding ? 'ride' : p.moving ? 'walk' : 'stand', t * 11);
   // Glocke (seit 13.28): außerhalb von Angriffen hält der Schamane sie am Griff leicht vor dem Körper,
   // die Glocke hängt dabei immer senkrecht (Griff oben, Öffnung unten) – auch beim Laufen
   if (kind === 'bell' && !posing && sw < 0 && !p.riding) {

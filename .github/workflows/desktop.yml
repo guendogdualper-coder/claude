@@ -1,7 +1,8 @@
 # Windows-Desktop-App „Seelenstein“ bauen (Electron-Projekt in desktop/)
 #
-# Startet von Hand (Actions → „Desktop-App (Windows)“ → „Run workflow“) oder beim Hochladen eines Tags desktop-v*,
-# z. B. desktop-v1.1.0 (dann gilt 1.1.0 als Versionsnummer).
+# Startet von Hand (Actions → „Desktop-App (Windows)“ → „Run workflow“), beim Hochladen eines Tags desktop-v*
+# (z. B. desktop-v1.1.0, dann gilt 1.1.0 als Versionsnummer) und von selbst, wenn sich desktop/ auf dem
+# Entwicklungszweig ändert.
 #
 # Ergebnis (als Artefakte unten auf der Seite des Laufs):
 #   Seelenstein-Windows-Installer   Seelenstein-Setup-<version>.exe   zum Installieren per Doppelklick
@@ -28,6 +29,12 @@ on:
   push:
     tags:
       - 'desktop-v*'
+    # auch automatisch, sobald sich die App (Ordner desktop/) oder dieser Ablauf auf dem Entwicklungszweig ändert
+    branches:
+      - 'claude/app-entwicklung-hhewbj'
+    paths:
+      - 'desktop/**'
+      - '.github/workflows/desktop.yml'
 
 concurrency:
   group: desktop-${{ github.ref }}

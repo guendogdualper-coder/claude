@@ -1400,49 +1400,63 @@ function shoulderIcon(ctx, tier, pc, metal) {
   ctx.restore();
 }
 
-// Dolch-Symbol (seit 13.19) aus denselben Klingenumrissen wie die 3D-Waffe (DAGGER_BLADES): Klinge entlang +x
+// Dolch-Symbol (seit 13.19) aus denselben Klingenumrissen wie die 3D-Waffe (DAGGER_BLADES): Klinge
+// entlang +x. Seit 14.20 mit denselben Farben, Parierstangen und Knäufen wie der neue 3D-Dolch (DAGGER_LOOK3) und
+// leuchtender Schneide ab Stufe 4
+const DAGGER_ICON = [
+  { blade: '#c7ccd3', grip: '#6b4a2e', wrap: '#2a1a12', guard: '#8a8f96' },
+  { blade: '#d6dce4', grip: '#3a2a22', wrap: '#7a5a3a', guard: '#b8c0cc' },
+  { blade: '#564a74', grip: '#1e1a26', wrap: '#6a4a9a', guard: '#2a2430', vein: '#b48cff' },
+  { blade: '#a8b8a0', grip: '#2e5a2a', wrap: '#7ac25a', guard: '#e8dcc0', vein: '#9dff6a' },
+  { blade: '#5a6a8a', grip: '#22283a', wrap: '#8a9ab8', guard: '#8a9ab8', edge: '#7ac8ff' },
+  { blade: '#2a2224', grip: '#1a1214', wrap: '#ff7a2a', guard: '#2a2224', edge: '#ff7a2a' },
+  { blade: '#d8f0ff', grip: '#8a9ab8', wrap: '#e6f6ff', guard: '#e6f6ff', edge: '#9fe8ff' },
+  { blade: '#ffe9a0', grip: '#7a4a1a', wrap: '#e8c46a', guard: '#e8c46a', edge: '#fff2b0' },
+  { blade: '#3a2e66', grip: '#120c1e', wrap: '#5ee8ff', guard: '#1c1432', edge: '#5ee8ff' },
+  { blade: '#bcb8d0', grip: '#a8706a', wrap: '#e2957c', guard: '#e2957c', edge: '#ffb8e0' }
+];
 function daggerIconArt(ctx, tier) {
   const K = 72;
+  const D = DAGGER_ICON[tier];
+  const map = ([qx, qy]) => [1 + qy * K, -qx * K];
   const pts = DAGGER_BLADES[tier];
-  const blade = tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : tier === 2 ? '#3a3448' : tier === 4 ? '#5a6a8a' : TIER_METAL[tier];
-  const glow = ['#ffffff', '#ffffff', '#b48cff', '#7ad86a', '#9fd0ff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'][tier];
-  // Griff mit Wicklung und Knauf
-  box(ctx, -9, -1.8, 9, 3.6, 1.2, tier === 0 ? '#6b4a2e' : tier === 4 ? '#2a2a3a' : darker(TIER_ACCENT ? TIER_ACCENT[tier] : '#5a3a2a', 0.2));
-  for (const x of [-7.5, -5, -2.5]) stroke(ctx, tier === 7 ? '#e8c46a' : tier === 8 ? '#5ee8ff' : tier === 9 ? '#e2957c' : '#2a1a12', 0.9, [[x, -1.9], [x, 1.9]]);
-  if (tier === 4) {
+  // Griff mit Kreuzwicklung und Knauf
+  box(ctx, -9, -1.8, 9, 3.6, 1.2, D.grip);
+  for (const x of [-7.5, -5, -2.5]) stroke(ctx, D.wrap, 0.9, [[x - 0.8, -1.8], [x + 0.8, 1.8]]);
+  if (tier === 2 || tier === 4) {
     ctx.beginPath();
-    ctx.arc(-11.4, 0, 2.2, 0, Math.PI * 2);
-    ctx.strokeStyle = '#8a9ab8';
-    ctx.lineWidth = 1.2;
+    ctx.arc(-11.6, 0, 2.3, 0, Math.PI * 2);
+    ctx.strokeStyle = OUTLINE;
+    ctx.lineWidth = 2;
     ctx.stroke();
-  } else oval(ctx, -10, 0, 1.7, 1.7, tier >= 5 ? glow : tier === 0 ? '#8a8f96' : TIER_METAL[tier]);
+    ctx.strokeStyle = tier === 2 ? D.vein : D.guard;
+    ctx.lineWidth = 1.1;
+    ctx.stroke();
+  } else if (tier === 3) oval(ctx, -10.4, 0, 2.2, 1.7, D.grip);
+  else if (tier === 0) oval(ctx, -10, 0, 1.7, 1.7, '#8a8f96');
+  else if (tier === 1) poly(ctx, [[-9, -1.6], [-12, 0], [-9, 1.6]], D.guard);
+  else poly(ctx, [[-9, -1.4], [-12.6, 0], [-9, 1.4]], D.edge);
   // Parierstange
-  if (tier === 6) for (let k = 0; k < 4; k++) poly(ctx, [[0, 0], [Math.cos(k * Math.PI / 2) * 3.4, Math.sin(k * Math.PI / 2) * 3.4], [Math.cos(k * Math.PI / 2 + 0.5) * 1.2, Math.sin(k * Math.PI / 2 + 0.5) * 1.2]], '#e6f6ff');
+  if (tier === 3) for (const sy of [-1, 1]) poly(ctx, [[0, sy * 1], [-2.5, sy * 4.5], [0.8, sy * 1.6]], D.guard);
+  else if (tier === 5) for (const sy of [-1, 1]) poly(ctx, [[0, sy * 1], [2.5, sy * 4.6], [1, sy * 1]], D.guard);
   else if (tier === 8) for (const sy of [-1, 1]) {
-    // Abgrund: zwei Tentakelhaken rollen sich zur Klinge ein
     stroke(ctx, OUTLINE, 2.6, [[0, sy * 1], [-1, sy * 4], [1.8, sy * 5.6], [2.6, sy * 3.8]]);
     stroke(ctx, '#3a2e66', 1.4, [[0, sy * 1], [-1, sy * 4], [1.8, sy * 5.6], [2.6, sy * 3.8]]);
-  } else if (tier === 9) star2D(ctx, 0.4, 0, 4.6);
-  else if (tier === 3) for (const sy of [-1, 1]) poly(ctx, [[0, sy * 1], [-2.5, sy * 4.5], [0.8, sy * 1.6]], '#e8dcc0');
-  else if (tier === 5) for (const sy of [-1, 1]) poly(ctx, [[0, sy * 1], [2.5, sy * 4.6], [1, sy * 1]], '#2a2224');
-  else if (tier !== 4 && tier !== 2) box(ctx, -0.4, -3.6, 1.8, 7.2, 0.7, tier === 7 ? '#e8c46a' : tier === 0 ? '#8a8f96' : TIER_METAL[tier]);
-  else if (tier === 2) oval(ctx, 0.4, 0, 1.2, 2.6, '#2a2430');
-  // Klinge: Umriss (y entlang der Klinge → x, x quer → y)
-  ctx.beginPath();
-  pts.forEach(([qx, qy], i) => (i ? ctx.lineTo(1 + qy * K, -qx * K) : ctx.moveTo(1 + qy * K, -qx * K)));
-  ctx.closePath();
-  const g = ctx.createLinearGradient(0, -4, 0, 4);
-  g.addColorStop(0, lighter(blade, 0.5));
-  g.addColorStop(0.5, blade);
-  g.addColorStop(1, darker(blade, 0.3));
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.strokeStyle = darker(blade, 0.55);
-  ctx.lineWidth = 0.7;
-  ctx.stroke();
-  // Glühlinie bzw. Hohlkehle
-  if (tier >= 2) stroke(ctx, glow, 0.9, [[3, 0], [1 + 0.16 * K, 0]]);
-  else stroke(ctx, darker(blade, 0.25), 0.7, [[3, 0], [1 + 0.15 * K, 0]]);
+  } else if (tier === 2) oval(ctx, 0.4, 0, 1.2, 2.6, D.guard);
+  else if (tier === 6) for (const sy of [-1, 1]) poly(ctx, [[-0.6, sy * 0.8], [2.4, sy * 5], [-0.4, sy * 3.6], [-1.2, sy * 1]], D.guard);
+  else if (tier === 7) { box(ctx, -0.6, -5, 2, 10, 0.9, D.guard); oval(ctx, 0.4, 0, 1, 1, '#fff2b0'); }
+  else if (tier === 9) { box(ctx, -0.4, -3.6, 1.6, 7.2, 0.7, D.guard); for (const y of [-2.2, 0, 2.2]) oval(ctx, 0.4, y, 0.7, 0.7, y ? '#9ad8ff' : '#ff9ad5'); }
+  else box(ctx, -0.4, tier === 4 ? -2.8 : -3.6, 1.8, tier === 4 ? 5.6 : 7.2, 0.7, D.guard);
+  // leuchtende Schneide (ab Stufe 4): etwas größerer Umriss in der Leuchtfarbe hinter der Klinge
+  if (D.edge) {
+    ctx.save();
+    ctx.globalAlpha *= 0.85;
+    poly(ctx, insetPts(pts, -0.006).map(map), D.edge);
+    ctx.restore();
+  }
+  // Klinge: helle Schneide, dunklere Mitte, Ader (wie bladeIcon)
+  bladeIcon(ctx, pts, null, map, D.blade, tier, 0.007);
+  if (D.vein) stroke(ctx, D.vein, 0.9, [[3, 0], [1 + 0.15 * K, tier === 2 ? -0.03 * K : 0]]);
 }
 
 // Köcher (seit 13.20): schräger Lederköcher mit Riemen, oben ragen drei Pfeile mit Federn heraus.
@@ -1498,9 +1512,10 @@ function drawItemArt(ctx, item) {
       ctx.translate(-6, 0);
       ctx.scale(1.3, 1.3);
     } else if (kind === 'bow') {
+      // seit 14.20 mittig (der Bogen ist jetzt länger und breiter)
       ctx.rotate(Math.PI / 4);
-      ctx.translate(-2, 0);
-      ctx.scale(1.35, 1.35);
+      ctx.translate(-8, 0);
+      ctx.scale(1.3, 1.3);
     } else if (kind === 'rod') {
       // Zepter: kurz, dafür etwas größer
       ctx.translate(-11, 0);
