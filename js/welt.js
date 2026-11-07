@@ -2295,6 +2295,15 @@ function tileBlocked(tx, ty) {
   if (o === OBJ.ROCK) return rockSolid(tx, ty);
   return o !== OBJ.NONE;
 }
+// Fliegender Drache (seit 14.26): was man begehen kann, kann man auch überfliegen; dazu Bäume (auch Blütenbäume,
+// Tannen, tote Bäume), Felsbrocken und alles Flüssige (Wasser, Moor, Lava, Abgrund). Fest bleiben Häuser, Mauern
+// und Palisaden, Säulen, Höhlenwände, der Felsrand jeder Karte und alles außerhalb der Karten (Dungeons, Arenen).
+function tileBlockedFlying(tx, ty) {
+  if (!tileBlocked(tx, ty)) return false;
+  if (rockSolid(tx, ty)) return true;
+  const o = game.world.obj[tileIndex(tx, ty)];
+  return !(o === OBJ.NONE || o === OBJ.TREE || o === OBJ.PINE || o === OBJ.BLOSSOM || o === OBJ.DEADTREE || o === OBJ.ROCK);
+}
 // Fester Fels (seit 13.85): der Felsrand jeder Map (MAP_BORDER) und alles außerhalb der Maps
 function rockSolid(tx, ty) {
   const wm = mapOfTile(tx, ty);
@@ -2335,6 +2344,15 @@ function canStand(x, y, r, isMonster) {
   if (tileBlocked(Math.floor((x - r) / TILE), Math.floor((y + r) / TILE))) return false;
   if (tileBlocked(Math.floor((x + r) / TILE), Math.floor((y + r) / TILE))) return false;
   if (isMonster && inVillage(x, y)) return false;
+  return true;
+}
+
+// wie canStand, aber für den fliegenden Drachen (tileBlockedFlying)
+function canFly(x, y, r) {
+  if (tileBlockedFlying(Math.floor((x - r) / TILE), Math.floor((y - r) / TILE))) return false;
+  if (tileBlockedFlying(Math.floor((x + r) / TILE), Math.floor((y - r) / TILE))) return false;
+  if (tileBlockedFlying(Math.floor((x - r) / TILE), Math.floor((y + r) / TILE))) return false;
+  if (tileBlockedFlying(Math.floor((x + r) / TILE), Math.floor((y + r) / TILE))) return false;
   return true;
 }
 
@@ -2409,12 +2427,14 @@ function solidBump(e, nx, ny, r) {
   return false;
 }
 
-// Bewegt getrennt nach x und y, damit man an Hindernissen entlanggleitet
+// Bewegt getrennt nach x und y, damit man an Hindernissen entlanggleitet. Wer auf dem Drachen fliegt (e.flying,
+// seit 14.26, nur der eigene Spieler), prüft nur die Hindernisse, die auch einen Drachen aufhalten.
 function moveEntity(e, dx, dy, isMonster) {
   const r = e.r * 0.7;
+  const fly = !isMonster && e.flying;
   let moved = false;
-  if (dx && canStand(e.x + dx, e.y, r, isMonster) && !solidBump(e, e.x + dx, e.y, r)) { e.x += dx; moved = true; }
-  if (dy && canStand(e.x, e.y + dy, r, isMonster) && !solidBump(e, e.x, e.y + dy, r)) { e.y += dy; moved = true; }
+  if (dx && (fly ? canFly(e.x + dx, e.y, r) : canStand(e.x + dx, e.y, r, isMonster)) && !solidBump(e, e.x + dx, e.y, r)) { e.x += dx; moved = true; }
+  if (dy && (fly ? canFly(e.x, e.y + dy, r) : canStand(e.x, e.y + dy, r, isMonster)) && !solidBump(e, e.x, e.y + dy, r)) { e.y += dy; moved = true; }
   return moved;
 }
 

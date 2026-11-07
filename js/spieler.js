@@ -836,8 +836,60 @@ function upgradeSkill(i, type = 'point') {
 // Wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
 // seit 14.18: Reitpferd 100.000 Gold (nach der Prüfung des Stallmeisters), Kriegsross +90 % statt +65 % (insgesamt
 // gut 15 % schneller als vorher: 1,65 → 1,90 des Lauftempos zu Fuß)
-const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 }];
+// seit 14.26: dritte Stufe ist der Drache „Glutschwinge“ (ab Stufe 60 beim Stallmeister für 500.000 Gold, +110 %,
+// etwa 10 % schneller als das Kriegsross). Er fliegt knapp über dem Boden: Bäume, Felsen, Wasser, Lava und Abgründe
+// halten ihn nicht auf, Mauern, Häuser, Säulen, Höhlenwände und der Felsrand der Karten schon (tileBlockedFlying).
+// Fliegen geht nur in der offenen Welt – nicht in Dungeons, Instanzen, Arena, Turnierarena und Duellen.
+const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 },
+  { name: 'Glutschwinge', speed: 1.1, level: 60, price: 500000, fly: true }];
 const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
+const hasDragon = (p) => !!(p && p.horse && p.horseTier === 3);
+// Darf der Drache hier fliegen? Nur in der offenen Welt (eine der Karten), ohne Dungeon, Duell und Turnierkampf.
+// Dungeons, Instanzen, die Prüfungsarena und die Turnierarena liegen außerhalb der Karten (mapOfTile ist leer).
+function dragonSkyOk(p) {
+  if (!p || !game.world) return false;
+  if (!mapOfTile(Math.floor(p.x / TILE), Math.floor(p.y / TILE))) return false;
+  if (zoneAt(p.x, p.y).dungeon) return false;
+  if (game.duel) return false;
+  if (typeof pvpActive === 'function' && pvpActive()) return false;
+  return true;
+}
+// Nächste Stelle, an der man zu Fuß stehen kann (zum Landen über Wasser, Bäumen oder Lava): Ring um Ring um die
+// eigene Kachel, die nächste freie Kachelmitte gewinnt. Fallback: das Lager bzw. die Stadt der Karte.
+function landingSpot(p) {
+  const r = (p.r || 11) * 0.7;
+  if (canStand(p.x, p.y, r, false)) return null;
+  const tx0 = Math.floor(p.x / TILE);
+  const ty0 = Math.floor(p.y / TILE);
+  for (let ring = 1; ring <= 24; ring++) {
+    let best = null;
+    let bd = Infinity;
+    for (let dy = -ring; dy <= ring; dy++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+        const x = (tx0 + dx + 0.5) * TILE;
+        const y = (ty0 + dy + 0.5) * TILE;
+        if (!canStand(x, y, r, false)) continue;
+        const d = Math.hypot(x - p.x, y - p.y);
+        if (d < bd) {
+          bd = d;
+          best = { x, y };
+        }
+      }
+    }
+    if (best) return best;
+  }
+  return villageSpawn(p);
+}
+// Nach dem Landen auf einer blockierten Stelle (Wasser, Baum, Lava …) zur nächsten freien Stelle versetzen
+function landSafely(p) {
+  const at = landingSpot(p);
+  if (!at) return false;
+  p.x = at.x;
+  p.y = at.y;
+  if (typeof input !== 'undefined') input.walkTo = null;
+  return true;
+}
 function toggleRide(on) {
   const p = game.player;
   if (!p || p.dead || !p.horse) {
@@ -850,13 +902,44 @@ function toggleRide(on) {
     addText(p.x, p.y - 34, 'Nicht mitten im Kampf', 'info');
     return;
   }
+  const dragon = hasDragon(p);
+  if (next && dragon && !dragonSkyOk(p)) {
+    addText(p.x, p.y - 34, 'Hier kann dein Drache nicht fliegen', 'info');
+    ui.log('Die Glutschwinge fliegt nur draußen in der Welt – nicht in Dungeons, Instanzen, Arenen und Duellen.', 'warn');
+    return;
+  }
   p.riding = next;
+  p.flying = next && dragon;
+  // abgestiegen über Wasser, Bäumen oder Lava: an der nächsten freien Stelle landen
+  if (!next && dragon) landSafely(p);
   game.stats = playerStats(p);
-  particles(p.x, feetY(p), { count: 16, color: ['#c9b28a', '#a88f62'], speed: [30, 90], life: [0.3, 0.6], size: [2, 4], drag: 3, glow: false });
-  ui.log(next ? 'Du sitzt auf deinem Pferd.' : 'Du steigst ab.', 'info');
-  // seit 10.6: das Pferd wiehert, wenn man es ruft, und schnaubt beim Absteigen
-  if (typeof snd !== 'undefined') snd.horse(p, next ? 'neigh' : 'snort');
+  particles(p.x, feetY(p), { count: 16, color: dragon ? ['#d8c2a0', '#b89878'] : ['#c9b28a', '#a88f62'], speed: [30, 90], life: [0.3, 0.6], size: [2, 4], drag: 3, glow: false });
+  if (dragon) ui.log(next ? 'Du schwingst dich auf deine Glutschwinge.' : 'Deine Glutschwinge landet, du steigst ab.', 'info');
+  else ui.log(next ? 'Du sitzt auf deinem Pferd.' : 'Du steigst ab.', 'info');
+  // seit 10.6: das Pferd wiehert, wenn man es ruft, und schnaubt beim Absteigen; der Drache (seit 14.26) ruft kurz
+  // und landet mit Flügelschlägen (erzeugte Klänge, klang-welt.js)
+  if (typeof snd !== 'undefined') {
+    if (dragon) { if (snd.dragon) snd.dragon(p, next ? 'ruf' : 'land'); }
+    else snd.horse(p, next ? 'neigh' : 'snort');
+  }
   ui.updateHorseButton();
+}
+// Jedes Bild vor dem Laufen: der Drache landet von selbst, wo er nicht fliegen darf (Dungeon, Arena, Duell …),
+// und wer nicht (mehr) fliegt, steht nie auf Wasser oder in einem Baum
+function dragonRideTick(p) {
+  if (!p || p.dead) return;
+  if (p.riding && hasDragon(p)) {
+    if (!dragonSkyOk(p)) {
+      toggleRide(false);
+      return;
+    }
+    p.flying = true;
+    return;
+  }
+  if (p.flying) {
+    p.flying = false;
+    landSafely(p);
+  }
 }
 
 // Trinken: nimmt die kleinste Größe, die das Fehlende auffüllt, sonst die größte vorhandene.

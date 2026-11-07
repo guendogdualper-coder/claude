@@ -1,7 +1,8 @@
-// Drachen-Reittier (ENTWURF, noch nicht im Spiel): eigener Entwurf „Glutschwinge“ für Stufe 60.
-// Wird zurzeit nur von der Vorschau (tools/drache-vorschau.js) geladen – weder index.html noch Stallmeister,
-// Spielstand oder Spielablauf kennen ihn. Braucht drei-kern.js und drei-figuren.js (Bake3, loft3, tubeProfile3,
-// limbBetween, horn3, cap3, torus3, roundBox, rigOf, model3/makeActor).
+// Drachen-Reittier „Glutschwinge“ (seit 14.26): dritte Reittierstufe ab Stufe 60 (HORSES[3] in spieler.js, Kauf beim
+// Stallmeister). Modell, Animation (Stehen, Abheben, Schweben/Fliegen, Landen) und die Anbindung an die Figuren im
+// Spiel (rideDragon3, dragonLand3 – aufgerufen aus syncPlayer3 in drei-figuren.js). Braucht drei-kern.js und
+// drei-figuren.js (Bake3, loft3, tubeProfile3, limbBetween, horn3, cap3, torus3, roundBox, rigOf, model3/makeActor,
+// actorFor). Die Vorschau (tools/drache-vorschau.js) nutzt dieselben Funktionen.
 //
 // Aussehen: schlanker, langer Leib in dunklem Rot mit hellem, gebändertem Bauch, Bronze an Hörnern, Rückenplatten,
 // Flügelfingern und Krallen; kurzer Keilkopf mit zwei nach hinten geschwungenen, an der Spitze aufgebogenen
@@ -681,4 +682,75 @@ function dragonSeat3(a, out) {
   out = out || _dmSeat3;
   out.set(DRACHE3.seat[0], DRACHE3.seat[1] - DRACHE3.bodyY, DRACHE3.seat[2]).applyMatrix4(body.matrixWorld);
   return { pos: out, pitch: body.rotation.x, roll: a.bones[DRB3.root].rotation.z };
+}
+
+// --- Im Spiel (seit 14.26) ---------------------------------------------------------------------------------------
+// Der Drache unter dem Reiter (eigener Spieler und Mitspieler, drei-figuren.js → syncPlayer3). Eigener Modellschlüssel
+// je Sattelfarbe (Klassenfarbe); der Sattel liegt genau über der Spielerstelle. Gerittene Drachen bleiben immer in
+// der Luft (schweben im Stand, fliegen beim Laufen), damit sie nie auf Wasser oder in Bäumen „stehen“; beim
+// Aufsitzen heben sie vom Boden ab. Nach dem Absitzen landet der Drache an Ort und Stelle und blendet aus.
+const DRAGON_LAND3 = 1.7;
+function dragonActor3(p, key) {
+  const trim = CLASSES[p.classId].trim;
+  return actorFor(key, 'drache:' + trim, (b) => dragonMount3(b, { saddle: trim }));
+}
+// Reitender Spieler: Drache stellen und bewegen; liefert die Höhe für den Reiter (Hüfte im Sattel) und spreizt
+// dessen Beine um den Rumpf
+function rideDragon3(p, a, B, t, fy) {
+  const key = entityKey(p) + 'h3';
+  const d = dragonActor3(p, key);
+  if (!d) return 0;
+  p.__drOn = key;
+  p.__drLand = null;
+  resetBones(d);
+  d.group.visible = a.group.visible;
+  if (d.alpha !== 1) setActorAlpha(d, 1);
+  // frisch gerufen (neu oder aus dem Vorrat): am Boden beginnen und abheben
+  if (!d.dm || d.dmKey !== key || t - (d.dmAt || -9) > 0.5) {
+    d.dm = { air: 0, open: 0, ph: 0, flare: 0, mode: 'stand' };
+    d.dmKey = key;
+    d.dAt = t;
+  }
+  const dt = Math.min(0.1, Math.max(0, t - (d.dAt ?? t)));
+  d.dAt = t;
+  d.dmAt = t;
+  // Sattel über die Spielerstelle: der Drache steht um den Sattelversatz weiter hinten
+  const h = a.heading;
+  const off = DRACHE3.seat[2] * d.model.scale;
+  d.group.position.set(p.x * U3 - Math.sin(h) * off, 0, fy * U3 - Math.cos(h) * off);
+  d.group.rotation.y = h;
+  const r = dragonMountAnim3(d, t, dt, 'fly', !!p.moving);
+  d.blob.scale.setScalar(d.model.blob * (1 - 0.35 * Math.min(1, r.lift / 2.5)));
+  const s = dragonSeat3(d);
+  B[BH.legL].rotation.set(-0.95, 0, 1.12);
+  B[BH.legR].rotation.set(-0.95, 0, -1.12);
+  const ride = s.pos.y - a.model.hipY * a.model.scale + 0.03;
+  a.rideH3 = ride;
+  return ride;
+}
+// Nach dem Absitzen: der Drache landet dort, wo er war, und blendet in der letzten halben Sekunde aus
+function dragonLand3(p, t) {
+  const key = p.__drOn;
+  const d = key && actors3.get(key);
+  if (!d) {
+    p.__drOn = null;
+    p.__drLand = null;
+    return;
+  }
+  if (!p.__drLand) p.__drLand = { t0: t };
+  const k = t - p.__drLand.t0;
+  if (k > DRAGON_LAND3) {
+    // nicht mehr als gesehen markieren: v3SyncActors legt ihn in den Vorrat
+    p.__drOn = null;
+    p.__drLand = null;
+    return;
+  }
+  d.seen = true;
+  resetBones(d);
+  const dt = Math.min(0.1, Math.max(0, t - (d.dAt ?? t)));
+  d.dAt = t;
+  d.dmAt = t;
+  const r = dragonMountAnim3(d, t, dt, 'stand', false);
+  d.blob.scale.setScalar(d.model.blob * (1 - 0.35 * Math.min(1, r.lift / 2.5)));
+  setActorAlpha(d, Math.max(0.02, 1 - dmSmooth3((k - (DRAGON_LAND3 - 0.5)) / 0.5)));
 }

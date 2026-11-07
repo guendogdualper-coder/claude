@@ -2,8 +2,8 @@
 // Aufruf: node tools/drache-vorschau.js [Zielordner] [URL]
 // Voraussetzung: das Spiel läuft auf einem lokalen Server, z. B. im Projektordner
 //   python3 -m http.server 8795
-// und Playwright (Chromium) ist installiert. Der Drache wird nur in der Vorschau geladen (addScriptTag),
-// das Spiel selbst (index.html, Stallmeister, Spielstand) bleibt unberührt.
+// und Playwright (Chromium) ist installiert. Seit 14.26 ist der Drache im Spiel (index.html lädt js/drei-drache.js);
+// die Vorschau zeichnet ihn zusätzlich in einer eigenen Bühne und setzt ihn für die Spielbilder in die echte Welt.
 // Bilder (1280×720): Drehung in 4 Ansichten, mit Reiter (Stand und Flug), Flügelschlag in 8 Bildern (+ Reihe),
 // Abheben und Landen, Größenvergleich mit dem Kriegsross, Spielszene über Bäumen, Strecken im Stand, Gleiten,
 // dazu ein Kontaktbogen. Mit VORHER_JS=<ältere drei-drache.js> außerdem eine Vorher/Nachher-Gegenüberstellung der
@@ -22,6 +22,10 @@ async function openPage(ctx, dragonJs, errs) {
   const p = await ctx.newPage();
   p.on('pageerror', (e) => errs.push(e.message));
   p.on('console', (m) => { if (m.text().startsWith('[drache]')) console.log(m.text()); });
+  // seit 14.26 lädt index.html js/drei-drache.js selbst; eine andere Fassung (Vorher/Nachher) wird an ihrer Stelle
+  // ausgeliefert, statt sie doppelt zu laden
+  const own = path.resolve(dragonJs) === path.resolve(path.join(ROOT, 'js', 'drei-drache.js'));
+  if (!own) await p.route('**/js/drei-drache.js', (route) => route.fulfill({ path: dragonJs, contentType: 'application/javascript' }));
   await p.addInitScript(() => localStorage.setItem('seelenstein.optionen', JSON.stringify({ graphics: 'hoch', optsVer: 2, sound: false, music: false })));
   // „load“ kann hängen, wenn externe Dienste (Schriften, Anmeldung) nicht erreichbar sind; auf einem ausgelasteten
   // Rechner (zweite Seite neben dem laufenden Spiel) einmal neu versuchen
@@ -33,7 +37,8 @@ async function openPage(ctx, dragonJs, errs) {
   }
   await p.waitForFunction(() => typeof startGame === 'function' && typeof model3 === 'function', null, { timeout: 60000 });
   await p.waitForTimeout(1500);
-  await p.addScriptTag({ path: dragonJs });
+  // ältere Spielstände ohne den Drachen in index.html: dann wie früher nachladen
+  if (await p.evaluate(() => typeof dragonMount3 !== 'function')) await p.addScriptTag({ path: dragonJs });
   await p.addScriptTag({ path: path.join(__dirname, 'drache-vorschau-seite.js') });
   return p;
 }

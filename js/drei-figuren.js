@@ -4773,7 +4773,9 @@ function entityKey(e) {
 function v3HeadHeight(e) {
   const a = e.__k3 && actors3.get(e.__k3);
   if (!a) return figureHeight(e) * U3 * 0.8;
-  return a.model.height * a.group.scale.x + (e.riding ? 0.62 : 0) + (a.lift || 0);
+  // auf dem Drachen (seit 14.26) sitzt man viel höher: Sattelhöhe minus dasselbe Maß wie beim Pferd
+  const ride = !e.riding ? 0 : e.horseTier === 3 && a.rideH3 ? a.rideH3 - 0.64 : 0.62;
+  return a.model.height * a.group.scale.x + ride + (a.lift || 0);
 }
 
 function turnToward(a, target, k) {
@@ -5718,9 +5720,12 @@ function syncPlayer3(p, dt) {
   const sw = swingProgress(p);
   const posing = p.swingKind === 'pose' && p.swing > 0 && !p.riding;
   if (posing) lift += Math.sin(Math.min(1, (1 - p.swing / (p.swingDur || 0.7)) * 1.6) * Math.PI) * 0.18;
-  // Reiten: Pferd darunter, Reiter sitzt im Sattel
+  // Reiten: Pferd darunter, Reiter sitzt im Sattel; seit 14.26 auf Stufe 3 der Drache (drei-drache.js)
   let ride = 0;
-  if (p.riding) {
+  const onDragon = p.riding && p.horseTier === 3 && typeof rideDragon3 === 'function';
+  if (onDragon) ride = rideDragon3(p, a, B, t, fy);
+  else if (p.__drOn && typeof dragonLand3 === 'function') dragonLand3(p, t);
+  if (p.riding && !onDragon) {
     const tier = p.horseTier || 1;
     const h = actorFor(entityKey(p) + 'h' + tier, 'horse' + tier + ':' + CLASSES[p.classId].trim, (b) => Object.assign(horseParts3(b, null, { saddle: CLASSES[p.classId].trim, tier }), { blob: 0.7, scale: tier === 2 ? 1.3 : 1.22 }));
     if (h) {
@@ -5744,7 +5749,8 @@ function syncPlayer3(p, dt) {
   a.lift = lift;
   placeActor(a, p, fy, lift + ride);
   a.group.rotation.y = a.heading;
-  // Schatten bleibt beim Sprung am Boden und wird kleiner
+  // Schatten bleibt beim Sprung am Boden und wird kleiner; auf dem Drachen wirft der Drache den Schatten
+  if (a.blob) a.blob.visible = !onDragon;
   if (a.blob) {
     a.blob.position.y = 0.02 - lift / a.group.scale.y;
     a.blob.scale.setScalar((a.model.blob || 0.5) * (1 - 0.35 * Math.min(1, lift / 2)));

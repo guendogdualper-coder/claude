@@ -963,17 +963,33 @@ Object.assign(ui, {
     let html;
     if (st.state === 'finished' || p.horse) {
       const war = HORSES[2];
-      if ((p.horseTier || 1) >= 2) {
-        html = '<p>„Dein Kriegsross ist gesattelt und gepanzert. Kein Pferd im Land ist schneller.“</p>';
+      const drg = HORSES[3];
+      const tier = p.horseTier || 1;
+      const pct = (h) => Math.round(h.speed * 100);
+      if (tier >= 3) {
+        html = '<p>„Deine Glutschwinge ist satt und ausgeruht. Sie trägt dich über Bäume, Felsen und Wasser – nur vor Mauern und Häusern macht sie halt.“</p>' +
+          `<p class="hint-text">${drg.name} +${pct(drg)} % · fliegt draußen in der Welt, nicht in Dungeons, Instanzen, Arenen und Duellen</p>`;
       } else {
-        html = '<p>„Dein Reitpferd ist gut genährt und wartet auf dich. Steig mit dem Pferdeknopf oder Taste R auf.“</p>' +
-          `<h3>Kriegsross · ab Stufe ${war.level}</h3><p>„Ein Rappe aus meiner besten Zucht, in Rossharnisch mit Stirndorn und roter Schabracke. ` +
-          `Er legt ${Math.round(war.speed * 100)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
-          `<p class="hint-text">Reitpferd +${Math.round(HORSES[1].speed * 100)} % → ${war.name} +${Math.round(war.speed * 100)} %</p>` +
-          (p.level < war.level
-            ? `<p class="hint-text">Komm ab Stufe ${war.level} wieder.</p>`
-            : `<button type="button" class="btn btn-primary" data-buyhorse ${p.gold >= war.price ? '' : 'disabled'}>Kriegsross kaufen – ${war.price.toLocaleString('de-DE')} Gold</button>` +
-              (p.gold >= war.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
+        if (tier >= 2) {
+          html = '<p>„Dein Kriegsross ist gesattelt und gepanzert. Kein Pferd im Land ist schneller.“</p>';
+        } else {
+          html = '<p>„Dein Reitpferd ist gut genährt und wartet auf dich. Steig mit dem Pferdeknopf oder Taste R auf.“</p>' +
+            `<h3>Kriegsross · ab Stufe ${war.level}</h3><p>„Ein Rappe aus meiner besten Zucht, in Rossharnisch mit Stirndorn und roter Schabracke. ` +
+            `Er legt ${Math.round(war.speed * 100)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
+            `<p class="hint-text">Reitpferd +${Math.round(HORSES[1].speed * 100)} % → ${war.name} +${Math.round(war.speed * 100)} %</p>` +
+            (p.level < war.level
+              ? `<p class="hint-text">Komm ab Stufe ${war.level} wieder.</p>`
+              : `<button type="button" class="btn btn-primary" data-buyhorse ${p.gold >= war.price ? '' : 'disabled'}>Kriegsross kaufen – ${war.price.toLocaleString('de-DE')} Gold</button>` +
+                (p.gold >= war.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
+        }
+        // seit 14.26: der Drache als dritte Stufe (Pferd muss vorhanden sein, Kriegsross nicht)
+        html += `<h3>Glutschwinge · ab Stufe ${drg.level}</h3><p>„Kein Pferd mehr, sondern ein Drache aus den Glutbergen – dunkelrot, mit Bronzehörnern und großen Schwingen. ` +
+          `Er schwebt knapp über dem Boden und trägt dich über Bäume, Felsen, Wasser und Lava. Er legt ${pct(drg)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
+          `<p class="hint-text">${HORSES[tier].name} +${pct(HORSES[tier])} % → ${drg.name} +${pct(drg)} % · fliegt nur draußen in der Welt</p>` +
+          (p.level < drg.level
+            ? `<p class="hint-text">Komm ab Stufe ${drg.level} wieder.</p>`
+            : `<button type="button" class="btn btn-primary" data-buydragon ${p.gold >= drg.price ? '' : 'disabled'}>Glutschwinge kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
+              (p.gold >= drg.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
       }
     } else if (p.level < STABLE_QUEST.level) {
       html = `<p>„Pferde sind nichts für Anfänger. Komm wieder, wenn du Stufe ${STABLE_QUEST.level} erreicht hast.“</p>`;
@@ -1004,6 +1020,20 @@ Object.assign(ui, {
       game.stats = playerStats(p);
       ui.banner('Ein Kriegsross!', `+${Math.round(war.speed * 100)} % Lauftempo – Pferdeknopf oder Taste R`);
       ui.log(`Du hast ein Kriegsross gekauft (${war.price.toLocaleString('de-DE')} Gold). Es gibt +${Math.round(war.speed * 100)} % Lauftempo.`, 'level');
+      ui.updateHorseButton();
+      vfxLevelUp(p);
+      saveGame();
+      this.renderStable();
+    });
+    const buyD = body.querySelector('[data-buydragon]');
+    if (buyD) buyD.addEventListener('click', () => {
+      const drg = HORSES[3];
+      if (!p.horse || (p.horseTier || 1) >= 3 || p.level < drg.level || p.gold < drg.price) return;
+      p.gold -= drg.price;
+      p.horseTier = 3;
+      game.stats = playerStats(p);
+      ui.banner('Eine Glutschwinge!', `+${Math.round(drg.speed * 100)} % Lauftempo · fliegt über Bäume und Wasser – Pferdeknopf oder Taste R`);
+      ui.log(`Du hast eine Glutschwinge gekauft (${drg.price.toLocaleString('de-DE')} Gold). Sie gibt +${Math.round(drg.speed * 100)} % Lauftempo und fliegt über Bäume, Felsen und Wasser.`, 'level');
       ui.updateHorseButton();
       vfxLevelUp(p);
       saveGame();

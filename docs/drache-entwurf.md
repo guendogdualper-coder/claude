@@ -1,8 +1,8 @@
 # Drachen-Reittier „Glutschwinge“ – Entwurf (Stufe 60)
 
-Stand: Entwurf zum Anschauen, **noch nicht im Spiel**. Modell und Animation liegen in `js/drei-drache.js`.
-Die Datei wird nur von der Vorschau geladen. index.html, sw.js, Stallmeister, Spielstand und Spielablauf
-sind unverändert.
+Stand: **im Spiel eingebaut** (nach 14.25; der Spieler hat den Entwurf freigegeben). Modell, Animation und die
+Anbindung an die Figuren liegen in `js/drei-drache.js`; Regeln, Kauf, 2D, Klang und Hilfe stehen unter
+„Spielmechanik“. Versionsnummer und Versionsliste sind noch nicht angepasst.
 
 Wunsch des Spielers: „Ab Level 60 einen Drachen, dass man über Hindernisse fliegen kann. Er soll nur ein bisschen
 über dem Boden schweben, dass man gefühlt über die Bäume fliegen kann und nirgends hängen bleibt.“
@@ -121,50 +121,63 @@ Vorher/Nachher-Gegenüberstellung der Flügel liegen bei den Vorschaubildern.
   Innenteil um. Ein stark geschlossener Fächer hätte beim Blend-Skinning einzelne Hautdreiecke umgestülpt; der
   dunkle Umriss schien dort durch.
 
-## Geplante Spielmechanik (noch nicht eingebaut)
+## Spielmechanik (eingebaut)
 
-- **Erwerb:** beim Stallmeister ab **Stufe 60** für **500.000 Gold**. Vorschlag:
-  `HORSES[3] = { name: 'Glutschwinge', speed: …, level: 60, price: 500000, fly: true }`.
-- **Tempo:** etwa 10 % schneller als das Kriegsross. Das Kriegsross hat inzwischen `speed: 0.9` (+90 %, also
-  Laufgeschwindigkeit × 1,9).
-  - **`speed: 1.0`** (+100 %, × 2,0): 10 Prozentpunkte mehr Bonus, absolut ≈ 5 % schneller als das Kriegsross.
-  - **`speed: 1.1`** (+110 %, × 2,1): absolut ≈ 10 % schneller.
-  - → **offene Frage**, welche Lesart gemeint ist.
-- **Fliegen über Hindernisse:** Aufsitzen = Abheben, Absitzen = Landen, wie beim Pferd über die Reittier-Taste.
-  Solange der Drache fliegt, ignoriert die Bewegung:
-  - Bäume (`TREE`, `PINE`, `BLOSSOM`, `DEADTREE`)
-  - Felsbrocken (`ROCK`, solange nicht `rockSolid`)
-  - Flüssiges: Wasser, Moor, Lava, Abgrund (`LIQUID`)
-
-  Weiter festhalten:
-  - Häuser (`HOUSE`), Mauern (`WALL`), Höhlenwände (`CAVEWALL`), Säulen (`PILLAR`)
-  - der Felsrand jeder Karte (`rockSolid`, `MAP_BORDER`) und der Kartenrand
-
-  Umsetzung: eine eigene Abfrage `tileBlockedFlying` neben `tileBlocked` (welt.js), die die Bewegung beim Fliegen
-  benutzt.
-- **Landen nur auf freiem Boden:** Wer über Wasser, einem Baum oder Lava absitzt, wird zur nächsten freien Kachel
-  geschoben (oder das Absitzen wird dort verweigert). Ebenso, wenn man im Flug in den Kampf gerät und automatisch
-  absitzt.
+- **Erwerb:** beim Stallmeister (Jun in Kazehana und in jedem Lager) ab **Stufe 60** für **500.000 Gold**,
+  `HORSES[3] = { name: 'Glutschwinge', speed: 1.1, level: 60, price: 500000, fly: true }` (spieler.js).
+  - Ein Pferd muss vorhanden sein (Reitpferd reicht, das Kriegsross ist keine Bedingung).
+  - Der Kauf setzt `p.horseTier = 3`, wie das Kriegsross `2`.
+  - Angebot, Hinweise und Texte wie beim Kriegsross (quests.js, `renderStable`).
+- **Tempo:** `speed: 1.1` (+110 %), Kriegsross `0.9` (+90 %). Mit gleichem Fußtempo ist der Drache gemessen
+  1,105-mal so schnell wie das Kriegsross (277 gegen 251).
+- **Knopf und Anzeige:** Der Pferdeknopf heißt mit Drachen „Drache“ und zeigt „+110 %“. Der Hinweis lautet
+  „Glutschwinge (+110 % Lauftempo) · fliegt über Bäume, Felsen und Wasser“. Im Charakterfenster steht
+  „Drache +110 %“.
+- **Fliegen über Hindernisse** (welt.js, `tileBlockedFlying`/`canFly`, `moveEntity` mit `e.flying`):
+  - Überflogen werden: Bäume (`TREE`, `PINE`, `BLOSSOM`, `DEADTREE`), Felsbrocken (`ROCK`), alles Flüssige
+    (Wasser, Moor, Lava, Abgrund) und alles, was man ohnehin begehen kann.
+  - Weiter fest bleiben: Häuser, Mauern und Palisaden (`WALL`), Säulen, Höhlenwände, der Felsrand jeder Karte und
+    alles außerhalb der Karten.
+  - Seelensteine und Portale halten auf wie beim Pferd (`solidBump`).
+- **Wo er fliegt** (`dragonSkyOk`): nur in der offenen Welt.
+  - Dungeons, Instanzen, Prüfungs- und Turnierarena liegen außerhalb der Karten. Dort, im Duell und im PvP-Kampf
+    kann man nicht aufsteigen („Hier kann dein Drache nicht fliegen“).
+  - Wer reitend dorthin kommt, landet im nächsten Bild von selbst (`dragonRideTick`, aufgerufen in
+    `updatePlayer`).
+- **Landen:** Wer über Wasser, Bäumen oder Lava absteigt, wird zur nächsten freien Kachel versetzt (`landingSpot`:
+  Ring um Ring, höchstens 24 Kacheln, sonst Lager bzw. Stadt). Das gilt auch, wenn man durch einen Angriff oder
+  eine Fertigkeit absteigt (wie beim Pferd).
+- **Kampf:** wie beim Pferd. Nicht aufsitzen bis 3 s nach dem letzten Kampf, wer angreift oder eine Fertigkeit
+  nutzt, steigt ab.
+- **3D** (drei-figuren.js → `rideDragon3`/`dragonLand3` in drei-drache.js):
+  - Eigener Modellschlüssel je Sattelfarbe (Klassenfarbe).
+  - Der Sattel liegt genau über der Spielerstelle, der Reiter sitzt darauf (`dragonSeat3`) mit gespreizten Beinen.
+    Name und Balken stehen über dem Reiter.
+  - Beim Aufsitzen hebt der Drache vom Boden ab. Geritten bleibt er immer in der Luft: im Stand schwebend, beim
+    Laufen fliegend. So „steht“ er nie auf Wasser oder in Bäumen.
+  - Nach dem Absitzen landet er an Ort und Stelle und blendet in der letzten halben Sekunde aus (≈ 1,7 s).
+  - Den Schatten am Boden wirft der Drache.
+- **2D** (figuren.js `dragonMountArt`, zeichnen.js): seitlicher Drache, schwebend, mit Flügelschlag in vier Bildern
+  und Schatten am Boden. Der Reiter sitzt höher (`rideHeight(p)` statt der festen `RIDE_HEIGHT`, auch für Namen und
+  Magier-Symbole).
+- **Mitspieler:** `netz.js` überträgt schon `r: horseTier`, also 3. Mitspieler sehen den Drachen in 3D und 2D;
+  ihre Position gleitet ohne Kollision.
+  - Ältere Clients zeichnen bei Stufe 3 ein Reitpferd (kein Fehler).
+- **Klang** (klang-welt.js, erzeugt, keine Aufnahmen):
+  - Beim Aufsitzen ein kurzer, grollender Ruf mit zwei Flügelschlägen.
+  - Beim Landen zwei Flügelschläge, ein dumpfes Aufsetzen und ein Schnauben.
+- **Hilfe:** Ratgeberin mit „Was ist der Drache (Glutschwinge)?“ und „Wo kann mein Drache fliegen?“. Suchwörter
+  Drache, Drachen, dragon, Glutschwinge, fliegen, Flug, Reittier.
+- **Englisch:** alle neuen Oberflächentexte in `js/sprachen/en.js` (Emberwing); andere Sprachen fallen auf
+  Englisch zurück.
 - **Höhe:** Der Drache schwebt nur „ein bisschen“: Rumpfmitte ≈ 2,3, Bäume sind ≈ 3 hoch. Aus der schrägen
-  Spielkamera wirkt das wie über den Bäumen (siehe Spielbilder). Kronen, die zwischen Kamera und Spieler stehen,
-  werden schon heute durch das Raster um den Spieler durchsichtig.
-- **Kampf:** wie beim Pferd: nicht aufsitzen, solange man vor weniger als 3 s gekämpft hat. Wer angreift oder
-  getroffen wird, landet. Kein Kampf aus der Luft.
-- **Dungeons/Instanzen:** Vorschlag: dort nicht fliegen, nur laufen (sonst lassen sich Wege und Mauern umgehen).
-- **Mitspieler:** `netz.js` überträgt das Reittier als `r: horseTier`. Ein dritter Wert muss bei älteren Clients
-  mindestens als Pferd erscheinen. Die Flughöhe sehen andere über den Zustand `fly`.
-
-### Einbau später (Skizze)
-
-1. `js/drei-drache.js` in index.html und sw.js aufnehmen (nach drei-figuren.js), Versionsnummer erhöhen.
-2. In `drei-figuren.js` im Reit-Zweig: bei `tier === 3` statt `horseParts3`/`horseGait3` die Funktionen
-   `dragonMount3` und `dragonMountAnim3` verwenden.
-   - Reiterhöhe aus `dragonSeat3(h).pos.y - hipY · scale` setzen.
-   - Rumpfneigung auf den Reiter übertragen (`rotation.x = pitch`, Reihenfolge `YXZ`).
-   - Beine weiter spreizen: `(-0,95, 0, ±1,12)` statt `(-1,2, 0, ±0,5)`.
-   - Für den Spiel-Renderer einen eigenen Modellschlüssel nehmen: das Spiel gibt Rohdaten nach dem Hochladen frei.
-3. `HORSES[3]`, Stallmeister-Angebot (Stufe 60, 500.000 Gold), `tileBlockedFlying`, Landeprüfung, Klang
-   (Flügelschlag statt Hufe).
+  Spielkamera wirkt das wie über den Bäumen. Kronen zwischen Kamera und Spieler werden durch das Raster um den
+  Spieler durchsichtig.
+- **Leistung** (gemessen mit Software-Grafik):
+  - Gleich viele Dreiecke im Bild wie mit Kriegsross (≈ 277.000 gegen 280.000).
+  - Zeichenaufrufe 49 gegen 50–52.
+  - Bildrate im Rauschen gleich.
+  - Die Drachenanimation kostet etwa 0,03 ms CPU je Bild.
 
 ## Vorschau neu erzeugen
 
@@ -187,8 +200,7 @@ Strich. Die Bilder zeigen darum Phasen mit fast waagerechten Flügeln.
 
 ## Offene Fragen an den Spieler
 
-1. **Tempo:** `speed: 1.0` (+100 %, absolut ≈ 5 % schneller als das Kriegsross mit +90 %) oder `1.1` (+110 %,
-   absolut ≈ 10 % schneller)?
+1. **Tempo:** entschieden: `speed: 1.1` (+110 %, absolut ≈ 10 % schneller als das Kriegsross).
 2. **Größe:** passt die Spannweite von ≈ 6,9 Kacheln? Auf dem Handy nimmt der Drache im Flug viel Bild ein.
    Möglich wären 10–15 % kleiner.
 3. **Flughöhe:** reicht „knapp über den Bäumen“ (Rumpfmitte 2,3), oder soll er sichtbar höher fliegen
@@ -198,7 +210,9 @@ Strich. Die Bilder zeigen darum Phasen mit fast waagerechten Flügeln.
    spätere Belohnung?
 6. **Sattel:** Decke in der Klassenfarbe wie beim Pferd, oder immer gleich (Blau wie im Bild)?
 7. **Name:** „Glutschwinge“ in Ordnung oder ein anderer Name?
-8. **Dungeons:** Fliegen in Dungeons und Instanzen verbieten (Vorschlag) oder erlauben?
-9. **Kampf:** landen beim Angriff (wie das Absitzen beim Pferd) oder im Flug weiterkämpfen können?
+8. **Dungeons:** entschieden: kein Drache in Dungeons, Instanzen, Arenen und Duellen. Offen: Soll dort das
+   frühere Pferd (Kriegsross) automatisch einspringen? Wer direkt vom Reitpferd zum Drachen wechselt, reitet dort
+   heute gar nicht.
+9. **Kampf:** entschieden: wie beim Pferd (Angriff oder Fertigkeit → absteigen und landen).
 10. **Flügel:** Sind sie jetzt lebendig genug? Möglich wären noch mehr Gleitphasen, ein langsamerer Takt beim
     Schweben oder ein kräftigeres Durchdrücken der Haut.

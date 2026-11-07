@@ -110,6 +110,8 @@ function updatePlayer(dt) {
   p.buffs = p.buffs.filter((b) => b.until > game.time);
   if (p.buffs.length < before) game.stats = playerStats(p);
   if (p.shield > 0 && game.time > p.shieldUntil) p.shield = 0;
+  // Drache (seit 14.26): fliegen nur, wo es erlaubt ist; nach dem Landen nie auf Wasser oder in einem Baum
+  dragonRideTick(p);
 
   const s = game.stats;
   p.moving = false;
