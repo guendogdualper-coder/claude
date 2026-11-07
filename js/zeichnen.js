@@ -391,12 +391,12 @@ function drawWeaponSprite(ctx, kind, x, y, angle, tier = 0, accent) {
 
 // Reiter sitzt so viel höher, Pferd als gebackenes Bild je Galopp-Schritt und Sattelfarbe
 const RIDE_HEIGHT = 20;
-// seit 14.26: auf dem Drachen sitzt man höher (er schwebt und wiegt sich im Flügeltakt)
+// seit 14.27: auf dem Drachen sitzt man höher (er schwebt und wiegt sich im Flügeltakt)
 const DRAGON_RIDE_H = 52;
 const dragonBob2d = (p) => Math.sin(game.time * 6.6 + (p.x % 7)) * 1.6;
 function rideHeight(p) {
   if (!p || !p.riding) return 0;
-  return p.horseTier === 3 ? DRAGON_RIDE_H + dragonBob2d(p) : RIDE_HEIGHT;
+  return rideTierOf(p) === 3 ? DRAGON_RIDE_H + dragonBob2d(p) : RIDE_HEIGHT;
 }
 function horseSprite(frame, saddle, tier = 1) {
   if (tier === 3) return getSprite(`dragon:${frame}:${saddle}`, { x: -84, y: -116, w: 146, h: 120 }, (ctx) => { ctx.scale(1.3, 1.3); dragonMountArt(ctx, frame, { saddle }); });
@@ -517,13 +517,13 @@ function drawPlayer(ctx, p) {
   }
 
   drawBuffLooks(ctx, p, fy, 'back');
-  if (p.riding && p.horseTier === 3) {
+  if (p.riding && rideTierOf(p) === 3) {
     // Drache: Schatten am Boden, er selbst schwebt und schlägt immer mit den Flügeln (auch im Stand)
     drawShadow(ctx, p.x, fy, 26);
     blitSprite(ctx, horseSprite(Math.floor(game.time * 7) % 4, CLASSES[p.classId].trim, 3), p.x, fy - (ride - leapH - DRAGON_RIDE_H), flip);
   } else if (p.riding) {
     drawShadow(ctx, p.x, fy, 22);
-    blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim, p.horseTier || 1), p.x, fy, flip);
+    blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim, rideTierOf(p)), p.x, fy, flip);
   }
   ctx.save();
   ctx.translate(p.x, fy - ride);

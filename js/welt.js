@@ -2295,7 +2295,7 @@ function tileBlocked(tx, ty) {
   if (o === OBJ.ROCK) return rockSolid(tx, ty);
   return o !== OBJ.NONE;
 }
-// Fliegender Drache (seit 14.26): was man begehen kann, kann man auch überfliegen; dazu Bäume (auch Blütenbäume,
+// Fliegender Drache (seit 14.27): was man begehen kann, kann man auch überfliegen; dazu Bäume (auch Blütenbäume,
 // Tannen, tote Bäume), Felsbrocken und alles Flüssige (Wasser, Moor, Lava, Abgrund). Fest bleiben Häuser, Mauern
 // und Palisaden, Säulen, Höhlenwände, der Felsrand jeder Karte und alles außerhalb der Karten (Dungeons, Arenen).
 function tileBlockedFlying(tx, ty) {
@@ -2428,7 +2428,7 @@ function solidBump(e, nx, ny, r) {
 }
 
 // Bewegt getrennt nach x und y, damit man an Hindernissen entlanggleitet. Wer auf dem Drachen fliegt (e.flying,
-// seit 14.26, nur der eigene Spieler), prüft nur die Hindernisse, die auch einen Drachen aufhalten.
+// seit 14.27, nur der eigene Spieler), prüft nur die Hindernisse, die auch einen Drachen aufhalten.
 function moveEntity(e, dx, dy, isMonster) {
   const r = e.r * 0.7;
   const fly = !isMonster && e.flying;

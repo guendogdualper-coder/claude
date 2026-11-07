@@ -836,13 +836,15 @@ function upgradeSkill(i, type = 'point') {
 // Wer angreift oder eine Fertigkeit nutzt, steigt dabei ab.
 // seit 14.18: Reitpferd 100.000 Gold (nach der Prüfung des Stallmeisters), Kriegsross +90 % statt +65 % (insgesamt
 // gut 15 % schneller als vorher: 1,65 → 1,90 des Lauftempos zu Fuß)
-// seit 14.26: dritte Stufe ist der Drache „Glutschwinge“ (ab Stufe 60 beim Stallmeister für 500.000 Gold, +110 %,
+// seit 14.27: dritte Stufe ist der Drache „Glutschwinge“ (ab Stufe 60 beim Stallmeister für 500.000 Gold, +110 %,
 // etwa 10 % schneller als das Kriegsross). Er fliegt knapp über dem Boden: Bäume, Felsen, Wasser, Lava und Abgründe
 // halten ihn nicht auf, Mauern, Häuser, Säulen, Höhlenwände und der Felsrand der Karten schon (tileBlockedFlying).
 // Fliegen geht nur in der offenen Welt – nicht in Dungeons, Instanzen, Arena, Turnierarena und Duellen.
 const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 },
   { name: 'Glutschwinge', speed: 1.1, level: 60, price: 500000, fly: true }];
-const rideSpeed = (p) => (HORSES[p.horseTier || 1] || HORSES[1]).speed;
+// Tatsächlich gerittene Stufe (seit 14.27): wo der Drache nicht fliegen darf, reitet man stattdessen das Kriegsross
+const rideTierOf = (p) => (p && ((p.horseTier === 3 && p.rideTierNow) || p.horseTier)) || 1;
+const rideSpeed = (p) => (HORSES[rideTierOf(p)] || HORSES[1]).speed;
 const hasDragon = (p) => !!(p && p.horse && p.horseTier === 3);
 // Darf der Drache hier fliegen? Nur in der offenen Welt (eine der Karten), ohne Dungeon, Duell und Turnierkampf.
 // Dungeons, Instanzen, die Prüfungsarena und die Turnierarena liegen außerhalb der Karten (mapOfTile ist leer).
@@ -903,20 +905,19 @@ function toggleRide(on) {
     return;
   }
   const dragon = hasDragon(p);
-  if (next && dragon && !dragonSkyOk(p)) {
-    addText(p.x, p.y - 34, 'Hier kann dein Drache nicht fliegen', 'info');
-    ui.log('Die Glutschwinge fliegt nur draußen in der Welt – nicht in Dungeons, Instanzen, Arenen und Duellen.', 'warn');
-    return;
-  }
+  // seit 14.27: wo der Drache nicht fliegen darf (Dungeon, Instanz, Arena, Duell), reitet man das Kriegsross
+  const ground = next && dragon && !dragonSkyOk(p);
+  if (ground) ui.log('Hier kann deine Glutschwinge nicht fliegen – du reitest so lange dein Kriegsross.', 'info');
   p.riding = next;
-  p.flying = next && dragon;
+  p.flying = next && dragon && !ground;
+  p.rideTierNow = ground ? 2 : p.horseTier || 1;
   // abgestiegen über Wasser, Bäumen oder Lava: an der nächsten freien Stelle landen
   if (!next && dragon) landSafely(p);
   game.stats = playerStats(p);
   particles(p.x, feetY(p), { count: 16, color: dragon ? ['#d8c2a0', '#b89878'] : ['#c9b28a', '#a88f62'], speed: [30, 90], life: [0.3, 0.6], size: [2, 4], drag: 3, glow: false });
   if (dragon) ui.log(next ? 'Du schwingst dich auf deine Glutschwinge.' : 'Deine Glutschwinge landet, du steigst ab.', 'info');
   else ui.log(next ? 'Du sitzt auf deinem Pferd.' : 'Du steigst ab.', 'info');
-  // seit 10.6: das Pferd wiehert, wenn man es ruft, und schnaubt beim Absteigen; der Drache (seit 14.26) ruft kurz
+  // seit 10.6: das Pferd wiehert, wenn man es ruft, und schnaubt beim Absteigen; der Drache (seit 14.27) ruft kurz
   // und landet mit Flügelschlägen (erzeugte Klänge, klang-welt.js)
   if (typeof snd !== 'undefined') {
     if (dragon) { if (snd.dragon) snd.dragon(p, next ? 'ruf' : 'land'); }
@@ -929,13 +930,19 @@ function toggleRide(on) {
 function dragonRideTick(p) {
   if (!p || p.dead) return;
   if (p.riding && hasDragon(p)) {
-    if (!dragonSkyOk(p)) {
-      toggleRide(false);
-      return;
+    // seit 14.27: statt abzusteigen landet der Drache und man reitet dort das Kriegsross; draußen fliegt er wieder
+    const sky = dragonSkyOk(p);
+    const tier = sky ? 3 : 2;
+    if (p.rideTierNow !== tier) {
+      p.rideTierNow = tier;
+      game.stats = playerStats(p);
+      if (typeof ui !== 'undefined' && ui.updateHorseButton) ui.updateHorseButton();
     }
-    p.flying = true;
+    if (sky) { p.flying = true; return; }
+    if (p.flying) { p.flying = false; landSafely(p); }
     return;
   }
+  p.rideTierNow = p.horseTier || 1;
   if (p.flying) {
     p.flying = false;
     landSafely(p);

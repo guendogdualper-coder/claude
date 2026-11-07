@@ -3482,7 +3482,7 @@ function horseArt(ctx, frame, o = {}) {
   }
 }
 
-// Glutschwinge von der Seite (seit 14.26, 2D), Kopf nach rechts. y = 0 ist der Boden, der Drache schwebt darüber
+// Glutschwinge von der Seite (seit 14.27, 2D), Kopf nach rechts. y = 0 ist der Boden, der Drache schwebt darüber
 // (Rumpfmitte bei y = -38). frame 0–3: Flügelschlag (oben, Mitte, unten, Mitte). o.saddle: Farbe der Satteldecke.
 function dragonWing2d(ctx, sx, sy, k, col, edge) {
   // Vorderkante vom Schultergelenk schräg nach hinten: oben steil, unten unter den Rumpf

@@ -3289,5 +3289,6 @@
 "Du hast eine Glutschwinge gekauft ({0} Gold). Sie gibt +{1} % Lauftempo und fliegt über Bäume, Felsen und Wasser.": "You bought an Emberwing ({0} Gold). It gives +{1}% movement speed and flies over trees, rocks and water.",
 "Glutschwinge (+{0} % Lauftempo) · fliegt über Bäume, Felsen und Wasser": "Emberwing (+{0}% movement speed) · flies over trees, rocks and water",
 "Glutschwinge (+{0} % Lauftempo)": "Emberwing (+{0}% movement speed)",
-"fliegt über Bäume, Felsen und Wasser": "flies over trees, rocks and water"
+"fliegt über Bäume, Felsen und Wasser": "flies over trees, rocks and water",
+"Hier kann deine Glutschwinge nicht fliegen – du reitest so lange dein Kriegsross.": "Your Emberwing cannot fly here – you ride your warhorse for now.",
 };

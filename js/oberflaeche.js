@@ -1069,7 +1069,7 @@ const ui = {
     const horse = p && p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
     pct.hidden = !horse;
     if (horse) pct.textContent = '+' + Math.round(horse.speed * 100) + ' %';
-    // seit 14.26: mit der Glutschwinge heißt der Knopf „Drache“, der Hinweis nennt das Fliegen
+    // seit 14.27: mit der Glutschwinge heißt der Knopf „Drache“, der Hinweis nennt das Fliegen
     const label = btn.querySelector('.menu-text');
     const word = horse && horse.fly ? 'Drache' : 'Pferd';
     // nur bei einem Wechsel setzen (die Übersetzung tauscht den Text danach aus; kein Hin und Her)

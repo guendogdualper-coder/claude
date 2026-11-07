@@ -770,7 +770,7 @@ function voiceOf(m) {
 
 // --- Klänge der Spieler ----------------------------------------------------------------------------
 const PLAYER_SND = {
-  // Drache „Glutschwinge“ (seit 14.26, erzeugt): kurzer, grollender Ruf mit zwei kräftigen Flügelschlägen beim
+  // Drache „Glutschwinge“ (seit 14.27, erzeugt): kurzer, grollender Ruf mit zwei kräftigen Flügelschlägen beim
   // Aufsitzen; beim Landen zwei Flügelschläge, ein dumpfes Aufsetzen und ein leises Schnauben
   drache_ruf: (c, out, r) => {
     sVoice(c, out, { f: [[0, 95 + r() * 10], [0.18, 150], [0.55, 120], [0.85, 70]], amp: [[0, 0], [0.08, 0.55], [0.45, 0.45], [0.85, 0]], sub: 1, jit: 0.03, vib: [7, 35], rnd: r,
@@ -1470,7 +1470,7 @@ const snd = {
     this.out(rb, { x: p.x, y: p.y, off: clip[0], dur: clip[1], rate: 0.97 + Math.random() * 0.06, vol: ev === 'neigh' ? 0.95 : 0.7, rev: 0.12 });
   },
 
-  // Eigener Drache (seit 14.26): erzeugter Ruf beim Aufsitzen, Flügelschläge und Aufsetzen beim Landen
+  // Eigener Drache (seit 14.27): erzeugter Ruf beim Aufsitzen, Flügelschläge und Aufsetzen beim Landen
   dragon(p, ev) {
     const k = 'drache_' + ev;
     if (!p || !PLAYER_SND[k]) return;

@@ -982,7 +982,7 @@ Object.assign(ui, {
               : `<button type="button" class="btn btn-primary" data-buyhorse ${p.gold >= war.price ? '' : 'disabled'}>Kriegsross kaufen – ${war.price.toLocaleString('de-DE')} Gold</button>` +
                 (p.gold >= war.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
         }
-        // seit 14.26: der Drache als dritte Stufe (Pferd muss vorhanden sein, Kriegsross nicht)
+        // seit 14.27: der Drache als dritte Stufe (Pferd muss vorhanden sein, Kriegsross nicht)
         html += `<h3>Glutschwinge · ab Stufe ${drg.level}</h3><p>„Kein Pferd mehr, sondern ein Drache aus den Glutbergen – dunkelrot, mit Bronzehörnern und großen Schwingen. ` +
           `Er schwebt knapp über dem Boden und trägt dich über Bäume, Felsen, Wasser und Lava. Er legt ${pct(drg)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
           `<p class="hint-text">${HORSES[tier].name} +${pct(HORSES[tier])} % → ${drg.name} +${pct(drg)} % · fliegt nur draußen in der Welt</p>` +

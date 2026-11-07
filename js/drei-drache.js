@@ -1,4 +1,4 @@
-// Drachen-Reittier „Glutschwinge“ (seit 14.26): dritte Reittierstufe ab Stufe 60 (HORSES[3] in spieler.js, Kauf beim
+// Drachen-Reittier „Glutschwinge“ (seit 14.27): dritte Reittierstufe ab Stufe 60 (HORSES[3] in spieler.js, Kauf beim
 // Stallmeister). Modell, Animation (Stehen, Abheben, Schweben/Fliegen, Landen) und die Anbindung an die Figuren im
 // Spiel (rideDragon3, dragonLand3 – aufgerufen aus syncPlayer3 in drei-figuren.js). Braucht drei-kern.js und
 // drei-figuren.js (Bake3, loft3, tubeProfile3, limbBetween, horn3, cap3, torus3, roundBox, rigOf, model3/makeActor,
