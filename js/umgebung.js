@@ -1688,8 +1688,13 @@ function collectWorldObjects(list, x0, y0, x1, y1) {
       const i = y * MAP_W + x;
       if (w.obj[i] === OBJ.WALL) {
         if (!towerTiles.has(i)) {
-          const vertical = wallVertical(w, i);
-          list.push({ worldObj: 'wall', dir: vertical ? 'v' : 'h', style: WALL_STYLE.get(i), x: x * TILE + 16, y: (y + 1) * TILE });
+          // seit 14.28: an schrägen und runden Mauern folgt das Stück der Mauerlinie (welt.js wallLine): flache
+          // Abschnitte als geschertes waagrechtes Stück, steile als senkrechtes, beide auf die Mittellinie geschoben
+          const ln = wallLine(w, i);
+          const k = ln ? Math.tan(ln.a) : 0;
+          const steep = ln && Math.abs(k) > 1.7;
+          const dir = ln ? (steep ? 'v' : 'h') : wallVertical(w, i) ? 'v' : 'h';
+          list.push({ worldObj: 'wall', dir, style: WALL_STYLE.get(i), x: x * TILE + 16, y: (y + 1) * TILE, ln, shear: ln && !steep ? k : 0 });
         }
         continue;
       }
@@ -1779,7 +1784,11 @@ function drawWorldObject(ctx, o) {
   }
   ctx.save();
   if (occludesPlayer(o)) ctx.globalAlpha = 0.45;
-  ctx.drawImage(sp.img, o.x + sp.bounds.x, o.y + sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  if (o.ln) {
+    ctx.translate(o.x + o.ln.ox * TILE, o.y + o.ln.oy * TILE);
+    if (o.shear) ctx.transform(1, o.shear, 0, 1, 0, 0);
+    ctx.drawImage(sp.img, sp.bounds.x, sp.bounds.y, sp.bounds.w, sp.bounds.h);
+  } else ctx.drawImage(sp.img, o.x + sp.bounds.x, o.y + sp.bounds.y, sp.bounds.w, sp.bounds.h);
   ctx.restore();
   // Laternen leuchten warm
   if (type === 'lantern') glow(ctx, o.x, o.y - 24, 16, '#ffcf6a', 0.35 + 0.08 * Math.sin(game.time * 3 + o.x));

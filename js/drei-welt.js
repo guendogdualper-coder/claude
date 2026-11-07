@@ -47,6 +47,13 @@ function placeAt(x, z, rotY = 0, s = 1, y = 0) {
   return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.clone(), new THREE.Vector3(s, s, s));
 }
 
+// seit 14.28: Mauerstück entlang einer schrägen oder runden Mauer (welt.js wallLine), in Laufrichtung gestreckt.
+// Die Höhe schwankt je Kachel um 1 %, damit sich überlappende Dächer nicht flimmern.
+function wallLineAt(x, y, ln) {
+  _q.setFromEuler(_e.set(0, -ln.a, 0));
+  return new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5 + ln.ox, 0, y + 0.5 + ln.oy), _q.clone(), new THREE.Vector3(ln.len, 1 + ((x + y) & 1) * 0.01, 1));
+}
+
 // Abgerundeter Quader für die Welt: aus der Entfernung reicht eine gröbere Rundung als bei Figuren
 const wbox = (w, h, d, r) => roundBox(w, h, d, r, r < 0.09 ? 1 : 2);
 // Winzige Leisten, Zinnen und Sprossen: einfacher Quader, die Rundung wäre kleiner als ein Pixel
@@ -2468,8 +2475,8 @@ function* objectJob(cx, cy) {
       const rot = ((h >> 3) % 628) / 100;
       const sc = 0.9 + ((h >> 12) % 20) / 100;
       if (o === OBJ.WALL) {
-        const vertical = wallVertical(w, i);
-        if (!towerTiles.has(i)) b.addTemplate(tplWall(WALL_STYLE.get(i)), placeAt(x + 0.5, y + 0.5, vertical ? Math.PI / 2 : 0));
+        const ln = wallLine(w, i);
+        if (!towerTiles.has(i)) b.addTemplate(tplWall(WALL_STYLE.get(i)), ln ? wallLineAt(x, y, ln) : placeAt(x + 0.5, y + 0.5, wallVertical(w, i) ? Math.PI / 2 : 0));
         continue;
       }
       const kind = OBJ_KIND[o];

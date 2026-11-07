@@ -672,6 +672,81 @@ function wallVertical(w, i) {
   return w.obj[i - MAP_W] === OBJ.WALL || w.obj[i + MAP_W] === OBJ.WALL;
 }
 
+// seit 14.28: Verlauf schräger und runder Mauern. Kachelmauern laufen dort als Treppe, und jedes Stück stand bisher
+// waagrecht oder senkrecht, also quer zur Mauerlinie (wie Zähne). wallLine gibt für solche Kacheln die Richtung der
+// Linie zurück: Winkel a am Boden (x nach rechts, y nach unten), Versatz ox/oy in Kacheln auf die Mittellinie und
+// Streckung len, damit die Stücke lückenlos aneinanderstoßen. Gerade Stücke, Ecken und fast waagrechte oder
+// senkrechte Abschnitte bleiben wie bisher (null, dann gilt wallVertical). Die Richtung kommt aus der Lage aller
+// Mauerkacheln gleicher Art im 5×5-Feld um die Kachel (Hauptachse der Punktwolke).
+const WALL_LINE = new WeakMap();
+function wallLine(w, i) {
+  let m = WALL_LINE.get(w);
+  if (!m) WALL_LINE.set(w, (m = new Map()));
+  if (!m.has(i)) m.set(i, wallLineCalc(w, i));
+  return m.get(i);
+}
+function wallLineCalc(w, i) {
+  const x = i % MAP_W;
+  const y = (i - x) / MAP_W;
+  const style = WALL_STYLE.get(i);
+  const isW = (dx, dy) => {
+    const xx = x + dx;
+    const yy = y + dy;
+    if (xx < 0 || yy < 0 || xx >= MAP_W || yy >= MAP_H) return false;
+    const k = yy * MAP_W + xx;
+    return w.obj[k] === OBJ.WALL && WALL_STYLE.get(k) === style;
+  };
+  const L = isW(-1, 0);
+  const R = isW(1, 0);
+  const U = isW(0, -1);
+  const D = isW(0, 1);
+  if ((L && R) || (U && D)) return null;
+  if ((L || R) && (U || D)) {
+    // Ecke mit geraden Armen (rechteckige Mauer)
+    const dx = L ? -1 : 1;
+    const dy = U ? -1 : 1;
+    if (isW(2 * dx, 0) && isW(0, 2 * dy) && !isW(dx, dy)) return null;
+  }
+  let n = 0;
+  let mx = 0;
+  let my = 0;
+  const pts = [];
+  for (let dy = -2; dy <= 2; dy++) {
+    for (let dx = -2; dx <= 2; dx++) {
+      if (!isW(dx, dy)) continue;
+      pts.push(dx, dy);
+      mx += dx;
+      my += dy;
+      n++;
+    }
+  }
+  if (n < 3) return null;
+  mx /= n;
+  my /= n;
+  let cxx = 0;
+  let cyy = 0;
+  let cxy = 0;
+  for (let k = 0; k < pts.length; k += 2) {
+    const ex = pts[k] - mx;
+    const ey = pts[k + 1] - my;
+    cxx += ex * ex;
+    cyy += ey * ey;
+    cxy += ex * ey;
+  }
+  // keine klare Richtung (Klumpen, Kreuzung)
+  const tr = (cxx + cyy) / 2;
+  const disc = Math.sqrt(Math.max(0, tr * tr - (cxx * cyy - cxy * cxy)));
+  if (tr - disc > 0.45 * (tr + disc)) return null;
+  const a = 0.5 * Math.atan2(2 * cxy, cxx - cyy);
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  const deg = (((a * 180) / Math.PI) % 90 + 90) % 90;
+  if (deg < 12 || deg > 78) return null;
+  // Abstand der Kachelmitte von der Mittellinie (Normale -s, c), auf die Linie schieben
+  const d = Math.max(-0.5, Math.min(0.5, mx * s - my * c));
+  return { a, ox: d * s, oy: -d * c, len: 1 / Math.max(Math.abs(c), Math.abs(s)) };
+}
+
 // --- Stadtformen (seit 14.16, Daten in daten/stadtformen.js) -------------------------------------------------
 // Ab der dritten Map hat jede Stadt ihren eigenen Grundriss. Die Wildnis wird wie bisher erzeugt (gleiche
 // Zufallszahlen), danach belegt applyTownLayout nur das Quadrat der alten Mauer neu. Merkt sich je Kachel, was die
