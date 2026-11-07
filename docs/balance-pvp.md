@@ -2,6 +2,39 @@
 
 Auftrag: [prompt-boni-und-pvp-balancing.md](prompt-boni-und-pvp-balancing.md), Teil 2 „PvP ohne One-Shots“.
 
+
+## Nachtrag 14.29: Dolch-Ninja im PvP gedeckelt, im PvE etwas stärker
+
+Der Dolch-Ninja gewann auf dem Stand 14.28 **95 %** seiner Duelle (Messung `--pvp --wuerfe 2`, alle Stufen und
+Ausrüstungen). Neu ist ein Ausgleich je Weg, `PATH_DMG` in `js/kampf.js`:
+
+- **gegen Spieler** (Duell und Turnierarena, `pvpOutgoing`): Schaden des Dolch-Ninjas ×0,6 (Diener nicht betroffen),
+- **gegen Monster** (`hitMonster`): ×1,1.
+
+Ausprobiert wurden ×0,7 (Siegquote 78 %) und ×0,6 (62 %). Mit 0,6 liegt er im oberen Mittelfeld, gewinnt gegen die
+Magier weiter meist, verliert aber gegen Krieger · Klinge und Ninja · Falke. Im PvE (Simulator, Stufe 50, std)
+steigt sein Schaden auf einzelne Ziele von 4.069 auf 4.476 und auf fünf Ziele von 10.356 auf 11.392 (je +10 %).
+
+Siegquote je Weg (Durchschnitt gegen alle anderen, je Paar und Stufe/Ausrüstung 2 Würfe, ±5 Punkte Streuung):
+
+| Weg | 14.28 | 14.29 |
+|---|---:|---:|
+| Krieger · Klinge | 77 % | 84 % |
+| Krieger · Leib | 45 % | 55 % |
+| Ninja · Dolch | 95 % | 62 % |
+| Ninja · Falke | 86 % | 92 % |
+| Schamane · Drache | 56 % | 58 % |
+| Schamane · Heilung | 39 % | 39 % |
+| Nekromant · Seelen | 50 % | 50 % |
+| Nekromant · Knochen | 44 % | 48 % |
+| Magier · Feuer | 11 % | 15 % |
+| Magier · Frost | 18 % | 20 % |
+| Magier · Blitz | 55 % | 52 % |
+| Magier · Erde | 23 % | 24 % |
+
+Offen bleibt: Ninja · Falke (92 %) und Krieger · Klinge (84 %) liegen jetzt oben, Magier · Feuer/Frost/Erde und
+Schamane · Heilung weiter deutlich unten. Mit `PATH_DMG` lässt sich das je Weg nachstellen.
+
 ## Wie gemessen wird
 
 ```

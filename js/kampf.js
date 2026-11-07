@@ -349,7 +349,7 @@ function hitMonster(m, mul, opts = {}) {
   if (m.vulnerable && m.vulnerable.until > game.time) factor *= m.vulnerable.mul;
   if (!opts.ally) {
     // „Stark gegen …“ der Monsterart (seit 14.15) zählt zu „Stark gegen Monster“ dazu
-    factor *= 1 + (s.monsterDmg || 0) + kindDmgBonus(s, m);
+    factor *= (1 + (s.monsterDmg || 0) + kindDmgBonus(s, m)) * pathDmgMul(p, 'pve');
     if (opts.basic) factor *= BASIC_MUL * (1 + (s.basicDmg || 0));
     // Segen der Natur (Schamane): jede Fertigkeit des Schamanen ist Naturschaden; seit 13.69 auch die Arkane Erleuchtung des Magiers (Elementschaden)
     if (opts.skill && s.natureDmg) factor *= 1 + s.natureDmg;
@@ -2188,6 +2188,14 @@ const PVP_DMG = {
   // guter Ausrüstung auf niedriger Stufe über eine Minute
   lifeShare: 0.3
 };
+// seit 14.29: Ausgleich je Weg (Klasse:Weg) für Schaden gegen Spieler (pvp) und gegen Monster (pve). Der Dolch-Ninja
+// gewann rund 90 % seiner Duelle (hoher Schaden je Sekunde, sichere Krits aus Tarnung und Hinterhalt); gegen Spieler
+// macht er deshalb weniger Schaden, gegen Monster dafür etwas mehr.
+const PATH_DMG = { 'ninja:0': { pvp: 0.6, pve: 1.1 } };
+function pathDmgMul(p, kind) {
+  const e = p && PATH_DMG[p.classId + ':' + (p.path | 0)];
+  return (e && e[kind]) || 1;
+}
 function pvpMulAt(L) {
   return PVP_DMG.mulLow - (PVP_DMG.mulLow - PVP_DMG.mulHigh) * clamp01(((L || 1) - PVP_DMG.mulFrom) / (PVP_DMG.mulTo - PVP_DMG.mulFrom));
 }
@@ -2219,7 +2227,7 @@ function pvpOutgoing(mul, opts) {
   if (!opts.ally && !opts.dot) breakStealth(p);
   // duelMul (seit 8.6): Kontroll-Fertigkeiten des Magiers gleichen im Duell aus, dass Zustände dort nur als Schaden zählen
   const raw = base * mul * (opts.ally ? PVP_DMG.allyMul : 1) * (0.9 + Math.random() * 0.2) * (crit ? 1.8 + (s.critDmg || 0) : 1) *
-    (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1) * (opts.ally ? 1 : 1 + (s.vsHuman || 0));
+    (opts.basic ? 1 + (s.basicDmg || 0) : 1) * (opts.duelMul || 1) * (opts.ally ? 1 : (1 + (s.vsHuman || 0)) * pathDmgMul(p, 'pvp'));
   const d = { a: Math.round(raw), c: crit ? 1 : 0, l: p.level, at: pvpAttackKind(p, opts) };
   if (opts.ally) d.al = 1; // Treffer eines Dieners: kein Lebensraub für den Herrn
   if (!opts.ally && !opts.dot && s.poison > 0 && Math.random() < s.poison) d.pz = Math.max(1, Math.round((raw * TOXIN.share) / TOXIN.dur));
