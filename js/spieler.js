@@ -208,6 +208,7 @@ function makePlayer(save) {
     moving: false
   };
   p.potions = { hp: 0, mp: 0, ...save.potions };
+  migratePotions(p); // seit 14.32: L-Tränke werden 1:1 zu XL (daten/zonen.js)
   // Wer schon ein Pferd hat, reitet ab 7.3 das Reitpferd (Stufe 1)
   p.horseTier = p.horse ? Math.max(1, save.horseTier || 1) : 0;
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
@@ -978,13 +979,16 @@ function usePotion(kind, sizeId) {
   p.potCd[kind] = POTION_CD;
   vfxPotion(p, kind);
   snd.player('potion', { vol: 0.4 });
+  // seit 14.32: im Duell und in der Turnierarena wirken Tränke zu PVP_DMG.potion (85 %) – so bleibt die Heilung im PvP
+  // trotz der stärkeren Tränke etwa wie vorher (die PvP-Messung aus 14.30 gilt weiter)
+  const k = typeof pvpActive === 'function' && pvpActive() ? PVP_DMG.potion : 1;
   if (hp) {
     // nur die wirklich geheilte Menge anzeigen, ganzzahlig (Leben hat durch Regeneration Nachkommastellen)
-    const amount = Math.min(size.hp, s.maxHp - p.hp);
+    const amount = Math.min(Math.round(size.hp * k), s.maxHp - p.hp);
     p.hp = Math.min(s.maxHp, p.hp + amount);
     addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} Leben`, 'heal');
   } else {
-    const amount = Math.min(size.mp, s.maxMp - p.mp);
+    const amount = Math.min(Math.round(size.mp * k), s.maxMp - p.mp);
     p.mp = Math.min(s.maxMp, p.mp + amount);
     addText(p.x, p.y - 30, `+${Math.round(amount).toLocaleString('de-DE')} Mana`, 'mana');
   }

@@ -39,10 +39,16 @@
   .item-tile.rar-4 { animation: none; }
 }
 
-/* Zeile „Episch · Göttlich (Lv 60)“ in Hinweis und Fenstern */
+/* Zeile „Episch · Göttlich · Itemlevel 91“ in Hinweis und Fenstern */
 .rar-line { font-size: 12px; letter-spacing: 0.02em; }
 .rar-line b { font-weight: 800; text-shadow: 0 1px 2px #000; }
 .item-info small.rar-line, .mi-info small.rar-line { color: var(--muted); }
+/* seit 14.32: Itemlevel (Stärke des Teils) als eigenes Kästchen, klar getrennt von der benötigten Stufe */
+.rar-line .ilvl { display: inline-block; padding: 0 5px; border-radius: 5px; border: 1px solid rgba(240, 200, 122, 0.55); background: rgba(240, 200, 122, 0.12); color: #f0d9a0; font-weight: 600; white-space: nowrap; }
+.rar-line .ilvl b { color: #ffe6a8; text-shadow: none; }
+.req-lvl { white-space: nowrap; }
+.req-lvl.need { color: #ff9a7a; font-weight: 700; }
+.cmp.ilvl-cmp { font-weight: 600; }
 
 /* Großes Bild im Inventar-Detail und beim Händler */
 .item-detail.rar-1 > img { filter: drop-shadow(0 0 4px rgba(76, 207, 90, 0.7)); }

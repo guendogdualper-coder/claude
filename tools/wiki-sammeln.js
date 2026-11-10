@@ -520,7 +520,7 @@ window.collectWiki = async function () {
     { id: 'dungeon', name: 'Dungeons und Endbosse', icon: '♜', img: monImg.spinnenkoenigin, intro: 'Dungeons mit Boss und Endboss-Hallen für Gruppen.' },
     { id: 'gegenstand', name: 'Ausrüstung', icon: '🛡', img: 'bilder/waffenart-sword.png', intro: 'Alle Gegenstände je Platz und Stufe mit Werten und Fundorten.' },
     { id: 'material', name: 'Materialien', icon: '⬢', img: 'bilder/material-switcher.png', intro: 'Boni-Materialien, Seelensplitter und Monster-Teile für den Schmied.' },
-    { id: 'verbrauch', name: 'Tränke und Schriftrollen', icon: '⚗', img: 'bilder/trank-hp-L.png', intro: 'Tränke, Segensschriftrolle und Fertigkeitsbücher.' },
+    { id: 'verbrauch', name: 'Tränke und Schriftrollen', icon: '⚗', img: 'bilder/trank-hp-XL.png', intro: 'Tränke, Segensschriftrolle und Fertigkeitsbücher.' },
     { id: 'npc', name: 'NPCs', icon: '☺', img: 'bilder/npc-haendler.png', intro: 'Wer wo steht und was er für dich tut.' },
     { id: 'quest', name: 'Quests', icon: '❖', img: 'bilder/npc-aeltester.png', intro: 'Die goldene Hauptquestreihe Kapitel für Kapitel und besondere Missionen.' },
     { id: 'system', name: 'Spielsysteme', icon: '⚙', img: 'bilder/buch.png', intro: 'Steuerung, Ränge, Schmied, Boni, Pferde, Gemeinschaft und mehr.' },

@@ -70,6 +70,22 @@ const RARITIES = [
 ];
 const RARITY_STAT_KEYS = ['atk', 'def', 'hp', 'mp'];
 
+// --- Itemlevel (iLvl, seit 14.32) -------------------------------------------------------------------------------
+// Drei getrennte Zahlen: die Stufe der Figur (p.level), die benötigte Stufe eines Teils (itemLevelReq: die Stufe seiner
+// Gegenstandsstufe, ITEM_TIERS[].level – nur sie entscheidet, ob man es anlegen darf) und das Itemlevel (itemIlvl,
+// ausruestung.js). Das Itemlevel wird NICHT gespeichert, sondern immer aus den gespeicherten Werten des Teils berechnet
+// (Gegenstandsstufe, Seltenheit, Plus, Boni): „so stark wie ein graues +0-Teil der Stufe X“. Alte Teile, Handel, Post und
+// Auktionshaus brauchen deshalb keine Umstellung, und kein Teil wird durch die Zahl besser.
+// Maßstab: Waffenschaden je Gegenstandsstufe (BASE_STATS.waffe; Rüstungswerte wachsen fast gleich). Seltenheit (statMul)
+// und Plus (+10 % der Grundwerte je Plus, PLUS_BONUS) heben die Stärke wie im Spiel; über Stufe 80 wird mit dem Zuwachs
+// von 70 auf 80 weitergerechnet (rund 3 % je Stufe), so unterscheidet die Zahl auch auf Stufe 80 noch gute von sehr
+// guter Ausrüstung (Beispiele: graues Ewig +0 = 80, blau mit 3 Boni ≈ 87, episch ≈ 91, legendär ≈ 94, legendär +20 mit
+// 7 Boni bis etwa 140).
+//   bonusBase, bonusRoll  je Bonus 1–5 so viel mehr Stärke (Anteil der Grundwerte): base + roll × Würfelglück
+//                         (0 = unteres, 1 = oberes Ende der Spanne auf dieser Gegenstandsstufe, bonusRollQuality)
+//   special               Bonus 6 und 7 zählen so viel mal mehr
+const ILVL = { bonusBase: 0.03, bonusRoll: 0.05, special: 2 };
+
 // Woher welche Seltenheit kommt. w: Gewichte für [normal, grün, blau, lila, gold]; die Seltenheit wird danach auf
 // das gekappt, was die Gegenstandsstufe erlaubt (minTier), z. B. ein Endboss-Teil unter Lv 60 höchstens blau.
 //   epic       Chance je Teil auf ein episches Teil (hebt die Stufe auf mindestens Göttlich, Lv 60)
@@ -82,10 +98,14 @@ const RARITY_DROPS = {
   stoneMob: { w: [58, 35, 7] }, // Monster aus Seelensteinen und in Dungeons
   stone: { w: [0, 62, 38] }, // Seelensteine: grün oder blau
   boss: { w: [0, 50, 50], epic: 0.05, epicFrom: 50 }, // Dungeon-Bosse: grün/blau, ab Stufe 50 mit 5 % je Teil episch
-  raid: { w: [0, 0, 0, 1], minBonus: 4 }, // Endbosse der Maps: episch (darunter so gut wie die Stufe erlaubt)
-  instance: { w: [0, 0, 0, 1], legendary: 0.02, minBonus: 4 }, // Instanz-Wächter (Höllenthron): episch, 2 % legendär
-  instanceBoss: { w: [0, 0, 0, 1], legendary: 0.12, minBonus: 5 } // Instanzboss (Abaddor): Zusatzteil, 12 % legendär
+  raid: { w: [0, 0, 0, 1], minBonus: 4, rollBest: 2 }, // Endbosse der Maps: episch (darunter so gut wie die Stufe erlaubt)
+  instance: { w: [0, 0, 0, 1], legendary: 0.02, minBonus: 4, rollBest: 2 }, // Instanz-Wächter (Höllenthron): episch, 2 % legendär
+  instanceBoss: { w: [0, 0, 0, 1], legendary: 0.12, minBonus: 5, rollBest: 2 }, // Instanzboss (Abaddor): Zusatzteil, 12 % legendär
+  instanceEpic: { rollBest: 2 } // epische/legendäre Teile der Lv-60/80-Instanzen (rollRarityItem, dropEpic, dropLegendary)
 };
+// rollBest (seit 14.32): schwere Quellen (Endbosse, Instanzen, auch rollRarityItem für die Lv-60/80-Instanzen) würfeln
+// jeden mitgebrachten Bonus-WERT zweimal und behalten den besseren. Art und Zahl der Boni, Seltenheit, Stufe und Plus
+// bleiben, die Werte bleiben in ihren Spannen und Obergrenzen – nur das Itemlevel dieser Teile streut höher.
 
 // Plätze, deren Ausrüstung nur eine Klasse tragen kann
 const CLASS_SLOTS = ['waffe', 'ruestung', 'helm'];

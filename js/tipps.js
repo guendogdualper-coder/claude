@@ -32,10 +32,12 @@ function itemTipHtml(item) {
   const score = worn || !p ? 0 : compareScore(item);
   // seit 13.56: Seltenheit in ihrer Farbe („Episch · Göttlich (Lv 60)“)
   return `<strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
-    `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
+    // seit 14.32: „Benötigte Stufe“ (zum Anlegen) getrennt vom Itemlevel in der Zeile darüber
+    `<small>${itemKindText(item)} · ${reqLevelHtml(item, p)}</small>` +
     `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') + bonusHintHtml(item, p, true) +
     (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
     (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '') +
+    (worn || !p ? '' : ilvlCompareHtml(item, p.equipment[equipSlotOf(item)])) +
     // Verkaufswert (seit 13.5) direkt im Hinweis
     (worn ? '' : `<span class="tip-sell">Verkaufswert <b>${sellValue(item).toLocaleString('de-DE')} Gold</b></span>`);
 }

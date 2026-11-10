@@ -1760,7 +1760,7 @@ const ui = {
     msg.hidden = false;
   },
 
-  // key: hp, hpM, hpL, hpXL, hpXXL bzw. mp…
+  // key: hp, hpM, hpXL, hpXXL bzw. mp… (seit 14.32 ohne L)
   buy(key, n) {
     const p = game.player;
     const kind = key.slice(0, 2);

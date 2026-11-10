@@ -55,7 +55,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'start', q: 'Wo bekomme ich Tränke?',
-    a: 'Bei <b>{n:haendler}</b>. Lebenstränke (Drachenblut) trinkst du mit {k:potHp}, Manatränke (Mondtau) mit {k:potMp}. Es gibt sie in fünf Größen: S, M ab Stufe 10, L ab 25, XL ab 40 und XXL ab 55. ' +
+    a: 'Bei <b>{n:haendler}</b>. Lebenstränke (Drachenblut) trinkst du mit {k:potHp}, Manatränke (Mondtau) mit {k:potMp}. Es gibt sie in vier Größen: S, M ab Stufe 10, XL ab 25 und XXL ab 55 (die frühere Größe L wurde zu XL). ' +
       'Die Taste nimmt von selbst die kleinste Größe, die das Fehlende auffüllt. Monster und Seelensteine lassen auch Tränke fallen.',
     k: 'trank traenke heilen heilung leben mana potion drachenblut mondtau kaufen haendlerin'
   },

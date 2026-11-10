@@ -76,6 +76,60 @@ function itemLevelReq(item) {
   return item && !isBook(item) && ITEM_TIERS[item.tier] ? ITEM_TIERS[item.tier].level : 1;
 }
 
+// --- Itemlevel (seit 14.32, Regeln bei ILVL in daten/gegenstaende.js) --------------------------------------------
+// Nicht verwechseln: itemLevelReq = benötigte Stufe (zum Anlegen), itemIlvl = Itemlevel (Stärke des Teils).
+// Würfelglück eines Bonus: 0 = unteres Ende seiner Spanne auf dieser Gegenstandsstufe, 1 = oberes (wie bonusValue)
+function bonusRollQuality(b, tier, special) {
+  const def = (special ? SPECIAL_BONUS_TYPES : BONUS_TYPES)[b && b.t];
+  if (!def) return 0.5;
+  if (def.steps) {
+    const i = def.steps.indexOf(b.v);
+    return i < 0 ? 0.5 : i / (def.steps.length - 1);
+  }
+  const t = tier || 0;
+  const f = def.fmt === 'flat' ? 1 + t * (def.tierScale || 0.35) : 1 + t * 0.1;
+  const lo = def.range[0] * f;
+  const hi = Math.min(def.max || Infinity, def.range[1] * f);
+  if (!(hi > lo)) return b.v >= hi ? 1 : 0;
+  return Math.max(0, Math.min(1, (b.v - lo) / (hi - lo)));
+}
+// Stufe, auf der ein graues +0-Teil die Stärke exp(logS) hätte (Waffenschaden je Gegenstandsstufe als Maßstab)
+function ilvlFromStrength(logS) {
+  const T = ITEM_TIERS;
+  const L = BASE_STATS.waffe.map((x) => Math.log(x.atk));
+  for (let i = 1; i < T.length; i++) {
+    if (logS <= L[i]) return T[i - 1].level + ((logS - L[i - 1]) / (L[i] - L[i - 1])) * (T[i].level - T[i - 1].level);
+  }
+  const n = T.length - 1;
+  return T[n].level + ((logS - L[n]) * (T[n].level - T[n - 1].level)) / (L[n] - L[n - 1]);
+}
+// Itemlevel eines Teils (0 für Bücher und Unbekanntes); nie unter der benötigten Stufe
+function itemIlvl(item) {
+  if (!item || isBook(item) || !item.slot || !ITEM_TIERS[item.tier]) return 0;
+  let m = rarityStatMul(item) * (1 + PLUS_BONUS * Math.max(0, item.plus | 0));
+  let bw = 0;
+  for (const b of item.bonuses || []) bw += ILVL.bonusBase + ILVL.bonusRoll * bonusRollQuality(b, item.tier);
+  for (const b of item.specials || []) bw += ILVL.special * (ILVL.bonusBase + ILVL.bonusRoll * bonusRollQuality(b, item.tier, true));
+  m *= 1 + bw;
+  const base = Math.log(BASE_STATS.waffe[item.tier].atk);
+  return Math.max(ITEM_TIERS[item.tier].level, Math.round(ilvlFromStrength(base + Math.log(m))));
+}
+// Benötigte Stufe als Text (rot, wenn die Figur sie noch nicht hat) – getrennt vom Itemlevel
+function reqLevelHtml(item, p) {
+  const need = itemLevelReq(item);
+  const low = p && p.level < need;
+  return `<span class="req-lvl${low ? ' need' : ''}">Benötigte Stufe ${need}</span>`;
+}
+// Itemlevel im Vergleich mit dem angelegten Teil (Hinweis und Vergleichsfeld); leer ohne angelegtes Teil
+function ilvlCompareHtml(item, worn) {
+  if (!item || !worn || worn === item || isBook(item) || isBook(worn)) return '';
+  const a = itemIlvl(item);
+  const b = itemIlvl(worn);
+  const d = a - b;
+  const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'same';
+  return `<span class="cmp ilvl-cmp ${cls}">Itemlevel ${a} · angelegt ${b}${d ? ` (${d > 0 ? '+' : '−'}${Math.abs(d)})` : ''}</span>`;
+}
+
 function wearProblem(item, who) {
   const classId = typeof who === 'string' ? who : who.classId;
   if (item.cls && item.cls !== classId) {
@@ -384,8 +438,10 @@ function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung', hand) {
   const diff = compareItem(item, hand);
   const worn = p.equipment[hand === 'off' ? 'schild' : equipSlotOf(item)];
   const head = `<small class="cmp-head">${title}${worn && worn !== item ? ` (angelegt: ${itemFullName(worn)})` : worn === item ? '' : ' (Platz ist leer)'}:</small>`;
-  if (!diff.length) return `<div class="cmp-box">${head}<span class="cmp same">gleich gut</span></div>`;
-  return `<div class="cmp-box">${head}${diff.map(([n, v, b]) => `<span class="cmp ${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲' : '▼'} ${v} ${n}</span>`).join('')}</div>`;
+  // seit 14.32: Itemlevel beider Teile (die Werte darunter bleiben der eigentliche Vergleich)
+  const il = ilvlCompareHtml(item, worn);
+  if (!diff.length) return `<div class="cmp-box">${head}${il}<span class="cmp same">gleich gut</span></div>`;
+  return `<div class="cmp-box">${head}${il}${diff.map(([n, v, b]) => `<span class="cmp ${b > 0 ? 'up' : 'down'}">${b > 0 ? '▲' : '▼'} ${v} ${n}</span>`).join('')}</div>`;
 }
 
 // Tränke zurückverkaufen (seit 11.0): die Händler zahlen 40 % des Ladenpreises
@@ -2148,7 +2204,9 @@ function potionIconUrl(kind, size = 'S') {
   if (size === 'S') return lootIconUrl(base);
   const key = 'pot:' + kind + size;
   if (!iconCache.has(key)) {
-    const k = 1 + POTION_SIZES.findIndex((sz) => sz.id === size) * 0.07;
+    // seit 14.32 nach sz.art (alte Reihenfolge S 0 … XXL 4), damit XL und XXL ohne L gleich groß aussehen wie bisher
+    const sz = POTION_SIZES.find((x) => x.id === size);
+    const k = 1 + (sz ? sz.art : 4) * 0.07;
     const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
       ctx.save();
       ctx.translate(0, 2);
@@ -2870,7 +2928,7 @@ const gear = {
     }).join('');
     el.innerHTML = `<div class="item-detail rar-${rarityOf(item)}"><img src="${itemIconUrl(item)}" alt="">` +
       `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
-      `<small>${slotName} · ${itemKindText(item)} · ab Stufe ${need}</small>` +
+      `<small>${slotName} · ${itemKindText(item)} · ${reqLevelHtml(item, p)}</small>` +
       (canWear(item, p) ? '' : `<small class="need">${wearProblem(item, p)} Du kannst es verkaufen.</small>`) +
       (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       (offIdle ? `<small class="need">${offhandProblem(p, item)}</small>` : '') +

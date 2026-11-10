@@ -2186,7 +2186,10 @@ const PVP_DMG = {
   heal: 0.6, toxinTick: 0.015, allyMul: 0.5,
   // seit 14.23: Leben aus Ausrüstungs-Boni (200–1000 je Teil) zählt im PvP nur zu diesem Teil, sonst dauern Duelle mit
   // guter Ausrüstung auf niedriger Stufe über eine Minute
-  lifeShare: 0.3
+  lifeShare: 0.3,
+  // seit 14.32: Leben- und Manatränke im PvP (usePotion, spieler.js). Die Tränke wirken seit 14.32 15–28 % stärker;
+  // ×0,85 hält sie im Duell etwa auf dem alten Stand (XXL 1573 statt vorher 1600 Leben, M 191 statt 180)
+  potion: 0.85
 };
 // seit 14.29: Ausgleich je Weg (Klasse:Weg) für Schaden gegen Spieler (pvp) und gegen Monster (pve). Der Dolch-Ninja
 // gewann rund 90 % seiner Duelle (hoher Schaden je Sekunde, sichere Krits aus Tarnung und Hinterhalt); gegen Spieler

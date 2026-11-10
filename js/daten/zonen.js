@@ -282,19 +282,42 @@ const SHOP = [
 const potionInfo = (kind) => SHOP.find((x) => x.id === kind);
 
 // Trankgrößen: S bis XXL. Je größer, desto mehr Leben bzw. Mana und desto teurer;
-// die Händlerin verkauft sie ab einer Stufe. Im Gepäck: p.potions.hp (S), hpM, hpL, hpXL, hpXXL, ebenso mp.
+// die Händlerin verkauft sie ab einer Stufe. Im Gepäck: p.potions.hp (S), hpM, hpXL, hpXXL, ebenso mp.
 // Seit 10.1 heilen sie feste Mengen statt Prozent: So passt jede Größe zu ihrem Stufenbereich (bei Stufe 30
 // heilt der kleine Trank nur noch etwa ein Siebtel, der große etwa die Hälfte).
 // Seit 13.2 heilen die Lebenstränke rund 45 % weniger (vorher füllte ein großer Trank auf Stufe 30 fast die Hälfte):
 // klein 95, mittel 180, groß 340, sehr groß 540, riesig 800
+// seit 14.32: nur noch vier Größen je Farbe (S, M, XL, XXL). Die Zwischengröße L (+340 Leben / +210 Mana, ab 25)
+// entfällt: Sie lag am dichtesten an ihrer Nachbargröße (XL heilte nur das 1,6-Fache, alle anderen Schritte 1,9- bis
+// 3-fach) und deckte wie M und XL nur 15 Stufen ab. XL gibt es dafür schon ab Stufe 25 (vorher 40). Alle Tränke
+// wirken moderat stärker (vorher S 95/60, M 180/115, L 340/210, XL 540/320, XXL 1600/470; Messung und Begründung in
+// docs/auftrag-2026-11-10-items.md). Preise, Abklingzeit (POTION_CD) und Schlüssel bleiben gleich; vorhandene
+// L-Tränke werden 1:1 zu XL (POTION_MERGED, migratePotions) – überall, auch in Post, Auktionshaus und Handel.
 const POTION_SIZES = [
-  { id: 'S', name: 'klein', hp: 95, mp: 60, price: 1, level: 1 },
-  { id: 'M', name: 'mittel', hp: 180, mp: 115, price: 5, level: 10 },
-  { id: 'L', name: 'groß', hp: 340, mp: 210, price: 20, level: 25 },
-  { id: 'XL', name: 'sehr groß', hp: 540, mp: 320, price: 80, level: 40 },
-  { id: 'XXL', name: 'riesig', hp: 1600, mp: 470, price: 320, level: 55 }
+  { id: 'S', name: 'klein', hp: 120, mp: 75, price: 1, level: 1, art: 0 },
+  { id: 'M', name: 'mittel', hp: 225, mp: 145, price: 5, level: 10, art: 1 },
+  { id: 'XL', name: 'sehr groß', hp: 620, mp: 380, price: 80, level: 25, art: 3 },
+  { id: 'XXL', name: 'riesig', hp: 1850, mp: 600, price: 320, level: 55, art: 4 }
 ];
+// Entfallene Größen und wohin sie gehen (seit 14.32: L → XL, je Trank genau ein XL – nie schlechter)
+const POTION_MERGED = { L: 'XL' };
 const potKey = (kind, size) => (size === 'S' ? kind : kind + size);
+// Schlüssel eines Vorrats auf die heutige Größe (hpL → hpXL); unbekannte Schlüssel bleiben, wie sie sind
+function potAlias(key) {
+  const k = String(key);
+  const to = POTION_MERGED[k.slice(2)];
+  return to ? k.slice(0, 2) + to : k;
+}
+// Spielstand (spieler.js): Tränke entfallener Größen in die neue Größe legen
+function migratePotions(p) {
+  if (!p || !p.potions) return;
+  for (const kind of ['hp', 'mp']) for (const [from, to] of Object.entries(POTION_MERGED)) {
+    const a = potKey(kind, from);
+    const n = p.potions[a] | 0;
+    if (n > 0) p.potions[potKey(kind, to)] = (p.potions[potKey(kind, to)] || 0) + n;
+    delete p.potions[a];
+  }
+}
 const potionTotal = (p, kind) => POTION_SIZES.reduce((n, sz) => n + (p.potions[potKey(kind, sz.id)] || 0), 0);
 // Größe passend zur Stufe (für Beute und Tagesbelohnung): die größte, die man auf dieser Stufe kaufen kann
 const potionSizeFor = (level) => POTION_SIZES.reduce((best, sz) => (level >= sz.level ? sz : best), POTION_SIZES[0]);

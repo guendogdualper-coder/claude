@@ -2,7 +2,7 @@
 // ein Stapel Fertigkeitsbücher, Format wie im Spielstand, siehe ausruestung.js) oder eine Menge eines Vorrats:
 //   { t: 'it', it: { uid, slot, tier, plus, rarity, cls, kind, bonuses, specials, legend, raidMat } }  Ausrüstung
 //   { t: 'it', it: { uid, book, count } }                                                         Fertigkeitsbücher
-//   { t: 'trank', k: 'hp' | 'mpL' …, n }    Tränke (Schlüssel wie p.potions)
+//   { t: 'trank', k: 'hp' | 'mpXL' …, n }   Tränke (Schlüssel wie p.potions; alte hpL/mpL gelten als XL)
 //   { t: 'segen', n }                       Segensschriftrollen (p.scrolls)
 //   { t: 'pfeil', i, n }                    Pfeile einer Sorte (p.arrows[i])
 //   { t: 'mat', id, n }                     Verstärkungen und Steine (p.materials), seit 14.1 auch Schriftrollen
@@ -18,7 +18,9 @@ const isInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 const plainObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o) && Object.getPrototypeOf(o) === Object.prototype;
 
 // Tränke: Schlüssel → Sorte und Größe
+// seit 14.32: Schlüssel entfallener Größen (hpL, mpL aus alter Post, alten Angeboten) gelten als XL (potAlias)
 function warePot(k) {
+  k = potAlias(k);
   const kind = String(k).slice(0, 2);
   const sz = POTION_SIZES.find((s) => potKey(kind, s.id) === k);
   return (kind === 'hp' || kind === 'mp') && sz ? { kind, sz } : null;
@@ -70,7 +72,7 @@ function wareClean(raw) {
   const n = raw.n;
   switch (raw.t) {
     case 'it': { const it = itemClean(raw.it); return it ? { t: 'it', it } : null; }
-    case 'trank': return warePot(raw.k) && isInt(n, 1, WARE_MAX_N) ? { t: 'trank', k: raw.k, n } : null;
+    case 'trank': return warePot(raw.k) && isInt(n, 1, WARE_MAX_N) ? { t: 'trank', k: potAlias(raw.k), n } : null;
     case 'segen': return isInt(n, 1, WARE_MAX_N) ? { t: 'segen', n } : null;
     case 'pfeil': return isInt(raw.i, 0, ARROW_TYPES.length - 1) && isInt(n, 1, WARE_MAX_N) ? { t: 'pfeil', i: raw.i, n } : null;
     case 'mat': return ALL_MATS.some((m) => m.id === raw.id) && isInt(n, 1, WARE_MAX_N) ? { t: 'mat', id: raw.id, n } : null;
@@ -156,7 +158,7 @@ function wareGive(p, w) {
       if (isBook(w.it)) giveBooks(p, w.it.book, w.it.count);
       else p.inventory.push(Object.assign(JSON.parse(JSON.stringify(w.it)), { uid: w.it.uid || newUid() }));
       break;
-    case 'trank': p.potions[w.k] = (p.potions[w.k] || 0) + w.n; break;
+    case 'trank': { const k = potAlias(w.k); p.potions[k] = (p.potions[k] || 0) + w.n; break; } // seit 14.32: alte L → XL
     case 'segen': p.scrolls = (p.scrolls || 0) + w.n; break;
     case 'pfeil':
       if (!p.arrows || typeof p.arrows !== 'object') p.arrows = {};

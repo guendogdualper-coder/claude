@@ -267,6 +267,7 @@ function ahSubline(a) {
     parts.push(i.cls ? CLASSES[i.cls].name : 'alle Klassen');
     parts.push(RARITIES[i.selt].name);
     parts.push(`ab Stufe ${i.stufe}`);
+    parts.push(`Itemlevel ${itemIlvl(a.w.it)}`); // seit 14.32, aus den Werten der Ware berechnet
   } else {
     parts.push({ trank: 'Trank', buch: 'Fertigkeitsbuch', schrift: 'Schriftrolle', pfeil: 'Pfeile', aufwertung: 'Aufwertung' }[i.art]);
     if (i.cls) parts.push(CLASSES[i.cls].name);

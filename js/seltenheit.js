@@ -55,7 +55,9 @@ function rarityStatMul(item) {
 
 // Seltenheit setzen und die mitgebrachten Boni würfeln. Vorhandene Boni bleiben; es kommen nur so viele dazu,
 // bis die gewürfelte Anzahl (oder minBonus) erreicht ist.
-function applyRarity(item, r, minBonus = 0) {
+// best (seit 14.32, RARITY_DROPS[].rollBest): jeden neuen Bonus-Wert so oft würfeln und den besten behalten
+// (nur der Wert – die Art des Bonus bleibt, Spannen und Obergrenzen auch)
+function applyRarity(item, r, minBonus = 0, best = 1) {
   r = capRarity(r, item.tier);
   item.rarity = r;
   const [lo, hi] = RARITIES[r].bonus;
@@ -64,6 +66,10 @@ function applyRarity(item, r, minBonus = 0) {
   while (item.bonuses.length < n) {
     const b = rollBonus(item, false);
     if (!b.t) break;
+    for (let k = 1; k < best; k++) {
+      const v = bonusValue(BONUS_TYPES[b.t], item.tier);
+      if (bonusRollQuality({ t: b.t, v }, item.tier) > bonusRollQuality(b, item.tier)) b.v = v;
+    }
     item.bonuses.push(b);
   }
   clampItemBonuses(item);
@@ -96,13 +102,17 @@ function rollRarity(src, m, item) {
 }
 // Würfeln und gleich anwenden; Rückgabe: der Gegenstand
 function rarityRoll(item, src, m) {
-  return applyRarity(item, rollRarity(src, m, item), (RARITY_DROPS[src] && RARITY_DROPS[src].minBonus) || 0);
+  const rule = RARITY_DROPS[src] || {};
+  return applyRarity(item, rollRarity(src, m, item), rule.minBonus || 0, rule.rollBest || 1);
 }
 
 // Quelle einer normalen Beute (rollLoot): Seelenstein, Monster aus Stein oder Dungeon, sonst normales Monster
+// seit 14.32 zählt auch jedes Monster IN einem Dungeon (m.zone.dungeon) als Dungeon-Monster: vorher nur Arten, die es
+// ausschließlich in Dungeons gibt – Nagas im Schlangentempel, Titanen in der Titanenschmiede und die Monster im
+// Höllenthron würfelten wie draußen (74 % grau statt 58 %, Messung tools/beute-sim.js)
 function raritySourceOf(m) {
   if (m.isStone) return 'stone';
-  if (m.stone || (m.type && m.type.dungeon)) return 'stoneMob';
+  if (m.stone || (m.type && m.type.dungeon) || (m.zone && m.zone.dungeon)) return 'stoneMob';
   return 'mob';
 }
 
@@ -132,7 +142,8 @@ function rollRarityItem(level, rarity, cls, slot) {
     slot = slots[randInt(0, slots.length - 1)];
   }
   const item = makeItem(slot, tier, 0, cls, lootKind(p, cls));
-  return applyRarity(item, rarity, rarity >= 3 ? 4 : 0);
+  // seit 14.32: epische und legendäre Instanz-Teile mit besseren Bonus-Werten (RARITY_DROPS.instanceEpic.rollBest)
+  return applyRarity(item, rarity, rarity >= 3 ? 4 : 0, rarity >= 3 ? RARITY_DROPS.instanceEpic.rollBest || 1 : 1);
 }
 
 // Ein Teil in die Tasche legen und ankündigen (Beuteanzeige, Chat, Strahl); false bei voller Tasche
@@ -172,11 +183,13 @@ function migrateRarity(p) {
 
 // --- Anzeige ---------------------------------------------------------------------------------------------------
 
-// Zeile im Hinweis und in den Fenstern: „Episch · Göttlich (Lv 60)“ (Seltenheit in ihrer Farbe)
+// Zeile im Hinweis und in den Fenstern: „Episch · Göttlich · Itemlevel 91“ (Seltenheit in ihrer Farbe).
+// seit 14.32 mit dem Itemlevel statt „(Lv 60)“ – die benötigte Stufe steht eigens darunter (reqLevelHtml), so lassen
+// sich die beiden Zahlen nicht mehr verwechseln
 function rarityLineHtml(item) {
   const R = rarityInfo(item);
   const T = ITEM_TIERS[item.tier] || ITEM_TIERS[0];
-  return `<small class="rar-line"><b style="color:${R.color}">${R.name}</b> · <span>${T.label}</span> (Lv ${T.level})</small>`;
+  return `<small class="rar-line"><b style="color:${R.color}">${R.name}</b> · <span>${T.label}</span> · <span class="ilvl">Itemlevel <b>${itemIlvl(item)}</b></span></small>`;
 }
 
 // Nach dem Fund: Zeile im Chat (Reiter System) in der Farbe der Seltenheit; ab Episch ein Lichtstrahl an der
