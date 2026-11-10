@@ -499,6 +499,7 @@ function reviveMonster(m) {
   m.form2 = false;
   m.state = 'idle';
   m.target = null;
+  m.threat = null; // Bedrohung (seit 14.32)
   m.returnAt = null;
   m.nav = null; // Weg und Steckenbleiben vergessen (seit 13.63)
   m.stun = 0;
@@ -629,6 +630,10 @@ function monsterAttack(m, target) {
     if (eg.stacks >= 2) addText(p.x, p.y - 46, `Zermürbung ×${eg.stacks}`, 'hurt');
     if (eg.beset) endgameBeset(p);
     damagePlayer(calcDamage(m.atk, levelBonus(m.level, p.level) * eg.mul, game.stats.def * (1 - eg.shred), 0.03, m.level).amount, m);
+  } else if (target.remoteAlly) {
+    // seit 14.32: Diener eines Mitspielers – sein Gerät zieht das Leben ab (Nachricht ahit, ältere Versionen
+    // kennen sie nicht und ignorieren sie)
+    if (target.owner && target.owner.peerId) netSendTo(target.owner.peerId, { t: 'ahit', id: m.id, s: target.slot, atk: m.atk, lvl: m.level });
   } else {
     damageAlly(target, calcDamage(m.atk, eg.mul, target.def * (1 - eg.shred), 0, m.level).amount);
   }
@@ -886,15 +891,84 @@ function moveToward(e, tx, ty, step, isMonster) {
 // Spieler, die Monster jagen können: man selbst und beim Host auch die Mitspieler
 // Neues Ziel für ein Monster, das seins verloren hat: wer es in den letzten 5 s getroffen hat, sonst der
 // nächste sichtbare Spieler oder Diener in Reichweite (nur innerhalb seiner Leine)
+// seit 14.32: zuerst, wer die meiste Bedrohung hat (auch Diener, auch die der Mitspieler beim Host), und neue Ziele
+// nur mit freier Sicht (keine Aggro durch Wände)
 function nextTarget(m, players, leash) {
   if (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash) return null;
   const ok = (t) => t && !t.dead && !(t.hp <= 0) && !t.gone && !(isPlayerLike(t) && playerHidden(t)) && dist(m, t) < 500;
+  const top = m.threat ? threatTop(m, null) : null;
+  if (top) return top;
   const la = m.lastAttacker;
-  if (game.time - (m.struckAt || -99) < 5 && ok(la) && (isPlayerLike(la) || game.allies.includes(la))) return la;
+  if (game.time - (m.struckAt || -99) < 5 && ok(la) && (isPlayerLike(la) || allyPresent(la))) return la;
   let best = null;
   let bd = 400;
-  for (const t of players) if (ok(t) && dist(m, t) < bd) { bd = dist(m, t); best = t; }
-  for (const a of game.allies) if (ok(a) && dist(m, a) < bd) { bd = dist(m, a); best = a; }
+  const seen = (t) => navSight(m.x, m.y, t.x, t.y, 4);
+  for (const t of players) if (ok(t) && dist(m, t) < bd && seen(t)) { bd = dist(m, t); best = t; }
+  for (const a of game.allies) if (ok(a) && dist(m, a) < bd && seen(a)) { bd = dist(m, a); best = a; }
+  if (net.mode === 'host') {
+    for (const rp of net.players.values()) {
+      if (!rp.allies || rp.gone) continue;
+      for (const a of rp.allies) if (allyPresent(a) && ok(a) && dist(m, a) < bd && seen(a)) { bd = dist(m, a); best = a; }
+    }
+  }
+  return best;
+}
+
+// --- Bedrohung (seit 14.32): Diener des Nekromanten als Tanks ----------------------------------------------------
+// Jedes Monster merkt sich, wer ihm wie viel Schaden gemacht hat (m.threat: Ziel → Bedrohung, nur beim Host bzw.
+// allein gerechnet). Diener erzeugen THREAT.ally-mal so viel Bedrohung je Schaden wie Spieler. 6, weil alle drei Diener
+// zusammen je nach Stufe nur 10–40 % des Schadens machen (gemessen mit der Rotation aus tools/balance-sim.js, Stufe
+// 30–80): mit 3 wechselten Monster erst nach ~10 s und selten auf sie, mit 6 nach 0,6–1 s. Bosse lassen sich davon
+// nur halb so leicht beeindrucken (bossAlly). Alle THREAT.every s prüft ein jagendes Monster, ob ein anderes
+// gültiges Ziel klar mehr Bedrohung hat (keep: 15 % mehr, damit es nicht hin und her springt); gültig heißt: lebt,
+// ist noch da (Diener nicht abgelaufen), höchstens THREAT.range entfernt, Spieler nicht getarnt – und für einen
+// Wechsel freie Sicht (nicht durch Wände). Die Bedrohung verfällt (decay je Sekunde), ungültige Einträge fallen weg.
+// Spieler untereinander bleiben wie bisher (erster Angreifer behält das Monster): gewechselt wird nur, wenn ein Diener
+// beteiligt ist. Kein Spott, kein Zwang: ein Diener hält ein Monster nur, solange er Schaden macht und lebt.
+// PvP (Duell, Turnierarena) betrifft das nicht – dort gibt es keine Monster-Ziele.
+const THREAT = { ally: 6, bossAlly: 0.5, keep: 1.15, every: 0.4, decay: 0.85, range: 500 };
+// Diener noch da? Eigene: in game.allies; fremde (beim Host): in der Liste seines Herrn aus dem letzten Schnappschuss
+function allyPresent(t) {
+  if (!t) return false;
+  if (t.remoteAlly) return !!(t.owner && !t.owner.gone && !t.owner.dead && t.owner.allies && t.owner.allies.includes(t) && !t.rising);
+  return !!t.ally && game.allies.includes(t) && t.hp > 0;
+}
+const isAllyLike = (t) => !!(t && (t.ally || t.remoteAlly));
+function threatValid(m, t) {
+  if (!t || t.dead || t.gone || t.hp <= 0 || dist(m, t) > THREAT.range) return false;
+  return isAllyLike(t) ? allyPresent(t) : isPlayerLike(t) && !playerHidden(t);
+}
+function addThreat(m, src, amount) {
+  if (!src || m.isStone || !(amount > 0) || !(isAllyLike(src) || isPlayerLike(src))) return;
+  const k = isAllyLike(src) ? THREAT.ally * (m.type && m.type.boss ? THREAT.bossAlly : 1) : 1;
+  const T = m.threat || (m.threat = new Map());
+  T.set(src, (T.get(src) || 0) + amount * k);
+}
+// Bedrohung verfallen lassen, Ungültige entfernen; Rückgabe: gültiges Ziel mit der meisten Bedrohung (oder null)
+function threatTop(m, cur) {
+  const T = m.threat;
+  const now = game.time;
+  const f = Math.pow(THREAT.decay, Math.max(0, Math.min(5, now - (m.threatT ?? now))));
+  m.threatT = now;
+  let best = null;
+  let bv = 0;
+  for (const [src, v0] of T) {
+    const v = v0 * f;
+    if (v < 1 || !threatValid(m, src)) { T.delete(src); continue; }
+    T.set(src, v);
+    if (v > bv && (src === cur || navSees(m, src.x, src.y) || dist(m, src) < 90)) { bv = v; best = src; }
+  }
+  if (!T.size) m.threat = null;
+  return best;
+}
+// Ziel nach Bedrohung (im Kampf alle THREAT.every s): cur bleibt, außer ein Diener ist beteiligt und das andere Ziel
+// hat mindestens 15 % mehr Bedrohung (oder cur ist kein gültiges Ziel mehr)
+function threatTarget(m, cur) {
+  const best = threatTop(m, cur);
+  if (!best || best === cur || !m.threat) return cur;
+  if (!isAllyLike(best) && !isAllyLike(cur)) return cur;
+  const cv = cur && threatValid(m, cur) ? m.threat.get(cur) || 0 : -1;
+  if (cv >= 0 && m.threat.get(best) < cv * THREAT.keep) return cur;
   return best;
 }
 
@@ -1422,7 +1496,8 @@ function updateMonsters(dt) {
 
     if (m.state === 'idle') {
       // Monster, die 10 oder mehr Stufen unter dem Spieler sind, greifen nicht mehr von selbst an
-      if (m.type.aggressive && !near.dead && distP < AGGRO_RANGE && !playerHidden(near) && (near.level || 1) - m.level < AGGRO_LEVEL_GAP) {
+      // seit 14.32 nur mit freier Sicht: keine Aggro durch Wände
+      if (m.type.aggressive && !near.dead && distP < AGGRO_RANGE && !playerHidden(near) && (near.level || 1) - m.level < AGGRO_LEVEL_GAP && navSight(m.x, m.y, near.x, near.y, 4)) {
         aggro(m, near);
       } else {
         if (game.time >= m.wanderAt) {
@@ -1438,12 +1513,22 @@ function updateMonsters(dt) {
     }
 
     if (m.state === 'chase') {
-      const t = m.target;
+      let t = m.target;
       m.returnAt = null;
+      // seit 14.32: nach Bedrohung umschauen (Diener als Tanks)
+      if (m.threat && game.time >= (m.threatAt || 0)) {
+        m.threatAt = game.time + THREAT.every;
+        const nt = threatTarget(m, t);
+        if (nt && nt !== t) {
+          t = m.target = nt;
+          m.windup = 0;
+          m.rush = null;
+        }
+      }
       const leash = (m.respawn ? LEASH : LEASH * 2) * (m.inDungeon ? 1.7 : 1);
       const lost = !t || t.dead || t.hp <= 0 || t.gone
         || (isPlayerLike(t) && playerHidden(t))
-        || (!isPlayerLike(t) && !game.allies.includes(t))
+        || (!isPlayerLike(t) && !allyPresent(t))
         // wer gerade noch getroffen wurde (3 s), verfolgt weiter, auch über die Leine hinaus (bis 1,5-fach)
         || (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash && (game.time - (m.struckAt || -9) > 3 || Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash * 1.5));
       // Ziel weg (Diener verschwunden, Spieler tot oder getarnt), aber andere kämpfen noch in der Nähe:
@@ -1496,7 +1581,12 @@ function updateMonsters(dt) {
         } else {
           // seit 13.63 mit Wegfindung um Mauern herum; Fernkämpfer schießen nur bei freier Sicht und kommen sonst näher
           const blind = m.type.ranged && d <= reach && !navSees(m, t.x, t.y);
-          if (d > reach * 0.85 || blind) m.moving = navMove(m, t.x, t.y, chaseSpeed, dt);
+          if (m.flank && d > reach * 2.5 && !blind) {
+            // seit 14.32 (Prüfungsarena): auf einem Bogen anlaufen – Ziel seitlich versetzt, je näher, desto weniger;
+            // so kommen sie aus mehreren Richtungen und hängen nicht alle am selben Punkt
+            const off = m.flank * Math.min(80, (d - reach) * 0.35);
+            m.moving = navMove(m, t.x - ((t.y - m.y) / d) * off, t.y + ((t.x - m.x) / d) * off, chaseSpeed, dt);
+          } else if (d > reach * 0.85 || blind) m.moving = navMove(m, t.x, t.y, chaseSpeed, dt);
           else if (Math.abs(t.x - m.x) > 1) m.facing = t.x > m.x ? 1 : -1;
           if (d <= reach && m.cd <= 0 && !blind) {
             m.cd = m.type.cooldown * (m.form2 ? 0.65 : 1);
@@ -1520,6 +1610,7 @@ function updateMonsters(dt) {
         m.state = 'idle';
         m.returnAt = null;
         m.nav = null;
+        m.threat = null; // zurück am Platz: der Kampf ist vergessen (seit 14.32)
         if (game.time - (m.struckAt || -99) > 6) m.hp = m.maxHp;
         m.wx = m.x;
         m.wy = m.y;
@@ -1589,7 +1680,11 @@ function allyCrumble(a) {
 function releaseAllyTargets() {
   const p = game.player;
   for (const m of game.monsters) {
-    if (m.target && m.target.ally && !game.allies.includes(m.target)) m.target = p;
+    // seit 14.32: gleich nach Bedrohung neu umschauen (nächster Diener oder ein Spieler)
+    if (m.target && m.target.ally && !game.allies.includes(m.target)) {
+      m.target = p;
+      m.threatAt = 0;
+    }
   }
 }
 

@@ -448,17 +448,20 @@ function damageMonster(m, amount, crit, source, isDot, credit) {
   if (m.raid && m.raid.stagger > game.time) amount = Math.round(amount * RAID.staggerDmg);
   // Im Mehrspieler entscheidet der Host über Leben und Tod der Monster
   // für den Trefferklang (klang-welt.js, seit 14.8): eigener Treffer, kritisch, Schaden über Zeit
-  if (!source || !source.remote) {
+  if (!source || !(source.remote || source.remoteAlly)) {
     m._sHitAt = game.time;
     m._sCrit = !!crit;
     m._sDot = !!isDot;
   }
   if (net.mode === 'client') {
-    netClientDamage(m, amount, crit, isDot);
+    netClientDamage(m, amount, crit, isDot, source);
     return;
   }
   if (source && (source === game.player || source.remote)) m.lastAttacker = source;
-  if (source && !source.remote) m.hostHitAt = game.time;
+  // Diener eines Mitspielers (seit 14.32 beim Host als eigene Quelle) zählen nicht als Treffer des Hosts
+  if (source && !source.remote && !source.remoteAlly) m.hostHitAt = game.time;
+  // Bedrohung (seit 14.32, gegner.js): Spieler und Diener, nur wer die Monster führt
+  if (!m.isStone) addThreat(m, source, Math.min(amount, Math.max(0, m.hp)));
   // auch Treffer der Mitspieler (über den Host) zählen: so heilt sich kein Monster, das gerade bekämpft wird
   m.struckAt = game.time;
   // Schadensanzeige (schadensmeter.js): nur wirklich abgezogenes Leben, ohne Überkill
