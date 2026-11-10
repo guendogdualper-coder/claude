@@ -284,5 +284,6 @@ Dateien: js/drei-kern.js, js/eingabe.js.
 - `node --check` auf alle geänderten Dateien: ohne Fehler.
 - s73-Lauf (alle 12 Klassen/Wege, Stufe 50, jede Fertigkeit, Klassensegen, Charakterfenster): 12/12 ohne Seitenfehler.
 - Balance-Simulator (PvE, `--kurz`, Stufe 30/50/80, Ausrüstung „gut“) mit dem neuen Stand gelaufen: Gesamtwertung aller
-  Wege 85–124 wie vor den Änderungen (Ausweichen unverändert; Bogen-Reichweite ändert den Einzelziel-Schaden nicht).
+  Wege 85–124 (Bogen-Weg „Falke“ 100). Kein Vergleichslauf auf 14.31 gemacht – ob die größere Reichweite die Wertung
+  verschiebt, ist darum nicht gemessen (der Simulator lässt beide stehen, Reichweite zählt dort kaum).
 - Nicht gelaufen: PvP-Simulation, echte Geräte, echtes Mehrspieler über das Netz.
