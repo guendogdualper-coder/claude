@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.39';
+const GAME_VERSION = '14.40';
 
 const game = {
   world: null,
@@ -169,12 +169,14 @@ function updatePlayer(dt) {
   // Gräber für den Totenruf (Nekromant)
   graveTick();
 
-  // Regeneration: außerhalb des Kampfes deutlich schneller
-  const calm = game.time - p.lastCombat > 5;
+  // Regeneration: außerhalb des Kampfes deutlich schneller. Seit 14.40 gebremst (Spieler: „Leben geht ohne Tränke
+  // immer wieder ganz hoch“): Ruhe erst nach 8 s ohne Kampf (vorher 5), dort 1 %/s Grundwert (vorher 2 %), und im
+  // Kampf zählt die Regeneration aus Ausrüstung und Buffs nur halb (REGEN_RULES).
+  const calm = game.time - p.lastCombat > REGEN_RULES.calmAfter;
   // im PvP zu 60 % wie jede Heilung (seit 14.15); seit 14.32 halb so schnell, solange man von drei oder mehr
   // Endgame-Elite zugleich bedrängt wird (gegner.js ENDGAME.besetRegen)
   const beset = p.besetUntil > game.time && typeof ENDGAME !== 'undefined' ? ENDGAME.besetRegen : 1;
-  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * ((calm ? 0.02 : 0.003) + s.regen) * dt * pvpHealMul() * beset);
+  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * (calm ? REGEN_RULES.calm + s.regen : REGEN_RULES.combat + s.regen * REGEN_RULES.combatItems) * dt * pvpHealMul() * beset);
   // Gift eines anderen Spielers (Bonus Vergiftungschance, seit 14.15)
   if (p.toxin) playerToxinTick(p, dt);
   p.mp = Math.min(s.maxMp, p.mp + s.maxMp * (calm ? 0.03 : 0.012) * dt);
@@ -320,6 +322,8 @@ function boot() {
 
 // Neue Version online? Beim Start und alle 5 Minuten nachsehen; dann oben ein Knopf zum Neuladen.
 // Wichtig im Kanal: Monster rechnet der Host – spielt er eine alte Version, gelten für alle die alten Werte.
+// Lebensregeneration je Sekunde als Anteil am maximalen Leben (seit 14.40; bis 14.39: Ruhe nach 5 s, 2 %, im Kampf voll)
+const REGEN_RULES = { calmAfter: 8, calm: 0.01, combat: 0.003, combatItems: 0.5 };
 function versionNewer(a, b) {
   const pa = String(a).split('.').map(Number);
   const pb = String(b).split('.').map(Number);
