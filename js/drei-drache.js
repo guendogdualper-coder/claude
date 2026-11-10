@@ -447,33 +447,70 @@ function dragonMount3(b, o = {}) {
   A(ball(8), bronzeD, { bone: DRB3.tail4, p: [0, 0.7, -2.36], s: [0.02, 0.025, 0.15] });
   for (const sx of [-1, 1]) pointAt3(A, horn3(0.12, 0.022, 5), bronze, [sx * 0.06, 0.7, -2.3], [sx * 0.9, 0, 0.55], { bone: DRB3.tail4, s: [1, 1, 0.4], shine: 0.7 });
 
-  // --- Beine: vorn Oberarm, Unterarm, Pfote; hinten kräftiger Schenkel, Unterschenkel, Fersengelenk, Fuß
-  const claws = (bone, f, dir) => {
-    for (const dx of [-0.035, 0, 0.035]) pointAt3(A, horn3(0.075, 0.018, 5), C.claw, [f[0] + dx, f[1] - 0.005, f[2] + 0.03], [dx * 3, -0.45, dir], { bone, shine: 0.5, noShadow: true });
+  // --- Beine (seit dem Nachfolger von 14.39 wie die Pferde aus je einem Stück, softTube3): weiche Querschnitte von der Schulter bzw.
+  // Hüfte im Leib bis zum Fuß, die Knochengewichte laufen über die Gelenke ineinander – vorher Kugeln und Stäbe mit
+  // sichtbaren Stufen („wie Lego“). Hinten: breiter Oberschenkel, der aus der Hüfte wächst, Knie vorn, Unterschenkel
+  // schräg nach hinten zum Sprunggelenk mit Bronzesporn, schlanker Mittelfuß; vorn: Schulter, Oberarm, Ellbogen
+  // hinten, Unterarm, Handgelenk. Füße: Ballen mit drei gespreizten Zehen und Krallen, hinten eine Afterkralle.
+  // Stationen [x nach außen, y, z, halbe Breite, Tiefe vorn, Tiefe hinten, Knochen, Farbe]; Knochen und Gelenkpunkte
+  // (und damit alle Bewegungen) wie bisher.
+  const legShadow = (bone, p, sc) => {
+    if (b.skinned) shadowPart(b, sphere3(1, 6, 4), new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion(), new THREE.Vector3(...sc)), { bone });
+  };
+  const mid = mixColor(red, redD, 0.5);
+  const foot = (bone, sx, x, y, z, k, spur) => {
+    // Ballen: flach, nach vorn breiter; Zehen fächern nach vorn aus, Krallen an den Spitzen
+    A(softTube3([
+      { p: [x, y + 0.045, z - 0.075], rx: 0.04 * k, rf: 0.03, rb: 0.03, w: [bone], c: redD },
+      { p: [x, y + 0.035, z - 0.01], rx: 0.058 * k, rf: 0.035, rb: 0.03, w: [bone], c: redD },
+      { p: [x, y + 0.028, z + 0.06], rx: 0.065 * k, rf: 0.027, rb: 0.024, w: [bone], c: redD },
+      { p: [x, y + 0.025, z + 0.09], rx: 0.045 * k, rf: 0.016, rb: 0.016, w: [bone], c: redD }
+    ], { rad: 10, sub: 2, side: [1, 0, 0] }), null, { bone, shade: 0.1, noShadow: true });
+    for (const t of [-1, 0, 1]) {
+      const r0 = [x + t * 0.036 * k, y + 0.028, z + 0.05];
+      const tip = [x + t * 0.075 * k, y + 0.018, z + 0.15 - Math.abs(t) * 0.025];
+      const m = [(r0[0] + tip[0]) / 2, y + 0.034, (r0[2] + tip[2]) / 2];
+      A(softTube3([
+        { p: r0, rx: 0.022 * k, rf: 0.02, w: [bone], c: redD },
+        { p: m, rx: 0.019 * k, rf: 0.018, w: [bone], c: redD },
+        { p: tip, rx: 0.016 * k, rf: 0.014, w: [bone], c: redD }
+      ], { rad: 6, sub: 2, side: [1, 0, 0] }), null, { bone, noShadow: true });
+      pointAt3(A, horn3(0.07, 0.016, 5), C.claw, [tip[0], tip[1] + 0.004, tip[2] - 0.006], [t * 0.35, -0.55, 1], { bone, shine: 0.5, noShadow: true });
+    }
+    if (spur) pointAt3(A, horn3(0.05, 0.013, 5), C.claw, [x + sx * 0.03, y + 0.06, z - 0.07], [sx * 0.4, -0.6, -1], { bone, shine: 0.5, noShadow: true });
   };
   for (const sx of [-1, 1]) {
     const up = sx > 0 ? DRB3.legFL : DRB3.legFR;
     const lo = sx > 0 ? DRB3.lowFL : DRB3.lowFR;
-    const S = [sx * 0.22, 0.9, 0.42], E = [sx * 0.27, 0.52, 0.32], Wr = [sx * 0.26, 0.13, 0.42], F = [sx * 0.26, 0.05, 0.5];
-    A(ball(12), red, { bone: up, p: [sx * 0.23, 0.78, 0.4], s: [0.1, 0.18, 0.13], top: redHi, topK: 0.4, shade: 0.2 });
-    limbBetween(A, S, E, 0.1, 0.075, red, { bone: up, shade: 0.15 });
-    A(ball(10), red, { bone: lo, p: E, s: 0.078 });
-    limbBetween(A, E, Wr, 0.07, 0.052, red, { bone: lo });
-    A(ball(10), redD, { bone: lo, p: [F[0], F[1] + 0.02, F[2] - 0.02], s: [0.065, 0.045, 0.085] });
-    pointAt3(A, horn3(0.07, 0.018, 5), bronze, [E[0], E[1], E[2] - 0.05], [0, 0.2, -1], { bone: lo, shine: 0.6, noShadow: true });
-    claws(lo, F, 1);
+    const xf = sx * 0.24;
+    const FRONT = [
+      [-0.05, 1.0, 0.43, 0.08, 0.11, 0.11, [DRB3.body, up, 0.25], red], [0.0, 0.88, 0.42, 0.1, 0.13, 0.135, [DRB3.body, up, 0.65], red],
+      [0.02, 0.74, 0.39, 0.092, 0.11, 0.115, [up], red], [0.03, 0.6, 0.345, 0.075, 0.08, 0.085, [up], red],
+      [0.03, 0.52, 0.325, 0.066, 0.068, 0.078, [up, lo, 0.5], red], [0.025, 0.4, 0.35, 0.058, 0.06, 0.058, [lo], mid],
+      [0.02, 0.26, 0.39, 0.048, 0.05, 0.046, [lo], redD], [0.02, 0.15, 0.42, 0.046, 0.05, 0.044, [lo], redD], [0.02, 0.09, 0.44, 0.05, 0.05, 0.05, [lo], redD]
+    ];
+    A(softTube3(FRONT.map(([dx, y, z, rx, rf, rb, w, c]) => ({ p: [xf + sx * dx, y, z], rx, rf, rb, w, c })), { rad: 14, sub: 3 }), null, { bone: up, top: redHi, topK: 0.4, shade: 0.12, shine: 0.15, noShadow: true });
+    legShadow(up, [sx * 0.25, 0.72, 0.38], [0.1, 0.22, 0.12]);
+    legShadow(lo, [sx * 0.26, 0.28, 0.38], [0.06, 0.2, 0.06]);
+    pointAt3(A, horn3(0.07, 0.018, 5), bronze, [sx * 0.27, 0.53, 0.25], [0, 0.2, -1], { bone: lo, shine: 0.6, noShadow: true });
+    foot(lo, sx, sx * 0.26, 0.02, 0.46, 1, false);
+
     const hu = sx > 0 ? DRB3.legBL : DRB3.legBR;
     const hl = sx > 0 ? DRB3.lowBL : DRB3.lowBR;
-    const H = [sx * 0.24, 0.95, -0.48], K = [sx * 0.3, 0.55, -0.3], Hk = [sx * 0.29, 0.22, -0.58], Fh = [sx * 0.29, 0.05, -0.47];
-    A(ball(14), red, { bone: hu, p: [sx * 0.26, 0.8, -0.42], s: [0.13, 0.25, 0.19], top: redHi, topK: 0.4, shade: 0.2, shine: 0.15 });
-    limbBetween(A, H, K, 0.1, 0.075, red, { bone: hu, shade: 0.15 });
-    A(ball(10), red, { bone: hl, p: K, s: 0.085 });
-    limbBetween(A, K, Hk, 0.078, 0.052, red, { bone: hl });
-    A(ball(8), redD, { bone: hl, p: Hk, s: 0.05 });
-    limbBetween(A, Hk, [Fh[0], Fh[1] + 0.03, Fh[2]], 0.052, 0.045, redD, { bone: hl });
-    A(ball(10), redD, { bone: hl, p: [Fh[0], Fh[1] + 0.02, Fh[2] + 0.01], s: [0.07, 0.045, 0.09] });
-    pointAt3(A, horn3(0.06, 0.016, 5), bronze, [Hk[0], Hk[1] + 0.02, Hk[2] - 0.03], [0, 0.4, -1], { bone: hl, shine: 0.6, noShadow: true });
-    claws(hl, Fh, 1);
+    const xh = sx * 0.24;
+    const HIND = [
+      [-0.05, 1.05, -0.47, 0.08, 0.14, 0.16, [DRB3.hips, hu, 0.25], red], [0.01, 0.95, -0.45, 0.122, 0.18, 0.21, [DRB3.hips, hu, 0.6], red],
+      [0.035, 0.83, -0.42, 0.135, 0.18, 0.2, [DRB3.hips, hu, 0.88], red], [0.045, 0.7, -0.375, 0.108, 0.13, 0.14, [hu], red],
+      [0.055, 0.58, -0.32, 0.085, 0.085, 0.09, [hu], red], [0.06, 0.52, -0.31, 0.074, 0.075, 0.085, [hu, hl, 0.5], red],
+      [0.055, 0.42, -0.39, 0.064, 0.06, 0.075, [hl], mid], [0.05, 0.3, -0.5, 0.054, 0.048, 0.07, [hl], redD],
+      [0.05, 0.22, -0.56, 0.05, 0.045, 0.07, [hl], redD], [0.05, 0.14, -0.53, 0.042, 0.042, 0.045, [hl], redD],
+      [0.05, 0.08, -0.5, 0.046, 0.048, 0.048, [hl], redD]
+    ];
+    A(softTube3(HIND.map(([dx, y, z, rx, rf, rb, w, c]) => ({ p: [xh + sx * dx, y, z], rx, rf, rb, w, c })), { rad: 14, sub: 3 }), null, { bone: hu, top: redHi, topK: 0.4, shade: 0.12, shine: 0.15, noShadow: true });
+    legShadow(hu, [sx * 0.27, 0.82, -0.42], [0.13, 0.24, 0.18]);
+    legShadow(hl, [sx * 0.29, 0.3, -0.48], [0.06, 0.2, 0.08]);
+    pointAt3(A, horn3(0.07, 0.017, 5), bronze, [sx * 0.29, 0.24, -0.62], [0, 0.35, -1], { bone: hl, shine: 0.6, noShadow: true });
+    foot(hl, sx, sx * 0.29, 0.02, -0.45, 1.05, true);
   }
 
   // --- Flügel: gewölbte Haut (Ober- und Unterseite) mit fließenden Knochengewichten, Vorderkante aus Ober- und
