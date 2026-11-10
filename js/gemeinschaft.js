@@ -48,6 +48,11 @@ function onSocial(pid, d) {
     onInteract(pid, d);
     return;
   }
+  // Schaden eines Gruppenmitglieds für die Schadensanzeige (seit 14.32, schadensmeter.js prüft die Gruppe)
+  if (d.k === 'dm') {
+    if (typeof dmeterParty === 'function') dmeterParty(pid, d);
+    return;
+  }
   // Heilung aus der Lichtkuppel eines Gruppenmitglieds (seit 13.26)
   if (d.k === 'hh') {
     const pct = Math.max(0, Math.min(0.3, Number(d.pct) || 0));

@@ -541,7 +541,9 @@ const ui = {
         plus.title = awaken ? skillRankName(sk, p.skillLevels[i]) + ' erwecken' : skillRankName(sk, p.skillLevels[i]) + ' verbessern';
         plus.textContent = awaken ? 'E' : '+';
         plus.addEventListener('pointerdown', (e) => e.stopPropagation());
-        plus.addEventListener('click', (e) => {
+        // seit 14.32: erst die Vorschau (alte → neue Werte), verbessert wird mit „Bestätigen“ (fertigkeit-vorschau.js)
+        if (act && typeof skillPreviewBind === 'function') skillPreviewBind(plus, i, act.type);
+        else plus.addEventListener('click', (e) => {
           e.stopPropagation();
           if (act) upgradeSkill(i, act.type);
           else this.toggle('panelChar');
@@ -1509,7 +1511,9 @@ const ui = {
     $('btnLook').addEventListener('click', () => this.openLookPanel());
     if ($('charDoll') && typeof drawDoll === 'function') drawDoll($('charDoll'));
     $('charBody').querySelectorAll('[data-upgrade]').forEach((b) => {
-      b.addEventListener('click', () => upgradeSkill(Number(b.dataset.upgrade), b.dataset.act));
+      // seit 14.32: Vorschau mit Bestätigen, auch ohne Punkte/Bücher (dann ist „Bestätigen“ gesperrt)
+      if (typeof skillPreviewBind === 'function') skillPreviewBind(b, Number(b.dataset.upgrade), b.dataset.act);
+      else b.addEventListener('click', () => { if (b.getAttribute('aria-disabled') !== 'true') upgradeSkill(Number(b.dataset.upgrade), b.dataset.act); });
     });
     $('charBody').querySelectorAll('[data-attr]').forEach((b) => {
       b.addEventListener('click', () => {
@@ -1969,6 +1973,9 @@ function skillStats(sk, lvl) {
   }
   // seit 13.87: Totenruf – Geister je Rang (sk.counts, nekro-totenruf.js)
   if (sk.type === 'revive') out.push(['Geister', 'bis ' + sk.counts[Math.min(sk.counts.length - 1, skillRank(lvl) + 1)]]);
+  // seit 14.32: Leben und Schlag der Geister wachsen mit der Stufe (spawnGhostAlly: buffScale, allyAtk: dmgScale) –
+  // für ein Monster mittlerer Größe; große Monster werden zu stärkeren Geistern
+  if (sk.type === 'revive' && sk.hp) out.push(['Leben je Geist', skillHpNum(sk.hp * scale)], ['Schlag', hit(sk.atk)]);
   // Nekromant, Weg der Seelen (seit 8.5): Schädelsalve, Seelenkäfig, Mal des Seelenschnitters
   if (sk.type === 'skulls') out.push(['Schaden', sk.count + ' × ' + hit(sk.dmg)]);
   if (sk.type === 'cage') out.push(['Schrei', hit(sk.dmg) + ' ×' + sk.pulses], ['Verlangsamt', skillPct(sk.slow.amount)]);
@@ -2151,7 +2158,7 @@ function skillListHtml(skills, p) {
       head = r < 0 ? `Stufe ${lvl}/${SKILL_POINT_MAX}` : `<b class="rank-text" style="color:${SKILL_RANKS[r].color}">${SKILL_RANKS[r].name} ${skillLevelText(lvl)}</b>`;
       // seit 14.1: Symbol des Gegenstands im Knopf, Grund bei fehlendem Gegenstand sichtbar darunter (nicht nur als Titel)
       const ico = (a) => (a.item ? `<img class="act-ico" src="${a.item === 'book' ? bookIconUrl(sk.id) : materialIconUrl(a.item)}" alt="">` : '');
-      btns = acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'disabled'} title="${escapeHtml(a.ok ? a.skip || '' : a.why)}">${ico(a)}${a.label}</button>`).join('') ||
+      btns = acts.map((a) => `<button class="mini-btn${a.type === 'rankup' ? ' rank-btn' : ''}" type="button" data-upgrade="${i}" data-act="${a.type}" ${a.ok ? '' : 'aria-disabled="true"'} title="${escapeHtml(a.ok ? a.skip || '' : a.why)}">${ico(a)}${a.label}</button>`).join('') ||
         (r === SKILL_RANKS.length - 1 ? '<span class="hint-text">Höchste Stufe</span>' : '');
       for (const w of new Set(acts.filter((a) => !a.ok && a.why && a.type !== 'point').map((a) => a.why))) btns += `<small class="sk-why">${escapeHtml(w)}</small>`;
       const skip = acts.find((a) => a.ok && a.skip);

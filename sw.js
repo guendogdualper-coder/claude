@@ -122,6 +122,8 @@ const FILES = [
   'js/instanzen.js',
   'js/herausforderung.js',
   'js/turnierarena.js',
+  'js/schadensmeter.js',
+  'js/fertigkeit-vorschau.js',
   'js/bestenliste.js',
   'js/daten/ratgeber-wissen.js',
   'js/ratgeber.js',
