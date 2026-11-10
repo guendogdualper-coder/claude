@@ -918,6 +918,30 @@ kbd {
 .item-tile.band-4 { border-color: #e0b84a; box-shadow: 0 0 14px rgba(255, 211, 77, 0.6); }
 .item-tile.selected { outline: 2px solid var(--brass); outline-offset: 2px; }
 
+/* seit 14.32 (UI-Prüfung, docs/auftrag-2026-11-10-optik.md): Platznamen auf angelegten Teilen („NEBENHAND“ war
+   2 px breiter als die Kachel) enger gesetzt und auf einem dunklen Verlauf, damit sie über dem Bild lesbar bleiben */
+.item-tile .slot-label { letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; }
+.item-tile:not(.empty) .slot-label {
+  bottom: 0; padding: 4px 0 1px; border-radius: 0 0 5px 5px;
+  background: linear-gradient(rgba(12, 9, 6, 0), rgba(12, 9, 6, 0.78) 55%);
+  color: #d8c9a6; text-shadow: 0 1px 1px #000;
+}
+/* Haken für die Segensschriftrolle beim Schmied war 13×13 px */
+.scroll-opt input { width: 18px; height: 18px; flex: none; }
+/* Schmied: Rückfrage vor dem Verbessern, wenn das Teil zerbrechen kann */
+.btn-forge.danger { background: linear-gradient(#c0503e, #8a2a20); border-color: #e07a62; color: #fff2ea; }
+/* Finger: Reiter und kleine Knöpfe in Fenstern mindestens 32 px hoch (vorher 22–28 px) */
+@media (pointer: coarse) {
+  .panel .bag-tab { height: 32px; min-width: 38px; }
+  .panel .mini-btn { min-height: 32px; }
+  .scroll-opt input { width: 22px; height: 22px; }
+  .panel .attr-plus { height: 32px; }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  /* Handy quer: Kacheln der Puppe sind nur 42 px breit */
+  .item-tile:not(.empty) .slot-label { font-size: 7.5px; letter-spacing: 0; }
+}
+
 .inv-layout { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 18px; align-items: start; }
 .inv-layout h3 { margin: 0 0 6px; }
 .equip-grid { display: grid; grid-template-columns: repeat(2, 56px); gap: 8px; }
