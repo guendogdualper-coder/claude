@@ -347,6 +347,12 @@ const FOOT_SPEED_CAP = 1.25;
 const PLAYER_CRIT_CAP = 0.4;
 // Boni, die unverändert als Wert in playerStats landen (seit 14.15)
 const PLAYER_BONUS_KEYS = ['poison', 'vsBeast', 'vsHuman', 'vsOrc', 'vsUndead', 'vsDemon', 'resHuman', 'resMagic', 'resMelee', 'resRanged', 'goldFind', 'dropFind'];
+// Ausweichen (seit 14.32 als Tabelle statt fester Zahl im Code, Werte unverändert): cap ist die Obergrenze der Summe aus
+// Ausrüstung (Umhang, Schuhe, Ninja-Rüstung), Boni (zusammen höchstens BONUS_CAPS.dodge), Geschick (ATTR_PT.dodge je
+// Punkt) und Buffs (Schattenschleier). Gewürfelt wird einmal je Treffer in damagePlayer (kampf.js), vor dem Blocken;
+// im PvP zählt die Hälfte (PVP_DMG.dodgeMul). Bestand, Messung und Varianten: docs/auftrag-2026-11-10-kampf.md
+const DODGE_RULES = { cap: 0.45 };
+
 function playerStats(p) {
   const c = CLASSES[p.classId];
   const L = p.level - 1;
@@ -437,7 +443,7 @@ function playerStats(p) {
   }
   // Blocken nur mit Schild (und nicht mit einer Zweihandwaffe oder zweitem Schwert)
   const twoHand = eq.waffe && WEAPON_KINDS[eq.waffe.kind] && WEAPON_KINDS[eq.waffe.kind].twoHanded;
-  s.block = eq.schild && !offhand && !twoHand ? Math.min(MAX_BLOCK, s.block) : 0;
+  s.block = eq.schild && !offhand && !twoHand ? Math.max(0, Math.min(MAX_BLOCK, s.block)) : 0;
   // Statuswerte (eigene Punkte plus Boni auf der Ausrüstung)
   const own = p.attrs || {};
   // Intelligenz aus Buffs (Arkane Erleuchtung des Magiers, seit 13.1)
@@ -507,7 +513,8 @@ function playerStats(p) {
   s.footSpeed = c.base.speed * foot;
   s.speed = c.base.speed * (foot + ride);
   s.atkSpeed = Math.min(2.5, s.atkSpeed);
-  s.dodge = Math.min(0.45, s.dodge);
+  // seit 14.32 nie unter 0 (ein Abzug aus Buffs hätte sonst „−30 %“ angezeigt; gewürfelt wurde dann einfach nie)
+  s.dodge = Math.max(0, Math.min(DODGE_RULES.cap, s.dodge));
   // seit 14.6: kritische Treffer höchstens 40 % (der Ninja kam mit Geschick, Segen und Ausrüstung auf fast 60 %)
   s.crit = Math.min(PLAYER_CRIT_CAP, s.crit);
   // Weg des Dolches (seit 14.13): 5 % Lebensraub, damit der Nahkampf-Ninja an Seelensteinen mit Wellen länger durchhält
