@@ -119,6 +119,9 @@ function setupInput() {
       selectAt(e.clientX, e.clientY);
       return;
     }
+    // seit 14.32: ein zweiter Finger auf dem Bild übernimmt das Drehen nicht (vorher riss er es dem ersten ab, und
+    // beim Loslassen des zweiten blieb die Drehung des ersten stehen)
+    if (camDrag) return;
     camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     cv.setPointerCapture(e.pointerId);
   });
