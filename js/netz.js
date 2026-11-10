@@ -574,7 +574,23 @@ function netOnClientData(d) {
         const bc = bodyCenter(p);
         addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
       }
-      damagePlayer(calcDamage(d.atk, d.mul, game.stats.def, 0.03, d.lvl).amount, m || null);
+      // seit 14.32: Zermürbung der Endgame-Bosse nimmt einen Teil der Verteidigung (sh, höchstens 90 %)
+      const sh = Math.max(0, Math.min(0.9, +d.sh || 0));
+      if (d.zs >= 2) addText(p.x, p.y - 46, `Zermürbung ×${Math.min(9, d.zs | 0)}`, 'hurt');
+      if (d.bs) endgameBeset(p);
+      damagePlayer(calcDamage(d.atk, d.mul, game.stats.def * (1 - sh), 0.03, d.lvl).amount, m || null);
+      break;
+    }
+    case 'share': {
+      // seit 14.32: Splitterschlag eines Endgame-Bosses – Warnung zeigen, beim Einschlag den eigenen Anteil rechnen
+      const m = net.mons.get(d.id);
+      if (!m || !isFinite(d.x) || !isFinite(d.y)) break;
+      const c = { x: d.x, y: d.y, r: Math.max(20, Math.min(300, +d.r || 120)) };
+      const delay = Math.max(0.5, Math.min(6, +d.d || 3));
+      const pct = Math.max(0, Math.min(1, +d.pct || 0));
+      // z: Schmetterschlag einer Elite (nur im Kreis, nicht geteilt)
+      endgameShareShow(m, c, delay, !!d.z);
+      later(delay, () => endgameShareResolve(m, c, pct, !!d.z));
       break;
     }
     case 'proj':
@@ -890,7 +906,7 @@ function netPlayerState() {
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
-    hp: Math.round(p.hp), mh: s.maxHp, mp: Math.round(p.mp || 0), mm: s.maxMp, d: p.dead ? 1 : 0, r: p.riding ? rideTierOf(p) : 0, fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
+    hp: Math.round(p.hp), mh: s.maxHp, mp: Math.round(p.mp || 0), mm: s.maxMp, d: p.dead ? 1 : 0, r: p.riding ? rideTierOf(p) : 0, ...(p.riding && p.dragonGround ? { rg: 1 } : {}), fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
     // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
     // seit 13.94: Bit 16 = Feueratem des Drachen bzw. Bodenstampfer des Kolosses (sonst Feuerball bzw. Faustschlag)
     ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0) | (a.altAttack ? 16 : 0), a.slot | 0, a.ghost ? a.typeId : 0]) } : {}),
@@ -945,6 +961,8 @@ function netApplyState(rp, s) {
   rp.dead = !!s.d;
   rp.riding = !!s.r;
   rp.horseTier = s.r || 1;
+  // seit 14.32: Drache läuft am Boden (Dungeon, Instanz, Arena, Duell); ältere Versionen schicken dort r = 2 (Kriegsross)
+  rp.dragonGround = !!s.rg;
   rp.footSpeed = s.fs || 0; // Fußtempo für die Dungeon-Verfolgung (seit 8.5, ältere Clients senden es nicht)
   rp.invisible = !!s.iv;
   rp.equipment = s.eq || {};

@@ -1369,8 +1369,15 @@ function generateWorld() {
 // geteilt, ein Weg aus 6–8 Räumen windet sich ohne Kreuzung vom Start zum Boss, dazu 1–2 Seitenräume
 // als Sackgasse (Schatzkammer oder Schrein). Räume haben verschiedene Formen (Halle, Rundsaal, Kreuz,
 // Säulenhalle), manche ein Becken (Wasser, Lava oder Eis je Dungeon).
+// Seit 14.32 höhlenartiger und verzweigt: In Höhlen-Dungeons (Boden Höhle, Eis, Basalt, Kristall – nicht die gemauerten
+// Festungen, Keller und Tempel) sind die meisten Räume gewachsene Höhlen (Form 'cave': Rand mit Ausbuchtungen), die
+// Gänge winden sich und haben Nischen, Ecken werden abgerundet. Oft gibt es dazu einen zweiten Weg (Schleife zwischen
+// zwei Kampfräumen, nie am Start oder am Boss) – beide Wege sind begehbar, Monster finden über beide (A*, gegner.js).
 const DG_GRID = { cols: 3, rows: 4, cw: 18, ch: 17 };
 const DG_SHAPES = ['hall', 'round', 'cross', 'pillars', 'hall', 'round'];
+const DG_CAVE_SHAPES = ['cave', 'cave', 'cave', 'round', 'pillars', 'cross', 'cave'];
+const DG_CAVE_FLOORS = new Set(['CAVE', 'ICE', 'BASALT', 'KRISTALL']);
+const DG_LOOP_CHANCE = 0.7;
 // Endboss-Arena: kleiner Vorraum, dann eine große Halle (fast der ganze Block)
 const RAID_ROOMS = [[3, 32, 8, 8], [16, 5, 38, 63]];
 // Höllenthron (seit 13.0): Start unten links, dann vier Räume im Bogen (Steine, Wächter, Steine, Wächter),
@@ -1959,23 +1966,44 @@ function dungeonPlan(rng) {
       used.add(key(f[0], f[1]));
       side.push({ cell: f, from });
     }
-    best = { path, side };
+    // seit 14.32: zweiter Weg – zwei Kampfräume, die im Raster Nachbarn sind, aber nicht direkt verbunden (mindestens
+    // zwei Räume dazwischen), bekommen einen eigenen Gang; Start und Boss bleiben außen vor
+    const loops = [];
+    if (rng() < DG_LOOP_CHANCE) {
+      const cand = [];
+      for (let i = 1; i < path.length - 1; i++) {
+        for (let j = i + 3; j < path.length - 1; j++) {
+          if (Math.abs(path[i][0] - path[j][0]) + Math.abs(path[i][1] - path[j][1]) === 1) cand.push([i, j]);
+        }
+      }
+      if (cand.length) loops.push(cand[Math.floor(rng() * cand.length)]);
+    }
+    best = { path, side, loops };
   }
   return best;
 }
 
 // Raum in einem Feld des Rasters: Größe und Lage gewürfelt, Form je Rolle (Start schlicht, Boss groß)
-function dungeonRoom(rng, cell, role, ox, oy) {
+function dungeonRoom(rng, cell, role, ox, oy, cave) {
   const { cw, ch } = DG_GRID;
   const big = role === 'boss';
   const w = big ? 15 + Math.floor(rng() * 2) : role === 'start' ? 9 + Math.floor(rng() * 2) : 10 + Math.floor(rng() * 6);
   const h = big ? 14 + Math.floor(rng() * 2) : role === 'start' ? 8 + Math.floor(rng() * 2) : 9 + Math.floor(rng() * 5);
   const rx = cell[0] * cw + 1 + Math.floor(rng() * Math.max(1, cw - 1 - w));
   const ry = cell[1] * ch + 1 + Math.floor(rng() * Math.max(1, ch - 1 - h));
-  const shape = role === 'start' ? 'hall' : big ? (rng() < 0.5 ? 'round' : 'pillars') : role === 'schatz' || role === 'schrein' ? (rng() < 0.5 ? 'round' : 'cross') : DG_SHAPES[Math.floor(rng() * DG_SHAPES.length)];
+  let shape = role === 'start' ? 'hall' : big ? (rng() < 0.5 ? 'round' : 'pillars') : role === 'schatz' || role === 'schrein' ? (rng() < 0.5 ? 'round' : 'cross') : DG_SHAPES[Math.floor(rng() * DG_SHAPES.length)];
+  // seit 14.32: Höhlen-Dungeons – gewachsene Höhlen statt Hallen (Seitenräume und manche Bossräume auch; der
+  // Startraum bleibt eine Halle mit unregelmäßigem Rand, dort steht der Ausgang in der Ecke)
+  if (cave && role !== 'start') {
+    if (role === 'mob') shape = DG_CAVE_SHAPES[Math.floor(rng() * DG_CAVE_SHAPES.length)];
+    else if (role === 'schatz' || role === 'schrein' || rng() < 0.5) shape = 'cave';
+  }
   const x = ox + rx;
   const y = oy + ry;
-  return { x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2), shape, role, cell };
+  const r = { x, y, w, h, cx: x + Math.floor(w / 2), cy: y + Math.floor(h / 2), shape, role, cell };
+  // Ausbuchtungen der Höhle: Zahl und Lage gewürfelt
+  if (shape === 'cave') Object.assign(r, { lobes: 3 + Math.floor(rng() * 3), ph: rng() * Math.PI * 2, ph2: rng() * Math.PI * 2 });
+  return r;
 }
 
 // Liegt (x, y) innerhalb der Form des Raums?
@@ -1985,6 +2013,14 @@ function inRoomShape(r, x, y) {
     const nx = (x + 0.5 - (r.x + r.w / 2)) / (r.w / 2);
     const ny = (y + 0.5 - (r.y + r.h / 2)) / (r.h / 2);
     return nx * nx + ny * ny <= 1.08;
+  }
+  // seit 14.32: Höhle – Kreis mit welligem Rand (sternförmig um die Mitte, darum immer zusammenhängend)
+  if (r.shape === 'cave') {
+    const nx = (x + 0.5 - (r.x + r.w / 2)) / (r.w / 2);
+    const ny = (y + 0.5 - (r.y + r.h / 2)) / (r.h / 2);
+    const a = Math.atan2(ny, nx);
+    const k = 0.93 + 0.13 * Math.sin(r.lobes * a + r.ph) + 0.07 * Math.sin((r.lobes + 3) * a + r.ph2);
+    return nx * nx + ny * ny <= k * k * 1.12;
   }
   if (r.shape === 'cross') {
     const kx = Math.floor(r.w / 4);
@@ -2032,6 +2068,10 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
     let rooms;
     let side = [];
     let links = [];
+    let loops = [];
+    // seit 14.32: gewürfelte Dungeons mit Höhlenboden werden höhlenartig (Form, Gänge, runde Ecken)
+    const caveLike = !fixed && !def.rows && DG_CAVE_FLOORS.has(def.floor);
+    const crng = mulberry32(WORLD_SEED + hashText(def.id) + 7);
     if (fixed) {
       rooms = fixed.map(([rx, ry, w, h]) => ({ x: ox + rx, y: oy + ry, w, h, cx: ox + rx + Math.floor(w / 2), cy: oy + ry + Math.floor(h / 2), shape: 'hall' }));
       links = rooms.slice(1).map((b, n) => [rooms[n], b]);
@@ -2040,9 +2080,12 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
     } else {
       const prng = mulberry32(WORLD_SEED + hashText(def.id));
       const plan = dungeonPlan(prng);
-      rooms = plan.path.map((cell, n) => dungeonRoom(prng, cell, n === 0 ? 'start' : n === plan.path.length - 1 ? 'boss' : 'mob', ox, oy));
-      side = plan.side.map((sd, n) => Object.assign(dungeonRoom(prng, sd.cell, n % 2 ? 'schrein' : 'schatz', ox, oy), { from: sd.from }));
+      rooms = plan.path.map((cell, n) => dungeonRoom(prng, cell, n === 0 ? 'start' : n === plan.path.length - 1 ? 'boss' : 'mob', ox, oy, caveLike));
+      side = plan.side.map((sd, n) => Object.assign(dungeonRoom(prng, sd.cell, n % 2 ? 'schrein' : 'schatz', ox, oy, caveLike), { from: sd.from }));
       links = rooms.slice(1).map((b, n) => [rooms[n], b]).concat(side.map((r) => [rooms[r.from], r]));
+      // seit 14.32: zweiter Weg (Schleife)
+      loops = (plan.loops || []).map(([i, j]) => [rooms[i], rooms[j]]);
+      links = links.concat(loops);
     }
     for (const r of rooms.concat(side)) {
       for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (inRoomShape(r, x, y)) carve(x, y);
@@ -2068,8 +2111,28 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
       }
     }
     // Gänge: feste Pläne erst waagrecht, dann senkrecht; gewürfelte als Z mit Knick zwischen den Räumen
-    const lineX = (x0, x1, y) => { for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) for (let w = -1; w <= 1; w++) carve(x, y + w); };
-    const lineY = (y0, y1, x) => { for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let w = -1; w <= 1; w++) carve(x + w, y); };
+    // seit 14.32 in Höhlen gewunden: der Gang (drei Kacheln breit) weicht unterwegs bis zu zwei Kacheln zur Seite
+    // aus und kehrt vor dem Ende auf seine Linie zurück (die Knicke treffen sich wie vorher); ab und zu eine Nische
+    const wind = (a0, a1, put) => {
+      const lo = Math.min(a0, a1);
+      const hi = Math.max(a0, a1);
+      let off = 0;
+      for (let a = lo; a <= hi; a++) {
+        const left = hi - a;
+        if (caveLike) {
+          if (left <= Math.abs(off) + 1) off -= Math.sign(off);
+          else if (crng() < 0.22) off = Math.max(-2, Math.min(2, off + (crng() < 0.5 ? -1 : 1)));
+        }
+        for (let w = -1; w <= 1; w++) put(a, off + w);
+        if (caveLike && crng() < 0.07 && left > 2 && a - lo > 2) {
+          const side = crng() < 0.5 ? -2 : 2;
+          put(a, off + side);
+          put(a + 1, off + side);
+        }
+      }
+    };
+    const lineX = (x0, x1, y) => wind(x0, x1, (x, o) => carve(x, y + o));
+    const lineY = (y0, y1, x) => wind(y0, y1, (y, o) => carve(x + o, y));
     for (const [a, b] of links) {
       if (fixed) {
         lineX(a.cx, b.cx, a.cy);
@@ -2094,6 +2157,21 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
         lineX(tx, bx, my);
         lineY(my, B.cy, bx);
       }
+    }
+    // seit 14.32: Höhlen glätten – Felskacheln mit mindestens fünf freien Nachbarn brechen weg (runde Ecken, weiche
+    // Knicke). Es wird nur geöffnet, nie geschlossen: alles bleibt verbunden.
+    if (caveLike) {
+      const open = [];
+      for (let y = B.y + 2; y < B.y + B.h - 2; y++) {
+        for (let x = x0 + 2; x < x0 + DUNGEON_COL - 2; x++) {
+          const i = y * MAP_W + x;
+          if (obj[i] !== OBJ.CAVEWALL) continue;
+          let n = 0;
+          for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((dx || dy) && obj[i + dy * MAP_W + dx] === OBJ.NONE) n++;
+          if (n >= 5) open.push([x, y]);
+        }
+      }
+      for (const [x, y] of open) carve(x, y);
     }
     // Säulenhallen: Säulen im Raster, nicht vor den Gängen und nicht in der Mitte
     const pillars = [];
@@ -2145,8 +2223,36 @@ function buildDungeons(ground, obj, zoneIdx, deco) {
         for (let y = py; y < py + 2; y++) for (let x = px; x < px + 2; x++) ground[y * MAP_W + x] = GROUND.LAVA;
       }
     }
+    // seit 14.32: abgeschnittene Taschen (unregelmäßige Ränder an zugeschütteten Ecken) wieder zu Fels – vom Start
+    // aus nicht erreichbarer Boden bleibt nicht übrig, dort kann nichts erscheinen oder hängen bleiben
+    {
+      const reach = new Uint8Array(DUNGEON_COL * B.h);
+      const at = (x, y) => (y - B.y) * DUNGEON_COL + (x - x0);
+      const st = [[rooms[0].cx, rooms[0].cy]];
+      reach[at(rooms[0].cx, rooms[0].cy)] = 1;
+      while (st.length) {
+        const [x, y] = st.pop();
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx <= x0 || ny <= B.y || nx >= x0 + DUNGEON_COL - 1 || ny >= B.y + B.h - 1) continue;
+          if (reach[at(nx, ny)] || obj[ny * MAP_W + nx] === OBJ.CAVEWALL) continue;
+          reach[at(nx, ny)] = 1;
+          st.push([nx, ny]);
+        }
+      }
+      for (let y = B.y + 1; y < B.y + B.h - 1; y++) {
+        for (let x = x0 + 1; x < x0 + DUNGEON_COL - 1; x++) {
+          const i = y * MAP_W + x;
+          if (!reach[at(x, y)] && obj[i] !== OBJ.CAVEWALL) {
+            obj[i] = OBJ.CAVEWALL;
+            ground[i] = GROUND[def.floor] != null ? GROUND[def.floor] : ground[i];
+          }
+        }
+      }
+    }
     const tileCenter = (x, y) => ({ x: (x + 0.5) * TILE, y: (y + 0.5) * TILE });
-    return { def, rooms, side, pillars, pools, start: tileCenter(rooms[0].cx, rooms[0].cy) };
+    return { def, rooms, side, loops, pillars, pools, start: tileCenter(rooms[0].cx, rooms[0].cy) };
   });
 }
 

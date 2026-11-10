@@ -169,8 +169,10 @@ function updatePlayer(dt) {
 
   // Regeneration: außerhalb des Kampfes deutlich schneller
   const calm = game.time - p.lastCombat > 5;
-  // im PvP zu 60 % wie jede Heilung (seit 14.15)
-  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * ((calm ? 0.02 : 0.003) + s.regen) * dt * pvpHealMul());
+  // im PvP zu 60 % wie jede Heilung (seit 14.15); seit 14.32 halb so schnell, solange man von drei oder mehr
+  // Endgame-Elite zugleich bedrängt wird (gegner.js ENDGAME.besetRegen)
+  const beset = p.besetUntil > game.time && typeof ENDGAME !== 'undefined' ? ENDGAME.besetRegen : 1;
+  p.hp = Math.min(s.maxHp, p.hp + s.maxHp * ((calm ? 0.02 : 0.003) + s.regen) * dt * pvpHealMul() * beset);
   // Gift eines anderen Spielers (Bonus Vergiftungschance, seit 14.15)
   if (p.toxin) playerToxinTick(p, dt);
   p.mp = Math.min(s.maxMp, p.mp + s.maxMp * (calm ? 0.03 : 0.012) * dt);

@@ -1071,7 +1071,9 @@ const ui = {
     }
     const horse = p && p.horse ? HORSES[p.horseTier || 1] || HORSES[1] : null;
     pct.hidden = !horse;
-    if (horse) pct.textContent = '+' + Math.round(horse.speed * 100) + ' %';
+    // seit 14.32: Drache am Boden (Dungeon, Instanz, Arena, Duell) läuft so schnell wie das Kriegsross
+    const grounded = !!(horse && horse.fly && p.riding && p.dragonGround);
+    if (horse) pct.textContent = '+' + Math.round((grounded ? HORSES[2] : horse).speed * 100) + ' %';
     // seit 14.27: mit der Glutschwinge heißt der Knopf „Drache“, der Hinweis nennt das Fliegen
     const label = btn.querySelector('.menu-text');
     const word = horse && horse.fly ? 'Drache' : 'Pferd';
@@ -1081,7 +1083,8 @@ const ui = {
       label.textContent = word;
       btn.setAttribute('aria-label', word);
     }
-    btn.title = horse ? `${horse.name} (+${Math.round(horse.speed * 100)} % Lauftempo)` + (horse.fly ? ' · fliegt über Bäume, Felsen und Wasser' : '') : '';
+    btn.title = !horse ? '' : grounded ? `${horse.name} (+${Math.round(HORSES[2].speed * 100)} % Lauftempo) · läuft hier am Boden`
+      : `${horse.name} (+${Math.round(horse.speed * 100)} % Lauftempo)` + (horse.fly ? ' · fliegt über Bäume, Felsen und Wasser' : '');
   },
 
   // Lebensbalken eines Bosses oben in der Mitte, sobald man in seiner Nähe ist

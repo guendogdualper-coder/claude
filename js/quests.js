@@ -350,6 +350,9 @@ function moveThrough(spot, color) {
   p.y = spot.y;
   game.target = null;
   game.allies.forEach((a) => { a.x = p.x; a.y = p.y; });
+  // seit 14.32: auf dem Drachen sofort in den passenden Zustand (im Dungeon am Boden, draußen fliegend), nicht erst
+  // im nächsten Bild – so steht man nach dem Eintritt nie fliegend in einem Dungeon
+  if (typeof dragonRideTick === 'function') dragonRideTick(p);
   ui.closePanels();
   vfxPillar(p, color, 1);
   // kein heller Blitz mehr (seit 11.3): in 3D blendet warpFade dunkel über

@@ -10,7 +10,7 @@ function createMonster(typeId, x, y, opts = {}) {
   // opts.level: z. B. Monster aus einem Seelenstein haben dessen Stufe
   const level = opts.level || t.level;
   const st = monsterStats(level, t.hpMul, t.atkMul);
-  return {
+  const m = {
     id: nextMonsterId++, typeId, type: t, name: t.name, level,
     x, y, homeX: x, homeY: y, r: t.size,
     maxHp: st.maxHp, hp: st.maxHp, atk: st.atk, def: st.def, xp: st.xp, gold: st.gold,
@@ -19,6 +19,15 @@ function createMonster(typeId, x, y, opts = {}) {
     stun: 0, kx: 0, ky: 0, hitFlash: 0, slow: null, vulnerable: null, poison: null, burn: null,
     respawn: opts.respawn !== false, groupId: opts.groupId || 0, zone: opts.zone, dead: false, respawnAt: 0
   };
+  // seit 14.32: Endgame-Elite (Gegner in Dungeons und Instanzen ab Stufe 75, keine Bosse) – zäher, flankiert,
+  // die Seherinnen heilen (ENDGAME weiter unten). Gilt auch beim Mitspieler (netBuildMonster baut mit derselben Zone).
+  if (endgameEliteType(t, level, opts.zone)) {
+    m.elite80 = true;
+    m.maxHp = m.hp = Math.round(m.maxHp * ENDGAME.eliteHp);
+    if (endgameHealerType(t)) m.healCd = 3 + Math.random() * 4;
+    else if (!t.ranged) m.smashCd = 4 + Math.random() * 6;
+  }
+  return m;
 }
 
 function createStone(zone, level, from = 0, to = 1, at = null) {
@@ -135,7 +144,9 @@ function populateDungeons(groupId) {
     // Seelensteine an fester Stelle auf etwa einem und zwei Dritteln des Wegs, kommen erst nach 5–8 Minuten wieder
     dg.def.stones.forEach((level, k) => {
       const r = mid[Math.min(mid.length - 1, Math.round((k + 1) * mid.length / 3) - (k ? 0 : 1))] || dg.rooms[1];
-      const stone = createStone(zone, level, 0, 1, { x: (r.cx + 0.5) * TILE, y: (r.y + Math.min(3, r.h * 0.25)) * TILE });
+      // seit 14.32 auf einer freien Kachel der Raumform (Höhlen und Rundsäle haben oben keine Ecke mehr)
+      const ft = dungeonFreeTile(r, 0.5, Math.min(3, r.h * 0.25) / r.h, game.world.obj, game.world.ground);
+      const stone = createStone(zone, level, 0, 1, { x: (ft.x + 0.5) * TILE, y: (ft.y + 0.5) * TILE });
       stone.fixedSpot = true;
       stone.stoneRespawn = [300, 480];
       game.monsters.push(stone);
@@ -588,10 +599,12 @@ function tickDots(m, dt) {
 function monsterAttack(m, target) {
   const p = game.player;
   m.attackAnim = 0.25;
+  // seit 14.32: Endgame-Mechaniken (Flankieren der Elite, Zermürbung der Bosse), sonst 1 und 0
+  const eg = endgameStrike(m, target);
   if (m.type.ranged) {
     game.projectiles.push({
       owner: 'monster', x: m.x, y: m.y, vx: 0, vy: 0, speed: 300, range: m.type.range + 80, traveled: 0,
-      radius: 5, atk: m.atk, source: m, color: m.type.shot || '#e8d6a0', hit: new Set(), trail: [],
+      radius: 5, atk: Math.round(m.atk * eg.mul), source: m, color: m.type.shot || '#e8d6a0', hit: new Set(), trail: [],
       style: m.type.bow ? 'arrow' : undefined,
       ...(() => {
         const dx = target.x - m.x;
@@ -606,12 +619,223 @@ function monsterAttack(m, target) {
   monsterStrikeFx(m, target);
   if (target.remote) {
     // Ein Mitspieler wird getroffen: den Schaden rechnet sein Gerät mit seiner Rüstung aus
-    netSendTo(target.peerId, { t: 'mhit', id: m.id, atk: m.atk, lvl: m.level, mul: levelBonus(m.level, target.level) });
+    // seit 14.32: mul enthält Flankieren und Zermürbung, sh = weggenommene Verteidigung, zs = Zermürbungsstufe
+    // (ältere Versionen kennen sh und zs nicht und rechnen nur mit mul)
+    // bs: bedrängt (drei oder mehr Endgame-Elite am selben Ziel)
+    netSendTo(target.peerId, { t: 'mhit', id: m.id, atk: m.atk, lvl: m.level, mul: levelBonus(m.level, target.level) * eg.mul, ...(eg.shred ? { sh: +eg.shred.toFixed(2), zs: eg.stacks } : {}), ...(eg.beset ? { bs: 1 } : {}) });
   } else if (target === p) {
-    damagePlayer(calcDamage(m.atk, levelBonus(m.level, p.level), game.stats.def, 0.03, m.level).amount, m);
+    if (eg.stacks >= 2) addText(p.x, p.y - 46, `Zermürbung ×${eg.stacks}`, 'hurt');
+    if (eg.beset) endgameBeset(p);
+    damagePlayer(calcDamage(m.atk, levelBonus(m.level, p.level) * eg.mul, game.stats.def * (1 - eg.shred), 0.03, m.level).amount, m);
   } else {
-    damageAlly(target, calcDamage(m.atk, 1, target.def, 0, m.level).amount);
+    damageAlly(target, calcDamage(m.atk, eg.mul, target.def * (1 - eg.shred), 0, m.level).amount);
   }
+}
+
+// --- Endgame-Mechaniken (seit 14.32) --------------------------------------------------------------------------
+// Bis 14.31 ließen sich Elite-Gruppen und Bosse der Stufe-80-Inhalte (Kristallkaverne, Spiegelgruft, Thron der Leere)
+// von einem einzelnen gut ausgerüsteten Spieler mühelos tanken (Messung: docs/auftrag-2026-11-10-dungeon.md). Statt
+// riesiger Lebenspunkte gibt es nachvollziehbare Regeln, die eine Gruppe ausgleicht, ein Einzelner aber spürt:
+//   Elite (Dungeon-/Instanzgegner ab Stufe 75, keine Bosse): mehr Leben (eliteHp); greifen mehrere dasselbe Ziel
+//     an, trifft jede weitere Elite härter und durch die Deckung (Flankieren), ab drei Angreifern ist man bedrängt
+//     (Regeneration halb so schnell) – in der Gruppe verteilen sie sich; Nahkämpfer holen alle 9–12 s zu einem
+//     angekündigten Schmetterschlag aus (Kreis unter dem Ziel, 1,2 s): wer drinbleibt, verliert einen Anteil seines
+//     Höchstlebens (Rüstung hilft nicht, „Erlittener Schaden“ schon) – ausweichen hilft immer; Seherinnen und
+//     Spiegelseelen (Fernkämpfer in Menschen- oder Geistergestalt) heilen verletzte Verbündete mit sichtbarem
+//     Zauber – Vorrangziel, Betäuben unterbricht.
+//   Bosse und Wächter (Dungeon-Bosse und Instanzgegner mit Boss-Regeln ab Stufe 75, keine Endbosse der Maps):
+//     Zermürbung – jeder Nahkampftreffer in Folge auf dasselbe Ziel nimmt ihm Verteidigung und trifft etwas härter
+//     (bis 5 Stufen, verfliegt nach 5 s ohne Treffer oder beim Zielwechsel); Splitterschlag – alle 18–22 s ein
+//     angekündigter Kristallkreis (3 s) unter dem Ziel: der Schaden wird auf alle Spieler im Kreis aufgeteilt
+//     (Anteil am eigenen Höchstleben, mit „Erlittener Schaden“, ohne Ausweichen/Blocken); steht niemand darin,
+//     zerspringt er und trifft alle in der Halle voll. Kein Einschlag ohne Warnung, kein sofortiger Tod bei vollem Leben.
+const ENDGAME = {
+  minLevel: 75,
+  eliteHp: 2.2,
+  flank: 0.15, flankDef: 0.1, flankMax: 3, flankR: 260, besetRegen: 0.5, besetTime: 2,
+  sunderMax: 5, sunderDef: 0.12, sunderDmg: 0.05, sunderTime: 5,
+  shareEvery: [18, 22], shareFirst: 12, shareR: 120, shareDelay: 3, sharePct: 0.7, shareReach: 760,
+  smashEvery: [9, 12], smashCast: 1.2, smashR: 70, smashPct: 0.14,
+  healEvery: 9, healCast: 1.4, healPct: 0.14, healBossPct: 0.03, healRange: 340, healBelow: 0.7
+};
+function endgameEliteType(t, level, zone) {
+  return !!(t && t.dungeon && !t.boss && !t.raidBoss && level >= ENDGAME.minLevel && zone && zone.dungeon);
+}
+// Heilerinnen: Fernkämpfer in Menschen- oder Geistergestalt (Leerenseherin, Spiegelseele …)
+const endgameHealerType = (t) => !!(t.ranged && (t.shape === 'humanoid' || t.shape === 'ghost'));
+const isEndgameBoss = (m) => !!(m && m.type && m.type.boss && !m.type.raid && !m.type.raidBoss && m.level >= ENDGAME.minLevel && m.zone && m.zone.dungeon);
+
+// Wirkung eines Treffers: mul (Schadensfaktor), shred (Anteil der Verteidigung, der nicht zählt), stacks (Zermürbung)
+const _egNone = { mul: 1, shred: 0, stacks: 0, beset: false };
+function endgameStrike(m, target) {
+  if (!m.elite80 && !isEndgameBoss(m)) return _egNone;
+  let mul = 1;
+  let shred = 0;
+  let stacks = 0;
+  let beset = false;
+  if (m.elite80) {
+    let n = 0;
+    for (const o of game.monsters) {
+      if (o === m || o.dead || !o.elite80 || o.target !== target || o.state !== 'chase') continue;
+      if (Math.hypot(o.x - target.x, o.y - target.y) < ENDGAME.flankR) n++;
+    }
+    mul *= 1 + ENDGAME.flank * Math.min(ENDGAME.flankMax, n);
+    shred = ENDGAME.flankDef * Math.min(ENDGAME.flankMax, n);
+    beset = n >= 2;
+  } else if (!m.type.ranged) {
+    let S = m.sunder;
+    if (!S || S.tgt !== target || game.time - S.at > ENDGAME.sunderTime) S = m.sunder = { tgt: target, n: 0, at: 0 };
+    S.n = Math.min(ENDGAME.sunderMax, S.n + 1);
+    S.at = game.time;
+    stacks = S.n;
+    // der erste Treffer zählt noch normal, ab dem zweiten wirkt die Zermürbung
+    const k = stacks - 1;
+    shred = ENDGAME.sunderDef * k;
+    mul *= 1 + ENDGAME.sunderDmg * k;
+  }
+  return { mul, shred, stacks, beset };
+}
+// Schmetterschlag der Nahkampf-Elite: ausholen (steht still, Kreis unter dem Ziel), dann Einschlag; Betäubung bricht ab
+function endgameSmashTick(m, dt) {
+  const S = m.smash;
+  if (S) {
+    if (m.stun > 0) {
+      m.smash = null;
+      return false;
+    }
+    m.moving = false;
+    if (game.time < S.at) return true;
+    m.smash = null;
+    m.attackAnim = 0.35;
+    endgameShareResolve(m, S.c, ENDGAME.smashPct, true);
+    return true;
+  }
+  if (m.state !== 'chase' || m.stun > 0) return false;
+  m.smashCd -= dt;
+  const t = m.target;
+  if (m.smashCd > 0 || !t || t.dead || !isPlayerLike(t) || Math.hypot(t.x - m.x, t.y - m.y) > m.r + 90) return false;
+  const [a, b] = ENDGAME.smashEvery;
+  m.smashCd = a + Math.random() * (b - a);
+  const c = { x: Math.round(t.x), y: Math.round(feetY(t)), r: ENDGAME.smashR };
+  m.smash = { c, at: game.time + ENDGAME.smashCast };
+  m.cast = null;
+  if (net.mode === 'host') netBroadcast({ t: 'share', id: m.id, x: c.x, y: c.y, r: c.r, d: ENDGAME.smashCast, pct: ENDGAME.smashPct, z: 1 });
+  endgameShareShow(m, c, ENDGAME.smashCast, true);
+  return true;
+}
+// Bedrängt (eigener Spieler): Regeneration eine Weile halb so schnell, Hinweis höchstens alle 3 s
+function endgameBeset(p) {
+  if (!(p.besetUntil > game.time) && !(p.besetSaid > game.time)) {
+    addText(p.x, p.y - 58, 'Bedrängt – Regeneration halbiert', 'hurt');
+    p.besetSaid = game.time + 3;
+  }
+  p.besetUntil = game.time + ENDGAME.besetTime;
+}
+
+// Spieler in der Halle eines Bosses (eigener Spieler und bekannte Mitspieler; beim Host wie beim Mitspieler)
+function endgamePlayersNear(m) {
+  const list = [];
+  const near = (q) => q && !q.dead && Math.hypot(q.x - m.x, q.y - m.y) < ENDGAME.shareReach;
+  if (!WAECHTER && near(game.player)) list.push(game.player);
+  if (net.players) for (const rp of net.players.values()) if (near(rp)) list.push(rp);
+  return list;
+}
+
+// Je Bild für Endgame-Bosse (vor ihren eigenen Angriffen): Splitterschlag ankündigen und auslösen. Nur der Host
+// (bzw. allein) entscheidet; Mitspieler bekommen 'share' und rechnen ihren Anteil selbst (endgameShareResolve).
+function endgameBossTick(m, dt) {
+  if (m.state !== 'chase') {
+    m.shareAt = null;
+    return;
+  }
+  if (m.shareAt == null) m.shareAt = game.time + ENDGAME.shareFirst;
+  if (game.time < m.shareAt || m.dash) return;
+  const tgt = m.target && !m.target.dead && isPlayerLike(m.target) ? m.target : null;
+  if (!tgt) return;
+  const [a, b] = ENDGAME.shareEvery;
+  m.shareAt = game.time + a + Math.random() * (b - a);
+  const c = { x: Math.round(tgt.x), y: Math.round(feetY(tgt)), r: ENDGAME.shareR };
+  if (net.mode === 'host') netBroadcast({ t: 'share', id: m.id, x: c.x, y: c.y, r: c.r, d: ENDGAME.shareDelay, pct: ENDGAME.sharePct });
+  endgameShareShow(m, c, ENDGAME.shareDelay);
+  later(ENDGAME.shareDelay, () => endgameShareResolve(m, c, ENDGAME.sharePct));
+}
+// zone (Schmetterschlag der Elite): nur wer im Kreis steht, nimmt den vollen Anteil, nichts wird geteilt
+function endgameShareShow(m, c, delay, zone) {
+  const col = (m.type.boss && m.type.boss.color) || m.type.accent || '#cfe4ff';
+  addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, dur: delay, color: zone ? '#ff3a2a' : col });
+  if (zone) return;
+  addEffect({ type: 'ultmark', x: c.x, y: c.y, dur: delay, color: col });
+  ui.banner(m.name, 'Splitterschlag – stellt euch zusammen in den Kreis!');
+}
+function endgameShareResolve(m, c, pct, zone) {
+  const col = (m.type.boss && m.type.boss.color) || m.type.accent || '#cfe4ff';
+  addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.5, color: col, width: zone ? 9 : 14, grow: true });
+  particles(c.x, c.y - 6, { count: zone ? 14 : 30, color: [col, '#ffffff'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'ember', drag: 3 });
+  shakeScreen(zone ? 4 : 9);
+  const p = game.player;
+  if (!p || p.dead || WAECHTER) return;
+  const inside = (q) => Math.hypot(q.x - c.x, (feetY(q) - c.y) * 1.2) < c.r;
+  if (zone) {
+    if (inside(p)) damagePlayer(Math.round(game.stats.maxHp * pct), m, { dot: true });
+    return;
+  }
+  const all = endgamePlayersNear(m);
+  if (!all.includes(p)) return;
+  const n = all.filter(inside).length;
+  let share = 0;
+  if (!n) share = pct;
+  else if (inside(p)) share = pct / n;
+  if (!share) return;
+  addText(p.x, p.y - 46, n > 1 ? `Splitterschlag geteilt durch ${n}` : n ? 'Splitterschlag allein getragen' : 'Splitter zerspringen!', 'hurt');
+  damagePlayer(Math.round(game.stats.maxHp * share), m, { dot: true });
+}
+
+// Je Bild für Endgame-Elite (vor der übrigen KI): Heilerinnen wirken ihre Heilung; true = dieses Bild nichts anderes
+function endgameEliteTick(m, dt) {
+  if (m.smashCd != null) return endgameSmashTick(m, dt);
+  if (m.healCd == null) return false;
+  const H = m.healCast;
+  if (H) {
+    // Betäubung unterbricht den Zauber
+    if (m.stun > 0 || H.tgt.dead) {
+      m.healCast = null;
+      m.healCd = ENDGAME.healEvery * 0.5;
+      if (m.stun > 0) addText(m.x, m.y - 40, 'Unterbrochen!', 'info');
+      return false;
+    }
+    m.moving = false;
+    if (game.time < H.at) return true;
+    m.healCast = null;
+    m.healCd = ENDGAME.healEvery;
+    const t = H.tgt;
+    // Bosse heilen sie nur wenig (Brut eines Bosses: erst die Heilerin, dann der Boss)
+    const amount = Math.round(t.maxHp * (t.elite80 ? ENDGAME.healPct : ENDGAME.healBossPct));
+    t.hp = Math.min(t.maxHp, t.hp + amount);
+    addText(t.x, t.y - 40, '+' + amount, 'heal');
+    const bc = bodyCenter(t);
+    particles(bc.x, bc.y, { count: 18, color: [m.type.shot || '#c8b8ff', '#ffffff'], speed: [40, 120], life: [0.4, 0.8], size: [2, 3.5], drag: 2 });
+    return true;
+  }
+  if (m.state !== 'chase' || m.stun > 0) return false;
+  m.healCd -= dt;
+  if (m.healCd > 0) return false;
+  let best = null;
+  let bk = ENDGAME.healBelow;
+  for (const o of game.monsters) {
+    if (o.dead || o.isStone || o === m || (!o.elite80 && !isEndgameBoss(o))) continue;
+    if (Math.hypot(o.x - m.x, o.y - m.y) > ENDGAME.healRange) continue;
+    const k = o.hp / o.maxHp;
+    if (k < bk) { bk = k; best = o; }
+  }
+  if (!best) {
+    m.healCd = 1;
+    return false;
+  }
+  m.healCast = { tgt: best, at: game.time + ENDGAME.healCast };
+  m.attackAnim = ENDGAME.healCast;
+  addEffect({ type: 'beam', x: m.x, y: m.y - 14, follow2: best, dur: ENDGAME.healCast, color: m.type.shot || '#c8b8ff' });
+  addText(m.x, m.y - 40, 'heilt …', 'info');
+  return true;
 }
 
 // Treffer-Effekt passend zur Angriffsart: Biss, Prankenhieb, Rammstoß, Stampfer, Stich, Hieb.
@@ -1179,9 +1403,12 @@ function updateMonsters(dt) {
       if (Math.abs(m.kx) + Math.abs(m.ky) < 5) m.kx = m.ky = 0;
     }
     if (m.attackAnim > 0) m.attackAnim -= dt;
+    // seit 14.32: Endgame-Elite heilt (unterbrechbar), Endgame-Bosse kündigen den Splitterschlag an
+    if (m.elite80 && endgameEliteTick(m, dt)) continue;
     if (m.stun > 0 && !m.type.boss) { m.stun -= dt; m.moving = false; m.windup = 0; m.rush = null; continue; }
     if (m.type.boss) {
       m.stun = 0;
+      if (isEndgameBoss(m)) endgameBossTick(m, dt);
       // Wächter und Bosse der Instanzen (seit 13.58, instanzen.js)
       if (m.type.inst ? instBossTick(m, dt) : m.type.raid ? updateRaidBoss(m, dt) : updateBoss(m, dt)) continue;
     }

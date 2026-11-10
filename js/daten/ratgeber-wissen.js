@@ -758,7 +758,8 @@ const RATGEBER_WISSEN = [
   {
     c: 'pferd', q: 'Wo kann mein Drache fliegen?',
     a: 'Draußen in der Welt fast überall – nur Mauern und Palisaden, Häuser, Säulen und der Felsrand einer Karte halten ihn auf. ' +
-      'In Dungeons, Instanzen, der Prüfungs- und der Turnierarena und im Duell fliegt er nicht: dort kannst du nicht aufsteigen, und wer hineingeht, landet vorher. ' +
+      'In Dungeons, Instanzen, der Prüfungs- und der Turnierarena und im Duell fliegt er nicht: dort läuft er mit dir am Boden, so schnell wie ein Kriegsross, ' +
+      'und hält sich an Wände, Säulen, Türen, Wasser und Lava wie jeder zu Fuß. Wer fliegend hineingeht, landet vorher. ' +
       'Steigst du über Wasser oder Bäumen ab, landest du an der nächsten freien Stelle. Wer angreift oder eine Fertigkeit nutzt, steigt wie beim Pferd ab.',
     k: 'drache fliegen wasser baeume mauer dungeon instanz arena duell landen absteigen glutschwinge'
   },
