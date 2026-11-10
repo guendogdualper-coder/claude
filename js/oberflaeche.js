@@ -799,7 +799,7 @@ const ui = {
     }
     body.innerHTML = '<p>Wähle einen Kanal. Alle im selben Kanal spielen in derselben Welt, jeder mit seiner eigenen Figur.</p>' +
       servers + players +
-      '<p class="hint-text">Wer einen leeren Kanal betritt, führt dessen Welt für alle. Geht er, übernimmt automatisch ein anderer Spieler, der Kanal bleibt also immer offen. Erfahrung und Beute bekommt jeder, der mitkämpft oder in der Nähe ist.</p>' +
+      '<p class="hint-text">Wer einen leeren Kanal betritt, führt dessen Welt für alle. Geht er, übernimmt automatisch ein anderer Spieler, der Kanal bleibt also immer offen. Erfahrung, Beute und Auftragsfortschritt bekommt, wer das Monster selbst getroffen hat (auch mit Dienern), und wer mit so einem Spieler in einer Gruppe ist und in der Nähe.</p>' +
       '<p id="netMsg" class="hint-text"></p>';
     body.querySelectorAll('[data-ch]').forEach((b) => b.addEventListener('click', () => {
       const [srv, ch] = b.dataset.ch.split(':');
@@ -1485,7 +1485,10 @@ const ui = {
         row('Angriff', s.atk) + (s.wMax ? row('Waffenschaden', `${s.wMin}–${s.wMax}`) : '') + row('Verteidigung', s.def) +
         row('Kritische Treffer', pct(s.crit)) + row('Angriffstempo', pct(s.atkSpeed)) +
         row('Magiestärke', '+' + pct(s.magic || 0)) + row('Lauftempo', speedText(p, s)) +
-        row('Blocken', pct(s.block)) + row('Ausweichen', pct(s.dodge)) +
+        // seit 14.32 mit Obergrenze und dem Wert gegen Spieler (dort zählt die Hälfte, PVP_DMG.dodgeMul). Blocken wird nur
+        // gewürfelt, wenn der Treffer nicht schon ausgewichen ist (damagePlayer)
+        row('Blocken', pct(s.block) + (s.block > 0 ? ` <small class="cap">/ ${pct(MAX_BLOCK)} · PvP ${pct(s.block * PVP_DMG.dodgeMul)}</small>` : '')) +
+        row('Ausweichen', pct(s.dodge) + ` <small class="cap">/ ${pct(DODGE_RULES.cap)} · PvP ${pct(s.dodge * PVP_DMG.dodgeMul)}</small>`) +
         `</dl><h3>Boni</h3><dl class="stats">` +
         row('Stark gegen Monster', capPct(s.monsterDmg, 'monsterDmg')) + row('Lebensraub', pct(s.hpSteal || 0)) +
         (s.natureDmg ? row(p.classId === 'magier' ? 'Elementschaden' : 'Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +

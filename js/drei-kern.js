@@ -971,6 +971,45 @@ const SHOULDER3 = { pitch: 0.5, dist: 9.5, fov: 45, ahead: 12 };
 function v3Shoulder() {
   return V3.on && opts.camera === 'schulter';
 }
+
+// Schulterblick ohne Durchstoßen (seit 14.32): Vorher stand die Kamera stur 8,3 Kacheln hinter und 4,5 über der Figur.
+// Stand ein Haus, eine Mauer oder eine Höhlenwand dazwischen, verdeckte es die Figur ganz (das Raster um die Figur
+// half kaum), und rückwärts an eine Hauswand gelaufen steckte die Kamera im Dach. Jetzt prüft jedes Bild die Kacheln
+// zwischen Figur und Kamera (dazu je eine links und rechts daneben, für den Bildrand): Liegt ein festes Hindernis im
+// Weg, hebt sich die Kamera so weit, dass der Blick über seine Oberkante geht (höchstens maxPitch, 69°; die normale
+// Kamera hat 49°) – sie rückt nicht in die Figur hinein. Was dann noch über der Figur liegt (Dachtraufe direkt an der
+// Hauswand), rastert wie in der normalen Kamera der größere Kreis um die Figur weg. Hinein (steiler) geht es schnell, zurück langsam, damit nichts springt.
+// Höhen in Einheiten (eine Kachel = 1): Häuser mit Dach bis 3,3 (gemessen), Säulen, sonst Mauern, Palisaden,
+// Höhlenwände (WALL3_H 1,5) und Felsrand. Bäume bleiben außen vor (schmal, dafür gibt es das Raster um die Figur).
+const SHOULDER3_BOOM = { house: 3.4, pillar: 2.6, wall: 1.8, margin: 0.25, side: 0.35, maxPitch: 1.2, inK: 14, outK: 2.5 };
+function v3CamBlockH(x, z) {
+  const tx = Math.floor(x);
+  const ty = Math.floor(z);
+  if (typeof tileBlockedFlying !== 'function' || !tileBlockedFlying(tx, ty)) return 0;
+  const o = game.world.obj[tileIndex(Math.max(0, Math.min(MAP_W - 1, tx)), Math.max(0, Math.min(MAP_H - 1, ty)))];
+  const B = SHOULDER3_BOOM;
+  return o === OBJ.HOUSE ? B.house : o === OBJ.PILLAR ? B.pillar : B.wall;
+}
+// Gewünschter Neigungswinkel für den Schulterblick bei Blickmitte (fx, fy) in Weltpixeln, Drehung yaw, Abstand d
+function v3ShoulderPitch(fx, fy, yaw, d) {
+  const B = SHOULDER3_BOOM;
+  const sx = Math.sin(yaw);
+  const sz = Math.cos(yaw);
+  const x0 = fx / TILE;
+  const z0 = fy / TILE;
+  const reach = d * Math.cos(SHOULDER3.pitch) + 0.5;
+  let pitch = SHOULDER3.pitch;
+  for (let s = 0.25; s <= reach; s += 0.25) {
+    const tanNow = Math.tan(pitch);
+    for (const o of [0, -B.side, B.side]) {
+      const h = v3CamBlockH(x0 + sx * s + sz * o, z0 + sz * s - sx * o);
+      // Strahl von der Blickmitte (Höhe 1) muss hier über h + margin liegen
+      if (!h || 1 + s * tanNow >= h + B.margin) continue;
+      pitch = Math.min(B.maxPitch, Math.atan2(h + B.margin - 1, s));
+    }
+  }
+  return pitch;
+}
 // Mitte des sichtbaren Bereichs (im Schulterblick ein Stück vor der Figur) und sein Radius in Pixeln
 function v3ViewCenter(out) {
   const yaw = V3.yaw || 0;
@@ -1079,8 +1118,14 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
     const tx = fx * U3;
     const tz = fy * U3;
     const ty = 1.0;
-    const cp = Math.cos(SHOULDER3.pitch);
-    cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(SHOULDER3.pitch) * d, tz + Math.cos(yaw) * cp * d);
+    // seit 14.32: über Hindernisse hinweg statt hindurch (v3ShoulderPitch), weich nachgeführt
+    const want = v3ShoulderPitch(fx, fy, yaw, d);
+    const B = SHOULDER3_BOOM;
+    if (V3.camPitch == null) V3.camPitch = want;
+    V3.camPitch += (want - V3.camPitch) * (1 - Math.exp(-dt * (want > V3.camPitch ? B.inK : B.outK)));
+    const pitch = V3.camPitch;
+    const cp = Math.cos(pitch);
+    cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(pitch) * d, tz + Math.cos(yaw) * cp * d);
     cam.lookAt(tx, ty, tz);
     cam.updateMatrixWorld();
     v3PlaceSun(tx - Math.sin(yaw) * 4, tz - Math.cos(yaw) * 4);
@@ -1094,6 +1139,7 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   }
   V3.yaw = 0;
   V3.yawGoal = 0;
+  V3.camPitch = null;
   // so weit weg, dass etwa so viel Welt zu sehen ist wie im 2D-Spiel (etwas mehr Überblick)
   const viewH = r.h / r.zoom * U3;
   const fov = (cam.fov * Math.PI) / 180;
@@ -1124,6 +1170,7 @@ const _pa = {};
 const _pb = {};
 const _fadeA = {};
 const _fadeB = {};
+const _fadeC = {};
 // Zeichnet das 2D-Canvas ab hier so, dass der Weltpunkt (wx, wy) an seiner Stelle im 3D-Bild liegt.
 // h: Höhe des Punkts, ax/ay: welcher 2D-Punkt dorthin gehört (Standard: derselbe)
 function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
@@ -1140,7 +1187,11 @@ const _ray = new THREE.Vector3();
 function v3ScreenToWorld(sx, sy) {
   const cam = V3.camera;
   _ray.set((sx / renderer.w) * 2 - 1, -(sy / renderer.h) * 2 + 1, 0.5).unproject(cam).sub(cam.position).normalize();
-  const t = -cam.position.y / _ray.y;
+  // seit 14.32: Im Schulterblick zeigt der obere Bildrand fast waagerecht (oder über den Horizont) – dann traf der Strahl
+  // den Boden erst sehr weit weg oder HINTER der Kamera, und Zielkreis bzw. Laufziel sprangen auf die andere Seite der
+  // Figur. Jetzt höchstens 60 Kacheln weit in Blickrichtung. Die normale Kamera schaut steil nach unten (unverändert).
+  let t = _ray.y < 0 ? -cam.position.y / _ray.y : Infinity;
+  if (v3Shoulder()) t = Math.min(t, 60 / (Math.hypot(_ray.x, _ray.z) || 1));
   return { x: (cam.position.x + _ray.x * t) * TILE, y: (cam.position.z + _ray.z * t) * TILE };
 }
 
@@ -2249,7 +2300,15 @@ function renderDrei() {
     const d = r.dpr * V3.gl.getPixelRatio() / r.dpr;
     V3.fadeScreen[0] = s.x * d;
     V3.fadeScreen[1] = (r.h - s.y) * d;
-    V3.fadeScreen[2] = Math.max(30, (s.y - top.y) * 1.25) * d;
+    let fr = Math.max(30, (s.y - top.y) * 1.25);
+    // seit 14.32 im Schulterblick mindestens so groß wie 1,3 Kacheln seitlich der Figur: steil von oben (über ein
+    // Hindernis gehoben, v3ShoulderPitch) ist die Figur im Bild kurz, und der Kreis war zu klein für ein Dach darüber
+    if (v3Shoulder()) {
+      const yaw = V3.yaw || 0;
+      const side = v3Project(p.x + Math.cos(yaw) * 1.3 * TILE, feetY(p) - Math.sin(yaw) * 1.3 * TILE, 0.8, _fadeC);
+      fr = Math.max(fr, Math.hypot(side.x - s.x, side.y - s.y));
+    }
+    V3.fadeScreen[2] = fr * d;
     V3.fadeScreen[3] = s.z * 0.5 + 0.5;
   } else {
     V3.fadeScreen[2] = 0;

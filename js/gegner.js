@@ -505,6 +505,7 @@ function reviveMonster(m) {
   m.stun = 0;
   m.kx = m.ky = 0;
   m.slow = m.vulnerable = m.poison = m.burn = m.bleed = m.toxin = null;
+  m.tags = null; // seit 14.32: keine Beteiligung aus dem letzten Leben (netTag, netz.js)
 }
 
 // Ein angegriffenes Monster und seine Gruppe greifen den Angreifer an
@@ -1611,7 +1612,8 @@ function updateMonsters(dt) {
         m.returnAt = null;
         m.nav = null;
         m.threat = null; // zurück am Platz: der Kampf ist vergessen (seit 14.32)
-        if (game.time - (m.struckAt || -99) > 6) m.hp = m.maxHp;
+        // seit 14.32: heil zu Hause = neuer Kampf, die alte Beteiligung (netTag) verfällt
+        if (game.time - (m.struckAt || -99) > 6) { m.hp = m.maxHp; m.tags = null; }
         m.wx = m.x;
         m.wy = m.y;
       }

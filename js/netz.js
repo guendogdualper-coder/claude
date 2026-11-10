@@ -6,16 +6,17 @@
 //
 // Der Host führt die Welt: Monster, Seelensteine und Bosse laufen nur bei ihm. Mitspieler
 // schicken ihm zehnmal pro Sekunde ihre Figur und jeden Treffer und bekommen den Stand der
-// Monster in ihrer Nähe und der anderen Spieler zurück. Stirbt ein Monster, bekommt jeder
-// Erfahrung und Beute, der mitgekämpft hat oder in der Nähe war. Jeder spielt mit seiner
+// Monster in ihrer Nähe und der anderen Spieler zurück. Stirbt ein Monster, bekommt Erfahrung,
+// Beute und Auftragsfortschritt nur, wer es getroffen hat (auch über Diener), oder wer mit so einem Spieler in einer
+// Gruppe ist und in der Nähe lebt (seit 14.32, netEligible; vorher jeder in der Nähe). Jeder spielt mit seiner
 // eigenen, auf seinem Gerät gespeicherten Figur.
 
 const SERVERS = [{ id: 'erfoo', name: 'ERFOO', note: 'Testserver', channels: 2 }];
 const NET_PREFIX = 'seelenstein-';
 const NET_RATE = 0.1;      // Sekunden zwischen zwei Zustandsmeldungen
 const NET_VIEW = 1200;     // Monster in diesem Umkreis bekommt ein Mitspieler geschickt
-const NET_SHARE = 700;     // wer so nah ist, bekommt Erfahrung und Beute mit
-const NET_SHARE_TIME = 60; // ... oder wer in den letzten 60 s getroffen hat
+const NET_SHARE = 700;     // Gruppenmitglieder so nah am Monster bekommen Erfahrung und Beute mit (seit 14.32 nur noch sie)
+const NET_SHARE_TIME = 60; // wer in den letzten 60 s getroffen hat, ist berechtigt
 const NET_MAX = 100;       // höchstens so viele Spieler pro Kanal (seit 14.4, vorher 8)
 // Seit 14.4: In jedem Zustand schickt der Host nur die Spieler in der Nähe (NET_NEAR) und die eigene Gilde mit,
 // alle NET_FULL_EVERY Meldungen (etwa alle 5 s) einmal die ganze Liste – sonst wüchse der Verkehr mit 100 Spielern
@@ -442,6 +443,8 @@ function netHostDamage(rp, d) {
   m.lastAttacker = rp;
   // seit 14.32: Treffer seines Dieners (al = Platz) – Bedrohung und Aggro gehen an den Diener
   const src = d.al != null && rp.allies ? rp.allies.find((a) => a.slot === (d.al | 0)) || rp : rp;
+  // seit 14.32: Beteiligung merken (jede Treffermeldung, auch ohne Schaden – Betäuben, Verlangsamen, Gift)
+  netTag(m, rp.name);
   // Hält der Mitspieler den Treffer für tödlich, stirbt das Monster – auch wenn der Host noch etwas mehr
   // Leben sieht (Zeitversatz, Erholen beim Zurücklaufen). Sonst stünde es beim Mitspieler mit wenig Leben wieder auf.
   if (d.k && d.a > 0) {
@@ -452,8 +455,53 @@ function netHostDamage(rp, d) {
   else aggro(m, src);
 }
 
+// seit 14.32 mit w: Namen aller Berechtigten (netTagList). Ältere Mitspieler übergehen w und nehmen ihren Anteil wie
+// bisher nach Nähe – das lässt sich auf dem Gerät eines anderen nicht verhindern (es gibt keinen eigenen Server).
 function netBroadcastKill(m) {
-  netBroadcast({ t: 'kill', id: m.id });
+  netBroadcast({ t: 'kill', id: m.id, w: netTagList(m) });
+}
+
+// --- Berechtigung für Belohnungen (seit 14.32) ---------------------------------------------------------------------
+// Der Host (bzw. allein das eigene Spiel) merkt sich je Monster, wer es getroffen hat: m.tags, Name → Zeit des
+// letzten Treffers. Diener, Gift, Brand und Blutung zählen für ihren Besitzer (sein Gerät schickt den Treffer bzw. ihr
+// Treffer läuft mit source = Diener durch damageMonster). Ticks von Schaden über Zeit selbst setzen keine Marke – die
+// setzt schon der Treffer, der sie auslöst. Gelöscht wird die Liste, wenn das Monster heil nach Hause kommt (Reset),
+// wiederkehrt (reviveMonster) und nach dem Tod (netEligible beim Host). Monster aus einem Seelenstein markieren auch
+// den Stein, Seelenkristalle ihren Endboss: wer die Wellen bzw. Kristalle bekämpft, kämpft um den Stein bzw. Boss.
+function netTag(m, name) {
+  if (!m || !name) return;
+  const at = game.time;
+  (m.tags || (m.tags = new Map())).set(name, at);
+  if (m.stone && !m.stone.dead) (m.stone.tags || (m.stone.tags = new Map())).set(name, at);
+  const boss = m.crystalBoss;
+  if (boss && !boss.dead) (boss.tags || (boss.tags = new Map())).set(name, at);
+}
+// Namen, die in den letzten NET_SHARE_TIME s getroffen haben
+function netTagList(m) {
+  const out = [];
+  if (m && m.tags) for (const [n, at] of m.tags) if (game.time - at < NET_SHARE_TIME) out.push(n);
+  return out;
+}
+// Bekommt die eigene Figur EP, Beute und Auftragsfortschritt für dieses Monster?
+// who: Liste der Berechtigten vom Host (null bei einem Host mit älterer Version – dann zählt der eigene Treffer)
+//   1. selbst getroffen (eigener Name in der Liste bzw. eigener Treffer in den letzten 60 s), auch nach dem eigenen Tod
+//   2. oder: ein Mitglied der eigenen Gruppe hat getroffen, und man lebt und ist näher als NET_SHARE am Monster
+//      (dieselbe Regel wie für die Gruppen-EP in partyXp, gruppe.js). Wer erst während des Kampfes beitritt, zählt ab
+//      dann; wer die Gruppe verlässt, bekommt nur noch, was er selbst getroffen hat. Es zählt die Gruppe beim Tod.
+// Nur Nähe (Zuschauer, AFK, Mitlaufen ohne Gruppe) reicht nicht mehr.
+function netEligible(m, who, myHitAt) {
+  const me = game.player;
+  if (!me || !m) return false;
+  if (who ? who.includes(me.name) : myHitAt != null && game.time - myHitAt < NET_SHARE_TIME) return true;
+  const party = game.party;
+  if (!party || party.members.length < 2 || me.dead || dist(m, me) >= NET_SHARE) return false;
+  const mates = party.members.filter((n) => n !== me.name);
+  if (who) return mates.some((n) => who.includes(n));
+  // Host mit älterer Version (keine Liste): Mitglied in der Nähe wie bei der Gruppen-EP
+  return mates.some((n) => {
+    const x = typeof partyMember === 'function' ? partyMember(n) : null;
+    return !!(x && x.rp && !x.rp.dead && dist(x.rp, m) < NET_SHARE);
+  });
 }
 
 function netBroadcastProjectile(pr, m) {
@@ -565,7 +613,8 @@ function netOnClientData(d) {
       break;
     case 'kill': {
       const m = net.mons.get(d.id);
-      if (m && (!m.dead || m.predictedDead)) netClientKill(m);
+      // doppelte Meldungen: nur die erste zählt (danach ist m.dead gesetzt und predictedDead gelöscht)
+      if (m && (!m.dead || m.predictedDead)) netClientKill(m, Array.isArray(d.w) ? d.w.filter((n) => typeof n === 'string') : null);
       break;
     }
     case 'mhit': {
@@ -839,7 +888,7 @@ function netVersionCheck(other, name, iAmHost) {
   }
 }
 
-function netClientKill(m) {
+function netClientKill(m, who) {
   const shown = !!m.predictedDead;
   m.predictedDead = null;
   m.killResent = false;
@@ -848,7 +897,9 @@ function netClientKill(m) {
   m.poison = m.burn = m.toxin = null;
   if (game.target === m) game.target = null;
   if (!shown) monsterDeathFx(m);
-  if (netShares(m, m.myHitAt)) rewardKill(m);
+  // seit 14.32: nur Beteiligte (netEligible) statt aller in der Nähe
+  if (netEligible(m, who, m.myHitAt)) rewardKill(m);
+  m.myHitAt = null; // kein Anspruch für das nächste Leben dieses Monsters
   if (!m.respawn) {
     game.monsters = game.monsters.filter((x) => x !== m);
     net.mons.delete(m.id);
@@ -874,9 +925,6 @@ function netMirrorMonsters(dt) {
 // --- Gemeinsam -----------------------------------------------------------------------------
 
 // Bekommt man für dieses Monster Erfahrung und Beute? (mitgekämpft oder in der Nähe)
-function netShares(m, hitAt) {
-  return (hitAt != null && game.time - hitAt < NET_SHARE_TIME) || dist(m, game.player) < NET_SHARE;
-}
 
 function netSend(d) {
   if (net.hostConn && net.hostConn.open) net.hostConn.send(d);
@@ -896,7 +944,8 @@ function netBroadcast(d, except) {
 function netSkillFx(id, range = 160, extra = {}) {
   if (!netOnline()) return;
   const p = game.player;
-  const t = game.target && !game.target.dead && dist(game.target, p) < 520 ? game.target : null;
+  // seit 14.32 mindestens so weit wie die Reichweite (der Bogen reicht mit dem Falkenblick über 520 hinaus)
+  const t = game.target && !game.target.dead && dist(game.target, p) < Math.max(520, range + 60) ? game.target : null;
   const d = {
     t: 'fx', s: id, x: Math.round(p.x), y: Math.round(p.y), fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2),
     tx: Math.round(t ? t.x : p.x + p.facing.x * range), ty: Math.round(t ? t.y : p.y + p.facing.y * range), ...extra

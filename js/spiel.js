@@ -147,7 +147,9 @@ function updatePlayer(dt) {
       const c = CLASSES[p.classId];
       // seit 13.85: nur ein bewusst gewähltes Ziel (Antippen, Klick, Tab) hat Vorrang; sonst das nächste Monster
       // (Seelensteine erst, wenn kein Monster in der Nähe ist), danach das alte Auto-Ziel
-      const g = game.target && !game.target.dead && !game.target.hidden && dist(game.target, p) < 420 ? game.target : null;
+      // seit 14.32 so weit wie Tab Ziele wählt (Reichweite + 200, cycleTarget): vorher lief die Figur zu einem mit Tab
+      // gewählten Ziel über 420 nicht hin, der Bogen schoss ins Leere und der Pfeil fiel vor dem Ziel herunter
+      const g = game.target && !game.target.dead && !game.target.hidden && dist(game.target, p) < Math.max(420, basicAttack(p).range + 200) ? game.target : null;
       const t = (g && targetIsManual(g) ? g : null) || nearestEnemy(p, 260) || g;
       if (t && (dist(t, p) - t.r > basicAttack(p).range || inVillage(p.x, p.y))) {
         setTarget(t, targetIsManual(t));
