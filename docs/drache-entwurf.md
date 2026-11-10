@@ -231,6 +231,32 @@ wieder runter“, am Handy mit eigenen Knöpfen; dazu die Drachenfarbe wählbar.
 - 3D: `DRACHE3_FARBEN` (drei-drache.js), eigenes Modell je Farbe (`drache:<farbe>:<sattel>`, Rot wie bisher
   `drache:<sattel>`); 2D: `DRAGON2D_FARBEN` (figuren.js), Vorschaubild `dragonPreviewUrl`.
 
+## Beine und Hüften organisch (nach 14.39)
+
+Rückmeldung (Video): „Die Beine vom Drachen, Beine, Hüften auch hinten, sehen aus wie Lego … an sich ist der
+Drache sonst cool.“
+
+- **Ursache:** Jedes Bein bestand aus einer großen Kugel als Oberschenkel bzw. Schulter, Kapseln (limbBetween) als
+  Glieder und Kugeln als Gelenke, jedes Teil starr an einem Knochen – mit Umriss sah man jede Stufe.
+- **Änderung (js/drei-drache.js, dragonMount3):** Jedes Bein ist jetzt ein Stück aus weichen Querschnitten
+  (`softTube3` aus drei-figuren.js, wie bei Reitpferd und Kriegsross seit 14.38). Die Knochengewichte laufen über
+  die Gelenke ineinander: Der Oberschenkel wächst aus der Hüfte (oben an Hüfte und Bein gewichtet), das Knie
+  biegt sich ohne Stufe, und die Schuppenfarbe geht zum Fuß hin ins Dunkle über.
+- **Hinterbein:** breiter, nach unten verjüngter Oberschenkel, Knie vorn, Unterschenkel schräg nach hinten zum
+  Sprunggelenk mit Bronzesporn, schlanker Mittelfuß.
+- **Vorderbein:** Schulter, Oberarm, Ellbogen nach hinten, Unterarm, Handgelenk.
+- **Füße:** flacher Ballen mit drei gespreizten Zehen und Krallen, hinten eine Afterkralle.
+- **Was gleich bleibt:** Knochen, Gelenkpunkte und alle Animationen (Stand, Gehen, Flug mit angelegten Beinen,
+  Abheben, Landen, Steigen, Sinken). Kopf, Hals, Flügel, Rumpf und Schwanz sind unverändert. Farben kommen aus
+  DRACHE3_FARBEN (alle vier geprüft). Schatten: eigene grobe Kugeln je Glied.
+- **Dreiecke:** 20 792 → 22 388 (+7,7 %); Schattenmodell 3 276 → 2 700.
+- **2D:** nicht geändert, die Beine sind dort nur kleine angelegte Formen.
+- **Bilder:** `scratchpad/drache-beine/drache-beine-vergleich.jpg` (vorher/nachher: Stand aus vier Richtungen,
+  Beine nah, Flug, dazu Gehen und Abheben nachher), `drache-beine-farben.jpg`.
+- **Tests:** Drachen-Test 69 OK, keine Seitenfehler; s73 alle 12 Charaktere ohne Fehler; s72_noshot mit D3=1 ohne Fehler.
+- **Offen:** Das Sprunggelenk ist kein eigenes Gelenk (der Unterschenkel samt Fuß dreht am Knie), die Zehen
+  greifen beim Landen nicht.
+
 ## Vorschau neu erzeugen
 
 ```
