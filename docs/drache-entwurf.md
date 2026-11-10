@@ -231,7 +231,7 @@ wieder runter“, am Handy mit eigenen Knöpfen; dazu die Drachenfarbe wählbar.
 - 3D: `DRACHE3_FARBEN` (drei-drache.js), eigenes Modell je Farbe (`drache:<farbe>:<sattel>`, Rot wie bisher
   `drache:<sattel>`); 2D: `DRAGON2D_FARBEN` (figuren.js), Vorschaubild `dragonPreviewUrl`.
 
-## Beine und Hüften organisch (nach 14.39)
+## Beine und Hüften organisch (14.41)
 
 Rückmeldung (Video): „Die Beine vom Drachen, Beine, Hüften auch hinten, sehen aus wie Lego … an sich ist der
 Drache sonst cool.“

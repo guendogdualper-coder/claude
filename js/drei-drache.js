@@ -447,7 +447,7 @@ function dragonMount3(b, o = {}) {
   A(ball(8), bronzeD, { bone: DRB3.tail4, p: [0, 0.7, -2.36], s: [0.02, 0.025, 0.15] });
   for (const sx of [-1, 1]) pointAt3(A, horn3(0.12, 0.022, 5), bronze, [sx * 0.06, 0.7, -2.3], [sx * 0.9, 0, 0.55], { bone: DRB3.tail4, s: [1, 1, 0.4], shine: 0.7 });
 
-  // --- Beine (seit dem Nachfolger von 14.39 wie die Pferde aus je einem Stück, softTube3): weiche Querschnitte von der Schulter bzw.
+  // --- Beine (seit 14.41 wie die Pferde aus je einem Stück, softTube3): weiche Querschnitte von der Schulter bzw.
   // Hüfte im Leib bis zum Fuß, die Knochengewichte laufen über die Gelenke ineinander – vorher Kugeln und Stäbe mit
   // sichtbaren Stufen („wie Lego“). Hinten: breiter Oberschenkel, der aus der Hüfte wächst, Knie vorn, Unterschenkel
   // schräg nach hinten zum Sprunggelenk mit Bronzesporn, schlanker Mittelfuß; vorn: Schulter, Oberarm, Ellbogen
