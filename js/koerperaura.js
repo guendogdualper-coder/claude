@@ -712,14 +712,14 @@ varying float vTip;
 ${KA_NOISE}
 void main() {
   #include <beginnormal_vertex>
-  // seit 14.41: Normale der Ruhehaltung (vor dem Skelett) – davon hängt ab, wo Zungen nach oben lecken
+  // seit 14.42: Normale der Ruhehaltung (vor dem Skelett) – davon hängt ab, wo Zungen nach oben lecken
   vec3 nb = objectNormal;
   #include <skinbase_vertex>
   #include <skinnormal_vertex>
   #include <begin_vertex>
   #include <skinning_vertex>
   vec3 n = normalize(objectNormal);
-  // seit 14.41: Rauschen in der Ruhehaltung (position statt der bewegten Lage): das Flammenmuster klebt an Arm und
+  // seit 14.42: Rauschen in der Ruhehaltung (position statt der bewegten Lage): das Flammenmuster klebt an Arm und
   // Bein, statt beim Laufen durch das Rauschen zu wischen und von Bild zu Bild umzuspringen
   vec3 q = position / uH;
   vO = q + vec3(uSeed, 0.0, uSeed * 0.7);
@@ -789,7 +789,7 @@ void main() {
   c = mix(c, uCore, smoothstep(0.38, 0.75, h));
   c = mix(c, uHot, smoothstep(0.78, 1.0, h) * uLv * 0.75);
   a *= uOp;
-  // seit 14.41: der heiße Kern deckt mehr ab und addiert weniger (vorher 1 − 0,45·h): kein Weißausbrennen über
+  // seit 14.42: der heiße Kern deckt mehr ab und addiert weniger (vorher 1 − 0,45·h): kein Weißausbrennen über
   // hellem Boden und auf der Figur, der Rand bleibt farbig
   gl_FragColor = vec4(c * a * uDim * 0.9, min(1.0, a * uOcc * (1.0 - 0.2 * h)));
 #endif
