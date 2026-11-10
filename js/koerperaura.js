@@ -387,6 +387,20 @@ function kaSprite(h, kind, tex, normal, x, y, z, sx, sy, hex, op, rot) {
   return o;
 }
 
+// Versatz 0–1 je Figur, damit nebeneinander stehende Auren nicht im Gleichtakt lodern. Seit 14.41 fest je Figur
+// (aus Name bzw. Kennung, einmal gemerkt). Vorher kam er aus dem Ort (x·0,013 + y·0,007): Beim Laufen lief damit die
+// Zeit der Hülle (t + 7·seed) bis zu 15-mal so schnell oder rückwärts, alle Zungen und Funken sprangen in ihrer Phase,
+// und alle ~77 Pixel sprang der Versatz von 1 auf 0 – die Flammen wechselten Form und Größe von Bild zu Bild. Dazu
+// wertete die Laufneigung rückwärts laufende Zeit als Stillstand. Das war die Hauptursache des Flackerns beim Laufen.
+function kaSeed(p) {
+  if (p._kaSeed != null) return p._kaSeed;
+  const key = String(p.peerId ?? p.id ?? p.name ?? p.classId ?? '');
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  p._kaSeed = ((h >>> 0) % 997) / 997;
+  return p._kaSeed;
+}
+
 // kleine Zufallszahl −0,5…0,5 aus zwei ganzen Zahlen (gleich in jedem Bild)
 function kaHash(a, b) {
   const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
@@ -698,23 +712,32 @@ varying float vTip;
 ${KA_NOISE}
 void main() {
   #include <beginnormal_vertex>
+  // seit 14.41: Normale der Ruhehaltung (vor dem Skelett) – davon hängt ab, wo Zungen nach oben lecken
+  vec3 nb = objectNormal;
   #include <skinbase_vertex>
   #include <skinnormal_vertex>
   #include <begin_vertex>
   #include <skinning_vertex>
   vec3 n = normalize(objectNormal);
-  vec3 q = transformed / uH;
+  // seit 14.41: Rauschen in der Ruhehaltung (position statt der bewegten Lage): das Flammenmuster klebt an Arm und
+  // Bein, statt beim Laufen durch das Rauschen zu wischen und von Bild zu Bild umzuspringen
+  vec3 q = position / uH;
   vO = q + vec3(uSeed, 0.0, uSeed * 0.7);
-  float w = kaN(q * vec3(6.0, 3.0, 6.0) + vec3(uSeed, -uT * 2.0, uT * 0.4));
-  float w2 = kaN(q * vec3(14.0, 6.0, 14.0) + vec3(3.7 + uSeed, -uT * 3.6, 1.3));
-  vec3 p = transformed + n * uInf * (1.0 + uWob * ((w - 0.5) * 1.6 + (w2 - 0.5) * 1.1));
+  float w = kaN(q * vec3(6.0, 3.0, 6.0) + vec3(uSeed, -uT * 1.6, uT * 0.3));
+  float w2 = kaN(q * vec3(11.0, 5.0, 11.0) + vec3(3.7 + uSeed, -uT * 2.4, 1.3));
+  vec3 p = transformed + n * uInf * (1.0 + uWob * ((w - 0.5) * 1.4 + (w2 - 0.5) * 0.7));
   vec4 wp = modelMatrix * vec4(p, 1.0);
   vec3 wn = normalize(mat3(modelMatrix) * n);
-  float up = smoothstep(-0.2, 0.85, wn.y);
+  vec3 wb = normalize(mat3(modelMatrix) * nb);
+  // schwingende Arme und Beine kippen ihre Normale: überwiegend die Ruhehaltung nehmen, sonst springen die Zungen
+  // im Laufschritt an und aus
+  float up = smoothstep(-0.2, 0.85, mix(wb.y, wn.y, 0.25));
   float hgt = clamp(q.y, 0.0, 1.2);
-  float lick = up * (0.1 + w * w * w * 2.6 + w2 * 0.4) * (0.3 + 0.7 * hgt);
+  // weicher als vorher (w³·2,6): keine einzelnen langen Spieße, die je Bild wachsen und zusammenfallen
+  float lick = up * (0.12 + w * w * 1.7 + w2 * 0.25) * (0.3 + 0.7 * hgt);
   wp.y += uRise * lick;
-  wp.xz -= uVel.xz * (0.2 + up) * hgt;
+  // beim Laufen leicht nach hinten geneigt: unten fest am Körper, nach oben zunehmend (statt die ganze Hülle zu scheren)
+  wp.xz -= uVel.xz * (0.35 + 0.65 * up) * hgt * hgt;
   vTip = clamp(lick * 0.5, 0.0, 1.0) * step(0.001, uRise);
   vec4 mv = viewMatrix * wp;
   gl_Position = projectionMatrix * mv;
@@ -747,13 +770,15 @@ void main() {
 #ifdef KA_RIM
   // Randschein auf dem Körper: hell an den Kanten, in Bändern flackernd, die nach oben ziehen
   float f = kaN(vec3(q.x * 7.0, q.y * 4.0 - t * 3.4, q.z * 7.0));
-  float a = pow(1.0 - e, 3.0) * smoothstep(0.25, 0.8, f) * uOp * foot;
+  // seit 14.41 schmaler (Potenz 4): auf Rüstungen mit vielen Kanten leuchtete sonst die halbe Figur mit
+  float a = pow(1.0 - e, 4.0) * smoothstep(0.25, 0.8, f) * uOp * foot;
   gl_FragColor = vec4(uCore * a * uDim, 0.0);
 #else
   // senkrecht gestreckte Flammenstreifen, die nach oben ziehen
-  float f = kaN(vec3(q.x * 8.0, q.y * 3.2 - t * 2.6, q.z * 8.0));
+  // seit 14.41 etwas langsamer (vorher 2,6 und 4,6): lodert ruhig, statt zu flirren
+  float f = kaN(vec3(q.x * 8.0, q.y * 3.2 - t * 2.2, q.z * 8.0));
 #ifndef KA_LOW
-  f = f * 0.6 + kaN(vec3(q.x * 17.0, q.y * 6.5 - t * 4.6, q.z * 17.0) + 4.3) * 0.4;
+  f = f * 0.62 + kaN(vec3(q.x * 17.0, q.y * 6.5 - t * 3.6, q.z * 17.0) + 4.3) * 0.38;
 #endif
   // innen (nahe am Körper) dicht und heiß, außen nur noch die Spitzen des Rauschens: Zungen mit dunklem Saum
   float inner = smoothstep(0.0, 0.62, e);
@@ -762,9 +787,11 @@ void main() {
   float h = clamp((d - 0.24) * 1.15, 0.0, 1.0) * uHeat;
   vec3 c = mix(uEdge, uBody, smoothstep(0.0, 0.32, h));
   c = mix(c, uCore, smoothstep(0.38, 0.75, h));
-  c = mix(c, uHot, smoothstep(0.78, 1.0, h) * uLv);
+  c = mix(c, uHot, smoothstep(0.78, 1.0, h) * uLv * 0.75);
   a *= uOp;
-  gl_FragColor = vec4(c * a * uDim, min(1.0, a * uOcc * (1.0 - 0.45 * h)));
+  // seit 14.41: der heiße Kern deckt mehr ab und addiert weniger (vorher 1 − 0,45·h): kein Weißausbrennen über
+  // hellem Boden und auf der Figur, der Rand bleibt farbig
+  gl_FragColor = vec4(c * a * uDim * 0.9, min(1.0, a * uOcc * (1.0 - 0.2 * h)));
 #endif
 }`;
 
@@ -993,7 +1020,8 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
   const gp = a.group.position;
   if (S.tv >= 0 && t > S.tv) {
     const dt = Math.min(0.1, t - S.tv);
-    const kv = Math.min(1, dt * 6);
+    // seit 14.41 träger (vorher dt·6): Anlaufen, Anhalten und Richtungswechsel kippen die Flammen sanft statt ruckartig
+    const kv = Math.min(1, dt * 3.5);
     S.vx += (Math.max(-12, Math.min(12, (gp.x - S.px) / dt)) - S.vx) * kv;
     S.vz += (Math.max(-12, Math.min(12, (gp.z - S.pz) / dt)) - S.vz) * kv;
   } else if (S.tv < 0 || t < S.tv) {
@@ -1015,7 +1043,10 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
   const dim = 1 - 0.3 * (V3.nightK || 0);
   const op = Math.min(1, kk * 1.6) * (fl.op || 1);
   // auf dem Pferd (seit 13.90): kaum Nachziehen – beim Galopp zogen die Flammen sonst weit nach hinten und zur Seite
-  const trail = (0.045 + 0.035 * L) * (A.ride ? 0.2 : 1);
+  // seit 14.41 gut halb so weit (vorher 0,045 + 0,035·L) und begrenzt: die Flammen neigen sich nach hinten statt abzureißen
+  const trail = (0.026 + 0.018 * L) * (A.ride ? 0.2 : 1);
+  const vl = Math.hypot(S.vx, S.vz) * trail;
+  const vk = vl > mh * 0.16 ? (mh * 0.16) / vl : 1;
   // Hauptlage: auf niedriger Stufe ein dünnes Flackern dicht am Körper, ab Stufe 30–50 deutliche Flammen, ab 80 hoch lodernd
   const u = S.outer.material.uniforms;
   kaSetColors(u, fl);
@@ -1024,11 +1055,11 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
   u.uInf.value = mh * (0.022 + 0.056 * L) * fl.inf * (A.ride ? 0.7 : 1);
   u.uRise.value = H * (0.035 + 0.2 * Math.pow(L, 1.3)) * fl.rise;
   u.uWob.value = 0.5 + 0.45 * L;
-  u.uOp.value = op * (0.72 + 0.28 * L);
+  u.uOp.value = op * (0.66 + 0.22 * L);
   u.uOcc.value = fl.occl;
   u.uDim.value = dim;
   u.uLv.value = 0.35 + 0.65 * L;
-  u.uVel.value.set(S.vx * trail, 0, S.vz * trail);
+  u.uVel.value.set(S.vx * trail * vk, 0, S.vz * trail * vk);
   S.outer.visible = u.uOp.value > 0.01;
   // weite Lage: erst ab mittlerer Stufe, langsamer, dunkler und durchscheinender – gibt der Aura Tiefe
   const w2 = wide && !A.ride ? Math.max(0, Math.min(1, (L - 0.3) / 0.45)) : 0;
@@ -1042,12 +1073,12 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
     u2.uInf.value = u.uInf.value * 1.5 + mh * 0.025 * fl.inf;
     u2.uRise.value = u.uRise.value * 1.5;
     u2.uWob.value = 0.7;
-    u2.uOp.value = op * 0.5 * w2;
+    u2.uOp.value = op * 0.42 * w2;
     u2.uOcc.value = fl.occl * 0.8;
     u2.uDim.value = dim;
     u2.uLv.value = 0;
     u2.uHeat.value = 0.62;
-    u2.uVel.value.set(S.vx * trail * 1.5, 0, S.vz * trail * 1.5);
+    u2.uVel.value.set(S.vx * trail * vk * 1.3, 0, S.vz * trail * vk * 1.3);
     S.outer2.visible = true;
   } else S.outer2.visible = false;
   // Randschein auf dem Körper
@@ -1061,7 +1092,7 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
     ur.uInf.value = mh * 0.009;
     ur.uRise.value = 0;
     ur.uWob.value = 0.3;
-    ur.uOp.value = op * (0.5 + 0.25 * L);
+    ur.uOp.value = op * (0.36 + 0.14 * L);
     ur.uDim.value = dim;
     ur.uVel.value.set(0, 0, 0);
     S.rim.visible = true;
@@ -1083,8 +1114,16 @@ const KA_FIRE_KIND = ['kaFireN0', 'kaFireN1', 'kaFireN2', 'kaFireN3'];
 const KA_FIRE_TEX = ['kaFire0', 'kaFire1', 'kaFire2', 'kaFire3'];
 // Zungen lösen sich vom Körper: Startpunkt auf der Hülle eines Knochens (Kopf und Schultern am häufigsten), steigen
 // auf, werden schmal und verlöschen. Sie folgen der Figur, solange sie leben.
+// Seit 14.41 ruhiger beim Laufen: Zungen an Armen, Händen und Beinen schwingen nur noch zu einem Viertel mit dem
+// Glied (sonst zuckten sie im Laufschritt hin und her), alle neigen sich mit dem Lauftempo leicht nach hinten, und
+// eine Feuerzunge behält ihr Flammenbild ein Leben lang (vorher wechselte sie 13-mal je Sekunde zwischen vier Bildern).
 const _kaM = new THREE.Matrix4();
 const _kaV = new THREE.Vector3();
+const _kaR = new THREE.Vector3();
+// wie stark eine Zunge dem Knochen folgt (Rest: starr mit der Figur)
+function kaBoneFollow(b) {
+  return b === BH.armL || b === BH.armR || b === BH.handL || b === BH.handR || b === BH.legL || b === BH.legR ? 0.25 : 1;
+}
 function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
   const m = a.model;
   const E = m.kaEll;
@@ -1094,6 +1133,16 @@ function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
   const n = Math.max(2, Math.round(w.n * q * (0.4 + 0.75 * L)));
   const inf = (m.height || 1.44) * (0.02 + 0.06 * L);
   const big = 0.55 + 0.6 * L;
+  // Neigung beim Laufen aus der geglätteten Bewegung der Hülle (kaShell3D), höchstens 0,12 Körpergrößen
+  const S = a.kaS;
+  let lvx = S ? S.vx * 0.03 : 0;
+  let lvz = S ? S.vz * 0.03 : 0;
+  const ll = Math.hypot(lvx, lvz);
+  if (ll > H * 0.12) {
+    lvx *= (H * 0.12) / ll;
+    lvz *= (H * 0.12) / ll;
+  }
+  if (A.ride) lvx = lvz = 0;
   for (let i = 0; i < n; i++) {
     const sp = w.speed * 1.25 * (0.8 + 0.4 * ((i * 0.37) % 1));
     const u = t * sp + i / n + seed;
@@ -1109,29 +1158,35 @@ function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
     dy /= dl;
     dz /= dl;
     _kaV.set(e.c[0] + dx * (e.s[0] + inf), e.c[1] + dy * (e.s[1] + inf), e.c[2] + dz * (e.s[2] + inf));
+    const fb = kaBoneFollow(e.b);
+    if (fb < 1) _kaR.copy(_kaV).applyMatrix4(a.group.matrixWorld);
     _kaM.multiplyMatrices(a.bones[e.b].matrixWorld, a.skeleton.boneInverses[e.b]);
     _kaV.applyMatrix4(_kaM);
+    if (fb < 1) _kaV.lerp(_kaR, 1 - fb);
     const life = Math.sin(ph * Math.PI);
     const ox = _kaV.x - x;
     const oz = _kaV.z - z;
     const yk = (_kaV.y - y) / H + ph * w.rise * (0.25 + 0.3 * L);
     let op = Math.pow(life, 0.8) * k * kaFace(ox, oz, Math.hypot(ox, oz), yk + 0.05);
-    if (w.flicker) op *= 0.7 + 0.3 * Math.sin(t * 23 + i * 5);
+    if (w.flicker) op *= 0.78 + 0.22 * Math.sin(t * 9 + i * 5);
     if (op < 0.02) continue;
     const sx = H * w.w * 0.75 * (1 - ph * 0.5) * big;
     const sy = H * w.h * 0.8 * (0.5 + 0.6 * life) * big;
     const sway = Math.sin(t * 3.1 + i * 1.7) * H * 0.03 * ph;
     const py = y + H * yk + sy * 0.35;
+    // leicht nach hinten geneigt, je höher die Zunge gestiegen ist
+    const lx = -lvx * ph;
+    const lz = -lvz * ph;
     const rot = Math.sin(t * 2.6 + i * 1.9) * 0.25;
     if (w.fire) {
       // lodernde Flamme (Daumenkino aus vier Bildern), darunter nur ein kleiner heller Kern
-      const f = (Math.floor(t * 13 + i * 3.7) & 3);
-      kaSprite(h, KA_FIRE_KIND[f], KA_FIRE_TEX[f], true, x + ox + sway, py + sy * 0.1, z + oz, sx, sy * 1.12, '#ffffff', Math.min(1, w.bodyOp * op), rot);
-      kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway, py - sy * 0.15, z + oz, sx * 0.45, sy * 0.5, w.core, Math.min(1, w.coreOp * op * 0.7), rot);
+      const f = (cyc + i) & 3;
+      kaSprite(h, KA_FIRE_KIND[f], KA_FIRE_TEX[f], true, x + ox + sway + lx, py + sy * 0.1, z + oz + lz, sx, sy * 1.12, '#ffffff', Math.min(1, w.bodyOp * op), rot);
+      kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway + lx, py - sy * 0.15, z + oz + lz, sx * 0.45, sy * 0.5, w.core, Math.min(1, w.coreOp * op * 0.6), rot);
       continue;
     }
-    if (w.bodyOp > 0) kaSprite(h, 'kaWispN', 'kaWisp', true, x + ox + sway, py, z + oz, sx, sy, w.body, Math.min(1, w.bodyOp * op * 0.55), rot);
-    kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway, py - sy * 0.08, z + oz, sx * 0.62, sy * 0.7, w.core, Math.min(1, w.coreOp * op), rot);
+    if (w.bodyOp > 0) kaSprite(h, 'kaWispN', 'kaWisp', true, x + ox + sway + lx, py, z + oz + lz, sx, sy, w.body, Math.min(1, w.bodyOp * op * 0.55), rot);
+    kaSprite(h, 'kaWispA', 'kaWisp', false, x + ox + sway + lx, py - sy * 0.08, z + oz + lz, sx * 0.62, sy * 0.7, w.core, Math.min(1, w.coreOp * op * 0.8), rot);
   }
 }
 
@@ -1149,7 +1204,7 @@ function kaDraw3(h, p, st, kk, t, q, gfx, rich) {
   const L = (lv - 0.3) / 0.55;
   const k = Math.min(1, kk * 1.7) * lv;
   q *= (0.75 + 0.25 * kk) * (0.45 + 0.55 * lv);
-  const seed = ((p.x * 0.013 + p.y * 0.007) % 1 + 1) % 1;
+  const seed = kaSeed(p);
   const a = st.fl ? kaActor(p) : null;
   if (a) {
     // Flammenhülle am Körper statt Lichtbildern hinter der Figur

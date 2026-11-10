@@ -498,10 +498,12 @@ function schwertBlade3(h, t, pulse, low, k) {
     _sa3d.subVectors(_sa3t, _sa3b);
     const len = _sa3d.length();
     _sa3d.divideScalar(len);
-    // Lichtklinge: 30 % hinter dem Ansatz bis 55 % über die Spitze hinaus, drei Schichten
-    _nf3a.copy(_sa3b).addScaledVector(_sa3d, -len * 0.3);
-    _nf3b.copy(_sa3t).addScaledVector(_sa3d, len * 0.55);
-    for (const [r, col, op] of [[0.24, '#ffb43a', 0.45], [0.11, '#ffd36a', 0.85], [0.04, '#ffffff', 1]]) {
+    // Lichtklinge: 30 % hinter dem Ansatz bis 55 % über die Spitze hinaus, drei Schichten.
+    // Seit 14.41 schlanker und weniger weiß (vorher 0,24/0,11/0,04 mit weißem Kern voll deckend, Lichtflecken 0,8–1,15
+    // groß): die Klinge schwingt beim Laufen mit dem Arm, und die großen hellen Flecken zogen weiße Fetzen über die Figur
+    _nf3a.copy(_sa3b).addScaledVector(_sa3d, -len * 0.2);
+    _nf3b.copy(_sa3t).addScaledVector(_sa3d, len * 0.4);
+    for (const [r, col, op] of [[0.12, '#ffa830', 0.32], [0.055, '#ffd36a', 0.62], [0.022, '#fff4d0', 0.8]]) {
       const s = fx3Take(h, 'seg');
       fx3Segment(s, _nf3a, _nf3b, r * (0.9 + 0.2 * pulse));
       fx3Color(s, col, op * pulse);
@@ -509,11 +511,11 @@ function schwertBlade3(h, t, pulse, low, k) {
     // Lichtflecken entlang der Klinge und ein Glanzstern an der Spitze
     for (const f of [0, 0.35, 0.7, 1]) {
       _sa3p.copy(_sa3b).addScaledVector(_sa3d, len * f);
-      n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 0.8 + f * 0.35, '#ffd36a', 0.7 * pulse);
+      n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 0.34 + f * 0.16, '#ffb84a', 0.38 * pulse);
     }
     // seit 13.83 kein Glanzstern mehr an der Spitze, nur ein weicher Lichtfleck, der ab und zu aufglüht
     const tw = Math.pow(Math.max(0, Math.sin(t * 3.1)), 6);
-    n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.35 + tw * 0.35, '#ffe9a0', 0.5 + tw * 0.4);
+    n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.28 + tw * 0.25, '#ffe9a0', 0.4 + tw * 0.3);
     // Funken wehen von der Klinge nach oben weg
     if (!low) for (let j = 0; j < 8; j++) {
       const ph = (t * 1.6 + j / 8) % 1;
