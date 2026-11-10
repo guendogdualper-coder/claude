@@ -1196,7 +1196,8 @@ function mageHand3(p, out, up) {
 
 function mageAura3Glut(h, p, t) {
   mageHand3(p, _m3c, 1.1 + 0.05 * Math.sin(t * 3));
-  const fl = 0.9 + 0.15 * Math.sin(t * 13);
+  // seit 14.41 ruhiger (vorher 0,9 + 0,15·sin(13t)): lodert, ohne zu zucken
+  const fl = 0.93 + 0.08 * Math.sin(t * 7) + 0.03 * Math.sin(t * 11.3);
   const o = mTake(h, 'spriteMFlame', 'mflame', true);
   o.position.set(_m3c.x, _m3c.y + 0.1, _m3c.z);
   o.scale.set(0.4 * fl, 0.62 * fl, 1);
@@ -1236,7 +1237,7 @@ function mageAura3Ladung(h, p, t) {
   const f = p.facing || { x: 0, y: 1 };
   const tx = (p.x - f.y * 9 + f.x * 8) * U3;
   const tz = (feetY(p) + f.x * 9 + f.y * 8) * U3;
-  mSprite(h, 'sprite', 'spark', tx, 1.25, tz, 0.22 + 0.08 * Math.sin(t * 40), '#ffe94a', 0.9);
+  mSprite(h, 'sprite', 'spark', tx, 1.25, tz, 0.22 + 0.06 * Math.sin(t * 15), '#ffe94a', 0.9);
 }
 
 function mageAura3Basalt(h, p, t) {
