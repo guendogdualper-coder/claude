@@ -422,13 +422,14 @@ function netHostDamage(rp, d) {
     if (st.v) m.vulnerable = { mul: st.v[0], until: game.time + st.v[1] };
     if (st.sl) setSlow(m, st.sl[0], st.sl[1]);
     if (st.fa) m.frostAtk = { mul: Math.max(0.4, +st.fa[0] || 1), until: game.time + Math.min(4, +st.fa[1] || 0) };
-    if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0 };
-    if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0 };
-    if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0 };
+    // by (seit 14.32): der Mitspieler hat ihn gesetzt (Schadensanzeige)
+    if (st.po) m.poison = { dps: st.po[0], until: game.time + st.po[1], tick: 0, by: rp };
+    if (st.bu) m.burn = { dps: st.bu[0], until: game.time + st.bu[1], tick: 0, by: rp };
+    if (st.bl) m.bleed = { dps: st.bl[0], until: game.time + st.bl[1], tick: 0, by: rp };
     // Gift aus der Ausrüstung (seit 14.15): erneuert die Dauer, der höhere Tickwert bleibt
     if (st.tx) {
       const old = m.toxin && m.toxin.until > game.time ? m.toxin : null;
-      m.toxin = { dps: Math.max(+st.tx[0] || 1, old ? old.dps : 0), until: game.time + Math.min(TOXIN.dur, +st.tx[1] || 0), tick: old ? old.tick : 0 };
+      m.toxin = { dps: Math.max(+st.tx[0] || 1, old ? old.dps : 0), until: game.time + Math.min(TOXIN.dur, +st.tx[1] || 0), tick: old ? old.tick : 0, by: rp };
     }
     // Einfrieren (seit 8.6, Magier): Restdauer im Eis (nie kürzen: der Mitspieler sieht fremdes Eis nur kurz gespiegelt),
     // uf = die Frostlanze hat das Eis zerschlagen
@@ -625,6 +626,10 @@ function netOnClientData(d) {
       break;
     case 'rel':
       onSocial(d.from, d.d);
+      break;
+    // seit 14.32: vom Host bestätigter eigener Schaden (Schadensanzeige, schadensmeter.js)
+    case 'dm':
+      if (typeof dmeterConfirmed === 'function') dmeterConfirmed(d);
       break;
     case 'po': {
       const rtt = performance.now() - d.s;

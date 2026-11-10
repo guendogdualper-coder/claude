@@ -225,7 +225,13 @@ function fensterOeffnen() {
   };
   for (const ev of ['resize', 'move', 'maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen']) w.on(ev, merken);
   w.on('close', () => { clearTimeout(merkTimer); zustandSchreiben(w); });
-  w.on('closed', () => { if (hauptfenster === w) hauptfenster = null; });
+  // seit 14.32 („Spiel beenden“ im Spiel ruft window.close()): mit dem Hauptfenster endet das Programm, auch wenn
+  // noch ein Wiki- oder Datenschutz-Fenster offen ist (sonst liefe es unsichtbar weiter)
+  w.on('closed', () => {
+    if (hauptfenster !== w) return;
+    hauptfenster = null;
+    app.quit();
+  });
 
   // Titel bleibt „Seelenstein“ (Taskleiste, Alt+Tab)
   w.on('page-title-updated', (ev) => { ev.preventDefault(); w.setTitle('Seelenstein'); });

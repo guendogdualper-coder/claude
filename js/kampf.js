@@ -136,7 +136,7 @@ function applyToxin(m, hit) {
   if (toxinBossLike(m)) dps = Math.min(dps, (m.maxHp * TOXIN.bossCap) / TOXIN.dur);
   dps = Math.max(1, Math.round(dps));
   const old = m.toxin && m.toxin.until > game.time ? m.toxin : null;
-  m.toxin = { dps: old ? Math.max(old.dps, dps) : dps, until: game.time + TOXIN.dur, tick: old ? old.tick : 0 };
+  m.toxin = { dps: old ? Math.max(old.dps, dps) : dps, until: game.time + TOXIN.dur, tick: old ? old.tick : 0, by: game.player };
 }
 
 // Mehr Gold (Bonus): Gold von Monstern, Bossen und Seelensteinen (nicht Aufträge oder Arena)
@@ -375,10 +375,11 @@ function hitMonster(m, mul, opts = {}) {
     }
     // Schaden über Zeit wächst seit 13.31 mit der Fertigkeitsstärke wie direkter Schaden
     const dotK = s.skillDmg || 1;
-    if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps * dotK, until: game.time + opts.poison.duration, tick: 0 };
-    if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps * dotK, until: game.time + opts.burn.duration, tick: 0 };
+    // by (seit 14.32): wer den Schaden über Zeit gesetzt hat (Schadensanzeige)
+    if (opts.poison) m.poison = { dps: s.atk * opts.poison.dps * dotK, until: game.time + opts.poison.duration, tick: 0, by: p };
+    if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps * dotK, until: game.time + opts.burn.duration, tick: 0, by: p };
     // Blutung (seit 11.7, Nekromant): Schaden über Zeit wie Gift, rote Tropfen
-    if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps * dotK, until: game.time + opts.bleed.duration, tick: 0 };
+    if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps * dotK, until: game.time + opts.bleed.duration, tick: 0, by: p };
     if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
   // Gift aus der Ausrüstung (seit 14.15): jeder eigene Treffer, je Ziel einmal (nicht Diener, nicht Schaden über Zeit).
@@ -434,7 +435,9 @@ function showLifeSteal() {
   p.stealShown = game.time;
 }
 
-function damageMonster(m, amount, crit, source, isDot) {
+// credit (seit 14.32, Schadensanzeige): wem der Schaden gutgeschrieben wird (Schaden über Zeit: wer ihn gesetzt hat);
+// fehlt er, zählt source, false = niemand (Verursacher ist schon weg)
+function damageMonster(m, amount, crit, source, isDot, credit) {
   // Endboss hinter dem Kristallschild (seit 11.0): kein Schaden, solange ein Seelenkristall steht
   // Instanzboss (seit 13.58): versiegelt, solange einer seiner Wächter steht
   if ((m.type && m.type.raid && raidShielded(m)) || (m.type && m.type.inst && typeof instSealed === 'function' && instSealed(m))) {
@@ -458,6 +461,8 @@ function damageMonster(m, amount, crit, source, isDot) {
   if (source && !source.remote) m.hostHitAt = game.time;
   // auch Treffer der Mitspieler (über den Host) zählen: so heilt sich kein Monster, das gerade bekämpft wird
   m.struckAt = game.time;
+  // Schadensanzeige (schadensmeter.js): nur wirklich abgezogenes Leben, ohne Überkill
+  if (typeof dmeterHost === 'function' && credit !== false) dmeterHost(credit || source, Math.min(amount, Math.max(0, m.hp)));
   m.hp -= amount;
   m.hitFlash = 0.12;
   // Mehrere Zahlen kurz hintereinander stapeln sich nach oben statt sich zu überdecken

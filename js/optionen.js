@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1 };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -186,14 +186,18 @@ const options = {
     } else if (tab === 'konto') {
       pane = typeof legalOptionsHtml === 'function' ? legalOptionsHtml() : '';
     } else {
-      pane = `<section class="opt-group"><div class="opt-btns">` +
+      // seit 14.32: Schadensanzeige (schadensmeter.js) unter „Oberfläche“ – sie gehört nicht zur Grafik
+      pane = `<section class="opt-group"><h3>Oberfläche</h3>` +
+        sw('dmeter', 'Schadensanzeige (Damage-Meter)', 'Kleines Fenster mit Schaden, DPS und Anteil für dich und deine Gruppe – getrennt nach aktuellem Kampf und ganzem Dungeon. Am Kopf verschiebbar, mit dem Pfeil einklappbar. Zählt nur Schaden an Monstern, den der Kanal bestätigt hat.') +
+        `</section>` + `<section class="opt-group"><div class="opt-btns">` +
         `<button type="button" class="btn btn-ghost" data-go="hud">🧩 HUD anpassen</button>` +
         `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
         `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
         `<button type="button" class="btn btn-ghost" data-go="help">❓ Hilfe</button>` +
         `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
         `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
-        `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>`;
+        `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>` +
+        (typeof quitGameHtml === 'function' ? quitGameHtml() : '');
     }
     body.innerHTML =
       `<nav class="opt-tabs" role="tablist" aria-label="Kategorien">` +
@@ -214,8 +218,10 @@ const options = {
     body.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
     body.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
       setOpt(b.dataset.sw, !opts[b.dataset.sw]);
+      if (b.dataset.sw === 'dmeter' && typeof dmeterApply === 'function') dmeterApply();
       this.render();
     }));
+    if (typeof wireQuitGame === 'function') wireQuitGame(body, () => this.render());
     body.querySelectorAll('[data-seg]').forEach((b) => b.addEventListener('click', () => {
       const [k, v] = b.dataset.seg.split(':');
       if (k === 'view') {
@@ -267,3 +273,83 @@ const options = {
     }));
   }
 };
+
+// Spiel beenden (seit 14.32): nur in der Desktop-App (Electron, desktop/main.js lädt das Spiel mit ?quelle=desktop).
+// Erkannt wie in konto.js (MS_STORE_PWA) am „Electron/“ im User-Agent. Im Browser und am Handy gibt es keinen
+// Knopf: Browser schließen ein selbst geöffnetes Fenster mit window.close() nicht, und Handys beenden Apps nicht selbst.
+// Ablauf: Sicherheitsabfrage → Spielstand speichern (Gerät) → mit Konto hochladen (cloudPush, höchstens QUIT_WAIT ms)
+// → Kanal verlassen → window.close() (in Electron schließt das das Hauptfenster, das Programm endet).
+// Klappt das Hochladen nicht, wird nicht beendet, sondern ehrlich gemeldet: erneut versuchen, trotzdem beenden, abbrechen.
+const IS_DESKTOP_APP = (() => { try { return /Electron\//.test(navigator.userAgent); } catch (e) { return false; } })();
+const QUIT_WAIT = 10000;
+const QUIT = { state: null, msg: '' }; // null | 'ask' | 'busy' | 'fail' | 'closing' | 'stuck'
+
+function quitGameHtml() {
+  if (!IS_DESKTOP_APP) return '';
+  const cloud = typeof accountOn === 'function' && accountOn();
+  let inner = '';
+  if (!QUIT.state) inner = `<div class="opt-btns"><button type="button" class="btn btn-ghost quit-btn" data-quit="ask">⏻ Spiel beenden</button></div>`;
+  else if (QUIT.state === 'ask') {
+    inner = `<div class="quit-box" role="alertdialog" aria-labelledby="quitQ" aria-describedby="quitD"><strong id="quitQ">Spiel wirklich beenden?</strong>` +
+      `<small id="quitD">${cloud ? 'Dein Spielstand wird vorher gespeichert und ins Konto hochgeladen.' : 'Dein Spielstand wird vorher auf diesem Gerät gespeichert.'}</small>` +
+      `<div class="opt-btns"><button type="button" class="btn btn-ghost" data-quit="no">Abbrechen</button><button type="button" class="btn quit-yes" data-quit="yes">Beenden</button></div></div>`;
+  } else if (QUIT.state === 'busy' || QUIT.state === 'closing') {
+    inner = `<div class="quit-box" role="status"><strong>${QUIT.state === 'busy' ? 'Speichere …' : 'Beende …'}</strong><small>Bitte einen Moment warten.</small></div>`;
+  } else if (QUIT.state === 'fail') {
+    inner = `<div class="quit-box fail" role="alertdialog" aria-labelledby="quitQ"><strong id="quitQ">Hochladen ins Konto hat nicht geklappt</strong>` +
+      `<small>${escapeHtml(QUIT.msg)}</small><small>Auf diesem Gerät ist dein Stand gespeichert. Beendest du trotzdem, wird er beim nächsten Start mit Verbindung abgeglichen.</small>` +
+      `<div class="opt-btns"><button type="button" class="btn btn-ghost" data-quit="no">Abbrechen</button><button type="button" class="btn btn-ghost" data-quit="yes">Erneut versuchen</button>` +
+      `<button type="button" class="btn quit-yes" data-quit="force">Trotzdem beenden</button></div></div>`;
+  } else if (QUIT.state === 'stuck') {
+    inner = `<div class="quit-box fail" role="alert"><strong>Das Fenster ließ sich nicht schließen</strong><small>Dein Spielstand ist gespeichert. Bitte das Fenster über das X oben rechts schließen.</small>` +
+      `<div class="opt-btns"><button type="button" class="btn btn-ghost" data-quit="no">Schließen</button></div></div>`;
+  }
+  return `<section class="opt-group quit-group"><h3>Programm</h3>${inner}</section>`;
+}
+
+function wireQuitGame(body, rerender) {
+  body.querySelectorAll('[data-quit]').forEach((b) => b.addEventListener('click', () => {
+    const k = b.dataset.quit;
+    if (k === 'ask') QUIT.state = 'ask';
+    else if (k === 'no') QUIT.state = null;
+    else if (k === 'yes' || k === 'force') { quitGame(k === 'force', rerender); return; }
+    rerender();
+    if (k === 'ask') {
+      const box = document.querySelector('.quit-box');
+      if (box) box.scrollIntoView({ block: 'nearest' });
+      const no = document.querySelector('[data-quit="no"]');
+      if (no) no.focus({ preventScroll: true });
+    }
+  }));
+}
+
+async function quitGame(force, rerender) {
+  // mehrfaches Klicken: nur ein Ablauf
+  if (QUIT.state === 'busy' || QUIT.state === 'closing') return;
+  QUIT.state = 'busy';
+  rerender();
+  let msg = '';
+  try {
+    if (game.running) saveGame();
+  } catch (e) { msg = 'Speichern auf dem Gerät fehlgeschlagen.'; }
+  if (!msg && !force && typeof accountOn === 'function' && accountOn() && !account.stale && !account.deleting) {
+    account.dirty = true;
+    // ohne keepalive: das Fenster bleibt offen, bis die Antwort da ist (keepalive erlaubt nur kleine Pakete)
+    const done = cloudPush().then(() => (account.dirty ? 'error' : 'ok'), () => 'error');
+    const res = await Promise.race([done, new Promise((r) => setTimeout(() => r('timeout'), QUIT_WAIT))]);
+    if (res === 'timeout') msg = `Das Konto hat in ${QUIT_WAIT / 1000} Sekunden nicht geantwortet.`;
+    else if (res !== 'ok') msg = account.msg ? `Fehler: ${account.msg}` : 'Das Konto ist gerade nicht erreichbar.';
+  }
+  if (msg && !force) {
+    QUIT.state = 'fail';
+    QUIT.msg = msg;
+    rerender();
+    return;
+  }
+  QUIT.state = 'closing';
+  rerender();
+  try { if (netOnline()) netStop(true); } catch (e) { /* Verbindung ist schon weg */ }
+  window.close();
+  // schließt sich das Fenster nicht (alte Desktop-App, Sonderfall): ehrlich sagen statt hängen zu lassen
+  setTimeout(() => { if (QUIT.state === 'closing') { QUIT.state = 'stuck'; rerender(); } }, 2000);
+}

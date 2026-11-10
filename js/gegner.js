@@ -579,7 +579,9 @@ function tickDots(m, dt) {
     d.tick += dt;
     if (d.tick >= 1) {
       d.tick -= 1;
-      damageMonster(m, Math.max(1, Math.round(d.dps)), false, m.lastAttacker && !m.lastAttacker.gone ? m.lastAttacker : game.player, key === 'toxin' ? 'toxin' : true);
+      // seit 14.32: gutgeschrieben (Schadensanzeige) wird, wer den Schaden über Zeit gesetzt hat (d.by)
+      damageMonster(m, Math.max(1, Math.round(d.dps)), false, m.lastAttacker && !m.lastAttacker.gone ? m.lastAttacker : game.player, key === 'toxin' ? 'toxin' : true,
+        d.by ? (d.by.gone ? false : d.by) : undefined);
       if (m.dead) return;
     }
   }
