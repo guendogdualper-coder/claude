@@ -189,8 +189,8 @@ und nicht den PvP-Wert; (c) negative Werte wären angezeigt worden.
 
 ### Behobene Fehler
 - Ausweichen und Blocken können nicht mehr unter 0 fallen (Anzeige „−30 %“ bei Abzügen) – `Math.max(0, …)`.
-- Charakterfenster → Werte: „Ausweichen 45 % / 45 % · PvP 23 %“, „Blocken 31 % / 40 % · PvP 16 %“ (Grenze und Wert gegen
-  Spieler). Keine neuen Wörter (keine neuen Übersetzungen nötig).
+- Charakterfenster → Werte zeigt jetzt Grenze und Wert gegen Spieler, im Spiel geprüft (Krieger Lv80 mit Schild):
+  „Blocken 31 % / 40 % · PvP 15 %“, „Ausweichen 29 % / 45 % · PvP 14 %“. Keine neuen Wörter (keine Übersetzung nötig).
 - Obergrenze als Tabelle `DODGE_RULES.cap` (spieler.js) statt fester Zahl – Wert unverändert 0,45; damit lassen sich
   Varianten ohne Codeänderung messen (`tools/balance-sim.js --vorschlag-datei`).
 
@@ -277,3 +277,12 @@ Dateien: js/drei-kern.js, js/eingabe.js.
 - Schwäche des Ansatzes: Steht die Figur direkt unter einer Dachtraufe, bleibt das Dach im Bild (gerastert wie in der
   normalen Kamera). Alternative wäre eine heranrückende Kamera (Federarm) – bewusst nicht gewählt, weil sie bei Wänden
   direkt hinter der Figur in die Figur fährt.
+
+---
+
+## Regression (alle Aufgaben)
+- `node --check` auf alle geänderten Dateien: ohne Fehler.
+- s73-Lauf (alle 12 Klassen/Wege, Stufe 50, jede Fertigkeit, Klassensegen, Charakterfenster): 12/12 ohne Seitenfehler.
+- Balance-Simulator (PvE, `--kurz`, Stufe 30/50/80, Ausrüstung „gut“) mit dem neuen Stand gelaufen: Gesamtwertung aller
+  Wege 85–124 wie vor den Änderungen (Ausweichen unverändert; Bogen-Reichweite ändert den Einzelziel-Schaden nicht).
+- Nicht gelaufen: PvP-Simulation, echte Geräte, echtes Mehrspieler über das Netz.
