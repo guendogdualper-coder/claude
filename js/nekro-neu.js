@@ -295,7 +295,7 @@ SKILL_TYPES.bonethrow = function (sk, pw, lvl) {
   const len = Math.max(40, wallFreeLength(p.x, p.y, dir, sk.range));
   let hit = null;
   let hu = Infinity;
-  for (const m of aliveEnemies()) {
+  for (const m of enemiesNear(p.x, p.y, len + sk.width)) {
     const u = (m.x - p.x) * dir.x + (m.y - p.y) * dir.y;
     if (u < 0 || u > len + (m.r || 0)) continue;
     if (Math.abs((m.x - p.x) * dir.y - (m.y - p.y) * dir.x) > sk.width + (m.r || 0)) continue;
@@ -377,7 +377,7 @@ MAGE2_REMOTE.gravehand = (rp, sk, d) => handFx(rp, d.tx, d.ty, sk, false, 0);
 // === Weg der Knochen: Blutlanzen (bis zu sechs Ziele) =============================================
 SKILL_TYPES.bloodlances = function (sk, pw, lvl) {
   const p = game.player;
-  const foes = aliveEnemies().filter((m) => dist(m, p) < sk.range + (m.r || 0)).sort((a, b) => dist(a, p) - dist(b, p)).slice(0, sk.count);
+  const foes = enemiesNear(p.x, p.y, sk.range).filter((m) => dist(m, p) < sk.range + (m.r || 0)).sort((a, b) => dist(a, p) - dist(b, p)).slice(0, sk.count);
   if (!foes.length) {
     addText(p.x, p.y - 34, 'Kein Ziel', 'info');
     return false;

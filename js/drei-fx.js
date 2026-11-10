@@ -2142,12 +2142,30 @@ function fx3BuffAuras(h) {
 const FX3_PROJ = { parts: [] };
 // weitere Zeichner je Bild (seit 11.0, z. B. Endboss-Kristalle in endboss.js): { parts: [], fn(h) }
 const FX3_HOOKS = [];
+// seit 14.38: Matrizen nur für sichtbare Effektteile. three.js rechnet vor jedem Zeichnen die Lage aller Objekte der
+// Szene neu aus (updateMatrixWorld) – auch der unsichtbaren. Im Effekt-Vorrat liegen nach einem großen Kampf mehrere
+// tausend Teile (Sprites, Stäbe, Scheiben), dazu sind die gebündelten Teile (fx3BatchSprites) beim Zeichnen
+// ausgeblendet: im Profil 4–11 ms je Bild allein dafür (80 Monster, Dauerfeuer). Unsichtbare Teile werden nicht
+// gezeichnet und brauchen keine Lage; wird ein Teil wieder sichtbar, rechnet dieser Durchgang es vor dem Zeichnen neu.
+function fx3GroupMatrixWorld(force) {
+  if (this.matrixAutoUpdate) this.updateMatrix();
+  if (this.matrixWorldNeedsUpdate || force) {
+    if (this.parent === null) this.matrixWorld.copy(this.matrix);
+    else this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix);
+    this.matrixWorldNeedsUpdate = false;
+    force = true;
+  }
+  const kids = this.children;
+  for (let i = 0, l = kids.length; i < l; i++) if (kids[i].visible) kids[i].updateMatrixWorld(force);
+}
 function v3SyncFx() {
   if (!FX3.group) {
     FX3.group = new THREE.Group();
     FX3.cam.r = new THREE.Vector3();
     FX3.cam.u = new THREE.Vector3();
     FX3.cam.f = new THREE.Vector3();
+    // seit 14.38: Teile im Vorrat (unsichtbar) nicht mehr in jedem Bild durchrechnen (fx3GroupMatrixWorld)
+    FX3.group.updateMatrixWorld = fx3GroupMatrixWorld;
     V3.scene.add(FX3.group);
   }
   const m = V3.camera.matrixWorld.elements;
@@ -2162,6 +2180,7 @@ function v3SyncFx() {
   fx3Release(FX3_CROWN);
   fx3Release(FX3_AURA);
   for (const hk of FX3_HOOKS) fx3Release(hk);
+  let hits = 0;
   for (const e of game.effects) {
     if (!FX3_TYPES.has(e.type)) continue;
     const o = effectOrigin(e);
@@ -2170,7 +2189,12 @@ function v3SyncFx() {
     const h = e.__fx3 || (e.__fx3 = { parts: [] });
     FX3_DRAW[e.type](h, e, k);
     FX3.live.add(h);
+    if (e.type === 'rankhit3' || e.type === 'bhit3') hits++;
   }
+  // seit 14.38: stehen sehr viele Treffer-Effekte zugleich im Bild (über 40 Gegner werden gerade getroffen), zeichnen
+  // Rang-Treffer und Bogen-Treffer in der sparsamen Fassung der Grafikstufe „Niedrig“ (weniger Funken je Treffer) –
+  // im Gewimmel nicht zu unterscheiden, spart aber mehrere tausend Teile je Bild
+  FX3.hitCrowd = hits > 40;
   fx3Projectiles(FX3_PROJ);
   fx3Status(FX3_STATUS);
   fx3Crown(FX3_CROWN);
@@ -2317,6 +2341,7 @@ function fx3BatchSprites() {
     b.sy = 0;
     b.sz = 0;
   }
+  FXB3_STRIP.n = 0;
   // geteilte Formen aus fx3Make (dürfen gebündelt werden; eigene Formen einzelner Teile nicht)
   const shared = FXB3.shared || (FXB3.shared = new Set());
   for (const k of FXB3_SHARED) if (FX3.geo[k]) shared.add(FX3.geo[k]);
@@ -2330,6 +2355,7 @@ function fx3BatchSprites() {
       if (!o.visible) continue;
       if (o.isMesh) {
         if (shared.has(o.geometry)) fxb3Mesh(o, hidden);
+        else if (o.userData.kind === 'strip') fxb3Strip(o, hidden);
         continue;
       }
       if (!o.isSprite) continue;
@@ -2376,6 +2402,7 @@ function fx3BatchSprites() {
     // Sortierung unter den durchsichtigen Teilen: an der Mitte der gebündelten Flecken
     b.mesh.position.set(b.sx / b.n, b.sy / b.n, b.sz / b.n);
   }
+  fxb3StripDone();
   for (const d of FXB3.drop) {
     FX3.group.remove(d);
     d.dispose();
@@ -2406,6 +2433,82 @@ function fx3BatchSprites() {
     ic.updateRange.offset = 0;
     ic.updateRange.count = b.n * 3;
     ic.needsUpdate = true;
+  }
+}
+// --- Gebogene Streifen gebündelt (seit 14.38) ------------------------------------------------------------------
+// Schnitte, Schwünge und Sicheln (fx3Strip) haben je Teil eine eigene, jedes Bild neu geschriebene Form – bis 14.37
+// blieb darum jeder Streifen ein eigener Zeichenaufruf mit eigenem Hochladen (im Gedränge 600–1.000 je Bild; jeder
+// Treffer mit Rang legt zwei Schnitte aus je drei Streifen an). Die Ecken stehen schon in Weltkoordinaten und tragen
+// Farbe × Helligkeit: alle additiven Streifen kommen deshalb hintereinander in eine einzige Form und werden in einem
+// Aufruf gezeichnet. Das Bündel steht wie die einzelnen Streifen im Ursprung (gleiche Stelle in der Reihenfolge der
+// durchsichtigen Teile); additives Licht addiert sich, das Bild bleibt dasselbe.
+const FXB3_STRIP = { mesh: null, cap: 0, n: 0, pos: null, col: null };
+const FXB3_STRIP_V = (FX3_STRIP_N + 1) * 2;
+function fxb3StripGrow(need) {
+  const S = FXB3_STRIP;
+  let cap = Math.max(64, S.cap);
+  while (cap < need) cap *= 2;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(cap * FXB3_STRIP_V * 3);
+  const col = new Float32Array(cap * FXB3_STRIP_V * 3);
+  if (S.pos) {
+    pos.set(S.pos);
+    col.set(S.col);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3).setUsage(THREE.DynamicDrawUsage));
+  const idx = new Uint32Array(cap * FX3_STRIP_N * 6);
+  for (let s = 0; s < cap; s++) {
+    for (let i = 0; i < FX3_STRIP_N; i++) {
+      const a = s * FXB3_STRIP_V + i * 2;
+      const j = (s * FX3_STRIP_N + i) * 6;
+      idx[j] = a; idx[j + 1] = a + 1; idx[j + 2] = a + 2;
+      idx[j + 3] = a + 1; idx[j + 4] = a + 3; idx[j + 5] = a + 2;
+    }
+  }
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  if (!S.mesh) {
+    S.mesh = new THREE.Mesh(geo, fx3Mat(null, true));
+    S.mesh.frustumCulled = false;
+    S.mesh.renderOrder = 5;
+    S.mesh.userData.fxb3 = true;
+    S.mesh.visible = false;
+    FX3.group.add(S.mesh);
+  } else {
+    S.mesh.geometry.dispose();
+    S.mesh.geometry = geo;
+  }
+  S.cap = cap;
+  S.pos = pos;
+  S.col = col;
+}
+function fxb3Strip(o, hidden) {
+  const m = o.material;
+  const p = o.position;
+  const sc = o.scale;
+  const mc = m.color;
+  if (m.blending !== THREE.AdditiveBlending || m.map || m.opacity !== 1 || mc.r !== 1 || mc.g !== 1 || mc.b !== 1 || !m.vertexColors || !m.depthTest || m.depthWrite || !m.visible || o.renderOrder !== 5
+    || o.layers.mask !== 1 || p.x !== 0 || p.y !== 0 || p.z !== 0 || sc.x !== 1 || sc.y !== 1 || sc.z !== 1 || o.quaternion.w !== 1 || o.children.length) return;
+  hidden[FXB3.nh++] = o;
+  o.visible = false;
+  const S = FXB3_STRIP;
+  if (S.n >= S.cap) fxb3StripGrow(S.n + 1);
+  const k = S.n++ * FXB3_STRIP_V * 3;
+  S.pos.set(o.geometry.attributes.position.array, k);
+  S.col.set(o.geometry.attributes.color.array, k);
+}
+function fxb3StripDone() {
+  const S = FXB3_STRIP;
+  if (!S.mesh) return;
+  S.mesh.visible = S.n > 0;
+  if (!S.n) return;
+  const g = S.mesh.geometry;
+  g.setDrawRange(0, S.n * FX3_STRIP_N * 6);
+  for (const k of ['position', 'color']) {
+    const at = g.attributes[k];
+    at.updateRange.offset = 0;
+    at.updateRange.count = S.n * FXB3_STRIP_V * 3;
+    at.needsUpdate = true;
   }
 }
 // ein additives Teil mit geteilter Form ins Bündel (sonst bleibt es einzeln)

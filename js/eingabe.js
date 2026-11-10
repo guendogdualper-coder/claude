@@ -395,7 +395,7 @@ function cycleTarget() {
   const reach = Math.max(560, (typeof basicAttack === 'function' ? basicAttack(p).range : 0) + 200);
   // seit 13.85: Seelensteine kommen erst nach den Monstern dran
   // seit 13.86 auch die Gegner in der Turnierarena (m.pvp), aber weiter nicht der Duellgegner
-  const list = aliveEnemies().filter((m) => !m.hidden && !(m.duelProxy && !m.pvp) && dist(m, p) < reach).sort((a, b) => (a.isStone ? 1 : 0) - (b.isStone ? 1 : 0) || dist(a, p) - dist(b, p));
+  const list = enemiesNear(p.x, p.y, reach).filter((m) => !m.hidden && !(m.duelProxy && !m.pvp) && dist(m, p) < reach).sort((a, b) => (a.isStone ? 1 : 0) - (b.isStone ? 1 : 0) || dist(a, p) - dist(b, p));
   if (!list.length) return;
   // nach einer Pause von 4 s beginnt eine neue Runde
   if (game.time - TAB.at > 4) TAB.seen.clear();

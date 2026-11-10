@@ -138,7 +138,7 @@ function gpRender() {
   const W = _gp.sz.x, H = _gp.sz.y;
   gl.setRenderTarget(_gp.main);
   gl.clear();
-  gl.render(V3.scene, V3.camera);
+  v3RenderScene(); // seit 14.38 (drei-kern.js): Schattenmodelle der Figuren nur in der Schattenkarte
   const nk = V3.nightK || 0;
   _gp.bright.uniforms.t.value = _gp.main.texture;
   _gp.bright.uniforms.thr.value = GP.thr - 0.42 * nk;

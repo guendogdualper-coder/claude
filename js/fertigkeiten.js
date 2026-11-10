@@ -507,7 +507,8 @@ function skillIconUrl(sk, r = -1) {
   if (skillIconCache.has(key)) return skillIconCache.get(key);
   const size = 96;
   const c = newCanvas(size, size);
-  const ctx = c.getContext('2d');
+  // seit 14.38 im Arbeitsspeicher (CPU_CANVAS, figuren.js): toDataURL ohne Zurücklesen von der Grafikkarte
+  const ctx = c.getContext('2d', typeof CPU_CANVAS !== 'undefined' ? CPU_CANVAS : undefined);
   ctx.setTransform(size / 48, 0, 0, size / 48, size / 2, size / 2);
   const [light, dark] = SKILL_ICON_BG[sk.kind] || SKILL_ICON_BG.angriff;
   const g = ctx.createRadialGradient(-6, -8, 2, 0, 0, 24);
@@ -1346,21 +1347,44 @@ function rankCastFx(p, rank, color) {
 
 // Treffer einer Fertigkeit mit Rang: Lichtfleck in der Rangfarbe, ab Heroisch ein Kreuzschnitt,
 // ab Legendär kleine Blitze, Vollendet mit Glutwelle
+// seit 14.38: Gedränge. Jeder Treffer einer Fertigkeit mit Rang legt bis zu sieben Effekte an (Einschlag, zwei
+// Schnitte, drei Blitze, Rang-Treffer in 3D) und über 30 Funken. Trifft ein Pfeilregen oder ein Feuerfeld 80 Monster
+// mehrmals je Sekunde, standen über 1.000 solcher Effekte gleichzeitig im Bild (gemessen: 378 Blitze, 346 Schnitte,
+// 254 Einschläge, 196 Rang-Treffer) – der größte einzelne Posten der Rechenzeit je Bild. Darum zählt das Spiel die
+// Treffer-Effekte der letzten Viertelsekunde: bis RANK_FX_CROWD.merge bleibt alles wie bisher (Kämpfe gegen einzelne
+// Gegner und kleine Gruppen sehen unverändert aus). Darüber bekommt derselbe Gegner höchstens alle 0,15 s einen neuen
+// Satz (wie der Rang-Treffer in 3D schon immer; die Effekte dauern länger als 0,15 s, überdecken sich also ohnehin),
+// und über RANK_FX_CROWD.thin entfallen der zweite Schnitt, die Blitze und die Glutfunken. Schaden, Trefferzahl und
+// Schadenszahlen sind davon unberührt.
+const RANK_FX_CROWD = { t: -9, n: 0, merge: 24, thin: 48, win: 0.25 };
+function rankFxLoad() {
+  const C = RANK_FX_CROWD;
+  if (game.time - C.t > C.win || game.time < C.t) {
+    C.t = game.time;
+    C.n = 0;
+  }
+  return ++C.n;
+}
 function rankHitFx(m, rank) {
   const color = SKILL_RANKS[rank].color;
+  const load = rankFxLoad();
+  if (load > RANK_FX_CROWD.merge && m.rkFxAt > game.time - 0.15) return;
+  m.rkFxAt = game.time;
+  const thin = load > RANK_FX_CROWD.thin;
   // 3D-Treffer je Rang (rang-fx.js), höchstens alle 0,15 s je Gegner (Kanal- und Mehrfachtreffer)
   if (typeof rankHit3 === 'function' && !(m.rk3At > game.time - 0.15)) {
     m.rk3At = game.time;
     rankHit3(m, rank);
   }
   const c = bodyCenter(m);
-  particles(c.x, c.y, { count: 4 + rank * 4, color: [color, '#ffffff'], speed: [100, 220], life: [0.2, 0.4], size: [1.5, 2.8], shape: 'spark', drag: 5 });
+  particles(c.x, c.y, { count: thin ? 2 + rank * 2 : 4 + rank * 4, color: [color, '#ffffff'], speed: [100, 220], life: [0.2, 0.4], size: [1.5, 2.8], shape: 'spark', drag: 5 });
   addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.26 + rank * 0.04, color, big: rank >= 2 });
   if (rank >= 1) {
     const a = Math.random() * Math.PI;
     addEffect({ type: 'slash', x: c.x, y: c.y, ang: a, len: 40 + rank * 8, w: 5, dur: 0.24, color });
-    addEffect({ type: 'slash', x: c.x, y: c.y, ang: a + Math.PI / 2, len: 40 + rank * 8, w: 5, dur: 0.24, color });
+    if (!thin) addEffect({ type: 'slash', x: c.x, y: c.y, ang: a + Math.PI / 2, len: 40 + rank * 8, w: 5, dur: 0.24, color });
   }
+  if (thin) return;
   if (rank >= 2) {
     for (let k = 0; k < rank; k++) {
       const an = Math.random() * Math.PI * 2;

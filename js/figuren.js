@@ -41,25 +41,30 @@ function newCanvas(w, h) {
   return c;
 }
 
-function bakeSprite(bounds, draw, S = SPRITE_SCALE) {
+// seit 14.38 – cpu: Zeichenflächen im Arbeitsspeicher statt auf der Grafikkarte (für Symbole, die gleich danach mit
+// toDataURL als Bild-Adresse gebraucht werden: Beute, Tränke, Material, Bücher, Gegenstände). Von der Grafikkarte
+// zurückzulesen hält das Spiel an, bis sie alles Anstehende gezeichnet hat – mitten im Kampf beim ersten Fund jeder
+// Sorte ein Ruckler (gemessen mit Software-Grafik 20–50 ms je Symbol, unter Last bis über 2 s; im Arbeitsspeicher ~1 ms).
+const CPU_CANVAS = { willReadFrequently: true };
+function bakeSprite(bounds, draw, S = SPRITE_SCALE, cpu = false) {
   const w = Math.ceil(bounds.w * S);
   const h = Math.ceil(bounds.h * S);
   const base = newCanvas(w, h);
-  const b = base.getContext('2d');
+  const b = base.getContext('2d', cpu ? CPU_CANVAS : undefined);
   b.setTransform(S, 0, 0, S, -bounds.x * S, -bounds.y * S);
   b.lineJoin = 'round';
   b.lineCap = 'round';
   draw(b);
-  shadeSprite(base, b, w, h, S);
+  shadeSprite(base, b, w, h, S, cpu);
   // Umriss: Silhouette in alle Richtungen versetzt hinter die Figur legen
   const sil = newCanvas(w, h);
-  const s = sil.getContext('2d');
+  const s = sil.getContext('2d', cpu ? CPU_CANVAS : undefined);
   s.drawImage(base, 0, 0);
   s.globalCompositeOperation = 'source-in';
   s.fillStyle = OUTLINE;
   s.fillRect(0, 0, w, h);
   const out = newCanvas(w, h);
-  const o = out.getContext('2d');
+  const o = out.getContext('2d', cpu ? CPU_CANVAS : undefined);
   const d = OUTLINE_W * S;
   for (let a = 0; a < 8; a++) o.drawImage(sil, Math.cos(a * Math.PI / 4) * d, Math.sin(a * Math.PI / 4) * d);
   o.drawImage(base, 0, 0);
@@ -68,7 +73,7 @@ function bakeSprite(bounds, draw, S = SPRITE_SCALE) {
 
 // Licht von oben links: ein Verlauf über die ganze Figur (oben warm, unten kühl und dunkler)
 // und ein heller Saum an den Kanten oben links. Wird nur einmal beim Backen gerechnet.
-function shadeSprite(base, b, w, h, S = SPRITE_SCALE) {
+function shadeSprite(base, b, w, h, S = SPRITE_SCALE, cpu = false) {
   b.save();
   b.setTransform(1, 0, 0, 1, 0, 0);
   b.globalCompositeOperation = 'source-atop';
@@ -79,7 +84,7 @@ function shadeSprite(base, b, w, h, S = SPRITE_SCALE) {
   b.fillStyle = g;
   b.fillRect(0, 0, w, h);
   const rim = newCanvas(w, h);
-  const r = rim.getContext('2d');
+  const r = rim.getContext('2d', cpu ? CPU_CANVAS : undefined);
   r.drawImage(base, 0, 0);
   r.globalCompositeOperation = 'source-in';
   r.fillStyle = '#fff6e0';
@@ -92,10 +97,10 @@ function shadeSprite(base, b, w, h, S = SPRITE_SCALE) {
   b.restore();
 }
 
-function getSprite(key, bounds, draw, scale) {
+function getSprite(key, bounds, draw, scale, cpu) {
   let sp = spriteCache.get(key);
   if (!sp) {
-    sp = bakeSprite(bounds, draw, scale);
+    sp = bakeSprite(bounds, draw, scale, cpu);
     spriteCache.set(key, sp);
   }
   return sp;

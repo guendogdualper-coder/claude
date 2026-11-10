@@ -2194,6 +2194,39 @@ function warpFade() {
 // --- Ein Bild zeichnen ---------------------------------------------------------------------------
 
 let v3Last = 0;
+// seit 14.38: Welt zeichnen, Schattenkarte vorab von Hand. Jede Figur hat ein grobes, im Bild unsichtbares
+// Schattenmodell (figShadowProxy, drei-figuren.js). three.js zeichnete es trotzdem in jedem Bild auch ins Hauptbild
+// (ein voller Zeichenaufruf mit Skelett je Figur, ohne dass ein Bildpunkt entsteht – bei 80 Monstern 80 von ~480
+// Aufrufen der Figuren, auch auf Stufen ohne Schatten). Die Schattenmodelle liegen jetzt auf einer eigenen Ebene
+// (SHADOW_LAYER3), die die Kamera nur während der Schattenkarte sieht: erst die Lage aller Objekte, dann die
+// Schattenkarte (wie three.js sie selbst zeichnen würde), dann das Bild ohne die Schattenmodelle.
+const SHADOW_LAYER3 = 9;
+const _v3SunList = [];
+function v3RenderScene() {
+  const gl = V3.gl;
+  const sc = V3.scene;
+  const cam = V3.camera;
+  const sm = gl.shadowMap;
+  const sceneAuto = sc.autoUpdate;
+  const smAuto = sm.autoUpdate;
+  if (sceneAuto) sc.updateMatrixWorld();
+  sc.autoUpdate = false;
+  sm.autoUpdate = false;
+  sm.needsUpdate = false;
+  try {
+    if (sm.enabled && smAuto && V3.sun && V3.sun.castShadow && V3.sun.visible) {
+      _v3SunList[0] = V3.sun;
+      sm.needsUpdate = true;
+      cam.layers.enable(SHADOW_LAYER3);
+      try { sm.render(_v3SunList, sc, cam); } finally { cam.layers.disable(SHADOW_LAYER3); }
+      sm.needsUpdate = false;
+    }
+    gl.render(sc, cam);
+  } finally {
+    sc.autoUpdate = sceneAuto;
+    sm.autoUpdate = smAuto;
+  }
+}
 function renderDrei() {
   const r = renderer;
   const ctx = r.ctx;
@@ -2318,7 +2351,7 @@ function renderDrei() {
   // seit 14.32: im Dungeon die Felswände zwischen Kamera und Figur absenken (groundMat)
   v3SyncCut(dt);
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
-  if (!(typeof gpRender === 'function' && gpRender())) V3.gl.render(V3.scene, V3.camera);
+  if (!(typeof gpRender === 'function' && gpRender())) v3RenderScene();
   // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
   if (typeof fx3BatchDone === 'function') fx3BatchDone();
   drawOverlay3(ctx);

@@ -163,7 +163,7 @@ function novaArcs(owner, x, y, sk, pw, at, arcs) {
       if (jumps >= J.max) break;
       let best = null;
       let bd = J.r;
-      for (const o of aliveEnemies()) {
+      for (const o of enemiesNear(src.x, src.y, J.r)) {
         if (hit.has(o.id) || dist(o, { x, y }) <= sk.radius) continue;
         const d = dist(o, src);
         if (d < bd) { bd = d; best = o; }
@@ -347,7 +347,7 @@ function shiftPlan(p, sk) {
     const dir = dl > 4 ? { x: dx / dl, y: dy / dl } : { ...p.facing };
     let want = Math.min(sk.distance, Math.max(dl, 40));
     if (sk.at === 'line') {
-      for (const m of aliveEnemies()) {
+      for (const m of enemiesNear(pt.x, pt.y, 20)) {
         if (!m.hidden && Math.hypot(m.x - pt.x, m.y - pt.y) <= (m.r || 14) + 8) want = Math.min(sk.distance, Math.max(want, dist(p, m) + 40));
       }
     }
@@ -433,7 +433,7 @@ function shiftFx(owner, a, b, sk, local, pw, lvl) {
       const vx = b.x - a.x;
       const vy = b.y - a.y;
       const L2 = vx * vx + vy * vy || 1;
-      for (const m of aliveEnemies()) {
+      for (const m of enemiesNear((a.x + b.x) / 2, (a.y + b.y) / 2, Math.sqrt(L2) / 2 + (sk.width || 40))) {
         // Abstand zur Strecke a–b (wie beim Sturmangriff)
         const u = clamp01(((m.x - a.x) * vx + (m.y - a.y) * vy) / L2);
         if (Math.hypot(a.x + vx * u - m.x, a.y + vy * u - m.y) > (sk.width || 40) + m.r) continue;
@@ -1531,7 +1531,7 @@ Object.assign(ULT_RUN, {
         // noch nicht getroffene zuerst, dann der nächste
         let best = null;
         let bd = Infinity;
-        for (const m of aliveEnemies()) {
+        for (const m of enemiesNear(p.x, p.y, 280)) {
           const d = dist(m, p);
           if (d > 280) continue;
           const score = d + (hit.has(m.id) ? 1000 : 0);
@@ -1546,7 +1546,7 @@ Object.assign(ULT_RUN, {
         // ein Sprung zum nächsten Gegner daneben
         let nxt = null;
         let nd = 150;
-        for (const m of aliveEnemies()) {
+        for (const m of enemiesNear(best.x, best.y, 150)) {
           if (m === best) continue;
           const d = dist(m, best);
           if (d < nd) { nd = d; nxt = m; }

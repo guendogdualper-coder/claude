@@ -517,7 +517,9 @@ function aggro(m, source) {
   }
   if (!m.groupId) return;
   // seit 13.2: die ganze Gruppe kommt, auch wenn ein Tier gerade umherläuft oder heimkehrt
-  for (const o of game.monsters) {
+  // seit 14.38 nur die Monster desselben Gebiets (areaList): vorher ging jeder einzelne Treffer alle ~7.000 Monster
+  // der Welt durch – ein Flächentreffer auf 80 Monster also über eine halbe Million Prüfungen in einem Bild
+  for (const o of areaList(m)) {
     if (o !== m && !o.dead && o.groupId === m.groupId && (o.state !== 'chase' || !o.target) && dist(o, m) < 420) {
       o.state = 'chase';
       o.target = source;
@@ -527,7 +529,7 @@ function aggro(m, source) {
 
 function alertGroup(m, source) {
   if (!source || source.dead) return;
-  for (const o of game.monsters) {
+  for (const o of areaList(m)) {
     if (o === m || o.dead || o.isStone || o.groupId !== m.groupId || dist(o, m) > 420) continue;
     if (o.state === 'chase' && o.target && !o.target.dead) continue;
     o.state = 'chase';
@@ -683,7 +685,7 @@ function endgameStrike(m, target) {
   let beset = false;
   if (m.elite80) {
     let n = 0;
-    for (const o of game.monsters) {
+    for (const o of areaList(m)) {
       if (o === m || o.dead || !o.elite80 || o.target !== target || o.state !== 'chase') continue;
       if (Math.hypot(o.x - target.x, o.y - target.y) < ENDGAME.flankR) n++;
     }
@@ -829,7 +831,7 @@ function endgameEliteTick(m, dt) {
   if (m.healCd > 0) return false;
   let best = null;
   let bk = ENDGAME.healBelow;
-  for (const o of game.monsters) {
+  for (const o of areaList(m)) {
     if (o.dead || o.isStone || o === m || (!o.elite80 && !isEndgameBoss(o))) continue;
     if (Math.hypot(o.x - m.x, o.y - m.y) > ENDGAME.healRange) continue;
     const k = o.hp / o.maxHp;
@@ -1396,22 +1398,51 @@ function areaKey(x, y) {
 // Monster je Map/Dungeon (seit 13.60): die Welt hat über 6.000 Monster, gerechnet werden aber nur die Maps, in denen
 // gerade jemand spielt. Vorher lief jedes Bild eine Schleife über alle – am Handy spürbar. Neu aufgebaut, wenn sich
 // die Liste ändert (neue Nachtmonster, Instanzen …) und sonst alle 2 s. Monster wechseln nie die Map (nur über Tore).
-const MON_INDEX = { arr: null, len: -1, at: -9, map: new Map(), list: [] };
+// seit 14.38 dazu: Seelensteine (stones, für solidObstacles in welt.js), Seelenkristalle und Endbosse (crystals,
+// raids, für raidScan in endboss.js) und Monster nach Nummer (byId, für Treffer der Mitspieler in netz.js) – diese
+// Stellen gingen vorher je Bild bzw. je Treffer alle Monster der Welt durch
+const MON_INDEX = { arr: null, len: -1, at: -9, map: new Map(), list: [], stones: [], crystals: [], raids: [], byId: new Map() };
 function monsterIndex() {
   const ms = game.monsters;
-  if (MON_INDEX.arr === ms && MON_INDEX.len === ms.length && game.time - MON_INDEX.at < 2) return MON_INDEX.map;
+  if (MON_INDEX.arr === ms && MON_INDEX.len === ms.length && game.time - MON_INDEX.at < 2 && game.time >= MON_INDEX.at) return MON_INDEX.map;
   const map = new Map();
+  const stones = MON_INDEX.stones;
+  const crystals = MON_INDEX.crystals;
+  const raids = MON_INDEX.raids;
+  const byId = MON_INDEX.byId;
+  stones.length = 0;
+  crystals.length = 0;
+  raids.length = 0;
+  byId.clear();
   for (const m of ms) {
     if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
     let l = map.get(m.area);
     if (!l) map.set(m.area, (l = []));
     l.push(m);
+    byId.set(m.id, m);
+    if (m.isStone) stones.push(m);
+    else if (m.type) {
+      if (m.type.crystal) crystals.push(m);
+      if (m.type.raid) raids.push(m);
+    }
   }
   MON_INDEX.arr = ms;
   MON_INDEX.len = ms.length;
   MON_INDEX.at = game.time;
   MON_INDEX.map = map;
   return map;
+}
+// Alle Monster des Gebiets (Map oder Dungeon), zu dem m gehört – Gruppen, Elite und ihre Heilerinnen stehen immer im
+// selben Gebiet (gleicher Startplatz bzw. derselbe Dungeon); seit 14.38 für Schleifen je Treffer statt aller Monster
+function areaList(m) {
+  const idx = monsterIndex();
+  if (m.area == null) m.area = areaKey(m.homeX ?? m.x, m.homeY ?? m.y);
+  return idx.get(m.area) || game.monsters;
+}
+// Monster nach Nummer (seit 14.38, über das Gebietsverzeichnis statt einer Suche durch alle)
+function monsterById(id) {
+  monsterIndex();
+  return MON_INDEX.byId.get(id) || null;
 }
 // Monster der Map/des Dungeons, in dem man gerade steht (für Prüfungen, die nur die Nähe brauchen)
 function areaMonsters() {

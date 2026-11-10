@@ -564,7 +564,7 @@ function chainPlan(p, first, n, sk) {
     count.set(m.id, (count.get(m.id) || 0) + 1);
     last = m;
     cur = spot;
-    const near = aliveEnemies().filter((o) => !o.hidden && Math.hypot(o.x - cur.x, o.y - cur.y) - (o.r || 0) <= sk.hopRange);
+    const near = enemiesNear(cur.x, cur.y, sk.hopRange).filter((o) => !o.hidden && Math.hypot(o.x - cur.x, o.y - cur.y) - (o.r || 0) <= sk.hopRange);
     const mobs = near.filter((o) => !o.isStone);
     const pool = mobs.length ? mobs : near;
     const fresh = pool.filter((o) => !count.has(o.id)).sort((a, b) => Math.hypot(a.x - cur.x, a.y - cur.y) - Math.hypot(b.x - cur.x, b.y - cur.y));
@@ -577,7 +577,7 @@ SKILL_TYPES.chainblink = function (sk, pw, lvl) {
   let t = pickTarget(sk.range);
   // nie zuerst auf einen Seelenstein, solange ein Monster in Reichweite ist
   if (t && t.isStone) {
-    const mob = aliveEnemies().filter((o) => !o.isStone && !o.hidden && dist(p, o) - (o.r || 0) <= sk.range).sort((a, b) => dist(a, p) - dist(b, p))[0];
+    const mob = enemiesNear(p.x, p.y, sk.range).filter((o) => !o.isStone && !o.hidden && dist(p, o) - (o.r || 0) <= sk.range).sort((a, b) => dist(a, p) - dist(b, p))[0];
     if (mob) t = mob;
   }
   if (!t) {
