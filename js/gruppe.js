@@ -424,6 +424,13 @@ function partyPanelHtml() {
     }).join('');
     html += `<div class="party-head"><h3>Deine Gruppe <small>· ${party.members.length}/${PARTY.max}</small></h3>` +
       `<button type="button" class="mini-btn" id="btnPartyLeave">Gruppe verlassen</button></div>` + members;
+    // seit 14.40: mit der Gruppe in die Prüfungsarena (herausforderung.js) – die nächsten zwei Mitglieder werden eingeladen
+    if (online && typeof arenaEnterGroup === 'function') {
+      const busy = !!game.arenaRun || p.dead || p.level < ARENA.minLevel;
+      html += `<div class="party-head"><h3>Prüfungsarena <small>· bis zu dritt</small></h3>` +
+        `<button type="button" class="mini-btn primary" id="btnPartyArena" ${busy ? 'disabled' : ''}>Arena mit der Gruppe betreten</button></div>` +
+        `<p class="hint-text">Die nächsten zwei Mitglieder im Kanal bekommen eine Einladung. Auswählen kannst du beim Arenameister.</p>`;
+    }
   } else {
     html += `<h3>Gruppe</h3><p class="hint-text">Lade Spieler aus deinem Kanal ein. In der Gruppe teilt ihr die Erfahrung für Monster, die in eurer Nähe fallen.</p>`;
   }
@@ -444,6 +451,8 @@ function partyPanelBind(body) {
   body.querySelectorAll('[data-pinvite]').forEach((b) => b.addEventListener('click', () => inviteParty(b.dataset.pinvite)));
   body.querySelectorAll('[data-pkick]').forEach((b) => b.addEventListener('click', () => kickParty(b.dataset.pkick)));
   body.querySelectorAll('[data-pmode]').forEach((b) => b.addEventListener('click', () => setPartyMode(b.dataset.pmode)));
+  const arena = body.querySelector('#btnPartyArena');
+  if (arena) arena.addEventListener('click', () => { ui.closePanels(); arenaEnterGroup(); });
   const leave = body.querySelector('#btnPartyLeave');
   if (leave) leave.addEventListener('click', leaveParty);
 }

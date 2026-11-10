@@ -155,3 +155,141 @@ Dazu: s73 (alle 12 Klassenwege ohne Fehler), Solo-Messläufe ohne Seitenfehler.
 - Monster laufen weiter mit normalem Tempo, erst ab Welle 8 im Jagdmodus. Ankunft beim Spieler Ø 4–7 s. Schneller wäre eine Schwierigkeitsänderung und ist bewusst nicht umgesetzt.
 
 Testskripte (nicht im Repo): /tmp/claude-0/-home-user-claude/28e727e5-656e-544c-9afe-3c541c335198/scratchpad/arena-tank/ (messen.js, serie.sh, tank.js, tank2.js, duo.js, duo2.js, perf.js; Ergebnisse *.json)
+
+## 14.40: Arena zu dritt, Ursache des Allein-Betretens, Musik
+
+**Status: umgesetzt.** Gemeinsam geht nur im Mehrspieler-Kanal. Ohne Kanal gibt es keine Mitspieler.
+
+**Ursache des Allein-Betretens.** Nachgestellt mit 14.39 im echten Mehrspieler (`repro.js`: lokaler Broker, H ist Host und nicht in der Gruppe, A und B bilden die Gruppe über die echte Einladung):
+1. **Hauptknopf war „allein“.** Beim Arenameister war der erste, hervorgehobene Knopf „Allein betreten“, „Zu zweit mit …“ nur ein Nebenknopf. Drücken beide Mitglieder den Hauptknopf, landen sie in getrennten Hallen (gemessen: Saija Halle 0, Alper Halle 1).
+2. **Selbst drücken statt Einladung annehmen** gab eine eigene Halle. Lädt A ein und B geht selbst zum Meister, bekommt B eine Solo-Halle. A wartet 20 s und kämpft dann ebenfalls allein (gemessen).
+3. **Die Einladung war nur ein Toast für 20 s.** Am Handy und mitten im Kampf ist er leicht zu übersehen. Danach startete die Halle still allein.
+4. **„Arena betreten“ trotz Gruppe.** Fand das Fenster kein Mitglied, stand dort nur „Arena betreten“, also allein. Gründe: Das Mitglied ist nicht im Kanal oder hat eine ältere Version, oder das Fenster wurde vor dem Gruppenbeitritt geöffnet. Das Fenster wurde nie neu gezeichnet.
+5. **Versionen.** Ein Host mit einer Version vor 14.32 (auch ein unbeteiligter dritter Spieler) ignoriert die Einladung. Ein Gerät vor 14.32 kennt `ari` nicht. In beiden Fällen ging es ohne Hinweis allein weiter.
+6. **Im Gruppenfenster gab es keinen Arena-Eintrag.**
+7. **„Keiner ist Host“ war nicht die Ursache.** Der Ablauf über einen unbeteiligten Host funktionierte auch in 14.39. Gefunden wurde aber eine Lücke bei der Belohnung: Kills zählten nach der Gruppenregel (selbst getroffen oder näher als 700 px). In der großen Halle gingen so Kills verloren, obwohl die Belohnung je Kill durch die Spielerzahl geteilt wird.
+
+**Änderung (js/herausforderung.js, js/gruppe.js, js/musik.js, js/sprachen/en.js).**
+- **Arenameister:**
+  - In einer Gruppe heißt der Hauptknopf jetzt **„Mit Gruppe betreten (n)“**, daneben steht „Allein betreten“. Ohne Gruppe steht dort wie bisher „Arena betreten“.
+  - Darüber steht die Liste der Mitglieder mit Kästchen. Vorausgewählt sind die zwei nächsten, die mitkommen können, Geräte mit neuem Stand zuerst. Wer nicht kann, steht mit Grund daneben: nicht im Kanal, ältere Version, unter Stufe 5, schon in der Arena, tot.
+  - Bei mehr als drei Mitgliedern wählt man aus, höchstens zwei. Der Hinweis lautet „Mehr passen nicht in eine Halle“.
+  - Das Fenster zeichnet sich neu, sobald sich Gruppe, Kanal oder Lauf ändern (Prüfung jede Sekunde).
+- **Gruppenfenster** (Reiter Gruppe): Neuer Knopf **„Arena mit der Gruppe betreten“**. Er lädt die zwei nächsten Mitglieder ein.
+- **Einladung:** Statt des Toasts erscheint ein **Fenster mit Annehmen/Ablehnen und 25-s-Countdown**. Es nennt alle Teilnehmer.
+  - Wird die Einladung zurückgezogen, schließt sich das Fenster mit Meldung (neue Nachricht `arc`). Das passiert, wenn der Läufer aufgibt, die Halle frei wird oder der Countdown beim Host abläuft.
+  - Ältere Geräte (14.32–14.39) bekommen wie bisher den Toast und können zu zweit beitreten.
+- **Wer selbst drückt, landet bei seiner Gruppe:** Ist der Spieler in eine wartende Halle eingeladen, tritt er beim Host dieser Halle bei, statt eine eigene zu bekommen.
+  - Das gilt auch, wenn zwei Mitglieder fast gleichzeitig drücken: Der Host arbeitet nacheinander ab. Die erste Anfrage reserviert die Halle, die zweite tritt bei.
+  - Das gilt auch für Anfragen von 14.32–14.39-Geräten.
+- **Start:** Die Halle startet, sobald alle Eingeladenen zugesagt haben (oder abgelehnt) und in der Halle stehen. Spätestens nach 25 s startet sie mit denen, die zugesagt haben.
+  - Die Anzeige des Läufers zeigt „Warte auf Saija, Corin · noch 18 s“. Jede Zu- und Absage steht mit Namen im Protokoll („Corin · hat abgelehnt“).
+  - Alle in der Halle bekommen den Stand als neue Nachricht `ark`.
+- **Höchstens 3 je Halle, geprüft beim Host** (`arenaJoin`, `ARENA.maxPlayers`). Der Host arbeitet Nachrichten nacheinander ab, gleichzeitige Anfragen können das Limit also nicht umgehen. Bedingungen für einen Beitritt:
+  - Der Name steht auf der Einladung.
+  - Der Name ist nicht schon in der Halle.
+  - Die Halle wartet noch auf den Start.
+  - Es sind höchstens 3 Spieler.
+  - Der Läufer steht in der mitgeschickten Gruppenliste des Beitretenden (`pm`).
+  - Teilnehmer ohne Verbindung werden vor der Prüfung entfernt. So blockiert ein Neuverbinden keinen Platz.
+  - Zu dritt nur, wenn alle Geräte den neuen Stand haben (neues Feld `ag: 3` im Spielerzustand). Ein 14.39-Gerät hätte zu dritt die Belohnung falsch geteilt.
+  - Wer schon in einer Halle steht, wird nicht eingeladen. Der Anfragende bekommt dann „Saija · ist schon in der Arena“.
+- **Belohnung:** Wer in der Halle seines Laufs steht, bekommt jeden Kill dieser Halle (Hülle um `netEligible`).
+  - EP und Gold je Monster ×1/n (n = Monsterfaktor der Tabelle). Zu dritt bringt jedes Monster also die Hälfte, insgesamt so viel wie allein.
+  - Der Wellenmeister kommt in jeder Bosswelle genau einmal und bringt deshalb jedem die volle Belohnung. Vorher wurde auch er zu zweit geteilt.
+  - Wellengold wie bisher: je Spieler nach eigener Stufe, je Welle nur einmal.
+- **Wartezeit:** Antwort des Hosts auf „Arena betreten“ höchstens 12 statt 8 s. Über den Broker kam sie im Test mit fünf Browsern einmal später.
+
+**Skalierung (`ARENA.group`, ersetzt `ARENA.duo`; `ARENA.duo` bleibt als Verweis auf Zeile 2):**
+
+| Spieler | Monster | Leben | Schaden | Wellenmeister (Leben gesamt) | Schub | höchstens gleichzeitig | Leben je Welle je Spieler | EP/Gold je Monster |
+|---|---|---|---|---|---|---|---|---|
+| 1 | ×1 | ×1 | ×1 | ×1 | 4 | 30 | 100 % | ×1 |
+| 2 | ×1,5 | ×1,25 | ×1,1 | ×1,25 × 1,2 = 1,5 | 6 | 40 | 94 % | ×1/1,5 |
+| 3 | ×2 | ×1,4 | ×1,2 | ×1,4 × 1,6 = 2,24 | 8 | 48 | 93 % | ×1/2 |
+
+Herleitung der Werte:
+- Leben je Welle zu dritt: 2 × 1,4 = 2,8 bei dreifacher Kampfkraft, nach derselben Logik wie beim Duo (1,875 für zwei).
+- Schaden +20 %, weil sich die Monster auf drei Ziele verteilen. Die Zielwahl nimmt den Teilnehmer, den gerade die wenigsten jagen.
+- Der Wellenmeister ist ein einzelnes Ziel, das alle zugleich treffen. Er bekommt so je Spieler etwa 75 % der Solo-Last, wie zu zweit (1,5 / 2).
+- Elite skaliert mit der Monsterzahl.
+
+**Messwerte** (`mess3.js`: virtuelle Zeit, eine Seite als Host mit nachgebildeten Mitspielern, alle Krieger Stufe 40, unsterblich, je Bot 1.500 Schaden/s auf bis zu 4 Monster in 80 px; Wellen 1–5; Seeds 11/22/33; Endstand):
+
+| | W1 | W2 | W3 | W4 | W5 (Boss) | Summe W1–5 (Ø) | Einzelläufe | EP je Spieler | Monstergold je Spieler | Monster W1–5 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| allein | 20,3 s | 28,2 s | 36,3 s | 62,1 s | 68,3 s | **215,3 s** | 215,7/210,8/219,3 | 183.230 | 10.318 | 12/16/20/24/18 |
+| zu zweit | 19,8 s | 28,1 s | 38,7 s | 57,0 s | 61,4 s | **205,0 s (−5 %)** | 214,5/208,8/191,7 | 178.021 (−3 %) | 9.844 (−5 %) | 18/24/30/36/26 |
+| zu dritt | 19,0 s | 26,7 s | 34,2 s | 55,9 s | 59,7 s | **195,4 s (−9 %)** | 197,0/193,3/195,9 | 176.066 (−4 %) | 9.832 (−5 %) | 24/32/40/48/35 |
+
+- Die Rundendauer bleibt ähnlich, Gruppen sind 5–9 % schneller. Das liegt im Rahmen der Streuung zwischen den Seeds (bis 10 %). Etwas schneller ist bewusst in Ordnung, weil sich echte Spieler zu dritt mehr im Weg stehen als Bots.
+- EP und Gold je Spieler liegen 3–5 % unter allein. Grund: Die Verstärkung des Wellenmeisters wird geteilt, kommt aber nicht öfter.
+- Vor der Korrektur der Wellenmeister-Belohnung waren es zu dritt −9 % EP (Messreihe `m_neu_*`).
+- Nicht gemessen: andere Klassen und Stufen sowie echte Spieler.
+
+**Musik (js/musik.js, `MOODS.arena`, `music.arenaBar`).**
+- Eigene, im Browser erzeugte Kampfmusik nur in der eigenen Halle der Prüfungsarena und in der Turnierarena (`pvpInside`). Keine Datei, keine fremde Melodie.
+- **Harmonik:** D-Moll, 160 BPM. Drei Akkordfolgen mit A-Dur als Dominante (harmonisches Moll), neapolitanischem Es-Dur und g-Moll.
+- **Spiel:**
+  - Sechzehntel-Ostinato im Bass (Grundton, Oktave, Quinte, Terz).
+  - Bassdrum auf jedem Schlag plus Synkope, Snare auf 2 und 4, Hi-Hats.
+  - Synkopierte Bläser-Stöße, im zweiten Teil jeder Folge ein hohes Sechzehntel-Arpeggio.
+  - Alle 4 Takte ein Snare-Wirbel und ein Rauschen in den nächsten Takt.
+- **Drei Stufen:**
+  - Warten/Pause: ohne Bassdrum und Snare, Bass in Achteln.
+  - Kampf.
+  - Bosswelle (jede 5.): Sechzehntel-Hats, Bläser auf jeder Synkope, große Trommeln, Chor.
+  - Jeder Stufenanstieg beginnt mit einem Schlag.
+- **Übergänge:** Beim Betreten blendet die Gebietsmusik (Datei) in 1,5 s aus und die Arenamusik ein, beim Verlassen umgekehrt. Ohne Datei wechselt sie am Taktanfang.
+- **Lautstärke:** Läuft über `sfx.music`. Musik aus oder Lautstärke 0 heißt still (geprüft).
+- **Pegel am Musikbus** (Effektivwert, Lautstärke 0,5; `musik.js` im Testordner):
+
+  | Stelle | Pegel |
+  |---|---|
+  | Stadt (erzeugt) | 0,019 |
+  | Arena Warten | 0,011 |
+  | Arena Kampf | 0,035 |
+  | Arena Bosswelle | 0,050 |
+  | Bossmusik (Vergleich) | 0,042 |
+
+- **Planung:** ein Takt in 3,7 ms (Desktop, headless), alle 1,5 s.
+
+**Tests im echten Mehrspieler** (lokaler MQTT-Broker ws://localhost:18803, Spiel auf :8802, Gruppen über die echte Einladung gebildet):
+- **`gruppe3.js`** (5 Browser): H ist Host und nicht in der Gruppe, Gruppe A/B/C/D.
+  1. A sieht „Mit Gruppe betreten (3)“ und „Allein betreten“. Saija und Corin sind vorausgewählt, Dario steht weiter weg und bleibt draußen.
+  2. B und C bekommen das Fenster mit Countdown, D nicht. A zeigt „Warte auf Saija, Corin · noch 25 s“.
+  3. B nimmt an, dann versuchen C und D gleichzeitig beizutreten. D wird abgelehnt („Du bist für diese Halle nicht eingeladen.“), die Halle hat 3 Teilnehmer.
+  4. D drückt selbst „Mit Gruppe betreten“. Er bekommt eine eigene Halle, Alper und Saija werden als „ist schon in der Arena“ ausgelassen.
+  5. Welle 1 zu dritt: `arf` mit `pl: 3`, 24 Monster in 3 Schüben (Abstand 3,02 und 3,03 s). Jeder hat 24 Kills, 5.721 EP und 1.000 Wellengold, einmal.
+  6. Tod von C: Die Halle läuft weiter. C startet in der Stadt neu und fällt heraus. A bekommt „Corin · hat die Arena verlassen – ihr kämpft weiter (ab der nächsten Welle für 2)“.
+  7. Disconnect von B: Er fällt heraus, A kämpft allein weiter.
+  8. A verlässt die Arena: 1.000 Gold ausgezahlt, einmal. Die Halle wird frei.
+- **`gruppe3b.js`:**
+  1. Der Host ist Teilnehmer. A und B drücken gleichzeitig „Mit Gruppe betreten“: Es entsteht eine Halle, A tritt der von B bei. H nimmt über das Fenster an, die Halle hat 3 Teilnehmer.
+  2. Der Host gibt auf: A und B kämpfen weiter, die nächste Welle wird für 2 gerechnet.
+  3. Knopf im Gruppenfenster: B lehnt ab, H antwortet nicht. A startet nach 24,8 s allein und bekommt Meldungen mit Namen.
+  4. Ein 14.39-Gerät (O, eigene Kopie auf :8806) in der Gruppe:
+     - Beim Meister steht „nur zu zweit (ältere Version)“.
+     - O bekommt den alten Toast und tritt bei.
+     - Ein Dritter wird abgelehnt mit „Zu dritt geht es erst, wenn alle die neue Version spielen – bitte neu laden.“
+- **`gruppe3c.js`:**
+  - A gibt vor dem Start auf: Die Fenster bei H und B schließen sich („Die Einladung in die Prüfungsarena gilt nicht mehr.“).
+  - Ist ein 14.39-Gerät näher, wählt der Meister trotzdem die neuen Geräte vor.
+- **`repro.js`** gegen 14.39 (Ursache, siehe oben).
+- **Keine Seitenfehler** in allen Läufen.
+- **Regression:**
+  - s73-Kopie: 12/12 Klassenwege ohne Fehler.
+  - s72 in 2D: Arenameister und „Arena betreten“ funktionieren, Halle mit Monstern.
+  - s72_noshot mit D3=1: ohne Fehler, Halle betreten. Nach 6 s gab es noch keine Monster, ebenso mit 14.39 (Software-GL ist langsam).
+  - `musik.js`: Wechsel dorf → arena → dorf, alle Stufen ohne Fehler.
+
+**Bildschirmfotos:** inv_handy.png (Einladung, Handy quer), meister_pc.png (Gruppenauswahl am PC) im Testordner.
+
+**Offene Punkte.**
+- **Gruppenprüfung:** Der Host kennt die Gruppen weiterhin nur aus dem, was die Geräte mitschicken (`pm`). Geprüft werden Einladung, Zustimmung, Name und gegenseitige Gruppenliste. Ein manipulierter Client kommt so höchstens mit zwei zustimmenden Spielern zusammen, nie zu viert.
+- **Host vor 14.32:** Ein solcher Host (auch ein unbeteiligter) ignoriert Gruppenanfragen. Der Meister erkennt das am Feld `ag` bzw. an der Version und sagt es („Der Host des Kanals spielt eine ältere Version …“). Beheben kann es nur das Neuladen beim Host.
+- **Nicht geprüft:** echte Latenz (öffentliche Broker), echtes Handy, Bosswelle zu dritt im Mehrspieler (nur mit Bots in virtueller Zeit), Wiedereintritt nach echtem Verbindungsabbruch mitten im Lauf. Der Wiedereintritt wird bewusst abgelehnt, „Der Lauf hat schon begonnen.“.
+- **Gleichstand Countdown/Host:** Läuft der Countdown im Fenster ab, meldet das Fenster „abgelehnt“, meist kurz bevor der Host „kommt nicht“ meldet. Im Protokoll steht dann „hat abgelehnt“ statt „hat nicht rechtzeitig angenommen“.
+- **Arenamusik:** nur im Browser erzeugt, keine Datei. Wenn gewünscht, kann später eine eigene Aufnahme als `snd/musik/arena.mp3` (MUSIC_FILES) folgen.
+
+Testskripte (nicht im Repo): /tmp/claude-0/-home-user-claude/28e727e5-656e-544c-9afe-3c541c335198/scratchpad/arena3/ (repro.js, gruppe3.js, gruppe3b.js, gruppe3c.js, lib.js, mess3.js, serie.sh, musik.js, bild.js; Ergebnisse m_*.json, g3*.out)
