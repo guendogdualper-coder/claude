@@ -29,10 +29,13 @@ function raidScan() {
   raidFrame.t = game.time;
   raidFrame.crystals.length = 0;
   raidFrame.count.clear();
+  // seit 14.38 aus dem Gebietsverzeichnis (gegner.js): vorher ging diese Schleife in jedem Bild alle ~7.000 Monster
+  // der Welt durch, auch wenn weit und breit kein Endboss stand
   let bosses = null;
-  for (const c of game.monsters) {
+  if (typeof monsterIndex === 'function') monsterIndex();
+  for (const c of (typeof MON_INDEX !== 'undefined' ? MON_INDEX.crystals : game.monsters)) {
     if (c.dead || !c.type || !c.type.crystal) continue;
-    if (!bosses) bosses = game.monsters.filter((b) => b.type && b.type.raid);
+    if (!bosses) bosses = typeof MON_INDEX !== 'undefined' ? MON_INDEX.raids : game.monsters.filter((b) => b.type && b.type.raid);
     let best = null;
     let bd = RAID_REACH;
     for (const b of bosses) {

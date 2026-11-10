@@ -1147,14 +1147,17 @@ const ui = {
     if ((this.frame = (this.frame || 0) + 1) % 6 === 0) this.updateBossBar();
     // Restzeit der Stallmeister-Prüfung einmal pro Sekunde
     if (questState().stable.state === 'active') this.set('qtime', Math.floor(p.playTime), () => this.renderQuestTrack());
-    this.set('hp', `${Math.ceil(p.hp)}/${s.maxHp}`, (v) => {
-      $('hpText').textContent = v;
-      setBar('hp', p.hp / s.maxHp);
-    });
-    this.set('mp', `${Math.floor(p.mp)}/${s.maxMp}`, (v) => {
-      $('mpText').textContent = v;
-      setBar('mp', p.mp / s.maxMp);
-    });
+    // seit 14.38: Zahlen höchstens zehnmal je Sekunde schreiben (slow), die Balken weiter in jedem Bild. Im Kampf ändern
+    // sich Leben und Mana in fast jedem Bild; jeder neue Text ließ den Browser Stil und Layout des HUD neu rechnen
+    // (gemessen ~2 ms je Bild im Kampf gegenüber 0,2 ms beim Laufen). Der letzte Stand kommt immer an.
+    const slow = game.time >= (this.slowAt || 0) || game.time < (this.slowAt || 0) - 1;
+    if (slow) this.slowAt = game.time + 0.1;
+    this.set('hpBar', Math.round((p.hp / s.maxHp) * 1000), () => { setBar('hp', p.hp / s.maxHp); });
+    this.set('mpBar', Math.round((p.mp / s.maxMp) * 1000), () => { setBar('mp', p.mp / s.maxMp); });
+    if (slow) {
+      this.set('hp', `${Math.ceil(p.hp)}/${s.maxHp}`, (v) => { $('hpText').textContent = v; });
+      this.set('mp', `${Math.floor(p.mp)}/${s.maxMp}`, (v) => { $('mpText').textContent = v; });
+    }
     // Bei wenig Leben pulsiert der Balken rot
     this.set('lowHp', !p.dead && p.hp / s.maxHp < 0.3, (v) => { $('hudChar').classList.toggle('low', v); });
     this.set('lvl', p.level, (v) => { $('hudLevel').textContent = v; });
@@ -1282,16 +1285,25 @@ const ui = {
     // Ein Boss in der Nähe steht schon im Bossbalken, dann kein zweites Zielfenster
     const tt = game.target && !game.target.dead ? game.target : null;
     const t = tt && !(tt.type && tt.type.boss && dist(tt, p) < 560) ? tt : null;
-    const tKey = t ? t.id + ':' + Math.ceil(t.hp) : '';
-    this.set('target', tKey, () => {
+    // seit 14.38 getrennt: Ziel (Name, Farbe) sofort, Balken in jedem Bild, die Lebenszahl höchstens zehnmal je Sekunde
+    // (vorher schrieb jeder Treffer Name, Farbe, Balken und Zahl neu)
+    this.set('target', t ? t.id + ':' + t.level + ':' + t.name : '', () => {
       $('targetFrame').hidden = !t;
       document.body.classList.toggle('has-target', !!t);
+      this.cache.targetBar = null;
+      this.cache.targetHp = null;
       if (!t) return;
       $('targetName').textContent = `LVL ${t.level} ${t.name}`;
       $('targetName').style.color = t.isStone ? lighter(t.stoneType.look.glow, 0.45) : levelColor(t.level);
-      setBar('target', t.hp / t.maxHp);
-      $('targetText').textContent = `${Math.ceil(t.hp).toLocaleString('de-DE')} / ${t.maxHp.toLocaleString('de-DE')}`;
     });
+    if (t) {
+      this.set('targetBar', Math.round((t.hp / t.maxHp) * 1000), () => { setBar('target', t.hp / t.maxHp); });
+      if (slow || this.cache.targetHp == null) {
+        this.set('targetHp', Math.ceil(t.hp) + '/' + t.maxHp, () => {
+          $('targetText').textContent = `${Math.ceil(t.hp).toLocaleString('de-DE')} / ${t.maxHp.toLocaleString('de-DE')}`;
+        });
+      }
+    }
 
     // Zustände des Ziels (seit 13.41): Brand, Gift, Blutung, Verlangsamung, Betäubung, Eis und Flüche mit Restzeit
     // und Schaden je Sekunde – wie die eigenen Buffs, nur am Ziel

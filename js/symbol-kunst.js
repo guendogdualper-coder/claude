@@ -432,7 +432,8 @@ skillIconUrl = function (sk, r = -1) {
   if (skillIconCache.has(key)) return skillIconCache.get(key);
   const size = 128;
   const c = newCanvas(size, size);
-  const ctx = c.getContext('2d');
+  // seit 14.38 im Arbeitsspeicher (CPU_CANVAS, figuren.js): toDataURL ohne Zurücklesen von der Grafikkarte
+  const ctx = c.getContext('2d', typeof CPU_CANVAS !== 'undefined' ? CPU_CANVAS : undefined);
   ctx.setTransform(size / 48, 0, 0, size / 48, size / 2, size / 2);
   drawSkillIcon(ctx, sk);
   if (r >= 0) {

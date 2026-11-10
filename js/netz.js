@@ -414,7 +414,8 @@ function netWorldList(area = null) {
 
 // Treffer eines Mitspielers: Zustände übernehmen, Schaden anrechnen
 function netHostDamage(rp, d) {
-  const m = game.monsters.find((x) => x.id === d.id);
+  // seit 14.38 über das Verzeichnis (gegner.js) statt einer Suche durch alle Monster bei jedem Treffer eines Mitspielers
+  const m = monsterById(d.id);
   if (!m || m.dead) return;
   const st = d.st || {};
   if (!m.isStone) {

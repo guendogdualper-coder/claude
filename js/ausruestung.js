@@ -903,7 +903,7 @@ function bookSprite(id) {
     const [dark, light] = BOOK_COVERS[e.cls] || BOOK_COVERS.krieger;
     // gleiches Bild wie in der Fertigkeitsleiste (seit 9.6), seit 14.1 als Buch
     drawSkillBook(ctx, dark, light, (c) => drawSkillIcon(c, e.sk));
-  });
+  }, undefined, true);
 }
 function bookIconUrl(id) {
   const key = 'bookicon2:' + id;
@@ -1863,10 +1863,11 @@ function itemIconUrl(item) {
   const band = plusBand(item.plus);
   const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:${band}`;
   if (iconCache.has(key)) return iconCache.get(key);
-  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item));
+  // seit 14.38 im Arbeitsspeicher gebacken (bakeSprite cpu, figuren.js): kein Zurücklesen von der Grafikkarte
+  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item), undefined, true);
   const size = 96;
   const c = newCanvas(size, size);
-  const ctx = c.getContext('2d');
+  const ctx = c.getContext('2d', CPU_CANVAS);
   if (band) {
     const g = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size / 2);
     g.addColorStop(0, `rgba(${hexRgb(PLUS_COLORS[band])},0.55)`);
@@ -1998,7 +1999,7 @@ const MATERIAL_ART = {
 };
 
 function materialSprite(id) {
-  return getSprite('mat:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MATERIAL_ART[id](ctx));
+  return getSprite('mat:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MATERIAL_ART[id](ctx), undefined, true);
 }
 
 function materialIconCanvas(id) {
@@ -2037,7 +2038,7 @@ function scrollIconUrl() {
     oval(ctx, 6, 8, 3.2, 3.2, '#ffd34d');
     stroke(ctx, '#8a5a10', 1, [[6, 6], [6, 10]]);
     stroke(ctx, '#8a5a10', 1, [[4.2, 8], [7.8, 8]]);
-  });
+  }, undefined, true);
   const url = sp.img.toDataURL();
   iconCache.set('scroll', url);
   return url;
@@ -2062,7 +2063,7 @@ const MOB_MAT_ART = {
 
 function mobMatSprite(id) {
   const m = MOB_MATS[id];
-  return getSprite('mm:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MOB_MAT_ART[m.art](ctx, m.color));
+  return getSprite('mm:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MOB_MAT_ART[m.art](ctx, m.color), undefined, true);
 }
 
 function mobMatIconUrl(id) {
@@ -2251,7 +2252,7 @@ function potionIconUrl(kind, size = 'S') {
       box(ctx, 19 - w, 10, w, 10, 3, size === 'XXL' ? '#ffd34d' : '#f4ecd8');
       ctx.fillStyle = '#1a1210';
       ctx.fillText(size, 19 - w / 2, 18.5);
-    });
+    }, undefined, true);
     iconCache.set(key, sp.img.toDataURL());
   }
   return iconCache.get(key);
@@ -2259,7 +2260,7 @@ function potionIconUrl(kind, size = 'S') {
 
 function lootIconUrl(kind) {
   const key = (kind === 'book' ? 'loot2:' : 'loot:') + kind;
-  if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx)).img.toDataURL());
+  if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx), undefined, true).img.toDataURL());
   return iconCache.get(key);
 }
 

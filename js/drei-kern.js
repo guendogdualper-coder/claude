@@ -622,7 +622,18 @@ function freeArray() {
 }
 
 // Alle Teile zu Rohdaten zusammenführen (Position, Normale, Farbe, Glanz, Knochen)
+// seit 14.38 in Schritten (mergeRawSteps): mit slice (ms) gibt die Arbeit nach jeweils so viel Rechenzeit ab (yield) –
+// für das Nachladen der Welt beim Laufen und Reiten (objectJob, drei-welt.js). Dort lief das Zusammenführen aller
+// Gegenstände eines Blocks am Stück: 30–100 ms in einem einzigen Bild, obwohl das Nachladen nur 5 ms je Bild haben soll
+// – das war der kurze Hänger „einfach so“ beim Reiten. mergeRaw selbst rechnet wie bisher in einem Zug.
 function mergeRaw(list, skinned) {
+  const g = mergeRawSteps(list, skinned, 0);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+function* mergeRawSteps(list, skinned, slice) {
+  let sliceT = slice ? performance.now() : 0;
   let nv = 0;
   let ni = 0;
   for (const it of list) {
@@ -645,6 +656,10 @@ function mergeRaw(list, skinned) {
   let io = 0;
   let anyShine = false;
   for (const it of list) {
+    if (slice && performance.now() - sliceT > slice) {
+      yield;
+      sliceT = performance.now();
+    }
     if (it.tpl) {
       // Vorlage verschieben: Positionen mit der Matrix, Normalen nur gedreht
       const t = it.tpl;
@@ -756,7 +771,15 @@ function mergeRaw(list, skinned) {
 // Zu einer Geometrie im Sparformat: Normalen und Farben als Bytes, Knochen als Bytes.
 // Je Eckpunkt 22–30 statt 68 Bytes; nach dem Hochladen wird die Kopie im Arbeitsspeicher freigegeben.
 function mergeParts(list, skinned, keepArrays) {
-  const r = mergeRaw(list, skinned);
+  return mergeFinish(mergeRaw(list, skinned), skinned, keepArrays);
+}
+// seit 14.38: dasselbe in Schritten für Bauaufträge (yield* mergePartsSteps(...), slice in ms)
+function* mergePartsSteps(list, skinned, keepArrays, slice) {
+  const r = yield* mergeRawSteps(list, skinned, slice);
+  yield;
+  return mergeFinish(r, skinned, keepArrays);
+}
+function mergeFinish(r, skinned, keepArrays) {
   const nv = r.n;
   const nor = new Int8Array(nv * 3);
   const col = new Uint8Array(nv * 3);
@@ -1862,6 +1885,7 @@ function* terrainJob(cx, cy) {
   const col = new Uint8Array(n * n * 3);
   const soil = new Uint8Array(n * n * 4);
   const soil2 = new Uint8Array(n * n * 3); // Schnee, Asche, seit 13.85 Hitze am Lavaufer (Glühen im Boden)
+  let rowT = performance.now();
   for (let j = -1; j <= n; j++) {
     for (let i = -1; i <= n; i++) {
       const vx = x0 + i / S;
@@ -1918,8 +1942,13 @@ function* terrainJob(cx, cy) {
       soil2[v * 3 + 1] = Math.round(mix(ts[5]) * 255);
       soil2[v * 3 + 2] = Math.round(hot * 255);
     }
-    if (j % 6 === 5) yield;
+    // seit 14.38 nach Rechenzeit statt alle sechs Reihen (auf langsamen Geräten dauerten sechs Reihen zu lang)
+    if (performance.now() - rowT > 2) {
+      yield;
+      rowT = performance.now();
+    }
   }
+  yield;
   // Normalen direkt aus dem Höhenfeld (schneller und ohne zweite Gleitkomma-Kopie)
   const nor = new Int8Array(n * n * 3);
   const step = 2 / S;
@@ -2078,6 +2107,24 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
       }
     }
   }
+  // seit 14.38: in Laufrichtung auch die nächste Reihe bzw. Spalte hinter dem Sichtfeld vorab bauen (feste Kamera).
+  // Vorher wurden die Blöcke am Bildrand erst gebraucht, wenn man die Blockgrenze überschritt – dann fehlten auf einmal
+  // drei bis fünf Blöcke „im Bild“, und das Nachladen bekam 35 ms je Bild: beim Reiten alle paar Sekunden ein kurzes
+  // Stocken (gemessen: Bilder von 30–100 ms). Jetzt entstehen sie mit dem kleinen Budget der Vorausschau, lange bevor
+  // sie ins Bild kommen.
+  if (!shoulder && ax * ax + ay * ay > (2 * TILE) * (2 * TILE)) {
+    const sx = Math.abs(ax) > TILE ? Math.sign(ax) : 0;
+    const sy = Math.abs(ay) > TILE ? Math.sign(ay) : 0;
+    const bottom = 1 + ring;
+    const add = (x, y, d) => {
+      if (x < minX || y < minY || x > maxX || y > maxY) return;
+      if (Math.abs(x - ccx) > chunkKeep3() || Math.abs(y - ccy) > chunkKeep3()) return;
+      if (want.some((w) => w[0] === x && w[1] === y)) return;
+      want.push([x, y, 4 + d, true]);
+    };
+    if (sx) for (let dy = -reach; dy <= bottom; dy++) add(ccx + sx * (side + 1), ccy + dy, Math.abs(dy + 1) * 0.1);
+    if (sy) for (let dx = -side; dx <= side; dx++) add(ccx + dx, ccy + (sy < 0 ? -(reach + 1) : bottom + 1), Math.abs(dx) * 0.1);
+  }
   want.sort((a, b) => a[2] - b[2]);
   // Nach einem Sprung (Teleport, Wiederbeleben, Dungeon) fehlt der Boden unter der Kamera:
   // dann einmal kräftig bauen statt sekundenlang Himmel zu zeigen
@@ -2086,7 +2133,10 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   if (need3(ccx, ccy) || need3(ccx, ccy - 1)) msBudget = Math.max(msBudget, 120);
   // seit 11.3: fehlt im Bild noch Boden (Rand des Sichtfelds), deutlich schneller nachbauen als die 5 ms im
   // Normalbetrieb – sonst sah man nach einem Sprung sekundenlang hellen Himmel (weißer Bildschirm)
-  else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 35);
+  // seit 14.38 nur noch für Blöcke nahe der Bildmitte 35 ms; fehlt nur am Rand des Sichtfelds etwas (weit weg, im
+  // Dunst), genügen 16 ms – so bleibt das Bild beim Reiten flüssig, auch wenn die Vorausschau einmal nicht nachkommt
+  else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y) && Math.abs(x - ccx) <= 1 && y - ccy >= -2 && y - ccy <= 1)) msBudget = Math.max(msBudget, 35);
+  else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 16);
   // Vorausschau-Blöcke in etwas größeren Scheiben, damit sie fertig sind, bevor man dort ankommt
   else if (want.some(([x, y, , ahead]) => ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 12);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
@@ -2211,6 +2261,31 @@ function warpFade() {
 // --- Ein Bild zeichnen ---------------------------------------------------------------------------
 
 let v3Last = 0;
+// seit 14.38: Welt zeichnen, Schattenmodelle der Figuren nur in der Schattenkarte. Jede Figur hat ein grobes, im Bild
+// unsichtbares Schattenmodell (figShadowProxy, drei-figuren.js). three.js zeichnete es trotzdem in jedem Bild auch ins
+// Hauptbild (ein voller Zeichenaufruf mit Skelett je Figur, ohne dass ein Bildpunkt entsteht – bei 80 Monstern 80 von
+// ~480 Aufrufen der Figuren, auch auf Stufen ohne Schatten). Die Schattenmodelle liegen jetzt auf einer eigenen Ebene
+// (SHADOW_LAYER3). three.js sammelt zuerst, was ins Hauptbild kommt (die Kamera sieht die Ebene da nicht), und
+// zeichnet danach die Schattenkarte; unmittelbar davor ruft es updateMatrices des Sonnenschattens – dort bekommt die
+// Kamera die Ebene dazu, nach dem Bild wieder weg.
+const SHADOW_LAYER3 = 9;
+function v3RenderScene() {
+  const cam = V3.camera;
+  const sh = V3.sun && V3.sun.shadow;
+  if (sh && !sh.updateMatricesOrig) {
+    sh.updateMatricesOrig = sh.updateMatrices;
+    sh.updateMatrices = function (light, vp) {
+      V3.camera.layers.enable(SHADOW_LAYER3);
+      return this.updateMatricesOrig(light, vp);
+    };
+  }
+  cam.layers.disable(SHADOW_LAYER3);
+  try {
+    V3.gl.render(V3.scene, cam);
+  } finally {
+    cam.layers.disable(SHADOW_LAYER3);
+  }
+}
 function renderDrei() {
   const r = renderer;
   const ctx = r.ctx;
@@ -2335,7 +2410,7 @@ function renderDrei() {
   // seit 14.32: im Dungeon die Felswände zwischen Kamera und Figur absenken (groundMat)
   v3SyncCut(dt);
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
-  if (!(typeof gpRender === 'function' && gpRender())) V3.gl.render(V3.scene, V3.camera);
+  if (!(typeof gpRender === 'function' && gpRender())) v3RenderScene();
   // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
   if (typeof fx3BatchDone === 'function') fx3BatchDone();
   drawOverlay3(ctx);

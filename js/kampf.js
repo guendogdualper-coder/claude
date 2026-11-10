@@ -34,6 +34,46 @@ function aliveEnemies() {
   if (typeof pvpFoes === 'function') for (const f of pvpFoes()) list.push(f);
   return list;
 }
+// seit 14.38: lebende Gegner, die im Umkreis r um (x, y) stehen können – eine Obermenge; die Aufrufer prüfen den
+// Abstand weiter selbst. aliveEnemies() kopiert bei jedem Aufruf alle ~7.000 Monster der Welt; im Kampf mit vielen
+// Monstern und Flächenfertigkeiten geschah das 40-mal und öfter je Bild (jeder Treffer, jedes Geschoss, jeder Tick
+// eines Feldes, die Zielsuche des Grundangriffs) – über 100 MB neuer Speicher je Sekunde für die Speicherbereinigung.
+// Jetzt einmal je Bild alle Monster im Kasten ±NEAR_FOES_R um die Figur merken (auch tote: sie können im selben Bild
+// wiederkehren) und je Aufruf nur daraus die lebenden nehmen. Liegt der gefragte Kreis nicht sicher im Kasten
+// (Abstand NEAR_FOES_SLACK für Bewegung innerhalb eines Bildes; z. B. ein Feld, von dem man weit weggeritten ist),
+// gilt wie bisher die ganze Welt. Ergebnis und Reihenfolge wie aliveEnemies(), nur ohne die fernen Monster.
+const NEAR_FOES = { arr: null, len: -1, t: -1, x: 0, y: 0, list: [] };
+const NEAR_FOES_R = 2000;
+const NEAR_FOES_SLACK = 400;
+function enemiesNear(x, y, r) {
+  const p = game.player;
+  if (!p) return aliveEnemies();
+  const N = NEAR_FOES;
+  const ms = game.monsters;
+  if (N.arr !== ms || N.len !== ms.length || N.t !== game.time) {
+    N.arr = ms;
+    N.len = ms.length;
+    N.t = game.time;
+    N.x = p.x;
+    N.y = p.y;
+    const L = N.list;
+    let n = 0;
+    for (let i = 0; i < ms.length; i++) {
+      const m = ms[i];
+      if (Math.abs(m.x - N.x) <= NEAR_FOES_R && Math.abs(m.y - N.y) <= NEAR_FOES_R) L[n++] = m;
+    }
+    L.length = n;
+  }
+  // + 160: Körpergröße der Monster (die Aufrufer rechnen ihren Radius zum Umkreis)
+  const reach = NEAR_FOES_R - NEAR_FOES_SLACK - 160;
+  if (!(Math.abs(x - N.x) + r <= reach && Math.abs(y - N.y) + r <= reach)) return aliveEnemies();
+  const list = [];
+  const L = N.list;
+  for (let i = 0; i < L.length; i++) if (!L[i].dead) list.push(L[i]);
+  if (duelFighting() && !game.duel.proxy.dead) list.push(game.duel.proxy);
+  if (typeof pvpFoes === 'function') for (const f of pvpFoes()) list.push(f);
+  return list;
+}
 
 // Grundformel: Angriff × Faktor, ±10 % Zufall, Verteidigung zieht prozentual ab.
 // Je höher die Stufe des Angreifers, desto weniger hilft die gleiche Verteidigung,
@@ -168,7 +208,7 @@ function nearestEnemy(from, range) {
   let stone = null;
   let stoneD = Infinity;
   const f = from === game.player && from.facing ? from.facing : null;
-  for (const m of aliveEnemies()) {
+  for (const m of enemiesNear(from.x, from.y, range)) {
     if (m.dead) continue;
     if (m.hidden) continue;
     const raw = dist(from, m) - m.r;
@@ -865,7 +905,7 @@ function cleaveHit(p, main, h) {
   const fl = Math.hypot(fx, fy) || 1;
   const cosArc = Math.cos(CLEAVE.arc);
   let n = 0;
-  for (const m of aliveEnemies()) {
+  for (const m of enemiesNear(p.x, p.y, h.range + 30)) {
     if (n >= CLEAVE.max) break;
     if (m === main || m.dead || m.hidden) continue;
     const dx = m.x - p.x;
@@ -1345,7 +1385,7 @@ function aimEnemyAt(pt, sk) {
   const R = sk.aimR || sk.radius || 40;
   let best = null;
   let bd = Infinity;
-  for (const m of aliveEnemies()) {
+  for (const m of enemiesNear(p.x, p.y, aimReach(sk) + 20)) {
     if (m.hidden || dist(p, m) - (m.r || 0) > aimReach(sk) + 20) continue;
     const d = Math.hypot(m.x - pt.x, m.y - pt.y) - (m.r || 0) + (m.isStone ? 1000 : 0);
     if (d <= R + (m.isStone ? 1000 : 0) && d < bd) { best = m; bd = d; }
@@ -1364,7 +1404,7 @@ function skillAimPoint(sk) {
 function enemiesInCone(x, y, dir, radius, angleDeg) {
   const half = (angleDeg / 2) * Math.PI / 180;
   const ang = Math.atan2(dir.y, dir.x);
-  return aliveEnemies().filter((m) => {
+  return enemiesNear(x, y, radius).filter((m) => {
     const d = Math.hypot(m.x - x, m.y - y);
     if (d > radius + m.r) return false;
     if (d < m.r + 6) return true;
@@ -1375,7 +1415,7 @@ function enemiesInCone(x, y, dir, radius, angleDeg) {
 }
 
 function enemiesInCircle(x, y, radius) {
-  return aliveEnemies().filter((m) => Math.hypot(m.x - x, m.y - y) <= radius + m.r);
+  return enemiesNear(x, y, radius).filter((m) => Math.hypot(m.x - x, m.y - y) <= radius + m.r);
 }
 
 // Spätere Schritte einer Fertigkeit behalten ihren Rang (Aussehen je Rang, siehe fxRank)
@@ -1596,7 +1636,7 @@ const SKILL_TYPES = {
       const dl = Math.hypot(pt.x - p.x, pt.y - p.y);
       if (dl > 4) faceTowards(pt.x, pt.y);
       want = Math.min(sk.distance, dl);
-      for (const m of aliveEnemies()) {
+      for (const m of enemiesNear(pt.x, pt.y, 20)) {
         if (m.hidden || Math.hypot(m.x - pt.x, m.y - pt.y) > (m.r || 14) + 6) continue;
         want = Math.max(0, Math.min(want, dist(p, m) - ((m.r || 14) + 12)));
       }
@@ -1885,7 +1925,7 @@ const SKILL_TYPES = {
     const ts = [];
     if (main) {
       // bis zu zwei Nachbarn des Hauptziels, fehlende Plätze gehen auch aufs Hauptziel
-      const near = aliveEnemies()
+      const near = enemiesNear(p.x, p.y, sk.range + 40)
         .filter((m) => m !== main && dist(m, main) < sk.spreadR && dist(m, p) < sk.range + 40)
         .sort((a, b) => dist(a, main) - dist(b, main));
       for (let k = 0; k < sk.count; k++) ts.push(k && near[k - 1] ? near[k - 1] : main);
@@ -2186,7 +2226,7 @@ function updateProjectiles(dt) {
         if (pr.afterHit) pr.afterHit(m, pr);
         if (pr.poison) particles(m.x, feetY(m) - 16, { count: 12, color: ['#8fd16a', '#5a8a3a'], speed: [10, 40], life: [0.5, 0.9], size: [3, 6], drag: 2 });
         if (pr.chain > 0) {
-          const next = aliveEnemies()
+          const next = enemiesNear(m.x, m.y, pr.chainR || 180)
             .filter((o) => !pr.hit.has(o.id) && dist(o, m) < (pr.chainR || 180))
             .sort((a, b) => dist(a, m) - dist(b, m))[0];
           if (next) {

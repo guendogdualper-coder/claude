@@ -192,7 +192,7 @@ function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
   const vy = y1 - y0;
   const L2 = vx * vx + vy * vy || 1;
   const hitSet = new Set();
-  for (const m of aliveEnemies()) {
+  for (const m of enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, Math.sqrt(L2) / 2 + sk.pathR)) {
     const u = clamp01(((m.x - x0) * vx + (m.y - y0) * vy) / L2);
     if (u >= 0.95 || Math.hypot(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.pathR + m.r) continue;
     hitSet.add(m);
@@ -243,7 +243,7 @@ function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
   const vx = x1 - x0;
   const vy = y1 - y0;
   const L2 = vx * vx + vy * vy || 1;
-  for (const m of aliveEnemies()) {
+  for (const m of enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, Math.sqrt(L2) / 2 + sk.width)) {
     const u = clamp01(((m.x - x0) * vx + (m.y - y0) * vy) / L2);
     if (Math.hypot(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.width + m.r) continue;
     later(fly * u, () => {

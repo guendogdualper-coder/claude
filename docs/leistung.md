@@ -172,3 +172,137 @@ gleich aus; Umriss, Rumpf, Kopf und Leuchtringe sind unverändert (große Teile 
 - **DOM:** die HUD-Anzeigen schreiben schon nur bei Änderung (`ui.set`); Schadenszahlen und Namen malt das 2D-Canvas.
 - **Gebogene Streifen** (Schwünge, 100–200 je Bild) haben je Teil eigene, jedes Bild neu geschriebene Formen – nicht
   gebündelt. Die 2D-Ansicht geht weiter alle Monster durch (nicht Teil des 3D-Problems).
+
+## 14.38: Lags bei vielen Monstern und Fertigkeiten
+
+Auftrag: „Ab und zu laggt es einfach so. Und wenn sehr, sehr viele Mobs und dann Fähigkeiten aufeinander treffen, dann
+laggt es“ – auf Handy und PC, in 3D und 2D. Die Maßnahmen aus 14.26 (oben) bleiben; hier kam nur dazu, was das Profil
+danach noch zeigte.
+
+### Messverfahren
+
+Headless-Chromium (Playwright), echter Spielcode, virtuelle Uhr mit 60 Bildern/s und festem Zufall (gleiche Szenen vorher
+und nachher). Weil die Software-Grafik (SwiftShader) das Bild auf dieser Maschine um ein Vielfaches langsamer rastert als
+jede Grafikkarte, zählt die **Rechenzeit des Haupt-Threads je Bild** aus dem Chrome-Trace (`tdur` des Bildes plus des
+Tastendrucks davor; Warten auf die Grafik zählt nicht, fremde Last auf der Maschine kaum). Die Zeichenbefehle selbst
+werden dabei weggelassen – alle Zustände, Uniforms und Puffer setzt und lädt three.js weiter, das ist die Arbeit des
+Prozessors; 2D-Zeichenflächen laufen im Arbeitsspeicher. Dazu je Lauf ein CPU-Profil (`Profiler.start`, 150 µs) zur
+Ursachensuche, `renderer.info` (Zeichenaufrufe) und `performance.memory` (neu angelegter Speicher). Die Messwerkzeuge
+(`mess.js` Lauf, `szenen.js` Szenen, `profil.js` Auswertung je Bild, Aufrufer, Zeilen) liegen nicht im Repo.
+
+Szenen (1280×720, Grafik „Ultra“, Stufe 80, Leerenschlund):
+(a) 80 Welt-Monster um die Figur (mit Platz bei ihr, also echter Massen-Pull; was fällt, wird nachgezogen), Grundangriff
+gehalten und alle 0,2 s die nächste bereite Fertigkeit auf den Monsterhaufen, Ultimative bei 5 und 20 s, 30 s lang;
+Krieger (Klinge), Feuermagier, Schamane, Nekromant mit Dienern, Bogen-Ninja (Pfeilregen). Handy: 844×390, 2-fach, Touch.
+(b) Prüfungsarena Welle 14 (30 gleichzeitig, Schübe alle 3 s), Kampf ab voller Halle.
+(c) Reiten quer über die Map (Wiesen → Wald), 30 s; die Uhr läuft innerhalb eines Bildes echt weiter (Zeitscheiben).
+(d) wie (a), dazu alle 0,75 s ein anderes Fenster (Inventar mit 40 Teilen, Charakter, Karte, Aufträge, Freunde,
+Material, Einstellungen) auf und wieder zu.
+(e) wie (a) als Kanal-Host mit vier simulierten Mitspielern: Zustand 10×/s, alle 0,5 s ein Flächentreffer auf bis zu
+12 Monster und 4 Einzeltreffer/s je Mitspieler, Schnappschüsse an alle.
+
+### Was das Profil gezeigt hat (14.37)
+
+1. **Ruckler von 0,3–9,6 s beim ersten Fund einer Beute-Sorte** („laggt einfach so“): `toDataURL` auf Zeichenflächen,
+   die auf der Grafikkarte liegen – der Browser muss erst alles Anstehende zeichnen und dann zurücklesen. Im Kampf trifft
+   das genau dann, wenn zum ersten Mal ein Teil, ein Trank, ein Material oder ein Buch fällt (`mobMatIconUrl`,
+   `potionIconUrl`, `itemIconUrl` …). Gemessen 20–50 ms je Symbol ohne Last; mitten im Kampf 2.943 ms und 9.666 ms für
+   ein einziges Bild (Krieger), 4.818 und 5.377 ms (Magier) – Profil jeweils 96–98 % `toDataURL`.
+2. **Treffer-Effekte im Gedränge:** je Treffer mit Rang bis zu sieben Effekte (Einschlag, zwei Schnitte, Blitze,
+   Rang-Treffer in 3D) und über 30 Funken; bei 80 Monstern standen bis zu 1.289 Effekte gleichzeitig im Bild (378 Blitze,
+   346 Schnitte, 254 Einschläge, 196 Rang-Treffer). Allein `FX3_DRAW.rankhit3` kostete 6,3 ms je Bild (Ninja).
+3. **Unsichtbare Effektteile:** three.js rechnet vor jedem Bild die Lage *aller* Objekte der Szene – auch der 16.000–
+   33.000 unsichtbaren Teile im Effekt-Vorrat und der gebündelten, beim Zeichnen ausgeblendeten Teile: 4–11 ms je Bild.
+4. **Gebogene Streifen** (Schnitte, Schwünge) waren einzeln: 600–1.000 Zeichenaufrufe mit eigenem Hochladen je Bild.
+5. **Schleifen über alle ~7.000 Monster der Welt je Treffer bzw. je Bild:** `aliveEnemies()` (Kopie aller lebenden
+   Monster bei jeder Zielsuche, jedem Flächentreffer, jedem Kettensprung, auch in `nearestEnemy` beim gehaltenen Angriff),
+   `aggro`/`alertGroup` (Gruppen-Aggro je Treffer), Endgame-Flankieren je Schlag, `raidScan` (jedes Bild),
+   `solidObstacles` (4×/s), `netHostDamage` (`find` je Mitspieler-Treffer). Zusammen über 100 MB neuer Speicher je
+   Sekunde im Kampf.
+6. **Schattenmodelle der Figuren im Hauptbild:** jede Figur hat ein unsichtbares grobes Schattenmodell; three.js
+   zeichnete es auch ins Bild (ohne einen Bildpunkt) – ein voller Aufruf mit Skelett je Monster, auf jeder Grafikstufe.
+7. **HUD:** Leben, Mana und Ziel-Leben ändern sich im Kampf fast jedes Bild; jeder neue Text ließ den Browser Stil und
+   Layout neu rechnen (~2 ms je Bild im Kampf gegenüber 0,2 ms beim Laufen).
+8. **Nachladen der Welt beim Reiten:** das Zusammenführen der Gegenstände eines Blocks (`mergeParts` in `objectJob`)
+   lief am Stück (30–100 ms in einem Bild, obwohl das Nachladen 5 ms je Bild haben soll), und Blöcke am Bildrand wurden
+   erst beim Überschreiten der Blockgrenze gebraucht – dann bekam das Nachladen 35 ms je Bild.
+
+Unauffällig (gemessen, nichts geändert): Bedrohungstabellen (`addThreat`, `threatTop` < 0,01 ms je Bild), Sichtprüfung
+der Aggro (`navSight`/`navSees` < 0,02 ms), Beteiligungs-Marken (`netTag`), Wegsuche (Budget greift), Schadensmesser
+(Standard aus), Endgame-Heilung, Fertigkeits-Vorschau (rechnet nur bei offenem Fenster), Speichern (alle 30 s, im
+Messfenster unauffällig), Netz-Schnappschüsse (Host ~0,1 ms je Bild). Der Bodenshader der Felswände kostet nur
+Grafikkarte (nicht messbar).
+
+### Änderungen
+
+| # | Änderung | Wirkung | Datei |
+|---|---|---|---|
+| 1 | Beute-, Trank-, Material-, Buch-, Gegenstands-, Pfeil- und Fertigkeitssymbole auf Zeichenflächen im Arbeitsspeicher backen (`willReadFrequently`, `bakeSprite(…, cpu)`, `CPU_CANVAS`) | erster Fund einer Sorte: 20–4.476 ms → 1,6–4 ms je Symbol | `figuren.js`, `ausruestung.js`, `fernninja.js`, `fertigkeiten.js`, `symbol-kunst.js` |
+| 2 | Gedränge-Drossel für Treffer-Effekte (`rankHitFx`): über 24 Treffer-Effekte in 0,25 s bekommt derselbe Gegner höchstens alle 0,15 s einen Satz, über 48 nur Einschlag + ein Schnitt + halbe Funken; ab 40 gleichzeitigen Rang-/Bogen-Treffern zeichnen diese die sparsame Fassung von „Niedrig“ (`FX3.hitCrowd`) | bis 1.289 → 674–803 Effekte gleichzeitig; unter 24 Treffern je 0,25 s (Einzelziele, kleine Gruppen) unverändert | `fertigkeiten.js`, `drei-fx.js`, `rang-fx.js`, `fernninja.js` |
+| 3 | Lage nur für sichtbare Effektteile rechnen (`fx3GroupMatrixWorld`) | −4 bis −11 ms je Bild im Kampf | `drei-fx.js` |
+| 4 | Additive gebogene Streifen in einer Form und einem Zeichenaufruf (`fxb3Strip`; Ecken stehen schon in Weltkoordinaten, Licht addiert sich) | −600 bis −1.000 Aufrufe je Bild (Ninja) | `drei-fx.js` |
+| 5 | `enemiesNear(x, y, r)`: Monster im Kasten ±2.000 um die Figur, einmal je Bild gemerkt; alle Zielsuchen und Flächen nutzen es (fällt auf die ganze Welt zurück, wenn der Kreis nicht sicher im Kasten liegt). Gruppen-Aggro und Flankieren über das Gebiet (`areaList`), Steine/Kristalle/Endbosse/Nummern über das Gebietsverzeichnis (`MON_INDEX`, `monsterById`) | Speicher im Kampf −15 bis −35 %, keine 7.000er-Schleifen je Treffer | `kampf.js`, `gegner.js`, `endboss.js`, `welt.js`, `netz.js`, `magier.js`, `magier-neu.js`, `nekro-neu.js`, `ninja-fx.js`, `eisstrahl.js`, `eingabe.js` |
+| 6 | Schattenmodelle der Figuren auf eigener Ebene (`SHADOW_LAYER3`), die die Kamera nur während der Schattenkarte sieht (`v3RenderScene`) | −1 Zeichenaufruf je Figur | `drei-kern.js`, `drei-figuren.js`, `grafik-plus.js` |
+| 7 | HUD: Balken jedes Bild, Zahlen (Leben, Mana, Ziel-Leben) höchstens 10×/s, Zielname nur beim Zielwechsel | Stil + Layout im Kampf 2,0–2,4 → 1,3–1,5 ms je Bild | `oberflaeche.js` |
+| 8 | Nachladen: Zusammenführen in Zeitscheiben (`mergePartsSteps`, 3 ms), Boden nach Rechenzeit statt alle 6 Reihen, in Fahrtrichtung die nächste Reihe/Spalte vorab bauen, 35-ms-Budget nur noch für fehlende Blöcke nahe der Bildmitte (Rand 16 ms) | längstes Bild beim Reiten 102,8 → 21,4 ms | `drei-kern.js`, `drei-welt.js` |
+
+Zur Drossel (2): die Effekte eines Treffers dauern 0,24–0,8 s; derselbe Gegner bekommt im Gedränge alle 0,15 s einen
+neuen Satz, die alten stehen dann noch. Im Gewimmel aus 40–80 Monstern ist nicht zu unterscheiden, ob ein Treffer zwei
+Schnitte oder einen hat. Schaden, Trefferzahl, Schadenszahlen, Betäubung usw. laufen unverändert (die Drossel sitzt nur
+in `rankHitFx` und im 3D-Zeichnen). Die Endgame-Heilung (`endgameEliteTick`) geht bewusst weiter alle Monster durch –
+sie läuft je Heilerin höchstens einmal je Sekunde, und so bleibt der Mechaniktest unverändert.
+
+### Ergebnisse (Rechenzeit des Haupt-Threads je Bild, 14.37 → 14.38)
+
+| Szenario | Ø (ms) | 95 % | 99 % | längstes Bild | Bilder > 16,7 ms | > 33 ms | > 50 ms | Zeichenaufrufe Ø / max | Speicher (MB/s) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| (a) 80 Monster, Krieger | 28,9 → 19,8 | 44,2 → 28,9 | 58,4 → 37,4 | 91,1 → 68,3 | 1794 → 1270 | 412 → 45 | 39 → 3 | 774/1075 → 649/750 | 120 → 97 |
+| (a) 80 Monster, Feuermagier | 36,0 → 22,4 | 57,4 → 33,1 | 75,1 → 47,8 | 185,9 → 107,4 | 1797 → 1395 | 907 → 86 | 173 → 13 | 877/1465 → 698/835 | 137 → 114 |
+| (a) 80 Monster, Schamane | 42,4 → 27,8 | 66,8 → 45,6 | 88,4 → 62,7 | 207,2 → 109,1 | 1800 → 1707 | 1239 → 397 | 410 → 56 | 886/1430 → 684/904 | 182 → 115 |
+| (a) 80 Monster, Nekromant + Diener | 32,6 → 24,8 | 49,6 → 37,9 | 69,7 → 52,1 | 162,3 → 118,2 | 1752 → 1671 | 698 → 194 | 86 → 20 | 909/1844 → 728/917 | 167 → 125 |
+| (a) 80 Monster, Bogen-Ninja (Pfeilregen) | 59,9 → 33,2 | 95,7 → 52,4 | 122,1 → 64,8 | 176,7 → 126,5 | 1800 → 1710 | 1655 → 876 | 1205 → 115 | 1486/3962 → 1120/2302 | 203 → 160 |
+| (b) Arena Welle 14, Krieger | 11,5 → 8,4 | 18,5 → 13,5 | 25,1 → 20,6 | 42,9 → 51,0 | 155 → 32 | 7 → 4 | 0 → 1 | 213/347 → 189/262 | 80 → 64 |
+| (c) Reiten quer über die Map | 4,9 → 3,9 | 7,2 → 6,4 | 9,8 → 13,5 | 102,8 → 21,4 | 10 → 6 | 3 → 0 | 1 → 0 | 133/168 → 133/156 | 31 → 30 |
+| (d) Fenster auf/zu im Kampf | 27,0 → 22,0 | 38,5 → 32,1 | 52,0 → 41,2 | 98,4 → 97,3 | 1192 → 1029 | 174 → 40 | 14 → 7 | 778/1057 → 653/761 | 127 → 108 |
+| (e) Kanal-Host, 4 Mitspieler | 28,6 → 21,3 | 41,2 → 30,8 | 55,0 → 40,3 | 143,1 → 103,6 | 1198 → 1026 | 217 → 37 | 19 → 6 | 808/1085 → 681/764 | 140 → 108 |
+| (a) Handy, Grafik mittel, Magier | 29,5 → 21,4 | 44,6 → 32,3 | 61,6 → 40,8 | 148,4 → 109,7 | 1188 → 872 | 327 → 54 | 33 → 3 | 798/1402 → 609/751 | 148 → 113 |
+| (a) Handy, Grafik niedrig, Krieger | 20,9 → 15,8 | 31,1 → 24,1 | 42,7 → 39,5 | 84,1 → 78,2 | 962 → 366 | 40 → 17 | 4 → 6 | 585/884 → 458/524 | 115 → 87 |
+| (a) 2D, 80 Monster, Krieger | 9,4 → 7,8 | 15,4 → 12,5 | 22,2 → 17,3 | 69,0 → 27,7 | 54 → 23 | 4 → 0 | 2 → 0 | – | 29 → 24 |
+
+(a), (b), (c) 1.800 Bilder (30 s), (d), (e) und Handy 1.200 Bilder (20 s). Die Ruckler aus Punkt 1 (Beute-Symbole)
+stehen nicht in dieser Tabelle: bei Zeichenflächen im Arbeitsspeicher (Messverfahren) sind sie auch vorher kurz; mit
+Zeichenflächen auf der (Software-)Grafik waren es vorher die längsten Bilder überhaupt (siehe oben), nachher kosten
+dieselben Symbole 1,6–4 ms. In den Nachher-Läufen zählt eine Messhilfe je Bild zusätzlich die Effektteile
+(0,3–0,8 ms je Bild) – die Nachher-Werte sind dadurch eher zu hoch. Einzelne längste Bilder (Arena 42,9 → 51,0 ms,
+Handy „Niedrig“ > 50 ms 4 → 6) liegen in der Streuung einzelner Läufe.
+
+### Aussehen und Regression
+
+Gebündelte Streifen (4): dieselbe Szene mit virtueller Uhr, einmal gebündelt (15 Streifen in einem Aufruf), einmal mit
+abgeschaltetem Bündeln – Bildpunkt für Bildpunkt identisch (mittlere Abweichung 0). Schattenmodelle (6): Monster werfen
+auf „Ultra“ weiter ihren Schatten (Bildvergleich 14.37/14.38; die Monster stehen in beiden Läufen anders, weil das
+Zeichnen Zufallszahlen verbraucht und das Nachladen jetzt anders in Scheiben fällt). Die Gedränge-Drossel (2) ändert
+bewusst die Zahl der Effekte bei sehr vielen Treffern; ein Bildvergleich dafür ist nicht sinnvoll.
+
+Gleich geblieben: alle 12 Charaktere (s73) ohne Seitenfehler; s72 in 2D und 3D wie 14.37 (in 3D auch auf 14.37 im
+Prüfmoment 0 Arena-Monster); Drachen-Test 36 × OK wie vorher; Mechaniktest identisch bis auf die zufälligen
+Splitterschlag-Zeiten (14.37 in zwei Läufen 30,9 bzw. 33,1 s, nachher 32,1 bzw. 33,8 s; Regel „18–22 s“ OK);
+Belohnungstest m10 Zeile für Zeile gleich; Balance-Sim (`--kurz --ohne-farm`, Klinge und Feuer, Stufe 50/80, je zwei
+Läufe, Gesamtwertung Ø): Klinge 98/95 → 97/96, Feuer 102/105 → 103/104 (gut: Klinge 98/94 → 98/101, Feuer 102/106 →
+102/97) – innerhalb der Streuung derselben Fassung. Netz-Nachrichten unverändert.
+
+### Was offen bleibt / nicht messbar war
+
+- **Echte Handys und Grafikkarten** waren nicht verfügbar. Gemessen ist die Rechenzeit im JavaScript; wie viel das
+  Rastern (Füllrate, Leuchtflächen von Grafik Plus, Schatten auf Ultra) auf einem schwachen Handy kostet, sagt die
+  Software-Grafik nicht. Zeichenaufrufe sind gesunken, die Dreiecke je Monster nicht.
+- **Effekte bleiben der größte Posten** im dichten Kampf (Ninja, Schamane: 15–17 ms je Bild, davon `rankhit3` ~6 ms).
+  Weitere Schritte wären ein festes Teile-Budget je Bild oder Funken als Teilchen auf der Grafikkarte – größerer Umbau,
+  nicht gemacht. Beim Bogen-Ninja sind noch 876 von 1.800 Bildern über 33 ms (vorher 1.655).
+- **Das erste Wirken jeder Fertigkeit** legt ihre Effektteile neu an (`fx3Make`, im ersten Bild bis ~20 ms); Shader
+  werden seit 14.26 vorab übersetzt, Teile nicht.
+- three.js selbst (Zustände, Uniforms für ~650–1.100 Aufrufe) bleibt bei ~8–12 ms je Bild im Kampf.
+- Ein Rest langer Einzelbilder (60–120 ms) im dichtesten Kampf liegt an Häufungen vieler Treffer im selben Bild; Bilder
+  über 50 ms sind um 70–95 % seltener, aber nicht weg.
+- Die 2D-Ansicht geht beim Zeichnen weiter alle Monster durch (`render` in `zeichnen.js`), ist aber schon vorher rund
+  dreimal schneller als 3D gewesen.

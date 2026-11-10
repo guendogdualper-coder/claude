@@ -4967,7 +4967,12 @@ function makeActor(model) {
     lit.receiveShadow = !model.geos.shadow;
     add('outline', model.geos.outline || model.geos.lit, figOutline());
   }
-  if (model.geos.shadow) add('shadow', model.geos.shadow, figShadowProxy()).castShadow = true;
+  if (model.geos.shadow) {
+    const sh = add('shadow', model.geos.shadow, figShadowProxy());
+    sh.castShadow = true;
+    // seit 14.38: nur in der Schattenkarte zeichnen (eigene Ebene, v3RenderScene in drei-kern.js)
+    sh.layers.set(SHADOW_LAYER3);
+  }
   if (model.geos.face) add('face', model.geos.face, a.mats.lit || (a.mats.lit = figLitMat()));
   if (model.geos.glow) {
     a.mats.glow = figGlow().clone();

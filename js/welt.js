@@ -2550,7 +2550,9 @@ function solidObstacles() {
   const w = game.world;
   if (solidCache.world === w && game.time - solidCache.at < 0.25 && game.time >= solidCache.at) return solidCache.grid;
   const list = [];
-  for (const m of game.monsters) if (m.isStone && !m.dead) list.push({ x: m.x, y: m.y, R: Math.max(20, (m.r || 18) + 2), ref: m });
+  // seit 14.38 nur die Seelensteine aus dem Gebietsverzeichnis (gegner.js) statt aller ~7.000 Monster viermal je Sekunde
+  if (typeof monsterIndex === 'function') monsterIndex();
+  for (const m of (typeof MON_INDEX !== 'undefined' ? MON_INDEX.stones : game.monsters)) if (m.isStone && !m.dead) list.push({ x: m.x, y: m.y, R: Math.max(20, (m.r || 18) + 2), ref: m });
   for (const n of w.npcs) {
     const R = PORTAL_R[n.id];
     if (!R) continue;

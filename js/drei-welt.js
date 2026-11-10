@@ -2550,10 +2550,17 @@ function* objectJob(cx, cy) {
       yield;
     }
   }
+  // seit 14.38: auch zwischen den Gegenständen und beim Zusammenführen nach Rechenzeit abgeben (mergePartsSteps,
+  // drei-kern.js) – vorher liefen diese Teile am Stück und hielten beim Reiten einzelne Bilder 30–100 ms an
+  let propT = performance.now();
   for (const pr of w.props) {
     const px = pr.x * U3;
     const py = pr.y * U3;
     if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
+    if (performance.now() - propT > 3) {
+      yield;
+      propT = performance.now();
+    }
     if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
     // Stadtschmuck (seit 13.85): Kübel, einzelne Fässer und Kisten nur ab mittlerer Grafik
     if (lowGfx && pr.fine) continue;
@@ -2568,7 +2575,7 @@ function* objectJob(cx, cy) {
     for (const list of total > SPLIT3 ? lists : [lists.flat()]) {
       if (!list.length) continue;
       yield;
-      worldMesh(group, key, mergeParts(list, false), lowGfx);
+      worldMesh(group, key, yield* mergePartsSteps(list, false, false, 3), lowGfx);
     }
   }
   // Dach und Vorderwand begehbarer Häuser (seit 13.91): je Haus eine Gruppe, v3SyncHouses blendet sie aus
@@ -2576,7 +2583,7 @@ function* objectJob(cx, cy) {
     const sg = new THREE.Group();
     for (const key of ['lit', 'detail', 'glow', 'glowWin']) {
       const list = shell.lists[key];
-      if (list && list.length) worldMesh(sg, key, mergeParts(list, false), lowGfx);
+      if (list && list.length) worldMesh(sg, key, yield* mergePartsSteps(list, false, false, 3), lowGfx);
     }
     sg.userData.house = h;
     group.add(sg);
@@ -2587,7 +2594,7 @@ function* objectJob(cx, cy) {
   const farList = bakes.flatMap((b) => b.lists.far || []);
   if (farList.length) {
     yield;
-    worldMesh(group, 'far', mergeParts(farList, false), lowGfx);
+    worldMesh(group, 'far', yield* mergePartsSteps(farList, false, false, 3), lowGfx);
   }
   return group;
 }

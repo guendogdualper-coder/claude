@@ -49,7 +49,7 @@ function enemiesOnBeam(p, end, w) {
   const dx = end.x - p.x;
   const dy = end.y - p.y;
   const L = Math.hypot(dx, dy) || 1;
-  return aliveEnemies().filter((m) => {
+  return enemiesNear(p.x, p.y, L * 1.05 + w).filter((m) => {
     const t = ((m.x - p.x) * dx + (m.y - p.y) * dy) / (L * L);
     if (t < 0 || t > 1.05) return false;
     const px = p.x + dx * t;

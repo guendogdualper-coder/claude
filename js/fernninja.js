@@ -104,7 +104,8 @@ function arrowIconUrl(i) {
   const c = document.createElement('canvas');
   c.width = 64;
   c.height = 64;
-  const g = c.getContext('2d');
+  // seit 14.38 im Arbeitsspeicher (CPU_CANVAS, figuren.js): toDataURL ohne Zurücklesen von der Grafikkarte
+  const g = c.getContext('2d', typeof CPU_CANVAS !== 'undefined' ? CPU_CANVAS : undefined);
   g.translate(32, 32);
   if (i >= 5) {
     const gl = g.createRadialGradient(0, -6, 2, 0, -6, 30);
@@ -1381,7 +1382,8 @@ FX3_DRAW.bhit3 = function (h, e) {
   const k = clamp01(t / e.dur);
   const x = e.x * U3;
   const z = e.y * U3;
-  const n = e.big ? 9 : 5;
+  // seit 14.38: im Gedränge (FX3.hitCrowd, drei-fx.js) weniger Federn je Treffer
+  const n = FX3.hitCrowd ? (e.big ? 5 : 3) : e.big ? 9 : 5;
   for (let i = 0; i < n; i++) {
     const a = n2h(i, e.seed) * Math.PI * 2;
     const r = (0.3 + 0.9 * n2h(i, e.seed + 1)) * easeOut(k) * (e.big ? 1.4 : 1);
