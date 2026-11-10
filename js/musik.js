@@ -7,6 +7,7 @@
 // Seit 9.5: Steht ein lebender Boss in der Nähe (Boss-Raum, Weltboss), wird die Musik dramatisch:
 // harmonisches Moll, schnellerer Puls, treibender Achtelbass, große Trommeln, Bläserstöße, ein Chor und
 // alle vier Takte ein anschwellendes Rauschen. Ist der Boss besiegt, klingt ein kurzer Siegesakkord aus.
+// Seit 14.40: in Prüfungs- und Turnierarena eigene, schnelle Kampfmusik (arenaBar, 160 BPM, unten).
 
 const MIDI = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // Musikdateien (−19 LUFS) im Verhältnis zur erzeugten Musik: im Browser gemessen (Effektivwert am Musikausgang),
@@ -95,6 +96,8 @@ const music = {
     if (!p || !game.running || !game.world) return 'dorf';
     // Boss: ab 650 px, bleibt bis 950 px (kein Hin und Her am Rand); stirbt er, endet es sofort
     const now = game.time;
+    // seit 14.40: in der Arena eigene Kampfmusik (auch beim Wellenmeister, er macht sie nur intensiver)
+    if (this.inArena(p)) return 'arena';
     if (this.bossNear(p, this.key === 'boss' ? 950 : 650)) {
       this.bossSeen = now;
       return 'boss';
@@ -138,10 +141,12 @@ const music = {
         // Einstieg in den Bosskampf mit Schlag und Rauschen, Ende nach Sieg mit Siegesakkord (über fx, auch zur Datei)
         this.out = this.fx;
         if (k === 'boss') this.impact(this.nextBar, 1);
+        else if (k === 'arena') this.arenaLv = -1; // Einstieg mit Schlag (arenaBar)
         else if (this.key === 'boss' && this.bossRef && this.bossRef.dead) this.victory(this.nextBar);
         this.out = this.proc;
         // Musikdatei der neuen Stimmung (Boss schnell, sonst weich überblendet)
-        if (files) files.want(k, k === 'boss' || this.key === 'boss' ? 0.9 : 2.5);
+        // seit 14.40 Arena: Musikdatei der Gegend in 1,5 s aus, erzeugte Arenamusik ein (und beim Verlassen zurück)
+        if (files) files.want(k, k === 'boss' || this.key === 'boss' ? 0.9 : k === 'arena' || this.key === 'arena' ? 1.5 : 2.5);
         this.key = k;
         this.bar = 0;
       } else if (files && !files.playing(k)) files.want(k, 2.5);
@@ -156,6 +161,7 @@ const music = {
 
   scheduleBar(M, t) {
     if (M.boss) return this.bossBar(M, t);
+    if (M.arena) return this.arenaBar(M, t);
     const beat = 60 / M.bpm;
     const bar = beat * 4;
     const chord = M.chords[this.prog][this.bar % 4];
@@ -552,6 +558,152 @@ const music = {
     mod.stop(t + 2.3);
   }
 };
+
+// --- Arenamusik (seit 14.40) ---------------------------------------------------------------------------------------
+// Nur in der Prüfungsarena (herausforderung.js) und der Turnierarena (turnierarena.js): eigene, hektische Kampfmusik,
+// hier im Browser erzeugt (keine Datei, keine fremde Melodie). D-Moll mit harmonischem Moll (A-Dur als Dominante) und
+// neapolitanischem Es-Dur, 160 BPM: treibender Sechzehntelbass als Ostinato, Bassdrum auf jedem Schlag, Snare auf 2
+// und 4, Hi-Hats, synkopierte Bläser-Stöße, im zweiten Teil jeder Folge ein hohes Sechzehntel-Arpeggio, alle vier Takte
+// Snare-Wirbel und Rauschen in den nächsten Takt. Drei Stufen: 0 Pause/Warten (ohne Schlagzeug-Wucht), 1 Kampf,
+// 2 Bosswelle (jede 5. Welle: große Trommeln, Chor, doppelte Hats, Bläser auf jeder Synkope).
+Object.assign(MOODS, {
+  arena: { root: 50, scale: [0, 2, 3, 5, 7, 8, 11], bpm: 160, arena: true, pad: 0.45, bright: 1500, pluck: 0, flute: 0, drum: 0, bells: 0,
+    chords: [[[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -1, 2]], [[0, 3, 7], [1, 5, 8], [0, 3, 7], [-5, -1, 2]], [[0, 3, 7], [-7, -4, 0], [-4, 0, 3], [-5, -1, 2]]] }
+});
+Object.assign(music, {
+  // Stufe der Arenamusik aus dem Lauf: 0 Pause/Warten, 1 Kampf, 2 Bosswelle (Turnierarena: immer Kampf)
+  arenaLevel() {
+    const run = game.arenaRun;
+    if (!run || run.slot < 0) return 1;
+    if (run.phase !== 'fight') return 0;
+    return run.wave % 5 === 0 ? 2 : 1;
+  },
+  // in der eigenen Halle der Prüfungsarena oder in einer Halle der Turnierarena?
+  inArena(p) {
+    const run = game.arenaRun;
+    if (run && run.slot >= 0 && typeof arenaSlotAt === 'function' && arenaSlotAt(p.x, p.y) === run.slot) return true;
+    return typeof pvpInside === 'function' && pvpInside(p);
+  },
+  arenaBar(M, t) {
+    const beat = 60 / M.bpm;
+    const s16 = beat / 4;
+    const i = this.bar % 4;
+    const chord = M.chords[this.prog][i];
+    const root = M.root;
+    const lv = this.arenaLevel();
+    // eine Stufe höher: Einstieg mit Schlag (Welle beginnt, Bosswelle)
+    if (lv > (this.arenaLv ?? lv)) this.impact(t, lv === 2 ? 1 : 0.55);
+    this.arenaLv = lv;
+    // Fläche, leise und dunkel (hält die Harmonie, lässt Platz für den Bass)
+    for (const n of chord) this.pad(MIDI(root + n), t, beat * 4 + 0.3, M);
+    // Ostinato: Sechzehntelbass (Grundton, Oktave, Quinte, kleine Terz), in der Pause nur Achtel
+    const pat = [0, 0, 12, 0, 0, 12, 0, 7, 0, 0, 12, 0, 3, 0, 7, 12];
+    for (let k = 0; k < 16; k++) {
+      if (lv === 0 && k % 2) continue;
+      this.ost(MIDI(root - 12 + chord[0] + pat[k]), t + k * s16, s16 * (lv === 0 ? 1.7 : 0.9), (k % 4 === 0 ? 1 : 0.62) * (lv === 0 ? 0.7 : 1));
+    }
+    // Schlagzeug
+    for (let b = 0; b < 4; b++) {
+      if (lv > 0) this.kick(t + b * beat, b === 0 ? 1 : 0.85);
+      if (lv > 0 && (b === 1 || b === 3) && !(i === 3 && b === 3)) this.snare(t + b * beat, 0.8);
+      // Hi-Hats: Achtel (betont auf „und“), in der Bosswelle Sechzehntel
+      for (let h = 0; h < (lv === 2 ? 4 : 2); h++) {
+        const off = h * (lv === 2 ? s16 : beat / 2);
+        this.hat(t + b * beat + off, (lv === 2 ? h % 2 : h) ? 0.9 : 0.5, false);
+      }
+    }
+    if (lv > 0) {
+      // Synkope vor dem nächsten Takt
+      this.kick(t + beat * 3 + s16 * 2, 0.6);
+      // vierter Takt: Snare-Wirbel in den nächsten Takt (Sechzehntel, lauter werdend)
+      if (i === 3) for (let k = 0; k < 6; k++) this.snare(t + beat * 2.5 + k * s16, 0.35 + k * 0.11);
+      // offene Hi-Hat am Ende jedes zweiten Takts
+      if (i % 2 === 1) this.hat(t + beat * 3.5, 0.8, true);
+      // Bläser-Stöße auf Synkopen (1, „2-e“, „3-und“), im Boss auf jeder; zweiter und vierter Takt antworten
+      const hits = lv === 2 ? [0, 3, 6, 10, 13] : i % 2 ? [0, 6, 10] : [0, 3, 10];
+      const fs = chord.map((n) => MIDI(root + 12 + n));
+      for (const h of hits) this.brass(fs, t + h * s16, s16 * 1.6, h === 0 ? 0.9 : 0.6);
+    }
+    // Spannung: in der zweiten Hälfte der Folge (und immer in der Bosswelle) ein hohes Sechzehntel-Arpeggio
+    if (lv > 0 && (this.bar % 8 >= 4 || lv === 2)) {
+      const arp = [0, 1, 2, 1, 2, 0, 1, 2].map((k) => root + 24 + chord[k]);
+      for (let k = 0; k < 16; k++) this.pluck(MIDI(arp[k % 8] + (k >= 8 && i % 2 ? 12 : 0)), t + k * s16, 0.075);
+    }
+    // Bosswelle: große Trommeln auf 1 und 3, Chor jeden zweiten Takt
+    if (lv === 2) {
+      this.taiko(t, 0.8);
+      this.taiko(t + beat * 2, 0.6);
+      if (i % 2 === 0) this.choir(MIDI(root + 12 + chord[2]), t, beat * 8 + 0.2);
+    }
+    // alle vier Takte: anschwellendes Rauschen in den nächsten Takt (in der Pause leiser)
+    if (i === 3) this.swell(t + beat * (lv ? 1 : 2), beat * (lv ? 3 : 2));
+  },
+  // Bassdrum: kurzer Sinus, der schnell nach unten fällt, mit Klick
+  kick(t, vol) {
+    const c = sfx.ctx;
+    const o = c.createOscillator();
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.exponentialRampToValueAtTime(48, t + 0.11);
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.42 * vol, t + 0.003);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.28);
+    o.connect(g);
+    g.connect(music.out);
+    o.start(t);
+    o.stop(t + 0.3);
+  },
+  // Snare: Rauschen durch Bandpass plus kurzer Ton
+  snare(t, vol) {
+    const c = sfx.ctx;
+    const n = c.createBufferSource();
+    n.buffer = this.noise(c);
+    const bp = c.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2200;
+    bp.Q.value = 0.7;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.2 * vol, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0008, t + 0.16);
+    n.connect(bp);
+    bp.connect(g);
+    g.connect(music.out);
+    n.start(t, Math.random());
+    n.stop(t + 0.18);
+    const o = c.createOscillator();
+    o.type = 'triangle';
+    o.frequency.setValueAtTime(230, t);
+    o.frequency.exponentialRampToValueAtTime(160, t + 0.06);
+    const og = c.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.linearRampToValueAtTime(0.12 * vol, t + 0.002);
+    og.gain.exponentialRampToValueAtTime(0.0008, t + 0.09);
+    o.connect(og);
+    og.connect(music.out);
+    o.start(t);
+    o.stop(t + 0.1);
+  },
+  // Hi-Hat: helles Rauschen (Hochpass), geschlossen kurz, offen länger
+  hat(t, vol, open) {
+    const c = sfx.ctx;
+    const n = c.createBufferSource();
+    n.buffer = this.noise(c);
+    const hp = c.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 7000;
+    const g = c.createGain();
+    const len = open ? 0.22 : 0.04;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.055 * vol, t + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.0006, t + len);
+    n.connect(hp);
+    hp.connect(g);
+    g.connect(music.out);
+    n.start(t, Math.random());
+    n.stop(t + len + 0.02);
+  }
+});
 
 // Ton und Musik starten mit der ersten Berührung bzw. Taste (iPhone und Browser verlangen das);
 // im Hintergrund (andere App, Tab) pausiert alles und spart Akku
