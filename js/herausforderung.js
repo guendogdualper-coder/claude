@@ -1,6 +1,8 @@
 // Herausforderung (seit 13.63): die Prüfungsarena – allein gegen Welle um Welle, Gold für jede geschaffte Welle.
-// - In jeder Stadt und jedem Lager steht ein Arenameister (welt.js, Platz aus TOWN_PLACES). Er schickt dich ALLEIN in
-//   eine eigene Arena: Gruppenmitglieder bleiben draußen, im Mehrspieler bekommt jeder Spieler seine eigene Halle.
+// - In jeder Stadt und jedem Lager steht ein Arenameister (welt.js, Platz aus TOWN_PLACES). Er schickt dich in eine
+//   eigene Halle, im Mehrspieler bekommt jeder Lauf seine eigene. Seit 14.32 auch zu zweit: ein Gruppenmitglied im Kanal
+//   wird eingeladen (Nachrichten ari/arj/ard), höchstens zwei je Halle, geprüft beim Host (arenaJoin); bis 14.31 allein.
+// - seit 14.32 schneller: Schübe alle 3 s, Pausen 3 s, Monster laufen nach 0,35 s los (Messung im Auftrag 2026-11-10).
 // - Die Arenen liegen im ungenutzten Fels unter dem Dungeon-Streifen (östlich der Maps), ARENA.slots Hallen nebeneinander.
 //   Sie werden nach der Welt gebaut (arenaBuild über generateWorld): runde Halle mit Sandgrube, Säulen, Feuerbecken,
 //   Bannern und einem Ausgang (Weltentor mit arenaExit).
@@ -22,10 +24,19 @@
 const ARENA = {
   slots: 8, cols: 4, slotW: 46, slotH: 38, hallW: 34, hallH: 26, corner: 7,
   minLevel: 5,          // ab dieser Stufe
-  firstPause: 4,        // Sekunden bis zur ersten Welle
-  pause: 6,             // Pause nach einer geschafften Welle
+  firstPause: 3,        // Sekunden bis zur ersten Welle (seit 14.32: 3 statt 4; die Ankündigung „Welle 1“ bleibt)
+  pause: 3,             // Pause nach einer geschafften Welle (seit 14.32: 3 statt 6)
   lives: 3,             // seit 13.70: drei Leben je Lauf (beim dritten Tod ist das gesammelte Gold verloren)
-  maxAlive: 50,         // Schutz: mehr gleichzeitig lebende Monster je Halle hält der nächste Schub zurück
+  // seit 14.32: Schübe alle 3 s (vorher 10, 12, 14 … s) mit je etwa 4 Monstern (zu zweit 6). Höchstens 30 (zu zweit
+  // 40) leben gleichzeitig – vorher 50; was darüber liegt, rückt nach, sobald Platz ist (kein eigener Wartetakt)
+  batchGap: 3, batchSize: 4,
+  maxAlive: 30, maxAliveDuo: 40,
+  spawnStun: 0.35,      // so lange steht ein Monster beim Erscheinen (seit 14.32: 0,35 statt 0,7 s)
+  // seit 14.32 zu zweit (zwei Mitglieder derselben Gruppe in einer Halle): 1,5-mal so viele Monster, +25 % Leben,
+  // +10 % Schaden, Wellenmeister insgesamt +50 % Leben – zusammen 1,5 × 1,25 ≈ 1,9-mal so viel Leben je Welle bei
+  // doppelt so vielen Kämpfern, die Runde wird also nicht länger
+  duo: { n: 1.5, hp: 1.25, atk: 1.1, boss: 1.2 },
+  inviteWait: 20,       // so lange wartet die Halle auf das eingeladene Gruppenmitglied
   deadMax: 180,         // so lange (s) darf der Läufer tot in der Halle liegen, dann endet der Lauf
   eliteHp: 3, eliteAtk: 1.3,
   gate: '#ffc86a'       // Farbe von Lichtsäulen und Ausgang
@@ -33,7 +44,7 @@ const ARENA = {
 const ARENA_THEME = '#6a5a48|#c9a35a|#ffb04a'; // Säulen, Banner, Statuen: Stein | Fugen | Leuchtfarbe
 
 // Gebiet der Arena (nicht sicher, kein Dungeon): Name oben in der Ecke, Stimmung
-const ARENA_ZONE = { id: 'arena', name: 'Prüfungsarena', levels: 'Herausforderung · allein', ground: 'FLAGSTONE', ambient: { kind: 'dust', tint: [60, 40, 20, 0.06] } };
+const ARENA_ZONE = { id: 'arena', name: 'Prüfungsarena', levels: 'Herausforderung · allein oder zu zweit', ground: 'FLAGSTONE', ambient: { kind: 'dust', tint: [60, 40, 20, 0.06] } };
 ZONES.push(ARENA_ZONE);
 const ARENA_ZI = ZONES.length - 1;
 // Licht in 3D: warmer Abend mit Fackelschein (drei-kern.js, v3UpdateMood), etwas gedämpft, damit der Sand nicht blendet
@@ -165,25 +176,30 @@ function arenaWaveLevel(L, w) {
   const ml = w < 8 ? L - 8 + w : L + Math.floor((w - 8) / 2);
   return Math.max(1, Math.min(L + 8, ml));
 }
-function arenaWave(L, w) {
+// players: 1 allein, 2 zu zweit (seit 14.32)
+function arenaWave(L, w, players = 1) {
   const boss = w % 5 === 0;
   const str = arenaStr(w);
-  const n = Math.round(Math.min(60, 12 + 4 * (w - 1)) * (boss ? 0.6 : 1));
-  const batches = Math.min(10, 2 + Math.floor(w / 2));
+  const duo = players >= 2 ? ARENA.duo : null;
+  const n = Math.round(Math.min(60, 12 + 4 * (w - 1)) * (boss ? 0.6 : 1) * (duo ? duo.n : 1));
+  // seit 14.32: Schübe von etwa 4 (zu zweit 6) Monstern alle 3 s; bis 14.31 waren es 2 + Welle/2 Schübe (höchstens 10)
+  // im Abstand von 10, 12, 14 … s – Welle 4 brauchte so 36 s, bis das letzte Monster kam, jetzt 15 s
+  const batches = Math.max(2, Math.ceil(n / (ARENA.batchSize * (duo ? duo.n : 1))));
   return {
     wave: w,
     ml: arenaWaveLevel(L, w),
+    players: duo ? 2 : 1,
     // Bosswellen: der Wellenmeister (Mini-Boss) mit etwas kleinerem Gefolge (60 %)
     n,
     // Elite erst ab Welle 4 (seit 13.92)
-    elites: w < 4 ? 0 : Math.min(10, Math.floor(w / 3)),
+    elites: w < 4 ? 0 : Math.round(Math.min(10, Math.floor(w / 3)) * (duo ? duo.n : 1)),
     boss,
-    bossHp: 4 + 0.4 * w,
-    hpK: str,
-    atkK: w <= 8 ? str : ARENA_STR[8] + 0.04 * (w - 8),
+    bossHp: (4 + 0.4 * w) * (duo ? duo.boss : 1),
+    hpK: str * (duo ? duo.hp : 1),
+    atkK: (w <= 8 ? str : ARENA_STR[8] + 0.04 * (w - 8)) * (duo ? duo.atk : 1),
     batches,
-    // Abstände der Schübe in Sekunden: 10, 12, 14 …
-    gaps: Array.from({ length: batches - 1 }, (_, k) => 10 + 2 * k)
+    // Abstände der Schübe in Sekunden (seit 14.32 gleichmäßig 3 s)
+    gaps: Array.from({ length: batches - 1 }, () => ARENA.batchGap)
   };
 }
 // Gold je geschaffter Welle: seit 13.71 nach Stufe – Schritt je Welle = 200 + 20 × Stufe (Stufe 10: 400, Stufe 30: 800,
@@ -247,31 +263,103 @@ function arenaTune(m, W, role) {
 }
 
 // --- Hallen führen (wer die Monster führt: allein man selbst, im Kanal der Host) --------------------------------
+// seit 14.32 kann eine Halle zwei Teilnehmer haben (S.members: 'me' für den Host selbst, sonst die pid). Allein wie
+// bisher; zu zweit lädt der Läufer beim Betreten ein Gruppenmitglied ein (S.invite = dessen Name). Nur dieser Name
+// darf beitreten, nur solange die Halle noch auf den Start wartet und höchstens zwei – das prüft allein der Host
+// (eine Rechnung nacheinander, gleichzeitige Anfragen können das Limit nicht umgehen). Wer die Halle verlässt, stirbt
+// (drittes Leben) oder die Verbindung verliert, fällt heraus; der andere kämpft allein weiter.
 const arenaHost = { slots: Array.from({ length: ARENA.slots }, () => null) };
 const arenaNow = () => game.time;
 
-function arenaOwnerObj(S) {
-  if (S.owner === 'me') return game.player;
-  const rp = net.players.get(S.owner);
+function arenaMemberObj(id) {
+  if (id === 'me') return game.player;
+  const rp = net.players.get(id);
   return rp && !rp.gone ? rp : null;
 }
-// Nachricht an den Läufer einer Halle (an sich selbst direkt, sonst über den Host)
-function arenaTell(S, d) {
-  if (S.owner === 'me') arenaOnMsg(d);
-  else if (typeof netSocial === 'function') netSocial(S.owner, d);
+function arenaOwnerObj(S) {
+  return arenaMemberObj(S.owner);
 }
-// freie Halle: ohne Läufer und ohne jemanden darin
-function arenaAlloc(owner, level) {
-  for (const S of arenaHost.slots) if (S && S.owner === owner) arenaFree(arenaHost.slots.indexOf(S));
+const arenaMemberName = (id) => (id === 'me' ? (game.player && game.player.name) : (net.players.get(id) || {}).name) || '';
+// Nachricht an alle Teilnehmer einer Halle (an sich selbst direkt, sonst über den Host)
+function arenaTellOne(id, d) {
+  if (id === 'me') arenaOnMsg(d);
+  else if (typeof netSocial === 'function') netSocial(id, d);
+}
+function arenaTell(S, d) {
+  for (const id of S.members.slice()) arenaTellOne(id, d);
+}
+// Stufe der Wellen: allein die eigene, zu zweit der Schnitt beider (Gruppen haben höchstens 15 Stufen Abstand)
+function arenaSlotLevel(S) {
+  const ls = S.members.map((id) => S.levels[id] || 1);
+  return Math.max(1, Math.min(99, Math.round(ls.reduce((a, b) => a + b, 0) / ls.length)));
+}
+// freie Halle: ohne Läufer und ohne jemanden darin; invite = Name des Gruppenmitglieds für zu zweit (seit 14.32)
+function arenaAlloc(owner, level, invite) {
+  for (const S of arenaHost.slots) if (S && S.members.includes(owner)) arenaDrop(arenaHost.slots.indexOf(S), owner, null);
   const busy = new Set();
   if (game.player) busy.add(arenaSlotAt(game.player.x, game.player.y));
   if (net.mode === 'host') for (const rp of net.players.values()) busy.add(arenaSlotAt(rp.x, rp.y));
   for (let s = 0; s < ARENA.slots; s++) {
     if (arenaHost.slots[s] || busy.has(s)) continue;
-    arenaHost.slots[s] = { owner, level: Math.max(1, Math.min(99, level | 0)), state: 'reserved', wave: 0, at: arenaNow(), until: 0, queue: [], mons: new Set(), absent: null, nextAt: 0, aggroAt: 0 };
+    const S = { owner, members: [owner], levels: { [owner]: Math.max(1, Math.min(99, level | 0)) }, joinAt: { [owner]: arenaNow() },
+      invite: invite || null, joined: false, level: 1, players: 1, state: 'reserved', wave: 0, at: arenaNow(), until: 0, queue: [],
+      mons: new Set(), absent: {}, deadSince: {}, nextAt: 0, aggroAt: 0, spotK: 0 };
+    S.level = arenaSlotLevel(S);
+    arenaHost.slots[s] = S;
     return s;
   }
   return -1;
+}
+// Beitritt des eingeladenen Gruppenmitglieds (seit 14.32). Rückgabe: '' oder der Grund der Ablehnung
+function arenaJoin(id, s, level) {
+  const S = arenaHost.slots[s | 0];
+  const name = arenaMemberName(id);
+  if (!S || !S.invite) return 'Diese Halle erwartet niemanden mehr.';
+  if (S.members.includes(id)) return '';
+  if (S.members.length >= 2) return 'In der Halle sind schon zwei Spieler – mehr passen nicht hinein.';
+  if (!name || S.invite !== name) return 'Du bist für diese Halle nicht eingeladen.';
+  if (S.state !== 'reserved') return 'Der Lauf hat schon begonnen.';
+  for (const o of arenaHost.slots) if (o && o !== S && o.members.includes(id)) arenaDrop(arenaHost.slots.indexOf(o), id, null);
+  S.members.push(id);
+  S.levels[id] = Math.max(1, Math.min(99, level | 0));
+  S.joinAt[id] = arenaNow();
+  S.joined = true;
+  S.level = arenaSlotLevel(S);
+  arenaTell(S, { k: 'arm', n: S.members.map(arenaMemberName) });
+  return '';
+}
+// Einladung an das Gruppenmitglied schicken (seit 14.32); Rückgabe false, wenn es nicht im Kanal ist
+function arenaInvite(S, s) {
+  const d = { k: 'ari', s, n: arenaMemberName(S.owner) };
+  if (game.player && S.invite === game.player.name && S.owner !== 'me') {
+    arenaOnMsg(d);
+    return true;
+  }
+  const on = typeof onlinePlayer === 'function' ? onlinePlayer(S.invite) : null;
+  if (!on || on.pid === S.owner) return false;
+  netSocial(on.pid, d);
+  return true;
+}
+// Einladung abgelehnt oder abgelaufen: die Halle startet allein
+function arenaUninvite(S, why) {
+  if (!S.invite || S.joined) return;
+  const who = S.invite;
+  S.invite = null;
+  arenaTell(S, { k: 'arv', n: who, r: why || '' });
+}
+// Ein Teilnehmer fällt heraus (why: Grund für ihn, null = ihm nichts mehr sagen); ist niemand mehr da, wird die Halle frei
+function arenaDrop(s, id, why) {
+  const S = arenaHost.slots[s];
+  if (!S || !S.members.includes(id)) return;
+  if (why) arenaTellOne(id, { k: 'are', r: why, w: S.wave });
+  S.members = S.members.filter((x) => x !== id);
+  if (!S.members.length) {
+    arenaFree(s);
+    return;
+  }
+  if (S.owner === id) S.owner = S.members[0];
+  S.level = arenaSlotLevel(S);
+  arenaTell(S, { k: 'arm', n: S.members.map(arenaMemberName), l: arenaMemberName(id) });
 }
 // Halle räumen: ihre Monster verschwinden
 function arenaFree(s) {
@@ -290,7 +378,7 @@ function arenaEnd(s, why) {
 // Monster der Welle in Schübe aufteilen (seit 13.70): Elite gleichmäßig verteilt, der Wellenmeister kommt sicher
 // in jeder 5. Welle, mit dem zweiten Schub
 function arenaBatches(S) {
-  const W = arenaWave(S.level, S.wave);
+  const W = arenaWave(S.level, S.wave, S.players);
   const pool = arenaPool(S.level, S.wave);
   const q = [];
   for (let k = 0; k < W.n; k++) q.push({ type: pool[Math.floor(Math.random() * pool.length)], role: 'mob' });
@@ -303,84 +391,138 @@ function arenaBatches(S) {
   }
   return out;
 }
-function arenaSpawnOne(s, S, e, owner) {
-  const W = arenaWave(S.level, S.wave);
+// Teilnehmer, die gerade in der Halle stehen und leben (Ziele der Monster)
+function arenaFighters(S, s) {
+  const out = [];
+  for (const id of S.members) {
+    const o = arenaMemberObj(id);
+    if (o && !o.dead && arenaSlotAt(o.x, o.y) === s) out.push(o);
+  }
+  return out;
+}
+const arenaHidden = (o) => (o === game.player ? !!(game.stats && game.stats.invisible) : !!o.invisible);
+// Ziel für ein Monster der Halle (seit 14.32): der Teilnehmer, den gerade weniger Monster jagen (Druck auf beide),
+// bei Gleichstand der nähere; getarnte nicht
+function arenaPickTarget(S, m, fighters) {
+  let best = null;
+  let bs = Infinity;
+  for (const o of fighters) {
+    if (arenaHidden(o)) continue;
+    let n = 0;
+    for (const x of S.mons) if (!x.dead && x !== m && x.target === o) n++;
+    const sc = n * 1e4 + Math.hypot(o.x - m.x, o.y - m.y);
+    if (sc < bs) { bs = sc; best = o; }
+  }
+  return best;
+}
+// Ziel noch gültig? Ein Teilnehmer in der Halle oder ein Diener (der als Tank Bedrohung gesammelt hat, gegner.js)
+function arenaTargetOk(S, s, t) {
+  if (!t || t.dead || t.gone || t.hp <= 0) return false;
+  if (t.ally || t.remoteAlly) return typeof allyPresent === 'function' ? allyPresent(t) : game.allies.includes(t);
+  return S.members.some((id) => arenaMemberObj(id) === t) && arenaSlotAt(t.x, t.y) === s && !arenaHidden(t);
+}
+function arenaSpawnOne(s, S, e, fighters) {
+  const W = arenaWave(S.level, S.wave, S.players);
   const spots = arenaSpawnSpots(s);
-  // eine Stelle ein Stück vom Läufer weg
-  const far = spots.filter((p) => Math.hypot(p.x - owner.x, p.y - owner.y) > 6 * TILE);
-  const at = (far.length ? far : spots)[Math.floor(Math.random() * (far.length || spots.length))];
+  // eine Stelle ein Stück von allen Teilnehmern weg; seit 14.32 reihum über den Rand verteilt (Druck aus mehreren
+  // Richtungen, kein Erscheinen direkt neben jemandem)
+  const far = spots.filter((p) => fighters.every((o) => Math.hypot(p.x - o.x, p.y - o.y) > 6 * TILE));
+  const list = far.length ? far : spots;
+  S.spotK = (S.spotK + 3) % 997;
+  const at = list[S.spotK % list.length];
   const pos = spotNear(at, e.role === 'boss' ? 10 : 30);
   const m = createMonster(e.type, pos.x, pos.y, { level: W.ml, respawn: false, zone: ARENA_ZONE });
   m.arenaSlot = s;
   arenaTune(m, W, e.role);
-  // steht kurz, während es erscheint (Bosse ignorieren das)
-  m.stun = 0.7;
+  // steht kurz, während es erscheint (Bosse ignorieren das), dann sofort auf einen Teilnehmer los
+  m.stun = ARENA.spawnStun;
   m.state = 'chase';
-  m.target = owner;
+  // seit 14.32: auf einem Bogen anlaufen statt alle auf denselben Punkt (gegner.js, m.flank)
+  m.flank = (Math.random() < 0.5 ? -1 : 1) * (0.5 + Math.random() * 0.5);
+  m.target = arenaPickTarget(S, m, fighters) || fighters[0] || arenaOwnerObj(S);
   game.monsters.push(m);
   S.mons.add(m);
-  if (S.owner === 'me') arenaSeen(m);
+  if (S.members.includes('me')) arenaSeen(m);
 }
 function arenaTickHost() {
   if (net.mode === 'client') return;
   const now = arenaNow();
   for (let s = 0; s < ARENA.slots; s++) {
-    const S = arenaHost.slots[s];
+    let S = arenaHost.slots[s];
     if (!S) continue;
-    const o = arenaOwnerObj(S);
-    if (!o) { arenaFree(s); continue; }
-    const here = arenaSlotAt(o.x, o.y) === s;
+    // Teilnehmer ohne Verbindung (oder anderer Charakter) fallen heraus
+    for (const id of S.members.slice()) if (!arenaMemberObj(id)) arenaDrop(s, id, null);
+    if (!(S = arenaHost.slots[s])) continue;
+    const here = (id) => { const o = arenaMemberObj(id); return !!o && arenaSlotAt(o.x, o.y) === s; };
     if (S.state === 'reserved') {
-      if (here) {
+      // zu zweit: auf das eingeladene Mitglied warten (höchstens ARENA.inviteWait s); wer zugesagt hat, muss kommen
+      if (S.invite && !S.joined && now - S.at > ARENA.inviteWait) arenaUninvite(S, 'kommt nicht');
+      for (const id of S.members.slice()) if (!here(id) && id !== S.owner && now - S.joinAt[id] > 15) arenaDrop(s, id, 'weg');
+      if (!(S = arenaHost.slots[s])) continue;
+      const waiting = S.invite && !S.joined;
+      if (S.members.every(here) && !waiting) {
         S.state = 'pause';
         S.wave = 1;
         S.until = now + ARENA.firstPause;
         arenaTell(S, { k: 'arp', w: 1, t: ARENA.firstPause });
-      } else if (now - S.at > 25) arenaFree(s);
+      } else if (!S.members.some(here) && now - S.at > 25 + (S.invite ? ARENA.inviteWait : 0)) arenaFree(s);
       continue;
     }
-    // Tot (seit 13.70 drei Leben): die Halle wartet, Schübe stehen still, bis er wieder steht (oder zu lange liegt)
+    // Tot (seit 13.70 drei Leben): solange alle Teilnehmer tot sind, wartet die Halle (Schübe stehen still); wer zu
+    // lange liegt, fällt heraus. Zu zweit kämpft der andere weiter, die Monster wechseln auf ihn.
     const dt = Math.max(0, Math.min(1, now - (S.last ?? now)));
     S.last = now;
-    if (o.dead) {
-      if (S.deadSince == null) S.deadSince = now;
-      if (now - S.deadSince > ARENA.deadMax) { arenaEnd(s, 'tod'); continue; }
+    for (const id of S.members.slice()) {
+      const o = arenaMemberObj(id);
+      if (o.dead) {
+        if (S.deadSince[id] == null) S.deadSince[id] = now;
+        if (now - S.deadSince[id] > ARENA.deadMax) arenaDrop(s, id, 'tod');
+        continue;
+      }
+      S.deadSince[id] = null;
+      if (!here(id)) {
+        if (S.absent[id] == null) S.absent[id] = now;
+        if (now - S.absent[id] > 3) arenaDrop(s, id, 'weg');
+      } else S.absent[id] = null;
+    }
+    if (!(S = arenaHost.slots[s])) continue;
+    if (S.members.every((id) => arenaMemberObj(id).dead)) {
       S.until += dt;
       S.nextAt += dt;
       if (S.batchAt != null) S.batchAt += dt;
       continue;
     }
-    S.deadSince = null;
-    if (!here) {
-      if (S.absent == null) S.absent = now;
-      if (now - S.absent > 3) { arenaEnd(s, 'weg'); continue; }
-    } else S.absent = null;
+    const fighters = arenaFighters(S, s);
     if (S.state === 'pause') {
       if (now < S.until) continue;
       S.state = 'fight';
+      // Skalierung nach der tatsächlichen Teilnehmerzahl zu Beginn der Welle (seit 14.32)
+      S.players = Math.min(2, S.members.length);
       S.batches = arenaBatches(S);
       S.batch = 0;
       S.batchAt = now;
       S.queue = [];
       S.mons.clear();
       S.nextAt = now;
-      arenaTell(S, { k: 'arf', w: S.wave, n: S.batches.reduce((n, b) => n + b.length, 0), b: S.batches.length });
+      arenaTell(S, { k: 'arf', w: S.wave, n: S.batches.reduce((n, b) => n + b.length, 0), b: S.batches.length, pl: S.players });
       continue;
     }
     // Kampf: Verstärkung der Bosse übernehmen (Stufe und Werte der Welle), Schübe nach der Uhr, Ende der Welle
-    const W = arenaWave(S.level, S.wave);
+    const W = arenaWave(S.level, S.wave, S.players);
     const list = (typeof monsterIndex === 'function' ? monsterIndex().get(0) : null) || game.monsters;
     for (const m of list) {
       if (m.dead || m.arenaSlot != null || m.isStone || arenaSlotAt(m.x, m.y) !== s) continue;
       m.arenaSlot = s;
       arenaTune(m, W, 'mob');
       S.mons.add(m);
-      if (S.owner === 'me') arenaSeen(m);
+      if (S.members.includes('me')) arenaSeen(m);
     }
     let alive = 0;
     for (const m of S.mons) if (!m.dead) alive++;
-    // nächster Schub nach seiner Zeit (nicht nach Kills); nur bei sehr vielen lebenden Monstern wartet er
-    if (S.batch < S.batches.length && now >= S.batchAt && alive + S.queue.length < ARENA.maxAlive) {
+    // nächster Schub nach seiner Zeit (nicht nach Kills). Seit 14.32: erst, wenn der vorige ganz erschienen ist; was
+    // wegen der Obergrenze noch wartet, kommt, sobald ein Monster fällt (kein zweiter Takt)
+    const cap = S.players >= 2 ? ARENA.maxAliveDuo : ARENA.maxAlive;
+    if (S.batch < S.batches.length && now >= S.batchAt && !S.queue.length) {
       S.queue.push(...S.batches[S.batch]);
       const gap = W.gaps[S.batch];
       S.batch++;
@@ -388,16 +530,22 @@ function arenaTickHost() {
       const pending = S.batches.slice(S.batch).reduce((n, b) => n + b.length, 0);
       arenaTell(S, { k: 'ars', i: S.batch, b: S.batches.length, t: gap != null ? gap : -1, p: pending });
     }
-    if (S.queue.length && now >= S.nextAt) {
-      arenaSpawnOne(s, S, S.queue.shift(), o);
-      S.nextAt = now + 0.15;
+    if (S.queue.length && now >= S.nextAt && alive < cap) {
+      arenaSpawnOne(s, S, S.queue.shift(), fighters);
+      S.nextAt = now + 0.12;
       alive++;
     }
-    // Wer den Läufer verloren hat (getarnt, zu weit weg), sucht ihn wieder
+    // Wer kein gültiges Ziel hat (Teilnehmer tot, weg oder getarnt), nimmt sofort einen Teilnehmer
+    // (seit 14.32 alle 0,5 s statt 1 s; zu zweit den anderen)
     if (now >= S.aggroAt) {
-      S.aggroAt = now + 1;
-      if (!(o === game.player ? game.stats.invisible : o.invisible)) {
-        for (const m of S.mons) if (!m.dead && m.state !== 'chase') { m.state = 'chase'; m.target = o; }
+      S.aggroAt = now + 0.5;
+      for (const m of S.mons) {
+        if (m.dead || (m.state === 'chase' && arenaTargetOk(S, s, m.target))) continue;
+        const t = arenaPickTarget(S, m, fighters);
+        if (!t) continue;
+        m.state = 'chase';
+        m.target = t;
+        m.windup = 0;
       }
     }
     if (S.batch >= S.batches.length && !S.queue.length && alive === 0) {
@@ -424,8 +572,14 @@ function arenaSave(p = game.player) {
 function arenaModeOf() {
   return net.mode === 'client' ? 'client' : 'local';
 }
-// Betreten (vom Arenameister)
-function arenaEnter() {
+// Gruppenmitglieder, die man zu zweit mitnehmen kann (seit 14.32): im Kanal, nicht man selbst
+function arenaMates() {
+  if (!game.party || !game.party.members || game.party.members.length < 2 || (net.mode !== 'host' && net.mode !== 'client')) return [];
+  return game.party.members.filter((n) => n !== game.player.name && typeof onlinePlayer === 'function' && onlinePlayer(n));
+}
+// Betreten (vom Arenameister); mate: Name des Gruppenmitglieds für zu zweit (seit 14.32), join: Halle, in die man
+// eingeladen wurde
+function arenaEnter(mate, join) {
   const p = game.player;
   if (!p || p.dead) return;
   if (p.level < ARENA.minLevel) {
@@ -433,22 +587,40 @@ function arenaEnter() {
     return;
   }
   if (game.arenaRun) return;
+  if (mate && net.mode !== 'host' && net.mode !== 'client') mate = null;
   const A = arenaSave(p);
   A.ret = { x: Math.round(p.x), y: Math.round(p.y) };
   arenaPayPending(p);
-  const run = { p, slot: -1, level: p.level, mode: arenaModeOf(), phase: 'wait', wave: 0, cleared: 0, gold: 0, until: 0, n: 0, askAt: game.time, lastMsgAt: game.time, lives: ARENA.lives, nextBatch: 0, pending: 0, outSince: null, t0: null, xp: 0, mobGold: 0, kills: 0 };
+  const run = { p, slot: -1, level: p.level, mode: arenaModeOf(), phase: 'wait', wave: 0, cleared: 0, gold: 0, until: 0, n: 0, askAt: game.time, lastMsgAt: game.time, lives: ARENA.lives, nextBatch: 0, pending: 0, outSince: null, t0: null, xp: 0, mobGold: 0, kills: 0,
+    mates: mate ? [mate] : [], waitFor: mate || null };
   game.arenaRun = run;
   if (run.mode === 'client') {
-    netSocial('host', { k: 'arq', l: p.level });
+    netSocial('host', join != null ? { k: 'arj', s: join | 0, l: p.level } : { k: 'arq', l: p.level, ...(mate ? { pn: mate } : {}) });
     ui.closePanels();
-    ui.log('Der Arenameister bereitet deine Halle vor …', 'info');
+    ui.log(join != null ? 'Du gehst mit in die Halle …' : mate ? 'Der Arenameister bereitet eure Halle vor – dein Gruppenmitglied wird eingeladen …' : 'Der Arenameister bereitet deine Halle vor …', 'info');
     return;
   }
-  const s = arenaAlloc('me', p.level);
+  if (join != null) {
+    const why = arenaJoin('me', join, p.level);
+    if (why) {
+      game.arenaRun = null;
+      ui.log(why, 'warn');
+      return;
+    }
+    arenaGo(join | 0);
+    return;
+  }
+  const s = arenaAlloc('me', p.level, mate);
   if (s < 0) {
     game.arenaRun = null;
     ui.log('Alle Hallen der Arena sind gerade belegt. Versuch es gleich noch einmal.', 'warn');
     return;
+  }
+  if (mate && !arenaInvite(arenaHost.slots[s], s)) {
+    arenaHost.slots[s].invite = null;
+    run.waitFor = null;
+    run.mates = [];
+    ui.log('Dein Gruppenmitglied ist gerade nicht im Kanal – du gehst allein.', 'warn');
   }
   arenaGo(s);
 }
@@ -472,7 +644,7 @@ function arenaGo(s) {
   const p = game.player;
   moveThrough(arenaEntry(s), ARENA.gate);
   arenaSave(p).runs++;
-  ui.banner('Prüfungsarena', 'Allein gegen alle Wellen – viel Glück!');
+  ui.banner('Prüfungsarena', run.mates && run.mates.length ? 'Zu zweit gegen alle Wellen – viel Glück!' : 'Allein gegen alle Wellen – viel Glück!');
   saveGame();
 }
 // Gold eines früheren Laufs, das nicht mehr ausgezahlt wurde (Spiel zu, Seite neu geladen): jetzt auszahlen
@@ -504,7 +676,7 @@ function arenaStop(why) {
     if (why !== 'host') netSocial('host', { k: 'arx' });
     // Monster der Halle verschwinden auch hier
     arenaPurge(run.slot);
-  } else if (run.slot >= 0 && arenaHost.slots[run.slot] && arenaHost.slots[run.slot].owner === 'me') arenaFree(run.slot);
+  } else if (run.slot >= 0 && arenaHost.slots[run.slot]) arenaDrop(run.slot, 'me', null); // zu zweit kämpft der andere weiter
   const txt = !run.cleared ? 'Keine Welle geschafft' : lost ? `${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} geschafft · ${arenaFmt(run.gold)} Gold verloren`
     : `${run.cleared} ${run.cleared === 1 ? 'Welle' : 'Wellen'} geschafft · ${arenaFmt(run.gold)} Gold ausgezahlt`;
   ui.banner(lost ? 'Herausforderung verloren' : 'Herausforderung beendet', txt);
@@ -608,6 +780,17 @@ function arenaOnMsg(d) {
     }
     return;
   }
+  // seit 14.32: Einladung eines Gruppenmitglieds in seine Halle (zu zweit)
+  if (d.k === 'ari') {
+    const from = String(d.n || '');
+    if (run || p.dead || p.level < ARENA.minLevel || !(typeof inMyParty === 'function' && inMyParty(from))) {
+      arenaAnswerHost({ k: 'ard', s: d.s | 0 });
+      return;
+    }
+    const ask = `<b>${escapeHtml(from)}</b> geht in die Prüfungsarena und nimmt dich mit – zu zweit gegen alle Wellen. Mitkommen?`;
+    inviteToast(ask, () => arenaEnter(null, d.s | 0), () => arenaAnswerHost({ k: 'ard', s: d.s | 0 }));
+    return;
+  }
   if (!run) return;
   run.lastMsgAt = game.time;
   if (d.k === 'arp') {
@@ -621,6 +804,7 @@ function arenaOnMsg(d) {
   } else if (d.k === 'arf') {
     run.phase = 'fight';
     run.wave = d.w | 0;
+    run.players = d.pl === 2 ? 2 : 1; // seit 14.32: zu zweit gerechnete Welle
     run.n = d.n | 0;
     run.spawned = 0;
     run.pending = run.n;
@@ -650,21 +834,60 @@ function arenaOnMsg(d) {
     saveGame();
   } else if (d.k === 'are') {
     arenaStop('host');
+  } else if (d.k === 'arm') {
+    // seit 14.32: wer in der Halle ist (zu zweit); l = wer gerade herausgefallen ist
+    const me = p.name;
+    run.mates = (Array.isArray(d.n) ? d.n : []).map(String).filter((n) => n && n !== me).slice(0, 1);
+    if (run.waitFor && run.mates.includes(run.waitFor)) {
+      ui.log('Dein Gruppenmitglied ist dabei – ihr kämpft zu zweit.', 'level');
+      run.waitFor = null;
+    }
+    if (d.l && d.l !== me) ui.log('Dein Mitstreiter hat die Arena verlassen – du kämpfst allein weiter (ab der nächsten Welle wieder für einen).', 'warn');
+  } else if (d.k === 'arv') {
+    // Einladung abgelehnt oder nicht angenommen: allein
+    if (run.waitFor) ui.log('Dein Gruppenmitglied kommt nicht mit – du kämpfst allein.', 'warn');
+    run.waitFor = null;
+    run.mates = [];
   }
   arenaHud();
+}
+// Antwort an den, der die Hallen führt (Host, oder man selbst)
+function arenaAnswerHost(d) {
+  if (net.mode === 'client') netSocial('host', d);
+  else arenaSocial('me', d);
 }
 // Mitspieler ↔ Host (über onSocial)
 function arenaSocial(pid, d) {
   if (d.k === 'arq') {
     if (net.mode !== 'host') return;
-    const s = arenaAlloc(pid, d.l);
-    netSocial(pid, s < 0 ? { k: 'arn', r: 'Alle Hallen der Arena sind gerade belegt. Versuch es gleich noch einmal.' } : { k: 'arg', s });
+    // zu zweit (seit 14.32): pn = Gruppenmitglied, das eingeladen wird; ist es nicht im Kanal, geht es allein
+    const mate = typeof d.pn === 'string' && d.pn ? d.pn.slice(0, 40) : null;
+    const s = arenaAlloc(pid, d.l, mate);
+    if (s < 0) {
+      netSocial(pid, { k: 'arn', r: 'Alle Hallen der Arena sind gerade belegt. Versuch es gleich noch einmal.' });
+      return;
+    }
+    netSocial(pid, { k: 'arg', s });
+    if (mate && !arenaInvite(arenaHost.slots[s], s)) arenaUninvite(arenaHost.slots[s], 'nicht im Kanal');
+    return;
+  }
+  // seit 14.32: Beitritt (arj) und Absage (ard) des eingeladenen Mitglieds – geprüft nur hier beim Host
+  if (d.k === 'arj') {
+    if (net.mode !== 'host') return;
+    const why = arenaJoin(pid, d.s, d.l);
+    netSocial(pid, why ? { k: 'arn', r: why } : { k: 'arg', s: d.s | 0 });
+    return;
+  }
+  if (d.k === 'ard') {
+    if (pid !== 'me' && net.mode !== 'host') return;
+    const S = arenaHost.slots[d.s | 0];
+    if (S && S.invite && S.invite === arenaMemberName(pid)) arenaUninvite(S, 'abgelehnt');
     return;
   }
   if (d.k === 'arx') {
     if (net.mode !== 'host') return;
-    const s = arenaHost.slots.findIndex((S) => S && S.owner === pid);
-    if (s >= 0) arenaFree(s);
+    const s = arenaHost.slots.findIndex((S) => S && S.members.includes(pid));
+    if (s >= 0) arenaDrop(s, pid, null);
     return;
   }
   if (pid === 'host' || net.mode !== 'host') arenaOnMsg(d);
@@ -715,7 +938,7 @@ function arenaTick() {
   // anderer Charakter gestartet: alter Lauf und eigene Halle verfallen
   if (game.arenaRun && game.arenaRun.p !== p) {
     game.arenaRun = null;
-    arenaHost.slots.forEach((S, s) => { if (S && S.owner === 'me') arenaFree(s); });
+    arenaHost.slots.forEach((S, s) => { if (S && S.members.includes('me')) arenaDrop(s, 'me', null); });
   }
   const run = game.arenaRun;
   const here = arenaSlotAt(p.x, p.y);
@@ -778,10 +1001,14 @@ raidWatch = function () {
 
 // --- Belohnung je Monster (seit 13.70): volle Erfahrung und normales Kill-Gold, aber keine Gegenstände, Steine,
 // Tränke oder Material ----------------------------------------------------------------------------------------------
+// seit 14.32 zu zweit: jeder bekommt jeden Kill in der Halle, es sind aber 1,5-mal so viele Monster – je Monster daher
+// nur 1/1,5 der EP und des Golds, so bringt eine Welle jedem genau so viel wie allein (keine Abkürzung über Duo-Läufe)
 function arenaKillReward(m) {
   const p = game.player;
-  const xp = Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level)));
-  const gold = m.gold ? randInt(m.gold[0], m.gold[1]) : 0;
+  const run0 = game.arenaRun;
+  const k = run0 && run0.players >= 2 ? 1 / ARENA.duo.n : 1;
+  const xp = Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level) * k));
+  const gold = m.gold ? Math.round(randInt(m.gold[0], m.gold[1]) * k) : 0;
   p.gold += gold;
   if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold + ' Gold', 'gold');
   p.kills++;
@@ -970,7 +1197,7 @@ function arenaHud() {
     return;
   }
   const pause = Math.max(0, Math.ceil(run.until - game.time));
-  const left = run.phase === 'pause' ? (t ? `Pause ${pause} s` : `Nächste Welle in ${pause} s`) : run.phase === 'fight' ? (t ? `${rest} Mon.` : `Noch ${rest} Monster`) : (t ? '…' : 'Gleich geht es los');
+  const left = run.phase === 'pause' ? (t ? `Pause ${pause} s` : `Nächste Welle in ${pause} s`) : run.phase === 'fight' ? (t ? `${rest} Mon.` : `Noch ${rest} Monster`) : run.waitFor ? 'Warte auf Mitspieler' : (t ? '…' : 'Gleich geht es los');
   const next = run.phase === 'fight' && run.nextBatch > game.time ? `Nächster Schub in ${Math.ceil(run.nextBatch - game.time)} s` : run.phase === 'pause' && t ? `Nächste Welle in ${pause} s` : '';
   const w = t ? `W${Math.max(1, run.wave)}` : `Welle ${Math.max(1, run.wave)}`;
   const hearts = `${'♥'.repeat(run.lives)}${'♡'.repeat(Math.max(0, ARENA.lives - run.lives))}`;
@@ -1033,13 +1260,14 @@ function arenaHudPc(el, run, rest) {
     nx = `<div class="nx">${run.cleared ? 'Nächste Welle' : 'Welle 1'} in <b>${Math.ceil(left)}</b> s<div class="bar"><i style="width:${Math.round(Math.max(0, 1 - left / (run.pauseLen || ARENA.pause)) * 100)}%;background:#ffc85a"></i></div></div>`;
   } else if (run.phase === 'fight' && run.nextBatch > now) {
     nx = `<div class="nx">Nächster Schub in <b>${Math.ceil(run.nextBatch - now)}</b> s</div>`;
-  } else if (run.phase !== 'fight') nx = '<div class="nx">Gleich geht es los …</div>';
+  } else if (run.phase !== 'fight') nx = run.waitFor ? '<div class="nx">Warte auf dein Gruppenmitglied …</div>' : '<div class="nx">Gleich geht es los …</div>';
   const kind = W && W.boss ? '<small>Wellenmeister</small>' : W && W.elites ? '<small>mit Elite</small>' : '';
   const hearts = `${'♥'.repeat(run.lives)}${'♡'.repeat(Math.max(0, ARENA.lives - run.lives))}`;
-  const key = [wave, rest, run.phase, Math.ceil((run.until || 0) - now), Math.ceil((run.nextBatch || 0) - now), run.lives, run.gold].join('|');
+  const mate = run.mates && run.mates[0];
+  const key = [wave, rest, run.phase, Math.ceil((run.until || 0) - now), Math.ceil((run.nextBatch || 0) - now), run.lives, run.gold, mate, run.waitFor].join('|');
   if (key === arenaUi.key) return;
   arenaUi.key = key;
-  el.innerHTML = `<div class="hd"><b>Prüfungsarena</b><span class="wv">Welle ${wave}</span></div>` +
+  el.innerHTML = `<div class="hd"><b>Prüfungsarena${mate ? ' <small>zu zweit</small>' : ''}</b><span class="wv">Welle ${wave}</span></div>` +
     `<div class="bd"><div class="row"><span>${run.phase === 'fight' ? `Noch <b>${rest}</b> von ${n} Monstern` : run.phase === 'pause' && run.cleared ? `Welle ${run.cleared} geschafft!` : 'Bereit machen'}</span>${kind}</div>` +
     `<div class="bar"><i style="width:${Math.round(done * 100)}%;background:linear-gradient(90deg,#c8642a,#ffc86a)"></i></div>` +
     `${nx}<div class="row"><span class="hearts" title="Leben in diesem Lauf">${hearts}</span><span class="gold">${arenaFmt(run.gold)} Gold</span></div>` +
@@ -1055,19 +1283,23 @@ function arenaRenderMaster(npc) {
   const low = L < ARENA.minLevel;
   const rows = [1, 2, 5, 10, 15, 20].map((w) => `<li>Welle ${w}: ${arenaFmt(arenaGold(L, w))} Gold</li>`).join('');
   const party = game.party && game.party.members && game.party.members.length > 1;
+  // seit 14.32 zu zweit: ein Gruppenmitglied im Kanal mitnehmen (es bekommt eine Einladung)
+  const mates = arenaMates();
+  const off = low || game.arenaRun ? 'disabled' : '';
   body.innerHTML =
-    `<p class="quest-step">Herausforderung · allein · ab Stufe ${ARENA.minLevel}</p>` +
-    `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du ganz allein gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
+    `<p class="quest-step">Herausforderung · allein oder zu zweit · ab Stufe ${ARENA.minLevel}</p>` +
+    `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du allein oder mit einem Gruppenmitglied gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
     `<p><strong>Gold je geschaffter Welle:</strong></p><ul class="reward-list">${rows}</ul>` +
     `<p>Bis Welle 10 zusammen: ${arenaFmt(arenaGoldSum(10, L))} Gold</p>` +
     `<p class="hint-text">Die Monster kommen in Schüben nach der Uhr, nicht erst, wenn eines fällt. Sie geben volle Erfahrung und ihr normales Gold, aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
     `<p class="hint-text">Du hast ${ARENA.lives} Leben. Nach einem Tod startest du in der Arena neu; beim dritten Tod ist der Lauf vorbei und das gesammelte Gold verloren. Das Wellengold wird ausgezahlt, wenn du die Arena verlässt oder aufgibst.</p>` +
-    (party ? '<p class="hint-text">Deine Gruppe wartet draußen – in die Arena geht jeder allein.</p>' : '') +
+    `<p class="hint-text">Zu zweit: höchstens zwei Spieler je Halle, beide aus derselben Gruppe. Es kommen ${String(ARENA.duo.n).replace('.', ',')}-mal so viele Monster mit ${Math.round((ARENA.duo.hp - 1) * 100)} % mehr Leben und ${Math.round((ARENA.duo.atk - 1) * 100)} % mehr Schaden. Wellengold, Erfahrung und Gold der Monster bekommt jeder so viel wie allein.</p>` +
+    (party && !mates.length ? '<p class="hint-text">Für zu zweit muss ein Gruppenmitglied im selben Kanal sein.</p>' : '') +
     `<p>Deine Bestwelle: <b>${A.best || 0}</b></p>` +
     `<p>Läufe: ${A.runs || 0} · Gold aus der Arena: ${arenaFmt(A.gold || 0)}</p>` +
-    `<button type="button" class="btn btn-primary" data-arena="go" ${low || game.arenaRun ? 'disabled' : ''}>${low ? `Ab Stufe ${ARENA.minLevel}` : 'Arena betreten'}</button>`;
-  const b = body.querySelector('[data-arena]');
-  if (b) b.addEventListener('click', () => arenaEnter());
+    `<button type="button" class="btn btn-primary" data-arena="go" ${off}>${low ? `Ab Stufe ${ARENA.minLevel}` : mates.length ? 'Allein betreten' : 'Arena betreten'}</button>` +
+    mates.slice(0, 7).map((n, i) => ` <button type="button" class="btn" data-arena="duo" data-i="${i}" ${off}>Zu zweit mit <b class="no-tr">${escapeHtml(n)}</b></button>`).join('');
+  for (const b of body.querySelectorAll('[data-arena]')) b.addEventListener('click', () => arenaEnter(b.dataset.arena === 'duo' ? mates[+b.dataset.i] : null));
 }
 function arenaRenderExit() {
   const run = game.arenaRun;
@@ -1095,7 +1327,7 @@ ui.openNpc = function (npc) {
 };
 NPC_TALK_LABEL.arena = 'Herausforderung';
 if (!SAVE_FIELDS.includes('arena')) SAVE_FIELDS.push('arena');
-NPC_LINES.arena = ['Allein in die Arena – und mit vollen Taschen zurück.'];
+NPC_LINES.arena = ['Allein oder zu zweit in die Arena – und mit vollen Taschen zurück.'];
 
 // --- Aussehen des Arenameisters ----------------------------------------------------------------------------------
 // Veteran der Arena: Brustpanzer, roter Umhang, goldener Helm mit rotem Busch, ein Langschwert

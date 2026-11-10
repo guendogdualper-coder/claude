@@ -439,14 +439,16 @@ function netHostDamage(rp, d) {
     if (st.uf) { m.frozen = 0; m.stun = 0; }
   }
   m.lastAttacker = rp;
+  // seit 14.32: Treffer seines Dieners (al = Platz) – Bedrohung und Aggro gehen an den Diener
+  const src = d.al != null && rp.allies ? rp.allies.find((a) => a.slot === (d.al | 0)) || rp : rp;
   // Hält der Mitspieler den Treffer für tödlich, stirbt das Monster – auch wenn der Host noch etwas mehr
   // Leben sieht (Zeitversatz, Erholen beim Zurücklaufen). Sonst stünde es beim Mitspieler mit wenig Leben wieder auf.
   if (d.k && d.a > 0) {
-    damageMonster(m, Math.max(d.a, Math.ceil(m.hp)), !!d.c, rp, false);
+    damageMonster(m, Math.max(d.a, Math.ceil(m.hp)), !!d.c, src, false);
     return;
   }
-  if (d.a > 0) damageMonster(m, d.a, !!d.c, rp, false);
-  else aggro(m, rp);
+  if (d.a > 0) damageMonster(m, d.a, !!d.c, src, false);
+  else aggro(m, src);
 }
 
 function netBroadcastKill(m) {
@@ -575,6 +577,15 @@ function netOnClientData(d) {
         addEffect({ type: 'claw', x: bc.x, y: bc.y, dur: 0.25, color: '#ff5a4a' });
       }
       damagePlayer(calcDamage(d.atk, d.mul, game.stats.def, 0.03, d.lvl).amount, m || null);
+      break;
+    }
+    case 'ahit': {
+      // seit 14.32: ein Monster des Hosts trifft einen eigenen Diener (Platz s)
+      const a = game.allies.find((x) => x.slot === (d.s | 0));
+      if (!a || !(a.hp > 0)) break;
+      const m = net.mons.get(d.id);
+      if (m) monsterStrikeFx(m, a);
+      damageAlly(a, calcDamage(+d.atk || 0, 1, a.def, 0, +d.lvl || 1).amount);
       break;
     }
     case 'proj':
@@ -742,7 +753,7 @@ function netApplySnapshot(d) {
 
 const NET_PEND_KEEP = 2;
 // Treffer beim Mitspieler: sofort anzeigen, an den Host schicken
-function netClientDamage(m, amount, crit, isDot) {
+function netClientDamage(m, amount, crit, isDot, source) {
   if (m.dead) return;
   const st = {};
   if (m.stun > 0) st.s = +m.stun.toFixed(2);
@@ -777,7 +788,9 @@ function netClientDamage(m, amount, crit, isDot) {
   // Fällt das Leben auf 0, stirbt das Monster sofort (nicht erst bei 1 HP stehen bleiben). Der Host
   // bestätigt den Tod und schickt die Belohnung; er erkennt den tödlichen Treffer auch bei kleinen Abweichungen.
   const lethal = m.hp <= 0;
-  netSend({ t: 'dmg', id: m.id, a: amount, c: crit ? 1 : 0, st, k: lethal ? 1 : 0 });
+  // seit 14.32: Treffer eines eigenen Dieners mit seinem Platz (al), damit der Host ihm die Bedrohung gibt
+  const al = source && source.ally && game.allies.includes(source) ? { al: source.slot | 0 } : null;
+  netSend({ t: 'dmg', id: m.id, a: amount, c: crit ? 1 : 0, st, k: lethal ? 1 : 0, ...al });
   if (lethal) {
     m.hp = 0;
     m.dead = true;
@@ -977,7 +990,8 @@ function netApplyState(rp, s) {
 
 const NET_NO_ALLIES = [];
 
-// Diener eines Mitspielers (seit 8.5): je Platz ein stabiles Objekt, nur zum Ansehen (kein Ziel, kein Schaden)
+// Diener eines Mitspielers (seit 8.5): je Platz ein stabiles Objekt. Bis 14.31 nur zum Ansehen; seit 14.32 beim Host
+// auch Ziel der Monster (Bedrohung, gegner.js) – den Schaden zieht das Gerät des Herrn ab (Nachricht ahit)
 function netRemoteAllies(rp, list) {
   // nach festem Platz (slot) zuordnen: stirbt ein Diener, rutschen die anderen nicht nach (ältere Clients: Index)
   const old = rp.allies || (rp.allies = []);
@@ -994,7 +1008,7 @@ function netRemoteAllies(rp, list) {
       // seit 13.94: Art aus der Stufe (Knochendrache, Seelenkoloss)
       const T = tiers[tier];
       al = {
-        id: 2e6 + slot, slot, remoteAlly: true, kind: T ? T.kind : tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: T && T.r ? T.r : tier ? 12 : 10,
+        id: 2e6 + slot, slot, remoteAlly: true, owner: rp, kind: T ? T.kind : tier ? 'hund' : 'skelett', tier, x, y, tx: x, ty: y, r: T && T.r ? T.r : tier ? 12 : 10,
         facing: 1, moving: false, attackAnim: 0, swing: 0, windup: 0, windupMax: 0.15, alpha: false, scale: 1,
         born: f & 8 ? game.time : game.time - 1, rise: 0.6, target: null, rising: false
       };
