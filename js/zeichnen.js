@@ -394,9 +394,12 @@ const RIDE_HEIGHT = 20;
 // seit 14.27: auf dem Drachen sitzt man höher (er schwebt und wiegt sich im Flügeltakt)
 const DRAGON_RIDE_H = 52;
 const dragonBob2d = (p) => Math.sin(game.time * 6.6 + (p.x % 7)) * 1.6;
+// seit 14.32: am Boden (Dungeon, Instanz, Arena, Duell) sitzt man tiefer und ohne Schweben
+const DRAGON_GROUND_DROP = 12;
 function rideHeight(p) {
   if (!p || !p.riding) return 0;
-  return rideTierOf(p) === 3 ? DRAGON_RIDE_H + dragonBob2d(p) : RIDE_HEIGHT;
+  if (rideTierOf(p) !== 3) return RIDE_HEIGHT;
+  return p.dragonGround ? DRAGON_RIDE_H - DRAGON_GROUND_DROP + (p.moving ? Math.abs(Math.sin(game.time * 8 + (p.x % 7))) * 1.2 : 0) : DRAGON_RIDE_H + dragonBob2d(p);
 }
 function horseSprite(frame, saddle, tier = 1) {
   if (tier === 3) return getSprite(`dragon:${frame}:${saddle}`, { x: -84, y: -116, w: 146, h: 120 }, (ctx) => { ctx.scale(1.3, 1.3); dragonMountArt(ctx, frame, { saddle }); });
@@ -518,9 +521,12 @@ function drawPlayer(ctx, p) {
 
   drawBuffLooks(ctx, p, fy, 'back');
   if (p.riding && rideTierOf(p) === 3) {
-    // Drache: Schatten am Boden, er selbst schwebt und schlägt immer mit den Flügeln (auch im Stand)
+    // Drache: Schatten am Boden, er selbst schwebt und schlägt immer mit den Flügeln (auch im Stand);
+    // seit 14.32 am Boden (p.dragonGround): Flügel ruhig, er sitzt tiefer und wippt nur beim Laufen
     drawShadow(ctx, p.x, fy, 26);
-    blitSprite(ctx, horseSprite(Math.floor(game.time * 7) % 4, CLASSES[p.classId].trim, 3), p.x, fy - (ride - leapH - DRAGON_RIDE_H), flip);
+    const ground = p.dragonGround;
+    const frame = ground ? (p.moving ? [1, 3][Math.floor(game.time * 6) % 2] : 1) : Math.floor(game.time * 7) % 4;
+    blitSprite(ctx, horseSprite(frame, CLASSES[p.classId].trim, 3), p.x, fy - (ride - leapH - DRAGON_RIDE_H), flip);
   } else if (p.riding) {
     drawShadow(ctx, p.x, fy, 22);
     blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim, rideTierOf(p)), p.x, fy, flip);

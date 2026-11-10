@@ -32,6 +32,8 @@ const DRACHE3 = {
   hzHover: 1.1,
   hzMove: 1.4,
   hzLift: 1.6,
+  // seit 14.32: Schritte je Sekunde beim Gehen am Boden (Diagonalgang, Tempo des Kriegsrosses)
+  hzWalk: 1.7,
   // Dauer Abheben bzw. Landen (Sekunden)
   upTime: 1.2,
   downTime: 1.1,
@@ -645,9 +647,30 @@ function dragonMountPose3(a, t, o) {
       B[l].rotation.x = 0.55 * tuck + 0.5 * crouch + 0.2 * flare * L;
     }
   }
-  if (idle > 0.01) {
-    B[DRB3.legBR].rotation.x += -0.08 * idle;
-    B[DRB3.lowBR].rotation.x += 0.16 * idle;
+  // seit 14.32: Gehen am Boden (Drache in Dungeons, Instanzen, Arenen): Diagonalgang wie eine Echse – vorne links mit
+  // hinten rechts, dann umgekehrt; der Rumpf wiegt sich, der Schwanz pendelt weiter aus, Flügel bleiben angelegt
+  const walk = (o.walk || 0) * (1 - L);
+  if (walk > 0.01) {
+    const wp = TAU * (o.wph || 0);
+    const sA = Math.sin(wp);
+    const sB = Math.sin(wp + Math.PI);
+    const lift = (x) => Math.max(0, Math.cos(x));
+    const step = [[DRB3.legFL, DRB3.lowFL, sA, wp, 1], [DRB3.legBR, DRB3.lowBR, sA, wp, -1], [DRB3.legFR, DRB3.lowFR, sB, wp + Math.PI, 1], [DRB3.legBL, DRB3.lowBL, sB, wp + Math.PI, -1]];
+    for (const [u, l, sw, ph, dir] of step) {
+      B[u].rotation.x += walk * 0.42 * sw * dir;
+      B[l].rotation.x += walk * (dir > 0 ? -0.55 : 0.45) * lift(ph);
+    }
+    body.position.y += walk * 0.035 * Math.abs(Math.cos(wp));
+    B[DRB3.root].rotation.z += walk * 0.035 * sA;
+    body.rotation.y += walk * 0.05 * sA;
+    B[DRB3.hips].rotation.y += -walk * 0.07 * sA;
+    B[DRB3.neck].rotation.x += walk * 0.08;
+    B[DRB3.head].rotation.x += -walk * 0.04 * Math.abs(sA);
+    for (let k = 0; k < 4; k++) B[tails[k]].rotation.y += walk * (0.08 + 0.04 * k) * Math.sin(wp - k * 0.7);
+  }
+  if (idle > 0.01 && walk < 0.5) {
+    B[DRB3.legBR].rotation.x += -0.08 * idle * (1 - walk * 2);
+    B[DRB3.lowBR].rotation.x += 0.16 * idle * (1 - walk * 2);
   }
   return { lift: rise * a.model.scale, L };
 }
@@ -656,6 +679,10 @@ function dragonMountPose3(a, t, o) {
 // a.dm.mode ist 'stand' | 'takeoff' | 'fly' | 'land'.
 function dragonMountAnim3(a, t, dt, want, moving) {
   const S = a.dm || (a.dm = { air: 0, open: 0, ph: 0, flare: 0, mode: 'stand' });
+  // seit 14.32: Gehen am Boden (want 'stand' und in Bewegung): Schrittphase und weiches Ein-/Ausblenden
+  const walking = want !== 'fly' && moving;
+  S.walk = (S.walk || 0) + ((walking ? 1 : 0) - (S.walk || 0)) * Math.min(1, dt * 7);
+  S.wph = ((S.wph || 0) + dt * DRACHE3.hzWalk * (S.walk > 0.02 ? 1 : 0)) % 1;
   dt = Math.min(0.1, Math.max(0, dt));
   if (want === 'fly') {
     S.air = Math.min(1, S.air + dt / DRACHE3.upTime);
@@ -671,7 +698,7 @@ function dragonMountAnim3(a, t, dt, want, moving) {
   if (S.open > 0) S.ph = (S.ph + dt * hz) % 1;
   // angelegt: Phase auf „Flügel oben“ zurücklaufen lassen, damit das nächste Abheben mit dem Abschlag beginnt
   else S.ph = 0;
-  return dragonMountPose3(a, t, { air: S.air, open: S.open, ph: S.ph, flare: S.flare, moving });
+  return dragonMountPose3(a, t, { air: S.air, open: S.open, ph: S.ph, flare: S.flare, moving: moving && want === 'fly', walk: S.walk, wph: S.wph });
 }
 
 // Sattelpunkt in Weltkoordinaten (nach der Haltung aufrufen) und Neigung des Rumpfs für den Reiter
@@ -719,7 +746,8 @@ function rideDragon3(p, a, B, t, fy) {
   const off = DRACHE3.seat[2] * d.model.scale;
   d.group.position.set(p.x * U3 - Math.sin(h) * off, 0, fy * U3 - Math.cos(h) * off);
   d.group.rotation.y = h;
-  const r = dragonMountAnim3(d, t, dt, 'fly', !!p.moving);
+  // seit 14.32: wo er nicht fliegen darf (p.dragonGround: Dungeon, Instanz, Arena, Duell), steht und geht er am Boden
+  const r = dragonMountAnim3(d, t, dt, p.dragonGround ? 'stand' : 'fly', !!p.moving);
   d.blob.scale.setScalar(d.model.blob * (1 - 0.35 * Math.min(1, r.lift / 2.5)));
   const s = dragonSeat3(d);
   B[BH.legL].rotation.set(-0.95, 0, 1.12);

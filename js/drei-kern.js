@@ -1448,6 +1448,33 @@ function groundTextures() {
 // er, und man sähe weder Struktur noch Glitzern); Pflastersteine mit Fugen. Zuletzt leuchten auf Schnee
 // Glitzerpunkte auf, je nach Blickrichtung (sie blitzen, wenn sich die Kamera bewegt).
 // (In den Shader-Texten stehen keine Kommentare: Umlaute darin mögen manche Grafiktreiber nicht.)
+// Höhlenwände zwischen Kamera und Figur absenken (seit 14.32, wie das Ausblenden der Hausdächer, v3SyncHouses):
+// In Dungeons, Instanzen und den Arenahallen (V3.home.dungeon) sinken die Felswände im Streifen von der Figur zur
+// Kamera bis auf einen niedrigen Sockel, damit sie weder die eigene Figur noch Monster und Mitspieler davor
+// verdecken. Nur im Bild: Kollision, Wegsuche und Karte bleiben, wie sie sind. Beim Verlassen wachsen sie weich
+// zurück. uCut: Figur (x, z) und Richtung zur Kamera; uCutP: Stärke 0–1, Länge und Breite des Streifens.
+const CUT3 = { pos: new THREE.Vector4(0, 0, 0, 1), par: new THREE.Vector4(0, 12, 3.2, 0) };
+const CUT3_UNIFORMS = { uCut: { value: CUT3.pos }, uCutP: { value: CUT3.par } };
+function v3SyncCut(dt) {
+  const p = game.player;
+  const H = V3.home;
+  const want = p && game.running && !p.dead && H && H.dungeon ? 1 : 0;
+  const k = CUT3.par.x + Math.sign(want - CUT3.par.x) * Math.min(Math.abs(want - CUT3.par.x), Math.min(0.1, dt || 0.016) * 3);
+  CUT3.par.x = k;
+  if (!p || k <= 0) return;
+  const px = p.x * U3;
+  const pz = feetY(p) * U3;
+  const cam = V3.camera.position;
+  let dx = cam.x - px;
+  let dz = cam.z - pz;
+  const l = Math.hypot(dx, dz);
+  if (l < 0.01) { dx = 0; dz = 1; } else { dx /= l; dz /= l; }
+  CUT3.pos.set(px, pz, dx, dz);
+  // Länge: bis hinter die Kamera; Breite wächst mit der Entfernung (Blickkegel), steiler Blick braucht weniger
+  CUT3.par.y = l + 2.5;
+  CUT3.par.z = 3.2;
+  CUT3.par.w = 0.5;
+}
 function groundMat() {
   return mat3('ground', () => {
     const tex = groundTextures();
@@ -1456,9 +1483,22 @@ function groundMat() {
       sh.uniforms.tNoise = { value: tex.noise };
       sh.uniforms.tCobble = { value: tex.cobble };
       sh.uniforms.tMacro = { value: tex.macro };
+      sh.uniforms.uCut = CUT3_UNIFORMS.uCut;
+      sh.uniforms.uCutP = CUT3_UNIFORMS.uCutP;
       sh.vertexShader = sh.vertexShader
-        .replace('void main() {', 'attribute vec4 soil;\nattribute vec3 soil2;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvSoil = soil;\n\tvSoil2 = soil2;\n\tvGW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        .replace('void main() {', 'attribute vec4 soil;\nattribute vec3 soil2;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nuniform vec4 uCut;\nuniform vec4 uCutP;\nvoid main() {')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+	if (uCutP.x > 0.0 && transformed.y > 0.14) {
+		vec2 cRel = (modelMatrix * vec4(transformed, 1.0)).xz - uCut.xy;
+		float cAl = dot(cRel, uCut.zw);
+		float cLa = abs(cRel.x * uCut.w - cRel.y * uCut.z);
+		float cK = uCutP.x * smoothstep(-0.9, 0.6, cAl) * (1.0 - smoothstep(uCutP.z, uCutP.z + 2.2, cLa - max(cAl, 0.0) * uCutP.w)) * (1.0 - smoothstep(uCutP.y, uCutP.y + 3.0, cAl));
+		transformed.y = mix(transformed.y, 0.14 + transformed.y * 0.1, cK);
+		vNormal = normalize(mix(vNormal, normalize(normalMatrix * vec3(0.0, 1.0, 0.0)), cK));
+	}
+	vSoil = soil;
+	vSoil2 = soil2;
+	vGW = (modelMatrix * vec4(transformed, 1.0)).xyz;`);
       sh.fragmentShader = sh.fragmentShader
         .replace('void main() {', 'uniform sampler2D tNoise;\nuniform sampler2D tCobble;\nuniform sampler2D tMacro;\nvarying vec4 vSoil;\nvarying vec3 vSoil2;\nvarying vec3 vGW;\nvoid main() {')
         .replace('#include <color_fragment>', `#include <color_fragment>
@@ -2216,6 +2256,8 @@ function renderDrei() {
   }
   // seit 13.91: Dach und Vorderwand des Hauses, in dem man steht, ausblenden (drei-welt.js)
   v3SyncHouses();
+  // seit 14.32: im Dungeon die Felswände zwischen Kamera und Figur absenken (groundMat)
+  v3SyncCut(dt);
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
   if (!(typeof gpRender === 'function' && gpRender())) V3.gl.render(V3.scene, V3.camera);
   // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
