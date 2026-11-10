@@ -831,7 +831,8 @@ function endgameEliteTick(m, dt) {
   if (m.healCd > 0) return false;
   let best = null;
   let bk = ENDGAME.healBelow;
-  for (const o of areaList(m)) {
+  // bleibt (14.38) bei allen Monstern: läuft je Heilerin höchstens einmal je Sekunde, nicht je Treffer
+  for (const o of game.monsters) {
     if (o.dead || o.isStone || o === m || (!o.elite80 && !isEndgameBoss(o))) continue;
     if (Math.hypot(o.x - m.x, o.y - m.y) > ENDGAME.healRange) continue;
     const k = o.hp / o.maxHp;
