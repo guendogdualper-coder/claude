@@ -456,6 +456,9 @@ function damageMonster(m, amount, crit, source, isDot) {
   }
   if (source && (source === game.player || source.remote)) m.lastAttacker = source;
   if (source && !source.remote) m.hostHitAt = game.time;
+  // seit 14.32: Beteiligung für die Belohnung (netTag, netz.js) – eigene Treffer und die der eigenen Diener zählen für
+  // die eigene Figur, Treffer der Mitspieler markiert netHostDamage; Ticks von Schaden über Zeit markieren nicht
+  if (source && !isDot && !source.remote && game.player) netTag(m, game.player.name);
   // auch Treffer der Mitspieler (über den Host) zählen: so heilt sich kein Monster, das gerade bekämpft wird
   m.struckAt = game.time;
   m.hp -= amount;
@@ -490,8 +493,9 @@ function killMonster(m) {
   monsterDeathFx(m);
   m.respawnAt = game.time + monsterRespawnDelay(m);
   if (net.mode === 'host') netBroadcastKill(m);
-  // Belohnung nur, wer mitgekämpft hat oder in der Nähe war (allein: immer)
-  if (net.mode !== 'host' || netShares(m, m.hostHitAt)) rewardKill(m);
+  // Belohnung (seit 14.32): allein immer, als Host nur wer mitgekämpft hat bzw. mit einem Kämpfer in der Gruppe ist
+  if (net.mode !== 'host' || netEligible(m, netTagList(m))) rewardKill(m);
+  m.tags = null;
   if (m.isStone) killStoneMinions(m);
   // Gruppe rächt ihr Mitglied (seit 13.10): auch nach einem Treffer, der sofort tötet – etwa aus der Tarnung,
   // in der die anderen den Angreifer im ersten Augenblick noch nicht sehen – kommt der Rest kurz danach
@@ -773,9 +777,11 @@ const KIND_BASIC = {
   // seit 14.13 0,66 statt 0,6 (der Dolch-Ninja war nach 14.6/14.10 der schwächste Weg)
   dagger: { range: 46, cooldown: 0.46, ranged: false, mul: 0.66 },
   // seit 13.67 weiter (400 statt 250): Pfeile tragen deutlich weiter als Zauber
+  // seit 14.32 520 statt 400: so weit wie Falkenpfeil, Pfeilregen und Splitterfalke (alle „bis 520 weit“) – vorher
+  // reichte der Grundschuss nicht bis zu Zielen, die die Fertigkeiten schon erreichten (Messung docs/auftrag-2026-11-10-kampf.md)
   // seit 14.13 mul 0,72: ein Bogenschuss machte so viel wie ein Krieger-Hieb (aus sicherer Entfernung) und mehr Schaden
   // je Sekunde als jeder Nahkämpfer; jetzt etwa wie die anderen Fernkämpfer (Magier, Schamane, Nekromant)
-  bow: { range: 400, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow', mul: 0.72 },
+  bow: { range: 520, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow', mul: 0.72 },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
   greataxe: { range: 60, cooldown: 0.88, ranged: false },
   scythe: { range: 62, cooldown: 0.85, ranged: false }
@@ -895,7 +901,11 @@ function basicTick(p) {
     }
     const col = ar ? ar.color : basic.color;
     particles(hand.x + p.facing.x * 14, hand.y + p.facing.y * 8, { count: 6, color: col, speed: [30, 80], life: [0.15, 0.3], size: [1.5, 2.5] });
-    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: basic.style === 'arrow' ? 620 : 480, range: basic.range + 60, mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined,
+    // seit 14.32: Pfeile schneller (BOW_ARROW) und mit Ziel etwas länger unterwegs, damit sie ein Ziel, das beim Loslassen
+    // in Reichweite war und wegläuft, noch einholen (vorher verfiel der Pfeil nach 460 und traf fliehende Ziele nie)
+    const arrow = basic.style === 'arrow';
+    const spd = arrow ? BOW_ARROW.speed : 480;
+    spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: spd, range: basic.range + 60 + (arrow && target ? spd * BOW_ARROW.chase : 0), mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined,
       // seit 14.17: Pfeile mit Ziel fliegen durch alle anderen Monster und treffen nur das Ziel (focusOnly)
       focusOnly: basic.style === 'arrow' });
     // Bogen (seit 13.67): dunkler Schattenblitz am Bogen (fernninja.js)
@@ -2022,6 +2032,40 @@ function dashStep(dt) {
 
 // --- Geschosse --------------------------------------------------------------------
 
+// Pfeile des Bogen-Grundangriffs (seit 14.32): Tempo in px/s (vorher 620) und wie lange (s) ein Pfeil mit Ziel über
+// seine Reichweite hinaus einem fliehenden Ziel nachfliegen darf
+const BOW_ARROW = { speed: 760, chase: 0.4 };
+
+// Pfeile und Mauern (seit 14.32): Geschosse mit style 'arrow' (Bogen, Falkenpfeil, Durchschuss, Pfeile der Monster)
+// fliegen nicht durch Mauern, Häuser, Palisaden, Säulen, Höhlenwände und den Felsrand – dieselben festen Hindernisse,
+// die auch der fliegende Drache nicht überfliegt (tileBlockedFlying, welt.js). Über Bäume, Felsbrocken und Wasser
+// fliegen sie wie bisher hinweg. Vorher flogen alle Geschosse durch alles hindurch und trafen auch hinter Mauern.
+function arrowBlockedAt(x, y) {
+  return typeof tileBlockedFlying === 'function' && tileBlockedFlying(Math.floor(x / TILE), Math.floor(y / TILE));
+}
+// Freie Strecke eines Pfeils von (x, y) in Richtung dir (Länge 1), höchstens want
+function arrowFreeLength(x, y, dir, want) {
+  for (let s = 8; s <= want; s += 8) if (arrowBlockedAt(x + dir.x * s, y + dir.y * s)) return Math.max(0, s - 8);
+  return want;
+}
+// Prüft den Weg des Geschosses in diesem Bild in Schritten von höchstens 12 px (ein schneller Pfeil soll keine
+// dünne Mauer überspringen). Trifft er eine Mauer, bleibt er am letzten freien Punkt stehen (Treffer dort zählen
+// in diesem Bild noch, z. B. ein Monster direkt vor der Mauer) und endet im nächsten Bild.
+function arrowWallStop(pr, x0, y0) {
+  const dx = pr.x - x0;
+  const dy = pr.y - y0;
+  const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 12));
+  for (let i = 1; i <= n; i++) {
+    if (!arrowBlockedAt(x0 + (dx * i) / n, y0 + (dy * i) / n)) continue;
+    pr.x = x0 + (dx * (i - 1)) / n;
+    pr.y = y0 + (dy * (i - 1)) / n;
+    pr.wallStop = true;
+    particles(pr.x, pr.y - 10, { count: 6, color: ['#c8b89a', '#8a7a62', pr.color || '#ffffff'], speed: [30, 90], life: [0.2, 0.4], size: [1.5, 3], drag: 4, glow: false });
+    return true;
+  }
+  return false;
+}
+
 function spawnProjectile(o) {
   let dx;
   let dy;
@@ -2075,10 +2119,15 @@ function updateProjectiles(dt) {
       // fremde Schädel (homeTo): am Zielpunkt angekommen geradeaus weiter statt dort zu zittern
       if (goal === pr.homeTo && len < pr.speed * dt + 4) pr.homeTo = null;
     }
+    // an einer Mauer stehen geblieben (seit 14.32, arrowWallStop): jetzt endet der Pfeil
+    if (pr.wallStop) { pr.done = true; continue; }
     const step = pr.speed * dt;
+    const x0 = pr.x;
+    const y0 = pr.y;
     pr.x += pr.vx * step;
     pr.y += pr.vy * step;
     pr.traveled += step;
+    if (pr.style === 'arrow') arrowWallStop(pr, x0, y0);
     pr.trail.push({ x: pr.x, y: pr.y });
     if (pr.trail.length > 9) pr.trail.shift();
     if (pr.traveled > pr.range) { pr.done = true; continue; }

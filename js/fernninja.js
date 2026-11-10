@@ -492,19 +492,23 @@ SKILL_TYPES.bpierce = function (sk, pw) {
     const m = bowMuzzle(p, f);
     spawnProjectile({ owner: 'player', x: m.x, y: m.y, target: null, dir: f, speed: sk.speed, range: sk.range, mul, color: col, radius: 9,
       pierce: true, style: 'arrow', skill: sk.id, knockback: sk.knockback, bfx: 'pierce', arrow: ar ? ar.sort : -1 });
-    pierceFx(p, m.x, m.y, f, sk);
+    pierceFx(p, m.x, m.y, f, sk, pierceLen(m.x, m.y, f, sk));
     bowShotFx(p, sk.color);
     shakeScreen(2.2);
   });
   return { c: col, fx: +f0.x.toFixed(2), fy: +f0.y.toFixed(2) };
 };
-function pierceFx(owner, x, y, f, sk) {
-  addEffect({ type: 'bpierce3', x, y: y + 9, dx: f.x, dy: f.y, len: sk.range, speed: sk.speed, color: sk.color, dur: sk.range / sk.speed + 0.75 });
+// seit 14.32: der Pfeil (und seine Schattenspirale) endet an der ersten Mauer (arrowFreeLength, kampf.js)
+function pierceLen(x, y, f, sk) {
+  return typeof arrowFreeLength === 'function' ? Math.max(24, arrowFreeLength(x, y, f, sk.range)) : sk.range;
+}
+function pierceFx(owner, x, y, f, sk, len = sk.range) {
+  addEffect({ type: 'bpierce3', x, y: y + 9, dx: f.x, dy: f.y, len, speed: sk.speed, color: sk.color, dur: len / sk.speed + 0.75 });
 }
 MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
   const f = { x: d.fx, y: d.fy };
   spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: f, speed: sk.speed, range: sk.range, mul: 0, color: d.c || sk.color, radius: 9, style: 'arrow', bfx: 'pierce' });
-  pierceFx(rp, rp.x, rp.y, f, sk);
+  pierceFx(rp, rp.x, rp.y, f, sk, pierceLen(rp.x, rp.y, f, sk));
 });
 
 // Splitterfalke (seit 14.16, Platz 4 statt Rückensprung): Ort wählen (Zielkreis, sk.aim), der Ninja hebt den Bogen
