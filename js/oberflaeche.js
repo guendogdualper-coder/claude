@@ -21,6 +21,9 @@ const ui = {
     $('btnHelp').addEventListener('click', () => this.toggle('panelHelp'));
     $('btnInv').addEventListener('click', () => this.toggle('panelInv'));
     $('btnHorse').addEventListener('click', () => toggleRide());
+    $('btnFly').addEventListener('click', () => setFlyHigh());
+    $('btnFlyUp').addEventListener('click', () => setFlyHigh(true));
+    $('btnFlyDown').addEventListener('click', () => setFlyHigh(false));
     $('btnNet').addEventListener('click', () => this.toggle('panelNet'));
     $('btnSocial').addEventListener('click', () => this.toggle('panelSocial'));
     $('btnQuests').addEventListener('click', () => this.toggle('panelQuests'));
@@ -1087,6 +1090,38 @@ const ui = {
     }
     btn.title = !horse ? '' : grounded ? `${horse.name} (+${Math.round(HORSES[2].speed * 100)} % Lauftempo) · läuft hier am Boden`
       : `${horse.name} (+${Math.round(horse.speed * 100)} % Lauftempo)` + (horse.fly ? ' · fliegt über Bäume, Felsen und Wasser' : '');
+  },
+
+  // seit 14.39: Knopf „Steigen“/„Sinken“ neben dem Drachen-Knopf, nur solange man auf dem Drachen fliegt.
+  // Pfeil nach oben = steigen (man fliegt tief), nach unten und leuchtend = sinken (man fliegt hoch).
+  // Jedes Bild aufgerufen (dragonRideTick): ändert das DOM nur bei einem Wechsel.
+  updateFlyButton() {
+    const btn = $('btnFly');
+    if (!btn) return;
+    const p = game.player;
+    const show = typeof dragonFlying === 'function' && dragonFlying(p);
+    const high = !!(show && p.flyHigh);
+    const st = show ? (high ? 'hoch' : 'tief') : '';
+    if (btn.dataset.st === st) return;
+    btn.dataset.st = st;
+    btn.hidden = !show;
+    // Handy: zwei Knöpfe, der gerade unmögliche ist ausgegraut (in der HUD-Bearbeitung bleibt das Feld sichtbar)
+    const pad = $('flyPad');
+    if (pad) {
+      if (!hudLayout.editing) pad.hidden = !show;
+      // ausgegraut über eine Klasse statt disabled: so lässt sich das Feld in der HUD-Bearbeitung trotzdem ziehen
+      for (const [id, off] of [['btnFlyUp', !show || high], ['btnFlyDown', !show || !high]]) {
+        $(id).classList.toggle('off', off);
+        $(id).setAttribute('aria-disabled', off ? 'true' : 'false');
+      }
+    }
+    btn.classList.toggle('on', high);
+    // deutsch setzen, die Übersetzung (sprache.js) tauscht Text, aria-label und title danach aus
+    const word = high ? 'Sinken' : 'Steigen';
+    const label = btn.querySelector('.menu-text');
+    if (label) label.textContent = word;
+    btn.setAttribute('aria-label', word);
+    btn.title = high ? 'Du fliegst hoch – zum Sinken antippen' : 'Du fliegst tief – zum Steigen antippen';
   },
 
   // Lebensbalken eines Bosses oben in der Mitte, sobald man in seiner Nähe ist

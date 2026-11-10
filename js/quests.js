@@ -958,6 +958,15 @@ Object.assign(ui, {
     }));
   },
 
+  // seit 14.39: Farbwahl der Glutschwinge – vier Farbmuster mit Vorschaubild (2D-Drache), gewählt ist pick
+  dragonColorPicker(pick) {
+    return '<div class="drg-colors" role="radiogroup">' + DRAGON_COLOR_IDS.map((id) => {
+      const c = DRAGON_COLORS[id];
+      return `<button type="button" class="drg-color${id === pick ? ' on' : ''}" data-dcol="${id}" role="radio" aria-checked="${id === pick}" style="--sw:${c.swatch};--gl:${c.glow}">` +
+        `<img src="${dragonPreviewUrl(id)}" alt=""><span>${c.name}</span></button>`;
+    }).join('') + '</div>';
+  },
+
   renderStable() {
     const p = game.player;
     const st = questState().stable;
@@ -971,7 +980,9 @@ Object.assign(ui, {
       const pct = (h) => Math.round(h.speed * 100);
       if (tier >= 3) {
         html = '<p>„Deine Glutschwinge ist satt und ausgeruht. Sie trägt dich über Bäume, Felsen und Wasser – nur vor Mauern und Häusern macht sie halt.“</p>' +
-          `<p class="hint-text">${drg.name} +${pct(drg)} % · fliegt draußen in der Welt, nicht in Dungeons, Instanzen, Arenen und Duellen</p>`;
+          `<p class="hint-text">${drg.name} +${pct(drg)} % · fliegt draußen in der Welt, nicht in Dungeons, Instanzen, Arenen und Duellen</p>` +
+          // seit 14.39: Farbe jederzeit kostenlos ändern
+          '<h3>Farbe deiner Glutschwinge</h3><p class="hint-text">Kostenlos, jederzeit änderbar.</p>' + this.dragonColorPicker(dragonColorOf(p));
       } else {
         if (tier >= 2) {
           html = '<p>„Dein Kriegsross ist gesattelt und gepanzert. Kein Pferd im Land ist schneller.“</p>';
@@ -986,12 +997,14 @@ Object.assign(ui, {
                 (p.gold >= war.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
         }
         // seit 14.27: der Drache als dritte Stufe (Pferd muss vorhanden sein, Kriegsross nicht)
-        html += `<h3>Glutschwinge · ab Stufe ${drg.level}</h3><p>„Kein Pferd mehr, sondern ein Drache aus den Glutbergen – dunkelrot, mit Bronzehörnern und großen Schwingen. ` +
+        if (!DRAGON_COLORS[this.dragonPick]) this.dragonPick = dragonColorOf(p);
+        html += `<h3>Glutschwinge · ab Stufe ${drg.level}</h3><p>„Kein Pferd mehr, sondern ein Drache aus den Glutbergen – in Rot, Blau, Schwarz oder Weiß, mit großen Schwingen. ` +
           `Er schwebt knapp über dem Boden und trägt dich über Bäume, Felsen, Wasser und Lava. Er legt ${pct(drg)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
           `<p class="hint-text">${HORSES[tier].name} +${pct(HORSES[tier])} % → ${drg.name} +${pct(drg)} % · fliegt nur draußen in der Welt</p>` +
           (p.level < drg.level
             ? `<p class="hint-text">Komm ab Stufe ${drg.level} wieder.</p>`
-            : `<button type="button" class="btn btn-primary" data-buydragon ${p.gold >= drg.price ? '' : 'disabled'}>Glutschwinge kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
+            : '<p class="hint-text">Wähle die Farbe (später bei mir kostenlos änderbar):</p>' + this.dragonColorPicker(this.dragonPick) +
+              `<button type="button" class="btn btn-primary" data-buydragon ${p.gold >= drg.price ? '' : 'disabled'}>Glutschwinge kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
               (p.gold >= drg.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
       }
     } else if (p.level < STABLE_QUEST.level) {
@@ -1034,6 +1047,7 @@ Object.assign(ui, {
       if (!p.horse || (p.horseTier || 1) >= 3 || p.level < drg.level || p.gold < drg.price) return;
       p.gold -= drg.price;
       p.horseTier = 3;
+      p.dragonColor = DRAGON_COLORS[this.dragonPick] ? this.dragonPick : 'rot';
       game.stats = playerStats(p);
       ui.banner('Eine Glutschwinge!', `+${Math.round(drg.speed * 100)} % Lauftempo · fliegt über Bäume und Wasser – Pferdeknopf oder Taste R`);
       ui.log(`Du hast eine Glutschwinge gekauft (${drg.price.toLocaleString('de-DE')} Gold). Sie gibt +${Math.round(drg.speed * 100)} % Lauftempo und fliegt über Bäume, Felsen und Wasser.`, 'level');
@@ -1042,6 +1056,18 @@ Object.assign(ui, {
       saveGame();
       this.renderStable();
     });
+    // seit 14.39: Farbmuster – vor dem Kauf nur vormerken, danach sofort umfärben (kostenlos)
+    body.querySelectorAll('[data-dcol]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.dcol;
+      if (!DRAGON_COLORS[id]) return;
+      if ((p.horseTier || 1) >= 3) {
+        if (p.dragonColor === id) return;
+        p.dragonColor = id;
+        ui.log(`Deine Glutschwinge ist jetzt ${DRAGON_COLORS[id].name.toLowerCase()}.`, 'info');
+        saveGame();
+      } else this.dragonPick = id;
+      this.renderStable();
+    }));
     const btn = body.querySelector('[data-stable]');
     if (btn) btn.addEventListener('click', () => {
       const act = btn.dataset.stable;

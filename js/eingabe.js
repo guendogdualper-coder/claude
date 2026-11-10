@@ -72,6 +72,12 @@ function setupInput() {
       else ui.toggle('panelOpts');
       return;
     }
+    // seit 14.39: Bild↑/Bild↓ steigen bzw. sinken auf dem fliegenden Drachen (zusätzlich zur Leertaste, tasten.js)
+    if ((e.code === 'PageUp' || e.code === 'PageDown') && !keyAction(e.code)) {
+      if (!e.repeat) setFlyHigh(e.code === 'PageUp');
+      e.preventDefault();
+      return;
+    }
     // seit 10.5 frei belegbar (tasten.js, Einstellungen → Tastenbelegung)
     const act = keyAction(e.code);
     if (act) runAction(act, e);

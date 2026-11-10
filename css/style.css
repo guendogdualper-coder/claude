@@ -1692,6 +1692,26 @@ kbd {
 
 /* Pferdeknopf: leuchtet, solange man reitet */
 #btnHorse.on { box-shadow: 0 0 0 2px #ffd34d, 0 0 12px rgba(255, 211, 77, 0.7); }
+/* seit 14.39: Farbwahl der Glutschwinge beim Stallmeister */
+.drg-colors { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; }
+.drg-color { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 5px; border-radius: 8px; border: 1px solid rgba(201, 163, 90, 0.45); background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--sw) 35%, #2a2016), #16100a 75%); color: #f0e2c0; font: inherit; font-size: 12px; cursor: pointer; }
+.drg-color img { width: 100%; max-width: 150px; height: auto; }
+.drg-color span::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 1px #0008, 0 0 6px var(--gl); vertical-align: -1px; }
+.drg-color.on { border-color: #ffd34d; box-shadow: 0 0 0 1px #ffd34d, 0 0 10px var(--gl); }
+/* seit 14.39: Steigen/Sinken am Handy – zwei große Knöpfe übereinander links neben dem Fertigkeitenbogen (in Daumennähe
+   zum Angriff), verschiebbar in der HUD-Bearbeitung; am PC ausgeblendet (dort Leertaste und Knopf im Menü) */
+.fly-pad { position: absolute; right: calc(var(--edge-r) + 196px); bottom: calc(var(--edge-b) + 58px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; z-index: 3; }
+#hud:not(.touch) .fly-pad { display: none; }
+#hud.touch #btnFly { display: none; }
+.fly-btn { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; width: 58px; height: 52px; padding: 0; border-radius: 14px; border: 2px solid #c9a35a; background: radial-gradient(circle at 40% 30%, #4a3622, #1a120a 75%); color: #ffe6a8; font: 800 10.5px/1.1 "Alegreya Sans", sans-serif; text-shadow: 0 1px 2px #000; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+.fly-btn svg { width: 24px; height: 24px; fill: #ffd34d; stroke: #3a2208; stroke-width: 1.2; stroke-linejoin: round; filter: drop-shadow(0 0 4px rgba(255, 182, 60, 0.6)); }
+.fly-btn:active:not(.off) { filter: brightness(1.3); }
+.fly-btn.off { opacity: 0.38; filter: grayscale(1); border-color: #6a5a40; }
+.fly-btn.off svg { filter: none; }
+/* seit 14.39: Steigen/Sinken auf dem Drachen – Pfeil nach oben (tief), hoch oben leuchtend mit Pfeil nach unten */
+#btnFly .menu-icon { transition: transform 0.25s; }
+#btnFly.on { box-shadow: 0 0 0 2px #ffb63c, 0 0 12px rgba(255, 182, 60, 0.7); }
+#btnFly.on .menu-icon { transform: rotate(180deg); }
 /* Pferdetempo als Abzeichen unten am Knopf (seit 8.5), beim Reiten in Gold */
 .horse-pct { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); padding: 0 4px; border-radius: 7px; font-size: 8.5px; font-weight: 800; line-height: 13px; white-space: nowrap; pointer-events: none; color: #f4d48a; background: rgba(20, 14, 8, 0.92); box-shadow: 0 0 0 1px rgba(201, 163, 90, 0.75); }
 .horse-pct[hidden] { display: none; }

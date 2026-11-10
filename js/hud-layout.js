@@ -13,7 +13,9 @@ const HUD_PARTS = [
   ['bar', '.hud-bottom', 'Leiste'],
   ['chat', '#chatBox', 'Chat'],
   ['menu', '#hud > .menu', 'Menü'],
-  ['boss', '#bossBar', 'Bossleiste']
+  ['boss', '#bossBar', 'Bossleiste'],
+  // seit 14.39: Steigen/Sinken auf dem Drachen (nur Handy)
+  ['fly', '#flyPad', 'Drachenflug']
 ];
 const HUD_SCALE = [0.6, 1.8];
 const hudLayout = {
@@ -109,6 +111,9 @@ const hudLayout = {
     }
     for (const el of this.shown) el.hidden = true;
     this.shown = [];
+    // seit 14.39: Steigen/Sinken gleich wieder nach dem Flugzustand zeigen (oberflaeche.js, updateFlyButton)
+    const fb = document.getElementById('btnFly');
+    if (fb) fb.dataset.st = '?';
     if (typeof partyHud === 'function') partyHud(true);
     if ($('hudEditBar')) $('hudEditBar').remove();
     this.save();

@@ -14,7 +14,8 @@
 //
 // Maße (Modell × DRACHE3.scale = Welt): Rücken im Stand etwa 1,75, Hornspitzen etwa 3,1 hoch, Länge Nase–
 // Schwanzspitze etwa 5,9, Spannweite etwa 6,9 Einheiten (Kriegsross: 2,5 hoch, 3,1 lang). Im Flug liegt der Bauch
-// etwa 1,9, die Rumpfmitte etwa 2,3 und der Sattel etwa 2,9 Einheiten über dem Boden (± 0,1 im Flügeltakt).
+// etwa 1,9, die Rumpfmitte etwa 2,3 und der Sattel etwa 2,9 Einheiten über dem Boden (± 0,1 im Flügeltakt); seit
+// 14.39 auf Wunsch „hoch“ 2,4 mehr (DRACHE3.high). Farben seit 14.39 wählbar (DRACHE3_FARBEN).
 
 const DRACHE3 = {
   scale: 1.45,
@@ -37,6 +38,12 @@ const DRACHE3 = {
   // Dauer Abheben bzw. Landen (Sekunden)
   upTime: 1.2,
   downTime: 1.1,
+  // seit 14.39: Flughöhe „hoch“ (dragonHighK in spieler.js): so viel höher (Welt-Einheiten) – ein Stück über den
+  // Bäumen (≈ 3 hoch): Bauch ≈ 4,3, Rumpfmitte ≈ 4,7, Sattel ≈ 5,3 statt 1,9 / 2,3 / 2,9; Steigen mit kräftigerem,
+  // schnellerem Schlag (hzClimb), Sinken gleitend
+  high: 2.4,
+  hzClimb: 2.0,
+  hzSink: 0.5,
   // angelegte Flügel: Heben (z), nach hinten schwenken (y), Kippen (x), Innenteil stauchen (armZ), Unterarm nach
   // hinten (fore), Handteil als Ganzes über die Kante W–P umklappen (hand) und zusammenschieben (handZ), Finger
   // nur leicht zusammen (fan je Finger). Ein stark geschlossener Fächer würde die Haut umstülpen (Blend-Skinning).
@@ -54,6 +61,36 @@ const DRACHE3 = {
     leather: '#4f2f1c', saddle: '#2e4a63'
   }
 };
+
+// seit 14.39: Farben zur Wahl (p.dragonColor, DRAGON_COLORS in spieler.js). Rot = DRACHE3.colors (wie bisher); die
+// anderen ersetzen Schuppen, Bauch, Flügelhaut, Hörner/Platten, Krallen und das Glühen der Augen:
+// Blau mit Silberhörnern und eisblauem Glühen, Schwarz mit dunklem Weinrot und violettem Glühen, Weiß mit
+// cremefarbenem Bauch, Goldhörnern und hellblauem Glühen.
+const DRACHE3_FARBEN = {
+  rot: {},
+  blau: {
+    scale: '#1d3c6e', scaleHi: '#3264a0', scaleDark: '#10244a',
+    belly: '#cfdde6', bellyLine: '#97b2c4',
+    bronze: '#8f9db0', bronzeHi: '#d6e0ea', bronzeDark: '#55627a',
+    memTop: '#17305a', memUnder: '#4f8cc2',
+    claw: '#eef5fa', eye: '#7fe0ff', eyeCore: '#effcff'
+  },
+  schwarz: {
+    scale: '#1c1920', scaleHi: '#353040', scaleDark: '#0e0c11',
+    belly: '#5a4652', bellyLine: '#7a5468',
+    bronze: '#6e2c42', bronzeHi: '#a8466a', bronzeDark: '#3a1624',
+    memTop: '#17131b', memUnder: '#5c2142',
+    claw: '#dcd0dc', eye: '#c45cff', eyeCore: '#ffd4f4'
+  },
+  weiss: {
+    scale: '#d6d1c7', scaleHi: '#f4f1ea', scaleDark: '#a39c8f',
+    belly: '#f2e2b8', bellyLine: '#cfae72',
+    bronze: '#c39a44', bronzeHi: '#f0d27a', bronzeDark: '#86662a',
+    memTop: '#c9c3b8', memUnder: '#e8d2a0',
+    claw: '#fffaf0', eye: '#8fd8ff', eyeCore: '#ffffff'
+  }
+};
+const dragonColors3 = (id) => Object.assign({}, DRACHE3.colors, DRACHE3_FARBEN[id] || {});
 
 // Knochen
 const DRB3 = {
@@ -281,10 +318,11 @@ function dmStationAt3(st, z) {
 }
 
 // --- Modell ----------------------------------------------------------------------------------------
-// o.saddle: Farbe der Satteldecke (im Spiel später wie beim Pferd die Klassenfarbe)
+// o.saddle: Farbe der Satteldecke (im Spiel später wie beim Pferd die Klassenfarbe); o.color (seit 14.39): Farbe des
+// Drachen (rot, blau, schwarz, weiss – DRACHE3_FARBEN)
 function dragonMount3(b, o = {}) {
   const A = adder(b, null);
-  const C = DRACHE3.colors;
+  const C = dragonColors3(o.color);
   const red = C.scale, redHi = C.scaleHi, redD = C.scaleDark;
   const bronze = C.bronze, bronzeHi = C.bronzeHi, bronzeD = C.bronzeDark;
   const cloth = o.saddle || C.saddle;
@@ -522,11 +560,13 @@ function dmWings3(B, t, o) {
   const AX = dmAxes3();
   const FO = DRACHE3.fold;
   const { open, ph, flare, mov, L, idle, breath } = o;
+  const climb = o.climb || 0;
   const ow = dmSmooth3(open * 1.25);
-  // Gleiten
+  // Gleiten (seit 14.39 auch beim Sinken auf die tiefe Flughöhe; beim Steigen nie)
   const gt = (t % DRACHE3.glideEvery) / DRACHE3.glideEvery;
-  const glide = mov * L * (gt > DRACHE3.glideFrom && gt < DRACHE3.glideTo ? Math.sin((Math.PI * (gt - DRACHE3.glideFrom)) / (DRACHE3.glideTo - DRACHE3.glideFrom)) : 0);
-  const amp = 1 - 0.85 * glide;
+  const glide = Math.max((o.sink || 0) * L, (1 - climb) * mov * L * (gt > DRACHE3.glideFrom && gt < DRACHE3.glideTo ? Math.sin((Math.PI * (gt - DRACHE3.glideFrom)) / (DRACHE3.glideTo - DRACHE3.glideFrom)) : 0));
+  // Steigen: weiter ausholende Schläge
+  const amp = (1 - 0.85 * glide) * (1 + 0.18 * climb * L);
   const Af = (p) => 0.12 + (dmFlap3(((p % 1) + 1) % 1)[0] - 0.12) * amp;
   const a0 = Af(ph), a1 = Af(ph - 0.06), a2 = Af(ph - 0.12), a3 = Af(ph - 0.18);
   const down = ph < DM_DOWN3 ? Math.sin((Math.PI * ph) / DM_DOWN3) : 0;
@@ -586,6 +626,9 @@ function dragonMountPose3(a, t, o) {
   const ph = o.ph || 0;
   const flare = o.flare || 0;
   const mov = o.moving ? 1 : 0;
+  // seit 14.39: Steigen (o.climb) und Sinken/Gleiten (o.sink) zwischen den Flughöhen, je 0–1
+  const climb = o.climb || 0;
+  const sink = o.sink || 0;
   // Bodenanteil: die ersten bzw. letzten 15 % von air bleibt er am Boden (Ducken vor dem Sprung, Abfedern)
   const L = dmSmooth3((air - 0.15) / 0.85);
   const crouch = air > 0 && air < 0.15 ? Math.sin((Math.PI * air) / 0.15) : 0;
@@ -601,11 +644,11 @@ function dragonMountPose3(a, t, o) {
   B[DRB3.root].position.y += rise;
   body.position.y += 0.012 * breath * idle - 0.1 * crouch;
   // Neigung: vorwärts leicht Kopf runter, beim Landen Kopf hoch; leichtes Wiegen im Flug
-  body.rotation.x = L * (mov ? 0.1 : -0.03) - 0.32 * flare * dmSmooth3(air * 4) + 0.03 * Math.sin(TAU * (ph - 0.3)) * L;
+  body.rotation.x = L * (mov ? 0.1 : -0.03) - 0.32 * flare * dmSmooth3(air * 4) + 0.03 * Math.sin(TAU * (ph - 0.3)) * L - 0.16 * climb * L + 0.07 * sink * L;
   B[DRB3.root].rotation.z = 0.05 * Math.sin(t * 0.8) * L;
 
   // Flügel
-  dmWings3(B, t, { open, ph, flare, mov, L, idle, breath });
+  dmWings3(B, t, { open, ph, flare, mov, L, idle, breath, climb, sink });
 
   // Hals und Kopf: im Stand aufrecht mit ruhigem Atmen und Umschauen, im Flug weiter vorgestreckt
   // Welle im Flug: Hals schwingt im Flügeltakt gegen den Rumpf, der Kopf hält die Blickrichtung
@@ -677,8 +720,12 @@ function dragonMountPose3(a, t, o) {
 
 // Mit Zustand (für das Spiel): want = 'fly' oder 'stand'. Abheben/Landen laufen als Übergang von a.dm.air;
 // a.dm.mode ist 'stand' | 'takeoff' | 'fly' | 'land'.
-function dragonMountAnim3(a, t, dt, want, moving) {
+function dragonMountAnim3(a, t, dt, want, moving, hiDir) {
   const S = a.dm || (a.dm = { air: 0, open: 0, ph: 0, flare: 0, mode: 'stand' });
+  // seit 14.39: Wechsel der Flughöhe (hiDir +1 steigt, -1 sinkt), weich ein- und ausgeblendet
+  const hk = Math.min(1, Math.max(0, dt) * 5);
+  S.climb = (S.climb || 0) + ((hiDir > 0 ? 1 : 0) - (S.climb || 0)) * hk;
+  S.sink = (S.sink || 0) + ((hiDir < 0 ? 1 : 0) - (S.sink || 0)) * hk;
   // seit 14.32: Gehen am Boden (want 'stand' und in Bewegung): Schrittphase und weiches Ein-/Ausblenden
   const walking = want !== 'fly' && moving;
   S.walk = (S.walk || 0) + ((walking ? 1 : 0) - (S.walk || 0)) * Math.min(1, dt * 7);
@@ -694,11 +741,27 @@ function dragonMountAnim3(a, t, dt, want, moving) {
   // Flügel öffnen schnell, nach der Landung legen sie sich langsam an
   S.open = S.air > 0 || want === 'fly' ? Math.min(1, S.open + dt * 4) : Math.max(0, S.open - dt * 1.6);
   S.flare += ((S.mode === 'land' ? 1 : 0) - S.flare) * Math.min(1, dt * 4);
-  const hz = S.mode === 'takeoff' ? DRACHE3.hzLift : S.mode === 'land' ? DRACHE3.hzHover : moving ? DRACHE3.hzMove : DRACHE3.hzHover;
+  let hz = S.mode === 'takeoff' ? DRACHE3.hzLift : S.mode === 'land' ? DRACHE3.hzHover : moving ? DRACHE3.hzMove : DRACHE3.hzHover;
+  hz += (DRACHE3.hzClimb - hz) * S.climb + (DRACHE3.hzSink - hz) * S.sink * (1 - S.climb);
   if (S.open > 0) S.ph = (S.ph + dt * hz) % 1;
   // angelegt: Phase auf „Flügel oben“ zurücklaufen lassen, damit das nächste Abheben mit dem Abschlag beginnt
   else S.ph = 0;
-  return dragonMountPose3(a, t, { air: S.air, open: S.open, ph: S.ph, flare: S.flare, moving: moving && want === 'fly', walk: S.walk, wph: S.wph });
+  return dragonMountPose3(a, t, { air: S.air, open: S.open, ph: S.ph, flare: S.flare, moving: moving && want === 'fly', walk: S.walk, wph: S.wph, climb: S.climb, sink: S.sink });
+}
+// seit 14.39: zusätzliche Höhe (Welt) und Richtung für die Flughöhe „hoch“ (dragonHighK, spieler.js)
+function dragonHigh3(p) {
+  const k = typeof dragonHighK === 'function' ? dragonHighK(p) : 0;
+  return { h: k * DRACHE3.high, k, dir: p.__fhDir || 0 };
+}
+// Schatten des Drachen: bleibt am Boden, wird mit der Höhe kleiner und hoch oben blasser (eigener Stoff je Drache)
+function dragonBlob3(d, lift, k) {
+  d.blob.position.y = 0.02 - d.group.position.y / (d.group.scale.y || 1);
+  d.blob.scale.setScalar(d.model.blob * (1 - 0.35 * Math.min(1, lift / 2.5)) * (1 - 0.25 * k));
+  if (!d.blobOwn) {
+    d.blob.material = d.blob.material.clone();
+    d.blobOwn = true;
+  }
+  d.blob.material.opacity = 1 - 0.5 * k;
 }
 
 // Sattelpunkt in Weltkoordinaten (nach der Haltung aufrufen) und Neigung des Rumpfs für den Reiter
@@ -719,7 +782,9 @@ function dragonSeat3(a, out) {
 const DRAGON_LAND3 = 1.7;
 function dragonActor3(p, key) {
   const trim = CLASSES[p.classId].trim;
-  return actorFor(key, 'drache:' + trim, (b) => dragonMount3(b, { saddle: trim }));
+  // seit 14.39 je Drachenfarbe ein eigenes Modell (Rot behält den alten Schlüssel)
+  const col = typeof dragonColorOf === 'function' ? dragonColorOf(p) : 'rot';
+  return actorFor(key, 'drache:' + (col === 'rot' ? '' : col + ':') + trim, (b) => dragonMount3(b, { saddle: trim, color: col }));
 }
 // Reitender Spieler: Drache stellen und bewegen; liefert die Höhe für den Reiter (Hüfte im Sattel) und spreizt
 // dessen Beine um den Rumpf
@@ -744,11 +809,13 @@ function rideDragon3(p, a, B, t, fy) {
   // Sattel über die Spielerstelle: der Drache steht um den Sattelversatz weiter hinten
   const h = a.heading;
   const off = DRACHE3.seat[2] * d.model.scale;
-  d.group.position.set(p.x * U3 - Math.sin(h) * off, 0, fy * U3 - Math.cos(h) * off);
+  // seit 14.39: Flughöhe „hoch“ hebt den ganzen Drachen samt Reiter (Schatten bleibt am Boden)
+  const hi = dragonHigh3(p);
+  d.group.position.set(p.x * U3 - Math.sin(h) * off, hi.h, fy * U3 - Math.cos(h) * off);
   d.group.rotation.y = h;
   // seit 14.32: wo er nicht fliegen darf (p.dragonGround: Dungeon, Instanz, Arena, Duell), steht und geht er am Boden
-  const r = dragonMountAnim3(d, t, dt, p.dragonGround ? 'stand' : 'fly', !!p.moving);
-  d.blob.scale.setScalar(d.model.blob * (1 - 0.35 * Math.min(1, r.lift / 2.5)));
+  const r = dragonMountAnim3(d, t, dt, p.dragonGround ? 'stand' : 'fly', !!p.moving, hi.dir);
+  dragonBlob3(d, r.lift + hi.h, hi.k);
   const s = dragonSeat3(d);
   B[BH.legL].rotation.set(-0.95, 0, 1.12);
   B[BH.legR].rotation.set(-0.95, 0, -1.12);
@@ -765,9 +832,11 @@ function dragonLand3(p, t) {
     p.__drLand = null;
     return;
   }
-  if (!p.__drLand) p.__drLand = { t0: t };
+  // seit 14.39: aus der hohen Flughöhe dauert es um das Sinken länger
+  if (!p.__drLand) p.__drLand = { t0: t, dur: DRAGON_LAND3 + (typeof DRAGON_HIGH !== 'undefined' ? (p.__fhK || 0) * DRAGON_HIGH.down : 0) };
   const k = t - p.__drLand.t0;
-  if (k > DRAGON_LAND3) {
+  const dur = p.__drLand.dur;
+  if (k > dur) {
     // nicht mehr als gesehen markieren: v3SyncActors legt ihn in den Vorrat
     p.__drOn = null;
     p.__drLand = null;
@@ -778,7 +847,10 @@ function dragonLand3(p, t) {
   const dt = Math.min(0.1, Math.max(0, t - (d.dAt ?? t)));
   d.dAt = t;
   d.dmAt = t;
-  const r = dragonMountAnim3(d, t, dt, 'stand', false);
-  d.blob.scale.setScalar(d.model.blob * (1 - 0.35 * Math.min(1, r.lift / 2.5)));
-  setActorAlpha(d, Math.max(0.02, 1 - dmSmooth3((k - (DRAGON_LAND3 - 0.5)) / 0.5)));
+  // seit 14.39: aus der hohen Flughöhe erst sinken (dragonHighK läuft nach dem Absteigen auf 0), dann landen
+  const hi = dragonHigh3(p);
+  d.group.position.y = hi.h;
+  const r = dragonMountAnim3(d, t, dt, hi.h > 0.05 ? 'fly' : 'stand', false, hi.dir);
+  dragonBlob3(d, r.lift + hi.h, hi.k);
+  setActorAlpha(d, Math.max(0.02, 1 - dmSmooth3((k - (dur - 0.5)) / 0.5)));
 }

@@ -786,6 +786,16 @@ const PLAYER_SND = {
     sNoise(c, out, { at: 0.95, f: [[0, 1800], [0.25, 900]], q: 1.2, amp: [[0, 0], [0.05, 0.3], [0.3, 0]] });
     return 1.3;
   },
+  // seit 14.39: Steigen – drei kräftige, schneller werdende Flügelschläge; Sinken – ein Schlag, dann gleitendes Rauschen
+  drache_steig: (c, out, r) => {
+    for (const at of [0, 0.4, 0.74]) sNoise(c, out, { at, f: [[0, 280 + r() * 40], [0.12, 950], [0.3, 240]], type: 'lowpass', q: 0.8, amp: [[0, 0], [0.06, 0.72], [0.3, 0]], color: 'brown' });
+    return 1.1;
+  },
+  drache_sink: (c, out, r) => {
+    sNoise(c, out, { f: [[0, 260], [0.12, 800], [0.3, 220]], type: 'lowpass', q: 0.8, amp: [[0, 0], [0.06, 0.55], [0.3, 0]], color: 'brown' });
+    sNoise(c, out, { at: 0.2, f: [[0, 500 + r() * 60], [0.8, 900], [1.1, 400]], q: 0.7, amp: [[0, 0], [0.25, 0.14], [0.8, 0.1], [1.1, 0]] });
+    return 1.35;
+  },
   // Schwung: Luft zischt vorbei (leicht, mittel, schwer)
   whoosh_l: (c, out) => { sNoise(c, out, { f: [[0, 900], [0.09, 3200], [0.18, 1500]], q: 1.6, amp: [[0, 0], [0.05, 0.55], [0.18, 0]] }); return 0.2; },
   whoosh_m: (c, out) => { sNoise(c, out, { f: [[0, 600], [0.12, 2400], [0.26, 900]], q: 1.4, amp: [[0, 0], [0.08, 0.65], [0.26, 0]] }); return 0.28; },

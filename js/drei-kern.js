@@ -1102,9 +1102,26 @@ function v3PlaceSun(tx, tz) {
   V3.sun.target.updateMatrixWorld();
 }
 
+// seit 14.39: fliegt man auf dem Drachen hoch (dragonHighK, spieler.js), hebt sich die Kamera mit – im Schulterblick
+// ganz (sie bleibt über und hinter dem Reiter, nie unter dem Drachen), in der normalen Kamera zum Teil (Figur, Name
+// und Lebensbalken bleiben in der Bildmitte, der Boden darunter bleibt im Bild)
+const CAM3_HIGH = { shoulder: 1.0, normal: 0.75, airShoulder: 0.9, airNormal: 0.9 };
+function v3CamLift() {
+  const p = game.player;
+  if (!p || !p.riding || typeof dragonHighK !== 'function' || typeof DRACHE3 === 'undefined') return 0;
+  return dragonHighK(p) * DRACHE3.high;
+}
+// Schon in der tiefen Flughöhe sitzt der Reiter so hoch, dass sein Name oben am Bildrand klebte (Schulterblick,
+// Handy-Querformat unter der Menüzeile) – mit dem Abheben (dm.air des Drachen, weich) schaut die Kamera darum 0,9 höher
+function v3CamDragonAir() {
+  const p = game.player;
+  const d = p && p.riding && p.__drOn ? actors3.get(p.__drOn) : null;
+  return d && d.dm ? d.dm.air || 0 : 0;
+}
 function v3PlaceCamera(fx, fy, dt = 0.016) {
   const r = renderer;
   const cam = V3.camera;
+  const lift = v3CamLift();
   if (v3Shoulder()) {
     if (cam.fov !== SHOULDER3.fov) {
       cam.fov = SHOULDER3.fov;
@@ -1117,7 +1134,7 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
     const d = SHOULDER3.dist * (V3.zoomMul || 1);
     const tx = fx * U3;
     const tz = fy * U3;
-    const ty = 1.0;
+    const ty = 1.0 + lift * CAM3_HIGH.shoulder + CAM3_HIGH.airShoulder * v3CamDragonAir();
     // seit 14.32: über Hindernisse hinweg statt hindurch (v3ShoulderPitch), weich nachgeführt
     const want = v3ShoulderPitch(fx, fy, yaw, d);
     const B = SHOULDER3_BOOM;
@@ -1146,7 +1163,7 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   const dist = (viewH * Math.sin(V3.pitch)) / (2 * Math.tan(fov / 2)) * 0.98 * (CAM3[opts.camera] || 1) * (V3.zoomMul || 1);
   const tx = fx * U3;
   const tz = fy * U3;
-  const ty = 0.7;
+  const ty = 0.7 + lift * CAM3_HIGH.normal + CAM3_HIGH.airNormal * v3CamDragonAir();
   cam.position.set(tx, ty + Math.sin(V3.pitch) * dist, tz + Math.cos(V3.pitch) * dist);
   cam.lookAt(tx, ty, tz);
   cam.updateMatrixWorld();

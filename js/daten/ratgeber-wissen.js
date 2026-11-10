@@ -763,6 +763,21 @@ const RATGEBER_WISSEN = [
       'Steigst du über Wasser oder Bäumen ab, landest du an der nächsten freien Stelle. Wer angreift oder eine Fertigkeit nutzt, steigt wie beim Pferd ab.',
     k: 'drache fliegen wasser baeume mauer dungeon instanz arena duell landen absteigen glutschwinge'
   },
+  // seit 14.39: Flughöhe und Farbe
+  {
+    c: 'pferd', q: 'Wie fliege ich mit dem Drachen höher?',
+    a: 'Solange dein Drache fliegt, steigst du mit der <b>Leertaste</b> ein Stück über die Bäume, ein zweiter Druck lässt ihn wieder sinken ' +
+      '(statt anzugreifen; auch Bild↑/Bild↓). Am Handy erscheinen dafür im Flug zwei große Knöpfe „Steigen“ und „Sinken“ links neben den Fertigkeiten (in „HUD anpassen“ verschiebbar). Oben bist du genauso schnell und ' +
+      'überfliegst nichts anderes als unten – Mauern und Häuser halten dich weiter auf. Absteigen, ein Angriff mit der Maus oder eine Fertigkeit, ' +
+      'ein Teleport, der Tod und Dungeons, Instanzen, Arenen und Duelle bringen dich wieder nach unten.',
+    k: 'drache hoch hoeher steigen sinken fliegen flughoehe leertaste bild hoch runter knopf pfeil handy glutschwinge dragon'
+  },
+  {
+    c: 'pferd', q: 'Kann ich die Farbe meines Drachen ändern?',
+    a: 'Ja. Die Glutschwinge gibt es in Rot, Blau, Schwarz und Weiß. Die Farbe wählst du beim Kauf beim Stallmeister; danach kannst du sie dort ' +
+      'jederzeit kostenlos ändern. Mitspieler sehen deinen Drachen in deiner Farbe.',
+    k: 'drache farbe aendern blau rot schwarz weiss weiß stallmeister glutschwinge aussehen dragon'
+  },
   {
     c: 'pferd', q: 'Wie steige ich auf mein Pferd?',
     a: 'Mit dem Pferdeknopf oder Taste {k:ride}. Wer angreift, steigt ab. Zu Fuß ist das Tempo mit Schuhen, Boni und Buffs auf +25 % begrenzt – das Pferdetempo kommt noch oben drauf.',

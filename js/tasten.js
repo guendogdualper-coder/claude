@@ -64,7 +64,7 @@ function keyLabel(code) {
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);
   if (/^Numpad\d$/.test(code)) return 'Num ' + code.slice(6);
   if (/^F\d+$/.test(code)) return code;
-  const names = { Space: 'Leertaste', Tab: 'Tab', Enter: 'Enter', ShiftLeft: 'Umschalt', ShiftRight: 'Umschalt rechts', Backquote: '^', Minus: 'ß', Equal: '´', BracketLeft: 'Ü', BracketRight: '+', Semicolon: 'Ö', Quote: 'Ä', Backslash: '#', Comma: ',', Period: '.', Slash: '-', IntlBackslash: '<', CapsLock: 'Feststell' };
+  const names = { Space: 'Leertaste', Tab: 'Tab', Enter: 'Enter', ShiftLeft: 'Umschalt', ShiftRight: 'Umschalt rechts', Backquote: '^', Minus: 'ß', Equal: '´', BracketLeft: 'Ü', BracketRight: '+', Semicolon: 'Ö', Quote: 'Ä', Backslash: '#', Comma: ',', Period: '.', Slash: '-', IntlBackslash: '<', CapsLock: 'Feststell', PageUp: 'Bild↑', PageDown: 'Bild↓' };
   return names[code] || code;
 }
 function setActionKey(id, code) {
@@ -89,6 +89,9 @@ function refreshKeyLabels() {
     const kbd = document.querySelector(`#${btn} kbd`);
     if (kbd) kbd.textContent = keyLabel(actionKey(id));
   }
+  // seit 14.39: Steigen/Sinken liegt auf der Angriffstaste
+  const fk = document.querySelector('#btnFly kbd');
+  if (fk) fk.textContent = keyLabel(actionKey('attack'));
   const hp = document.querySelector('#potHp .key');
   if (hp) hp.textContent = keyLabel(actionKey('potHp'));
   const mp = document.querySelector('#potMp .key');
@@ -114,6 +117,13 @@ function runAction(id, e) {
     case 'segen': if (!rep) useSegen(); break;
     case 'quick1': case 'quick2': if (!rep) useQuickSlot(id === 'quick1' ? 0 : 1); break;
     case 'attack':
+      // seit 14.39: auf dem fliegenden Drachen steigt bzw. sinkt man mit der Angriffstaste (Leertaste) statt
+      // anzugreifen; einmal drücken = Wechsel, Halten greift nicht an. Am Boden, zu Fuß, im Dungeon wie bisher.
+      if (p && typeof dragonFlying === 'function' && dragonFlying(p)) {
+        if (!rep) setFlyHigh();
+        if (e) e.preventDefault();
+        break;
+      }
       // gedrückt halten greift weiter an (spiel.js fragt „Space“ ab)
       if (!rep) tapAttack();
       input.keys.add('Space');

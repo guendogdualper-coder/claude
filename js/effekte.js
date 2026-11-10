@@ -435,7 +435,22 @@ function addText(x, y, text, style) {
   // Hinweise in der gewählten Sprache (seit 13.9); Zahlen bleiben, wie sie sind
   if (typeof text === 'string' && typeof trText === 'function') text = trText(text);
   const long = style === 'level' || style === 'crit';
-  game.texts.push({ x: x + (style === 'dmg' || style === 'crit' ? rand(-10, 10) : 0), y, text, style, start: game.time, dur: long ? 1.4 : 1.05 });
+  const lift = textFlyLift(x, y);
+  game.texts.push({ x: x + (style === 'dmg' || style === 'crit' ? rand(-10, 10) : 0), y, text, style, start: game.time, dur: long ? 1.4 : 1.05, ...(lift ? lift : {}) });
+}
+// seit 14.39: Texte an einer Figur auf dem fliegenden Drachen entstehen auf Höhe des Reiters statt am Boden darunter
+// (l2: Zusatzhöhe „hoch“ in 2D-Pixeln, wo die Reithöhe schon im Bild steckt; h3: Sitzhöhe des Reiters in 3D-Einheiten;
+// Höhe beim Entstehen)
+function textFlyLift(x, y) {
+  if (typeof dragonHighLift2d !== 'function') return null;
+  const near = (p) => p && p.riding && !p.dragonGround && rideTierOf(p) === 3 && Math.abs(x - p.x) < 28 && y > p.y - 90 && y < p.y + 12;
+  let who = near(game.player) ? game.player : null;
+  if (!who && typeof net !== 'undefined' && net.players) for (const rp of net.players.values()) if (near(rp)) { who = rp; break; }
+  if (!who) return null;
+  const a = typeof actors3 !== 'undefined' && who.__k3 ? actors3.get(who.__k3) : null;
+  const l2 = dragonHighLift2d(who);
+  const h3 = a && a.rideH3 ? a.rideH3 : 0;
+  return l2 > 0.5 || h3 > 0 ? { l2, h3 } : null;
 }
 
 function updateEffects(dt) {
@@ -1432,10 +1447,10 @@ function drawTexts(ctx) {
     const scale = age < popTime ? popFrom - (popFrom - 1) * easeOut(age / popTime) : 1;
     // schräg nach rechts oben wegziehen, damit die Mitte (Figur und Gegner) frei bleibt
     const rise = easeOut(Math.min(1, k * 1.3));
-    const y = t.y - 12 - rise * 34;
+    const y = t.y - 12 - rise * 34 - (V3.on ? 0 : t.l2 || 0);
     const x = st.center ? t.x : t.x + 24 + rise * 16;
     ctx.save();
-    if (V3.on) v3Anchor(ctx, t.x, t.y);
+    if (V3.on) v3Anchor(ctx, t.x, t.y, t.h3 || 0);
     ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
     ctx.translate(x, y);
     if (st.glow && age < 0.3) ctx.rotate(Math.sin(age * 60) * 0.06 * (1 - age / 0.3));

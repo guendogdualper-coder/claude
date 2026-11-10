@@ -119,7 +119,8 @@ function render() {
   let fy;
   if (game.player && game.running) {
     fx = game.player.x;
-    fy = game.player.y;
+    // seit 14.39: hoch auf dem Drachen folgt das Bild ein Stück nach oben (Figur und Name bleiben im Bild)
+    fy = game.player.y - 0.6 * dragonHighLift2d(game.player);
   } else {
     const t = performance.now() / 1000;
     fx = CENTER_X * TILE + Math.cos(t * 0.05) * 420;
@@ -396,13 +397,18 @@ const DRAGON_RIDE_H = 52;
 const dragonBob2d = (p) => Math.sin(game.time * 6.6 + (p.x % 7)) * 1.6;
 // seit 14.32: am Boden (Dungeon, Instanz, Arena, Duell) sitzt man tiefer und ohne Schweben
 const DRAGON_GROUND_DROP = 12;
+// seit 14.39: Flughöhe „hoch“ (dragonHighK, spieler.js) hebt Drache und Reiter um so viele Pixel mehr, der Schatten
+// bleibt am Boden
+const DRAGON_HIGH_2D = 44;
+const dragonHighLift2d = (p) => (p && p.riding && rideTierOf(p) === 3 && typeof dragonHighK === 'function' ? DRAGON_HIGH_2D * dragonHighK(p) : 0);
 function rideHeight(p) {
   if (!p || !p.riding) return 0;
   if (rideTierOf(p) !== 3) return RIDE_HEIGHT;
-  return p.dragonGround ? DRAGON_RIDE_H - DRAGON_GROUND_DROP + (p.moving ? Math.abs(Math.sin(game.time * 8 + (p.x % 7))) * 1.2 : 0) : DRAGON_RIDE_H + dragonBob2d(p);
+  return p.dragonGround ? DRAGON_RIDE_H - DRAGON_GROUND_DROP + (p.moving ? Math.abs(Math.sin(game.time * 8 + (p.x % 7))) * 1.2 : 0) : DRAGON_RIDE_H + dragonBob2d(p) + dragonHighLift2d(p);
 }
-function horseSprite(frame, saddle, tier = 1) {
-  if (tier === 3) return getSprite(`dragon:${frame}:${saddle}`, { x: -84, y: -116, w: 146, h: 120 }, (ctx) => { ctx.scale(1.3, 1.3); dragonMountArt(ctx, frame, { saddle }); });
+// color (seit 14.39): Drachenfarbe (rot, blau, schwarz, weiss); Rot behält den alten Bildschlüssel
+function horseSprite(frame, saddle, tier = 1, color = 'rot') {
+  if (tier === 3) return getSprite(`dragon:${frame}:${saddle}${color === 'rot' ? '' : ':' + color}`, { x: -84, y: -116, w: 146, h: 120 }, (ctx) => { ctx.scale(1.3, 1.3); dragonMountArt(ctx, frame, { saddle, color }); });
   const war = tier === 2;
   return getSprite(`horse:${frame}:${saddle}:${tier}`, { x: -34, y: -58, w: 68, h: 62 }, (ctx) => horseArt(ctx, frame, war ? { saddle: '#7a1a1a', coat: '#241e26', mane: '#0e0a10' } : { saddle }));
 }
@@ -523,10 +529,14 @@ function drawPlayer(ctx, p) {
   if (p.riding && rideTierOf(p) === 3) {
     // Drache: Schatten am Boden, er selbst schwebt und schlägt immer mit den Flügeln (auch im Stand);
     // seit 14.32 am Boden (p.dragonGround): Flügel ruhig, er sitzt tiefer und wippt nur beim Laufen
-    drawShadow(ctx, p.x, fy, 26);
+    // seit 14.39: hoch oben ist der Schatten kleiner und blasser
+    const hk = dragonHighLift2d(p) / DRAGON_HIGH_2D;
+    softShadow(ctx, p.x, fy, 26 * (1 - 0.3 * hk), 26 * 0.42 * (1 - 0.3 * hk), 0.4 * (1 - 0.45 * hk));
     const ground = p.dragonGround;
-    const frame = ground ? (p.moving ? [1, 3][Math.floor(game.time * 6) % 2] : 1) : Math.floor(game.time * 7) % 4;
-    blitSprite(ctx, horseSprite(frame, CLASSES[p.classId].trim, 3), p.x, fy - (ride - leapH - DRAGON_RIDE_H), flip);
+    // Steigen: schnellere Flügelschläge, Sinken: langsamer (gleitet)
+    const hz = p.__fhDir > 0 ? 11 : p.__fhDir < 0 ? 4 : 7;
+    const frame = ground ? (p.moving ? [1, 3][Math.floor(game.time * 6) % 2] : 1) : Math.floor(game.time * hz) % 4;
+    blitSprite(ctx, horseSprite(frame, CLASSES[p.classId].trim, 3, dragonColorOf(p)), p.x, fy - (ride - leapH - DRAGON_RIDE_H), flip);
   } else if (p.riding) {
     drawShadow(ctx, p.x, fy, 22);
     blitSprite(ctx, horseSprite(p.moving ? Math.floor(game.time * 10) % 4 : 0, CLASSES[p.classId].trim, rideTierOf(p)), p.x, fy, flip);
@@ -1650,7 +1660,10 @@ function drawLabel(ctx, e) {
     const label = trName(e.name);
     const lvText = 'LVL ' + e.level;
     // der Spitzhut des Magiers ist höher: Name etwas darüber
-    const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - rideHeight(e);
+    // seit 14.39: in 3D steckt die Höhe auf dem Drachen schon in der Kopfhöhe (v3HeadHeight) – dort nur noch ein
+    // kleiner Abstand statt der ganzen 2D-Reithöhe (sonst schwebte der Name weit über dem Reiter und lief hoch oben
+    // aus dem Bild)
+    const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (V3.on && e.riding && rideTierOf(e) === 3 ? 14 : rideHeight(e));
     // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
     const mate = e.remote && inMyParty(e.name);
     // seit 13.86: in der Turnierarena Name und Leben in der Teamfarbe, vor der Stufe ein kleiner Rang-Stein

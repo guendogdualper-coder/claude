@@ -128,7 +128,9 @@ const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoi
   // seit 13.86: Turnierarena (turnierarena.js) – Rangpunkte, Siege, Niederlagen, offener Rangkampf
   'pvp',
   // seit 14.1: Stand des Rang-Aufstiegs (Bücher, Schriftrollen, Seelensteine) für den einmaligen Hinweis
-  'skillCostVer'];
+  'skillCostVer',
+  // seit 14.39: Farbe der Glutschwinge (rot, blau, schwarz, weiss)
+  'dragonColor'];
 const SKILL_COST_VER = 1;
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar
@@ -211,6 +213,8 @@ function makePlayer(save) {
   migratePotions(p); // seit 14.32: L-Tränke werden 1:1 zu XL (daten/zonen.js)
   // Wer schon ein Pferd hat, reitet ab 7.3 das Reitpferd (Stufe 1)
   p.horseTier = p.horse ? Math.max(1, save.horseTier || 1) : 0;
+  // seit 14.39: Drachenfarbe, unbekannt oder alt → Rot (die bisherige Farbe)
+  p.dragonColor = dragonColorOf(save);
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
   p.equipment = { ...starterEquipment(save.classId), helm: null, schultern: null, umhang: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
@@ -856,6 +860,18 @@ function upgradeSkill(i, type = 'point') {
 // Fliegen geht nur in der offenen Welt – nicht in Dungeons, Instanzen, Arena, Turnierarena und Duellen.
 const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 },
   { name: 'Glutschwinge', speed: 1.1, level: 60, price: 500000, fly: true }];
+// seit 14.39: Farbe der Glutschwinge – beim Stallmeister beim Kauf gewählt und dort jederzeit kostenlos änderbar
+// (p.dragonColor im Spielstand). 'rot' ist die bisherige Farbe: Standard für alte Spielstände und für Mitspieler,
+// deren Version keine Farbe schickt (Netzfeld dc). Farbwerte: drei-drache.js (DRACHE3_FARBEN) und figuren.js
+// (DRAGON2D_FARBEN).
+const DRAGON_COLORS = {
+  rot: { name: 'Rot', swatch: '#7a1f1d', glow: '#ffb63c' },
+  blau: { name: 'Blau', swatch: '#24497e', glow: '#7fe0ff' },
+  schwarz: { name: 'Schwarz', swatch: '#211c26', glow: '#c45cff' },
+  weiss: { name: 'Weiß', swatch: '#e2ded5', glow: '#ffd36a' }
+};
+const DRAGON_COLOR_IDS = Object.keys(DRAGON_COLORS);
+const dragonColorOf = (p) => (p && DRAGON_COLORS[p.dragonColor] ? p.dragonColor : 'rot');
 // Tatsächlich gerittene Stufe (seit 14.27): wo der Drache nicht fliegen darf, ritt man bis 14.31 stattdessen das
 // Kriegsross. Seit 14.32 bleibt man dort auf dem Drachen, er läuft aber am Boden (p.dragonGround: kein Flug, normale
 // Kollision wie zu Fuß) – mit dem Tempo des Kriegsrosses, damit sich in engen Gängen gegenüber 14.31 nichts ändert.
@@ -928,6 +944,8 @@ function toggleRide(on) {
   if (ground) ui.log('Hier kann deine Glutschwinge nicht fliegen – sie trägt dich am Boden (so schnell wie ein Kriegsross).', 'info');
   p.riding = next;
   p.flying = next && dragon && !ground;
+  // seit 14.39: Aufsitzen beginnt immer „tief“, Absteigen landet aus jeder Flughöhe
+  p.flyHigh = false;
   p.dragonGround = ground;
   p.rideTierNow = p.horseTier || 1;
   // abgestiegen über Wasser, Bäumen oder Lava: an der nächsten freien Stelle landen
@@ -944,10 +962,55 @@ function toggleRide(on) {
   }
   ui.updateHorseButton();
 }
+// --- Flughöhe auf dem Drachen (seit 14.39) -----------------------------------------------------------------------
+// Im Flug kann man zwischen „tief“ (wie bisher, knapp über den Bäumen) und „hoch“ wechseln (Taste X bzw. Bild↑/
+// Bild↓, Knopf neben dem Drachen-Knopf). Nur Darstellung: Kollision, Tempo, Kampf und alles andere bleiben gleich –
+// man überfliegt hoch oben nichts, was man tief nicht auch überfliegt. p.flyHigh ist der Wunsch; wirksam nur im
+// Flug (dragonFlying). Absteigen, Angriff/Fertigkeit (steigt ab), Tod, Dungeon/Instanz/Arena/Duell (Boden) und
+// Teleport setzen auf „tief“ zurück. Mitspieler bekommen es als Netzfeld fh.
+const DRAGON_HIGH = { up: 1.2, down: 1.0 };
+const dragonFlying = (p) => !!(p && p.riding && !p.dead && rideTierOf(p) === 3 && !p.dragonGround);
+// Weicher Übergang 0 (tief) … 1 (hoch), je Figur in Spielzeit: Steigen 1,2 s, Sinken 1,0 s (geglättet).
+// p.__fhDir: +1 steigt, -1 sinkt, 0 ruhig (für den Flügelschlag in 3D). Mehrfach je Bild aufrufbar.
+function dragonHighK(p) {
+  if (!p) return 0;
+  const want = p.flyHigh && dragonFlying(p) ? 1 : 0;
+  const t = game.time;
+  const dt = Math.min(2, Math.max(0, t - (p.__fhAt ?? t)));
+  p.__fhAt = t;
+  let k = p.__fhK || 0;
+  if (want > k) k = Math.min(1, k + dt / DRAGON_HIGH.up);
+  else if (want < k) k = Math.max(0, k - dt / DRAGON_HIGH.down);
+  p.__fhK = k;
+  p.__fhDir = want > k ? 1 : want < k ? -1 : 0;
+  return k * k * (3 - 2 * k);
+}
+// Steigen (on = true), Sinken (false) oder wechseln (nichts)
+function setFlyHigh(on) {
+  const p = game.player;
+  if (!dragonFlying(p)) return;
+  const next = on == null ? !p.flyHigh : !!on;
+  if (next === !!p.flyHigh) return;
+  p.flyHigh = next;
+  if (typeof snd !== 'undefined' && snd.dragon) snd.dragon(p, next ? 'steig' : 'sink');
+  if (typeof ui !== 'undefined' && ui.updateFlyButton) ui.updateFlyButton();
+}
 // Jedes Bild vor dem Laufen: der Drache landet von selbst, wo er nicht fliegen darf (Dungeon, Arena, Duell …),
 // und wer nicht (mehr) fliegt, steht nie auf Wasser oder in einem Baum
 function dragonRideTick(p) {
-  if (!p || p.dead) return;
+  if (!p) return;
+  dragonRideTick0(p);
+  // seit 14.39: Flughöhe nur im Flug (nach dem Bodenzustand oben geprüft); nach einem Sprung der Position
+  // (Teleport, Reise, Dungeon, Wiederbeleben, Landen auf freier Stelle) sofort wieder „tief“, ohne sichtbares Sinken
+  const jump = p.__fhX != null && Math.hypot(p.x - p.__fhX, p.y - p.__fhY) > 4 * TILE;
+  p.__fhX = p.x;
+  p.__fhY = p.y;
+  if (p.flyHigh && (jump || !dragonFlying(p))) p.flyHigh = false;
+  if (jump) p.__fhK = 0;
+  if (typeof ui !== 'undefined' && ui.updateFlyButton) ui.updateFlyButton();
+}
+function dragonRideTick0(p) {
+  if (p.dead) return;
   if (p.riding && hasDragon(p)) {
     // seit 14.27: statt abzusteigen landet der Drache; seit 14.32 läuft er dort am Boden weiter (vorher Kriegsross),
     // draußen fliegt er wieder. Jedes Bild vor dem Laufen geprüft: Eintritt, Teleport, Wiederverbinden, Laden.

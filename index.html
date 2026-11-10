@@ -103,6 +103,9 @@
     <button id="btnHorse" class="menu-btn" type="button" aria-label="Pferd" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20l1-6c-1-2-1-4 1-6l3-3 2 1 4-2 1 3 3 2-1 2-3-1-2 3 1 7"/><path d="M8 14h6"/></svg>
       <span class="menu-text">Pferd</span> <kbd>R</kbd></button>
+    <button id="btnFly" class="menu-btn" type="button" aria-label="Steigen" hidden>
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M12 3.5l7 8h-4.2V20H9.2v-8.5H5z"/></svg>
+      <span class="menu-text">Steigen</span> <kbd>Leertaste</kbd></button>
     <button id="btnNet" class="menu-btn" type="button" aria-label="Server und Kanal">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle class="fill" cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg>
       <span class="menu-text">Server</span> <kbd>N</kbd></button>
@@ -128,6 +131,11 @@
       <svg class="menu-icon gear" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M10.3 2.6h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9-2.6-.5v-3.4l2.6-.5.8-1.9-1.5-2.2 2.4-2.4 2.2 1.5 1.9-.8z"/><circle cx="12" cy="12" r="3.4"/></svg>
       <span class="menu-text">Einstellungen</span> <kbd>O</kbd></button>
   </nav>
+  <!-- seit 14.39: Steigen/Sinken auf dem fliegenden Drachen (am Handy; am PC Leertaste und Knopf im Menü) -->
+  <div id="flyPad" class="fly-pad" hidden>
+    <button id="btnFlyUp" class="fly-btn" type="button" aria-label="Steigen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l8 10h-5v6H9v-6H4z"/></svg><span>Steigen</span></button>
+    <button id="btnFlyDown" class="fly-btn" type="button" aria-label="Sinken"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20l8-10h-5V4H9v6H4z"/></svg><span>Sinken</span></button>
+  </div>
 
   <button class="slot loot-btn" id="btnLoot" type="button" title="Rucksack (B)" aria-label="Rucksack">
         <span class="key">B</span>
@@ -242,6 +250,8 @@
       <dt><kbd>9</kbd></dt><dd>Klassensegen (ab Stufe 10, runder Knopf neben der Ultimativen Attacke; 30 Minuten)</dd>
       <dt><kbd>Q</kbd> / <kbd>E</kbd></dt><dd>Drachenblut (Leben) / Mondtau (Mana)</dd>
       <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
+      <dt><kbd>R</kbd></dt><dd>Aufsitzen und absteigen (Pferd oder Drache)</dd>
+      <dt><kbd>Leertaste</kbd> auf dem Drachen</dt><dd>Im Flug ein Stück über die Bäume steigen, nochmal drücken zum Sinken (statt anzugreifen; auch <kbd>Bild↑</kbd> / <kbd>Bild↓</kbd> oder der Pfeil-Knopf neben dem Drachen-Knopf). Am Boden und im Dungeon greift die Leertaste wie gewohnt an.</dd>
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
       <dt><kbd>N</kbd> / <kbd>Enter</kbd></dt><dd>Server und Kanal / Chat</dd>
       <dt><kbd>G</kbd></dt><dd>Freunde &amp; Gilde</dd>
@@ -252,6 +262,7 @@
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
     </dl>
     <p>Am Handy: Berühre die linke Bildschirmhälfte an einer beliebigen Stelle und ziehe, um zu laufen. Rechts den Angriffsknopf gedrückt halten. Fertigkeiten und Tränke kannst du gleichzeitig antippen. Angreifen geht immer, auch ohne Gegner in der Nähe: Die Figur schlägt oder schießt dann in Blickrichtung.</p>
+    <p>Auf dem fliegenden Drachen erscheinen am Handy links neben den Fertigkeiten zwei Knöpfe: Steigen und Sinken.</p>
     <h3>So kommst du voran</h3>
     <ul>
       <li>Jedes besiegte Monster gibt Erfahrung und Gold. Monster, die viel schwächer sind als du, geben kaum noch Erfahrung. Zieh dann in die nächste Zone weiter.</li>

@@ -3542,7 +3542,14 @@ function horseArt(ctx, frame, o = {}) {
 
 // Glutschwinge von der Seite (seit 14.27, 2D), Kopf nach rechts. y = 0 ist der Boden, der Drache schwebt darüber
 // (Rumpfmitte bei y = -38). frame 0–3: Flügelschlag (oben, Mitte, unten, Mitte). o.saddle: Farbe der Satteldecke.
-function dragonWing2d(ctx, sx, sy, k, col, edge) {
+// seit 14.39: Farben der Glutschwinge in 2D (p.dragonColor, DRAGON_COLORS in spieler.js), passend zu DRACHE3_FARBEN
+const DRAGON2D_FARBEN = {
+  rot: { body: '#7a1f1d', bodyD: '#4e1214', belly: '#ead3a2', horn: '#c08a44', hornHi: '#e0b062', far: '#3e1012', farEdge: '#2a0a0c', edge: '#3a0c0e', claw: '#efe3c6', eye: '#ffb63c' },
+  blau: { body: '#24497e', bodyD: '#152c52', belly: '#d4e2ea', horn: '#9aa8ba', hornHi: '#dde6ee', far: '#152a4c', farEdge: '#0c1a32', edge: '#0f2240', claw: '#eef5fa', eye: '#7fe0ff' },
+  schwarz: { body: '#2a2430', bodyD: '#151218', belly: '#6a5262', horn: '#7a3049', hornHi: '#b04c72', far: '#141118', farEdge: '#08070a', edge: '#0a080c', claw: '#dcd0dc', eye: '#c45cff' },
+  weiss: { body: '#dcd7cd', bodyD: '#aaa396', belly: '#f4e4bc', horn: '#c39a44', hornHi: '#f0d27a', far: '#a8a194', farEdge: '#857e72', edge: '#8e877a', claw: '#fffaf0', eye: '#8fd8ff' }
+};
+function dragonWing2d(ctx, sx, sy, k, col, edge, tip = '#c08a44') {
   // Vorderkante vom Schultergelenk schräg nach hinten: oben steil, unten unter den Rumpf
   const ang = (15 - 47 * k) * Math.PI / 180;
   const dx = -Math.cos(ang);
@@ -3567,17 +3574,34 @@ function dragonWing2d(ctx, sx, sy, k, col, edge) {
   stroke(ctx, edge, 1.6, [[sx + 3, sy], E, T]);
   stroke(ctx, edge, 0.9, [E, F2]);
   stroke(ctx, edge, 0.9, [E, F3]);
-  dot(ctx, T[0], T[1], 1.2, 1.2, '#c08a44');
+  dot(ctx, T[0], T[1], 1.2, 1.2, tip);
 }
+// Vorschaubild einer Drachenfarbe für den Stallmeister (seit 14.39), als Bild-URL zwischengespeichert
+const _dragonPrev = new Map();
+function dragonPreviewUrl(color) {
+  if (_dragonPrev.has(color)) return _dragonPrev.get(color);
+  const c = document.createElement('canvas');
+  c.width = 208;
+  c.height = 116;
+  const ctx = c.getContext('2d');
+  ctx.scale(2, 2);
+  ctx.translate(61, 74);
+  dragonMountArt(ctx, 2, { color });
+  const url = c.toDataURL('image/png');
+  _dragonPrev.set(color, url);
+  return url;
+}
+// o.saddle: Satteldecke (Klassenfarbe), o.color (seit 14.39): Drachenfarbe (DRAGON2D_FARBEN)
 function dragonMountArt(ctx, frame, o = {}) {
-  const red = '#7a1f1d';
-  const redD = '#4e1214';
-  const belly = '#ead3a2';
-  const bronze = '#c08a44';
+  const F = DRAGON2D_FARBEN[o.color] || DRAGON2D_FARBEN.rot;
+  const red = F.body;
+  const redD = F.bodyD;
+  const belly = F.belly;
+  const bronze = F.horn;
   const k = [-1, 0, 1, 0][frame];
   const by = -38;
   // ferner Flügel hinter dem Rumpf
-  dragonWing2d(ctx, -1, by - 7, k * 0.85, '#3e1012', '#2a0a0c');
+  dragonWing2d(ctx, -1, by - 7, k * 0.85, F.far, F.farEdge, bronze);
   // Schwanz mit Bronzeblatt
   const tw = k * 1.5;
   paintShape(ctx, () => {
@@ -3591,7 +3615,7 @@ function dragonMountArt(ctx, frame, o = {}) {
   poly(ctx, [[-49, by - 4 + tw], [-57, by - 8 + tw], [-54, by - 2 + tw], [-58, by + 3 + tw], [-48, by + tw]], bronze);
   // angelegte Hinterbeine und Vorderpfoten
   oval(ctx, -9, by + 7, 6, 4, redD);
-  poly(ctx, [[-14, by + 9], [-19, by + 11], [-13, by + 11]], '#efe3c6');
+  poly(ctx, [[-14, by + 9], [-19, by + 11], [-13, by + 11]], F.claw);
   oval(ctx, 9, by + 7, 4.5, 3.5, redD);
   // Rumpf mit hellem Bauch und Bronzeplatten
   oval(ctx, 0, by, 19, 9, red);
@@ -3604,8 +3628,8 @@ function dragonMountArt(ctx, frame, o = {}) {
   poly(ctx, [[27, by - 15], [38, by - 13], [36, by - 11.5], [27, by - 12.5]], belly);
   // Hörner: nach hinten geschwungen, an der Spitze aufgebogen
   poly(ctx, [[25, by - 21], [17, by - 26], [15, by - 31], [19, by - 26.5], [28, by - 22.5]], bronze);
-  poly(ctx, [[27, by - 22], [21, by - 28], [20, by - 32], [23, by - 27.5], [30, by - 22.5]], '#e0b062');
-  dot(ctx, 31, by - 19.5, 1.6, 1.2, '#ffb63c');
+  poly(ctx, [[27, by - 22], [21, by - 28], [20, by - 32], [23, by - 27.5], [30, by - 22.5]], F.hornHi);
+  dot(ctx, 31, by - 19.5, 1.6, 1.2, F.eye);
   dot(ctx, 36.5, by - 17, 0.8, 0.8, '#1c0c0c');
   // Sattel in der Farbe der Klasse
   if (o.saddle) {
@@ -3614,7 +3638,7 @@ function dragonMountArt(ctx, frame, o = {}) {
     stroke(ctx, '#2a1a10', 1, [[0, by - 7], [0, by + 6]]);
   }
   // naher Flügel vor dem Rumpf
-  dragonWing2d(ctx, 3, by - 6, k, '#7a1f1d', '#3a0c0e');
+  dragonWing2d(ctx, 3, by - 6, k, red, F.edge, bronze);
 }
 
 function monsterSprite(typeId, frame) {

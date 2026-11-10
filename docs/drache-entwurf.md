@@ -173,11 +173,63 @@ Vorher/Nachher-Gegenüberstellung der Flügel liegen bei den Vorschaubildern.
 - **Höhe:** Der Drache schwebt nur „ein bisschen“: Rumpfmitte ≈ 2,3, Bäume sind ≈ 3 hoch. Aus der schrägen
   Spielkamera wirkt das wie über den Bäumen. Kronen zwischen Kamera und Spieler werden durch das Raster um den
   Spieler durchsichtig.
+- **Flughöhe (seit 14.39):** siehe Abschnitt „Flughöhe und Farbe“ unten – zusätzlich zu „tief“ gibt es „hoch“
+  (Rumpfmitte ≈ 4,7).
 - **Leistung** (gemessen mit Software-Grafik):
   - Gleich viele Dreiecke im Bild wie mit Kriegsross (≈ 277.000 gegen 280.000).
   - Zeichenaufrufe 49 gegen 50–52.
   - Bildrate im Rauschen gleich.
   - Die Drachenanimation kostet etwa 0,03 ms CPU je Bild.
+
+## Flughöhe und Farbe (seit 14.39)
+
+Wunsch des Spielers: „mit Leertaste statt schlagen hochfliegen, ein kleines Stück, über die Bäume – oder halt
+wieder runter“, am Handy mit eigenen Knöpfen; dazu die Drachenfarbe wählbar.
+
+### Flughöhe
+
+- **Zwei Höhen:** „tief“ wie bisher (Bauch ≈ 1,9, Rumpfmitte ≈ 2,3, Sattel ≈ 2,9) und „hoch“, ein Stück über den
+  Bäumen (≈ 3 hoch): `DRACHE3.high = 2.4` → Bauch ≈ 4,3, Rumpfmitte ≈ 4,7, Sattel ≈ 5,3. In 2D 44 Pixel mehr
+  (`DRAGON_HIGH_2D`, Reiter bei 96 statt 52 Pixeln).
+- **Übergang:** `dragonHighK(p)` (spieler.js) läuft je Figur in Spielzeit weich von 0 nach 1: Steigen 1,2 s mit
+  schnellerem, weiter ausholendem Flügelschlag und leicht angehobenem Kopf (`hzClimb`), Sinken 1,0 s gleitend mit
+  fast ruhigen Flügeln (`hzSink`). Eigene erzeugte Klänge `drache_steig`/`drache_sink` (klang-welt.js).
+- **Bedienung:**
+  - PC: **Leertaste** (die Angriffstaste) schaltet im Flug zwischen tief und hoch um – einmal drücken = Wechsel,
+    Halten greift nicht an. Am Boden, zu Fuß, im Dungeon, in Instanz, Arena und Duell greift sie wie bisher an.
+    Zusätzlich fest **Bild↑**/**Bild↓** und der Menüknopf „Steigen“/„Sinken“ unter dem Drachen-Knopf.
+  - Handy: zwei große Knöpfe „▲ Steigen“ und „▼ Sinken“ (58 × 52 px) übereinander links neben dem
+    Fertigkeitenbogen, in Daumennähe zum Angriff (`#flyPad`). Der gerade unmögliche Knopf ist ausgegraut. Im
+    HUD-Bearbeitungsmodus als „Drachenflug“ verschieb- und skalierbar. Am PC ausgeblendet (dort reicht die
+    Leertaste, das HUD wäre sonst voller).
+  - Die Knöpfe erscheinen nur, solange man auf dem Drachen fliegt (`dragonFlying(p)`).
+- **Spielregeln unverändert:** Höhe ist nur Darstellung. Kollision (`tileBlockedFlying`), Tempo, Kampf,
+  Sichtweite der Monster bleiben gleich; hoch oben überfliegt man nichts, was man tief nicht auch überfliegt.
+- **Zurück auf „tief“:** Absteigen (auch durch Angriff mit Maus/Knopf oder Fertigkeit), Tod, Dungeon/Instanz/
+  Arena/Duell (Boden), Teleport bzw. jeder Positionssprung über 4 Kacheln (sofort, ohne Sinken am neuen Ort).
+  Aufsitzen beginnt immer tief. Abgestiegen aus der Höhe: der Drache sinkt erst und landet dann (Ausblenden um
+  die Sinkzeit später).
+- **Darstellung 3D:** der ganze Drache samt Reiter steigt (`d.group.position.y`), der Schatten bleibt am Boden,
+  wird kleiner und blasser (eigener Schattenstoff je Drache). Name und Lebensbalken folgen über die Kopfhöhe
+  (`v3HeadHeight` → `rideH3`); seit 14.39 sitzt der Name in 3D nur noch 14 px über dem Reiter statt um die ganze
+  2D-Reithöhe darüber. Treffertexte an der Figur entstehen in 3D auf Sitzhöhe des Reiters statt am Boden darunter, in 2D um die Zusatzhöhe weiter oben (`textFlyLift`).
+- **Kamera** (`CAM3_HIGH`, drei-kern.js): Schulterblick hebt Blickpunkt und Kamera um die volle Zusatzhöhe (bleibt
+  über dem Reiter, nie unter dem Drachen; mit 65 % lag der Name hoch oben schon fast am Bildrand, am Handy unter der
+  Menüzeile), die normale Kamera um 75 % – so steigt die Figur sichtbar im Bild, Name und Lebensbalken bleiben drin. Beide
+  schauen im Flug schon „tief“ 0,9 höher (mit dem Abheben eingeblendet) – vorher klebte der Name im Schulterblick
+  und im Handy-Querformat am oberen Bildrand. 2D-Bild folgt um 60 % der Zusatzhöhe.
+- **Mehrspieler:** Netzfeld `fh: 1` (nur wenn hoch). Ältere Versionen ignorieren es und zeigen „tief“.
+
+### Farbe
+
+- Rot (bisher, Standard), Blau (Silberhörner, eisblaues Glühen der Augen), Schwarz (dunkles Weinrot an Hörnern und
+  Flügelunterseite, violettes Glühen), Weiß (cremefarbener Bauch, Goldhörner, hellblaues Glühen).
+- Spielstand `p.dragonColor` (`'rot'|'blau'|'schwarz'|'weiss'`, unbekannt/alt → Rot), Netzfeld `dc` (nur wenn
+  nicht Rot; ältere Versionen zeigen Rot).
+- Beim Stallmeister: vor dem Kauf vier Farbmuster mit Vorschaubild zum Vormerken, nach dem Kauf jederzeit
+  kostenlos umfärben.
+- 3D: `DRACHE3_FARBEN` (drei-drache.js), eigenes Modell je Farbe (`drache:<farbe>:<sattel>`, Rot wie bisher
+  `drache:<sattel>`); 2D: `DRAGON2D_FARBEN` (figuren.js), Vorschaubild `dragonPreviewUrl`.
 
 ## Vorschau neu erzeugen
 
@@ -203,11 +255,10 @@ Strich. Die Bilder zeigen darum Phasen mit fast waagerechten Flügeln.
 1. **Tempo:** entschieden: `speed: 1.1` (+110 %, absolut ≈ 10 % schneller als das Kriegsross).
 2. **Größe:** passt die Spannweite von ≈ 6,9 Kacheln? Auf dem Handy nimmt der Drache im Flug viel Bild ein.
    Möglich wären 10–15 % kleiner.
-3. **Flughöhe:** reicht „knapp über den Bäumen“ (Rumpfmitte 2,3), oder soll er sichtbar höher fliegen
-   (z. B. 3,5)? Dann sähe man die Bäume deutlich unter sich, die Kamera müsste aber etwas weiter heraus.
+3. **Flughöhe:** entschieden (14.39): wählbar „tief“ (Rumpfmitte 2,3) oder „hoch“ (≈ 4,7, ein Stück über den
+   Bäumen), Leertaste bzw. Knöpfe am Handy.
 4. **Wasser und Lava:** auch über Lava und Abgründe fliegen, oder nur über Wasser und Moor?
-5. **Farbe:** dunkelrot/Bronze wie gezeigt? Gewünscht vielleicht Varianten (z. B. Nachtblau/Silber) als
-   spätere Belohnung?
+5. **Farbe:** entschieden (14.39): Rot, Blau, Schwarz oder Weiß, beim Stallmeister wählbar.
 6. **Sattel:** Decke in der Klassenfarbe wie beim Pferd, oder immer gleich (Blau wie im Bild)?
 7. **Name:** „Glutschwinge“ in Ordnung oder ein anderer Name?
 8. **Dungeons:** entschieden: kein Drache in Dungeons, Instanzen, Arenen und Duellen. Offen: Soll dort das
