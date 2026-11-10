@@ -3453,16 +3453,60 @@ function horseArt(ctx, frame, o = {}) {
   const mane = o.mane || '#3a2418';
   const hoof = '#241a14';
   const t = frame * Math.PI / 2;
+  // seit 14.38 (wie im 3D-Modell): Beine als eine geschwungene Form statt zwei Klötzen – hinten breiter Schenkel,
+  // Unterschenkel schräg nach hinten zum Sprunggelenk, schlankes Röhrbein; vorn Unterarm, Knie, Röhrbein
   const leg = (x, phase, back) => {
     const sw = frame ? Math.sin(t + phase) * 5 : 0;
-    box(ctx, x - 2 + sw * 0.4, -17, 4.2, 9, 1.8, back ? dark : coat);
-    box(ctx, x - 1.6 + sw, -9, 3.4, 8, 1.4, back ? dark : coat);
-    box(ctx, x - 2 + sw, -2, 4, 2.5, 1, hoof);
+    // der Huf schwingt am weitesten, der Ansatz am Rumpf bleibt stehen
+    const P = (px, py) => [x + px + sw * Math.max(0, Math.min(1, (py + 19) / 16)), py];
+    const c = back ? dark : coat;
+    const hind = x < 0;
+    // die nahen Beine liegen vor dem Rumpf: oben ohne Umrisslinie, damit sie aus dem Leib herauswachsen
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - 14, -18.2, 28, 20);
+    ctx.clip();
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      const M = (px, py) => ctx.moveTo(...P(px, py));
+      const L = (px, py) => ctx.lineTo(...P(px, py));
+      const Q = (ax, ay, px, py) => ctx.quadraticCurveTo(...P(ax, ay), ...P(px, py));
+      if (hind) {
+        M(-4.6, -21);
+        Q(4.6, -23, 4.4, -15.5);
+        Q(3.4, -11.5, 0.5, -8.6);
+        L(0.9, -2.4);
+        L(-2.2, -2.4);
+        L(-2.4, -7.6);
+        Q(-4, -9.6, -2.7, -11.2);
+        Q(-5.8, -15, -4.6, -21);
+      } else {
+        M(-2.6, -20);
+        L(2.8, -20);
+        Q(3, -13, 1.9, -9.4);
+        L(1.5, -2.4);
+        L(-1.5, -2.4);
+        L(-1.7, -9);
+        Q(-3, -13, -2.6, -20);
+      }
+      ctx.closePath();
+    }, c, x - 6 + Math.min(0, sw), -23, 12 + Math.abs(sw), 21);
+    ctx.restore();
+    box(ctx, x - (hind ? 2.7 : 2.1) + sw, -2.6, 4.4, 2.8, 1, hoof);
   };
   leg(-11, 0, true);
   leg(9, Math.PI, true);
-  // Schweif
-  paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(-17, -27); ctx.quadraticCurveTo(-27, -22, -24, -8 + (frame ? Math.sin(t) * 2 : 0)); ctx.quadraticCurveTo(-21, -18, -16, -22); ctx.closePath(); }, mane, -27, -27, 11, 20);
+  // Schweif (seit 14.38): drei überlappende Strähnen, oben voll, unten spitz, statt einer Sichel
+  const wag = frame ? Math.sin(t) * 2 : 0;
+  for (const [k, c] of [[1, darker(mane, 0.15)], [-1, lighter(mane, 0.08)], [0, mane]]) {
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-16, -27.5);
+      ctx.quadraticCurveTo(-26.5 - k * 1.6, -25, -24 + k * 1.6 - wag * 0.4, -5.5 - Math.abs(k) * 2.5 + wag);
+      ctx.quadraticCurveTo(-20.5 + k, -15, -15.5, -22.5);
+      ctx.closePath();
+    }, c, -28, -28, 13, 24);
+  }
   oval(ctx, 0, -23, 18, 9.5, coat);
   oval(ctx, 2, -20, 13, 5, lighter(coat, 0.12));
   // Hals und Kopf
@@ -3471,7 +3515,21 @@ function horseArt(ctx, frame, o = {}) {
   oval(ctx, 29.5, -36.5, 2.6, 2.2, lighter(coat, 0.2));
   poly(ctx, [[18, -45], [19, -51], [21.5, -45]], coat);
   dot(ctx, 22.5, -41.5, 1.2, 1.2, '#1a120c');
-  poly(ctx, [[8, -31], [15, -44], [19, -45], [12, -30]], mane);
+  // Mähne (seit 14.38): fällt vom Kamm am Hals herab, unten in Strähnen auslaufend, dazu der Schopf – statt eines Balkens
+  const mr = (i) => [9.4 + (i / 4) * 8.2, -31 - (i / 4) * 13];
+  const mt = (i) => [mr(i)[0] + 0.8 - (i % 2) * 0.8, mr(i)[1] + 7.6 + (i % 2) * 1.8 - i * 0.7];
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(19, -45.8);
+    ctx.lineTo(15.4, -44.2);
+    ctx.lineTo(8.4, -30.6);
+    ctx.lineTo(...mt(0));
+    for (let i = 0; i < 4; i++) ctx.quadraticCurveTo((mr(i)[0] + mr(i + 1)[0]) / 2 + 0.9, (mr(i)[1] + mr(i + 1)[1]) / 2 + 3.2, ...mt(i + 1));
+    ctx.quadraticCurveTo(20.4, -42.5, 19, -45.8);
+    ctx.closePath();
+  }, mane, 6, -46, 16, 24);
+  for (let i = 1; i < 4; i++) stroke(ctx, darker(mane, 0.35), 0.5, [[mr(i)[0] + 0.9, mr(i)[1] + 1.2], [mt(i)[0] + 0.2, mt(i)[1] - 1.4]]);
+  paintShape(ctx, () => { ctx.beginPath(); ctx.moveTo(17.6, -45.6); ctx.quadraticCurveTo(21.5, -47.5, 23.6, -43.2); ctx.quadraticCurveTo(20.6, -44.6, 17.6, -45.6); ctx.closePath(); }, mane, 17, -48, 7, 5);
   leg(-8, Math.PI / 2, false);
   leg(12, Math.PI * 1.5, false);
   if (o.saddle) {

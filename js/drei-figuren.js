@@ -1476,6 +1476,104 @@ function beast3(b, o, P) {
   return { rig, height: bodyY + 0.42, family: 'beast', bodyY, jaw: true, len, bw, hp, legLen };
 }
 
+// Weiche Röhre (seit 14.38): ein Stück Körper entlang einer Mittellinie mit eigenem Querschnitt je Station – für
+// Rumpf, Hals, Beine und Haarsträhnen des Pferdes statt aufeinandergesetzter Kugeln und Kapseln (sah aus wie
+// Bauklötze). st: Stationen { p: [x, y, z], rx (halbe Breite quer), rf / rb (halbe Tiefe nach vorn / hinten; ohne
+// rb rund), w: [Knochen] oder [Knochen A, Knochen B, Anteil B], c: Farbe }. Dazwischen weich (Catmull-Rom); Farben
+// und Knochengewichte laufen ineinander: Gelenke biegen sich ohne Stufe, Fell geht ohne Kante in dunkle Beine über.
+// o.side: Querrichtung (sonst x); „vorn“ ist Laufrichtung × Querrichtung. o.rad Ecken im Querschnitt, o.sub
+// Zwischenringe je Station. Mit Farben je Station wird die Form ohne Farbe gebacken (A(geo, null, …)).
+function softTube3(st, o = {}) {
+  const rad = lodSeg3(o.rad || 10, 5);
+  const sub = lodSeg3(o.sub || 3, 1);
+  const side = o.side || [1, 0, 0];
+  const f3 = (v) => v.toFixed(3);
+  const key = 'soft' + rad + ',' + sub + ',' + side.map(f3).join(',') + '|' + st.map((s) => s.p.map(f3).join(',') + ':' + f3(s.rx) + ',' + f3(s.rf) + ',' + f3(s.rb == null ? s.rf : s.rb) + ':' + (s.w || [0]).join(',') + ':' + (s.c || '')).join(';');
+  return geo3(key, () => {
+    const cr = (a, b, c, d, t) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (-a + 3 * b - 3 * c + d) * t * t * t);
+    const n = st.length;
+    const colored = st.some((s) => s.c);
+    const cols = st.map((s) => new THREE.Color(s.c || '#ffffff'));
+    const rows = [];
+    for (let i = 0; i < n; i++) {
+      const steps = i === n - 1 ? 1 : sub;
+      const S0 = st[Math.max(0, i - 1)], S1 = st[i], S2 = st[Math.min(n - 1, i + 1)], S3 = st[Math.min(n - 1, i + 2)];
+      for (let k = 0; k < steps; k++) {
+        const t = k / sub;
+        const val = (g) => cr(g(S0), g(S1), g(S2), g(S3), t);
+        // Knochen: höchstens zwei je Ring, Gewichte in 255steln (ergibt gebacken genau 1)
+        const w = new Map();
+        const addW = (s, f) => {
+          const ww = s.w || [0];
+          const kb = ww.length > 2 ? ww[2] : 0;
+          w.set(ww[0], (w.get(ww[0]) || 0) + f * (1 - kb));
+          if (kb > 0) w.set(ww[1], (w.get(ww[1]) || 0) + f * kb);
+        };
+        addW(S1, 1 - t);
+        if (t > 0) addW(S2, t);
+        const top = [...w].sort((a, b) => b[1] - a[1]).slice(0, 2);
+        const k1 = top.length > 1 ? Math.round((top[1][1] / (top[0][1] + top[1][1])) * 255) : 0;
+        rows.push({
+          p: new THREE.Vector3(val((s) => s.p[0]), val((s) => s.p[1]), val((s) => s.p[2])),
+          rx: Math.max(0.002, val((s) => s.rx)), rf: Math.max(0.002, val((s) => s.rf)), rb: Math.max(0.002, val((s) => (s.rb == null ? s.rf : s.rb))),
+          b: [top[0][0], top.length > 1 ? top[1][0] : 0, 255 - k1, k1], c: cols[i].clone().lerp(cols[Math.min(n - 1, i + 1)], t)
+        });
+      }
+    }
+    const R = rows.length;
+    const nv = R * rad + 2;
+    const pos = new Float32Array(nv * 3);
+    const col = new Float32Array(nv * 3);
+    const si = new Uint8Array(nv * 4);
+    const sw = new Float32Array(nv * 4);
+    const idx = [];
+    const T = new THREE.Vector3();
+    const S = new THREE.Vector3(1, 0, 0);
+    const F = new THREE.Vector3();
+    const put = (v, x, y, z, row) => {
+      pos[v * 3] = x; pos[v * 3 + 1] = y; pos[v * 3 + 2] = z;
+      col[v * 3] = row.c.r; col[v * 3 + 1] = row.c.g; col[v * 3 + 2] = row.c.b;
+      si[v * 4] = row.b[0]; si[v * 4 + 1] = row.b[1];
+      sw[v * 4] = row.b[2] / 255; sw[v * 4 + 1] = row.b[3] / 255;
+    };
+    for (let i = 0; i < R; i++) {
+      const row = rows[i];
+      T.subVectors(rows[Math.min(R - 1, i + 1)].p, rows[Math.max(0, i - 1)].p).normalize();
+      const sOld = S.clone();
+      S.set(side[0], side[1], side[2]).addScaledVector(T, -(side[0] * T.x + side[1] * T.y + side[2] * T.z));
+      if (S.lengthSq() < 1e-4) S.copy(sOld);
+      S.normalize();
+      F.crossVectors(T, S);
+      for (let j = 0; j < rad; j++) {
+        const a = (j / rad) * Math.PI * 2;
+        const ca = Math.cos(a) * row.rx;
+        const sa = Math.sin(a) * (Math.sin(a) > 0 ? row.rf : row.rb);
+        put(i * rad + j, row.p.x + S.x * ca + F.x * sa, row.p.y + S.y * ca + F.y * sa, row.p.z + S.z * ca + F.z * sa, row);
+      }
+      if (i < R - 1) for (let j = 0; j < rad; j++) {
+        const a = i * rad + j, a1 = i * rad + ((j + 1) % rad);
+        idx.push(a, a1, a + rad, a1, a1 + rad, a + rad);
+      }
+    }
+    // beide Enden schließen
+    const c0 = R * rad, c1 = c0 + 1, L = (R - 1) * rad;
+    put(c0, rows[0].p.x, rows[0].p.y, rows[0].p.z, rows[0]);
+    put(c1, rows[R - 1].p.x, rows[R - 1].p.y, rows[R - 1].p.z, rows[R - 1]);
+    for (let j = 0; j < rad; j++) {
+      idx.push(c0, (j + 1) % rad, j);
+      idx.push(c1, L + j, L + ((j + 1) % rad));
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    if (colored) g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4));
+    g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
 // Pferd (neu gebaut in 12.0): Vorlage ist ein echtes Reitpferd im Profil – Widerrist und Kruppe gleich hoch,
 // Rumpf so lang wie das Pferd hoch ist, tiefe Brust, schmale Taille hinter dem Sattel, runde Hinterhand mit
 // kräftigen Schenkeln; schlanker, gebogener Hals mit Kamm; langer Keilkopf mit Ganaschen, weichem Maul und
@@ -1503,27 +1601,75 @@ function horseParts3(b, unused, o = {}) {
   const bodyY = 0.95;
   const FX = 0.12 * W, HX = 0.13 * W, FZ = 0.4, HZ = -0.42;
   const POLL = [0, 1.64, 0.88];
+  // Gelenke in der Seitenansicht [y, z] (seit 14.38): Sprunggelenk höher und weiter hinten als das Vorderknie,
+  // Fesselkopf knapp über dem Huf; die Schweifrübe des Kriegsrosses sitzt tiefer (kommt unter der Schabracke hervor)
+  const KNEE = [0.4, FZ + 0.012], FFET = [0.135, FZ + 0.004], HOCK = [0.46, HZ - 0.143], HFET = [0.135, HZ - 0.122];
+  const DOCK = war ? [1.07, -0.65] : [1.14, -0.64];
   const rig = rigOf([
     [[0, 0, 0], -1], [[0, bodyY, 0], 0], [POLL, 10],
     [[FX, 0.9, FZ], 1], [[-FX, 0.9, FZ], 1], [[HX, 1.0, HZ], 1], [[-HX, 1.0, HZ], 1],
-    [[0, 1.14, -0.64], 1], [[0, 0, 0], 1], [[0, 0, 0], 1], [[0, 1.06, 0.5], 1],
-    // 11–14 Röhrbein (vorn ab Knie, hinten ab Sprunggelenk), 15–18 Fessel mit Huf, 19 Schweifrübe
-    [[FX, 0.38, FZ + 0.01], 3], [[-FX, 0.38, FZ + 0.01], 4], [[HX, 0.42, HZ - 0.13], 5], [[-HX, 0.42, HZ - 0.13], 6],
-    [[FX, 0.13, FZ], 11], [[-FX, 0.13, FZ], 12], [[HX, 0.13, HZ - 0.09], 13], [[-HX, 0.13, HZ - 0.09], 14],
-    [[0, 1.02, -0.76], 7]
+    [[0, DOCK[0], DOCK[1]], 1], [[0, 0, 0], 1], [[0, 0, 0], 1], [[0, 1.06, 0.5], 1],
+    // 11–14 Röhrbein (vorn ab Knie, hinten ab Sprunggelenk), 15–18 Fessel mit Huf, 19–21 Schweif (drei Glieder)
+    [[FX, KNEE[0], KNEE[1]], 3], [[-FX, KNEE[0], KNEE[1]], 4], [[HX, HOCK[0], HOCK[1]], 5], [[-HX, HOCK[0], HOCK[1]], 6],
+    [[FX, FFET[0], FFET[1]], 11], [[-FX, FFET[0], FFET[1]], 12], [[HX, HFET[0], HFET[1]], 13], [[-HX, HFET[0], HFET[1]], 14],
+    [[0, 0.98, -0.78], 7], [[0, 0.76, -0.82], 19], [[0, 0.52, -0.83], 20]
   ]);
-  // --- Rumpf: Brust, Mittelhand, Hinterhand, Widerrist, Kruppe, Schulterblätter
-  A(ball(18), coat, { bone: 1, p: [0, bodyY - 0.01, -0.02], s: [0.25 * W, 0.27, 0.44], shade: 0.3, shine: 0.15 });
-  A(ball(16), coat, { bone: 1, p: [0, bodyY + 0.01, 0.34], s: [0.235 * W, 0.29, 0.25], shade: 0.28, shine: 0.15 });
-  A(ball(16), coat, { bone: 1, p: [0, bodyY + 0.05, -0.4], s: [0.262 * W, 0.27, 0.27], shade: 0.28, shine: 0.15 });
+  // Schattenkugel von Hand (weiche Röhren hängen an mehreren Knochen und werfen selbst keinen Schatten)
+  const shadowAt = (bone, p, s) => {
+    if (b.skinned) shadowPart(b, sphere3(1, 6, 4), new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion(), new THREE.Vector3(...s)), { bone, parent: o.parent || null });
+  };
+  // --- Rumpf (seit 14.38 aus einem Stück statt aus sechs Kugeln): Querschnitte von der Hinterbacke bis zur Brust,
+  // je [z, Mitte y, halbe Breite, Höhe nach oben, Höhe nach unten] – der Rücken läuft weich über die runde Kruppe
+  // zum Schweifansatz aus, hinter dem Sattel ist die Flanke leicht eingezogen, die Brust tief
+  const TORSO = [
+    [-0.7, 0.99, 0.045, 0.05, 0.06], [-0.675, 0.99, 0.135, 0.115, 0.15], [-0.615, 0.995, 0.205, 0.172, 0.215], [-0.52, 1.0, 0.25, 0.232, 0.255],
+    [-0.4, 1.0, 0.265, 0.26, 0.268], [-0.27, 0.985, 0.256, 0.25, 0.258], [-0.12, 0.955, 0.249, 0.25, 0.268], [0.04, 0.94, 0.25, 0.262, 0.272],
+    [0.2, 0.95, 0.25, 0.283, 0.285], [0.33, 0.96, 0.24, 0.288, 0.29], [0.45, 0.97, 0.208, 0.25, 0.27], [0.55, 0.975, 0.15, 0.17, 0.2], [0.605, 0.98, 0.05, 0.06, 0.07]
+  ];
+  A(softTube3(TORSO.map(([z, y, rx, ru, rd]) => ({ p: [0, y, z], rx: rx * W, rf: ru, rb: rd, w: [1] })), { rad: 18, sub: 3 }), coat, { bone: 1, shade: 0.3, shine: 0.15 });
+  // Rumpfquerschnitt an einer Stelle z (zwischen den Stationen geradlinig, reicht für Mähne, Decken und Behang)
+  const torsoAt = (z) => {
+    let i = 0;
+    while (i < TORSO.length - 2 && z > TORSO[i + 1][0]) i++;
+    const a = TORSO[i], c = TORSO[i + 1];
+    const t = Math.max(0, Math.min(1, (z - a[0]) / (c[0] - a[0])));
+    return a.map((v, k) => v + (c[k] - v) * t);
+  };
+  // halbe Rumpfbreite in Höhe y an der Stelle z (0 = außerhalb)
+  const torsoX = (y, z) => {
+    if (z < TORSO[0][0] || z > TORSO[TORSO.length - 1][0]) return 0;
+    const [, yc, rx, ru, rd] = torsoAt(z);
+    const q = (y - yc) / (y > yc ? ru : rd);
+    return Math.abs(q) < 1 ? rx * W * Math.sqrt(1 - q * q) : 0;
+  };
+  // schmaler Widerrist
   A(ball(12), coat, { bone: 1, p: [0, bodyY + 0.2, 0.26], s: [0.1, 0.1, 0.2], shine: 0.15 });
-  A(ball(12), coat, { bone: 1, p: [0, bodyY + 0.2, -0.46], s: [0.17 * W, 0.1, 0.2], shine: 0.15 });
-  for (const sx of [-1, 1]) A(ball(12), coat, { bone: 1, p: [sx * 0.13 * W, bodyY + 0.06, 0.38], s: [0.11, 0.25, 0.14], r: [-0.45, 0, 0], shade: 0.2, shine: 0.15 });
-  // --- Hals: Hauptstrang, Kamm oben, Kehle unten
-  seg([0, 1.0, 0.44], [0, 1.4, 0.7], 0.19 * W, 0.12, coat, { bone: 10, shade: 0.2 });
-  seg([0, 1.18, 0.38], [0, 1.48, 0.66], 0.13 * W, 0.1, coat, { bone: 10 });
-  seg([0, 1.48, 0.66], [0, 1.66, 0.85], 0.1, 0.085, coat, { bone: 10 });
-  seg([0, 0.98, 0.56], [0, 1.44, 0.84], 0.12, 0.08, coat, { bone: 10, shade: 0.15 });
+  // --- Hals (seit 14.38 aus einem Stück): seitlich schmal, von der Schulter zum Genick verjüngt, oben der Kamm,
+  // unten die Kehle; Stationen [Mitte y, z, halbe Breite, Tiefe zum Kamm, Tiefe zur Kehle]
+  const NECK = [
+    [1.03, 0.385, 0.17 * W, 0.28, 0.28], [1.155, 0.508, 0.145 * W, 0.246, 0.246], [1.31, 0.622, 0.118, 0.21, 0.21], [1.43, 0.72, 0.1, 0.184, 0.184],
+    [1.525, 0.8, 0.09, 0.16, 0.16], [1.598, 0.862, 0.082, 0.138, 0.138], [1.63, 0.9, 0.07, 0.1, 0.1]
+  ];
+  A(softTube3(NECK.map(([y, z, rx, rf, rb], i) => ({ p: [0, y, z], rx, rf, rb, w: i ? [10] : [1, 10, 0.4] })), { rad: 12, sub: 3 }), coat, { bone: 10, shade: 0.2, shine: 0.15 });
+  // halbe Halsbreite an einer Stelle (y, z) der Seitenansicht (0 = außerhalb des Halses)
+  const neckX = (y, z) => {
+    let best = 1e9, out = 0;
+    for (let i = 0; i < NECK.length - 1; i++) {
+      const a = NECK[i], c = NECK[i + 1];
+      const ty = c[0] - a[0], tz = c[1] - a[1];
+      const l = Math.hypot(ty, tz);
+      const u = Math.max(0, Math.min(1, ((y - a[0]) * ty + (z - a[1]) * tz) / (l * l)));
+      const cy = a[0] + ty * u, cz = a[1] + tz * u;
+      const dist = Math.hypot(y - cy, z - cz);
+      if (dist >= best) continue;
+      best = dist;
+      // Abstand quer zur Halsachse: + zum Kamm, − zur Kehle
+      const d = ((y - cy) * tz - (z - cz) * ty) / l;
+      const r = a[d >= 0 ? 3 : 4] + (c[d >= 0 ? 3 : 4] - a[d >= 0 ? 3 : 4]) * u;
+      out = Math.abs(d) < r ? (a[2] + (c[2] - a[2]) * u) * Math.sqrt(1 - (d / r) ** 2) : 0;
+    }
+    return out;
+  };
   // --- Kopf: Stirn, Ganaschen, langes Gesicht, weiches Maul mit Nüstern
   // seit 14.21: Augen in den Kopf eingelassen statt als Kugeln davor, Maul etwas kleiner, Blesse als flacher
   // Streifen direkt auf dem Nasenrücken (vorher ein weißer Stab, der vor dem Gesicht stand)
@@ -1552,59 +1698,170 @@ function horseParts3(b, unused, o = {}) {
     A(horn3(0.13, 0.036, 7), coat, { bone: 2, p: [sx * 0.045, 1.69, 0.86], r: [0.25, 0, -sx * 0.22], s: [1, 1, 0.6] });
     A(horn3(0.09, 0.02, 5), points, { bone: 2, p: [sx * 0.046, 1.7, 0.872], r: [0.25, 0, -sx * 0.22], s: [1, 1, 0.4] });
   }
-  // --- Mähne: liegt auf einer Seite, Strähnen fallen am Hals herab; dazu ein Kamm und der Schopf
+  // --- Mähne (seit 14.38): breite, sich überlappende Strähnen fallen über den Mähnenkamm zur Seite und legen sich
+  // an Hals und Schulter an – unterschiedlich lang, leicht gewellt, an der Wurzel dunkler, zur Spitze heller; dazu
+  // der Schopf zwischen den Ohren. Vorher eine Reihe einzelner Zacken. Das Kriegsross trägt die Mähne länger und
+  // auf beiden Seiten; sie kommt dort unter den Halsschienen hervor.
   const crest = (q) => {
     const u = 1 - q;
     return [0, u * u * 1.28 + 2 * u * q * 1.6 + q * q * 1.75, u * u * 0.32 + 2 * u * q * 0.6 + q * q * 0.82];
   };
-  for (let k = 0; k < 14; k++) {
-    const q = k / 13;
-    const [x, y, z] = crest(q);
-    strand3(A, 10, [0.03, y, z], [0.7, -0.62, -0.25], 0.17 + (k % 3) * 0.04 + (1 - q) * 0.06, 0.05, k % 2 ? mane : lighter(mane, 0.12), { flat: 0.45, w: [0, 0.4, 1] });
-    if (k % 2 === 0) strand3(A, 10, [-0.01, y - 0.005, z], [-0.35, 0.12, -0.93], 0.12, 0.035, mane, { flat: 0.6 });
+  const hr = (i) => {
+    const v = Math.sin(i * 12.9898 + 4.1) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  // Haarfarbe: Wurzel dunkler, Spitze eine Spur zum Fellton hin (warm statt grau), jede Strähne etwas anders
+  const warm = mixColor(mane, coat, 0.5);
+  const hairC = (i, t) => {
+    const base = i % 3 === 1 ? mixColor(mane, coat, war ? 0.3 : 0.16) : i % 3 === 2 ? darker(mane, 0.12) : mane;
+    return t < 0.5 ? mixColor(darker(base, 0.2), base, t * 2) : mixColor(base, warm, (t * 2 - 1) * 0.45);
+  };
+  const surfX = (y, z) => Math.max(neckX(y, z), torsoX(y, z));
+  const maneLock = (q, sx, L, k, i, lift) => {
+    const [, cy, cz] = crest(q);
+    const [, y1, z1] = crest(Math.min(1, q + 0.04));
+    const [, y0, z0] = crest(Math.max(0, q - 0.04));
+    const tl = Math.hypot(y1 - y0, z1 - z0);
+    const st = [];
+    // Ansatz: beim Reitpferd über dem Kamm, beim Kriegsross unter der Halsschiene
+    let ay = cy;
+    if (war) {
+      ay = cy - 0.1;
+      st.push({ p: [sx * 0.05, cy - 0.04, cz], rx: 0.035 * k, rf: 0.012, w: [10], c: hairC(i, 0) });
+    } else {
+      st.push({ p: [-sx * 0.014, cy - 0.012, cz], rx: 0.03 * k, rf: 0.012, w: [10], c: hairC(i, 0) });
+      st.push({ p: [sx * 0.022, cy + 0.008, cz], rx: 0.042 * k, rf: 0.015, w: [10], c: hairC(i, 0.1) });
+    }
+    // Fallrichtung: nach unten und leicht nach hinten, je Strähne etwas anders; dazu eine sanfte Welle
+    const gz = -0.2 - 0.22 * hr(i + 7);
+    const gl = Math.hypot(1, gz);
+    const ph = hr(i + 3) * 6;
+    let px = 0;
+    for (const [h, wk, tk] of [[war ? 0.05 : 0.16, 0.9, 1], [0.4, 1, 1], [0.66, 0.94, 0.9], [0.87, 0.66, 0.7], [1, 0.1, 0.25]]) {
+      const y = ay - (h * L) / gl;
+      const z = cz + (gz * h * L) / gl + 0.014 * Math.sin(h * 4 + ph) * h;
+      px = Math.max(surfX(y, z), px * 0.85);
+      st.push({ p: [sx * (px + lift + 0.006 * Math.sin(h * 5 + ph)), y, z], rx: 0.05 * k * wk, rf: 0.016 * tk, w: [10], c: hairC(i, 0.15 + h * 0.85) });
+    }
+    A(softTube3(st, { rad: 4, sub: 2, side: [0, (y1 - y0) / tl, (z1 - z0) / tl] }), null, { bone: 10, noShadow: true, shine: 0.25 });
+  };
+  const nLocks = war ? 12 : 15;
+  for (let k = 0; k < nLocks; k++) {
+    const q = war ? 0.07 + (k / (nLocks - 1)) * 0.8 : 0.03 + (k / (nLocks - 1)) * 0.93;
+    const L = (war ? 0.3 : 0.17) + (war ? 0.1 : 0.08) * (1 - q) + 0.06 * hr(k);
+    maneLock(q, 1, L, (war ? 1.2 : 1) * (0.9 + 0.25 * hr(k + 11)), k, 0.012 + (k % 2) * 0.008);
+    if (war) maneLock(q + 0.02, -1, L * (0.85 + 0.2 * hr(k + 5)), 1.15, k + 20, 0.012 + ((k + 1) % 2) * 0.008);
+    else if (k % 2 === 0) maneLock(q, -1, 0.06 + 0.04 * hr(k + 5), 1.25, k + 20, 0.01);
   }
-  strand3(A, 2, [0, 1.71, 0.9], [0, -0.5, 0.86], 0.17, 0.045, mane, { flat: 0.5 });
-  strand3(A, 2, [0.02, 1.7, 0.89], [0.25, -0.6, 0.75], 0.14, 0.035, lighter(mane, 0.1), { flat: 0.5 });
-  // --- Schweif: Rübe, dann lange, flache Haarsträhnen (hängt in Ruhe, weht im Galopp)
-  seg([0, 1.14, -0.64], [0, 1.02, -0.77], 0.058, 0.046, mane, { bone: 7 });
-  for (let k = 0; k < 7; k++) {
-    const dx = (k - 3) * 0.018;
-    strand3(A, 19, [dx, 1.02, -0.77], [dx * 4, -0.85, -0.3 - (k % 3) * 0.12], 0.5 + ((k * 5) % 4) * 0.05, 0.07, k % 2 ? mane : lighter(mane, 0.1), { flat: 1 });
+  if (!war) {
+    // Mähnenkamm: deckt die Ansätze der Strähnen
+    const ridge = [];
+    for (let k = 0; k <= 6; k++) {
+      const [, y, z] = crest(0.01 + (k / 6) * 0.98);
+      ridge.push({ p: [0, y - 0.014, z], rx: k % 6 ? 0.03 : 0.012, rf: k % 6 ? 0.024 : 0.01, w: [10], c: darker(mane, 0.1) });
+    }
+    A(softTube3(ridge, { rad: 6, sub: 2 }), null, { bone: 10, noShadow: true });
   }
+  // Schopf: fällt zwischen den Ohren nach vorn auf die Stirn (beim Kriegsross nur zwei kurze Büschel neben dem Dorn)
+  const FORE = [[1.722, 0.868, 0.026], [1.73, 0.93, 0.04], [1.702, 0.985, 0.042], [1.657, 1.035, 0.036], [1.592, 1.078, 0.024], [1.556, 1.1, 0.005]];
+  for (const [dx, len, i] of war ? [[-1.3, 0.5, 1], [1.3, 0.5, 2]] : [[0.25, 0.78, 0], [-1, 0.62, 1], [1.1, 0.55, 2]]) {
+    const st = [];
+    for (let n = 0; n < 6; n++) {
+      const f = (n / 5) * len * 5;
+      const j = Math.min(4, Math.floor(f));
+      const a = FORE[j], c = FORE[j + 1];
+      const v = a.map((q, m) => q + (c[m] - q) * (f - j));
+      const x = dx * (0.012 + 0.034 * Math.sin((n / 5) * Math.PI * 0.6));
+      st.push({ p: [x, v[0] - x * x * 6, v[1]], rx: FORE[n][2] * 0.8, rf: n < 5 ? 0.013 : 0.004, w: [2], c: hairC(i, n / 5) });
+    }
+    A(softTube3(st, { rad: 6, sub: 2 }), null, { bone: 2, noShadow: true, shine: 0.25 });
+  }
+  // --- Schweif (seit 14.38): Rübe, darum ein voller Strang aus überlappenden Strähnen – oben bauschig, nach unten
+  // schmaler, die Spitzen verschieden lang. Er hängt an vier Gliedern (7, 19, 20, 21) und schwingt weich nach
+  // (horseGait3). Vorher sieben flache Platten an einem Stummel.
+  const TC = [[7, DOCK[0] - 0.1], [19, 0.87], [20, 0.64], [21, 0.42]];
+  const tailW = (y) => {
+    if (y >= TC[0][1]) return [7];
+    for (let k = 0; k < 3; k++) if (y >= TC[k + 1][1]) return [TC[k][0], TC[k + 1][0], (TC[k][1] - y) / (TC[k][1] - TC[k + 1][1])];
+    return [21];
+  };
+  const dock = war ? [[1.09, -0.6], [1.045, -0.685], [1.0, -0.74], [0.95, -0.78], [0.88, -0.8]] : [[1.16, -0.59], [1.125, -0.67], [1.06, -0.74], [0.98, -0.785], [0.9, -0.8]];
+  A(softTube3(dock.map(([y, z], k) => ({ p: [0, y, z], rx: [0.05, 0.056, 0.052, 0.046, 0.034][k], rf: [0.05, 0.054, 0.05, 0.044, 0.032][k], w: tailW(y), c: darker(mane, 0.1) })), { rad: 8, sub: 2 }), null, { bone: 7, noShadow: true });
+  shadowAt(19, [0, 0.72, -0.82], [0.09, 0.3, 0.07]);
+  const TS = [0, 0.1, 0.28, 0.5, 0.72, 0.9, 1];
+  const TENV = [0, 0.5, 0.95, 1, 0.9, 0.72, 0.6];
+  const TWID = [0.55, 0.82, 1, 1, 0.82, 0.5, 0.08];
+  // ax: Platz quer (−1 … 1), az: vorn (+) oder hinten (−) im Strang, u: Ansatz entlang der Rübe, L: Länge, k: Dicke
+  const tailStrand = (ax, az, u, L, k, i) => {
+    const f = u * 3;
+    const j = Math.min(2, Math.floor(f));
+    const y0 = dock[1 + j][0] + (dock[2 + j][0] - dock[1 + j][0]) * (f - j);
+    const z0 = dock[1 + j][1] + (dock[2 + j][1] - dock[1 + j][1]) * (f - j);
+    const bow = 0.045 - az * 0.035;
+    const st = TS.map((s, n) => {
+      const y = y0 - L * s;
+      const rx = 0.052 * k * TWID[n];
+      return {
+        p: [ax * (0.012 + 0.05 * TENV[n]) + 0.012 * Math.sin(5 * s + i * 1.7) * s, y, z0 + az * 0.042 * TENV[n] - bow * Math.sin(Math.PI * Math.pow(s, 0.75) * 0.95) + 0.045 * s * s],
+        rx, rf: rx * 0.66, w: tailW(y), c: hairC(i, s)
+      };
+    });
+    A(softTube3(st, { rad: 5, sub: 2 }), null, { bone: 19, noShadow: true, shine: 0.25 });
+  };
+  [[0, 0.6, 0.7, 0.68], [0, -1, 0.15, 0.52], [0.45, 0.1, 0.4, 0.6], [-0.45, 0, 0.35, 0.66], [1, -0.2, 0.3, 0.46], [-1, -0.3, 0.25, 0.54], [0.5, -1, 0, 0.42], [-0.55, -0.9, 0.05, 0.5], [0.75, 0.9, 0.85, 0.5, 0.55], [-0.8, -0.5, 0.75, 0.6, 0.5]]
+    .concat(war ? [[0.8, 0.5, 0.55, 0.6], [-0.8, 0.5, 0.6, 0.62], [0, -0.4, 0.5, 0.7]] : [])
+    .forEach(([ax, az, u, L, k = 1], i) => tailStrand(ax, az, u, L * (war ? 1.12 : 1), k * (war ? 1.22 : 1) * (0.9 + 0.2 * hr(i + 31)), i + 40));
   // --- Beine
   const socks = war ? [] : [4, 5];
+  let HIND = null;
   for (let i = 0; i < 4; i++) {
     const front = i < 2;
     const sx = i % 2 ? -1 : 1;
     const up = HORSE_LEG.upper[i], lo = HORSE_LEG.lower[i], ft = HORSE_LEG.foot[i];
     const sock = socks.includes(up);
     const lc = sock ? white : points;
-    let x, zk, zf;
+    const dark = mixColor(coat, points, 0.8);
+    // seit 14.38 ist jedes Bein ein Stück (softTube3): Stationen [x nach außen, y, z, halbe Breite, Tiefe vorn,
+    // Tiefe hinten, Knochen, Farbe]. Die Gelenke hängen je zur Hälfte an beiden Knochen und biegen sich ohne Stufe;
+    // das Fell geht über Knie bzw. Sprunggelenk weich in die dunklen Beine über. Vorher Kugeln und Stäbe.
+    let st, x, zf, zh;
     if (front) {
       x = sx * FX;
-      zk = FZ + 0.01;
-      zf = FZ;
-      // Oberarm geht in die Brust über, Unterarm bis zum Knie
-      A(ball(12), coat, { bone: up, p: [x, 0.78, FZ + 0.01], s: [0.085 * W, 0.17, 0.11], shade: 0.2 });
-      seg([x, 0.74, FZ + 0.01], [x, 0.39, zk], 0.075 * W, 0.05, coat, { bone: up, shade: 0.15 });
-      A(ball(10), points, { bone: lo, p: [x, 0.38, zk + 0.01], s: [0.054, 0.06, 0.056] });
+      zf = FFET[1];
+      zh = FZ + 0.058;
+      // Schulter und Oberarm gehen in die Brust über, Ellbogen nach hinten, flaches Vorderknie, schlankes Röhrbein
+      st = [
+        [0.014, 1.05, FZ - 0.015, 0.08 * W, 0.115, 0.115, [1, up, 0.25], coat], [0.014, 0.92, FZ - 0.005, 0.095 * W, 0.125, 0.125, [1, up, 0.6], coat],
+        [0.006, 0.79, FZ + 0.003, 0.088 * W, 0.105, 0.118, [up], coat], [0, 0.66, FZ + 0.01, 0.068 * W, 0.078, 0.08, [up], coat],
+        [0, 0.53, FZ + 0.012, 0.052, 0.056, 0.052, [up], mixColor(coat, points, 0.35)], [0, KNEE[0], KNEE[1], 0.049, 0.056, 0.045, [up, lo, 0.5], dark],
+        [0, 0.33, FZ + 0.01, 0.038, 0.038, 0.04, [lo], points], [0, 0.26, FZ + 0.007, 0.031, 0.031, 0.036, [lo], points],
+        [0, 0.225, FZ + 0.006, 0.031, 0.031, 0.036, [lo], lc], [0, 0.175, FZ + 0.005, 0.034, 0.034, 0.04, [lo], lc],
+        [0, FFET[0], FFET[1], 0.046, 0.044, 0.05, [lo, ft, 0.5], lc], [0, 0.088, FZ + 0.026, 0.039, 0.039, 0.039, [ft], lc], [0, 0.05, FZ + 0.047, 0.045, 0.046, 0.046, [ft], lc]
+      ];
+      shadowAt(up, [x, 0.68, FZ], [0.08, 0.3, 0.1]);
+      shadowAt(lo, [x, 0.27, FZ + 0.01], [0.04, 0.15, 0.045]);
     } else {
       x = sx * HX;
-      zk = HZ - 0.13;
-      zf = HZ - 0.09;
-      // kräftiger Schenkel, Unterschenkel schräg nach hinten zum Sprunggelenk
-      A(ball(14), coat, { bone: up, p: [x, 0.88, HZ - 0.04], s: [0.12 * W, 0.24, 0.19], shade: 0.22, shine: 0.15 });
-      seg([x, 0.76, HZ + 0.02], [x, 0.44, zk], 0.085 * W, 0.05, coat, { bone: up, shade: 0.15 });
-      A(ball(10), points, { bone: lo, p: [x, 0.42, zk], s: [0.05, 0.065, 0.065] });
-      A(ball(8), points, { bone: lo, p: [x, 0.46, zk - 0.05], s: [0.035, 0.04, 0.04] });
+      zf = HFET[1];
+      zh = HZ - 0.056;
+      // Hinterbacke und breiter Oberschenkel (nach unten verjüngt), Knie vorn, Unterschenkel schräg nach hinten zum
+      // Sprunggelenk mit Fersenhöcker, senkrechtes schlankes Röhrbein, Fesselkopf, schräge Fessel
+      st = [
+        [0, 1.08, HZ - 0.02, 0.07 * W, 0.14, 0.16, [1, up, 0.3], coat], [0.024, 0.97, HZ - 0.03, 0.122 * W, 0.2, 0.215, [1, up, 0.6], coat],
+        [0.03, 0.85, HZ - 0.03, 0.13 * W, 0.205, 0.205, [1, up, 0.85], coat], [0.026, 0.75, HZ - 0.025, 0.118 * W, 0.185, 0.165, [up], coat],
+        [0.016, 0.67, HZ - 0.04, 0.095 * W, 0.135, 0.12, [up], coat], [0.008, 0.58, HZ - 0.08, 0.07, 0.08, 0.082, [up], coat],
+        [0.003, 0.51, HZ - 0.118, 0.055, 0.056, 0.074, [up], mixColor(coat, points, 0.4)], [0, HOCK[0], HOCK[1], 0.047, 0.046, 0.07, [up, lo, 0.5], dark],
+        [0, 0.4, HZ - 0.14, 0.039, 0.039, 0.05, [lo], points], [0, 0.27, HZ - 0.133, 0.031, 0.031, 0.037, [lo], points],
+        [0, 0.235, HZ - 0.131, 0.031, 0.031, 0.037, [lo], lc], [0, 0.18, HZ - 0.127, 0.034, 0.034, 0.041, [lo], lc],
+        [0, HFET[0], HFET[1], 0.046, 0.045, 0.052, [lo, ft, 0.5], lc], [0, 0.088, HZ - 0.096, 0.04, 0.04, 0.04, [ft], lc], [0, 0.05, HZ - 0.072, 0.046, 0.046, 0.046, [ft], lc]
+      ];
+      if (sx > 0) HIND = st;
+      shadowAt(up, [x, 0.85, HZ - 0.03], [0.12, 0.25, 0.19]);
+      shadowAt(lo, [x, 0.29, HZ - 0.13], [0.045, 0.17, 0.05]);
     }
-    // Röhrbein mit Sehne, Fesselkopf, Fessel, Huf
-    seg([x, front ? 0.38 : 0.42, zk], [x, 0.14, zf], 0.043, 0.038, points, { bone: lo });
-    seg([x, front ? 0.35 : 0.39, zk - 0.026], [x, 0.16, zf - 0.026], 0.028, 0.028, points, { bone: lo });
-    if (sock) A(ball(10), white, { bone: lo, p: [x, 0.19, zf], s: [0.046, 0.06, 0.047] });
-    A(ball(10), lc, { bone: ft, p: [x, 0.12, zf - 0.006], s: [0.05, 0.05, 0.056] });
-    seg([x, 0.12, zf], [x, 0.06, zf + 0.035], 0.04, 0.043, lc, { bone: ft });
-    A(cyl3(0.048, 0.063, 0.07, 12), hoofC, { bone: ft, p: [x, 0.035, zf + 0.045], shine: 0.4 });
+    A(softTube3(st.map(([dx, y, z, rx, rf, rb, w, c]) => ({ p: [x + sx * dx, y, z], rx, rf, rb, w, c })), { rad: 10, sub: 3 }), null, { bone: up, noShadow: true, shade: 0.12, shine: 0.12 });
+    // Huf: unten breiter, die Vorderwand schräg (oben nach hinten versetzt)
+    A(lathe3('hoof14', [[0, 0], [0.058, 0], [0.062, 0.012], [0.05, 0.068], [0.04, 0.08], [0, 0.082]], 12), hoofC, { bone: ft, m: new THREE.Matrix4().set(1, 0, 0, x, 0, 1, 0, 0, 0, -0.3, 1.12, zh, 0, 0, 0, 1), shine: 0.4 });
     if (war) for (let k = 0; k < 7; k++) {
       // Behang: lange Haare über dem Huf
       const a = (k / 7) * Math.PI * 2;
@@ -1622,17 +1879,73 @@ function horseParts3(b, unused, o = {}) {
     seg([sx * 0.15, 1.38, 0.74], [sx * 0.1, 1.27, 0.14], 0.007, 0.007, strap, { bone: 10 });
   }
   // --- Satteldecke (schmiegt sich an den Rücken), Sattel mit Knauf und Hinterzwiesel, Gurt, Steigbügel
-  A(cap3(1, 1.0, 0, Math.PI * 2, 20, 6), war ? red : cloth, { bone: 1, p: [0, bodyY - 0.01, -0.06], s: [0.264 * W, 0.284, 0.26], shade: 0.1 });
-  A(torus3(1, 0.05, Math.PI * 2, 4, 28), gold, { bone: 1, p: [0, bodyY - 0.01 + 0.153, -0.06], r: [Math.PI / 2, 0, 0], s: [0.225 * W, 0.22, 0.25], shine: 0.8 });
+  // seit 14.38 liegen Decke und Schabracke als Tuch am neuen Rumpf an (drape) statt als Kugelschalen darüber
+  // halbe Breite des Oberschenkels in Höhe y an der Stelle z (Ruhestellung, mit etwas Luft für den Galopp)
+  const thighX = (y, z) => {
+    for (let k = 0; k < 6; k++) {
+      const a = HIND[k], c = HIND[k + 1];
+      if (y > a[1] || y < c[1]) continue;
+      const t = (a[1] - y) / (a[1] - c[1]);
+      const v = (n) => a[n] + (c[n] - a[n]) * t;
+      const q = (z - v(2)) / ((z > v(2) ? v(4) : v(5)) * 1.12);
+      return Math.abs(q) < 1 ? HX + v(0) + v(3) * Math.sqrt(1 - q * q) : 0;
+    }
+    return 0;
+  };
+  // Gitter über z (z0 … z1) und rund um den Rücken, mit Abstand off über Rumpf und Oberschenkel. Der Saum liegt
+  // überall in Höhe yb; ya = 0: ein Stück über den Rücken hinweg, sonst je Seite ein Streifen von ya hinab bis yb
+  const drape = (z0, z1, nz, ya, yb, nth, off) => geo3(`hdrape${W},${z0},${z1},${nz},${ya},${yb},${nth},${off}`, () => {
+    const pos = [];
+    const idx = [];
+    for (const sx of ya > 0 ? [-1, 1] : [1]) {
+      const base = pos.length / 3;
+      for (let i = 0; i <= nz; i++) {
+        const z = z0 + ((z1 - z0) * i) / nz;
+        const [, yc, rx, ru] = torsoAt(z);
+        const thOf = (y) => Math.acos(Math.max(-1, Math.min(1, (y - yc) / (ru + off))));
+        const tha = thOf(ya), thb = thOf(yb);
+        for (let j = 0; j <= nth; j++) {
+          const th = ya > 0 ? sx * (tha + ((thb - tha) * j) / nth) : -thb + (2 * thb * j) / nth;
+          const y = yc + Math.cos(th) * (ru + off);
+          let x = Math.sin(th) * (rx * W + off);
+          if (Math.abs(th) > 0.7) x = Math.sign(x) * Math.max(Math.abs(x), thighX(y, z) + off);
+          pos.push(x, y, z);
+        }
+      }
+      for (let i = 0; i < nz; i++) for (let j = 0; j < nth; j++) {
+        const a = base + i * (nth + 1) + j, c = a + nth + 1;
+        if (sx > 0) idx.push(a, c, a + 1, a + 1, c, c + 1);
+        else idx.push(a, a + 1, c, a + 1, c + 1, c);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  });
+  if (war) {
+    // Schabracke: ein Tuch vom Widerrist über die Kruppe bis vor den Schweifansatz, unten Goldborte
+    A(drape(-0.62, 0.17, 18, 0, 1.03, 14, 0.014), red, { bone: 1, shade: 0.15 });
+    A(drape(-0.62, 0.17, 18, 1.035, 0.995, 1, 0.02), gold, { bone: 1, shine: 0.8, noShadow: true });
+    A(drape(-0.645, -0.615, 1, 0, 1.0, 14, 0.02), gold, { bone: 1, shine: 0.8, noShadow: true });
+  } else {
+    A(drape(-0.3, 0.17, 8, 0, 1.09, 10, 0.012), cloth, { bone: 1, shade: 0.1 });
+    A(drape(-0.3, 0.17, 8, 1.095, 1.06, 1, 0.018), gold, { bone: 1, shine: 0.8, noShadow: true });
+  }
   const leather = '#5a3820';
   A(cap3(1, 1.1, 0, Math.PI * 2, 16, 5), leather, { bone: 1, p: [0, 1.17, -0.05], s: [0.17, 0.09, 0.2], top: lighter(leather, 0.2), topK: 0.4, shine: 0.3 });
   A(ball(10), leather, { bone: 1, p: [0, 1.27, 0.11], s: [0.05, 0.04, 0.035], shine: 0.4 });
   A(torus3(0.11, 0.022, Math.PI, 4, 10), darker(leather, 0.15), { bone: 1, p: [0, 1.24, -0.2], r: [0.25, 0, 0], s: [1, 0.55, 1] });
   for (const sx of [-1, 1]) A(roundBox(0.02, 0.18, 0.24, 0.01), darker(leather, 0.1), { bone: 1, p: [sx * 0.215 * W, 1.11, -0.05], r: [0, 0, sx * 0.5] });
-  A(torus3(0.25, 0.018, Math.PI * 2, 4, 20), strap, { bone: 1, p: [0, bodyY - 0.01, 0.13], s: [0.98 * W, 1.05, 1] });
+  {
+    // Gurt: folgt dem Rumpfquerschnitt
+    const [, yc, rx, ru, rd] = torsoAt(0.13);
+    A(torus3(0.25, 0.018, Math.PI * 2, 4, 20), strap, { bone: 1, p: [0, yc + (ru - rd) / 2, 0.13], s: [(rx * W + 0.004) / 0.25, ((ru + rd) / 2 + 0.004) / 0.25, 1] });
+  }
   for (const sx of [-1, 1]) {
-    seg([sx * 0.2 * W, 1.2, -0.02], [sx * 0.28 * W, 0.86, -0.02], 0.011, 0.011, strap, { bone: 1 });
-    A(torus3(0.032, 0.009, Math.PI * 2, 4, 10), steelD, { bone: 1, p: [sx * 0.28 * W, 0.83, -0.02], r: [0, Math.PI / 2, 0], shine: 1 });
+    seg([sx * 0.215 * W, 1.2, -0.02], [sx * 0.29 * W, 0.86, -0.02], 0.011, 0.011, strap, { bone: 1 });
+    A(torus3(0.032, 0.009, Math.PI * 2, 4, 10), steelD, { bone: 1, p: [sx * 0.29 * W, 0.83, -0.02], r: [0, Math.PI / 2, 0], shine: 1 });
   }
   if (war) {
     // Kopfplatte entlang des Gesichts mit Grat, Augenschalen und goldenem Dorn
@@ -1657,18 +1970,15 @@ function horseParts3(b, unused, o = {}) {
     A(torus3(1, 0.035, Math.PI * 2, 4, 28), gold, { bone: 1, p: [0, 0.95, 0.35 + 0.3 * Math.cos(1.05)], s: [0.27 * W * Math.sin(1.05), 0.3 * Math.sin(1.05), 1], shine: 0.9 });
     A(sphere3(0.05, 10, 8), gold, { bone: 1, p: [0, 0.95, 0.64], shine: 1 });
     A(ball(8), '#ff6a2a', { bone: 1, p: [0, 0.95, 0.685], s: [0.022, 0.022, 0.012], mat: 'glow' });
-    // Schabracke: Tuch über der Kruppe und an den Flanken, unten Goldborte und Quasten
-    A(cap3(1, 1.35, 0, Math.PI * 2, 22, 7), red, { bone: 1, p: [0, 0.99, -0.41], s: [0.285 * W, 0.295, 0.3], shade: 0.15 });
-    A(torus3(1, 0.04, Math.PI * 2, 4, 28), gold, { bone: 1, p: [0, 0.99 + 0.064, -0.41], r: [Math.PI / 2, 0, 0], s: [0.274 * W, 0.284, 0.285], shine: 0.8 });
-    const ell = [[-0.02, 0.25, 0.44], [0.34, 0.235, 0.25], [-0.4, 0.262, 0.27]];
-    const hw = (z) => Math.max(...ell.map(([cz, rx, rz]) => (Math.abs(z - cz) < rz ? rx * W * Math.sqrt(1 - ((z - cz) / rz) ** 2) : 0)));
+    // Behang an den Flanken (das Tuch darüber: siehe Schabracke oben), unten Goldborte und Quasten
+    const hw = (z) => Math.max(torsoAt(z)[2] * W, thighX(0.86, z), thighX(0.95, z));
     for (const sx of [-1, 1]) for (let k = 0; k < 8; k++) {
       const z = 0.2 - k * 0.11;
-      const x = hw(z) + 0.03;
+      const x = hw(z) + 0.022;
       const yaw = Math.atan2(hw(z + 0.05) - hw(z - 0.05), 0.1) * sx;
-      A(roundBox(0.022, 0.3, 0.12, 0.01), k % 2 ? red : lighter(red, 0.06), { bone: 1, p: [sx * x, 0.86, z], r: [0, yaw, sx * 0.12], shade: 0.2 });
-      A(roundBox(0.03, 0.035, 0.122, 0.012), gold, { bone: 1, p: [sx * (x + 0.02), 0.72, z], r: [0, yaw, sx * 0.12], shine: 0.9 });
-      A(horn3(0.06, 0.016, 5), gold, { bone: 1, p: [sx * (x + 0.02), 0.71, z], r: [Math.PI, 0, 0], shine: 0.9 });
+      A(roundBox(0.022, 0.3, 0.12, 0.01), k % 2 ? red : lighter(red, 0.06), { bone: 1, p: [sx * x, 0.86, z], r: [0, yaw, sx * 0.07], shade: 0.2 });
+      A(roundBox(0.03, 0.035, 0.122, 0.012), gold, { bone: 1, p: [sx * (x + 0.012), 0.72, z], r: [0, yaw, sx * 0.07], shine: 0.9 });
+      A(horn3(0.06, 0.016, 5), gold, { bone: 1, p: [sx * (x + 0.012), 0.71, z], r: [Math.PI, 0, 0], shine: 0.9 });
     }
   }
   return { rig, height: 1.8, family: 'horse', bodyY, seat: 1.29, horse3: true };
@@ -1713,7 +2023,8 @@ function horseGait3(h, t, dt, moving, hz) {
       const s2 = s * s, s3 = s2 * s;
       up = (2 * s3 - 3 * s2 + 1) * a1 + (s3 - 2 * s2 + s) * m + (-2 * s3 + 3 * s2) * a0 + (s3 - s2) * m;
       const lift = Math.sin(Math.PI * Math.pow(s, front ? 0.8 : 1));
-      knee = front ? 1.75 * lift : -1.0 * lift;
+      // seit 14.38 beugt sich das Sprunggelenk im Schwung stärker (Röhrbein klappt nach vorn unter den Leib)
+      knee = front ? 1.75 * lift : -1.2 * lift;
       fet = (front ? 1.1 : 0.8) * Math.sin(Math.PI * s) - (up + knee) * 0.85 * (1 - Math.sin(Math.PI * s));
     }
     B[u].rotation.x = up * ge;
@@ -1737,10 +2048,17 @@ function horseGait3(h, t, dt, moving, hz) {
   B[BQ.neck].rotation.x = ge * (0.06 + 0.13 * Math.sin(TAU * (ph - 0.55))) + idle * (0.06 + 0.05 * Math.sin(t * 0.7));
   B[BQ.head].rotation.x = -ge * 0.09 * Math.sin(TAU * (ph - 0.55)) + idle * 0.04 * Math.sin(t * 0.7 + 1);
   B[BQ.head].rotation.y = idle * 0.18 * Math.sin(t * 0.45);
+  // seit 14.38 vier Schweifglieder: jedes folgt dem vorigen etwas später, der Strang schwingt weich aus
   B[BQ.tail].rotation.x = ge * (0.25 + 0.08 * Math.sin(TAU * ph));
   B[19].rotation.x = ge * (0.15 + 0.2 * Math.sin(TAU * (ph - 0.2)));
-  B[BQ.tail].rotation.y = idle * 0.22 * Math.sin(t * 1.6) + ge * 0.08 * Math.sin(TAU * ph * 2);
-  B[19].rotation.y = idle * 0.3 * Math.sin(t * 1.6 - 0.9) + ge * 0.12 * Math.sin(TAU * ph * 2 - 1);
+  B[BQ.tail].rotation.y = idle * 0.1 * Math.sin(t * 1.6) + ge * 0.06 * Math.sin(TAU * ph * 2);
+  B[19].rotation.y = idle * 0.16 * Math.sin(t * 1.6 - 0.6) + ge * 0.08 * Math.sin(TAU * ph * 2 - 0.8);
+  if (B[21]) {
+    B[20].rotation.x = ge * (0.16 + 0.2 * Math.sin(TAU * (ph - 0.38)));
+    B[21].rotation.x = ge * (0.12 + 0.22 * Math.sin(TAU * (ph - 0.55)));
+    B[20].rotation.y = idle * 0.2 * Math.sin(t * 1.6 - 1.3) + ge * 0.09 * Math.sin(TAU * ph * 2 - 1.6);
+    B[21].rotation.y = idle * 0.22 * Math.sin(t * 1.6 - 2) + ge * 0.1 * Math.sin(TAU * ph * 2 - 2.4);
+  }
   if (idle > 0.01) {
     // Gewicht auf drei Beinen: ein Hinterbein ruht angewinkelt; alle paar Sekunden scharrt der rechte Vorderhuf
     B[13].rotation.x += -0.14 * idle;
