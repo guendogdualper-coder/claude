@@ -1497,6 +1497,16 @@ function quiverIconArt(ctx, tier) {
   ctx.restore();
 }
 
+// seit 14.32: Waffensymbole mittig und in einer Größe je Waffenart. Gemessen wurde die Ausdehnung aller Stufen im
+// 40er-Feld (Mitte x, y und halbe Kantenlänge); Zweihänder, Streitaxt, Stab, Sense und Bogen füllen das Feld,
+// Einhandwaffen bleiben sichtbar kleiner – so erkennt man Schwert und Zweihänder schon an der Größe.
+const WEAPON_ICON_FIT = {
+  sword: [1.5, -1.65, 18.3, 15.6], axe: [-3.5, -3.5, 17, 15.6], dagger: [0.85, -3.9, 18.9, 16],
+  greatsword: [0.65, -0.6, 19.65, 18.6], greataxe: [-1.65, 0.75, 18.25, 18.6], bow: [1, -0.15, 23.15, 18.8],
+  fan: [-1.25, 1, 19.3, 17.6], bell: [-0.5, 0.25, 15.5, 16.2], staff: [-3.5, 3.25, 16.3, 18.6], scythe: [-4.9, 1, 18, 18.6],
+  rod: [1.85, -2.15, 17.15, 16.6]
+};
+
 function drawItemArt(ctx, item) {
   const { slot, tier } = item;
   const metal = TIER_METAL[tier];
@@ -1505,6 +1515,12 @@ function drawItemArt(ctx, item) {
     const kind = item.kind || 'sword';
     const long = kind === 'staff' || kind === 'scythe' || kind === 'greatsword' || kind === 'greataxe' || kind === 'bell';
     ctx.save();
+    const fit = WEAPON_ICON_FIT[kind];
+    if (fit) {
+      const f = fit[3] / fit[2];
+      ctx.translate(-fit[0] * f, -fit[1] * f);
+      ctx.scale(f, f);
+    }
     ctx.rotate(-Math.PI / 4);
     if (kind === 'dagger') {
       ctx.translate(-5, 0);
@@ -1945,14 +1961,26 @@ function itemIconCanvas(item) {
 
 function scrollIconUrl() {
   if (iconCache.has('scroll')) return iconCache.get('scroll');
+  // seit 14.32: Segensschriftrolle hochkant und offen, mit goldener Schutzrune (Schild mit Kreuz) und goldenem
+  // Siegel am Band – vorher sah sie fast wie der Switcher aus und war im Inventar kaum von der Schriftrolle zu trennen
   const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
-    box(ctx, -11, -8, 22, 16, 2, '#efe6cc');
-    oval(ctx, -11, 0, 3, 8.5, '#d9cfa8');
-    oval(ctx, 11, 0, 3, 8.5, '#d9cfa8');
-    stroke(ctx, '#b33a2c', 1, [[-6, -4], [6, -4]]);
-    stroke(ctx, '#b33a2c', 1, [[-6, 0], [4, 0]]);
-    stroke(ctx, '#b33a2c', 1, [[-6, 4], [5, 4]]);
-    oval(ctx, 0, 9, 3.2, 3.2, '#c8402f');
+    box(ctx, -10, -13, 20, 25, 1.5, '#efe6cc');
+    box(ctx, -8.5, -11, 3, 21, 1, '#f8f0da');
+    box(ctx, -12.5, -16, 25, 5, 2.5, '#d9c38c');
+    box(ctx, -12.5, 10, 25, 5, 2.5, '#d9c38c');
+    for (const y of [-13.5, 12.5]) { dot(ctx, -13.2, y, 1.6, 2.2, '#7a5430'); dot(ctx, 13.2, y, 1.6, 2.2, '#7a5430'); }
+    // Schutzrune: Schildumriss mit Kreuz
+    poly(ctx, [[-6, -8], [6, -8], [6, -1], [0, 6], [-6, -1]], '#e8b83a');
+    poly(ctx, [[-4.4, -6.6], [4.4, -6.6], [4.4, -1.6], [0, 3.8], [-4.4, -1.6]], '#fff2c8');
+    stroke(ctx, '#b07a1a', 1.4, [[0, -5.6], [0, 2.4]]);
+    stroke(ctx, '#b07a1a', 1.4, [[-3.2, -3], [3.2, -3]]);
+    // Band und goldenes Siegel unten rechts
+    stroke(ctx, '#3a6ab8', 1.6, [[6, 8], [9.5, 17]]);
+    stroke(ctx, '#3a6ab8', 1.6, [[6, 8], [3.5, 17.5]]);
+    oval(ctx, 6, 8, 4.6, 4.6, '#b8861a');
+    oval(ctx, 6, 8, 3.2, 3.2, '#ffd34d');
+    stroke(ctx, '#8a5a10', 1, [[6, 6], [6, 10]]);
+    stroke(ctx, '#8a5a10', 1, [[4.2, 8], [7.8, 8]]);
   });
   const url = sp.img.toDataURL();
   iconCache.set('scroll', url);
@@ -2145,14 +2173,17 @@ const LOOT_ICON_ART = {
 // Trank in einer Größe: S ist das normale Symbol, größere Flaschen werden größer und tragen ihr Zeichen
 function potionIconUrl(kind, size = 'S') {
   const base = kind === 'hp' ? 'potHp' : 'potMp';
-  if (size === 'S') return lootIconUrl(base);
-  const key = 'pot:' + kind + size;
+  // seit 14.32: auch S trägt sein Zeichen, und die Flasche wächst stetig von S bis XXL
+  // (vorher war S ohne Zeichen in voller Größe und damit größer als M)
+  const idx = POTION_SIZES.findIndex((sz) => sz.id === size);
+  if (idx < 0) return lootIconUrl(base);
+  const key = 'pot2:' + kind + size;
   if (!iconCache.has(key)) {
-    const k = 1 + POTION_SIZES.findIndex((sz) => sz.id === size) * 0.07;
+    const k = 0.8 + idx * 0.07;
     const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
       ctx.save();
-      ctx.translate(0, 2);
-      ctx.scale(k * 0.92, k * 0.92);
+      ctx.translate(-1, 1);
+      ctx.scale(k, k);
       LOOT_ICON_ART[base](ctx);
       ctx.restore();
       // Größenzeichen unten rechts
@@ -2175,6 +2206,20 @@ function lootIconUrl(kind) {
 }
 
 // --- Fenster: Inventar und Schmied -------------------------------------------------------
+
+// seit 14.32: Bestätigung für Knöpfe, die viel auf einmal wegnehmen (z. B. alle Tränke einer Sorte verkaufen):
+// der erste Druck färbt den Knopf rot und fragt nach, erst der zweite innerhalb von 4 s führt aus.
+function armConfirm(btn, ask = 'Wirklich verkaufen?') {
+  if (btn.dataset.armed) return true;
+  for (const o of document.querySelectorAll('[data-armed]')) { if (o !== btn && o._armReset) o._armReset(); }
+  const old = btn.textContent;
+  btn.dataset.armed = '1';
+  btn.classList.add('danger');
+  btn.textContent = ask;
+  const t = setTimeout(() => btn._armReset && btn._armReset(), 4000);
+  btn._armReset = () => { clearTimeout(t); delete btn.dataset.armed; btn.classList.remove('danger'); btn.textContent = old; btn._armReset = null; };
+  return false;
+}
 
 const gear = {
   selected: null,
@@ -2219,6 +2264,8 @@ const gear = {
     // Rahmen und Leuchten in der Farbe der Seltenheit (rar-0 … rar-4, css/seltenheit.css)
     return `<button type="button" class="item-tile band-${band} rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
+      // seit 14.32: Seltenheit auch ohne Farbe erkennbar – 1 bis 4 Punkte oben links (css/seltenheit.css)
+      (rarityOf(item) > 0 ? `<span class="rar-pips" aria-hidden="true"></span>` : '') +
       `<span class="item-plus" style="color:${plusColor(item)}">+${item.plus}</span>` +
       // Köcher: Pfeilvorrat (seit 13.67 echte Zahl statt ∞, rot bei 0; fernninja.js bowHudTick zählt live mit)
       (isQuiver(item) && typeof bowArrowUsable === 'function' ? (() => {
@@ -2273,6 +2320,9 @@ const gear = {
     this.multiArmed = false;
     this.renderInventory();
     document.getElementById('panelInv').hidden = false;
+    // seit 14.32: beim Öffnen wieder oben anfangen (revealDetail rollt sonst bis zum nächsten Öffnen nach unten)
+    const ib = document.getElementById('invBody');
+    if (ib) ib.scrollTop = 0;
   },
 
   page: 0,
@@ -2355,6 +2405,7 @@ const gear = {
       this.selected = { where: 'equip', key: b.dataset.equip };
       this.sellArmed = false;
       this.renderDetail();
+      this.revealDetail();
     }));
     body.querySelectorAll('[data-bag]').forEach((b) => b.addEventListener('click', () => {
       const i = Number(b.dataset.bag);
@@ -2369,6 +2420,7 @@ const gear = {
       this.selected = { where: 'bag', key: i };
       this.sellArmed = false;
       this.renderDetail();
+      this.revealDetail();
     }));
     // Rechtsklick auf ein angelegtes Teil legt es ab (seit 13.20, am PC), es wandert in die Tasche
     body.querySelectorAll('[data-equip]').forEach((b) => b.addEventListener('contextmenu', (e) => {
@@ -2418,6 +2470,7 @@ const gear = {
       this.selected = { where: 'sup', key: b.dataset.sup };
       this.sellArmed = false;
       this.renderDetail();
+      this.revealDetail();
     }));
     body.querySelectorAll('[data-page]').forEach((b) => b.addEventListener('click', () => {
       this.page = Number(b.dataset.page);
@@ -2441,6 +2494,20 @@ const gear = {
       return;
     }
     this.renderDetail();
+  },
+
+  // seit 14.32: Das Detail mit den Knöpfen (Anlegen, Verkaufen …) steht unter der Tasche. Im Querformat am Handy
+  // und bei 1280×720 lag es nach dem Antippen außerhalb des Fensters – jetzt rollt das Fenster bei Bedarf dorthin.
+  revealDetail() {
+    const el = document.getElementById('invDetail');
+    if (!el || !el.firstElementChild) return;
+    const box = el.closest('.panel-body') || el.closest('.panel');
+    if (!box) return;
+    const r = el.getBoundingClientRect();
+    const b = box.getBoundingClientRect();
+    const bottom = Math.min(b.bottom, window.innerHeight);
+    if (r.bottom <= bottom + 1 && r.top >= b.top) return;
+    try { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (e) { el.scrollIntoView(false); }
   },
 
   // Ziehen und Ablegen (seit 14.14): Teile in der Tasche verschieben (auf ein Teil = tauschen, auf einen freien
@@ -2480,6 +2547,8 @@ const gear = {
       d.x = x; d.y = y;
       if (!d.active) return;
       d.ghost.style.transform = `translate(${x - 28}px, ${y - 28}px)`;
+      // seit 14.32: Hinweisfeld vom langen Halten (Handy) nicht über die Ablageziele mitschleppen
+      if (typeof hideTip === 'function' && tipBox.target && Math.hypot(x - d.x0, y - d.y0) > 10) hideTip();
       const t = targetAt(x, y);
       if (t !== d.over) {
         if (d.over) d.over.classList.remove('dnd-over');
@@ -2774,6 +2843,8 @@ const gear = {
       this.renderInventory();
     });
     el.querySelectorAll('[data-psell]').forEach((b) => b.addEventListener('click', () => {
+      // seit 14.32: „10 verkaufen“ und „Alle verkaufen“ erst nach einem zweiten Druck
+      if (Number(b.dataset.psell) > 1 && !armConfirm(b)) return;
       const n = sellPotions(x.key, Number(b.dataset.psell));
       this.renderInventory();
       if (n) this.message(`${n} × ${info.name} ${x.sz.id} für ${(n * each).toLocaleString('de-DE')} Gold verkauft.`, 'success');
@@ -3207,6 +3278,12 @@ const gear = {
     const name = itemName(before);
     const from = before.plus;
     const step = UPGRADE_STEPS[from];
+    // seit 14.32: Kann das Teil zerbrechen (ohne Segensschriftrolle) und ist es etwas wert – angelegt, ab Selten
+    // oder ab +4 –, fragt der Knopf einmal nach („Wirklich? …“), erst der zweite Druck schmiedet
+    const btn = document.getElementById('btnForge');
+    if (btn && step.fail === 'break' && !useScroll && (this.smithRef.where === 'equip' || rarityOf(before) >= 2 || from >= 4) &&
+      !armConfirm(btn, 'Wirklich? Ohne Segensschriftrolle kann es zerbrechen!')) return;
+    if (btn && btn._armReset) btn._armReset();
     const iconBefore = itemIconUrl(before);
     const res = upgradeItem(this.smithRef, useScroll);
     if (!res) return;

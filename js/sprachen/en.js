@@ -556,6 +556,8 @@
 "Mehr anzeigen ({0})": "Show more ({0})",
 "dein Angebot": "your offer",
 "Wirklich kaufen?": "Really buy?",
+"Wirklich verkaufen?": "Really sell?",
+"Wirklich? Ohne Segensschriftrolle kann es zerbrechen!": "Really? Without a Blessing Scroll it can break!",
 "verkauft – Gold kommt per Post": "sold – gold arrives by mail",
 "beendet – kommt per Post zurück": "ended – returned by mail",
 "abgelaufen – kommt per Post zurück": "expired – returned by mail",

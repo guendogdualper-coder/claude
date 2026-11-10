@@ -1746,6 +1746,8 @@ const ui = {
         const key = b.dataset.psell;
         const kind = key.slice(0, 2);
         const sz = POTION_SIZES.find((x) => potKey(kind, x.id) === key);
+        // seit 14.32: „Alle verkaufen“ erst nach einem zweiten Druck (armConfirm, ausruestung.js)
+        if (Number(b.dataset.n) > 1 && typeof armConfirm === 'function' && !armConfirm(b)) return;
         const n = sellPotions(key, Number(b.dataset.n));
         this.renderShop();
         if (n && sz) this.shopMessage(`${n} × ${potionInfo(kind).name} ${sz.id} für ${(n * potionSellValue(kind, sz)).toLocaleString('de-DE')} Gold verkauft.`, true);

@@ -72,3 +72,15 @@
 }
 .banner.rar-4 span { color: #ffe3a0; }
 .banner.rar-3 strong { color: var(--rar-3); text-shadow: 0 0 12px rgba(176, 108, 255, 0.8), 0 2px 8px #000; }
+
+/* seit 14.32: Seltenheit nicht nur über die Farbe – 1 (gewöhnlich) bis 4 (legendär) Punkte oben links auf der Kachel,
+   klein genug, dass sie das Bild nicht verdecken; der Punkt hat einen dunklen Rand für helle Symbole */
+.item-tile .rar-pips {
+  position: absolute; left: 3px; top: 3px; height: 6px; pointer-events: none;
+  background: radial-gradient(circle at 3px 3px, var(--pip, #fff) 0 1.9px, rgba(0, 0, 0, 0.9) 2.3px, transparent 2.9px) 0 0 / 6px 6px repeat-x;
+}
+.item-tile.rar-1 .rar-pips { width: 6px; --pip: var(--rar-1); }
+.item-tile.rar-2 .rar-pips { width: 12px; --pip: var(--rar-2); }
+.item-tile.rar-3 .rar-pips { width: 18px; --pip: var(--rar-3); left: 2px; top: 2px; }
+.item-tile.rar-4 .rar-pips { width: 24px; --pip: var(--rar-4); left: 2px; top: 2px; }
+.inv-bag.picking .item-tile[data-picked] .rar-pips { display: none; }
