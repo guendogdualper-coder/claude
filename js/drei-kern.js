@@ -1006,7 +1006,8 @@ const CAM3 = { nah: 0.86, normal: 1, weit: 1.2 };
 // Zoom per Mausrad/zwei Fingern (V3.zoomMul, eingabe.js). seit 14.44: im Schulterblick deutlich weiter hinaus
 // (3,2 statt 1,8: Kamera bis gut 30 statt 17 Einheiten hinter der Figur); die feste Kamera bleibt bei 1,8.
 // seit 14.48 im Schulterblick bis 4,2 (vorher 3,2) – am Handy auf Wunsch noch weiter heraus
-const ZOOM3 = { min: 0.6, max: 1.8, shoulderMax: 4.2 };
+// seit 14.52 auch die feste Kamera bis 2,4 (vorher 1,8): am Handy war das Bild besonders auf dem Drachen zu eng
+const ZOOM3 = { min: 0.6, max: 2.4, shoulderMax: 4.2 };
 function v3ZoomMax() {
   return v3Shoulder() ? ZOOM3.shoulderMax : ZOOM3.max;
 }
@@ -1294,7 +1295,8 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   // so weit weg, dass etwa so viel Welt zu sehen ist wie im 2D-Spiel (etwas mehr Überblick)
   const viewH = r.h / r.zoom * U3;
   const fov = (cam.fov * Math.PI) / 180;
-  const dist = (viewH * Math.sin(V3.pitch)) / (2 * Math.tan(fov / 2)) * 0.98 * (CAM3[opts.camera] || 1) * (V3.zoomMul || 1);
+  // seit 14.52: im Flug auf dem Drachen (weich mit dem Abheben) 20 % weiter weg – man sitzt hoch und sieht sonst zu wenig
+  const dist = (viewH * Math.sin(V3.pitch)) / (2 * Math.tan(fov / 2)) * 0.98 * (CAM3[opts.camera] || 1) * (V3.zoomMul || 1) * (1 + 0.2 * v3CamDragonAir());
   const tx = fx * U3;
   const tz = fy * U3;
   const ty = 0.7 + lift * CAM3_HIGH.normal + CAM3_HIGH.airNormal * v3CamDragonAir();

@@ -110,6 +110,7 @@ function setupInput() {
   // im Schulterblick dreht Ziehen mit der rechten Maustaste die Kamera.
   const cv = renderer.canvas;
   let camDrag = null;
+  let oneTouch = null; // seit 14.52: erster Finger in der festen Kamera (für das Zoomen mit zwei Fingern)
   cv.addEventListener('pointerdown', (e) => {
     // Zielkreis offen (Blizzard): Tippen oder Linksklick auf den Boden wirkt dort
     if (game.aim && game.running && (e.pointerType !== 'mouse' || e.button === 0)) {
@@ -122,6 +123,16 @@ function setupInput() {
       return;
     }
     if (!v3Shoulder()) {
+      // seit 14.52: auch in der festen Kamera mit zwei Fingern zoomen – liegt schon ein Finger auf dem Bild, beginnt
+      // der zweite das Zoomen (der erste hat beim Aufsetzen wie bisher ausgewählt)
+      if (V3.on && oneTouch && oneTouch.id !== e.pointerId && !pinch) {
+        camDrag = { id: oneTouch.id, x: oneTouch.x, y: oneTouch.y, moved: true, fixed: true };
+        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: Math.hypot(e.clientX - oneTouch.x, e.clientY - oneTouch.y) || 1, z0: V3.zoomMul || 1 };
+        try { cv.setPointerCapture(e.pointerId); } catch (err) { /* Finger schon weg */ }
+        return;
+      }
+      oneTouch = { id: e.pointerId, x: e.clientX, y: e.clientY };
+      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* Finger schon weg */ }
       selectAt(e.clientX, e.clientY);
       return;
     }
@@ -177,6 +188,7 @@ function setupInput() {
       if (w && isFinite(w.x) && isFinite(w.y)) aimAt(w.x, w.y);
     }
     if (input.mouseWalk && e.pointerType === 'mouse') walkToScreen(e.clientX, e.clientY, false);
+    if (oneTouch && e.pointerId === oneTouch.id) { oneTouch.x = e.clientX; oneTouch.y = e.clientY; }
     if (pinch && camDrag && (e.pointerId === pinch.id || e.pointerId === camDrag.id)) return pinchMove(e);
     if (!camDrag || e.pointerId !== camDrag.id) return;
     const dx = e.clientX - camDrag.x;
@@ -191,6 +203,7 @@ function setupInput() {
     camDrag.y = e.clientY;
   });
   const endCamDrag = (e) => {
+    if (oneTouch && e.pointerId === oneTouch.id) oneTouch = null;
     if (e.pointerType === 'mouse') {
       input.mouseAttack = false;
       input.mouseWalk = false;
