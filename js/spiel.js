@@ -277,20 +277,33 @@ function frame(ts) {
   const raw = ts - lastFrame;
   const dt = Math.min(0.05, raw / 1000 || 0);
   lastFrame = ts;
-  if (renderer.resizeDue) resizeRenderer();
-  if (ts - (renderer.sizeCheckAt || 0) > 500) {
-    renderer.sizeCheckAt = ts;
-    checkViewSize();
+  // seit 14.68: ein Fehler in einem Bild hält die Schleife nicht mehr an (vorher blieb das Spiel als Standbild stehen –
+  // „das Spiel stürzt ab“); gemeldet wird je Fehlermeldung einmal, weiter als ungefangener Fehler
+  try {
+    if (renderer.resizeDue) resizeRenderer();
+    if (ts - (renderer.sizeCheckAt || 0) > 500) {
+      renderer.sizeCheckAt = ts;
+      checkViewSize();
+    }
+    adaptQuality(raw, cap);
+    updateScreenEffects(dt);
+    if (game.running && !portraitQuery.matches) update(dt);
+    else if (!game.running) game.time += dt;
+    // Große Karte offen: seit 13.4 wird die Welt dahinter jedes Bild gezeichnet (vorher nur jedes dritte – das
+    // ruckelte sichtbar), die Markierungen der Karte ziehen ebenfalls jedes Bild nach
+    render();
+    if (game.running && typeof bigMapOpen === 'function' && bigMapOpen()) tickBigMap();
+  } catch (err) {
+    frameFailed(err);
   }
-  adaptQuality(raw, cap);
-  updateScreenEffects(dt);
-  if (game.running && !portraitQuery.matches) update(dt);
-  else if (!game.running) game.time += dt;
-  // Große Karte offen: seit 13.4 wird die Welt dahinter jedes Bild gezeichnet (vorher nur jedes dritte – das
-  // ruckelte sichtbar), die Markierungen der Karte ziehen ebenfalls jedes Bild nach
-  render();
-  if (game.running && typeof bigMapOpen === 'function' && bigMapOpen()) tickBigMap();
   requestAnimationFrame(frame);
+}
+const frameErrs = new Set();
+function frameFailed(err) {
+  const msg = String(err && err.message);
+  if (frameErrs.has(msg) || frameErrs.size > 20) return;
+  frameErrs.add(msg);
+  setTimeout(() => { throw err; });
 }
 
 function boot() {
