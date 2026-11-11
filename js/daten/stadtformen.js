@@ -1,6 +1,7 @@
 // Stadtformen (seit 14.16): Ab der dritten Map in Spielreihenfolge hat jede Stadt und jedes Lager einen eigenen
 // Grundriss statt des Quadrats mit Mauer und vier Toren. Kazehana (Map 1) und der Dunkelwald (Map 4) bleiben,
-// wie sie sind. Hier stehen nur Daten; gebaut wird in welt.js (applyTownLayout), gezeichnet in umgebung.js (2D),
+// wie sie sind (seit 14.68 haben der Dunkelwald und die übrigen Lichtstädte neue Formen, daten/kartenformen.js – die
+// Raster hier bleiben die Vorlage der gespiegelten Schattenstädte). Hier stehen nur Daten; gebaut wird in welt.js (applyTownLayout), gezeichnet in umgebung.js (2D),
 // drei-welt.js (3D) und karte.js (Karten), die Teleportsteine laufen über teleportsteine.js.
 //
 // Gleiche Welt für alle: Die Wildnis wird wie bisher aus dem Startwert erzeugt. Erst danach wird das Quadrat der

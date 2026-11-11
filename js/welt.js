@@ -37,9 +37,12 @@ const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts 
 // Moos), SCHWARZERDE (verkohlter Waldboden), KNOCHENSAND (bleicher Sand), BLUTERDE (rote Steppe) und NACHTSCHNEE (Schnee im
 // Mondlicht)
 const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15, KRISTALL: 16, ABGRUND: 17,
-  NACHTGRAS: 18, NACHTMOOS: 19, SCHWARZERDE: 20, KNOCHENSAND: 21, BLUTERDE: 22, NACHTSCHNEE: 23 };
+  NACHTGRAS: 18, NACHTMOOS: 19, SCHWARZERDE: 20, KNOCHENSAND: 21, BLUTERDE: 22, NACHTSCHNEE: 23,
+  // seit 14.68: Kartenformen (kartenformen.js) – WOLKEN: Wolkenmeer unter den Himmelsinseln, KLUFT: tiefe Schlucht;
+  // beide wie ein Gewässer nicht begehbar (Absturzkante)
+  WOLKEN: 24, KLUFT: 25 };
 // Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
-const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG, GROUND.ABGRUND]);
+const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG, GROUND.ABGRUND, GROUND.WOLKEN, GROUND.KLUFT]);
 // Objekte auf dem Boden (alle blockieren den Weg)
 // CAVEWALL: Wände der Dungeons, werden mit dem Boden vorgezeichnet
 // PILLAR (seit 13.7): Säule in einem Dungeon-Raum; blockiert, gezeichnet wird sie als Prop 'dpillar'
@@ -778,13 +781,15 @@ function wallLineCalc(w, i) {
 const TOWN_SAFE = new Map();   // Map-Id -> Uint8Array über das Quadrat (1 = sicher)
 const WALL_STYLE = new Map();  // Kachelindex -> 'palisade' | 'terrasse' | 'kristall' (ohne Eintrag: Steinmauer)
 const BRIDGE_DIR = new Map();  // Kachelindex -> true: Weg läuft waagrecht, false: senkrecht
+const FORM_BRIDGE = new Set(); // seit 14.68: Kacheln der Brücken einer Kartenform (kartenformen.js), tidyBridges lässt sie
 const TOWN_WALL_CH = { '#': null, P: 'palisade', S: 'terrasse', K: 'kristall' };
 // Türme (blockieren über die Mauerkachel darunter, dort wird kein Mauerstück gezeichnet)
 const TOWER_TYPES = new Set(['tower', 'holzturm', 'kristallturm']);
 // Art einer Brücke (Kachelindex i, Boden g): in den Städten nach der Flüssigkeit darunter, sonst die Holzbrücke
 function bridgeStyleAt(i, g) {
   if (!BRIDGE_DIR.has(i)) return null;
-  return g === GROUND.BOG ? 'steg' : g === GROUND.LAVA ? 'stein' : g === GROUND.ABGRUND ? 'licht' : null;
+  // seit 14.68: Eisbrücke über dem Wolkenmeer, Hängebrücke über der Schlucht (Kartenformen)
+  return g === GROUND.BOG ? 'steg' : g === GROUND.LAVA ? 'stein' : g === GROUND.ABGRUND ? 'licht' : g === GROUND.WOLKEN ? 'eis' : g === GROUND.KLUFT ? 'seil' : null;
 }
 const townLayout = (mapId) => (typeof TOWN_LAYOUTS !== 'undefined' && TOWN_LAYOUTS[mapId]) || null;
 // Halbe Seite des Quadrats einer Map mit Stadtform (null ohne)
@@ -839,6 +844,7 @@ function applyTownLayout(mp, ground, obj, deco, zoneIdx) {
       zoneIdx[i] = safeZi;
       ground[i] = c === '.' ? GROUND.PLAZA : c === '_' || c === 'o' || c === '%' ? GROUND.PATH : cityGround;
       if (c === '^') deco[i] = DECO.DRIFT;
+      else if (c === 'Y') obj[i] = OBJ[L.tree || wild.treeObj] || OBJ.TREE; // seit 14.68: Baum in der Stadt (sicher)
       else if (c === '~') ground[i] = liquid;
       else if (c === '=' || c === 'H') {
         ground[i] = liquid;
@@ -971,6 +977,7 @@ function generateWorld() {
   TOWN_SAFE.clear();
   WALL_STYLE.clear();
   BRIDGE_DIR.clear();
+  if (typeof mapFormReset === 'function') mapFormReset(); // seit 14.68 (kartenformen.js)
 
   // Map 1 (Kazehana mit den Sonnenwiesen) in ihrer Region; die anderen Maps baut buildWorldMaps
   const M1 = WORLD_MAPS[0].region;
@@ -1095,9 +1102,14 @@ function generateWorld() {
   tidyBridges(ground, deco, obj);
   // seit 14.16: eigene Stadtformen ab der dritten Map (nach tidyBridges, die Wildnis ist fertig)
   for (const mp of maps) applyTownLayout(mp, ground, obj, deco, zoneIdx);
+  // seit 14.68: Teleportsteine zwischen den Inseln einer Kartenform zu denen der Stadt (kartenformen.js)
+  if (typeof mapFormAfterTown === 'function') for (const mp of maps) mapFormAfterTown(mp);
   // seit 13.91: Aussehen der Stadthäuser und je ein begehbares Haus in den großen Städten
   for (const mp of maps) townHouses(mp, ground, obj, deco);
   const roadFixes = repairRoads(ground, obj, deco, roads);
+  // seit 14.68: auf Karten mit eigener Form wird, was von der Stadt aus (zu Fuß und über Teleportsteine) nicht zu
+  // erreichen ist, zu Abgrund, Wasser oder Wald – kein Monster, Wanderer oder Stein steht dann unerreichbar
+  if (typeof mapFormCleanup === 'function') mapFormCleanup(maps, ground, obj, deco);
 
   // Dorfbewohner: Händler und Helfer stehen fest, Wachen an den Toren, ein paar Leute laufen umher.
   // Seit 12.2 stehen die Stadtleute am linken und rechten Rand einander gegenüber, die Mitte bleibt frei; jede
@@ -1200,11 +1212,17 @@ function generateWorld() {
     const mons = [...new Set(zones.flatMap((z) => z.groups.map((g) => g[0])))].sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
     if (!mons.length) continue;
     const [rx, ry, rw, rh] = wm.region;
+    // seit 14.68: Karten mit eigener Form würfeln ihre Wanderer mit eigenem Zufallsgenerator; der gemeinsame rückt
+    // danach um genau so viele Zahlen weiter wie früher auf dieser Karte (die Wanderer der übrigen Karten bleiben)
+    const fr = typeof mapFormWanderRng === 'function' ? mapFormWanderRng(wm.id) : null;
+    const rnd = fr ? fr.rng : wrng;
+    const wk0 = wk;
+    const swk0 = swk;
     for (let k = 0; k < 3; k++) {
       const monster = mons[Math.min(mons.length - 1, Math.round((k / 2) * (mons.length - 1)))];
       for (let tries = 0; tries < 200; tries++) {
-        const ang = wrng() * Math.PI * 2;
-        const d = 22 + (k * 0.33 + wrng() * 0.3) * (rw / 2 - 30);
+        const ang = rnd() * Math.PI * 2;
+        const d = 22 + (k * 0.33 + rnd() * 0.3) * (rw / 2 - 30);
         const tx = Math.round(wm.cx + Math.cos(ang) * d);
         const ty = Math.round(wm.cy + Math.sin(ang) * d * 0.4);
         if (tx < rx + 8 || ty < ry + 8 || tx >= rx + rw - 8 || ty >= ry + rh - 8) continue;
@@ -1224,6 +1242,11 @@ function generateWorld() {
         wandererFires.push({ type: 'brazier', roof: '#ffb04a', x: (tx + 1.6) * TILE, y: (ty + 1.2) * TILE });
         break;
       }
+    }
+    if (fr) {
+      for (let k = 0; k < fr.skip; k++) wrng();
+      if (wm.shadow) swk = swk0 + fr.found;
+      else wk = wk0 + fr.found;
     }
   }
   // Weltportale draußen (oben links und unten rechts jeder Map): bringen in die Stadt der Ziel-Map
@@ -1437,7 +1460,8 @@ const INSTANZ_ROOMS = [[2, 61, 10, 8], [17, 57, 15, 12], [38, 55, 15, 14], [38, 
 // Teichs oder quert eine Pfütze, wird dort trockener Weg daraus.
 function tidyBridges(ground, deco, obj) {
   const seen = new Uint8Array(ground.length);
-  const isB = (i) => deco[i] === DECO.BRIDGE;
+  // seit 14.68: Brücken der Kartenformen (FORM_BRIDGE, kartenformen.js) bleiben, wie sie gebaut sind
+  const isB = (i) => deco[i] === DECO.BRIDGE && !FORM_BRIDGE.has(i);
   const wayAt = (i) => isB(i) || ground[i] === GROUND.PATH;
   for (let i0 = 0; i0 < ground.length; i0++) {
     if (!isB(i0) || seen[i0]) continue;
@@ -1557,19 +1581,23 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
   const L = (x, y) => (y - ry) * rw + (x - rx);
   const cheb = (x, y) => Math.max(Math.abs(x + 0.5 - cx), Math.abs(y + 0.5 - cy));
   const inner = (x, y) => x >= rx + MAP_BORDER + 2 && y >= ry + MAP_BORDER + 2 && x < rx + rw - MAP_BORDER - 2 && y < ry + rh - MAP_BORDER - 2;
+  // seit 14.68: Kartenform (kartenformen.js) – block: hier kein Weg (Wolkenmeer, Schlucht, Meer, dichter Wald),
+  // bridge: Brücke der Form (billig), gates: Tore der Stadt mit Weg nach draußen, seeds: Teleportsteine der Inseln
+  const F = typeof mapFormInfo === 'function' ? mapFormInfo(wm.id) : null;
   // Kostenfeld: billig entlang der Höhenlinien des Rauschens (dort schlängeln sich die Wege), teurer durch Wald und
   // Felsen, sehr teuer durch Wasser; die Stadt mit Mauer und der Felsrand sind gesperrt
   for (let y = ry; y < ry + rh; y++) {
     for (let x = rx; x < rx + rw; x++) {
       const j = L(x, y);
       if (!inner(x, y) || cheb(x, y) < half + 1.5) { cost[j] = Infinity; continue; }
+      if (F && F.block[j]) { cost[j] = Infinity; continue; }
       const i = y * MAP_W + x;
       let c = 1 + 5 * Math.pow(Math.abs(hill(x, y) - 0.5) * 2, 1.6) + 1.4 * fine(x, y);
       const o = obj[i];
       if (ROAD_TREES.has(o)) c += 2.5;
       else if (o === OBJ.ROCK) c += 1.5;
       else if (o !== OBJ.NONE) c = Infinity;
-      if (LIQUID.has(ground[i])) { wet[j] = 1; c += 32; }
+      if (LIQUID.has(ground[i])) { wet[j] = 1; c += F && F.bridge[j] ? 1 : 32; }
       else if (ground[i] === GROUND.ICE) c += 3;
       cost[j] = c;
     }
@@ -1582,6 +1610,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
   };
   const paint = (x, y) => {
     if (!inner(x, y) || cheb(x, y) < half + 1.5) return;
+    if (F && F.block[L(x, y)]) return;
     const i = y * MAP_W + x;
     // über Wasser eine Brücke (das Wasser bleibt darunter), sonst Weg – wie bisher; tidyBridges räumt danach auf
     if (LIQUID.has(ground[i])) deco[i] = DECO.BRIDGE;
@@ -1596,6 +1625,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
   // 1. Kurze gerade Stücke durch die vier Tore, genau wie die alten Wege (Kazehana mit seinem leichten Schwung)
   const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   DIRS.forEach(([dx, dy], k) => {
+    if (F && !F.gates[k]) return; // seit 14.68: Tor ohne Weg (z. B. zur Absturzkante hin)
     const pts = [];
     for (let s = 0; s <= half + 3; s++) {
       const wobble = wm.id === 1 && s > 10 ? Math.round(Math.sin(s * 0.21 + k * 1.7) * 1.6) : 0;
@@ -1619,6 +1649,8 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
     }
     roads.push({ map: wm.id, kind: 'gate', pts: new Float32Array(pts), tiles: new Int32Array(0) });
   });
+  // seit 14.68: Teleportsteine auf Inseln ohne Landweg zur Stadt sind Anschlussstellen für die Wege dort
+  if (F) for (const [x, y] of F.seeds) if (x >= rx && y >= ry && x < rx + rw && y < ry + rh && cost[L(x, y)] < Infinity) markNet(L(x, y), -1);
 
   // 2. Wegsuche (A* mit etwas Übergewicht auf der Schätzung, damit sie schnell bleibt): von einem Ziel bis zur
   // ersten Kachel, für die stop() gilt. Im Wasser nur geradeaus, schräg nie ins Wasser oder an Sperren vorbei.
@@ -1893,6 +1925,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
   }
   // jedes Tor bekommt einen Weg: führt noch keiner hinaus, einer in seine Richtung (schräg versetzt)
   DIRS.forEach(([dx, dy], k) => {
+    if (F && !F.gates[k]) return;
     if (netList.some((j) => netGate[j] === k && cheb((j % rw) + rx, Math.floor(j / rw) + ry) > half + 5)) return;
     const a = Math.atan2(dy, dx) + (rng() - 0.5) * 1.2;
     const reach = reachAt(a);
@@ -2460,6 +2493,10 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape0, detail0, bloom0, roa
         else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH || ground[i] === GROUND.KNOCHENSAND ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL || ground[i] === GROUND.BLUTERDE ? DECO.CRACK : DECO.TUFT;
       }
     }
+    // seit 14.68: eigene Grundform der Karte (kartenformen.js: Inseln, Himmelsinseln, Schlucht, Fluss, Lichtungen) –
+    // erst nach dem Erzeugen wie bisher (dieselben Zufallszahlen, die übrigen Karten bleiben gleich), mit eigenem
+    // Zufallsgenerator je Karte, und vor den Wegen (die sich an die neue Form halten)
+    if (typeof mapFormShape === 'function') mapFormShape(wm, ground, obj, deco, zoneIdx);
     // Wege: seit 13.91 ein eigenes, geschwungenes Netz je Map (layRoads), vorher vier gerade Wege bis an den Rand
     layRoads(wm, ground, obj, deco, zoneIdx, roads);
     // Mauer um Lager und Stadt mit vier Toren an den Wegen (wie in Kazehana)
@@ -2476,6 +2513,8 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape0, detail0, bloom0, roa
       for (let y = wm.cy - camp - 3; y <= wm.cy + camp + 3; y++) {
         for (let x = wm.cx - camp - 3; x <= wm.cx + camp + 3; x++) {
           if (Math.max(Math.abs(x - wm.cx), Math.abs(y - wm.cy)) <= camp) continue;
+          // seit 14.68: Abgrund bzw. Meer einer Kartenform bleibt (z. B. die Hafenseite einer Stadt)
+          if (typeof mapFormKeepsTile === 'function' && mapFormKeepsTile(wm.id, x, y)) continue;
           const i = y * MAP_W + x;
           obj[i] = OBJ.NONE;
           if (deco[i] === DECO.BRIDGE) {

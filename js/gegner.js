@@ -67,8 +67,11 @@ function populateWorld() {
   let groupId = 1;
   for (const zone of ZONES) {
     if (!zone.groups) continue;
+    // seit 14.68: Karten mit eigener Form und weniger begehbarem Land (Inseln, Lichtungen) bekommen etwas weniger
+    // Gruppen, damit es nicht zu gedrängt wird (kartenformen.js, MAP_FORMS.mobScale)
+    const fs = typeof mapFormMobScale === 'function' ? mapFormMobScale(zone.map) : 1;
     for (const [typeId, count, from, to] of zone.groups) {
-      for (let g = Math.max(2, Math.round(count * MOB_DENSITY * WORLD_SCALE_MOBS)); g > 0; g--) {
+      for (let g = Math.max(2, Math.round(count * MOB_DENSITY * WORLD_SCALE_MOBS * fs)); g > 0; g--) {
         const center = randomSpotInZone(zone, from, to);
         if (!center) continue;
         const size = randInt(Math.max(2, zone.groupSize[0] - 1), Math.max(2, zone.groupSize[1] - 1));
