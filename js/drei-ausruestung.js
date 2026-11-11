@@ -177,7 +177,7 @@ function flame3(W, at, dir, len, w, outer, inner, o = {}) {
 
 const PAD3_R = { krieger: 0.16, ninja: 0.1, schamane: 0.13, nekromant: 0.1, magier: 0.12 };
 
-// metal (seit 14.57): Metallton in der Farbvariante des Teils, sonst der der Stufe
+// metal (seit 14.59): Metallton in der Farbvariante des Teils, sonst der der Stufe
 function gearShoulders3(A, g, t, cls, metal0) {
   if (t < 0) return;
   // seit 13.17 sitzen die Merkmale auf dem größeren Panzer (PAULDRON_BIG, drei-figuren.js)
@@ -523,7 +523,7 @@ function capeHem3(W, spec, color, r, o = {}) {
   }
 }
 
-// Zierborte quer über das Tuch in Höhe v (seit 14.57), folgt der Saumform
+// Zierborte quer über das Tuch in Höhe v (seit 14.59), folgt der Saumform
 function capeBand3(W, spec, v, color, r, o = {}) {
   let prev = null;
   for (let i = 0; i <= CAPE3_SEG; i++) {
@@ -558,7 +558,7 @@ function gearCape3(A, g, t, color, lining, metal0) {
   // Schultern mit einer Kordel quer über die Brust
   if (t !== 4 && t !== 7) capeHem3(W, spec, darker(color, 0.28), 0.009);
   if (t >= 2) capeSides3(W, spec, t >= 6 ? metal : darker(color, 0.2), 0.006, t >= 6 ? { shine: 0.9 } : {});
-  // seit 14.57: Zierborte über dem Saum (Wolle, ab Gut Metallfaden) und ein Stehkragen im Nacken, wo die Stufe
+  // seit 14.59: Zierborte über dem Saum (Wolle, ab Gut Metallfaden) und ein Stehkragen im Nacken, wo die Stufe
   // keinen eigenen Kragen hat
   if (t <= 6 && t !== 4) capeBand3(W, spec, 0.9, t >= 2 ? metal : lighter(color, 0.2), 0.0055, t >= 2 ? { shine: 0.8 } : {});
   if (t === 0 || t === 3 || t === 4 || t === 5 || t === 6) W(torus3(0.165, 0.024, Math.PI * 1.15, 4, 12), darker(color, 0.12), { p: [0, 0.03, -0.02], r: [Math.PI / 2 - 0.35, 0, Math.PI * 0.93], shade: 0.2 });
@@ -1466,7 +1466,7 @@ function scaleBand3(W, g, y, n, col) {
 }
 
 // Schalter für humanoid3 je Klasse und Stufe (Grundform der Rüstung)
-// tint (seit 14.57): färbt Stufenfarben in die Variante des Rüstungsteils um (gearCol über playerConfig3)
+// tint (seit 14.59): färbt Stufenfarben in die Variante des Rüstungsteils um (gearCol über playerConfig3)
 function armorLook3(c, cls, t, tint = (col) => col) {
   if (t < 0) return;
   if (cls === 'krieger') {
@@ -2692,7 +2692,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       const shape = BLADE_OF3[tier];
       const bw = wd * (tier === 6 ? 0.75 : tier === 7 ? 1.15 : tier === 8 ? 1.08 : tier === 9 ? 0.92 : 1);
       const bl = len * (tier === 6 ? 1.06 : tier >= 8 ? 1.08 : 1);
-      // seit 14.57: geschliffene Schneide – die Klinge außen in hellem Stahl, darüber ein etwas dickerer, schmalerer Kern in
+      // seit 14.59: geschliffene Schneide – die Klinge außen in hellem Stahl, darüber ein etwas dickerer, schmalerer Kern in
       // der Klingenfarbe, sodass entlang beider Kanten ein heller Grat bleibt (nur gerade Metallklingen ohne Leuchtkanten)
       const bevel = !dag && (tier <= 1 || tier === 3 || tier === 4 || tier === 6);
       W(edgeBladeGeo(shape, bl, bw, BLADE_EDGE3[shape], tier === 2 ? 0.28 : dag ? 0.1 : 0), bevel ? lighter(bladeCol, 0.42) : bladeCol, { p: [0, by, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.25 });
@@ -3169,7 +3169,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
 // Wappen und Reliefs liegen in einem Rahmen, dessen x quer, y nach oben und z nach außen zeigt.
 const SHIELD_FACE3 = new THREE.Matrix4().set(0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1);
 
-// it (seit 14.57): der Gegenstand selbst – Schildfarbe und Metall in seiner Farbvariante (gearCol, figuren.js)
+// it (seit 14.59): der Gegenstand selbst – Schildfarbe und Metall in seiner Farbvariante (gearCol, figuren.js)
 function shield3(A, tier, bone, at, it = null) {
   tier = Math.max(0, Math.min(ITEM_TIERS.length - 1, tier || 0));
   const W = framed(A, partFrame(at, [0, 0, Math.PI / 2]), bone);

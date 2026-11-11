@@ -1,4 +1,4 @@
-# Ausrüstung 14.57: Farbmix je Teil, passende Sets, detailreichere Symbole und Rüstungen, Gold ohne Überstrahlen
+# Ausrüstung 14.59: Farbmix je Teil, passende Sets, detailreichere Symbole und Rüstungen, Gold ohne Überstrahlen
 
 Wunsch des Spielers: auf die kleinen Details achten (Rüstung, wie sie sitzt, Schwerter in der Hand). Am Anfang soll nicht
 jedes Teil dieselbe Farbe haben, sondern etwas durcheinander sein; erst mit höheren Stufen sollen Teile farblich

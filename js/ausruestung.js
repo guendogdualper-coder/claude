@@ -1283,7 +1283,7 @@ const ARMOR_COLORS = ['#7a5a3c', '#8a6a3a', '#5a6a7a', '#9a2f2a', '#4a2f6a', '#4
 const iconCache = new Map();
 
 // Schild, auch für die Figur im Spiel (Mitte bei 0,0, etwa 22 Einheiten hoch)
-// it (seit 14.57): Gegenstand für die Farbvariante (gearCol, figuren.js); ohne ihn die Stufenfarben
+// it (seit 14.59): Gegenstand für die Farbvariante (gearCol, figuren.js); ohne ihn die Stufenfarben
 function shieldArt(ctx, tier, it = null) {
   const c = gearCol(it, ARMOR_COLORS[tier]);
   const metal = gearCol(it, TIER_METAL[tier], true);
@@ -1578,7 +1578,7 @@ const WEAPON_ICON_FIT = {
 
 function drawItemArt(ctx, item) {
   const { slot, tier } = item;
-  // seit 14.57: Symbol in der Farbvariante des Teils (wie an der Figur), damit man sieht, was man trägt
+  // seit 14.59: Symbol in der Farbvariante des Teils (wie an der Figur), damit man sieht, was man trägt
   const tc = (col, m) => gearCol(item, col, m);
   const metal = tc(TIER_METAL[tier], true);
   const c = tc(ARMOR_COLORS[tier]);
@@ -1666,7 +1666,7 @@ function drawItemArt(ctx, item) {
     if (tier === 8) voidEye2D(ctx, 0, -0.5, 1);
     else if (tier === 9) star2D(ctx, 0, -0.5, 4.6);
   } else if (slot === 'ruestung') {
-    // seit 14.57: detailreicher Harnisch (chestIcon2D, figuren.js) – Leder, Kettenhemd, Platte mit Rand, Nieten und Wappen
+    // seit 14.59: detailreicher Harnisch (chestIcon2D, figuren.js) – Leder, Kettenhemd, Platte mit Rand, Nieten und Wappen
     const k = ARMOR_LOOK.krieger;
     const plate = tier === 0 ? tc(k.torso[0]) : tier === 1 ? tc('#8a8070', true) : tc(GEAR_LOOK.plate[tier], true);
     chestIcon2D(ctx, tier, plate, tier === 7 ? tc('#6e2630') : tc(k.torso[tier]), tc(TIER_METAL[tier], true));
@@ -1747,7 +1747,7 @@ function drawItemArt(ctx, item) {
     if (tier === 8) voidEye2D(ctx, 0, -5, 0.9);
     else if (tier === 9) star2D(ctx, 0, -19, 4.4);
   } else if (slot === 'helm') {
-    // seit 14.57 im Stil der neuen Symbole: gewölbte Glocke mit Glanz, Stirnreif mit Nieten, Nasal und Wangenklappen
+    // seit 14.59 im Stil der neuen Symbole: gewölbte Glocke mit Glanz, Stirnreif mit Nieten, Nasal und Wangenklappen
     const hm = tc(ARMOR_LOOK.krieger.helm[tier], tier >= 1);
     helmIcon2D(ctx, tier, hm, tier === 0 ? darker(hm, 0.2) : metal, tier >= 2 ? tc(ARMOR_LOOK.krieger.crest[tier]) : null);
     if (tier === 8) {
@@ -1780,13 +1780,13 @@ function drawItemArt(ctx, item) {
     // darunter drei überlappende Schienen über dem Oberarm, in der Mitte ein Kragenstück, das beide verbindet
     shoulderIcon(ctx, tier, tc(GEAR_LOOK.plate[tier], true), metal);
   } else if (slot === 'umhang') {
-    // seit 14.57: fallender Umhang mit Falten, Futter, Saum, Kragen und Spangen (capeIcon2D, figuren.js)
+    // seit 14.59: fallender Umhang mit Falten, Futter, Saum, Kragen und Spangen (capeIcon2D, figuren.js)
     capeIcon2D(ctx, tier, tc(GEAR_LOOK.cape[tier]), tc(GEAR_LOOK.lining[tier]), metal);
   } else if (slot === 'guertel') {
-    // seit 14.57: Ledergurt mit Naht, Schnalle, Schlaufe und Tasche (beltIcon2D, figuren.js)
+    // seit 14.59: Ledergurt mit Naht, Schnalle, Schlaufe und Tasche (beltIcon2D, figuren.js)
     beltIcon2D(ctx, tier, tc(GEAR_LOOK.belt[tier]), metal);
   } else {
-    // seit 14.57: zwei echte Stiefel mit Sohle, Stulpe, Riemen und Beschlägen (bootIcon2D, figuren.js)
+    // seit 14.59: zwei echte Stiefel mit Sohle, Stulpe, Riemen und Beschlägen (bootIcon2D, figuren.js)
     bootIcon2D(ctx, tier, tc(GEAR_LOOK.boots[tier]), metal);
   }
 }
@@ -1839,7 +1839,7 @@ function itemIconUrl(item) {
   const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:${band}:${gearHueKey(item)}`;
   if (iconCache.has(key)) return iconCache.get(key);
   // seit 14.38 im Arbeitsspeicher gebacken (bakeSprite cpu, figuren.js): kein Zurücklesen von der Grafikkarte
-  // seit 14.57 in ICON_HI gebacken und 144 Pixel groß: die detailreicheren Symbole bleiben am Handy scharf
+  // seit 14.59 in ICON_HI gebacken und 144 Pixel groß: die detailreicheren Symbole bleiben am Handy scharf
   const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item), ICON_HI, true);
   const size = 144;
   const c = newCanvas(size, size);

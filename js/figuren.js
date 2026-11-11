@@ -625,7 +625,7 @@ function star2D(ctx, x, y, r, c1 = '#ffffff', c2 = '#e2957c', core = '#ffb8e0') 
   if (core) oval(ctx, x, y, r * 0.2, r * 0.2, core);
 }
 
-// --- Detailreiche Ausrüstungssymbole (seit 14.57) ----------------------------------------------------------------
+// --- Detailreiche Ausrüstungssymbole (seit 14.59) ----------------------------------------------------------------
 // Stiefel, Brustpanzer, Umhang und Gürtel mit Verläufen, Kanten, Nähten und Beschlägen; je Stufe ein eigenes Merkmal,
 // in der Farbe des Teils (gearCol). Gezeichnet in Symbol-Einheiten (40 × 40, Mitte 0,0), scharf auch bei ICON_HI.
 const GEAR_GLOW2D = ['#d6a8ff', '#d6a8ff', '#9be2ff', '#ff4a3a', '#c08aff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
@@ -1709,7 +1709,7 @@ const GEAR_LOOK = {
 };
 const gearTier = (t) => (t == null ? -1 : t);
 
-// --- Farbvarianten je Teil (seit 14.57) ---------------------------------------------------------
+// --- Farbvarianten je Teil (seit 14.59) ---------------------------------------------------------
 // Vorher hatte auf einer Stufe jedes Teil dieselbe Farbe (alles Lederbraun, alles Drachenrot). Jetzt bekommt auf den
 // niedrigen Stufen (bis Veteran, Stufe 0–4) jedes Teil eine eigene, feste Farbe aus Stoff/Leder (c) und Metall (m):
 // ein zusammengewürfelter Abenteurer. Die Variante hängt nur vom Gegenstand ab (uid, Platz, Stufe; Mitspieler
