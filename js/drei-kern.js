@@ -978,8 +978,15 @@ function v3UpdateMood(dt, x, y) {
   const fm = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog]) || { near: 1, far: 1 };
   // seit 14.44: im Schulterblick wandert der Nebel mit hinaus, wenn man herauszoomt (sonst stünde die Figur selbst im Dunst)
   const zoomOut = v3Shoulder() ? Math.max(0, (V3.zoomMul || 1) - 1) * SHOULDER3.dist : 0;
-  V3.scene.fog.near = s.near * fogK * fm.near + zoomOut;
-  V3.scene.fog.far = s.far * fogK * fm.far + zoomOut;
+  // seit 14.45 in der festen Kamera ab der Figur gerechnet statt ab der Kamera: herausgezoomt stand die Kamera schon
+  // 50–90 Einheiten weg, die Figur also selbst am Nebelanfang (alles diesig). Schon die Dämmerung (Nebel −12 %) oder
+  // ein Gebietswechsel schoben dann das ganze Bild ins Nebelende – einige Bilder lang nur Nebelfarbe (gelb, grau,
+  // dunkel), die Welt war weg. Jetzt beginnt der Nebel ein gutes Stück hinter der Figur, egal wie weit herausgezoomt.
+  const camD = v3Shoulder() ? 0 : V3.camDist || 0;
+  const nearK = v3Shoulder() ? 1 : 0.9;
+  const farK = v3Shoulder() ? 1 : 1.15;
+  V3.scene.fog.near = s.near * fogK * fm.near * nearK + zoomOut + camD;
+  V3.scene.fog.far = s.far * fogK * fm.far * farK + zoomOut + camD;
   V3.sun.color.copy(s.sun);
   V3.sun.intensity = s.sunI;
   V3.hemi.color.copy(s.hemi);
@@ -1286,6 +1293,7 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   const tz = fy * U3;
   const ty = 0.7 + lift * CAM3_HIGH.normal + CAM3_HIGH.airNormal * v3CamDragonAir();
   cam.position.set(tx, ty + Math.sin(V3.pitch) * dist, tz + Math.cos(V3.pitch) * dist);
+  V3.camDist = dist; // Nebel ab der Figur (v3UpdateMood, seit 14.45)
   cam.lookAt(tx, ty, tz);
   cam.updateMatrixWorld();
   // Sonne steht im Südosten hoch am Himmel, der Schattenbereich folgt der Kamera

@@ -964,8 +964,8 @@ function toggleRide(on) {
 }
 // --- Flughöhe auf dem Drachen (seit 14.39) -----------------------------------------------------------------------
 // Im Flug kann man zwischen „tief“ (wie bisher, knapp über den Bäumen) und „hoch“ wechseln (Taste X bzw. Bild↑/
-// Bild↓, Knopf neben dem Drachen-Knopf). Nur Darstellung: Kollision, Tempo, Kampf und alles andere bleiben gleich –
-// man überfliegt hoch oben nichts, was man tief nicht auch überfliegt. p.flyHigh ist der Wunsch; wirksam nur im
+// Bild↓, Knopf neben dem Drachen-Knopf). Tempo, Kampf und alles andere bleiben gleich; seit 14.45 fliegt man oben
+// über alles hinweg (Häuser, Mauern, Seelensteine, Portale – flyingOverAll in welt.js), tief wie bisher. p.flyHigh ist der Wunsch; wirksam nur im
 // Flug (dragonFlying). Absteigen, Angriff/Fertigkeit (steigt ab), Tod, Dungeon/Instanz/Arena/Duell (Boden) und
 // Teleport setzen auf „tief“ zurück. Mitspieler bekommen es als Netzfeld fh.
 const DRAGON_HIGH = { up: 1.2, down: 1.0 };
@@ -1007,6 +1007,15 @@ function dragonRideTick(p) {
   p.__fhY = p.y;
   if (p.flyHigh && (jump || !dragonFlying(p))) p.flyHigh = false;
   if (jump) p.__fhK = 0;
+  // seit 14.45: oben fliegt man über Häuser, Mauern, Seelensteine und Portale (flyingOverAll, welt.js). Sinken erst,
+  // wenn darunter Platz ist – sonst steckte der Drache nach dem Sinken in einem Haus fest
+  if (!p.flyHigh && !jump && dragonFlying(p) && (p.__fhK || 0) > 0.05 && typeof canSinkHere === 'function' && !canSinkHere(p)) {
+    p.flyHigh = true;
+    if (p === game.player && typeof ui !== 'undefined' && ui.log && !(game.time - (p.__noSinkAt || -99) < 4)) {
+      p.__noSinkAt = game.time;
+      ui.log('Hier kann der Drache nicht sinken – erst über freien Boden fliegen.', 'warn');
+    }
+  }
   if (typeof ui !== 'undefined' && ui.updateFlyButton) ui.updateFlyButton();
 }
 function dragonRideTick0(p) {

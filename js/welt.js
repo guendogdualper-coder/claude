@@ -2537,6 +2537,22 @@ function canFly(x, y, r) {
   return true;
 }
 
+// seit 14.45: ganz oben (Flughöhe „hoch“, dragonHighK in spieler.js) fliegt der Drache über alles – Häuser, Mauern,
+// Palisaden, Säulen, Seelensteine, Portale und Teleporter. Nur der Felsrand der Karte (und alles außerhalb) hält auf.
+const DRAGON_OVER_ALL_K = 0.6; // ab diesem Anteil der Steighöhe gilt man als „oben“
+function canFlyHigh(x, y, r) {
+  for (const [ox, oy] of [[-r, -r], [r, -r], [-r, r], [r, r]]) if (rockSolid(Math.floor((x + ox) / TILE), Math.floor((y + oy) / TILE))) return false;
+  return true;
+}
+// Kann der Drache hier aus der hohen Flughöhe herunter (nichts darunter, was ihn tief aufhält)?
+function canSinkHere(e) {
+  const r = e.r * 0.7;
+  return canFly(e.x, e.y, r) && !solidBump(e, e.x, e.y, r);
+}
+function flyingOverAll(e) {
+  return !!(e && e.flying && e.flyHigh && typeof dragonHighK === 'function' && dragonHighK(e) >= DRAGON_OVER_ALL_K);
+}
+
 // Feste Hindernisse ohne eigene Kachel (seit 13.14): Seelensteine und Portale (Weltentor, Dungeon-Eingang, Riss,
 // Ausgang). Rund um ihre Mitte; man kommt nur nicht näher heran, weg geht immer (niemand bleibt stecken).
 // Bis 13.84 hielten auch Äste, Baumstümpfe, Stämme und Kristalle auf ({ STUMP: 9, LOG: 12, DEADTREE: 9, CRYSTAL: 10 });
@@ -2615,6 +2631,13 @@ function solidBump(e, nx, ny, r) {
 function moveEntity(e, dx, dy, isMonster) {
   const r = e.r * 0.7;
   const fly = !isMonster && e.flying;
+  // seit 14.45: hoch oben über alles hinweg (nur der Felsrand der Karte hält auf)
+  if (fly && flyingOverAll(e)) {
+    let movedHigh = false;
+    if (dx && canFlyHigh(e.x + dx, e.y, r)) { e.x += dx; movedHigh = true; }
+    if (dy && canFlyHigh(e.x, e.y + dy, r)) { e.y += dy; movedHigh = true; }
+    return movedHigh;
+  }
   let moved = false;
   if (dx && (fly ? canFly(e.x + dx, e.y, r) : canStand(e.x + dx, e.y, r, isMonster)) && !solidBump(e, e.x + dx, e.y, r)) { e.x += dx; moved = true; }
   if (dy && (fly ? canFly(e.x, e.y + dy, r) : canStand(e.x, e.y + dy, r, isMonster)) && !solidBump(e, e.x, e.y + dy, r)) { e.y += dy; moved = true; }
