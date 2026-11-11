@@ -29,6 +29,7 @@ const FILES = [
   'js/effekte.js',
   'js/gegner.js',
   'js/ausruestung.js',
+  'js/symbole-vorrat.js',
   'js/figuren.js',
   'js/umgebung.js',
   'js/klang.js',
