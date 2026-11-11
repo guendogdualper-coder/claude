@@ -544,6 +544,10 @@ function netOnClientData(d) {
       net.mode = 'client';
       net.autoJoin = false;
       net.hostName = d.host;
+      // seit 14.72: Version und Art des Hosts merken – beim Welt-Wächter fehlt sein Eintrag in net.players (er hat keine
+      // Figur), die Prüfungsarena las den Stand des Hosts aber nur dort und hielt ihn darum für „ältere Version“
+      net.hostVer = d.v || null;
+      net.hostWaechter = !!d.w;
       netRemote('host').ver = d.v || null;
       netVersionCheck(d.v, d.host, false);
       // Host ist der Welt-Wächter: keine Figur von ihm anzeigen, bei einem Hostwechsel auf ihn warten
@@ -1018,6 +1022,9 @@ function netApplyState(rp, s) {
   rp.last = s;
   // seit 14.65: anstößige Namen anderer Spieler (z. B. aus alten Versionen ohne Namensprüfung) nicht anzeigen
   rp.name = typeof nameAnstoessig === 'function' && nameAnstoessig(s.n) ? 'Spieler' : s.n;
+  // seit 14.72: echter Name für Gruppe und Arena (onlinePlayer) – die Gruppe kennt ihre Mitglieder unter diesem Namen;
+  // mit dem Ersatznamen „Spieler“ galt so ein Mitglied sonst dauerhaft als „nicht im Kanal“
+  rp.realName = String(s.n || '');
   rp.gs = s.gs | 0;
   rp.rk = s.rk | 0;
   rp.classId = CLASSES[s.c] ? s.c : 'krieger';

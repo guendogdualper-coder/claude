@@ -218,6 +218,48 @@ function onParty(pid, d) {
   }
 }
 
+// --- Gruppe im Netz (seit 14.72) ----------------------------------------------------------------------------------
+// Ursache für „nicht im Kanal“ bei Gruppen aus Licht und Schatten: Der Host schickt in vollen Kanälen (mehr als
+// NET_SMALL Spieler) jedem nur die Spieler in seiner Nähe und seine Gilde, alle anderen nur etwa alle 5 s. Unter
+// Stufe 50 stehen Licht und Schatten immer auf verschiedenen Karten – das Mitglied fehlte nach dem Beitritt oder
+// Neuverbinden bis zu 5 s ganz (Gruppenreiter, Arenameister und Gruppenfinder zeigten „nicht im Kanal“ und blieben so
+// stehen) und sein Leben und Ort waren danach nur alle 5 s aktuell. Jetzt schickt jedes Gerät den Anführer seiner
+// Gruppe mit (pg im Spielerzustand), und der Host nimmt Mitglieder derselben Gruppe immer in den Zustand auf –
+// auf jeder Karte, in Dungeons und in der Arena. Ältere Versionen ohne pg bekommen es wie bisher.
+if (typeof netPlayerState === 'function') {
+  const _partyState = netPlayerState;
+  netPlayerState = function () {
+    const s = _partyState();
+    if (game.party && game.party.members && game.party.members.length > 1) s.pg = String(game.party.leader || '').slice(0, 40);
+    return s;
+  };
+}
+if (typeof netSnapshotFor === 'function') {
+  const _partySnap = netSnapshotFor;
+  netSnapshotFor = function (id, rp, full) {
+    const snap = _partySnap(id, rp, full);
+    const pg = rp && rp.last && rp.last.pg;
+    if (!snap || snap.f || !pg || !Array.isArray(snap.p)) return snap;
+    const have = new Set(snap.p.map((e) => e[0]));
+    for (const [pid, o] of net.players) {
+      if (pid === id || have.has(pid) || !o.last || o.waechter || o.last.pg !== pg) continue;
+      snap.p.push([pid, o.last]);
+    }
+    return snap;
+  };
+}
+// Wer gerade da ist, hat sich geändert (Mitglied kommt in den Kanal oder geht): offene Fenster neu zeichnen – vorher
+// blieb der Reiter „Gruppe“ auf dem Stand beim Öffnen stehen („nicht im Kanal“, obwohl das Mitglied längst da war)
+let partySeenKey = '';
+function partyPresenceCheck() {
+  const party = game.party;
+  const key = party ? party.members.map((n) => n + (partyMember(n) ? '+' : '-')).join(',') : '';
+  if (key === partySeenKey) return;
+  partySeenKey = key;
+  if (typeof social !== 'undefined' && social.refresh) social.refresh();
+  if (typeof pcard !== 'undefined' && pcard.pid) pcard.render();
+}
+
 // Jede Sekunde: Kanal verlassen löst die Gruppe; wer länger weg ist, fällt heraus; ist der Anführer weg,
 // übernimmt das erste noch anwesende Mitglied
 let partyTickAt = 0;
@@ -232,6 +274,7 @@ function partyTick() {
   if (game.time - partyTickAt < 1) return;
   partyTickAt = game.time;
   const party = game.party;
+  partyPresenceCheck();
   party.missing = party.missing || {};
   for (const n of party.members) {
     if (partyMember(n)) delete party.missing[n];

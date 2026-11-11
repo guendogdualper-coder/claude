@@ -26,7 +26,8 @@ function escapeHtml(s) {
 
 // Mitspieler im Kanal nach Namen
 function onlinePlayer(name) {
-  for (const [pid, rp] of net.players) if (rp.name === name && !rp.gone) return { pid, rp };
+  // seit 14.72 auch über den echten Namen (realName), falls der angezeigte ersetzt wurde
+  for (const [pid, rp] of net.players) if ((rp.name === name || rp.realName === name) && !rp.gone) return { pid, rp };
   return null;
 }
 

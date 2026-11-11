@@ -42,10 +42,13 @@ const ARENA = {
   // zu dritt 2 × 1,4 = 2,8 – je Spieler 94 % bzw. 93 % der Solo-Last, die Runde dauert also etwa gleich lang (mit Bots
   // gemessen, docs/auftrag-2026-11-10-arena-tank.md). Mehr Schaden, weil sich die Monster auf mehr Ziele verteilen.
   // Wellenmeister insgesamt: zu zweit 1,25 × 1,2 = 1,5, zu dritt 1,4 × 1,6 = 2,24 (ein Ziel, das alle zugleich treffen).
+  // seit 14.72: Leben der Welle je weiterem Spieler +80 % (Wunsch: +60–80 % je Spieler): zu zweit 1,5 × 1,2 = 1,8,
+  // zu dritt 2 × 1,3 = 2,6 – je Spieler 90 % bzw. 87 % der Solo-Last (vorher 94 %/93 %, also +87,5 %/+90 % je Spieler).
+  // Wellenmeister: zu zweit 1,2 × 1,25 = 1,5, zu dritt 1,3 × 1,7 = 2,21 (wie bisher etwa 1,5 bzw. 2,2).
   group: {
     1: { n: 1, hp: 1, atk: 1, boss: 1 },
-    2: { n: 1.5, hp: 1.25, atk: 1.1, boss: 1.2 },
-    3: { n: 2, hp: 1.4, atk: 1.2, boss: 1.6 }
+    2: { n: 1.5, hp: 1.2, atk: 1.1, boss: 1.25 },
+    3: { n: 2, hp: 1.3, atk: 1.2, boss: 1.7 }
   },
   inviteWait: 25,       // so lange wartet die Halle auf eingeladene Gruppenmitglieder (seit 14.40: 25 statt 20 s)
   deadMax: 180,         // so lange (s) darf der Läufer tot in der Halle liegen, dann endet der Lauf
@@ -661,10 +664,19 @@ function arenaModeOf() {
   return net.mode === 'client' ? 'client' : 'local';
 }
 // Arena-Stand des Hosts aus Sicht dieses Geräts (seit 14.40): 3 Gruppe bis drei, 2 zu zweit, 0 nur allein
+// seit 14.72: Ist der Host der Welt-Wächter (so auf dem echten Server, Kanal 1 und 2), steht er nicht in net.players –
+// bis 14.71 ergab das 0, und niemand konnte mit der Gruppe hinein („Host spielt eine ältere Version“). Jetzt zählt
+// dann seine Version aus der Begrüßung (net.hostVer): ab 14.40 kann jeder Host Hallen für drei führen.
 function arenaHostCap() {
   if (net.mode === 'host') return 3;
   if (net.mode !== 'client') return 0;
-  return arenaCapOf('host');
+  if (net.players.get('host')) return arenaCapOf('host');
+  return arenaCapOfVer(net.hostVer);
+}
+function arenaCapOfVer(v) {
+  if (!v || typeof versionNewer !== 'function') return 0;
+  if (v === '14.40' || versionNewer(v, '14.40')) return 3;
+  return v === '14.32' || versionNewer(v, '14.32') ? 2 : 0;
 }
 // Gruppenmitglieder für die Arena (seit 14.40; 14.32–14.39 nur „zu zweit mit …“): alle anderen Mitglieder mit dem Grund,
 // warum eines nicht mitkommen kann. Mitnehmbare zuerst, dann nach Abstand

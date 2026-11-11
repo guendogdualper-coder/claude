@@ -631,6 +631,13 @@ const RATGEBER_WISSEN = [
       'jedes Mitglied in der Nähe bekommt 10 % mehr Erfahrung je weiterem Mitglied in der Nähe. Die Verteilung ist gleich oder nach Stufe.',
     k: 'gruppe party einladen team zusammen erfahrung bonus'
   },
+  // seit 14.72
+  {
+    c: 'zusammen', q: 'Können Licht und Schatten zusammen spielen?',
+    a: 'Ja. Gruppe, Handel und Gruppenfinder gehen auch mit der anderen Seite, wenn ihr im selben Kanal seid. Unter Stufe 50 steht ihr auf verschiedenen Karten – ' +
+      'die Gruppe zeigt das Mitglied dann mit „andere Karte“. Zusammen geht ihr in Dungeons, Instanzen und die Prüfungsarena (bis zu dritt). Nur Gilden bleiben bei der eigenen Seite.',
+    k: 'licht schatten seite andere seite zusammen gruppe kanal handel arena dungeon nicht im kanal'
+  },
   {
     c: 'zusammen', p: 2, q: 'Was ist der Gruppenfinder?',
     a: () => `Ab Stufe ${(typeof GF !== 'undefined') ? GF.level : 30} (Taste ${rgKey('gf')}): Wähle deine Rolle (Tank, Heiler oder Schaden), erstelle einen Eintrag für einen Dungeon oder Endboss oder tritt einem bei. ` +
@@ -711,9 +718,9 @@ const RATGEBER_WISSEN = [
   // --- Prüfungsarena ----------------------------------------------------------------------------------------
   {
     c: 'pruefung', p: 3, q: 'Was ist die Prüfungsarena?',
-    a: () => `Bei <b>{n:arena}</b> (ab Stufe ${(typeof ARENA !== 'undefined') ? ARENA.minLevel : 5}) kämpfst du allein gegen Welle um Welle. Jede Welle ist stärker, ab Welle 4 kommen Elite-Monster, jede 5. Welle ein Wellenmeister. ` +
+    a: () => `Bei <b>{n:arena}</b> (ab Stufe ${(typeof ARENA !== 'undefined') ? ARENA.minLevel : 5}) kämpfst du allein oder mit bis zu zwei Gruppenmitgliedern gegen Welle um Welle. Jede Welle ist stärker, ab Welle 4 kommen Elite-Monster, jede 5. Welle ein Wellenmeister. ` +
       `Für jede geschaffte Welle gibt es Gold, ausgezahlt beim Verlassen. Du hast ${(typeof ARENA !== 'undefined') ? ARENA.lives : 3} Leben – beim letzten Tod ist das gesammelte Gold weg.`,
-    k: 'pruefungsarena arena herausforderung wellen allein gold arenameisterin'
+    k: 'pruefungsarena arena herausforderung wellen allein gruppe gold arenameisterin'
   },
   {
     c: 'pruefung', q: 'Gibt es in der Prüfungsarena Beute?',
@@ -722,8 +729,11 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'pruefung', q: 'Kann ich mit meiner Gruppe in die Prüfungsarena?',
-    a: 'Nein, in die Prüfungsarena geht jeder allein – deine Gruppe wartet draußen. Für Kämpfe gegen andere Spieler gibt es die Turnierarena.',
-    k: 'arena gruppe zusammen allein freunde'
+    // seit 14.72 (Gruppe bis zu dritt gibt es seit 14.40, die Antwort war noch „Nein“)
+    a: 'Ja, zu dritt: Sprich als Gruppe mit der Arenameisterin und tippe „Mit Gruppe betreten“ (oder im Reiter „Gruppe“ „Arena mit der Gruppe betreten“). ' +
+      'Bis zu zwei Mitglieder bekommen eine Einladung mit Countdown – egal, wo sie gerade sind, auch Licht und Schatten gemischt. Ihr kämpft in derselben Halle gegen dieselben Wellen; ' +
+      'zu zweit kommen 1,5-mal so viele Monster, zu dritt doppelt so viele. Wellengold, Erfahrung und Gold bekommt jeder so viel wie allein, und jeder hat seine eigenen drei Leben.',
+    k: 'arena gruppe zusammen allein freunde zu zweit zu dritt licht schatten pruefungsarena'
   },
 
   // --- Pferd ------------------------------------------------------------------------------------------------
