@@ -625,6 +625,500 @@ function star2D(ctx, x, y, r, c1 = '#ffffff', c2 = '#e2957c', core = '#ffb8e0') 
   if (core) oval(ctx, x, y, r * 0.2, r * 0.2, core);
 }
 
+// --- Detailreiche Ausrüstungssymbole (seit 14.57) ----------------------------------------------------------------
+// Stiefel, Brustpanzer, Umhang und Gürtel mit Verläufen, Kanten, Nähten und Beschlägen; je Stufe ein eigenes Merkmal,
+// in der Farbe des Teils (gearCol). Gezeichnet in Symbol-Einheiten (40 × 40, Mitte 0,0), scharf auch bei ICON_HI.
+const GEAR_GLOW2D = ['#d6a8ff', '#d6a8ff', '#9be2ff', '#ff4a3a', '#c08aff', '#ff7a2a', '#bff4ff', '#fff2b0', '#5ee8ff', '#ffb8e0'];
+// glatter Umriss: Punkte abwechselnd Stütz- und Endpunkt (quadratische Kurven), erster Punkt ist der Start
+function qpath2D(ctx, pts) {
+  ctx.beginPath();
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  for (let i = 1; i + 1 < pts.length; i += 2) ctx.quadraticCurveTo(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1]);
+  ctx.closePath();
+}
+function vGrad2D(ctx, x0, y0, x1, y1, col, hi = 0.32, lo = 0.36) {
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, lighter(col, hi));
+  g.addColorStop(0.45, col);
+  g.addColorStop(1, darker(col, lo));
+  return g;
+}
+// Fläche füllen, dunkel umranden und innen (geclippt) weiterzeichnen
+function shape2D(ctx, path, fill, line, inner) {
+  path();
+  ctx.fillStyle = fill;
+  ctx.fill();
+  if (inner) {
+    ctx.save();
+    path();
+    ctx.clip();
+    inner();
+    ctx.restore();
+  }
+  path();
+  ctx.strokeStyle = line;
+  ctx.lineWidth = 0.9;
+  ctx.stroke();
+}
+function rivet2D(ctx, x, y, r, metal) {
+  dot(ctx, x, y, r, r, darker(metal, 0.45));
+  dot(ctx, x - r * 0.2, y - r * 0.2, r * 0.72, r * 0.72, metal);
+  dot(ctx, x - r * 0.4, y - r * 0.4, r * 0.3, r * 0.3, lighter(metal, 0.6));
+}
+function stitch2D(ctx, col, pts, w = 0.5) {
+  ctx.save();
+  ctx.setLineDash([1.2, 1.1]);
+  stroke(ctx, col, w, pts);
+  ctx.restore();
+}
+// Bodenschatten unter dem Symbol
+function iconShadow2D(ctx, x, y, rx, ry = 2.4) {
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Stiefel: zwei Stiefel schräg von der Seite (hinterer dunkler), Schaft, Stulpe, Sohle mit Absatz, Riemen mit
+// Schnalle; ab Gut Schnürung, Zehenkappe und Metallrand, ab Drache Schienbeinplatte; Stufenmerkmale wie im 3D-Modell
+function bootIcon2D(ctx, tier, leather, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 1, 16.2, 17);
+  ctx.save();
+  ctx.translate(0.5, -0.4);
+  ctx.scale(1.12, 1.12);
+  const one = (ox, oy, s, back) => {
+    const L = back ? darker(leather, 0.2) : leather;
+    const M = back ? darker(metal, 0.15) : metal;
+    const line = darker(L, 0.6);
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(s, s);
+    // Flügel hinten am Schaft (Himmel) liegen hinter dem Stiefel
+    if (tier === 6) for (let k = 0; k < 3; k++) {
+      ctx.save();
+      ctx.translate(-7, -6 + k * 2.5);
+      ctx.rotate(-2.3 + k * 0.32);
+      qpath2D(ctx, [[0, 0], [2.4, -5], [0.4, -10 + k], [-1.8, -5], [0, 0]]);
+      ctx.fillStyle = k % 2 ? '#e8f6ff' : '#ffffff';
+      ctx.fill();
+      ctx.strokeStyle = '#8aa8c0';
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+      ctx.restore();
+    }
+    const body = () => qpath2D(ctx, [[-6, -14], [-1, -14.8], [4, -14], [3.6, -5], [3.8, 1.5], [6.5, 2.8], [10.5, 5], [12.4, 7.2], [12, 9.6], [2, 10.2], [-7, 9.6], [-7.6, 3], [-6.6, -2], [-6, -8], [-6, -14]]);
+    shape2D(ctx, body, vGrad2D(ctx, -7, 0, 12, 0, L, 0.3, 0.42), line, () => {
+      // Glanz vorn am Schaft, Schatten in der Ferse
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(-5.5, -14, 2.2, 22);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(-8, 3, 4, 8);
+      // Falten am Knöchel
+      stroke(ctx, darker(L, 0.3), 0.6, [[-5, -1], [-1, 0.2], [2.8, -0.6]]);
+      stroke(ctx, darker(L, 0.3), 0.5, [[-4.6, 1.6], [-0.6, 2.6]]);
+      if (tier <= 1) stitch2D(ctx, lighter(L, 0.35), [[3.2, -12], [3.3, 0.5], [6.4, 3.4], [11, 6.6]]);
+      // Schnürung vorn (ab Gut)
+      if (tier >= 2 && tier !== 7 && tier !== 9) for (let k = 0; k < 4; k++) {
+        const y = -11 + k * 3;
+        stroke(ctx, lighter(L, 0.5), 0.6, [[0.4, y], [3.6, y + 2.2]]);
+        stroke(ctx, lighter(L, 0.5), 0.6, [[3.6, y], [0.4, y + 2.2]]);
+      }
+    });
+    // Sohle mit Absatz und Rahmennaht
+    shape2D(ctx, () => qpath2D(ctx, [[-7.4, 9.2], [2, 9.8], [12.4, 9.2], [13.6, 10.6], [12.4, 12.2], [2, 12.4], [-2.6, 12.2], [-2.8, 13.6], [-7.6, 13.6], [-7.8, 11], [-7.4, 9.2]]), darker(L, 0.62), '#120c08', () => {
+      stitch2D(ctx, lighter(L, 0.1), [[-6.8, 10.4], [12, 10.4]], 0.45);
+    });
+    // Stulpe oben
+    const cuffCol = tier >= 2 ? M : lighter(L, 0.22);
+    shape2D(ctx, () => qpath2D(ctx, [[-6.8, -15.4], [-1, -16.6], [4.8, -15.4], [5, -13.4], [4.6, -11.6], [-1, -12.4], [-6.6, -11.6], [-7.2, -13.4], [-6.8, -15.4]]), vGrad2D(ctx, 0, -16.6, 0, -11.6, cuffCol, 0.35, 0.3), darker(cuffCol, 0.55), () => {
+      if (tier <= 1) stitch2D(ctx, darker(L, 0.35), [[-6.4, -12.6], [-1, -13.4], [4.4, -12.6]], 0.45);
+    });
+    if (tier >= 2) for (const x of [-4.6, -1, 2.6]) rivet2D(ctx, x, -13.9, 0.55, lighter(M, 0.1));
+    // Riemen mit Schnalle über dem Rist
+    if (tier >= 1) {
+      shape2D(ctx, () => qpath2D(ctx, [[-6.6, -5.4], [-1, -4.4], [3.8, -5.6], [3.9, -4], [3.8, -3], [-1, -2.2], [-6.6, -3.4], [-6.7, -4.4], [-6.6, -5.4]]), darker(L, 0.38), '#120c08');
+      ctx.strokeStyle = M;
+      ctx.lineWidth = 0.8;
+      ctx.strokeRect(-2.4, -5.3, 2.6, 2.6);
+      stroke(ctx, M, 0.6, [[-1.1, -5.1], [-1.1, -2.9]]);
+    }
+    // Zehenkappe aus Metall (ab Gut)
+    if (tier >= 2 && tier !== 6) shape2D(ctx, () => qpath2D(ctx, [[7, 3.6], [10.4, 4.6], [12.6, 7.2], [12.8, 9], [11.6, 9.4], [8.6, 9.6], [7.4, 9.2], [6.6, 6], [7, 3.6]]), vGrad2D(ctx, 6, 3.6, 13, 9.6, M, 0.45, 0.3), darker(M, 0.55));
+    // Schienbeinplatte vorn (Drache, Seele, Asche, Götter, Abgrund, Ewigkeit)
+    if (tier >= 3 && tier !== 6) {
+      const pc = tier === 7 ? '#d8a93e' : tier === 9 ? '#bcb8d0' : tier === 8 ? '#2a2048' : tier === 5 ? '#2a2224' : M;
+      shape2D(ctx, () => qpath2D(ctx, [[0.6, -11.4], [3, -12.2], [5.4, -11.2], [5.4, -6], [4.6, -1.4], [3, -0.2], [1.4, -1.4], [0.6, -6], [0.6, -11.4]]), vGrad2D(ctx, 0, -12, 6, 0, pc, 0.45, 0.35), darker(pc, 0.6), () => {
+        stroke(ctx, lighter(pc, 0.5), 0.6, [[3, -11.6], [3, -1]]);
+      });
+      if (tier === 3) for (let k = 0; k < 3; k++) poly(ctx, [[5.2, -10 + k * 3], [7.6, -9 + k * 3], [5.2, -8 + k * 3]], '#e8dcc0');
+      if (tier === 4) dot(ctx, 3, -6.5, 1.3, 1.6, glow);
+      if (tier === 5) {
+        poly(ctx, [[4.6, -9], [9, -12.5], [5.2, -6.4]], '#2a2224');
+        stroke(ctx, '#ff7a2a', 0.7, [[2.4, -9], [3.4, -6], [2.6, -3]]);
+      }
+      if (tier === 7) {
+        oval(ctx, 3, -6.4, 2.2, 2.2, '#fff2b0');
+        oval(ctx, 3, -6.4, 1.2, 1.2, '#ffcf4a');
+      }
+      if (tier === 8) {
+        poly(ctx, [[4.8, -9.6], [9.4, -14], [5.6, -6.6]], '#3a2e66');
+        voidEye2D(ctx, 3, -6, 0.55);
+      }
+      if (tier === 9) star2D(ctx, 3, -6.2, 3.2);
+    }
+    // Krallenzehen (Drache), glühende Sohle (Asche, Abgrund, Ewigkeit)
+    if (tier === 3) for (let k = 0; k < 3; k++) poly(ctx, [[11 + k * 0.5, 6 + k * 1.4], [15 + k * 0.4, 6.6 + k * 1.6], [11.6 + k * 0.5, 7.6 + k * 1.4]], '#e8dcc0');
+    if (tier === 5 || tier === 8 || tier === 9) stroke(ctx, tier === 5 ? '#ff7a2a' : tier === 8 ? '#5ee8ff' : '#ffb8e0', 0.9, [[-7, 12.6], [12.6, 11.6]]);
+    if (tier === 0) for (let k = 0; k < 3; k++) stroke(ctx, '#d8ccb0', 0.9, [[-6.6, -1 + k * 2.2], [3.6, 0.2 + k * 2.2]]);
+    ctx.restore();
+  };
+  one(4, -1.5, 0.9, true);
+  one(-4.5, 1, 1, false);
+  ctx.restore();
+}
+
+// Brustpanzer (Krieger): Harnisch mit Halsausschnitt und Armöffnungen, Mittelgrat, Brustwölbung, Metallrand mit Nieten,
+// Gürtel und drei Beintaschen; Leder (Schnürung), Kettenhemd (Ringe), ab Gut Platte; Wappen je Stufe
+function chestIcon2D(ctx, tier, plate, cloth, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 0, 17, 13);
+  const line = darker(plate, 0.62);
+  // Waffenrock unter den Beintaschen
+  shape2D(ctx, () => qpath2D(ctx, [[-9.5, 5], [0, 5.6], [9.5, 5], [11, 10.5], [11.8, 16], [0, 16.8], [-11.8, 16], [-11, 10.5], [-9.5, 5]]), vGrad2D(ctx, 0, 5, 0, 17, cloth, 0.2, 0.4), darker(cloth, 0.6));
+  // Beintaschen
+  const tass = tier === 0 ? darker(plate, 0.08) : plate;
+  for (const [x, r] of [[-6.6, 0.18], [6.6, -0.18], [0, 0]]) {
+    ctx.save();
+    ctx.translate(x, 7.4);
+    ctx.rotate(r);
+    shape2D(ctx, () => qpath2D(ctx, [[-3.6, 0], [0, -0.4], [3.6, 0], [3.9, 4], [3.4, 7.6], [0, 8.2], [-3.4, 7.6], [-3.9, 4], [-3.6, 0]]), vGrad2D(ctx, -4, 0, 4, 8, tass, 0.3, 0.4), darker(tass, 0.6), () => {
+      if (tier >= 1) stroke(ctx, metal, 1.2, [[-3.6, 7.2], [0, 7.9], [3.6, 7.2]]);
+      else stitch2D(ctx, lighter(tass, 0.35), [[-2.8, 6.6], [2.8, 6.6]]);
+      stroke(ctx, darker(tass, 0.3), 0.5, [[-3.4, 3.6], [3.4, 3.6]]);
+    });
+    if (tier >= 1) rivet2D(ctx, 0, 1.6, 0.6, metal);
+    ctx.restore();
+  }
+  // Schulterstacheln (ab Seele) hinter dem Harnisch
+  if (tier >= 4) for (const sx of [-1, 1]) {
+    const sc = tier === 8 ? '#3a2e66' : tier === 9 ? '#efeaf6' : tier === 5 ? '#2a2224' : metal;
+    poly(ctx, [[sx * 8.6, -12], [sx * 11.6, -19.5], [sx * 12.4, -11.4]], sc);
+    stroke(ctx, darker(sc, 0.5), 0.6, [[sx * 8.6, -12], [sx * 11.6, -19.5], [sx * 12.4, -11.4]]);
+  }
+  // Harnisch
+  const body = () => qpath2D(ctx, [[-4.6, -13.6], [-8.6, -14], [-12.6, -12.6], [-12.4, -10.4], [-10.6, -8.6], [-9.2, -6.4], [-9, -3.6], [-10, 1], [-9.6, 5.6], [0, 6.8], [9.6, 5.6], [10, 1], [9, -3.6], [9.2, -6.4], [10.6, -8.6], [12.4, -10.4], [12.6, -12.6], [8.6, -14], [4.6, -13.6], [0, -8.4], [-4.6, -13.6]]);
+  const g = ctx.createRadialGradient(-4, -8, 1, 0, -3, 15);
+  g.addColorStop(0, lighter(plate, 0.5));
+  g.addColorStop(0.35, lighter(plate, 0.12));
+  g.addColorStop(0.8, plate);
+  g.addColorStop(1, darker(plate, 0.4));
+  shape2D(ctx, body, g, line, () => {
+    // rechte Hälfte im Schatten, Mittelgrat als Kante
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
+    ctx.fillRect(0, -15, 14, 23);
+    if (tier === 1) {
+      // Kettenhemd: Ringreihen
+      ctx.strokeStyle = darker(plate, 0.35);
+      ctx.lineWidth = 0.45;
+      for (let y = -12; y < 7; y += 1.8) for (let x = -11 + ((y / 1.8) % 2 ? 0.9 : 0); x < 11; x += 1.8) {
+        ctx.beginPath();
+        ctx.arc(x, y, 0.75, 0, Math.PI);
+        ctx.stroke();
+      }
+    } else if (tier === 0) {
+      // Lederweste: Schnürung vorn, Flicken mit Stichen
+      for (let k = 0; k < 4; k++) {
+        const y = -7 + k * 3;
+        stroke(ctx, '#e0cfa8', 0.6, [[-1.6, y], [1.6, y + 2]]);
+        stroke(ctx, '#e0cfa8', 0.6, [[1.6, y], [-1.6, y + 2]]);
+      }
+      stroke(ctx, darker(plate, 0.4), 0.7, [[0, -8], [0, 6]]);
+      ctx.fillStyle = darker(plate, 0.14);
+      ctx.fillRect(4, -2, 4, 3.6);
+      stitch2D(ctx, lighter(plate, 0.4), [[4, -2], [8, -2], [8, 1.6], [4, 1.6], [4, -2]], 0.4);
+    } else {
+      // Platte: Brustwölbung, Mittelgrat
+      stroke(ctx, darker(plate, 0.25), 0.8, [[-8.4, -3.2], [-4, -1], [0, -2.2]]);
+      stroke(ctx, darker(plate, 0.32), 0.8, [[8.4, -3.2], [4, -1], [0, -2.2]]);
+      stroke(ctx, lighter(plate, 0.55), 0.7, [[-0.4, -8], [-0.4, 6]]);
+      stroke(ctx, darker(plate, 0.4), 0.7, [[0.5, -8], [0.5, 6]]);
+      // Bauchreifen
+      for (const y of [1.6, 4]) stroke(ctx, darker(plate, 0.35), 0.6, [[-9.4, y], [0, y + 1], [9.4, y]]);
+    }
+    // Metallrand an Hals, Armöffnungen und unten
+    if (tier >= 1) {
+      body();
+      ctx.strokeStyle = metal;
+      ctx.lineWidth = 2.6;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+    }
+  });
+  if (tier >= 1) for (const [x, y] of [[-7.6, -12.6], [7.6, -12.6], [-8.6, 4.8], [8.6, 4.8], [-3, 5.9], [3, 5.9]]) rivet2D(ctx, x, y, 0.6, metal);
+  // Gürtel über der Taille
+  box(ctx, -10.2, 4.6, 20.4, 2.6, 0.8, tier >= 7 ? '#5a2a1a' : '#4a3020');
+  ctx.strokeStyle = metal;
+  ctx.lineWidth = 0.8;
+  ctx.strokeRect(-1.6, 4.4, 3.2, 3);
+  // Wappen
+  const cy = -2.6;
+  if (tier === 1) rivet2D(ctx, 0, cy, 1.6, metal);
+  else if (tier === 2) {
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = lighter(metal, 0.2);
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.arc(0, cy - 0.6, 2.6, 0.4, Math.PI * 1.6);
+    ctx.stroke();
+    ctx.restore();
+    dot(ctx, 0.8, cy - 0.6, 0.8, 0.8, glow);
+  } else if (tier === 3) {
+    poly(ctx, [[0, cy - 3.6], [2.8, cy], [0, cy + 3.6], [-2.8, cy]], '#7a1a14');
+    poly(ctx, [[0, cy - 2.4], [1.7, cy], [0, cy + 2.4], [-1.7, cy]], glow);
+    for (const sx of [-1, 1]) poly(ctx, [[sx * 2, cy - 2], [sx * 4.6, cy - 5.6], [sx * 3, cy - 1.2]], '#e8dcc0');
+  } else if (tier === 4) {
+    oval(ctx, 0, cy, 2.6, 3.2, darker(glow, 0.45));
+    oval(ctx, 0, cy, 1.7, 2.3, glow);
+    dot(ctx, -0.6, cy - 0.9, 0.5, 0.7, '#ffffff');
+  } else if (tier === 5) {
+    stroke(ctx, '#ff7a2a', 0.9, [[-4, -9], [-2, -5], [-3, -1], [-0.6, 2]]);
+    stroke(ctx, '#ffd34d', 0.5, [[-4, -9], [-2, -5], [-3, -1], [-0.6, 2]]);
+    stroke(ctx, '#ff7a2a', 0.8, [[5, -8], [3, -4], [4.6, 0]]);
+  } else if (tier === 6) {
+    for (const sx of [-1, 1]) for (let k = 0; k < 3; k++) {
+      ctx.save();
+      ctx.translate(sx * 1.6, cy);
+      ctx.rotate(sx * (1.1 + k * 0.35));
+      qpath2D(ctx, [[0, 0], [1, -2.6], [0, -5.4 + k * 0.6], [-1, -2.6], [0, 0]]);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
+    dot(ctx, 0, cy, 1.2, 1.2, '#bff4ff');
+  } else if (tier === 7) {
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      poly(ctx, [[Math.cos(a - 0.2) * 2.4, cy + Math.sin(a - 0.2) * 2.4], [Math.cos(a) * (k % 2 ? 4 : 5), cy + Math.sin(a) * (k % 2 ? 4 : 5)], [Math.cos(a + 0.2) * 2.4, cy + Math.sin(a + 0.2) * 2.4]], '#fff2b0');
+    }
+    oval(ctx, 0, cy, 2.6, 2.6, '#ffcf4a');
+    oval(ctx, -0.6, cy - 0.6, 1, 1, '#fff6d0');
+  } else if (tier === 8) {
+    for (const [x, y] of [[-7, -9], [6.5, -8], [-6, 3], [6, 3]]) stroke(ctx, '#5ee8ff', 0.6, [[x * 0.35, cy + (y - cy) * 0.35], [x, y]]);
+    voidEye2D(ctx, 0, cy, 1.05);
+  } else if (tier === 9) star2D(ctx, 0, cy, 5);
+}
+
+// Umhang: fallendes Tuch von hinten, Kragen mit Spangen, Falten (helle und dunkle Bahnen), umgeschlagene Kante mit
+// Futter, Saum mit Borte; Stufenmerkmale: Kapuze, Fellkragen, Dornenkamm, Leuchtsaum, Brandlöcher, Federn, Hermelin
+// und Sonnenwappen, Leerenauge, Sternbild
+function capeIcon2D(ctx, tier, cl, lining, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 0, 16.6, 14);
+  const line = darker(cl, 0.62);
+  // Saumform je Stufe: glatt, Zacken, Fetzen, Wellen
+  const hem = tier === 3 || tier === 8 ? 'fang' : tier === 0 || tier === 5 ? 'rag' : 'wave';
+  const pts = [[-6.4, -13], [0, -13.6], [6.4, -13], [9.4, 0], [12.6, 12]];
+  const hx = [12.6, 8.4, 4.2, 0, -4.2, -8.4, -12.6];
+  const H = [];
+  hx.forEach((x, i) => {
+    if (i === 0) return;
+    const px = hx[i - 1];
+    const mx = (px + x) / 2;
+    const y0 = 12 + Math.abs(x) * 0.08;
+    if (hem === 'fang') H.push([mx, 17.2], [x, y0]);
+    else if (hem === 'rag') H.push([mx, i % 2 ? 15.6 : 13.4], [x, y0 + (i % 2 ? 0.6 : 1.8)]);
+    else H.push([mx, 15.8], [x, y0]);
+  });
+  const outline = () => qpath2D(ctx, [...pts, ...H, [-9.4, 0], [-6.4, -13]]);
+  const g = ctx.createLinearGradient(-13, 0, 13, 0);
+  g.addColorStop(0, darker(cl, 0.32));
+  g.addColorStop(0.3, lighter(cl, 0.16));
+  g.addColorStop(0.55, cl);
+  g.addColorStop(1, darker(cl, 0.42));
+  shape2D(ctx, outline, g, line, () => {
+    // Falten: dunkle Bahnen fächern nach unten auf, dazwischen helle Grate
+    for (const [x0, x1] of [[-3.2, -7.6], [0.6, 0.8], [3.8, 8]]) {
+      ctx.beginPath();
+      ctx.moveTo(x0 - 0.4, -12);
+      ctx.quadraticCurveTo(x0 + (x1 - x0) * 0.3, 2, x1 - 1.6, 17);
+      ctx.lineTo(x1 + 1.6, 17);
+      ctx.quadraticCurveTo(x0 + (x1 - x0) * 0.35 + 0.9, 2, x0 + 0.5, -12);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(0,0,0,0.2)';
+      ctx.fill();
+    }
+    for (const [x0, x1] of [[-1.4, -3.6], [2.2, 4.4], [-5, -11]]) stroke(ctx, lighter(cl, 0.3), 0.7, [[x0, -11], [x0 + (x1 - x0) * 0.4, 2], [x1, 15]]);
+    // Saumborte
+    ctx.save();
+    ctx.translate(0, -1.6);
+    qpath2D(ctx, [[12.6, 12], ...H, [-12.6, 30], [12.6, 30]]);
+    ctx.restore();
+    ctx.fillStyle = tier === 4 ? glow : tier === 7 ? '#d8a93e' : tier >= 6 && tier !== 8 ? metal : darker(cl, 0.3);
+    ctx.fill();
+    if (tier === 0) for (const [x, y] of [[-6, 14], [3, 14.6], [8, 13.4]]) stroke(ctx, darker(cl, 0.45), 0.6, [[x, y - 2], [x + 0.6, y]]);
+    // Brandlöcher (Asche), Sternbild (Ewigkeit)
+    if (tier === 5) for (const [x, y] of [[-6, 6], [4, 9], [7, 2], [-2, 11]]) {
+      dot(ctx, x, y, 1.3, 1, '#1a0e0a');
+      ctx.strokeStyle = '#ff7a2a';
+      ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 1.4, 1.1, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    if (tier === 9) {
+      const st = [[-6, 3], [-3.4, 7.6], [1.6, 9], [5.4, 5], [7.2, 10]];
+      stroke(ctx, '#ffd6f0', 0.4, st);
+      for (const [x, y] of st) dot(ctx, x, y, 0.8, 0.8, '#fff4fa');
+    }
+    if (tier === 8) for (const [x0, y0, x1, y1] of [[0, 0, -4, 8], [0, 0, 4.6, 7], [0, 0, 0.6, 11]]) stroke(ctx, '#5ee8ff', 0.6, [[x0, y0], [(x0 + x1) / 2 + 1, (y0 + y1) / 2], [x1, y1]]);
+  });
+  // umgeschlagene linke Kante mit Futter
+  shape2D(ctx, () => qpath2D(ctx, [[-6.4, -12.6], [-8.2, -1], [-12.4, 11.6], [-11, 12.6], [-9.6, 11.8], [-6.6, 0], [-5.2, -11.4], [-5.8, -12.4], [-6.4, -12.6]]), vGrad2D(ctx, -12, 0, -5, 0, lining, 0.25, 0.3), darker(lining, 0.55));
+  // Fangspitzen (Drache, Abgrund)
+  if (tier === 3) for (let k = 0; k < 4; k++) poly(ctx, [[-1.2, -8 + k * 5], [0, -11 + k * 5], [1.2, -8 + k * 5]], '#1a1212');
+  if (tier === 8) for (const x of [-10.4, -2.1, 6.3]) poly(ctx, [[x - 1, 15.6], [x + 0.2, 19.6], [x + 1.2, 15.6]], '#3a2e66');
+  if (tier === 6) for (let k = 0; k < 6; k++) {
+    const x = -10 + k * 4;
+    ctx.save();
+    ctx.translate(x, 13.6);
+    ctx.rotate(Math.PI + (x / 12) * 0.5);
+    qpath2D(ctx, [[0, 0], [1.4, -2.4], [0, -6.4], [-1.4, -2.4], [0, 0]]);
+    ctx.fillStyle = k % 2 ? '#ffffff' : '#e6f2ff';
+    ctx.fill();
+    ctx.strokeStyle = '#8aa8c0';
+    ctx.lineWidth = 0.4;
+    ctx.stroke();
+    ctx.restore();
+  }
+  if (tier === 4) for (const [x, y] of [[-4, 15.4], [3, 16], [8, 14.4]]) dot(ctx, x, y, 0.9, 0.9, '#f4e8ff');
+  // Rückenwappen
+  if (tier === 7) {
+    for (let k = 0; k < 10; k++) {
+      const a = (k / 10) * Math.PI * 2;
+      poly(ctx, [[1 + Math.cos(a - 0.2) * 2.4, 2 + Math.sin(a - 0.2) * 2.4], [1 + Math.cos(a) * (k % 2 ? 4.2 : 5.4), 2 + Math.sin(a) * (k % 2 ? 4.2 : 5.4)], [1 + Math.cos(a + 0.2) * 2.4, 2 + Math.sin(a + 0.2) * 2.4]], '#fff2b0');
+    }
+    oval(ctx, 1, 2, 2.6, 2.6, '#ffcf4a');
+  } else if (tier === 8) voidEye2D(ctx, 1, 0, 1);
+  else if (tier === 9) star2D(ctx, 1, -2, 4.4);
+  else if (tier === 3) poly(ctx, [[1, -2], [3.4, 2], [1, 6], [-1.4, 2]], glow);
+  // Kragen je Stufe
+  if (tier === 1) shape2D(ctx, () => qpath2D(ctx, [[-8, -13.4], [0, -9], [8, -13.4], [8.6, -11.2], [6, -9.4], [0, -6.8], [-6, -9.4], [-8.6, -11.2], [-8, -13.4]]), vGrad2D(ctx, 0, -14, 0, -7, darker(cl, 0.12), 0.25, 0.35), line);
+  else if (tier === 2 || tier === 7) for (let k = 0; k < 7; k++) {
+    const x = -7.2 + k * 2.4;
+    const fur = tier === 7 ? (k % 2 ? '#ece6dc' : '#f8f4ec') : k % 2 ? '#8a6a4a' : '#a8885a';
+    oval(ctx, x, -12.6 + Math.abs(x) * 0.06, 2, 1.8, fur);
+    if (tier === 7 && k % 2 === 0) dot(ctx, x, -12, 0.45, 0.6, '#1a1210');
+  }
+  else if (tier === 8) for (let k = 0; k < 5; k++) poly(ctx, [[-6 + k * 3, -12.6], [-6.4 + k * 3 + (k - 2) * 0.6, -17 - (k % 2) * 1.6], [-5 + k * 3, -12.6]], '#3a2e66');
+  else if (tier === 9) for (let k = 0; k < 5; k++) poly(ctx, [[-6 + k * 3, -12.6], [-5.5 + k * 3 + (k - 2) * 0.8, -17.4 - (k % 2) * 1.6], [-5 + k * 3, -12.6]], k % 2 ? '#e2957c' : '#efeaf6');
+  else box(ctx, -7.4, -14.6, 14.8, 2.8, 1.2, darker(cl, 0.15));
+  // Spangen an den Schultern mit Kordel
+  stroke(ctx, tier >= 3 ? metal : darker(cl, 0.4), 0.7, [[-6.2, -12], [0, -10.4], [6.2, -12]]);
+  for (const x of [-6.6, 6.6]) {
+    dot(ctx, x, -12.6, 1.9, 1.9, darker(tier >= 1 ? metal : '#5a4632', 0.45));
+    dot(ctx, x - 0.2, -12.8, 1.5, 1.5, tier >= 1 ? metal : '#7a6040');
+    dot(ctx, x - 0.6, -13.2, 0.5, 0.5, '#ffffff');
+  }
+}
+
+// Helm (Krieger): Glocke mit Verlauf und Glanzlicht, Mittelgrat, Stirnreif mit Nieten, Nasal, Wangenklappen, Kamm
+function helmIcon2D(ctx, tier, hm, band, crest) {
+  iconShadow2D(ctx, 0, 16.4, 13);
+  // Kamm hinter der Glocke
+  if (crest) {
+    shape2D(ctx, () => qpath2D(ctx, [[-2.4, -8], [-3.4, -14], [0.4, -17.6], [3.6, -14.6], [2.4, -8], [0, -7.4], [-2.4, -8]]), vGrad2D(ctx, -3, -18, 3, -8, crest, 0.3, 0.35), darker(crest, 0.6), () => {
+      for (let k = 0; k < 4; k++) stroke(ctx, darker(crest, 0.3), 0.5, [[-2 + k * 1.3, -8.4], [-1.6 + k * 1.3, -15.6]]);
+    });
+  }
+  // Wangenklappen
+  for (const sx of [-1, 1]) shape2D(ctx, () => qpath2D(ctx, [[sx * 13.4, 4], [sx * 13.8, 9], [sx * 12.6, 13.6], [sx * 10.6, 14.4], [sx * 9.4, 12.4], [sx * 9.4, 8], [sx * 9.8, 4], [sx * 11.6, 3.6], [sx * 13.4, 4]]), vGrad2D(ctx, sx * 9, 4, sx * 14, 14, hm, 0.25, 0.4), darker(hm, 0.6), () => {
+    stroke(ctx, darker(hm, 0.3), 0.5, [[sx * 10.2, 9], [sx * 13.2, 9]]);
+  });
+  // Glocke
+  const dome = () => qpath2D(ctx, [[-13.6, 4.4], [-14.4, -9.6], [0, -10.6], [14.4, -9.6], [13.6, 4.4], [0, 5.4], [-13.6, 4.4]]);
+  const g = ctx.createRadialGradient(-5, -5, 1, 0, 0, 16);
+  g.addColorStop(0, lighter(hm, 0.55));
+  g.addColorStop(0.3, lighter(hm, 0.15));
+  g.addColorStop(0.75, hm);
+  g.addColorStop(1, darker(hm, 0.42));
+  shape2D(ctx, dome, g, darker(hm, 0.62), () => {
+    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    ctx.fillRect(1, -12, 14, 18);
+    stroke(ctx, lighter(hm, 0.45), 0.7, [[-0.5, -10], [-0.5, 3]]);
+    stroke(ctx, darker(hm, 0.35), 0.6, [[0.6, -10], [0.6, 3]]);
+    if (tier === 0) for (const x of [-7, 7]) stitch2D(ctx, lighter(hm, 0.35), [[x, -7], [x * 1.05, 2.6]], 0.45);
+  });
+  // Stirnreif mit Nieten
+  shape2D(ctx, () => qpath2D(ctx, [[-14.6, 1.6], [0, 2.8], [14.6, 1.6], [14.8, 4], [14.6, 6.2], [0, 7.4], [-14.6, 6.2], [-14.8, 4], [-14.6, 1.6]]), vGrad2D(ctx, 0, 1.6, 0, 7.4, band, 0.4, 0.35), darker(band, 0.6));
+  if (tier >= 1) for (const x of [-11, -5.6, 5.6, 11]) rivet2D(ctx, x, 4.4 + Math.abs(x) * -0.05, 0.75, lighter(band, 0.1));
+  // Nasal
+  shape2D(ctx, () => qpath2D(ctx, [[-1.6, 2.4], [0, 2.2], [1.6, 2.4], [1.4, 8], [1.1, 12.4], [0, 13.2], [-1.1, 12.4], [-1.4, 8], [-1.6, 2.4]]), vGrad2D(ctx, -2, 2, 2, 13, tier === 0 ? hm : band, 0.4, 0.3), darker(band, 0.6));
+}
+
+// Gürtel: Ledergurt mit Kantennaht, Schnalle mit Dorn, Gürtelschlaufe und Nieten; Stufenmerkmale an der Schnalle
+function beltIcon2D(ctx, tier, leather, metal) {
+  const glow = GEAR_GLOW2D[tier];
+  iconShadow2D(ctx, 0, 13, 15);
+  const strap = () => qpath2D(ctx, [[-16, -3.4], [0, -5.2], [16, -3.4], [16.6, 0], [16, 3.4], [0, 1.8], [-16, 3.4], [-16.6, 0], [-16, -3.4]]);
+  shape2D(ctx, strap, vGrad2D(ctx, 0, -5, 0, 3.4, leather, 0.3, 0.4), darker(leather, 0.62), () => {
+    stitch2D(ctx, lighter(leather, 0.4), [[-15, -2.2], [0, -3.9], [15, -2.2]], 0.45);
+    stitch2D(ctx, lighter(leather, 0.4), [[-15, 2.2], [0, 0.6], [15, 2.2]], 0.45);
+  });
+  // Lochreihe und Schlaufe
+  for (const x of [8.4, 10.6, 12.8]) dot(ctx, x, -0.8 + Math.abs(x) * 0.0, 0.55, 0.55, darker(leather, 0.65));
+  box(ctx, -12, -4.6, 2.4, 8.4, 0.8, darker(leather, 0.25));
+  if (tier >= 2) for (const x of [-14.2, 5.4]) rivet2D(ctx, x, -0.7, 0.75, metal);
+  // Gürteltasche (ab Solide) links
+  if (tier >= 1 && tier !== 7 && tier !== 9) {
+    shape2D(ctx, () => qpath2D(ctx, [[-9.6, 1.6], [-6.6, 1.2], [-3.6, 1.6], [-3.4, 6], [-4, 9.6], [-6.6, 10.4], [-9.2, 9.6], [-9.8, 6], [-9.6, 1.6]]), vGrad2D(ctx, -10, 2, -3, 10, darker(leather, 0.1), 0.25, 0.4), darker(leather, 0.62));
+    shape2D(ctx, () => qpath2D(ctx, [[-9.8, 1.4], [-6.6, 0.8], [-3.4, 1.4], [-3.6, 4.4], [-6.6, 5.6], [-9.6, 4.4], [-9.8, 1.4]]), darker(leather, 0.25), darker(leather, 0.62));
+    dot(ctx, -6.6, 4.6, 0.7, 0.7, metal);
+  }
+  // Schnalle
+  const bk = tier === 7 ? '#d8a93e' : tier === 9 ? '#bcb8d0' : tier === 8 ? '#2a2048' : metal;
+  shape2D(ctx, () => qpath2D(ctx, [[-5.4, -6.6], [0.6, -7.4], [6.6, -6.6], [7.2, -1], [6.6, 4.6], [0.6, 5.4], [-5.4, 4.6], [-6, -1], [-5.4, -6.6]]), vGrad2D(ctx, -6, -7, 7, 5, bk, 0.5, 0.35), darker(bk, 0.6), () => {
+    ctx.fillStyle = darker(leather, 0.15);
+    ctx.fillRect(-3, -4.4, 7.2, 6.6);
+    stroke(ctx, lighter(bk, 0.5), 0.5, [[-5, -6], [6, -6]]);
+  });
+  stroke(ctx, lighter(bk, 0.25), 1.1, [[-1.6, -1.2], [5.6, -1.2]]);
+  if (tier === 3) {
+    oval(ctx, 0.6, -1, 3, 2.6, '#7a1a14');
+    for (const sx of [-1, 1]) dot(ctx, 0.6 + sx * 1.3, -1.6, 0.6, 0.5, glow);
+    for (const sx of [-1, 1]) poly(ctx, [[0.6 + sx * 1.8, -3], [0.6 + sx * 3.6, -7], [0.6 + sx * 0.8, -3.4]], '#e8dcc0');
+  } else if (tier === 4) {
+    oval(ctx, 0.6, -1, 2.2, 2.8, darker(glow, 0.4));
+    oval(ctx, 0.6, -1, 1.5, 2, glow);
+  } else if (tier === 5) {
+    oval(ctx, 0.6, -1.4, 2.6, 2.4, '#e8e0cc');
+    for (const sx of [-1, 1]) dot(ctx, 0.6 + sx * 1, -1.6, 0.6, 0.6, '#ff7a2a');
+  } else if (tier === 6) {
+    for (const sx of [-1, 1]) {
+      ctx.save();
+      ctx.translate(0.6 + sx * 7.6, 2);
+      ctx.rotate(sx * 0.3);
+      qpath2D(ctx, [[0, 0], [1.4, 3], [0, 8], [-1.4, 3], [0, 0]]);
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.restore();
+    }
+    dot(ctx, 0.6, -1, 1.4, 1.4, '#bff4ff');
+  } else if (tier === 7) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      poly(ctx, [[0.6 + Math.cos(a - 0.25) * 1.8, -1 + Math.sin(a - 0.25) * 1.8], [0.6 + Math.cos(a) * 3.6, -1 + Math.sin(a) * 3.6], [0.6 + Math.cos(a + 0.25) * 1.8, -1 + Math.sin(a + 0.25) * 1.8]], '#fff2b0');
+    }
+    oval(ctx, 0.6, -1, 1.8, 1.8, '#ffcf4a');
+    for (const x of [-3.6, 0.6, 4.8]) box(ctx, x - 1.2, 5.6, 2.4, 3.6, 0.6, '#d8a93e');
+  } else if (tier === 8) voidEye2D(ctx, 0.6, -1, 0.8);
+  else if (tier === 9) star2D(ctx, 0.6, -1, 4);
+  if (tier >= 3 && tier !== 7) poly(ctx, [[-1.6, 5.4], [2.8, 5.4], [0.6, 10.4]], tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 4 ? glow : '#c8402f');
+}
+
 // Klingenfarbe im Symbol: Obsidian (Asche), helles Gold (Götter), seit 13.53 Leerenviolett (Abgrund), sonst Stufenmetall
 const bladeMetal2D = (tier) => (tier === 5 ? '#2a2224' : tier === 7 ? '#ffe9a0' : tier === 8 ? '#3a2e66' : TIER_METAL[tier]);
 
@@ -1215,7 +1709,7 @@ const GEAR_LOOK = {
 };
 const gearTier = (t) => (t == null ? -1 : t);
 
-// --- Farbvarianten je Teil (seit 14.55) ---------------------------------------------------------
+// --- Farbvarianten je Teil (seit 14.57) ---------------------------------------------------------
 // Vorher hatte auf einer Stufe jedes Teil dieselbe Farbe (alles Lederbraun, alles Drachenrot). Jetzt bekommt auf den
 // niedrigen Stufen (bis Veteran, Stufe 0–4) jedes Teil eine eigene, feste Farbe aus Stoff/Leder (c) und Metall (m):
 // ein zusammengewürfelter Abenteurer. Die Variante hängt nur vom Gegenstand ab (uid, Platz, Stufe; Mitspieler

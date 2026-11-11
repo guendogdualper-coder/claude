@@ -972,7 +972,7 @@ function netPlayerState() {
     if (it) eq[sl] = { slot: it.slot, tier: it.tier, plus: it.plus, kind: it.kind, cls: it.cls, ...(it.legend ? { legend: 1 } : {}), ...(it.rarity ? { rarity: it.rarity } : {}), ...(it.set ? { set: it.set } : {}) }; // seit 14.55: set für die Set-Farben bei Mitspielern
   }
 
-  // seit 14.55: Farbvariante jedes Teils (gearVariant, figuren.js), damit Mitspieler dieselben Farben sehen
+  // seit 14.57: Farbvariante jedes Teils (gearVariant, figuren.js), damit Mitspieler dieselben Farben sehen
   for (const sl in eq) eq[sl].fv = gearVariant(p.equipment[sl]);
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
