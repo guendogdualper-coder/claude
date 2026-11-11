@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.68';
+const GAME_VERSION = '14.69';
 
 const game = {
   world: null,
@@ -277,7 +277,7 @@ function frame(ts) {
   const raw = ts - lastFrame;
   const dt = Math.min(0.05, raw / 1000 || 0);
   lastFrame = ts;
-  // seit 14.68: ein Fehler in einem Bild hält die Schleife nicht mehr an (vorher blieb das Spiel als Standbild stehen –
+  // seit 14.69: ein Fehler in einem Bild hält die Schleife nicht mehr an (vorher blieb das Spiel als Standbild stehen –
   // „das Spiel stürzt ab“); gemeldet wird je Fehlermeldung einmal, weiter als ungefangener Fehler
   try {
     if (renderer.resizeDue) resizeRenderer();

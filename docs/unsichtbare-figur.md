@@ -1,4 +1,4 @@
-# Eigene Figur unsichtbar / Spiel „stürzt ab“ (seit 14.68)
+# Eigene Figur unsichtbar / Spiel „stürzt ab“ (seit 14.69)
 
 ## Meldung
 

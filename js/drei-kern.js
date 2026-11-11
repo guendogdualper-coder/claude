@@ -856,7 +856,7 @@ function v3Init() {
   canvas.addEventListener('webglcontextrestored', () => {
     V3.lost = false;
     V3.sizeKey = null;
-    // seit 14.68 auch alle Figuren neu: ihre Modelle haben die Daten nach dem ersten Hochladen freigegeben und lassen
+    // seit 14.69 auch alle Figuren neu: ihre Modelle haben die Daten nach dem ersten Hochladen freigegeben und lassen
     // sich nicht noch einmal hochladen (vorher blieb danach das ganze Spiel stehen, v3ResetFigures in drei-figuren.js)
     V3.ctxGen = (V3.ctxGen || 0) + 1;
     if (typeof v3ResetFigures === 'function') v3ResetFigures();
@@ -2436,7 +2436,7 @@ function v3RenderScene() {
     cam.layers.disable(SHADOW_LAYER3);
   }
 }
-// Das 3D-Bild ist gescheitert (seit 14.68): meist Modelldaten, die nicht mehr auf der Grafikkarte liegen und im
+// Das 3D-Bild ist gescheitert (seit 14.69): meist Modelldaten, die nicht mehr auf der Grafikkarte liegen und im
 // Arbeitsspeicher schon freigegeben sind (freeArray). Vorher brach damit die ganze Spielschleife ab (Standbild). Jetzt:
 // je Fehlermeldung einmal melden, alle Figuren neu bauen (höchstens alle 3 s); scheitert es kurz danach wieder, auch
 // die Welt neu laden.

@@ -5055,14 +5055,14 @@ function model3(key, build) {
   m = Object.assign({ geos: finishGeos3(b.build(), litN) }, info);
   m.scale = m.scale || 1;
   m.key = key;
-  // seit 14.68: Grafikkontext, für den das Modell gebaut ist (die Daten liegen danach nur noch auf der Grafikkarte)
+  // seit 14.69: Grafikkontext, für den das Modell gebaut ist (die Daten liegen danach nur noch auf der Grafikkarte)
   m.gen = V3.ctxGen || 0;
   MODELS3.set(key, m);
   // Spielerfiguren mit alter Ausrüstung nicht ewig behalten
   if (MODELS3.size > 160) {
     const used = new Set();
     for (const a of actors3.values()) used.add(a.modelKey);
-    // seit 14.68 auch die Figuren der Fensterbilder (Charakter, Schmied, Betrachten): ihr Modell freizugeben ließ das
+    // seit 14.69 auch die Figuren der Fensterbilder (Charakter, Schmied, Betrachten): ihr Modell freizugeben ließ das
     // nächste Bild dieser Figur an den geleerten Daten scheitern
     for (const a of portrait3.actors.values()) used.add(a.model.key);
     for (const [k, old] of MODELS3) {
@@ -5231,7 +5231,7 @@ function dropPool(modelKey) {
   pool3.delete(modelKey);
 }
 
-// Alle Figurenmodelle verwerfen; die Figuren bauen sich im nächsten Bild neu (seit 14.68). Nach dem Zurückkommen des
+// Alle Figurenmodelle verwerfen; die Figuren bauen sich im nächsten Bild neu (seit 14.69). Nach dem Zurückkommen des
 // Grafikkontexts (webglcontextrestored, drei-kern.js) muss alles neu auf die Grafikkarte – die Modelle haben ihre Daten
 // nach dem ersten Hochladen aber freigegeben (freeArray). three.js scheiterte dann beim ersten Bild an der ersten
 // Figur (array null → „BYTES_PER_ELEMENT“), die Spielschleife stand still – „das Spiel stürzt ab“.
@@ -5508,7 +5508,7 @@ function lodPick3(a) {
   }
 }
 
-// --- Wächter der eigenen Figur (seit 14.68) --------------------------------------------------------------
+// --- Wächter der eigenen Figur (seit 14.69) --------------------------------------------------------------
 // Meldung „ab und zu sehe ich meinen Charakter nicht mehr“: Name, Lebensbalken und Questpfeil da, die Figur weg. Name und
 // Balken hängen nur an Spielerstelle und Modellhöhe (drawOverlay3), die Figur an Lage, Drehung, Knochen und Modelldaten.
 // Darum prüft jedes Bild die eigene Figur auf ungültige Werte (NaN/∞ in Lage, Drehung, Größe oder einem Knochen – dann
@@ -6442,7 +6442,7 @@ function bowString3(a, p, sw) {
   }
 }
 
-// Spielerfigur holen oder bauen (seit 14.68 mit Ersatz): scheitert der Bau (Ausnahme), lief er vorher in jedem Bild neu
+// Spielerfigur holen oder bauen (seit 14.69 mit Ersatz): scheitert der Bau (Ausnahme), lief er vorher in jedem Bild neu
 // an – ein Hänger von 20–50 ms je Bild, und die Figur fehlte, solange es scheiterte (Name und Lebensbalken blieben).
 // Jetzt wird ein gescheiterter Schlüssel 10 s nicht wieder versucht; bis dahin trägt die Figur ein Ersatzmodell ohne
 // Ausrüstung (mit, notfalls ohne das eigene Aussehen). Gemeldet wird je Schlüssel einmal.
