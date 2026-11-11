@@ -156,7 +156,7 @@ Dazu: s73 (alle 12 Klassenwege ohne Fehler), Solo-Messläufe ohne Seitenfehler.
 
 Testskripte (nicht im Repo): /tmp/claude-0/-home-user-claude/28e727e5-656e-544c-9afe-3c541c335198/scratchpad/arena-tank/ (messen.js, serie.sh, tank.js, tank2.js, duo.js, duo2.js, perf.js; Ergebnisse *.json)
 
-## 14.40: Arena zu dritt, Ursache des Allein-Betretens, Musik
+## 14.43: Arena zu dritt, Ursache des Allein-Betretens, Musik
 
 **Status: umgesetzt.** Gemeinsam geht nur im Mehrspieler-Kanal. Ohne Kanal gibt es keine Mitspieler.
 
