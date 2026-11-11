@@ -2653,6 +2653,8 @@ function v3SyncBounds() {
     const u = BOUNDS3.horizon.material.uniforms;
     u.uTop.value.copy(V3.scene.fog.color);
     u.uBottom.value.copy(home.B.farC || (home.B.farC = new THREE.Color(home.B.far))).lerp(V3.scene.fog.color, 0.4 + 0.45 * (V3.nightK || 0));
+    // seit 14.68: Rand im Wolkenmeer oder offenen Meer (Kartenformen) – kein Bergkamm, der Horizont ist Himmel
+    if (home.voidG != null) u.uBottom.value.copy(V3.scene.fog.color);
   }
   const rr = regionRect3(p.x, p.y);
   const key = rr ? rr.key : '';

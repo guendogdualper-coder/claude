@@ -2382,6 +2382,8 @@ function kulAt(x, z, rotY, s, sy, y) {
 function kulisse3(b, H, x, y, lowGfx) {
   const dOut = homeOut3(H, x, y);
   if (dOut > KUL3_OUT) return true;
+  // seit 14.68: Rand im Wolkenmeer oder offenen Meer (Kartenformen) – keine Wand, die Flüssigkeit läuft bis zum Horizont
+  if (H.voidG != null) return dOut > 0 || homeIn3(H, x, y) < MAP_BORDER;
   const dIn = dOut ? 0 : homeIn3(H, x, y);
   if (!dOut && dIn >= MAP_BORDER) return false;
   // Seite und Reihe r ab dem begehbaren Teil (1 = Saum, 2–4 Rand, ab 5 draußen)
@@ -2486,6 +2488,27 @@ function* objectJob(cx, cy) {
       const kind = OBJ_KIND[o];
       if (kind) {
         const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && TREE3_STYLED.has(style) ? style : '';
+        // seit 14.68: im Inneren eines dichten Waldes der Kartenformen statt eines Baums je Kachel auf jeder 16.
+        // Kachel ein Tannenpaar der Randkulisse (sparsame Kegel ohne Umriss) – wirkt geschlossen, kostet wenig; in der
+        // zweiten Reihe vom Waldrand auf jeder vierten Kachel ein kleineres Tannenpaar
+        const dense = typeof formDense3 === 'function' ? formDense3(i) : 0;
+        if (dense === 1) {
+          if (x % 4 || y % 4) continue;
+          b.addTemplate(tplKul(BORDER3.wald, 'fern', h % 3, false), kulAt(x + 2 + jx * 6, y + 2 + jz * 6, rot, 1.0 + ((h >> 12) % 12) / 100, 0.62, -0.1));
+          continue;
+        }
+        if (dense === 2) {
+          if ((x | y) & 1) continue;
+          b.addTemplate(tplKul(BORDER3.wald, 'wand', h % 3, false), kulAt(x + 1 + jx * 4, y + 1 + jz * 4, rot, 0.55 + ((h >> 12) % 10) / 100, 0.72, -0.1));
+          continue;
+        }
+        // Waldrand: auf Grafik „mittel“ und „niedrig“ (Handy) auf jeder zweiten Kachel ein Tannenpaar der Randkulisse
+        // statt eines Baums je Kachel (die Kacheln bleiben gesperrt)
+        if (dense === 3 && (opts.graphics === 'mittel' || opts.graphics === 'niedrig')) {
+          if ((x + y) & 1) continue;
+          b.addTemplate(tplKul(BORDER3.wald, 'wand', h % 3, false), kulAt(x + 0.5 + jx, y + 0.55 + jz, rot, 0.5 + ((h >> 12) % 10) / 100, 0.7, -0.1));
+          continue;
+        }
         b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
         continue;
       }

@@ -1401,6 +1401,11 @@ const SOIL3 = {
 // Kachel-Werte für die Glättung: Farbe, Höhe, Bodenart (soil), Nässe am Ufer (wet), Brandrand an Lava (hot)
 const WALL3_H = 1.5;
 const WATER3_DEPTH = 0.5;
+// seit 14.68 (Kartenformen, kartenformen.js): je Bodenart einer Flüssigkeit die Tiefe des Bodens darunter (tiefer =
+// sichtbare Absturzkante), die Bodenfarbe der Kante und die Art der Oberfläche in LIQUID3
+const LIQUID3_DEPTH = {};
+const LIQUID3_UNDER = {};
+const LIQUID3_GROUND = {};
 const wetGround3 = (g) => g === GROUND.WATER || g === GROUND.BOG;
 
 // --- Kartenrand (seit 8.4) -------------------------------------------------------------------------
@@ -1429,6 +1434,10 @@ function v3UpdateHome(fx, fy) {
     const dungeon = key[0] === 'd';
     const style = dungeon ? '' : ZONES[game.world.zoneIdx[(ry + 1) * MAP_W + rx + 1]].id;
     V3.home = { key, x0: rx, y0: ry, x1: rx + rw, y1: ry + rh, dungeon, style, B: dungeon ? null : kulStyle3(style) };
+    // seit 14.68: Karte, deren Rand im Wolkenmeer oder offenen Meer liegt – draußen geht die Flüssigkeit weiter
+    V3.home.voidG = !dungeon && typeof mapFormVoidEdge === 'function' ? mapFormVoidEdge(rx, ry) : null;
+    // die Grundfläche unter der Welt liegt unter der tiefsten Flüssigkeit der Karte (Schlucht, Wolkenmeer)
+    if (V3.under) V3.under.position.y = !dungeon && typeof mapFormUnderY === 'function' ? mapFormUnderY(rx, ry) : -0.9;
   }
   v3ClearChunks();
 }
@@ -1439,6 +1448,16 @@ function tileSample(x, y, out) {
   const H = V3.home;
   if (H && !H.dungeon) {
     const d = homeOut3(H, x, y);
+    if (d > 0 && H.voidG != null) {
+      const ug = LIQUID3_UNDER[H.voidG] != null ? LIQUID3_UNDER[H.voidG] : H.voidG;
+      const c = groundColorsRGB()[ug][3];
+      out.h = -(LIQUID3_DEPTH[H.voidG] || WATER3_DEPTH);
+      out.wet = 0;
+      out.hot = 0;
+      out.soil = -1;
+      out.r = c[0]; out.g = c[1]; out.b = c[2];
+      return out;
+    }
     if (d > 0) {
       tileSample(Math.max(H.x0, Math.min(H.x1 - 1, x)), Math.max(H.y0, Math.min(H.y1 - 1, y)), out);
       out.h = bermH3(d);
@@ -1467,7 +1486,7 @@ function tileSample(x, y, out) {
     out.r = _c.r; out.g = _c.g; out.b = _c.b;
     return out;
   }
-  if (LIQUID.has(g)) out.h = -WATER3_DEPTH;
+  if (LIQUID.has(g)) out.h = -(LIQUID3_DEPTH[g] || WATER3_DEPTH);
   // Ufer: die Kacheln neben Wasser und Moor sind nass, neben Lava verbrannt
   if (wetGround3(g)) out.wet = 1;
   else if (g === GROUND.LAVA) out.hot = 1;
@@ -1483,6 +1502,7 @@ function tileSample(x, y, out) {
   if (g === GROUND.WATER) g = GROUND.SAND;
   else if (g === GROUND.LAVA) g = GROUND.BASALT;
   else if (g === GROUND.BOG) g = GROUND.SWAMP;
+  else if (LIQUID3_UNDER[g] != null) g = LIQUID3_UNDER[g];
   const c = pal[g][g === GROUND.PATH || g === GROUND.PLAZA || g === GROUND.FLAGSTONE ? Math.min(7, (w.shade[i] >> 6) + 3) : w.shade[i] >> 5];
   out.r = c[0]; out.g = c[1]; out.b = c[2];
   out.soil = SOIL3[g] == null ? -1 : SOIL3[g];
@@ -2132,9 +2152,12 @@ function* terrainJob(cx, cy) {
 
   // Flüssigkeiten: nur Zellen, in denen der Boden unter der Oberfläche liegt
   const kinds = { water: [], lava: [], bog: [], abyss: [] };
+  for (const k in LIQUID3) if (!kinds[k]) kinds[k] = [];
+  const VH = V3.home && V3.home.voidG != null ? V3.home : null;
   const kindAt = (tx, ty) => {
+    if (VH && homeOut3(VH, tx, ty) > 0) return LIQUID3_GROUND[VH.voidG] || 'water';
     const gg = w.ground[Math.max(0, Math.min(MAP_H - 1, ty)) * MAP_W + Math.max(0, Math.min(MAP_W - 1, tx))];
-    return gg === GROUND.LAVA ? 'lava' : gg === GROUND.BOG ? 'bog' : gg === GROUND.WATER ? 'water' : gg === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : null;
+    return gg === GROUND.LAVA ? 'lava' : gg === GROUND.BOG ? 'bog' : gg === GROUND.WATER ? 'water' : gg === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : LIQUID3_GROUND[gg] || null;
   };
   for (let j = 0; j < n - 1; j++) {
     for (let i = 0; i < n - 1; i++) {
@@ -2144,14 +2167,17 @@ function* terrainJob(cx, cy) {
       // Art der Flüssigkeit: nächste flüssige Kachel
       const tx = Math.floor(x0 + (i + 0.5) / S);
       const ty = Math.floor(y0 + (j + 0.5) / S);
-      const k = kindAt(tx, ty) || kindAt(tx + 1, ty) || kindAt(tx - 1, ty) || kindAt(tx, ty + 1) || kindAt(tx, ty - 1);
+      // seit 14.68 auch schräg daneben (sonst wird eine Randzelle an Schlucht oder Wolkenmeer zu Wasser)
+      const k = kindAt(tx, ty) || kindAt(tx + 1, ty) || kindAt(tx - 1, ty) || kindAt(tx, ty + 1) || kindAt(tx, ty - 1) ||
+        kindAt(tx + 1, ty + 1) || kindAt(tx - 1, ty - 1) || kindAt(tx + 1, ty - 1) || kindAt(tx - 1, ty + 1);
       kinds[k || 'water'].push(v);
     }
   }
-  const LEVEL = -0.14;
   for (const kind in kinds) {
     const cells = kinds[kind];
     if (!cells.length) continue;
+    // seit 14.68: eigene Höhe der Oberfläche je Art (Wolkenmeer und Schlucht liegen tiefer)
+    const LEVEL = LIQUID3[kind] && LIQUID3[kind].level != null ? LIQUID3[kind].level : -0.14;
     const wp = new Float32Array(cells.length * 4 * 3);
     const wd = new Float32Array(cells.length * 4);
     const wi = new Uint16Array(cells.length * 6);

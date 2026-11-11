@@ -169,10 +169,17 @@ function instCornerEntrance(entry, ground, obj, deco, zoneIdx) {
     // seit 14.16: in Städten mit eigener Form (Inseln, Schlucht) vor dem Südtor auf dem Weg beginnen – draußen ist
     // dieselbe Fläche erreichbar wie früher durch die Stadt, die Eingänge bleiben, wo sie waren
     const sy = typeof townLayoutHalf === 'function' && townLayoutHalf(wm.id) != null ? wm.cy + townLayoutHalf(wm.id) + 2 : wm.cy + 2;
-    const q = [[wm.cx, sy]];
-    seen[(sy - ry) * rw + wm.cx - rx] = 1;
+    // seit 14.68: Karten mit eigener Form (kartenformen.js) – ab der Ankunft in der Stadt und über die Teleportsteine
+    const fs = typeof mapFormCornerStart === 'function' ? mapFormCornerStart(wm) : null;
+    const q = [fs ? fs.start : [wm.cx, sy]];
+    seen[(q[0][1] - ry) * rw + q[0][0] - rx] = 1;
     while (q.length) {
       const [x, y] = q.pop();
+      const hop = fs && fs.links.get(y * MAP_W + x);
+      if (hop) {
+        const j = (hop[1] - ry) * rw + hop[0] - rx;
+        if (!seen[j]) { seen[j] = 1; q.push(hop); }
+      }
       for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const nx = x + dx;
         const ny = y + dy;
