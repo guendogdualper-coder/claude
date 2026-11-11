@@ -186,6 +186,7 @@ function htRenderGate(body, npc, dg) {
     (htFree() ? '<p class="gear-msg success"><b>Testzeit:</b> Bis einschließlich 7. November ist das Höllenportal ohne Voraussetzungen offen – auch allein oder in kleiner Gruppe. Danach gelten sie wieder.</p>' : '') +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.free ? '🔓' : c.ok ? '✅' : '❌'} ${c.text}${c.free ? ' – <i>entfällt in der Testzeit</i>' : ''}</li>`).join('') + '</ul>' +
     `<p><b class="legend-text">Beute:</b> ${g1} und ${g2} lassen je 2–3 epische Teile fallen (mit Glück ein legendäres), die übrigen Wächter mit etwas Glück ein episches. Abaddor: vier epische Teile (mit Glück legendär), viele Verstärkungen, Switcher und Sternensteine, sehr viel Gold.</p>` +
+    (typeof setPortalHtml === 'function' ? setPortalHtml('hoellenthron') : '') + // seit 14.55: Set des Höllenthrons
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Durch das Höllenportal' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
     const err = enterDungeon(npc.dungeon);
@@ -301,6 +302,7 @@ function htLoot(m) {
     item.raidMat = m.type.boss.mat;
     // seit 13.56: episch mit 5 Boni, mit 12 % Glück legendär (gold, Lv 80) – RARITY_DROPS.instanceBoss
     rarityRoll(item, 'instanceBoss', m);
+    setTagItem(item, m); // seit 14.55: Set des Höllenthrons
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       announceRarity(item);
@@ -330,6 +332,7 @@ function htGuardLoot(m) {
     item.legend = true;
     if (m.type.boss && m.type.boss.mat) item.raidMat = m.type.boss.mat;
     rarityRoll(item, 'instance', m);
+    setTagItem(item, m); // seit 14.55: Set des Höllenthrons
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       announceRarity(item);

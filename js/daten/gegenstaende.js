@@ -807,3 +807,63 @@ function scythePts(tier, side = -1, scale = 1) {
   }
   return top.concat(bot.reverse());
 }
+
+// --- Set-Ausrüstung (seit 14.55) ---------------------------------------------------------------------------------
+// Jede Lv-60-Instanz, der Höllenthron und die beiden Lv-80-Instanzen haben ein eigenes Set. Ein episches oder
+// legendäres Teil (ab Göttlich, Lv 60) aus dieser Instanz trägt item.set = Kennung (= Kennung der Instanz in DUNGEONS).
+// Normale Beute und Teile unter Lv 60 tragen nie ein Set. Angelegte Teile desselben Sets (je Platz eines, also bis zu
+// 8 mit Schild oder Köcher) schalten Stufen frei; die Stufen zählen zusammen (bei 6 Teilen wirken 2, 4 und 6).
+//   name    Name des Sets (Anzeige in SET_COLOR), from: woher es kommt, color: Farbton des Sets (für die Optik)
+//   tiers   [Teile, { Bonus: Wert }] – Schlüssel wie BONUS_TYPES / SPECIAL_BONUS_TYPES, dazu 'main' = Hauptwert der
+//           Klasse (Stärke, Geschick oder Intelligenz). Die Boni zählen zu den Boni der Ausrüstung, also mit denselben
+//           Obergrenzen (BONUS_CAPS); Leben zählt im PvP wie Ausrüstungs-Leben nur zu 30 % (PVP_DMG.lifeShare).
+// Werte (docs/sets.md): Lv 60 bei 6 Teilen etwa so viel wie drei zusätzliche epische Bonuszeilen, Höllenthron
+// etwa ×1,2, Lv 80 etwa ×1,5.
+const SET_COLOR = '#3fe0a8';
+const SET_MIN_TIER = 7; // Göttlich (Lv 60)
+const ITEM_SETS = {
+  gletschergruft: {
+    name: 'Raureifgewand der Frostkönigin', from: 'Gletschergruft', color: '#7fd8ff',
+    tiers: [[2, { atk: 20, resMagic: 0.03 }], [4, { hp: 400, main: 6 }], [6, { critDmg: 0.08, crit: 0.02 }]]
+  },
+  nordlichtfeste: {
+    name: 'Wehr des Winterfürsten', from: 'Feste des Nordlichts', color: '#9fffe8',
+    tiers: [[2, { def: 15, hp: 300 }], [4, { atk: 20, main: 6 }], [6, { dmgReduce: 0.03, hpPct: 0.03 }]]
+  },
+  moorkrypta: {
+    name: 'Moorgeflecht der Moormutter', from: 'Versunkene Moorkrypta', color: '#8fe36a',
+    tiers: [[2, { atk: 20, poison: 0.02 }], [4, { hp: 400, main: 6 }], [6, { skillDmg: 0.04, hpSteal: 0.01 }]]
+  },
+  knochenkathedrale: {
+    name: 'Knochenornat des Totenfürsten', from: 'Knochenkathedrale', color: '#c8a8ff',
+    tiers: [[2, { atk: 20, vsUndead: 0.04 }], [4, { hp: 400, main: 6 }], [6, { skillDmg: 0.03, resist: 0.02 }]]
+  },
+  donnerschmiede: {
+    name: 'Blitzharnisch des Donnerschmieds', from: 'Donnerschmiede', color: '#9fd0ff',
+    tiers: [[2, { atk: 20, atkSpeed: 0.03 }], [4, { def: 15, hp: 400 }], [6, { main: 8, critDmg: 0.06 }]]
+  },
+  sturmhorst: {
+    name: 'Sturmfedern der Sturmkönigin', from: 'Sturmhorst', color: '#cfe8ff',
+    tiers: [[2, { atk: 20, speed: 0.02 }], [4, { hp: 400, main: 6 }], [6, { atkSpeed: 0.05, dodge: 0.02 }]]
+  },
+  glutkessel: {
+    name: 'Glutpanzer des Magmafürsten', from: 'Glutkessel', color: '#ff8a2a',
+    tiers: [[2, { atk: 20, resMelee: 0.03 }], [4, { hp: 400, main: 6 }], [6, { basicDmg: 0.04, critDmg: 0.04 }]]
+  },
+  aschenzitadelle: {
+    name: 'Aschenkrone des Aschenkaisers', from: 'Aschenzitadelle', color: '#ff5a3a',
+    tiers: [[2, { atk: 20, crit: 0.01 }], [4, { hp: 400, main: 6 }], [6, { skillDmg: 0.03, critDmg: 0.05 }]]
+  },
+  hoellenthron: {
+    name: 'Höllenornat des Abaddor', from: 'Thron der Unterwelt', color: '#ff3a1a',
+    tiers: [[2, { atk: 25, vsDemon: 0.04 }], [4, { hp: 500, main: 7 }], [6, { skillDmg: 0.04, dmgReduce: 0.03 }]]
+  },
+  spiegelgruft: {
+    name: 'Spiegelglas der Herrin Aelthys', from: 'Spiegelgruft', color: '#cfe4ff',
+    tiers: [[2, { atk: 30, resMagic: 0.04 }], [4, { hp: 600, main: 9 }], [6, { skillDmg: 0.05, crit: 0.02 }]]
+  },
+  leerenthron: {
+    name: 'Leerenpanzer des Nihilor', from: 'Thron der Leere', color: '#b48cff',
+    tiers: [[2, { atk: 30, hpSteal: 0.01 }], [4, { hp: 600, main: 9 }], [6, { critDmg: 0.08, dmgReduce: 0.03 }]]
+  }
+};

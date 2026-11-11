@@ -1582,7 +1582,8 @@ const ui = {
         (s.natureDmg ? row(p.classId === 'magier' ? 'Elementschaden' : 'Naturschaden', '+' + pct(s.natureDmg)) : '') + (s.critDmg ? row('Kritischer Schaden', '+' + pct(s.critDmg)) : '') + (s.omniVamp ? row('Omni-Vampir', pct(s.omniVamp)) : '') +
         // seit 14.15: neue Boni als Summe aller Teile mit ihrer Obergrenze (nur, was die Ausrüstung hat)
         CHAR_NEW_BONI.filter(([k]) => s[k] > 0).map(([k, label]) => row(label, capPct(s[k], k))).join('') +
-        `</dl><h3>Erfolge</h3><dl class="stats">` +
+        // seit 14.55: aktive Set-Boni (Set-Name, angelegte Teile, Stufen)
+        `</dl>` + (typeof setCharHtml === 'function' ? setCharHtml(p) : '') + `<h3>Erfolge</h3><dl class="stats">` +
         row('Besiegte Monster', p.kills.toLocaleString('de-DE')) + row('Zerstörte Seelensteine', p.stones) +
         row('Tode', p.deaths) + row('Spielzeit', formatTime(p.playTime)) +
         `</dl>`
