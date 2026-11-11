@@ -1333,9 +1333,20 @@ function magierHelm3(t, hat, silver, accent, o = {}) {
 // armorLook3 stellt diese Schalter je Stufe um, gearArmor3 setzt das Merkmal der Stufe darauf.
 
 // Umriss von Rumpf, Harnisch und Robe (Radius je Höhe über ihrem Ansatz), wie in humanoid3
-const TORSO3_M = [[0, 0.17], [0.05, 0.2], [0.13, 0.19], [0.24, 0.21], [0.3, 0.22], [0.38, 0.19], [0.43, 0.12]];
-const TORSO3_F = [[0, 0.18], [0.05, 0.2], [0.15, 0.165], [0.26, 0.185], [0.31, 0.195], [0.38, 0.17], [0.43, 0.11]];
+// seit 14.53: Spieler (male) mit V-Form, Spielerinnen mit Sanduhr-Form; TORSO3_N für Figuren ohne Geschlecht
+const TORSO3_N = [[0, 0.17], [0.05, 0.2], [0.13, 0.19], [0.24, 0.21], [0.3, 0.22], [0.38, 0.19], [0.43, 0.12]];
+const TORSO3_M = [[0, 0.158], [0.05, 0.178], [0.13, 0.184], [0.24, 0.22], [0.3, 0.228], [0.38, 0.2], [0.43, 0.13]];
+const TORSO3_F = [[0, 0.2], [0.055, 0.226], [0.11, 0.2], [0.17, 0.152], [0.25, 0.172], [0.31, 0.186], [0.38, 0.165], [0.43, 0.105]];
 const CUIRASS3 = [[0, 0.2], [0.02, 0.215], [0.1, 0.228], [0.18, 0.232], [0.26, 0.205], [0.31, 0.14]];
+// Harnisch der Frauen: unten tailliert, oben schmaler
+const CUIRASS3_F = [[0, 0.175], [0.02, 0.182], [0.1, 0.196], [0.18, 0.212], [0.26, 0.192], [0.31, 0.13]];
+
+// Brust der Spielerinnen (seit 14.53): Lage und Größe, passend auf Rumpf oder Harnisch (humanoid3 und torsoAt3)
+function bustAt3(bk, cuirass, chestY) {
+  const y = chestY + 0.045;
+  const rz = cuirass ? 0.209 * 0.88 * bk : 0.181 * 0.84 * bk;
+  return { x: 0.066 * bk, y, z: rz - 0.03, s: [0.078 * bk, 0.07 * bk, 0.066 * bk], lift: 0.034 };
+}
 const ROBE3 = [[0, 0.31], [0.03, 0.32], [0.2, 0.28], [0.4, 0.23], [0.47, 0.2]];
 
 function profileR3(pts, y) {
@@ -1352,13 +1363,19 @@ function profileR3(pts, y) {
 
 // Halbachsen [x, z] des Rumpfes in Höhe y (mit Harnisch, falls getragen)
 function torsoAt3(g, y) {
-  let rx = profileR3(g.female ? TORSO3_F : TORSO3_M, y - (g.hipY - 0.02)) * g.bk;
+  let rx = profileR3(g.female ? TORSO3_F : g.male ? TORSO3_M : TORSO3_N, y - (g.hipY - 0.02)) * g.bk;
   let rz = rx * 0.84;
   const cy = y - (g.hipY + 0.11);
   if (g.cuirass && cy >= 0 && cy <= 0.31) {
-    const cr = profileR3(CUIRASS3, cy) * g.bk;
+    const cr = profileR3(g.female ? CUIRASS3_F : CUIRASS3, cy) * g.bk;
     rx = Math.max(rx, cr);
     rz = Math.max(rz, cr * 0.88);
+  }
+  // seit 14.53: über der Brust liegen Teile vorn etwas weiter außen
+  if (g.female && !g.belly) {
+    const bu = bustAt3(g.bk, g.cuirass, g.chestY);
+    const k = 1 - ((y - bu.y) / 0.08) ** 2;
+    if (k > 0) rz += bu.lift * k;
   }
   return [rx, rz];
 }

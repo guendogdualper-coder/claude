@@ -729,6 +729,8 @@ function* mergeRawSteps(list, skinned, slice) {
       _v1.set(P.getX(i), P.getY(i), P.getZ(i));
       const ly = _v1.y;
       _v1.applyMatrix4(m);
+      // seit 14.53: Verformung nach dem Platzieren (Körperform der Spielfiguren, bodyWarp3)
+      if (it.warp) it.warp(_v1);
       const o = (vo + i) * 3;
       pos[o] = _v1.x;
       pos[o + 1] = _v1.y;

@@ -312,11 +312,66 @@ function hBody(ctx, dir, w, o) {
     return wb;
   }
   const tw = torsoWidth(dir) * (o.wide || 1);
+  // seit 14.53: Spielerinnen mit Taille, Hüfte und Brust, Spieler mit breiten Schultern und schmaler Hüfte
+  if (FIG_SEX2D === 1 || FIG_SEX2D === 0) return hBodySex2D(ctx, dir, y, tw, o, FIG_SEX2D === 1);
   box(ctx, -tw / 2, y, tw, 16, 5, o.torso);
   // Schatten unter dem Kinn und Mittelnaht
   dot(ctx, 0, y + 1.3, dir === 'side' ? 3.6 : 4.6, 1.5, 'rgba(0,0,0,0.22)');
   if (dir !== 'side') stroke(ctx, darker(o.torso, 0.3), 0.5, [[0, y + 3], [0, y + 10.5]]);
   return tw / 2;
+}
+
+// seit 14.53: gerade gezeichnetes Geschlecht der Spielfigur (characterSprite), -1 für alle anderen Figuren
+let FIG_SEX2D = -1;
+function hBodySex2D(ctx, dir, y, tw, o, fem) {
+  const h = tw / 2;
+  const side = dir === 'side';
+  const shade = darker(o.torso, 0.3);
+  if (fem) {
+    // Schultern schmal, Taille eingezogen, Hüfte breiter (Sanduhr), weich gerundet
+    const s = side ? h * 0.92 : h * 0.86, wa = side ? h * 0.8 : h * 0.72, hp = side ? h * 1.0 : h * 1.06;
+    paintShape(ctx, () => {
+      ctx.beginPath();
+      ctx.moveTo(-s + 2.5, y);
+      ctx.lineTo(s - 2.5, y);
+      ctx.quadraticCurveTo(s + 0.4, y + 0.4, s, y + 4.5);
+      ctx.quadraticCurveTo(wa - 0.2, y + 8, wa, y + 9.5);
+      ctx.quadraticCurveTo(hp + 0.6, y + 13, hp, y + 16);
+      ctx.lineTo(-hp, y + 16);
+      ctx.quadraticCurveTo(-hp - 0.6, y + 13, -wa, y + 9.5);
+      ctx.quadraticCurveTo(-wa + 0.2, y + 8, -s, y + 4.5);
+      ctx.quadraticCurveTo(-s - 0.4, y + 0.4, -s + 2.5, y);
+      ctx.closePath();
+    }, o.torso, -hp, y, hp * 2, 16);
+    dot(ctx, 0, y + 1.3, side ? 3.2 : 4, 1.4, 'rgba(0,0,0,0.22)');
+    if (dir === 'down') {
+      // Brust: zwei weiche Rundungen mit leichtem Schatten darunter
+      for (const sx of [-1, 1]) {
+        oval(ctx, sx * 2.9, y + 5.6, 2.9, 2.3, lighter(o.torso, 0.07));
+        stroke(ctx, darker(o.torso, 0.28), 0.5, [[sx * 1.0, y + 7.7], [sx * 2.9, y + 8.1], [sx * 4.6, y + 7.4]]);
+      }
+    } else if (side) oval(ctx, s - 1.2, y + 5.8, 2.2, 2.4, o.torso);
+    return wa + 1.2;
+  }
+  // Mann: breite Schultern und Brust, nach unten schmaler (V-Form), kräftiger Brustmuskel angedeutet
+  const s = side ? h * 1.04 : h * 1.14, hp = side ? h * 0.94 : h * 0.9;
+  paintShape(ctx, () => {
+    ctx.beginPath();
+    ctx.moveTo(-s + 3, y);
+    ctx.lineTo(s - 3, y);
+    ctx.quadraticCurveTo(s + 0.3, y + 0.3, s, y + 4);
+    ctx.lineTo(hp, y + 16);
+    ctx.lineTo(-hp, y + 16);
+    ctx.lineTo(-s, y + 4);
+    ctx.quadraticCurveTo(-s - 0.3, y + 0.3, -s + 3, y);
+    ctx.closePath();
+  }, o.torso, -s, y, s * 2, 16);
+  dot(ctx, 0, y + 1.3, side ? 3.8 : 5, 1.6, 'rgba(0,0,0,0.24)');
+  if (dir !== 'side') {
+    stroke(ctx, shade, 0.5, [[0, y + 3], [0, y + 10.5]]);
+    if (dir === 'down') for (const sx of [-1, 1]) stroke(ctx, shade, 0.45, [[sx * 1.2, y + 6.6], [sx * 4.2, y + 6.9], [sx * 6, y + 5.8]]);
+  }
+  return h;
 }
 
 function hArms(ctx, dir, w, o) {
@@ -357,7 +412,8 @@ function hArms(ctx, dir, w, o) {
   }
   if (dir === 'side') arm(-2.5 + w.arm * 2.2, 0);
   else {
-    const spread = o.wide ? 2 : 0;
+    // seit 14.53: Arme bei Männern weiter außen, bei Frauen etwas näher am schmaleren Oberkörper
+    const spread = (o.wide ? 2 : 0) + (FIG_SEX2D === 0 ? 1 : FIG_SEX2D === 1 ? -0.8 : 0);
     arm(-13.5 - spread, -w.arm * 0.8);
     arm(8.5 + spread, w.arm * 0.8);
   }
@@ -1405,6 +1461,15 @@ function lookOf(L, classId) {
 function lookKey(ap) {
   return ap ? [ap.sex, ap.hair, ap.hc, ap.skin, ap.eyes, ap.ec, ap.mark, ap.bart, ap.helm].join('.') : '';
 }
+// seit 14.53: Körpergröße in Prozent (look.gr, 90–110). Alte Spielstände ohne Wert: 100 %. Auch Werte von
+// Mitspielern (Netzfeld lk) laufen hier durch und werden begrenzt. Nur das Aussehen – Kollision und Treffer bleiben gleich.
+const LOOK_SIZE = { min: 90, max: 110, def: 100 };
+function lookSizePct(look) {
+  const v = Number(look && look.gr);
+  if (!isFinite(v) || !v) return LOOK_SIZE.def;
+  return Math.max(LOOK_SIZE.min, Math.min(LOOK_SIZE.max, Math.round(v)));
+}
+const lookSize = (look) => lookSizePct(look) / 100;
 const skinOf = (ap) => LOOKS.skin[ap.skin] || LOOKS.skin[1];
 const hairOf = (ap) => LOOKS.hairColor[ap.hc] || LOOKS.hairColor[0];
 function eyeOpts(ap) {
@@ -2173,7 +2238,11 @@ function characterSprite(classId, dir, frame, look = { a: -1, h: -1 }) {
   const mage = classId === 'magier';
   const el = mage ? '|' + (look.pt ?? 'a') : '';
   // Spielfiguren in höherer Auflösung (4 Pixel je Einheit), damit sie auch nah scharf bleiben
-  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}:${lookKey(look.ap)}${el}`, mage ? MAGE_FIGURE_BOUNDS : FIGURE_BOUNDS, (ctx) => CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look), 4);
+  // seit 14.53: Körperbau nach Geschlecht in hBody/hArms (FIG_SEX2D gilt nur während des Zeichnens)
+  return getSprite(`c:${classId}:${dir}:${frame}:${look.a}:${look.h}:${gearTier(look.b)}:${gearTier(look.g)}:${gearTier(look.s)}:${lookKey(look.ap)}${el}`, mage ? MAGE_FIGURE_BOUNDS : FIGURE_BOUNDS, (ctx) => {
+    FIG_SEX2D = lookOf(look, classId).sex;
+    try { CHARACTER_ART[classId](ctx, dir, WALK[frame], frame, look); } finally { FIG_SEX2D = -1; }
+  }, 4);
 }
 
 // Wo die Waffenhand sitzt (relativ zu den Füßen, Figur nach rechts bzw. zum Betrachter)

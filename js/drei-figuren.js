@@ -231,7 +231,8 @@ function face3(A0, hb, hc, hr, o) {
     const stern = shape === 3 || o.angry;
     if (o.male && !stern) {
       // Männer: dicke, gerade Brauen dicht über dem Auge, innen leicht gesenkt
-      A(roundBox(hr * 0.32, hr * 0.085, hr * 0.06, hr * 0.03), brow, { bone: hb, p: [ex + sx * hr * 0.01, eyeY + hr * 0.27, ez + hr * 0.0], r: [0, 0, sx * 0.14] });
+      // seit 14.53 etwas kräftiger
+      A(roundBox(hr * 0.35, hr * 0.1, hr * 0.065, hr * 0.035), brow, { bone: hb, p: [ex + sx * hr * 0.01, eyeY + hr * 0.27, ez + hr * 0.0], r: [0, 0, sx * 0.14] });
     } else A(roundBox(hr * 0.26, hr * (o.male ? 0.065 : o.female ? 0.035 : 0.045), hr * 0.05, hr * 0.02), stern ? ink : brow, { bone: hb, p: [ex, eyeY + hr * (stern ? 0.3 : 0.36), ez + hr * 0.0], r: [0, 0, stern ? sx * 0.42 : -sx * 0.12] });
   }
   if (o.blush !== false && !o.glowEyes) for (const sx of [-1, 1]) A(ball(8), '#f2988a', { bone: hb, p: [hc[0] + sx * hr * 0.58, eyeY - hr * 0.3, hc[2] + f * 0.84], s: [hr * 0.14, hr * 0.07, hr * 0.05] });
@@ -482,21 +483,52 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
 
 // --- Menschliche Gestalt (Spieler, Bewohner, Banditen, Orks, Untote, Riesen …) ----------------------
 
+// Körperform der Spielfiguren (seit 14.53), angewandt beim Backen auf jede Ecke der Teile an Brust- und Hüftknochen
+// (Bake3: it.warp). Frauen: Taille eingezogen, Hüfte runder, Brust nach vorn; Männer: Brustkorb breiter, Hüfte schmaler.
+// Glocke g(t) = (1 − t²)² für |t| < 1, sonst 0 – weich und ohne Knick.
+function bodyWarp3(fem, hipY, chestY, bk) {
+  const g = (t) => (t > -1 && t < 1 ? (1 - t * t) * (1 - t * t) : 0);
+  if (fem) {
+    const waistY = hipY + 0.15;
+    const bustY = chestY + 0.045;
+    return (v) => {
+      const y = v.y;
+      const sx = 1 - 0.15 * g((y - waistY) / 0.1) + 0.13 * g((y - hipY + 0.03) / 0.12);
+      v.x *= sx;
+      v.z *= 1 - 0.07 * g((y - waistY) / 0.1) + 0.05 * g((y - hipY + 0.03) / 0.12);
+      if (v.z > 0) v.z += 0.05 * bk * g((y - bustY) / 0.075) * g((Math.abs(v.x) - 0.068 * bk) / 0.1) * Math.min(1, v.z / 0.1);
+    };
+  }
+  const chestC = chestY + 0.07;
+  return (v) => {
+    const y = v.y;
+    v.x *= 1 + 0.07 * g((y - chestC) / 0.13) - 0.05 * g((y - hipY) / 0.1);
+    v.z *= 1 + 0.04 * g((y - chestC) / 0.13);
+  };
+}
+
 function humanoid3(b, c, P) {
   const A = adder(b, P);
   const seg = (a, z, r1, r2, color, o) => limbBetween(A, a, z, r1, r2, color, o);
   const belly = !!c.belly;
   // bk: kräftiger Körperbau (Krieger), breitere Schultern, Arme und Beine
   const bk = c.bulk || 1;
+  // seit 14.53: Körperbau nach Geschlecht (nur Spielfiguren setzen female/male): Frauen schmalere Schultern, schlankere
+  // Arme und Hals, breitere Hüften; Männer breite Schultern, kräftige Arme und Hals, schmale Hüften
+  const fem = !!c.female && !belly;
+  const man = !!c.male && !belly;
+  const shK = fem ? 0.9 : man ? 1.1 : 1;
+  const hipK = fem ? 1.16 : man ? 0.92 : 1;
+  const armK = fem ? 0.86 : man ? 1.12 : 1;
   const legLen = belly ? 0.3 : c.legLen || 0.34;
-  const hipX = (belly ? 0.16 : 0.105) * bk;
+  const hipX = (belly ? 0.16 : 0.105) * bk * hipK;
   const legR = (belly ? 0.12 : 0.082) * bk;
   const hipY = legLen + 0.06;
   const chestY = hipY + 0.26;
   const shY = hipY + (belly ? 0.48 : 0.37);
-  const shX = (belly ? 0.42 : 0.25) * bk;
+  const shX = (belly ? 0.42 : 0.25) * bk * shK;
   const armLen = belly ? 0.46 : c.armLen || 0.31;
-  const armR = (belly ? 0.11 : 0.062) * bk;
+  const armR = (belly ? 0.11 : 0.062) * bk * armK;
   const neckY = hipY + (belly ? 0.6 : 0.44);
   const hr = c.headR || (belly ? 0.26 : 0.33);
   // headZ: Kopf etwas nach vorn (schlanke Wegelagerer)
@@ -523,8 +555,9 @@ function humanoid3(b, c, P) {
     const top = [sx * hipX, hipY, 0];
     const knee = [sx * hipX * 1.02, hipY - legLen * 0.5, 0.015];
     const ankle = [sx * hipX, 0.1, 0];
-    seg(top, knee, legR, legR * 0.9, pants, { bone, shade: 0.12 });
-    seg(knee, ankle, legR * 0.9, legR * 0.78, pants, { bone });
+    // seit 14.53: Frauen mit runderen Oberschenkeln und schlankeren Waden
+    seg(top, knee, legR * (fem ? 1.14 : 1), legR * (fem ? 0.86 : 0.9), pants, { bone, shade: 0.12 });
+    seg(knee, ankle, legR * (fem ? 0.86 : 0.9), legR * (fem ? 0.72 : 0.78), pants, { bone });
     if (c.kneePads) A(ball(10), c.kneePads, { bone, p: [knee[0], knee[1], knee[2] + legR * 0.6], s: [legR * 0.9, legR * 0.85, legR * 0.6], shine: 0.6 });
     A(lathe3('bootshaft', [[0.08, 0], [0.085, 0.08], [0.09, 0.16], [0, 0.161]], 12), boots, { bone, p: [sx * hipX, 0.04, 0], s: [legR / 0.082, 1, legR / 0.082] });
     A(torus3(legR * 1.15, 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [sx * hipX, 0.2, 0], r: [Math.PI / 2, 0, 0] });
@@ -560,12 +593,17 @@ function humanoid3(b, c, P) {
     A(ball(12), c.skin, { bone: BH.chest, p: [0, shY - 0.04, 0.0], s: [0.4, 0.2, 0.3] });
     A(lathe3('bellypants', [[0.36, 0], [0.43, 0.02], [0.42, 0.16], [0, 0.17]], 18), pants, { bone: BH.hips, p: [0, hipY - 0.1, 0.03] });
   } else {
-    // Frauen: schmalere Taille und Schultern
-    const torsoPts = c.female
-      ? [[0, 0], [0.18, 0], [0.2, 0.05], [0.165, 0.15], [0.185, 0.26], [0.195, 0.31], [0.17, 0.38], [0.11, 0.43], [0, 0.44]]
-      : [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]];
-    A(lathe3(c.female ? 'torsoF' : 'torso2', torsoPts, 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
-    A(cyl3(0.055, 0.06, 0.1, 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02, 0.0] });
+    // Frauen: schmale Taille, runde Hüften, schmalere Schultern; Männer (seit 14.53): V-Form mit breiter Brust und
+    // schmaler Hüfte. Umrisse gleich TORSO3_F/TORSO3_M in drei-ausruestung.js (Rüstungsteile sitzen darauf)
+    const torsoPts = fem
+      ? [[0, 0], [0.2, 0], [0.226, 0.055], [0.2, 0.11], [0.152, 0.17], [0.172, 0.25], [0.186, 0.31], [0.165, 0.38], [0.105, 0.43], [0, 0.44]]
+      : man
+        ? [[0, 0], [0.158, 0], [0.178, 0.05], [0.184, 0.13], [0.22, 0.24], [0.228, 0.3], [0.2, 0.38], [0.13, 0.43], [0, 0.44]]
+        : [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]];
+    A(lathe3(fem ? 'torsoF2' : man ? 'torsoM' : 'torso2', torsoPts, 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
+    // Hals: bei Männern kräftiger, bei Frauen schlanker
+    const nk = fem ? 0.84 : man ? 1.3 : 1;
+    A(cyl3(0.055 * nk, 0.06 * nk, 0.1, 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02, 0.0] });
     A(torus3(0.12, 0.032, Math.PI * 2, 5, 16), c.collar || trim, { bone: BH.chest, p: [0, neckY - 0.02, 0], r: [Math.PI / 2 - 0.15, 0, 0], s: [1, 0.86, 1] });
     if (c.robe) {
       A(lathe3('robe2', [[0, 0], [0.31, 0], [0.32, 0.03], [0.28, 0.2], [0.23, 0.4], [0.2, 0.47], [0, 0.48]], 20), c.robe, { bone: BH.hips, p: [0, 0.02, 0], s: [1, 1, 0.88], shade: 0.25, shine: c.robeShine || 0 });
@@ -575,7 +613,8 @@ function humanoid3(b, c, P) {
         A(horn3(0.12 + (k % 3) * 0.04, 0.05, 5), darker(c.robe, 0.15), { bone: BH.hips, p: [Math.cos(a) * 0.29, 0.06, Math.sin(a) * 0.26], r: [Math.PI, 0, 0] });
       }
     } else {
-      A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [bk, 1, 0.84 * bk], shade: 0.2 });
+      // seit 14.53: Frauen mit runderem Rock über den breiteren Hüften
+      A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [bk * (fem ? 1.1 : man ? 0.96 : 1), 1, 0.84 * bk * (fem ? 1.06 : 1)], shade: 0.2 });
       // Stoffbahnen vorn und hinten
       for (const sz of [1, -1]) A(roundBox(0.17, 0.22, 0.025, 0.012), c.flap || c.skirt || darker(c.torso, 0.18), { bone: BH.hips, p: [0, hipY - 0.17, sz * 0.21], r: [sz * 0.12, 0, 0], shade: 0.25 });
     }
@@ -583,7 +622,8 @@ function humanoid3(b, c, P) {
   // Gürtel mit Schnalle und Tasche
   if (c.belt) {
     const by = hipY + (belly ? 0.06 : 0.02);
-    A(torus3(belly ? 0.41 : 0.21, 0.03 * (c.wideBelt ? 1.6 : 1), Math.PI * 2, 5, 20), c.belt, { bone: BH.hips, p: [0, by, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.86 * bk, c.wideBelt ? 1.4 : 1] });
+    const bw = fem ? 1.08 : 1;
+    A(torus3(belly ? 0.41 : 0.21, 0.03 * (c.wideBelt ? 1.6 : 1), Math.PI * 2, 5, 20), c.belt, { bone: BH.hips, p: [0, by, 0], r: [Math.PI / 2, 0, 0], s: [bk * bw, 0.86 * bk * bw, c.wideBelt ? 1.4 : 1] });
     // die Schnalle kommt bei angelegtem Gürtel aus der Ausrüstung (drei-ausruestung.js)
     if (!c.noBuckle) {
       A(roundBox(c.wideBelt ? 0.12 : 0.08, c.wideBelt ? 0.1 : 0.065, 0.03, 0.012), c.buckle || '#c9a35a', { bone: BH.hips, p: [0, by, (belly ? 0.36 : 0.185) * bk], shine: 1 });
@@ -598,15 +638,19 @@ function humanoid3(b, c, P) {
       A(roundBox(0.012, 0.09, 0.01, 0.004), '#b33a2c', { bone: BH.hips, p: [x, hipY - 0.06, 0.206], r: [0.1, 0, x * 2] });
     }
   }
-  // weibliche Figur: angedeutete Brust (in der Farbe dessen, was darüber liegt)
-  if (c.female && !belly) for (const sx of [-1, 1]) A(ball(10), c.cuirass || c.torso, { bone: BH.chest, p: [sx * 0.07, chestY + 0.07, 0.15 * bk], s: [0.075, 0.066, 0.06], shine: c.cuirass ? 0.8 : 0 });
+  // weibliche Figur: Brust (in der Farbe dessen, was darüber liegt). Seit 14.53 runder und etwas tiefer, sitzt auf dem
+  // Rumpf bzw. Harnisch (bustAt3), Rüstungsteile vorn heben sich darüber (torsoAt3)
+  if (fem) {
+    const bu = bustAt3(bk, !!c.cuirass, chestY);
+    for (const sx of [-1, 1]) A(ball(12), c.cuirass || c.torso, { bone: BH.chest, p: [sx * bu.x, bu.y, bu.z], s: bu.s, r: [0.25, sx * 0.22, 0], shine: c.cuirass ? 0.8 : 0, shade: 0.22 });
+  }
   // Lamellenrüstung: Reihen überlappender Platten, Brustplatte mit Nieten
   if (c.lamellar) {
     for (let k = 0; k < 3; k++) A(torus3(0.205 - k * 0.006, 0.026, Math.PI * 2, 4, 18), k % 2 ? c.lamellar : lighter(c.lamellar, 0.12), { bone: BH.chest, p: [0, hipY + 0.07 + k * 0.075, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.84 * bk, 1], shine: 0.4 });
   }
   // Plattenharnisch über Brust und Rücken mit Mittelgrat und Nieten
   if (c.cuirass) {
-    A(lathe3('cuirass', [[0.2, 0], [0.215, 0.02], [0.228, 0.1], [0.232, 0.18], [0.205, 0.26], [0.14, 0.31], [0, 0.315]], 18), c.cuirass, { bone: BH.chest, p: [0, hipY + 0.11, 0], s: [bk, 1, 0.88 * bk], shine: 0.85, top: lighter(c.cuirass, 0.28), topK: 0.35 });
+    A(lathe3(fem ? 'cuirassF' : 'cuirass', (fem ? CUIRASS3_F : CUIRASS3).map(([y, r]) => [r, y]).concat([[0, 0.315]]), 18), c.cuirass, { bone: BH.chest, p: [0, hipY + 0.11, 0], s: [bk, 1, 0.88 * bk], shine: 0.85, top: lighter(c.cuirass, 0.28), topK: 0.35 });
     A(roundBox(0.03, 0.24, 0.03, 0.012), lighter(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + 0.24, 0.2 * bk], shine: 1 });
     A(torus3(0.215, 0.016, Math.PI * 2, 4, 20), c.cuirassRim || lighter(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + 0.115, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.88 * bk, 1], shine: 1 });
     for (const sx of [-1, 1]) for (const y of [0.15, 0.25]) A(sphere3(0.013, 6, 4), c.cuirassRim || '#e8c46a', { bone: BH.chest, p: [sx * 0.13 * bk, hipY + y, 0.17 * bk], shine: 1 });
@@ -676,7 +720,7 @@ function humanoid3(b, c, P) {
     }
     if (c.armBands) for (const t of [0.3, 0.42]) A(torus3(armR * 1.05, 0.014, Math.PI * 2, 4, 12), c.armBands, { bone: ab, p: [sh[0], sh[1] - armLen * t, 0.003], r: [Math.PI / 2, 0, 0] });
     const hand = [sx * shX, shY - armLen - armR * 0.5, 0.02];
-    const hs = (belly ? 1.9 : 1) * (c.gauntlets ? 1.12 : 1);
+    const hs = (belly ? 1.9 : 1) * (c.gauntlets ? 1.12 : 1) * (fem ? 0.92 : man ? 1.08 : 1);
     A(ball(10), c.gloves || c.skin, { bone: hb, p: hand, s: [0.068 * hs, 0.075 * hs, 0.062 * hs] });
     A(ball(8), c.gloves || c.skin, { bone: hb, p: [hand[0] - sx * 0.05 * hs, hand[1] + 0.01, hand[2] + 0.035 * hs], s: [0.026 * hs, 0.034 * hs, 0.026 * hs] });
     if (c.gauntlets) {
@@ -739,6 +783,8 @@ function humanoid3(b, c, P) {
   // mit Maske sitzt das Tuch auf dem Kiefer statt darin
   const jw = c.jaw || 1;
   A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28 * jw, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86 * jw, hr * 0.62 * jw, hr * 0.8] });
+  // seit 14.53: Männer mit kantigerem Kiefer (zwei Kieferwinkel unter den Ohren)
+  if (c.squareJaw && !c.masked) for (const sx of [-1, 1]) A(ball(10), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.44, hc[1] - hr * 0.46, hc[2] + hr * 0.26], s: [hr * 0.3, hr * 0.27, hr * 0.36] });
   if (!c.noEars) for (const sx of [-1, 1]) {
     if (c.pointEars) A(horn3(hr * 0.55, hr * 0.14, 6), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.9, hc[1], hc[2]], r: [0, 0, -sx * 1.25] });
     else A(ball(8), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.97, hc[1] - hr * 0.06, hc[2]], s: [hr * 0.1, hr * 0.17, hr * 0.14] });
@@ -780,7 +826,7 @@ function humanoid3(b, c, P) {
   if (c.headgear) c.headgear(A, hb, hc, hr, spin);
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
-    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: !!c.female, spin,
+    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin,
     cuirass: !!c.cuirass, greaves: !!c.greaves,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk
@@ -854,6 +900,12 @@ function humanoid3(b, c, P) {
   if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
+  // seit 14.53: Körperform als sanfte Verformung über Rumpf UND allem, was darauf sitzt (Rüstung, Mantel, Gürtel,
+  // Harnisch) – so passt jede Rüstungsstufe ohne Durchstechen, weil alle Schichten gleich mitgehen
+  if ((fem || man) && b.lists) {
+    const warp = bodyWarp3(fem, hipY, chestY, bk);
+    for (const k in b.lists) if (k !== 'shadow') for (const it of b.lists[k]) if (!it.tpl && (it.bone === BH.chest || it.bone === BH.hips)) it.warp = warp;
+  }
   return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, offhandAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff, bowStr };
 }
 
@@ -1175,13 +1227,15 @@ function playerConfig3(p) {
   }
   const mask = p.classId === 'ninja' && ap.helm !== 0;
   // seit 13.18: Spielfiguren größer und erwachsener – kleinerer Kopf, längere Beine und Arme (docs/charakter-design-v2.md)
-  c.figScale = 1.14;
+  // seit 14.53: gewählte Körpergröße (look.gr, 90–110 %); Reittier, Drache und Namensschild richten sich nach model.scale
+  c.figScale = 1.14 * lookSize(ap);
   c.headR = ap.sex === 0 ? 0.265 : 0.272;
   c.legLen = 0.44;
   c.armLen = 0.35;
   if (ap.sex === 0) {
     c.bulk = Math.max(c.bulk || 1, 1.1);
     c.jaw = 1.16;
+    c.squareJaw = true;
     const kind = BEARD3[ap.bart == null ? 1 : ap.bart];
     if (kind && !mask) {
       c.beard = darker(hairOf(ap), 0.04);
@@ -1190,6 +1244,12 @@ function playerConfig3(p) {
   } else {
     c.bulk = Math.min(c.bulk || 1, 0.96);
     c.earrings = '#e8c46a';
+    // seit 14.53: weicheres, schmaleres Kinn; Schulterstücke etwas kleiner, damit die schmaleren Schultern sichtbar bleiben
+    c.jaw = 0.94;
+    if (c.pads) {
+      const pb = c.padBig || 1;
+      c.padBig = pb > 1.3 ? Math.max(1.31, pb * 0.9) : pb * 0.9;
+    }
   }
   // Stufenmerkmale: Rüstung (Grundform umstellen), dann alle Teile nach dem Körper
   armorLook3(c, p.classId, L.a);
@@ -6746,8 +6806,13 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   const cam = P.cam;
   cam.aspect = W / H;
   const t = Math.tan((cam.fov * Math.PI) / 360);
-  const dist = Math.max((top * 1.08) / (2 * t), (half * 2.0) / (2 * t * cam.aspect)) + half * 0.6;
-  const cy = top * 0.5;
+  // seit 14.53: Bildausschnitt nach der Figur in Normalgröße (plus Rand für 110 %), damit die gewählte Körpergröße in der
+  // Vorschau zu sehen ist (90 % wirkt kleiner, 110 % füllt das Bild)
+  const fr = 1.06 / lookSize(lookOf({ ap: who.look }, who.classId));
+  const topF = top * fr;
+  const halfF = half * fr;
+  const dist = Math.max((topF * 1.08) / (2 * t), (halfF * 2.0) / (2 * t * cam.aspect)) + halfF * 0.6;
+  const cy = topF * 0.5;
   cam.position.set(0, cy + dist * 0.12, dist);
   cam.lookAt(0, cy, 0);
   cam.updateProjectionMatrix();

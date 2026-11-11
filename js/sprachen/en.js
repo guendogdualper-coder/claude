@@ -47,6 +47,7 @@
 "Keine": "None",
 "Helm": "Helmet",
 "Sichtbar": "Visible",
+"Größe": "Height",
 "🎲 Zufällig": "🎲 Random",
 "Weg wählen": "Choose Path",
 "Weg der Klinge": "Path of the Blade",

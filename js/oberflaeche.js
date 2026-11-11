@@ -2364,6 +2364,8 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
       cycle('sex', LOOKS.sex, 'Geschlecht') + cycle('hair', LOOKS.hair, 'Frisur') + swatches('hc', LOOKS.hairColor, 'Haare') +
       (look.sex === 0 ? cycle('bart', LOOKS.beard, 'Bart') : '') + swatches('skin', LOOKS.skin, 'Haut') +
       cycle('eyes', LOOKS.eyes, 'Augen') + swatches('ec', LOOKS.eyeColor, 'Augenfarbe') + cycle('mark', LOOKS.mark, 'Gesicht') + cycle('helm', LOOKS.helm, 'Helm') +
+      // seit 14.53: Körpergröße 90–110 % (nur Aussehen)
+      `<div class="lk-row"><span>Größe</span><input type="range" class="lk-size" min="${LOOK_SIZE.min}" max="${LOOK_SIZE.max}" step="1" value="${lookSizePct(look)}" aria-label="Größe"><b class="lk-size-v">${lookSizePct(look)} %</b></div>` +
       `<button type="button" class="mini-btn lk-random">🎲 Zufällig</button></div></div>`;
     const cv = box.querySelector('canvas');
     cv.addEventListener('click', () => { dir = (dir + 1) % 3; render(); });
@@ -2409,6 +2411,16 @@ function lookEditor(box, classId, start, onChange, equipment = null, path = 0) {
       onChange({ ...look });
       render();
     }));
+    const sz = box.querySelector('.lk-size');
+    if (sz) {
+      sz.addEventListener('input', () => { box.querySelector('.lk-size-v').textContent = sz.value + ' %'; });
+      // erst beim Loslassen neu bauen (jede Größe ist ein eigenes, gebackenes Modell)
+      sz.addEventListener('change', () => {
+        look.gr = lookSizePct({ gr: sz.value });
+        onChange({ ...look });
+        render();
+      });
+    }
     box.querySelector('.lk-random').addEventListener('click', () => {
       const r = (n) => Math.floor(Math.random() * n);
       Object.assign(look, { sex: r(2), hair: r(LOOKS.hair.length), hc: r(LOOKS.hairColor.length), skin: r(LOOKS.skin.length), eyes: r(LOOKS.eyes.length), ec: r(LOOKS.eyeColor.length), mark: r(LOOKS.mark.length), bart: r(LOOKS.beard.length) });

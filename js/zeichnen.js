@@ -544,6 +544,9 @@ function drawPlayer(ctx, p) {
   ctx.save();
   ctx.translate(p.x, fy - ride);
   if (flip) ctx.scale(-1, 1);
+  // seit 14.53: gewählte Körpergröße (look.gr) – Figur samt Waffe von den Füßen bzw. vom Sattel aus skaliert
+  const gsz = lookSize(p.look);
+  if (gsz !== 1) ctx.scale(gsz, gsz);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
   // Getroffen: kurz nach hinten zucken
   const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;
@@ -1663,7 +1666,8 @@ function drawLabel(ctx, e) {
     // seit 14.39: in 3D steckt die Höhe auf dem Drachen schon in der Kopfhöhe (v3HeadHeight) – dort nur noch ein
     // kleiner Abstand statt der ganzen 2D-Reithöhe (sonst schwebte der Name weit über dem Reiter und lief hoch oben
     // aus dem Bild)
-    const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) - (V3.on && e.riding && rideTierOf(e) === 3 ? 14 : rideHeight(e));
+    // seit 14.53: in 2D wächst der Abstand mit der Körpergröße (in 3D steckt sie schon in der Kopfhöhe)
+    const y = feetY(e) - (e.classId === 'magier' ? 68 : 60) * (V3.on ? 1 : lookSize(e.look)) - (V3.on && e.riding && rideTierOf(e) === 3 ? 14 : rideHeight(e));
     // Gruppenmitglieder: größerer, leuchtend grüner Name und ein breiter Lebensbalken
     const mate = e.remote && inMyParty(e.name);
     // seit 13.86: in der Turnierarena Name und Leben in der Teamfarbe, vor der Stufe ein kleiner Rang-Stein

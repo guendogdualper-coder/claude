@@ -2219,6 +2219,8 @@ kbd {
 .lk-row > span { flex: 0 0 66px; color: var(--muted); }
 .lk-row b { flex: 1; text-align: center; font-weight: 700; color: #fff3d8; }
 .lk-arrow { width: 26px; height: 22px; padding: 0; border: 1px solid var(--brass-dim); border-radius: 6px; background: #1c140c; color: #f4d48a; font-size: 16px; line-height: 1; cursor: pointer; }
+.lk-size { flex: 1; min-width: 0; height: 22px; accent-color: #f4d48a; cursor: pointer; } /* seit 14.53: Körpergröße */
+.lk-row b.lk-size-v { flex: 0 0 46px; }
 .lk-swatches { display: flex; flex-wrap: wrap; gap: 4px; }
 .lk-sw { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 1px #120c08, inset 0 -2px 3px rgba(0, 0, 0, 0.35); cursor: pointer; }
 .lk-sw.on { box-shadow: 0 0 0 1.5px #120c08, 0 0 0 3px #ffd34d; }
