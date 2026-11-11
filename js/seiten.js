@@ -11,8 +11,8 @@
 //   - offener Kampf auf den gemeinsamen Karten: Spieler der anderen Seite stehen als Stellvertreter in der Zielliste
 //     (wie in der Turnierarena, pvpFoes/pvpHit), Treffer gehen direkt an den Getroffenen ('oh'), der sie mit seinen
 //     Werten abrechnet (pvpReceiveHit, PVP_DMG in kampf.js) und den Schaden zurückmeldet ('of')
-//   - Gruppe, Handel, Gilde und Gruppenfinder nur innerhalb der eigenen Seite (Anfragen der anderen Seite werden
-//     freundlich abgelehnt), Post nur an Charaktere der eigenen Seite (post.js), Chat bleibt für alle gemeinsam
+//   - Gilde nur innerhalb der eigenen Seite; Gruppe, Handel und Gruppenfinder seit 14.71 auch über die Seiten hinweg
+//     (Gruppenmitglieder greifen sich im offenen Kampf nicht an), Post nur an Charaktere der eigenen Seite (post.js), Chat bleibt für alle gemeinsam
 //   - Netz: kurzes Feld fr ('s' = Schatten) im Spielerzustand; ältere Versionen ohne das Feld gelten als Licht
 //   - Namen und Minikarte: die andere Seite rot, die eigene wie bisher; Bestenliste mit Wappen
 
@@ -285,9 +285,10 @@ if (typeof upgradeMaterial === 'function') {
   };
 }
 
-// --- Gruppe, Handel, Gilde: nur die eigene Seite ------------------------------------------------------------------
-const FACTION_INVITES = { tq: ['tn', 'gehört zur anderen Seite – Handel nur mit der eigenen Seite'], pi: ['pn', 'gehört zur anderen Seite – Gruppen nur mit der eigenen Seite'],
-  lfj: ['lfn', 'Anfrage abgelehnt: andere Seite.'] };
+// --- Gilde: nur die eigene Seite (Gruppe und Handel seit 14.71 mit allen) ------------------------------------------------------------------
+// seit 14.71: Gruppe, Handel und Gruppenfinder auch über die Seiten hinweg (Wunsch: zusammen in Instanzen, handeln) –
+// nur die Gilde bleibt bei der eigenen Seite
+const FACTION_INVITES = {};
 const FACTION_IGNORE = ['gi'];
 if (typeof blockedSocial === 'function') {
   const _facBlocked = blockedSocial;
@@ -308,10 +309,10 @@ if (typeof blockedSocial === 'function') {
 if (typeof netSocial === 'function') {
   const _facSocial = netSocial;
   netSocial = function (pid, d) {
-    if (d && (d.k === 'tq' || d.k === 'pi' || d.k === 'gi' || d.k === 'lfj') && typeof net !== 'undefined') {
+    if (d && d.k === 'gi' && typeof net !== 'undefined') {
       const rp = net.players.get(pid);
       if (rp && factionFoe(rp)) {
-        ui.log(`${rp.name} gehört zur ${FACTIONS[factionOf(rp)].title}. Gruppe, Handel und Gilde gibt es nur innerhalb der eigenen Seite.`, 'warn');
+        ui.log(`${rp.name} gehört zur ${FACTIONS[factionOf(rp)].title}. Gilden gibt es nur innerhalb der eigenen Seite.`, 'warn');
         return;
       }
     }
@@ -325,7 +326,7 @@ if (typeof gfJoinBlock === 'function') {
   gfJoinBlock = function (l) {
     const why = _facJoin(l);
     if (why || !l || typeof net === 'undefined') return why;
-    for (const rp of net.players.values()) if (rp.name === l.lead && factionFoe(rp)) return 'Andere Seite';
+    // seit 14.71: Gruppen der anderen Seite dürfen angefragt werden
     return null;
   };
 }
@@ -359,6 +360,8 @@ function openPvpZone(x, y) {
 }
 function openPvpAllowed(p, rp) {
   if (!p || !rp || rp.gone || !factionFoe(rp)) return false;
+  // seit 14.71: wer zusammen in einer Gruppe ist, kämpft nicht gegeneinander
+  if (typeof inMyParty === 'function' && inMyParty(rp.name)) return false;
   if ((p.level || 1) < OPEN_PVP.minLevel || (rp.level || 1) < OPEN_PVP.minLevel) return false;
   if (game.pvpMatch || game.duel) return false;
   return openPvpZone(p.x, p.y) && openPvpZone(rp.x, rp.y);

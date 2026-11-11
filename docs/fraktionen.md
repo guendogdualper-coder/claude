@@ -200,3 +200,13 @@ gemeinsamen Dungeon oder aus dem Auktionshaus) werden beim Aufheben in die eigen
 - Die zweiten Dungeon-Eingänge wandern nicht mit.
 - Übersetzung: Englisch vollständig für die neuen Texte, die übrigen Sprachen zeigen die neuen langen Texte auf Englisch
   bzw. Deutsch (wie bei anderen neuen Inhalten).
+
+## Seit 14.71: Gruppe und Handel über die Seiten hinweg
+
+Wunsch des Spielers: Licht und Schatten sollen trotzdem zusammen spielen können. Seitdem gilt:
+- Gruppeneinladung, Handel und Gruppenfinder funktionieren auch mit Spielern der anderen Seite (`FACTION_INVITES` leer,
+  `gfJoinBlock` ohne Seitenprüfung). Damit können gemischte Gruppen zusammen Dungeons und Instanzen gehen; jeder kommt
+  am Eingang seiner eigenen Seite wieder heraus.
+- Offener Kampf ab Stufe 50 auf den gemeinsamen Karten bleibt – außer zwischen Mitgliedern derselben Gruppe
+  (`openPvpAllowed` prüft `inMyParty`, auf beiden Seiten, also auch beim Empfänger der Treffer).
+- Unverändert: Gilden und Post nur innerhalb der eigenen Seite; Karten unter Stufe 50 bleiben getrennt.
