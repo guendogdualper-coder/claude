@@ -106,6 +106,10 @@
     <button id="btnFly" class="menu-btn" type="button" aria-label="Steigen" hidden>
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path class="fill" d="M12 3.5l7 8h-4.2V20H9.2v-8.5H5z"/></svg>
       <span class="menu-text">Steigen</span> <kbd>Leertaste</kbd></button>
+    <!-- seit 14.47: am Handy klappt dieser Knopf alle übrigen Menü-Symbole auf (Pferd/Drache bleibt immer sichtbar) -->
+    <button id="btnMenu" class="menu-btn menu-toggle" type="button" aria-label="Menü" aria-expanded="false">
+      <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M4.5 12h15M4.5 17h15"/></svg>
+      <span class="menu-text">Menü</span><span id="menuBadge" class="menu-badge" hidden>!</span></button>
     <button id="btnNet" class="menu-btn" type="button" aria-label="Server und Kanal">
       <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle class="fill" cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9c-2.6-2.6-3.8-5.6-3.8-9S9.4 5.6 12 3z"/></svg>
       <span class="menu-text">Server</span> <kbd>N</kbd></button>
@@ -298,6 +302,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 14.47 – Handy: Oben bleibt nur noch der Pferd-/Drachen-Knopf (größer, Tempo-Anzeige wie „+110 %“ gut lesbar) und ein Menü-Knopf (☰), der alle anderen Symbole aufklappt; ein rotes „!“ zeigt neue Quests, Freunde oder die Tagesbelohnung. Krieger-Aura (Weg der Klinge) schöner: schärfere, schnellere Flammenzungen eng am Körper mit goldenem Kern statt großer flacher Flammenflügel; beim Aktivieren kein milchiger Schleier mehr.</li>
       <li>Version 14.46 – Lebensregeneration stark gesenkt: Im Kampf regeneriert man ohne Tränke oder Lebensraub fast nichts mehr (Ausrüstung zählt nur zu 10 %, höchstens 0,15 % pro Sekunde). Außerhalb des Kampfes erst nach 10 Sekunden Ruhe und nur, wenn kein Monster mehr hinter einem her ist – dann 0,4 % pro Sekunde, mit Ausrüstung höchstens 0,8 %. Weglaufen heilt nicht mehr.</li>
       <li>Version 14.45 – Weniger Nebel: In der festen Kamera beginnt der Nebel jetzt ein gutes Stück hinter der Figur, egal wie weit herausgezoomt. Behoben: Bei Dämmerung oder Gebietswechsel versank herausgezoomt kurz das ganze Bild in Nebelfarbe (gelb, grau, dunkel). Drache: Ganz oben fliegt man jetzt über alles hinweg – Häuser, Mauern, Seelensteine, Portale und Teleporter. Sinken geht erst über freiem Boden.</li>
       <li>Version 14.44 – 3D-Sicht: Boden, Gras und Schatten werden nach der Fläche vorgeladen, die die Kamera wirklich sieht – kein Nachwachsen von Schatten oder Rasen mehr am Bildrand. Der Schattenbereich deckt jetzt das ganze Bild ab (schärfere Schattenkarte am PC). Schulterblick lässt sich deutlich weiter herauszoomen (am Handy auch mit zwei Fingern). Schwarzes Flackern beim schnellen Drehen mit der rechten Maustaste behoben.</li>

@@ -830,10 +830,11 @@ const SKILL_FX = {
 // Effekte der zweiten Wege
 Object.assign(SKILL_FX, {
   schwertaura: {
+    // seit 14.47 kürzer und ohne milchigen Schleier: Lichtsäule 0,55 s (vorher 1 s), Bildschirmschein schwach
     cast(p) {
-      vfxPillar(p, '#ffd38a', 1);
-      addEffect({ type: 'halo', follow: p, dur: 1, color: '#ffe9a0' });
-      flashScreen('#ffd38a', 0.2);
+      vfxPillar(p, '#ffb84a', 0.55);
+      addEffect({ type: 'halo', follow: p, dur: 0.7, color: '#ffe9a0' });
+      flashScreen('#ff9a3a', 0.06);
     },
     aura: { every: 0.08, color: ['#fff2c0', '#ffd38a', '#ffffff'], shape: 'spark', up: true },
     ring: '#ffd38a',

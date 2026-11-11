@@ -29,6 +29,7 @@ const ui = {
     $('btnQuests').addEventListener('click', () => this.toggle('panelQuests'));
     $('btnDaily').addEventListener('click', () => this.toggle('panelDaily'));
     $('btnOpts').addEventListener('click', () => this.toggle('panelOpts'));
+    this.initMenuToggle();
     $('btnStatPlus').addEventListener('click', () => this.toggle('panelChar'));
     $('btnChat').addEventListener('click', () => this.openChat());
     // Chat-Knopf in der Ecke: im Kanal schreiben, allein die Server-Auswahl öffnen
@@ -1058,6 +1059,36 @@ const ui = {
     fetch('manifest.webmanifest?ping=' + Date.now(), { method: 'HEAD', cache: 'no-store' })
       .then(() => { const rtt = performance.now() - t0; this.webPing = this.webPing ? this.webPing * 0.5 + rtt * 0.5 : rtt; })
       .catch(() => { this.webPing = 0; });
+  },
+
+  // seit 14.47: Menü-Knopf am Handy – klappt die übrigen Symbole auf und zu; ein Tipp daneben oder auf ein Symbol
+  // schließt wieder. Ein rotes „!“ am Knopf, solange eines der versteckten Symbole ein Abzeichen zeigt.
+  initMenuToggle() {
+    const nav = document.querySelector('nav.menu');
+    const btn = $('btnMenu');
+    if (!nav || !btn) return;
+    const set = (open) => {
+      nav.classList.toggle('open', open);
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      set(!nav.classList.contains('open'));
+    });
+    nav.addEventListener('click', (e) => {
+      const b = e.target.closest('.menu-btn');
+      if (b && b !== btn && nav.classList.contains('open')) set(false);
+    });
+    document.addEventListener('pointerdown', (e) => {
+      if (nav.classList.contains('open') && !nav.contains(e.target)) set(false);
+    }, true);
+    const badge = $('menuBadge');
+    const sync = () => {
+      const any = ['questBadge', 'socialBadge', 'dailyBadge'].some((id) => $(id) && !$(id).hidden) || $('btnChar').classList.contains('has-points');
+      if (badge.hidden === any) badge.hidden = !any;
+    };
+    new MutationObserver(sync).observe(nav, { subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    sync();
   },
 
   updateHorseButton() {

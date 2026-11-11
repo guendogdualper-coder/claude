@@ -119,7 +119,9 @@ const KA_STYLES = {
 // occl: wie stark der Saum den Hintergrund abdeckt (0 = rein leuchtend, 1 = deckend wie Rauch),
 // rise: Höhe der Zungen, inf: Abstand vom Körper, spd: Tempo, freq: Feinheit der Zungen, op: Deckkraft (sonst 1)
 const KA_FLAME = {
-  klinge: { edge: '#5a0308', body: '#c80e0a', core: '#ff4a10', hot: '#ffc23a', rim: '#ff8a24', occl: 0.75, rise: 1, inf: 1, spd: 1, freq: 1 },
+  // seit 14.47 schärfer (Spieler: „sieht billig aus“): enger am Körper, feinere und schnellere Zungen, heißer goldener
+  // Kern, weniger deckender Saum; die weite Außenlage nur noch schwach (wideOp) – vorher große, flache Flammenflügel
+  klinge: { edge: '#3a0204', body: '#d81e0a', core: '#ff7414', hot: '#ffe08a', rim: '#ffb43a', occl: 0.55, rise: 1.35, inf: 0.78, spd: 1.45, freq: 1.6, wideOp: 0.4 },
   leib: { edge: '#7a1404', body: '#e05a0c', core: '#ffa424', hot: '#ffd890', rim: '#ffd070', op: 0.9, occl: 0.66, rise: 0.85, inf: 1.15, spd: 0.8, freq: 0.85 },
   schatten: { edge: '#050208', body: '#1a0a24', core: '#a8102c', hot: '#ff4a64', rim: '#ff2a48', occl: 0.92, rise: 0.9, inf: 1, spd: 0.85, freq: 1.1 },
   falke: { edge: '#06040c', body: '#22104a', core: '#7a3ae0', hot: '#d0b4ff', rim: '#a874ff', occl: 0.9, rise: 0.9, inf: 1, spd: 0.75, freq: 1 },
@@ -1073,7 +1075,7 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
     u2.uInf.value = u.uInf.value * 1.5 + mh * 0.025 * fl.inf;
     u2.uRise.value = u.uRise.value * 1.5;
     u2.uWob.value = 0.7;
-    u2.uOp.value = op * 0.42 * w2;
+    u2.uOp.value = op * 0.42 * w2 * (fl.wideOp != null ? fl.wideOp : 1);
     u2.uOcc.value = fl.occl * 0.8;
     u2.uDim.value = dim;
     u2.uLv.value = 0;

@@ -3580,3 +3580,17 @@ body.skv-open .hover-tip { display: none !important; }
 .quit-box small { color: var(--muted); }
 .quit-box .opt-btns { grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
 .btn.quit-yes { background: var(--danger); border-color: #d0594b; }
+
+/* seit 14.47: Handy – oben nur Pferd/Drache (mit gut lesbarem Tempo) und ein Menü-Knopf, der die übrigen Symbole aufklappt */
+.menu-toggle { display: none; }
+#hud.touch .menu-toggle { display: flex; }
+#hud.touch .menu #btnHorse { order: -3; }
+#hud.touch .menu #btnFly { order: -2; }
+#hud.touch .menu #btnMenu { order: -1; }
+#hud.touch .menu:not(.open) .menu-btn:not(#btnHorse):not(#btnFly):not(#btnMenu) { display: none; }
+#hud.touch .menu.open { flex-wrap: wrap; justify-content: flex-end; max-width: min(300px, 70vw); padding: 10px; border-radius: 16px; background: rgba(16, 11, 7, 0.9); box-shadow: 0 0 0 1px rgba(201, 163, 90, 0.55), 0 8px 24px rgba(0, 0, 0, 0.55); row-gap: 12px; z-index: 40; }
+#hud.touch .menu.open #btnMenu { box-shadow: 0 0 0 1.5px #120c08, 0 0 0 3px #ffd98a; }
+#hud.touch #btnHorse { width: 42px; height: 42px; }
+#hud.touch #btnHorse .menu-icon { width: 23px; height: 23px; }
+#hud.touch .horse-pct { top: auto; bottom: -13px; font-size: 12px; line-height: 16px; padding: 0 6px; border-radius: 8px; color: #ffe39a; background: rgba(14, 9, 4, 0.95); box-shadow: 0 0 0 1.5px #c9a35a, 0 2px 6px rgba(0, 0, 0, 0.6); }
+#hud.touch #btnHorse.on .horse-pct { color: #1e1204; background: #ffd34d; box-shadow: 0 0 0 1.5px #120c08, 0 0 10px rgba(255, 211, 77, 0.9); }
