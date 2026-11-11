@@ -1329,13 +1329,23 @@ const _fadeB = {};
 const _fadeC = {};
 // Zeichnet das 2D-Canvas ab hier so, dass der Weltpunkt (wx, wy) an seiner Stelle im 3D-Bild liegt.
 // h: Höhe des Punkts, ax/ay: welcher 2D-Punkt dorthin gehört (Standard: derselbe)
+// Rückgabe (seit 14.66): false, wenn der Punkt hinter oder dicht an der Kamera liegt bzw. weit neben dem Bild –
+// dort ist der Maßstab unbrauchbar, der Aufrufer zeichnet dann nichts. Vorher wurde trotzdem gezeichnet: Im
+// Schulterblick liegen Teilchen (Pollen, Glühwürmchen, Funken der Umgebung, updateAmbient) auch neben und unter der
+// Kamera; ein Punkt knapp vor ihrer Bildebene bekam den Maßstab 1000–7000, ein Pollenkorn (2 px, leuchtend addiert)
+// wurde zur Scheibe über den ganzen Bildschirm – für ein Bild war alles weißlich („flackert ab und zu weiß“).
 function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
   v3Project(wx, wy, h, _pa);
   v3Project(wx + 32, wy, h, _pb);
-  const k = Math.max(0.05, _pb.x - _pa.x) / 32;
-  const d = renderer.dpr;
+  const dx = _pb.x - _pa.x;
+  const k = Math.max(0.05, dx) / 32;
+  const r = renderer;
+  const d = r.dpr;
   ctx.setTransform(k * d, 0, 0, k * d, (_pa.x - ax * k) * d, (_pa.y - ay * k) * d);
-  return _pa.z < 1;
+  // nah an der Kamera wächst der Maßstab ins Unendliche: mehr als h/12 Pixel je Weltpixel kommt im Bild nicht vor
+  // (gemessen: feste Kamera bis 2,7, Schulterblick am Bildrand unten etwa h/26)
+  return _pa.z > -1 && _pa.z < 1 && Math.hypot(dx, _pb.y - _pa.y) / 32 < r.h / 12 + 2 &&
+    _pa.x > -1.5 * r.w && _pa.x < 2.5 * r.w && _pa.y > -1.5 * r.h && _pa.y < 2.5 * r.h;
 }
 
 const _ray = new THREE.Vector3();
@@ -2414,7 +2424,9 @@ function renderDrei() {
   const r = renderer;
   const ctx = r.ctx;
   const now = performance.now();
-  const dt = Math.min(0.1, (now - (v3Last || now)) / 1000);
+  // seit 14.66 nie negativ (Aufnahme-Uhren, Sprünge der Uhr): ein negativer Schritt warf die weich folgende Kamera
+  // im Schulterblick für ein Bild Milliarden Einheiten weit weg (nur Himmel)
+  const dt = Math.max(0, Math.min(0.1, (now - (v3Last || now)) / 1000));
   v3Last = now;
   V3.time += dt;
   V3.frame = (V3.frame || 0) + 1;
@@ -2564,23 +2576,22 @@ function drawOverlay3(ctx) {
     if (!ground(e) || skip(e)) continue;
     const o = effectOrigin(e);
     if (!inView(o.x, o.y)) continue;
-    v3Anchor(ctx, o.x, o.y);
+    if (!v3Anchor(ctx, o.x, o.y)) continue; // seit 14.66: nicht neben/hinter der Kamera (riesig verzerrt)
     drawEffect(ctx, e);
   }
   if (game.duel) {
-    v3Anchor(ctx, game.duel.cx, game.duel.cy);
-    drawDuelArena(ctx, true);
+    if (v3Anchor(ctx, game.duel.cx, game.duel.cy)) drawDuelArena(ctx, true);
   }
   for (const pr of game.projectiles) {
     if (!inView(pr.x, pr.y)) continue;
-    v3Anchor(ctx, pr.x, pr.y);
+    if (!v3Anchor(ctx, pr.x, pr.y)) continue;
     drawProjectile(ctx, pr);
   }
   for (const e of game.effects) {
     if (ground(e) || skip(e)) continue;
     const o = effectOrigin(e);
     if (!inView(o.x, o.y)) continue;
-    v3Anchor(ctx, o.x, o.y);
+    if (!v3Anchor(ctx, o.x, o.y)) continue; // seit 14.66: nicht neben/hinter der Kamera (riesig verzerrt)
     drawEffect(ctx, e);
   }
   // Auren und Ringe der Spieler
@@ -2608,7 +2619,7 @@ function drawOverlay3(ctx) {
     if (far2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > far2) continue;
     const fy = feetY(e);
     const head = v3HeadHeight(e);
-    v3Anchor(ctx, e.x, fy, head, e.x, fy - figureHeight(e));
+    if (!v3Anchor(ctx, e.x, fy, head, e.x, fy - figureHeight(e))) continue;
     if (e.type && !e.isStone && !e.until) drawMonsterStatus(ctx, e);
     if (!e.type && !e.isStone && !e.remote && e !== game.player && !e.until && !e.remoteAlly) drawNpcMarks(ctx, e);
     drawLabel(ctx, e);

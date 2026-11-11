@@ -557,7 +557,8 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
     }
     if (last) {
       if (!V3.on) addEffect({ type: 'ring', x, y: fy, r: sk.radius, dur: 0.45, color: E.deep, width: 8, grow: true });
-      flashScreen(E.hi, 0.1);
+      // seit 14.66 nur beim eigenen Siegel: die Siegel der Mitspieler ließen das Bild sonst ständig aufblitzen
+      if (local) flashScreen(E.hi, 0.1);
     }
     if (!V3.on) particles(x, fy - 32, { count: 6, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [60, 160], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 5 });
     if (near && last) shakeScreen(3);
@@ -1439,7 +1440,8 @@ function infernoFx(x, fy, near) {
   });
   if (!three) later(0.9 + 0.45, () => addEffect({ type: 'decal', kind: 'scorch', x, y: fy, r: 200, dur: 4, color: '#2a0a0a' }));
 }
-function eiszeitFx(x, fy, near) {
+// own (seit 14.66): Bildschirmschein nur bei der eigenen Ulti, bei Mitspielern in der Nähe nur das Beben
+function eiszeitFx(x, fy, near, own = true) {
   addEffect({ type: 'mground3', ground: true, x, y: fy, R: 260, tex: 'hex', color: '#3a7bff', fadeIn: 0.25, dur: 3, op: 0.8 });
   addEffect({ type: 'mcrys3', x, y: fy, list: EISZEIT_CRYS, color: '#3a7bff', core: '#eafcff', rise: 0.25, hold: 1.75, dur: 2.15 });
   addEffect({ type: 'ring', x, y: fy, r: 260, dur: 0.5, color: '#eafcff', width: 10, grow: true });
@@ -1449,7 +1451,7 @@ function eiszeitFx(x, fy, near) {
     particles(x, fy - 20, { count: 40, color: ['#ffffff', '#eafcff', '#3a7bff'], speed: [120, 360], life: [0.4, 0.8], size: [2, 4], shape: 'square', drag: 2.5, gravity: 300, jitter: 120 });
     if (near) {
       shakeScreen(8);
-      flashScreen('#cfe6ff', 0.25);
+      if (own) flashScreen('#cfe6ff', 0.25);
     }
   });
 }
@@ -1458,7 +1460,7 @@ function donnerkroneFx(owner) {
   addEffect({ type: 'mcrown3', follow: owner, dur: 2.4, color: '#ffe94a' });
   addEffect({ type: 'sigil3', ground: true, el: 'blitz', follow: owner, ox: 0, oy: 0, x: owner.x, y: feetY(owner), R: 70, flash: true, dur: 0.8 });
 }
-function weltenbruchFx(x, fy, near) {
+function weltenbruchFx(x, fy, near, own = true) {
   addEffect({ type: 'mmono3', x, y: fy, R: 180, n: 8, rise: 0.3, tipAt: 1.0, dur: 1.75 });
   addEffect({ type: 'sigil3', ground: true, el: 'erde', x, y: fy, R: 110, flash: true, dur: 1.0 });
   later(0.3, () => {
@@ -1473,7 +1475,7 @@ function weltenbruchFx(x, fy, near) {
     if (!V3.on) particles(x, fy - 10, { count: 40, color: ['#3e3532', '#6a5a50', '#f0a830'], speed: [100, 300], life: [0.4, 0.8], size: [3, 6], shape: 'square', drag: 2, glow: false, gravity: 500 });
     if (near) {
       shakeScreen(9);
-      flashScreen('#f0a830', 0.2);
+      if (own) flashScreen('#f0a830', 0.2);
     }
   });
 }
@@ -1585,8 +1587,8 @@ Object.assign(ULT_RUN, {
 // Mitspieler sehen nur das Schauspiel (ultRemoteFx in ultimativ.js); y ist die Position der Figur
 const MAGE_ULT_FX = {
   inferno: (x, y) => infernoFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300),
-  eiszeit: (x, y) => eiszeitFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300),
-  weltenbruch: (x, y) => weltenbruchFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300),
+  eiszeit: (x, y) => eiszeitFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300, false),
+  weltenbruch: (x, y) => weltenbruchFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300, false),
   donnerkrone(x, y) {
     let owner = null;
     for (const rp of net.players.values()) if (!owner || Math.hypot(rp.x - x, rp.y - y) < Math.hypot(owner.x - x, owner.y - y)) owner = rp;

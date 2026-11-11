@@ -187,7 +187,8 @@ function updateParticles(dt) {
 function drawParticles(ctx) {
   ctx.save();
   for (const q of game.particles) {
-    if (V3.on) v3Anchor(ctx, q.x, q.y);
+    // seit 14.66: Teilchen neben/hinter der Kamera auslassen (sonst bildschirmgroß, siehe v3Anchor)
+    if (V3.on && !v3Anchor(ctx, q.x, q.y)) continue;
     const k = q.life / q.max;
     ctx.globalCompositeOperation = q.glow ? 'lighter' : 'source-over';
     ctx.globalAlpha = Math.min(1, k * 1.5);
@@ -1450,7 +1451,10 @@ function drawTexts(ctx) {
     const y = t.y - 12 - rise * 34 - (V3.on ? 0 : t.l2 || 0);
     const x = st.center ? t.x : t.x + 24 + rise * 16;
     ctx.save();
-    if (V3.on) v3Anchor(ctx, t.x, t.y, t.h3 || 0);
+    if (V3.on && !v3Anchor(ctx, t.x, t.y, t.h3 || 0)) {
+      ctx.restore();
+      continue;
+    }
     ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
     ctx.translate(x, y);
     if (st.glow && age < 0.3) ctx.rotate(Math.sin(age * 60) * 0.06 * (1 - age / 0.3));

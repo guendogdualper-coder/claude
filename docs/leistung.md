@@ -388,3 +388,69 @@ Bilder: `scratchpad/sicht/sicht-schatten-vergleich.jpg` (rot = Echtzeit-Schatten
   ~64–128 MB Grafikspeicher mehr; sollte das auf schwachen PCs drücken, `v3ShadowSize` für Ultra auf 3072 senken.
 - Das schwarze Flackern war in SwiftShader nur nah herangezoomt (Kamera an Häusern) nachstellbar; ob die Grafikkarte
   des Nutzers zusätzlich eine andere Ursache hat, ist ungeprüft.
+
+## 14.66: Weißes Aufblitzen für ein Bild („flackert ab und zu so weiß“)
+
+### Ursache
+
+Im **Schulterblick** zeichnet die 2D-Ebene über der 3D-Szene Teilchen, Effekte, Geschosse, Namen und Zahlen an
+Weltpunkten (`v3Anchor`: Punkt projizieren, Maßstab aus einem zweiten Punkt 32 Weltpixel daneben). Die
+Umgebungsteilchen (`updateAmbient`: Pollen, Glühwürmchen, Staub, Funken – in fast jedem Gebiet) entstehen im
+2D-Bildausschnitt rund um die Figur; im Schulterblick liegt ein Teil davon neben, unter oder hinter der Kamera.
+Für Punkte knapp vor ihrer Bildebene wurde der Maßstab riesig (gemessen 1 000 bis 100 000 statt 0,3–3), und
+`drawParticles` zeichnete trotzdem: ein Pollenkorn (2 px, `lighter` = leuchtend addiert, Farbe `#ffe0f0`/`#fff6c0`)
+wurde zur Scheibe über den ganzen Bildschirm. Für genau ein Bild war alles weißlich-rosa verschleiert, danach war
+der Punkt aus diesem Streifen heraus. Zufällig (Math.random beim Entstehen), darum im deterministischen
+Wiederholungslauf der Trailer-Szene nicht wieder aufgetreten. Die feste Kamera ist nicht betroffen (dort höchstens
+Maßstab 2,7). Das helle Einzelbild im Trailer (Szene „stadt“, Rohbild `social64/work/frames/stadt/f0044.jpg`) passt
+dazu: ganzes Bild inkl. Himmel um ~34 % zu (242, 218, 236) hin aufgehellt = Pollenfarbe `#ffe0f0`.
+
+Dieselbe Rechnung galt für Bodeneffekte, Geschosse, Namen/Lebensbalken und Schadenszahlen nahe der Kamera
+(übergroß verzerrt), nur seltener sichtbar.
+
+### Messung
+
+Playwright + SwiftShader, echtes Spiel (nicht die Trailer-Kamera), Probe nach jedem `render()`: WebGL- und
+2D-Ebene verkleinert (160×90) zusammengesetzt, mittlere Helligkeit; Treffer = Bild mehr als 6 heller als Vor- und
+Nachfolger, die untereinander ähnlich sind. Je Bild protokolliert: dt, `screenFlash`, Nebel, `V3.camDist`, Kamera,
+Pixelratio/Größe, Qualitätsstufe, Punktlichter, Programme (neu kompiliert), Blockbau, offene Fenster, Effekte,
+größter Teilchen-Maßstab.
+
+| Lauf | Bilder | Einzelbild-Blitze |
+|---|---|---|
+| Echtzeit PC Ultra/Plus, Handy (iPhone-Querformat, Touch) Mittel – laufen, kämpfen, Fenster, Drache, Zoom, Tag/Nacht, Teleport, Schulterblick | 154 + 296 + 191 | 0 (ein Fehlalarm: Szenenwechsel) |
+| Virtuelle Uhr mit dt-Spitzen, PC Ultra / Handy Plus, Qualitätsschritte, Fenstergröße ±30 px | 578 + 558 | 0 |
+| dasselbe nachher, PC Plus (Magier) | 578 | 0 |
+| Schulterblick Wiesen (Pollen), laufen/reiten/Drache/Zoom, **vorher** | 301 | 1 (+44 Helligkeit, Maßstab 5 470) |
+| dasselbe **nachher** | 451 | 0 (höchstens +3,3 über dem örtlichen Median) |
+| Schulterblick, 3 Pollen mehr je Bild, **alter Code** (Server mit 14.65) | 151 | 8 (+14 bis +82) |
+| dasselbe **nachher** | 151 | 0 |
+
+Die Bildschirmblitze (`flashScreen`) sind nicht die Ursache: sie klingen über mehrere Bilder ab und waren in keinem
+Treffer aktiv. Ebenso unauffällig: Nebel, Kamera-Abstand, Pixelratio/Größenwechsel, Qualitätsautomatik, Grafik Plus,
+Punktlichter, neu kompilierte Programme, Blockbau.
+
+### Änderung
+
+- `v3Anchor` (drei-kern.js) meldet jetzt, ob der Punkt brauchbar ist: vor der Kamera (−1 < z < 1), Maßstab unter
+  `h/12 + 2` Pixel je Weltpixel (Schulterblick am unteren Bildrand etwa h/26) und höchstens anderthalb Bildbreiten
+  neben dem Bild. Sonst zeichnen Teilchen (`drawParticles`), Effekte, Geschosse, Duell-Arena, Namen/Balken und
+  Schadenszahlen (`drawTexts`) diesen Punkt nicht.
+- `renderDrei`: Zeitschritt nie negativ (Aufnahme-Uhren; ein negativer Schritt warf die weich folgende
+  Schulterkamera für ein Bild ins Leere).
+- Bildschirmschein nur noch für eigene Momente: Siegel-Blitz des Magiers nur beim eigenen Siegel, Eiszeit und
+  Weltenbruch der Mitspieler nur noch mit Beben, ohne Schein.
+
+### Offen
+
+- Nur unter SwiftShader gemessen, nicht auf einem echten iPhone. Andere Flacker-Ursachen auf echter Hardware
+  (Treiber, Kontextverlust) sind damit nicht ausgeschlossen.
+- Die Rang- und Fertigkeits-Bildschirmscheine der eigenen Figur (z. B. Rang ≥ Heroisch bei jeder Fertigkeit) sind
+  unverändert; sie sind gewollt und klingen über mehrere Bilder ab.
+
+Bilder: `scratchpad/flacker/vorher-blitze.png` (je Zeile Vorgänger · Blitzbild · Nachfolger; oben natürlicher Pollen,
+darunter alter Code mit dichteren Pollen). Skripte: `scratchpad/flacker/` (`run.js`, `runv.js`, `schulter.js`,
+`probe-page.js`, `anchor.js`).
+
+Tests: `node --check` aller js-Dateien; s73 (12 Wege) ohne Fehler; s72 2D und `D3=1 s72_noshot` ohne Seitenfehler (in 3D
+`mons: 0` in der Arena – genauso mit dem unveränderten 14.65-Stand, also Zeitverhalten unter SwiftShader); td8781 69 OK.
