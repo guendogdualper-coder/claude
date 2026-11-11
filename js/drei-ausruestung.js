@@ -177,13 +177,14 @@ function flame3(W, at, dir, len, w, outer, inner, o = {}) {
 
 const PAD3_R = { krieger: 0.16, ninja: 0.1, schamane: 0.13, nekromant: 0.1, magier: 0.12 };
 
-function gearShoulders3(A, g, t, cls) {
+// metal (seit 14.55): Metallton in der Farbvariante des Teils, sonst der der Stufe
+function gearShoulders3(A, g, t, cls, metal0) {
   if (t < 0) return;
   // seit 13.17 sitzen die Merkmale auf dem größeren Panzer (PAULDRON_BIG, drei-figuren.js)
   // seit 13.36 je Klasse: nur der Krieger groß, die anderen schmaler und mit kleineren Merkmalen
   const big = typeof pauldronBig === 'function' ? pauldronBig(cls) : 1;
   const R = (PAD3_R[cls] || 0.12) * big * (cls === 'krieger' ? 1 : 0.85);
-  const metal = TIER_METAL[t];
+  const metal = metal0 || TIER_METAL[t];
   for (const [sx, ab] of [[1, BH.armL], [-1, BH.armR]]) {
     const pp = [sx * (g.shX + R * 0.3), g.shY + R * 0.32 + (cls === 'nekromant' ? 0.02 : 0), 0];
     const W = frame3(A, ab, pp, [0, 0, -sx * 0.35]);
@@ -257,11 +258,11 @@ function gearShoulders3(A, g, t, cls) {
 
 // --- Stiefel -----------------------------------------------------------------------------------
 
-function gearBoots3(A, g, t) {
+function gearBoots3(A, g, t, metal0, boot0) {
   if (t < 0) return;
   const lr = g.legR;
-  const metal = TIER_METAL[t];
-  const boot = GEAR_LOOK.boots[t];
+  const metal = metal0 || TIER_METAL[t];
+  const boot = boot0 || GEAR_LOOK.boots[t];
   // vor dem Schienbein: über den Beinschienen der Rüstung, falls getragen
   const shin = lr * (g.greaves ? 1.42 : 0.95);
   for (const [sx, bone] of [[1, BH.legL], [-1, BH.legR]]) {
@@ -325,11 +326,11 @@ function gearBoots3(A, g, t) {
 
 // --- Gürtel ------------------------------------------------------------------------------------
 
-function gearBelt3(A, g, t) {
+function gearBelt3(A, g, t, metal0) {
   if (t < 0) return;
   // g.beltY / g.beltZ: Mitte vorn am Gürtel (bei Roben an der Schärpe)
   const W = frame3(A, BH.hips, [0, g.beltY, g.beltZ]);
-  const metal = TIER_METAL[t];
+  const metal = metal0 || TIER_METAL[t];
   switch (t) {
     case 0:
       // Knoten mit zwei hängenden Enden
@@ -534,14 +535,14 @@ function capeSides3(W, spec, color, r, o = {}) {
   }
 }
 
-function gearCape3(A, g, t, color, lining) {
+function gearCape3(A, g, t, color, lining, metal0) {
   if (t < 0) return;
   const spec = capeSpec3(CAPE3[t], g);
   const top = [0, g.shY + 0.03, 0];
   const W = frame3(A, BH.cape, top);
   W(capeGeo3(spec, false), color, { shade: 0.3, top: lighter(color, 0.1), topK: 0.25 });
   W(capeGeo3(spec, true), lining || darker(color, 0.25), {});
-  const metal = TIER_METAL[t];
+  const metal = metal0 || TIER_METAL[t];
   const hem = (c, o = {}) => capeHem3(W, spec, c, 0.013, o);
   // seit 13.62: Saum und Seitenkanten in dunklerem Ton (ab Stufe 2 mit Metallfaden), Schließen vorn an beiden
   // Schultern mit einer Kordel quer über die Brust
@@ -1451,17 +1452,18 @@ function scaleBand3(W, g, y, n, col) {
 }
 
 // Schalter für humanoid3 je Klasse und Stufe (Grundform der Rüstung)
-function armorLook3(c, cls, t) {
+// tint (seit 14.55): färbt Stufenfarben in die Variante des Rüstungsteils um (gearCol über playerConfig3)
+function armorLook3(c, cls, t, tint = (col) => col) {
   if (t < 0) return;
   if (cls === 'krieger') {
-    const plate = GEAR_LOOK.plate[t];
+    const plate = tint(GEAR_LOOK.plate[t], true);
     c.cracks = null;
     if (t === 0) {
       // Lederweste: kein Metall, Lederbeintaschen
       c.lamellar = null; c.cuirass = null; c.kneePads = null;
     } else if (t === 1) {
       // Kettenhemd: Ringe über Brust und Bauch (gearArmor3), Rumpf in Kettenfarbe
-      c.cuirass = null; c.lamellar = null; c.torso = '#8a8070'; c.skirt = darker(c.skirt || '#6a3030', 0.05);
+      c.cuirass = null; c.lamellar = null; c.torso = tint('#8a8070', true); c.skirt = darker(c.skirt || '#6a3030', 0.05);
     } else if (t === 2) {
       c.cuirass = null; c.lamellar = plate;
     }
@@ -1470,7 +1472,7 @@ function armorLook3(c, cls, t) {
     if (t === 8) c.cracks = VOIDGLOW3;
   } else if (cls === 'ninja') {
     if (t === 0) { c.straps = null; c.kunai = null; c.holster = null; }
-    if (t === 1) c.chestPlate = '#5a4030';
+    if (t === 1) c.chestPlate = tint('#5a4030');
     if (t === 3) c.crossStraps = false;
     if (t === 7) c.collar = GOLD3;
     if (t === 9) c.collar = ROSEGOLD3;
@@ -2221,9 +2223,9 @@ function gearArmor3(A, g, t, cls, c) {
 function gearAll3(cls, T, c) {
   return (A, g) => {
     gearArmor3(A, g, T.a, cls, c);
-    gearShoulders3(A, g, T.s, cls);
-    gearBoots3(A, g, T.b);
-    gearBelt3(A, g, T.g);
+    gearShoulders3(A, g, T.s, cls, T.ms);
+    gearBoots3(A, g, T.b, T.mb, T.cb);
+    gearBelt3(A, g, T.g, T.mg);
   };
 }
 
@@ -2676,9 +2678,13 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       const shape = BLADE_OF3[tier];
       const bw = wd * (tier === 6 ? 0.75 : tier === 7 ? 1.15 : tier === 8 ? 1.08 : tier === 9 ? 0.92 : 1);
       const bl = len * (tier === 6 ? 1.06 : tier >= 8 ? 1.08 : 1);
-      W(edgeBladeGeo(shape, bl, bw, BLADE_EDGE3[shape], tier === 2 ? 0.28 : dag ? 0.1 : 0), bladeCol, { p: [0, by, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.25 });
-      // Hohlkehle auf beiden Seiten
-      if (tier !== 5 && tier !== 2) for (const sz of [-1, 1]) W(roundBox(bw * 0.2, bl * 0.6, 0.008, 0.004), darker(bladeCol, 0.32), { p: [0, by + bl * 0.38, sz * bw * 0.1] });
+      // seit 14.55: geschliffene Schneide – die Klinge außen in hellem Stahl, darüber ein etwas dickerer, schmalerer Kern in
+      // der Klingenfarbe, sodass entlang beider Kanten ein heller Grat bleibt (nur gerade Metallklingen ohne Leuchtkanten)
+      const bevel = !dag && (tier <= 1 || tier === 3 || tier === 4 || tier === 6);
+      W(edgeBladeGeo(shape, bl, bw, BLADE_EDGE3[shape], tier === 2 ? 0.28 : dag ? 0.1 : 0), bevel ? lighter(bladeCol, 0.42) : bladeCol, { p: [0, by, 0], shine: 1, top: lighter(bladeCol, 0.35), topK: 0.25 });
+      if (bevel) W(edgeBladeGeo(shape, bl * 0.93, bw * 0.78, BLADE_EDGE3[shape], 0), bladeCol, { p: [0, by, 0], s: [1, 1, 1.5], shine: 1, top: lighter(bladeCol, 0.3), topK: 0.25 });
+      // Hohlkehle auf beiden Seiten (auf dem Kern etwas weiter außen)
+      if (tier !== 5 && tier !== 2) for (const sz of [-1, 1]) W(roundBox(bw * 0.2, bl * 0.6, 0.008, 0.004), darker(bladeCol, 0.32), { p: [0, by + bl * 0.38, sz * bw * (bevel ? 0.22 : 0.1)] });
       switch (tier) {
         case 3:
           // Sägezahn-Rücken
@@ -3149,7 +3155,8 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
 // Wappen und Reliefs liegen in einem Rahmen, dessen x quer, y nach oben und z nach außen zeigt.
 const SHIELD_FACE3 = new THREE.Matrix4().set(0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1);
 
-function shield3(A, tier, bone, at) {
+// it (seit 14.55): der Gegenstand selbst – Schildfarbe und Metall in seiner Farbvariante (gearCol, figuren.js)
+function shield3(A, tier, bone, at, it = null) {
   tier = Math.max(0, Math.min(ITEM_TIERS.length - 1, tier || 0));
   const W = framed(A, partFrame(at, [0, 0, Math.PI / 2]), bone);
   // Wappenrahmen auf der Schildfläche in Höhe y (über dem Mittelpunkt)
@@ -3157,8 +3164,8 @@ function shield3(A, tier, bone, at) {
     const M = SHIELD_FACE3.clone().multiply(new THREE.Matrix4().compose(new THREE.Vector3(0, 0, lift), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(1, 1, 1)));
     return (geo, color, o = {}) => W(geo, color, Object.assign({}, o, { m: M.clone().multiply(partMatrix(o)) }));
   };
-  const metal = TIER_METAL[tier];
-  const acc = TIER_ACCENT[tier];
+  const metal = gearCol(it, TIER_METAL[tier], true);
+  const acc = gearCol(it, TIER_ACCENT[tier]);
   const face = (col, o = {}) => W(lathe3('shield2', [[0, -0.045], [0.25, -0.04], [0.27, -0.015], [0.26, 0.02], [0.19, 0.045], [0, 0.055]], 22), col, Object.assign({ top: lighter(col, 0.2), topK: 0.3 }, o));
   const rim = (col, o = {}) => W(torus3(0.26, 0.024, Math.PI * 2, 5, 24), col, Object.assign({ r: [Math.PI / 2, 0, 0], shine: 1 }, o));
   const boss = (col, o = {}) => W(ball(12), col, Object.assign({ p: [0, 0.05, 0], s: [0.075, 0.045, 0.075], shine: 1 }, o));
@@ -3173,9 +3180,9 @@ function shield3(A, tier, bone, at) {
     case 0: {
       // Holzschild aus vier Brettern, zwei Eisenbänder, Eisenbuckel
       const xs = [-0.18, -0.06, 0.06, 0.18];
-      xs.forEach((x, i) => W(roundBox(0.115, 0.06, 2 * Math.sqrt(0.26 * 0.26 - x * x) * 0.98, 0.02), i % 2 ? '#8a6038' : '#9a6c40', { p: [x, 0, 0], shade: 0.1 }));
-      for (const z of [-0.1, 0.1]) W(roundBox(0.48, 0.07, 0.03, 0.012), '#7a7f86', { p: [0, 0.008, z], shine: 0.6 });
-      boss('#8a8f96');
+      xs.forEach((x, i) => W(roundBox(0.115, 0.06, 2 * Math.sqrt(0.26 * 0.26 - x * x) * 0.98, 0.02), i % 2 ? gearCol(it, '#8a6038') : '#9a6c40', { p: [x, 0, 0], shade: 0.1 }));
+      for (const z of [-0.1, 0.1]) W(roundBox(0.48, 0.07, 0.03, 0.012), gearCol(it, '#7a7f86', true), { p: [0, 0.008, z], shine: 0.6 });
+      boss(gearCol(it, '#8a8f96', true));
       break;
     }
     case 1:

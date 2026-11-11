@@ -1215,6 +1215,72 @@ const GEAR_LOOK = {
 };
 const gearTier = (t) => (t == null ? -1 : t);
 
+// --- Farbvarianten je Teil (seit 14.55) ---------------------------------------------------------
+// Vorher hatte auf einer Stufe jedes Teil dieselbe Farbe (alles Lederbraun, alles Drachenrot). Jetzt bekommt auf den
+// niedrigen Stufen (bis Veteran, Stufe 0–4) jedes Teil eine eigene, feste Farbe aus Stoff/Leder (c) und Metall (m):
+// ein zusammengewürfelter Abenteurer. Die Variante hängt nur vom Gegenstand ab (uid, Platz, Stufe; Mitspieler
+// bekommen sie als eq.fv), nie vom Zufall beim Zeichnen. Meister und Himmlisch (5–6) nähern sich der Stufenfarbe an,
+// ab Göttlich, bei epischen/legendären Teilen und bei Set-Teilen (item.set) passt alles zusammen.
+const GEAR_HUES = [
+  { c: '#7a5232', m: '#a8acb2' }, // Leder braun, Eisen
+  { c: '#4e3626', m: '#b98a52' }, // dunkles Leder, Bronze
+  { c: '#5e7048', m: '#9ea3a8' }, // verblichenes Moosgrün, Eisen
+  { c: '#8a4436', m: '#c9a35a' }, // verblichenes Krapprot, Messing
+  { c: '#4a5e80', m: '#7e848a' }, // verblichenes Waidblau, dunkles Eisen
+  { c: '#a0803e', m: '#c27a4c' }, // Ocker, Kupfer
+  { c: '#8c8474', m: '#b4b8be' }, // Wollgrau, Eisen
+  { c: '#6a4660', m: '#b08850' }, // Pflaume, Bronze
+  { c: '#9a5a2e', m: '#5e5a58' }, // Rostbraun, Schwarzeisen
+  { c: '#36583e', m: '#c4a256' } // Tannengrün, Messing
+];
+// Sets (item.set): eine Leitfarbe, ein Akzent und ein Metallton für alle Teile desselben Sets
+const SET_HUES = [
+  { c: '#8a2a2a', m: '#e0b860', a: '#ffcf6a' }, // Blutrot und Gold
+  { c: '#24486e', m: '#d8e2ee', a: '#8fd8ff' }, // Nachtblau und Silber
+  { c: '#2e5a36', m: '#d0a050', a: '#b8f070' }, // Waldgrün und Bronze
+  { c: '#4a2a6a', m: '#c8c0e0', a: '#d6a8ff' }, // Violett und Platin
+  { c: '#2a2a30', m: '#c84a3a', a: '#ff7a4a' }, // Schwarz und Kupferrot
+  { c: '#e8e0d0', m: '#c9a35a', a: '#fff2b0' } // Elfenbein und Gold
+];
+function gearHash(s) {
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+// Nummer der Farbvariante eines Teils (0 … GEAR_HUES.length − 1); fv kommt vom Mitspieler mit
+function gearVariant(it) {
+  if (!it) return 0;
+  if (Number.isInteger(it.fv) && it.fv >= 0) return it.fv % GEAR_HUES.length;
+  return gearHash(`${it.uid || ''}|${it.slot}|${it.tier}|${it.kind || ''}`) % GEAR_HUES.length;
+}
+// Farbe eines Teils: { c, m, f (Anteil Stoff), fm (Anteil Metall), k (Schlüssel für gebackene Modelle/Symbole) } oder null
+function gearHue(it) {
+  if (!it || it.tier == null) return null;
+  if (typeof it.set === 'string' && it.set) {
+    // Leitfarbe der Instanz (ITEM_SETS[id].color, daten/gegenstaende.js), sonst eine feste Setfarbe aus dem Namen
+    const def = typeof ITEM_SETS !== 'undefined' && ITEM_SETS ? ITEM_SETS[it.set] : null;
+    const col = def && typeof def.color === 'string' && /^#[0-9a-f]{6}$/i.test(def.color) ? def.color : null;
+    if (col) return { c: col, m: mixColor(col, '#e8dcc0', 0.6), a: lighter(col, 0.4), f: 0.72, fm: 0.6, k: 's' + col.slice(1) };
+    const s = gearHash(it.set) % SET_HUES.length;
+    return Object.assign({ f: 0.72, fm: 0.6, k: 's' + s }, SET_HUES[s]);
+  }
+  if (it.legend || (it.rarity || 0) >= 3 || it.tier >= 7) return null;
+  const v = gearVariant(it);
+  const f = it.tier <= 4 ? 0.62 : 0.28;
+  return Object.assign({ f, fm: f * 0.85, k: 'v' + v + (it.tier <= 4 ? '' : 'm') }, GEAR_HUES[v]);
+}
+const gearHueKey = (it) => {
+  const h = gearHue(it);
+  return h ? h.k : '';
+};
+// Grundfarbe eines Teils in seine Variante umfärben (metal: Beschläge, Platten, Nieten)
+function gearCol(it, base, metal = false) {
+  if (!base || base[0] !== '#' || base.length !== 7) return base;
+  const h = gearHue(it);
+  if (!h) return base;
+  return mixColor(base, metal ? h.m : h.c, metal ? h.fm : h.f);
+}
+
 // Stiefel über den Beinen aus hLegs: Schaft, Stulpe und Kappe
 function gearBoots(ctx, dir, w, tier, robe) {
   tier = gearTier(tier);

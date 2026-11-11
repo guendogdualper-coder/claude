@@ -971,6 +971,9 @@ function netPlayerState() {
     const it = p.equipment[sl];
     if (it) eq[sl] = { slot: it.slot, tier: it.tier, plus: it.plus, kind: it.kind, cls: it.cls, ...(it.legend ? { legend: 1 } : {}), ...(it.rarity ? { rarity: it.rarity } : {}) };
   }
+
+  // seit 14.55: Farbvariante jedes Teils (gearVariant, figuren.js), damit Mitspieler dieselben Farben sehen
+  for (const sl in eq) eq[sl].fv = gearVariant(p.equipment[sl]);
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
     // seit 14.48 für die Online-Liste der Bestenliste: Ausrüstungslevel (alle 2 s neu) und Rangpunkte der Turnierarena
