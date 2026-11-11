@@ -3636,3 +3636,7 @@ body.skv-open .hover-tip { display: none !important; }
 #btnHorse:not([data-mount="Drache"]) .ico-dragon, #btnHorse[data-mount="Drache"] .ico-horse { display: none; }
 #btnNet.on .menu-icon.rich { filter: drop-shadow(0 0 3px rgba(150, 255, 140, 0.8)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
 .menu-btn:hover .menu-icon.rich { filter: drop-shadow(0 0 3px rgba(255, 220, 140, 0.7)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
+
+/* seit 14.58: am Handy steht die Erfahrung wieder als Zahl und Prozent in der EP-Leiste (vorher nur ein dünner Strich) */
+#hud.touch .xp { height: 12px; border-radius: 6px; bottom: max(2px, calc(var(--edge-b) - 4px)); }
+#hud.touch .xp span { display: block; font-size: 9px; line-height: 12px; letter-spacing: 0.02em; font-weight: 600; }
