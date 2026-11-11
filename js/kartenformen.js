@@ -1,6 +1,6 @@
 // Kartenformen (seit 14.70, docs/kartenformen.md): Jede Karte bekommt eine eigene Grundform statt Rauschen mit Seen –
 // Inseln im Meer, Himmelsinseln über dem Wolkenmeer, eine tiefe Schlucht mit Plateaus, ein Fluss mit Delta, ein Wald
-// aus Lichtungen; seit 14.71 (Phase 2) dazu Kraterseen, Brandschneisen, Dünenmeer mit Treibsand, Kraterkessel mit
+// aus Lichtungen; seit 14.73 (Phase 2) dazu Kraterseen, Brandschneisen, Dünenmeer mit Treibsand, Kraterkessel mit
 // Blutsee, Terrassenhang mit Gletscherspalten, Fjordküste, Moorlabyrinth, Grat und Klamm, Vulkankegel und Splitterfeld.
 // Welche Karte welche Form hat, steht in daten/kartenformen.js (MAP_FORMS, dort auch die neuen Städte). Hier steht der
 // Baukasten:
@@ -15,7 +15,7 @@
 // Zufallszahlen aller anderen Karten bleiben unverändert (Kazehana und die Schattenkarten bitgenau wie vorher).
 // Keine Bodenringe, Runen oder Sterne als Schmuck.
 
-// Rastercodes einer Form (seit 14.71 dazu RIM: Land mit Geröll – Kraterrand, Klippe; WALL: Stützmauer einer Terrasse)
+// Rastercodes einer Form (seit 14.73 dazu RIM: Land mit Geröll – Kraterrand, Klippe; WALL: Stützmauer einer Terrasse)
 const KF = { LAND: 0, VOID: 1, TREES: 2, POND: 3, FORD: 4, BRIDGE: 5, RIM: 6, WALL: 7 };
 // begehbar im Raster (für den Zusammenhang)
 const kfWalk = (m) => m === KF.LAND || m === KF.FORD || m === KF.BRIDGE || m === KF.RIM;
@@ -180,7 +180,7 @@ function kfContext(wm, F, rng) {
       if (trail.length) last = trail[Math.max(0, trail.length - 1 - inset * 2)];
       return last;
     },
-    // seit 14.71: Vieleck (Liste von Punkten) füllen
+    // seit 14.73: Vieleck (Liste von Punkten) füllen
     poly(pts, c, only) {
       const xs = pts.map((p) => p[0]);
       const ys = pts.map((p) => p[1]);
@@ -390,7 +390,7 @@ function kfConnect(ctx, F) {
       const k = y * W + x;
       if (!walk(k) || !shore(x, y)) continue;
       if (mode === 'stone' && !solid(x, y)) continue;
-      // seit 14.71 (Phase-2-Karten): keine Furt und kein Pfad an der Stadt selbst (ihr Rand ist Mauer oder Wasser)
+      // seit 14.73 (Phase-2-Karten): keine Furt und kein Pfad an der Stadt selbst (ihr Rand ist Mauer oder Wasser)
       if (F.townClear && Math.max(Math.abs(x - ctx.cx), Math.abs(y - ctx.cy)) <= ctx.camp + 1) continue;
       const id = comp[k];
       if (!cand.has(id)) cand.set(id, []);
@@ -438,7 +438,7 @@ function kfApply(ctx, F, ground, obj, deco, zoneIdx) {
   const voidG = GROUND[F.void || 'WATER'];
   const pondG = GROUND[F.pond || 'WATER'];
   const H0 = ctx.camp;
-  // dichter Wald (Lichtungswald, seit 14.71 auch die Brandschneisen): 3D zeichnet das Innere sparsam
+  // dichter Wald (Lichtungswald, seit 14.73 auch die Brandschneisen): 3D zeichnet das Innere sparsam
   if (!FORM_DENSE && F.fill === 'trees') FORM_DENSE = new Uint8Array(MAP_W * MAP_H);
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -494,12 +494,12 @@ function kfApply(ctx, F, ground, obj, deco, zoneIdx) {
         FORM_BRIDGE.add(i);
         BRIDGE_DIR.set(i, ctx.bdir[k] === 1);
       } else if (m === KF.RIM) {
-        // seit 14.71: Kraterrand bzw. Geröllhang – Land mit Felsbrocken (kniehoch, halten nicht auf) und Rissen
+        // seit 14.73: Kraterrand bzw. Geröllhang – Land mit Felsbrocken (kniehoch, halten nicht auf) und Rissen
         if (LIQUID.has(ground[i])) ground[i] = GROUND[zone.ground];
         if (obj[i] === OBJ.NONE && h % 100 < (F.rimRocks != null ? F.rimRocks : 30)) obj[i] = OBJ.ROCK;
         else if (obj[i] !== OBJ.ROCK) { obj[i] = OBJ.NONE; deco[i] = h % 3 === 0 ? DECO.CRACK : h % 3 === 1 ? DECO.PEBBLE : DECO.NONE; }
       } else if (m === KF.WALL) {
-        // seit 14.71: Stützmauer einer Terrasse (Lücken darin sind die Rampen)
+        // seit 14.73: Stützmauer einer Terrasse (Lücken darin sind die Rampen)
         if (LIQUID.has(ground[i])) ground[i] = GROUND[zone.ground];
         obj[i] = OBJ.WALL;
         deco[i] = DECO.NONE;
@@ -513,13 +513,13 @@ function kfApply(ctx, F, ground, obj, deco, zoneIdx) {
       if ((m === KF.LAND || m === KF.FORD) && F.clearEdge && obj[i] !== OBJ.NONE && obj[i] !== OBJ.ROCK) {
         for (const j of [k - 1, k + 1, k - W, k + W]) if (mask[j] === KF.VOID) { obj[i] = OBJ.NONE; break; }
       }
-      // seit 14.71: Klippen – Felsbrocken an der Kante zum Meer bzw. Abgrund
+      // seit 14.73: Klippen – Felsbrocken an der Kante zum Meer bzw. Abgrund
       if (m === KF.LAND && F.cliffRocks && obj[i] === OBJ.NONE && h % 100 < F.cliffRocks) {
         for (const j of [k - 1, k + 1, k - W, k + W]) if (mask[j] === KF.VOID) { obj[i] = OBJ.ROCK; deco[i] = DECO.NONE; break; }
       }
     }
   }
-  // Teleportsteine stehen nie in einem Baum (seit 14.71; auf den Karten der Phase 2 auch rundherum frei)
+  // Teleportsteine stehen nie in einem Baum (seit 14.73; auf den Karten der Phase 2 auch rundherum frei)
   for (const [ax, ay, bx, by] of ctx.stones) {
     for (const [x, y] of [[ax, ay], [bx, by]]) {
       const R = F.townClear ? 1 : 0;
@@ -790,7 +790,7 @@ const FORM_BUILDERS = {
     ctx.clearings = C;
   },
 
-  // --- seit 14.71 (Phase 2): Schattenkarten und gemeinsame Karten ------------------------------------------------
+  // --- seit 14.73 (Phase 2): Schattenkarten und gemeinsame Karten ------------------------------------------------
   // Kraterseen: Felder runder Krater, ein Ring aus Geröll um jeden (Kraterrand), große Krater mit Inseln (über
   // Teleportsteine), kleine bleiben trocken. craters [x, y, r] fest, dazu count weitere (rMin … rMax, Abstand gap)
   krater(ctx, F) {
@@ -1344,7 +1344,7 @@ function mapFormReport() {
   // 2D: Wolken von oben (hell, leicht bläulich), Schlucht dunkel rostbraun; in 3D sind das die Farben der Kante
   add(GROUND.WOLKEN, '#b8c8e4', '#eef4ff', [214, 226, 244]);
   add(GROUND.KLUFT, '#2a1610', '#6a3c26', [58, 34, 24]);
-  // seit 14.71: Treibsand (fahles Ocker, dunkler als der Knochensand), Blutsee (tiefes Rot), Eisspalte (Eisblau ins Dunkle)
+  // seit 14.73: Treibsand (fahles Ocker, dunkler als der Knochensand), Blutsee (tiefes Rot), Eisspalte (Eisblau ins Dunkle)
   add(GROUND.TREIBSAND, '#6e5e42', '#9a865e', [140, 120, 86]);
   add(GROUND.BLUTSEE, '#36060c', '#741420', [104, 18, 28]);
   add(GROUND.EISSPALTE, '#14223e', '#46689a', [36, 56, 96]);
@@ -1409,7 +1409,7 @@ if (typeof LIQUID3 !== 'undefined') {
           col = mix(col, col * 0.6, uNight * 0.5);
           float alpha = 1.0;`
   };
-  // seit 14.71: Treibsand – träge, vom Wind geriffelte Fläche, hier und da sackt sie ein (dunkle Mulden, die langsam
+  // seit 14.73: Treibsand – träge, vom Wind geriffelte Fläche, hier und da sackt sie ein (dunkle Mulden, die langsam
   // wandern); am Rand fester, heller Sand
   LIQUID3.treibsand = {
     shallow: '#b8a47a', deep: '#6a5a3e', foam: '#dccca2', alpha: 1, level: -0.22, frag: `
@@ -1499,7 +1499,7 @@ if (typeof drawMagmaTile === 'function') {
       ctx.fillRect(px + 4 + (h % 20), py + TILE - 4 - k * 24, 2, 2);
       return;
     }
-    // seit 14.71: Treibsand – Riefen, die langsam wandern; Blutsee – träge dunkle Blasen
+    // seit 14.73: Treibsand – Riefen, die langsam wandern; Blutsee – träge dunkle Blasen
     if (g === GROUND.TREIBSAND) {
       const k = (t * 0.08 + (h % 97) / 97) % 1;
       ctx.fillStyle = 'rgba(70,56,36,0.22)';
@@ -1523,7 +1523,7 @@ if (typeof drawMagmaTile === 'function') {
 if (typeof drawShore === 'function') {
   const baseShore = drawShore;
   drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
-    // seit 14.71: Treibsand mit hellem Sandsaum, Blutsee mit dunkler Kruste, Eisspalte mit Eiskante
+    // seit 14.73: Treibsand mit hellem Sandsaum, Blutsee mit dunkler Kruste, Eisspalte mit Eiskante
     const edge = { [GROUND.WOLKEN]: 'rgba(70,78,96,0.95)', [GROUND.KLUFT]: 'rgba(96,52,30,0.95)', [GROUND.TREIBSAND]: 'rgba(196,180,140,0.95)',
       [GROUND.BLUTSEE]: 'rgba(42,14,14,0.95)', [GROUND.EISSPALTE]: 'rgba(214,232,250,0.95)' }[g];
     if (!edge) return baseShore(ctx, x, y, px, py, g);

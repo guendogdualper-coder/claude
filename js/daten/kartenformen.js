@@ -1,10 +1,10 @@
 // Kartenformen (seit 14.70, docs/kartenformen.md): welche Karte welche Grundform hat und die neuen Städte dazu.
 // Gebaut wird in kartenformen.js (FORM_BUILDERS, mapFormShape aus buildWorldMaps). Kazehana (Map 1) bleibt, wie sie
-// ist; seit 14.71 (Phase 2) haben auch die Schattenkarten 11–16 und die gemeinsamen Karten 8, 3, 9, 10 eine eigene Form
+// ist; seit 14.73 (Phase 2) haben auch die Schattenkarten 11–16 und die gemeinsamen Karten 8, 3, 9, 10 eine eigene Form
 // und eine neue Stadt.
 //
 // Angaben je Karte (alle Lagen in Kacheln ab der linken oberen Ecke der Karte, 360 × 220):
-//   form       Name in FORM_BUILDERS (inseln, schlucht, fluss, lichtungen; seit 14.71 krater, schneisen, duenen, kessel,
+//   form       Name in FORM_BUILDERS (inseln, schlucht, fluss, lichtungen; seit 14.73 krater, schneisen, duenen, kessel,
 //              terrassen, fjorde, moor, grate, vulkan, splitter)
 //   void       Bodenart dessen, was man nicht betreten kann (WATER Meer/Fluss, WOLKEN Wolkenmeer, KLUFT Schlucht; seit
 //              14.71 auch TREIBSAND, BLUTSEE, EISSPALTE, BOG, LAVA, ABGRUND), pond: Bodenart der Teiche (Standard WATER)
@@ -15,7 +15,7 @@
 //   islet      'trees': zu kleine Inseln werden Felsnadeln mit Bäumen statt Meer; fill 'trees': Unerreichbares wird Wald
 //   clearEdge  keine Bäume direkt an der Absturzkante
 //   mobScale   Anteil der Monstergruppen (weniger begehbares Land: nicht zu gedrängt)
-//   seit 14.71: townClear  keine Furt, kein Pfad und kein Stein direkt an der Stadt (ihr Rand ist Mauer oder Wasser),
+//   seit 14.73: townClear  keine Furt, kein Pfad und kein Stein direkt an der Stadt (ihr Rand ist Mauer oder Wasser),
 //              rund um jeden Teleportstein keine Bäume; anchors [x, y, r]: feste Inseln bzw. Plattformen für Ziele abseits
 //              (Instanz-Ecken), mit Damm bzw. Lichtbrücke angebunden; cliffRocks/rimRocks: Felsen an Kanten (Anteil in %)
 const MAP_FORMS = {
@@ -68,7 +68,7 @@ const MAP_FORMS = {
       [7, 8, 'bruecke'], [8, 2, 'stein'], [2, 9, 'bruecke']]
   },
 
-  // --- seit 14.71 (Phase 2): die Schattenkarten ---------------------------------------------------------------
+  // --- seit 14.73 (Phase 2): die Schattenkarten ---------------------------------------------------------------
   // Mondfall · Kraterseen: Dämmerwiesen voller runder Mondkrater, in den großen ein See mit Insel (Teleportstein), um
   // jeden ein Rand aus Geröll; kleine Krater bleiben trockene Mulden. Die Stadt liegt selbst um einen Kratersee.
   11: {
@@ -128,7 +128,7 @@ const MAP_FORMS = {
     ]
   },
 
-  // --- seit 14.71 (Phase 2): die gemeinsamen Karten ab Stufe 50 ----------------------------------------------------
+  // --- seit 14.73 (Phase 2): die gemeinsamen Karten ab Stufe 50 ----------------------------------------------------
   // Totenmoor · Moorlabyrinth: schwarzes Moor, darin Torfinseln, verbunden durch schmale Knüppeldämme (waagrecht und
   // senkrecht, mit Sackgassen); die versunkenen Inseln draußen erreicht man nur über Teleportsteine.
   8: {
@@ -167,7 +167,7 @@ const MAP_FORM_TEXT = {
   6: 'Ascheinseln im dunklen Meer, nur über Teleportsteine verbunden. Oger und Dämonen. Totengruft.',
   2: 'Der Schlangenfluss windet sich durch die Wüste bis in das Delta des Nagadschungels. Die Kanalstadt Sahra.',
   7: 'Himmelsinseln über einem Wolkenmeer, verbunden durch Eisbrücken und Teleportsteine. Eiswölfe, Yetis und Frostgeister. Eisgrotte.',
-  // seit 14.71 (Phase 2)
+  // seit 14.73 (Phase 2)
   11: 'Die Mondstadt Mondfall, eine Sichel um den Mondsee; darum Dämmerwiesen voller Mondkrater, in den großen Kraterseen Inseln mit Teleportsteinen. Aschehunde, Nebelwölfe und Schattenkeiler.',
   12: 'Verkohlter Wald, nur über lange Brandschneisen zu durchqueren, an den Kreuzungen Glutfelder. Aschenräuber, Spinnen und Kohlenbären. Spinnenhöhle und Banditenkeller.',
   13: 'Ein Meer aus Dünen, dazwischen Täler voller Treibsand, Pässe führen hinüber; auf den Kämmen Oasen. Beinbrecher und Skorpione. Orkfestung.',
@@ -357,7 +357,7 @@ const KF_TOWNS = {
     deco: [[-1.8, -18.6, 'F'], [1.0, -18.6, 'F'], [-4.4, -4.4, 'P'], [4.2, -4.6, 'P'], [-4.4, 4.2, 'P'], [4.4, 4.4, 'P'], [-12.6, -12.6, 'G'],
       [12.4, -12.4, 'X'], [-12.4, 12.4, 'K'], [14.4, 9.6, 'C'], [-15.0, -6.0, 'W'], [15.0, 6.0, 'G'], [-4.4, 10.6, 'B'], [11.6, -4.4, 'R']]
   },
-  // --- seit 14.71 (Phase 2): neue Städte der Schattenseite (vorher gespiegelte Lichtstädte) -------------------------
+  // --- seit 14.73 (Phase 2): neue Städte der Schattenseite (vorher gespiegelte Lichtstädte) -------------------------
   // Mondfall „Mondsichel“: die Stadt liegt wie eine Mondsichel um den Mondsee im Osten. Im Westen der Platz mit dem
   // Weltentor, eine Uferpromenade rund um den See, ein Steg über das Wasser zum Osttor; Häuser in den beiden Spitzen.
   11: {
@@ -555,7 +555,7 @@ const KF_TOWNS = {
       [12.6, -1.8, 'X'], [-12.6, 1.4, 'K']]
   },
 
-  // --- seit 14.71 (Phase 2): neue Städte der gemeinsamen Karten -----------------------------------------------------
+  // --- seit 14.73 (Phase 2): neue Städte der gemeinsamen Karten -----------------------------------------------------
   // Totenmoor · Moorwacht „Stegdorf“: ein offenes Pfahldorf mitten im Moor – neun Plattformen im Raster, verbunden
   // durch Stege; in der Mitte das Weltentor, auf den Eckplattformen schiefe Hütten auf Pfählen
   8: {

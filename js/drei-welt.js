@@ -2492,7 +2492,7 @@ function* objectJob(cx, cy) {
         // Kachel ein Tannenpaar der Randkulisse (sparsame Kegel ohne Umriss) – wirkt geschlossen, kostet wenig; in der
         // zweiten Reihe vom Waldrand auf jeder vierten Kachel ein kleineres Tannenpaar
         const dense = typeof formDense3 === 'function' ? formDense3(i) : 0;
-        // seit 14.71: Tannenkulisse des Gebiets, wo es eine hat (verkohlte Tannen im Aschewald), sonst die des Dunkelwalds
+        // seit 14.73: Tannenkulisse des Gebiets, wo es eine hat (verkohlte Tannen im Aschewald), sonst die des Dunkelwalds
         const DK = dense && BORDER3[ZONES[w.zoneIdx[i]].id] && BORDER3[ZONES[w.zoneIdx[i]].id].form === 'tannen' ? BORDER3[ZONES[w.zoneIdx[i]].id] : BORDER3.wald;
         if (dense === 1) {
           if (x % 4 || y % 4) continue;

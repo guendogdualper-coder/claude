@@ -41,7 +41,7 @@ const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SA
   // seit 14.70: Kartenformen (kartenformen.js) – WOLKEN: Wolkenmeer unter den Himmelsinseln, KLUFT: tiefe Schlucht;
   // beide wie ein Gewässer nicht begehbar (Absturzkante)
   WOLKEN: 24, KLUFT: 25,
-  // seit 14.71: TREIBSAND in den Dünentälern der Knochenwüste, BLUTSEE im Kraterkessel der Blutsteppe, EISSPALTE:
+  // seit 14.73: TREIBSAND in den Dünentälern der Knochenwüste, BLUTSEE im Kraterkessel der Blutsteppe, EISSPALTE:
   // Gletscherspalten am Terrassenhang von Nachtfrost – alle drei nicht begehbar (kartenformen.js)
   TREIBSAND: 26, BLUTSEE: 27, EISSPALTE: 28 };
 // Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
@@ -792,7 +792,7 @@ const TOWER_TYPES = new Set(['tower', 'holzturm', 'kristallturm']);
 function bridgeStyleAt(i, g) {
   if (!BRIDGE_DIR.has(i)) return null;
   // seit 14.70: Eisbrücke über dem Wolkenmeer, Hängebrücke über der Schlucht (Kartenformen)
-  // seit 14.71: Knochendamm über dem Treibsand (Steg), Steinbrücke über dem Blutsee, Schneebrücke über der Eisspalte
+  // seit 14.73: Knochendamm über dem Treibsand (Steg), Steinbrücke über dem Blutsee, Schneebrücke über der Eisspalte
   return g === GROUND.BOG || g === GROUND.TREIBSAND ? 'steg' : g === GROUND.LAVA || g === GROUND.BLUTSEE ? 'stein' : g === GROUND.ABGRUND ? 'licht' : g === GROUND.WOLKEN || g === GROUND.EISSPALTE ? 'eis' : g === GROUND.KLUFT ? 'seil' : null;
 }
 const townLayout = (mapId) => (typeof TOWN_LAYOUTS !== 'undefined' && TOWN_LAYOUTS[mapId]) || null;
@@ -848,8 +848,8 @@ function applyTownLayout(mp, ground, obj, deco, zoneIdx) {
       zoneIdx[i] = safeZi;
       ground[i] = c === '.' ? GROUND.PLAZA : c === '_' || c === 'o' || c === '%' ? GROUND.PATH : cityGround;
       if (c === '^') deco[i] = DECO.DRIFT;
-      else if (c === 'i') ground[i] = GROUND.ICE; // seit 14.71: zugefrorener See in der Stadt (begehbar, Eisnacht)
-      else if (c === 'w') ground[i] = GROUND.WATER; // seit 14.71: Wasser neben der Flüssigkeit der Stadt (Oasenteich)
+      else if (c === 'i') ground[i] = GROUND.ICE; // seit 14.73: zugefrorener See in der Stadt (begehbar, Eisnacht)
+      else if (c === 'w') ground[i] = GROUND.WATER; // seit 14.73: Wasser neben der Flüssigkeit der Stadt (Oasenteich)
       else if (c === 'Y') obj[i] = OBJ[L.tree || wild.treeObj] || OBJ.TREE; // seit 14.70: Baum in der Stadt (sicher)
       else if (c === '~') ground[i] = liquid;
       else if (c === '=' || c === 'H') {

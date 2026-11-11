@@ -17,7 +17,7 @@
 //             #  Mauer (Stein)   P  Palisade   S  Stützmauer einer Terrasse   K  Kristallwand
 //             o  Tor bzw. Durchgang in der Mauer            %  Treppe zwischen zwei Terrassen
 //             h  Haus (nur zur Übersicht: die Häuser selbst stehen in houses)
-//             seit 14.71: i  zugefrorener See (Eis, begehbar)   w  Wasser (wenn liquid etwas anderes ist)
+//             seit 14.73: i  zugefrorener See (Eis, begehbar)   w  Wasser (wenn liquid etwas anderes ist)
 // liquid    Bodenart der Flüssigkeit (~): WATER, BOG, LAVA, ABGRUND
 // weltentor Platz des Weltentors, spawn: Ankunft (Reise, Wiederbeleben, Spielstand auf Wasser oder Mauer)
 // places    Plätze der Stadtleute wie TOWN_PLACES in welt.js: [dx, dy, Seite des Stands, Blickrichtung]
@@ -464,7 +464,7 @@ const TOWN_LAYOUTS = {
   }
 };
 
-// seit 14.71 ersetzt durch eigene Städte (daten/kartenformen.js, KF_TOWNS); die Spiegelung bleibt nur als Vorlage stehen.
+// seit 14.73 ersetzt durch eigene Städte (daten/kartenformen.js, KF_TOWNS); die Spiegelung bleibt nur als Vorlage stehen.
 // seit 14.54: Städte und Lager der Schattenseite (Maps 11–16, docs/fraktionen.md). Sie nutzen die vorhandenen Formen,
 // aber gespiegelt (Westen ↔ Osten), mit eigenen Dachfarben und teils anderer Flüssigkeit – so sieht keine aus wie ihr
 // Gegenstück auf der Lichtseite, und Wege, Tore und Stände bleiben trotzdem stimmig.
