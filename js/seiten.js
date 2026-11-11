@@ -86,6 +86,8 @@ function factionChoose(f) {
   const p = game.player;
   if (!p || !FACTIONS[f]) return;
   p.faction = f;
+  const hc = document.getElementById('hudClass');
+  if (hc && !hc.querySelector('.fac-crest')) hc.insertAdjacentHTML('afterbegin', `<span class="rk-fac" title="${FACTIONS[f].title}">${factionCrest(f, 13)}</span>`);
   const here = mapOfTile(p.x / TILE, p.y / TILE);
   // Schatten unter Stufe 50: in die Schattenstadt der eigenen Stufe; sonst nur, wenn man auf einer Karte der anderen
   // Seite steht (dann in die eigene Stadt)
@@ -152,6 +154,9 @@ if (typeof ui !== 'undefined' && ui.enterGame) {
     const r = _facEnter.apply(this, arguments);
     const p = game.player;
     if (p && typeof WAECHTER !== 'undefined' && WAECHTER) return r;
+    // Wappen der Seite vor der Klasse oben links
+    const hc = document.getElementById('hudClass');
+    if (hc && p && p.faction && !hc.querySelector('.fac-crest')) hc.insertAdjacentHTML('afterbegin', `<span class="rk-fac" title="${FACTIONS[p.faction].title}">${factionCrest(p.faction, 13)}</span>`);
     if (p && !p.faction) setTimeout(() => { if (game.player === p && !p.faction) showFactionChoice(); }, 600);
     else if (p) {
       // neue Figur oder Spielstand auf einer Karte der anderen Seite: sofort in die eigene Stadt

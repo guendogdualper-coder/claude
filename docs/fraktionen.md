@@ -173,10 +173,24 @@ gemeinsamen Dungeon oder aus dem Auktionshaus) werden beim Aufheben in die eigen
 - `js/welt.js` – Kartengröße, Böden, Erzeugung der Schattenkarten, Leute, zweite Eingänge
 - `js/schattenwelt.js` – Aussehen: Böden, Stimmung, Bäume, Felsen, Rand, Monster
 - `js/seiten.js` – Seitenwahl, Reisen, Sperre, offener Kampf, Gemeinschaft, Netz
-- kleine Anpassungen: `spieler.js` (SAVE_FIELDS), `oberflaeche.js` (Erstellung), `quests.js`/`questfenster.js`
-  (Questreihe je Seite), `post.js`, `bestenliste.js`, `karte.js` (Minikarte), `zeichnen.js` (Namen), `tag-nacht.js`,
-  `gruppenfinder.js`, `instanzen.js`, `drei-welt.js` (dichtes Gras), `index.html`, `css/style.css`, `sw.js` (neue Dateien
-  in der Liste, Version unverändert), `js/sprachen/en.js`
+- kleine Anpassungen: `spieler.js` (SAVE_FIELDS), `oberflaeche.js` (Erstellung, Wappen in der Charakterauswahl),
+  `quests.js`/`questfenster.js` (Questreihe und Endbosse je Seite), `post.js`, `bestenliste.js`, `handel-ware.js` (Teile
+  je Seite), `karte.js` (Minikarte), `zeichnen.js` (Namen), `tag-nacht.js`, `gruppenfinder.js`, `instanzen.js`,
+  `drei-welt.js` (dichtes Gras und Laubbäume je Gebiet als Liste), `index.html`, `css/style.css`, `sw.js` (neue Dateien in
+  der Liste, Version unverändert), `js/sprachen/en.js`, `docs/firebase-regeln.json` (Feld `seite` der Bestenliste)
+
+## Zahlen und Tests
+
+- Monster je Karte (Seelensteine/Monster): Mondfall 25/489 (Kazehana 25/496), Aschewald 35/440 (Dunkelwald 35/443),
+  Knochenwüste 35/510 (Rostschlucht 35/491), Blutsteppe 35/426 (Ödland 35/436), Nachtfrost 35/486 (Frostgipfel 35/474),
+  Schattenklippen 70/796 (Schlangental 70/795). Insgesamt rund 10.500 Monster und Steine (vorher rund 7.150); ruhende Monster
+  ohne Spieler in der Nähe kosten wie bisher kaum Rechenzeit. Die Welt entsteht in rund 1,5 s (Chromium, Testrechner).
+- Karte 1800 × 1320 Kacheln (vorher 1740 × 880).
+- Tests (Playwright, Arbeitsordner `fraktionen53`): Erreichbarkeit aller 16 Karten ab der Ankunft (100 %, alle Leute,
+  Eingänge und Tore erreichbar), alle 14 Stadtformen (sichere Fläche, Monster bleiben draußen, 32 Teleportsteine zu Fuß
+  und zu Pferd), Seitenwahl (Formular, Wahlfenster, Spielstand), Reiseziele je Seite, Sperre der fremden Karten,
+  zweite Dungeon-Eingänge und Wiederbeleben, offener Kampf (nur andere Seite, nur ab 50, nie in der Stadt, Treffer
+  hinaus und herein, Einladungen gesperrt), Netzfeld, Endbosse, Hauptquest-Übernahme.
 
 ## Offen / Ideen
 
