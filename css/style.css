@@ -3650,3 +3650,12 @@ body.skv-open .hover-tip { display: none !important; }
 #hud.touch .xp span { display: block; font-size: 9px; line-height: 12px; letter-spacing: 0.02em; font-weight: 600; }
 /* seit 14.62: Reittier-Symbol (aufbäumendes Pferd / fliegender Drache) am Handy größer */
 #hud.touch #btnHorse .menu-icon.rich { width: 31px; height: 31px; }
+
+/* seit 14.74: eigener Mauszeiger am PC (Gold/Bronze passend zum Spiel), auf Klickbarem leuchtend mit Funkeln */
+@media (hover: hover) and (pointer: fine) {
+  html, body, canvas, #game { cursor: url('../bilder/zeiger.svg') 3 2, default; }
+  button:not(:disabled), a[href], select, label, summary, [role="button"], .btn:not(:disabled), .menu-btn, .item-tile:not(.empty),
+  .mini-btn:not(:disabled), .mat-btn:not(:disabled), .pc-btn, .drg-color, .attr-plus, .lk-arrow, .lk-sw, .scroll-opt, .char-doll {
+    cursor: url('../bilder/zeiger-hand.svg') 3 2, pointer;
+  }
+}
