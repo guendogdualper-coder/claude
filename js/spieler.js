@@ -307,6 +307,7 @@ function makePlayer(save) {
   // Die Welt ist größer geworden: alte Positionen passen nicht mehr. Aus Welt 6 (6.2/6.3), Welt 7 (bis 10.5) und
   // Welt 8 (10.6) geht es im Lager derselben Map weiter, sonst im Dorf.
   let campOf = null;
+  let keepPos = false;
   if ((save.worldVersion || 1) < WORLD_VERSION) {
     if (save.worldVersion === 6 && save.x != null) {
       const OLD = { 4: [0, 0, 100, 90], 5: [100, 0, 100, 90], 6: [200, 0, 100, 90], 7: [0, 210, 100, 90], 8: [100, 210, 100, 90], 9: [200, 210, 100, 90], 2: [0, 300, 200, 200], 3: [200, 300, 200, 200] };
@@ -326,16 +327,29 @@ function makePlayer(save) {
       // im Lager derselben Map weiter
       const wm = mapOfTile(Math.floor(save.x / TILE), Math.floor(save.y / TILE));
       if (wm && wm.id !== 1) campOf = wm.id;
+    } else if (save.worldVersion === 14 && save.x != null) {
+      // seit 14.48 (Welt 15): Die Städte und Lager der Maps 2–10 liegen an neuer Stelle (WORLD_MAPS.town), Kazehana,
+      // die Dungeons und die Arenen bleiben gleich – dort geht es an derselben Stelle weiter. Wer in oder nahe der
+      // alten Stadt einer anderen Map stand (dort ist jetzt Wildnis mit Monstern), kommt in die neue Stadt derselben
+      // Map; sonst bleibt die Stelle (blockiert dort jetzt etwas: unten in die Stadt dieser Map)
+      const tx = Math.floor(save.x / TILE);
+      const ty = Math.floor(save.y / TILE);
+      const wm = mapOfTile(tx, ty);
+      if (wm && wm.id !== 1 && Math.max(Math.abs(tx + 0.5 - wm.oldCx), Math.abs(ty + 0.5 - wm.oldCy)) < (wm.camp || CAMP_HALF) + 10) campOf = wm.id;
+      else keepPos = true;
     }
-    p.x = null;
-    p.y = null;
+    if (!keepPos) {
+      p.x = null;
+      p.y = null;
+    }
   }
   p.worldVersion = WORLD_VERSION;
   const stats = playerStats(p);
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
   const camp = campOf && game.world && game.world.maps ? game.world.maps.find((m) => m.id === campOf) : null;
-  const spawn = camp ? camp.spawn : villageSpawn();
+  // seit 14.48: blockierte Stelle auf einer Map: in die Stadt bzw. das Lager dieser Map (vorher immer nach Kazehana)
+  const spawn = camp ? camp.spawn : villageSpawn(p.x != null && p.y != null ? p : undefined);
   if (p.x == null || !canStand(p.x, p.y, p.r * 0.7, false)) {
     // seit 14.16: wer in einer Stadt mit neuer Form auf Wasser, Mauer oder Haus stünde, kommt zum Weltentor dieser Stadt
     let rescue = p.x != null && typeof townRescue === 'function' ? townRescue(p.x, p.y) : null;
