@@ -3623,3 +3623,16 @@ body.skv-open .hover-tip { display: none !important; }
 .rk-fac { display: inline-flex; vertical-align: -3px; margin-right: 4px; }
 @media (max-width: 520px) { .fac-pick { grid-template-columns: 1fr; } .fac-txt small { font-size: 11px; } }
 @media (orientation: landscape) and (max-height: 520px) { .create > .factions { grid-column: 1; } .fac-txt small { display: none; } .fac-card { padding: 6px 8px; } }
+
+/* seit 14.57: Menü-Symbole farbig und detailreich (Helm, Rucksack, Pferd/Drache, Globus, Schriftrolle, Wappen,
+   Geschenk, Sprechblasen, Pokal, Buch, Zahnrad); Farbverläufe in .mi-defs (index.html) */
+.menu-icon.rich { width: 20px; height: 20px; stroke: none; fill: none; overflow: visible; filter: drop-shadow(0 1px 1.2px rgba(0, 0, 0, 0.75)); }
+.menu-icon.rich .o { stroke: #1d1209; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.menu-icon.rich .d { stroke: #1d1209; stroke-width: 1.3; stroke-linecap: round; fill-opacity: 1; }
+.menu-icon.rich path.d:not([fill]) { fill: none; }
+.menu-icon.rich .dash { stroke: #f0c890; stroke-opacity: 0.7; stroke-dasharray: 2 2; }
+.menu-icon.rich .hl { fill: none; stroke: #fff; stroke-opacity: 0.55; stroke-width: 1.8; stroke-linecap: round; }
+#hud.touch .menu-btn .menu-icon.rich { width: 76%; height: 76%; }
+#btnHorse:not([data-mount="Drache"]) .ico-dragon, #btnHorse[data-mount="Drache"] .ico-horse { display: none; }
+#btnNet.on .menu-icon.rich { filter: drop-shadow(0 0 3px rgba(150, 255, 140, 0.8)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }
+.menu-btn:hover .menu-icon.rich { filter: drop-shadow(0 0 3px rgba(255, 220, 140, 0.7)) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.8)); }

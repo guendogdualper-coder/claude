@@ -787,8 +787,13 @@ function gfReadyRender() {
   btn.hidden = true;
   btn.setAttribute('aria-label', 'Gruppenfinder');
   btn.title = 'Gruppenfinder (J)';
-  btn.innerHTML = '<svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true"><circle class="fill" cx="8" cy="7.2" r="2.8"/><path class="fill" d="M2.6 18.6c.4-3.4 2.6-5.6 5.4-5.6 1.4 0 2.6.5 3.5 1.4"/>' +
-    '<circle class="fill" cx="15.2" cy="13.2" r="4.4"/><path d="M18.4 16.4l3.4 3.4"/><circle cx="16.4" cy="5.6" r="2.2"/></svg>' +
+  // seit 14.57 farbig wie die übrigen Menü-Symbole: zwei Gefährten und eine goldene Lupe
+  btn.innerHTML = '<svg class="menu-icon rich" viewBox="0 0 48 48" aria-hidden="true">' +
+    '<circle class="o" cx="31" cy="10.5" r="5" fill="url(#miLand)"/><path class="o" fill="url(#miLand)" d="M22 27c.5-6 4-9.5 9-9.5s8.5 3.5 9 9.5z"/>' +
+    '<circle class="o" cx="15" cy="14" r="6" fill="url(#miBlue)"/><path class="o" fill="url(#miBlue)" d="M3 36c.6-8 5.4-12.5 12-12.5S26.4 28 27 36z"/>' +
+    '<path class="o" fill="url(#miWood)" stroke-width="1.6" d="M36.6 37.4l3-3 6.6 6.6-3 3z"/>' +
+    '<circle class="o" cx="31" cy="31" r="8.5" fill="url(#miGold)"/><circle class="o" cx="31" cy="31" r="5.4" fill="#cfeaff"/>' +
+    '<path class="hl" d="M28 29c.6-1.4 1.8-2.3 3.2-2.5"/></svg>' +
     '<span class="menu-text">Gruppenfinder</span> <kbd>J</kbd><span id="gfBadge" class="menu-badge" hidden></span>';
   btn.addEventListener('click', gfToggle);
   if (menu) menu.append(btn);
