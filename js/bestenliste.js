@@ -25,7 +25,9 @@ const RANK = {
 };
 const RANK_TABS = {
   stufe: { label: 'Stufe', field: 'level' },
-  pvp: { label: 'Turnierarena', field: 'rp' }
+  pvp: { label: 'Turnierarena', field: 'rp' },
+  // seit 14.48: wer gerade im eigenen Kanal spielt (aus dem Netz, ohne Datenbank)
+  online: { label: 'Online', field: null }
 };
 
 const rank = { tab: 'stufe', cls: '', cache: {}, loading: {}, syncing: false, rulesAt: 0 };
@@ -59,6 +61,8 @@ function rankEntryOf(sv) {
     // Zeit vom Server (eine falsch gehende Uhr am Gerät soll das Schreiben nicht verhindern)
     at: { '.sv': 'timestamp' } };
   if (sv.path != null && Number.isInteger(sv.path) && sv.path >= 0) e.path = sv.path;
+  // seit 14.48: Ausrüstungslevel (Durchschnitt der Itemlevel, ausruestung.js gearLevelOf)
+  e.gs = typeof gearLevelOf === 'function' ? Math.max(0, Math.min(300, gearLevelOf(sv.equipment))) : 0;
   e.liga = typeof pvpTier === 'function' ? pvpTier(rp).id : 'bronze';
   return e;
 }
@@ -77,7 +81,9 @@ function rankClean(id, v) {
   const xp = Number(v.xp);
   const paths = CLASSES[v.cls].paths || [];
   const path = Number.isInteger(v.path) && v.path >= 0 && v.path < paths.length ? v.path : null;
-  return { id, name, cls: v.cls, path, level, xp: Number.isFinite(xp) && xp >= 0 ? xp : 0, rp: Math.round(rp), at: Number(v.at) || 0 };
+  const gs = Number(v.gs);
+  return { id, name, cls: v.cls, path, level, xp: Number.isFinite(xp) && xp >= 0 ? xp : 0, rp: Math.round(rp), at: Number(v.at) || 0,
+    gs: Number.isFinite(gs) && gs > 0 && gs <= 300 ? Math.round(gs) : 0 };
 }
 
 // Was dieses Gerät zuletzt geschrieben hat (je Konto und Platz), damit nur Änderungen hinausgehen
@@ -120,9 +126,9 @@ async function rankSync() {
       continue;
     }
     const important = !had || had.level !== want.level || had.rp !== want.rp || had.name !== want.name || had.cls !== want.cls || had.path !== want.path;
-    if (important || (due && had.xp !== want.xp)) {
+    if (important || (due && (had.xp !== want.xp || had.gs !== want.gs))) {
       patch[key] = want;
-      next[k] = { name: want.name, cls: want.cls, path: want.path, level: want.level, xp: want.xp, rp: want.rp };
+      next[k] = { name: want.name, cls: want.cls, path: want.path, level: want.level, xp: want.xp, rp: want.rp, gs: want.gs };
     }
   }
   if (!Object.keys(patch).length) return;
@@ -216,11 +222,33 @@ function rankValHtml(e, tab) {
   }
   return `<span class="rk-val"><b>${e.level}</b><small>Stufe</small></span>`;
 }
+// seit 14.48 mit einer Zeile Eckdaten: Stufe, Rang (Liga) und Ausrüstungslevel – vorher nur Name und Klasse
 function rankWhoHtml(e) {
   const c = CLASSES[e.cls];
   const way = e.path != null ? classPath(e.cls, e.path).name : '';
-  return `${rankClassIcon(e.cls)}<span class="rk-who"><b class="no-tr">${escapeHtml(e.name)}</b>` +
-    `<small><span>${c.name}</span>${way ? ` · <span>${way}</span>` : ''}</small></span>`;
+  const liga = typeof pvpBadgeHtml === 'function' ? pvpBadgeHtml(e.rp || 0, 13) : '';
+  return `${rankClassIcon(e.cls)}<span class="rk-who"><b class="no-tr">${e.online ? '<i class="rk-on" title="online"></i>' : ''}${escapeHtml(e.name)}</b>` +
+    `<small><span>${c.name}</span>${way ? ` · <span>${way}</span>` : ''}</small>` +
+    `<span class="rk-facts"><span class="rk-fact">Stufe <b>${e.level}</b></span><span class="rk-fact">GS <b>${e.gs ? e.gs : '–'}</b></span>` +
+    `<span class="rk-fact rk-liga">${liga}</span></span></span>`;
+}
+// Online-Liste: die eigene Figur und alle Mitspieler im Kanal (net.players), nach Stufe sortiert
+function rankOnlineList() {
+  const out = [];
+  const p = game.running ? game.player : null;
+  if (p) out.push({ id: 'me', name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.xp || 0,
+    rp: rankPts(p), gs: typeof gearLevelOf === 'function' ? gearLevelOf(p.equipment) : 0, online: true });
+  if (typeof net !== 'undefined' && net.players) {
+    for (const rp of net.players.values()) {
+      if (!rp || !rp.name || !CLASSES[rp.classId]) continue;
+      const paths = CLASSES[rp.classId].paths || [];
+      out.push({ id: 'n' + rp.name, name: String(rp.name).slice(0, RANK.nameMax), cls: rp.classId,
+        path: Number.isInteger(rp.path) && rp.path >= 0 && rp.path < paths.length ? rp.path : null,
+        level: Math.max(1, Math.min(RANK.maxLevel, rp.level | 0)), xp: 0, rp: rp.rk | 0, gs: rp.gs | 0, online: true });
+    }
+  }
+  out.sort((a, b) => b.level - a.level || b.gs - a.gs || b.rp - a.rp);
+  return out;
 }
 function rankRowHtml(e, place, tab, mine) {
   const medal = place <= 3 ? ` rk-top rk-top${place}` : '';
@@ -252,6 +280,22 @@ async function rankRender() {
   const chips = `<div class="rk-cls" role="group" aria-label="Klasse"><button type="button" class="rk-chip${!rank.cls ? ' on' : ''}" data-rcls="">Alle</button>` +
     CLASS_ORDER.map((id) => `<button type="button" class="rk-chip${rank.cls === id ? ' on' : ''}" data-rcls="${id}" style="--cc:${CLASSES[id].color}">` +
       `${rankClassIcon(id, 18)}<span>${CLASSES[id].name}</span></button>`).join('') + '</div>';
+  // Online: sofort aus dem Netz, keine Datenbank nötig
+  if (tab === 'online') {
+    const all = rankOnlineList();
+    const shown = rank.cls ? all.filter((e) => e.cls === rank.cls) : all;
+    const inChan = typeof net !== 'undefined' && net.players && net.players.size >= 0 && game.running;
+    const list = shown.length ? `<ol class="rk-list">${shown.map((e, i) => rankRowHtml(e, i + 1, 'stufe', e.id === 'me')).join('')}</ol>`
+      : `<p class="rk-msg">${game.running ? 'Gerade niemand sonst in deinem Kanal.' : 'Erst im Spiel siehst du, wer online ist.'}</p>`;
+    body.innerHTML = tabs + chips + `<div class="rk-scroll">${list}</div>` +
+      `<div class="rk-foot"><small>${inChan ? `${all.length} Spieler in deinem Kanal (Server und Kanal wählst du über das Menü).` : ''}</small>` +
+      `<button type="button" class="mini-btn" data-rfresh>Aktualisieren</button></div>`;
+    body.querySelectorAll('[data-rtab]').forEach((b) => b.addEventListener('click', () => { rank.tab = b.dataset.rtab; rankRender(); }));
+    body.querySelectorAll('[data-rcls]').forEach((b) => b.addEventListener('click', () => { rank.cls = b.dataset.rcls; rankRender(); }));
+    const rf = body.querySelector('[data-rfresh]');
+    if (rf) rf.addEventListener('click', () => rankRender());
+    return;
+  }
   const c = rank.cache[tab];
   const cached = c && Date.now() - c.at < RANK.cacheMs;
   let list = '';
@@ -295,7 +339,9 @@ async function rankRender() {
     const box = body.querySelector('.rk-scroll');
     if (box) box.innerHTML = `<div class="rk-msg rk-err"><b>Bestenliste gerade nicht erreichbar</b><small>${err.code === 'aus'
       ? 'Auf diesem Spiel sind keine Konten eingerichtet.'
-      : err.code === 'netz' ? 'Keine Verbindung zum Server – bitte später noch einmal versuchen.' : 'Bitte später noch einmal versuchen.'}</small></div>`;
+      : err.code === 'netz' ? 'Keine Verbindung zum Server – bitte später noch einmal versuchen.'
+      : err.code === 'regeln' ? 'Die Bestenliste ist auf dem Server noch nicht freigeschaltet. Wer gerade spielt, steht unter „Online“.'
+      : 'Bitte später noch einmal versuchen.'}</small></div>`;
     return;
   }
   rankRender();

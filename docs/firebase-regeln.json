@@ -69,6 +69,9 @@
         "path": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9" },
         "level": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 80" },
         "xp": { ".validate": "newData.isNumber() && newData.val() >= 0" },
+        "gs": {
+          ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 300"
+        },
         "rp": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000" },
         "liga": { ".validate": "newData.isString() && newData.val().length <= 12" },
         "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },

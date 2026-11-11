@@ -973,6 +973,8 @@ function netPlayerState() {
   }
   return {
     n: p.name, c: p.classId, l: p.level, x: Math.round(p.x), y: Math.round(p.y),
+    // seit 14.48 für die Online-Liste der Bestenliste: Ausrüstungslevel (alle 2 s neu) und Rangpunkte der Turnierarena
+    gs: netGearLevel(p), rk: Math.max(0, Math.round((p.pvp && p.pvp.pts) || 0)),
     fx: +p.facing.x.toFixed(2), fy: +p.facing.y.toFixed(2), m: p.moving ? 1 : 0,
     hp: Math.round(p.hp), mh: s.maxHp, mp: Math.round(p.mp || 0), mm: s.maxMp, d: p.dead ? 1 : 0, r: p.riding ? rideTierOf(p) : 0, ...(p.riding && p.dragonGround ? { rg: 1 } : {}), ...(p.flyHigh && dragonFlying(p) ? { fh: 1 } : {}), ...(p.horseTier === 3 && dragonColorOf(p) !== 'rot' ? { dc: p.dragonColor } : {}), fs: Math.round(s.footSpeed || 0), iv: s.invisible ? 1 : 0, eq, g: p.guild ? p.guild.name : '', lk: p.look || null,
     // Diener (seit 8.5): [x, y, Stufe, Bits 1 Angriff · 2 Laufen · 4 Alpha · 8 Aufstieg, Platz], nur wenn welche da sind
@@ -998,11 +1000,22 @@ function netRemote(id) {
   return rp;
 }
 
+// Ausrüstungslevel der eigenen Figur, höchstens alle 2 s neu berechnet (der Zustand geht viele Male je Sekunde hinaus)
+function netGearLevel(p) {
+  if (!(p.__gsAt > game.time - 2)) {
+    p.__gsAt = game.time;
+    p.__gs = typeof gearLevelOf === 'function' ? gearLevelOf(p.equipment) : 0;
+  }
+  return p.__gs || 0;
+}
+
 function netApplyState(rp, s) {
   if (!s) return;
   const first = rp.seq === -1;
   rp.last = s;
   rp.name = s.n;
+  rp.gs = s.gs | 0;
+  rp.rk = s.rk | 0;
   rp.classId = CLASSES[s.c] ? s.c : 'krieger';
   rp.level = s.l;
   // Weg bzw. Element (seit 8.6): Figur nur bei einem Wechsel neu bauen; ältere Clients senden kein pt (Magier dann Arkan-Blau)

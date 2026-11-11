@@ -114,6 +114,17 @@ function itemIlvl(item) {
   const base = Math.log(BASE_STATS.waffe[item.tier].atk);
   return Math.max(ITEM_TIERS[item.tier].level, Math.round(ilvlFromStrength(base + Math.log(m))));
 }
+// Ausrüstungslevel (seit 14.48, Bestenliste und Mitspieler): Durchschnitt der Itemlevel aller angelegten Teile
+function gearLevelOf(equipment) {
+  if (!equipment) return 0;
+  let sum = 0;
+  let n = 0;
+  for (const it of Object.values(equipment)) {
+    const v = itemIlvl(it);
+    if (v > 0) { sum += v; n++; }
+  }
+  return n ? Math.round(sum / n) : 0;
+}
 // Benötigte Stufe als Text (rot, wenn die Figur sie noch nicht hat) – getrennt vom Itemlevel
 function reqLevelHtml(item, p) {
   const need = itemLevelReq(item);
