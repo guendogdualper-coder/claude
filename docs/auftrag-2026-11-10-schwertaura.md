@@ -32,7 +32,7 @@ js/drei-figuren.js, js/koerperaura.js, js/interaktion.js, js/zeichnen.js
 **Offene Punkte:** Aus der steilen Spielkamera wirkt „hochgereckt“ verkürzt (die Klingen zeigen zur Kamera);
 Pose bei Reittier entfällt (Wirken steigt ab). Kein neuer Text, darum nichts in en.js.
 
-## Schwertaura V | Bodenbruch beim Aktivieren (seit 14.62)
+## Schwertaura V | Bodenbruch beim Aktivieren (seit 14.63)
 
 **Wunsch (Spieler):** „Auf V muss der Boden einen kreisförmigen, blauen, kurzen Aura-Kreis zeichnen und Steine
 hochgehen, damit es epischer aussieht. Jede Attacke soll auf V krass aussehen.“

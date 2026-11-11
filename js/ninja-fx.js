@@ -555,7 +555,7 @@ function schwertauraCast(p, rk) {
   p.saCast = { at: game.time, rk: r };
   p.poseColor = C.alt;
   addEffect({ type: 'sacast3', follow: p, ox: 0, oy: 0, rk: r, dur: 1.5, color: C.main });
-  // seit 14.62: auf Vollendet (V) zusätzlich Bodenbruch – blauer Energiering, Schockwelle, aufsteigende Brocken
+  // seit 14.63: auf Vollendet (V) zusätzlich Bodenbruch – blauer Energiering, Schockwelle, aufsteigende Brocken
   if (r === SA_CAST_COL.length - 2) addEffect({ type: 'sabruch3', x: p.x, y: feetY(p), own: p === game.player, dur: SA_BRUCH.dur, rot: Math.random() * 6.28 });
 }
 FX3_TYPES.add('sacast3');
@@ -679,7 +679,7 @@ EXTRA_EFFECTS.sacast3 = (ctx, e, k, x, y) => {
   }
 };
 
-// --- Aura des Schwertes auf Vollendet (V): Bodenbruch (seit 14.62) -----------------------------------------
+// --- Aura des Schwertes auf Vollendet (V): Bodenbruch (seit 14.63) -----------------------------------------
 // Spielerwunsch: „Auf V muss der Boden einen kreisförmigen, blauen, kurzen Aura-Kreis zeichnen und Steine hochgehen.“
 // Ausnahmsweise ein Bodenkreis – aber reine Energie (leuchtender Ring mit weichem Glühen und Schockwelle), keine
 // Runen, Sterne oder Zeichen. Bleibt am Ort des Wirkens liegen (folgt der Figur nicht), läuft parallel zu sacast3:
