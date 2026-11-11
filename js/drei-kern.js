@@ -856,6 +856,10 @@ function v3Init() {
   canvas.addEventListener('webglcontextrestored', () => {
     V3.lost = false;
     V3.sizeKey = null;
+    // seit 14.68 auch alle Figuren neu: ihre Modelle haben die Daten nach dem ersten Hochladen freigegeben und lassen
+    // sich nicht noch einmal hochladen (vorher blieb danach das ganze Spiel stehen, v3ResetFigures in drei-figuren.js)
+    V3.ctxGen = (V3.ctxGen || 0) + 1;
+    if (typeof v3ResetFigures === 'function') v3ResetFigures();
     v3ClearChunks();
     v3ApplyGraphics();
   });
@@ -2432,6 +2436,26 @@ function v3RenderScene() {
     cam.layers.disable(SHADOW_LAYER3);
   }
 }
+// Das 3D-Bild ist gescheitert (seit 14.68): meist Modelldaten, die nicht mehr auf der Grafikkarte liegen und im
+// Arbeitsspeicher schon freigegeben sind (freeArray). Vorher brach damit die ganze Spielschleife ab (Standbild). Jetzt:
+// je Fehlermeldung einmal melden, alle Figuren neu bauen (höchstens alle 3 s); scheitert es kurz danach wieder, auch
+// die Welt neu laden.
+const V3FAIL = { at: -1e9, said: new Set() };
+function v3RenderFailed(err) {
+  try { V3.gl.setRenderTarget(null); } catch (e) { /* Kontext weg */ }
+  const msg = String(err && err.message);
+  if (!V3FAIL.said.has(msg)) {
+    V3FAIL.said.add(msg);
+    console.error('3D-Bild gescheitert, baue Figuren neu:', err);
+    // weiter als ungefangener Fehler sichtbar (Fehlerberichte, Tests), ohne die Spielschleife anzuhalten
+    setTimeout(() => { throw err; });
+  }
+  const now = performance.now();
+  if (now - V3FAIL.at < 3000) return;
+  if (now - V3FAIL.at < 15000) v3ClearChunks();
+  V3FAIL.at = now;
+  if (typeof v3ResetFigures === 'function') v3ResetFigures();
+}
 function renderDrei() {
   const r = renderer;
   const ctx = r.ctx;
@@ -2558,7 +2582,11 @@ function renderDrei() {
   // seit 14.32: im Dungeon die Felswände zwischen Kamera und Figur absenken (groundMat)
   v3SyncCut(dt);
   // Grafik Plus (seit 14.11, grafik-plus.js) zeichnet über Zwischenbilder mit Leuchten und Farbstimmung
-  if (!(typeof gpRender === 'function' && gpRender())) v3RenderScene();
+  try {
+    if (!(typeof gpRender === 'function' && gpRender())) v3RenderScene();
+  } catch (err) {
+    v3RenderFailed(err);
+  }
   // gebündelte Leuchtflecken der Effekte wieder einblenden (seit 14.26, drei-fx.js)
   if (typeof fx3BatchDone === 'function') fx3BatchDone();
   drawOverlay3(ctx);

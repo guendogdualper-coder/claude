@@ -5055,15 +5055,21 @@ function model3(key, build) {
   m = Object.assign({ geos: finishGeos3(b.build(), litN) }, info);
   m.scale = m.scale || 1;
   m.key = key;
+  // seit 14.68: Grafikkontext, für den das Modell gebaut ist (die Daten liegen danach nur noch auf der Grafikkarte)
+  m.gen = V3.ctxGen || 0;
   MODELS3.set(key, m);
   // Spielerfiguren mit alter Ausrüstung nicht ewig behalten
   if (MODELS3.size > 160) {
     const used = new Set();
     for (const a of actors3.values()) used.add(a.modelKey);
+    // seit 14.68 auch die Figuren der Fensterbilder (Charakter, Schmied, Betrachten): ihr Modell freizugeben ließ das
+    // nächste Bild dieser Figur an den geleerten Daten scheitern
+    for (const a of portrait3.actors.values()) used.add(a.model.key);
     for (const [k, old] of MODELS3) {
       if (used.has(k) || k === key || k === 'warm' || k === 'warm:magier') continue;
       MODELS3.delete(k);
       dropPool(k);
+      old.gone3 = true;
       for (const g in old.geos) old.geos[g].dispose();
       if (old.lods) for (const l of old.lods) if (l) for (const g in l.geos) l.geos[g].dispose();
       break;
@@ -5223,6 +5229,32 @@ function dropPool(modelKey) {
   for (const a of list) disposeActor(a);
   poolSize3 -= list.length;
   pool3.delete(modelKey);
+}
+
+// Alle Figurenmodelle verwerfen; die Figuren bauen sich im nächsten Bild neu (seit 14.68). Nach dem Zurückkommen des
+// Grafikkontexts (webglcontextrestored, drei-kern.js) muss alles neu auf die Grafikkarte – die Modelle haben ihre Daten
+// nach dem ersten Hochladen aber freigegeben (freeArray). three.js scheiterte dann beim ersten Bild an der ersten
+// Figur (array null → „BYTES_PER_ELEMENT“), die Spielschleife stand still – „das Spiel stürzt ab“.
+function v3ResetFigures() {
+  const drop = (a) => {
+    if (a.group.parent) a.group.parent.remove(a.group);
+    disposeActor(a);
+  };
+  for (const a of actors3.values()) drop(a);
+  actors3.clear();
+  for (const list of pool3.values()) for (const a of list) disposeActor(a);
+  pool3.clear();
+  poolSize3 = 0;
+  for (const a of portrait3.actors.values()) drop(a);
+  portrait3.actors.clear();
+  for (const m of MODELS3.values()) {
+    m.gone3 = true;
+    for (const g in m.geos) m.geos[g].dispose();
+    if (m.lods) for (const l of m.lods) if (l) for (const g in l.geos) l.geos[g].dispose();
+  }
+  MODELS3.clear();
+  // Probefiguren (Shader vorab übersetzen) beim nächsten v3Prewarm neu
+  V3.warm = null;
 }
 
 // Neue Monsterfiguren je Bild begrenzen (seit 14.26): tauchen 30 Monster auf einmal auf, wurden vorher alle in einem
@@ -5476,6 +5508,100 @@ function lodPick3(a) {
   }
 }
 
+// --- Wächter der eigenen Figur (seit 14.68) --------------------------------------------------------------
+// Meldung „ab und zu sehe ich meinen Charakter nicht mehr“: Name, Lebensbalken und Questpfeil da, die Figur weg. Name und
+// Balken hängen nur an Spielerstelle und Modellhöhe (drawOverlay3), die Figur an Lage, Drehung, Knochen und Modelldaten.
+// Darum prüft jedes Bild die eigene Figur auf ungültige Werte (NaN/∞ in Lage, Drehung, Größe oder einem Knochen – dann
+// zeichnet die Grafikkarte nichts) und darauf, dass sie an der Spielerstelle steht (scheitert der Abgleich mitten drin,
+// blieb sie z. B. nach einem Weltentor am alten Ort zurück). Etwa jede Sekunde zusätzlich: hängt sie in der Szene, ist
+// sie nicht ausgeblendet, ist ihr Modell noch gültig (nicht freigegeben, für den aktuellen Grafikkontext gebaut)?
+// Behoben wird sofort (Grundhaltung, an die Spielerstelle, höchstens alle 5 s neu bauen), gemeldet je Art einmal.
+const OWN3 = { at: 0, rebuildAt: -1e9, said: new Set() };
+function ownSay3(what) {
+  if (OWN3.said.has(what)) return;
+  OWN3.said.add(what);
+  console.warn('3D-Figur (eigene): ' + what + ' – behoben');
+}
+function figValid3(a, p, fy) {
+  const g = a.group;
+  const gp = g.position;
+  const gr = g.rotation;
+  if (!isFinite(gp.x + gp.y + gp.z + gr.x + gr.y + gr.z) || !(g.scale.x > 0.01 && g.scale.x < 100)) return false;
+  if (Math.abs(gp.x - p.x * U3) > 0.5 || Math.abs(gp.z - fy * U3) > 0.5) return false;
+  const B = a.bones;
+  for (let i = 0; i < B.length; i++) {
+    const q = B[i].quaternion;
+    const s = B[i].position;
+    const c = B[i].scale;
+    if (!isFinite(q.x + q.y + q.z + q.w + s.x + s.y + s.z + c.x + c.y + c.z)) return false;
+  }
+  return true;
+}
+function ownGuard3(p, threw) {
+  const key = p.__k3;
+  const a = key ? actors3.get(key) : null;
+  if (a) {
+    const fy = feetY(p);
+    if (threw || !figValid3(a, p, fy)) {
+      if (p.facing && !(isFinite(p.facing.x) && isFinite(p.facing.y))) p.facing = { x: 0, y: 1 };
+      if (!isFinite(a.heading)) a.heading = 0;
+      const y = a.group.position.y;
+      resetBones(a);
+      a.lift = 0;
+      a.group.rotation.set(0, a.heading, 0);
+      a.group.scale.setScalar(a.model.scale);
+      placeActor(a, p, fy, isFinite(y) && Math.abs(y) < 60 ? y : 0);
+      a.group.visible = !(p.blinkHide > game.time);
+      // auch wenn der Abgleich vor actorFor scheiterte: nicht in den Vorrat legen
+      a.seen = true;
+      ownSay3(threw ? 'Fehler beim Abgleich' : 'ungültige Werte oder falsche Lage');
+    }
+  }
+  const now = performance.now();
+  if (now - OWN3.at < 1000) return;
+  OWN3.at = now;
+  if (V3.actors.parent !== V3.scene) {
+    V3.scene.add(V3.actors);
+    ownSay3('Figurengruppe nicht in der Szene');
+  }
+  if (!V3.actors.visible) {
+    V3.actors.visible = true;
+    ownSay3('Figurengruppe ausgeblendet');
+  }
+  if (!a) {
+    // kein Modell baubar: playerActor3 versucht es mit Ersatzmodellen weiter
+    if (!threw) ownSay3('ohne Modell');
+    return;
+  }
+  if (a.group.parent !== V3.actors) {
+    V3.actors.add(a.group);
+    ownSay3('nicht in der Szene');
+  }
+  const lit = a.meshes.lit;
+  if (lit && !lit.visible) {
+    lit.visible = true;
+    ownSay3('Körper ausgeblendet');
+  }
+  if (a.mats.lit && !(a.mats.lit.visible !== false && a.mats.lit.opacity > 0.05)) {
+    a.mats.lit.visible = true;
+    a.alpha = null;
+    setActorAlpha(a, 1);
+    ownSay3('Körper durchsichtig');
+  }
+  const m = a.model;
+  const pos = lit && lit.geometry && lit.geometry.attributes.position;
+  if ((m.gone3 || (m.gen || 0) !== (V3.ctxGen || 0) || (lit && !(pos && pos.count))) && now - OWN3.rebuildAt > 5000) {
+    // Modell freigegeben oder aus einem verlorenen Grafikkontext: Figur verwerfen, das nächste Bild baut sie neu
+    OWN3.rebuildAt = now;
+    V3.actors.remove(a.group);
+    actors3.delete(key);
+    disposeActor(a);
+    if (MODELS3.get(a.modelKey) === m) MODELS3.delete(a.modelKey);
+    dropPool(a.modelKey);
+    ownSay3('Modell ungültig, neu gebaut');
+  }
+}
+
 // --- Figuren mit dem Spielgeschehen abgleichen ----------------------------------------------------------
 
 function v3SyncActors(dt) {
@@ -5489,9 +5615,11 @@ function v3SyncActors(dt) {
   const safe = (fn, e) => {
     try { fn(e, dt); } catch (err) {
       if (!e.__err3) { e.__err3 = true; console.warn('3D-Figur:', err); }
+      return false;
     }
+    return true;
   };
-  if (game.player && game.running && !p.dead) safe(syncPlayer3, p);
+  if (game.player && game.running && !p.dead) ownGuard3(p, !safe(syncPlayer3, p));
   if (V3.extra) for (const ep of V3.extra) safe(syncPlayer3, ep);
   for (const rp of net.players.values()) if (!rp.dead && !remoteHidden(rp) && near(rp)) safe(syncPlayer3, rp);
   for (const c of game.clones) if (near(c)) safe(syncPlayer3, c);
@@ -6314,13 +6442,39 @@ function bowString3(a, p, sw) {
   }
 }
 
+// Spielerfigur holen oder bauen (seit 14.68 mit Ersatz): scheitert der Bau (Ausnahme), lief er vorher in jedem Bild neu
+// an – ein Hänger von 20–50 ms je Bild, und die Figur fehlte, solange es scheiterte (Name und Lebensbalken blieben).
+// Jetzt wird ein gescheiterter Schlüssel 10 s nicht wieder versucht; bis dahin trägt die Figur ein Ersatzmodell ohne
+// Ausrüstung (mit, notfalls ohne das eigene Aussehen). Gemeldet wird je Schlüssel einmal.
+const FIG3_FAIL = new Map();
+function playerActor3(p, key) {
+  const k = entityKey(p);
+  const now = performance.now();
+  const tries = [
+    ['p:' + key, p],
+    ['p0:' + p.classId + '|' + (p.path ?? '') + '|' + JSON.stringify(p.look || {}), { classId: p.classId, path: p.path, look: p.look, equipment: null, buffs: [] }],
+    ['p0:' + p.classId, { classId: p.classId, path: 0, look: null, equipment: null, buffs: [] }]
+  ];
+  for (const [mk, who] of tries) {
+    const failed = FIG3_FAIL.get(mk);
+    if (failed !== undefined && now - failed < 10000) continue;
+    try {
+      return actorFor(k, mk, (b) => {
+        const r = humanoid3(b, playerConfig3(who));
+        r.blob = 0.42;
+        return r;
+      });
+    } catch (err) {
+      if (failed === undefined) console.warn('3D-Spielerfigur nicht baubar (' + mk.slice(0, 80) + '):', err);
+      FIG3_FAIL.set(mk, now);
+    }
+  }
+  return null;
+}
+
 function syncPlayer3(p, dt) {
   const key = playerKey3(p);
-  const a = actorFor(entityKey(p), 'p:' + key, (b) => {
-    const r = humanoid3(b, playerConfig3(p));
-    r.blob = 0.42;
-    return r;
-  });
+  const a = playerActor3(p, key);
   if (!a) {
     // Modell nicht gebaut: beim nächsten Bild neu versuchen
     MODELS3.delete('p:' + key);
