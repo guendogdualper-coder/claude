@@ -132,6 +132,22 @@ Neues im Baukasten (`js/kartenformen.js`):
     (413 statt 326 Tausend, runde Mauer) und im Ödland die Stelle am Hafen (148 statt 80). Alle Städte bleiben im
     üblichen Rahmen (380–420 Tausend, Kazehana-Niveau 479).
 - Welt erzeugen dauert so lange wie vorher (im Test 2,4–3,2 s gegenüber 2,4–2,9 s, Schwankung des Testrechners).
+- Seit 14.71 (Phase 2): begehbare Kacheln und `mobScale` – Mondfall 65 000 (0,85), Aschewald 23 500 (0,7), Knochenwüste
+  52 000 (0,85), Blutsteppe 67 000 (0,85), Nachtfrost 69 000 (0,9), Schattenklippen 60 000 (0,85), Totenmoor 19 000
+  (0,45), Donnerklamm 22 000 (0,6), Feuerberg 65 000 (0,85), Kristallabgrund 24 000 (0,55) statt rund 70 000. Die Dichte
+  liegt damit bei höchstens etwa dem Doppelten von früher, wie in Phase 1.
+- Dreiecke je Bild (gleiche Messung wie oben, Tausend, Stadt/vier Stellen draußen, vorher → nachher):
+  Mondfall 324/157/188/143/346 → 444/88/188/130/271, Aschewald 346/94/105/86/199 → 433/110/97/129/221,
+  Knochenwüste 408/321/90/84/89 → 409/393/81/84/85, Blutsteppe 378/101/78/70/383 → 433/125/78/70/436,
+  Nachtfrost 344/116/97/111/107 → 473/139/128/117/99, Schattenklippen 307/138/103/123/220 → 281/146/139/125/228,
+  Totenmoor 311/115/89/95/221 → 252/77/145/141/218, Donnerklamm 296/66/61/158/86 → 425/136/59/191/81,
+  Feuerberg 370/57/62/58/58 → 377/57/67/59/60, Kristallabgrund 292/58/180/74/81 → 303/66/254/75/94.
+  Draußen meist gleich (Moor, Klamm, Lava, Abgrund, Treibsand kosten kaum etwas; Stützmauern, Stege und Hängebrücken
+  ein wenig). Die Städte liegen alle unter Kazehana (479): Die neuen Städte sind kompakter, man sieht vom Ankunftsplatz
+  mehr der 16 Stadtleute auf einmal (sie machen allein 200–290 Tausend aus; im Palisadenstern stehen deshalb vier von
+  ihnen in den Zacken an den Toren – vorher 542, jetzt 433). Die Kreuzfeste (473) und der Palisadenstern haben keine
+  Bäume in den Zwickeln.
+- Welt erzeugen: im Test 2,4 s gegenüber 2,0–2,4 s mit 14.70 (Testrechner, drei Läufe).
 
 ## Spielstände und Mehrspieler
 
@@ -152,6 +168,11 @@ Neues im Baukasten (`js/kartenformen.js`):
 - Erreichbarkeit (`mapFormReport()` im Spiel): Flutfüllung ab der Ankunft in der Stadt über begehbare Kacheln
   (`tileBlocked`) und Teleportsteine; geprüft werden alle Leute und Tore, Steine, Wanderer, Hausbewohner, je Monstergruppe
   und Seelenstein-Stufe 20 Erscheinungsorte, dazu die Zahl begehbarer, aber unerreichbarer Kacheln.
+- 14.71: `mapFormReport()` für alle 16 Karten: auf allen Karten mit Form 0 unerreichbare Kacheln, kein Mensch, Tor,
+  Eingang (auch `entry2`, Endboss-Tore, Instanz-Ecken, Höllenthron-Portal) oder Stein unerreichbar, alle
+  Erscheinungsorte erreichbar (Kazehana unverändert 9 Kacheln, wie in 14.70). Dazu für jede neue Stadt: alle Plätze
+  begehbar und sicher, der Stand daneben frei, Häuser nur auf Stadtboden, Tore an der Mitte jeder Seite offen oder
+  ausdrücklich zu (`gates`), keine eingeschlossenen Taschen im Stadtraster.
 
 ## Vorschläge aus Phase 1 (umgesetzt in 14.71, siehe oben)
 

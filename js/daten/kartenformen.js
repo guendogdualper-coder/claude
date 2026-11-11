@@ -402,7 +402,7 @@ const KF_TOWNS = {
       const inside = (x, y) => Math.hypot(x, y) <= rr(x, y) && Math.max(Math.abs(x), Math.abs(y)) <= 12;
       if (!inside(dx, dy)) {
         const near = inside(dx + 1, dy) || inside(dx - 1, dy) || inside(dx, dy + 1) || inside(dx, dy - 1);
-        if (!near) return (dx * 7 + dy * 3) % 9 === 0 ? 'T' : '"';
+        if (!near) return '"'; // keine Bäume zwischen den Zacken (der Wald steht draußen dicht genug; spart Dreiecke)
         return (kfGateNS(dx) && Math.abs(dy) >= 12) || (kfGateWE(dy) && Math.abs(dx) >= 12) ? 'o' : 'P';
       }
       if (Math.abs(dx) === 9 && Math.abs(dy) === 9) return 'Y';
@@ -415,11 +415,10 @@ const KF_TOWNS = {
       aeltester: [-3.6, -4.6, null, 0.3], teleport: [4.4, -4.6, null, -0.3], haendler: [-4.6, 3.4, null, 0.4], alchemist: [5.4, 3.4, null, -0.4],
       waffen: [-8.0, -2.6, 'w'], schmied: [-8.0, 2.6, 'w'], ruestung: [8.6, -2.6, 'e'], lager: [8.6, 2.6, 'e'],
       auktion: [-6.6, -6.6, 'n'], post: [7.4, -6.6, 'n'], lehrmeister: [-6.6, 7.4, null, 0.4], bogenmacher: [7.4, 7.4, null, -0.4],
-      arena: [-3.0, -7.6, null, 0.3], pvp: [3.8, -7.6, null, -0.3], jaegerin: [3.8, 7.8, null, -0.2], stallmeister: [-3.4, 8.2, 'n']
+      arena: [-1.8, -9.4, null, 0.3], pvp: [1.6, -9.4, null, -0.3], jaegerin: [1.6, 9.8, null, -0.2], stallmeister: [-1.8, 9.8, 'n']
     },
     houses: [],
-    lights: [['brazier', -4.8, -1.8], ['brazier', 5.6, -1.8], ['brazier', -4.8, 1.8], ['brazier', 5.6, 1.8],
-      ['lantern', -1.8, -10.4], ['lantern', 1.6, -10.6], ['lantern', -1.8, 10.6], ['lantern', 1.6, 10.6]],
+    lights: [['brazier', -4.8, -1.8], ['brazier', 5.6, 1.8], ['lantern', -1.8, -10.4], ['lantern', 1.6, 10.6]],
     deco: [[-1.8, -11.6, 'F'], [1.0, -11.6, 'F'], [-8.4, -8.0, 'X'], [8.6, -8.2, 'K'], [-8.4, 8.6, 'C'], [8.4, 8.6, 'X'], [-6.0, 5.0, 'H'], [6.4, -4.6, 'G']]
   },
 
@@ -497,7 +496,7 @@ const KF_TOWNS = {
       const inside = (x, y) => (Math.abs(x) <= 6 && Math.abs(y) <= 12) || (Math.abs(y) <= 6 && Math.abs(x) <= 12);
       if (!inside(dx, dy)) {
         const near = inside(dx + 1, dy) || inside(dx - 1, dy) || inside(dx, dy + 1) || inside(dx, dy - 1);
-        if (!near) return Math.abs(dx) >= 11 && Math.abs(dy) >= 11 && (dx + dy) % 2 === 0 ? 'T' : '"';
+        if (!near) return '"';
         return (kfGateNS(dx) && Math.abs(dy) === 13) || (kfGateWE(dy) && Math.abs(dx) === 13) ? 'o' : '#';
       }
       if (Math.hypot(dx + 0.5, dy + 0.5) < 4.2) return 'i';
