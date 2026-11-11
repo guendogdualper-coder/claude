@@ -372,13 +372,16 @@ function raidTelegraph(m, kind, circles, inner, delay) {
     htQuarterShow(m, kind, circles[0], inner, delay);
     return;
   }
+  // seit 14.67: Aelvyr zeigt jeden Angriff mit eigener Pose und eigenen 3D-Effekten (aelvyr.js); in 3D stürzen
+  // Kristalle statt der Meteore
+  const ael = m.typeId === 'aelvyr' && typeof aelTelegraph === 'function' && aelTelegraph(m, kind, circles, inner, delay);
   if (kind === 'doom') {
     raidDoomShow(m, circles, delay);
     return;
   }
   const col = kind === 'buster' ? '#ff2a2a' : '#ff3a2a';
   for (const c of circles) addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, inner, dur: delay, color: col });
-  if (kind === 'meteor') for (const c of circles) later(Math.max(0, delay - 0.45), () => addEffect({ type: 'ultfall', kind: 'meteor', x: c.x, y: c.y, fall: 0.45, dur: 0.9, color: m.type.boss.color }));
+  if (kind === 'meteor' && !ael) for (const c of circles) later(Math.max(0, delay - 0.45), () => addEffect({ type: 'ultfall', kind: 'meteor', x: c.x, y: c.y, fall: 0.45, dur: 0.9, color: m.type.boss.color }));
   if (kind === 'nova') addEffect({ type: 'ultsigil', ground: true, x: m.x, y: feetY(m), r: inner, dur: delay, color: '#7aff8a' });
   if (kind === 'slam' || kind === 'nova') addEffect({ type: 'pillar', follow: m, dur: delay, color: m.type.boss.color });
   if (kind === 'leap') for (const c of circles) addEffect({ type: 'ultmark', x: c.x, y: c.y, dur: delay, color: m.type.boss.color });
@@ -405,7 +408,8 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
     if (kind === 'meteor' || kind === 'buster') addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.35, color: b.color });
     particles(c.x, c.y - 6, { count: 26, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'ember', drag: 3 });
   }
-  if (kind === 'nova') flashScreen(b.color, 0.35);
+  // seit 14.67 ohne Bildschirmblitz bei Aelvyr (Flügelstoß mit Staubwelle statt dessen)
+  if (kind === 'nova' && m.typeId !== 'aelvyr') flashScreen(b.color, 0.35);
   if (p.dead) return;
   const fyp = feetY(p);
   const hit = circles.some((c) => {
@@ -444,6 +448,11 @@ function raidRoarFx(m, phase) {
   const b = m.type.boss;
   ui.banner(m.name, phase === 3 ? 'gerät in Raserei!' : phase === 2 ? 'rast vor Wut!' : 'ruft seine Brut!');
   shakeScreen(14);
+  // seit 14.67: Aelvyr brüllt (Pose, Dampf und Staubwelle, aelvyr.js) – ohne Bildschirmblitz, Ring und Lichtsäule
+  if (m.typeId === 'aelvyr' && typeof aelRoar === 'function') {
+    aelRoar(m);
+    return;
+  }
   flashScreen(b.color, 0.4);
   addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 380, dur: 0.9, color: b.color, width: 18, grow: true });
   addEffect({ type: 'ultbeam', x: m.x, y: feetY(m), w: 140, dur: 1.2, color: b.color });

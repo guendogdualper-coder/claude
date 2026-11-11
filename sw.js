@@ -58,6 +58,7 @@ const FILES = [
   'js/drei-drache.js',
   'js/teufel.js',
   'js/drei-fx.js',
+  'js/aelvyr.js',
   'js/magier.js',
   'js/eisstrahl.js',
   'js/elementkreis.js',

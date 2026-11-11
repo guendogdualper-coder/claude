@@ -201,6 +201,16 @@ Object.assign(MONSTER_ART, {
       beastArt(ctx, f, { fur: '#4a5aa8', belly: '#bfe0ff', snout: '#5a6ab8', ridge: true, eye: '#e0f0ff', angry: true, glow: true, fangs: true, tusk: true });
     }
   },
+  // seit 14.67: Aelvyr in 2D eigens gezeichnet – fast doppelt so groß wie der Kristallwyrm, tief nachtblau mit
+  // leuchtenden Augen (vorher dieselbe Zeichnung wie der Kristallwyrm, kaum größer als ein gewöhnliches Monster).
+  // In 3D hat er ein eigenes Modell (aelvyr.js).
+  aelvyr: {
+    h: 112, draw: (ctx, f) => {
+      ctx.scale(2.9, 2.9);
+      dragonWings(ctx, f, '#1e1846');
+      beastArt(ctx, f, { fur: '#232a62', belly: '#4a4482', snout: '#2a3272', ridge: true, eye: '#d8ffff', angry: true, glow: true, fangs: true, tusk: true });
+    }
+  },
   leerenseherin: {
     h: 50, draw: (ctx, f) => humanoidMonsterArt(ctx, f, {
       scale: 1.05, skin: '#b8b0d8', boots: '#141024', robe: '#2a2050', sleeve: '#2a2050', gloves: '#b8b0d8', wideSleeves: true, tattered: true, necklace: true, runes: '#b8a0ff', weapon: 'skullstaff', weaponAngle: -1.35,

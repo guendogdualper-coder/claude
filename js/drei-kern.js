@@ -637,6 +637,16 @@ function freeArray() {
 // für das Nachladen der Welt beim Laufen und Reiten (objectJob, drei-welt.js). Dort lief das Zusammenführen aller
 // Gegenstände eines Blocks am Stück: 30–100 ms in einem einzigen Bild, obwohl das Nachladen nur 5 ms je Bild haben soll
 // – das war der kurze Hänger „einfach so“ beim Reiten. mergeRaw selbst rechnet wie bisher in einem Zug.
+// Gespiegelte Teile (negative Größe, z. B. der rechte Flügel als s: [-1, 1, 1]) seit 14.67 mit umgedrehtem Umlauf:
+// vorher zeigten ihre Dreiecke nach innen – die beleuchtete Seite wurde weggeschnitten und man sah nur die schwarze
+// Umrisshülle (der „schwarze Flügel“ der Drachen, auch bei Aelvyr und den anderen Endbossen)
+function flipTris3(idx, from, n) {
+  for (let i = from; i + 2 < from + n; i += 3) {
+    const t = idx[i + 1];
+    idx[i + 1] = idx[i + 2];
+    idx[i + 2] = t;
+  }
+}
 function mergeRaw(list, skinned) {
   const g = mergeRawSteps(list, skinned, 0);
   let r = g.next();
@@ -702,6 +712,7 @@ function* mergeRawSteps(list, skinned, slice) {
       }
       if (t.anyShine) anyShine = true;
       for (let i = 0; i < t.idx.length; i++) idx[io + i] = t.idx[i] + vo;
+      if (it.m.determinant() < 0) flipTris3(idx, io, t.idx.length);
       io += t.idx.length;
       vo += t.n;
       continue;
@@ -768,14 +779,15 @@ function* mergeRawSteps(list, skinned, slice) {
         }
       }
     }
+    const n = g.index ? g.index.count : P.count;
     if (g.index) {
       const I = g.index;
       for (let i = 0; i < I.count; i++) idx[io + i] = I.getX(i) + vo;
-      io += I.count;
     } else {
       for (let i = 0; i < P.count; i++) idx[io + i] = vo + i;
-      io += P.count;
     }
+    if (m.determinant() < 0) flipTris3(idx, io, n);
+    io += n;
     vo += P.count;
   }
   return { n: nv, pos, nor, col, shine, idx, si, sw, anyShine };

@@ -6569,7 +6569,9 @@ function syncMonster3(m, dt) {
   m.__wait3 = !a;
   if (!a) return;
   a.corpse = false;
-  animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
+  // seit 14.67: Aelvyr hat eigene Bewegungen (aelvyr.js)
+  if (a.model.aelvyr && typeof aelAnim3 === 'function') aelAnim3(a, m, dt);
+  else animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
   lodPick3(a);
   // Höllenkaiser: eigene Aura (hoellenthron.js)
   if (a.model.teufel && typeof teufelAura3 === 'function') teufelAura3(a, m);
@@ -6841,6 +6843,11 @@ function syncCorpse3(e) {
   const a = actorFor(key, e.__mk3, (b) => monsterBuild(b, e.typeId, e.__v3));
   if (!a) return;
   a.corpse = true;
+  // seit 14.67: Aelvyr sinkt zusammen, seine Kristalle zerspringen (aelvyr.js)
+  if (a.model.aelvyr && typeof aelCorpse3 === 'function') {
+    aelCorpse3(a, e);
+    return;
+  }
   resetBones(a);
   const k = Math.min(1, (game.time - e.start) / e.dur);
   const fall = Math.min(1, k * 2.4);
