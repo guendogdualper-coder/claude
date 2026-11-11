@@ -555,6 +555,8 @@ function schwertauraCast(p, rk) {
   p.saCast = { at: game.time, rk: r };
   p.poseColor = C.alt;
   addEffect({ type: 'sacast3', follow: p, ox: 0, oy: 0, rk: r, dur: 1.5, color: C.main });
+  // seit 14.62: auf Vollendet (V) zusätzlich Bodenbruch – blauer Energiering, Schockwelle, aufsteigende Brocken
+  if (r === SA_CAST_COL.length - 2) addEffect({ type: 'sabruch3', x: p.x, y: feetY(p), own: p === game.player, dur: SA_BRUCH.dur, rot: Math.random() * 6.28 });
 }
 FX3_TYPES.add('sacast3');
 const _sac3b = new THREE.Vector3();
@@ -674,6 +676,237 @@ EXTRA_EFFECTS.sacast3 = (ctx, e, k, x, y) => {
       const ph = (t * 0.85 + i / 6) % 1;
       glow(ctx, x + Math.sin(i * 2.4 + t * 2) * 13, y - 4 - ph * H, 5, i % 2 ? C.light : C.alt, 0.7 * (1 - ph) * end);
     }
+  }
+};
+
+// --- Aura des Schwertes auf Vollendet (V): Bodenbruch (seit 14.62) -----------------------------------------
+// Spielerwunsch: „Auf V muss der Boden einen kreisförmigen, blauen, kurzen Aura-Kreis zeichnen und Steine hochgehen.“
+// Ausnahmsweise ein Bodenkreis – aber reine Energie (leuchtender Ring mit weichem Glühen und Schockwelle), keine
+// Runen, Sterne oder Zeichen. Bleibt am Ort des Wirkens liegen (folgt der Figur nicht), läuft parallel zu sacast3:
+//   0,05–0,3 s  blaues Licht sammelt sich unter den Füßen
+//   0,3 s       Aufschlag (Klingenblitz auf dem Höhepunkt): Ring springt auf, zwei Schockwellen laufen nach außen,
+//               kurzes Beben (nur eigener Krieger, nur mit „Bildschirmwackeln“), Risse im Boden leuchten blau
+//   0,3–0,75 s  Brocken brechen im Kreis aus dem Boden und steigen leicht drehend auf, dazu Staub und blaue Funken
+//   bis 1,2 s   Brocken schweben, Ring pulsiert und verblasst
+//   1,2–1,75 s  Brocken fallen, zerbröseln zu Staub; Risse und Ring weg
+// Brocken: gemeinsamer Vorrat 'rock' (eine Geometrie, Materialien je Teil wiederverwendet), höchstens 14 (Grafik
+// „Niedrig“ 8). Farbe aus dem Boden der Karte wie beim Sprungschlag (crater3), auf Wasser nur Ringe.
+const SA_BRUCH = { dur: 1.75, hit: 0.3, R: 1.55, n: 14, nLow: 8 };
+const SA_BRUCH_COL = { glow: '#2a62ff', ring: '#6fb2ff', core: '#e4f2ff', deep: '#1838b8' };
+const _sab3tile = {};
+const _sab3col = new THREE.Color();
+const _sab3mix = new THREE.Color('#857360');
+function saBruchSeed(e) {
+  if (e.rocks) return e.rocks;
+  const n = SA_BRUCH.n;
+  e.rocks = Array.from({ length: n }, (v, i) => {
+    const big = i % 3 === 0;
+    return {
+      a: (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.35,
+      d: (i % 2 ? 0.62 : 0.95) + Math.random() * 0.22,
+      s: big ? 0.24 + Math.random() * 0.08 : 0.11 + Math.random() * 0.07,
+      hm: (big ? 0.65 : 0.85) + Math.random() * 0.6,
+      del: Math.random() * 0.08,
+      fl: 0.78 + Math.random() * 0.14,
+      rx: (Math.random() - 0.5) * 5, ry: Math.random() * 6.28, rz: (Math.random() - 0.5) * 5,
+      sq: 0.65 + Math.random() * 0.3, tone: (Math.random() - 0.5) * 0.24
+    };
+  });
+  return e.rocks;
+}
+// Bahn eines Brockens u Sekunden nach dem Aufschlag: Höhe (Anteil an hm), Größe 0–1, Drehtempo 0–1
+function saBruchRock(q, u) {
+  const t = u - q.del;
+  if (t < 0) return null;
+  const pop = Math.min(1, t / 0.1);
+  let y;
+  let spin = 1;
+  if (t < 0.1) y = -0.25 * (1 - pop);
+  else if (t < 0.48) y = easeOut((t - 0.1) / 0.38);
+  else if (t < q.fl) { y = 1 + 0.05 * Math.sin((t - 0.48) * 7 + q.ry); spin = 0.35; }
+  else y = Math.max(0, 1 - Math.pow((t - q.fl) / 0.24, 2));
+  // nach dem Aufschlag zerbröseln (spätestens 1,42 s nach dem Aufschlag weg, vor Ende des Effekts)
+  const land = q.fl + 0.24;
+  const size = t > land ? Math.max(0, 1 - (t - land) / 0.18) : 1;
+  return { y, size: size * (0.5 + 0.5 * pop), spin };
+}
+function saBruchShake(e, t) {
+  if (e.shook || t < SA_BRUCH.hit) return;
+  e.shook = true;
+  if (e.own && typeof shakeScreen === 'function') shakeScreen(3.5);
+}
+FX3_TYPES.add('sabruch3');
+FX3_DRAW.sabruch3 = function (h, e) {
+  const t = game.time - e.start;
+  if (t >= e.dur) return;
+  saBruchShake(e, t);
+  const B = SA_BRUCH_COL;
+  const low = n3low();
+  const x = e.x * U3;
+  const z = e.y * U3;
+  if (!e.earth) {
+    tileSample(Math.floor(e.x / TILE), Math.floor(e.y / TILE), _sab3tile);
+    e.liquid = _sab3tile.h < 0;
+    _sab3col.setRGB(_sab3tile.r || 0.4, _sab3tile.g || 0.36, _sab3tile.b || 0.3);
+    // neutral grau-braun gemischt, damit die Brocken auf Gras nicht grün und auf Schnee nicht weiß werden
+    _sab3col.lerp(_sab3mix, 0.65);
+    e.earth = '#' + _sab3col.getHexString();
+    e.dust = lighter(e.earth, 0.2);
+  }
+  const T0 = SA_BRUCH.hit;
+  const R0 = SA_BRUCH.R;
+  // 1) Licht sammelt sich unter den Füßen
+  if (t < T0 + 0.05) {
+    const c = clamp01((t - 0.05) / (T0 - 0.05));
+    const o = fx3Take(h, 'plane');
+    fx3Ground(o, e.x, e.y, 0.25 + 0.55 * c, 0.05, 'disc');
+    fx3Color(o, B.ring, 0.45 * c);
+  }
+  if (t < T0) return;
+  const u = t - T0;
+  // Stärke des Rings: Aufblitzen, kurz halten, schnell aus
+  const I = u < 0.12 ? 1 : u < 0.45 ? 1 - 0.3 * (u - 0.12) / 0.33 : u < 0.9 ? 0.7 + 0.08 * Math.sin(u * 18) : Math.max(0, 0.7 * (1 - (u - 0.9) / 0.4));
+  // 2) Energiering: weiches blaues Glühen, kräftiger Ring, heller Kern; springt in 0,14 s auf
+  const ringR = R0 * (0.5 + 0.5 * easeOut(Math.min(1, u / 0.14)));
+  if (I > 0.005) {
+    const fill = fx3Take(h, 'plane');
+    fx3Ground(fill, e.x, e.y, ringR * 1.2, 0.052, 'disc');
+    fx3Color(fill, B.deep, 0.32 * I);
+    // normal gemischt darunter: bleibt auch auf hellem Sand, Schnee und Pflaster sichtbar blau
+    const tint = fx3Take(h, 'planeN');
+    fx3Ground(tint, e.x, e.y, ringR * 1.06, 0.054, 'ring');
+    fx3Color(tint, B.deep, 0.5 * I);
+    const halo = fx3Take(h, 'plane');
+    fx3Ground(halo, e.x, e.y, ringR * 1.1, 0.056, 'ring');
+    fx3Color(halo, B.glow, 0.75 * I);
+    const ring = fx3Take(h, 'plane');
+    fx3Ground(ring, e.x, e.y, ringR, 0.06, 'ring');
+    fx3Color(ring, B.ring, 0.95 * I);
+    const core = fx3Take(h, 'plane');
+    fx3Ground(core, e.x, e.y, ringR * 0.985, 0.064, 'ring');
+    fx3Color(core, B.core, 0.55 * I * (u < 0.35 ? 1 : 0.5));
+  }
+  // 3) zwei Schockwellen nach außen
+  for (const [del, len, far, col, op] of [[0, 0.42, 2.9, B.ring, 0.85], [0.09, 0.5, 2.3, B.core, 0.55]]) {
+    const w = (u - del) / len;
+    if (w < 0 || w >= 1) continue;
+    const o = fx3Take(h, 'plane');
+    fx3Ground(o, e.x, e.y, R0 * (0.9 + (far - 0.9) * easeOut(w)), 0.058, 'ring');
+    fx3Color(o, col, op * Math.pow(1 - w, 1.4));
+  }
+  // Lichtschlag beim Aufschlag
+  if (u < 0.22) n3Glow(h, x, 0.35, z, 2.2, B.ring, 0.4 * (1 - u / 0.22));
+  // 4) Risse: dunkel im Boden, darüber blau glimmend (das Glimmen geht mit dem Ring)
+  const crk = u < 0.08 ? u / 0.08 : Math.max(0, 1 - Math.max(0, u - 0.95) / 0.5);
+  if (crk > 0.01 && !e.liquid) {
+    const dark = fx3Take(h, 'planeN');
+    fx3Ground(dark, e.x, e.y, R0 * 1.15, 0.045, 'mcracks', e.rot);
+    fx3Color(dark, '#1c140c', 0.6 * crk);
+    const hot = fx3Take(h, 'plane');
+    fx3Ground(hot, e.x, e.y, R0 * 1.15, 0.048, 'mcracks', e.rot);
+    fx3Color(hot, B.ring, 0.8 * crk * I);
+  }
+  if (e.liquid) return;
+  // 5) Brocken: brechen aus, steigen drehend auf, schweben, fallen und zerbröseln
+  const sd = saBruchSeed(e);
+  const n = low ? SA_BRUCH.nLow : SA_BRUCH.n;
+  for (let i = 0; i < n; i++) {
+    const q = sd[i];
+    const st = saBruchRock(q, u);
+    if (!st || st.size <= 0.01) continue;
+    const dd = R0 * q.d * (1 + 0.12 * Math.min(1, u / 0.5));
+    const px = x + Math.cos(q.a) * dd;
+    const pz = z + Math.sin(q.a) * dd;
+    const s = q.s * st.size;
+    const o = fx3Rock(h, 'rock', px, q.hm * st.y + s * 0.6, pz, s, s * q.sq, s * 0.85, q.tone > 0 ? lighter(e.earth, q.tone) : darker(e.earth, -q.tone));
+    const sp = u * (0.4 + 0.6 * st.spin);
+    o.rotation.set(q.rx * sp, q.ry + sp * 1.5, q.rz * sp);
+    // blauer Schimmer unter aufsteigenden Brocken
+    if (!low && st.y > 0.1 && u < 1.0 && i % 2 === 0) n3Glow(h, px, q.hm * st.y, pz, s * 3.2, B.glow, 0.35 * I);
+  }
+  // 6) Staub: beim Ausbrechen und beim Aufschlagen der Brocken
+  const nd = low ? 4 : 7;
+  for (let i = 0; i < nd; i++) {
+    const q = sd[(i * 2) % sd.length];
+    const w = u / 0.85;
+    if (w < 1) {
+      const dd = R0 * q.d * (1 + 0.25 * w);
+      n3Smoke(h, x + Math.cos(q.a) * dd, 0.15 + 0.35 * w, z + Math.sin(q.a) * dd, 0.4 + 0.75 * w, e.dust, 0.55 * (1 - w) * Math.min(1, u / 0.05));
+    }
+    const lw = (u - q.fl - 0.2) / 0.5;
+    if (lw > 0 && lw < 1 && i % 2 === 0) {
+      const dd = R0 * q.d * 1.12;
+      n3Smoke(h, x + Math.cos(q.a) * dd, 0.1 + 0.2 * lw, z + Math.sin(q.a) * dd, 0.3 + 0.45 * lw, e.dust, 0.45 * (1 - lw));
+    }
+  }
+  // 7) blaue Funken springen aus den Rissen
+  if (u < 0.85) {
+    const nf = low ? 6 : 12;
+    for (let i = 0; i < nf; i++) {
+      const w = clamp01((u - (i % 4) * 0.05) / 0.6);
+      if (w <= 0 || w >= 1) continue;
+      const a = e.rot + i * 2.399;
+      const dd = R0 * (0.35 + 0.55 * ((i * 0.37) % 1)) * (1 + 0.4 * w);
+      n3Glow(h, x + Math.cos(a) * dd, 0.1 + 1.6 * w * (1 - 0.45 * w), z + Math.sin(a) * dd, 0.1, i % 3 ? B.ring : B.core, 0.9 * (1 - w));
+    }
+  }
+};
+// 2D: blauer Ring (Ellipse) mit Schockwelle und ein paar Brocken, die hochgehen und wieder fallen
+EXTRA_EFFECTS.sabruch3 = (ctx, e, k, x, y) => {
+  const t = k * e.dur;
+  saBruchShake(e, t);
+  const B = SA_BRUCH_COL;
+  const T0 = SA_BRUCH.hit;
+  const R = SA_BRUCH.R * TILE;
+  ctx.globalCompositeOperation = 'lighter';
+  if (t < T0) {
+    const c = clamp01((t - 0.05) / (T0 - 0.05));
+    glow(ctx, x, y, 8 + 18 * c, B.ring, 0.5 * c);
+    return;
+  }
+  const u = t - T0;
+  const I = u < 0.12 ? 1 : u < 0.9 ? 1 - 0.3 * Math.min(1, (u - 0.12) / 0.33) : Math.max(0, 0.7 * (1 - (u - 0.9) / 0.4));
+  const rr = R * (0.5 + 0.5 * easeOut(Math.min(1, u / 0.14)));
+  const ring = (r, w, col, a) => {
+    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+    ctx.strokeStyle = col;
+    ctx.lineWidth = w;
+    ctx.beginPath();
+    ctx.ellipse(x, y, r, r * 0.42, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  };
+  if (I > 0.005) {
+    ring(rr, 12, B.glow, 0.55 * I);
+    ring(rr, 4, B.ring, 0.9 * I);
+    ring(rr, 1.5, B.core, 0.8 * I);
+  }
+  const w = u / 0.42;
+  if (w < 1) ring(R * (0.9 + 2.0 * easeOut(w)), 3, B.ring, 0.8 * Math.pow(1 - w, 1.4));
+  if (u < 0.2) glow(ctx, x, y, 40, B.ring, 0.5 * (1 - u / 0.2));
+  ctx.globalCompositeOperation = 'source-over';
+  const sd = saBruchSeed(e);
+  for (let i = 0; i < 7; i++) {
+    const q = sd[i * 2];
+    const st = saBruchRock(q, u);
+    if (!st || st.size <= 0.01) continue;
+    const dd = R * q.d * (1 + 0.12 * Math.min(1, u / 0.5));
+    const rx = x + Math.cos(q.a) * dd;
+    const ry = y + Math.sin(q.a) * dd * 0.42 - q.hm * st.y * 40;
+    const s = q.s * st.size * TILE;
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = q.tone > 0 ? '#8a7a66' : '#6a5c4c';
+    ctx.strokeStyle = '#3a3026';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let j = 0; j < 5; j++) {
+      const a = q.ry + u * q.rx * 0.6 + j * 1.2566;
+      const sr = s * (j % 2 ? 0.8 : 1);
+      if (j) ctx.lineTo(rx + Math.cos(a) * sr, ry + Math.sin(a) * sr * q.sq);
+      else ctx.moveTo(rx + Math.cos(a) * sr, ry + Math.sin(a) * sr * q.sq);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   }
 };
 

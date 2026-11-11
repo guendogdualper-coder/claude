@@ -31,3 +31,31 @@ js/drei-figuren.js, js/koerperaura.js, js/interaktion.js, js/zeichnen.js
 
 **Offene Punkte:** Aus der steilen Spielkamera wirkt „hochgereckt“ verkürzt (die Klingen zeigen zur Kamera);
 Pose bei Reittier entfällt (Wirken steigt ab). Kein neuer Text, darum nichts in en.js.
+
+## Schwertaura V | Bodenbruch beim Aktivieren (seit 14.62)
+
+**Wunsch (Spieler):** „Auf V muss der Boden einen kreisförmigen, blauen, kurzen Aura-Kreis zeichnen und Steine
+hochgehen, damit es epischer aussieht. Jede Attacke soll auf V krass aussehen.“
+
+**Änderung (nur Rang V, E/H/L und ohne Rang unverändert):** neuer Effekt `sabruch3` (ninja-fx.js, `SA_BRUCH`),
+von `schwertauraCast` zusätzlich zu `sacast3` gelegt; bleibt am Ort des Wirkens, 1,75 s:
+- 0,05–0,3 s blaues Licht sammelt sich unter den Füßen; 0,3 s Aufschlag (gleichzeitig mit dem Klingenblitz):
+  blauer Energiering (weiches Glühen, kräftiger Ring, heller Kern) springt auf, zwei Schockwellen laufen nach
+  außen, Lichtschlag, Risse im Boden leuchten blau. Ausnahmsweise ein Bodenkreis, weil ausdrücklich gewünscht –
+  reine Energie, keine Runen, Sterne oder Zeichen. Ring pulsiert bis 1,2 s und ist bei 1,6 s weg.
+- 14 Brocken (Grafik „Niedrig“ 8) brechen im Kreis aus dem Boden, steigen drehend auf (verschiedene Größen),
+  schweben, fallen ab etwa 1,1–1,3 s und zerbröseln; Staub beim Ausbrechen und Aufschlagen, blaue Funken aus
+  den Rissen. Farbe aus dem Kartenboden (wie Sprungschlag), grau-braun gemischt; auf Wasser nur Ring/Wellen.
+- Leichtes Beben (shakeScreen 3,5) im Aufschlag – nur beim eigenen Krieger und nur mit „Bildschirmwackeln“.
+- Teile aus dem gemeinsamen Vorrat (`rock`: eine Geometrie; `plane`/`planeN`/`sprite`/`smoke`), jedes Bild
+  zurückgegeben; nach Ablauf ist der Effekt aus `game.effects` und keine Brocken mehr sichtbar (geprüft).
+- 2D: blauer Ellipsenring mit Schockwelle und sieben Brocken, die hoch- und wieder runtergehen.
+- Mitspieler: über den bestehenden Weg `remoteSkillFx` → `SKILL_FX.schwertaura.remoteCast(rp, rk)` (rk 3 = V),
+  ohne Beben.
+
+**Dateien:** js/ninja-fx.js
+
+**Andere Krieger-Fertigkeiten auf V (nur Bestandsaufnahme):** Sichelwelle, Schwertwirbel, Kampfrausch,
+Sprungschlag, Felsenfaust, Erdbeben, Starker Körper, Geistesschlag, Kriegsschrei haben keine eigene V-Fassung –
+auf V kommt nur der allgemeine Rang-Effekt (`rankCast3`: Flammenflügel, Feuerkrone, Glutsturm; Treffer mit
+Feuernova/Glutregen). Der Angriff selbst sieht auf E/H/L/V gleich aus.
