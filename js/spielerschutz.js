@@ -377,10 +377,12 @@ function regelnFragen(then) {
 const SCHIMPF_VOLL = ['hurensohn', 'hurenkind', 'fotz', 'wichser', 'wixer', 'misgeburt', 'schlampe', 'arschloch', 'arschloecher',
   'arschlocher', 'schwuchtel', 'kinderficker', 'kinderschander', 'vergewaltig', 'motherfuck', 'muterficker', 'schwanzlutscher',
   'drecksau', 'kanacke', 'kanake', 'niger', 'niga', 'fagot', 'retard', 'ashole', 'dickhead', 'siegheil', 'heilhitler', 'hitler',
-  'judensau', 'kilyourself', 'bringdichum', 'whore', 'cunt', 'bitch', 'fuck', 'fick'];
+  'judensau', 'kilyourself', 'bringdichum', 'whore', 'cunt', 'bitch', 'fuck', 'fick',
+  // seit 14.65: weitere Umgehungen (q statt g, l statt i) und Hetzparolen
+  'niqer', 'niqa', 'nlger', 'nlga', 'judenraus', 'auslanderaus', 'judenvergas', 'whitepower'];
 const SCHIMPF_ANFANG = ['hure', 'spast', 'mongo', 'nute', 'neger', 'nazi', 'slut', 'fag', 'kys', 'gefickt', 'bastard', 'pisser',
   'penner', 'opfa', 'hurn', 'fik', 'fuk', 'schlampn', 'wichs', 'titen', 'muschi', 'pimel', 'porn', 'sex'];
-const SCHIMPF_PAROLEN = ['siegheil', 'heilhitler', 'kilyourself', 'bringdichum', 'hurensohn', 'judensau'];
+const SCHIMPF_PAROLEN = ['siegheil', 'heilhitler', 'kilyourself', 'bringdichum', 'hurensohn', 'judensau', 'judenraus', 'auslanderaus', 'judenvergas'];
 // harmlose Wörter, die sonst getroffen würden
 const SCHIMPF_AUSNAHMEN = ['spastik', 'mongolei', 'mongolisch', 'mongole', 'nigeria', 'sexta', 'sext', 'sextant', 'schwanzfeder',
   'schwanzflosse'];

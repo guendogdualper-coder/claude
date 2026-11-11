@@ -95,7 +95,13 @@ function onSocial(pid, d) {
     netSocial(pid, { k: 'gs', g: p.guild });
   } else if (d.k === 'gs') {
     if (!p.guild || !d.g || d.g.name !== p.guild.name) return;
-    for (const m of d.g.members || []) if (!p.guild.members.some((x) => x.n === m.n) && !(p.guild.left || []).includes(m.n)) p.guild.members.push(m);
+    for (const m of d.g.members || []) {
+      const old = p.guild.members.find((x) => x.n === m.n);
+      // seit 14.65: höhere Stufe aus der Liste des anderen übernehmen (Stufen steigen nur)
+      if (old) { if ((m.l || 0) > (old.l || 0)) { old.l = m.l; old.c = m.c || old.c; } }
+      else if (!(p.guild.left || []).includes(m.n)) p.guild.members.push(m);
+    }
+    guildSelfSync();
     saveGame();
     social.refresh();
   } else if (d.k === 'gk') {
@@ -119,12 +125,51 @@ function onSocial(pid, d) {
   }
 }
 
+// seit 14.65: eigener Eintrag in der Mitgliederliste mit aktueller Stufe und Klasse
+function guildSelfSync() {
+  const p = game.player;
+  if (!p || !p.guild) return false;
+  const me = (p.guild.members || []).find((m) => m.n === p.name);
+  if (!me || (me.l === p.level && me.c === p.classId)) return false;
+  me.l = p.level;
+  me.c = p.classId;
+  return true;
+}
+// Änderungen an Mitgliedsstufen: Liste neu zeichnen, gespeichert wird beim nächsten regulären Speichern
+let guildDirtyAt = 0;
+function guildDirty() {
+  const now = Date.now();
+  if (now - guildDirtyAt < 1500) return;
+  guildDirtyAt = now;
+  if (typeof social !== 'undefined' && social.refresh) social.refresh();
+}
+// seit 14.65: Gilden mit anstößigem Namen (aus Versionen vor der Namensprüfung) werden aufgelöst;
+// der Anführer bekommt die Gründungskosten zurück
+function guildNameCheck() {
+  const p = game.player;
+  if (!p || !p.guild || typeof nameAnstoessig !== 'function' || !nameAnstoessig(p.guild.name)) return;
+  const leader = p.guild.leader === p.name;
+  p.guild = null;
+  if (leader) p.gold += GUILD.price;
+  ui.log('Der Name deiner Gilde verstößt gegen die Regeln. Die Gilde wurde aufgelöst' + (leader ? ', du bekommst die Gründungskosten zurück.' : '.') + ' Gründe sie unter einem anderen Namen neu.', 'warn');
+  saveGame();
+}
+
 // Gildenmitglieder im Kanal tauschen beim ersten Sehen ihre Mitgliederlisten aus
 function guildSeen(pid, rp) {
   const p = game.player;
-  if (!p || !p.guild || rp.guild !== p.guild.name || rp.guildSynced) return;
-  rp.guildSynced = true;
+  if (!p || !p.guild || rp.guild !== p.guild.name) return;
   const me = p.guild.members.find((m) => m.n === rp.name);
+  // seit 14.65: Stufe und Klasse der Mitglieder bleiben aktuell (vorher nur beim ersten Sehen je Sitzung)
+  if (rp.guildSynced) {
+    if (me && (me.l !== rp.level || me.c !== rp.classId)) {
+      me.l = rp.level;
+      me.c = rp.classId;
+      guildDirty();
+    }
+    return;
+  }
+  rp.guildSynced = true;
   if (me) {
     me.l = rp.level;
     me.c = rp.classId;
@@ -283,6 +328,7 @@ const social = {
     const p = game.player;
     const body = document.getElementById('socialBody');
     if (!p || !body) return;
+    guildSelfSync(); // seit 14.65: eigene Stufe immer aktuell
     const online = netOnline();
     const pend = this.pending.map((x, i) => `<div class="soc-row pending"><span class="soc-dot on"></span>` +
       `<div class="soc-info"><strong>${escapeHtml(x.name)}</strong><small>${x.type === 'friend' ? 'möchte dein Freund sein' : `lädt dich in die Gilde „${escapeHtml(x.g.name)}“ ein`}</small></div>` +

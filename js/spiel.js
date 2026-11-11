@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.64';
+const GAME_VERSION = '14.65';
 
 const game = {
   world: null,
@@ -77,6 +77,9 @@ function startGame(save, slot) {
   ui.chat('', input.touchUi ? `Willkommen, ${game.player.name}! Hilfe findest du unter dem Buch-Knopf oben.` : `Willkommen, ${game.player.name}! Drücke H für die Steuerung.`);
   // seit 13.63: Konto-Lager, Namen für die Post anmelden, neue Briefe (handel-db.js)
   if (typeof handelStart === 'function') handelStart();
+  // seit 14.65: Gilde mit anstößigem Namen auflösen, eigene Stufe in der Mitgliederliste nachziehen
+  if (typeof guildNameCheck === 'function') guildNameCheck();
+  if (typeof guildSelfSync === 'function') guildSelfSync();
   // seit 13.75: nach dem Start mehrmals die Bildschirmgröße nachmessen (iOS meldet sie anfangs oft zu klein)
   if (typeof resizeSoon === 'function') resizeSoon();
   if (game.player.level === 1 && game.player.xp === 0) {

@@ -1016,7 +1016,8 @@ function netApplyState(rp, s) {
   if (!s) return;
   const first = rp.seq === -1;
   rp.last = s;
-  rp.name = s.n;
+  // seit 14.65: anstößige Namen anderer Spieler (z. B. aus alten Versionen ohne Namensprüfung) nicht anzeigen
+  rp.name = typeof nameAnstoessig === 'function' && nameAnstoessig(s.n) ? 'Spieler' : s.n;
   rp.gs = s.gs | 0;
   rp.rk = s.rk | 0;
   rp.classId = CLASSES[s.c] ? s.c : 'krieger';
@@ -1055,8 +1056,10 @@ function netApplyState(rp, s) {
   rp.invisible = !!s.iv;
   rp.equipment = s.eq || {};
   rp.look = s.lk || null;
-  if ((s.g || '') !== rp.guild) rp.guildSynced = false;
-  rp.guild = s.g || '';
+  // seit 14.65: anstößige Gildennamen gelten als keine Gilde (nicht anzeigen, nicht abgleichen)
+  const gName = s.g && !(typeof nameAnstoessig === 'function' && nameAnstoessig(s.g)) ? s.g : '';
+  if (gName !== rp.guild) rp.guildSynced = false;
+  rp.guild = gName;
   if (!first) guildSeen(rp.peerId, rp);
   rp.buffs = (s.b || []).map(([id, lvl, left]) => ({ id, lvl, until: game.time + left, duration: left, effects: {} }));
   if (s.sw && s.sw[0] !== rp.seq) {
