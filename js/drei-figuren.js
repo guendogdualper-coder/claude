@@ -32,7 +32,9 @@ function figLitMat() {
 const figOutline = () => mat3('figOutline', () => outlineMat(0.022, true));
 const figGlow = () => mat3('figGlow', () => new THREE.MeshBasicMaterial({ vertexColors: true, skinning: true }));
 // unsichtbar im Bild, wirft aber Schatten (die Schattenkarte zeichnet mit eigenem Tiefenmaterial)
-const figShadowProxy = () => mat3('figShadowProxy', () => new THREE.MeshBasicMaterial({ skinning: true, colorWrite: false, depthWrite: false }));
+// seit 14.51 beidseitig im Schattendurchgang: einseitige Teile mit echter Form (shadowExact, Drachenflügel) warfen sonst
+// keinen Schatten, weil three.js bei Vorderseiten-Materialien in der Schattenkarte nur die Rückseiten zeichnet
+const figShadowProxy = () => mat3('figShadowProxy', () => new THREE.MeshBasicMaterial({ skinning: true, colorWrite: false, depthWrite: false, shadowSide: THREE.DoubleSide }));
 const figAura = () => mat3('figAura', () => new THREE.MeshBasicMaterial({ vertexColors: true, skinning: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
 function figWeaponGlowMat() {
   return new THREE.MeshBasicMaterial({ skinning: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffffff });

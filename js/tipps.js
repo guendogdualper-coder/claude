@@ -44,6 +44,8 @@ function itemTipHtml(item) {
 
 // Vorräte im Inventar (seit 11.0): Tränke und Segensschriftrollen
 function supplyTipHtml(x) {
+  // seit 14.51: Verstärkungen, Switcher, Sternensteine in den Vorräten
+  if (x.mat) return `<strong style="color:${(typeof MATERIAL_COLORS !== 'undefined' && MATERIAL_COLORS[x.mat.id]) || '#ffd34d'}">${x.mat.name} × ${x.n}</strong><small>${x.mat.tag} · für den Schmied</small><span>${x.mat.text}</span>`;
   if (!x.kind) return `<strong style="color:#ffd34d">${BLESSING.name} × ${x.n}</strong><small>Für den Schmied</small><span>${BLESSING.text}</span>`;
   const info = potionInfo(x.kind);
   const amt = x.kind === 'hp' ? x.sz.hp : x.sz.mp;

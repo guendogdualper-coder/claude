@@ -565,7 +565,11 @@ class Bake3 {
       geo, color, m, bone: o.bone || 0, shade: o.shade || 0, parent: o.parent || null,
       top: o.top ? new THREE.Color(o.top) : null, topK: o.topK == null ? 0.5 : o.topK, shine: o.shine || 0, ao: o.ao == null ? 0.22 : o.ao
     });
-    if (this.skinned && key === 'lit' && !o.noShadow) shadowPart(this, geo, m, o);
+    // seit 14.51: shadowExact – das Teil wirft seinen Schatten mit der echten Form (Drachenflügel: die grobe Ellipse
+    // um die gewölbte Haut gab ovale Flecken statt Flügeln)
+    if (this.skinned && key === 'lit' && o.shadowExact) {
+      (this.lists.shadow = this.lists.shadow || []).push({ geo, color: '#000000', m, bone: o.bone || 0, shade: 0, parent: o.parent || null, top: null, topK: 0.5, shine: 0, ao: 0 });
+    } else if (this.skinned && key === 'lit' && !o.noShadow) shadowPart(this, geo, m, o);
     return this;
   }
 

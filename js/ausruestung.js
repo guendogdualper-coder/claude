@@ -2017,6 +2017,14 @@ function materialIconCanvas(id) {
   return materialSprite(id).img;
 }
 
+// seit 14.51: Symbole für Fenster (Vorräte) in doppelter Auflösung – am Handy (3 Bildpunkte je CSS-Pixel) sahen die
+// 120-Pixel-Bilder in den Kacheln verwaschen und pixelig aus
+const ICON_HI = 6;
+function materialIconHiUrl(id) {
+  const key = 'mathi:' + id;
+  if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => MATERIAL_ART[id](ctx), ICON_HI, true).img.toDataURL());
+  return iconCache.get(key);
+}
 function materialIconUrl(id) {
   const key = 'mat:' + id;
   if (!iconCache.has(key)) iconCache.set(key, materialSprite(id).img.toDataURL());
@@ -2049,7 +2057,7 @@ function scrollIconUrl() {
     oval(ctx, 6, 8, 3.2, 3.2, '#ffd34d');
     stroke(ctx, '#8a5a10', 1, [[6, 6], [6, 10]]);
     stroke(ctx, '#8a5a10', 1, [[4.2, 8], [7.8, 8]]);
-  }, undefined, true);
+  }, ICON_HI, true);
   const url = sp.img.toDataURL();
   iconCache.set('scroll', url);
   return url;
@@ -2263,7 +2271,7 @@ function potionIconUrl(kind, size = 'S') {
       box(ctx, 19 - w, 10, w, 10, 3, size === 'XXL' ? '#ffd34d' : '#f4ecd8');
       ctx.fillStyle = '#1a1210';
       ctx.fillText(size, 19 - w / 2, 18.5);
-    }, undefined, true);
+    }, ICON_HI, true);
     iconCache.set(key, sp.img.toDataURL());
   }
   return iconCache.get(key);
@@ -2446,7 +2454,7 @@ const gear = {
       `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs}</span></h3>` +
       sellBar + `<div class="bag-grid">${bag}</div>` +
       // Vorräte (seit 11.0): Tränke jeder Größe und Segensschriftrollen, antippen zum Trinken oder Verkaufen
-      `<h4 class="sup-head">Vorräte <small>Tränke und Segensschriftrollen</small></h4>` +
+      `<h4 class="sup-head">Vorräte <small>Tränke, Segensschriftrollen, Verstärkungen und Switcher</small></h4>` +
       `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x, !!(this.multiSup && this.multiSup.has(x.key)))).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
       // Aufwertungsteile (seit 13.37 im eigenen Fenster, Taste U): hier nur eine Zeile mit Knopf
       `<button type="button" class="mats-open" id="btnMatsOpen"><img src="${lootIconUrl('splinter')}" alt="">` +
@@ -2864,6 +2872,11 @@ const gear = {
       }
     }
     if (p.scrolls > 0) out.push({ key: 'scroll', n: p.scrolls });
+    // seit 14.51: Verstärkungen, Switcher und Sternensteine (Schmied) mit in den Vorräten
+    for (const m of MATERIALS) {
+      const n = (p.materials && p.materials[m.id]) || 0;
+      if (n > 0) out.push({ key: 'mat:' + m.id, n, mat: m });
+    }
     // Pfeile (seit 13.57, fernninja.js)
     if (typeof bowArrowSupplies === 'function') out.push(...bowArrowSupplies(p));
     return out;
@@ -2871,8 +2884,8 @@ const gear = {
 
   supplyTile(x, picked) {
     if (x.arrow != null) return bowArrowTile(x);
-    const icon = x.kind ? potionIconUrl(x.kind, x.sz.id) : scrollIconUrl();
-    const name = x.kind ? `${potionInfo(x.kind).name} ${x.sz.id}` : BLESSING.name;
+    const icon = x.mat ? materialIconHiUrl(x.mat.id) : x.kind ? potionIconUrl(x.kind, x.sz.id) : scrollIconUrl();
+    const name = x.mat ? x.mat.name : x.kind ? `${potionInfo(x.kind).name} ${x.sz.id}` : BLESSING.name;
     return `<button type="button" class="item-tile sup-tile" data-sup="${x.key}"${picked ? ' data-picked="1"' : ''} data-info="${escTip(supplyTipHtml(x))}">` +
       `<img src="${icon}" alt="${name}"><span class="item-count">${x.n > 999 ? '999+' : x.n}</span></button>`;
   },
@@ -2888,6 +2901,13 @@ const gear = {
     const tileEl = document.querySelector(`#invBody [data-sup="${x.key}"]`);
     if (tileEl) tileEl.classList.add('selected');
     if (x.arrow != null) return bowArrowDetail(el, x);
+    if (x.mat) {
+      el.innerHTML = `<div class="item-detail"><img src="${materialIconHiUrl(x.mat.id)}" alt="">` +
+        `<div class="item-info"><strong style="color:${MATERIAL_COLORS[x.mat.id] || '#ffd34d'}">${x.mat.name} × ${x.n}</strong>` +
+        `<small>${x.mat.tag} · für den Schmied · nicht verkäuflich</small><span>${x.mat.text}</span>` +
+        `<small class="hint-text">Beim Schmied wählst du das Teil aus und setzt es auf einen Gegenstand.</small></div></div>`;
+      return;
+    }
     if (!x.kind) {
       el.innerHTML = `<div class="item-detail"><img src="${scrollIconUrl()}" alt="">` +
         `<div class="item-info"><strong style="color:#ffd34d">${BLESSING.name} × ${x.n}</strong>` +
