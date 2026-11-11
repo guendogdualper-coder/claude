@@ -1,14 +1,16 @@
-# Kartenformen (seit 14.70)
+# Kartenformen (seit 14.70, Phase 2 seit 14.71)
 
 Wunsch des Spielers: Jede Karte außer Kazehana soll anders aussehen – nicht nur Boden und Farbe, sondern die ganze
 Gestalt: Inseln, zu denen man nur von Teleportstein zu Teleportstein kommt, ein Himmelsgebiet, und jede Stadt eine eigene
 Anlage. Bis 14.66 entstanden alle Karten aus demselben Rauschen mit Seen; sie unterschieden sich vor allem durch Boden,
 Farbe und Bäume.
 
-Phase 1 (dieser Stand): Baukasten und die Lichtkarten 4, 5, 6, 2, 7 samt Städten. Phase 2: Schattenkarten 11–16 und die
-gemeinsamen Karten 8, 3, 9, 10 (Vorschläge unten). Kazehana (Map 1) bleibt unverändert.
+Phase 1 (14.70): Baukasten und die Lichtkarten 4, 5, 6, 2, 7 samt Städten. Phase 2 (14.71): die Schattenkarten 11–16
+und die gemeinsamen Karten 8, 3, 9, 10, jede mit eigener Form und neuer Stadt (Abschnitt „Phase 2“). Kazehana (Map 1)
+bleibt unverändert. Damit hat jede der 15 Karten außer Kazehana eine andere Grundform und jede Stadt eine eigene Anlage –
+keine Schattenstadt ist mehr eine gespiegelte Lichtstadt.
 
-## Die fünf Karten
+## Phase 1: die fünf Lichtkarten
 
 | Map | Form | Stadt |
 |---|---|---|
@@ -57,6 +59,42 @@ den Hafen).
 Stadt in `KF_TOWNS`. Bei einer Schattenkarte zuerst prüfen, dass die Vorlage ihrer gespiegelten Stadt nicht mehr
 gebraucht wird (`SHADOW_TOWNS` in `daten/stadtformen.js`).
 
+## Phase 2 (14.71): Schattenkarten und gemeinsame Karten
+
+| Map | Form | Stadt |
+|---|---|---|
+| 11 Mondfall | **Kraterseen** (`krater`): Dämmerwiesen voller runder Mondkrater, um jeden ein Rand aus Geröll (neuer Rastercode `RIM`: Land mit Felsbrocken), in den großen ein See mit Insel, zu der ein Teleportstein führt; kleine Krater bleiben trockene Mulden. | **Mondsichel**: die Stadt liegt wie eine Sichel um den Mondsee im Osten; im Westen der Platz mit dem Weltentor, eine Uferpromenade, ein Steg über den See zum Osttor, Häuser in den Spitzen, die Stube der Mondweberin. |
+| 12 Aschewald | **Brandschneisen** (`schneisen`): verkohlter, undurchdringlicher Tannenwald; acht gerade Schneisen laufen strahlenförmig von der Stadt weg, vier Ringschneisen (Vielecke) kreuzen sie – ein Spinnennetz. An den Kreuzungen Brandflächen mit Glutfeldern (Lava) und Aschegruben. | **Palisadenstern**: achtzackiger Stern aus Kohlholz-Palisaden, die Tore in den Zacken der Achsen, in den schrägen Zacken Stände und verkohlte Tannen. |
+| 13 Knochenwüste | **Dünenmeer** (`duenen`): sieben lange Dünentäler voller Treibsand (neuer Boden `TREIBSAND`) quer über die Karte, dazwischen begehbare Kämme; Pässe aus festem Grund, Oasen mit Teich und Bäumen auf den Kämmen. | **Dünenlinse**: linsenförmige Mauer aus Gebeinkalk zwischen zwei Dünentälern (der Treibsand reicht in die Stadt), Tore nur im Westen und Osten, Oasenteich mit Palmen (neues Rasterzeichen `w`: Wasser), Platz mit dem Weltentor. |
+| 14 Blutsteppe | **Kraterkessel** (`kessel`): ein riesiger elliptischer Kessel; außen die Steppe, dann ein Graben aus Blut (neuer Boden `BLUTSEE`) mit vier Steinbrücken, innen zwei Stützmauer-Ringe mit Rampen (neuer Rastercode `WALL`, Mauerart `terrasse`) als Stufen hinab zum Blutsee, die Insel darin nur per Stein. | **Kesselrand**: Feste in D-Form am Rand des Kessels; eine Stützmauer mit zwei Treppen teilt sie, unten (zum Kessel) ein Becken voller Blut, Häuser und der Rat, oben der Platz und die Stände. |
+| 15 Nachtfrost | **Terrassenhang** (`terrassen`): vier Stützmauern ziehen sich in Wellen quer über die Karte, Lücken aus Geröll sind die Rampen; fünf Gletscherspalten (neuer Boden `EISSPALTE`) schneiden quer durch, Schneebrücken führen hinüber. | **Kreuzfeste**: Feste in Kreuzform, in der Mitte ein zugefrorener See als Platz (neues Rasterzeichen `i`: Eis, begehbar), das Weltentor steht auf dem Eis, die Stände in den vier Armen. |
+| 16 Schattenklippen | **Fjordküste** (`fjorde`): im Norden das Meer mit Schären, neun Fjorde und Seitenarme schneiden tief ins Land, Brücken über die Mündungen, Klippenfelsen an der Kante (`cliffRocks`); draußen im Schwarzmoor Moortümpel. | **Fjordhafen**: Klippenstadt, durch deren Nordmauer der Fjord bis in ein Hafenbecken reicht; eine Brücke führt über den Fjord, der Kai in der Mitte des Beckens nur per Teleportstein (Auktion und Lager stehen dort), die Werkstatt des Klippenschmieds. |
+| 8 Totenmoor | **Moorlabyrinth** (`moor`): schwarzes Moor, darin 40 Torfinseln, verbunden durch schmale Knüppeldämme (L-förmige Stege, nie durch die Stadt), mit Schleifen und Sackgassen; ein Teil der fernen Inseln ist versunken und nur über Teleportsteine zu erreichen. | **Stegdorf**: offenes Pfahldorf mitten im Moor – neun Plattformen im Raster, verbunden durch Stege; Dämme laufen aus jedem Tor geradeaus ins Moor, schiefe Hütten auf Pfählen auf den Eckplattformen. |
+| 3 Donnerklamm | **Grat und Klamm** (`grate`): fast alles ist Klamm (`KLUFT`), begehbar sind schmale, gewundene Grate zwischen Felskuppen, außen am Titanenkamm breitere Kämme und größere Kuppen; Hängebrücken zwischen nahen Kuppen. | **Gratfeste**: lange Feste auf dem Grat zwischen zwei Klammen, Tore im Westen und Osten, nach Norden und Süden Hängebrücken über die Klamm; die Werkstatt des Braumeisters. |
+| 9 Feuerberg | **Vulkankegel** (`vulkan`): im Norden der Krater mit Lavasee und Geröllrand, acht Lavaströme laufen strahlenförmig bis an den Rand und teilen das Land in Keile; je Strom zwei Basaltbrücken und eine erkaltete Furt. Das Höllenthron-Portal liegt am Südhang. | **Basaltsechseck**: sechseckige Basaltfeste, innen ein zweites Sechseck aus einem Lavagraben mit vier Steinbrücken um den Platz mit dem Weltentor. |
+| 10 Kristallabgrund | **Splitterfeld** (`splitter`): kantige Kristallplattformen (Vielecke) im Raster über dem Abgrund, verbunden durch Lichtbrücken; außen im Leerenschlund lose Splitter nur per Stein, kleine Kristallnadeln im Abgrund; der Kartenrand liegt im Abgrund (`voidEdge`). | **Oktogon** (Lichtwacht): achteckige Kristallfeste mit einer inneren Zitadelle (Rat, Auktion, Stube des Lichtmönchs), im Süden der Platz, zwei Abgrundspalten mit Lichtbrücken. |
+
+Die Vorschläge aus Phase 1 wurden so umgesetzt, mit diesen Abweichungen: Im Kraterkessel laufen keine Lavarinnen
+strahlenförmig (das wäre dem Vulkankegel zu ähnlich), sondern Ringe; in der Fjordküste ist das Schwarzmoor kein Labyrinth
+(das hat das Totenmoor), sondern voller Moortümpel; Mondfall hat keine Insel-Stadt mehr (die alte gespiegelte Stadt war
+schon „Mondsee mit Insel“), sondern die Mondsichel; die Städte von 8, 3, 9 und 10 sind neu statt „bleiben“.
+
+Neues im Baukasten (`js/kartenformen.js`):
+- Rastercodes `RIM` (Land mit Felsbrocken: Kraterrand, Rampe, Geröllhang) und `WALL` (Stützmauer, `F.wallStyle`).
+- Werkzeuge `poly` (Vieleck), `taper` (Linienzug mit wachsender Breite: Lavastrom, Fjord), `at`/`cross` (Brücke oder
+  Furt quer über einen Lauf), `townHit`/`lbridge` (L-förmige Brücke, nie durch das Quadrat der Stadt).
+- Angaben `townClear` (Karten der Phase 2: keine Furt, kein Pfad, kein Stein direkt an der Stadt, rund um jeden Stein
+  keine Bäume), `anchors` (feste Inseln/Plattformen für Instanz-Ecken und Eingänge abseits, mit Damm bzw. Lichtbrücke
+  angebunden), `town`/`stubs` (Grat: die Stadt als Quergrat, Kuppen vor den Toren, damit die Grate genau an den Toren
+  ankommen), `cliffRocks`/`rimRocks`.
+- Teleportsteine stehen nie in einem Baum (auf allen Karten die Steinkachel selbst; die Phase-1-Karten hatten dort nie
+  einen, ihr Raster bleibt gleich).
+- Dichter Wald (`fill: 'trees'`) wird jetzt bei jeder Form sparsam gezeichnet, mit der Tannenkulisse des Gebiets
+  (Aschewald: verkohlte Tannen).
+- Stadtraster: `i` (zugefrorener See, begehbar) und `w` (Wasser, wenn die Stadt eine andere Flüssigkeit hat).
+- Wichtig beim Bauen: das Rauschen (`makeNoise`) gilt nur für Lagen ab 0 – Linienzüge, die über den Kartenrand hinaus
+  laufen, an der Kante enden lassen (sonst NaN-Breiten; `taper` überspringt solche Punkte).
+
 ## Neue Böden und Aussehen
 
 - `GROUND.WOLKEN` (24) und `GROUND.KLUFT` (25), beide in `LIQUID` (nicht begehbar; der fliegende Drache darf drüber).
@@ -70,6 +108,12 @@ gebraucht wird (`SHADOW_TOWNS` in `daten/stadtformen.js`).
   (`MAP_LIQ`, `MAP_COLORS`).
 - Dichter Wald (Dunkelwald) in 3D: im Inneren nur auf jeder vierten Kachel ein Tannenpaar der Randkulisse (sparsame
   Kegel ohne Umriss) statt eines Baums je Kachel.
+- Seit 14.71: `GROUND.TREIBSAND` (26), `GROUND.BLUTSEE` (27), `GROUND.EISSPALTE` (28), alle in `LIQUID`. 3D:
+  `LIQUID3.treibsand` (träge, vom Wind geriffelte Fläche, wandernde dunkle Mulden; Tiefe 0,55), `LIQUID3.blutsee`
+  (dickflüssig, langsame Wellen, matter Glanz, dunkle Kruste am Ufer; Tiefe 0,9), `LIQUID3.eisspalte` (tief, blau ins
+  Schwarze, kalter Dunst, helle Eiskante; Tiefe 2,3, Wände aus Eis). Brücken: Steg über Treibsand, Steinbrücke über
+  Blut, Schneebrücke (Eis) über der Spalte. 2D: wandernde Riefen, träge Blasen, Dunst; eigener Saum am Ufer. Große
+  Karte und Minikarte: eigene Farben.
 
 ## Monster und Leistung
 
@@ -93,9 +137,15 @@ gebraucht wird (`SHADOW_TOWNS` in `daten/stadtformen.js`).
 
 - `WORLD_VERSION` bleibt 15: Städte liegen, wo sie waren. Wer auf jetzt unbegehbarem Gelände steht (Meer, Wolken,
   Schlucht, dichter Wald), kommt wie bisher über `canStand` → `townRescue`/`villageSpawn` in die Stadt dieser Karte.
-- Alles aus festen Startwerten: alle Mitspieler haben dieselbe Welt. Kazehana, die Schattenkarten, die gemeinsamen
-  Karten 8, 3, 9, 10 und der Dungeon-Streifen sind bitgenau wie vorher (Boden, Objekte, Schmuck, Gebiete, Helligkeit,
-  Leute, Bauten, Wege – geprüft per Rastervergleich).
+  Seit 14.71 geprüft auf allen zehn Karten der Phase 2 (je eine Stelle draußen in Moor, Klamm, Lava, Abgrund,
+  Treibsand, Blut, Spalte, Meer, Wald und je drei in der alten Stadt auf Mauer, Haus oder Wasser: alle landen auf dem
+  Ankunftsplatz der Stadt und stehen frei).
+- Alles aus festen Startwerten: alle Mitspieler haben dieselbe Welt. 14.70: Kazehana, die Schattenkarten, die gemeinsamen
+  Karten 8, 3, 9, 10 und der Dungeon-Streifen bitgenau wie vorher. 14.71: Kazehana, die Phase-1-Karten 2, 4, 5, 6, 7
+  und der Dungeon-Streifen bitgenau wie 14.70 (Boden, Objekte, Schmuck, Gebiete, Helligkeit, Leute, Bauten, Wege,
+  Steine – geprüft per Rastervergleich). Die Wanderer der übrigen Karten bleiben dank `KF_OLD_WANDER`.
+- Fraktionsregeln (offener Kampf ab 50 auf den gemeinsamen Karten) und Städte als sichere Orte sind unverändert: sicher
+  ist genau die Fläche des Stadtrasters (`TOWN_SAFE`), auch Stege, Becken und Eis darin.
 
 ## Tests
 
@@ -103,7 +153,7 @@ gebraucht wird (`SHADOW_TOWNS` in `daten/stadtformen.js`).
   (`tileBlocked`) und Teleportsteine; geprüft werden alle Leute und Tore, Steine, Wanderer, Hausbewohner, je Monstergruppe
   und Seelenstein-Stufe 20 Erscheinungsorte, dazu die Zahl begehbarer, aber unerreichbarer Kacheln.
 
-## Vorschläge für Phase 2 (jede Karte eine andere Form, Schatten ≠ Lichtgegenstück)
+## Vorschläge aus Phase 1 (umgesetzt in 14.71, siehe oben)
 
 | Map | Vorschlag Form | Stadt |
 |---|---|---|
@@ -118,7 +168,7 @@ gebraucht wird (`SHADOW_TOWNS` in `daten/stadtformen.js`).
 | 9 Feuerberg | **Vulkankegel mit Lavaströmen**: Krater mit Lavasee in der Mitte, radiale Lavaströme teilen das Land in Keile, Basaltbrücken | Inselring im Lavasee bleibt passend |
 | 10 Kristallabgrund | **Splitterfeld**: kantige, vieleckige Kristallplattformen (statt runder Inseln) im violetten Abgrund, Lichtbrücken im Raster, äußere Splitter nur per Stein | Kristallplattformen bleiben |
 
-Hinweise für Phase 2: Die Schattenstädte entstehen beim Laden als Spiegel der Lichtstädte (`SHADOW_TOWNS`); vor dem
-Ersetzen einer Lichtstadt wurden die Kopien schon gemacht, für neue Schattenstädte einfach `KF_TOWNS[11 …]` setzen.
-`KF_OLD_WANDER` enthält schon die Zahlen aller Karten. Instanz-Ecken (Maps 7, 8, 3, 9, 10, 15) brauchen Land in den
-Ecken (`mapFormTargets` sorgt dafür).
+Die gespiegelten Schattenstädte (`SHADOW_TOWNS` in `daten/stadtformen.js`) entstehen beim Laden noch, werden aber seit
+14.71 alle von `KF_TOWNS` ersetzt. Instanz-Ecken (Maps 7, 8, 3, 9, 10, 15) brauchen Land in den Ecken
+(`mapFormTargets`); liegt die Ecke auf einer Form mit Teleportsteinen mitten im Nichts, braucht sie einen `anchor`
+(Steine dürfen nicht direkt an einem Ziel stehen).
