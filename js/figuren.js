@@ -1754,7 +1754,8 @@ function gearHue(it) {
     // Leitfarbe der Instanz (ITEM_SETS[id].color, daten/gegenstaende.js), sonst eine feste Setfarbe aus dem Namen
     const def = typeof ITEM_SETS !== 'undefined' && ITEM_SETS ? ITEM_SETS[it.set] : null;
     const col = def && typeof def.color === 'string' && /^#[0-9a-f]{6}$/i.test(def.color) ? def.color : null;
-    if (col) return { c: col, m: mixColor(col, '#e8dcc0', 0.6), a: lighter(col, 0.4), f: 0.72, fm: 0.6, k: 's' + col.slice(1) };
+    // die Instanzfarben sind helle Leuchttöne: Stoff in einem satten, dunkleren Ton davon, Metall hell getönt
+    if (col) return { c: mixColor(col, '#1e2430', 0.42), m: mixColor(col, '#e8dcc0', 0.55), a: col, f: 0.72, fm: 0.6, k: 's' + col.slice(1) };
     const s = gearHash(it.set) % SET_HUES.length;
     return Object.assign({ f: 0.72, fm: 0.6, k: 's' + s }, SET_HUES[s]);
   }
