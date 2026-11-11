@@ -137,6 +137,7 @@ function factionGoHome(quiet) {
 const factionState = { at: 0, warned: 0 };
 function factionLockTick() {
   const p = game.player;
+  if (game.time < factionState.at) factionState.at = -9;
   if (!p || !game.world || p.dead || game.time - factionState.at < 0.5) return;
   factionState.at = game.time;
   if (!p.faction) return;
@@ -392,7 +393,8 @@ if (typeof pvpFoes === 'function') {
 if (typeof pvpActive === 'function') {
   const _facActive = pvpActive;
   pvpActive = function () {
-    return _facActive() || (typeof game !== 'undefined' && game.time - openPvp.lastHit < OPEN_PVP.engaged);
+    const dt = typeof game !== 'undefined' ? game.time - openPvp.lastHit : -1;
+    return _facActive() || (dt >= 0 && dt < OPEN_PVP.engaged);
   };
 }
 if (typeof pvpHit === 'function') {
