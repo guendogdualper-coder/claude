@@ -1447,8 +1447,26 @@ function auraFlat(lvl) {
   return Math.round(v * (1 + (bp - 1) * 0.5));
 }
 // (Frostpanzer mit fester Rüstung und Kälte nach Rang ist seit 13.64 entfernt – Eisgefängnis, frostgefaengnis.js)
+// Drachenkraft (seit 14.56): eigene Rangtabelle statt 15 % × Kurve – vorher schon auf Stufe 1 mit Intelligenz +23 %
+// Angriff, Fertigkeitsschaden und Schutz. Jetzt Stufe 1: 2 %, Stufe 15: 6 %, E 8–10,7 %, H 12–14,7 %, L 16–19,6 %, V 22 %,
+// dazu der Hauptwert halb (wie die Aura des Schwertes): bei voller Intelligenz etwa ×1,25
+const DRACHENKRAFT = { base: [0.02, 0.06], E: [0.08, 0.003], H: [0.12, 0.003], L: [0.16, 0.004], V: 0.22 };
+function drachenkraftPct(lvl) {
+  const T = DRACHENKRAFT;
+  const r = skillRank(lvl);
+  let v;
+  if (r < 0) v = T.base[0] + (T.base[1] - T.base[0]) * (Math.min(lvl, SKILL_POINT_MAX) - 1) / (SKILL_POINT_MAX - 1);
+  else if (r === 3) v = T.V;
+  else {
+    const [b, step] = T['EHL'[r]];
+    v = b + step * (lvl - SKILL_RANKS[r].from);
+  }
+  const bp = (game.stats && game.stats.buffPower) || 1;
+  return Math.round(v * (1 + (bp - 1) * 0.5) * 1000) / 1000;
+}
 const SKILL_FIXED_EFFECTS = {
-  segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat }
+  segen: { damageTaken: segenReduction }, schwertaura: { atkFlat: auraFlat },
+  drachenkraft: { atk: drachenkraftPct, skillDmg: drachenkraftPct, damageTaken: (lvl) => -drachenkraftPct(lvl) }
 };
 function applyBuff(sk, lvl) {
   const p = game.player;

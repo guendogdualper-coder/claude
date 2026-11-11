@@ -247,6 +247,7 @@ const CLASSES = {
             text: 'Ein Geisterdrache aus Feuer kreist dreimal um dich und trifft jedes Mal alle Gegner im Umkreis. Zum Schluss schleudert er sie zurück und setzt sie in Brand.'
           },
           {
+            // seit 14.56 wachsen die drei Werte nach eigener Tabelle (DRACHENKRAFT in kampf.js, Stufe 1: 2 %); effects sind nur noch Platzhalter.
             // seit 13.69 mit Drachenschuppen (weniger erlittener Schaden): der Flächen-Schamane brach gegen Gruppen sofort zusammen.
             // Dazu Blitzdrache 1,7 → 2,1, Drachenwirbel 0,95 → 1,05, Donnersturm betäubt 1,5 s statt 1 s
             id: 'drachenkraft', name: 'Drachenkraft', short: 'DK', kind: 'buff', unlock: 5, mp: 24, cooldown: 60,
