@@ -1,4 +1,4 @@
-# Städte verteilt (seit 14.48)
+# Städte verteilt (seit 14.50)
 
 Wunsch: Kazehana (Map 1) bleibt in der Mitte, die Städte und Lager der übrigen Maps liegen nicht mehr alle in der
 Mitte, sondern je Map an einer eigenen, festen Stelle – so ist jede Map anders aufgebaut.
@@ -35,7 +35,7 @@ Startwert erzeugt; weil die Stadt woanders ausgespart wird, liegen Bäume, Felse
 
 ## Was mitzieht
 
-Fast alles rechnete schon ab `wm.cx`/`wm.cy` (seit 14.48 = Stadtlage statt Mitte):
+Fast alles rechnete schon ab `wm.cx`/`wm.cy` (seit 14.50 = Stadtlage statt Mitte):
 sichere Zone (`inVillage`, `TOWN_SAFE`), Mauer und Stadtformen (`applyTownLayout`, 14.16), Stände, NPCs,
 Weltentor, Teleportsteine, Spawn/Wiederbeleben (`mp.spawn`, `villageSpawn`), Reiseziele der Wegweiserin,
 Gebietsringe (`mapZoneAt`: Abstand ab der Stadt), Dungeon-Eingänge, wandernde Eingänge (14.17), Wanderer,
@@ -58,7 +58,7 @@ Neu angepasst:
 - Kazehana, Dungeons, Arenen: unverändert, es geht an derselben Stelle weiter.
 - Maps 2–10: Lag die Stelle in oder nahe der alten Stadt (Quadrat halbe Mauer + 10 um die alte Mitte
   `wm.oldCx/oldCy`), geht es am Spawn der neuen Stadt derselben Map weiter; sonst an derselben Stelle.
-- Ist die Stelle blockiert (Baum, Fels, Wasser, Mauer), geht es seit 14.48 in die Stadt dieser Map
+- Ist die Stelle blockiert (Baum, Fels, Wasser, Mauer), geht es seit 14.50 in die Stadt dieser Map
   (`villageSpawn(p)`), vorher immer nach Kazehana.
 
 ## Tests (Port 8795)

@@ -25,7 +25,7 @@ const VS = VILLAGE_PLAN / 14; // der Dorfplan ist für 14 gezeichnet: alle Abst�
 const SAFE_RING = 33;     // so weit vom Dorfzentrum bleiben Monster beim Erscheinen weg (10 Kacheln vor der Mauer)
 const GATE_HALF = 2;      // Tore sind 4 Kacheln breit
 const WORLD_SEED = 20261027;
-const WORLD_VERSION = 15;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen); 13: neuer Dorfplan, 14: geschwungene Wege, 15: Städte verteilt (14.48)
+const WORLD_VERSION = 15;  // erhöhen, wenn sich die Karte ändert (alte Positionen werden dann verworfen); 13: neuer Dorfplan, 14: geschwungene Wege, 15: Städte verteilt (14.50)
 const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts mehr zu erreichen
 
 // Bodenarten
@@ -133,7 +133,7 @@ function makeNoise(rng, cell) {
 }
 
 // Jede Map ist ein eigenes Rechteck (WORLD_MAPS.region). In Kazehana ist das Dorf ein Quadrat innerhalb der
-// Mauer, sonst liegen die Gebiete als Ringe um die Stadt bzw. das Lager der Map (wm.cx, wm.cy; seit 14.48 nicht mehr
+// Mauer, sonst liegen die Gebiete als Ringe um die Stadt bzw. das Lager der Map (wm.cx, wm.cy; seit 14.50 nicht mehr
 // überall die Mitte). Was zu keiner Map gehört, ist Fels.
 function zoneIndexAt(x, y) {
   const wm = mapOfTile(x, y);
@@ -1819,7 +1819,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
   }
   const far = 4 + Math.floor(rng() * 3);
   const a0 = rng() * Math.PI * 2;
-  // seit 14.48: Reichweite von der Stadt bis an den inneren Rand (18 Kacheln von links und rechts, 15 von oben und
+  // seit 14.50: Reichweite von der Stadt bis an den inneren Rand (18 Kacheln von links und rechts, 15 von oben und
   // unten) in Richtung a – die Stadt liegt nicht mehr überall in der Mitte (in der Mitte wie bisher rw / 2 - 18 usw.)
   const reachAt = (a) => {
     const c = Math.cos(a);
@@ -2344,7 +2344,7 @@ function dungeonProps(dg, obj, ground) {
 }
 
 // --- Maps 2 bis 10 --------------------------------------------------------------------------
-// Ringe um ein sicheres Lager bzw. eine Stadt (seit 14.48 je Map an eigener Stelle, WORLD_MAPS.town), Gewässer und
+// Ringe um ein sicheres Lager bzw. eine Stadt (seit 14.50 je Map an eigener Stelle, WORLD_MAPS.town), Gewässer und
 // Bewuchs aus Rauschen,
 // vier Wege vom Lager zum Rand und ein Rand aus Felsen.
 function buildWorldMaps(ground, obj, deco, zoneIdx, shape, detail, bloom, roads = []) {
@@ -2656,7 +2656,7 @@ function moveEntity(e, dx, dy, isMonster) {
 // Zufälliger begehbarer Punkt in einer Zone (in Pixeln).
 // from/to grenzen den Ring ein: 0 = dorfnaher Rand, 1 = äußerer Rand.
 function randomSpotInZone(zone, from = 0, to = 1) {
-  // Gebiete liegen als Ringe um die Stadt bzw. das Lager ihrer Map (Kazehana: um das Dorf; seit 14.48 nicht mehr
+  // Gebiete liegen als Ringe um die Stadt bzw. das Lager ihrer Map (Kazehana: um das Dorf; seit 14.50 nicht mehr
   // überall in der Mitte der Map)
   const wm = WORLD_MAPS.find((m) => m.id === zone.map) || WORLD_MAPS[0];
   const cx = wm.cx;
@@ -2665,7 +2665,7 @@ function randomSpotInZone(zone, from = 0, to = 1) {
   const pad = MAP_BORDER + 1;
   const [bx0, by0, bx1, by1] = [wm.region[0] + pad, wm.region[1] + pad, wm.region[0] + wm.region[2] - pad, wm.region[1] + wm.region[3] - pad];
   const inner = Math.max(zone.minDist + 2, safe);
-  const outer = Math.min(zone.maxDist - 2, wm.reach); // seit 14.48 bis zur fernsten Ecke ab der Stadt (vorher halbe Diagonale)
+  const outer = Math.min(zone.maxDist - 2, wm.reach); // seit 14.50 bis zur fernsten Ecke ab der Stadt (vorher halbe Diagonale)
   const minD = inner + (outer - inner) * from;
   const maxD = inner + (outer - inner) * to;
   for (let tries = 0; tries < 300; tries++) {

@@ -1,5 +1,5 @@
 // Seit Version 6.2 ist jedes Gebiet eine eigene Map (WORLD_MAPS), erreichbar nur über das Weltentor im
-// Lager der Map. Map 1 ist Kazehana mit den Sonnenwiesen; jede andere Map hat ein Lager bzw. eine Stadt (seit 14.48 nicht mehr
+// Lager der Map. Map 1 ist Kazehana mit den Sonnenwiesen; jede andere Map hat ein Lager bzw. eine Stadt (seit 14.50 nicht mehr
 // in der Mitte, sondern je Map an eigener Stelle: WORLD_MAPS.town).
 // map               Map, zu der das Gebiet gehört
 // minDist/maxDist   Abstand von der Stadt bzw. dem Lager der Map in Kacheln (WORLD_MAPS.cx, cy)
@@ -179,7 +179,7 @@ for (const d of DUNGEONS) {
 // Jedes Gebiet ist eine eigene Map, nicht zu Fuß erreichbar, nur über das Weltentor im Lager (bzw. in
 // der Stadt). Auf jeder Map liegt ein sicherer Ort; die Gebiete liegen als Ringe darum
 // (minDist/maxDist ab der Stadt bzw. dem Lager): nah am Lager schwächere Monster, nach außen stärkere.
-// town (seit 14.48): Lage der Stadt bzw. des Lagers [x, y] in Kacheln ab der linken oberen Ecke der Map (360 × 220);
+// town (seit 14.50): Lage der Stadt bzw. des Lagers [x, y] in Kacheln ab der linken oberen Ecke der Map (360 × 220);
 // ohne town in der Mitte (nur noch Kazehana). Jede Map hat ihren eigenen Platz: am Rand, in einer Ecke oder im
 // Drittel, mit Abstand zum Felsrand, zu den Instanz-Toren in den Ecken und so, dass die Dungeon-Eingänge (entry.dir,
 // entry.dist ab der Stadt) und das Endboss-Tor südlich der Stadt auf der Map bleiben (docs/staedte-verteilt.md)
@@ -259,7 +259,7 @@ const MAP_ZONES = [
     ambient: { kind: 'shards', tint: [50, 30, 110, 0.14] }
   }
 ];
-// seit 14.48: Die Stadt bzw. das Lager liegt nicht mehr auf jeder Map in der Mitte (town: [x, y] in Kacheln ab der
+// seit 14.50: Die Stadt bzw. das Lager liegt nicht mehr auf jeder Map in der Mitte (town: [x, y] in Kacheln ab der
 // linken oberen Ecke der Map). Kazehana bleibt in der Mitte. oldCx/oldCy: die alte Mitte (für Spielstände aus Welt 14),
 // reach: Abstand von der Stadt bis zur fernsten Ecke der Map (äußerer Rand der Gebietsringe; in der Mitte wie bisher
 // die halbe Diagonale)

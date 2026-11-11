@@ -328,7 +328,7 @@ function makePlayer(save) {
       const wm = mapOfTile(Math.floor(save.x / TILE), Math.floor(save.y / TILE));
       if (wm && wm.id !== 1) campOf = wm.id;
     } else if (save.worldVersion === 14 && save.x != null) {
-      // seit 14.48 (Welt 15): Die Städte und Lager der Maps 2–10 liegen an neuer Stelle (WORLD_MAPS.town), Kazehana,
+      // seit 14.50 (Welt 15): Die Städte und Lager der Maps 2–10 liegen an neuer Stelle (WORLD_MAPS.town), Kazehana,
       // die Dungeons und die Arenen bleiben gleich – dort geht es an derselben Stelle weiter. Wer in oder nahe der
       // alten Stadt einer anderen Map stand (dort ist jetzt Wildnis mit Monstern), kommt in die neue Stadt derselben
       // Map; sonst bleibt die Stelle (blockiert dort jetzt etwas: unten in die Stadt dieser Map)
@@ -348,7 +348,7 @@ function makePlayer(save) {
   if (p.hp == null || p.hp <= 0) p.hp = stats.maxHp;
   if (p.mp == null) p.mp = stats.maxMp;
   const camp = campOf && game.world && game.world.maps ? game.world.maps.find((m) => m.id === campOf) : null;
-  // seit 14.48: blockierte Stelle auf einer Map: in die Stadt bzw. das Lager dieser Map (vorher immer nach Kazehana)
+  // seit 14.50: blockierte Stelle auf einer Map: in die Stadt bzw. das Lager dieser Map (vorher immer nach Kazehana)
   const spawn = camp ? camp.spawn : villageSpawn(p.x != null && p.y != null ? p : undefined);
   if (p.x == null || !canStand(p.x, p.y, p.r * 0.7, false)) {
     // seit 14.16: wer in einer Stadt mit neuer Form auf Wasser, Mauer oder Haus stünde, kommt zum Weltentor dieser Stadt

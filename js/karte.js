@@ -880,7 +880,7 @@ function nearestIn(arr, area, p, test) {
 function zoneRingSpot(z, from, to, p) {
   const wm = WORLD_MAPS.find((m) => m.id === z.map) || WORLD_MAPS[0];
   const safe = wm.id === 1 ? SAFE_RING : (wm.camp || CAMP_HALF) + 7;
-  const outer = Math.min(z.maxDist, wm.reach); // seit 14.48 bis zur fernsten Ecke ab der Stadt
+  const outer = Math.min(z.maxDist, wm.reach); // seit 14.50 bis zur fernsten Ecke ab der Stadt
   const inner = Math.max(z.minDist + 2, safe);
   const r = inner + (Math.max(inner, outer) - inner) * (from + to) / 2;
   let a = Math.atan2(p.y / TILE - wm.cy, p.x / TILE - wm.cx);
@@ -1591,7 +1591,7 @@ function drawZoneLabels(ctx, area, v) {
   const zs = ZONES.filter((z) => z.map === wm.id && !z.dungeon);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // seit 14.48: Liegt die Stadt weit neben der Mitte, stehen die Namen der Gebiete auf der weiteren Seite der Map
+  // seit 14.50: Liegt die Stadt weit neben der Mitte, stehen die Namen der Gebiete auf der weiteren Seite der Map
   // (oben und unten im Wechsel), sonst wie bisher links und rechts im Wechsel
   const [mrx, mry, mrw, mrh] = wm.region;
   const farSide = Math.abs(wm.cx - (mrx + mrw / 2)) >= 30 ? (wm.cx > mrx + mrw / 2 ? -1 : 1) : 0;
@@ -1613,9 +1613,9 @@ function drawZoneLabels(ctx, area, v) {
       r = Math.max(r, (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) + 8 + half);
       x = wm.cx + (farSide || side) * r;
       y = wm.cy + (side > 0 ? -1 : 1) * Math.min(r * 0.35, wm.region[3] / 2 - 10);
-      // seit 14.48: auf der weiteren Seite halb zwischen Stadt und Mitte der Höhe, mehrere Gebiete versetzt
+      // seit 14.50: auf der weiteren Seite halb zwischen Stadt und Mitte der Höhe, mehrere Gebiete versetzt
       if (farSide) y = (wm.cy + mry + mrh / 2) / 2 + (zs.length > 2 ? (side > 0 ? -1 : 1) * 22 : 0);
-      // seit 14.48: auf der Map bleiben (Stadt am Rand)
+      // seit 14.50: auf der Map bleiben (Stadt am Rand)
       x = Math.max(mrx + MAP_BORDER + 4 + half, Math.min(mrx + mrw - MAP_BORDER - 4 - half, x));
       y = Math.max(mry + MAP_BORDER + 6, Math.min(mry + mrh - MAP_BORDER - 6, y));
       side = -side;
