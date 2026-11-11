@@ -1,4 +1,4 @@
-## Schwertaura | Wirk-Animation und ruhigere Dauer-Aura (14.60)
+## Schwertaura | Wirk-Animation und ruhigere Dauer-Aura (14.61)
 
 **Wunsch (Spieler):** Beim Aktivieren der „Aura des Schwertes“ kamen große Feuerstrahlen/Flammenflügel heraus, die
 Figur wurde überstrahlt. Gewünscht: schöner animieren, weniger Feuer, Waffen je Bewaffnung hochrecken, Klingen kurz

@@ -6044,7 +6044,7 @@ function dualKeys3(kind) {
   return DUAL_KEYS3[kind];
 }
 
-// Aura des Schwertes (seit 14.60): Wirk-Pose je Bewaffnung, sw 0–1 über 1,5 s. Anheben bis 0,2, halten (leichtes
+// Aura des Schwertes (seit 14.61): Wirk-Pose je Bewaffnung, sw 0–1 über 1,5 s. Anheben bis 0,2, halten (leichtes
 // Nachfedern), ab 0,72 weich zurück in die Ruhehaltung. Zwei Waffen: beide Arme schräg hoch, die Klingen bilden ein
 // V über dem Kopf. Zweihänder: beide Hände am Griff, Klinge senkrecht hochgereckt. Einhand mit Schild: Schwertarm hoch,
 // Schild vor dem Körper. Die Beine bleiben beim Laufen frei (die Figur ist steuerbar), im Stand ein fester Stand.
@@ -6090,7 +6090,7 @@ SKILL_POSE3.schwertaura = function (B, sw, kind, p, a) {
   const rk = p.saCast && game.time - p.saCast.at < 3 ? p.saCast.rk : -1;
   const col = rk >= 0 && typeof SA_CAST_COL !== 'undefined' ? SA_CAST_COL[rk + 1].alt : '#ffe28a';
   const fl = sw < 0.1 ? 0 : sw < 0.22 ? poseSeg(sw, 0.1, 0.22) : 1 - poseSeg(sw, 0.22, 0.6);
-  poseWeaponGlow(a, col, Math.min(0.75, 0.25 * k + 0.5 * Math.max(0, fl)));
+  poseWeaponGlow(a, col, Math.min(0.6, 0.25 * k + 0.5 * Math.max(0, fl)));
 };
 
 const easeIn3 = (u) => u * u;

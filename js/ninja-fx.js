@@ -479,7 +479,7 @@ function weaponAxis3(p, base, tip, left = false) {
 
 function schwertaura3(h, p, b, t) {
   const low = n3low();
-  // seit 14.60 wächst die Lichtklinge mit dem Rang (ohne Rang 0,7, V 1,0 – vorher immer 1,0): die Dauer-Aura
+  // seit 14.61 wächst die Lichtklinge mit dem Rang (ohne Rang 0,7, V 1,0 – vorher immer 1,0): die Dauer-Aura
   // überstrahlte die Figur, der Rang bleibt an Breite und Helligkeit der Klinge erkennbar
   const rk = typeof skillRank === 'function' && b.lvl ? skillRank(b.lvl) : -1;
   const pulse = (0.8 + 0.2 * Math.sin(t * 7)) * (0.7 + 0.075 * (rk + 1));
@@ -530,7 +530,7 @@ function schwertBlade3(h, t, pulse, low, k) {
 }
 if (SKILL_FX.schwertaura) SKILL_FX.schwertaura.aura3 = schwertaura3;
 
-// --- Aura des Schwertes: Wirk-Animation (seit 14.60) ----------------------------------------------------------
+// --- Aura des Schwertes: Wirk-Animation (seit 14.61) ----------------------------------------------------------
 // Spielerwunsch: beim Aktivieren die Waffen hochrecken, die Klingen blitzen kurz auf, dann breitet sich am Boden ein
 // leuchtender Kreis aus und eine Aura steigt nach oben. Ablauf (1,5 s, Figur bleibt steuerbar):
 //   0–0,3 s   Arme hoch (Pose in drei-figuren.js, SKILL_POSE3.schwertaura: zwei Waffen als V über dem Kopf,

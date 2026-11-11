@@ -719,7 +719,7 @@ function remoteSkillFx(rp, d) {
   const sk = skillById(d.s);
   if (!sk) return;
   // Rang-Effekte der Mitspieler in 3D (seit 12.6), nicht bei Kanal-Meldungen und Abbrüchen
-  // seit 14.60 leise (soft) bei Fertigkeiten mit eigener Wirk-Animation (Schwertaura)
+  // seit 14.61 leise (soft) bei Fertigkeiten mit eigener Wirk-Animation (Schwertaura)
   const sfx = SKILL_FX[d.s];
   if (Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length && !d.cx && d.bm !== 0 && d.bm !== 2 && typeof rankCast3 === 'function') rankCast3(rp, d.rk, !!(sfx && sfx.rankSoft));
   // Eisstrahl (seit 9.6): Anfang, Richtung, Ende
@@ -913,7 +913,7 @@ function remoteSkillFx(rp, d) {
       addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: sk.color || '#a774e0' });
       break;
     default:
-      // seit 14.60: eigene Wirk-Animation (Schwertaura: Pose über den Zustand, Lichtteich und Aura über remoteCast)
+      // seit 14.61: eigene Wirk-Animation (Schwertaura: Pose über den Zustand, Lichtteich und Aura über remoteCast)
       if (sfx && sfx.remoteCast) sfx.remoteCast(rp, rk);
       // Buffs und Heilung: Lichtsäule (die Kraftpose kommt schon über den Zustand)
       else vfxPillar(rp, col);

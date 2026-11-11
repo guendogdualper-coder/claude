@@ -429,7 +429,7 @@ function drawPlayer(ctx, p) {
     else if (lk > 0) leapH = leapCurve(p.leap, lk) * p.leap.h;
   }
   // Kraftpose beim Buffen: Arme hoch, kleiner Hüpfer (auch bei Mitspielern, über swingKind)
-  // seit 14.60 auch die Wirk-Animation der Schwertaura (in 2D als Kraftpose mit beiden Armen oben)
+  // seit 14.61 auch die Wirk-Animation der Schwertaura (in 2D als Kraftpose mit beiden Armen oben)
   const posing = (p.swingKind === 'pose' || p.swingKind === 'schwertaura') && p.swing > 0 && !p.riding;
   const poseK = posing ? 1 - p.swing / (p.swingDur || 0.7) : 0;
   if (posing) leapH += Math.sin(Math.min(1, poseK * 1.6) * Math.PI) * 6;

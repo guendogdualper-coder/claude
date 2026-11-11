@@ -830,7 +830,7 @@ const SKILL_FX = {
 // Effekte der zweiten Wege
 Object.assign(SKILL_FX, {
   schwertaura: {
-    // seit 14.60 eigene Wirk-Animation statt Lichtsäule, Lichtkranz und Bildschirmschein: Waffen hochrecken
+    // seit 14.61 eigene Wirk-Animation statt Lichtsäule, Lichtkranz und Bildschirmschein: Waffen hochrecken
     // (SKILL_POSE3.schwertaura), Klingen blitzen in der Rangfarbe auf, Lichtteich am Boden und aufsteigende Aura
     // (schwertauraCast, ninja-fx.js). Mitspieler sehen dasselbe über remoteCast (interaktion.js remoteSkillFx).
     cast(p) {
@@ -1317,7 +1317,7 @@ function updateBuffAuras(dt) {
 // Ränge sichtbar machen: jede Stufe legt etwas drauf.
 // Erwacht: Runenkreis und Ring in der Rangfarbe · Heroisch: dazu aufsteigende Wirbelringe ·
 // Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
-// soft (seit 14.60, Fertigkeiten mit eigener Wirk-Animation wie die Schwertaura): nur die Funkenspirale in der
+// soft (seit 14.61, Fertigkeiten mit eigener Wirk-Animation wie die Schwertaura): nur die Funkenspirale in der
 // Rangfarbe, kein Bildschirmschein, kein Beben, in 2D keine Ringe, Runen und Säulen
 function rankCastFx(p, rank, color, soft = false) {
   const fy = feetY(p);

@@ -20,7 +20,7 @@
 
 const KA_STYLES = {
   // Krieger, Weg der Klinge: rot-goldene Flammenzungen, goldene Glut steigt auf
-  // seit 14.60 weniger und kleinere Zungen (vorher n 11, h 0,53, Deckkraft 0,84/0,94, Schein 0,34)
+  // seit 14.61 weniger und kleinere Zungen (vorher n 11, h 0,53, Deckkraft 0,84/0,94, Schein 0,34)
   klinge: {
     glow: '#ff5a1a', glowOp: 0.26,
     wisp: { n: 8, body: '#d8261a', core: '#ffc23a', bodyOp: 0.7, coreOp: 0.8, w: 0.2, h: 0.44, rise: 0.66, speed: 0.75, r: 0.28 },
@@ -122,7 +122,7 @@ const KA_STYLES = {
 const KA_FLAME = {
   // seit 14.47 schärfer (Spieler: „sieht billig aus“): enger am Körper, feinere und schnellere Zungen, heißer goldener
   // Kern, weniger deckender Saum; die weite Außenlage nur noch schwach (wideOp) – vorher große, flache Flammenflügel
-  // seit 14.60 deutlich zurückgenommen (Spieler: „das ein bisschen weniger“, die Figur wurde überstrahlt): Zungen
+  // seit 14.61 deutlich zurückgenommen (Spieler: „das ein bisschen weniger“, die Figur wurde überstrahlt): Zungen
   // niedriger (rise 1,35 → 1,0) und enger am Körper (inf 0,78 → 0,62), Deckkraft 0,8, weite Außenlage fast aus
   // (wideOp 0,4 → 0,12) – keine seitlichen Flammenflügel mehr
   klinge: { edge: '#3a0204', body: '#d81e0a', core: '#ff7414', hot: '#ffe08a', rim: '#ffb43a', op: 0.8, occl: 0.5, rise: 1.0, inf: 0.62, spd: 1.45, freq: 1.6, wideOp: 0.12 },

@@ -32,7 +32,7 @@ FX3_DRAW.rankcast3 = function (h, e) {
   const x = (ow ? ow.x : e.x) * U3;
   const z = (ow ? feetY(ow) : e.y) * U3;
   let fade = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.6) / 0.4);
-  // seit 14.60 leise Fassung (e.soft): ohne Zusatzebenen, ohne großen Lichtfleck, Spirale halb so hell und dicht
+  // seit 14.61 leise Fassung (e.soft): ohne Zusatzebenen, ohne großen Lichtfleck, Spirale halb so hell und dicht
   if (e.soft) fade *= 0.55;
   else {
     rankCastExtra3(h, e, x, z, t, r, fade, low);
@@ -281,7 +281,7 @@ FX3_DRAW.rankhit3 = function (h, e) {
 };
 
 // Aufrufe aus rankCastFx / rankHitFx (fertigkeiten.js): nur in 3D, sonst bleibt die 2D-Darstellung
-// soft (seit 14.60, Schwertaura): nur die Funkenspirale, schwächer – die Fertigkeit zeigt ihren Rang selbst
+// soft (seit 14.61, Schwertaura): nur die Funkenspirale, schwächer – die Fertigkeit zeigt ihren Rang selbst
 function rankCast3(p, rank, soft = false) {
   if (typeof V3 === 'undefined' || !V3.on) return;
   addEffect({ type: 'rankcast3', owner: p, x: p.x, y: feetY(p), rank, soft, dur: soft ? 1.2 : 1.0 + rank * 0.3 });

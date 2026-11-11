@@ -58,7 +58,7 @@ const CLASSES = {
             // seit 13.2 schon ab Stufe 3 (tauscht mit dem Schwertwirbel)
             id: 'schwertaura', name: 'Aura des Schwertes', short: 'AS', kind: 'buff', unlock: 3, mp: 30, cooldown: 60,
             // fester Angriffswert, seit 13.49 nach eigener Rangtabelle (auraFlat in kampf.js: normal 30–70 … V 600, dazu Hauptwert)
-            // seit 14.60 mit eigener Wirk-Animation (anim, SKILL_POSE3.schwertaura): Waffen hochrecken, Klingen blitzen auf,
+            // seit 14.61 mit eigener Wirk-Animation (anim, SKILL_POSE3.schwertaura): Waffen hochrecken, Klingen blitzen auf,
             // Lichtteich am Boden und aufsteigende Aura (schwertauraCast in ninja-fx.js); die Figur bleibt steuerbar
             type: 'buff', duration: 180, effects: { atkFlat: 30, crit: 0.04 }, anim: 'schwertaura', animDur: 1.5,
             text: 'Buff: Eine leuchtende Aura umgibt dein Schwert. Fester Angriff obendrauf (wächst mit der Stufe) und mehr kritische Treffer.'
