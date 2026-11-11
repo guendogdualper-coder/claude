@@ -139,7 +139,15 @@ const ui = {
         $('createError').hidden = false;
         return;
       }
+      // seit 14.53: Seite wählen (Licht oder Schatten, seiten.js)
+      const faction = typeof factionPicked === 'function' ? factionPicked() : 'licht';
+      if (!faction) {
+        $('createError').textContent = 'Wähle deine Seite: Licht oder Schatten.';
+        $('createError').hidden = false;
+        return;
+      }
       const save = newCharacter(name, this.selectedClass, this.selectedPath, this.createLook || DEFAULT_LOOKS[this.selectedClass]);
+      save.faction = faction;
       const free = listSaves().findIndex((sv) => !sv);
       if (free < 0) {
         $('createError').textContent = 'Alle vier Plätze sind belegt. Lösche zuerst einen Charakter.';

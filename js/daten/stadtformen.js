@@ -461,3 +461,43 @@ const TOWN_LAYOUTS = {
       [-5.6, 15.0, 'K'], [5.4, 15.6, 'C'], [-15.4, 14.6, 'G'], [14.6, 14.8, 'X'], [-3.6, -13.0, 'B']]
   }
 };
+
+// seit 14.53: Städte und Lager der Schattenseite (Maps 11–16, docs/fraktionen.md). Sie nutzen die vorhandenen Formen,
+// aber gespiegelt (Westen ↔ Osten), mit eigenen Dachfarben und teils anderer Flüssigkeit – so sieht keine aus wie ihr
+// Gegenstück auf der Lichtseite, und Wege, Tore und Stände bleiben trotzdem stimmig.
+// Spiegeln: Kachel dx → -dx, ein Platz u (Kacheln ab der Mitte der Stadtkachel) → 1 - u, Stand 'w' ↔ 'e', Blick umgekehrt.
+function mirrorTownLayout(L, extra) {
+  const mx = (u) => +(1 - u).toFixed(2);
+  const side = { w: 'e', e: 'w' };
+  const places = {};
+  for (const [k, [x, y, s, yaw]] of Object.entries(L.places)) {
+    places[k] = yaw != null ? [mx(x), y, side[s] || s, -yaw] : [mx(x), y, side[s] || s];
+  }
+  return {
+    ...L,
+    grid: L.grid.map((row) => row.split('').reverse().join('')),
+    weltentor: [mx(L.weltentor[0]), L.weltentor[1]], spawn: [mx(L.spawn[0]), L.spawn[1]],
+    places,
+    stones: (L.stones || []).map(([ax, ay, bx, by]) => [-ax, ay, -bx, by]),
+    houses: (L.houses || []).map(([dx, dy, w, h, roof, look]) => [-(dx + w - 1), dy, w, h, roof, look]),
+    enter: L.enter ? [-(L.enter[0] + 6), L.enter[1]] : undefined,
+    lights: (L.lights || []).map(([t, x, y]) => [t, mx(x), y]),
+    deco: (L.deco || []).map(([x, y, c]) => [mx(x), y, c]),
+    ...extra
+  };
+}
+// Map → [Vorlage, Name der Form, Flüssigkeit (null: wie die Vorlage), Dachfarben (null: wie die Vorlage)]
+const SHADOW_TOWNS = {
+  11: [2, 'Mondsee mit Insel', 'WATER', ['#2e2a5a', '#3e2a4a']], // Mondfall: Stadt am Mondsee, das Weltentor auf der Insel
+  12: [5, 'Achteck aus Kohlholz', null, null], // Glimmwacht: Palisaden-Achteck im Aschewald
+  13: [6, 'Ring um den Schlund', 'ABGRUND', null], // Gebeinwacht: Ringstadt um einen dunklen Schlund
+  14: [9, 'Glutinseln', 'LAVA', null], // Blutwacht: Inselring im Glutsee, nur über Teleportsteine verbunden
+  15: [7, 'Eisterrassen', null, null], // Eisnacht: Terrassen am Nachthang
+  16: [3, 'Klippenfeste über dem Moor', 'BOG', ['#2a3a3a', '#3a2a3a']] // Nachtwacht: zwei Hälften über einer Moorschlucht
+};
+for (const [id, [from, form, liquid, roofs]] of Object.entries(SHADOW_TOWNS)) {
+  const L = mirrorTownLayout(TOWN_LAYOUTS[from], { form });
+  if (liquid) L.liquid = liquid;
+  if (roofs) L.houses = L.houses.map((h, k) => [h[0], h[1], h[2], h[3], roofs[k % roofs.length], h[5]]);
+  TOWN_LAYOUTS[id] = L;
+}

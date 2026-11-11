@@ -13,7 +13,7 @@ function mainQuestEntries() {
   const out = [];
   const main = currentMainQuest();
   if (main) {
-    const inChapter = MAIN_QUESTS.filter((x) => x.chapter === main.chapter);
+    const inChapter = mainQuestList().filter((x) => x.chapter === main.chapter);
     const step = inChapter.indexOf(main) + 1;
     const talk = main.goal.type === 'talk';
     out.push({
@@ -70,7 +70,7 @@ function sideQuestEntries() {
 function questCounts() {
   const q = questState();
   const sideDoneCount = Object.values(q.side || {}).reduce((n, s) => n + (s.times || 0), 0) + (q.hunts || 0) + (q.nightDone || 0);
-  return { mainDone: q.main || 0, mainTotal: MAIN_QUESTS.length, sideDone: sideDoneCount };
+  return { mainDone: q.main || 0, mainTotal: mainQuestList().length, sideDone: sideDoneCount };
 }
 
 function renderQuestWindow() {

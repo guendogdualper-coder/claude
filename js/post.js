@@ -60,7 +60,9 @@ async function postRegister(p) {
       POST.nameState = 'belegt';
       return;
     }
-    if (!v || v.name !== p.name || v.cls !== p.classId) await hdb.put('namen/' + key, { uid: account.uid, name: p.name, cls: p.classId, at: Date.now() });
+    // seit 14.53 mit der Seite (s: 'l' Licht, 's' Schatten), damit Briefe nur innerhalb der eigenen Seite gehen
+    const side = p.faction === 'schatten' ? 's' : 'l';
+    if (!v || v.name !== p.name || v.cls !== p.classId || v.s !== side) await hdb.put('namen/' + key, { uid: account.uid, name: p.name, cls: p.classId, s: side, at: Date.now() });
     POST.nameState = 'ok';
   } catch (e) {
     POST.nameState = null;
@@ -338,6 +340,11 @@ async function postSend() {
     if (!to || typeof to.uid !== 'string') {
       POST.busy = false;
       return fail('Einen Charakter mit diesem Namen gibt es nicht (oder er hat noch nie mit Konto gespielt).');
+    }
+    // seit 14.53: Post nur innerhalb der eigenen Seite (Einträge ohne s: Seite noch nicht bekannt, dann erlaubt)
+    if ((to.s === 's' || to.s === 'l') && (to.s === 's') !== (p.faction === 'schatten')) {
+      POST.busy = false;
+      return fail('Dieser Charakter gehört zur anderen Seite. Briefe gehen nur an Charaktere deiner eigenen Seite.');
     }
     // Treuhand: erst abgeben (nicht gespeichert), dann schreiben; bei einem Fehler zurück
     held = wareEscrow(p, wares);

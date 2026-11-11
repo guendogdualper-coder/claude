@@ -50,9 +50,22 @@ const NIGHT_GROUPS = {
   donnerklamm: [['sturmgeist', 6, 0.2, 1]],
   titanenkamm: [['schattengargoyle', 6, 0.2, 1]],
   kristallhang: [['leerenwolf', 6, 0.1, 0.9]],
-  leerenschlund: [['sternenschemen', 6, 0.2, 1], ['leerenwolf', 3, 0, 0.6]]
+  leerenschlund: [['sternenschemen', 6, 0.2, 1], ['leerenwolf', 3, 0, 0.6]],
+  // seit 14.53: Schattenkarten – dieselben Nachtwesen wie auf der Lichtkarte derselben Stufe (die Nacht kennt keine Seite)
+  daemmerwiesen: [['schattenwolf', 7, 0.25, 1], ['irrlicht', 5, 0.2, 0.9]],
+  aschewald: [['nachtluchs', 6, 0.1, 0.9], ['mondspinne', 6, 0.4, 1]],
+  knochenwueste: [['grabhyaene', 6, 0.1, 0.9], ['nachtskorpion', 6, 0.4, 1]],
+  blutsteppe: [['schattendaemon', 6, 0.2, 1], ['aschegeist', 5, 0.3, 1]],
+  nachtfrost: [['frostschatten', 6, 0.1, 0.9], ['nordlichtgeist', 5, 0.4, 1]],
+  schattenklippen: [['mondkobra', 6, 0.2, 1]],
+  schwarzmoor: [['dschungelgeist', 6, 0.2, 1]]
 };
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
+// seit 14.53: Nachtwanderer der Schattenkarten (Maps 11–16, eigene Liste; tag-nacht.js)
+const SHADOW_NIGHT_WANDERERS = [
+  ['Mondsängerin Lua', 'alte'], ['Kohlenwächter Grim', 'bauer'], ['Knochenleser Tarr', 'moench'],
+  ['Blutjägerin Rhea', 'jaegerin'], ['Reifseherin Nuri', 'alte'], ['Moorläufer Fen', 'jaegerin']
+];
 
 // Nachtwanderer: tauchen nachts draußen auf (die Wanderer des Tages schlafen dann) und vergeben Nachtjagden.
 // Je Map einer, in Kazehana dazu die Nachtwächterin am Brunnen.

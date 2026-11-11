@@ -1296,7 +1296,9 @@ function drawMapMarks(ctx, v, area) {
     const y = Y(rp.y);
     const mate = inMyParty(rp.name);
     const guildMate = !mate && myGuild && rp.guild === myGuild;
-    const col = mate ? '#5dff6e' : guildMate ? '#d08cff' : '#9fd6ff';
+    // seit 14.53: Spieler der anderen Seite rot (seiten.js)
+    const foe = !mate && typeof factionFoe === 'function' && factionFoe(rp);
+    const col = mate ? '#5dff6e' : guildMate ? '#d08cff' : foe ? '#ff5a4a' : '#9fd6ff';
     const ddx = x - half;
     const ddy = y - v.h / 2;
     const d = Math.hypot(ddx, ddy);

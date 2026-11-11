@@ -124,8 +124,103 @@ const QUEST_CHAPTERS = [
   ] }
 ];
 const MAIN_QUESTS = QUEST_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `k${ci + 1}_${k + 1}`, map: ch.map, chapter: ci, chapterTitle: ch.title })));
-// Endbosse für das Finale (Reihenfolge nach Stufe)
-const RAID_BOSSES = Object.keys(MONSTER_TYPES).filter((id) => MONSTER_TYPES[id].raidBoss).sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
+// Endbosse für das Finale (Reihenfolge nach Stufe) – seit 14.53 die neun der Lichtseite (die Schattenseite hat ihre eigenen)
+const RAID_BOSSES = Object.keys(MONSTER_TYPES).filter((id) => MONSTER_TYPES[id].raidBoss && MONSTER_TYPES[id].side !== 'schatten').sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
+
+// --- Hauptquests der Schattenseite (seit 14.53, docs/fraktionen.md) -------------------------------------------------
+// Kapitel 1–6 spielen auf den Schattenkarten (Maps 11–16) und haben genau so viele Aufträge wie die Kapitel der
+// Lichtseite in derselben Reihenfolge (gleiche Stufen und Belohnungen, eigene Gegner und Geschichten). Ab Kapitel 7
+// (Totenmoor, gemeinsame Karten ab Stufe 50) gilt dieselbe Reihe für beide Seiten; Heimkehr, Finale und Epilog führen
+// nach Mondfall. So zeigt p.quests.main auf beiden Seiten auf denselben Platz in der Reihe – wer beim ersten Start
+// seine Seite wählt, verliert keinen Fortschritt.
+const SHADOW_CHAPTERS = [
+  { map: 11, title: 'Kapitel 1 · Mondfall', quests: [
+    QK(1, 'aschehund', 10, 'Hunde aus der Asche', 'Vor dem Mondtor schleichen Aschehunde um die Fischerboote. Ihr Fell glimmt noch vom Brand, aus dem sie kamen. Treib sie zurück.', { potions: 5 }),
+    QK(2, 'daemmerfuchs', 10, 'Diebe im Zwielicht', 'Die Dämmerfüchse stehlen unsere Netze, sobald der Mond aufgeht. Mondfall lebt vom See – zeig ihnen, wem er gehört.', { potions: 5 }),
+    QS(3, 5, 1, 'Der erste Seelenstein', 'In den Dämmerwiesen ist ein Stein der Trauer aus dem Moos gebrochen. Er flüstert, und die Tiere hören zu. Zerbrich ihn.', { mats: { boniPlus: 2 } }),
+    QK(4, 'nebelwolf', 15, 'Wölfe aus dem Nebel', 'Die Nebelwölfe tauchen aus dem Dunst auf und verschwinden wieder darin. Dünne das Rudel aus, bevor der Nebel die Stadt erreicht.', { items: [['helm', 1, 1]] }),
+    QK(5, 'nachthirsch', 10, 'Die bleichen Geweihe', 'Nachthirsche rennen mit leuchtenden Geweihen gegen unsere Zäune, als jage sie etwas. Halte sie auf.'),
+    QK(6, 'nachtleitwolf', 8, 'Die Leitwölfe', 'Jedes Nebelrudel folgt einem Nachtleitwolf. Ohne ihn zerstreut sich das Rudel im Dunst.', { items: [['schuhe', 1, 2]], mats: { switcher: 1 } }),
+    QK(8, 'schattenkeiler', 12, 'Keiler im Mondkraut', 'Die Schattenkeiler wühlen unsere Mondkrautfelder um. Ohne das Kraut haben die Heiler nichts für den Winter.'),
+    QS(9, 10, 1, 'Stein der Wut', 'Am Rand der Wiesen pocht ein Stein der Wut wie ein zweites Herz. Seine Wut macht die Tiere rasend – brich ihn.', { mats: { switcher: 2 } }),
+    QT(10, 12, 'Glut im Aschewald', 'Mondfall atmet wieder, dank dir. Doch aus dem Aschewald steigt Rauch, und Glimmwacht schickt um Hilfe. Reise durch das Weltentor und sprich mit Ascan.')
+  ] },
+  { map: 12, title: 'Kapitel 2 · Aschewald', quests: [
+    QK(10, 'aschenraeuber', 20, 'Räuber in der Asche', 'Selenor schickt dich? Gut. Aschenräuber überfallen jeden, der die verkohlten Pfade nimmt. Vertreib sie.', { items: [['waffe', 2, 2]] }),
+    QK(12, 'glutkeiler', 12, 'Glühende Hauer', 'Die Keiler hier tragen Glut im Borstenkamm. Wo sie sich reiben, fängt das Unterholz Feuer.'),
+    QK(13, 'russschuetze', 15, 'Schützen im Rauch', 'Aus dem Rauch schießen Rußschützen, bevor man sie sieht. Hol sie aus den verbrannten Kronen.'),
+    QK(15, 'aschespinne', 20, 'Graue Netze', 'Aschespinnen spannen Netze aus grauem Staub über die Wege. Wer hängen bleibt, wird nie wieder gesehen.', { mats: { boniPlus: 3 } }),
+    QS(15, 15, 2, 'Stein der Gier', 'Zwei Steine der Gier locken die Räuber an wie Glut die Motten. Zerschlage sie.', { mats: { boni5: 1 } }),
+    QK(16, 'russluchs', 12, 'Rußgraue Jäger', 'Rußluchse sind in der Asche unsichtbar. Unsere Köhler kommen nicht mehr heim. Sei wachsamer als sie.'),
+    QK(17, 'banditenfuerst', 1, 'Der Banditenfürst', 'Die Aschenräuber verkaufen ihre Beute an einen Fürsten im Banditenkeller. Geh hinein und nimm ihm seine Krone.', { items: [['ruestung', 2, 3]] }),
+    QK(18, 'kohlenbaer', 10, 'Kohlenbären', 'Kohlenbären graben in den Meilern nach Wärme. Sie sind stark wie eine Lawine aus Glut – sei vorsichtig.', { items: [['ruestung', 3, 2]] }),
+    QS(19, 20, 1, 'Stein der Dornen', 'Mitten im Aschewald wächst ein Stein der Dornen aus einem verbrannten Stamm. Zerstöre ihn, bevor er den Wald erstickt.', { mats: { switcher: 2 } }),
+    QT(20, 13, 'Knochen im Sand', 'Der Rauch lichtet sich. Aber Späher berichten von wandernden Gebeinen in der Knochenwüste. Reise hin und sprich mit Ossian in der Gebeinwacht.')
+  ] },
+  { map: 13, title: 'Kapitel 3 · Knochenwüste', quests: [
+    QK(20, 'beinbrecher', 25, 'Beinbrecher', 'Ascan schickt dich? Dann komm, die Beinbrecher stehen schon vor unserem Ring. Brich ihre Reihen.', { mats: { switcher: 3 } }),
+    QK(22, 'aashyaene', 12, 'Aashyänen', 'Die Hyänen folgen den Beinbrechern und fressen, was diese liegen lassen. Erledige die Meute.'),
+    QK(24, 'knochenruferin', 15, 'Die Knochenruferinnen', 'Die Ruferinnen singen die Gebeine aus dem Sand. Ohne ihren Gesang bleiben die Toten liegen.', { books: 1 }),
+    QS(25, 25, 2, 'Stein der Schwärze', 'Zwei schwarze Steine ragen aus den Dünen, und die Knochen sammeln sich darum. Nimm ihnen ihre Mitte.', { mats: { star: 1 } }),
+    QK(26, 'bleichskorpion', 15, 'Bleiche Stachel', 'Die Bleichskorpione sind kaum vom Sand zu unterscheiden. Ihr Gift lässt das Blut erstarren. Räum die Senken.'),
+    QK(28, 'knochenhauptmann', 10, 'Die Knochenhauptmänner', 'Die Beinbrecher gehorchen Hauptmännern in alten Rüstungen. Fällst du sie, zerfällt das Heer.', { items: [['waffe', 4, 2]] }),
+    QS(29, 30, 1, 'Stein der Asche', 'Ein Stein der Asche verbrennt die Wüste von innen. Lösch ihn aus, bevor nur Staub bleibt.', { mats: { boni5: 1 } }),
+    QT(30, 14, 'Rot am Horizont', 'Die Gebeine ruhen. Doch im Süden färbt sich die Steppe rot. Geh in die Blutsteppe und sprich mit Ruthgar in der Blutwacht.')
+  ] },
+  { map: 14, title: 'Kapitel 4 · Blutsteppe', quests: [
+    QK(30, 'blutoger', 20, 'Blutoger', 'Ossian hat recht, dich zu schicken. Blutoger stampfen jede Nacht gegen unsere Inseln. Halte sie fern.', { books: 1 }),
+    QK(31, 'steppenwarg', 15, 'Wargrudel der Steppe', 'Steppenwargs jagen in großen Rudeln durch das rote Gras. Jag das Rudel, bevor es uns jagt.'),
+    QK(33, 'blutdaemon', 25, 'Blutdämonen', 'Aus den roten Tümpeln steigen Blutdämonen. Treib sie zurück in die Tiefe.', { items: [['helm', 5, 1]] }),
+    QS(34, 35, 2, 'Stein der Glut', 'Die Steine der Glut heizen die Tümpel auf, bis sie kochen. Lösche sie aus.', { books: 1, mats: { star: 1 } }),
+    QK(36, 'blutmaul', 15, 'Blutmäuler', 'Blutmäuler bewachen die Tümpel der Dämonen. Wer sie besiegt, kann den Quellen nahe kommen.', { mats: { boni5: 1 } }),
+    QT(37, 16, 'Die Klippenfeste', 'Die Steppe kommt zur Ruhe. Aus der Nachtwacht an den Schattenklippen kommen Hilferufe – Schlangen, so lang wie Brücken. Reise hin und sprich mit Ysra.')
+  ] },
+  { map: 16, title: 'Kapitel 5 · Schattenklippen', quests: [
+    QK(37, 'schattenkobra', 20, 'Kobras im Fels', 'Ruthgar schickt dich? Dann schickt er Gutes. Schattenkobras lauern in jeder Felsspalte rund um die Feste.', { books: 1 }),
+    QK(38, 'nachtrassler', 20, 'Das Rasseln in der Nacht', 'Hörst du das Rasseln an den Klippen? Nachtrassler. Hunderte. Keiner traut sich mehr auf die Pfade.'),
+    QS(40, 40, 1, 'Stein der Schatten', 'Am Rand des Schwarzmoors steht ein Stein der Schatten. Er lockt die Schlangen aus dem Fels. Zerstöre ihn.', { mats: { star: 1, switcher: 2 } }),
+    QK(41, 'moorpython', 15, 'Moorpythons', 'Im Schwarzmoor würgen Pythons ganze Boote unter Wasser. Wer dort Torf sticht, kommt nicht wieder.'),
+    QK(43, 'nebelpanther', 15, 'Panther im Nebel', 'Die Nebelpanther jagen für die Moornagas. Mach das Moor wieder sicher.', { items: [['ruestung', 5, 2]] }),
+    QT(44, 15, 'Die lange Nacht', 'Die Klippen sind ruhig, die Nachtwacht dankt dir. Doch im Norden endet die Nacht nicht mehr. Geh zu Edda nach Eisnacht.')
+  ] },
+  { map: 15, title: 'Kapitel 6 · Nachtfrost', quests: [
+    QK(44, 'mitternachtswolf', 20, 'Mitternachtswölfe', 'Ysra hat dich geschickt? Gut. Mitternachtswölfe umkreisen die Terrassen, sie riechen jede Schwäche.', { books: 1 }),
+    QK(45, 'dunkelyeti', 20, 'Der Dunkelyeti', 'Dunkelyetis kommen nachts die Hänge herunter, so groß wie Hütten. Bring ihre Felle als Beweis.', { items: [['ruestung', 5, 2]] }),
+    QS(46, 45, 2, 'Stein des Frostes', 'Zwei Steine des Frostes halten die Nacht fest. Zerschlage sie.', { books: 1, mats: { star: 1 } }),
+    QK(47, 'nachtmammut', 12, 'Nachtmammuts', 'Die Nachtmammuts sind rasend, seit kein Morgen mehr kommt. Sie zertrampeln unsere Vorratshütten.'),
+    QK(48, 'frostgespenst', 15, 'Frostgespenster', 'In der Nacht wandern Gespenster aus Reif. Wer sie berührt, erfriert von innen.', { mats: { boni5: 1 } }),
+    QS(49, 50, 1, 'Stein der Stille', 'Wo der Stein der Stille steht, verstummt sogar der Wind. Bring den Klang zurück.', { books: 1, mats: { star: 2 } }),
+    QK(50, 'eiskoenig', 1, 'Der Eiskönig', 'Alles Eis gehorcht dem Eiskönig in der Eisgrotte. Bezwinge ihn, dann kehrt der Morgen zurück.', { items: [['waffe', 6, 2]] }),
+    QT(51, 8, 'Nebel über dem Moor', 'Der Morgen kehrt zurück. Aber im Süden steigt Nebel aus dem Totenmoor – dort treffen sich beide Seiten der Welt, und dort ist niemand mehr sicher. Geh zur Moorwacht und sprich mit Oswin.')
+  ] }
+];
+// Ab Kapitel 7: gemeinsame Aufträge, nur wenige Texte und Ziele sind auf der Schattenseite anders (Index in MAIN_QUESTS)
+const SHADOW_MAIN_TWEAKS = {
+  k7_1: { text: 'Edda schickt dich? Dann hast du Mut. Im Moor erheben sich die Gefallenen alter Kriege – und hier treffen sich Licht und Schatten. Gib den Toten ihre Ruhe und halte die Augen offen.' },
+  k9_7: { goal: { type: 'talk', map: 11, count: 1 }, title: 'Heimkehr nach Mondfall', text: 'Du hast jede Map befreit. Kehr heim nach Mondfall – Selenor wartet auf dich, und er hat eine letzte, die größte Aufgabe.' },
+  k10_1: { text: 'Willkommen daheim, Held der Nacht. In jeder Map wartet noch ein Endboss in seiner Halle – der Nachtwolf, der Kohlenfürst, der Gebeinfürst, die Blutfürstin, die Moormutter, der Nachtriese, der Lichkönig, der Donnertitan und der Weltendrache. Sammle Gefährten und besiege alle neun.' },
+  k11_1: { text: 'Die neun Endbosse sind gefallen, doch die Steine wachsen weiter – tief im Süden, wo die Welt in einen Abgrund aus Kristall bricht. Reise durch das Weltentor in den Kristallabgrund und sprich mit Aurelia in der Zitadelle Lichtwacht.' },
+  k12_1: { text: 'Selenor schickt dich? Dann bist du der Held, von dem man auch hier flüstert. Golems aus lebendem Kristall stampfen gegen unsere Mauern. Zerschlag sie.' }
+};
+const SHADOW_MAIN = SHADOW_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `s${ci + 1}_${k + 1}`, map: ch.map, chapter: ci, chapterTitle: ch.title })));
+const MAIN_QUESTS_SCHATTEN = MAIN_QUESTS.map((q, i) => {
+  if (i < SHADOW_MAIN.length) return SHADOW_MAIN[i];
+  const tw = SHADOW_MAIN_TWEAKS[q.id];
+  // Finale und Epilog (Kapitel-Index 9 und 10) vergibt auf der Schattenseite der Älteste von Mondfall
+  const home = q.chapter === 9 || q.chapter === 10 ? { map: 11, chapterTitle: q.chapterTitle } : null;
+  return tw || home ? { ...q, ...tw, ...home } : q;
+});
+// Die neun Endbosse der Schattenseite: sechs eigene und die drei der gemeinsamen Karten
+const RAID_BOSSES_SCHATTEN = Object.keys(MONSTER_TYPES).filter((id) => {
+  const t = MONSTER_TYPES[id];
+  return t.raidBoss && (t.side === 'schatten' || [8, 9, 3].includes(t.raid && t.raid.map));
+}).sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
+// Wanderer der Schattenkarten (welt.js), eigene Namen
+const SHADOW_WANDERERS = [
+  ['Aschesammler Grau', 'bauer'], ['Mondkräuterin Ilse', 'alte'], ['Nachtmönch Orin', 'moench'],
+  ['Spurenleserin Vey', 'jaegerin'], ['Pilger der Dämmerung', 'moench'], ['Gerber Smok', 'bauer'],
+  ['Heilerin Ombra', 'alte'], ['Späherin Nix', 'jaegerin'], ['Einsiedlerin Nacht', 'alte']
+];
 // Stufen der alten Hauptkette (bis 11.1, 20 Aufträge): zum Umrechnen alter Spielstände
 const OLD_MAIN_LEVELS = [1, 3, 4, 6, 8, 10, 14, 15, 18, 20, 24, 27, 30, 35, 40, 48, 50, 58, 62, 68];
 

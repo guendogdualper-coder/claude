@@ -11,7 +11,7 @@ function questState() {
     const q = p.quests;
     const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
     const done = q.main >= OLD_MAIN_LEVELS.length;
-    const idx = done ? MAIN_QUESTS.findIndex((m) => m.goal.type === 'talk' && m.goal.map === 1) : MAIN_QUESTS.findIndex((m) => m.level >= lvl);
+    const idx = done ? mainQuestList().findIndex((m) => m.goal.type === 'talk' && m.goal.map === 1) : mainQuestList().findIndex((m) => m.level >= lvl);
     q.main = Math.max(0, idx < 0 ? 0 : idx);
     q.accepted = false;
     q.progress = 0;
@@ -86,7 +86,7 @@ function sideCollecting(typeId) {
 }
 
 function currentMainQuest() {
-  return MAIN_QUESTS[questState().main] || null;
+  return mainQuestList()[questState().main] || null;
 }
 
 function goalDone(goal, progress) {
@@ -123,7 +123,7 @@ function goalWhere(goal) {
 // Nächster noch nicht besiegter Endboss für das Finale
 function nextRaidBoss() {
   const done = questState().raidsDone || [];
-  return RAID_BOSSES.find((id) => !done.includes(id)) || null;
+  return raidBossList().find((id) => !done.includes(id)) || null;
 }
 
 function goalText(goal) {
@@ -146,13 +146,13 @@ function questEvent(kind, m) {
   const matches = (goal) => (kind === 'kill' && goal.type === 'kill' && goal.monster === m.typeId)
     || (kind === 'stone' && goal.type === 'stone' && goal.level === m.level);
   // Finale: jeder Endboss zählt einmal
-  if (main && q.accepted && main.goal.type === 'raids' && kind === 'kill' && m.type && m.type.raidBoss) {
+  if (main && q.accepted && main.goal.type === 'raids' && kind === 'kill' && m.type && m.type.raidBoss && raidBossList().includes(m.typeId)) {
     q.raidsDone = q.raidsDone || [];
     if (!q.raidsDone.includes(m.typeId)) {
       q.raidsDone.push(m.typeId);
       q.progress = q.raidsDone.length;
       ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
-      if (goalDone(main.goal, q.progress)) ui.log('Alle Endbosse sind besiegt! Kehre zu Bao nach Kazehana zurück.', 'level');
+      if (goalDone(main.goal, q.progress)) ui.log(`Alle Endbosse sind besiegt! Kehre zu ${elderPlace(main.map)} zurück.`, 'level');
     }
   }
   if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
@@ -720,7 +720,7 @@ Object.assign(ui, {
       q.main++;
       q.accepted = false;
       q.progress = 0;
-      const next = MAIN_QUESTS[q.main];
+      const next = mainQuestList()[q.main];
       ui.banner(next ? next.chapterTitle : 'Angekommen', npc ? npc.name : '');
       saveGame();
       this.renderQuestTrack();
@@ -730,8 +730,8 @@ Object.assign(ui, {
     const giver = questGiverMap(main, q);
     if (giver !== here) {
       // nicht der richtige Älteste: sagen, wo es weitergeht
-      const chapter = MAIN_QUESTS.filter((m) => m.map === here);
-      const doneHere = chapter.length && MAIN_QUESTS.indexOf(chapter[chapter.length - 1]) < q.main;
+      const chapter = mainQuestList().filter((m) => m.map === here);
+      const doneHere = chapter.length && mainQuestList().indexOf(chapter[chapter.length - 1]) < q.main;
       body.innerHTML = `<p>„${doneHere ? 'Was du hier für uns getan hast, vergessen wir nie.' : 'Für meine Aufträge ist es noch zu früh.'} ` +
         `Dein Weg führt dich jetzt zu ${elderPlace(giver)}. Das Weltentor bringt dich hin.“</p>` +
         `<p class="quest-step">${main.chapterTitle} · ${main.title}</p>` +
@@ -739,7 +739,7 @@ Object.assign(ui, {
       return;
     }
     const xp = questXp(main.level, QUEST_XP[main.goal.type] || 0.25);
-    const inChapter = MAIN_QUESTS.filter((m) => m.chapter === main.chapter);
+    const inChapter = mainQuestList().filter((m) => m.chapter === main.chapter);
     const step = inChapter.indexOf(main) + 1;
     let action;
     if (!q.accepted) {
@@ -754,7 +754,7 @@ Object.assign(ui, {
       action = `<p class="hint-text">Fortschritt: ${q.progress} / ${main.goal.count}</p>`;
     }
     const bosses = main.goal.type === 'raids'
-      ? '<ul class="reward-list">' + RAID_BOSSES.map((id) => `<li>${(q.raidsDone || []).includes(id) ? '✔' : '✘'} ${MONSTER_TYPES[id].name} <small>(Stufe ${MONSTER_TYPES[id].level} · ${monsterWhere(id)})</small></li>`).join('') + '</ul>'
+      ? '<ul class="reward-list">' + raidBossList().map((id) => `<li>${(q.raidsDone || []).includes(id) ? '✔' : '✘'} ${MONSTER_TYPES[id].name} <small>(Stufe ${MONSTER_TYPES[id].level} · ${monsterWhere(id)})</small></li>`).join('') + '</ul>'
       : '';
     const where = main.goal.type === 'kill' || main.goal.type === 'stone' ? ` <small>📍 ${goalWhere(main.goal)}</small>` : '';
     body.innerHTML =
