@@ -774,8 +774,10 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'pferd', q: 'Kann ich die Farbe meines Drachen ändern?',
-    a: 'Ja. Die Glutschwinge gibt es in Rot, Blau, Schwarz und Weiß. Die Farbe wählst du beim Kauf beim Stallmeister; danach kannst du sie dort ' +
-      'jederzeit kostenlos ändern. Mitspieler sehen deinen Drachen in deiner Farbe.',
+    // seit 14.67: Farbe nur einmal wählbar
+    a: 'Nein, nur einmal. Die Glutschwinge gibt es in Rot, Blau, Schwarz und Weiß. Die Farbe wählst du beim Kauf beim Stallmeister – ' +
+      'nach einer Rückfrage ist sie endgültig. Wer seinen Drachen vor Version 14.67 gekauft hat, behält seine Farbe und darf sie beim ' +
+      'Stallmeister noch genau einmal festlegen (bestätigen oder wechseln). Mitspieler sehen deinen Drachen in deiner Farbe.',
     k: 'drache farbe aendern blau rot schwarz weiss weiß stallmeister glutschwinge aussehen dragon'
   },
   {

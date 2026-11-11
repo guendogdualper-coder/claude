@@ -1682,7 +1682,8 @@ const ui = {
     else if (npc.id === 'jaegerin') this.renderHunter();
     else if (npc.id === 'teleport') this.renderTravel();
     else if (npc.id === 'alchemist') this.renderAlchemist();
-    else if (npc.id === 'stallmeister') this.renderStable();
+    // seit 14.67: Farbwahl und Rückfrage der Glutschwinge beginnen bei jedem Öffnen neu
+    else if (npc.id === 'stallmeister') { this.dragonPick = null; this.dragonConfirm = null; this.renderStable(); }
     else if (npc.id === 'lehrmeister') { this.teacherPath = null; this.renderTeacher(); }
     else if (npc.id === 'lager') {
       this.stPage = 0;

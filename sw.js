@@ -138,7 +138,12 @@ const FILES = [
   'konto-loeschen.html', 'regeln.html',
   'icons/icon-192.png',
   'icons/icon-512.png',
-  'icons/apple-touch-icon.png'
+  'icons/apple-touch-icon.png',
+  // seit 14.67: Vorschaubilder der Drachenfarben beim Stallmeister (tools/drache-farbbilder.js)
+  'bilder/drache-rot.webp',
+  'bilder/drache-blau.webp',
+  'bilder/drache-schwarz.webp',
+  'bilder/drache-weiss.webp'
 ];
 
 self.addEventListener('install', (e) => {

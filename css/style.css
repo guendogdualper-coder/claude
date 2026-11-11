@@ -1698,6 +1698,14 @@ kbd {
 .drg-color img { width: 100%; max-width: 150px; height: auto; }
 .drg-color span::before { content: ""; display: inline-block; width: 9px; height: 9px; margin-right: 4px; border-radius: 50%; background: var(--sw); box-shadow: 0 0 0 1px #0008, 0 0 6px var(--gl); vertical-align: -1px; }
 .drg-color.on { border-color: #ffd34d; box-shadow: 0 0 0 1px #ffd34d, 0 0 10px var(--gl); }
+/* seit 14.67: Bilder des 3D-Drachen (bilder/drache-*.webp) mit leichtem Schein der Augenfarbe dahinter, damit auch
+   der schwarze Drache vor dem dunklen Grund zu sehen ist; eine Farbe groß, wenn sie endgültig ist bzw. vor der Rückfrage */
+.drg-color { background: radial-gradient(ellipse at 55% 42%, color-mix(in srgb, var(--gl) 22%, color-mix(in srgb, var(--sw) 30%, #2e2318)), #16100a 78%); }
+.drg-color img { aspect-ratio: 160 / 108; object-fit: contain; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)); }
+.drg-one { width: min(100%, 220px); margin: 6px 0 8px; cursor: default; border-color: #ffd34d; box-shadow: 0 0 0 1px #ffd34d, 0 0 12px var(--gl); font-size: 14px; }
+.drg-one img { max-width: 204px; }
+.drg-warn { margin: 4px 0 8px; padding: 6px 9px; border-radius: 6px; border: 1px solid rgba(255, 140, 90, 0.55); background: rgba(120, 40, 20, 0.35); color: #ffd9b8; font-weight: 600; }
+.drg-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 /* seit 14.39: Steigen/Sinken am Handy – zwei große Knöpfe übereinander links neben dem Fertigkeitenbogen (in Daumennähe
    zum Angriff), verschiebbar in der HUD-Bearbeitung; am PC ausgeblendet (dort Leertaste und Knopf im Menü) */
 .fly-pad { position: absolute; right: calc(var(--edge-r) + 196px); bottom: calc(var(--edge-b) + 58px); display: flex; flex-direction: column; gap: 8px; pointer-events: none; z-index: 3; }

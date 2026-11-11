@@ -131,6 +131,8 @@ const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoi
   'skillCostVer',
   // seit 14.39: Farbe der Glutschwinge (rot, blau, schwarz, weiss)
   'dragonColor',
+  // seit 14.67: Drachenfarbe endgültig gewählt (beim Kauf bzw. einmal nachträglich für Käufer vor 14.67)
+  'dragonColorLocked',
   // seit 14.54: Seite (licht | schatten, seiten.js); fehlt bei älteren Spielständen – dann wird einmal gewählt
   'faction'];
 const SKILL_COST_VER = 1;
@@ -217,6 +219,8 @@ function makePlayer(save) {
   p.horseTier = p.horse ? Math.max(1, save.horseTier || 1) : 0;
   // seit 14.39: Drachenfarbe, unbekannt oder alt → Rot (die bisherige Farbe)
   p.dragonColor = dragonColorOf(save);
+  // seit 14.67: fehlt bei älteren Spielständen → noch nicht festgelegt (wer schon einen Drachen hat, wählt einmal)
+  p.dragonColorLocked = !!save.dragonColorLocked;
   // Ältere Spielstände ohne Ausrüstung bekommen die Startausrüstung
   p.equipment = { ...starterEquipment(save.classId), helm: null, schultern: null, umhang: null, schild: null, schuhe: null, guertel: null, ...(save.equipment || starterEquipment(save.classId)) };
   p.inventory = Array.isArray(save.inventory) ? save.inventory : [];
@@ -879,8 +883,9 @@ function upgradeSkill(i, type = 'point') {
 // Fliegen geht nur in der offenen Welt – nicht in Dungeons, Instanzen, Arena, Turnierarena und Duellen.
 const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 },
   { name: 'Glutschwinge', speed: 1.1, level: 60, price: 500000, fly: true }];
-// seit 14.39: Farbe der Glutschwinge – beim Stallmeister beim Kauf gewählt und dort jederzeit kostenlos änderbar
-// (p.dragonColor im Spielstand). 'rot' ist die bisherige Farbe: Standard für alte Spielstände und für Mitspieler,
+// seit 14.39: Farbe der Glutschwinge – beim Stallmeister beim Kauf gewählt (p.dragonColor im Spielstand). Bis 14.66
+// jederzeit kostenlos änderbar; seit 14.67 endgültig (p.dragonColorLocked, Rückfrage vor dem Kauf), Käufer von
+// vor 14.67 dürfen einmal nachträglich festlegen. 'rot' ist die bisherige Farbe: Standard für alte Spielstände und für Mitspieler,
 // deren Version keine Farbe schickt (Netzfeld dc). Farbwerte: drei-drache.js (DRACHE3_FARBEN) und figuren.js
 // (DRAGON2D_FARBEN).
 const DRAGON_COLORS = {

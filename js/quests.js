@@ -958,13 +958,19 @@ Object.assign(ui, {
     }));
   },
 
-  // seit 14.39: Farbwahl der Glutschwinge – vier Farbmuster mit Vorschaubild (2D-Drache), gewählt ist pick
+  // seit 14.39: Farbwahl der Glutschwinge – vier Farbmuster mit Vorschaubild, gewählt ist pick
+  // seit 14.67: Vorschaubilder zeigen das echte 3D-Modell (fertige Bilder, dragonPreviewUrl in figuren.js)
   dragonColorPicker(pick) {
     return '<div class="drg-colors" role="radiogroup">' + DRAGON_COLOR_IDS.map((id) => {
       const c = DRAGON_COLORS[id];
       return `<button type="button" class="drg-color${id === pick ? ' on' : ''}" data-dcol="${id}" role="radio" aria-checked="${id === pick}" style="--sw:${c.swatch};--gl:${c.glow}">` +
-        `<img src="${dragonPreviewUrl(id)}" alt=""><span>${c.name}</span></button>`;
+        `<img src="${dragonPreviewUrl(id)}" alt="" width="160" height="108" decoding="async"><span>${c.name}</span></button>`;
     }).join('') + '</div>';
+  },
+  // seit 14.67: eine Farbe groß (endgültig gewählt bzw. Rückfrage vor der endgültigen Wahl)
+  dragonColorCard(id) {
+    const c = DRAGON_COLORS[id] || DRAGON_COLORS.rot;
+    return `<div class="drg-color drg-one" style="--sw:${c.swatch};--gl:${c.glow}"><img src="${dragonPreviewUrl(id)}" alt="" width="160" height="108" decoding="async"><span>${c.name}</span></div>`;
   },
 
   renderStable() {
@@ -981,8 +987,22 @@ Object.assign(ui, {
       if (tier >= 3) {
         html = '<p>„Deine Glutschwinge ist satt und ausgeruht. Sie trägt dich über Bäume, Felsen und Wasser – nur vor Mauern und Häusern macht sie halt.“</p>' +
           `<p class="hint-text">${drg.name} +${pct(drg)} % · fliegt draußen in der Welt, nicht in Dungeons, Instanzen, Arenen und Duellen</p>` +
-          // seit 14.39: Farbe jederzeit kostenlos ändern
-          '<h3>Farbe deiner Glutschwinge</h3><p class="hint-text">Kostenlos, jederzeit änderbar.</p>' + this.dragonColorPicker(dragonColorOf(p));
+          '<h3>Farbe deiner Glutschwinge</h3>';
+        // seit 14.67: die Farbe wird nur einmal gewählt (p.dragonColorLocked). Wer den Drachen vor 14.67 gekauft hat,
+        // behält seine Farbe und darf sie genau einmal noch bestätigen oder wechseln (aktuelle Farbe vorgewählt).
+        if (p.dragonColorLocked) {
+          html += this.dragonColorCard(dragonColorOf(p)) + '<p class="hint-text drg-note">Die Farbe ist endgültig gewählt.</p>';
+        } else if (this.dragonConfirm === 'set' && DRAGON_COLORS[this.dragonPick]) {
+          html += this.dragonColorCard(this.dragonPick) +
+            '<p class="drg-warn">Diese Wahl ist endgültig. Die Farbe lässt sich danach nicht mehr ändern.</p>' +
+            '<div class="drg-actions"><button type="button" class="btn btn-primary" data-dset="ok">Ja, diese Farbe festlegen</button>' +
+            '<button type="button" class="btn btn-ghost" data-dset="back">Zurück</button></div>';
+        } else {
+          if (!DRAGON_COLORS[this.dragonPick]) this.dragonPick = dragonColorOf(p);
+          html += '<p class="hint-text">Du darfst die Farbe noch ein einziges Mal festlegen – danach bleibt sie für immer. Deine jetzige Farbe ist vorgewählt.</p>' +
+            this.dragonColorPicker(this.dragonPick) +
+            '<button type="button" class="btn btn-primary" data-dset="ask">Farbe festlegen</button>';
+        }
       } else {
         if (tier >= 2) {
           html = '<p>„Dein Kriegsross ist gesattelt und gepanzert. Kein Pferd im Land ist schneller.“</p>';
@@ -1003,9 +1023,15 @@ Object.assign(ui, {
           `<p class="hint-text">${HORSES[tier].name} +${pct(HORSES[tier])} % → ${drg.name} +${pct(drg)} % · fliegt nur draußen in der Welt</p>` +
           (p.level < drg.level
             ? `<p class="hint-text">Komm ab Stufe ${drg.level} wieder.</p>`
-            : '<p class="hint-text">Wähle die Farbe (später bei mir kostenlos änderbar):</p>' + this.dragonColorPicker(this.dragonPick) +
-              `<button type="button" class="btn btn-primary" data-buydragon ${p.gold >= drg.price ? '' : 'disabled'}>Glutschwinge kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
-              (p.gold >= drg.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
+            // seit 14.67: Farbe beim Kauf endgültig – erst wählen, dann nach Rückfrage kaufen
+            : this.dragonConfirm === 'buy' && p.gold >= drg.price
+              ? this.dragonColorCard(this.dragonPick) +
+                '<p class="drg-warn">Diese Wahl ist endgültig. Die Farbe deiner Glutschwinge lässt sich nach dem Kauf nicht mehr ändern.</p>' +
+                `<div class="drg-actions"><button type="button" class="btn btn-primary" data-buydragon>Ja, kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
+                '<button type="button" class="btn btn-ghost" data-dset="back">Andere Farbe</button></div>'
+              : '<p class="hint-text">Wähle die Farbe – sie gilt für immer und lässt sich später nicht mehr ändern:</p>' + this.dragonColorPicker(this.dragonPick) +
+                `<button type="button" class="btn btn-primary" data-dbuyask ${p.gold >= drg.price ? '' : 'disabled'}>Glutschwinge kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
+                (p.gold >= drg.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
       }
     } else if (p.level < STABLE_QUEST.level) {
       html = `<p>„Pferde sind nichts für Anfänger. Komm wieder, wenn du Stufe ${STABLE_QUEST.level} erreicht hast.“</p>`;
@@ -1048,6 +1074,9 @@ Object.assign(ui, {
       p.gold -= drg.price;
       p.horseTier = 3;
       p.dragonColor = DRAGON_COLORS[this.dragonPick] ? this.dragonPick : 'rot';
+      // seit 14.67: beim Kauf gewählt = endgültig
+      p.dragonColorLocked = true;
+      this.dragonConfirm = null;
       game.stats = playerStats(p);
       ui.banner('Eine Glutschwinge!', `+${Math.round(drg.speed * 100)} % Lauftempo · fliegt über Bäume und Wasser – Pferdeknopf oder Taste R`);
       ui.log(`Du hast eine Glutschwinge gekauft (${drg.price.toLocaleString('de-DE')} Gold). Sie gibt +${Math.round(drg.speed * 100)} % Lauftempo und fliegt über Bäume, Felsen und Wasser.`, 'level');
@@ -1056,16 +1085,31 @@ Object.assign(ui, {
       saveGame();
       this.renderStable();
     });
-    // seit 14.39: Farbmuster – vor dem Kauf nur vormerken, danach sofort umfärben (kostenlos)
+    // seit 14.39: Farbmuster antippen = vormerken. seit 14.67 färbt das auch mit Drachen nicht mehr sofort um:
+    // erst „Farbe festlegen“ bzw. der Kauf mit Rückfrage legt die Farbe endgültig fest.
     body.querySelectorAll('[data-dcol]').forEach((b) => b.addEventListener('click', () => {
       const id = b.dataset.dcol;
-      if (!DRAGON_COLORS[id]) return;
-      if ((p.horseTier || 1) >= 3) {
-        if (p.dragonColor === id) return;
-        p.dragonColor = id;
-        ui.log(`Deine Glutschwinge ist jetzt ${DRAGON_COLORS[id].name.toLowerCase()}.`, 'info');
+      if (!DRAGON_COLORS[id] || p.dragonColorLocked) return;
+      this.dragonPick = id;
+      this.renderStable();
+    }));
+    const buyAsk = body.querySelector('[data-dbuyask]');
+    if (buyAsk) buyAsk.addEventListener('click', () => {
+      if (p.gold < HORSES[3].price) return;
+      this.dragonConfirm = 'buy';
+      this.renderStable();
+    });
+    body.querySelectorAll('[data-dset]').forEach((b) => b.addEventListener('click', () => {
+      const act = b.dataset.dset;
+      if (act === 'back') this.dragonConfirm = null;
+      else if (act === 'ask' && !p.dragonColorLocked) this.dragonConfirm = 'set';
+      else if (act === 'ok' && hasDragon(p) && !p.dragonColorLocked && DRAGON_COLORS[this.dragonPick]) {
+        p.dragonColor = this.dragonPick;
+        p.dragonColorLocked = true;
+        this.dragonConfirm = null;
+        ui.log(`Deine Glutschwinge ist jetzt ${DRAGON_COLORS[p.dragonColor].name.toLowerCase()} – die Farbe ist endgültig.`, 'info');
         saveGame();
-      } else this.dragonPick = id;
+      }
       this.renderStable();
     }));
     const btn = body.querySelector('[data-stable]');

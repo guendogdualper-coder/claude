@@ -4211,20 +4211,11 @@ function dragonWing2d(ctx, sx, sy, k, col, edge, tip = '#c08a44') {
   stroke(ctx, edge, 0.9, [E, F3]);
   dot(ctx, T[0], T[1], 1.2, 1.2, tip);
 }
-// Vorschaubild einer Drachenfarbe für den Stallmeister (seit 14.39), als Bild-URL zwischengespeichert
-const _dragonPrev = new Map();
+// Vorschaubild einer Drachenfarbe für den Stallmeister (seit 14.39). seit 14.67 keine 2D-Zeichnung mehr, sondern
+// fertige Bilder des echten 3D-Modells (Dreiviertelansicht, Flügel ausgebreitet, durchsichtiger Hintergrund):
+// bilder/drache-<farbe>.webp, erzeugt mit tools/drache-farbbilder.js – kein WebGL im Fenster, gleich im 2D-Modus.
 function dragonPreviewUrl(color) {
-  if (_dragonPrev.has(color)) return _dragonPrev.get(color);
-  const c = document.createElement('canvas');
-  c.width = 208;
-  c.height = 116;
-  const ctx = c.getContext('2d');
-  ctx.scale(2, 2);
-  ctx.translate(61, 74);
-  dragonMountArt(ctx, 2, { color });
-  const url = c.toDataURL('image/png');
-  _dragonPrev.set(color, url);
-  return url;
+  return `bilder/drache-${DRAGON2D_FARBEN[color] ? color : 'rot'}.webp`;
 }
 // o.saddle: Satteldecke (Klassenfarbe), o.color (seit 14.39): Drachenfarbe (DRAGON2D_FARBEN)
 function dragonMountArt(ctx, frame, o = {}) {
