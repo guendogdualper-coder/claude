@@ -366,7 +366,7 @@ function swingProgress(p, ago = 0) {
 function weaponAngle(kind, dir, p, ago = 0) {
   const t = swingProgress(p, ago);
   // Kraftpose: Waffe steil nach oben
-  if (p.swingKind === 'pose' && t >= 0) return dir === 'side' ? -1.25 : -1.9;
+  if ((p.swingKind === 'pose' || p.swingKind === 'schwertaura') && t >= 0) return dir === 'side' ? -1.25 : -1.9;
   // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
   if (kind === 'bow') return localFacingAngle(dir) + (dir === 'side' ? 0 : 0.35) + (t >= 0 ? -Math.sin(t * Math.PI) * 0.15 : 0);
   if (kind === 'staff' || kind === 'bell' || kind === 'rod' || (kind === 'fan' && p.swingKind === 'cast')) {
@@ -429,7 +429,8 @@ function drawPlayer(ctx, p) {
     else if (lk > 0) leapH = leapCurve(p.leap, lk) * p.leap.h;
   }
   // Kraftpose beim Buffen: Arme hoch, kleiner Hüpfer (auch bei Mitspielern, über swingKind)
-  const posing = p.swingKind === 'pose' && p.swing > 0 && !p.riding;
+  // seit 14.60 auch die Wirk-Animation der Schwertaura (in 2D als Kraftpose mit beiden Armen oben)
+  const posing = (p.swingKind === 'pose' || p.swingKind === 'schwertaura') && p.swing > 0 && !p.riding;
   const poseK = posing ? 1 - p.swing / (p.swingDur || 0.7) : 0;
   if (posing) leapH += Math.sin(Math.min(1, poseK * 1.6) * Math.PI) * 6;
   const ride = rideHeight(p) + leapH;

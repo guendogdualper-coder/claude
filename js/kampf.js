@@ -1103,7 +1103,8 @@ function useSkill(i) {
   if (sMul > 1) addText(p.x, p.y - 52, `Aus der Tarnung ×${sMul}`, 'crit');
   stealthCastEnd(p, sMul);
   withRank(rank, () => skillCastFx(sk));
-  if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color);
+  // seit 14.60: rankSoft (Schwertaura) – die eigene Wirk-Animation zeigt den Rang, die Rang-Effekte bleiben leise
+  if (rank >= 0) rankCastFx(p, rank, SKILL_RANKS[rank].color, !!(SKILL_FX[sk.id] && SKILL_FX[sk.id].rankSoft));
   snd.skill(sk, p);
   p.mp -= skillMana(sk, p);
   setSkillCd(p, i, skillCooldown(sk));
@@ -1116,7 +1117,8 @@ function useSkill(i) {
   // skipNet: die Fertigkeit hat ihre Nachricht schon selbst geschickt (Elementsprung vor dem Ortswechsel)
   if (!extra.skipNet) netSkillFx(sk.id, 160, extra);
   // Buffs, Heilung, Beschwörung und Flüche: kurze Kraftpose mit Lichtringen
-  if (sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') {
+  // (seit 14.60 nicht bei eigener Animation, z. B. Schwertaura: die läuft unten über sk.anim)
+  if ((sk.type === 'buff' || sk.type === 'heal' || sk.type === 'summon' || sk.type === 'curse') && !sk.anim) {
     startSwing(p, 'pose', 0.7);
     p.poseColor = skillColor(sk, CLASSES[p.classId].trim);
     vfxPowerUp(p, p.poseColor);
@@ -1838,7 +1840,8 @@ const SKILL_TYPES = {
         if (m.target === p) { m.state = 'return'; m.target = null; }
       }
       particles(p.x, feetY(p) - 14, { count: 30, color: ['#5a5466', '#3d3848', '#8a8496'], speed: [20, 70], life: [0.5, 0.9], size: [5, 9], jitter: 10, drag: 2, glow: false });
-    } else {
+    } else if (!sk.anim) {
+      // seit 14.60: Fertigkeiten mit eigener Wirk-Animation (Schwertaura) ohne Lichtsäule
       vfxPillar(p, c.trim);
     }
     ui.log(skillRankName(sk, lvl) + ' ist aktiv (' + skillDuration(sk, lvl) + ' s).', 'info');

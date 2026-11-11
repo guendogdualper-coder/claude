@@ -6044,6 +6044,55 @@ function dualKeys3(kind) {
   return DUAL_KEYS3[kind];
 }
 
+// Aura des Schwertes (seit 14.60): Wirk-Pose je Bewaffnung, sw 0–1 über 1,5 s. Anheben bis 0,2, halten (leichtes
+// Nachfedern), ab 0,72 weich zurück in die Ruhehaltung. Zwei Waffen: beide Arme schräg hoch, die Klingen bilden ein
+// V über dem Kopf. Zweihänder: beide Hände am Griff, Klinge senkrecht hochgereckt. Einhand mit Schild: Schwertarm hoch,
+// Schild vor dem Körper. Die Beine bleiben beim Laufen frei (die Figur ist steuerbar), im Stand ein fester Stand.
+// Die Waffe leuchtet in der Rangfarbe (p.saCast aus schwertauraCast, ninja-fx.js), am hellsten beim Klingenblitz.
+SKILL_POSE3.schwertaura = function (B, sw, kind, p, a) {
+  const k = sw < 0.2 ? easeOut(sw / 0.2) : sw < 0.72 ? 1 : 1 - easeInOut3(poseSeg(sw, 0.72, 1));
+  const eq = p.equipment || {};
+  const dual = eq.schild && isOffhand(eq.schild);
+  const shield = eq.schild && !dual;
+  const two = !dual && twoHanded3(kind);
+  const idle = IDLE_WRIST3[kind] || 0;
+  const ext = wristExt3(kind) || 2.2;
+  // kleines Nachfedern im Halten (die Waffen „ziehen“ nach oben)
+  const hold = sw > 0.2 && sw < 0.72 ? Math.sin(poseSeg(sw, 0.2, 0.72) * Math.PI) : 0;
+  const wx = idle + (ext - idle) * k;
+  if (dual) {
+    setArm(B[BH.armR], -2.6 * k - 0.08 * hold, 0, -0.5 * k);
+    setArm(B[BH.armL], -2.6 * k - 0.08 * hold, 0, 0.5 * k);
+    B[BH.handR].rotation.x = wx;
+    B[BH.handL].rotation.x = wx;
+  } else if (two) {
+    // wie der Zweihand-Griff in poseKeys3: linke Hand unter der rechten
+    const rx = -2.95 * k - 0.06 * hold;
+    setArm(B[BH.armR], rx, 0, 0.12 * k);
+    setArm(B[BH.armL], rx * 0.95, 0, (0.12 - 0.62) * k);
+    B[BH.handR].rotation.x = wx;
+    B[BH.handL].rotation.x = wx;
+  } else {
+    setArm(B[BH.armR], -2.85 * k - 0.08 * hold, 0, -0.18 * k);
+    B[BH.handR].rotation.x = wx;
+    if (shield) setArm(B[BH.armL], -1.05 * k, 0, 0.32 * k);
+    else setArm(B[BH.armL], -0.5 * k, 0, 0.45 * k);
+  }
+  B[BH.chest].rotation.x = -0.16 * k;
+  B[BH.head].rotation.x += -0.28 * k;
+  B[BH.cape].rotation.x = 0.12 + 0.25 * k;
+  if (!p.moving) {
+    B[BH.hips].position.y -= 0.03 * k * (1 - hold);
+    B[BH.legL].rotation.x = -0.12 * k;
+    B[BH.legR].rotation.x = 0.1 * k;
+  }
+  // Klingenleuchten: schwach beim Heben, hell beim Blitz (0,1–0,5), dann ausklingend
+  const rk = p.saCast && game.time - p.saCast.at < 3 ? p.saCast.rk : -1;
+  const col = rk >= 0 && typeof SA_CAST_COL !== 'undefined' ? SA_CAST_COL[rk + 1].alt : '#ffe28a';
+  const fl = sw < 0.1 ? 0 : sw < 0.22 ? poseSeg(sw, 0.1, 0.22) : 1 - poseSeg(sw, 0.22, 0.6);
+  poseWeaponGlow(a, col, Math.min(0.75, 0.25 * k + 0.5 * Math.max(0, fl)));
+};
+
 const easeIn3 = (u) => u * u;
 const easeOut3 = (u) => 1 - (1 - u) * (1 - u);
 const easeIO3 = (u) => u * u * (3 - 2 * u);
