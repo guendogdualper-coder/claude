@@ -3640,3 +3640,5 @@ body.skv-open .hover-tip { display: none !important; }
 /* seit 14.58: am Handy steht die Erfahrung wieder als Zahl und Prozent in der EP-Leiste (vorher nur ein dünner Strich) */
 #hud.touch .xp { height: 12px; border-radius: 6px; bottom: max(2px, calc(var(--edge-b) - 4px)); }
 #hud.touch .xp span { display: block; font-size: 9px; line-height: 12px; letter-spacing: 0.02em; font-weight: 600; }
+/* seit 14.62: Reittier-Symbol (aufbäumendes Pferd / fliegender Drache) am Handy größer */
+#hud.touch #btnHorse .menu-icon.rich { width: 31px; height: 31px; }
