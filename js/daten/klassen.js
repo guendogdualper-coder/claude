@@ -50,9 +50,10 @@ const CLASSES = {
             id: 'sprungschlag', name: 'Sprungschlag', short: 'SP', kind: 'angriff', unlock: 7, mp: 18, cooldown: 8,
             // seit 13.85 mit Zielkreis (aim, aimMax = Sprungweite): Landeplatz frei wählbar wie bei einem Zauber
             // seit 14.2 am Handy ohne Zielkreis (touchDirect): Sprung direkt zum Ziel bzw. nächsten Gegner
-            type: 'leap', aim: true, touchDirect: true, aimMax: 190, distance: 190, radius: 80, dmg: 0.9, stun: 1.6, crater: 50,
-            crouch: 0.07, air: 0.32, recover: 0.14, anim: 'sprung', animDur: 0.56, color: '#c8a878',
-            text: 'Du springst bis zu 190 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt und leicht verletzt. Am PC wählst du den Landeplatz mit dem Zielkreis, am Handy springst du direkt zum Gegner.'
+            // seit 14.64 weiter und schneller: 190 → 260 weit, Flug 0,32 → 0,28 s, Hocke 0,07 → 0,06 s, Landehocke 0,14 → 0,12 s
+            type: 'leap', aim: true, touchDirect: true, aimMax: 260, distance: 260, radius: 80, dmg: 0.9, stun: 1.6, crater: 50,
+            crouch: 0.06, air: 0.28, recover: 0.12, anim: 'sprung', animDur: 0.48, color: '#c8a878',
+            text: 'Du springst bis zu 260 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt und leicht verletzt. Am PC wählst du den Landeplatz mit dem Zielkreis, am Handy springst du direkt zum Gegner.'
           },
           {
             // seit 13.2 schon ab Stufe 3 (tauscht mit dem Schwertwirbel)

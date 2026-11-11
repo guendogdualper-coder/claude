@@ -733,7 +733,13 @@ function saBruchRock(q, u) {
 function saBruchShake(e, t) {
   if (e.shook || t < SA_BRUCH.hit) return;
   e.shook = true;
-  if (e.own && typeof shakeScreen === 'function') shakeScreen(3.5);
+  if (typeof shakeScreen !== 'function') return;
+  // seit 14.64 bebt der Boden auch für Mitspieler in der Nähe (bis 420 weit, nach außen schwächer)
+  if (e.own) { shakeScreen(3.5); return; }
+  const me = game.player;
+  if (!me) return;
+  const d = Math.hypot(me.x - e.x, feetY(me) - e.y);
+  if (d < 420) shakeScreen(1.2 + 2.3 * (1 - d / 420));
 }
 FX3_TYPES.add('sabruch3');
 FX3_DRAW.sabruch3 = function (h, e) {
