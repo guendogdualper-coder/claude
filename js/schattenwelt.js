@@ -1,4 +1,4 @@
-// Die Karten der Schattenseite (seit 14.53, Konzept und Regeln in docs/fraktionen.md) – wie karte80.js für den
+// Die Karten der Schattenseite (seit 14.54, Konzept und Regeln in docs/fraktionen.md) – wie karte80.js für den
 // Kristallabgrund steht hier nur, was die neuen Gegenden anders aussehen lässt; Karten, Gebiete, Städte, Leute,
 // Monster und Aufträge stehen in den Datendateien (daten/zonen.js, daten/schattenmonster.js, daten/stadtformen.js,
 // daten/quests.js, daten/nachtmonster.js) und entstehen über dieselben Wege wie auf jeder anderen Map (welt.js).

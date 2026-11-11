@@ -14,7 +14,7 @@ const DUNGEON_SLOTS = dungeonSlots();
 const DUNGEON_W = DUNGEON_COL * DUNGEON_SLOTS.cols; // östlich davon Spalten mit je vier Dungeons und Endboss-Arenen (nur per Eingang)
 const DUNGEON_H = 300;    // Höhe des Dungeon-Streifens
 const MAP_W = WORLD_W + DUNGEON_W;
-// seit 14.53: zwei Reihen mit den sechs Karten der Schattenseite unter der alten Welt (Maps 11–16, docs/fraktionen.md).
+// seit 14.54: zwei Reihen mit den sechs Karten der Schattenseite unter der alten Welt (Maps 11–16, docs/fraktionen.md).
 // WORLD_W und WORLD_H bleiben (das Rauschen der alten Welt hängt daran), die Karte wird nur nach unten länger.
 const SHADOW_H = 440;
 const MAP_H = WORLD_H + SHADOW_H;
@@ -33,7 +33,7 @@ const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts 
 
 // Bodenarten
 // seit 13.85: KRISTALL (violetter Fels des Kristallabgrunds) und ABGRUND (Spalte ins Dunkle, wie ein Gewässer nicht begehbar)
-// seit 14.53: Böden der Schattenseite (Farben in schattenwelt.js): NACHTGRAS (blaugrünes Dämmergras), NACHTMOOS (violettes
+// seit 14.54: Böden der Schattenseite (Farben in schattenwelt.js): NACHTGRAS (blaugrünes Dämmergras), NACHTMOOS (violettes
 // Moos), SCHWARZERDE (verkohlter Waldboden), KNOCHENSAND (bleicher Sand), BLUTERDE (rote Steppe) und NACHTSCHNEE (Schnee im
 // Mondlicht)
 const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15, KRISTALL: 16, ABGRUND: 17,
@@ -55,7 +55,7 @@ const ZONE_DECO = {
   vulkan: ['CRYSTAL', 'BONES', 'DEADTREE'], sandwueste: ['BONES', 'DEADTREE'], nagadschungel: ['SHRUB', 'MUSHROOM', 'LOG'],
   donnerklamm: ['BONES', 'DEADTREE', 'CRYSTAL'], titanenkamm: ['CRYSTAL', 'BONES'],
   kristallhang: ['CRYSTAL', 'BONES', 'CRYSTAL', 'DEADTREE'], leerenschlund: ['CRYSTAL', 'CRYSTAL', 'BONES'], // seit 13.85
-  // seit 14.53: Schattenseite
+  // seit 14.54: Schattenseite
   daemmerwiesen: ['SHRUB', 'MUSHROOM', 'STUMP', 'SHRUB'], aschewald: ['STUMP', 'LOG', 'DEADTREE', 'BONES'], knochenwueste: ['BONES', 'BONES', 'DEADTREE'],
   blutsteppe: ['BONES', 'DEADTREE', 'CRYSTAL', 'BONES'], nachtfrost: ['CRYSTAL', 'DRIFT', 'BONES', 'DRIFT'], schattenklippen: ['BONES', 'CRYSTAL', 'DEADTREE'],
   schwarzmoor: ['MUSHROOM', 'LOG', 'SHRUB', 'BONES']
@@ -81,7 +81,7 @@ function thinDrop(x, y) {
 // Drittel weg, auf dem Feuerberg (Map 9) gut die Hälfte – dort auch Knochen. Wieder über die Lage der Kachel (andere
 // Bits als thinDrop), der Zufallsgenerator und damit alles andere bleibt gleich.
 // Seit 14.14 im Dunkelwald (Map 4) und im Totenmoor (Map 8) noch mehr weg: dort lagen zu viele Äste und Stämme.
-const CLUTTER_DROP = { 9: 0.56, 4: 0.66, 8: 0.5, 12: 0.66, 16: 0.5 }; // seit 14.53 auch Aschewald (12) und Schattenklippen (16)
+const CLUTTER_DROP = { 9: 0.56, 4: 0.66, 8: 0.5, 12: 0.66, 16: 0.5 }; // seit 14.54 auch Aschewald (12) und Schattenklippen (16)
 function clutterDrop(x, y, mapId) {
   if (mapId == null) return false; // Dungeons bleiben, wie sie sind
   let h = Math.imul(x + 0x7f4a7c15, 0x9e3779b1) ^ Math.imul(y + 0x2545f491, 0x6c8e9cf5);
@@ -93,7 +93,7 @@ function clutterDrop(x, y, mapId) {
 // Weniger Bäume (seit 14.14): im Dunkelwald war es zu dicht, in Dschungel, Frost und Moor auch. Wieder über die Lage
 // der Kachel (eigene Bits), damit die Zufallszahlen und damit Wasser, Wege, Felsen und Schmuck gleich bleiben. Der
 // dichte Rand der Maps bleibt.
-const TREE_DROP = { 4: 0.5, 2: 0.3, 7: 0.25, 8: 0.25, 12: 0.5, 15: 0.25, 16: 0.3 }; // seit 14.53 auch die Schattenkarten wie ihr Gegenstück
+const TREE_DROP = { 4: 0.5, 2: 0.3, 7: 0.25, 8: 0.25, 12: 0.5, 15: 0.25, 16: 0.3 }; // seit 14.54 auch die Schattenkarten wie ihr Gegenstück
 function treeDrop(x, y, mapId) {
   const k = TREE_DROP[mapId];
   if (!k) return false;
@@ -380,7 +380,7 @@ const TOWN_THEME = {
   8: { planter: 'pilz', bench: 'holz', goods: 'markt', pile: ['holz', 'sack'], banner: '#4a5a3a' },
   9: { planter: 'dorn', bench: 'stein', goods: 'erz', pile: ['erz', 'sack'], banner: '#a83a1a' },
   10: { planter: 'dorn', bench: 'stein', goods: 'krug', pile: ['sack', 'krug'], banner: '#5a3aa8' }, // seit 13.85: Lichtwacht
-  // seit 14.53: Schattenseite – dunkle Banner (Violett, Nachtblau, Blutrot), Pilze und Dornen statt Blumen
+  // seit 14.54: Schattenseite – dunkle Banner (Violett, Nachtblau, Blutrot), Pilze und Dornen statt Blumen
   11: { planter: 'pilz', bench: 'stein', goods: 'krug', pile: ['krug', 'sack'], banner: '#3a2a6a', stone: '#9aa8ff' },
   12: { planter: 'dorn', bench: 'holz', goods: 'markt', pile: ['holz', 'sack'], banner: '#5a2a1a' },
   13: { planter: 'dorn', bench: 'stein', goods: 'krug', pile: ['totem', 'sack'], banner: '#4a4a5a' },
@@ -523,7 +523,7 @@ const TOWN_HOUSE_STYLE = {
     enter: ['#5a3a2e', { roof: 'sattel', wall: 'stein', chimney: -0.3 }, 'werkstatt', ['Braumeister Hrolf', 'bauer', 'kill']] },
   10: { looks: [{ roof: 'giebel', wall: 'stein' }, { roof: 'pagode', wall: 'stein', chimney: -0.25 }],
     enter: ['#3a3a6a', { roof: 'giebel', wall: 'stein', chimney: 0.25 }, 'stube', ['Lichtmönch Mirel', 'moench', 'kill']] },
-  // seit 14.53: die beiden Städte der Schattenseite (Mondfall, Nachtwacht)
+  // seit 14.54: die beiden Städte der Schattenseite (Mondfall, Nachtwacht)
   11: { looks: [{ roof: 'pagode', wall: 'stein' }, { roof: 'giebel', wall: 'stein', chimney: 0.3, annex: 'w' }],
     enter: ['#2e2a5a', { roof: 'pagode', wall: 'stein', chimney: -0.3 }, 'stube', ['Mondweberin Selva', 'alte', 'collect']] },
   16: { looks: [{ roof: 'walm', wall: 'stein', chimney: 0.3 }, { roof: 'sattel', wall: 'stein', annex: 'w' }],
@@ -1149,7 +1149,7 @@ function generateWorld() {
     9: { haendler: ['Asha', 0], schmied: ['Volkan', 0], waffen: ['Ignis', 0], ruestung: ['Glut', 1], alchemist: ['Pyra', 1], aeltester: ['Ember', 1], jaegerin: ['Kira', 0], teleport: ['Funke', 1], stallmeister: ['Ruß', 0], lehrmeister: ['Aschea', 1], lager: ['Kohl', 0] },
     // seit 13.85: Lichtwacht im Kristallabgrund
     10: { haendler: ['Selene', 0], schmied: ['Brannoc', 0], waffen: ['Corvin', 0], ruestung: ['Ilse', 0], alchemist: ['Sorel', 0], aeltester: ['Aurelia', 1], jaegerin: ['Nerys', 0], teleport: ['Elian', 1], stallmeister: ['Maren', 1], lehrmeister: ['Castor', 0], lager: ['Odo', 0] },
-    // seit 14.53: die Leute der Schattenseite (Mondfall, Glimmwacht, Gebeinwacht, Blutwacht, Eisnacht, Nachtwacht)
+    // seit 14.54: die Leute der Schattenseite (Mondfall, Glimmwacht, Gebeinwacht, Blutwacht, Eisnacht, Nachtwacht)
     11: { haendler: ['Nocta', 0], schmied: ['Varg', 0], waffen: ['Schwarzhand', 0], ruestung: ['Ilvy', 0], alchemist: ['Morwen', 1], aeltester: ['Selenor', 0], jaegerin: ['Kesha', 0], teleport: ['Umbra', 0], stallmeister: ['Raskin', 0], lehrmeister: ['Thalor', 0], lager: ['Brisa', 1] },
     12: { haendler: ['Esche', 0], schmied: ['Kohlbart', 0], waffen: ['Ruß', 0], ruestung: ['Senga', 0], alchemist: ['Glimm', 0], aeltester: ['Ascan', 0], jaegerin: ['Fenna', 0], teleport: ['Zunder', 1], stallmeister: ['Holk', 0], lehrmeister: ['Branda', 1], lager: ['Teer', 0] },
     13: { haendler: ['Bleika', 0], schmied: ['Ossko', 0], waffen: ['Grimmzahn', 0], ruestung: ['Kalka', 0], alchemist: ['Mürb', 0], aeltester: ['Ossian', 0], jaegerin: ['Sandra', 0], teleport: ['Wispel', 1], stallmeister: ['Dorrak', 0], lehrmeister: ['Velka', 1], lager: ['Spann', 0] },
@@ -1216,7 +1216,7 @@ function generateWorld() {
           if (obj[i] || LIQUID.has(ground[i])) free = false;
         }
         if (!free) continue;
-        // seit 14.53: auf den Schattenkarten eigene Wanderer (die Liste der Lichtseite und ihr Zähler bleiben unverändert)
+        // seit 14.54: auf den Schattenkarten eigene Wanderer (die Liste der Lichtseite und ihr Zähler bleiben unverändert)
         const [name, art] = wm.shadow ? SHADOW_WANDERERS[swk++ % SHADOW_WANDERERS.length] : WANDERERS[wk % WANDERERS.length];
         if (!wm.shadow) wk++;
         npcs.push(npc('wanderer', name, tx + 0.5, ty + 0.5, { art, key: `w${wm.id}-${k}`, side: { monster, kind: k === 1 ? 'collect' : 'kill' } }));
@@ -1258,7 +1258,7 @@ function generateWorld() {
       npcs.push(npc('ausgang', 'Ausgang', ex.x + 0.5, ex.y + 0.5, { dungeon: k }));
     }
   });
-  // seit 14.53: zweite Eingänge auf den Schattenkarten (def.entry2), nach allen anderen Toren (die wandernden Eingänge
+  // seit 14.54: zweite Eingänge auf den Schattenkarten (def.entry2), nach allen anderen Toren (die wandernden Eingänge
   // suchen das erste Tor eines Dungeons, das bleibt das der Lichtseite). dg.entrance2: Ankunft beim Verlassen
   dungeons.forEach((dg, k) => {
     const e2 = dg.def.entry2;
@@ -2395,7 +2395,7 @@ function dungeonProps(dg, obj, ground) {
 // vier Wege vom Lager zum Rand und ein Rand aus Felsen.
 function buildWorldMaps(ground, obj, deco, zoneIdx, shape0, detail0, bloom0, roads = []) {
   const rng0 = mulberry32(WORLD_SEED + 202);
-  // seit 14.53: Die Schattenkarten (wm.shadow) bekommen eigene Rauschfelder und eigene Zufallszahlen – sonst wiederholten
+  // seit 14.54: Die Schattenkarten (wm.shadow) bekommen eigene Rauschfelder und eigene Zufallszahlen – sonst wiederholten
   // sich Seen und Wälder der Karten darüber (das Rauschen wiederholt sich nach WORLD_H), und die alten Karten bleiben
   // genau, wie sie waren (ihre Zufallszahlen werden zuerst und unverändert verbraucht)
   const srng = mulberry32(WORLD_SEED + 1453);

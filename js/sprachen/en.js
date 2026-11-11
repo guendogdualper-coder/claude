@@ -3462,7 +3462,7 @@
 "· bis zu dritt": "· up to three",
 "Arena mit der Gruppe betreten": "Enter arena with party",
 "Die nächsten zwei Mitglieder im Kanal bekommen eine Einladung. Auswählen kannst du beim Arenameister.": "The two nearest members in the channel get an invitation. You can choose at the arena master.",
-// seit 14.53: Licht und Schatten (seiten.js, schattenwelt.js, Schattenkarten)
+// seit 14.54: Licht und Schatten (seiten.js, schattenwelt.js, Schattenkarten)
 "Mondfall": "Moonfall",
 "Die Mondstadt Mondfall am dunklen Mondsee, darum die Dämmerwiesen mit Aschehunden, Nebelwölfen und Schattenkeilern.": "The moon city of Moonfall on the dark Moon Lake, surrounded by the Dusk Meadows with ash hounds, mist wolves and shadow boars.",
 "Aschewald": "Ashwood",

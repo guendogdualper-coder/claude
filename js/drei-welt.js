@@ -1526,13 +1526,13 @@ const GRASS3 = {
   [GROUND.SNOW]: '#9aa88a', [GROUND.SAND]: '#a89a5a', [GROUND.ASH]: '#6a645a'
 };
 const GRASS3_SPARSE = { [GROUND.SNOW]: 9, [GROUND.SAND]: 12, [GROUND.ASH]: 14 };
-// dichtes Gras fast auf jeder Kachel (seit 14.53 als Liste, damit das Dämmergras der Schattenseite dazukommen kann)
+// dichtes Gras fast auf jeder Kachel (seit 14.54 als Liste, damit das Dämmergras der Schattenseite dazukommen kann)
 const GRASS3_DENSE = new Set([GROUND.GRASS, GROUND.MEADOW]);
 const CLOVER3 = '#3a8048';
 const FLOWER3 = { [DECO.FLOWER_RED]: '#e04a3a', [DECO.FLOWER_YELLOW]: '#f0c83a', [DECO.FLOWER_WHITE]: '#f4f0e8' };
 
 // Vorlagen der häufigen Objekte: einmal gebacken, danach nur noch verschoben und gedreht
-// Laubbäume mit eigenem Aussehen je Gebiet (seit 14.53 als Liste; die Schattenkarten tragen sich in schattenwelt.js ein)
+// Laubbäume mit eigenem Aussehen je Gebiet (seit 14.54 als Liste; die Schattenkarten tragen sich in schattenwelt.js ein)
 const TREE3_STYLED = new Set(['nagadschungel']);
 const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) => {
   if (kind === 'blossom') WORLD3.tree(b, null, v, 'blossom');

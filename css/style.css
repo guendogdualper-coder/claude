@@ -3603,7 +3603,7 @@ body.skv-open .hover-tip { display: none !important; }
 .rk-fact b { color: #ffe39a; font-size: 11.5px; }
 .rk-fact.rk-liga { padding: 0 4px; background: none; box-shadow: none; }
 .rk-on { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: #5ae06a; box-shadow: 0 0 6px #5ae06a; vertical-align: 1px; }
-/* seit 14.53: Licht und Schatten (seiten.js) – Wahl der Seite, Wappen, Hinweis im Weltentor */
+/* seit 14.54: Licht und Schatten (seiten.js) – Wahl der Seite, Wappen, Hinweis im Weltentor */
 .factions { border: 0; padding: 0; margin: 0; min-width: 0; }
 .factions legend { padding: 0; margin-bottom: 6px; font-size: 12px; }
 .fac-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }

@@ -124,10 +124,10 @@ const QUEST_CHAPTERS = [
   ] }
 ];
 const MAIN_QUESTS = QUEST_CHAPTERS.flatMap((ch, ci) => ch.quests.map((q, k) => ({ ...q, id: `k${ci + 1}_${k + 1}`, map: ch.map, chapter: ci, chapterTitle: ch.title })));
-// Endbosse für das Finale (Reihenfolge nach Stufe) – seit 14.53 die neun der Lichtseite (die Schattenseite hat ihre eigenen)
+// Endbosse für das Finale (Reihenfolge nach Stufe) – seit 14.54 die neun der Lichtseite (die Schattenseite hat ihre eigenen)
 const RAID_BOSSES = Object.keys(MONSTER_TYPES).filter((id) => MONSTER_TYPES[id].raidBoss && MONSTER_TYPES[id].side !== 'schatten').sort((a, b) => MONSTER_TYPES[a].level - MONSTER_TYPES[b].level);
 
-// --- Hauptquests der Schattenseite (seit 14.53, docs/fraktionen.md) -------------------------------------------------
+// --- Hauptquests der Schattenseite (seit 14.54, docs/fraktionen.md) -------------------------------------------------
 // Kapitel 1–6 spielen auf den Schattenkarten (Maps 11–16) und haben genau so viele Aufträge wie die Kapitel der
 // Lichtseite in derselben Reihenfolge (gleiche Stufen und Belohnungen, eigene Gegner und Geschichten). Ab Kapitel 7
 // (Totenmoor, gemeinsame Karten ab Stufe 50) gilt dieselbe Reihe für beide Seiten; Heimkehr, Finale und Epilog führen

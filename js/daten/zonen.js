@@ -171,7 +171,7 @@ DUNGEONS.push({
   ambient: { kind: 'shards', tint: [30, 30, 90, 0.13] }
 });
 DUNGEONS.push(raidDungeon(['aelvyr', 'Hort des Abgrundwyrms', 10, 'KRISTALL', '#a88cff', { top: '#2a2444', face: '#0c0a18', line: '#a88cff' }, 'shards'], [30, 20, 70, 0.1]));
-// seit 14.53: die Endboss-Hallen der sechs Schattenkarten (Maps 11–16, docs/fraktionen.md). Wieder hinten angehängt, damit
+// seit 14.54: die Endboss-Hallen der sechs Schattenkarten (Maps 11–16, docs/fraktionen.md). Wieder hinten angehängt, damit
 // alle älteren Dungeons ihren Platz im Streifen behalten
 const SHADOW_RAID_DEFS = [
   ['skarn', 'Höhle des Nachtwolfs', 11, 'CAVE', '#9aa8ff', { top: '#2a2a38', face: '#10101a', line: '#6a74b8' }, 'wisps'],
@@ -182,7 +182,7 @@ const SHADOW_RAID_DEFS = [
   ['moormutter', 'Moorthron der Veyla', 16, 'SWAMP', '#7ae0a8', { top: '#24382e', face: '#0c1612', line: '#5ab088' }, 'wisps']
 ];
 for (const row of SHADOW_RAID_DEFS) DUNGEONS.push(raidDungeon(row, [20, 16, 40, 0.12]));
-// seit 14.53: zweite Eingänge auf den Schattenkarten (entry2). Dungeons und Instanzen der Stufen 10–49 stehen beiden Seiten
+// seit 14.54: zweite Eingänge auf den Schattenkarten (entry2). Dungeons und Instanzen der Stufen 10–49 stehen beiden Seiten
 // offen; jede Seite betritt sie über ihren eigenen Eingang und kommt dort wieder heraus (dungeonEntranceFor, seiten.js)
 const SHADOW_ENTRIES = {
   spinnenhoehle: { map: 12, dir: [0, -1], dist: 28, side: 4 },
@@ -227,7 +227,7 @@ const WORLD_MAPS = [
   // seit 13.85: Map 10, das Endgebiet unten links (vorher Fels): die Kristallzitadelle Lichtwacht, darum violette
   // Felsplateaus mit Kristallen und Abgrundspalten (GROUND.ABGRUND), innen die Hänge, außen der Leerenschlund
   { id: 10, name: 'Kristallabgrund', levels: 'Stufe 75–80', minLevel: 75, region: [0, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Kristallzitadelle Lichtwacht über dem Abgrund, darum Plateaus voller Kristalle, Golems und Spinnen, außen der Leerenschlund mit Rittern und Wyrmen. Kristallkaverne.', town: [265, 70], portals: [] },
-  // seit 14.53: die sechs Karten der Schattenseite (Stufe 1–49, docs/fraktionen.md) in zwei neuen Reihen unter der alten
+  // seit 14.54: die sechs Karten der Schattenseite (Stufe 1–49, docs/fraktionen.md) in zwei neuen Reihen unter der alten
   // Welt (y ab WORLD_H = 880). Nichts Bestehendes verschiebt sich. side: Seite, die die Karte betreten darf (ohne side:
   // gemeinsame Karte ab Stufe 50). shadow: eigene Rauschfelder und Zufallszahlen beim Erzeugen (buildWorldMaps).
   // Die Städte liegen an anderen Stellen als auf den Lichtkarten derselben Stufe.
@@ -292,7 +292,7 @@ const MAP_ZONES = [
     stones: [[75, 2, 0, 0.5], [80, 4, 0.3, 1]],
     ambient: { kind: 'shards', tint: [50, 30, 110, 0.14] }
   },
-  // --- seit 14.53: Schattenseite (Maps 11–16), Gebiete wie auf den Lichtkarten derselben Stufe, eigene Böden und Monster.
+  // --- seit 14.54: Schattenseite (Maps 11–16), Gebiete wie auf den Lichtkarten derselben Stufe, eigene Böden und Monster.
   // like: Gebiet der Lichtseite, dessen Darstellung (Felsen, Schmuck, Ränder, Musik) als Vorlage dient (schattenwelt.js)
   { id: 'mondfall', map: 11, name: 'Mondfall', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'NACHTGRAS', like: 'dorf' },
   {

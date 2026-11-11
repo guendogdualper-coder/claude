@@ -64,7 +64,7 @@ function rankEntryOf(sv) {
   // seit 14.48: Ausrüstungslevel (Durchschnitt der Itemlevel, ausruestung.js gearLevelOf)
   e.gs = typeof gearLevelOf === 'function' ? Math.max(0, Math.min(300, gearLevelOf(sv.equipment))) : 0;
   e.liga = typeof pvpTier === 'function' ? pvpTier(rp).id : 'bronze';
-  // seit 14.53: Seite (l Licht, s Schatten) – nur wenn gewählt und die Regeln der Datenbank das Feld kennen
+  // seit 14.54: Seite (l Licht, s Schatten) – nur wenn gewählt und die Regeln der Datenbank das Feld kennen
   if ((sv.faction === 'licht' || sv.faction === 'schatten') && !rankMemo().noSide) e.seite = sv.faction === 'schatten' ? 's' : 'l';
   return e;
 }
@@ -144,7 +144,7 @@ async function rankSync() {
     rank.rulesAt = 0;
     rank.cache = {}; // eigene Änderung gleich sehen
   } catch (e) {
-    // seit 14.53: kennen die Regeln das Feld „seite“ noch nicht, ohne Seite weiterschreiben (einmal merken, gleich neu)
+    // seit 14.54: kennen die Regeln das Feld „seite“ noch nicht, ohne Seite weiterschreiben (einmal merken, gleich neu)
     const withSide = Object.values(patch).some((v) => v && v.seite);
     if (e && e.code === 'regeln' && withSide) {
       const m = rankMemo();
@@ -238,7 +238,7 @@ function rankWhoHtml(e) {
   const c = CLASSES[e.cls];
   const way = e.path != null ? classPath(e.cls, e.path).name : '';
   const liga = typeof pvpBadgeHtml === 'function' ? pvpBadgeHtml(e.rp || 0, 13) : '';
-  // seit 14.53: Wappen der Seite vor dem Namen (seiten.js)
+  // seit 14.54: Wappen der Seite vor dem Namen (seiten.js)
   const fac = e.fac && typeof factionCrest === 'function' ? `<span class="rk-fac" title="${FACTIONS[e.fac].title}">${factionCrest(e.fac, 15)}</span>` : '';
   return `${rankClassIcon(e.cls)}<span class="rk-who"><b class="no-tr">${e.online ? '<i class="rk-on" title="online"></i>' : ''}${fac}${escapeHtml(e.name)}</b>` +
     `<small><span>${c.name}</span>${way ? ` · <span>${way}</span>` : ''}</small>` +

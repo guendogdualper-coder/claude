@@ -51,7 +51,7 @@ const NIGHT_GROUPS = {
   titanenkamm: [['schattengargoyle', 6, 0.2, 1]],
   kristallhang: [['leerenwolf', 6, 0.1, 0.9]],
   leerenschlund: [['sternenschemen', 6, 0.2, 1], ['leerenwolf', 3, 0, 0.6]],
-  // seit 14.53: Schattenkarten – dieselben Nachtwesen wie auf der Lichtkarte derselben Stufe (die Nacht kennt keine Seite)
+  // seit 14.54: Schattenkarten – dieselben Nachtwesen wie auf der Lichtkarte derselben Stufe (die Nacht kennt keine Seite)
   daemmerwiesen: [['schattenwolf', 7, 0.25, 1], ['irrlicht', 5, 0.2, 0.9]],
   aschewald: [['nachtluchs', 6, 0.1, 0.9], ['mondspinne', 6, 0.4, 1]],
   knochenwueste: [['grabhyaene', 6, 0.1, 0.9], ['nachtskorpion', 6, 0.4, 1]],
@@ -61,7 +61,7 @@ const NIGHT_GROUPS = {
   schwarzmoor: [['dschungelgeist', 6, 0.2, 1]]
 };
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
-// seit 14.53: Nachtwanderer der Schattenkarten (Maps 11–16, eigene Liste; tag-nacht.js)
+// seit 14.54: Nachtwanderer der Schattenkarten (Maps 11–16, eigene Liste; tag-nacht.js)
 const SHADOW_NIGHT_WANDERERS = [
   ['Mondsängerin Lua', 'alte'], ['Kohlenwächter Grim', 'bauer'], ['Knochenleser Tarr', 'moench'],
   ['Blutjägerin Rhea', 'jaegerin'], ['Reifseherin Nuri', 'alte'], ['Moorläufer Fen', 'jaegerin']

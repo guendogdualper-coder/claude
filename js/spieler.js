@@ -131,7 +131,7 @@ const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoi
   'skillCostVer',
   // seit 14.39: Farbe der Glutschwinge (rot, blau, schwarz, weiss)
   'dragonColor',
-  // seit 14.53: Seite (licht | schatten, seiten.js); fehlt bei älteren Spielständen – dann wird einmal gewählt
+  // seit 14.54: Seite (licht | schatten, seiten.js); fehlt bei älteren Spielständen – dann wird einmal gewählt
   'faction'];
 const SKILL_COST_VER = 1;
 

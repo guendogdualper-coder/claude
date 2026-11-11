@@ -1678,7 +1678,7 @@ function drawLabel(ctx, e) {
     ctx.strokeText(lvText, e.x, lvY);
     ctx.fillStyle = '#ffd98a';
     ctx.fillText(lvText, e.x, lvY);
-    if (pv && pv.tier) pvpDrawGem(ctx, e.x - ctx.measureText(lvText).width / 2 - 7, lvY - 3.5, pv.tier); // seit 14.53 ohne Stein für die andere Seite
+    if (pv && pv.tier) pvpDrawGem(ctx, e.x - ctx.measureText(lvText).width / 2 - 7, lvY - 3.5, pv.tier); // seit 14.54 ohne Stein für die andere Seite
     // Gildenname in der Gildenfarbe über der Stufe
     const guild = e === p ? (p.guild ? p.guild.name : '') : e.guild;
     if (guild) {

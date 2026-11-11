@@ -462,7 +462,7 @@ const TOWN_LAYOUTS = {
   }
 };
 
-// seit 14.53: Städte und Lager der Schattenseite (Maps 11–16, docs/fraktionen.md). Sie nutzen die vorhandenen Formen,
+// seit 14.54: Städte und Lager der Schattenseite (Maps 11–16, docs/fraktionen.md). Sie nutzen die vorhandenen Formen,
 // aber gespiegelt (Westen ↔ Osten), mit eigenen Dachfarben und teils anderer Flüssigkeit – so sieht keine aus wie ihr
 // Gegenstück auf der Lichtseite, und Wege, Tore und Stände bleiben trotzdem stimmig.
 // Spiegeln: Kachel dx → -dx, ein Platz u (Kacheln ab der Mitte der Stadtkachel) → 1 - u, Stand 'w' ↔ 'e', Blick umgekehrt.

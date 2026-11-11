@@ -1,4 +1,4 @@
-# Licht und Schatten (seit 14.53)
+# Licht und Schatten (seit 14.54)
 
 Wunsch des Spielers: zwei Seiten, zwischen denen jeder Spieler wählt – Licht oder Schatten. Beide Seiten haben eigene
 Karten und eigene Monster und können sich bis Stufe 49 nicht treffen. Ab den Karten der Stufe 50 teilen sie sich die

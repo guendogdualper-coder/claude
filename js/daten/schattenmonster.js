@@ -1,4 +1,4 @@
-// Monster der Schattenseite (seit 14.53, Konzept in docs/fraktionen.md).
+// Monster der Schattenseite (seit 14.54, Konzept in docs/fraktionen.md).
 // Wer sich für die Seite des Schattens entscheidet, spielt Stufe 1–49 auf sechs eigenen Karten (Maps 11–16, daten/zonen.js).
 // Jede Art dort hat ein Gegenstück auf der Lichtseite derselben Stufe (twin): Stufe, Leben, Angriff, Tempo, Reichweite
 // und Abklingzeit sind gleich, damit beide Seiten gleich schnell vorankommen. Aussehen: dieselbe Familie wie das

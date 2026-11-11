@@ -139,7 +139,7 @@ const ui = {
         $('createError').hidden = false;
         return;
       }
-      // seit 14.53: Seite wählen (Licht oder Schatten, seiten.js)
+      // seit 14.54: Seite wählen (Licht oder Schatten, seiten.js)
       const faction = typeof factionPicked === 'function' ? factionPicked() : 'licht';
       if (!faction) {
         $('createError').textContent = 'Wähle deine Seite: Licht oder Schatten.';
@@ -259,7 +259,7 @@ const ui = {
       const way = sv.path != null ? classPath(sv.classId, sv.path).name : '';
       const info = document.createElement('div');
       info.className = 'char-info';
-      // seit 14.53 mit dem Wappen der Seite (seiten.js)
+      // seit 14.54 mit dem Wappen der Seite (seiten.js)
       const crest = sv.faction && typeof factionCrest === 'function' ? `<span class="rk-fac" title="${FACTIONS[sv.faction].title}">${factionCrest(sv.faction, 16)}</span>` : '';
       info.innerHTML = `<strong>${crest}${escapeHtml(sv.name)}</strong><span>${CLASSES[sv.classId].name}${way ? ' · ' + way : ''}</span><b>Stufe ${sv.level}</b>`;
       const play = document.createElement('button');

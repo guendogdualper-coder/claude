@@ -1165,7 +1165,7 @@ function instGfGo(act) {
   const rec = instRecord(def.id);
   if (rec && rec.done) return;
   // sonst (z. B. Gruppe noch nicht vollständig): zum Eingang
-  moveThrough(typeof dungeonEntranceFor === 'function' ? dungeonEntranceFor(dg) : dg.entrance, def.portal); // seit 14.53 der Eingang der eigenen Seite
+  moveThrough(typeof dungeonEntranceFor === 'function' ? dungeonEntranceFor(dg) : dg.entrance, def.portal); // seit 14.54 der Eingang der eigenen Seite
   ui.banner(def.name, 'Eingang erreicht – sprecht mit dem Tor (F)');
 }
 

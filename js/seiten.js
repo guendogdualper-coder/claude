@@ -1,4 +1,4 @@
-// Licht und Schatten (seit 14.53, Konzept, Karten und Regeln in docs/fraktionen.md).
+// Licht und Schatten (seit 14.54, Konzept, Karten und Regeln in docs/fraktionen.md).
 // Jeder Charakter gehört zu einer von zwei Seiten (p.faction 'licht' | 'schatten', SAVE_FIELDS). Bis Stufe 49 spielen
 // die Seiten auf getrennten Karten (Licht: Maps 1, 4, 5, 6, 2, 7 · Schatten: Maps 11–16, WORLD_MAPS.side) und können
 // sich dort nicht treffen. Ab Stufe 50 teilen sie sich die Karten ohne side (Totenmoor, Donnerklamm, Feuerberg,
