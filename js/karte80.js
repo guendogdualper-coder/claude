@@ -201,7 +201,7 @@ Object.assign(MONSTER_ART, {
       beastArt(ctx, f, { fur: '#4a5aa8', belly: '#bfe0ff', snout: '#5a6ab8', ridge: true, eye: '#e0f0ff', angry: true, glow: true, fangs: true, tusk: true });
     }
   },
-  // seit 14.67: Aelvyr in 2D eigens gezeichnet – fast doppelt so groß wie der Kristallwyrm, tief nachtblau mit
+  // seit 14.68: Aelvyr in 2D eigens gezeichnet – fast doppelt so groß wie der Kristallwyrm, tief nachtblau mit
   // leuchtenden Augen (vorher dieselbe Zeichnung wie der Kristallwyrm, kaum größer als ein gewöhnliches Monster).
   // In 3D hat er ein eigenes Modell (aelvyr.js).
   aelvyr: {

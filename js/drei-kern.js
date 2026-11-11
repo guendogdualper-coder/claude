@@ -637,7 +637,7 @@ function freeArray() {
 // für das Nachladen der Welt beim Laufen und Reiten (objectJob, drei-welt.js). Dort lief das Zusammenführen aller
 // Gegenstände eines Blocks am Stück: 30–100 ms in einem einzigen Bild, obwohl das Nachladen nur 5 ms je Bild haben soll
 // – das war der kurze Hänger „einfach so“ beim Reiten. mergeRaw selbst rechnet wie bisher in einem Zug.
-// Gespiegelte Teile (negative Größe, z. B. der rechte Flügel als s: [-1, 1, 1]) seit 14.67 mit umgedrehtem Umlauf:
+// Gespiegelte Teile (negative Größe, z. B. der rechte Flügel als s: [-1, 1, 1]) seit 14.68 mit umgedrehtem Umlauf:
 // vorher zeigten ihre Dreiecke nach innen – die beleuchtete Seite wurde weggeschnitten und man sah nur die schwarze
 // Umrisshülle (der „schwarze Flügel“ der Drachen, auch bei Aelvyr und den anderen Endbossen)
 function flipTris3(idx, from, n) {

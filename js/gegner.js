@@ -372,7 +372,7 @@ function raidTelegraph(m, kind, circles, inner, delay) {
     htQuarterShow(m, kind, circles[0], inner, delay);
     return;
   }
-  // seit 14.67: Aelvyr zeigt jeden Angriff mit eigener Pose und eigenen 3D-Effekten (aelvyr.js); in 3D stürzen
+  // seit 14.68: Aelvyr zeigt jeden Angriff mit eigener Pose und eigenen 3D-Effekten (aelvyr.js); in 3D stürzen
   // Kristalle statt der Meteore
   const ael = m.typeId === 'aelvyr' && typeof aelTelegraph === 'function' && aelTelegraph(m, kind, circles, inner, delay);
   if (kind === 'doom') {
@@ -408,7 +408,7 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
     if (kind === 'meteor' || kind === 'buster') addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.35, color: b.color });
     particles(c.x, c.y - 6, { count: 26, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'ember', drag: 3 });
   }
-  // seit 14.67 ohne Bildschirmblitz bei Aelvyr (Flügelstoß mit Staubwelle statt dessen)
+  // seit 14.68 ohne Bildschirmblitz bei Aelvyr (Flügelstoß mit Staubwelle statt dessen)
   if (kind === 'nova' && m.typeId !== 'aelvyr') flashScreen(b.color, 0.35);
   if (p.dead) return;
   const fyp = feetY(p);
@@ -448,7 +448,7 @@ function raidRoarFx(m, phase) {
   const b = m.type.boss;
   ui.banner(m.name, phase === 3 ? 'gerät in Raserei!' : phase === 2 ? 'rast vor Wut!' : 'ruft seine Brut!');
   shakeScreen(14);
-  // seit 14.67: Aelvyr brüllt (Pose, Dampf und Staubwelle, aelvyr.js) – ohne Bildschirmblitz, Ring und Lichtsäule
+  // seit 14.68: Aelvyr brüllt (Pose, Dampf und Staubwelle, aelvyr.js) – ohne Bildschirmblitz, Ring und Lichtsäule
   if (m.typeId === 'aelvyr' && typeof aelRoar === 'function') {
     aelRoar(m);
     return;

@@ -1,4 +1,4 @@
-// Aelvyr, Wyrm des Abgrunds (seit 14.67): eigenes 3D-Modell, eigene Animation und eigene Effekte des Endbosses von
+// Aelvyr, Wyrm des Abgrunds (seit 14.68): eigenes 3D-Modell, eigene Animation und eigene Effekte des Endbosses von
 // Karte 10 (Kristallabgrund, Halle raid_aelvyr). Vorher stand dort der allgemeine Vierbeiner-Drache (beast3) nur
 // vergrößert: flach, einfarbig blau, Brettflügel, und der rechte Flügel war von allen Seiten schwarz (gespiegelte Teile,
 // siehe mergeRaw in drei-kern.js).

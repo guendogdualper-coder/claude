@@ -1,4 +1,4 @@
-# Endboss Aelvyr, Wyrm des Abgrunds – neues 3D-Modell (seit 14.67)
+# Endboss Aelvyr, Wyrm des Abgrunds – neues 3D-Modell (seit 14.68)
 
 **Wunsch:** „Der Endboss sieht gar nicht aus wie so ein Endboss. Muss auf jeden Fall nochmal epischer irgendwie 3D
 animieren.“ (Stufe-80-Endboss auf Karte 10 Kristallabgrund, Halle `raid_aelvyr`)

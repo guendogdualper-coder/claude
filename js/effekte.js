@@ -351,7 +351,7 @@ function groundLoot(at, name, count, icon, color, done) {
 
 function vfxCorpse(m) {
   const e = { type: 'corpse', typeId: m.typeId, v3: m.__v3, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 };
-  // seit 14.67: Aelvyr stirbt langsam (Zusammensinken, Kristalle zerspringen; aelvyr.js)
+  // seit 14.68: Aelvyr stirbt langsam (Zusammensinken, Kristalle zerspringen; aelvyr.js)
   if (m.typeId === 'aelvyr' && typeof aelCorpse === 'function') aelCorpse(m, e);
   addEffect(e);
 }
