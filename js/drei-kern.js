@@ -1001,7 +1001,8 @@ function v3UpdateMood(dt, x, y) {
 const CAM3 = { nah: 0.86, normal: 1, weit: 1.2 };
 // Zoom per Mausrad/zwei Fingern (V3.zoomMul, eingabe.js). seit 14.44: im Schulterblick deutlich weiter hinaus
 // (3,2 statt 1,8: Kamera bis gut 30 statt 17 Einheiten hinter der Figur); die feste Kamera bleibt bei 1,8.
-const ZOOM3 = { min: 0.6, max: 1.8, shoulderMax: 3.2 };
+// seit 14.48 im Schulterblick bis 4,2 (vorher 3,2) – am Handy auf Wunsch noch weiter heraus
+const ZOOM3 = { min: 0.6, max: 1.8, shoulderMax: 4.2 };
 function v3ZoomMax() {
   return v3Shoulder() ? ZOOM3.shoulderMax : ZOOM3.max;
 }
@@ -1253,7 +1254,8 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
     const tz = fy * U3;
     const ty = 1.0 + lift * CAM3_HIGH.shoulder + CAM3_HIGH.airShoulder * v3CamDragonAir();
     // seit 14.32: über Hindernisse hinweg statt hindurch (v3ShoulderPitch), weich nachgeführt
-    const want = v3ShoulderPitch(fx, fy, yaw, d);
+    // seit 14.48 mit Kippen (V3.tilt, senkrecht wischen): bis gut 40° steiler als der Grundwinkel
+    const want = Math.max(v3ShoulderPitch(fx, fy, yaw, d), SHOULDER3.pitch + (V3.tilt || 0) * 0.68);
     const B = SHOULDER3_BOOM;
     if (V3.camPitch == null) V3.camPitch = want;
     V3.camPitch += (want - V3.camPitch) * (1 - Math.exp(-dt * (want > V3.camPitch ? B.inK : B.outK)));

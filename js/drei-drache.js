@@ -520,8 +520,9 @@ function dragonMount3(b, o = {}) {
     const at = ([x, z], dy = 0.014) => [sx * (HX + x), HY + dy, z];
     for (const top of [true, false]) {
       const col = top ? C.memTop : C.memUnder;
-      A(dmInnerSheet3(sx, top), col, { bone: wb.arm, noShadow: true });
-      A(dmOuterSheet3(sx, top), col, { bone: wb.hand, noShadow: true });
+      // seit 14.48 wirft die Oberseite der Haut Schatten (vorher keine Haut im Schatten: nur die dünnen Flügelknochen)
+      A(dmInnerSheet3(sx, top), col, { bone: wb.arm, noShadow: !top });
+      A(dmOuterSheet3(sx, top), col, { bone: wb.hand, noShadow: !top });
     }
     limbBetween(A, at(WING3.R0), at(WING3.E), 0.07, 0.05, red, { bone: wb.arm, top: redHi, topK: 0.4 });
     limbBetween(A, at(WING3.E), at(WING3.W), 0.05, 0.04, red, { bone: wb.fore, top: redHi, topK: 0.4 });

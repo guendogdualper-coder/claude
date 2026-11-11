@@ -180,10 +180,15 @@ function setupInput() {
     if (pinch && camDrag && (e.pointerId === pinch.id || e.pointerId === camDrag.id)) return pinchMove(e);
     if (!camDrag || e.pointerId !== camDrag.id) return;
     const dx = e.clientX - camDrag.x;
-    if (!camDrag.moved && Math.abs(dx) < 8) return;
+    const dy = e.clientY - camDrag.y;
+    if (!camDrag.moved && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
     camDrag.moved = true;
     V3.yawGoal = (V3.yawGoal != null ? V3.yawGoal : V3.yaw || 0) - dx * 0.008;
+    // seit 14.48: senkrecht wischen kippt den Schulterblick – nach unten = Kamera höher, mehr von oben (über Häuser
+    // und Mauern hinweg), nach oben = wieder flacher (V3.tilt 0…1, drei-kern.js v3PlaceCamera)
+    V3.tilt = Math.max(0, Math.min(1, (V3.tilt || 0) + dy * 0.004));
     camDrag.x = e.clientX;
+    camDrag.y = e.clientY;
   });
   const endCamDrag = (e) => {
     if (e.pointerType === 'mouse') {
