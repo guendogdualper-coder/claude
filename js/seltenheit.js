@@ -162,6 +162,7 @@ function dropEpic(m, n = 1) {
   const out = [];
   for (let k = 0; k < n; k++) {
     const item = rollRarityItem((m && m.level) || game.player.level, 3, null, k === 0 && Math.random() < 0.4 ? 'waffe' : null);
+    setTagItem(item, m); // seit 14.55: Set der Instanz
     if (giveRarityItem(item, m)) out.push(item);
   }
   return out;
@@ -169,8 +170,106 @@ function dropEpic(m, n = 1) {
 
 // Ein legendäres Teil (immer Ewig, Lv 80) – nur für Instanzen gedacht
 function dropLegendary(m) {
-  const item = rollRarityItem(80, 4);
+  const item = setTagItem(rollRarityItem(80, 4), m); // seit 14.55: Set der Instanz
   return giveRarityItem(item, m) ? item : null;
+}
+
+// --- Set-Ausrüstung (seit 14.55) -------------------------------------------------------------------------------
+// Daten: ITEM_SETS in daten/gegenstaende.js, Übersicht docs/sets.md. item.set ist die Kennung der Instanz, aus der
+// das Teil stammt; sie bleibt beim Schmieden, Verzaubern, Handeln, in Post, Auktionshaus, Lager und Spielstand erhalten.
+
+// Set eines Gegenstands (oder null)
+function itemSetDef(item) {
+  return item && typeof item.set === 'string' && Object.prototype.hasOwnProperty.call(ITEM_SETS, item.set) ? ITEM_SETS[item.set] : null;
+}
+// Set der Instanz, in der ein Gegner steht (Lv-60-/Lv-80-Instanzen, Höllenthron), sonst null
+function setIdOfMonster(m) {
+  const d = m && m.zone && m.zone.dungeon;
+  return d && Object.prototype.hasOwnProperty.call(ITEM_SETS, d.id) ? d.id : null;
+}
+// Beute aus einer Instanz zum Set-Teil machen: nur episch/legendär und ab Göttlich (Lv 60)
+function setTagItem(item, m) {
+  const id = setIdOfMonster(m);
+  if (id && item && item.slot && rarityOf(item) >= 3 && item.tier >= SET_MIN_TIER) item.set = id;
+  return item;
+}
+// Angelegte Teile je Set: nur, was die Figur tragen kann; eine Waffe in der Nebenhand nur, wenn sie dort wirkt
+function setCounts(p) {
+  const out = {};
+  const eq = (p && p.equipment) || {};
+  for (const [sl, item] of Object.entries(eq)) {
+    if (!itemSetDef(item) || !canWear(item, p)) continue;
+    if (sl === 'schild' && isOffhand(item) && !offhandAllows(p, item)) continue;
+    out[item.set] = (out[item.set] || 0) + 1;
+  }
+  return out;
+}
+// Aktive Stufen aller Sets: [{ id, set, n, tiers: [[Teile, Boni], …] }]
+function activeSets(p) {
+  return Object.entries(setCounts(p)).map(([id, n]) => ({ id, set: ITEM_SETS[id], n, tiers: ITEM_SETS[id].tiers.filter(([need]) => n >= need) }))
+    .filter((x) => x.tiers.length);
+}
+// Summe der aktiven Set-Boni (Schlüssel wie die Ausrüstungs-Boni; 'main' wird zum Hauptwert der Klasse)
+function setBonusStats(p) {
+  const out = {};
+  const main = MAIN_ATTR[p.classId] || 'str';
+  for (const a of activeSets(p)) {
+    for (const [, b] of a.tiers) {
+      for (const [k, v] of Object.entries(b)) {
+        const key = k === 'main' ? main : k;
+        out[key] = (out[key] || 0) + v;
+      }
+    }
+  }
+  return out;
+}
+// Text eines Set-Bonus, z. B. „Angriffswert +20“, „Stärke +6“, „Fertigkeitsschaden +4 %“
+function setBonusText(k, v, classId) {
+  if (k === 'main') return `${mainAttrName(classId || (game.player && game.player.classId)) || 'Hauptwert'} +${v}`;
+  if (SPECIAL_BONUS_TYPES[k]) return bonusText({ t: k, v }, true);
+  return BONUS_TYPES[k] ? bonusText({ t: k, v }) : `${k} +${v}`;
+}
+// Plätze, die zu einem Set zählen können (je Klasse; Schild/Nebenhand/Köcher nur bei Krieger und Ninja)
+function setSlotsFor(p) {
+  return equipSlotsFor(p ? p.classId : 'krieger').map((s) => s.id);
+}
+// Kasten im Hinweis und in den Fenstern: Set-Name, die Teile (angelegte hervorgehoben) und die Stufen
+// (aktive grün, inaktive grau). Gezählt wird für die eigene Figur.
+function setInfoHtml(item, p = game.player) {
+  const S = itemSetDef(item);
+  if (!S) return '';
+  const eq = (p && p.equipment) || {};
+  const n = p ? setCounts(p)[item.set] || 0 : 0;
+  const slots = setSlotsFor(p);
+  const parts = slots.map((sl) => {
+    const on = eq[sl] && eq[sl].set === item.set;
+    return `<i class="${on ? 'on' : ''}">${slotLabel(sl, p)}</i>`;
+  }).join('');
+  const tiers = S.tiers.map(([need, b]) => setTierHtml(need, b, n >= need, p && p.classId)).join('');
+  return `<div class="set-box" style="--set:${S.color}"><b class="set-name" style="color:${SET_COLOR}"><span>${S.name}</span> <span>(${n}/${slots.length})</span></b>` +
+    `<small class="set-from"><span>Set-Ausrüstung</span> · <span>${S.from}</span></small><div class="set-parts">${parts}</div><ul class="set-tiers">${tiers}</ul></div>`;
+}
+// Eine Stufe: „4 Teile: Max. Leben +400 · Stärke +6“ (jeder Bonus ein eigener Text, damit die Übersetzung greift)
+function setTierHtml(need, b, on, classId) {
+  return `<li class="${on ? 'on' : 'off'}"><b>${need} Teile:</b>` + Object.entries(b).map(([k, v]) => `<span>${setBonusText(k, v, classId)}</span>`).join('') + '</li>';
+}
+// Hinweis am Eingang einer Instanz: welches Set es hier gibt
+function setPortalHtml(id) {
+  const S = ITEM_SETS[id];
+  if (!S) return '';
+  return `<p class="set-portal"><span>Set:</span> <b style="color:${SET_COLOR}">${S.name}</b> <span>– alle epischen und legendären Teile von hier gehören dazu. Boni ab ${S.tiers.map((t) => t[0]).join(', ').replace(/, (\d+)$/, ' und $1')} angelegten Teilen.</span></p>`;
+}
+// Kurze Zeile (Schmied): nur der Set-Name
+function setLineHtml(item) {
+  const S = itemSetDef(item);
+  return S ? `<small class="set-line" style="color:${SET_COLOR}"><span>Set</span>: <span>${S.name}</span></small>` : '';
+}
+// Seite „Werte“ im Charakterfenster: aktive Set-Boni
+function setCharHtml(p) {
+  const list = activeSets(p);
+  if (!list.length) return '';
+  return `<h3>Set-Boni</h3><div class="set-char">` + list.map((a) => `<div class="set-box" style="--set:${a.set.color}"><b class="set-name" style="color:${SET_COLOR}"><span>${a.set.name}</span> <span>(${a.n}/${setSlotsFor(p).length})</span></b>` +
+    `<ul class="set-tiers">${a.set.tiers.map(([need, b]) => setTierHtml(need, b, a.n >= need, p.classId)).join('')}</ul></div>`).join('') + `</div>`;
 }
 
 // --- Umstellen alter Spielstände ---------------------------------------------------------------------------------
@@ -199,6 +298,9 @@ function announceRarity(item) {
   const R = RARITIES[r];
   const T = ITEM_TIERS[item.tier];
   ui.log(`Beute: ${itemFullName(item)} – ${R.name}, ${T.label} (Lv ${T.level})`, 'rar' + r);
+  // seit 14.55: Set-Teil mit Namen des Sets und wie viele Teile davon schon angelegt sind
+  const S = itemSetDef(item);
+  if (S) ui.log(`Set-Teil: ${S.name} (${setCounts(game.player)[item.set] || 0}/${setSlotsFor(game.player).length} angelegt)`, 'set');
   if (r < 3) return;
   // das Teil liegt kurz am Boden (groundLoot, effekte.js): der Strahl steht genau dort
   const name = itemFullName(item);

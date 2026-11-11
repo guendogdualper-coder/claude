@@ -419,6 +419,9 @@ function playerStats(p) {
     const share = item === offhand ? offhandRules(p).bonus : 1;
     for (const [k, v] of Object.entries(itemBonusStats(item))) bonus[k] = (bonus[k] || 0) + v * share;
   }
+  // seit 14.55: Set-Boni (angelegte Teile desselben Sets, seltenheit.js) zählen wie Boni der Ausrüstung, mit denselben
+  // Obergrenzen; Leben daraus gilt im PvP wie Ausrüstungs-Leben nur zum Teil (bonusHp, PVP_DMG.lifeShare)
+  if (typeof setBonusStats === 'function') for (const [k, v] of Object.entries(setBonusStats(p))) bonus[k] = (bonus[k] || 0) + v;
   for (const [k, cap] of Object.entries(BONUS_CAPS)) if (bonus[k] > cap) bonus[k] = cap;
   s.atk += bonus.atk || 0;
   s.def += bonus.def || 0;

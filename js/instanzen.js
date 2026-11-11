@@ -370,6 +370,7 @@ function instRenderGate(body, npc, dg) {
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
     `<p class="inst-lock" data-instlock="${def.id}">${instLockText(def.id) ? 'Sperre: ' + instLockText(def.id) : `Für dich frei. Die Sperre (${INST.lockMin} Min.) beginnt beim Betreten und gilt nur für diese Instanz.`}</p>` +
     `<p><b class="legend-text">Beute:</b> Der Instanzboss lässt in einer Fünfergruppe 2 epische Teile fallen (${instMobLevel(def) >= 75 ? 'Lv 70–80' : 'Lv 60–70'}, in kleineren Gruppen 1), mit Glück dazu ein legendäres (Lv 80), außerdem Verstärkungen, Switcher und Schmiede-Teile. Wächter: mit etwas Glück ein episches Teil.</p>` +
+    (typeof setPortalHtml === 'function' ? setPortalHtml(def.id) : '') + // seit 14.55: Set der Instanz
     `<button type="button" class="btn btn-primary" data-dg="enter" ${ok ? '' : 'disabled'}>${ok ? 'Instanz betreten' : 'Noch nicht bereit'}</button>`;
   body.querySelector('[data-dg]').addEventListener('click', () => {
     const err = enterDungeon(npc.dungeon);
@@ -907,6 +908,7 @@ function instEpicItem(m, slot) {
   // Lv-80-Instanzen (seit 13.85): Lv 70 oder (mit derselben Chance wie sonst Lv 70) Lv 80
   const hi = instMobLevel(instOfMonster(m)) >= 75;
   const item = rollRarityItem(Math.random() < INST.epic70 ? (hi ? 80 : 70) : hi ? 70 : 60, 3, null, slot);
+  setTagItem(item, m); // seit 14.55: Set-Teil der Instanz (Höllenthron-Wächter: Set des Höllenthrons)
   return giveRarityItem(item, m) ? item : null;
 }
 function instMiniLoot(m, chance) {
