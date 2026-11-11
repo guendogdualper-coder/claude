@@ -918,7 +918,12 @@ function bookSprite(id) {
 }
 function bookIconUrl(id) {
   const key = 'bookicon2:' + id;
-  if (!iconCache.has(key)) iconCache.set(key, bookSprite(id).img.toDataURL());
+  // seit 14.60 in ICON_HI gebacken: das Buch mit Medaillon bleibt am Handy scharf
+  if (!iconCache.has(key)) {
+    const e = skillEntry(id);
+    const [dark, light] = BOOK_COVERS[e.cls] || BOOK_COVERS.krieger;
+    iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawSkillBook(ctx, dark, light, (c) => drawSkillIcon(c, e.sk)), ICON_HI, true).img.toDataURL());
+  }
   return iconCache.get(key);
 }
 
@@ -1857,62 +1862,15 @@ function itemIconUrl(item) {
   return url;
 }
 
+// seit 14.60: Verstärkungen, Switcher, Sternensteine, Sternen-Switcher und Schriftrolle detailreich wie die
+// Ausrüstungssymbole (geschliffene Steine, Pergament mit Holzstäben und Siegeln) – Zeichnungen in symbole-vorrat.js
 const MATERIAL_ART = {
-  boniPlus(ctx) {
-    poly(ctx, [[0, -14], [10, -4], [6, 12], [-6, 12], [-10, -4]], '#4a8ad8');
-    poly(ctx, [[0, -14], [10, -4], [0, -1], [-10, -4]], '#9fd0ff');
-    stroke(ctx, '#ffffff', 2, [[0, -6], [0, 6]]);
-    stroke(ctx, '#ffffff', 2, [[-5, 0], [5, 0]]);
-  },
-  boni5(ctx) {
-    poly(ctx, [[0, -15], [11, -5], [8, 12], [-8, 12], [-11, -5]], '#9a5ad8');
-    poly(ctx, [[0, -15], [11, -5], [0, -1], [-11, -5]], '#e0c0ff');
-    dot(ctx, 0, 4, 3.5, 3.5, '#fff2c0');
-  },
-  switcher(ctx) {
-    box(ctx, -11, -8, 22, 16, 2, '#efe6cc');
-    oval(ctx, -11, 0, 3, 8.5, '#5a8a3a');
-    oval(ctx, 11, 0, 3, 8.5, '#5a8a3a');
-    stroke(ctx, '#2a6a2a', 1.6, [[-5, -3], [4, -3]]);
-    stroke(ctx, '#2a6a2a', 1.6, [[1, -6], [4, -3], [1, 0]]);
-    stroke(ctx, '#2a6a2a', 1.6, [[5, 3], [-4, 3]]);
-    stroke(ctx, '#2a6a2a', 1.6, [[-1, 0], [-4, 3], [-1, 6]]);
-  },
-  star(ctx) {
-    const pts = [];
-    for (let k = 0; k < 10; k++) {
-      const a = -Math.PI / 2 + k * Math.PI / 5;
-      const r = k % 2 ? 6 : 15;
-      pts.push([Math.cos(a) * r, Math.sin(a) * r + 1]);
-    }
-    poly(ctx, pts, '#ffcf4a');
-    dot(ctx, -2, -2, 3, 3, '#fff6d0');
-  },
-  // Sternen-Switcher: dunkle Rune mit goldenem Stern, zwei Pfeile drehen sich darum
+  boniPlus: (ctx) => vsBoniPlus(ctx),
+  boni5: (ctx) => vsBoni5(ctx),
+  switcher: (ctx) => vsSwitcher(ctx),
+  star: (ctx) => vsStar(ctx),
   // Schriftrolle (seit 14.1, für H1–H10): zusammengerollte Pergamentrolle schräg, mit rotem Band und Wachssiegel
-  rolle(ctx) {
-    ctx.save();
-    ctx.rotate(-0.55);
-    box(ctx, -15.5, -6, 31, 12, 5.5, '#e6d3a0');
-    box(ctx, -13, -5.2, 26, 3, 1.5, '#f6ebcc');
-    oval(ctx, 15.5, 0, 3, 6, '#cdb47a');
-    stroke(ctx, '#9a7c44', 0.8, [[15.5, -3.4], [16.6, -1], [15.6, 1.2], [14.8, 0]]);
-    oval(ctx, -15.5, 0, 2.6, 6, '#d9c38c');
-    box(ctx, -3.6, -6.6, 3.2, 13.2, 1, '#b8282a');
-    ctx.restore();
-    // Bänder und Siegel hängen unter der Rolle
-    stroke(ctx, '#b8282a', 1.6, [[-1.5, 1], [-5, 13]]);
-    stroke(ctx, '#b8282a', 1.6, [[-1.5, 1], [2.5, 13.5]]);
-    oval(ctx, -1.5, 8, 6, 6, '#a81e22');
-    oval(ctx, -1.5, 8, 4.4, 4.4, '#d23a34');
-    const pts = [];
-    for (let k = 0; k < 10; k++) {
-      const a = -Math.PI / 2 + k * Math.PI / 5;
-      const r = k % 2 ? 1.3 : 3;
-      pts.push([-1.5 + Math.cos(a) * r, 8 + Math.sin(a) * r]);
-    }
-    poly(ctx, pts, '#ffcf4a');
-  },
+  rolle: (ctx) => vsRolle(ctx),
   // Seelenstein (seit 14.1, für L1–V): kantiger, leuchtender Kristall wie die Seelensteine der Welt (seit 13.85),
   // violett mit türkisem Kern, zwei kleine Splitter am Fuß
   seelenstein(ctx) {
@@ -1946,32 +1904,8 @@ const MATERIAL_ART = {
     oval(ctx, -1.5, -1.8, 2.6, 2.6, '#e8fff8');
     for (const [x, y] of [[0, -11], [9.5, 6], [-9.5, 6]]) dot(ctx, x, y, 2, 2, '#c8b070');
   },
-  switch67(ctx) {
-    oval(ctx, 0, 0, 14, 14, '#3a1e4a');
-    oval(ctx, 0, 0, 11.5, 11.5, '#5a2e6a');
-    const pts = [];
-    for (let k = 0; k < 10; k++) {
-      const a = -Math.PI / 2 + k * Math.PI / 5;
-      const r = k % 2 ? 3.4 : 8;
-      pts.push([Math.cos(a) * r, Math.sin(a) * r + 0.5]);
-    }
-    poly(ctx, pts, '#ffcf4a');
-    dot(ctx, -1.2, -1.2, 1.8, 1.8, '#fff6d0');
-    ctx.lineCap = 'round';
-    ctx.strokeStyle = '#ffb85a';
-    ctx.lineWidth = 2.2;
-    for (const a0 of [-0.35, Math.PI - 0.35]) {
-      ctx.beginPath();
-      ctx.arc(0, 0, 15.5, a0, a0 + 1.9);
-      ctx.stroke();
-      const a1 = a0 + 1.9;
-      const tx = Math.cos(a1) * 15.5;
-      const ty = Math.sin(a1) * 15.5;
-      const nx = -Math.sin(a1);
-      const ny = Math.cos(a1);
-      poly(ctx, [[tx + nx * 4.5, ty + ny * 4.5], [tx + Math.cos(a1) * 3.5, ty + Math.sin(a1) * 3.5], [tx - Math.cos(a1) * 3.5, ty - Math.sin(a1) * 3.5]], '#ffb85a');
-    }
-  }
+  // Sternen-Switcher: Obsidianscheibe mit Sternstein, zwei goldene Pfeile kreisen darum (seit 14.60 detailreich)
+  switch67: (ctx) => vsSwitch67(ctx)
 };
 
 function materialSprite(id) {
@@ -1990,10 +1924,9 @@ function materialIconHiUrl(id) {
   if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => MATERIAL_ART[id](ctx), ICON_HI, true).img.toDataURL());
   return iconCache.get(key);
 }
+// seit 14.60 dasselbe scharfe Bild wie materialIconHiUrl (Aufwertungsteile, Händler, Tagesbelohnung)
 function materialIconUrl(id) {
-  const key = 'mat:' + id;
-  if (!iconCache.has(key)) iconCache.set(key, materialSprite(id).img.toDataURL());
-  return iconCache.get(key);
+  return materialIconHiUrl(id);
 }
 
 function itemIconCanvas(item) {
@@ -2004,25 +1937,8 @@ function scrollIconUrl() {
   if (iconCache.has('scroll')) return iconCache.get('scroll');
   // seit 14.32: Segensschriftrolle hochkant und offen, mit goldener Schutzrune (Schild mit Kreuz) und goldenem
   // Siegel am Band – vorher sah sie fast wie der Switcher aus und war im Inventar kaum von der Schriftrolle zu trennen
-  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
-    box(ctx, -10, -13, 20, 25, 1.5, '#efe6cc');
-    box(ctx, -8.5, -11, 3, 21, 1, '#f8f0da');
-    box(ctx, -12.5, -16, 25, 5, 2.5, '#d9c38c');
-    box(ctx, -12.5, 10, 25, 5, 2.5, '#d9c38c');
-    for (const y of [-13.5, 12.5]) { dot(ctx, -13.2, y, 1.6, 2.2, '#7a5430'); dot(ctx, 13.2, y, 1.6, 2.2, '#7a5430'); }
-    // Schutzrune: Schildumriss mit Kreuz
-    poly(ctx, [[-6, -8], [6, -8], [6, -1], [0, 6], [-6, -1]], '#e8b83a');
-    poly(ctx, [[-4.4, -6.6], [4.4, -6.6], [4.4, -1.6], [0, 3.8], [-4.4, -1.6]], '#fff2c8');
-    stroke(ctx, '#b07a1a', 1.4, [[0, -5.6], [0, 2.4]]);
-    stroke(ctx, '#b07a1a', 1.4, [[-3.2, -3], [3.2, -3]]);
-    // Band und goldenes Siegel unten rechts
-    stroke(ctx, '#3a6ab8', 1.6, [[6, 8], [9.5, 17]]);
-    stroke(ctx, '#3a6ab8', 1.6, [[6, 8], [3.5, 17.5]]);
-    oval(ctx, 6, 8, 4.6, 4.6, '#b8861a');
-    oval(ctx, 6, 8, 3.2, 3.2, '#ffd34d');
-    stroke(ctx, '#8a5a10', 1, [[6, 6], [6, 10]]);
-    stroke(ctx, '#8a5a10', 1, [[4.2, 8], [7.8, 8]]);
-  }, ICON_HI, true);
+  // seit 14.60 detailreich: Pergament mit Goldrand, Wappen, Holzstäben mit Knäufen, Bändern und Siegel (symbole-vorrat.js)
+  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => vsBlessing(ctx), ICON_HI, true);
   const url = sp.img.toDataURL();
   iconCache.set('scroll', url);
   return url;
@@ -2044,145 +1960,32 @@ const MOB_MAT_ART = {
   herb(ctx, c) { stroke(ctx, '#4a6a2a', 1.4, [[0, 12], [0, -6]]); for (const [x, y] of [[-6, -6], [6, -4], [-5, 2], [5, 4]]) oval(ctx, x, y, 4, 2.4, c); },
   scale(ctx, c) { poly(ctx, [[0, -12], [10, -4], [8, 8], [0, 12], [-8, 8], [-10, -4]], c); stroke(ctx, lighter(c, 0.35), 1, [[-5, -3], [0, -8], [5, -3]]); stroke(ctx, lighter(c, 0.35), 1, [[-5, 4], [0, -1], [5, 4]]); }
 };
+// seit 14.60 detailreich mit Verlauf, Maserung und Glanz (VS_MOB_ART in symbole-vorrat.js); die flachen Formen oben
+// bleiben als Rückfall für unbekannte Arten
+function mobMatArt(m) {
+  return VS_MOB_ART[m.art] || MOB_MAT_ART[m.art];
+}
 
 function mobMatSprite(id) {
   const m = MOB_MATS[id];
-  return getSprite('mm:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => MOB_MAT_ART[m.art](ctx, m.color), undefined, true);
+  return getSprite('mm:' + id, { x: -20, y: -20, w: 40, h: 40 }, (ctx) => mobMatArt(m)(ctx, m.color), undefined, true);
 }
 
 function mobMatIconUrl(id) {
   const key = 'mm:' + id;
-  if (!iconCache.has(key)) iconCache.set(key, mobMatSprite(id).img.toDataURL());
+  // seit 14.60 in ICON_HI gebacken (Aufwertungsteile, Schmied)
+  if (!iconCache.has(key)) {
+    const m = MOB_MATS[id];
+    iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => mobMatArt(m)(ctx, m.color), ICON_HI, true).img.toDataURL());
+  }
   return iconCache.get(key);
 }
 
-// Tränke: Drachenblut (Leben) in einer bauchigen Flasche mit Wachssiegel,
-// Mondtau (Mana) in einer geschliffenen Kristallflasche mit Mondsichel-Stöpsel.
-function drawPotion(ctx, kind) {
-  if (kind === 'hp') {
-    const body = () => { ctx.beginPath(); ctx.arc(0, 5, 11.5, 0, Math.PI * 2); };
-    // Glühen hinter der Flasche
-    let g = ctx.createRadialGradient(0, 5, 2, 0, 5, 18);
-    g.addColorStop(0, 'rgba(255, 90, 60, 0.45)');
-    g.addColorStop(1, 'rgba(255, 90, 60, 0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(-20, -14, 40, 38);
-    // Glas
-    box(ctx, -4, -11, 8, 9, 1.5, '#9a8a8a');
-    body();
-    ctx.fillStyle = '#4a2028';
-    ctx.fill();
-    // Flüssigkeit mit Wölbung
-    ctx.save();
-    body();
-    ctx.clip();
-    g = ctx.createLinearGradient(0, -2, 0, 17);
-    g.addColorStop(0, '#ff5a3a');
-    g.addColorStop(0.5, '#d01e22');
-    g.addColorStop(1, '#6a0a16');
-    ctx.fillStyle = g;
-    ctx.fillRect(-12, -1, 24, 19);
-    dot(ctx, 0, -1, 11.5, 2.4, '#ff8a5a');
-    dot(ctx, 0, -1, 8, 1.3, '#ffb48a');
-    g = ctx.createRadialGradient(-2, 8, 1, 0, 8, 10);
-    g.addColorStop(0, 'rgba(255, 200, 120, 0.7)');
-    g.addColorStop(1, 'rgba(255, 200, 120, 0)');
-    ctx.fillStyle = g;
-    ctx.fillRect(-12, -2, 24, 20);
-    for (const [x, y, r] of [[3, 11, 1.4], [-4, 6, 1], [5, 4, 0.8], [-1, 13, 0.9]]) dot(ctx, x, y, r, r, 'rgba(255, 220, 180, 0.85)');
-    ctx.restore();
-    // Goldener Ring um den Bauch und Herz-Siegel
-    ctx.strokeStyle = '#e8b83a';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.ellipse(0, 6, 11.4, 3.2, 0, 0.15, Math.PI - 0.15);
-    ctx.stroke();
-    ctx.fillStyle = '#ffd96a';
-    ctx.beginPath();
-    ctx.moveTo(0, 12.5);
-    ctx.bezierCurveTo(-4.5, 9.5, -3.5, 5.5, 0, 7.5);
-    ctx.bezierCurveTo(3.5, 5.5, 4.5, 9.5, 0, 12.5);
-    ctx.fill();
-    // Glanz
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.lineWidth = 1.8;
-    ctx.beginPath();
-    ctx.arc(0, 5, 8.5, Math.PI * 1.05, Math.PI * 1.45);
-    ctx.stroke();
-    dot(ctx, 6, -0.5, 1.2, 1.2, 'rgba(255, 255, 255, 0.8)');
-    stroke(ctx, 'rgba(255, 255, 255, 0.6)', 1, [[-2.5, -10], [-2.5, -3]]);
-    // Halsring, Korken und rotes Wachssiegel
-    box(ctx, -5.5, -12.5, 11, 2.6, 1.2, '#e8b83a');
-    box(ctx, -3.5, -17.5, 7, 5.5, 1.5, '#8a5a32');
-    poly(ctx, [[-5, -17], [5, -17], [5.5, -14], [3, -13.2], [2, -11.5], [0.6, -13.5], [-3, -13.4], [-5.5, -14.5]], '#b81a24');
-    dot(ctx, -1.5, -15.8, 1.6, 0.8, 'rgba(255, 160, 150, 0.8)');
-    return;
-  }
-  // Mondtau
-  const shape = [[-4, -6], [4, -6], [10.5, 0], [9, 11], [0, 17], [-9, 11], [-10.5, 0]];
-  const path = () => {
-    ctx.beginPath();
-    shape.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
-    ctx.closePath();
-  };
-  let g = ctx.createRadialGradient(0, 5, 2, 0, 5, 19);
-  g.addColorStop(0, 'rgba(90, 170, 255, 0.5)');
-  g.addColorStop(1, 'rgba(90, 170, 255, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(-20, -14, 40, 38);
-  path();
-  ctx.fillStyle = '#3a4a7a';
-  ctx.fill();
-  ctx.save();
-  path();
-  ctx.clip();
-  g = ctx.createLinearGradient(0, 0, 0, 17);
-  g.addColorStop(0, '#7ad8ff');
-  g.addColorStop(0.45, '#2f7ae8');
-  g.addColorStop(1, '#1a2a8a');
-  ctx.fillStyle = g;
-  ctx.fillRect(-11, 1, 22, 17);
-  dot(ctx, 0, 1, 10.5, 2, '#b8ecff');
-  g = ctx.createRadialGradient(0, 9, 1, 0, 9, 9);
-  g.addColorStop(0, 'rgba(220, 245, 255, 0.85)');
-  g.addColorStop(1, 'rgba(220, 245, 255, 0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(-11, 0, 22, 18);
-  // Sternenfunken im Trank
-  ctx.fillStyle = '#ffffff';
-  for (const [x, y, r] of [[-4, 7, 2.2], [4, 11, 1.6], [2, 4, 1.2], [-2, 13, 1]]) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - r);
-    ctx.lineTo(x + r * 0.3, y - r * 0.3);
-    ctx.lineTo(x + r, y);
-    ctx.lineTo(x + r * 0.3, y + r * 0.3);
-    ctx.lineTo(x, y + r);
-    ctx.lineTo(x - r * 0.3, y + r * 0.3);
-    ctx.lineTo(x - r, y);
-    ctx.lineTo(x - r * 0.3, y - r * 0.3);
-    ctx.fill();
-  }
-  ctx.restore();
-  // Schliffkanten
-  ctx.strokeStyle = 'rgba(200, 235, 255, 0.55)';
-  ctx.lineWidth = 0.9;
-  ctx.beginPath();
-  ctx.moveTo(-4, -6); ctx.lineTo(-3, 0); ctx.lineTo(0, 17);
-  ctx.moveTo(4, -6); ctx.lineTo(3, 0); ctx.lineTo(0, 17);
-  ctx.moveTo(-10.5, 0); ctx.lineTo(-3, 0); ctx.moveTo(10.5, 0); ctx.lineTo(3, 0);
-  ctx.stroke();
-  stroke(ctx, 'rgba(255, 255, 255, 0.85)', 1.6, [[-8.5, 1], [-7.5, 9]]);
-  dot(ctx, 7, 2, 1.1, 1.1, 'rgba(255, 255, 255, 0.85)');
-  // Silberner Hals und Mondsichel-Stöpsel
-  box(ctx, -3, -10, 6, 4.5, 1, '#b8c4d8');
-  box(ctx, -4.5, -7, 9, 2, 1, '#e8eef8');
-  ctx.fillStyle = '#e8eef8';
-  ctx.beginPath();
-  ctx.arc(0, -14.5, 5, 0, Math.PI * 2);
-  ctx.moveTo(6.4, -15.6);
-  ctx.arc(2.2, -15.6, 4.2, 0, Math.PI * 2, true);
-  ctx.fill();
-  dot(ctx, -2.8, -14, 0.9, 1.3, '#ffffff');
+// Tränke: Drachenblut (Leben) mit Korken und rotem Wachssiegel, Mondtau (Mana) mit Mondsichel-Stöpsel.
+// seit 14.60: Glasflasche mit Reflexen, Flüssigkeit mit Meniskus, Etikett; Form je Größe (art: S Fläschchen,
+// M Kolben, XL Birnenflasche, XXL Karaffe mit Goldfuß) – Zeichnung vsPotion in symbole-vorrat.js
+function drawPotion(ctx, kind, art = 1) {
+  vsPotion(ctx, kind, art);
 }
 
 // Kleine Symbole für die Beuteanzeige: Gold, Seelensplitter, Bücher und Tränke
@@ -2194,11 +1997,8 @@ const LOOT_ICON_ART = {
       stroke(ctx, '#a87a1a', 0.8, [[x - 2, y - 1], [x + 2, y - 1]]);
     }
   },
-  splinter(ctx) {
-    poly(ctx, [[0, -14], [7, -2], [3, 13], [-5, 6], [-7, -4]], '#9a6ad8');
-    poly(ctx, [[0, -14], [3, 13], [-5, 6], [-7, -4]], '#c9a8ff');
-    stroke(ctx, '#f0e0ff', 1, [[-2, -6], [0, 4]]);
-  },
+  // seit 14.60: geschliffener Kristallsplitter mit Facetten und Glühen (symbole-vorrat.js)
+  splinter(ctx) { vsSplinter(ctx); },
   potHp(ctx) { drawPotion(ctx, 'hp'); },
   // Fertigkeitsbuch allgemein (10.4 bis 14.0 eine Hängerolle, seit 14.1 wieder ein Buch)
   book(ctx) {
@@ -2218,22 +2018,29 @@ function potionIconUrl(kind, size = 'S') {
   // (vorher war S ohne Zeichen in voller Größe und damit größer als M)
   const idx = POTION_SIZES.findIndex((sz) => sz.id === size);
   if (idx < 0) return lootIconUrl(base);
-  const key = 'pot2:' + kind + size;
+  const key = 'pot3:' + kind + size;
   if (!iconCache.has(key)) {
     // seit 14.32 nach sz.art (alte Reihenfolge S 0 … XXL 4): die Flasche wächst stetig, XL und XXL ohne L so groß wie bisher
     const sz = POTION_SIZES[idx];
-    const k = 0.8 + (sz.art != null ? sz.art : idx) * 0.07;
+    // seit 14.60: jede Größe mit eigener Flaschenform (drawPotion art), deshalb wächst sie nur noch wenig
+    const art = sz.art != null ? sz.art : idx;
+    const k = 0.86 + art * 0.035;
     const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => {
       ctx.save();
-      ctx.translate(-1, 1);
+      ctx.translate(-1, 0.5);
       ctx.scale(k, k);
-      LOOT_ICON_ART[base](ctx);
+      drawPotion(ctx, kind, art);
       ctx.restore();
       // Größenzeichen unten rechts
       ctx.font = '900 9px sans-serif';
       ctx.textAlign = 'center';
       const w = size.length * 6 + 4;
       box(ctx, 19 - w, 10, w, 10, 3, size === 'XXL' ? '#ffd34d' : '#f4ecd8');
+      ctx.strokeStyle = 'rgba(26, 18, 16, 0.75)';
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.roundRect(19 - w, 10, w, 10, 3);
+      ctx.stroke();
       ctx.fillStyle = '#1a1210';
       ctx.fillText(size, 19 - w / 2, 18.5);
     }, ICON_HI, true);
@@ -2244,7 +2051,8 @@ function potionIconUrl(kind, size = 'S') {
 
 function lootIconUrl(kind) {
   const key = (kind === 'book' ? 'loot2:' : 'loot:') + kind;
-  if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx), undefined, true).img.toDataURL());
+  // seit 14.60 in ICON_HI gebacken (Fenster, Aufwertungsteile): scharf am Handy, einmal je Sorte
+  if (!iconCache.has(key)) iconCache.set(key, bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => LOOT_ICON_ART[kind](ctx), ICON_HI, true).img.toDataURL());
   return iconCache.get(key);
 }
 
