@@ -880,7 +880,7 @@ function nearestIn(arr, area, p, test) {
 function zoneRingSpot(z, from, to, p) {
   const wm = WORLD_MAPS.find((m) => m.id === z.map) || WORLD_MAPS[0];
   const safe = wm.id === 1 ? SAFE_RING : (wm.camp || CAMP_HALF) + 7;
-  const outer = Math.min(z.maxDist, Math.hypot(wm.region[2], wm.region[3]) / 2);
+  const outer = Math.min(z.maxDist, wm.reach); // seit 14.48 bis zur fernsten Ecke ab der Stadt
   const inner = Math.max(z.minDist + 2, safe);
   const r = inner + (Math.max(inner, outer) - inner) * (from + to) / 2;
   let a = Math.atan2(p.y / TILE - wm.cy, p.x / TILE - wm.cx);
@@ -1591,6 +1591,10 @@ function drawZoneLabels(ctx, area, v) {
   const zs = ZONES.filter((z) => z.map === wm.id && !z.dungeon);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  // seit 14.48: Liegt die Stadt weit neben der Mitte, stehen die Namen der Gebiete auf der weiteren Seite der Map
+  // (oben und unten im Wechsel), sonst wie bisher links und rechts im Wechsel
+  const [mrx, mry, mrw, mrh] = wm.region;
+  const farSide = Math.abs(wm.cx - (mrx + mrw / 2)) >= 30 ? (wm.cx > mrx + mrw / 2 ? -1 : 1) : 0;
   let side = 1;
   for (const z of zs) {
     let x;
@@ -1601,14 +1605,19 @@ function drawZoneLabels(ctx, area, v) {
       // seit 13.91 überall über der Stadt (darunter liegt das Tor zum Endboss)
       y = wm.cy - (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) - 3;
     } else {
-      const outer = Math.min(z.maxDist, wm.region[2] / 2 - MAP_BORDER - 4);
+      const outer = Math.min(z.maxDist, Math.max(wm.cx - mrx, mrx + mrw - wm.cx) - MAP_BORDER - 4);
       let r = (Math.max(z.minDist, wm.id === 1 ? SAFE_RING : 0) + outer) / 2;
       // seit 13.91: nie in die Mauer der Stadt hinein (in den großen Städten lag der Name halb auf der Mauer)
       ctx.font = `400 ${Math.round(16 * v.u)}px "Marcellus SC", "Palatino Linotype", Georgia, serif`;
       const half = ctx.measureText(typeof trName === 'function' ? trName(z.name) : z.name).width / 2 / v.sc;
       r = Math.max(r, (wm.id === 1 ? VILLAGE_HALF : wm.camp || CAMP_HALF) + 8 + half);
-      x = wm.cx + side * r;
+      x = wm.cx + (farSide || side) * r;
       y = wm.cy + (side > 0 ? -1 : 1) * Math.min(r * 0.35, wm.region[3] / 2 - 10);
+      // seit 14.48: auf der weiteren Seite halb zwischen Stadt und Mitte der Höhe, mehrere Gebiete versetzt
+      if (farSide) y = (wm.cy + mry + mrh / 2) / 2 + (zs.length > 2 ? (side > 0 ? -1 : 1) * 22 : 0);
+      // seit 14.48: auf der Map bleiben (Stadt am Rand)
+      x = Math.max(mrx + MAP_BORDER + 4 + half, Math.min(mrx + mrw - MAP_BORDER - 4 - half, x));
+      y = Math.max(mry + MAP_BORDER + 6, Math.min(mry + mrh - MAP_BORDER - 6, y));
       side = -side;
     }
     const sx = (x - v.ox) * v.sc;

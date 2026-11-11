@@ -1,7 +1,8 @@
 // Seit Version 6.2 ist jedes Gebiet eine eigene Map (WORLD_MAPS), erreichbar nur über das Weltentor im
-// Lager der Map. Map 1 ist Kazehana mit den Sonnenwiesen; jede andere Map hat in der Mitte ein kleines Lager.
+// Lager der Map. Map 1 ist Kazehana mit den Sonnenwiesen; jede andere Map hat ein Lager bzw. eine Stadt (seit 14.48 nicht mehr
+// in der Mitte, sondern je Map an eigener Stelle: WORLD_MAPS.town).
 // map               Map, zu der das Gebiet gehört
-// minDist/maxDist   Abstand von der Mitte der Map in Kacheln
+// minDist/maxDist   Abstand von der Stadt bzw. dem Lager der Map in Kacheln (WORLD_MAPS.cx, cy)
 // groups            [Monsterart, Anzahl Gruppen, von, bis] – von/bis: Bereich innerhalb des Rings,
 //                   0 = innerer Rand (dorfnah), 1 = äußerer Rand
 // groupSize         [min, max] Monster pro Gruppe
@@ -176,8 +177,12 @@ for (const d of DUNGEONS) {
 
 // --- Maps ---------------------------------------------------------------------------------
 // Jedes Gebiet ist eine eigene Map, nicht zu Fuß erreichbar, nur über das Weltentor im Lager (bzw. in
-// der Stadt). In der Mitte jeder Map liegt ein sicherer Ort; die Gebiete liegen als Ringe darum
-// (minDist/maxDist ab der Mitte): nah am Lager schwächere Monster, nach außen stärkere.
+// der Stadt). Auf jeder Map liegt ein sicherer Ort; die Gebiete liegen als Ringe darum
+// (minDist/maxDist ab der Stadt bzw. dem Lager): nah am Lager schwächere Monster, nach außen stärkere.
+// town (seit 14.48): Lage der Stadt bzw. des Lagers [x, y] in Kacheln ab der linken oberen Ecke der Map (360 × 220);
+// ohne town in der Mitte (nur noch Kazehana). Jede Map hat ihren eigenen Platz: am Rand, in einer Ecke oder im
+// Drittel, mit Abstand zum Felsrand, zu den Instanz-Toren in den Ecken und so, dass die Dungeon-Eingänge (entry.dir,
+// entry.dist ab der Stadt) und das Endboss-Tor südlich der Stadt auf der Map bleiben (docs/staedte-verteilt.md)
 // region: [x, y, Breite, Höhe] in Kacheln; camp: halbe Breite des sicheren Platzes (Standard CAMP_HALF)
 // portals: Weltportale draußen (seit Version 6.2 keine mehr – nur noch das Weltentor)
 // camp: halbe Mauerlänge der Stadt/des Lagers; genCamp (seit 13.14, Map 2): der alte Wert, mit dem die Wildnis erzeugt
@@ -187,17 +192,17 @@ for (const d of DUNGEONS) {
 // seit 13.72 stehen die Stände innen an der neuen Mauer (TOWN_PLACES in welt.js), Häuser und Weltentor bleiben beim Plan
 const WORLD_MAPS = [
   { id: 1, name: 'Kazehana', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Kazehana mit den grünen Sonnenwiesen.', portals: [] },
-  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', portals: [] },
-  { id: 5, name: 'Rostschlucht', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', portals: [] },
-  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 13, genCamp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', portals: [] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 20, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', portals: [] },
-  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', portals: [] },
-  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 13, genCamp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', portals: [] },
-  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', portals: [] },
-  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 13, genCamp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', portals: [] },
+  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', town: [110, 95], portals: [] },
+  { id: 5, name: 'Rostschlucht', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', town: [250, 52], portals: [] },
+  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 13, genCamp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', town: [75, 160], portals: [] },
+  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 20, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', town: [72, 75], portals: [] },
+  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', town: [290, 55], portals: [] },
+  { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 13, genCamp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', town: [285, 150], portals: [] },
+  { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', town: [140, 150], portals: [] },
+  { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 13, genCamp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', town: [175, 162], portals: [] },
   // seit 13.85: Map 10, das Endgebiet unten links (vorher Fels): die Kristallzitadelle Lichtwacht, darum violette
   // Felsplateaus mit Kristallen und Abgrundspalten (GROUND.ABGRUND), innen die Hänge, außen der Leerenschlund
-  { id: 10, name: 'Kristallabgrund', levels: 'Stufe 75–80', minLevel: 75, region: [0, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Kristallzitadelle Lichtwacht über dem Abgrund, darum Plateaus voller Kristalle, Golems und Spinnen, außen der Leerenschlund mit Rittern und Wyrmen. Kristallkaverne.', portals: [] }
+  { id: 10, name: 'Kristallabgrund', levels: 'Stufe 75–80', minLevel: 75, region: [0, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Kristallzitadelle Lichtwacht über dem Abgrund, darum Plateaus voller Kristalle, Golems und Spinnen, außen der Leerenschlund mit Rittern und Wyrmen. Kristallkaverne.', town: [265, 70], portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
@@ -254,10 +259,17 @@ const MAP_ZONES = [
     ambient: { kind: 'shards', tint: [50, 30, 110, 0.14] }
   }
 ];
+// seit 14.48: Die Stadt bzw. das Lager liegt nicht mehr auf jeder Map in der Mitte (town: [x, y] in Kacheln ab der
+// linken oberen Ecke der Map). Kazehana bleibt in der Mitte. oldCx/oldCy: die alte Mitte (für Spielstände aus Welt 14),
+// reach: Abstand von der Stadt bis zur fernsten Ecke der Map (äußerer Rand der Gebietsringe; in der Mitte wie bisher
+// die halbe Diagonale)
 for (const wm of WORLD_MAPS) {
   const [x, y, w, h] = wm.region;
-  wm.cx = x + w / 2;
-  wm.cy = y + h / 2;
+  wm.oldCx = x + w / 2;
+  wm.oldCy = y + h / 2;
+  wm.cx = wm.town ? x + wm.town[0] : wm.oldCx;
+  wm.cy = wm.town ? y + wm.town[1] : wm.oldCy;
+  wm.reach = Math.hypot(Math.max(wm.cx - x, x + w - wm.cx), Math.max(wm.cy - y, y + h - wm.cy));
 }
 // Endboss-Eingänge vor den Lagern und Städten (seit 13.63): immer 6 Kacheln vor der (größeren) Mauer
 for (const d of DUNGEONS) {
