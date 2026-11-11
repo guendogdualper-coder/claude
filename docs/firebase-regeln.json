@@ -74,6 +74,7 @@
         },
         "rp": { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 50000" },
         "liga": { ".validate": "newData.isString() && newData.val().length <= 12" },
+        "seite": { ".validate": "newData.isString() && newData.val().matches(/^(l|s)$/)" },
         "at": { ".validate": "newData.isNumber() && newData.val() <= now + 60000" },
         "$other": { ".validate": false }
       }

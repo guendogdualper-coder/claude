@@ -64,6 +64,8 @@ function rankEntryOf(sv) {
   // seit 14.48: Ausrüstungslevel (Durchschnitt der Itemlevel, ausruestung.js gearLevelOf)
   e.gs = typeof gearLevelOf === 'function' ? Math.max(0, Math.min(300, gearLevelOf(sv.equipment))) : 0;
   e.liga = typeof pvpTier === 'function' ? pvpTier(rp).id : 'bronze';
+  // seit 14.53: Seite (l Licht, s Schatten) – nur wenn gewählt und die Regeln der Datenbank das Feld kennen
+  if ((sv.faction === 'licht' || sv.faction === 'schatten') && !rankMemo().noSide) e.seite = sv.faction === 'schatten' ? 's' : 'l';
   return e;
 }
 
@@ -83,7 +85,7 @@ function rankClean(id, v) {
   const path = Number.isInteger(v.path) && v.path >= 0 && v.path < paths.length ? v.path : null;
   const gs = Number(v.gs);
   return { id, name, cls: v.cls, path, level, xp: Number.isFinite(xp) && xp >= 0 ? xp : 0, rp: Math.round(rp), at: Number(v.at) || 0,
-    gs: Number.isFinite(gs) && gs > 0 && gs <= 300 ? Math.round(gs) : 0 };
+    gs: Number.isFinite(gs) && gs > 0 && gs <= 300 ? Math.round(gs) : 0, fac: v.seite === 's' ? 'schatten' : v.seite === 'l' ? 'licht' : null };
 }
 
 // Was dieses Gerät zuletzt geschrieben hat (je Konto und Platz), damit nur Änderungen hinausgehen
@@ -125,10 +127,10 @@ async function rankSync() {
       if (had !== null) { patch[key] = null; next[k] = null; }
       continue;
     }
-    const important = !had || had.level !== want.level || had.rp !== want.rp || had.name !== want.name || had.cls !== want.cls || had.path !== want.path;
+    const important = !had || had.level !== want.level || had.rp !== want.rp || had.name !== want.name || had.cls !== want.cls || had.path !== want.path || had.seite !== want.seite;
     if (important || (due && (had.xp !== want.xp || had.gs !== want.gs))) {
       patch[key] = want;
-      next[k] = { name: want.name, cls: want.cls, path: want.path, level: want.level, xp: want.xp, rp: want.rp, gs: want.gs };
+      next[k] = { name: want.name, cls: want.cls, path: want.path, level: want.level, xp: want.xp, rp: want.rp, gs: want.gs, seite: want.seite };
     }
   }
   if (!Object.keys(patch).length) return;
@@ -142,6 +144,15 @@ async function rankSync() {
     rank.rulesAt = 0;
     rank.cache = {}; // eigene Änderung gleich sehen
   } catch (e) {
+    // seit 14.53: kennen die Regeln das Feld „seite“ noch nicht, ohne Seite weiterschreiben (einmal merken, gleich neu)
+    const withSide = Object.values(patch).some((v) => v && v.seite);
+    if (e && e.code === 'regeln' && withSide) {
+      const m = rankMemo();
+      m.noSide = true;
+      rankMemoSave(m);
+      setTimeout(rankSync, 0);
+      return;
+    }
     // Regeln noch nicht eingespielt: eine Weile nicht wieder versuchen (Netzfehler: beim nächsten Hochladen)
     if (e && e.code === 'regeln') rank.rulesAt = Date.now();
   } finally {
@@ -227,7 +238,9 @@ function rankWhoHtml(e) {
   const c = CLASSES[e.cls];
   const way = e.path != null ? classPath(e.cls, e.path).name : '';
   const liga = typeof pvpBadgeHtml === 'function' ? pvpBadgeHtml(e.rp || 0, 13) : '';
-  return `${rankClassIcon(e.cls)}<span class="rk-who"><b class="no-tr">${e.online ? '<i class="rk-on" title="online"></i>' : ''}${escapeHtml(e.name)}</b>` +
+  // seit 14.53: Wappen der Seite vor dem Namen (seiten.js)
+  const fac = e.fac && typeof factionCrest === 'function' ? `<span class="rk-fac" title="${FACTIONS[e.fac].title}">${factionCrest(e.fac, 15)}</span>` : '';
+  return `${rankClassIcon(e.cls)}<span class="rk-who"><b class="no-tr">${e.online ? '<i class="rk-on" title="online"></i>' : ''}${fac}${escapeHtml(e.name)}</b>` +
     `<small><span>${c.name}</span>${way ? ` · <span>${way}</span>` : ''}</small>` +
     `<span class="rk-facts"><span class="rk-fact">Stufe <b>${e.level}</b></span><span class="rk-fact">GS <b>${e.gs ? e.gs : '–'}</b></span>` +
     `<span class="rk-fact rk-liga">${liga}</span></span></span>`;
@@ -237,14 +250,14 @@ function rankOnlineList() {
   const out = [];
   const p = game.running ? game.player : null;
   if (p) out.push({ id: 'me', name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.xp || 0,
-    rp: rankPts(p), gs: typeof gearLevelOf === 'function' ? gearLevelOf(p.equipment) : 0, online: true });
+    rp: rankPts(p), gs: typeof gearLevelOf === 'function' ? gearLevelOf(p.equipment) : 0, online: true, fac: p.faction || null });
   if (typeof net !== 'undefined' && net.players) {
     for (const rp of net.players.values()) {
       if (!rp || !rp.name || !CLASSES[rp.classId]) continue;
       const paths = CLASSES[rp.classId].paths || [];
       out.push({ id: 'n' + rp.name, name: String(rp.name).slice(0, RANK.nameMax), cls: rp.classId,
         path: Number.isInteger(rp.path) && rp.path >= 0 && rp.path < paths.length ? rp.path : null,
-        level: Math.max(1, Math.min(RANK.maxLevel, rp.level | 0)), xp: 0, rp: rp.rk | 0, gs: rp.gs | 0, online: true });
+        level: Math.max(1, Math.min(RANK.maxLevel, rp.level | 0)), xp: 0, rp: rp.rk | 0, gs: rp.gs | 0, online: true, fac: rp.faction || 'licht' });
     }
   }
   out.sort((a, b) => b.level - a.level || b.gs - a.gs || b.rp - a.rp);

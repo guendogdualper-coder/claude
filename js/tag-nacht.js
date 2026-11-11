@@ -168,10 +168,11 @@ function buildNightNpcs() {
   // Für Anfänger war das verwirrend. Die Nachtwächterin in Kazehana ist darum auch weg (der Laternenanzünder bleibt).
   let k = 0;
   for (const wm of WORLD_MAPS) {
-    if (wm.id === 1) continue;
+    if (wm.id === 1 || wm.id === 11) continue; // seit 14.53 auch nicht auf der Startkarte der Schattenseite
     const day = w.npcs.find((n) => n.id === 'wanderer' && n.key === `w${wm.id}-0`) || w.npcs.find((n) => n.id === 'wanderer' && npcMapId(n) === wm.id);
     if (!day) continue;
-    const [name, art] = NIGHT_WANDERERS[k++ % NIGHT_WANDERERS.length];
+    // seit 14.53: auf den Schattenkarten eigene Nachtwanderer (Zähler und Liste der Lichtseite bleiben, wie sie waren)
+    const [name, art] = wm.side === 'schatten' && typeof SHADOW_NIGHT_WANDERERS !== 'undefined' ? SHADOW_NIGHT_WANDERERS[(wm.id - 12) % SHADOW_NIGHT_WANDERERS.length] : NIGHT_WANDERERS[k++ % NIGHT_WANDERERS.length];
     extra.push(npc('nachtwanderer', name, day.x - TILE * 1.2, day.y + TILE * 0.4, { art, key: `n${wm.id}`, map: wm.id }));
   }
   // Kazehana: Nachtwächterin am Brunnen und ein Laternenanzünder, der durch die Gassen geht

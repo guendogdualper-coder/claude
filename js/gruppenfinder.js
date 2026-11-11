@@ -372,7 +372,7 @@ function gfGo(act) {
   const dg = game.world.dungeons[act.dungeon];
   if (!dg || !dg.entrance) return;
   if (p.riding && typeof toggleRide === 'function') toggleRide();
-  moveThrough(dg.entrance, dg.def.portal || '#9fd0ff');
+  moveThrough(typeof dungeonEntranceFor === 'function' ? dungeonEntranceFor(dg) : dg.entrance, dg.def.portal || '#9fd0ff');
   ui.banner(act.name, 'Eingang erreicht – geht gemeinsam hinein');
   ui.log(`Gruppenfinder: Ihr steht am Eingang von ${act.name}. Sprecht mit dem Portal (F), um hineinzugehen.`, 'level');
 }

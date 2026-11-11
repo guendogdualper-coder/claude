@@ -1526,10 +1526,14 @@ const GRASS3 = {
   [GROUND.SNOW]: '#9aa88a', [GROUND.SAND]: '#a89a5a', [GROUND.ASH]: '#6a645a'
 };
 const GRASS3_SPARSE = { [GROUND.SNOW]: 9, [GROUND.SAND]: 12, [GROUND.ASH]: 14 };
+// dichtes Gras fast auf jeder Kachel (seit 14.53 als Liste, damit das Dämmergras der Schattenseite dazukommen kann)
+const GRASS3_DENSE = new Set([GROUND.GRASS, GROUND.MEADOW]);
 const CLOVER3 = '#3a8048';
 const FLOWER3 = { [DECO.FLOWER_RED]: '#e04a3a', [DECO.FLOWER_YELLOW]: '#f0c83a', [DECO.FLOWER_WHITE]: '#f4f0e8' };
 
 // Vorlagen der häufigen Objekte: einmal gebacken, danach nur noch verschoben und gedreht
+// Laubbäume mit eigenem Aussehen je Gebiet (seit 14.53 als Liste; die Schattenkarten tragen sich in schattenwelt.js ein)
+const TREE3_STYLED = new Set(['nagadschungel']);
 const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) => {
   if (kind === 'blossom') WORLD3.tree(b, null, v, 'blossom');
   else WORLD3[kind](b, null, v, style);
@@ -2481,7 +2485,7 @@ function* objectJob(cx, cy) {
       }
       const kind = OBJ_KIND[o];
       if (kind) {
-        const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && style === 'nagadschungel' ? style : '';
+        const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && TREE3_STYLED.has(style) ? style : '';
         b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
         continue;
       }
@@ -2522,7 +2526,7 @@ function* objectJob(cx, cy) {
         const oz = ((m >> (k * 6 + 3)) & 7) / 7 - 0.5;
         b.addTemplate(tplTuft(col, form), placeAt(x + 0.5 + ox * 0.8, y + 0.5 + oz * 0.8, r, s));
       };
-      if (g === GROUND.GRASS || g === GROUND.MEADOW) {
+      if (GRASS3_DENSE.has(g)) {
         if (((m >>> 24) & 15) < 2) continue;
         at(0, 0.8 + ((h >> 14) % 6) / 10, rot, (m >>> 28) % 6 === 0 ? 'tall' : 'short');
         if (d === DECO.TUFT || m & 0x40000) at(1, 0.65 + ((m >>> 22) & 3) * 0.1, rot + 2.1, 'short');

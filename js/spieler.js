@@ -130,7 +130,9 @@ const SAVE_FIELDS = ['name', 'classId', 'path', 'level', 'xp', 'gold', 'skillPoi
   // seit 14.1: Stand des Rang-Aufstiegs (Bücher, Schriftrollen, Seelensteine) für den einmaligen Hinweis
   'skillCostVer',
   // seit 14.39: Farbe der Glutschwinge (rot, blau, schwarz, weiss)
-  'dragonColor'];
+  'dragonColor',
+  // seit 14.53: Seite (licht | schatten, seiten.js); fehlt bei älteren Spielständen – dann wird einmal gewählt
+  'faction'];
 const SKILL_COST_VER = 1;
 
 // Statuspunkte: pro Stufe 3 Punkte, frei auf vier Werte verteilbar

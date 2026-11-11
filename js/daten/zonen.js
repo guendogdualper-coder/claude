@@ -44,7 +44,7 @@ const ZONES = [
   },
   {
     id: 'frost', map: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999,
-    ground: 'SNOW', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.16, liquid: 'ICE',
+    ground: 'NACHTSCHNEE', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.18, liquid: 'ICE',
     groups: [['eiswolf', 14, 0, 0.7], ['yeti', 12, 0.3, 1], ['frostgeist', 12, 0.45, 1], ['eisbaer', 7, 0.15, 0.8], ['mammut', 5, 0.55, 1]], groupSize: [2, 4],
     stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
     ambient: { kind: 'snow', tint: [120, 224, 220, 0.1] }
@@ -171,6 +171,30 @@ DUNGEONS.push({
   ambient: { kind: 'shards', tint: [30, 30, 90, 0.13] }
 });
 DUNGEONS.push(raidDungeon(['aelvyr', 'Hort des Abgrundwyrms', 10, 'KRISTALL', '#a88cff', { top: '#2a2444', face: '#0c0a18', line: '#a88cff' }, 'shards'], [30, 20, 70, 0.1]));
+// seit 14.53: die Endboss-Hallen der sechs Schattenkarten (Maps 11–16, docs/fraktionen.md). Wieder hinten angehängt, damit
+// alle älteren Dungeons ihren Platz im Streifen behalten
+const SHADOW_RAID_DEFS = [
+  ['skarn', 'Höhle des Nachtwolfs', 11, 'CAVE', '#9aa8ff', { top: '#2a2a38', face: '#10101a', line: '#6a74b8' }, 'wisps'],
+  ['brakkur', 'Kohlengrube des Brakkur', 12, 'BASALT', '#ff7a3a', { top: '#2a2220', face: '#100c0a', line: '#c8502a' }, 'ash'],
+  ['vharok', 'Gebeinhalle des Vharok', 13, 'FLAGSTONE', '#e8e0c8', { top: '#6a6658', face: '#2a2822', line: '#c8c0a0' }, 'dust'],
+  ['sereth', 'Blutkessel der Sereth', 14, 'BASALT', '#ff3a4a', { top: '#2a1012', face: '#0c0406', line: '#c82a3a' }, 'embers'],
+  ['nachtriese', 'Halle der Mitternacht', 15, 'ICE', '#8ab0ff', { top: '#c8d4ec', face: '#2a3a68', line: '#8aa0d8' }, 'snow'],
+  ['moormutter', 'Moorthron der Veyla', 16, 'SWAMP', '#7ae0a8', { top: '#24382e', face: '#0c1612', line: '#5ab088' }, 'wisps']
+];
+for (const row of SHADOW_RAID_DEFS) DUNGEONS.push(raidDungeon(row, [20, 16, 40, 0.12]));
+// seit 14.53: zweite Eingänge auf den Schattenkarten (entry2). Dungeons und Instanzen der Stufen 10–49 stehen beiden Seiten
+// offen; jede Seite betritt sie über ihren eigenen Eingang und kommt dort wieder heraus (dungeonEntranceFor, seiten.js)
+const SHADOW_ENTRIES = {
+  spinnenhoehle: { map: 12, dir: [0, -1], dist: 28, side: 4 },
+  banditenkeller: { map: 12, dir: [-1, 0], dist: 30, side: 4 },
+  orkfestung: { map: 13, dir: [1, 0], dist: 30, side: 4 },
+  totengruft: { map: 14, dir: [0, -1], dist: 28, side: -4 },
+  eisgrotte: { map: 15, dir: [1, 0], dist: 28, side: 4 },
+  schlangentempel: { map: 16, dir: [-1, 0], dist: 84, side: 4 },
+  gletschergruft: { map: 15, corner: 'tr' },
+  nordlichtfeste: { map: 15, corner: 'bl' }
+};
+for (const d of DUNGEONS) if (SHADOW_ENTRIES[d.id]) d.entry2 = SHADOW_ENTRIES[d.id];
 for (const d of DUNGEONS) {
   ZONES.push({ id: d.id, name: d.name, levels: `Dungeon · ab Stufe ${d.minLevel}`, minLevel: d.minLevel, dungeon: d, ground: d.floor, ambient: d.ambient });
 }
@@ -191,18 +215,28 @@ for (const d of DUNGEONS) {
 // Städte 14 bzw. 18 → 20; Stände und Häuser bleiben beim Plan von genCamp, nur die Mauer rückt nach außen
 // seit 13.72 stehen die Stände innen an der neuen Mauer (TOWN_PLACES in welt.js), Häuser und Weltentor bleiben beim Plan
 const WORLD_MAPS = [
-  { id: 1, name: 'Kazehana', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Kazehana mit den grünen Sonnenwiesen.', portals: [] },
-  { id: 4, name: 'Dunkelwald', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', town: [110, 95], portals: [] },
-  { id: 5, name: 'Rostschlucht', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', town: [250, 52], portals: [] },
-  { id: 6, name: 'Ödland', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 13, genCamp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', town: [75, 160], portals: [] },
-  { id: 2, name: 'Schlangental', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 20, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', town: [72, 75], portals: [] },
-  { id: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', town: [290, 55], portals: [] },
+  { id: 1, name: 'Kazehana', side: 'licht', levels: 'Stufe 1–9', minLevel: 1, region: [0, 70, 360, 220], text: 'Die große Stadt Kazehana mit den grünen Sonnenwiesen.', portals: [] },
+  { id: 4, name: 'Dunkelwald', side: 'licht', levels: 'Stufe 10–19', minLevel: 10, region: [360, 0, 360, 220], camp: 13, genCamp: 9, text: 'Dichter Nadelwald mit Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.', town: [110, 95], portals: [] },
+  { id: 5, name: 'Rostschlucht', side: 'licht', levels: 'Stufe 20–29', minLevel: 20, region: [720, 0, 360, 220], camp: 13, genCamp: 9, text: 'Staubiges Tal der Orks und Skorpione. Orkfestung.', town: [250, 52], portals: [] },
+  { id: 6, name: 'Ödland', side: 'licht', levels: 'Stufe 30–39', minLevel: 30, region: [360, 220, 360, 220], camp: 13, genCamp: 9, text: 'Graue Aschenebene mit Ogern und Dämonen. Totengruft.', town: [75, 160], portals: [] },
+  { id: 2, name: 'Schlangental', side: 'licht', levels: 'Stufe 30–50', minLevel: 30, region: [720, 220, 360, 220], camp: 20, genCamp: 14, text: 'Die Oasenstadt Sahra, darum eine heiße Wüste voller Schlangen, außen der Dschungel der Nagas.', town: [72, 75], portals: [] },
+  { id: 7, name: 'Frostgipfel', side: 'licht', levels: 'Stufe 40–49', minLevel: 40, region: [360, 440, 360, 220], camp: 13, genCamp: 9, text: 'Eisige Gipfel mit Eiswölfen, Yetis und Frostgeistern. Eisgrotte.', town: [290, 55], portals: [] },
   { id: 8, name: 'Totenmoor', levels: 'Stufe 50–59', minLevel: 50, region: [720, 440, 360, 220], camp: 13, genCamp: 9, text: 'Nebliges Moor voller Untoter, Hexen und Ghule.', town: [285, 150], portals: [] },
   { id: 3, name: 'Donnerklamm', levels: 'Stufe 50–75', minLevel: 50, region: [360, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Klammfeste, darum eine tiefe Felsschlucht mit Trollen und Minotauren, außen der Kamm der Titanen.', town: [140, 150], portals: [] },
   { id: 9, name: 'Feuerberg', levels: 'Stufe 60–70', minLevel: 60, region: [720, 660, 360, 220], camp: 13, genCamp: 9, text: 'Schwarzer Basalt und Lavaflüsse, Golems, Feuerdämonen und Drachen. Drachenhort.', town: [175, 162], portals: [] },
   // seit 13.85: Map 10, das Endgebiet unten links (vorher Fels): die Kristallzitadelle Lichtwacht, darum violette
   // Felsplateaus mit Kristallen und Abgrundspalten (GROUND.ABGRUND), innen die Hänge, außen der Leerenschlund
-  { id: 10, name: 'Kristallabgrund', levels: 'Stufe 75–80', minLevel: 75, region: [0, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Kristallzitadelle Lichtwacht über dem Abgrund, darum Plateaus voller Kristalle, Golems und Spinnen, außen der Leerenschlund mit Rittern und Wyrmen. Kristallkaverne.', town: [265, 70], portals: [] }
+  { id: 10, name: 'Kristallabgrund', levels: 'Stufe 75–80', minLevel: 75, region: [0, 660, 360, 220], camp: 20, genCamp: 14, text: 'Die Kristallzitadelle Lichtwacht über dem Abgrund, darum Plateaus voller Kristalle, Golems und Spinnen, außen der Leerenschlund mit Rittern und Wyrmen. Kristallkaverne.', town: [265, 70], portals: [] },
+  // seit 14.53: die sechs Karten der Schattenseite (Stufe 1–49, docs/fraktionen.md) in zwei neuen Reihen unter der alten
+  // Welt (y ab WORLD_H = 880). Nichts Bestehendes verschiebt sich. side: Seite, die die Karte betreten darf (ohne side:
+  // gemeinsame Karte ab Stufe 50). shadow: eigene Rauschfelder und Zufallszahlen beim Erzeugen (buildWorldMaps).
+  // Die Städte liegen an anderen Stellen als auf den Lichtkarten derselben Stufe.
+  { id: 11, name: 'Mondfall', side: 'schatten', shadow: true, levels: 'Stufe 1–9', minLevel: 1, region: [0, 880, 360, 220], camp: 20, genCamp: 14, text: 'Die Mondstadt Mondfall am dunklen Mondsee, darum die Dämmerwiesen mit Aschehunden, Nebelwölfen und Schattenkeilern.', town: [255, 140], portals: [] },
+  { id: 12, name: 'Aschewald', side: 'schatten', shadow: true, levels: 'Stufe 10–19', minLevel: 10, region: [360, 880, 360, 220], camp: 13, genCamp: 9, text: 'Verkohlter Wald voller Glut, Aschenräuber, Spinnen und Kohlenbären. Spinnenhöhle und Banditenkeller.', town: [250, 150], portals: [] },
+  { id: 13, name: 'Knochenwüste', side: 'schatten', shadow: true, levels: 'Stufe 20–29', minLevel: 20, region: [720, 880, 360, 220], camp: 13, genCamp: 9, text: 'Bleicher Sand voller alter Gebeine, Beinbrecher und Skorpionen. Orkfestung.', town: [95, 62], portals: [] },
+  { id: 14, name: 'Blutsteppe', side: 'schatten', shadow: true, levels: 'Stufe 30–39', minLevel: 30, region: [0, 1100, 360, 220], camp: 13, genCamp: 9, text: 'Rote Steppe unter dunklem Himmel mit Blutogern und Blutdämonen. Totengruft.', town: [272, 150], portals: [] },
+  { id: 15, name: 'Nachtfrost', side: 'schatten', shadow: true, levels: 'Stufe 40–49', minLevel: 40, region: [360, 1100, 360, 220], camp: 13, genCamp: 9, text: 'Ewige Winternacht mit Mitternachtswölfen, Dunkelyetis und Frostgespenstern. Eisgrotte.', town: [82, 150], portals: [] },
+  { id: 16, name: 'Schattenklippen', side: 'schatten', shadow: true, levels: 'Stufe 30–50', minLevel: 30, region: [720, 1100, 360, 220], camp: 20, genCamp: 14, text: 'Die Klippenfeste Nachtwacht, darum schroffe Schattenklippen mit Vipern und Kobras, außen das Schwarzmoor der Moornagas. Schlangentempel.', town: [262, 140], portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
@@ -257,6 +291,63 @@ const MAP_ZONES = [
     groups: [['abgrundgeist', 11, 0, 0.7], ['leerenritter', 11, 0.25, 1], ['kristallwyrm', 9, 0.45, 1], ['schattenpirscher', 5, 0, 0.5]], groupSize: [2, 4],
     stones: [[75, 2, 0, 0.5], [80, 4, 0.3, 1]],
     ambient: { kind: 'shards', tint: [50, 30, 110, 0.14] }
+  },
+  // --- seit 14.53: Schattenseite (Maps 11–16), Gebiete wie auf den Lichtkarten derselben Stufe, eigene Böden und Monster.
+  // like: Gebiet der Lichtseite, dessen Darstellung (Felsen, Schmuck, Ränder, Musik) als Vorlage dient (schattenwelt.js)
+  { id: 'mondfall', map: 11, name: 'Mondfall', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'NACHTGRAS', like: 'dorf' },
+  {
+    id: 'daemmerwiesen', map: 11, name: 'Dämmerwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 999, like: 'wiesen',
+    ground: 'NACHTGRAS', alt: 'NACHTMOOS', trees: 0.006, treeObj: 'TREE', rocks: 0.0024, water: 0.22, liquid: 'WATER',
+    groups: [['aschehund', 11, 0, 0.4], ['nebelwolf', 10, 0.3, 0.8], ['nachtleitwolf', 6, 0.6, 1], ['schattenkeiler', 6, 0.7, 1], ['daemmerfuchs', 6, 0, 0.5], ['nachthirsch', 5, 0.45, 1]], groupSize: [3, 5],
+    stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
+    ambient: { kind: 'fireflies', tint: [40, 40, 90, 0.12] }
+  },
+  { id: 'glimmlager', map: 12, name: 'Glimmwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'SCHWARZERDE', like: 'waldlager' },
+  {
+    id: 'aschewald', map: 12, name: 'Aschewald', levels: 'Stufe 10–19', minLevel: 10, minDist: 8, maxDist: 999, like: 'wald',
+    ground: 'SCHWARZERDE', trees: 0.03, treeObj: 'PINE', rocks: 0.0036, water: 0.2, liquid: 'WATER',
+    groups: [['aschenraeuber', 10, 0, 0.6], ['russschuetze', 8, 0.2, 0.8], ['aschespinne', 10, 0.35, 1], ['kohlenbaer', 8, 0.6, 1], ['glutkeiler', 6, 0.2, 0.7], ['russluchs', 6, 0.5, 1]], groupSize: [3, 4],
+    stones: [[15, 4, 0, 0.6], [20, 3, 0.5, 1]],
+    ambient: { kind: 'ash', tint: [40, 30, 30, 0.14] }
+  },
+  { id: 'knochenlager', map: 13, name: 'Gebeinwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'KNOCHENSAND', like: 'orklager' },
+  {
+    id: 'knochenwueste', map: 13, name: 'Knochenwüste', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999, like: 'orktal',
+    ground: 'KNOCHENSAND', alt: 'ASH', trees: 0.0045, treeObj: 'DEADTREE', rocks: 0.018, water: 0.16, liquid: 'BOG',
+    groups: [['beinbrecher', 12, 0, 0.6], ['knochenruferin', 9, 0.3, 0.9], ['bleichskorpion', 10, 0.2, 1], ['knochenhauptmann', 6, 0.65, 1], ['aashyaene', 7, 0.1, 0.8]], groupSize: [3, 5],
+    stones: [[25, 4, 0, 0.6], [30, 3, 0.55, 1]],
+    ambient: { kind: 'dust', tint: [70, 66, 90, 0.1] }
+  },
+  { id: 'blutlager', map: 14, name: 'Blutwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'BLUTERDE', like: 'aschelager' },
+  {
+    id: 'blutsteppe', map: 14, name: 'Blutsteppe', levels: 'Stufe 30–39', minLevel: 30, minDist: 8, maxDist: 999, like: 'oedland',
+    ground: 'BLUTERDE', alt: 'BASALT', trees: 0.0054, treeObj: 'DEADTREE', rocks: 0.021, water: 0.15, liquid: 'BOG',
+    groups: [['blutoger', 12, 0, 0.6], ['blutdaemon', 13, 0.3, 1], ['blutmaul', 12, 0.5, 1], ['steppenwarg', 8, 0.2, 0.9]], groupSize: [2, 4],
+    stones: [[35, 4, 0, 0.6], [40, 3, 0.55, 1]],
+    ambient: { kind: 'embers', tint: [90, 10, 20, 0.1] }
+  },
+  { id: 'nachtfrostlager', map: 15, name: 'Eisnacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'NACHTSCHNEE', like: 'frostlager' },
+  {
+    id: 'nachtfrost', map: 15, name: 'Nachtfrost', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999, like: 'frost',
+    ground: 'NACHTSCHNEE', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.18, liquid: 'ICE',
+    groups: [['mitternachtswolf', 14, 0, 0.7], ['dunkelyeti', 12, 0.3, 1], ['frostgespenst', 12, 0.45, 1], ['nachtbaer', 7, 0.15, 0.8], ['nachtmammut', 5, 0.55, 1]], groupSize: [2, 4],
+    stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
+    ambient: { kind: 'snow', tint: [30, 40, 110, 0.16] }
+  },
+  { id: 'nachtwacht', map: 16, name: 'Nachtwacht', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'BASALT', like: 'klammwacht' },
+  {
+    id: 'schattenklippen', map: 16, name: 'Schattenklippen', levels: 'Stufe 30–39', minLevel: 30, minDist: 15, maxDist: 66, like: 'sandwueste',
+    ground: 'BASALT', trees: 0.0036, treeObj: 'DEADTREE', rocks: 0.016, water: 0.1, liquid: 'WATER',
+    groups: [['klippenviper', 11, 0, 0.6], ['nachtrassler', 10, 0.3, 1], ['schattenkobra', 9, 0.55, 1], ['klippenschakal', 8, 0.1, 0.9]], groupSize: [3, 5],
+    stones: [[30, 3, 0, 0.6], [35, 3, 0.4, 1]],
+    ambient: { kind: 'dust', tint: [50, 50, 80, 0.12] }
+  },
+  {
+    id: 'schwarzmoor', map: 16, name: 'Schwarzmoor', levels: 'Stufe 40–50', minLevel: 40, minDist: 66, maxDist: 999, like: 'nagadschungel',
+    ground: 'SWAMP', alt: 'SCHWARZERDE', trees: 0.021, treeObj: 'TREE', rocks: 0.003, water: 0.22, liquid: 'BOG',
+    groups: [['moorpython', 11, 0, 0.6], ['moornaga', 11, 0.3, 1], ['moorseherin', 9, 0.5, 1], ['nebelpanther', 8, 0.2, 0.9]], groupSize: [2, 4],
+    stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
+    ambient: { kind: 'wisps', tint: [20, 50, 40, 0.16] }
   }
 ];
 // seit 14.50: Die Stadt bzw. das Lager liegt nicht mehr auf jeder Map in der Mitte (town: [x, y] in Kacheln ab der
