@@ -1283,11 +1283,12 @@ const ARMOR_COLORS = ['#7a5a3c', '#8a6a3a', '#5a6a7a', '#9a2f2a', '#4a2f6a', '#4
 const iconCache = new Map();
 
 // Schild, auch für die Figur im Spiel (Mitte bei 0,0, etwa 22 Einheiten hoch)
-function shieldArt(ctx, tier) {
-  const c = ARMOR_COLORS[tier];
-  const metal = TIER_METAL[tier];
+// it (seit 14.57): Gegenstand für die Farbvariante (gearCol, figuren.js); ohne ihn die Stufenfarben
+function shieldArt(ctx, tier, it = null) {
+  const c = gearCol(it, ARMOR_COLORS[tier]);
+  const metal = gearCol(it, TIER_METAL[tier], true);
   if (tier === 0) {
-    oval(ctx, 0, 0, 9.5, 10.5, '#8a6a44');
+    oval(ctx, 0, 0, 9.5, 10.5, gearCol(it, '#8a6a44'));
     stroke(ctx, '#5a4030', 0.9, [[-4, -9.5], [-4, 9.5]]);
     stroke(ctx, '#5a4030', 0.9, [[4, -9.5], [4, 9.5]]);
     oval(ctx, 0, 0, 2.6, 2.6, metal);
@@ -1577,8 +1578,10 @@ const WEAPON_ICON_FIT = {
 
 function drawItemArt(ctx, item) {
   const { slot, tier } = item;
-  const metal = TIER_METAL[tier];
-  const c = ARMOR_COLORS[tier];
+  // seit 14.57: Symbol in der Farbvariante des Teils (wie an der Figur), damit man sieht, was man trägt
+  const tc = (col, m) => gearCol(item, col, m);
+  const metal = tc(TIER_METAL[tier], true);
+  const c = tc(ARMOR_COLORS[tier]);
   if (slot === 'waffe') {
     const kind = item.kind || 'sword';
     const long = kind === 'staff' || kind === 'scythe' || kind === 'greatsword' || kind === 'greataxe' || kind === 'bell';
@@ -1616,8 +1619,8 @@ function drawItemArt(ctx, item) {
   } else if (slot === 'ruestung' && (item.cls === 'schamane' || item.cls === 'nekromant')) {
     // Robe mit weiten Ärmeln
     const L = ARMOR_LOOK[item.cls];
-    const robe = L.robe[tier];
-    const trim = item.cls === 'schamane' ? L.gold[tier] : L.glow[tier];
+    const robe = tc(L.robe[tier]);
+    const trim = item.cls === 'schamane' ? tc(L.gold[tier], true) : L.glow[tier];
     poly(ctx, [[-6, -12], [6, -12], [9, 13], [-9, 13]], robe);
     poly(ctx, [[-6, -12], [-15, 2], [-11, 5], [-5, -4]], darker(robe, 0.15));
     poly(ctx, [[6, -12], [15, 2], [11, 5], [5, -4]], darker(robe, 0.15));
@@ -1631,8 +1634,8 @@ function drawItemArt(ctx, item) {
   } else if (slot === 'ruestung' && item.cls === 'magier') {
     // Magier (seit 8.6): langer Mantel mit hohem Stehkragen, Mittelschlitz und Glockenstulpen
     const L = ARMOR_LOOK.magier;
-    const robe = L.robe[tier];
-    const silver = L.trim[tier];
+    const robe = tc(L.robe[tier]);
+    const silver = tc(L.trim[tier], true);
     const arkan = MAGE_EL.arkan.main;
     poly(ctx, [[-6, -11], [6, -11], [10, 14], [-10, 14]], robe);
     poly(ctx, [[-1, 0], [1, 0], [3.5, 14], [-3.5, 14]], darker(robe, 0.3));
@@ -1653,43 +1656,35 @@ function drawItemArt(ctx, item) {
   } else if (slot === 'ruestung' && item.cls === 'ninja') {
     // Wams mit Schal und Kreuzgurten
     const L = ARMOR_LOOK.ninja;
-    poly(ctx, [[-9, -10], [9, -10], [10, 10], [-10, 10]], L.torso[tier]);
+    const scarf = tc(L.scarf[tier]);
+    poly(ctx, [[-9, -10], [9, -10], [10, 10], [-10, 10]], tc(L.torso[tier]));
     stroke(ctx, '#5a4030', 1.6, [[-8, -9], [8, 8]]);
     stroke(ctx, '#5a4030', 1.6, [[8, -9], [-8, 8]]);
-    box(ctx, -10, -13, 20, 4.5, 2, L.scarf[tier]);
-    poly(ctx, [[5, -10], [9, -10], [12, 2], [8, 2]], L.scarf[tier]);
-    box(ctx, -10, 7, 20, 3, 1, L.scarf[tier]);
+    box(ctx, -10, -13, 20, 4.5, 2, scarf);
+    poly(ctx, [[5, -10], [9, -10], [12, 2], [8, 2]], scarf);
+    box(ctx, -10, 7, 20, 3, 1, scarf);
     if (tier === 8) voidEye2D(ctx, 0, -0.5, 1);
     else if (tier === 9) star2D(ctx, 0, -0.5, 4.6);
   } else if (slot === 'ruestung') {
+    // seit 14.57: detailreicher Harnisch (chestIcon2D, figuren.js) – Leder, Kettenhemd, Platte mit Rand, Nieten und Wappen
     const k = ARMOR_LOOK.krieger;
-    const body = k.torso[tier];
-    const trim = k.trim[tier];
-    poly(ctx, [[-9, -10], [9, -10], [11, 12], [-11, 12]], body);
-    for (let i = 0; i < 3; i++) stroke(ctx, trim, 0.9, [[-8.5, -4 + i * 4.5], [8.5, -4 + i * 4.5]]);
-    box(ctx, -10.5, 6, 21, 3, 1, trim);
-    oval(ctx, -11, -9, 6, 4.5, body);
-    oval(ctx, 11, -9, 6, 4.5, body);
-    stroke(ctx, trim, 1, [[-15, -7], [-7, -7]]);
-    stroke(ctx, trim, 1, [[7, -7], [15, -7]]);
-    poly(ctx, [[-4, -10], [4, -10], [0, -5]], darker(body, 0.3));
-    if (tier >= 4) for (const x of [-11, 11]) poly(ctx, [[x - 3, -12], [x, -18], [x + 3, -12]], trim);
-    if (tier === 8) voidEye2D(ctx, 0, 1, 1.1);
-    else if (tier === 9) star2D(ctx, 0, 1, 4.8);
+    const plate = tier === 0 ? tc(k.torso[0]) : tier === 1 ? tc('#8a8070', true) : tc(GEAR_LOOK.plate[tier], true);
+    chestIcon2D(ctx, tier, plate, tier === 7 ? tc('#6e2630') : tc(k.torso[tier]), tc(TIER_METAL[tier], true));
   } else if (slot === 'helm' && item.cls === 'ninja') {
     // Kapuze mit Augenschlitz
     const L = ARMOR_LOOK.ninja;
-    oval(ctx, 0, 0, 12, 12, L.hood[tier]);
+    const hood = tc(L.hood[tier]);
+    oval(ctx, 0, 0, 12, 12, hood);
     box(ctx, -9, -3, 18, 6, 2.5, '#e9c6a1');
     for (const x of [-4, 4]) dot(ctx, x, 0, 1.6, 1.2, tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 6 ? '#9fe8ff' : '#21160f');
     if (tier >= 4) box(ctx, -10, -8, 20, 3, 1, L.scarf[tier]);
     if (tier === 8) voidEye2D(ctx, 0, -6.5, 0.8);
     else if (tier === 9) star2D(ctx, 0, -6.5, 4);
-    poly(ctx, [[8, 4], [17, 12], [12, 13]], L.hood[tier]);
+    poly(ctx, [[8, 4], [17, 12], [12, 13]], hood);
   } else if (slot === 'helm' && item.cls === 'schamane') {
     // Stirnband bzw. Krone mit Juwel
     const L = ARMOR_LOOK.schamane;
-    const band = L.band[tier];
+    const band = tc(L.band[tier]);
     box(ctx, -13, -2, 26, 6, 2.5, band);
     stroke(ctx, darker(band, 0.35), 0.8, [[-12, 1], [12, 1]]);
     if (tier === 8) for (const [x, h] of [[-9, 8], [-3, 12], [3, 12], [9, 8]]) {
@@ -1706,7 +1701,7 @@ function drawItemArt(ctx, item) {
   } else if (slot === 'helm' && item.cls === 'magier') {
     // Spitzer Krempenhut; Erzmagierreif mit drei schwebenden Kristallen
     const L = ARMOR_LOOK.magier;
-    const hat = L.hat[tier];
+    const hat = tc(L.hat[tier]);
     const arkan = MAGE_EL.arkan.main;
     ctx.save();
     ctx.translate(0, 3);
@@ -1745,19 +1740,16 @@ function drawItemArt(ctx, item) {
   } else if (slot === 'helm' && item.cls === 'nekromant') {
     // Spitze Kapuze, ab Stufe 5 mit Knochenkrone
     const L = ARMOR_LOOK.nekromant;
-    poly(ctx, [[-12, 12], [-13, -2], [-4, -11], [2, -18], [6, -10], [13, -2], [12, 12]], L.hood[tier]);
+    poly(ctx, [[-12, 12], [-13, -2], [-4, -11], [2, -18], [6, -10], [13, -2], [12, 12]], tc(L.hood[tier]));
     dot(ctx, 0, 4, 7, 7, '#0d120c');
     for (const x of [-3, 3]) dot(ctx, x, 3, 1.4, 1, L.glow[tier]);
     if (tier >= 4) for (const [x, h] of [[-6, 5], [0, 8], [6, 5]]) poly(ctx, [[x - 1.6, -10], [x, -10 - h], [x + 1.6, -10]], tier === 8 ? '#3a2e66' : tier === 9 ? '#efeaf6' : '#ddd5bb');
     if (tier === 8) voidEye2D(ctx, 0, -5, 0.9);
     else if (tier === 9) star2D(ctx, 0, -19, 4.4);
   } else if (slot === 'helm') {
-    const hm = ARMOR_LOOK.krieger.helm[tier];
-    paintShape(ctx, () => { ctx.beginPath(); ctx.arc(0, 4, 13, Math.PI, 0); ctx.closePath(); }, hm, -13, -9, 26, 13);
-    box(ctx, -14.5, 2.5, 29, 4, 1.8, c);
-    box(ctx, -13, 6, 4, 8, 1.5, hm);
-    box(ctx, 9, 6, 4, 8, 1.5, hm);
-    if (tier >= 2) poly(ctx, [[-2, -9], [2, -9], [1.4, -16], [-1.4, -16]], ARMOR_LOOK.krieger.crest[tier]);
+    // seit 14.57 im Stil der neuen Symbole: gewölbte Glocke mit Glanz, Stirnreif mit Nieten, Nasal und Wangenklappen
+    const hm = tc(ARMOR_LOOK.krieger.helm[tier], tier >= 1);
+    helmIcon2D(ctx, tier, hm, tier === 0 ? darker(hm, 0.2) : metal, tier >= 2 ? tc(ARMOR_LOOK.krieger.crest[tier]) : null);
     if (tier === 8) {
       // Abgrund: eingerollte Tentakelhörner und ein Leerenauge auf der Stirn
       for (const sg of [-1, 1]) {
@@ -1781,50 +1773,21 @@ function drawItemArt(ctx, item) {
   } else if (slot === 'schild') {
     ctx.save();
     ctx.scale(1.35, 1.35);
-    shieldArt(ctx, tier);
+    shieldArt(ctx, tier, item);
     ctx.restore();
   } else if (slot === 'schultern') {
     // seit 13.12: zwei echte Schulterpanzer statt zwei Ovalen – hohe Hauptplatte mit Grat und Nieten,
     // darunter drei überlappende Schienen über dem Oberarm, in der Mitte ein Kragenstück, das beide verbindet
-    shoulderIcon(ctx, tier, GEAR_LOOK.plate[tier], metal);
+    shoulderIcon(ctx, tier, tc(GEAR_LOOK.plate[tier], true), metal);
   } else if (slot === 'umhang') {
-    // Umhang mit Spange und Saum
-    const cl = GEAR_LOOK.cape[tier];
-    poly(ctx, [[-7, -13], [7, -13], [13, 12], [6, 14], [0, 12], [-6, 14], [-13, 12]], cl);
-    poly(ctx, [[-7, -13], [-3, -13], [-7, 12], [-13, 12]], darker(cl, 0.2));
-    stroke(ctx, GEAR_LOOK.lining[tier], 1.4, [[-12, 11], [12, 11]]);
-    stroke(ctx, darker(cl, 0.35), 0.8, [[-1, -10], [-3, 10]]);
-    stroke(ctx, darker(cl, 0.35), 0.8, [[4, -10], [6, 10]]);
-    box(ctx, -9, -15, 18, 3.5, 1.5, darker(cl, 0.1));
-    oval(ctx, 0, -13, 2.8, 2.8, metal);
-    if (tier === 8) voidEye2D(ctx, 0, 1, 1.1);
-    else if (tier === 9) star2D(ctx, 0, 1, 5.4);
-    else if (tier >= 3) poly(ctx, [[0, -3], [3, 1], [0, 5], [-3, 1]], metal);
+    // seit 14.57: fallender Umhang mit Falten, Futter, Saum, Kragen und Spangen (capeIcon2D, figuren.js)
+    capeIcon2D(ctx, tier, tc(GEAR_LOOK.cape[tier]), tc(GEAR_LOOK.lining[tier]), metal);
   } else if (slot === 'guertel') {
-    box(ctx, -15, -3.5, 30, 7, 2.5, c);
-    stroke(ctx, darker(c, 0.35), 0.8, [[-14, -1.5], [14, -1.5]]);
-    box(ctx, -5, -5.5, 10, 11, 2, metal);
-    box(ctx, -2.5, -3, 5, 6, 1, darker(c, 0.2));
-    if (tier >= 2) {
-      oval(ctx, -10, 0, 1.6, 1.6, metal);
-      oval(ctx, 10, 0, 1.6, 1.6, metal);
-    }
-    if (tier === 8) voidEye2D(ctx, 0, 0, 0.75);
-    else if (tier === 9) star2D(ctx, 0, 0, 4.2);
-    if (tier >= 3) poly(ctx, [[-3, 5.5], [3, 5.5], [0, 12]], tier === 8 ? '#5ee8ff' : tier === 9 ? '#ffb8e0' : tier >= 4 ? '#b48cff' : '#c8402f');
+    // seit 14.57: Ledergurt mit Naht, Schnalle, Schlaufe und Tasche (beltIcon2D, figuren.js)
+    beltIcon2D(ctx, tier, tc(GEAR_LOOK.belt[tier]), metal);
   } else {
-    const boot = (x) => {
-      box(ctx, x, -12, 7, 16, 2.5, c);
-      box(ctx, x - 1, 2, 12, 6, 2.5, darker(c, 0.25));
-      stroke(ctx, metal, 1, [[x, -8], [x + 7, -8]]);
-    };
-    boot(-11);
-    boot(2);
-    // seit 13.53: Abgrund mit Leerensplittern am Schaft, Ewigkeit mit Sternen
-    if (tier === 8) for (const x of [-4, 9]) {
-      poly(ctx, [[x - 1.6, -10], [x + 2.5, -17], [x + 1.4, -9]], '#3a2e66');
-      stroke(ctx, '#5ee8ff', 0.7, [[x - 10, 7.6], [x + 1, 7.6]]);
-    } else if (tier === 9) for (const x of [-7.5, 5.5]) star2D(ctx, x, -6, 3.6);
+    // seit 14.57: zwei echte Stiefel mit Sohle, Stulpe, Riemen und Beschlägen (bootIcon2D, figuren.js)
+    bootIcon2D(ctx, tier, tc(GEAR_LOOK.boots[tier]), metal);
   }
 }
 // Figur im Inventar: die eigene Spielfigur von vorn mit Waffe und Schild, die gerade angelegt sind
@@ -1873,11 +1836,12 @@ function drawDoll(canvas, who = game.player) {
 
 function itemIconUrl(item) {
   const band = plusBand(item.plus);
-  const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:${band}`;
+  const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:${band}:${gearHueKey(item)}`;
   if (iconCache.has(key)) return iconCache.get(key);
   // seit 14.38 im Arbeitsspeicher gebacken (bakeSprite cpu, figuren.js): kein Zurücklesen von der Grafikkarte
-  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item), undefined, true);
-  const size = 96;
+  // seit 14.57 in ICON_HI gebacken und 144 Pixel groß: die detailreicheren Symbole bleiben am Handy scharf
+  const sp = bakeSprite({ x: -20, y: -20, w: 40, h: 40 }, (ctx) => drawItemArt(ctx, item), ICON_HI, true);
+  const size = 144;
   const c = newCanvas(size, size);
   const ctx = c.getContext('2d', CPU_CANVAS);
   if (band) {

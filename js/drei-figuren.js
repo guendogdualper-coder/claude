@@ -72,17 +72,24 @@ function pauldron3(A, ab, sh, sx, armR, o) {
   const R = o.R * big;
   armR *= 1 + (big - 1) * 0.6;
   const pp = [sh[0] + sx * R * (big > 1 ? 0.3 : 0.12), sh[1] + R * (big > 1 ? 0.32 : 0.25), 0];
-  const W = frame3(A, ab, pp, [0, 0, -sx * 0.42]);
+  // seit 14.57: große Panzer stärker nach außen geneigt, damit sie über der Schulter liegen statt waagerecht abzustehen
+  const W = frame3(A, ab, pp, [0, 0, -sx * (big > 1.3 ? 0.55 : 0.42)]);
   // Hauptplatte: flach gewölbt und breiter als hoch, damit sie wie Blech und nicht wie eine Kugel wirkt
-  const sl = o.slim || 1;
-  W(cap3(R, Math.PI * 0.4, 0, Math.PI * 2, 18, 5), o.col, { s: [1.2 * sl, 0.5 * sl, 1.12 * sl], shine: o.shine, top: lighter(o.col, 0.15), topK: 0.35 });
-  W(torus3(R * 0.95, R * (big > 1 ? 0.1 : 0.075), Math.PI * 2, 4, 20), big > 1 ? lighter(o.trim, 0.15) : o.trim, { p: [0, R * 0.15, 0], r: [Math.PI / 2, 0, 0], s: [1.2 * sl, 1.12 * sl, 1], shine: o.shine + 0.2 });
+  const sl = (o.slim || 1) * (big > 1.3 ? 0.88 : 1);
+  // seit 14.57: große Panzer (Krieger) höher gewölbt – vorher lag eine flache Scheibe auf der Schulter und von vorn
+  // sah man nur ihren hellen Randring wie einen Reif um den Kopf; der Randring sitzt jetzt genau auf der Plattenkante
+  const sy = big > 1.3 ? 0.95 : 0.5;
+  W(cap3(R, Math.PI * 0.4, 0, Math.PI * 2, 18, 5), o.col, { s: [1.2 * sl, sy * sl, 1.12 * sl], shine: o.shine, top: lighter(o.col, 0.15), topK: 0.35 });
+  // Unterseite (seit 14.57): von unten (Porträt, Charakterfenster) sah man durch die offene Schale hindurch nur den Randring
+  W(geo3(`capin${R},${big > 1.3}`, () => flipGeo(cap3(R * 0.985, Math.PI * 0.4, 0, Math.PI * 2, 14, 4))), darker(o.col, 0.42), { s: [1.2 * sl, sy * sl, 1.12 * sl] });
+  W(torus3(R * 0.95, R * (big > 1.3 ? 0.06 : big > 1 ? 0.1 : 0.075), Math.PI * 2, 4, 20), big > 1.3 ? o.trim : big > 1 ? lighter(o.trim, 0.15) : o.trim, { p: [0, R * 0.309 * sy * sl, 0], r: [Math.PI / 2, 0, 0], s: [1.2 * sl, 1.12 * sl, 1], shine: o.shine + 0.2 });
   // Grat von vorn nach hinten über die Platte
-  if (o.ridge || big > 1.3) W(torus3(R * 0.94, R * 0.06, Math.PI * 0.9, 3, 14), o.trim, { r: [0, Math.PI / 2, Math.PI * 0.05], s: [1.12, 0.56, 1], shine: o.shine + 0.2 });
+  if (o.ridge || big > 1.3) W(torus3(R * 0.94, R * 0.06, Math.PI * 0.9, 3, 14), o.trim, { r: [0, Math.PI / 2, Math.PI * 0.05], s: [1.12, sy * 1.12, 1], shine: o.shine + 0.2 });
   // Nieten am Rand (vorn, außen, hinten)
   const riv = o.rivets || (big > 1.3 ? lighter(o.trim, 0.25) : null);
   if (riv) for (const a of [-1.1, -0.45, 0.2, 0.85, 1.5]) {
-    W(sphere3(R * 0.075, 6, 4), riv, { p: [Math.cos(a) * R * 1.08, R * 0.2, Math.sin(a) * R * 1.02], shine: 1 });
+    const rs = big > 1.3 ? sl * 1.08 : 1;
+    W(sphere3(R * 0.075, 6, 4), riv, { p: [Math.cos(a) * R * 1.08 * rs, big > 1.3 ? R * (0.309 * sy * sl + 0.05) : R * 0.2, Math.sin(a) * R * 1.02 * rs], shine: 1 });
   }
   // Schienen um den Oberarm: jede etwas tiefer und enger, außen herum (gut 200 Grad)
   const arc = Math.PI * 1.2;
@@ -154,6 +161,31 @@ function wingGeo() {
 // Fügt Teile mit gemeinsamer Elternmatrix (für feste Objekte) hinzu
 function adder(b, P) {
   return (geo, color, o = {}) => b.add(geo, color, P ? Object.assign({ parent: P }, o) : o);
+}
+
+// Helle Ausrüstungsfarben weich abdunkeln (seit 14.57): Gold, Platin, weiße Roben und Federn lagen über dem Wert, den
+// Himmels- und Sonnenlicht zusammen noch abbilden können, und wurden im Licht weiß ausgefressen (goldenes Göttlich-Set im
+// Charakterfenster nur noch eine gelbweiße Fläche). Über 0,7 je Kanal wird die Helligkeit gestaucht, der Farbton bleibt;
+// so bleiben Schattierung und Kontrast sichtbar. Leuchtende Teile (glow, wglow, aura) und das Gesicht bleiben unverändert.
+function tameCol3(col) {
+  if (typeof col !== 'string' || col.length !== 7 || col[0] !== '#') return col;
+  const n = parseInt(col.slice(1), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const m = Math.max(r, g, b) / 255;
+  if (m <= 0.7) return col;
+  const k = (0.7 + (m - 0.7) * 0.35) / m;
+  // Gold und warme Töne dabei etwas satter, damit sie nicht grau werden
+  const lo = Math.min(r, g, b);
+  const sat = r > b + 40 ? 0.06 : 0;
+  const ch = (v) => Math.max(0, Math.min(255, Math.round((v - (v === lo ? lo * sat : 0)) * k)));
+  return '#' + ((1 << 24) | (ch(r) << 16) | (ch(g) << 8) | ch(b)).toString(16).slice(1);
+}
+function tameAdder3(A, keep) {
+  return (geo, color, o = {}) => {
+    if (o.mat && o.mat !== 'lit') return A(geo, color, o);
+    const oo = o.top ? Object.assign({}, o, { top: tameCol3(o.top) }) : o;
+    return A(geo, keep.has(color) ? color : tameCol3(color), oo);
+  };
 }
 
 // Teil in einem lokalen Rahmen (Waffe in der Hand, Kopfschmuck): Matrix M mal Teil
@@ -508,7 +540,8 @@ function bodyWarp3(fem, hipY, chestY, bk) {
 }
 
 function humanoid3(b, c, P) {
-  const A = adder(b, P);
+  // Spielfiguren (c.tame, seit 14.57): helle Ausrüstungsfarben gedämpft, Haut und Haare unverändert
+  const A = c.tame ? tameAdder3(adder(b, P), new Set([c.skin, lighter(c.skin, 0.12), c.hair && c.hair.color, c.braid, c.beard].filter(Boolean))) : adder(b, P);
   const seg = (a, z, r1, r2, color, o) => limbBetween(A, a, z, r1, r2, color, o);
   const belly = !!c.belly;
   // bk: kräftiger Körperbau (Krieger), breitere Schultern, Arme und Beine
@@ -563,6 +596,14 @@ function humanoid3(b, c, P) {
     A(torus3(legR * 1.15, 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [sx * hipX, 0.2, 0], r: [Math.PI / 2, 0, 0] });
     A(roundBox(legR * 1.95, 0.1, legR * 3.1, legR * 0.85), boots, { bone, p: [sx * hipX, 0.06, legR * 0.5], top: lighter(boots, 0.15), topK: 0.4 });
     A(roundBox(legR * 2.05, 0.035, legR * 3.2, 0.015), darker(boots, 0.45), { bone, p: [sx * hipX, 0.018, legR * 0.5] });
+    // seit 14.57 (angelegte Stiefel): Absatz, Riemen über dem Rist mit Schnalle, Nieten an der Stulpe
+    if (c.bootDetail != null) {
+      const bm = c.bootTrim || '#a8acb2';
+      A(roundBox(legR * 1.7, 0.045, legR * 0.9, 0.012), darker(boots, 0.55), { bone, p: [sx * hipX, 0.026, -legR * 0.55] });
+      A(roundBox(legR * 2.08, 0.026, legR * 0.5, 0.01), darker(boots, 0.3), { bone, p: [sx * hipX, 0.105, legR * 0.62], r: [0.5, 0, 0] });
+      A(roundBox(0.03, 0.03, 0.012, 0.005), bm, { bone, p: [sx * (hipX + legR * 0.75), 0.106, legR * 0.75], r: [0.5, 0, 0], shine: 1 });
+      if (c.bootDetail >= 2) for (const a of [-0.5, 0.5]) A(sphere3(0.011, 6, 4), bm, { bone, p: [sx * hipX + Math.sin(a) * legR * 1.2, 0.2, Math.cos(a) * legR * 1.2], shine: 1 });
+    }
     if (c.shin) A(roundBox(legR * 1.6, 0.16, 0.04, 0.02), c.shin, { bone, p: [sx * hipX, 0.24, legR * 0.85], shine: 0.7 });
     // Beinschienen aus Platten mit Kniekachel
     if (c.greaves) {
@@ -654,6 +695,17 @@ function humanoid3(b, c, P) {
     A(roundBox(0.03, 0.24, 0.03, 0.012), lighter(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + 0.24, 0.2 * bk], shine: 1 });
     A(torus3(0.215, 0.016, Math.PI * 2, 4, 20), c.cuirassRim || lighter(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + 0.115, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.88 * bk, 1], shine: 1 });
     for (const sx of [-1, 1]) for (const y of [0.15, 0.25]) A(sphere3(0.013, 6, 4), c.cuirassRim || '#e8c46a', { bone: BH.chest, p: [sx * 0.13 * bk, hipY + y, 0.17 * bk], shine: 1 });
+    // seit 14.57 (Spielfiguren): Halsreif oben, zwei Bauchreifen vorn und eine Nietenreihe am unteren Rand
+    if (c.tame) {
+      const rim = c.cuirassRim || lighter(c.cuirass, 0.3);
+      A(torus3(fem ? 0.13 : 0.14, 0.014, Math.PI * 2, 4, 16), rim, { bone: BH.chest, p: [0, hipY + 0.415, 0], r: [Math.PI / 2, 0, 0], s: [bk, 0.88 * bk, 1], shine: 1 });
+      for (const [y, r] of [[0.155, fem ? 0.19 : 0.222], [0.195, fem ? 0.197 : 0.228]]) A(torus3(r + 0.004, 0.008, Math.PI * 0.9, 3, 12), darker(c.cuirass, 0.3), { bone: BH.chest, p: [0, hipY + y, 0], r: [Math.PI / 2, 0, Math.PI * 0.05], s: [bk, 0.88 * bk, 1], shine: 0.6 });
+      for (let k = 0; k < 6; k++) {
+        const a = -0.95 + k * 0.38;
+        const rr = fem ? 0.19 : 0.224;
+        A(sphere3(0.011, 6, 4), rim, { bone: BH.chest, p: [Math.sin(a) * rr * bk, hipY + 0.125, Math.cos(a) * rr * 0.88 * bk], shine: 1 });
+      }
+    }
   }
   // Beintaschen: Platten, die vom Gürtel über den Rock hängen
   if (c.tassets) for (const [x, z, ry] of [[-0.09, 0.19, 0.25], [0.09, 0.19, -0.25], [-0.2, 0.02, 1.4], [0.2, 0.02, -1.4]]) {
@@ -841,7 +893,7 @@ function humanoid3(b, c, P) {
   if (c.highCollar) highCollar3(frame3(A, BH.chest, [0, 0, 0]), g, c.collar || trim, 0.13);
   if (c.accent && c.highCollar) A(G3.gem(), c.accent, { bone: BH.chest, p: [0, neckY - 0.07, 0.15 * bk], s: [0.022, 0.03, 0.016], mat: 'glow' });
   if (c.gear) c.gear(A, g);
-  if (c.cape && c.capeTier != null) gearCape3(A, g, c.capeTier, c.cape, c.lining);
+  if (c.cape && c.capeTier != null) gearCape3(A, g, c.capeTier, c.cape, c.lining, c.capeMetal);
   // Umhang gebogen, mit Futter und Saum (Bewohner, Monster)
   else if (c.cape) {
     const cs = belly ? 1.5 : 1;
@@ -897,7 +949,7 @@ function humanoid3(b, c, P) {
     const wl = WEAPON_LEN3[c.offhand.kind] || 0.6;
     offhandAxis = { base: new THREE.Vector3(0, 0.02, 0).applyMatrix4(M), tip: new THREE.Vector3(0, wl, 0).applyMatrix4(M) };
   }
-  if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06]);
+  if (c.shield != null) shield3(A, c.shield, BH.handL, [shX + 0.1, shY - armLen * 0.6, 0.06], c.shieldItem);
   let top = hc[1] + hr * (c.hair && c.hair.style === 1 ? 1.3 : 1.05);
   if (c.tall) top += c.tall;
   // seit 14.53: Körperform als sanfte Verformung über Rumpf UND allem, was darauf sitzt (Rüstung, Mantel, Gürtel,
@@ -1073,7 +1125,8 @@ const IDLE_WRIST3 = { sword: 1.0, axe: 0.7, greatsword: 0.9, greataxe: 0.5 };
 
 function playerKey3(p) {
   const eq = p.equipment || {};
-  const t = (it) => (it ? it.tier + ':' + (it.kind || '') + ':' + plusBand(it.plus || 0) : '-');
+  // seit 14.57 mit der Farbvariante jedes Teils (gearHueKey, figuren.js)
+  const t = (it) => (it ? it.tier + ':' + (it.kind || '') + ':' + plusBand(it.plus || 0) + gearHueKey(it) : '-');
   const key = [p.classId, JSON.stringify(p.look || {}), t(eq.waffe), t(eq.ruestung), t(eq.helm), t(eq.schild), t(eq.schuhe), t(eq.guertel), t(eq.schultern), t(eq.umhang), weaponKindOf(p)].join('|');
   // Magier (seit 8.6): Kristall, Hutband und Runen tragen die Farbe des Elements (Weg)
   return p.classId === 'magier' ? key + '|' + (p.path ?? 'a') : key;
@@ -1089,41 +1142,54 @@ function playerConfig3(p) {
   const kind = weaponKindOf(p);
   const wtier = eq.waffe ? eq.waffe.tier : 0;
   const gt = (k) => (L[k] == null ? -1 : L[k]);
+  // seit 14.57: jedes Teil in seiner eigenen Farbvariante (gearCol, figuren.js) – niedrige Stufen bunt gemischt,
+  // hohe Stufen und Sets passend; m = Metallton (Beschläge, Platten), sonst Stoff/Leder
+  const tA = (col, m) => gearCol(eq.ruestung, col, m);
+  const tH = (col, m) => gearCol(eq.helm, col, m);
+  const tS = (col, m) => gearCol(eq.schultern, col, m);
+  const tB = (col, m) => gearCol(eq.schuhe, col, m);
+  const tG = (col, m) => gearCol(eq.guertel, col, m);
+  const tU = (col, m) => gearCol(eq.umhang, col, m);
   const c = {
     skin: skinOf(ap), eyeColor: eyeOpts(ap).color, eyeShape: ap.eyes || 0, mark: ap.mark || 0, female: ap.sex === 1, male: ap.sex === 0,
     hair: { style: ap.hair || 0, color: hairOf(ap) },
-    weapon: { kind, tier: wtier }, boots: gt('b') >= 0 ? GEAR_LOOK.boots[gt('b')] : '#4d3527',
-    bootTrim: gt('b') >= 3 ? TIER_METAL[gt('b')] : null,
-    belt: gt('g') >= 0 ? GEAR_LOOK.belt[gt('g')] : '#3a2618'
+    weapon: { kind, tier: wtier }, boots: gt('b') >= 0 ? tB(GEAR_LOOK.boots[gt('b')]) : '#4d3527',
+    bootTrim: gt('b') >= 3 ? tB(TIER_METAL[gt('b')], true) : null,
+    belt: gt('g') >= 0 ? tG(GEAR_LOOK.belt[gt('g')]) : '#3a2618'
   };
   // Schultern, Umhang: Grundform hier, das Merkmal der Stufe baut drei-ausruestung.js
   if (gt('s') >= 0) {
-    c.pads = GEAR_LOOK.plate[gt('s')];
-    c.padTrim = TIER_METAL[gt('s')];
+    c.pads = tS(GEAR_LOOK.plate[gt('s')], true);
+    c.padTrim = tS(TIER_METAL[gt('s')], true);
     // seit 13.17: angelegte Schultern deutlich größer und mit hellem Rand, damit man sie von oben erkennt
     c.padBig = pauldronBig(p.classId);
     if (p.classId === 'krieger') c.spikes = true;
   }
   const capeT = eq.umhang ? eq.umhang.tier : -1;
   if (capeT >= 0) {
-    c.cape = GEAR_LOOK.cape[capeT];
-    c.lining = GEAR_LOOK.lining[capeT];
+    c.cape = tU(GEAR_LOOK.cape[capeT]);
+    c.lining = tU(GEAR_LOOK.lining[capeT]);
+    c.capeMetal = tU(TIER_METAL[capeT], true);
     c.capeTier = capeT;
   }
   if (eq.schild) {
     if (isOffhand(eq.schild)) c.offhand = { kind: eq.schild.kind, tier: eq.schild.tier };
     else if (isQuiver(eq.schild)) c.quiverTier = eq.schild.tier;
-    else c.shield = eq.schild.tier;
+    else {
+      c.shield = eq.schild.tier;
+      c.shieldItem = eq.schild;
+    }
   }
   // Männer ohne Wangenröte und etwas breiter, Frauen mit Zopf unter Kapuze und Helm
   if (ap.sex === 0) { c.blush = false; c.bulk = 1.05; }
   if (p.classId === 'krieger') {
     const A0 = ARMOR_LOOK.krieger;
-    const crimson = lookColor(A0.torso, L.a, '#9c3b33');
-    const brass = lookColor(A0.trim, L.a, '#c9a35a');
+    // Göttlich (seit 14.57 in 3D): weinroter Waffenrock unter dem Gold, damit die Platten Kontrast haben
+    const crimson = L.a === 7 ? tA('#6e2630') : tA(lookColor(A0.torso, L.a, '#9c3b33'));
+    const brass = tA(lookColor(A0.trim, L.a, '#c9a35a'), true);
     // Krieger: kräftig, Platte über Brust und Beinen, schwere Schultern, Fell und Wickelbänder (barbarisch)
-    const plate = L.a >= 0 ? GEAR_LOOK.plate[L.a] : '#8a6a4a';
-    const rim = L.a >= 0 ? TIER_METAL[L.a] : '#c9a35a';
+    const plate = L.a >= 0 ? tA(GEAR_LOOK.plate[L.a], L.a >= 1) : '#8a6a4a';
+    const rim = L.a >= 0 ? tA(TIER_METAL[L.a], true) : '#c9a35a';
     const fur = L.a === 9 ? '#ece8f0' : L.a === 8 ? '#1a1424' : L.a >= 5 ? '#3a3230' : L.a >= 3 ? '#5a4030' : '#8a6a4a';
     Object.assign(c, {
       bulk: ap.sex === 1 ? 1.03 : 1.1, torso: crimson, sleeve: darker(crimson, 0.18), skirt: darker(crimson, 0.1), flap: darker(crimson, 0.25), pants: '#3b2d25', gloves: '#5a4030',
@@ -1135,14 +1201,14 @@ function playerConfig3(p) {
     if (L.a >= 3) { c.gauntlets = plate; c.greaveSpike = rim; }
     if (!c.pads) { c.pads = plate; c.padTrim = rim; c.spikes = L.a >= 3; }
     if (L.h !== -2) {
-      c.headgear = kriegerHelm3(L.h, lookColor(A0.helm, L.h, '#8f98a3'), lookColor(A0.crest, L.h, '#c8402f'), lookColor(A0.trim, L.h, '#c9a35a'));
+      c.headgear = kriegerHelm3(L.h, tH(lookColor(A0.helm, L.h, '#8f98a3'), L.h >= 1), tH(lookColor(A0.crest, L.h, '#c8402f')), tH(lookColor(A0.trim, L.h, '#c9a35a'), true));
       c.covered = true;
     }
     if (ap.sex === 1 && c.covered) c.braid = hairOf(ap);
   } else if (p.classId === 'ninja') {
     const A0 = ARMOR_LOOK.ninja;
-    const torso = lookColor(A0.torso, L.a, '#312c3d');
-    const scarf = lookColor(A0.scarf, L.a, '#6b4f9a');
+    const torso = tA(lookColor(A0.torso, L.a, '#312c3d'));
+    const scarf = tA(lookColor(A0.scarf, L.a, '#6b4f9a'));
     // Ninja: nur Stoff und Leder – weite gebundene Hose, Wickelbänder, Ledergurte mit Wurfmessern, keine Platten
     const leather = L.a === 9 ? '#b88a80' : L.a >= 4 ? '#2a2026' : '#4a3a2a';
     Object.assign(c, {
@@ -1153,18 +1219,18 @@ function playerConfig3(p) {
     if (c.pads) { c.pads = mixColor(c.pads, leather, 0.6); c.padTrim = scarf; }
     // Köcher auf dem Rücken nur, wenn einer angelegt ist (seit 13.20 eigener Gegenstand), in seiner Stufe
     if (kind === 'bow' && c.quiverTier != null) c.quiver = QUIVER_LEATHER[c.quiverTier];
-    c.headgear = ninjaHelm3(L.h, lookColor(A0.hood, L.h, '#2a2633'), scarf);
+    c.headgear = ninjaHelm3(L.h, tH(lookColor(A0.hood, L.h, '#2a2633')), scarf);
     c.covered = true;
     if (ap.sex === 1) c.braid = hairOf(ap);
     if (!(ap.hair === 2 || ap.hair === 4)) c.hair = null;
     if (NINJA_EYES3[L.h]) c.glowEyes = NINJA_EYES3[L.h];
   } else if (p.classId === 'schamane') {
     const A0 = ARMOR_LOOK.schamane;
-    const robe = lookColor(A0.robe, L.a, '#2c6f6a');
-    const gold = lookColor(A0.gold, L.a, '#e0c36a');
+    const robe = tA(lookColor(A0.robe, L.a, '#2c6f6a'));
+    const gold = tA(lookColor(A0.gold, L.a, '#e0c36a'), true);
     Object.assign(c, { torso: robe, sleeve: robe, robe, hemTrim: gold, wideSleeves: true, cuff: gold, collar: gold, gloves: c.skin, buckle: gold, sash: '#c8402f', beads: '#7a3a2a', belt: null, padStyle: 'cloth' });
     if (c.pads) { c.pads = mixColor(c.pads, robe, 0.55); c.padTrim = gold; }
-    c.headgear = shamanHelm3(L.h, lookColor(A0.band, L.h, gold), gold);
+    c.headgear = shamanHelm3(L.h, tH(lookColor(A0.band, L.h, gold)), tH(gold, true));
     // Seidenhaube bedeckt das Haar; Stirnband und Kronen lassen es frei, ohne dass etwas oben durchsticht (13.22)
     if (L.h === 1) { c.covered = true; if (ap.sex === 1) c.braid = hairOf(ap); }
     else if (L.h !== -2) c.covered = 'band';
@@ -1173,8 +1239,8 @@ function playerConfig3(p) {
     // Elements nur an Kristall, Hutband, Runen und Schließen. Männer mit Schultercape, Frauen mit Korsage und Zopf vorn.
     const A0 = ARMOR_LOOK.magier;
     const E = mageEl(p);
-    const robe = lookColor(A0.robe, L.a, '#283070');
-    const silver = lookColor(A0.trim, L.a, '#d8e0f0');
+    const robe = tA(lookColor(A0.robe, L.a, '#283070'));
+    const silver = tA(lookColor(A0.trim, L.a, '#d8e0f0'), true);
     Object.assign(c, {
       torso: robe, sleeve: darker(robe, 0.08), robe, wideSleeves: false, bellCuff: true, cuff: silver, hemTrim: silver,
       collar: silver, highCollar: true, gloves: c.skin, buckle: silver, belt: gt('g') >= 0 ? c.belt : '#2a2230', sash: false, padStyle: 'cloth',
@@ -1188,7 +1254,7 @@ function playerConfig3(p) {
     // Stufe 0 ohne Gürtel: Strickgürtel aus der Rüstung (drei-ausruestung.js)
     if (L.a === 0 && gt('g') < 0) c.belt = null;
     const hat = L.h !== -2 && L.h !== 7;
-    c.headgear = magierHelm3(L.h, lookColor(A0.hat, L.h, '#283070'), silver, E.main, { tilt: ap.sex === 1 ? 0.08 : 0, glyph: E.glyph });
+    c.headgear = magierHelm3(L.h, tH(lookColor(A0.hat, L.h, '#283070')), tH(silver, true), E.main, { tilt: ap.sex === 1 ? 0.08 : 0, glyph: E.glyph });
     c.covered = hat ? 'hat' : false;
     if (hat) c.tall = 0.36;
     // Drehknochen: Runenring um die Taille (Arkanrobe), Siegelring im Rücken (Erzmagier), Stern, Siegel, Kristalle am Hut;
@@ -1202,11 +1268,11 @@ function playerConfig3(p) {
     }
   } else {
     const A0 = ARMOR_LOOK.nekromant;
-    const robe = lookColor(A0.robe, L.a, '#334a31');
+    const robe = tA(lookColor(A0.robe, L.a, '#334a31'));
     Object.assign(c, { torso: robe, sleeve: darker(robe, 0.12), robe, tattered: true, wideSleeves: true, gloves: c.skin, runes: '#a7e37f', blush: false, skullBelt: true, collar: darker(robe, 0.3), padStyle: 'bone' });
     if (c.pads) c.padTrim = gt('s') >= 3 ? lookColor(A0.glow, L.h, '#a7e37f') : null;
     else c.bonePads = true;
-    c.headgear = nekroHelm3(L.h, lookColor(A0.hood, L.h, '#2a3b28'), lookColor(A0.glow, L.h, '#a7e37f'));
+    c.headgear = nekroHelm3(L.h, tH(lookColor(A0.hood, L.h, '#2a3b28')), lookColor(A0.glow, L.h, '#a7e37f'));
     c.covered = 'hood';
     if (ap.sex === 1) c.braid = hairOf(ap);
     c.glowEyes = lookColor(A0.glow, L.h, '#a7e37f');
@@ -1252,9 +1318,15 @@ function playerConfig3(p) {
     }
   }
   // Stufenmerkmale: Rüstung (Grundform umstellen), dann alle Teile nach dem Körper
-  armorLook3(c, p.classId, L.a);
+  armorLook3(c, p.classId, L.a, tA);
   c.noBuckle = gt('g') >= 0;
-  c.gear = gearAll3(p.classId, { a: L.a, s: gt('s'), b: gt('b'), g: gt('g') }, c);
+  c.tame = true;
+  if (gt('b') >= 0) c.bootDetail = gt('b');
+  c.gear = gearAll3(p.classId, {
+    a: L.a, s: gt('s'), b: gt('b'), g: gt('g'),
+    ms: gt('s') >= 0 ? tS(TIER_METAL[gt('s')], true) : null, mb: gt('b') >= 0 ? tB(TIER_METAL[gt('b')], true) : null,
+    mg: gt('g') >= 0 ? tG(TIER_METAL[gt('g')], true) : null, cb: c.boots
+  }, c);
   return c;
 }
 
@@ -6744,8 +6816,9 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   const P = portrait3;
   if (!P.scene) {
     P.scene = new THREE.Scene();
-    const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x5a4a3a, 0.62);
-    const sun = new THREE.DirectionalLight(0xfff0d4, 0.88);
+    // seit 14.57 etwas weniger Licht (vorher 0,62/0,88): helle Rüstungen und Gesichter wirkten ausgefressen
+    const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x5a4a3a, 0.56);
+    const sun = new THREE.DirectionalLight(0xfff0d4, 0.8);
     sun.position.set(-2, 5, 6);
     const fill = new THREE.DirectionalLight(0xd8e4ff, 0.18);
     fill.position.set(4, 2, 3);
