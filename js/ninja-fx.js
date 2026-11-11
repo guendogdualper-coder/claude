@@ -479,7 +479,10 @@ function weaponAxis3(p, base, tip, left = false) {
 
 function schwertaura3(h, p, b, t) {
   const low = n3low();
-  const pulse = 0.8 + 0.2 * Math.sin(t * 7);
+  // seit 14.60 wächst die Lichtklinge mit dem Rang (ohne Rang 0,7, V 1,0 – vorher immer 1,0): die Dauer-Aura
+  // überstrahlte die Figur, der Rang bleibt an Breite und Helligkeit der Klinge erkennbar
+  const rk = typeof skillRank === 'function' && b.lvl ? skillRank(b.lvl) : -1;
+  const pulse = (0.8 + 0.2 * Math.sin(t * 7)) * (0.7 + 0.075 * (rk + 1));
   const main = weaponAxis3(p, _sa3b, _sa3t);
   if (main) schwertBlade3(h, t, pulse, low, 0);
   // seit 13.90: zweite Waffe (Schwert oder Axt in der linken Hand) bekommt dieselbe Lichtklinge
@@ -526,6 +529,153 @@ function schwertBlade3(h, t, pulse, low, k) {
   }
 }
 if (SKILL_FX.schwertaura) SKILL_FX.schwertaura.aura3 = schwertaura3;
+
+// --- Aura des Schwertes: Wirk-Animation (seit 14.60) ----------------------------------------------------------
+// Spielerwunsch: beim Aktivieren die Waffen hochrecken, die Klingen blitzen kurz auf, dann breitet sich am Boden ein
+// leuchtender Kreis aus und eine Aura steigt nach oben. Ablauf (1,5 s, Figur bleibt steuerbar):
+//   0–0,3 s   Arme hoch (Pose in drei-figuren.js, SKILL_POSE3.schwertaura: zwei Waffen als V über dem Kopf,
+//             Zweihänder senkrecht mit beiden Händen, Einhand mit Schild: Schwertarm hoch, Schild vor dem Körper)
+//   0,15–0,8 s Lichtblitz entlang der Klinge(n) in der Rangfarbe, heller Glanzpunkt an der Spitze
+//   0,3–1,5 s Lichtteich am Boden (weiche Lichtpfütze und eine sanfte Schockwelle – keine Runen, Sterne oder Zeichen)
+//   0,4–1,5 s aufsteigende Aura: weicher Lichtschleier (Zylinder mit Verlaufsbild) und flammenartige Schleier
+// Ohne Rang golden; E/H/L/V färben Blitz, Schockwelle und einen Teil der Schleier in der Rangfarbe und machen die
+// Aura höher und dichter. Alles aus dem gemeinsamen Vorrat (fx3Take), nach Ablauf frei; etwa 25–45 Teile je Bild.
+const SA_CAST_COL = [
+  { main: '#ffb84a', alt: '#ffd36a', light: '#fff0c0' }, // ohne Rang
+  { main: '#ffb84a', alt: '#9fd0ff', light: '#e8f8ff' }, // Erwacht
+  { main: '#ffb84a', alt: '#c58cff', light: '#f4e4ff' }, // Heroisch
+  { main: '#ffc23a', alt: '#ffd34d', light: '#fff6d0' }, // Legendär
+  { main: '#ff8a3a', alt: '#ff5a2a', light: '#fff0c0', acc: '#c84aff' } // Vollendet
+];
+function schwertauraCast(p, rk) {
+  if (!p) return;
+  const r = Number.isInteger(rk) && rk >= 0 && rk < SA_CAST_COL.length - 1 ? rk : -1;
+  const C = SA_CAST_COL[r + 1];
+  // für die Pose (Klingenleuchten in drei-figuren.js) und 2D (Tönung der Kraftpose)
+  p.saCast = { at: game.time, rk: r };
+  p.poseColor = C.alt;
+  addEffect({ type: 'sacast3', follow: p, ox: 0, oy: 0, rk: r, dur: 1.5, color: C.main });
+}
+FX3_TYPES.add('sacast3');
+const _sac3b = new THREE.Vector3();
+const _sac3t = new THREE.Vector3();
+const _sac3d = new THREE.Vector3();
+FX3_DRAW.sacast3 = function (h, e) {
+  const t = game.time - e.start;
+  if (t >= e.dur) return;
+  const p = e.follow && !e.follow.gone ? e.follow : null;
+  if (!p) return;
+  const r1 = (e.rk | 0) + 1; // 0 ohne Rang … 4 Vollendet
+  const C = SA_CAST_COL[r1] || SA_CAST_COL[0];
+  const low = n3low();
+  const px = p.x;
+  const pz = feetY(p);
+  const x = px * U3;
+  const z = pz * U3;
+  const end = Math.max(0, Math.min(1, (e.dur - t) / 0.5)); // weiches Ende in der letzten halben Sekunde
+  // 1) Klingen blitzen auf: Lichtstreif entlang der Klinge, Glanzpunkt an der Spitze
+  const fl = t < 0.15 ? 0 : t < 0.32 ? (t - 0.15) / 0.17 : Math.max(0, 1 - (t - 0.32) / 0.48);
+  if (fl > 0.01) {
+    for (const left of [false, true]) {
+      if (!weaponAxis3(p, _sac3b, _sac3t, left)) continue;
+      _sac3d.subVectors(_sac3t, _sac3b);
+      const len = _sac3d.length();
+      _sac3d.divideScalar(len);
+      // der Blitz läuft von der Wurzel zur Spitze
+      const run = Math.min(1, (t - 0.15) / 0.22);
+      _nf3a.copy(_sac3b);
+      _nf3b.copy(_sac3b).addScaledVector(_sac3d, len * (0.2 + 1.0 * run));
+      for (const [rr, col, op] of [[0.1, C.alt, 0.4], [0.035, C.light, 0.85]]) {
+        const sg = fx3Take(h, 'seg');
+        fx3Segment(sg, _nf3a, _nf3b, rr * (0.8 + 0.4 * fl));
+        fx3Color(sg, col, op * fl);
+      }
+      n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.35 + 0.45 * fl, C.light, 0.75 * fl);
+      n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.8 + 0.4 * fl, C.alt, 0.3 * fl);
+    }
+  }
+  // 2) Lichtteich am Boden: breitet sich ab 0,3 s aus, dazu eine weiche Schockwelle nach außen
+  if (t > 0.28) {
+    const u = Math.min(1, (t - 0.28) / 0.55);
+    const eu = 1 - Math.pow(1 - u, 3);
+    const R = 0.3 + eu * (0.75 + 0.08 * r1);
+    const pool = fx3Take(h, 'plane');
+    fx3Ground(pool, px, pz, R, 0.035, 'disc');
+    fx3Color(pool, C.main, (0.55 + 0.05 * r1) * Math.min(1, u * 3) * end);
+    const core = fx3Take(h, 'plane');
+    fx3Ground(core, px, pz, R * 0.5, 0.04, 'disc');
+    fx3Color(core, C.light, 0.45 * Math.min(1, u * 3) * end);
+    if (u < 1) {
+      const wave = fx3Take(h, 'plane');
+      fx3Ground(wave, px, pz, 0.4 + eu * (1.2 + 0.12 * r1), 0.045, 'ring');
+      fx3Color(wave, C.alt, 0.45 * (1 - u));
+    }
+  }
+  // 3) Aura steigt auf: weicher Lichtschleier (offener Zylinder, unten hell, oben verlaufend) und flammenartige
+  //    Schleier, die um den Körper nach oben ziehen und dabei schmaler werden
+  if (t > 0.38) {
+    const u = Math.min(1, (t - 0.38) / 0.4);
+    const env = (1 - Math.pow(1 - u, 2)) * end;
+    const H = (1.9 + 0.22 * r1) * (0.55 + 0.45 * u);
+    const veil = fx3Take(h, 'wall');
+    fx3Map(veil, 'beam');
+    fx3Wall(veil, px, pz, 0.5 + 0.03 * r1, H);
+    fx3Color(veil, C.main, 0.11 * env);
+    const inner = fx3Take(h, 'wall');
+    fx3Map(inner, 'beam');
+    fx3Wall(inner, px, pz, 0.36, H * 0.8);
+    fx3Color(inner, C.light, 0.08 * env);
+    const n = (low ? 5 : 8) + r1 * (low ? 1 : 2);
+    for (let i = 0; i < n; i++) {
+      const ph = (t * 0.85 + i / n) % 1;
+      const a = i * 2.399 + t * 0.9;
+      const rr = (0.42 + 0.06 * Math.sin(i * 1.7)) * (1 - ph * 0.35);
+      const col = i % 3 === 2 ? C.alt : i % 2 ? C.main : C.light;
+      const w = (0.3 + 0.04 * r1) * (1 - ph * 0.5);
+      n3Flame(h, x + Math.cos(a) * rr, 0.25 + ph * H * 0.85, z + Math.sin(a) * rr * 0.8, w, w * 2.6, C.acc && i % 4 === 3 ? C.acc : col, 0.42 * env * Math.sin(ph * Math.PI));
+    }
+    // ein paar Lichtfunken steigen mit
+    if (!low) for (let i = 0; i < 6 + r1 * 2; i++) {
+      const ph = (t * 0.7 + i * 0.137) % 1;
+      const a = i * 1.9 + e.start;
+      n3Glow(h, x + Math.cos(a) * 0.5 * (1 - ph * 0.4), 0.2 + ph * H, z + Math.sin(a) * 0.4, 0.09, i % 2 ? C.light : C.alt, env * (1 - ph));
+    }
+  }
+};
+// 2D: Lichtteich als Ellipse am Boden, aufsteigender Lichtschleier und Funken (Kraftpose kommt aus zeichnen.js)
+EXTRA_EFFECTS.sacast3 = (ctx, e, k, x, y) => {
+  const t = k * e.dur;
+  const C = SA_CAST_COL[(e.rk | 0) + 1] || SA_CAST_COL[0];
+  const end = Math.max(0, Math.min(1, (e.dur - t) / 0.5));
+  ctx.globalCompositeOperation = 'lighter';
+  if (t > 0.28) {
+    const u = Math.min(1, (t - 0.28) / 0.55);
+    const R = 12 + (1 - Math.pow(1 - u, 3)) * 34;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, R);
+    g.addColorStop(0, C.light);
+    g.addColorStop(0.5, C.main);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.5 * end;
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(x, y, R, R * 0.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (t > 0.38) {
+    const u = Math.min(1, (t - 0.38) / 0.4);
+    const H = 70 * (0.55 + 0.45 * u);
+    const g = ctx.createLinearGradient(0, y, 0, y - H);
+    g.addColorStop(0, C.main);
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.28 * u * end;
+    ctx.fillStyle = g;
+    ctx.fillRect(x - 16, y - H, 32, H);
+    for (let i = 0; i < 6; i++) {
+      const ph = (t * 0.85 + i / 6) % 1;
+      glow(ctx, x + Math.sin(i * 2.4 + t * 2) * 13, y - 4 - ph * H, 5, i % 2 ? C.light : C.alt, 0.7 * (1 - ph) * end);
+    }
+  }
+};
 
 
 // === Schattenkette (seit 13.85, Platz 5 des Dolch-Weges statt Leichtfüßigkeit) ================================

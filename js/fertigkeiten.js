@@ -830,12 +830,18 @@ const SKILL_FX = {
 // Effekte der zweiten Wege
 Object.assign(SKILL_FX, {
   schwertaura: {
-    // seit 14.47 kürzer und ohne milchigen Schleier: Lichtsäule 0,55 s (vorher 1 s), Bildschirmschein schwach
+    // seit 14.60 eigene Wirk-Animation statt Lichtsäule, Lichtkranz und Bildschirmschein: Waffen hochrecken
+    // (SKILL_POSE3.schwertaura), Klingen blitzen in der Rangfarbe auf, Lichtteich am Boden und aufsteigende Aura
+    // (schwertauraCast, ninja-fx.js). Mitspieler sehen dasselbe über remoteCast (interaktion.js remoteSkillFx).
     cast(p) {
-      vfxPillar(p, '#ffb84a', 0.55);
-      addEffect({ type: 'halo', follow: p, dur: 0.7, color: '#ffe9a0' });
-      flashScreen('#ff9a3a', 0.06);
+      if (typeof schwertauraCast === 'function') schwertauraCast(p, fxRank);
+      else vfxPillar(p, '#ffb84a', 0.55);
     },
+    remoteCast(rp, rk) {
+      if (typeof schwertauraCast === 'function') schwertauraCast(rp, rk);
+    },
+    // Rang-Effekte beim Wirken nur leise (rankCastFx soft): keine Flammenflügel, kein Sonnenrad, kein Himmelsstrahl
+    rankSoft: true,
     aura: { every: 0.08, color: ['#fff2c0', '#ffd38a', '#ffffff'], shape: 'spark', up: true },
     ring: '#ffd38a',
     weaponGlow: '#ffe28a'
@@ -1311,14 +1317,21 @@ function updateBuffAuras(dt) {
 // Ränge sichtbar machen: jede Stufe legt etwas drauf.
 // Erwacht: Runenkreis und Ring in der Rangfarbe · Heroisch: dazu aufsteigende Wirbelringe ·
 // Legendär: dazu Lichtsäule, Blitz und Aufleuchten · Vollendet: dazu Himmelsstrahl, Glutwelle und Beben
-function rankCastFx(p, rank, color) {
+// soft (seit 14.60, Fertigkeiten mit eigener Wirk-Animation wie die Schwertaura): nur die Funkenspirale in der
+// Rangfarbe, kein Bildschirmschein, kein Beben, in 2D keine Ringe, Runen und Säulen
+function rankCastFx(p, rank, color, soft = false) {
   const fy = feetY(p);
   // seit 12.6 in 3D: Funkenspirale, Kränze, Lichtsäule, Flammenflügel je Rang (rang-fx.js) – ohne Runenkreise
   // und Sterne am Boden; die alten Ringe und Runen gibt es nur noch in 2D
   if (typeof rankCast3 === 'function' && typeof V3 !== 'undefined' && V3.on) {
-    rankCast3(p, rank);
+    rankCast3(p, rank, soft);
+    if (soft) return;
     if (rank >= 2) flashScreen(color, 0.14);
     if (rank >= 3) shakeScreen(5);
+    return;
+  }
+  if (soft) {
+    particles(p.x, fy - 14, { count: 10 + rank * 6, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 140 + rank * 30], life: [0.4, 0.7], size: [1.5, 3], shape: 'spark', drag: 2 });
     return;
   }
   // Magier (seit 11.5) und Nekromant (seit 11.7): nichts am Boden, nur aufsteigende Funken in der Rangfarbe

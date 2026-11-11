@@ -31,11 +31,15 @@ FX3_DRAW.rankcast3 = function (h, e) {
   const ow = e.owner && !e.owner.gone && !e.owner.dead ? e.owner : null;
   const x = (ow ? ow.x : e.x) * U3;
   const z = (ow ? feetY(ow) : e.y) * U3;
-  const fade = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.6) / 0.4);
-  rankCastExtra3(h, e, x, z, t, r, fade, low);
+  let fade = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.6) / 0.4);
+  // seit 14.60 leise Fassung (e.soft): ohne Zusatzebenen, ohne großen Lichtfleck, Spirale halb so hell und dicht
+  if (e.soft) fade *= 0.55;
+  else {
+    rankCastExtra3(h, e, x, z, t, r, fade, low);
+    n3Glow(h, x, 1.0, z, 1.3 + r * 0.35, rk3c(r, 0), fade * (r >= 3 ? 0.3 : 0.45));
+  }
   // 1) Funkenspirale (alle Ränge)
-  n3Glow(h, x, 1.0, z, 1.3 + r * 0.35, rk3c(r, 0), fade * (r >= 3 ? 0.3 : 0.45));
-  const n = (low ? 10 : 18) + r * (low ? 4 : 8);
+  const n = ((low ? 10 : 18) + r * (low ? 4 : 8)) >> (e.soft ? 1 : 0);
   for (let i = 0; i < n; i++) {
     const ph = (t * (1.2 + r * 0.15) + i / n) % 1;
     const a = i * 2.399 + t * (3 + r);
@@ -44,6 +48,7 @@ FX3_DRAW.rankcast3 = function (h, e) {
     n3Glow(h, x + Math.cos(a) * rr, y, z + Math.sin(a) * rr, (r === 0 ? 0.36 : 0.22 + r * 0.03) * (1 - ph * 0.5), rk3c(r, i), fade * (1 - ph));
     if (!low && i % 3 === 0) n3Glow(h, x + Math.cos(a) * rr, y, z + Math.sin(a) * rr, 0.08, '#ffffff', fade * (1 - ph));
   }
+  if (e.soft) return;
   if (r < 1) {
     // Erwacht: ein Funkenkranz um die Brust
     for (let i = 0; i < (low ? 6 : 9); i++) {
@@ -276,9 +281,10 @@ FX3_DRAW.rankhit3 = function (h, e) {
 };
 
 // Aufrufe aus rankCastFx / rankHitFx (fertigkeiten.js): nur in 3D, sonst bleibt die 2D-Darstellung
-function rankCast3(p, rank) {
+// soft (seit 14.60, Schwertaura): nur die Funkenspirale, schwächer – die Fertigkeit zeigt ihren Rang selbst
+function rankCast3(p, rank, soft = false) {
   if (typeof V3 === 'undefined' || !V3.on) return;
-  addEffect({ type: 'rankcast3', owner: p, x: p.x, y: feetY(p), rank, dur: 1.0 + rank * 0.3 });
+  addEffect({ type: 'rankcast3', owner: p, x: p.x, y: feetY(p), rank, soft, dur: soft ? 1.2 : 1.0 + rank * 0.3 });
 }
 function rankHit3(m, rank) {
   if (typeof V3 === 'undefined' || !V3.on) return;
