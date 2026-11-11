@@ -324,7 +324,7 @@ const MAP_ZONES = [
     ground: 'BLUTERDE', alt: 'BASALT', trees: 0.0054, treeObj: 'DEADTREE', rocks: 0.021, water: 0.15, liquid: 'BOG',
     groups: [['blutoger', 12, 0, 0.6], ['blutdaemon', 13, 0.3, 1], ['blutmaul', 12, 0.5, 1], ['steppenwarg', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[35, 4, 0, 0.6], [40, 3, 0.55, 1]],
-    ambient: { kind: 'embers', tint: [90, 10, 20, 0.14] }
+    ambient: { kind: 'embers', tint: [90, 10, 20, 0.1] }
   },
   { id: 'nachtfrostlager', map: 15, name: 'Eisnacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'NACHTSCHNEE', like: 'frostlager' },
   {

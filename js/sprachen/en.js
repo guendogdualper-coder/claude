@@ -3727,4 +3727,7 @@
 "Nebelkralle": "Mist Claw",
 "Moorperle": "Moor Pearl",
 "Seherinnensiegel": "Seer's Seal",
+"Andere Seite": "Other side",
+"Seite des Lichts: deine Karten bis Stufe {0} und die gemeinsamen Karten ab Stufe {1}.": "Side of Light: your maps up to level {0} and the shared maps from level {1}.",
+"Seite des Schattens: deine Karten bis Stufe {0} und die gemeinsamen Karten ab Stufe {1}.": "Side of Shadow: your maps up to level {0} and the shared maps from level {1}.",
 };

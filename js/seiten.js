@@ -313,6 +313,17 @@ if (typeof netSocial === 'function') {
   };
 }
 
+// Gruppenfinder: Einträge der anderen Seite sind zu sehen, aber nicht anzufragen
+if (typeof gfJoinBlock === 'function') {
+  const _facJoin = gfJoinBlock;
+  gfJoinBlock = function (l) {
+    const why = _facJoin(l);
+    if (why || !l || typeof net === 'undefined') return why;
+    for (const rp of net.players.values()) if (rp.name === l.lead && factionFoe(rp)) return 'Andere Seite';
+    return null;
+  };
+}
+
 // --- Netz: Seite im Spielerzustand -------------------------------------------------------------------------------
 if (typeof netPlayerState === 'function') {
   const _facState = netPlayerState;
