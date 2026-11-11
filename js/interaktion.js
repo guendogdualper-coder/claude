@@ -252,7 +252,7 @@ function showInspect(d) {
     $('inspDetail').innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
       `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
       `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
-      `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '<small class="hint-text">Keine Boni.</small>') +
+      `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '<small class="hint-text">Keine Boni.</small>') + setInfoHtml(item) +
       compareHtml(item, 'Im Vergleich zu deinem') + `</div></div>`;
   }));
 }
@@ -465,7 +465,7 @@ const trade = {
         ? `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt=""><div class="item-info"><strong>Fertigkeitsbuch: ${skillEntry(item.book).sk.name} × ${item.count}</strong></div></div>`
         : `<div class="item-detail"><img src="${itemIconUrl(item)}" alt=""><div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
           `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small><span>${gear.statsList(item)}</span>` +
-          `<ul class="bonus-list">${(item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('')}</ul>${compareHtml(item)}</div></div>`;
+          `<ul class="bonus-list">${(item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('')}</ul>${setInfoHtml(item)}${compareHtml(item)}</div></div>`;
     }));
     body.querySelectorAll('[data-tpage]').forEach((b) => b.addEventListener('click', () => { this.page = Number(b.dataset.tpage); this.render(); }));
     $('tradeGold').addEventListener('change', (e) => {

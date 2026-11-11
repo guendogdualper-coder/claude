@@ -90,3 +90,31 @@
 .item-tile.rar-3 .rar-pips { width: 18px; --pip: var(--rar-3); left: 2px; top: 2px; }
 .item-tile.rar-4 .rar-pips { width: 24px; --pip: var(--rar-4); left: 2px; top: 2px; }
 .inv-bag.picking .item-tile[data-picked] .rar-pips { display: none; }
+
+/* Set-Ausrüstung (seit 14.55): Set-Name in eigener Farbe, die Teile (angelegte hell), die Stufen (aktiv grün,
+   inaktiv grau). Im Hinweis, in den Fenstern (Inventar, Lager, Handel, Betrachten) und im Charakterfenster. */
+.set-box {
+  margin: 6px 0 2px;
+  padding: 5px 7px;
+  border-left: 3px solid var(--set, #3fe0a8);
+  background: rgba(63, 224, 168, 0.07);
+  border-radius: 3px;
+  font-size: 0.92em;
+  line-height: 1.35;
+  text-align: left;
+}
+.set-box .set-name { display: block; text-shadow: 0 0 6px rgba(63, 224, 168, 0.35); }
+.set-box .set-from { display: block; color: #9c9486; font-size: 0.88em; }
+.set-box .set-parts { display: flex; flex-wrap: wrap; gap: 2px 8px; margin: 3px 0; }
+.set-box .set-parts i { font-style: normal; color: #6a645a; }
+.set-box .set-parts i.on { color: #e8fff4; text-shadow: 0 0 5px rgba(63, 224, 168, 0.7); }
+.set-box .set-parts i.on::before { content: '\2713  '; color: #3fe0a8; }
+.set-box .set-tiers { list-style: none; margin: 2px 0 0; padding: 0; }
+.set-box .set-tiers li { margin: 1px 0; }
+.set-box .set-tiers li.on { color: #4ccf5a; }
+.set-box .set-tiers li.off { color: #7a756c; }
+.set-box .set-tiers li b { margin-right: 4px; }
+.set-box .set-tiers li span + span::before { content: ' \00b7  '; }
+.set-line { display: block; font-weight: 600; }
+.set-char { display: grid; gap: 6px; margin-bottom: 8px; }
+.chat-box .chat-log p.lg-set { color: #3fe0a8; font-style: normal; font-weight: 600; }

@@ -1028,6 +1028,7 @@ function raidLoot(m) {
     item.legend = true;
     if (b.mat) item.raidMat = b.mat;
     rarityRoll(item, 'raid', m);
+    setTagItem(item, m); // seit 14.55: nur in einer Instanz mit Set (Abaddor im Höllenthron), Endbosse der Maps nie
     if (addToBag(item)) {
       ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
       announceRarity(item);
@@ -3036,7 +3037,7 @@ const gear = {
       (inOff ? `<small class="hint-text">Nebenhand: ${Math.round(offhandRules(p).atk * 100)} % des Angriffs, +${Math.round(offhandRules(p).atkSpeed * 100)} % Angriffstempo, Boni zur Hälfte, kein Blocken.</small>` : '') +
       (offIdle ? `<small class="need">${offhandProblem(p, item)}</small>` : '') +
       `<span>${this.statsList(item)}</span>` +
-      (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '') + bonusHintHtml(item, p) +
+      (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '') + bonusHintHtml(item, p) + setInfoHtml(item, p) +
       (this.selected.where === 'bag' ? compareHtml(item) + (offOk ? compareHtml(item, 'In der Nebenhand', 'off') : '') : '') +
       `</div><div class="item-actions">${actions}</div></div>` +
       `<div class="mat-row" id="matRow">${matBtns}</div>`;
@@ -3335,7 +3336,7 @@ const gear = {
       return `<tr><th>${label}</th><td>${strip(a)}</td><td class="arrow">→</td><td class="up">${strip(b)}</td></tr>`;
     }).join('');
     el.innerHTML = `<div class="smith-head">${this.anvil(item)}<div class="smith-title">${where}` +
-      `<div class="smith-name" style="color:${itemColor(item)}">${itemName(item)}</div>` + rarityLineHtml(item) +
+      `<div class="smith-name" style="color:${itemColor(item)}">${itemName(item)}</div>` + rarityLineHtml(item) + setLineHtml(item) +
       `<div class="smith-plus"><span style="color:${plusColor(item)}">+${item.plus}</span><i>→</i><span style="color:${plusColor(next)}">+${next.plus}</span></div></div></div>` +
       (this.smithRef.where === 'bag' ? compareHtml(item) : '') +
       `<table class="smith-delta">${rows}</table>` +

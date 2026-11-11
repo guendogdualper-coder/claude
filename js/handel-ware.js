@@ -1,6 +1,6 @@
 // Waren für Post und Auktionshaus (seit 13.63). Eine Ware ist entweder ein Gegenstand aus der Tasche (Ausrüstung oder
 // ein Stapel Fertigkeitsbücher, Format wie im Spielstand, siehe ausruestung.js) oder eine Menge eines Vorrats:
-//   { t: 'it', it: { uid, slot, tier, plus, rarity, cls, kind, bonuses, specials, legend, raidMat } }  Ausrüstung
+//   { t: 'it', it: { uid, slot, tier, plus, rarity, cls, kind, bonuses, specials, legend, raidMat, set } }  Ausrüstung
 //   { t: 'it', it: { uid, book, count } }                                                         Fertigkeitsbücher
 //   { t: 'trank', k: 'hp' | 'mpXL' …, n }   Tränke (Schlüssel wie p.potions; alte hpL/mpL gelten als XL)
 //   { t: 'segen', n }                       Segensschriftrollen (p.scrolls)
@@ -62,6 +62,8 @@ function itemClean(raw) {
   if (specials.length) it.specials = specials;
   if (raw.legend === true) it.legend = true;
   if (typeof raw.raidMat === 'string' && MOB_MATS[raw.raidMat]) it.raidMat = raw.raidMat;
+  // seit 14.55: Set-Teil (nur bekannte Sets, nur ab Göttlich und episch)
+  if (typeof raw.set === 'string' && Object.prototype.hasOwnProperty.call(ITEM_SETS, raw.set) && it.tier >= SET_MIN_TIER && it.rarity >= 3) it.set = raw.set;
   clampItemBonuses(it);
   return it;
 }

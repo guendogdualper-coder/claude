@@ -35,6 +35,7 @@ function itemTipHtml(item) {
     // seit 14.32: „Benötigte Stufe“ (zum Anlegen) getrennt vom Itemlevel in der Zeile darüber
     `<small>${itemKindText(item)} · ${reqLevelHtml(item, p)}</small>` +
     `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') + bonusHintHtml(item, p, true) +
+    setInfoHtml(item, p) + // seit 14.55: Set-Name, Teile und Stufen
     (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
     (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '') +
     (worn || !p ? '' : ilvlCompareHtml(item, p.equipment[equipSlotOf(item)])) +
