@@ -2382,7 +2382,7 @@ function kulAt(x, z, rotY, s, sy, y) {
 function kulisse3(b, H, x, y, lowGfx) {
   const dOut = homeOut3(H, x, y);
   if (dOut > KUL3_OUT) return true;
-  // seit 14.68: Rand im Wolkenmeer oder offenen Meer (Kartenformen) – keine Wand, die Flüssigkeit läuft bis zum Horizont
+  // seit 14.70: Rand im Wolkenmeer oder offenen Meer (Kartenformen) – keine Wand, die Flüssigkeit läuft bis zum Horizont
   if (H.voidG != null) return dOut > 0 || homeIn3(H, x, y) < MAP_BORDER;
   const dIn = dOut ? 0 : homeIn3(H, x, y);
   if (!dOut && dIn >= MAP_BORDER) return false;
@@ -2488,7 +2488,7 @@ function* objectJob(cx, cy) {
       const kind = OBJ_KIND[o];
       if (kind) {
         const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && TREE3_STYLED.has(style) ? style : '';
-        // seit 14.68: im Inneren eines dichten Waldes der Kartenformen statt eines Baums je Kachel auf jeder 16.
+        // seit 14.70: im Inneren eines dichten Waldes der Kartenformen statt eines Baums je Kachel auf jeder 16.
         // Kachel ein Tannenpaar der Randkulisse (sparsame Kegel ohne Umriss) – wirkt geschlossen, kostet wenig; in der
         // zweiten Reihe vom Waldrand auf jeder vierten Kachel ein kleineres Tannenpaar
         const dense = typeof formDense3 === 'function' ? formDense3(i) : 0;

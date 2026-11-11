@@ -1401,7 +1401,7 @@ const SOIL3 = {
 // Kachel-Werte für die Glättung: Farbe, Höhe, Bodenart (soil), Nässe am Ufer (wet), Brandrand an Lava (hot)
 const WALL3_H = 1.5;
 const WATER3_DEPTH = 0.5;
-// seit 14.68 (Kartenformen, kartenformen.js): je Bodenart einer Flüssigkeit die Tiefe des Bodens darunter (tiefer =
+// seit 14.70 (Kartenformen, kartenformen.js): je Bodenart einer Flüssigkeit die Tiefe des Bodens darunter (tiefer =
 // sichtbare Absturzkante), die Bodenfarbe der Kante und die Art der Oberfläche in LIQUID3
 const LIQUID3_DEPTH = {};
 const LIQUID3_UNDER = {};
@@ -1434,7 +1434,7 @@ function v3UpdateHome(fx, fy) {
     const dungeon = key[0] === 'd';
     const style = dungeon ? '' : ZONES[game.world.zoneIdx[(ry + 1) * MAP_W + rx + 1]].id;
     V3.home = { key, x0: rx, y0: ry, x1: rx + rw, y1: ry + rh, dungeon, style, B: dungeon ? null : kulStyle3(style) };
-    // seit 14.68: Karte, deren Rand im Wolkenmeer oder offenen Meer liegt – draußen geht die Flüssigkeit weiter
+    // seit 14.70: Karte, deren Rand im Wolkenmeer oder offenen Meer liegt – draußen geht die Flüssigkeit weiter
     V3.home.voidG = !dungeon && typeof mapFormVoidEdge === 'function' ? mapFormVoidEdge(rx, ry) : null;
     // die Grundfläche unter der Welt liegt unter der tiefsten Flüssigkeit der Karte (Schlucht, Wolkenmeer)
     if (V3.under) V3.under.position.y = !dungeon && typeof mapFormUnderY === 'function' ? mapFormUnderY(rx, ry) : -0.9;
@@ -2167,7 +2167,7 @@ function* terrainJob(cx, cy) {
       // Art der Flüssigkeit: nächste flüssige Kachel
       const tx = Math.floor(x0 + (i + 0.5) / S);
       const ty = Math.floor(y0 + (j + 0.5) / S);
-      // seit 14.68 auch schräg daneben (sonst wird eine Randzelle an Schlucht oder Wolkenmeer zu Wasser)
+      // seit 14.70 auch schräg daneben (sonst wird eine Randzelle an Schlucht oder Wolkenmeer zu Wasser)
       const k = kindAt(tx, ty) || kindAt(tx + 1, ty) || kindAt(tx - 1, ty) || kindAt(tx, ty + 1) || kindAt(tx, ty - 1) ||
         kindAt(tx + 1, ty + 1) || kindAt(tx - 1, ty - 1) || kindAt(tx + 1, ty - 1) || kindAt(tx - 1, ty + 1);
       kinds[k || 'water'].push(v);
@@ -2176,7 +2176,7 @@ function* terrainJob(cx, cy) {
   for (const kind in kinds) {
     const cells = kinds[kind];
     if (!cells.length) continue;
-    // seit 14.68: eigene Höhe der Oberfläche je Art (Wolkenmeer und Schlucht liegen tiefer)
+    // seit 14.70: eigene Höhe der Oberfläche je Art (Wolkenmeer und Schlucht liegen tiefer)
     const LEVEL = LIQUID3[kind] && LIQUID3[kind].level != null ? LIQUID3[kind].level : -0.14;
     const wp = new Float32Array(cells.length * 4 * 3);
     const wd = new Float32Array(cells.length * 4);

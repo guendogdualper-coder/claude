@@ -67,7 +67,7 @@ function populateWorld() {
   let groupId = 1;
   for (const zone of ZONES) {
     if (!zone.groups) continue;
-    // seit 14.68: Karten mit eigener Form und weniger begehbarem Land (Inseln, Lichtungen) bekommen etwas weniger
+    // seit 14.70: Karten mit eigener Form und weniger begehbarem Land (Inseln, Lichtungen) bekommen etwas weniger
     // Gruppen, damit es nicht zu gedrängt wird (kartenformen.js, MAP_FORMS.mobScale)
     const fs = typeof mapFormMobScale === 'function' ? mapFormMobScale(zone.map) : 1;
     for (const [typeId, count, from, to] of zone.groups) {

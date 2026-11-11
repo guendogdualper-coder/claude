@@ -1,4 +1,4 @@
-// Kartenformen (seit 14.68, docs/kartenformen.md): welche Karte welche Grundform hat und die neuen Städte dazu.
+// Kartenformen (seit 14.70, docs/kartenformen.md): welche Karte welche Grundform hat und die neuen Städte dazu.
 // Gebaut wird in kartenformen.js (FORM_BUILDERS, mapFormShape aus buildWorldMaps). Kazehana (Map 1) bleibt, wie sie
 // ist; die Schattenkarten und die gemeinsamen Karten ab Stufe 50 folgen in einem zweiten Schritt (Vorschläge in der Doku).
 //

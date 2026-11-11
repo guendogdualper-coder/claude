@@ -1,4 +1,4 @@
-# Kartenformen (seit 14.68)
+# Kartenformen (seit 14.70)
 
 Wunsch des Spielers: Jede Karte außer Kazehana soll anders aussehen – nicht nur Boden und Farbe, sondern die ganze
 Gestalt: Inseln, zu denen man nur von Teleportstein zu Teleportstein kommt, ein Himmelsgebiet, und jede Stadt eine eigene

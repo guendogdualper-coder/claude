@@ -1,4 +1,4 @@
-// Kartenformen (seit 14.68, docs/kartenformen.md): Jede Karte bekommt eine eigene Grundform statt Rauschen mit Seen –
+// Kartenformen (seit 14.70, docs/kartenformen.md): Jede Karte bekommt eine eigene Grundform statt Rauschen mit Seen –
 // Inseln im Meer, Himmelsinseln über dem Wolkenmeer, eine tiefe Schlucht mit Plateaus, ein Fluss mit Delta, ein Wald
 // aus Lichtungen. Welche Karte welche Form hat, steht in daten/kartenformen.js (MAP_FORMS, dort auch die neuen
 // Städte). Hier steht der Baukasten:
@@ -17,7 +17,7 @@
 const KF = { LAND: 0, VOID: 1, TREES: 2, POND: 3, FORD: 4, BRIDGE: 5 };
 const MAP_FORM_INFO = new Map(); // Map-Id -> Ergebnis der Form (für Wege, Steine, Aufräumen, Test)
 let FORM_DENSE = null;           // Kacheln im Inneren eines dichten Waldes (3D zeichnet dort nur jeden dritten Baum)
-// Zufallszahlen, die die Wanderer einer Karte früher (vor 14.68) aus dem gemeinsamen Generator verbraucht haben:
+// Zufallszahlen, die die Wanderer einer Karte früher (vor 14.70) aus dem gemeinsamen Generator verbraucht haben:
 // So bleiben die Wanderer aller übrigen Karten, wo sie waren. Gemessen mit Stand 14.66 (siehe docs/kartenformen.md).
 const KF_OLD_WANDER = { 4: 8, 5: 12, 6: 8, 2: 8, 7: 6, 8: 12, 3: 8, 9: 6, 10: 6, 11: 8, 12: 10, 13: 10, 14: 8, 15: 6, 16: 6 };
 
