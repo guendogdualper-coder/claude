@@ -1532,6 +1532,8 @@ const CLOVER3 = '#3a8048';
 const FLOWER3 = { [DECO.FLOWER_RED]: '#e04a3a', [DECO.FLOWER_YELLOW]: '#f0c83a', [DECO.FLOWER_WHITE]: '#f4f0e8' };
 
 // Vorlagen der häufigen Objekte: einmal gebacken, danach nur noch verschoben und gedreht
+// Laubbäume mit eigenem Aussehen je Gebiet (seit 14.53 als Liste; die Schattenkarten tragen sich in schattenwelt.js ein)
+const TREE3_STYLED = new Set(['nagadschungel']);
 const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) => {
   if (kind === 'blossom') WORLD3.tree(b, null, v, 'blossom');
   else WORLD3[kind](b, null, v, style);
@@ -2483,7 +2485,7 @@ function* objectJob(cx, cy) {
       }
       const kind = OBJ_KIND[o];
       if (kind) {
-        const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && style === 'nagadschungel' ? style : '';
+        const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && TREE3_STYLED.has(style) ? style : '';
         b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
         continue;
       }

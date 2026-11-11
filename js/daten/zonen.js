@@ -44,7 +44,7 @@ const ZONES = [
   },
   {
     id: 'frost', map: 7, name: 'Frostgipfel', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999,
-    ground: 'SNOW', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.16, liquid: 'ICE',
+    ground: 'NACHTSCHNEE', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.18, liquid: 'ICE',
     groups: [['eiswolf', 14, 0, 0.7], ['yeti', 12, 0.3, 1], ['frostgeist', 12, 0.45, 1], ['eisbaer', 7, 0.15, 0.8], ['mammut', 5, 0.55, 1]], groupSize: [2, 4],
     stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
     ambient: { kind: 'snow', tint: [120, 224, 220, 0.1] }
@@ -313,7 +313,7 @@ const MAP_ZONES = [
   { id: 'knochenlager', map: 13, name: 'Gebeinwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'KNOCHENSAND', like: 'orklager' },
   {
     id: 'knochenwueste', map: 13, name: 'Knochenwüste', levels: 'Stufe 20–29', minLevel: 20, minDist: 8, maxDist: 999, like: 'orktal',
-    ground: 'KNOCHENSAND', trees: 0.0045, treeObj: 'DEADTREE', rocks: 0.018, water: 0.12, liquid: 'BOG',
+    ground: 'KNOCHENSAND', alt: 'ASH', trees: 0.0045, treeObj: 'DEADTREE', rocks: 0.018, water: 0.16, liquid: 'BOG',
     groups: [['beinbrecher', 12, 0, 0.6], ['knochenruferin', 9, 0.3, 0.9], ['bleichskorpion', 10, 0.2, 1], ['knochenhauptmann', 6, 0.65, 1], ['aashyaene', 7, 0.1, 0.8]], groupSize: [3, 5],
     stones: [[25, 4, 0, 0.6], [30, 3, 0.55, 1]],
     ambient: { kind: 'dust', tint: [70, 66, 90, 0.1] }
@@ -321,15 +321,15 @@ const MAP_ZONES = [
   { id: 'blutlager', map: 14, name: 'Blutwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'BLUTERDE', like: 'aschelager' },
   {
     id: 'blutsteppe', map: 14, name: 'Blutsteppe', levels: 'Stufe 30–39', minLevel: 30, minDist: 8, maxDist: 999, like: 'oedland',
-    ground: 'BLUTERDE', trees: 0.0054, treeObj: 'DEADTREE', rocks: 0.021, water: 0.1, liquid: 'BOG',
+    ground: 'BLUTERDE', alt: 'BASALT', trees: 0.0054, treeObj: 'DEADTREE', rocks: 0.021, water: 0.15, liquid: 'BOG',
     groups: [['blutoger', 12, 0, 0.6], ['blutdaemon', 13, 0.3, 1], ['blutmaul', 12, 0.5, 1], ['steppenwarg', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[35, 4, 0, 0.6], [40, 3, 0.55, 1]],
     ambient: { kind: 'embers', tint: [90, 10, 20, 0.14] }
   },
-  { id: 'nachtfrostlager', map: 15, name: 'Eisnacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'SNOW', like: 'frostlager' },
+  { id: 'nachtfrostlager', map: 15, name: 'Eisnacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'NACHTSCHNEE', like: 'frostlager' },
   {
     id: 'nachtfrost', map: 15, name: 'Nachtfrost', levels: 'Stufe 40–49', minLevel: 40, minDist: 8, maxDist: 999, like: 'frost',
-    ground: 'SNOW', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.16, liquid: 'ICE',
+    ground: 'NACHTSCHNEE', trees: 0.015, treeObj: 'PINE', rocks: 0.012, water: 0.18, liquid: 'ICE',
     groups: [['mitternachtswolf', 14, 0, 0.7], ['dunkelyeti', 12, 0.3, 1], ['frostgespenst', 12, 0.45, 1], ['nachtbaer', 7, 0.15, 0.8], ['nachtmammut', 5, 0.55, 1]], groupSize: [2, 4],
     stones: [[45, 4, 0, 0.6], [50, 3, 0.55, 1]],
     ambient: { kind: 'snow', tint: [30, 40, 110, 0.16] }

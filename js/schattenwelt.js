@@ -26,12 +26,14 @@ const SHADOW_STYLES = new Set(['mondfall', 'daemmerwiesen', 'glimmlager', 'asche
   add(GROUND.SCHWARZERDE, '#1c1816', '#38302c', [48, 40, 36]); // verkohlter Waldboden
   add(GROUND.KNOCHENSAND, '#9c968a', '#cac4b4', [190, 184, 168]); // bleicher Sand
   add(GROUND.BLUTERDE, '#421a1a', '#68302c', [102, 44, 40]);   // rote Steppe
+  add(GROUND.NACHTSCHNEE, '#8a96bc', '#c4cce6', [176, 186, 222]); // Schnee im Mondlicht (bläulich)
   if (typeof SOIL3 !== 'undefined') {
     SOIL3[GROUND.NACHTGRAS] = 0;
     SOIL3[GROUND.NACHTMOOS] = 0;
     SOIL3[GROUND.SCHWARZERDE] = 5;
     SOIL3[GROUND.KNOCHENSAND] = 2;
     SOIL3[GROUND.BLUTERDE] = 5;
+    SOIL3[GROUND.NACHTSCHNEE] = 4;
   }
   // Gras in 3D: dichtes, dunkles Gras auf Dämmergras und Moos, vereinzelt verbrannte Halme im Aschewald, rotes Steppengras
   if (typeof GRASS3 !== 'undefined') {
@@ -40,7 +42,8 @@ const SHADOW_STYLES = new Set(['mondfall', 'daemmerwiesen', 'glimmlager', 'asche
     GRASS3[GROUND.SCHWARZERDE] = '#3a3230';
     GRASS3[GROUND.KNOCHENSAND] = '#a8a090';
     GRASS3[GROUND.BLUTERDE] = '#7a3430';
-    Object.assign(GRASS3_SPARSE, { [GROUND.SCHWARZERDE]: 10, [GROUND.KNOCHENSAND]: 14, [GROUND.BLUTERDE]: 6 });
+    GRASS3[GROUND.NACHTSCHNEE] = '#6a7aa0';
+    Object.assign(GRASS3_SPARSE, { [GROUND.SCHWARZERDE]: 10, [GROUND.KNOCHENSAND]: 14, [GROUND.BLUTERDE]: 6, [GROUND.NACHTSCHNEE]: 9 });
     if (typeof GRASS3_DENSE !== 'undefined') GRASS3_DENSE.add(GROUND.NACHTGRAS).add(GROUND.NACHTMOOS);
   }
 })();
@@ -122,6 +125,7 @@ if (typeof BORDER3 !== 'undefined') {
 if (typeof WORLD3 !== 'undefined') {
   // Laubbaum: Dämmerwiesen mit nachtblauen und violetten Kronen und Mondfrüchten, Schwarzmoor mit dunklem Moosgrün
   const TREE_COLS = { daemmerwiesen: ['#2a3a62', '#3a4a7a', '#5a5a9a'], mondfall: ['#2a3a62', '#3a4a7a', '#5a5a9a'], schwarzmoor: ['#1e3a2e', '#2a4a3a', '#3e6a52'] };
+  if (typeof TREE3_STYLED !== 'undefined') for (const id of Object.keys(TREE_COLS)) TREE3_STYLED.add(id);
   const baseTree = WORLD3.tree;
   WORLD3.tree = function (b, M, v, style) {
     const cols = TREE_COLS[style];

@@ -34,9 +34,10 @@ const MAP_BORDER = 4;     // Felsrand jeder Map in Kacheln: dahinter ist nichts 
 // Bodenarten
 // seit 13.85: KRISTALL (violetter Fels des Kristallabgrunds) und ABGRUND (Spalte ins Dunkle, wie ein Gewässer nicht begehbar)
 // seit 14.53: Böden der Schattenseite (Farben in schattenwelt.js): NACHTGRAS (blaugrünes Dämmergras), NACHTMOOS (violettes
-// Moos), SCHWARZERDE (verkohlter Waldboden), KNOCHENSAND (bleicher Sand) und BLUTERDE (rote Steppe)
+// Moos), SCHWARZERDE (verkohlter Waldboden), KNOCHENSAND (bleicher Sand), BLUTERDE (rote Steppe) und NACHTSCHNEE (Schnee im
+// Mondlicht)
 const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SAND: 6, ASH: 7, SNOW: 8, SWAMP: 9, LAVA: 10, BOG: 11, ICE: 12, BASALT: 13, CAVE: 14, FLAGSTONE: 15, KRISTALL: 16, ABGRUND: 17,
-  NACHTGRAS: 18, NACHTMOOS: 19, SCHWARZERDE: 20, KNOCHENSAND: 21, BLUTERDE: 22 };
+  NACHTGRAS: 18, NACHTMOOS: 19, SCHWARZERDE: 20, KNOCHENSAND: 21, BLUTERDE: 22, NACHTSCHNEE: 23 };
 // Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
 const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG, GROUND.ABGRUND]);
 // Objekte auf dem Boden (alle blockieren den Weg)

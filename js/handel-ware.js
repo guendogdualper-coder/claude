@@ -166,7 +166,13 @@ function wareGive(p, w) {
       if (typeof bowHudDirty !== 'undefined') bowHudDirty = true;
       break;
     case 'mat': p.materials[w.id] = (p.materials[w.id] || 0) + w.n; break;
-    case 'teil': p.upmats = p.upmats || {}; p.upmats[w.id] = (p.upmats[w.id] || 0) + w.n; break;
+    case 'teil': {
+      // seit 14.53: Teile der anderen Seite werden zu den Teilen der eigenen (seiten.js matForSide)
+      const id = typeof matForSide === 'function' && p === game.player ? matForSide(w.id) : w.id;
+      p.upmats = p.upmats || {};
+      p.upmats[id] = (p.upmats[id] || 0) + w.n;
+      break;
+    }
     case 'splitter': p.splinters = (p.splinters || 0) + w.n; break;
   }
 }
