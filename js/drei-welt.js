@@ -2492,21 +2492,23 @@ function* objectJob(cx, cy) {
         // Kachel ein Tannenpaar der Randkulisse (sparsame Kegel ohne Umriss) – wirkt geschlossen, kostet wenig; in der
         // zweiten Reihe vom Waldrand auf jeder vierten Kachel ein kleineres Tannenpaar
         const dense = typeof formDense3 === 'function' ? formDense3(i) : 0;
+        // seit 14.71: Tannenkulisse des Gebiets, wo es eine hat (verkohlte Tannen im Aschewald), sonst die des Dunkelwalds
+        const DK = dense && BORDER3[ZONES[w.zoneIdx[i]].id] && BORDER3[ZONES[w.zoneIdx[i]].id].form === 'tannen' ? BORDER3[ZONES[w.zoneIdx[i]].id] : BORDER3.wald;
         if (dense === 1) {
           if (x % 4 || y % 4) continue;
-          b.addTemplate(tplKul(BORDER3.wald, 'fern', h % 3, false), kulAt(x + 2 + jx * 6, y + 2 + jz * 6, rot, 1.0 + ((h >> 12) % 12) / 100, 0.62, -0.1));
+          b.addTemplate(tplKul(DK, 'fern', h % 3, false), kulAt(x + 2 + jx * 6, y + 2 + jz * 6, rot, 1.0 + ((h >> 12) % 12) / 100, 0.62, -0.1));
           continue;
         }
         if (dense === 2) {
           if ((x | y) & 1) continue;
-          b.addTemplate(tplKul(BORDER3.wald, 'wand', h % 3, false), kulAt(x + 1 + jx * 4, y + 1 + jz * 4, rot, 0.55 + ((h >> 12) % 10) / 100, 0.72, -0.1));
+          b.addTemplate(tplKul(DK, 'wand', h % 3, false), kulAt(x + 1 + jx * 4, y + 1 + jz * 4, rot, 0.55 + ((h >> 12) % 10) / 100, 0.72, -0.1));
           continue;
         }
         // Waldrand: auf Grafik „mittel“ und „niedrig“ (Handy) auf jeder zweiten Kachel ein Tannenpaar der Randkulisse
         // statt eines Baums je Kachel (die Kacheln bleiben gesperrt)
         if (dense === 3 && (opts.graphics === 'mittel' || opts.graphics === 'niedrig')) {
           if ((x + y) & 1) continue;
-          b.addTemplate(tplKul(BORDER3.wald, 'wand', h % 3, false), kulAt(x + 0.5 + jx, y + 0.55 + jz, rot, 0.5 + ((h >> 12) % 10) / 100, 0.7, -0.1));
+          b.addTemplate(tplKul(DK, 'wand', h % 3, false), kulAt(x + 0.5 + jx, y + 0.55 + jz, rot, 0.5 + ((h >> 12) % 10) / 100, 0.7, -0.1));
           continue;
         }
         b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
