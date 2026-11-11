@@ -146,12 +146,19 @@ function toonMat(o = {}) {
 }
 
 // Umriss: rückseitige Hülle, entlang der Normalen um eine feste Dicke aufgeblasen
+// seit 14.38: Hülle dicht vor der Kamera weglassen. Schwenkte die Schulterkamera beim schnellen Drehen kurz durch ein
+// Haus, eine Mauer oder eine Baumkrone, sah sie von innen nur die dunkle Hülle (die beleuchteten Flächen zeigen nach
+// außen und fehlen von innen) – das war das schwarze Flackern. Unter 1,4 Einheiten Tiefe wird die Hülle verworfen.
 function outlineMat(width, skinning) {
   const m = new THREE.MeshBasicMaterial({ color: 0x1a1210, side: THREE.BackSide, skinning: !!skinning });
   m.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>\n\ttransformed += normalize(normal) * ${width.toFixed(4)};`);
+    sh.vertexShader = sh.vertexShader
+      .replace('void main() {', 'varying float vOutZ;\nvoid main() {')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\n\ttransformed += normalize(normal) * ${width.toFixed(4)};`)
+      .replace('#include <project_vertex>', '#include <project_vertex>\n\tvOutZ = -mvPosition.z;');
+    sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying float vOutZ;\nvoid main() {\n\tif (vOutZ < 1.4) discard;');
   };
-  m.customProgramCacheKey = () => 'outline' + width + (skinning ? 's' : '');
+  m.customProgramCacheKey = () => 'outline' + width + (skinning ? 's' : '') + 'n';
   return m;
 }
 
@@ -869,14 +876,10 @@ function v3ApplyGraphics() {
   V3.builtFor = opts.graphics;
   V3.ultra = opts.graphics === 'ultra' || opts.graphics === 'plus'; // Plus (seit 14.11) baut auf Ultra auf
   V3.sun.castShadow = g.castShadows && !quality.noShadow;
-  const size = V3.ultra ? 2048 : opts.graphics === 'hoch' ? 1024 : 512;
-  // Ultra: größerer Schattenbereich, schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte)
-  const sc = V3.sun.shadow.camera;
-  const half = V3.ultra ? 18 : 13;
-  if (sc.right !== half) {
-    sc.left = -half; sc.right = half; sc.top = half; sc.bottom = -half;
-    sc.updateProjectionMatrix();
-  }
+  // seit 14.38: eine Stufe feiner (v3ShadowSize), weil der Schattenbereich jetzt das ganze Bild abdeckt (v3FitSun)
+  const size = v3ShadowSize();
+  // Ultra: schärfere Bodentexturen (Anisotropie bis zum Maximum der Karte). Den Schattenbereich legt seit 14.38
+  // jedes Bild v3FitSun auf die sichtbare Fläche (vorher fest ±13, Ultra ±18 Einheiten).
   if (groundTex) {
     const an = V3.ultra ? V3.gl.capabilities.getMaxAnisotropy() : 4;
     for (const t of [groundTex.noise, groundTex.cobble]) if (t.anisotropy !== an) { t.anisotropy = an; t.needsUpdate = true; }
@@ -950,8 +953,10 @@ function v3UpdateMood(dt, x, y) {
   const fogK = v3Shoulder() ? 0.62 : V3.ultra ? 1.25 : 1;
   // Einstellung Nebel (seit 14.17, FOG_MODES in optionen.js)
   const fm = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog]) || { near: 1, far: 1 };
-  V3.scene.fog.near = s.near * fogK * fm.near;
-  V3.scene.fog.far = s.far * fogK * fm.far;
+  // seit 14.38: im Schulterblick wandert der Nebel mit hinaus, wenn man herauszoomt (sonst stünde die Figur selbst im Dunst)
+  const zoomOut = v3Shoulder() ? Math.max(0, (V3.zoomMul || 1) - 1) * SHOULDER3.dist : 0;
+  V3.scene.fog.near = s.near * fogK * fm.near + zoomOut;
+  V3.scene.fog.far = s.far * fogK * fm.far + zoomOut;
   V3.sun.color.copy(s.sun);
   V3.sun.intensity = s.sunI;
   V3.hemi.color.copy(s.hemi);
@@ -964,6 +969,15 @@ function v3UpdateMood(dt, x, y) {
 // --- Kamera und Umrechnung Bildschirm ↔ Welt ----------------------------------------------------
 
 const CAM3 = { nah: 0.86, normal: 1, weit: 1.2 };
+// Zoom per Mausrad/zwei Fingern (V3.zoomMul, eingabe.js). seit 14.38: im Schulterblick deutlich weiter hinaus
+// (3,2 statt 1,8: Kamera bis gut 30 statt 17 Einheiten hinter der Figur); die feste Kamera bleibt bei 1,8.
+const ZOOM3 = { min: 0.6, max: 1.8, shoulderMax: 3.2 };
+function v3ZoomMax() {
+  return v3Shoulder() ? ZOOM3.shoulderMax : ZOOM3.max;
+}
+function v3SetZoom(z) {
+  V3.zoomMul = Math.max(ZOOM3.min, Math.min(v3ZoomMax(), z));
+}
 
 // Schulterblick: tiefe, nahe Kamera hinter der Figur (wie die 3D-Vorschau), drehbar per Wischen.
 // V3.yaw: 0 = Kamera im Süden, Blick nach Norden
@@ -1090,16 +1104,89 @@ const _sunD = SUN3_OFF.clone().normalize();
 const _sunR = new THREE.Vector3().crossVectors(_sunD, new THREE.Vector3(0, 1, 0)).normalize();
 const _sunU = new THREE.Vector3().crossVectors(_sunR, _sunD).normalize();
 const _sunT = new THREE.Vector3();
-function v3PlaceSun(tx, tz) {
+// --- seit 14.38: Sichtfläche am Boden, Schatten über das ganze Bild ---------------------------------
+// Vorher hatte der Schattenbereich eine feste Größe (±13, Ultra ±18 Einheiten) um die Figur. Herausgezoomt und am
+// breiten Bildschirm sieht man aber 50–70 Einheiten Welt: Mauern, Häuser und Bäume am Bildrand hatten keine echten
+// Schatten, und beim Laufen „wuchsen“ sie ihnen erst, sobald der Bereich sie erreichte (Video vom 10.11., Kazehana).
+// Jetzt wird jedes Bild die Bodenfläche bestimmt, die die Kamera sieht (die vier Ecken des Sichtkegels auf dem Boden,
+// höchstens bis zum Nebelende), und der Schattenbereich genau darauf gelegt – im Blickfeld der Sonne als Rechteck,
+// Größe in 2er-Schritten gerundet und Mitte auf ganze Schatten-Bildpunkte gerastet (kein Flimmern beim Laufen).
+// Dieselbe Fläche steuert das Vorladen der Blöcke (v3UpdateChunks).
+const VIEW3 = { x0: 0, z0: 0, x1: 0, z1: 0, reach: 0, back: 0 };
+const _vfD = new THREE.Vector3();
+const VIEW3_CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+function v3ViewFoot() {
+  const cam = V3.camera;
+  const cp = cam.position;
+  // etwas über das Nebelende hinaus: der Nebel rechnet mit der Tiefe im Bild, nicht mit dem Abstand
+  const far = (V3.scene.fog ? V3.scene.fog.far : 80) * 1.08;
+  const F = VIEW3;
+  F.x0 = F.z0 = Infinity;
+  F.x1 = F.z1 = -Infinity;
+  for (const c of VIEW3_CORNERS) {
+    _vfD.set(c[0], c[1], 0.5).unproject(cam).sub(cp).normalize();
+    const h = Math.hypot(_vfD.x, _vfD.z) || 1e-6;
+    const t = Math.min(_vfD.y < -1e-4 ? cp.y / -_vfD.y : Infinity, far / h);
+    const x = cp.x + _vfD.x * t;
+    const z = cp.z + _vfD.z * t;
+    if (x < F.x0) F.x0 = x;
+    if (x > F.x1) F.x1 = x;
+    if (z < F.z0) F.z0 = z;
+    if (z > F.z1) F.z1 = z;
+  }
+  // Reichweite um die Kamera am Boden (Schulterblick: so weit kann es nach einer Drehung zu sehen sein)
+  F.reach = Math.min(far, Math.max(Math.hypot(F.x0 - cp.x, F.z0 - cp.z), Math.hypot(F.x1 - cp.x, F.z0 - cp.z), Math.hypot(F.x0 - cp.x, F.z1 - cp.z), Math.hypot(F.x1 - cp.x, F.z1 - cp.z)));
+  return F;
+}
+// Schattenbereich auf die Sichtfläche legen (statt v3PlaceSun mit fester Größe)
+const SUN3_FIT = { step: 2, pad: 2.5, tall: 4, max: 72 };
+const _sunUY = _sunU.y;
+function v3FitSun() {
+  const F = v3ViewFoot();
+  const S = SUN3_FIT;
+  let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+  for (const x of [F.x0, F.x1]) {
+    for (const z of [F.z0, F.z1]) {
+      const a = x * _sunR.x + z * _sunR.z;
+      const b = x * _sunU.x + z * _sunU.z;
+      if (a < a0) a0 = a;
+      if (a > a1) a1 = a;
+      if (b < b0) b0 = b;
+      if (b > b1) b1 = b;
+    }
+  }
+  // hohe Dinge (Häuser, Türme, Baumkronen) liegen im Blickfeld der Sonne etwas höher
+  b1 += S.tall * Math.abs(_sunUY);
+  const q = (v) => Math.min(S.max, Math.ceil((v + S.pad) / S.step) * S.step);
+  const hw = q((a1 - a0) / 2);
+  const hh = q((b1 - b0) / 2);
   const sc = V3.sun.shadow.camera;
-  const texel = (sc.right - sc.left) / (V3.sun.shadow.mapSize.x || 1024);
-  _sunT.set(tx, 0, tz);
-  const a = _sunT.dot(_sunR);
-  const b = _sunT.dot(_sunU);
-  _sunT.addScaledVector(_sunR, Math.round(a / texel) * texel - a).addScaledVector(_sunU, Math.round(b / texel) * texel - b);
+  // Sonne weit genug zurück, dass der ganze schräge Boden im Bereich zwischen near und far liegt
+  const back = hh * Math.abs(_sunUY / _sunD.y) + 16;
+  if (sc.right !== hw || sc.top !== hh || F.back !== back) {
+    sc.left = -hw; sc.right = hw; sc.top = hh; sc.bottom = -hh;
+    sc.near = 0.5;
+    sc.far = back * 2 + 12;
+    sc.updateProjectionMatrix();
+    F.back = back;
+  }
+  const size = V3.sun.shadow.mapSize.x || 1024;
+  const ta = (2 * hw) / size;
+  const tb = (2 * hh) / size;
+  const ca = Math.round((a0 + a1) / 2 / ta) * ta;
+  const cb = Math.round((b0 + b1) / 2 / tb) * tb;
+  // Punkt mit diesen Sonnen-Koordinaten auf Bodenhöhe
+  _sunT.set(0, 0, 0).addScaledVector(_sunR, ca).addScaledVector(_sunU, cb);
+  _sunT.addScaledVector(_sunD, -_sunT.y / _sunD.y);
   V3.sun.target.position.copy(_sunT);
-  V3.sun.position.copy(_sunT).add(SUN3_OFF);
+  V3.sun.position.copy(_sunT).addScaledVector(_sunD, back);
   V3.sun.target.updateMatrixWorld();
+}
+// Auflösung der Schattenkarte je Grafikstufe (der Bereich ist jetzt größer, darum eine Stufe mehr als früher)
+function v3ShadowSize() {
+  const max = (V3.gl && V3.gl.capabilities.maxTextureSize) || 4096;
+  const s = V3.ultra ? (IS_PC ? 4096 : 2048) : opts.graphics === 'hoch' ? 2048 : 1024;
+  return Math.min(max, s);
 }
 
 function v3PlaceCamera(fx, fy, dt = 0.016) {
@@ -1123,12 +1210,21 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
     const B = SHOULDER3_BOOM;
     if (V3.camPitch == null) V3.camPitch = want;
     V3.camPitch += (want - V3.camPitch) * (1 - Math.exp(-dt * (want > V3.camPitch ? B.inK : B.outK)));
+    // seit 14.38: steckte die Kamera nach dem weichen Nachführen noch in einem Hindernis (schnelle Drehung mit der
+    // rechten Maustaste an einer Mauer oder einem Haus vorbei), sofort darüber – sonst sah man ein, zwei Bilder lang
+    // das Innere (dunkel) statt der Welt
+    if (V3.camPitch < want) {
+      const cpN = Math.cos(V3.camPitch);
+      const camH = ty + Math.sin(V3.camPitch) * d;
+      const bh = v3CamBlockH(tx + Math.sin(yaw) * cpN * d, tz + Math.cos(yaw) * cpN * d);
+      if (bh && camH < bh + B.margin) V3.camPitch = want;
+    }
     const pitch = V3.camPitch;
     const cp = Math.cos(pitch);
     cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(pitch) * d, tz + Math.cos(yaw) * cp * d);
     cam.lookAt(tx, ty, tz);
     cam.updateMatrixWorld();
-    v3PlaceSun(tx - Math.sin(yaw) * 4, tz - Math.cos(yaw) * 4);
+    v3FitSun(); // seit 14.38 statt v3PlaceSun: Schattenbereich über das ganze Bild
     V3.focus.x = fx;
     V3.focus.y = fy;
     return;
@@ -1140,6 +1236,8 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   V3.yaw = 0;
   V3.yawGoal = 0;
   V3.camPitch = null;
+  // seit 14.38: vom Schulterblick (bis 3,2) zurück zur festen Kamera auf deren Grenze
+  if (V3.zoomMul > ZOOM3.max) V3.zoomMul = ZOOM3.max;
   // so weit weg, dass etwa so viel Welt zu sehen ist wie im 2D-Spiel (etwas mehr Überblick)
   const viewH = r.h / r.zoom * U3;
   const fov = (cam.fov * Math.PI) / 180;
@@ -1151,7 +1249,7 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   cam.lookAt(tx, ty, tz);
   cam.updateMatrixWorld();
   // Sonne steht im Südosten hoch am Himmel, der Schattenbereich folgt der Kamera
-  v3PlaceSun(tx, tz - 2);
+  v3FitSun(); // seit 14.38 statt v3PlaceSun(tx, tz - 2): Schattenbereich über das ganze Bild
   V3.focus.x = fx;
   V3.focus.y = fy;
 }
@@ -1997,9 +2095,6 @@ function* terrainJob(cx, cy) {
 // Gebaut wird in Zeitscheiben: jedes Bild nur wenige Millisekunden, der Rest im nächsten Bild.
 
 const chunks3 = new Map();
-// Ultra (PC): ein Ring Blöcke mehr bleibt geladen, man sieht weiter
-const CHUNK3_KEEP = 2;
-const chunkKeep3 = () => (V3.ultra ? 3 : CHUNK3_KEEP) + ((typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0);
 let chunkJob = null;
 
 // Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
@@ -2017,6 +2112,21 @@ function v3UpdateUnder(fx, fy, dt) {
   V3.underInit = true;
 }
 
+// seit 14.38: Bereich, der geladen bleibt (v3UpdateChunks setzt ihn jedes Bild); ein Block Spielraum, damit am Rand
+// nichts ständig gebaut und wieder verworfen wird
+const KEEP3 = { shoulder: false, x0: 0, z0: 0, x1: 0, z1: 0, cx: 0, cz: 0, r: 0 };
+// Abstand von (px, pz) zum Block (x, y) in Einheiten (0 = darin)
+function chunkGap3(x, y, px, pz) {
+  const dx = Math.max(x * CHUNK3 - px, 0, px - (x + 1) * CHUNK3);
+  const dz = Math.max(y * CHUNK3 - pz, 0, pz - (y + 1) * CHUNK3);
+  return Math.hypot(dx, dz);
+}
+function chunkKept3(x, y) {
+  const K = KEEP3;
+  if (K.shoulder) return chunkGap3(x, y, K.cx, K.cz) <= K.r + CHUNK3;
+  return (x + 1) * CHUNK3 > K.x0 - CHUNK3 && x * CHUNK3 < K.x1 + CHUNK3 && (y + 1) * CHUNK3 > K.z0 - CHUNK3 && y * CHUNK3 < K.z1 + CHUNK3;
+}
+
 function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   const ccx = Math.floor(fx * U3 / CHUNK3);
   const ccy = Math.floor(fy * U3 / CHUNK3);
@@ -2026,39 +2136,43 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   const minY = H ? Math.floor((H.y0 - KUL3_FAR) / CHUNK3) : 0;
   const maxX = H ? Math.floor((H.x1 - 1 + KUL3_FAR) / CHUNK3) : Math.ceil(MAP_W / CHUNK3) - 1;
   const maxY = H ? Math.floor((H.y1 - 1 + KUL3_FAR) / CHUNK3) : Math.ceil(MAP_H / CHUNK3) - 1;
-  // Blöcke im Sichtfeld zuerst (die Kamera schaut nach Norden: oben mehr, unten weniger)
-  const fxIn = (fx * U3) / CHUNK3 - ccx;
-  const want = [];
-  // Feste Kamera: Blick nach Norden, oben mehr Blöcke (Ultra: ein Ring mehr). Schulterblick: Kreis um die
-  // Mitte des Sichtbaren vor der Figur (dahinter und hinter dem Nebel braucht es nichts)
+  // seit 14.38: Vorladen nach der Fläche, die die Kamera wirklich sieht (VIEW3, jedes Bild in v3FitSun bestimmt),
+  // plus Rand ringsum. Vorher waren es feste Ringe (2–3 Blöcke nach Norden, 1–2 zur Seite) unabhängig von Zoom und
+  // Bildbreite: herausgezoomt am breiten Bildschirm lag der Bildrand außerhalb, Boden, Gras und Schmuck wurden erst
+  // gebaut, wenn sie schon im Bild waren. Im Schulterblick lud nur ein Kreis vor der Figur – nach einer schnellen
+  // Drehung fehlte die Welt hinter ihr. Jetzt: feste Kamera = Rechteck um die Sichtfläche plus Rand (in Laufrichtung
+  // weiter), Schulterblick = Kreis um die Figur, so groß wie die Sicht in jeder Blickrichtung (Drehen lädt nichts nach).
+  const F = VIEW3;
   const shoulder = v3Shoulder();
-  // Nebel „Wenig“ (seit 14.17): ein Ring Blöcke mehr, weil man weiter sieht
-  const ring = (typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0;
-  const reach = (shoulder ? 2 : V3.ultra ? 3 : 2) + ring;
-  const side = (shoulder ? 2 : V3.ultra ? 2 : 1) + ring;
-  for (let dy = -reach; dy <= (shoulder ? 2 : 1) + ring; dy++) {
-    for (let dx = -side; dx <= side; dx++) {
-      if (shoulder && dx * dx + dy * dy > 3.2 + ring * 4.5) continue;
-      const x = ccx + dx;
-      const y = ccy + dy;
-      if (x < minX || y < minY || x > maxX || y > maxY) continue;
-      // auf der Seite, zu der man näher am Rand steht, zuerst
-      want.push([x, y, Math.hypot(dx * 1.2 - (fxIn - 0.5), dy + 0.5)]);
-    }
+  const K = KEEP3;
+  const pad = (IS_PC || V3.ultra ? 10 : 6) + ((typeof FOG_MODES !== 'undefined' && FOG_MODES[opts.fog] && FOG_MODES[opts.fog].ring) || 0) * 4;
+  K.shoulder = shoulder;
+  if (shoulder) {
+    K.cx = V3.focus.x * U3;
+    K.cz = V3.focus.y * U3;
+    let r = 0;
+    for (const x of [F.x0, F.x1]) for (const z of [F.z0, F.z1]) r = Math.max(r, Math.hypot(x - K.cx, z - K.cz));
+    K.r = Math.min(96, r) + pad;
+    K.x0 = K.cx - K.r; K.x1 = K.cx + K.r; K.z0 = K.cz - K.r; K.z1 = K.cz + K.r;
+  } else {
+    K.x0 = F.x0 - pad; K.x1 = F.x1 + pad; K.z0 = F.z0 - pad; K.z1 = F.z1 + pad;
+    // in Laufrichtung (Pferd, Sprints) gut eine Sekunde weiter
+    const vx = ax * U3 * 1.4;
+    const vz = ay * U3 * 1.4;
+    if (vx < 0) K.x0 += vx; else K.x1 += vx;
+    if (vz < 0) K.z0 += vz; else K.z1 += vz;
   }
-  // in Laufrichtung: die Blöcke um den Punkt in ~0,9 s gleich danach (vor allem Pferd und Sprints)
-  if (ax * ax + ay * ay > (2 * TILE) * (2 * TILE)) {
-    const px = Math.floor((fx + ax) * U3 / CHUNK3);
-    const py = Math.floor((fy + ay) * U3 / CHUNK3);
-    for (let dy = -1; dy <= 1; dy++) {
-      for (let dx = -1; dx <= 1; dx++) {
-        const x = px + dx;
-        const y = py + dy;
-        if (x < minX || y < minY || x > maxX || y > maxY) continue;
-        if (Math.abs(x - ccx) > chunkKeep3() || Math.abs(y - ccy) > chunkKeep3()) continue;
-        if (want.some((w) => w[0] === x && w[1] === y)) continue;
-        want.push([x, y, 2.2 + Math.hypot(dx, dy), true]);
-      }
+  // Abstand Block ↔ Fläche (0 = berührt sie); im Schulterblick zum Kreis
+  const want = [];
+  const vcx = fx * U3;
+  const vcz = fy * U3;
+  for (let y = Math.max(minY, Math.floor(K.z0 / CHUNK3)); y <= Math.min(maxY, Math.floor(K.z1 / CHUNK3)); y++) {
+    for (let x = Math.max(minX, Math.floor(K.x0 / CHUNK3)); x <= Math.min(maxX, Math.floor(K.x1 / CHUNK3)); x++) {
+      if (shoulder && chunkGap3(x, y, K.cx, K.cz) > K.r) continue;
+      // was jetzt im Bild ist zuerst (nächste zur Bildmitte vorn), danach der Rand ringsum
+      const inView = x * CHUNK3 < F.x1 && (x + 1) * CHUNK3 > F.x0 && y * CHUNK3 < F.z1 && (y + 1) * CHUNK3 > F.z0;
+      const d = Math.hypot((x + 0.5) * CHUNK3 - vcx, (y + 0.5) * CHUNK3 - vcz) / CHUNK3;
+      want.push([x, y, (inView ? 0 : 100) + d, !inView]);
     }
   }
   want.sort((a, b) => a[2] - b[2]);
@@ -2070,14 +2184,21 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   // seit 11.3: fehlt im Bild noch Boden (Rand des Sichtfelds), deutlich schneller nachbauen als die 5 ms im
   // Normalbetrieb – sonst sah man nach einem Sprung sekundenlang hellen Himmel (weißer Bildschirm)
   else if (want.some(([x, y, , ahead]) => !ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 35);
-  // Vorausschau-Blöcke in etwas größeren Scheiben, damit sie fertig sind, bevor man dort ankommt
-  else if (want.some(([x, y, , ahead]) => ahead && !chunks3.has(x + ':' + y))) msBudget = Math.max(msBudget, 12);
+  // Rand ringsum (seit 14.38, vorher nur die Vorausschau) in etwas größeren Scheiben, damit er fertig ist, bevor er ins Bild kommt
+  else if (want.some(([x, y, , ahead]) => ahead && !(chunks3.get(x + ':' + y) || {}).objects)) msBudget = Math.max(msBudget, 9);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
-  if (chunkJob && (Math.abs(chunkJob.x - ccx) > chunkKeep3() || Math.abs(chunkJob.y - ccy) > chunkKeep3())) chunkJob = null;
+  if (chunkJob && !chunkKept3(chunkJob.x, chunkJob.y)) chunkJob = null;
   const t0 = performance.now();
+  // seit 14.38: in der großen Scheibe nach einem Sprung nur das Sichtbare, den Rand ringsum danach in kleinen Scheiben
+  let big = msBudget > 100;
+  if (big && !want.some(([x, y, , ring]) => !ring && !(chunks3.get(x + ':' + y) || {}).objects)) {
+    big = false;
+    msBudget = 9;
+  }
   while (performance.now() - t0 < msBudget) {
     if (!chunkJob) {
-      for (const [x, y] of want) {
+      for (const [x, y, , ring] of want) {
+        if (big && ring) break;
         const key = x + ':' + y;
         const ch = chunks3.get(key);
         if (!ch) chunkJob = { key, x, y, part: 'terrain', gen: terrainJob(x, y) };
@@ -2090,13 +2211,14 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
     if (!r.done) continue;
     const { key, x, y, part } = chunkJob;
     chunkJob = null;
-    if (Math.abs(x - ccx) > chunkKeep3() || Math.abs(y - ccy) > chunkKeep3()) {
+    if (!chunkKept3(x, y)) {
       disposeTree(r.value);
       continue;
     }
     if (part === 'terrain') {
       chunks3.set(key, { terrain: r.value, objects: null, x, y });
       V3.terrain.add(r.value);
+      V3.chunkGen = (V3.chunkGen || 0) + 1;
     } else {
       const ch = chunks3.get(key);
       if (!ch) {
@@ -2105,10 +2227,12 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
       }
       ch.objects = r.value;
       V3.objects.add(r.value);
+      // seit 14.38: Zähler für gpWorldShadows (grafik-plus.js) – die Anzahl der Blöcke allein bemerkt keinen Tausch
+      V3.chunkGen = (V3.chunkGen || 0) + 1;
     }
   }
   for (const [key, ch] of chunks3) {
-    if (Math.abs(ch.x - ccx) > chunkKeep3() || Math.abs(ch.y - ccy) > chunkKeep3()) {
+    if (!chunkKept3(ch.x, ch.y)) {
       disposeTree(ch.terrain);
       if (ch.objects) disposeTree(ch.objects);
       chunks3.delete(key);

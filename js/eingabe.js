@@ -121,10 +121,25 @@ function setupInput() {
     }
     // seit 14.32: ein zweiter Finger auf dem Bild übernimmt das Drehen nicht (vorher riss er es dem ersten ab, und
     // beim Loslassen des zweiten blieb die Drehung des ersten stehen)
-    if (camDrag) return;
+    if (camDrag) {
+      // seit 14.38: zweiter Finger auf dem Bild = Zoomen mit zwei Fingern (auseinander = näher, zusammen = weiter weg)
+      if (!pinch && V3.on) {
+        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: Math.hypot(e.clientX - camDrag.x, e.clientY - camDrag.y) || 1, z0: V3.zoomMul || 1 };
+        camDrag.moved = true;
+        cv.setPointerCapture(e.pointerId);
+      }
+      return;
+    }
     camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false };
     cv.setPointerCapture(e.pointerId);
   });
+  // seit 14.38: Zoomen mit zwei Fingern im Schulterblick (der erste Finger dreht wie bisher, solange er allein ist)
+  let pinch = null;
+  const pinchMove = (e) => {
+    if (e.pointerId === pinch.id) { pinch.x = e.clientX; pinch.y = e.clientY; } else { camDrag.x = e.clientX; camDrag.y = e.clientY; }
+    const d = Math.hypot(pinch.x - camDrag.x, pinch.y - camDrag.y) || 1;
+    v3SetZoom(pinch.z0 * pinch.d0 / d);
+  };
   const mouseDown = (e) => {
     cv.setPointerCapture(e.pointerId);
     // Rechtsklick bricht einen offenen Zielkreis ab (seit 13.42)
@@ -156,6 +171,7 @@ function setupInput() {
       if (w && isFinite(w.x) && isFinite(w.y)) aimAt(w.x, w.y);
     }
     if (input.mouseWalk && e.pointerType === 'mouse') walkToScreen(e.clientX, e.clientY, false);
+    if (pinch && camDrag && (e.pointerId === pinch.id || e.pointerId === camDrag.id)) return pinchMove(e);
     if (!camDrag || e.pointerId !== camDrag.id) return;
     const dx = e.clientX - camDrag.x;
     if (!camDrag.moved && Math.abs(dx) < 8) return;
@@ -167,6 +183,12 @@ function setupInput() {
     if (e.pointerType === 'mouse') {
       input.mouseAttack = false;
       input.mouseWalk = false;
+    }
+    if (pinch && (e.pointerId === pinch.id || (camDrag && e.pointerId === camDrag.id))) {
+      // Zoomen beendet: nichts auswählen; der verbleibende Finger dreht nicht weiter (sonst spränge das Bild)
+      pinch = null;
+      camDrag = null;
+      return;
     }
     if (!camDrag || e.pointerId !== camDrag.id) return;
     if (!camDrag.moved) selectAt(e.clientX, e.clientY);
@@ -182,7 +204,8 @@ function setupInput() {
   cv.addEventListener('wheel', (e) => {
     if (!V3.on) return;
     e.preventDefault();
-    V3.zoomMul = Math.max(0.6, Math.min(1.8, (V3.zoomMul || 1) * (e.deltaY > 0 ? 1.08 : 1 / 1.08)));
+    // seit 14.38 mit eigener Grenze je Kamera (v3SetZoom, drei-kern.js): im Schulterblick weiter hinaus
+    v3SetZoom((V3.zoomMul || 1) * (e.deltaY > 0 ? 1.08 : 1 / 1.08));
   }, { passive: false });
 
   setupTouch();

@@ -172,3 +172,85 @@ gleich aus; Umriss, Rumpf, Kopf und Leuchtringe sind unverändert (große Teile 
 - **DOM:** die HUD-Anzeigen schreiben schon nur bei Änderung (`ui.set`); Schadenszahlen und Namen malt das 2D-Canvas.
 - **Gebogene Streifen** (Schwünge, 100–200 je Bild) haben je Teil eigene, jedes Bild neu geschriebene Formen – nicht
   gebündelt. Die 2D-Ansicht geht weiter alle Monster durch (nicht Teil des 3D-Problems).
+
+## 14.38: Vorladen, Schatten, Schulterblick
+
+Anlass: Video vom 10.11. (Kazehana, 3D, normale Kamera, herausgezoomt) – Schatten von Mauern und Häusern „wachsen“
+erst nach, wenn man hinläuft; Boden und Gras erscheinen erst im Bild; im Schulterblick kann man nicht weit genug
+herauszoomen; schnelles Drehen mit der rechten Maustaste flackert schwarz.
+
+### Ursachen
+
+1. **Schattenbereich fest und zu klein.** Die Sonnen-Schattenkamera hatte feste ±13 (Ultra/Plus ±18) Einheiten um die
+   Figur. Bei Plus am PC werfen alle Weltobjekte echte Schatten (`grafik-plus.js`), herausgezoomt am breiten
+   Bildschirm sieht man aber 60–70 Einheiten: am Bildrand fehlten die Schatten und tauchten auf, sobald der Bereich
+   beim Laufen nachkam. (Die in den Boden gebackenen Schatten sind immer da, die echten nur im Bereich.)
+2. **Vorladen in festen Ringen.** `v3UpdateChunks` lud 2–3 Blöcke (je 16 Kacheln) nach Norden und 1–2 zur Seite,
+   unabhängig von Zoom und Bildbreite. Herausgezoomt lag der Bildrand außerhalb – Boden, Gras und Schmuck wurden
+   erst gebaut, wenn sie schon sichtbar waren. Im Schulterblick lud nur ein Kreis *vor* der Figur, hinter ihr wurde
+   verworfen: nach einer schnellen Drehung fehlte dort die Welt und wurde im Bild nachgebaut.
+3. **Schwarzes Flackern.** Die Umriss-Hülle (`outlineMat`, Rückseiten in fast Schwarz `#1a1210`) wird sichtbar,
+   sobald die Kamera in ein Objekt gerät: von innen fehlen die beleuchteten Außenflächen, man sieht nur die dunkle
+   Hülle. Beim schnellen Drehen schwenkt die Schulterkamera an Häusern/Mauern vorbei; das Anheben über Hindernisse
+   (`v3ShoulderPitch`, seit 14.32) zieht weich nach (Faktor 14/s) und kam für 1–3 Bilder zu spät. Nah herangezoomt
+   (Kamera tiefer) passiert das häufiger. Fehlende Blöcke hinter der Figur (Punkt 2) kamen dazu.
+4. **Zoom-Grenze** 1,8 galt für beide Kameras; im Schulterblick sind das nur 17 Einheiten Abstand.
+
+### Änderungen (alle in eigenen, mit „seit 14.38“ markierten Blöcken)
+
+- `js/drei-kern.js` `v3ViewFoot`/`v3FitSun` (ersetzt `v3PlaceSun`): jedes Bild die Bodenfläche bestimmen, die die
+  Kamera sieht (vier Ecken des Sichtkegels auf dem Boden, höchstens bis Nebelende ×1,08), den Schattenbereich im
+  Blickfeld der Sonne als Rechteck genau darauf legen (+2,5 Rand, hohe Dinge +4 Höhe), Größe in 2er-Schritten
+  gerundet (ändert sich nur beim Zoomen/Drehen), Mitte auf ganze Schatten-Bildpunkte gerastet (kein Flimmern beim
+  Laufen), Sonne und near/far passend zur Bereichsgröße.
+- `v3ShadowSize`: Schattenkarte eine Stufe feiner als vorher, weil der Bereich größer ist: Plus/Ultra am PC 4096
+  (vorher 2048), Ultra Handy 2048, Hoch 2048 (1024), Mittel 1024 (512), Niedrig weiter ohne Echtzeit-Schatten.
+  Die Schärfe je Einheit bleibt damit etwa gleich (Plus PC: 2048/36 ≈ 57 → 4096/60 ≈ 68 Bildpunkte je Einheit).
+- `v3UpdateChunks`: lädt nach derselben Sichtfläche statt fester Ringe. Feste Kamera: Rechteck um die Sichtfläche
+  + 10 Einheiten Rand (Handy unter Ultra: 6; Nebel „Wenig“ +4), in Laufrichtung zusätzlich ~1,3 s Weg. Schulterblick:
+  Kreis um die Figur, so groß wie die Sicht in *jeder* Blickrichtung (Drehen lädt nichts nach). Sichtbares zuerst,
+  dann der Rand mit 9 ms je Bild (vorher 5 ms). Geladen bleibt der Bereich + 1 Block (kein Bauen/Verwerfen am Rand).
+  Nach einem Sprung baut die große Scheibe nur das Sichtbare, den Rand danach in kleinen Scheiben (kein längerer
+  Hänger beim Teleport). `CHUNK3_KEEP`/`chunkKeep3` entfallen.
+- `outlineMat`: Hülle unter 1,4 Einheiten Tiefe vor der Kamera verwerfen (kein dunkles Inneres mehr).
+- Schulterblick: steckt die Kamera nach dem weichen Nachführen noch in einem Hindernis, sofort auf die Höhe darüber.
+- Zoom: `ZOOM3`/`v3SetZoom` – Schulterblick bis 3,2 (Kamera bis ~30 statt 17 Einheiten hinter der Figur), feste
+  Kamera weiter 1,8 (beim Wechsel zurück wird gekappt). Der Nebel wandert im Schulterblick beim Herauszoomen mit
+  (sonst stünde die Figur selbst im Dunst). Neu: Zoomen mit zwei Fingern im Schulterblick (`js/eingabe.js`).
+- `js/grafik-plus.js`: die Umriss-Hüllen werfen keinen Schatten mehr (deckungsgleich mit dem Körper, sie verdoppelten
+  nur die Arbeit im nun größeren Schattendurchgang).
+
+### Messwerte (SwiftShader, 1280×720, Plus, Kazehana, Zoom 1,8, virtuelle Uhr – Zeiten nicht aussagekräftig)
+
+| Messung | vorher (14.38 vor Änderung) | nachher |
+|---|---|---|
+| Schattenbereich, 1884×1000, Zoom 1,8 (Bildgröße wie im Video) | 36×36 Einheiten, Karte 2048² | 80×64 Einheiten, Karte 4096² |
+| Echtzeit-Schatten-Bildpunkte je Bildfünftel (links → rechts) | 5.649 / 18.505 / 25.226 / 33.471 / 20.328 | 11.649 / 19.976 / 15.374 / 30.429 / 45.636 |
+| Laufen in Kazehana, 1280×720, Zoom 1,8: Zeichenaufrufe je Bild (Ø, alle Durchgänge) | 283 | 291 (+3 %) |
+| … Dreiecke je Bild (Ø) | 1,31 Mio. | 1,29 Mio. |
+| … geladene Blöcke | 56 | 30 (Bereich folgt der Sicht statt fester Ringe) |
+| … Geometrien im Speicher / JS-Heap | 179 / 72 MB | 198 / 72 MB |
+| Schnelles Drehen, Schulterblick nah (Zoom 0,6), 24 Bilder à 0,5 rad: fast schwarze Bildpunkte (Stichprobe jeder 4.) | höchstens 742 (≈ 1,3 % des Bilds, dunkles Hausinneres am Bildrand) | höchstens 7–13 in zwei Läufen (Augen, Fugen) |
+| … geladene Blöcke | 22–28 (nur vor der Figur) | 50–63 (ringsum) |
+| Zoom-Maximum Schulterblick (Mausrad) | 1,8 → Kamera 17,1 hinter der Figur | 3,2 → 30,4 |
+| … Nebel nah/fern bei Maximum (Einstellung „Wenig“) | 31,6 / 59,5 | 52,5 / 80,4 |
+| … geladene Blöcke bei Maximum | 26 | 100 (nur das Sichtbare wird gezeichnet) |
+| Anheben über ein Haus hinter der Figur bei Maximum | Neigung 0,92 | Neigung 0,92 (funktioniert weiter) |
+
+In der Mitte des Bilds sind es nachher weniger rote Punkte: die feinere Schattenkarte zeigt weniger Schattenakne auf
+den Grashalmen. Die Bildzeiten sind unter SwiftShader nicht aussagekräftig und darum nicht aufgeführt.
+
+Weitere Kleinigkeit dabei: `gpWorldShadows` erkannte neue Blöcke an ihrer Anzahl – wurde im selben Bild einer
+verworfen und einer fertig, warf der neue nie Schatten. Jetzt zählt ein Bau-Zähler (`V3.chunkGen`).
+
+Tests: s73 (12 Wege, alle Fertigkeiten) ohne Fehler, s72 2D und s72 3D (Mittel) ohne Fehler, `node --check`.
+
+Bilder: `scratchpad/sicht/sicht-schatten-vergleich.jpg` (rot = Echtzeit-Schatten, oben vorher, unten nachher),
+`sicht-drehen-vergleich.jpg` (schnelles Drehen, oben vorher, unten nachher), `sicht-zoom-vergleich.jpg`.
+
+### Offen
+
+- Nicht auf echter Grafikkarte/echtem Handy gemessen (nur SwiftShader). Die Schattenkarte 4096² kostet am PC
+  ~64–128 MB Grafikspeicher mehr; sollte das auf schwachen PCs drücken, `v3ShadowSize` für Ultra auf 3072 senken.
+- Das schwarze Flackern war in SwiftShader nur nah herangezoomt (Kamera an Häusern) nachstellbar; ob die Grafikkarte
+  des Nutzers zusätzlich eine andere Ursache hat, ist ungeprüft.

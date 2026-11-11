@@ -106,10 +106,15 @@ function gpEnsure() {
 // Weltschatten: alle Gegenstände der Welt werfen Schatten, der Boden fängt sie auf
 function gpWorldShadows(on) {
   if (!V3.objects) return;
-  const n = on ? (V3.objects.children.length << 8) + V3.terrain.children.length : -1;
+  // seit 14.38 nach dem Bau-Zähler (drei-kern.js v3UpdateChunks) statt nach der Anzahl der Blöcke: wurde im selben
+  // Bild ein Block verworfen und ein neuer fertig, blieb die Anzahl gleich und der neue Block warf nie Schatten
+  // (ganze Häuserzeilen ohne Schatten, bis man weit genug weg und wieder zurück lief)
+  const n = on ? (V3.chunkGen || 0) * 4096 + V3.objects.children.length : -1;
   if (n === _gp.shadowed) return;
   _gp.shadowed = n;
-  V3.objects.traverse((o) => { if (o.isMesh) o.castShadow = on; });
+  // seit 14.38 ohne die Umriss-Hüllen (Rückseiten): ihr Schatten deckt sich mit dem des Körpers, sie verdoppelten nur
+  // die Arbeit im Schattendurchgang – der deckt jetzt das ganze Bild ab (v3FitSun)
+  V3.objects.traverse((o) => { if (o.isMesh) o.castShadow = on && o.material.side !== THREE.BackSide; });
   if (on) V3.terrain.traverse((o) => { if (o.isMesh) o.receiveShadow = true; });
 }
 
