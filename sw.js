@@ -60,6 +60,7 @@ const FILES = [
   'js/drei-fx.js',
   'js/aelvyr.js',
   'js/kartenformen.js',
+  'js/wahrzeichen.js',
   'js/daten/kartenformen.js',
   'js/magier.js',
   'js/eisstrahl.js',
