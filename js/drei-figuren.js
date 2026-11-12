@@ -36,8 +36,118 @@ const figGlow = () => mat3('figGlow', () => new THREE.MeshBasicMaterial({ vertex
 // keinen Schatten, weil three.js bei Vorderseiten-Materialien in der Schattenkarte nur die Rückseiten zeichnet
 const figShadowProxy = () => mat3('figShadowProxy', () => new THREE.MeshBasicMaterial({ skinning: true, colorWrite: false, depthWrite: false, shadowSide: THREE.DoubleSide }));
 const figAura = () => mat3('figAura', () => new THREE.MeshBasicMaterial({ vertexColors: true, skinning: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
+// Waffen-Schein (seit 14.74 als Flammenhülle): Vorher lag um jede Waffe ein Kasten (Axtblatt, Klinge) oder eine Kugel
+// (Stab, Glocke), der beim Leuchten als helles Rechteck über der Waffe stand. Jetzt ist die Hülle eine Kopie aller
+// Waffenteile (wglowGeo3, drei-ausruestung.js), die der Shader ein Stück nach außen bläht und oben züngeln lässt:
+// der Schein folgt Axtblatt, Klinge, Stiel und Zier und ragt nur wenig über den Umriss hinaus. Innen bleibt er dünn
+// (die Waffe bleibt erkennbar), am Rand weich mit Flammenzungen, die nach oben ziehen. Farbe und Deckkraft wie bisher
+// über .color und .opacity; Stärke der Flamme je Anlass in uInf/uRise/uFl (wgFlame3, syncPlayer3).
+const WG3_T = { value: 0 };
+const WG3_NOISE = `
+float wgH(vec3 p) {
+  p = fract(p * 0.3183099 + 0.1);
+  p *= 17.0;
+  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+float wgN(vec3 x) {
+  vec3 i = floor(x);
+  vec3 f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(wgH(i), wgH(i + vec3(1.0, 0.0, 0.0)), f.x), mix(wgH(i + vec3(0.0, 1.0, 0.0)), wgH(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+    mix(mix(wgH(i + vec3(0.0, 0.0, 1.0)), wgH(i + vec3(1.0, 0.0, 1.0)), f.x), mix(wgH(i + vec3(0.0, 1.0, 1.0)), wgH(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+`;
+const WG3_VS = `
+#include <common>
+#include <skinning_pars_vertex>
+uniform float uT;
+uniform float uInf;
+uniform float uRise;
+varying vec3 vN;
+varying vec3 vV;
+varying vec3 vQ;
+varying float vTip;
+${WG3_NOISE}
+void main() {
+  #include <beginnormal_vertex>
+  #include <skinbase_vertex>
+  #include <skinnormal_vertex>
+  #include <begin_vertex>
+  // Rauschen in der Ruhehaltung: das Flammenmuster klebt an der Waffe und schwingt mit ihr
+  vec3 q = position * 13.0;
+  float w = wgN(q + vec3(0.0, -uT * 2.4, uT * 0.4));
+  transformed += normal * uInf * (0.5 + 1.1 * w);
+  #include <skinning_vertex>
+  vec4 wp = modelMatrix * vec4(transformed, 1.0);
+  vec3 wn = normalize(mat3(modelMatrix) * objectNormal);
+  // nach oben zeigende Stellen züngeln nach oben (in Weltrichtung, auch bei schräg gehaltener Waffe)
+  float up = smoothstep(-0.2, 0.9, wn.y);
+  float lick = up * (0.1 + w * w * 2.2);
+  wp.y += uRise * lick;
+  vTip = clamp(lick * 0.55, 0.0, 1.0);
+  vec4 mv = viewMatrix * wp;
+  gl_Position = projectionMatrix * mv;
+  vN = normalize((viewMatrix * vec4(wn, 0.0)).xyz);
+  vV = -mv.xyz;
+  vQ = q;
+}`;
+const WG3_FS = `
+uniform vec3 uCol;
+uniform float uOp;
+uniform float uT;
+uniform float uFl;
+varying vec3 vN;
+varying vec3 vV;
+varying vec3 vQ;
+varying float vTip;
+${WG3_NOISE}
+void main() {
+  float e = abs(dot(normalize(vN), normalize(vV)));
+  // senkrecht gestreckte Flammenstreifen, die nach oben ziehen
+  float f = wgN(vec3(vQ.x, vQ.y * 0.6 - uT * 3.0, vQ.z)) * 0.65 + wgN(vQ * 2.3 + vec3(1.7, -uT * 4.4, 0.0)) * 0.35;
+  float n = mix(0.55, f, uFl);
+  // außen weich auslaufend und in Zungen zerrissen, innen (auf der Waffe) nur ein Hauch
+  float a;
+  vec3 c;
+  if (gl_FrontFacing) {
+    // Vorderseite: nur ein Schimmer auf der Waffe, zum Rand der Hülle hin ausgeblendet (sonst stünde dort eine Kante)
+    a = 0.2 * smoothstep(0.25, 0.75, e) * (0.6 + 0.8 * n) * uOp;
+    c = mix(uCol, vec3(1.0, 0.98, 0.9), 0.35);
+  } else {
+    // Rückseite: verdeckt die Waffe selbst und bleibt nur dort sichtbar, wo die Hülle über die Waffe hinausragt –
+    // der Flammensaum um den Umriss, nach außen weich und in Zungen zerrissen
+    float edge = smoothstep(0.12, 0.55, n * 0.9 + e * 1.15 - vTip * 0.5);
+    a = edge * (0.35 + 0.75 * n) * uOp * 0.8;
+    // Farbe wie bei einer Flamme: außen satter und dunkler (Farbe zum Quadrat), innen die Grundfarbe, Kern heller
+    float h = clamp(n * 0.8 + e * 0.55 - vTip * 0.45, 0.0, 1.0);
+    c = mix(uCol * uCol, uCol, smoothstep(0.25, 0.6, h));
+    c = mix(c, mix(uCol, vec3(1.0, 0.98, 0.9), 0.55), smoothstep(0.75, 1.0, h));
+  }
+  gl_FragColor = vec4(c, clamp(a, 0.0, 1.0));
+}`;
 function figWeaponGlowMat() {
-  return new THREE.MeshBasicMaterial({ skinning: true, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, color: 0xffffff });
+  const col = new THREE.Color(0xffffff);
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uT: WG3_T, uCol: { value: col }, uOp: { value: 0 }, uInf: { value: 0.03 }, uRise: { value: 0.05 }, uFl: { value: 1 } },
+    vertexShader: WG3_VS,
+    fragmentShader: WG3_FS,
+    skinning: true,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending
+  });
+  m.color = col;
+  // .opacity schreibt in die Deckkraft des Shaders (wie beim alten Grundmaterial)
+  Object.defineProperty(m, 'opacity', { get() { return this.uniforms.uOp.value; }, set(v) { this.uniforms.uOp.value = v; }, configurable: true });
+  return m;
+}
+// Flammenstärke der Waffenhülle: inf Ausdehnung über die Waffe (Modellmaß), rise Zungen nach oben (Weltmaß), fl Flackern
+function wgFlame3(m, inf, rise, fl) {
+  const u = m.uniforms;
+  u.uInf.value = inf;
+  u.uRise.value = rise;
+  u.uFl.value = fl;
 }
 
 // --- Teilformen ---------------------------------------------------------------------------------
@@ -584,6 +694,10 @@ function humanoid3(b, c, P) {
   const boots = c.boots || '#3a2a1c';
   const trim = c.trim || c.belt || darker(c.torso, 0.3);
   // Beine mit Knien und Stiefeln (Schaft, Stulpe, dunkle Sohle)
+  // seit 14.74: angelegte Stiefel kräftiger und länger (bootNew); footZ0/footZ1: Ferse und Spitze (auch für gearBoots3)
+  const bootNew = c.bootDetail != null && !belly;
+  const footZ0 = bootNew ? -legR * 0.95 : -legR * 1.05;
+  const footZ1 = bootNew ? legR * (c.robe ? 3.3 : 2.7) : legR * 2.05;
   for (const [sx, bone] of [[1, BH.legL], [-1, BH.legR]]) {
     const top = [sx * hipX, hipY, 0];
     const knee = [sx * hipX * 1.02, hipY - legLen * 0.5, 0.015];
@@ -592,17 +706,40 @@ function humanoid3(b, c, P) {
     seg(top, knee, legR * (fem ? 1.14 : 1), legR * (fem ? 0.86 : 0.9), pants, { bone, shade: 0.12 });
     seg(knee, ankle, legR * (fem ? 0.86 : 0.9), legR * (fem ? 0.72 : 0.78), pants, { bone });
     if (c.kneePads) A(ball(10), c.kneePads, { bone, p: [knee[0], knee[1], knee[2] + legR * 0.6], s: [legR * 0.9, legR * 0.85, legR * 0.6], shine: 0.6 });
-    A(lathe3('bootshaft', [[0.08, 0], [0.085, 0.08], [0.09, 0.16], [0, 0.161]], 12), boots, { bone, p: [sx * hipX, 0.04, 0], s: [legR / 0.082, 1, legR / 0.082] });
-    A(torus3(legR * 1.15, 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [sx * hipX, 0.2, 0], r: [Math.PI / 2, 0, 0] });
-    A(roundBox(legR * 1.95, 0.1, legR * 3.1, legR * 0.85), boots, { bone, p: [sx * hipX, 0.06, legR * 0.5], top: lighter(boots, 0.15), topK: 0.4 });
-    A(roundBox(legR * 2.05, 0.035, legR * 3.2, 0.015), darker(boots, 0.45), { bone, p: [sx * hipX, 0.018, legR * 0.5] });
-    // seit 14.59 (angelegte Stiefel): Absatz, Riemen über dem Rist mit Schnalle, Nieten an der Stulpe
-    if (c.bootDetail != null) {
+    if (bootNew) {
+      // seit 14.74 (angelegte Stiefel; Spielerwunsch „die Schuhe kommen gar nicht richtig zur Geltung“): vorher ein
+      // schmaler Schaft und ein kurzer Kasten als Fuß, der kaum unter Rock, Beintaschen oder Robe hervorkam. Jetzt ein
+      // kräftiger Stiefel: Schaft leicht ausgestellt, breite umgeschlagene Stulpe, längerer Fuß mit runder Kappe, dicke
+      // Sohle mit Absatz, Riemen mit Schnalle; dazu je Klasse Beschläge (siehe unten) und je Stufe das Merkmal aus
+      // gearBoots3 (drei-ausruestung.js), das sich nach footZ0/footZ1 richtet
       const bm = c.bootTrim || '#a8acb2';
-      A(roundBox(legR * 1.7, 0.045, legR * 0.9, 0.012), darker(boots, 0.55), { bone, p: [sx * hipX, 0.026, -legR * 0.55] });
-      A(roundBox(legR * 2.08, 0.026, legR * 0.5, 0.01), darker(boots, 0.3), { bone, p: [sx * hipX, 0.105, legR * 0.62], r: [0.5, 0, 0] });
-      A(roundBox(0.03, 0.03, 0.012, 0.005), bm, { bone, p: [sx * (hipX + legR * 0.75), 0.106, legR * 0.75], r: [0.5, 0, 0], shine: 1 });
-      if (c.bootDetail >= 2) for (const a of [-0.5, 0.5]) A(sphere3(0.011, 6, 4), bm, { bone, p: [sx * hipX + Math.sin(a) * legR * 1.2, 0.2, Math.cos(a) * legR * 1.2], shine: 1 });
+      const bt = c.bootDetail;
+      const L = legR / 0.082;
+      const x = sx * hipX;
+      const fl = footZ1 - footZ0;
+      A(lathe3('bootshaft74', [[0.084, 0], [0.088, 0.07], [0.094, 0.15], [0.102, 0.2], [0, 0.201]], 14), boots, { bone, p: [x, 0.03, 0], s: [L, 1, L], shade: 0.15 });
+      // unter Beinschienen nur ein schmaler Rand (die breite Stulpe stach sonst durch die Schiene)
+      if (c.greaves) A(torus3(legR * 1.17, 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [x, 0.205, 0], r: [Math.PI / 2, 0, 0], shine: c.bootTrim ? 0.8 : 0 });
+      else A(lathe3('bootcuff74', [[0.098, 0], [0.122, 0.034], [0.118, 0.06], [0, 0.061]], 14), c.bootTrim || lighter(boots, 0.2), { bone, p: [x, 0.2, 0], s: [L, 1, L], shine: c.bootTrim ? 0.8 : 0, shade: 0.2 });
+      A(roundBox(legR * 2.05, 0.1, fl * 0.78, legR * 0.8), boots, { bone, p: [x, 0.062, footZ0 + fl * 0.39], top: lighter(boots, 0.15), topK: 0.4 });
+      A(ball(10), boots, { bone, p: [x, 0.06, footZ1 - legR * 0.78], s: [legR * 1.02, 0.052, legR * 0.8], top: lighter(boots, 0.15), topK: 0.4 });
+      A(roundBox(legR * 2.2, 0.032, fl + 0.012, 0.012), darker(boots, 0.5), { bone, p: [x, 0.016, (footZ0 + footZ1) / 2] });
+      A(roundBox(legR * 1.85, 0.05, legR * 0.95, 0.012), darker(boots, 0.58), { bone, p: [x, 0.028, footZ0 + legR * 0.5] });
+      A(roundBox(legR * 2.12, 0.026, legR * 0.5, 0.01), darker(boots, 0.3), { bone, p: [x, 0.112, legR * 0.6], r: [0.55, 0, 0] });
+      A(roundBox(0.032, 0.032, 0.012, 0.005), bm, { bone, p: [sx * (hipX + legR * 0.82), 0.112, legR * 0.72], r: [0.55, 0, 0], shine: 1 });
+      if (bt >= 2 && !c.greaves) for (const a of [-0.6, 0, 0.6]) A(sphere3(0.012, 6, 4), bm, { bone, p: [x + Math.sin(a) * legR * 1.47, 0.232, Math.cos(a) * legR * 1.47], shine: 1 });
+      if (c.padStyle === 'plate' && bt >= 1) {
+        // Krieger: Ristplatte und Knöchelschalen aus Metall
+        A(roundBox(legR * 1.5, 0.018, legR * 1.2, 0.008), bm, { bone, p: [x, 0.12, legR * 1.25], r: [0.42, 0, 0], shine: 1, top: lighter(bm, 0.25), topK: 0.3 });
+        for (const s2 of [-1, 1]) A(ball(8), bm, { bone, p: [x + s2 * legR * 1.0, 0.085, 0], s: [0.02, 0.032, 0.032], shine: 1 });
+      }
+      // Roben (Magier, Schamane, Nekromant): spitze, leicht aufgebogene Schuhspitzen schauen unter dem Saum hervor
+      if (c.robe) A(horn3(legR * 1.0, legR * 0.62, 7), boots, { bone, p: [x, 0.06, footZ1 - legR * 0.55], r: [Math.PI / 2 - 0.45, 0, 0], s: [1, 1, 0.7], top: lighter(boots, 0.15), topK: 0.4 });
+    } else {
+      A(lathe3('bootshaft', [[0.08, 0], [0.085, 0.08], [0.09, 0.16], [0, 0.161]], 12), boots, { bone, p: [sx * hipX, 0.04, 0], s: [legR / 0.082, 1, legR / 0.082] });
+      A(torus3(legR * 1.15, 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [sx * hipX, 0.2, 0], r: [Math.PI / 2, 0, 0] });
+      A(roundBox(legR * 1.95, 0.1, legR * 3.1, legR * 0.85), boots, { bone, p: [sx * hipX, 0.06, legR * 0.5], top: lighter(boots, 0.15), topK: 0.4 });
+      A(roundBox(legR * 2.05, 0.035, legR * 3.2, 0.015), darker(boots, 0.45), { bone, p: [sx * hipX, 0.018, legR * 0.5] });
     }
     if (c.shin) A(roundBox(legR * 1.6, 0.16, 0.04, 0.02), c.shin, { bone, p: [sx * hipX, 0.24, legR * 0.85], shine: 0.7 });
     // Beinschienen aus Platten mit Kniekachel
@@ -610,7 +747,8 @@ function humanoid3(b, c, P) {
       A(cap3(legR * 1.18, Math.PI * 0.62, -Math.PI * 0.5, Math.PI, 10, 6), c.greaves, { bone, p: [sx * hipX, 0.2, 0.0], s: [1, 2.2, 1.1], r: [Math.PI / 2, 0, 0], shine: 0.8, top: lighter(c.greaves, 0.25), topK: 0.3 });
       A(roundBox(0.018, 0.17, 0.02, 0.008), lighter(c.greaves, 0.3), { bone, p: [sx * hipX, 0.25, legR * 1.12], shine: 1 });
       A(ball(10), c.greaves, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 0.7], s: [legR * 1.05, legR * 0.95, legR * 0.7], shine: 0.9 });
-      if (c.greaveSpike) A(horn3(0.07, 0.022, 5), c.greaveSpike, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 1.2], r: [Math.PI / 2, 0, 0], shine: 1 });
+      // seit 14.74 nicht unter Beintaschen: der Dorn am Knie stach dort unter den Platten hervor
+      if (c.greaveSpike && !c.tassets && !c.featherTassets) A(horn3(0.07, 0.022, 5), c.greaveSpike, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 1.2], r: [Math.PI / 2, 0, 0], shine: 1 });
     }
     // Wickelbänder über Kreuz (Barbar, Ninja)
     if (c.legWraps) for (let k = 0; k < 4; k++) A(torus3(legR * (c.baggy ? 1.02 : 0.9), 0.012, Math.PI * 2, 4, 12), c.legWraps, { bone, p: [sx * hipX, 0.24 + k * 0.04, 0.005], r: [Math.PI / 2 + (k % 2 ? 0.28 : -0.28), 0, 0] });
@@ -657,7 +795,12 @@ function humanoid3(b, c, P) {
       // seit 14.53: Frauen mit runderem Rock über den breiteren Hüften
       A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [bk * (fem ? 1.1 : man ? 0.96 : 1), 1, 0.84 * bk * (fem ? 1.06 : 1)], shade: 0.2 });
       // Stoffbahnen vorn und hinten
-      for (const sz of [1, -1]) A(roundBox(0.17, 0.22, 0.025, 0.012), c.flap || c.skirt || darker(c.torso, 0.18), { bone: BH.hips, p: [0, hipY - 0.17, sz * 0.21], r: [sz * 0.12, 0, 0], shade: 0.25 });
+      // seit 14.74 kürzer und am Rock anliegend (vorher 0,22 hoch bis hipY − 0,28, nach außen gekippt): die Bahnen hingen
+      // vorn zwischen den Beintaschen und hinten unter dem Umhang bis auf die Stiefel und sahen aus wie ein Teil, das aus
+      // der Rüstung herausragt (Spielerbild). Jetzt liegen sie außen auf dem Rock (gleiche Neigung) und enden am
+      // Rocksaum. Unter Beintaschen (Krieger) fallen sie weg: dort lagen sie sonst vor den
+      // Platten oder Federn.
+      if (!c.tassets && !c.featherTassets) for (const sz of [1, -1]) A(roundBox(0.17, 0.14, 0.025, 0.012), c.flap || c.skirt || darker(c.torso, 0.18), { bone: BH.hips, p: [0, hipY - 0.1, sz * 0.24 * bk * (fem ? 1.06 : 1)], r: [-sz * 0.26, 0, 0], shade: 0.25 });
     }
   }
   // Gürtel mit Schnalle und Tasche
@@ -879,7 +1022,7 @@ function humanoid3(b, c, P) {
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
     hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin,
-    cuirass: !!c.cuirass, greaves: !!c.greaves,
+    cuirass: !!c.cuirass, greaves: !!c.greaves, footZ0, footZ1,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk
   };
@@ -930,7 +1073,10 @@ function humanoid3(b, c, P) {
   // Waffen (das Zepter hängt seinen Kristall und den Funken an die Drehknochen)
   const wo = spin && c.weapon ? { accent: c.weapon.accent, hi: c.weapon.hi, gemBone: spin.gem, sparkBone: spin.spark } : bowStr ? {} : undefined;
   if (bowStr) wo.strBones = bowStr.bones;
-  if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], true, wo);
+  // Leuchthülle (seit 14.74 eine Kopie der Waffe, siehe wglowGeo3) nur bei Spielfiguren: Händler, Wachen und Monster
+  // leuchten nie und sparen so die doppelte Waffe
+  const wgOn = !!c.gear;
+  if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], wgOn, wo);
   // Klingenachse im Modellraum merken (Ansatz und Spitze, für Waffen-Auren in 3D seit 13.2)
   let weaponAxis = null;
   if (c.weapon) {
@@ -944,7 +1090,7 @@ function humanoid3(b, c, P) {
   if (c.offhand) {
     const h = WEAPON_HOLD[c.offhand.kind] || [1.1, 0, 0];
     const rotL = [h[0], -h[1], -h[2]];
-    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, rotL, true, { left: true });
+    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, rotL, wgOn, { left: true });
     const M = partFrame(handL, rotL);
     const wl = WEAPON_LEN3[c.offhand.kind] || 0.6;
     offhandAxis = { base: new THREE.Vector3(0, 0.02, 0).applyMatrix4(M), tip: new THREE.Vector3(0, wl, 0).applyMatrix4(M) };
@@ -5344,6 +5490,8 @@ function warmPrograms() {
     a.modelKey = 'warm';
     setActorAlpha(a, alpha);
     if (a.mats.wglow) a.mats.wglow.opacity = 0.5;
+    // seit 14.74 eigener Shader (Flammenhülle): sichtbar schalten, sonst übersetzt compile ihn nicht vorab
+    if (a.meshes.wglow) a.meshes.wglow.visible = true;
     V3.actors.add(a.group);
     V3.warm.push(a);
   }
@@ -6681,16 +6829,22 @@ function syncPlayer3(p, dt) {
     const weapon = p.equipment && p.equipment.waffe;
     const band = weapon ? plusBand(weapon.plus) : 0;
     const aura = p.buffs && p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
+    // seit 14.74 Flammenhülle statt Kasten (figWeaponGlowMat): die Aura lodert ein Stück über die Waffe hinaus, das
+    // Leuchten der Plus-Stufe bleibt ein ruhiger, enger Schein, Fertigkeits-Posen liegen dazwischen
+    WG3_T.value = t % 600;
     if (aura) {
       wg.color.set(SKILL_FX[aura.id].weaponGlow);
-      wg.opacity = 0.8 + 0.2 * Math.sin(t * 8);
+      wg.opacity = 0.85 + 0.15 * Math.sin(t * 8);
+      wgFlame3(wg, 0.038, 0.075, 1);
     } else if (band >= 2) {
       wg.color.set(PLUS_COLORS[band]);
-      wg.opacity = 0.22 + band * 0.06 + 0.1 * Math.sin(t * 6);
+      wg.opacity = 0.3 + band * 0.07 + 0.1 * Math.sin(t * 6);
+      wgFlame3(wg, 0.022, 0.025, 0.6);
     } else wg.opacity = 0;
     if (a.poseWg && a.poseWg.op > wg.opacity) {
       wg.color.set(a.poseWg.color);
       wg.opacity = a.poseWg.op;
+      wgFlame3(wg, 0.03, 0.05, 0.85);
     }
     a.meshes.wglow.visible = wg.opacity > 0.01;
   }

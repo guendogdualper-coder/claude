@@ -265,6 +265,13 @@ function gearBoots3(A, g, t, metal0, boot0) {
   const boot = boot0 || GEAR_LOOK.boots[t];
   // vor dem Schienbein: über den Beinschienen der Rüstung, falls getragen
   const shin = lr * (g.greaves ? 1.42 : 0.95);
+  // Ferse und Spitze des Fußes (seit 14.74 längere Stiefel, humanoid3); Sohlenleuchten über die ganze Länge
+  const z0 = g.footZ0 != null ? g.footZ0 : -lr * 1.05;
+  const z1 = g.footZ1 != null ? g.footZ1 : lr * 2.05;
+  // Schmuck der Schiene (Sonne, Stern): seit 14.74 unten am Schienbein statt am Knie – am Knie steckte er hinter
+  // Beintaschen und Rocksaum und nur die Strahlen stachen heraus (sah aus wie abgebrochene Teile)
+  const kneeOrn = g.footZ0 != null ? 0.175 : g.hipY - g.legLen * 0.5 + 0.01;
+  const sole = (W, col) => W(roundBox(lr * 2.26, 0.012, z1 - z0 + 0.014, 0.005), col, { p: [0, 0.034, (z0 + z1) / 2], mat: 'glow' });
   for (const [sx, bone] of [[1, BH.legL], [-1, BH.legR]]) {
     const x = sx * g.hipX;
     const W = frame3(A, bone, [x, 0, 0]);
@@ -280,11 +287,11 @@ function gearBoots3(A, g, t, metal0, boot0) {
       case 2:
         // Schnürung vorn und eine Eisenkappe an der Spitze
         for (let k = 0; k < 3; k++) for (const r of [0.6, -0.6]) W(roundBox(0.008, 0.045, 0.006, 0.003), '#e8dcc0', { p: [0, 0.09 + k * 0.035, lr * 1.0], r: [0, 0, r] });
-        W(cap3(lr * 0.75, Math.PI * 0.5, 0, Math.PI * 2, 10, 4), metal, { p: [0, 0.03, lr * 1.65], s: [1.1, 0.8, 0.9], shine: 1 });
+        W(cap3(lr * 0.75, Math.PI * 0.5, 0, Math.PI * 2, 10, 4), metal, { p: [0, 0.03, z1 - lr * 0.62], s: [1.45, 0.95, 1.15], shine: 1 });
         break;
       case 3:
         // Krallenzehen und Schuppen am Schienbein
-        for (let k = -1; k <= 1; k++) coneAlong(W, horn3(1, 0.3, 5), [k * lr * 0.45, 0.04, lr * 1.85], [k * 0.25, -0.2, 1], lr * 0.9, lr * 0.4, '#e8dcc0', { shine: 0.6 });
+        for (let k = -1; k <= 1; k++) coneAlong(W, horn3(1, 0.3, 5), [k * lr * 0.45, 0.04, z1 - lr * 0.25], [k * 0.25, -0.2, 1], lr * 0.9, lr * 0.4, '#e8dcc0', { shine: 0.6 });
         for (let k = 0; k < 2; k++) W(G3.scale(), k ? TIER_ACCENT[3] : lighter(TIER_ACCENT[3], 0.15), { p: [0, 0.16 + k * 0.06, shin], s: lr * 0.8, r: [Math.PI / 2 - 0.25, 0, 0], shine: 0.6 });
         break;
       case 4:
@@ -296,7 +303,7 @@ function gearBoots3(A, g, t, metal0, boot0) {
         // Obsidiandornen am Schienbein, glühende Sohlenkante
         emberSpike3(W, [0, 0.15, shin], [0, 0.6, 1], lr * 1.2, lr * 0.5);
         emberSpike3(W, [sx * lr * 0.7, 0.2, lr * 0.4], [sx, 0.5, 0.4], lr * 0.9, lr * 0.4);
-        W(roundBox(lr * 2.1, 0.012, lr * 3.3, 0.005), '#ff7a2a', { p: [0, 0.035, lr * 0.5], mat: 'glow' });
+        sole(W, '#ff7a2a');
         break;
       case 6:
         // kleine Flügel außen am Knöchel
@@ -306,20 +313,20 @@ function gearBoots3(A, g, t, metal0, boot0) {
         // Leerensplitter am Schienbein, cyanfarbene Sohlenkante, eingerollter Tentakelsporn an der Ferse
         voidShard3(W, [0, 0.17, shin + 0.01], [0, 0.7, 1], lr * 1.3, lr * 0.42);
         voidShard3(W, [sx * lr * 0.8, 0.22, lr * 0.3], [sx, 0.6, 0.2], lr * 0.9, lr * 0.32);
-        W(roundBox(lr * 2.1, 0.012, lr * 3.3, 0.005), VOIDGLOW3, { p: [0, 0.035, lr * 0.5], mat: 'glow' });
-        tendril3(W, [[0, 0.07, -lr * 0.85], [0, 0.05, -lr * 1.6], [0, 0.1, -lr * 2.2], [0, 0.16, -lr * 2.05]], lr * 0.24);
+        sole(W, VOIDGLOW3);
+        tendril3(W, [[0, 0.07, z0 + lr * 0.2], [0, 0.05, z0 - lr * 0.55], [0, 0.1, z0 - lr * 1.15], [0, 0.16, z0 - lr * 1.0]], lr * 0.24);
         break;
       case 9:
         // Platinschiene mit Stern am Knie, Strahlen am Knöchel, roséfarben leuchtende Sohle
         W(cap3(lr * (g.greaves ? 1.32 : 1.22), Math.PI * 0.62, -Math.PI * 0.5, Math.PI, 10, 5), PLATIN3, { p: [0, 0.2, 0], s: [1, 2.3, 1.1], r: [Math.PI / 2, 0, 0], shine: 1, top: '#f0eef8', topK: 0.35 });
-        nova3(W, [0, g.hipY - g.legLen * 0.5 + 0.01, lr * (g.greaves ? 1.6 : 1.3)], lr * 0.62);
+        nova3(W, [0, kneeOrn, lr * (g.greaves ? 1.6 : 1.3)], lr * 0.62);
         for (const a of [0.35, 0.85]) coneAlong(W, G3.ray(), [sx * lr * 1.0, 0.13, -lr * 0.1], [sx * Math.cos(a), Math.sin(a), -0.35], lr * 1.25, lr * 1.6, a < 0.5 ? ROSEGOLD3 : PLATIN3, { shine: 1 });
-        W(roundBox(lr * 2.1, 0.012, lr * 3.3, 0.005), ROSEGLOW3, { p: [0, 0.035, lr * 0.5], mat: 'glow' });
+        sole(W, ROSEGLOW3);
         break;
       default:
         // goldene Beinschiene mit Sonnenscheibe am Knie
         W(cap3(lr * (g.greaves ? 1.32 : 1.22), Math.PI * 0.62, -Math.PI * 0.5, Math.PI, 10, 5), GOLD3, { p: [0, 0.2, 0], s: [1, 2.3, 1.1], r: [Math.PI / 2, 0, 0], shine: 1, top: '#fff2b0', topK: 0.4 });
-        sun3(W, [0, g.hipY - g.legLen * 0.5 + 0.01, lr * (g.greaves ? 1.55 : 1.25)], lr * 0.5, 6, GOLD3, GLOW3[7]);
+        sun3(W, [0, kneeOrn, lr * (g.greaves ? 1.55 : 1.25)], lr * 0.5, 6, GOLD3, GLOW3[7]);
     }
   }
 }
@@ -1619,7 +1626,8 @@ const ARMOR3 = {
       highCollar3(W, g, GOLD3);
       for (let row = 1; row <= 2; row++) {
         for (const [x, z, ry] of [[-0.09, 0.19, 0.25], [0.09, 0.19, -0.25], [-0.2, 0.02, 1.4], [0.2, 0.02, -1.4]]) {
-          Wh(roundBox(0.12 - row * 0.012, 0.15, 0.025, 0.012), row % 2 ? '#fff2b0' : GOLD3, { p: [x * g.bk * (1 + row * 0.04), g.hipY - 0.1 - row * 0.075, z * g.bk * (1 + row * 0.06)], r: [0.18, ry, 0], shine: 1 });
+          // seit 14.74 enger gestaffelt (vorher 0,075 je Lage, die untere reichte bis auf die Stiefel und verdeckte sie)
+          Wh(roundBox(0.12 - row * 0.012, 0.13, 0.025, 0.012), row % 2 ? '#fff2b0' : GOLD3, { p: [x * g.bk * (1 + row * 0.04), g.hipY - 0.1 - row * 0.045, z * g.bk * (1 + row * 0.06)], r: [0.18, ry, 0], shine: 1 });
         }
       }
     },
@@ -2562,8 +2570,55 @@ function bow3(W, tier, shell, strW) {
   shell(roundBox(0.14, tip[1] * 2 + 0.12, 0.1, 0.04), { p: [tip[0] * 0.5, 0, 0] });
 }
 
+// Leuchthülle der Waffe (seit 14.74): jedes Teil der Waffe kommt ein zweites Mal in die Leuchtgruppe (wglow), mit
+// Normalen, die nur von der Lage im Teil abhängen (vom Mittelpunkt nach außen, nach den Maßen des Teils gestreckt).
+// Der Shader (figWeaponGlowMat, drei-figuren.js) bläht die Kopie entlang dieser Normalen auf – weil gleiche Punkte
+// gleiche Normalen haben, reißt die Hülle an Kanten nicht auf, und sie wird rund statt kantig. Vorher stand an ihrer
+// Stelle ein Kasten (Axtblatt, Klinge, Bogen) oder eine Kugel (Stab, Glocke) um die ganze Waffe.
+const WGLOW_GEO3 = new WeakMap();
+function wglowGeo3(geo) {
+  let g = WGLOW_GEO3.get(geo);
+  if (g) return g;
+  if (!geo.boundingBox) geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  const P = geo.attributes.position;
+  const cx = (bb.min.x + bb.max.x) / 2;
+  const cy = (bb.min.y + bb.max.y) / 2;
+  const cz = (bb.min.z + bb.max.z) / 2;
+  const hm = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) * 0.02 + 1e-5;
+  const hx = Math.max(hm, (bb.max.x - bb.min.x) / 2);
+  const hy = Math.max(hm, (bb.max.y - bb.min.y) / 2);
+  const hz = Math.max(hm, (bb.max.z - bb.min.z) / 2);
+  const N = new Float32Array(P.count * 3);
+  for (let i = 0; i < P.count; i++) {
+    const x = (P.getX(i) - cx) / hx;
+    const y = (P.getY(i) - cy) / hy;
+    const z = (P.getZ(i) - cz) / hz;
+    const l = Math.hypot(x, y, z) || 1;
+    N[i * 3] = x / l;
+    N[i * 3 + 1] = l > 1e-6 ? y / l : 1;
+    N[i * 3 + 2] = z / l;
+  }
+  g = new THREE.BufferGeometry();
+  g.setAttribute('position', P);
+  g.setAttribute('normal', new THREE.BufferAttribute(N, 3));
+  if (geo.index) g.setIndex(geo.index);
+  g.boundingBox = bb;
+  WGLOW_GEO3.set(geo, g);
+  return g;
+}
+// Bauhelfer, der jedes Waffenteil zusätzlich als Leuchthülle ablegt
+function wglowAdder3(A) {
+  return (geo, color, o = {}) => {
+    const r = A(geo, color, o);
+    if (o.mat !== 'wglow') A(wglowGeo3(geo), '#ffffff', Object.assign({}, o, { mat: 'wglow', shine: 0, top: null, shade: 0, shadowExact: false }));
+    return r;
+  };
+}
+
 function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   tier = Math.max(0, Math.min(ITEM_TIERS.length - 1, tier || 0));
+  if (wg) A = wglowAdder3(A);
   const metal = TIER_METAL[tier];
   const accent = TIER_ACCENT[tier];
   const M = partFrame(at, rot);
@@ -2574,7 +2629,8 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   // zur ersten, ihre Schneide zeigte nicht wie bei der Haupthand nach vorn)
   if ((kind === 'axe' || kind === 'greataxe') && typeof AXE_TWIST3 !== 'undefined') M.multiply(new THREE.Matrix4().makeRotationY(o.left ? Math.PI - AXE_TWIST3 : AXE_TWIST3));
   const W = framed(A, M, bone);
-  const shell = (geo, o) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: M.clone().multiply(partMatrix(o)) });
+  // seit 14.74 ohne Kasten oder Kugel: die Leuchthülle entsteht aus den Teilen selbst (wglowAdder3)
+  const shell = () => {};
   const gold = '#c9a35a';
   const gem = tier >= 4 ? STAFF_ORB[tier] : null;
   const iron = '#8a8f96';
@@ -2587,8 +2643,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
       // rechten Hand liegen statt beide zur selben Seite zu zeigen
       if (o.left) MD.multiply(new THREE.Matrix4().makeRotationY(Math.PI));
       const WD = framed(A, MD, bone);
-      const shellD = (geo, oo) => wg && A(geo, '#ffffff', { bone, mat: 'wglow', m: MD.clone().multiply(partMatrix(oo)) });
-      dagger3(WD, tier, shellD);
+      dagger3(WD, tier, shell);
       return;
     }
     case 'sword':
