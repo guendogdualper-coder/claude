@@ -104,7 +104,8 @@ async function cloudGet() {
   if (!r.ok) throw new Error('Laden fehlgeschlagen (' + r.status + ')');
   const d = await r.json();
   if (!d || !d.slots) return null;
-  const st = { slots: [], claims: [], last: d.last != null ? d.last : null, blockiert: typeof d.blockiert === 'string' ? d.blockiert : null };
+  const st = { slots: [], claims: [], last: d.last != null ? d.last : null, blockiert: typeof d.blockiert === 'string' ? d.blockiert : null,
+    sozial: typeof d.sozial === 'string' ? d.sozial : null }; // seit 14.84: Seite III/IV der Tasche (sozial-freischalten.js)
   const claims = d.claims || {};
   for (let k = 0; k < MAX_CHARS; k++) {
     const raw = d.slots[k] != null ? d.slots[k] : d.slots[String(k)];
@@ -121,7 +122,8 @@ async function cloudPut(st, keepalive) {
   const r = await fetch(await cloudUrl(), {
     method: 'PUT', keepalive: !!keepalive, headers: { 'Content-Type': 'application/json' },
     // seit 13.77: Blockierliste (spielerschutz.js) liegt mit im Konto, damit sie auf jedem Gerät gilt
-    body: JSON.stringify({ v: 1, at: Date.now(), last: st.last, slots, claims, blockiert: typeof blockForCloud === 'function' ? blockForCloud() : undefined })
+    body: JSON.stringify({ v: 1, at: Date.now(), last: st.last, slots, claims, blockiert: typeof blockForCloud === 'function' ? blockForCloud() : undefined,
+      sozial: typeof sozialForCloud === 'function' ? sozialForCloud() : undefined })
   });
   if (!r.ok) throw new Error('Speichern fehlgeschlagen (' + r.status + ')');
 }
@@ -208,6 +210,8 @@ async function cloudExchange(keepalive) {
   if (account.deleting) throw new Error('Das Konto wird gerade gelöscht.');
   // seit 13.77: neuere Blockierliste aus dem Konto übernehmen
   if (remote && typeof blockFromCloud === 'function') blockFromCloud(remote.blockiert);
+  // seit 14.84: Seite III/IV freigeschaltet – gilt für alle Charaktere des Kontos (sozial-freischalten.js)
+  if (remote && typeof sozialFromCloud === 'function') sozialFromCloud(remote.sozial);
   if (local.owner !== account.uid) {
     local = adoptLocal(local, remote);
     writeSlots(local, true);

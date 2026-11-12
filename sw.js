@@ -123,6 +123,7 @@ const FILES = [
   'js/handel-db.js',
   'js/handel-ware.js',
   'js/kontolager.js',
+  'js/sozial-freischalten.js',
   'js/post.js',
   'js/auktionshaus.js',
   'js/handel-npc.js',

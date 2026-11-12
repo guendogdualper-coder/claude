@@ -332,7 +332,9 @@ function tradeMaybeFinish() {
       giveBooks(p, it.book, it.count);
       got += it.count;
     } else {
-      p.inventory.push({ ...JSON.parse(JSON.stringify(it)), uid: newUid() });
+      const neu = { ...JSON.parse(JSON.stringify(it)), uid: newUid() };
+      delete neu.bagPos; // seit 14.84: Platz des anderen nicht übernehmen (gesperrte Seiten)
+      p.inventory.push(neu);
       got++;
     }
   }
@@ -391,7 +393,9 @@ const trade = {
       bag += gear.tile(it, it ? `data-tbag="${it.uid}"${picked ? ' data-picked="1"' : ''}` : '');
     }
     const tabs = Array.from({ length: BAG_PAGES }, (_, k) => `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}" data-tpage="${k}">${['I', 'II', 'III', 'IV'][k]}</button>`).join('');
-    const room = BAG_SIZE - p.inventory.length + t.mine.uids.length;
+    // seit 14.84: nur nutzbare Plätze; was ich hergebe, macht nur auf Seite I/II einen nutzbaren Platz frei
+    const lay = bagLayout(p);
+    const room = bagFree(p, lay) + t.mine.uids.filter((u) => { const k = p.inventory.findIndex((x) => x.uid === u); return k >= 0 && !bagSlotLocked(lay.indexOf(k)); }).length;
     const tooFull = t.theirs.items.length > room;
     body.innerHTML =
       `<div class="trade-cols">` +

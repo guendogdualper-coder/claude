@@ -465,6 +465,15 @@ const RATGEBER_WISSEN = [
     k: 'tasche voll inventar platz plaetze sortieren aufraeumen'
   },
   {
+    // seit 14.84: Seite III und IV (sozial-freischalten.js)
+    c: 'ausruestung', q: 'Warum sind Seite III und IV meiner Tasche gesperrt?',
+    a: () => (typeof sozialSperreAn === 'function' && sozialSperreAn()
+      ? (sozialFrei() ? 'Bei dir sind Seite III und IV schon frei – danke fürs Folgen! Das gilt für alle deine Charaktere.'
+        : 'Seite I und II hat jeder Charakter. Folge uns auf TikTok und Instagram und schalte Seite III und IV frei – für alle deine Charaktere. Die beiden Knöpfe findest du im Rucksack auf Seite III oder IV. Was dort schon liegt, kannst du jederzeit ansehen und herausnehmen.')
+      : 'Bei dir sind alle vier Seiten der Tasche frei.'),
+    k: 'seite 3 4 drei vier gesperrt freischalten tiktok instagram folgen schloss tasche rucksack'
+  },
+  {
     c: 'ausruestung', q: 'Was ist das Lager?',
     a: () => `Bei <b>{n:lager}</b> öffnest du einmalig für ${(typeof STORAGE !== 'undefined') ? rgFmt(STORAGE.price) : '1.000'} Gold dein Lager mit ${(typeof STORAGE_SIZE !== 'undefined') ? STORAGE_SIZE : 180} Plätzen – in jeder Stadt dasselbe. ` +
       'Mit Konto gehört der Inhalt dem ganzen Konto: Jeder deiner Charaktere mit eigenem Zugang kommt an die Sachen.',

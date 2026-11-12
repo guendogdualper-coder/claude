@@ -777,14 +777,15 @@ function takeItem(p, i) {
   const it = st && st.items[i];
   if (!it) return 'none';
   if (isBook(it)) {
-    const stack = p.inventory.find((x) => x.book === it.book && x.count + it.count <= BOOK_STACK);
+    const stack = bagBookStack(p, it.book, it.count); // seit 14.84: nicht auf gesperrten Seiten (sozial-freischalten.js)
     if (stack) {
       stack.count += it.count;
       st.items.splice(i, 1);
       return 'ok';
     }
   }
-  if (p.inventory.length >= BAG_SIZE) return 'full';
+  if (bagFree(p) <= 0) return 'full';
+  delete it.bagPos; // seit 14.84: auf den ersten freien Platz, nie auf eine gesperrte Seite
   p.inventory.push(it);
   st.items.splice(i, 1);
   return 'ok';

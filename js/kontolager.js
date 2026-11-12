@@ -257,16 +257,16 @@ async function klTake(p, uid) {
     const i = list.findIndex((x) => x.uid === uid);
     if (i < 0) return { error: 'Das hat inzwischen ein anderer Charakter herausgenommen.' };
     const it = list[i];
-    const stack = isBook(it) && p.inventory.find((x) => x.book === it.book && x.count + it.count <= BOOK_STACK);
-    if (!stack && p.inventory.length >= BAG_SIZE) return { error: 'Deine Tasche ist voll.' };
+    const stack = isBook(it) && bagBookStack(p, it.book, it.count); // seit 14.84: nur Seite I/II, solange III/IV gesperrt
+    if (!stack && bagFree(p) <= 0) return { error: 'Deine Tasche ist voll.' };
     list.splice(i, 1);
     return { res: it };
   });
   if (!r.ok) return r;
   const it = r.res;
-  const stack = isBook(it) && p.inventory.find((x) => x.book === it.book && x.count + it.count <= BOOK_STACK);
+  const stack = isBook(it) && bagBookStack(p, it.book, it.count);
   if (stack) stack.count += it.count;
-  else p.inventory.push(it);
+  else { delete it.bagPos; p.inventory.push(it); }
   handelSave();
   return { ok: true };
 }
@@ -333,7 +333,7 @@ function klRender(msg) {
     (over ? `<p class="form-error">Das Lager ist übervoll (${items.length} von ${STORAGE_SIZE} Plätzen) – beim Zusammenlegen der alten Lager kam mehr zusammen. Nimm erst etwas heraus, bevor du wieder einlagerst.</p>` : '') +
     `<section class="store-box"><h3>${handelOn() && !solo ? 'Konto-Lager' : 'Lager'} <small>${items.length}/${STORAGE_SIZE}</small><span class="bag-tabs">${tabs(pages, STORAGE.page, items, ui.stPage, 'data-spage')}</span></h3>` +
     `<div class="bag-grid">${sGrid}</div></section>` +
-    `<section class="store-box"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs(BAG_PAGES, BAG_PAGE, bagLay.map((i) => i >= 0), gear.page, 'data-bpage')}</span>` +
+    `<section class="store-box"><h3>Tasche <small>${bagCapText(p)}</small><span class="bag-tabs">${tabs(BAG_PAGES, BAG_PAGE, bagLay.map((i) => i >= 0), gear.page, 'data-bpage')}</span>` +
     `<button type="button" class="mini-btn" id="btnStorePage">Ganze Seite einlagern</button></h3>` +
     `<div class="bag-grid">${bGrid}</div></section></div>`;
   const run = async (fn) => {

@@ -699,10 +699,33 @@ function bagSlotOf(p, idx, layout = bagLayout(p)) {
   return layout.indexOf(idx);
 }
 
+// seit 14.84: Seite III und IV können gesperrt sein (sozial-freischalten.js). Dann sind nur die Plätze von Seite I und
+// II frei für Neues; was schon auf III/IV liegt, bleibt dort und lässt sich nur herausnehmen.
+const bagOpenSlots = () => (typeof sozialOffeneSeiten === 'function' ? sozialOffeneSeiten() : BAG_PAGES) * BAG_PAGE;
+const bagSlotLocked = (s) => s >= bagOpenSlots();
+// Freie Plätze für neue Sachen (Beute, Kauf, Post, Handel, Lager …)
+function bagFree(p, layout) {
+  const open = bagOpenSlots();
+  if (open >= BAG_SIZE) return Math.max(0, BAG_SIZE - p.inventory.length);
+  const lay = layout || bagLayout(p);
+  let n = 0;
+  for (let s = 0; s < open; s++) if (lay[s] < 0) n++;
+  return n;
+}
+// Anzeige „belegt/Plätze“ (gesperrt: nur Seite I und II)
+const bagCapText = (p) => `${p.inventory.length}/${bagOpenSlots()}`;
+// Bücherstapel, auf den n Bücher passen – nur auf nutzbaren Seiten (auf III/IV wird nichts Neues abgelegt)
+function bagBookStack(p, id, n) {
+  const open = bagOpenSlots();
+  const lay = open < BAG_SIZE ? bagLayout(p) : null;
+  return p.inventory.find((it, i) => it && it.book === id && it.count + n <= BOOK_STACK && (!lay || lay.indexOf(i) < open)) || null;
+}
+
 function addToBag(item) {
   const p = game.player;
-  if (p.inventory.length >= BAG_SIZE) return false;
+  if (bagFree(p) <= 0) return false;
   fixLifeBonus(item); // seit 14.21: auch Teile aus Handel, Post und Auktionshaus
+  delete item.bagPos; // seit 14.84: Neues kommt auf den ersten freien Platz (nie auf eine gesperrte Seite)
   p.inventory.push(item);
   return true;
 }
@@ -775,12 +798,12 @@ function takeBooks(p, id, n) {
 const newUid = () => Math.random().toString(36).slice(2, 10);
 // force: auch bei voller Tasche (nur beim Umwandeln alter Spielstände)
 function addBookItem(p, id, n = 1, force = false) {
-  const stack = p.inventory.find((it) => it.book === id && it.count + n <= BOOK_STACK);
+  const stack = bagBookStack(p, id, n); // seit 14.84: nicht auf gesperrten Seiten
   if (stack) {
     stack.count += n;
     return true;
   }
-  if (!force && p.inventory.length >= BAG_SIZE) return false;
+  if (!force && bagFree(p) <= 0) return false;
   p.inventory.push({ book: id, count: n, uid: newUid() });
   return true;
 }
@@ -1142,7 +1165,9 @@ function equipFromBag(index, hand) {
   const old = p.equipment[slot];
   p.inventory.splice(index, 1);
   // das abgelegte Teil übernimmt den Platz in der Tasche (seit 14.20)
-  if (old) { if (Number.isInteger(item.bagPos)) old.bagPos = item.bagPos; else delete old.bagPos; p.inventory.splice(index, 0, old); }
+  // seit 14.84: liegt das neue Teil auf einer gesperrten Seite (III/IV), rückt das alte lieber auf einen freien Platz
+  // von Seite I/II (ist dort keiner frei, bleibt es beim Tausch auf demselben Platz)
+  if (old) { if (Number.isInteger(item.bagPos) && !bagSlotLocked(item.bagPos)) old.bagPos = item.bagPos; else delete old.bagPos; p.inventory.splice(index, 0, old); }
   delete item.bagPos;
   p.equipment[slot] = item;
   const bow = item.slot === 'waffe' && !off && item.kind === 'bow';
@@ -2197,14 +2222,18 @@ const gear = {
     const equip = equipSlotsFor(p.classId).map((sl) => this.tile(p.equipment[sl.id], `data-equip="${sl.id}"`, slotLabel(sl.id, p), sl.id)).join('');
     let bag = '';
     // seit 14.20: jedes Teil liegt auf seinem eigenen Platz (bagLayout), freie Plätze sind Ablageziele (data-bagslot)
+    // seit 14.84: gesperrte Seite (sozial-freischalten.js): Teile ansehen und herausnehmen, freie Plätze sind kein Ablageziel
+    const locked = bagSlotLocked(this.page * BAG_PAGE);
     for (let s = this.page * BAG_PAGE; s < (this.page + 1) * BAG_PAGE; s++) {
       const i = layout[s];
       const picked = i >= 0 && this.multi && this.multi.has(i);
-      bag += i >= 0 ? this.tile(p.inventory[i], `data-bag="${i}"${picked ? ' data-picked="1"' : ''}`) : this.tile(null, `data-bagslot="${s}"`);
+      bag += i >= 0 ? this.tile(p.inventory[i], `data-bag="${i}"${picked ? ' data-picked="1"' : ''}`)
+        : locked ? `<span class="item-tile empty soz-platz" aria-hidden="true">${SOZIAL_SCHLOSS}</span>` : this.tile(null, `data-bagslot="${s}"`);
     }
     const tabs = Array.from({ length: BAG_PAGES }, (_, k) => {
       const used = bagPageCount(p, k, layout);
-      return `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}" data-page="${k}">${['I', 'II', 'III', 'IV'][k]}<small>${used}</small></button>`;
+      const zu = bagSlotLocked(k * BAG_PAGE);
+      return `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}${zu ? ' soz-zu' : ''}" data-page="${k}"${zu ? ' title="Gesperrt – folge uns auf TikTok und Instagram"' : ''}>${['I', 'II', 'III', 'IV'][k]}${zu ? SOZIAL_SCHLOSS : ''}<small>${used}</small></button>`;
     }).join('');
     // Mehrere verkaufen: nur bei einem Händler
     let sellBar;
@@ -2226,8 +2255,8 @@ const gear = {
       `<div class="inv-layout">` +
       `<section class="inv-equip"><h3>Angelegt</h3><div class="equip-doll"><canvas id="invDoll" class="doll"></canvas><div class="equip-grid">${equip}</div></div>` +
       `<p class="inv-sum">Angriff ${s.atk} · Verteidigung ${s.def}<br>Leben ${s.maxHp} · Mana ${s.maxMp}</p></section>` +
-      `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${p.inventory.length}/${BAG_SIZE}</small><span class="bag-tabs">${tabs}</span></h3>` +
-      sellBar + `<div class="bag-grid">${bag}</div>` +
+      `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${bagCapText(p)}</small><span class="bag-tabs">${tabs}</span></h3>` +
+      sellBar + (locked && typeof sozialHinweisHtml === 'function' ? sozialHinweisHtml() : '') + `<div class="bag-grid">${bag}</div>` +
       // Vorräte (seit 11.0): Tränke jeder Größe und Segensschriftrollen, antippen zum Trinken oder Verkaufen
       `<h4 class="sup-head">Vorräte <small>Tränke, Segensschriftrollen, Verstärkungen und Switcher</small></h4>` +
       `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x, !!(this.multiSup && this.multiSup.has(x.key)))).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
@@ -2331,6 +2360,7 @@ const gear = {
       this.renderInventory();
     }));
     body.querySelectorAll('[data-multi]').forEach((b) => b.addEventListener('click', () => this.multiAction(b.dataset.multi)));
+    if (locked && typeof sozialVerdrahten === 'function') sozialVerdrahten(body);
     const sortBtn = body.querySelector('[data-sort-bag]');
     if (sortBtn) sortBtn.addEventListener('click', () => {
       const changed = sortInventory(p);
@@ -2524,13 +2554,19 @@ const gear = {
       if (dst.where === 'bag' || dst.where === 'slot' || dst.where === 'page') {
         const from = bagSlotOf(p, a, layout);
         const to = slotFor(dst);
-        if (to < 0) { text = 'Auf dieser Seite ist kein Platz frei.'; cls = 'warn'; }
+        // seit 14.84: auf gesperrte Seiten nichts legen, und ein Tausch darf nichts von Seite I/II dorthin schieben
+        const pageLocked = dst.where === 'page' && bagSlotLocked(dst.key * BAG_PAGE);
+        if (pageLocked || (to >= 0 && to !== from && (bagSlotLocked(to) || (bagSlotLocked(from) && layout[to] >= 0)))) {
+          text = pageLocked || bagSlotLocked(to) ? 'Seite III und IV sind noch gesperrt – von dort kannst du nur herausnehmen.'
+            : 'Zieh es auf einen freien Platz auf Seite I oder II.';
+          cls = 'warn';
+        } else if (to < 0) { text = 'Auf dieser Seite ist kein Platz frei.'; cls = 'warn'; }
         else if (to !== from) {
           const other = layout[to] >= 0 ? inv[layout[to]] : null;
           item.bagPos = to;
           if (other) other.bagPos = from;
         }
-        if (dst.where === 'page' && to >= 0) this.page = dst.key;
+        if (dst.where === 'page' && to >= 0 && cls !== 'warn') this.page = dst.key;
       } else if (dst.where === 'equip') {
         if (isBook(item) || !item.slot) { text = 'Das lässt sich nicht anlegen.'; cls = 'warn'; }
         else {
@@ -2544,7 +2580,8 @@ const gear = {
     } else if (src.where === 'equip') {
       const item = p.equipment[src.key];
       if (!item || dst.where === 'equip') return;
-      const to = slotFor(dst);
+      let to = slotFor(dst);
+      if (to >= 0 && bagSlotLocked(to)) to = -1; // seit 14.84: dann auf den ersten freien Platz von Seite I/II
       const before = inv.length;
       unequip(src.key);
       if (inv.length > before) {
@@ -2906,7 +2943,7 @@ const gear = {
     const cls = msg ? msg.className : 'gear-msg';
     body.innerHTML = `<div class="merchant-top"><p class="merchant-greet">„${m.greeting}“</p>` +
       `<div class="merchant-gold"><span>Dein Gold</span><b>${p.gold.toLocaleString('de-DE')}</b></div>` +
-      `<div class="merchant-sell"><button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button><small>Tasche ${p.inventory.length}/${BAG_SIZE}</small></div></div>` +
+      `<div class="merchant-sell"><button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button><small>Tasche ${bagCapText(p)}</small></div></div>` +
       `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + `<div class="merchant-groups">${groups}` +
       // Bogenmacherin (seit 13.57): Pfeile je Sorte (fernninja.js)
       (m.arrows && typeof bowArrowShopHtml === 'function' ? bowArrowShopHtml() : '') + `</div>`;
@@ -2992,7 +3029,7 @@ const gear = {
   // Verkaufen: öffnet die Tasche gleich zum Auswählen
   sellSectionHtml() {
     const p = game.player;
-    return `<h3>Verkaufen</h3><p class="hint-text">Tippe in der Tasche alles an, was weg soll – Ausrüstung, Bücher und Tränke, auf allen Seiten I–IV – und verkaufe es auf einmal. Tasche ${p.inventory.length}/${BAG_SIZE}.</p>` +
+    return `<h3>Verkaufen</h3><p class="hint-text">Tippe in der Tasche alles an, was weg soll – Ausrüstung, Bücher und Tränke, auf allen Seiten I–IV – und verkaufe es auf einmal. Tasche ${bagCapText(p)}.</p>` +
       `<button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button>`;
   },
 

@@ -3855,4 +3855,18 @@
 "Stufe {0}–{1} · Die Kristallzitadelle Lichtwacht, darum kantige Kristallplattformen über dem Abgrund, verbunden durch Lichtbrücken, mit Golems und Spinnen; außen im Leerenschlund Splitter nur über Teleportsteine, Ritter und Wyrme. Kristallkaverne.": "Level {0}–{1} · The crystal citadel Lichtwacht, surrounded by angular crystal platforms above the abyss joined by bridges of light, with golems and spiders; further out in the Void Maw splinters reached only by teleport stones, knights and wyrms. Crystal Cavern.",
 "Stufe {0}–{1} · Die Kristallzitadelle Lichtwacht, darum kantige Kristallplattformen über dem Abgrund, verbunden durch Lichtbrücken, mit Golems und Spinnen; außen im Leerenschlund Splitter nur über Teleportsteine, Ritter und Wyrme. Kristallkaverne. Ab Stufe {2}.": "Level {0}–{1} · The crystal citadel Lichtwacht, surrounded by angular crystal platforms above the abyss joined by bridges of light, with golems and spiders; further out in the Void Maw splinters reached only by teleport stones, knights and wyrms. Crystal Cavern. From Level {2}.",
 "„Die Kristallzitadelle Lichtwacht, darum kantige Kristallplattformen über dem Abgrund, verbunden durch Lichtbrücken, mit Golems und Spinnen; außen im Leerenschlund Splitter nur über Teleportsteine, Ritter und Wyrme. Kristallkaverne.“": "“The crystal citadel Lichtwacht, surrounded by angular crystal platforms above the abyss joined by bridges of light, with golems and spiders; further out in the Void Maw splinters reached only by teleport stones, knights and wyrms. Crystal Cavern.”",
+"Gesperrt – folge uns auf TikTok und Instagram": "Locked – follow us on TikTok and Instagram",
+"Seite III und IV sind noch gesperrt.": "Pages III and IV are still locked.",
+"Folge uns auf TikTok und Instagram und schalte Seite III und IV frei – für alle deine Charaktere.": "Follow us on TikTok and Instagram to unlock pages III and IV – for all your characters.",
+"Was hier schon liegt, kannst du ansehen und herausnehmen.": "You can still view and take out anything that is already here.",
+"Noch ein Knopf, dann sind beide Seiten frei.": "One more button and both pages are unlocked.",
+"Auf TikTok folgen": "Follow on TikTok",
+"Auf Instagram folgen": "Follow on Instagram",
+"Danke fürs Folgen! Seite III und IV deiner Tasche sind jetzt frei – für alle deine Charaktere.": "Thanks for following! Pages III and IV of your bag are now unlocked – for all your characters.",
+"Seite III und IV sind noch gesperrt – von dort kannst du nur herausnehmen.": "Pages III and IV are still locked – you can only take things out of them.",
+"Zieh es auf einen freien Platz auf Seite I oder II.": "Drag it to a free slot on page I or II.",
+"Warum sind Seite III und IV meiner Tasche gesperrt?": "Why are pages III and IV of my bag locked?",
+"Bei dir sind Seite III und IV schon frei – danke fürs Folgen! Das gilt für alle deine Charaktere.": "Pages III and IV are already unlocked for you – thanks for following! This applies to all your characters.",
+"Seite I und II hat jeder Charakter. Folge uns auf TikTok und Instagram und schalte Seite III und IV frei – für alle deine Charaktere. Die beiden Knöpfe findest du im Rucksack auf Seite III oder IV. Was dort schon liegt, kannst du jederzeit ansehen und herausnehmen.": "Every character has pages I and II. Follow us on TikTok and Instagram to unlock pages III and IV – for all your characters. You'll find both buttons in your backpack on page III or IV. Anything already there can be viewed and taken out at any time.",
+"Bei dir sind alle vier Seiten der Tasche frei.": "All four pages of your bag are unlocked."
 };

@@ -158,7 +158,11 @@ function wareGive(p, w) {
   switch (w.t) {
     case 'it':
       if (isBook(w.it)) giveBooks(p, w.it.book, w.it.count);
-      else p.inventory.push(Object.assign(JSON.parse(JSON.stringify(w.it)), { uid: w.it.uid || newUid() }));
+      else {
+        const it = Object.assign(JSON.parse(JSON.stringify(w.it)), { uid: w.it.uid || newUid() });
+        delete it.bagPos; // seit 14.84: auf den ersten freien Platz (nicht auf eine gesperrte Seite)
+        p.inventory.push(it);
+      }
       break;
     case 'trank': { const k = potAlias(w.k); p.potions[k] = (p.potions[k] || 0) + w.n; break; } // seit 14.32: alte L → XL
     case 'segen': p.scrolls = (p.scrolls || 0) + w.n; break;
@@ -181,7 +185,7 @@ function wareGive(p, w) {
 // Passt das alles in die Tasche? (Ausrüstung braucht je einen Platz, Fertigkeitsbücher höchstens einen je Stapel)
 function wareRoom(p, list) {
   const need = list.reduce((a, w) => a + (w.t !== 'it' ? 0 : isBook(w.it) ? Math.ceil(w.it.count / BOOK_STACK) : 1), 0);
-  return p.inventory.length + need <= BAG_SIZE;
+  return need <= bagFree(p); // seit 14.84: gesperrte Seiten III/IV zählen nicht
 }
 
 // --- Anzeige ---------------------------------------------------------------------------------------------

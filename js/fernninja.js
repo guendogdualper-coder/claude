@@ -3269,7 +3269,7 @@ function bowPathMigrate(p) {
     if (typeof merchantRarity === 'function') applyRarity(bow, merchantRarity(Math.min(3, tier)));
     // was abgelegt wird, muss in die Tasche passen (Dolche, Nebenhand); sonst kommt der Bogen nur in die Tasche
     const off = [eq.waffe, eq.schild && !isQuiver(eq.schild) ? eq.schild : null].filter(Boolean);
-    const free = BAG_SIZE - p.inventory.length;
+    const free = bagFree(p); // seit 14.84: gesperrte Seiten III/IV zählen nicht (sozial-freischalten.js)
     if (free >= off.length) {
       for (const it of off) p.inventory.push(it);
       eq.waffe = bow;

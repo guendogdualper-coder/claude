@@ -944,7 +944,7 @@ Object.assign(ui, {
       if (p.gold < w.price) return;
       p.gold -= w.price;
       if (w.id === 'book') {
-        if (p.inventory.length >= BAG_SIZE) {
+        if (bagFree(p) <= 0) { // seit 14.84: nur Seite I/II, solange III/IV gesperrt sind
           p.gold += w.price;
           ui.log('Deine Tasche ist voll.', 'warn');
           return;
