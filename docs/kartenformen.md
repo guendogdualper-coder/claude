@@ -103,7 +103,7 @@ Neues im Baukasten (`js/kartenformen.js`):
   (`LIQUID3_DEPTH`: Wolken 1,7, Schlucht 2,2; Oberfläche bei -0,62 bzw. -1,25), damit eine Absturzkante zu sehen ist; die
   Kante unter den Himmelsinseln in dunklem Fels (`LIQUID3_UNDER`). Kartenrand im Wolkenmeer/Meer (`voidEdge`): keine
   Randwand, die Fläche läuft bis zum Horizont (`V3.home.voidG`).
-- Brücken: Eisbrücke (`'eis'`) über den Wolken, Hängebrücke (`'seil'`) über der Schlucht. Seit 14.74 enden alle
+- Brücken: Eisbrücke (`'eis'`) über den Wolken, Hängebrücke (`'seil'`) über der Schlucht. Seit 14.76 enden alle
   Brücken auf Land, mit Auflager am Ufer und Geländer nur außen (docs/bruecken-74.md).
 - 2D: ziehende Wolkenfetzen bzw. Staub, dunkle Felskante statt Sandufer. Große Karte und Minikarte: eigene Farben
   (`MAP_LIQ`, `MAP_COLORS`).

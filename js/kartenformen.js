@@ -10,7 +10,7 @@
 //     Endboss-Tore und Instanz-Ecken auf Land liegen, verbindet jede Insel ohne Landweg über ein Teleportstein-Paar
 //     (bzw. eine Furt oder einen Pfad) mit der Stadt und schreibt das Ergebnis in die Karte.
 //   - Hooks für Wege (layRoads), Brücken (tidyBridges), Wanderer, Instanz-Ecken, Aufräumen (mapFormCleanup) und 3D.
-//   - seit 14.74: Brücken aufräumen (mapFormBridges/kfBridgeTidy, docs/bruecken-74.md, Prüfwerkzeug
+//   - seit 14.76: Brücken aufräumen (mapFormBridges/kfBridgeTidy, docs/bruecken-74.md, Prüfwerkzeug
 //     tools/bruecken-pruefung.js); gezeichnet werden alle Brückenarten in drei-welt.js (bridge3Tile).
 //   - mapFormReport: Erreichbarkeitstest (Flutfüllung über begehbare Kacheln und Teleportsteine ab der Stadt).
 // Gleiche Welt für alle: Die Form hat je Karte einen eigenen Zufallsgenerator (WORLD_SEED + 6800 + 131 · Map); die
@@ -639,7 +639,7 @@ function mapFormCleanup(maps, ground, obj, deco) {
   }
 }
 
-// seit 14.74: Brücken aufräumen (Enden auf Land, keine doppelten oder sinnlosen Stücke) – aus generateWorld (welt.js)
+// seit 14.76: Brücken aufräumen (Enden auf Land, keine doppelten oder sinnlosen Stücke) – aus generateWorld (welt.js)
 // nach den Weltportalen und Dungeon-Eingängen (deren freie Plätze schneiden sonst Stücke aus Dämmen heraus)
 function mapFormBridges(maps, ground, obj, deco) {
   for (const mp of maps) {
@@ -657,7 +657,7 @@ function mapFormBridges(maps, ground, obj, deco) {
   }
 }
 
-// --- Brücken aufräumen (seit 14.74, docs/bruecken-74.md, Prüfwerkzeug tools/bruecken-pruefung.js) -----------------
+// --- Brücken aufräumen (seit 14.76, docs/bruecken-74.md, Prüfwerkzeug tools/bruecken-pruefung.js) -----------------
 // Die Brücken der Formen entstehen als gerade Bänder über Abgrund/Wasser (ctx.bridge): Wo das Ufer schräg oder
 // zerfranst ist, enden die drei Spuren an verschiedenen Stellen, ein Band über eine Landzunge zerfällt in zwei Stücke,
 // L-förmige Dämme haben im Knick eine Lücke, und manche Brücke läuft am Kartenrand oder an einem Baum aus. Nach dem
@@ -1837,7 +1837,7 @@ if (typeof LIQUID3 !== 'undefined') {
   };
 }
 
-// Brücken: seit 14.74 baut drei-welt.js (bridge3Tile) alle Arten, auch die Eisbrücke über dem Wolkenmeer und die
+// Brücken: seit 14.76 baut drei-welt.js (bridge3Tile) alle Arten, auch die Eisbrücke über dem Wolkenmeer und die
 // Hängebrücke über der Schlucht (bis 14.73 hier als eigene Fassung von WORLD3.bridge).
 
 // 2D: ziehende Wolkenfetzen über dem Wolkenmeer, Staub in der Schlucht; am Rand eine dunkle Felskante statt Sand

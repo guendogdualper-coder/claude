@@ -185,10 +185,10 @@ const WORLD3 = {
   }
 };
 
-// --- Brücken (seit 14.74, docs/bruecken-74.md) ----------------------------------------------------------------------
+// --- Brücken (seit 14.76, docs/bruecken-74.md) ----------------------------------------------------------------------
 // Bis 14.73 bekam jede Brückenkachel ihr eigenes Stück mit Geländer auf beiden Seiten: Eine drei Kacheln breite Brücke
 // sah aus wie drei schmale Brücken nebeneinander, und am Ufer hing das letzte Stück in der Luft – der Boden fällt dort
-// zur Schlucht, zum Wolkenmeer oder zum Wasser hin ab (die Höhe wird zwischen den Kachelmitten gemittelt). Seit 14.74
+// zur Schlucht, zum Wolkenmeer oder zum Wasser hin ab (die Höhe wird zwischen den Kachelmitten gemittelt). Seit 14.76
 // wird jede Kachel nach ihren Nachbarn gebaut:
 //   - Belag in Laufrichtung (Bretter, Knüppel, Steinplatten, Eis, Licht) auf jeder Kachel;
 //   - Geländer nur an Kanten zum Abgrund/Wasser, Pfosten an den Enden des Geländers und jede zweite Kachel;
@@ -2703,7 +2703,7 @@ function* objectJob(cx, cy) {
       const g = w.ground[i];
       const d = w.deco[i];
       if (d === DECO.BRIDGE) {
-        // seit 14.74 nach den Nachbarn: Geländer nur außen, Auflager am Ufer, je Art eigene Bauweise (bridge3Tile)
+        // seit 14.76 nach den Nachbarn: Geländer nur außen, Auflager am Ufer, je Art eigene Bauweise (bridge3Tile)
         bridge3Tile(b, x, y, i, g, lowGfx);
         continue;
       }

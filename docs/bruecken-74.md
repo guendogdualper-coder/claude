@@ -1,4 +1,4 @@
-# Brücken auf allen Karten (seit 14.74)
+# Brücken auf allen Karten (seit 14.76)
 
 Wunsch des Spielers: „Überall auf jeder Map sind Brücken. Die sollen schöner werden; sie passen nicht mehr perfekt
 drauf, manchmal sind zwei an verschiedenen Stellen, das sieht nicht cool aus; ein kleines Stück am Ende der Brücke ist
@@ -65,9 +65,9 @@ Hängebrücke.
 
 ## Messwerte
 
-Prüfwerkzeug, alle 16 Karten (Wildnis; Stadt in Klammern), 14.73 → 14.74:
+Prüfwerkzeug, alle 16 Karten (Wildnis; Stadt in Klammern), 14.73 → 14.76:
 
-| | 14.73 | 14.74 |
+| | 14.73 | 14.76 |
 |---|---|---|
 | Brücken | 180 | 163 |
 | mit Befund | 46 (9) | 0 (0) |
@@ -79,7 +79,7 @@ Prüfwerkzeug, alle 16 Karten (Wildnis; Stadt in Klammern), 14.73 → 14.74:
 | 3D: Kanten zum Land ohne Auflager | 1286 | 0 |
 | 3D: Geländer zwischen zwei Brückenkacheln | 7791 | 0 |
 
-Je Karte (Raster-Reparaturen 14.74): Rostschlucht 8 Kacheln Brückenkopf, 1 Baum; Frostgipfel 26 Brückenkopf, 2 Stücke
+Je Karte (Raster-Reparaturen 14.76): Rostschlucht 8 Kacheln Brückenkopf, 1 Baum; Frostgipfel 26 Brückenkopf, 2 Stücke
 zu Land (die „zweite Brücke“ neben der langen Eisbrücke), 1 Landbuckel; Totenmoor 90 Brückenkopf, 3 Knicke, 2 Spuren,
 2 Stücke zu Land, 1 doppelter Damm weg, dazu 8 Stummel im Stegdorf; Donnerklamm 10; Feuerberg 48, 2 Brücken in den
 Kartenrand weg; Kristallabgrund 60; Blutsteppe 2, 4 Bäume; Nachtfrost 29; Schattenklippen 12, 2 Bäume; Sahra 1 Brücke.
@@ -94,9 +94,9 @@ Kartenrand weg; Kristallabgrund 60; Blutsteppe 2, 4 Bäume; Nachtfrost 29; Schat
 ## Leistung
 
 Dreiecke je Bild (`renderer.info`, alle Zeichenaufrufe eines Bildes samt Schatten; Grafik „mittel“, Kamera 30 Einheiten
-über der Brücke, gleiche Stelle, Tausend, 14.73 → 14.74):
+über der Brücke, gleiche Stelle, Tausend, 14.73 → 14.76):
 
-| Stelle | 14.73 | 14.74 |
+| Stelle | 14.73 | 14.76 |
 |---|---|---|
 | Hängebrücke Rostschlucht | 727 | 728 |
 | Eisbrücke Frostgipfel | 362 | 359 |
@@ -113,7 +113,7 @@ Hängebrücke werden je Kachel gebaut (zwei Quader).
 
 ## Tests
 
-- `node tools/bruecken-pruefung.js --url …` gegen 14.73 und 14.74 (Zahlen oben), ohne Seitenfehler.
+- `node tools/bruecken-pruefung.js --url …` gegen 14.73 und 14.76 (Zahlen oben), ohne Seitenfehler.
 - `mapFormReport` (läuft im Prüfwerkzeug mit): 0 unerreichbar auf allen Karten außer Kazehana (9), vorher wie nachher.
 - Raster-Hash-Vergleich aller Karten: Kazehana, Dunkelwald, Ödland, Mondfall, Aschewald, Knochenwüste unverändert
   (Boden, Objekte, Schmuck, Zonen, Schattierung, Leute, Requisiten); Leute und Requisiten auf allen Karten unverändert.

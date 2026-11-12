@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Seelenstein – Prüfwerkzeug für die Brücken aller Karten (seit 14.74, Bericht: docs/bruecken-74.md)
+// Seelenstein – Prüfwerkzeug für die Brücken aller Karten (seit 14.76, Bericht: docs/bruecken-74.md)
 //
 // Lädt das Spiel mit dem ECHTEN Spielcode im Browser (Playwright, headless Chromium, 2D-Ansicht), erzeugt die Welt wie
 // jeder Spieler und prüft jede Brücke jeder Karte (zusammenhängende Brückenkacheln = eine Brücke):
@@ -8,7 +8,7 @@
 //   hindernis  Spurende stößt an Baum, Mauer, Haus oder Felsrand
 //   luecke     schwebendes Ende, und 1–3 Kacheln weiter geht eine andere Brücke weiter
 //   quer       Kachel liegt quer zur Richtung, in der die Brücke das Gewässer überspannt
-//   ecke       (nur zur Info, kein Fehler) Kacheln an einem Knick L-förmiger Dämme – seit 14.74 zeichnet 3D den
+//   ecke       (nur zur Info, kein Fehler) Kacheln an einem Knick L-förmiger Dämme – seit 14.76 zeichnet 3D den
 //              Knick ohne Geländer quer über den Weg
 //   zacken     die Enden der Spuren einer Seite liegen mehr als 1 Kachel auseinander (ausgefranste Enden)
 //   aufLand    Brückenkachel ohne Flüssigkeit darunter
@@ -18,9 +18,9 @@
 //              (höchstens Länge + 12, bei kleinen Stücken bis 24 Kacheln höchstens 2 · Länge + 14), oder führt nirgendwohin
 // Dazu zwei Werte für das 3D-Bild (aus dem Code, der die Brücke zeichnet):
 //   ohneAuflager  Kanten Brücke → Land ohne Auflager: dort hängt das Ende über der abfallenden Uferkante in der Luft
-//                 (bis 14.73 jede Kante; seit 14.74 setzt bridge3Tile an jede Kante zum Land ein Widerlager)
+//                 (bis 14.73 jede Kante; seit 14.76 setzt bridge3Tile an jede Kante zum Land ein Widerlager)
 //   innenGelaender  Geländer zwischen zwei Brückenkacheln (bis 14.73 bekam jede Kachel beidseits ein Geländer – eine
-//                 breite Brücke sah aus wie mehrere schmale nebeneinander; seit 14.74 nur an Kanten zum Abgrund)
+//                 breite Brücke sah aus wie mehrere schmale nebeneinander; seit 14.76 nur an Kanten zum Abgrund)
 // Brücken in den Städten (Raster der Stadt) werden mitgeprüft, aber getrennt gezählt (sie gehören zum Grundriss).
 // Dazu läuft mapFormReport (Erreichbarkeit) mit.
 //

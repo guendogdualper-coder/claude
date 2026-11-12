@@ -338,7 +338,7 @@ const KF_TOWNS = {
       const inner = se(dx, dy) <= 0.78;
       if (inner && cx && cy) return '~';
       if (inner && cy) return dx === -1 || dx === 0 || dx === -14 || dx === -13 || dx === 12 || dx === 13 ? 'H' : '~';
-      // seit 14.74: im Westen keine Brücke bei 12/13 – sie lief gegen die Wand des begehbaren Hauses (enter)
+      // seit 14.76: im Westen keine Brücke bei 12/13 – sie lief gegen die Wand des begehbaren Hauses (enter)
       if (inner && cx) return dy === -1 || dy === 0 || dy === -14 || dy === -13 || ((dy === 12 || dy === 13) && dx > 0) ? '=' : '~';
       if (Math.abs(dx + 0.5) <= 6 && Math.abs(dy + 0.5) <= 6 && Math.hypot(dx + 0.5, dy + 0.5) < 5.5) return '.';
       if (kfRoad(dx, dy)) return '_';
@@ -568,7 +568,7 @@ const KF_TOWNS = {
       const by = band(dy);
       if (bx >= 0 && by >= 0) return ',';
       const lane = (v) => (v === -10 || v === -9 ? 0 : v === -1 || v === 0 ? 1 : v === 8 || v === 9 ? 2 : -1);
-      // seit 14.74: die äußeren Stege enden an der letzten Plattform (vorher liefen sie als kurze Stummel ins Moor)
+      // seit 14.76: die äußeren Stege enden an der letzten Plattform (vorher liefen sie als kurze Stummel ins Moor)
       if (by >= 0 && lane(dy) >= 0 && bx < 0 && Math.abs(dx) < 12) return '=';
       if (bx >= 0 && lane(dx) >= 0 && by < 0 && Math.abs(dy) < 12) return 'H';
       if ((dy === -1 || dy === 0) && Math.abs(dx) >= 12) return '=';

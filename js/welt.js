@@ -1296,7 +1296,7 @@ function generateWorld() {
     dg.entrance2 = { x: (e.x + 0.5) * TILE, y: (e.y + 1.4) * TILE };
     npcs.push(npc('eingang', dg.def.inst60 ? `Instanz: ${dg.def.name}` : dg.def.name, e.x + 0.5, e.y + 0.6, { dungeon: k, side2: true }));
   });
-  // seit 14.74: Brücken der Kartenformen aufräumen (kartenformen.js, nach Portalen und Eingängen)
+  // seit 14.76: Brücken der Kartenformen aufräumen (kartenformen.js, nach Portalen und Eingängen)
   if (typeof mapFormBridges === 'function') mapFormBridges(maps, ground, obj, deco);
   // Torwachen innen neben den Toren (Abstand zur Mauer bleibt gleich, wenn das Dorf wächst)
   // seit 13.9.1: am Südtor stehen die Wachen draußen vor den Torsäulen (drinnen verdeckten die Türme sie ganz),

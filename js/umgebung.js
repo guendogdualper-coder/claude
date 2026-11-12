@@ -463,7 +463,7 @@ function bridgeHoriz(x, y) {
 }
 
 // Brückenarten in den Städten (seit 14.16, bridgeStyleAt in welt.js): Steg über dem Moor, Steinbrücke über Lava,
-// Lichtbrücke über dem Abgrund; sonst die Holzbrücke wie bisher. Seit 14.74 auch Eis- und Hängebrücke.
+// Lichtbrücke über dem Abgrund; sonst die Holzbrücke wie bisher. Seit 14.76 auch Eis- und Hängebrücke.
 const BRIDGE2 = {
   steg: { deck: '#6e5a40', line: 'rgba(30,20,10,0.45)', rail: null, post: '#3e3022' },
   stein: { deck: '#5a5250', line: 'rgba(20,14,12,0.5)', rail: '#3a3230', post: null },
@@ -471,7 +471,7 @@ const BRIDGE2 = {
   eis: { deck: '#cfe6f4', line: 'rgba(120,160,190,0.45)', rail: '#f2faff', post: '#a8cce0' },
   seil: { deck: '#8a6440', line: 'rgba(40,25,10,0.55)', rail: '#c8a878', post: '#5a3a22' }
 };
-// seit 14.74: Kanten einer Brückenkachel zum Abgrund/Wasser (Bits 1 oben, 2 rechts, 4 unten, 8 links) – nur dort
+// seit 14.76: Kanten einer Brückenkachel zum Abgrund/Wasser (Bits 1 oben, 2 rechts, 4 unten, 8 links) – nur dort
 // Geländer (vorher an jeder Kachel beidseits: eine breite Brücke sah aus wie mehrere schmale nebeneinander)
 function bridgeEdges2(x, y) {
   const w = game.world;
