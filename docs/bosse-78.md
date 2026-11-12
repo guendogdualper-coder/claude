@@ -121,3 +121,26 @@ Alle unter 25.000 Dreiecken (Aelvyr 25.500, Spielerfigur 19.700). Drei Zeichenau
 (Körper, Umriss, Leuchtteile) plus Schatten; gebaut wird jedes Modell einmal und dann aus dem Vorrat genommen, die
 vereinfachte Stufe nebenbei. Effekte aus dem gemeinsamen Effekt-Vorrat, höchstens 28 laufende Boss-Effekte, Dauereffekte
 nur für höchstens zwei Bosse im Bild.
+
+## Tests
+- **Bilder im echten Spiel** (eigener Server, Stufe-80-Krieger in der Halle, normale Kamera, Zoom 2–2,4, Gerätefaktor 1,
+  Boss-KI angehalten und gezielt gesteuert): je Boss vorher (14.77) und nachher Ruhe, Kampfbeginn (Brüllen + Hieb),
+  Nahkampf, ein Spezialangriff (Strahl/Bodenwelle, Meteore, Nova oder Stampfer) und Tod. Übersicht:
+  Scratchpad `bosse78/collage.jpg` (14 Zeilen × 6 Bilder). Zusätzlich Brüllen, Nova und Meteore bei Fenris, Azaroth,
+  Vritra, Morrak; Schild, Tankschlag, Sprung, Sturm und Vernichtung bei Azaroth (Zweibeiner mit Flügeln), Ursus
+  (Vierbeiner) und Veyla (Naga). Modellbilder (Wiki-Ansicht) aller 14 Bosse.
+- **Echte Boss-Kämpfe** (KI läuft, Spieler unverwundbar, Leben in Stufen 72/50/30 % → Phasenwechsel mit Brüllen,
+  Kristall-Schild, Stampfer, Vernichtung, danach Sieg und Todesanimation) für alle 14 Bosse: keine Seitenfehler.
+- `node --check` aller geänderten Dateien; s73-Prüfung (alle 12 Charaktere, 2D, Port 8791): ohne Fehler.
+- Hinweis zum Test: Die Rechenlast auf dem Testrechner war hoch (Spielzeit lief langsamer als die Uhr); die Bilder wurden
+  darum nach Spielzeit aufgenommen.
+
+## Offene Punkte
+- **Weltendrache Ignar** (Karte 9) hat noch kein eigenes Modell (weiter das vergrößerte Drachenmodell, schwarze Flügel
+  seit 14.68 behoben). Vorschlag: eigener Bauplan auf Grundlage des Aelvyr-Skeletts (Hals, Flügel mit Fingern), aber mit
+  eigenem Kopf (Hornkrone, Magmamaul), Magmaadern, Schuppenplatten und Feuer-Thema.
+- Instanz-Endbosse (Abaddor, Ifrah, Zerberos, Instanz-Wächter) → Paket 2.
+- Wie bei Aelvyr laufen Posen und Effekte nur in 3D; in 2D bleibt der Kampf wie bisher (2D-Bilder unverändert).
+- Beim Mitspieler (nicht Host) gibt es das Brüllen bei Kampfbeginn nur, wenn ihm der Boss ein Ziel meldet; das Taumeln
+  nach dem Schildbruch sieht nur der Host (die Zeit kennt nur er). Phasenwechsel, Angriffe und Tod kommen überall an.
+- Die Kristallkuppel ist größer, umschließt aber bei sehr breiten Posen (Flügel ganz offen) nicht jeden Flügelzipfel.
