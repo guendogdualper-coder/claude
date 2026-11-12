@@ -265,10 +265,10 @@ function gearBoots3(A, g, t, metal0, boot0) {
   const boot = boot0 || GEAR_LOOK.boots[t];
   // vor dem Schienbein: über den Beinschienen der Rüstung, falls getragen
   const shin = lr * (g.greaves ? 1.42 : 0.95);
-  // Ferse und Spitze des Fußes (seit 14.74 längere Stiefel, humanoid3); Sohlenleuchten über die ganze Länge
+  // Ferse und Spitze des Fußes (seit 14.77 längere Stiefel, humanoid3); Sohlenleuchten über die ganze Länge
   const z0 = g.footZ0 != null ? g.footZ0 : -lr * 1.05;
   const z1 = g.footZ1 != null ? g.footZ1 : lr * 2.05;
-  // Schmuck der Schiene (Sonne, Stern): seit 14.74 unten am Schienbein statt am Knie – am Knie steckte er hinter
+  // Schmuck der Schiene (Sonne, Stern): seit 14.77 unten am Schienbein statt am Knie – am Knie steckte er hinter
   // Beintaschen und Rocksaum und nur die Strahlen stachen heraus (sah aus wie abgebrochene Teile)
   const kneeOrn = g.footZ0 != null ? 0.175 : g.hipY - g.legLen * 0.5 + 0.01;
   const sole = (W, col) => W(roundBox(lr * 2.26, 0.012, z1 - z0 + 0.014, 0.005), col, { p: [0, 0.034, (z0 + z1) / 2], mat: 'glow' });
@@ -1626,7 +1626,7 @@ const ARMOR3 = {
       highCollar3(W, g, GOLD3);
       for (let row = 1; row <= 2; row++) {
         for (const [x, z, ry] of [[-0.09, 0.19, 0.25], [0.09, 0.19, -0.25], [-0.2, 0.02, 1.4], [0.2, 0.02, -1.4]]) {
-          // seit 14.74 enger gestaffelt (vorher 0,075 je Lage, die untere reichte bis auf die Stiefel und verdeckte sie)
+          // seit 14.77 enger gestaffelt (vorher 0,075 je Lage, die untere reichte bis auf die Stiefel und verdeckte sie)
           Wh(roundBox(0.12 - row * 0.012, 0.13, 0.025, 0.012), row % 2 ? '#fff2b0' : GOLD3, { p: [x * g.bk * (1 + row * 0.04), g.hipY - 0.1 - row * 0.045, z * g.bk * (1 + row * 0.06)], r: [0.18, ry, 0], shine: 1 });
         }
       }
@@ -2570,7 +2570,7 @@ function bow3(W, tier, shell, strW) {
   shell(roundBox(0.14, tip[1] * 2 + 0.12, 0.1, 0.04), { p: [tip[0] * 0.5, 0, 0] });
 }
 
-// Leuchthülle der Waffe (seit 14.74): jedes Teil der Waffe kommt ein zweites Mal in die Leuchtgruppe (wglow), mit
+// Leuchthülle der Waffe (seit 14.77): jedes Teil der Waffe kommt ein zweites Mal in die Leuchtgruppe (wglow), mit
 // Normalen, die nur von der Lage im Teil abhängen (vom Mittelpunkt nach außen, nach den Maßen des Teils gestreckt).
 // Der Shader (figWeaponGlowMat, drei-figuren.js) bläht die Kopie entlang dieser Normalen auf – weil gleiche Punkte
 // gleiche Normalen haben, reißt die Hülle an Kanten nicht auf, und sie wird rund statt kantig. Vorher stand an ihrer
@@ -2629,7 +2629,7 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
   // zur ersten, ihre Schneide zeigte nicht wie bei der Haupthand nach vorn)
   if ((kind === 'axe' || kind === 'greataxe') && typeof AXE_TWIST3 !== 'undefined') M.multiply(new THREE.Matrix4().makeRotationY(o.left ? Math.PI - AXE_TWIST3 : AXE_TWIST3));
   const W = framed(A, M, bone);
-  // seit 14.74 ohne Kasten oder Kugel: die Leuchthülle entsteht aus den Teilen selbst (wglowAdder3)
+  // seit 14.77 ohne Kasten oder Kugel: die Leuchthülle entsteht aus den Teilen selbst (wglowAdder3)
   const shell = () => {};
   const gold = '#c9a35a';
   const gem = tier >= 4 ? STAFF_ORB[tier] : null;

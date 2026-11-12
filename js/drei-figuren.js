@@ -36,7 +36,7 @@ const figGlow = () => mat3('figGlow', () => new THREE.MeshBasicMaterial({ vertex
 // keinen Schatten, weil three.js bei Vorderseiten-Materialien in der Schattenkarte nur die Rückseiten zeichnet
 const figShadowProxy = () => mat3('figShadowProxy', () => new THREE.MeshBasicMaterial({ skinning: true, colorWrite: false, depthWrite: false, shadowSide: THREE.DoubleSide }));
 const figAura = () => mat3('figAura', () => new THREE.MeshBasicMaterial({ vertexColors: true, skinning: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
-// Waffen-Schein (seit 14.74 als Flammenhülle): Vorher lag um jede Waffe ein Kasten (Axtblatt, Klinge) oder eine Kugel
+// Waffen-Schein (seit 14.77 als Flammenhülle): Vorher lag um jede Waffe ein Kasten (Axtblatt, Klinge) oder eine Kugel
 // (Stab, Glocke), der beim Leuchten als helles Rechteck über der Waffe stand. Jetzt ist die Hülle eine Kopie aller
 // Waffenteile (wglowGeo3, drei-ausruestung.js), die der Shader ein Stück nach außen bläht und oben züngeln lässt:
 // der Schein folgt Axtblatt, Klinge, Stiel und Zier und ragt nur wenig über den Umriss hinaus. Innen bleibt er dünn
@@ -694,7 +694,7 @@ function humanoid3(b, c, P) {
   const boots = c.boots || '#3a2a1c';
   const trim = c.trim || c.belt || darker(c.torso, 0.3);
   // Beine mit Knien und Stiefeln (Schaft, Stulpe, dunkle Sohle)
-  // seit 14.74: angelegte Stiefel kräftiger und länger (bootNew); footZ0/footZ1: Ferse und Spitze (auch für gearBoots3)
+  // seit 14.77: angelegte Stiefel kräftiger und länger (bootNew); footZ0/footZ1: Ferse und Spitze (auch für gearBoots3)
   const bootNew = c.bootDetail != null && !belly;
   const footZ0 = bootNew ? -legR * 0.95 : -legR * 1.05;
   const footZ1 = bootNew ? legR * (c.robe ? 3.3 : 2.7) : legR * 2.05;
@@ -707,7 +707,7 @@ function humanoid3(b, c, P) {
     seg(knee, ankle, legR * (fem ? 0.86 : 0.9), legR * (fem ? 0.72 : 0.78), pants, { bone });
     if (c.kneePads) A(ball(10), c.kneePads, { bone, p: [knee[0], knee[1], knee[2] + legR * 0.6], s: [legR * 0.9, legR * 0.85, legR * 0.6], shine: 0.6 });
     if (bootNew) {
-      // seit 14.74 (angelegte Stiefel; Spielerwunsch „die Schuhe kommen gar nicht richtig zur Geltung“): vorher ein
+      // seit 14.77 (angelegte Stiefel; Spielerwunsch „die Schuhe kommen gar nicht richtig zur Geltung“): vorher ein
       // schmaler Schaft und ein kurzer Kasten als Fuß, der kaum unter Rock, Beintaschen oder Robe hervorkam. Jetzt ein
       // kräftiger Stiefel: Schaft leicht ausgestellt, breite umgeschlagene Stulpe, längerer Fuß mit runder Kappe, dicke
       // Sohle mit Absatz, Riemen mit Schnalle; dazu je Klasse Beschläge (siehe unten) und je Stufe das Merkmal aus
@@ -747,7 +747,7 @@ function humanoid3(b, c, P) {
       A(cap3(legR * 1.18, Math.PI * 0.62, -Math.PI * 0.5, Math.PI, 10, 6), c.greaves, { bone, p: [sx * hipX, 0.2, 0.0], s: [1, 2.2, 1.1], r: [Math.PI / 2, 0, 0], shine: 0.8, top: lighter(c.greaves, 0.25), topK: 0.3 });
       A(roundBox(0.018, 0.17, 0.02, 0.008), lighter(c.greaves, 0.3), { bone, p: [sx * hipX, 0.25, legR * 1.12], shine: 1 });
       A(ball(10), c.greaves, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 0.7], s: [legR * 1.05, legR * 0.95, legR * 0.7], shine: 0.9 });
-      // seit 14.74 nicht unter Beintaschen: der Dorn am Knie stach dort unter den Platten hervor
+      // seit 14.77 nicht unter Beintaschen: der Dorn am Knie stach dort unter den Platten hervor
       if (c.greaveSpike && !c.tassets && !c.featherTassets) A(horn3(0.07, 0.022, 5), c.greaveSpike, { bone, p: [knee[0], knee[1] + 0.01, knee[2] + legR * 1.2], r: [Math.PI / 2, 0, 0], shine: 1 });
     }
     // Wickelbänder über Kreuz (Barbar, Ninja)
@@ -795,7 +795,7 @@ function humanoid3(b, c, P) {
       // seit 14.53: Frauen mit runderem Rock über den breiteren Hüften
       A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [bk * (fem ? 1.1 : man ? 0.96 : 1), 1, 0.84 * bk * (fem ? 1.06 : 1)], shade: 0.2 });
       // Stoffbahnen vorn und hinten
-      // seit 14.74 kürzer und am Rock anliegend (vorher 0,22 hoch bis hipY − 0,28, nach außen gekippt): die Bahnen hingen
+      // seit 14.77 kürzer und am Rock anliegend (vorher 0,22 hoch bis hipY − 0,28, nach außen gekippt): die Bahnen hingen
       // vorn zwischen den Beintaschen und hinten unter dem Umhang bis auf die Stiefel und sahen aus wie ein Teil, das aus
       // der Rüstung herausragt (Spielerbild). Jetzt liegen sie außen auf dem Rock (gleiche Neigung) und enden am
       // Rocksaum. Unter Beintaschen (Krieger) fallen sie weg: dort lagen sie sonst vor den
@@ -1073,7 +1073,7 @@ function humanoid3(b, c, P) {
   // Waffen (das Zepter hängt seinen Kristall und den Funken an die Drehknochen)
   const wo = spin && c.weapon ? { accent: c.weapon.accent, hi: c.weapon.hi, gemBone: spin.gem, sparkBone: spin.spark } : bowStr ? {} : undefined;
   if (bowStr) wo.strBones = bowStr.bones;
-  // Leuchthülle (seit 14.74 eine Kopie der Waffe, siehe wglowGeo3) nur bei Spielfiguren: Händler, Wachen und Monster
+  // Leuchthülle (seit 14.77 eine Kopie der Waffe, siehe wglowGeo3) nur bei Spielfiguren: Händler, Wachen und Monster
   // leuchten nie und sparen so die doppelte Waffe
   const wgOn = !!c.gear;
   if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], wgOn, wo);
@@ -5490,7 +5490,7 @@ function warmPrograms() {
     a.modelKey = 'warm';
     setActorAlpha(a, alpha);
     if (a.mats.wglow) a.mats.wglow.opacity = 0.5;
-    // seit 14.74 eigener Shader (Flammenhülle): sichtbar schalten, sonst übersetzt compile ihn nicht vorab
+    // seit 14.77 eigener Shader (Flammenhülle): sichtbar schalten, sonst übersetzt compile ihn nicht vorab
     if (a.meshes.wglow) a.meshes.wglow.visible = true;
     V3.actors.add(a.group);
     V3.warm.push(a);
@@ -6829,7 +6829,7 @@ function syncPlayer3(p, dt) {
     const weapon = p.equipment && p.equipment.waffe;
     const band = weapon ? plusBand(weapon.plus) : 0;
     const aura = p.buffs && p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
-    // seit 14.74 Flammenhülle statt Kasten (figWeaponGlowMat): die Aura lodert ein Stück über die Waffe hinaus, das
+    // seit 14.77 Flammenhülle statt Kasten (figWeaponGlowMat): die Aura lodert ein Stück über die Waffe hinaus, das
     // Leuchten der Plus-Stufe bleibt ein ruhiger, enger Schein, Fertigkeits-Posen liegen dazwischen
     WG3_T.value = t % 600;
     if (aura) {

@@ -452,7 +452,7 @@ if (typeof blinkBehind === 'function') {
 }
 
 // --- Krieger: Aura des Schwertes in 3D (seit 13.2) -----------------------------------------------------------
-// Die Waffe selbst leuchtet (weaponGlow; seit 14.74 als Flammenhülle in Form der Waffe, figWeaponGlowMat in
+// Die Waffe selbst leuchtet (weaponGlow; seit 14.77 als Flammenhülle in Form der Waffe, figWeaponGlowMat in
 // drei-figuren.js), dazu Funken, die von der Klinge aufsteigen, und ab und zu ein weicher Lichtfleck an der Spitze.
 // Die Lichtklinge entlang der Achse (bis 14.73) ist entfallen. Die Klingenachse legt humanoid3 beim Bau ab
 // (model.weaponAxis), hier wird sie wie ein Hautpunkt an der rechten Hand mitbewegt.
@@ -501,7 +501,7 @@ function schwertBlade3(h, t, pulse, low, k) {
     _sa3d.subVectors(_sa3t, _sa3b);
     const len = _sa3d.length();
     _sa3d.divideScalar(len);
-    // seit 14.74 ohne Lichtklinge (drei Lichtstäbe entlang der Achse, 20 % hinter dem Ansatz bis 40 % über die Spitze)
+    // seit 14.77 ohne Lichtklinge (drei Lichtstäbe entlang der Achse, 20 % hinter dem Ansatz bis 40 % über die Spitze)
     // und ohne die Lichtflecken entlang der Achse: Spielerwunsch – der Schein soll der Waffenform folgen und wie eine
     // Flamme leicht über die Waffe hinausgehen, nicht als Stab oder Viereck darüber stehen. Das macht jetzt die
     // Flammenhülle der Waffe selbst (figWeaponGlowMat, drei-figuren.js); hier bleiben die aufsteigenden Funken.

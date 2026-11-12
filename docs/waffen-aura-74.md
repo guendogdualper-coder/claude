@@ -1,4 +1,4 @@
-# Waffen-Schein, Stiefel und Hüfte (seit 14.74)
+# Waffen-Schein, Stiefel und Hüfte (seit 14.77)
 
 Spielerbild: Krieger in goldener Göttlich-Rüstung mit zwei Äxten, Schwertaura an, Kamera von vorn. Drei Wünsche:
 
