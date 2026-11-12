@@ -377,7 +377,9 @@ function raidTelegraph(m, kind, circles, inner, delay) {
   }
   // seit 14.68: Aelvyr zeigt jeden Angriff mit eigener Pose und eigenen 3D-Effekten (aelvyr.js); in 3D stürzen
   // Kristalle statt der Meteore
-  const ael = m.typeId === 'aelvyr' && typeof aelTelegraph === 'function' && aelTelegraph(m, kind, circles, inner, delay);
+  // seit 14.78 ebenso die Endbosse der Karten (bosse3d.js): eigene Posen, in 3D eigene Geschosse statt der Meteore
+  const ael = (m.typeId === 'aelvyr' && typeof aelTelegraph === 'function' && aelTelegraph(m, kind, circles, inner, delay)) ||
+    (typeof isBoss3 === 'function' && isBoss3(m.typeId) && bossTelegraph(m, kind, circles, inner, delay));
   if (kind === 'doom') {
     raidDoomShow(m, circles, delay);
     return;
@@ -408,11 +410,13 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
   for (const c of circles) {
     addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.5, color: b.color, width: 12, grow: true });
     addEffect({ type: 'decal', kind: kind === 'meteor' ? 'scorch' : 'crack', x: c.x, y: c.y, r: c.r * 0.6, dur: 3, color: '#1a1210' });
-    if (kind === 'meteor' || kind === 'buster') addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.35, color: b.color });
+    // seit 14.78 in 3D ohne den Blitz bei den Endbossen der Karten: ihre eigenen Geschosse schlagen ein (bosse3d.js)
+    if ((kind === 'meteor' || kind === 'buster') && !(V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId))) addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.35, color: b.color });
     particles(c.x, c.y - 6, { count: 26, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'ember', drag: 3 });
   }
   // seit 14.68 ohne Bildschirmblitz bei Aelvyr (Flügelstoß mit Staubwelle statt dessen)
-  if (kind === 'nova' && m.typeId !== 'aelvyr') flashScreen(b.color, 0.35);
+  // seit 14.78 auch ohne Blitz bei den Endbossen der Karten (Druckwelle aus Brocken und Staub, bosse3d.js)
+  if (kind === 'nova' && m.typeId !== 'aelvyr' && !(typeof isBoss3 === 'function' && isBoss3(m.typeId))) flashScreen(b.color, 0.35);
   if (p.dead) return;
   const fyp = feetY(p);
   const hit = circles.some((c) => {
@@ -454,6 +458,11 @@ function raidRoarFx(m, phase) {
   // seit 14.68: Aelvyr brüllt (Pose, Dampf und Staubwelle, aelvyr.js) – ohne Bildschirmblitz, Ring und Lichtsäule
   if (m.typeId === 'aelvyr' && typeof aelRoar === 'function') {
     aelRoar(m);
+    return;
+  }
+  // seit 14.78 ebenso die Endbosse der Karten (Pose, Atem/Dampf, Brocken und Staub, bosse3d.js)
+  if (typeof isBoss3 === 'function' && isBoss3(m.typeId)) {
+    bossRoar(m);
     return;
   }
   flashScreen(b.color, 0.4);
