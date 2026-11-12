@@ -353,6 +353,8 @@ function vfxCorpse(m) {
   const e = { type: 'corpse', typeId: m.typeId, v3: m.__v3, x: m.x, y: feetY(m), flip: m.facing < 0, dur: 0.55 };
   // seit 14.68: Aelvyr stirbt langsam (Zusammensinken, Kristalle zerspringen; aelvyr.js)
   if (m.typeId === 'aelvyr' && typeof aelCorpse === 'function') aelCorpse(m, e);
+  // seit 14.78: ebenso die Endbosse der Karten (eigene Todesanimation, bosse3d.js)
+  else if (typeof isBoss3 === 'function' && isBoss3(m.typeId)) bossCorpse(m, e);
   addEffect(e);
 }
 
