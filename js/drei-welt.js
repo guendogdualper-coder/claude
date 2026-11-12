@@ -182,38 +182,224 @@ const WORLD3 = {
       b.add(wbox(0.32, h, 0.36, 0.05), k % 2 ? '#6a5ac8' : '#7a6ad8', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h / 2, 0], shade: 0.2, top: '#c8bfff', topK: 0.7 });
       b.add(tinyBox(0.04, h * 0.85, 0.37), '#d8d0ff', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h * 0.48, 0], mat: 'glow' });
     }
-  },
-
-  bridge(b, x, z, vertical, style) {
-    // seit 14.16: Steg über dem Moor, Steinbrücke über Lava, Lichtbrücke über dem Abgrund (in den Städten)
-    if (style === 'steg') {
-      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
-      for (let k = -2; k <= 2; k++) b.add(wbox(0.19, 0.07, 1.06, 0.02), k % 2 ? '#6e5a40' : '#7a6448', { parent: M, p: [k * 0.21, 0.04 + (k % 2) * 0.01, ((k * 3) % 2) * 0.03], shade: 0.3 });
-      for (const [px, pz] of [[-0.46, -0.46], [0.46, 0.46]]) b.add(cyl3(0.05, 0.06, 0.55, 6), '#3e3022', { parent: M, p: [px, 0.08, pz] });
-      return;
-    }
-    if (style === 'stein') {
-      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
-      b.add(wbox(1.06, 0.2, 1.1, 0.05), '#5a5250', { parent: M, p: [0, 0.06, 0], shade: 0.3, top: '#6e6664', topK: 0.5 });
-      for (const sz of [-1, 1]) b.add(wbox(1.06, 0.22, 0.12, 0.04), '#3a3230', { parent: M, p: [0, 0.27, sz * 0.5] });
-      return;
-    }
-    if (style === 'licht') {
-      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
-      b.add(wbox(1.06, 0.08, 1.06, 0.03), '#6a64b0', { parent: M, p: [0, 0.03, 0], shade: 0.2, top: '#a8a2f0', topK: 0.8 });
-      for (const sz of [-1, 1]) b.add(tinyBox(1.06, 0.05, 0.05), '#d8d4ff', { parent: M, p: [0, 0.38, sz * 0.5], mat: 'glow' });
-      for (const sz of [-1, 1]) b.add(tinyBox(0.04, 0.36, 0.04), '#b8b0ff', { parent: M, p: [0, 0.2, sz * 0.5], mat: 'glow' });
-      return;
-    }
-    const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
-    b.add(wbox(1.06, 0.12, 1.1, 0.04), '#8a6440', { parent: M, p: [0, 0.02, 0], shade: 0.3 });
-    for (let k = -2; k <= 2; k++) b.add(tinyBox(0.03, 0.13, 1.08), '#5a3f26', { parent: M, p: [k * 0.21, 0.025, 0] });
-    for (const sz of [-1, 1]) {
-      b.add(wbox(1.06, 0.07, 0.07, 0.03), '#6b4a2e', { parent: M, p: [0, 0.42, sz * 0.52] });
-      b.add(wbox(0.08, 0.42, 0.08, 0.03), '#5a3a22', { parent: M, p: [0.45, 0.22, sz * 0.52] });
-    }
   }
 };
+
+// --- Brücken (seit 14.74, docs/bruecken-74.md) ----------------------------------------------------------------------
+// Bis 14.73 bekam jede Brückenkachel ihr eigenes Stück mit Geländer auf beiden Seiten: Eine drei Kacheln breite Brücke
+// sah aus wie drei schmale Brücken nebeneinander, und am Ufer hing das letzte Stück in der Luft – der Boden fällt dort
+// zur Schlucht, zum Wolkenmeer oder zum Wasser hin ab (die Höhe wird zwischen den Kachelmitten gemittelt). Seit 14.74
+// wird jede Kachel nach ihren Nachbarn gebaut:
+//   - Belag in Laufrichtung (Bretter, Knüppel, Steinplatten, Eis, Licht) auf jeder Kachel;
+//   - Geländer nur an Kanten zum Abgrund/Wasser, Pfosten an den Enden des Geländers und jede zweite Kachel;
+//   - an jeder Kante zum Land ein Auflager (Widerlager), das bis unter die abfallende Uferkante reicht, mit Schwelle;
+//   - darunter je Art: Pfähle (Holz, Steg), Pfeiler und Brüstung (Stein), Eiszapfen (Eis), Leuchtsaum (Licht);
+//   - Hängebrücke: Pylone an den Enden, durchhängende Tragseile mit Hängern, Bretter mit Fugen.
+// Knicke L-förmiger Dämme und breite Brücken brauchen so nichts Besonderes: innen kein Geländer.
+const BRIDGE3 = {
+  holz: { deck: '#8a6440', seam: '#5a3f26', rail: '#6b4a2e', post: '#5a3a22', abut: '#7d746a', abutTop: '#918a80', beam: '#4a3220' },
+  seil: { deck: '#8a6440', seam: '#6a4a2e', rail: '#c8a878', post: '#5a3a22', abut: '#7a6a58', abutTop: '#8e7e6a', beam: '#4a3220' },
+  steg: { deck: '#6e5a40', seam: '#5e4c34', rail: null, post: '#3e3022', abut: '#4a4030', abutTop: '#5e5038', beam: '#3e3022' },
+  stein: { deck: '#5a5250', seam: '#4a4442', rail: '#3a3230', post: '#4a4240', abut: '#4e4644', abutTop: '#6a6260', beam: '#3a3230' },
+  licht: { deck: '#6a64b0', seam: '#a8a2f0', rail: '#d8d4ff', post: '#b8b0ff', abut: '#4a4488', abutTop: '#7a74c8', beam: '#3a3478' },
+  eis: { deck: '#cfe6f4', seam: '#a8cce0', rail: '#e8f4ff', post: '#bfe2f6', abut: '#9cc0d8', abutTop: '#e4f2fc', beam: '#8fb4cc' }
+};
+// Richtung einer Brückenkachel (true: Weg läuft waagrecht). Städte und Kartenformen merken sie sich (BRIDGE_DIR),
+// sonst wie bisher nach dem Weg links und rechts
+function bridgeDir3(x, y) {
+  const fix = bridgeDirAt(x, y);
+  if (fix !== undefined) return fix;
+  const w = game.world;
+  const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || w.deco[ty * MAP_W + tx] === DECO.BRIDGE;
+  return way(x - 1, y) && way(x + 1, y);
+}
+// Nachbar einer Brückenkachel: 0 Brücke, 1 Land (auch Mauer, Haus, Baum), 2 Abgrund/Wasser/außerhalb
+function bridgeSide3(x, y) {
+  if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return 2;
+  const i = y * MAP_W + x;
+  if (game.world.deco[i] === DECO.BRIDGE) return 0;
+  return LIQUID.has(game.world.ground[i]) ? 2 : 1;
+}
+// Belag einer Kachel (Laufrichtung längs x)
+const tplBridgeDeck = (st) => bakeTemplate('bdeck:' + st, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'steg') {
+    // Knüppeldamm: vier Rundhölzer quer zum Weg auf zwei Längsbalken
+    for (const sz of [-0.3, 0.3]) b.add(tinyBox(1.06, 0.06, 0.1), C.beam, { p: [0, -0.02, sz] });
+    for (let k = 0; k < 4; k++) b.add(cyl3(0.12, 0.12, 1.04, 7), k % 2 ? C.deck : C.seam, { p: [-0.375 + k * 0.25, 0.06 + (k % 2) * 0.01, ((k * 3) % 2) * 0.03 - 0.015], r: [Math.PI / 2, 0, 0], shade: 0.3 });
+    return;
+  }
+  if (st === 'seil') {
+    // Bretter mit Fugen, darunter zwei Tragbalken
+    for (let k = -2; k <= 2; k++) b.add(wbox(0.18, 0.06, 1.0, 0.02), k % 2 ? '#7a5636' : C.deck, { p: [k * 0.21, 0.04, 0], shade: 0.3 });
+    for (const sz of [-0.36, 0.36]) b.add(tinyBox(1.06, 0.06, 0.06), C.beam, { p: [0, -0.02, sz] });
+    return;
+  }
+  if (st === 'stein') {
+    b.add(wbox(1.06, 0.24, 1.08, 0.04), C.deck, { p: [0, -0.04, 0], shade: 0.3, top: '#6e6664', topK: 0.5 });
+    b.add(tinyBox(0.03, 0.02, 1.0), C.seam, { p: [0.5, 0.085, 0] });
+    return;
+  }
+  if (st === 'licht') {
+    b.add(wbox(1.06, 0.08, 1.06, 0.03), C.deck, { p: [0, 0.03, 0], shade: 0.2, top: '#a8a2f0', topK: 0.8 });
+    b.add(tinyBox(0.04, 0.02, 0.9), C.seam, { p: [0, 0.075, 0], mat: 'glow' });
+    return;
+  }
+  if (st === 'eis') {
+    b.add(wbox(1.06, 0.14, 1.04, 0.04), C.deck, { p: [0, 0.03, 0], shade: 0.25, top: '#f2faff', topK: 0.7 });
+    b.add(wbox(1.06, 0.14, 0.86, 0.04), C.beam, { p: [0, -0.1, 0], shade: 0.35 });
+    return;
+  }
+  b.add(wbox(1.06, 0.1, 1.08, 0.03), C.deck, { p: [0, 0.03, 0], shade: 0.3 });
+  for (let k = -2; k <= 2; k++) b.add(tinyBox(0.025, 0.11, 1.06), C.seam, { p: [k * 0.21, 0.035, 0] });
+  for (const sz of [-0.38, 0.38]) b.add(tinyBox(1.06, 0.08, 0.08), C.beam, { p: [0, -0.06, sz] });
+});
+// Geländer an einer Kante (längs x, Mitte im Ursprung, 1 Kachel lang); Hängebrücke: nur das untere Seil (das obere
+// hängt durch und wird je Kachel gebaut)
+const tplBridgeRail = (st) => bakeTemplate('brail:' + st, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'seil') { b.add(tinyBox(1.04, 0.03, 0.03), '#b89868', { p: [0, 0.1, 0] }); return; }
+  if (st === 'stein') {
+    b.add(wbox(1.04, 0.3, 0.14, 0.04), C.rail, { p: [0, 0.22, 0], shade: 0.3 });
+    b.add(tinyBox(1.06, 0.05, 0.18), '#5e5654', { p: [0, 0.39, 0] });
+    b.add(tinyBox(1.04, 0.36, 0.06), C.beam, { p: [0, -0.3, 0] });
+    return;
+  }
+  if (st === 'licht') {
+    b.add(tinyBox(1.04, 0.05, 0.05), C.rail, { p: [0, 0.38, 0], mat: 'glow' });
+    b.add(tinyBox(1.04, 0.03, 0.03), C.post, { p: [0, 0.18, 0], mat: 'glow' });
+    return;
+  }
+  if (st === 'eis') {
+    b.add(tinyBox(1.04, 0.045, 0.045), C.rail, { p: [0, 0.4, 0] });
+    b.add(tinyBox(1.04, 0.03, 0.03), '#d4ecfa', { p: [0, 0.2, 0] });
+    return;
+  }
+  b.add(wbox(1.04, 0.07, 0.07, 0.03), C.rail, { p: [0, 0.44, 0] });
+  b.add(tinyBox(1.04, 0.04, 0.04), C.post, { p: [0, 0.22, 0] });
+});
+// Pfosten (big: am Ende eines Geländers – bei der Hängebrücke der Pylon)
+const tplBridgePost = (st, big) => bakeTemplate(`bpost:${st}:${big ? 1 : 0}`, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'seil') {
+    if (!big) return;
+    b.add(wbox(0.15, 1.2, 0.15, 0.04), C.post, { p: [0, 0.5, 0], shade: 0.35 });
+    b.add(wbox(0.22, 0.08, 0.22, 0.03), '#4a3220', { p: [0, 1.12, 0] });
+    b.add(tinyBox(0.05, 0.05, 0.05), '#c8a878', { p: [0, 1.0, 0] });
+    return;
+  }
+  if (st === 'steg') {
+    b.add(cyl3(0.05, 0.065, big ? 0.75 : 0.6, 6), C.post, { p: [0, big ? 0.17 : 0.1, 0], shade: 0.3 });
+    return;
+  }
+  if (st === 'stein') {
+    b.add(wbox(0.22, big ? 0.6 : 0.48, 0.22, 0.04), C.post, { p: [0, big ? 0.28 : 0.22, 0], shade: 0.3, top: '#6a6260', topK: 0.5 });
+    return;
+  }
+  if (st === 'licht') {
+    b.add(crystalGeo('body'), C.post, { p: [0, 0.04, 0], s: [0.06, big ? 0.48 : 0.38, 0.06], mat: 'glow' });
+    if (big) b.add(crystalGeo('tip'), '#e8e4ff', { p: [0, 0.52, 0], s: [0.06, 0.3, 0.06], mat: 'glow' });
+    return;
+  }
+  if (st === 'eis') {
+    b.add(crystalGeo('body'), C.post, { p: [0, 0.04, 0], s: [0.065, big ? 0.46 : 0.38, 0.065], top: '#f2faff', topK: 0.6 });
+    if (big) b.add(crystalGeo('tip'), '#f2faff', { p: [0, 0.5, 0], s: [0.065, 0.3, 0.065] });
+    return;
+  }
+  b.add(wbox(0.1, big ? 0.6 : 0.5, 0.1, 0.03), C.post, { p: [0, big ? 0.28 : 0.23, 0], shade: 0.3 });
+  if (big) b.add(wbox(0.14, 0.05, 0.14, 0.02), C.beam, { p: [0, 0.6, 0] });
+});
+// Auflager an einer Kante zum Land: reicht von der Kante (x = 0) 0,6 Kacheln ins Land und bis unter die Uferkante
+// (die Höhe dort ist die halbe Tiefe der Flüssigkeit), mit einer Schwelle an der Kante
+const tplBridgeAbut = (st, depth) => bakeTemplate(`babut:${st}:${depth}`, (b) => {
+  const C = BRIDGE3[st];
+  const d = depth * 0.55 + 0.3;
+  const glow = st === 'licht';
+  b.add(wbox(0.62, d, 1.06, 0.05), C.abut, { p: [0.27, 0.07 - d / 2, 0], shade: 0.45, top: C.abutTop, topK: 0.6 });
+  if (st === 'steg' || st === 'seil' || st === 'holz') b.add(tinyBox(0.14, 0.09, 1.06), C.beam, { p: [0.04, 0.06, 0] });
+  else b.add(tinyBox(0.1, 0.03, 1.04), glow ? '#d8d4ff' : C.abutTop, { p: [0.03, 0.085, 0], mat: glow ? 'glow' : undefined });
+});
+// unter dem Rand (Kante zum Abgrund): Pfahl, Eiszapfen oder Leuchtsaum, je Art
+const tplBridgeUnder = (st, depth) => bakeTemplate(`bunder:${st}:${depth}`, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'holz' || st === 'steg') {
+    const h = depth + 0.35;
+    b.add(cyl3(0.06, 0.07, h, 6), C.beam, { p: [0, -h / 2 + 0.02, 0], shade: 0.4 });
+  } else if (st === 'eis') {
+    for (const [px, s] of [[-0.25, 0.34], [0.2, 0.5]]) b.add(crystalGeo('tip'), '#d8eefa', { p: [px, -0.15, 0], s: [0.07, -s / 0.45, 0.07] });
+  } else if (st === 'licht') {
+    b.add(tinyBox(1.04, 0.03, 0.03), '#9890f0', { p: [0, -0.04, 0], mat: 'glow' });
+  }
+});
+// Pfeiler einer Steinbrücke (über die ganze Breite der Kachel, bis in die Flüssigkeit)
+const tplBridgePier = (depth) => bakeTemplate(`bpier:${depth}`, (b) => {
+  const h = depth + 0.4;
+  b.add(wbox(0.42, h, 1.06, 0.05), '#463e3c', { p: [0, -0.12 - h / 2, 0], shade: 0.45 });
+});
+const BRIDGE3_E = [[1, 0], [0, 1], [-1, 0], [0, -1]]; // Ost, Süd, West, Nord
+// Hängebrücke: Höhe des Tragseils an Stelle u (0 … 1) einer Spannweite von L Kacheln
+const ropeY3 = (u, L) => 1.02 - Math.min(0.62, 0.12 + L * 0.05) * (1 - (2 * u - 1) ** 2);
+// Eine Brückenkachel bauen (objectJob)
+function bridge3Tile(b, x, y, i, g, lowGfx) {
+  const st = bridgeStyleAt(i, g) || 'holz';
+  const C = BRIDGE3[st];
+  const horiz = bridgeDir3(x, y);
+  const depth = Math.round((LIQUID3_DEPTH[g] || WATER3_DEPTH) * 10) / 10;
+  b.addTemplate(tplBridgeDeck(st), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+  const side = BRIDGE3_E.map(([dx, dy]) => bridgeSide3(x + dx, y + dy));
+  const posts = new Set();
+  for (let k = 0; k < 4; k++) {
+    const [dx, dy] = BRIDGE3_E[k];
+    if (side[k] === 1) {
+      // Kante zum Land: Auflager (lokal +x zeigt ins Land)
+      b.addTemplate(tplBridgeAbut(st, depth), placeAt(x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5, Math.atan2(-dy, dx)));
+      continue;
+    }
+    if (side[k] !== 2) continue;
+    // Kante zum Abgrund/Wasser: Geländer längs der Kante (Richtung e), Pfosten an den Enden des Geländers
+    const [ex, ey] = [Math.abs(dy), Math.abs(dx)];
+    const rot = ex ? 0 : -Math.PI / 2;
+    const cx = x + 0.5 + dx * 0.47;
+    const cy = y + 0.5 + dy * 0.47;
+    if (C.rail) b.addTemplate(tplBridgeRail(st), placeAt(cx, cy, rot));
+    const railAt = (tx, ty) => bridgeSide3(tx, ty) === 0 && bridgeSide3(tx + dx, ty + dy) === 2;
+    // Spannweite längs der Kante (für Pfosten und das Tragseil der Hängebrücke)
+    let a = 0;
+    while (a < 80 && railAt(x - ex * (a + 1), y - ey * (a + 1))) a++;
+    let c = 0;
+    while (c < 80 && railAt(x + ex * (c + 1), y + ey * (c + 1))) c++;
+    const L = a + c + 1;
+    for (const [s, end] of [[-1, a === 0], [1, c === 0]]) {
+      // Pfosten: am Anfang und Ende des Geländers groß, dazwischen jede zweite Kachel (nur am Ende der Kachel, damit
+      // keiner doppelt steht)
+      if (!end && (s < 0 || (a & 1))) continue;
+      if (st === 'seil' && !end) continue;
+      const px = cx + ex * s * 0.47;
+      const py = cy + ey * s * 0.47;
+      const key = Math.round(px * 4) * 100000 + Math.round(py * 4);
+      if (posts.has(key)) continue;
+      posts.add(key);
+      b.addTemplate(tplBridgePost(st, end), placeAt(px, py, rot));
+    }
+    if (st === 'seil') {
+      // Tragseil vom Pylon durchhängend bis zur Mitte, dazu ein Hänger je Kachel
+      const M = placeAt(cx, cy, rot);
+      const y0 = ropeY3(a / L, L);
+      const y1 = ropeY3((a + 1) / L, L);
+      const ym = ropeY3((a + 0.5) / L, L);
+      b.add(tinyBox(1, 0.035, 0.035), '#c8a878', { parent: M, p: [0, (y0 + y1) / 2, 0], r: [0, 0, Math.atan2(y1 - y0, 1)], s: [Math.hypot(1, y1 - y0), 1, 1] });
+      if (!lowGfx) b.add(tinyBox(0.02, 1, 0.02), '#a88858', { parent: M, p: [0, (ym + 0.08) / 2, 0], s: [1, ym - 0.08, 1] });
+    }
+    if (lowGfx) continue;
+    if (st === 'stein') continue;
+    if (st === 'holz' || st === 'steg') {
+      if ((x + y) & 1) continue;
+      b.addTemplate(tplBridgeUnder(st, depth), placeAt(cx - dx * 0.05, cy - dy * 0.05, rot));
+    } else if (st !== 'seil') b.addTemplate(tplBridgeUnder(st, depth), placeAt(cx, cy, rot));
+  }
+  // Steinbrücke: Pfeiler jede dritte Kachel längs des Weges (nicht direkt am Ufer)
+  if (st === 'stein' && !lowGfx && (horiz ? x : y) % 3 === 0 && !side.includes(1)) b.addTemplate(tplBridgePier(depth), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+}
 
 // --- Häuser in Varianten und begehbare Häuser (seit 13.91, welt.js look/enter) ------------------------------------
 // Wandarten: Farbe der Wand, des Sockels, der Balken/Rahmen und der Fensterscheiben
@@ -1539,7 +1725,6 @@ const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) =>
   else WORLD3[kind](b, null, v, style);
 });
 const tplWall = (style) => (style ? bakeTemplate('wall:' + style, (b) => WORLD3[style](b)) : bakeTemplate('wall', (b) => WORLD3.wall(b, 0, 0, false)));
-const tplBridge = (style) => bakeTemplate('bridge' + (style || ''), (b) => WORLD3.bridge(b, 0, 0, false, style));
 const tplTuft = (color, form) => bakeTemplate('tuft' + color + form, (b) => b.add(tuftGeo(color, form), null, { mat: 'grass' }));
 const tplFlower = (color, grass) => bakeTemplate('flower' + color + grass, (b) => {
   b.add(flowerGeo(color), null, { mat: 'grass' });
@@ -2518,13 +2703,8 @@ function* objectJob(cx, cy) {
       const g = w.ground[i];
       const d = w.deco[i];
       if (d === DECO.BRIDGE) {
-        // Der Weg läuft waagerecht, wenn links und rechts Weg oder Brücke liegt (bei einer zwei Kacheln breiten
-        // senkrechten Brücke liegt nur auf einer Seite Brücke)
-        const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || (w.deco[ty * MAP_W + tx] === DECO.BRIDGE);
-        // seit 14.16: in den Städten mit fester Richtung und je nach Flüssigkeit als Steg, Stein- oder Lichtbrücke
-        const fix = bridgeDirAt(x, y);
-        const horiz = fix !== undefined ? fix : way(x - 1, y) && way(x + 1, y);
-        b.addTemplate(tplBridge(bridgeStyleAt(i, g)), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+        // seit 14.74 nach den Nachbarn: Geländer nur außen, Auflager am Ufer, je Art eigene Bauweise (bridge3Tile)
+        bridge3Tile(b, x, y, i, g, lowGfx);
         continue;
       }
       if (d >= DECO.STUMP) {
