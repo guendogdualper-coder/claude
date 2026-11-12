@@ -954,7 +954,8 @@ function instFinalLoot(m, def) {
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${def.name} bezwungen!`, `${n} epische${n > 1 ? '' : 's'} Teil${n > 1 ? 'e' : ''}${leg ? ' und ein legendäres!' : ''}`);
-  flashScreen(leg ? '#ffb21a' : '#b06cff', 0.45);
+  // seit 14.82 ohne Bildschirmblitz bei Bossen mit eigenem 3D-Modell (ihr Tod zeigt sich im Modell)
+  if (!(V3.on && instOwn3(m))) flashScreen(leg ? '#ffb21a' : '#b06cff', 0.45);
   ui.log(`${def.name}: ${m.name} besiegt (Gruppe ${size}). Wieder frei in ${instLockMin(def.id)} Min.`, 'level');
 }
 function instLoot(m) {
@@ -1039,7 +1040,8 @@ function instWatch() {
   } else if (instState.sealed && !sealed && boss && !boss.dead) {
     ui.banner(`${boss.name} erwacht!`, 'Das Siegel ist gebrochen');
     shakeScreen(10);
-    flashScreen(boss.type.boss.color, 0.3);
+    if (V3.on && instOwn3(boss)) bossRoar(boss);
+    else flashScreen(boss.type.boss.color, 0.3);
   }
   instState.sealed = sealed;
   const bb = document.getElementById('bossBar');

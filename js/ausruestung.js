@@ -1096,9 +1096,11 @@ function bossLoot(m) {
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} besiegt!`, 'Die Beute gehört dir');
   ui.log(`${m.name} ist gefallen. In 10 Minuten kehrt er zurück.`, 'level');
-  addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 160, dur: 0.9, color: b.color, width: 14, grow: true });
+  // seit 14.82: Bosse mit eigenem 3D-Modell (bosse3d.js) zeigen ihren Tod selbst – ohne Ring und Bildschirmblitz
+  const own3 = V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId);
+  if (!own3) addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 160, dur: 0.9, color: b.color, width: 14, grow: true });
   particles(m.x, feetY(m) - 30, { count: 60, color: [b.color, '#ffffff', '#ffd34d'], speed: [80, 300], life: [0.5, 1.1], size: [2, 5], drag: 2 });
-  flashScreen(b.color, 0.35);
+  if (!own3) flashScreen(b.color, 0.35);
   shakeScreen(10);
 }
 

@@ -1041,7 +1041,12 @@ const BS_FXT3 = {
   tod: { core: '#f4ecff', mid: '#b48cff', dark: '#24163a', tex: 'flame', deb: 'bone', debCol: ['#e8e0cc', '#b8b098'], proj: 'skull', rise: true },
   leere: { core: '#f0e4ff', mid: '#b48cff', dark: '#120a24', tex: 'spark', deb: 'rock', debCol: ['#2a2050', '#160e2c'], proj: 'spear', mist: true },
   himmel: { core: '#ffffff', mid: '#cfe8ff', dark: '#3a4058', tex: 'spark', deb: 'rock', debCol: ['#8a8e98', '#5a5e6a'], proj: 'bolt', bolt: true, mist: true },
-  schatten: { core: '#ffd0d8', mid: '#ff3a5a', dark: '#14060c', tex: 'flame', deb: 'rock', debCol: ['#1a0a10', '#2a0a14'], proj: 'fire', rise: true, mist: true }
+  schatten: { core: '#ffd0d8', mid: '#ff3a5a', dark: '#14060c', tex: 'flame', deb: 'rock', debCol: ['#1a0a10', '#2a0a14'], proj: 'fire', rise: true, mist: true },
+  // seit 14.82 (Paket 3): Spinnenbrut, versunkenes Wasser, Banditen (Staub und Funken), Titanenschmiede
+  brut: { core: '#f8e8ff', mid: '#c87aff', dark: '#1a0e22', tex: 'spark', deb: 'blob', debCol: ['#5a2a6a', '#3a1a4a'], proj: 'blob', mist: true },
+  wasser: { core: '#e8fff4', mid: '#6ad8a8', dark: '#1a2a24', tex: 'spark', deb: 'blob', debCol: ['#2a4a3a', '#1a3028'], proj: 'blob', mist: true },
+  staub: { beam: 'ground', core: '#fff0d0', mid: '#ffb04a', dark: '#5a4a3a', tex: 'spark', deb: 'rock', debCol: ['#6a5a48', '#4a3e30'], proj: 'spear' },
+  schmiede: { beam: 'ground', core: '#fff0c0', mid: '#ffb04a', dark: '#3a3028', tex: 'flame', deb: 'rock', debCol: ['#5a5048', '#3a322c'], proj: 'fire', rise: true }
 };
 const BS_FX3 = [];
 function bsAddFx3(o) {

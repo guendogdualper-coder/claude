@@ -392,9 +392,11 @@ function raidTelegraph(m, kind, circles, inner, delay) {
   for (const c of circles) addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, inner, dur: delay, color: col });
   if (kind === 'meteor' && !ael) for (const c of circles) later(Math.max(0, delay - 0.45), () => addEffect({ type: 'ultfall', kind: 'meteor', x: c.x, y: c.y, fall: 0.45, dur: 0.9, color: m.type.boss.color }));
   if (kind === 'nova') addEffect({ type: 'ultsigil', ground: true, x: m.x, y: feetY(m), r: inner, dur: delay, color: '#7aff8a' });
-  if (kind === 'slam' || kind === 'nova') addEffect({ type: 'pillar', follow: m, dur: delay, color: m.type.boss.color });
+  // seit 14.82: Bosse mit eigenem 3D-Modell laden selbst auf (Pose, Glut, Staub; bosse3d.js) – ohne Lichtsäule und Wirbel
+  const own3 = V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId);
+  if ((kind === 'slam' || kind === 'nova') && !own3) addEffect({ type: 'pillar', follow: m, dur: delay, color: m.type.boss.color });
   if (kind === 'leap') for (const c of circles) addEffect({ type: 'ultmark', x: c.x, y: c.y, dur: delay, color: m.type.boss.color });
-  if (kind === 'charge') addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 60, dur: delay, color: m.type.boss.color });
+  if (kind === 'charge' && !own3) addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 60, dur: delay, color: m.type.boss.color });
 }
 
 // Einschlag: Wirkung zeigen, eigener Spieler nimmt Schaden, wenn er in einem Kreis steht
@@ -411,8 +413,10 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
   const p = game.player;
   const b = m.type.boss;
   shakeScreen(kind === 'nova' ? 12 : 8);
+  // seit 14.82: bei eigenen 3D-Modellen kein Ring beim Einschlag (Brocken, Staub und Funken zeigt bosse3d.js)
+  const own3 = V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId);
   for (const c of circles) {
-    addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.5, color: b.color, width: 12, grow: true });
+    if (!own3) addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.5, color: b.color, width: 12, grow: true });
     addEffect({ type: 'decal', kind: kind === 'meteor' ? 'scorch' : 'crack', x: c.x, y: c.y, r: c.r * 0.6, dur: 3, color: '#1a1210' });
     // seit 14.80 in 3D ohne den Blitz bei den Endbossen der Karten: ihre eigenen Geschosse schlagen ein (bosse3d.js)
     if ((kind === 'meteor' || kind === 'buster') && !(V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId))) addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.35, color: b.color });
