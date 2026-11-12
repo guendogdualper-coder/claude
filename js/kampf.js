@@ -184,6 +184,82 @@ function monsterGold(g) {
   const f = (game.stats && game.stats.goldFind) || 0;
   return f > 0 ? Math.round(g * (1 + f)) : g;
 }
+
+// --- Gold von Monstern (seit 14.74) ---------------------------------------------------------------------------------
+// Wunsch: Jedes Monster soll spürbar Gold bringen – nach Stufe und Gebiet, weniger als die Prüfungsarena, aber genug zum
+// Farmen. Grundgold je Kill 3,5 × Monsterstufe + 20 (Stufe 10: 55, 30: 125, 50: 195, 70: 265, 80: 300), gestreut
+// 60–140 %, dazu selten (3 %) ein Goldbeutel mit dem Fünffachen – im Mittel 1,12 × Grundgold. Faktoren: zähe Arten
+// (Wurzel des Leben-Faktors hpMul, höchstens ×2; im Gebiet im Mittel etwa ×1,2), Dungeon ×1,25, Nachtmonster ×1,15, Endgame-Elite ×1,4, Bosse und
+// Instanz-Wächter ×4, Endbosse ×6 (ihre feste Bossbeute kommt dazu), Monster eines Seelensteins wie bisher ×1,2–2,1.
+// Das Gebiet zählt über die Stufe seiner Monster (und Dungeon/Nacht); die gemeinsamen Karten ab Stufe 50 bekommen keinen
+// eigenen Aufschlag, sonst läge Farmen ab 50 mit dem Bonus über 40 % der Arena.
+// Monster weit unter der eigenen Stufe bringen weniger (ab 4 Stufen darunter −8 % je Stufe, höchstens −90 %), damit
+// sich das Umhauen kleiner Monster nicht lohnt. Seelensteine: 12 × Grundgold (bis 14.73 10 × altes Monstergold) mal
+// ihrer Goldart. In der Gruppe wird das Gold geteilt (partyGold, gruppe.js). Bis 14.73 gab es 2 × bis 4 × Stufe + 2
+// (Stufe 50 im Mittel 151) – neben Tränken für 1.200–4.800 Gold fiel das kaum auf. Die Prüfungsarena rechnet ihr
+// Monstergold weiter mit dem alten Wert (m.gold, herausforderung.js). Tabelle Gold/Stunde: docs/gold-beute.md
+const KILL_GOLD = {
+  per: 3.5, base: 20, spread: [0.6, 1.4], bag: 0.03, bagMul: 5,
+  toughPow: 0.5, toughMax: 2, dungeon: 1.25, night: 1.15, elite: 1.4, boss: 4, raid: 6,
+  stone: 12, stoneSpread: [0.85, 1.15], gapFree: 3, gapStep: 0.08, gapMin: 0.1
+};
+const killGoldBase = (L) => KILL_GOLD.per * Math.max(1, L || 1) + KILL_GOLD.base;
+// weit unter der eigenen Stufe: weniger Gold (bis 3 Stufen darunter voll)
+function killGoldGap(pl, ml) {
+  const d = (pl || 1) - (ml || 1) - KILL_GOLD.gapFree;
+  return d > 0 ? Math.max(KILL_GOLD.gapMin, 1 - d * KILL_GOLD.gapStep) : 1;
+}
+// Art und Gebiet des Monsters
+function killGoldType(m) {
+  const t = m.type || {};
+  if (t.raid || t.raidBoss) return KILL_GOLD.raid;
+  if (t.boss || t.inst) return KILL_GOLD.boss;
+  let k = Math.min(KILL_GOLD.toughMax, Math.pow(Math.max(0.8, t.hpMul || 1), KILL_GOLD.toughPow));
+  if (t.dungeon) k *= KILL_GOLD.dungeon;
+  if (t.night) k *= KILL_GOLD.night;
+  if (m.elite80) k *= KILL_GOLD.elite;
+  return k;
+}
+// Gold eines Kills vor Gruppe und Bonus: { gold, bag } (bag: Goldbeutel gefallen)
+function killGoldRoll(m, p) {
+  if (Array.isArray(m.gold) && !(m.gold[1] > 0)) return { gold: 0, bag: false }; // ausdrücklich ohne Gold (Kristalle)
+  const base = killGoldBase(m.level) * killGoldGap(p.level, m.level);
+  if (m.isStone) {
+    const d = stoneDrops(m.stoneType);
+    return { gold: Math.round(base * KILL_GOLD.stone * (d ? d.gold : 1) * rand(...KILL_GOLD.stoneSpread)), bag: false };
+  }
+  const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
+  const bag = Math.random() < KILL_GOLD.bag;
+  const g = base * killGoldType(m) * (sd ? Math.max(1.2, sd.gold * 0.7) : 1) * rand(...KILL_GOLD.spread) * (bag ? KILL_GOLD.bagMul : 1);
+  return { gold: Math.max(1, Math.round(g)), bag };
+}
+// Anzeige: kleine Goldzahl am Monster und eine Münze, die zur Figur fliegt; unten rechts in der Beuteliste wird das Gold
+// kurz gesammelt (eine Zeile, ein Münzklang je Sammelzeit statt einem je Kill). Kein Eintrag im Chat.
+const killGoldFeed = { sum: 0, due: -1 };
+function killGoldFlush() {
+  const g = killGoldFeed.sum;
+  killGoldFeed.sum = 0;
+  killGoldFeed.due = -1;
+  if (g > 0) ui.lootNow('Gold', g, lootIconUrl('gold'), '#ffd96a');
+}
+function killGoldShow(m, gold, bag) {
+  if (!(gold > 0)) return;
+  const fy = feetY(m);
+  addText(m.x + 14, fy - 30, '+' + gold.toLocaleString('de-DE') + ' Gold', 'gold');
+  if (bag) {
+    // Goldbeutel: liegt kurz am Boden wie andere Beute (groundLoot) und fliegt dann zur Figur
+    ui.loot('Goldbeutel', gold, lootIconUrl('gold'), '#ffd96a');
+    return;
+  }
+  addEffect({ type: 'lootfly', x: m.x, y: fy - 14, img: lootImg(lootIconUrl('gold')), dur: 0.55, arc: 26 });
+  // ging der Zeitgeber verloren (Kartenwechsel o. Ä.), das Gesammelte gleich zeigen
+  if (killGoldFeed.due >= 0 && game.time > killGoldFeed.due + 1) killGoldFlush();
+  killGoldFeed.sum += gold;
+  if (killGoldFeed.due >= 0) return;
+  killGoldFeed.due = game.time + 0.6;
+  later(0.6, killGoldFlush);
+}
+
 // Mehr Beute (Bonus): Chance einer Beute (Ausrüstung, Tränke, Monsterteile)
 function dropChance(c) {
   const f = (game.stats && game.stats.dropFind) || 0;
@@ -609,12 +685,15 @@ function rewardKillInner(m) {
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
   const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
-  // Mehr Gold (Bonus, seit 14.15) gilt für Monster und Seelensteine
-  const gold = monsterGold(Math.round(randInt(m.gold[0], m.gold[1]) * (drops ? drops.gold : sd ? Math.max(1.2, sd.gold * 0.7) : 1)));
+  // seit 14.74: Gold nach Stufe, Art und Gebiet (killGoldRoll), in der Gruppe geteilt (partyGold); Mehr Gold (Bonus,
+  // seit 14.15) gilt für Monster und Seelensteine
+  const roll = killGoldRoll(m, p);
+  const gold = roll.gold > 0 ? monsterGold(typeof partyGold === 'function' ? partyGold(roll.gold, m) : roll.gold) : 0;
   p.gold += gold;
   p.kills++;
-  // Gold erscheint klein beim Monster, die Erfahrung groß über der eigenen Figur (gainXp)
-  if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold + ' Gold', 'gold');
+  // Gold erscheint klein beim Monster, die Erfahrung groß über der eigenen Figur (gainXp); Steine zeigen es in der Beute
+  if (!m.isStone) killGoldShow(m, gold, roll.bag);
+  else if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold.toLocaleString('de-DE') + ' Gold', 'gold');
   // violette Erfahrungsfunken fliegen vom Monster zur Figur
   const bc0 = bodyCenter(m);
   particles(bc0.x, bc0.y, { count: m.isStone ? 24 : 7, color: ['#d6b8ff', '#b48aff', '#ffffff'], angle: Math.atan2(p.y - m.y, p.x - m.x), spread: 0.5, speed: [dist(m, p) * 1.4, dist(m, p) * 2.2], life: [0.35, 0.5], size: [2, 3.2], drag: 0.6 });
