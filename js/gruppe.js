@@ -46,7 +46,7 @@ function partyXp(base, m) {
   return Math.max(1, Math.round(base * mul * near.length * game.player.level / sum));
 }
 
-// Gold eines Kills in der Gruppe (seit 14.74): anders als die EP wird es geteilt. Die Mitglieder in der Nähe (dieselbe
+// Gold eines Kills in der Gruppe (seit 14.75): anders als die EP wird es geteilt. Die Mitglieder in der Nähe (dieselbe
 // Regel wie partyXp) bekommen zusammen das Gold des Monsters plus 10 % je weiterem Mitglied (PARTY.bonus), jeder seinen
 // Anteil – „gleich“ zu gleichen Teilen, „stufe“ nach Stufe. Jeder rechnet seinen Anteil selbst (rewardKill), der Host
 // nur seinen eigenen; so bringt eine Gruppe je Kopf etwa so viel Gold wie allein und nichts wird verdoppelt.

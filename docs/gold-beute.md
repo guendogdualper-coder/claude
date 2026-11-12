@@ -1,4 +1,4 @@
-# Gold von Monstern (seit 14.74)
+# Gold von Monstern (seit 14.75)
 
 Wunsch: „Man kriegt gar kein Geld von jedem Mob. Je nachdem, wo man ist und welche Stufe man hat, sollen Mobs Gold
 droppen. Nicht so viel wie in der Arena, aber genug, um ein bisschen zu farmen.“

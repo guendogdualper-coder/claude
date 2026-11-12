@@ -185,7 +185,7 @@ function monsterGold(g) {
   return f > 0 ? Math.round(g * (1 + f)) : g;
 }
 
-// --- Gold von Monstern (seit 14.74) ---------------------------------------------------------------------------------
+// --- Gold von Monstern (seit 14.75) ---------------------------------------------------------------------------------
 // Wunsch: Jedes Monster soll spürbar Gold bringen – nach Stufe und Gebiet, weniger als die Prüfungsarena, aber genug zum
 // Farmen. Grundgold je Kill 3,5 × Monsterstufe + 20 (Stufe 10: 55, 30: 125, 50: 195, 70: 265, 80: 300), gestreut
 // 60–140 %, dazu selten (3 %) ein Goldbeutel mit dem Fünffachen – im Mittel 1,12 × Grundgold. Faktoren: zähe Arten
@@ -685,7 +685,7 @@ function rewardKillInner(m) {
   const drops = m.isStone ? stoneDrops(m.stoneType) : null;
   // Monster aus einem Seelenstein bringen etwas von dessen Beute mit
   const sd = m.stone ? stoneDrops(m.stone.stoneType) : null;
-  // seit 14.74: Gold nach Stufe, Art und Gebiet (killGoldRoll), in der Gruppe geteilt (partyGold); Mehr Gold (Bonus,
+  // seit 14.75: Gold nach Stufe, Art und Gebiet (killGoldRoll), in der Gruppe geteilt (partyGold); Mehr Gold (Bonus,
   // seit 14.15) gilt für Monster und Seelensteine
   const roll = killGoldRoll(m, p);
   const gold = roll.gold > 0 ? monsterGold(typeof partyGold === 'function' ? partyGold(roll.gold, m) : roll.gold) : 0;

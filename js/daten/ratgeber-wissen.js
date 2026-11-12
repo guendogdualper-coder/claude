@@ -129,7 +129,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'sinn', q: 'Wie komme ich an Gold?',
-    // seit 14.74: Gold von jedem Monster nach Stufe und Gebiet (killGoldRoll, kampf.js; docs/gold-beute.md)
+    // seit 14.75: Gold von jedem Monster nach Stufe und Gebiet (killGoldRoll, kampf.js; docs/gold-beute.md)
     a: 'Jedes Monster lässt Gold fallen – je höher seine Stufe, desto mehr. Zähe Monster, Dungeons, Nachtmonster und Elite bringen etwas mehr, ab und zu fällt ein <b>Goldbeutel</b> mit dem Fünffachen. ' +
       'Monster weit unter deiner Stufe geben kaum noch Gold. Seelensteine geben viel, der Stein der Gier sogar dreimal so viel; Bosse haben dazu ihre eigene Beute. In einer Gruppe wird das Gold der Monster geteilt (jeder bekommt seinen Anteil plus 10 % je weiterem Mitglied in der Nähe). ' +
       'Am meisten Gold je Stunde bringt die Prüfungsarena. Dazu kommen Aufträge, Verkaufen beim Händler, die Tagesbelohnung und das Auktionshaus. ' +

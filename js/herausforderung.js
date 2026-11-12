@@ -224,7 +224,7 @@ function arenaWave(L, w, players = 1) {
 }
 // Gold je geschaffter Welle: seit 13.71 nach Stufe – Schritt je Welle = 200 + 20 × Stufe (Stufe 10: 400, Stufe 30: 800,
 // Stufe 50: 1.200, Stufe 80: 1.800), Welle w bringt Schritt × w. 13.70 zahlte fest 2.000 × Welle, das war vor allem auf
-// niedrigen Stufen viel zu viel (bis 16× normales Farmen); jetzt etwa das 2- bis 3-Fache (seit 14.74 mit dem höheren
+// niedrigen Stufen viel zu viel (bis 16× normales Farmen); jetzt etwa das 2- bis 3-Fache (seit 14.75 mit dem höheren
 // Monstergold draußen etwa das 3-Fache, docs/gold-beute.md).
 // Ausgezahlt wird beim Verlassen oder Aufgeben; wer alle drei Leben verliert, verliert das Gold dieses Laufs.
 const arenaGoldStep = (L) => 200 + 20 * Math.max(1, L | 0);
@@ -1296,7 +1296,7 @@ raidWatch = function () {
 // seit 14.32 zu zweit: jeder bekommt jeden Kill in der Halle, es sind aber 1,5-mal so viele Monster – je Monster daher
 // nur 1/1,5 der EP und des Golds, so bringt eine Welle jedem genau so viel wie allein (keine Abkürzung über Gruppenläufe).
 // Seit 14.40 auch zu dritt: doppelt so viele Monster, je Monster die Hälfte (Faktor 1 / ARENA.group[n].n)
-// seit 14.74 bekommen Monster draußen mehr Gold (killGoldRoll, kampf.js); hier bleibt das alte Kill-Gold (m.gold, im
+// seit 14.75 bekommen Monster draußen mehr Gold (killGoldRoll, kampf.js); hier bleibt das alte Kill-Gold (m.gold, im
 // Mittel 3 × Stufe + 1), sonst stiege die Arena mit – sie bringt je Stunde etwa das 2,5- bis 3,5-Fache (docs/gold-beute.md)
 function arenaKillReward(m) {
   const p = game.player;
