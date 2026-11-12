@@ -177,7 +177,8 @@ function updateBoss(m, dt) {
     if (c.kind === 'slam') {
       if (net.mode === 'host') netBroadcast({ t: 'slam', id: m.id, r: b.slam, atk: m.atk, lvl: m.level });
       shakeScreen(9);
-      addEffect({ type: 'ring', x: m.x, y: feetY(m), r: b.slam, dur: 0.5, color: b.color, width: 12, grow: true });
+      // seit 14.81: Bosse mit eigenem 3D-Modell zeigen den Einschlag selbst (Brocken und Staub statt Ring, bosse3d.js)
+      if (!(V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId))) addEffect({ type: 'ring', x: m.x, y: feetY(m), r: b.slam, dur: 0.5, color: b.color, width: 12, grow: true });
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: b.slam * 0.6, dur: 2.5, color: '#1a1210' });
       particles(m.x, feetY(m), { count: 40, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'square', drag: 3, glow: false });
       if (!p.dead && Math.hypot(p.x - m.x, (p.y - m.y) * 1.2) < b.slam) {
@@ -201,6 +202,7 @@ function updateBoss(m, dt) {
       game.monsters.push(add);
       addEffect({ type: 'burst', x: pos.x, y: pos.y, dur: 0.6, color: b.color, count: 10 });
     }
+    if (typeof isBoss3 === 'function' && isBoss3(m.typeId)) bossRoar(m);
     ui.banner(m.name, 'ruft Verstärkung!');
   }
   if (m.bossCd > 0 || m.state !== 'chase') return false;
@@ -220,10 +222,12 @@ function updateBoss(m, dt) {
       if (net.mode === 'host') netBroadcastProjectile(game.projectiles[game.projectiles.length - 1], m);
     }
     m.attackAnim = 0.25;
+    if (typeof isBoss3 === 'function' && isBoss3(m.typeId)) bossVolley3(m);
     return false;
   }
   m.cast = { kind: 'slam', at: game.time + 1.1 };
   addEffect({ type: 'warn', x: m.x, y: feetY(m), r: b.slam, dur: 1.1, color: '#ff3a2a' });
+  if (typeof isBoss3 === 'function' && isBoss3(m.typeId)) bossTelegraph(m, 'slam', [{ x: m.x, y: feetY(m), r: b.slam }], 0, 1.1);
   if (net.mode === 'host') netBroadcast({ t: 'warn', x: Math.round(m.x), y: Math.round(feetY(m)), r: b.slam });
   return true;
 }

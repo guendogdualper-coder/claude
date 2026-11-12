@@ -250,14 +250,21 @@ function abaddorReset(m) {
 }
 
 // Verwandlung (für alle): Banner, Flammensäule, Druckwelle, Glutsturm
+// seit 14.81 mit eigenem Modell (bosse3d-modelle2.js): Brüllen und Glutsturm in 3D statt Bildschirmblitz, Ringen und
+// Lichtsäule
+const htOwn3 = (m) => typeof isBoss3 === 'function' && isBoss3(m.typeId);
 function htTransformFx(m) {
   ui.banner(m.name, 'entfesselt seine wahre Gestalt!');
   shakeScreen(18);
-  flashScreen('#ff3a1a', 0.5);
   const fy = feetY(m);
-  addEffect({ type: 'ring', x: m.x, y: fy, r: 520, dur: 1.1, color: '#ff3a1a', width: 22, grow: true });
-  addEffect({ type: 'ring', x: m.x, y: fy, r: 380, dur: 0.9, color: '#ffd34d', width: 14, grow: true });
-  addEffect({ type: 'ultbeam', x: m.x, y: fy, w: 200, dur: 1.6, color: '#ff3a1a' });
+  if (htOwn3(m)) m.bsRoar = game.time;
+  if (V3.on && htOwn3(m)) bossTransform3(m);
+  else {
+    flashScreen('#ff3a1a', 0.5);
+    addEffect({ type: 'ring', x: m.x, y: fy, r: 520, dur: 1.1, color: '#ff3a1a', width: 22, grow: true });
+    addEffect({ type: 'ring', x: m.x, y: fy, r: 380, dur: 0.9, color: '#ffd34d', width: 14, grow: true });
+    addEffect({ type: 'ultbeam', x: m.x, y: fy, w: 200, dur: 1.6, color: '#ff3a1a' });
+  }
   addEffect({ type: 'sparks3', x: m.x, y: fy, h: 2.4, count: 40, color: '#ff7a1a', speed: 5, up: 2.5, dur: 1.2 });
   particles(m.x, fy - 60, { count: 70, color: ['#ff3a1a', '#ffd34d', '#2a0a0a', '#ff7a1a'], speed: [150, 420], life: [0.6, 1.2], size: [3, 6], drag: 2 });
   if (typeof snd !== 'undefined') snd.player('strom_end', { x: m.x, y: fy });
@@ -272,11 +279,12 @@ function htQuarterShow(m, kind, c, inner, delay) {
   const mode = kind === 'quarter' ? 'q' : kind === 'qring' ? 'ring' : 'core';
   addEffect({ type: 'hquarter3', x: c.x, y: c.y, r: c.r, mode, safe: inner < 0 ? -inner - 1 : -1, inner: inner > 0 ? inner : 0, at: delay, dur: delay + 1.0, seed: Math.random() * 10 });
   ui.banner(m.name, mode === 'q' ? 'hebt den Dreizack – ins sichere Viertel!' : mode === 'ring' ? 'ruft das Höllenfeuer – zu ihm hin!' : 'sammelt Glut um sich – weg von ihm!');
-  addEffect({ type: 'pillar', follow: m, dur: delay, color: '#ff3a1a' });
+  if (htOwn3(m)) bossTelegraph(m, kind, [c], inner, delay);
+  if (!(V3.on && htOwn3(m))) addEffect({ type: 'pillar', follow: m, dur: delay, color: '#ff3a1a' });
 }
 function htQuarterResolve(m, kind, c, inner, atk, lvl) {
   shakeScreen(16);
-  flashScreen('#ff3a1a', 0.3);
+  if (!(V3.on && htOwn3(m))) flashScreen('#ff3a1a', 0.3);
   if (typeof snd !== 'undefined') snd.player('imp_feuer', { x: c.x, y: c.y });
   const p = game.player;
   if (p.dead || !htInside(p)) return;
@@ -375,7 +383,10 @@ function htWatch() {
   if (htState.sealed === true && !sealed) {
     ui.banner('Abaddor erwacht!', 'Die Ketten zerbrechen – der Höllenkaiser erhebt sich');
     shakeScreen(12);
-    flashScreen('#ff3a1a', 0.35);
+    // seit 14.81 in 3D ohne Bildschirmblitz: Abaddor brüllt (bosse3d-modelle2.js)
+    const ab = game.monsters.find((q) => q.type && q.type.teufel && !q.dead);
+    if (ab && V3.on && htOwn3(ab)) bossRoar(ab);
+    else flashScreen('#ff3a1a', 0.35);
   }
   htState.rest = rest;
   htState.sealed = sealed;

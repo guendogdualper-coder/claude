@@ -323,29 +323,41 @@ function bsWolf3(b, id, V) {
   if (V.glow2) bsGem3(A, C.glow, [0, 0.74, -2.36], [0.05, 0.05, 0.12], null, BQ3.t3);
 
   // --- Kopf: Schädel, lange Schnauze, Nase, Brauen, Augen, Ohren, Zähne ---
-  const hb = BQ3.head, jb = BQ3.jaw;
-  A(ball(16), C.fur, { bone: hb, p: [0, 1.7, 1.15], s: [0.21, 0.19, 0.23], top: C.furTop, topK: 0.55, shade: 0.25 });
-  A(loft3([[1.2, 1.64, 0.16, 0.12, 0.08], [1.35, 1.61, 0.115, 0.09, 0.06], [1.5, 1.59, 0.085, 0.07, 0.045], [1.6, 1.58, 0.058, 0.052, 0.035], [1.65, 1.575, 0.03, 0.03, 0.02]], 12, 3), C.fur, { bone: hb, top: C.furTop, topK: 0.5, shade: 0.2 });
-  A(ball(10), '#121014', { bone: hb, p: [0, 1.615, 1.64], s: [0.045, 0.035, 0.035], shine: 0.8 });
-  A(loft3([[1.2, 1.53, 0.12, 0.04, 0.05], [1.38, 1.53, 0.09, 0.03, 0.04], [1.54, 1.535, 0.055, 0.025, 0.03], [1.6, 1.535, 0.03, 0.02, 0.02]], 10, 2), C.furD, { bone: jb, shade: 0.3 });
-  A(loft3([[1.22, 1.555, 0.1, 0.02, 0.02], [1.5, 1.555, 0.06, 0.015, 0.015]], 8, 2), '#3a1418', { bone: jb, noShadow: true });
-  for (const sx of [-1, 1]) {
-    for (let k = 0; k < 5; k++) {
-      const z = 1.28 + k * 0.07;
-      const x = sx * (0.1 - k * 0.012);
-      bsSpike3(A, k === 4 ? 0.09 : 0.04, 0.013, C.tooth, [x, 1.565, z], [0, -1, 0.15], { bone: hb, seg: 4 });
-      bsSpike3(A, k === 3 ? 0.075 : 0.035, 0.012, C.tooth, [x * 0.9, 1.55, z - 0.02], [0, 1, 0.1], { bone: jb, seg: 4 });
+  // seit 14.81 als Funktion: Zerberos (V.heads3, bosse3d-modelle2.js) trägt zwei weitere Köpfe am Hals
+  const wolfHead = (A, hb, jb, ears) => {
+    A(ball(16), C.fur, { bone: hb, p: [0, 1.7, 1.15], s: [0.21, 0.19, 0.23], top: C.furTop, topK: 0.55, shade: 0.25 });
+    A(loft3([[1.2, 1.64, 0.16, 0.12, 0.08], [1.35, 1.61, 0.115, 0.09, 0.06], [1.5, 1.59, 0.085, 0.07, 0.045], [1.6, 1.58, 0.058, 0.052, 0.035], [1.65, 1.575, 0.03, 0.03, 0.02]], 12, 3), C.fur, { bone: hb, top: C.furTop, topK: 0.5, shade: 0.2 });
+    A(ball(10), '#121014', { bone: hb, p: [0, 1.615, 1.64], s: [0.045, 0.035, 0.035], shine: 0.8 });
+    A(loft3([[1.2, 1.53, 0.12, 0.04, 0.05], [1.38, 1.53, 0.09, 0.03, 0.04], [1.54, 1.535, 0.055, 0.025, 0.03], [1.6, 1.535, 0.03, 0.02, 0.02]], 10, 2), C.furD, { bone: jb, shade: 0.3 });
+    A(loft3([[1.22, 1.555, 0.1, 0.02, 0.02], [1.5, 1.555, 0.06, 0.015, 0.015]], 8, 2), '#3a1418', { bone: jb, noShadow: true });
+    for (const sx of [-1, 1]) {
+      for (let k = 0; k < 5; k++) {
+        const z = 1.28 + k * 0.07;
+        const x = sx * (0.1 - k * 0.012);
+        bsSpike3(A, k === 4 ? 0.09 : 0.04, 0.013, C.tooth, [x, 1.565, z], [0, -1, 0.15], { bone: hb, seg: 4 });
+        bsSpike3(A, k === 3 ? 0.075 : 0.035, 0.012, C.tooth, [x * 0.9, 1.55, z - 0.02], [0, 1, 0.1], { bone: jb, seg: 4 });
+      }
+      A(ball(10), '#0e0c10', { bone: hb, p: [sx * 0.1, 1.715, 1.3], s: [0.05, 0.03, 0.05], noShadow: true });
+      A(ball(8), C.eye, { bone: hb, p: [sx * 0.105, 1.715, 1.315], s: [0.035, 0.016, 0.03], r: [0, sx * 0.4, sx * 0.25], mat: 'glow' });
+      A(roundBox(0.09, 0.035, 0.14, 0.015), C.furD, { bone: hb, p: [sx * 0.1, 1.755, 1.28], r: [0.25, sx * 0.3, sx * 0.3], shade: 0.2 });
+      // Ohren am Ohrknochen
+      const eb = ears ? (sx > 0 ? BQ3.earL : BQ3.earR) : hb;
+      const E = [sx * J.ear[0], J.ear[1], J.ear[2]];
+      pointAt3(A, horn3(0.28, 0.085, 6), C.fur, E, [sx * 0.35, 1, -0.25], { bone: eb, top: C.furTop, topK: 0.6, s: [1, 1, 0.45] });
+      pointAt3(A, horn3(0.2, 0.05, 5), V.earIn, [E[0], E[1] + 0.02, E[2] + 0.025], [sx * 0.35, 1, -0.25], { bone: eb, s: [1, 1, 0.3], noShadow: true });
+      // Wangenkrause
+      bsTufts3(A, [0, 1, 2, 3].map((k) => [[sx * 0.18, 1.62 - k * 0.05, 1.12 - k * 0.04], [sx * 0.8, -0.2 - k * 0.15, -0.5], 0.2 - k * 0.02, 0.06, hb]), C.ruff, C.furTop);
     }
-    A(ball(10), '#0e0c10', { bone: hb, p: [sx * 0.1, 1.715, 1.3], s: [0.05, 0.03, 0.05], noShadow: true });
-    A(ball(8), C.eye, { bone: hb, p: [sx * 0.105, 1.715, 1.315], s: [0.035, 0.016, 0.03], r: [0, sx * 0.4, sx * 0.25], mat: 'glow' });
-    A(roundBox(0.09, 0.035, 0.14, 0.015), C.furD, { bone: hb, p: [sx * 0.1, 1.755, 1.28], r: [0.25, sx * 0.3, sx * 0.3], shade: 0.2 });
-    // Ohren am Ohrknochen
-    const eb = sx > 0 ? BQ3.earL : BQ3.earR;
-    const E = [sx * J.ear[0], J.ear[1], J.ear[2]];
-    pointAt3(A, horn3(0.28, 0.085, 6), C.fur, E, [sx * 0.35, 1, -0.25], { bone: eb, top: C.furTop, topK: 0.6, s: [1, 1, 0.45] });
-    pointAt3(A, horn3(0.2, 0.05, 5), V.earIn, [E[0], E[1] + 0.02, E[2] + 0.025], [sx * 0.35, 1, -0.25], { bone: eb, s: [1, 1, 0.3], noShadow: true });
-    // Wangenkrause
-    bsTufts3(A, [0, 1, 2, 3].map((k) => [[sx * 0.18, 1.62 - k * 0.05, 1.12 - k * 0.04], [sx * 0.8, -0.2 - k * 0.15, -0.5], 0.2 - k * 0.02, 0.06, hb]), C.ruff, C.furTop);
+  };
+  wolfHead(A, BQ3.head, BQ3.jaw, true);
+  const hb = BQ3.head;
+  if (V.heads3) for (const sx of [-1, 1]) {
+    const c = [0, 1.62, 1.1];
+    const M = new THREE.Matrix4().makeTranslation(c[0] + sx * 0.36, c[1] - 0.12, c[2] - 0.2).multiply(new THREE.Matrix4().makeRotationY(sx * 0.42)).multiply(new THREE.Matrix4().makeRotationX(0.12)).multiply(new THREE.Matrix4().makeTranslation(-c[0], -c[1], -c[2]));
+    const AS = adder(b, M);
+    wolfHead(AS, BQ3.neck, BQ3.neck, false);
+    // Hals zum Seitenkopf
+    A(tubeProfile3([[sx * 0.12, 1.36, 0.62], [sx * 0.26, 1.42, 0.86], [sx * 0.34, 1.5, 0.98]], [0.2, 0.16, 0.14], 10, 10), C.fur, { bone: BQ3.neck, top: C.furTop, topK: 0.55, shade: 0.3 });
   }
   // --- Mähne: dichte Büschel an Hals und Schultern, Kamm über den Rücken ---
   const mane = [];
@@ -491,6 +503,10 @@ function bsNaga3(b, id, V) {
     if (i % 2 === 0) A(roundBox(+(r * 0.9).toFixed(3), 0.02, +(r * 0.9).toFixed(3), 0.008), C.mark, { bone: bn, p: up ? [p[0], p[1], p[2] - r * 0.92] : [p[0], p[1] + r * 0.93, p[2]], r: up ? [Math.PI / 2 + pitch, 0, Math.PI / 4] : [pitch, yaw + Math.PI / 4, 0], noShadow: true, shine: 0.4 });
     // Kamm
     if (i % 3 === 0 && u > 0.08) bsSpike3(A, r * (V.moss ? 0.5 : 0.8), r * 0.18, C.crest, up ? [p[0], p[1], p[2] - r * 0.95] : [p[0], p[1] + r * 0.95, p[2]], up ? [0, 0.3, -1] : [-tg.x * 0.6, 1, -tg.z * 0.6], { bone: bn, shine: 0.5 });
+    if (V.rot && i % 6 === 3 && u < 0.8) {
+      A(ball(8), C.sac, { bone: bn, p: [p[0] + 0.03, p[1] + r * 0.8, p[2]], s: [r * 0.5, r * 0.42, r * 0.5], top: C.sacTop, shine: 0.6, noShadow: true });
+      A(ball(6), C.glow, { bone: bn, p: [p[0] + 0.03, p[1] + r * 1.15, p[2]], s: [r * 0.22, r * 0.15, r * 0.22], mat: 'glow', noShadow: true });
+    }
     if (V.moss && i % 5 === 2) A(ball(8), C.mossC, { bone: bn, p: up ? [p[0] + 0.05, p[1], p[2] - r * 0.85] : [p[0], p[1] + r * 0.85, p[2]], s: [r * 0.7, r * 0.25, r * 0.7], top: lighter(C.mossC, 0.2), noShadow: true });
   }
   // Schwanzspitze: Rassel (Vritra: goldene Ringe) bzw. Wurzelspitze
@@ -532,8 +548,14 @@ function bsNaga3(b, id, V) {
     A(torus3(0.105, 0.016, Math.PI * 2, 4, 18), C.gold, { bone: hb, p: [0, 2.19, 0.09], r: [Math.PI / 2 - 0.25, 0, 0], shine: 1 });
     for (let k = 0; k < 5; k++) bsSpike3(A, 0.08 + (k === 2 ? 0.05 : 0), 0.016, C.gold, [(k - 2) * 0.045, 2.2, 0.15 - Math.abs(k - 2) * 0.02], [(k - 2) * 0.15, 1, 0.15], { bone: hb, shine: 1 });
     bsGem3(A, C.glow, [0, 2.215, 0.19], [0.022, 0.03, 0.012], null, hb);
-    // vier Kobras aus den Schultern
-    for (const [x, h, lean] of [[0.24, 2.32, 0.4], [0.36, 2.15, 0.65], [-0.24, 2.32, -0.4], [-0.36, 2.15, -0.65]]) {
+    // seit 14.81 Moormutter Vethra (V.rot, bosse3d-modelle2.js): statt der Kobras Brutbeulen und freiliegende Rippen
+    if (V.rot) {
+      for (const [x, y, z, r] of [[0.16, 1.86, -0.2, 0.09], [-0.13, 1.78, -0.22, 0.08], [0.02, 1.66, -0.24, 0.1], [0.2, 1.6, -0.15, 0.06], [-0.2, 1.62, -0.14, 0.07]]) {
+        A(ball(10), C.sac, { bone: BN3.chest, p: [x, y, z], s: [r, r * 0.9, r], top: C.sacTop, topK: 0.5, shine: 0.6 });
+        A(ball(8), C.glow, { bone: BN3.chest, p: [x, y + r * 0.2, z - r * 0.55], s: [r * 0.45, r * 0.4, r * 0.3], mat: 'glow', noShadow: true });
+      }
+      for (let k = 0; k < 4; k++) for (const sx of [-1, 1]) A(torus3(0.12, 0.014, Math.PI * 0.5, 3, 8), C.gold, { bone: BN3.chest, p: [sx * 0.1, 1.66 - k * 0.06, 0.06], r: [Math.PI / 2 - 0.2, 0, sx > 0 ? -0.3 : Math.PI + 0.3], s: [1, 0.8, 1], noShadow: true });
+    } else for (const [x, h, lean] of [[0.24, 2.32, 0.4], [0.36, 2.15, 0.65], [-0.24, 2.32, -0.4], [-0.36, 2.15, -0.65]]) {
       const base = [x * 0.75, 1.78, -0.12];
       const top = [x + lean * 0.12, h, 0.0];
       A(tube3([base, [x * 0.95, (base[1] + h) / 2, -0.2], [top[0], top[1] - 0.06, -0.08], top], 0.045, 0.03, 14, 7), C.scale, { bone: BN3.chest, top: C.scaleTop, topK: 0.6, shade: 0.2 });
@@ -726,16 +748,32 @@ function bsDemon3(b, id, V) {
 
   // --- Kopf ---
   const hb = BB3.head, jb = BB3.jaw;
-  A(ball(16), C.skin, { bone: hb, p: [0, 2.17, 0.15], s: fem ? [0.1, 0.12, 0.11] : [0.12, 0.13, 0.13], top: C.skinTop, topK: 0.5, shade: 0.25 });
-  A(roundBox(fem ? 0.11 : 0.15, 0.07, 0.12, 0.03), C.skin, { bone: jb, p: [0, 2.08, 0.22], r: [0.15, 0, 0], shade: 0.25 });
-  A(roundBox(fem ? 0.16 : 0.22, 0.04, 0.06, 0.018), darker(C.skin, 0.2), { bone: hb, p: [0, 2.21, 0.25], r: [0.4, 0, 0] });
+  // seit 14.81 (bosse3d-modelle2.js): V.skull – Schädel statt Gesicht (Totenfürst Azrakel), V.weapon – Waffe unabhängig
+  // von der Gestalt ('sword', 'scythe'), V.flameHair – Haar aus Flammen (Ifrah), V.longHorns – lange Hörner nach hinten
+  const headCol = V.skull ? C.bone : C.skin, headTop = V.skull ? C.boneTop || C.bone : C.skinTop;
+  A(ball(16), headCol, { bone: hb, p: [0, 2.17, 0.15], s: fem ? [0.1, 0.12, 0.11] : [0.12, 0.13, 0.13], top: headTop, topK: 0.5, shade: 0.25 });
+  A(roundBox(fem ? 0.11 : 0.15, 0.07, 0.12, 0.03), headCol, { bone: jb, p: [0, 2.08, 0.22], r: [0.15, 0, 0], shade: 0.25 });
+  A(roundBox(fem ? 0.16 : 0.22, 0.04, 0.06, 0.018), darker(headCol, 0.2), { bone: hb, p: [0, 2.21, 0.25], r: [0.4, 0, 0] });
+  if (V.skull) {
+    // Schädel: Zahnreihen, Nasenloch, tiefe Augenhöhlen (die Glut darin kommt unten)
+    for (let k = 0; k < 6; k++) {
+      A(roundBox(0.02, 0.032, 0.015, 0.005), C.boneTop || C.bone, { bone: hb, p: [(k - 2.5) * 0.024, 2.115, 0.275 - Math.abs(k - 2.5) * 0.008], noShadow: true });
+      A(roundBox(0.02, 0.03, 0.015, 0.005), C.boneTop || C.bone, { bone: jb, p: [(k - 2.5) * 0.023, 2.085, 0.27 - Math.abs(k - 2.5) * 0.008], noShadow: true });
+    }
+    A(ball(6), '#08060c', { bone: hb, p: [0, 2.15, 0.27], s: [0.02, 0.026, 0.012], noShadow: true });
+  }
   A(ball(8), C.lava, { bone: jb, p: [0, 2.1, 0.27], s: [0.05, 0.015, 0.02], mat: 'glow', noShadow: true });
   for (const sx of [-1, 1]) {
     A(ball(8), '#0a0406', { bone: hb, p: [sx * 0.05, 2.18, 0.26], s: [0.035, 0.018, 0.02], r: [0, 0, sx * 0.3], noShadow: true });
     A(ball(8), C.eye, { bone: hb, p: [sx * 0.05, 2.18, 0.27], s: [0.028, 0.012, 0.012], r: [0, 0, sx * 0.3], mat: 'glow' });
     bsSpike3(A, 0.16, 0.035, C.skin, [sx * 0.11, 2.16, 0.12], [sx, 0.5, -0.5], { bone: hb, top: C.skinTop });
     bsSpike3(A, 0.05, 0.012, C.tooth, [sx * 0.03, 2.105, 0.29], [0, -1, 0.1], { bone: hb, seg: 4 });
-    if (!fem) {
+    if (V.longHorns) {
+      // lange Hörner flach nach hinten, gerippt
+      const hp = [[sx * 0.07, 2.27, 0.16], [sx * 0.15, 2.36, 0.04], [sx * 0.22, 2.42, -0.2], [sx * 0.26, 2.44, -0.45], [sx * 0.3, 2.5, -0.68]];
+      A(tube3(hp, 0.06, 0.006, 26, 9), C.horn, { bone: hb, top: C.hornTip, topK: 0.6, shine: 0.7 });
+      for (let k = 1; k < 4; k++) A(torus3(0.05 - k * 0.01, 0.009, Math.PI * 2, 3, 10), C.hornTip, { bone: hb, p: hp[k], r: [Math.PI / 2 - 0.4, sx * 0.3, 0], noShadow: true });
+    } else if (!fem) {
       // Widderhörner und gerade Stirnhörner
       A(tube3([[sx * 0.07, 2.27, 0.14], [sx * 0.2, 2.38, 0.06], [sx * 0.32, 2.36, -0.08], [sx * 0.37, 2.22, -0.12], [sx * 0.33, 2.1, -0.03], [sx * 0.31, 2.12, 0.1], [sx * 0.36, 2.2, 0.16]], 0.065, 0.01, 30, 9), C.horn, { bone: hb, top: C.hornTip, topK: 0.6, shine: 0.6 });
       A(tube3([[sx * 0.05, 2.28, 0.18], [sx * 0.08, 2.42, 0.18], [sx * 0.07, 2.58, 0.12]], 0.035, 0.006, 10, 7), C.horn, { bone: hb, top: C.hornTip, topK: 0.6, shine: 0.6 });
@@ -745,7 +783,7 @@ function bsDemon3(b, id, V) {
       A(tube3([[sx * 0.06, 2.27, 0.16], [sx * 0.11, 2.36, 0.06], [sx * 0.15, 2.4, -0.12], [sx * 0.16, 2.36, -0.3]], 0.04, 0.006, 16, 8), C.horn, { bone: hb, top: C.hornTip, topK: 0.6, shine: 0.7 });
       for (let k = 0; k < 4; k++) {
         const xx = sx * (0.04 + k * 0.03);
-        A(tube3([[xx, 2.28, 0.08 - k * 0.02], [xx * 1.6, 2.12, -0.08], [xx * 1.8, 1.82, -0.14], [xx * 1.7, 1.5 - k * 0.04, -0.18]], 0.03, 0.01, 14, 5), C.hair, { bone: hb, shade: 0.2, noShadow: k % 2 === 1 });
+        A(tube3([[xx, 2.28, 0.08 - k * 0.02], [xx * 1.6, 2.12, -0.08], [xx * 1.8, 1.82, -0.14], [xx * 1.7, 1.5 - k * 0.04, -0.18]], 0.03, 0.01, 14, 5), V.flameHair && k % 2 ? C.lava : C.hair, { bone: hb, shade: 0.2, noShadow: k % 2 === 1, mat: V.flameHair && k % 2 ? 'glow' : 'lit' });
       }
     }
   }
@@ -797,7 +835,7 @@ function bsDemon3(b, id, V) {
   // --- Waffe ---
   const G = bsLerp3(P[-1].W, P[-1].Hd, 0.5);
   const hbR = BB3.haR;
-  if (!fem) {
+  if (V.weapon ? V.weapon === 'sword' : !fem) {
     // Flammenschwert: gewellte Klinge, glühende Kernlinie, Stachel-Parierstange, Schädelknauf
     A(cyl3(0.035, 0.035, 0.34, 8), C.grip, { bone: hbR, p: [G[0], G[1], G[2] - 0.02], r: [Math.PI / 2, 0, 0] });
     A(ball(10), C.bone, { bone: hbR, p: [G[0], G[1], G[2] - 0.22], s: [0.06, 0.055, 0.06], shine: 0.3 });
@@ -807,7 +845,7 @@ function bsDemon3(b, id, V) {
     for (let i = 0; i <= 8; i++) bl.push([0.2 + i * 0.17, 0.085 + 0.025 * Math.sin(i * 2.2) - i * 0.004]);
     bl.push([1.75, 0]);
     for (let i = 8; i >= 0; i--) bl.push([0.2 + i * 0.17, -0.085 - 0.025 * Math.sin(i * 2.2 + 1) + i * 0.004]);
-    A(bsBlade3('azaroth-schwert', bl, 0.035, 0.01), C.blade, { bone: hbR, p: [G[0], G[1], G[2]], top: C.bladeTop, topK: 0.5, shine: 1 });
+    A(bsBlade3(id === 'azaroth' ? 'azaroth-schwert' : id + '-schwert', bl, 0.035, 0.01), C.blade, { bone: hbR, p: [G[0], G[1], G[2]], top: C.bladeTop, topK: 0.5, shine: 1 });
     A(box3(), C.lava, { bone: hbR, p: [G[0], G[1], G[2] + 1.0], s: [0.05, 0.03, 1.4], mat: 'glow', noShadow: true });
   } else {
     // Blutsense: langer Schaft, geschwungenes Blatt, Dornen
@@ -830,7 +868,7 @@ const BS_SERETH3 = Object.assign({}, BS_AZAROTH3, {
 });
 MON3_BUILD.azaroth = (b) => bsDemon3(b, 'azaroth', BS_AZAROTH3);
 MON3_BUILD.sereth = (b) => bsDemon3(b, 'sereth', BS_SERETH3);
-const BS_DEMON_BOSS3 = { kind: 'biped', wings: true, tail: true, emit: 'mouth', blob: 1.3, dome: 1.45, deathPts: ['core', 'mouth', 'back', 'tail'], skyAt: 'sky', headTilt: 0 };
+const BS_DEMON_BOSS3 = { kind: 'biped', wings: true, tail: true, emit: 'mouth', blob: 1.3, dome: 1.6, deathPts: ['core', 'mouth', 'back', 'tail'], skyAt: 'sky', headTilt: 0 };
 BOSS3.azaroth = Object.assign({}, BS_DEMON_BOSS3, {
   fx: 'feuer', melee: ['chop', 'sweep', 'claw'], pts: bsDemonPts3(BS_DEMON_J3), emi: [0.1, 0.03, 0.01],
   base: { aRx: -0.35, aRe: -0.75, aRz: 0.18, aLz: 0.2, aLe: -0.5, wing: 0.25 },
@@ -927,6 +965,20 @@ function bsGiant3(b, id, V) {
       A(tube3([[Math.sin(a) * 0.1, 2.29, 0.38 - Math.cos(a) * 0.08], [Math.sin(a) * 0.18, 2.27, 0.25 - Math.cos(a) * 0.08], [Math.sin(a) * 0.22, 2.07, 0.1], [Math.sin(a) * 0.24, 1.89, 0.02]], 0.04, 0.012, 12, 5), k % 2 ? C.beard : C.beard2, { bone: hb, shade: 0.15, noShadow: k % 2 === 0 });
     }
     for (const sx of [-1, 1]) bsSpike3(A, 0.14, 0.03, C.beard2, [sx * 0.08, 2.24, 0.55], [sx, 0.3, 0.2], { bone: hb });
+  } else if (V.tusks) {
+    // seit 14.81 Gorvoth (Oger): Unterbiss mit Hauern, eiserne Halbmaske, kahler Schädel mit Narben
+    for (const sx of [-1, 1]) {
+      bsSpike3(A, 0.16, 0.03, C.tusk, [sx * 0.07, 2.06, 0.55], [sx * 0.25, 1, 0.3], { bone: jb, shine: 0.4 });
+      A(box3(), darker(C.skin, 0.3), { bone: hb, p: [sx * 0.07, 2.27, 0.48], r: [0.4, 0, sx * 0.6], s: [0.015, 0.08, 0.01], noShadow: true });
+    }
+    A(roundBox(0.32, 0.12, 0.14, 0.04), C.iron, { bone: hb, p: [0, 2.2, 0.5], r: [0.15, 0, 0], top: C.ironTop, topK: 0.5, shine: 0.9 });
+    for (let k = 0; k < 5; k++) A(sphere3(0.018, 6, 4), C.ironTop, { bone: hb, p: [(k - 2) * 0.06, 2.25, 0.57], shine: 1, noShadow: true });
+  } else if (V.golemHead) {
+    // seit 14.81 Molgrath (Glutkoloss): Kopf aus Basalt ohne Gesicht, nur Glutaugen und ein glühender Spalt
+    A(geo3('bs:fels', () => smoothGeo(new THREE.DodecahedronGeometry(1, 1))), C.stone, { bone: hb, p: [0, 2.2, 0.38], s: [0.2, 0.17, 0.2], top: C.stoneTop, topK: 0.6, shade: 0.3 });
+    A(box3(), C.rune, { bone: jb, p: [0, 2.05, 0.56], s: [0.16, 0.025, 0.02], mat: 'glow', noShadow: true });
+    for (const sx of [-1, 1]) A(ball(8), C.rune, { bone: hb, p: [sx * 0.075, 2.22, 0.565], s: [0.04, 0.022, 0.02], r: [0, 0, sx * 0.3], mat: 'glow', noShadow: true });
+    for (let k = 0; k < 4; k++) bsSpike3(A, 0.16 - k * 0.02, 0.05, C.stone, [(k - 1.5) * 0.1, 2.33, 0.34 - Math.abs(k - 1.5) * 0.03], [(k - 1.5) * 0.3, 1, -0.3], { bone: hb, top: C.stoneTop });
   } else {
     // Tarkon: Steingesicht, Kiefer aus Fels, Blitzkrone
     for (let k = 0; k < 7; k++) {
@@ -979,6 +1031,22 @@ function bsGiant3(b, id, V) {
     for (let k = 0; k < 4; k++) A(ball(8), darker(C.skin, 0.1), { bone: fb2, p: [Ak[0] + (k - 1.5) * 0.07, 0.07, 0.34], s: [0.045, 0.045, 0.05], noShadow: true });
     A(cyl3(0.2, 0.22, 0.22, 14), C.band, { bone: sb, p: [Ak[0], 0.3, 0.0], top: C.bandTop, shine: C.ice ? 0.9 : 1 });
   }
+  if (V.apron) {
+    // seit 14.81 Volund: Schmiedeschürze aus Leder mit Brandflecken, Funken in der Schürze
+    bsSheetAdd3(b, A, bsSheet3(id + 'schuerze', 5, 8, (u, v) => [(u - 0.5) * 0.62 * (1 - 0.1 * v), 1.62 - v * 1.1, 0.5 + 0.08 * Math.sin(Math.PI * u) - v * 0.12],
+      (u, v) => [[BB3.chest, Math.max(0, 1 - v * 2.5)], [BB3.pelvis, Math.min(1, v * 2.5)]], (u, v, s) => (s > 0 ? (Math.sin(u * 13 + v * 7) > 0.92 ? '#1a120c' : mixColor(C.apron, darker(C.apron, 0.3), v)) : darker(C.apron, 0.4)), 0.012), true);
+    for (const sx of [-1, 1]) A(tube3([[sx * 0.28, 1.64, 0.48], [sx * 0.4, 1.95, 0.25], [sx * 0.3, 2.0, -0.05]], 0.025, 0.025, 8, 5), darker(C.apron, 0.2), { bone: BB3.chest, noShadow: true });
+  }
+  if (V.chains) {
+    // seit 14.81 Gorvoth: Ketten quer über die Brust, Fesseln an den Handgelenken mit Kettenresten
+    bsChainLinks3(A, [0.4, 1.92, 0.3], [-0.3, 1.25, 0.5], 9, 0.045, C.iron, BB3.chest);
+    for (const sx of [-1, 1]) {
+      const fb = bsArmB3(sx)[1];
+      const w = bsLerp3(P[sx].E, P[sx].W, 0.92);
+      A(torus3(0.2, 0.05, Math.PI * 2, 5, 14), C.iron, { bone: fb, p: w, r: [Math.PI / 2, 0, 0], top: C.ironTop, shine: 0.9 });
+      bsChainLinks3(A, [w[0] + sx * 0.18, w[1] - 0.05, w[2]], [w[0] + sx * 0.26, w[1] - 0.6, w[2] - 0.12], 5, 0.04, C.iron, fb);
+    }
+  }
   // --- Waffe in der rechten Hand ---
   const G = BS_GIANT_G3, hbR = BB3.haR;
   if (C.ice) {
@@ -990,6 +1058,25 @@ function bsGiant3(b, id, V) {
     for (let k = 0; k < 6; k++) {
       const a = (k / 6) * Math.PI * 2;
       bsSpike3(A, 0.22, 0.05, C.ice, [T[0] + Math.cos(a) * 0.18, T[1] + Math.sin(a) * 0.16, T[2] + 0.05], [Math.cos(a), Math.sin(a), 0.4], { bone: hbR, top: C.iceTop, shine: 1 });
+    }
+  } else if (V.weapon === 'flail') {
+    // seit 14.81 Gorvoth: Kerkerflegel – Griff, Kette, Stachelkugel; Schlüsselbund am Gürtel
+    A(cyl3(0.05, 0.05, 0.6, 10), C.wood, { bone: hbR, p: [G[0], G[1], G[2] + 0.1], r: [Math.PI / 2, 0, 0], shade: 0.2 });
+    const K = [G[0], G[1] - 0.45, G[2] + 0.55];
+    bsChainLinks3(A, [G[0], G[1], G[2] + 0.4], K, 6, 0.05, C.iron, hbR);
+    A(ball(12), C.iron, { bone: hbR, p: K, s: 0.2, top: C.ironTop, shine: 0.9 });
+    for (let k = 0; k < 10; k++) {
+      const a = k * 2.4, b2 = Math.acos(1 - 2 * (k + 0.5) / 10);
+      const d = [Math.sin(b2) * Math.cos(a), Math.cos(b2), Math.sin(b2) * Math.sin(a)];
+      bsSpike3(A, 0.14, 0.04, C.ironTop, [K[0] + d[0] * 0.18, K[1] + d[1] * 0.18, K[2] + d[2] * 0.18], d, { bone: hbR, shine: 1 });
+    }
+  } else if (V.weapon === 'none') {
+    // seit 14.81 Molgrath: keine Waffe – glühende Fäuste aus Magma
+    for (const sx of [-1, 1]) {
+      const hbx = bsArmB3(sx)[2];
+      const c = bsLerp3(P[sx].W, P[sx].Hd, 0.5);
+      A(geo3('bs:fels', () => smoothGeo(new THREE.DodecahedronGeometry(1, 1))), C.stone, { bone: hbx, p: c, s: [0.24, 0.22, 0.24], top: C.stoneTop, shade: 0.3 });
+      for (let k = 0; k < 3; k++) A(box3(), C.rune, { bone: hbx, p: [c[0] + sx * 0.12, c[1] - 0.05 + k * 0.06, c[2] + 0.1], r: [0.3 * k, 0, sx * 0.5], s: [0.02, 0.12, 0.02], mat: 'glow', noShadow: true });
     }
   } else {
     // Kriegshammer: langer Stiel, Hammerkopf aus Stein mit Bronze, Blitzrune

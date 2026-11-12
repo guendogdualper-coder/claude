@@ -511,6 +511,7 @@ function instBossTick(m, dt) {
   }
   if (kind === 'adds') {
     raidMinions(m, 3);
+    if (instOwn3(m)) bossRoar(m);
     ui.banner(m.name, 'ruft ihre Brut!');
     if (net.mode === 'host') netBroadcast({ t: 'roar', id: m.id, ph: 1 });
     return false;
@@ -560,7 +561,9 @@ function instVolley(m) {
   shoot(0);
   later(0.45, () => shoot(Math.PI / n));
   m.attackAnim = 0.25;
-  addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 120, dur: 0.5, color: b.color, width: 8, grow: true });
+  // seit 14.81: eigene Modelle reißen die Arme auf (bosse3d.js), ohne Ring
+  if (instOwn3(m)) bossVolley3(m);
+  else addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 120, dur: 0.5, color: b.color, width: 8, grow: true });
 }
 
 // Warnfelder eines Angriffs: Kreise, sicherer Innenkreis, Wartezeit
@@ -701,22 +704,29 @@ function instWindup(m, delay) {
   else if (fx === 'sturm') addEffect({ type: 'cloud3', x: m.x, y: feetY(m), dur: delay + 0.6, color: '#232838' });
   else addEffect({ type: 'pillar', follow: m, dur: delay, color: T.col });
 }
+// seit 14.81: Bosse mit eigenem 3D-Modell (bosse3d.js) zeigen jeden Angriff mit eigener Pose und eigenen Effekten im
+// Thema; dann entfallen hier Lichtsäule, Kugeln, Wolken und Meteore (die Warnflächen bleiben)
+const instOwn3 = (m) => typeof isBoss3 === 'function' && isBoss3(m.typeId);
 function instTelegraph(m, kind, circles, inner, delay) {
   if (!m || !m.type || !m.type.inst) return false;
   const T = instTheme(m);
   const fx = m.type.inst.fx;
+  const own = instOwn3(m);
   // Endboss-Angriffe: ihr Warnzeichen wie gewohnt, dazu das Aufladen im Thema
+  const own3 = own && V3.on;
   if (!INST_KINDS.has(kind)) {
-    instWindup(m, delay);
+    if (!own3) instWindup(m, delay);
     return false;
   }
-  instWindup(m, delay);
+  if (own) bossTelegraph(m, kind, circles, inner, delay);
+  if (!own3) instWindup(m, delay);
   const warn = (c, color = '#ff3a2a', inr = 0) => addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, inner: inr, dur: delay, color });
   if (kind === 'ult') {
     const [big, ...safe] = circles;
     warn(big);
     for (const c of safe) {
       addEffect({ type: 'warn', x: c.x, y: c.y, r: c.r, dur: delay, color: '#3aff6a' });
+      // die Lichtsäule zeigt die sicheren Kreise (gehört zur Warnung, bleibt auch bei eigenen Modellen)
       addEffect({ type: 'pillar', x: c.x, y: c.y, dur: delay, color: '#7aff8a' });
     }
     ui.banner(m.name, `${m.type.inst.ult || 'Vernichtung'} – rein in einen Lichtkreis!`);
@@ -735,11 +745,12 @@ function instTelegraph(m, kind, circles, inner, delay) {
   }
   if (kind === 'pull') {
     warn(circles[0], T.col);
-    addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 110, dur: delay, color: T.wind });
+    if (!own3) addEffect({ type: 'tornado', follow: m, ox: 0, oy: 0, r: 110, dur: delay, color: T.wind });
     ui.banner(m.name, 'zieht alle heran – raus aus dem Kreis!');
     return true;
   }
   for (const c of circles) warn(c);
+  if (own3) return true;
   if (kind === 'rain') {
     for (const c of circles) {
       later(Math.max(0, delay - 0.45), () => {
@@ -779,6 +790,8 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
   if (!m || !m.type || !m.type.inst || !INST_KINDS.has(kind)) return false;
   const T = instTheme(m);
   const fx = m.type.inst.fx;
+  // seit 14.81: eigene Modelle zeigen den Einschlag selbst (bosse3d.js) – ohne Bildschirmblitz und Ringe
+  const own3 = instOwn3(m) && V3.on;
   const p = game.player;
   const fyp = p ? feetY(p) : 0;
   const inC = (c) => p && Math.hypot(p.x - c.x, (fyp - c.y) * 1.2) < c.r;
@@ -789,16 +802,16 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
   shakeScreen(kind === 'ult' ? 16 : 8);
   if (kind === 'ult') {
     const [big, ...safe] = circles;
-    flashScreen(T.col, 0.35);
+    if (!own3) flashScreen(T.col, 0.35);
     const rnd = mulberry32((m.id * 977 + Math.floor(game.time)) | 0);
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < (own3 ? 0 : 18); i++) {
       const a = rnd() * Math.PI * 2;
       const d = 80 + rnd() * 520;
       const c = { x: big.x + Math.cos(a) * d, y: big.y + Math.sin(a) * d * 0.8, r: 90 };
       if (safe.some((s) => Math.hypot(s.x - c.x, s.y - c.y) < s.r + 40)) continue;
       instBurst(T, fx, c, true);
     }
-    addEffect({ type: 'ring', x: big.x, y: big.y, r: 640, dur: 0.9, color: T.col, width: 26, grow: true });
+    if (!own3) addEffect({ type: 'ring', x: big.x, y: big.y, r: 640, dur: 0.9, color: T.col, width: 26, grow: true });
     if (!p || p.dead || !inC(big)) return true;
     if (safe.some(inC)) {
       addText(p.x, p.y - 40, 'Sicher!', 'heal');
@@ -809,21 +822,23 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
   }
   if (kind === 'ringout' || kind === 'core') {
     const c = circles[0];
-    const n = kind === 'core' ? 8 : 12;
+    const n = own3 ? 0 : kind === 'core' ? 8 : 12;
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2;
       const d = kind === 'core' ? c.r * 0.55 : (inner + c.r) / 2;
       instBurst(T, fx, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.8, r: 70 }, false);
     }
-    addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.7, color: T.col, width: 18, grow: true });
+    if (!own3) addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.7, color: T.col, width: 18, grow: true });
     const d = p ? Math.hypot(p.x - c.x, (fyp - c.y) * 1.2) : 1e9;
     if (d < c.r && d >= inner) hurt(INST_MUL[kind]);
     return true;
   }
   if (kind === 'pull') {
     const c = circles[0];
-    addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.6, color: T.wind, width: 14, grow: false });
-    addEffect({ type: 'tornado', x: c.x, y: c.y, r: 140, dur: 0.6, color: T.wind });
+    if (!own3) {
+      addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.6, color: T.wind, width: 14, grow: false });
+      addEffect({ type: 'tornado', x: c.x, y: c.y, r: 140, dur: 0.6, color: T.wind });
+    }
     if (p && !p.dead && inC(c)) {
       // zum Boss gerissen (mit Kollision), dann kurzer Treffer
       const dx = m.x - p.x;
@@ -837,7 +852,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
     return true;
   }
   if (kind === 'chain') {
-    for (let i = 0; i < circles.length; i++) {
+    for (let i = 0; i < (own3 ? 0 : circles.length); i++) {
       const c = circles[i];
       addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.4, color: T.col });
       addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.45, color: T.col, width: 8, grow: true });
@@ -849,7 +864,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
     if (hits) hurt(INST_MUL.chain * hits);
     return true;
   }
-  for (const c of circles) instBurst(T, fx, c, kind === 'cross' || kind === 'fan');
+  if (!own3) for (const c of circles) instBurst(T, fx, c, kind === 'cross' || kind === 'fan');
   if (kind === 'pools') {
     for (const c of circles) {
       INST_HAZ.push({ x: c.x, y: c.y, r: c.r * 0.9, until: game.time + 9, atk, lvl, fx, col: T.col, next: game.time + 0.6, m });

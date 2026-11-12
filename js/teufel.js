@@ -200,4 +200,5 @@ function abaddor3(b, v = 0) {
 
   return { rig, height: hc[1] + 0.56, family: 'human', shY, hipY, shX, hc, hr: 0.13, belly: true, noFlair: true, teufel: true, form2: F, ownScale: 1.15 * (F ? 1.12 : 1) };
 }
-MON3_BUILD.abaddor = abaddor3;
+// seit 14.81 baut bosse3d-modelle2.js Abaddor neu auf dem Zweibeiner-Skelett der Endbosse (gleiches Aussehen, dazu
+// Animation und Effekte wie bei Aelvyr); abaddor3 bleibt als Vorlage, die Farben (TEUFEL3, TEUFEL3F) nutzt der Neubau.

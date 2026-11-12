@@ -391,8 +391,8 @@ function bsLook3(a, e, c, k) {
 // neigen), aLx/aLz/aLe, aRx/aRz/aRe (Arm vor/hoch −, abspreizen +, Ellbogen beugen −), headUp, jaw, wing (0 angelegt …
 // 1 ausgebreitet), flapAmp, flapHz, hover, glow, look, sink, kneel, fall (Tod: vornüber), stance (breiter Stand),
 // stompL (linkes Bein heben), tail (Schwanz schlagen)
-const BS_BIP_DEF3 = { crouch: 0, lean: 0.05, twist: 0, side: 0, aLx: -0.15, aLz: 0.12, aLe: -0.35, aRx: -0.25, aRz: 0.12, aRe: -0.55, headUp: 0, jaw: 0.04, wing: 0.15, flapAmp: 0, flapHz: 0.6, hover: 0, glow: 0, look: 1, sink: 0, kneel: 0, fall: 0, stance: 0, stompL: 0, tail: 0, back: 0 };
-const BS_BIP_RATE3 = { crouch: 7, lean: 6, twist: 7, side: 6, aLx: 9, aLz: 8, aLe: 9, aRx: 9, aRz: 8, aRe: 9, headUp: 6, jaw: 10, wing: 4, flapAmp: 3, flapHz: 3, hover: 3, glow: 3, look: 4, sink: 2, kneel: 4, fall: 2.2, stance: 6, stompL: 8, tail: 6, back: 5 };
+const BS_BIP_DEF3 = { crouch: 0, lean: 0.05, twist: 0, side: 0, aLx: -0.15, aLz: 0.12, aLe: -0.35, aRx: -0.25, aRz: 0.12, aRe: -0.55, headUp: 0, jaw: 0.04, wing: 0.15, flapAmp: 0, flapHz: 0.6, hover: 0, glow: 0, look: 1, sink: 0, kneel: 0, fall: 0, stance: 0, stompL: 0, tail: 0, back: 0, mantle: 0 };
+const BS_BIP_RATE3 = { crouch: 7, lean: 6, twist: 7, side: 6, aLx: 9, aLz: 8, aLe: 9, aRx: 9, aRz: 8, aRe: 9, headUp: 6, jaw: 10, wing: 4, flapAmp: 3, flapHz: 3, hover: 3, glow: 3, look: 4, sink: 2, kneel: 4, fall: 2.2, stance: 6, stompL: 8, tail: 6, back: 5, mantle: 3 };
 // Bein per IK: Hüfte → Fuß (dz vor, dy nach unten), Fuß bleibt waagerecht
 function bsLegIK3(th, sh, ft, L1, L2, dz, dy) {
   let D = Math.hypot(dz, dy);
@@ -420,7 +420,8 @@ function bsBipAnim3(a, e, dt, corpse) {
     else Object.assign(T, { kneel: 1, crouch: 0.7, fall: 1, lean: 0.2, headUp: -0.2, jaw: 0.3, aLx: -1.4, aRx: -1.4, aLz: 0.5, aRz: 0.5, aLe: -0.1, aRe: -0.1, glow: -1, wing: 1.05, look: 0, sink: u > 3.4 ? 1 : 0 });
   } else if (c.cast) bsBipCast3(e, c.cast, now - c.cast.t0, T, def);
   else if (c.stagger) Object.assign(T, { crouch: 0.45, lean: 0.45, headUp: -0.5, jaw: 0.4, aLx: 0.15, aRx: 0.1, aLz: 0.3, aRz: 0.3, aLe: -0.1, aRe: -0.15, side: 0.2 * Math.sin(now * 2.2), look: 0.2 });
-  else if (c.shield) Object.assign(T, { kneel: 0.55, crouch: 0.4, lean: -0.1, aLx: -2.5, aRx: -2.5, aLz: -0.25, aRz: -0.25, aLe: -0.5, aRe: -0.5, headUp: 0.5, jaw: 0.3, glow: 0.8, wing: 0.9, look: 0.3 });
+  // seit 14.81: Flieger hüllen sich beim Schild in die Flügel (mantle) – vorher ragten die Flügelspitzen aus der Kuppel
+  else if (c.shield) Object.assign(T, { kneel: 0.55, crouch: 0.4, lean: -0.1, aLx: -2.5, aRx: -2.5, aLz: -0.25, aRz: -0.25, aLe: -0.5, aRe: -0.5, headUp: 0.5, jaw: 0.3, glow: 0.8, wing: 1, mantle: 1, look: 0.3 });
   else if (c.roar < 1.9) {
     const k = c.roar / 1.9;
     Object.assign(T, { lean: -0.3, headUp: 1, jaw: k < 0.85 ? 1 : 0.2, aLz: 1.15, aRz: 1.15, aLx: -0.5, aRx: -0.5, aLe: -1.3, aRe: -1.3, crouch: 0.2, stance: 1, glow: 0.6, wing: 1, flapAmp: 0.15, flapHz: 2.4, look: 0.2 });
@@ -514,8 +515,9 @@ function bsBipAnim3(a, e, dt, corpse) {
     for (const sx of [1, -1]) {
       const [w1, w2] = bsWingB3(sx);
       const open = Math.max(-0.1, Math.min(1.1, P.wing));
-      B[w1].rotation.set(0.15 * (1 - open), sx * (1 - open) * 1.15, sx * (0.25 * (1 - open) + fl * 0.9 - 0.15 * open));
-      B[w2].rotation.set(0, sx * (1 - open) * 1.6, sx * (fl * 0.6 - 0.2 * (1 - open)));
+      const mt = P.mantle;
+      B[w1].rotation.set(0.15 * (1 - open), sx * ((1 - open) * 1.15 - 0.65 * mt), sx * (0.25 * (1 - open) + fl * 0.9 - 0.15 * open - 0.95 * mt));
+      B[w2].rotation.set(0, sx * ((1 - open) * 1.6 - 0.4 * mt), sx * (fl * 0.6 - 0.2 * (1 - open) - 0.55 * mt));
     }
   }
   // --- Umhang: schwingt nach, weht beim Laufen ---
@@ -552,18 +554,41 @@ function bsBipMelee3(T, kind, w, hit, def) {
     add('aLx', -2.2 * w + 1.8 * hit); add('aLz', 0.7 * w - 0.6 * hit); add('aLe', -0.5 * w + 0.3 * hit); add('twist', 0.4 * w - 0.6 * hit); add('lean', -0.1 * w + 0.35 * hit); add('jaw', 0.7 * w);
   } else if (kind === 'stomp') {
     add('stompL', 1 * w - 1 * hit); add('lean', -0.15 * w + 0.3 * hit); add('aLz', 0.5 * w); add('aRz', 0.5 * w); add('crouch', 0.4 * hit); add('jaw', 0.6 * hit);
+  } else if (kind === 'thrust') {
+    // seit 14.81: Stoß mit Dreizack oder Speer (rechts), Nebenhand weit nach hinten
+    add('aRx', 0.35 * w - 1.85 * hit); add('aRe', -1.4 * w + 1.35 * hit); add('aRz', 0.25 * w - 0.15 * hit); add('aLz', 0.5 * w); add('aLx', 0.3 * w);
+    add('twist', -0.6 * w + 0.8 * hit); add('lean', -0.15 * w + 0.45 * hit); add('crouch', 0.2 * w + 0.2 * hit); add('stance', 0.8 * w); add('jaw', 0.7 * hit);
   } else if (kind === 'slam2') {
     add('aLx', -2.6 * w + 2.4 * hit); add('aRx', -2.6 * w + 2.4 * hit); add('aLz', -0.3 * w); add('aRz', -0.3 * w);
     add('lean', -0.25 * w + 0.7 * hit); add('crouch', 0.5 * hit); add('jaw', 0.6 * w);
   }
 }
+// seit 14.81: Angriffe der Instanz- und Höllenthron-Bosse auf die Grundposen abgebildet (Kegel wie Atem, Dornen und
+// Kreuz wie der Stampfer, Hagel/Lachen wie die Meteore, Ringe wie die Nova, Ult wie die Vernichtung); Sog, Kettenblitz
+// und Geschossring haben eigene Posen
+const BS_KMAP3 = { fan: 'line', spikes: 'slam', cross: 'slam', rain: 'meteor', pools: 'meteor', ringout: 'nova', core: 'nova', ult: 'doom', quarter: 'doom', qring: 'nova', qcore: 'nova' };
 // Endboss-Angriffe: u = Sekunden seit der Ankündigung, d = Dauer bis zum Einschlag
 function bsBipCast3(e, c, u, T, def) {
   const d = c.d, after = u - d, k = Math.min(1, u / d);
   if (def.cast && def.cast(e, c, u, T) === true) return;
   const fly = !!def.wings;
   const emitArm = def.emit === 'handL' ? 'L' : 'R';
-  switch (c.kind) {
+  const ea = 'a' + emitArm, oa = emitArm === 'R' ? 'aL' : 'aR';
+  switch (BS_KMAP3[c.kind] || c.kind) {
+    case 'pull':
+      // Sog: beide Arme vor, Kraft sammeln – dann alles an sich reißen
+      if (after < 0) Object.assign(T, { lean: 0.3, crouch: 0.3, stance: 1, aLx: -1.45, aRx: -1.45, aLz: 0.35, aRz: 0.35, aLe: -0.15, aRe: -0.15, headUp: 0.2, jaw: 0.5, glow: k, look: 0.4, wing: 1, flapAmp: fly ? 0.35 : 0, flapHz: 1.2 });
+      else if (after < 0.7) Object.assign(T, { lean: -0.35, crouch: 0.15, stance: 1, aLx: -0.7, aRx: -0.7, aLz: 0.6, aRz: 0.6, aLe: -1.7, aRe: -1.7, headUp: 0.5, jaw: 1, glow: 1, wing: 1.05 });
+      break;
+    case 'chain':
+      // Kettenblitz: Hand zum Himmel, Blitze sammeln – dann auf die Ziele zeigen
+      if (after < 0) Object.assign(T, { lean: -0.2, twist: -0.25, [ea + 'x']: -2.8, [ea + 'e']: -0.3, [ea + 'z']: 0.2, [oa + 'z']: 0.9, [oa + 'x']: -0.4, headUp: 0.6, jaw: 0.4, glow: 0.4 + k, look: 0.2, wing: 0.9 });
+      else if (after < 0.7) Object.assign(T, { lean: 0.3, twist: 0.25, crouch: 0.25, stance: 1, [ea + 'x']: -1.55, [ea + 'e']: -0.05, [ea + 'z']: 0.05, [oa + 'z']: 0.7, headUp: 0, jaw: 0.9, glow: 1.2, look: 0 });
+      break;
+    case 'volley':
+      // Geschossring: Arme aufreißen, Geschosse fliegen ringsum
+      if (u < 0.75) Object.assign(T, { crouch: 0.1, lean: -0.3, aLx: -0.7, aRx: -0.7, aLz: 1.35, aRz: 1.35, aLe: -0.1, aRe: -0.1, headUp: 0.6, jaw: 1, glow: 1.2, stance: 1, wing: 1.05, flapAmp: fly ? 0.4 : 0, flapHz: 2 });
+      break;
     case 'line':
       // smash: Waffe hoch über den Kopf und in Zielrichtung in den Boden – die Welle läuft die Linie entlang
       if (def.lineStyle === 'smash') {
@@ -610,8 +635,8 @@ function bsBipCast3(e, c, u, T, def) {
 // --- Vierbeiner: Animation ----------------------------------------------------------------------------------
 // Posenwerte wie bei Aelvyr (ohne Flügel): rear (Aufbäumen), crouch, neckUp, neckFwd, jaw, twist, curl (Schwanz),
 // legsUp (Vorderbeine heben), clawUp (Tatze links hoch), sink, splay, droop, glow, hover, look, ears (anlegen)
-const BS_QUAD_DEF3 = { rear: 0, hover: 0, neckUp: 0, neckFwd: 0, jaw: 0.05, crouch: 0, glow: 0, twist: 0, curl: 0, legsUp: 0, clawUp: 0, look: 1, sink: 0, splay: 0, droop: 0, ears: 0, roll: 0 };
-const BS_QUAD_RATE3 = { hover: 3.2, rear: 6, neckUp: 5, neckFwd: 9, jaw: 10, crouch: 7, glow: 3, twist: 6, curl: 6, legsUp: 7, clawUp: 9, sink: 2, splay: 3, droop: 3, ears: 6, roll: 2.5 };
+const BS_QUAD_DEF3 = { rear: 0, hover: 0, neckUp: 0, neckFwd: 0, jaw: 0.05, crouch: 0, glow: 0, twist: 0, curl: 0, legsUp: 0, clawUp: 0, look: 1, sink: 0, splay: 0, droop: 0, ears: 0, roll: 0, wing: 0.1, flapAmp: 0, flapHz: 0.6 };
+const BS_QUAD_RATE3 = { hover: 3.2, rear: 6, neckUp: 5, neckFwd: 9, jaw: 10, crouch: 7, glow: 3, twist: 6, curl: 6, legsUp: 7, clawUp: 9, sink: 2, splay: 3, droop: 3, ears: 6, roll: 2.5, wing: 4, flapAmp: 3, flapHz: 3 };
 function bsQuadAnim3(a, e, dt, corpse) {
   const def = BOSS3[a.model.boss3];
   const c = bsPrelude3(a, e, dt, corpse, def, BS_QUAD_DEF3);
@@ -634,7 +659,15 @@ function bsQuadAnim3(a, e, dt, corpse) {
   else {
     S.idleT += c.dt;
     const ph = S.idleT % 12;
-    if (ph > 8.5 && ph < 10.5) Object.assign(T, { neckUp: 0.6, jaw: 0.35, look: 0 });
+    if (ph > 8.5 && ph < 10.5) Object.assign(T, { neckUp: 0.6, jaw: 0.35, look: 0, wing: def.drake ? 0.7 : 0.1 });
+  }
+  // Drachen (seit 14.81): Flügel je Lage – beim Brüllen und Tod weit offen, im Kampf halb, beim Laufen angelegt
+  if (def.drake && !c.cast) {
+    if (corpse) Object.assign(T, now - e.start < 0.7 ? { wing: 1.05, flapAmp: 0.3, flapHz: 2 } : { wing: 0.85 });
+    else if (c.roar < 1.9) Object.assign(T, { wing: 1.05, flapAmp: 0.25, flapHz: 2.2 });
+    else if (c.shield) Object.assign(T, { wing: 1, flapAmp: 0.1, flapHz: 1 });
+    else if (c.foe && !c.moving) T.wing = 0.4;
+    else if (c.moving && e.dash) T.wing = 0.3;
   }
   const w = c.wind, hit = c.hit;
   if (w > 0 || hit > 0) {
@@ -673,6 +706,7 @@ function bsQuadAnim3(a, e, dt, corpse) {
     B[eb].rotation.x = -0.7 * P.ears + Math.sin(c.t * 2.1 + sx) * 0.05;
     B[eb].rotation.z = sx * 0.3 * P.ears;
   }
+  if (def.drake) bsDrakeBones3(B, S, P, c, nk, hd);
   const amp = c.moving ? 0.2 : 0.1;
   for (let i = 0; i < 3; i++) {
     const tb = B[BQ3.t1 + i];
@@ -713,13 +747,27 @@ function bsQuadAnim3(a, e, dt, corpse) {
     const k = (now - c.cast.t0 - c.cast.d) / 0.3;
     if (k > 0 && k < 1) hover += Math.sin(Math.PI * k) * 2.6;
   }
+  // Drachen heben und senken sich im Flug mit dem Flügelschlag
+  if (def.drake && P.flapAmp > 0.3 && P.hover > 0.2) hover += Math.sin(S.flap + 0.6) * 0.12 * P.flapAmp;
   bsPlace3(a, e, c, def, hover, P.glow);
   return S;
 }
 function bsQuadCast3(e, c, u, T, def) {
   const d = c.d, after = u - d, k = Math.min(1, u / d);
   if (def.cast && def.cast(e, c, u, T) === true) return;
-  switch (c.kind) {
+  if (def.drake) bsDrakeCast3(c, u, after, k, T);
+  switch (BS_KMAP3[c.kind] || c.kind) {
+    case 'pull':
+      if (after < 0) Object.assign(T, { rear: 0.35, neckUp: 0.9, neckFwd: -0.3, jaw: 1, glow: k, crouch: 0.2, look: 0.3 });
+      else if (after < 0.7) Object.assign(T, { rear: -0.05, crouch: 0.45, neckUp: -0.3, neckFwd: 0.7, jaw: 0.9, glow: 1 });
+      break;
+    case 'chain':
+      if (after < 0) Object.assign(T, { rear: 0.3, neckUp: 1.1, jaw: 0.6, glow: 0.4 + k, look: 0.2 });
+      else if (after < 0.7) Object.assign(T, { rear: 0.05, neckUp: -0.15, neckFwd: 0.7, jaw: 1, glow: 1.2, crouch: 0.3 });
+      break;
+    case 'volley':
+      if (u < 0.75) Object.assign(T, { rear: 0.4, legsUp: 0.3, neckUp: 1.0, jaw: 1, glow: 1.2 });
+      break;
     case 'line':
       if (after < 0) Object.assign(T, { rear: 0.25, neckUp: 0.8, neckFwd: -0.3, jaw: 0.3 + 0.4 * k, glow: 0.9 * k, look: 0, crouch: 0.2 });
       else if (after < 0.95) Object.assign(T, { rear: 0.05, neckUp: -0.25, neckFwd: 0.8, jaw: 1, glow: 1, look: 0, crouch: 0.35 });
@@ -753,6 +801,69 @@ function bsQuadCast3(e, c, u, T, def) {
       break;
     default:
       break;
+  }
+}
+
+// --- Drache (seit 14.81): Vierbeiner mit langem Hals aus drei Gliedern und echten Flügeln -------------------------
+// Knochen wie beim Vierbeiner (BQ3), dazu zwei weitere Halsglieder (der Kopf hängt am dritten) und je Flügel Arm und
+// Unterarm (Flughaut und Finger fest am Unterarm, innen weich zum Rumpf gewichtet).
+const BD3 = Object.assign({}, BQ3, { neck2: 23, neck3: 24, wL1: 25, wL2: 26, wR1: 27, wR2: 28 });
+const bsWingD3 = (sx) => (sx > 0 ? [BD3.wL1, BD3.wL2] : [BD3.wR1, BD3.wR2]);
+// J wie beim Vierbeiner, dazu neck2, neck3 (Halsglieder), wing [Ansatz links], wing2 [Ellbogen links]
+function bsDrakeRig3(J) {
+  const rig = bsQuadRig3(J);
+  rig.push({ pos: J.neck2, parent: BD3.neck }, { pos: J.neck3, parent: BD3.neck2 });
+  rig[BD3.head].parent = BD3.neck3;
+  for (const sx of [1, -1]) {
+    rig.push({ pos: [sx * J.wing[0], J.wing[1], J.wing[2]], parent: BD3.chest });
+    rig.push({ pos: [sx * J.wing2[0], J.wing2[1], J.wing2[2]], parent: rig.length - 1 });
+  }
+  return rig;
+}
+// Hals und Flügel je Bild (nach dem Vierbeiner-Teil): Neigung über drei Glieder verteilt, Flügel falten und schlagen
+function bsDrakeBones3(B, S, P, c, nk, hd) {
+  const n2 = B[BD3.neck2], n3 = B[BD3.neck3];
+  const rx = nk.rotation.x, ry = nk.rotation.y;
+  const sway = Math.sin(c.t * 0.75) * 0.05 * (1 - Math.min(1, Math.abs(P.neckUp)));
+  nk.rotation.x = rx * 0.45 + sway;
+  nk.rotation.y = ry * 0.4;
+  n2.rotation.x = rx * 0.35 - sway * 1.4;
+  n2.rotation.y = ry * 0.35;
+  n3.rotation.x = rx * 0.3 + sway;
+  n3.rotation.y = ry * 0.3;
+  S.flap += c.dt * Math.PI * 2 * P.flapHz;
+  const fl = Math.sin(S.flap) * P.flapAmp;
+  const open = Math.max(-0.1, Math.min(1.1, P.wing));
+  const fold = 1 - open;
+  for (const sx of [1, -1]) {
+    const [w1, w2] = bsWingD3(sx);
+    // angelegt: Arm gesenkt und nach hinten geschwenkt, Finger liegen entlang der Flanke nach hinten
+    B[w1].rotation.set(0.15 * fold, sx * fold * 1.2, sx * (-0.5 * fold + fl * 0.85 - 0.1 * open));
+    B[w2].rotation.set(0, sx * fold * 0.35, sx * (fl * 0.55 - 0.3 * fold));
+  }
+}
+// Flügel und Flughöhe je Angriff (vor der Pose des Vierbeiners)
+function bsDrakeCast3(c, u, after, k, T) {
+  switch (BS_KMAP3[c.kind] || c.kind) {
+    case 'line': Object.assign(T, after < 0 ? { wing: 0.85, flapAmp: 0.15, flapHz: 1 } : { wing: 1, flapAmp: 0.1, flapHz: 1 }); break;
+    case 'meteor': if (after < 0.4) Object.assign(T, { wing: 1.05, flapAmp: 0.75, flapHz: 1.4, hover: 1.8 * Math.min(1, u / 0.6) }); break;
+    case 'nova':
+      if (after < 0) Object.assign(T, { wing: 1, flapAmp: 0.85, flapHz: 1.5, hover: 2.4 * Math.min(1, u / 0.8) });
+      else if (after < 0.6) Object.assign(T, { wing: 1.1, flapAmp: 0.2, flapHz: 2, hover: 0 });
+      break;
+    case 'slam':
+      if (after < 0) Object.assign(T, { wing: 1, flapAmp: 0.6, flapHz: 1.6, hover: 1.6 * Math.min(1, u / 0.6) });
+      else if (after < 0.7) Object.assign(T, { wing: 1.05, hover: 0 });
+      break;
+    case 'doom':
+      if (after < 0) Object.assign(T, { wing: 1.05, flapAmp: 0.95, flapHz: 1.05, hover: 4.4 * bsSmooth3(u / 1.4) });
+      else if (after < 1.1) Object.assign(T, { wing: 1.1, flapAmp: 0.15, hover: 0 });
+      break;
+    case 'leap': Object.assign(T, { wing: 1, flapAmp: after > 0 && after < 0.3 ? 0.9 : 0.2, flapHz: 2 }); break;
+    case 'charge': T.wing = 0.35; break;
+    case 'pull': Object.assign(T, after < 0 ? { wing: 1.05, flapAmp: 0.7, flapHz: 1.8 } : { wing: 0.6 }); break;
+    case 'buster': Object.assign(T, { wing: 0.8 }); break;
+    default: T.wing = 1; break;
   }
 }
 
@@ -847,7 +958,18 @@ function bsNagaAnim3(a, e, dt, corpse) {
 function bsNagaCast3(e, c, u, T, def) {
   const d = c.d, after = u - d, k = Math.min(1, u / d);
   if (def.cast && def.cast(e, c, u, T) === true) return;
-  switch (c.kind) {
+  switch (BS_KMAP3[c.kind] || c.kind) {
+    case 'pull':
+      if (after < 0) Object.assign(T, { rise: 0.4, lean: 0.3, aLx: -1.45, aRx: -1.45, aLz: 0.35, aRz: 0.35, aLe: -0.15, aRe: -0.15, hood: 1.2, jaw: 0.6, glow: k, coil: 0.6 });
+      else if (after < 0.7) Object.assign(T, { rise: 0.6, lean: -0.35, aLx: -0.7, aRx: -0.7, aLz: 0.6, aRz: 0.6, aLe: -1.7, aRe: -1.7, hood: 1.4, jaw: 1, glow: 1, tail: 0.6 });
+      break;
+    case 'chain':
+      if (after < 0) Object.assign(T, { rise: 0.5, lean: -0.2, aRx: -2.8, aRe: -0.3, aLz: 0.9, headUp: 0.6, jaw: 0.4, hood: 1.2, glow: 0.4 + k });
+      else if (after < 0.7) Object.assign(T, { rise: 0.3, lean: 0.4, aRx: -1.55, aRe: -0.05, aLz: 0.7, jaw: 0.9, hood: 1.3, glow: 1.2, look: 0 });
+      break;
+    case 'volley':
+      if (u < 0.75) Object.assign(T, { rise: 0.6, lean: -0.35, aLz: 1.4, aRz: 1.4, aLx: -0.6, aRx: -0.6, headUp: 0.7, jaw: 1, hood: 1.4, glow: 1.2 });
+      break;
     case 'line':
       if (after < 0) Object.assign(T, { rise: 0.5, lean: -0.35, headUp: 0.6, jaw: 0.4 + 0.4 * k, hood: 1.3, glow: k, look: 0, aLz: 0.8, aRz: 0.8, aLx: -0.5, aRx: -0.5 });
       else if (after < 0.95) Object.assign(T, { rise: 0.2, lean: 0.55, headUp: -0.2, jaw: 1, hood: 1.3, glow: 1, look: 0, aLx: -1.4, aRx: -1.4, aLz: 0.3, aRz: 0.3, aLe: -0.1, aRe: -0.1 });
@@ -888,7 +1010,7 @@ function bsNagaCast3(e, c, u, T, def) {
 function bossAnim3(a, e, dt, corpse = false) {
   const def = BOSS3[a.model.boss3];
   if (!def) return null;
-  if (def.kind === 'quad') return bsQuadAnim3(a, e, dt, corpse);
+  if (def.kind === 'quad' || def.kind === 'drake') return bsQuadAnim3(a, e, dt, corpse);
   if (def.kind === 'naga') return bsNagaAnim3(a, e, dt, corpse);
   return bsBipAnim3(a, e, dt, corpse);
 }
@@ -911,7 +1033,15 @@ const BS_FXT3 = {
   gift: { core: '#e8fff8', mid: '#7ad8c8', dark: '#1a4a3a', tex: 'spark', deb: 'blob', debCol: ['#3ab89a', '#1a7a5a'], proj: 'blob', mist: true },
   moor: { core: '#eafff0', mid: '#7ae0a8', dark: '#24382a', tex: 'spark', deb: 'blob', debCol: ['#3a5a2a', '#2a3a1e'], proj: 'blob', mist: true },
   seele: { core: '#f0ffd8', mid: '#8fe36a', dark: '#1a2a14', tex: 'flame', deb: 'bone', debCol: ['#d8d0b8', '#a8a088'], proj: 'skull', rise: true },
-  sturm: { core: '#f4faff', mid: '#9fd0ff', dark: '#4a4e5a', tex: 'spark', deb: 'rock', debCol: ['#6a6a76', '#4a4a56'], proj: 'bolt', bolt: true }
+  sturm: { core: '#f4faff', mid: '#9fd0ff', dark: '#4a4e5a', tex: 'spark', deb: 'rock', debCol: ['#6a6a76', '#4a4a56'], proj: 'bolt', bolt: true },
+  // seit 14.81 (Paket 2): Spiegelglas, Kristall, Nordlicht, Tod, Leere, Sturm über dem Horst
+  spiegel: { core: '#ffffff', mid: '#cfe4ff', dark: '#8a90c8', tex: 'spark', deb: 'ice', debCol: ['#e8f0ff', '#a8b8f0'], proj: 'ice' },
+  kristall: { core: '#f0e8ff', mid: '#b8a8ff', dark: '#3a2a6a', tex: 'spark', deb: 'ice', debCol: ['#c8b8ff', '#8a7ae0'], proj: 'ice', mist: true },
+  nordlicht: { core: '#f0fff8', mid: '#9fffe8', dark: '#2a4a5a', tex: 'spark', deb: 'ice', debCol: ['#d8f8ff', '#8ae8d8'], proj: 'ice', mist: true },
+  tod: { core: '#f4ecff', mid: '#b48cff', dark: '#24163a', tex: 'flame', deb: 'bone', debCol: ['#e8e0cc', '#b8b098'], proj: 'skull', rise: true },
+  leere: { core: '#f0e4ff', mid: '#b48cff', dark: '#120a24', tex: 'spark', deb: 'rock', debCol: ['#2a2050', '#160e2c'], proj: 'spear', mist: true },
+  himmel: { core: '#ffffff', mid: '#cfe8ff', dark: '#3a4058', tex: 'spark', deb: 'rock', debCol: ['#8a8e98', '#5a5e6a'], proj: 'bolt', bolt: true, mist: true },
+  schatten: { core: '#ffd0d8', mid: '#ff3a5a', dark: '#14060c', tex: 'flame', deb: 'rock', debCol: ['#1a0a10', '#2a0a14'], proj: 'fire', rise: true, mist: true }
 };
 const BS_FX3 = [];
 function bsAddFx3(o) {
@@ -1026,6 +1156,10 @@ function bossFx3(h) {
     else if (f.kind === 'roar') bsFxRoar3(h, f, u, k, th);
     else if (f.kind === 'death') bsFxDeath3(h, f, u, k, th);
     else if (f.kind === 'trail') bsFxTrail3(h, f, u, k, th);
+    else if (f.kind === 'quake') bsFxQuake3(h, f, u, k, th);
+    else if (f.kind === 'erupt') bsFxErupt3(h, f, u, k, th);
+    else if (f.kind === 'vortex') bsFxVortex3(h, f, u, k, th);
+    else if (f.kind === 'chainfx') bsFxChain3(h, f, u, k, th);
   }
   // Dauereffekte der Bosse im Bild (höchstens zwei)
   let n = 0;
@@ -1072,7 +1206,9 @@ function bsFxBeam3(h, f, u, k, th) {
     if (Math.random() < 0.6) bsBolt3(h, _b3P, _b3N, th, 0.03, 0.7 * fade, 7);
   } else {
     const shells = [[2.4, th.dark, 0.18], [1.5, th.mid, 0.3], [0.7, th.mid, 0.45], [0.28, th.core, 0.6]];
-    shells.forEach(([r, col, op], i) => {
+    const wd = f.wide || 1;
+    shells.forEach(([r0, col, op], i) => {
+      const r = r0 * wd;
       const o = fx3Take(h, 'coneG');
       o.position.copy(_b3P).addScaledVector(_b3D, len / 2);
       o.scale.set(r * (0.9 + 0.1 * Math.sin(u * 30 + i)), Math.max(0.01, len), r * (0.9 + 0.1 * Math.cos(u * 27 + i)));
@@ -1085,7 +1221,7 @@ function bsFxBeam3(h, f, u, k, th) {
   for (const q of bsSeed3(f, 'sd', 36, () => ({ o: Math.random(), a: Math.random() * 6.3, r: Math.random(), s: 0.35 + Math.random() * 0.6, c: Math.random() }))) {
     const v = (q.o + u * 1.7) % 1;
     if (v > grow) continue;
-    const rr = q.r * 2.2 * v;
+    const rr = q.r * 2.2 * v * (f.wide || 1);
     const px = _b3P.x + _b3D.x * full * v + Math.cos(q.a) * rr * Math.abs(_b3D.z);
     const pz = _b3P.z + _b3D.z * full * v - Math.cos(q.a) * rr * Math.abs(_b3D.x);
     const py = _b3P.y + _b3D.y * full * v + Math.sin(q.a) * rr;
@@ -1292,6 +1428,89 @@ function bsFxDeath3(h, f, u, k, th) {
     bsSmoke3(h, c.x, c.y, c.z, 2 + u * 4, th.dark, 0.4 * (1 - u / 0.8));
   }
 }
+// seit 14.81: Zacken brechen an einer Stelle aus dem Boden (Dornen, Ringe, Kreuz): Fels, Eis, Knochen, Giftblasen
+function bsFxErupt3(h, f, u, k, th) {
+  const x0 = f.x * U3, z0 = f.y * U3;
+  const R = Math.max(0.8, (f.r || 70) * U3 * 0.6);
+  const sd = bsSeed3(f, 'sp', f.n || 6, (v, i) => ({ a: i * 2.4 + Math.random(), d: i ? 0.35 + Math.random() * 0.65 : 0, s: 0.75 + Math.random() * 0.5, t: (Math.random() - 0.5) * 0.5, o: Math.random() * 0.12 }));
+  sd.forEach((q, i) => {
+    const v = (u - q.o) / Math.max(0.3, f.dur - q.o);
+    if (v < 0 || v > 1) return;
+    const up = v < 0.12 ? easeOut(v / 0.12) : 1 - Math.max(0, (v - 0.6) / 0.4);
+    const px = x0 + Math.cos(q.a) * q.d * R, pz = z0 + Math.sin(q.a) * q.d * R;
+    const hgt = (i ? 1.3 : 2.1) * q.s * up * (f.big || 1);
+    if (th.deb === 'blob') {
+      // Giftblasen quellen auf und platzen
+      const o = fx3Take(h, 'ball');
+      const r = 0.35 * q.s * up * (f.big || 1);
+      o.position.set(px, r * 0.8, pz);
+      o.scale.set(r, r * 0.85, r);
+      o.material.color.set(th.debCol[i % 2]);
+      o.material.opacity = 0.85 * (1 - Math.max(0, v - 0.7) / 0.3);
+      if (v > 0.5) bsSmoke3(h, px, 0.4 + v, pz, 0.8 + v, th.mid, 0.3 * (1 - v));
+    } else if (th.deb === 'ice' || th.deb === 'bone') {
+      const o = fx3Take(h, th.deb === 'ice' ? 'coneG' : 'cone');
+      o.position.set(px, hgt * 0.5 - 0.1, pz);
+      o.scale.set(0.38 * q.s, Math.max(0.01, hgt), 0.38 * q.s);
+      o.rotation.set(q.t, 0, q.t * 0.8);
+      o.material.color.set(th.debCol[i % 2]);
+      o.material.opacity = th.deb === 'ice' ? 0.88 : 1;
+    } else {
+      const o = fx3Take(h, 'rockcol');
+      o.position.set(px, hgt * 0.5 - 0.15, pz);
+      o.scale.set(0.55 * q.s, Math.max(0.01, hgt), 0.55 * q.s);
+      o.rotation.set(q.t, q.a, q.t * 0.6);
+      o.material.color.set(th.debCol[i % 2]);
+      if (th.rise && v < 0.7) bsSprite3(h, px, hgt + 0.2, pz, 0.9, 'flame', i % 2 ? th.mid : th.core, 0.7 * (1 - v));
+    }
+    if (v < 0.35) bsSmoke3(h, px, 0.3 + v * 1.5, pz, 0.9 + v * 2.2, th.dark, 0.45 * (1 - v * 2.8));
+  });
+  if (u < 0.5) for (const q of bsSeed3(f, 'db', 5, () => ({ a: Math.random() * 6.3, sp: 1.5 + Math.random() * 2.5, up: 3 + Math.random() * 3, r: Math.random() * 6 }))) {
+    const y = 0.3 + q.up * u - 9 * u * u;
+    if (y > 0) bsDebris3(h, th, x0 + Math.cos(q.a) * q.sp * u, y, z0 + Math.sin(q.a) * q.sp * u, 0.25, u * 9 + q.r, (q.r * 3) | 0, 1 - u * 2);
+  }
+  if (th.bolt && u < 0.3 && Math.random() < 0.6) {
+    _b3P.set(x0, 0.2, z0);
+    _b3P2.set(x0 + (Math.random() - 0.5) * 2, 2.5 + Math.random() * 2, z0 + (Math.random() - 0.5) * 2);
+    bsBolt3(h, _b3P, _b3P2, th, 0.04, 0.9, 6);
+  }
+}
+// Sog: Staub, Funken und Brocken kreisen von außen zum Boss
+function bsFxVortex3(h, f, u, k, th) {
+  const m = f.m;
+  const x0 = m.x * U3, z0 = feetY(m) * U3;
+  const R = f.R || 9;
+  const fade = k > 0.85 ? (1 - k) / 0.15 : Math.min(1, u / 0.3);
+  bsSeed3(f, 'sd', 30, (v, i) => ({ a: Math.random() * 6.3, o: Math.random(), s: 0.6 + Math.random() * 0.9, y: 0.2 + Math.random() * 1.6, c: i % 5 })).forEach((q, i) => {
+    const v = (q.o + u * 0.55) % 1;
+    const r = R * (1 - v);
+    const a = q.a + v * 4.2;
+    const px = x0 + Math.cos(a) * r, pz = z0 + Math.sin(a) * r * 0.9;
+    const py = q.y * (0.4 + 0.6 * (1 - v)) + v * 1.2;
+    if (q.c === 0) bsDebris3(h, th, px, py, pz, 0.28, u * 6 + q.a, i, fade);
+    else if (q.c < 3) bsSmoke3(h, px, py, pz, q.s * (0.6 + (1 - v)), q.c === 1 ? th.dark : th.mid, (q.c === 1 ? 0.35 : 0.2) * fade * Math.sin(Math.PI * v));
+    else bsSprite3(h, px, py, pz, th.tex === 'flame' ? 0.5 : 0.22, th.tex, i % 2 ? th.mid : th.core, 0.85 * fade);
+  });
+}
+// Kettenblitz: vom Boss zum ersten Ziel, dann von Ziel zu Ziel (Blitze im Farbton des Bosses)
+const _b3Ch = new THREE.Vector3();
+function bsFxChain3(h, f, u, k, th) {
+  const pts = f.pts || [];
+  if (!pts.length) return;
+  const fade = 1 - k;
+  bsPt3(f.m, f.at || 'emit', _b3P);
+  let ax = _b3P.x, ay = _b3P.y, az = _b3P.z;
+  pts.forEach(([x, y], i) => {
+    if (u < i * 0.06) return;
+    _b3Ch.set(ax, ay, az);
+    _b3P2.set(x * U3, 1.0, y * U3);
+    bsBolt3(h, _b3Ch, _b3P2, th, 0.05, 0.95 * fade, 8);
+    if (Math.random() < 0.5) bsBolt3(h, _b3Ch, _b3P2, th, 0.025, 0.7 * fade, 6);
+    bsSprite3(h, _b3P2.x, 1.0, _b3P2.z, 1.6, 'disc', th.mid, 0.5 * fade);
+    bsSprite3(h, _b3P2.x, 0.4, _b3P2.z, 0.5, 'spark', th.core, 0.9 * fade);
+    ax = _b3P2.x; ay = 1.0; az = _b3P2.z;
+  });
+}
 // Staubspur beim Sturmangriff
 function bsFxTrail3(h, f, u, k, th) {
   const m = f.m;
@@ -1324,11 +1543,17 @@ function bossTelegraph(m, kind, circles, inner, delay) {
   if ((kind === 'line' || kind === 'buster' || kind === 'charge' || kind === 'leap') && circles.length) {
     const end = circles[circles.length - 1];
     dir = Math.atan2(end.x - m.x, end.y - feetY(m));
-  }
+  } else if ((kind === 'fan' || kind === 'chain' || kind === 'pools') && circles.length) {
+    // seit 14.81: Kegel, Kettenblitz, Lachen zur Mitte der Ziele
+    let x = 0, y = 0;
+    for (const c of circles) { x += c.x; y += c.y; }
+    dir = Math.atan2(x / circles.length - m.x, y / circles.length - feetY(m));
+  } else if (kind === 'pull' && m.target && !m.target.dead) dir = Math.atan2(m.target.x - m.x, m.target.y - m.y);
   m.bsCast = { kind, t0: now, d: delay, dir };
   if (!V3.on) return false;
   const th = bsTheme3(m);
   const def = BOSS3[m.typeId];
+  if (bsTelegraphX3(m, kind, circles, inner, delay, th, def)) return true;
   if (kind === 'line' && circles.length) {
     const end = circles[circles.length - 1];
     bsAddFx3({ kind: 'charge', m, th, at: 'emit', dur: delay });
@@ -1364,11 +1589,137 @@ function bossTelegraph(m, kind, circles, inner, delay) {
   }
   return false;
 }
+// seit 14.81: Angriffe der Instanz- und Höllenthron-Bosse (instanzen.js, hoellenthron.js) in 3D, je im Thema des
+// Bosses. Alles, was den Boden trifft, bricht aus ihm hervor oder fällt herab (keine Ringe, keine Lichtsäulen). Gibt
+// true zurück, wenn der Angriff hier ganz behandelt ist.
+function bsTelegraphX3(m, kind, circles, inner, delay, th, def) {
+  const fy = feetY(m);
+  const falls = (list, at, proj) => {
+    const t2 = proj ? Object.assign({}, th, { proj }) : th;
+    for (const c of list) later(Math.max(0, at), () => bsAddFx3({ kind: 'fall', th: t2, x: c.x, y: c.y, fall: 0.5, dur: 1.4 }));
+  };
+  const erupt = (c, r, big, at = delay) => later(Math.max(0, at), () => bsAddFx3({ kind: 'erupt', th, x: c.x, y: c.y, r, big, n: big > 1 ? 7 : 5, dur: 1.3 }));
+  switch (kind) {
+    case 'fan': {
+      bsAddFx3({ kind: 'charge', m, th, at: 'emit', dur: delay });
+      if (th.beam === 'ground') {
+        for (const c of circles.slice(-4)) later(delay, () => bsAddFx3({ kind: 'quake', m, th, tx: c.x, ty: c.y, dur: 1.0 }));
+      } else {
+        let x = 0, y = 0;
+        const far = circles.slice(-4);
+        for (const c of far) { x += c.x; y += c.y; }
+        later(delay, () => bsAddFx3({ kind: 'beam', m, th, at: 'emit', tx: x / far.length, ty: y / far.length, wide: 1.9, dur: 0.95 }));
+      }
+      return true;
+    }
+    case 'spikes':
+      bsAddFx3({ kind: 'charge', m, th, at: 'core', dur: delay });
+      later(delay, () => bsAddFx3({ kind: 'burst', th, x: m.x, y: fy, r: 5, dur: 0.7 }));
+      for (const c of circles) erupt(c, c.r, 1);
+      return true;
+    case 'rain':
+      bsAddFx3({ kind: 'charge', m, th, at: def.skyAt || 'emit', dur: Math.min(1.2, delay), big: 1.3 });
+      falls(circles, delay - 0.5);
+      return true;
+    case 'pools':
+      bsAddFx3({ kind: 'charge', m, th, at: 'emit', dur: delay });
+      falls(circles, delay - 0.5, th.deb === 'blob' ? 'blob' : th.proj === 'bolt' ? 'blob' : th.proj);
+      return true;
+    case 'cross': {
+      bsAddFx3({ kind: 'charge', m, th, at: 'weapon', dur: delay });
+      later(delay, () => bsAddFx3({ kind: 'burst', th, x: m.x, y: fy, r: 5, dur: 0.8 }));
+      for (let a = 0; a < 4; a++) {
+        const c = circles[Math.min(circles.length - 1, a * 5 + 4)];
+        if (c) later(delay, () => bsAddFx3({ kind: 'quake', m, th, tx: c.x, ty: c.y, dur: 1.0 }));
+      }
+      return true;
+    }
+    case 'pull':
+      bsAddFx3({ kind: 'charge', m, th, at: 'core', dur: delay, big: 1.3 });
+      bsAddFx3({ kind: 'vortex', m, th, R: Math.min(14, (circles[0] ? circles[0].r : 380) * U3), dur: delay + 0.5 });
+      return true;
+    case 'chain': {
+      bsAddFx3({ kind: 'charge', m, th, at: 'emit', dur: delay });
+      const pts = circles.map((c) => [c.x, c.y]);
+      later(delay, () => {
+        bsAddFx3({ kind: 'chainfx', m, th, at: 'emit', pts, dur: 0.5 });
+        for (const c of circles) bsAddFx3({ kind: 'burst', th, x: c.x, y: c.y, r: 3, dur: 0.6 });
+      });
+      return true;
+    }
+    case 'ringout':
+    case 'qring': {
+      const c0 = circles[0];
+      bsAddFx3({ kind: 'charge', m, th, at: 'core', dur: delay, big: 1.5 });
+      later(delay, () => bsAddFx3({ kind: 'burst', th, x: m.x, y: fy, r: 13, dur: 1.2 }));
+      const n = kind === 'qring' ? 10 : 8;
+      const R0 = (inner + Math.min(c0.r, 700)) / 2;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + 0.3;
+        erupt({ x: c0.x + Math.cos(a) * R0, y: c0.y + Math.sin(a) * R0 * 0.8 }, 90, 1.2);
+      }
+      return true;
+    }
+    case 'core':
+    case 'qcore': {
+      const c0 = circles[0];
+      bsAddFx3({ kind: 'charge', m, th, at: 'core', dur: delay, big: 1.8 });
+      later(delay, () => bsAddFx3({ kind: 'burst', th, x: c0.x, y: c0.y, r: Math.min(16, c0.r * U3 * 0.8), dur: 1.2 }));
+      const n = kind === 'qcore' ? 8 : 6;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        erupt({ x: c0.x + Math.cos(a) * c0.r * 0.55, y: c0.y + Math.sin(a) * c0.r * 0.45 }, 100, 1.3);
+      }
+      return true;
+    }
+    case 'ult':
+    case 'quarter': {
+      // Vernichtung des Instanzbosses bzw. Viertelschlag: aufsteigen, Kraft sammeln, Brocken fallen überall, wo es
+      // nicht sicher ist
+      const [big, ...safe] = circles;
+      const safeQ = kind === 'quarter' && inner < 0 ? -inner - 1 : -1;
+      bsAddFx3({ kind: 'charge', m, th, at: def.skyAt || 'core', dur: delay, big: 2 });
+      later(Math.min(0.3, delay * 0.1), () => bsAddFx3({ kind: 'burst', th, x: m.x, y: fy, r: 6, dur: 0.9 }));
+      const spots = [];
+      for (let tries = 0; spots.length < 10 && tries < 80; tries++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = 120 + Math.random() * (kind === 'quarter' ? 620 : 480);
+        const p = { x: big.x + Math.cos(a) * d, y: big.y + Math.sin(a) * d * 0.8 };
+        if (safe.some((s2) => Math.hypot(s2.x - p.x, s2.y - p.y) < s2.r + 50)) continue;
+        if (safeQ >= 0 && typeof htSector === 'function' && htSector(p.x - big.x, (p.y - big.y) * 1.2) === safeQ) continue;
+        spots.push(p);
+      }
+      later(delay, () => bsAddFx3({ kind: 'burst', th, x: m.x, y: fy, r: 16, dur: 1.4 }));
+      for (const p of spots) later(delay - 0.45 + Math.random() * 0.5, () => bsAddFx3({ kind: 'fall', th, x: p.x, y: p.y, fall: 0.45, dur: 1.3 }));
+      return true;
+    }
+    case 'volley':
+      bsAddFx3({ kind: 'burst', th, x: m.x, y: fy, r: 4, dur: 0.7 });
+      return true;
+    default:
+      return false;
+  }
+}
+// Geschossring (instanzen.js, Salve der Dungeon-Bosse): nur Pose und kleine Druckwelle
+function bossVolley3(m) {
+  bossTelegraph(m, 'volley', [], 0, 0.12);
+}
 // Brüllen beim Phasenwechsel (raidRoarFx, auch beim Mitspieler)
 function bossRoar(m) {
   m.bsRoar = game.time;
   bsRoarFx3(m);
   bsAddFx3({ kind: 'burst', th: bsTheme3(m), x: m.x, y: feetY(m), r: 8, dur: 1.2 });
+}
+// Verwandlung (Abaddor, zweite Form; hoellenthron.js): Brüllen, Glutsturm und Druckwelle in 3D statt Bildschirmblitz
+function bossTransform3(m) {
+  bossRoar(m);
+  const th = bsTheme3(m);
+  bsAddFx3({ kind: 'burst', th, x: m.x, y: feetY(m), r: 15, dur: 1.5 });
+  bsAddFx3({ kind: 'vortex', m, th, R: 7, dur: 1.4 });
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    later(0.1 * i, () => bsAddFx3({ kind: 'erupt', th, x: m.x + Math.cos(a) * 210, y: feetY(m) + Math.sin(a) * 170, r: 90, big: 1.2, n: 5, dur: 1.4 }));
+  }
 }
 // Tod: längere Leiche (eigene Todesanimation), Blickrichtung behalten
 function bossCorpse(m, e) {

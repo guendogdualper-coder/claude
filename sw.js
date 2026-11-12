@@ -61,6 +61,7 @@ const FILES = [
   'js/aelvyr.js',
   'js/bosse3d.js',
   'js/bosse3d-modelle.js',
+  'js/bosse3d-modelle2.js',
   'js/kartenformen.js',
   'js/wahrzeichen.js',
   'js/kartenrand.js',

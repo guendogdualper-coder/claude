@@ -689,7 +689,11 @@ function netOnClientData(d) {
       const p = game.player;
       const col = m.type.boss ? m.type.boss.color : '#ffffff';
       shakeScreen(9);
-      addEffect({ type: 'ring', x: m.x, y: feetY(m), r: d.r, dur: 0.5, color: col, width: 12, grow: true });
+      // seit 14.81: Bosse mit eigenem 3D-Modell stampfen sichtbar (Pose, Brocken und Staub statt Ring, bosse3d.js)
+      if (V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId)) {
+        m.bsCast = { kind: 'slam', t0: game.time - 1.1, d: 1.1, dir: null };
+        bsAddFx3({ kind: 'burst', th: bsTheme3(m), x: m.x, y: feetY(m), r: 8, dur: 0.9 });
+      } else addEffect({ type: 'ring', x: m.x, y: feetY(m), r: d.r, dur: 0.5, color: col, width: 12, grow: true });
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: d.r * 0.6, dur: 2.5, color: '#1a1210' });
       if (!p.dead && Math.hypot(p.x - m.x, (p.y - m.y) * 1.2) < d.r) {
         damagePlayer(calcDamage(d.atk, 2.2 * levelBonus(d.lvl, p.level), game.stats.def, 0.05, d.lvl).amount, m);
