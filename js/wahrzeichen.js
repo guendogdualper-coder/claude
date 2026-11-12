@@ -1894,7 +1894,7 @@ WZ_MAPS[14] = (wm, T) => {
 };
 
 // Nachtfrost: Eisriesen stehen bis zur Hüfte in den Gletscherspalten, das Schwert vor sich in die Tiefe gestoßen,
-// mit leuchtenden Augen; Nordlicht zieht in Bändern über die Figur hinweg und spiegelt sich auf dem Schnee,
+// mit leuchtenden Augen; Nordlicht hängt in Bändern fest über der Karte (seit 14.85) und spiegelt sich auf dem Schnee,
 // Eisglitzer in der Luft. Kreuzfeste: Eiskristalle auf den vier inneren Ecken, ein schwebendes Frostherz über dem
 // Weltentor, Fahnen in Nachtblau und Eisweiß.
 WZ_MAPS[15] = (wm, T) => {
@@ -1911,23 +1911,29 @@ WZ_MAPS[15] = (wm, T) => {
     wzBake(site, b);
     if (!k) WZ.main = { x: g.x, y: g.y + 5 };
   });
-  // Nordlicht: Bänder über der Figur, ziehen mit (Himmel)
+  // Nordlicht: seit 14.85 fest über der Karte verankert (vorher lief die Gruppe mit der Figur mit – beim Laufen
+  // wanderten die Bänder mit der Kamera). Jetzt: Bänder in einem festen Raster über die ganze Karte verteilt, jede
+  // Gruppe bleibt an ihrem Ort; nur die Wellen im Shader bewegen sich. Gruppen außerhalb des Bildes werden nicht gezeichnet.
   if (T.tier) {
-    const grp = new THREE.Group();
-    WZ.root.add(grp);
     const mat = wzAuroraMat('nord', '#5affb0', '#9a5aff', 0.5);
-    for (let j = 0; j < 3; j++) {
-      const path = [];
-      for (let i = 0; i <= 30; i++) path.push([-36 + i * 2.4, -6 - j * 7 + Math.sin(i * 0.35 + j * 2) * 3, Math.sin(i * 0.5 + j) * 0.8]);
-      const m = new THREE.Mesh(wzCurtainGeo(path, 5.5 + j * 1.2, 13 + j * 2), mat);
-      m.renderOrder = 4;
-      m.frustumCulled = false;
-      grp.add(m);
+    const [rx, ry, rw, rh] = wm.region;
+    const STEP_X = 64, STEP_Y = 44;
+    for (let gy = ry + STEP_Y / 2; gy < ry + rh; gy += STEP_Y) for (let gx = rx + STEP_X / 2; gx < rx + rw; gx += STEP_X) {
+      const grp = new THREE.Group();
+      grp.position.set(gx + (rnd() - 0.5) * 18, 0, gy + (rnd() - 0.5) * 12);
+      grp.rotation.y = (rnd() - 0.5) * 0.5;
+      WZ.root.add(grp);
+      const ph = rnd() * 6;
+      for (let j = 0; j < 3; j++) {
+        const path = [];
+        for (let i = 0; i <= 30; i++) path.push([-36 + i * 2.4, -6 - j * 7 + Math.sin(i * 0.35 + j * 2 + ph) * 3, Math.sin(i * 0.5 + j + ph) * 0.8]);
+        const g = wzCurtainGeo(path, 5.5 + j * 1.2, 13 + j * 2);
+        g.computeBoundingSphere();
+        const m = new THREE.Mesh(g, mat);
+        m.renderOrder = 4;
+        grp.add(m);
+      }
     }
-    WZ.tick.push((t) => {
-      const p = game.player;
-      grp.position.set(p.x * U3 + Math.sin(t * 0.03) * 6, 0, p.y * U3);
-    });
     wzMistLayer(wzMistMat('nordschnee', '#2a9a7a', 0.22, 0.03, 0.02, true), 0.05, 64);
   }
   wzAround(3, (px, pz) => wzSpawn({ x: px + (Math.random() - 0.5) * 22, y: 0.4 + Math.random() * 3, z: pz + (Math.random() - 0.6) * 18, vy: -0.1, wob: 0.3, life: 3, s0: 0.07, s1: 0.03, c: '#e8f4ff', add: true }));
