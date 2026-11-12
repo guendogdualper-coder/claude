@@ -1,4 +1,4 @@
-// Modelle der Endbosse der Karten (seit 14.78, Baukasten und Animation in bosse3d.js). Je Boss ein eigener Bauplan
+// Modelle der Endbosse der Karten (seit 14.80, Baukasten und Animation in bosse3d.js). Je Boss ein eigener Bauplan
 // passend zu seinem Wesen; die Schattenendbosse sind eigene Abwandlungen ihres Gegenstücks (andere Farben, anderes
 // Zubehör, andere Waffe, eigene Effekte). Alle Maße im Modell; die Weltgröße (worldH) bestimmt die Grundgröße, der
 // Kampfkreis (Treffer, Reichweiten, Zielwahl) bleibt unverändert.

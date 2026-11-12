@@ -181,7 +181,7 @@ function raidDoomResolve(m, safe, atk, lvl) {
   const b = m.type.boss;
   shakeScreen(16);
   // seit 14.68 ohne Bildschirmblitz bei Aelvyr (er stürzt aus der Luft, Staub und Kristalle, aelvyr.js)
-  // seit 14.78 ebenso bei den Endbossen der Karten (bosse3d.js)
+  // seit 14.80 ebenso bei den Endbossen der Karten (bosse3d.js)
   if (m.typeId !== 'aelvyr' && !(typeof isBoss3 === 'function' && isBoss3(m.typeId))) flashScreen(b.color, 0.32);
   addEffect({ type: 'ring', x: m.homeX, y: m.homeY + 10, r: RAID_REACH * 0.9, dur: 0.9, color: b.color, width: 26, grow: true });
   const p = game.player;
@@ -386,7 +386,7 @@ function fx3Raid(h) {
     if (m.dead || !v3InView(m.x, m.y, 200)) continue;
     const col = m.type.boss.color;
     // seit 14.68: um Aelvyr größer (sein Modell ist viel größer als sein Kampfkreis, aelvyr.js)
-    // seit 14.78 auch um die Endbosse der Karten (eigene, größere Modelle, bosse3d.js)
+    // seit 14.80 auch um die Endbosse der Karten (eigene, größere Modelle, bosse3d.js)
     const R = Math.max(2.4, m.r * U3 * 2.3) * (m.typeId === 'aelvyr' ? 1.55 : typeof BOSS3 !== 'undefined' && BOSS3[m.typeId] ? BOSS3[m.typeId].dome || 1.3 : 1);
     const hit = Math.max(0, 1 - (t - (m.shieldHitAt || -9)) / 0.25);
     const x = m.x * U3;

@@ -6879,7 +6879,7 @@ function syncMonster3(m, dt) {
   a.corpse = false;
   // seit 14.68: Aelvyr hat eigene Bewegungen (aelvyr.js)
   if (a.model.aelvyr && typeof aelAnim3 === 'function') aelAnim3(a, m, dt);
-  // seit 14.78: die Endbosse der Karten ebenso (bosse3d.js)
+  // seit 14.80: die Endbosse der Karten ebenso (bosse3d.js)
   else if (a.model.boss3 && typeof bossAnim3 === 'function') bossAnim3(a, m, dt);
   else animateCreature(a, m, dt, m.moving, m.attackAnim > 0 ? m.attackAnim / 0.25 : 0, m.hitFlash || 0, m.windup > 0 ? 1 - m.windup / (m.windupMax || 0.4) : 0);
   lodPick3(a);
@@ -7158,7 +7158,7 @@ function syncCorpse3(e) {
     aelCorpse3(a, e);
     return;
   }
-  // seit 14.78: Todesanimation der Endbosse der Karten (bosse3d.js)
+  // seit 14.80: Todesanimation der Endbosse der Karten (bosse3d.js)
   if (a.model.boss3 && typeof bossCorpse3 === 'function') {
     bossCorpse3(a, e);
     return;

@@ -1,4 +1,4 @@
-# Endbosse der Karten in 3D – Paket 1 (seit 14.78)
+# Endbosse der Karten in 3D – Paket 1 (seit 14.80)
 
 **Wunsch:** „Alle Bosse, gerade Endbosse und Instanz-Endbosse, sollen so richtig cool aussehen – nicht Drachenform,
 sondern so wie sie halt aussehen, nur viel cooler: 3D-Design, Animation, 3D-Effekte. Nimm Aelvyr als Beispiel.“

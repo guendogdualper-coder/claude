@@ -1,4 +1,4 @@
-// Endbosse der Karten in 3D (seit 14.78): eigene Modelle, eigene Animationen und eigene 3D-Effekte nach dem Muster von
+// Endbosse der Karten in 3D (seit 14.80): eigene Modelle, eigene Animationen und eigene 3D-Effekte nach dem Muster von
 // Aelvyr (aelvyr.js). Vorher waren die Endbosse der Raid-Hallen (raid_*) nur das vergrößerte allgemeine Modell ihrer
 // Familie (Wolf, Bär, Ork, Dämon, Riese, Naga, Untoter) mit Krone und Leuchtkugeln und wurden wie jedes Monster bewegt.
 //
