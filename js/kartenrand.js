@@ -1,4 +1,4 @@
-// --- Kartenrand in 3D (seit 14.77) --------------------------------------------------------------------------------
+// --- Kartenrand in 3D (seit 14.79) --------------------------------------------------------------------------------
 // Wunsch: „Wenn man bis zum Ende der Map fliegt (Drache), ist da einfach so eine Wand.“ Bis 14.76 schloss jede Karte mit
 // einer hohen Hecke/Klippe ihres Gebiets ab (Randkulisse seit 8.4, drei-welt.js kulisse3), dahinter stand 13 Kacheln
 // draußen ein flacher, gemalter Horizontring (drei-fx.js placeHorizon3) – vom Drachen aus sah man darüber hinweg nur noch

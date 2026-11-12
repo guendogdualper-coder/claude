@@ -1294,7 +1294,7 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
     const pitch = V3.camPitch;
     const cp = Math.cos(pitch);
     cam.position.set(tx + Math.sin(yaw) * cp * d, ty + Math.sin(pitch) * d, tz + Math.cos(yaw) * cp * d);
-    // seit 14.77: hinter dem Kartenrand über dem ansteigenden Hang bleiben (kartenrand.js)
+    // seit 14.79: hinter dem Kartenrand über dem ansteigenden Hang bleiben (kartenrand.js)
     if (typeof rand3Cam === 'function') rand3Cam(cam.position);
     cam.lookAt(tx, ty, tz);
     cam.updateMatrixWorld();
@@ -1438,7 +1438,7 @@ function v3UpdateHome(fx, fy) {
     V3.home = { key, x0: rx, y0: ry, x1: rx + rw, y1: ry + rh, dungeon, style, B: dungeon ? null : kulStyle3(style) };
     // seit 14.70: Karte, deren Rand im Wolkenmeer oder offenen Meer liegt – draußen geht die Flüssigkeit weiter
     V3.home.voidG = !dungeon && typeof mapFormVoidEdge === 'function' ? mapFormVoidEdge(rx, ry) : null;
-    // seit 14.77: Karte mit Meer nur an einer Seite (kartenrand.js)
+    // seit 14.79: Karte mit Meer nur an einer Seite (kartenrand.js)
     V3.home.side3 = !dungeon && typeof RAND3_SEITE !== 'undefined' && !!RAND3_SEITE[key];
     // die Grundfläche unter der Welt liegt unter der tiefsten Flüssigkeit der Karte (Schlucht, Wolkenmeer)
     if (V3.under) V3.under.position.y = !dungeon && typeof mapFormUnderY === 'function' ? mapFormUnderY(rx, ry) : -0.9;
@@ -1452,7 +1452,7 @@ function tileSample(x, y, out) {
   const H = V3.home;
   if (H && !H.dungeon) {
     const d = homeOut3(H, x, y);
-    // seit 14.77 je Seite (Kartenrand, kartenrand.js): Schattenklippen haben im Norden das offene Meer
+    // seit 14.79 je Seite (Kartenrand, kartenrand.js): Schattenklippen haben im Norden das offene Meer
     const vg = d > 0 ? (typeof rand3Void === 'function' ? rand3Void(H, x, y) : H.voidG) : null;
     if (vg != null) {
       const ug = LIQUID3_UNDER[vg] != null ? LIQUID3_UNDER[vg] : vg;
@@ -1472,7 +1472,7 @@ function tileSample(x, y, out) {
       // terrainJob hellt Felsen nach oben auf; die Böschung bleibt in der Bodenfarbe, nach außen etwas dunkler
       const k = (1 - Math.min(0.18, d * 0.03)) / (1 + (out.h / WALL3_H) * 0.25);
       out.r *= k; out.g *= k; out.b *= k;
-      // seit 14.77: Hang steigt nach außen weiter an, Farbe geht in die Landschaft dahinter über (kartenrand.js)
+      // seit 14.79: Hang steigt nach außen weiter an, Farbe geht in die Landschaft dahinter über (kartenrand.js)
       if (typeof rand3Sample === 'function') rand3Sample(H, x, y, out);
       return out;
     }
@@ -2163,9 +2163,9 @@ function* terrainJob(cx, cy) {
   for (const k in LIQUID3) if (!kinds[k]) kinds[k] = [];
   const VH = V3.home && V3.home.voidG != null ? V3.home : null;
   const kindAt = (tx, ty) => {
-    // seit 14.77: Kristallabgrund – draußen der Abgrund wie drinnen, nicht Wasser
+    // seit 14.79: Kristallabgrund – draußen der Abgrund wie drinnen, nicht Wasser
     if (VH && homeOut3(VH, tx, ty) > 0) return LIQUID3_GROUND[VH.voidG] || (VH.voidG === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : 'water');
-    // seit 14.77: Meer nur auf einer Seite (kartenrand.js, RAND3_SEITE)
+    // seit 14.79: Meer nur auf einer Seite (kartenrand.js, RAND3_SEITE)
     if (!VH && V3.home && V3.home.side3 && homeOut3(V3.home, tx, ty) > 0 && rand3Void(V3.home, tx, ty) != null) return 'water';
     const gg = w.ground[Math.max(0, Math.min(MAP_H - 1, ty)) * MAP_W + Math.max(0, Math.min(MAP_W - 1, tx))];
     return gg === GROUND.LAVA ? 'lava' : gg === GROUND.BOG ? 'bog' : gg === GROUND.WATER ? 'water' : gg === GROUND.ABGRUND && LIQUID3.abyss ? 'abyss' : LIQUID3_GROUND[gg] || null;

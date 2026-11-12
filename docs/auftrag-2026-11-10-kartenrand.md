@@ -1,4 +1,4 @@
-## Kartenrand | „Am Ende der Map ist einfach so eine Wand“ (seit 14.77)
+## Kartenrand | „Am Ende der Map ist einfach so eine Wand“ (seit 14.79)
 
 **Ursache:** Jede Karte schloss in 3D mit einer hohen Wand ihres Gebiets ab (Blütenhecke, Klippe, Basaltsäulen …) auf
 einer flachen Böschung; 13 Kacheln draußen stand ein senkrechter, gemalter Horizontring ohne Nebel, dahinter nichts.

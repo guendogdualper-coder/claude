@@ -1,4 +1,4 @@
-# Kartenrand in 3D (seit 14.77)
+# Kartenrand in 3D (seit 14.79)
 
 Wunsch des Spielers: „Wenn man bis zum Ende der Map fliegt (Drache), ist da einfach so eine Wand, das sieht nicht schön
 aus. Alle Ränder/Enden der Karten schöner machen, passend zur jeweiligen Map, richtig schön in 3D.“

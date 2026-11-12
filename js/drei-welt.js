@@ -2578,7 +2578,7 @@ function kulisse3(b, H, x, y, lowGfx) {
     const oy = Math.max(H.y0 - y, y - (H.y1 - 1), 0);
     side = ox > oy ? (x < H.x0 ? 2 : 3) : y < H.y0 ? 0 : 1;
   } else side = dIn === y - H.y0 ? 0 : dIn === H.y1 - 1 - y ? 1 : dIn === x - H.x0 ? 2 : 3;
-  // seit 14.77: Seite im offenen Meer (Schattenklippen, Norden; kartenrand.js) – wie oben keine Wand
+  // seit 14.79: Seite im offenen Meer (Schattenklippen, Norden; kartenrand.js) – wie oben keine Wand
   if (H.side3 && rand3VoidSide(H, side)) return true;
   const r = dOut ? MAP_BORDER + dOut : MAP_BORDER - dIn;
   const along = side < 2 ? x : y;
@@ -2619,12 +2619,12 @@ function kulisse3(b, H, x, y, lowGfx) {
   if (!part) return true;
   const F = KUL3_FORM[B.form];
   const far = part === 'fern';
-  // seit 14.77: je Art des Kartenrands kleiner und lichter, damit man über den Waldrand in die Landschaft sieht
+  // seit 14.79: je Art des Kartenrands kleiner und lichter, damit man über den Waldrand in die Landschaft sieht
   const nk = typeof rand3Nah === 'function' ? rand3Nah(H, side, part, r, h) : 1;
   if (!nk) return true;
   const s = (far ? 1.2 : side === 1 ? 1.0 : 1.15) * (0.9 + ((h >> 12) % 20) / 100) * nk;
   const out = far ? 0.5 : 0;
-  // seit 14.77 auf dem Hang, der nach außen weiter ansteigt (kartenrand.js)
+  // seit 14.79 auf dem Hang, der nach außen weiter ansteigt (kartenrand.js)
   const gx = x + 0.5 + ax + nx * out + jx;
   const gz = y + 0.5 + az + nz * out + jz;
   const gy = dOut ? (typeof rand3H === 'function' ? rand3H(H, gx, gz) : bermH3(dOut + out)) - 0.3 : -0.1;
