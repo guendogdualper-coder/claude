@@ -1,4 +1,4 @@
-// Wahrzeichen und Kulisse (seit 14.75, docs/wahrzeichen.md)
+// Wahrzeichen und Kulisse (seit 14.78, docs/wahrzeichen.md)
 // Wunsch des Spielers: Die Karten ab Totenmoor und die ganze dunkle Seite sollen nicht nur eine eigene Form haben,
 // sondern ein eigenes Gesamtbild – große Wahrzeichen, Stimmung, Leben. Hier steht alles, was dazu nur gezeichnet
 // wird (3D): Vulkankegel im Krater des Feuerbergs, schwebende Kristallmonolithen und die zerbrochene Krone über
@@ -2095,7 +2095,7 @@ function wzWreck(spot, rnd) {
   wzBake(site, b);
 }
 
-// Frostgipfel (Zusatz seit 14.75): Das Wolkenmeer liegt jetzt tief unter den Inseln (vorher nur 0,6 Einheiten unter
+// Frostgipfel (Zusatz seit 14.78): Das Wolkenmeer liegt jetzt tief unter den Inseln (vorher nur 0,6 Einheiten unter
 // dem Rand – von oben sah es aus wie flaches Eis): Oberfläche bei −3,2, Felswände darunter bis −4,4, Wolkenballen
 // mit Lücken, durch die man in die blaue Tiefe sieht, an den Felsen getürmt. Dazu ziehen Wolkenfetzen unter den
 // Inselrändern vorbei, an den Kanten hängen Eiszapfen, Felsen ragen aus der Wand.
@@ -2184,7 +2184,7 @@ WZ_MAPS[7] = (wm, T) => {
   WZ.main = best || { x: C.cx + 22, y: C.cy + 10 };
 };
 
-// --- Kahle Stellen (seit 14.75) ------------------------------------------------------------------------------
+// --- Kahle Stellen (seit 14.78) ------------------------------------------------------------------------------
 // Frostgipfel: Auf den Himmelsinseln lagen große leere Schneeflächen, ab und zu ein, zwei Bäume (die alten
 // gefrorenen Seen des Rauschens wurden mit der Kartenform zu Land). Jetzt: kleine zugefrorene Teiche (Boden ICE,
 // begehbar), Schneewehen, Kiesel und kniehohe Felsbrocken (halten nicht auf) auf jeder leeren Stelle und Gruppen

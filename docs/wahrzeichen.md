@@ -1,4 +1,4 @@
-# Wahrzeichen und Kulisse (seit 14.75)
+# Wahrzeichen und Kulisse (seit 14.78)
 
 Wunsch des Spielers (nach den neuen Kartenformen 14.70/14.73): „Die dunkle Seite musst du auch so aufwendig machen.
 Gerade die letzten Maps wie Lichtwacht sind immer noch langweilig – lass dir was Cooles einfallen. Glutlager
