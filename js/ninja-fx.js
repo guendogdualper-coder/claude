@@ -452,10 +452,10 @@ if (typeof blinkBehind === 'function') {
 }
 
 // --- Krieger: Aura des Schwertes in 3D (seit 13.2) -----------------------------------------------------------
-// Die Waffe selbst leuchtet (weaponGlow), dazu eine helle Lichtklinge entlang der echten Klingenachse, die vorn
-// und hinten über das Schwert hinausragt, Funken, die von der Klinge wehen, ein Glanzstern an der Spitze und ein
-// goldener Lichtkranz am Boden. Die Klingenachse legt humanoid3 beim Bau ab (model.weaponAxis), hier wird sie wie
-// ein Hautpunkt an der rechten Hand mitbewegt.
+// Die Waffe selbst leuchtet (weaponGlow; seit 14.74 als Flammenhülle in Form der Waffe, figWeaponGlowMat in
+// drei-figuren.js), dazu Funken, die von der Klinge aufsteigen, und ab und zu ein weicher Lichtfleck an der Spitze.
+// Die Lichtklinge entlang der Achse (bis 14.73) ist entfallen. Die Klingenachse legt humanoid3 beim Bau ab
+// (model.weaponAxis), hier wird sie wie ein Hautpunkt an der rechten Hand mitbewegt.
 const _sa3b = new THREE.Vector3();
 const _sa3t = new THREE.Vector3();
 const _sa3h = new THREE.Vector3();
@@ -501,24 +501,13 @@ function schwertBlade3(h, t, pulse, low, k) {
     _sa3d.subVectors(_sa3t, _sa3b);
     const len = _sa3d.length();
     _sa3d.divideScalar(len);
-    // Lichtklinge: 30 % hinter dem Ansatz bis 55 % über die Spitze hinaus, drei Schichten.
-    // Seit 14.41 schlanker und weniger weiß (vorher 0,24/0,11/0,04 mit weißem Kern voll deckend, Lichtflecken 0,8–1,15
-    // groß): die Klinge schwingt beim Laufen mit dem Arm, und die großen hellen Flecken zogen weiße Fetzen über die Figur
-    _nf3a.copy(_sa3b).addScaledVector(_sa3d, -len * 0.2);
-    _nf3b.copy(_sa3t).addScaledVector(_sa3d, len * 0.4);
-    for (const [r, col, op] of [[0.12, '#ffa830', 0.32], [0.055, '#ffd36a', 0.62], [0.022, '#fff4d0', 0.8]]) {
-      const s = fx3Take(h, 'seg');
-      fx3Segment(s, _nf3a, _nf3b, r * (0.9 + 0.2 * pulse));
-      fx3Color(s, col, op * pulse);
-    }
-    // Lichtflecken entlang der Klinge und ein Glanzstern an der Spitze
-    for (const f of [0, 0.35, 0.7, 1]) {
-      _sa3p.copy(_sa3b).addScaledVector(_sa3d, len * f);
-      n3Glow(h, _sa3p.x, _sa3p.y, _sa3p.z, 0.34 + f * 0.16, '#ffb84a', 0.38 * pulse);
-    }
-    // seit 13.83 kein Glanzstern mehr an der Spitze, nur ein weicher Lichtfleck, der ab und zu aufglüht
+    // seit 14.74 ohne Lichtklinge (drei Lichtstäbe entlang der Achse, 20 % hinter dem Ansatz bis 40 % über die Spitze)
+    // und ohne die Lichtflecken entlang der Achse: Spielerwunsch – der Schein soll der Waffenform folgen und wie eine
+    // Flamme leicht über die Waffe hinausgehen, nicht als Stab oder Viereck darüber stehen. Das macht jetzt die
+    // Flammenhülle der Waffe selbst (figWeaponGlowMat, drei-figuren.js); hier bleiben die aufsteigenden Funken.
+    _nf3b.copy(_sa3t).addScaledVector(_sa3d, len * 0.08);
     const tw = Math.pow(Math.max(0, Math.sin(t * 3.1)), 6);
-    n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.28 + tw * 0.25, '#ffe9a0', 0.4 + tw * 0.3);
+    if (tw > 0.05) n3Glow(h, _nf3b.x, _nf3b.y, _nf3b.z, 0.16 + tw * 0.14, '#ffe9a0', tw * 0.35 * pulse);
     // Funken wehen von der Klinge nach oben weg
     if (!low) for (let j = 0; j < 8; j++) {
       const ph = (t * 1.6 + j / 8) % 1;
