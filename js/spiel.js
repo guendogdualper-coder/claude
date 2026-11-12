@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.78';
+const GAME_VERSION = '14.79';
 
 const game = {
   world: null,

@@ -2649,6 +2649,9 @@ function v3SyncBounds() {
   BOUNDS3.mat.color.copy(V3.scene.fog.color);
   BOUNDS3.lidMat.color.copy(V3.scene.fog.color);
   const home = V3.home;
+  // seit 14.77: Landschaft bis zum Horizont statt des gemalten Rings (kartenrand.js)
+  const ring = typeof rand3Frame === 'function' && rand3Frame();
+  if (BOUNDS3.horizon && ring) BOUNDS3.horizon.visible = false;
   if (BOUNDS3.horizon && home && home.B) {
     const u = BOUNDS3.horizon.material.uniforms;
     u.uTop.value.copy(V3.scene.fog.color);
@@ -2667,7 +2670,7 @@ function v3SyncBounds() {
     const [rx, ry, rw, rh] = rr.r;
     placeHorizon3(rx - KUL3_FAR, ry - KUL3_FAR, rx + rw + KUL3_FAR, ry + rh + KUL3_FAR);
   }
-  if (BOUNDS3.horizon) BOUNDS3.horizon.visible = !!rr && !box;
+  if (BOUNDS3.horizon) BOUNDS3.horizon.visible = !!rr && !box && !ring;
   if (!box) return;
   const [rx, ry, rw, rh] = rr.r;
   const x0 = rx + rr.inset;
