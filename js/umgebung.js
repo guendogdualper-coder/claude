@@ -103,7 +103,7 @@ function renderGroundChunk(cx, cy) {
       }
       if (g === GROUND.PATH || g === GROUND.PLAZA) drawGrassFringe(ctx, x, y, px, py, h);
       const d = w.deco[i];
-      if (d === DECO.BRIDGE) drawBridge2(ctx, px, py, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null);
+      if (d === DECO.BRIDGE) drawBridge2(ctx, px, py, bridgeHoriz(x, y), typeof bridgeStyleAt === 'function' ? bridgeStyleAt(i, g) : null, bridgeEdges2(x, y));
       else if (d) drawDeco(ctx, d, g, px, py, h);
     }
   }
@@ -463,47 +463,51 @@ function bridgeHoriz(x, y) {
 }
 
 // Brückenarten in den Städten (seit 14.16, bridgeStyleAt in welt.js): Steg über dem Moor, Steinbrücke über Lava,
-// Lichtbrücke über dem Abgrund; sonst die Holzbrücke wie bisher
+// Lichtbrücke über dem Abgrund; sonst die Holzbrücke wie bisher. Seit 14.74 auch Eis- und Hängebrücke.
 const BRIDGE2 = {
   steg: { deck: '#6e5a40', line: 'rgba(30,20,10,0.45)', rail: null, post: '#3e3022' },
   stein: { deck: '#5a5250', line: 'rgba(20,14,12,0.5)', rail: '#3a3230', post: null },
-  licht: { deck: '#8a86d8', line: 'rgba(230,226,255,0.55)', rail: '#d8d4ff', post: null }
+  licht: { deck: '#8a86d8', line: 'rgba(230,226,255,0.55)', rail: '#d8d4ff', post: null },
+  eis: { deck: '#cfe6f4', line: 'rgba(120,160,190,0.45)', rail: '#f2faff', post: '#a8cce0' },
+  seil: { deck: '#8a6440', line: 'rgba(40,25,10,0.55)', rail: '#c8a878', post: '#5a3a22' }
 };
-function drawBridge2(ctx, px, py, horiz, style) {
-  const B = BRIDGE2[style];
-  if (B) {
-    ctx.fillStyle = B.deck;
-    ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
-    ctx.fillStyle = B.line;
-    for (let k = 0; k < 4; k++) {
-      if (horiz) ctx.fillRect(px + k * 8 + 3, py, 1.2, TILE);
-      else ctx.fillRect(px, py + k * 8 + 3, TILE, 1.2);
-    }
-    if (B.rail) {
-      ctx.fillStyle = B.rail;
-      if (horiz) { ctx.fillRect(px, py, TILE, 2.5); ctx.fillRect(px, py + TILE - 2.5, TILE, 2.5); }
-      else { ctx.fillRect(px, py, 2.5, TILE); ctx.fillRect(px + TILE - 2.5, py, 2.5, TILE); }
-    }
-    if (B.post) {
-      ctx.fillStyle = B.post;
-      for (const [a, b] of horiz ? [[2, 1], [24, 1], [12, TILE - 5]] : [[1, 2], [1, 24], [TILE - 5, 12]]) ctx.fillRect(px + a, py + b, 4, 4);
-    }
-    return;
-  }
-  ctx.fillStyle = '#8a6a44';
+// seit 14.74: Kanten einer Brückenkachel zum Abgrund/Wasser (Bits 1 oben, 2 rechts, 4 unten, 8 links) – nur dort
+// Geländer (vorher an jeder Kachel beidseits: eine breite Brücke sah aus wie mehrere schmale nebeneinander)
+function bridgeEdges2(x, y) {
+  const w = game.world;
+  let m = 0;
+  [[0, -1], [1, 0], [0, 1], [-1, 0]].forEach(([dx, dy], k) => {
+    const j = (y + dy) * MAP_W + x + dx;
+    if (w.deco[j] !== DECO.BRIDGE && LIQUID.has(w.ground[j])) m |= 1 << k;
+  });
+  return m;
+}
+function drawBridge2(ctx, px, py, horiz, style, edges = horiz ? 5 : 10) {
+  const B = BRIDGE2[style] || { deck: '#8a6a44', line: 'rgba(40,25,10,0.35)', rail: '#5a3f26', post: null };
+  ctx.fillStyle = B.deck;
   ctx.fillRect(px, py, TILE + 0.5, TILE + 0.5);
-  ctx.fillStyle = 'rgba(40,25,10,0.35)';
-  for (let k = 0; k < 5; k++) {
-    if (horiz) ctx.fillRect(px + k * 6.4, py, 1.2, TILE);
-    else ctx.fillRect(px, py + k * 6.4, TILE, 1.2);
+  ctx.fillStyle = B.line;
+  for (let k = 0; k < 4; k++) {
+    if (horiz) ctx.fillRect(px + k * 8 + 3, py, 1.2, TILE);
+    else ctx.fillRect(px, py + k * 8 + 3, TILE, 1.2);
   }
-  ctx.fillStyle = '#5a3f26';
-  if (horiz) {
-    ctx.fillRect(px, py, TILE, 3);
-    ctx.fillRect(px, py + TILE - 3, TILE, 3);
-  } else {
-    ctx.fillRect(px, py, 3, TILE);
-    ctx.fillRect(px + TILE - 3, py, 3, TILE);
+  const rail = B.rail || B.post;
+  if (!rail || !edges) return;
+  ctx.fillStyle = rail;
+  const t = B.rail ? 3 : 0;
+  if (t) {
+    if (edges & 1) ctx.fillRect(px, py, TILE, t);
+    if (edges & 4) ctx.fillRect(px, py + TILE - t, TILE, t);
+    if (edges & 8) ctx.fillRect(px, py, t, TILE);
+    if (edges & 2) ctx.fillRect(px + TILE - t, py, t, TILE);
+  }
+  if (B.post) {
+    // Pfosten auf den Kanten zum Abgrund (in der Mitte und an der Ecke)
+    ctx.fillStyle = B.post;
+    if (edges & 1) ctx.fillRect(px + TILE / 2 - 2, py, 4, 4);
+    if (edges & 4) ctx.fillRect(px + TILE / 2 - 2, py + TILE - 4, 4, 4);
+    if (edges & 8) ctx.fillRect(px, py + TILE / 2 - 2, 4, 4);
+    if (edges & 2) ctx.fillRect(px + TILE - 4, py + TILE / 2 - 2, 4, 4);
   }
 }
 

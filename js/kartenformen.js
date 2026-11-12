@@ -10,6 +10,8 @@
 //     Endboss-Tore und Instanz-Ecken auf Land liegen, verbindet jede Insel ohne Landweg über ein Teleportstein-Paar
 //     (bzw. eine Furt oder einen Pfad) mit der Stadt und schreibt das Ergebnis in die Karte.
 //   - Hooks für Wege (layRoads), Brücken (tidyBridges), Wanderer, Instanz-Ecken, Aufräumen (mapFormCleanup) und 3D.
+//   - seit 14.74: Brücken aufräumen (mapFormBridges/kfBridgeTidy, docs/bruecken-74.md, Prüfwerkzeug
+//     tools/bruecken-pruefung.js); gezeichnet werden alle Brückenarten in drei-welt.js (bridge3Tile).
 //   - mapFormReport: Erreichbarkeitstest (Flutfüllung über begehbare Kacheln und Teleportsteine ab der Stadt).
 // Gleiche Welt für alle: Die Form hat je Karte einen eigenen Zufallsgenerator (WORLD_SEED + 6800 + 131 · Map); die
 // Zufallszahlen aller anderen Karten bleiben unverändert (Kazehana und die Schattenkarten bitgenau wie vorher).
@@ -635,6 +637,389 @@ function mapFormCleanup(maps, ground, obj, deco) {
       }
     }
   }
+}
+
+// seit 14.74: Brücken aufräumen (Enden auf Land, keine doppelten oder sinnlosen Stücke) – aus generateWorld (welt.js)
+// nach den Weltportalen und Dungeon-Eingängen (deren freie Plätze schneiden sonst Stücke aus Dämmen heraus)
+function mapFormBridges(maps, ground, obj, deco) {
+  for (const mp of maps) {
+    const info = MAP_FORM_INFO.get(mp.id);
+    if (!info) continue;
+    const wm = WORLD_MAPS.find((m) => m.id === mp.id);
+    const [rx, ry, rw, rh] = wm.region;
+    const pass = (x, y) => {
+      if (x < rx + MAP_BORDER || y < ry + MAP_BORDER || x >= rx + rw - MAP_BORDER || y >= ry + rh - MAP_BORDER) return false;
+      const i = y * MAP_W + x;
+      if (LIQUID.has(ground[i]) && deco[i] !== DECO.BRIDGE) return false;
+      return obj[i] === OBJ.NONE || obj[i] === OBJ.ROCK;
+    };
+    info.bridgeFix = kfBridgeTidy(mp, wm, info, ground, obj, deco, pass);
+  }
+}
+
+// --- Brücken aufräumen (seit 14.74, docs/bruecken-74.md, Prüfwerkzeug tools/bruecken-pruefung.js) -----------------
+// Die Brücken der Formen entstehen als gerade Bänder über Abgrund/Wasser (ctx.bridge): Wo das Ufer schräg oder
+// zerfranst ist, enden die drei Spuren an verschiedenen Stellen, ein Band über eine Landzunge zerfällt in zwei Stücke,
+// L-förmige Dämme haben im Knick eine Lücke, und manche Brücke läuft am Kartenrand oder an einem Baum aus. Nach dem
+// Aufräumen der Karte, den Weltportalen und Dungeon-Eingängen (mapFormBridges, das Raster ist fertig) wird jede Brücke
+// außerhalb der Stadt geprüft:
+//   1. Knick: die fehlende Ecke eines L-Damms wird Brücke (der Knick ist ein volles Quadrat, keine schwebende Spitze).
+//      Eine einzelne Landkachel mitten in einer Spur wird Brücke; eine Spur, die im Leeren endet, reicht bis zum Land
+//      2–4 Kacheln weiter oder wird, wo sie seitlich am Ufer entlangläuft, an ihrem Ende Land.
+//   2. Enden: Bäume direkt vor einem Spurende (und dahinter) fallen weg, die Brücke mündet auf freies Land.
+//   3. Brückenkopf: enden die Spuren einer Seite bis zu 6 Kacheln versetzt, wird das Stück davor Land (gleicher Boden
+//      wie das Ufer) – alle Spuren enden auf einer Linie am Ufer.
+//   4. Sinnlos: Ein Stück, das ein Landstück nur mit sich selbst verbindet (der Weg drumherum ist höchstens 12 Kacheln
+//      länger, bei kleinen Stücken bis 24 Kacheln: höchstens doppelt so lang plus 14), wird
+//      Land, wenn es klein ist (Bucht, Kerbe), sonst wieder Abgrund/Wasser. Ein Stück, das auf einer Seite gar kein
+//      Land erreicht (Kartenrand, Lavastrom), fällt weg.
+//   5. Doppelt: Zwei Brücken über dieselbe Querung (gleiche beiden Landstücke, Mitte weniger als 16 Kacheln
+//      auseinander): die kleinere fällt weg.
+// Wegfallen darf eine Brücke nur, wenn danach von der Stadt aus (zu Fuß und über Teleportsteine) noch genauso viel
+// Land erreichbar ist. Alles nur aus dem Raster, ohne Zufall: alle Spieler haben dieselbe Welt. Ergebnis je Karte in
+// MAP_FORM_INFO (bridgeFix).
+const KF_TREE_OBJ = new Set([OBJ.TREE, OBJ.PINE, OBJ.BLOSSOM, OBJ.DEADTREE]);
+function kfBridgeTidy(mp, wm, info, ground, obj, deco, pass) {
+  const [rx, ry, rw, rh] = wm.region;
+  const half = Math.max(mp.half != null ? mp.half : 0, townLayoutHalf(mp.id) || 0, wm.camp || CAMP_HALF) + 1;
+  const stat = { ecke: 0, buckel: 0, spur: 0, baum: 0, kopf: 0, land: 0, weg: 0, doppelt: 0 };
+  const N4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const I = (x, y) => y * MAP_W + x;
+  const inner = (x, y) => x >= rx + MAP_BORDER && y >= ry + MAP_BORDER && x < rx + rw - MAP_BORDER && y < ry + rh - MAP_BORDER;
+  const town = (x, y) => Math.max(Math.abs(x - wm.cx), Math.abs(y - wm.cy)) <= half;
+  const isB = (x, y) => inner(x, y) && deco[I(x, y)] === DECO.BRIDGE;
+  const wet = (x, y) => !inner(x, y) || (LIQUID.has(ground[I(x, y)]) && deco[I(x, y)] !== DECO.BRIDGE);
+  const land = (x, y) => inner(x, y) && !LIQUID.has(ground[I(x, y)]) && (obj[I(x, y)] === OBJ.NONE || obj[I(x, y)] === OBJ.ROCK);
+  const dirOf = (x, y) => {
+    const f = BRIDGE_DIR.get(I(x, y));
+    if (f !== undefined) return f;
+    const way = (tx, ty) => ground[I(tx, ty)] === GROUND.PATH || isB(tx, ty);
+    return way(x - 1, y) && way(x + 1, y);
+  };
+  const setB = (x, y, h) => {
+    const i = I(x, y);
+    deco[i] = DECO.BRIDGE;
+    obj[i] = OBJ.NONE;
+    FORM_BRIDGE.add(i);
+    BRIDGE_DIR.set(i, h);
+  };
+  const unB = (x, y) => {
+    const i = I(x, y);
+    deco[i] = DECO.NONE;
+    FORM_BRIDGE.delete(i);
+    BRIDGE_DIR.delete(i);
+  };
+  // Land mit dem Boden des Ufers (gx, gy)
+  const toLand = (x, y, gx, gy) => {
+    const i = I(x, y);
+    unB(x, y);
+    ground[i] = ground[I(gx, gy)];
+    obj[i] = OBJ.NONE;
+  };
+  // Brückenkacheln der Karte (Indizes in Lage-Reihenfolge) und ihre Nachbarn, für die test(x, y) gilt (ohne Stadt)
+  const bridgeTiles = () => {
+    const out = [];
+    for (let y = ry + MAP_BORDER; y < ry + rh - MAP_BORDER; y++) {
+      const row = y * MAP_W;
+      for (let x = rx + MAP_BORDER; x < rx + rw - MAP_BORDER; x++) if (deco[row + x] === DECO.BRIDGE) out.push(row + x);
+    }
+    return out;
+  };
+  const around = (list, test) => {
+    const set = new Set();
+    for (const i of list) { set.add(i - 1); set.add(i + 1); set.add(i - MAP_W); set.add(i + MAP_W); }
+    const out = [];
+    for (const j of [...set].sort((a, b) => a - b)) {
+      const x = j % MAP_W;
+      const y = (j - x) / MAP_W;
+      if (inner(x, y) && !town(x, y) && test(x, y)) out.push([x, y]);
+    }
+    return out;
+  };
+  let all = bridgeTiles();
+  if (!all.some((i) => !town(i % MAP_W, (i / MAP_W) | 0))) return stat;
+  // 1. Knick der L-Dämme
+  const corners = [];
+  for (const [x, y] of around(all, wet)) {
+    {
+      for (const sx of [-1, 1]) {
+        for (const sy of [-1, 1]) {
+          // außen am Knick: in x-Richtung endet der waagrechte Arm, in y-Richtung der senkrechte (innen ist es umgekehrt)
+          if (isB(x + sx, y) && dirOf(x + sx, y) && isB(x, y + sy) && !dirOf(x, y + sy) && isB(x + sx, y + sy)) corners.push([x, y, true]);
+        }
+      }
+    }
+  }
+  for (const [x, y, h] of corners) if (!isB(x, y)) { setB(x, y, h); stat.ecke++; }
+  // 1b. einzelne Landkachel mitten in einer Spur (Spitze einer Landzunge) wird Brücke
+  const bumps = [];
+  all = bridgeTiles();
+  for (const [x, y] of around(all, (x, y) => !isB(x, y) && land(x, y))) {
+    {
+      if (isB(x - 1, y) && isB(x + 1, y) && dirOf(x - 1, y) && dirOf(x + 1, y)) bumps.push([x, y, true]);
+      else if (isB(x, y - 1) && isB(x, y + 1) && !dirOf(x, y - 1) && !dirOf(x, y + 1)) bumps.push([x, y, false]);
+    }
+  }
+  for (const [x, y, h] of bumps) {
+    ground[I(x, y)] = info.voidG;
+    setB(x, y, h);
+    stat.buckel++;
+  }
+  // 1c. Spur, die über Abgrund/Wasser endet: liegt 2–4 Kacheln weiter Land, reicht die Spur bis dorthin; läuft sie
+  // seitlich am Ufer entlang ins Leere, wird ihr Ende Land (bis zu 4 Kacheln)
+  const perpB = (x, y, h) => (h ? [[x, y - 1], [x, y + 1]] : [[x - 1, y], [x + 1, y]]).some((p) => isB(...p) && dirOf(...p) !== h);
+  const sideLand = (x, y, h) => (h ? [[x, y - 1], [x, y + 1]] : [[x - 1, y], [x + 1, y]]).find((p) => land(...p) && !isB(...p));
+  const loose = [];
+  all = bridgeTiles();
+  for (const i of all) {
+    const x = i % MAP_W;
+    const y = (i - x) / MAP_W;
+    if (town(x, y)) continue;
+    {
+      const h = dirOf(x, y);
+      const [dx, dy] = h ? [1, 0] : [0, 1];
+      for (const s of [-1, 1]) if (wet(x + s * dx, y + s * dy) && !perpB(x, y, h)) loose.push([x, y, s]);
+    }
+  }
+  for (const [x0, y0, s] of loose) {
+    if (!isB(x0, y0)) continue;
+    const h = dirOf(x0, y0);
+    const [dx, dy] = h ? [s, 0] : [0, s];
+    if (!wet(x0 + dx, y0 + dy)) continue;
+    let k = 2;
+    while (k <= 4 && wet(x0 + dx * k, y0 + dy * k) && !town(x0 + dx * k, y0 + dy * k)) k++;
+    if (k <= 4 && land(x0 + dx * k, y0 + dy * k) && !town(x0 + dx * k, y0 + dy * k)) {
+      for (let j = 1; j < k; j++) setB(x0 + dx * j, y0 + dy * j, h);
+      stat.spur++;
+      continue;
+    }
+    let x = x0;
+    let y = y0;
+    for (let j = 0; j < 4 && isB(x, y) && wet(x + dx, y + dy); j++) {
+      const L = sideLand(x, y, h);
+      if (!L || perpB(x, y, h)) break;
+      toLand(x, y, ...L);
+      stat.spur++;
+      x -= dx;
+      y -= dy;
+    }
+  }
+  // Brücken (zusammenhängende Brückenkacheln) außerhalb der Stadt
+  // Masken über die Karte (lokaler Index k = (y - ry) · rw + x - rx): Brücke bzw. begehbares Land ohne Brücke
+  const N = rw * rh;
+  const stk = new Int32Array(N);
+  const mask = (test) => {
+    const m = new Uint8Array(N);
+    for (let y = ry + MAP_BORDER; y < ry + rh - MAP_BORDER; y++) {
+      for (let x = rx + MAP_BORDER; x < rx + rw - MAP_BORDER; x++) if (test(y * MAP_W + x)) m[(y - ry) * rw + x - rx] = 1;
+    }
+    return m;
+  };
+  const isBi = (i) => deco[i] === DECO.BRIDGE;
+  const isLandi = (i) => deco[i] !== DECO.BRIDGE && !LIQUID.has(ground[i]) && (obj[i] === OBJ.NONE || obj[i] === OBJ.ROCK);
+  // Flutfüllung über eine Maske ab k0; jede erreichte Kachel bekommt in mark den Wert v, visit(k) für jede
+  const flood = (m, mark, k0, v, visit) => {
+    let n = 0;
+    stk[n++] = k0;
+    mark[k0] = v;
+    while (n) {
+      const k = stk[--n];
+      if (visit) visit(k);
+      for (const j of [k - 1, k + 1, k - rw, k + rw]) {
+        if (!m[j] || mark[j] !== -1) continue;
+        mark[j] = v;
+        stk[n++] = j;
+      }
+    }
+  };
+  const comps = () => {
+    const m = mask(isBi);
+    const seen = new Int32Array(N).fill(-1);
+    const out = [];
+    for (let k0 = 0; k0 < N; k0++) {
+      if (!m[k0] || seen[k0] !== -1) continue;
+      const tiles = [];
+      let inTown = false;
+      let nh = 0;
+      flood(m, seen, k0, out.length, (k) => {
+        const x = rx + (k % rw);
+        const y = ry + ((k / rw) | 0);
+        tiles.push([x, y]);
+        if (town(x, y)) inTown = true;
+        if (dirOf(x, y)) nh++;
+      });
+      // Reihenfolge fest (nach Lage), damit alles ohne Zufall gleich abläuft
+      tiles.sort((a, b) => a[1] - b[1] || a[0] - b[0]);
+      const straight = nh === 0 || nh === tiles.length;
+      if (!inTown) out.push({ tiles, horiz: nh * 2 >= tiles.length, straight });
+    }
+    return out;
+  };
+  // 2. Bäume vor den Spurenden
+  const list0 = comps();
+  for (const B of list0) {
+    for (const [x, y] of B.tiles) {
+      const [dx, dy] = dirOf(x, y) ? [1, 0] : [0, 1];
+      for (const s of [-1, 1]) {
+        for (let k = 1; k <= 2; k++) {
+          const nx = x + s * dx * k;
+          const ny = y + s * dy * k;
+          if (!inner(nx, ny) || town(nx, ny) || isB(nx, ny) || LIQUID.has(ground[I(nx, ny)])) break;
+          const i = I(nx, ny);
+          if (KF_TREE_OBJ.has(obj[i]) || obj[i] === OBJ.ROCK) { obj[i] = OBJ.NONE; stat.baum++; }
+          else if (obj[i] !== OBJ.NONE) break;
+        }
+      }
+    }
+  }
+  // 3. Brückenköpfe: Spurenden einer Seite auf eine Linie
+  for (const B of list0) {
+    if (!B.straight) continue;
+    const h = B.horiz;
+    const lanes = new Map(); // quer -> [erste, letzte] Lage längs
+    for (const [x, y] of B.tiles) {
+      const c = h ? y : x;
+      const a = h ? x : y;
+      const L = lanes.get(c);
+      if (!L) lanes.set(c, [a, a]);
+      else { L[0] = Math.min(L[0], a); L[1] = Math.max(L[1], a); }
+    }
+    const P = (a, c) => (h ? [a, c] : [c, a]);
+    for (const side of [-1, 1]) {
+      // Spuren, die an dieser Seite auf Land enden, und die Linie, bis zu der das Land vorrückt
+      const ends = [];
+      for (const [c, [a0, a1]] of lanes) {
+        const a = side < 0 ? a0 : a1;
+        if (land(...P(a + side, c))) ends.push([c, a]);
+      }
+      if (ends.length < 2) continue;
+      const line = side < 0 ? Math.max(...ends.map((e) => e[1])) : Math.min(...ends.map((e) => e[1]));
+      for (const [c, a] of ends) {
+        const d = (line - a) * -side;
+        // bis 6 Kacheln, eine Spur, die seitlich am Ufer entlangläuft, bis 10
+        let shore = true;
+        for (let k = 0; k < d && shore; k++) shore = !!sideLand(...P(a - side * k, c), h);
+        if (d <= 0 || d > (shore ? 10 : 6)) continue;
+        // Kacheln a … vor der Linie werden Land (Boden wie am Ufer)
+        for (let k = 0; k < d; k++) {
+          const t = a - side * k;
+          if (!isB(...P(t, c))) break;
+          toLand(...P(t, c), ...P(a + side, c));
+          stat.kopf++;
+        }
+      }
+    }
+  }
+  // Landstücke (begehbares Land ohne Brücken) und erreichbares Land ab der Stadt
+  const labels = () => {
+    const m = mask(isLandi);
+    const lab = new Int32Array(N).fill(-1);
+    let n = 0;
+    for (let k = 0; k < N; k++) if (m[k] && lab[k] === -1) flood(m, lab, k, n++);
+    return lab;
+  };
+  const reachLand = () => {
+    const seen = kfFlood(wm, mp, pass);
+    let n = 0;
+    for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) if (seen[(y - ry) * rw + x - rx] && !isB(x, y)) n++;
+    return n;
+  };
+  // Weg zu Fuß über Land (ohne Brücken) von a nach b, höchstens lim Schritte (Infinity: weiter)
+  const mark = new Uint8Array(rw * rh);
+  const walk = (a, b, lim) => {
+    const touched = [];
+    const K = (x, y) => (y - ry) * rw + x - rx;
+    mark[K(a[0], a[1])] = 1;
+    touched.push(K(a[0], a[1]));
+    let q = [a];
+    let res = Infinity;
+    for (let d = 0; d <= lim && q.length && res === Infinity; d++) {
+      const nq = [];
+      for (const [x, y] of q) {
+        if (x === b[0] && y === b[1]) { res = d; break; }
+        for (const [dx, dy] of N4) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (!land(nx, ny) || mark[K(nx, ny)] || isB(nx, ny)) continue;
+          mark[K(nx, ny)] = 1;
+          touched.push(K(nx, ny));
+          nq.push([nx, ny]);
+        }
+      }
+      q = nq;
+    }
+    for (const k of touched) mark[k] = 0;
+    return res;
+  };
+  // Enden einer Brücke: [x, y, Landkachel x, y, Seite (-1/1 längs)]
+  const endsOf = (B) => {
+    const out = [];
+    for (const [x, y] of B.tiles) {
+      const [dx, dy] = dirOf(x, y) ? [1, 0] : [0, 1];
+      for (const s of [-1, 1]) if (land(x + s * dx, y + s * dy)) out.push([x, y, x + s * dx, y + s * dy, s]);
+    }
+    return out;
+  };
+  // safe: die Brücke berührt nur ein Landstück (dann trennt sie nichts) bzw. eine zweite Brücke verbindet dieselben
+  // beiden Landstücke; sonst wird nachgezählt
+  const tryRemove = (B, safe) => {
+    if (!safe && base < 0) base = reachLand();
+    const dirs = B.tiles.map(([x, y]) => dirOf(x, y));
+    for (const [x, y] of B.tiles) unB(x, y);
+    if (safe || reachLand() >= base) return true;
+    B.tiles.forEach(([x, y], k) => setB(x, y, dirs[k]));
+    return false;
+  };
+  // 4. sinnlose Stücke, 5. doppelte Brücken (erreichbares Land wird nur gezählt, wenn etwas wegfallen soll)
+  let base = -1;
+  const list = comps();
+  const lab = labels();
+  const labAt = (x, y) => lab[(y - ry) * rw + x - rx];
+  for (const B of list) {
+    const ends = endsOf(B);
+    B.labs = [...new Set(ends.map((e) => labAt(e[2], e[3])))].sort((a, b) => a - b);
+    // alle Landstücke, die die Brücke berührt (auch seitlich)
+    const touch = new Set();
+    for (const [x, y] of B.tiles) for (const [dx, dy] of N4) if (land(x + dx, y + dy) && !isB(x + dx, y + dy)) touch.add(labAt(x + dx, y + dy));
+    B.touch = touch.size;
+    B.cx = B.tiles.reduce((s, t) => s + t[0], 0) / B.tiles.length;
+    B.cy = B.tiles.reduce((s, t) => s + t[1], 0) / B.tiles.length;
+    const sides = new Set(ends.map((e) => e[4]));
+    B.dead = B.straight && sides.size < 2;
+    B.len = B.straight ? new Set(B.tiles.map((t) => (B.horiz ? t[0] : t[1]))).size : B.tiles.length;
+    B.self = false;
+    if (B.straight && B.labs.length === 1 && sides.size === 2) {
+      const ea = ends.find((e) => e[4] < 0);
+      const eb = ends.find((e) => e[4] > 0);
+      const d = walk([ea[2], ea[3]], [eb[2], eb[3]], 2 * B.len + 14);
+      B.self = d <= B.len + 12 || (B.tiles.length <= 24 && d <= 2 * B.len + 14);
+      B.shore = [ea[2], ea[3]];
+    }
+  }
+  for (const B of list) {
+    if (B.dead) {
+      if (tryRemove(B, B.touch <= 1)) { stat.weg++; B.gone = true; }
+    } else if (B.self) {
+      // kleine Stücke in Buchten und Kerben werden Land, große wieder Abgrund/Wasser
+      if (B.tiles.length <= 24) {
+        for (const [x, y] of B.tiles) toLand(x, y, ...B.shore);
+        stat.land++;
+        base = -1;
+        B.gone = true;
+      } else if (tryRemove(B, B.touch <= 1)) { stat.weg++; B.gone = true; }
+    }
+  }
+  for (let a = 0; a < list.length; a++) {
+    for (let b = a + 1; b < list.length; b++) {
+      const A = list[a];
+      const B = list[b];
+      if (A.gone || B.gone || A.labs.length !== 2 || B.labs.length !== 2 || A.labs[0] !== B.labs[0] || A.labs[1] !== B.labs[1]) continue;
+      if (Math.hypot(A.cx - B.cx, A.cy - B.cy) >= 16) continue;
+      const S = A.tiles.length <= B.tiles.length ? A : B;
+      if (tryRemove(S, S.touch <= 2)) { stat.doppelt++; S.gone = true; }
+    }
+  }
+  return stat;
 }
 
 // Anteil der Monstergruppen auf einer Karte mit Form (gegner.js populateWorld; 1 ohne Angabe)
@@ -1452,34 +1837,8 @@ if (typeof LIQUID3 !== 'undefined') {
   };
 }
 
-// Brücken: Eisbrücke über dem Wolkenmeer (helle Eisplatten, Geländer aus Eiszapfen-Pfosten und Seil), Hängebrücke
-// über der Schlucht (Holzbretter auf zwei Seilen, Pfosten an den Seiten)
-if (typeof WORLD3 !== 'undefined') {
-  const baseBridge = WORLD3.bridge;
-  WORLD3.bridge = function (b, x, z, vertical, style) {
-    if (style === 'eis') {
-      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
-      b.add(wbox(1.06, 0.14, 1.04, 0.04), '#cfe6f4', { parent: M, p: [0, 0.03, 0], shade: 0.25, top: '#f2faff', topK: 0.7 });
-      b.add(wbox(1.06, 0.16, 0.9, 0.04), '#8fb4cc', { parent: M, p: [0, -0.12, 0], shade: 0.35 });
-      for (const sz of [-1, 1]) {
-        b.add(tinyBox(1.06, 0.04, 0.04), '#e8f4ff', { parent: M, p: [0, 0.4, sz * 0.49] });
-        b.add(crystalGeo('body'), '#bfe2f6', { parent: M, p: [0.42, 0.06, sz * 0.49], s: [0.06, 0.34, 0.06] });
-      }
-      return;
-    }
-    if (style === 'seil') {
-      const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
-      for (let k = -2; k <= 2; k++) b.add(wbox(0.19, 0.06, 1.0, 0.02), k % 2 ? '#7a5636' : '#8a6440', { parent: M, p: [k * 0.21, 0.03, 0], shade: 0.3 });
-      for (const sz of [-1, 1]) {
-        b.add(tinyBox(1.08, 0.035, 0.035), '#c8a878', { parent: M, p: [0, 0.46, sz * 0.5] });
-        b.add(tinyBox(1.08, 0.03, 0.03), '#b89868', { parent: M, p: [0, 0.02, sz * 0.5] });
-        b.add(tinyBox(0.04, 0.46, 0.04), '#5a3a22', { parent: M, p: [0.48, 0.23, sz * 0.5] });
-      }
-      return;
-    }
-    return baseBridge.call(this, b, x, z, vertical, style);
-  };
-}
+// Brücken: seit 14.74 baut drei-welt.js (bridge3Tile) alle Arten, auch die Eisbrücke über dem Wolkenmeer und die
+// Hängebrücke über der Schlucht (bis 14.73 hier als eigene Fassung von WORLD3.bridge).
 
 // 2D: ziehende Wolkenfetzen über dem Wolkenmeer, Staub in der Schlucht; am Rand eine dunkle Felskante statt Sand
 if (typeof drawMagmaTile === 'function') {
