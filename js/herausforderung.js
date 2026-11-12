@@ -224,7 +224,8 @@ function arenaWave(L, w, players = 1) {
 }
 // Gold je geschaffter Welle: seit 13.71 nach Stufe – Schritt je Welle = 200 + 20 × Stufe (Stufe 10: 400, Stufe 30: 800,
 // Stufe 50: 1.200, Stufe 80: 1.800), Welle w bringt Schritt × w. 13.70 zahlte fest 2.000 × Welle, das war vor allem auf
-// niedrigen Stufen viel zu viel (bis 16× normales Farmen); jetzt etwa das 2- bis 3-Fache.
+// niedrigen Stufen viel zu viel (bis 16× normales Farmen); jetzt etwa das 2- bis 3-Fache (seit 14.74 mit dem höheren
+// Monstergold draußen etwa das 3-Fache, docs/gold-beute.md).
 // Ausgezahlt wird beim Verlassen oder Aufgeben; wer alle drei Leben verliert, verliert das Gold dieses Laufs.
 const arenaGoldStep = (L) => 200 + 20 * Math.max(1, L | 0);
 function arenaGold(L, w) {
@@ -1295,6 +1296,8 @@ raidWatch = function () {
 // seit 14.32 zu zweit: jeder bekommt jeden Kill in der Halle, es sind aber 1,5-mal so viele Monster – je Monster daher
 // nur 1/1,5 der EP und des Golds, so bringt eine Welle jedem genau so viel wie allein (keine Abkürzung über Gruppenläufe).
 // Seit 14.40 auch zu dritt: doppelt so viele Monster, je Monster die Hälfte (Faktor 1 / ARENA.group[n].n)
+// seit 14.74 bekommen Monster draußen mehr Gold (killGoldRoll, kampf.js); hier bleibt das alte Kill-Gold (m.gold, im
+// Mittel 3 × Stufe + 1), sonst stiege die Arena mit – sie bringt je Stunde etwa das 2,5- bis 3,5-Fache (docs/gold-beute.md)
 function arenaKillReward(m) {
   const p = game.player;
   const run0 = game.arenaRun;
@@ -1646,7 +1649,7 @@ function arenaRenderMaster(npc) {
     `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du allein oder mit bis zu zwei Gruppenmitgliedern gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
     `<p><strong>Gold je geschaffter Welle:</strong></p><ul class="reward-list">${rows}</ul>` +
     `<p>Bis Welle 10 zusammen: ${arenaFmt(arenaGoldSum(10, L))} Gold</p>` +
-    `<p class="hint-text">Die Monster kommen in Schüben nach der Uhr, nicht erst, wenn eines fällt. Sie geben volle Erfahrung und ihr normales Gold, aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
+    `<p class="hint-text">Die Monster kommen in Schüben nach der Uhr, nicht erst, wenn eines fällt. Sie geben volle Erfahrung und etwas Gold (weniger als draußen), aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
     `<p class="hint-text">Du hast ${ARENA.lives} Leben. Nach einem Tod startest du in der Arena neu; beim dritten Tod ist der Lauf vorbei und das gesammelte Gold verloren. Das Wellengold wird ausgezahlt, wenn du die Arena verlässt oder aufgibst.</p>` +
     `<p class="hint-text">Mit der Gruppe: Zu zweit kommen ${num(g2.n)}-mal so viele Monster mit ${pct(g2.hp)} % mehr Leben und ${pct(g2.atk)} % mehr Schaden, zu dritt ${num(g3.n)}-mal so viele mit ${pct(g3.hp)} % mehr Leben und ${pct(g3.atk)} % mehr Schaden. Wellengold, Erfahrung und Gold der Monster bekommt jeder so viel wie allein.</p>` +
     grp +

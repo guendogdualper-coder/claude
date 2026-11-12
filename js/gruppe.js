@@ -46,6 +46,26 @@ function partyXp(base, m) {
   return Math.max(1, Math.round(base * mul * near.length * game.player.level / sum));
 }
 
+// Gold eines Kills in der Gruppe (seit 14.74): anders als die EP wird es geteilt. Die Mitglieder in der Nähe (dieselbe
+// Regel wie partyXp) bekommen zusammen das Gold des Monsters plus 10 % je weiterem Mitglied (PARTY.bonus), jeder seinen
+// Anteil – „gleich“ zu gleichen Teilen, „stufe“ nach Stufe. Jeder rechnet seinen Anteil selbst (rewardKill), der Host
+// nur seinen eigenen; so bringt eine Gruppe je Kopf etwa so viel Gold wie allein und nichts wird verdoppelt.
+function partyGold(g, m) {
+  const party = game.party;
+  if (!(g > 0) || !party || party.members.length < 2) return g;
+  const near = [];
+  for (const n of party.members) {
+    const x = partyMember(n);
+    if (!x) continue;
+    if (x.me) near.push(game.player.level);
+    else if (!x.rp.dead && dist(x.rp, m) < NET_SHARE) near.push(x.rp.level || 1);
+  }
+  if (near.length < 2) return g;
+  const pot = g * (1 + PARTY.bonus * (near.length - 1));
+  const sum = near.reduce((a, l) => a + l, 0);
+  return Math.max(1, Math.round(party.mode === 'stufe' ? (pot * game.player.level) / sum : pot / near.length));
+}
+
 // Stand an alle Mitglieder schicken (und an die, die gerade herausgefallen sind)
 function partySync(extra = []) {
   const p = game.party;

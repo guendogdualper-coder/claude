@@ -129,9 +129,12 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'sinn', q: 'Wie komme ich an Gold?',
-    a: 'Monster und Aufträge geben Gold, der Stein der Gier sogar dreimal so viel. Dazu kommen Verkaufen beim Händler, die Prüfungsarena, die Tagesbelohnung und das Auktionshaus. ' +
+    // seit 14.74: Gold von jedem Monster nach Stufe und Gebiet (killGoldRoll, kampf.js; docs/gold-beute.md)
+    a: 'Jedes Monster lässt Gold fallen – je höher seine Stufe, desto mehr. Zähe Monster, Dungeons, Nachtmonster und Elite bringen etwas mehr, ab und zu fällt ein <b>Goldbeutel</b> mit dem Fünffachen. ' +
+      'Monster weit unter deiner Stufe geben kaum noch Gold. Seelensteine geben viel, der Stein der Gier sogar dreimal so viel; Bosse haben dazu ihre eigene Beute. In einer Gruppe wird das Gold der Monster geteilt (jeder bekommt seinen Anteil plus 10 % je weiterem Mitglied in der Nähe). ' +
+      'Am meisten Gold je Stunde bringt die Prüfungsarena. Dazu kommen Aufträge, Verkaufen beim Händler, die Tagesbelohnung und das Auktionshaus. ' +
       'Der Bonus <b>Mehr Gold</b> auf Helm, Schultern, Umhang, Gürtel oder Schuhen erhöht das Gold von Monstern und Seelensteinen.',
-    k: 'gold geld reich verdienen muenzen farmen'
+    k: 'gold geld reich verdienen muenzen farmen goldbeutel drop beute monster'
   },
   {
     c: 'sinn', q: 'Gibt es Tag und Nacht?',
@@ -724,7 +727,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'pruefung', q: 'Gibt es in der Prüfungsarena Beute?',
-    a: 'Die Monster geben volle Erfahrung und ihr normales Gold, aber keine Gegenstände, Steine, Tränke oder Materialien. Dazu kommt das Wellengold.',
+    a: 'Die Monster geben volle Erfahrung und etwas Gold (weniger als draußen), aber keine Gegenstände, Steine, Tränke oder Materialien. Dazu kommt das Wellengold – zusammen bringt die Arena je Stunde deutlich mehr Gold als Farmen draußen.',
     k: 'arena beute erfahrung gold belohnung lohnt'
   },
   {
