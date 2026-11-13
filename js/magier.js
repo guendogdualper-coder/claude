@@ -1380,7 +1380,7 @@ Object.assign(SKILL_POSE3, {
   }
 });
 
-// --- Ultimative Attacken (ab Stufe 30) -------------------------------------------------------------------
+// --- Ultimative Attacken (ab Stufe 20, seit 14.93) -------------------------------------------------------------------
 
 const MAGE_ULTS = {
   feuer: {

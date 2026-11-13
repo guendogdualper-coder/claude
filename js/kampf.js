@@ -912,7 +912,8 @@ const KIND_BASIC = {
   // reichte der Grundschuss nicht bis zu Zielen, die die Fertigkeiten schon erreichten (Messung docs/auftrag-2026-11-10-kampf.md)
   // seit 14.13 mul 0,72: ein Bogenschuss machte so viel wie ein Krieger-Hieb (aus sicherer Entfernung) und mehr Schaden
   // je Sekunde als jeder Nahkämpfer; jetzt etwa wie die anderen Fernkämpfer (Magier, Schamane, Nekromant)
-  bow: { range: 520, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow', mul: 0.72 },
+  // seit 14.93 680 statt 520: Pfeile fliegen deutlich weiter als alle Zauber
+  bow: { range: 680, cooldown: 0.75, ranged: true, color: '#f0e0b0', style: 'arrow', mul: 0.72 },
   greatsword: { range: 62, cooldown: 0.8, ranged: false },
   greataxe: { range: 60, cooldown: 0.88, ranged: false },
   scythe: { range: 62, cooldown: 0.85, ranged: false }

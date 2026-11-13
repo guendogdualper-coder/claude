@@ -2,7 +2,7 @@
 // Hier steht alles, was dazugehört:
 //  - Pfeile als Munition (ARROW_TYPES in gegenstaende.js): jeder Bogenschuss verbraucht einen Pfeil der besten Sorte,
 //    die man hat und schon benutzen darf; seit 13.67 schießt der Bogen ohne Pfeile gar nicht (keine Übungspfeile mehr)
-//  - die fünf Fertigkeiten (SKILL_TYPES, Mitspieler über MAGE2_REMOTE) und die Ultimative Attacke „Sturm des Himmelsfalken“;
+//  - die fünf Fertigkeiten (SKILL_TYPES, Mitspieler über MAGE2_REMOTE) und die Ultimative Attacke „Sturm des Schattenadlers“;
 //    seit 13.67 ist Platz 5 der Schattenschritt, der Falkenblick ist der Klassensegen (klassensegen.js) mit gefiederten
 //    Schattenschwingen und dunkler Aura (bowWings3); Pfeil auf der Sehne beim Ziehen (bowNock3, Sehne: drei-figuren.js)
 //  - Pfeile als echte 3D-Körper (Schaft, Spitze, Federn, Leuchtspur) und die 3D-Effekte (FX3_DRAW) samt 2D-Ersatz
@@ -761,11 +761,11 @@ if (typeof SKILL_POSE3 !== 'undefined' && typeof poseKeys3 === 'function') {
   for (const k of Object.keys(BOW_POSE)) SKILL_POSE3[k] = (B, sw) => poseKeys3(B, BOW_POSE[k], sw);
 }
 
-// --- Ultimative Attacke: Sturm des Himmelsfalken ---------------------------------------------------------
+// --- Ultimative Attacke: Sturm des Schattenadlers ---------------------------------------------------------
 ULT_RUN.himmelsfalke = function (p, u, pw) {
   // seit 13.67: sechs Pfeile nötig (ohne kein Sturm, keine Abklingzeit); Reichweite 560 statt 380 wie alle Bogenschüsse
   if (!bowCanShoot(p, 6)) return false;
-  const t = pickTarget(560);
+  const t = pickTarget(680);
   const tx = t ? t.x : p.x + p.facing.x * 220;
   const ty = t ? t.y : p.y + p.facing.y * 220;
   faceTowards(tx, ty);
@@ -1165,6 +1165,181 @@ function bowFeather3(h, x, y, z, s, rot, op) {
   o.material.color.set('#ffffff');
   o.material.opacity = Math.max(0, Math.min(1, op));
   return o;
+}
+
+// --- Schattenadler (seit 14.93): echter 3D-Adler der Ultimativen Attacke statt des flachen Falken ------------------
+// Schwarzes Gefieder mit violettem Schimmer, goldener Hakenschnabel, glühende Augen, gefingerte Handschwingen,
+// Schwanzfächer und Fänge, die er beim Zustoßen nach vorn reißt. Ein Körper je Vorrat (fx3Take 'eagle'), Haltung
+// und Flügelschlag werden jedes Bild gesetzt (bowEagle3). Örtliche Achsen: +X vorn, +Y oben, +Z rechter Flügel.
+const EAGLE3 = { span: 2.9 };
+function eagle3Build() {
+  const G = FX3.geo;
+  if (!G.eagleBody) {
+    G.eagleBody = new THREE.SphereGeometry(1, 14, 10);
+    G.eagleBeak = new THREE.ConeGeometry(1, 1, 8);
+    G.eagleLeg = new THREE.CylinderGeometry(1, 0.8, 1, 6);
+    const flat = (pts, curve) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(pts[0][0], pts[0][1]);
+      for (let i = 1; i < pts.length; i++) {
+        if (curve && pts[i].length === 4) sh.quadraticCurveTo(pts[i][2], pts[i][3], pts[i][0], pts[i][1]);
+        else sh.lineTo(pts[i][0], pts[i][1]);
+      }
+      sh.closePath();
+      const g = new THREE.ShapeGeometry(sh, 6);
+      g.rotateX(Math.PI / 2); // Fläche liegt waagerecht, Formhöhe zeigt nach +Z (außen)
+      return g;
+    };
+    // Armflügel: breit, Vorderkante leicht gebogen, Hinterkante mit gestuften Armschwingen
+    G.eagleArm = flat([[0.14, 0], [0.12, 0.58, 0.2, 0.3], [-0.06, 0.6], [-0.2, 0.52], [-0.3, 0.44], [-0.27, 0.34], [-0.34, 0.26], [-0.3, 0.16], [-0.36, 0.08], [-0.32, 0]], true);
+    // Handflügel: schmaler Ansatz der Schwungfedern
+    G.eagleHand = flat([[0.12, 0], [0.04, 0.3, 0.12, 0.16], [-0.12, 0.33], [-0.26, 0.12], [-0.26, 0]], true);
+    // eine Schwungfeder (Finger), 1 lang
+    G.eagleFeather = flat([[0, -0.05], [0.07, 0.25], [0.045, 0.85], [0, 1], [-0.045, 0.85], [-0.07, 0.25]]);
+    // Schwanzfächer nach hinten (-X): Formhöhe = Breite
+    const tail = new THREE.Shape();
+    tail.moveTo(0, -0.06);
+    tail.lineTo(-0.38, -0.17);
+    tail.quadraticCurveTo(-0.46, 0, -0.38, 0.17);
+    tail.lineTo(0, 0.06);
+    tail.closePath();
+    G.eagleTail = new THREE.ShapeGeometry(tail, 6);
+    G.eagleTail.rotateX(Math.PI / 2);
+  }
+  const mat = (c, em, side) => new THREE.MeshLambertMaterial({ color: c, emissive: em, transparent: true, opacity: 1, side: side ? THREE.DoubleSide : THREE.FrontSide });
+  const M = {
+    body: mat('#141016', '#050208'), head: mat('#1e1a20', '#060309'), wing: mat('#0f0c11', '#040206', true),
+    cov: mat('#221c26', '#07030c', true), tip: mat('#100c14', '#14062a', true), beak: mat('#e8b030', '#4a2a00'), leg: mat('#d8a028', '#3a2000'), claw: mat('#0a0608', '#000000')
+  };
+  const o = new THREE.Group();
+  const add = (parent, geo, m, p, s, r) => {
+    const x = new THREE.Mesh(geo, m);
+    x.position.set(p[0], p[1], p[2]);
+    x.scale.set(s[0], s[1], s[2]);
+    if (r) x.rotation.set(r[0], r[1], r[2]);
+    parent.add(x);
+    return x;
+  };
+  // Rumpf, Brust, Nacken, Kopf
+  add(o, G.eagleBody, M.body, [0, 0, 0], [0.42, 0.16, 0.18]);
+  add(o, G.eagleBody, M.body, [0.17, -0.035, 0], [0.24, 0.15, 0.17]);
+  add(o, G.eagleBody, M.head, [0.36, 0.03, 0], [0.13, 0.1, 0.1]);
+  add(o, G.eagleBody, M.head, [0.47, 0.06, 0], [0.12, 0.105, 0.1]);
+  // Brauenwulst (grimmiger Blick)
+  for (const s of [-1, 1]) add(o, G.eagleBody, M.head, [0.52, 0.11, s * 0.05], [0.06, 0.025, 0.035], [0, 0, -0.3]);
+  // Hakenschnabel: oberer Kegel nach vorn, Spitze nach unten gebogen
+  add(o, G.eagleBeak, M.beak, [0.6, 0.05, 0], [0.05, 0.16, 0.042], [0, 0, -Math.PI / 2 - 0.12]);
+  add(o, G.eagleBeak, M.beak, [0.665, 0.02, 0], [0.022, 0.07, 0.02], [0, 0, -Math.PI + 0.35]);
+  add(o, G.eagleBody, M.beak, [0.545, 0.075, 0], [0.04, 0.03, 0.045]);
+  // glühende Augen
+  const eyeMat = new THREE.SpriteMaterial({ map: fx3Texture('disc'), color: 0xc49aff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false });
+  for (const s of [-1, 1]) {
+    const e = new THREE.Sprite(eyeMat);
+    e.position.set(0.53, 0.085, s * 0.072);
+    e.scale.set(0.085, 0.085, 1);
+    o.add(e);
+  }
+  // Schwanzfächer
+  const tail = add(o, G.eagleTail, M.wing, [-0.32, 0.01, 0], [1, 1, 1]);
+  // Flügel: Seite (gespiegelt) → Schulter (Schlag, Rückfaltung) → Ellbogen (Hand nachziehen) → Schwungfedern
+  const wings = [];
+  const tips = [];
+  for (const s of [1, -1]) {
+    const side = new THREE.Group();
+    side.scale.z = s;
+    side.position.set(0.07, 0.05, 0);
+    const sh = new THREE.Group();
+    sh.position.z = 0.1;
+    side.add(sh);
+    add(sh, G.eagleArm, M.wing, [0, 0, 0], [1, 1, 1]);
+    // Deckfedern: zweite, kleinere Lage mit Schimmer
+    add(sh, G.eagleArm, M.cov, [0.03, 0.012, 0.02], [0.55, 1, 0.78]);
+    const el = new THREE.Group();
+    el.position.set(-0.04, 0, 0.56);
+    sh.add(el);
+    add(el, G.eagleHand, M.wing, [0, 0, 0], [1, 1, 1]);
+    const fingers = [];
+    for (let i = 0; i < 6; i++) {
+      const f = add(el, G.eagleFeather, i < 2 ? M.wing : M.tip, [-0.02 - i * 0.045, -0.003 * i, 0.26 - i * 0.02], [1, 1, 0.42 - Math.abs(i - 1.5) * 0.03]);
+      f.rotation.y = 0.32 - i * 0.2;
+      fingers.push(f);
+    }
+    const tip = new THREE.Object3D();
+    tip.position.set(-0.05, 0, 0.7);
+    el.add(tip);
+    tips.push(tip);
+    o.add(side);
+    wings.push({ sh, el, fingers });
+  }
+  // Fänge: Bein mit drei Krallen, um die Hüfte drehbar
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group();
+    hip.position.set(0.04, -0.1, s * 0.07);
+    add(hip, G.eagleLeg, M.leg, [0, -0.09, 0], [0.025, 0.18, 0.025]);
+    for (const [a, b] of [[0, 0], [0.5, 0.35], [-0.5, -0.35]]) add(hip, G.eagleBeak, M.claw, [0.025, -0.2, b * 0.06], [0.013, 0.07, 0.013], [a * 0.3, 0, -2.2]);
+    o.add(hip);
+    legs.push(hip);
+  }
+  o.userData.eagle = { M, wings, tips, legs, tail, eyeMat };
+  return o;
+}
+if (typeof fx3Make === 'function') {
+  const fx3Make0 = fx3Make;
+  // eslint-disable-next-line no-global-assign
+  fx3Make = function (kind) {
+    if (kind !== 'eagle') return fx3Make0(kind);
+    const o = eagle3Build();
+    o.renderOrder = 5;
+    o.userData.kind = kind;
+    FX3.group.add(o);
+    return o;
+  };
+}
+const _eaX = new THREE.Vector3();
+const _eaY = new THREE.Vector3();
+const _eaZ = new THREE.Vector3();
+const _eaM = new THREE.Matrix4();
+const _eaUp = new THREE.Vector3(0, 1, 0);
+const _eaP = new THREE.Vector3();
+// pose: { flap: Schlag (−1 oben … 1 unten), sweep: Rückfaltung 0–1, talon: Fänge vor 0–1, roll: Schräglage }
+function bowEagle3(h, x, y, z, fwd, span, pose, op, low) {
+  if (op <= 0.01) return;
+  const o = fx3Take(h, 'eagle');
+  const E = o.userData.eagle;
+  _eaX.copy(fwd).normalize();
+  _eaZ.crossVectors(_eaX, _eaUp);
+  if (_eaZ.lengthSq() < 1e-4) _eaZ.set(0, 0, 1);
+  _eaZ.normalize();
+  _eaY.crossVectors(_eaZ, _eaX);
+  _eaM.makeBasis(_eaX, _eaY, _eaZ);
+  o.quaternion.setFromRotationMatrix(_eaM);
+  if (pose.roll) o.rotateX(pose.roll);
+  o.position.set(x, y, z);
+  o.scale.setScalar(span / EAGLE3.span);
+  const fl = pose.flap || 0;
+  const sw = pose.sweep || 0;
+  for (const w of E.wings) {
+    w.sh.rotation.set(fl * 0.55 - sw * 0.25, -sw * 0.75, 0);
+    // die Hand zieht beim Schlag nach (Welle durch den Flügel), beim Anlegen klappt sie nach hinten
+    w.el.rotation.set(fl * 0.35 + Math.max(0, -fl) * 0.15, -sw * 0.6, 0);
+    for (let i = 0; i < w.fingers.length; i++) w.fingers[i].rotation.y = (0.32 - i * 0.2) * (1 - sw * 0.7) - sw * 0.25;
+  }
+  E.tail.scale.set(1, 1, 1 + (pose.talon || 0) * 0.5);
+  E.tail.rotation.z = -(pose.talon || 0) * 0.35;
+  for (const l of E.legs) l.rotation.z = -1.25 + (pose.talon || 0) * 2.1;
+  for (const k in E.M) E.M[k].opacity = op;
+  E.eyeMat.opacity = op;
+  // dunkle Aura: Rauch und violetter Schein um Rumpf und Flügelspitzen
+  const s = span / EAGLE3.span;
+  n3Glow(h, x, y, z, span * 0.55, BOW3.violet, 0.16 * op);
+  n3Smoke(h, x - _eaX.x * 0.4 * s, y + 0.1 * s, z - _eaX.z * 0.4 * s, span * 0.32, BOW3.smoke, 0.32 * op);
+  o.updateMatrixWorld(true);
+  for (const t of E.tips) {
+    t.getWorldPosition(_eaP);
+    n3Glow(h, _eaP.x, _eaP.y, _eaP.z, span * 0.1, BOW3.violet, 0.35 * op);
+    if (!low) n3Smoke(h, _eaP.x - _eaX.x * 0.3, _eaP.y, _eaP.z - _eaX.z * 0.3, span * 0.14, BOW3.smoke, 0.4 * op);
+  }
 }
 
 // --- 3D: Pfeile als Körper (jedes Bild für alle Bogenschüsse, eigene und die der Mitspieler) -----------------
@@ -2468,9 +2643,15 @@ FX3_DRAW.bult3 = function (h, e) {
     const py = H0 * (1 - u * u) + 0.9;
     const vy = -2 * H0 * u;
     _bw3d.set((x1 - bx), vy, (z1 - bz)).normalize();
-    const flap = u < 0.65 ? 0.2 + 0.4 * Math.sin(t * 12) : 0.5 - (u - 0.65) * 1.2;
-    bowFalcon3(h, px, py, pz, _bw3d, 4.2 * grow, flap, 0.95 * grow, low);
-    n3Glow(h, px, py, pz, 5 * grow, BOW3.violet, 0.3);
+    // seit 14.93 Schattenadler: kräftige Schläge im Anflug, dann Flügel angelegt im Sturz, kurz vor dem Ziel
+    // aufgefächert mit Fängen nach vorn
+    const dive = clamp01((u - 0.55) / 0.3);
+    const flare = clamp01((u - 0.86) / 0.14);
+    bowEagle3(h, px, py, pz, _bw3d, 4.8 * grow, {
+      flap: (1 - dive) * Math.sin(t * 10) * 0.9 - dive * 0.4 * (1 - flare) - flare * 0.5,
+      sweep: dive * (1 - flare), talon: flare, roll: Math.sin(t * 3) * 0.12 * (1 - dive)
+    }, grow, low);
+    n3Glow(h, px, py, pz, 5 * grow, BOW3.violet, 0.14);
     for (let i = 0; i < (low ? 3 : 6); i++) n3Smoke(h, px + Math.sin(t * 5 + i) * 0.6, py - 0.2 + Math.cos(t * 4 + i) * 0.3, pz + Math.cos(t * 5 + i * 2) * 0.6, 1.0, BOW3.smoke, 0.45 * grow);
     // Schatten am Boden wird größer, je näher er kommt
     mGround(h, 'planeNBowSh', 'disc', px / U3, pz / U3, 2.2 + u * 1.5, 0.03, 0, BOW3.dark, 0.45 * u);
@@ -2488,6 +2669,13 @@ FX3_DRAW.bult3 = function (h, e) {
   // Einschlag: Druckwelle aus Wind, Lichtsäule, Federn
   const v = t - D;
   const k = clamp01(v / 0.8);
+  // der Adler schwingt sich nach dem Zustoßen wieder auf und zerfällt in Schattenrauch
+  if (v < 0.75) {
+    const r = v / 0.75;
+    _bw3d.set(fx, 0.9, fz).normalize();
+    bowEagle3(h, x1 + fx * r * 2.6, 0.9 + r * r * 3.2, z1 + fz * r * 2.6, _bw3d, 4.8 * (1 + r * 0.15),
+      { flap: Math.sin(v * 16) * 1.1, talon: Math.max(0, 1 - r * 3) }, 1 - r * r, low);
+  }
   if (k < 1) {
     for (let i = 0; i < 2; i++) {
       const w = fx3Take(h, 'wall');
@@ -2788,15 +2976,120 @@ EXTRA_EFFECTS.beye3 = (ctx, e, k, x, y) => {
   glow2(ctx, x, y - 70, 20, '#8a4ae8', 0.7 * (1 - k));
   ctx.restore();
 };
+// Schattenadler in 2D (seit 14.93): von oben gesehen, Flügel mit gefingerten Schwungfedern, Schlag als Verkürzung,
+// dunkle Aura; Mitte (x,y), Blickrichtung ang, Größe s (Spannweite ≈ 2,6·s), Schlag fl (−1 … 1), angelegt sw (0–1)
+function eagle2d(ctx, x, y, s, ang, fl, sw, a) {
+  if (a <= 0.01) return;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  ctx.globalAlpha = a;
+  // Aura: dunkler Rauch und violetter Saum
+  const g = ctx.createRadialGradient(0, 0, s * 0.2, 0, 0, s * 1.5);
+  g.addColorStop(0, 'rgba(40,10,70,0.55)');
+  g.addColorStop(0.6, 'rgba(60,20,110,0.25)');
+  g.addColorStop(1, 'rgba(20,5,40,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(0, 0, s * 1.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowColor = '#8a4ae8';
+  ctx.shadowBlur = s * 0.35;
+  const len = Math.max(0.25, Math.cos(fl * 0.9)) * (1 - sw * 0.45); // Verkürzung beim Schlag, angelegt kürzer
+  const back = sw * 0.55;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.scale(1, side);
+    ctx.fillStyle = '#120c18';
+    ctx.beginPath();
+    ctx.moveTo(s * 0.18, s * 0.08);
+    // Vorderkante bis zum Handgelenk, dann fünf Schwungfedern als Finger, Hinterkante gestuft zurück
+    const wx = s * (0.08 - back * 0.5);
+    const wy = s * 0.75 * len;
+    ctx.quadraticCurveTo(s * 0.25, wy * 0.5, wx + s * 0.05, wy);
+    for (let i = 0; i < 5; i++) {
+      const fa = -0.15 - i * 0.22 - back * 0.6;
+      const fl2 = s * (0.5 - Math.abs(i - 1.5) * 0.05) * len;
+      const bx = wx - i * s * 0.07;
+      const by = wy - i * s * 0.02;
+      ctx.lineTo(bx + Math.sin(fa) * fl2 * 0.2 + s * 0.02, by + Math.cos(fa) * fl2 * 0.95);
+      ctx.lineTo(bx - s * 0.035, by + s * 0.02);
+    }
+    ctx.lineTo(s * (-0.32 - back * 0.3), wy * 0.62);
+    ctx.lineTo(s * -0.26, wy * 0.42);
+    ctx.lineTo(s * -0.33, wy * 0.25);
+    ctx.lineTo(s * -0.18, s * 0.08);
+    ctx.closePath();
+    ctx.fill();
+    // Schimmer auf den Deckfedern
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(180,140,255,0.55)';
+    ctx.lineWidth = Math.max(1, s * 0.03);
+    ctx.beginPath();
+    ctx.moveTo(s * 0.16, s * 0.1);
+    ctx.quadraticCurveTo(s * 0.22, wy * 0.5, wx + s * 0.04, wy * 0.98);
+    ctx.stroke();
+    ctx.restore();
+  }
+  ctx.shadowBlur = s * 0.25;
+  // Schwanzfächer, Rumpf, Kopf, Hakenschnabel, Augen
+  ctx.fillStyle = '#16101c';
+  ctx.beginPath();
+  ctx.moveTo(s * -0.3, s * -0.07);
+  ctx.lineTo(s * -0.7, s * -0.17);
+  ctx.quadraticCurveTo(s * -0.78, 0, s * -0.7, s * 0.17);
+  ctx.lineTo(s * -0.3, s * 0.07);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, s * 0.42, s * 0.16, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#211a28';
+  ctx.beginPath();
+  ctx.ellipse(s * 0.45, 0, s * 0.13, s * 0.11, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#e8b030';
+  ctx.beginPath();
+  ctx.moveTo(s * 0.54, s * -0.045);
+  ctx.quadraticCurveTo(s * 0.7, s * -0.03, s * 0.72, 0);
+  ctx.quadraticCurveTo(s * 0.7, s * 0.03, s * 0.54, s * 0.045);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const ey of [-1, 1]) glow2(ctx, s * 0.5, ey * s * 0.065, s * 0.06, '#c49aff', 0.9);
+  ctx.restore();
+}
 EXTRA_EFFECTS.bult3 = (ctx, e, k, x, y) => {
   const t = game.time - e.start;
+  const D = ULT_FALCON.dive;
+  const ox = x + (e.ox - e.x);
+  const oy = y + (e.oy - e.y) - 40;
+  const S = 46;
+  if (t < D) {
+    // Anflug hoch über dem Schützen, Sturz aufs Ziel; Schatten am Boden wächst
+    const u = t / D;
+    const grow = clamp01(t / 0.25);
+    const H = 230 * (1 - u * u);
+    const px = ox + (x - ox) * u;
+    const py = oy + (y - oy) * u - H;
+    const dx = (x - ox);
+    const dy = (y - oy) + 460 * u;
+    ctx.save();
+    ctx.fillStyle = `rgba(10,4,20,${0.35 * u})`;
+    ctx.beginPath();
+    ctx.ellipse(ox + (x - ox) * u, oy + (y - oy) * u + 40, S * (0.6 + u), S * (0.25 + u * 0.4), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    const dive = clamp01((u - 0.55) / 0.3);
+    eagle2d(ctx, px, py, S * (0.6 + 0.4 * grow) * (1 + u * 0.25), Math.atan2(dy, dx), (1 - dive) * Math.sin(t * 10), dive, grow);
+  } else if (t < D + 0.7) {
+    const r = (t - D) / 0.7;
+    const ang = Math.atan2(y - oy, x - ox);
+    eagle2d(ctx, x + Math.cos(ang) * r * 120, y - 20 - r * r * 160, S * 1.25, ang - r * 0.8, Math.sin(t * 16), 0, 1 - r * r);
+  }
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  if (t < ULT_FALCON.dive) {
-    const u = t / ULT_FALCON.dive;
-    glow2(ctx, x, y - 260 * (1 - u), 40, '#8a4ae8', 0.8);
-  } else {
-    const v = clamp01((t - ULT_FALCON.dive) / 0.8);
+  if (t >= D) {
+    const v = clamp01((t - D) / 0.8);
     glow2(ctx, x, y - 10, 40 + v * 140, '#8a4ae8', 0.6 * (1 - v));
   }
   for (const s of e.shots) {
@@ -3111,7 +3404,7 @@ SKILL_ART.schattenwechsel = function (ctx, IK) {
   }
   IK.sparkles(ctx, 5, '#e8d8ff', 73, 16, 6, -2, 1.3);
 };
-// Sturm des Himmelsfalken: Geisterfalke stößt kopfüber herab (Flügel hoch im V, Schwanzfächer oben), darunter Pfeile
+// Sturm des Schattenadlers: Geisterfalke stößt kopfüber herab (Flügel hoch im V, Schwanzfächer oben), darunter Pfeile
 SKILL_ART.himmelsfalke = function (ctx, IK) {
   IK.light(ctx, 0, -2, 24, '#8a4ae8', 0.6);
   for (const [x, y] of [[-15, 19], [-6, 21], [6, 21], [15, 19]]) ikBowArrow(ctx, IK, x - 3, y - 9, x, y, { w: 1.3, head: '#d8c8ff', glow: '#a070f0', fletch: '#3a1a6a' });
@@ -3146,7 +3439,7 @@ SKILL_ART.himmelsfalke = function (ctx, IK) {
     IK.lin(ctx, 0, -17, 0, -6, [[0, '#8a5ae0'], [1, '#1a0e28']]), 0.9, 'rgba(150,110,240,0.9)');
   IK.fill(ctx, (c) => { c.moveTo(0, -8); c.quadraticCurveTo(5, -2, 3.2, 6); c.quadraticCurveTo(0, 10, -3.2, 6); c.quadraticCurveTo(-5, -2, 0, -8); c.closePath(); },
     IK.lin(ctx, 0, -8, 0, 9, [[0, '#2a1840'], [1, '#120a1c']]), 0.9, 'rgba(150,110,240,0.9)');
-  IK.fill(ctx, (c) => { c.moveTo(-1.8, 8); c.lineTo(0, 12.5); c.lineTo(1.8, 8); c.closePath(); }, '#6a3ab0', 0.6);
+  IK.fill(ctx, (c) => { c.moveTo(-2, 8); c.quadraticCurveTo(0, 14, 1.2, 12.5); c.lineTo(2, 8); c.closePath(); }, '#e8b030', 0.6);
   for (const ex of [-1.6, 1.6]) IK.fill(ctx, (c) => c.arc(ex, 5.5, 0.8, 0, Math.PI * 2), '#d8b8ff', 0);
   IK.sparkles(ctx, 7, '#ffffff', 61, 20, 0, -4, 1.3);
 };

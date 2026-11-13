@@ -270,7 +270,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'kampf', q: 'Was ist die Ultimative Attacke?',
-    a: () => `Ab Stufe ${(typeof ULT_UNLOCK !== 'undefined') ? ULT_UNLOCK : 30} hat jeder Weg eine eigene, sehr starke Attacke mit ${(typeof ULT_COOLDOWN !== 'undefined') ? ULT_COOLDOWN : 60} Sekunden Abklingzeit – goldener Knopf über dem Angriff oder Taste ${rgKey('ult')}. Sie wird mit deiner Stufe stärker.`,
+    a: () => `Ab Stufe ${(typeof ULT_UNLOCK !== 'undefined') ? ULT_UNLOCK : 20} hat jeder Weg eine eigene, sehr starke Attacke mit ${(typeof ULT_COOLDOWN !== 'undefined') ? ULT_COOLDOWN : 60} Sekunden Abklingzeit – goldener Knopf über dem Angriff oder Taste ${rgKey('ult')}. Sie wird mit deiner Stufe stärker.`,
     k: 'ultimative attacke ulti ult spezial taste 6 goldener knopf'
   },
   {

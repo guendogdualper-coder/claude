@@ -1,8 +1,11 @@
-// Ultimative Attacken: jeder Weg bekommt ab Stufe 30 eine eigene, sehr starke Fertigkeit
+// Ultimative Attacken: jeder Weg bekommt ab Stufe 20 (seit 14.93, vorher 30) eine eigene, sehr starke Fertigkeit
 // mit 60 Sekunden Abklingzeit (seit 13.2, vorher 3 Minuten). Eigener Knopf neben dem Angriff, Taste 6.
 // Die Stärke wächst mit der Spielerstufe und dem Fertigkeitsschaden (Intelligenz, Boni, Magie).
 
-const ULT_UNLOCK = 30;
+const ULT_UNLOCK = 20;   // seit 14.93 (vorher 30)
+// Stärke wie bisher: Stufe 30 = Faktor 1, je Stufe ±2,5 % (Stufe 20 also 0,75)
+const ULT_POWER_BASE = 30;
+const ultLevelMul = (lv) => 1 + 0.025 * (lv - ULT_POWER_BASE);
 const ULT_COOLDOWN = 60;  // seit 13.2 (vorher 3 Minuten)
 
 const ULTIMATES = {
@@ -33,8 +36,9 @@ const ULTIMATES = {
   // Das Todesmal oben bleibt stehen, damit Mitspieler mit älterer Version es weiter sehen.
   falke: {
     // seit 13.67 düster: ein Schattenfalke, schwarzvioletter Pfeilsturm; braucht 6 Pfeile
-    id: 'himmelsfalke', name: 'Sturm des Himmelsfalken', short: 'SH', color: '#8a5ae0',
-    text: 'Ein riesiger Schattenfalke stößt vom Himmel auf dein Ziel herab und schlägt mit einer Druckwelle aus dunkler Magie ein, die alle Gegner ringsum betäubt. Danach peitscht ein Sturm aus Schattenpfeilen über die Stelle. Verbraucht 6 Pfeile.',
+    // seit 14.93 ein schwarzer Schattenadler statt des Falken (Name und Bild); Kennung bleibt
+    id: 'himmelsfalke', name: 'Sturm des Schattenadlers', short: 'SA', color: '#8a5ae0',
+    text: 'Ein riesiger schwarzer Adler mit dunkler Aura stößt vom Himmel auf dein Ziel herab und schlägt mit einer Druckwelle aus dunkler Magie ein, die alle Gegner ringsum betäubt. Danach peitscht ein Sturm aus Schattenpfeilen über die Stelle. Verbraucht 6 Pfeile.',
     stats: 'Sturzflug 4,5× Angriff im Umkreis, Betäubung 2 s; Pfeilsturm 12 Pfeile je 0,9×'
   },
   // seit 12.7: Kreis der Elemente statt Strom der Elemente (Ablauf in elementkreis.js)
@@ -69,9 +73,9 @@ function ultimateOf(p) {
   return ULTIMATES[CLASSES[p.classId].paths[p.path || 0].id] || null;
 }
 
-// Faktor auf alle Treffer: Fertigkeitsschaden und +2,5 % je Stufe über 30
+// Faktor auf alle Treffer: Fertigkeitsschaden und ±2,5 % je Stufe über/unter 30
 function ultPower(p) {
-  return (game.stats.skillDmg || 1) * (1 + 0.025 * Math.max(0, p.level - ULT_UNLOCK));
+  return (game.stats.skillDmg || 1) * ultLevelMul(p.level);
 }
 
 function useUltimate() {

@@ -2210,8 +2210,8 @@ function ultStatsText(u) {
   const p = game.player;
   const s = skillStatsBase();
   if (!s || typeof ULT_UNLOCK === 'undefined') return u.stats;
-  // wie ultPower: Fertigkeitsschaden und +2,5 % je Stufe über 30
-  const pw = (s.skillDmg || 1) * (1 + 0.025 * Math.max(0, p.level - ULT_UNLOCK));
+  // wie ultPower: Fertigkeitsschaden und ±2,5 % je Stufe über/unter 30
+  const pw = (s.skillDmg || 1) * ultLevelMul(p.level);
   // seit 13.87: Natur- und Elementschaden (Klassensegen) zählt nur, wo die Treffer als Fertigkeit laufen (hitMonster
   // mit opts.skill) – unter den Ultis nur der Kreis der Elemente
   const atk = s.atk * pw * (1 + (s.monsterDmg || 0)) * (u.id === 'elementkreis' ? 1 + (s.natureDmg || 0) : 1);
