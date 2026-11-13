@@ -61,6 +61,7 @@ const RANK_NAMES = {
   glutfeld: ['Glutgrube', 'Flammenschlund', 'Höllenboden', 'Pforte zur Hölle'],
   feuerball: ['Großer Feuerball', 'Flammenkomet', 'Sonnenkugel', 'Sternenfeuer'],
   brand: ['Glutbrand', 'Höllenbrand', 'Ewiges Feuer', 'Seelenbrand'],
+  flammenwoge: ['Glutwoge', 'Flammenflut', 'Höllenbrandung', 'Weltenbrandung'],
   phoenix: ['Feuerphönix', 'Sonnenphönix', 'Ewiger Phönix', 'Phönix der Wiedergeburt'],
   feuertornado: ['Glutwirbel', 'Flammenzyklon', 'Höllenmahlstrom', 'Weltenbrand'],
   // Magier – Frost

@@ -1039,13 +1039,32 @@ function drawEffect(ctx, e) {
       }
       break;
     }
-    case 'ring':
-      ctx.lineWidth = (e.width || 4) * (1 - k) + 1;
-      ctx.beginPath();
-      ctx.arc(x, y, e.r * (e.grow ? 0.3 + 0.9 * k : 0.4 + 0.6 * k), 0, Math.PI * 2);
-      ctx.stroke();
+    case 'ring': {
+      // seit 14.89 kein Kreis mehr (Regel: keine Bodenringe): eine weiche Lichtwelle mit Funkenstrichen, die nach
+      // außen fliegen. Vorher legte jede Attacke mit Rang große orange und rote Ringe ins Bild (2D-Durchsicht 13.11.)
+      const R = e.r * (e.grow ? 0.3 + 0.9 * k : 0.4 + 0.6 * k);
+      if (e.spin == null) e.spin = Math.random() * 6.28;
+      glow(ctx, x, y, R * 0.9, e.color, 0.3 * (1 - k));
+      ctx.lineWidth = Math.max(1, (e.width || 4) * 0.4 * (1 - k) + 0.8);
+      ctx.lineCap = 'round';
+      const n = 10;
+      for (let i = 0; i < n; i++) {
+        const a = e.spin + (i / n) * Math.PI * 2;
+        const c = Math.cos(a);
+        const sn = Math.sin(a) * 0.62;
+        ctx.beginPath();
+        ctx.moveTo(x + c * R * 0.72, y + sn * R * 0.72);
+        ctx.lineTo(x + c * R, y + sn * R);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
       break;
+    }
     case 'runes': {
+      // seit 14.89 nicht mehr gezeichnet (keine Runenkreise am Boden)
+      break;
+    }
+    case 'runesOld': {
       ctx.lineWidth = 2;
       const r = e.r * (0.6 + 0.4 * easeOut(k));
       ctx.beginPath();
@@ -1173,12 +1192,9 @@ function drawEffect(ctx, e) {
           ctx.lineTo(x + Math.cos(a + 0.3) * r, y + Math.sin(a + 0.3) * r * 0.45);
           ctx.stroke();
         }
-      } else if (e.kind === 'ring') {
-        ctx.strokeStyle = e.color;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.ellipse(x, y, r, r * 0.42, 0, 0, Math.PI * 2);
-        ctx.stroke();
+      } else if (e.kind === 'ring' || e.kind === 'rune' || !e.kind) {
+        // seit 14.89: keine Ringe und Runenkreise mehr am Boden – nur ein schwacher Lichtfleck, der verblasst
+        glow(ctx, x, y + 2, r * 0.8, e.color, 0.35 * (1 - k));
       } else {
         // Runenkreis, leuchtend
         ctx.globalCompositeOperation = 'lighter';

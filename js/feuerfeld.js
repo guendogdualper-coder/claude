@@ -808,31 +808,70 @@ function tornadoFx(owner, x, y, sk, n, seed, local, pw) {
 }
 MAGE2_REMOTE.mtornado = (rp, sk, d) => tornadoFx(rp, d.tx ?? rp.x, d.ty ?? rp.y, sk, d.n || 2, d.sd || 1, false, 0);
 
-// 2D (seit 14.3): Flammen in einer Schraube, unten eng, oben weit, Rauch und Glut oben heraus
+// 2D (seit 14.89 neu): ein echter Wirbeltrichter statt einzelner schräger Flammenketten. Der Körper ist ein Stapel
+// glühender Scheiben (unten eng, oben weit, die Achse schwingt), darüber laufen drei Glutbänder als Schraube um den
+// Trichter (hinten dunkler, vorn hell), am Fuß lodern Flammen, oben quellen Rauch und Funken heraus.
 EXTRA_EFFECTS.mtornado3 = (ctx, e, k, x, y) => {
   const t = game.time - e.start - e.delay;
   if (t < 0 || t > e.life) return;
-  const vis = easeOut(clamp01(t / 0.5)) * clamp01((e.life - t) / 0.55);
+  const vis = easeOut(clamp01(t / 0.45)) * clamp01((e.life - t) / 0.55);
+  const H = 118 * vis;
+  const SL = 16;
   ctx.save();
   for (let i = 0; i < e.n; i++) {
     const c = tornadoPos(e, i, t);
     const bx = x + (c.x - e.x);
     const by = y + (c.y - e.y) * 0.7;
-    for (let j = 0; j < 9; j++) {
-      const v = j / 9;
-      const a = -t * 7 - v * 7 + i;
-      const r = (4 + 24 * Math.pow(v, 1.5)) * vis;
-      // hintere Hälfte dunkler (Tiefe)
-      const front = Math.sin(a) > 0 ? 1 : 0.6;
-      flame2d(ctx, bx + Math.cos(a) * r, by - v * 95 * vis + Math.sin(a) * r * 0.3, 14 + 10 * v, (26 + 14 * v) * vis, t, j + i * 9, front * vis, Math.cos(a) * 0.4);
-    }
-    smoke2d(ctx, bx + Math.sin(t + i) * 8, by - 105 * vis - ((t * 0.5) % 1) * 20, 20, 0.4 * vis);
+    const ph = i * 1.7;
+    // Achse und Breite je Höhe v (0 = Boden, 1 = oben)
+    const ax = (v) => bx + Math.sin(t * 3.1 + v * 3.4 + ph) * 9 * v;
+    const rw = (v) => (6 + 30 * Math.pow(v, 1.35)) * vis;
+    // Schatten und Glut am Boden
+    glow2(ctx, bx, by + 2, 26 * vis, '#1a0806', 0.4 * vis);
     ctx.globalCompositeOperation = 'lighter';
-    glow2(ctx, bx, by - 30, 26, '#ff6a1a', 0.35 * vis);
-    for (let j = 0; j < 4; j++) {
-      const ph = (t * 0.8 + n2h(j, i)) % 1;
-      const a = -t * 7 - ph * 7 + j * 2;
-      spark2d(ctx, bx + Math.cos(a) * (6 + 26 * ph), by - ph * 100, 5, j % 2 ? '#ffd36a' : '#fff1c8', (1 - ph) * vis);
+    glow(ctx, bx, by - 4, 30 * vis, '#ff5a1a', 0.45 * vis);
+    // Körper: Scheiben von unten nach oben, rot außen, gelb im Kern
+    for (let j = 0; j <= SL; j++) {
+      const v = j / SL;
+      const cx = ax(v);
+      const cy = by - v * H;
+      const r = rw(v);
+      glow(ctx, cx, cy, r * 1.2, v < 0.35 ? '#ff8a2a' : '#e8361a', (0.3 + 0.15 * (1 - v)) * vis);
+      glow(ctx, cx, cy, r * 0.45, '#ffe08a', 0.16 * (1 - v * 0.7) * vis);
+    }
+    // drei Glutbänder als Schraube um den Trichter (normal gemischt, sonst werden sie weiß)
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineCap = 'round';
+    for (let b = 0; b < 3; b++) {
+      for (let j = 0; j < 22; j++) {
+        const v0 = j / 22;
+        const v1 = (j + 1) / 22;
+        const a0 = -t * 9 + v0 * 9 + b * 2.09 + ph;
+        const a1 = -t * 9 + v1 * 9 + b * 2.09 + ph;
+        const front = Math.sin((a0 + a1) / 2);
+        ctx.globalAlpha = (front > 0 ? 0.85 : 0.35) * vis * (1 - v0 * 0.3);
+        ctx.strokeStyle = front > 0 ? (b === 0 ? '#ffc85a' : '#ff8a2a') : '#b8300e';
+        ctx.lineWidth = (front > 0 ? 3.2 : 2) * (0.6 + v0 * 0.7);
+        ctx.beginPath();
+        ctx.moveTo(ax(v0) + Math.cos(a0) * rw(v0), by - v0 * H + Math.sin(a0) * rw(v0) * 0.28);
+        ctx.lineTo(ax(v1) + Math.cos(a1) * rw(v1), by - v1 * H + Math.sin(a1) * rw(v1) * 0.28);
+        ctx.stroke();
+      }
+    }
+    ctx.lineCap = 'butt';
+    ctx.globalCompositeOperation = 'source-over';
+    // Flammen am Fuß, nach außen geneigt
+    for (let j = 0; j < 5; j++) {
+      const a = -t * 6 + j * 1.26 + ph;
+      flame2d(ctx, bx + Math.cos(a) * 12 * vis, by + Math.sin(a) * 4, 16, 30 * vis, t, j + i * 5, 0.9 * vis, Math.cos(a) * 0.35);
+    }
+    // Rauch und Funken oben heraus
+    smoke2d(ctx, ax(1) + Math.sin(t * 1.3 + i) * 10, by - H - 8 - ((t * 0.6) % 1) * 18, 24 * vis, 0.35 * vis);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let j = 0; j < 6; j++) {
+      const q = (t * 0.9 + n2h(j, i)) % 1;
+      const a = -t * 9 + q * 9 + j * 1.05;
+      spark2d(ctx, ax(q) + Math.cos(a) * rw(q) * 1.1, by - q * H - 6, 5, j % 2 ? '#ffd36a' : '#fff1c8', (1 - q) * vis);
     }
     ctx.globalCompositeOperation = 'source-over';
   }

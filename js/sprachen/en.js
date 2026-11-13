@@ -3868,5 +3868,7 @@
 "Warum sind Seite III und IV meiner Tasche gesperrt?": "Why are pages III and IV of my bag locked?",
 "Bei dir sind Seite III und IV schon frei – danke fürs Folgen! Das gilt für alle deine Charaktere.": "Pages III and IV are already unlocked for you – thanks for following! This applies to all your characters.",
 "Seite I und II hat jeder Charakter. Folge uns auf TikTok und Instagram und schalte Seite III und IV frei – für alle deine Charaktere. Die beiden Knöpfe findest du im Rucksack auf Seite III oder IV. Was dort schon liegt, kannst du jederzeit ansehen und herausnehmen.": "Every character has pages I and II. Follow us on TikTok and Instagram to unlock pages III and IV – for all your characters. You'll find both buttons in your backpack on page III or IV. Anything already there can be viewed and taken out at any time.",
-"Bei dir sind alle vier Seiten der Tasche frei.": "All four pages of your bag are unlocked."
+"Bei dir sind alle vier Seiten der Tasche frei.": "All four pages of your bag are unlocked.",
+"Flammenwoge": "Flame Surge",
+"Eine Wand aus Feuer bricht vor dir aus dem Boden und rollt 300 weit nach vorn (zum Ziel, sonst in Blickrichtung). Jeder Gegner auf ihrem Weg wird einmal getroffen, ein Stück mitgerissen und brennt 4 s lang. Hinter der Woge glimmt der Boden kurz nach.": "A wall of fire bursts from the ground in front of you and rolls 300 forward (towards your target, otherwise where you face). Every enemy in its path is hit once, swept along a little and burns for 4 s. The ground smoulders briefly behind the surge."
 };

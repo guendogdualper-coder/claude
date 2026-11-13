@@ -466,12 +466,13 @@ const CLASSES = {
             text: 'Zauberzeit 3 s: Zwischen deinen Händen wächst ein riesiger Feuerball. Danach fliegt er zum Ziel und explodiert – gewaltiger Schaden, das Ziel wird zurückgeschleudert, Gegner bis 115 weit darum bekommen etwas weniger ab, alle brennen 4 s. Bewegst du dich oder zauberst du etwas anderes, bricht er ab (Mana und Abklingzeit zurück).'
           },
           {
-            // seit 11.5 statt Flammenschritt: Brand – Feuerschaden über Zeit auf ein Ziel (wie Gift)
-            // seit 13.85 stärker (Ausgleich für die globale Abklingzeit): dmg 0,4 → 0,6, burn.dps 0,95 → 1,42
-            id: 'brand', name: 'Brand', short: 'BR', kind: 'angriff', unlock: 5, mp: 14, cooldown: 6,
-            type: 'mignite', el: 'feuer', range: 340, dmg: 0.6, burn: { dps: 1.42, duration: 6 },
-            anim: 'zauber', animDur: 0.4, color: '#e8362a',
-            text: 'Du schnippst einen Funken auf einen Gegner: Er fängt Feuer und brennt 6 s lang – jede Sekunde Feuerschaden, zusammen gut das Vierzehnfache des Funkens selbst. Wie Gift, nur heißer.'
+            // seit 14.89 statt Brand (ein kleiner Funke auf ein Ziel, Wunsch: „nur so ein kleiner Ball“): Flammenwoge –
+            // eine Feuerwand rollt nach vorn, trifft jeden Gegner auf dem Weg einmal, reißt ihn mit und setzt ihn in Brand
+            // (flammenwoge.js). Schaden je Gegner etwa wie vorher der Brand auf ein Ziel, dafür auf alle in der Bahn.
+            id: 'flammenwoge', name: 'Flammenwoge', short: 'FW', kind: 'angriff', unlock: 5, mp: 16, cooldown: 7,
+            type: 'mwave', el: 'feuer', length: 300, width: 120, speed: 520, dmg: 2.4, push: 42, burn: { dps: 0.7, duration: 4 },
+            anim: 'stoss', animDur: 0.4, color: '#e8362a',
+            text: 'Eine Wand aus Feuer bricht vor dir aus dem Boden und rollt 300 weit nach vorn (zum Ziel, sonst in Blickrichtung). Jeder Gegner auf ihrem Weg wird einmal getroffen, ein Stück mitgerissen und brennt 4 s lang. Hinter der Woge glimmt der Boden kurz nach.'
           },
           {
             // seit 11.5 statt Glutherz: Phönixflamme – der große Feuer-Burst

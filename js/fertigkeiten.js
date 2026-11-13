@@ -1334,28 +1334,18 @@ function rankCastFx(p, rank, color, soft = false) {
     particles(p.x, fy - 14, { count: 10 + rank * 6, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.8, speed: [60, 140 + rank * 30], life: [0.4, 0.7], size: [1.5, 3], shape: 'spark', drag: 2 });
     return;
   }
-  // Magier (seit 11.5) und Nekromant (seit 11.7): nichts am Boden, nur aufsteigende Funken in der Rangfarbe
-  const mage = p.classId === 'magier' || p.classId === 'nekromant';
-  if (mage) addEffect({ type: 'sparks3', x: p.x, y: fy, h: 0.4, count: 8 + rank * 4, color, speed: 1.6, up: 2.2, dur: 0.6 });
-  else {
-    addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 50 + rank * 14, dur: 0.55, color, width: 6 + rank * 2, grow: true });
-    addEffect({ type: 'runes', follow: p, ox: 0, oy: 0, r: 46 + rank * 10, dur: 0.9, color });
-  }
-  particles(p.x, fy - 14, { count: 14 + rank * 10, color: [color, '#ffffff'], speed: [80, 200 + rank * 40], life: [0.3, 0.6], size: [1.5, 3], shape: 'spark', drag: 4 });
-  if (rank >= 1 && !mage) {
-    addEffect({ type: 'decal', kind: 'rune', x: p.x, y: fy, r: 42 + rank * 8, dur: 1.4, color });
-    addEffect({ type: 'tornado', follow: p, ox: 0, oy: 0, r: 34 + rank * 6, dur: 0.6, color });
-  }
+  // seit 14.89 für alle Klassen wie in 3D: nichts am Boden (vorher Ringe, Runenkreise, Pentagramm, Lichtsäule, Blitz
+  // vom Himmel und ein weißer Strahl bei jeder Attacke ab Heroisch – in der 2D-Durchsicht überdeckte das die Attacke selbst).
+  // Stattdessen steigen Funken in der Rangfarbe auf, je Rang mehr; ab Legendär ein kurzes Leuchten um die Figur.
+  addEffect({ type: 'sparks3', x: p.x, y: fy, h: 0.4, count: 8 + rank * 4, color, speed: 1.6, up: 2.2, dur: 0.6 });
+  particles(p.x, fy - 14, { count: 12 + rank * 8, color: [color, '#ffffff'], angle: -Math.PI / 2, spread: 0.9, speed: [70, 170 + rank * 30], life: [0.35, 0.7], size: [1.5, 3], shape: 'spark', drag: 3 });
   if (rank >= 2) {
-    vfxPillar(p, color, 0.7);
-    if (!mage) addEffect({ type: 'bolt', x: p.x + rand(-30, 30), y: fy + rand(-10, 10), dur: 0.35, color });
-    flashScreen(color, 0.18);
+    addEffect({ type: 'halo', follow: p, dur: 0.5 + rank * 0.1, color });
+    flashScreen(color, 0.12);
   }
   if (rank >= 3) {
-    addEffect({ type: 'ultbeam', x: p.x, y: fy, w: 70, dur: 0.7, color: '#ff6a4a' });
-    if (!mage) later(0.1, () => addEffect({ type: 'ring', x: p.x, y: fy, r: 130, dur: 0.6, color: '#ffd34d', width: 12, grow: true }));
-    particles(p.x, fy, { count: 30, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 260], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
-    shakeScreen(5);
+    particles(p.x, fy, { count: 24, color: ['#ff6a4a', '#ffd34d', '#ffffff'], angle: -Math.PI / 2, spread: 1.2, speed: [120, 240], life: [0.5, 0.9], size: [2, 4], shape: 'ember', drag: 2 });
+    shakeScreen(4);
   }
 }
 
@@ -1408,7 +1398,7 @@ function rankHitFx(m, rank) {
   if (rank >= 3) {
     // seit 14.3 nur noch in 2D: in 3D legte jeder Treffer einen Ring (mit Rang-Runen) auf den Boden – bei Feuertornados
     // und Glutfeld dutzende große rote Bodenringe; rankHit3 zeigt dort Glutwelle und Meteor in der Luft
-    if (!V3.on) addEffect({ type: 'ring', x: m.x, y: feetY(m), r: 60, dur: 0.4, color: '#ff6a4a', width: 8, grow: true });
+    // seit 14.89 auch in 2D kein Ring mehr am Boden (vorher große rote Kreise um jeden getroffenen Gegner)
     particles(c.x, c.y, { count: 14, color: ['#ff6a4a', '#ffd34d'], speed: [80, 200], life: [0.3, 0.6], size: [2, 3.5], shape: 'ember', drag: 3 });
   }
 }
