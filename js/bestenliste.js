@@ -194,7 +194,8 @@ async function rankFetch(tab) {
   if (val && typeof val === 'object') {
     for (const [id, v] of Object.entries(val)) {
       const e = rankClean(id, v);
-      if (e) list.push(e);
+      // seit 14.92: Einträge von vor dem offiziellen Start (neustart.js) nicht mehr zeigen
+      if (e && !(typeof NEUSTART_AT !== 'undefined' && e.at && e.at < NEUSTART_AT)) list.push(e);
     }
   }
   if (tab === 'pvp') list.sort((a, b) => b.rp - a.rp || b.level - a.level || b.xp - a.xp || a.at - b.at);

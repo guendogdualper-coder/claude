@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.91';
+const GAME_VERSION = '14.92';
 
 const game = {
   world: null,
@@ -26,6 +26,8 @@ const game = {
 };
 
 function startGame(save, slot) {
+  // seit 14.92: mit Konto erst ein sicheres Passwort wählen (neustart.js)
+  if (typeof pwPflicht === 'function' && pwPflicht()) { pwDialog(); return; }
   // Platz des Charakters merken (neue Figur: erster freier Platz)
   saveSlot = slot != null ? slot : slotFor(save);
   // mit Konto: dieser Charakter wird jetzt hier gespielt

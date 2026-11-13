@@ -325,8 +325,9 @@ const ui = {
     box.innerHTML = (storeMove ? '<p class="acc-store">Seelenstein wird im Microsoft Store zur eigenen Desktop-App. Lege jetzt ein kostenloses Konto an – nur dann ziehen deine Charaktere mit.</p>' : '') +
       '<p class="acc-hint">Mit Konto liegen deine Charaktere sicher auf dem Server – spiel auf Handy, PC oder Tablet weiter.</p>' +
       '<div class="acc-form"><input id="accName" type="text" maxlength="20" autocomplete="username" spellcheck="false" placeholder="Kontoname">' +
-      '<input id="accPass" type="password" maxlength="64" autocomplete="current-password" placeholder="Passwort (mind. 6 Zeichen)">' +
+      '<input id="accPass" type="password" maxlength="64" autocomplete="current-password" placeholder="Passwort">' +
       '<button type="button" class="btn btn-primary" data-acc="login">Anmelden</button><button type="button" class="btn btn-ghost" data-acc="register">Registrieren</button></div>' +
+      (typeof PW_HINWEIS !== 'undefined' ? `<p class="acc-hint acc-pw">Neues Konto: ${PW_HINWEIS}.</p>` : '') +
       `<p id="accMsg" class="acc-msg"${account.msg && account.state === 'off' ? '' : ' hidden'}>${escapeHtml(account.msg || '')}</p>`;
     box.querySelectorAll('[data-acc]').forEach((b) => b.addEventListener('click', async () => {
       // seit 13.77: beim Registrieren erst die Verhaltensregeln bestätigen (Google Play)

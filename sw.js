@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v319';
+const VERSION = 'seelenstein-v320';
 // Klänge und Musik (snd/, seit 14.8) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
 // sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
 // nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
@@ -131,6 +131,7 @@ const FILES = [
   'js/gemeinschaft.js',
   'js/interaktion.js',
   'js/spielerschutz.js',
+  'js/neustart.js',
   'js/gruppe.js',
   'js/gruppenfinder.js',
   'js/instanzen.js',

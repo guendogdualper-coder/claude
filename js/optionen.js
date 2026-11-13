@@ -188,7 +188,7 @@ const options = {
     } else {
       // seit 14.32: Schadensanzeige (schadensmeter.js) unter „Oberfläche“ – sie gehört nicht zur Grafik
       pane = `<section class="opt-group"><h3>Oberfläche</h3>` +
-        sw('dmeter', 'Schadensanzeige (Damage-Meter)', 'Kleines Fenster mit Schaden, DPS und Anteil für dich und deine Gruppe – getrennt nach aktuellem Kampf und ganzem Dungeon. Am Kopf verschiebbar, mit dem Pfeil einklappbar. Zählt nur Schaden an Monstern, den der Kanal bestätigt hat.') +
+        sw('dmeter', 'Schadensanzeige (Damage-Meter)', 'Kleines Fenster mit Schaden, DPS und Anteil für dich und deine Gruppe – mit den Ansichten Kampf, Dungeon/Gebiet, Gesamt (läuft weiter, bis du sie zurücksetzt) und Bosse (jeder Boss und Seelenstein einzeln). Wird gespeichert; über das Zahnrad einstellen und zurücksetzen. Am Kopf verschiebbar, mit dem Pfeil einklappbar. Zählt nur Schaden an Monstern, den der Kanal bestätigt hat.') +
         `</section>` + `<section class="opt-group"><div class="opt-btns">` +
         `<button type="button" class="btn btn-ghost" data-go="hud">🧩 HUD anpassen</button>` +
         `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +

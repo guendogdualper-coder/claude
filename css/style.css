@@ -3293,6 +3293,15 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .ss-field input, .ss-field textarea { padding: 7px 9px; border-radius: 8px; border: 1px solid rgba(201, 163, 90, 0.4); background: rgba(0, 0, 0, 0.35); color: #f3e2b0; font: inherit; font-size: 15px; resize: vertical; }
 .ss-msg { color: #ffb48a; font-size: 13px; }
 .ss-msg.ok { color: #f0d79a; }
+/* seit 14.92: neues Passwort (neustart.js) */
+.pw-regeln { list-style: none; padding-left: 4px; }
+.pw-regeln li::before { content: '✗ '; color: #e07a6a; font-weight: 700; }
+.pw-regeln li.ok { color: #cfe8b0; }
+.pw-regeln li.ok::before { content: '✓ '; color: #7ed07a; }
+.pw-bar { height: 5px; margin: -2px 0 8px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.pw-bar i { display: block; height: 100%; width: 0; transition: width 0.2s, background 0.2s; }
+.ss-msg.err { color: #ff9a8a; }
+.acc-pw { font-size: 11.5px; opacity: 0.85; }
 .ss-blocklist { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 6px; }
 .ss-blocklist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 4px 4px 10px; border-radius: 8px; background: rgba(0, 0, 0, 0.25); font-weight: 700; }
 .ss-blocklist .btn { padding: 6px 10px; font-size: 13px; }
@@ -3575,6 +3584,23 @@ body.skv-open .hover-tip { display: none !important; }
 .dm-foot { display: block; margin-top: 3px; color: var(--muted); font-size: 10.5px; }
 .dm-sub .dm-reset { padding: 0 6px; border: 1px solid rgba(201, 163, 90, 0.4); border-radius: 6px; background: rgba(0, 0, 0, 0.25); color: #d8c8a4; font: inherit; font-size: 10.5px; cursor: pointer; }
 .dm-sub > span { display: flex; gap: 6px; align-items: center; }
+/* seit 14.92: Zahnrad, Einstellungen, Boss-Auswahl */
+.dm-gear { width: 24px; height: 22px; padding: 0; border: 1px solid rgba(201, 163, 90, 0.35); border-radius: 6px; background: rgba(0, 0, 0, 0.25); color: #d8c8a4; font-size: 13px; line-height: 1; cursor: pointer; }
+.dm-gear.on { color: #1a120a; background: linear-gradient(#f3d891, #c9a35a); }
+.dm-tabs button { flex: 1; min-width: 0; }
+.dm-cfg { display: grid; gap: 6px; padding: 2px 0 2px; font-size: 11.5px; }
+.dm-cfg b { color: #ffe08a; font-weight: 600; }
+.dm-opt { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.dm-opt input { accent-color: #c9a35a; }
+.dm-seg { display: inline-flex; gap: 3px; }
+.dm-seg button, .dm-btns button, .dm-bosses button { padding: 2px 7px; border: 1px solid rgba(201, 163, 90, 0.4); border-radius: 6px; background: rgba(0, 0, 0, 0.25); color: #d8c8a4; font: inherit; font-size: 11px; cursor: pointer; }
+.dm-seg button.on, .dm-bosses button.on { color: #1a120a; border-color: #f0d08a; background: linear-gradient(#f3d891, #c9a35a); }
+.dm-btns { display: flex; flex-wrap: wrap; gap: 4px; }
+.dm-btns .dm-all { border-color: rgba(230, 110, 90, 0.6); color: #ffb4a0; }
+.dm-hint { margin: 0; color: var(--muted); font-size: 10.5px; line-height: 1.35; }
+.dm-bosses { display: flex; gap: 3px; overflow-x: auto; margin: 2px 0 3px; scrollbar-width: none; }
+.dm-bosses button { flex: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dm-bosses button.live { box-shadow: 0 0 0 1px rgba(255, 120, 80, 0.7); }
 @media (pointer: coarse) {
   /* Handy: neben den Gruppenrahmen oben links, weg von Stick, Leiste und Angriffsknopf */
   .dmeter { left: 150px; top: 64px; bottom: auto; width: 208px; font-size: 10.5px; }

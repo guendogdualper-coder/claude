@@ -105,7 +105,8 @@ async function cloudGet() {
   const d = await r.json();
   if (!d || !d.slots) return null;
   const st = { slots: [], claims: [], last: d.last != null ? d.last : null, blockiert: typeof d.blockiert === 'string' ? d.blockiert : null,
-    sozial: typeof d.sozial === 'string' ? d.sozial : null }; // seit 14.84: Seite III/IV der Tasche (sozial-freischalten.js)
+    sozial: typeof d.sozial === 'string' ? d.sozial : null, // seit 14.84: Seite III/IV der Tasche (sozial-freischalten.js)
+    launch: d.launch || null, pwNeu: d.pwNeu || null }; // seit 14.92: Neustart zum offiziellen Start, neues Passwort (neustart.js)
   const claims = d.claims || {};
   for (let k = 0; k < MAX_CHARS; k++) {
     const raw = d.slots[k] != null ? d.slots[k] : d.slots[String(k)];
@@ -123,7 +124,8 @@ async function cloudPut(st, keepalive) {
     method: 'PUT', keepalive: !!keepalive, headers: { 'Content-Type': 'application/json' },
     // seit 13.77: Blockierliste (spielerschutz.js) liegt mit im Konto, damit sie auf jedem Gerät gilt
     body: JSON.stringify({ v: 1, at: Date.now(), last: st.last, slots, claims, blockiert: typeof blockForCloud === 'function' ? blockForCloud() : undefined,
-      sozial: typeof sozialForCloud === 'function' ? sozialForCloud() : undefined })
+      sozial: typeof sozialForCloud === 'function' ? sozialForCloud() : undefined,
+      launch: typeof NEUSTART_ID !== 'undefined' ? NEUSTART_ID : undefined, pwNeu: account.pwNeu || undefined })
   });
   if (!r.ok) throw new Error('Speichern fehlgeschlagen (' + r.status + ')');
 }
@@ -206,8 +208,17 @@ async function cloudExchange(keepalive) {
   // seit 13.77: während das Konto gelöscht wird, nichts mehr hochladen (sonst entstünde es gleich wieder)
   if (account.deleting) throw new Error('Das Konto wird gerade gelöscht.');
   let local = readSlots();
-  const remote = await cloudGet();
+  let remote = await cloudGet();
   if (account.deleting) throw new Error('Das Konto wird gerade gelöscht.');
+  // seit 14.92: offizieller Start (neustart.js) – ein Konto von vorher beginnt einmal ganz neu (Konto bleibt)
+  if (remote && typeof NEUSTART_ID !== 'undefined' && remote.launch !== NEUSTART_ID) {
+    await neustartKonto(account.uid, await accountToken());
+    remote = { slots: remote.slots.map(() => null), claims: [], last: null, blockiert: remote.blockiert, sozial: null, launch: NEUSTART_ID, pwNeu: remote.pwNeu };
+    local = Object.assign(readSlots(), { synced: [], owner: account.uid });
+  }
+  // seit 14.92: Stand des Passworts (neues, sicheres Passwort schon gesetzt?)
+  if (remote) account.pwNeu = remote.pwNeu || account.pwNeu || null;
+  account.pwGeprueft = true;
   // seit 13.77: neuere Blockierliste aus dem Konto übernehmen
   if (remote && typeof blockFromCloud === 'function') blockFromCloud(remote.blockiert);
   // seit 14.84: Seite III/IV freigeschaltet – gilt für alle Charaktere des Kontos (sozial-freischalten.js)
@@ -309,14 +320,22 @@ async function accountLogin(kind, name, pass) {
   name = (name || '').trim();
   if (!ACCOUNT_NAME.test(name)) throw new Error('Der Kontoname braucht 3 bis 20 Zeichen: Buchstaben, Zahlen, - oder _.');
   if ((pass || '').length < 6) throw new Error('Das Passwort braucht mindestens 6 Zeichen.');
+  // seit 14.92: neue Konten nur mit sicherem Passwort (neustart.js); bestehende melden sich noch mit dem alten an
+  // und müssen dann ein neues wählen
+  if (kind === 'register' && typeof pwFehler === 'function' && pwFehler(pass)) throw new Error(pwFehler(pass));
   // seit 13.80: neue Kontonamen ohne Beleidigungen (spielerschutz.js); bestehende Konten können sich weiter anmelden
   if (kind === 'register' && typeof nameAnstoessig === 'function' && nameAnstoessig(name)) throw new Error(NAME_ABGELEHNT);
   await accountAuth(kind === 'register' ? 'signUp' : 'signInWithPassword', name, pass);
+  account.pwNeu = kind === 'register' && typeof NEUSTART_ID !== 'undefined' ? NEUSTART_ID : null;
+  account.pwGeprueft = false;
   await accountSync();
+  if (typeof pwPflicht === 'function' && pwPflicht()) pwDialog(pass);
 }
 
 function accountClear() {
   account.name = account.uid = account.idToken = account.refreshToken = null;
+  account.pwNeu = null;
+  account.pwGeprueft = false;
   account.expires = 0;
   accountStore();
 }
@@ -375,7 +394,8 @@ function accountInit() {
       account.name = s.name;
       account.uid = s.uid;
       account.refreshToken = s.refreshToken;
-      accountSync();
+      // seit 14.92: noch kein sicheres Passwort gewählt → erst das, dann spielen
+      accountSync().then(() => { if (typeof pwPflicht === 'function' && pwPflicht()) pwDialog(); });
     }
   } catch { /* nichts gespeichert */ }
   // App geht in den Hintergrund: sofort hochladen. Kommt sie zurück: nachsehen, ob woanders weitergespielt wurde
