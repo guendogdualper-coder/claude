@@ -252,6 +252,23 @@ void main() {
     float d = edge - y + (n - 0.5) * 0.28;
     al = smoothstep(0.0, 0.12, d) * smoothstep(1.0, 0.86, x + (n - 0.5) * 0.1);
     h = (1.0 - y / max(0.3, edge)) * 0.75 + (1.0 - x) * 0.3 + (n - 0.5) * 0.45;
+  } else if (uKind > 2.5) {
+    // Schmuckfeder (seit 14.90): dünner Kiel, am Ende ein leuchtendes Federauge (x Ansatz→Ende, y quer)
+    float c = abs(y - 0.5) * 2.0;
+    float shaft = smoothstep(0.3, 0.0, c) * smoothstep(0.86, 0.7, x);
+    vec2 ey = vec2((x - 0.86) * 3.2, c);
+    float eye = 1.0 - smoothstep(0.5, 0.95, length(ey) + (n - 0.5) * 0.25);
+    float d = max(shaft * 0.85 + (n - 0.5) * 0.3, eye);
+    al = smoothstep(0.12, 0.38, d) * smoothstep(0.0, 0.04, x) * smoothstep(1.0, 0.97, x);
+    h = eye * (1.05 - length(ey) * 0.75) + shaft * 0.55 * (1.0 - x * 0.4) + (n - 0.5) * 0.3;
+  } else if (uKind > 1.5) {
+    // Feder (seit 14.90): lanzettförmig mit hellem Kiel und gezackten Ästen (x Ansatz→Spitze, y quer)
+    float c = abs(y - 0.5) * 2.0;
+    float prof = pow(sin(3.14159 * clamp(x * 0.92 + 0.06, 0.0, 1.0)), 0.55) * (1.0 - 0.2 * x);
+    float barb = 0.09 * sin(x * 38.0 + c * 7.0 + uSeed);
+    float d = prof - c + barb + (n - 0.5) * 0.22;
+    al = smoothstep(0.0, 0.14, d) * smoothstep(0.0, 0.05, x);
+    h = (1.0 - c) * 0.62 + (1.0 - x) * 0.32 + (n - 0.5) * 0.35 + 0.18 * (1.0 - smoothstep(0.0, 0.1, c));
   } else {
     // Schweif (x Körper→Ende, y quer): drei wehende Flammenbänder, nach hinten schmaler
     float s = abs(sin(y * 9.4248 + sin(x * 4.0 - uT * 5.0 + uSeed) * 0.7));
@@ -986,9 +1003,13 @@ const _phD = new THREE.Vector3();
 const _phP = new THREE.Vector3();
 const _phQ = new THREE.Vector3();
 // Flügel: Ansatz (rx,ry,rz), Seite s (±1), Spannweite span, Schlagwinkel je Stelle ang(x), Tiefe chord
+// Knochenlinie des zuletzt gebauten Flügels (seit 14.90, für die Schwungfedern)
+const PHX_BONE = Array.from({ length: FLM3_SX + 1 }, () => new THREE.Vector3());
+const PHX_BDIR = Array.from({ length: FLM3_SX + 1 }, () => new THREE.Vector3());
 function phxWing(h, rx, ry, rz, s, span, chord, t, flapT, amp, base, sweep, op, seed) {
   const o = flmSheet(h, 0, op, seed, t, 1.05);
   _phP.set(rx, ry, rz);
+  _phD.copy(_phS).multiplyScalar(s);
   const seg = span / FLM3_SX;
   for (let i = 0; i <= FLM3_SX; i++) {
     const x = i / FLM3_SX;
@@ -998,6 +1019,8 @@ function phxWing(h, rx, ry, rz, s, span, chord, t, flapT, amp, base, sweep, op, 
       _phD.copy(_phS).multiplyScalar(s * Math.cos(ang)).addScaledVector(_phU, Math.sin(ang)).addScaledVector(_phB, sweep * (0.15 + 0.7 * x)).normalize();
       _phP.addScaledVector(_phD, seg);
     }
+    PHX_BONE[i].copy(_phP);
+    PHX_BDIR[i].copy(_phD);
     const c = chord * (1 - 0.5 * x) + 0.12;
     for (let j = 0; j <= FLM3_SY; j++) {
       const y = j / FLM3_SY;
@@ -1009,6 +1032,40 @@ function phxWing(h, rx, ry, rz, s, span, chord, t, flapT, amp, base, sweep, op, 
   }
   flmDone(o);
   return o;
+}
+// Feder (seit 14.90): Ansatz P, Richtung dir, Breite entlang side, Biegung um up (curl), Wehen sway; kind 2 = Feder,
+// 3 = Schmuckfeder mit Federauge
+const _phT = new THREE.Vector3();
+const _phV = new THREE.Vector3();
+const _phW = new THREE.Vector3();
+function phxFeather(h, P, dir, side, up, len, w, curl, op, seed, t, kind, sway = 0) {
+  const o = flmSheet(h, kind, op, seed, t, 1.1);
+  for (let i = 0; i <= FLM3_SX; i++) {
+    const x = i / FLM3_SX;
+    const bend = curl * x * x * len;
+    const sw = sway * Math.sin(t * 6 - x * 3 + seed) * x * len;
+    const cx = P.x + dir.x * len * x + up.x * bend + side.x * sw;
+    const cy = P.y + dir.y * len * x + up.y * bend + side.y * sw;
+    const cz = P.z + dir.z * len * x + up.z * bend + side.z * sw;
+    for (let j = 0; j <= FLM3_SY; j++) {
+      const q = (j / FLM3_SY - 0.5) * 2 * w;
+      flmPut(o, i, j, cx + side.x * q, cy + side.y * q, cz + side.z * q);
+    }
+  }
+  flmDone(o);
+  return o;
+}
+// Schwungfedern am äußeren Flügel: aus der Knochenlinie (PHX_BONE) gefächert, außen lang und gerade, innen kürzer
+// und nach hinten gelegt
+function phxPrimaries(h, n, len, w, op, seed, t) {
+  for (let k = 0; k < n; k++) {
+    const f = n > 1 ? k / (n - 1) : 1;
+    const i = Math.round(FLM3_SX * (0.45 + 0.55 * f));
+    const a = 0.12 + 0.95 * (1 - f);
+    _phT.copy(PHX_BDIR[i]).multiplyScalar(Math.cos(a)).addScaledVector(_phB, Math.sin(a)).normalize();
+    _phV.crossVectors(_phU, _phT).normalize();
+    phxFeather(h, PHX_BONE[i], _phT, _phV, _phU, len * (0.72 + 0.4 * f), w, -0.08, op, seed + k * 1.7, t, 2);
+  }
 }
 // Schweif: vom Rücken nach hinten, fächert auf und weht
 function phxTail(h, x, y, z, len, t, op, seed) {
@@ -1054,29 +1111,45 @@ FX3_DRAW.mphoenix3 = function (h, e) {
     _phB.copy(_phF).negate();
     _phU.crossVectors(_phS, _phF).normalize();
     const grow = clamp01(t / 0.16);
-    const span = 2.5 * grow;
-    // Flügelschlag: kräftig nach unten, beim Sturz angelegt
-    const flapT = t * 10.5;
-    const amp = dive ? 0.3 : 0.48;
-    const base = dive ? -0.15 : -0.06;
+    // seit 14.90 ein echter Feuervogel: breite Flügel mit gefächerten Schwungfedern, langer Hals, Kopf mit Schnabel,
+    // Auge und drei Kammfedern, fünf lange Schmuckfedern mit Federaugen im Schweif (vorher flache Flammenstreifen)
+    const span = 2.2 * grow;
+    const flapT = t * 9.5;
+    const amp = dive ? 0.3 : 0.55;
+    const base = dive ? -0.15 : -0.02;
+    const nP = low ? 3 : 6;
     for (const s of [-1, 1]) {
-      phxWing(h, x + _phS.x * s * 0.16, y + 0.05, z + _phS.z * s * 0.16, s, span, 0.95 * grow, t, flapT, amp, base, 0.45 + dive * 0.4, 1, s * 3.1);
+      phxWing(h, x + _phS.x * s * 0.2, y + 0.06, z + _phS.z * s * 0.2, s, span, 0.85 * grow, t, flapT, amp, base, 0.35 + dive * 0.45, 1, s * 3.1);
+      phxPrimaries(h, nP, 1.25 * grow, 0.17 * grow, 1, s * 5.3, t);
     }
-    phxTail(h, x, y, z, 1.9 * grow, t, 0.95, 7.7);
-    // Leib (brodelnd, nach hinten gezogen), Kopf mit Schnabel und Kamm
-    flmBall(h, x, y, z, 0.32 * grow, 0.3 * grow, 0.6 * grow, 1, 2.1, t, 1.12, 0, 0.5, _phF, 0.3, 3);
-    const hx = x + _phF.x * 0.62 + _phU.x * 0.16;
-    const hy = y + _phF.y * 0.62 + _phU.y * 0.16;
-    const hz = z + _phF.z * 0.62 + _phU.z * 0.16;
-    flmBall(h, hx, hy, hz, 0.2 * grow, 0.2 * grow, 0.24 * grow, 1, 5.3, t, 1.4, 0, 0.3, _phF, 0.2, 3);
-    _phD.set(hx + _phF.x * 0.16, hy + _phF.y * 0.16, hz + _phF.z * 0.16);
+    // Schweif: breites Flammenband und Schmuckfedern, die fächern und wehen
+    phxTail(h, x, y, z, 1.4 * grow, t, 0.85, 7.7);
+    const nT = low ? 3 : 5;
+    for (let k = 0; k < nT; k++) {
+      const f = nT > 1 ? k / (nT - 1) - 0.5 : 0;
+      _phT.copy(_phB).addScaledVector(_phS, f * 0.75).addScaledVector(_phU, -0.12 - Math.abs(f) * 0.1).normalize();
+      _phV.crossVectors(_phU, _phT).normalize();
+      _phW.set(x + _phB.x * 0.45, y - 0.02, z + _phB.z * 0.45);
+      phxFeather(h, _phW, _phT, _phV, _phU, (2.7 - Math.abs(f) * 1.1) * grow, 0.24 * grow, 0.18 * (k % 2 ? 1 : -1), 0.95, 11 + k * 2.3, t, 3, 0.1);
+    }
+    // Leib (brodelnd, nach hinten gezogen), Hals, Kopf
+    flmBall(h, x, y, z, 0.36 * grow, 0.34 * grow, 0.68 * grow, 1, 2.1, t, 1.15, 0, 0.45, _phF, 0.25, 3);
+    flmBall(h, x + _phF.x * 0.45 + _phU.x * 0.14, y + _phF.y * 0.45 + _phU.y * 0.14, z + _phF.z * 0.45 + _phU.z * 0.14, 0.17 * grow, 0.2 * grow, 0.3 * grow, 1, 4.1, t, 1.3, 0, 0.2, _phF, 0.2, 3);
+    const hx = x + _phF.x * 0.78 + _phU.x * 0.32;
+    const hy = y + _phF.y * 0.78 + _phU.y * 0.32;
+    const hz = z + _phF.z * 0.78 + _phU.z * 0.32;
+    flmBall(h, hx, hy, hz, 0.19 * grow, 0.19 * grow, 0.25 * grow, 1, 5.3, t, 1.5, 0, 0.2, _phF, 0.15, 3);
+    _phD.set(hx + _phF.x * 0.18, hy + _phF.y * 0.18 - 0.03, hz + _phF.z * 0.18);
     const beak = fx3Take(h, 'coneG');
-    fx3Cone(beak, _phD, _phF, 0.22 * grow, 0.06);
+    fx3Cone(beak, _phD, _phF, 0.26 * grow, 0.06);
     fx3Color(beak, '#fff3c0', 1);
+    for (const s of [-1, 1]) n3Glow(h, hx + _phF.x * 0.08 + _phS.x * s * 0.12, hy + 0.05, hz + _phF.z * 0.08 + _phS.z * s * 0.12, 0.14 * grow, '#ffffff', 0.95);
+    // drei Kammfedern, nach hinten oben geschwungen
     for (let k = 0; k < 3; k++) {
-      const kx = hx - _phF.x * (0.06 + 0.1 * k);
-      const kz = hz - _phF.z * (0.06 + 0.1 * k);
-      fire3(h, kx, hy + 0.08, kz, 0.16, 0.36 - k * 0.06, t + k * 0.3, 30 + k, 0.95, Math.atan2(fz, fx) * 0.2 - 0.3);
+      _phT.copy(_phB).multiplyScalar(0.75).addScaledVector(_phU, 0.65).addScaledVector(_phS, (k - 1) * 0.3).normalize();
+      _phV.crossVectors(_phU, _phT).normalize();
+      _phW.set(hx + _phU.x * 0.12, hy + 0.14, hz + _phU.z * 0.12);
+      phxFeather(h, _phW, _phT, _phV, _phU, (0.66 + (k === 1 ? 0.2 : 0)) * grow, 0.13 * grow, 0.3, 1, 21 + k, t, 2, 0.05);
     }
     n3Glow(h, x, y, z, 3.2 * grow, FIRE3.main, 0.28);
     fireLight3(x, y, z, 2, 9);
@@ -1114,6 +1187,7 @@ FX3_DRAW.mphoenix3 = function (h, e) {
     _phB.set(0, -1, 0);
     for (const s of [-1, 1]) {
       phxWing(h, x1 + _phS.x * s * 0.2, y, z1 + _phS.z * s * 0.2, s, 2.3 + v * 1.6, 1.0, t, 1.2 + v * 2, 0.15, 0.95 - v * 0.3, 0.2, k, s * 3.1);
+      phxPrimaries(h, low ? 3 : 5, 1.3 + v * 0.6, 0.2, k, s * 5.3, t);
     }
     flmBall(h, x1, y + 0.2, z1, 0.4 * k + 0.1, 0.7 * k + 0.1, 0.4 * k + 0.1, k, 2.1, t, 1.4, v * 0.6, 0, null, 0.3, 3);
     flmFunnel(h, x1, 0, z1, 3.4 * (1 - v * 0.4), 0.7, 0.25, k, 4.4, FLM_PILLAR, t);
