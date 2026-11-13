@@ -38,8 +38,9 @@ const ULTIMATES = {
     // seit 13.67 düster: ein Schattenfalke, schwarzvioletter Pfeilsturm; braucht 6 Pfeile
     // seit 14.93 ein schwarzer Schattenadler statt des Falken (Name und Bild); Kennung bleibt
     id: 'himmelsfalke', name: 'Sturm des Schattenadlers', short: 'SA', color: '#8a5ae0',
-    text: 'Ein riesiger schwarzer Adler mit dunkler Aura stößt vom Himmel auf dein Ziel herab und schlägt mit einer Druckwelle aus dunkler Magie ein, die alle Gegner ringsum betäubt. Danach peitscht ein Sturm aus Schattenpfeilen über die Stelle. Verbraucht 6 Pfeile.',
-    stats: 'Sturzflug 4,5× Angriff im Umkreis, Betäubung 2 s; Pfeilsturm 12 Pfeile je 0,9×'
+    // seit 14.94: 1 s spannen, dann fliegt der leuchtende Adler als Pfeil aufs Ziel (kein Pfeilsturm mehr)
+    text: 'Du spannst den Bogen eine Sekunde lang, Schattenenergie sammelt sich und formt einen schwarzen Adler auf der Sehne. Dann schießt er als leuchtender Pfeil auf dein Ziel und schlägt mit einer Druckwelle aus dunkler Magie ein, die alle Gegner ringsum betäubt. Verbraucht 3 Pfeile.',
+    stats: '1 s Spannen, Einschlag 7× Angriff im Umkreis, Betäubung 1,5 s'
   },
   // seit 12.7: Kreis der Elemente statt Strom der Elemente (Ablauf in elementkreis.js)
   drache: {

@@ -762,64 +762,99 @@ if (typeof SKILL_POSE3 !== 'undefined' && typeof poseKeys3 === 'function') {
 }
 
 // --- Ultimative Attacke: Sturm des Schattenadlers ---------------------------------------------------------
+// seit 14.94: eine Sekunde den Bogen spannen (die Schattenenergie sammelt sich, der Adler formt sich auf der Sehne),
+// dann fliegt der leuchtende Schattenadler als Pfeil schnell aufs Ziel und schlägt dort ein: Schaden im kleinen
+// Umkreis und Betäubung. Kein Pfeilsturm mehr danach (war zu stark). Verbraucht 3 Pfeile.
+const ULT_EAGLE = { charge: 1.0, speed: 1100, R: 130, mul: 7, stun: 1.5, arrows: 3, h: 1.15 };
+const ULT_EAGLE_POSE = 'adlerzug';
+// Zug-Pose: langsam voll ausziehen, halten, bei 77 % loslassen (Dauer so, dass das genau nach ULT_EAGLE.charge ist)
+const ULT_EAGLE_DUR = ULT_EAGLE.charge / 0.77;
+(function () {
+  if (typeof BOW_DRAW3 !== 'undefined') BOW_DRAW3[ULT_EAGLE_POSE] = { w: [0.04, 0.5, 0.77], up: 0.05 };
+  const hold = { rx: -1.75, wx: 1.5, lx: -1.85, lz: -1.05, cx: -0.05, cy: 0.08, gr: 0.16, hpy: -0.035 };
+  BOW_POSE[ULT_EAGLE_POSE] = [[0, N3], [0.12, hold, 'out'], [0.76, { ...hold, cx: -0.09, hx: -0.04 }],
+    [0.8, { ...hold, hx: -0.14, hpz: -0.05, cx: 0.06 }, 'out'], [0.9, hold], [1, N3]];
+  if (typeof SKILL_POSE3 !== 'undefined' && typeof poseKeys3 === 'function') {
+    SKILL_POSE3[ULT_EAGLE_POSE] = (B, sw) => poseKeys3(B, BOW_POSE[ULT_EAGLE_POSE], sw);
+  }
+})();
 ULT_RUN.himmelsfalke = function (p, u, pw) {
-  // seit 13.67: sechs Pfeile nötig (ohne kein Sturm, keine Abklingzeit); Reichweite 560 statt 380 wie alle Bogenschüsse
-  if (!bowCanShoot(p, 6)) return false;
+  if (!bowCanShoot(p, ULT_EAGLE.arrows)) return false;
   const t = pickTarget(680);
-  const tx = t ? t.x : p.x + p.facing.x * 220;
-  const ty = t ? t.y : p.y + p.facing.y * 220;
+  let tx = t ? t.x : p.x + p.facing.x * 300;
+  let ty = t ? t.y : p.y + p.facing.y * 300;
   faceTowards(tx, ty);
-  const ar = bowArrowShot(p, 6);
+  const ar = bowArrowShot(p, ULT_EAGLE.arrows);
   if (!ar) return false;
   pw *= ar.mul;
   p.ultAt = { x: tx, y: ty };
-  const seed = Math.floor(Math.random() * 1000);
-  ultFalconFx(p.x, p.y, tx, ty, seed, u.color);
-  later(0.05, () => { if (typeof snd !== 'undefined') snd.shot(p, { style: 'arrow' }); });
-  // Sturzflug
-  later(ULT_FALCON.dive, () => {
-    if (p.dead) return;
-    shakeScreen(11);
-    flashScreen('#1a0830', 0.3);
-    hitStop(0.1);
-    ultHitCircle(tx, ty, ULT_FALCON.R, 4.5 * pw, { stun: 2, knockback: 110, vfxColor: '#b48cff' });
-  });
-  // Pfeilsturm: zwölf Pfeile auf zufällige Stellen im Kreis (gleiche Stellen wie im Bild)
-  for (const s of ultStormShots(seed, tx, ty)) {
-    later(s.at + 0.2, () => {
+  // stehen bleiben und spannen; useUltimate setzt danach seine eigene Pose – unsere kommt ein Bild später
+  lockPlayer(p, ULT_EAGLE.charge + 0.12);
+  later(0, () => { if (!p.dead) startSwing(p, ULT_EAGLE_POSE, ULT_EAGLE_DUR); });
+  const e = ultEagleFx(p, tx, ty);
+  if (typeof snd !== 'undefined') snd.player('imp_schatten', { x: p.x, y: p.y, vol: 0.25, rate: 0.6 });
+  later(ULT_EAGLE.charge, () => {
+    if (p.dead) { e.cancel = true; return; }
+    // das Ziel kann sich während des Spannens bewegt haben
+    if (t && !t.dead) { tx = t.x; ty = t.y; }
+    faceTowards(tx, ty);
+    const fly = ultEagleRelease(e, p, tx, ty);
+    bowShotFx(p, '#b48cff');
+    shakeScreen(3);
+    later(fly, () => {
+      if (typeof snd !== 'undefined') snd.player('imp_schatten', { x: tx, y: ty, vol: 0.6, rate: 0.75 });
+      shakeScreen(9);
+      flashScreen('#1a0830', 0.25);
+      hitStop(0.08);
+      particles(tx, ty - 8, { count: 22, color: ['#1a0e28', '#5a2aa8', '#8a5ae0', '#e0ccff'], speed: [90, 300], life: [0.3, 0.7], size: [1.5, 3.4], shape: 'spark', drag: 3 });
       if (p.dead) return;
-      shakeScreen(1.2);
-      for (const m of enemiesInCircle(s.x, s.y, 60)) hitMonster(m, 0.9 * pw, { heavy: false, vfxColor: '#b48cff' });
+      ultHitCircle(tx, ty, ULT_EAGLE.R, ULT_EAGLE.mul * pw, { stun: ULT_EAGLE.stun, knockback: 110, vfxColor: '#b48cff' });
     });
-  }
+  });
 };
-const ULT_FALCON = { dive: 0.95, R: 150, storm0: 1.25, stormEvery: 0.11, n: 12 };
-function ultStormShots(seed, x, y) {
-  const out = [];
-  for (let i = 0; i < ULT_FALCON.n; i++) {
-    const a = n2h(seed + i, 11) * Math.PI * 2;
-    const d = Math.sqrt(n2h(seed + i, 12)) * ULT_FALCON.R * 0.85;
-    out.push({ at: ULT_FALCON.storm0 + i * ULT_FALCON.stormEvery, x: x + Math.cos(a) * d, y: y + Math.sin(a) * d * 0.8 });
-  }
-  return out;
+// Bild für alle: shooter = Figur (eigene oder Mitspieler); bis zum Loslassen folgt der Bogen der Figur
+function ultEagleFx(shooter, tx, ty) {
+  const fly0 = Math.max(0.15, Math.hypot(tx - shooter.x, ty - shooter.y) / ULT_EAGLE.speed);
+  return addEffect({ type: 'beagle3', x: tx, y: ty, shooter, charge: ULT_EAGLE.charge, fly: fly0, color: '#8a5ae0',
+    dur: ULT_EAGLE.charge + fly0 + 2 });
 }
-function ultFalconFx(ox, oy, x, y, seed, color) {
-  const shots = ultStormShots(seed, x, y);
-  addEffect({ type: 'bult3', x, y: y + 9, ox, oy: oy + 9, seed, shots, color: color || '#8a5ae0', dur: ULT_FALCON.storm0 + ULT_FALCON.n * ULT_FALCON.stormEvery + 1.4 });
+// Loslassen: Startpunkt festhalten, Ziel nachführen, Flugzeit zurückgeben
+function ultEagleRelease(e, shooter, tx, ty) {
+  e.sx = shooter.x;
+  e.sy = shooter.y;
+  e.shooter = null;
+  e.x = tx;
+  e.y = ty;
+  e.fly = Math.max(0.15, Math.hypot(tx - e.sx, ty - e.sy) / ULT_EAGLE.speed);
+  e.dur = e.charge + e.fly + 2;
+  return e.fly;
 }
-// Mitspieler: dasselbe Schauspiel an der gemeldeten Stelle (der Falke kommt von der nächsten Figur)
+// Mitspieler: dasselbe Schauspiel von der nächsten Figur aus, ohne Schaden
 ULT_SHOW.himmelsfalke = (x, y) => {
-  let ox = x;
-  let oy = y + 160;
+  let src = null;
   if (typeof net !== 'undefined' && net.players) {
     let best = Infinity;
     for (const rp of net.players.values()) {
       const d = Math.hypot(rp.x - x, rp.y - y);
-      if (d < best && d < 500) { best = d; ox = rp.x; oy = rp.y; }
+      if (d < best && d < 800) { best = d; src = rp; }
     }
   }
-  ultFalconFx(ox, oy, x, y, Math.floor(Math.random() * 1000), '#8a5ae0');
+  if (!src) src = { x, y: y + 200 };
+  const e = ultEagleFx(src, x, y);
+  later(ULT_EAGLE.charge, () => {
+    const fly = ultEagleRelease(e, src, x, y);
+    later(fly, () => { if (typeof snd !== 'undefined') snd.player('imp_schatten', { x, y, vol: 0.4, rate: 0.75 }); });
+  });
 };
+// Bogenpunkt (Welt) und Richtung zum Ziel: vor der Figur auf Bogenhöhe
+function ultEagleBow(e) {
+  const sx = e.shooter ? e.shooter.x : e.sx;
+  const sy = e.shooter ? e.shooter.y : e.sy;
+  const dx = e.x - sx;
+  const dy = e.y - sy;
+  const L = Math.hypot(dx, dy) || 1;
+  return { x: sx + dx / L * 16, y: sy + dy / L * 10, fx: dx / L, fy: dy / L, L };
+}
 
 // --- 3D: Bausteine -------------------------------------------------------------------------------------
 const _bw3a = new THREE.Vector3();
@@ -1241,6 +1276,13 @@ function eagle3Build() {
   }
   // Schwanzfächer
   const tail = add(o, G.eagleTail, M.wing, [-0.32, 0.01, 0], [1, 1, 1]);
+  for (let i = 0; i < 7; i++) {
+    const f = add(tail, G.eagleFeather, i % 2 ? M.tip : M.wing, [0, 0.004 + Math.abs(i - 3) * 0.002, 0], [1.3, 1, 0.42], [0, -Math.PI / 2 + (i - 3) * 0.13, 0]);
+    f.renderOrder = 5;
+  }
+  // Nackenfedern (gesträubt) und befiederte Hosen
+  for (let i = 0; i < 5; i++) add(o, G.eagleBeak, M.head, [0.36 - i * 0.025, 0.1 - Math.abs(i - 2) * 0.008, (i - 2) * 0.035], [0.025, 0.12, 0.02], [0, 0, Math.PI / 2 - 0.5]);
+  for (const s of [-1, 1]) add(o, G.eagleBody, M.body, [0.02, -0.11, s * 0.07], [0.09, 0.07, 0.06]);
   // Flügel: Seite (gespiegelt) → Schulter (Schlag, Rückfaltung) → Ellbogen (Hand nachziehen) → Schwungfedern
   const wings = [];
   const tips = [];
@@ -1254,6 +1296,12 @@ function eagle3Build() {
     add(sh, G.eagleArm, M.wing, [0, 0, 0], [1, 1, 1]);
     // Deckfedern: zweite, kleinere Lage mit Schimmer
     add(sh, G.eagleArm, M.cov, [0.03, 0.012, 0.02], [0.55, 1, 0.78]);
+    // seit 14.94 detailreicher: Armschwingen als einzelne Federn an der Hinterkante, darüber eine Reihe Deckfedern
+    for (let i = 0; i < 7; i++) {
+      const z = 0.06 + i * 0.075;
+      add(sh, G.eagleFeather, i % 2 ? M.wing : M.tip, [-0.24, -0.004, z], [1.1, 1, 0.2 + (i % 3) * 0.015], [0, -Math.PI / 2 + 0.12 - i * 0.03, 0]);
+      add(sh, G.eagleFeather, M.cov, [-0.06, 0.016, z + 0.02], [0.9, 1, 0.13], [0, -Math.PI / 2 + 0.2, 0]);
+    }
     const el = new THREE.Group();
     el.position.set(-0.04, 0, 0.56);
     sh.add(el);
@@ -1281,6 +1329,7 @@ function eagle3Build() {
     o.add(hip);
     legs.push(hip);
   }
+  for (const k in M) M[k].userData.e0 = M[k].emissive.clone();
   o.userData.eagle = { M, wings, tips, legs, tail, eyeMat };
   return o;
 }
@@ -1301,6 +1350,7 @@ const _eaY = new THREE.Vector3();
 const _eaZ = new THREE.Vector3();
 const _eaM = new THREE.Matrix4();
 const _eaUp = new THREE.Vector3(0, 1, 0);
+const _eaGlowC = new THREE.Color('#7a3ae0');
 const _eaP = new THREE.Vector3();
 // pose: { flap: Schlag (−1 oben … 1 unten), sweep: Rückfaltung 0–1, talon: Fänge vor 0–1, roll: Schräglage }
 function bowEagle3(h, x, y, z, fwd, span, pose, op, low) {
@@ -1328,7 +1378,14 @@ function bowEagle3(h, x, y, z, fwd, span, pose, op, low) {
   E.tail.scale.set(1, 1, 1 + (pose.talon || 0) * 0.5);
   E.tail.rotation.z = -(pose.talon || 0) * 0.35;
   for (const l of E.legs) l.rotation.z = -1.25 + (pose.talon || 0) * 2.1;
-  for (const k in E.M) E.M[k].opacity = op;
+  // pose.glow (seit 14.94): als Pfeil leuchtet das Gefieder von innen violett
+  const gl = pose.glow || 0;
+  for (const k in E.M) {
+    const m = E.M[k];
+    m.opacity = op;
+    m.emissive.copy(m.userData.e0);
+    if (gl && k !== 'beak' && k !== 'claw') m.emissive.lerp(_eaGlowC, gl * (k === 'tip' || k === 'cov' ? 0.75 : 0.45));
+  }
   E.eyeMat.opacity = op;
   // dunkle Aura: Rauch und violetter Schein um Rumpf und Flügelspitzen
   const s = span / EAGLE3.span;
@@ -1525,7 +1582,7 @@ FX3_HOOKS.push({ parts: [], fn: bowNock3 });
 
 // --- 3D: Effekte ------------------------------------------------------------------------------------------
 // seit 13.70: brain3 (Pfeilhagel) weg, dazu Salve (bsalvo3, bsalvohit3); seit 13.76 Pfeilregen (bregen3) statt Giftfalle
-['bmuzzle3', 'bhit3', 'bpierce3', 'bsplit3', 'beye3', 'bult3', 'bshadow3', 'bsalvo3', 'bsalvohit3', 'bregen3'].forEach((k) => FX3_TYPES.add(k));
+['bmuzzle3', 'bhit3', 'bpierce3', 'bsplit3', 'beye3', 'beagle3', 'bshadow3', 'bsalvo3', 'bsalvohit3', 'bregen3'].forEach((k) => FX3_TYPES.add(k));
 const _bwH = new THREE.Vector3();
 
 // Abschuss (seit 13.67 düster): Schattenrauch quillt aus dem Bogen, violetter Schein, ein Ring aus dunkler Energie
@@ -2617,125 +2674,107 @@ function bowWings3(h, p, b, t) {
   // die dunkle Aura (Rauch und violetter Schein) zeichnet seit 13.83 die Körperaura (koerperaura.js, Stil „falke“)
 }
 
-// Ulti: Riesenfalke stößt herab, Druckwelle, Federn, dann Pfeilsturm
-FX3_DRAW.bult3 = function (h, e) {
+// Ulti (seit 14.94): Bogen 1 s spannen, der leuchtende Schattenadler fliegt als Pfeil aufs Ziel, Einschlag mit Druckwelle
+FX3_DRAW.beagle3 = function (h, e) {
+  if (e.cancel) return;
   const t = game.time - e.start;
   const low = n3low();
-  const D = ULT_FALCON.dive;
-  const x1 = e.x * U3;
-  const z1 = e.y * U3;
-  const x0 = e.ox * U3;
-  const z0 = e.oy * U3;
-  const dx = x1 - x0;
-  const dz = z1 - z0;
-  const L = Math.hypot(dx, dz) || 1;
-  const fx = dx / L;
-  const fz = dz / L;
-  if (t < D) {
-    // Bahn: erscheint hoch über dem Schützen, gleitet zum Ziel und stürzt am Ende steil herab
-    const u = t / D;
-    const grow = clamp01(t / 0.25);
-    const bx = x0 - fx * 0.5;
-    const bz = z0 - fz * 0.5 - 0.8;
-    const H0 = 3.4;
-    const px = bx + (x1 - bx) * u;
-    const pz = bz + (z1 - bz) * u;
-    const py = H0 * (1 - u * u) + 0.9;
-    const vy = -2 * H0 * u;
-    _bw3d.set((x1 - bx), vy, (z1 - bz)).normalize();
-    // seit 14.93 Schattenadler: kräftige Schläge im Anflug, dann Flügel angelegt im Sturz, kurz vor dem Ziel
-    // aufgefächert mit Fängen nach vorn
-    const dive = clamp01((u - 0.55) / 0.3);
-    const flare = clamp01((u - 0.86) / 0.14);
-    bowEagle3(h, px, py, pz, _bw3d, 4.8 * grow, {
-      flap: (1 - dive) * Math.sin(t * 10) * 0.9 - dive * 0.4 * (1 - flare) - flare * 0.5,
-      sweep: dive * (1 - flare), talon: flare, roll: Math.sin(t * 3) * 0.12 * (1 - dive)
-    }, grow, low);
-    n3Glow(h, px, py, pz, 5 * grow, BOW3.violet, 0.14);
-    for (let i = 0; i < (low ? 3 : 6); i++) n3Smoke(h, px + Math.sin(t * 5 + i) * 0.6, py - 0.2 + Math.cos(t * 4 + i) * 0.3, pz + Math.cos(t * 5 + i * 2) * 0.6, 1.0, BOW3.smoke, 0.45 * grow);
-    // Schatten am Boden wird größer, je näher er kommt
-    mGround(h, 'planeNBowSh', 'disc', px / U3, pz / U3, 2.2 + u * 1.5, 0.03, 0, BOW3.dark, 0.45 * u);
-    // Windspur hinter ihm
+  const C = e.charge;
+  const B = ultEagleBow(e);
+  const bx = B.x * U3;
+  const bz = (B.y + 9) * U3;
+  const H = ULT_EAGLE.h;
+  _bw3d.set(B.fx, 0, B.fy).normalize();
+  if (t < C) {
+    // Spannen: Schattenenergie strömt spiralförmig in den Bogen, der Adler formt sich auf der Sehne
+    const k = t / C;
+    n3Glow(h, bx, H, bz, 0.6 + 2.4 * k * k, BOW3.violet, 0.25 + 0.55 * k);
+    n3Glow(h, bx, H, bz, 0.3 + 0.8 * k, '#e8dcff', 0.35 * k);
+    const n = low ? 6 : 12;
+    for (let i = 0; i < n; i++) {
+      const f = (t * 1.3 + i / n) % 1;
+      const r = (1 - f) * 2.4;
+      const a = (i / n) * Math.PI * 2 + t * 5 + f * 3;
+      const x = bx + Math.cos(a) * r;
+      const y = H + Math.sin(a * 1.3) * r * 0.5 + (1 - f) * 0.4;
+      const z = bz + Math.sin(a) * r * 0.8;
+      n3Smoke(h, x, y, z, 0.5 + (1 - f) * 0.5, BOW3.smoke, 0.45 * f * k + 0.1);
+      n3Glow(h, x, y, z, 0.25 + 0.3 * f, BOW3.violet2, 0.6 * f);
+    }
+    for (let i = 0; i < (low ? 3 : 6); i++) {
+      const f = (t * 0.9 + i / 6) % 1;
+      const a = i * 1.7 + t * 3;
+      bowFeather3(h, bx + Math.cos(a) * (1 - f) * 1.8, H + 0.2 + (1 - f) * 0.8, bz + Math.sin(a) * (1 - f) * 1.4, 0.35, a + t * 4, f * 0.9 * k);
+    }
+    const g = clamp01((k - 0.45) / 0.55);
+    if (g > 0) bowEagle3(h, bx + _bw3d.x * 0.3, H + 0.05, bz + _bw3d.z * 0.3, _bw3d, 0.9 + 1.4 * g, { flap: -0.2 + Math.sin(t * 9) * 0.15, sweep: 0.55 * (1 - g), glow: 1 }, g * 0.95, low);
+    return;
+  }
+  const L = B.L * U3;
+  const tx = e.x * U3;
+  const tz = (e.y + 9) * U3;
+  const v0 = t - C;
+  if (v0 < e.fly) {
+    // Flug: schnell und gerade, leicht gewölbt, Flügel weit offen, leuchtend mit Lichtschweif
+    const u = v0 / e.fly;
+    const arc = Math.sin(Math.PI * u) * Math.min(1.2, L * 0.08);
+    const px = bx + (tx - bx) * u;
+    const pz = bz + (tz - bz) * u;
+    const py = H + (0.9 - H) * u + arc;
+    const span = 3.6;
+    bowEagle3(h, px, py, pz, _bw3d, span, { flap: Math.sin(t * 16) * 0.3, sweep: 0.2, glow: 1, roll: Math.sin(t * 7) * 0.08 }, 1, low);
+    n3Glow(h, px, py, pz, 3.2, BOW3.violet, 0.45);
+    n3Glow(h, px, py, pz, 1.2, '#efe6ff', 0.5);
+    // Lichtschweif: heller Strahl hinter ihm, dazu Schatten und Funken entlang der Bahn
+    _bw3a.set(px - _bw3d.x * 0.6, py, pz - _bw3d.z * 0.6);
+    const back = Math.min(L * u, 7);
+    _bw3b.set(_bw3a.x - _bw3d.x * back, py - arc * 0.3, _bw3a.z - _bw3d.z * back);
+    const st = fx3Take(h, 'seg');
+    fx3Segment(st, _bw3b, _bw3a, 0.22);
+    fx3Color(st, BOW3.violet, 0.55);
+    const st2 = fx3Take(h, 'seg');
+    fx3Segment(st2, _bw3b, _bw3a, 0.07);
+    fx3Color(st2, '#f2eaff', 0.7);
     for (let i = 1; i <= (low ? 4 : 9); i++) {
-      const v = Math.max(0, u - i * 0.05);
-      const qx = bx + (x1 - bx) * v;
-      const qz = bz + (z1 - bz) * v;
-      const qy = H0 * (1 - v * v) + 0.9;
-      n3Smoke(h, qx, qy, qz, 1.2 - i * 0.08, BOW3.smoke, 0.55 - i * 0.05);
-      if (i % 2) n3Glow(h, qx, qy, qz, 0.8, BOW3.violet, 0.4 - i * 0.035);
+      const w = Math.max(0, u - i * 0.06);
+      const qx = bx + (tx - bx) * w;
+      const qz = bz + (tz - bz) * w;
+      const qy = H + (0.9 - H) * w + Math.sin(Math.PI * w) * Math.min(1.2, L * 0.08);
+      n3Smoke(h, qx, qy, qz, 1.0 - i * 0.06, BOW3.smoke, 0.5 - i * 0.045);
+      if (i % 2) n3Glow(h, qx, qy, qz, 0.9, BOW3.violet2, 0.45 - i * 0.04);
     }
     return;
   }
-  // Einschlag: Druckwelle aus Wind, Lichtsäule, Federn
-  const v = t - D;
+  // Einschlag: Druckwelle aus Schattenwind, Lichtsäule, Rauch, Federn regnen herab
+  const v = v0 - e.fly;
   const k = clamp01(v / 0.8);
-  // der Adler schwingt sich nach dem Zustoßen wieder auf und zerfällt in Schattenrauch
-  if (v < 0.75) {
-    const r = v / 0.75;
-    _bw3d.set(fx, 0.9, fz).normalize();
-    bowEagle3(h, x1 + fx * r * 2.6, 0.9 + r * r * 3.2, z1 + fz * r * 2.6, _bw3d, 4.8 * (1 + r * 0.15),
-      { flap: Math.sin(v * 16) * 1.1, talon: Math.max(0, 1 - r * 3) }, 1 - r * r, low);
-  }
   if (k < 1) {
     for (let i = 0; i < 2; i++) {
       const w = fx3Take(h, 'wall');
-      fx3Wall(w, e.x, e.y, (1 + k * 4.6) * (1 - i * 0.2), 1.2 * (1 - k) + 0.1);
-      fx3Color(w, i ? '#5a2aa8' : '#3a1670', 0.3 * (1 - k));
+      fx3Wall(w, e.x, e.y + 9, (0.8 + k * 3.8) * (1 - i * 0.22), 1.3 * (1 - k) + 0.1);
+      fx3Color(w, i ? '#5a2aa8' : '#3a1670', 0.32 * (1 - k));
     }
-    mGround(h, 'planeNBowR', 'ring', e.x, e.y, 1 + k * 4.6, 0.05, 0, '#3a1670', 0.7 * (1 - k));
-    n3Glow(h, x1, 1, z1, 7 * (0.4 + k), BOW3.violet, 0.5 * (1 - k));
-    for (let i = 0; i < (low ? 8 : 18); i++) {
-      const a = (i / (low ? 8 : 18)) * Math.PI * 2;
-      const r = 1 + k * 4.4;
-      n3Smoke(h, x1 + Math.cos(a) * r, 0.3 + k * 0.6, z1 + Math.sin(a) * r * 0.85, 0.8 + k * 0.6, '#1a0e2a', 0.55 * (1 - k) * (1 - k));
+    n3Glow(h, tx, 1, tz, 6 * (0.4 + k), BOW3.violet, 0.55 * (1 - k));
+    n3Glow(h, tx, 0.8, tz, 2.5 * (1 - k), '#f2eaff', 0.6 * (1 - k));
+    for (let i = 0; i < (low ? 8 : 16); i++) {
+      const a = (i / (low ? 8 : 16)) * Math.PI * 2;
+      const r = 0.8 + k * 3.6;
+      n3Smoke(h, tx + Math.cos(a) * r, 0.3 + k * 0.6, tz + Math.sin(a) * r * 0.85, 0.8 + k * 0.6, '#1a0e2a', 0.55 * (1 - k) * (1 - k));
     }
-    _bw3a.set(x1, 0, z1);
-    _bw3b.set(x1, 9, z1);
+    _bw3a.set(tx, 0, tz);
+    _bw3b.set(tx, 8, tz);
     const col = fx3Take(h, 'seg');
     fx3Segment(col, _bw3a, _bw3b, 0.5 * (1 - k) + 0.04);
-    fx3Color(col, BOW3.violet, 0.3 * (1 - k) * (1 - k));
+    fx3Color(col, BOW3.violet, 0.32 * (1 - k) * (1 - k));
   }
-  // Federn regnen langsam herab
-  const nf = low ? 10 : 24;
-  const fk = clamp01(v / 2.4);
+  const nf = low ? 8 : 18;
+  const fk = clamp01(v / 1.8);
   if (fk < 1) {
     for (let i = 0; i < nf; i++) {
-      const a = n2h(i, e.seed) * Math.PI * 2;
-      const r = (0.5 + 3.5 * n2h(i, e.seed + 1)) * easeOut(clamp01(v / 0.6));
-      const yy = (1.2 + 3 * n2h(i, e.seed + 2)) * (1 - fk) + 0.1 + Math.sin(v * 3 + i) * 0.1;
-      bowFeather3(h, x1 + Math.cos(a) * r + Math.sin(v * 2 + i) * 0.3, yy, z1 + Math.sin(a) * r, 0.4, a + v * 2, 1 - fk);
-    }
-  }
-  // Pfeilsturm: Pfeile fallen schräg auf ihre Stellen
-  _bw3d.set(fx * 0.4, -1, fz * 0.4).normalize();
-  const out = clamp01((e.dur - t) / 0.4);
-  for (const s of e.shots) {
-    const age = t - s.at;
-    if (age < 0) continue;
-    const gx = s.x * U3;
-    const gz = (s.y + 9) * U3;
-    if (age < 0.2) {
-      const u = age / 0.2;
-      const H = 9 * (1 - u);
-      const x = gx - _bw3d.x * H / -_bw3d.y;
-      const z = gz - _bw3d.z * H / -_bw3d.y;
-      bowArrow3(h, x, H + 0.4, z, _bw3d, BOW_ARROW_LEN * 1.3, '#c8b0ff', 1, 0, BOW3.shadow);
-      n3Glow(h, x, H + 0.4, z, 0.5, BOW3.violet, 0.6);
-      _bw3a.set(x, H + 0.4, z);
-      _bw3b.set(x - _bw3d.x * 2.6, H + 0.4 - _bw3d.y * 2.6, z - _bw3d.z * 2.6);
-      const st = fx3Take(h, 'segN');
-      fx3Segment(st, _bw3b, _bw3a, 0.04);
-      fx3Color(st, '#3a1670', 0.6);
-    } else {
-      bowArrow3(h, gx - _bw3d.x * 0.18, 0.18, gz - _bw3d.z * 0.18, _bw3d, BOW_ARROW_LEN * 1.3, '#c8b0ff', out, 0, BOW3.shadow);
-      const q = (age - 0.2) / 0.4;
-      if (q < 1) {
-        n3Glow(h, gx, 0.3, gz, 1.4 * (1 - q), BOW3.violet, 0.6 * (1 - q));
-        n3Smoke(h, gx, 0.2 + q * 0.5, gz, 0.5 + q * 0.5, '#1a0e2a', 0.5 * (1 - q));
-        if (q < 0.6) {
-          mGround(h, 'planeNBowR', 'ring', s.x, s.y + 9, 0.4 + q * 1.4, 0.05, 0, '#3a1670', 0.55 * (1 - q / 0.6));
-        }
-      }
+      const a = (i * 2.399) % (Math.PI * 2);
+      const r = (0.4 + 2.8 * ((i * 0.618) % 1)) * easeOut(clamp01(v / 0.5));
+      const yy = (1 + 2.4 * ((i * 0.37) % 1)) * (1 - fk) + 0.1 + Math.sin(v * 3 + i) * 0.1;
+      bowFeather3(h, tx + Math.cos(a) * r + Math.sin(v * 2 + i) * 0.3, yy, tz + Math.sin(a) * r, 0.4, a + v * 2, 1 - fk);
     }
   }
 };
@@ -2978,7 +3017,7 @@ EXTRA_EFFECTS.beye3 = (ctx, e, k, x, y) => {
 };
 // Schattenadler in 2D (seit 14.93): von oben gesehen, Flügel mit gefingerten Schwungfedern, Schlag als Verkürzung,
 // dunkle Aura; Mitte (x,y), Blickrichtung ang, Größe s (Spannweite ≈ 2,6·s), Schlag fl (−1 … 1), angelegt sw (0–1)
-function eagle2d(ctx, x, y, s, ang, fl, sw, a) {
+function eagle2d(ctx, x, y, s, ang, fl, sw, a, lit) {
   if (a <= 0.01) return;
   ctx.save();
   ctx.translate(x, y);
@@ -2993,8 +3032,8 @@ function eagle2d(ctx, x, y, s, ang, fl, sw, a) {
   ctx.beginPath();
   ctx.arc(0, 0, s * 1.5, 0, Math.PI * 2);
   ctx.fill();
-  ctx.shadowColor = '#8a4ae8';
-  ctx.shadowBlur = s * 0.35;
+  ctx.shadowColor = lit ? '#b48cff' : '#8a4ae8';
+  ctx.shadowBlur = s * (lit ? 0.7 : 0.35);
   const len = Math.max(0.25, Math.cos(fl * 0.9)) * (1 - sw * 0.45); // Verkürzung beim Schlag, angelegt kürzer
   const back = sw * 0.55;
   for (const side of [-1, 1]) {
@@ -3056,46 +3095,80 @@ function eagle2d(ctx, x, y, s, ang, fl, sw, a) {
   ctx.fill();
   ctx.globalCompositeOperation = 'lighter';
   for (const ey of [-1, 1]) glow2(ctx, s * 0.5, ey * s * 0.065, s * 0.06, '#c49aff', 0.9);
+  if (lit) glow2(ctx, 0, 0, s * 0.55, '#8a4ae8', 0.35);
   ctx.restore();
 }
-EXTRA_EFFECTS.bult3 = (ctx, e, k, x, y) => {
+EXTRA_EFFECTS.beagle3 = (ctx, e, k, x, y) => {
+  if (e.cancel) return;
   const t = game.time - e.start;
-  const D = ULT_FALCON.dive;
-  const ox = x + (e.ox - e.x);
-  const oy = y + (e.oy - e.y) - 40;
-  const S = 46;
-  if (t < D) {
-    // Anflug hoch über dem Schützen, Sturz aufs Ziel; Schatten am Boden wächst
-    const u = t / D;
-    const grow = clamp01(t / 0.25);
-    const H = 230 * (1 - u * u);
-    const px = ox + (x - ox) * u;
-    const py = oy + (y - oy) * u - H;
-    const dx = (x - ox);
-    const dy = (y - oy) + 460 * u;
+  const C = e.charge;
+  const B = ultEagleBow(e);
+  const bx = x + (B.x - e.x);
+  const by = y + (B.y - e.y) - 26;
+  const ang = Math.atan2(B.fy, B.fx);
+  const S = 40;
+  if (t < C) {
+    // Spannen: Licht sammelt sich am Bogen, Schattenfunken strömen hinein, der Adler formt sich
+    const q = t / C;
     ctx.save();
-    ctx.fillStyle = `rgba(10,4,20,${0.35 * u})`;
-    ctx.beginPath();
-    ctx.ellipse(ox + (x - ox) * u, oy + (y - oy) * u + 40, S * (0.6 + u), S * (0.25 + u * 0.4), 0, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, bx, by, 10 + 34 * q * q, '#8a4ae8', 0.4 + 0.5 * q);
+    glow2(ctx, bx, by, 4 + 10 * q, '#efe6ff', 0.5 * q);
+    for (let i = 0; i < 12; i++) {
+      const f = (t * 1.3 + i / 12) % 1;
+      const a = (i / 12) * Math.PI * 2 + t * 5 + f * 3;
+      const r = (1 - f) * 60;
+      glow2(ctx, bx + Math.cos(a) * r, by + Math.sin(a) * r * 0.7, 3 + 4 * f, '#c49aff', 0.7 * f);
+    }
     ctx.restore();
-    const dive = clamp01((u - 0.55) / 0.3);
-    eagle2d(ctx, px, py, S * (0.6 + 0.4 * grow) * (1 + u * 0.25), Math.atan2(dy, dx), (1 - dive) * Math.sin(t * 10), dive, grow);
-  } else if (t < D + 0.7) {
-    const r = (t - D) / 0.7;
-    const ang = Math.atan2(y - oy, x - ox);
-    eagle2d(ctx, x + Math.cos(ang) * r * 120, y - 20 - r * r * 160, S * 1.25, ang - r * 0.8, Math.sin(t * 16), 0, 1 - r * r);
+    const g = clamp01((q - 0.45) / 0.55);
+    if (g > 0) eagle2d(ctx, bx + Math.cos(ang) * 8, by + Math.sin(ang) * 8, S * (0.35 + 0.35 * g), ang, -0.2, 0.5 * (1 - g), g * 0.95, true);
+    return;
   }
+  const tx = x;
+  const ty = y - 20;
+  const v0 = t - C;
+  if (v0 < e.fly) {
+    const u = v0 / e.fly;
+    const px = bx + (tx - bx) * u;
+    const py = by + (ty - by) * u - Math.sin(Math.PI * u) * 24;
+    // Lichtschweif
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const back = Math.min(B.L * u, 260);
+    const ex = px - Math.cos(ang) * back;
+    const ey = py - Math.sin(ang) * back;
+    const gr = ctx.createLinearGradient(ex, ey, px, py);
+    gr.addColorStop(0, 'rgba(138,74,232,0)');
+    gr.addColorStop(1, 'rgba(196,154,255,0.85)');
+    ctx.strokeStyle = gr;
+    ctx.lineCap = 'round';
+    ctx.lineWidth = 16;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(px, py);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(245,238,255,0.8)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(px - Math.cos(ang) * back * 0.6, py - Math.sin(ang) * back * 0.6);
+    ctx.lineTo(px, py);
+    ctx.stroke();
+    glow2(ctx, px, py, 60, '#8a4ae8', 0.55);
+    ctx.restore();
+    eagle2d(ctx, px, py, S * 1.15, ang, Math.sin(t * 16) * 0.3, 0.15, 1, true);
+    return;
+  }
+  const q = clamp01((v0 - e.fly) / 0.8);
+  if (q >= 1) return;
   ctx.save();
+  ctx.fillStyle = `rgba(16,6,28,${0.45 * (1 - q)})`;
+  ctx.beginPath();
+  ctx.ellipse(x, y, 30 + q * 110, (30 + q * 110) * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.globalCompositeOperation = 'lighter';
-  if (t >= D) {
-    const v = clamp01((t - D) / 0.8);
-    glow2(ctx, x, y - 10, 40 + v * 140, '#8a4ae8', 0.6 * (1 - v));
-  }
-  for (const s of e.shots) {
-    const age = t - s.at;
-    if (age > 0 && age < 0.5) glow2(ctx, x + (s.x - e.x), y + (s.y + 9 - e.y), 22, '#b48cff', 1 - age / 0.5);
-  }
+  glow2(ctx, x, y - 12, 40 + q * 130, '#8a4ae8', 0.7 * (1 - q));
+  glow2(ctx, x, y - 12, 26 * (1 - q), '#efe6ff', 0.8 * (1 - q));
   ctx.restore();
 };
 

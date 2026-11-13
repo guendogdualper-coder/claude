@@ -12,6 +12,13 @@ const GP = { on: false, bloom: 0.5, thr: 0.965, // seit 14.12 höher: sonniges G
   contrast: 1.08, vignette: 0.28, expo: 0.98, shadows: false, msaa: false };
 const _gp = { ready: false, key: '', sz: null, shadowed: -1 };
 
+// seit 14.94: Bildpunkte mit NaN (ungültige Rechnung im Shader) werden nicht geschrieben (durchsichtig, ändern nichts).
+// Im Halbfloat-Puffer von „Plus“ wurden sie sonst schwarz und die Weichzeichnung machte daraus einen schwarzen Fleck.
+// Nur GLSL 3 (WebGL 2) kennt isnan – „Plus“ braucht WebGL 2 ohnehin.
+if (typeof THREE !== 'undefined' && THREE.ShaderChunk && THREE.ShaderChunk.fog_fragment && THREE.ShaderChunk.fog_fragment.indexOf('isnan') < 0) {
+  THREE.ShaderChunk.fog_fragment += '\n#if __VERSION__ >= 300\nif (any(isnan(gl_FragColor))) gl_FragColor = vec4(0.0);\n#endif\n';
+}
+
 function gpSupported() {
   return !!(V3.gl && V3.gl.capabilities.isWebGL2);
 }
@@ -37,25 +44,29 @@ function gpInit() {
   _gp.quad.frustumCulled = false;
   _gp.scene.add(_gp.quad);
   _gp.sz = new THREE.Vector2();
+  // seit 14.94: ungültige Bildpunkte (NaN/Unendlich, z. B. viele übereinanderliegende helle Effekte im Halbfloat-Puffer)
+  // als Schwarz-Null behandeln und Helligkeit deckeln. Vorher verteilte die Weichzeichnung einen einzigen solchen
+  // Punkt über die verkleinerten Bilder zu einem großen schwarzen Block (der „schwarze Fleck“ bei Ultis)
+  const OK = 'vec3 ok(vec3 c){ if (any(isnan(c))) return vec3(0.0); return clamp(c, 0.0, 32.0); }';
   // helle, satte Stellen herausziehen (helles Grau und heller Boden leuchten kaum)
-  _gp.bright = mat({ t: { value: null }, thr: { value: 0.9 } }, `uniform sampler2D t; uniform float thr; varying vec2 vUv;
-    void main(){ vec3 c = texture2D(t, vUv).rgb; float l = max(c.r, max(c.g, c.b));
+  _gp.bright = mat({ t: { value: null }, thr: { value: 0.9 } }, `uniform sampler2D t; uniform float thr; varying vec2 vUv; ${OK}
+    void main(){ vec3 c = ok(texture2D(t, vUv).rgb); float l = max(c.r, max(c.g, c.b));
       float s = (l - min(c.r, min(c.g, c.b))) / max(l, 1e-3);
       // satte Farben ab der Schwelle (Feuer, Magie, Laternen), dazu alles, was heller als Weiß ist (sich überlagernde Effekte)
       float k = smoothstep(thr, thr + 0.05, min(l, 1.0)) * smoothstep(0.35, 0.75, s) * 1.4 + smoothstep(1.02, 1.6, l) * 0.8;
       gl_FragColor = vec4(c * k * min(1.0, 1.2 / max(l, 1.0)), 1.0); }`);
   // 9er-Gauß in zwei Richtungen (5 Lesezugriffe dank linearer Filterung)
-  _gp.blur = mat({ t: { value: null }, dir: { value: new THREE.Vector2() } }, `uniform sampler2D t; uniform vec2 dir; varying vec2 vUv;
-    void main(){ vec3 c = texture2D(t, vUv).rgb * 0.227027;
-      c += texture2D(t, vUv + dir * 1.3846).rgb * 0.316216; c += texture2D(t, vUv - dir * 1.3846).rgb * 0.316216;
-      c += texture2D(t, vUv + dir * 3.2308).rgb * 0.070270; c += texture2D(t, vUv - dir * 3.2308).rgb * 0.070270;
+  _gp.blur = mat({ t: { value: null }, dir: { value: new THREE.Vector2() } }, `uniform sampler2D t; uniform vec2 dir; varying vec2 vUv; ${OK}
+    void main(){ vec3 c = ok(texture2D(t, vUv).rgb) * 0.227027;
+      c += ok(texture2D(t, vUv + dir * 1.3846).rgb) * 0.316216; c += ok(texture2D(t, vUv - dir * 1.3846).rgb) * 0.316216;
+      c += ok(texture2D(t, vUv + dir * 3.2308).rgb) * 0.070270; c += ok(texture2D(t, vUv - dir * 3.2308).rgb) * 0.070270;
       gl_FragColor = vec4(c, 1.0); }`);
   _gp.comp = mat({ t: { value: null }, b1: { value: null }, b2: { value: null }, b3: { value: null }, soft: { value: null }, res: { value: new THREE.Vector2() },
     bloom: { value: 0.5 }, tilt: { value: 0.7 }, sat: { value: 1.15 }, contrast: { value: 1.08 }, vignette: { value: 0.3 }, expo: { value: 1 }, aa: { value: 1 } },
-  `uniform sampler2D t, b1, b2, b3, soft; uniform vec2 res; uniform float bloom, tilt, sat, contrast, vignette, expo, aa; varying vec2 vUv;
-    vec3 smoothEdge(vec2 uv){ vec2 px = 1.0 / res; vec3 m = texture2D(t, uv).rgb; if (aa < 0.5) return m;
-      vec3 n = texture2D(t, uv + vec2(0.0, -px.y)).rgb, s = texture2D(t, uv + vec2(0.0, px.y)).rgb,
-        e = texture2D(t, uv + vec2(px.x, 0.0)).rgb, w = texture2D(t, uv + vec2(-px.x, 0.0)).rgb;
+  `uniform sampler2D t, b1, b2, b3, soft; uniform vec2 res; uniform float bloom, tilt, sat, contrast, vignette, expo, aa; varying vec2 vUv; ${OK}
+    vec3 smoothEdge(vec2 uv){ vec2 px = 1.0 / res; vec3 m = ok(texture2D(t, uv).rgb); if (aa < 0.5) return m;
+      vec3 n = ok(texture2D(t, uv + vec2(0.0, -px.y)).rgb), s = ok(texture2D(t, uv + vec2(0.0, px.y)).rgb),
+        e = ok(texture2D(t, uv + vec2(px.x, 0.0)).rgb), w = ok(texture2D(t, uv + vec2(-px.x, 0.0)).rgb);
       vec3 L = vec3(0.299, 0.587, 0.114); float ln = dot(n, L), ls = dot(s, L), le = dot(e, L), lw = dot(w, L), lm = dot(m, L);
       float r = max(max(ln, ls), max(max(le, lw), lm)) - min(min(ln, ls), min(min(le, lw), lm));
       return r < 0.08 ? m : mix(m, (n + s + e + w) * 0.25, 0.45); }
