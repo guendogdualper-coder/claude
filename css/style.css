@@ -3088,8 +3088,11 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 #panelQuests .qw-q .ql-bar em { font-size: 11.5px; line-height: 16px; }
 .qw-q.side .ql-bar i { background: linear-gradient(90deg, #4a9a4a, #8fe07a); }
 /* 13.8: Sonne oder Mond unter der Karte */
-.st-day { display: inline-flex; width: 15px; height: 15px; vertical-align: -3px; margin-right: 3px; }
-.st-day svg { width: 100%; height: 100%; fill: none; stroke-width: 2; stroke-linecap: round; }
+.st-day { display: inline-flex; align-items: center; gap: 3px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+.st-day svg { width: 15px; height: 15px; flex: none; fill: none; stroke-width: 2; stroke-linecap: round; }
+.st-day-t { font-weight: 700; font-size: 0.92em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st-day.day .st-day-t { color: #c8d4ff; }
+.st-day.night .st-day-t { color: #ffd34d; }
 .st-day.day svg { stroke: #ffd34d; }
 .st-day.day svg circle { fill: #ffd34d; }
 .st-day.night svg path { fill: #c8d4ff; stroke: #c8d4ff; stroke-width: 1; }

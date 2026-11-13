@@ -138,7 +138,7 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'sinn', q: 'Gibt es Tag und Nacht?',
-    a: 'Ja, nach der echten Uhrzeit, für alle gleich: Eine Runde dauert 40 Minuten – 25 Minuten Tag, 3 Minuten Dämmerung, 9 Minuten Nacht, 3 Minuten Morgendämmerung. ' +
+    a: 'Ja, nach der echten Uhrzeit, für alle gleich: Eine Runde dauert 20 Minuten – 10 Minuten Tag, 1 Minute Dämmerung, 8 Minuten Nacht, 1 Minute Morgendämmerung. Unter der Karte siehst du neben Sonne bzw. Mond, wie lange es noch bis zum Wechsel dauert. ' +
       'Nachts kommen Nachtmonster dazu. Nachtjagden gibt es bei den Nachtwanderern auf den anderen Maps, in Kazehana (Map 1) seit 13.88 nicht mehr.',
     k: 'tag nacht dunkel uhrzeit nachtmonster nachtjagd nachtwanderer daemmerung'
   },

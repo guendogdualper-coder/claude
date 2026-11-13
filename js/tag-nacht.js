@@ -1,6 +1,9 @@
 // Tag und Nacht (seit 13.8) auf allen Maps (nicht in Dungeons).
 // - Der Wechsel richtet sich nach der echten Uhrzeit (UTC), damit alle Spieler im Kanal dieselbe Tageszeit sehen:
-//   40 Minuten je Runde – 25 Min Tag, 3 Min Abenddämmerung, 9 Min Nacht, 3 Min Morgendämmerung.
+//   seit 14.95 20 Minuten je Runde – 10 Min Tag, 1 Min Abenddämmerung, 8 Min Nacht, 1 Min Morgendämmerung
+//   (vorher 40 Minuten mit nur 9 Min Nacht: Nachtjagden gab es zu selten).
+// - Unter der Karte steht neben Sonne/Mond, wie lange es noch bis zur Nacht bzw. zum Tag dauert (m:ss); eine Minute
+//   vorher kommt eine Meldung, beim Wechsel ein Banner.
 // - Nachts wird es dunkel und bläulich (3D: Himmel, Sonne als Mondlicht, Nebel; 2D: dunkle Färbung),
 //   Feuerbecken und Laternen leuchten dann umso mehr.
 // - Nachts kommen auf jeder Map Nachtmonster dazu (daten/nachtmonster.js); bei Tagesanbruch ziehen sie sich zurück.
@@ -8,9 +11,9 @@
 // - Nachtwanderer vergeben Nachtjagden; in Kazehana sind die Nachtwächterin und ein Laternenanzünder unterwegs.
 //   Seit 13.52 sind alle NPCs Tag und Nacht da (vorher schliefen die Wanderer nachts).
 
-const DAY_CYCLE = 2400;
-const DN_LEN = { day: 1500, dusk: 180, night: 540, dawn: 180 };
-const dayNight = { force: null, acc: 0, npcNight: null, hidden: [], extra: null, nextGroup: 900000 };
+const DAY_CYCLE = 1200;
+const DN_LEN = { day: 600, dusk: 60, night: 480, dawn: 60 };
+const dayNight = { force: null, acc: 0, npcNight: null, hidden: [], extra: null, nextGroup: 900000, warned: '' };
 
 function dayPhase() {
   return ((Date.now() / 1000) % DAY_CYCLE + DAY_CYCLE) % DAY_CYCLE;
@@ -29,14 +32,17 @@ function nightAmount() {
   return 1 - s((t - c) / DN_LEN.dawn);
 }
 const isNight = () => nightAmount() > 0.5;
-// Minuten bis zum nächsten Wechsel (für die Anzeige unter der Karte)
-function minutesToSwitch() {
+// Sekunden bis zum nächsten Wechsel (Mitte der Dämmerung = da kippt isNight)
+function secondsToSwitch() {
   const t = dayPhase();
   const nightStart = DN_LEN.day + DN_LEN.dusk / 2;
   const nightEnd = DN_LEN.day + DN_LEN.dusk + DN_LEN.night + DN_LEN.dawn / 2;
-  const to = t < nightStart ? nightStart - t : t < nightEnd ? nightEnd - t : DAY_CYCLE - t + nightStart;
-  return Math.max(1, Math.ceil(to / 60));
+  return t < nightStart ? nightStart - t : t < nightEnd ? nightEnd - t : DAY_CYCLE - t + nightStart;
 }
+function minutesToSwitch() {
+  return Math.max(1, Math.ceil(secondsToSwitch() / 60));
+}
+const dnClock = (sec) => { const s = Math.max(0, Math.ceil(sec)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
 // --- Licht ---------------------------------------------------------------------------------------
 // 3D: wird am Ende von v3UpdateMood aufgerufen (Werte des Gebiets stehen dann schon in V3)
@@ -80,13 +86,21 @@ function updateDayIcon() {
   const el = $('stDay');
   if (!el) return;
   const night = isNight();
-  const key = (night ? 'n' : 'd') + minutesToSwitch();
+  const sec = secondsToSwitch();
+  const clock = dnClock(sec);
+  const key = (night ? 'n' : 'd') + clock;
   if (el.dataset.k === key) return;
+  // seit 14.95: Restzeit sichtbar neben Sonne/Mond (Mond-Symbol = es ist Nacht, die Zeit läuft bis zum Tag)
+  if (el.dataset.k == null || el.dataset.k[0] !== key[0]) {
+    el.className = 'st-day ' + (night ? 'night' : 'day');
+    el.innerHTML = (night
+      ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3.5a8.5 8.5 0 1 0 5 15 7 7 0 0 1-5-15z"/></svg>'
+      : '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.6"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>') +
+      '<b class="st-day-t"></b>';
+  }
   el.dataset.k = key;
-  el.className = 'st-day ' + (night ? 'night' : 'day');
-  el.innerHTML = night
-    ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 3.5a8.5 8.5 0 1 0 5 15 7 7 0 0 1-5-15z"/></svg>'
-    : '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.6"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/></svg>';
+  const tEl = el.querySelector('.st-day-t');
+  if (tEl) tEl.textContent = (night ? '☀ ' : '☾ ') + clock;
   el.title = night ? `Nacht – Tag in ${minutesToSwitch()} Min.` : `Tag – Nacht in ${minutesToSwitch()} Min.`;
 }
 
@@ -327,7 +341,17 @@ function dayNightTick(dt) {
   if (night !== dayNight.npcNight) {
     const first = dayNight.npcNight == null;
     swapNpcs(night);
-    if (!first) ui.banner(night ? 'Die Nacht bricht herein' : 'Der Morgen graut', night ? 'Nachtmonster streifen umher' : 'Die Nachtwesen ziehen sich zurück');
+    if (!first) {
+      ui.banner(night ? 'Die Nacht bricht herein' : 'Der Morgen graut',
+        night ? `Nachtmonster und Nachtjagden – ${minutesToSwitch()} Min. lang` : `Die Nachtwesen ziehen sich zurück – nächste Nacht in ${minutesToSwitch()} Min.`);
+      ui.log(night ? `Es ist Nacht (noch ${minutesToSwitch()} Min.): Nachtmonster und Nachtjagden sind da.` : `Es ist Tag. Die nächste Nacht beginnt in ${minutesToSwitch()} Min.`, 'info');
+    }
+  }
+  // eine Minute vorher ankündigen (einmal je Wechsel)
+  const left = secondsToSwitch();
+  if (left <= 60 && left > 55 && dayNight.warned !== (night ? 'n' : 'd') + Math.floor((dayPhase() + left) / 60)) {
+    dayNight.warned = (night ? 'n' : 'd') + Math.floor((dayPhase() + left) / 60);
+    ui.log(night ? 'In einer Minute wird es Tag.' : 'In einer Minute bricht die Nacht herein – Nachtjagden bereit machen!', 'warn');
   }
   updateDayIcon();
   if (net.mode === 'client') return;
