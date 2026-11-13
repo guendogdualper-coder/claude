@@ -374,6 +374,14 @@ const RATGEBER_WISSEN = [
       'Jedes Plus macht den Gegenstand stärker. Beim Schmied siehst du vorher alle Werte alt → neu und die Kosten.',
     k: 'schmied aufwerten upgrade verbessern plus +20 +10 schmieden chance kosten'
   },
+  // seit 14.86: Teilewandlerin in Lichtwacht (teilewandler.js)
+  {
+    c: 'ausruestung', p: 3, q: 'Was mache ich mit alten Monster-Teilen?',
+    a: () => `Bring sie zu <b>${(typeof TW !== 'undefined') ? TW.name : 'der Teilewandlerin'}</b> in Lichtwacht (Kristallabgrund, neben dem Schmied). ` +
+      `Für je <b>${(typeof TW !== 'undefined') ? TW.rate : 10}</b> Teile von Monstern unter Stufe ${(typeof TW !== 'undefined') ? TW.maxLevel : 50} – beliebig gemischt – bekommst du ein Teil für Ausrüstung der Stufen 60, 70 oder 80 oder einen Ätherkern. ` +
+      `Teile, die du behalten willst, tippst du im Fenster vorher ab.`,
+    k: 'teilewandlerin wandeln umwandeln tauschen alte teile monsterteile hundezahn wolfspelz aetherkern stufe 60 70 80 lichtwacht akane'
+  },
   {
     c: 'ausruestung', p: 3, q: 'Kann Ausrüstung beim Schmied kaputtgehen?',
     a: 'Ja – schon ab +0 kann ein Fehlschlag den Gegenstand zerbrechen. Eine <b>Segensschriftrolle</b> schützt: Dann sind bei einem Fehlschlag nur die Kosten weg. Setz den Haken beim Schmied, bevor du aufwertest.',
