@@ -1847,10 +1847,17 @@ function updateAmbient(dt) {
 }
 
 function drawZoneTint(ctx, w, h) {
-  // Nacht (seit 13.8, tag-nacht.js)
-  if (typeof drawNightTint === 'function') drawNightTint(ctx, w, h);
+  // Nacht (seit 13.8, tag-nacht.js) und Gebietsfärbung – seit 14.88 als eine Fläche: zwei halbdurchsichtige Flächen
+  // übereinander ergeben dieselbe Farbe wie eine mit a = 1 − (1 − a1)(1 − a2) (spart am Handy eine Bildschirmfläche)
+  const n = typeof nightTintRGBA === 'function' ? nightTintRGBA() : null;
   const [r, g, b, a] = ambientState.tint;
-  if (a < 0.005) return;
-  ctx.fillStyle = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`;
+  const a1 = n ? n[3] : 0;
+  const a2 = a < 0.005 ? 0 : a;
+  if (a1 < 0.005 && a2 < 0.005) return;
+  const A = 1 - (1 - a1) * (1 - a2);
+  const k1 = (a1 * (1 - a2)) / A;
+  const k2 = a2 / A;
+  const mix = (i, c2) => Math.round((n ? n[i] : 0) * k1 + c2 * k2);
+  ctx.fillStyle = `rgba(${mix(0, r)},${mix(1, g)},${mix(2, b)},${A.toFixed(3)})`;
   ctx.fillRect(0, 0, w, h);
 }

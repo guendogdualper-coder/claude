@@ -58,14 +58,20 @@ function v3NightMood(zone) {
   V3.hemi.intensity *= 1 - 0.2 * nk;
 }
 // 2D: dunkle, bläuliche Färbung über dem Bild
-function drawNightTint(ctx, w, h) {
+// seit 14.88: Farbe als [r, g, b, a] (oder null), damit 2D Nacht und Gebietsfärbung in einem Zug malen kann
+function nightTintRGBA() {
   const p = game.player;
-  if (!p) return;
+  if (!p) return null;
   const zone = zoneAt(p.x, p.y);
   const nk = zone.dungeon || zone.pvp ? 0 : nightAmount();
-  if (nk < 0.01) return;
+  if (nk < 0.01) return null;
   // in 3D dunkeln schon Licht und Himmel ab, dort nur ein Hauch
-  ctx.fillStyle = `rgba(10,16,46,${((V3.on ? 0.12 : 0.45) * nk).toFixed(3)})`;
+  return [10, 16, 46, (V3.on ? 0.12 : 0.45) * nk];
+}
+function drawNightTint(ctx, w, h) {
+  const c = nightTintRGBA();
+  if (!c) return;
+  ctx.fillStyle = `rgba(${c[0]},${c[1]},${c[2]},${c[3].toFixed(3)})`;
   ctx.fillRect(0, 0, w, h);
 }
 

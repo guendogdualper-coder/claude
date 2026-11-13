@@ -77,12 +77,17 @@ function resizeSoon() {
 
 // Auflösung der Spielfläche: höchstens 2-fach. Läuft das Spiel zu langsam, senkt adaptQuality
 // die Auflösung in Schritten (renderer.maxDpr), damit es wieder flüssig wird.
+const MOBILE_2D_DPR = 1.6;
 function resizeRenderer() {
   const r = renderer;
   r.dpr = Math.min(window.devicePixelRatio || 1, r.maxDpr || 2);
   // In 3D zeichnet diese Fläche nur Namen, Balken und Zahlen über der Welt: immer scharf (mindestens 2-fach),
   // auch wenn die 3D-Welt ihre Auflösung zum Flüssighalten senkt (13.23)
   if (typeof V3 !== 'undefined' && V3.on) r.dpr = Math.min(window.devicePixelRatio || 1, Math.max(2, r.maxDpr || 2));
+  // seit 14.88: 2D am Handy höchstens 1,6-fach (Mittel und Hoch). Bei 2-fach wurde jedes Bild mit rund 1,6 Millionen
+  // Bildpunkten mehrfach übermalt (Boden, Figuren, Nacht- und Gebietsfärbung) – das schafften viele Handys nicht in
+  // 33 ms (Ruckeln im 2D-Modus, Video vom 13.11.). Die Anzeigen (HUD) sind HTML und bleiben gestochen scharf.
+  else if (!IS_PC && (opts.graphics === 'mittel' || opts.graphics === 'hoch')) r.dpr = Math.min(r.dpr, MOBILE_2D_DPR);
   const vs = viewSize();
   r.w = vs.w;
   r.h = vs.h;
@@ -1885,7 +1890,8 @@ function adaptQuality(dtMs, cap) {
   if (cap) {
     // 30er-Takt: nur absenken, wenn die Hälfte der Bilder deutlich länger als 33 ms braucht – seit 13.74 erst, wenn
     // das zwei Messungen hintereinander so ist (einzelne Hänger zählen nicht), und in eigener Reihenfolge (capQualityStep)
-    if (median <= (1000 / cap) * 1.3) {
+    // seit 14.88: schon ab 15 % über der Bildzeit (vorher 30 %: ein Handy mit 25 Bildern/s regelte nie nach)
+    if (median <= (1000 / cap) * 1.15) {
       quality.bad = 0;
       return;
     }
@@ -1949,8 +1955,9 @@ function capQualityStep() {
   } else if (V3.on && !quality.noShadow && gfx().castShadows) {
     quality.noShadow = true;
     v3ApplyGraphics();
-  } else if (quality.steps < 1) {
-    const minDpr = Math.min(gfx().dpr, 1.45);
+  } else if (quality.steps < (V3.on ? 1 : 2)) {
+    // 2D (seit 14.88): bis zu zwei Stufen, herunter bis 1,2-fach
+    const minDpr = Math.min(gfx().dpr, V3.on ? 1.45 : 1.2);
     const half = dev / 2;
     const to = half >= minDpr && half < cur - 0.05 ? half : Math.max(minDpr, cur - 0.3);
     if (to >= cur - 0.05) return;
