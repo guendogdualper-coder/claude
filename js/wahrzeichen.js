@@ -1209,10 +1209,12 @@ function wzHook() {
   for (const fn of WZ.tick) fn(t, dt, px, pz);
   wzParticles(dt);
   // Blitz: Licht der Szene kurz heller
+  // seit 14.91 deutlich sanfter und weicher (vorher +1,1 schlagartig: wirkte als weißes Aufflackern der ganzen Szene)
   if (WZ.flash > 0) {
-    V3.hemi.intensity += WZ.flash * 1.1;
-    V3.sun.intensity += WZ.flash * 0.5;
-    WZ.flash = Math.max(0, WZ.flash - dt * 4.5);
+    const f = WZ.flash * WZ.flash;
+    V3.hemi.intensity += f * 0.35;
+    V3.sun.intensity += f * 0.15;
+    WZ.flash = Math.max(0, WZ.flash - dt * 3);
   }
   // Glühen der Luft in der Nähe (Vulkan): Nebel und Himmel färben sich
   const ft = WZ.fogTint;

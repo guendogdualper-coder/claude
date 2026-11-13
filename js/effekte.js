@@ -65,14 +65,26 @@ function updateScreenEffects(realDt) {
 }
 
 // Heller Schein über den ganzen Bildschirm (Stufenaufstieg, starke Fertigkeiten)
+// seit 14.91: kleine Blitze (unter 0,2 – normale Fertigkeiten, Treffer, Rang-Effekte) zeichnen nichts mehr; sie kamen
+// oft hintereinander und wirkten als weißes Flackern. Große Momente (Stufenaufstieg, Ulti, Boss) bleiben, aber deutlich
+// sanfter: höchstens 14 % Deckkraft, weich ein- und ausgeblendet statt schlagartig.
+const FLASH_MIN = 0.2;
 function flashScreen(color, amount) {
+  if (!(amount >= FLASH_MIN)) return;
   game.flashColor = color;
+  if (!(game.screenFlash > 0)) game.flashPeak = amount;
+  else game.flashPeak = Math.max(game.flashPeak || 0, amount);
   game.screenFlash = Math.max(game.screenFlash || 0, amount);
 }
 
 function drawScreenFlash(ctx, w, h) {
   if (!(game.screenFlash > 0)) return;
-  ctx.fillStyle = `rgba(${hexRgb(game.flashColor || '#fff0c8')},${Math.min(0.45, game.screenFlash * 0.7)})`;
+  const peak = game.flashPeak || game.screenFlash;
+  const u = game.screenFlash / peak; // 1 → 0
+  const env = Math.min(1, (1 - u) / 0.15) * Math.pow(u, 1.4); // kurz einblenden, weich ausklingen
+  const a = Math.min(0.14, peak * 0.3) * env;
+  if (a < 0.004) return;
+  ctx.fillStyle = `rgba(${hexRgb(game.flashColor || '#fff0c8')},${a.toFixed(3)})`;
   ctx.fillRect(0, 0, w, h);
 }
 
