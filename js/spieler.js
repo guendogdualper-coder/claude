@@ -882,7 +882,8 @@ function upgradeSkill(i, type = 'point') {
 // etwa 10 % schneller als das Kriegsross). Er fliegt knapp über dem Boden: Bäume, Felsen, Wasser, Lava und Abgründe
 // halten ihn nicht auf, Mauern, Häuser, Säulen, Höhlenwände und der Felsrand der Karten schon (tileBlockedFlying).
 // Fliegen geht nur in der offenen Welt – nicht in Dungeons, Instanzen, Arena, Turnierarena und Duellen.
-const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.9, level: 40, price: 200000 },
+// seit 15.05: Kriegsross +70 % statt +90 %
+const HORSES = [null, { name: 'Reitpferd', speed: 0.35, level: 20, price: 100000 }, { name: 'Kriegsross', speed: 0.7, level: 40, price: 200000 },
   { name: 'Glutschwinge', speed: 1.1, level: 60, price: 500000, fly: true }];
 // seit 14.39: Farbe der Glutschwinge – beim Stallmeister beim Kauf gewählt (p.dragonColor im Spielstand). Bis 14.66
 // jederzeit kostenlos änderbar; seit 14.67 endgültig (p.dragonColorLocked, Rückfrage vor dem Kauf), Käufer von
