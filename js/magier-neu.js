@@ -11,7 +11,7 @@ const n2h = (i, s = 0) => {
   return v - Math.floor(v);
 };
 const dirOf = (fx, fy) => {
-  const l = Math.hypot(fx, fy) || 1;
+  const l = hyp(fx, fy) || 1;
   return { x: fx / l, y: fy / l };
 };
 // Ziel oder Punkt vor der Figur (bis range)
@@ -131,7 +131,7 @@ MAGE2_REMOTE.mcast = (rp, sk, d) => {
   if (d.rel) {
     if (rp.mcastFx) rp.mcastFx.dur = Math.max(0, game.time - rp.mcastFx.start);
     rp.mcastFx = null;
-    spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), big: sk.big, radius: 16, dir: null, aimAt: { x: d.tx, y: d.ty }, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60 });
+    spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), big: sk.big, radius: 16, dir: null, aimAt: { x: d.tx, y: d.ty }, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60 });
     return;
   }
   rp.mcastFx = addEffect({ type: 'mcast3', follow: rp, ox: 0, oy: 0, owner: rp, el: sk.el, dur: (d.d || sk.castTime) + 0.3 });
@@ -162,7 +162,7 @@ MAGE2_REMOTE.mignite = (rp, sk, d) => {
   let bd = 60;
   for (const m of game.monsters) {
     if (m.dead) continue;
-    const dd = Math.hypot(m.x - d.tx, m.y - d.ty);
+    const dd = hyp(m.x - d.tx, m.y - d.ty);
     if (dd < bd) { bd = dd; best = m; }
   }
   if (best) igniteFx(rp, best, sk);
@@ -178,7 +178,7 @@ SKILL_TYPES.mphoenix = function (sk, pw, lvl) {
   return { x: Math.round(p.x), y: Math.round(p.y), tx: Math.round(pt.x), ty: Math.round(pt.y) };
 };
 function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
-  const len = Math.max(40, Math.hypot(x1 - x0, y1 - y0));
+  const len = Math.max(40, hyp(x1 - x0, y1 - y0));
   const fly = len / sk.speed;
   addEffect({ type: 'mphoenix3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.9 });
   later(fly, () => {
@@ -194,7 +194,7 @@ function phoenixFx(owner, x0, y0, x1, y1, sk, local, pw, target) {
   const hitSet = new Set();
   for (const m of enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, Math.sqrt(L2) / 2 + sk.pathR)) {
     const u = clamp01(((m.x - x0) * vx + (m.y - y0) * vy) / L2);
-    if (u >= 0.95 || Math.hypot(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.pathR + m.r) continue;
+    if (u >= 0.95 || hyp(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.pathR + m.r) continue;
     hitSet.add(m);
     later(fly * u, () => { if (!m.dead) hitMonster(m, sk.dmg * sk.pathMul * pw, { skill: sk.id, burn: sk.burn, vfxColor: '#ffb04a' }); });
   }
@@ -245,7 +245,7 @@ function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
   const L2 = vx * vx + vy * vy || 1;
   for (const m of enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, Math.sqrt(L2) / 2 + sk.width)) {
     const u = clamp01(((m.x - x0) * vx + (m.y - y0) * vy) / L2);
-    if (Math.hypot(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.width + m.r) continue;
+    if (hyp(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.width + m.r) continue;
     later(fly * u, () => {
       if (m.dead) return;
       hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#ffffff' });
@@ -378,7 +378,7 @@ function spikesFx(owner, x, y, sk, local, pw) {
       if (owner === game.player) shakeScreen(3);
       if (!local) return;
       for (const m of enemiesInCircle(x, y, sk.radius)) {
-        const r = Math.hypot(m.x - x, m.y - y);
+        const r = hyp(m.x - x, m.y - y);
         if ((part === 'out') !== (r > sk.radius * 0.45)) continue;
         liftOf(m, sk.lift);
         hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, duelMul: sk.duelMul, vfxColor: '#f0a830' });
@@ -434,7 +434,7 @@ function gravFx(owner, x, y, sk, local, pw) {
       for (const m of enemiesInCircle(x, y, sk.radius)) {
         // Sog zur Mitte
         if (!m.isStone && !(m.type && m.type.boss)) {
-          const d = Math.hypot(m.x - x, m.y - y) || 1;
+          const d = hyp(m.x - x, m.y - y) || 1;
           const k2 = Math.min(1, sk.pull / d);
           m.kx = (x - m.x) * k2 * 3;
           m.ky = (y - m.y) * k2 * 3;

@@ -387,7 +387,7 @@ function bridge3Tile(b, x, y, i, g, lowGfx) {
       const y0 = ropeY3(a / L, L);
       const y1 = ropeY3((a + 1) / L, L);
       const ym = ropeY3((a + 0.5) / L, L);
-      b.add(tinyBox(1, 0.035, 0.035), '#c8a878', { parent: M, p: [0, (y0 + y1) / 2, 0], r: [0, 0, Math.atan2(y1 - y0, 1)], s: [Math.hypot(1, y1 - y0), 1, 1] });
+      b.add(tinyBox(1, 0.035, 0.035), '#c8a878', { parent: M, p: [0, (y0 + y1) / 2, 0], r: [0, 0, Math.atan2(y1 - y0, 1)], s: [hyp(1, y1 - y0), 1, 1] });
       if (!lowGfx) b.add(tinyBox(0.02, 1, 0.02), '#a88858', { parent: M, p: [0, (ym + 0.08) / 2, 0], s: [1, ym - 0.08, 1] });
     }
     if (lowGfx) continue;
@@ -2197,7 +2197,7 @@ const tplDeco = (d, style, v, low) => bakeTemplate(`deco:${d}:${style}:${v}${low
         stick3(b, a, z, 0.028, 0.026, bone, { seg: 6, top: lighter(bone, 0.2), topK: 0.4 });
         const dx = z[0] - a[0];
         const dz = z[2] - a[2];
-        const l = Math.hypot(dx, dz);
+        const l = hyp(dx, dz);
         for (const p of [a, z]) for (const sd of [-1, 1]) b.add(sphere3(0.04, 5, 3), bone, { p: [p[0] - (dz / l) * sd * 0.03, p[1], p[2] + (dx / l) * sd * 0.03], top: end, topK: endK * 0.6 });
       }
       b.add(sphere3(1, 7, 5), bone, { p: [0.05, 0.065, -0.2], s: [0.075, 0.068, 0.08], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });

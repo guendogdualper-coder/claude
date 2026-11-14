@@ -762,7 +762,7 @@ const FX3_DRAW = {
     const t = game.time - e.start;
     const dx = e.x1 - e.x0;
     const dz = e.y1 - e.y0;
-    const len = Math.hypot(dx, dz) || 1;
+    const len = hyp(dx, dz) || 1;
     const ux = dx / len;
     const uz = dz / len;
     const ang = Math.atan2(-uz, ux);
@@ -1012,7 +1012,7 @@ const FX3_DRAW = {
     const sz = (e.size || 1) * 1.5;
     const dx = e.tx - e.x;
     const dz = e.ty - e.y;
-    const L = Math.hypot(dx, dz) || 1;
+    const L = hyp(dx, dz) || 1;
     const at = (q, out) => {
       q = Math.max(0, Math.min(1, q));
       const side = Math.sin(q * Math.PI * 3 + 0.6) * 30 * (1 - q * 0.8);
@@ -1399,18 +1399,22 @@ const FX3_DRAW = {
   chain(h, e, k) {
     const a = 1 - k;
     // h1: Starthöhe (seit 8.6: Kugelblitz 1,0, Donnerkrone 1,9), sonst Körpermitte
-    let prev = _x3q.set(e.x * U3, e.h1 != null ? e.h1 : 0.7, (e.y + 16) * U3).clone();
+    // seit 15.16: zwei feste Punkte im Wechsel statt sieben neuer je Blitz und Bild
+    let prev = _x3q.set(e.x * U3, e.h1 != null ? e.h1 : 0.7, (e.y + 16) * U3);
+    let next = _x3p;
     for (let i = 1; i <= 6; i++) {
       const t = i / 6;
-      const next = i === 6 ? _x3p.set(e.x2 * U3, 0.7, (e.y2 + 16) * U3).clone()
-        : _x3p.set((e.x + (e.x2 - e.x) * t) * U3 + rand(-0.22, 0.22), (e.h1 != null ? e.h1 + (0.7 - e.h1) * t : 0.7) + rand(-0.25, 0.25), (e.y + 16 + (e.y2 - e.y) * t) * U3 + rand(-0.22, 0.22)).clone();
+      if (i === 6) next.set(e.x2 * U3, 0.7, (e.y2 + 16) * U3);
+      else next.set((e.x + (e.x2 - e.x) * t) * U3 + rand(-0.22, 0.22), (e.h1 != null ? e.h1 + (0.7 - e.h1) * t : 0.7) + rand(-0.25, 0.25), (e.y + 16 + (e.y2 - e.y) * t) * U3 + rand(-0.22, 0.22));
       const core = fx3Take(h, 'seg');
       fx3Segment(core, prev, next, 0.035);
       fx3Color(core, '#ffffff', a);
       const glow = fx3Take(h, 'seg');
       fx3Segment(glow, prev, next, 0.12);
       fx3Color(glow, e.color, a * 0.6);
+      const sw = prev;
       prev = next;
+      next = sw;
     }
   },
   beam(h, e, k) {
@@ -1469,6 +1473,9 @@ const FX3_DRAW = {
     }
     const o = fx3Take(h, 'strip');
     fx3Strip(o, _x3p, _x3u, _x3v, rr, W, a0, a1, e.color, fade, true);
+    // seit 15.16: Schläge der Monster und Diener (mon) am Handy und unter Last ohne den weißen Kern – bei 80 Monstern
+    // halbiert das die Streifen, die je Bild neu gerechnet und einzeln gezeichnet werden
+    if (e.mon && LOAD.fastBars) return;
     const core = fx3Take(h, 'strip');
     fx3Strip(core, _x3p, _x3u, _x3v, rr - W * 0.15, W * 0.35, a0 + 0.1, a1 - 0.1, '#ffffff', fade, true);
   },

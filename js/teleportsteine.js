@@ -23,7 +23,7 @@ function tpStoneAt(x, y, r = TP.reach) {
   let best = null;
   let bd = r;
   for (const s of tpList()) {
-    const d = Math.hypot(s.x - x, s.y - y);
+    const d = hyp(s.x - x, s.y - y);
     if (d < bd) { bd = d; best = s; }
   }
   return best;
@@ -91,7 +91,7 @@ function tpTap(wx, wy) {
   if (!p || p.dead) return false;
   const s = tpStoneAt(wx, wy + 6, 0.8 * TILE);
   if (!s) return false;
-  if (Math.hypot(s.x - p.x, s.y - p.y) <= TP.tapReach) tpJump(s);
+  if (hyp(s.x - p.x, s.y - p.y) <= TP.tapReach) tpJump(s);
   else input.walkTo = { x: s.x, y: s.y };
   return true;
 }

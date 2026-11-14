@@ -59,7 +59,7 @@ function bsSheet3(key, ni, nj, pt, wt, col, thick = 0.006) {
           const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
           const vx = d[0] - c[0], vy = d[1] - c[1], vz = d[2] - c[2];
           let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
-          const l = Math.hypot(nx, ny, nz) || 1;
+          const l = hyp3(nx, ny, nz) || 1;
           nx /= l; ny /= l; nz /= l;
           const p = at(i, j);
           pos.push(p[0] + nx * thick * s, p[1] + ny * thick * s, p[2] + nz * thick * s);
@@ -307,7 +307,7 @@ function bsPrelude3(a, e, dt, corpse, def, DEF) {
   c.moving = !corpse && e.moving && !frozen;
   c.fy = corpse ? e.y : feetY(e);
   if (!corpse) {
-    if (a.refX == null || Math.hypot(e.x - a.refX, e.y - a.refY) > 60) { a.refX = e.x; a.refY = e.y; }
+    if (a.refX == null || hyp(e.x - a.refX, e.y - a.refY) > 60) { a.refX = e.x; a.refY = e.y; }
     else {
       const dx = e.x - a.refX, dy = e.y - a.refY;
       if (dx * dx + dy * dy > 16) { a.want = Math.atan2(dx, dy); a.refX = e.x; a.refY = e.y; }
@@ -380,7 +380,7 @@ function bsLook3(a, e, c, k) {
     let d = Math.atan2(c.foe.x - e.x, c.foe.y - e.y) - a.heading;
     d = Math.atan2(Math.sin(d), Math.cos(d));
     ly = Math.max(-1.1, Math.min(1.1, d)) * k;
-    lx = Math.max(0, 0.45 - Math.hypot(c.foe.x - e.x, c.foe.y - e.y) * U3 * 0.07) * k;
+    lx = Math.max(0, 0.45 - hyp(c.foe.x - e.x, c.foe.y - e.y) * U3 * 0.07) * k;
   } else if (!c.corpse) ly = Math.sin(c.t * 0.37) * 0.35 * k;
   S.lookY += (ly - S.lookY) * Math.min(1, c.dt * 3);
   S.lookX += (lx - S.lookX) * Math.min(1, c.dt * 3);
@@ -395,7 +395,7 @@ const BS_BIP_DEF3 = { crouch: 0, lean: 0.05, twist: 0, side: 0, aLx: -0.15, aLz:
 const BS_BIP_RATE3 = { crouch: 7, lean: 6, twist: 7, side: 6, aLx: 9, aLz: 8, aLe: 9, aRx: 9, aRz: 8, aRe: 9, headUp: 6, jaw: 10, wing: 4, flapAmp: 3, flapHz: 3, hover: 3, glow: 3, look: 4, sink: 2, kneel: 4, fall: 2.2, stance: 6, stompL: 8, tail: 6, back: 5, mantle: 3 };
 // Bein per IK: Hüfte → Fuß (dz vor, dy nach unten), Fuß bleibt waagerecht
 function bsLegIK3(th, sh, ft, L1, L2, dz, dy) {
-  let D = Math.hypot(dz, dy);
+  let D = hyp(dz, dy);
   const mx = (L1 + L2) * 0.999;
   if (D > mx) { dz *= mx / D; dy *= mx / D; D = mx; }
   const phi = Math.atan2(dz, -dy);
@@ -1127,7 +1127,7 @@ const _b3Bb = new THREE.Vector3();
 function bsBolt3(h, a, b, th, w, op, n = 7) {
   let px = a.x, py = a.y, pz = a.z;
   const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
-  const len = Math.hypot(dx, dy, dz) || 1;
+  const len = hyp3(dx, dy, dz) || 1;
   for (let i = 1; i <= n; i++) {
     const k = i / n;
     const j = i === n ? 0 : len * 0.07;
@@ -1251,7 +1251,7 @@ function bsFxQuake3(h, f, u, k, th, full, fade) {
   const m = f.m;
   const x0 = m.x * U3, z0 = feetY(m) * U3;
   const dx = f.tx * U3 - x0, dz = f.ty * U3 - z0;
-  const L = Math.hypot(dx, dz) || 1;
+  const L = hyp(dx, dz) || 1;
   const ux = dx / L, uz = dz / L;
   const n = 11;
   const sd = bsSeed3(f, 'qk', n * 2, () => ({ o: (Math.random() - 0.5) * 1.4, s: 0.7 + Math.random() * 0.6, r: Math.random() * 6, t: Math.random() * 0.4 - 0.2 }));
@@ -1690,7 +1690,7 @@ function bsTelegraphX3(m, kind, circles, inner, delay, th, def) {
         const a = Math.random() * Math.PI * 2;
         const d = 120 + Math.random() * (kind === 'quarter' ? 620 : 480);
         const p = { x: big.x + Math.cos(a) * d, y: big.y + Math.sin(a) * d * 0.8 };
-        if (safe.some((s2) => Math.hypot(s2.x - p.x, s2.y - p.y) < s2.r + 50)) continue;
+        if (safe.some((s2) => hyp(s2.x - p.x, s2.y - p.y) < s2.r + 50)) continue;
         if (safeQ >= 0 && typeof htSector === 'function' && htSector(p.x - big.x, (p.y - big.y) * 1.2) === safeQ) continue;
         spots.push(p);
       }

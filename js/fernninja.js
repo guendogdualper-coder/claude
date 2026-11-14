@@ -399,7 +399,7 @@ MAGE2_REMOTE.bshot = (rp, sk, d) => {
     salvoFx(rp, plan, rk);
     plan.rel.forEach((at, k) => later(at, () => {
       const last = k === n - 1;
-      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: { x: d.tx, y: d.ty }, speed: sk.speed, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || sk.color,
+      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: { x: d.tx, y: d.ty }, speed: sk.speed, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || sk.color,
         radius: 6, style: 'arrow', bfx: last ? 'falke' : 'salvo', onRemoteHit: last ? (m) => salvoLastHit(m) : null });
       addEffect({ type: 'bmuzzle3', follow: rp, ox: 0, oy: 0, color: BOW3.violet, dur: 0.45 });
     }));
@@ -524,7 +524,7 @@ MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
 // spike: so lange nach dem Einschlag brechen die Schattendornen aus dem Boden (zweiter Treffer, seit 14.18)
 const BOW_SPLIT = { rel: 0.2, fly0: 0.32, speed: 1150, stick: 1.1, sink: 0.5, up: 0.5, spike: 0.55 };
 function splitFlight(ox, oy, x, y) {
-  return BOW_SPLIT.fly0 + Math.hypot(x - ox, y - oy) / BOW_SPLIT.speed;
+  return BOW_SPLIT.fly0 + hyp(x - ox, y - oy) / BOW_SPLIT.speed;
 }
 SKILL_TYPES.bsplitter = function (sk, pw) {
   const p = game.player;
@@ -595,7 +595,7 @@ SKILL_TYPES.bshadow = function (sk, pw) {
   const pt = game.aim && game.aim.sk.id === sk.id ? game.aim.pt : aimAwayPoint(p, sk);
   const dx = pt.x - p.x;
   const dy = pt.y - p.y;
-  const dl = Math.hypot(dx, dy);
+  const dl = hyp(dx, dy);
   const dir = dl > 4 ? { x: dx / dl, y: dy / dl } : { ...p.facing };
   const len = shiftReach(p, dir, Math.min(sk.range, Math.max(dl, 40)));
   if (len < 24) {
@@ -814,7 +814,7 @@ ULT_RUN.himmelsfalke = function (p, u, pw) {
 };
 // Bild für alle: shooter = Figur (eigene oder Mitspieler); bis zum Loslassen folgt der Bogen der Figur
 function ultEagleFx(shooter, tx, ty) {
-  const fly0 = Math.max(0.15, Math.hypot(tx - shooter.x, ty - shooter.y) / ULT_EAGLE.speed);
+  const fly0 = Math.max(0.15, hyp(tx - shooter.x, ty - shooter.y) / ULT_EAGLE.speed);
   return addEffect({ type: 'beagle3', x: tx, y: ty, shooter, charge: ULT_EAGLE.charge, fly: fly0, color: '#8a5ae0',
     dur: ULT_EAGLE.charge + fly0 + 2 });
 }
@@ -825,7 +825,7 @@ function ultEagleRelease(e, shooter, tx, ty) {
   e.shooter = null;
   e.x = tx;
   e.y = ty;
-  e.fly = Math.max(0.15, Math.hypot(tx - e.sx, ty - e.sy) / ULT_EAGLE.speed);
+  e.fly = Math.max(0.15, hyp(tx - e.sx, ty - e.sy) / ULT_EAGLE.speed);
   e.dur = e.charge + e.fly + 2;
   return e.fly;
 }
@@ -835,7 +835,7 @@ ULT_SHOW.himmelsfalke = (x, y) => {
   if (typeof net !== 'undefined' && net.players) {
     let best = Infinity;
     for (const rp of net.players.values()) {
-      const d = Math.hypot(rp.x - x, rp.y - y);
+      const d = hyp(rp.x - x, rp.y - y);
       if (d < best && d < 800) { best = d; src = rp; }
     }
   }
@@ -852,7 +852,7 @@ function ultEagleBow(e) {
   const sy = e.shooter ? e.shooter.y : e.sy;
   const dx = e.x - sx;
   const dy = e.y - sy;
-  const L = Math.hypot(dx, dy) || 1;
+  const L = hyp(dx, dy) || 1;
   return { x: sx + dx / L * 16, y: sy + dy / L * 10, fx: dx / L, fy: dy / L, L };
 }
 
@@ -1751,7 +1751,7 @@ function rainArrows(e) {
   const out = [];
   let sx = e.x - e.ox;
   let sz = e.y - e.oy;
-  const sl = Math.hypot(sx, sz) || 1;
+  const sl = hyp(sx, sz) || 1;
   sx /= sl;
   sz /= sl;
   const n = Math.round(e.ticks * e.every * e.rate);
@@ -1762,7 +1762,7 @@ function rainArrows(e) {
     const H = 2.9 + 1.7 * n2h(s, 3);
     const dx = sx * 0.42 + (n2h(s, 5) - 0.5) * 0.34;
     const dz = sz * 0.42 + (n2h(s, 6) - 0.5) * 0.34;
-    const l = Math.hypot(dx, 1, dz);
+    const l = hyp3(dx, 1, dz);
     out.push({ i, at: e.delay + (i + 0.3 + n2h(s, 4) * 0.7) / e.rate, x: e.x + Math.cos(a) * d, y: e.y + Math.sin(a) * d * 0.85,
       H, fall: 0.12 + H * 0.035, dx: dx / l, dy: -1 / l, dz: dz / l, tr: n2h(s, 7), big: n2h(s, 8) < 0.12 });
   }
@@ -1782,7 +1782,7 @@ FX3_DRAW.bregen3 = function (h, e) {
   const vis = on * (1 - off);
   let sx = e.x - e.ox;
   let sz = e.y - e.oy;
-  const sl = Math.hypot(sx, sz) || 1;
+  const sl = hyp(sx, sz) || 1;
   sx /= sl;
   sz /= sl;
   // Salve in den Himmel: die Pfeile verlassen die Bogenhand steil nach oben, mit dunklem Schweif und violettem Schein
@@ -2039,7 +2039,7 @@ function splitShards(e) {
     const tilt = 0.35 + 0.5 * n2h(s, 6);
     const sx = Math.cos(a) * tilt + (n2h(s, 7) - 0.5) * 0.3;
     const sz = Math.sin(a) * tilt + (n2h(s, 8) - 0.5) * 0.3;
-    const sl = Math.hypot(sx, 1, sz);
+    const sl = hyp3(sx, 1, sz);
     out.push({ i, a, d, hp: 0.5 + 1.4 * n2h(s, 3), tf: 0.3 + 0.28 * n2h(s, 4), s: 0.95 + 0.85 * n2h(s, 5), spin: 9 + 12 * n2h(s, 9),
       ax: n2h(s, 10) * Math.PI * 2, stick: { x: sx / sl, y: 1 / sl, z: sz / sl }, rc: n2h(s, 11), core: false });
   }
@@ -2049,7 +2049,7 @@ function splitShards(e) {
     const s = e.seed * 0.291 + i * 2.377;
     const a = (i / nc) * Math.PI * 2 + n2h(s, 1) * 0.8;
     const tilt = 0.25 + 0.3 * n2h(s, 2);
-    const sl = Math.hypot(Math.cos(a) * tilt, 1, Math.sin(a) * tilt);
+    const sl = hyp3(Math.cos(a) * tilt, 1, Math.sin(a) * tilt);
     out.push({ i: 100 + i, a, d: 0.12 + 0.2 * n2h(s, 3), s: 2.6 + 1.1 * n2h(s, 4), stick: { x: Math.cos(a) * tilt / sl, y: 1 / sl, z: Math.sin(a) * tilt / sl }, rc: n2h(s, 5), core: true });
   }
   e._shards = out;
@@ -2086,7 +2086,7 @@ FX3_DRAW.bsplit3 = function (h, e) {
     const o = e.shooter;
     const hp = o && !o.dead && typeof ninjaHand3 === 'function' ? ninjaHand3(o, _bspH) : _bspH.set(e.ox * U3, 1.1, e.oy * U3);
     e._s0 = { x: hp.x, y: hp.y, z: hp.z };
-    e._H = Math.min(4.2, 1.3 + Math.hypot(x - hp.x, z - hp.z) * 0.2);
+    e._H = Math.min(4.2, 1.3 + hyp(x - hp.x, z - hp.z) * 0.2);
   }
   // --- Flug ---
   if (ti < 0) {
@@ -2288,7 +2288,7 @@ FX3_DRAW.bshadow3 = function (h, e) {
   const z1 = e.y * U3;
   const H = e.hide;
   const rk = e.rk >= 0 ? e.rk : -1;
-  const L = Math.hypot(x1 - x0, z1 - z0) || 1;
+  const L = hyp(x1 - x0, z1 - z0) || 1;
   const dx = (x1 - x0) / L;
   const dz = (z1 - z0) / L;
   // Abgang: zerfallende Gestalt aus Rauch (von unten nach oben), peitschende Ranken, Blitz, Federn
@@ -2948,7 +2948,7 @@ EXTRA_EFFECTS.bsplit3 = (ctx, e, k, x, y) => {
     const u = (t - e.rel) / e.fly;
     const sx = x + (e.ox - e.x);
     const sy = y + (e.oy - e.y) - 24;
-    const H = 50 + Math.hypot(e.ox - e.x, e.oy - e.y) * 0.3;
+    const H = 50 + hyp(e.ox - e.x, e.oy - e.y) * 0.3;
     const px = sx + (x - sx) * u;
     const py = sy + (y - sy) * u - 4 * H * u * (1 - u);
     ctx.globalCompositeOperation = 'lighter';
@@ -3185,7 +3185,7 @@ Object.assign(SKILL_ART_THEME, { falkenpfeil: 'falke', pfeilregen: 'nachtfalke',
 // der Länge an, damit auch kurze Pfeile wie Pfeile aussehen
 function ikBowArrow(ctx, IK, x0, y0, x1, y1, o = {}) {
   const a = Math.atan2(y1 - y0, x1 - x0);
-  const len = Math.hypot(x1 - x0, y1 - y0);
+  const len = hyp(x1 - x0, y1 - y0);
   const w = o.w || 1.6;
   const hl = Math.min(5 * w, len * 0.26);
   const hw = Math.max(1.6, hl * 0.42);

@@ -222,7 +222,7 @@ function onParty(pid, d) {
     case 'pr': {
       const k = Number(d.dg);
       if (!game.party || !game.party.members.includes(name) || !DUNGEONS[k] || !isFinite(d.x) || !isFinite(d.y)) break;
-      if (game.world.npcs.some((n) => n.id === 'riss' && Math.hypot(n.x - d.x, n.y - d.y) < 40)) break;
+      if (game.world.npcs.some((n) => n.id === 'riss' && hyp(n.x - d.x, n.y - d.y) < 40)) break;
       const life = Math.max(10, Math.min(RIFT.life, Number(d.life) || RIFT.life));
       game.world.npcs.push({ id: 'riss', name: 'Dungeon-Riss', x: d.x, y: d.y, r: 11, dungeon: k, until: game.time + life, born: game.time, shared: true });
       ui.log(`Bei ${name} hat sich ein Riss in die ${DUNGEONS[k].name} geöffnet – er ist auf deiner Karte markiert.`, 'level');
@@ -381,7 +381,7 @@ function partyHudUpdate(leader, get) {
     if (!rp) st = 'off';
     else if (rp.dead) st = 'dead';
     else if (rp.area !== undefined ? rp.area !== myArea : areaKey(rp.x, rp.y) !== myArea) st = 'away';
-    else if (Math.hypot(rp.x - me.x, rp.y - me.y) > NET_SHARE) st = 'far';
+    else if (hyp(rp.x - me.x, rp.y - me.y) > NET_SHARE) st = 'far';
     if (v.st !== st) {
       r.el.dataset.st = st;
       r.note.textContent = PARTY_NOTE[st];

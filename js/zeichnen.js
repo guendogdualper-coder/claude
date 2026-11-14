@@ -1775,7 +1775,13 @@ function drawLabel(ctx, e) {
   const big = targeted || e.isStone || boss;
   const lvColor = e.isStone ? lighter(e.stoneType.look.glow, 0.45) : levelColor(e.level);
   const nameColor = e.isStone || targeted ? '#fff3d8' : boss ? '#ffb08a' : 'rgba(240,232,214,0.92)';
-  const lab = monsterLabel('LVL ' + e.level, e.name, big, lvColor, nameColor);
+  // seit 15.16: das Schild hängt am Monster, solange Stufe, Name, Größe und Farben gleich bleiben – vorher wurde je
+  // Monster und Bild ein Schlüssel aus fünf Teilen zusammengesetzt (neuer Speicher) und nachgeschlagen
+  let lc = e.__lab;
+  if (!lc || lc.lv !== e.level || lc.nm !== e.name || lc.big !== big || lc.c1 !== lvColor || lc.c2 !== nameColor) {
+    lc = e.__lab = { lab: monsterLabel('LVL ' + e.level, e.name, big, lvColor, nameColor), lv: e.level, nm: e.name, big, c1: lvColor, c2: nameColor };
+  }
+  const lab = lc.lab;
   ctx.drawImage(lab.c, e.x - lab.w / 2, top - lab.base, lab.w, lab.h);
   if (e.hp < e.maxHp || targeted || e.isStone) {
     (LOAD.fastBars && !targeted && !e.isStone && !boss ? drawBarFast : drawBar)(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');

@@ -244,7 +244,7 @@ function kaTex(kind) {
         // Richtung: halb nach außen, halb nach oben
         let dx = Math.cos(an) * 0.45;
         let dy = Math.sin(an) * 0.45 - 0.75;
-        const l = Math.hypot(dx, dy);
+        const l = hyp(dx, dy);
         dx /= l;
         dy /= l;
         const L = 26 + 34 * len;
@@ -443,7 +443,7 @@ function kaBack(A) {
   const dx = A.x - c.x;
   const dy = A.y + A.H * 0.6 - c.y;
   const dz = A.z - c.z;
-  const l = Math.hypot(dx, dy, dz) || 1;
+  const l = hyp3(dx, dy, dz) || 1;
   KA_BK.x = dx / l;
   KA_BK.y = dy / l;
   KA_BK.z = dz / l;
@@ -898,7 +898,7 @@ function kaShellGeo(m) {
       let nx = bp[i * 3] / e.s[0];
       let ny = bp[i * 3 + 1] / e.s[1];
       let nz = bp[i * 3 + 2] / e.s[2];
-      const l = Math.hypot(nx, ny, nz) || 1;
+      const l = hyp3(nx, ny, nz) || 1;
       pos[v * 3] = e.c[0] + bp[i * 3] * e.s[0];
       pos[v * 3 + 1] = e.c[1] + bp[i * 3 + 1] * e.s[1];
       pos[v * 3 + 2] = e.c[2] + bp[i * 3 + 2] * e.s[2];
@@ -1051,7 +1051,7 @@ function kaShell3D(a, st, kk, L, t, low, rimOn, wide, A) {
   // auf dem Pferd (seit 13.90): kaum Nachziehen – beim Galopp zogen die Flammen sonst weit nach hinten und zur Seite
   // seit 14.41 gut halb so weit (vorher 0,045 + 0,035·L) und begrenzt: die Flammen neigen sich nach hinten statt abzureißen
   const trail = (0.026 + 0.018 * L) * (A.ride ? 0.2 : 1);
-  const vl = Math.hypot(S.vx, S.vz) * trail;
+  const vl = hyp(S.vx, S.vz) * trail;
   const vk = vl > mh * 0.16 ? (mh * 0.16) / vl : 1;
   // Hauptlage: auf niedriger Stufe ein dünnes Flackern dicht am Körper, ab Stufe 30–50 deutliche Flammen, ab 80 hoch lodernd
   const u = S.outer.material.uniforms;
@@ -1143,7 +1143,7 @@ function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
   const S = a.kaS;
   let lvx = S ? S.vx * 0.03 : 0;
   let lvz = S ? S.vz * 0.03 : 0;
-  const ll = Math.hypot(lvx, lvz);
+  const ll = hyp(lvx, lvz);
   if (ll > H * 0.12) {
     lvx *= (H * 0.12) / ll;
     lvz *= (H * 0.12) / ll;
@@ -1159,7 +1159,7 @@ function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
     let dx = kaHash(i + 11, cyc) * 2;
     let dy = 0.35 + (kaHash(i + 17, cyc) + 0.5) * 0.65;
     let dz = kaHash(i + 23, cyc) * 2;
-    const dl = Math.hypot(dx, dy, dz) || 1;
+    const dl = hyp3(dx, dy, dz) || 1;
     dx /= dl;
     dy /= dl;
     dz /= dl;
@@ -1173,7 +1173,7 @@ function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
     const ox = _kaV.x - x;
     const oz = _kaV.z - z;
     const yk = (_kaV.y - y) / H + ph * w.rise * (0.25 + 0.3 * L);
-    let op = Math.pow(life, 0.8) * k * kaFace(ox, oz, Math.hypot(ox, oz), yk + 0.05);
+    let op = Math.pow(life, 0.8) * k * kaFace(ox, oz, hyp(ox, oz), yk + 0.05);
     if (w.flicker) op *= 0.78 + 0.22 * Math.sin(t * 9 + i * 5);
     if (op < 0.02) continue;
     const sx = H * w.w * 0.75 * (1 - ph * 0.5) * big;
@@ -1251,7 +1251,7 @@ function kaFrame(h) {
   const q = g ? Math.min(1.15, g.particles) : 1;
   const f = FX3.cam.f;
   if (f) {
-    const l = Math.hypot(f.x, f.z) || 1;
+    const l = hyp(f.x, f.z) || 1;
     KA_CAM.x = f.x / l;
     KA_CAM.z = f.z / l;
   }
@@ -1336,7 +1336,7 @@ function bodyAura2(ctx, p, fy, ride, layer) {
         const oy = cy + Math.sin(an) * 22;
         let dx = Math.cos(an) * 0.5;
         let dy = Math.sin(an) * 0.5 - 0.7;
-        const l = Math.hypot(dx, dy);
+        const l = hyp(dx, dy);
         dx /= l;
         dy /= l;
         const L = (11 + 9 * Math.abs(Math.sin(i * 1.9 + t * (5 + (i % 3))))) * (pass ? 0.7 : 1) * (0.85 + 0.15 * k);

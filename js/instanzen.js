@@ -200,7 +200,7 @@ function instCornerEntrance(entry, ground, obj, deco, zoneIdx) {
     for (let x = gx - 18; x <= gx + 18; x++) {
       if (x < rx + B || y < ry + B || x >= rx + rw - B || y >= ry + rh - B - 3) continue;
       if (!seen[(y - ry) * rw + x - rx]) continue;
-      const d = Math.hypot(x - gx, (y - gyy) * 1.3);
+      const d = hyp(x - gx, (y - gyy) * 1.3);
       if (d < bd) { bd = d; best = { x, y }; }
     }
   }
@@ -396,7 +396,7 @@ function instRenderGate(body, npc, dg) {
 // Spieler nahe dem Platz des Bosses (nur in seinem Raum, nicht nebenan hinter der Wand)
 function instPlayers(m) {
   const reach = m.type.inst.final ? INST.reachFinal : INST.reach;
-  return raidPlayers(m).filter((pl) => Math.hypot(pl.x - m.homeX, pl.y - m.homeY) < reach);
+  return raidPlayers(m).filter((pl) => hyp(pl.x - m.homeX, pl.y - m.homeY) < reach);
 }
 // Wächter der eigenen Instanz, die noch stehen (einmal je Bild gezählt; für Host und Mitspieler gleich)
 const instFrame = { t: -1, alive: new Map(), all: new Map() };
@@ -571,7 +571,7 @@ function instCastSpec(m, kind) {
   const b = m.type.boss;
   const I = m.type.inst;
   const fy = (e) => feetY(e);
-  const list = raidPlayers(m).filter((pl) => Math.hypot(pl.x - m.homeX, pl.y - m.homeY) < (I.final ? INST.reachFinal : INST.reach) + 150);
+  const list = raidPlayers(m).filter((pl) => hyp(pl.x - m.homeX, pl.y - m.homeY) < (I.final ? INST.reachFinal : INST.reach) + 150);
   const tgt = m.target && !m.target.dead ? m.target : list[0] || m;
   const home = { x: m.homeX, y: m.homeY };
   const rnd = (rad) => spotNear(home, rad);
@@ -605,7 +605,7 @@ function instCastSpec(m, kind) {
     case 'charge': {
       const v = list[randInt(0, Math.max(0, list.length - 1))] || tgt;
       const a = Math.atan2(v.y - m.y, v.x - m.x);
-      const len = Math.min(520, Math.hypot(v.x - m.x, v.y - m.y) + 140);
+      const len = Math.min(520, hyp(v.x - m.x, v.y - m.y) + 140);
       for (let s = 60; s <= len; s += 60) {
         const x = m.x + Math.cos(a) * s;
         const y = fy(m) + Math.sin(a) * s;
@@ -667,8 +667,8 @@ function instCastSpec(m, kind) {
       const safe = [];
       for (let tries = 0; safe.length < n && tries < 60; tries++) {
         const s = spotNear(home, 340);
-        if (Math.hypot(s.x - home.x, s.y - home.y) < 150) continue;
-        if (safe.some((o) => Math.hypot(o.x - s.x, o.y - s.y) < 220)) continue;
+        if (hyp(s.x - home.x, s.y - home.y) < 150) continue;
+        if (safe.some((o) => hyp(o.x - s.x, o.y - s.y) < 220)) continue;
         safe.push({ x: s.x, y: s.y + 10, r: 85 });
       }
       for (let k = safe.length; k < n; k++) safe.push({ x: home.x + (k ? -240 : 240), y: home.y + 10, r: 85 });
@@ -794,7 +794,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
   const own3 = instOwn3(m) && V3.on;
   const p = game.player;
   const fyp = p ? feetY(p) : 0;
-  const inC = (c) => p && Math.hypot(p.x - c.x, (fyp - c.y) * 1.2) < c.r;
+  const inC = (c) => p && hyp(p.x - c.x, (fyp - c.y) * 1.2) < c.r;
   const hurt = (mul) => {
     if (!p || p.dead) return;
     damagePlayer(calcDamage(atk, mul * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
@@ -808,7 +808,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
       const a = rnd() * Math.PI * 2;
       const d = 80 + rnd() * 520;
       const c = { x: big.x + Math.cos(a) * d, y: big.y + Math.sin(a) * d * 0.8, r: 90 };
-      if (safe.some((s) => Math.hypot(s.x - c.x, s.y - c.y) < s.r + 40)) continue;
+      if (safe.some((s) => hyp(s.x - c.x, s.y - c.y) < s.r + 40)) continue;
       instBurst(T, fx, c, true);
     }
     if (!own3) addEffect({ type: 'ring', x: big.x, y: big.y, r: 640, dur: 0.9, color: T.col, width: 26, grow: true });
@@ -829,7 +829,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
       instBurst(T, fx, { x: c.x + Math.cos(a) * d, y: c.y + Math.sin(a) * d * 0.8, r: 70 }, false);
     }
     if (!own3) addEffect({ type: 'ring', x: c.x, y: c.y, r: c.r, dur: 0.7, color: T.col, width: 18, grow: true });
-    const d = p ? Math.hypot(p.x - c.x, (fyp - c.y) * 1.2) : 1e9;
+    const d = p ? hyp(p.x - c.x, (fyp - c.y) * 1.2) : 1e9;
     if (d < c.r && d >= inner) hurt(INST_MUL[kind]);
     return true;
   }
@@ -843,7 +843,7 @@ function instResolve(m, kind, circles, inner, atk, lvl) {
       // zum Boss gerissen (mit Kollision), dann kurzer Treffer
       const dx = m.x - p.x;
       const dy = m.y - p.y;
-      const d = Math.hypot(dx, dy) || 1;
+      const d = hyp(dx, dy) || 1;
       const go = Math.max(0, d - (m.r + 40));
       for (let s = 0; s < 8; s++) moveEntity(p, (dx / d) * go / 8, (dy / d) * go / 8, false);
       addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 0.6, count: 10, color: T.wind, speed: 2, up: 1, dur: 0.5 });
@@ -883,7 +883,7 @@ function instHazardTick() {
     if (game.time > h.until) { INST_HAZ.splice(i, 1); continue; }
     if (game.time < h.next || !p || p.dead) continue;
     h.next = game.time + 0.5;
-    if (Math.hypot(p.x - h.x, (feetY(p) - h.y) * 1.2) < h.r) damagePlayer(calcDamage(h.atk, 0.22 * levelBonus(h.lvl, p.level), game.stats.def, 0, h.lvl).amount, h.m);
+    if (hyp(p.x - h.x, (feetY(p) - h.y) * 1.2) < h.r) damagePlayer(calcDamage(h.atk, 0.22 * levelBonus(h.lvl, p.level), game.stats.def, 0, h.lvl).amount, h.m);
   }
 }
 EXTRA_EFFECTS.ipool = (ctx, e, k, x, y) => {
@@ -1022,7 +1022,7 @@ function instWatch() {
   for (const m of game.monsters) {
     const I = m.type && m.type.inst;
     if (!I || m.dead || Math.abs(m.x - p.x) > 420 || Math.abs(m.y - p.y) > 360) continue;
-    if (Math.hypot(m.x - p.x, m.y - p.y) > 400 || game.time - (instState.intro.get(m.id) || -1e9) < 300) continue;
+    if (hyp(m.x - p.x, m.y - p.y) > 400 || game.time - (instState.intro.get(m.id) || -1e9) < 300) continue;
     instState.intro.set(m.id, game.time);
     ui.banner(m.name, I.final && instSealed(m) ? 'versiegelt – besiegt erst alle Wächter' : I.title);
   }

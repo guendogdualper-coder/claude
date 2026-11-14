@@ -48,13 +48,13 @@ function beamEnd(p, sk) {
 function enemiesOnBeam(p, end, w) {
   const dx = end.x - p.x;
   const dy = end.y - p.y;
-  const L = Math.hypot(dx, dy) || 1;
+  const L = hyp(dx, dy) || 1;
   return enemiesNear(p.x, p.y, L * 1.05 + w).filter((m) => {
     const t = ((m.x - p.x) * dx + (m.y - p.y) * dy) / (L * L);
     if (t < 0 || t > 1.05) return false;
     const px = p.x + dx * t;
     const py = p.y + dy * t;
-    return Math.hypot(m.x - px, m.y - py) <= w + (m.r || 0);
+    return hyp(m.x - px, m.y - py) <= w + (m.r || 0);
   });
 }
 
@@ -226,7 +226,7 @@ EXTRA_EFFECTS.icebeam = (ctx, e, k) => {
   const fade = Math.min(1, t / 0.08) * Math.min(1, (e.dur - t) / 0.18);
   ctx.globalCompositeOperation = 'lighter';
   ctx.lineCap = 'round';
-  const L = Math.hypot(bx - a.x, by - a.y) || 1;
+  const L = hyp(bx - a.x, by - a.y) || 1;
   const nx = -(by - a.y) / L;
   const ny = (bx - a.x) / L;
   for (const [w, col, al] of [[16, '#3a7bff', 0.25], [8, '#9ff6ff', 0.6], [3, '#ffffff', 0.95]]) {

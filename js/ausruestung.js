@@ -2484,7 +2484,7 @@ const gear = {
       if (!d.active) return;
       d.ghost.style.transform = `translate(${x - 28}px, ${y - 28}px)`;
       // seit 14.32: Hinweisfeld vom langen Halten (Handy) nicht über die Ablageziele mitschleppen
-      if (typeof hideTip === 'function' && tipBox.target && Math.hypot(x - d.x0, y - d.y0) > 10) hideTip();
+      if (typeof hideTip === 'function' && tipBox.target && hyp(x - d.x0, y - d.y0) > 10) hideTip();
       const t = targetAt(x, y);
       if (t !== d.over) {
         if (d.over) d.over.classList.remove('dnd-over');
@@ -2535,7 +2535,7 @@ const gear = {
       const d = { el, src, x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY, active: false };
       this.dnd = d;
       const mm = (ev) => {
-        if (!d.active && Math.hypot(ev.clientX - d.x0, ev.clientY - d.y0) > 6) start(d);
+        if (!d.active && hyp(ev.clientX - d.x0, ev.clientY - d.y0) > 6) start(d);
         move(d, ev.clientX, ev.clientY);
       };
       const mu = () => {
@@ -2561,7 +2561,7 @@ const gear = {
         const t = ev.touches[0];
         if (!t) return;
         if (!d.active) {
-          if (Math.hypot(t.clientX - d.x0, t.clientY - d.y0) > 10) { clearTimeout(d.timer); end(); stop(d, false); }
+          if (hyp(t.clientX - d.x0, t.clientY - d.y0) > 10) { clearTimeout(d.timer); end(); stop(d, false); }
           return;
         }
         ev.preventDefault();

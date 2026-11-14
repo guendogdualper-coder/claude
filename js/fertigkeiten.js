@@ -45,7 +45,7 @@ function crescentPath(ctx, x0, y0, x1, y1, bulge) {
     const my = (y0 + y1) / 2;
     const nx = -(y1 - y0);
     const ny = x1 - x0;
-    const len = Math.hypot(nx, ny);
+    const len = hyp(nx, ny);
     ctx.beginPath();
     ctx.moveTo(x0, y0);
     ctx.quadraticCurveTo(mx + nx / len * bulge, my + ny / len * bulge, x1, y1);
@@ -1038,7 +1038,7 @@ const DRAGON_PAL = {
 function dragonFx(p, tx, ty, sk, onHit) {
   const el = sk.element || 'feuer';
   const P = DRAGON_PAL[el];
-  const fly = Math.max(0.3, Math.min(0.7, Math.hypot(tx - p.x, ty - p.y) / (sk.speed || 620)));
+  const fly = Math.max(0.3, Math.min(0.7, hyp(tx - p.x, ty - p.y) / (sk.speed || 620)));
   const c = bodyCenter(p);
   addEffect({ type: 'runes', x: c.x + p.facing.x * 14, y: c.y + 6, r: 24, dur: 0.5, color: P.rune });
   addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 1, count: 12, color: P.rune, speed: 2, up: 1.4, dur: 0.6 });

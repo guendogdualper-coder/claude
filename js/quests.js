@@ -1257,7 +1257,7 @@ function updateVillagers(dt) {
     }
     const dx = n.wx - n.x;
     const dy = n.wy - n.y;
-    const len = Math.hypot(dx, dy);
+    const len = hyp(dx, dy);
     if (len < 3) continue;
     // stehen bleiben, wenn man sich mit ihnen unterhält
     if (game.nearNpc === n) continue;

@@ -77,7 +77,7 @@ function dragonFireballFx(a, t, local) {
   const fwd = DRAGON_FLY.mouthFwd * sc * TILE;
   const x = a.x + Math.cos(ang) * fwd;
   const y = feetY(a) + Math.sin(ang) * fwd;
-  const fly = Math.max(0.16, Math.hypot(tx - x, ty - y) / 460);
+  const fly = Math.max(0.16, hyp(tx - x, ty - y) / 460);
   addEffect({ type: 'nfire3', x, y, h: dragonMouthH(a), tgt: t, tx, ty, fly, size: sc, dur: fly + 0.4 });
   if (!local || !t) return;
   const atk = allyAtk(a);
@@ -99,7 +99,7 @@ function dragonBreathFx(a, t, local) {
   const y = a.y;
   later(0.1, () => {
     for (const m of enemiesInCircle(x, y, B.len + 10)) {
-      const dd = Math.hypot(m.x - x, m.y - y) || 1;
+      const dd = hyp(m.x - x, m.y - y) || 1;
       let da = Math.abs(Math.atan2(m.y - y, m.x - x) - ang);
       if (da > Math.PI) da = Math.PI * 2 - da;
       if (da > half + Math.atan(m.r / dd)) continue;
@@ -138,7 +138,7 @@ function colossusFx(a, t, stomp) {
     addEffect({ type: 'decal', kind: 'crack', x: a.x, y: fy, r: 30 * sc, dur: 2.4, color: '#1a1814' });
     particles(a.x, fy - 6, { count: 14, color: ['#8a7a62', '#5a5044', '#7fe3a0'], speed: [60, 170], life: [0.35, 0.7], size: [2, 4], shape: 'square', gravity: 260 });
     const p = game.player;
-    if (p && Math.hypot(p.x - a.x, p.y - a.y) < 320) shakeScreen(3);
+    if (p && hyp(p.x - a.x, p.y - a.y) < 320) shakeScreen(3);
     return;
   }
   const tx = t ? t.x : a.x + (a.facing || 1) * 30;

@@ -464,7 +464,7 @@ Object.assign(SKILL_ART, {
     for (const [a, len, w] of needles) {
       const dx = Math.cos(a);
       const dy = Math.sin(a) * ky;
-      const l = len * Math.hypot(dx, dy) * (0.85 + 0.15 * (Math.sin(a) + 1) / 2);
+      const l = len * hyp(dx, dy) * (0.85 + 0.15 * (Math.sin(a) + 1) / 2);
       const ang = Math.atan2(dx, -dy);
       IK.crystal(ctx, dx * 2.5, cy + dy * 2.5, l, w * (0.75 + 0.25 * Math.abs(Math.cos(a))), ang, P);
     }
@@ -483,7 +483,7 @@ Object.assign(SKILL_ART, {
     const x1 = 17;
     const y1 = -15;
     const ang = Math.atan2(y1 - y0, x1 - x0);
-    const len = Math.hypot(x1 - x0, y1 - y0);
+    const len = hyp(x1 - x0, y1 - y0);
     // Strahl (Kegel, wird breiter)
     ctx.save();
     ctx.translate(x0, y0);

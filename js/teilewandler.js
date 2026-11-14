@@ -177,7 +177,7 @@ function twPlace(w) {
       const x = Math.round((S.x + Math.cos(a) * r) * 20) / 20;
       const y = Math.round((S.y + Math.sin(a) * r) * 20) / 20;
       // in der Stadt bleiben (nicht über die Mauer hinaus)
-      if (wm && Math.hypot(x - wm.cx, y - wm.cy) > 17) continue;
+      if (wm && hyp(x - wm.cx, y - wm.cy) > 17) continue;
       if (free(w, x, y, props)) return { x, y };
     }
   }

@@ -14,6 +14,7 @@ const LOAD = {
   labelR: 0,     // Namen und Lebensbalken gewöhnlicher Monster nur bis zu diesem Abstand (Felder; 0 = alle)
   noShadowLod: false, // klein dargestellte Monster ohne eigenen Schattenwurf (Bodenschatten bleibt)
   hitCrowd: 40,  // ab so vielen Treffer-Effekten zugleich zeichnen sie die sparsame Fassung
+  parts: 320,    // Höchstzahl gleichzeitiger Zier-Teilchen (Funken, Staub, Splitter)
   fastBars: false, // Lebensbalken der Monster in einfacher Form (zwei Rechtecke statt Verlauf mit Maske)
   force: null    // nur für Tests: feste Stufe
 };
@@ -33,6 +34,7 @@ function loadApply() {
   LOAD.fastBars = !pc || lv >= 1;
   LOAD.hitCrowd = pc ? [40, 20, 10][lv] : [14, 10, 6][lv];
   LOAD.noShadowLod = !pc || lv >= 1;
+  LOAD.parts = Math.round((pc ? 320 : g === 'niedrig' ? 140 : g === 'mittel' ? 200 : 260) * cut);
 }
 // je Bild aus frame() (spiel.js): dtMs = echte Zeit seit dem letzten Bild, cap = Bildratengrenze (0 = keine)
 function loadTick(dtMs, cap) {

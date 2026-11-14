@@ -37,7 +37,7 @@ function moveVector() {
     const v = MOVE_KEYS[k];
     if (v) { x += v[0]; y += v[1]; }
   }
-  const len = Math.hypot(x, y);
+  const len = hyp(x, y);
   if (len < 0.15) return { x: 0, y: 0 };
   if (len > 1) { x /= len; y /= len; }
   // Schulterblick: „nach oben“ heißt „von der Kamera weg“, die Kamera kann gedreht sein
@@ -127,7 +127,7 @@ function setupInput() {
       // der zweite das Zoomen (der erste hat beim Aufsetzen wie bisher ausgewählt)
       if (V3.on && oneTouch && oneTouch.id !== e.pointerId && !pinch) {
         camDrag = { id: oneTouch.id, x: oneTouch.x, y: oneTouch.y, moved: true, fixed: true };
-        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: Math.hypot(e.clientX - oneTouch.x, e.clientY - oneTouch.y) || 1, z0: V3.zoomMul || 1 };
+        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: hyp(e.clientX - oneTouch.x, e.clientY - oneTouch.y) || 1, z0: V3.zoomMul || 1 };
         try { cv.setPointerCapture(e.pointerId); } catch (err) { /* Finger schon weg */ }
         return;
       }
@@ -141,7 +141,7 @@ function setupInput() {
     if (camDrag) {
       // seit 14.44: zweiter Finger auf dem Bild = Zoomen mit zwei Fingern (auseinander = näher, zusammen = weiter weg)
       if (!pinch && V3.on) {
-        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: Math.hypot(e.clientX - camDrag.x, e.clientY - camDrag.y) || 1, z0: V3.zoomMul || 1 };
+        pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d0: hyp(e.clientX - camDrag.x, e.clientY - camDrag.y) || 1, z0: V3.zoomMul || 1 };
         camDrag.moved = true;
         cv.setPointerCapture(e.pointerId);
       }
@@ -154,7 +154,7 @@ function setupInput() {
   let pinch = null;
   const pinchMove = (e) => {
     if (e.pointerId === pinch.id) { pinch.x = e.clientX; pinch.y = e.clientY; } else { camDrag.x = e.clientX; camDrag.y = e.clientY; }
-    const d = Math.hypot(pinch.x - camDrag.x, pinch.y - camDrag.y) || 1;
+    const d = hyp(pinch.x - camDrag.x, pinch.y - camDrag.y) || 1;
     v3SetZoom(pinch.z0 * pinch.d0 / d);
   };
   const mouseDown = (e) => {
@@ -271,7 +271,7 @@ function selectAt(clientX, clientY) {
       if (m.dead) continue;
       const h = figureHeight(m);
       const cy = m.isStone ? m.y - 18 : feetY(m) - h / 2;
-      const d = Math.hypot(m.x - w.x, cy - w.y);
+      const d = hyp(m.x - w.x, cy - w.y);
       if (d < Math.max(m.r + 10, h * 0.5) && d < bestD + h * 0.2) { best = m; bestD = d; }
     }
     if (best) {
@@ -283,7 +283,7 @@ function selectAt(clientX, clientY) {
     if (typeof tpTap === 'function' && tpTap(w.x, w.y)) return 'npc';
     for (const n of game.world.npcs) {
       // seit 13.91 nur im selben Raum (begehbare Häuser, sameRoom in welt.js)
-      if (Math.hypot(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90 && sameRoom(n, game.player)) {
+      if (hyp(n.x - w.x, feetY(n) - 22 - w.y) < 28 && dist(n, game.player) < 90 && sameRoom(n, game.player)) {
         ui.openNpc(n);
         return 'npc';
       }
@@ -323,7 +323,7 @@ function setupTouch() {
   const moveStick = (e) => {
     let dx = e.clientX - origin.x;
     let dy = e.clientY - origin.y;
-    const len = Math.hypot(dx, dy);
+    const len = hyp(dx, dy);
     if (len > 10) moved = true;
     if (len > RADIUS) { dx = dx / len * RADIUS; dy = dy / len * RADIUS; }
     knob.style.transform = `translate(${dx}px, ${dy}px)`;
@@ -400,7 +400,7 @@ function setupTouch() {
     if (cancel || !t || !(t.target instanceof Element)) return;
     const others = touches.size > 0 || stickId !== null || input.touchAttack;
     if (!others) return;
-    if (Math.hypot(e.clientX - t.x, e.clientY - t.y) > 14 || performance.now() - t.t > 700) return;
+    if (hyp(e.clientX - t.x, e.clientY - t.y) > 14 || performance.now() - t.t > 700) return;
     if (t.target.closest(SKIP) || !t.target.isConnected) return;
     synth = { el: t.target, at: performance.now(), x: e.clientX, y: e.clientY };
     t.target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window, detail: 1, clientX: e.clientX, clientY: e.clientY }));
@@ -411,7 +411,7 @@ function setupTouch() {
     // seit 14.5 auch nach Ort: schließt der weitergegebene Klick ein Fenster (z. B. × der großen Karte), trifft der echte
     // Klick danach das, was darunter liegt (die kleine Karte) – und öffnete das Fenster sofort wieder
     if (e.isTrusted && synth && performance.now() - synth.at < 600 &&
-        (e.target === synth.el || synth.el.contains(e.target) || Math.hypot(e.clientX - synth.x, e.clientY - synth.y) < 30)) {
+        (e.target === synth.el || synth.el.contains(e.target) || hyp(e.clientX - synth.x, e.clientY - synth.y) < 30)) {
       e.stopImmediatePropagation();
       e.preventDefault();
       synth = null;

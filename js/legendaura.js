@@ -73,7 +73,7 @@ function fx3LegendAuras(h) {
     const kp = who._ka ? Math.min(1, who._ka.k * 1.5) : 0;
     // weicher Körperschein, ein Stück hinter der Figur (vom Betrachter aus)
     const c = V3.camera.position;
-    const bl = Math.hypot(x - c.x, z - c.z) || 1;
+    const bl = hyp(x - c.x, z - c.z) || 1;
     _lgBk.x = ((x - c.x) / bl) * 0.45;
     _lgBk.z = ((z - c.z) / bl) * 0.45;
     n3Glow(h, x + _lgBk.x, y0 + 1.0, z + _lgBk.z, 1.7 + P * 1.1, T.core, (T.dark ? 0.45 : 0.26) * P * (1 - 0.55 * kp) * (0.85 + 0.15 * Math.sin(t * 2.2 + seed)));

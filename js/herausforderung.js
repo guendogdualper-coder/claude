@@ -98,7 +98,7 @@ function arenaInHall(s, tx, ty) {
   const dy = Math.abs(ty + 0.5 - R.cy);
   if (dx > hw || dy > hh) return false;
   const k = ARENA.corner;
-  if (dx > hw - k && dy > hh - k) return Math.hypot(dx - (hw - k), dy - (hh - k)) <= k;
+  if (dx > hw - k && dy > hh - k) return hyp(dx - (hw - k), dy - (hh - k)) <= k;
   return true;
 }
 // Punkt auf der Ellipse um die Mitte der Halle (Winkel a, 0 = Osten, π/2 = Süden), in Kacheln
@@ -502,7 +502,7 @@ function arenaPickTarget(S, m, fighters) {
     if (arenaHidden(o)) continue;
     let n = 0;
     for (const x of S.mons) if (!x.dead && x !== m && x.target === o) n++;
-    const sc = n * 1e4 + Math.hypot(o.x - m.x, o.y - m.y);
+    const sc = n * 1e4 + hyp(o.x - m.x, o.y - m.y);
     if (sc < bs) { bs = sc; best = o; }
   }
   return best;
@@ -518,7 +518,7 @@ function arenaSpawnOne(s, S, e, fighters) {
   const spots = arenaSpawnSpots(s);
   // eine Stelle ein Stück von allen Teilnehmern weg; seit 14.32 reihum über den Rand verteilt (Druck aus mehreren
   // Richtungen, kein Erscheinen direkt neben jemandem)
-  const far = spots.filter((p) => fighters.every((o) => Math.hypot(p.x - o.x, p.y - o.y) > 6 * TILE));
+  const far = spots.filter((p) => fighters.every((o) => hyp(p.x - o.x, p.y - o.y) > 6 * TILE));
   const list = far.length ? far : spots;
   S.spotK = (S.spotK + 3) % 997;
   const at = list[S.spotK % list.length];
@@ -703,7 +703,7 @@ function arenaGroupInfo() {
     else if ((on.rp.level || 0) < ARENA.minLevel) why = `unter Stufe ${ARENA.minLevel}`;
     else if (arenaInside(on.rp)) why = 'schon in der Arena';
     else if (on.rp.dead) why = 'tot';
-    const d = on ? Math.hypot(on.rp.x - p.x, on.rp.y - p.y) : Infinity;
+    const d = on ? hyp(on.rp.x - p.x, on.rp.y - p.y) : Infinity;
     out.push({ name: n, ok: !why, why, d, cap: on ? arenaCapOf(on.rp) : 0 });
   }
   return out.sort((a, b) => (b.ok - a.ok) || a.d - b.d);

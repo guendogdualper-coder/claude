@@ -427,7 +427,7 @@ function flmSpark(h, x, y, z, vx, vy, vz, len, w, color, op) {
   const Up = FX3.cam.u;
   const sx = vx * R.x + vy * R.y + vz * R.z;
   const sy = vx * Up.x + vy * Up.y + vz * Up.z;
-  const sp = Math.hypot(sx, sy);
+  const sp = hyp(sx, sy);
   const o = fx3MageSprite(h, 'sprite', 'disc', x, y, z, w, Math.max(w, len * Math.min(1, sp * 0.25 + 0.3)), color, op);
   o.material.rotation = Math.atan2(sy, sx) - Math.PI / 2;
   return o;
@@ -1095,7 +1095,7 @@ FX3_DRAW.mphoenix3 = function (h, e) {
   const z1 = e.y1 * U3;
   const dx = x1 - x0;
   const dz = z1 - z0;
-  const L = Math.hypot(dx, dz) || 1;
+  const L = hyp(dx, dz) || 1;
   const fx = dx / L;
   const fz = dz / L;
   // Bahn: steigt aus dem Zepter auf, gleitet hoch und stürzt am Ende herab

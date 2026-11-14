@@ -1429,7 +1429,7 @@ function bodyLine3(W, g, a, b, n, w, color, o = {}, side = 1, at = torsoAt3) {
     const t0 = (i + 0.5) / n;
     const x = a[0] + (b[0] - a[0]) * t0;
     const y = a[1] + (b[1] - a[1]) * t0;
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) / n;
+    const len = hyp(b[0] - a[0], b[1] - a[1]) / n;
     const F = onBody3(W, g, x, y, side, 0.006, at);
     F(roundBox(w, len * 1.15, w * 0.7, w * 0.35), color, Object.assign({ r: [0, 0, -Math.atan2(b[0] - a[0], b[1] - a[1]) * side] }, o));
   }
@@ -2504,7 +2504,7 @@ function bow3(W, tier, shell, strW) {
     // nach vorn (von der Sehne weg), senkrecht zum Arm
     const out = (k) => {
       const d = dk(Math.min(k, n - 2));
-      const l = Math.hypot(d[0], d[1]) || 1;
+      const l = hyp(d[0], d[1]) || 1;
       return [(d[1] * sy) / l, (-d[0] * sy) / l, 0];
     };
     if (BOW_TIP_BLADES[tier]) {
@@ -2603,7 +2603,7 @@ function wglowGeo3(geo) {
     const x = (P.getX(i) - cx) / hx;
     const y = (P.getY(i) - cy) / hy;
     const z = (P.getZ(i) - cz) / hz;
-    const l = Math.hypot(x, y, z) || 1;
+    const l = hyp3(x, y, z) || 1;
     N[i * 3] = x / l;
     N[i * 3 + 1] = l > 1e-6 ? y / l : 1;
     N[i * 3 + 2] = z / l;

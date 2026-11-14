@@ -66,14 +66,14 @@ function rgFreeAt(w, x, y, props) {
     if (n.wander) {
       // Umherlaufende gehen bis zu 2,5 Kacheln seitlich und 2 Kacheln hoch und runter (updateVillagers)
       if (Math.abs(n.homeX / TILE - x) < 3.1 && Math.abs(n.homeY / TILE - y) < 2.6) return false;
-    } else if (Math.hypot(nx - x, ny - y) < (n.id === 'weltentor' || n.id === 'eingang' ? 3.2 : 1.7)) return false;
+    } else if (hyp(nx - x, ny - y) < (n.id === 'weltentor' || n.id === 'eingang' ? 3.2 : 1.7)) return false;
   }
   for (const pr of props) {
     const R = pr.type === 'stand' ? 1.9 : pr.type === 'well' || pr.type === 'horse' ? 1.6 : 1.2;
-    if (Math.hypot(pr.x / TILE - x, pr.y / TILE - y) < R) return false;
+    if (hyp(pr.x / TILE - x, pr.y / TILE - y) < R) return false;
   }
   // nicht auf den Startplatz (villageSpawn: Mitte, eine Kachel tiefer) – sonst steht man beim Start in ihr
-  if (Math.hypot(x - CENTER_X, y - (CENTER_Y + 1)) < 1.6) return false;
+  if (hyp(x - CENTER_X, y - (CENTER_Y + 1)) < 1.6) return false;
   return true;
 }
 // Nächste freie Stelle zu RATGEBER_SPOT (Ringe im Abstand einer halben Kachel, feste Reihenfolge)

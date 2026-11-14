@@ -695,7 +695,7 @@ function netOnClientData(d) {
         bsAddFx3({ kind: 'burst', th: bsTheme3(m), x: m.x, y: feetY(m), r: 8, dur: 0.9 });
       } else addEffect({ type: 'ring', x: m.x, y: feetY(m), r: d.r, dur: 0.5, color: col, width: 12, grow: true });
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: d.r * 0.6, dur: 2.5, color: '#1a1210' });
-      if (!p.dead && Math.hypot(p.x - m.x, (p.y - m.y) * 1.2) < d.r) {
+      if (!p.dead && hyp(p.x - m.x, (p.y - m.y) * 1.2) < d.r) {
         damagePlayer(calcDamage(d.atk, 2.2 * levelBonus(d.lvl, p.level), game.stats.def, 0.05, d.lvl).amount, m);
       }
       break;
@@ -1135,7 +1135,7 @@ function netRemoteAllies(rp, list) {
       let bd = al.kind === 'drache' ? ((tiers[tier] && tiers[tier].range) || 145) + 40 : 70;
       for (const m of game.monsters) {
         if (m.dead) continue;
-        const d = Math.hypot(m.x - al.x, m.y - al.y);
+        const d = hyp(m.x - al.x, m.y - al.y);
         if (d < bd) { best = m; bd = d; }
       }
       al.target = best;
@@ -1295,7 +1295,7 @@ function netReceiveChat(name, d, who) {
   const c = d.c || 'g';
   const p = game.player;
   if (c === 'gi' && !(p && p.guild && p.guild.name === d.gn)) return;
-  if (c === 'o' && p && (d.px == null || Math.hypot(d.px - p.x, d.py - p.y) > CHAT_RANGE)) return;
+  if (c === 'o' && p && (d.px == null || hyp(d.px - p.x, d.py - p.y) > CHAT_RANGE)) return;
   netShowChat(name, d.x, who, c);
 }
 

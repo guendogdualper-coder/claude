@@ -16,7 +16,7 @@ const lvlFromRank = (rk) => (rk >= 0 ? SKILL_RANKS[rk].from : 1);
 const mageLow = () => typeof opts !== 'undefined' && opts.graphics === 'niedrig';
 const mageElOf = (key) => MAGE_EL[key] || MAGE_EL.arkan;
 function unitVec(x, y) {
-  const l = Math.hypot(x, y) || 1;
+  const l = hyp(x, y) || 1;
   return { x: x / l, y: y / l };
 }
 // Front einer Nova (Anteil am Radius): quadratisch abbremsend, beginnt bei 8 % (§1.7)
@@ -343,12 +343,12 @@ function shiftPlan(p, sk) {
     const pt = game.aim && game.aim.sk.id === sk.id ? game.aim.pt : sk.aimAway ? aimAwayPoint(p, sk) : skillAimPoint(sk);
     const dx = pt.x - p.x;
     const dy = pt.y - p.y;
-    const dl = Math.hypot(dx, dy);
+    const dl = hyp(dx, dy);
     const dir = dl > 4 ? { x: dx / dl, y: dy / dl } : { ...p.facing };
     let want = Math.min(sk.distance, Math.max(dl, 40));
     if (sk.at === 'line') {
       for (const m of enemiesNear(pt.x, pt.y, 20)) {
-        if (!m.hidden && Math.hypot(m.x - pt.x, m.y - pt.y) <= (m.r || 14) + 8) want = Math.min(sk.distance, Math.max(want, dist(p, m) + 40));
+        if (!m.hidden && hyp(m.x - pt.x, m.y - pt.y) <= (m.r || 14) + 8) want = Math.min(sk.distance, Math.max(want, dist(p, m) + 40));
       }
     }
     return { dir, want };
@@ -436,7 +436,7 @@ function shiftFx(owner, a, b, sk, local, pw, lvl) {
       for (const m of enemiesNear((a.x + b.x) / 2, (a.y + b.y) / 2, Math.sqrt(L2) / 2 + (sk.width || 40))) {
         // Abstand zur Strecke a–b (wie beim Sturmangriff)
         const u = clamp01(((m.x - a.x) * vx + (m.y - a.y) * vy) / L2);
-        if (Math.hypot(a.x + vx * u - m.x, a.y + vy * u - m.y) > (sk.width || 40) + m.r) continue;
+        if (hyp(a.x + vx * u - m.x, a.y + vy * u - m.y) > (sk.width || 40) + m.r) continue;
         hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, duelMul: sk.duelMul, vfxColor: '#ffffff' });
       }
     });
@@ -484,7 +484,7 @@ function sigilFx(owner, x, y, sk, local, pw, lvl) {
   for (let k = 0; k < sk.ticks; k++) {
     later(sk.delay + k * sk.every, () => {
       if (e.stop) return;
-      if (owner.dead || Math.hypot(owner.x - x, owner.y - y) > sk.range + 400) {
+      if (owner.dead || hyp(owner.x - x, owner.y - y) > sk.range + 400) {
         // Tod, Kartenwechsel oder Reise: das Siegel erlischt
         e.stop = true;
         e.dur = Math.min(e.dur, game.time - e.start + 0.3);
@@ -499,7 +499,7 @@ function sigilFx(owner, x, y, sk, local, pw, lvl) {
 function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
   const fy = y + 9;
   const E = mageElOf(sk.el);
-  const near = Math.hypot(game.player.x - x, game.player.y - y) < 300;
+  const near = hyp(game.player.x - x, game.player.y - y) < 300;
   const L = last && sk.last ? { ...sk, ...sk.last } : sk;
   const foes = local ? enemiesInCircle(x, y, sk.radius) : null;
   if (sk.el === 'feuer') {
@@ -548,7 +548,7 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
     if (foes) {
       list = foes.sort((a, b) => ((b.charged > game.time) - (a.charged > game.time)) || dist(a, { x, y }) - dist(b, { x, y })).slice(0, zaps);
     } else {
-      list = game.monsters.filter((m) => !m.dead && Math.hypot(m.x - x, m.y - y) < sk.radius).slice(0, zaps);
+      list = game.monsters.filter((m) => !m.dead && hyp(m.x - x, m.y - y) < sk.radius).slice(0, zaps);
     }
     for (const m of list) {
       // seit 13.5: der Blitz fährt von oben in den Gegner und betäubt ihn kurz (der letzte länger)
@@ -773,7 +773,7 @@ FX3_DRAW.nova3 = function (h, e) {
       if (i < nT && !lite) {
         const dx = (ts[i][0] - e.x) * U3;
         const dz = (ts[i][1] + 9 - e.y) * U3;
-        L = Math.hypot(dx, dz) || 0.01;
+        L = hyp(dx, dz) || 0.01;
         ax = dx / L;
         az = dz / L;
         L = Math.min(L, tip);
@@ -1047,7 +1047,7 @@ FX3_DRAW.mcrys3 = function (h, e) {
 FX3_DRAW.mtrail3 = function (h, e, k) {
   const dx = e.x1 - e.x0;
   const dz = e.y1 - e.y0;
-  const len = Math.hypot(dx, dz);
+  const len = hyp(dx, dz);
   if (len < 2) return;
   const ang = Math.atan2(-dz, dx);
   const mx = (e.x0 + e.x1) / 2;
@@ -1085,7 +1085,7 @@ FX3_DRAW.mzap3 = function (h, e, k) {
   const seed = Math.floor((game.time - e.start) / 0.05);
   const dx = (e.x1 - e.x0) * U3;
   const dz = (e.y1 - e.y0) * U3;
-  const L = Math.hypot(dx, dz) || 1;
+  const L = hyp(dx, dz) || 1;
   const nx = -dz / L;
   const nz = dx / L;
   const fade = 1 - k;
@@ -1586,16 +1586,16 @@ Object.assign(ULT_RUN, {
 
 // Mitspieler sehen nur das Schauspiel (ultRemoteFx in ultimativ.js); y ist die Position der Figur
 const MAGE_ULT_FX = {
-  inferno: (x, y) => infernoFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300),
-  eiszeit: (x, y) => eiszeitFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300, false),
-  weltenbruch: (x, y) => weltenbruchFx(x, y + 9, Math.hypot(game.player.x - x, game.player.y - y) < 300, false),
+  inferno: (x, y) => infernoFx(x, y + 9, hyp(game.player.x - x, game.player.y - y) < 300),
+  eiszeit: (x, y) => eiszeitFx(x, y + 9, hyp(game.player.x - x, game.player.y - y) < 300, false),
+  weltenbruch: (x, y) => weltenbruchFx(x, y + 9, hyp(game.player.x - x, game.player.y - y) < 300, false),
   donnerkrone(x, y) {
     let owner = null;
-    for (const rp of net.players.values()) if (!owner || Math.hypot(rp.x - x, rp.y - y) < Math.hypot(owner.x - x, owner.y - y)) owner = rp;
-    if (owner && Math.hypot(owner.x - x, owner.y - y) < 80) {
+    for (const rp of net.players.values()) if (!owner || hyp(rp.x - x, rp.y - y) < hyp(owner.x - x, owner.y - y)) owner = rp;
+    if (owner && hyp(owner.x - x, owner.y - y) < 80) {
       donnerkroneFx(owner);
       // Blitze zu den nächsten sichtbaren Monstern
-      const near = game.monsters.filter((m) => !m.dead && Math.hypot(m.x - x, m.y - y) < 280).sort((a, b) => dist(a, owner) - dist(b, owner)).slice(0, DONNERKRONE_BOLTS);
+      const near = game.monsters.filter((m) => !m.dead && hyp(m.x - x, m.y - y) < 280).sort((a, b) => dist(a, owner) - dist(b, owner)).slice(0, DONNERKRONE_BOLTS);
       const foes = near.length ? Array.from({ length: DONNERKRONE_BOLTS }, (_, k) => near[k % near.length]) : [];
       foes.forEach((m, k) => later(0.2 + k * 0.22, () => {
         if (m.dead) return;

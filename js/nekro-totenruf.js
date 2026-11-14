@@ -51,8 +51,8 @@ SKILL_TYPES.revive = function (sk, pw, lvl) {
     addText(p.x, p.y - 34, 'Deine Geister wandeln noch', 'info');
     return false;
   }
-  const graves = (game.graves || []).filter((g) => g.until > game.time && Math.hypot(g.x - p.x, g.y - p.y) <= sk.radius)
-    .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+  const graves = (game.graves || []).filter((g) => g.until > game.time && hyp(g.x - p.x, g.y - p.y) <= sk.radius)
+    .sort((a, b) => hyp(a.x - p.x, a.y - p.y) - hyp(b.x - p.x, b.y - p.y));
   if (!graves.length) {
     addText(p.x, p.y - 34, 'Keine Gräber in der Nähe', 'info');
     return false;

@@ -78,7 +78,7 @@ function prisonFx(owner, x, y, sk, hold, seed, local, pw) {
     }
     if (!local) return;
     for (const m of caught) {
-      if (m.dead || Math.hypot(m.x - x, m.y - y) > sk.radius + 60) continue;
+      if (m.dead || hyp(m.x - x, m.y - y) > sk.radius + 60) continue;
       // das eigene Eis endet jetzt: Block zerspringt (als Mitspieler dem Host melden)
       if (m.frozen > game.time && m.frozen - game.time < 0.35) {
         m.frozen = 0;
@@ -483,7 +483,7 @@ FX3_DRAW.mprison3 = function (h, e) {
         const tipR = f.boss ? 1.25 : 0.12;
         const dx = fx + Math.cos(a) * rr * tipR - bx;
         const dz = fz + Math.sin(a) * rr * tipR - bz;
-        const L = Math.hypot(dx, tipH, dz) * g;
+        const L = hyp3(dx, tipH, dz) * g;
         const o = prisonMesh(h, 'crys');
         prisonOrient(o, bx, -0.04, bz, dx, tipH, dz, L, (f.boss ? 0.11 : 0.15) + 0.04 * n2h(i, 232));
         prisonIce(o, '#86c6ff', '#0e34a0', 0.88);
@@ -524,7 +524,7 @@ FX3_DRAW.mprison3 = function (h, e) {
         const ox = cx + q.x + _prD.x * q.L * u;
         const oy = _prD.y * q.L * u;
         const oz = cz + q.z + _prD.z * q.L * u;
-        const out = Math.hypot(q.x, q.z) || 1;
+        const out = hyp(q.x, q.z) || 1;
         const sp = 1.2 + 2.2 * n2h(p * 7 + k, 241);
         const vx = (q.x / out) * sp + (n2h(p + k, 242) - 0.5) * 1.5;
         const vz = (q.z / out) * sp + (n2h(p + k, 243) - 0.5) * 1.5;
@@ -731,7 +731,7 @@ EXTRA_EFFECTS.mprison3 = (ctx, e, k, x, y) => {
     const v = ba / 0.9;
     for (const [i, q] of e.p2.entries()) {
       for (let s = 0; s < 3; s++) {
-        const out = Math.hypot(q.x, q.y) || 1;
+        const out = hyp(q.x, q.y) || 1;
         const sp = 90 + 120 * n2h(i * 3 + s, 271);
         const px = x + q.x + (q.x / out) * sp * ba;
         const py = y + q.y - q.L * (0.3 + 0.25 * s) - (160 + 80 * n2h(i + s, 272)) * ba + 420 * ba * ba;

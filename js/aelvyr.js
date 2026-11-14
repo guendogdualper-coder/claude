@@ -66,7 +66,7 @@ function aelOuterPt3(k, u, rho) {
   const { W, F, scallop } = AEL_WING3;
   const a = F[k], c = F[k + 1];
   let ix = W[0] - (a[0] + c[0]) / 2, iz = W[1] - (a[1] + c[1]) / 2;
-  const il = Math.hypot(ix, iz);
+  const il = hyp(ix, iz);
   ix /= il;
   iz /= il;
   const d = scallop[k] * Math.sin(Math.PI * u);
@@ -79,7 +79,7 @@ function aelInnerPt3(s, t) {
   const lead = s < 0.5 ? [W[0] + (E[0] - W[0]) * s * 2, W[1] + (E[1] - W[1]) * s * 2] : [E[0] * (2 - s * 2), E[1] * (2 - s * 2)];
   const tr = [F[3][0] + (B[0] - F[3][0]) * s, F[3][1] + (B[1] - F[3][1]) * s];
   const dx = lead[0] - tr[0], dz = lead[1] - tr[1];
-  const dl = Math.hypot(dx, dz) || 1;
+  const dl = hyp(dx, dz) || 1;
   const sc = innerScallop * Math.sin(Math.PI * s);
   tr[0] += (dx / dl) * sc;
   tr[1] += (dz / dl) * sc;
@@ -242,7 +242,7 @@ function aelTubeAt3(T, u) {
   const p = [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
   let ty = b[1] - a[1], tz = b[2] - a[2];
   if (tz < 0) { ty = -ty; tz = -tz; }
-  const tl = Math.hypot(ty, tz) || 1;
+  const tl = hyp(ty, tz) || 1;
   ty /= tl;
   tz /= tl;
   const r = T.r[i] + (T.r[i + 1] - T.r[i]) * k;
@@ -475,9 +475,9 @@ function aelvyr3(b) {
       const T0 = aelWingPt3(sx, W.F[k][0], W.F[k][1], 0);
       const r0 = 0.045 - k * 0.005;
       const g = tubeProfile3([W0, [(W0[0] + T0[0]) / 2, (W0[1] + T0[1]) / 2, (W0[2] + T0[2]) / 2], T0], [r0, r0 * 0.7, 0.008], 10, 6);
-      const len = Math.hypot(T0[0] - W0[0], T0[1] - W0[1], T0[2] - W0[2]);
+      const len = hyp3(T0[0] - W0[0], T0[1] - W0[1], T0[2] - W0[2]);
       A(aelSkin3('finger' + sx + k + GEO3_LOD, g, (x, y, z) => {
-        const rho = Math.max(0, Math.min(1, Math.hypot(x - W0[0], y - W0[1], z - W0[2]) / len));
+        const rho = Math.max(0, Math.min(1, hyp3(x - W0[0], y - W0[1], z - W0[2]) / len));
         return [[wb.fore, 1 - rho], [wb.f[k], rho]];
       }), C.hide, { bone: wb.f[k], top: C.hideTop, topK: 0.5, noShadow: true });
     }
@@ -514,11 +514,11 @@ MON3_BUILD.aelvyr = aelvyr3;
 const AEL_FOLD3 = (() => {
   const W = AEL_WING3;
   const psi = (u, v) => Math.atan2(-v, u);
-  const nrm = (x, z) => { const l = Math.hypot(x, z); return [x / l, z / l]; };
-  const lE = Math.hypot(W.E[0], W.E[1]);
+  const nrm = (x, z) => { const l = hyp(x, z); return [x / l, z / l]; };
+  const lE = hyp(W.E[0], W.E[1]);
   const dE = nrm(0.42, -0.9);
   const E2 = [dE[0] * lE, dE[1] * lE];
-  const lW = Math.hypot(W.W[0] - W.E[0], W.W[1] - W.E[1]);
+  const lW = hyp(W.W[0] - W.E[0], W.W[1] - W.E[1]);
   const dW = nrm(-0.12, 1);
   const W2 = [E2[0] + dW[0] * lW, E2[1] + dW[1] * lW];
   const arm = psi(E2[0], E2[1]) - psi(W.E[0], W.E[1]);
@@ -585,7 +585,7 @@ function aelAnim3(a, e, dt, corpse) {
   const fy = corpse ? e.y : feetY(e);
   // Blickrichtung wie bei allen Monstern (aus der Bewegung, beim Angriff zum Ziel), nur träger
   if (!corpse) {
-    if (a.refX == null || Math.hypot(e.x - a.refX, e.y - a.refY) > 60) { a.refX = e.x; a.refY = e.y; }
+    if (a.refX == null || hyp(e.x - a.refX, e.y - a.refY) > 60) { a.refX = e.x; a.refY = e.y; }
     else {
       const dx = e.x - a.refX, dy = e.y - a.refY;
       if (dx * dx + dy * dy > 16) {
@@ -672,7 +672,7 @@ function aelAnim3(a, e, dt, corpse) {
     let d = Math.atan2(foe.x - e.x, foe.y - e.y) - a.heading;
     d = Math.atan2(Math.sin(d), Math.cos(d));
     lookY = Math.max(-1.1, Math.min(1.1, d)) * P.look;
-    const dist = Math.hypot(foe.x - e.x, foe.y - e.y) * U3;
+    const dist = hyp(foe.x - e.x, foe.y - e.y) * U3;
     lookX = Math.max(0, 0.5 - dist * 0.06) * P.look;
   } else if (!corpse) lookY = Math.sin(t * 0.37) * 0.35 * P.look;
   S.lookY += (lookY - S.lookY) * Math.min(1, dt * 3);

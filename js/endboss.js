@@ -39,7 +39,7 @@ function raidScan() {
     let best = null;
     let bd = RAID_REACH;
     for (const b of bosses) {
-      const d = Math.hypot(c.x - b.homeX, c.y - b.homeY);
+      const d = hyp(c.x - b.homeX, c.y - b.homeY);
       if (d < bd) { bd = d; best = b; }
     }
     if (!best) continue;
@@ -153,8 +153,8 @@ function raidDoom(m) {
   const safe = [];
   for (let tries = 0; safe.length < n && tries < 60; tries++) {
     const s = spotNear(home, 470);
-    if (Math.hypot(s.x - home.x, s.y - home.y) < 170) continue;
-    if (safe.some((o) => Math.hypot(o.x - s.x, o.y - s.y) < 280)) continue;
+    if (hyp(s.x - home.x, s.y - home.y) < 170) continue;
+    if (safe.some((o) => hyp(o.x - s.x, o.y - s.y) < 280)) continue;
     safe.push({ x: s.x, y: s.y + 10, r: RAID.safeR });
   }
   for (let k = safe.length; k < n; k++) safe.push({ x: home.x + (k ? -260 : 260), y: home.y + 10, r: RAID.safeR });
@@ -185,9 +185,9 @@ function raidDoomResolve(m, safe, atk, lvl) {
   if (m.typeId !== 'aelvyr' && !(typeof isBoss3 === 'function' && isBoss3(m.typeId))) flashScreen(b.color, 0.32);
   addEffect({ type: 'ring', x: m.homeX, y: m.homeY + 10, r: RAID_REACH * 0.9, dur: 0.9, color: b.color, width: 26, grow: true });
   const p = game.player;
-  if (!p || p.dead || Math.hypot(p.x - m.homeX, p.y - m.homeY) > RAID_REACH) return;
+  if (!p || p.dead || hyp(p.x - m.homeX, p.y - m.homeY) > RAID_REACH) return;
   const fyp = feetY(p);
-  if (safe.some((c) => Math.hypot(p.x - c.x, (fyp - c.y) * 1.2) < c.r)) {
+  if (safe.some((c) => hyp(p.x - c.x, (fyp - c.y) * 1.2) < c.r)) {
     addText(p.x, p.y - 40, 'Sicher!', 'heal');
     return;
   }

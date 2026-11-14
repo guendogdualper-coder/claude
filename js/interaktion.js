@@ -546,7 +546,7 @@ function updateDuel() {
     return;
   }
   // Wer den Kreis verlässt, gibt auf
-  if (Math.hypot(p.x - d.cx, p.y - d.cy) > DUEL.arena && game.time >= d.fightAt) duelLose('Du hast den Duellkreis verlassen.');
+  if (hyp(p.x - d.cx, p.y - d.cy) > DUEL.arena && game.time >= d.fightAt) duelLose('Du hast den Duellkreis verlassen.');
 }
 
 // Treffer auf den Stellvertreter: rohen Schaden an den Gegner schicken (pvpOutgoing, kampf.js).
@@ -697,7 +697,7 @@ function remotePlayerAt(wx, wy) {
   let bestD = 26;
   for (const [pid, rp] of net.players) {
     if (rp.gone || remoteHidden(rp)) continue;
-    const d = Math.hypot(rp.x - wx, feetY(rp) - 22 - rideHeight(rp) - wy);
+    const d = hyp(rp.x - wx, feetY(rp) - 22 - rideHeight(rp) - wy);
     if (d < bestD) { best = pid; bestD = d; }
   }
   return best;
@@ -717,7 +717,7 @@ function remoteSkillFx(rp, d) {
   }
   if (d.s === '_shot') {
     snd.shot(rp, { style: d.st, el: d.el });
-    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? (typeof BOW_ARROW !== 'undefined' ? BOW_ARROW.speed : 620) : 480, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el });
+    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? (typeof BOW_ARROW !== 'undefined' ? BOW_ARROW.speed : 620) : 480, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el });
     return;
   }
   const sk = skillById(d.s);
@@ -808,7 +808,7 @@ function remoteSkillFx(rp, d) {
       break;
     }
     case 'leap': {
-      const reach = Math.hypot(d.tx - d.x, d.ty - d.y);
+      const reach = hyp(d.tx - d.x, d.ty - d.y);
       const h = Math.max(44, Math.min(60, 44 + 0.08 * reach));
       const t0 = game.time + sk.crouch;
       const r = rp.r || 14;
@@ -830,7 +830,7 @@ function remoteSkillFx(rp, d) {
       break;
     }
     case 'projectile':
-      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce });
+      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce });
       break;
     // Nekromant, Weg der Seelen (seit 8.5): nur Optik, mit dem Rang des Wirkers. Alte IDs (8.4-Mitspieler, über
     // SKILL_RENAMED) oder fehlende Felder zeigen nur Rune bzw. Säule.
@@ -843,7 +843,7 @@ function remoteSkillFx(rp, d) {
         if (!Array.isArray(pt)) return;
         const [x, y] = pt;
         const a = ang + (k - (d.ts.length - 1) / 2) * sk.fan;
-        later(k * 0.06, () => spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: { x: Math.cos(a), y: Math.sin(a) }, turn: sk.turn, homeTo: { x, y }, speed: sk.speed, range: Math.hypot(x - rp.x, y - rp.y) + 120, mul: 0, color: sk.color, radius: 8, style: 'skullfire' }));
+        later(k * 0.06, () => spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: { x: Math.cos(a), y: Math.sin(a) }, turn: sk.turn, homeTo: { x, y }, speed: sk.speed, range: hyp(x - rp.x, y - rp.y) + 120, mul: 0, color: sk.color, radius: 8, style: 'skullfire' }));
       }));
       break;
     case 'cage':
@@ -865,7 +865,7 @@ function remoteSkillFx(rp, d) {
       withRank(rk, () => novaFx(rp, d.x ?? rp.x, d.y ?? rp.y, sk, false, 0, lvlFromRank(rk), { ts: d.ts }));
       break;
     case 'mbolt':
-      withRank(rk, () => spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), dir: null, aimAt: target, range: Math.hypot(d.tx - rp.x, d.ty - rp.y) + 60 }));
+      withRank(rk, () => spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), dir: null, aimAt: target, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60 }));
       break;
     case 'shift':
       if (!d.pre || !isFinite(d.x1) || !isFinite(d.y1)) {

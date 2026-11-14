@@ -120,7 +120,7 @@ function useUltimate() {
   // seit 13.85: zum Ziel bzw. zur Mitte der Flächen-Ulti schauen (attackFace, kampf.js)
   if (typeof attackFace === 'function') {
     const ft = game.target && !game.target.dead && !game.target.hidden && dist(p, game.target) < 900 ? game.target : null;
-    const fa = p.ultAt && Math.hypot(p.ultAt.x - p.x, p.ultAt.y - p.y) > 8 ? { x: p.ultAt.x, y: p.ultAt.y } : ft;
+    const fa = p.ultAt && hyp(p.ultAt.x - p.x, p.ultAt.y - p.y) > 8 ? { x: p.ultAt.x, y: p.ultAt.y } : ft;
     if (fa) attackFace(p, fa, 0.7);
   }
   // Flächen-Ultis am Ziel (Kreis der Elemente) schicken ihre Mitte, sonst die Position der Figur
@@ -137,7 +137,7 @@ function healParty(pct, x, y, r) {
   const hp = (game.stats && game.stats.healPower) || 1;
   for (const [pid, rp] of net.players) {
     if (rp.gone || rp.dead || !inMyParty(rp.name)) continue;
-    if (Math.hypot(rp.x - x, rp.y - y) > r) continue;
+    if (hyp(rp.x - x, rp.y - y) > r) continue;
     netSocial(pid, { k: 'hh', pct: +(pct * hp).toFixed(4), n: game.player.name });
   }
 }
@@ -314,7 +314,7 @@ const ULT_RUN = {
       // hinter dem Ziel auftauchen
       const dx = t.x - p.x;
       const dy = t.y - p.y;
-      const d = Math.hypot(dx, dy) || 1;
+      const d = hyp(dx, dy) || 1;
       p.x = t.x;
       p.y = t.y;
       moveEntity(p, dx / d * (t.r + 16), dy / d * (t.r + 10), false);
@@ -360,7 +360,7 @@ const ULT_RUN = {
     for (let k = 1; k <= 10; k++) {
       later(k * 0.6, () => {
         for (const m of enemiesInCircle(cx, cy, R)) hitMonster(m, 0.6 * pw, { vfxColor: u.color });
-        if (Math.hypot(p.x - cx, p.y - cy) < R) heal(0.035);
+        if (hyp(p.x - cx, p.y - cy) < R) heal(0.035);
         healParty(0.035, cx, cy, R);
         if (typeof heilerKuppelPuls === 'function') heilerKuppelPuls(cx, cy, R);
       });
@@ -413,7 +413,7 @@ function spawnShadowClone(owner, x, y, face, life) {
     swing: 0, moving: false, born: game.time, until: game.time + life
   };
   if (face) {
-    const d = Math.max(1, Math.hypot(face.x - x, face.y - y));
+    const d = Math.max(1, hyp(face.x - x, face.y - y));
     c.facing = { x: (face.x - x) / d, y: (face.y - y) / d };
   }
   game.clones.push(c);
@@ -422,7 +422,7 @@ function spawnShadowClone(owner, x, y, face, life) {
 
 // Doppelgänger stürmt zum Ziel und bleibt davor stehen
 function cloneDash(c, t, dur) {
-  const d = Math.max(1, Math.hypot(t.x - c.x, t.y - c.y));
+  const d = Math.max(1, hyp(t.x - c.x, t.y - c.y));
   const stop = (t.r || 12) + 12;
   c.run = { x0: c.x, y0: c.y, x1: t.x - (t.x - c.x) / d * stop, y1: t.y - (t.y - c.y) / d * stop, t0: game.time, dur };
 }
@@ -459,8 +459,8 @@ function ultRemoteFx(id, x, y) {
   if (id === 'schattenklone') {
     // Doppelgänger des Mitspielers umkreisen den Platz vor ihm und stoßen zusammen zu
     let owner = null;
-    for (const rp of net.players.values()) if (!owner || Math.hypot(rp.x - x, rp.y - y) < Math.hypot(owner.x - x, owner.y - y)) owner = rp;
-    if (owner && Math.hypot(owner.x - x, owner.y - y) < 80) {
+    for (const rp of net.players.values()) if (!owner || hyp(rp.x - x, rp.y - y) < hyp(owner.x - x, owner.y - y)) owner = rp;
+    if (owner && hyp(owner.x - x, owner.y - y) < 80) {
       const f = owner.facing || { x: 0, y: 1 };
       const mid = { x: x + f.x * 110, y: y + f.y * 80, r: 14 };
       const a0 = Math.random() * Math.PI * 2;

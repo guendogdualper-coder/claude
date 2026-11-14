@@ -192,7 +192,7 @@ const IK = {
     const pts = [[x0, y0]];
     const dx = x1 - x0;
     const dy = y1 - y0;
-    const len = Math.hypot(dx, dy) || 1;
+    const len = hyp(dx, dy) || 1;
     let s = seed * 9301 + 49297;
     const rnd = () => ((s = (s * 9301 + 49297) % 233280) / 233280);
     for (let i = 1; i < n; i++) {
@@ -356,7 +356,7 @@ const IK = {
   // Knochen
   bone(ctx, x0, y0, x1, y1, w = 2.4, pal = ['#fff6e0', '#c8b898']) {
     const a = Math.atan2(y1 - y0, x1 - x0);
-    const len = Math.hypot(x1 - x0, y1 - y0);
+    const len = hyp(x1 - x0, y1 - y0);
     ctx.save();
     ctx.translate(x0, y0);
     ctx.rotate(a);

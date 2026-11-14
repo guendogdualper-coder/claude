@@ -360,7 +360,7 @@ for (const wm of WORLD_MAPS) {
   wm.oldCy = y + h / 2;
   wm.cx = wm.town ? x + wm.town[0] : wm.oldCx;
   wm.cy = wm.town ? y + wm.town[1] : wm.oldCy;
-  wm.reach = Math.hypot(Math.max(wm.cx - x, x + w - wm.cx), Math.max(wm.cy - y, y + h - wm.cy));
+  wm.reach = hyp(Math.max(wm.cx - x, x + w - wm.cx), Math.max(wm.cy - y, y + h - wm.cy));
 }
 // Endboss-Eingänge vor den Lagern und Städten (seit 13.63): immer 6 Kacheln vor der (größeren) Mauer
 for (const d of DUNGEONS) {

@@ -135,11 +135,11 @@ function dmOuterPt3(seg, u, rho) {
   const W = WING3.W;
   const mid = dmMix2(a.tip, c.tip, 0.5);
   const ix = W[0] - mid[0], iz = W[1] - mid[1];
-  const il = Math.hypot(ix, iz);
+  const il = hyp(ix, iz);
   const d = WING3.scallop[seg] * Math.sin(Math.PI * u);
   const e = dmMix2(a.tip, c.tip, u);
   const dx = e[0] + (ix / il) * d - W[0], dz = e[1] + (iz / il) * d - W[1];
-  const len = Math.hypot(dx, dz);
+  const len = hyp(dx, dz);
   // Biegung quer zum Strahl nach vorn, in der Mitte am stärksten
   const bend = (a.bend + (c.bend - a.bend) * u) * len * Math.sin(Math.PI * rho);
   return [W[0] + dx * rho - (dz / len) * bend, W[1] + dz * rho + (dx / len) * bend, Math.sin(Math.PI * u) * Math.sin(0.8 * Math.PI * rho)];

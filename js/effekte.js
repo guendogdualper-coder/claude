@@ -166,7 +166,8 @@ function particles(x, y, o) {
     particles(x, y, { ...o, count: Math.ceil(o.count * (0.25 + 0.1 * fxRank)), color: [SKILL_RANKS[fxRank].color, '#ffffff'], shape: fxRank >= 2 ? 'spark' : o.shape, glow: true, rankExtra: true });
   }
   const n = Math.max(1, Math.round((o.count || 8) * gfx().particles));
-  const over = game.particles.length + n - MAX_PARTICLES;
+  // seit 15.16: die Höchstzahl kommt vom Lastschutz (am Handy und unter Last weniger)
+  const over = game.particles.length + n - (typeof LOAD !== 'undefined' ? LOAD.parts : MAX_PARTICLES);
   if (over > 0) game.particles.splice(0, over);
   for (let i = 0; i < n; i++) {
     const ang = o.angle != null ? o.angle + rand(-1, 1) * (o.spread != null ? o.spread : Math.PI) : rand(0, Math.PI * 2);
@@ -185,15 +186,22 @@ function particles(x, y, o) {
 }
 
 function updateParticles(dt) {
-  for (const q of game.particles) {
+  // seit 15.16: abgelaufene Teilchen an Ort und Stelle entfernen statt in jedem Bild eine neue Liste zu bauen
+  const ps = game.particles;
+  let n = 0;
+  for (let i = 0; i < ps.length; i++) {
+    const q = ps[i];
     q.life -= dt;
-    q.vx *= Math.exp(-q.drag * dt);
-    q.vy = q.vy * Math.exp(-q.drag * dt) + q.gravity * dt;
+    if (q.life <= 0) continue;
+    const dr = Math.exp(-q.drag * dt);
+    q.vx *= dr;
+    q.vy = q.vy * dr + q.gravity * dt;
     q.x += q.vx * dt;
     q.y += q.vy * dt;
     q.rot += q.spin * dt;
+    ps[n++] = q;
   }
-  game.particles = game.particles.filter((q) => q.life > 0);
+  ps.length = n;
 }
 
 function drawParticles(ctx) {
@@ -548,11 +556,11 @@ function drawSigil(ctx, x, y, r, el, rot = 0, color = '#ffffff', alpha = 1) {
     const [bx, by] = P[(i + 1) % 3];
     const mx = (ax + bx) / 2;
     const my = (ay + by) / 2;
-    const l = Math.hypot(mx, my) || 1;
+    const l = hyp(mx, my) || 1;
     const ox = mx / l;
     const oy = my / l;
-    const tx = (bx - ax) / (Math.hypot(bx - ax, by - ay) || 1);
-    const ty = (by - ay) / (Math.hypot(bx - ax, by - ay) || 1);
+    const tx = (bx - ax) / (hyp(bx - ax, by - ay) || 1);
+    const ty = (by - ay) / (hyp(bx - ax, by - ay) || 1);
     for (const d of [-12 * k, 12 * k]) {
       ctx.moveTo(mx + tx * d + ox * 4 * k, my + ty * d + oy * 4 * k);
       ctx.lineTo(mx + tx * d + ox * 13 * k, my + ty * d + oy * 13 * k);
@@ -667,7 +675,7 @@ function drawNova2d(ctx, e, x, y) {
       if (i < nT) {
         const dx = ts[i][0] - x;
         const dy = (ts[i][1] + 9 - y) * 2;
-        L = Math.hypot(dx, dy) || 1;
+        L = hyp(dx, dy) || 1;
         ax = dx / L;
         ay = dy / L;
         L = Math.min(L, rf);

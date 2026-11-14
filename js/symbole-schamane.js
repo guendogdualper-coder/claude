@@ -37,7 +37,7 @@ function ikSchamaneLeib(ctx, IK, f, wTail, wNeck, pal, o = {}) {
     const b = P[Math.min(n, i + 1)];
     const dx = b[0] - a[0];
     const dy = b[1] - a[1];
-    const l = Math.hypot(dx, dy) || 1;
+    const l = hyp(dx, dy) || 1;
     N.push([-dy / l, dx / l]);
     const t = i / n;
     W.push(wTail + (wNeck - wTail) * Math.pow(t, 0.6));

@@ -122,7 +122,7 @@ function ikNekroTail(ctx, x, y, ox, oy, w, col) {
   const a = Math.atan2(oy - y, ox - x);
   const nx = -Math.sin(a);
   const ny = Math.cos(a);
-  const len = Math.hypot(ox - x, oy - y);
+  const len = hyp(ox - x, oy - y);
   const ex = x + Math.cos(a) * len * 0.85;
   const ey = y + Math.sin(a) * len * 0.85;
   ctx.save();

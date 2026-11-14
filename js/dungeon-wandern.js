@@ -54,8 +54,8 @@ function entrySpotsAll() {
       const ty = ry + ((h >>> 12) % rh);
       if (!okTile(tx, ty)) continue;
       const c = { x: tx + 0.5, y: ty + 0.6 };
-      if (taken.some((o) => Math.hypot(o.x - c.x, o.y - c.y) < ENTRY_SHIFT.gap)) continue;
-      if (list.some((o) => Math.hypot(o.x - c.x, o.y - c.y) < ENTRY_SHIFT.gap)) continue;
+      if (taken.some((o) => hyp(o.x - c.x, o.y - c.y) < ENTRY_SHIFT.gap)) continue;
+      if (list.some((o) => hyp(o.x - c.x, o.y - c.y) < ENTRY_SHIFT.gap)) continue;
       list.push(c);
       taken.push(c);
     }

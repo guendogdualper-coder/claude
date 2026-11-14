@@ -15,7 +15,7 @@ function ikBloodStrand(ctx, IK, x0, y0, x1, y1, amp, turns, w) {
       const u = i / 24;
       const nx = -(y1 - y0);
       const ny = x1 - x0;
-      const L = Math.hypot(nx, ny) || 1;
+      const L = hyp(nx, ny) || 1;
       const off = Math.sin(u * Math.PI * 2 * turns + ph) * amp * Math.sin(Math.PI * u);
       pts.push([x0 + (x1 - x0) * u + (nx / L) * off, y0 + (y1 - y0) * u + (ny / L) * off]);
     }

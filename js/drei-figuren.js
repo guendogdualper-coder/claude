@@ -500,7 +500,7 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
       const pts = [[0.84, 0.5], [0.56, 0.86], [0.18, 1.0]].map(([h, r]) => [x + sa * hr * r, y + hr * h, z + ca * hr * r]);
       for (let j = 0; j < 2; j++) {
         const d = [pts[j + 1][0] - pts[j][0], pts[j + 1][1] - pts[j][1], pts[j + 1][2] - pts[j][2]];
-        strand3(A, hb, pts[j], d, Math.hypot(d[0], d[1], d[2]) * 1.25, hr * 0.07, col, { w: [ca, 0, -sa], flat: 0.8 });
+        strand3(A, hb, pts[j], d, hyp3(d[0], d[1], d[2]) * 1.25, hr * 0.07, col, { w: [ca, 0, -sa], flat: 0.8 });
       }
       strand3(A, hb, pts[2], [sa * 0.12, -1, ca * 0.12 - 0.05], hr * (0.95 + R() * 0.5), hr * 0.07, col, { w: [ca, 0, -sa], flat: 0.8 });
     }
@@ -536,7 +536,7 @@ function hair3(A, hb, hc, hr, style, color, covered, rnd) {
           const p0 = P(lanes[j]);
           const p1 = P(lanes[j + 1]);
           const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
-          strand3(A, hb, p0, d, Math.hypot(d[0], d[1], d[2]) * 1.12, hr * 0.12, (k + j) % 2 ? color : lighter(color, 0.08), { flat: 0.3, shine: 0.5 });
+          strand3(A, hb, p0, d, hyp3(d[0], d[1], d[2]) * 1.12, hr * 0.12, (k + j) % 2 ? color : lighter(color, 0.08), { flat: 0.3, shine: 0.5 });
         }
       }
       for (const sx of [-1, 1]) for (const dy of [0.32, 0.05]) strand3(A, hb, [x + sx * hr * 0.9, y + hr * dy, z + hr * 0.3], [-sx * 0.12, 0.04, -1], hr * 0.85, hr * 0.14, dy > 0.1 ? color : dark, { w: [0, 1, 0], flat: 0.5 });
@@ -1978,10 +1978,10 @@ function horseParts3(b, unused, o = {}) {
     for (let i = 0; i < NECK.length - 1; i++) {
       const a = NECK[i], c = NECK[i + 1];
       const ty = c[0] - a[0], tz = c[1] - a[1];
-      const l = Math.hypot(ty, tz);
+      const l = hyp(ty, tz);
       const u = Math.max(0, Math.min(1, ((y - a[0]) * ty + (z - a[1]) * tz) / (l * l)));
       const cy = a[0] + ty * u, cz = a[1] + tz * u;
-      const dist = Math.hypot(y - cy, z - cz);
+      const dist = hyp(y - cy, z - cz);
       if (dist >= best) continue;
       best = dist;
       // Abstand quer zur Halsachse: + zum Kamm, − zur Kehle
@@ -2042,7 +2042,7 @@ function horseParts3(b, unused, o = {}) {
     const [, cy, cz] = crest(q);
     const [, y1, z1] = crest(Math.min(1, q + 0.04));
     const [, y0, z0] = crest(Math.max(0, q - 0.04));
-    const tl = Math.hypot(y1 - y0, z1 - z0);
+    const tl = hyp(y1 - y0, z1 - z0);
     const st = [];
     // Ansatz: beim Reitpferd über dem Kamm, beim Kriegsross unter der Halsschiene
     let ay = cy;
@@ -2055,7 +2055,7 @@ function horseParts3(b, unused, o = {}) {
     }
     // Fallrichtung: nach unten und leicht nach hinten, je Strähne etwas anders; dazu eine sanfte Welle
     const gz = -0.2 - 0.22 * hr(i + 7);
-    const gl = Math.hypot(1, gz);
+    const gl = hyp(1, gz);
     const ph = hr(i + 3) * 6;
     let px = 0;
     for (const [h, wk, tk] of [[war ? 0.05 : 0.16, 0.9, 1], [0.4, 1, 1], [0.66, 0.94, 0.9], [0.87, 0.66, 0.7], [1, 0.1, 0.25]]) {
@@ -4288,7 +4288,7 @@ function buildRift3(b, d, ground) {
       const bend = Math.sin(u * Math.PI) * 0.18;
       const px = x + Math.cos(ang + bend) * len * u;
       const pz = 0.2 + Math.sin(ang + bend) * len * u;
-      const q = [px, hill(Math.hypot(px, pz)) + 0.01, pz];
+      const q = [px, hill(hyp(px, pz)) + 0.01, pz];
       limbBetween(A, prev, q, 0.06 - k * 0.012, 0.05 - k * 0.012, '#4a3424', { seg: 4, top: '#7a5a40', topK: 0.5, noShadow: true });
       prev = q;
     }
@@ -4687,7 +4687,7 @@ function buildStone3(b, st) {
   const sh = L.shape;
   const bodies = stoneBodies3(sh);
   const main = bodies[0];
-  const H = Math.max(...bodies.map((o) => o.p[1] + o.sp.H * o.s * Math.cos(Math.hypot(o.r[0], o.r[2]))));
+  const H = Math.max(...bodies.map((o) => o.p[1] + o.sp.H * o.s * Math.cos(hyp(o.r[0], o.r[2]))));
   const stone = mixColor('#77716a', L.base, 0.45);
   const dark = new THREE.Color(L.base).getHSL({}).l < 0.14;
   // Kristall leicht in der Farbe seines Scheins
@@ -6999,7 +6999,7 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   // Richtung: aus der Bewegung, beim Angriff zum Ziel (sonst zum Spieler)
   // seit 13.10 über die Strecke seit der letzten Drehung statt je Bild: Bei hoher Bildrate (120–144 Hz) oder
   // langsamem Umherlaufen war der Schritt je Bild zu klein, und das Monster lief seitlich gedreht nach oben
-  if (a.refX == null || Math.hypot(e.x - a.refX, e.y - a.refY) > 40) { a.refX = e.x; a.refY = e.y; }
+  if (a.refX == null || hyp(e.x - a.refX, e.y - a.refY) > 40) { a.refX = e.x; a.refY = e.y; }
   else {
     const dx = e.x - a.refX;
     const dy = e.y - a.refY;
@@ -7192,7 +7192,7 @@ function syncNpc3(n, dt) {
       // Händler schauen zum Spieler, wenn er nah ist
       const p = game.player;
       let want = n.restYaw || 0;
-      if (p && Math.hypot(p.x - n.x, p.y - n.y) < 140) want = Math.atan2(p.x - n.x, p.y - n.y);
+      if (p && hyp(p.x - n.x, p.y - n.y) < 140) want = Math.atan2(p.x - n.x, p.y - n.y);
       turnToward(a, want, Math.min(1, dt * 4));
       a.group.rotation.y = a.heading;
       const br = Math.sin(game.time * 2.2 + n.x);

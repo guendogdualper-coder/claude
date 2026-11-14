@@ -1130,7 +1130,7 @@ const snd = {
     if (p && o.x != null) {
       let dx = o.x - p.x;
       const dy = o.y - p.y;
-      const d = Math.hypot(dx, dy);
+      const d = hyp(dx, dy);
       if (d > 900) return null;
       vol *= d < 140 ? 1 : Math.pow(Math.max(0, 1 - (d - 140) / 760), 1.6);
       // im Schulterblick zur Kamera gedreht
@@ -1367,7 +1367,7 @@ const snd = {
       b = p[slot] = { src, g };
     }
     const me = game.player;
-    const d = me && p !== me ? Math.hypot(p.x - me.x, p.y - me.y) : 0;
+    const d = me && p !== me ? hyp(p.x - me.x, p.y - me.y) : 0;
     const vol = base * (p === me ? 1 : 0.6) * (d < 140 ? 1 : Math.max(0, 1 - (d - 140) / 760));
     b.g.gain.setTargetAtTime(vol, c.currentTime, 0.04);
     clearTimeout(b.off);

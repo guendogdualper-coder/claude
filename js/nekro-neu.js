@@ -56,7 +56,7 @@ function nkNear(x, y, r = 70) {
   let bd = r;
   for (const m of game.monsters) {
     if (m.dead) continue;
-    const d = Math.hypot(m.x - x, m.y - y);
+    const d = hyp(m.x - x, m.y - y);
     if (d < bd) { bd = d; best = m; }
   }
   return best;
@@ -306,7 +306,7 @@ SKILL_TYPES.bonethrow = function (sk, pw, lvl) {
   return { x: Math.round(p.x), y: Math.round(p.y), tx: Math.round(end.x), ty: Math.round(end.y), h: hit ? 1 : 0 };
 };
 function boneFx(owner, x0, y0, x1, y1, sk, local, pw, hit) {
-  const fly = Math.max(0.12, Math.hypot(x1 - x0, y1 - y0) / sk.speed);
+  const fly = Math.max(0.12, hyp(x1 - x0, y1 - y0) / sk.speed);
   addEffect({ type: 'bone3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, hit: !!hit, dur: fly + 0.7 });
   later(fly, () => {
     if (!V3.on) particles(x1, y1 - 14, { count: 10, color: [NK.bone, NK.boneDark, '#ffffff'], speed: [60, 160], life: [0.3, 0.6], size: [2, 3.5], shape: 'square', drag: 3, gravity: 300 });
@@ -369,7 +369,7 @@ function handFx(owner, x, y, sk, local, pw) {
   later(sk.grab + sk.hold, () => {
     if (owner === game.player) shakeScreen(6);
     if (!local) return;
-    for (const m of caught) if (!m.dead && Math.hypot(m.x - x, m.y - y) < sk.radius + 40) hitMonster(m, sk.crush * pw, { skill: sk.id, heavy: true, vfxColor: '#fff4dc' });
+    for (const m of caught) if (!m.dead && hyp(m.x - x, m.y - y) < sk.radius + 40) hitMonster(m, sk.crush * pw, { skill: sk.id, heavy: true, vfxColor: '#fff4dc' });
   });
 }
 MAGE2_REMOTE.gravehand = (rp, sk, d) => handFx(rp, d.tx, d.ty, sk, false, 0);
@@ -455,8 +455,8 @@ function reaperShow(owner, x, y, ang) {
 }
 ULT_SHOW.sensenmann = (x, y) => {
   let owner = null;
-  for (const rp of net.players.values()) if (!owner || Math.hypot(rp.x - x, rp.y - y) < Math.hypot(owner.x - x, owner.y - y)) owner = rp;
-  const own = owner && Math.hypot(owner.x - x, owner.y - y) < 80 ? owner : null;
+  for (const rp of net.players.values()) if (!owner || hyp(rp.x - x, rp.y - y) < hyp(owner.x - x, owner.y - y)) owner = rp;
+  const own = owner && hyp(owner.x - x, owner.y - y) < 80 ? owner : null;
   reaperShow(own, x, y, own && own.facing ? Math.atan2(own.facing.y, own.facing.x) : -Math.PI / 2);
 };
 
@@ -502,7 +502,7 @@ FX3_DRAW.siphon3 = function (h, e) {
 // Geisterflut: Geister wirbeln über dem Nekromanten hoch und stürzen auf die Ziele
 function nkGhost(h, x, y, z, s, op, scream, vx, vz) {
   // Schweif entgegen der Flugrichtung
-  const L = Math.hypot(vx, vz) || 1;
+  const L = hyp(vx, vz) || 1;
   for (let j = 1; j <= 4; j++) {
     n3Smoke(h, x - (vx / L) * j * 0.16 * s, y + j * 0.04, z - (vz / L) * j * 0.16 * s, s * (0.5 - j * 0.08), j % 2 ? NK.ghost : NK.ghostDeep, op * (0.75 - j * 0.15));
   }
@@ -721,7 +721,7 @@ FX3_DRAW.larva3 = function (h, e) {
         const w = t - hop;
         const dx = x1 - x0;
         const dz = z1 - z0;
-        const L = Math.hypot(dx, dz) || 1;
+        const L = hyp(dx, dz) || 1;
         const off = (i - segs / 2) * 0.17 * swell;
         const wig = Math.sin(w * 22 - i * 1.2) * 0.12 * swell;
         x = x1 - (dx / L) * off + (-dz / L) * wig;
@@ -1210,7 +1210,7 @@ EXTRA_EFFECTS.lances3 = (ctx, e) => {
     const u = (t - launch) / e.fly;
     const x = a.x + (q.x - a.x) * u;
     const y = a.y + (q.y - 16 - a.y) * u;
-    const L = Math.hypot(q.x - a.x, q.y - a.y) || 1;
+    const L = hyp(q.x - a.x, q.y - a.y) || 1;
     ctx.beginPath();
     ctx.moveTo(x, y);
     ctx.lineTo(x - ((q.x - a.x) / L) * 20, y - ((q.y - a.y) / L) * 20);

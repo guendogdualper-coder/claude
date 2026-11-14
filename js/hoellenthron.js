@@ -290,7 +290,7 @@ function htQuarterResolve(m, kind, c, inner, atk, lvl) {
   if (p.dead || !htInside(p)) return;
   const dx = p.x - c.x;
   const dy = (feetY(p) - c.y) * 1.2;
-  const d = Math.hypot(dx, dy);
+  const d = hyp(dx, dy);
   let hit;
   if (kind === 'quarter') hit = d < c.r && htSector(dx, dy) !== -inner - 1;
   else if (kind === 'qring') hit = d < c.r && d >= inner;

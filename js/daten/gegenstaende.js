@@ -657,11 +657,11 @@ function insetPts(pts, d) {
     const b = pts[(i + 1) % n];
     const n1 = [-(p[1] - a[1]) * sg, (p[0] - a[0]) * sg];
     const n2 = [-(b[1] - p[1]) * sg, (b[0] - p[0]) * sg];
-    const l1 = Math.hypot(n1[0], n1[1]) || 1;
-    const l2 = Math.hypot(n2[0], n2[1]) || 1;
+    const l1 = hyp(n1[0], n1[1]) || 1;
+    const l2 = hyp(n2[0], n2[1]) || 1;
     const nx = n1[0] / l1 + n2[0] / l2;
     const ny = n1[1] / l1 + n2[1] / l2;
-    const l = Math.hypot(nx, ny) || 1;
+    const l = hyp(nx, ny) || 1;
     const cos = Math.max(0.4, (nx / l) * (n1[0] / l1) + (ny / l) * (n1[1] / l1));
     const k = Math.min(2.5 * d, d / cos);
     return [p[0] + (nx / l) * k, p[1] + (ny / l) * k];

@@ -23,7 +23,7 @@ const CRIT_CAP = 0.6;
 // Normale Angriffe treffen seit Version 6.1 etwas härter, damit sie neben den zäheren Monstern nicht zäh werden
 const BASIC_MUL = 1.4;
 
-const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const dist = (a, b) => hyp(a.x - b.x, a.y - b.y);
 const randInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // Im Duell steht der Gegner als Stellvertreter mit in der Liste
@@ -349,7 +349,7 @@ function faceTowards(x, y) {
   const p = game.player;
   const dx = x - p.x;
   const dy = y - p.y;
-  const len = Math.hypot(dx, dy);
+  const len = hyp(dx, dy);
   if (len > 0.01) p.facing = { x: dx / len, y: dy / len };
 }
 
@@ -374,7 +374,7 @@ function holdFacing(p) {
   }
   const t = h.t && !h.t.dead && !h.t.hidden ? h.t : null;
   if (t) { h.x = t.x; h.y = t.y; }
-  if (Math.hypot(h.x - p.x, h.y - p.y) > 4) faceTowards(h.x, h.y);
+  if (hyp(h.x - p.x, h.y - p.y) > 4) faceTowards(h.x, h.y);
   return true;
 }
 // Fertigkeiten, die selbst bestimmen, wohin die Figur schaut (Sprünge, Schritte, Sprint)
@@ -983,7 +983,7 @@ const CLEAVE = { arc: 65 * Math.PI / 180, mul: 0.75, max: 5, near: 26 };
 function cleaveHit(p, main, h) {
   const fx = p.facing.x;
   const fy = p.facing.y;
-  const fl = Math.hypot(fx, fy) || 1;
+  const fl = hyp(fx, fy) || 1;
   const cosArc = Math.cos(CLEAVE.arc);
   let n = 0;
   for (const m of enemiesNear(p.x, p.y, h.range + 30)) {
@@ -991,7 +991,7 @@ function cleaveHit(p, main, h) {
     if (m === main || m.dead || m.hidden) continue;
     const dx = m.x - p.x;
     const dy = m.y - p.y;
-    const d = Math.hypot(dx, dy);
+    const d = hyp(dx, dy);
     if (d - (m.r || 0) > h.range + 30) continue;
     if (d > CLEAVE.near + (m.r || 0) && (dx * fx + dy * fy) / (d * fl) < cosArc) continue;
     hitMonster(m, h.mul * CLEAVE.mul, { vfxColor: h.color, basic: true });
@@ -1355,7 +1355,7 @@ function aimAwayPoint(p, sk) {
   const f = p.facing || { x: 0, y: 1 };
   let dx = t ? p.x - t.x : -f.x;
   let dy = t ? p.y - t.y : -f.y;
-  const l = Math.hypot(dx, dy);
+  const l = hyp(dx, dy);
   if (l < 0.01) { dx = -f.x; dy = -f.y; } else { dx /= l; dy /= l; }
   const d = Math.min(sk.aimAway || 150, aimReach(sk));
   return { x: p.x + dx * d, y: p.y + dy * d };
@@ -1378,7 +1378,7 @@ function startAim(i, sk) {
   game.aim = { i, sk, pt, until: game.time + AIM_TIMEOUT, go: false };
   // seit 13.42: der Kreis folgt frei dem Zeiger und ist grün, wenn der Zauber dort wirken kann, sonst rot
   // (zu weit weg oder im Dorf); Rechtsklick oder Esc bricht ab
-  if (Math.hypot(pt.x - p.x, pt.y - p.y) > aimReach(sk)) clampAim();
+  if (hyp(pt.x - p.x, pt.y - p.y) > aimReach(sk)) clampAim();
   // aimR (seit 13.85): eigene Kreisgröße für Sprünge und Schritte (Landeplatz statt Wirkungsfläche)
   game.aim.fx = addEffect({ type: 'aim', follow: pt, ox: 0, oy: 0, r: sk.aimR || sk.radius || 30, dur: AIM_TIMEOUT + 1, color: AIM_OK });
   // seit 13.64: feiner Kreis um die Figur zeigt die Reichweite (Bild in frostgefaengnis.js)
@@ -1401,7 +1401,7 @@ function aimCheck() {
   const a = game.aim;
   if (!a) return false;
   const p = game.player;
-  const far = Math.hypot(a.pt.x - p.x, a.pt.y - p.y) > aimReach(a.sk) + 2;
+  const far = hyp(a.pt.x - p.x, a.pt.y - p.y) > aimReach(a.sk) + 2;
   const town = inVillage(p.x, p.y) && !duelFighting();
   a.ok = !far && !town;
   a.why = far ? 'Zu weit weg' : town ? 'Im Dorf wird nicht gekämpft' : '';
@@ -1412,7 +1412,7 @@ function aimCheck() {
 function clampAim() {
   const a = game.aim;
   const p = game.player;
-  const d = Math.hypot(a.pt.x - p.x, a.pt.y - p.y);
+  const d = hyp(a.pt.x - p.x, a.pt.y - p.y);
   const r = aimReach(a.sk);
   if (d > r) {
     a.pt.x = p.x + (a.pt.x - p.x) / d * r;
@@ -1432,14 +1432,14 @@ const AIM_DRAG_PX = 110;
 function aimDrag(dx, dy) {
   const a = game.aim;
   const p = game.player;
-  const len = Math.hypot(dx, dy);
+  const len = hyp(dx, dy);
   if (!a || !p || len < 1) return;
   const ps = V3.on ? v3Project(p.x, p.y, 0) : { x: (p.x - renderer.camX) * renderer.zoom, y: (p.y - renderer.camY) * renderer.zoom };
   const w = screenToWorld(ps.x + dx / len * 60, ps.y + dy / len * 60);
   if (!w || !isFinite(w.x) || !isFinite(w.y)) return;
   let wx = w.x - p.x;
   let wy = w.y - p.y;
-  const wl = Math.hypot(wx, wy);
+  const wl = hyp(wx, wy);
   if (wl < 0.01) return;
   const d = Math.min(1, len / AIM_DRAG_PX) * aimReach(a.sk);
   aimAt(p.x + wx / wl * d, p.y + wy / wl * d);
@@ -1470,7 +1470,7 @@ function aimEnemyAt(pt, sk) {
   let bd = Infinity;
   for (const m of enemiesNear(p.x, p.y, aimReach(sk) + 20)) {
     if (m.hidden || dist(p, m) - (m.r || 0) > aimReach(sk) + 20) continue;
-    const d = Math.hypot(m.x - pt.x, m.y - pt.y) - (m.r || 0) + (m.isStone ? 1000 : 0);
+    const d = hyp(m.x - pt.x, m.y - pt.y) - (m.r || 0) + (m.isStone ? 1000 : 0);
     if (d <= R + (m.isStone ? 1000 : 0) && d < bd) { best = m; bd = d; }
   }
   return best;
@@ -1488,7 +1488,7 @@ function enemiesInCone(x, y, dir, radius, angleDeg) {
   const half = (angleDeg / 2) * Math.PI / 180;
   const ang = Math.atan2(dir.y, dir.x);
   return enemiesNear(x, y, radius).filter((m) => {
-    const d = Math.hypot(m.x - x, m.y - y);
+    const d = hyp(m.x - x, m.y - y);
     if (d > radius + m.r) return false;
     if (d < m.r + 6) return true;
     let diff = Math.atan2(m.y - y, m.x - x) - ang;
@@ -1498,7 +1498,7 @@ function enemiesInCone(x, y, dir, radius, angleDeg) {
 }
 
 function enemiesInCircle(x, y, radius) {
-  return enemiesNear(x, y, radius).filter((m) => Math.hypot(m.x - x, m.y - y) <= radius + m.r);
+  return enemiesNear(x, y, radius).filter((m) => hyp(m.x - x, m.y - y) <= radius + m.r);
 }
 
 // Spätere Schritte einer Fertigkeit behalten ihren Rang (Aussehen je Rang, siehe fxRank)
@@ -1591,7 +1591,7 @@ function blinkBehind(t, color) {
   faceTowards(t.x, t.y);
   // Schattenspur vom alten zum neuen Platz
   const to = { x: p.x, y: feetY(p) };
-  const len = Math.hypot(to.x - from.x, to.y - from.y);
+  const len = hyp(to.x - from.x, to.y - from.y);
   if (len > 20) addEffect({ type: 'slash', x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 14, ang: Math.atan2(to.y - from.y, to.x - from.x), len, w: 7, dur: 0.3, color });
   particles(p.x, feetY(p) - 14, { count: 18, color: ['#3d3848', '#5a5466', color], speed: [30, 110], life: [0.35, 0.7], size: [4, 8], jitter: 6, drag: 2.5, glow: false });
   input.walkTo = null;
@@ -1734,11 +1734,11 @@ const SKILL_TYPES = {
       // seit 13.85: Landeplatz mit dem Zielkreis gewählt (wie ein Zauber). Liegt er auf einem Gegner,
       // landet die Figur knapp davor (sonst stünde sie in ihm); getroffen wird im Kreis um die Landung.
       const pt = skillAimPoint(sk);
-      const dl = Math.hypot(pt.x - p.x, pt.y - p.y);
+      const dl = hyp(pt.x - p.x, pt.y - p.y);
       if (dl > 4) faceTowards(pt.x, pt.y);
       want = Math.min(sk.distance, dl);
       for (const m of enemiesNear(pt.x, pt.y, 20)) {
-        if (m.hidden || Math.hypot(m.x - pt.x, m.y - pt.y) > (m.r || 14) + 6) continue;
+        if (m.hidden || hyp(m.x - pt.x, m.y - pt.y) > (m.r || 14) + 6) continue;
         want = Math.max(0, Math.min(want, dist(p, m) - ((m.r || 14) + 12)));
       }
     } else {
@@ -2058,13 +2058,13 @@ const SKILL_TYPES = {
     const p = game.player;
     // seit 13.85 mit Zielkreis (sk.aim): der Käfig bricht am gewählten Ort aus dem Boden
     const t = sk.aim ? skillAimPoint(sk) : pickTarget(sk.range);
-    if (t && Math.hypot(t.x - p.x, t.y - p.y) > 4) faceTowards(t.x, t.y);
+    if (t && hyp(t.x - p.x, t.y - p.y) > 4) faceTowards(t.x, t.y);
     const dir = { ...p.facing };
     let x = t ? t.x : p.x + dir.x * sk.place;
     let y = t ? t.y : p.y + dir.y * sk.place;
     // Wand, Wasser oder Lava: auf der Linie zur Figur zurückziehen
     if (!canStand(x, y, 10, false)) {
-      const len = clearLen(p.x, p.y, dir, Math.hypot(x - p.x, y - p.y), 10);
+      const len = clearLen(p.x, p.y, dir, hyp(x - p.x, y - p.y), 10);
       x = p.x + dir.x * len;
       y = p.y + dir.y * len;
     }
@@ -2072,7 +2072,7 @@ const SKILL_TYPES = {
     input.walkTo = null;
     cageFx(p, x, y, sk, (k, last) => {
       // Kartenwechsel, Reise oder Tod: der Käfig schreit nicht weiter
-      if (p.dead || Math.hypot(p.x - x, p.y - y) > sk.range + 400) return false;
+      if (p.dead || hyp(p.x - x, p.y - y) > sk.range + 400) return false;
       shakeScreen(last ? 3 : 1);
       for (const m of enemiesInCircle(x, y, sk.radius)) {
         // der erste Schrei zieht heran (negativer Rückstoß, nicht bei Bossen)
@@ -2135,7 +2135,7 @@ function dashStep(dt) {
     }
     if (!d.landed) {
       // von außen versetzt (Tor, Reise, Dungeon): Sprung abbrechen statt zurückzuziehen
-      if (d.px != null && Math.hypot(p.x - d.px, p.y - d.py) > 40) {
+      if (d.px != null && hyp(p.x - d.px, p.y - d.py) > 40) {
         p.dash = null;
         p.leap = null;
         return;
@@ -2208,7 +2208,7 @@ function arrowFreeLength(x, y, dir, want) {
 function arrowWallStop(pr, x0, y0) {
   const dx = pr.x - x0;
   const dy = pr.y - y0;
-  const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / 12));
+  const n = Math.max(1, Math.ceil(hyp(dx, dy) / 12));
   for (let i = 1; i <= n; i++) {
     if (!arrowBlockedAt(x0 + (dx * i) / n, y0 + (dy * i) / n)) continue;
     pr.x = x0 + (dx * (i - 1)) / n;
@@ -2232,7 +2232,7 @@ function spawnProjectile(o) {
     dx = o.dir.x;
     dy = o.dir.y;
   }
-  const len = Math.hypot(dx, dy) || 1;
+  const len = hyp(dx, dy) || 1;
   // seit 13.42, ab 13.46 nur noch für den Feuerball (focusOnly), seit 14.17 auch Bogen-Grundschuss und Falkenpfeil:
   // ohne Ziel abgeschossen, während ein Ziel gewählt ist, fliegt er nur für dieses Ziel – Monster davor werden nicht
   // getroffen. Alle anderen Geschosse treffen den ersten Gegner auf ihrem Weg (Durchschuss: alle).
@@ -2256,7 +2256,7 @@ function updateProjectiles(dt) {
     if (goal) {
       const dx = goal.x - pr.x;
       const dy = goal.y - pr.y;
-      const len = Math.hypot(dx, dy) || 1;
+      const len = hyp(dx, dy) || 1;
       // Kurvenflug: höchstens turn rad/s drehen. Nahfang: unter 70 px oder nach 0,35 s Flug lenkt das Geschoss
       // direkt ein (sonst kreisen Schädel um Gegner im Nahkampf und verfallen)
       if (pr.turn && len > 70 && pr.traveled < pr.speed * 0.35) {
@@ -2289,7 +2289,7 @@ function updateProjectiles(dt) {
     // Geschosse von Mitspielern: nur zum Ansehen, sie enden am ersten Monster
     if (pr.owner === 'remote') {
       for (const m of game.monsters) {
-        if (m.dead || Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
+        if (m.dead || hyp(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.done = true;
         if (pr.onRemoteHit) pr.onRemoteHit(m);
         else vfxImpact(m, false, pr.color);
@@ -2301,7 +2301,7 @@ function updateProjectiles(dt) {
       // Duellgegner: Geschosse treffen auch ihn (seit 13.86 auch die Gegner in der Turnierarena, pvpFoes)
       const foes = duelFighting() ? [game.duel.proxy] : typeof pvpFoes === 'function' ? pvpFoes() : [];
       for (const foe of foes) {
-        if (foe.dead || pr.hit.has(foe.id) || Math.hypot(foe.x - pr.x, foe.y - pr.y) >= foe.r + pr.radius) continue;
+        if (foe.dead || pr.hit.has(foe.id) || hyp(foe.x - pr.x, foe.y - pr.y) >= foe.r + pr.radius) continue;
         pr.hit.add(foe.id);
         // Schädelsalve im Duell: der erste Schädel voll, jeder weitere nur mit duelExtra (zusammen 1,5×)
         const mul = pr.mul * (pr.salve && pr.salve.duel++ > 0 ? pr.salve.extra : 1);
@@ -2316,7 +2316,7 @@ function updateProjectiles(dt) {
       const only = !pr.pierce && (pr.turn || pr.focusOnly) && pr.target && !pr.target.dead ? pr.target : (pr.onlyHit && !pr.onlyHit.dead ? pr.onlyHit : null);
       for (const m of game.monsters) {
         if (m.dead || pr.hit.has(m.id) || (only && m !== only)) continue;
-        if (Math.hypot(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
+        if (hyp(m.x - pr.x, m.y - pr.y) > m.r + pr.radius) continue;
         pr.hit.add(m.id);
         // Haken der Magier-Geschosse (seit 8.6): Zerspringen und Entladung (hitMul), Splitter und Einschlag (afterHit)
         const hm = pr.hitMul ? pr.hitMul(m) : 1;
@@ -2348,7 +2348,7 @@ function updateProjectiles(dt) {
     } else {
       const victims = p.dead ? game.allies : [p, ...game.allies];
       for (const v of victims) {
-        if (Math.hypot(v.x - pr.x, v.y - pr.y) > v.r + pr.radius) continue;
+        if (hyp(v.x - pr.x, v.y - pr.y) > v.r + pr.radius) continue;
         pr.done = true;
         particles(v.x, feetY(v) - 18, { count: 8, color: [pr.color, '#ffffff'], speed: [60, 140], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 6 });
         if (v === p) {

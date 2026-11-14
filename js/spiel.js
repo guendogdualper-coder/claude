@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.15';
+const GAME_VERSION = '15.16';
 
 const game = {
   world: null,
@@ -128,7 +128,7 @@ function updatePlayer(dt) {
     if (mv.x || mv.y) {
       const spd = s.speed * (p.channel ? BEAM_WALK : 1);
       p.moving = moveEntity(p, mv.x * spd * dt, mv.y * spd * dt, false);
-      const len = Math.hypot(mv.x, mv.y);
+      const len = hyp(mv.x, mv.y);
       // seit 13.85: kurz nach einem Angriff schaut die Figur weiter zum Ziel (holdFacing, kampf.js)
       if (!holdFacing(p)) p.facing = { x: mv.x / len, y: mv.y / len };
     }
@@ -138,7 +138,7 @@ function updatePlayer(dt) {
     if (mv.x || mv.y || game.time - input.attackAt < 0.45) input.walkTo = null;
     else if (input.walkTo) {
       const wt = input.walkTo;
-      if (Math.hypot(wt.x - p.x, wt.y - p.y) < 6 || !moveToward(p, wt.x, wt.y, s.speed * (p.channel ? BEAM_WALK : 1) * dt, false)) input.walkTo = input.mouseWalk ? wt : null;
+      if (hyp(wt.x - p.x, wt.y - p.y) < 6 || !moveToward(p, wt.x, wt.y, s.speed * (p.channel ? BEAM_WALK : 1) * dt, false)) input.walkTo = input.mouseWalk ? wt : null;
       else p.moving = true;
       if (!holdFacing(p)) faceTowards(wt.x, wt.y);
     }

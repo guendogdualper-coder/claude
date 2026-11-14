@@ -170,7 +170,7 @@ function mapOfTile(x, y) {
 function mapZoneAt(x, y) {
   const wm = mapOfTile(x, y);
   const list = MAP_ZONE_LIST[wm.id];
-  const d = Math.hypot(x + 0.5 - wm.cx, y + 0.5 - wm.cy);
+  const d = hyp(x + 0.5 - wm.cx, y + 0.5 - wm.cy);
   for (const i of list) {
     if (ZONES[i].safe && wm.id === 1) continue; // das Dorf ist ein Quadrat (oben)
     if (d < ZONES[i].maxDist) return i;
@@ -401,7 +401,7 @@ function townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground) {
   const dx = x - cx;
   const dy = y - cy;
   // H null (seit 14.16): Stadt mit eigener Form – Mitte und Tore prüft townLayoutFree
-  if (H != null && Math.hypot(dx, dy) < 6.5) return false;
+  if (H != null && hyp(dx, dy) < 6.5) return false;
   // seit 13.91: nicht in begehbaren Häusern, vor ihren Türen und auf freigehaltenen Plätzen (TOWN_KEEP)
   for (const [ox, oy] of [[-0.45, -0.3], [0.45, -0.3], [-0.45, 0.3], [0.45, 0.3]]) if (TOWN_KEEP.has(Math.floor(y + oy) * MAP_W + Math.floor(x + ox))) return false;
   if (H != null && ((Math.abs(dx) < 3 && Math.abs(dy) > H - 5) || (Math.abs(dy) < 3 && Math.abs(dx) > H - 5))) return false;
@@ -415,12 +415,12 @@ function townDecoFree(x, y, cx, cy, H, npcs, props, obj, ground) {
     if (Math.abs(nx - x) > 8 || Math.abs(ny - y) > 8) continue;
     if (n.wander) {
       if (Math.abs(n.homeX / TILE - x) < 3.1 && Math.abs(n.homeY / TILE - y) < 2.6) return false;
-    } else if (Math.hypot(nx - x, ny - y) < (n.id === 'weltentor' ? 3.2 : 1.5)) return false;
+    } else if (hyp(nx - x, ny - y) < (n.id === 'weltentor' ? 3.2 : 1.5)) return false;
   }
   const keep = { stand: 1.7, horse: 1.4, well: 1.5, lantern: 0.9, brazier: 1.0 };
   for (const pr of props) {
     const R = keep[pr.type];
-    if (R && Math.hypot(pr.x / TILE - x, pr.y / TILE - y) < R) return false;
+    if (R && hyp(pr.x / TILE - x, pr.y / TILE - y) < R) return false;
   }
   return true;
 }
@@ -561,7 +561,7 @@ function townLane(ground, obj, deco, cx, cy, pts) {
   for (let k = 0; k < pts.length - 1; k++) {
     const [ax, ay] = pts[k];
     const [bx, by] = pts[k + 1];
-    const n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+    const n = Math.ceil(hyp(bx - ax, by - ay) * 4);
     for (let j = 0; j <= n; j++) {
       const t = j / n;
       const x = Math.floor(cx + ax + (bx - ax) * t);
@@ -585,7 +585,7 @@ function roughPlaza(ground, obj, cx, cy, R) {
       const a = Math.atan2(dy, dx);
       const edge = R + 1.1 * Math.sin(3 * a + 0.7) + 0.7 * Math.sin(5 * a + 2.1) + 0.4 * Math.sin(7 * a + 0.3);
       const onWay = x - cx === -1 || x - cx === 0 || y - cy === -1 || y - cy === 0;
-      if (Math.hypot(dx, dy) < edge) ground[i] = GROUND.PLAZA;
+      if (hyp(dx, dy) < edge) ground[i] = GROUND.PLAZA;
       else if (ground[i] === GROUND.PLAZA) ground[i] = onWay ? GROUND.PATH : GROUND.GRASS;
     }
   }
@@ -955,7 +955,7 @@ function townLayoutFree(mapId, x, y) {
     if (c !== ',' && c !== '.' && c !== '^') return false;
   }
   for (const [ax, ay, bx, by] of L.stones || []) {
-    if (Math.hypot(wm.cx + ax + 0.5 - x, wm.cy + ay + 0.5 - y) < 1.6 || Math.hypot(wm.cx + bx + 0.5 - x, wm.cy + by + 0.5 - y) < 1.6) return false;
+    if (hyp(wm.cx + ax + 0.5 - x, wm.cy + ay + 0.5 - y) < 1.6 || hyp(wm.cx + bx + 0.5 - x, wm.cy + by + 0.5 - y) < 1.6) return false;
   }
   return true;
 }
@@ -991,7 +991,7 @@ function generateWorld() {
   for (let y = m1y0; y < m1y1; y++) {
     for (let x = m1x0; x < m1x1; x++) {
       const i = y * MAP_W + x;
-      const d = Math.hypot(x + 0.5 - CENTER_X, y + 0.5 - CENTER_Y);
+      const d = hyp(x + 0.5 - CENTER_X, y + 0.5 - CENTER_Y);
       const cheb = Math.max(Math.abs(x + 0.5 - CENTER_X), Math.abs(y + 0.5 - CENTER_Y));
       // seit 13.63 mit dem alten Dorf (VILLAGE_PLAN) erzeugt, damit die Wildnis gleich bleibt; widenVillage vergrößert danach
       const zi = cheb < VILLAGE_PLAN + 0.5 ? 0 : mapZoneAt(x, y);
@@ -1266,7 +1266,7 @@ function generateWorld() {
         obj[i] = OBJ.NONE;
         deco[i] = DECO.NONE;
         if (LIQUID.has(ground[i])) ground[i] = GROUND[ZONES[zoneIdx[i]].ground];
-        if (Math.hypot(x - px, y - py) < 2.5) ground[i] = GROUND.PLAZA;
+        if (hyp(x - px, y - py) < 2.5) ground[i] = GROUND.PLAZA;
       }
       npcs.push(npc('weltentor', `Weltportal · Map ${to}`, px + 0.5, py, { to }));
     }
@@ -1715,7 +1715,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
       }
       return top;
     };
-    const h = (x, y) => Math.hypot(x - gx, y - gy) * 2.1;
+    const h = (x, y) => hyp(x - gx, y - gy) * 2.1;
     seen[s] = run;
     gS[s] = 0;
     from[s] = -1;
@@ -1790,7 +1790,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
       if (fixed[k]) continue;
       const tx = P[k * 2 + 2] - P[k * 2 - 2];
       const ty = P[k * 2 + 3] - P[k * 2 - 1];
-      const tl = Math.hypot(tx, ty) || 1;
+      const tl = hyp(tx, ty) || 1;
       const fade = Math.min(1, k / 8, (n - 1 - k) / 8);
       const off = (sway(P[k * 2], P[k * 2 + 1]) - 0.5) * 2 * amp * fade;
       const nx = P[k * 2] - (ty / tl) * off;
@@ -1810,7 +1810,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
     let lx = null;
     let ly = null;
     let total = 0;
-    for (let k = 1; k < n; k++) total += Math.hypot(P[k * 2] - P[k * 2 - 2], P[k * 2 + 1] - P[k * 2 - 1]);
+    for (let k = 1; k < n; k++) total += hyp(P[k * 2] - P[k * 2 - 2], P[k * 2 + 1] - P[k * 2 - 1]);
     let walked = 0;
     const center = (x, y) => {
       if (x === lx && y === ly) return;
@@ -1828,7 +1828,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
       const ay = P[k * 2 - 1];
       const bx = P[k * 2];
       const by = P[k * 2 + 1];
-      const len = Math.hypot(bx - ax, by - ay);
+      const len = hyp(bx - ax, by - ay);
       const steps = Math.max(1, Math.ceil(len / 0.3));
       for (let s = 0; s <= steps; s++) {
         const px = ax + ((bx - ax) * s) / steps;
@@ -1840,7 +1840,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
         const ir = Math.ceil(r);
         for (let yy = Math.floor(py) - ir; yy <= Math.floor(py) + ir; yy++) {
           for (let xx = Math.floor(px) - ir; xx <= Math.floor(px) + ir; xx++) {
-            if (Math.hypot(xx + 0.5 - px, yy + 0.5 - py) < r) paint(xx, yy);
+            if (hyp(xx + 0.5 - px, yy + 0.5 - py) < r) paint(xx, yy);
           }
         }
       }
@@ -1920,13 +1920,13 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
     const reach = reachAt(a);
     const f = 0.55 + rng() * 0.43;
     const t = dryNear(Math.round(cx + Math.cos(a) * reach * f), Math.round(cy + Math.sin(a) * reach * f));
-    if (!t || Math.hypot(t.x - cx, t.y - cy) < half + 22) continue;
-    if (mains.some((m) => Math.hypot(m.x - t.x, m.y - t.y) < 34)) continue;
+    if (!t || hyp(t.x - cx, t.y - cy) < half + 22) continue;
+    if (mains.some((m) => hyp(m.x - t.x, m.y - t.y) < 34)) continue;
     farAngles.push(a);
     mains.push({ x: t.x, y: t.y, taper: true });
   }
   // weite Ziele zuerst: sie legen die Hauptwege, die näheren zweigen davon ab
-  mains.sort((a, b) => Math.hypot(b.x - cx, b.y - cy) - Math.hypot(a.x - cx, a.y - cy));
+  mains.sort((a, b) => hyp(b.x - cx, b.y - cy) - hyp(a.x - cx, a.y - cy));
   for (const m of mains) {
     const path = search(L(m.x, m.y), (j) => net[j] === 1);
     if (path) lay(path, 'main', m.taper);
@@ -1967,7 +1967,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
         const jx = join % rw;
         const jy = (join - jx) / rw;
         lay(p1, 'branch', false);
-        const p2 = search(s, (j) => net[j] === 1 && !mine.has(j) && Math.hypot((j % rw) - jx, Math.floor(j / rw) - jy) > 36);
+        const p2 = search(s, (j) => net[j] === 1 && !mine.has(j) && hyp((j % rw) - jx, Math.floor(j / rw) - jy) > 36);
         if (p2) lay(p2, 'branch', false);
       }
     }
@@ -1981,7 +1981,7 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
       const y0 = Math.floor(j0 / rw) + ry;
       const a = rng() * Math.PI * 2;
       const len = 12 + rng() * 24;
-      if (Math.hypot(x0 - cx, y0 - cy) < half + 14) continue;
+      if (hyp(x0 - cx, y0 - cy) < half + 14) continue;
       const t = dryNear(Math.round(x0 + Math.cos(a) * len), Math.round(y0 + Math.sin(a) * len), 4);
       if (!t || net[L(t.x, t.y)]) continue;
       const path = search(L(t.x, t.y), (j) => net[j] === 1);
@@ -2456,7 +2456,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape0, detail0, bloom0, roa
     for (let y = ry; y < ry + rh; y++) {
       for (let x = rx; x < rx + rw; x++) {
         const i = y * MAP_W + x;
-        const d = Math.hypot(x + 0.5 - wm.cx, y + 0.5 - wm.cy);
+        const d = hyp(x + 0.5 - wm.cx, y + 0.5 - wm.cy);
         const zi = mapZoneAt(x, y);
         const zone = ZONES[zi];
         zoneIdx[i] = zi;
@@ -2786,7 +2786,7 @@ function randomSpotInZone(zone, from = 0, to = 1) {
     const tx = Math.floor(cx + Math.cos(ang) * d);
     const ty = Math.floor(cy + Math.sin(ang) * d);
     if (tx < bx0 || ty < by0 || tx >= bx1 || ty >= by1) continue;
-    if (Math.hypot(tx + 0.5 - cx, ty + 0.5 - cy) < safe) continue;
+    if (hyp(tx + 0.5 - cx, ty + 0.5 - cy) < safe) continue;
     if (tileBlocked(tx, ty)) continue;
     if (ZONES[game.world.zoneIdx[tileIndex(tx, ty)]] !== zone) continue;
     if (game.world.ground[tileIndex(tx, ty)] === GROUND.PATH) continue;

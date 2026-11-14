@@ -1,6 +1,6 @@
 # Auftrag: Seelenstein läuft flüssig und kühl – am Handy und am PC
 
-Stand: Version 15.12. Dieses Dokument ist der vollständige Auftrag („Prompt“) für alle Arbeiten an der Leistung.
+Stand: Version 15.16. Dieses Dokument ist der vollständige Auftrag („Prompt“) für alle Arbeiten an der Leistung.
 Es beschreibt das Ziel, wie gemessen wird, was schon umgesetzt ist und was als Nächstes kommt.
 
 ## 1. Ziel
@@ -115,6 +115,40 @@ Geprüft und verworfen: Die Vermutung aus 5a (Kommazahlen an den Monstern erzeug
 Die Monster behalten auch im Kampf ihre schnelle Speicherform. Woher die rund 12 % in der Monsterlogik kommen,
 ist weiter offen.
 
+## 5c. Umgesetzt in 15.15 und 15.16: Speicherquelle gefunden, Rechenzeit gesenkt
+
+Die Quelle des Speichers in der Monsterlogik ist gefunden. Gemessen wurde je Funktion, wie viel neuer Speicher ein
+Aufruf erzeugt (Funktion im laufenden Kampf mehrere hundert Mal aufrufen, Speicher davor und danach ablesen).
+
+- `Math.hypot` (Abstand zweier Punkte) erzeugt im Browser bei jedem Aufruf rund 60 Byte Müll, weil es eine
+  eingebaute Funktion ist, die Werte und Ergebnis als Objekte anlegt. Das Spiel rechnet im Kampf mehrere tausend
+  Abstände je Bild. Jetzt rechnen `hyp` und `hyp3` (`js/rechnen.js`) mit Wurzel aus den Quadraten – ohne Speicher.
+  Die Monsterlogik erzeugt damit je Bild 41 KB statt 75 KB, die Zielsuche 7,5 KB statt 15,7 KB.
+- Die großen Spielfunktionen erreichen die höchste Optimierungsstufe des Browsers erst nach etwa einer halben
+  Minute Kampf. Kurze Messläufe (15 Sekunden) zeigen deshalb mehr Speicher als das Spiel auf Dauer braucht.
+  Verglichen wird ab jetzt mit 40 Sekunden.
+- Zier-Teilchen: Höchstzahl vom Lastschutz (`LOAD.parts`: PC 320, Handy 260/200/140 je Grafikstufe, unter Last
+  weniger); abgelaufene Teilchen werden an Ort und Stelle entfernt statt je Bild eine neue Liste zu bauen.
+- Schläge der Monster und Diener am Handy und unter Last ohne weißen Kern (halb so viele Streifen).
+- Kettenblitz ohne neue Punkte je Bild; Namensschild hängt am Monster (kein Schlüssel aus Text je Bild).
+- 15.15: Treffer-Effekte wechseln am Handy und unter Last früher in die sparsame Fassung (`LOAD.hitCrowd`).
+
+Gemessen (Magier am Handy, „Mittel“, 80 Monster, 40 Sekunden):
+
+| Größe | vorher (15.14) | nachher (15.16) |
+|---|---|---|
+| Rechenzeit je Bild (Schnitt) | 11,3 ms | 9,5 ms |
+| Bilder über 16,7 ms (von 2400) | 171 bis 182 | 81 |
+| Neuer Speicher pro Sekunde | 76 bis 77 MB | 70 MB |
+| Teilchen gleichzeitig (Schnitt / Spitze) | 180 / 320 | 130 / 200 |
+
+Der verbleibende Speicher verteilt sich auf sehr viele Stellen: Jeder Aufruf an Zeichenfläche und Grafikkarte mit
+Kommazahlen legt diese Zahlen kurz als Objekte an. Die Aufräumpausen kosten im Messlauf im Schnitt 0,06 ms je Bild
+(längste 8,8 ms). Das Ziel „unter 40 MB“ ist nur mit weniger Zeichenaufrufen erreichbar (Punkte 2 und 3 unten).
+
+2D am Handy: Die Messung läuft (sehr langsam, deshalb nur 2 Sekunden). Rechenzeit im Schnitt 6,6 ms je Bild,
+77 MB neuer Speicher pro Sekunde. Die Rechenzeit ist dort unkritisch.
+
 ## 6. Als Nächstes (noch offen)
 
 Reihenfolge nach erwartetem Gewinn:
@@ -126,8 +160,8 @@ Reihenfolge nach erwartetem Gewinn:
 4. Schatten am Handy: bei „Mittel“ im Gedränge nur noch die eigene Figur und nahe Monster Schatten werfen lassen.
 5. Auflösung am Handy: prüfen, ob „Mittel“ mit etwas geringerer Auflösung im Kampf kühler bleibt, ohne dass das
    Bild sichtbar unschärfer wird.
-6. 2D-Modus: Die Messszene für 2D am Handy liefert derzeit kein Ergebnis und muss repariert werden. Danach
-   dieselben Messungen wie in 3D.
+6. Teilchen in 3D: je Teilchen wird heute die Lage zweimal umgerechnet und die Zeichenfläche neu ausgerichtet.
+   Einmal je Teilchen genügt.
 7. Messung auf echten Geräten: Bildzeiten und Wärme auf einem aktuellen iPhone und einem Mittelklasse-Android.
 
 ## 7. Abnahme

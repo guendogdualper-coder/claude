@@ -158,7 +158,7 @@ function ikNinjaFigure(ctx, IK, x, y, h, o = {}) {
 function ikNinjaSlash(ctx, IK, x0, y0, x1, y1, w, color = '#ffffff', glowCol = '#c8a0ff') {
   const mx = (x0 + x1) / 2;
   const my = (y0 + y1) / 2;
-  const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+  const len = hyp(x1 - x0, y1 - y0) || 1;
   const nx = -(y1 - y0) / len;
   const ny = (x1 - x0) / len;
   IK.glow(ctx, glowCol, 5, () => {

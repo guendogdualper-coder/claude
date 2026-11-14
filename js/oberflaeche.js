@@ -624,7 +624,7 @@ const ui = {
       if (drag && !lifted) {
         const dx = e.clientX - drag.x;
         const dy = e.clientY - drag.y;
-        if (!drag.on && Math.hypot(dx, dy) < 14) return;
+        if (!drag.on && hyp(dx, dy) < 14) return;
         if (!drag.on) {
           drag.on = true;
           clearTimeout(timer);
@@ -648,7 +648,7 @@ const ui = {
       if (drag && drag.on) {
         drag = null;
         // zurück auf den Knopf gezogen: nicht wirken, der Kreis bleibt offen
-        if (game.aim && game.aim.i === i && Math.hypot(e.clientX - btn.getBoundingClientRect().left - btn.offsetWidth / 2, e.clientY - btn.getBoundingClientRect().top - btn.offsetHeight / 2) > btn.offsetWidth * 0.6) aimFire();
+        if (game.aim && game.aim.i === i && hyp(e.clientX - btn.getBoundingClientRect().left - btn.offsetWidth / 2, e.clientY - btn.getBoundingClientRect().top - btn.offsetHeight / 2) > btn.offsetWidth * 0.6) aimFire();
         return;
       }
       drag = null;

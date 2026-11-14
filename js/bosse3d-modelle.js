@@ -35,7 +35,7 @@ function bsChainLinks3(A, p0, p1, n, r, col, bone) {
     const p = bsLerp3(p0, p1, (i + 0.5) / n);
     const d = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
     const yaw = Math.atan2(d[0], d[2]);
-    const pitch = Math.atan2(Math.hypot(d[0], d[2]), d[1]);
+    const pitch = Math.atan2(hyp(d[0], d[2]), d[1]);
     A(torus3(r, r * 0.28, Math.PI * 2, 4, 8), col, { bone, p, r: [pitch, yaw, i % 2 ? Math.PI / 2 : 0], s: [1, 1.5, 1], shine: 0.8, noShadow: true });
   }
 }
@@ -255,7 +255,7 @@ function bsOrc3(b, id, V) {
       const cut = v > 0.7 ? tat * Math.abs(Math.sin(u * 13)) : 0;
       return [x + (u - 0.5) * 0.62, 2.8 - Math.min(v, 1 - cut) * 0.78, -0.48 - 0.04 * Math.sin(u * Math.PI)];
     }, (u, v) => [[BB3.c1, 1 - v], [BB3.c2, v]], (u, v, s) => {
-      const r = Math.hypot(u - 0.5, v - 0.42);
+      const r = hyp(u - 0.5, v - 0.42);
       return r < 0.17 && r > 0.1 ? C.sigil : v > 0.84 || v < 0.06 ? C.clothD : s > 0 ? C.banner : darker(C.banner, 0.18);
     }), true);
     for (let k = 0; k < 3; k++) bsChainLinks3(A, [x - 0.2 + k * 0.2, 2.78, -0.48], [x - 0.2 + k * 0.2, 2.5 - k * 0.05, -0.5], 3, 0.022, V.skel ? C.bone : C.gold, BB3.c1);
@@ -580,7 +580,7 @@ function bsNaga3(b, id, V) {
         const w = 0.48 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.08 + v * 0.97)), 0.6);
         return [sx * (0.04 + u * w), 1.76 + v * 0.66, -0.1 + 0.1 * u * u - 0.04 * Math.sin(Math.PI * v)];
       }, (u) => [[hk, u], [BN3.neck, 1 - u]], (u, v, s) => {
-        const d = Math.hypot((u - 0.55) * 1.6, v - 0.62);
+        const d = hyp((u - 0.55) * 1.6, v - 0.62);
         return d < 0.12 ? '#0a1a14' : d < 0.2 ? C.gold : s > 0 ? mixColor(C.hood, C.hoodEdge, u * u) : C.scaleD;
       }), true);
     }

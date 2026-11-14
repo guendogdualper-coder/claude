@@ -181,7 +181,7 @@ function updateBoss(m, dt) {
       if (!(V3.on && typeof isBoss3 === 'function' && isBoss3(m.typeId))) addEffect({ type: 'ring', x: m.x, y: feetY(m), r: b.slam, dur: 0.5, color: b.color, width: 12, grow: true });
       addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: b.slam * 0.6, dur: 2.5, color: '#1a1210' });
       particles(m.x, feetY(m), { count: 40, color: [b.color, '#ffffff', '#5a4a3a'], speed: [120, 320], life: [0.3, 0.7], size: [2, 4.5], shape: 'square', drag: 3, glow: false });
-      if (!p.dead && Math.hypot(p.x - m.x, (p.y - m.y) * 1.2) < b.slam) {
+      if (!p.dead && hyp(p.x - m.x, (p.y - m.y) * 1.2) < b.slam) {
         damagePlayer(calcDamage(m.atk, 2.2 * levelBonus(m.level, p.level), game.stats.def, 0.05, m.level).amount, m);
       }
     }
@@ -249,7 +249,7 @@ const RAID_ADD_EVERY = 20;
 const RAID_REACH = 1100;
 function raidPlayers(m) {
   const list = [];
-  const near = (pl) => !pl.dead && !inVillage(pl.x, pl.y) && (!m || Math.hypot(pl.x - m.homeX, pl.y - m.homeY) < RAID_REACH);
+  const near = (pl) => !pl.dead && !inVillage(pl.x, pl.y) && (!m || hyp(pl.x - m.homeX, pl.y - m.homeY) < RAID_REACH);
   const p = game.player;
   if (p && near(p)) list.push(p);
   if (net.mode === 'host') for (const rp of net.players.values()) if (near(rp)) list.push(rp);
@@ -354,7 +354,7 @@ function updateRaidBoss(m, dt) {
     const list = raidPlayers(m);
     const v = list[randInt(0, list.length - 1)] || tgt;
     const a = Math.atan2(v.y - m.y, v.x - m.x);
-    const len = Math.min(600, Math.hypot(v.x - m.x, v.y - m.y) + 160);
+    const len = Math.min(600, hyp(v.x - m.x, v.y - m.y) + 160);
     for (let s2 = 60; s2 <= len; s2 += 60) {
       const x = m.x + Math.cos(a) * s2;
       const y = fy(m) + Math.sin(a) * s2;
@@ -428,7 +428,7 @@ function raidResolve(m, kind, circles, inner, atk = m.atk, lvl = m.level) {
   if (p.dead) return;
   const fyp = feetY(p);
   const hit = circles.some((c) => {
-    const d = Math.hypot(p.x - c.x, (fyp - c.y) * 1.2);
+    const d = hyp(p.x - c.x, (fyp - c.y) * 1.2);
     return d < c.r && d >= (inner || 0);
   });
   if (hit) damagePlayer(calcDamage(atk, RAID_MUL[kind] * levelBonus(lvl, p.level), game.stats.def, 0.05, lvl).amount, m);
@@ -644,7 +644,7 @@ function monsterAttack(m, target) {
       ...(() => {
         const dx = target.x - m.x;
         const dy = target.y - m.y;
-        const len = Math.hypot(dx, dy) || 1;
+        const len = hyp(dx, dy) || 1;
         return { vx: dx / len, vy: dy / len };
       })()
     });
@@ -716,7 +716,7 @@ function endgameStrike(m, target) {
     let n = 0;
     for (const o of areaList(m)) {
       if (o === m || o.dead || !o.elite80 || o.target !== target || o.state !== 'chase') continue;
-      if (Math.hypot(o.x - target.x, o.y - target.y) < ENDGAME.flankR) n++;
+      if (hyp(o.x - target.x, o.y - target.y) < ENDGAME.flankR) n++;
     }
     mul *= 1 + ENDGAME.flank * Math.min(ENDGAME.flankMax, n);
     shred = ENDGAME.flankDef * Math.min(ENDGAME.flankMax, n);
@@ -752,7 +752,7 @@ function endgameSmashTick(m, dt) {
   if (m.state !== 'chase' || m.stun > 0) return false;
   m.smashCd -= dt;
   const t = m.target;
-  if (m.smashCd > 0 || !t || t.dead || !isPlayerLike(t) || Math.hypot(t.x - m.x, t.y - m.y) > m.r + 90) return false;
+  if (m.smashCd > 0 || !t || t.dead || !isPlayerLike(t) || hyp(t.x - m.x, t.y - m.y) > m.r + 90) return false;
   const [a, b] = ENDGAME.smashEvery;
   m.smashCd = a + Math.random() * (b - a);
   const c = { x: Math.round(t.x), y: Math.round(feetY(t)), r: ENDGAME.smashR };
@@ -774,7 +774,7 @@ function endgameBeset(p) {
 // Spieler in der Halle eines Bosses (eigener Spieler und bekannte Mitspieler; beim Host wie beim Mitspieler)
 function endgamePlayersNear(m) {
   const list = [];
-  const near = (q) => q && !q.dead && Math.hypot(q.x - m.x, q.y - m.y) < ENDGAME.shareReach;
+  const near = (q) => q && !q.dead && hyp(q.x - m.x, q.y - m.y) < ENDGAME.shareReach;
   if (!WAECHTER && near(game.player)) list.push(game.player);
   if (net.players) for (const rp of net.players.values()) if (near(rp)) list.push(rp);
   return list;
@@ -813,7 +813,7 @@ function endgameShareResolve(m, c, pct, zone) {
   shakeScreen(zone ? 4 : 9);
   const p = game.player;
   if (!p || p.dead || WAECHTER) return;
-  const inside = (q) => Math.hypot(q.x - c.x, (feetY(q) - c.y) * 1.2) < c.r;
+  const inside = (q) => hyp(q.x - c.x, (feetY(q) - c.y) * 1.2) < c.r;
   if (zone) {
     if (inside(p)) damagePlayer(Math.round(game.stats.maxHp * pct), m, { dot: true });
     return;
@@ -863,7 +863,7 @@ function endgameEliteTick(m, dt) {
   // bleibt (14.38) bei allen Monstern: läuft je Heilerin höchstens einmal je Sekunde, nicht je Treffer
   for (const o of game.monsters) {
     if (o.dead || o.isStone || o === m || (!o.elite80 && !isEndgameBoss(o))) continue;
-    if (Math.hypot(o.x - m.x, o.y - m.y) > ENDGAME.healRange) continue;
+    if (hyp(o.x - m.x, o.y - m.y) > ENDGAME.healRange) continue;
     const k = o.hp / o.maxHp;
     if (k < bk) { bk = k; best = o; }
   }
@@ -894,7 +894,7 @@ function monsterStrikeFx(m, target) {
   if (st === 'bite' || st === 'fang' || st === 'snap') addEffect({ type: 'bite3', x: bc.x, y: bc.y, dur: 0.3, color, size: big ? 1.4 : 1 });
   else if (st === 'maul' || st === 'pounce' || st === 'claw') addEffect({ type: 'claw3', x: bc.x, y: bc.y, dur: 0.3, color, flip: m.facing < 0, size: big ? 1.4 : 1 });
   else if (st === 'gore' || st === 'ram' || st === 'charge') {
-    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -1.2, len: 34, w: 7, dur: 0.24, color });
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -1.2, len: 34, w: 7, dur: 0.24, color, mon: 1 });
     addEffect({ type: 'smoke3', x: m.x + Math.cos(dir) * 14, y: m.y + Math.sin(dir) * 14, dur: 0.7, color: '#8a7a64', count: 6, size: 0.7 });
   } else if (st === 'slam') {
     const sx = m.x + Math.cos(dir) * reach * 0.8;
@@ -903,18 +903,18 @@ function monsterStrikeFx(m, target) {
     addEffect({ type: 'shards3', x: sx, y: sy, r: big ? 40 : 30, dur: 0.6, color: '#8a7e6e', count: 7, size: 0.7 });
     if (target === game.player) shakeScreen(4);
   } else if (st === 'sting') {
-    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -1.45, len: 26, w: 4, dur: 0.22, color });
+    addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -1.45, len: 26, w: 4, dur: 0.22, color, mon: 1 });
     addEffect({ type: 'sparks3', x: bc.x, y: bc.y, dur: 0.5, color, count: 10 });
   } else if (st === 'haunt') addEffect({ type: 'smoke3', x: hx, y: hy, dur: 0.6, color, count: 6, size: 0.6 });
   else if (st === 'breath') addEffect({ type: 'sparks3', x: m.x + Math.cos(dir) * 20, y: m.y + Math.sin(dir) * 20, dur: 0.5, color: '#ff9a4a', count: 12 });
-  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 32, w: 6, dur: 0.24, color });
+  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: m.facing > 0 ? 0.9 : -0.9 + Math.PI, len: 32, w: 6, dur: 0.24, color, mon: 1 });
   if (target && st !== 'breath') addEffect({ type: 'impact', x: bc.x, y: bc.y, dur: 0.2, color });
 }
 
 function moveToward(e, tx, ty, step, isMonster) {
   const dx = tx - e.x;
   const dy = ty - e.y;
-  const len = Math.hypot(dx, dy);
+  const len = hyp(dx, dy);
   if (len < 0.5) return false;
   const s = Math.min(step, len);
   if (Math.abs(dx) > 1) e.facing = dx > 0 ? 1 : -1;
@@ -927,7 +927,7 @@ function moveToward(e, tx, ty, step, isMonster) {
 // seit 14.32: zuerst, wer die meiste Bedrohung hat (auch Diener, auch die der Mitspieler beim Host), und neue Ziele
 // nur mit freier Sicht (keine Aggro durch Wände)
 function nextTarget(m, players, leash) {
-  if (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash) return null;
+  if (hyp(m.x - m.homeX, m.y - m.homeY) > leash) return null;
   const ok = (t) => t && !t.dead && !(t.hp <= 0) && !t.gone && !(isPlayerLike(t) && playerHidden(t)) && dist(m, t) < 500;
   const top = m.threat ? threatTop(m, null) : null;
   if (top) return top;
@@ -1016,8 +1016,8 @@ const playerHidden = (t) => (t === game.player ? game.stats.invisible : t.invisi
 
 function playerNearSpot(x, y, r) {
   const p = game.player;
-  if (p && !p.dead && Math.hypot(p.x - x, p.y - y) < r) return true;
-  if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead && Math.hypot(rp.x - x, rp.y - y) < r) return true;
+  if (p && !p.dead && hyp(p.x - x, p.y - y) < r) return true;
+  if (net.mode === 'host') for (const rp of net.players.values()) if (!rp.dead && hyp(rp.x - x, rp.y - y) < r) return true;
   return false;
 }
 
@@ -1045,7 +1045,7 @@ function monsterRush(m, t, dt, reach) {
   }
   const dx = t.x - m.x;
   const dy = t.y - m.y;
-  const d = Math.hypot(dx, dy) || 1;
+  const d = hyp(dx, dy) || 1;
   const step = Math.min(RUSH_SPEED * dt, Math.max(0, d - reach * 0.6));
   const ox = m.x;
   const oy = m.y;
@@ -1053,7 +1053,7 @@ function monsterRush(m, t, dt, reach) {
   m.moving = true;
   r.left -= dt;
   if (Math.random() < 0.7) particles(m.x, feetY(m), { count: 2, color: ['#c8b89a', '#8a7a62'], speed: [20, 60], life: [0.2, 0.4], size: [2, 4], drag: 3, glow: false });
-  const stuck = Math.hypot(m.x - ox, m.y - oy) < step * 0.3;
+  const stuck = hyp(m.x - ox, m.y - oy) < step * 0.3;
   if (d - step <= reach * 0.75 || r.left <= 0 || stuck) {
     m.rush = null;
     if (dist(m, t) <= reach * 1.3 + 10) {
@@ -1091,7 +1091,7 @@ const NAV_DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-
 function navSight(x0, y0, x1, y1, rr) {
   const dx = x1 - x0;
   const dy = y1 - y0;
-  const d = Math.hypot(dx, dy);
+  const d = hyp(dx, dy);
   const s = Math.min(12, Math.max(6, rr));
   const n = Math.floor(Math.max(0, d - rr - 8) / s);
   for (let i = 1; i <= n; i++) {
@@ -1139,7 +1139,7 @@ function navCell(lx, ly) {
 function navLine(x0, y0, x1, y1, rr) {
   const dx = x1 - x0;
   const dy = y1 - y0;
-  const d = Math.hypot(dx, dy);
+  const d = hyp(dx, dy);
   const s = Math.min(12, Math.max(6, rr));
   const n = Math.ceil(d / s);
   const ox = NAV.x0;
@@ -1235,7 +1235,7 @@ function navSearch(sx, sy, gx, gy, rr) {
           const lx = tx - x0;
           const ly = ty - y0;
           if (lx < 0 || ly < 0 || lx >= W || ly >= W) continue;
-          if (Math.hypot((tx + 0.5) * TILE - o.x, (ty + 0.5) * TILE - o.y) < R) NAV.solid[ly * W + lx] = gen;
+          if (hyp((tx + 0.5) * TILE - o.x, (ty + 0.5) * TILE - o.y) < R) NAV.solid[ly * W + lx] = gen;
         }
       }
     }
@@ -1344,9 +1344,9 @@ function navMove(m, tx, ty, speed, dt) {
   n.last = now;
   n.ex += step;
   if (n.ex >= Math.max(40, rr * 3)) {
-    const moved = Math.hypot(m.x - n.px, m.y - n.py);
+    const moved = hyp(m.x - n.px, m.y - n.py);
     // (dicht am Ziel zählt es nicht: dort drängen sich ohnehin andere Monster)
-    if (moved < n.ex * 0.3 && Math.hypot(tx - m.x, ty - m.y) > rr + 64) {
+    if (moved < n.ex * 0.3 && hyp(tx - m.x, ty - m.y) > rr + 64) {
       // festgehangen: eine Weile dem Weg folgen statt geradeaus, neu suchen, ab dem zweiten Mal seitlich ausweichen
       n.stuck++;
       n.force = now + 3;
@@ -1367,7 +1367,7 @@ function navMove(m, tx, ty, speed, dt) {
   if (n.stuck >= 2 && !canStand(m.x, m.y, rr, true)) {
     const wx = n.path && n.i < n.path.length ? n.path[n.i] : tx;
     const wy = n.path && n.i < n.path.length ? n.path[n.i + 1] : ty;
-    const len = Math.hypot(wx - m.x, wy - m.y) || 1;
+    const len = hyp(wx - m.x, wy - m.y) || 1;
     const k = Math.min(step, len) / len;
     const nx = m.x + (wx - m.x) * k;
     const ny = m.y + (wy - m.y) * k;
@@ -1410,7 +1410,7 @@ function navMove(m, tx, ty, speed, dt) {
   }
   const p = n.path;
   if (p) {
-    while (n.i < p.length && Math.hypot(p[n.i] - m.x, p[n.i + 1] - m.y) < Math.max(5, step)) n.i += 2;
+    while (n.i < p.length && hyp(p[n.i] - m.x, p[n.i + 1] - m.y) < Math.max(5, step)) n.i += 2;
     if (n.i < p.length) return moveToward(m, p[n.i], p[n.i + 1], step, true);
     // Ende des Wegs erreicht, Ziel noch nicht in Sicht: bald neu suchen
     n.path = null;
@@ -1568,7 +1568,7 @@ function updateMonsters(dt) {
           m.wy = m.homeY + (Math.random() - 0.5) * 120;
           m.wanderAt = game.time + 3 + Math.random() * 4;
         }
-        if (Math.hypot(m.wx - m.x, m.wy - m.y) > 4) {
+        if (hyp(m.wx - m.x, m.wy - m.y) > 4) {
           m.moving = moveToward(m, m.wx, m.wy, speed * 0.35 * dt, true);
           if (!m.moving) { m.wx = m.x; m.wy = m.y; }
         }
@@ -1593,7 +1593,7 @@ function updateMonsters(dt) {
         || (isPlayerLike(t) && playerHidden(t))
         || (!isPlayerLike(t) && !allyPresent(t))
         // wer gerade noch getroffen wurde (3 s), verfolgt weiter, auch über die Leine hinaus (bis 1,5-fach)
-        || (Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash && (game.time - (m.struckAt || -9) > 3 || Math.hypot(m.x - m.homeX, m.y - m.homeY) > leash * 1.5));
+        || (hyp(m.x - m.homeX, m.y - m.homeY) > leash && (game.time - (m.struckAt || -9) > 3 || hyp(m.x - m.homeX, m.y - m.homeY) > leash * 1.5));
       // Ziel weg (Diener verschwunden, Spieler tot oder getarnt), aber andere kämpfen noch in der Nähe:
       // zu ihnen wechseln statt umzukehren – sonst lief das Monster heim und heilte sich mitten im Kampf (seit 11.1)
       const next = lost ? nextTarget(m, players, leash) : null;
@@ -1669,7 +1669,7 @@ function updateMonsters(dt) {
         m.nav = null; // Weg und Fehlschläge der Verfolgung gelten nicht für den Heimweg
       }
       m.moving = navMove(m, m.homeX, m.homeY, speed * 1.4, dt);
-      if (Math.hypot(m.homeX - m.x, m.homeY - m.y) < 8 || (!m.moving && (!m.nav || m.nav.fail)) || game.time - m.returnAt > 20) {
+      if (hyp(m.homeX - m.x, m.homeY - m.y) < 8 || (!m.moving && (!m.nav || m.nav.fail)) || game.time - m.returnAt > 20) {
         m.state = 'idle';
         m.returnAt = null;
         m.nav = null;
@@ -1804,7 +1804,7 @@ function allyStrike(a, t, mul) {
   // seit 13.94: Seelenkoloss mit Faustschlag und Bodenstampfer (nekro-diener.js)
   if (a.kind === 'koloss') return colossusStrike(a, t);
   if (a.kind === 'hund') addEffect({ type: 'bite3', x: bc.x, y: bc.y, dur: 0.28, color: '#a7e37f', size: a.alpha ? 1.3 : 0.9 });
-  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: a.facing < 0 ? -0.75 : 0.75, len: 30, w: 5, dur: 0.22, color: a.ghost ? '#bff0ff' : '#cfd8b0' });
+  else addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: a.facing < 0 ? -0.75 : 0.75, len: 30, w: 5, dur: 0.22, color: a.ghost ? '#bff0ff' : '#cfd8b0', mon: 1 });
   hitMonster(t, mul, { atk: allyAtk(a), ally: true, source: t.isStone ? game.player : a, slow: a.slow ? { amount: a.slow, duration: 1.5 } : null });
 }
 
@@ -1961,7 +1961,7 @@ function updateAllies(dt) {
       if (a.leap || b.leap) continue;
       const dx = b.x - a.x;
       const dy = b.y - a.y;
-      const d = Math.hypot(dx, dy) || 0.01;
+      const d = hyp(dx, dy) || 0.01;
       const min = (a.r + b.r) * 0.9;
       if (d < min) {
         const push = (min - d) / 2;

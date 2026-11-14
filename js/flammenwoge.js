@@ -20,12 +20,12 @@ SKILL_TYPES.mwave = function (sk, pw) {
   let dx = p.facing ? p.facing.x : 1;
   let dy = p.facing ? p.facing.y : 0;
   if (t) {
-    const d = Math.hypot(t.x - p.x, t.y - p.y) || 1;
+    const d = hyp(t.x - p.x, t.y - p.y) || 1;
     dx = (t.x - p.x) / d;
     dy = (t.y - p.y) / d;
     faceTowards(t.x, t.y);
   }
-  const n = Math.hypot(dx, dy) || 1;
+  const n = hyp(dx, dy) || 1;
   dx /= n;
   dy /= n;
   lockPlayer(p, 0.3);

@@ -108,7 +108,7 @@ FX3_DRAW.nstab3 = function (h, e) {
   const o = e.follow;
   let dx = tx - (o ? o.x * U3 : tx - 1);
   let dz = tz - (o ? feetY(o) * U3 : tz);
-  const dl = Math.hypot(dx, dz) || 1;
+  const dl = hyp(dx, dz) || 1;
   dx /= dl;
   dz /= dl;
   // 1) Glanzstern am Dolch in der Hand
@@ -283,7 +283,7 @@ FX3_DRAW.ndash3 = function (h, e) {
   const z0 = e.y0 * U3;
   const x1 = (e.x1 ?? e.x0) * U3;
   const z1 = (e.y1 ?? e.y0) * U3;
-  const len = Math.hypot(x1 - x0, z1 - z0);
+  const len = hyp(x1 - x0, z1 - z0);
   const fade = 1 - k;
   // Schattenbilder alle 0,6 Einheiten, dunkel und deckend mit violettem Schein
   const n = Math.min(low ? 3 : 6, Math.floor(len / 0.6));
@@ -727,7 +727,7 @@ function saBruchShake(e, t) {
   if (e.own) { shakeScreen(3.5); return; }
   const me = game.player;
   if (!me) return;
-  const d = Math.hypot(me.x - e.x, feetY(me) - e.y);
+  const d = hyp(me.x - e.x, feetY(me) - e.y);
   if (d < 420) shakeScreen(1.2 + 2.3 * (1 - d / 420));
 }
 FX3_TYPES.add('sabruch3');
@@ -944,10 +944,10 @@ function chainPlan(p, first, n, sk) {
     count.set(m.id, (count.get(m.id) || 0) + 1);
     last = m;
     cur = spot;
-    const near = enemiesNear(cur.x, cur.y, sk.hopRange).filter((o) => !o.hidden && Math.hypot(o.x - cur.x, o.y - cur.y) - (o.r || 0) <= sk.hopRange);
+    const near = enemiesNear(cur.x, cur.y, sk.hopRange).filter((o) => !o.hidden && hyp(o.x - cur.x, o.y - cur.y) - (o.r || 0) <= sk.hopRange);
     const mobs = near.filter((o) => !o.isStone);
     const pool = mobs.length ? mobs : near;
-    const fresh = pool.filter((o) => !count.has(o.id)).sort((a, b) => Math.hypot(a.x - cur.x, a.y - cur.y) - Math.hypot(b.x - cur.x, b.y - cur.y));
+    const fresh = pool.filter((o) => !count.has(o.id)).sort((a, b) => hyp(a.x - cur.x, a.y - cur.y) - hyp(b.x - cur.x, b.y - cur.y));
     m = fresh[0] || pool.slice().sort((a, b) => (a === last) - (b === last) || count.get(a.id) - count.get(b.id) || dist(a, cur) - dist(b, cur))[0] || null;
   }
   return steps;
@@ -997,7 +997,7 @@ function chainHopFx(owner, from, to, tgt, sk, last, mine) {
   particles(from.x, from.y + 4, { count: 10, color: ['#0a0610', '#2a1640', '#5a2aa8'], speed: [20, 80], life: [0.25, 0.5], size: [3, 6], jitter: 6, drag: 3, glow: false });
   addEffect({ type: 'nchain3', x: to.x, y: to.y, x0: from.x, y0: from.y, x1: to.x, y1: to.y, tx: tgt.x, ty: tgt.y, a: Math.atan2(tgt.y - to.y, tgt.x - to.x), color: col, last, dur: 0.6 });
   // 2D: dünne Schattenlinie und Schnitt (in 3D zeichnet nchain3)
-  const len = Math.hypot(to.x - from.x, to.y - from.y);
+  const len = hyp(to.x - from.x, to.y - from.y);
   if (len > 12) addEffect({ type: 'slash', x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 - 14, ang: Math.atan2(to.y - from.y, to.x - from.x), len, w: 3, dur: 0.22, color: '#3a1670' });
   const bc = tgt.r != null ? bodyCenter(tgt) : { x: tgt.x, y: tgt.y - 14 };
   const ang = Math.atan2(tgt.y - to.y, tgt.x - to.x) + Math.PI / 2 + (Math.random() - 0.5) * 0.6;

@@ -155,7 +155,7 @@ function pvpInHall(mode, dx, dy) {
   if (mode === 'r1') return ax + ay <= D.hw + D.hh - 4;
   // Frosthof: Rechteck mit kleinen runden Ecken; Glutkessel und Turmwiese mit größeren
   const k = mode === 'r2' ? 3 : 6;
-  if (ax > D.hw - k && ay > D.hh - k) return Math.hypot(ax - (D.hw - k), ay - (D.hh - k)) <= k + 0.2;
+  if (ax > D.hw - k && ay > D.hh - k) return hyp(ax - (D.hw - k), ay - (D.hh - k)) <= k + 0.2;
   return true;
 }
 // Lavabecken im Glutkessel (zwei flache Ellipsen ober- und unterhalb der Mitte): dazwischen drei Gassen
@@ -215,7 +215,7 @@ function pvpBuild(w) {
           if (g === G.BASALT && h % 23 === 0) w.deco[i] = DECO.CRACK;
         } else {
           // Wiese mit Wegen von den Basen zur Mitte, Platten im Turmkreis und in den Basen
-          const r = Math.hypot(dx, dy);
+          const r = hyp(dx, dy);
           g = h % 7 === 0 ? G.MEADOW : G.GRASS;
           if (Math.abs(dy) <= 1 && Math.abs(dx) >= PVP.capR + 1 && Math.abs(dx) < PVP_BX) g = G.PATH;
           if (r <= PVP.capR) g = G.PLAZA;
@@ -697,7 +697,7 @@ function pvpHostTower(M, dt) {
     if (P.left || P.dead) continue;
     const o = pvpPos(P.pid);
     if (!o || o.dead) continue;
-    if (Math.hypot(o.x - c.x, o.y - c.y) <= R) n[P.team]++;
+    if (hyp(o.x - c.x, o.y - c.y) <= R) n[P.team]++;
   }
   M.inside = n;
   pvpTowerStep(M.tower, n.A, n.B, dt);
@@ -1074,7 +1074,7 @@ if (typeof healParty === 'function') {
     for (const e of M.roster.values()) {
       if (e.team !== M.team || e.pid === M.me || e.left) continue;
       const rp = net.players.get(e.pid);
-      if (!rp || rp.gone || rp.dead || Math.hypot(rp.x - x, rp.y - y) > r) continue;
+      if (!rp || rp.gone || rp.dead || hyp(rp.x - x, rp.y - y) > r) continue;
       pvpSend(e.pid, { k: 'hh', pct: +(pct * hp).toFixed(4), n: game.player.name });
     }
   };
@@ -1400,7 +1400,7 @@ function pvpHud() {
   else if (p.dead) info = 'Ausgeschieden – du schaust zu';
   const tw = M.tower;
   const twCol = tw.owner ? PVP_TEAM[tw.owner].bar : '#c8c8d8';
-  const inCircle = !M.ranked && M.state === 'fight' && !p.dead && Math.hypot(p.x - pvpTowerAt(M.slot).x, p.y - pvpTowerAt(M.slot).y) <= PVP.capR * TILE;
+  const inCircle = !M.ranked && M.state === 'fight' && !p.dead && hyp(p.x - pvpTowerAt(M.slot).x, p.y - pvpTowerAt(M.slot).y) <= PVP.capR * TILE;
   const towerTxt = M.ranked ? '' : `<span>Turm ${Math.floor(tw.pct)} %${tw.owner ? ' ' + PVP_TEAM[tw.owner].name : ''}</span>${tw.a && tw.b ? ' · <span>umkämpft</span>' : inCircle ? ' · <span>du stehst im Kreis</span>' : ''}`;
   const score = M.ranked ? '' : `${M.score.A} : ${M.score.B}`;
   const bars = pvpBarsHtml(M, 'A') + '·' + pvpBarsHtml(M, 'B');

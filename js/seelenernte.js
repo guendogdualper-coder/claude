@@ -60,8 +60,8 @@ function harvestShow(owner, x, fy) {
 }
 ULT_SHOW.seelenernte = (x, y) => {
   let owner = null;
-  for (const rp of net.players.values()) if (!owner || Math.hypot(rp.x - x, rp.y - y) < Math.hypot(owner.x - x, owner.y - y)) owner = rp;
-  harvestShow(owner && Math.hypot(owner.x - x, owner.y - y) < 80 ? owner : null, x, y + 9);
+  for (const rp of net.players.values()) if (!owner || hyp(rp.x - x, rp.y - y) < hyp(owner.x - x, owner.y - y)) owner = rp;
+  harvestShow(owner && hyp(owner.x - x, owner.y - y) < 80 ? owner : null, x, y + 9);
 };
 
 // 2D: der bisherige Strudel, danach ein heller Ring
@@ -237,7 +237,7 @@ FX3_DRAW.harvest3 = function (h, e) {
       harvestBody(_hv3a, m);
       const dx = cx - _hv3a.x;
       const dz = cz - _hv3a.z;
-      const d = Math.max(0.01, Math.hypot(dx, dz));
+      const d = Math.max(0.01, hyp(dx, dz));
       _hv3b.set(cx - dx / d * 0.7, 1.5, cz - dz / d * 0.7);
       const links = low ? 3 : 5;
       let px = _hv3a.x;

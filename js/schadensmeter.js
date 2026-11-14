@@ -141,7 +141,7 @@ function dmBossNow(t) {
   let bd = 1e9;
   for (const m of game.monsters) {
     if (!dmBig(m) || !(m.hp < m.maxHp)) continue;
-    const d = Math.hypot(m.x - p.x, m.y - p.y);
+    const d = hyp(m.x - p.x, m.y - p.y);
     if (d < 620 && d < bd) { bd = d; best = m; }
   }
   let cur = DMETER.boss[0] && !DMETER.boss[0].done ? DMETER.boss[0] : null;

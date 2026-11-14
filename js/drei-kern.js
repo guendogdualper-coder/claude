@@ -218,7 +218,7 @@ function roundBox(w, h, d, r, k) {
       let dx = p[0] - c[0];
       let dy = p[1] - c[1];
       let dz = p[2] - c[2];
-      const l = Math.hypot(dx, dy, dz);
+      const l = hyp3(dx, dy, dz);
       if (l > 1e-6) {
         dx /= l; dy /= l; dz /= l;
         pos.setXYZ(i, c[0] + dx * r, c[1] + dy * r, c[2] + dz * r);
@@ -701,7 +701,7 @@ function* mergeRawSteps(list, skinned, slice) {
         let nx = ne[0] * a + ne[3] * b2 + ne[6] * c;
         let ny = ne[1] * a + ne[4] * b2 + ne[7] * c;
         let nz = ne[2] * a + ne[5] * b2 + ne[8] * c;
-        const l = Math.hypot(nx, ny, nz) || 1;
+        const l = hyp3(nx, ny, nz) || 1;
         nor[o] = nx / l;
         nor[o + 1] = ny / l;
         nor[o + 2] = nz / l;
@@ -1145,7 +1145,7 @@ function v3InView(x, y, pad = 0) {
   if (H && !H.dungeon && homeOut3(H, Math.floor(x / TILE), Math.floor(y / TILE)) > 3) return false;
   if (v3Shoulder()) {
     v3ViewCenter(_vc);
-    return Math.hypot(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
+    return hyp(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
   }
   return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
 }
@@ -1179,7 +1179,7 @@ function v3ViewFoot() {
   F.x1 = F.z1 = -Infinity;
   for (const c of VIEW3_CORNERS) {
     _vfD.set(c[0], c[1], 0.5).unproject(cam).sub(cp).normalize();
-    const h = Math.hypot(_vfD.x, _vfD.z) || 1e-6;
+    const h = hyp(_vfD.x, _vfD.z) || 1e-6;
     const t = Math.min(_vfD.y < -1e-4 ? cp.y / -_vfD.y : Infinity, far / h);
     const x = cp.x + _vfD.x * t;
     const z = cp.z + _vfD.z * t;
@@ -1189,7 +1189,7 @@ function v3ViewFoot() {
     if (z > F.z1) F.z1 = z;
   }
   // Reichweite um die Kamera am Boden (Schulterblick: so weit kann es nach einer Drehung zu sehen sein)
-  F.reach = Math.min(far, Math.max(Math.hypot(F.x0 - cp.x, F.z0 - cp.z), Math.hypot(F.x1 - cp.x, F.z0 - cp.z), Math.hypot(F.x0 - cp.x, F.z1 - cp.z), Math.hypot(F.x1 - cp.x, F.z1 - cp.z)));
+  F.reach = Math.min(far, Math.max(hyp(F.x0 - cp.x, F.z0 - cp.z), hyp(F.x1 - cp.x, F.z0 - cp.z), hyp(F.x0 - cp.x, F.z1 - cp.z), hyp(F.x1 - cp.x, F.z1 - cp.z)));
   return F;
 }
 // Schattenbereich auf die Sichtfläche legen (statt v3PlaceSun mit fester Größe)
@@ -1362,7 +1362,7 @@ function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
   ctx.setTransform(k * d, 0, 0, k * d, (_pa.x - ax * k) * d, (_pa.y - ay * k) * d);
   // nah an der Kamera wächst der Maßstab ins Unendliche: mehr als h/12 Pixel je Weltpixel kommt im Bild nicht vor
   // (gemessen: feste Kamera bis 2,7, Schulterblick am Bildrand unten etwa h/26)
-  return _pa.z > -1 && _pa.z < 1 && Math.hypot(dx, _pb.y - _pa.y) / 32 < r.h / 12 + 2 &&
+  return _pa.z > -1 && _pa.z < 1 && hyp(dx, _pb.y - _pa.y) / 32 < r.h / 12 + 2 &&
     _pa.x > -1.5 * r.w && _pa.x < 2.5 * r.w && _pa.y > -1.5 * r.h && _pa.y < 2.5 * r.h;
 }
 
@@ -1375,7 +1375,7 @@ function v3ScreenToWorld(sx, sy) {
   // den Boden erst sehr weit weg oder HINTER der Kamera, und Zielkreis bzw. Laufziel sprangen auf die andere Seite der
   // Figur. Jetzt höchstens 60 Kacheln weit in Blickrichtung. Die normale Kamera schaut steil nach unten (unverändert).
   let t = _ray.y < 0 ? -cam.position.y / _ray.y : Infinity;
-  if (v3Shoulder()) t = Math.min(t, 60 / (Math.hypot(_ray.x, _ray.z) || 1));
+  if (v3Shoulder()) t = Math.min(t, 60 / (hyp(_ray.x, _ray.z) || 1));
   return { x: (cam.position.x + _ray.x * t) * TILE, y: (cam.position.z + _ray.z * t) * TILE };
 }
 
@@ -1557,7 +1557,7 @@ function texLine(f, ch, x0, y0, x1, y1, w, v) {
       const px = x + 0.5 - x0;
       const py = y + 0.5 - y0;
       const t = Math.max(0, Math.min(1, (px * lx + py * ly) / ll));
-      const cov = Math.min(1, w / 2 - Math.hypot(px - t * lx, py - t * ly) + 0.5);
+      const cov = Math.min(1, w / 2 - hyp(px - t * lx, py - t * ly) + 0.5);
       if (cov <= 0) continue;
       const i = (((y + N) % N) * N + ((x + N) % N)) * 4 + ch;
       f[i] += (v - f[i]) * cov;
@@ -1728,7 +1728,7 @@ function v3SyncCut(dt) {
   const cam = V3.camera.position;
   let dx = cam.x - px;
   let dz = cam.z - pz;
-  const l = Math.hypot(dx, dz);
+  const l = hyp(dx, dz);
   if (l < 0.01) { dx = 0; dz = 1; } else { dx /= l; dz /= l; }
   CUT3.pos.set(px, pz, dx, dz);
   // Länge: bis hinter die Kamera; Breite wächst mit der Entfernung (Blickkegel), steiler Blick braucht weniger
@@ -2246,7 +2246,7 @@ const KEEP3 = { shoulder: false, x0: 0, z0: 0, x1: 0, z1: 0, cx: 0, cz: 0, r: 0 
 function chunkGap3(x, y, px, pz) {
   const dx = Math.max(x * CHUNK3 - px, 0, px - (x + 1) * CHUNK3);
   const dz = Math.max(y * CHUNK3 - pz, 0, pz - (y + 1) * CHUNK3);
-  return Math.hypot(dx, dz);
+  return hyp(dx, dz);
 }
 function chunkKept3(x, y) {
   const K = KEEP3;
@@ -2278,7 +2278,7 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
     K.cx = V3.focus.x * U3;
     K.cz = V3.focus.y * U3;
     let r = 0;
-    for (const x of [F.x0, F.x1]) for (const z of [F.z0, F.z1]) r = Math.max(r, Math.hypot(x - K.cx, z - K.cz));
+    for (const x of [F.x0, F.x1]) for (const z of [F.z0, F.z1]) r = Math.max(r, hyp(x - K.cx, z - K.cz));
     K.r = Math.min(96, r) + pad;
     K.x0 = K.cx - K.r; K.x1 = K.cx + K.r; K.z0 = K.cz - K.r; K.z1 = K.cz + K.r;
   } else {
@@ -2298,7 +2298,7 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
       if (shoulder && chunkGap3(x, y, K.cx, K.cz) > K.r) continue;
       // was jetzt im Bild ist zuerst (nächste zur Bildmitte vorn), danach der Rand ringsum
       const inView = x * CHUNK3 < F.x1 && (x + 1) * CHUNK3 > F.x0 && y * CHUNK3 < F.z1 && (y + 1) * CHUNK3 > F.z0;
-      const d = Math.hypot((x + 0.5) * CHUNK3 - vcx, (y + 0.5) * CHUNK3 - vcz) / CHUNK3;
+      const d = hyp((x + 0.5) * CHUNK3 - vcx, (y + 0.5) * CHUNK3 - vcz) / CHUNK3;
       want.push([x, y, (inView ? 0 : 100) + d, !inView]);
     }
   }
@@ -2402,7 +2402,7 @@ function v3UpdateLights(fx, fy) {
   const near = _near3;
   near.length = 0;
   for (const s of lightSpots3) {
-    const d = Math.hypot(s.x - px, s.z - pz);
+    const d = hyp(s.x - px, s.z - pz);
     if (d < LIGHT_REACH3) near.push([d, s]);
   }
   near.sort((a, b) => a[0] - b[0]);
@@ -2551,7 +2551,7 @@ function renderDrei() {
   v3UpdateHome(fx, fy);
   // Sprung erkannt (Weltentor, Reise, Dungeon, Wiederbeleben; seit 11.3): alles Sichtbare in diesem einen Bild
   // bauen – einmal kurz warten, dafür kein heller Himmel – und dunkel überblenden statt hell aufzublitzen
-  const jumped = V3.lastFocus && Math.hypot(fx - V3.lastFocus.x, fy - V3.lastFocus.y) > 12 * TILE;
+  const jumped = V3.lastFocus && hyp(fx - V3.lastFocus.x, fy - V3.lastFocus.y) > 12 * TILE;
   V3.lastFocus = { x: fx, y: fy };
   if (jumped) {
     warpFade();
@@ -2607,7 +2607,7 @@ function renderDrei() {
     if (v3Shoulder()) {
       const yaw = V3.yaw || 0;
       const side = v3Project(p.x + Math.cos(yaw) * 1.3 * TILE, feetY(p) - Math.sin(yaw) * 1.3 * TILE, 0.8, _fadeC);
-      fr = Math.max(fr, Math.hypot(side.x - s.x, side.y - s.y));
+      fr = Math.max(fr, hyp(side.x - s.x, side.y - s.y));
     }
     V3.fadeScreen[2] = fr * d;
     V3.fadeScreen[3] = s.z * 0.5 + 0.5;

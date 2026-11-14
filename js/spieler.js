@@ -931,7 +931,7 @@ function landingSpot(p) {
         const x = (tx0 + dx + 0.5) * TILE;
         const y = (ty0 + dy + 0.5) * TILE;
         if (!canStand(x, y, r, false)) continue;
-        const d = Math.hypot(x - p.x, y - p.y);
+        const d = hyp(x - p.x, y - p.y);
         if (d < bd) {
           bd = d;
           best = { x, y };
@@ -1028,7 +1028,7 @@ function dragonRideTick(p) {
   dragonRideTick0(p);
   // seit 14.39: Flughöhe nur im Flug (nach dem Bodenzustand oben geprüft); nach einem Sprung der Position
   // (Teleport, Reise, Dungeon, Wiederbeleben, Landen auf freier Stelle) sofort wieder „tief“, ohne sichtbares Sinken
-  const jump = p.__fhX != null && Math.hypot(p.x - p.__fhX, p.y - p.__fhY) > 4 * TILE;
+  const jump = p.__fhX != null && hyp(p.x - p.__fhX, p.y - p.__fhY) > 4 * TILE;
   p.__fhX = p.x;
   p.__fhY = p.y;
   if (p.flyHigh && (jump || !dragonFlying(p))) p.flyHigh = false;

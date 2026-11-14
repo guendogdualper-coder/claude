@@ -269,11 +269,11 @@ function spFree(w, x, y, R, keepOut) {
   }
   // Abstand zu Leuten (etwas mehr als die Ratgeberin braucht) und zu anderem Schmuck
   for (const n of w.npcs) {
-    const d = Math.hypot(n.x / TILE - x, n.y / TILE - y);
+    const d = hyp(n.x / TILE - x, n.y / TILE - y);
     if (d < R + (n.id === 'weltentor' || n.id === 'eingang' ? 3 : 1.6)) return false;
   }
   for (const pr of w.props) {
-    const d = Math.hypot(pr.x / TILE - x, pr.y / TILE - y);
+    const d = hyp(pr.x / TILE - x, pr.y / TILE - y);
     const r = pr.type === 'stand' || pr.type === 'tower' || pr.type === 'gate' ? 2.2 : pr.type === 'statue' || pr.type === 'zierbrunnen' ? SP_PLACE.minGap : 1.3;
     if (d < R + r * 0.6) return false;
   }
@@ -292,7 +292,7 @@ function spSites(w, mapId, cx, cy, half, custom) {
         const x = Math.round((cx + Math.cos(a) * r) * 4) / 4;
         const y = Math.round((cy + Math.sin(a) * r) * 4) / 4;
         if (Math.abs(x - cx) > half - 2.5 || Math.abs(y - cy) > half - 2.5) continue;
-        if (out.some((o) => Math.hypot(o.x - x, o.y - y) < SP_PLACE.minGap + R)) continue;
+        if (out.some((o) => hyp(o.x - x, o.y - y) < SP_PLACE.minGap + R)) continue;
         if (spFree(w, x, y, R, roads)) return { x, y };
       }
     }

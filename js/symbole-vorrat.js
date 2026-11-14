@@ -9,7 +9,7 @@ const VS_LIGHT = [-0.6, -0.8];
 
 // Farbe einer Facette nach ihrer Richtung (dx, dy) zum Licht: zum Licht hin heller, abgewandt dunkler
 function vsShade(col, dx, dy, amt = 0.5) {
-  const l = Math.hypot(dx, dy) || 1;
+  const l = hyp(dx, dy) || 1;
   const d = (dx * VS_LIGHT[0] + dy * VS_LIGHT[1]) / l;
   return d >= 0 ? lighter(col, d * amt) : darker(col, -d * amt);
 }
@@ -149,7 +149,7 @@ function vsGem(ctx, pts, cx, cy, col, o = {}) {
       const b = pts[(i + 1) % n];
       const mx = (a[0] + b[0]) / 2 - cx;
       const my = (a[1] + b[1]) / 2 - cy;
-      const d = (mx * VS_LIGHT[0] + my * VS_LIGHT[1]) / (Math.hypot(mx, my) || 1);
+      const d = (mx * VS_LIGHT[0] + my * VS_LIGHT[1]) / (hyp(mx, my) || 1);
       if (d > 0.15) vsLine(ctx, `rgba(255, 255, 255, ${0.35 + d * 0.5})`, 0.75, [a, b]);
     }
   }
@@ -192,7 +192,7 @@ function vsStarGem(ctx, cx, cy, R, r, col, o = {}) {
     const b = ring[(i + 1) % 10];
     const mx = (a[0] + b[0]) / 2 - cx;
     const my = (a[1] + b[1]) / 2 - cy;
-    const d = (mx * VS_LIGHT[0] + my * VS_LIGHT[1]) / (Math.hypot(mx, my) || 1);
+    const d = (mx * VS_LIGHT[0] + my * VS_LIGHT[1]) / (hyp(mx, my) || 1);
     if (d > 0.1) vsLine(ctx, `rgba(255, 255, 255, ${0.3 + d * 0.5})`, 0.65, [a, b]);
   }
   // leuchtender Kern
@@ -210,7 +210,7 @@ function vsStarGem(ctx, cx, cy, R, r, col, o = {}) {
 function vsProng(ctx, x, y, cx, cy, metal, s = 1) {
   const dx = x - cx;
   const dy = y - cy;
-  const l = Math.hypot(dx, dy) || 1;
+  const l = hyp(dx, dy) || 1;
   const ux = dx / l;
   const uy = dy / l;
   const px = x - ux * 0.9 * s;
@@ -401,7 +401,7 @@ function vsSeal(ctx, x, y, r, col, emboss) {
 function vsRibbon(ctx, x0, y0, x1, y1, w, col) {
   const dx = x1 - x0;
   const dy = y1 - y0;
-  const l = Math.hypot(dx, dy) || 1;
+  const l = hyp(dx, dy) || 1;
   const nx = -dy / l * w / 2;
   const ny = dx / l * w / 2;
   const cut = [x1 - dx / l * w * 0.7, y1 - dy / l * w * 0.7];

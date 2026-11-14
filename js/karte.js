@@ -972,14 +972,14 @@ function updateGuide() {
     return;
   }
   guide.t = game.time;
-  if (guide.pin && Math.hypot(guide.pin.x - p.x, guide.pin.y - p.y) < TILE * 2) {
+  if (guide.pin && hyp(guide.pin.x - p.x, guide.pin.y - p.y) < TILE * 2) {
     guide.pin = null;
     ui.log('Markierung erreicht.', 'info');
   }
   guide.list = guideEntries();
   guide.entry = guideChoose(guide.list);
   guide.cur = guide.entry ? guideTarget(guide.entry, p) : null;
-  if (guide.cur) guide.cur.dist = Math.hypot(guide.cur.x - p.x, guide.cur.y - p.y);
+  if (guide.cur) guide.cur.dist = hyp(guide.cur.x - p.x, guide.cur.y - p.y);
   // ein anderer Auftrag wird verfolgt (z. B. einer ist erfüllt): Auftragsliste neu zeichnen
   const key = guide.entry ? guide.entry.key : '';
   if (key !== guide.key) {
@@ -1020,7 +1020,7 @@ function drawGuide(ctx) {
   const r = renderer;
   const dx = c.x - p.x;
   const dy = c.y - p.y;
-  const dist = Math.hypot(dx, dy);
+  const dist = hyp(dx, dy);
   ctx.save();
   ctx.setTransform(r.dpr, 0, 0, r.dpr, 0, 0);
   // seit 13.2 rund ein Drittel kleiner
@@ -1258,7 +1258,7 @@ function drawMapMarks(ctx, v, area) {
     const y = Y(c.y);
     const ddx = x - half;
     const ddy = y - v.h / 2;
-    const d = Math.hypot(ddx, ddy);
+    const d = hyp(ddx, ddy);
     if (v.round && d > half - 7 * u) {
       const a = Math.atan2(ddy, ddx);
       edgeArrow(ctx, half + Math.cos(a) * (half - 7 * u), half + Math.sin(a) * (half - 7 * u), a, u, '#ffd34d');
@@ -1302,7 +1302,7 @@ function drawMapMarks(ctx, v, area) {
     const col = mate ? '#5dff6e' : guildMate ? '#d08cff' : foe ? '#ff5a4a' : '#9fd6ff';
     const ddx = x - half;
     const ddy = y - v.h / 2;
-    const d = Math.hypot(ddx, ddy);
+    const d = hyp(ddx, ddy);
     if (v.round && (mate || guildMate) && d > half - 7 * u) {
       const a = Math.atan2(ddy, ddx);
       edgeArrow(ctx, half + Math.cos(a) * (half - 7 * u), half + Math.sin(a) * (half - 7 * u), a, u * (mate ? 1 : 0.8), col);
@@ -1868,7 +1868,7 @@ function bigMapTap(e) {
   const rect = e.currentTarget.getBoundingClientRect();
   const tx = v.ox + (e.clientX - rect.left) / v.sc;
   const ty = v.oy + (e.clientY - rect.top) / v.sc;
-  if (guide.pin && Math.hypot(guide.pin.x / TILE - tx, guide.pin.y / TILE - ty) < 12 / v.sc + 1.5) {
+  if (guide.pin && hyp(guide.pin.x / TILE - tx, guide.pin.y / TILE - ty) < 12 / v.sc + 1.5) {
     guide.pin = null;
     if (guide.pick === 'pin') guide.pick = null;
   } else {
