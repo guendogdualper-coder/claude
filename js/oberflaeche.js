@@ -1242,19 +1242,23 @@ const ui = {
     const evDays = eventXpActive() ? Math.ceil((EVENT_XP.until - Date.now()) / 86400000) : 0;
     // Gift eines anderen Spielers (seit 14.15) als Debuff in der Leiste: „Vergiftet · 4 s · 312/s“
     const tox = p.toxin && p.toxin.until > game.time ? { left: Math.max(1, Math.ceil(p.toxin.until - game.time - 0.01)), dps: Math.round(p.toxin.dps) } : null;
-    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays + '|' + (tox ? tox.left + ':' + tox.dps : ''), () => {
+    // Erfahrungsring (seit 14.99): Restzeit in Minuten
+    const ringMin = typeof epRingLeft === 'function' ? Math.ceil(epRingLeft(p) / 60) : 0;
+    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays + '|' + (tox ? tox.left + ':' + tox.dps : '') + '|' + ringMin, () => {
+      const ring = ringMin ? `<div class="buff-ico buff-ring${ringMin <= 5 ? ' ending' : ''}" style="--p:${Math.min(1, ringMin / EP_RING.minutes).toFixed(3)}" data-tip="${escapeHtml(`Erfahrungsring\n+${Math.round(EP_RING.mul * 100)} % Erfahrung\nnoch ${epRingTime(epRingLeft(p))} Spielzeit`)}">` +
+        `<img src="${materialIconUrl('epring')}" alt="Erfahrungsring"><span>${ringMin >= 60 ? Math.floor(ringMin / 60) + ' h' : ringMin + ' m'}</span></div>` : '';
       const ev = evDays ? `<div class="buff-ico buff-event" style="--p:${(evDays / 22).toFixed(3)}" data-tip="${escapeHtml(`${EVENT_XP.name}\n+${Math.round(EVENT_XP.mul * 100)} % Erfahrung für alle Charaktere\nnoch ${evDays} ${evDays === 1 ? 'Tag' : 'Tage'} (bis 22.11.), bleibt auch beim Tod`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.8l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z"/></svg><span>${evDays} T</span></div>` : '';
       const debuff = tox ? `<div class="buff-ico buff-debuff" style="--p:${(tox.left / TOXIN.dur).toFixed(3)}" data-tip="${escapeHtml(`Vergiftet · ${tox.left} s · ${tox.dps}/s\nGift eines anderen Spielers`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.6 4.6 6.2 8.3 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.8 8.4 7.1 12 2.5z"/><circle cx="9.6" cy="14.2" r="1.3"/><circle cx="13.8" cy="16.6" r="1"/></svg><span>${tox.left} s</span></div>` : '';
-      $('buffList').innerHTML = ev + debuff + buffs.map(({ b, left }) => {
+      $('buffList').innerHTML = ev + ring + debuff + buffs.map(({ b, left }) => {
         const sk = skillById(b.id);
         const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
         return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" data-tip="${escapeHtml(buffTip(b))}">` +
           `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
-      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0 || !!tox);
+      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0 || !!tox || ringMin > 0);
     });
 
     if (typeof segenTick === 'function') segenTick();

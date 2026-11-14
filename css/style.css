@@ -3688,3 +3688,9 @@ body.skv-open .hover-tip { display: none !important; }
     cursor: url('../bilder/zeiger-hand.svg') 3 2, pointer;
   }
 }
+
+/* Erfahrungsring (seit 14.99) */
+.mat-tile.ep-ring { grid-template-columns: 34px 1fr auto; border-color: rgba(180, 140, 255, 0.55); box-shadow: 0 0 10px rgba(140, 90, 240, 0.25) inset; }
+.mat-tile.ep-ring .ep-ring-go { grid-column: 3; grid-row: 1 / span 2; padding: 4px 10px; font-size: 12px; }
+.mat-tile.ep-ring.empty { box-shadow: none; }
+.buff-ico.buff-ring { box-shadow: 0 0 8px rgba(160, 110, 255, 0.7); }

@@ -2176,6 +2176,7 @@ const gear = {
       tile(materialIconUrl('seelenstein'), 'Seelensteine · Für L1–V', p.materials.seelenstein || 0, matDef('seelenstein').text) +
       `</div>`;
     el.innerHTML =
+      (typeof epRingTile === 'function' ? epRingTile() : '') +
       skillTiles +
       `<h3>Für den Schmied</h3><div class="mat-tiles">` +
       tile(lootIconUrl('splinter'), 'Seelensplitter', p.splinters) +
