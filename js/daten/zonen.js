@@ -397,10 +397,12 @@ const potionInfo = (kind) => SHOP.find((x) => x.id === kind);
 // docs/auftrag-2026-11-10-items.md). Preise, Abklingzeit (POTION_CD) und Schlüssel bleiben gleich; vorhandene
 // L-Tränke werden 1:1 zu XL (POTION_MERGED, migratePotions) – überall, auch in Post, Auktionshaus und Handel.
 const POTION_SIZES = [
-  { id: 'S', name: 'klein', hp: 120, mp: 75, price: 1, level: 1, art: 0 },
-  { id: 'M', name: 'mittel', hp: 225, mp: 145, price: 5, level: 10, art: 1 },
-  { id: 'XL', name: 'sehr groß', hp: 620, mp: 380, price: 80, level: 25, art: 3 },
-  { id: 'XXL', name: 'riesig', hp: 1850, mp: 600, price: 320, level: 55, art: 4 }
+  // seit 15.08: Lebenstränke heilen doppelt so viel (XL etwas mehr als doppelt, weil er 30 Stufen abdeckt), die
+  // größeren Tränke kosten weniger (Faktor auf den Grundpreis: M 4 statt 5, XL 40 statt 80, XXL 160 statt 320)
+  { id: 'S', name: 'klein', hp: 240, mp: 75, price: 1, level: 1, art: 0 },
+  { id: 'M', name: 'mittel', hp: 450, mp: 145, price: 4, level: 10, art: 1 },
+  { id: 'XL', name: 'sehr groß', hp: 1400, mp: 380, price: 40, level: 25, art: 3 },
+  { id: 'XXL', name: 'riesig', hp: 3700, mp: 600, price: 160, level: 55, art: 4 }
 ];
 // Entfallene Größen und wohin sie gehen (seit 14.32: L → XL, je Trank genau ein XL – nie schlechter)
 const POTION_MERGED = { L: 'XL' };
