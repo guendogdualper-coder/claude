@@ -47,7 +47,7 @@ const G3 = {
 
 // Teile in einem eigenen Rahmen (Lage, Drehung, Größe) an einem Knochen
 function frame3(A, bone, at, rot = [0, 0, 0], s = 1) {
-  const M = new THREE.Matrix4().compose(new THREE.Vector3(...at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(s, s, s));
+  const M = new THREE.Matrix4().compose(new THREE.Vector3(...at), new THREE.Quaternion().setFromEuler(new THREE.Euler(...rot)), new THREE.Vector3(...(Array.isArray(s) ? s : [s, s, s])));
   return (geo, color, o = {}) => A(geo, color, Object.assign({}, o, { bone, m: M.clone().multiply(partMatrix(o)) }));
 }
 
@@ -2243,7 +2243,10 @@ function gearArmor3(A, g, t, cls, c) {
   // seit 15.04: bei gekürzter Robe (g.robeFit) sitzen Saum- und Robenzierden im selben Rahmen wie die Robe
   const Wh0 = frame3(A, BH.hips, [0, 0, 0]);
   g.Wh0 = Wh0;
-  const Wh = g.robeFit ? frame3(A, BH.hips, [0, g.robeFit.up, 0], [0, 0, 0], g.robeFit.s) : Wh0;
+  // seit 15.17: ebenso beim gekürzten Hüftrock (g.skirtFit, Krieger und Ninja)
+  const kf = g.skirtFit;
+  const Wh = g.robeFit ? frame3(A, BH.hips, [0, g.robeFit.up, 0], [0, 0, 0], g.robeFit.s)
+    : kf ? frame3(A, BH.hips, [0, kf.top * (1 - kf.sy), 0], [0, 0, 0], [kf.sx, kf.sy, kf.sx]) : Wh0;
   // Drehknochen (seit 8.6): Runenring um die Taille, Siegelring im Rücken
   const Wr = g.spin && g.spin.ring != null ? frame3(A, g.spin.ring, [0, 0, 0]) : null;
   const build = ARMOR3[cls][t];

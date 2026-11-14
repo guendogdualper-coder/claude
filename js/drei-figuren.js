@@ -671,6 +671,14 @@ function humanoid3(b, c, P) {
   const legR = (belly ? 0.12 : 0.082) * bk;
   const hipY = legLen + 0.06;
   const robeFit = c.oval && c.robe && !belly ? { s: 0.86, up: hipY - 0.43 } : null;
+  // seit 15.17 (Spielfiguren ohne Robe: Krieger, Ninja): Hüftrock, Stoffbahnen und Beintaschen kürzer und etwas
+  // schmaler – vorher reichte der Rock bis auf die Beinschienen, die Beine waren kaum zu sehen. Oberkante bleibt am
+  // Gürtel (top), nach unten wird gestaucht (sy), die Weite leicht verringert (sx). Die Zierden der Ausrüstung am
+  // Rock sitzen im selben Rahmen (gearArmor3).
+  const skirtFit = c.oval && !c.robe && !belly ? { sx: 0.94, sy: 0.72, top: hipY + 0.02 } : null;
+  const skY = (y) => (skirtFit ? skirtFit.top + (y - skirtFit.top) * skirtFit.sy : y);
+  const skX = skirtFit ? skirtFit.sx : 1;
+  const skS = skirtFit ? skirtFit.sy : 1;
   const chestY = hipY + 0.26;
   const shY = hipY + (belly ? 0.48 : 0.37);
   const shX = (belly ? 0.42 : 0.25) * bk * shK;
@@ -803,14 +811,14 @@ function humanoid3(b, c, P) {
       }
     } else {
       // seit 14.53: Frauen mit runderem Rock über den breiteren Hüften
-      A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, hipY - 0.17, 0], s: [bk * (fem ? 1.1 : man ? 0.96 : 1), 1, 0.84 * bk * (fem ? 1.06 : 1)], shade: 0.2 });
+      A(lathe3('skirt2', [[0, 0], [0.27, 0], [0.285, 0.02], [0.25, 0.13], [0.21, 0.18], [0, 0.19]], 16), c.skirt || darker(c.torso, 0.1), { bone: BH.hips, p: [0, skY(hipY - 0.17), 0], s: [bk * (fem ? 1.1 : man ? 0.96 : 1) * skX, skS, 0.84 * bk * (fem ? 1.06 : 1) * skX], shade: 0.2 });
       // Stoffbahnen vorn und hinten
       // seit 14.77 kürzer und am Rock anliegend (vorher 0,22 hoch bis hipY − 0,28, nach außen gekippt): die Bahnen hingen
       // vorn zwischen den Beintaschen und hinten unter dem Umhang bis auf die Stiefel und sahen aus wie ein Teil, das aus
       // der Rüstung herausragt (Spielerbild). Jetzt liegen sie außen auf dem Rock (gleiche Neigung) und enden am
       // Rocksaum. Unter Beintaschen (Krieger) fallen sie weg: dort lagen sie sonst vor den
       // Platten oder Federn.
-      if (!c.tassets && !c.featherTassets) for (const sz of [1, -1]) A(roundBox(0.17, 0.14, 0.025, 0.012), c.flap || c.skirt || darker(c.torso, 0.18), { bone: BH.hips, p: [0, hipY - 0.1, sz * 0.24 * bk * (fem ? 1.06 : 1)], r: [-sz * 0.26, 0, 0], shade: 0.25 });
+      if (!c.tassets && !c.featherTassets) for (const sz of [1, -1]) A(roundBox(0.17, 0.14, 0.025, 0.012), c.flap || c.skirt || darker(c.torso, 0.18), { bone: BH.hips, p: [0, skY(hipY - 0.1), sz * 0.24 * bk * (fem ? 1.06 : 1) * skX], r: [-sz * 0.26, 0, 0], s: [1, skS, 1], shade: 0.25 });
     }
   }
   // Gürtel mit Schnalle und Tasche
@@ -862,8 +870,8 @@ function humanoid3(b, c, P) {
   }
   // Beintaschen: Platten, die vom Gürtel über den Rock hängen
   if (c.tassets) for (const [x, z, ry] of [[-0.09, 0.19, 0.25], [0.09, 0.19, -0.25], [-0.2, 0.02, 1.4], [0.2, 0.02, -1.4]]) {
-    A(roundBox(0.12, 0.17, 0.025, 0.012), c.tassets, { bone: BH.hips, p: [x * bk, hipY - 0.1, z * bk], r: [0.14, ry, 0], shine: 0.7, top: lighter(c.tassets, 0.25), topK: 0.3 });
-    A(roundBox(0.125, 0.02, 0.03, 0.008), c.tassetRim || lighter(c.tassets, 0.3), { bone: BH.hips, p: [x * bk, hipY - 0.18, z * bk + 0.004], r: [0.14, ry, 0], shine: 1 });
+    A(roundBox(0.12, 0.17, 0.025, 0.012), c.tassets, { bone: BH.hips, p: [x * bk * skX, skY(hipY - 0.1), z * bk * skX], r: [0.14, ry, 0], s: [1, skS, 1], shine: 0.7, top: lighter(c.tassets, 0.25), topK: 0.3 });
+    A(roundBox(0.125, 0.02, 0.03, 0.008), c.tassetRim || lighter(c.tassets, 0.3), { bone: BH.hips, p: [x * bk * skX, skY(hipY - 0.18), z * bk * skX + 0.004], r: [0.14, ry, 0], shine: 1 });
   }
   // Fellkragen (barbarisch): dicker Wulst mit Büscheln
   if (c.furCollar) {
@@ -1038,7 +1046,7 @@ function humanoid3(b, c, P) {
   }
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
-    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin, robeFit, oval: !!c.oval,
+    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin, robeFit, skirtFit, oval: !!c.oval,
     cuirass: !!c.cuirass, greaves: !!c.greaves, footZ0, footZ1,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk
