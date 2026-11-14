@@ -293,6 +293,8 @@ function arenaTune(m, W, role) {
 // Wer die Halle verlässt, stirbt (drittes Leben) oder die Verbindung verliert, fällt heraus; die anderen kämpfen weiter.
 const arenaHost = { slots: Array.from({ length: ARENA.slots }, () => null) };
 const arenaNow = () => game.time;
+// seit 15.11: so lange (s) darf ein Teilnehmer ohne Verbindung oder außerhalb der Halle sein, bevor sein Lauf endet
+const ARENA_NET_GRACE = 12;
 
 function arenaMemberObj(id) {
   if (id === 'me') return game.player;
@@ -541,7 +543,12 @@ function arenaTickHost() {
     let S = arenaHost.slots[s];
     if (!S) continue;
     // Teilnehmer ohne Verbindung (oder anderer Charakter) fallen heraus
-    for (const id of S.members.slice()) if (!arenaMemberObj(id)) arenaDrop(s, id, null);
+    S.lost = S.lost || {};
+    for (const id of S.members.slice()) {
+      if (arenaMemberObj(id)) { S.lost[id] = null; continue; }
+      if (S.lost[id] == null) S.lost[id] = performance.now();
+      if (performance.now() - S.lost[id] > ARENA_NET_GRACE * 1000) arenaDrop(s, id, null);
+    }
     if (!(S = arenaHost.slots[s])) continue;
     const here = (id) => { const o = arenaMemberObj(id); return !!o && arenaSlotAt(o.x, o.y) === s; };
     if (S.state === 'reserved') {
@@ -566,6 +573,7 @@ function arenaTickHost() {
     S.last = now;
     for (const id of S.members.slice()) {
       const o = arenaMemberObj(id);
+      if (!o) continue; // kurz ohne Verbindung (Schonfrist oben)
       if (o.dead) {
         if (S.deadSince[id] == null) S.deadSince[id] = now;
         if (now - S.deadSince[id] > ARENA.deadMax) arenaDrop(s, id, 'tod');
@@ -574,11 +582,11 @@ function arenaTickHost() {
       S.deadSince[id] = null;
       if (!here(id)) {
         if (S.absent[id] == null) S.absent[id] = now;
-        if (now - S.absent[id] > 3) arenaDrop(s, id, 'weg');
+        if (now - S.absent[id] > (id === 'me' ? 3 : ARENA_NET_GRACE)) arenaDrop(s, id, 'weg');
       } else S.absent[id] = null;
     }
     if (!(S = arenaHost.slots[s])) continue;
-    if (S.members.every((id) => arenaMemberObj(id).dead)) {
+    if (S.members.every((id) => { const o = arenaMemberObj(id); return !o || o.dead; })) {
       S.until += dt;
       S.nextAt += dt;
       if (S.batchAt != null) S.batchAt += dt;
@@ -1250,10 +1258,14 @@ function arenaTick() {
     return;
   }
   // Mehrspieler ein- oder ausgeschaltet, Host gewechselt: Lauf endet (das Gold bleibt)
+  // seit 15.11: erst nach ARENA_NET_GRACE s – ein kurzer Verbindungsabriss (am Handy häufig) warf sonst sofort hinaus
   if (run.mode !== arenaModeOf()) {
-    arenaStop('host');
+    if (run.modeOff == null) run.modeOff = performance.now();
+    if (performance.now() - run.modeOff > ARENA_NET_GRACE * 1000) arenaStop('host');
+    else arenaHud();
     return;
   }
+  run.modeOff = null;
   // tot (seit 13.70): der Lauf wartet auf „Hier neu starten“ (Leben zählt arenaDeath beim Tod)
   if (p.dead) {
     arenaHud();
@@ -1272,7 +1284,14 @@ function arenaTick() {
   for (const m of mons) arenaSeen(m);
   run.left = mons.length;
   // Halle verlassen (z. B. „In der Stadt neu starten“ nach einem Tod): Ende, das Gold wird ausgezahlt
-  if (here !== run.slot && run.phase !== 'wait') {
+  // seit 15.11: Wer nur aus der Halle gerutscht ist (Sprung- oder Teleportfertigkeit über die Wand), aber noch im
+  // Arenabereich steht, wird in die Hallenmitte zurückgesetzt statt hinausgeworfen
+  if (here !== run.slot && run.phase !== 'wait' && p.x / TILE >= WORLD_W && p.y / TILE >= DUNGEON_H) {
+    const R = arenaSlotRect(run.slot);
+    p.x = (R.x + R.w / 2) * TILE;
+    p.y = (R.y + R.h / 2) * TILE;
+    run.outSince = null;
+  } else if (here !== run.slot && run.phase !== 'wait') {
     if (run.outSince == null) run.outSince = game.time;
     if (game.time - run.outSince > 1) {
       arenaStop('weg');
@@ -1443,7 +1462,7 @@ function arenaHudBuild() {
   el.style.cssText = 'position:fixed;left:8px;top:90px;z-index:5;max-width:' + (touch ? 'min(300px, 46vw)' : 'min(640px, calc(100vw - 16px))') + ';' +
     'display:flex;flex-wrap:wrap;align-items:center;color:#ffe9c2;text-shadow:0 1px 2px #000;white-space:nowrap;' +
     'background:rgba(30,18,8,.78);border:1px solid rgba(255,200,106,.55);box-shadow:0 2px 8px rgba(0,0,0,.4);' +
-    (touch ? 'gap:2px 6px;padding:2px 3px 2px 9px;border-radius:13px;font:600 11px/1.2 system-ui,sans-serif;pointer-events:auto;'
+    (touch ? 'gap:2px 6px;padding:2px 3px 2px 9px;border-radius:13px;font:600 11px/1.2 system-ui,sans-serif;pointer-events:none;'
       : 'gap:4px 9px;padding:5px 7px 5px 11px;border-radius:12px;font:600 12.5px/1.25 system-ui,sans-serif;pointer-events:none;');
   const btn = (a, txt, css) => `<button type="button" data-a="${a}" style="pointer-events:auto;cursor:pointer;font:700 ${touch ? 11 : 12}px system-ui,sans-serif;color:#fff;background:#7a2a1a;border:1px solid #c86a4a;border-radius:${touch ? 10 : 8}px;${css}">${txt}</button>`;
   if (touch) {
@@ -1455,8 +1474,19 @@ function arenaHudBuild() {
     // Antippen: auf- und zuklappen; ✕ fragt erst nach
     el.addEventListener('click', (ev) => {
       const a = ev.target.closest('[data-a]') && ev.target.closest('[data-a]').dataset.a;
-      if (a === 'y') { arenaUi.open = false; arenaUi.confirm = false; arenaStop('aufgeben'); return; }
-      if (a === 'x') { arenaUi.confirm = !arenaUi.confirm || !arenaUi.open; arenaUi.open = arenaUi.confirm; }
+      // seit 15.11: Die Leiste selbst nimmt keine Berührungen mehr an (der Daumen der Steuerung liegt dort); „Aufgeben“
+      // gilt erst 0,8 s nach dem Erscheinen und klappt nach 5 s von selbst wieder zu – kein Hinauswurf aus Versehen
+      if (a === 'y') {
+        if (performance.now() - (arenaUi.confirmAt || 0) < 800) return;
+        arenaUi.open = false; arenaUi.confirm = false; arenaStop('aufgeben'); return;
+      }
+      if (a === 'x') {
+        arenaUi.confirm = !arenaUi.confirm || !arenaUi.open; arenaUi.open = arenaUi.confirm;
+        if (arenaUi.confirm) {
+          const at = arenaUi.confirmAt = performance.now();
+          setTimeout(() => { if (arenaUi.confirm && arenaUi.confirmAt === at) { arenaUi.open = false; arenaUi.confirm = false; arenaUi.key = ''; arenaHud(); } }, 5000);
+        }
+      }
       else { arenaUi.open = !arenaUi.open; arenaUi.confirm = false; }
       arenaUi.key = '';
       arenaHud();
