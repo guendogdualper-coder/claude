@@ -2214,7 +2214,8 @@ function v3SyncFx() {
   // seit 14.38: stehen sehr viele Treffer-Effekte zugleich im Bild (über 40 Gegner werden gerade getroffen), zeichnen
   // Rang-Treffer und Bogen-Treffer in der sparsamen Fassung der Grafikstufe „Niedrig“ (weniger Funken je Treffer) –
   // im Gewimmel nicht zu unterscheiden, spart aber mehrere tausend Teile je Bild
-  FX3.hitCrowd = hits > 40;
+  // seit 15.15: die Grenze kommt vom Lastschutz (am Handy und unter Last deutlich früher)
+  FX3.hitCrowd = hits > (typeof LOAD !== 'undefined' ? LOAD.hitCrowd : 40);
   fx3Projectiles(FX3_PROJ);
   fx3Status(FX3_STATUS);
   fx3Crown(FX3_CROWN);

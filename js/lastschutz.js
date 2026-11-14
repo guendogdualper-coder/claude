@@ -13,6 +13,7 @@ const LOAD = {
   noOutline: false, // einfache Monstermodelle ohne Umrisslinie zeichnen
   labelR: 0,     // Namen und Lebensbalken gewöhnlicher Monster nur bis zu diesem Abstand (Felder; 0 = alle)
   noShadowLod: false, // klein dargestellte Monster ohne eigenen Schattenwurf (Bodenschatten bleibt)
+  hitCrowd: 40,  // ab so vielen Treffer-Effekten zugleich zeichnen sie die sparsame Fassung
   fastBars: false, // Lebensbalken der Monster in einfacher Form (zwei Rechtecke statt Verlauf mit Maske)
   force: null    // nur für Tests: feste Stufe
 };
@@ -30,6 +31,7 @@ function loadApply() {
   LOAD.noOutline = lv >= 2 || (!pc && (g === 'niedrig' || g === 'mittel'));
   LOAD.labelR = pc ? [0, 16, 11][lv] : [14, 11, 8][lv];
   LOAD.fastBars = !pc || lv >= 1;
+  LOAD.hitCrowd = pc ? [40, 20, 10][lv] : [14, 10, 6][lv];
   LOAD.noShadowLod = !pc || lv >= 1;
 }
 // je Bild aus frame() (spiel.js): dtMs = echte Zeit seit dem letzten Bild, cap = Bildratengrenze (0 = keine)

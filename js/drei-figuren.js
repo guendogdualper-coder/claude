@@ -181,9 +181,11 @@ function pauldron3(A, ab, sh, sx, armR, o) {
   const big = o.big || 1;
   const R = o.R * big;
   armR *= 1 + (big - 1) * 0.6;
-  const pp = [sh[0] + sx * R * (big > 1 ? 0.3 : 0.12), sh[1] + R * (big > 1 ? 0.32 : 0.25), 0];
+  // seit 15.15 (o.fit, Spielfiguren): der Panzer sitzt tiefer, weiter außen und stärker geneigt – er liegt auf der
+  // Schulter und dem Oberarm statt wie ein Flügel neben dem Gesicht zu stehen
+  const pp = o.fit ? [sh[0] + sx * R * 0.5, sh[1] + R * 0.1, 0] : [sh[0] + sx * R * (big > 1 ? 0.3 : 0.12), sh[1] + R * (big > 1 ? 0.32 : 0.25), 0];
   // seit 14.59: große Panzer stärker nach außen geneigt, damit sie über der Schulter liegen statt waagerecht abzustehen
-  const W = frame3(A, ab, pp, [0, 0, -sx * (big > 1.3 ? 0.55 : 0.42)]);
+  const W = frame3(A, ab, pp, [0, 0, -sx * (o.fit ? 0.8 : big > 1.3 ? 0.55 : 0.42)]);
   // Hauptplatte: flach gewölbt und breiter als hoch, damit sie wie Blech und nicht wie eine Kugel wirkt
   const sl = (o.slim || 1) * (big > 1.3 ? 0.88 : 1);
   // seit 14.59: große Panzer (Krieger) höher gewölbt – vorher lag eine flache Scheibe auf der Schulter und von vorn
@@ -781,9 +783,10 @@ function humanoid3(b, c, P) {
     const torsoPts = fem
       ? [[0, 0], [0.2, 0], [0.226, 0.055], [0.2, 0.11], [0.152, 0.17], [0.172, 0.25], [0.186, 0.31], [0.165, 0.38], [0.105, 0.43], [0, 0.44]]
       : man
-        ? [[0, 0], [0.158, 0], [0.178, 0.05], [0.184, 0.13], [0.22, 0.24], [0.228, 0.3], [0.2, 0.38], [0.13, 0.43], [0, 0.44]]
+        // seit 15.15 wie die Rüstungen im Inventar: betonte Taille, breitere Brust, leicht ausgestellte Hüfte
+        ? [[0, 0], [0.17, 0], [0.19, 0.045], [0.165, 0.12], [0.215, 0.24], [0.238, 0.305], [0.21, 0.385], [0.13, 0.43], [0, 0.44]]
         : [[0, 0], [0.17, 0], [0.2, 0.05], [0.19, 0.13], [0.21, 0.24], [0.22, 0.3], [0.19, 0.38], [0.12, 0.43], [0, 0.44]];
-    A(lathe3(fem ? 'torsoF2' : man ? 'torsoM' : 'torso2', torsoPts, 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
+    A(lathe3(fem ? 'torsoF2' : man ? 'torsoM2' : 'torso2', torsoPts, 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
     // Hals: bei Männern kräftiger, bei Frauen schlanker
     const nk = fem ? 0.84 : man ? 1.3 : 1;
     A(cyl3(0.055 * nk, 0.06 * nk, 0.1 + (c.neckUp || 0), 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02 + (c.neckUp || 0) / 2, 0.0] });
@@ -932,11 +935,11 @@ function humanoid3(b, c, P) {
     if (c.claws) for (let k = -1; k <= 1; k++) A(horn3(0.08 * hs, 0.018 * hs, 5), '#f4ecd8', { bone: hb, p: [hand[0] + k * 0.03 * hs, hand[1] - 0.06 * hs, hand[2] + 0.04], r: [Math.PI + 0.3, 0, 0] });
     if (c.pads && c.padStyle === 'leather') {
       // Ninja (seit 13.12): leichter Lederpanzer, zwei Schienen mit Naht, Riemen um den Oberarm
-      pauldron3(A, ab, sh, sx, armR, { big: c.padBig, R: 0.085, slim: 0.85, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.3), lames: 2, edge: darker(c.pads, 0.3), shine: 0.15 });
+      pauldron3(A, ab, sh, sx, armR, { fit: c.oval, big: c.padBig, R: 0.085, slim: 0.85, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.3), lames: 2, edge: darker(c.pads, 0.3), shine: 0.15 });
       A(torus3(armR * 1.08, 0.012, Math.PI * 2, 4, 12), darker(c.pads, 0.2), { bone: ab, p: [sh[0], sh[1] - 0.14, 0], r: [Math.PI / 2, 0, 0] });
     } else if (c.pads && c.padStyle === 'cloth') {
       // Schamane, Magier (seit 13.12): gesteppter Stoffpanzer in Lagen mit Borte, darunter Quasten
-      const { pp } = pauldron3(A, ab, sh, sx, armR, { big: c.padBig, R: 0.105, slim: 0.88, col: c.pads, trim: c.padTrim || '#e0c36a', lames: 2, edge: c.padTrim || null, shine: 0.1, step: 0.055 });
+      const { pp } = pauldron3(A, ab, sh, sx, armR, { fit: c.oval, big: c.padBig, R: 0.105, slim: 0.88, col: c.pads, trim: c.padTrim || '#e0c36a', lames: 2, edge: c.padTrim || null, shine: 0.1, step: 0.055 });
       for (const dz of [-0.06, 0, 0.06]) {
         A(limb3(0.07, 0.005, 0.005, 3), c.padTrim || '#e0c36a', { bone: ab, p: [pp[0] + sx * 0.08, pp[1] - 0.09, dz * 0.85] });
         A(sphere3(0.014, 6, 4), '#c8402f', { bone: ab, p: [pp[0] + sx * 0.08, pp[1] - 0.17, dz * 0.85] });
@@ -957,7 +960,7 @@ function humanoid3(b, c, P) {
       const bk2 = c.padBig || 1;
       const pp = [sh[0] + sx * R * bk2 * (bk2 > 1 ? 0.3 : 0.12), sh[1] + R * bk2 * (bk2 > 1 ? 0.32 : 0.25), 0];
       if (c.furCollar && c.padStyle === 'plate') A(ball(10), c.furCollar, { bone: ab, p: [pp[0] - sx * 0.04, pp[1] - 0.02, pp[2]], s: [0.1 * ps, 0.06, 0.12 * ps], shade: 0.2 });
-      pauldron3(A, ab, sh, sx, armR * (belly ? 1.3 : 1), { big: c.padBig, R, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.25), lames: c.padStyle === 'plate' ? 3 : 2, ridge: true, rivets: c.padTrim || lighter(c.pads, 0.3), edge: c.padTrim || lighter(c.pads, 0.2), shine: 0.7, step: 0.05 * Math.min(ps, 1.3) });
+      pauldron3(A, ab, sh, sx, armR * (belly ? 1.3 : 1), { fit: c.oval, big: c.padBig, R, col: c.pads, trim: c.padTrim || lighter(c.pads, 0.25), lames: c.padStyle === 'plate' ? 3 : 2, ridge: true, rivets: c.padTrim || lighter(c.pads, 0.3), edge: c.padTrim || lighter(c.pads, 0.2), shine: 0.7, step: 0.05 * Math.min(ps, 1.3) });
       if (c.spikes && bk2 > 1.3) {
         // seit 13.36: Stachelkamm über den Grat (vorn, Mitte höher, hinten), dunkle Wurzelringe, Nietenreihe außen
         const spk = c.padTrim ? lighter(c.padTrim, 0.35) : '#d9dde2';
@@ -1035,7 +1038,7 @@ function humanoid3(b, c, P) {
   }
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
-    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin, robeFit,
+    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin, robeFit, oval: !!c.oval,
     cuirass: !!c.cuirass, greaves: !!c.greaves, footZ0, footZ1,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk

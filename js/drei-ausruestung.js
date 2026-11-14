@@ -186,8 +186,9 @@ function gearShoulders3(A, g, t, cls, metal0) {
   const R = (PAD3_R[cls] || 0.12) * big * (cls === 'krieger' ? 1 : 0.85);
   const metal = metal0 || TIER_METAL[t];
   for (const [sx, ab] of [[1, BH.armL], [-1, BH.armR]]) {
-    const pp = [sx * (g.shX + R * 0.3), g.shY + R * 0.32 + (cls === 'nekromant' ? 0.02 : 0), 0];
-    const W = frame3(A, ab, pp, [0, 0, -sx * 0.35]);
+    // seit 15.15 (g.oval, Spielfiguren): wie der Panzer selbst tiefer, weiter außen und stärker geneigt (pauldron3)
+    const pp = g.oval ? [sx * (g.shX + R * 0.5), g.shY + R * 0.1 + (cls === 'nekromant' ? 0.02 : 0), 0] : [sx * (g.shX + R * 0.3), g.shY + R * 0.32 + (cls === 'nekromant' ? 0.02 : 0), 0];
+    const W = frame3(A, ab, pp, [0, 0, -sx * (g.oval ? 0.8 : 0.35)]);
     const X = sx;
     switch (t) {
       case 0:
@@ -1362,7 +1363,7 @@ function magierHelm3(t, hat, silver, accent, o = {}) {
 // Umriss von Rumpf, Harnisch und Robe (Radius je Höhe über ihrem Ansatz), wie in humanoid3
 // seit 14.53: Spieler (male) mit V-Form, Spielerinnen mit Sanduhr-Form; TORSO3_N für Figuren ohne Geschlecht
 const TORSO3_N = [[0, 0.17], [0.05, 0.2], [0.13, 0.19], [0.24, 0.21], [0.3, 0.22], [0.38, 0.19], [0.43, 0.12]];
-const TORSO3_M = [[0, 0.158], [0.05, 0.178], [0.13, 0.184], [0.24, 0.22], [0.3, 0.228], [0.38, 0.2], [0.43, 0.13]];
+const TORSO3_M = [[0, 0.17], [0.045, 0.19], [0.12, 0.165], [0.24, 0.215], [0.305, 0.238], [0.385, 0.21], [0.43, 0.13]];
 const TORSO3_F = [[0, 0.2], [0.055, 0.226], [0.11, 0.2], [0.17, 0.152], [0.25, 0.172], [0.31, 0.186], [0.38, 0.165], [0.43, 0.105]];
 const CUIRASS3 = [[0, 0.2], [0.02, 0.215], [0.1, 0.228], [0.18, 0.232], [0.26, 0.205], [0.31, 0.14]];
 // Harnisch der Frauen: unten tailliert, oben schmaler
