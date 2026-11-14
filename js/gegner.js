@@ -1480,6 +1480,7 @@ function areaMonsters() {
   if (!p) return game.monsters;
   return monsterIndex().get(areaKey(p.x, p.y)) || [];
 }
+const MON_ACTIVE = [];
 function updateMonsters(dt) {
   const p = game.player;
   const players = huntablePlayers();
@@ -1682,16 +1683,22 @@ function updateMonsters(dt) {
   }
 
   // Monster drängen sich nicht auf einen Punkt (seit 13.63 nur die gerechneten statt aller der Welt)
-  const active = list.filter((m) => !m.dead && !m.isStone && m.state === 'chase');
+  // seit 15.13: eine feste Liste statt einer neuen je Bild, und der Abstand wird erst im Quadrat geprüft – bei 80
+  // Verfolgern sind das über 3.000 Paare je Bild, von denen sich fast keines berührt (vorher je Paar eine Wurzel)
+  const active = MON_ACTIVE;
+  active.length = 0;
+  for (let i = 0; i < list.length; i++) { const m = list[i]; if (!m.dead && !m.isStone && m.state === 'chase') active.push(m); }
   for (let i = 0; i < active.length; i++) {
+    const a = active[i];
     for (let j = i + 1; j < active.length; j++) {
-      const a = active[i];
       const b = active[j];
       const dx = b.x - a.x;
       const dy = b.y - a.y;
-      const d = Math.hypot(dx, dy) || 0.01;
       const min = (a.r + b.r) * 0.9;
-      if (d < min) {
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= min * min) continue;
+      const d = Math.sqrt(d2) || 0.01;
+      {
         const push = (min - d) / 2;
         moveEntity(a, -dx / d * push, -dy / d * push, true);
         moveEntity(b, dx / d * push, dy / d * push, true);

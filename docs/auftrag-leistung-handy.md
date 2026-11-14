@@ -95,6 +95,16 @@ Die Werte stammen aus dem ersten Messlauf nach dem Einbau von Effektbudget, Zahl
 einfacheren Monstern. Namen in der Nähe und einfache Balken kamen danach dazu und sind in dieser Tabelle noch
 nicht enthalten.
 
+## 5a. Umgesetzt in 15.13: weniger neuer Speicher
+
+- Kollisionsprüfung (`solidBump`): Zellenschlüssel als Zahl statt als Zeichenkette, keine innere Funktion mehr.
+- Abdrängen der Verfolger: feste Liste statt einer neuen je Bild, Abstand erst im Quadrat geprüft.
+
+Gemessen (Magier am Handy, „Mittel“, 80 Monster, 15 Sekunden): 95 MB → 87 MB neuer Speicher pro Sekunde.
+Der größte verbliebene Verursacher ist die Monsterlogik selbst (rund 12 %). Im Quelltext entstehen dort keine
+Listen oder Objekte mehr; der Speicher stammt vermutlich aus Kommazahlen, die an den Monstern gespeichert werden.
+Das ist noch nicht belegt und wäre der nächste Untersuchungsschritt.
+
 ## 6. Als Nächstes (noch offen)
 
 Reihenfolge nach erwartetem Gewinn:

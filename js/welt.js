@@ -2675,6 +2675,9 @@ const SOLID_DECO_R = {};
 const PORTAL_R = { weltentor: 22, eingang: 26, riss: 22, ausgang: 20 };
 const solidCache = { at: -1, world: null, grid: new Map() };
 const SOLID_CELL = 128;
+// Zellenschlüssel als Zahl (seit 15.13): vorher je Abfrage neun neue Zeichenketten – bei 80 laufenden Monstern
+// mehrere tausend je Bild
+const solidKey = (gx, gy) => (gx + 32768) * 65536 + (gy + 32768);
 function solidObstacles() {
   const w = game.world;
   if (solidCache.world === w && game.time - solidCache.at < 0.25 && game.time >= solidCache.at) return solidCache.grid;
@@ -2691,7 +2694,7 @@ function solidObstacles() {
   // in ein Raster einsortiert, damit jede Bewegung nur die Hindernisse in ihrer Nähe prüft
   const grid = new Map();
   for (const o of list) {
-    const k = Math.floor(o.x / SOLID_CELL) + ',' + Math.floor(o.y / SOLID_CELL);
+    const k = solidKey(Math.floor(o.x / SOLID_CELL), Math.floor(o.y / SOLID_CELL));
     if (!grid.has(k)) grid.set(k, []);
     grid.get(k).push(o);
   }
@@ -2701,12 +2704,16 @@ function solidObstacles() {
   return grid;
 }
 // Stößt e an der neuen Stelle (nx, ny) an ein festes Hindernis, dem es sich dabei nähert?
+// Stößt der neue Platz (nx, ny) an das runde Hindernis (cx, cy, R) – und kommt man ihm dabei näher als am alten Platz?
+function solidHit(nx, ny, ex, ey, r, cx, cy, R) {
+  const dn = Math.sqrt((nx - cx) * (nx - cx) + (ny - cy) * (ny - cy));
+  return dn < R + r && dn < Math.sqrt((ex - cx) * (ex - cx) + (ey - cy) * (ey - cy)) - 0.01;
+}
 function solidBump(e, nx, ny, r) {
   const w = game.world;
-  const hit = (cx, cy, R) => {
-    const dn = Math.hypot(nx - cx, ny - cy);
-    return dn < R + r && dn < Math.hypot(e.x - cx, e.y - cy) - 0.01;
-  };
+  // seit 15.13 ohne innere Funktion und ohne Math.hypot (solidHit): beides erzeugte je Aufruf neuen Speicher
+  const ex = e.x;
+  const ey = e.y;
   const tx0 = Math.floor((nx - r - 16) / TILE);
   const tx1 = Math.floor((nx + r + 16) / TILE);
   const ty0 = Math.floor((ny - r - 16) / TILE);
@@ -2720,7 +2727,7 @@ function solidBump(e, nx, ny, r) {
       const h = tileHash(tx, ty);
       const jx = ((h >> 5) % 5 - 2) * 0.15;
       const jz = ((h >> 9) % 5 - 2) * 0.15;
-      if (hit((tx + 0.5 + jx) * TILE, (ty + 0.5 + jz) * TILE, R)) return true;
+      if (solidHit(nx, ny, ex, ey, r, (tx + 0.5 + jx) * TILE, (ty + 0.5 + jz) * TILE, R)) return true;
     }
   }
   const grid = solidObstacles();
@@ -2728,11 +2735,12 @@ function solidBump(e, nx, ny, r) {
   const cy = Math.floor(ny / SOLID_CELL);
   for (let gy = cy - 1; gy <= cy + 1; gy++) {
     for (let gx = cx - 1; gx <= cx + 1; gx++) {
-      const cell = grid.get(gx + ',' + gy);
+      const cell = grid.get(solidKey(gx, gy));
       if (!cell) continue;
-      for (const o of cell) {
+      for (let i = 0; i < cell.length; i++) {
+        const o = cell[i];
         if (o.ref === e || Math.abs(o.x - nx) > o.R + r || Math.abs(o.y - ny) > o.R + r) continue;
-        if (hit(o.x, o.y, o.R)) return true;
+        if (solidHit(nx, ny, ex, ey, r, o.x, o.y, o.R)) return true;
       }
     }
   }
