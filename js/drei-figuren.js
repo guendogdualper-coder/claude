@@ -346,7 +346,8 @@ function face3(A0, hb, hc, hr, o) {
       const narrow = shape === 1 || o.narrow;
       // Männer (seit 13.18): kleinere, flachere Augen ohne geschwungenen Lidstrich – wirkt erwachsen und kantig
       const man = !!o.male;
-      const sy = (narrow ? 0.5 : 1) * (man ? 0.72 : 1);
+      // seit 15.02: Frauen der Spielfiguren (o.oval) mit etwas flacheren Augen – weniger Puppengesicht
+      const sy = (narrow ? 0.5 : 1) * (man ? 0.72 : o.oval ? 0.8 : 1);
       const ew = man ? 0.85 : 1;
       A(ball(12), '#fbf8f2', { bone: hb, p: [ex, eyeY, ez], s: [hr * 0.18 * ew, hr * 0.25 * sy, hr * 0.08] });
       A(ball(12), iris, { bone: hb, p: [ex - sx * hr * 0.01, eyeY - hr * 0.03 * sy, ez + hr * 0.03], s: [hr * 0.14 * ew * (man ? 0.82 : 1), hr * 0.2 * sy, hr * 0.06], shine: 0.6 });
@@ -1277,9 +1278,11 @@ const IDLE_WRIST3 = { sword: 1.0, axe: 0.7, greatsword: 0.9, greataxe: 0.5 };
 const REST_DIR3 = {
   sword: [0.1, -0.5, 0.86], sword2: [0.2, -0.62, 0.76], axe: [0.08, -0.35, 0.93], axe2: [0.16, -0.5, 0.85],
   greataxe: [0.08, -0.35, 0.93], greataxe2: [0.16, -0.5, 0.85], greatsword: [0.14, -0.66, 0.74], greatsword2: [0.2, -0.62, 0.76],
-  dagger: [0.12, -0.72, -0.68]
+  dagger: [0.12, -0.72, -0.68], fan: [0.3, 0.72, 0.62]
 };
-const REST_ARM3 = { sword: [-0.2, 0.16], axe: [-0.2, 0.16], greataxe: [-0.2, 0.16], greatsword: [-0.2, 0.16], dagger: [-0.5, 0.2] };
+const REST_ARM3 = { sword: [-0.2, 0.16], axe: [-0.2, 0.16], greataxe: [-0.2, 0.16], greatsword: [-0.2, 0.16], dagger: [-0.5, 0.2], fan: [-0.62, 0.05] };
+// Zweihänder allein (seit 15.02): beide Hände am Griff, die Klinge gesenkt vor dem Körper
+const REST_TWO3 = { arm: [-0.4, 0.12], dir: [0.3, -0.84, 0.45] };
 const _rhA = new THREE.Vector3();
 const _rhD = new THREE.Vector3();
 const _rhQ = new THREE.Quaternion();
@@ -6829,8 +6832,13 @@ function syncPlayer3(p, dt) {
   if (REST_DIR3[kind] && a.restK > 0) {
     const k = easeIO3(a.restK);
     const dual = p.equipment && isOffhand(p.equipment.schild);
-    const d = (dual && REST_DIR3[kind + '2']) || REST_DIR3[kind];
-    if (!p.moving && REST_ARM3[kind]) {
+    const two = kind === 'greatsword' && !dual && !(p.equipment && p.equipment.schild);
+    const d = two ? REST_TWO3.dir : (dual && REST_DIR3[kind + '2']) || REST_DIR3[kind];
+    if (two && !p.moving) {
+      const br = Math.sin(game.time * 2.2) * 0.02;
+      B[BH.armR].rotation.set(REST_TWO3.arm[0] + br, 0, REST_TWO3.arm[1]);
+      B[BH.armL].rotation.set((REST_TWO3.arm[0] + br) * 0.95, 0, REST_TWO3.arm[1] - 0.62);
+    } else if (!p.moving && REST_ARM3[kind]) {
       const br = Math.sin(game.time * 2.2) * 0.03;
       const ra = REST_ARM3[kind];
       B[BH.armR].rotation.set(ra[0] + br, 0, -ra[1]);
