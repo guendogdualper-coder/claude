@@ -1218,7 +1218,7 @@ const ui = {
     this.set('potHp', potionTotal(p, 'hp'), (v) => { $('potHpCount').textContent = v; });
     this.set('potMp', potionTotal(p, 'mp'), (v) => { $('potMpCount').textContent = v; });
     updateQuickCounts();
-    // Abklingzeit der Tränke (3 s) als dunkler Kreis mit Sekunden
+    // Abklingzeit der Tränke (POTION_CD, seit 14.97 2 s) als dunkler Kreis mit Sekunden
     for (const [kind, id] of [['hp', 'potHp'], ['mp', 'potMp']]) {
       const left = p.potCd ? p.potCd[kind] : 0;
       this.set('potcd' + kind, left > 0 ? Math.ceil(left * 10) : 0, () => {

@@ -1071,8 +1071,8 @@ function dragonRideTick0(p) {
 }
 
 // Trinken: nimmt die kleinste Größe, die das Fehlende auffüllt, sonst die größte vorhandene.
-// Seit 6.6 je Sorte 3 s Abklingzeit (kein Durchtrinken), Leben und Mana getrennt.
-const POTION_CD = 3;
+// Seit 6.6 je Sorte eine Abklingzeit (kein Durchtrinken), Leben und Mana getrennt; seit 14.97 2 s statt 3 s.
+const POTION_CD = 2;
 // sizeId (seit 11.0, aus den Vorräten im Inventar): genau diese Größe trinken
 function usePotion(kind, sizeId) {
   const p = game.player;
