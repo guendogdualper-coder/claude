@@ -1273,15 +1273,14 @@ const FX3_DRAW = {
     const f = fx3Foot(e);
     const a = Math.min(1, k * 6) * Math.min(1, (1 - k) * 4);
     const r = e.r * (0.85 + 0.15 * easeOut(Math.min(1, k * 4))) * U3;
-    const o = fx3Take(h, 'plane');
-    fx3Ground(o, f.x, f.z, r, 0.05, 'rune', (game.time - e.start) * 0.8);
-    fx3Color(o, e.color, a);
-    const o2 = fx3Take(h, 'plane');
-    fx3Ground(o2, f.x, f.z, r * 0.62, 0.06, 'rune', -(game.time - e.start) * 1.3);
-    fx3Color(o2, e.color, a * 0.8);
+    // seit 15.19 ohne die beiden drehenden Runenkreise (Bodenregel): nur noch ein weicher Schein über die Fläche,
+    // innen etwas heller
     const glow = fx3Take(h, 'plane');
     fx3Ground(glow, f.x, f.z, r * 1.1, 0.03, 'disc');
-    fx3Color(glow, e.color, a * 0.35);
+    fx3Color(glow, e.color, a * 0.85);
+    const core = fx3Take(h, 'plane');
+    fx3Ground(core, f.x, f.z, r * 0.6, 0.04, 'disc');
+    fx3Color(core, e.color, a * 0.55);
   },
   // Zielkreis beim Zielen (Blizzard): Ring mit drehenden Runen, folgt dem gewählten Punkt
   aim(h, e) {

@@ -193,7 +193,8 @@ const ULT_RUN = {
       const delay = 0.15 + k * 0.11;
       later(delay - 0.28, () => addEffect({ type: 'ultfall', kind: 'sword', x: at.x, y: at.y, fall: 0.28, dur: 2.1 - delay + 0.28, color: u.color, tier: 6 }));
       later(delay, () => {
-        addEffect({ type: 'ring', x: at.x, y: at.y, r: 60, dur: 0.4, color: u.color, width: 6, grow: true });
+        // seit 15.19: Staub statt eines Bodenrings (Bodenregel: keine Ringe, Runen oder Sterne am Boden)
+        particles(at.x, at.y - 4, { count: 8, color: ['#a88f62', '#c9b28a', '#6a5038'], speed: [60, 160], life: [0.35, 0.8], size: [3, 6], drag: 3, glow: false, gravity: 260 });
         addEffect({ type: 'decal', kind: 'crack', x: at.x, y: at.y, r: 34, dur: 2.5, color: '#2a1a10' });
         particles(at.x, at.y - 6, { count: 16, color: [u.color, '#ffffff', '#c9b28a'], speed: [80, 220], life: [0.25, 0.5], size: [2, 3.5], shape: 'spark', drag: 4 });
         shakeScreen(3);
@@ -201,7 +202,7 @@ const ULT_RUN = {
       });
     }
     later(1.6, () => {
-      addEffect({ type: 'ring', x: cx, y: cy, r: 200, dur: 0.6, color: '#ffffff', width: 14, grow: true });
+      particles(cx, cy - 6, { count: 26, color: ['#a88f62', '#c9b28a', '#6a5038'], speed: [140, 340], life: [0.35, 0.8], size: [3, 6], drag: 3, glow: false, gravity: 260 });
       addEffect({ type: 'ultbeam', x: cx, y: cy, w: 120, dur: 0.6, color: u.color });
       particles(cx, cy - 20, { count: 70, color: [u.color, '#ffffff', '#ffd34d'], speed: [120, 380], life: [0.4, 0.9], size: [2, 4.5], shape: 'spark', drag: 3 });
       shakeScreen(10);
@@ -217,8 +218,6 @@ const ULT_RUN = {
       if (p.dead) return;
       const fy = feetY(p);
       addEffect({ type: 'ultshock', ground: true, x: p.x, y: fy, lines: crackLines(14, 210), dur: 3, color: u.color });
-      addEffect({ type: 'ring', x: p.x, y: fy, r: 220, dur: 0.6, color: u.color, width: 18, grow: true });
-      addEffect({ type: 'ring', x: p.x, y: fy, r: 150, dur: 0.45, color: '#ffffff', width: 8, grow: true });
       particles(p.x, fy - 6, { count: 60, color: ['#a88f62', '#c9b28a', '#6a5038'], speed: [120, 340], life: [0.4, 0.9], size: [3, 7], drag: 3, glow: false, gravity: 300 });
       particles(p.x, fy - 10, { count: 30, color: [u.color, '#ffd34d'], speed: [100, 260], life: [0.3, 0.6], size: [2, 4], shape: 'ember', drag: 3 });
       shakeScreen(14);
@@ -289,7 +288,7 @@ const ULT_RUN = {
       startSwing(p, 'skill', 0.34);
       addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: 0.8, len: 110, w: 14, dur: 0.4, color: u.color });
       addEffect({ type: 'slash', x: bc.x, y: bc.y, ang: -0.8, len: 110, w: 14, dur: 0.4, color: '#ffffff' });
-      addEffect({ type: 'ring', x: cx, y: cy, r: 110, dur: 0.5, color: u.color, width: 10, grow: true });
+      particles(cx, cy - 6, { count: 16, color: ['#a88f62', '#c9b28a', '#6a5038'], speed: [100, 240], life: [0.35, 0.8], size: [3, 6], drag: 3, glow: false, gravity: 260 });
       particles(bc.x, bc.y, { count: 40, color: [u.color, '#3d3848', '#ffffff'], speed: [100, 300], life: [0.3, 0.6], size: [2, 4], shape: 'spark', drag: 4 });
       shakeScreen(9);
       hitStop(0.1);
@@ -475,7 +474,7 @@ function ultRemoteFx(id, x, y) {
   }
   addEffect({ type: 'ultsigil', ground: true, x, y: y + 9, r: 190, dur: 2, color: u.color });
   addEffect({ type: 'ultbeam', x, y: y + 9, w: 80, dur: 1, color: u.color });
-  addEffect({ type: 'ring', x, y, r: 200, dur: 0.7, color: u.color, width: 14, grow: true });
+  particles(x, y - 6, { count: 30, color: [u.color, '#ffffff'], speed: [120, 320], life: [0.35, 0.8], size: [2, 4], shape: 'spark', drag: 3 });
 }
 
 // --- Symbole ------------------------------------------------------------------------------------
@@ -549,47 +548,21 @@ Object.assign(SKILL_ICONS, {
 // --- Effekte ------------------------------------------------------------------------------------
 
 const ULT_EFFECTS = {
-  // Leuchtender Runenkreis am Boden
+  // Weicher Schein am Boden über die Fläche der Fertigkeit. Seit 15.19 ohne Ringe, Runenzeichen und Sternzacken
+  // (Bodenregel) – nur noch die leuchtende Fläche, die zeigt, wo die Fertigkeit wirkt.
   ultsigil(ctx, e, k, x, y) {
     const a = Math.min(1, k * 6) * Math.min(1, (1 - k) * 4);
-    const rot = (game.time - e.start) * 0.8;
     const r = e.r * (0.85 + 0.15 * easeOut(Math.min(1, k * 4)));
     ctx.globalAlpha = a;
     ctx.globalCompositeOperation = 'lighter';
-    const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
-    g.addColorStop(0, `rgba(${hexRgb(e.color)},0.28)`);
+    const g = ctx.createRadialGradient(x, y, r * 0.1, x, y, r);
+    g.addColorStop(0, `rgba(${hexRgb(e.color)},0.34)`);
+    g.addColorStop(0.7, `rgba(${hexRgb(e.color)},0.16)`);
     g.addColorStop(1, `rgba(${hexRgb(e.color)},0)`);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.ellipse(x, y, r, r * 0.5, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.lineWidth = 2.5;
-    for (const [f, dir] of [[1, 1], [0.78, -1], [0.5, 1]]) {
-      ctx.beginPath();
-      ctx.ellipse(x, y, r * f, r * f * 0.5, 0, 0, Math.PI * 2);
-      ctx.stroke();
-      const n = Math.round(10 * f) + 4;
-      for (let i = 0; i < n; i++) {
-        const an = rot * dir + (i / n) * Math.PI * 2;
-        const px = x + Math.cos(an) * r * f * 0.9;
-        const py = y + Math.sin(an) * r * f * 0.45;
-        ctx.beginPath();
-        ctx.moveTo(px - 3, py + 1.5);
-        ctx.lineTo(px, py - 3);
-        ctx.lineTo(px + 3, py + 1.5);
-        ctx.stroke();
-      }
-    }
-    // Sternzacken zwischen den Ringen
-    ctx.beginPath();
-    for (let i = 0; i <= 6; i++) {
-      const an = -rot * 0.6 + (i * 2 / 6) * Math.PI * 2;
-      const px = x + Math.cos(an) * r * 0.78;
-      const py = y + Math.sin(an) * r * 0.39;
-      if (i) ctx.lineTo(px, py);
-      else ctx.moveTo(px, py);
-    }
-    ctx.stroke();
   },
 
   // Was vom Himmel fällt: Geisterschwerter (bleiben stecken) oder Meteore
