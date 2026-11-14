@@ -175,7 +175,7 @@ function flame3(W, at, dir, len, w, outer, inner, o = {}) {
 // --- Schultern -----------------------------------------------------------------------------------
 // Grundform je Klasse baut humanoid3 (Platte, Lederkappe, Stoffmantel, Schädel); hier sitzt das Merkmal der Stufe darauf.
 
-const PAD3_R = { krieger: 0.16, ninja: 0.1, schamane: 0.13, nekromant: 0.1, magier: 0.12 };
+const PAD3_R = { krieger: 0.135, ninja: 0.1, schamane: 0.13, nekromant: 0.1, magier: 0.12 };
 
 // metal (seit 14.59): Metallton in der Farbvariante des Teils, sonst der der Stufe
 function gearShoulders3(A, g, t, cls, metal0) {
@@ -2650,8 +2650,9 @@ function weapon3(A, kind, tier, bone, at, rot, wg, o = {}) {
     case 'greatsword': {
       const big = kind === 'greatsword';
       const dag = kind === 'dagger';
-      const len = big ? 1.0 : dag ? 0.34 : 0.68;
-      const wd = big ? 0.17 : dag ? 0.075 : 0.11;
+      // seit 15.01 schlanker und länger (vorher wirkten die Klingen wie breite Bretter)
+      const len = big ? 1.06 : dag ? 0.34 : 0.74;
+      const wd = big ? 0.128 : dag ? 0.075 : 0.086;
       const grip = big ? 0.26 : 0.16;
       const bladeCol = tier === 5 ? OBSIDIAN3 : tier === 7 ? '#ffe9a0' : tier === 8 ? VOIDMETAL3 : metal;
       // Griff: Holz, Lederwicklung (Bronze) oder Wicklung in der Stufenfarbe

@@ -175,7 +175,7 @@ cyl3 = lodWrap3(cyl3);
 // darunter Schienen, die sich als Bänder um die Außenseite des Oberarms legen. sh: Schulterpunkt im Armknochen.
 const PAULDRON_BIG = 1.7;
 // seit 13.36: nur der Krieger trägt die wuchtigen Schulterpanzer; Ninja, Schamane, Nekromant und Magier schmaler
-const PAULDRON_BIG_CLS = { krieger: 1.7, ninja: 1.0, schamane: 1.08, nekromant: 1.08, magier: 1.08 };
+const PAULDRON_BIG_CLS = { krieger: 1.12, ninja: 1.0, schamane: 1.08, nekromant: 1.08, magier: 1.08 };
 const pauldronBig = (cls) => PAULDRON_BIG_CLS[cls] || 1.1;
 function pauldron3(A, ab, sh, sx, armR, o) {
   const big = o.big || 1;
@@ -672,10 +672,11 @@ function humanoid3(b, c, P) {
   const shX = (belly ? 0.42 : 0.25) * bk * shK;
   const armLen = belly ? 0.46 : c.armLen || 0.31;
   const armR = (belly ? 0.11 : 0.062) * bk * armK;
+  // neckUp (seit 15.01, Spielfiguren): sichtbarer Hals, der Kopf sitzt nicht mehr zwischen den Schultern
   const neckY = hipY + (belly ? 0.6 : 0.44);
   const hr = c.headR || (belly ? 0.26 : 0.33);
   // headZ: Kopf etwas nach vorn (schlanke Wegelagerer)
-  const hc = [0, neckY + hr * 0.84, (belly ? 0.1 : 0.02) + (c.headZ || 0)];
+  const hc = [0, neckY + hr * 0.84 + (c.neckUp || 0), (belly ? 0.1 : 0.02) + (c.headZ || 0)];
   const handR = [-shX, shY - armLen - armR * 0.5, 0.02];
   const handL = [shX, shY - armLen - armR * 0.5, 0.02];
   const bones = [
@@ -782,7 +783,7 @@ function humanoid3(b, c, P) {
     A(lathe3(fem ? 'torsoF2' : man ? 'torsoM' : 'torso2', torsoPts, 16), c.torso, { bone: BH.chest, p: [0, hipY - 0.02, 0], s: [bk, 1, 0.84 * bk], shade: 0.18 });
     // Hals: bei Männern kräftiger, bei Frauen schlanker
     const nk = fem ? 0.84 : man ? 1.3 : 1;
-    A(cyl3(0.055 * nk, 0.06 * nk, 0.1, 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02, 0.0] });
+    A(cyl3(0.055 * nk, 0.06 * nk, 0.1 + (c.neckUp || 0), 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02 + (c.neckUp || 0) / 2, 0.0] });
     A(torus3(0.12, 0.032, Math.PI * 2, 5, 16), c.collar || trim, { bone: BH.chest, p: [0, neckY - 0.02, 0], r: [Math.PI / 2 - 0.15, 0, 0], s: [1, 0.86, 1] });
     if (c.robe) {
       A(lathe3('robe2', [[0, 0], [0.31, 0], [0.32, 0.03], [0.28, 0.2], [0.23, 0.4], [0.2, 0.47], [0, 0.48]], 20), c.robe, { bone: BH.hips, p: [0, 0.02, 0], s: [1, 1, 0.88], shade: 0.25, shine: c.robeShine || 0 });
@@ -974,10 +975,14 @@ function humanoid3(b, c, P) {
   }
   // Kopf: runder Schädel mit vollen Wangen
   const hb = BH.head;
-  A(ball(18), c.skin, { bone: hb, p: hc, s: [hr, hr * 0.93, hr * 0.96], shine: c.hair && c.hair.style === 5 ? 0.35 : 0 });
+  // seit 15.01 (c.oval, Spielfiguren): schmalerer Schädel, der Kiefer läuft nach unten zu einem Kinn zusammen
+  A(ball(18), c.skin, { bone: hb, p: hc, s: c.oval ? [hr * 0.9, hr * 0.95, hr * 0.95] : [hr, hr * 0.93, hr * 0.96], shine: c.hair && c.hair.style === 5 ? 0.35 : 0 });
   // mit Maske sitzt das Tuch auf dem Kiefer statt darin
   const jw = c.jaw || 1;
-  A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28 * jw, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86 * jw, hr * 0.62 * jw, hr * 0.8] });
+  if (c.oval) {
+    A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.34, hc[2] + hr * (c.masked ? 0.07 : 0.1)], s: [hr * 0.76 * jw, hr * 0.66, hr * 0.8] });
+    A(ball(10), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.78, hc[2] + hr * 0.3], s: [hr * 0.36 * jw, hr * 0.26, hr * 0.38] });
+  } else A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28 * jw, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86 * jw, hr * 0.62 * jw, hr * 0.8] });
   // seit 14.53: Männer mit kantigerem Kiefer (zwei Kieferwinkel unter den Ohren)
   if (c.squareJaw && !c.masked) for (const sx of [-1, 1]) A(ball(10), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.44, hc[1] - hr * 0.46, hc[2] + hr * 0.26], s: [hr * 0.3, hr * 0.27, hr * 0.36] });
   if (!c.noEars) for (const sx of [-1, 1]) {
@@ -1267,6 +1272,25 @@ function wristExt3(kind) {
 // Klotz an der Hüfte); Schlag-Posen beginnen und enden mit diesem Wert, damit nichts springt
 const IDLE_WRIST3 = { sword: 1.0, axe: 0.7, greatsword: 0.9, greataxe: 0.5 };
 
+// Ruhehaltung der Klingen (seit 15.01): Richtung der Klinge im Armrahmen der rechten Hand (x zur Körpermitte, y nach
+// oben, z nach vorn), die linke Hand gespiegelt; 'xx2' gilt mit zweiter Waffe. REST_ARM3: Arm vor und zur Seite im Stand.
+const REST_DIR3 = {
+  sword: [0.1, -0.5, 0.86], sword2: [0.2, -0.62, 0.76], axe: [0.08, -0.35, 0.93], axe2: [0.16, -0.5, 0.85],
+  greataxe: [0.08, -0.35, 0.93], greataxe2: [0.16, -0.5, 0.85], greatsword: [0.14, -0.66, 0.74], greatsword2: [0.2, -0.62, 0.76],
+  dagger: [0.12, -0.72, -0.68]
+};
+const REST_ARM3 = { sword: [-0.2, 0.16], axe: [-0.2, 0.16], greataxe: [-0.2, 0.16], greatsword: [-0.2, 0.16], dagger: [-0.5, 0.2] };
+const _rhA = new THREE.Vector3();
+const _rhD = new THREE.Vector3();
+const _rhQ = new THREE.Quaternion();
+const _rhE = new THREE.Euler();
+function restHand3(hand, kind, left, d, k) {
+  const h = WEAPON_HOLD[kind];
+  _rhA.set(0, 1, 0).applyEuler(_rhE.set(h[0], left ? -h[1] : h[1], left ? -h[2] : h[2]));
+  _rhD.set(left ? -d[0] : d[0], d[1], d[2]).normalize();
+  hand.quaternion.slerp(_rhQ.setFromUnitVectors(_rhA, _rhD), k);
+}
+
 // --- Spielerfiguren ---------------------------------------------------------------------------------
 
 function playerKey3(p) {
@@ -1441,9 +1465,12 @@ function playerConfig3(p) {
   // seit 13.18: Spielfiguren größer und erwachsener – kleinerer Kopf, längere Beine und Arme (docs/charakter-design-v2.md)
   // seit 14.53: gewählte Körpergröße (look.gr, 90–110 %); Reittier, Drache und Namensschild richten sich nach model.scale
   c.figScale = 1.14 * lookSize(ap);
-  c.headR = ap.sex === 0 ? 0.265 : 0.272;
-  c.legLen = 0.44;
-  c.armLen = 0.35;
+  // seit 15.01: Kopf deutlich kleiner und oval (c.oval), Beine und Arme länger – erwachsene Figur statt Kugelkopf
+  c.headR = ap.sex === 0 ? 0.225 : 0.228;
+  c.legLen = 0.51;
+  c.armLen = 0.39;
+  c.oval = true;
+  c.neckUp = 0.045;
   if (ap.sex === 0) {
     c.bulk = Math.max(c.bulk || 1, 1.1);
     c.jaw = 1.16;
@@ -6781,7 +6808,7 @@ function syncPlayer3(p, dt) {
     if (kind === 'dagger' && !(p.equipment && p.equipment.schild && !isOffhand(p.equipment.schild))) B[BH.armL].rotation.set(sw < 0.5 ? -1.2 : -2.0 + sw, 0, 0.2);
   } else if (!p.moving && !p.riding) {
     // Ruhehaltung mit der Waffe
-    if (twoHanded3(kind)) B[BH.armL].rotation.set(-0.5, 0, 0.35);
+    if (kind === 'scythe') B[BH.armL].rotation.set(-0.5, 0, 0.35);
     // Ninja mit Dolchen (seit 13.20): Kampfstand im Rückhandgriff – Hände leicht vor dem Körper,
     // die Klingen liegen am Unterarm und zeigen nach hinten
     if (kind === 'dagger') {
@@ -6791,9 +6818,30 @@ function syncPlayer3(p, dt) {
     }
   }
   // Schwert und Axt in Ruhe und beim Gehen leicht nach vorn gekippt (seit 13.85, IDLE_WRIST3), die zweite Waffe ebenso
-  if (IDLE_WRIST3[kind] && !posing && sw < 0 && !p.riding) {
+  const rest = !posing && sw < 0 && !p.riding;
+  if (IDLE_WRIST3[kind] && rest) {
     B[BH.handR].rotation.x = IDLE_WRIST3[kind];
     if (p.equipment && isOffhand(p.equipment.schild)) B[BH.handL].rotation.x = IDLE_WRIST3[kind];
+  }
+  // seit 15.01: Klingen in Ruhe gesenkt (tiefe Hut) statt waagerecht abgespreizt; blendet nach einem Schlag weich ein
+  a.restK = rest ? Math.min(1, (a.restK || 0) + Math.max(0, Math.min(0.1, t - (a.restT || t))) * 5) : 0;
+  a.restT = t;
+  if (REST_DIR3[kind] && a.restK > 0) {
+    const k = easeIO3(a.restK);
+    const dual = p.equipment && isOffhand(p.equipment.schild);
+    const d = (dual && REST_DIR3[kind + '2']) || REST_DIR3[kind];
+    if (!p.moving && REST_ARM3[kind]) {
+      const br = Math.sin(game.time * 2.2) * 0.03;
+      const ra = REST_ARM3[kind];
+      B[BH.armR].rotation.set(ra[0] + br, 0, -ra[1]);
+      if (dual) B[BH.armL].rotation.set(ra[0] - br, 0, ra[1]);
+    } else if (p.moving) {
+      // der Waffenarm schwingt beim Gehen weniger mit
+      B[BH.armR].rotation.x *= 0.55;
+      if (dual) B[BH.armL].rotation.x *= 0.55;
+    }
+    restHand3(B[BH.handR], kind, false, d, k);
+    if (dual) restHand3(B[BH.handL], kind, true, d, k);
   }
   // Bogen (seit 14.20) natürlich in der Hand tragen: in Ruhe, beim Gehen, auf dem Pferd und zu Beginn und Ende eines
   // Schusses (bowString3 blendet daraus aufs Ziel über, darum hier auch während der gezielten Schüsse)
