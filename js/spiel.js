@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '14.97';
+const GAME_VERSION = '14.98';
 
 const game = {
   world: null,
@@ -267,7 +267,10 @@ function frameCap() {
   if (opts.fps === '30' || !game.running) return 30;
   // seit 13.34: am Handy heißt „Auto“ gleichmäßig 30 Bilder pro Sekunde. Mit 60 wurde das Handy schnell warm,
   // drosselte sich, und die automatische Anpassung senkte dann die Auflösung (verpixeltes Bild)
-  if (opts.fps === 'auto' && (quality.cap30 || !IS_PC)) return 30;
+  // seit 14.98: am Handy heißt „Auto“ 60 Bilder pro Sekunde, solange das Gerät sie hält (adaptQuality); schafft es
+  // das nicht, gleichmäßig 30 (für diese und die nächsten Sitzungen gemerkt). Vorher immer 30 – auf schnellen
+  // Handys wirkte das Spiel dadurch ruckelig. Nie mehr als 60 (120-Hz-Bildschirme: Wärme, Akku).
+  if (opts.fps === 'auto') return quality.cap30 ? 30 : IS_PC ? 0 : 60;
   return 0;
 }
 function frame(ts) {

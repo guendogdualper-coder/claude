@@ -86,7 +86,7 @@ function dmSaveAll() {
 }
 function dmLoadFor(who) {
   DMETER.who = who;
-  DMETER.enc = null; DMETER.dgn = null; DMETER.tot = null; DMETER.boss = []; DMETER.bossSel = 0;
+  DMETER.enc = null; DMETER.dgn = null; DMETER.tot = null; DMETER.boss = []; DMETER.bossSel = 0; DMETER.bossCur = null;
   try {
     const d = (JSON.parse(localStorage.getItem(DM_DATA_KEY) || '{}') || {})[who];
     if (!d) return;
@@ -160,13 +160,19 @@ function dmBossNow(t) {
 function dmeterAdd(name, cls, amount) {
   if (!(amount > 0) || !game.player) return;
   const t = dmNow();
-  dmCheckArea();
+  // seit 14.98: Gebiet und Boss höchstens alle 0,4 s neu bestimmen. Vorher lief bei jedem einzelnen Treffer eine
+  // Suche über alle Monster der Welt (Flächentreffer auf 30 Gegner = 30 Suchen in einem Bild: Ruckler bis 40 ms)
+  const fresh = t - (DMETER.chkT || 0) > 0.4 || t < (DMETER.chkT || 0);
+  if (fresh) { DMETER.chkT = t; dmCheckArea(); }
   let e = DMETER.enc;
   if (!e || t - e.last > DMETER.idle) e = DMETER.enc = { start: t, last: t, rows: new Map(), total: 0 };
   e.last = t;
   dmRow(e, name, cls, amount);
-  const b = dmBossNow(t);
-  for (const w of [DMETER.dgn, DMETER.tot, b]) {
+  let b = DMETER.bossCur;
+  if (fresh || (b && b.done)) b = DMETER.bossCur = dmBossNow(t);
+  else if (b) b.seen = t;
+  for (let k = 0; k < 3; k++) {
+    const w = k === 0 ? DMETER.dgn : k === 1 ? DMETER.tot : b;
     if (!w) continue;
     if (w.__t !== t) { dmTick(w, t); w.__t = t; }
     dmRow(w, name, cls, amount);
@@ -325,7 +331,7 @@ function dmClear(what) {
   if (what === 'enc' || what === 'all') DMETER.enc = null;
   if (what === 'dgn' || what === 'all') DMETER.dgn = null;
   if (what === 'tot' || what === 'all') DMETER.tot = null;
-  if (what === 'boss' || what === 'all') { DMETER.boss = []; DMETER.bossSel = 0; }
+  if (what === 'boss' || what === 'all') { DMETER.boss = []; DMETER.bossSel = 0; DMETER.bossCur = null; }
   dmCheckArea();
   dmSaveAll();
 }

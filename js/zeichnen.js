@@ -1852,7 +1852,9 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
 // Seit 12.1 geht die Auflösung wieder hoch, wenn das Spiel länger flüssig läuft, und nach dem Zurückkehren
 // aus dem Hintergrund oder dem Drehen wird ein paar Sekunden nicht gemessen (dort ruckelt es immer kurz –
 // das senkte früher die Auflösung dauerhaft, das Bild blieb bis zum Neuladen unscharf).
-const quality = { frames: [], at: 0, steps: 0, noPost: false, noShadow: false, cap30: false, good: 0, bad: 0, runAt: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
+// cap30 am Handy (seit 14.98): gemerkt für 3 Tage, wenn das Gerät die 60 Bilder/s nicht gehalten hat
+const FPS30_KEEP = (() => { try { const t = +localStorage.getItem('seelenstein.fps30'); return !IS_PC && t > 0 && Date.now() - t < 3 * 86400000; } catch (e) { return false; } })();
+const quality = { frames: [], at: 0, steps: 0, noPost: false, noShadow: false, cap30: FPS30_KEEP, good: 0, bad: 0, runAt: 0, pauseUntil: 0, downAt: -1e9, upAt: -1e9, noRaise: false };
 function qualityPause(ms = 3000) {
   quality.frames.length = 0;
   quality.good = 0;
@@ -1883,7 +1885,7 @@ function adaptQuality(dtMs, cap) {
   }
   if (now < quality.pauseUntil) return;
   quality.frames.push(dtMs);
-  if (quality.frames.length < (cap ? 60 : 120)) return;
+  if (quality.frames.length < (cap === 30 ? 60 : 120)) return;
   const sorted = quality.frames.slice().sort((a, b) => a - b);
   quality.frames.length = 0;
   const median = sorted[sorted.length >> 1];
@@ -1893,6 +1895,16 @@ function adaptQuality(dtMs, cap) {
     // seit 14.88: schon ab 15 % über der Bildzeit (vorher 30 %: ein Handy mit 25 Bildern/s regelte nie nach)
     if (median <= (1000 / cap) * 1.15) {
       quality.bad = 0;
+      return;
+    }
+    // seit 14.98: Handy im 60er-Takt (Auto) – hält es die 60 über drei Messungen (rund 6 s) nicht, zuerst auf
+    // gleichmäßige 30 wechseln (scharfes Bild bleibt), erst danach wie bisher Grafik absenken
+    if (cap >= 60) {
+      if (++quality.bad < 3) return;
+      quality.bad = 0;
+      quality.cap30 = true;
+      try { localStorage.setItem('seelenstein.fps30', String(Date.now())); } catch (e) { /* privat */ }
+      qualityPause(5000);
       return;
     }
     if (++quality.bad < 2) return;

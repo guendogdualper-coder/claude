@@ -2158,6 +2158,25 @@ function fx3GroupMatrixWorld(force) {
   const kids = this.children;
   for (let i = 0, l = kids.length; i < l; i++) if (kids[i].visible) kids[i].updateMatrixWorld(force);
 }
+// Vorrat vorab füllen (seit 14.98): Die Teile der Effekte (Leuchtflecken, Rauch, Stäbe, Scheiben …) entstanden erst,
+// wenn eine Fertigkeit sie zum ersten Mal brauchte – beim ersten großen Flächenzauber mehrere hundert in einem Bild
+// (Hänger von 10–40 ms). Jetzt legt das Spiel sie in den ersten Sekunden nach dem Start an, wenige je Bild.
+const FX3_WARM = { list: [['sprite', 140], ['smoke', 180], ['segN', 110], ['seg', 60], ['planeN', 50], ['plane', 40], ['strip', 24], ['stripN', 12], ['wall', 12], ['cone', 40], ['coneG', 20], ['rock', 30], ['ball', 40]], i: 0, n: 0, done: false };
+function fx3Warm() {
+  const W = FX3_WARM;
+  if (W.done) return;
+  for (let k = 0; k < 8; k++) {
+    const row = W.list[W.i];
+    if (!row) { W.done = true; return; }
+    const pool = FX3.pools[row[0]] || (FX3.pools[row[0]] = []);
+    if (W.n >= row[1] || pool.length >= row[1]) { W.i++; W.n = 0; continue; }
+    const o = fx3Make(row[0]);
+    o.visible = false;
+    pool.push(o);
+    W.n++;
+  }
+}
+
 function v3SyncFx() {
   if (!FX3.group) {
     FX3.group = new THREE.Group();
@@ -2168,6 +2187,7 @@ function v3SyncFx() {
     FX3.group.updateMatrixWorld = fx3GroupMatrixWorld;
     V3.scene.add(FX3.group);
   }
+  fx3Warm();
   const m = V3.camera.matrixWorld.elements;
   FX3.cam.r.set(m[0], m[1], m[2]).normalize();
   FX3.cam.u.set(m[4], m[5], m[6]).normalize();
