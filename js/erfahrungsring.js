@@ -1,6 +1,6 @@
 // Erfahrungsring (seit 14.99): seltene Beute, die eine Stunde lang mehr Erfahrung gibt.
 // - Fällt von Bossen ab der ersten Karte (Endbosse der Karten, Dungeon- und Instanzbosse) und von Seelensteinen ab
-//   Stufe 40 – bewusst selten (EP_RING.drop).
+//   Stufe 40 (Chancen in EP_RING.drop).
 // - Liegt als Zähler in p.materials.epring (wie Verstärkungen: Post, Speichern, Konto). Anlegen im Fenster
 //   „Aufwertungsteile“ (U): der Ring wird verbraucht und gibt EP_RING.minutes Minuten Spielzeit lang +50 % Erfahrung
 //   (Monster, Seelensteine, Aufträge). Die Zeit läuft nur im Spiel (nicht im Menü, nicht bei geschlossenem Spiel),
@@ -9,10 +9,11 @@
 // - Anzeige: Symbol mit Restzeit in der Buff-Leiste oben links (oberflaeche.js).
 
 const EP_RING = { mul: 0.5, minutes: 60, maxHours: 6, color: '#b48cff',
-  drop: { raid: 0.1, inst: 0.06, boss: 0.04, stoneFrom: 40, stone: 0.02 } };
+  // seit 15.00 deutlich öfter (vorher 10 / 6 / 4 / 2 %)
+  drop: { raid: 0.6, inst: 0.4, boss: 0.2, stoneFrom: 40, stone: 0.1 } };
 
 ALL_MATS.push({ id: 'epring', name: 'Erfahrungsring', tag: '+50 % EP',
-  text: `Anlegen: ${EP_RING.minutes} Minuten Spielzeit lang +${Math.round(EP_RING.mul * 100)} % Erfahrung. Selten von Bossen und aus Seelensteinen ab Stufe ${EP_RING.drop.stoneFrom}.` });
+  text: `Anlegen: ${EP_RING.minutes} Minuten Spielzeit lang +${Math.round(EP_RING.mul * 100)} % Erfahrung. Von Bossen und aus Seelensteinen ab Stufe ${EP_RING.drop.stoneFrom}.` });
 MATERIAL_COLORS.epring = EP_RING.color;
 
 // Symbol: breiter Goldring von schräg oben, darauf ein großer violetter Stern-Edelstein in Krallenfassung,
