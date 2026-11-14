@@ -650,7 +650,8 @@ function monsterDeathFx(m) {
 }
 
 // Seelensteine (und ihre Wellen), die so viele Stufen unter dir sind, lassen keine Beute mehr fallen
-const STONE_LOOT_GAP = 15;
+// seit 15.07: 20 statt 15 (Stufe 49 bekommt vom 30er-Stein noch Beute, Stufe 50 nicht mehr)
+const STONE_LOOT_GAP = 20;
 function stoneTooLow(m, p) {
   const lvl = m.isStone ? m.level : m.stone ? m.stone.level : null;
   return lvl != null && p.level - lvl >= STONE_LOOT_GAP;
