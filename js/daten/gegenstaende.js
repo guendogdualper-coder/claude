@@ -572,6 +572,9 @@ const STONE_MATS = {
   }
 };
 
+// seit 15.10: Seelensteine ab dieser Stufe würfeln diese Materialien mehrfach mit fester hoher Chance
+const STONE_FARM = { stone: 30, mats: { switcher: { chance: 0.6, rolls: 2 }, boniPlus: { chance: 0.5, rolls: 2 } } };
+
 // Was ein Seelenstein fallen lässt, steht bei den Steinen in monster.js (stoneDrops).
 // Ausrüstung von Seelensteinen hat höchstens +2.
 

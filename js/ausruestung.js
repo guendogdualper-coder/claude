@@ -1034,9 +1034,11 @@ function rollLoot(m) {
   // Boni-Materialien nur vom Seelenstein selbst (seit 14.6 nicht mehr von den Monstern, die er ruft)
   if (drops) {
     const got = [];
-    for (const [id, [chance, min, max]] of Object.entries(drops.mats)) {
-      if (Math.random() >= chance) continue;
-      const n = randInt(min, max);
+    for (const [id, [chance, min, max, rolls]] of Object.entries(drops.mats)) {
+      // seit 15.10: mehrere Würfe je Material möglich (Switcher und Verstärkung ab Stein 30 zweimal)
+      let n = 0;
+      for (let r = 0; r < (rolls || 1); r++) if (Math.random() < chance) n += randInt(min, max);
+      if (!n) continue;
       p.materials[id] = (p.materials[id] || 0) + n;
       const mat = MATERIALS.find((x) => x.id === id);
       got.push(id);

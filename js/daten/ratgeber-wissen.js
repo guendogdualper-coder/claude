@@ -556,7 +556,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'steine', q: 'Was lassen Seelensteine ab bestimmten Stufen fallen?',
     a: 'Jeder Seelenstein kann ein Fertigkeitsbuch für deine Klasse fallen lassen – und nur Seelensteine geben Verstärkung, Switcher, Seltene Verstärkung und Sternenstein. Ab Stufe 30 Sternen-Switcher, ab 35 Segensschriftrollen, ab 40 Schriftrollen (für H1–H10) ' +
-      'und ab 45 Seelensteine als Gegenstand (für L1–V) – alles selten, je höher der Stein, desto öfter.',
+      'und ab 45 Seelensteine als Gegenstand (für L1–V) – alles selten, je höher der Stein, desto öfter. Ausnahme: Ab Stufe 30 würfelt jeder Stein zweimal auf einen Switcher (je 60 %) und zweimal auf eine Verstärkung (je 50 %).',
     k: 'seelenstein drop beute stufe 30 35 40 45 segensschriftrolle sternen-switcher schriftrolle fertigkeitsbuch'
   },
 

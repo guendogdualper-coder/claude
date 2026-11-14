@@ -297,7 +297,13 @@ function stoneDrops(type) {
     gear: 0.35, plus: [0, 2], // seit 14.10 35 % statt 55 % (Schwerpunkt-Steine unten ebenfalls gesenkt)
     slots: null, gold: 1, potions: [0, 1], scroll: 0.1 + Math.max(0, t - 6) * 0.01, splinters: [2 + Math.floor(t / 3), 4 + Math.floor(t / 2)]
   };
-  const boost = (id, f) => { d.mats[id][0] = Math.min(sm.boostCap, d.mats[id][0] * f); if (!early) d.mats[id][2] += 1; };
+  // seit 15.10 (STONE_FARM, daten/gegenstaende.js): Steine ab Stufe 30 würfeln Switcher und Verstärkung je zweimal
+  // mit hoher Chance (4. Wert = Anzahl der Würfe), damit man sie gezielt sammeln kann
+  if (L >= STONE_FARM.stone) for (const [id, f] of Object.entries(STONE_FARM.mats)) {
+    d.mats[id][0] = Math.max(d.mats[id][0], f.chance);
+    d.mats[id][3] = f.rolls;
+  }
+  const boost = (id, f) => { d.mats[id][0] = Math.min(Math.max(sm.boostCap, d.mats[id][0]), d.mats[id][0] * f); if (!early) d.mats[id][2] += 1; };
   switch (type.focus) {
     case 'potions': d.potions = [2, 4]; break;
     case 'weapons': d.slots = ['waffe']; d.gear = 0.5; break;
