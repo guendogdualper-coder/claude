@@ -677,8 +677,13 @@ function gearCape3(A, g, t, color, lining, metal0) {
 // Alle Maße in Kopfradien: Kopfmitte (0, 0, 0), Stirn vorn bei z ≈ 1, Scheitel bei y ≈ 0.93.
 // Stufe −1 (Vorschau ohne Ausrüstung) zeigt die Grundform der Klasse.
 
+// seit 15.03: bei Spielfiguren (ovaler Kopf, HEAD_FIT3 von humanoid3 gesetzt) sitzen Helm, Kapuze und Hut enger am
+// schmaleren Schädel statt als runde Kugel darum
+let HEAD_FIT3 = null;
 function headFrame3(A, hb, hc, hr) {
-  return frame3(A, hb, hc, [0, 0, 0], hr);
+  if (!HEAD_FIT3) return frame3(A, hb, hc, [0, 0, 0], hr);
+  const M = new THREE.Matrix4().compose(new THREE.Vector3(...hc), new THREE.Quaternion(), new THREE.Vector3(hr * HEAD_FIT3[0], hr * HEAD_FIT3[1], hr * HEAD_FIT3[2]));
+  return (geo, color, o = {}) => A(geo, color, Object.assign({}, o, { bone: hb, m: M.clone().multiply(partMatrix(o)) }));
 }
 
 // Waagrechter Bogen um den Kopf in Höhe y; mid ist die Richtung der Bogenmitte (0 vorn, + zur linken Seite)

@@ -248,6 +248,7 @@ if (typeof travelTargets === 'function') {
     const ids = ['daemmerwiesen', 'aschewald', 'knochenwueste', 'blutsteppe', 'nachtfrost'];
     const list = ids.map((id) => ZONES.find((z) => z.id === id)).filter(Boolean).map((zone) => ({ zone, ...mapSpawnSpot(zone.map) }));
     for (const t of _facTravel()) if (mapAllowedFor(WORLD_MAPS.find((m) => m.id === t.zone.map), 'schatten')) list.push(t);
+    if (typeof travelSort === 'function') travelSort(list);
     factionTravel.schatten = list;
     factionTravel.world = game.world;
     return list;

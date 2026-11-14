@@ -612,7 +612,14 @@ function travelTargets() {
     const mp = game.world.maps.find((m) => m.id === zone.map);
     return { zone, x: mp.spawn.x, y: mp.spawn.y };
   });
-  return travelSpots;
+  return travelSort(travelSpots);
+}
+// Reiseziele nach Stufe (seit 15.03): niedrigste Karte oben, höchste unten; bei gleicher Startstufe die mit der
+// niedrigeren Höchststufe zuerst
+// Maßgeblich ist die Höchststufe einer Karte („Stufe 30–50“ steht unter „Stufe 40–49“), dann die Startstufe.
+const mapTopLevel = (z) => Number((String(z.levels || '').match(/(\d+)\D*$/) || [0, 0])[1]) || z.minLevel || 0;
+function travelSort(list) {
+  return list.sort((a, b) => mapTopLevel(a.zone) - mapTopLevel(b.zone) || a.zone.minLevel - b.zone.minLevel || a.zone.map - b.zone.map);
 }
 
 function travelCost(zone) {
@@ -1150,7 +1157,7 @@ Object.assign(ui, {
     const hm = mapOfTile(p.x / TILE, p.y / TILE);
     const here = hm ? hm.id : 0;
     const body = $('npcBody');
-    const list = npc && npc.to ? WORLD_MAPS.filter((m) => m.id === npc.to) : WORLD_MAPS.slice().sort((a, b) => a.minLevel - b.minLevel || a.id - b.id);
+    const list = npc && npc.to ? WORLD_MAPS.filter((m) => m.id === npc.to) : WORLD_MAPS.slice().sort((a, b) => mapTopLevel(a) - mapTopLevel(b) || a.minLevel - b.minLevel || a.id - b.id);
     const intro = npc && npc.to
       ? `<p>Ein uralter Steinring voller Licht. Er führt nach Map ${npc.to} · ${list[0].name}, direkt in die Stadt.</p>`
       : '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p>';

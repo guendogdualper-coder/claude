@@ -1024,7 +1024,10 @@ function humanoid3(b, c, P) {
     A(torus3(hr * 0.12, hr * 0.04, Math.PI * 2, 4, 10), '#c8402f', { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.14, prev[2]], r: [Math.PI / 2, 0, 0] });
     A(horn3(hr * 0.3, hr * 0.13, 6), c.braid, { bone: BH.cape, p: [prev[0], prev[1] - hr * 0.16, prev[2]], r: [Math.PI, 0, 0] });
   }
-  if (c.headgear) c.headgear(A, hb, hc, hr, spin);
+  if (c.headgear) {
+    HEAD_FIT3 = c.oval ? [0.95, 1, 0.97] : null;
+    try { c.headgear(A, hb, hc, hr, spin); } finally { HEAD_FIT3 = null; }
+  }
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
     hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin,
