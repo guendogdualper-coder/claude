@@ -461,7 +461,24 @@ function compareGrade(item) {
   return score > 0 ? n : -n;
 }
 function compareArrows(grade) {
-  return (grade > 0 ? '▲' : '▼').repeat(Math.abs(grade));
+  return Array(Math.abs(grade)).fill(grade > 0 ? '▲' : '▼').join('\u2009');
+}
+// Pfeile auf der Kachel (seit 15.09): übereinander gestapelte Winkel mit dunklem Rand statt eng gesetzter Dreiecke –
+// ein bis vier lassen sich auf einen Blick zählen
+function compareArrowsSvg(grade) {
+  const n = Math.abs(grade);
+  const up = grade > 0;
+  const col = up ? (n === 4 ? '#c8ff7a' : '#6aff6a') : (n === 4 ? '#ff4a3a' : '#ff6a5a');
+  const step = 5;
+  const h = 6 + n * step;
+  let d = '';
+  for (let k = 0; k < n; k++) {
+    const y = 2 + k * step;
+    d += up ? `M2,${y + 5} L7,${y} L12,${y + 5} ` : `M2,${y} L7,${y + 5} L12,${y} `;
+  }
+  return `<svg class="tile-cmp-svg" width="14" height="${h}" viewBox="0 0 14 ${h}" aria-hidden="true">` +
+    `<path d="${d}" fill="none" stroke="#0a0a0a" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>` +
+    `<path d="${d}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
 function compareScoreHand(item, hand) {
   const diff = compareItem(item, hand);
@@ -2171,7 +2188,7 @@ const gear = {
     const worn = Object.values(game.player.equipment).includes(item);
     // seit 15.06: ein bis vier Pfeile je nach Größe des Unterschieds (compareGrade)
     const score = worn ? 0 : compareGrade(item);
-    const arrow = score ? `<span class="tile-cmp ${score > 0 ? 'up' : 'down'} g${Math.abs(score)}">${compareArrows(score)}</span>` : '';
+    const arrow = score ? `<span class="tile-cmp ${score > 0 ? 'up' : 'down'} g${Math.abs(score)}">${compareArrowsSvg(score)}</span>` : '';
     // Rahmen und Leuchten in der Farbe der Seltenheit (rar-0 … rar-4, css/seltenheit.css)
     return `<button type="button" class="item-tile band-${band} rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +

@@ -1868,11 +1868,11 @@ kbd {
 .item-tile .tile-cmp { position: absolute; left: 3px; bottom: 1px; font-size: 12px; font-weight: 900; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
 .item-tile .tile-cmp.up { color: #6aff6a; }
 .item-tile .tile-cmp.down { color: #ff6a5a; }
-/* seit 15.06: 1–4 Pfeile je nach Größe des Unterschieds, eng gesetzt; 4 Pfeile leuchten */
-.item-tile .tile-cmp { letter-spacing: -3px; line-height: 1; }
-.item-tile .tile-cmp.g3, .item-tile .tile-cmp.g4 { font-size: 11px; }
-.item-tile .tile-cmp.up.g4 { color: #b6ff6a; text-shadow: 0 1px 2px #000, 0 0 6px #6aff6a; }
-.item-tile .tile-cmp.down.g4 { text-shadow: 0 1px 2px #000, 0 0 6px #ff3a2a; }
+/* seit 15.09: 1–4 gestapelte Winkel je nach Größe des Unterschieds; 4 leuchten */
+.item-tile .tile-cmp { left: 2px; bottom: 2px; line-height: 0; }
+.item-tile .tile-cmp-svg { display: block; }
+.item-tile .tile-cmp.up.g4 .tile-cmp-svg { filter: drop-shadow(0 0 3px #6aff6a); }
+.item-tile .tile-cmp.down.g4 .tile-cmp-svg { filter: drop-shadow(0 0 3px #ff3a2a); }
 
 /* --- Version 3.2: Ultimative Attacke ------------------------------------------------- */
 .slot.skill.ult {
