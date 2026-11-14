@@ -425,7 +425,8 @@ function compareItem(item, hand) {
     const sign = d > 0 ? '+' : '−';
     const abs = Math.abs(d);
     const val = fmt === 'flat' ? Math.round(abs) : fmt === 'pct1' ? (abs * 100).toFixed(1).replace('.', ',') + ' %/s' : (abs * 100).toFixed(1).replace('.', ',').replace(',0', '') + ' %';
-    out.push([name, `${sign}${val}`, better ? 1 : -1]);
+    // 4. Wert (seit 15.06): Größe der Änderung als Anteil (bei festen Werten gemessen am bisherigen Wert), für compareGrade
+    out.push([name, `${sign}${val}`, better ? 1 : -1, fmt === 'flat' ? abs / Math.max(1, Math.abs(a)) : abs]);
   }
   return out;
 }
@@ -440,6 +441,27 @@ function compareScore(item) {
     return Math.max(main, compareScoreHand(item, 'off'));
   }
   return main;
+}
+// Stärke des Unterschieds für die Pfeile auf den Kacheln (seit 15.06): −4 … +4. Das Vorzeichen kommt aus
+// compareScore, die Zahl der Pfeile aus der Summe der Änderungen: 1 kleine Steigerung, 2 gut, 3 sehr gut, 4 gewaltig.
+const CMP_GRADES = [0.04, 0.12, 0.3];
+const CMP_WORDS = ['', 'etwas', 'deutlich', 'viel', 'gewaltig'];
+function compareGrade(item) {
+  const p = game.player;
+  const score = compareScore(item);
+  if (!score) return 0;
+  let best = 0;
+  for (const hand of p && item && offhandPair(p, item) ? [undefined, 'off'] : [undefined]) {
+    const diff = compareItem(item, hand) || [];
+    const m = diff.reduce((sum, d) => sum + d[2] * (d[3] || 0), 0);
+    if (Math.abs(m) > Math.abs(best) && Math.sign(m) === Math.sign(score)) best = m;
+  }
+  const a = Math.abs(best);
+  const n = a < CMP_GRADES[0] ? 1 : a < CMP_GRADES[1] ? 2 : a < CMP_GRADES[2] ? 3 : 4;
+  return score > 0 ? n : -n;
+}
+function compareArrows(grade) {
+  return (grade > 0 ? '▲' : '▼').repeat(Math.abs(grade));
 }
 function compareScoreHand(item, hand) {
   const diff = compareItem(item, hand);
@@ -2147,8 +2169,9 @@ const gear = {
     const band = plusBand(item.plus);
     // Pfeil: besser oder schlechter als das Angelegte (nur für Gegenstände in der Tasche)
     const worn = Object.values(game.player.equipment).includes(item);
-    const score = worn ? 0 : compareScore(item);
-    const arrow = score > 0 ? '<span class="tile-cmp up">▲</span>' : score < 0 ? '<span class="tile-cmp down">▼</span>' : '';
+    // seit 15.06: ein bis vier Pfeile je nach Größe des Unterschieds (compareGrade)
+    const score = worn ? 0 : compareGrade(item);
+    const arrow = score ? `<span class="tile-cmp ${score > 0 ? 'up' : 'down'} g${Math.abs(score)}">${compareArrows(score)}</span>` : '';
     // Rahmen und Leuchten in der Farbe der Seltenheit (rar-0 … rar-4, css/seltenheit.css)
     return `<button type="button" class="item-tile band-${band} rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +

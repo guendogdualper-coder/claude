@@ -29,7 +29,7 @@ function itemTipHtml(item) {
   const bonuses = (item.bonuses || []).map((b) => `<li>${bonusText(b)}</li>`).join('') +
     (item.specials || []).map((b) => `<li class="special">${bonusText(b, true)}</li>`).join('');
   const worn = p && Object.values(p.equipment).includes(item);
-  const score = worn || !p ? 0 : compareScore(item);
+  const score = worn || !p ? 0 : compareGrade(item);
   // seit 13.56: Seltenheit in ihrer Farbe („Episch · Göttlich (Lv 60)“)
   return `<strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
     // seit 14.32: „Benötigte Stufe“ (zum Anlegen) getrennt vom Itemlevel in der Zeile darüber
@@ -37,7 +37,7 @@ function itemTipHtml(item) {
     `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul>${bonuses}</ul>` : '') + bonusHintHtml(item, p, true) +
     setInfoHtml(item, p) + // seit 14.55: Set-Name, Teile und Stufen
     (item.legend && item.raidMat && MOB_MATS[item.raidMat] ? `<small>Ab +${LEGEND_MAT_START} braucht der Schmied ${MOB_MATS[item.raidMat].name} aus der Map des Endbosses.</small>` : '') +
-    (worn ? '<em>Angelegt</em>' : score > 0 ? '<em class="up">▲ besser als dein angelegtes Teil</em>' : score < 0 ? '<em class="down">▼ schwächer als dein angelegtes Teil</em>' : '') +
+    (worn ? '<em>Angelegt</em>' : score > 0 ? `<em class="up">${compareArrows(score)} ${CMP_WORDS[score]} besser als dein angelegtes Teil</em>` : score < 0 ? `<em class="down">${compareArrows(score)} ${CMP_WORDS[-score]} schwächer als dein angelegtes Teil</em>` : '') +
     (worn || !p ? '' : ilvlCompareHtml(item, p.equipment[equipSlotOf(item)])) +
     // Verkaufswert (seit 13.5) direkt im Hinweis
     (worn ? '' : `<span class="tip-sell">Verkaufswert <b>${sellValue(item).toLocaleString('de-DE')} Gold</b></span>`);
