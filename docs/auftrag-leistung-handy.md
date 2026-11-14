@@ -105,6 +105,16 @@ Der größte verbliebene Verursacher ist die Monsterlogik selbst (rund 12 %). Im
 Listen oder Objekte mehr; der Speicher stammt vermutlich aus Kommazahlen, die an den Monstern gespeichert werden.
 Das ist noch nicht belegt und wäre der nächste Untersuchungsschritt.
 
+## 5b. Umgesetzt in 15.14: klein dargestellte Monster ohne eigenen Schatten
+
+Am Handy und unter Last werfen Monster mit einfachem Modell keinen eigenen Schatten mehr; der runde
+Bodenschatten bleibt. Gemessen (Magier am Handy, „Mittel“, 80 Monster): Zeichenaufrufe 523 → 443,
+Dreiecke 0,88 Mio. → 0,75 Mio. je Bild.
+
+Geprüft und verworfen: Die Vermutung aus 5a (Kommazahlen an den Monstern erzeugen den Speicher) stimmt nicht.
+Die Monster behalten auch im Kampf ihre schnelle Speicherform. Woher die rund 12 % in der Monsterlogik kommen,
+ist weiter offen.
+
 ## 6. Als Nächstes (noch offen)
 
 Reihenfolge nach erwartetem Gewinn:

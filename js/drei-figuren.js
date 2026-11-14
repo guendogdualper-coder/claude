@@ -5686,10 +5686,14 @@ function lodPick3(a) {
   // Lastschutz (seit 15.12): einfache Monstermodelle im Gedränge und am Handy (Mittel, Niedrig) ohne Umrisslinie –
   // die Umrisshülle verdoppelt sonst die Dreiecke jeder Figur
   if (a.meshes.outline) {
-    if (a.monOf3 !== m) { a.monOf3 = m; a.isMon3 = /^m:/.test(m.key || ''); a.noOutline3 = false; }
+    if (a.monOf3 !== m) { a.monOf3 = m; a.isMon3 = /^m:/.test(m.key || ''); a.noOutline3 = false; a.noShadow3 = false; }
     if (a.isMon3) {
       const off = !!want && LOAD.noOutline;
       if (a.noOutline3 !== off) { a.noOutline3 = off; a.meshes.outline.visible = !off; }
+      // seit 15.14: klein dargestellte Monster werfen am Handy und unter Last keinen eigenen Schatten (der runde
+      // Bodenschatten bleibt) – spart je Monster einen Zeichenaufruf samt Knochenübertragung in die Schattenkarte
+      const ns = !!want && LOAD.noShadowLod;
+      if (a.meshes.shadow && a.noShadow3 !== ns) { a.noShadow3 = ns; a.meshes.shadow.visible = !ns; }
     }
   }
   if (want === cur) return;
