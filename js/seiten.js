@@ -55,6 +55,23 @@ function mapSpawnSpot(id) {
   const mp = game.world && game.world.maps ? game.world.maps.find((m) => m.id === id) : null;
   return mp ? { ...mp.spawn } : { x: CENTER_X * TILE, y: (CENTER_Y + 1) * TILE };
 }
+// Map des Dungeon-Eingangs für eine Seite (seit 14.96: Quests, Wegweiser und Fundorte zeigen den eigenen Eingang)
+function dungeonMapFor(def, f = myFaction()) {
+  if (!def || !def.entry) return 1;
+  return def.entry2 && f === 'schatten' ? def.entry2.map : (def.entry.map || 1);
+}
+// Kann die Seite dieses Gebiet erreichen? (Map der eigenen Seite oder gemeinsam; Dungeons über ihren Eingang)
+function zoneReachable(z, f = myFaction()) {
+  if (!z) return false;
+  const id = z.dungeon ? dungeonMapFor(z.dungeon, f) : z.map;
+  if (z.dungeon && !z.dungeon.entry) return true; // Höllenthron u. Ä.: eigener Zugang
+  return mapAllowedFor(WORLD_MAPS.find((m) => m.id === id), f);
+}
+// Fundorte für die eigene Seite zuerst (erreichbare vorn, die anderen nur, wenn es keine gibt)
+function zonesForMe(zs, f = myFaction()) {
+  const ok = zs.filter((z) => zoneReachable(z, f));
+  return ok.length ? ok : zs;
+}
 // Ausgang eines Dungeons für die eigene Seite (zweiter Eingang auf den Schattenkarten)
 function dungeonEntranceFor(dg, p = game.player) {
   return dg.entrance2 && factionOf(p) === 'schatten' ? dg.entrance2 : dg.entrance;

@@ -900,9 +900,10 @@ function huntTarget(e, p, area) {
   const name = isStone ? `${stoneType(e.stone).name}` : e.minLevel ? `Monster ab Stufe ${e.minLevel}` : MONSTER_TYPES[e.monster].name;
   if (alive) return { x: alive.x, y: alive.y, name, follow: alive };
   if (e.minLevel) return null;
-  const zones = isStone
+  // seit 14.96 nur Fundorte, die die eigene Seite erreicht (Schatten: eigene Karten und Dungeon-Eingänge)
+  const zones = myZones(isStone
     ? ZONES.filter((z) => (z.stones && z.stones.some((s) => s[0] === e.stone)) || (z.dungeon && z.dungeon.stones.includes(e.stone)))
-    : monsterPlaces(e.monster);
+    : monsterPlaces(e.monster));
   // Dungeon, in dem man gerade steht
   if (area.dungeon >= 0 && zones.some((z) => z.dungeon === DUNGEONS[area.dungeon])) {
     const home = nearestIn(game.monsters, area, p, (m) => fit(m));
@@ -916,7 +917,7 @@ function huntTarget(e, p, area) {
     const s = g ? zoneRingSpot(open, g[2], g[3], p) : zoneRingSpot(open, 0, 1, p);
     return { x: s.x, y: s.y, name: `${name} · ${open.name}` };
   }
-  const dz = zones.find((z) => z.dungeon && (z.dungeon.entry ? z.dungeon.entry.map || 1 : 1) === mapId);
+  const dz = zones.find((z) => z.dungeon && (z.dungeon.entry ? dungeonMapFor(z.dungeon) : 1) === mapId);
   if (dz) {
     const k = DUNGEONS.indexOf(dz.dungeon);
     const gate = nearestIn(game.world.npcs, area, p, (n) => n.id === 'eingang' && n.dungeon === k);

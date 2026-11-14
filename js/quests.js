@@ -96,7 +96,8 @@ function goalDone(goal, progress) {
 // --- Fundorte: wo ein Monster oder ein Seelenstein zu finden ist (Gebiet und Map) ---------------
 
 function zoneMapName(z) {
-  const map = z.map || (z.dungeon && z.dungeon.entry && z.dungeon.entry.map) || 1;
+  // seit 14.96: Dungeons mit dem Eingang der eigenen Seite (Schatten: entry2 auf den Schattenkarten)
+  const map = z.map || (z.dungeon && z.dungeon.entry && (typeof dungeonMapFor === 'function' ? dungeonMapFor(z.dungeon) : z.dungeon.entry.map)) || 1;
   return (WORLD_MAPS.find((m) => m.id === map) || WORLD_MAPS[0]).name;
 }
 function zonePlaceText(z) {
@@ -107,11 +108,12 @@ function monsterPlaces(id) {
   return ZONES.filter((z) => (z.groups && z.groups.some((g) => g[0] === id)) || (z.night && z.night.some((g) => g[0] === id)) || (z.dungeon && (z.dungeon.mobs.includes(id) || z.dungeon.boss === id)));
 }
 function monsterWhere(id) {
-  const zs = monsterPlaces(id);
+  const zs = myZones(monsterPlaces(id));
   return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
 }
+const myZones = (zs) => (typeof zonesForMe === 'function' ? zonesForMe(zs) : zs);
 function stoneWhere(level) {
-  const zs = ZONES.filter((z) => (z.stones && z.stones.some((s) => s[0] === level)) || (z.dungeon && z.dungeon.stones.includes(level)));
+  const zs = myZones(ZONES.filter((z) => (z.stones && z.stones.some((s) => s[0] === level)) || (z.dungeon && z.dungeon.stones.includes(level))));
   return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
 }
 function goalWhere(goal) {

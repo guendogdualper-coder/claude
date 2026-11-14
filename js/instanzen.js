@@ -1174,7 +1174,9 @@ for (const def of instDefs()) {
   const boss = MONSTER_TYPES[def.boss];
   GROUP_ACTIVITIES.push({
     id: 'inst:' + def.id, cat: 'inst60', name: def.name, minLevel: instFree() ? 1 : instMinLevel(def), size: INST.party[1], comp: { tank: 1, heiler: 1, schaden: 3 },
-    dungeon: DUNGEONS.indexOf(def), sub: `Instanz · ${WORLD_MAPS.find((w) => w.id === def.entry.map).name} · Boss: ${boss.name}`,
+    dungeon: DUNGEONS.indexOf(def),
+    // seit 14.96 die Map des Eingangs der eigenen Seite (Schatten: entry2)
+    get sub() { return `Instanz · ${WORLD_MAPS.find((w) => w.id === (typeof dungeonMapFor === 'function' ? dungeonMapFor(def) : def.entry.map)).name} · Boss: ${boss.name}`; },
     status: () => instLockText(def.id),
     go: instGfGo
   });
