@@ -5857,7 +5857,62 @@ function v3SyncActors(dt) {
     targetRing3.rotation.y += dt * 1.4;
   }
   syncDuel3();
+  v3BlobBatch();
   v3Prewarm();
+}
+
+// --- Bodenschatten der Monster gebündelt (seit 15.18) -------------------------------------------------------
+// Jede Figur trägt einen weichen runden Schatten unter den Füßen – bisher je Figur ein eigener Zeichenaufruf, im
+// Gedränge mit 80 Monstern also 80 Aufrufe für 80 gleiche Scheiben. Jetzt zeichnet ein einziges Sammelteil alle
+// Schatten der Monster (gleiche Form, gleiches Material); die Scheibe an der Figur bleibt als Maßgeber für Lage und
+// Größe bestehen (Bosse verschieben sie beim Schweben), wird aber selbst nicht mehr gezeichnet. Gefallene Monster
+// haben keinen Schatten mehr (vorher kippte die Scheibe mit dem Körper hochkant). Spieler, Bewohner, Pferde und
+// Steine behalten ihre eigene Scheibe.
+const BLOB3 = { mesh: null, cap: 0 };
+function v3BlobBatch() {
+  let n = 0;
+  for (const a of actors3.values()) {
+    const b = a.blob;
+    if (!b) continue;
+    if (!a.isMon3) {
+      if (a.blobInst) { a.blobInst = false; b.visible = true; }
+      continue;
+    }
+    if (!a.blobInst) { a.blobInst = true; b.visible = false; }
+    if (a.corpse || !a.group.visible) continue;
+    if (n >= BLOB3.cap) {
+      // Platz verdoppeln (selten: nur wenn mehr Monster im Bild sind als je zuvor)
+      const cap = Math.max(128, BLOB3.cap * 2);
+      const im = new THREE.InstancedMesh(blobGeo(), blobMat(), cap);
+      im.frustumCulled = false;
+      im.renderOrder = 2;
+      im.matrixAutoUpdate = false;
+      if (BLOB3.mesh) {
+        im.instanceMatrix.array.set(BLOB3.mesh.instanceMatrix.array);
+        V3.scene.remove(BLOB3.mesh);
+        BLOB3.mesh.dispose();
+      } else im.instanceMatrix.array.fill(0);
+      V3.scene.add(im);
+      BLOB3.mesh = im;
+      BLOB3.cap = cap;
+    }
+    const g = a.group;
+    const arr = BLOB3.mesh.instanceMatrix.array;
+    const o = n * 16;
+    arr[o] = b.scale.x * g.scale.x;
+    arr[o + 5] = 1;
+    arr[o + 10] = b.scale.z * g.scale.z;
+    arr[o + 12] = g.position.x;
+    arr[o + 13] = g.position.y + b.position.y * g.scale.y;
+    arr[o + 14] = g.position.z;
+    arr[o + 15] = 1;
+    n++;
+  }
+  const im = BLOB3.mesh;
+  if (!im) return;
+  im.count = n;
+  im.visible = n > 0;
+  if (n) im.instanceMatrix.needsUpdate = true;
 }
 
 // --- Duellkreis in 3D: rote Lichtwand, die beim Countdown aus dem Boden wächst ---------------------

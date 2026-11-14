@@ -1,6 +1,6 @@
 # Auftrag: Seelenstein läuft flüssig und kühl – am Handy und am PC
 
-Stand: Version 15.16. Dieses Dokument ist der vollständige Auftrag („Prompt“) für alle Arbeiten an der Leistung.
+Stand: Version 15.18. Dieses Dokument ist der vollständige Auftrag („Prompt“) für alle Arbeiten an der Leistung.
 Es beschreibt das Ziel, wie gemessen wird, was schon umgesetzt ist und was als Nächstes kommt.
 
 ## 1. Ziel
@@ -148,6 +148,12 @@ Kommazahlen legt diese Zahlen kurz als Objekte an. Die Aufräumpausen kosten im 
 
 2D am Handy: Die Messung läuft (sehr langsam, deshalb nur 2 Sekunden). Rechenzeit im Schnitt 6,6 ms je Bild,
 77 MB neuer Speicher pro Sekunde. Die Rechenzeit ist dort unkritisch.
+
+## 5d. Umgesetzt in 15.18: Bodenschatten gebündelt
+
+Die runden Bodenschatten der Monster zeichnet ein einziges Sammelteil (`v3BlobBatch`), vorher je Monster ein
+eigener Zeichenaufruf. Gemessen (Magier am Handy, „Mittel“, 80 Monster): Zeichenaufrufe 443 → 364 je Bild.
+Gefallene Monster haben keinen Schatten mehr.
 
 ## 6. Als Nächstes (noch offen)
 
