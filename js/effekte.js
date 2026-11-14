@@ -430,6 +430,8 @@ function vfxPotion(p, kind) {
 
 function addEffect(e) {
   e.start = game.time;
+  // Lastschutz (seit 15.12): im Gedränge entfallen reine Zier-Effekte (Funken, Trefferblitze)
+  if (typeof LOAD !== 'undefined' && LOAD_SKIP[e.type] && game.effects.length >= LOAD.fx) return e;
   if (e.type === 'burst') {
     e.parts = Array.from({ length: e.count || 10 }, () => {
       const a = Math.random() * Math.PI * 2;
@@ -453,6 +455,9 @@ function addText(x, y, text, style) {
   // Hinweise in der gewählten Sprache (seit 13.9); Zahlen bleiben, wie sie sind
   if (typeof text === 'string' && typeof trText === 'function') text = trText(text);
   const long = style === 'level' || style === 'crit';
+  // Lastschutz (seit 15.12): sind schon sehr viele Zahlen im Bild, entfallen weitere gewöhnliche Schadenszahlen
+  // (kritische Treffer, Heilung, Hinweise und Stufenaufstieg kommen immer)
+  if (style === 'dmg' && typeof LOAD !== 'undefined' && game.texts.length >= LOAD.texts) return;
   const lift = textFlyLift(x, y);
   game.texts.push({ x: x + (style === 'dmg' || style === 'crit' ? rand(-10, 10) : 0), y, text, style, start: game.time, dur: long ? 1.4 : 1.05, ...(lift ? lift : {}) });
 }
@@ -474,7 +479,8 @@ function textFlyLift(x, y) {
 function updateEffects(dt) {
   game.effects = game.effects.filter((e) => game.time - e.start < e.dur);
   game.texts = game.texts.filter((t) => game.time - t.start < t.dur);
-  if (game.texts.length > 60) game.texts.splice(0, game.texts.length - 60);
+  const tMax = typeof LOAD !== 'undefined' ? LOAD.texts + 12 : 60;
+  if (game.texts.length > tMax) game.texts.splice(0, game.texts.length - tMax);
   updateParticles(dt);
 }
 
@@ -1492,28 +1498,67 @@ function drawTexts(ctx) {
     ctx.translate(x, y);
     if (st.glow && age < 0.3) ctx.rotate(Math.sin(age * 60) * 0.06 * (1 - age / 0.3));
     ctx.scale(scale, scale);
-    ctx.font = `800 ${st.size}px "Alegreya Sans", sans-serif`;
-    if (st.glow) {
-      ctx.strokeStyle = `rgba(${hexRgb(st.glow)},0.55)`;
-      ctx.lineWidth = st.size * 0.42;
-      ctx.strokeText(t.text, 0, 0);
-    }
-    ctx.strokeStyle = 'rgba(12,8,6,0.92)';
-    ctx.lineWidth = st.size * 0.22;
-    ctx.strokeText(t.text, 0, 0);
-    if (st.glow) {
-      const g = ctx.createLinearGradient(0, -st.size / 2, 0, st.size / 2);
-      g.addColorStop(0, '#fff6c0');
-      g.addColorStop(0.5, st.color);
-      g.addColorStop(1, st.glow);
-      ctx.fillStyle = g;
-    } else {
-      ctx.fillStyle = st.color;
-    }
-    ctx.fillText(t.text, 0, 0);
+    // seit 15.12: jede Zahl wird einmal als kleines Bild gemalt und danach nur noch kopiert (textSprite) – vorher
+    // zwei bis drei Schriftzüge mit breitem Rand je Zahl und Bild, bei vielen Treffern der teuerste Teil der Anzeige
+    const sp = textSprite(t, st);
+    ctx.drawImage(sp.c, -sp.w / 2, -sp.h / 2, sp.w, sp.h);
     ctx.restore();
   }
   ctx.textBaseline = 'alphabetic';
+  textSpriteSweep();
+}
+// Vorrat fertig gemalter Zahlen und Hinweise: Schlüssel Stil + Text; ungenutzte Bilder gehen nach 1,5 s zurück in den
+// Vorrat an Zeichenflächen (keine neuen Flächen je Treffer)
+const TEXT_SPR = { map: new Map(), pool: [], sweepAt: 0, q: 2 };
+function textSprite(t, st) {
+  const key = t.style + '|' + t.text;
+  let sp = TEXT_SPR.map.get(key);
+  if (sp) { sp.used = game.time; return sp; }
+  const c = TEXT_SPR.pool.pop() || document.createElement('canvas');
+  const g = c.getContext('2d');
+  const font = `800 ${st.size}px "Alegreya Sans", sans-serif`;
+  g.font = font;
+  const pad = Math.ceil(st.size * (st.glow ? 0.34 : 0.2)) + 2;
+  const w = Math.ceil(g.measureText(t.text).width) + pad * 2;
+  const h = Math.ceil(st.size * 1.3) + pad * 2;
+  const q = TEXT_SPR.q;
+  c.width = Math.max(2, w * q);
+  c.height = Math.max(2, h * q);
+  g.setTransform(q, 0, 0, q, (w * q) / 2, (h * q) / 2);
+  g.font = font;
+  g.textAlign = 'center';
+  g.textBaseline = 'middle';
+  g.lineJoin = 'round';
+  if (st.glow) {
+    g.strokeStyle = `rgba(${hexRgb(st.glow)},0.55)`;
+    g.lineWidth = st.size * 0.42;
+    g.strokeText(t.text, 0, 0);
+  }
+  g.strokeStyle = 'rgba(12,8,6,0.92)';
+  g.lineWidth = st.size * 0.22;
+  g.strokeText(t.text, 0, 0);
+  if (st.glow) {
+    const gr = g.createLinearGradient(0, -st.size / 2, 0, st.size / 2);
+    gr.addColorStop(0, '#fff6c0');
+    gr.addColorStop(0.5, st.color);
+    gr.addColorStop(1, st.glow);
+    g.fillStyle = gr;
+  } else {
+    g.fillStyle = st.color;
+  }
+  g.fillText(t.text, 0, 0);
+  sp = { c, w, h, used: game.time };
+  TEXT_SPR.map.set(key, sp);
+  return sp;
+}
+function textSpriteSweep() {
+  if (game.time - TEXT_SPR.sweepAt < 1 && game.time >= TEXT_SPR.sweepAt) return;
+  TEXT_SPR.sweepAt = game.time;
+  for (const [key, sp] of TEXT_SPR.map) {
+    if (game.time - sp.used < 1.5 && game.time >= sp.used) continue;
+    TEXT_SPR.map.delete(key);
+    if (TEXT_SPR.pool.length < 48) TEXT_SPR.pool.push(sp.c);
+  }
 }
 
 // --- Geschosse ----------------------------------------------------------------------------

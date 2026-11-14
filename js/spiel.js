@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.11';
+const GAME_VERSION = '15.12';
 
 const game = {
   world: null,
@@ -291,6 +291,7 @@ function frame(ts) {
       checkViewSize();
     }
     adaptQuality(raw, cap);
+    if (typeof loadTick === 'function') loadTick(raw, cap);
     updateScreenEffects(dt);
     if (game.running && !portraitQuery.matches) update(dt);
     else if (!game.running) game.time += dt;

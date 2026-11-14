@@ -2692,7 +2692,10 @@ function drawOverlay3(ctx) {
   list.sort(byY);
   // Schulterblick: Namen ferner Monster weglassen (sonst stapeln sie sich am Horizont übereinander)
   const far2 = v3Shoulder() && game.player ? (13 * TILE * (V3.zoomMul || 1)) ** 2 : 0;
+  // Lastschutz (seit 15.12): im Gedränge und am Handy Namen und Balken gewöhnlicher Monster nur in der Nähe
+  const lr2 = LOAD.labelR && game.player ? (LOAD.labelR * TILE * (V3.zoomMul || 1)) ** 2 : 0;
   for (const e of list) {
+    if (lr2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > lr2) continue;
     if (far2 && e.type && !e.isStone && e !== game.target && !(e.type.boss) && (e.x - game.player.x) ** 2 + (e.y - game.player.y) ** 2 > far2) continue;
     const fy = feetY(e);
     const head = v3HeadHeight(e);

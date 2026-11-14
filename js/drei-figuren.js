@@ -5677,10 +5677,19 @@ function lodPick3(a) {
     const d = cam.position.distanceTo(a.group.position) || 1;
     const px = ((m.height || 1.5) * a.group.scale.y * V3.gl.domElement.height) / (2 * d * Math.tan((cam.fov * Math.PI) / 360));
     for (let i = LOD3.length; i >= 1; i--) {
-      if (m.lods[i - 1] && px < LOD3[i - 1].px * (cur >= i ? 1.15 : 1)) {
+      if (m.lods[i - 1] && px < LOD3[i - 1].px * LOAD.lodK * (cur >= i ? 1.15 : 1)) {
         want = i;
         break;
       }
+    }
+  }
+  // Lastschutz (seit 15.12): einfache Monstermodelle im Gedränge und am Handy (Mittel, Niedrig) ohne Umrisslinie –
+  // die Umrisshülle verdoppelt sonst die Dreiecke jeder Figur
+  if (a.meshes.outline) {
+    if (a.monOf3 !== m) { a.monOf3 = m; a.isMon3 = /^m:/.test(m.key || ''); a.noOutline3 = false; }
+    if (a.isMon3) {
+      const off = !!want && LOAD.noOutline;
+      if (a.noOutline3 !== off) { a.noOutline3 = off; a.meshes.outline.visible = !off; }
     }
   }
   if (want === cur) return;

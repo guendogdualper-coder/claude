@@ -1563,6 +1563,20 @@ function slantPath(ctx, x, y, w, h, k) {
   ctx.closePath();
 }
 
+// Einfacher Lebensbalken für Monster im Gedränge und am Handy (Lastschutz, seit 15.12): dunkler Grund, Füllung und
+// ein heller Streifen – ohne Pfad, Verlauf und Maske, die je Balken und Bild teuer sind
+function drawBarFast(ctx, x, y, w, frac, color) {
+  const x0 = x - w / 2;
+  ctx.fillStyle = '#120c08';
+  ctx.fillRect(x0 - 2, y - 1.5, w + 4, 9);
+  const f = Math.max(0, Math.min(1, frac));
+  if (f > 0) {
+    ctx.fillStyle = color;
+    ctx.fillRect(x0, y, w * f, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(x0, y, w * f, 2);
+  }
+}
 function drawBar(ctx, x, y, w, frac, color) {
   const h = 6;
   const x0 = x - w / 2;
@@ -1764,7 +1778,7 @@ function drawLabel(ctx, e) {
   const lab = monsterLabel('LVL ' + e.level, e.name, big, lvColor, nameColor);
   ctx.drawImage(lab.c, e.x - lab.w / 2, top - lab.base, lab.w, lab.h);
   if (e.hp < e.maxHp || targeted || e.isStone) {
-    drawBar(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
+    (LOAD.fastBars && !targeted && !e.isStone && !boss ? drawBarFast : drawBar)(ctx, e.x, top + 4, e.isStone ? 52 : 36, e.hp / e.maxHp, e.isStone ? e.stoneType.look.glow : '#e0302a');
   }
   // Ziel (seit 13.62): roter, wippender Zielpfeil über dem Namen – das gewählte Monster (Tab oder Antippen) ist
   // auf einen Blick zu erkennen, auch im Gedränge
