@@ -668,6 +668,7 @@ function humanoid3(b, c, P) {
   const hipX = (belly ? 0.16 : 0.105) * bk * hipK;
   const legR = (belly ? 0.12 : 0.082) * bk;
   const hipY = legLen + 0.06;
+  const robeFit = c.oval && c.robe && !belly ? { s: 0.86, up: hipY - 0.43 } : null;
   const chestY = hipY + 0.26;
   const shY = hipY + (belly ? 0.48 : 0.37);
   const shX = (belly ? 0.42 : 0.25) * bk * shK;
@@ -699,7 +700,8 @@ function humanoid3(b, c, P) {
   // seit 14.77: angelegte Stiefel kräftiger und länger (bootNew); footZ0/footZ1: Ferse und Spitze (auch für gearBoots3)
   const bootNew = c.bootDetail != null && !belly;
   const footZ0 = bootNew ? -legR * 0.95 : -legR * 1.05;
-  const footZ1 = bootNew ? legR * (c.robe ? 3.3 : 2.7) : legR * 2.05;
+  // seit 15.04: Füße der Spielfiguren länger (c.oval)
+  const footZ1 = bootNew ? legR * (c.robe ? (c.oval ? 3.6 : 3.3) : c.oval ? 3.2 : 2.7) : legR * 2.05;
   for (const [sx, bone] of [[1, BH.legL], [-1, BH.legR]]) {
     const top = [sx * hipX, hipY, 0];
     const knee = [sx * hipX * 1.02, hipY - legLen * 0.5, 0.015];
@@ -787,11 +789,14 @@ function humanoid3(b, c, P) {
     A(cyl3(0.055 * nk, 0.06 * nk, 0.1 + (c.neckUp || 0), 10), c.skin, { bone: BH.head, p: [0, neckY + 0.02 + (c.neckUp || 0) / 2, 0.0] });
     A(torus3(0.12, 0.032, Math.PI * 2, 5, 16), c.collar || trim, { bone: BH.chest, p: [0, neckY - 0.02, 0], r: [Math.PI / 2 - 0.15, 0, 0], s: [1, 0.86, 1] });
     if (c.robe) {
-      A(lathe3('robe2', [[0, 0], [0.31, 0], [0.32, 0.03], [0.28, 0.2], [0.23, 0.4], [0.2, 0.47], [0, 0.48]], 20), c.robe, { bone: BH.hips, p: [0, 0.02, 0], s: [1, 1, 0.88], shade: 0.25, shine: c.robeShine || 0 });
-      if (c.hemTrim) A(torus3(0.31, 0.022, Math.PI * 2, 4, 22), c.hemTrim, { bone: BH.hips, p: [0, 0.07, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.88, 1], shine: 0.5 });
+      // seit 15.04 (robeFit, Spielfiguren): Robe schmaler und kürzer – sie endet über den Stiefeln statt als Glocke am Boden
+      const fs = robeFit ? robeFit.s : 1;
+      const fy = (y) => y * fs + (robeFit ? robeFit.up : 0);
+      A(lathe3('robe2', [[0, 0], [0.31, 0], [0.32, 0.03], [0.28, 0.2], [0.23, 0.4], [0.2, 0.47], [0, 0.48]], 20), c.robe, { bone: BH.hips, p: [0, fy(0.02), 0], s: [fs, fs, 0.88 * fs], shade: 0.25, shine: c.robeShine || 0 });
+      if (c.hemTrim) A(torus3(0.31, 0.022, Math.PI * 2, 4, 22), c.hemTrim, { bone: BH.hips, p: [0, fy(0.07), 0], r: [Math.PI / 2, 0, 0], s: [fs, 0.88 * fs, fs], shine: 0.5 });
       if (c.tattered) for (let k = 0; k < 14; k++) {
         const a = (k / 14) * Math.PI * 2;
-        A(horn3(0.12 + (k % 3) * 0.04, 0.05, 5), darker(c.robe, 0.15), { bone: BH.hips, p: [Math.cos(a) * 0.29, 0.06, Math.sin(a) * 0.26], r: [Math.PI, 0, 0] });
+        A(horn3(0.12 + (k % 3) * 0.04, 0.05, 5), darker(c.robe, 0.15), { bone: BH.hips, p: [Math.cos(a) * 0.29 * fs, fy(0.06), Math.sin(a) * 0.26 * fs], r: [Math.PI, 0, 0] });
       }
     } else {
       // seit 14.53: Frauen mit runderem Rock über den breiteren Hüften
@@ -1030,7 +1035,7 @@ function humanoid3(b, c, P) {
   }
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
-    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin,
+    hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin, robeFit,
     cuirass: !!c.cuirass, greaves: !!c.greaves, footZ0, footZ1,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk

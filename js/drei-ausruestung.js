@@ -2127,7 +2127,7 @@ ARMOR3.magier = [
     }
     mageGlyph3(onBody3(W, g, 0, g.chestY + 0.05, 1, 0.016), [0, 0, 0], 0.055, c.glyph, c.accent, { mat: 'glow' });
     // Runenring frei um die Taille (weit genug, dass die Hände nicht hindurchgreifen); dreht sich am Drehknochen
-    const R = sub3(Wr || Wh, [0, g.hipY + 0.07, 0]);
+    const R = sub3(Wr || g.Wh0 || Wh, [0, g.hipY + 0.07, 0]);
     const rx = 0.4 * g.bk;
     const rz = 0.34 * g.bk;
     R(torus3(0.2, 0.006, Math.PI * 2, 3, 32), c.accent, { r: [Math.PI / 2, 0, 0], s: [rx / 0.2, rz / 0.2, 1], mat: 'glow' });
@@ -2198,7 +2198,7 @@ ARMOR3.magier = [
       const at = (r, y, dm = 0) => [Math.sin(m + dm) * (rx + r), y, Math.cos(m + dm) * (rz + r)];
       tendril3(Wh, [at(0, 0.08), at(0.03, 0.035), at(0.065, 0.035, 0.12), at(0.07, 0.075, 0.2)], 0.02);
     }
-    const R = sub3(Wr || Wh, [0, g.hipY + 0.07, 0]);
+    const R = sub3(Wr || g.Wh0 || Wh, [0, g.hipY + 0.07, 0]);
     const ox = 0.4 * g.bk;
     const oz = 0.34 * g.bk;
     R(torus3(0.2, 0.005, Math.PI * 2, 3, 32), VOIDVIOLET3, { r: [Math.PI / 2, 0, 0], s: [ox / 0.2, oz / 0.2, 1], mat: 'glow' });
@@ -2224,7 +2224,7 @@ ARMOR3.magier = [
       star3(onRobe3(Wh, g, pts[i][0], pts[i][1], 1, 0.008), [0, 0, 0], i % 3 ? 0.014 : 0.02, i % 2 ? ROSEGLOW3 : '#fff4fa');
       if (i % 3) bodyLine3(Wh, g, pts[i - 1], pts[i], 2, 0.005, '#ffd6f0', { mat: 'glow' }, 1, onRobeAt3);
     }
-    const R = sub3(Wr || Wh, [0, g.hipY + 0.07, 0]);
+    const R = sub3(Wr || g.Wh0 || Wh, [0, g.hipY + 0.07, 0]);
     const ox = 0.4 * g.bk;
     const oz = 0.34 * g.bk;
     R(torus3(0.2, 0.005, Math.PI * 2, 3, 32), ROSEGLOW3, { r: [Math.PI / 2, 0, 0], s: [ox / 0.2, oz / 0.2, 1], mat: 'glow' });
@@ -2239,7 +2239,10 @@ ARMOR3.magier = [
 function gearArmor3(A, g, t, cls, c) {
   if (t < 0 || g.belly || !ARMOR3[cls]) return;
   const W = frame3(A, BH.chest, [0, 0, 0]);
-  const Wh = frame3(A, BH.hips, [0, 0, 0]);
+  // seit 15.04: bei gekürzter Robe (g.robeFit) sitzen Saum- und Robenzierden im selben Rahmen wie die Robe
+  const Wh0 = frame3(A, BH.hips, [0, 0, 0]);
+  g.Wh0 = Wh0;
+  const Wh = g.robeFit ? frame3(A, BH.hips, [0, g.robeFit.up, 0], [0, 0, 0], g.robeFit.s) : Wh0;
   // Drehknochen (seit 8.6): Runenring um die Taille, Siegelring im Rücken
   const Wr = g.spin && g.spin.ring != null ? frame3(A, g.spin.ring, [0, 0, 0]) : null;
   const build = ARMOR3[cls][t];

@@ -141,6 +141,13 @@ function ilvlCompareHtml(item, worn) {
   return `<span class="cmp ilvl-cmp ${cls}">Itemlevel ${a} · angelegt ${b}${d ? ` (${d > 0 ? '+' : '−'}${Math.abs(d)})` : ''}</span>`;
 }
 
+// seit 15.04: beim Vergleichen zählt die Stufengrenze nicht – ein Teil, das man erst eine Stufe später anlegen kann,
+// zeigt trotzdem, ob es besser oder schlechter ist (falsche Klasse oder falscher Weg bleiben ohne Vergleich)
+let WEAR_NO_LEVEL = false;
+function canCompare(item, p) {
+  WEAR_NO_LEVEL = true;
+  try { return !wearProblem(item, p); } finally { WEAR_NO_LEVEL = false; }
+}
 function wearProblem(item, who) {
   const classId = typeof who === 'string' ? who : who.classId;
   if (item.cls && item.cls !== classId) {
@@ -148,7 +155,7 @@ function wearProblem(item, who) {
   }
   // Seit Version 6.2: Ausrüstung erst ab der Stufe ihrer Gegenstandsstufe (z. B. Göttlich ab 60)
   const need = itemLevelReq(item);
-  if (typeof who === 'object' && who.level < need) return `Erst ab Stufe ${need}.`;
+  if (typeof who === 'object' && who.level < need && !WEAR_NO_LEVEL) return `Erst ab Stufe ${need}.`;
   const k = item.slot === 'waffe' && WEAPON_KINDS[item.kind];
   if (k && k.path != null && typeof who === 'object' && (who.path || 0) !== k.path) {
     return `${k.name} führt nur der ${CLASSES[classId].paths[k.path].name}.`;
@@ -397,14 +404,16 @@ const COMPARE_STATS = [
 ];
 function compareItem(item, hand) {
   const p = game.player;
-  if (!item || isBook(item) || !canWear(item, p)) return null;
+  if (!item || isBook(item) || !canCompare(item, p)) return null;
   const now = playerStats(p);
   const slot = hand === 'off' ? 'schild' : equipSlotOf(item);
   const eq = { ...p.equipment, [slot]: item };
   if (slot === 'waffe' && WEAPON_KINDS[item.kind] && WEAPON_KINDS[item.kind].twoHanded && !(item.kind === 'bow' && isQuiver(eq.schild))) eq.schild = null;
   if (slot === 'waffe' && item.kind !== 'bow' && isQuiver(eq.schild)) eq.schild = null;
   if (slot === 'schild' && !isQuiver(item) && p.equipment.waffe && WEAPON_KINDS[p.equipment.waffe.kind]?.twoHanded) eq.waffe = null;
-  const test = playerStats({ ...p, equipment: eq });
+  let test;
+  WEAR_NO_LEVEL = true;
+  try { test = playerStats({ ...p, equipment: eq }); } finally { WEAR_NO_LEVEL = false; }
   const out = [];
   for (const [k, name, fmt] of COMPARE_STATS) {
     const a = now[k] || 0;
@@ -445,10 +454,11 @@ function compareScoreHand(item, hand) {
 function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung', hand) {
   const p = game.player;
   if (!item || isBook(item)) return '';
-  if (!canWear(item, p)) return '';
+  if (!canCompare(item, p)) return '';
   const diff = compareItem(item, hand);
   const worn = p.equipment[hand === 'off' ? 'schild' : equipSlotOf(item)];
-  const head = `<small class="cmp-head">${title}${worn && worn !== item ? ` (angelegt: ${itemFullName(worn)})` : worn === item ? '' : ' (Platz ist leer)'}:</small>`;
+  const later = canWear(item, p) ? '' : ` – anlegbar ab Stufe ${itemLevelReq(item)}`;
+  const head = `<small class="cmp-head">${title}${later}${worn && worn !== item ? ` (angelegt: ${itemFullName(worn)})` : worn === item ? '' : ' (Platz ist leer)'}:</small>`;
   // seit 14.32: Itemlevel beider Teile (die Werte darunter bleiben der eigentliche Vergleich)
   const il = ilvlCompareHtml(item, worn);
   if (!diff.length) return `<div class="cmp-box">${head}${il}<span class="cmp same">gleich gut</span></div>`;
