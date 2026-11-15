@@ -102,13 +102,17 @@ if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[7]) {
           if (!isCloud(x + dx, y + dy)) continue;
           const h = townTileHash(x * 5 + d * 3 + 1, y * 3 + d);
           if (!b) b = new Bake3();
+          // schmaler Spalt (seit 15.29, z. B. quer durch Wolkenhorst): höchstens zwei Kacheln bis zur anderen Seite.
+          // Dort nur eine dünne Felswand – sonst füllten die Brocken beider Seiten den Spalt und er sah aus wie eine
+          // Mauer aus Fels; die Wolken darin kommen weiter unten (klSpaltWolken)
+          const eng = !isCloud(x + dx * 2, y + dy * 2) || !isCloud(x + dx * 3, y + dy * 3);
           // Lage auf der Kante, längs der Kante leicht versetzt
           const o = ((h % 9) - 4) * 0.03;
-          const ex = x + 0.5 + dx * 0.44 + (dy ? o : 0) - cx;
-          const ez = y + 0.5 + dy * 0.44 + (dx ? o : 0) - cz;
+          const ex = x + 0.5 + dx * (eng ? 0.5 : 0.44) + (dy ? o : 0) - cx;
+          const ez = y + 0.5 + dy * (eng ? 0.5 : 0.44) + (dx ? o : 0) - cz;
           const along = 0.5 + ((h >> 3) % 5) * 0.04;
-          const deep = 0.26 + ((h >> 5) % 4) * 0.035;
-          const tall = 3.0 + ((h >> 7) % 6) * 0.5;
+          const deep = eng ? 0.13 : 0.26 + ((h >> 5) % 4) * 0.035;
+          const tall = eng ? 3.2 : 3.0 + ((h >> 7) % 6) * 0.5;
           const sx = dx ? deep : along;
           const sz = dx ? along : deep;
           // oberes Band: hängender Schieferfels, nach unten dunkler
@@ -116,10 +120,29 @@ if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[7]) {
           // verschneiter Sims obenauf
           b.add(rockGeo((h + 1) % 6, 0), '#eef3fb', { p: [ex, -0.1, ez], s: [sx * 1.08, 0.16, sz * 1.08] });
           // darunter: schmaler, dunkler, zur Insel hin eingerückt
-          if (T.tier) {
+          if (T.tier && !eng) {
             const t2 = tall * 1.5 + 1.2;
             b.add(rockGeo((h + 3) % 6, 0), '#333c54', { p: [ex - dx * 0.22, -1.7 - t2 * 0.2, ez - dy * 0.22], r: flip, s: [sx * 0.85, t2, sz * 0.85], shade: 0.5 });
           }
+        }
+      }
+      // Wolken im schmalen Spalt: weiße Ballen knapp unter der Kante, über die ganze Breite – man sieht, dass der
+      // Spalt offen ist und die Wolken darin stehen (vorher: mal dunkler Fels, mal eine blaue Fläche wie Wasser)
+      for (let y = by; y < Math.min(by + B, ry + rh); y++) for (let x = bx; x < Math.min(bx + B, rx + rw); x++) {
+        if (!isCloud(x, y)) continue;
+        const quer = (dx, dy) => { for (let k = 1; k <= 2; k++) if (!isCloud(x + dx * k, y + dy * k)) return true; return false; };
+        if (!((quer(1, 0) && quer(-1, 0)) || (quer(0, 1) && quer(0, -1)))) continue;
+        if (!b) b = new Bake3();
+        const h = townTileHash(x * 3 + 7, y * 11 + 2);
+        for (let k = 0; k < 2; k++) {
+          const hk = townTileHash(h + k * 29, k * 3 + 1);
+          const s0 = 0.5 + ((hk >> 4) % 6) * 0.05;
+          // tief im Spalt (1,5 unter der Kante): darüber sieht man die dunkle Felswand – so wirkt es wie Wolken in
+          // einer Felsspalte und nicht wie Schnee; Unterseite blaugrau, Oberseite weiß
+          b.add(rockGeo(hk % 6, T.tier > 1 ? 1 : 0), k ? '#c9d8ee' : '#b4c6e2', {
+            p: [x + 0.5 - cx + (((hk >> 8) % 9) - 4) * 0.07, -1.75 + ((hk >> 12) % 5) * 0.08, y + 0.5 - cz + (((hk >> 16) % 9) - 4) * 0.07],
+            r: [0, (hk % 63) / 10, 0], s: [s0 * 1.25, s0 * 0.8, s0], top: '#ffffff', topK: 0.75, ao: 0.1
+          });
         }
       }
       if (b) wzBake(wzSite(cx, cz, 70), b);

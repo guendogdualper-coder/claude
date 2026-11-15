@@ -54,6 +54,129 @@ function wallLineAt(x, y, ln) {
   return new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5 + ln.ox, 0, y + 0.5 + ln.oy), _q.clone(), new THREE.Vector3(ln.len, 1 + ((x + y) & 1) * 0.01, 1));
 }
 
+// --- Geschwungene Mauer (seit 15.29) ------------------------------------------------------------------------------
+// Schräge und runde Mauern laufen auf dem Kachelraster als Treppe. Seit 14.28 wurde jedes Stück in Laufrichtung
+// gedreht – an Rundungen passten die Stücke aber nicht aneinander (jedes hatte seinen eigenen Winkel und Versatz):
+// die Ringmauer sah aus wie einzelne, schief stehende Wände. Jetzt wird die Mauer entlang der Kette ihrer Kacheln
+// gezogen: jede Kachel trägt ein Stück von der Mitte zum Vorgänger bis zur Mitte zum Nachfolger, als weiche Kurve
+// über die eigene Kachelmitte (quadratische Kurve). Benachbarte Stücke teilen sich Endpunkt und Richtung – die Mauer
+// ist lückenlos und rund. Querschnitt wie die gerade Mauer: Sockel, Wand, Dach, dazu ein First.
+// Der Verlauf wird über fünf Kacheln der Kette geglättet (aus der Kacheltreppe wird ein Bogen); gerade Reihen bleiben
+// dabei gerade. Nur für Steinmauer (ohne Art) und Stützmauer ('terrasse'); gibt false zurück, wenn die Kachel eine
+// Kreuzung ist oder allein steht (dann das bisherige Stück).
+const WALL_SWEEP = {
+  stein: [[0.31, 0, 0.4, '#7a746a', 0.3, null], [0.21, 0.36, 1.26, '#dccaa4', 0.15, null], [0.37, 1.24, 1.4, WALL3_ROOF, 0, 0.15], [0.13, 1.38, 1.47, '#566074', 0, 0.2]],
+  terrasse: [[0.35, 0, 0.5, '#8a8a92', 0.3, 0.1], [0.37, 0.48, 0.58, '#f4f8fc', 0, null]]
+};
+function wallSweep3(b, w, x, y, i) {
+  const style = WALL_STYLE.get(i);
+  const prof = style ? WALL_SWEEP[style] : WALL_SWEEP.stein;
+  if (!prof) return false;
+  const isW = (xx, yy) => {
+    if (xx < 0 || yy < 0 || xx >= MAP_W || yy >= MAP_H) return false;
+    const k = yy * MAP_W + xx;
+    return w.obj[k] === OBJ.WALL && WALL_STYLE.get(k) === style;
+  };
+  // Nachbarn in der Kette: gerade Nachbarn, dazu schräge, die nicht schon über einen geraden erreichbar sind
+  const nbOf = (cx, cy) => {
+    const nb = [];
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (isW(cx + dx, cy + dy)) nb.push([cx + dx, cy + dy]);
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (isW(cx + dx, cy + dy) && !isW(cx + dx, cy) && !isW(cx, cy + dy)) nb.push([cx + dx, cy + dy]);
+    return nb;
+  };
+  const nb = nbOf(x, y);
+  if (nb.length === 0 || nb.length > 2) return false;
+  // Kette drei Kacheln weit in beide Richtungen ablaufen; am Ende (Tor, Kreuzung) gerade weiterdenken
+  const lauf = (px, py, cx, cy) => {
+    const out = [];
+    for (let k = 0; k < 3; k++) {
+      const n = nbOf(cx, cy).filter(([qx, qy]) => qx !== px || qy !== py);
+      const nx = n.length === 1 ? n[0][0] : cx + (cx - px);
+      const ny = n.length === 1 ? n[0][1] : cy + (cy - py);
+      out.push([nx, ny]);
+      px = cx; py = cy; cx = nx; cy = ny;
+    }
+    return out;
+  };
+  const a0 = nb[0];
+  const b0 = nb.length === 2 ? nb[1] : [x - (a0[0] - x), y - (a0[1] - y)];
+  // Kette: … a3 a2 a1 a0 [x,y] b0 b1 b2 b3 …
+  const A = [a0].concat(lauf(x, y, a0[0], a0[1]).slice(0, 2));
+  const Bk = [b0].concat(lauf(x, y, b0[0], b0[1]).slice(0, 2));
+  const kette = [A[2], A[1], A[0], [x, y], Bk[0], Bk[1], Bk[2]];
+  // geglättete Mitte der Kacheln 2, 3, 4 der Kette (Gewichte 1 2 3 2 1): aus der Treppe wird ein Bogen
+  const glatt = (k) => {
+    let sx = 0;
+    let sz = 0;
+    let sw = 0;
+    for (let d = -2; d <= 2; d++) {
+      const q = kette[Math.max(0, Math.min(6, k + d))];
+      const g = 3 - Math.abs(d);
+      sx += (q[0] + 0.5) * g;
+      sz += (q[1] + 0.5) * g;
+      sw += g;
+    }
+    return [sx / sw, sz / sw];
+  };
+  const [pxm, pzm] = glatt(2);
+  const [cx, cz] = glatt(3);
+  const [nxm, nzm] = glatt(4);
+  const ax = (pxm + cx) / 2;
+  const az = (pzm + cz) / 2;
+  const bx = (cx + nxm) / 2;
+  const bz = (cz + nzm) / 2;
+  // gerades Stück: zwei Stützpunkte genügen
+  const gerade = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax)) < 0.002;
+  const N = gerade ? 1 : 4;
+  const P = [];
+  for (let k = 0; k <= N; k++) {
+    const t = k / N;
+    const u = 1 - t;
+    const px = u * u * ax + 2 * u * t * cx + t * t * bx;
+    const pz = u * u * az + 2 * u * t * cz + t * t * bz;
+    let tx = 2 * u * (cx - ax) + 2 * t * (bx - cx);
+    let tz = 2 * u * (cz - az) + 2 * t * (bz - cz);
+    const tl = Math.sqrt(tx * tx + tz * tz) || 1;
+    tx /= tl;
+    tz /= tl;
+    P.push([px, pz, -tz, tx]);
+  }
+  for (const [hw, y0, y1, col, shade, top] of prof) {
+    const pos = [];
+    const idx = [];
+    // drei Bänder (links, rechts, oben) mit eigenen Ecken: weich entlang der Mauer, hart an den Kanten
+    const band = (fa, fb) => {
+      const base = pos.length / 3;
+      for (const [px, pz, nx, nz] of P) {
+        const [la, ya] = fa;
+        const [lb, yb] = fb;
+        pos.push(px + nx * la, ya, pz + nz * la, px + nx * lb, yb, pz + nz * lb);
+      }
+      for (let k = 0; k < N; k++) {
+        const o = base + k * 2;
+        idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3);
+      }
+    };
+    band([hw, y0], [hw, y1]);
+    band([-hw, y1], [-hw, y0]);
+    band([hw, y1], [-hw, y1]);
+    // Stirnflächen (am Endstück sichtbar; sonst liegen sie im Nachbarstück)
+    for (const k of [0, N]) {
+      const [px, pz, nx, nz] = P[k];
+      const o = pos.length / 3;
+      pos.push(px + nx * hw, y0, pz + nz * hw, px - nx * hw, y0, pz - nz * hw, px - nx * hw, y1, pz - nz * hw, px + nx * hw, y1, pz + nz * hw);
+      if (k) idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+      else idx.push(o, o + 2, o + 1, o, o + 3, o + 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    b.add(g, col, top != null ? { shade, top: lighter(col, top), topK: 0.5 } : { shade });
+  }
+  return true;
+}
+
 // Abgerundeter Quader für die Welt: aus der Entfernung reicht eine gröbere Rundung als bei Figuren
 const wbox = (w, h, d, r) => roundBox(w, h, d, r, r < 0.09 ? 1 : 2);
 // Winzige Leisten, Zinnen und Sprossen: einfacher Quader, die Rundung wäre kleiner als ein Pixel
@@ -155,6 +278,8 @@ const WORLD3 = {
     b.add(wbox(1.06, 0.4, 0.62, 0.08), '#7a746a', { parent: M, p: [0, 0.2, 0], shade: 0.3 });
     b.add(wbox(1.06, 0.92, 0.42, 0.05), '#dccaa4', { parent: M, p: [0, 0.82, 0], shade: 0.15 });
     b.add(wbox(1.12, 0.16, 0.72, 0.06), WALL3_ROOF, { parent: M, p: [0, 1.32, 0], top: lighter(WALL3_ROOF, 0.15), topK: 0.5 });
+    // seit 15.29 ein First auf dem Dach (wie bei der geschwungenen Mauer, wallSweep3)
+    b.add(wbox(1.12, 0.09, 0.26, 0.03), '#566074', { parent: M, p: [0, 1.425, 0], top: lighter('#566074', 0.2), topK: 0.5 });
   },
 
   // Mauerarten der Städte mit eigener Form (seit 14.16, welt.js WALL_STYLE)
@@ -2685,7 +2810,9 @@ function* objectJob(cx, cy) {
       const sc = 0.9 + ((h >> 12) % 20) / 100;
       if (o === OBJ.WALL) {
         const ln = wallLine(w, i);
-        if (!towerTiles.has(i)) b.addTemplate(tplWall(WALL_STYLE.get(i)), ln ? wallLineAt(x, y, ln) : placeAt(x + 0.5, y + 0.5, wallVertical(w, i) ? Math.PI / 2 : 0));
+        // seit 15.29: schräge und runde Steinmauern als durchgehender, geschwungener Zug (wallSweep3) statt einzeln
+        // gedrehter Stücke; gerade Stücke, Palisaden und Kristallwände wie bisher
+        if (!towerTiles.has(i) && !wallSweep3(b, w, x, y, i)) b.addTemplate(tplWall(WALL_STYLE.get(i)), ln ? wallLineAt(x, y, ln) : placeAt(x + 0.5, y + 0.5, wallVertical(w, i) ? Math.PI / 2 : 0));
         continue;
       }
       const kind = OBJ_KIND[o];
