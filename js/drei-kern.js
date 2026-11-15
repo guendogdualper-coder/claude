@@ -1009,6 +1009,14 @@ function v3UpdateMood(dt, x, y) {
   const farK = v3Shoulder() ? 1 : 1.15;
   V3.scene.fog.near = s.near * fogK * fm.near * nearK + zoomOut + camD;
   V3.scene.fog.far = s.far * fogK * fm.far * farK + zoomOut + camD;
+  // seit 15.34: Die Sichtweite der Kamera reicht immer bis hinter das Nebelende. Sie stand fest auf 160 Einheiten;
+  // weit herausgezoomt liegt das Nebelende aber bei 180 und mehr – dann schnitt die Kamera die Welt vorher ab, und am
+  // oberen Bildrand stand eine gerade Kante (gut zu sehen über dem Wolkenmeer von Frostgipfel).
+  const camFar = Math.max(160, V3.scene.fog.far * 1.08 + 8);
+  if (Math.abs(V3.camera.far - camFar) > 2) {
+    V3.camera.far = camFar;
+    V3.camera.updateProjectionMatrix();
+  }
   V3.sun.color.copy(s.sun);
   V3.sun.intensity = s.sunI;
   V3.hemi.color.copy(s.hemi);
@@ -1147,11 +1155,28 @@ function v3InView(x, y, pad = 0) {
     v3ViewCenter(_vc);
     return hyp(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
   }
-  // seit 15.31: feste Kamera gedreht oder geneigt (rechte Maustaste) – dann gilt die Sichtfläche am Boden (VIEW3)
-  if (V3.orbit) {
-    const F = VIEW3;
-    const q = 96 + pad;
-    return x > F.x0 * TILE - q && x < F.x1 * TILE + q && y > F.z0 * TILE - q && y < F.z1 * TILE + q;
+  // seit 15.34: Die feste Kamera prüft gegen die Fläche, die sie wirklich sieht (die vier Ecken des Sichtkegels am
+  // Boden, VIEW3.q) – mit Rand für hohe Figuren. Vorher galt ein festes Rechteck in der Größe des 2D-Bilds: Wer mit
+  // dem Mausrad oder zwei Fingern weit herauszoomte (bis 2,4-fach, Kamera „Weit“ dazu), sah am Bildrand Boden, Bäume
+  // und Felsen, aber keine Monster, Bewohner oder Mitspieler – die erschienen erst, wenn man näher kam.
+  const F = VIEW3;
+  if (F.ok) {
+    const q = F.q;
+    const px = x * U3;
+    const pz = y * U3;
+    const m = (96 + pad) * U3;
+    // Umlaufsinn der Ecken (Spiegelungen ausgeschlossen, aber die Drehrichtung hängt von der Blickrichtung ab)
+    const o = (q[2] - q[0]) * (q[5] - q[1]) - (q[3] - q[1]) * (q[4] - q[0]) >= 0 ? 1 : -1;
+    for (let i = 0; i < 4; i++) {
+      const ax = q[i * 2];
+      const az = q[i * 2 + 1];
+      const j = ((i + 1) & 3) * 2;
+      const ex = q[j] - ax;
+      const ez = q[j + 1] - az;
+      const l = hyp(ex, ez) || 1;
+      if (((ex * (pz - az) - ez * (px - ax)) * o) / l < -m) return false;
+    }
+    return true;
   }
   return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
 }
@@ -1172,7 +1197,7 @@ const _sunT = new THREE.Vector3();
 // höchstens bis zum Nebelende), und der Schattenbereich genau darauf gelegt – im Blickfeld der Sonne als Rechteck,
 // Größe in 2er-Schritten gerundet und Mitte auf ganze Schatten-Bildpunkte gerastet (kein Flimmern beim Laufen).
 // Dieselbe Fläche steuert das Vorladen der Blöcke (v3UpdateChunks).
-const VIEW3 = { x0: 0, z0: 0, x1: 0, z1: 0, reach: 0, back: 0 };
+const VIEW3 = { x0: 0, z0: 0, x1: 0, z1: 0, reach: 0, back: 0, q: new Float32Array(8), ok: false };
 const _vfD = new THREE.Vector3();
 const VIEW3_CORNERS = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
 function v3ViewFoot() {
@@ -1183,17 +1208,22 @@ function v3ViewFoot() {
   const F = VIEW3;
   F.x0 = F.z0 = Infinity;
   F.x1 = F.z1 = -Infinity;
+  let qi = 0;
   for (const c of VIEW3_CORNERS) {
     _vfD.set(c[0], c[1], 0.5).unproject(cam).sub(cp).normalize();
     const h = hyp(_vfD.x, _vfD.z) || 1e-6;
     const t = Math.min(_vfD.y < -1e-4 ? cp.y / -_vfD.y : Infinity, far / h);
     const x = cp.x + _vfD.x * t;
     const z = cp.z + _vfD.z * t;
+    // die vier Ecken selbst (seit 15.34, für v3InView): unten links, unten rechts, oben rechts, oben links
+    F.q[qi++] = x;
+    F.q[qi++] = z;
     if (x < F.x0) F.x0 = x;
     if (x > F.x1) F.x1 = x;
     if (z < F.z0) F.z0 = z;
     if (z > F.z1) F.z1 = z;
   }
+  F.ok = true;
   // Reichweite um die Kamera am Boden (Schulterblick: so weit kann es nach einer Drehung zu sehen sein)
   F.reach = Math.min(far, Math.max(hyp(F.x0 - cp.x, F.z0 - cp.z), hyp(F.x1 - cp.x, F.z0 - cp.z), hyp(F.x0 - cp.x, F.z1 - cp.z), hyp(F.x1 - cp.x, F.z1 - cp.z)));
   return F;
@@ -2565,7 +2595,10 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
     for (const ch of chunks3.values()) if (ch.objects) have++;
     const total = Math.max(1, (maxX - minX + 1) * (maxY - minY + 1));
     if (typeof mapLoadProgress === 'function') mapLoadProgress(Math.min(1, Math.max(have / total, FULL3.bytes / FULL3.budget)));
-    if (!H || FULL3.done || FULL3.full || performance.now() - L.t0 > 40000) {
+    // seit 15.34: erst aufdecken, wenn auch alle Monsterarten der Karte gebaut sind (v3PrewarmMap, drei-figuren.js)
+    const fertig = !H || FULL3.done || FULL3.full;
+    const tiere = !fertig || typeof v3PrewarmMap !== 'function' || v3PrewarmMap(40);
+    if ((fertig && tiere) || performance.now() - L.t0 > 40000) {
       FULL3.loading = null;
       if (typeof mapLoadHide === 'function') mapLoadHide();
     }

@@ -95,7 +95,9 @@ const RAND3_ART = {
   wolken: {
     void: 'wolken', level: -0.78,
     c: { flaeche: '#f2f6fe', flaeche2: '#a9bddc' },
-    teile: [['gipfel', 16, 130, 0.22, 5, 12, ['#5a6e88', '#7a8ea8', '#f4f8fc']], ['nadel', 10, 30, 0.5, 2.5, 4.5, ['#5a6a80', '#eef4fa']]],
+    // seit 15.34: die Gipfel stehen erst weit draußen (ab 75 Kacheln) und sind kleiner – vorher begannen sie 16 Kacheln
+    // hinter dem Rand und ragten bis 48 Einheiten hoch: herausgezoomt füllte eine einzige helle Bergflanke den Bildrand
+    teile: [['gipfel', 75, 150, 0.2, 4, 8, ['#5a6e88', '#7a8ea8', '#f4f8fc']], ['nadel', 14, 46, 0.4, 2, 3.6, ['#5a6a80', '#eef4fa']]],
     nebel: { c: '#ffffff', a: 0.55, n: 1.6, h: [1.5, 6], r: [6, 11] }
   },
   // Nachtfrost: verschneite Hänge mit dunklen Tannen bis zu hohen Bergen, alles in Nachtblau
@@ -556,7 +558,9 @@ class Rand3Buf {
 // Höhe der Fläche im Ring (Gelände oder Flüssigkeit)
 function rand3SurfH(A, x, z, d) {
   if (!A.void) return rand3LandH(A, x, z, d) - 0.12;
-  if (A.void === 'wolken') return A.level + r3sm((d - 14) / 16) * 1.5 * r3fbm(x * 0.06, z * 0.06, 15) - 0.1;
+  // seit 15.34: nur noch einzelne Wolkenbänke ragen aus dem Wolkenmeer (rand3Fernflaeche, Höhe −0,62); vorher hob
+  // sich die ganze Fläche ab 14 Kacheln hinter dem Rand darüber und deckte es als einfarbige Ebene zu
+  if (A.void === 'wolken') return A.level - 0.1 + r3sm((d - 14) / 16) * 3.4 * (r3fbm(x * 0.06, z * 0.06, 15) - 0.58);
   return A.level;
 }
 
@@ -858,6 +862,51 @@ function rand3Clear() {
   RAND3.tris = 0;
 }
 
+// Wolkenmeer bis zum Horizont (seit 15.34): Auf Frostgipfel endete das bewegte Wolkenmeer 13 Kacheln hinter dem
+// Kartenrand an einer geraden Kante – dahinter lag nur die einfarbige Fläche des Rands. Bei weit herausgezoomter Kamera
+// stand diese Linie mitten im Bild. Jetzt läuft dieselbe Fläche (gleiches Material, Muster aus den Weltkoordinaten, also
+// nahtlos) als Rahmen aus vier Streifen 170 Kacheln weiter nach außen; der Nebel schluckt ihr Ende, die Wolkenbänke
+// und fernen Gipfel des Rands ragen wie bisher heraus.
+const RAND3_FERN = 170;
+function rand3Fernflaeche(H) {
+  if (!H || H.voidG == null || typeof LIQUID3_GROUND === 'undefined' || typeof liquidMat !== 'function') return;
+  const kind = LIQUID3_GROUND[H.voidG];
+  if (kind !== 'clouds' || !LIQUID3[kind]) return;
+  const y = LIQUID3[kind].level != null ? LIQUID3[kind].level : -0.14;
+  // Innenkante = Außenkante der gebauten Blöcke (v3UpdateChunks)
+  const ix0 = Math.floor((H.x0 - KUL3_FAR) / CHUNK3) * CHUNK3;
+  const iz0 = Math.floor((H.y0 - KUL3_FAR) / CHUNK3) * CHUNK3;
+  const ix1 = (Math.floor((H.x1 - 1 + KUL3_FAR) / CHUNK3) + 1) * CHUNK3;
+  const iz1 = (Math.floor((H.y1 - 1 + KUL3_FAR) / CHUNK3) + 1) * CHUNK3;
+  const F = RAND3_FERN;
+  const quads = [[ix0 - F, iz0 - F, ix1 + F, iz0], [ix0 - F, iz1, ix1 + F, iz1 + F], [ix0 - F, iz0, ix0, iz1], [ix1, iz0, ix1 + F, iz1]];
+  const pos = [];
+  const idx = [];
+  // in Felder von höchstens 40 Kacheln geteilt, damit der Nebel je Eckpunkt sauber verläuft
+  for (const [x0, z0, x1, z1] of quads) {
+    const nx = Math.max(1, Math.ceil((x1 - x0) / 40));
+    const nz = Math.max(1, Math.ceil((z1 - z0) / 40));
+    const base = pos.length / 3;
+    for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) pos.push(x0 + ((x1 - x0) * i) / nx, y, z0 + ((z1 - z0) * j) / nz);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+      const a = base + j * (nx + 1) + i;
+      const b = a + 1;
+      const c = a + nx + 1;
+      const d = c + 1;
+      idx.push(a, c, b, b, c, d);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+  g.setAttribute('depth', new THREE.BufferAttribute(new Float32Array(pos.length / 3).fill(1), 1));
+  g.setIndex(idx);
+  g.computeBoundingSphere();
+  const m = new THREE.Mesh(g, liquidMat(kind));
+  m.renderOrder = 1;
+  m.name = 'fernflaeche';
+  RAND3.group.add(m);
+}
+
 // ganzen Ring für die Map H bauen (beim Wechsel der Map oder der Grafikstufe)
 function rand3Build(H) {
   if (!RAND3.group) {
@@ -867,6 +916,10 @@ function rand3Build(H) {
   }
   rand3Clear();
   if (!H || H.dungeon) return;
+  // seit 15.34: Die Fläche des Wolkenrands liegt knapp unter dem Wolkenmeer der Karte. Dessen Höhe wurde später
+  // gesenkt (Himmelsinseln stehen höher über den Wolken), der Rand blieb auf seiner alten Höhe und deckte das
+  // Wolkenmeer ab 9 Kacheln hinter der Kartengrenze als einfarbige helle Ebene zu – die gerade Kante am Bildrand.
+  if (typeof LIQUID3 !== 'undefined' && LIQUID3.clouds && LIQUID3.clouds.level != null) RAND3_ART.wolken.level = LIQUID3.clouds.level - 0.16;
   const gfx = opts.graphics;
   const low = gfx === 'niedrig';
   const R = low ? RAND3_ROWS.grob : gfx === 'mittel' ? RAND3_ROWS.mittel : RAND3_ROWS.fein;
@@ -893,6 +946,7 @@ function rand3Build(H) {
       RAND3.tris += buf.p.length / 9;
     }
   }
+  rand3Fernflaeche(H);
   if (!low) {
     RAND3.mist = rand3Nebel(H, cols);
     if (RAND3.mist) {

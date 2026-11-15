@@ -5819,9 +5819,30 @@ function ownGuard3(p, threw) {
 
 // --- Figuren mit dem Spielgeschehen abgleichen ----------------------------------------------------------
 
+// seit 15.34: Hinter dem Ladebild einer Karte (kartenladen.js) werden alle Monsterarten der Karte vorab gebaut, ms
+// Millisekunden je Bild; true = alle fertig. So stehen beim Aufdecken alle Monster im Bild, statt Art für Art
+// nachzukommen.
+function v3PrewarmMap(ms) {
+  const t0 = performance.now();
+  const list = typeof areaMonsters === 'function' ? areaMonsters() : v3Monsters();
+  for (const m of list) {
+    if (m.isStone || m.dead || (m.type && m.type.crystal)) continue;
+    const key = monModelKey3(m);
+    if (MODELS3.has(key)) continue;
+    try {
+      model3(key, (b) => monsterBuild(b, m.typeId, m.__v3));
+    } catch (e) {
+      return true;
+    }
+    if (performance.now() - t0 > ms) return false;
+  }
+  return true;
+}
+
 function v3SyncActors(dt) {
   for (const a of actors3.values()) a.seen = false;
-  new3Left = NEW3_PER_FRAME;
+  // hinter dem Ladebild ohne Grenze je Bild: beim Aufdecken stehen alle Figuren da
+  new3Left = typeof MAPLOAD !== 'undefined' && MAPLOAD.on ? 1e6 : NEW3_PER_FRAME;
   const w = game.world;
   // nur, was im Bild ist (feste Kamera: nach Norden sieht man weiter; Schulterblick: Kreis vor der Figur)
   const near = (e) => v3InView(e.x, e.y);
