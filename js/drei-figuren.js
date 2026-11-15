@@ -917,8 +917,21 @@ function humanoid3(b, c, P) {
   for (const [sx, ab, hb] of [[1, BH.armL, BH.handL], [-1, BH.armR, BH.handR]]) {
     const sh = [sx * shX, shY, 0];
     const wrist = [sx * shX, shY - armLen, 0.01];
-    A(ball(10), c.sleeve || c.torso, { bone: ab, p: sh, s: [armR * 1.35, armR * 1.3, armR * 1.3] });
-    if (c.wideSleeves) {
+    if (belly) {
+      // seit 15.35 (Brocken: Oger, Yeti, Trolle, Ghule …): ein gewachsener Arm statt Walze mit Kugel und Ring – der
+      // Schultermuskel greift in den Rumpf, der Oberarm ist kräftig, am Ellbogen schmal, der Unterarm wölbt sich und
+      // läuft ins Handgelenk aus. Vorher: ein gerader Zylinder mit einer Kugel als Schulter und einem Ring als
+      // Manschette („wie angesteckt“).
+      const R = armR;
+      const Lg = armLen;
+      const ac = c.sleeve || c.torso;
+      A(ball(12), ac, { bone: ab, p: [sh[0] - sx * R * 0.55, sh[1] + R * 0.1, 0], s: [R * 1.9, R * 1.45, R * 1.7], shade: 0.15 });
+      A(lathe3('brockenarm' + Math.round(R * 1000) + '_' + Math.round(Lg * 1000), [[0, -R * 0.12], [R * 0.6, -R * 0.08], [R * 0.74, 0], [R * 0.9, Lg * 0.1], [R * 1.2, Lg * 0.25], [R * 1.14, Lg * 0.38], [R * 0.86, Lg * 0.5],
+        [R * 1.02, Lg * 0.6], [R * 1.3, Lg * 0.76], [R * 1.36, Lg * 0.9], [R * 1.12, Lg * 1.01], [R * 0.6, Lg * 1.08], [0, Lg * 1.1]], 14), ac, { bone: ab, p: wrist, s: [1, 1, 0.92], shade: 0.15 });
+    } else A(ball(10), c.sleeve || c.torso, { bone: ab, p: sh, s: [armR * 1.35, armR * 1.3, armR * 1.3] });
+    if (belly) {
+      // Arm steht schon
+    } else if (c.wideSleeves) {
       A(lathe3('sleeve2', [[0.05, 0], [0.09, -0.08], [0.13, -0.22], [0.16, -0.29], [0.15, -0.31], [0, -0.311]], 14), c.sleeve || c.torso, { bone: ab, p: sh, shade: 0.2 });
       if (c.cuff) A(torus3(0.155, 0.018, Math.PI * 2, 4, 16), c.cuff, { bone: ab, p: [sh[0], sh[1] - 0.29, sh[2]], r: [Math.PI / 2, 0, 0], shine: 0.6 });
     } else {
@@ -934,8 +947,17 @@ function humanoid3(b, c, P) {
     if (c.armBands) for (const t of [0.3, 0.42]) A(torus3(armR * 1.05, 0.014, Math.PI * 2, 4, 12), c.armBands, { bone: ab, p: [sh[0], sh[1] - armLen * t, 0.003], r: [Math.PI / 2, 0, 0] });
     const hand = [sx * shX, shY - armLen - armR * 0.5, 0.02];
     const hs = (belly ? 1.9 : 1) * (c.gauntlets ? 1.12 : 1) * (fem ? 0.92 : man ? 1.08 : 1);
-    A(ball(10), c.gloves || c.skin, { bone: hb, p: hand, s: [0.068 * hs, 0.075 * hs, 0.062 * hs] });
-    A(ball(8), c.gloves || c.skin, { bone: hb, p: [hand[0] - sx * 0.05 * hs, hand[1] + 0.01, hand[2] + 0.035 * hs], s: [0.026 * hs, 0.034 * hs, 0.026 * hs] });
+    if (belly) {
+      // Pranke: Handballen, vier Fingerknöchel zur Faust gekrümmt, Daumen nach innen
+      const hc2 = c.gloves || c.skin;
+      const k2 = hs / 1.9;
+      A(ball(10), hc2, { bone: hb, p: hand, s: [0.105 * k2, 0.1 * k2, 0.09 * k2], shade: 0.12 });
+      for (let k = 0; k < 4; k++) A(ball(8), darker(hc2, 0.05), { bone: hb, p: [hand[0] + (k - 1.5) * 0.05 * k2, hand[1] - 0.075 * k2, hand[2] + 0.05 * k2], s: [0.03 * k2, 0.05 * k2, 0.045 * k2], r: [0.5, 0, 0] });
+      A(ball(8), hc2, { bone: hb, p: [hand[0] - sx * 0.1 * k2, hand[1] - 0.02 * k2, hand[2] + 0.055 * k2], s: [0.032 * k2, 0.055 * k2, 0.04 * k2], r: [0.3, 0, sx * 0.5] });
+    } else {
+      A(ball(10), c.gloves || c.skin, { bone: hb, p: hand, s: [0.068 * hs, 0.075 * hs, 0.062 * hs] });
+      A(ball(8), c.gloves || c.skin, { bone: hb, p: [hand[0] - sx * 0.05 * hs, hand[1] + 0.01, hand[2] + 0.035 * hs], s: [0.026 * hs, 0.034 * hs, 0.026 * hs] });
+    }
     if (c.gauntlets) {
       A(lathe3('gauntlet', [[armR * 1.05, 0], [armR * 1.25, 0.05], [armR * 1.15, 0.13], [0, 0.131]], 10), c.gauntlets, { bone: ab, p: [wrist[0], wrist[1] - 0.01, wrist[2]], shine: 0.9 });
       A(roundBox(0.1, 0.03, 0.05, 0.012), lighter(c.gauntlets, 0.2), { bone: hb, p: [hand[0], hand[1] + 0.03, hand[2] + 0.045], shine: 1 });
@@ -2772,6 +2794,25 @@ function serpent3(b, o, naga) {
 // glänzende Eisblöcke (Eisgolem). Zwischen den Blöcken sieht man die Fugen – ein leuchtender Kern aus Lava,
 // Schmiedeglut oder Eislicht –, dazu ein Kernkristall in der Brust, Glutrisse, Augenschlitze und Mundspalt.
 // Das Skelett kommt aus der menschlichen Gestalt mit Bauch, damit Gehen und Hiebe gleich bleiben.
+// Felsbrocken für Golems (seit 15.35): unregelmäßig, rundum geschlossen (rockGeo der Welt ist unten flach), mit
+// weichen Normalen, damit der Umriss der Figur dicht bleibt. v wählt eine von fünf Formen.
+function golemFels3(v) {
+  return geo3('gfels' + v, () => {
+    // wenige Ecken (42) und kräftige Buckel: der Umriss bleibt kantig wie gebrochener Fels, nicht rund wie ein Kiesel
+    const g = smoothGeo(new THREE.IcosahedronGeometry(1, 1));
+    const pos = g.attributes.position;
+    const rnd = mulberry32(977 + v * 53);
+    const bumps = Array.from({ length: 5 }, () => [rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1, 0.07 + rnd() * 0.11]);
+    for (let i = 0; i < pos.count; i++) {
+      _v1.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+      let r = 0.84 + rnd() * 0.1;
+      for (const [bx, by, bz, a] of bumps) r += a * Math.max(0, _v1.x * bx + _v1.y * by + _v1.z * bz) ** 2 * 1.5;
+      pos.setXYZ(i, _v1.x * r, _v1.y * r, _v1.z * r);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
 function golem3(b, c) {
   const A = adder(b, null);
   const res = humanoid3(new Bake3(true), Object.assign({}, c, { belly: true }));
@@ -2784,50 +2825,64 @@ function golem3(b, c) {
   const fistRock = c.gloves || rock;
   const glow = c.cracks || '#ffb04a';
   const ice = style === 'ice';
-  // Block: kantiger Quader (Stein, Eis) oder runde Kruste (Lava)
-  const blockGeo = (v) => (style === 'crust' ? rockGeo(v % 3) : roundBox(1, 1, 1, ice ? 0.1 : 0.16, 1));
-  const B = (color, bone, p, s, r, v = 0) => A(blockGeo(v), color, { bone, p, s: s.map((x) => x * (style === 'crust' ? 0.8 : 1.7)), r, top: ice ? '#f4fbff' : lighter(color, 0.18), topK: ice ? 0.7 : 0.45, shade: 0.3, shine: ice ? 0.9 : 0.15 });
-  // leuchtender Kern hinter den Blöcken: zeigt sich in den Fugen
+  // seit 15.35 aus gewachsenem Fels statt aus Klötzen: Vorher bestand der Golem aus etwa dreißig gleichen Würfeln
+  // (Stein, Eis) bzw. Kugeln (Lava), die nebeneinander saßen – Arme, Kopf und Beine wirkten wie angesteckte Bausteine.
+  // Jetzt ist der Rumpf eine große Felsmasse mit Buckel und Becken, die Schultern sind Brocken, die in den Rumpf
+  // greifen, Ober- und Unterarm sowie Schenkel und Schienbein verjüngen sich bzw. werden zur Faust und zum Fuß hin
+  // schwerer; darauf liegen flache Platten (Stein), Eiszacken (Eis) oder Krustenschollen (Lava). In den Gelenken und
+  // Rissen leuchtet der Kern.
+  const F = (v) => golemFels3(v);
+  const opt = (color) => ({ top: ice ? '#f4fbff' : lighter(color, 0.18), topK: ice ? 0.7 : 0.45, shade: 0.3, shine: ice ? 0.9 : 0.15 });
+  // Brocken: Farbe, Knochen, Mitte, Halbachsen, Drehung, Form
+  const B = (color, bone, p, s, r, v = 0) => A(F(v), color, Object.assign({ bone, p, s, r }, opt(color)));
+  const limb = (a, z, r1, r2, color, bone) => limbBetween(A, a, z, r1, r2, color, Object.assign({ bone, seg: 10 }, opt(color)));
   const core = (bone, p, s) => A(ball(10), glow, { bone, p, s, mat: 'glow' });
-  core(BH.chest, [0, hipY + 0.28, 0.02], [0.4, 0.32, 0.29]);
-  core(BH.hips, [0, hipY - 0.02, 0], [0.3, 0.2, 0.25]);
-  // Brust aus fünf Blöcken (Brustplatten, Rücken, Schulteransatz), dazwischen Fugen
-  B(rock, BH.chest, [-0.17, hipY + 0.3, 0.13], [0.2, 0.2, 0.15], [0.1, 0.15, 0.08], 1);
-  B(rock, BH.chest, [0.17, hipY + 0.32, 0.13], [0.2, 0.19, 0.15], [0.12, -0.12, -0.1], 2);
-  B(darker(rock, 0.06), BH.chest, [0, hipY + 0.14, 0.15], [0.26, 0.13, 0.15], [0.05, 0, 0.04], 0);
-  B(rock, BH.chest, [0, hipY + 0.3, -0.14], [0.36, 0.26, 0.16], [-0.1, 0, 0.05], 1);
-  B(lighter(rock, 0.05), BH.chest, [0, shY - 0.02, 0.0], [0.3, 0.1, 0.22], [0, 0, -0.04], 2);
-  // Kernkristall in der Brust, von Steinen eingefasst
-  A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), lighter(glow, 0.25), { bone: BH.chest, p: [0, hipY + 0.3, 0.3], s: [0.07, 0.11, 0.07], r: [0, 0.6, 0], mat: 'glow' });
-  for (let k = 0; k < 4; k++) {
-    const a = (k / 4) * Math.PI * 2 + 0.4;
-    A(blockGeo(k), darker(rock, 0.15), { bone: BH.chest, p: [Math.cos(a) * 0.1, hipY + 0.3 + Math.sin(a) * 0.12, 0.27], s: style === 'crust' ? 0.04 : 0.06, r: [a, a, 0], shine: ice ? 0.9 : 0.1 });
-  }
-  // Hüfte und Lendenblock
-  B(legRock, BH.hips, [0, hipY - 0.02, 0], [0.32, 0.15, 0.25], [0, 0, 0.03], 0);
-  B(darker(legRock, 0.1), BH.hips, [0, hipY - 0.13, 0.12], [0.16, 0.1, 0.1], [0.2, 0, 0], 1);
-  // Kopf: kleiner kantiger Block tief zwischen den Schultern, Stirnwulst, Augenschlitze, Mundspalt
-  const hc = [0, shY + 0.26, 0.1];
-  B(rock, BH.head, hc, [0.18, 0.15, 0.16], [0.08, 0, 0], 2);
-  B(darker(rock, 0.1), BH.head, [0, hc[1] + 0.07, hc[2] + 0.1], [0.19, 0.05, 0.08], [0.3, 0, 0], 1);
-  for (const sx of [-1, 1]) A(box3(), glow, { bone: BH.head, p: [sx * 0.065, hc[1] + 0.025, hc[2] + 0.165], r: [0, 0, sx * 0.25], mat: 'glow', s: [0.075, 0.025, 0.02] });
-  A(box3(), glow, { bone: BH.head, p: [0, hc[1] - 0.07, hc[2] + 0.165], mat: 'glow', s: [0.12, 0.022, 0.02] });
-  // Arme: Schulterblock, Ober- und Unterarm, Fäuste wie Hämmer; Fugenkern im Arm
+  // Rumpf: Brustmasse, Buckel, Becken – eine zusammenhängende Gestalt, vorn zwei Brustplatten mit glühender Fuge
+  B(rock, BH.chest, [0, hipY + 0.26, 0.0], [0.33, 0.29, 0.25], [0.1, 0, 0.04], 1);
+  B(lighter(rock, 0.04), BH.chest, [0, shY - 0.05, -0.05], [0.36, 0.17, 0.22], [-0.12, 0.3, -0.03], 2);
+  B(legRock, BH.hips, [0, hipY - 0.03, 0], [0.27, 0.16, 0.22], [0, 0.5, 0.03], 0);
+  core(BH.chest, [0, hipY + 0.27, 0.2], [0.045, 0.19, 0.09]);
+  B(darker(rock, 0.07), BH.chest, [-0.15, hipY + 0.31, 0.19], [0.15, 0.15, 0.09], [0.15, 0.25, 0.12], 3);
+  B(darker(rock, 0.04), BH.chest, [0.15, hipY + 0.31, 0.19], [0.15, 0.15, 0.09], [0.15, -0.25, -0.12], 4);
+  B(darker(rock, 0.1), BH.chest, [0, hipY + 0.12, 0.19], [0.18, 0.1, 0.09], [0.3, 0, 0.03], 0);
+  // Kernkristall in der Brust
+  A(geo3('octa1', () => new THREE.OctahedronGeometry(1, 0)), lighter(glow, 0.25), { bone: BH.chest, p: [0, hipY + 0.31, 0.29], s: [0.055, 0.095, 0.055], r: [0, 0.6, 0], mat: 'glow' });
+  // Kopf: frei über den Schultern, nach vorn geschoben, mit Stirnwulst und Kiefer; Augenschlitze und Mundspalt glühen
+  const hc = [0, shY + 0.27, 0.09];
+  core(BH.head, [0, shY + 0.13, 0.04], [0.1, 0.07, 0.09]);
+  B(rock, BH.head, hc, [0.165, 0.15, 0.16], [0.1, 0.4, 0], 2);
+  B(darker(rock, 0.1), BH.head, [0, hc[1] + 0.085, hc[2] + 0.08], [0.17, 0.05, 0.11], [0.35, 0, 0], 1);
+  B(darker(rock, 0.06), BH.head, [0, hc[1] - 0.115, hc[2] + 0.07], [0.12, 0.055, 0.11], [-0.15, 0, 0], 3);
+  for (const sx of [-1, 1]) A(ball(8), glow, { bone: BH.head, p: [sx * 0.07, hc[1] + 0.02, hc[2] + 0.165], r: [0, 0, sx * 0.25], mat: 'glow', s: [0.045, 0.02, 0.03] });
+  A(ball(8), glow, { bone: BH.head, p: [0, hc[1] - 0.06, hc[2] + 0.165], mat: 'glow', s: [0.065, 0.014, 0.03] });
   for (const [sx, ab, hb, lb] of [[1, BH.armL, BH.handL, BH.legL], [-1, BH.armR, BH.handR, BH.legR]]) {
-    const x = sx * 0.48;
-    limbBetween(A, [x, shY - 0.05, 0], [x, shY - 0.5, 0.04], 0.09, 0.08, glow, { bone: ab, mat: 'glow' });
-    B(rock, ab, [x - sx * 0.02, shY + 0.04, 0], [0.24, 0.17, 0.24], [0, 0, -sx * 0.25], 0);
-    B(darker(rock, 0.05), ab, [x + sx * 0.02, shY - 0.2, 0.02], [0.15, 0.15, 0.15], [0.1, 0.3, sx * 0.1], 1);
-    B(rock, ab, [x + sx * 0.01, shY - 0.38, 0.04], [0.14, 0.12, 0.14], [-0.1, -0.2, 0], 2);
-    B(fistRock, hb, [x, shY - 0.55, 0.06], [0.19, 0.17, 0.19], [0.1, 0.2, sx * 0.1], 0);
-    for (let k = -1; k <= 1; k++) A(blockGeo(k + 1), darker(fistRock, 0.1), { bone: hb, p: [x + k * 0.07, shY - 0.6, 0.2], s: style === 'crust' ? 0.045 : 0.07, r: [0.3, k, 0], shine: ice ? 0.9 : 0.1 });
-    // Beine: Oberschenkel, Schienbein, breiter Fuß
+    const x = sx * 0.45;
+    // Schulterbrocken greift in den Rumpf; Oberarm verjüngt sich zum Ellbogen, der Unterarm wird zur Faust hin schwer
+    B(rock, ab, [x - sx * 0.03, shY + 0.02, 0], [0.19, 0.15, 0.19], [0.2, sx * 0.6, -sx * 0.3], sx > 0 ? 0 : 3);
+    limb([x, shY - 0.05, 0], [x + sx * 0.01, shY - 0.27, 0.02], 0.105, 0.075, darker(rock, 0.05), ab);
+    core(ab, [x + sx * 0.01, shY - 0.28, 0.02], [0.065, 0.045, 0.065]);
+    limb([x + sx * 0.01, shY - 0.29, 0.025], [x, shY - 0.5, 0.05], 0.08, 0.125, rock, ab);
+    B(fistRock, hb, [x, shY - 0.58, 0.07], [0.15, 0.13, 0.16], [0.2, sx * 0.4, sx * 0.1], sx > 0 ? 4 : 1);
+    for (let k = -1; k <= 1; k++) B(darker(fistRock, 0.1), hb, [x + k * 0.075, shY - 0.63, 0.19], [0.045, 0.055, 0.055], [0.3, k, 0], k + 1);
+    B(darker(fistRock, 0.07), hb, [x - sx * 0.12, shY - 0.56, 0.13], [0.045, 0.06, 0.055], [0, 0, sx * 0.5], 2);
+    // Beine: schwerer Schenkel, Kniegelenk, Schienbein zum Fuß hin breiter, flacher Fußbrocken
     const lx = sx * 0.17;
-    limbBetween(A, [lx, hipY - 0.05, 0], [lx, 0.1, 0], 0.08, 0.07, glow, { bone: lb, mat: 'glow' });
-    B(legRock, lb, [lx, hipY - 0.12, 0], [0.15, 0.13, 0.15], [0.05, sx * 0.2, 0], 1);
-    B(darker(legRock, 0.06), lb, [lx, 0.15, 0.01], [0.13, 0.11, 0.14], [-0.05, -sx * 0.25, 0], 2);
-    B(footRock, lb, [lx, 0.04, 0.05], [0.16, 0.06, 0.2], [0, 0, 0], 0);
+    limb([lx, hipY - 0.02, 0], [lx, 0.21, 0.01], 0.13, 0.085, legRock, lb);
+    core(lb, [lx, 0.2, 0.01], [0.075, 0.04, 0.075]);
+    limb([lx, 0.19, 0.01], [lx, 0.07, 0.02], 0.085, 0.12, darker(legRock, 0.06), lb);
+    B(footRock, lb, [lx, 0.055, 0.06], [0.14, 0.07, 0.2], [0, sx * 0.15, 0], sx > 0 ? 2 : 0);
+    // Auflagen je Art
+    if (ice) {
+      // Eis: Zacken wachsen aus Schultern und Unterarmen
+      for (const [dx, dz, h, rz] of [[0.02, -0.06, 0.26, 0.35], [0.1, 0.05, 0.19, 0.7], [-0.06, 0.07, 0.15, 0.1]]) A(horn3(h, 0.06, 5), '#e8f6ff', { bone: ab, p: [x + sx * dx, shY + 0.14, dz], r: [0, 0, -sx * rz], shine: 1, top: '#ffffff', topK: 0.6 });
+      A(horn3(0.16, 0.045, 5), '#e8f6ff', { bone: ab, p: [x + sx * 0.12, shY - 0.4, 0.02], r: [0, 0, -sx * 1.2], shine: 1 });
+    } else if (style !== 'crust') {
+      // Stein: flache Platten auf Schulter und Unterarm, wie geschichtetes Gestein
+      B(lighter(rock, 0.08), ab, [x + sx * 0.01, shY + 0.13, 0], [0.16, 0.05, 0.17], [0, sx * 0.3, -sx * 0.3], 1);
+      B(lighter(rock, 0.05), ab, [x + sx * 0.08, shY - 0.42, 0.05], [0.06, 0.1, 0.11], [0, 0, sx * 0.1], 3);
+    }
   }
+  if (ice) for (const [x, y, z, h] of [[-0.14, 0.52, -0.2, 0.28], [0.1, 0.56, -0.24, 0.34], [0.26, 0.46, -0.16, 0.2]]) A(horn3(h, 0.07, 5), '#e8f6ff', { bone: BH.chest, p: [x, hipY + y, z], r: [-0.5, 0, -x], shine: 1, top: '#ffffff', topK: 0.6 });
   // Glutrisse bzw. Eisadern auf Brust und Kopf
   for (const [x, y, r] of [[-0.15, 0.3, 0.5], [0.12, 0.2, -0.6], [0.2, 0.36, 0.9]]) A(box3(), glow, { bone: BH.chest, p: [x, hipY + y * 0.8, 0.33], r: [0, 0, r], mat: 'glow', s: [0.03, 0.2, 0.03] });
   // Lava tropft an Ellbogen und Fäusten (Lavagolem); Steine und Luftblasen im Eis (Eisgolem)
