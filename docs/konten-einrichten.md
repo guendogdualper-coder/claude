@@ -345,3 +345,26 @@ Inhalt von `docs/firebase-regeln.json` ersetzen → **Veröffentlichen**. Neu da
 - Das Spiel blendet zusätzlich unplausible Einträge aus (Stufe über 80, Rangpunkte unter Stufe 10, unbekannte Klasse) und zeigt
   Namen nur als Text. Wer die Werte über die Schnittstelle fälscht, kann trotzdem eine falsche Stufe bis 80 eintragen –
   solche Einträge in der Konsole unter `rangliste` löschen.
+## Bestenliste nachtragen (auch wer offline ist)
+
+Die Reiter **Stufe** und **Turnierarena** zeigen alle eingetragenen Charaktere – egal ob ihr Besitzer gerade spielt.
+Eingetragen wird ein Charakter aber vom Spiel seines Besitzers, also erst, wenn dieser nach dem Einspielen der Regeln
+einmal angemeldet spielt. Damit auch alle anderen sofort in der Liste stehen, gibt es das Werkzeug
+`tools/bestenliste-nachtragen.js`. Es liest alle Konten und legt die fehlenden Einträge an; vorhandene bleiben
+unberührt. Charaktere von vor dem offiziellen Start (Konten ohne die Kennung des Neustarts) trägt es nicht ein.
+Das Ausrüstungslevel (GS) fehlt bei nachgetragenen Einträgen, bis der Besitzer wieder spielt.
+
+Es läuft über GitHub (Workflow **Bestenliste**, `.github/workflows/bestenliste.yml`): jede Nacht von selbst und auf
+Knopfdruck. Einmalig einzurichten:
+
+1. Zuerst die Regeln einspielen (Abschnitt „Bestenliste“ oben).
+2. Firebase-Konsole → Zahnrad → **Projekteinstellungen** → Reiter **Dienstkonten** → **Neuen privaten Schlüssel
+   generieren**. Es wird eine JSON-Datei heruntergeladen. Diese Datei ist ein Generalschlüssel für die Datenbank:
+   nie verschicken, nie in einen Chat kopieren, nie ins Repository legen.
+3. GitHub → Repository → **Settings → Secrets and variables → Actions → New repository secret**:
+   Name `FIREBASE_DIENSTKONTO`, als Wert den gesamten Inhalt der JSON-Datei einfügen → **Add secret**.
+   Danach die heruntergeladene Datei löschen.
+4. GitHub → **Actions → Bestenliste → Run workflow**. Im Protokoll steht, wie viele Charaktere eingetragen wurden.
+
+Ohne das Secret tut der Workflow nichts (er endet grün mit einem Hinweis).
+

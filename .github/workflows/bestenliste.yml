@@ -1,0 +1,37 @@
+# Bestenliste nachtragen: trägt alle Charaktere aus den Konten in die Bestenliste ein, die dort noch fehlen –
+# auch von Spielern, die gerade nicht spielen. Läuft jede Nacht und auf Knopfdruck (Actions → „Bestenliste“ →
+# „Run workflow“). Ohne das Secret passiert nichts (der Lauf endet grün mit einem Hinweis).
+#
+# Secret (Repository → Settings → Secrets and variables → Actions → „New repository secret“):
+#   FIREBASE_DIENSTKONTO   kompletter Inhalt der JSON-Datei des Dienstkontos
+#                          (Firebase-Konsole → Zahnrad → Projekteinstellungen → Dienstkonten → „Neuen privaten Schlüssel generieren“)
+# Anleitung: docs/konten-einrichten.md, Abschnitt „Bestenliste nachtragen“.
+
+name: Bestenliste
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: 'Nur zählen, nichts schreiben'
+        type: boolean
+        default: false
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  nachtragen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Fehlende Einträge anlegen
+        env:
+          FIREBASE_DIENSTKONTO: ${{ secrets.FIREBASE_DIENSTKONTO }}
+        run: node tools/bestenliste-nachtragen.js ${{ inputs.probe && '--probe' || '' }}
