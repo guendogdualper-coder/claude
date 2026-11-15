@@ -377,35 +377,186 @@ if (typeof LIQUID3 !== 'undefined' && LIQUID3.treibsand) {
 // Lavaseen alle paar Dutzend Kacheln ein kleiner Schlot (derselbe Bau wie der große Kegel, nur klein): dunkler
 // Basaltkegel mit glühendem Krater, Rauchfahne und Funken. Immer mitten in der Lava (mit Abstand zum Ufer und zu
 // Brücken), nie am großen Krater und nicht an der Stadt; auf „Niedrig“ weniger.
-const KL_INFO = { vents: [] };
+const KL_INFO = { vents: [], vent2: null };
+// Stellen der Schlote: je Block die Lavakachel mit dem meisten Platz ringsum (nicht am Krater, nicht an der Stadt)
+function klVents(wm, tier) {
+  const [rx, ry, rw, rh] = wm.region;
+  const w = game.world;
+  const F = wzField(wm, 'liq', false);
+  const C = (MAP_FORMS[9] && MAP_FORMS[9].crater) || [182, 62, 17];
+  const town = wzTown(wm);
+  const B = tier ? 26 : 44;
+  const out = [];
+  for (let by = ry + 4; by < ry + rh - 4; by += B) for (let bx = rx + 4; bx < rx + rw - 4; bx += B) {
+    let best = null;
+    let bd = 0;
+    for (let y = by; y < Math.min(by + B, ry + rh - 4); y++) for (let x = bx; x < Math.min(bx + B, rx + rw - 4); x++) {
+      const i = y * MAP_W + x;
+      if (w.ground[i] !== GROUND.LAVA || w.deco[i] === DECO.BRIDGE) continue;
+      const dd = F.at(x, y) + (townTileHash(x, y) % 16) / 40;
+      if (dd > bd) { bd = dd; best = [x, y]; }
+    }
+    if (!best || bd < 2.4) continue;
+    if (Math.hypot(best[0] - (rx + C[0]), best[1] - (ry + C[1])) < C[2] + 16) continue;
+    if (Math.hypot(best[0] - town.cx, best[1] - town.cy) < 32) continue;
+    const h = townTileHash(best[0] * 3 + 1, best[1] * 7 + 5);
+    out.push([best[0], best[1], Math.min(1.5 + (h % 4) * 0.22, bd - 0.9), h]);
+  }
+  return out;
+}
 if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[9] && typeof wzVolcano === 'function') {
   const base9 = WZ_MAPS[9];
   WZ_MAPS[9] = (wm, T) => {
     base9(wm, T);
-    const [rx, ry, rw, rh] = wm.region;
-    const w = game.world;
-    const F = wzField(wm, 'liq', false);
-    const C = (MAP_FORMS[9] && MAP_FORMS[9].crater) || [182, 62, 17];
-    const town = wzTown(wm);
-    const B = T.tier ? 26 : 44;
     KL_INFO.vents.length = 0;
-    for (let by = ry + 4; by < ry + rh - 4; by += B) for (let bx = rx + 4; bx < rx + rw - 4; bx += B) {
-      let best = null;
-      let bd = 0;
-      for (let y = by; y < Math.min(by + B, ry + rh - 4); y++) for (let x = bx; x < Math.min(bx + B, rx + rw - 4); x++) {
-        const i = y * MAP_W + x;
-        if (w.ground[i] !== GROUND.LAVA || w.deco[i] === DECO.BRIDGE) continue;
-        const dd = F.at(x, y) + (townTileHash(x, y) % 16) / 40;
-        if (dd > bd) { bd = dd; best = [x, y]; }
-      }
-      if (!best || bd < 2.4) continue;
-      if (Math.hypot(best[0] - (rx + C[0]), best[1] - (ry + C[1])) < C[2] + 16) continue;
-      if (Math.hypot(best[0] - town.cx, best[1] - town.cy) < 32) continue;
-      const h = townTileHash(best[0] * 3 + 1, best[1] * 7 + 5);
-      const R = Math.min(1.5 + (h % 4) * 0.22, bd - 0.9);
-      wzVolcano(best[0] + 0.5, best[1] + 0.5, R, R * (1.0 + ((h >> 3) % 5) * 0.08), T, false);
-      KL_INFO.vents.push(best);
+    for (const [x, y, R, h] of klVents(wm, T.tier)) {
+      wzVolcano(x + 0.5, y + 0.5, R, R * (1.0 + ((h >> 3) % 5) * 0.08), T, false);
+      KL_INFO.vents.push([x, y]);
     }
+  };
+}
+
+// --- Lava, Treibsand, Eisspalten in 2D ------------------------------------------------------------------------
+// Lava: dunkle Krustenplatten und dieselben Schlote wie in 3D (dunkler Kegel, glühender Krater). Treibsand:
+// Dünenkämme, die über die Kachelgrenzen weiterlaufen, und Mulden. Eisspalten: Eisstufen zum Rand hin heller.
+// Fest in den Bodenblock gemalt; ein Schlot ist größer als eine Kachel, jede Kachel malt ihren Ausschnitt.
+if (typeof drawShore === 'function') {
+  const baseShore5 = drawShore;
+  const KL_EIS = ['#a9cdee', '#7aa6d8', '#4d78b4', '#2c5088'];
+  const ventAt = (x, y) => {
+    if (!KL_INFO.vent2) {
+      KL_INFO.vent2 = new Map();
+      const wm = WORLD_MAPS.find((m) => m.id === 9);
+      if (wm && typeof wzField === 'function') {
+        for (const v of klVents(wm, 1)) {
+          const r = Math.ceil(v[2]) + 1;
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) KL_INFO.vent2.set((v[1] + dy) * MAP_W + v[0] + dx, v);
+        }
+      }
+    }
+    return KL_INFO.vent2.get(y * MAP_W + x);
+  };
+  drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
+    if (g !== GROUND.LAVA && g !== GROUND.TREIBSAND && g !== GROUND.EISSPALTE) return baseShore5(ctx, x, y, px, py, g);
+    const h = tileHash(x, y);
+    ctx.save();
+    if (g === GROUND.EISSPALTE) {
+      const dist = klLandDist(x, y, 4);
+      if (dist <= 4) {
+        ctx.fillStyle = KL_EIS[dist - 1];
+        ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(px, py + 5 + (h % 6), TILE + 0.6, 1.2);
+        ctx.fillStyle = 'rgba(10,30,70,0.25)';
+        ctx.fillRect(px, py + 18 + ((h >> 3) % 7), TILE + 0.6, 1.2);
+        // Bruchkante: kurzer heller Splitter
+        ctx.strokeStyle = 'rgba(235,246,255,0.5)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(px + 4 + (h % 14), py + 10 + ((h >> 5) % 8));
+        ctx.lineTo(px + 10 + (h % 14), py + 15 + ((h >> 5) % 8));
+        ctx.stroke();
+      }
+    } else if (g === GROUND.TREIBSAND) {
+      // zwei Kämme je Kachel; an den Kachelrändern auf fester Höhe, dazwischen geschwungen
+      ctx.lineCap = 'round';
+      for (let k = 0; k < 2; k++) {
+        // Höhe am linken und rechten Rand aus der Kachelspalte: der Kamm läuft in der Nachbarkachel weiter
+        const yL = py + 8 + k * 16 + ((tileHash(x, y * 3 + k) % 11) - 5);
+        const yR = py + 8 + k * 16 + ((tileHash(x + 1, y * 3 + k) % 11) - 5);
+        const bow = (yL + yR) / 2 + (((h >> (k * 5)) % 9) - 4) * 0.7;
+        ctx.strokeStyle = 'rgba(70,50,24,0.22)';
+        ctx.lineWidth = 2.4;
+        ctx.beginPath();
+        ctx.moveTo(px, yL + 1.6);
+        ctx.quadraticCurveTo(px + TILE / 2, bow + 1.6, px + TILE + 0.6, yR + 1.6);
+        ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,236,190,0.3)';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(px, yL);
+        ctx.quadraticCurveTo(px + TILE / 2, bow, px + TILE + 0.6, yR);
+        ctx.stroke();
+      }
+      if (h % 9 === 0 && klLandDist(x, y, 1) > 1) {
+        // Mulde: der Sand sackt nach innen
+        const cx = px + TILE / 2;
+        const cy = py + TILE / 2;
+        const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, 13);
+        gr.addColorStop(0, 'rgba(48,32,14,0.55)');
+        gr.addColorStop(0.6, 'rgba(70,50,24,0.22)');
+        gr.addColorStop(1, 'rgba(70,50,24,0)');
+        ctx.fillStyle = gr;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 13, 9.5, 0, 0, 6.3);
+        ctx.fill();
+      }
+    } else {
+      const v = ventAt(x, y);
+      if (v) {
+        ctx.beginPath();
+        ctx.rect(px, py, TILE + 0.6, TILE + 0.6);
+        ctx.clip();
+        const cx = (v[0] + 0.5 - x) * TILE + px;
+        const cy = (v[1] + 0.5 - y) * TILE + py;
+        const R = v[2] * TILE;
+        const gr = ctx.createRadialGradient(cx, cy - R * 0.12, R * 0.12, cx, cy, R);
+        gr.addColorStop(0, '#5c3826');
+        gr.addColorStop(0.55, '#3c2218');
+        gr.addColorStop(1, '#22120c');
+        ctx.fillStyle = gr;
+        ctx.beginPath();
+        for (let k = 0; k <= 14; k++) {
+          const an = (k / 14) * 6.283;
+          const rr = R * (0.9 + 0.1 * Math.sin(k * 2.7 + v[3] % 7));
+          ctx.lineTo(cx + Math.cos(an) * rr, cy + Math.sin(an) * rr * 0.86);
+        }
+        ctx.closePath();
+        ctx.fill();
+        // Rinnen am Hang
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1.4;
+        for (let k = 0; k < 7; k++) {
+          const an = k * 0.9 + (v[3] % 10) * 0.1;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(an) * R * 0.3, cy - R * 0.1 + Math.sin(an) * R * 0.24);
+          ctx.lineTo(cx + Math.cos(an) * R * 0.86, cy + Math.sin(an) * R * 0.74);
+          ctx.stroke();
+        }
+        // Krater: dunkler Rand, Glut
+        ctx.fillStyle = '#1c0e0a';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - R * 0.1, R * 0.3, R * 0.22, 0, 0, 6.3);
+        ctx.fill();
+        const gl = ctx.createRadialGradient(cx, cy - R * 0.1, 0, cx, cy - R * 0.1, R * 0.24);
+        gl.addColorStop(0, '#fff0a0');
+        gl.addColorStop(0.5, '#ff9a2c');
+        gl.addColorStop(1, '#c8380c');
+        ctx.fillStyle = gl;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - R * 0.1, R * 0.22, R * 0.15, 0, 0, 6.3);
+        ctx.fill();
+      } else if (h % 4 === 0 && klLandDist(x, y, 1) > 1) {
+        // Krustenplatte: dunkle, kantige Scholle auf der Glut
+        const cx = px + 8 + (h % 16);
+        const cy = py + 8 + ((h >> 4) % 16);
+        const r = 6 + ((h >> 8) % 5);
+        ctx.fillStyle = 'rgba(52,22,12,0.62)';
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const an = k * 1.047 + (h % 10) * 0.1;
+          const rr = r * (0.7 + (((h >> (k * 3)) % 7) / 7) * 0.45);
+          ctx.lineTo(cx + Math.cos(an) * rr, cy + Math.sin(an) * rr * 0.75);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,190,90,0.35)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return baseShore5(ctx, x, y, px, py, g);
   };
 }
 

@@ -12,9 +12,9 @@ auf der Schattenseite, in 3D und in 2D. Kein Dekozeug auf begehbarem Boden; nich
 | 4 Dunkelwald | Waldinneres | 15.20: geschlossener Tannenwald, dunkler Waldboden (3D; 2D war schon geschlossen) |
 | 12 Aschewald | Waldinneres | 15.20: wie Dunkelwald, Tannen verkohlt |
 | 5 Rostschlucht, 3 Donnerklamm, 12 Aschewald | Schlucht | 15.21: Blick in die Tiefe (sechs Felsstufen, Fluss am Grund), Felsfarbe je Karte; 2D als Stufen |
-| 15 Nachtfrost | Eisspalten | 15.21: Tiefe aus Eisbänken |
-| 13 Knochenwüste | Treibsand | 15.21: Dünenlinien, wandernde Mulden |
-| 9 Feuerberg | Lava | 15.22: kleine Vulkanschlote mit Glutkrater, Rauch und Funken mitten in der Lava (3D); 2D offen |
+| 15 Nachtfrost | Eisspalten | 15.21: Tiefe aus Eisbänken; 15.24: 2D als Eisstufen |
+| 13 Knochenwüste | Treibsand | 15.21: Dünenlinien, wandernde Mulden; 15.24: 2D mit Dünenkämmen und Mulden |
+| 9 Feuerberg | Lava | 15.22: kleine Vulkanschlote mit Glutkrater, Rauch und Funken mitten in der Lava (3D); 15.24: 2D mit denselben Schloten und Krustenschollen |
 | 6 Ödland, 16 Schattenklippen | Meer | 15.23: kantige Felsnadeln mit Brandung im offenen Wasser, Felsbrocken am Ufer (3D und 2D) |
 | 1 Kazehana, 2 Schlangental, 11 Mondfall | Teich, Fluss, See | 15.23: Schilf mit Rohrkolben, Seerosen (Mondfall: leuchtend), Steine; im Fluss Findlinge (3D und 2D) |
 | 8 Totenmoor | Moor | 15.23: dürres Schilf, totes Geäst (3D und 2D) |
