@@ -41,7 +41,7 @@ function moveVector() {
   if (len < 0.15) return { x: 0, y: 0 };
   if (len > 1) { x /= len; y /= len; }
   // Schulterblick: „nach oben“ heißt „von der Kamera weg“, die Kamera kann gedreht sein
-  if (v3Shoulder() && V3.yaw) {
+  if (V3.on && V3.yaw) {
     const c = Math.cos(V3.yaw);
     const s = Math.sin(V3.yaw);
     return { x: c * x + s * y, y: -s * x + c * y };
@@ -100,6 +100,7 @@ function setupInput() {
     releaseChannel();
     input.mouseAttack = false;
     input.mouseWalk = false;
+    document.body.classList.remove('cam-drag');
     clearAttack();
   });
 
@@ -166,8 +167,17 @@ function setupInput() {
       return;
     }
     if (e.button === 2) {
-      if (v3Shoulder()) camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, right: true };
-      else selectAt(e.clientX, e.clientY);
+      // seit 15.31: in jeder 3D-Kamera dreht und neigt Ziehen mit der rechten Maustaste die Sicht (kurzer Klick wählt
+      // weiter nur aus); der Mauszeiger wird dabei zur Greifhand (body.cam-drag, style.css)
+      if (V3.on) {
+        camDrag = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, right: true };
+        document.body.classList.add('cam-drag');
+      } else selectAt(e.clientX, e.clientY);
+      return;
+    }
+    // mittlere Maustaste: feste Kamera zurück auf die gewohnte Sicht
+    if (e.button === 1 && V3.on && !v3Shoulder()) {
+      v3OrbitReset();
       return;
     }
     if (e.button !== 0 || !game.running) return;
@@ -198,11 +208,13 @@ function setupInput() {
     V3.yawGoal = (V3.yawGoal != null ? V3.yawGoal : V3.yaw || 0) - dx * 0.008;
     // seit 14.48: senkrecht wischen kippt den Schulterblick – nach unten = Kamera höher, mehr von oben (über Häuser
     // und Mauern hinweg), nach oben = wieder flacher (V3.tilt 0…1, drei-kern.js v3PlaceCamera)
-    V3.tilt = Math.max(0, Math.min(1, (V3.tilt || 0) + dy * 0.004));
+    if (v3Shoulder()) V3.tilt = Math.max(0, Math.min(1, (V3.tilt || 0) + dy * 0.004));
+    else V3.orbitTilt = Math.max(ORBIT3.min, Math.min(ORBIT3.max, (V3.orbitTilt || 0) + dy * 0.004));
     camDrag.x = e.clientX;
     camDrag.y = e.clientY;
   });
   const endCamDrag = (e) => {
+    if (camDrag && camDrag.right && e.pointerId === camDrag.id) document.body.classList.remove('cam-drag');
     if (oneTouch && e.pointerId === oneTouch.id) oneTouch = null;
     if (e.pointerType === 'mouse') {
       input.mouseAttack = false;
@@ -224,6 +236,8 @@ function setupInput() {
   document.addEventListener('contextmenu', (e) => {
     if (game.running && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) e.preventDefault();
   });
+  // mittlere Maustaste gehört dem Spiel (kein Rollkreuz des Browsers)
+  cv.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
   // Mausrad: näher oder weiter weg (3D)
   cv.addEventListener('wheel', (e) => {
     if (!V3.on) return;

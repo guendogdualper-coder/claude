@@ -18,7 +18,7 @@
 .hd-mail {
   display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 10px; align-items: center; text-align: left;
   padding: 8px 10px; border-radius: 6px; border: 1px solid rgba(110, 90, 52, 0.5); background: rgba(0, 0, 0, 0.28);
-  color: var(--parchment); font: inherit; cursor: pointer; min-height: 44px; touch-action: manipulation;
+  color: var(--parchment); font: inherit; cursor: var(--zeiger-hand, pointer); min-height: 44px; touch-action: manipulation;
 }
 .hd-mail:hover { border-color: var(--brass); }
 .hd-mail.unread { border-color: var(--brass); background: rgba(201, 163, 90, 0.12); }
@@ -83,7 +83,7 @@
 .ah-cats { display: grid; gap: 3px; position: sticky; top: 0; }
 .ah-cat {
   text-align: left; padding: 7px 10px; border-radius: 6px; border: 1px solid transparent; background: none; color: var(--parchment);
-  font: inherit; font-weight: 700; cursor: pointer; touch-action: manipulation;
+  font: inherit; font-weight: 700; cursor: var(--zeiger-hand, pointer); touch-action: manipulation;
 }
 .ah-cat.sub { padding: 4px 10px 4px 22px; font-weight: 500; font-size: 14px; color: #d8ccb0; }
 .ah-cat:hover { background: rgba(255, 240, 210, 0.06); border-color: rgba(201, 163, 90, 0.3); }

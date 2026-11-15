@@ -1147,6 +1147,12 @@ function v3InView(x, y, pad = 0) {
     v3ViewCenter(_vc);
     return hyp(x - _vc.x, y - _vc.y) < (22 * TILE + pad) * (V3.zoomMul || 1);
   }
+  // seit 15.31: feste Kamera gedreht oder geneigt (rechte Maustaste) – dann gilt die Sichtfläche am Boden (VIEW3)
+  if (V3.orbit) {
+    const F = VIEW3;
+    const q = 96 + pad;
+    return x > F.x0 * TILE - q && x < F.x1 * TILE + q && y > F.z0 * TILE - q && y < F.z1 * TILE + q;
+  }
   return Math.abs(x - V3.focus.x) < r.w / r.zoom * 0.62 + 64 + pad && y - V3.focus.y > -r.h / r.zoom * 0.95 - 96 - pad && y - V3.focus.y < r.h / r.zoom * 0.62 + 64 + pad;
 }
 
@@ -1259,10 +1265,27 @@ function v3CamDragonAir() {
   const d = p && p.riding && p.__drOn ? actors3.get(p.__drOn) : null;
   return d && d.dm ? d.dm.air || 0 : 0;
 }
+// seit 15.31: Auch die feste Kamera (Normal, Weit) lässt sich mit gedrückter rechter Maustaste um die Figur drehen
+// (V3.yawGoal) und neigen (V3.orbitTilt, Abweichung vom Grundwinkel V3.pitch in Bogenmaß). Mittlere Maustaste = zurück
+// auf die gewohnte Sicht von Süden. Beim Wechsel der Kameraart beginnt die Sicht wieder gerade.
+const ORBIT3 = { min: -0.3, max: 0.34 };
+function v3OrbitReset() {
+  V3.yawGoal = Math.round((V3.yaw || 0) / (Math.PI * 2)) * Math.PI * 2;
+  V3.orbitTilt = 0;
+}
 function v3PlaceCamera(fx, fy, dt = 0.016) {
   const r = renderer;
   const cam = V3.camera;
   const lift = v3CamLift();
+  const kind = v3Shoulder() ? 's' : 'f';
+  if (V3.camKind !== kind) {
+    V3.camKind = kind;
+    V3.yaw = 0;
+    V3.yawGoal = 0;
+    V3.orbitTilt = 0;
+    V3.orbitNow = 0;
+  }
+  V3.orbit = false;
   if (v3Shoulder()) {
     if (cam.fov !== SHOULDER3.fov) {
       cam.fov = SHOULDER3.fov;
@@ -1307,8 +1330,16 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
     cam.fov = 30;
     cam.updateProjectionMatrix();
   }
-  V3.yaw = 0;
-  V3.yawGoal = 0;
+  if (V3.yawGoal == null) V3.yawGoal = V3.yaw || 0;
+  const ek = 1 - Math.exp(-dt * 16);
+  V3.yaw = (V3.yaw || 0) + (V3.yawGoal - (V3.yaw || 0)) * ek;
+  V3.orbitNow = (V3.orbitNow || 0) + ((V3.orbitTilt || 0) - (V3.orbitNow || 0)) * ek;
+  // ganz am Ziel einrasten: gerade Sicht ist dann wieder genau die alte Kamera
+  if (Math.abs(V3.yawGoal - V3.yaw) < 1e-4) {
+    V3.yaw = V3.yawGoal = V3.yawGoal % (Math.PI * 2);
+  }
+  if (Math.abs((V3.orbitTilt || 0) - V3.orbitNow) < 1e-4) V3.orbitNow = V3.orbitTilt || 0;
+  V3.orbit = !!(V3.yaw || V3.orbitNow);
   V3.camPitch = null;
   // seit 14.44: vom Schulterblick (bis 3,2) zurück zur festen Kamera auf deren Grenze
   if (V3.zoomMul > ZOOM3.max) V3.zoomMul = ZOOM3.max;
@@ -1320,7 +1351,14 @@ function v3PlaceCamera(fx, fy, dt = 0.016) {
   const tx = fx * U3;
   const tz = fy * U3;
   const ty = 0.7 + lift * CAM3_HIGH.normal + CAM3_HIGH.airNormal * v3CamDragonAir();
-  cam.position.set(tx, ty + Math.sin(V3.pitch) * dist, tz + Math.cos(V3.pitch) * dist);
+  if (V3.orbit) {
+    const pitch = V3.pitch + V3.orbitNow;
+    const cp = Math.cos(pitch);
+    cam.position.set(tx + Math.sin(V3.yaw) * cp * dist, ty + Math.sin(pitch) * dist, tz + Math.cos(V3.yaw) * cp * dist);
+    if (typeof rand3Cam === 'function') rand3Cam(cam.position);
+  } else {
+    cam.position.set(tx, ty + Math.sin(V3.pitch) * dist, tz + Math.cos(V3.pitch) * dist);
+  }
   V3.camDist = dist; // Nebel ab der Figur (v3UpdateMood, seit 14.45)
   cam.lookAt(tx, ty, tz);
   cam.updateMatrixWorld();
@@ -1354,7 +1392,11 @@ const _fadeC = {};
 // wurde zur Scheibe über den ganzen Bildschirm – für ein Bild war alles weißlich („flackert ab und zu weiß“).
 function v3Anchor(ctx, wx, wy, h = 0, ax = wx, ay = wy) {
   v3Project(wx, wy, h, _pa);
-  v3Project(wx + 32, wy, h, _pb);
+  // seit 15.31: Maßstab entlang der Bildwaagerechten der Kamera statt entlang der Welt-X-Achse – bei gedrehter
+  // Kamera (Schulterblick, rechte Maustaste) schrumpften Namen, Balken und Zahlen sonst bis zum Verschwinden
+  const yaw = V3.yaw || 0;
+  if (yaw) v3Project(wx + 32 * Math.cos(yaw), wy - 32 * Math.sin(yaw), h, _pb);
+  else v3Project(wx + 32, wy, h, _pb);
   const dx = _pb.x - _pa.x;
   const k = Math.max(0.05, dx) / 32;
   const r = renderer;
@@ -1376,6 +1418,7 @@ function v3ScreenToWorld(sx, sy) {
   // Figur. Jetzt höchstens 60 Kacheln weit in Blickrichtung. Die normale Kamera schaut steil nach unten (unverändert).
   let t = _ray.y < 0 ? -cam.position.y / _ray.y : Infinity;
   if (v3Shoulder()) t = Math.min(t, 60 / (hyp(_ray.x, _ray.z) || 1));
+  else if (V3.orbit) t = Math.min(t, 90 / (hyp(_ray.x, _ray.z) || 1));
   return { x: (cam.position.x + _ray.x * t) * TILE, y: (cam.position.z + _ray.z * t) * TILE };
 }
 
