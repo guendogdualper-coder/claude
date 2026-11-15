@@ -3009,7 +3009,7 @@ function v3CollectLights() {
     if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: pr.x * U3 + Math.cos(pr.rot || 0) * -0.65, y: 1.0, z: pr.y * U3 + Math.sin(pr.rot || 0) * 0.65, color: '#ff8a3a', power: 0.8, range: 4.5, flicker: 7 });
     if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.0, range: 6.5, flicker: 9 });
     // seit 14.16: Teleportsteine und Kristallpfeiler der Städte mit eigener Form
-    if (pr.type === 'tpstein') lightSpots3.push({ x, y: 0.9, z, color: pr.roof || '#9fd8ff', power: 0.5, range: 3.5, flicker: 1 });
+    if (pr.type === 'tpstein') lightSpots3.push({ x, y: 1.2, z, color: pr.roof || '#9fd8ff', power: 0.9, range: 5.5, flicker: 1 });
     if (pr.type === 'kristallturm') lightSpots3.push({ x, y: 1.8, z: z - 0.25, color: '#b8a8ff', power: 0.45, range: 4, flicker: 1 });
     // Dungeon-Schmuck (seit 13.7): Schrein, Thron und Schatz leuchten
     if (pr.type === 'dshrine' || pr.type === 'dthrone') lightSpots3.push({ x, y: 1.6, z, color: String(pr.roof).split('|')[2], power: 0.8, range: 5.5, flicker: 2 });

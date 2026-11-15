@@ -936,11 +936,16 @@ function townLayoutProps(mp, T) {
   }
   // Pferd und Heu nur auf freiem Stadtboden (nicht auf Mauer, Wasser oder Lava)
   out.push(...stallProps(townPlace(mp.id, 'stallmeister'), true).filter((pr) => '.,_^'.includes(at(Math.floor(pr.x / TILE) - mp.cx, Math.floor(pr.y / TILE) - mp.cy))));
-  for (const s of mp.stones) out.push({ type: 'tpstein', roof: th.stone || TP_STONE_COLOR[mp.id] || '#9fd8ff', x: s.x, y: s.y + 0.5 * TILE });
+  for (const s of mp.stones) out.push({ type: 'tpstein', roof: TP_STONE_COLOR[mp.id] || th.stone || '#9fd8ff', x: s.x, y: s.y + 0.5 * TILE });
   return out;
 }
 // Farbe des Lichts in den Teleportsteinen je Map
-const TP_STONE_COLOR = { 3: '#9fd0ff', 9: '#ffb46a', 10: '#b8a8ff' };
+// seit 15.30 für jede Karte eine kräftige Farbe, die sich vom Boden abhebt (vorher meist blasses Hellblau – auf dem
+// weißen Frostgipfel kaum zu sehen)
+const TP_STONE_COLOR = {
+  1: '#3fb8ff', 2: '#22d6c0', 3: '#5fb0ff', 4: '#ffd23f', 5: '#3fd8ff', 6: '#b25cff', 7: '#d23fff', 8: '#8dff5a', 9: '#3fe0ff', 10: '#ffd060',
+  11: '#ffe45a', 12: '#ff7a2e', 13: '#2ed6cc', 14: '#5ad8ff', 15: '#ff5ad2', 16: '#5affa8'
+};
 // Ist (x, y) (Kacheln) in einer Stadt mit eigener Form ein freier Platz für Schmuck? Begehbarer, sicherer Stadtboden
 // ohne Weg, nicht vor einem Tor, nicht an Treppen und Teleportsteinen
 function townLayoutFree(mapId, x, y) {

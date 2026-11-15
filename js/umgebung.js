@@ -1799,7 +1799,13 @@ function drawWorldObject(ctx, o) {
   if (type === 'tower') for (const lx of [-24, 24]) glow(ctx, o.x + lx, o.y - 62, 11, '#ff8a4a', 0.3);
   // seit 14.16: Kristallpfeiler und Teleportsteine leuchten
   if (type === 'kristallturm') glow(ctx, o.x, o.y - 52, 14, '#b8a8ff', 0.35);
-  if (type === 'tpstein') for (const lx of [-13, 13]) glow(ctx, o.x + lx, o.y - 40, 9, o.prop.roof || '#9fd8ff', 0.35 + 0.1 * Math.sin(game.time * 3 + lx));
+  if (type === 'tpstein') {
+    // seit 15.30 größer: Kristalle auf den Pfeilern, schwebender Kristall und Podest leuchten
+    const tc = o.prop.roof || '#9fd8ff';
+    for (const lx of [-22, 22]) glow(ctx, o.x + lx, o.y - 70, 15, tc, 0.4 + 0.12 * Math.sin(game.time * 3 + lx));
+    glow(ctx, o.x, o.y - 50, 20, tc, 0.4 + 0.15 * Math.sin(game.time * 2.2));
+    glow(ctx, o.x, o.y - 17, 24, tc, 0.3);
+  }
   if (type === 'portal') glow(ctx, o.x, o.y - 24, 22, '#9fd0ff', 0.35 + 0.15 * Math.sin(game.time * 2.5));
   if (type === 'brazier') glow(ctx, o.x, o.y - 30, 34, o.prop.roof || '#ff8a4a', 0.4 + 0.12 * Math.sin(game.time * 9 + o.x));
   // seit 13.91 je nach Haus: rote Laternen am geschwungenen Dach oder die Lampe neben der Tür

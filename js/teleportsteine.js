@@ -136,32 +136,83 @@ if (typeof FX3_TYPES !== 'undefined' && typeof FX3_DRAW !== 'undefined') {
 // --- Aussehen des Steins ----------------------------------------------------------------------------------------
 // 2D: Ursprung ist die Mitte der unteren Kante. Flache Steinplatte, zwei Pfosten links und rechts, oben je ein Kristall
 if (typeof PROP_ART !== 'undefined') {
+  // seit 15.30 deutlich größer und in kräftiger Farbe je Karte (TP_STONE_COLOR): zweistufiges Podest mit leuchtender
+  // Mitte, zwei hohe Pfeiler mit großen Kristallen, dazwischen ein schwebender Kristall und ein Lichtstrahl nach oben
   PROP_ART.tpstein = (ctx, pr) => {
     const col = pr.roof || '#9fd8ff';
-    oval(ctx, 0, -10, 17, 8, '#5e5a56');
-    oval(ctx, 0, -11.5, 15, 6.5, '#8a847c');
-    oval(ctx, 0, -12, 9, 3.6, '#a8a29a');
+    // Lichtstrahl (hinter den Pfeilern)
+    const g = ctx.createLinearGradient(0, -20, 0, -118);
+    g.addColorStop(0, col);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.save();
+    ctx.globalAlpha = 0.38;
+    ctx.fillStyle = g;
+    ctx.fillRect(-9, -118, 18, 100);
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-2.5, -100, 5, 82);
+    ctx.restore();
+    oval(ctx, 0, -12, 29, 13, '#4e4a48');
+    oval(ctx, 0, -14.5, 26, 11, '#7c766e');
+    oval(ctx, 0, -17, 20, 8.5, '#a39d94');
+    oval(ctx, 0, -17.5, 14, 6, col);
+    oval(ctx, 0, -17.5, 8, 3.4, '#ffffff');
     for (const sx of [-1, 1]) {
-      box(ctx, sx * 13 - 3, -34, 6, 24, 1.5, '#7a746c');
-      box(ctx, sx * 13 - 3, -34, 6, 3, 1, '#9a948a');
-      poly(ctx, [[sx * 13 - 3, -34], [sx * 13, -44], [sx * 13 + 3, -34]], col);
-      poly(ctx, [[sx * 13 - 1, -35], [sx * 13, -41], [sx * 13 + 1, -35]], '#ffffff');
+      box(ctx, sx * 22 - 5, -58, 10, 44, 2, '#6c665e');
+      box(ctx, sx * 22 - 6, -60, 12, 5, 1.5, '#948e84');
+      box(ctx, sx * 22 - 5, -40, 10, 3, 1, col);
+      poly(ctx, [[sx * 22 - 5.5, -60], [sx * 22, -80], [sx * 22 + 5.5, -60]], col);
+      poly(ctx, [[sx * 22 - 2, -61], [sx * 22, -74], [sx * 22 + 2, -61]], '#ffffff');
     }
+    // schwebender Kristall in der Mitte
+    poly(ctx, [[0, -66], [7, -50], [0, -34], [-7, -50]], col);
+    poly(ctx, [[0, -66], [-7, -50], [0, -50]], '#ffffff');
   };
-  PROP_BOUNDS.tpstein = { x: -22, y: -50, w: 44, h: 52 };
+  PROP_BOUNDS.tpstein = { x: -34, y: -122, w: 68, h: 126 };
 }
-// 3D: Steinplatte (rund, leicht erhöht), zwei Pfosten mit Kristallspitze, die Kristalle leuchten
+// 3D: zweistufiges rundes Podest mit leuchtender Mitte, zwei Pfeiler mit Deckstein, Leuchtband und großem Kristall,
+// in der Mitte ein schwebender Kristall. Der Lichtstrahl darüber kommt je Bild aus tpStrahl3 (unten).
 if (typeof PROP3 !== 'undefined') {
   PROP3.tpstein = (b, M, pr) => {
     const col = pr.roof || '#9fd8ff';
-    b.add(lathe3('tpplatte', [[0.5, 0], [0.52, 0.04], [0.5, 0.1], [0.42, 0.12], [0, 0.12]], 16), '#8a847c', { parent: M, shade: 0.3, top: '#a8a29a', topK: 0.6 });
+    const hell = lighter(col, 0.4);
+    b.add(lathe3('tppodest', [[0.95, 0], [0.97, 0.05], [0.94, 0.13], [0.74, 0.15], [0.74, 0.24], [0.7, 0.26], [0, 0.26]], 20), '#7c766e', { parent: M, shade: 0.35, top: '#a39d94', topK: 0.6 });
+    b.add(new THREE.CircleGeometry(0.5, 20).rotateX(-Math.PI / 2), col, { parent: M, p: [0, 0.265, 0], mat: 'glow' });
+    b.add(new THREE.CircleGeometry(0.26, 16).rotateX(-Math.PI / 2), hell, { parent: M, p: [0, 0.27, 0], mat: 'glow' });
     for (const sx of [-1, 1]) {
-      b.add(wbox(0.16, 0.62, 0.16, 0.04), '#7a746c', { parent: M, p: [sx * 0.42, 0.42, -0.05], shade: 0.25 });
-      b.add(crystalGeo('body'), col, { parent: M, p: [sx * 0.42, 0.72, -0.05], s: [0.075, 0.16, 0.075], mat: 'glow' });
-      b.add(crystalGeo('tip'), lighter(col, 0.35), { parent: M, p: [sx * 0.42, 0.88, -0.05], s: [0.075, 0.3, 0.075], mat: 'glow' });
+      b.add(wbox(0.26, 1.3, 0.26, 0.05), '#6c665e', { parent: M, p: [sx * 0.74, 0.78, -0.05], shade: 0.3 });
+      b.add(wbox(0.34, 0.12, 0.34, 0.04), '#948e84', { parent: M, p: [sx * 0.74, 1.47, -0.05] });
+      b.add(wbox(0.28, 0.07, 0.28, 0.02), col, { parent: M, p: [sx * 0.74, 0.95, -0.05], mat: 'glow' });
+      b.add(crystalGeo('body'), col, { parent: M, p: [sx * 0.74, 1.66, -0.05], s: [0.13, 0.28, 0.13], mat: 'glow' });
+      b.add(crystalGeo('tip'), hell, { parent: M, p: [sx * 0.74, 1.94, -0.05], s: [0.13, 0.5, 0.13], mat: 'glow' });
     }
-    b.add(new THREE.CircleGeometry(0.2, 12).rotateX(-Math.PI / 2), col, { parent: M, p: [0, 0.125, 0], mat: 'glow' });
+    b.add(crystalGeo('body'), col, { parent: M, p: [0, 1.1, 0], s: [0.17, 0.3, 0.17], mat: 'glow' });
+    b.add(crystalGeo('tip'), hell, { parent: M, p: [0, 1.4, 0], s: [0.17, 0.55, 0.17], mat: 'glow' });
+    b.add(crystalGeo('tip'), hell, { parent: M, p: [0, 0.8, 0], s: [0.17, -0.55, 0.17], mat: 'glow' });
   };
+}
+// Lichtstrahl über jedem Stein in der Nähe (seit 15.30): zwei schmale Lichtwände, die leicht pulsieren – von weitem
+// zu sehen, auch auf dem weißen Frostgipfel. Kein Zeichen am Boden.
+if (typeof FX3_HOOKS !== 'undefined' && typeof fx3Take === 'function') {
+  FX3_HOOKS.push({
+    parts: [],
+    fn(h) {
+      const p = game.player;
+      if (!p || !game.running) return;
+      const t = game.time;
+      for (const s of tpList()) {
+        if (Math.abs(s.x - p.x) > 46 * TILE || Math.abs(s.y - p.y) > 40 * TILE) continue;
+        const col = tpColor(s);
+        const k = 0.5 + 0.5 * Math.sin(t * 2.2 + s.x * 0.01);
+        const o = fx3Take(h, 'wall');
+        fx3Wall(o, s.x, s.y, 0.42, 4.2, 0.26);
+        fx3Color(o, col, 0.2 + 0.08 * k);
+        const c = fx3Take(h, 'wall');
+        fx3Wall(c, s.x, s.y, 0.14, 4.6, 0.26);
+        fx3Color(c, '#ffffff', 0.22 + 0.1 * k);
+      }
+    }
+  });
 }
 
 // --- Große Karte und Minikarte ----------------------------------------------------------------------------------
