@@ -761,6 +761,8 @@ function damagePlayer(amount, attacker, o = {}) {
   const p = game.player;
   const s = game.stats;
   if (p.dead) return;
+  // seit 15.26: solange das Ladebild einer Karte steht, sieht man nichts – dann trifft einen auch nichts
+  if (typeof MAPLOAD !== 'undefined' && MAPLOAD.on) return;
   // In Städten und Lagern gibt es keinen Schaden (außer im Duell) – egal woher er kommt
   if (inVillage(p.x, p.y) && !(attacker && attacker.duelProxy)) return;
   p.lastCombat = game.time;

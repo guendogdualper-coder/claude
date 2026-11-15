@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v353';
+const VERSION = 'seelenstein-v354';
 // Klänge und Musik (snd/, seit 14.8) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
 // sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
 // nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
@@ -50,6 +50,7 @@ const FILES = [
   'js/zeichnen.js',
   'js/lastschutz.js',
   'js/three.min.js',
+  'js/kartenladen.js',
   'js/drei-kern.js',
   'js/grafik-plus.js',
   'js/drei-welt.js',
@@ -163,7 +164,9 @@ const FILES = [
   'bilder/zeiger-hand.svg',
   'bilder/drache-blau.webp',
   'bilder/drache-schwarz.webp',
-  'bilder/drache-weiss.webp'
+  'bilder/drache-weiss.webp',
+  'bilder/lade-licht.webp',
+  'bilder/lade-schatten.webp'
 ];
 
 self.addEventListener('install', (e) => {

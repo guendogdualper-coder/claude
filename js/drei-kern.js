@@ -1430,6 +1430,7 @@ function v3UpdateHome(fx, fy) {
   const rr = regionRect3(fx, fy);
   const key = rr ? rr.key : '';
   if (key === (V3.home ? V3.home.key : '')) return;
+  const oldHome = V3.home;
   if (!rr) V3.home = null;
   else {
     const [rx, ry, rw, rh] = rr.r;
@@ -1443,7 +1444,7 @@ function v3UpdateHome(fx, fy) {
     // die Grundfläche unter der Welt liegt unter der tiefsten Flüssigkeit der Karte (Schlucht, Wolkenmeer)
     if (V3.under) V3.under.position.y = !dungeon && typeof mapFormUnderY === 'function' ? mapFormUnderY(rx, ry) : -0.9;
   }
-  v3ClearChunks();
+  full3Switch(oldHome, V3.home);
 }
 
 function tileSample(x, y, out) {
@@ -2232,6 +2233,123 @@ function* terrainJob(cx, cy) {
 const chunks3 = new Map();
 let chunkJob = null;
 
+// --- Die ganze Karte bleibt geladen (seit 15.26) ------------------------------------------------------------------
+// Vorher wurde nur gebaut, was die Kamera sieht (plus Rand), und alles dahinter wieder verworfen: beim schnellen
+// Reiten oder Fliegen sah man, wie die Welt am Bildrand nachlädt. Jetzt wird beim Betreten einer Karte die ganze Karte
+// gebaut (hinter einem Ladebild, kartenladen.js) und bleibt im Speicher. In der Szene hängen weiterhin nur die Blöcke
+// um die Sichtfläche (chunkKept3) – der Rest liegt fertig bereit und kostet beim Zeichnen nichts.
+// Speicher: eine Karte braucht je nach Grafikstufe 60–250 MB Geometrie. Am PC passt das; am Handy gilt ein Budget
+// (FULL3.budget) – ist es voll, bleiben die Blöcke, die der Figur am nächsten sind (immer noch ein Vielfaches des
+// Bildschirms), und im Hintergrund wird weit außerhalb der Sicht getauscht.
+// Dungeon: die Karte wird beiseitegelegt (stash) und ist beim Verlassen sofort wieder da.
+const FULL3 = { bytes: 0, budget: 0, loading: null, stash: null, done: false, full: false, wait: 0 };
+function full3Budget() {
+  if (IS_PC) return 360e6;
+  const dm = navigator.deviceMemory || 0;
+  return dm && dm <= 3 ? 48e6 : dm && dm <= 4 ? 70e6 : dm >= 8 ? 130e6 : 95e6;
+}
+function chunkBytes3(obj) {
+  let b = 0;
+  obj.traverse((o) => {
+    const g = o.geometry;
+    if (!g || g.shared) return;
+    for (const k in g.attributes) b += g.attributes[k].array.byteLength;
+    if (g.index) b += g.index.array.byteLength;
+  });
+  return b;
+}
+// Block in die Szene hängen oder herausnehmen (er bleibt gebaut)
+function full3Attach(ch, on) {
+  if (ch.on === on) return;
+  ch.on = on;
+  if (on) {
+    V3.terrain.add(ch.terrain);
+    if (ch.objects) V3.objects.add(ch.objects);
+    // Zähler für gpWorldShadows (grafik-plus.js): neue Blöcke bekommen ihre Schattenmarken
+    V3.chunkGen = (V3.chunkGen || 0) + 1;
+  } else {
+    V3.terrain.remove(ch.terrain);
+    if (ch.objects) V3.objects.remove(ch.objects);
+  }
+}
+function full3Evict(ch) {
+  disposeTree(ch.terrain);
+  if (ch.objects) disposeTree(ch.objects);
+  FULL3.bytes -= ch.bytes;
+  chunks3.delete(ch.x + ':' + ch.y);
+  FULL3.done = false;
+}
+// der fernste geladene Block, der nicht zur Sichtfläche gehört
+function full3Far(px, pz) {
+  let far = null;
+  let fd = -1;
+  for (const ch of chunks3.values()) {
+    if (ch.on || chunkKept3(ch.x, ch.y)) continue;
+    const d = chunkGap3(ch.x, ch.y, px, pz);
+    if (d > fd) { fd = d; far = ch; }
+  }
+  return far ? { ch: far, d: fd } : null;
+}
+// nächster Block der Karte, der noch fehlt (Hintergrund); null: alles da oder Speicher voll
+function full3Next(minX, minY, maxX, maxY, px, pz) {
+  if (FULL3.done) return null;
+  if (FULL3.wait > 0) { FULL3.wait--; return null; }
+  let best = null;
+  let bd = 1e9;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      const ch = chunks3.get(x + ':' + y);
+      if (ch && ch.objects) continue;
+      const d = chunkGap3(x, y, px, pz);
+      if (d < bd) { bd = d; best = [x, y, ch]; }
+    }
+  }
+  if (!best) { FULL3.done = true; return null; }
+  if (FULL3.bytes >= FULL3.budget) {
+    // Speicher voll: nur tauschen, wenn der fehlende Block deutlich näher liegt als der fernste geladene
+    const far = full3Far(px, pz);
+    if (!far || far.d < bd + CHUNK3 * 3) { FULL3.wait = 40; FULL3.full = true; return null; }
+    full3Evict(far.ch);
+  }
+  FULL3.full = false;
+  const [x, y, ch] = best;
+  const key = x + ':' + y;
+  return ch ? { key, x, y, part: 'objects', gen: objectJob(x, y), rest: true } : { key, x, y, part: 'terrain', gen: terrainJob(x, y), rest: true };
+}
+// Wechsel der Karte (v3UpdateHome): in den Dungeon → Karte beiseitelegen; zurück auf dieselbe Karte → wieder holen;
+// sonst alles verwerfen und die neue Karte hinter dem Ladebild bauen
+function full3Switch(old, now) {
+  const S = FULL3.stash;
+  chunkJob = null;
+  FULL3.done = false;
+  FULL3.full = false;
+  FULL3.wait = 0;
+  FULL3.budget = full3Budget();
+  if (now && S && S.key === now.key && S.gfx === opts.graphics) {
+    v3ClearChunks(true);
+    for (const ch of S.list) chunks3.set(ch.x + ':' + ch.y, ch);
+    FULL3.bytes = S.bytes;
+    FULL3.stash = null;
+    FULL3.loading = null;
+    return;
+  }
+  if (old && !old.dungeon && now && now.dungeon && chunks3.size) {
+    if (S) for (const ch of S.list) { disposeTree(ch.terrain); if (ch.objects) disposeTree(ch.objects); }
+    const list = [...chunks3.values()];
+    for (const ch of list) full3Attach(ch, false);
+    FULL3.stash = { key: old.key, list, bytes: FULL3.bytes, gfx: opts.graphics };
+    chunks3.clear();
+    FULL3.bytes = 0;
+    return;
+  }
+  if (now && now.dungeon) {
+    v3ClearChunks(true);
+    return;
+  }
+  v3ClearChunks();
+  if (now) FULL3.loading = { t0: performance.now(), key: now.key, shown: false };
+}
+
 // Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
 const _under = {};
 const _underC = new THREE.Color();
@@ -2325,7 +2443,14 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   // Rand ringsum (seit 14.44, vorher nur die Vorausschau) in etwas größeren Scheiben, damit er fertig ist, bevor er ins Bild kommt
   else if (want.some(([x, y, , ahead]) => ahead && !(chunks3.get(x + ':' + y) || {}).objects)) msBudget = Math.max(msBudget, 9);
   // angefangene Arbeit für Blöcke, die gar nicht mehr gebraucht werden, verwerfen
-  if (chunkJob && !chunkKept3(chunkJob.x, chunkJob.y)) chunkJob = null;
+  // (seit 15.26: Hintergrundarbeit weicht, sobald an der Sichtfläche etwas fehlt)
+  const wantOpen = want.some(([x, y]) => !(chunks3.get(x + ':' + y) || {}).objects);
+  if (chunkJob && (chunkJob.rest ? wantOpen : !chunkKept3(chunkJob.x, chunkJob.y))) chunkJob = null;
+  // Hintergrund (seit 15.26): der Rest der Karte, sobald die Sichtfläche fertig ist – hinter dem Ladebild in großen
+  // Scheiben, danach in kleinen; unter Last (viele Monster) fast nichts
+  const L = FULL3.loading;
+  const bg = !H ? 0 : L ? 80 : typeof LOAD !== 'undefined' && LOAD.level ? 1.5 : IS_PC ? 6 : 3.5;
+  let lim = msBudget;
   const t0 = performance.now();
   // seit 14.44: in der großen Scheibe nach einem Sprung nur das Sichtbare, den Rand ringsum danach in kleinen Scheiben
   let big = msBudget > 100;
@@ -2333,7 +2458,7 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
     big = false;
     msBudget = 9;
   }
-  while (performance.now() - t0 < msBudget) {
+  while (performance.now() - t0 < lim) {
     if (!chunkJob) {
       for (const [x, y, , ring] of want) {
         if (big && ring) break;
@@ -2343,49 +2468,87 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
         else if (!ch.objects) chunkJob = { key, x, y, part: 'objects', gen: objectJob(x, y) };
         if (chunkJob) break;
       }
+      if (!chunkJob && bg && !big) {
+        chunkJob = full3Next(minX, minY, maxX, maxY, vcx, vcz);
+        if (chunkJob) lim = Math.max(lim, bg);
+      }
       if (!chunkJob) break;
     }
     const r = chunkJob.gen.next();
     if (!r.done) continue;
     const { key, x, y, part } = chunkJob;
     chunkJob = null;
-    if (!chunkKept3(x, y)) {
-      disposeTree(r.value);
-      continue;
-    }
+    const kept = chunkKept3(x, y);
     if (part === 'terrain') {
-      chunks3.set(key, { terrain: r.value, objects: null, x, y });
-      V3.terrain.add(r.value);
-      V3.chunkGen = (V3.chunkGen || 0) + 1;
+      const old = chunks3.get(key);
+      if (old) full3Evict(old);
+      const ch = { terrain: r.value, objects: null, x, y, on: false, bytes: chunkBytes3(r.value) };
+      chunks3.set(key, ch);
+      FULL3.bytes += ch.bytes;
+      if (kept) full3Attach(ch, true);
     } else {
       const ch = chunks3.get(key);
-      if (!ch) {
+      if (!ch || ch.objects) {
         disposeTree(r.value);
         continue;
       }
       ch.objects = r.value;
-      V3.objects.add(r.value);
-      // seit 14.44: Zähler für gpWorldShadows (grafik-plus.js) – die Anzahl der Blöcke allein bemerkt keinen Tausch
-      V3.chunkGen = (V3.chunkGen || 0) + 1;
+      const b = chunkBytes3(r.value);
+      ch.bytes += b;
+      FULL3.bytes += b;
+      if (ch.on) {
+        V3.objects.add(r.value);
+        // seit 14.44: Zähler für gpWorldShadows (grafik-plus.js) – die Anzahl der Blöcke allein bemerkt keinen Tausch
+        V3.chunkGen = (V3.chunkGen || 0) + 1;
+      }
     }
   }
-  for (const [key, ch] of chunks3) {
-    if (!chunkKept3(ch.x, ch.y)) {
-      disposeTree(ch.terrain);
-      if (ch.objects) disposeTree(ch.objects);
-      chunks3.delete(key);
+  // seit 15.26: Blöcke außerhalb der Sichtfläche bleiben gebaut, hängen aber nicht in der Szene; verworfen wird nur,
+  // wenn der Speicher über dem Budget liegt (die fernsten zuerst)
+  for (const ch of chunks3.values()) full3Attach(ch, chunkKept3(ch.x, ch.y));
+  while (FULL3.bytes > FULL3.budget * 1.1) {
+    const far = full3Far(vcx, vcz);
+    if (!far) break;
+    full3Evict(far.ch);
+  }
+  // Ladebild: bis die Karte steht (oder der Speicher voll ist)
+  if (L) {
+    if (!L.shown) {
+      L.shown = true;
+      if (typeof mapLoadShow === 'function') mapLoadShow(L.key);
+    }
+    if (typeof qualityPause === 'function') qualityPause(1500);
+    let have = 0;
+    for (const ch of chunks3.values()) if (ch.objects) have++;
+    const total = Math.max(1, (maxX - minX + 1) * (maxY - minY + 1));
+    if (typeof mapLoadProgress === 'function') mapLoadProgress(Math.min(1, Math.max(have / total, FULL3.bytes / FULL3.budget)));
+    if (!H || FULL3.done || FULL3.full || performance.now() - L.t0 > 40000) {
+      FULL3.loading = null;
+      if (typeof mapLoadHide === 'function') mapLoadHide();
     }
   }
 }
 
 // Nach einem Wechsel der Grafikstufe alles neu bauen
-function v3ClearChunks() {
+function v3ClearChunks(keepStash) {
   for (const ch of chunks3.values()) {
     disposeTree(ch.terrain);
     if (ch.objects) disposeTree(ch.objects);
   }
   chunks3.clear();
   chunkJob = null;
+  FULL3.bytes = 0;
+  FULL3.done = false;
+  FULL3.wait = 0;
+  if (!FULL3.budget) FULL3.budget = full3Budget();
+  // die beiseitegelegte Karte (Dungeon) gilt nur für diese Grafikstufe und diesen Grafikkontext
+  if (!keepStash && FULL3.stash) {
+    for (const ch of FULL3.stash.list) {
+      disposeTree(ch.terrain);
+      if (ch.objects) disposeTree(ch.objects);
+    }
+    FULL3.stash = null;
+  }
 }
 
 function disposeTree(obj) {
@@ -2465,6 +2628,12 @@ let v3Last = 0;
 // Kamera die Ebene dazu, nach dem Bild wieder weg.
 const SHADOW_LAYER3 = 9;
 function v3RenderScene() {
+  // seit 15.26: hinter dem deckenden Ladebild (kartenladen.js) nur jedes vierte Bild zeichnen – die Zeit gehört dem
+  // Bauen der Karte; ganz aussetzen darf das Zeichnen nicht, sonst kämen Shader und Hochladen erst danach
+  if (FULL3.loading && typeof MAPLOAD !== 'undefined' && MAPLOAD.on && performance.now() - MAPLOAD.since > 400) {
+    V3.loadSkip = (V3.loadSkip || 0) + 1;
+    if (V3.loadSkip % 4) return;
+  }
   const cam = V3.camera;
   const sh = V3.sun && V3.sun.shadow;
   if (sh && !sh.updateMatricesOrig) {

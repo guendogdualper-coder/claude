@@ -178,3 +178,34 @@ Eine Leistungsänderung gilt als fertig, wenn
 - kein Ziel aus Abschnitt 1 schlechter geworden ist,
 - die komplette Testreihe grün ist,
 - im Spiel nichts fehlt, was man zum Spielen braucht (Sichtprüfung im Gedränge mit Bildschirmfoto).
+
+## 5e. Ganze Karte vorladen (15.26)
+
+Wunsch: Die Karte soll komplett geladen sein, wenn man sie betritt – beim schnellen Reiten sah man, wie die Welt am
+Bildrand nachlädt.
+
+Messung (ganze Karte 360 × 220 Kacheln, 400–425 Blöcke, Bauzeit am PC):
+
+| Karte | Grafik | Bauzeit | Geometrie |
+|---|---|---|---|
+| Ödland | Hoch | 1,1 s | 63 MB |
+| Dunkelwald | Hoch | 2,5 s | 253 MB |
+| Dunkelwald | Mittel | 1,7 s | 134 MB |
+| Dunkelwald | Niedrig | 1,5 s | 84 MB |
+| Kazehana | Mittel | 1,5 s | 178 MB |
+
+Umsetzung (`FULL3`, `js/drei-kern.js`):
+
+- Beim Betreten einer Karte werden hinter dem Ladebild (`js/kartenladen.js`) alle Blöcke gebaut, nächste zuerst;
+  hinter dem Ladebild 80 ms je Bild, gezeichnet wird nur jedes vierte Bild.
+- Gebaute Blöcke bleiben im Speicher. In der Szene hängen nur die Blöcke um die Sichtfläche (`chunkKept3`), der Rest
+  kostet beim Zeichnen nichts.
+- Speicherbudget: PC 360 MB; Handy 48 MB (bis 3 GB Arbeitsspeicher), 70 MB (4 GB), 95 MB (unbekannt, z. B. iPhone),
+  130 MB (ab 8 GB). Ist es voll, bleiben die nächsten Blöcke; im Hintergrund wird der fernste gegen einen näheren
+  getauscht, wenn der mindestens drei Blöcke näher liegt (3,5 ms je Bild, unter Last 1,5 ms).
+- Dungeon: die Karte wird beiseitegelegt (`FULL3.stash`) und beim Verlassen ohne Ladebild wieder eingehängt.
+- Solange das Ladebild steht, nimmt die Figur keinen Schaden (`damagePlayer`).
+
+Geprüft: Ritt mit 28 Kacheln je Sekunde über 150 Bilder – kein fehlender Block im Bild; Dungeon hinein und heraus –
+Karte sofort wieder da.
+
