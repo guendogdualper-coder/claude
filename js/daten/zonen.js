@@ -16,6 +16,8 @@ const ZONES = [
   },
   {
     id: 'wiesen', map: 1, name: 'Sonnenwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 24, maxDist: 999,
+    // seit 15.27: das Startgebiet bekommt etwas mehr Gruppen als die anderen Karten (dort überall etwas weniger)
+    mobScale: 1.3,
     ground: 'GRASS', alt: 'MEADOW', trees: 0.006, treeObj: 'TREE', rocks: 0.0024, water: 0.22, liquid: 'WATER',
     groups: [['hund', 11, 0, 0.4], ['wolf', 10, 0.3, 0.8], ['alphawolf', 6, 0.6, 1], ['wildschwein', 6, 0.7, 1], ['fuchs', 6, 0, 0.5], ['hirsch', 5, 0.45, 1]], groupSize: [3, 5],
     stones: [[5, 3, 0.2, 0.7], [10, 2, 0.65, 1]],
@@ -242,6 +244,9 @@ const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
   {
     id: 'sandwueste', map: 2, name: 'Sandschlangenwüste', levels: 'Stufe 30–39', minLevel: 30, minDist: 15, maxDist: 66,
+    // seit 15.27: nur noch 0,22 der Gruppen – der Ring um Sahra ist schmal, dort standen 36 Monster je 1000 Felder
+    // (andere Karten 6–8); Schlangen und Schakale standen dicht an dicht vor dem Tor
+    mobScale: 0.22,
     ground: 'SAND', trees: 0.0036, treeObj: 'DEADTREE', rocks: 0.012, water: 0.1, liquid: 'WATER',
     groups: [['sandviper', 11, 0, 0.6], ['klapperschlange', 10, 0.3, 1], ['kobra', 9, 0.55, 1], ['schakal', 8, 0.1, 0.9]], groupSize: [3, 5],
     stones: [[30, 3, 0, 0.6], [35, 3, 0.4, 1]],

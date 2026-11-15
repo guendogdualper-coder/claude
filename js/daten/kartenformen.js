@@ -114,7 +114,7 @@ const MAP_FORMS = {
   // Schattenklippen · Fjordküste: im Norden das schwarze Meer, tiefe Fjorde schneiden ins Land, Brücken führen über
   // die Mündungen, an der Kante Klippenfelsen. Einer reicht bis in die Stadt (Hafen); draußen das Schwarzmoor.
   16: {
-    form: 'fjorde', void: 'WATER', pond: 'BOG', link: 'stone', townClear: true, minIsland: 60, mobScale: 0.85, cliffRocks: 35, islet: 'trees', wallTree: 'DEADTREE',
+    form: 'fjorde', void: 'WATER', pond: 'BOG', link: 'stone', townClear: true, minIsland: 60, mobScale: 0.7, cliffRocks: 35, islet: 'trees', wallTree: 'DEADTREE',
     gates: { n: false }, ring: { n: 0 }, coast: 22, coastAmp: 12, pools: 30, moorFrom: 72, skerries: 14,
     fjords: [
       { pts: [[262, 8], [254, 60], [262, 121]], w: [14, 8], amp: 6, bridges: [0.42] },

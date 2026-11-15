@@ -227,10 +227,12 @@ const MAX_BLOCK = 0.4;
 // Gold wird mit (Gegenstandsstufe + 1) multipliziert.
 // Seit 13.11 kann schon ab +0 jeder Fehlschlag den Gegenstand zerbrechen (vorher erst ab +7); eine Segensschriftrolle schützt.
 const UPGRADE_STEPS = [
-  { chance: 0.95, gold: 50, splinters: 1, fail: 'break' },
-  { chance: 0.9, gold: 120, splinters: 1, fail: 'break' },
-  { chance: 0.85, gold: 250, splinters: 1, fail: 'break' },
-  { chance: 0.75, gold: 450, splinters: 2, fail: 'break' },
+  // seit 15.27: die ersten vier Stufen verlässlicher (vorher 95 / 90 / 85 / 75 % – zusammen kamen nur 54 % der Teile
+  // ohne Segensschriftrolle auf +4; jetzt 81 %). Ab +4 wie bisher.
+  { chance: 0.99, gold: 50, splinters: 1, fail: 'break' },
+  { chance: 0.97, gold: 120, splinters: 1, fail: 'break' },
+  { chance: 0.94, gold: 250, splinters: 1, fail: 'break' },
+  { chance: 0.9, gold: 450, splinters: 2, fail: 'break' },
   { chance: 0.65, gold: 700, splinters: 2, fail: 'break' },
   { chance: 0.55, gold: 1000, splinters: 3, fail: 'break' },
   { chance: 0.45, gold: 1500, splinters: 3, fail: 'break' },

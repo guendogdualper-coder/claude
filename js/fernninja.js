@@ -522,7 +522,13 @@ MAGE2_REMOTE.bpierce = (rp, sk, d) => later(0.18, () => {
 // rel: Abschuss nach dem Wirken (wie die Salve, BOW_SALVO.first); Flugzeit fly0 + Entfernung / speed;
 // stick/sink: so lange stecken die Splitter, bevor sie einsinken und zu Schatten zerfallen; up: Bogen gehoben (Pose)
 // spike: so lange nach dem Einschlag brechen die Schattendornen aus dem Boden (zweiter Treffer, seit 14.18)
-const BOW_SPLIT = { rel: 0.2, fly0: 0.32, speed: 1150, stick: 1.1, sink: 0.5, up: 0.5, spike: 0.55 };
+// hold (seit 15.27): so lange bleiben die Schattendornen stehen – solange verlangsamen sie, wer im Kreis steht
+const BOW_SPLIT = { rel: 0.2, fly0: 0.32, speed: 1150, stick: 1.1, sink: 0.5, up: 0.5, spike: 0.55, hold: 3.6 };
+// Höhe eines Dorns (0 … 1) tk Sekunden nach seinem Ausbruch: schießt hoch, steht (hold), zieht sich zurück
+function splitSpikeUp(tk) {
+  if (tk < 0 || tk > 0.75 + BOW_SPLIT.hold) return 0;
+  return tk < 0.1 ? tk / 0.1 : tk < 0.45 + BOW_SPLIT.hold ? 1 : 1 - (tk - 0.45 - BOW_SPLIT.hold) / 0.3;
+}
 function splitFlight(ox, oy, x, y) {
   return BOW_SPLIT.fly0 + hyp(x - ox, y - oy) / BOW_SPLIT.speed;
 }
@@ -547,7 +553,7 @@ function splitFx(owner, x, y, sk, seed, local, mul, color, mul2 = 0) {
   const fly = splitFlight(owner.x, owner.y, x, y);
   const hit = BOW_SPLIT.rel + fly;
   addEffect({ type: 'bsplit3', x, y: y + 9, ox: owner.x, oy: owner.y + 9, shooter: owner, rel: BOW_SPLIT.rel, fly, R: sk.radius, seed, rk,
-    color: color || sk.color, dur: hit + BOW_SPLIT.stick + BOW_SPLIT.sink + 0.4 });
+    color: color || sk.color, dur: hit + Math.max(BOW_SPLIT.stick + BOW_SPLIT.sink + 0.4, BOW_SPLIT.spike + BOW_SPLIT.hold + 1.1) });
   const mine = owner === game.player;
   later(hit, () => {
     // Einschlag: dumpfer Schattenschlag und klirrendes Schattenglas
@@ -576,6 +582,16 @@ function splitFx(owner, x, y, sk, seed, local, mul, color, mul2 = 0) {
       if (canLift(m)) m.lift = { start: game.time, dur: 0.25, h: 14 };
     }
   });
+  // seit 15.27: die Dornen bleiben stehen – wer in dieser Zeit im Kreis steht oder hineinläuft, bleibt verlangsamt
+  // (kein weiterer Schaden)
+  if (local && sk.slow) {
+    for (let k = 1; k * 0.5 <= BOW_SPLIT.hold; k++) {
+      later(hit + BOW_SPLIT.spike + k * 0.5, () => {
+        if (owner.dead) return;
+        for (const m of enemiesInCircle(x, y, sk.radius)) if (!m.dead && !m.duelProxy) setSlow(m, 1 - sk.slow.amount, 0.9);
+      });
+    }
+  }
 }
 MAGE2_REMOTE.bsplitter = (rp, sk, d) => {
   if (!isFinite(d.tx) || !isFinite(d.ty)) return;
@@ -722,7 +738,7 @@ function bowSkillStats(sk, lvl, out) {
   }
   if (sk.type === 'bpierce') out.push(['Durchbohrt', ''], ['Linie', String(sk.range)]);
   // seit 14.16 Splitterfalke (Schaden zeigt skillStats): ein Treffer an allen Gegnern im Kreis
-  if (sk.type === 'bsplitter') out.push(['Schattendornen', `danach ${dmg(sk.spikeDmg || 0)} · verlangsamt erneut`], ['Fläche', 'r ' + sk.radius + ' · alle Gegner'], ['Reichweite', String(sk.range)],
+  if (sk.type === 'bsplitter') out.push(['Schattendornen', `danach ${dmg(sk.spikeDmg || 0)} · bleiben ${numDe(BOW_SPLIT.hold)} s stehen und verlangsamen`], ['Fläche', 'r ' + sk.radius + ' · alle Gegner'], ['Reichweite', String(sk.range)],
     ['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`], ['Pfeilverbrauch', String(sk.arrows)]);
   const p = game.player;
   const i = p ? bowArrowSort(p) : -1;
@@ -1809,12 +1825,12 @@ FX3_DRAW.bregen3 = function (h, e) {
       const op = 1 - u * u;
       bowArrow3(h, px, py, pz, _brD, BOW_ARROW_LEN, e.color, op, 0, BOW3.shadow);
       _brA.set(px, py, pz);
-      _brB.set(px - _brD.x * Math.min(L, 2.4), py - _brD.y * Math.min(L, 2.4), pz - _brD.z * Math.min(L, 2.4));
+      _brB.set(px - _brD.x * Math.min(L, 0.9), py - _brD.y * Math.min(L, 0.9), pz - _brD.z * Math.min(L, 0.9));
       const core = fx3Take(h, 'segN');
-      fx3Segment(core, _brB, _brA, 0.03);
-      fx3Color(core, '#1e0c30', 0.7 * op);
+      fx3Segment(core, _brB, _brA, 0.018);
+      fx3Color(core, '#1e0c30', 0.45 * op);
       const gl = fx3Take(h, 'seg');
-      fx3Segment(gl, _brB, _brA, 0.075);
+      fx3Segment(gl, _brB, _brA, 0.06);
       fx3Color(gl, BOW3.violet, 0.4 * op);
       n3Glow(h, px, py, pz, 0.55, BOW3.violet, 0.6 * op);
       if (u < 0.15) n3Glow(h, s0.x, s0.y, s0.z, 1.1 * (1 - u / 0.15) + 0.2, BOW3.violet, 0.7 * (1 - u / 0.15));
@@ -1862,7 +1878,9 @@ FX3_DRAW.bregen3 = function (h, e) {
     if (age < -a.fall || age > stick + BOW_RAIN.sink) continue;
     const gx = a.x * U3;
     const gz = a.y * U3;
-    const len = BOW_ARROW_LEN * (a.big ? 1.35 : 1.15);
+    // seit 15.27: Pfeile in Pfeillänge und mit kurzer Spur (vorher zog jeder einen bis zu 2,4 langen dunklen Strich
+    // hinter sich her – das sah nach Speeren aus)
+    const len = BOW_ARROW_LEN * (a.big ? 1.15 : 1.0);
     const trc = rcol && a.tr < rshare ? rcol : BOW3.violet;
     if (age < 0) {
       // im Fall: Pfeil mit dunklem Kern und leuchtender Spur nach oben
@@ -1874,16 +1892,16 @@ FX3_DRAW.bregen3 = function (h, e) {
       const op = clamp01(u * 5);
       _brD.set(a.dx, a.dy, a.dz);
       bowArrow3(h, px, py, pz, _brD, len, e.color, op, 0, BOW3.shadow);
-      const tl = Math.min(L + 0.3, a.big ? 2.4 : 1.7);
+      const tl = Math.min(L + 0.3, a.big ? 0.8 : 0.6);
       _brA.set(px, py, pz);
       _brB.set(px - a.dx * tl, py - a.dy * tl, pz - a.dz * tl);
       const core = fx3Take(h, 'segN');
-      fx3Segment(core, _brB, _brA, a.big ? 0.04 : 0.028);
-      fx3Color(core, '#1e0c30', 0.75 * op);
+      fx3Segment(core, _brB, _brA, a.big ? 0.022 : 0.016);
+      fx3Color(core, '#1e0c30', 0.4 * op);
       if (!low) {
         const gl = fx3Take(h, 'seg');
-        fx3Segment(gl, _brB, _brA, a.big ? 0.15 : 0.11);
-        fx3Color(gl, trc, 0.5 * op);
+        fx3Segment(gl, _brB, _brA, a.big ? 0.08 : 0.06);
+        fx3Color(gl, trc, 0.38 * op);
         n3Glow(h, px, py, pz, a.big ? 0.6 : 0.42, trc, 0.55 * op);
       }
       continue;
@@ -2248,7 +2266,7 @@ FX3_DRAW.bsplit3 = function (h, e) {
   // (zweiter Treffer, BOW_SPLIT.spike nach dem Einschlag). Schwarzviolette Zacken schießen in Wellen von innen nach
   // außen hoch, stehen kurz, ziehen sich wieder in den Boden zurück; an ihrem Fuß quillt dunkler Rauch.
   const ts = ti - BOW_SPLIT.spike;
-  if (ts > -0.05 && ts < 1.0) {
+  if (ts > -0.05 && ts < 1.0 + BOW_SPLIT.hold) {
     const nS = low ? 9 : 18;
     for (let k = 0; k < nS; k++) {
       const ring = k < 4 ? 0.25 : k < 10 ? 0.6 : 0.9;
@@ -2257,8 +2275,8 @@ FX3_DRAW.bsplit3 = function (h, e) {
       const gx = x + Math.cos(an) * rr;
       const gz = z + Math.sin(an) * rr * 0.9;
       const tk = ts - ring * 0.12; // Welle von innen nach außen
-      if (tk < 0 || tk > 0.75) continue;
-      const up = tk < 0.1 ? easeOut(tk / 0.1) : tk < 0.45 ? 1 : 1 - (tk - 0.45) / 0.3;
+      if (tk < 0 || tk > 0.75 + BOW_SPLIT.hold) continue;
+      const up = tk < 0.1 ? easeOut(tk / 0.1) : splitSpikeUp(tk);
       const s = (1.5 + 1.2 * n2h(k, e.seed + 72)) * (1.1 - ring * 0.3);
       const tilt = 0.18 + 0.2 * n2h(k, e.seed + 73);
       _bspD.set(Math.cos(an) * tilt, 1, Math.sin(an) * tilt).normalize();
@@ -2868,19 +2886,30 @@ EXTRA_EFFECTS.bregen3 = (ctx, e, k, x, y) => {
     if (age < 0) {
       const hh = a.H * 22 * (-age / a.fall);
       const ox = -a.dx * hh * 0.4;
-      ctx.globalAlpha = 0.85;
+      // seit 15.27: kurzer Pfeil mit Spitze und Federn statt eines langen Strichs
+      const tx = ax + ox;
+      const ty = ay - hh;
+      ctx.globalAlpha = 0.4;
       ctx.strokeStyle = trc;
-      ctx.lineWidth = a.big ? 3 : 2;
+      ctx.lineWidth = a.big ? 2 : 1.4;
       ctx.beginPath();
-      ctx.moveTo(ax + ox - a.dx * 14, ay - hh - 26);
-      ctx.lineTo(ax + ox, ay - hh);
+      ctx.moveTo(tx - a.dx * 7, ty - 14);
+      ctx.lineTo(tx - a.dx * 4, ty - 8);
       ctx.stroke();
-      ctx.strokeStyle = '#1e0c30';
-      ctx.lineWidth = 1.2;
+      ctx.globalAlpha = 0.95;
+      ctx.strokeStyle = '#2a1838';
+      ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.moveTo(ax + ox - a.dx * 5, ay - hh - 10);
-      ctx.lineTo(ax + ox, ay - hh);
+      ctx.moveTo(tx - a.dx * 4.5, ty - 9);
+      ctx.lineTo(tx, ty);
       ctx.stroke();
+      ctx.fillStyle = trc;
+      ctx.beginPath();
+      ctx.moveTo(tx + a.dx * 1.2, ty + 2.4);
+      ctx.lineTo(tx - 1.8, ty - 2.2);
+      ctx.lineTo(tx + 1.8, ty - 2.2);
+      ctx.closePath();
+      ctx.fill();
       continue;
     }
     const sink = clamp01((age - BOW_RAIN.stick) / BOW_RAIN.sink);
@@ -2897,7 +2926,15 @@ EXTRA_EFFECTS.bregen3 = (ctx, e, k, x, y) => {
     ctx.lineWidth = 1.8;
     ctx.beginPath();
     ctx.moveTo(ax, ay);
-    ctx.lineTo(ax - a.dx * 10, ay - 12 * (1 - sink * 0.6));
+    ctx.lineTo(ax - a.dx * 7, ay - 9 * (1 - sink * 0.6));
+    ctx.stroke();
+    // Federn am Ende
+    ctx.strokeStyle = trc;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(ax - a.dx * 7 - 1.8, ay - 9 * (1 - sink * 0.6) + 1.5);
+    ctx.lineTo(ax - a.dx * 7, ay - 9 * (1 - sink * 0.6));
+    ctx.lineTo(ax - a.dx * 7 + 1.8, ay - 9 * (1 - sink * 0.6) + 1.5);
     ctx.stroke();
   }
   // Wolke oben: dunkle Ballen, violetter Schimmer
@@ -2983,13 +3020,13 @@ EXTRA_EFFECTS.bsplit3 = (ctx, e, k, x, y) => {
   }
   // Schattendornen (seit 14.18): dunkle Zacken schießen in einer Welle aus dem Boden der Fläche
   const ts = ti - BOW_SPLIT.spike;
-  if (ts > 0 && ts < 0.9) {
+  if (ts > 0 && ts < 0.9 + BOW_SPLIT.hold) {
     ctx.globalCompositeOperation = 'source-over';
     for (let i = 0; i < 16; i++) {
       const ring = i < 4 ? 0.25 : i < 9 ? 0.6 : 0.9;
       const tk = ts - ring * 0.12;
-      if (tk < 0 || tk > 0.75) continue;
-      const up = tk < 0.1 ? tk / 0.1 : tk < 0.45 ? 1 : 1 - (tk - 0.45) / 0.3;
+      if (tk < 0 || tk > 0.75 + BOW_SPLIT.hold) continue;
+      const up = splitSpikeUp(tk);
       const a = n2h(i, e.seed + 70) * Math.PI * 2;
       const d = e.R * ring * (0.75 + 0.35 * n2h(i, e.seed + 71));
       const bx = x + Math.cos(a) * d;

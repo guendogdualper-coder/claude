@@ -54,7 +54,8 @@ function stoneWaveMarks() {
 }
 
 // Anteil der Gruppen aus den Zonendaten (seit 6.8 wieder mehr: weniger Bäume, mehr Tierarten)
-const MOB_DENSITY = 0.95;
+// seit 15.27 überall etwas weniger (0,85 statt 0,95): weniger Gedränge, weniger Last bei vielen Monstern im Bild
+const MOB_DENSITY = 0.85;
 // Die Maps sind seit Version 4.5 deutlich größer: mehr Gruppen und Steine, damit sie nicht leer wirken
 // 10.6: Maps 1,5-mal so groß (360 × 150), seit 10.7 nach oben und unten noch größer (360 × 220):
 // entsprechend mehr Gruppen und Steine, damit es sich füllt
@@ -69,7 +70,9 @@ function populateWorld() {
     if (!zone.groups) continue;
     // seit 14.70: Karten mit eigener Form und weniger begehbarem Land (Inseln, Lichtungen) bekommen etwas weniger
     // Gruppen, damit es nicht zu gedrängt wird (kartenformen.js, MAP_FORMS.mobScale)
-    const fs = typeof mapFormMobScale === 'function' ? mapFormMobScale(zone.map) : 1;
+    // seit 15.27 zusätzlich je Gebiet (zone.mobScale): die Sandwüste ist ein schmaler Ring um Sahra – dort standen
+    // fünfmal so viele Monster je Fläche wie anderswo
+    const fs = (typeof mapFormMobScale === 'function' ? mapFormMobScale(zone.map) : 1) * (zone.mobScale || 1);
     for (const [typeId, count, from, to] of zone.groups) {
       for (let g = Math.max(2, Math.round(count * MOB_DENSITY * WORLD_SCALE_MOBS * fs)); g > 0; g--) {
         const center = randomSpotInZone(zone, from, to);
@@ -1503,8 +1506,16 @@ function updateMonsters(dt) {
         // damit niemand sie vor seinen Augen wieder auftauchen sieht); erst danach kommen sie wieder.
         // Bosse (seit 13.2) kommen nach ihren 10 Minuten immer wieder, auch wenn jemand in der Halle wartet.
         const boss = m.type && (m.type.boss || m.type.raid);
-        if (!m.isStone && !boss && playerNearSpot(m.homeX, m.homeY, 700)) m.respawnAt = game.time + 5;
-        else reviveMonster(m);
+        // seit 15.27 höchstens 50 s lang: stehen dauernd Spieler im Gebiet (Startwiese von Kazehana mit mehreren
+        // Spielern), kam sonst nie wieder etwas – die Karte wirkte leer
+        if (!m.isStone && !boss && playerNearSpot(m.homeX, m.homeY, 700) && game.time - (m.holdFrom || (m.holdFrom = game.time)) < 50) m.respawnAt = game.time + 5;
+        else {
+          const held = !!m.holdFrom;
+          m.holdFrom = 0;
+          reviveMonster(m);
+          // kommt es vor den Augen eines Spielers wieder: kleine Staubwolke statt plötzlichem Auftauchen
+          if (held && typeof particles === 'function') particles(m.x, m.y - 8, { count: 10, color: ['#d8cfc0', '#b8ad9a', '#f0ece4'], speed: [30, 90], life: [0.4, 0.8], size: [2, 4], drag: 3 });
+        }
       }
       continue;
     }

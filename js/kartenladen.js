@@ -36,7 +36,9 @@ function mapLoadShow(key) {
   MAPLOAD.title.textContent = wm ? wm.name : '';
   // Bild der eigenen Seite (auf den gemeinsamen Karten sieht jede Seite ihres)
   const seite = wm && wm.side === 'schatten' ? 'schatten' : wm && wm.side === 'licht' ? 'licht' : typeof myFaction === 'function' ? myFaction() : 'licht';
-  el.style.backgroundImage = `url(bilder/lade-${seite === 'schatten' ? 'schatten' : 'licht'}.webp)`;
+  // zwei Größen (seit 15.27): 1920 × 1080 fürs Handy, 3840 × 2160 für große Bildschirme
+  const gross = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1) > 2000;
+  el.style.backgroundImage = `url(bilder/lade-${seite === 'schatten' ? 'schatten' : 'licht'}${gross ? '-4k' : ''}.webp)`;
   MAPLOAD.bar.style.width = '0';
   clearTimeout(MAPLOAD.timer);
   el.hidden = false;
