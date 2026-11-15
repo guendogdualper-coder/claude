@@ -15,9 +15,11 @@ auf der Schattenseite, in 3D und in 2D. Kein Dekozeug auf begehbarem Boden; nich
 | 15 Nachtfrost | Eisspalten | 15.21: Tiefe aus Eisbänken |
 | 13 Knochenwüste | Treibsand | 15.21: Dünenlinien, wandernde Mulden |
 | 9 Feuerberg | Lava | 15.22: kleine Vulkanschlote mit Glutkrater, Rauch und Funken mitten in der Lava (3D); 2D offen |
-| 6 Ödland, 16 Schattenklippen, 2 Schlangental, 11 Mondfall | Meer, Fluss, Seen | offen: Klippen, Felsen im Wasser, Schilf |
-| 8 Totenmoor, 14 Blutsteppe, 10 Kristallabgrund | Moor, Blutsee, Abgrund | offen: prüfen (sehen schon belebt aus) |
-| 1 Kazehana | – | offen: prüfen |
+| 6 Ödland, 16 Schattenklippen | Meer | 15.23: kantige Felsnadeln mit Brandung im offenen Wasser, Felsbrocken am Ufer (3D und 2D) |
+| 1 Kazehana, 2 Schlangental, 11 Mondfall | Teich, Fluss, See | 15.23: Schilf mit Rohrkolben, Seerosen (Mondfall: leuchtend), Steine; im Fluss Findlinge (3D und 2D) |
+| 8 Totenmoor | Moor | 15.23: dürres Schilf, totes Geäst (3D und 2D) |
+| 14 Blutsteppe | Blutsee | 15.23: dunkle Felszähne (3D und 2D) |
+| 10 Kristallabgrund | Abgrund | offen: prüfen (sieht schon belebt aus) |
 
 ## Technik
 
@@ -28,4 +30,7 @@ auf der Schattenseite, in 3D und in 2D. Kein Dekozeug auf begehbarem Boden; nich
   ohne zusätzliche Dreiecke. „Niedrig“ hat eine einfache Fassung (`fragLow`).
 - Dichter Wald (`formDense3`): Tannenpaare im Abstand von zwei Kacheln (Grafik „Mittel“ drei, „Niedrig“ wie vorher
   sparsam), Farbton der Karte über `tplKulWald`; Waldboden wird in `tileSample` abgedunkelt.
+- Wasserflächen: `KL_WASSER[Karte]` legt fest, was eine Karte bekommt; `klWasserArt(x, y, cfg, tier)` entscheidet je
+  Kachel nach Abstand zum Land (1 Ufer, 2–3 flach, darüber offen) und Kachelwert. 3D backt je Block von 24 × 24
+  Kacheln eine Kulisse (`klWasser3`), 2D malt in `drawShore` in den Bodenblock. Felsnadeln meiden Wahrzeichen.
 - Prüfbilder: `karten/schau.js` (je Karte eine Stelle an der Grenze zur unbegehbaren Fläche, 3D und 2D).

@@ -408,3 +408,317 @@ if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[9] && typeof wzVolcano === 'functi
     }
   };
 }
+
+// --- Wasser, Moor, Blutsee: Ufer und offene Fläche ------------------------------------------------------------
+// Vorher: glatte Fläche bis zum Ufer. Jetzt je Karte, was dorthin gehört: im Meer Felsnadeln mit Brandung und
+// Uferfelsen (Ödland, Schattenklippen), an Fluss, Teich und See Schilf mit Rohrkolben und Seerosen (Kazehana,
+// Schlangental, Mondfall – dort leuchten die Blüten), im Moor dürres Schilf und totes Geäst, im Blutsee dunkle
+// Felszähne. Alles steht in der Flüssigkeit (dort kann niemand laufen) und hat keine Kollision. Welche Kachel was
+// trägt, entscheidet klWasserArt – dieselbe Regel für 3D und 2D.
+const KL_WASSER = {
+  1: { g: 'WATER', reed: ['#5e9a3e', '#6b4426'], pad: ['#4f9a4a', '#f5b8d2'], stone: '#8d8f96' },
+  2: { g: 'WATER', reed: ['#4f8a34', '#5c3a20'], pad: ['#3f8a42', '#f2ecc8'], stone: '#7b7f78', boulder: 1 },
+  6: { g: 'WATER', stack: ['#7a6250', '#a08a70'], stone: '#6e5a4a', foam: '#e6f2f6' },
+  11: { g: 'WATER', reed: ['#5c62ac', '#c2b4ff'], pad: ['#3c4c8c', '#a8dcff'], glow: 1, stone: '#565a82' },
+  16: { g: 'WATER', stack: ['#2c3344', '#3f5a4c'], stone: '#353c4e', foam: '#cfe0ea' },
+  8: { g: 'BOG', reed: ['#7c7642', '#3c2c1c'], snag: '#3a3026' },
+  14: { g: 'BLUTSEE', stack: ['#3a1216', '#641c20'], stone: '#2c0e12', foam: '#93303a' }
+};
+// Abstand einer Flüssigkeitskachel zum Land in Kacheln (1 = direkt am Ufer, max + 1 = weiter draußen)
+function klLandDist(x, y, max) {
+  const w = game.world;
+  for (let r = 1; r <= max; r++) {
+    for (let k = -r; k <= r; k++) {
+      for (const [dx, dy] of [[k, -r], [k, r], [-r, k], [r, k]]) {
+        const xx = x + dx;
+        const yy = y + dy;
+        if (xx < 0 || yy < 0 || xx >= MAP_W || yy >= MAP_H) continue;
+        const i = yy * MAP_W + xx;
+        if (!LIQUID.has(w.ground[i]) || w.deco[i] === DECO.BRIDGE) return r;
+      }
+    }
+  }
+  return max + 1;
+}
+// Was steht auf dieser Kachel? null oder { art, h }: 'schilf' | 'rose' | 'stein' | 'brocken' | 'nadel' | 'ast'
+function klWasserArt(x, y, cfg, tier) {
+  const w = game.world;
+  const i = y * MAP_W + x;
+  if (w.ground[i] !== GROUND[cfg.g] || w.deco[i] === DECO.BRIDGE || w.obj[i] !== OBJ.NONE) return null;
+  const h = townTileHash(x * 7 + 3, y * 5 + 1);
+  const dist = klLandDist(x, y, 3);
+  if (dist === 1) {
+    if (cfg.reed && h % (tier ? 3 : 6) === 0) return { art: 'schilf', h };
+    if (cfg.stone && h % 7 === 1) return { art: 'stein', h };
+    return null;
+  }
+  if (dist === 2) {
+    if (cfg.pad && tier && h % 4 === 0) return { art: 'rose', h };
+    if (cfg.reed && tier && h % 11 === 1) return { art: 'schilf', h };
+    if (cfg.boulder && h % 17 === 2) return { art: 'brocken', h };
+    if (cfg.snag && h % 9 === 3) return { art: 'ast', h };
+    return null;
+  }
+  if (cfg.pad && tier && dist === 3 && h % 9 === 0) return { art: 'rose', h };
+  if (cfg.boulder && h % 29 === 2) return { art: 'brocken', h };
+  if (cfg.snag && h % 37 === 3) return { art: 'ast', h };
+  if (cfg.stack && dist > 3) {
+    // eine Nadel je Feld von 8 × 8 Kacheln, in zwei von drei Feldern
+    const G = 8;
+    const cx = Math.floor(x / G);
+    const cy = Math.floor(y / G);
+    const hc = townTileHash(cx * 11 + 5, cy * 13 + 7);
+    if ((hc >> 8) % 3 && x === cx * G + (hc % G) && y === cy * G + ((hc >> 4) % G)) return { art: 'nadel', h: hc };
+  }
+  return null;
+}
+
+if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
+  const halm = () => geo3('klhalm', () => new THREE.ConeGeometry(0.035, 1, 4).translate(0, 0.5, 0));
+  const kolben = () => geo3('klkolben', () => new THREE.CylinderGeometry(0.05, 0.05, 0.22, 5));
+  const blatt = () => geo3('klblatt', () => new THREE.CylinderGeometry(1, 1, 0.02, 8, 1, false, 0.5, 5.6));
+  const ast = () => geo3('klast', () => new THREE.CylinderGeometry(0.025, 0.07, 1, 5).translate(0, 0.5, 0));
+  const LV = -0.14; // Höhe der Wasseroberfläche (LIQUID3, Vorgabe)
+  // Felsnadel: kantige, nach oben schmalere Säule mit schiefer, gebrochener Spitze (flach schattiert, drei Formen)
+  const nadel = (v) => geo3('klnadel' + v, () => {
+    const g = new THREE.CylinderGeometry(0.36, 1, 1, 7, 4).translate(0, 0.5, 0);
+    const P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i);
+      const y = P.getY(i);
+      const z = P.getZ(i);
+      const rr = Math.sqrt(x * x + z * z);
+      const j = (n) => Math.sin(x * 12.9 + y * 78.2 + z * 37.7 + v * 5.3 + n * 2.1);
+      const k = rr < 0.01 ? 0 : 1; // Mitte der Deckel bleibt in der Achse
+      P.setXYZ(i, x + k * j(1) * 0.11 + y * y * 0.16 * Math.sin(v * 2.4), y + (y > 0.01 ? j(2) * 0.06 : 0) + (y > 0.99 ? (rr < 0.01 ? 0.12 : j(4) * 0.1) : 0), z + k * j(3) * 0.11 + y * y * 0.16 * Math.cos(v * 2.4));
+    }
+    const ng = g.toNonIndexed();
+    ng.computeVertexNormals();
+    return ng;
+  });
+  const klWasser3 = (wm, T) => {
+    const cfg = KL_WASSER[wm.id];
+    const [rx, ry, rw, rh] = wm.region;
+    const town = wzTown(wm);
+    // Stellen der Wahrzeichen (Leuchtturm, Wrack …): dort keine Felsnadeln
+    const taken = WZ.sites.map((s) => [s.position.x, s.position.z]);
+    KL_INFO.vents.length = 0;
+    const B = 24;
+    for (let by = ry + 1; by < ry + rh - 1; by += B) for (let bx = rx + 1; bx < rx + rw - 1; bx += B) {
+      let b = null;
+      const cx = bx + B / 2;
+      const cz = by + B / 2;
+      for (let y = by; y < Math.min(by + B, ry + rh - 1); y++) for (let x = bx; x < Math.min(bx + B, rx + rw - 1); x++) {
+        if (Math.max(Math.abs(x - town.cx), Math.abs(y - town.cy)) < town.H + 2) continue;
+        const a = klWasserArt(x, y, cfg, T.tier);
+        if (!a) continue;
+        const h = a.h;
+        const ox = x + 0.5 - cx;
+        const oz = y + 0.5 - cz;
+        const f = (n, m) => ((h >>> n) % m) / m; // 0 … 1 aus dem Kachelwert
+        if (a.art === 'nadel') {
+          let frei = true;
+          for (const [sx, sz] of taken) if (Math.abs(sx - x) < 9 && Math.abs(sz - y) < 9) { frei = false; break; }
+          if (!frei) continue;
+          KL_INFO.vents.push([x, y]);
+        }
+        if (!b) b = new Bake3();
+        if (a.art === 'schilf') {
+          const n = 4 + (h % 3);
+          for (let k = 0; k < n; k++) {
+            const hk = townTileHash(h + k * 31, k * 7 + 1);
+            const px = ox + ((hk % 100) / 100 - 0.5) * 0.7;
+            const pz = oz + (((hk >> 7) % 100) / 100 - 0.5) * 0.7;
+            const hh = 0.6 + ((hk >> 14) % 10) * 0.055;
+            const rot = [(((hk >> 3) % 9) - 4) * 0.035, 0, (((hk >> 11) % 9) - 4) * 0.035];
+            b.add(halm(), cfg.reed[0], { p: [px, LV - 0.08, pz], r: rot, s: [1, hh, 1], shade: 0.3 });
+            if (k < 2) b.add(kolben(), cfg.reed[1], { p: [px + rot[2] * -hh * 0.8, LV - 0.08 + hh * 0.8, pz + rot[0] * hh * 0.8], r: rot, mat: cfg.glow ? 'glow' : 'lit' });
+          }
+        } else if (a.art === 'rose') {
+          const n = 1 + (h % 3);
+          for (let k = 0; k < n; k++) {
+            const hk = townTileHash(h + k * 17, k * 5 + 2);
+            const px = ox + ((hk % 100) / 100 - 0.5) * 0.75;
+            const pz = oz + (((hk >> 7) % 100) / 100 - 0.5) * 0.75;
+            const s = 0.15 + ((hk >> 14) % 6) * 0.022;
+            b.add(blatt(), cfg.pad[0], { p: [px, LV + 0.012, pz], r: [0, (hk % 63) / 10, 0], s: [s, 1, s] });
+            if (k === 0 && h % 3 === 0) b.add(rockGeo(1, 0), cfg.pad[1], { p: [px, LV + 0.05, pz], s: [0.07, 0.09, 0.07], mat: cfg.glow ? 'glow' : 'lit' });
+          }
+        } else if (a.art === 'stein') {
+          const s = 0.2 + f(4, 8) * 0.2;
+          b.add(rockGeo(h % 6, 0), cfg.stone, { p: [ox + (f(8, 9) - 0.5) * 0.5, LV - 0.02, oz + (f(12, 9) - 0.5) * 0.5], r: [0, f(2, 63) * 6.3, 0], s: [s * 1.2, s * 1.1, s], shade: 0.3 });
+        } else if (a.art === 'brocken') {
+          const s = 0.42 + f(4, 8) * 0.3;
+          b.add(rockGeo(h % 6, 1), cfg.stone, { p: [ox, LV - 0.02, oz], r: [0, f(2, 63) * 6.3, 0], s: [s * 1.25, s * 0.9, s], shade: 0.3 });
+          if (cfg.pad) b.add(rockGeo((h + 2) % 6, 0), cfg.reed[0], { p: [ox, LV + s * 0.36, oz], s: [s * 0.8, 0.05, s * 0.6] });
+        } else if (a.art === 'ast') {
+          const hh = 0.9 + f(4, 8) * 0.8;
+          const rot = [(f(8, 9) - 0.5) * 0.7, f(2, 63) * 6.3, (f(12, 9) - 0.5) * 0.7];
+          b.add(ast(), cfg.snag, { p: [ox, LV - 0.1, oz], r: rot, s: [1.3, hh, 1.3] });
+          b.add(ast(), cfg.snag, { p: [ox + rot[2] * -0.4 * hh, LV - 0.1 + hh * 0.55, oz + rot[0] * 0.4 * hh], r: [rot[0] + 0.9, rot[1], rot[2] - 0.6], s: [0.8, hh * 0.45, 0.8] });
+        } else if (a.art === 'nadel') {
+          const R = 0.62 + f(4, 8) * 0.4;
+          const H = 2.3 + f(9, 8) * 2.2;
+          const ry0 = f(2, 63) * 6.3;
+          // Hauptsäule und ein bis zwei angelehnte, niedrigere daneben
+          b.add(nadel(h % 3), cfg.stack[0], { p: [ox, LV - 0.25, oz], r: [0, ry0, 0], s: [R, H, R], top: cfg.stack[1], topK: 0.6, shade: 0.45 });
+          const m = 1 + ((h >> 6) % 2);
+          for (let k = 0; k < m; k++) {
+            const an = ry0 + 1.2 + k * 2.6;
+            const r1 = R * (0.62 - k * 0.12);
+            b.add(nadel((h + 1 + k) % 3), cfg.stack[0], { p: [ox + Math.cos(an) * R * 0.85, LV - 0.25, oz + Math.sin(an) * R * 0.85], r: [0, an + 0.8, 0], s: [r1, H * (0.62 - k * 0.18), r1], top: cfg.stack[1], topK: 0.6, shade: 0.45 });
+          }
+          if (T.tier) {
+            const n = 2 + (h % 3);
+            for (let k = 0; k < n; k++) {
+              const hk = townTileHash(h + k * 41, k * 3 + 9);
+              const an = ry0 + k * 2.2 + (hk % 10) * 0.1;
+              const dd = R + 0.25 + ((hk >> 5) % 6) * 0.13;
+              const r2 = 0.28 + ((hk >> 9) % 6) * 0.06;
+              b.add(rockGeo(hk % 6, 0), cfg.stack[0], { p: [ox + Math.cos(an) * dd, LV - 0.15, oz + Math.sin(an) * dd], r: [0, an, 0], s: [r2, r2 * (1.6 + ((hk >> 13) % 5) * 0.5), r2 * 0.9], top: cfg.stack[1], topK: 0.4, shade: 0.4 });
+            }
+            // Brandung: flache helle Schaumflecken am Fuß, unregelmäßig verteilt
+            for (let k = 0; k < 5; k++) {
+              const hk = townTileHash(h + k * 13, k * 11 + 4);
+              const an = k * 1.3 + (hk % 10) * 0.08;
+              const dd = R * 0.95 + ((hk >> 5) % 6) * 0.1;
+              b.add(rockGeo(hk % 6, 0), cfg.foam, { p: [ox + Math.cos(an) * dd, LV + 0.01, oz + Math.sin(an) * dd], r: [0, an + 1.57, 0], s: [0.34 + ((hk >> 9) % 5) * 0.06, 0.02, 0.15], ao: 0 });
+            }
+          }
+        }
+      }
+      if (b) wzBake(wzSite(cx, cz, 72), b);
+    }
+  };
+  for (const id in KL_WASSER) {
+    const base = WZ_MAPS[id];
+    WZ_MAPS[id] = (wm, T) => {
+      if (base) base(wm, T);
+      klWasser3(wm, T);
+    };
+  }
+}
+
+// dasselbe in 2D, fest in den Bodenblock gemalt (bleibt innerhalb der Kachel)
+if (typeof drawShore === 'function') {
+  const baseShore4 = drawShore;
+  drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
+    baseShore4(ctx, x, y, px, py, g);
+    const wm = mapOfTile(x, y);
+    const cfg = wm && KL_WASSER[wm.id];
+    if (!cfg || g !== GROUND[cfg.g]) return;
+    if (Math.max(Math.abs(x - wm.cx), Math.abs(y - wm.cy)) < townLayoutHalf(wm.id) + 2) return;
+    const a = klWasserArt(x, y, cfg, 1);
+    if (!a) return;
+    const h = a.h;
+    const mx = px + TILE / 2;
+    const my = py + TILE / 2;
+    ctx.save();
+    ctx.lineCap = 'round';
+    if (a.art === 'schilf') {
+      const n = 5 + (h % 3);
+      for (let k = 0; k < n; k++) {
+        const hk = townTileHash(h + k * 31, k * 7 + 1);
+        const bx = px + 5 + (hk % 22);
+        const by = py + 14 + ((hk >> 7) % 14);
+        const hh = 9 + ((hk >> 14) % 7);
+        const lean = (((hk >> 3) % 7) - 3) * 0.8;
+        ctx.strokeStyle = cfg.glow ? cfg.reed[1] : cfg.reed[0];
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(bx + lean * 0.4, by - hh * 0.6, bx + lean, by - hh);
+        ctx.stroke();
+        if (k < 2) {
+          ctx.strokeStyle = cfg.reed[1];
+          ctx.lineWidth = 2.6;
+          ctx.beginPath();
+          ctx.moveTo(bx + lean * 0.8, by - hh * 0.8);
+          ctx.lineTo(bx + lean, by - hh - 1);
+          ctx.stroke();
+        }
+      }
+    } else if (a.art === 'rose') {
+      const n = 1 + (h % 3);
+      for (let k = 0; k < n; k++) {
+        const hk = townTileHash(h + k * 17, k * 5 + 2);
+        const cx = px + 6 + (hk % 20);
+        const cy = py + 6 + ((hk >> 7) % 20);
+        const r = 3.4 + ((hk >> 14) % 3) * 0.7;
+        const an = (hk % 63) / 10;
+        ctx.fillStyle = cfg.pad[0];
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.ellipse(cx, cy, r, r * 0.72, 0, an, an + 5.6);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.22)';
+        ctx.lineWidth = 0.7;
+        ctx.stroke();
+        if (k === 0 && h % 3 === 0) {
+          ctx.fillStyle = cfg.pad[1];
+          ctx.beginPath();
+          ctx.arc(cx, cy - 0.5, 1.7, 0, 6.3);
+          ctx.fill();
+        }
+      }
+    } else if (a.art === 'ast') {
+      ctx.strokeStyle = cfg.snag;
+      ctx.lineWidth = 2.2;
+      const lean = ((h >> 8) % 9) - 4;
+      ctx.beginPath();
+      ctx.moveTo(mx, my + 8);
+      ctx.lineTo(mx + lean, my - 9);
+      ctx.moveTo(mx + lean * 0.5, my - 1);
+      ctx.lineTo(mx + lean * 0.5 + (lean >= 0 ? 6 : -6), my - 6);
+      ctx.stroke();
+    } else {
+      // Stein, Brocken, Felsnadel: dunkler Fuß, Körper, helle Kuppe; Nadel mit Brandung
+      const r = a.art === 'stein' ? 4 + ((h >> 4) % 3) : a.art === 'brocken' ? 8 + ((h >> 4) % 3) : 10 + ((h >> 4) % 4);
+      const col = a.art === 'nadel' ? cfg.stack[0] : cfg.stone;
+      const cx = a.art === 'stein' ? px + 8 + ((h >> 8) % 16) : mx;
+      const cy = a.art === 'stein' ? py + 8 + ((h >> 12) % 16) : my + (a.art === 'nadel' ? 3 : 1);
+      if (a.art === 'nadel') {
+        ctx.fillStyle = cfg.foam;
+        ctx.globalAlpha = 0.7;
+        for (let k = 0; k < 5; k++) {
+          const an = k * 1.3 + (h % 10) * 0.08;
+          ctx.beginPath();
+          ctx.ellipse(cx + Math.cos(an) * r * 1.05, cy + 2 + Math.sin(an) * r * 0.55, 3.6, 1.5, an, 0, 6.3);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + r * 0.35, r, r * 0.5, 0, 0, 6.3);
+      ctx.fill();
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      if (a.art === 'nadel') {
+        ctx.moveTo(cx - r, cy + 3);
+        ctx.lineTo(cx - r * 0.55, cy - r * 0.9);
+        ctx.lineTo(cx - r * 0.1, cy - r * 1.35);
+        ctx.lineTo(cx + r * 0.5, cy - r * 0.8);
+        ctx.lineTo(cx + r, cy + 3);
+        ctx.closePath();
+      } else {
+        ctx.ellipse(cx, cy, r, r * 0.72, 0, 0, 6.3);
+      }
+      ctx.fill();
+      ctx.fillStyle = a.art === 'nadel' ? cfg.stack[1] : 'rgba(255,255,255,0.2)';
+      ctx.beginPath();
+      if (a.art === 'nadel') {
+        ctx.moveTo(cx - r * 0.55, cy - r * 0.9);
+        ctx.lineTo(cx - r * 0.1, cy - r * 1.35);
+        ctx.lineTo(cx + r * 0.5, cy - r * 0.8);
+        ctx.lineTo(cx - r * 0.05, cy - r * 0.55);
+        ctx.closePath();
+      } else {
+        ctx.ellipse(cx - r * 0.2, cy - r * 0.25, r * 0.55, r * 0.3, 0, 0, 6.3);
+      }
+      ctx.fill();
+    }
+    ctx.restore();
+  };
+}
