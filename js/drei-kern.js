@@ -1514,6 +1514,13 @@ function tileSample(x, y, out) {
   const c = pal[g][g === GROUND.PATH || g === GROUND.PLAZA || g === GROUND.FLAGSTONE ? Math.min(7, (w.shade[i] >> 6) + 3) : w.shade[i] >> 5];
   out.r = c[0]; out.g = c[1]; out.b = c[2];
   out.soil = SOIL3[g] == null ? -1 : SOIL3[g];
+  // seit 15.20: Waldboden im dichten Wald der Kartenformen (Dunkelwald, Aschewald) – unter dem geschlossenen
+  // Kronendach dunkel, zum Waldrand hin heller
+  const dn = typeof formDense3 === 'function' ? formDense3(i) : 0;
+  if (dn) {
+    const k = dn === 1 ? 0.55 : dn === 2 ? 0.66 : 0.84;
+    out.r *= k * 0.96; out.g *= k; out.b *= k * 0.9;
+  }
   return out;
 }
 
@@ -1947,6 +1954,7 @@ function liquidMat(kind) {
         varying float vDepth;
         varying vec3 vW;
         #include <fog_pars_fragment>
+        ${P.pre || ''}
         void main() {
           float d = clamp(vDepth / 0.36, 0.0, 1.0);
           vec2 p = vW.xz;

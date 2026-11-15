@@ -2551,6 +2551,16 @@ const tplKul = (B, part, v, alt) => bakeTemplate(`kul:${B.id}:${part}:${v}:${alt
   F[part](far, v, T, alt);
 });
 
+// seit 15.20: Tannenpaar im Farbton der Karte (B.far) – die Tannenkulisse kennt sonst nur Grün; im Aschewald standen
+// im Waldinneren grüne Tannen hinter den verkohlten des Waldrands
+const tplKulTon = (B, v) => bakeTemplate(`kulton:${B.id}:${v}`, (b) => {
+  const base = new THREE.Color(B.far);
+  const T = (hex) => base.clone().lerp(new THREE.Color(hex), 0.1).multiplyScalar(1.12);
+  const far = { add: (g, c, o = {}) => b.add(g, c, Object.assign({}, o, { mat: o.mat || 'far' })) };
+  KUL3_FORM.tannen.wand(far, v, T);
+});
+const tplKulWald = (B, v) => (B !== BORDER3.wald && B.far ? tplKulTon(B, v) : tplKul(B, 'wand', v, false));
+
 // Ausrichtung je Seite (0 Nord, 1 Süd, 2 West, 3 Ost): Vorderseite (lokal +z) zur Map, Richtung nach außen
 const KUL3_ROT = [0, Math.PI, Math.PI / 2, -Math.PI / 2];
 const KUL3_NX = [0, 0, -1, 1];
@@ -2686,22 +2696,37 @@ function* objectJob(cx, cy) {
         // zweiten Reihe vom Waldrand auf jeder vierten Kachel ein kleineres Tannenpaar
         const dense = typeof formDense3 === 'function' ? formDense3(i) : 0;
         // seit 14.73: Tannenkulisse des Gebiets, wo es eine hat (verkohlte Tannen im Aschewald), sonst die des Dunkelwalds
-        const DK = dense && BORDER3[ZONES[w.zoneIdx[i]].id] && BORDER3[ZONES[w.zoneIdx[i]].id].form === 'tannen' ? BORDER3[ZONES[w.zoneIdx[i]].id] : BORDER3.wald;
+        // seit 15.20: zuerst die Kulisse der Karte, auf der man steht (im Waldinneren gehört die Kachel nicht immer zum
+        // Gebiet des Waldes – im Aschewald standen dort sonst grüne Tannen zwischen den verkohlten)
+        const HB = V3.home && V3.home.B;
+        const ZB = dense ? BORDER3[ZONES[w.zoneIdx[i]].id] : null;
+        const DK = dense && HB && HB.form === 'tannen' ? HB : ZB && ZB.form === 'tannen' ? ZB : BORDER3.wald;
+        // seit 15.20: das Waldinnere ist geschlossen. Vorher stand dort nur auf jeder 16. Kachel ein großes, blasses
+        // Tannenpaar auf freier grüner Fläche („zwischen den Bäumen ist nur was Grünes“). Jetzt Tannenpaare im Abstand
+        // von zwei Kacheln (Grafik „Mittel“: drei) in wechselnder Höhe, der Boden darunter dunkel (tileSample);
+        // auf „Niedrig“ bleibt es bei der sparsamen Fassung.
+        const dq = opts.graphics === 'niedrig' ? 0 : opts.graphics === 'mittel' ? 3 : 2;
         if (dense === 1) {
-          if (x % 4 || y % 4) continue;
-          b.addTemplate(tplKul(DK, 'fern', h % 3, false), kulAt(x + 2 + jx * 6, y + 2 + jz * 6, rot, 1.0 + ((h >> 12) % 12) / 100, 0.62, -0.1));
+          if (!dq) {
+            if (x % 4 || y % 4) continue;
+            b.addTemplate(tplKul(DK, 'fern', h % 3, false), kulAt(x + 2 + jx * 6, y + 2 + jz * 6, rot, 1.0 + ((h >> 12) % 12) / 100, 0.62, -0.1));
+            continue;
+          }
+          if (x % dq || y % dq) continue;
+          const hs = (h >> 12) % 40;
+          b.addTemplate(tplKulWald(DK, h % 3), kulAt(x + dq / 2 + jx * dq * 1.6, y + dq / 2 + jz * dq * 1.6, rot, (dq === 3 ? 0.72 : 0.5) + hs / 130, 0.66 + (hs % 7) * 0.03, -0.1));
           continue;
         }
         if (dense === 2) {
           if ((x | y) & 1) continue;
-          b.addTemplate(tplKul(DK, 'wand', h % 3, false), kulAt(x + 1 + jx * 4, y + 1 + jz * 4, rot, 0.55 + ((h >> 12) % 10) / 100, 0.72, -0.1));
+          b.addTemplate(tplKulWald(DK, h % 3), kulAt(x + 1 + jx * 4, y + 1 + jz * 4, rot, 0.55 + ((h >> 12) % 10) / 100, 0.72, -0.1));
           continue;
         }
         // Waldrand: auf Grafik „mittel“ und „niedrig“ (Handy) auf jeder zweiten Kachel ein Tannenpaar der Randkulisse
         // statt eines Baums je Kachel (die Kacheln bleiben gesperrt)
         if (dense === 3 && (opts.graphics === 'mittel' || opts.graphics === 'niedrig')) {
           if ((x + y) & 1) continue;
-          b.addTemplate(tplKul(DK, 'wand', h % 3, false), kulAt(x + 0.5 + jx, y + 0.55 + jz, rot, 0.5 + ((h >> 12) % 10) / 100, 0.7, -0.1));
+          b.addTemplate(tplKulWald(DK, h % 3), kulAt(x + 0.5 + jx, y + 0.55 + jz, rot, 0.5 + ((h >> 12) % 10) / 100, 0.7, -0.1));
           continue;
         }
         b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
