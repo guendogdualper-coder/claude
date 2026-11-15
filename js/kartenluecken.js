@@ -13,10 +13,8 @@
 //   3. oben, knapp unter den Inseln, einzelne Wolkenballen mit heller Sonnenseite und blaugrauer Schattenseite;
 //      sie werfen Schatten auf die Schicht darunter und türmen sich an den Felsen.
 // Zwischen den Ballen sieht man hinunter ins Blaue – man steht sichtbar hoch oben im Himmel.
-if (typeof LIQUID3 !== 'undefined' && LIQUID3.clouds) {
-  Object.assign(LIQUID3.clouds, {
-    shallow: '#ffffff', deep: '#8ea6d0', foam: '#ffffff', alpha: 1, level: -3.2,
-    pre: `
+// Rauschen für die Flächen-Shader (LIQUID3.<art>.pre): Wertrauschen und drei Oktaven davon
+const KL_NOISE = `
         float wkH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
         float wkN(vec2 p) {
           vec2 i = floor(p);
@@ -31,7 +29,11 @@ if (typeof LIQUID3 !== 'undefined' && LIQUID3.clouds) {
           p = p * 2.01 + vec2(5.7, 23.9);
           s += 0.125 * wkN(p);
           return s / 0.875;
-        }`,
+        }`;
+if (typeof LIQUID3 !== 'undefined' && LIQUID3.clouds) {
+  Object.assign(LIQUID3.clouds, {
+    shallow: '#ffffff', deep: '#8ea6d0', foam: '#ffffff', alpha: 1, level: -3.2,
+    pre: KL_NOISE,
     frag: `
           vec3 vd = normalize(vW - cameraPosition);
           vec2 par = vd.xz / max(0.3, -vd.y);
@@ -223,4 +225,149 @@ if (typeof drawShore === 'function') {
     if (land(-1, 0)) ctx.fillRect(px, py, 1.4, TILE + 0.6);
     if (land(1, 0)) ctx.fillRect(px + TILE - 1, py, 1.6, TILE + 0.6);
   };
+}
+
+// --- Schluchten (Rostschlucht, Donnerklamm, Klüfte im Aschewald): echte Tiefe --------------------------------
+// Vorher: eine flache dunkelbraune Fläche mit etwas Dunst. Jetzt sieht man in die Schlucht hinein: sechs Felsstufen
+// liegen in wachsender Tiefe (jede wird entlang des Blickstrahls weiter verschoben – beim Laufen schieben sich die
+// Terrassen gegeneinander), oben hell mit Schichtfugen und hellem Rand, nach unten dunkler und im Dunst; ganz unten
+// windet sich ein schmaler Fluss. An den Wänden reichen die Stufen höher. Die Felsfarbe geht mit der Stimmung der
+// Karte (Rost in der Rostschlucht, graublau in der Donnerklamm, aschgrau im Aschewald).
+// Blick in die Tiefe (Schlucht, Eisspalte): Felsstufen in sechs Tiefen, unten ein Wasserlauf
+const KL_TIEFE = `
+          vec3 vd = normalize(vW - cameraPosition);
+          vec2 par = vd.xz / max(0.3, -vd.y);
+          vec3 rockHi = uShallow * 1.35;
+          vec3 rockLo = uDeep;
+          vec3 col = rockLo * 0.5;
+          float lev = 6.0;
+          for (int k = 0; k < 6; k++) {
+            float fk = float(k);
+            vec2 pk = p + par * (0.8 + fk * 2.6);
+            float h = wkF(pk * 0.085) + (1.0 - d) * 0.12 * (1.0 - fk / 6.0);
+            float thr = 0.80 - fk * 0.085;
+            if (h > thr) {
+              lev = fk;
+              float edge = smoothstep(thr + 0.05, thr, h);
+              float strata = 0.5 + 0.5 * sin(h * 70.0 + pk.x * 0.6);
+              col = mix(rockHi, rockLo, fk / 5.5) * (0.82 + 0.14 * strata + 0.24 * edge);
+              break;
+            }
+          }
+          if (lev > 5.5) {
+            vec2 pb = p + par * 17.0;
+            float river = smoothstep(0.035, 0.012, abs(wkF(pb * 0.03 + 3.7) - 0.5));
+            col = mix(col, mix(vec3(0.16, 0.30, 0.34), uSky * 0.6, 0.4), river);
+            col += river * smoothstep(0.75, 1.0, sin(pb.x * 3.0 + pb.y * 2.0 + t * 1.5)) * 0.10;
+          }
+          col = mix(col, mix(uShallow, uSky, 0.25) * 0.5, lev / 6.0 * 0.3);
+          vec2 dq = p * 2.6 + vec2(t * 0.25, t * 0.06);
+          float dh = fract(sin(dot(floor(dq), vec2(41.3, 289.1))) * 43758.5453);
+          col += uFoam * smoothstep(0.12, 0.0, length(fract(dq) - 0.5)) * step(0.9, dh) * 0.14;
+          col = mix(col, col * 0.6, uNight * 0.5);
+          float alpha = 1.0;`;
+if (typeof LIQUID3 !== 'undefined' && LIQUID3.kluft) {
+  Object.assign(LIQUID3.kluft, {
+    pre: KL_NOISE,
+    frag: KL_TIEFE,
+    fragLow: `
+          vec3 vd = normalize(vW - cameraPosition);
+          vec2 par = vd.xz / max(0.3, -vd.y);
+          float h1 = wkN((p + par * 1.5) * 0.17) * 0.7 + wkN((p + par * 1.5) * 0.4) * 0.3;
+          float h2 = wkN((p + par * 8.0) * 0.17 + 5.0);
+          vec3 col = uDeep * 0.6;
+          col = mix(col, mix(uShallow, uDeep, 0.6), step(0.5, h2));
+          col = mix(col, uShallow * 1.2, step(0.62, h1 + (1.0 - d) * 0.12));
+          col = mix(col, col * 0.6, uNight * 0.5);
+          float alpha = 1.0;`
+  });
+}
+
+// Schlucht in 2D: Felsstufen vom Rand zur Mitte dunkler (je Kachel nach dem Abstand zum Land), mit Schichtfugen;
+// in der Tiefe hier und da ein Stück Fluss. Fest in den Bodenblock gemalt.
+if (typeof drawShore === 'function') {
+  const baseShore3 = drawShore;
+  const KL_STUFE = ['#8a5434', '#6a3e26', '#4c2a1a', '#341c12'];
+  drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
+    if (g !== GROUND.KLUFT) return baseShore3(ctx, x, y, px, py, g);
+    const h = tileHash(x, y);
+    // Abstand zum Land (1 … 4, darüber Tiefe)
+    let dist = 5;
+    for (let r = 1; r <= 4 && dist === 5; r++) {
+      for (let k = -r; k <= r && dist === 5; k++) {
+        for (const [dx, dy] of [[k, -r], [k, r], [-r, k], [r, k]]) {
+          const n = groundAt(x + dx, y + dy);
+          if (n !== -1 && !LIQUID.has(n)) { dist = r; break; }
+        }
+      }
+    }
+    if (dist <= 4) {
+      ctx.fillStyle = KL_STUFE[dist - 1];
+      ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
+      // Schichtfugen
+      ctx.fillStyle = 'rgba(20,8,4,0.28)';
+      ctx.fillRect(px, py + 6 + (h % 5), TILE + 0.6, 1.2);
+      ctx.fillRect(px, py + 19 + ((h >> 3) % 6), TILE + 0.6, 1.2);
+      ctx.fillStyle = 'rgba(232,170,120,0.16)';
+      ctx.fillRect(px + (h % 12), py + 12 + ((h >> 5) % 5), 12, 1);
+    } else if (h % 6 === 0) {
+      // Fluss am Grund
+      ctx.strokeStyle = 'rgba(92,150,160,0.55)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(px + 3, py + 10 + (h % 12));
+      ctx.quadraticCurveTo(px + TILE / 2, py + 4 + ((h >> 4) % 20), px + TILE - 3, py + 12 + ((h >> 8) % 10));
+      ctx.stroke();
+    }
+    return baseShore3(ctx, x, y, px, py, g);
+  };
+}
+
+// Felsfarbe der Schlucht je Karte (hell, tief): Rost, Basaltgrau der Donnerklamm, Asche im Aschewald. Die Fläche
+// selbst ist für alle Karten dieselbe (ein Material) – beim Wechsel der Karte werden nur die Farben gesetzt.
+const KL_KLUFT = { m5: ['#9a5a36', '#200f0a'], m3: ['#6c7490', '#12141e'], m12: ['#6e5c52', '#161210'] };
+const KL_STATE = { key: null };
+if (typeof FX3_HOOKS !== 'undefined') {
+  FX3_HOOKS.push({
+    parts: [],
+    fn() {
+      const key = V3.home ? V3.home.key : '';
+      if (key === KL_STATE.key) return;
+      KL_STATE.key = key;
+      if (typeof liquidMat !== 'function' || !LIQUID3.kluft) return;
+      const c = KL_KLUFT[key] || KL_KLUFT.m5;
+      const u = liquidMat('kluft').uniforms;
+      u.uShallow.value.set(c[0]);
+      u.uDeep.value.set(c[1]);
+    }
+  });
+}
+
+// --- Eisspalten (Nachtfrost): Tiefe wie in den Schluchten, aber aus Eis – helle Eisbänke oben, darunter immer
+// dunkleres Blau, ganz unten Schmelzwasser. Vorher: dunkelblauer Dunst ohne Form.
+if (typeof LIQUID3 !== 'undefined' && LIQUID3.eisspalte) {
+  Object.assign(LIQUID3.eisspalte, { pre: KL_NOISE, frag: KL_TIEFE, shallow: '#86b4e4', deep: '#081226' });
+}
+
+// --- Treibsand (Knochenwüste): Dünenlinien statt einer verwaschenen Fläche ----------------------------------
+// Vom Wind gezogene Kämme mit heller Sonnen- und dunkler Schattenseite, darüber feine Riefen; dazwischen sacken
+// dunkle Mulden langsam ein und wandern. Am Rand fester, heller Sand wie bisher.
+if (typeof LIQUID3 !== 'undefined' && LIQUID3.treibsand) {
+  Object.assign(LIQUID3.treibsand, {
+    pre: KL_NOISE,
+    frag: `
+          vec2 q = p * 0.16 + vec2(t * 0.006, t * 0.002);
+          float n = wkF(q);
+          float kamm = abs(fract(n * 5.0 + q.y * 1.4 + q.x * 0.5) - 0.5) * 2.0;
+          float lit = smoothstep(0.30, 0.70, kamm);
+          vec3 col = mix(uDeep * 1.05, uShallow * 1.08, 0.18 + 0.7 * lit);
+          col *= 0.95 + 0.05 * sin((p.x * 0.5 + p.y) * 8.0 + n * 24.0);
+          float sink = smoothstep(0.60, 0.70, wkF(p * 0.07 + vec2(t * 0.006, -t * 0.004) + 9.0));
+          col = mix(col, uDeep * 0.62, sink * 0.75);
+          col = mix(col, uDeep * 0.45, smoothstep(0.66, 0.70, wkF(p * 0.07 + vec2(t * 0.006, -t * 0.004) + 9.0)) * sink * 0.6);
+          col = mix(col, uFoam, smoothstep(0.35, 0.0, d) * 0.45);
+          col = mix(col, col * vec3(0.55, 0.58, 0.72), uNight * 0.55);
+          float alpha = 1.0;`
+  });
 }

@@ -11,10 +11,12 @@ auf der Schattenseite, in 3D und in 2D. Kein Dekozeug auf begehbarem Boden; nich
 | 7 Frostgipfel | Wolkenmeer, Inselkanten | 15.20: freier Himmel (Blau, Wolkendecke tief unten, Wolkenballen oben, gegeneinander verschoben), Felswände mit Schneesims; 2D ebenso |
 | 4 Dunkelwald | Waldinneres | 15.20: geschlossener Tannenwald, dunkler Waldboden (3D; 2D war schon geschlossen) |
 | 12 Aschewald | Waldinneres | 15.20: wie Dunkelwald, Tannen verkohlt |
-| 5 Rostschlucht, 3 Donnerklamm | Schlucht | offen: Tiefe (Schichtwände, Felsnadeln, Dunst) |
+| 5 Rostschlucht, 3 Donnerklamm, 12 Aschewald | Schlucht | 15.21: Blick in die Tiefe (sechs Felsstufen, Fluss am Grund), Felsfarbe je Karte; 2D als Stufen |
+| 15 Nachtfrost | Eisspalten | 15.21: Tiefe aus Eisbänken |
+| 13 Knochenwüste | Treibsand | 15.21: Dünenlinien, wandernde Mulden |
 | 9 Feuerberg | Lava | offen: Vulkankegel, Schlote, Lavafälle in den Strömen |
 | 6 Ödland, 16 Schattenklippen, 2 Schlangental, 11 Mondfall | Meer, Fluss, Seen | offen: Klippen, Felsen im Wasser, Schilf |
-| 8 Totenmoor, 13 Knochenwüste, 14 Blutsteppe, 15 Nachtfrost, 10 Kristallabgrund | Moor, Treibsand, Blutsee, Spalten, Abgrund | offen: prüfen |
+| 8 Totenmoor, 14 Blutsteppe, 10 Kristallabgrund | Moor, Blutsee, Abgrund | offen: prüfen (sehen schon belebt aus) |
 | 1 Kazehana | – | offen: prüfen |
 
 ## Technik
