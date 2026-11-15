@@ -14,7 +14,7 @@ auf der Schattenseite, in 3D und in 2D. Kein Dekozeug auf begehbarem Boden; nich
 | 5 Rostschlucht, 3 Donnerklamm, 12 Aschewald | Schlucht | 15.21: Blick in die Tiefe (sechs Felsstufen, Fluss am Grund), Felsfarbe je Karte; 2D als Stufen |
 | 15 Nachtfrost | Eisspalten | 15.21: Tiefe aus Eisbänken |
 | 13 Knochenwüste | Treibsand | 15.21: Dünenlinien, wandernde Mulden |
-| 9 Feuerberg | Lava | offen: Vulkankegel, Schlote, Lavafälle in den Strömen |
+| 9 Feuerberg | Lava | 15.22: kleine Vulkanschlote mit Glutkrater, Rauch und Funken mitten in der Lava (3D); 2D offen |
 | 6 Ödland, 16 Schattenklippen, 2 Schlangental, 11 Mondfall | Meer, Fluss, Seen | offen: Klippen, Felsen im Wasser, Schilf |
 | 8 Totenmoor, 14 Blutsteppe, 10 Kristallabgrund | Moor, Blutsee, Abgrund | offen: prüfen (sehen schon belebt aus) |
 | 1 Kazehana | – | offen: prüfen |

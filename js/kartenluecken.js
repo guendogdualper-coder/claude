@@ -371,3 +371,40 @@ if (typeof LIQUID3 !== 'undefined' && LIQUID3.treibsand) {
           float alpha = 1.0;`
   });
 }
+
+// --- Feuerberg: Vulkanschlote in den Lavafeldern ----------------------------------------------------------------
+// Vorher ragte nur am Krater ein Kegel auf, die breiten Lavaströme waren leere Glut. Jetzt steht in den Strömen und
+// Lavaseen alle paar Dutzend Kacheln ein kleiner Schlot (derselbe Bau wie der große Kegel, nur klein): dunkler
+// Basaltkegel mit glühendem Krater, Rauchfahne und Funken. Immer mitten in der Lava (mit Abstand zum Ufer und zu
+// Brücken), nie am großen Krater und nicht an der Stadt; auf „Niedrig“ weniger.
+const KL_INFO = { vents: [] };
+if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[9] && typeof wzVolcano === 'function') {
+  const base9 = WZ_MAPS[9];
+  WZ_MAPS[9] = (wm, T) => {
+    base9(wm, T);
+    const [rx, ry, rw, rh] = wm.region;
+    const w = game.world;
+    const F = wzField(wm, 'liq', false);
+    const C = (MAP_FORMS[9] && MAP_FORMS[9].crater) || [182, 62, 17];
+    const town = wzTown(wm);
+    const B = T.tier ? 26 : 44;
+    KL_INFO.vents.length = 0;
+    for (let by = ry + 4; by < ry + rh - 4; by += B) for (let bx = rx + 4; bx < rx + rw - 4; bx += B) {
+      let best = null;
+      let bd = 0;
+      for (let y = by; y < Math.min(by + B, ry + rh - 4); y++) for (let x = bx; x < Math.min(bx + B, rx + rw - 4); x++) {
+        const i = y * MAP_W + x;
+        if (w.ground[i] !== GROUND.LAVA || w.deco[i] === DECO.BRIDGE) continue;
+        const dd = F.at(x, y) + (townTileHash(x, y) % 16) / 40;
+        if (dd > bd) { bd = dd; best = [x, y]; }
+      }
+      if (!best || bd < 2.4) continue;
+      if (Math.hypot(best[0] - (rx + C[0]), best[1] - (ry + C[1])) < C[2] + 16) continue;
+      if (Math.hypot(best[0] - town.cx, best[1] - town.cy) < 32) continue;
+      const h = townTileHash(best[0] * 3 + 1, best[1] * 7 + 5);
+      const R = Math.min(1.5 + (h % 4) * 0.22, bd - 0.9);
+      wzVolcano(best[0] + 0.5, best[1] + 0.5, R, R * (1.0 + ((h >> 3) % 5) * 0.08), T, false);
+      KL_INFO.vents.push(best);
+    }
+  };
+}
