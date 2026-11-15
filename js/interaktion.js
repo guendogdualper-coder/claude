@@ -109,10 +109,8 @@ const pcard = {
     if (a === 'guild') inviteGuild(pid);
     if (a === 'party') inviteParty(pid);
     if (a === 'inspect') netSocial(pid, { k: 'iq', n: game.player.name });
-    if (a === 'duel') {
-      netSocial(pid, { k: 'dq', n: game.player.name });
-      ui.log(`Duellanfrage an ${rp.name} geschickt.`, 'info');
-    }
+    // seit 15.38: erst die Regeln wählen (Tränke, Goldeinsatz), dann geht die Anfrage raus
+    if (a === 'duel') duelAsk(pid, rp.name);
     if (a === 'trade') {
       netSocial(pid, { k: 'tq', n: game.player.name });
       ui.log(`Handelsanfrage an ${rp.name} geschickt.`, 'info');
@@ -192,19 +190,36 @@ function onInteract(pid, d) {
       if (game.trade && game.trade.pid === pid) endTrade(`${d.n} hat den Handel abgebrochen.`);
       break;
     // Duell
-    case 'dq':
+    case 'dq': {
       if (game.duel) {
         netSocial(pid, { k: 'dn', n: p.name, why: 'ist schon im Duell' });
         break;
       }
-      inviteToast(`<b>${name}</b> fordert dich zum Duell heraus.`, () => {
-        netSocial(pid, { k: 'da', n: p.name });
-        startDuel(pid, d.n);
+      // seit 15.38: Regeln der Anfrage (np = ohne Tränke, w = Goldeinsatz); ältere Versionen schicken keine
+      const rules = duelRules(d);
+      if (rules.w > p.gold) {
+        netSocial(pid, { k: 'dn', n: p.name, why: 'hat nicht genug Gold für den Einsatz' });
+        ui.log(`${d.n || 'Jemand'} wollte ein Duell um ${rules.w.toLocaleString('de-DE')} Gold – so viel hast du nicht.`, 'info');
+        break;
+      }
+      inviteToast(`<b>${name}</b> fordert dich zum Duell heraus: ${duelRulesText(rules)}.`, () => {
+        if (rules.w > p.gold) { netSocial(pid, { k: 'dn', n: p.name, why: 'hat nicht genug Gold für den Einsatz' }); return; }
+        netSocial(pid, { k: 'da', n: p.name, np: rules.np ? 1 : 0, w: rules.w });
+        startDuel(pid, d.n, rules);
       }, () => netSocial(pid, { k: 'dn', n: p.name, why: 'hat das Duell abgelehnt' }));
       break;
-    case 'da':
-      if (!game.duel) startDuel(pid, d.n);
+    }
+    case 'da': {
+      if (game.duel) break;
+      // nur die Regeln gelten, die der andere bestätigt hat (eine ältere Version bestätigt keine: dann ohne Einsatz)
+      const mine = DUEL_ASKED.get(pid) || { np: false, w: 0 };
+      const theirs = duelRules(d);
+      DUEL_ASKED.delete(pid);
+      const rules = { np: mine.np && theirs.np, w: theirs.w === mine.w ? Math.min(mine.w, p.gold) : 0 };
+      if (mine.w && !rules.w) ui.log('Der Einsatz wurde nicht bestätigt – dieses Duell geht um nichts.', 'warn');
+      startDuel(pid, d.n, rules);
       break;
+    }
     case 'dn':
       ui.log(`${d.n} ${d.why}.`, 'warn');
       break;
@@ -500,7 +515,45 @@ const trade = {
 // Der Gegner steht dafür als "Monster" in der Zielliste (game.duel.proxy). Den Schaden berechnet der
 // Getroffene selbst mit seiner Verteidigung. Wer auf 1 Leben fällt, verliert; niemand stirbt.
 
-function startDuel(pid, name) {
+// Regeln eines Duells (seit 15.38): np = ohne Tränke, w = Goldeinsatz (der Verlierer zahlt ihn an den Sieger)
+const DUEL_WAGER_MAX = 10000000;
+const DUEL_ASKED = new Map(); // pid → Regeln der eigenen, noch offenen Anfrage
+function duelRules(d) {
+  const w = d && Number.isSafeInteger(d.w) && d.w > 0 ? Math.min(d.w, DUEL_WAGER_MAX) : 0;
+  return { np: !!(d && d.np), w };
+}
+function duelRulesText(r) {
+  return (r.np ? 'ohne Tränke' : 'mit Tränken') + (r.w ? ` · Einsatz ${r.w.toLocaleString('de-DE')} Gold` : ' · ohne Einsatz');
+}
+// Kleines Feld vor der Anfrage: Tränke erlaubt? Goldeinsatz?
+function duelAsk(pid, name) {
+  const box = $('inviteToasts');
+  if (!box) return;
+  box.querySelectorAll('.duel-ask').forEach((el) => el.remove());
+  const p = game.player;
+  const row = document.createElement('div');
+  row.className = 'invite duel-ask';
+  row.innerHTML = `<span>Duell gegen <b>${escapeHtml(name)}</b></span>` +
+    `<label class="duel-opt"><input type="checkbox" data-pot checked> Tränke erlaubt</label>` +
+    `<label class="duel-opt">Einsatz <input type="number" data-wager min="0" max="${Math.min(p.gold, DUEL_WAGER_MAX)}" step="100" value="0" inputmode="numeric"> Gold</label>` +
+    `<button type="button" class="mini-btn primary" data-go>Herausfordern</button><button type="button" class="mini-btn" data-x>Abbrechen</button>`;
+  row.querySelector('[data-x]').addEventListener('click', () => row.remove());
+  // Tasten im Zahlenfeld gehören dem Feld, nicht dem Spiel
+  row.querySelector('[data-wager]').addEventListener('keydown', (ev) => ev.stopPropagation());
+  row.querySelector('[data-go]').addEventListener('click', () => {
+    const w = Math.max(0, Math.min(Math.floor(Number(row.querySelector('[data-wager]').value) || 0), DUEL_WAGER_MAX));
+    if (w > p.gold) { ui.log('So viel Gold hast du nicht.', 'warn'); return; }
+    const rules = { np: !row.querySelector('[data-pot]').checked, w };
+    row.remove();
+    if (!net.players.get(pid)) return;
+    DUEL_ASKED.set(pid, rules);
+    netSocial(pid, { k: 'dq', n: p.name, np: rules.np ? 1 : 0, w: rules.w });
+    ui.log(`Duellanfrage an ${name} geschickt (${duelRulesText(rules)}).`, 'info');
+  });
+  box.append(row);
+}
+
+function startDuel(pid, name, rules) {
   const p = game.player;
   const rp = net.players.get(pid);
   if (!rp) return;
@@ -508,9 +561,14 @@ function startDuel(pid, name) {
   p.pvpRatio = 0;
   game.duel = {
     pid, name: name || rp.name, fightAt: game.time + DUEL.countdown, endAt: game.time + DUEL.countdown + DUEL.maxTime,
-    cx: (p.x + rp.x) / 2, cy: (p.y + rp.y) / 2, proxy: null, shown: DUEL.countdown + 1
+    cx: (p.x + rp.x) / 2, cy: (p.y + rp.y) / 2, proxy: null, shown: DUEL.countdown + 1,
+    noPot: !!(rules && rules.np), wager: rules && rules.w > 0 ? rules.w : 0
   };
-  ui.log(`Duell gegen ${game.duel.name}! Bleib im Kreis.`, 'level');
+  ui.log(`Duell gegen ${game.duel.name}! Bleib im Kreis. Regeln: ${duelRulesText({ np: game.duel.noPot, w: game.duel.wager })}.`, 'level');
+}
+// Im Duell ohne Tränke: kein Trank, solange es läuft (usePotion in spieler.js fragt hier nach)
+function duelNoPotions() {
+  return !!(game.duel && game.duel.noPot);
 }
 
 function duelFighting() {
@@ -589,6 +647,19 @@ function endDuel(winner, why) {
   p.toxin = null;
   if (game.target && game.target.duelProxy) game.target = null;
   if (why) ui.log(why, 'info');
+  // Einsatz (seit 15.38): der Verlierer zahlt, der Sieger bekommt – bei Unentschieden behält jeder sein Gold
+  if (g.wager > 0 && winner) {
+    if (winner === p.name) {
+      p.gold += g.wager;
+      ui.loot('Gold', g.wager, lootIconUrl('gold'), '#ffd96a');
+      ui.log(`Einsatz gewonnen: ${g.wager.toLocaleString('de-DE')} Gold.`, 'level');
+    } else {
+      const pay = Math.min(p.gold, g.wager);
+      p.gold -= pay;
+      ui.log(`Einsatz verloren: ${pay.toLocaleString('de-DE')} Gold.`, 'warn');
+    }
+    saveGame();
+  }
   if (winner === p.name) {
     ui.banner('Sieg!', `Du hast das Duell gegen ${g.name} gewonnen`);
     vfxPowerUp(p, '#ffd34d');

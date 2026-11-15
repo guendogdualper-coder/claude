@@ -1079,6 +1079,11 @@ function usePotion(kind, sizeId) {
   const p = game.player;
   if (!p || p.dead) return;
   if (!p.potCd) p.potCd = { hp: 0, mp: 0 };
+  // seit 15.38: Duell ohne Tränke (Regel der Duellanfrage, interaktion.js)
+  if (typeof duelNoPotions === 'function' && duelNoPotions()) {
+    addText(p.x, p.y - 34, 'Duell ohne Tränke', 'info');
+    return;
+  }
   if (p.potCd[kind] > 0) {
     addText(p.x, p.y - 34, `Noch ${p.potCd[kind].toFixed(1).replace('.', ',')} s`, 'info');
     return;

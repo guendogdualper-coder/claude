@@ -1015,24 +1015,32 @@ function humanoid3(b, c, P) {
   // Kopf: runder Schädel mit vollen Wangen
   const hb = BH.head;
   // seit 15.01 (c.oval, Spielfiguren): schmalerer Schädel, der Kiefer läuft nach unten zu einem Kinn zusammen
-  A(ball(18), c.skin, { bone: hb, p: hc, s: c.oval ? [hr * 0.9, hr * 0.95, hr * 0.95] : [hr, hr * 0.93, hr * 0.96], shine: c.hair && c.hair.style === 5 ? 0.35 : 0 });
+  // seit 15.38 für alle Menschengestalten (auch Bewohner und menschliche Monster, vorher eine Kugel mit vollen Wangen):
+  // Eiform – der Schädel schmaler als hoch, die Wangen laufen zu einem Kinn zusammen. c.headForm variiert die Form je
+  // Figur: w Breite, h Höhe, jaw Kieferbreite, chin Kinn tiefer (Anteil des Kopfradius). Dicke Brocken (belly) behalten
+  // ihren gedrungenen Kopf.
+  const HF = c.headForm || {};
+  const hw = belly ? 1 : (c.oval ? 0.84 : 0.86) * (HF.w || 1);
+  const hh = belly ? 0.93 : 0.98 * (HF.h || 1);
+  A(ball(18), c.skin, { bone: hb, p: hc, s: [hr * hw, hr * hh, hr * (belly ? 0.96 : 0.94)], shine: c.hair && c.hair.style === 5 ? 0.35 : 0 });
   // mit Maske sitzt das Tuch auf dem Kiefer statt darin
-  const jw = c.jaw || 1;
-  if (c.oval) {
-    A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.34, hc[2] + hr * (c.masked ? 0.07 : 0.1)], s: [hr * 0.76 * jw, hr * 0.66, hr * 0.8] });
-    A(ball(10), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.78, hc[2] + hr * 0.3], s: [hr * 0.36 * jw, hr * 0.26, hr * 0.38] });
+  const jw = (c.jaw || 1) * (HF.jaw || 1);
+  if (!belly) {
+    A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.36, hc[2] + hr * (c.masked ? 0.07 : 0.1)], s: [hr * 0.86 * hw * jw, hr * 0.66, hr * 0.78] });
+    A(ball(10), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * (0.82 + (HF.chin || 0)), hc[2] + hr * 0.3], s: [hr * 0.37 * hw * jw, hr * 0.27, hr * 0.37] });
   } else A(ball(14), c.skin, { bone: hb, p: [hc[0], hc[1] - hr * 0.28 * jw, hc[2] + hr * (c.masked ? 0.08 : 0.12)], s: [hr * 0.86 * jw, hr * 0.62 * jw, hr * 0.8] });
   // seit 14.53: Männer mit kantigerem Kiefer (zwei Kieferwinkel unter den Ohren)
-  if (c.squareJaw && !c.masked) for (const sx of [-1, 1]) A(ball(10), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.44, hc[1] - hr * 0.46, hc[2] + hr * 0.26], s: [hr * 0.3, hr * 0.27, hr * 0.36] });
+  if (c.squareJaw && !c.masked) for (const sx of [-1, 1]) A(ball(10), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.44 * hw, hc[1] - hr * 0.46, hc[2] + hr * 0.26], s: [hr * 0.3, hr * 0.27, hr * 0.36] });
+  // Ohren sitzen am (seit 15.38 schmaleren) Schädel
   if (!c.noEars) for (const sx of [-1, 1]) {
-    if (c.pointEars) A(horn3(hr * 0.55, hr * 0.14, 6), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.9, hc[1], hc[2]], r: [0, 0, -sx * 1.25] });
-    else A(ball(8), c.skin, { bone: hb, p: [hc[0] + sx * hr * 0.97, hc[1] - hr * 0.06, hc[2]], s: [hr * 0.1, hr * 0.17, hr * 0.14] });
+    if (c.pointEars) A(horn3(hr * 0.55, hr * 0.14, 6), c.skin, { bone: hb, p: [hc[0] + sx * hr * (hw - 0.1), hc[1], hc[2]], r: [0, 0, -sx * 1.25] });
+    else A(ball(8), c.skin, { bone: hb, p: [hc[0] + sx * hr * (hw - 0.02), hc[1] - hr * 0.06, hc[2]], s: [hr * 0.1, hr * 0.17, hr * 0.14] });
   }
   if (c.brow) A(roundBox(hr * 1.4, hr * 0.2, hr * 0.3, hr * 0.1), c.skin, { bone: hb, p: [hc[0], hc[1] + hr * 0.12, hc[2] + hr * 0.75], shade: 0.3 });
   // Ohrringe (Frauen, seit 9.2): kleiner Goldring mit hängender Perle
   if (c.earrings && !c.noEars && c.covered !== 'hood') for (const sx of [-1, 1]) {
-    A(torus3(hr * 0.07, hr * 0.022, Math.PI * 2, 4, 10), c.earrings, { bone: hb, p: [hc[0] + sx * hr * 1.0, hc[1] - hr * 0.3, hc[2]], r: [0, Math.PI / 2, 0], shine: 1 });
-    A(sphere3(hr * 0.055, 8, 6), c.earrings, { bone: hb, p: [hc[0] + sx * hr * 1.0, hc[1] - hr * 0.42, hc[2]], shine: 1 });
+    A(torus3(hr * 0.07, hr * 0.022, Math.PI * 2, 4, 10), c.earrings, { bone: hb, p: [hc[0] + sx * hr * (hw + 0.02), hc[1] - hr * 0.3, hc[2]], r: [0, Math.PI / 2, 0], shine: 1 });
+    A(sphere3(hr * 0.055, 8, 6), c.earrings, { bone: hb, p: [hc[0] + sx * hr * (hw + 0.02), hc[1] - hr * 0.42, hc[2]], shine: 1 });
   }
   face3(A, hb, hc, hr, Object.assign({ hairColor: c.hair ? c.hair.color : null }, c));
   if (c.beard && c.beardGlow) A(ball(12), c.beard, { bone: hb, p: [hc[0], hc[1] - hr * 0.62, hc[2] + hr * 0.42], s: [hr * 0.64, hr * 0.52, hr * 0.44], shade: 0.2, mat: 'glow' });
@@ -3817,9 +3825,35 @@ function npcModelDef(id) {
   return Object.assign(c, extra);
 }
 
+// Körperbau und Kopfform der Bewohner (seit 15.38): vorher hatten alle dieselbe Figur mit Kugelkopf. bulk = kräftiger,
+// legLen = längere/kürzere Beine, scale = Größe, headForm siehe humanoid3, male/female = Schultern, Hüften, Gesicht.
+const NPC_FORM = {
+  haendler: { female: true, headForm: { w: 0.97, h: 0.97 }, scale: 0.97 },
+  schmied: { male: true, bulk: 1.22, legLen: 0.32, squareJaw: true, headForm: { w: 1.06, h: 0.97, jaw: 1.14 } },
+  waffen: { male: true, bulk: 1.1, squareJaw: true, headForm: { w: 0.98, h: 1.04 } },
+  ruestung: { female: true, headForm: { w: 0.95, h: 1.02 } },
+  stallmeister: { male: true, bulk: 1.04, legLen: 0.38, headForm: { w: 0.95, h: 1.05 } },
+  aeltester: { male: true, bulk: 0.9, legLen: 0.31, scale: 0.95, headForm: { w: 0.93, h: 1.06, chin: 0.05 } },
+  jaegerin: { female: true, legLen: 0.38, headForm: { w: 0.94, h: 1.01 } },
+  teleport: { female: true, headForm: { w: 0.93, h: 1.03 } },
+  alchemist: { male: true, bulk: 0.92, legLen: 0.37, headForm: { w: 0.9, h: 1.08, chin: 0.06 } },
+  lehrmeister: { male: true, bulk: 0.95, headForm: { w: 0.95, h: 1.05 } },
+  lager: { male: true, bulk: 1.18, legLen: 0.32, headForm: { w: 1.07, h: 0.98, jaw: 1.18 } },
+  wache: { male: true, bulk: 1.12, legLen: 0.37, squareJaw: true, headForm: { w: 0.98, h: 1.02 } },
+  bauer: { male: true, bulk: 1.05, headForm: { w: 1.02 } },
+  kind: { headForm: { w: 1.08, h: 0.97, jaw: 1.06 } },
+  alte: { female: true, bulk: 0.95, legLen: 0.3, headForm: { w: 0.98, h: 1.0 } },
+  moench: { male: true, bulk: 1.06, headForm: { w: 0.97, h: 1.05 } }
+};
 function buildNpc3(b, id) {
   const c = npcModelDef(id);
   if (!c) return null;
+  const form = NPC_FORM[id];
+  if (form) {
+    const groesse = (c.scale || 1) * (form.scale || 1);
+    Object.assign(c, form);
+    c.scale = groesse;
+  }
   const hats = [];
   if (c.hat) hats.push((A, hb, hc, hr) => {
     if (c.hatCone) A(horn3(hr * 0.8, hr * 1.7, 14), c.hat, { bone: hb, p: [hc[0], hc[1] + hr * 0.45, hc[2]], shade: 0.25 });

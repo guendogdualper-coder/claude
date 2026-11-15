@@ -3792,3 +3792,8 @@ body.skv-open .hover-tip { display: none !important; }
 .npc-kopf > span:last-child { flex: none; white-space: nowrap; }
 .npc-klein #merchantMsg:empty { display: none; }
 #hud.touch ~ #panelNpc.npc-klein .npc-tab-body, .touch-ui #panelNpc.npc-klein .npc-tab-body { max-height: 52vh; }
+
+/* Duellanfrage mit Regeln (seit 15.38, interaktion.js duelAsk) */
+.invite.duel-ask { flex-wrap: wrap; justify-content: center; max-width: min(520px, 94vw); pointer-events: auto; }
+.duel-opt { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.duel-opt input[type="number"] { width: 84px; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--brass-dim); background: #14100b; color: #ffe9a8; font: inherit; }
