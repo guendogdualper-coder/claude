@@ -286,6 +286,63 @@ if (typeof LIQUID3 !== 'undefined' && LIQUID3.kluft) {
   });
 }
 
+// Farben der Schlucht in 2D je Karte: Wand oben, Wand unten, Tiefe, Rand der Gegenseite
+const KL_SCHLUCHT2 = {
+  5: ['#a2623c', '#62381f', '#190d09', '#b8774a'], 3: ['#7a829e', '#444b64', '#0e1018', '#8c94b0'], 12: ['#75635a', '#42372f', '#110f0d', '#857268'],
+  6: ['#7c6654', '#46372d', '#0f0a08', '#8e7662'], eis: ['#c8e0f6', '#6a9ad0', '#0a1832', '#e6f3ff']
+};
+// Eine Kachel Schlucht in 2D (seit 15.28): die Tiefe ist dunkel; unter einer Kante im Norden steht die Felswand, zwei
+// Kacheln hoch, oben hell, nach unten ins Dunkel; an den anderen Kanten ein heller Felsrand; in der Tiefe Dunst und
+// eine schmale Ader (ader: Farbe)
+function klSchlucht2(ctx, x, y, px, py, pal, ader) {
+  const h = tileHash(x, y);
+  const T = TILE + 0.6;
+  const land = (xx, yy) => { const n = groundAt(xx, yy); return n !== -1 && !LIQUID.has(n); };
+  ctx.fillStyle = pal[2];
+  ctx.fillRect(px, py, T, T);
+  const n = land(x, y - 1) ? 1 : land(x, y - 2) ? 2 : 0;
+  if (n) {
+    const y0 = py - (n - 1) * TILE;
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + TILE * 2);
+    g.addColorStop(0, pal[0]);
+    g.addColorStop(0.42, pal[1]);
+    g.addColorStop(1, pal[2]);
+    ctx.fillStyle = g;
+    ctx.fillRect(px, py, T, T);
+    // senkrechte Risse
+    ctx.fillStyle = 'rgba(0,0,0,0.24)';
+    for (let k = 0; k < 3; k++) ctx.fillRect(px + 2 + ((h >> (k * 4)) % 28), py + ((h >> (k * 3 + 2)) % 8), 1.4, TILE * (0.45 + ((h >> (k * 5)) % 5) * 0.1));
+    if (n === 1) {
+      // Schichtfuge und Schatten direkt unter der Kante
+      ctx.fillStyle = 'rgba(255,255,255,0.13)';
+      ctx.fillRect(px, py + 6 + (h % 4), T, 1.2);
+      ctx.fillStyle = 'rgba(0,0,0,0.34)';
+      ctx.fillRect(px, py, T, 2.6);
+    }
+  }
+  ctx.fillStyle = pal[3];
+  if (land(x, y + 1)) ctx.fillRect(px, py + TILE - 4, T, 4.6);
+  if (land(x - 1, y)) ctx.fillRect(px, py, 4, T);
+  if (land(x + 1, y)) ctx.fillRect(px + TILE - 4, py, 4.6, T);
+  if (!n && klLandDist(x, y, 2) > 2) {
+    if (h % 5 === 0) {
+      ctx.fillStyle = 'rgba(255,255,255,0.05)';
+      ctx.beginPath();
+      ctx.ellipse(px + 16, py + 16, 15, 7, 0, 0, 6.3);
+      ctx.fill();
+    }
+    if (ader && h % 6 === 0) {
+      ctx.strokeStyle = ader;
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(px + 3, py + 10 + (h % 12));
+      ctx.quadraticCurveTo(px + TILE / 2, py + 4 + ((h >> 4) % 20), px + TILE - 3, py + 12 + ((h >> 8) % 10));
+      ctx.stroke();
+    }
+  }
+}
+
 // Schlucht in 2D: Felsstufen vom Rand zur Mitte dunkler (je Kachel nach dem Abstand zum Land), mit Schichtfugen;
 // in der Tiefe hier und da ein Stück Fluss. Fest in den Bodenblock gemalt.
 if (typeof drawShore === 'function') {
@@ -297,39 +354,9 @@ if (typeof drawShore === 'function') {
   };
   drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
     if (g !== GROUND.KLUFT) return baseShore3(ctx, x, y, px, py, g);
-    const h = tileHash(x, y);
-    // Abstand zum Land (1 … 4, darüber Tiefe)
-    let dist = 5;
-    for (let r = 1; r <= 4 && dist === 5; r++) {
-      for (let k = -r; k <= r && dist === 5; k++) {
-        for (const [dx, dy] of [[k, -r], [k, r], [-r, k], [r, k]]) {
-          const n = groundAt(x + dx, y + dy);
-          if (n !== -1 && !LIQUID.has(n)) { dist = r; break; }
-        }
-      }
-    }
+    // seit 15.28: Felswand und dunkle Tiefe statt heller Stufen (klSchlucht2)
     const wmK = mapOfTile(x, y);
-    const stufe = (wmK && KL_STUFE_KARTE[wmK.id]) || KL_STUFE;
-    if (dist <= 4) {
-      ctx.fillStyle = stufe[dist - 1];
-      ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
-      // Schichtfugen
-      ctx.fillStyle = 'rgba(20,8,4,0.28)';
-      ctx.fillRect(px, py + 6 + (h % 5), TILE + 0.6, 1.2);
-      ctx.fillRect(px, py + 19 + ((h >> 3) % 6), TILE + 0.6, 1.2);
-      ctx.fillStyle = 'rgba(232,170,120,0.16)';
-      ctx.fillRect(px + (h % 12), py + 12 + ((h >> 5) % 5), 12, 1);
-    } else if (h % 6 === 0) {
-      // Fluss am Grund
-      ctx.strokeStyle = wmK && wmK.id === 6 ? 'rgba(255,120,40,0.6)' : 'rgba(92,150,160,0.55)';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(px + 3, py + 10 + (h % 12));
-      ctx.quadraticCurveTo(px + TILE / 2, py + 4 + ((h >> 4) % 20), px + TILE - 3, py + 12 + ((h >> 8) % 10));
-      ctx.stroke();
-    }
-    return baseShore3(ctx, x, y, px, py, g);
+    klSchlucht2(ctx, x, y, px, py, (wmK && KL_SCHLUCHT2[wmK.id]) || KL_SCHLUCHT2[5], wmK && wmK.id === 6 ? 'rgba(255,120,40,0.75)' : 'rgba(110,170,180,0.5)');
   };
 }
 
@@ -451,22 +478,10 @@ if (typeof drawShore === 'function') {
     const h = tileHash(x, y);
     ctx.save();
     if (g === GROUND.EISSPALTE) {
-      const dist = klLandDist(x, y, 4);
-      if (dist <= 4) {
-        ctx.fillStyle = KL_EIS[dist - 1];
-        ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
-        ctx.fillStyle = 'rgba(255,255,255,0.3)';
-        ctx.fillRect(px, py + 5 + (h % 6), TILE + 0.6, 1.2);
-        ctx.fillStyle = 'rgba(10,30,70,0.25)';
-        ctx.fillRect(px, py + 18 + ((h >> 3) % 7), TILE + 0.6, 1.2);
-        // Bruchkante: kurzer heller Splitter
-        ctx.strokeStyle = 'rgba(235,246,255,0.5)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(px + 4 + (h % 14), py + 10 + ((h >> 5) % 8));
-        ctx.lineTo(px + 10 + (h % 14), py + 15 + ((h >> 5) % 8));
-        ctx.stroke();
-      }
+      // seit 15.28 wie die Schluchten: Eiswand unter der Kante, dunkelblaue Tiefe
+      klSchlucht2(ctx, x, y, px, py, KL_SCHLUCHT2.eis, 'rgba(150,210,255,0.55)');
+      ctx.restore();
+      return;
     } else if (g === GROUND.TREIBSAND) {
       // zwei Kämme je Kachel; an den Kachelrändern auf fester Höhe, dazwischen geschwungen
       ctx.lineCap = 'round';
@@ -721,7 +736,8 @@ if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
           b.add(ast(), cfg.snag, { p: [ox + rot[2] * -0.4 * hh, LV - 0.1 + hh * 0.55, oz + rot[0] * 0.4 * hh], r: [rot[0] + 0.9, rot[1], rot[2] - 0.6], s: [0.8, hh * 0.45, 0.8] });
         } else if (a.art === 'nadel') {
           const R = (0.62 + f(4, 8) * 0.4) * (cfg.tief ? 1.25 : 1);
-          const H = (2.3 + f(9, 8) * 2.2) * (cfg.tief ? 1.7 : 1);
+          // in der Schlucht reicht die Nadel vom Grund (LV) bis über die Kante
+          const H = cfg.tief ? -LV + 1.3 + f(9, 8) * 2.4 : 2.3 + f(9, 8) * 2.2;
           const ry0 = f(2, 63) * 6.3;
           // Hauptsäule und ein bis zwei angelehnte, niedrigere daneben
           b.add(nadel(h % 3), cfg.stack[0], { p: [ox, LV - 0.25, oz], r: [0, ry0, 0], s: [R, H, R], top: cfg.stack[1], topK: 0.6, shade: 0.45 });
@@ -1015,4 +1031,106 @@ if (typeof drawShore === 'function') {
       raute(ctx, cx + Math.cos(an) * (8 + (hj >> 4) % 4), cy + Math.sin(an) * (6 + (hj >> 8) % 4), 2.2, 4 + (hj >> 12) % 3, an, FARBE2[(h + j + 1) % 4]);
     }
   };
+}
+
+// --- Schluchten als echte Abgründe (seit 15.28) -----------------------------------------------------------------
+// Bis 15.27 lag die Fläche der Schlucht nur 1,25 unter dem Rand und zeigte helle Felsstufen aus Rauschen – von oben
+// sah das aus wie braune Flecken oder Höhenlinien, nicht wie ein Abgrund. Jetzt wie beim Frostgipfel:
+// - der Boden fällt an der Kante 5,2 tief ab (LIQUID3_DEPTH), die Fläche liegt bei −4,2;
+// - unter jeder Kante hängen echte Felswände (gebackene Brocken, oben hell, nach unten dunkel, darunter eine zweite,
+//   eingerückte Reihe) – man sieht die Wand der gegenüberliegenden Seite;
+// - die Fläche in der Tiefe ist dunkel: Geröll am Wandfuß, ganz unten eine schmale Ader (Wasser, im Ödland Glut),
+//   darüber ziehen zwei dünne Dunstschichten. Keine hellen Stufen mehr.
+// Gilt für Rostschlucht, Donnerklamm, Aschewald, Ödland (KLUFT) und Nachtfrost (EISSPALTE).
+const KL_SCHLUND = `
+          vec3 vd = normalize(vW - cameraPosition);
+          vec2 par = vd.xz / max(0.3, -vd.y);
+          vec2 pg = p + par * 2.5;
+          float n = wkF(pg * 0.16);
+          vec3 col = mix(uDeep * 0.5, uShallow * 0.34, smoothstep(0.42, 0.82, n) * 0.7);
+          col = mix(col, uShallow * 0.5, (1.0 - smoothstep(0.0, 0.3, d)) * 0.55);
+          vec2 pb = p + par * 6.0;
+          float river = smoothstep(0.028, 0.008, abs(wkF(pb * 0.035 + 3.7) - 0.5)) * smoothstep(0.2, 0.55, d);
+          float warm = step(uFoam.b * 2.0, uFoam.r);
+          vec3 rc = mix(mix(vec3(0.20, 0.38, 0.44), uSky * 0.7, 0.35), uFoam * (0.85 + 0.3 * sin(t * 0.8 + pb.x * 0.4)), warm);
+          col = mix(col, rc, river);
+          col += rc * warm * smoothstep(0.07, 0.0, abs(wkF(pb * 0.035 + 3.7) - 0.5)) * 0.08 * smoothstep(0.2, 0.55, d);
+          float m1 = wkF((p - par * 1.0) * 0.07 + vec2(t * 0.012, t * 0.006));
+          float m2 = wkF((p - par * 2.2) * 0.045 - vec2(t * 0.008, -t * 0.005) + 7.3);
+          float mist = smoothstep(0.52, 0.86, m1) * 0.2 + smoothstep(0.56, 0.9, m2) * 0.16;
+          col = mix(col, mix(uShallow, uSky, 0.4) * 0.7, mist * smoothstep(0.1, 0.5, d));
+          col *= mix(1.0, 0.7, smoothstep(0.3, 1.0, d));
+          col = mix(col, col * 0.6, uNight * 0.5);
+          float alpha = 1.0;`;
+const KL_SCHLUND_LOW = `
+          vec3 col = mix(uShallow * 0.45, uDeep * 0.5, smoothstep(0.0, 0.5, d));
+          col = mix(col, col * 0.6, uNight * 0.5);
+          float alpha = 1.0;`;
+if (typeof LIQUID3 !== 'undefined' && LIQUID3.kluft) {
+  Object.assign(LIQUID3.kluft, { pre: KL_NOISE, frag: KL_SCHLUND, fragLow: KL_SCHLUND_LOW, level: -4.2 });
+  LIQUID3_DEPTH[GROUND.KLUFT] = 5.2;
+  if (LIQUID3.eisspalte) {
+    Object.assign(LIQUID3.eisspalte, { pre: KL_NOISE, frag: KL_SCHLUND, fragLow: KL_SCHLUND_LOW, level: -4.0, foam: '#bfe4ff' });
+    LIQUID3_DEPTH[GROUND.EISSPALTE] = 5.0;
+  }
+}
+// Felsfarben der Wände je Karte: oben, zweite Reihe, Sims (heller Rand obenauf)
+const KL_WAND = {
+  5: ['#9a5c3a', '#5c3222', '#b0714a'], 3: ['#6a7290', '#3c4258', '#8089a6'], 12: ['#6a5a50', '#3c322c', '#7e6c62'],
+  6: ['#76614f', '#40332a', '#8a7460'], 15: ['#9cc0e6', '#4a74b0', '#e4f1ff']
+};
+if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
+  const klWaende3 = (wm, T, farbe, G) => {
+    const [rx, ry, rw, rh] = wm.region;
+    const w = game.world;
+    const isVoid = (x, y) => {
+      if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return false;
+      const i = y * MAP_W + x;
+      return w.ground[i] === G && w.deco[i] !== DECO.BRIDGE;
+    };
+    const B = 24;
+    const flip = [Math.PI, 0, 0];
+    for (let by = ry; by < ry + rh; by += B) for (let bx = rx; bx < rx + rw; bx += B) {
+      let b = null;
+      const cx = bx + B / 2;
+      const cz = by + B / 2;
+      for (let y = by; y < Math.min(by + B, ry + rh); y++) for (let x = bx; x < Math.min(bx + B, rx + rw); x++) {
+        const i = y * MAP_W + x;
+        if (LIQUID.has(w.ground[i]) && w.deco[i] !== DECO.BRIDGE) continue;
+        for (let d = 0; d < 4; d++) {
+          const dx = [1, -1, 0, 0][d];
+          const dy = [0, 0, 1, -1][d];
+          if (!isVoid(x + dx, y + dy)) continue;
+          const h = townTileHash(x * 5 + d * 3 + 1, y * 3 + d);
+          if (!b) b = new Bake3();
+          const o = ((h % 9) - 4) * 0.03;
+          const ex = x + 0.5 + dx * 0.46 + (dy ? o : 0) - cx;
+          const ez = y + 0.5 + dy * 0.46 + (dx ? o : 0) - cz;
+          const along = 0.52 + ((h >> 3) % 5) * 0.04;
+          const deep = 0.3 + ((h >> 5) % 4) * 0.04;
+          const tall = 3.4 + ((h >> 7) % 6) * 0.5;
+          const sx = dx ? deep : along;
+          const sz = dx ? along : deep;
+          // obere Wand: hängender Fels, nach unten dunkler
+          b.add(rockGeo(h % 6, T.tier > 1 ? 1 : 0), (h >> 2) % 3 ? farbe[0] : farbe[2], { p: [ex, -0.06 - tall * 0.2, ez], r: flip, s: [sx, tall, sz], shade: 0.55 });
+          // heller Sims an der Kante
+          b.add(rockGeo((h + 1) % 6, 0), farbe[2], { p: [ex, -0.05, ez], s: [sx * 1.05, 0.12, sz * 1.05] });
+          // zweite Reihe: tiefer, dunkler, zur Wand eingerückt
+          if (T.tier) {
+            const t2 = tall * 1.5 + 1.6;
+            b.add(rockGeo((h + 3) % 6, 0), farbe[1], { p: [ex - dx * 0.2, -1.9 - t2 * 0.2, ez - dy * 0.2], r: flip, s: [sx * 0.9, t2, sz * 0.9], shade: 0.6 });
+          }
+        }
+      }
+      if (b) wzBake(wzSite(cx, cz, 72), b);
+    }
+  };
+  for (const id of [5, 3, 12, 6, 15]) {
+    const base = WZ_MAPS[id];
+    const G = id === 15 ? 'EISSPALTE' : 'KLUFT';
+    WZ_MAPS[id] = (wm, T) => {
+      if (base) base(wm, T);
+      klWaende3(wm, T, KL_WAND[id], GROUND[G]);
+    };
+  }
 }

@@ -11,7 +11,7 @@ auf der Schattenseite, in 3D und in 2D. Kein Dekozeug auf begehbarem Boden; nich
 | 7 Frostgipfel | Wolkenmeer, Inselkanten | 15.20: freier Himmel (Blau, Wolkendecke tief unten, Wolkenballen oben, gegeneinander verschoben), Felswände mit Schneesims; 2D ebenso |
 | 4 Dunkelwald | Waldinneres | 15.20: geschlossener Tannenwald, dunkler Waldboden (3D; 2D war schon geschlossen) |
 | 12 Aschewald | Waldinneres | 15.20: wie Dunkelwald, Tannen verkohlt |
-| 5 Rostschlucht, 3 Donnerklamm, 12 Aschewald | Schlucht | 15.21: Blick in die Tiefe (sechs Felsstufen, Fluss am Grund), Felsfarbe je Karte; 2D als Stufen |
+| 5 Rostschlucht, 3 Donnerklamm, 12 Aschewald, 6 Ödland, 15 Nachtfrost | Schlucht, Eisspalte | 15.28: echte Abgründe – Boden fällt 5,2 tief ab, Felswände unter den Kanten, dunkle Tiefe mit Dunst, schmale Ader am Grund (Ödland: Glut); 2D mit Felswand unter den Kanten. (15.21 waren es helle Felsstufen aus Rauschen – sah aus wie braune Flecken.) |
 | 15 Nachtfrost | Eisspalten | 15.21: Tiefe aus Eisbänken; 15.24: 2D als Eisstufen |
 | 13 Knochenwüste | Treibsand | 15.21: Dünenlinien, wandernde Mulden; 15.24: 2D mit Dünenkämmen und Mulden |
 | 9 Feuerberg | Lava | 15.22: kleine Vulkanschlote mit Glutkrater, Rauch und Funken mitten in der Lava (3D); 15.24: 2D mit denselben Schloten und Krustenschollen |
