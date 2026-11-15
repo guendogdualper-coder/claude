@@ -7,7 +7,7 @@
 
 function makeItem(slot, tier, plus = 0, cls = null, kind = null) {
   // seit 14.16: keine Beute über +4 (MAX_DROP_PLUS), egal woher
-  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus: Math.max(0, Math.min(MAX_DROP_PLUS, plus | 0)), rarity: 0 };
+  const item = { uid: Math.random().toString(36).slice(2, 10), slot, tier, plus: Math.max(0, Math.min(MAX_DROP_PLUS, plus | 0)), rarity: 0, bv: BONUS_VER };
   if (CLASS_SLOTS.includes(slot)) {
     item.cls = cls || (game.player ? game.player.classId : 'krieger');
     if (slot === 'waffe') item.kind = kind || CLASS_WEAPON_KINDS[item.cls][0];
@@ -83,11 +83,12 @@ function bonusRollQuality(b, tier, special) {
   const def = (special ? SPECIAL_BONUS_TYPES : BONUS_TYPES)[b && b.t];
   if (!def) return 0.5;
   if (def.steps) {
-    const i = def.steps.indexOf(b.v);
-    return i < 0 ? 0.5 : i / (def.steps.length - 1);
+    const st = hpSteps(tier);
+    const i = st.indexOf(b.v);
+    return i < 0 ? Math.max(0, Math.min(1, b.v / st[st.length - 1])) : i / (st.length - 1);
   }
   const t = tier || 0;
-  const f = def.fmt === 'flat' ? 1 + t * (def.tierScale || 0.35) : 1 + t * 0.1;
+  const f = bonusTierMul(def, t);
   const lo = def.range[0] * f;
   const hi = Math.min(def.max || Infinity, def.range[1] * f);
   if (!(hi > lo)) return b.v >= hi ? 1 : 0;
@@ -302,9 +303,15 @@ function itemFullName(item) {
 function itemColor(item) {
   return rarityColor(item);
 }
-// Farbe des Plus (+7 blau, +10 gold …), wie bisher
-function plusColor(item) {
-  return PLUS_COLORS[plusBand(item.plus)] || '#ece2cb';
+// Farbe des Plus: seit 15.37 immer dieselbe – ein höheres Plus färbt nichts mehr um (vorher +4 blau, +7 lila,
+// +10 gold, was wie eine bessere Seltenheit aussah). Farbe tragen nur noch die Seltenheiten.
+function plusColor() {
+  return '#ece2cb';
+}
+// Leuchten eines Teils (Symbol, Waffe in der Hand, Funkeln): Farbe der Seltenheit, grau leuchtet hell
+function glowColorOf(item) {
+  const r = item ? rarityOf(item) : 0;
+  return r > 0 ? RARITIES[r].color : '#e8e2d2';
 }
 
 // Werte inklusive Verbesserung. Anteile (Prozentwerte) wachsen um 10 % je Plus,
@@ -535,13 +542,15 @@ function bonusValue(def, tier) {
   if (def.steps) {
     const w = LIFE_STEP_WEIGHTS(tier || 0);
     let r = Math.random() * w.reduce((a, x) => a + x, 0);
-    for (let k = 0; k < def.steps.length; k++) { r -= w[k]; if (r <= 0) return def.steps[k]; }
-    return def.steps[def.steps.length - 1];
+    const st = hpSteps(tier); // seit 15.37 je Gegenstandsstufe (Ewig: 200/350/500/1000)
+    for (let k = 0; k < st.length; k++) { r -= w[k]; if (r <= 0) return st[k]; }
+    return st[st.length - 1];
   }
   const [lo, hi] = def.range;
   const r = lo + Math.random() * (hi - lo);
-  if (def.fmt === 'flat') return Math.max(1, Math.min(def.max || Infinity, Math.round(r * (1 + tier * (def.tierScale || 0.35)))));
-  const v = Math.min(def.max || Infinity, r * (1 + tier * 0.1));
+  // seit 15.37 wachsen die Boni mit der Gegenstandsstufe wie die Grundwerte (bonusTierMul, daten/gegenstaende.js)
+  if (def.fmt === 'flat') return Math.max(1, Math.min(def.max || Infinity, Math.round(r * bonusTierMul(def, tier))));
+  const v = Math.min(def.max || Infinity, r * bonusTierMul(def, tier));
   if (def.fmt === 'pct1') return Math.round(v * 10000) / 10000;
   return Math.round(v * 1000) / 1000;
 }
@@ -586,11 +595,35 @@ function fitItemAttrs(item, classId) {
 
 // seit 14.21: Leben-Boni auf feste Stufen (200/350/500/1000, kleinere Werte rücken auf 200); auf Waffe und Köcher
 // gibt es kein Leben mehr – dort wird der Bonus durch einen anderen passenden ersetzt (die Anzahl bleibt gleich)
-function snapLife(v) {
-  const steps = BONUS_TYPES.hp.steps;
-  return steps.find((s) => s >= v) || steps[steps.length - 1]; // aufrunden: niemand verliert Leben
+function snapLife(v, tier) {
+  const steps = hpSteps(tier);
+  return steps.find((s) => s >= v) || steps[steps.length - 1]; // aufrunden, höchstens die größte Stufe
+}
+// Alte Teile auf die Boni je Gegenstandsstufe umrechnen (seit 15.37, Regeln bei BONUS_VER in daten/gegenstaende.js):
+// jeder Bonus behält sein Würfelglück (gleicher Anteil seiner Spanne), Leben wechselt auf dieselbe Stufe der neuen
+// Treppe. Frühere Endboss-Teile (item.legend) werden unter Ewig gold. Einmal je Teil (item.bv).
+function bonusUmstellen(item) {
+  if (!item || isBook(item) || !item.slot || item.bv >= BONUS_VER) return;
+  const t = item.tier || 0;
+  const conv = (b, pool) => {
+    const d = pool[b && b.t];
+    if (!d || typeof b.v !== 'number') return;
+    if (d.steps) {
+      const st = hpSteps(t);
+      const i = d.steps.indexOf(b.v);
+      b.v = i >= 0 ? st[i] : snapLife((b.v * st[st.length - 1]) / d.steps[d.steps.length - 1], t);
+      return;
+    }
+    const v = (b.v * bonusTierMul(d, t)) / bonusTierMul(d, t, true);
+    b.v = Math.min(d.max || Infinity, d.fmt === 'flat' ? Math.max(1, Math.round(v)) : d.fmt === 'pct1' ? Math.round(v * 10000) / 10000 : Math.max(0.001, Math.round(v * 1000) / 1000));
+  };
+  for (const b of item.bonuses || []) conv(b, BONUS_TYPES);
+  for (const b of item.specials || []) conv(b, SPECIAL_BONUS_TYPES);
+  if (item.legend && t < ITEM_TIERS.length - 1 && item.rarity >= 0 && item.rarity < 4) item.rarity = 4;
+  item.bv = BONUS_VER;
 }
 function fixLifeBonus(item) {
+  bonusUmstellen(item);
   if (!item || !item.bonuses || isBook(item)) return;
   const noLife = !BONUS_TYPES.hp.slots.includes(item.slot);
   for (const b of item.bonuses) {
@@ -599,13 +632,14 @@ function fixLifeBonus(item) {
       b.t = null;
       const nb = rollBonus(item, false);
       if (nb && nb.t) { b.t = nb.t; b.v = nb.v; }
-    } else if (!BONUS_TYPES.hp.steps.includes(b.v)) b.v = snapLife(b.v);
+    } else if (!hpSteps(item.tier).includes(b.v)) b.v = snapLife(b.v, item.tier);
   }
   item.bonuses = item.bonuses.filter((b) => b.t);
 }
 
 // Zufälliger Bonus, der auf diesem Gegenstand noch nicht vorkommt
 function rollBonus(item, special) {
+  bonusUmstellen(item); // seit 15.37: alte Boni zuerst auf die neuen Spannen, sonst mischen sich alt und neu
   const pool = special ? SPECIAL_BONUS_TYPES : BONUS_TYPES;
   const taken = new Set((special ? item.specials : item.bonuses || []).map((b) => b.t));
   const fit = bonusAttrsFor(item);
@@ -676,10 +710,11 @@ function applyMaterial(ref, matId) {
 // Seit Version 5.9: zu hohe Prozent-Boni alter Gegenstände auf die neue Höchstgrenze kürzen
 function clampItemBonuses(item) {
   if (!item || isBook(item)) return;
+  bonusUmstellen(item);
   // Statuswerte (Stärke, Geschick …) auf die neue Höchstgrenze ihrer Gegenstandsstufe
   for (const b of item.bonuses || []) {
     const d = BONUS_TYPES[b.t];
-    if (d && d.tierScale) b.v = Math.min(b.v, Math.round(d.range[1] * (1 + (item.tier || 0) * d.tierScale)));
+    if (d && d.tierScale) b.v = Math.min(b.v, Math.max(1, Math.round(d.range[1] * bonusTierMul(d, item.tier))));
   }
   for (const b of item.bonuses || []) { const d = BONUS_TYPES[b.t]; if (d && d.max && b.v > d.max) b.v = d.max; }
   for (const b of item.specials || []) { const d = SPECIAL_BONUS_TYPES[b.t]; if (d && d.max && b.v > d.max) b.v = d.max; }
@@ -1052,7 +1087,7 @@ function rollLoot(m) {
   // Gegenstände für die Fertigkeiten (seit 14.1, Raten in SKILL_MAT_DROP, daten/gegenstaende.js):
   // Fertigkeitsbücher aus jedem Seelenstein (18 %) und ganz selten von Monstern ab Stufe 20 (0,3 %), immer zur
   // eigenen Klasse; Schriftrollen nur aus Seelensteinen ab Stufe 40 (40: 22 %, 80: 42 %);
-  // Seelensteine (Gegenstand) nur aus Seelensteinen ab Stufe 45 (seit 14.9: 45: 3,5 %, 60: 5 %, 80: 7 %).
+  // Seelensteine (Gegenstand) nur aus Seelensteinen ab Stufe 45 (45: 3,5 %, seit 15.37 ab Stufe 50 fest 10 %).
   const bd = SKILL_MAT_DROP.book;
   if (m.isStone ? Math.random() < bd.stone : m.level >= bd.mobLevel && Math.random() < bd.mob) addBooks(1, m, ownClassSkillIds(p));
   if (m.isStone && Math.random() < skillMatChance('rolle', m.level)) addSkillMat('rolle', 1, m);
@@ -1918,8 +1953,9 @@ function drawDoll(canvas, who = game.player) {
 }
 
 function itemIconUrl(item) {
-  const band = plusBand(item.plus);
-  const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:${band}:${gearHueKey(item)}`;
+  // seit 15.37 leuchtet das Symbol in der Farbe der Seltenheit (vorher nach dem Plus)
+  const band = rarityOf(item);
+  const key = `${item.slot}:${item.tier}:${item.cls || ''}:${item.kind || ''}:r${band}:${gearHueKey(item)}`;
   if (iconCache.has(key)) return iconCache.get(key);
   // seit 14.38 im Arbeitsspeicher gebacken (bakeSprite cpu, figuren.js): kein Zurücklesen von der Grafikkarte
   // seit 14.59 in ICON_HI gebacken und 144 Pixel groß: die detailreicheren Symbole bleiben am Handy scharf
@@ -1929,8 +1965,8 @@ function itemIconUrl(item) {
   const ctx = c.getContext('2d', CPU_CANVAS);
   if (band) {
     const g = ctx.createRadialGradient(size / 2, size / 2, 4, size / 2, size / 2, size / 2);
-    g.addColorStop(0, `rgba(${hexRgb(PLUS_COLORS[band])},0.55)`);
-    g.addColorStop(1, `rgba(${hexRgb(PLUS_COLORS[band])},0)`);
+    g.addColorStop(0, `rgba(${hexRgb(RARITIES[band].color)},0.5)`);
+    g.addColorStop(1, `rgba(${hexRgb(RARITIES[band].color)},0)`);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
   }
@@ -2185,14 +2221,13 @@ const gear = {
         `<img src="${bookIconUrl(item.book)}" alt="Fertigkeitsbuch: ${skillEntry(item.book).sk.name}">` +
         `<span class="item-count">${item.count}</span>` + (label ? `<span class="slot-label">${label}</span>` : '') + `</button>`;
     }
-    const band = plusBand(item.plus);
     // Pfeil: besser oder schlechter als das Angelegte (nur für Gegenstände in der Tasche)
     const worn = Object.values(game.player.equipment).includes(item);
     // seit 15.06: ein bis vier Pfeile je nach Größe des Unterschieds (compareGrade)
     const score = worn ? 0 : compareGrade(item);
     const arrow = score ? `<span class="tile-cmp ${score > 0 ? 'up' : 'down'} g${Math.abs(score)}">${compareArrowsSvg(score)}</span>` : '';
     // Rahmen und Leuchten in der Farbe der Seltenheit (rar-0 … rar-4, css/seltenheit.css)
-    return `<button type="button" class="item-tile band-${band} rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
+    return `<button type="button" class="item-tile rar-${rarityOf(item)}${item.plus >= 8 ? ' sparkle' : ''}" ${attrs}${slot ? ` data-slot="${slot}"` : ''} data-info="${escTip(itemTipHtml(item))}">` +
       `<img src="${itemIconUrl(item)}" alt="${itemFullName(item)}">` + arrow +
       // seit 14.32: Seltenheit auch ohne Farbe erkennbar – 1 bis 4 Punkte oben links (css/seltenheit.css)
       (rarityOf(item) > 0 ? `<span class="rar-pips" aria-hidden="true"></span>` : '') +
@@ -3010,26 +3045,28 @@ const gear = {
           `<div class="mi-info"><strong style="color:${itemColor(item)}">${itemName(item)}</strong>` +
           `<small class="${tooLow ? 'need' : ''}">ab Stufe ${need} · ${ITEM_TIERS[tier].label}</small>` +
           (item.rarity ? `<small class="rar-line"><b style="color:${itemColor(item)}">${RARITIES[item.rarity].name}</b> · ${RARITIES[item.rarity].bonus.join('–')} zufällige Boni</small>` : '') +
-          `<span class="mi-stats">${stats}</span>${tooLow ? '' : compareHtml(item, 'Gegenüber jetzt')}</div>` +
+          // seit 15.37 ohne das große Vergleichsfeld: grün/rot an den Werten zeigt schon, was besser ist
+          `<span class="mi-stats">${stats}</span></div>` +
           `<div class="mi-buy"><span class="price">${price.toLocaleString('de-DE')} Gold</span>` +
           `<button type="button" class="mini-btn" data-buy-gear="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen</button>` +
           (tooLow ? '' : `<button type="button" class="mini-btn primary" data-buy-equip="${slot}:${tier}:${kind || ''}" ${p.gold < price ? 'disabled' : ''}>Kaufen &amp; anlegen</button>`) +
           `</div></div>`;
       }).join('');
-      return `<section class="merchant-group"><h3>${title} <small>· angelegt: ${equipped ? itemFullName(equipped) : 'nichts'}</small></h3><div class="merchant-list">${rows}</div></section>`;
-    }).join('');
-    // seit 13.5 breit: Listen nebeneinander, Gold und Verkaufen oben – kaum noch scrollen
-    const panel = body.closest('.panel');
-    if (panel) panel.classList.add('npc-wide');
+      // seit 15.37 je Art ein Reiter (npcreiter.js) statt aller Listen nebeneinander
+      return { id: slot + (kind || ''), label: kind ? wk.name : slotName,
+        html: `<p class="npc-tab-note">${title} <small>· angelegt: ${equipped ? itemFullName(equipped) : 'nichts'}</small></p><div class="merchant-list">${rows}</div>` };
+    });
+    if (m.arrows && typeof bowArrowShopHtml === 'function') groups.push({ id: 'pfeile', label: 'Pfeile', html: bowArrowShopHtml() });
+    const lernen = this.merchant === 'waffen' ? this.dualWieldHtml() : '';
+    if (lernen) groups.push({ id: 'lernen', label: 'Lernen', html: lernen });
     const msg = keepMsg ? document.getElementById('merchantMsg') : null;
     const text = msg ? msg.textContent : '';
     const cls = msg ? msg.className : 'gear-msg';
-    body.innerHTML = `<div class="merchant-top"><p class="merchant-greet">„${m.greeting}“</p>` +
-      `<div class="merchant-gold"><span>Dein Gold</span><b>${p.gold.toLocaleString('de-DE')}</b></div>` +
-      `<div class="merchant-sell"><button type="button" class="btn btn-primary" data-open-sell>Tasche öffnen und verkaufen</button><small>Tasche ${bagCapText(p)}</small></div></div>` +
-      `<p id="merchantMsg" class="${cls}">${text}</p>` + (this.merchant === 'waffen' ? this.dualWieldHtml() : '') + `<div class="merchant-groups">${groups}` +
-      // Bogenmacherin (seit 13.57): Pfeile je Sorte (fernninja.js)
-      (m.arrows && typeof bowArrowShopHtml === 'function' ? bowArrowShopHtml() : '') + `</div>`;
+    // seit 15.37 schmal: eine Kopfzeile (Gruß, Gold), darunter die Reiter; Verkaufen ist ein eigener Reiter
+    groups.push({ id: 'verkauf', label: 'Verkaufen', html: this.sellSectionHtml() });
+    body.innerHTML = `<p class="npc-kopf"><span>„${m.greeting}“</span><span>Gold <span class="price">${p.gold.toLocaleString('de-DE')}</span></span></p>` +
+      `<p id="merchantMsg" class="${cls}">${text}</p>` + npcTabsHtml('haendler:' + this.merchant, groups);
+    npcTabsWire(body, () => this.renderMerchant(body, true));
     this.wireSell(body, () => this.renderMerchant(body, true));
     if (m.arrows && typeof bowArrowShopWire === 'function') bowArrowShopWire(body, () => this.renderMerchant(body, true));
     const learn = body.querySelector('[data-learn-dual]');

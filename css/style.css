@@ -3763,3 +3763,32 @@ body.skv-open .hover-tip { display: none !important; }
   60% { transform: translateY(0) rotate(6deg); }
 }
 #hud.touch .post-badge { width: 27px; height: 22px; left: -11px; bottom: -10px; }
+
+/* Kleine Händlerfenster mit Reitern (seit 15.37, npcreiter.js) */
+#panelNpc.npc-klein { width: min(520px, calc(100vw - 16px)); }
+.npc-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 0; border-bottom: 1px solid var(--brass-dim); }
+.npc-tab {
+  padding: 6px 12px; border-radius: 7px 7px 0 0; border: 1px solid var(--brass-dim); border-bottom: 0;
+  background: #1d1712; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 700;
+  cursor: var(--zeiger-hand, pointer);
+}
+.npc-tab small { margin-left: 3px; font-size: 10px; opacity: 0.75; }
+.npc-tab.on { background: linear-gradient(#5a4628, #2e2416); color: #ffe9a8; border-color: var(--brass); }
+.npc-tab-body { padding-top: 8px; max-height: min(52vh, 430px); overflow-y: auto; overscroll-behavior: contain; }
+.npc-tab-note { margin: 0 0 6px; font-weight: 700; }
+.npc-tab-note small { font-weight: 400; color: var(--muted); }
+.npc-kopf { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0; }
+.npc-kopf > span:first-child { color: var(--muted); font-style: italic; }
+.shop-klein { gap: 5px; }
+.shop-klein .shop-item { padding: 5px 8px; }
+.shop-klein .shop-item .buy .mini-btn { min-width: 40px; }
+.npc-klein .merchant-top { gap: 6px 12px; }
+.npc-klein .merchant-top .merchant-greet { flex-basis: 100%; font-size: 13px; }
+.npc-klein .merchant-item { grid-template-columns: 40px minmax(0, 1fr) auto; padding: 5px 8px; }
+.npc-klein .merchant-item img { width: 40px; height: 40px; }
+.npc-klein .mi-buy { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+
+.npc-kopf > span:first-child { flex: 1 1 auto; min-width: 0; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.npc-kopf > span:last-child { flex: none; white-space: nowrap; }
+.npc-klein #merchantMsg:empty { display: none; }
+#hud.touch ~ #panelNpc.npc-klein .npc-tab-body, .touch-ui #panelNpc.npc-klein .npc-tab-body { max-height: 52vh; }

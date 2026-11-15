@@ -33,7 +33,7 @@ function rarityColor(item) {
 // sonst nach Boni: ab 3 Boni blau, mit Boni grün, ohne grau
 function legacyRarity(item) {
   const n = (item.bonuses || []).length;
-  if (item.legend) return item.tier >= RARITIES[4].minTier ? 4 : item.tier >= RARITIES[3].minTier ? 3 : 2;
+  if (item.legend) return 4; // seit 15.37 auf jeder Stufe gold
   if (n >= 3) return 2;
   return n ? 1 : 0;
 }
@@ -95,10 +95,13 @@ function rollRarity(src, m, item) {
     return 4;
   }
   if (rule.epic && (!rule.epicFrom || (m && m.level >= rule.epicFrom)) && Math.random() < rule.epic) {
-    item.tier = Math.max(item.tier, RARITIES[3].minTier);
+    item.tier = Math.max(item.tier, RARITIES[3].liftTier);
     return 3;
   }
-  return capRarity(rarityPick(rule.w), item.tier);
+  let r = capRarity(rarityPick(rule.w), item.tier);
+  // seit 15.37: Endboss-Teile sind gold, nur auf der höchsten Stufe (Ewig) höchstens episch (capTop)
+  if (rule.capTop != null && item.tier >= ITEM_TIERS.length - 1) r = Math.min(r, rule.capTop);
+  return r;
 }
 // Würfeln und gleich anwenden; Rückgabe: der Gegenstand
 function rarityRoll(item, src, m) {
@@ -136,7 +139,7 @@ function rollRarityItem(level, rarity, cls, slot) {
   const p = game.player;
   cls = cls || p.classId;
   let tier = rarityTierFor(level);
-  if (rarity >= 3) tier = Math.max(tier, RARITIES[rarity].minTier);
+  if (rarity >= 3) tier = Math.max(tier, RARITIES[rarity].liftTier);
   if (!slot) {
     const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), cls);
     slot = slots[randInt(0, slots.length - 1)];

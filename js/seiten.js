@@ -29,6 +29,11 @@ const FACTIONS = {
 const FACTION_MEET = 50; // ab dieser Stufe teilen sich die Seiten die Karten (gemeinsame Karten haben minLevel 50)
 const factionOf = (p) => (p && p.faction === 'schatten' ? 'schatten' : 'licht');
 const myFaction = () => factionOf(typeof game !== 'undefined' ? game.player : null);
+// seit 15.37: ab Stufe FACTION_GUEST darf man auch auf die Karten der anderen Seite reisen (Weltentor). Dort herrscht
+// außerhalb der Städte offener Kampf – geschützt ist, wer höchstens Stufe FACTION_SAFE hat.
+const FACTION_GUEST = 80;
+const FACTION_SAFE = 30;
+const factionGuest = (p = typeof game !== 'undefined' ? game.player : null) => !!p && (p.level || 1) >= FACTION_GUEST;
 const mapAllowedFor = (wm, f) => !wm || !wm.side || wm.side === f;
 // Gegner auf der anderen Seite? (Mitspieler aus dem Netz)
 const factionFoe = (rp) => !!rp && !!game.player && factionOf(rp) !== myFaction();
@@ -159,7 +164,7 @@ function factionLockTick() {
   factionState.at = game.time;
   if (!p.faction) return;
   const wm = mapOfTile(p.x / TILE, p.y / TILE);
-  if (!wm || mapAllowedFor(wm, p.faction)) return;
+  if (!wm || mapAllowedFor(wm, p.faction) || factionGuest(p)) return;
   const other = FACTIONS[wm.side];
   ui.log(`${wm.name} gehört zur ${other ? other.title : 'anderen Seite'}. Du kehrst in deine eigene Stadt zurück.`, 'warn');
   factionGoHome(false);
@@ -179,7 +184,7 @@ if (typeof ui !== 'undefined' && ui.enterGame) {
     else if (p) {
       // neue Figur oder Spielstand auf einer Karte der anderen Seite: sofort in die eigene Stadt
       const wm = mapOfTile(p.x / TILE, p.y / TILE);
-      if (wm && !mapAllowedFor(wm, p.faction)) {
+      if (wm && !mapAllowedFor(wm, p.faction) && !factionGuest(p)) {
         const spot = mapSpawnSpot(factionHomeMap(p.faction, p.level));
         p.x = spot.x;
         p.y = spot.y;
@@ -221,7 +226,8 @@ if (typeof ui !== 'undefined' && ui.renderWorldGate) {
     // WORLD_MAPS kurz auf die erlaubten Karten beschränken (Reihenfolge und Darstellung bleiben wie bisher)
     const f = myFaction();
     const all = WORLD_MAPS.slice();
-    const mine = all.filter((m) => mapAllowedFor(m, f));
+    const gast = factionGuest();
+    const mine = all.filter((m) => gast || mapAllowedFor(m, f));
     WORLD_MAPS.length = 0;
     WORLD_MAPS.push(...mine);
     try {
@@ -231,7 +237,9 @@ if (typeof ui !== 'undefined' && ui.renderWorldGate) {
       WORLD_MAPS.push(...all);
       const body = document.getElementById('npcBody');
       if (body && !body.querySelector('.fac-gate')) {
-        body.insertAdjacentHTML('afterbegin', `<p class="fac-gate">${factionCrest(f, 18)} ${FACTIONS[f].title}: deine Karten bis Stufe 49 und die gemeinsamen Karten ab Stufe ${FACTION_MEET}.</p>`);
+        body.insertAdjacentHTML('afterbegin', gast
+          ? `<p class="fac-gate">${factionCrest(f, 18)} ${FACTIONS[f].title}: Ab Stufe ${FACTION_GUEST} stehen dir auch die Karten der anderen Seite offen. Dort herrscht außerhalb der Städte offener Kampf – nur Spieler bis Stufe ${FACTION_SAFE} sind geschützt.</p>`
+          : `<p class="fac-gate">${factionCrest(f, 18)} ${FACTIONS[f].title}: deine Karten bis Stufe 49 und die gemeinsamen Karten ab Stufe ${FACTION_MEET}. Ab Stufe ${FACTION_GUEST} auch die Karten der anderen Seite.</p>`);
       }
     }
   };
@@ -373,17 +381,23 @@ if (typeof netApplyState === 'function') {
 // Lagern, nicht in Dungeons, Instanzen oder Arenen (die liegen außerhalb aller Karten).
 const OPEN_PVP = { minLevel: FACTION_MEET, engaged: 12 };
 const openPvp = { proxies: new Map(), foes: [], lastHit: -99 };
+// Rückgabe: 0 kein Kampf (Stadt, außerhalb aller Karten), 1 gemeinsame Karte, 2 Karte einer Seite (seit 15.37: dort
+// kämpfen Besucher ab Stufe 80 gegen alle über Stufe FACTION_SAFE)
 function openPvpZone(x, y) {
   const wm = mapOfTile(x / TILE, y / TILE);
-  return !!wm && !wm.side && !inVillage(x, y);
+  return !wm || inVillage(x, y) ? 0 : wm.side ? 2 : 1;
 }
 function openPvpAllowed(p, rp) {
   if (!p || !rp || rp.gone || !factionFoe(rp)) return false;
   // seit 14.71: wer zusammen in einer Gruppe ist, kämpft nicht gegeneinander
   if (typeof inMyParty === 'function' && inMyParty(rp.name)) return false;
-  if ((p.level || 1) < OPEN_PVP.minLevel || (rp.level || 1) < OPEN_PVP.minLevel) return false;
   if (game.pvpMatch || game.duel) return false;
-  return openPvpZone(p.x, p.y) && openPvpZone(rp.x, rp.y);
+  const za = openPvpZone(p.x, p.y);
+  const zb = openPvpZone(rp.x, rp.y);
+  if (!za || !zb) return false;
+  // Karte einer Seite: jemand ist dort Gast (ab Stufe 80); geschützt ist, wer höchstens Stufe FACTION_SAFE hat
+  const min = za === 2 || zb === 2 ? FACTION_SAFE + 1 : OPEN_PVP.minLevel;
+  return (p.level || 1) >= min && (rp.level || 1) >= min;
 }
 function openPvpTick() {
   const p = game.player;

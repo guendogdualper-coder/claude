@@ -65,8 +65,11 @@ const RARITIES = [
   { id: 'normal', name: 'Normal', color: '#a4a4a4', bonus: [0, 0], statMul: 1, minTier: 0 },
   { id: 'gewoehnlich', name: 'Gewöhnlich', color: '#4ccf5a', bonus: [1, 2], statMul: 1.04, minTier: 0 },
   { id: 'selten', name: 'Selten', color: '#4a98ff', bonus: [2, 3], statMul: 1.08, minTier: 0 },
-  { id: 'episch', name: 'Episch', color: '#b06cff', bonus: [3, 4], statMul: 1.14, minTier: 7 },
-  { id: 'legendaer', name: 'Legendär', color: '#ffb21a', bonus: [4, 5], statMul: 1.22, minTier: 9 }
+  // seit 15.37: Episch und Legendär gibt es auf jeder Gegenstandsstufe (minTier 0) – die Farbe sagt, wie gut ein Teil
+  // FÜR SEINE STUFE ist. liftTier: Quellen, die die Stufe anheben (Instanzen, Dungeon-Bosse ab 50), heben wie bisher
+  // auf Göttlich (Lv 60) bzw. Ewig (Lv 80).
+  { id: 'episch', name: 'Episch', color: '#b06cff', bonus: [3, 4], statMul: 1.14, minTier: 0, liftTier: 7 },
+  { id: 'legendaer', name: 'Legendär', color: '#ffb21a', bonus: [4, 5], statMul: 1.22, minTier: 0, liftTier: 9 }
 ];
 const RARITY_STAT_KEYS = ['atk', 'def', 'hp', 'mp'];
 
@@ -98,7 +101,9 @@ const RARITY_DROPS = {
   stoneMob: { w: [58, 35, 7] }, // Monster aus Seelensteinen und in Dungeons
   stone: { w: [0, 62, 38] }, // Seelensteine: grün oder blau
   boss: { w: [0, 50, 50], epic: 0.05, epicFrom: 50 }, // Dungeon-Bosse: grün/blau, ab Stufe 50 mit 5 % je Teil episch
-  raid: { w: [0, 0, 0, 1], minBonus: 4, rollBest: 2 }, // Endbosse der Maps: episch (darunter so gut wie die Stufe erlaubt)
+  // Endbosse der Maps: seit 15.37 legendär (gold) – das Beste für ihre Stufe; nur auf Ewig (Lv 80) höchstens episch
+  // (capTop), dort bleibt Gold den Instanzen vorbehalten. Vorher episch und unter Lv 60 auf blau gekappt.
+  raid: { w: [0, 0, 0, 0, 1], capTop: 3, minBonus: 4, rollBest: 2 },
   instance: { w: [0, 0, 0, 1], legendary: 0.02, minBonus: 4, rollBest: 2 }, // Instanz-Wächter (Höllenthron): episch, 2 % legendär
   instanceBoss: { w: [0, 0, 0, 1], legendary: 0.12, minBonus: 5, rollBest: 2 }, // Instanzboss (Abaddor): Zusatzteil, 12 % legendär
   instanceEpic: { rollBest: 2 } // epische/legendäre Teile der Lv-60/80-Instanzen (rollRarityItem, dropEpic, dropLegendary)
@@ -468,6 +473,35 @@ const BONUS_TYPES = {
   goldFind: { name: 'Mehr Gold', fmt: 'pct', range: [0.02, 0.05], max: 0.08, slots: ['helm', 'schuhe', 'guertel', 'umhang', 'schultern'] },
   dropFind: { name: 'Mehr Beute', fmt: 'pct', range: [0.02, 0.05], max: 0.08, slots: ['helm', 'schuhe', 'guertel', 'umhang', 'schultern'] }
 };
+// --- Boni je Gegenstandsstufe (seit 15.37) ------------------------------------------------------------------------
+// Vorher wuchsen feste Boni nur um 35 % je Stufe (Statuswerte 15 %, Prozente 10 %) und Leben gab es auf jeder Stufe
+// in 200/350/500/1000 – ein gut gewürfeltes Teil der Stufe 15 schlug damit Teile der Stufe 30 (+1000 Leben auf
+// Schuhen mit 4 Rüstung). Jetzt wachsen die Boni mit der Stufe wie die Grundwerte; auf Ewig (Lv 80) sind sie
+// unverändert, darunter kleiner:
+//   feste Werte   4,15 × (Waffenschaden der Stufe / Waffenschaden Ewig)^0,8   (Stufe 15: 0,69 statt 2,05)
+//   Statuswerte   Höchstfaktor × (0,3 + 0,7 × Stufe/9)
+//   Prozente      1,9 × (0,35 + 0,65 × Stufe/9)                                (Stufe 15: 1,08 statt 1,3)
+//   Leben         feste Stufen 20 % / 35 % / 50 % / 100 % von HP_STEP_MAX der Stufe (Ewig: 200/350/500/1000)
+// Alte Teile werden einmal umgerechnet (bonusUmstellen in ausruestung.js, Kennung item.bv = BONUS_VER): jeder Bonus
+// behält sein Würfelglück, nur die Spanne ist die neue.
+const BONUS_VER = 2;
+const HP_STEP_MAX = [60, 100, 160, 250, 350, 500, 650, 800, 900, 1000];
+const HP_STEP_SHARE = [0.2, 0.35, 0.5, 1];
+function hpSteps(tier) {
+  const m = HP_STEP_MAX[Math.max(0, Math.min(HP_STEP_MAX.length - 1, tier | 0))];
+  return HP_STEP_SHARE.map((s) => Math.round((m * s) / 5) * 5);
+}
+function bonusTierMul(def, tier, old) {
+  const top = ITEM_TIERS.length - 1;
+  const t = Math.max(0, Math.min(top, tier | 0));
+  if (def.fmt === 'flat') {
+    if (old) return 1 + t * (def.tierScale || 0.35);
+    if (def.tierScale) return (1 + top * def.tierScale) * (0.3 + (0.7 * t) / top);
+    return (1 + top * 0.35) * Math.pow(BASE_STATS.waffe[t].atk / BASE_STATS.waffe[top].atk, 0.8);
+  }
+  return old ? 1 + t * 0.1 : (1 + top * 0.1) * (0.35 + (0.65 * t) / top);
+}
+
 // Gewichte beim Würfeln (seit 14.15, rollBonus): die vielen neuen Arten verwässern sonst den Topf. Grundwerte (Leben,
 // Angriff, Verteidigung und der Hauptwert der Klasse) 3, Gold und Beute 0,7, alles andere 1.
 const BONUS_WEIGHTS = { hp: 3, atk: 3, def: 3, goldFind: 0.7, dropFind: 0.7 };
@@ -547,10 +581,12 @@ const SKILL_MAT_DROP = {
   rolle: { stone: 40, base: 0.22, step: 0.005 },
   // seit 14.9 viel seltener (vorher 12 % bei Stufe 45 bis 26 % bei 80 – zehn Steine gaben oft vier): 3,5 % bei 45,
   // je Stufe +0,1 %, höchstens 7 % (Stufe 60 etwa 5 %, Stufe 80 etwa 7 %)
-  seelenstein: { stone: 45, base: 0.035, step: 0.001, cap: 0.07 }
+  // seit 15.37: ab Stein-Stufe 50 fest 10 % (hi), der Stein der Stufe 45 bleibt bei 3,5 %
+  seelenstein: { stone: 45, base: 0.035, step: 0.001, cap: 0.07, hi: { stone: 50, chance: 0.1 } }
 };
 function skillMatChance(id, level) {
   const d = SKILL_MAT_DROP[id];
+  if (d.hi && level >= d.hi.stone) return d.hi.chance;
   return level < d.stone ? 0 : Math.min(d.cap || 1, d.base + (level - d.stone) * d.step);
 }
 

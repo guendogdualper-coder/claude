@@ -3687,7 +3687,12 @@ function bowArrowShopHtml() {
     return `<section class="merchant-group"><h3>Pfeile <small>· Munition für den Bogen</small></h3><p class="hint-text">Bögen und Pfeile führt nur der Ninja (Weg des Falken). Für deine Klasse hat die Bogenmacherin nichts im Angebot – verkaufen kannst du hier trotzdem.</p></section>`;
   }
   const cur = bowArrowSort(p);
+  // seit 15.37 kurz: die drei besten Sorten, die man schon benutzen darf, und die nächste, die noch gesperrt ist
+  const frei = ARROW_TYPES.map((a, i) => i).filter((i) => p.level >= ARROW_TYPES[i].level);
+  const zeigen = new Set(frei.slice(-3));
+  if (frei.length < ARROW_TYPES.length) zeigen.add(frei.length);
   const rows = ARROW_TYPES.map((a, i) => {
+    if (!zeigen.has(i)) return '';
     const tooLow = p.level < a.level;
     const have = bowArrowCount(p, i);
     const buy = (n) => `<button type="button" class="mini-btn${n > 1 ? '' : ' primary'}" data-buy-arrow="${i}:${n}" ${tooLow || p.gold < a.price * n ? 'disabled' : ''}>${n} × ${ARROW_BUNDLE} · ${(a.price * n).toLocaleString('de-DE')} Gold</button>`;
@@ -3698,7 +3703,7 @@ function bowArrowShopHtml() {
       `<span class="mi-stats"><span class="up">+${Math.round(a.dmg * 100)} % Schaden je Bogenschuss</span></span></div>` +
       `<div class="mi-buy">${buy(1)}${buy(5)}</div></div>`;
   }).join('');
-  return `<section class="merchant-group"><h3>Pfeile <small>· jeder Bogenschuss verbraucht einen; geschossen wird die beste Sorte, die du benutzen darfst</small></h3><div class="merchant-list">${rows}</div></section>`;
+  return `<p class="npc-tab-note">Pfeile <small>· jeder Bogenschuss verbraucht einen; die Sorte wählst du im Inventar</small></p><div class="merchant-list">${rows}</div>`;
 }
 function bowArrowShopWire(body, rerender) {
   body.querySelectorAll('[data-buy-arrow]').forEach((btn) => btn.addEventListener('click', () => {

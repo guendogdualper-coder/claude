@@ -61,6 +61,7 @@ function itemClean(raw) {
   if (bonuses.length) it.bonuses = bonuses;
   if (specials.length) it.specials = specials;
   if (raw.legend === true) it.legend = true;
+  if (raw.bv === BONUS_VER) it.bv = BONUS_VER; // seit 15.37: Boni schon auf den neuen Spannen (sonst rechnet clampItemBonuses um)
   if (typeof raw.raidMat === 'string' && MOB_MATS[raw.raidMat]) it.raidMat = raw.raidMat;
   // seit 14.55: Set-Teil (nur bekannte Sets, nur ab Göttlich und episch)
   if (typeof raw.set === 'string' && Object.prototype.hasOwnProperty.call(ITEM_SETS, raw.set) && it.tier >= SET_MIN_TIER && it.rarity >= 3) it.set = raw.set;

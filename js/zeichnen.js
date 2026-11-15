@@ -461,7 +461,7 @@ function drawPlayer(ctx, p) {
       const offAngle = dir === 'side' ? angle + 0.5 + (t >= 0 ? Math.sin(t * Math.PI) * 0.6 : 0) : Math.PI - angle;
       drawWeaponSprite(ctx, shield.kind, left.x + (dir === 'side' ? -4 : 0), left.y, offAngle, shield.tier);
       const ob = plusBand(shield.plus);
-      if (ob >= 2) glow(ctx, left.x + Math.cos(offAngle) * 16, left.y + Math.sin(offAngle) * 16, 10 + ob * 3, PLUS_COLORS[ob], 0.3 + ob * 0.08);
+      if (ob >= 2) glow(ctx, left.x + Math.cos(offAngle) * 16, left.y + Math.sin(offAngle) * 16, 10 + ob * 3, glowColorOf(shield), 0.3 + ob * 0.08);
       // seit 13.90: Waffenaura (Schwertaura) auch auf der zweiten Waffe – leuchtende Hülle und Lichtflecken entlang der Klinge
       const oa = p.buffs && p.buffs.find((bf) => SKILL_FX[bf.id] && SKILL_FX[bf.id].weaponGlow);
       if (oa) {
@@ -583,7 +583,7 @@ function drawPlayer(ctx, p) {
     if (band >= 2) {
       const reach = kind === 'dagger' ? 9 : 16;
       const pulse = 0.55 + 0.25 * Math.sin(game.time * 6);
-      glow(ctx, hand.x + Math.cos(angle) * reach, hand.y + Math.sin(angle) * reach, 10 + band * 3, PLUS_COLORS[band], pulse * (0.3 + band * 0.12));
+      glow(ctx, hand.x + Math.cos(angle) * reach, hand.y + Math.sin(angle) * reach, 10 + band * 3, glowColorOf(weapon), pulse * (0.3 + band * 0.12));
     }
     // Aura des Schwertes: die Klinge steckt in einer leuchtenden Hülle, Flammen steigen von ihr auf.
     // Mit jedem Rang wird die Hülle größer und heller, ab Erwacht fliegen Funken in der Rangfarbe.
@@ -1857,7 +1857,7 @@ function drawGearSparkles(ctx, p, fy, hand, angle, kind) {
     const item = eq[slot];
     if (!item || item.plus < 8) continue;
     const n = sparkleCount(item.plus);
-    const color = PLUS_COLORS[plusBand(item.plus)] || '#ffffff';
+    const color = glowColorOf(item);
     for (let k = 0; k < n; k++) {
       const phase = (t * 1.6 + k * 0.37 + slot.length * 0.21) % 1;
       const pos = place(k, n);

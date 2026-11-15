@@ -7066,7 +7066,7 @@ function syncPlayer3(p, dt) {
       wg.opacity = 0.85 + 0.15 * Math.sin(t * 8);
       wgFlame3(wg, 0.038, 0.075, 1);
     } else if (band >= 2) {
-      wg.color.set(PLUS_COLORS[band]);
+      wg.color.set(glowColorOf(weapon)); // seit 15.37 Farbe der Seltenheit statt des Plus
       wg.opacity = 0.3 + band * 0.07 + 0.1 * Math.sin(t * 6);
       wgFlame3(wg, 0.022, 0.025, 0.6);
     } else wg.opacity = 0;

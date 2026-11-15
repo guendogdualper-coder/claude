@@ -406,7 +406,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'ausruestung', q: 'Welche Seltenheiten gibt es?',
     a: () => ((typeof RARITIES !== 'undefined') ? RARITIES.map((r) => `<span style="color:${r.color}">${r.name}</span>`).join(' · ') + '. ' : '') +
-      'Seltenere Teile haben mehr Boni und etwas höhere Werte. Episch gibt es erst bei Ausrüstung ab Stufe 60, Legendär nur bei Stufe-80-Ausrüstung aus den Instanzen.',
+      'Seltenere Teile haben mehr Boni und etwas höhere Werte. Die Farbe sagt, wie gut ein Teil für seine Stufe ist – das Plus ändert sie nicht. Endbosse lassen legendäre Teile ihrer Stufe fallen; legendäre Stufe-80-Ausrüstung gibt es nur in den Instanzen.',
     k: 'seltenheit selten episch legendaer gewoehnlich normal farbe lila gold blau gruen'
   },
   {

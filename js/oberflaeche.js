@@ -1533,7 +1533,7 @@ const ui = {
   closePanels() {
     // Der Handel bleibt offen, bis er abgeschlossen oder abgebrochen ist
     document.querySelectorAll('.panel').forEach((el) => { if (el.id !== 'panelDeath' && !(el.id === 'panelTrade' && game.trade)) el.hidden = true; });
-    $('panelNpc').classList.remove('npc-wide');
+    $('panelNpc').classList.remove('npc-wide', 'npc-klein');
   },
 
   anyPanelOpen() {
@@ -1731,17 +1731,14 @@ const ui = {
     const pickName = c.paths.length === 4 ? MAGE_EL[c.paths[pick].id].name : c.paths[pick].name;
     // Magier (seit 13.63 nur hier): die Fertigkeitsstufen bleiben beim Elementwechsel, siehe changeMageElement
     const mage = p.classId === 'magier';
-    $('npcBody').innerHTML =
-      `<p>„Wissen hat seinen Preis. Ich verkaufe Fertigkeitsbücher zu deinen Fertigkeiten, helfe dir, deine Punkte neu zu verteilen, und zeige dir einen neuen Weg. Schriftrollen und Seelensteine habe ich nicht – die musst du den Seelensteinen draußen abringen.“</p>` +
-      `<p>Dein Gold: <span class="price">${fmt(p.gold)}</span></p>` +
-      (msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '') +
-      `<h3>Fertigkeitsbücher <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span></h3>` +
-      `<p class="hint">Ein Fertigkeitsbuch hebt eine erweckte Fertigkeit um eine Stufe (E1–E10). Für Heroisch (H1–H10) brauchst du Schriftrollen aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.rolle.stone}, ` +
-      `für Legendär und Vollendet (L1–V) Seelensteine als Gegenstand aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.seelenstein.stone} – je Stufe und je Rangaufstieg einen.</p><div class="shop">` +
+    // seit 15.37 klein mit Reitern (npcreiter.js): Bücher, Zurücksetzen, Weg wechseln
+    const buecher = `<p class="npc-tab-note">Fertigkeitsbücher <span class="price">je ${fmt(TEACHER.bookPrice)} Gold</span> <small>· heben eine erweckte Fertigkeit um eine Stufe (E1–E10)</small></p><div class="shop shop-klein">` +
       skills.map((sk) => `<div class="shop-item"><img class="shop-icon" src="${bookIconUrl(sk.id)}" alt="">` +
-        `<strong>${sk.name}</strong><small>Fertigkeitsbuch · im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
+        `<strong>${sk.name}</strong><small>im Gepäck: <b>${bookCount(p, sk.id)}</b></small>` +
         `<div class="buy"><button class="mini-btn" type="button" data-book="${sk.id}" ${p.gold < TEACHER.bookPrice ? 'disabled' : ''}>Kaufen</button></div></div>`).join('') +
-      `</div><h3>Punkte zurücksetzen</h3><div class="shop">` +
+      `</div><p class="hint">Für Heroisch (H1–H10) brauchst du Schriftrollen aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.rolle.stone}, ` +
+      `für Legendär und Vollendet (L1–V) Seelensteine als Gegenstand aus Seelensteinen ab Stufe ${SKILL_MAT_DROP.seelenstein.stone} – je Stufe und je Rangaufstieg einen.</p>`;
+    const zurueck = `<div class="shop shop-klein">` +
       `<div class="shop-item"><strong>Statuspunkte <span class="price">${fmt(stCost)} Gold</span></strong>` +
       `<small>Alle ${statSpent} verteilten Statuspunkte kommen zurück und lassen sich neu verteilen.</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="stat" ${!statSpent || p.gold < stCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
@@ -1749,17 +1746,24 @@ const ui = {
       `<small>Alle Fertigkeiten gehen auf Stufe 1 zurück, auch erweckte (E/H/L/V). Du bekommst alle ${p.level - 1} Fertigkeitspunkte zurück.` +
       `${itemsBack ? `<br><span>Dazu zurück:</span> ${itemsBack}` : ''}</small>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="skill" ${!canResetSkills(p) || p.gold < skCost ? 'disabled' : ''}>Zurücksetzen</button></div></div>` +
-      `</div><h3>${way} wechseln <span class="price">${fmt(skCost)} Gold</span></h3>` +
-      (mage
-        ? `<p class="hint">Wähle Feuer, Frost, Blitz oder Erde. Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. ` +
-          `Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen Element. Schriftrollen und Seelensteine gelten ohnehin für jede Fertigkeit.</p>`
-        : `<p class="hint">Dein jetziger ${way} bleibt mit allen Stufen gespeichert (auch E/H/L/V) – wechselst du zurück, ist alles wieder da. ` +
-          `Ein ${way}, den du schon gespielt hast, kommt genau so zurück; ein neuer beginnt auf Stufe 1 mit allen freien Punkten. ` +
-          `Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen ${way}. Was du im neuen ${way} nicht tragen kannst, kommt in die Tasche.</p>`) +
+      `</div><p class="hint">Das erste Zurücksetzen kostet ${fmt(TEACHER.resetBase)} Gold, jedes weitere das Doppelte (Status und Fertigkeiten getrennt, der Wegwechsel zählt zu den Fertigkeiten).</p>`;
+    const wechsel = `<p class="npc-tab-note">${way} wechseln <span class="price">${fmt(skCost)} Gold</span></p>` +
       pathChoiceHtml(c, pick) +
-      `<div class="shop"><div class="shop-item path-switch"><strong>${pick === cur ? (mage ? 'Dein jetziges Element' : `Dein jetziger ${way}`) : `${way}: ${pickName}`}</strong>` +
+      `<div class="shop shop-klein"><div class="shop-item path-switch"><strong>${pick === cur ? (mage ? 'Dein jetziges Element' : `Dein jetziger ${way}`) : `${way}: ${pickName}`}</strong>` +
       `<div class="buy"><button class="mini-btn" type="button" data-reset="path" ${pick === cur || p.gold < skCost ? 'disabled' : ''}>${pick === cur ? 'Gewählt' : 'Wechseln'}</button></div></div></div>` +
-      `<p class="hint">Das erste Zurücksetzen kostet ${fmt(TEACHER.resetBase)} Gold, jedes weitere das Doppelte (Status und Fertigkeiten getrennt, der Wegwechsel zählt zu den Fertigkeiten).</p>`;
+      (mage
+        ? `<p class="hint">Deine Fertigkeitsstufen bleiben beim Wechsel erhalten (auch E/H/L/V), die Buffs deines alten Elements enden. Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen Element.</p>`
+        : `<p class="hint">Dein jetziger ${way} bleibt mit allen Stufen gespeichert – wechselst du zurück, ist alles wieder da. Ein neuer ${way} beginnt auf Stufe 1 mit allen freien Punkten. ` +
+          `Fertigkeitsbücher in der Tasche werden zu Büchern derselben Plätze im neuen ${way}. Was du dort nicht tragen kannst, kommt in die Tasche.</p>`);
+    $('npcBody').innerHTML =
+      `<p class="npc-kopf"><span>„Wissen hat seinen Preis.“</span><span>Gold <span class="price">${fmt(p.gold)}</span></span></p>` +
+      (msg ? `<p class="${msg.ok ? 'gear-msg success' : 'form-error'}">${msg.text}</p>` : '') +
+      npcTabsHtml('lehrmeister', [
+        { id: 'buecher', label: 'Bücher', html: buecher },
+        { id: 'zurueck', label: 'Zurücksetzen', html: zurueck },
+        { id: 'wechsel', label: `${way} wechseln`, html: wechsel }
+      ]);
+    npcTabsWire($('npcBody'), () => this.renderTeacher(msg));
     const body = $('npcBody');
     drawPathSigils(body);
     body.querySelectorAll('[data-path]').forEach((b) => b.addEventListener('click', () => {
@@ -1820,28 +1824,33 @@ const ui = {
 
   renderShop() {
     const p = game.player;
+    // seit 15.37 klein mit Reitern (npcreiter.js): Lebenstränke, Manatränke, Verkaufen – je Trank nur Größe, Wirkung, Preis
+    const liste = (item) => `<div class="shop shop-klein">` + POTION_SIZES.map((sz) => {
+      const key = potKey(item.id, sz.id);
+      const price = item.price * sz.price;
+      const low = p.level < sz.level;
+      const amt = item.id === 'hp' ? sz.hp : sz.mp;
+      return `<div class="shop-item${low ? ' locked' : ''}"><img class="shop-icon potion-icon" src="${potionIconUrl(item.id, sz.id)}" alt="">` +
+        `<strong>+${amt.toLocaleString('de-DE')} ${item.id === 'hp' ? 'Leben' : 'Mana'} <span class="price">${price.toLocaleString('de-DE')} Gold</span></strong>` +
+        `<small>Größe ${sz.id}${low ? ` · ab Stufe ${sz.level}` : ''} · im Gepäck <b id="have-${key}">${p.potions[key] || 0}</b></small>` +
+        `<div class="buy"><button class="mini-btn" type="button" data-buy="${key}" data-n="1" ${low ? 'disabled' : ''}>1</button>` +
+        `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10</button></div></div>`;
+    }).join('') + `</div>`;
+    const eigene = SHOP.flatMap((item) => POTION_SIZES.map((sz) => ({ item, sz, key: potKey(item.id, sz.id) }))).filter((x) => (p.potions[x.key] || 0) > 0);
+    const verkauf = `<div class="shop shop-klein">` + (eigene.map(({ item, sz, key }) =>
+      `<div class="shop-item"><img class="shop-icon potion-icon" src="${potionIconUrl(item.id, sz.id)}" alt="">` +
+      `<strong>${item.name} ${sz.id} × ${p.potions[key]}</strong><small>${potionSellValue(item.id, sz).toLocaleString('de-DE')} Gold je Trank</small>` +
+      `<div class="buy"><button class="mini-btn btn-sell" type="button" data-psell="${key}" data-n="1">1</button>` +
+      (p.potions[key] > 1 ? `<button class="mini-btn btn-sell" type="button" data-psell="${key}" data-n="${p.potions[key]}">Alle · ${(potionSellValue(item.id, sz) * p.potions[key]).toLocaleString('de-DE')}</button>` : '') +
+      `</div></div>`).join('') || '<p class="hint-text">Du hast keine Tränke dabei.</p>') + `</div>` + gear.sellSectionHtml();
     $('npcBody').innerHTML =
-      `<p>„Tränke für unterwegs. Waffen gibt es bei Goro, Rüstungen bei Mei. Segensschriftrollen? Die geben nur noch die Seelensteine ab Stufe 35 her.“</p>` +
-      `<p>Dein Gold: <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></p>` +
-      `<h3>Tränke</h3><div class="shop">` +
-      SHOP.map((item) => POTION_SIZES.map((sz) => {
-        const key = potKey(item.id, sz.id);
-        const price = item.price * sz.price;
-        const low = p.level < sz.level;
-        const amt = item.id === 'hp' ? sz.hp : sz.mp;
-        return `<div class="shop-item${low ? ' locked' : ''}"><img class="shop-icon potion-icon" src="${potionIconUrl(item.id, sz.id)}" alt="">` +
-          `<strong>${item.name} ${sz.id} <span class="price">${price.toLocaleString('de-DE')} Gold</span></strong>` +
-          `<small>${item.kind} (${sz.name}): +${amt.toLocaleString('de-DE')} ${item.id === 'hp' ? 'Leben' : 'Mana'}${low ? ` · ab Stufe ${sz.level}` : ''}. Im Gepäck: <b id="have-${key}">${p.potions[key] || 0}</b></small>` +
-          `<div class="buy"><button class="mini-btn" type="button" data-buy="${key}" data-n="1" ${low ? 'disabled' : ''}>1 kaufen</button>` +
-          `<button class="mini-btn" type="button" data-buy="${key}" data-n="10" ${low ? 'disabled' : ''}>10 kaufen</button>` +
-          // seit 13.64: Tränke direkt hier zurückverkaufen (vorher nur über das Inventar)
-          ((p.potions[key] || 0) > 0
-            ? `<button class="mini-btn btn-sell" type="button" data-psell="${key}" data-n="1">1 verkaufen · ${potionSellValue(item.id, sz).toLocaleString('de-DE')}</button>` +
-              ((p.potions[key] || 0) > 1 ? `<button class="mini-btn btn-sell" type="button" data-psell="${key}" data-n="${p.potions[key]}">Alle verkaufen · ${(potionSellValue(item.id, sz) * p.potions[key]).toLocaleString('de-DE')}</button>` : '')
-            : '') +
-          `</div></div>`;
-      }).join('')).join('') +
-      `</div><p id="shopMsg" class="form-error" hidden></p>` + gear.sellSectionHtml();
+      `<p class="npc-kopf"><span>„Tränke für unterwegs.“</span><span>Gold <span class="price" id="shopGold">${p.gold.toLocaleString('de-DE')}</span></span></p>` +
+      npcTabsHtml('traenke', [
+        { id: 'hp', label: 'Lebenstränke', html: liste(SHOP.find((x) => x.id === 'hp')) },
+        { id: 'mp', label: 'Manatränke', html: liste(SHOP.find((x) => x.id === 'mp')) },
+        { id: 'verkauf', label: 'Verkaufen', html: verkauf }
+      ]) + `<p id="shopMsg" class="form-error" hidden></p>`;
+    npcTabsWire($('npcBody'), () => this.renderShop());
     gear.wireSell($('npcBody'), () => this.renderShop());
     $('npcBody').querySelectorAll('[data-buy]').forEach((b) => {
       b.addEventListener('click', () => this.buy(b.dataset.buy, Number(b.dataset.n)));
