@@ -182,7 +182,9 @@ function spFountain(b, M, L) {
   b.add(lathe3('spBowl2', [[0.06, 0], [0.28, 0.08], [0.36, 0.15], [0.37, 0.19], [0.32, 0.19], [0.06, 0.08], [0, 0.08]], 16), S, { parent: M, p: [0, 1.66, 0], top: lighter(S, 0.12), topK: 0.5 });
   b.add(new THREE.CircleGeometry(0.32, 16).rotateX(-Math.PI / 2), water, Object.assign({ parent: M, p: [0, 1.83, 0] }, wMat));
   b.add(lathe3('spBud', [[0, 0], [0.07, 0.04], [0.08, 0.12], [0.04, 0.22], [0, 0.26]], 10), L.accent, { parent: M, p: [0, 1.84, 0], shine: 1 });
-  // Wasserbänder (dünn, leicht nach außen geneigt), aus jeder Schale vier
+  // Wasserbänder (dünn, leicht nach außen geneigt), aus jeder Schale vier – auf höchster Grafik übernimmt das
+  // bewegte Wasserspiel (Abschnitt 4), dann entfallen die starren Bänder
+  if (typeof V3 !== 'undefined' && V3.ultra) return;
   const fall = L.glow ? L.liquid : lighter(L.liquid, 0.35);
   const fMat = { mat: 'glow' };
   for (let k = 0; k < 4; k++) {
@@ -330,3 +332,118 @@ generateWorld = function () {
   }
   return w;
 };
+
+// --- 4. Wasserspiel des Zierbrunnens (seit 15.33, nur höchste Grafik: Ultra und Plus) -----------------------------
+// Bisher stand das Wasser: vier starre Bänder je Schale. Jetzt steigt aus der Knospe ein Strahl, der atmet und alle
+// paar Sekunden höher schießt; an seinem Scheitel lösen sich Tropfen und fallen in die Schalen. Aus der unteren Schale
+// springen acht Bögen ins Becken, das Wasser läuft sichtbar durch sie hindurch; wo sie auftreffen, laufen Ringe über
+// die Wasserfläche und kleine Spritzer hüpfen hoch. Gezeichnet wird nur im Umkreis der Figur (FX3_HOOKS, drei-fx.js);
+// die Farbe ist die des Wassers der Stadt (Lava, Blut und leuchtendes Wasser eingeschlossen).
+if (typeof FX3_HOOKS !== 'undefined') {
+  const _zbA = new THREE.Vector3();
+  const _zbB = new THREE.Vector3();
+  let zbProps = null;
+  let zbList = [];
+  const zbDrop = (h, x, y, z, s, col, op) => {
+    const o = fx3Take(h, 'sprite');
+    o.position.set(x, y, z);
+    o.scale.set(s, s, 1);
+    fx3Map(o, 'disc');
+    fx3Color(o, col, op);
+  };
+  FX3_HOOKS.push({
+    parts: [],
+    fn(h) {
+      const p = game.player;
+      if (!p || !game.running || !V3.ultra || !game.world) return;
+      const props = game.world.props;
+      if (zbProps !== props) {
+        zbProps = props;
+        zbList = props.filter((pr) => pr.type === 'zierbrunnen');
+      }
+      const t = game.time;
+      for (const pr of zbList) {
+        if (Math.abs(pr.x - p.x) > 30 * TILE || Math.abs(pr.y - p.y) > 26 * TILE) continue;
+        const L = spParse(pr.roof);
+        const col = L.glow ? lighter(L.liquid, 0.25) : lighter(L.liquid, 0.6);
+        const ox = pr.x * U3;
+        const oz = pr.y * U3;
+        // Mittelstrahl: atmet, dazu alle gut fünf Sekunden ein kurzer hoher Stoß
+        const sto = Math.max(0, Math.sin(t * 1.15 + pr.x * 0.01)) ** 6;
+        const H = 0.5 + 0.12 * Math.sin(t * 2.3) + 0.06 * Math.sin(t * 6.1) + 0.55 * sto;
+        const top = 2.06 + H;
+        const jet = fx3Take(h, 'segN');
+        fx3Segment(jet, _zbA.set(ox, 2.04, oz), _zbB.set(ox, top, oz), 0.034);
+        fx3Color(jet, col, 0.85);
+        zbDrop(h, ox, top, oz, 0.13 + 0.05 * sto, '#ffffff', 0.75);
+        // Tropfen vom Scheitel: im Bogen nach außen und zurück in die Schalen
+        for (let j = 0; j < 9; j++) {
+          const f = (t * 0.9 + j / 9) % 1;
+          const a = j * 2.399 + Math.floor(t * 0.9 + j / 9) * 1.7;
+          const r = (0.2 + 0.32 * H) * f;
+          const y = top + 0.3 * f - (0.3 + top - 1.36) * f * f;
+          zbDrop(h, ox + Math.cos(a) * r, y, oz + Math.sin(a) * r, 0.06 * (1 - 0.35 * f), col, 0.9 - 0.5 * f);
+        }
+        // vier dünne Fäden von der oberen in die untere Schale
+        for (let k = 0; k < 4; k++) {
+          const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
+          const c = Math.cos(a);
+          const s = Math.sin(a);
+          let u0 = 0;
+          for (let i = 1; i <= 2; i++) {
+            const u1 = i / 2;
+            const seg = fx3Take(h, 'segN');
+            _zbA.set(ox + c * (0.36 + 0.15 * u0), 1.85 + 0.2 * u0 - 0.74 * u0 * u0, oz + s * (0.36 + 0.15 * u0));
+            _zbB.set(ox + c * (0.36 + 0.15 * u1), 1.85 + 0.2 * u1 - 0.74 * u1 * u1, oz + s * (0.36 + 0.15 * u1));
+            fx3Segment(seg, _zbA, _zbB, 0.014 + 0.005 * i);
+            fx3Color(seg, col, 0.6 + 0.25 * Math.sin(t * 12 - i * 1.9 + k * 2.1));
+            u0 = u1;
+          }
+        }
+        // acht Bögen aus der unteren Schale ins Becken
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * Math.PI * 2 + 0.2;
+          const c = Math.cos(a);
+          const s = Math.sin(a);
+          let u0 = 0;
+          for (let i = 1; i <= 4; i++) {
+            const u1 = i / 4;
+            const seg = fx3Take(h, 'segN');
+            _zbA.set(ox + c * (0.67 + 0.4 * u0), 1.31 + 1.0 * u0 - 1.98 * u0 * u0, oz + s * (0.67 + 0.4 * u0));
+            _zbB.set(ox + c * (0.67 + 0.4 * u1), 1.31 + 1.0 * u1 - 1.98 * u1 * u1, oz + s * (0.67 + 0.4 * u1));
+            fx3Segment(seg, _zbA, _zbB, 0.014 + 0.005 * i);
+            // das Wasser läuft durch den Bogen: helle Stellen wandern von der Schale zum Becken
+            fx3Color(seg, col, 0.62 + 0.26 * Math.sin(t * 11 - i * 1.7 + k * 1.3));
+            u0 = u1;
+          }
+          const lx = pr.x + c * 1.07 * TILE;
+          const lz = pr.y + s * 1.07 * TILE;
+          // Ringe auf dem Wasser
+          const f = (t * 1.25 + k * 0.37) % 1;
+          const ring = fx3Take(h, 'plane');
+          fx3Ground(ring, lx, lz, 0.06 + 0.2 * f, 0.335, 'ring');
+          fx3Color(ring, '#ffffff', 0.55 * (1 - f));
+          // Spritzer
+          for (let q = 0; q < 2; q++) {
+            const g = (t * 2.2 + k * 0.61 + q * 0.5) % 1;
+            const b2 = a + (q ? 1.9 : -1.4) + k;
+            zbDrop(h, lx * U3 + Math.cos(b2) * 0.1 * g, 0.34 + 0.24 * Math.sin(Math.PI * g), lz * U3 + Math.sin(b2) * 0.1 * g, 0.045, col, 0.85 * (1 - g * 0.6));
+          }
+        }
+      }
+    }
+  });
+}
+
+// Wechselt die Grafikstufe zwischen „mit“ und „ohne“ Wasserspiel, wird der Brunnen neu gebaut (die Vorlage merkt sich
+// sonst die starren Bänder bzw. ihr Fehlen)
+if (typeof v3ApplyGraphics === 'function' && typeof TPL3 !== 'undefined') {
+  const _spApplyGraphics = v3ApplyGraphics;
+  let spUltra = null;
+  v3ApplyGraphics = function () {
+    const r = _spApplyGraphics.apply(this, arguments);
+    if (spUltra !== null && spUltra !== V3.ultra) for (const k of [...TPL3.keys()]) if (k.includes('prop:zierbrunnen:')) TPL3.delete(k);
+    spUltra = V3.ultra;
+    return r;
+  };
+}
