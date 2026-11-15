@@ -236,7 +236,7 @@ if (typeof ui !== 'undefined' && ui.renderWorldGate) {
     }
   };
 }
-// Wegweiser: an den Rand der Gebiete der eigenen Seite (Licht wie bisher, Schatten seine Karten 11–15) und der
+// Wegweiser: an den Rand der Gebiete der eigenen Seite (Licht wie bisher, Schatten seine Karten 11–16) und der
 // gemeinsamen Karten
 const factionTravel = { licht: null, schatten: null };
 if (typeof travelTargets === 'function') {
@@ -245,7 +245,8 @@ if (typeof travelTargets === 'function') {
     const f = myFaction();
     if (f === 'licht') return _facTravel();
     if (factionTravel.schatten && factionTravel.world === game.world) return factionTravel.schatten;
-    const ids = ['daemmerwiesen', 'aschewald', 'knochenwueste', 'blutsteppe', 'nachtfrost'];
+    // seit 15.25 auch die Schattenklippen (Karte 16)
+    const ids = ['daemmerwiesen', 'aschewald', 'knochenwueste', 'blutsteppe', 'nachtfrost', 'schattenklippen'];
     const list = ids.map((id) => ZONES.find((z) => z.id === id)).filter(Boolean).map((zone) => ({ zone, ...mapSpawnSpot(zone.map) }));
     for (const t of _facTravel()) if (mapAllowedFor(WORLD_MAPS.find((m) => m.id === t.zone.map), 'schatten')) list.push(t);
     if (typeof travelSort === 'function') travelSort(list);

@@ -607,7 +607,9 @@ let travelSpots = null;
 
 function travelTargets() {
   if (travelSpots) return travelSpots;
-  travelSpots = ZONES.slice(1, RING_ZONES).map((zone) => {
+  // seit 15.25 auch die Karten, die später dazukamen (Schlangental, Donnerklamm, Kristallabgrund)
+  const spaeter = ['sandwueste', 'donnerklamm', 'kristallhang'].map((id) => ZONES.find((z) => z.id === id)).filter(Boolean);
+  travelSpots = ZONES.slice(1, RING_ZONES).concat(spaeter).map((zone) => {
     if (zone.map === 1) return { zone, x: (CENTER_X + VILLAGE_HALF + 6) * TILE, y: (CENTER_Y + 0.5) * TILE };
     const mp = game.world.maps.find((m) => m.id === zone.map);
     return { zone, x: mp.spawn.x, y: mp.spawn.y };

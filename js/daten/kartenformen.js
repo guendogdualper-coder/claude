@@ -37,10 +37,11 @@ const MAP_FORMS = {
     bridges: [[30, 100, 30, 150], [205, 92, 205, 150], [262, 88, 262, 148], [146, 40, 200, 40], [205, 150, 260, 150], [30, 150, 82, 150]],
     arches: [[140, 100, 140, 156, 6], [330, 92, 330, 146, 5], [146, 86, 200, 86, 5], [200, 200, 262, 200, 5], [30, 196, 90, 196, 5]]
   },
-  // Ödland · Ascheinseln: ein Archipel aus grauen Ascheinseln im dunklen Meer. Keine Insel hat einen Landweg zur anderen –
-  // man reist von Teleportstein zu Teleportstein. Die Stadt ist ein Hafen mit Stegen ins Meer.
+  // Ödland · Aschetafeln: graue Tafelberge aus Asche über einem tiefen Abgrund (bis 15.24: Inseln im Meer – das Wasser
+  // sah wie Himmel aus). Keine Tafel hat einen Landweg zur anderen – man reist von Teleportstein zu Teleportstein.
+  // Die Stadt steht an der Kante, ihre Stege ragen über den Abgrund.
   6: {
-    form: 'inseln', void: 'WATER', voidEdge: true, mobScale: 0.7, islet: 'trees', wallTree: 'DEADTREE', link: 'stone', minIsland: 120,
+    form: 'inseln', void: 'KLUFT', voidEdge: true, mobScale: 0.7, islet: 'trees', wallTree: 'DEADTREE', link: 'stone', minIsland: 120,
     gates: { e: false }, ring: { e: 0 }, islets: 26, bays: 10,
     islands: [[56, 158, 31, 46, 0.16], [64, 50, 41, 29], [150, 100, 29, 37], [158, 186, 37, 24], [236, 56, 44, 34], [246, 150, 37, 32],
       [322, 104, 32, 51], [318, 190, 27, 17], [196, 118, 15, 12], [320, 26, 24, 15]]
@@ -164,7 +165,7 @@ const MAP_FORMS = {
 const MAP_FORM_TEXT = {
   4: 'Undurchdringlicher Nadelwald voller Lichtungen, verbunden durch Waldpfade. Banditen, Spinnen und Bären. Spinnenhöhle und Banditenkeller.',
   5: 'Eine tiefe Schlucht teilt das Land in Hochplateaus, Hängebrücken führen hinüber. Orks und Skorpione. Orkfestung.',
-  6: 'Ascheinseln im dunklen Meer, nur über Teleportsteine verbunden. Oger und Dämonen. Totengruft.',
+  6: 'Aschetafeln über einem tiefen Abgrund, nur über Teleportsteine verbunden. Oger und Dämonen. Totengruft.',
   2: 'Der Schlangenfluss windet sich durch die Wüste bis in das Delta des Nagadschungels. Die Kanalstadt Sahra.',
   7: 'Himmelsinseln über einem Wolkenmeer, verbunden durch Eisbrücken und Teleportsteine. Eiswölfe, Yetis und Frostgeister. Eisgrotte.',
   // seit 14.73 (Phase 2)
@@ -268,7 +269,7 @@ const KF_TOWNS = {
   // drei Stege führen ins Meer zu Plattformen mit Ständen (Auktion, Händler, Lager)
   6: {
     form: 'Aschenhafen',
-    liquid: 'WATER',
+    liquid: 'KLUFT',
     grid: kfTownGrid(13, (dx, dy) => {
       const pier = (dy === -8 || dy === -7 || dy === -1 || dy === 0 || dy === 7 || dy === 8) && dx >= 4 && dx <= 8;
       const head = dx >= 9 && dx <= 12 && ((dy >= -10 && dy <= -6) || (dy >= -3 && dy <= 2) || (dy >= 5 && dy <= 10));

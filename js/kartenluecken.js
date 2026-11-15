@@ -257,7 +257,10 @@ const KL_TIEFE = `
           if (lev > 5.5) {
             vec2 pb = p + par * 17.0;
             float river = smoothstep(0.035, 0.012, abs(wkF(pb * 0.03 + 3.7) - 0.5));
-            col = mix(col, mix(vec3(0.16, 0.30, 0.34), uSky * 0.6, 0.4), river);
+            // am Grund Wasser – oder, wenn die Staubfarbe der Karte glutrot ist (Ödland), eine glühende Ader
+            float warm = step(uFoam.b * 2.0, uFoam.r);
+            vec3 rc = mix(mix(vec3(0.16, 0.30, 0.34), uSky * 0.6, 0.4), uFoam * (0.8 + 0.3 * sin(t * 0.8 + pb.x * 0.4)), warm);
+            col = mix(col, rc, river);
             col += river * smoothstep(0.75, 1.0, sin(pb.x * 3.0 + pb.y * 2.0 + t * 1.5)) * 0.10;
           }
           col = mix(col, mix(uShallow, uSky, 0.25) * 0.5, lev / 6.0 * 0.3);
@@ -288,6 +291,10 @@ if (typeof LIQUID3 !== 'undefined' && LIQUID3.kluft) {
 if (typeof drawShore === 'function') {
   const baseShore3 = drawShore;
   const KL_STUFE = ['#8a5434', '#6a3e26', '#4c2a1a', '#341c12'];
+  // seit 15.25 je Karte: Basalt (Donnerklamm), Asche (Aschewald, Ödland – dort am Grund Glut statt Wasser)
+  const KL_STUFE_KARTE = {
+    3: ['#5c637e', '#454b64', '#30354a', '#1f2332'], 12: ['#5a4c44', '#443a34', '#2e2824', '#1c1816'], 6: ['#3c312b', '#2e2521', '#211a17', '#161110']
+  };
   drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
     if (g !== GROUND.KLUFT) return baseShore3(ctx, x, y, px, py, g);
     const h = tileHash(x, y);
@@ -301,8 +308,10 @@ if (typeof drawShore === 'function') {
         }
       }
     }
+    const wmK = mapOfTile(x, y);
+    const stufe = (wmK && KL_STUFE_KARTE[wmK.id]) || KL_STUFE;
     if (dist <= 4) {
-      ctx.fillStyle = KL_STUFE[dist - 1];
+      ctx.fillStyle = stufe[dist - 1];
       ctx.fillRect(px, py, TILE + 0.6, TILE + 0.6);
       // Schichtfugen
       ctx.fillStyle = 'rgba(20,8,4,0.28)';
@@ -312,7 +321,7 @@ if (typeof drawShore === 'function') {
       ctx.fillRect(px + (h % 12), py + 12 + ((h >> 5) % 5), 12, 1);
     } else if (h % 6 === 0) {
       // Fluss am Grund
-      ctx.strokeStyle = 'rgba(92,150,160,0.55)';
+      ctx.strokeStyle = wmK && wmK.id === 6 ? 'rgba(255,120,40,0.6)' : 'rgba(92,150,160,0.55)';
       ctx.lineWidth = 2;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -326,7 +335,7 @@ if (typeof drawShore === 'function') {
 
 // Felsfarbe der Schlucht je Karte (hell, tief): Rost, Basaltgrau der Donnerklamm, Asche im Aschewald. Die Fläche
 // selbst ist für alle Karten dieselbe (ein Material) – beim Wechsel der Karte werden nur die Farben gesetzt.
-const KL_KLUFT = { m5: ['#9a5a36', '#200f0a'], m3: ['#6c7490', '#12141e'], m12: ['#6e5c52', '#161210'] };
+const KL_KLUFT = { m5: ['#9a5a36', '#200f0a'], m3: ['#6c7490', '#12141e'], m12: ['#6e5c52', '#161210'], m6: ['#7c6654', '#140d0a', '#ff6a1e'] };
 const KL_STATE = { key: null };
 if (typeof FX3_HOOKS !== 'undefined') {
   FX3_HOOKS.push({
@@ -340,6 +349,7 @@ if (typeof FX3_HOOKS !== 'undefined') {
       const u = liquidMat('kluft').uniforms;
       u.uShallow.value.set(c[0]);
       u.uDeep.value.set(c[1]);
+      u.uFoam.value.set(c[2] || LIQUID3.kluft.foam);
     }
   });
 }
@@ -569,7 +579,8 @@ if (typeof drawShore === 'function') {
 const KL_WASSER = {
   1: { g: 'WATER', reed: ['#5e9a3e', '#6b4426'], pad: ['#4f9a4a', '#f5b8d2'], stone: '#8d8f96' },
   2: { g: 'WATER', reed: ['#4f8a34', '#5c3a20'], pad: ['#3f8a42', '#f2ecc8'], stone: '#7b7f78', boulder: 1 },
-  6: { g: 'WATER', stack: ['#7a6250', '#a08a70'], stone: '#6e5a4a', foam: '#e6f2f6' },
+  // seit 15.25 liegt das Ödland über einem Abgrund (KLUFT): die Felsnadeln ragen aus der Tiefe
+  6: { g: 'KLUFT', stack: ['#6e5a4c', '#9a8672'], tief: 1 },
   11: { g: 'WATER', reed: ['#5c62ac', '#c2b4ff'], pad: ['#3c4c8c', '#a8dcff'], glow: 1, stone: '#565a82' },
   16: { g: 'WATER', stack: ['#2c3344', '#3f5a4c'], stone: '#353c4e', foam: '#cfe0ea' },
   8: { g: 'BOG', reed: ['#7c7642', '#3c2c1c'], snag: '#3a3026' },
@@ -629,7 +640,6 @@ if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
   const kolben = () => geo3('klkolben', () => new THREE.CylinderGeometry(0.05, 0.05, 0.22, 5));
   const blatt = () => geo3('klblatt', () => new THREE.CylinderGeometry(1, 1, 0.02, 8, 1, false, 0.5, 5.6));
   const ast = () => geo3('klast', () => new THREE.CylinderGeometry(0.025, 0.07, 1, 5).translate(0, 0.5, 0));
-  const LV = -0.14; // Höhe der Wasseroberfläche (LIQUID3, Vorgabe)
   // Felsnadel: kantige, nach oben schmalere Säule mit schiefer, gebrochener Spitze (flach schattiert, drei Formen)
   const nadel = (v) => geo3('klnadel' + v, () => {
     const g = new THREE.CylinderGeometry(0.36, 1, 1, 7, 4).translate(0, 0.5, 0);
@@ -649,6 +659,8 @@ if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
   });
   const klWasser3 = (wm, T) => {
     const cfg = KL_WASSER[wm.id];
+    // Höhe der Fläche: Wasser −0,14; die Schlucht liegt tiefer
+    const LV = cfg.tief && LIQUID3.kluft ? LIQUID3.kluft.level : -0.14;
     const [rx, ry, rw, rh] = wm.region;
     const town = wzTown(wm);
     // Stellen der Wahrzeichen (Leuchtturm, Wrack …): dort keine Felsnadeln
@@ -708,8 +720,8 @@ if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
           b.add(ast(), cfg.snag, { p: [ox, LV - 0.1, oz], r: rot, s: [1.3, hh, 1.3] });
           b.add(ast(), cfg.snag, { p: [ox + rot[2] * -0.4 * hh, LV - 0.1 + hh * 0.55, oz + rot[0] * 0.4 * hh], r: [rot[0] + 0.9, rot[1], rot[2] - 0.6], s: [0.8, hh * 0.45, 0.8] });
         } else if (a.art === 'nadel') {
-          const R = 0.62 + f(4, 8) * 0.4;
-          const H = 2.3 + f(9, 8) * 2.2;
+          const R = (0.62 + f(4, 8) * 0.4) * (cfg.tief ? 1.25 : 1);
+          const H = (2.3 + f(9, 8) * 2.2) * (cfg.tief ? 1.7 : 1);
           const ry0 = f(2, 63) * 6.3;
           // Hauptsäule und ein bis zwei angelehnte, niedrigere daneben
           b.add(nadel(h % 3), cfg.stack[0], { p: [ox, LV - 0.25, oz], r: [0, ry0, 0], s: [R, H, R], top: cfg.stack[1], topK: 0.6, shade: 0.45 });
@@ -729,7 +741,7 @@ if (typeof WZ_MAPS !== 'undefined' && typeof Bake3 !== 'undefined') {
               b.add(rockGeo(hk % 6, 0), cfg.stack[0], { p: [ox + Math.cos(an) * dd, LV - 0.15, oz + Math.sin(an) * dd], r: [0, an, 0], s: [r2, r2 * (1.6 + ((hk >> 13) % 5) * 0.5), r2 * 0.9], top: cfg.stack[1], topK: 0.4, shade: 0.4 });
             }
             // Brandung: flache helle Schaumflecken am Fuß, unregelmäßig verteilt
-            for (let k = 0; k < 5; k++) {
+            for (let k = 0; k < (cfg.foam ? 5 : 0); k++) {
               const hk = townTileHash(h + k * 13, k * 11 + 4);
               const an = k * 1.3 + (hk % 10) * 0.08;
               const dd = R * 0.95 + ((hk >> 5) % 6) * 0.1;
@@ -829,7 +841,7 @@ if (typeof drawShore === 'function') {
       const col = a.art === 'nadel' ? cfg.stack[0] : cfg.stone;
       const cx = a.art === 'stein' ? px + 8 + ((h >> 8) % 16) : mx;
       const cy = a.art === 'stein' ? py + 8 + ((h >> 12) % 16) : my + (a.art === 'nadel' ? 3 : 1);
-      if (a.art === 'nadel') {
+      if (a.art === 'nadel' && cfg.foam) {
         ctx.fillStyle = cfg.foam;
         ctx.globalAlpha = 0.7;
         for (let k = 0; k < 5; k++) {
@@ -871,5 +883,136 @@ if (typeof drawShore === 'function') {
       ctx.fill();
     }
     ctx.restore();
+  };
+}
+
+// --- Kristallabgrund: schwebende Kristalle ---------------------------------------------------------------------
+// Über dem Abgrund treiben Kristallsplitter: je Stelle ein größerer Splitter mit kleinen Begleitern, hellblau und
+// violett, die langsam auf und ab schweben. Nur über dem Abgrund, mit Abstand zu den Plattformen, ohne Kollision.
+// klKristallAt entscheidet je Kachel (dieselbe Regel für 3D und 2D): eine Stelle je Feld von 4 × 4 Kacheln, in
+// vier von fünf Feldern.
+function klKristallAt(x, y) {
+  const w = game.world;
+  const i = y * MAP_W + x;
+  if (w.ground[i] !== GROUND.ABGRUND || w.deco[i] === DECO.BRIDGE || w.obj[i] !== OBJ.NONE) return 0;
+  const G = 4;
+  const cx = Math.floor(x / G);
+  const cy = Math.floor(y / G);
+  const hc = townTileHash(cx * 17 + 3, cy * 23 + 11);
+  if ((hc >> 8) % 5 > 3 || x !== cx * G + (hc % G) || y !== cy * G + ((hc >> 4) % G)) return 0;
+  return klLandDist(x, y, 1) > 1 ? hc || 1 : 0;
+}
+if (typeof WZ_MAPS !== 'undefined' && WZ_MAPS[10] && typeof wzCrystal === 'function') {
+  const base10 = WZ_MAPS[10];
+  const FARBE = ['#a8d4ff', '#c4b4ff', '#8a7ae8', '#b4e6ff'];
+  WZ_MAPS[10] = (wm, T) => {
+    base10(wm, T);
+    const [rx, ry, rw, rh] = wm.region;
+    const taken = WZ.sites.map((s) => [s.position.x, s.position.z]);
+    const B = 24;
+    for (let by = ry + 2; by < ry + rh - 2; by += B) for (let bx = rx + 2; bx < rx + rw - 2; bx += B) {
+      const cx = bx + B / 2;
+      const cz = by + B / 2;
+      const bb = [null, null];
+      let n = 0;
+      for (let y = by; y < Math.min(by + B, ry + rh - 2); y++) for (let x = bx; x < Math.min(bx + B, rx + rw - 2); x++) {
+        const h = klKristallAt(x, y);
+        if (!h) continue;
+        let frei = true;
+        for (const [sx, sz] of taken) if (Math.abs(sx - x) < 5 && Math.abs(sz - y) < 5) { frei = false; break; }
+        if (!frei) continue;
+        // auf „Niedrig“ nur jede zweite Stelle
+        if (!T.tier && (h >> 12) % 2) continue;
+        const k = n++ % 2;
+        const b = bb[k] || (bb[k] = new Bake3());
+        const f = (s, m) => ((h >>> s) % m) / m;
+        const ox = x + 0.5 - cx;
+        const oz = y + 0.5 - cz;
+        const yy = 0.7 + f(3, 16) * 2.4;
+        const r = 0.28 + f(7, 8) * 0.34;
+        const len = 1.5 + f(11, 8) * 2.1;
+        const col = FARBE[h % 4];
+        wzCrystal(b, col, { p: [ox, yy, oz], r, len, tilt: [(f(5, 9) - 0.5) * 0.9, f(2, 63) * 6.3, (f(9, 9) - 0.5) * 0.9], top: '#f0eeff' });
+        const m = T.tier ? 2 + (h % 3) : 1;
+        for (let j = 0; j < m; j++) {
+          const hj = townTileHash(h + j * 37, j * 5 + 3);
+          const an = j * 2.2 + (hj % 10) * 0.2;
+          const dd = 0.5 + ((hj >> 4) % 8) * 0.12;
+          wzCrystal(b, FARBE[(h + j + 1) % 4], {
+            p: [ox + Math.cos(an) * (dd + 0.2), yy + (((hj >> 8) % 9) - 4) * 0.22, oz + Math.sin(an) * (dd + 0.2)], r: 0.1 + ((hj >> 12) % 5) * 0.03, len: 0.5 + ((hj >> 16) % 6) * 0.13,
+            tilt: [(((hj >> 3) % 9) - 4) * 0.2, an, (((hj >> 7) % 9) - 4) * 0.2], mat: j === 0 ? 'glow' : 'lit'
+          });
+        }
+        if (n % 3 === 1) wzGlow(b, ox, yy, oz, 2.4, '#8a70ff', 0.32);
+      }
+      if (!n) continue;
+      const site = wzSite(cx, cz, 78);
+      for (let k = 0; k < 2; k++) {
+        if (!bb[k]) continue;
+        const ph = (townTileHash(bx + k * 7, by) % 63) / 10;
+        const sp = 0.4 + k * 0.17;
+        wzAnim(site, bb[k], (o, t) => { o.position.y = Math.sin(t * sp + ph) * 0.22; });
+      }
+    }
+  };
+}
+if (typeof drawShore === 'function') {
+  const baseShore6 = drawShore;
+  const FARBE2 = ['#a8d4ff', '#c4b4ff', '#8a7ae8', '#b4e6ff'];
+  const raute = (ctx, cx, cy, w, h, rot, col) => {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(0, -h);
+    ctx.lineTo(w, 0);
+    ctx.lineTo(0, h);
+    ctx.lineTo(-w, 0);
+    ctx.closePath();
+    ctx.fill();
+    // helle Kante links oben, dunkle rechts unten
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.beginPath();
+    ctx.moveTo(0, -h);
+    ctx.lineTo(-w, 0);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(30,20,90,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(w, 0);
+    ctx.lineTo(0, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  };
+  drawShore = function (ctx, x, y, px, py, g = GROUND.WATER) {
+    baseShore6(ctx, x, y, px, py, g);
+    if (g !== GROUND.ABGRUND) return;
+    const h = klKristallAt(x, y);
+    if (!h) return;
+    const f = (s, m) => ((h >>> s) % m) / m;
+    const cx = px + TILE / 2;
+    const cy = py + TILE / 2 - 2;
+    // Schein und Schatten tief darunter: der Splitter schwebt
+    const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, 15);
+    gr.addColorStop(0, 'rgba(160,130,255,0.55)');
+    gr.addColorStop(1, 'rgba(150,120,255,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(px, py, TILE, TILE);
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(cx + 2, cy + 11, 6, 2.2, 0, 0, 6.3);
+    ctx.fill();
+    const len = 9 + f(11, 8) * 5;
+    raute(ctx, cx, cy, 4 + f(7, 8) * 2.5, len, (f(5, 9) - 0.5) * 0.9, FARBE2[h % 4]);
+    const m = 2 + (h % 2);
+    for (let j = 0; j < m; j++) {
+      const hj = townTileHash(h + j * 37, j * 5 + 3);
+      const an = j * 2.2 + (hj % 10) * 0.2;
+      raute(ctx, cx + Math.cos(an) * (8 + (hj >> 4) % 4), cy + Math.sin(an) * (6 + (hj >> 8) % 4), 2.2, 4 + (hj >> 12) % 3, an, FARBE2[(h + j + 1) % 4]);
+    }
   };
 }
