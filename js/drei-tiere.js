@@ -400,7 +400,10 @@ function creatureAttackPose(a, B, fam, style, wind, strike, t, noTint) {
     const armL = B[BH.armL];
     const chest = B[BH.chest];
     const hips = B[BH.hips];
-    if (style === 'slam') {
+    if (a.model.ogre && typeof ogerSchlag3 === 'function') {
+      // seit 15.32: Oger schlagen mit der Keule über den Kopf (brocken3d.js)
+      ogerSchlag3(a, B, wind, strike);
+    } else if (style === 'slam') {
       // beide Fäuste über den Kopf, Oberkörper zurück – dann mit ganzem Gewicht auf den Boden
       armR.rotation.set(swing(-2.8, 0.6), 0, -0.2 * w);
       armL.rotation.set(armR.rotation.x, 0, 0.2 * w);

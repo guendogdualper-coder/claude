@@ -3244,7 +3244,12 @@ function buildMonster3(b, id, v = 0) {
       } else c.headgear = headExtras(h, c.skin);
       res = humanoid3(b, c);
       // Brocken stehen vornübergebeugt mit Buckel
-      if (t.shape === 'brute') res.hunch = 0.2;
+      if (t.shape === 'brute') {
+        res.hunch = 0.2;
+        // seit 15.32: schwerer Gang (brocken3d.js); mit Keule dazu Keulenhaltung und Überkopfschlag
+        res.brute = true;
+        if (c.weapon && c.weapon.kind === 'club') res.ogre = true;
+      }
     }
   }
   monsterFlair3(b, res, id, def);
@@ -7100,7 +7105,9 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
   a.group.rotation.set(tilt, a.heading, 0);
   const w = t * (moving ? 11 : 0);
   if (fam === 'human') {
-    if (moving) {
+    const brocken = a.model.brute && typeof brockenGang3 === 'function';
+    if (brocken) brockenGang3(a, e, B, t, dt, moving, frozen);
+    else if (moving) {
       B[BH.legL].rotation.x = Math.sin(w) * 0.6;
       B[BH.legR].rotation.x = -Math.sin(w) * 0.6;
       B[BH.armL].rotation.x = -Math.sin(w) * 0.45;
@@ -7166,6 +7173,8 @@ function animateCreature(a, e, dt, moving, atk, flash, wind = 0) {
     else mat.emissive.setRGB(0, 0, 0);
   }
   if (posed) creatureAttackPose(a, B, fam, a.model.style, wind, atk, t, flash > 0);
+  // Oger: Keule nach der fertigen Haltung ausrichten (brocken3d.js)
+  if (a.model.ogre && typeof ogerKeule3 === 'function') ogerKeule3(a, B, a.brDir);
 }
 
 function syncStone3(s, dt) {
