@@ -2315,7 +2315,11 @@ let chunkJob = null;
 // (FULL3.budget) – ist es voll, bleiben die Blöcke, die der Figur am nächsten sind (immer noch ein Vielfaches des
 // Bildschirms), und im Hintergrund wird weit außerhalb der Sicht getauscht.
 // Dungeon: die Karte wird beiseitegelegt (stash) und ist beim Verlassen sofort wieder da.
-const FULL3 = { bytes: 0, budget: 0, loading: null, stash: null, done: false, full: false, wait: 0 };
+const FULL3 = { bytes: 0, budget: 0, loading: null, stash: null, done: false, full: false, wait: 0, gap: 0 };
+// seit 15.36: Das Ladebild deckt auf, sobald alles im Umkreis von FULL3_NAH Kacheln steht (mehr sieht auch die ganz
+// herausgezoomte Kamera nicht); der Rest der Karte wird danach unsichtbar im Hintergrund fertig gebaut. Vorher wartete
+// das Ladebild auf die ganze Karte (360 × 220 Kacheln) – am PC zwei, drei Sekunden, auf schwächeren Geräten zwanzig.
+const FULL3_NAH = 84;
 function full3Budget() {
   if (IS_PC) return 360e6;
   const dm = navigator.deviceMemory || 0;
@@ -2377,6 +2381,8 @@ function full3Next(minX, minY, maxX, maxY, px, pz) {
       if (d < bd) { bd = d; best = [x, y, ch]; }
     }
   }
+  // Abstand des nächsten fehlenden Blocks (für das Ladebild)
+  FULL3.gap = best ? bd : Infinity;
   if (!best) { FULL3.done = true; return null; }
   if (FULL3.bytes >= FULL3.budget) {
     // Speicher voll: nur tauschen, wenn der fehlende Block deutlich näher liegt als der fernste geladene
@@ -2421,6 +2427,7 @@ function full3Switch(old, now) {
   }
   v3ClearChunks();
   if (now) FULL3.loading = { t0: performance.now(), key: now.key, shown: false };
+  FULL3.gap = 0;
 }
 
 // Grundfläche folgt der Kamera und nimmt die Bodenfarbe unter der Figur an (Dungeon: dunkler Boden)
@@ -2522,7 +2529,9 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
   // Hintergrund (seit 15.26): der Rest der Karte, sobald die Sichtfläche fertig ist – hinter dem Ladebild in großen
   // Scheiben, danach in kleinen; unter Last (viele Monster) fast nichts
   const L = FULL3.loading;
-  const bg = !H ? 0 : L ? 80 : typeof LOAD !== 'undefined' && LOAD.level ? 1.5 : IS_PC ? 6 : 3.5;
+  // nach dem Aufdecken, solange die Karte noch nicht ganz steht, mit etwas mehr Zeit je Bild weiterbauen
+  const rest = !FULL3.done && !FULL3.full;
+  const bg = !H ? 0 : L ? 80 : typeof LOAD !== 'undefined' && LOAD.level ? 1.5 : IS_PC ? (rest ? 9 : 6) : rest ? 5 : 3.5;
   let lim = msBudget;
   const t0 = performance.now();
   // seit 14.44: in der großen Scheibe nach einem Sprung nur das Sichtbare, den Rand ringsum danach in kleinen Scheiben
@@ -2594,11 +2603,26 @@ function v3UpdateChunks(fx, fy, msBudget, ax = 0, ay = 0) {
     let have = 0;
     for (const ch of chunks3.values()) if (ch.objects) have++;
     const total = Math.max(1, (maxX - minX + 1) * (maxY - minY + 1));
-    if (typeof mapLoadProgress === 'function') mapLoadProgress(Math.min(1, Math.max(have / total, FULL3.bytes / FULL3.budget)));
-    // seit 15.34: erst aufdecken, wenn auch alle Monsterarten der Karte gebaut sind (v3PrewarmMap, drei-figuren.js)
-    const fertig = !H || FULL3.done || FULL3.full;
-    const tiere = !fertig || typeof v3PrewarmMap !== 'function' || v3PrewarmMap(40);
-    if ((fertig && tiere) || performance.now() - L.t0 > 40000) {
+    // Umkreis, den die Kamera ganz herausgezoomt zeigen kann: die jetzige Sichtfläche (VIEW3), hochgerechnet auf den
+    // größten Zoom und die Kamera „Weit“, dazu ein Rand – am Handy deutlich weniger als am breiten PC-Bildschirm
+    let brauch = FULL3_NAH;
+    if (VIEW3.ok) {
+      const ex = Math.max(Math.abs(VIEW3.x0 - vcx), Math.abs(VIEW3.x1 - vcx), Math.abs(VIEW3.z0 - vcz), Math.abs(VIEW3.z1 - vcz));
+      const k = (v3ZoomMax() / (V3.zoomMul || 1)) * (v3Shoulder() ? 1 : CAM3.weit / (CAM3[opts.camera] || 1));
+      brauch = Math.max(40, Math.min(FULL3_NAH, ex * k + 14));
+    }
+    const nah = FULL3.gap >= brauch;
+    if (typeof mapLoadProgress === 'function') mapLoadProgress(Math.min(1, Math.max(have / total, FULL3.bytes / FULL3.budget, Math.min(1, FULL3.gap / brauch) ** 2)));
+    // seit 15.34: erst aufdecken, wenn auch die Monsterarten der Umgebung gebaut sind (v3PrewarmMap, drei-figuren.js);
+    // seit 15.36 höchstens anderthalb Sekunden lang und jede Art nur ein Versuch
+    const fertig = !H || FULL3.done || FULL3.full || nah;
+    let tiere = true;
+    if (fertig && typeof v3PrewarmMap === 'function' && (L.pw || 0) < 1500) {
+      const t0 = performance.now();
+      tiere = v3PrewarmMap(40, L.tried || (L.tried = new Set()));
+      L.pw = (L.pw || 0) + performance.now() - t0;
+    }
+    if ((fertig && tiere) || performance.now() - L.t0 > 15000) {
       FULL3.loading = null;
       if (typeof mapLoadHide === 'function') mapLoadHide();
     }

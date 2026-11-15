@@ -5874,20 +5874,25 @@ function ownGuard3(p, threw) {
 
 // --- Figuren mit dem Spielgeschehen abgleichen ----------------------------------------------------------
 
-// seit 15.34: Hinter dem Ladebild einer Karte (kartenladen.js) werden alle Monsterarten der Karte vorab gebaut, ms
+// seit 15.34: Hinter dem Ladebild einer Karte (kartenladen.js) werden die Monsterarten der Umgebung vorab gebaut, ms
 // Millisekunden je Bild; true = alle fertig. So stehen beim Aufdecken alle Monster im Bild, statt Art für Art
-// nachzukommen.
-function v3PrewarmMap(ms) {
+// nachzukommen. seit 15.36 nur im Umkreis von 110 Kacheln (der Rest folgt im Spiel über v3Prewarm) und jede Art
+// höchstens einmal (tried) – ein Modell, das sich nicht bauen lässt, hält das Ladebild nicht auf.
+function v3PrewarmMap(ms, tried) {
   const t0 = performance.now();
+  const p = game.player;
   const list = typeof areaMonsters === 'function' ? areaMonsters() : v3Monsters();
+  const R = 110 * TILE;
   for (const m of list) {
     if (m.isStone || m.dead || (m.type && m.type.crystal)) continue;
+    if (p && (Math.abs(m.x - p.x) > R || Math.abs(m.y - p.y) > R)) continue;
     const key = monModelKey3(m);
-    if (MODELS3.has(key)) continue;
+    if (MODELS3.has(key) || (tried && tried.has(key))) continue;
+    if (tried) tried.add(key);
     try {
       model3(key, (b) => monsterBuild(b, m.typeId, m.__v3));
     } catch (e) {
-      return true;
+      continue;
     }
     if (performance.now() - t0 > ms) return false;
   }

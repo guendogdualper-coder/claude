@@ -23,6 +23,9 @@ function bowArrowCount(p, i) {
 // beste Sorte, die die Figur hat und schon benutzen darf (Index oder -1)
 function bowArrowSort(p) {
   if (!p || !p.arrows) return -1;
+  // seit 15.36: im Inventar gewählte Sorte (p.arrowPick) geht vor, solange davon Pfeile da sind
+  const pick = p.arrowPick;
+  if (pick != null && ARROW_TYPES[pick] && bowArrowCount(p, pick) > 0 && p.level >= ARROW_TYPES[pick].level) return pick;
   for (let i = ARROW_TYPES.length - 1; i >= 0; i--) if (bowArrowCount(p, i) > 0 && p.level >= ARROW_TYPES[i].level) return i;
   return -1;
 }
@@ -75,9 +78,36 @@ function bowArrowShot(p, n = 1) {
     if (have - take > 0) p.arrows[k] = have - take;
     else delete p.arrows[k];
   }
+  // seit 15.36 (gewählte Sorte): reicht sie samt den schlechteren nicht, den Rest von den besseren nehmen
+  for (let k = i + 1; k < ARROW_TYPES.length && left > 0; k++) {
+    if (p.level < ARROW_TYPES[k].level) continue;
+    const have = bowArrowCount(p, k);
+    const take = Math.min(have, left);
+    if (!take) continue;
+    left -= take;
+    if (have - take > 0) p.arrows[k] = have - take;
+    else delete p.arrows[k];
+  }
   bowHudDirty = true;
   const a = ARROW_TYPES[i];
   return { sort: i, mul: 1 + a.dmg, color: a.color };
+}
+// Pfeile verkaufen (seit 15.36): 30 % des Kaufpreises, nur bei einem Händler
+function arrowSellValue(i, n) {
+  return Math.floor((ARROW_TYPES[i].price * n * 0.3) / ARROW_BUNDLE);
+}
+function sellArrows(i, n) {
+  const p = game.player;
+  if (!p || !ARROW_TYPES[i] || !nearTrader()) return 0;
+  n = Math.min(n, bowArrowCount(p, i));
+  const gold = arrowSellValue(i, n);
+  if (n <= 0 || gold <= 0) return 0;
+  p.arrows[i] -= n;
+  if (!p.arrows[i]) delete p.arrows[i];
+  p.gold += gold;
+  bowHudDirty = true;
+  saveGame();
+  return n;
 }
 // Pfeile kaufen (Bündel zu ARROW_BUNDLE Stück) – nur Sorten, die man schon benutzen darf
 function buyArrows(i, bundles = 1) {
@@ -195,12 +225,38 @@ function bowArrowDetail(el, x) {
   const p = game.player;
   const a = ARROW_TYPES[x.arrow];
   const best = bowArrowSort(p) === x.arrow;
+  const ok = p.level >= a.level;
+  const picked = p.arrowPick === x.arrow;
+  const trader = nearTrader();
+  const off = trader ? '' : 'disabled title="Nur bei einem Händler"';
+  // seit 15.36: Sorte wählen und Pfeile verkaufen (vorher schoss immer die beste Sorte, verkaufen ging nicht)
+  const sell = (n, label) => (arrowSellValue(x.arrow, n) > 0
+    ? `<button type="button" class="mini-btn btn-sell" data-asell="${n}" ${off}>${label} · ${arrowSellValue(x.arrow, n).toLocaleString('de-DE')} Gold</button>` : '');
   el.innerHTML = `<div class="item-detail"><img src="${arrowIconUrl(x.arrow)}" alt="">` +
     `<div class="item-info"><strong style="color:${a.color}">${a.name} × ${x.n.toLocaleString('de-DE')}</strong>` +
     `<small>Munition für den Bogen · ab Stufe ${a.level}${best ? ' · wird gerade geschossen' : ''}</small>` +
-    `<span>+${Math.round(a.dmg * 100)} % Schaden für jeden Bogenschuss (Grundangriff und Fertigkeiten). Jeder Schuss verbraucht einen Pfeil; ` +
-    `geschossen wird immer die beste Sorte, die du schon benutzen darfst.</span>` +
-    `<small class="hint-text">Ohne Pfeile schießt der Bogen nicht. Neue Pfeile verkauft die Bogenmacherin neben dem Waffenhändler.</small></div></div>`;
+    `<span>+${Math.round(a.dmg * 100)} % Schaden für jeden Bogenschuss (Grundangriff und Fertigkeiten). Jeder Schuss verbraucht einen Pfeil. ` +
+    `Ohne Wahl schießt du die beste Sorte, die du schon benutzen darfst.</span>` +
+    `<small class="hint-text">${trader ? '' : 'Verkaufen geht nur bei einem Händler. '}Neue Pfeile verkauft die Bogenmacherin neben dem Waffenhändler.</small></div>` +
+    `<div class="item-actions">` +
+    (picked ? `<button type="button" class="mini-btn" data-apick="-1">Wieder die beste Sorte schießen</button>`
+      : `<button type="button" class="mini-btn" data-apick="${x.arrow}" ${ok && !best ? '' : 'disabled'}>${best ? 'Wird geschossen' : 'Diese Sorte schießen'}</button>`) +
+    (x.n > ARROW_BUNDLE ? sell(ARROW_BUNDLE, `${ARROW_BUNDLE} verkaufen`) : '') + sell(x.n, 'Alle verkaufen') + `</div></div>`;
+  el.querySelectorAll('[data-apick]').forEach((b) => b.addEventListener('click', () => {
+    const i = Number(b.dataset.apick);
+    if (i < 0) delete p.arrowPick; else p.arrowPick = i;
+    bowHudDirty = true;
+    saveGame();
+    gear.renderInventory();
+    gear.message(i < 0 ? 'Du schießt wieder die beste Sorte.' : `Du schießt jetzt ${a.name}.`, 'success');
+  }));
+  el.querySelectorAll('[data-asell]').forEach((b) => b.addEventListener('click', () => {
+    if (typeof armConfirm === 'function' && !armConfirm(b)) return;
+    const gold = arrowSellValue(x.arrow, Math.min(Number(b.dataset.asell), bowArrowCount(p, x.arrow)));
+    const n = sellArrows(x.arrow, Number(b.dataset.asell));
+    gear.renderInventory();
+    if (n) gear.message(`${n.toLocaleString('de-DE')} × ${a.name} für ${gold.toLocaleString('de-DE')} Gold verkauft.`, 'success');
+  }));
 }
 
 // Anzeige im Fensterkopf (neben Gold und Splittern) und am Angriffsknopf: aktive Sorte und Anzahl.

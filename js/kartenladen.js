@@ -27,6 +27,24 @@ const MAPLOAD_TIPPS = [
   ['', () => 'Hol dir jeden Tag die Tagesbelohnung – am siebten Tag in Folge gibt es ein Fertigkeitsbuch.'],
   ['', () => 'Solange dieses Bild steht, kann deiner Figur nichts passieren.']
 ];
+// Wechselnde Ladebilder (seit 15.36): neben dem Bild der eigenen Hauptstadt Szenen aus dem Spiel – Städte anderer
+// Karten und Endbosse. Das nächste Bild wird im Voraus geladen (mapLoadVor); ist es beim nächsten Ladebild noch nicht
+// da (langsames Netz, ohne Netz), bleibt es beim Standardbild, das mit dem Spiel gespeichert ist. '' = Standardbild.
+const MAPLOAD_BILDER = {
+  licht: ['', 'frost', 'feuer', 'kristall', 'oase', 'ymir', 'fenris'],
+  schatten: ['', 'blut', 'nachtfrost', 'skarn', 'feuer', 'kristall', 'ymir']
+};
+const MAPLOAD_VOR = { licht: null, schatten: null, last: { licht: '', schatten: '' } };
+function mapLoadVor(seite) {
+  const list = MAPLOAD_BILDER[seite] || MAPLOAD_BILDER.licht;
+  let name = list[Math.floor(Math.random() * list.length)];
+  if (name === MAPLOAD_VOR.last[seite]) name = list[(list.indexOf(name) + 1) % list.length];
+  if (!name) { MAPLOAD_VOR[seite] = ''; return; }
+  const im = new Image();
+  im.onload = () => { MAPLOAD_VOR[seite] = name; };
+  im.src = `bilder/lade-${name}.webp`;
+}
+
 function mapLoadTipp() {
   const pc = typeof IS_PC !== 'undefined' && IS_PC;
   const list = MAPLOAD_TIPPS.filter(([art]) => !art || (art === 'pc') === pc);
@@ -76,7 +94,13 @@ function mapLoadShow(key) {
   const seite = wm && wm.side === 'schatten' ? 'schatten' : wm && wm.side === 'licht' ? 'licht' : typeof myFaction === 'function' ? myFaction() : 'licht';
   // zwei Größen (seit 15.27): 1920 × 1080 fürs Handy, 3840 × 2160 für große Bildschirme
   const gross = Math.max(screen.width, screen.height) * (window.devicePixelRatio || 1) > 2000;
-  el.style.backgroundImage = `url(bilder/lade-${seite === 'schatten' ? 'schatten' : 'licht'}${gross ? '-4k' : ''}.webp)`;
+  const sk = seite === 'schatten' ? 'schatten' : 'licht';
+  const bild = MAPLOAD_VOR[sk];
+  el.style.backgroundImage = bild ? `url(bilder/lade-${bild}.webp)` : `url(bilder/lade-${sk}${gross ? '-4k' : ''}.webp)`;
+  MAPLOAD_VOR.last[sk] = bild || '';
+  MAPLOAD_VOR[sk] = null;
+  // das Bild fürs nächste Mal holen, sobald die Karte steht (nicht während des Ladens)
+  setTimeout(() => mapLoadVor(sk), 4000);
   MAPLOAD.bar.style.width = '0';
   mapLoadTipp();
   clearInterval(MAPLOAD.tipTimer);

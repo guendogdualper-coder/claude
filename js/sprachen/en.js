@@ -3135,6 +3135,8 @@
 "×{0}, sicher kritisch": "×{0}, guaranteed crit",
 "Aus der Tarnung": "From stealth",
 "×{0} (mit Tarnung ×{1})": "×{0} (with Stealth ×{1})",
+"×{0}, Sprung hinter das Ziel": "×{0}, leap behind the target",
+"Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis {0} weit) und triffst mit dem Tarnungs-Bonus {1}× so hart, sicher kritisch.": "A precise stab with high damage. From stealth you leap behind the target (up to {0}) and hit {1}× as hard with the stealth bonus, guaranteed crit.",
 "Erneut am selben Gegner": "Again on the same enemy",
 "Taumeln": "Stagger",
 "bis {0}": "up to {0}",

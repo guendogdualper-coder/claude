@@ -14,7 +14,7 @@ const POST_PORTO = 10; // Gold je Brief
 const POST_MAX_WARE = 6;
 const POST_TEXT = 500;
 const POST_SUBJECT = 40;
-const POST_POLL = 180000; // ms: so oft beim Spielen nach neuen Briefen sehen
+const POST_POLL = 60000; // ms: so oft beim Spielen nach neuen Briefen sehen (seit 15.36 jede Minute, vorher alle drei)
 
 const POST = { tab: 'ein', list: null, sel: null, busy: false, msg: null, nameState: null, loadedFor: null, unread: 0, timer: 0,
   compose: { an: '', betreff: '', text: '', gold: 0, pick: { sel: [], page: 0, max: POST_MAX_WARE } } };
@@ -47,7 +47,46 @@ async function postLoad() {
   POST.list = all;
   POST.loadedFor = account.uid;
   POST.unread = all.filter((m) => postMine(m) && !m.gelesen).length;
+  postBadge();
   return all;
+}
+
+// Postsymbol an der kleinen Karte (seit 15.36): Briefumschlag mit Zahl, solange ungelesene Briefe da sind. Kommt ein
+// neuer Brief (auch die Nachricht des Auktionshauses nach einem Verkauf), steht kurz daneben, worum es geht.
+// Antippen: Hinweis, wo man die Post abholt.
+function postBadge(neu) {
+  const host = document.querySelector('.hud-map');
+  if (!host) return;
+  let el = document.getElementById('postBadge');
+  if (!el) {
+    el = document.createElement('button');
+    el.type = 'button';
+    el.id = 'postBadge';
+    el.className = 'post-badge';
+    el.hidden = true;
+    el.innerHTML = '<svg viewBox="0 0 24 18" aria-hidden="true"><rect x="1.2" y="1.2" width="21.6" height="15.6" rx="2.4" fill="#f4e6c0" stroke="#7a5a1e" stroke-width="1.6"/>' +
+      '<path d="M2 3l10 7.4L22 3" fill="none" stroke="#7a5a1e" stroke-width="1.6" stroke-linejoin="round"/></svg><b></b><span class="post-note" hidden></span>';
+    el.addEventListener('click', () => {
+      ui.log(POST.unread === 1 ? 'Du hast einen ungelesenen Brief. Hol ihn bei der Post in jeder Stadt ab.' : `Du hast ${POST.unread} ungelesene Briefe. Hol sie bei der Post in jeder Stadt ab.`, 'info');
+      postBadge(true);
+    });
+    host.appendChild(el);
+  }
+  const n = POST.unread;
+  el.hidden = !(n > 0);
+  el.querySelector('b').textContent = n > 9 ? '9+' : String(n);
+  el.setAttribute('aria-label', n === 1 ? 'Ein ungelesener Brief' : `${n} ungelesene Briefe`);
+  const note = el.querySelector('.post-note');
+  if (neu && n > 0) {
+    const m = (POST.list || []).find((x) => postMine(x) && !x.gelesen);
+    note.textContent = m && m.sys === 'ah' ? `Auktionshaus: ${m.betreff || 'Nachricht'}` : m && m.von ? `Post von ${m.von}` : 'Post angekommen';
+    note.hidden = false;
+    el.classList.remove('neu');
+    void el.offsetWidth;
+    el.classList.add('neu');
+    clearTimeout(postBadge.t);
+    postBadge.t = setTimeout(() => { note.hidden = true; }, 7000);
+  } else if (!(n > 0)) note.hidden = true;
 }
 
 // Namen anmelden, damit andere einem schreiben können (nur, wenn er frei ist oder schon diesem Konto gehört)
@@ -75,6 +114,8 @@ async function postPoll(start) {
   const before = POST.unread;
   try { await postLoad(); } catch { return; }
   if (POST.unread && (start || POST.unread > before)) {
+    postBadge(true);
+    if (!start && typeof snd !== 'undefined' && snd.tone) try { snd.tone(660, 0, 0.35, 'sine', 0.1); snd.tone(990, 0.12, 0.45, 'sine', 0.08); } catch (e) { /* Klang ist Beiwerk */ }
     ui.log(POST.unread === 1 ? 'Du hast einen ungelesenen Brief. Hol ihn bei der Post in jeder Stadt ab.' : `Du hast ${POST.unread} ungelesene Briefe. Hol sie bei der Post in jeder Stadt ab.`, 'info');
   }
 }
@@ -84,6 +125,7 @@ function postStart(p) {
   POST.sel = null;
   POST.nameState = null;
   POST.unread = 0;
+  postBadge();
   postRegister(p);
   setTimeout(() => postPoll(true), 4000);
   if (!POST.timer) POST.timer = setInterval(() => postPoll(false), POST_POLL);
@@ -172,6 +214,7 @@ function postSelect(id) {
   if (m && !m.gelesen) {
     m.gelesen = true;
     POST.unread = Math.max(0, POST.unread - 1);
+    postBadge();
     hdb.patch(postPath(account.uid, id), { gelesen: true }).catch(() => {});
   }
   postRender();

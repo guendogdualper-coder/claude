@@ -2311,7 +2311,7 @@ const gear = {
       `<section class="inv-bag${this.multi ? ' picking' : ''}"><h3>Tasche <small>${bagCapText(p)}</small><span class="bag-tabs">${tabs}</span></h3>` +
       sellBar + (locked && typeof sozialHinweisHtml === 'function' ? sozialHinweisHtml() : '') + `<div class="bag-grid">${bag}</div>` +
       // Vorräte (seit 11.0): Tränke jeder Größe und Segensschriftrollen, antippen zum Trinken oder Verkaufen
-      `<h4 class="sup-head">Vorräte <small>Tränke, Segensschriftrollen, Verstärkungen und Switcher</small></h4>` +
+      `<h4 class="sup-head">Vorräte <small>Tränke, Schriftrollen, Pfeile, Erfahrungsring und Schmiede-Teile – antippen zum Benutzen</small></h4>` +
       `<div class="sup-grid">${this.supplyList().map((x) => this.supplyTile(x, !!(this.multiSup && this.multiSup.has(x.key)))).join('') || '<small class="hint-text">Keine Tränke dabei. Die Händlerin verkauft welche.</small>'}</div>` +
       // Aufwertungsteile (seit 13.37 im eigenen Fenster, Taste U): hier nur eine Zeile mit Knopf
       `<button type="button" class="mats-open" id="btnMatsOpen"><img src="${lootIconUrl('splinter')}" alt="">` +
@@ -2742,6 +2742,13 @@ const gear = {
       const n = (p.materials && p.materials[m.id]) || 0;
       if (n > 0) out.push({ key: 'mat:' + m.id, n, mat: m });
     }
+    // seit 15.36: auch die Gegenstände für die Fertigkeiten (Schriftrolle, Seelenstein), der Ätherkern und der
+    // Erfahrungsring liegen hier – der Ring lässt sich gleich im Inventar anlegen (vorher nur unter „Aufwertungsteile“)
+    for (const m of SKILL_MATS.concat(FORGE_MATS)) {
+      const n = (p.materials && p.materials[m.id]) || 0;
+      if (n > 0) out.push({ key: 'mat:' + m.id, n, mat: m, use: SKILL_MATS.includes(m) ? 'skill' : 'forge' });
+    }
+    if (p.materials && p.materials.epring > 0 && matDef('epring')) out.push({ key: 'mat:epring', n: p.materials.epring, mat: matDef('epring'), use: 'ring' });
     // Pfeile (seit 13.57, fernninja.js)
     if (typeof bowArrowSupplies === 'function') out.push(...bowArrowSupplies(p));
     return out;
@@ -2766,6 +2773,29 @@ const gear = {
     const tileEl = document.querySelector(`#invBody [data-sup="${x.key}"]`);
     if (tileEl) tileEl.classList.add('selected');
     if (x.arrow != null) return bowArrowDetail(el, x);
+    if (x.use === 'ring') {
+      // Erfahrungsring (seit 15.36 hier anlegen)
+      const left = epRingLeft(p);
+      el.innerHTML = `<div class="item-detail"><img src="${materialIconHiUrl(x.mat.id)}" alt="">` +
+        `<div class="item-info"><strong style="color:${MATERIAL_COLORS[x.mat.id] || '#b48cff'}">${x.mat.name} × ${x.n}</strong>` +
+        `<small>${x.mat.tag} · nicht verkäuflich</small><span>${x.mat.text}</span>` +
+        (left ? `<small class="hint-text">Ein Ring wirkt noch ${epRingTime(left)}. Ein weiterer verlängert die Zeit.</small>` : '') + `</div>` +
+        `<div class="item-actions"><button type="button" class="mini-btn" data-ring-use>Anlegen</button></div></div>`;
+      el.querySelector('[data-ring-use]').addEventListener('click', () => {
+        if (epRingUse()) {
+          this.renderInventory();
+          this.message(`Erfahrungsring angelegt: +${Math.round(EP_RING.mul * 100)} % Erfahrung für ${epRingTime(epRingLeft(p))}.`, 'success');
+        } else this.message(`Mehr als ${EP_RING.maxHours} Stunden lassen sich nicht ansparen.`, 'warn');
+      });
+      return;
+    }
+    if (x.use === 'skill') {
+      el.innerHTML = `<div class="item-detail"><img src="${materialIconHiUrl(x.mat.id)}" alt="">` +
+        `<div class="item-info"><strong style="color:${MATERIAL_COLORS[x.mat.id] || '#ffd34d'}">${x.mat.name} × ${x.n}</strong>` +
+        `<small>${x.mat.tag} · für die Fertigkeiten · nicht verkäuflich</small><span>${x.mat.text}</span>` +
+        `<small class="hint-text">Im Fertigkeitenfenster hebst du damit eine Fertigkeit um eine Stufe.</small></div></div>`;
+      return;
+    }
     if (x.mat) {
       el.innerHTML = `<div class="item-detail"><img src="${materialIconHiUrl(x.mat.id)}" alt="">` +
         `<div class="item-info"><strong style="color:${MATERIAL_COLORS[x.mat.id] || '#ffd34d'}">${x.mat.name} × ${x.n}</strong>` +

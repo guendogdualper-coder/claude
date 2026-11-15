@@ -1,6 +1,6 @@
 // Lv-60-Instanzen (seit 13.58). Daten: js/daten/instanzen.js (INSTANCES, Gegner, Wächter, Bosse).
 // - Zwei Eingänge je Map ab Stufe 40, in den Ecken (instCornerEntrance), auf Minikarte und großer Karte.
-// - Betreten nur als Gruppe aus 2–5 Spielern, alle ab Stufe 60 (empfohlen 5: 1 Tank, 1 Heiler, 3 Schaden).
+// - Betreten allein (seit 15.36) oder als Gruppe bis 5 Spieler, alle ab Stufe 60 (empfohlen 5: 1 Tank, 1 Heiler, 3 Schaden).
 // - Sperre: 60 Minuten (seit 13.92, vorher 30) je Spieler und je Instanz, ab dem Betreten (p.instLock[id] = { until, mb, done });
 //   seit 13.92 auch in der Testzeit und für alle Figuren auf demselben Gerät (instDevMark).
 //   Solange der Boss nicht gefallen ist, kann man in seinen Durchgang zurück (z. B. nach dem Tod); die Beute der
@@ -24,7 +24,8 @@
 const INST_FREE_UNTIL = Date.parse('2026-11-09T00:00:00+01:00');
 const instFree = () => Date.now() < INST_FREE_UNTIL;
 const INST = {
-  level: 60, party: [2, 5], lockMin: 60, legendary: 0.065, resetAfter: 480, respawn: 3600,
+  level: 60, party: [1, 5], // seit 15.36 auch allein (vorher 2–5)
+  lockMin: 60, legendary: 0.065, resetAfter: 480, respawn: 3600,
   miniEpic: [0.06, 0.08, 0.1, 0.12], htMiniEpic: 0.15, epic70: 0.35,
   stdAtk: 0.6, ultFirst: 0.5, ultEvery: 40, ultCast: 4.5, reach: 560, reachFinal: 760
 };
@@ -347,7 +348,8 @@ function instChecks(def) {
   if (instFree()) return [{ ok: true, text: 'Testzeit bis einschließlich 8. 11.: ohne Stufe, ohne Gruppe (auch allein)' }, lockRow];
   return [
     { ok: p.level >= instMinLevel(def), text: `Du bist mindestens Stufe ${instMinLevel(def)} (jetzt ${p.level})`, err: `erst ab Stufe ${instMinLevel(def)}` },
-    { ok: !!party && n >= INST.party[0] && n <= INST.party[1], text: `Gruppe aus ${INST.party[0]}–${INST.party[1]} Spielern (jetzt ${party ? n : 'keine Gruppe'})`, err: party ? `nur für Gruppen aus ${INST.party[0]}–${INST.party[1]} Spielern` : 'nur als Gruppe (2–5 Spieler) betretbar' },
+    // seit 15.36 auch allein betretbar (vorher nur als Gruppe aus 2–5)
+    { ok: n >= INST.party[0] && n <= INST.party[1], text: party ? `Gruppe aus höchstens ${INST.party[1]} Spielern (jetzt ${n})` : `Allein oder als Gruppe bis ${INST.party[1]} Spieler (jetzt allein – sehr schwer)`, err: `höchstens ${INST.party[1]} Spieler` },
     { ok: !lowName, text: lowName ? `${lowName} ist noch nicht Stufe ${instMinLevel(def)}` : `Alle in der Gruppe ab Stufe ${instMinLevel(def)}`, err: `${lowName} ist noch nicht Stufe ${instMinLevel(def)}` },
     lockRow
   ];
@@ -371,7 +373,7 @@ function instRenderGate(body, npc, dg) {
   const ok = checks.every((c) => c.ok);
   const nRooms = dg.rooms.length + dg.side.length;
   const minis = def.minis.map((id) => `<b>${MONSTER_TYPES[id].name}</b>`).join(', ');
-  body.innerHTML = `<p class="quest-step raid-step">Instanz · ${instFree() ? '<b>Testzeit bis 8. 11.: frei für alle, auch allein</b>' : `ab Stufe ${instMinLevel(def)} · Gruppe aus ${INST.party[0]}–${INST.party[1]} (empfohlen 5)`}</p><h3>${def.name}</h3>` +
+  body.innerHTML = `<p class="quest-step raid-step">Instanz · ${instFree() ? '<b>Testzeit bis 8. 11.: frei für alle, auch allein</b>' : `ab Stufe ${instMinLevel(def)} · allein oder als Gruppe bis ${INST.party[1]} (empfohlen 5)`}</p><h3>${def.name}</h3>` +
     `<p>${def.text} ${nRooms} Räume voller Gegner, dazwischen vier Wächter, die immer stärker werden: ${minis}. Oben in der Halle wartet <b>${boss.name}</b> – versiegelt, bis alle Wächter gefallen sind.</p>` +
     '<p class="hint-text">Rote Kreise am Boden: gleich schlägt es dort ein, raus da! Grüne Kreise sind sicher. Wächter schreien bei 60 % und rufen Helfer, unter 30 % rasen sie. Ab der Hälfte seines Lebens entfesselt der Instanzboss seine Ult: Nur in den Lichtkreisen überlebt man sie.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +

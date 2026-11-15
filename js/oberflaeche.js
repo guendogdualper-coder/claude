@@ -2067,7 +2067,9 @@ function skillStats(sk, lvl) {
   if (sk.nextHitMul) out.push(['Nächster Angriff', '×' + numDe(sk.nextHitMul) + ', sicher kritisch']);
   if (sk.ambushMul) {
     const tarn = typeof skillById === 'function' && skillById('tarnung');
-    out.push(['Aus der Tarnung', '×' + numDe(sk.ambushMul) + (tarn && tarn.nextHitMul ? ' (mit Tarnung ×' + numDe(sk.ambushMul * tarn.nextHitMul) + ')' : '')]);
+    // seit 15.36: ohne eigenen Faktor (ambushMul 1) steht hier nur der Tarnungs-Bonus – so viel trifft der Stich wirklich
+    if (sk.ambushMul > 1 || !tarn || !tarn.nextHitMul) out.push(['Aus der Tarnung', '×' + numDe(sk.ambushMul) + (tarn && tarn.nextHitMul ? ' (mit Tarnung ×' + numDe(sk.ambushMul * tarn.nextHitMul) + ')' : '')]);
+    else out.push(['Aus der Tarnung', '×' + numDe(tarn.nextHitMul) + ', Sprung hinter das Ziel']);
   }
   // seit 13.87: Schattenkette – Sprünge je Rang (chainHops, ninja-fx.js), weitere Schnitte am selben Gegner × repeatMul
   if (sk.type === 'chainblink') {

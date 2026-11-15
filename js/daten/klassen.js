@@ -123,8 +123,10 @@ const CLASSES = {
             id: 'hinterhalt', name: 'Hinterhalt', short: 'HH', kind: 'angriff', unlock: 1, mp: 8, cooldown: 4,
             // seit 13.85 Hinterhalt ×1,5 statt ×2 (mit Tarnung ×3 statt ×6)
             // seit 14.6 Schaden 3,0 statt 3,7; mit der Tarnung (×1,6 statt ×2) zusammen 2,4× statt 3×
-            type: 'strike', range: 70, dmg: 3.0, critBonus: 0.4, ambushMul: 1.5, ambushRange: 220,
-            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst 1,5-mal so hart – zusammen mit dem Tarnungs-Bonus 2,4× Schaden, sicher kritisch.'
+            // seit 15.36 ohne eigenen Hinterhalt-Faktor (ambushMul 1 statt 1,5): aus der Tarnung zählt nur noch deren
+            // Bonus, zusammen 1,6× statt 2,4× – der Sprung hinter das Ziel bleibt
+            type: 'strike', range: 70, dmg: 3.0, critBonus: 0.4, ambushMul: 1, ambushRange: 220,
+            text: 'Ein gezielter Stich mit hohem Schaden. Aus der Tarnung springst du hinter das Ziel (bis 220 weit) und triffst mit dem Tarnungs-Bonus 1,6× so hart, sicher kritisch.'
           },
           {
             id: 'tarnung', name: 'Tarnung', short: 'TA', kind: 'buff', unlock: 3, mp: 16, cooldown: 35,

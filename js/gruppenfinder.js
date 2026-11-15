@@ -31,7 +31,7 @@ const GF_CATS = [
   { id: 'raid', name: 'Endbosse', sub: 'Schlachtzug für 5 Spieler' },
   { id: 'thron', name: 'Höllenthron' },
   // seit 13.58 gefüllt (instanzen.js): acht Instanzen, je zwei Eingänge auf den Maps ab Stufe 40, nur als Gruppe
-  { id: 'inst60', name: 'Instanzen (Lv 60)', sub: 'Gruppe aus 2–5 Spielern' }
+  { id: 'inst60', name: 'Instanzen (Lv 60)', sub: 'allein oder bis 5 Spieler' }
 ];
 
 // Alle Aktivitäten des Gruppenfinders. Anderer Code kann eigene anhängen (GROUP_ACTIVITIES.push):

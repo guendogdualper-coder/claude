@@ -1,4 +1,5 @@
-// Erfahrungsring (seit 14.99): seltene Beute, die eine Stunde lang mehr Erfahrung gibt.
+// Erfahrungsring (seit 14.99): seltene Beute, die eine Stunde lang mehr Erfahrung gibt (seit 15.36 +25 % statt +50 %).
+// Seit 15.36 liegt er bei den Vorräten im Inventar und wird dort angelegt (ausruestung.js supplyList).
 // - Fällt von Bossen ab der ersten Karte (Endbosse der Karten, Dungeon- und Instanzbosse) und von Seelensteinen ab
 //   Stufe 40 (Chancen in EP_RING.drop).
 // - Liegt als Zähler in p.materials.epring (wie Verstärkungen: Post, Speichern, Konto). Anlegen im Fenster
@@ -8,11 +9,11 @@
 //   Stunden ansparen. Zählt zusätzlich zum Startbonus.
 // - Anzeige: Symbol mit Restzeit in der Buff-Leiste oben links (oberflaeche.js).
 
-const EP_RING = { mul: 0.5, minutes: 60, maxHours: 6, color: '#b48cff',
-  // seit 15.00 deutlich öfter (vorher 10 / 6 / 4 / 2 %)
-  drop: { raid: 0.6, inst: 0.4, boss: 0.2, stoneFrom: 40, stone: 0.1 } };
+const EP_RING = { mul: 0.25, minutes: 60, maxHours: 6, color: '#b48cff',
+  // seit 15.00 deutlich öfter (vorher 10 / 6 / 4 / 2 %); seit 15.36 aus Seelensteinen nur noch 3 % statt 10 %
+  drop: { raid: 0.6, inst: 0.4, boss: 0.2, stoneFrom: 40, stone: 0.03 } };
 
-ALL_MATS.push({ id: 'epring', name: 'Erfahrungsring', tag: '+50 % EP',
+ALL_MATS.push({ id: 'epring', name: 'Erfahrungsring', tag: `+${Math.round(EP_RING.mul * 100)} % EP`,
   text: `Anlegen: ${EP_RING.minutes} Minuten Spielzeit lang +${Math.round(EP_RING.mul * 100)} % Erfahrung. Von Bossen und aus Seelensteinen ab Stufe ${EP_RING.drop.stoneFrom}.` });
 MATERIAL_COLORS.epring = EP_RING.color;
 
@@ -158,7 +159,7 @@ function epRingDrop(m) {
   const p = game.player;
   p.materials.epring = (p.materials.epring || 0) + 1;
   ui.loot('Erfahrungsring', 1, materialIconUrl('epring'), EP_RING.color);
-  ui.log('Ein Erfahrungsring! Lege ihn bei den Aufwertungsteilen (U) an: eine Stunde lang +50 % Erfahrung.', 'level');
+  ui.log(`Ein Erfahrungsring! Lege ihn im Inventar unter „Vorräte“ an: eine Stunde lang +${Math.round(EP_RING.mul * 100)} % Erfahrung.`, 'level');
   if (!ui.dropAt && typeof vfxLootFly === 'function') later(0.3, () => vfxLootFly(m, materialIconCanvas('epring')));
 }
 if (typeof rollLoot === 'function') {
