@@ -2078,7 +2078,7 @@ function shadowCasters(x0, y0, x1, y1) {
     for (let x = Math.max(0, x0); x < Math.min(MAP_W, x1); x++) {
       const i = y * MAP_W + x;
       // seit 14.16: Stützmauern der Terrassen sind niedrig
-      const c = w.obj[i] === OBJ.WALL && WALL_STYLE.get(i) === 'terrasse' ? CASTER3_LOW : CASTER3[w.obj[i]];
+      const c = w.obj[i] === OBJ.WALL && (WALL_STYLE.get(i) === 'terrasse' || WALL_STYLE.get(i) === 'sonnenstein') ? CASTER3_LOW : CASTER3[w.obj[i]];
       if (c) push(x + 0.5, y + 0.55, c[0], c[1], c[2]);
       const d = !w.obj[i] && DECO_CASTER3[w.deco[i]];
       if (d) {

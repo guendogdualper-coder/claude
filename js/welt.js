@@ -17,7 +17,11 @@ const MAP_W = WORLD_W + DUNGEON_W;
 // seit 14.54: zwei Reihen mit den sechs Karten der Schattenseite unter der alten Welt (Maps 11–16, docs/fraktionen.md).
 // WORLD_W und WORLD_H bleiben (das Rauschen der alten Welt hängt daran), die Karte wird nur nach unten länger.
 const SHADOW_H = 440;
-const MAP_H = WORLD_H + SHADOW_H;
+// Karten 18 und 19 (Nebelküste, Himmelsterrassen): eine weitere Reihe unter den Schattenkarten (y ab 1320). Alle zwölf
+// Plätze des alten Rasters und die sechs der Schattenseite sind belegt; wieder verschiebt sich nichts Bestehendes, die
+// Karte wird nur nach unten länger (der dritte Platz der Reihe, x ab 720, bleibt Fels).
+const EXTRA_H = 220;
+const MAP_H = WORLD_H + SHADOW_H + EXTRA_H;
 const CENTER_X = 180;     // Mitte von Kazehana (x und y gleich: der Dorfplan rechnet mit einer Zahl)
 const CENTER_Y = 180;
 // seit 13.63: Mauer 23 statt 18 – Platz für Auktionshaus, Post und Herausforderung. Häuser, Plätze und Stände bleiben
@@ -43,7 +47,11 @@ const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SA
   WOLKEN: 24, KLUFT: 25,
   // seit 14.73: TREIBSAND in den Dünentälern der Knochenwüste, BLUTSEE im Kraterkessel der Blutsteppe, EISSPALTE:
   // Gletscherspalten am Terrassenhang von Nachtfrost – alle drei nicht begehbar (kartenformen.js)
-  TREIBSAND: 26, BLUTSEE: 27, EISSPALTE: 28 };
+  TREIBSAND: 26, BLUTSEE: 27, EISSPALTE: 28,
+  // Karten 18 und 19 (Farben in karte82.js): STRANDSAND (heller Sand der Nebelküste), DUENENGRAS (graugrünes Gras der
+  // Dünen), GOLDGRAS (goldenes Gras der Himmelsterrassen), HELLSTEIN (weißer Fels der Terrassen) – alle begehbar; das
+  // Meer der Nebelküste ist gewöhnliches Wasser (WATER), nur dort graugrün gefärbt
+  STRANDSAND: 29, DUENENGRAS: 30, GOLDGRAS: 31, HELLSTEIN: 32 };
 // Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
 const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG, GROUND.ABGRUND, GROUND.WOLKEN, GROUND.KLUFT, GROUND.TREIBSAND, GROUND.BLUTSEE, GROUND.EISSPALTE]);
 // Objekte auf dem Boden (alle blockieren den Weg)
@@ -65,7 +73,9 @@ const ZONE_DECO = {
   daemmerwiesen: ['SHRUB', 'MUSHROOM', 'STUMP', 'SHRUB'], aschewald: ['STUMP', 'LOG', 'DEADTREE', 'BONES'], knochenwueste: ['BONES', 'BONES', 'DEADTREE'],
   blutsteppe: ['BONES', 'DEADTREE', 'CRYSTAL', 'BONES'], nachtfrost: ['CRYSTAL', 'DRIFT', 'BONES', 'DRIFT'], schattenklippen: ['BONES', 'CRYSTAL', 'DEADTREE'],
   schwarzmoor: ['MUSHROOM', 'LOG', 'SHRUB', 'BONES'],
-  seelenhain: ['SHRUB', 'MUSHROOM', 'SHRUB', 'STUMP'] // Map 17: Büsche und leuchtende Pilze, kaum Stolperteile
+  seelenhain: ['SHRUB', 'MUSHROOM', 'SHRUB', 'STUMP'], // Map 17: Büsche und leuchtende Pilze, kaum Stolperteile
+  // Map 18: Treibholz (gebleichte Stämme), Dünenbüsche, Muschelkalk; Map 19: blühende Büsche, Baumstümpfe, Kiesel
+  nebelkueste: ['LOG', 'SHRUB', 'LOG', 'PEBBLE'], himmelsterrassen: ['SHRUB', 'SHRUB', 'STUMP', 'PEBBLE']
 };
 const DECO_RATE = 0.022;
 function zoneDeco(zone, r) {
@@ -395,7 +405,11 @@ const TOWN_THEME = {
   15: { planter: 'tanne', bench: 'holz', goods: 'markt', pile: ['holz'], banner: '#22305a', snow: true },
   16: { planter: 'pilz', bench: 'stein', goods: 'markt', pile: ['sack', 'holz'], banner: '#1e3a3a', stone: '#7ae0a8' },
   // Map 17: Seelenwacht im Seelenhain – silberblaue Banner, Pilzkübel, Steinbänke
-  17: { planter: 'pilz', bench: 'stein', goods: 'krug', pile: ['krug', 'holz'], banner: '#2e4a7a', stone: '#bfe0ff' }
+  17: { planter: 'pilz', bench: 'stein', goods: 'krug', pile: ['krug', 'holz'], banner: '#2e4a7a', stone: '#bfe0ff' },
+  // Map 18: Leuchtwacht an der Nebelküste – Netze und Fässer, Kiefern in Kübeln, Holzbänke, graugrüne Banner
+  18: { planter: 'tanne', bench: 'holz', goods: 'markt', pile: ['holz', 'sack'], banner: '#3e5a58', stone: '#ffd890' },
+  // Map 19: Sonnenhof auf den Himmelsterrassen – Blumenkübel, Steinbänke, Krüge, goldene Banner
+  19: { planter: 'blumen', bench: 'stein', goods: 'krug', pile: ['krug', 'heu'], banner: '#c8902a', stone: '#fff0b0' }
 };
 const PILE_PROP = { heu: 'hay', holz: 'woodpile', sack: 'sacks', krug: 'pots', totem: 'totem', erz: 'ore' };
 // Ist (x, y) (Kacheln) ein guter Platz für Schmuck? Nicht auf Weg, Haus oder Mauer, nicht in der Mitte oder vor
@@ -933,7 +947,7 @@ function townLayoutProps(mp, T) {
     }
   }
   const th = TOWN_THEME[mp.id] || {};
-  const fire = { 8: '#8fe36a', 10: '#9fd8ff', 17: '#bfe0ff' }[mp.id] || '#ffb04a';
+  const fire = { 8: '#8fe36a', 10: '#9fd8ff', 17: '#bfe0ff', 18: '#ffc86a', 19: '#ffe08a' }[mp.id] || '#ffb04a';
   for (const [type, dx, dy] of L.lights || []) {
     out.push(type === 'brazier' ? { type, roof: fire, ...T(mp.cx + dx, mp.cy + dy) } : { type, ...T(mp.cx + dx, mp.cy + dy) });
   }
@@ -947,7 +961,7 @@ function townLayoutProps(mp, T) {
 // weißen Frostgipfel kaum zu sehen)
 const TP_STONE_COLOR = {
   1: '#3fb8ff', 2: '#22d6c0', 3: '#5fb0ff', 4: '#ffd23f', 5: '#3fd8ff', 6: '#b25cff', 7: '#d23fff', 8: '#8dff5a', 9: '#3fe0ff', 10: '#ffd060',
-  11: '#ffe45a', 12: '#ff7a2e', 13: '#2ed6cc', 14: '#5ad8ff', 15: '#ff5ad2', 16: '#5affa8', 17: '#ffd86a'
+  11: '#ffe45a', 12: '#ff7a2e', 13: '#2ed6cc', 14: '#5ad8ff', 15: '#ff5ad2', 16: '#5affa8', 17: '#ffd86a', 18: '#7ae8d0', 19: '#ff9a5a'
 };
 // Ist (x, y) (Kacheln) in einer Stadt mit eigener Form ein freier Platz für Schmuck? Begehbarer, sicherer Stadtboden
 // ohne Weg, nicht vor einem Tor, nicht an Treppen und Teleportsteinen
@@ -1183,26 +1197,29 @@ function generateWorld() {
     15: { haendler: ['Nivea', 0], schmied: ['Frosthand', 0], waffen: ['Isgar', 0], ruestung: ['Rima', 0], alchemist: ['Kalla', 1], aeltester: ['Edda', 1], jaegerin: ['Snjola', 0], teleport: ['Glanz', 1], stallmeister: ['Bjarki', 0], lehrmeister: ['Halla', 1], lager: ['Sturri', 0] },
     16: { haendler: ['Nebula', 0], schmied: ['Krag', 0], waffen: ['Klippa', 0], ruestung: ['Moos', 1], alchemist: ['Schierling', 0], aeltester: ['Ysra', 1], jaegerin: ['Schlick', 1], teleport: ['Dämmer', 1], stallmeister: ['Riff', 0], lehrmeister: ['Ossina', 1], lager: ['Torf', 0] },
     // Map 17: die Leute von Seelenwacht im Seelenhain
-    17: { haendler: ['Ilmera', 0], schmied: ['Tarven', 0], waffen: ['Kelrun', 0], ruestung: ['Syra', 0], alchemist: ['Noemi', 1], aeltester: ['Maruna', 1], jaegerin: ['Yelva', 0], teleport: ['Lunis', 1], stallmeister: ['Hendrik', 0], lehrmeister: ['Orwin', 0], lager: ['Jorun', 0] }
+    17: { haendler: ['Ilmera', 0], schmied: ['Tarven', 0], waffen: ['Kelrun', 0], ruestung: ['Syra', 0], alchemist: ['Noemi', 1], aeltester: ['Maruna', 1], jaegerin: ['Yelva', 0], teleport: ['Lunis', 1], stallmeister: ['Hendrik', 0], lehrmeister: ['Orwin', 0], lager: ['Jorun', 0] },
+    // Map 18: Leuchtwacht an der Nebelküste, Map 19: Sonnenhof auf den Himmelsterrassen
+    18: { haendler: ['Merle', 0], schmied: ['Harald', 0], waffen: ['Kjell', 0], ruestung: ['Tjarda', 0], alchemist: ['Lorna', 1], aeltester: ['Gerold', 0], jaegerin: ['Silke', 0], teleport: ['Jasper', 1], stallmeister: ['Hauke', 0], lehrmeister: ['Edwin', 0], lager: ['Ronja', 1] },
+    19: { haendler: ['Aurelie', 0], schmied: ['Bastian', 0], waffen: ['Florian', 0], ruestung: ['Liane', 0], alchemist: ['Cyrill', 0], aeltester: ['Helion', 0], jaegerin: ['Sunna', 0], teleport: ['Clara', 0], stallmeister: ['Konstantin', 0], lehrmeister: ['Valerius', 0], lager: ['Mirabel', 1] }
   };
   // Bogenmacher je Map (seit 13.57)
   const BOW_PEOPLE = { 2: ['Amira', 0], 3: ['Torvald', 1], 4: ['Wiebke', 0], 5: ['Grisha', 0], 6: ['Zeynep', 0], 7: ['Liv', 0], 8: ['Rabe', 1], 9: ['Flint', 1], 10: ['Siv', 0],
-    11: ['Silvra', 0], 12: ['Kiefer', 1], 13: ['Sehne', 0], 14: ['Dorna', 0], 15: ['Reif', 1], 16: ['Natter', 0], 17: ['Thessa', 0] };
+    11: ['Silvra', 0], 12: ['Kiefer', 1], 13: ['Sehne', 0], 14: ['Dorna', 0], 15: ['Reif', 1], 16: ['Natter', 0], 17: ['Thessa', 0], 18: ['Imke', 0], 19: ['Dorian', 1] };
   for (const [k, v] of Object.entries(BOW_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].bogenmacher = v;
   // Auktionshaus und Post je Map (seit 13.63)
   const AUCTION_PEOPLE = { 2: ['Bashir', 0], 3: ['Ingvild', 1], 4: ['Konrad', 0], 5: ['Gruk', 0], 6: ['Soraya', 1], 7: ['Eskil', 0], 8: ['Morgana', 1], 9: ['Brand', 0], 10: ['Lucan', 0],
-    11: ['Mirok', 0], 12: ['Glutfinger', 0], 13: ['Talgrid', 1], 14: ['Ochra', 1], 15: ['Rimfrost', 0], 16: ['Orl', 0], 17: ['Meren', 0] };
+    11: ['Mirok', 0], 12: ['Glutfinger', 0], 13: ['Talgrid', 1], 14: ['Ochra', 1], 15: ['Rimfrost', 0], 16: ['Orl', 0], 17: ['Meren', 0], 18: ['Bendix', 0], 19: ['Leopold', 0] };
   const POST_PEOPLE = { 2: ['Leyla', 0], 3: ['Arvid', 1], 4: ['Hanne', 0], 5: ['Durza', 0], 6: ['Karim', 1], 7: ['Tove', 0], 8: ['Krähe', 1], 9: ['Asche', 0], 10: ['Fenja', 0],
-    11: ['Eule', 0], 12: ['Funkel', 0], 13: ['Knöch', 1], 14: ['Wachs', 0], 15: ['Flocke', 0], 16: ['Unke', 0], 17: ['Lyske', 0] };
+    11: ['Eule', 0], 12: ['Funkel', 0], 13: ['Knöch', 1], 14: ['Wachs', 0], 15: ['Flocke', 0], 16: ['Unke', 0], 17: ['Lyske', 0], 18: ['Gesa', 0], 19: ['Rosalie', 0] };
   for (const [k, v] of Object.entries(AUCTION_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].auktion = v;
   for (const [k, v] of Object.entries(POST_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].post = v;
   // Arenameister je Map (seit 13.63, Herausforderung)
   const ARENA_PEOPLE = { 2: ['Zarif', 1], 3: ['Brynja', 0], 4: ['Rasmus', 1], 5: ['Urgash', 1], 6: ['Samira', 0], 7: ['Hedda', 0], 8: ['Vesper', 0], 9: ['Glutfaust', 1], 10: ['Varik', 1],
-    11: ['Nachtklinge', 0], 12: ['Brandt', 1], 13: ['Schädelbrecher', 1], 14: ['Rotfaust', 0], 15: ['Grimhild', 0], 16: ['Morast', 1], 17: ['Darvin', 1] };
+    11: ['Nachtklinge', 0], 12: ['Brandt', 1], 13: ['Schädelbrecher', 1], 14: ['Rotfaust', 0], 15: ['Grimhild', 0], 16: ['Morast', 1], 17: ['Darvin', 1], 18: ['Wulf', 1], 19: ['Justus', 1] };
   for (const [k, v] of Object.entries(ARENA_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].arena = v;
   // Turniermeister je Map (seit 13.86, Turnierarena)
   const PVP_PEOPLE = { 2: ['Faruk', 1], 3: ['Ragnhild', 0], 4: ['Wendel', 1], 5: ['Morga', 0], 6: ['Kamal', 1], 7: ['Asta', 0], 8: ['Dorn', 1], 9: ['Zinder', 1], 10: ['Liora', 0],
-    11: ['Raven', 1], 12: ['Kohle', 0], 13: ['Gerippe', 1], 14: ['Scharlach', 0], 15: ['Frostzahn', 1], 16: ['Nebelfrau', 0], 17: ['Ravena', 0] };
+    11: ['Raven', 1], 12: ['Kohle', 0], 13: ['Gerippe', 1], 14: ['Scharlach', 0], 15: ['Frostzahn', 1], 16: ['Nebelfrau', 0], 17: ['Ravena', 0], 18: ['Thea', 0], 19: ['Elara', 0] };
   for (const [k, v] of Object.entries(PVP_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].pvp = v;
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
@@ -2453,13 +2470,20 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape0, detail0, bloom0, roa
   const sShape = makeNoise(srng, 11);
   const sDetail = makeNoise(srng, 4);
   const sBloom = makeNoise(srng, 7);
+  // Karten 18 und 19 (wm.own): wie die Schattenkarten mit eigenen Rauschfeldern und eigenen Zufallszahlen – ihre Reihe
+  // liegt wieder ein Vielfaches von WORLD_H / 2 tiefer, das gemeinsame Rauschen wiederholte dort die Seen der Karten
+  // darüber. Die gemeinsamen Zufallszahlen (rng0) rühren sie nicht an.
+  const orng = mulberry32(WORLD_SEED + 1882);
+  const oShape = makeNoise(orng, 11);
+  const oDetail = makeNoise(orng, 4);
+  const oBloom = makeNoise(orng, 7);
   const out = [];
   for (const wm of WORLD_MAPS) {
     if (wm.id === 1) continue;
-    const rng = wm.shadow ? mulberry32(WORLD_SEED + 1453 + wm.id * 97) : rng0;
-    const shape = wm.shadow ? sShape : shape0;
-    const detail = wm.shadow ? sDetail : detail0;
-    const bloom = wm.shadow ? sBloom : bloom0;
+    const rng = wm.shadow ? mulberry32(WORLD_SEED + 1453 + wm.id * 97) : wm.own ? mulberry32(WORLD_SEED + 1882 + wm.id * 97) : rng0;
+    const shape = wm.shadow ? sShape : wm.own ? oShape : shape0;
+    const detail = wm.shadow ? sDetail : wm.own ? oDetail : detail0;
+    const bloom = wm.shadow ? sBloom : wm.own ? oBloom : bloom0;
     const [rx, ry, rw, rh] = wm.region;
     const camp = wm.camp || CAMP_HALF;
     const safeZi = ZONES.findIndex((z) => z.map === wm.id && z.safe);
@@ -2508,7 +2532,7 @@ function buildWorldMaps(ground, obj, deco, zoneIdx, shape0, detail0, bloom0, roa
         if (r < zone.trees * cluster) { if (!treeDrop(x, y, wm.id)) obj[i] = OBJ[zone.treeObj]; }
         else if (r < zone.trees * cluster + zone.rocks) { if (!thinDrop(x, y) && !clutterDrop(x, y, wm.id)) obj[i] = OBJ.ROCK; }
         else if (r < zone.trees * cluster + zone.rocks + DECO_RATE) deco[i] = thinDeco(zoneDeco(zone, rng()), x, y, wm.id);
-        else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH || ground[i] === GROUND.KNOCHENSAND ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL || ground[i] === GROUND.BLUTERDE ? DECO.CRACK : DECO.TUFT;
+        else if (r > 0.86) deco[i] = ground[i] === GROUND.SAND || ground[i] === GROUND.ASH || ground[i] === GROUND.KNOCHENSAND || ground[i] === GROUND.HELLSTEIN ? DECO.PEBBLE : ground[i] === GROUND.BASALT || ground[i] === GROUND.KRISTALL || ground[i] === GROUND.BLUTERDE ? DECO.CRACK : DECO.TUFT;
       }
     }
     // seit 14.70: eigene Grundform der Karte (kartenformen.js: Inseln, Himmelsinseln, Schlucht, Fluss, Lichtungen) –

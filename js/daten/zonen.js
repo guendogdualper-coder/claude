@@ -244,7 +244,14 @@ const WORLD_MAPS = [
   // (y 660–880) auf bisher freiem Fels; nichts Bestehendes verschiebt sich (MAP_W und MAP_H bleiben). Ohne side:
   // gemeinsame Karte. Ganz hinten in der Liste, damit die gemeinsamen Zufallszahlen aller älteren Karten (Wildnis,
   // Wanderer) unverändert bleiben. Noch ohne Dungeon, Instanz und Endboss. Darstellung in karte81.js.
-  { id: 17, name: 'Seelenhain', levels: 'Stufe 80', minLevel: 78, region: [0, 440, 360, 220], camp: 13, genCamp: 9, text: 'Ein stiller Hain im Mondlicht um das Lager Seelenwacht: kaum Monster, dafür überall Seelensteine der Stufen 70 bis 80.', town: [118, 108], portals: [] }
+  { id: 17, name: 'Seelenhain', levels: 'Stufe 80', minLevel: 78, region: [0, 440, 360, 220], camp: 13, genCamp: 9, text: 'Ein stiller Hain im Mondlicht um das Lager Seelenwacht: kaum Monster, dafür überall Seelensteine der Stufen 70 bis 80.', town: [118, 108], portals: [] },
+  // Maps 18 und 19: zwei weitere ruhige gemeinsame Karten für Stufe 80 nach dem Muster des Seelenhains (wenige Monster,
+  // sehr viele Seelensteine). Für sie ist die Welt um eine Reihe nach unten gewachsen (y ab 1320, EXTRA_H in welt.js);
+  // nichts Bestehendes verschiebt sich. own: eigene Rauschfelder und Zufallszahlen beim Erzeugen (buildWorldMaps), die
+  // gemeinsamen Zufallszahlen der älteren Karten bleiben unberührt. Ohne side: gemeinsame Karten. Die Ecken oben links
+  // und unten rechts bleiben frei begehbar (Platz für spätere Instanz-Tore). Darstellung in karte82.js.
+  { id: 18, name: 'Nebelküste', own: true, levels: 'Stufe 80', minLevel: 78, region: [0, 1320, 360, 220], camp: 13, genCamp: 9, text: 'Eine kühle, neblige Küste um das Lager Leuchtwacht: graugrünes Meer, Dünen und Treibholz, wenige Monster, dafür überall Seelensteine der Stufen 70 bis 80.', town: [176, 98], portals: [] },
+  { id: 19, name: 'Himmelsterrassen', own: true, levels: 'Stufe 80', minLevel: 78, region: [360, 1320, 360, 220], camp: 13, genCamp: 9, text: 'Eine sonnige Hochebene in Terrassen aus weißem Stein um den Sonnenhof: goldenes Gras und blühende Bäume, wenige Monster, dafür überall Seelensteine der Stufen 70 bis 80.', town: [156, 120], portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
@@ -374,6 +381,31 @@ const MAP_ZONES = [
     groups: [['abgrundgeist', 12, 0, 0.8], ['leerenritter', 10, 0.2, 1], ['kristallwyrm', 6, 0.5, 1]], groupSize: [1, 2],
     stones: [[70, 6, 0, 0.5], [75, 8, 0.2, 0.8], [80, 10, 0.4, 1]],
     ambient: { kind: 'seelenlicht', tint: [40, 70, 130, 0.12] }
+  },
+  // Map 18 · Nebelküste: graugrünes Dünengras, am Meer heller Strand (karte82.js), Treibholz, vereinzelte Küstenkiefern
+  // und Felsen. Wie im Seelenhain nur rund ein Fünftel der üblichen Monster (12 + 10 + 6 Gruppen × 3,4 × 0,32 ≈ 31
+  // Paare) und gut dreimal so viele Seelensteine (117) in drei Stufen: nah am Lager 70, weiter draußen 75, außen 80.
+  // Eigene Arten (daten/monster.js): Brandungsnaga, Nebelharpyie, Riffscherer.
+  { id: 'leuchtwacht', map: 18, name: 'Leuchtwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'STRANDSAND' },
+  {
+    id: 'nebelkueste', map: 18, name: 'Nebelküste', levels: 'Stufe 80', minLevel: 78, minDist: 8, maxDist: 999,
+    mobScale: 0.32,
+    ground: 'DUENENGRAS', alt: 'STRANDSAND', trees: 0.007, treeObj: 'PINE', rocks: 0.006, water: 0.14, liquid: 'WATER',
+    groups: [['brandungsnaga', 12, 0, 0.8], ['nebelharpyie', 10, 0.2, 1], ['riffscherer', 6, 0.45, 1]], groupSize: [1, 2],
+    stones: [[70, 6, 0, 0.5], [75, 8, 0.2, 0.8], [80, 10, 0.4, 1]],
+    ambient: { kind: 'nebelschwaden', tint: [150, 172, 166, 0.13] }
+  },
+  // Map 19 · Himmelsterrassen: goldenes Gras mit Flecken aus weißem Stein, flache Terrassenkanten (kartenformen),
+  // blühende Bäume. Etwas weniger Monster als im Seelenhain (≈ 28 Paare), dafür 118 Seelensteine.
+  // Eigene Arten (daten/monster.js): Sonnenlöwe, Sonnenkoloss, Sonnenwyrm.
+  { id: 'sonnenhof', map: 19, name: 'Sonnenhof', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'HELLSTEIN' },
+  {
+    id: 'himmelsterrassen', map: 19, name: 'Himmelsterrassen', levels: 'Stufe 80', minLevel: 78, minDist: 8, maxDist: 999,
+    mobScale: 0.3,
+    ground: 'GOLDGRAS', trees: 0.011, treeObj: 'TREE', rocks: 0.004, water: 0.1, liquid: 'WATER',
+    groups: [['sonnenloewe', 11, 0, 0.8], ['sonnenkoloss', 10, 0.2, 1], ['sonnenwyrm', 7, 0.45, 1]], groupSize: [1, 2],
+    stones: [[70, 5, 0, 0.5], [75, 9, 0.2, 0.8], [80, 10, 0.4, 1]],
+    ambient: { kind: 'blueten', tint: [255, 226, 150, 0.07] }
   }
 ];
 // seit 14.50: Die Stadt bzw. das Lager liegt nicht mehr auf jeder Map in der Mitte (town: [x, y] in Kacheln ab der

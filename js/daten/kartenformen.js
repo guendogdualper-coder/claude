@@ -158,6 +158,29 @@ const MAP_FORMS = {
     form: 'splitter', void: 'ABGRUND', voidEdge: true, link: 'stone', townClear: true, minIsland: 40, mobScale: 0.55, clearEdge: true, islet: 'trees', wallTree: 'DEADTREE',
     grid: [7, 4], size: 0.4, outer: 150, loose: 0.4, loops: 0.25, shards: 30,
     anchors: [[24, 18, 10], [336, 202, 10], [181, 75, 8]]
+  },
+
+  // --- Maps 18 und 19 (Stufe 80, Bauweise in karte82.js) --------------------------------------------------------
+  // Nebelküste · Küste mit Buchten: im Osten das graugrüne Meer, die Küste schwingt in Buchten, im Südosten ragt eine
+  // Landzunge bis an den Rand (Platz für ein Instanz-Tor unten rechts). Hinter dem Strand Dünen, Lagunen und
+  // Strandseen. coast: [y, x] Küstenlinie (x der Wasserkante je Höhe, dazwischen gerade, dazu Rauschen coastAmp),
+  // bays [x, y, r]: Buchten, lagoons [x, y, rx, ry]: Strandseen, corners [x, y, r]: bleibt Land (Instanz-Ecken).
+  18: {
+    form: 'kueste', void: 'WATER', pond: 'WATER', link: 'ford', fordGround: 'STRANDSAND', fordWidth: 5, townClear: true, minIsland: 80,
+    clearEdge: true, cliffRocks: 10, coastAmp: 7,
+    coast: [[0, 288], [36, 280], [70, 258], [104, 268], [138, 250], [160, 286], [184, 372], [220, 372]],
+    bays: [[266, 46, 11], [242, 126, 10], [292, 160, 9]],
+    lagoons: [[214, 32, 6, 4], [118, 176, 8, 5], [52, 92, 6, 4], [92, 34, 5, 3], [250, 196, 5, 3]],
+    corners: [[22, 16, 9], [338, 204, 9]]
+  },
+  // Himmelsterrassen · Terrassen der Hochebene: flache Stützmauern aus weißem Stein ziehen sich in Wellen quer über die
+  // Karte (wie der Terrassenhang von Nachtfrost, aber ohne Spalten), Rampen führen hinauf; dazu klare Teiche.
+  // pools [x, y, r], corners [x, y, r]: bleibt Land (Instanz-Ecken).
+  19: {
+    form: 'himmel', void: 'WATER', pond: 'WATER', link: 'ford', fordGround: 'GOLDGRAS', fordWidth: 5, townClear: true, minIsland: 60,
+    rimRocks: 6, wallStyle: 'sonnenstein', walls: [50, 88, 154, 188], freq: 0.024, amp: 7, rampGap: 60, rampWidth: 8, spalten: [],
+    pools: [[64, 132, 6], [262, 66, 7], [304, 118, 5], [112, 30, 5], [232, 172, 6]],
+    corners: [[22, 16, 9], [338, 204, 9]]
   }
 };
 
@@ -723,6 +746,71 @@ const KF_TOWNS = {
       ['brazier', -6.2, 0.8], ['brazier', 6.6, -1.9], ['well', -3.0, -2.0]],
     deco: [[-1.8, -12.2, 'F'], [1.0, -12.2, 'F'], [-10.6, -6.2, 'G'], [10.6, -6.4, 'K'], [-10.8, 5.8, 'P'], [8.6, 3.4, 'C'], [-6.6, 5.8, 'B'],
       [5.2, -1.6, 'B'], [-7.4, 10.6, 'H'], [9.8, 8.6, 'P'], [-7.2, -10.2, 'X'], [10.4, 5.6, 'X']]
+  },
+
+  // Nebelküste · Leuchtwacht „Dünenring“ (Map 18): ein Küstenlager in einem runden Ring aus Treibholz-Palisaden, vier
+  // Tore an den Wegen. In der Mitte der Platz mit dem Weltentor und vier Leuchtfeuern, im Südosten ein Fischerhaus,
+  // in den Ecken Küstenkiefern. Der Leuchtturm selbst steht draußen im Meer (karte82.js, nur Bild).
+  18: {
+    form: 'Dünenring',
+    liquid: 'WATER',
+    tree: 'PINE',
+    grid: kfTownGrid(13, (dx, dy) => {
+      // Superellipse (Betrag hoch drei): runder als das Lager im Seelenhain, Tore in der Mitte jeder Seite
+      const q = Math.cbrt(Math.abs(dx) ** 3 + Math.abs(dy) ** 3);
+      if (q > 13.2) return (dx * 7 + dy * 3) % 17 === 0 ? 'T' : '"';
+      if (q > 12.1) return (kfGateNS(dx) && Math.abs(dy) > 10) || (kfGateWE(dy) && Math.abs(dx) > 10) ? 'o' : 'P';
+      if (Math.hypot(dx + 0.5, dy + 0.5) < 4.3) return '.';
+      if (kfRoad(dx, dy)) return '_';
+      if ((dx === -9 && dy === 9) || (dx === -10 && dy === 8) || (dx === 9 && dy === -8) || (dx === -9 && dy === -10)) return 'Y';
+      return ',';
+    }),
+    weltentor: [0.5, -2.8], spawn: [0.5, 2.0],
+    places: {
+      aeltester: [-5.2, -5.6, null, 0.35], lehrmeister: [-8.4, -7.6, null, 0.4], auktion: [-4.4, -9.4, 'n'], post: [4.6, -9.4, 'n'],
+      teleport: [3.8, -4.6, null, -0.4], alchemist: [7.6, -6.4, null, -0.4], waffen: [-9.3, -3.6, 'w'], ruestung: [10.3, -3.6, 'e'],
+      schmied: [-9.3, 3.4, 'w'], lager: [10.3, 3.2, 'e'], haendler: [-5.0, 3.2, null, 0.45], arena: [3.4, 2.6, null, -0.35],
+      pvp: [6.6, 1.8, null, -0.3], jaegerin: [-8.2, 7.0, null, 0.3], stallmeister: [-4.6, 10.2, 'n'], bogenmacher: [2.6, 9.6, null, -0.3]
+    },
+    houses: [[6, 6, 4, 2, '#4a5a58', { roof: 'giebel', wall: 'holz' }]],
+    lights: [['brazier', -2.6, -5.0], ['brazier', 1.8, -5.0], ['brazier', -2.6, 4.6], ['brazier', 1.8, 4.6], ['lantern', -6.2, 0.8],
+      ['lantern', 6.6, -1.9], ['lantern', 3.8, 9.8], ['well', -3.0, -2.0]],
+    deco: [[-1.8, -12.0, 'F'], [1.0, -12.0, 'F'], [-10.6, -6.2, 'G'], [10.6, -6.4, 'K'], [-10.8, 5.8, 'C'], [5.6, 4.6, 'X'], [-6.6, 5.8, 'B'],
+      [5.2, -1.6, 'B'], [-7.4, 10.6, 'X'], [10.6, 5.2, 'K'], [-7.2, -10.2, 'G'], [8.8, 9.4, 'C']]
+  },
+
+  // Himmelsterrassen · Sonnenhof „Kreuzhof“ (Map 19): ein Hof in Kreuzform hinter einer niedrigen Mauer aus weißem Stein
+  // (Z: wie die Terrassenkanten draußen), Tore am Ende jedes Arms. In der Mitte ein runder Platz mit dem Weltentor, in
+  // den Armen blühende Bäume, im Nordosten das Haus des Hofältesten.
+  19: {
+    form: 'Kreuzhof',
+    liquid: 'WATER',
+    tree: 'TREE',
+    grid: kfTownGrid(13, (dx, dy) => {
+      const inside = (a, b) => (Math.abs(a) <= 11 && Math.abs(b) <= 7) || (Math.abs(a) <= 7 && Math.abs(b) <= 11);
+      if (!inside(dx, dy)) {
+        let near = false;
+        for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) if (inside(dx + a, dy + b)) near = true;
+        if (!near) return (dx * 5 + dy * 11) % 19 === 0 ? 'T' : '"';
+        return (kfGateNS(dx) && Math.abs(dy) === 12) || (kfGateWE(dy) && Math.abs(dx) === 12) ? 'o' : 'Z';
+      }
+      if (Math.hypot(dx + 0.5, dy + 0.5) < 4.6) return '.';
+      if (kfRoad(dx, dy)) return '_';
+      if ((dx === -9 && dy === 6) || (dx === 9 && dy === 6) || (dx === -9 && dy === -6) || (dx === 6 && dy === 9)) return 'Y';
+      return ',';
+    }),
+    weltentor: [0.5, -2.8], spawn: [0.5, 2.0],
+    places: {
+      aeltester: [-5.2, -5.6, null, 0.35], lehrmeister: [-8.8, -6.2, null, 0.5], auktion: [-4.4, -9.4, 'n'], post: [4.6, -9.4, 'n'],
+      teleport: [3.8, -4.6, null, -0.4], alchemist: [6.6, -6.0, null, -0.5], waffen: [-9.6, -3.6, 'w'], ruestung: [10.6, -3.6, 'e'],
+      schmied: [-9.6, 4.4, 'w'], lager: [10.6, 4.4, 'e'], haendler: [-5.0, 3.2, null, 0.45], arena: [3.4, 2.6, null, -0.35],
+      pvp: [6.6, 1.8, null, -0.3], jaegerin: [-6.2, 8.6, null, 0.3], stallmeister: [-3.6, 10.2, 'n'], bogenmacher: [3.4, 9.6, null, -0.3]
+    },
+    houses: [[8, -7, 3, 2, '#c8902a', { roof: 'walm', wall: 'stein' }]],
+    lights: [['lantern', -2.4, -4.8], ['lantern', 1.6, -4.8], ['lantern', -2.6, 4.8], ['lantern', 1.8, 4.8], ['lantern', -10.6, -6.4],
+      ['lantern', 10.6, 6.4], ['brazier', -6.4, 1.2], ['brazier', 6.8, -1.8], ['well', -3.0, -2.0]],
+    deco: [[-1.8, -11.6, 'F'], [1.0, -11.6, 'F'], [10.4, 5.0, 'P'], [-10.6, 6.2, 'G'], [8.6, 3.0, 'C'], [-6.6, 5.8, 'B'],
+      [5.2, -1.6, 'B'], [-6.0, 10.6, 'P'], [6.2, 10.6, 'X'], [-6.2, -10.6, 'X'], [10.6, -6.0, 'K']]
   }
 };
 for (const [id, L] of Object.entries(KF_TOWNS)) TOWN_LAYOUTS[id] = L;

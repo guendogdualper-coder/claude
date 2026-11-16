@@ -356,7 +356,14 @@ const MOB_MATS = {
   schattenpirscher: { name: 'Schattenkralle der Leere', art: 'claw', color: '#6a4aa8' },
   abgrundgeist: { name: 'Abgrundessenz', art: 'dust', color: '#9aa8ff' },
   leerenritter: { name: 'Leerensiegel', art: 'badge', color: '#8a6ad8' },
-  kristallwyrm: { name: 'Wyrmkristall', art: 'scale', color: '#9fd8ff' }
+  kristallwyrm: { name: 'Wyrmkristall', art: 'scale', color: '#9fd8ff' },
+  // Nebelküste und Himmelsterrassen (Maps 18, 19)
+  brandungsnaga: { name: 'Brandungsperle', art: 'crystal', color: '#cfe8e0' },
+  nebelharpyie: { name: 'Nebelfeder', art: 'feather', color: '#d4dedb' },
+  riffscherer: { name: 'Riffschere', art: 'claw', color: '#6a8a98' },
+  sonnenloewe: { name: 'Sonnenmähne', art: 'fur', color: '#d8a03a' },
+  sonnenkoloss: { name: 'Marmorherz', art: 'core', color: '#f4ecd8' },
+  sonnenwyrm: { name: 'Sonnenschuppe', art: 'scale', color: '#ffd86a' }
 };
 
 

@@ -572,6 +572,26 @@ const RATGEBER_WISSEN = [
     },
     k: 'seelenhain seelenwacht farmen farm seelensteine steine ruhig ruhe wenige monster hain stufe 80 map 17 endgame'
   },
+  // Maps 18 und 19 · Nebelküste und Himmelsterrassen (daten/zonen.js, karte82.js): Zahlen und Arten aus den Spieldaten
+  {
+    c: 'steine', q: 'Gibt es noch mehr ruhige Karten zum Steine-Farmen?',
+    a: () => {
+      const karte = (id, zid) => {
+        const wm = (typeof WORLD_MAPS !== 'undefined') ? WORLD_MAPS.find((m) => m.id === id) : null;
+        const z = (typeof ZONES !== 'undefined') ? ZONES.find((x) => x.id === zid) : null;
+        const arten = z && z.groups && typeof MONSTER_TYPES !== 'undefined' ? z.groups.map((g) => MONSTER_TYPES[g[0]].name).join(', ').replace(/, ([^,]+)$/, ' und $1') : '';
+        return { min: wm ? wm.minLevel : 78, arten };
+      };
+      const k = karte(18, 'nebelkueste');
+      const h = karte(19, 'himmelsterrassen');
+      return 'Ja, zwei – beide ab Stufe ' + k.min + ' über das Weltentor, gemeinsam für Licht und Schatten, und gebaut wie der <b>Seelenhain</b>: ' +
+        'nur wenige Monster, dafür weit über hundert Seelensteine der Stufen 70, 75 und 80 (nah am Lager die schwächeren, außen die stärkeren). ' +
+        `Die <b>Nebelküste</b> um das Lager Leuchtwacht – Dünen, Strand und ein graugrünes Meer im Nebel, dort leben ${k.arten}. ` +
+        `Die <b>Himmelsterrassen</b> um den Sonnenhof – goldenes Gras, blühende Bäume und Terrassen aus weißem Stein, dort leben ${h.arten}. ` +
+        'Außerhalb der Lager gilt der offene Kampf zwischen den Seiten.';
+    },
+    k: 'nebelkueste nebelküste leuchtwacht himmelsterrassen sonnenhof farmen farm seelensteine steine ruhig wenige monster küste terrassen stufe 80 map 18 map 19 endgame brandungsnaga nebelharpyie riffscherer sonnenloewe sonnenlöwe sonnenkoloss sonnenwyrm'
+  },
 
   // --- Dungeons & Endbosse ----------------------------------------------------------------------------------
   {

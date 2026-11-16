@@ -622,7 +622,9 @@ const KL_WASSER = {
   11: { g: 'WATER', reed: ['#5c62ac', '#c2b4ff'], pad: ['#3c4c8c', '#a8dcff'], glow: 1, stone: '#565a82' },
   16: { g: 'WATER', stack: ['#2c3344', '#3f5a4c'], stone: '#353c4e', foam: '#cfe0ea' },
   8: { g: 'BOG', reed: ['#7c7642', '#3c2c1c'], snag: '#3a3026' },
-  14: { g: 'BLUTSEE', stack: ['#3a1216', '#641c20'], stone: '#2c0e12', foam: '#93303a' }
+  14: { g: 'BLUTSEE', stack: ['#3a1216', '#641c20'], stone: '#2c0e12', foam: '#93303a' },
+  // Nebelküste (karte82.js): Felsnadeln im graugrünen Meer, Steine am Ufer
+  18: { g: 'WATER', stack: ['#566260', '#7a8682'], stone: '#6a7470', foam: '#e8eeea' }
 };
 // Abstand einer Flüssigkeitskachel zum Land in Kacheln (1 = direkt am Ufer, max + 1 = weiter draußen)
 function klLandDist(x, y, max) {

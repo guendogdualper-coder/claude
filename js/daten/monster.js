@@ -201,6 +201,20 @@ Object.assign(MONSTER_TYPES, {
   }
 });
 
+// Maps 18 und 19: Nebelküste und Himmelsterrassen, Stufe 78–80 (Werte wie die Arten des Leerenschlunds derselben
+// Stufe). Aussehen aus den bekannten Familien (Naga, Harpyie, Skorpion bzw. Raubkatze, Golem, Drache) mit eigenen
+// Farben und Teilen: MONSTER_ART in karte82.js, daraus entsteht das 3D-Modell.
+Object.assign(MONSTER_TYPES, {
+  // Nebelküste
+  brandungsnaga: { name: 'Brandungsnaga', level: 78, shape: 'snake', color: '#5e8a86', size: 16, speed: 105, range: 34, cooldown: 1.4, aggressive: true, hpMul: 1.6, atkMul: 1.45 },
+  nebelharpyie: { name: 'Nebelharpyie', level: 79, shape: 'demon', color: '#a8b4b0', size: 14, speed: 130, range: 220, cooldown: 1.7, aggressive: true, ranged: true, hpMul: 1.15, atkMul: 1.5, shot: '#e4f0ec' },
+  riffscherer: { name: 'Riffscherer', level: 80, shape: 'beast', color: '#4a6a78', size: 20, speed: 100, range: 32, cooldown: 1.5, aggressive: true, hpMul: 2.2, atkMul: 1.5 },
+  // Himmelsterrassen
+  sonnenloewe: { name: 'Sonnenlöwe', level: 78, shape: 'beast', color: '#d8a84a', size: 17, speed: 130, range: 28, cooldown: 1.2, aggressive: true, hpMul: 1.45, atkMul: 1.45 },
+  sonnenkoloss: { name: 'Sonnenkoloss', level: 79, shape: 'brute', color: '#b8b2a2', size: 23, speed: 72, range: 38, cooldown: 2.1, aggressive: true, hpMul: 2.4, atkMul: 1.45 },
+  sonnenwyrm: { name: 'Sonnenwyrm', level: 80, shape: 'beast', color: '#f0e2b8', size: 21, speed: 105, range: 170, cooldown: 1.8, aggressive: true, ranged: true, hpMul: 2.3, atkMul: 1.5, shot: '#ffd86a' }
+});
+
 // Schwierigkeit: Bis Stufe 15 werden Monster schrittweise zäher und stärker als die Grundformel,
 // danach wächst der Abstand mit jeder Stufe deutlich weiter (seit Version 5.7–6.2 stärker), damit man
 // in den hohen Gebieten gute, aufgewertete Ausrüstung braucht. Die ersten Stufen bleiben leicht.

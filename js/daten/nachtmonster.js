@@ -60,7 +60,10 @@ const NIGHT_GROUPS = {
   schattenklippen: [['mondkobra', 6, 0.2, 1]],
   schwarzmoor: [['dschungelgeist', 6, 0.2, 1]],
   // Map 17 · Seelenhain: auch nachts nur wenige (rund ein Dutzend Sternenschemen statt 35)
-  seelenhain: [['sternenschemen', 2, 0.2, 1]]
+  seelenhain: [['sternenschemen', 2, 0.2, 1]],
+  // Maps 18, 19 · Nebelküste und Himmelsterrassen: ebenso nur wenige
+  nebelkueste: [['sternenschemen', 2, 0.2, 1]],
+  himmelsterrassen: [['leerenwolf', 2, 0.2, 1]]
 };
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
 // seit 14.54: Nachtwanderer der Schattenkarten (Maps 11–16, eigene Liste; tag-nacht.js)
@@ -75,6 +78,8 @@ const NIGHT_WANDERERS = [
   ['Mondpriester Tsuki', 'moench'], ['Geisterjägerin Kage', 'jaegerin'], ['Laternenträger Hiro', 'bauer'],
   ['Sterndeuterin Hoshi', 'alte'], ['Totengräber Bram', 'bauer'], ['Schattenläuferin Yoru', 'jaegerin'],
   ['Eulenmönch Fuku', 'moench'], ['Kräuterhexe Nyx', 'alte'], ['Nachtfalke Ren', 'jaegerin'],
-  ['Sternwächterin Lyra', 'jaegerin'] // seit 13.85: Map 10
+  ['Sternwächterin Lyra', 'jaegerin'], // seit 13.85: Map 10
+  // Maps 18 und 19 (hinten angehängt: die Nachtwanderer aller älteren Karten bleiben, wer sie sind)
+  ['Gezeitenleserin Ebba', 'alte'], ['Sonnenwächter Aurel', 'moench']
 ];
 const NIGHT_KILL = 12;

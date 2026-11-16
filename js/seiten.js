@@ -2,7 +2,7 @@
 // Jeder Charakter gehört zu einer von zwei Seiten (p.faction 'licht' | 'schatten', SAVE_FIELDS). Bis Stufe 49 spielen
 // die Seiten auf getrennten Karten (Licht: Maps 1, 4, 5, 6, 2, 7 · Schatten: Maps 11–16, WORLD_MAPS.side) und können
 // sich dort nicht treffen. Ab Stufe 50 teilen sie sich die Karten ohne side (Totenmoor, Donnerklamm, Feuerberg,
-// Kristallabgrund, Seelenhain) – dort herrscht außerhalb der sicheren Städte offener Kampf zwischen den Seiten.
+// Kristallabgrund, Seelenhain, Nebelküste, Himmelsterrassen) – dort herrscht außerhalb der sicheren Städte offener Kampf zwischen den Seiten.
 // Hier steht alles, was die Seiten im Spiel ausmacht:
 //   - Wahl bei der Charaktererstellung (Feld „Seite“ mit Wappen) und einmal beim Einloggen für Charaktere ohne Seite
 //   - Reisen: Weltentor und Wegweiser zeigen nur die eigenen und die gemeinsamen Karten; wer auf einer Karte der anderen
