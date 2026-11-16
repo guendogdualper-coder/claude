@@ -26,6 +26,8 @@ const instFree = () => Date.now() < INST_FREE_UNTIL;
 const INST = {
   level: 60, party: [1, 5], // seit 15.36 auch allein (vorher 2–5)
   lockMin: 60, legendary: 0.065, resetAfter: 480, respawn: 3600,
+  // seit 15.40: Lv-80-Instanzen (Klassen-Sets, klassensets.js): Boss 20 % statt 6,5 %, jeder Wächter 3 %
+  legendary80: 0.2, miniLegendary80: 0.03,
   miniEpic: [0.06, 0.08, 0.1, 0.12], htMiniEpic: 0.15, epic70: 0.35,
   stdAtk: 0.6, ultFirst: 0.5, ultEvery: 40, ultCast: 4.5, reach: 560, reachFinal: 760
 };
@@ -939,18 +941,21 @@ function instMiniLoot(m, chance) {
   const p = game.player;
   let got = 0;
   if (Math.random() < chance && instEpicItem(m, null)) got = 1;
+  // seit 15.40: Wächter der Lv-80-Instanzen lassen selten ein legendäres Teil fallen
+  const di = instOfMonster(m);
+  const leg = di && instMobLevel(di) >= 75 && Math.random() < INST.miniLegendary80 ? dropLegendary(m) : null;
   instMats(m, { splinters: randInt(3, 5) }, randInt(2, 3)); // seit 14.6 Splitter statt Verstärkung/Switcher
   const gold = monsterGold(m.level * 150);
   p.gold += gold;
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
-  ui.banner(`${m.name} ist gefallen!`, got ? 'Ein episches Teil!' : 'Wächter besiegt');
+  ui.banner(`${m.name} ist gefallen!`, leg ? 'Ein legendäres Teil!' : got ? 'Ein episches Teil!' : 'Wächter besiegt');
 }
 function instFinalLoot(m, def) {
   const p = game.player;
   const size = instGroupSize(def);
   const n = instEpicCount(size);
   for (let k = 0; k < n; k++) instEpicItem(m, k === 0 && Math.random() < 0.4 ? 'waffe' : null);
-  const leg = Math.random() < INST.legendary ? dropLegendary(m) : null;
+  const leg = Math.random() < (instMobLevel(def) >= 75 ? INST.legendary80 : INST.legendary) ? dropLegendary(m) : null;
   instMats(m, { splinters: randInt(10, 15) }, randInt(4, 6)); // seit 14.6 Splitter statt Boni-Materialien
   const gold = monsterGold(m.level * 800);
   p.gold += gold;

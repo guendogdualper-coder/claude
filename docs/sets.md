@@ -80,3 +80,24 @@ Stufe 80 (Kristallabgrund, Teile Lv 70–80; etwa ×1,5):
 Neues Set: Eintrag in `ITEM_SETS` mit der Kennung der Instanz (`DUNGEONS[].id`), Name, `from`, `color`, `tiers`.
 Neue Bonus-Schlüssel müssen in `playerStats` ausgewertet werden (alle aus `BONUS_TYPES`, `SPECIAL_BONUS_TYPES` und
 `main` sind es schon). Texte zusätzlich in js/sprachen/en.js.
+
+## Klassen-Sets (seit 15.40)
+
+Je Klasse ein legendäres Lv-80-Set mit eigenem Aussehen (js/klassensets.js, `KLASSEN_SETS`, in `ITEM_SETS` mit `cls`).
+
+| Klasse | Set | Merkmale in 3D |
+|---|---|---|
+| Krieger | Rüstung des Drachenkaisers | Obsidianhörner, Glutzacken auf den Schultern, Drachenschwingen im Rücken |
+| Ninja | Gewand des Mondschattens | Mondsichel an der Stirn, Sichelklingen auf den Schultern, Mondring im Rücken |
+| Schamane | Tracht des Sturmgeists | Federkrone, Federmantel, Geisterperlen, Schwingen |
+| Nekromant | Ornat des Seelenkönigs | Knochenkrone mit Seelenflamme, Schädel auf den Schultern, Rippen, Seelenfeuer |
+| Magier | Robe des Sternenwebers | Sternenkranz um den Hut, Sternbild auf der Brust, Sternenring im Rücken |
+
+- **Woher:** legendäre Teile (Ewig, Lv 80) aus der Spiegelgruft, dem Thron der Leere und dem Thron der Unterwelt
+  gehören mit 70 % (`KS.chance`) zum Set der Klasse, für die das Teil gemacht ist (Teile ohne Klasse: zur eigenen),
+  sonst wie bisher zum Set der Instanz. In den Lv-80-Instanzen fällt ein legendäres Teil beim Boss mit 20 %
+  (`INST.legendary80`, vorher 6,5 %) und bei jedem Wächter mit 3 % (`INST.miniLegendary80`).
+- **Zählen:** nur für die Klasse des Sets (`setCounts`). Stufen bei 2, 4 und 6 Teilen, etwas über den
+  Lv-80-Instanz-Sets (z. B. Angriff +30–35, Leben +600–800, Hauptwert +12, zwei Prozentwerte).
+- **Aussehen:** Helm, Schultern, Rüstung und Umhang tragen je ein Merkmal (`KS_LOOK`, über `playerConfig3`);
+  Farbe wie bei allen Sets aus `ITEM_SETS[].color`. In 2D zeigt sich das Set nur in der Farbe.
