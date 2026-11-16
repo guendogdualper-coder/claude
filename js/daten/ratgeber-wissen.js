@@ -603,6 +603,40 @@ const RATGEBER_WISSEN = [
       'dazu zwei im Kristallabgrund ab Stufe 75. Erst fallen die Wächter, dann der Instanzboss. Legendäre Beute gibt es nur hier; die Beute der Lv-60-Instanzen gibt es je Spieler und Instanz einmal in 30 Minuten (gezählt ab dem Betreten).',
     k: 'instanz instanzen hoellenthron thron der unterwelt abaddor legendaer stufe 60 75'
   },
+  // Turm der Verdammten (turm.js): die Zahlen kommen aus den Spieldaten
+  {
+    c: 'dungeons', p: 2, q: 'Was ist der Turm der Verdammten?',
+    a: () => {
+      const T = (typeof TURM !== 'undefined') ? TURM : { level: 80, maxPlayers: 10, ebenen: 11, respawn: 8 };
+      const min = (typeof INST !== 'undefined') ? INST.lockMin : 60;
+      return `Eine Gruppen-Instanz ab Stufe ${T.level} im <b>Seelenhain</b>: der schwarze Turm steht westlich des Lagers Seelenwacht am Weg. ` +
+        `Allein oder mit bis zu ${T.maxPlayers} Spielern (beide Seiten gemeinsam, ohne Kampf untereinander) kämpft ihr euch in einer Halle durch ${T.ebenen} Ebenen: ` +
+        'fünf Wellen Verdammter, der Kettenhüter, vier Seelensteine, die Zwillingshüter, acht Trugsteine, die Schlüsseljagd und zuletzt Kharzul, der Wächter der Verdammten. ' +
+        `Am Tor beginnst du einen Durchgang („nur meine Gruppe“ oder „offen für alle“) oder trittst einem laufenden bei. Wer fällt, steht nach ${T.respawn} Sekunden am Eingang der Halle wieder auf; ` +
+        `fallen alle zugleich, beginnt die Ebene von vorn. Die Sperre dauert ${min} Minuten ab dem Betreten und gilt nur für den Turm.`;
+    },
+    k: 'turm der verdammten turm verdammte daemonenturm instanz gruppe stufe 80 seelenhain seelenwacht ebenen kharzul waechter zehn spieler'
+  },
+  {
+    c: 'dungeons', q: 'Wie funktionieren Trugsteine, Schlüsseljagd und Seelenketten im Turm?',
+    a: () => {
+      const T = (typeof TURM !== 'undefined') ? TURM : { keyFrom: 15, keyTo: 25, kettenZeit: 25, benommen: 6, schlag: 0.6, heilung: 0.1 };
+      return '<ul><li><b>Trugsteine (Ebene 9):</b> Acht Steine stehen in der Halle, nur zwei sind echt – von außen sieht man es nicht. Ein falscher Stein zerplatzt und ruft eine Strafwelle; ' +
+        'sind beide echten zerstört, ist die Ebene sofort geschafft.</li>' +
+        `<li><b>Schlüsseljagd (Ebene 10):</b> Schwärme kleiner Glutwichte strömen herein. Etwa alle ${T.keyFrom}–${T.keyTo} besiegten Wichte fällt ein Schlüssel (er gehört der ganzen Gruppe). ` +
+        'Wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Sind alle vier Tore offen, verschwinden die Wichte.</li>' +
+        `<li><b>Seelenketten (Wächter):</b> Bei 75 %, 50 % und 25 % wird Kharzul unverwundbar und kettet sich an die Tore. Zerschlagt die Kettensteine vor den Toren in ${T.kettenZeit} Sekunden: ` +
+        `Dann ist er ${T.benommen} Sekunden benommen und nimmt mehr Schaden. Schafft ihr es nicht, trifft alle ein Schlag in Höhe von ${Math.round(T.schlag * 100)} % ihres Höchstlebens und er heilt ${Math.round(T.heilung * 100)} %.</li></ul>`;
+    },
+    k: 'turm trugsteine trugstein echt falsch strafwelle schluessel schluesseljagd glutwicht glutwichte tore tor oeffnen seelenketten kettenstein kettensteine kharzul waechter mechanik'
+  },
+  {
+    c: 'dungeons', q: 'Was gibt es im Turm der Verdammten zu holen?',
+    a: 'Gold für jede geschaffte Ebene. Die drei Hüter lassen mit etwas Glück ein episches Teil (Lv 70–80) fallen, selten ein legendäres. Der Wächter gibt 2 epische Teile (Lv 80), mit Glück ein legendäres (Lv 80) – ' +
+      'das gehört meist zum Set deiner Klasse –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile und manchmal einen Seelenstein als Gegenstand. Die echten Seelensteine der Ebenen 7 und 9 geben ihre gewohnte Beute. ' +
+      'Die Beute der Hüter und des Wächters gibt es je Sperre einmal.',
+    k: 'turm der verdammten beute belohnung legendaer episch klassen-set aetherkern seelenstein gold sperre'
+  },
   {
     c: 'dungeons', q: 'Welche Rollen gibt es in einer Gruppe?',
     a: 'Tank (hält den Boss, z. B. Krieger auf dem Weg des Leibes), Heiler (Schamane auf dem Weg der Heilung) und Schaden (alle anderen). Empfohlen sind 1 Tank, 1 Heiler und 3 Schaden – Pflicht ist das nicht.',
