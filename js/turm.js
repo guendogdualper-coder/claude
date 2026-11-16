@@ -2657,3 +2657,20 @@ ui.updateBossBar = function () {
     $('bossHp').textContent = `${Math.ceil(boss.hp).toLocaleString('de-DE')} / ${boss.maxHp.toLocaleString('de-DE')}`;
   });
 };
+
+// --- Gruppenanzeige (seit 15.43): alle im selben Durchgang stehen in der Anzeige unter der eigenen Gruppe ------------
+// Wer im Durchgang ist, erkennt jedes Gerät selbst: alle Mitspieler, die in derselben Halle stehen (gruppe.js partyExtras).
+if (typeof partyExtraNames === 'function') {
+  const _turmExtra = partyExtraNames;
+  partyExtraNames = function () {
+    const out = _turmExtra();
+    const r = game.turmRun;
+    const p = game.player;
+    if (!r || !p || typeof net === 'undefined' || !net.players || turmSlotAt(p.x, p.y) !== r.slot) return out;
+    for (const rp of net.players.values()) {
+      if (!rp || rp.gone || rp.waechter || !rp.name || out.includes(rp.name)) continue;
+      if (turmSlotAt(rp.x, rp.y) === r.slot) out.push(rp.name);
+    }
+    return out;
+  };
+}

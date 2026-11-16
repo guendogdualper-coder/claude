@@ -3377,6 +3377,22 @@ body.dnd-on, body.dnd-on * { cursor: grabbing !important; user-select: none; }
 .pm.hit-b { animation: pm-hit-b 0.45s ease-out; }
 @keyframes pm-hit-a { from { background-color: rgba(255, 60, 40, 0.5); box-shadow: 0 0 0 1px rgba(255, 110, 90, 0.9), 0 0 12px rgba(255, 60, 40, 0.6); } to { background-color: rgba(255, 60, 40, 0); box-shadow: none; } }
 @keyframes pm-hit-b { from { background-color: rgba(255, 60, 40, 0.5); box-shadow: 0 0 0 1px rgba(255, 110, 90, 0.9), 0 0 12px rgba(255, 60, 40, 0.6); } to { background-color: rgba(255, 60, 40, 0); box-shadow: none; } }
+/* seit 15.43: Mitstreiter außerhalb der Gruppe (großer Instanz-Durchgang) – Name bläulich; ab acht Zeilen auch am PC
+   die knappe Zeile (Name neben dem Balken, ohne Mana und Hinweis), damit bis zu 20 untereinander passen */
+.pm.pm-ext .pm-name { color: #cfe4ff; }
+#hud:not(.touch) .party-frame.raid { gap: 2px; }
+#hud:not(.touch) .party-frame.raid .pm { padding: 1px 4px 1px 2px; gap: 7px; }
+#hud:not(.touch) .party-frame.raid .pm-por { width: 26px; height: 26px; }
+#hud:not(.touch) .party-frame.raid .pm-lvl { min-width: 14px; height: 14px; padding: 0 2px; right: -5px; bottom: -3px; font-size: 8.5px; }
+#hud:not(.touch) .party-frame.raid .pm-crown { font-size: 11px; top: -6px; }
+#hud:not(.touch) .party-frame.raid .pm-skull { font-size: 15px; }
+#hud:not(.touch) .party-frame.raid .pm-main { flex-direction: row; align-items: center; gap: 6px; }
+#hud:not(.touch) .party-frame.raid .pm-line { flex: 0 0 82px; }
+#hud:not(.touch) .party-frame.raid .pm-name { font-size: 12px; }
+#hud:not(.touch) .party-frame.raid .pm-note, #hud:not(.touch) .party-frame.raid .pm-mp { display: none; }
+#hud:not(.touch) .party-frame.raid .bar-row { flex: 1; min-width: 0; }
+#hud:not(.touch) .party-frame.raid .bar { height: 13px; }
+#hud:not(.touch) .party-frame.raid .bar span { font-size: 9px; line-height: 9px; }
 /* Handy: kleiner, damit nichts mit Chat, Rucksack-Knopf und Steuerung überlappt; ab fünf Mitgliedern noch knapper */
 #hud.touch .party-frame { width: 138px; padding: 3px 4px; gap: 2px; border-radius: 8px; }
 #hud.touch .pm { gap: 5px; padding: 1px 3px 1px 1px; border-radius: 6px; }

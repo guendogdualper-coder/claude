@@ -396,11 +396,13 @@ function fx3Make(kind) {
     o.rotation.x = -Math.PI / 2;
   } else if (kind === 'wall') {
     o = new THREE.Mesh(fx3Geo('wall', () => new THREE.CylinderGeometry(1, 1, 1, 28, 1, true)), fx3Mat(fx3Texture('beam')));
-  } else if (kind === 'seg' || kind === 'segTop' || kind === 'segN') {
+  } else if (kind === 'seg' || kind === 'segTop' || kind === 'segN' || kind === 'segD' || kind === 'segZTop') {
     const n = kind === 'segN' ? 12 : 6;
     o = new THREE.Mesh(fx3Geo('seg' + n, () => new THREE.CylinderGeometry(1, 1, 1, n, 1, true)), fx3Mat(null));
     // segN (seit 9.7): normal gemischt, deckt auch auf hellem Boden (Wasserstrahl)
-    if (kind === 'segN') o.material.blending = THREE.NormalBlending;
+    // segD: dunkler Saum der Blitze des Blitzmagiers (n3Zap, magier-neu.js) – normal gemischt und vor den leuchtenden
+    // Teilen gezeichnet (renderOrder unten), damit die Blitze auch auf hellem Boden zu sehen sind
+    if (kind === 'segN' || kind === 'segD') o.material.blending = THREE.NormalBlending;
   } else if (kind === 'strip' || kind === 'stripN') {
     const geo = new THREE.BufferGeometry();
     const n = (FX3_STRIP_N + 1) * 2;
@@ -481,11 +483,12 @@ function fx3Make(kind) {
   } else {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('spark'), color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   }
-  o.renderOrder = 5;
+  o.renderOrder = kind === 'segD' ? 4 : 5;
   // ...Top (seit 8.5): Geist im Seelenkäfig, immer sichtbar (auch über dem gefangenen Gegner); Knochen darüber
   if (kind.endsWith('Top')) {
     o.material.depthTest = false;
-    o.renderOrder = 6;
+    // segZTop: Bögen auf der Blitzkugel des Kugelblitzes (magier-neu.js), über der Kugel selbst
+    o.renderOrder = kind === 'segZTop' ? 10 : 6;
   } else if (kind === 'bone' || kind === 'boneRing') o.renderOrder = 7;
   o.castShadow = false;
   o.receiveShadow = false;

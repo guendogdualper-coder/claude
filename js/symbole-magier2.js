@@ -243,21 +243,14 @@ Object.assign(SKILL_ART, {
     IK.sparkles(ctx, 9, '#fff7b0', 12, 17, 0, 0, 1.2);
   },
 
-  // Kugelblitz: knisternde Kugel steigt über einem △-Siegel auf und schlägt waagrecht in drei Gegner
+  // Kugelblitz: große knisternde Blitzkugel schwebt in der Mitte, ringsum fahren Blitze aus ihr heraus
+  // (seit der Überarbeitung des Blitzmagiers ohne △-Siegel und Lichtsäule darunter)
   kugelblitz(ctx, IK) {
-    ikMag2Sigil(ctx, IK, 0, 12.5, 16, 5.5, '#ffe94a', '#8a5aff', true);
-    // Lichtsäule vom Siegel zur Kugel
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.fillStyle = IK.lin(ctx, 0, 12, 0, -2, [[0, 'rgba(255,233,74,0.45)'], [1, 'rgba(138,90,255,0)']]);
-    ctx.beginPath();
-    ctx.moveTo(-5, 12.5);
-    ctx.lineTo(-2.5, -2);
-    ctx.lineTo(2.5, -2);
-    ctx.lineTo(5, 12.5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    IK.light(ctx, 0, -1, 20, '#8a5aff', 0.45);
+    // Blitze schräg nach unten in den Boden
+    IK.bolt(ctx, IK.zigzag(-5, 4, -13, 18, 4, 1.6, 11), '#fff7b0', 1.3, '#8a5aff');
+    IK.bolt(ctx, IK.zigzag(5, 4, 12, 19, 4, 1.6, 13), '#fff7b0', 1.3, '#8a5aff');
+    for (const [x, y] of [[-13, 18], [12, 19]]) IK.light(ctx, x, y, 4, '#ffe94a', 0.85);
     // waagrechte Schläge
     IK.bolt(ctx, IK.zigzag(-8, -3, -19, -1, 5, 1.8, 3), '#fff7b0', 1.6, '#8a5aff');
     IK.bolt(ctx, IK.zigzag(8, -4, 19, -6, 5, 1.8, 5), '#fff7b0', 1.6, '#8a5aff');

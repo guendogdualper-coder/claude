@@ -936,6 +936,11 @@ function remoteSkillFx(rp, d) {
       withRank(rk, () => novaFx(rp, d.x ?? rp.x, d.y ?? rp.y, sk, false, 0, lvlFromRank(rk), { ts: d.ts }));
       break;
     case 'mbolt':
+      // Kettenblitz (instant): ganzer Blitz statt Geschoss (chainRemote, magier-neu.js)
+      if (sk.instant && typeof chainRemote === 'function') {
+        withRank(rk, () => chainRemote(rp, sk, d));
+        break;
+      }
       withRank(rk, () => spawnProjectile({ ...mageBolt(rp, sk, null, 0, 1, false), dir: null, aimAt: target, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60 }));
       break;
     case 'shift':

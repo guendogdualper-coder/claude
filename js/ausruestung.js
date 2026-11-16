@@ -460,7 +460,7 @@ function compareGrade(item) {
   let best = 0;
   for (const hand of p && item && offhandPair(p, item) ? [undefined, 'off'] : [undefined]) {
     const diff = compareItem(item, hand) || [];
-    const m = diff.reduce((sum, d) => sum + d[2] * (d[3] || 0), 0);
+    const m = compareSum(diff);
     if (Math.abs(m) > Math.abs(best) && Math.sign(m) === Math.sign(score)) best = m;
   }
   const a = Math.abs(best);
@@ -487,14 +487,25 @@ function compareArrowsSvg(grade) {
     `<path d="${d}" fill="none" stroke="#0a0a0a" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>` +
     `<path d="${d}" fill="none" stroke="${col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 }
+// Seit 15.43 zählen ALLE Werte nach ihrer Größe (vorher entschieden allein Angriff, Verteidigung und Leben, sobald
+// sich einer davon unterschied – ein legendäres Teil mit fünf Boni galt als schlechter, nur weil das angelegte Teil
+// etwas mehr Verteidigung hatte). Gewichte: Gold/Beute und Regeneration zählen wenig, „gegen Arten“ und Abwehr halb.
+const CMP_WEIGHT = { 'Mehr Gold': 0.25, 'Mehr Beute': 0.25, 'Mana': 0.4, 'Lauftempo': 0.6 };
+function cmpWeight(name) {
+  if (CMP_WEIGHT[name] != null) return CMP_WEIGHT[name];
+  return name.startsWith('Gegen ') && name !== 'Gegen Monster' ? 0.5 : name.startsWith('Abwehr ') ? 0.5 : 1;
+}
+// Summe aller Änderungen (Anteile, mit Vorzeichen und Gewicht): > 0 insgesamt besser
+function compareSum(diff) {
+  return (diff || []).reduce((sum, d) => sum + d[2] * (d[3] || 0) * cmpWeight(d[0]), 0);
+}
 function compareScoreHand(item, hand) {
   const diff = compareItem(item, hand);
   if (!diff || !diff.length) return 0;
+  const m = compareSum(diff);
+  if (Math.abs(m) >= 0.0015) return m > 0 ? 1 : -1;
   const up = diff.filter((d) => d[2] > 0).length;
-  const down = diff.length - up;
-  const core = diff.filter(([n]) => n === 'Angriff' || n === 'Verteidigung' || n === 'Leben');
-  const coreScore = core.reduce((s, d) => s + d[2], 0);
-  return coreScore !== 0 ? coreScore : up - down;
+  return Math.sign(up - (diff.length - up));
 }
 
 function compareHtml(item, title = 'Im Vergleich zu deiner Ausrüstung', hand) {
@@ -1092,6 +1103,7 @@ function rollLoot(m) {
   if (m.isStone ? Math.random() < bd.stone : m.level >= bd.mobLevel && Math.random() < bd.mob) addBooks(1, m, ownClassSkillIds(p));
   if (m.isStone && Math.random() < skillMatChance('rolle', m.level)) addSkillMat('rolle', 1, m);
   if (m.isStone && Math.random() < skillMatChance('seelenstein', m.level)) addSkillMat('seelenstein', 1, m);
+  if (m.isStone && Math.random() < STONE_LEGENDARY) stoneLegendary(m);
   if (m.isStone) {
     // Dungeon-Steine geben die Teile, die auch ihr Boss fallen lässt
     const all = m.zone.dungeon ? [MONSTER_TYPES[m.zone.dungeon.boss].boss.mat] : m.zone.groups.map((g) => g[0]).filter((id) => MOB_MATS[id]);
@@ -1158,6 +1170,20 @@ function raidLoot(m) {
   flashScreen('#ffd34d', 0.5);
   // Abaddor (Höllenthron) gibt noch mehr dazu
   if (m.type.teufel && typeof htLoot === 'function') htLoot(m);
+}
+
+// seit 15.43: Seelensteine lassen mit 0,01 % (STONE_LEGENDARY) ein legendäres Teil für die eigene Klasse fallen –
+// auf der Gegenstandsstufe, die der Stein auch sonst gibt (ab Stein 20 die nächsthöhere), mit mindestens vier Boni
+function stoneLegendary(m) {
+  const p = game.player;
+  const lootLevel = m.level >= 20 ? m.level + 10 : m.level;
+  let tier = 0;
+  ITEM_TIERS.forEach((t, i) => { if (lootLevel >= t.level) tier = i; });
+  const slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), p.classId);
+  const item = makeItem(slots[randInt(0, slots.length - 1)], tier, 0, p.classId, lootKind(p, p.classId));
+  applyRarity(item, 4, 4, RARITY_DROPS.instanceEpic.rollBest || 1);
+  if (giveRarityItem(item, m)) ui.banner('Legendärer Fund!', itemFullName(item));
+  return item;
 }
 
 function lootSlots(slots, cls) {

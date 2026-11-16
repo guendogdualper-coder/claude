@@ -553,18 +553,20 @@ const CLASSES = {
           {
             // seit 11.5 statt der Blitznova: ein Speer, der alles in einer Linie durchschlägt (kein Bodenkreis)
             // seit 13.85 stärker (Ausgleich für die globale Abklingzeit): dmg 1,6 → 2,32
+            // Blitzmagier überarbeitet: Speer länger und weiter (390 → 520), lähmt 0,6 s (vorher 0,25 s) und verlangsamt danach 3 s um 40 %
             id: 'blitzspeer', name: 'Blitzspeer', short: 'SP', kind: 'angriff', unlock: 1, mp: 9, cooldown: 4,
-            type: 'mspear', el: 'blitz', range: 390, width: 34, dmg: 2.32, stun: 0.25, charge: 5,
+            type: 'mspear', el: 'blitz', range: 520, width: 34, dmg: 2.32, stun: 0.6, slow: { amount: 0.4, duration: 3 }, charge: 5,
             anim: 'stoss', animDur: 0.35, color: '#ffe94a',
-            text: 'Du schleuderst einen Speer aus reinem Blitz: Er durchschlägt alle Gegner in einer Linie bis 390 weit, betäubt sie kurz und lädt sie 5 s auf – der Kettenblitz entlädt sie für mehr Schaden.'
+            text: 'Du schleuderst einen langen Speer aus reinem Blitz: Er durchschlägt alle Gegner in einer Linie bis 520 weit, lähmt sie 0,6 s und verlangsamt sie danach 3 s lang um 40 %. Getroffene sind 5 s aufgeladen – der Kettenblitz entlädt sie für mehr Schaden.'
           },
           {
             // seit 13.69 (Balance): Kettenblitz 1,9 → 2,6, Blitzspeer 1,5 → 1,6, Gewitterwolke 0,95 → 1,1 (Entladung 1,8 → 2,2), Kugelblitz 0,55 → 0,85
             // seit 13.85 stärker (Ausgleich für die globale Abklingzeit): dmg 2,6 → 3,77
             id: 'kettenblitz', name: 'Kettenblitz', short: 'KB', kind: 'angriff', unlock: 3, mp: 11, cooldown: 3,
-            type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 3.77, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2,
+            // Blitzmagier überarbeitet: kein fliegender Funke mehr – ein ganzer Blitz schlägt sofort ein (instant, chainBolt in magier-neu.js)
+            type: 'mbolt', el: 'blitz', range: 340, speed: 950, dmg: 3.77, chain: 2, chainMul: 0.8, discharge: 0.3, stun: 0.2, instant: true,
             style: 'arc', anim: 'stoss', animDur: 0.3, color: '#ffe94a',
-            text: 'Ein Blitz schießt aus deinem Zepter zum Ziel und springt zu zwei weiteren Gegnern. Aufgeladene Gegner entladen sich und nehmen mehr Schaden.'
+            text: 'Aus deinem Zepter fährt ein gleißender, gezackter Blitz ins Ziel, schlägt krachend ein und springt zu zwei weiteren Gegnern (jeder Sprung etwas schwächer). Getroffene sind kurz betäubt. Aufgeladene Gegner entladen sich und nehmen mehr Schaden.'
           },
           {
             // seit 13.85 stärker (Ausgleich für die globale Abklingzeit): dmg 1,5 → 2,17, trail.dmg 0,45 → 0,65
@@ -580,15 +582,17 @@ const CLASSES = {
             id: 'gewitter', name: 'Gewitterwolke', short: 'GW', kind: 'angriff', unlock: 7, mp: 26, cooldown: 14,
             type: 'mstorm', el: 'blitz', aim: true, range: 460, radius: 165, form: 0.6, strikes: 6, every: 0.3, dmg: 1.6,
             final: { dmg: 3.19, stun: 1.5 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
-            text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen. Sechs Blitze schlagen nacheinander in Gegner darunter. Zum Schluss entlädt sich die ganze Wolke: Ein Netz aus Blitzen springt zwischen allen Gegnern im Feld hin und her und lähmt sie 1,5 s lang. Reichweite 460.'
+            // Blitzmagier überarbeitet: unter der Wolke tobt jetzt das Gewitterfeld (viele Blitze vom Himmel, vorher beim Kugelblitz)
+            text: 'Über dem gewählten Ort ballt sich eine schwarze Gewitterwolke zusammen, darunter tobt ein Gewitter: Blitz um Blitz fährt vom Himmel ins Feld. Sechs Einschläge treffen nacheinander Gegner darunter – aufgeladene zuerst. Zum Schluss entlädt sich die ganze Wolke: Ein Netz aus Blitzen springt zwischen allen Gegnern im Feld hin und her und lähmt sie 1,5 s lang. Reichweite 460.'
           },
           {
             // seit 13.85 stärker (Ausgleich für die globale Abklingzeit): dmg 0,85 → 1,23
             id: 'kugelblitz', name: 'Kugelblitz', short: 'KU', kind: 'angriff', unlock: 10, mp: 30, cooldown: 12,
-            // seit 13.5 ein Gewitterfeld: Blitze fahren vom Himmel, jeder Treffer betäubt kurz, der letzte länger
+            // 13.5 bis zur Überarbeitung ein Gewitterfeld (Blitze vom Himmel – das hat jetzt die Gewitterwolke); jetzt eine
+            // schwebende Blitzkugel in der Mitte des Felds, aus der die Blitze in die Gegner schlagen (mkugel3, magier-neu.js)
             type: 'sigil', el: 'blitz', aim: true, range: 340, radius: 150, delay: 0.4, ticks: 6, every: 0.5, zaps: 3, dmg: 1.23, zapStun: 0.25,
             last: { stun: 0.8 }, anim: 'zauber', animDur: 0.55, color: '#ffe94a',
-            text: 'Über dem gewählten Feld bricht ein Gewitter los: 3 s lang fahren jede halbe Sekunde Blitze vom Himmel in die drei nächsten Gegner – aufgeladene zuerst – und betäuben sie kurz. Der letzte Schlag betäubt länger.'
+            text: 'Über der Mitte des gewählten Felds schwebt eine grell knisternde Blitzkugel. 3 s lang schlagen jede halbe Sekunde Blitze aus ihr in die drei nächsten Gegner im Feld – aufgeladene zuerst – und betäuben sie kurz. Zum Schluss zerplatzt die Kugel: Der letzte Schlag betäubt länger.'
           }
         ]
       },

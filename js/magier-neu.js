@@ -235,26 +235,204 @@ function wallFreeLength(x, y, dir, want) {
   }
   return len;
 }
+// Lähmung sichtbar machen: zuckende Bögen am Körper (mpara3), nur wo Lähmung auch wirkt (keine Bosse, Steine, Duellgegner)
+function paraFx(m, dur) {
+  if (canLift(m) && dur > 0) addEffect({ type: 'mpara3', follow: m, x: m.x, y: m.y, dur });
+}
 function spearFx(owner, x0, y0, x1, y1, sk, local, pw) {
-  const fly = 0.16;
-  addEffect({ type: 'mspear3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: 0.7 });
-  later(fly, () => addEffect({ type: 'sparks3', x: x1, y: y1 + 9, h: 0.6, count: 10, color: '#fff7b0', speed: 2.6, up: 1, dur: 0.45 }));
-  if (!local) return;
   const vx = x1 - x0;
   const vy = y1 - y0;
   const L2 = vx * vx + vy * vy || 1;
-  for (const m of enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, Math.sqrt(L2) / 2 + sk.width)) {
+  const len = Math.sqrt(L2);
+  // gleiches Tempo wie bisher (390 in 0,16 s): der längere Speer ist etwas länger unterwegs
+  const fly = Math.max(0.08, len / 2440);
+  // seit der Überarbeitung des Blitzmagiers: längerer, wuchtiger Speer, die Bahn glüht länger nach (0,7 → 1,05 s)
+  addEffect({ type: 'mspear3', x: (x0 + x1) / 2, y: (y0 + y1) / 2 + 9, x0, y0: y0 + 9, x1, y1: y1 + 9, fly, dur: fly + 0.85, seed: Math.random() * 90 });
+  later(fly, () => {
+    addEffect({ type: 'sparks3', x: x1, y: y1 + 9, h: 0.8, count: 14, color: '#fff7b0', speed: 3, up: 1.1, dur: 0.5 });
+    if (!V3.on) particles(x1, y1 - 14, { count: 12, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [70, 190], life: [0.2, 0.4], size: [1.5, 3], shape: 'spark', drag: 4 });
+  });
+  if (owner === game.player) shakeScreen(2.5);
+  // Mitspieler: nur das Bild – wer auf der Bahn steht, zeigt ebenfalls die Lähmung
+  const foes = local ? enemiesNear((x0 + x1) / 2, (y0 + y1) / 2, len / 2 + sk.width) : game.monsters;
+  for (const m of foes) {
+    if (m.dead || Math.abs(m.x - (x0 + x1) / 2) > len / 2 + 80 || Math.abs(m.y - (y0 + y1) / 2) > len / 2 + 80) continue;
     const u = clamp01(((m.x - x0) * vx + (m.y - y0) * vy) / L2);
     if (hyp(x0 + vx * u - m.x, y0 + vy * u - m.y) > sk.width + m.r) continue;
     later(fly * u, () => {
       if (m.dead) return;
-      hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, heavy: true, vfxColor: '#ffffff' });
-      if (!m.duelProxy) m.charged = game.time + sk.charge;
+      if (local) {
+        // lähmt (sk.stun) und verlangsamt danach noch sk.slow.duration (die Verlangsamung läuft ab dem Treffer)
+        hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: sk.stun, slow: sk.slow && { amount: sk.slow.amount, duration: sk.stun + sk.slow.duration }, heavy: true, vfxColor: '#ffffff' });
+        if (!m.duelProxy) m.charged = game.time + sk.charge;
+      }
+      if (m.dead) return;
+      paraFx(m, sk.stun);
       addEffect({ type: 'sparks3', x: m.x, y: feetY(m), h: 0.8, count: 6, color: '#fff7b0', speed: 2.2, up: 1, dur: 0.35 });
     });
   }
 }
 MAGE2_REMOTE.mspear = (rp, sk, d) => spearFx(rp, d.x ?? rp.x, d.y ?? rp.y, d.tx, d.ty, sk, false, 0);
+
+// --- Blitz: Kettenblitz als Soforttreffer ----------------------------------------------------------------
+// Seit der Überarbeitung des Blitzmagiers fliegt kein kleiner Funke mehr: ein ganzer Blitz fährt vom Zepter ins Ziel
+// und springt dann – leicht versetzt – zu den nächsten Gegnern. Trefferregeln wie beim alten Geschoss (kampf.js,
+// updateProjectiles): getroffen wird der erste Gegner auf der Strecke zum Ziel, jeder Sprung sucht den nächsten noch
+// nicht getroffenen Gegner im Umkreis CHAIN_R und ist um chainMul schwächer; ein Duell- oder Arenagegner beendet die
+// Kette. SKILL_TYPES.mbolt (magier.js) ruft chainCast, wenn sk.instant gesetzt ist.
+const CHAIN_R = 180;
+const CHAIN_GAP = 0.1;
+const KUGEL_H = 2.5; // Höhe der Blitzkugel (Einheiten) über dem Boden
+function chainCast(sk, pw, lvl) {
+  const p = game.player;
+  const t = pickTarget(sk.range);
+  if (t) faceTowards(t.x, t.y);
+  lockPlayer(p, 0.12);
+  later(0.12, () => { if (!p.dead) chainStrike(p, sk, t && !t.dead ? t : null, pw, lvl); });
+  return {
+    tx: t ? Math.round(t.x) : Math.round(p.x + p.facing.x * sk.range),
+    ty: t ? Math.round(t.y) : Math.round(p.y + p.facing.y * sk.range)
+  };
+}
+// erster lebender Gegner auf der Strecke (x, y) → dir, höchstens reach weit (Trefferbreite wie das Geschoss: r + 7)
+function chainFirst(x, y, dir, reach, list) {
+  let best = null;
+  let bu = Infinity;
+  for (const m of list) {
+    if (m.dead) continue;
+    const u = (m.x - x) * dir.x + (m.y - y) * dir.y;
+    if (u < -m.r || u > reach + m.r + 7) continue;
+    const d = Math.abs((m.x - x) * dir.y - (m.y - y) * dir.x);
+    const rr = m.r + 7;
+    if (d > rr) continue;
+    const at = u - Math.sqrt(rr * rr - d * d);
+    if (at > reach || at >= bu) continue;
+    bu = at;
+    best = m;
+  }
+  return best;
+}
+// nächster noch nicht getroffener Gegner im Sprungkreis um m
+function chainNext(m, list, hit) {
+  let best = null;
+  let bd = CHAIN_R;
+  for (const o of list) {
+    if (o.dead || o === m || hit.has(o.id)) continue;
+    const d = hyp(o.x - m.x, o.y - m.y);
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+function chainStrike(owner, sk, t, pw, lvl) {
+  const x0 = owner.x;
+  const y0 = owner.y;
+  const dir = t ? dirOf(t.x - x0, t.y - y0) : dirOf(owner.facing.x, owner.facing.y);
+  const reach = sk.range + 40;
+  const first = chainFirst(x0, y0, dir, reach, enemiesNear(x0 + dir.x * reach / 2, y0 + dir.y * reach / 2, reach / 2 + 80));
+  if (!first) {
+    // ins Leere: der Blitz fährt in Blickrichtung und verpufft
+    chainBoltFx(owner, null, { x: x0 + dir.x * reach, y: y0 + dir.y * reach }, 0);
+    return;
+  }
+  const pr = { hit: new Set(), mul: sk.dmg * pw, color: mageElOf(sk.el).main };
+  let left = sk.chain || 0;
+  const strike = (src, m, k) => {
+    chainBoltFx(k ? null : owner, src, m, k);
+    pr.hit.add(m.id);
+    // Entladung aufgeladener Gegner (hitMul) und Aufräumen danach (afterHit) wie beim Geschoss
+    const hm = boltHitMul(sk, m);
+    hitMonster(m, pr.mul * hm, { stun: sk.stun, slow: sk.slow, burn: sk.burn, vfxColor: pr.color, skill: sk.id, duelMul: sk.duelMul });
+    boltAfterHit(sk, m, pr, pw, lvl);
+    if (m.duelProxy || left <= 0) return;
+    later(CHAIN_GAP, () => {
+      const next = chainNext(m, enemiesNear(m.x, m.y, CHAIN_R), pr.hit);
+      if (!next) return;
+      // jeder Sprung schwächer (Kettenblitz −20 %)
+      if (sk.chainMul) pr.mul *= sk.chainMul;
+      left--;
+      strike(m, next, k + 1);
+    });
+  };
+  strike(null, first, 0);
+}
+// Bild: Blitz von der Hand (owner) bzw. vom letzten Getroffenen (src) nach dst (Gegner oder Punkt), dazu der Einschlag.
+// k = 0 der große Blitz, k > 0 die dünneren Sprünge
+function chainBoltFx(owner, src, dst, k) {
+  const isFoe = dst.r != null;
+  const bx = dst.x;
+  const by = isFoe ? feetY(dst) : dst.y + 9;
+  const bh = isFoe ? Math.max(0.5, figureHeight(dst) * 0.5 * U3) : 0.9;
+  let ax;
+  let ay;
+  let ah;
+  if (owner) {
+    // aus dem Zepter: etwas vor der Figur in Brusthöhe
+    const f = owner.facing || { x: 0, y: 1 };
+    ax = owner.x + f.x * 14;
+    ay = feetY(owner) + f.y * 10;
+    ah = 1.25;
+  } else {
+    ax = src.x;
+    ay = feetY(src);
+    ah = Math.max(0.5, figureHeight(src) * 0.5 * U3);
+  }
+  const s = k ? 0.62 : 1;
+  addEffect({ type: 'mkbolt3', x: (ax + bx) / 2, y: (ay + by) / 2, ax, ay, ah, bx, by, bh, to: isFoe ? dst : null, s, branch: k ? 1 : 3, dur: k ? 0.34 : 0.46, seed: Math.random() * 90 });
+  zapHitFx(bx, by, bh, isFoe ? dst : null, k ? 0.7 : 1.25, isFoe ? (k ? 0.3 : 0.45) : 0);
+  if (owner === game.player) shakeScreen(3);
+}
+// Einschlag eines Blitzes: Lichtblitz, Funkenstoß, kurze Bögen ringsum – und am Gegner knistert es noch kurz (crackle s)
+function zapHitFx(x, fy, hgt, m, s, crackle) {
+  addEffect({ type: 'mkhit3', x, y: fy, hgt, s, dur: 0.32 + 0.1 * s, seed: Math.random() * 90 });
+  addEffect({ type: 'sparks3', x, y: fy, h: hgt, count: Math.round(9 * s), color: '#fff7b0', speed: 2.4 + s, up: 1.1, dur: 0.45 });
+  if (!V3.on) particles(x, fy - hgt * TILE * 0.9, { count: Math.round(10 * s), color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [80, 220], life: [0.18, 0.38], size: [1.5, 3], shape: 'spark', drag: 4 });
+  if (m && crackle > 0 && !m.isStone) addEffect({ type: 'mpara3', follow: m, x: m.x, y: m.y, dur: crackle });
+}
+// Mitspieler: nur das Bild. Ziel und Sprünge aus den Monstern am gemeldeten Ort (d.tx, d.ty)
+function chainRemote(rp, sk, d) {
+  later(0.12, () => {
+    if (rp.gone) return;
+    const x0 = rp.x;
+    const y0 = rp.y;
+    const far = hyp(d.tx - x0, d.ty - y0);
+    const dir = far > 1 ? dirOf(d.tx - x0, d.ty - y0) : dirOf(rp.facing.x, rp.facing.y);
+    const reach = Math.min(sk.range + 60, far + 30);
+    const near = game.monsters.filter((m) => !m.dead && Math.abs(m.x - x0) < reach + CHAIN_R * 3 && Math.abs(m.y - y0) < reach + CHAIN_R * 3);
+    const first = chainFirst(x0, y0, dir, reach, near);
+    if (!first) {
+      // kein Monster dort (z. B. ein Spieler im Duell): der Blitz endet am gemeldeten Punkt
+      chainBoltFx(rp, null, { x: d.tx, y: d.ty }, 0);
+      return;
+    }
+    const hit = new Set([first.id]);
+    chainBoltFx(rp, null, first, 0);
+    let from = first;
+    for (let k = 1; k <= (sk.chain || 0); k++) {
+      later(k * CHAIN_GAP, () => {
+        const next = from && chainNext(from, near, hit);
+        if (!next) { from = null; return; }
+        hit.add(next.id);
+        chainBoltFx(null, from, next, k);
+        from = next;
+      });
+    }
+  });
+}
+
+// --- Blitz: Kugelblitz (Ablauf in magier.js: sigilFx/sigilTick; Bild mkugel3) -----------------------------
+// Blitz aus der Kugel über (x, fy) in den Gegner m
+function kugelZapFx(x, fy, m, last) {
+  const by = feetY(m);
+  const bh = Math.max(0.5, figureHeight(m) * 0.5 * U3);
+  addEffect({ type: 'mkbolt3', x: (x + m.x) / 2, y: (fy + by) / 2, ax: x, ay: fy, ah: KUGEL_H, bx: m.x, by, bh, to: m, s: last ? 1 : 0.85, branch: last ? 2 : 1, dur: last ? 0.42 : 0.34, seed: Math.random() * 90 });
+  // kleinerer Einschlag als beim Kettenblitz: die Kugel bleibt der Blickfang
+  zapHitFx(m.x, by, bh, m, last ? 0.9 : 0.5, last ? 0.5 : 0.25);
+}
+// die Kugel zerplatzt: Funkenstoß aus der Mitte (der Lichtblitz und die Blitze ringsum stecken in mkugel3)
+function kugelBurstFx(x, fy, R) {
+  addEffect({ type: 'sparks3', x, y: fy, h: KUGEL_H, count: 22, color: '#fff7b0', speed: 4.2, up: 0.9, dur: 0.6 });
+  if (!V3.on) particles(x, fy - KUGEL_H * TILE * 0.9, { count: 26, color: ['#ffffff', '#fff7b0', '#ffe94a', '#8a5aff'], speed: [90, 300], life: [0.25, 0.55], size: [1.5, 3.5], shape: 'spark', drag: 3.5 });
+}
 
 // --- Blitz: Gewitterwolke (Fläche aus der Ferne) -------------------------------------------------------
 SKILL_TYPES.mstorm = function (sk, pw, lvl) {
@@ -268,7 +446,9 @@ SKILL_TYPES.mstorm = function (sk, pw, lvl) {
 };
 function stormFx(owner, x, y, sk, local, pw) {
   const total = sk.form + sk.strikes * sk.every + 0.5;
-  addEffect({ type: 'mstorm3', x, y: y + 9, R: sk.radius, form: sk.form, dur: total + 0.8 });
+  // seit der Überarbeitung des Blitzmagiers tobt unter der Wolke das Gewitterfeld (vorher beim Kugelblitz): bei jedem
+  // Einschlag fahren mehrere Blitze vom Himmel ins Feld (strikes, every), zum Schluss (fin) besonders viele
+  addEffect({ type: 'mstorm3', x, y: y + 9, R: sk.radius, form: sk.form, strikes: sk.strikes, every: sk.every, fin: sk.form + sk.strikes * sk.every + 0.1, dur: total + 0.8, seed: Math.random() * 90 });
   const near = owner === game.player;
   for (let k = 0; k < sk.strikes; k++) {
     later(sk.form + k * sk.every, () => {
@@ -286,7 +466,8 @@ function stormFx(owner, x, y, sk, local, pw) {
           ty = m.y;
         }
       }
-      addEffect({ type: 'mstrike3', x: tx, y: ty + 9, dur: 0.5, s: 1 });
+      addEffect({ type: 'mstrike3', x: tx, y: ty + 9, dur: 0.5, s: 1.15, storm: true, seed: Math.random() * 90 });
+      if (!V3.on) particles(tx, ty - 6, { count: 8, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [70, 200], life: [0.18, 0.36], size: [1.5, 3], shape: 'spark', drag: 4 });
       if (near) shakeScreen(2);
       if (m) {
         hitMonster(m, sk.dmg * pw, { skill: sk.id, stun: 0.2, heavy: true, vfxColor: '#ffffff' });
@@ -298,7 +479,7 @@ function stormFx(owner, x, y, sk, local, pw) {
   later(sk.form + sk.strikes * sk.every + 0.1, () => {
     const caught = enemiesInCircle(x, y, sk.radius).filter((m) => !m.dead);
     addEffect({ type: 'mweb3', x, y: y + 9, foes: caught.slice(0, 12), dur: 0.7 });
-    addEffect({ type: 'mstrike3', x, y: y + 9, dur: 0.6, s: 1.8 });
+    addEffect({ type: 'mstrike3', x, y: y + 9, dur: 0.6, s: 1.8, storm: true, seed: Math.random() * 90 });
     for (const m of caught) addEffect({ type: 'mpara3', follow: m, x: m.x, y: m.y, dur: sk.final.stun });
     if (near) shakeScreen(6);
     if (!local) return;
@@ -578,18 +759,274 @@ EXTRA_EFFECTS.mphoenix3 = (ctx, e, k, x, y) => {
   glow2(ctx, bx + dir * 6, by - 4, 8, '#ffffff', 0.9);
   ctx.restore();
 };
-EXTRA_EFFECTS.mspear3 = (ctx, e, k, x, y) => {
-  ctx.save();
-  ctx.strokeStyle = '#fff7b0';
-  ctx.globalAlpha = 1 - k;
-  ctx.lineWidth = 4;
+// 2D-Blitze des Blitzmagiers (seit der Überarbeitung): kräftig und gezackt – dunkelvioletter Saum (bleibt auf hellem
+// Boden sichtbar), gelb leuchtender Mantel, weißer Kern. Die Zacken stehen je Zuckung (seed) fest statt in jedem
+// Bild neu zu rauschen; branch = Zahl der Seitenäste
+function blz2Pts(ax, ay, bx, by, segs, jit, seed) {
+  const pts = [[ax, ay]];
+  for (let i = 1; i < segs; i++) {
+    const u = i / segs;
+    const env = jit * (0.55 + 0.45 * Math.sin(u * Math.PI));
+    pts.push([ax + (bx - ax) * u + (n2h(i, seed) - 0.5) * 2 * env, ay + (by - ay) * u + (n2h(i, seed + 3.1) - 0.5) * 2 * env]);
+  }
+  pts.push([bx, by]);
+  return pts;
+}
+function blz2Stroke(ctx, pts, w, a, col, rim) {
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(x + e.x0 - e.x, y + e.y0 - e.y - 16);
-  ctx.lineTo(x + e.x1 - e.x, y + e.y1 - e.y - 16);
+  for (let i = 0; i < pts.length; i++) {
+    if (i) ctx.lineTo(pts[i][0], pts[i][1]);
+    else ctx.moveTo(pts[i][0], pts[i][1]);
+  }
+  if (rim) {
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = a * 0.6;
+    ctx.strokeStyle = '#2e1a8a';
+    ctx.lineWidth = w * 2.2 + 2;
+    ctx.stroke();
+  }
+  // weicher Schein leuchtend, der Mantel deckend (bleibt auf hellem Boden gelb), der Kern wieder leuchtend weiß
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = col;
+  ctx.globalAlpha = a * 0.3;
+  ctx.lineWidth = w * 3.4;
   ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = a;
+  ctx.lineWidth = w * 1.35;
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = Math.max(1, w * 0.55);
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+}
+function blz2(ctx, ax, ay, bx, by, w, a, seed, o) {
+  if (a <= 0.01) return;
+  const segs = (o && o.segs) || 7;
+  const jit = o && o.jit != null ? o.jit : 9;
+  const col = (o && o.color) || '#ffe94a';
+  const pts = blz2Pts(ax, ay, bx, by, segs, jit, seed);
+  blz2Stroke(ctx, pts, w, a, col, !(o && o.rim === false));
+  const nb = (o && o.branch) || 0;
+  if (!nb || segs < 3) return;
+  const L = hyp(bx - ax, by - ay);
+  const ang = Math.atan2(by - ay, bx - ax);
+  for (let j = 0; j < nb; j++) {
+    const p = pts[1 + Math.floor(n2h(j, seed + 21) * (segs - 2))];
+    const ba = ang + (n2h(j, seed + 5) < 0.5 ? -1 : 1) * (0.4 + 0.55 * n2h(j, seed + 9));
+    const bl = L * (0.14 + 0.16 * n2h(j, seed + 2));
+    blz2Stroke(ctx, blz2Pts(p[0], p[1], p[0] + Math.cos(ba) * bl, p[1] + Math.sin(ba) * bl, 3, jit * 0.5, seed + j * 3.3), w * 0.5, a * 0.85, col, false);
+  }
+}
+// Höhe über dem Boden: 3D-Einheiten → Pixel in der 2D-Ansicht
+const BLZ2_H = TILE * 0.9;
+// Blitzspeer in 2D: langer Speer mit gleißender Spitze, dahinter die gezackte Bahn, die nachglüht
+EXTRA_EFFECTS.mspear3 = (ctx, e) => {
+  const t = game.time - e.start;
+  const u = Math.min(1, t / e.fly);
+  const fade = Math.max(0, 1 - Math.max(0, t - e.fly) / (e.dur - e.fly));
+  const ax = e.x0;
+  const ay = e.y0 - 30;
+  const tx = e.x0 + (e.x1 - e.x0) * u;
+  const ty = e.y0 + (e.y1 - e.y0) * u - 30;
+  const len = hyp(tx - ax, ty - ay);
+  if (len < 2) return;
+  ctx.save();
+  blz2(ctx, ax, ay, tx, ty, 2 + 4 * fade, Math.min(1, fade * 1.5), (e.seed || 0) + Math.floor(t / 0.05), { segs: Math.max(4, Math.round(len / 36)), jit: 4 + 8 * fade, branch: 2 });
+  ctx.globalAlpha = 1;
+  if (u < 1) {
+    const dx = (tx - ax) / len;
+    const dy = (ty - ay) / len;
+    const sl = Math.min(len, 110);
+    // Schaft: gerade und gleißend
+    blz2Stroke(ctx, [[tx - dx * sl, ty - dy * sl], [tx, ty]], 5, 1, '#ffe94a', true);
+    // lange Spitze (Raute)
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.moveTo(tx + dx * 16, ty + dy * 16);
+    ctx.lineTo(tx - dx * 30 - dy * 9, ty - dy * 30 + dx * 9);
+    ctx.lineTo(tx - dx * 20, ty - dy * 20);
+    ctx.lineTo(tx - dx * 30 + dy * 9, ty - dy * 30 - dx * 9);
+    ctx.closePath();
+    ctx.fillStyle = '#fffbe0';
+    ctx.strokeStyle = '#8a5aff';
+    ctx.lineWidth = 1.5;
+    ctx.fill();
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, tx, ty, 38, '#ffe94a', 0.8);
+    glow2(ctx, tx, ty, 16, '#ffffff', 1);
+  } else if (t - e.fly < 0.3) {
+    const f = 1 - (t - e.fly) / 0.3;
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, tx, ty, 26 + 30 * (1 - f), '#fff7b0', f);
+  }
   ctx.restore();
 };
-EXTRA_EFFECTS.mstorm3 = (ctx, e, k, x, y) => glow2(ctx, x, y - 80, e.R * 0.8, '#2a2440', 0.5 * (1 - k));
+// Kettenblitz und Blitze des Kugelblitzes in 2D: erst gleißend dick, dann dünner nachglühend
+EXTRA_EFFECTS.mkbolt3 = (ctx, e, k) => {
+  const t = game.time - e.start;
+  const m = e.to;
+  if (m && !m.dead) {
+    e.bx = m.x;
+    e.by = feetY(m);
+  }
+  const flash = clamp01(1 - t / 0.14);
+  const ax = e.ax;
+  const ay = e.ay - e.ah * BLZ2_H;
+  const bx = e.bx;
+  const by = e.by - e.bh * BLZ2_H;
+  const len = hyp(bx - ax, by - ay);
+  ctx.save();
+  blz2(ctx, ax, ay, bx, by, e.s * (2.4 + 3.8 * flash), Math.min(1, (1 - k) * 1.6), e.seed + Math.floor(t / 0.05), { segs: Math.max(3, Math.min(12, Math.round(len / 28))), jit: Math.min(len * 0.12, 6 + 8 * e.s), branch: e.branch });
+  if (flash > 0 && e.s >= 0.9) {
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, ax, ay, 30, '#fff7b0', flash);
+  }
+  ctx.restore();
+};
+// Einschlag in 2D: Lichtblitz und kurze Bögen ringsum
+EXTRA_EFFECTS.mkhit3 = (ctx, e, k) => {
+  const t = game.time - e.start;
+  const s = e.s;
+  const cy = e.y - e.hgt * BLZ2_H;
+  const f = 1 - k;
+  const g = easeOut(k);
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, e.x, cy, (28 + 32 * g) * s, '#ffe94a', 0.75 * f);
+  glow2(ctx, e.x, cy, (13 + 15 * g) * s, '#ffffff', f);
+  const n = Math.round(4 * s) + 3;
+  const sd = e.seed + Math.floor(t / 0.05);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * 6.283 + n2h(i, e.seed) * 0.9;
+    const r1 = (16 + 24 * n2h(i, sd)) * s * (0.6 + 0.6 * k);
+    blz2(ctx, e.x + Math.cos(a) * 5 * s, cy + Math.sin(a) * 4 * s, e.x + Math.cos(a) * r1, cy + Math.sin(a) * r1 * 0.8, 1.5 * s, f, sd + i * 3.7, { segs: 3, jit: 4 * s, rim: false });
+  }
+  ctx.restore();
+};
+// Gewitterwolke in 2D: dunkle Wolke oben, darunter fahren bei jedem Einschlag mehrere Blitze ins Feld
+EXTRA_EFFECTS.mstorm3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const grow = easeOut(Math.min(1, t / e.form));
+  const fade = clamp01((e.dur - t) / 0.7);
+  const cy = y - 140;
+  const R = e.R;
+  const T = t - e.form;
+  const ns = e.strikes || 0;
+  ctx.save();
+  for (let j = 0; j <= ns && ns; j++) {
+    const fin = j === ns;
+    const u = fin ? t - e.fin : T - j * e.every;
+    if (!(u >= 0 && u < 0.3)) continue;
+    const f = 1 - u / 0.3;
+    const nb = fin ? 7 : 3;
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, x, y - 8, R * (0.9 + 0.2 * f), '#ffe94a', f * (fin ? 0.38 : 0.16));
+    for (let b = 0; b < nb; b++) {
+      const a = n2h(b, e.seed + j * 7.3) * 6.283;
+      const d = Math.sqrt(n2h(b, e.seed + j * 3.1 + 5)) * R * 0.85;
+      const gx = x + Math.cos(a) * d;
+      const gy = y + Math.sin(a) * d * 0.8;
+      blz2(ctx, gx + (n2h(b, j + 2) - 0.5) * 44, cy + 10, gx, gy, fin ? 4 : 3, f, e.seed + j * 11 + b + Math.floor(u / 0.05) * 1.7, { segs: 6, jit: 13, branch: 1, rim: b < 4 });
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'lighter';
+      glow2(ctx, gx, gy - 4, (fin ? 30 : 22) * (0.6 + 0.4 * f), '#fff7b0', 0.9 * f);
+    }
+  }
+  // knisternde Bögen dicht über dem Boden
+  if (T > 0 && t < (e.fin || 0) + 0.3) {
+    for (let i = 0; i < 3; i++) {
+      const a0 = Math.random() * 6.283;
+      const r0 = Math.random() * R * 0.8;
+      const a1 = a0 + (Math.random() - 0.5) * 1.6;
+      const r1 = Math.random() * R * 0.8;
+      blz2(ctx, x + Math.cos(a0) * r0, y + Math.sin(a0) * r0 * 0.8 - 3, x + Math.cos(a1) * r1, y + Math.sin(a1) * r1 * 0.8 - 3, 1.2, 0.75 * fade, Math.random() * 90, { segs: 4, jit: 5, rim: false, color: i % 2 ? '#fff7b0' : '#b89aff' });
+    }
+  }
+  // Wolke: dunkle Ballen, oben heller, dreht sich langsam; innen Wetterleuchten
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.globalAlpha = 1;
+  for (let i = 0; i < 12; i++) {
+    const a = n2h(i, 1) * 6.283 + t * 0.22 * (i % 2 ? 1 : -0.7);
+    const r = R * Math.sqrt(n2h(i, 2)) * 0.9 * grow;
+    const top = i % 3 === 0;
+    glow2(ctx, x + Math.cos(a) * r, cy + Math.sin(a) * r * 0.3 - (top ? 12 : 0), (38 + n2h(i, 3) * 36) * grow, top ? '#4a4668' : i % 2 ? '#14141e' : '#221e30', 0.9 * fade);
+  }
+  if (Math.random() < 0.4) {
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, x + (Math.random() - 0.5) * R, cy + 2, 30 + Math.random() * 34, Math.random() < 0.5 ? '#c8b0ff' : '#fff7b0', 0.5 * fade);
+  }
+  ctx.restore();
+};
+// Größe der Blitzkugel (0…1,3): wächst beim Entstehen, pulsiert und bläht sich bei jedem Schlag kurz auf
+function kugelSize(e, t) {
+  let g = easeOut(clamp01(t / Math.max(0.05, e.delay))) * (1 + 0.07 * Math.sin(t * 15));
+  if (t >= e.delay && t <= e.last + 0.02) {
+    const q = (t - e.delay) / e.every;
+    g *= 1 + 0.3 * Math.max(0, 1 - ((q - Math.floor(q)) * e.every) / 0.18);
+  }
+  return g;
+}
+// Kugelblitz in 2D: grell knisternde Kugel über der Mitte, kurze Bögen ringsum in den Boden, zum Schluss zerplatzt sie
+EXTRA_EFFECTS.mkugel3 = (ctx, e, k, x, y) => {
+  const t = game.time - e.start;
+  const end = clamp01((e.dur - t) / 0.3);
+  const cy = y - KUGEL_H * BLZ2_H;
+  const tb = t - e.last;
+  ctx.save();
+  if (e.stop || tb < 0.05) {
+    const g = kugelSize(e, t);
+    const r = 17 * g;
+    ctx.globalAlpha = 1;
+    // dunkler Hof: hebt die Kugel von hellem Boden ab
+    glow2(ctx, x, cy, r * 2.7, '#150c4a', 0.75 * end);
+    glow2(ctx, x, cy, r * 1.7, '#ffd21e', end);
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, x, cy, r * 3.6, '#8a5aff', 0.4 * end);
+    glow2(ctx, x, cy, r * 1.5, '#ffe94a', 0.5 * end);
+    glow2(ctx, x, cy, r * 0.8, '#ffffff', end);
+    for (let i = 0; i < 5; i++) {
+      const a0 = Math.random() * 6.283;
+      const a1 = a0 + 0.9 + Math.random() * 1.5;
+      const rr = r * 0.72;
+      blz2(ctx, x + Math.cos(a0) * rr, cy + Math.sin(a0) * rr, x + Math.cos(a1) * rr, cy + Math.sin(a1) * rr, 1.2, end, Math.random() * 90, { segs: 4, jit: r * 0.35, rim: false, color: i % 2 ? '#fff7b0' : '#c8b0ff' });
+    }
+    const sd = Math.floor(t / 0.09);
+    for (let i = 0; i < 3 && t > e.delay * 0.6; i++) {
+      if (n2h(i, sd + e.seed) > 0.7) continue;
+      const a = n2h(i, sd * 1.3 + e.seed) * 6.283;
+      const d = e.R * (0.2 + 0.5 * n2h(i, sd * 2.1 + 1));
+      const gx = x + Math.cos(a) * d;
+      const gy = y + Math.sin(a) * d * 0.8;
+      blz2(ctx, x, cy, gx, gy, 1.7, 0.9 * end, sd * 3.1 + i * 7 + e.seed, { segs: 5, jit: 9, rim: false });
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'lighter';
+      glow2(ctx, gx, gy - 2, 12, '#fff7b0', 0.7 * end);
+    }
+  }
+  if (!e.stop && tb >= 0) {
+    const u = clamp01(tb / 0.45);
+    const f = 1 - u;
+    const g = easeOut(u);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, x, cy, 50 + 110 * g, '#ffe94a', 0.7 * f);
+    glow2(ctx, x, cy, 24 + 60 * g, '#ffffff', f);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * 6.283 + n2h(i, e.seed);
+      const d = e.R * (0.5 + 0.45 * n2h(i, e.seed + 4));
+      blz2(ctx, x, cy, x + Math.cos(a) * d, y + Math.sin(a) * d * 0.8, 0.8 + 3.2 * f, f, e.seed + i + Math.floor(tb / 0.05) * 1.9, { segs: 6, jit: 12, branch: 1, rim: i < 4 });
+    }
+  }
+  ctx.restore();
+};
 // 2D: Blitznetz und Lähmung als zuckende Linien
 const zap2 = (ctx, ax, ay, bx, by, col, w) => {
   ctx.strokeStyle = col;
@@ -617,6 +1054,18 @@ EXTRA_EFFECTS.mpara3 = (ctx, e) => {
   ctx.restore();
 };
 EXTRA_EFFECTS.mstrike3 = (ctx, e, k, x, y) => {
+  if (e.storm) {
+    // Einschlag der Gewitterwolke: kräftiger gezackter Blitz aus der Wolke
+    const s = e.s || 1;
+    ctx.save();
+    if (k < 0.5) blz2(ctx, x + (n2h(1, e.seed) - 0.5) * 44, y - 132, x, y, 3.6 * s, Math.min(1, (1 - k * 2) * 1.5), e.seed + Math.floor((game.time - e.start) / 0.05), { segs: 7, jit: 14, branch: 2 });
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    glow2(ctx, x, y - 6, 32 * s, '#fff7b0', 0.9 * (1 - k));
+    glow2(ctx, x, y - 6, 14 * s, '#ffffff', 1 - k);
+    ctx.restore();
+    return;
+  }
   if (k > 0.5) return;
   ctx.save();
   ctx.strokeStyle = '#fffbe0';
@@ -687,7 +1136,7 @@ EXTRA_EFFECTS.mgrav3 = (ctx, e, k, x, y) => {
 };
 
 // --- 3D -----------------------------------------------------------------------------------------------
-['mbreath3', 'mcast3', 'mburst3', 'mignite3', 'mphoenix3', 'mspear3', 'mstorm3', 'mstrike3', 'mclash3', 'mspikes3', 'mmeteor3', 'mgrav3', 'mweb3', 'mpara3'].forEach((k) => FX3_TYPES.add(k));
+['mbreath3', 'mcast3', 'mburst3', 'mignite3', 'mphoenix3', 'mspear3', 'mstorm3', 'mstrike3', 'mclash3', 'mspikes3', 'mmeteor3', 'mgrav3', 'mweb3', 'mpara3', 'mkbolt3', 'mkhit3', 'mkugel3'].forEach((k) => FX3_TYPES.add(k));
 const _n3a = new THREE.Vector3();
 const _n3b = new THREE.Vector3();
 const _n3c = new THREE.Vector3();
@@ -749,6 +1198,101 @@ function n3Bolt(h, a, b, w, color, op, segs = 8, jit = 0.25) {
     px = nx;
     py = ny;
     pz = nz;
+  }
+}
+// Kräftiger Blitz des Blitzmagiers (seit der Überarbeitung): gezackt von a nach b, die Zacken stehen je Zuckung (seed)
+// fest statt in jedem Bild neu zu rauschen. Schichten: dunkelvioletter Saum (segD, normal gemischt – so bleibt der Blitz
+// auch auf hellem Boden sichtbar), weicher gelber Schein, gelber Mantel, weißer Kern. o: segs, jit (Einheiten),
+// branch (Zahl der Seitenäste), rim/halo (false = ohne Saum/Schein), color. Auf niedriger Grafik nur Mantel und Kern.
+const _z3c = new THREE.Vector3();
+const _z3d = new THREE.Vector3();
+const _z3e = new THREE.Vector3();
+const _z3pts = new Float32Array(3 * 26);
+function n3ZapSeg(h, w, color, op, rim, top) {
+  // Stücke an beiden Enden etwas verlängert: an den Knicken bleiben keine Lücken
+  _z3e.subVectors(_z3d, _z3c);
+  const l = _z3e.length() || 1;
+  _z3e.multiplyScalar((w * 0.7) / l);
+  _z3c.sub(_z3e);
+  _z3d.add(_z3e);
+  if (rim) {
+    const r = fx3Take(h, 'segD');
+    fx3Segment(r, _z3c, _z3d, w * 1.8);
+    fx3Color(r, '#2a1478', op * 0.7);
+  }
+  // Mantel normal gemischt (segN): bleibt auf hellem Gras kräftig gelb statt weiß zu überstrahlen; auf niedriger
+  // Grafik leuchtend gemischt (seg), das lässt sich bündeln und spart Zeichenaufrufe
+  // top: ohne Tiefenprüfung über allem (Bögen auf der Blitzkugel)
+  const o = fx3Take(h, top ? 'segZTop' : n3low() ? 'seg' : 'segN');
+  fx3Segment(o, _z3c, _z3d, w);
+  fx3Color(o, color, op);
+  const c = fx3Take(h, top ? 'segZTop' : 'seg');
+  fx3Segment(c, _z3c, _z3d, w * 0.5);
+  fx3Color(c, '#ffffff', op);
+}
+function n3Zap(h, a, b, w, op, seed, o) {
+  if (op <= 0.01) return;
+  const low = n3low();
+  const segs = Math.min(25, (o && o.segs) || 9);
+  const jit = o && o.jit != null ? o.jit : 0.35;
+  const color = (o && o.color) || '#ffe94a';
+  const rim = !low && !(o && o.rim === false);
+  const halo = !low && !(o && o.halo === false);
+  const ax = a.x;
+  const ay = a.y;
+  const az = a.z;
+  const dx = b.x - ax;
+  const dy = b.y - ay;
+  const dz = b.z - az;
+  const P = _z3pts;
+  P[0] = ax;
+  P[1] = ay;
+  P[2] = az;
+  for (let i = 1; i <= segs; i++) {
+    const u = i / segs;
+    const env = i === segs ? 0 : jit * (0.55 + 0.45 * Math.sin(u * Math.PI));
+    P[i * 3] = ax + dx * u + (n2h(i, seed) - 0.5) * 2 * env;
+    P[i * 3 + 1] = ay + dy * u + (n2h(i, seed + 3.1) - 0.5) * 1.2 * env;
+    P[i * 3 + 2] = az + dz * u + (n2h(i, seed + 7.7) - 0.5) * 2 * env;
+    _z3c.set(P[i * 3 - 3], P[i * 3 - 2], P[i * 3 - 1]);
+    _z3d.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]);
+    n3ZapSeg(h, w, color, op, rim, o && o.top);
+    // Leuchten: weiche Lichtflecken an den Knicken (gebündelte Sprites statt eines breiten Mantels)
+    if (halo && (i < segs || segs < 4)) n3Glow(h, P[i * 3], P[i * 3 + 1], P[i * 3 + 2], w * 12 + 0.3, color, op * 0.4);
+  }
+  // Seitenäste: zweigen schräg nach vorn ab, dünner, ohne Saum
+  const nb = low ? 0 : (o && o.branch) || 0;
+  if (!nb || segs < 3) return;
+  const L = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+  for (let j = 0; j < nb; j++) {
+    const i = 1 + Math.floor(n2h(j, seed + 21) * (segs - 2));
+    const bl = L * (0.12 + 0.16 * n2h(j, seed + 2));
+    // Richtung: nach vorn, dazu kräftig zur Seite und etwas auf/ab
+    const sx = (n2h(j, seed + 5) - 0.5) * 2;
+    const sy = (n2h(j, seed + 9) - 0.5) * 1.2;
+    const sz = (n2h(j, seed + 13) - 0.5) * 2;
+    let px = P[i * 3];
+    let py = P[i * 3 + 1];
+    let pz = P[i * 3 + 2];
+    const ex = px + (dx / L) * bl * 0.7 + sx * bl * 0.8;
+    const ey = Math.max(0.05, py + (dy / L) * bl * 0.7 + sy * bl * 0.8);
+    const ez = pz + (dz / L) * bl * 0.7 + sz * bl * 0.8;
+    const x0 = px;
+    const y0 = py;
+    const z0 = pz;
+    for (let q = 1; q <= 3; q++) {
+      const v = q / 3;
+      const jj = q === 3 ? 0 : jit * 0.4;
+      const nx = x0 + (ex - x0) * v + (n2h(q, seed + j * 3.3 + 31) - 0.5) * 2 * jj;
+      const ny = y0 + (ey - y0) * v + (n2h(q, seed + j * 3.3 + 37) - 0.5) * 1.2 * jj;
+      const nz = z0 + (ez - z0) * v + (n2h(q, seed + j * 3.3 + 41) - 0.5) * 2 * jj;
+      _z3c.set(px, py, pz);
+      _z3d.set(nx, ny, nz);
+      n3ZapSeg(h, w * 0.5 * (1 - 0.25 * v), color, op * 0.85, false);
+      px = nx;
+      py = ny;
+      pz = nz;
+    }
   }
 }
 // Basaltfelsen mit glühenden Bernsteinadern
@@ -948,32 +1492,170 @@ FX3_DRAW.mignite3 = function (h, e) {
 
 // Phönix: FX3_DRAW.mphoenix3 in feuerfeld.js (seit 13.40)
 
-// Blitzspeer: Spitze schießt nach vorn, dahinter eine gleißende Bahn, die noch zuckt und verglimmt
+// Blitzspeer: ein langer Speer mit gleißender Spitze schießt nach vorn, dahinter eine dicke Blitzbahn, die noch
+// zuckt und nachglüht (seit der Überarbeitung des Blitzmagiers länger und wuchtiger)
 FX3_DRAW.mspear3 = function (h, e) {
   const t = game.time - e.start;
   const u = Math.min(1, t / e.fly);
   const y = 1.05;
+  const low = n3low();
   const fade = Math.max(0, 1 - Math.max(0, t - e.fly) / (e.dur - e.fly));
   _n3a.set(e.x0 * U3, y, e.y0 * U3);
   _n3b.set(e.x0 * U3 + (e.x1 - e.x0) * U3 * u, y, e.y0 * U3 + (e.y1 - e.y0) * U3 * u);
-  n3Bolt(h, _n3a, _n3b, 0.09 * fade + 0.02, '#ffe94a', fade, n3low() ? 6 : 12, 0.22 * fade);
-  // Speerspitze
+  const len = _n3a.distanceTo(_n3b);
+  if (len < 0.05) return;
+  // Bahn: dick beim Durchschlag, glüht dünner werdend nach
+  n3Zap(h, _n3a, _n3b, 0.04 + 0.1 * fade, Math.min(1, fade * 1.5), (e.seed || 0) + Math.floor(t / 0.05), { segs: Math.max(4, Math.round(len / (low ? 2.2 : 1.15))), jit: 0.1 + 0.24 * fade, branch: 3 });
   if (u < 1) {
-    n3Glow(h, _n3b.x, y, _n3b.z, 1.1, '#fff7b0', 1);
-    n3Glow(h, _n3b.x, y, _n3b.z, 0.5, '#ffffff', 1);
-    const tip = fx3Take(h, 'coneG');
-    _n3c.set(_n3b.x - (_n3b.x - _n3a.x) * 0.05, y, _n3b.z - (_n3b.z - _n3a.z) * 0.05);
+    // der Speer selbst: gerader, gleißender Schaft und lange Spitze
     _n3d.subVectors(_n3b, _n3a).normalize();
-    fx3Cone(tip, _n3c, _n3d, 0.9, 0.16);
-    fx3Color(tip, '#fffbe0', 1);
+    const sl = Math.min(len, 3.6);
+    _z3c.copy(_n3b).addScaledVector(_n3d, -sl);
+    _z3d.copy(_n3b);
+    n3ZapSeg(h, 0.12, '#ffe94a', 1, !low);
+    _n3c.copy(_n3b).addScaledVector(_n3d, -1.5);
+    const tip = fx3Take(h, 'coneG');
+    fx3Cone(tip, _n3c, _n3d, 2.3, 0.3);
+    fx3Color(tip, '#ffe94a', 0.9);
+    const core = fx3Take(h, 'coneG');
+    fx3Cone(core, _n3c, _n3d, 2.1, 0.15);
+    fx3Color(core, '#ffffff', 1);
+    n3Glow(h, _n3b.x + _n3d.x * 0.4, y, _n3b.z + _n3d.z * 0.4, 2.2, '#ffe94a', 0.75);
+    n3Glow(h, _n3b.x + _n3d.x * 0.4, y, _n3b.z + _n3d.z * 0.4, 1.0, '#ffffff', 1);
+  } else if (t - e.fly < 0.3) {
+    // Aufblitzen am Ende der Bahn
+    const f = 1 - (t - e.fly) / 0.3;
+    n3Glow(h, _n3b.x, y, _n3b.z, 1 + 1.6 * (1 - f), '#fff7b0', f);
   }
   // seitliche Funkenbögen entlang der Bahn
-  if (!n3low()) {
-    for (let i = 0; i < 4; i++) {
-      const v = Math.random() * u;
+  if (!low && fade > 0.2) {
+    for (let i = 0; i < 5; i++) {
+      const v = Math.random();
       _n3c.set(_n3a.x + (_n3b.x - _n3a.x) * v, y, _n3a.z + (_n3b.z - _n3a.z) * v);
-      _n3d.set(_n3c.x + (Math.random() - 0.5) * 0.8, y + (Math.random() - 0.3) * 0.6, _n3c.z + (Math.random() - 0.5) * 0.8);
-      n3Bolt(h, _n3c, _n3d, 0.02, '#c8b0ff', 0.8 * fade, 3, 0.15);
+      _n3d.set(_n3c.x + (Math.random() - 0.5) * 0.9, y + (Math.random() - 0.3) * 0.7, _n3c.z + (Math.random() - 0.5) * 0.9);
+      n3Bolt(h, _n3c, _n3d, 0.022, i % 2 ? '#c8b0ff' : '#fff7b0', 0.85 * fade, 3, 0.15);
+    }
+  }
+};
+
+// Kettenblitz und die Blitze des Kugelblitzes: ein ganzer gezackter Blitz von a nach b mit Seitenästen – erst
+// gleißend dick, dann dünner nachglühend; am Zepter blitzt es kurz auf
+FX3_DRAW.mkbolt3 = function (h, e, k) {
+  const t = game.time - e.start;
+  const m = e.to;
+  if (m && !m.dead) {
+    e.bx = m.x;
+    e.by = feetY(m);
+  }
+  const low = n3low();
+  const flash = clamp01(1 - t / 0.14);
+  _n3a.set(e.ax * U3, e.ah, e.ay * U3);
+  _n3b.set(e.bx * U3, e.bh, e.by * U3);
+  const len = _n3a.distanceTo(_n3b);
+  n3Zap(h, _n3a, _n3b, e.s * (0.06 + 0.07 * flash), Math.min(1, (1 - k) * 1.6), e.seed + Math.floor(t / 0.05), { segs: Math.max(3, Math.min(low ? 7 : 14, Math.round(len / 0.7))), jit: Math.min(len * 0.14, 0.3 + 0.3 * e.s), branch: e.branch });
+  if (flash > 0 && e.s >= 0.9) {
+    n3Glow(h, _n3a.x, _n3a.y, _n3a.z, 0.5 + 1.5 * flash, '#fff7b0', flash);
+    n3Glow(h, _n3a.x, _n3a.y, _n3a.z, 0.3 + 0.6 * flash, '#ffffff', flash);
+  }
+};
+
+// Einschlag eines Blitzes: kräftiger Lichtblitz, kurze gezackte Bögen spritzen ringsum weg
+FX3_DRAW.mkhit3 = function (h, e, k) {
+  const t = game.time - e.start;
+  const s = e.s;
+  const x = e.x * U3;
+  const z = e.y * U3;
+  const y = e.hgt;
+  const f = 1 - k;
+  const g = easeOut(k);
+  n3Glow(h, x, y, z, (1.4 + 1.6 * g) * s, '#ffe94a', 0.7 * f);
+  n3Glow(h, x, y, z, (0.65 + 0.75 * g) * s, '#ffffff', f);
+  const n = n3low() ? 3 : Math.round(4 * s) + 3;
+  const sd = e.seed + Math.floor(t / 0.05);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * 6.283 + n2h(i, e.seed) * 0.9;
+    const r1 = (0.5 + 0.75 * n2h(i, sd)) * s * (0.6 + 0.6 * k);
+    _n3a.set(x + Math.cos(a) * 0.12 * s, y, z + Math.sin(a) * 0.12 * s);
+    _n3b.set(x + Math.cos(a) * r1, Math.max(0.05, y + (n2h(i, e.seed + 2) - 0.35) * 1.3 * r1), z + Math.sin(a) * r1);
+    n3Zap(h, _n3a, _n3b, 0.028 * s, f, sd + i * 3.7, { segs: 3, jit: 0.13 * s, rim: false, halo: false });
+  }
+};
+
+// Kugelblitz: große, grell knisternde Blitzkugel schwebt über der Mitte des Felds – heller Kern, zuckende Bögen auf der
+// Oberfläche, kurze Bögen ringsum in den Boden; die Schläge in die Gegner sind eigene Blitze (mkbolt3). Zum Schluss
+// zerplatzt sie: Lichtblitz und Blitze nach allen Seiten in den Boden. Nichts liegt flach am Boden.
+FX3_DRAW.mkugel3 = function (h, e) {
+  const t = game.time - e.start;
+  const low = n3low();
+  const end = clamp01((e.dur - t) / 0.3);
+  const x = e.x * U3;
+  const z = e.y * U3;
+  const R = e.R * U3;
+  const tb = t - e.last;
+  const cy = KUGEL_H + 0.06 * Math.sin(t * 3.1);
+  if (e.stop || tb < 0.05) {
+    const r = 1.3 * kugelSize(e, t);
+    if (r > 0.02) {
+      // Kugel aus Schichten (normal gemischt, eigene Vorräte – deckt auch auf hellem Gras): dunkelvioletter Hof, gelbe
+      // Kugel, darüber leuchtend der weiße Kern und ein violetter Schein
+      // (…Top: ohne Tiefenprüfung, die Kugel bleibt auch über den Gegnern darunter ganz zu sehen)
+      const disc = (kind, s2, col, op2, order, normal) => {
+        const d = mTake(h, kind, 'disc', normal);
+        if (!d.userData.zInit) {
+          d.userData.zInit = true;
+          d.renderOrder = order;
+        }
+        d.position.set(x, cy, z);
+        d.scale.set(s2, s2, 1);
+        fx3Color(d, col, op2);
+      };
+      disc('n3DiscDTop', r * 3.6, '#1a0c5a', 0.8 * end, 7, true);
+      disc('n3DiscYTop', r * 2.6, '#ffd21e', end, 8, true);
+      disc('n3GlowTop', r * 6.5, '#8a5aff', 0.35 * end, 9, false);
+      disc('n3GlowTop', r * 1.7, '#ffe94a', 0.55 * end, 9, false);
+      disc('n3GlowTop', r * 0.85, '#ffffff', end, 9, false);
+      // zuckende Bögen auf der Oberfläche (jedes Bild neu)
+      const n = low ? 3 : 7;
+      const rr = r * 0.72;
+      for (let i = 0; i < n; i++) {
+        const a0 = Math.random() * 6.283;
+        const e0 = (Math.random() - 0.5) * 2.4;
+        const a1 = a0 + 0.7 + Math.random() * 1.4;
+        const e1 = (Math.random() - 0.5) * 2.4;
+        _n3a.set(x + Math.cos(a0) * Math.cos(e0) * rr, cy + Math.sin(e0) * rr, z + Math.sin(a0) * Math.cos(e0) * rr);
+        _n3b.set(x + Math.cos(a1) * Math.cos(e1) * rr, cy + Math.sin(e1) * rr, z + Math.sin(a1) * Math.cos(e1) * rr);
+        n3Zap(h, _n3a, _n3b, 0.035, end, Math.random() * 90, { segs: 4, jit: r * 0.22, rim: false, halo: false, top: true, color: i % 2 ? '#b48cff' : '#fff7b0' });
+      }
+      // kurze Bögen ringsum in den Boden (stehen je Zuckung fest)
+      const sd = Math.floor(t / 0.09);
+      const ns = low ? 1 : 3;
+      for (let i = 0; i < ns && t > e.delay * 0.6; i++) {
+        if (n2h(i, sd + e.seed) > 0.7) continue;
+        const a = n2h(i, sd * 1.3 + e.seed) * 6.283;
+        const d2 = R * (0.2 + 0.5 * n2h(i, sd * 2.1 + 1));
+        _n3a.set(x, cy, z);
+        _n3b.set(x + Math.cos(a) * d2, 0.03, z + Math.sin(a) * d2 * 0.8);
+        n3Zap(h, _n3a, _n3b, 0.032, 0.9 * end, sd * 3.1 + i * 7 + e.seed, { segs: 6, jit: 0.3, rim: false, halo: false });
+        n3Glow(h, _n3b.x, 0.15, _n3b.z, 0.5, '#fff7b0', 0.7 * end);
+      }
+    }
+  }
+  if (!e.stop && tb >= 0) {
+    // zerplatzt
+    const u = clamp01(tb / 0.45);
+    const f = 1 - u;
+    const g = easeOut(u);
+    n3Glow(h, x, cy, z, 2 + 5 * g, '#ffe94a', 0.7 * f);
+    n3Glow(h, x, cy, z, 1 + 2.6 * g, '#ffffff', f);
+    n3Glow(h, x, 0.5, z, R * 1.3, '#ffe94a', 0.3 * f);
+    const nb = low ? 5 : 9;
+    for (let i = 0; i < nb; i++) {
+      const a = (i / nb) * 6.283 + n2h(i, e.seed);
+      const d2 = R * (0.5 + 0.45 * n2h(i, e.seed + 4));
+      _n3a.set(x, cy, z);
+      _n3b.set(x + Math.cos(a) * d2, 0.03, z + Math.sin(a) * d2 * 0.8);
+      n3Zap(h, _n3a, _n3b, 0.02 + 0.07 * f, f, e.seed + i + Math.floor(tb / 0.05) * 1.9, { segs: low ? 6 : 9, jit: 0.45, branch: 1, rim: i < 4 });
+      n3Glow(h, _n3b.x, 0.2, _n3b.z, 1.1 * f + 0.2, '#fff7b0', 0.8 * f);
     }
   }
 };
@@ -1010,6 +1692,44 @@ FX3_DRAW.mstorm3 = function (h, e) {
       n3Bolt(h, _n3a, _n3b, 0.035, '#d8c8ff', 0.85 * fade, 5, 0.35);
     }
   }
+  // Gewitterfeld unter der Wolke (seit der Überarbeitung des Blitzmagiers, vorher die Optik des Kugelblitzes): bei
+  // jedem Einschlag fahren mehrere Blitze aus der Wolke ins Feld, zur Schlussentladung (fin) besonders viele
+  const T = t - e.form;
+  const ns = e.strikes || 0;
+  for (let j = 0; j <= ns && ns; j++) {
+    const fin = j === ns;
+    const u = fin ? t - e.fin : T - j * e.every;
+    if (!(u >= 0 && u < 0.3)) continue;
+    const f = 1 - u / 0.3;
+    const nb = fin ? (low ? 4 : 7) : low ? 2 : 3;
+    const zs = e.seed + j * 11 + Math.floor(u / 0.05) * 1.7;
+    for (let b = 0; b < nb; b++) {
+      const a = n2h(b, e.seed + j * 7.3) * 6.283;
+      const d = Math.sqrt(n2h(b, e.seed + j * 3.1 + 5)) * R * 0.85;
+      const bx = x + Math.cos(a) * d;
+      const bz = z + Math.sin(a) * d * 0.8;
+      _n3a.set(bx + (n2h(b, j + 2) - 0.5) * 1.3, y - 0.3, bz + (n2h(b, j + 4) - 0.5) * 0.8);
+      _n3b.set(bx, 0.03, bz);
+      n3Zap(h, _n3a, _n3b, (fin ? 0.11 : 0.09) * (0.5 + 0.5 * f), Math.min(1, f * 1.5), zs + b, { segs: low ? 6 : 9, jit: 0.5, branch: 1, rim: b < 4 });
+      n3Glow(h, bx, 0.2, bz, (fin ? 1.5 : 1.05) * (0.6 + 0.4 * f), '#fff7b0', 0.9 * f);
+    }
+    n3Glow(h, x, 0.5, z, R * 1.25 * (0.7 + 0.3 * f), '#ffe94a', f * (fin ? 0.42 : 0.18));
+    // die Wolke wird von unten angeleuchtet
+    n3Glow(h, x, y - 0.5, z, R * 1.4, '#c8b0ff', f * 0.35);
+  }
+  // knisternde Bögen dicht über dem Boden (jedes Bild neu verzweigt)
+  if (T > 0 && t < (e.fin || 0) + 0.3) {
+    const arcs = low ? 2 : 4;
+    for (let j = 0; j < arcs; j++) {
+      const a0 = Math.random() * Math.PI * 2;
+      const r0 = Math.random() * R * 0.85;
+      const a1 = a0 + (Math.random() - 0.5) * 1.6;
+      const r1 = Math.random() * R * 0.85;
+      _n3a.set(x + Math.cos(a0) * r0, 0.08, z + Math.sin(a0) * r0 * 0.8);
+      _n3b.set(x + Math.cos(a1) * r1, 0.08, z + Math.sin(a1) * r1 * 0.8);
+      n3Bolt(h, _n3a, _n3b, 0.025, j % 2 ? '#fff7b0' : '#8a5aff', 0.75 * fade, 5, 0.25);
+    }
+  }
   // Regenschleier
   if (!low) {
     for (let i = 0; i < 14; i++) {
@@ -1033,7 +1753,14 @@ FX3_DRAW.mstrike3 = function (h, e) {
   const x = e.x * U3;
   const z = e.y * U3;
   const k = t / e.dur;
-  if (k < 0.45 && (k < 0.12 || Math.random() < 0.6)) {
+  if (e.storm) {
+    // Einschlag der Gewitterwolke: kräftiger gezackter Blitz aus der Wolke mit Seitenästen
+    if (k < 0.5) {
+      _n3a.set(x + (n2h(1, e.seed) - 0.5) * 1.4, 4.3, z + (n2h(2, e.seed) - 0.5) * 0.9);
+      _n3b.set(x, 0.05, z);
+      n3Zap(h, _n3a, _n3b, 0.09 * s * (1 - k), Math.min(1, (1 - k * 2) * 1.5), e.seed + Math.floor(t / 0.05), { segs: n3low() ? 7 : 11, jit: 0.55, branch: 2 });
+    }
+  } else if (k < 0.45 && (k < 0.12 || Math.random() < 0.6)) {
     _n3a.set(x + (Math.random() - 0.5) * 0.6, 5.2, z + (Math.random() - 0.5) * 0.4);
     _n3b.set(x, 0.05, z);
     n3Bolt(h, _n3a, _n3b, 0.07 * s, '#ffe94a', 1, n3low() ? 7 : 12, 0.6);

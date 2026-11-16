@@ -204,6 +204,8 @@ function novaParticles2d(x, fy, R, el, echo) {
 // --- Element-Geschoss mit Haken (Platz 2) ------------------------------------------------------------------
 
 SKILL_TYPES.mbolt = function (sk, pw, lvl) {
+  // Kettenblitz (instant): kein Geschoss – der ganze Blitz schlägt sofort ein (chainCast, magier-neu.js)
+  if (sk.instant && typeof chainCast === 'function') return chainCast(sk, pw, lvl);
   const p = game.player;
   const t = pickTarget(sk.range);
   if (t) faceTowards(t.x, t.y);
@@ -274,7 +276,8 @@ function boltImpactFx(sk, m) {
   } else if (sk.style === 'frostlance') {
     addEffect({ type: 'shards3', x: m.x, y: fy, r: 18, count: 4, color: '#9ff6ff', glow: true, size: 0.45, dur: 0.45 });
     if (!V3.on) particles(c.x, c.y, { count: 8, color: ['#eafcff', '#9ff6ff', '#3a7bff'], speed: [60, 150], life: [0.2, 0.4], size: [1.5, 3], shape: 'square', drag: 4 });
-  } else if (sk.style === 'arc') {
+  } else if (sk.style === 'arc' && !sk.instant) {
+    // (der Kettenblitz als Soforttreffer zeichnet Bahn und Einschlag selbst: chainBoltFx, magier-neu.js)
     addEffect({ type: 'impact', x: c.x, y: c.y, dur: 0.25, color: '#ffffff' });
     addEffect({ type: 'impact', x: c.x + 6, y: c.y - 4, dur: 0.25, color: '#8a5aff' });
   } else if (sk.style === 'stone' && sk.big) {
@@ -474,13 +477,16 @@ function sigilFx(owner, x, y, sk, local, pw, lvl) {
   const fy = y + 9;
   const ow = ownerKey(owner);
   for (const q of game.effects) {
-    if (q.type !== 'sigil3' || q.flash || q.owner !== ow || q.stop) continue;
+    if ((q.type !== 'sigil3' && q.type !== 'mkugel3') || q.flash || q.owner !== ow || q.stop) continue;
     q.stop = true;
     q.dur = Math.min(q.dur, game.time - q.start + 0.3);
   }
   const last = sk.delay + (sk.ticks - 1) * sk.every;
   const tail = sk.el === 'frost' ? Math.max(1.8, sk.linger || 0) : sk.el === 'feuer' ? 0.5 : 0.35;
-  const e = addEffect({ type: 'sigil3', ground: true, el: sk.el, x, y: fy, R: sk.radius, delay: sk.delay, ticks: sk.ticks, every: sk.every, last, dur: last + tail + 0.6, owner: ow, linger: sk.linger || 0 });
+  // Blitz (Kugelblitz): statt des Siegels schwebt eine Blitzkugel über der Mitte des Felds (mkugel3, magier-neu.js)
+  const e = sk.el === 'blitz'
+    ? addEffect({ type: 'mkugel3', x, y: fy, R: sk.radius, delay: sk.delay, ticks: sk.ticks, every: sk.every, last, dur: last + 0.7, owner: ow, seed: Math.random() * 90 })
+    : addEffect({ type: 'sigil3', ground: true, el: sk.el, x, y: fy, R: sk.radius, delay: sk.delay, ticks: sk.ticks, every: sk.every, last, dur: last + tail + 0.6, owner: ow, linger: sk.linger || 0 });
   for (let k = 0; k < sk.ticks; k++) {
     later(sk.delay + k * sk.every, () => {
       if (e.stop) return;
@@ -542,7 +548,7 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
       });
     }
   } else if (sk.el === 'blitz') {
-    // die Kugel über dem Siegel schlägt waagrecht in die nächsten Gegner, aufgeladene zuerst
+    // die Blitzkugel über der Mitte des Felds schlägt in die nächsten Gegner, aufgeladene zuerst
     const zaps = sk.zaps || 3;
     let list;
     if (foes) {
@@ -551,16 +557,16 @@ function sigilTick(owner, e, x, y, sk, k, last, local, pw, lvl) {
       list = game.monsters.filter((m) => !m.dead && hyp(m.x - x, m.y - y) < sk.radius).slice(0, zaps);
     }
     for (const m of list) {
-      // seit 13.5: der Blitz fährt von oben in den Gegner und betäubt ihn kurz (der letzte länger)
-      addEffect({ type: 'bolt', x: m.x, y: m.y, dur: 0.35, color: E.hi });
+      // der Blitz fährt aus der Kugel in den Gegner und betäubt ihn kurz (der letzte länger); 13.5 bis zur
+      // Überarbeitung kam er vom Himmel (das Gewitterfeld gehört jetzt zur Gewitterwolke)
+      kugelZapFx(x, fy, m, last);
       if (local) hitMonster(m, L.dmg * pw, { skill: sk.id, stun: L.stun || sk.zapStun || 0, heavy: last, vfxColor: '#ffffff' });
     }
-    if (last) {
-      if (!V3.on) addEffect({ type: 'ring', x, y: fy, r: sk.radius, dur: 0.45, color: E.deep, width: 8, grow: true });
-      // seit 14.66 nur beim eigenen Siegel: die Siegel der Mitspieler ließen das Bild sonst ständig aufblitzen
-      if (local) flashScreen(E.hi, 0.1);
-    }
-    if (!V3.on) particles(x, fy - 32, { count: 6, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [60, 160], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 5 });
+    // zum Schluss zerplatzt die Kugel (Bild in mkugel3); kein Ring am Boden
+    if (last) kugelBurstFx(x, fy, sk.radius);
+    // seit 14.66 nur beim eigenen Siegel: die Siegel der Mitspieler ließen das Bild sonst ständig aufblitzen
+    if (last && local) flashScreen(E.hi, 0.1);
+    if (!V3.on) particles(x, fy - KUGEL_H * TILE * 0.9, { count: 6, color: ['#ffffff', '#fff7b0', '#8a5aff'], speed: [60, 160], life: [0.15, 0.3], size: [1.5, 2.5], shape: 'spark', drag: 5 });
     if (near && last) shakeScreen(3);
   } else if (sk.el === 'erde') {
     // Sog zur Mitte, drei kreisende Felsen treffen; zum Schluss schlagen sie gemeinsam ein
@@ -851,9 +857,6 @@ FX3_DRAW.nova3 = function (h, e) {
 // --- 3D: Siegel ---------------------------------------------------------------------------------------
 // Dreiecks-Siegel am Boden (msig0–3): zeichnet sich ein (gut lesbare Warnung), dann die Nutzlast je Element.
 
-// Hilfsvektoren des Gewitterfelds (Kugelblitz, seit 13.5)
-const _kb3a = new THREE.Vector3();
-const _kb3b = new THREE.Vector3();
 FX3_DRAW.sigil3 = function (h, e) {
   const age = game.time - e.start;
   const E = mageElOf(e.el);
@@ -953,43 +956,6 @@ FX3_DRAW.sigil3 = function (h, e) {
         o.scale.set(1 + k, 0.7 + k * 0.5, 1);
         o.material.color.set('#cfe6ff');
         o.material.opacity = 0.25 * Math.sin(k * Math.PI) * end;
-      }
-    }
-  } else if (e.el === 'blitz') {
-    // Gewitterfeld (seit 13.5, statt Kugel mit Stern): bei jedem Puls fahren mehrere Blitze vom Himmel ins Feld,
-    // zwischen den Pulsen knistern Entladungen über den Boden
-    const lastT = e.last - e.delay;
-    const seed = (k, j) => Math.sin(k * 12.9898 + j * 78.233 + e.start * 3.1) * 43758.5453 % 1;
-    for (let k = 0; k < e.ticks; k++) {
-      const u = T - k * e.every;
-      if (u < 0 || u > 0.3) continue;
-      const fade = 1 - u / 0.3;
-      const final = k === e.ticks - 1;
-      const nb = final ? 7 : 4;
-      for (let j = 0; j < nb; j++) {
-        const a = Math.abs(seed(k, j)) * Math.PI * 2;
-        const d = Math.sqrt(Math.abs(seed(j, k + 7))) * R * 0.85;
-        const bx = xx + Math.cos(a) * d;
-        const bz = zz + Math.sin(a) * d;
-        _kb3a.set(bx + (Math.random() - 0.5) * 0.4, 4.2, bz + (Math.random() - 0.5) * 0.4);
-        _kb3b.set(bx, 0.02, bz);
-        n3Bolt(h, _kb3a, _kb3b, final ? 0.075 : 0.055, E.main, fade, 9, 0.45);
-        mSprite(h, 'spriteMDisc', 'disc', bx, 0.15, bz, (final ? 1.3 : 0.9) * (0.6 + 0.4 * fade), E.hi, fade * 0.9);
-      }
-      mSprite(h, 'spriteMDisc', 'disc', xx, 0.4, zz, R * 1.1 * (0.7 + 0.3 * fade), E.main, fade * (final ? 0.5 : 0.25));
-      if (final) mGround(h, 'planeN', 'ring', e.x, e.y, R * (0.5 + 0.5 * (1 - fade)), 0.05, 0, E.deep, fade * 0.9, true);
-    }
-    // knisternde Bögen dicht über dem Boden (jedes Bild neu verzweigt)
-    if (T < lastT + 0.3) {
-      const arcs = low ? 2 : 4;
-      for (let j = 0; j < arcs; j++) {
-        const a0 = Math.random() * Math.PI * 2;
-        const r0 = Math.random() * R * 0.85;
-        const a1 = a0 + (Math.random() - 0.5) * 1.6;
-        const r1 = Math.random() * R * 0.85;
-        _kb3a.set(xx + Math.cos(a0) * r0, 0.08, zz + Math.sin(a0) * r0);
-        _kb3b.set(xx + Math.cos(a1) * r1, 0.08, zz + Math.sin(a1) * r1);
-        n3Bolt(h, _kb3a, _kb3b, 0.025, j % 2 ? E.hi : E.deep, 0.75 * end, 5, 0.25);
       }
     }
   } else if (e.el === 'erde') {

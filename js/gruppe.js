@@ -7,7 +7,8 @@
 
 // levelGap (seit 13.92): höchstens so viele Stufen zwischen dem höchsten und dem niedrigsten Mitglied – sonst zogen
 // hohe Figuren niedrige über die geteilte Erfahrung in kurzer Zeit hoch
-const PARTY = { max: 8, bonus: 0.1, dropAfter: 10, levelGap: 15 };
+// resync (seit 15.43): so oft schickt der Anführer den Stand der Gruppe erneut an alle (siehe partyTick)
+const PARTY = { max: 8, bonus: 0.1, dropAfter: 10, levelGap: 15, resync: 5 };
 const PARTY_MODES = {
   gleich: { label: 'Gleich verteilen', text: 'Jeder in der Nähe bekommt seine EP plus 10 % je weiterem Mitglied.' },
   stufe: { label: 'Höhere Stufe bekommt mehr', text: 'Die EP der Gruppe werden nach Stufe aufgeteilt: Wer höher ist, bekommt mehr.' }
@@ -199,6 +200,8 @@ function onParty(pid, d) {
       // Nur der genannte Anführer oder der bisherige darf den Stand ändern
       if (!np || (np.leader !== name && !(game.party && game.party.leader === name))) break;
       const was = !!game.party;
+      // seit 15.43 kommt der Stand alle paar Sekunden erneut: ohne Änderung nichts neu zeichnen
+      if (was && Array.isArray(np.members) && game.party.leader === np.leader && game.party.mode === np.mode && game.party.members.join('\n') === np.members.slice(0, PARTY.max).join('\n')) break;
       if (Array.isArray(np.members) && np.members.includes(p.name) && np.members.length >= 2) {
         if (!was) ui.log(`Du bist jetzt in der Gruppe von ${np.leader}.`, 'level');
         game.party = { leader: np.leader, mode: PARTY_MODES[np.mode] ? np.mode : 'gleich', members: np.members.slice(0, PARTY.max) };
@@ -283,8 +286,13 @@ function partyPresenceCheck() {
 // Jede Sekunde: Kanal verlassen löst die Gruppe; wer länger weg ist, fällt heraus; ist der Anführer weg,
 // übernimmt das erste noch anwesende Mitglied
 let partyTickAt = 0;
+let partyResyncAt = 0;
 function partyTick() {
-  if (!game.party) return;
+  if (!game.party) {
+    // ohne Gruppe: Anzeige nur für Mitstreiter einer großen Instanz (oder um sie wieder zu leeren)
+    if (partyHudKey || partyExtras().length) partyHud();
+    return;
+  }
   if (!netOnline()) {
     game.party = null;
     partyRefresh();
@@ -295,6 +303,16 @@ function partyTick() {
   partyTickAt = game.time;
   const party = game.party;
   partyPresenceCheck();
+  // seit 15.43: Der Anführer schickt den Stand regelmäßig erneut. Vorher ging er nur bei einer Änderung raus und nur an
+  // Mitglieder, die der Anführer in dem Moment im Kanal sah – wer gerade fehlte (anderer Ort in einem vollen Kanal,
+  // kurz neu verbunden), erfuhr nie vom dritten Mitglied und sah weiter nur die Zweiergruppe.
+  if (partyLead() && (game.time - partyResyncAt > PARTY.resync || game.time < partyResyncAt)) {
+    partyResyncAt = game.time;
+    for (const n of party.members) {
+      const x = n === partyMe() ? null : partyMember(n);
+      if (x) netSocial(x.pid, { k: 'ps', n: partyMe(), p: party });
+    }
+  }
   party.missing = party.missing || {};
   for (const n of party.members) {
     if (partyMember(n)) delete party.missing[n];
@@ -329,7 +347,22 @@ function partyRefresh() {
 // Leistung: Neu aufgebaut wird nur, wenn sich die Mitglieder ändern; die Werte höchstens zehnmal je Sekunde abgeglichen
 // und nur dann ins DOM geschrieben, wenn sie sich geändert haben. Das Bild wird nur bei neuer Klasse/Weg/Waffe neu gemalt.
 // Im HUD-Bearbeitungsmodus (hud-layout.js) zeigt der Rahmen ohne Gruppe zwei Beispiel-Mitglieder zum Verschieben.
-const PARTY_HUD = { every: 0.1, many: 4 };
+// seit 15.43: raid = ab so vielen Zeilen auch am PC die knappe Zeile; extraMax = so viele Mitstreiter außerhalb der Gruppe
+const PARTY_HUD = { every: 0.1, many: 4, raid: 7, extraMax: 19 };
+// Mitstreiter außerhalb der eigenen Gruppe (seit 15.43): alle, die im selben Durchgang einer großen Instanz stehen (Turm
+// der Verdammten, bis 10 Spieler) – sie stehen unter der Gruppe in derselben Anzeige, auch ganz ohne Gruppe. Die Liste
+// liefert partyExtraNames(); Instanzen hängen sich dort ein (turm.js). Höchstens zweimal je Sekunde neu bestimmt.
+function partyExtraNames() { return []; }
+let partyExtraAt = -1;
+let partyExtraList = [];
+function partyExtras() {
+  if (game.time - partyExtraAt > 0.5 || game.time < partyExtraAt) {
+    partyExtraAt = game.time;
+    const mine = game.party ? game.party.members : [];
+    partyExtraList = partyExtraNames().filter((n) => n && n !== partyMe() && !mine.includes(n)).slice(0, PARTY_HUD.extraMax);
+  }
+  return partyExtraList;
+}
 const PARTY_NOTE = { ok: '', far: 'weit weg', away: 'andere Karte', off: 'nicht im Kanal', dead: 'tot' };
 const partyHudRows = new Map(); // Name → Verweise auf die Teile des Rahmens und zuletzt gezeigte Werte
 let partyHudKey = '';
@@ -345,10 +378,11 @@ function partyHudList(el) {
   return list;
 }
 
-function partyHudBuild(el, names) {
+function partyHudBuild(el, names, extra = 0) {
   const list = partyHudList(el);
   partyHudRows.clear();
-  list.innerHTML = names.map((n) => `<div class="pm" data-n="${escapeHtml(n)}"><div class="pm-por"><canvas width="64" height="64"></canvas>` +
+  const own = names.length - extra;
+  list.innerHTML = names.map((n, i) => `<div class="pm${i >= own ? ' pm-ext' : ''}" data-n="${escapeHtml(n)}"><div class="pm-por"><canvas width="64" height="64"></canvas>` +
     '<span class="pm-lvl"></span><b class="pm-crown" hidden>♛</b><i class="pm-skull" aria-hidden="true">☠</i></div>' +
     '<div class="pm-main"><div class="pm-line"><span class="pm-name no-tr"></span><span class="pm-note"></span></div>' +
     '<div class="bar-row"><svg class="bar-ico ico-hp" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.4C.9 8 3 4 6.8 4c2.1 0 3.6 1.2 5.2 3 1.6-1.8 3.1-3 5.2-3C21 4 23.1 8 21.6 11.6 19.5 16.4 12 21 12 21z"/></svg>' +
@@ -361,6 +395,7 @@ function partyHudBuild(el, names) {
     });
   });
   el.classList.toggle('many', names.length > PARTY_HUD.many);
+  el.classList.toggle('raid', names.length > PARTY_HUD.raid);
 }
 
 // kleiner Schlüssel fürs Bild: neu malen nur, wenn sich Klasse, Weg oder sichtbare Ausrüstung ändern
@@ -438,7 +473,8 @@ function partyHud(force) {
   if (!el || !game.player) return;
   const party = game.party;
   const editing = typeof hudLayout !== 'undefined' && hudLayout.editing;
-  if (!party) {
+  const extra = partyExtras();
+  if (!party && !extra.length) {
     if (editing) {
       if (partyHudKey !== '#demo') {
         partyHudKey = '#demo';
@@ -455,17 +491,17 @@ function partyHud(force) {
     if (!el.hidden) el.hidden = true;
     return;
   }
-  const names = party.members.filter((n) => n !== partyMe());
-  const key = names.join('\n');
+  const names = [...(party ? party.members.filter((n) => n !== partyMe()) : []), ...extra];
+  const key = names.join('\n') + '|' + extra.length;
   if (key !== partyHudKey) {
     partyHudKey = key;
-    partyHudBuild(el, names);
+    partyHudBuild(el, names, extra.length);
     force = true;
   }
   if (el.hidden) el.hidden = false;
   if (!force && game.time - partyHudAt < PARTY_HUD.every && game.time >= partyHudAt) return;
   partyHudAt = game.time;
-  partyHudUpdate(party.leader, (n) => { const x = partyMember(n); return x ? x.rp : null; });
+  partyHudUpdate(party ? party.leader : null, (n) => { const x = partyMember(n); return x ? x.rp : null; });
 }
 
 // Reiter „Gruppe“ im Fenster Freunde & Gilde

@@ -2197,7 +2197,8 @@ function mageSkillStats(sk, lvl, out) {
   // Schaden über Zeit × Fertigkeitsschaden), ohne Verteidigung, Monster- und Elementschaden
   if (sk.type === 'mignite') { const ms = skillStatsBase(); out.push(['Brand gesamt', skillDotNum(sk.burn.dps * sk.burn.duration * dmgScale(lvl) * ((ms && ms.skillDmg) || 1)) + ' in ' + sk.burn.duration + ' s']); }
   if (sk.type === 'mphoenix') out.push(['Auf dem Weg', dmg(sk.dmg * sk.pathMul)], ['Explosion', `r ${sk.blast.r} · ${dmg(sk.dmg * sk.blast.mul)}`], ['Brennt das Ziel', extra(sk.combust)]);
-  if (sk.type === 'mspear') out.push(['Linie', String(sk.range)], ['Aufgeladen', sk.charge + ' s']);
+  // Blitzspeer: lähmt (zeigt Blitzbögen am Gegner) und verlangsamt danach – die Zeile „Verlangsamt“ kommt unten aus sk.slow
+  if (sk.type === 'mspear') out.push(['Linie', String(sk.range)], ['Lähmt', numDe(sk.stun) + ' s'], ['Aufgeladen', sk.charge + ' s']);
   if (sk.type === 'mstorm') out.push(['Blitze', `${sk.strikes} × ${dmg(sk.dmg)}`], ['Entladung', `${dmg(sk.final.dmg)} · alle im Feld`], ['Lähmt', numDe(sk.final.stun) + ' s'], ['Feld', String(sk.radius)], ['Reichweite', String(sk.range)]);
   if (sk.trail) out.push(['Blitzspur', `${sk.trail.n} × ${dmg(sk.trail.dmg)}`]);
   if (sk.type === 'mclash' || sk.type === 'mspikes' || sk.type === 'mmeteor') out.push(['Fläche', 'r ' + sk.radius], ['Reichweite', String(sk.range)]);
@@ -2209,7 +2210,7 @@ function mageSkillStats(sk, lvl, out) {
   if (sk.pierce) out.push(['Durchbohrt', '']);
   if (sk.arcs) out.push(['Ziele', `${sk.arcs}, Überschlag ${dmg(sk.dmg * (sk.jump ? sk.jump.mul : 0.5))}`]);
   if (sk.freeze && sk.type !== 'msnow') out.push(['Einfrieren', freeze(sk.freeze)]);
-  const stun = sk.stun || (sk.last && sk.last.stun);
+  const stun = sk.type === 'mspear' ? 0 : sk.stun || (sk.last && sk.last.stun);
   if (stun) out.push(['Betäubt', numDe(stun) + ' s']);
   if (sk.burn && sk.type !== 'mignite') out.push(['Brand', skillDotNum(sk.burn.dps) + ' je s']);
   if (sk.slow && sk.type !== 'msnow') out.push(['Verlangsamt', `${skillPct(sk.slow.amount)} · ${numDe(sk.slow.duration)} s`]);

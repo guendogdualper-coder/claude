@@ -87,7 +87,11 @@ const RARITY_STAT_KEYS = ['atk', 'def', 'hp', 'mp'];
 //   bonusBase, bonusRoll  je Bonus 1–5 so viel mehr Stärke (Anteil der Grundwerte): base + roll × Würfelglück
 //                         (0 = unteres, 1 = oberes Ende der Spanne auf dieser Gegenstandsstufe, bonusRollQuality)
 //   special               Bonus 6 und 7 zählen so viel mal mehr
-const ILVL = { bonusBase: 0.03, bonusRoll: 0.05, special: 2 };
+// seit 15.43: jeder Bonus zählt doppelt so viel wie vorher (0,06 + 0,06 × Würfelglück statt 0,03 + 0,05) – ein Teil
+// mit fünf Boni liegt damit klar über einem gleichen Teil mit zwei (vorher machten vier, fünf Boni kaum etwas aus)
+const ILVL = { bonusBase: 0.06, bonusRoll: 0.06, special: 2 };
+// seit 15.43: Chance je Seelenstein auf ein legendäres Teil (0,01 % = einer von 10.000 Steinen), siehe stoneLegendary
+const STONE_LEGENDARY = 0.0001;
 
 // Woher welche Seltenheit kommt. w: Gewichte für [normal, grün, blau, lila, gold]; die Seltenheit wird danach auf
 // das gekappt, was die Gegenstandsstufe erlaubt (minTier), z. B. ein Endboss-Teil unter Lv 60 höchstens blau.
