@@ -607,8 +607,8 @@ let travelSpots = null;
 
 function travelTargets() {
   if (travelSpots) return travelSpots;
-  // seit 15.25 auch die Karten, die später dazukamen (Schlangental, Donnerklamm, Kristallabgrund)
-  const spaeter = ['sandwueste', 'donnerklamm', 'kristallhang'].map((id) => ZONES.find((z) => z.id === id)).filter(Boolean);
+  // seit 15.25 auch die Karten, die später dazukamen (Schlangental, Donnerklamm, Kristallabgrund, Seelenhain)
+  const spaeter = ['sandwueste', 'donnerklamm', 'kristallhang', 'seelenhain'].map((id) => ZONES.find((z) => z.id === id)).filter(Boolean);
   travelSpots = ZONES.slice(1, RING_ZONES).concat(spaeter).map((zone) => {
     if (zone.map === 1) return { zone, x: (CENTER_X + VILLAGE_HALF + 6) * TILE, y: (CENTER_Y + 0.5) * TILE };
     const mp = game.world.maps.find((m) => m.id === zone.map);
@@ -743,7 +743,8 @@ Object.assign(ui, {
       // nicht der richtige Älteste: sagen, wo es weitergeht
       const chapter = mainQuestList().filter((m) => m.map === here);
       const doneHere = chapter.length && mainQuestList().indexOf(chapter[chapter.length - 1]) < q.main;
-      body.innerHTML = `<p>„${doneHere ? 'Was du hier für uns getan hast, vergessen wir nie.' : 'Für meine Aufträge ist es noch zu früh.'} ` +
+      // Karte ohne eigene Hauptaufträge (Seelenhain): kein „noch zu früh“
+      body.innerHTML = `<p>„${doneHere ? 'Was du hier für uns getan hast, vergessen wir nie.' : chapter.length ? 'Für meine Aufträge ist es noch zu früh.' : 'Hier bei uns gibt es keine großen Aufträge – nur Ruhe und Seelensteine, die gebrochen werden wollen.'} ` +
         `Dein Weg führt dich jetzt zu ${elderPlace(giver)}. Das Weltentor bringt dich hin.“</p>` +
         `<p class="quest-step">${main.chapterTitle} · ${main.title}</p>` +
         (q.accepted ? `<p><strong>Ziel:</strong> ${goalText(main.goal)}</p>` : '');

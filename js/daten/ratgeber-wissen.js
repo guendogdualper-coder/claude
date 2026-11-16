@@ -559,6 +559,19 @@ const RATGEBER_WISSEN = [
       'und ab 45 Seelensteine als Gegenstand (für L1–V) – alles selten, je höher der Stein, desto öfter. Ausnahme: Ab Stufe 30 würfelt jeder Stein zweimal auf einen Switcher (je 60 %) und zweimal auf eine Verstärkung (je 50 %).',
     k: 'seelenstein drop beute stufe 30 35 40 45 segensschriftrolle sternen-switcher schriftrolle fertigkeitsbuch'
   },
+  // Map 17 · Seelenhain (daten/zonen.js, karte81.js): die Zahlen kommen aus den Spieldaten
+  {
+    c: 'steine', q: 'Wo kann ich in Ruhe Seelensteine farmen?',
+    a: () => {
+      const wm = (typeof WORLD_MAPS !== 'undefined') ? WORLD_MAPS.find((m) => m.id === 17) : null;
+      const z = (typeof ZONES !== 'undefined') ? ZONES.find((x) => x.id === 'seelenhain') : null;
+      const stufen = z && z.stones ? z.stones.map((st) => st[0]).join(', ').replace(/, (\d+)$/, ' und $1') : '70, 75 und 80';
+      return `Im <b>Seelenhain</b> (ab Stufe ${wm ? wm.minLevel : 78}, über das Weltentor – eine gemeinsame Karte für Licht und Schatten). Rund um das Lager Seelenwacht stehen ` +
+        `sehr viele Seelensteine der Stufen ${stufen} und nur wenige Monster: nah am Lager die schwächeren Steine, weiter draußen die stärkeren. ` +
+        'Wie auf allen gemeinsamen Karten gilt außerhalb des Lagers der offene Kampf zwischen den Seiten.';
+    },
+    k: 'seelenhain seelenwacht farmen farm seelensteine steine ruhig ruhe wenige monster hain stufe 80 map 17 endgame'
+  },
 
   // --- Dungeons & Endbosse ----------------------------------------------------------------------------------
   {

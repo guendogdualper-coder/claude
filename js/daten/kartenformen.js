@@ -689,6 +689,40 @@ const KF_TOWNS = {
       ['brazier', -2.6, 13.6], ['brazier', 1.8, 13.6], ['brazier', -6.6, -16.0]],
     deco: [[-2.6, -19.2, 'F'], [1.6, -19.2, 'F'], [-9.6, -12.6, 'G'], [9.6, -12.6, 'X'], [-17.6, 10.6, 'G'], [17.4, 10.6, 'X'], [-5.6, 17.0, 'K'],
       [5.6, 17.0, 'C'], [-3.6, -11.6, 'B'], [15.0, -8.6, 'G'], [-15.0, -8.6, 'X']]
+  },
+
+  // Seelenhain · Seelenwacht „Mondweiher“ (Map 17): ein Lager hinter einer niedrigen Steinmauer mit runden Ecken. Im
+  // Südosten ein sichelförmiger Weiher, in den Ecken alte Bäume, im Nordosten das Haus der Wächter; die Mitte mit dem
+  // Weltentor bleibt frei. Die Karte selbst hat keine eigene Form (kein Eintrag in MAP_FORMS): Wildnis aus Rauschen
+  // mit Teichen wie um Kazehana.
+  17: {
+    form: 'Mondweiher',
+    liquid: 'WATER',
+    tree: 'TREE',
+    grid: kfTownGrid(13, (dx, dy) => {
+      // abgerundetes Quadrat (Betrag hoch vier): gerade Seiten mit den Toren in der Mitte, runde Ecken
+      const q = Math.pow(dx * dx * dx * dx + dy * dy * dy * dy, 0.25);
+      if (q > 13.2) return (dx * 5 + dy * 9) % 13 === 0 ? 'T' : '"';
+      if (q > 12.1) return (kfGateNS(dx) && Math.abs(dy) > 10) || (kfGateWE(dy) && Math.abs(dx) > 10) ? 'o' : '#';
+      // Weiher: Scheibe ohne die kleinere, nach Nordwesten versetzte Scheibe (Sichel)
+      if (Math.hypot(dx - 6.5, dy - 7.5) < 3.2 && Math.hypot(dx - 5.0, dy - 6.0) >= 2.3) return '~';
+      if (Math.hypot(dx + 0.5, dy + 0.5) < 4.3) return '.';
+      if (kfRoad(dx, dy)) return '_';
+      if ((dx === -9 && dy === 9) || (dx === -10 && dy === 8) || (dx === 9 && dy === -8) || (dx === -9 && dy === -10)) return 'Y';
+      return ',';
+    }),
+    weltentor: [0.5, -2.8], spawn: [0.5, 2.0],
+    places: {
+      aeltester: [-5.2, -5.6, null, 0.35], lehrmeister: [-8.4, -7.6, null, 0.4], auktion: [-4.4, -9.4, 'n'], post: [4.6, -9.4, 'n'],
+      teleport: [3.8, -4.6, null, -0.4], alchemist: [7.6, -6.4, null, -0.4], waffen: [-9.3, -3.6, 'w'], ruestung: [10.3, -3.6, 'e'],
+      schmied: [-9.3, 3.4, 'w'], lager: [10.3, 3.2, 'e'], haendler: [-5.0, 3.2, null, 0.45], arena: [3.4, 2.6, null, -0.35],
+      pvp: [6.6, 1.8, null, -0.3], jaegerin: [-8.2, 7.0, null, 0.3], stallmeister: [-4.6, 10.2, 'n'], bogenmacher: [2.6, 9.6, null, -0.3]
+    },
+    houses: [[6, -11, 4, 2, '#3a4a78', { roof: 'pagode', wall: 'stein' }]],
+    lights: [['lantern', -2.4, -4.8], ['lantern', 1.6, -4.8], ['lantern', -2.4, 4.6], ['lantern', 1.6, 4.6], ['lantern', 3.4, 5.2],
+      ['brazier', -6.2, 0.8], ['brazier', 6.6, -1.9], ['well', -3.0, -2.0]],
+    deco: [[-1.8, -12.2, 'F'], [1.0, -12.2, 'F'], [-10.6, -6.2, 'G'], [10.6, -6.4, 'K'], [-10.8, 5.8, 'P'], [8.6, 3.4, 'C'], [-6.6, 5.8, 'B'],
+      [5.2, -1.6, 'B'], [-7.4, 10.6, 'H'], [9.8, 8.6, 'P'], [-7.2, -10.2, 'X'], [10.4, 5.6, 'X']]
   }
 };
 for (const [id, L] of Object.entries(KF_TOWNS)) TOWN_LAYOUTS[id] = L;

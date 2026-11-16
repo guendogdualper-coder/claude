@@ -61,7 +61,8 @@ const STADT_LOOK = {
   13: { stone: '#e2d6b8', dark: '#a89a78', accent: '#a8803a', liquid: '#4a9aa8', orb: '#ffe0a0' },
   14: { stone: '#7a4642', dark: '#4a2624', accent: '#d8a04a', liquid: '#e8324a', glow: true, orb: '#ff6a7a' },
   15: { stone: '#98aac8', dark: '#5a6a8a', accent: '#c8d8f0', liquid: '#7ab8ff', glow: true, orb: '#bfe0ff' },
-  16: { stone: '#5a6068', dark: '#363a40', accent: '#5ae0c0', liquid: '#4af0c8', glow: true, orb: '#8affe0' }
+  16: { stone: '#5a6068', dark: '#363a40', accent: '#5ae0c0', liquid: '#4af0c8', glow: true, orb: '#8affe0' },
+  17: { stone: '#c4cee0', dark: '#7c88a4', accent: '#e8eefc', liquid: '#9fc8ff', glow: true, orb: '#dcecff' } // Seelenwacht: Mondstein, silberblau
 };
 const stadtLook = (id) => STADT_LOOK[id] || STADT_LOOK[1];
 const spRoof = (L, v) => [L.stone, L.dark, L.accent, L.liquid, L.glow ? 1 : 0, L.orb, v || ''].join('|');

@@ -238,7 +238,13 @@ const WORLD_MAPS = [
   { id: 13, name: 'Knochenwüste', side: 'schatten', shadow: true, levels: 'Stufe 20–29', minLevel: 20, region: [720, 880, 360, 220], camp: 13, genCamp: 9, text: 'Bleicher Sand voller alter Gebeine, Beinbrecher und Skorpionen. Orkfestung.', town: [95, 62], portals: [] },
   { id: 14, name: 'Blutsteppe', side: 'schatten', shadow: true, levels: 'Stufe 30–39', minLevel: 30, region: [0, 1100, 360, 220], camp: 13, genCamp: 9, text: 'Rote Steppe unter dunklem Himmel mit Blutogern und Blutdämonen. Totengruft.', town: [272, 150], portals: [] },
   { id: 15, name: 'Nachtfrost', side: 'schatten', shadow: true, levels: 'Stufe 40–49', minLevel: 40, region: [360, 1100, 360, 220], camp: 13, genCamp: 9, text: 'Ewige Winternacht mit Mitternachtswölfen, Dunkelyetis und Frostgespenstern. Eisgrotte.', town: [82, 150], portals: [] },
-  { id: 16, name: 'Schattenklippen', side: 'schatten', shadow: true, levels: 'Stufe 30–50', minLevel: 30, region: [720, 1100, 360, 220], camp: 20, genCamp: 14, text: 'Die Klippenfeste Nachtwacht, darum schroffe Schattenklippen mit Vipern und Kobras, außen das Schwarzmoor der Moornagas. Schlangentempel.', town: [262, 140], portals: [] }
+  { id: 16, name: 'Schattenklippen', side: 'schatten', shadow: true, levels: 'Stufe 30–50', minLevel: 30, region: [720, 1100, 360, 220], camp: 20, genCamp: 14, text: 'Die Klippenfeste Nachtwacht, darum schroffe Schattenklippen mit Vipern und Kobras, außen das Schwarzmoor der Moornagas. Schlangentempel.', town: [262, 140], portals: [] },
+  // Map 17 · Seelenhain: eine ruhige gemeinsame Karte für Stufe 80 zum Seelenstein-Farmen – sehr wenige Monster, sehr
+  // viele Seelensteine der Stufen 70, 75 und 80. Sie liegt links zwischen Kazehana (y 70–290) und dem Kristallabgrund
+  // (y 660–880) auf bisher freiem Fels; nichts Bestehendes verschiebt sich (MAP_W und MAP_H bleiben). Ohne side:
+  // gemeinsame Karte. Ganz hinten in der Liste, damit die gemeinsamen Zufallszahlen aller älteren Karten (Wildnis,
+  // Wanderer) unverändert bleiben. Noch ohne Dungeon, Instanz und Endboss. Darstellung in karte81.js.
+  { id: 17, name: 'Seelenhain', levels: 'Stufe 80', minLevel: 78, region: [0, 440, 360, 220], camp: 13, genCamp: 9, text: 'Ein stiller Hain im Mondlicht um das Lager Seelenwacht: kaum Monster, dafür überall Seelensteine der Stufen 70 bis 80.', town: [118, 108], portals: [] }
 ];
 const MAP_ZONES = [
   { id: 'oasenlager', map: 2, name: 'Oase Sahra', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'SAND' },
@@ -298,7 +304,8 @@ const MAP_ZONES = [
     ambient: { kind: 'shards', tint: [50, 30, 110, 0.14] }
   },
   // --- seit 14.54: Schattenseite (Maps 11–16), Gebiete wie auf den Lichtkarten derselben Stufe, eigene Böden und Monster.
-  // like: Gebiet der Lichtseite, dessen Darstellung (Felsen, Schmuck, Ränder, Musik) als Vorlage dient (schattenwelt.js)
+  // like: Gebiet der Lichtseite, dessen Darstellung (Felsen, Schmuck, Ränder, Musik) als Vorlage dient (schattenwelt.js;
+  // beim Seelenhain ein Gebiet der Schattenseite, karte81.js)
   { id: 'mondfall', map: 11, name: 'Mondfall', levels: 'Stadt · sicherer Ort', minDist: 0, maxDist: 15, safe: true, ground: 'NACHTGRAS', like: 'dorf' },
   {
     id: 'daemmerwiesen', map: 11, name: 'Dämmerwiesen', levels: 'Stufe 1–9', minLevel: 1, minDist: 15, maxDist: 999, like: 'wiesen',
@@ -353,6 +360,20 @@ const MAP_ZONES = [
     groups: [['moorpython', 11, 0, 0.6], ['moornaga', 11, 0.3, 1], ['moorseherin', 9, 0.5, 1], ['nebelpanther', 8, 0.2, 0.9]], groupSize: [2, 4],
     stones: [[40, 3, 0, 0.6], [45, 3, 0.4, 1], [50, 2, 0.7, 1]],
     ambient: { kind: 'wisps', tint: [20, 50, 40, 0.16] }
+  },
+  // Map 17 · Seelenhain: Dämmergras im Mondlicht, Teiche, lichte Baumgruppen (Darstellung wie die Dämmerwiesen, aber
+  // ohne das violette Moos – der Hain soll blau und silbern wirken, nicht violett wie der Kristallabgrund; eigene
+  // Stimmung: karte81.js). mobScale: nur rund ein Fünftel bis ein Sechstel der üblichen Monster
+  // (12 + 10 + 6 Gruppen × 3,4 × 0,32 ≈ 31 Paare, andere Karten 280–490 Monster), dafür gut dreimal so viele
+  // Seelensteine wie sonst (117 statt 35) in drei Stufen: nah am Lager 70, weiter draußen 75, außen 80.
+  { id: 'seelenwacht', map: 17, name: 'Seelenwacht', levels: 'Lager · sicherer Ort', minDist: 0, maxDist: 10, safe: true, ground: 'NACHTGRAS', like: 'mondfall' },
+  {
+    id: 'seelenhain', map: 17, name: 'Seelenhain', levels: 'Stufe 80', minLevel: 78, minDist: 8, maxDist: 999, like: 'daemmerwiesen',
+    mobScale: 0.32,
+    ground: 'NACHTGRAS', trees: 0.012, treeObj: 'TREE', rocks: 0.003, water: 0.2, liquid: 'WATER',
+    groups: [['abgrundgeist', 12, 0, 0.8], ['leerenritter', 10, 0.2, 1], ['kristallwyrm', 6, 0.5, 1]], groupSize: [1, 2],
+    stones: [[70, 6, 0, 0.5], [75, 8, 0.2, 0.8], [80, 10, 0.4, 1]],
+    ambient: { kind: 'seelenlicht', tint: [40, 70, 130, 0.12] }
   }
 ];
 // seit 14.50: Die Stadt bzw. das Lager liegt nicht mehr auf jeder Map in der Mitte (town: [x, y] in Kacheln ab der

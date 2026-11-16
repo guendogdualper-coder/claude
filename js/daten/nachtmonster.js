@@ -58,7 +58,9 @@ const NIGHT_GROUPS = {
   blutsteppe: [['schattendaemon', 6, 0.2, 1], ['aschegeist', 5, 0.3, 1]],
   nachtfrost: [['frostschatten', 6, 0.1, 0.9], ['nordlichtgeist', 5, 0.4, 1]],
   schattenklippen: [['mondkobra', 6, 0.2, 1]],
-  schwarzmoor: [['dschungelgeist', 6, 0.2, 1]]
+  schwarzmoor: [['dschungelgeist', 6, 0.2, 1]],
+  // Map 17 · Seelenhain: auch nachts nur wenige (rund ein Dutzend Sternenschemen statt 35)
+  seelenhain: [['sternenschemen', 2, 0.2, 1]]
 };
 for (const z of ZONES) if (NIGHT_GROUPS[z.id]) z.night = NIGHT_GROUPS[z.id];
 // seit 14.54: Nachtwanderer der Schattenkarten (Maps 11–16, eigene Liste; tag-nacht.js)

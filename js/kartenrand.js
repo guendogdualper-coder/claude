@@ -22,7 +22,8 @@ const RAND3_STIL = {
   wiesen: 'huegel', daemmerwiesen: 'huegelNacht', wald: 'hochwald', aschewald: 'aschewald', orktal: 'tafelberge',
   knochenwueste: 'knochenduenen', oedland: 'aschemeer', nagadschungel: 'dschungel', frost: 'wolken', nachtfrost: 'schneeberge',
   moor: 'moor', schwarzmoor: 'schwarzmoor', vulkan: 'vulkan', titanenkamm: 'grate', donnerklamm: 'grateGrau',
-  blutsteppe: 'blutsteppe', schattenklippen: 'grateNacht', leerenschlund: 'abgrund', kristallhang: 'abgrund', lichtwacht: 'abgrund'
+  blutsteppe: 'blutsteppe', schattenklippen: 'grateNacht', leerenschlund: 'abgrund', kristallhang: 'abgrund', lichtwacht: 'abgrund',
+  seelenhain: 'huegelNacht', seelenwacht: 'huegelNacht' // Map 17: dieselben Nachthügel wie um die Dämmerwiesen
 };
 // je Karte und Seite (0 Nord, 1 Süd, 2 West, 3 Ost) eine andere Art: Schattenklippen – im Norden das offene Meer
 const RAND3_SEITE = { m16: { 0: 'nachtmeer' } };

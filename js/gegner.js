@@ -85,14 +85,40 @@ function populateWorld() {
         groupId++;
       }
     }
+    // Steine eines Gebiets mit Abstand zueinander (stoneSpot): im Seelenhain (Map 17) stehen über hundert
+    const placed = [];
     for (const [level, count, from, to] of zone.stones || []) {
       for (let s = Math.round(count * WORLD_SCALE_STONES); s > 0; s--) {
-        const stone = createStone(zone, level, from, to);
-        if (stone) game.monsters.push(stone);
+        const spot = stoneSpot(zone, from, to, placed);
+        const stone = spot ? createStone(zone, level, from, to, spot) : null;
+        if (stone) {
+          game.monsters.push(stone);
+          placed.push(stone);
+        }
       }
     }
   }
   populateDungeons(groupId);
+}
+
+// Platz für einen Seelenstein im Ring seines Gebiets, nicht direkt neben einem anderen Stein (others): Seit es Karten
+// mit sehr vielen Steinen gibt (Seelenhain), standen sonst hin und wieder zwei ineinander. Bis zu acht Versuche,
+// danach gilt der letzte gefundene Platz (lieber eng als gar kein Stein).
+const STONE_GAP_TILES = 5;
+function stoneSpot(zone, from, to, others, self) {
+  const gap = STONE_GAP_TILES * TILE;
+  let spot = null;
+  for (let t = 0; t < 8; t++) {
+    const s = randomSpotInZone(zone, from, to);
+    if (!s) continue;
+    spot = s;
+    let near = false;
+    for (const o of others) {
+      if (o !== self && !o.dead && Math.abs(o.x - s.x) < gap && Math.abs(o.y - s.y) < gap) { near = true; break; }
+    }
+    if (!near) break;
+  }
+  return spot;
 }
 
 // Dungeons: in Raum 2–4 je zwei Gruppen, im letzten Raum der Boss.
@@ -508,7 +534,8 @@ function spotNear(c, radius) {
 function reviveMonster(m) {
   m.windup = 0;
   if (m.isStone && !m.fixedSpot) {
-    const spot = randomSpotInZone(m.zone, m.ring[0], m.ring[1]);
+    // neuer Platz mit Abstand zu den anderen Steinen (stoneSpot)
+    const spot = stoneSpot(m.zone, m.ring[0], m.ring[1], typeof MON_INDEX !== 'undefined' ? MON_INDEX.stones : [], m);
     if (spot) { m.x = m.homeX = spot.x; m.y = m.homeY = spot.y; }
     m.wave = 0;
     m.waveMarks = stoneWaveMarks();

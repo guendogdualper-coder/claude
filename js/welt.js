@@ -64,7 +64,8 @@ const ZONE_DECO = {
   // seit 14.54: Schattenseite
   daemmerwiesen: ['SHRUB', 'MUSHROOM', 'STUMP', 'SHRUB'], aschewald: ['STUMP', 'LOG', 'DEADTREE', 'BONES'], knochenwueste: ['BONES', 'BONES', 'DEADTREE'],
   blutsteppe: ['BONES', 'DEADTREE', 'CRYSTAL', 'BONES'], nachtfrost: ['CRYSTAL', 'DRIFT', 'BONES', 'DRIFT'], schattenklippen: ['BONES', 'CRYSTAL', 'DEADTREE'],
-  schwarzmoor: ['MUSHROOM', 'LOG', 'SHRUB', 'BONES']
+  schwarzmoor: ['MUSHROOM', 'LOG', 'SHRUB', 'BONES'],
+  seelenhain: ['SHRUB', 'MUSHROOM', 'SHRUB', 'STUMP'] // Map 17: Büsche und leuchtende Pilze, kaum Stolperteile
 };
 const DECO_RATE = 0.022;
 function zoneDeco(zone, r) {
@@ -392,7 +393,9 @@ const TOWN_THEME = {
   13: { planter: 'dorn', bench: 'stein', goods: 'krug', pile: ['totem', 'sack'], banner: '#4a4a5a' },
   14: { planter: 'dorn', bench: 'stein', goods: 'erz', pile: ['erz', 'sack'], banner: '#6a0e1a', stone: '#ff6a6a' },
   15: { planter: 'tanne', bench: 'holz', goods: 'markt', pile: ['holz'], banner: '#22305a', snow: true },
-  16: { planter: 'pilz', bench: 'stein', goods: 'markt', pile: ['sack', 'holz'], banner: '#1e3a3a', stone: '#7ae0a8' }
+  16: { planter: 'pilz', bench: 'stein', goods: 'markt', pile: ['sack', 'holz'], banner: '#1e3a3a', stone: '#7ae0a8' },
+  // Map 17: Seelenwacht im Seelenhain – silberblaue Banner, Pilzkübel, Steinbänke
+  17: { planter: 'pilz', bench: 'stein', goods: 'krug', pile: ['krug', 'holz'], banner: '#2e4a7a', stone: '#bfe0ff' }
 };
 const PILE_PROP = { heu: 'hay', holz: 'woodpile', sack: 'sacks', krug: 'pots', totem: 'totem', erz: 'ore' };
 // Ist (x, y) (Kacheln) ein guter Platz für Schmuck? Nicht auf Weg, Haus oder Mauer, nicht in der Mitte oder vor
@@ -930,7 +933,7 @@ function townLayoutProps(mp, T) {
     }
   }
   const th = TOWN_THEME[mp.id] || {};
-  const fire = { 8: '#8fe36a', 10: '#9fd8ff' }[mp.id] || '#ffb04a';
+  const fire = { 8: '#8fe36a', 10: '#9fd8ff', 17: '#bfe0ff' }[mp.id] || '#ffb04a';
   for (const [type, dx, dy] of L.lights || []) {
     out.push(type === 'brazier' ? { type, roof: fire, ...T(mp.cx + dx, mp.cy + dy) } : { type, ...T(mp.cx + dx, mp.cy + dy) });
   }
@@ -944,7 +947,7 @@ function townLayoutProps(mp, T) {
 // weißen Frostgipfel kaum zu sehen)
 const TP_STONE_COLOR = {
   1: '#3fb8ff', 2: '#22d6c0', 3: '#5fb0ff', 4: '#ffd23f', 5: '#3fd8ff', 6: '#b25cff', 7: '#d23fff', 8: '#8dff5a', 9: '#3fe0ff', 10: '#ffd060',
-  11: '#ffe45a', 12: '#ff7a2e', 13: '#2ed6cc', 14: '#5ad8ff', 15: '#ff5ad2', 16: '#5affa8'
+  11: '#ffe45a', 12: '#ff7a2e', 13: '#2ed6cc', 14: '#5ad8ff', 15: '#ff5ad2', 16: '#5affa8', 17: '#ffd86a'
 };
 // Ist (x, y) (Kacheln) in einer Stadt mit eigener Form ein freier Platz für Schmuck? Begehbarer, sicherer Stadtboden
 // ohne Weg, nicht vor einem Tor, nicht an Treppen und Teleportsteinen
@@ -1178,26 +1181,28 @@ function generateWorld() {
     13: { haendler: ['Bleika', 0], schmied: ['Ossko', 0], waffen: ['Grimmzahn', 0], ruestung: ['Kalka', 0], alchemist: ['Mürb', 0], aeltester: ['Ossian', 0], jaegerin: ['Sandra', 0], teleport: ['Wispel', 1], stallmeister: ['Dorrak', 0], lehrmeister: ['Velka', 1], lager: ['Spann', 0] },
     14: { haendler: ['Rubina', 0], schmied: ['Hager', 0], waffen: ['Karmin', 0], ruestung: ['Scharla', 0], alchemist: ['Sangor', 0], aeltester: ['Ruthgar', 0], jaegerin: ['Vela', 0], teleport: ['Roth', 1], stallmeister: ['Steppa', 1], lehrmeister: ['Korvin', 0], lager: ['Murrak', 0] },
     15: { haendler: ['Nivea', 0], schmied: ['Frosthand', 0], waffen: ['Isgar', 0], ruestung: ['Rima', 0], alchemist: ['Kalla', 1], aeltester: ['Edda', 1], jaegerin: ['Snjola', 0], teleport: ['Glanz', 1], stallmeister: ['Bjarki', 0], lehrmeister: ['Halla', 1], lager: ['Sturri', 0] },
-    16: { haendler: ['Nebula', 0], schmied: ['Krag', 0], waffen: ['Klippa', 0], ruestung: ['Moos', 1], alchemist: ['Schierling', 0], aeltester: ['Ysra', 1], jaegerin: ['Schlick', 1], teleport: ['Dämmer', 1], stallmeister: ['Riff', 0], lehrmeister: ['Ossina', 1], lager: ['Torf', 0] }
+    16: { haendler: ['Nebula', 0], schmied: ['Krag', 0], waffen: ['Klippa', 0], ruestung: ['Moos', 1], alchemist: ['Schierling', 0], aeltester: ['Ysra', 1], jaegerin: ['Schlick', 1], teleport: ['Dämmer', 1], stallmeister: ['Riff', 0], lehrmeister: ['Ossina', 1], lager: ['Torf', 0] },
+    // Map 17: die Leute von Seelenwacht im Seelenhain
+    17: { haendler: ['Ilmera', 0], schmied: ['Tarven', 0], waffen: ['Kelrun', 0], ruestung: ['Syra', 0], alchemist: ['Noemi', 1], aeltester: ['Maruna', 1], jaegerin: ['Yelva', 0], teleport: ['Lunis', 1], stallmeister: ['Hendrik', 0], lehrmeister: ['Orwin', 0], lager: ['Jorun', 0] }
   };
   // Bogenmacher je Map (seit 13.57)
   const BOW_PEOPLE = { 2: ['Amira', 0], 3: ['Torvald', 1], 4: ['Wiebke', 0], 5: ['Grisha', 0], 6: ['Zeynep', 0], 7: ['Liv', 0], 8: ['Rabe', 1], 9: ['Flint', 1], 10: ['Siv', 0],
-    11: ['Silvra', 0], 12: ['Kiefer', 1], 13: ['Sehne', 0], 14: ['Dorna', 0], 15: ['Reif', 1], 16: ['Natter', 0] };
+    11: ['Silvra', 0], 12: ['Kiefer', 1], 13: ['Sehne', 0], 14: ['Dorna', 0], 15: ['Reif', 1], 16: ['Natter', 0], 17: ['Thessa', 0] };
   for (const [k, v] of Object.entries(BOW_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].bogenmacher = v;
   // Auktionshaus und Post je Map (seit 13.63)
   const AUCTION_PEOPLE = { 2: ['Bashir', 0], 3: ['Ingvild', 1], 4: ['Konrad', 0], 5: ['Gruk', 0], 6: ['Soraya', 1], 7: ['Eskil', 0], 8: ['Morgana', 1], 9: ['Brand', 0], 10: ['Lucan', 0],
-    11: ['Mirok', 0], 12: ['Glutfinger', 0], 13: ['Talgrid', 1], 14: ['Ochra', 1], 15: ['Rimfrost', 0], 16: ['Orl', 0] };
+    11: ['Mirok', 0], 12: ['Glutfinger', 0], 13: ['Talgrid', 1], 14: ['Ochra', 1], 15: ['Rimfrost', 0], 16: ['Orl', 0], 17: ['Meren', 0] };
   const POST_PEOPLE = { 2: ['Leyla', 0], 3: ['Arvid', 1], 4: ['Hanne', 0], 5: ['Durza', 0], 6: ['Karim', 1], 7: ['Tove', 0], 8: ['Krähe', 1], 9: ['Asche', 0], 10: ['Fenja', 0],
-    11: ['Eule', 0], 12: ['Funkel', 0], 13: ['Knöch', 1], 14: ['Wachs', 0], 15: ['Flocke', 0], 16: ['Unke', 0] };
+    11: ['Eule', 0], 12: ['Funkel', 0], 13: ['Knöch', 1], 14: ['Wachs', 0], 15: ['Flocke', 0], 16: ['Unke', 0], 17: ['Lyske', 0] };
   for (const [k, v] of Object.entries(AUCTION_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].auktion = v;
   for (const [k, v] of Object.entries(POST_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].post = v;
   // Arenameister je Map (seit 13.63, Herausforderung)
   const ARENA_PEOPLE = { 2: ['Zarif', 1], 3: ['Brynja', 0], 4: ['Rasmus', 1], 5: ['Urgash', 1], 6: ['Samira', 0], 7: ['Hedda', 0], 8: ['Vesper', 0], 9: ['Glutfaust', 1], 10: ['Varik', 1],
-    11: ['Nachtklinge', 0], 12: ['Brandt', 1], 13: ['Schädelbrecher', 1], 14: ['Rotfaust', 0], 15: ['Grimhild', 0], 16: ['Morast', 1] };
+    11: ['Nachtklinge', 0], 12: ['Brandt', 1], 13: ['Schädelbrecher', 1], 14: ['Rotfaust', 0], 15: ['Grimhild', 0], 16: ['Morast', 1], 17: ['Darvin', 1] };
   for (const [k, v] of Object.entries(ARENA_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].arena = v;
   // Turniermeister je Map (seit 13.86, Turnierarena)
   const PVP_PEOPLE = { 2: ['Faruk', 1], 3: ['Ragnhild', 0], 4: ['Wendel', 1], 5: ['Morga', 0], 6: ['Kamal', 1], 7: ['Asta', 0], 8: ['Dorn', 1], 9: ['Zinder', 1], 10: ['Liora', 0],
-    11: ['Raven', 1], 12: ['Kohle', 0], 13: ['Gerippe', 1], 14: ['Scharlach', 0], 15: ['Frostzahn', 1], 16: ['Nebelfrau', 0] };
+    11: ['Raven', 1], 12: ['Kohle', 0], 13: ['Gerippe', 1], 14: ['Scharlach', 0], 15: ['Frostzahn', 1], 16: ['Nebelfrau', 0], 17: ['Ravena', 0] };
   for (const [k, v] of Object.entries(PVP_PEOPLE)) if (MAP_PEOPLE[k]) MAP_PEOPLE[k].pvp = v;
   const personName = (mapId, id) => {
     const [n, form] = (MAP_PEOPLE[mapId] && MAP_PEOPLE[mapId][id]) || ['', 0];
