@@ -75,7 +75,7 @@ const WEIGHTS = { st: 0.25, aoe: 0.25, surv: 0.20, ctrl: 0.15, mob: 0.15 };
 //         Fertigkeit im Spielcode an hitMonster weitergeben muss (kleine Code-Änderung, im Bericht gekennzeichnet)
 // Der Vorschlag aus docs/balance-klassen.md ist seit 13.68 im Spiel umgesetzt; die Liste ist deshalb leer.
 // Für neue Versuche hier Einträge eintragen oder --vorschlag-datei <datei.json> benutzen. Beispiele:
-//   { set: 'CLASSES.krieger.paths.0.skills.0.waveDmg', v: 1.6 }
+//   { set: 'CLASSES.krieger.paths.0.skills.0.crossDmg', v: 1.6 }
 //   { inject: 'glutfeld', opts: { stun: 0.35 } }
 //   { ultbuff: 'inferno', buff: { id: 'glutmantel', name: 'Glutmantel', duration: 30, effects: { damageTaken: -0.35 } } }
 //   { segen: 'magier', fn: '(lv) => ({ natureDmg: 0.04 + 0.02 * lv })' }
@@ -296,7 +296,7 @@ function pageLib() {
   // --- Spieler-KI ---
   S.ai = { mode: 'rotult', potHp: 0, potMp: 0.3, pots: 0, mpPots: 0 };
   S.pvpMode = false; // im PvP-Lauf zählt der Duellgegner (Stellvertreter) als Ziel
-  const reach = (sk) => sk.range || (sk.distance ? sk.distance + 30 : 0) || sk.waveLen || sk.radius || 120;
+  const reach = (sk) => sk.range || (sk.distance ? sk.distance + 30 : 0) || sk.crossLen || sk.waveLen || sk.radius || 120;
   const prio = (sk) => (sk.channel || sk.castTime ? -1 : sk.cooldown);
   S.aiTick = () => {
     const p = game.player; const A = S.ai;
@@ -315,6 +315,8 @@ function pageLib() {
     const chanAge = p.channel ? game.time - p.channel.start : 99;
     if (A.mode === 'rotult' && p.level >= ULT_UNLOCK && p.ultCd <= 0 && d < 260 && !(p.channel && chanAge < 1.5)) {
       useUltimate();
+      // Ulti mit Zielort (Sturmgericht): der Zielkreis liegt auf dem Ziel, zweites Drücken wirkt
+      if (game.aim && game.aim.i === ULT_BAR) useUltimate();
       if (p.ultCd > 0) return;
     }
     const order = [0, 1, 2, 3, 4].sort((a, b) => prio(skills[b]) - prio(skills[a]));

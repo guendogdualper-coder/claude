@@ -3,7 +3,7 @@
 // Legendär L1–L10, Vollendet V]. Anzeige über skillRankName(sk, stufe).
 const RANK_NAMES = {
   // Krieger – Weg der Klinge
-  sichelwelle: ['Mondsichelwelle', 'Sturmsichel', 'Sichel der Verdammnis', 'Weltenteiler'],
+  klingenkreuz: ['Stahlkreuz', 'Sturmkreuz', 'Kreuz des Kriegsherrn', 'Weltenkreuz'],
   schwertwirbel: ['Klingensturm', 'Stählerner Orkan', 'Wirbel der tausend Klingen', 'Mahlstrom des Kriegsgottes'],
   kampfrausch: ['Blutrausch', 'Berserkerwut', 'Zorn der Ahnen', 'Unsterblicher Furor'],
   sprungschlag: ['Sturzangriff', 'Meteorsprung', 'Himmelssturz', 'Fall des Kriegsgottes'],

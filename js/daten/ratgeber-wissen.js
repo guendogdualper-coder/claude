@@ -371,8 +371,40 @@ const RATGEBER_WISSEN = [
     c: 'ausruestung', p: 4, q: 'Wie funktioniert der Schmied?',
     a: () => `<b>{n:schmied}</b> verbessert Ausrüstung bis +${(typeof MAX_PLUS !== 'undefined') ? MAX_PLUS : 20} – mit Gold und Seelensplittern, ab +6 (bei Ausrüstung ab Stufe 30 schon ab +4) zusätzlich mit Teilen von Monstern. ` +
       ((typeof UPGRADE_STEPS !== 'undefined') ? `Die Erfolgschance sinkt von ${rgPct(UPGRADE_STEPS[0].chance)} (+0 → +1) bis ${rgPct(UPGRADE_STEPS[UPGRADE_STEPS.length - 1].chance)} (+19 → +20). ` : '') +
-      'Jedes Plus macht den Gegenstand stärker. Beim Schmied siehst du vorher alle Werte alt → neu und die Kosten.',
+      'Jedes Plus macht den Gegenstand stärker. Beim Schmied siehst du vorher alle Werte alt → neu und die Kosten.' +
+      ((typeof E80 !== 'undefined') ? ` Abgründige (Lv 70) und ewige Ausrüstung (Lv 80) ist teuer: Bei Ewig kostet das erste Plus ${rgFmt(e80SmithGold(9, 0))} Gold, +19 → +20 schon ${rgFmt(e80SmithGold(9, 19))} Gold.` : ''),
     k: 'schmied aufwerten upgrade verbessern plus +20 +10 schmieden chance kosten'
+  },
+  // Endgame ab Stufe 80 (endgame80.js, docs/endgame-80.md)
+  {
+    c: 'ausruestung', p: 3, q: 'Was kostet der Schmied für Stufe-80-Ausrüstung?',
+    a: () => (typeof E80 === 'undefined') ? 'Ewige Ausrüstung (Stufe 80) ist beim Schmied teurer als alles andere.' :
+      `Für ewige Ausrüstung (Stufe 80) kostet das erste Plus <b>${rgFmt(e80SmithGold(9, 0))} Gold</b>, jedes weitere das ${String(E80.smith[9].g).replace('.', ',')}-Fache: +5 → +6 ${rgFmt(e80SmithGold(9, 5))}, +10 → +11 ${rgFmt(e80SmithGold(9, 10))}, +15 → +16 ${rgFmt(e80SmithGold(9, 15))}, +19 → +20 ${rgFmt(e80SmithGold(9, 19))} Gold. ` +
+      `Abgründige Ausrüstung (Stufe 70) beginnt bei ${rgFmt(e80SmithGold(8, 0))} Gold. Chancen, Seelensplitter, Monster-Teile und Ätherkerne bleiben wie bisher – mit Segensschriftrollen ist ein Teil auf +15 oder gar +20 ein langes Ziel für viele Stunden Gold.`,
+    k: 'schmied stufe 80 ewig teuer kosten gold plus 20 aufwerten endgame lv80 abgruendig 70'
+  },
+  {
+    c: 'ausruestung', p: 3, q: 'Was mache ich auf Stufe 80 mit meinem Gold?',
+    a: 'Ab Stufe 80 geht es erst richtig los: <b>Schmied</b> – ewige Ausrüstung hochschmieden kostet viel Gold. ' +
+      '<b>Veredler</b> (in Kazehana, Mondfall, Lichtwacht und den Lagern Seelenwacht, Leuchtwacht und Sonnenhof, neben dem Schmied): einzelne Boni neu würfeln, ewige Ausrüstung in fünf Stufen veredeln und Teile färben. ' +
+      'Dazu die Glutschwinge beim Stallmeister und Handel im Auktionshaus.',
+    k: 'gold stufe 80 endgame was tun ausgeben veredler veredeln schmied reich geld wohin lv80'
+  },
+  {
+    c: 'ausruestung', p: 3, q: 'Was macht der Veredler?',
+    a: () => (typeof E80 === 'undefined') ? 'Er würfelt Boni neu, veredelt und färbt Ausrüstung.' :
+      `Drei Dinge, alle gegen Gold: <b>Bonus neu würfeln</b> – du wählst einen Bonus (1–7) eines Teils ab Stufe 60 und würfelst Art und Wert oder nur den Wert neu. Das kostet einen Switcher (Bonus 6/7: Sternen-Switcher) und Gold: bei Stufe 80 ${rgFmt(e80RerollCost({ tier: 9, rr: 0 }).gold)} Gold, jeder weitere Neuwurf am selben Teil das ${String(E80.reroll.g).replace('.', ',')}-Fache. Gefällt dir der neue Bonus nicht, holst du den alten gleich danach zurück (die Kosten bleiben weg). ` +
+      `<b>Veredeln</b> – ewige Ausrüstung (Stufe 80) in ${E80.ved.max} Stufen, jede gibt +${Math.round(E80.ved.per * 100)} % Grundwerte (Angriff, Rüstung, Leben, Mana) und hebt das Itemlevel. Gelingt immer, nichts geht kaputt; Stufe 1 kostet ${rgFmt(E80.ved.gold[0])} Gold, Stufe 5 ${rgFmt(E80.ved.gold[E80.ved.max - 1])} Gold, dazu Ätherkerne und Seelensplitter. ` +
+      `<b>Färben</b> – ewige Teile ohne Set in acht Farben, ${rgFmt(E80.dye.gold)} Gold je Färbung, nur fürs Aussehen.`,
+    k: 'veredler veredeln neu wuerfeln bonus umwuerfeln reroll faerben farbe stufe veredelung gold'
+  },
+  {
+    c: 'ausruestung', p: 2, q: 'Was sind Prägungen bei Stufe-80-Ausrüstung?',
+    a: () => (typeof E80_FAM === 'undefined') ? 'Ewige Ausrüstung von den Stufe-80-Karten hat eigene Namen und ein eigenes Aussehen.' :
+      `Ewige Ausrüstung ohne Set, die auf den Stufe-80-Karten, in den Stufe-80-Instanzen, im Turm der Verdammten oder bei den Endbossen ab Stufe 76 fällt, trägt eine von ${Object.keys(E80_FAM).length} <b>Prägungen</b>: ` +
+      Object.values(E80_FAM).map((f) => `<span style="color:${f.a}">${f.name}</span> (${f.from})`).join(', ') + '. ' +
+      'Jede Prägung hat eigene Namen, Farben und Formen an Helm, Schultern, Brust, Rücken und Waffe, dazu einen Bonus-Schwerpunkt: Ihre Boni würfeln öfter aus dem Schwerpunkt (auch beim Switcher und beim Veredler). Die Werte sind dieselben wie bei jedem ewigen Teil – entscheidend bleibt das Itemlevel.',
+    k: 'praegung varianten stufe 80 ewig namen aussehen splitter prismen irrlicht ranken gischt sturmflut zenit blueten bastion fluch wyrm titan schwerpunkt'
   },
   // seit 14.86: Teilewandlerin in Lichtwacht (teilewandler.js)
   {

@@ -776,6 +776,9 @@ function* mergeRawSteps(list, skinned, slice) {
         } else {
           si[(vo + i) * 4] = it.bone;
           sw[(vo + i) * 4] = 1;
+          // seit 15.46: Gelenke der Spielfiguren (Ellbogen, Knie, Knöchel) – Gewichte nach der Lage der Ecke
+          // (it.skin, siehe joints3 in drei-figuren.js), Platz 0 bleibt der stärkste Knochen
+          if (it.skin) it.skin(_v1, si, sw, (vo + i) * 4);
         }
       }
     }

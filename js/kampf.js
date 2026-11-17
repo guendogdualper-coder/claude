@@ -1220,7 +1220,7 @@ function useSkill(i) {
   }
 }
 
-// --- Hilfen für Sichelwelle, Felsenfaust und Sprungschlag (seit 8.3) ------------------------------
+// --- Hilfen für Klingenkreuz, Felsenfaust und Sprungschlag (seit 8.3) ----------------------------
 
 // Verlangsamung setzen, ohne eine stärkere laufende zu überschreiben (Diener-Bisse gegen Flüche, Blizzard)
 function setSlow(m, mul, dur) {
@@ -1268,39 +1268,6 @@ function hopReach(x, y, dir, want, r) {
 // Darf ein Monster sichtbar hochgeschleudert werden? (nur Optik)
 function canLift(m) {
   return !!m && !m.dead && !m.isStone && !(m.type && m.type.boss) && !m.duelProxy;
-}
-
-// Sichelwelle: Einschlag und wandernde Klingensichel; local = eigener Spieler (trifft), sonst nur Optik
-function waveFx(owner, x0, y0, dir, wl, sk, local, pw) {
-  const fy0 = y0 + 9;
-  addEffect({ type: 'impact', x: x0, y: fy0 - 14, dur: 0.3, color: '#ffffff', big: true });
-  addEffect({ type: 'ring', x: x0, y: fy0, r: 40, dur: 0.3, color: '#cfe0ff', width: 6, grow: true });
-  addEffect({ type: 'decal', kind: 'crack', x: x0, y: fy0, r: 24, dur: 2, color: '#2a1a10' });
-  addEffect({ type: 'sparks3', x: x0, y: fy0, h: 0.2, count: 12, color: '#e6eeff', speed: 2.6, up: 1.2, dur: 0.5 });
-  const speed = 420;
-  const steps = Math.ceil(wl / speed / 0.05);
-  addEffect({ type: 'wave3', x: x0, y: fy0, dx: dir.x, dy: dir.y, dist: wl, w: sk.waveWidth, dur: wl / speed + 1.2, speed, color: sk.color || '#e6eeff' });
-  const hit = new Set();
-  for (let s = 0; s <= steps; s++) {
-    later(s * 0.05, () => {
-      const d = Math.min(wl, speed * s * 0.05);
-      const cx = x0 + dir.x * d;
-      const cy = y0 + dir.y * d;
-      particles(cx, cy + 9, { count: 3, color: ['#ffffff', '#cfe0ff'], angle: Math.atan2(-dir.y, -dir.x), spread: 0.6, speed: [60, 140], life: [0.2, 0.35], size: [1.5, 2.5], shape: 'spark', drag: 4 });
-      addEffect({ type: 'decal', kind: 'scorch', x: cx, y: cy + 9, r: 10, dur: 1.4, color: '#2a2018' });
-      if (local) {
-        for (const m of enemiesInCircle(cx, cy, sk.waveWidth / 2)) {
-          if (hit.has(m.id)) continue;
-          hit.add(m.id);
-          hitMonster(m, sk.waveDmg * pw, { skill: sk.id, knockback: sk.knockback, from: { x: cx - dir.x * 40, y: cy - dir.y * 40 }, heavy: true, vfxColor: '#e6eeff' });
-        }
-      }
-      if (s === steps && wl < sk.waveLen - 6) {
-        addEffect({ type: 'impact', x: cx, y: cy - 4, dur: 0.22, color: '#e6eeff' });
-        addEffect({ type: 'sparks3', x: cx, y: cy + 9, h: 0.4, count: 6, color: '#e6eeff', speed: 2, up: 1, dur: 0.4 });
-      }
-    });
-  }
 }
 
 // Felsenfaust: Faust schlägt bei from in den Boden, Riss läuft zu end, Pfeiler bricht hervor (für alle gleich)
@@ -1455,7 +1422,9 @@ function aimFire(x, y) {
     return;
   }
   a.go = true;
-  useSkill(a.i);
+  // Ulti mit Zielort (ULT_BAR, Sturmgericht) oder Fertigkeit
+  if (a.i === ULT_BAR) useUltimate();
+  else useSkill(a.i);
   cancelAim();
 }
 function updateAim() {
@@ -1671,33 +1640,7 @@ const SKILL_TYPES = {
     shakeScreen(2);
   },
 
-  // Sichelwelle (seit 8.3): Querhieb im Fächer, dann Einschlag und eine Klingenwelle, die nach vorn gleitet
-  wave(sk, pw) {
-    const p = game.player;
-    const c = CLASSES[p.classId];
-    const dir = { ...aim(sk.waveLen * 0.6) };
-    const ang = Math.atan2(dir.y, dir.x);
-    const spread = sk.angle * Math.PI / 180;
-    lockPlayer(p, sk.lock);
-    input.walkTo = null;
-    const x0 = p.x + dir.x * 28;
-    const y0 = p.y + dir.y * 28;
-    const wl = clearLen(x0, y0, dir, sk.waveLen, 6);
-    later(0.12, () => {
-      if (p.dead) return;
-      vfxSweep(p, sk.radius * 0.85, ang + spread / 2, ang - spread / 2, sk.color || c.trim, 0.22, 30);
-      if (MELEE_KINDS.has(weaponKindOf(p))) addEffect({ type: 'bladearc', follow: p, ox: 0, oy: -14, len: sk.radius * 0.8, a0: ang + spread / 2, a1: ang - spread / 2, dur: 0.24, ...playerBlade(p) });
-      for (const m of enemiesInCone(p.x, p.y, dir, sk.radius, sk.angle)) hitMonster(m, sk.dmg * pw, { skill: sk.id });
-    });
-    later(0.24, () => { p.leap = { start: game.time, dur: 0.14, h: 10 }; });
-    later(0.4, () => {
-      if (p.dead) return;
-      hitStop(0.04);
-      shakeScreen(4);
-      waveFx(p, x0, y0, dir, wl, sk, true, pw);
-    });
-    return { wl: Math.round(wl), tx: Math.round(x0 + dir.x * wl), ty: Math.round(y0 + dir.y * wl) };
-  },
+  // Klingenkreuz (Platz 1 des Weges der Klinge, statt der Sichelwelle): SKILL_TYPES.kreuz in klingenkreuz.js
 
   // Felsenfaust (seit 8.3): Riss zum Ziel, Felspfeiler bricht unter ihm hervor und schleudert es hoch
   erupt(sk, pw) {
@@ -2162,7 +2105,7 @@ function dashStep(dt) {
     } else if (now >= d.until) p.dash = null;
     return;
   }
-  // kurze Sperre während einer Fertigkeit (Sichelwelle, Felsenfaust)
+  // kurze Sperre während einer Fertigkeit (Klingenkreuz, Felsenfaust)
   if (d.lock) {
     if (game.time >= d.until || p.dead) p.dash = null;
     return;

@@ -150,7 +150,7 @@ function withRank(rank, fn) {
   }
 }
 // nova3 und sigil3 (Magier) tragen ihren Radius in R: der Rang färbt sie, vergrößert sie aber nicht (Front-Takt)
-const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin', 'wave3', 'nova3', 'sigil3']);
+const RANK_FX_TYPES = new Set(['ring', 'slash', 'swoosh', 'pillar', 'impact', 'runes', 'bolt', 'beam', 'chain', 'tornado', 'decal', 'bladearc', 'bladespin', 'nova3', 'sigil3']);
 function rankLook(e) {
   if (fxRank < 0 || e.rank != null || !RANK_FX_TYPES.has(e.type)) return;
   e.rank = fxRank;

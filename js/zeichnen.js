@@ -371,7 +371,10 @@ function swingProgress(p, ago = 0) {
 function weaponAngle(kind, dir, p, ago = 0) {
   const t = swingProgress(p, ago);
   // Kraftpose: Waffe steil nach oben
-  if ((p.swingKind === 'pose' || p.swingKind === 'schwertaura') && t >= 0) return dir === 'side' ? -1.25 : -1.9;
+  // (auch Sturmgericht: das Zepter zum Himmel, Haltung 'sgruf')
+  if ((p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf') && t >= 0) return dir === 'side' ? -1.25 : -1.9;
+  // Klingenkreuz: zwei Hiebe über Kreuz und ein Stoß (Winkel über den Ablauf, klingenkreuz.js)
+  if (p.swingKind === 'kreuz' && t >= 0 && typeof kreuzAngle2d === 'function') return kreuzAngle2d(p, dir, t);
   // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
   if (kind === 'bow') return localFacingAngle(dir) + (dir === 'side' ? 0 : 0.35) + (t >= 0 ? -Math.sin(t * Math.PI) * 0.15 : 0);
   if (kind === 'staff' || kind === 'bell' || kind === 'rod' || (kind === 'fan' && p.swingKind === 'cast')) {
@@ -435,7 +438,7 @@ function drawPlayer(ctx, p) {
   }
   // Kraftpose beim Buffen: Arme hoch, kleiner Hüpfer (auch bei Mitspielern, über swingKind)
   // seit 14.61 auch die Wirk-Animation der Schwertaura (in 2D als Kraftpose mit beiden Armen oben)
-  const posing = (p.swingKind === 'pose' || p.swingKind === 'schwertaura') && p.swing > 0 && !p.riding;
+  const posing = (p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf') && p.swing > 0 && !p.riding;
   const poseK = posing ? 1 - p.swing / (p.swingDur || 0.7) : 0;
   if (posing) leapH += Math.sin(Math.min(1, poseK * 1.6) * Math.PI) * 6;
   const ride = rideHeight(p) + leapH;
@@ -458,7 +461,9 @@ function drawPlayer(ctx, p) {
     // Beidhändig: das zweite Schwert in der linken Hand, gegengleich zum ersten geschwungen
     if (isOffhand(shield)) {
       const left = handPosition(dir, frame, 'left');
-      const offAngle = dir === 'side' ? angle + 0.5 + (t >= 0 ? Math.sin(t * Math.PI) * 0.6 : 0) : Math.PI - angle;
+      // Klingenkreuz: von der Seite schlägt die zweite Waffe den zweiten Hieb (kreuzAngle2d)
+      const kk2 = p.swingKind === 'kreuz' && t >= 0 && dir === 'side' && typeof kreuzAngle2d === 'function';
+      const offAngle = kk2 ? kreuzAngle2d(p, dir, t, true) : dir === 'side' ? angle + 0.5 + (t >= 0 ? Math.sin(t * Math.PI) * 0.6 : 0) : Math.PI - angle;
       drawWeaponSprite(ctx, shield.kind, left.x + (dir === 'side' ? -4 : 0), left.y, offAngle, shield.tier);
       const ob = plusBand(shield.plus);
       if (ob >= 2) glow(ctx, left.x + Math.cos(offAngle) * 16, left.y + Math.sin(offAngle) * 16, 10 + ob * 3, glowColorOf(shield), 0.3 + ob * 0.08);
@@ -504,7 +509,8 @@ function drawPlayer(ctx, p) {
   const t = swingProgress(p);
   const fa = localFacingAngle(dir);
   const thrust = p.swingKind === 'combo' && p.combo === 2;
-  const lunge = t >= 0 && melee && !posing ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
+  const kreuz = p.swingKind === 'kreuz' && t >= 0 && typeof kreuzLunge2d === 'function';
+  const lunge = kreuz ? kreuzLunge2d(p, t) : t >= 0 && melee && !posing ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
   if (thrust) {
     hand.x += Math.cos(fa) * lunge * 1.3;
     hand.y += Math.sin(fa) * lunge * 0.8;
@@ -554,6 +560,8 @@ function drawPlayer(ctx, p) {
   const gsz = lookSize(p.look);
   if (gsz !== 1) ctx.scale(gsz, gsz);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
+  // Klingenkreuz: von der Seite lehnt sich die Figur ins Ausholen zurück und in die Hiebe hinein
+  if (kreuz && dir === 'side' && !p.riding) ctx.rotate(kreuzTilt2d(p, t));
   // Getroffen: kurz nach hinten zucken
   const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;
   if (hurtK < 1 && !p.riding) ctx.rotate(-Math.sin(hurtK * Math.PI) * 0.1);

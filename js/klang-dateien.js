@@ -175,9 +175,10 @@ const MOB_FILE = {
   dragon: ['drache_wut', 'drache_weh', 1]
 };
 // Fertigkeit → [Datei, Höhe, Lautstärke]; ohne Eintrag nach Element (EL_FILE)
+// (Klingenkreuz: hier der Schwung des ersten Hiebs; zweiter Hieb, Stoß und Zerbersten kommen aus kkSnd, klingenkreuz.js)
 const SKILL_FILE = {
   // Krieger
-  sichelwelle: ['klinge', 1], schwertwirbel: ['wirbel', 1], kampfrausch: ['feuer_wirken', 0.8], sprungschlag: ['sprung', 1],
+  klingenkreuz: ['schwung_mittel', 0.95], schwertwirbel: ['wirbel', 1], kampfrausch: ['feuer_wirken', 0.8], sprungschlag: ['sprung', 1],
   schwertaura: ['licht', 0.8], felsenfaust: ['erde_einschlag', 1], erdbeben: ['beben', 1], starkerkoerper: ['erde_wirken', 0.9],
   geistesschlag: ['licht', 1.1], kriegsschrei: ['feuer_wirken', 0.7],
   // Ninja

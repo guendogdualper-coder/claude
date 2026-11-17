@@ -100,6 +100,13 @@ function useUltimate() {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;
   }
+  // Ultis mit Zielort (u.aim, Sturmgericht): erst zielen wie bei den Ortszaubern (kampf.js startAim/aimFire), beim
+  // zweiten Drücken oder Tippen auf den Boden wirken; der Zielkreis gilt dann für ULT_BAR statt einer Fertigkeit
+  if (u.aim && !(game.aim && game.aim.i === ULT_BAR && game.aim.go)) {
+    if (game.aim && game.aim.i === ULT_BAR) aimFire();
+    else startAim(ULT_BAR, u);
+    return;
+  }
   if (p.riding) toggleRide(false);
   // aus der Tarnung (seit 13.39): auch die Ulti trifft mit allen Treffern × nextHitMul (seit 13.85 ×2)
   const sMul = typeof stealthCastBegin === 'function' ? stealthCastBegin(p) : 1;
@@ -111,9 +118,11 @@ function useUltimate() {
   stealthCastEnd(p, sMul);
   p.ultCd = ULT_COOLDOWN;
   p.lastCombat = game.time;
-  startSwing(p, 'pose', 0.7);
+  // eigene Haltung (u.pose, z. B. Sturmgericht: Zepter zum Himmel), sonst die Kraftpose
+  startSwing(p, u.pose || 'pose', u.poseDur || 0.7);
   p.poseColor = u.color;
-  vfxPowerUp(p, u.color);
+  // mit eigener Haltung ohne die Lichtringe der Kraftpose (das Sturmgericht zeigt den Zepterfaden)
+  if (!u.pose) vfxPowerUp(p, u.color);
   ui.banner(u.name, 'Ultimative Attacke');
   flashScreen(u.color, 0.28);
   hitStop(0.08);

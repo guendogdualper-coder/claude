@@ -610,7 +610,9 @@ const ui = {
       }
       const sx = e.clientX;
       const sy = e.clientY;
-      if (sk && sk.aim && e.pointerType !== 'mouse' && !skillTouchDirect(sk)) drag = { x: sx, y: sy, on: false };
+      // Ziehen zielt auch bei der Ulti mit Zielort (Sturmgericht)
+      const ask = i === ULT_BAR && game.player ? ultimateOf(game.player) : sk;
+      if (ask && ask.aim && e.pointerType !== 'mouse' && !skillTouchDirect(ask)) drag = { x: sx, y: sy, on: false };
       timer = setTimeout(() => {
         if (drag && drag.on) return;
         timer = null;
@@ -630,7 +632,7 @@ const ui = {
           clearTimeout(timer);
           timer = null;
           // Kreis öffnen (prüft Abklingzeit, Mana, Dorf); ist er für diese Fertigkeit schon offen, nur verschieben
-          if (!(game.aim && game.aim.i === i)) useSkill(i);
+          if (!(game.aim && game.aim.i === i)) useBarEntry(i);
         }
         if (game.aim && game.aim.i === i) aimDrag(dx, dy);
         return;
@@ -2070,8 +2072,8 @@ function skillStats(sk, lvl) {
   // seit 13.87: Treffer je Wirken auch beim Blizzard des Schamanen (sk.ticks, blizzardFx)
   const hits = sk.hits > 1 ? sk.hits : sk.type === 'blizzard' ? sk.ticks || 8 : 0;
   if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow' && sk.type !== 'bregen') out.push(['Schaden', hit(sk.dmg) + (hits > 1 ? ' ×' + hits : '')]);
-  // seit 13.87: Sichelwelle – die Klingenwelle trifft mit waveDmg (waveFx), stärker als der Querhieb davor
-  if (sk.waveDmg) out.push(['Welle', hit(sk.waveDmg)]);
+  // Klingenkreuz (statt der Sichelwelle): zwei Hiebe (Schaden ×2, oben) und das geschleuderte Kreuz (crossDmg, kreuzFx)
+  if (sk.crossDmg) out.push(['Kreuz', hit(sk.crossDmg)], ['Reichweite', String(sk.crossLen)]);
   // seit 13.87: Tarnung und Hinterhalt mit ihren Faktoren (nextHitMul, ambushMul in kampf.js)
   if (sk.nextHitMul) out.push(['Nächster Angriff', '×' + numDe(sk.nextHitMul) + ', sicher kritisch']);
   if (sk.ambushMul) {

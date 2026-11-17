@@ -652,6 +652,188 @@ function bodyWarp3(fem, hipY, chestY, bk) {
   };
 }
 
+// --- Gelenke und runde Formen der Spielfiguren (seit 15.46) ---------------------------------------------
+// Spielerwunsch „sieht aus wie ein Roboter, der komisch steht – mehr Kurven, mehr Leben, die Füße sehen platt aus“:
+// Vorher waren Arm und Bein je ein gerader Knochen (Schulter bis Handgelenk, Hüfte bis Sohle) aus geraden Walzen, die
+// Füße flache Kästen. Jetzt bekommen Spielfiguren sechs Gelenkknochen hinter den üblichen 14 (Unterarme, Schienbeine,
+// Füße); die Nummern 0–13 und alle Ankerpunkte bleiben gleich. Welche Ecke welchem Knochen folgt, entscheidet die Lage
+// beim Backen (jointSkin3 über Bake3 it.skin): unter dem Ellbogen der Unterarm, unter dem Knie das Schienbein, Sohle und
+// Spann der Fuß, dazwischen weich gemischt. So biegt sich alles mit, was am Arm- oder Beinknochen hängt (Ärmel,
+// Armschienen, Stiefel, Beinschienen, Stufenmerkmale aus drei-ausruestung.js, Klassen-Sets) – ohne Änderung dort.
+// Die Hand bleibt Kind des Arms; der Ellbogen dreht sie im Bild mit (bendArm3), damit alle Waffenhaltungen gelten.
+const sstep3 = (a, b, x) => {
+  const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+  return t * t * (3 - 2 * t);
+};
+function joints3(bones, m) {
+  const elbowY = m.shY - m.armLen * 0.5;
+  const kneeY = m.hipY - m.legLen * 0.5;
+  const ankleY = 0.1;
+  const J = { elbowY, kneeY, ankleY, l1: m.hipY - kneeY, l2: kneeY - ankleY, hipX: m.hipX, hipY: m.hipY };
+  J.fore = [bones.length, bones.length + 1];
+  bones.push([[m.shX, elbowY, 0], BH.armL], [[-m.shX, elbowY, 0], BH.armR]);
+  J.shin = [bones.length, bones.length + 1];
+  bones.push([[m.hipX, kneeY, 0], BH.legL], [[-m.hipX, kneeY, 0], BH.legR]);
+  J.foot = [bones.length, bones.length + 1];
+  bones.push([[m.hipX, ankleY, 0], J.shin[0]], [[-m.hipX, ankleY, 0], J.shin[1]]);
+  return J;
+}
+// zwei Knochen mischen: w Anteil von b2, der stärkere kommt auf Platz 0
+function skinMix3(si, sw, o, b1, b2, w) {
+  if (w <= 0.004) return;
+  if (w >= 0.996) {
+    si[o] = b2;
+    return;
+  }
+  const hi = w >= 0.5;
+  si[o] = hi ? b2 : b1;
+  sw[o] = hi ? w : 1 - w;
+  si[o + 1] = hi ? b1 : b2;
+  sw[o + 1] = hi ? 1 - w : w;
+}
+// Taille (seit 15.46): Ecken am Brustknochen unterhalb der Taille folgen weich der Hüfte – Rumpf, Rüstungsteile und
+// Anhänger, die über den Gürtel hinunterreichen, bleiben so in Robe und Rock, wenn Schultern und Hüfte gegeneinander
+// drehen (Gewicht auf einem Bein), statt seitlich herauszustechen
+function waistSkin3(J) {
+  const y0 = J.hipY + 0.15;
+  const y1 = J.hipY + 0.02;
+  return (v, si, sw, o) => skinMix3(si, sw, o, BH.chest, BH.hips, sstep3(y0, y1, v.y));
+}
+function jointSkin3(J, side, arm) {
+  if (arm) {
+    const ab = side ? BH.armR : BH.armL;
+    const fb = J.fore[side];
+    return (v, si, sw, o) => skinMix3(si, sw, o, ab, fb, sstep3(J.elbowY + 0.05, J.elbowY - 0.05, v.y));
+  }
+  const lb = side ? BH.legR : BH.legL;
+  const sb = J.shin[side];
+  const fb = J.foot[side];
+  return (v, si, sw, o) => {
+    // Spann und Zehen weiter vorn gehören auch etwas höher noch zum Fuß
+    const wf = sstep3(J.ankleY + 0.04, J.ankleY - 0.035, v.y - 0.3 * Math.max(0, v.z - 0.05));
+    if (wf > 0.004) skinMix3(si, sw, o, sb, fb, wf);
+    else skinMix3(si, sw, o, lb, sb, sstep3(J.kneeY + 0.055, J.kneeY - 0.055, v.y));
+  };
+}
+// Gewachsenes Glied (Bein, Arm) als Rohr von y = 0 nach unten bis −len: Ringe [t, Radius, Versatz z, Breite x] von
+// oben (t = 0) nach unten (t = 1), Werte als Anteil von R. Wade und Ellbogen wölben sich nach hinten, Knie und Bizeps
+// nach vorn; die Enden sind rund geschlossen. Einmal je Form gebaut und geteilt.
+function organLimb3(key, len, R, rings, seg = 10) {
+  seg = lodSeg3(seg, 6);
+  return geo3(`olimb${key},${len.toFixed(3)},${R.toFixed(4)},${seg}`, () => {
+    const pts = [];
+    const last = rings[rings.length - 1];
+    const first = rings[0];
+    pts.push([0, -len * last[0] - R * last[1] * 0.55], [R * last[1] * 0.7, -len * last[0] - R * last[1] * 0.38]);
+    for (let i = rings.length - 1; i >= 0; i--) pts.push([R * rings[i][1], -len * rings[i][0]]);
+    pts.push([R * first[1] * 0.7, -len * first[0] + R * first[1] * 0.38], [0, -len * first[0] + R * first[1] * 0.55]);
+    const lg = new THREE.LatheGeometry(pts.map(([x, y]) => new THREE.Vector2(x, y)), seg);
+    const g = smoothGeo(lg.index ? lg.toNonIndexed() : lg);
+    const P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const t = Math.max(first[0], Math.min(last[0], -P.getY(i) / len));
+      let k = 0;
+      while (k < rings.length - 2 && t > rings[k + 1][0]) k++;
+      const a = rings[k];
+      const b2 = rings[k + 1];
+      const u = sstep3(a[0], b2[0], t);
+      const zo = (a[2] + (b2[2] - a[2]) * u) * R;
+      const xs = a[3] + (b2[3] - a[3]) * u;
+      P.setXYZ(i, P.getX(i) * xs, P.getY(i), P.getZ(i) + zo);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Bein von der Hüfte bis zum Knöchel (t 0,54 = Knie): Oberschenkel voll, Kniescheibe vorn, Wade hinten, schlanke Fessel
+const LEG3_RINGS = {
+  m: [[-0.06, 0.94, 0, 1], [0, 1.06, 0.01, 1], [0.13, 1.12, 0.05, 1.02], [0.3, 1.03, 0.05, 1], [0.46, 0.88, 0.03, 0.98], [0.54, 0.85, 0.1, 0.96],
+    [0.62, 0.9, -0.04, 1], [0.7, 0.96, -0.1, 1], [0.82, 0.84, -0.05, 1], [0.95, 0.72, 0, 1], [1.03, 0.7, 0, 1]],
+  f: [[-0.06, 1.0, 0, 1], [0, 1.16, 0.01, 1], [0.13, 1.2, 0.05, 1.03], [0.3, 1.06, 0.05, 1], [0.46, 0.86, 0.03, 0.98], [0.54, 0.8, 0.08, 0.96],
+    [0.62, 0.84, -0.03, 1], [0.7, 0.88, -0.08, 1], [0.82, 0.76, -0.04, 1], [0.95, 0.64, 0, 1], [1.03, 0.62, 0, 1]]
+};
+// Arm von der Schulter bis zum Handgelenk (t 0,5 = Ellbogen): Schultermuskel, Bizeps vorn, Ellbogenspitze hinten,
+// Unterarm oben kräftig, zum Handgelenk flacher
+const ARM3_RINGS = {
+  m: [[-0.04, 1.02, 0, 1], [0.02, 1.14, 0, 1.06], [0.13, 1.17, 0.02, 1.08], [0.3, 1.03, 0.07, 1], [0.45, 0.88, 0, 1], [0.52, 0.86, -0.08, 1],
+    [0.62, 0.97, 0.02, 1.07], [0.8, 0.84, 0.02, 1.03], [0.95, 0.72, 0, 1.06], [1.01, 0.7, 0, 1.06]],
+  f: [[-0.04, 1.0, 0, 1], [0.02, 1.08, 0, 1.03], [0.13, 1.08, 0.02, 1.04], [0.3, 0.98, 0.05, 1], [0.45, 0.86, 0, 1], [0.52, 0.84, -0.06, 1],
+    [0.62, 0.92, 0.02, 1.05], [0.8, 0.8, 0.02, 1.02], [0.95, 0.68, 0, 1.05], [1.01, 0.66, 0, 1.05]]
+};
+// Fußform: Fußabdruck (schmale Ferse, breiter Ballen, runde oder spitze Kappe) über die Länge u = −1 (Ferse) … 1 (Spitze)
+function footW3(u, point) {
+  const ball = Math.exp(-((u - 0.3) * (u - 0.3)) / 0.45);
+  let w = 0.74 + 0.26 * ball;
+  if (point && u > 0.45) w *= 1 - 0.55 * sstep3(0.45, 1, u);
+  return w;
+}
+// Schuh (Oberteil) aus einer verformten Kugel: hinten hoch (Ferse und Spann), zur Kappe flacher, unten flach, die Spitze
+// leicht aufgebogen; o = { len, w, back (Höhe hinten), toe (Höhe vorn), spring (Aufbiegung), heel (Absatzhöhe), point }
+function shoeGeo3(o) {
+  const key = `shoe3:${o.len.toFixed(3)},${o.w.toFixed(3)},${o.back},${o.toe},${o.spring},${o.heel},${o.point ? 1 : 0}`;
+  return geo3(key, () => {
+    const g = new THREE.SphereGeometry(1, lodSeg3(18, 8), lodSeg3(12, 6));
+    const P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i);
+      const y = P.getY(i);
+      const u = P.getZ(i);
+      // die Kugel ist vorn und hinten rund: an den Enden etwas voller, damit Ferse und Kappe nicht spitz werden
+      const fill = 1 + 0.14 * (1 - Math.abs(y)) * Math.abs(u) * Math.abs(u);
+      const X = x * footW3(u, o.point) * o.w * 0.5 * fill;
+      const top = o.back + (o.toe - o.back) * sstep3(-0.35, 0.95, u);
+      let Y = y >= 0 ? y * top : y * 0.012;
+      // Spann: oben in der Mitte etwas höher (runder Rist statt flachem Deckel)
+      if (y > 0) Y += 0.012 * y * Math.exp(-((u + 0.05) * (u + 0.05)) / 0.3);
+      let Z = u * o.len * 0.5 * (o.point && u > 0.5 ? 1 + 0.12 * (u - 0.5) : 1);
+      if (u > 0.35) Y += o.spring * Math.pow((u - 0.35) / 0.65, 2);
+      Y += o.heel * sstep3(0.05, -0.55, u);
+      P.setXYZ(i, X, Y, Z);
+    }
+    // smoothGeo erwartet lose Dreiecke (wie ExtrudeGeometry), darum erst ohne Index
+    return smoothGeo(g.index ? g.toNonIndexed() : g);
+  });
+}
+// Sohle mit Rahmen: flache Platte im selben Fußabdruck, etwas größer, vorn mit aufgebogen, unter der Ferse der Absatz
+function soleGeo3(o) {
+  const key = `sole3:${o.len.toFixed(3)},${o.w.toFixed(3)},${o.spring},${o.heel},${o.thick},${o.point ? 1 : 0}`;
+  return geo3(key, () => {
+    const g = new THREE.CylinderGeometry(1, 1, 1, lodSeg3(22, 10), 1);
+    const P = g.attributes.position;
+    for (let i = 0; i < P.count; i++) {
+      const x = P.getX(i);
+      const y = P.getY(i);
+      const u = P.getZ(i);
+      const X = x * footW3(u, o.point) * o.w * 0.5;
+      const Z = u * o.len * 0.5 * (o.point && u > 0.5 ? 1 + 0.12 * (u - 0.5) : 1);
+      // y −0,5 … 0,5: oben die Sohlenkante (hinten vom Absatz angehoben), unten der Boden – unter der Ferse steht der
+      // Absatz auf, davor bleibt unter dem Gewölbe eine Lücke bis zum Ballen
+      const lift = o.heel * sstep3(0.05, -0.55, u);
+      let Y = y > 0 ? o.thick + lift : lift * sstep3(-0.74, -0.52, u);
+      if (u > 0.35) Y += o.spring * Math.pow((u - 0.35) / 0.65, 2);
+      P.setXYZ(i, X, Y, Z);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Falten im Saum (Roben, Röcke): Eckenwarp für alles an der Hüfte unterhalb von y0 – der Saum schwingt in Wellen nach
+// außen und innen und läuft unten leicht auf und ab. Alle Schichten (Robe, Borte, Fetzen, Rüstungsrobe) gehen gleich mit.
+function hemWarp3(y0, y1, n, amp, lift) {
+  return (v) => {
+    if (v.y >= y0) return;
+    const f = sstep3(y0, y1, v.y);
+    const a = Math.atan2(v.x, v.z);
+    const w = Math.sin(n * a + 0.6) * 0.75 + Math.sin(2 * n * a + 1.9) * 0.25;
+    // Falten vor allem nach außen (nach innen gezogen stächen Beine und Stiefel durch den Saum)
+    const k = 1 + amp * f * (0.45 + 0.55 * w);
+    v.x *= k;
+    v.z *= k;
+    // ringsum leicht gewellt, nach unten (ein angehobener Saum gab den Stiefelschaft als hellen Keil frei)
+    v.y -= lift * f * f * (0.5 + 0.5 * Math.cos(n * a + 0.6));
+  };
+}
+
 function humanoid3(b, c, P) {
   // Spielfiguren (c.tame, seit 14.59): helle Ausrüstungsfarben gedämpft, Haut und Haare unverändert
   const A = c.tame ? tameAdder3(adder(b, P), new Set([c.skin, lighter(c.skin, 0.12), c.hair && c.hair.color, c.braid, c.beard].filter(Boolean))) : adder(b, P);
@@ -697,6 +879,12 @@ function humanoid3(b, c, P) {
     [[hipX, hipY, 0], 1], [[-hipX, hipY, 0], 1], [[0, shY + 0.02, -0.18], 2], [[0, hipY + 0.04, -0.2], 1],
     [[0.12, shY - 0.02, -0.18], 2], [[-0.12, shY - 0.02, -0.18], 2]
   ];
+  // seit 15.46 (Spielfiguren): Unterarme, Schienbeine und Füße als eigene Gelenke (joints3), direkt hinter den 14
+  const J = c.oval && !belly ? joints3(bones, { shX, shY, armLen, hipX, hipY, legLen }) : null;
+  if (J) {
+    J.fem = fem;
+    J.robe = !!c.robe;
+  }
   // schwebende, sich drehende Teile (seit 8.6, Magier) bekommen eigene Knochen hinter den üblichen 14
   const spin = spinBones3(c, bones, { hipY, shY, hc, hr, handR });
   // Bogensehne (seit 13.67): zwei eigene Knochen an den Bogenspitzen tragen je eine Hälfte der Sehne. In Ruhe liegen sie
@@ -711,16 +899,60 @@ function humanoid3(b, c, P) {
   const bootNew = c.bootDetail != null && !belly;
   const footZ0 = bootNew ? -legR * 0.95 : -legR * 1.05;
   // seit 15.04: Füße der Spielfiguren länger (c.oval)
-  const footZ1 = bootNew ? legR * (c.robe ? (c.oval ? 3.6 : 3.3) : c.oval ? 3.2 : 2.7) : legR * 2.05;
+  const footZ1 = bootNew ? legR * (c.robe ? (c.oval ? 3.6 : 3.3) : c.oval ? 3.2 : 2.7) : J ? legR * (c.robe ? 3.3 : 2.9) : legR * 2.05;
+  // Schuhform der Spielfiguren (seit 15.46, auch für Stufenmerkmale wie die leuchtende Sohle in gearBoots3)
+  const shoeP = J ? { heel: bootNew ? 0.022 : 0.012, spring: c.robe ? 0.03 : 0.015, soleT: bootNew ? 0.024 : 0.018, point: !!c.robe } : null;
   for (const [sx, bone] of [[1, BH.legL], [-1, BH.legR]]) {
     const top = [sx * hipX, hipY, 0];
     const knee = [sx * hipX * 1.02, hipY - legLen * 0.5, 0.015];
     const ankle = [sx * hipX, 0.1, 0];
-    // seit 14.53: Frauen mit runderen Oberschenkeln und schlankeren Waden
-    seg(top, knee, legR * (fem ? 1.14 : 1), legR * (fem ? 0.86 : 0.9), pants, { bone, shade: 0.12 });
-    seg(knee, ankle, legR * (fem ? 0.86 : 0.9), legR * (fem ? 0.72 : 0.78), pants, { bone });
+    // seit 15.46 (Spielfiguren): ein gewachsenes Bein statt zweier Walzen – voller Oberschenkel, Kniescheibe, Wade
+    if (J) A(organLimb3(fem ? 'legF' : 'legM', hipY - 0.1, legR, LEG3_RINGS[fem ? 'f' : 'm']), pants, { bone, p: top, shade: 0.12 });
+    else {
+      // seit 14.53: Frauen mit runderen Oberschenkeln und schlankeren Waden
+      seg(top, knee, legR * (fem ? 1.14 : 1), legR * (fem ? 0.86 : 0.9), pants, { bone, shade: 0.12 });
+      seg(knee, ankle, legR * (fem ? 0.86 : 0.9), legR * (fem ? 0.72 : 0.78), pants, { bone });
+    }
     if (c.kneePads) A(ball(10), c.kneePads, { bone, p: [knee[0], knee[1], knee[2] + legR * 0.6], s: [legR * 0.9, legR * 0.85, legR * 0.6], shine: 0.6 });
-    if (bootNew) {
+    if (J) {
+      // seit 15.46: Schuh mit Form statt flachem Kasten – Fußabdruck mit schmaler Ferse und breitem Ballen, Kappe vorn
+      // leicht aufgebogen (bei Roben spitz), hoher runder Spann, abgesetzte Sohle mit Rahmen und Absatz unter der Ferse;
+      // der Schaft ist leicht geschwungen (Wade, Knöchel). Riemen, Beschläge und Stufenmerkmale wie bisher.
+      const L = legR / 0.082;
+      const x = sx * hipX;
+      const fl = footZ1 - footZ0;
+      const fz = (footZ0 + footZ1) / 2;
+      const bt = bootNew ? c.bootDetail : -1;
+      const bm = c.bootTrim || '#a8acb2';
+      const { heel, spring, soleT } = shoeP;
+      A(soleGeo3({ len: fl + 0.018, w: legR * 2.26, spring, heel, thick: soleT, point: !!c.robe }), darker(boots, 0.52), { bone, p: [x, 0, fz], top: darker(boots, 0.3), topK: 0.5 });
+      A(shoeGeo3({ len: fl, w: legR * 2.06, back: bootNew ? 0.088 : 0.075, toe: 0.048, spring, heel, point: !!c.robe }), boots, { bone, p: [x, soleT - 0.004, fz], top: lighter(boots, 0.16), topK: 0.45, shade: 0.12 });
+      if (bootNew) {
+        // unter Roben schlanker und kürzer (der Saum liegt dicht darüber; beim Gewicht auf einem Bein kippt das Spielbein
+        // mit dem Knie nach vorn, die Schaftkante stach dann vorn durch die Robe)
+        const rk = c.robe ? 0.8 : 1;
+        const rh = c.robe ? 0.7 : 1;
+        A(lathe3('bootshaft15', [[0.08, 0], [0.083, 0.03], [0.08, 0.075], [0.088, 0.13], [0.098, 0.18], [0.103, 0.2], [0, 0.201]], 14), boots, { bone, p: [x, 0.03, -0.004], s: [L * rk, rh, L * 1.04 * rk], shade: 0.15 });
+        // unter Beinschienen nur ein schmaler Rand (die breite Stulpe stach sonst durch die Schiene)
+        // unter Roben ebenfalls nur ein schmaler Rand: die Stulpe stach sonst unten durch den Saum
+        if (c.greaves || c.robe) A(torus3(legR * (c.robe ? 0.95 : 1.17), 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [x, c.robe ? 0.17 : 0.205, 0], r: [Math.PI / 2, 0, 0], shine: c.bootTrim ? 0.8 : 0 });
+        else A(lathe3('bootcuff15', [[0.098, 0], [0.118, 0.012], [0.126, 0.036], [0.12, 0.06], [0, 0.061]], 14), c.bootTrim || lighter(boots, 0.2), { bone, p: [x, 0.2, -0.004], s: [L, 1, L * 1.04], r: [-0.06, 0, 0], shine: c.bootTrim ? 0.8 : 0, shade: 0.2 });
+        // Riemen über den Spann mit Schnalle außen
+        A(roundBox(legR * 2.1, 0.022, legR * 0.46, 0.009), darker(boots, 0.3), { bone, p: [x, 0.118, legR * 0.62], r: [0.62, 0, 0] });
+        A(roundBox(0.03, 0.03, 0.012, 0.005), bm, { bone, p: [sx * (hipX + legR * 0.86), 0.112, legR * 0.66], r: [0.62, 0, 0], shine: 1 });
+        if (bt >= 2 && !c.greaves) for (const a of [-0.6, 0, 0.6]) A(sphere3(0.012, 6, 4), bm, { bone, p: [x + Math.sin(a) * legR * 1.5, 0.232, Math.cos(a) * legR * 1.5], shine: 1 });
+        if (c.padStyle === 'plate' && bt >= 1) {
+          // Krieger: Ristplatte und Knöchelschalen aus Metall
+          A(roundBox(legR * 1.45, 0.018, legR * 1.2, 0.008), bm, { bone, p: [x, 0.112, legR * 1.3], r: [0.36, 0, 0], shine: 1, top: lighter(bm, 0.25), topK: 0.3 });
+          for (const s2 of [-1, 1]) A(ball(8), bm, { bone, p: [x + s2 * legR * 0.98, 0.09, 0], s: [0.02, 0.032, 0.032], shine: 1 });
+        }
+      } else {
+        const rk = c.robe ? 0.8 : 1;
+        const rh = c.robe ? 0.8 : 1;
+        A(lathe3('bootshaft15s', [[0.078, 0], [0.081, 0.03], [0.079, 0.07], [0.086, 0.12], [0.09, 0.16], [0, 0.161]], 12), boots, { bone, p: [x, 0.04, -0.004], s: [L * rk, rh, L * 1.04 * rk] });
+        A(torus3(legR * 1.13 * rk, 0.02, Math.PI * 2, 4, 14), c.bootTrim || lighter(boots, 0.15), { bone, p: [x, c.robe ? 0.168 : 0.2, -0.004], r: [Math.PI / 2, 0, 0] });
+      }
+    } else if (bootNew) {
       // seit 14.77 (angelegte Stiefel; Spielerwunsch „die Schuhe kommen gar nicht richtig zur Geltung“): vorher ein
       // schmaler Schaft und ein kurzer Kasten als Fuß, der kaum unter Rock, Beintaschen oder Robe hervorkam. Jetzt ein
       // kräftiger Stiefel: Schaft leicht ausgestellt, breite umgeschlagene Stulpe, längerer Fuß mit runder Kappe, dicke
@@ -935,7 +1167,9 @@ function humanoid3(b, c, P) {
       A(lathe3('sleeve2', [[0.05, 0], [0.09, -0.08], [0.13, -0.22], [0.16, -0.29], [0.15, -0.31], [0, -0.311]], 14), c.sleeve || c.torso, { bone: ab, p: sh, shade: 0.2 });
       if (c.cuff) A(torus3(0.155, 0.018, Math.PI * 2, 4, 16), c.cuff, { bone: ab, p: [sh[0], sh[1] - 0.29, sh[2]], r: [Math.PI / 2, 0, 0], shine: 0.6 });
     } else {
-      seg(sh, wrist, armR, armR * 0.85, c.sleeve || c.torso, { bone: ab, shade: 0.12 });
+      // seit 15.46 (Spielfiguren): gewachsener Arm mit Schultermuskel, Bizeps, Ellbogen und Unterarm statt einer Walze
+      if (J) A(organLimb3(fem ? 'armF' : 'armM', armLen, armR, ARM3_RINGS[fem ? 'f' : 'm']), c.sleeve || c.torso, { bone: ab, p: sh, shade: 0.12 });
+      else seg(sh, wrist, armR, armR * 0.85, c.sleeve || c.torso, { bone: ab, shade: 0.12 });
       // Magier (seit 8.6): schmale Ärmel mit Glockenstulpe und Silberrand
       if (c.bellCuff) {
         A(lathe3('bellcuff', [[0, -0.026], [0.09, -0.025], [0.078, 0.0], [0.058, 0.04], [0.05, 0.075]], 12), c.sleeve || c.torso, { bone: ab, p: [wrist[0], wrist[1] + 0.02, wrist[2]], shade: 0.15 });
@@ -954,6 +1188,13 @@ function humanoid3(b, c, P) {
       A(ball(10), hc2, { bone: hb, p: hand, s: [0.105 * k2, 0.1 * k2, 0.09 * k2], shade: 0.12 });
       for (let k = 0; k < 4; k++) A(ball(8), darker(hc2, 0.05), { bone: hb, p: [hand[0] + (k - 1.5) * 0.05 * k2, hand[1] - 0.075 * k2, hand[2] + 0.05 * k2], s: [0.03 * k2, 0.05 * k2, 0.045 * k2], r: [0.5, 0, 0] });
       A(ball(8), hc2, { bone: hb, p: [hand[0] - sx * 0.1 * k2, hand[1] - 0.02 * k2, hand[2] + 0.055 * k2], s: [0.032 * k2, 0.055 * k2, 0.04 * k2], r: [0.3, 0, sx * 0.5] });
+    } else if (J) {
+      // seit 15.46: Hand mit Form statt Fäustling – flacher Handrücken, die Finger leicht zur Handfläche gekrümmt (darum
+      // etwas nach innen und vorn versetzt), ein eigener Daumen vorn innen; Handgelenk schmaler als die Hand
+      const gc = c.gloves || c.skin;
+      A(ball(10), gc, { bone: hb, p: [hand[0], hand[1] + 0.012 * hs, hand[2] - 0.002], s: [0.052 * hs, 0.064 * hs, 0.064 * hs], shade: 0.08 });
+      A(ball(10), gc, { bone: hb, p: [hand[0] - sx * 0.012 * hs, hand[1] - 0.04 * hs, hand[2] + 0.008 * hs], s: [0.048 * hs, 0.05 * hs, 0.06 * hs], r: [0.25, 0, sx * 0.4], shade: 0.15 });
+      A(ball(8), gc, { bone: hb, p: [hand[0] - sx * 0.04 * hs, hand[1] - 0.006 * hs, hand[2] + 0.042 * hs], s: [0.022 * hs, 0.038 * hs, 0.022 * hs], r: [0.55, 0, sx * 0.45] });
     } else {
       A(ball(10), c.gloves || c.skin, { bone: hb, p: hand, s: [0.068 * hs, 0.075 * hs, 0.062 * hs] });
       A(ball(8), c.gloves || c.skin, { bone: hb, p: [hand[0] - sx * 0.05 * hs, hand[1] + 0.01, hand[2] + 0.035 * hs], s: [0.026 * hs, 0.034 * hs, 0.026 * hs] });
@@ -1077,7 +1318,7 @@ function humanoid3(b, c, P) {
   // Ausrüstung mit eigener Form je Stufe (Rüstung, Schultern, Stiefel, Gürtel, Umhang): drei-ausruestung.js
   const g = {
     hipY, chestY, shY, shX, neckY, hipX, legR, legLen, armLen, armR, hc, hr, bk, belly, female: fem, male: man, spin, robeFit, skirtFit, oval: !!c.oval,
-    cuirass: !!c.cuirass, greaves: !!c.greaves, footZ0, footZ1,
+    cuirass: !!c.cuirass, greaves: !!c.greaves, footZ0, footZ1, shoe: shoeP,
     beltY: c.sash ? hipY + 0.06 : hipY + (belly ? 0.06 : 0.02),
     beltZ: (c.sash ? 0.235 : c.wideBelt ? 0.228 : belly ? 0.4 : 0.212) * bk
   };
@@ -1131,7 +1372,8 @@ function humanoid3(b, c, P) {
   // Leuchthülle (seit 14.77 eine Kopie der Waffe, siehe wglowGeo3) nur bei Spielfiguren: Händler, Wachen und Monster
   // leuchten nie und sparen so die doppelte Waffe
   const wgOn = !!c.gear;
-  if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], wgOn, wo);
+  // seit dem Endgame-80-Update: Prägung der Waffe (endgame80.js) für ihr Merkmal in 3D
+  if (c.weapon) weapon3(A, c.weapon.kind, c.weapon.tier, BH.handR, handR, WEAPON_HOLD[c.weapon.kind] || [1.1, 0, 0], wgOn, c.weapon.v80 ? Object.assign({ v80: c.weapon.v80 }, wo) : wo);
   // Klingenachse im Modellraum merken (Ansatz und Spitze, für Waffen-Auren in 3D seit 13.2)
   let weaponAxis = null;
   if (c.weapon) {
@@ -1145,7 +1387,7 @@ function humanoid3(b, c, P) {
   if (c.offhand) {
     const h = WEAPON_HOLD[c.offhand.kind] || [1.1, 0, 0];
     const rotL = [h[0], -h[1], -h[2]];
-    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, rotL, wgOn, { left: true });
+    weapon3(A, c.offhand.kind, c.offhand.tier, BH.handL, handL, rotL, wgOn, c.offhand.v80 ? { left: true, v80: c.offhand.v80 } : { left: true });
     const M = partFrame(handL, rotL);
     const wl = WEAPON_LEN3[c.offhand.kind] || 0.6;
     offhandAxis = { base: new THREE.Vector3(0, 0.02, 0).applyMatrix4(M), tip: new THREE.Vector3(0, wl, 0).applyMatrix4(M) };
@@ -1155,11 +1397,19 @@ function humanoid3(b, c, P) {
   if (c.tall) top += c.tall;
   // seit 14.53: Körperform als sanfte Verformung über Rumpf UND allem, was darauf sitzt (Rüstung, Mantel, Gürtel,
   // Harnisch) – so passt jede Rüstungsstufe ohne Durchstechen, weil alle Schichten gleich mitgehen
-  if ((fem || man) && b.lists) {
-    const warp = bodyWarp3(fem, hipY, chestY, bk);
-    for (const k in b.lists) if (k !== 'shadow') for (const it of b.lists[k]) if (!it.tpl && (it.bone === BH.chest || it.bone === BH.hips)) it.warp = warp;
+  // seit 15.46 (Spielfiguren, J): dazu Falten im Saum von Robe bzw. Rock (hemWarp3) über allen Schichten an der Hüfte
+  if ((fem || man || J) && b.lists) {
+    const warp = fem || man ? bodyWarp3(fem, hipY, chestY, bk) : null;
+    const hem = !J ? null : c.robe ? hemWarp3(hipY - 0.12, robeFit ? robeFit.up + 0.02 * robeFit.s : 0.02, 7, 0.06, 0.012) : hemWarp3(hipY - 0.03, hipY - 0.12, 6, 0.045, 0.006);
+    const hipW = hem && warp ? (v) => { warp(v); hem(v); } : hem || warp;
+    for (const k in b.lists) if (k !== 'shadow') for (const it of b.lists[k]) if (!it.tpl && (it.bone === BH.chest || it.bone === BH.hips)) it.warp = it.bone === BH.hips ? hipW : warp;
+    // Gelenke: Ecken an Arm- und Beinknochen nach ihrer Lage auf Unterarm, Schienbein und Fuß verteilen (auch Schatten)
+    if (J) {
+      const sk = { [BH.armL]: jointSkin3(J, 0, true), [BH.armR]: jointSkin3(J, 1, true), [BH.legL]: jointSkin3(J, 0, false), [BH.legR]: jointSkin3(J, 1, false), [BH.chest]: waistSkin3(J) };
+      for (const k in b.lists) for (const it of b.lists[k]) if (!it.tpl && sk[it.bone]) it.skin = sk[it.bone];
+    }
   }
-  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, offhandAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff, bowStr };
+  return { rig, height: top, scale: c.figScale || 1, family: 'human', shY, hipY, shX, hc, hr, belly, weaponAxis, offhandAxis, spin: spin && spin.anim, sparkBone: spin && spin.spark != null ? spin.spark : -1, sparkOff: spin && spin.sparkOff, bowStr, joints: J };
 }
 
 // Bereitschaftspose fürs Bild der Figur (seit 13.22): Waffe in der Hand, deutlich zu sehen, nie hängend.
@@ -6158,60 +6408,7 @@ function poseWeaponGlow(a, color, op) {
 }
 
 const SKILL_POSE3 = {
-  // Sichelwelle: Ausholen, Querhieb, beidhändig hochreißen, in den Boden schmettern, halten, aufrichten
-  sichel(B, sw, kind, p, a) {
-    const two = twoHanded3(kind);
-    const shield = p.equipment && p.equipment.schild && !isOffhand(p.equipment.schild);
-    let w = 1;
-    if (sw >= 0.8) w = 1 - easeInOut3(poseSeg(sw, 0.8, 1));
-    if (sw < 0.15) {
-      const k = easeOut(poseSeg(sw, 0, 0.15));
-      B[BH.chest].rotation.y = 1.2 * k;
-      B[BH.hips].rotation.y = 0.35 * k;
-      setArm(B[BH.armR], -1.3 * k, 0, -0.9 * k);
-      if (two) setArm(B[BH.armL], -1.04 * k, 0, 0.5);
-      else if (shield) setArm(B[BH.armL], -1.0, 0, 0.3);
-      else setArm(B[BH.armL], -0.6 * k, 0, 0.5 * k);
-      B[BH.hips].position.y -= 0.05 * k;
-      B[BH.legR].rotation.x = 0.2 * k;
-      B[BH.legL].rotation.x = -0.15 * k;
-    } else if (sw < 0.35) {
-      const b = easeOut(poseSeg(sw, 0.15, 0.35));
-      B[BH.chest].rotation.y = 1.2 - 2.35 * b;
-      B[BH.hips].rotation.y = 0.35 - 0.7 * b;
-      setArm(B[BH.armR], -1.45, 0, -0.9 + 0.7 * b);
-      if (two) setArm(B[BH.armL], -1.16, 0, 0.5);
-      else if (shield) setArm(B[BH.armL], -1.0, 0, 0.3);
-      else setArm(B[BH.armL], -1.45, 0, 0.9 - 0.7 * b);
-      B[BH.legR].rotation.x = 0.2 - 0.5 * b;
-      B[BH.legL].rotation.x = -0.15;
-      B[BH.cape].rotation.x = 0.35;
-    } else if (sw < 0.58) {
-      const c = easeInOut3(poseSeg(sw, 0.35, 0.58));
-      setArm(B[BH.armR], -1.45 - 1.55 * c, 0, -0.2 + 0.05 * c);
-      setArm(B[BH.armL], -0.6 - 2.1 * c, 0, 0.5 - 0.65 * c);
-      B[BH.chest].rotation.y = -1.15 * (1 - c);
-      B[BH.chest].rotation.x = -0.3 * c;
-      B[BH.head].rotation.x += -0.15 * c;
-      B[BH.legL].rotation.x = -0.3 * c;
-      B[BH.legR].rotation.x = 0;
-      poseWeaponGlow(a, '#e6eeff', 0.6 * c);
-    } else {
-      // Niederschlag (sehr schnell), dann halten und weich zurück
-      const d = Math.pow(poseSeg(sw, 0.58, 0.65), 3);
-      setArm(B[BH.armR], (-3.0 + 2.55 * d) * w, 0, -0.15 * w);
-      setArm(B[BH.armL], (-2.7 + 2.1 * d) * w, 0, -0.15 * w);
-      // seit 13.85 kippt das Handgelenk die Klinge nach unten in den Boden (vorher 0,5: die Klinge zeigte nach oben)
-      B[BH.handR].rotation.x = Math.max(0.5, wristExt3(kind)) * d * (sw >= 0.8 ? 1 - easeInOut3(poseSeg(sw, 0.8, 0.9)) : 1);
-      B[BH.chest].rotation.x = (-0.3 + 0.85 * d) * w;
-      B[BH.hips].position.y -= 0.14 * d * w;
-      B[BH.hips].position.z += 0.2 * d * w;
-      B[BH.legL].rotation.x = (-0.3 - 0.45 * d) * w;
-      B[BH.legR].rotation.x = 0.55 * d * w;
-      B[BH.cape].rotation.x = 0.35 + 0.35 * d * w;
-      if (sw < 0.7) poseWeaponGlow(a, '#e6eeff', 0.6);
-    }
-  },
+  // Klingenkreuz (statt der Sichelwelle): SKILL_POSE3.kreuz in klingenkreuz.js
 
   // Felsenfaust: Hopser, linke Faust über den Kopf, in den Boden rammen, halten, Aufwärtshaken, lösen
   felsenfaust(B, sw, kind, p, a) {
@@ -6827,6 +7024,268 @@ function bowString3(a, p, sw) {
   }
 }
 
+// --- Leben in der Haltung (seit 15.46) ---------------------------------------------------------------------
+// Spielerwunsch „steht komisch wie ein Roboter“: Vorher hingen Arme und Beine gerade, nur die Brust atmete. Jetzt
+// (nach allen anderen Haltungen in syncPlayer3 und im Figurenbild der Fenster) eine Schicht mit Leben:
+// - Stand: Gewicht ruht auf einem Bein und wechselt alle paar Sekunden (Hüfte verschoben und gekippt, Schultern
+//   gegengleich), die Füße bleiben dabei stehen (Beine über die Gelenke gelöst, legIK3), Knie und Ellbogen leicht
+//   gebeugt, Atmen, leichtes Wiegen, ab und zu ein Blick zur Seite und eine kleine Geste je Klasse; dazu je Klasse
+//   eine eigene Haltung (Krieger breitbeinig und aufrecht, Ninja federnd in den Knien, Nekromant vorgebeugt mit
+//   gesenktem Kopf, Magier hält das Zepter aufrecht vor sich, Schamanin wiegt die Hüfte).
+// - Gehen: Knie beugen sich beim Vorschwingen, die Ferse hebt sich hinten, die Spitze vorn; Hüfte schwingt mit.
+// - Reiten: Unterschenkel hängen am Pferd herab, Füße in den Steigbügeln, Hände vorn am Zügel.
+// - Angriffe und Fertigkeiten: Posen unverändert, Ellbogen gestreckt, Füße bleiben flacher am Boden.
+// Alles weich überblendet (a.lfS, a.lfEl). Waffenhände drehen beim Beugen des Ellbogens nicht mit (keep), damit die
+// Richtung jeder Waffe wie bisher bleibt; leere Hände folgen dem Unterarm.
+// st Fußabstand, fw Spielbein vorn, wt Gewichtswechsel, dip Kniebeuge, lean Brust vor (−: stolz zurück), head Kopf
+// gesenkt, free [Abspreizen, Ellbogen] des freien Arms, el Ellbogen des Waffenarms, bob Federn, toe Fußspitzen auswärts
+const LIFE3 = {
+  krieger: { st: 0.07, fw: 0.06, wt: 0.85, dip: 0.026, lean: -0.06, head: 0, free: [0.26, 0.42], el: 0.4, bob: 0, toe: 0.26 },
+  ninja: { st: 0.055, fw: 0.08, wt: 0.6, dip: 0.05, lean: 0.12, head: 0.05, free: [0.2, 0.55], el: 0.5, bob: 0.011, toe: 0.3 },
+  schamane: { st: 0.02, fw: 0.06, wt: 1.1, dip: 0.018, lean: 0, head: -0.02, free: [0.22, 0.5], el: 0.45, bob: 0, toe: 0.22 },
+  nekromant: { st: 0.035, fw: 0.05, wt: 0.85, dip: 0.024, lean: 0.12, head: 0.04, free: [0.18, 0.4], el: 0.34, bob: 0, toe: 0.18 },
+  magier: { st: 0.025, fw: 0.06, wt: 1, dip: 0.018, lean: 0.02, head: -0.03, free: [0.2, 0.48], el: 0.45, bob: 0, toe: 0.22 }
+};
+const _lfQ = new THREE.Quaternion();
+const _lfQ2 = new THREE.Quaternion();
+const _lfV = new THREE.Vector3();
+const _lfK = new THREE.Vector3();
+const _lfX = new THREE.Vector3(1, 0, 0);
+const _lfE = new THREE.Euler();
+const lfHash3 = (n) => {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+};
+// Ellbogen beugen (ang > 0: Unterarm nach vorn): Unterarmknochen drehen, die Hand (Kind des Arms) mit um den Ellbogen
+// führen; keep 1 = Hand behält ihre Richtung (Waffe zeigt wie vorher), 0 = Hand dreht mit dem Unterarm
+function bendArm3(a, side, ang, keep) {
+  const J = a.model.joints;
+  const B = a.bones;
+  const hi = side ? BH.handR : BH.handL;
+  B[J.fore[side]].rotation.x = -ang;
+  if (Math.abs(ang) < 1e-4) return;
+  _lfQ.setFromAxisAngle(_lfX, -ang);
+  const e0 = a.rest[J.fore[side]];
+  B[hi].position.copy(a.rest[hi]).sub(e0).applyQuaternion(_lfQ).add(e0);
+  if (keep < 1) B[hi].quaternion.premultiply(keep > 0 ? _lfQ2.identity().slerp(_lfQ, 1 - keep) : _lfQ);
+}
+// Bein side (0 links, 1 rechts) so stellen, dass der Knöchel bei (tx, ty, tz) im Raum der Figur steht (zwei Glieder,
+// Knie nach vorn); k mischt mit der bisherigen Haltung
+function legIK3(a, side, tx, ty, tz, k) {
+  const J = a.model.joints;
+  const B = a.bones;
+  const li = side ? BH.legR : BH.legL;
+  const hips = B[BH.hips];
+  _lfV.set(tx, ty, tz).sub(hips.position).applyQuaternion(_lfQ.copy(hips.quaternion).invert()).sub(a.rest[li]);
+  const l1 = J.l1;
+  const l2 = J.l2;
+  const d = Math.max((l1 + l2) * 0.35, Math.min((l1 + l2) * 0.999, _lfV.length()));
+  const al = Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d))));
+  const bend = Math.PI - Math.acos(Math.max(-1, Math.min(1, (l1 * l1 + l2 * l2 - d * d) / (2 * l1 * l2))));
+  _lfV.normalize();
+  _lfK.set(0, 0, 1).addScaledVector(_lfV, -_lfV.z).normalize();
+  _lfV.multiplyScalar(Math.cos(al)).addScaledVector(_lfK, Math.sin(al));
+  const r = B[li].rotation;
+  const ax = Math.atan2(-_lfV.z, -_lfV.y);
+  const az = Math.asin(Math.max(-1, Math.min(1, _lfV.x)));
+  r.set(r.x + (ax - r.x) * k, r.y * (1 - k), r.z + (az - r.z) * k);
+  const s = B[J.shin[side]].rotation;
+  s.x += (bend - s.x) * k;
+}
+// Fuß im Raum der Figur ausrichten: yaw Spitze auswärts, pitch > 0 Spitze nach unten (Ferse hoch); k Anteil
+function footFlat3(a, side, yaw, pitch, k) {
+  const J = a.model.joints;
+  const B = a.bones;
+  _lfQ.copy(B[BH.hips].quaternion).multiply(B[side ? BH.legR : BH.legL].quaternion).multiply(B[J.shin[side]].quaternion).invert();
+  _lfQ.multiply(_lfQ2.setFromEuler(_lfE.set(pitch, yaw, 0, 'YXZ')));
+  const f = B[J.foot[side]].quaternion;
+  if (k >= 1) f.copy(_lfQ);
+  else f.slerp(_lfQ, k);
+}
+// Was die Hände halten (für life3): Schild, zweite Waffe, Zweihänder, freier linker Arm
+function lifeHands3(p, kind, o = {}) {
+  const sch = p.equipment && p.equipment.schild;
+  o.kind = kind;
+  o.shield = !!sch && !isOffhand(sch) && !isQuiver(sch);
+  o.dual = !!sch && isOffhand(sch);
+  o.two = kind === 'greatsword' && !sch;
+  o.freeL = !o.shield && !o.dual && !o.two && kind !== 'dagger' && kind !== 'scythe';
+  o.portrait = false;
+  return o;
+}
+// mode: 'stand' | 'walk' | 'ride' | 'act'; o: lifeHands3 und portrait (Figurenbild), onDragon, bowDraw
+function life3(a, p, t, dt, mode, o) {
+  const J = a.model.joints;
+  if (!J) return;
+  const B = a.bones;
+  const L = LIFE3[p.classId] || LIFE3.krieger;
+  const fem = J.fem;
+  if (a.lseed == null) a.lseed = lfHash3((p.x || 0) * 0.013 + (p.y || 0) * 0.007 + String(p.name || p.id || '').length) * 40;
+  const seed = a.lseed;
+  const kind = o.kind;
+  const hips = B[BH.hips];
+  const chest = B[BH.chest];
+  const head = B[BH.head];
+  const armL = B[BH.armL].rotation;
+  const armR = B[BH.armR].rotation;
+  // in den Stand weich (0,3 s), heraus schnell (Angriffe und Schritte sollen sofort wirken)
+  const goal = mode === 'stand' ? 1 : 0;
+  a.lfS = o.portrait ? 1 : (a.lfS || 0) + (goal - (a.lfS || 0)) * Math.min(1, dt * (goal > (a.lfS || 0) ? 4 : 12));
+  const k = a.lfS;
+  // Zielwinkel der Ellbogen und ob die Hand ihre Richtung behält (je Figur wiederverwendet, kein Müll je Bild)
+  const eT = a.lfT || (a.lfT = [0, 0]);
+  eT[0] = eT[1] = 0;
+  const keep = a.lfKeep || (a.lfKeep = [0, 1]);
+  keep[0] = o.dual || o.two ? 1 : 0;
+  keep[1] = kind === 'dagger' ? 0 : 1;
+  const br = Math.sin(t * 1.85 + seed);
+  if (k > 0.002) {
+    // Gewicht: ruht auf einem Bein und wechselt alle 6–9 s (in 1,5 s), dazwischen nur leichtes Wiegen
+    const per = 6.5 + (seed % 3);
+    const ph = (t + seed * 3.1) / per;
+    const n = Math.floor(ph);
+    const side = n % 2 ? 1 : -1;
+    const s = ((-side + 2 * side * sstep3(0, 0.2, ph - n)) * 0.9 + Math.sin(t * 0.83 + seed) * 0.1) * L.wt * (fem ? 1.2 : 1);
+    const sway = Math.sin(t * 0.61 + seed * 2.3);
+    const bob = L.bob ? L.bob * (0.5 + 0.5 * Math.sin(t * 4.4 + seed)) : 0;
+    // unter Roben weniger Kniebeuge und Hüftschub (Stiefel und Stulpen bleiben im Saum)
+    hips.position.x += s * (J.robe ? 0.028 : 0.04) * k;
+    hips.position.y -= (L.dip * (J.robe ? 0.35 : 1) + bob + 0.002 * (1 + br)) * k;
+    hips.position.z += sway * 0.006 * k;
+    // je Knochen ein set statt mehrerer += (jede Änderung rechnet die Drehung neu)
+    const hr = hips.rotation;
+    hr.set(hr.x, hr.y + (s * 0.09 + sway * 0.03) * k, hr.z + s * 0.1 * (fem ? 1.3 : 1) * k);
+    const cr = chest.rotation;
+    cr.set(cr.x + (L.lean + br * 0.018) * k, cr.y - (s * 0.11 + sway * 0.03) * k, cr.z - s * 0.14 * (fem ? 1.15 : 1) * k);
+    // der Umhang hängt am Nacken, sein Saum folgt aber der Hüfte (Schultern drehen gegen): sonst schwenkt er unten durch
+    // Robe und Beine
+    const cape = B[BH.cape].rotation;
+    // über Roben etwas weiter nach hinten (der Saum der Robe schwingt in Falten aus, die Kante des Umhangs blieb sonst
+    // als heller Keil des Futters vor der Robe stehen)
+    cape.set(cape.x - L.lean * k + ((o.portrait ? 0.1 : 0) + (J.robe ? 0.08 : 0)) * k, cape.y + (s * 0.11 + sway * 0.03) * k, cape.z + s * 0.14 * (fem ? 1.15 : 1) * k);
+    // Blick: alle paar Sekunden kurz zur Seite
+    const gp = (t + seed * 7.3) / 5.3;
+    const gn = Math.floor(gp);
+    const gs = (gp - gn) * 5.3;
+    const gd = lfHash3(gn + seed) * 2 - 1;
+    const glance = Math.abs(gd) > 0.3 ? gd * 0.5 * sstep3(0.2, 0.75, gs) * (1 - sstep3(2.0, 2.6, gs)) : 0;
+    // kleine Geste je Klasse (etwa alle 9 s für 1,6 s)
+    const fp = (t + seed * 5.7) / 9.1;
+    const fn = Math.floor(fp);
+    const fs = (fp - fn) * 9.1;
+    const fk = lfHash3(fn * 1.7 + seed) > 0.3 ? Math.sin(Math.PI * sstep3(0, 1.6, fs)) : 0;
+    const hd = head.rotation;
+    hd.set(hd.x + (L.head - L.lean * 0.7 - br * 0.012) * k, hd.y + (glance + s * 0.04 + sway * 0.03) * k, hd.z + (s * 0.07 - glance * 0.12) * k);
+    // Füße bleiben stehen: das linke etwas vor, beide leicht auswärts; die Beine folgen der Hüfte über die Gelenke
+    // unter Roben enger und weniger Schritt (sonst stechen die Stiefel durch den Saum)
+    const hx = J.hipX + L.st * (fem ? 0.6 : 1) * (J.robe ? 0.35 : 1);
+    const fw = L.fw * (J.robe ? 0.25 : 1);
+    legIK3(a, 0, hx, J.ankleY, fw, k);
+    legIK3(a, 1, -hx, J.ankleY, -fw * 0.3, k);
+    footFlat3(a, 0, L.toe, 0, k);
+    footFlat3(a, 1, -L.toe, 0, k);
+    // freier Arm: locker abgespreizt, leicht vor, Ellbogen gebeugt, atmet mit
+    if (o.freeL) {
+      armL.set(armL.x + (-0.05 + sway * 0.03 - L.lean * 0.5) * k, armL.y, armL.z + (L.free[0] - 0.08 + br * 0.012) * k);
+      eT[0] = L.free[1] + br * 0.03;
+    } else eT[0] = kind === 'dagger' ? 0.75 : o.two ? 0.22 : o.shield ? 0.4 : kind === 'scythe' ? 0.4 : L.el;
+    eT[1] = kind === 'dagger' ? 0.75 : o.two ? 0.22 : L.el;
+    if (!o.portrait) {
+      const hR = B[BH.handR].rotation;
+      const to = (r, x, z) => {
+        r.x += (x - r.x) * k;
+        r.z += (z - r.z) * k;
+      };
+      if (kind === 'rod') {
+        // Magier: Zepter aufrecht vor sich, Ellbogen angewinkelt
+        to(armR, -0.26, -0.34);
+        to(hR, 0.04, 0.3);
+        eT[1] = 0.85;
+      } else if (kind === 'staff' || kind === 'skullstaff') {
+        // Nekromant: Stab neben sich aufgestützt
+        to(armR, -0.14, -0.26);
+        to(hR, -0.06, 0.14);
+        eT[1] = 0.3;
+      }
+      armR.x -= br * 0.015 * k;
+    }
+    if (fk > 0) {
+      const g = fk * k;
+      if (p.classId === 'krieger') {
+        // Schultern rollen, Waffe kurz gehoben
+        chest.rotation.y += 0.1 * g;
+        chest.rotation.x -= 0.05 * g;
+        if (!o.portrait) armR.x -= 0.25 * g;
+      } else if (p.classId === 'ninja') {
+        // federt tiefer und schaut sich um
+        hips.position.y -= 0.03 * g;
+        head.rotation.y -= 0.3 * g;
+      } else if (p.classId === 'schamane') {
+        // Fächer bzw. Glocke schwenken, Hüfte wiegt
+        hips.rotation.z += 0.06 * g * Math.sin(fs * 5);
+        if (!o.portrait) B[BH.handR].rotation.z += 0.35 * g * Math.sin(fs * 7);
+      } else if (p.classId === 'nekromant') {
+        // Kopf schief, Blick zum Stab
+        head.rotation.z += 0.22 * g;
+        head.rotation.y -= 0.25 * g;
+      } else if (o.freeL) {
+        // Magier: die freie Hand hebt sich nachdenklich vor die Brust (Bart, Zopf), der Kopf neigt sich dazu
+        armL.x -= 0.38 * g;
+        armL.z -= 0.1 * g;
+        eT[0] += 1.45 * g;
+        head.rotation.x += 0.08 * g;
+        head.rotation.y += 0.12 * g;
+      }
+    }
+  }
+  if (mode === 'walk') {
+    const w = t * 11;
+    const c = Math.cos(w);
+    const sn = Math.sin(w);
+    const swL = Math.max(0, -c);
+    const swR = Math.max(0, c);
+    // Vorschwingen: Oberschenkel etwas höher, Knie stark gebeugt; Auftreten mit leicht gebeugtem Knie
+    B[BH.legL].rotation.x -= 0.2 * swL;
+    B[BH.legR].rotation.x -= 0.2 * swR;
+    B[J.shin[0]].rotation.x = 0.12 + 0.95 * Math.pow(swL, 1.4);
+    B[J.shin[1]].rotation.x = 0.12 + 0.95 * Math.pow(swR, 1.4);
+    footFlat3(a, 0, 0.12, 0.5 * Math.max(0, sn) * (swL > 0 ? 0.5 : 1) - 0.22 * Math.max(0, -sn), 1);
+    footFlat3(a, 1, -0.12, 0.5 * Math.max(0, -sn) * (swR > 0 ? 0.5 : 1) - 0.22 * Math.max(0, sn), 1);
+    hips.position.x += 0.012 * c;
+    hips.rotation.z += 0.03 * c;
+    chest.rotation.z -= 0.02 * c;
+    head.rotation.y += sn * 0.07;
+    eT[0] = o.freeL ? 0.32 + 0.45 * Math.max(0, -armL.x) : o.shield ? 0.45 : L.el * 0.8;
+    eT[1] = kind === 'dagger' ? 0.6 : L.el * 0.8;
+  } else if (mode === 'ride') {
+    // Unterschenkel hängen am Pferd bzw. Drachen herab, Füße in den Bügeln, Hände vorn
+    const kn = o.onDragon ? 1.0 : 1.3;
+    for (let i = 0; i < 2; i++) {
+      B[J.shin[i]].rotation.x = kn;
+      footFlat3(a, i, i ? -0.25 : 0.25, -0.15, 0.85);
+    }
+    if (o.freeL) {
+      armL.x -= 0.35;
+      eT[0] = 0.85;
+    } else eT[0] = 0.4;
+    if (kind !== 'bow') armR.x -= 0.3;
+    eT[1] = kind === 'bow' ? 0.25 : 0.7;
+    chest.rotation.x += 0.06;
+  } else if (mode === 'act') {
+    // Angriffe: Posen bleiben, nur Knie leicht gebeugt und Füße flacher am Boden
+    for (let i = 0; i < 2; i++) {
+      B[J.shin[i]].rotation.x += 0.1 * (1 - k);
+      footFlat3(a, i, i ? -0.15 : 0.15, 0, 0.55 * (1 - k));
+    }
+  }
+  const el = a.lfEl || (a.lfEl = [0, 0]);
+  const er = o.portrait || o.bowDraw ? 1 : Math.min(1, dt * 10);
+  for (let i = 0; i < 2; i++) {
+    el[i] += ((mode === 'act' ? 0 : eT[i]) - el[i]) * er;
+    bendArm3(a, i, el[i], keep[i]);
+  }
+}
+
 // Spielerfigur holen oder bauen (seit 14.69 mit Ersatz): scheitert der Bau (Ausnahme), lief er vorher in jedem Bild neu
 // an – ein Hänger von 20–50 ms je Bild, und die Figur fehlte, solange es scheiterte (Name und Lebensbalken blieben).
 // Jetzt wird ein gescheiterter Schlüssel 10 s nicht wieder versucht; bis dahin trägt die Figur ein Ersatzmodell ohne
@@ -6971,7 +7430,7 @@ function syncPlayer3(p, dt) {
     B[BH.armR].rotation.set(-2.7 * k, 0, -0.3 * k);
     B[BH.head].rotation.x += -0.3 * k;
   } else if (sw >= 0 && Object.prototype.hasOwnProperty.call(SKILL_POSE3, p.swingKind)) {
-    // eigene Animationen (seit 8.3): Sichelwelle, Felsenfaust, Sprungschlag; seit 8.5 Salve, Käfig, Schnitter
+    // eigene Animationen (seit 8.3): Klingenkreuz, Felsenfaust, Sprungschlag; seit 8.5 Salve, Käfig, Schnitter
     SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
   } else if (sw >= 0 && (p.swingKind === 'combo' || p.swingKind === 'cast') && basicKeys3(kind, p)) {
     // Grundangriff (seit 9.3): Schlüsselposen je Waffe und Kombo, ganzer Körper
@@ -7072,6 +7531,13 @@ function syncPlayer3(p, dt) {
   if (hurtK < 1 && !p.riding) B[BH.chest].rotation.x -= Math.sin(hurtK * Math.PI) * 0.3;
   // Bogensehne zur Zughand (seit 13.67)
   if (a.model.bowStr) bowString3(a, p, sw);
+  // seit 15.46: Leben in der Haltung – Gelenke, Gewicht auf einem Bein, Atmen, Blick, Gesten (life3)
+  if (a.model.joints) {
+    const lh = lifeHands3(p, kind, a.lfH || (a.lfH = {}));
+    lh.onDragon = onDragon;
+    lh.bowDraw = kind === 'bow' && sw >= 0 && !!BOW_DRAW3[p.swingKind];
+    life3(a, p, t, dt, p.riding ? 'ride' : posing || sw >= 0 || lift > 0.01 || p.spin > 0 || p.dash ? 'act' : p.moving ? 'walk' : 'stand', lh);
+  }
   const mat = a.mats.lit;
   const glowUp = p.glowUntil > game.time ? (p.glowUntil - game.time) / 1.5 : 0;
   if (hurtK < 1) mat.emissive.setRGB(0.6 * (1 - hurtK), 0.05, 0.02);
@@ -7446,8 +7912,10 @@ function syncCorpse3(e) {
 // Inventar, Schmied und „Betrachten“ zeigen die echte 3D-Figur statt der 2D-Zeichnung: eigene kleine Szene,
 // gerendert in ein Bild (Render-Target) und in das Fenster-Canvas kopiert. Die Figur passt immer ganz hinein
 // (Höhe und Breite), nichts wird gestaucht oder abgeschnitten. yaw dreht die Figur (Antippen dreht weiter).
-const portrait3 = { scene: null, cam: null, rt: null, buf: null, img: null, actors: new Map() };
-function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
+// seit 15.46 lebt das Bild: ohne eigene Haltung (pose) zeichnet portraitLive3 es etwa 12-mal je Sekunde neu (live), solange
+// es zu sehen ist – die Figur atmet, verlagert das Gewicht und schaut sich um wie in der Welt (life3)
+const portrait3 = { scene: null, cam: null, rt: null, buf: null, img: null, id: null, actors: new Map() };
+function v3Portrait(canvas, who, yaw = -0.4, pose = null, live = false) {
   if (!V3.on || !V3.gl || !canvas || !who) return false;
   const w = canvas.clientWidth;
   const h = canvas.clientHeight;
@@ -7456,11 +7924,15 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   if (!P.scene) {
     P.scene = new THREE.Scene();
     // seit 14.59 etwas weniger Licht (vorher 0,62/0,88): helle Rüstungen und Gesichter wirkten ausgefressen
-    const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x5a4a3a, 0.56);
-    const sun = new THREE.DirectionalLight(0xfff0d4, 0.8);
-    sun.position.set(-2, 5, 6);
-    const fill = new THREE.DirectionalLight(0xd8e4ff, 0.18);
-    fill.position.set(4, 2, 3);
+    // seit 15.46 noch einmal weniger und das Hauptlicht mehr von der Seite (Spielerbild: Gesicht im Inventar weiß
+    // überstrahlt). Die Zeichentrick-Stufen geben jedem Licht auch im Schatten die Hälfte, darum lag helle Haut von vorn
+    // bei rund 130 % und wurde weiß; jetzt bleibt die Lichtseite knapp unter 100 %, die Schattenseite bei gut 60 % –
+    // Haut behält ihren Ton, Augen, Brauen und Bart heben sich ab, das Gesicht bekommt eine Licht- und Schattenseite
+    const hemi = new THREE.HemisphereLight(0xe4f2ff, 0x5a4a3a, 0.44);
+    const sun = new THREE.DirectionalLight(0xfff0d4, 0.64);
+    sun.position.set(-4.5, 5, 3.2);
+    const fill = new THREE.DirectionalLight(0xd8e4ff, 0.12);
+    fill.position.set(4, 1.5, 3);
     P.scene.add(hemi, sun, sun.target, fill);
     P.cam = new THREE.PerspectiveCamera(24, 1, 0.1, 60);
   }
@@ -7502,6 +7974,12 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   // Waffen wie im Charakterfenster großer MMOs (Charakterfenster, Inventar, Schmied, Betrachten)
   if (pose) pose(a.bones);
   else readyPose3(a.bones, who);
+  if (!pose && a.model.joints) {
+    const lh = lifeHands3(who, weaponKindOf(who), a.lfH || (a.lfH = {}));
+    lh.portrait = true;
+    life3(a, who, performance.now() / 1000, 1, 'stand', lh);
+  }
+  if (!pose && !live) portraitLive3(canvas, who, yaw);
   a.group.rotation.set(0, yaw, 0);
   a.group.position.set(0, 0, 0);
   a.group.updateMatrixWorld(true);
@@ -7552,15 +8030,21 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   gl.shadowMap.enabled = prevShadow;
   // Zeilen umdrehen (WebGL zählt von unten)
   const ix = P.img.getContext('2d');
-  const id = ix.createImageData(W, H);
+  if (!P.id || P.id.width !== W || P.id.height !== H) P.id = ix.createImageData(W, H);
+  const id = P.id;
   const row = W * 4;
   for (let y = 0; y < H; y++) id.data.set(P.buf.subarray((H - 1 - y) * row, (H - y) * row), y * row);
   ix.putImageData(id, 0, 0);
   // ins Fenster: Hintergrund in der Klassenfarbe, darüber die Figur
   const cd = Math.min(3, window.devicePixelRatio || 1);
-  canvas.width = Math.round(w * cd);
-  canvas.height = Math.round(h * cd);
+  // Größe nur bei Änderung setzen (sonst legt jedes lebende Bild die Fläche neu an)
+  if (canvas.width !== Math.round(w * cd) || canvas.height !== Math.round(h * cd)) {
+    canvas.width = Math.round(w * cd);
+    canvas.height = Math.round(h * cd);
+  }
   const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.setTransform(cd, 0, 0, cd, 0, 0);
   const trim = hexRgb(CLASSES[who.classId].trim);
   const g = ctx.createRadialGradient(w / 2, h * 0.62, 4, w / 2, h * 0.55, Math.max(w, h) * 0.65);
@@ -7572,4 +8056,43 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null) {
   ctx.imageSmoothingQuality = 'high';
   ctx.drawImage(P.img, 0, 0, w, h);
   return true;
+}
+// Lebende Figurenbilder (seit 15.46): etwa 12 Bilder je Sekunde (die Bewegung ist ruhig), nur sichtbare Flächen; nicht mehr eingehängte fallen
+// heraus, verborgene nach 5 s (öffnet man das Fenster wieder, meldet drawDoll das Bild neu an)
+const PORTRAIT_LIVE3 = new Map();
+let portraitLiveOn3 = false;
+function portraitLive3(canvas, who, yaw) {
+  PORTRAIT_LIVE3.set(canvas, { who, yaw, hid: 0 });
+  if (portraitLiveOn3) return;
+  portraitLiveOn3 = true;
+  let last = 0;
+  const tick = (now) => {
+    if (!PORTRAIT_LIVE3.size || !V3.on) {
+      portraitLiveOn3 = false;
+      PORTRAIT_LIVE3.clear();
+      return;
+    }
+    requestAnimationFrame(tick);
+    // bei Grafik „Niedrig“ (schwache Handys) nur etwa 6 Bilder je Sekunde
+    const gap = typeof opts !== 'undefined' && opts.graphics === 'niedrig' ? 160 : 80;
+    if (now - last < gap || document.hidden) return;
+    const dt = Math.min(1000, now - last);
+    last = now;
+    for (const [cv, e] of PORTRAIT_LIVE3) {
+      if (!cv.isConnected) PORTRAIT_LIVE3.delete(cv);
+      else if (!cv.offsetParent || !cv.clientWidth) {
+        e.hid += dt;
+        if (e.hid > 5000) PORTRAIT_LIVE3.delete(cv);
+      } else {
+        e.hid = 0;
+        try {
+          v3Portrait(cv, e.who, e.yaw, null, true);
+        } catch (err) {
+          PORTRAIT_LIVE3.delete(cv);
+          console.warn('Figurenbild:', err);
+        }
+      }
+    }
+  };
+  requestAnimationFrame(tick);
 }

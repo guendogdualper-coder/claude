@@ -1361,11 +1361,14 @@ const MAGE_ULTS = {
     text: 'Der Boden um dich gefriert zu einem Gletscher: Alle Gegner bis 260 weit erstarren 2 s im Eis, dann zerspringt es mit gewaltigem Schaden.',
     stats: '1,5× beim Einfrieren, 2 s eingefroren (Bosse nur verlangsamt), Zerspringen 4×'
   },
+  // Sturmgericht statt Donnerkrone (Ablauf, 3D, 2D und Haltung in sturmgericht.js; Werte in SG). Zielort wie bei den
+  // Ortszaubern (aim, range, radius → Zielkreis in useUltimate). Die Donnerkrone unten bleibt nur als Bild für
+  // Mitspieler mit älterer Version.
   blitz: {
-    id: 'donnerkrone', name: 'Donnerkrone', short: 'DK', color: '#ffe94a',
-    text: 'Eine Krone aus Blitzen erhebt sich über dir: Zehn Blitze schlagen waagrecht in die nächsten Gegner und springen weiter. Danach 10 s Donnerkrone.',
-    stats: 'je Blitz 1,4× Angriff, Sprung 0,7×; Donnerkrone: +25 % Angriffstempo, +8 % Lauftempo',
-    buff: { id: 'donnerkrone', name: 'Donnerkrone', duration: 10, effects: { atkSpeed: 0.25, speed: 0.08 } }
+    id: 'sturmgericht', name: 'Sturmgericht', short: 'SG', color: '#ffe94a',
+    text: 'Du reckst das Zepter zum Himmel: Über dem Zielort ballt sich in einer Sekunde ein Gewitter zusammen, dann schlägt ein gewaltiger Blitz ein. Er reißt den Boden auf, trifft in der Mitte am härtesten und betäubt alle Gegner ringsum. Danach springen Nachentladungen zwischen den Getroffenen hin und her.',
+    stats: 'Zielort bis 420 weit; Einschlag 8× Angriff in der Mitte, 5× am Rand (Radius 190), 1,5 s betäubt; 8 Nachentladungen je 0,5× in die Getroffenen',
+    aim: true, range: 420, radius: 190, pose: 'sgruf', poseDur: 1.35
   },
   erde: {
     id: 'weltenbruch', name: 'Weltenbruch', short: 'WB', color: '#f0a830',
@@ -1421,6 +1424,7 @@ function eiszeitFx(x, fy, near, own = true) {
     }
   });
 }
+// Donnerkrone (bis zum Sturmgericht die Ulti des Blitzwegs): nur noch das Bild für Mitspieler mit älterer Version
 const DONNERKRONE_BOLTS = 10;
 function donnerkroneFx(owner) {
   addEffect({ type: 'mcrown3', follow: owner, dur: 2.4, color: '#ffe94a' });
@@ -1488,46 +1492,6 @@ Object.assign(ULT_RUN, {
       }
       ultHitCircle(x, y, 260, 4 * pw, { vfxColor: '#eafcff' });
     });
-  },
-
-  donnerkrone(p, u, pw) {
-    donnerkroneFx(p);
-    const hit = new Set();
-    // seit 13.5 zehn Blitze (vorher sechs), dichter hintereinander
-    for (let k = 0; k < DONNERKRONE_BOLTS; k++) {
-      later(0.2 + k * 0.22, () => {
-        if (p.dead) return;
-        // noch nicht getroffene zuerst, dann der nächste
-        let best = null;
-        let bd = Infinity;
-        for (const m of enemiesNear(p.x, p.y, 280)) {
-          const d = dist(m, p);
-          if (d > 280) continue;
-          const score = d + (hit.has(m.id) ? 1000 : 0);
-          if (score < bd) { bd = score; best = m; }
-        }
-        if (!best) return;
-        hit.add(best.id);
-        const b = bodyCenter(best);
-        addEffect({ type: 'chain', x: p.x, y: feetY(p) - 16, h1: 1.9, x2: b.x, y2: b.y, dur: 0.3, color: u.color });
-        hitMonster(best, 1.4 * pw, { stun: 0.3, heavy: true, vfxColor: '#ffffff' });
-        shakeScreen(3);
-        // ein Sprung zum nächsten Gegner daneben
-        let nxt = null;
-        let nd = 150;
-        for (const m of enemiesNear(best.x, best.y, 150)) {
-          if (m === best) continue;
-          const d = dist(m, best);
-          if (d < nd) { nd = d; nxt = m; }
-        }
-        if (nxt) {
-          const c = bodyCenter(nxt);
-          addEffect({ type: 'chain', x: b.x, y: b.y, x2: c.x, y2: c.y, dur: 0.25, color: u.color });
-          hitMonster(nxt, 0.7 * pw, { vfxColor: '#ffffff' });
-        }
-      });
-    }
-    later(0.2 + 6 * 0.35, () => { if (!p.dead) ultBuff(p, u.buff); });
   },
 
   weltenbruch(p, u, pw) {

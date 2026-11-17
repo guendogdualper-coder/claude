@@ -1,6 +1,6 @@
 // Service Worker: speichert das Spiel auf dem Gerät, damit es auch ohne Internet startet.
 // Bei jeder neuen Version VERSION erhöhen, dann holen sich installierte Apps die neuen Dateien.
-const VERSION = 'seelenstein-v373';
+const VERSION = 'seelenstein-v374';
 // Klänge und Musik (snd/, seit 14.8) liegen in einem eigenen Speicher, der Versionswechsel übersteht: einmal geladen,
 // sind sie offline da und werden nach einem Update nicht neu heruntergeladen. Große Musikdateien stehen bewusst
 // nicht in FILES (kein Vorabladen beim Installieren), sie kommen erst, wenn das Spiel sie braucht.
@@ -13,7 +13,10 @@ const FILES = [
   'css/schriften.css', 'fonts/alegreya-sans-400-latin-ext.woff2', 'fonts/alegreya-sans-400-latin.woff2', 'fonts/alegreya-sans-500-latin-ext.woff2', 'fonts/alegreya-sans-500-latin.woff2', 'fonts/alegreya-sans-700-latin-ext.woff2', 'fonts/alegreya-sans-700-latin.woff2', 'fonts/alegreya-sans-800-latin-ext.woff2', 'fonts/alegreya-sans-800-latin.woff2', 'fonts/marcellus-sc-400-latin-ext.woff2', 'fonts/marcellus-sc-400-latin.woff2',
   'css/seltenheit.css',
   'css/handel.css',
+  'css/titel.css',
   'js/sprache.js',
+  'js/titel.js',
+  // Wörterbücher (js/sprachen/*.js) stehen bewusst nicht hier: jedes Gerät lädt nur seine Sprache und legt sie beim ersten Laden in den Speicher
   'js/daten/klassen.js',
   'js/daten/rangnamen.js',
   'js/daten/monster.js',
@@ -101,10 +104,12 @@ const FILES = [
   'js/symbole-magier3.js',
   'js/feuerfeld.js',
   'js/flammenwoge.js',
+  'js/klingenkreuz.js',
   'js/fernninja.js',
   'js/koerperaura.js',
   'js/schneesturm.js',
   'js/frostgefaengnis.js',
+  'js/sturmgericht.js',
   'js/symbole-nekro2.js',
   'js/oberflaeche.js',
   'js/quests.js',
@@ -159,9 +164,11 @@ const FILES = [
   'js/schmuckordnung.js',
   'js/klassensets.js',
   'js/turm.js',
+  'js/endgame80.js',
   'js/peerjs.min.js',
   'js/nativ.js',
   'js/spiel.js',
+  'js/einfuehrung.js',
   'datenschutz.html',
   'konto-loeschen.html', 'regeln.html',
   'icons/icon-192.png',
@@ -176,7 +183,10 @@ const FILES = [
   'bilder/drache-schwarz.webp',
   'bilder/drache-weiss.webp',
   'bilder/lade-licht.webp',
-  'bilder/lade-schatten.webp'
+  'bilder/lade-schatten.webp',
+  // seit 15.46: Bilder des Titelbildschirms (die 4K-Fassung lädt erst bei Bedarf)
+  'bilder/titel.webp',
+  'bilder/titel-hoch.webp'
 ];
 
 self.addEventListener('install', (e) => {

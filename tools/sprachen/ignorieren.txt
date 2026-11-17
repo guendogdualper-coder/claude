@@ -1,0 +1,431 @@
+# Schlüssel ohne Übersetzung (eine Zeile je Schlüssel, /regex/flags für Muster)
+/^Version \{0\}/
+ms
+Tab
+Esc
+Enter
+Kazehana
+Testa
+{0} ms
+{0} min
+Plus
+Ultra
+Language
+Mira
+Testa|magier
+TikTok
+Instagram
+Kanalstadt
+Gratfeste
+Wurzelhof
+Kluftwacht
+Aschenhafen
+Wolkenhorst
+Stegdorf
+Basaltsechseck
+Oktogon
+Mondsichel
+Palisadenstern
+Dünenlinse
+Kesselrand
+Kreuzfeste
+Fjordhafen
+Mondweiher
+Dünenring
+Kreuzhof
+/"/
+/\|#/
+/^[SY,w%.]+$/
+zh-CN
+Ewigkeits
+hud > .menu
+Bahasa Indonesia
+Deutsch
+English
+Italiano
+Polski
+Nederlands
+Türkçe
+Français
+Español
+Português
+Sahra
+Kadir
+Omar
+Lale
+Hakim
+Dila
+Selim
+Yusuf
+Rahim
+Tamar
+Brok
+Hilda
+Ragnar
+Eik
+Thorm
+Gunhild
+Sigrun
+Halvar
+Ulf
+Solveig
+Knud
+Tilda
+Arno
+Fenn
+Ilka
+Wanda
+Hagen
+Sena
+Elm
+Ruth
+Eberhard
+Greta
+Grada
+Borr
+Kragg
+Urza
+Mok
+Thrak
+Vasha
+Durn
+Gor
+Brakk
+Rami
+Zahra
+Tarik
+Amal
+Faris
+Idris
+Layla
+Samir
+Nadia
+Yasmin
+Malik
+Frida
+Sten
+Bjarne
+Ylva
+Eira
+Olaf
+Ingrid
+Torvi
+Knut
+Hjalmar
+Sigrid
+Morla
+Grim
+Vex
+Oswin
+Moira
+Bran
+Mortimer
+Agathe
+Asha
+Volkan
+Ignis
+Glut
+Pyra
+Ember
+Kira
+Funke
+Aschea
+Kohl
+Selene
+Brannoc
+Corvin
+Ilse
+Sorel
+Aurelia
+Nerys
+Elian
+Maren
+Castor
+Odo
+Nocta
+Varg
+Schwarzhand
+Ilvy
+Morwen
+Selenor
+Kesha
+Umbra
+Raskin
+Thalor
+Brisa
+Esche
+Kohlbart
+Senga
+Glimm
+Ascan
+Fenna
+Zunder
+Holk
+Branda
+Teer
+Bleika
+Ossko
+Grimmzahn
+Kalka
+Mürb
+Ossian
+Sandra
+Wispel
+Dorrak
+Velka
+Spann
+Rubina
+Hager
+Karmin
+Scharla
+Sangor
+Ruthgar
+Vela
+Roth
+Steppa
+Korvin
+Murrak
+Nivea
+Frosthand
+Isgar
+Rima
+Kalla
+Edda
+Snjola
+Glanz
+Bjarki
+Halla
+Sturri
+Nebula
+Krag
+Klippa
+Moos
+Schierling
+Ysra
+Schlick
+Dämmer
+Riff
+Ossina
+Torf
+Ilmera
+Tarven
+Kelrun
+Syra
+Noemi
+Maruna
+Yelva
+Lunis
+Hendrik
+Orwin
+Jorun
+Merle
+Harald
+Kjell
+Tjarda
+Lorna
+Gerold
+Silke
+Jasper
+Hauke
+Edwin
+Ronja
+Aurelie
+Bastian
+Florian
+Liane
+Cyrill
+Helion
+Sunna
+Clara
+Konstantin
+Valerius
+Mirabel
+Amira
+Torvald
+Wiebke
+Grisha
+Zeynep
+Liv
+Rabe
+Flint
+Siv
+Silvra
+Kiefer
+Sehne
+Dorna
+Reif
+Natter
+Thessa
+Imke
+Dorian
+Bashir
+Ingvild
+Konrad
+Gruk
+Soraya
+Eskil
+Morgana
+Lucan
+Mirok
+Glutfinger
+Talgrid
+Ochra
+Rimfrost
+Orl
+Meren
+Bendix
+Leopold
+Leyla
+Arvid
+Hanne
+Durza
+Karim
+Tove
+Krähe
+Asche
+Fenja
+Eule
+Funkel
+Knöch
+Wachs
+Flocke
+Unke
+Lyske
+Gesa
+Rosalie
+Zarif
+Brynja
+Rasmus
+Urgash
+Samira
+Hedda
+Vesper
+Glutfaust
+Varik
+Brandt
+Schädelbrecher
+Rotfaust
+Grimhild
+Morast
+Darvin
+Wulf
+Justus
+Faruk
+Ragnhild
+Wendel
+Morga
+Kamal
+Asta
+Dorn
+Zinder
+Liora
+Raven
+Kohle
+Gerippe
+Scharlach
+Frostzahn
+Nebelfrau
+Ravena
+Thea
+Elara
+angelegt: Ewigkeitsschwert +{0}
+angelegt: Ewigkeitspanzer +{0}
+angelegt: Ewigkeitshelm +{0}
+angelegt: Ewigkeitsumhang +{0}
+angelegt: Ewigkeitsstiefel +{0}
+angelegt: Ewigkeitsgürtel +{0}
+Mondsee mit Insel
+Achteck aus Kohlholz
+Ring um den Schlund
+Glutinseln
+Eisterrassen
+Klippenfeste über dem Moor
+Fehler beim Abgleich
+ungültige Werte oder falsche Lage
+Figurengruppe nicht in der Szene
+Figurengruppe ausgeblendet
+nicht in der Szene
+Körper ausgeblendet
+Körper durchsichtig
+Modell ungültig, neu gebaut
+Escape
+Space
+Alpha
+kein fetch
+Haptics
+Turn off
+Turn on
+Share
+Invite friends
+Fill
+Advisor
+Ask
+Overview
+First Steps
+Frequently Asked Questions
+Clear search
+Topics
+Close
+Point of the Game
+Soulstones
+Trial Arena
+Horse
+Settings
+Accept the main quest
+Hunt your first monsters
+Spend stat points
+Use and improve skills
+Potions and better gear
+Upgrade at the blacksmith
+Break Soulstones
+Play together
+Num
+Achteck
+Ring
+Terrassen
+Pfahldorf
+Inselring
+Oase mit Insel
+Kristallplattformen
+path class="fill" d="M{0} {1}h{2}v{3}h{4}v{5}h-{6}v{7}H{8}v-{9}H{10}V{11}h{12}z
+{0}a{1}|#{2}a{3}a{4}|#ff{5}a{6}a
+{0}a{1}a{2}a|#{3}fc{4}ff|#{5}a{6}aff
+{0}a{1}a{2}a|#ffb{3}a{4}|#ff{5}a{6}a
+{0}a{1}a{2}|#e{3}a{4}|#ff{5}a{6}a
+{0}a{1}a{2}a|#{3}fc{4}d{5}|#{6}ad{7}ff
+{0}a{1}a{2}a|#ff{3}a{4}a|#ff{5}a{6}a
+{0}a{1}a{2}a|#c{3}c{4}a{5}|#ffe{6}a
+SSSSSSSSSS%%SSSSSS%%SSS
+Y,,ww,,Y
+SSSS%%SSSSS%%SSSSSSSSSSSS
+Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", "NanumGothic
+Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans
+Notifications are off. Turn them on in Settings → Seelenstein → Notifications
+you can turn it off any time in the “Daily reward” window
+Try another word or have a look in the wiki
+The answers are only available in German so far
+Stands in the middle of Kazehana (blue “?” above her head) and answers questions with a search – controls, classes, blacksmith, horse, guild and more
+Buff: {dauer} s unsichtbar, bis du angreifst. Monster verlieren dich aus den Augen, dein nächster Angriff macht {0}-fachen Schaden: ein Grundangriff, jede Attacke und auch die Ulti mit allen Treffern (auch Flächenangriffe), der erste Treffer sicher kritisch – mit Hinterhalt {1}
+Sprich mit <b>{n:aeltester}</b> (goldenes „!“). Die Hauptquest führt dich durchs ganze Spiel, der goldene Pfeil zeigt den Weg
+Geh vor das Tor in die Sonnenwiesen: Halte {k:attack} (am Handy den Angriffsknopf). Jag Monster mit weißer oder gelber Stufe
+Jede Stufe gibt {0} Statuspunkte. Charakterfenster ({k:char}) öffnen und vor allem in deinen Hauptwert stecken
+Deine Fertigkeiten liegen auf {k:skill{0}} bis {k:skill{1}}. Jede Stufe gibt einen Fertigkeitspunkt – im Charakterfenster verteilen
+Tränke gibt es bei {n:haendler}, ab Stufe {0} bessere Waffen bei {n:waffen} und Rüstung bei {n:ruestung
+n:schmied} macht deine Ausrüstung stärker (+{0}, +{1} …). Vorsicht: Ein Fehlschlag kann sie zerbrechen, eine Segensschriftrolle schützt
+Über den Server-Knopf ({k:net}) in einen Kanal, dann Gruppe, Freunde und später Gilde. Und jeden Tag die Tagesbelohnung ({k:daily}) abholen
+iPhone (Safari):
+Android (Chrome):
+Das Konto-Lager konnte
+Daily reward reminder
+Re
+Drei Skelettkrieger steigen aus dem Boden und kämpfen {dauer} s an deiner Seite. Ab dem Erwecken (E{0}) rufst du stattdessen drei Knochenhunde, die schnell sind, Gegner anspringen und richtig zubeißen. Heroisch: drei fliegende Knochendrachen, die aus der Luft Seelenfeuerbälle speien und mit ihrem Feueratem ganze Gruppen treffen. Legendär: größere Drachen mit weiterem Atem. Vollendet: drei Seelenkolosse aus Knochen und Obsidian, die mit wuchtigen Fäusten zuschlagen und mit jedem dritten Schlag den Boden aufreißen
+angebot erhalten
+angebot fertig
+antwort da
+bin Host
+broker bereit
+{0}D-Vorwärmen Magier
+übernehme
+Deine Fertigkeit steht schon auf {0}. Bücher gelten nur für E{1}–E{2} – weiter geht es mit Schriftrollen (H) und Seelensteinen (L, V). Verkaufe es oder lege es fürs Zurücksetzen ins Lager
+Deine Fertigkeit steht auf {0}, höher geht es mit Büchern nicht – der Aufstieg nach Heroisch kostet eine Schriftrolle
+Deine Fertigkeit steht schon auf {0} – Bücher gelten nur für E{1}–E{2} (weiter mit Schriftrollen und Seelensteinen).

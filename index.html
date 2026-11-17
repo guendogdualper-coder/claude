@@ -17,11 +17,43 @@
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/seltenheit.css">
   <link rel="stylesheet" href="css/handel.css">
+  <link rel="stylesheet" href="css/titel.css">
 </head>
 <body>
 <!-- seit 14.57: Farbverläufe der Menü-Symbole (außerhalb des HUD, damit sie auch bei verstecktem HUD gelten) -->
 <svg class="mi-defs" width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden"><defs><linearGradient id="miGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3c0"/><stop offset="0.45" stop-color="#f3c24e"/><stop offset="1" stop-color="#a8661a"/></linearGradient><linearGradient id="miGoldD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8b048"/><stop offset="1" stop-color="#7a4a12"/></linearGradient><linearGradient id="miSteel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f9fc"/><stop offset="0.5" stop-color="#b8c2cf"/><stop offset="1" stop-color="#5d6676"/></linearGradient><linearGradient id="miSteelD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a8494"/><stop offset="1" stop-color="#3a414c"/></linearGradient><linearGradient id="miLeather" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d49a5e"/><stop offset="1" stop-color="#7e4a20"/></linearGradient><linearGradient id="miLeatherD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b4743c"/><stop offset="1" stop-color="#5c3416"/></linearGradient><linearGradient id="miHorse" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d89a62"/><stop offset="1" stop-color="#7a4620"/></linearGradient><linearGradient id="miDragon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a4a"/><stop offset="1" stop-color="#a62414"/></linearGradient><linearGradient id="miSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc8ff"/><stop offset="1" stop-color="#1f5bb0"/></linearGradient><linearGradient id="miLand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a4ee80"/><stop offset="1" stop-color="#3b8f34"/></linearGradient><linearGradient id="miParch" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff8e2"/><stop offset="1" stop-color="#e6c486"/></linearGradient><linearGradient id="miParchD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d49a"/><stop offset="1" stop-color="#b88a48"/></linearGradient><linearGradient id="miRed" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6a5a"/><stop offset="1" stop-color="#a8161e"/></linearGradient><linearGradient id="miRedL" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff8a78"/><stop offset="1" stop-color="#c42a2a"/></linearGradient><linearGradient id="miBlue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6fb6ff"/><stop offset="1" stop-color="#1d4a9c"/></linearGradient><linearGradient id="miWood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5a32"/><stop offset="1" stop-color="#4a2c14"/></linearGradient><linearGradient id="miBook" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a7ad8"/><stop offset="1" stop-color="#2a3480"/></linearGradient><linearGradient id="miDragonD" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8503a"/><stop offset="1" stop-color="#7a160a"/></linearGradient><linearGradient id="miHorn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbe8"/><stop offset="1" stop-color="#c9a86a"/></linearGradient><linearGradient id="miBelly" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd08a"/><stop offset="1" stop-color="#e07a2a"/></linearGradient><linearGradient id="miFire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff27a"/><stop offset="1" stop-color="#ff6a1a"/></linearGradient><linearGradient id="p2Coat" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="#ffd590"/><stop offset=".45" stop-color="#e09246"/><stop offset="1" stop-color="#8a4318"/></linearGradient><linearGradient id="p2Mane" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#d8bf8a"/></linearGradient><linearGradient id="p2Hoof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a5040"/><stop offset="1" stop-color="#2a1c12"/></linearGradient><linearGradient id="d2Wing" x1="0" y1="0" x2=".4" y2="1"><stop offset="0" stop-color="#ff8a54"/><stop offset=".5" stop-color="#d23a22"/><stop offset="1" stop-color="#7a160a"/></linearGradient><linearGradient id="d2WingF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8321e"/><stop offset="1" stop-color="#5a0e06"/></linearGradient><linearGradient id="d2Body" x1="0" y1="0" x2=".2" y2="1"><stop offset="0" stop-color="#ff9a5a"/><stop offset=".5" stop-color="#e0402a"/><stop offset="1" stop-color="#8a1a10"/></linearGradient><linearGradient id="d2Belly" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe6a8"/><stop offset="1" stop-color="#e88a34"/></linearGradient><linearGradient id="d2Horn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbe8"/><stop offset="1" stop-color="#c9a86a"/></linearGradient><radialGradient id="d2Eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fffbd0"/><stop offset=".6" stop-color="#ffd23a"/><stop offset="1" stop-color="#ff7a1a"/></radialGradient></defs></svg>
 <!-- app:start -->
+<!-- seit 15.46: Titelbildschirm vor dem Startbildschirm (css/titel.css, js/titel.js) -->
+<div id="titelScreen" role="dialog" aria-modal="true" aria-labelledby="titelLogo">
+  <picture class="titel-bild" aria-hidden="true">
+    <source media="(orientation: portrait)" srcset="bilder/titel-hoch.webp">
+    <source media="(min-width: 1400px) and (min-resolution: 1.5dppx), (min-width: 2200px)" srcset="bilder/titel-4k.webp">
+    <img src="bilder/titel.webp" alt="" decoding="async">
+  </picture>
+  <div class="titel-schleier"></div>
+  <div class="titel-inhalt">
+    <header class="titel-kopf">
+      <h1 id="titelLogo" class="titel-logo no-tr">Seelenstein</h1>
+      <div class="titel-zier" aria-hidden="true"><i></i></div>
+      <p class="titel-zeile">Monster farmen, Seelensteine brechen, Stufe um Stufe stärker werden.</p>
+    </header>
+    <div class="titel-fuss">
+      <nav class="titel-menue" aria-label="Hauptmenü">
+        <button id="titelSpielen" class="titel-knopf haupt" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/></svg><span>Spielen</span></button>
+        <button id="titelOptionen" class="titel-knopf" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8M18.5 18.5l-1.8-1.8M7.3 7.3L5.5 5.5"/></svg><span>Einstellungen</span></button>
+        <button id="titelSprache" class="titel-knopf" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.8 5.6 3.8 9s-1.2 6.4-3.8 9M12 3C9.4 5.6 8.2 8.6 8.2 12s1.2 6.4 3.8 9"/></svg><span>Sprache</span><span class="t-en no-tr">· Language</span></button>
+      </nav>
+      <p class="titel-version" hidden><span>Version</span> <span class="no-tr"></span></p>
+    </div>
+  </div>
+  <div id="titelSprachen" class="titel-sprachen" hidden>
+    <div class="titel-sprachen-karte" role="dialog" aria-labelledby="titelSprachenKopf">
+      <h2 id="titelSprachenKopf"><span>Sprache</span> <span class="t-en no-tr">· Language</span></h2>
+      <button type="button" class="titel-sprachen-zu" aria-label="Schließen">×</button>
+      <div class="titel-sprachliste no-tr"></div>
+    </div>
+  </div>
+</div>
 <canvas id="welt3d" aria-hidden="true" hidden></canvas>
 <canvas id="welt" aria-label="Spielwelt"></canvas>
 <div class="light-fx" aria-hidden="true"></div>
@@ -308,6 +340,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 15.46 – Neuer Titelbildschirm mit großem Bild aller Klassen und den Knöpfen „Spielen“, „Einstellungen“ und „Sprache · Language“. Eine kurze Einführung für neue Charaktere zeigt, wo alles ist (Inventar, Schmied, Charakter, Aufträge, Karte, Seelensteine, Gruppe, Chat) – jederzeit überspringbar und in der Hilfe wiederholbar. Sechs neue Sprachen: 简体中文, Bahasa Indonesia, 日本語, 한국어, Русский und Tiếng Việt; alle Sprachen sind jetzt vollständig übersetzt. Blitzmagier: neue Ulti „Sturmgericht“ statt der Donnerkrone – eine Gewitterwolke ballt sich über dem Ziel, ein riesiger Blitz schlägt ein und betäubt, danach folgen acht Nachentladungen. Krieger (Weg der Klinge): „Klingenkreuz“ statt der Sichelwelle – zwei Hiebe über Kreuz, dann fliegt das leuchtende Kreuz durch alle Gegner (die Welle der Sichelwelle traf vorher wegen eines Fehlers gar nicht). Ab Stufe 80: zwölf neue Prägungen für Ewig-Ausrüstung mit eigenem Namen, Aussehen und Bonus-Schwerpunkt je Karte, teurerer Schmied (erstes Plus 20.000 Gold, jedes weitere teurer) und der neue Veredler neben dem Schmied (Bonus neu würfeln, Veredeln, Färben). Die Spielfiguren stehen lebendiger (Gewicht auf einem Bein, Atmen, kleine Gesten), haben runde Arme und Beine, Hände mit Fingern und richtige Schuhe; die Vorschau im Inventar bewegt sich und ist nicht mehr überbelichtet. Gruppen auf den normalen Karten haben jetzt höchstens 5 Mitglieder (Instanzen und Turm behalten ihre eigenen Regeln).</li>
       <li>Version 15.45 – Vier neue Instanzen für Stufe 80 auf den neuen Karten (allein oder bis 5 Spieler, ab Stufe 75): die „Gezeitengrotte“ und das „Nebelwrack“ an der Nebelküste, der „Sonnentempel“ und der „Wolkenhort“ auf den Himmelsterrassen – jede mit eigenen Gegnern, vier Wächtern und einem Endboss mit sieben Angriffen und eigener Ulti. Dazu vier neue Instanz-Sets und eine zweite Reihe Klassen-Sets mit eigenem Aussehen für alle fünf Klassen (Sonnenlöwe, Nebelfuchs, Gezeitenrufer, Laternenfürst, Mittagssonne) – sie fallen aus den vier neuen Instanzen und aus dem Turm der Verdammten. Die Himmelsterrassen blenden in 3D nicht mehr so stark.</li>
       <li>Version 15.44 – Zwei neue Karten für Stufe 80 (ab Stufe 78 über das Weltentor, von beiden Seiten): die „Nebelküste“ mit dem Küstenlager Leuchtwacht – heller Strand, graugrünes Meer, Felsnadeln und ein Leuchtturm im Nebel – und die „Himmelsterrassen“ mit dem Sonnenhof – goldenes Gras, weiße Terrassenkanten, klare Teiche und blühende Bäume. Wie im Seelenhain gibt es nur wenige Monster und jeweils über 110 Seelensteine der Stufen 70, 75 und 80. Neue Gegner: Brandungsnaga, Nebelharpyie und Riffscherer an der Küste, Sonnenlöwe, Sonnenkoloss und Sonnenwyrm auf den Terrassen – jeder mit eigenem Teil für den Schmied. Beide Lager haben alle Händler, Lehrmeister, Schmied, Post, Auktionshaus und Arenen.</li>
       <li>Version 15.43 – Blitzmagier neu: Der Blitzspeer fliegt weiter (520 statt 390) und ist länger und wuchtiger; getroffene Gegner sind 0,6 s gelähmt und danach 3 s um 40 % verlangsamt. Der Kettenblitz ist jetzt ein ganzer, dicker Blitz aus dem Zepter mit kräftigem Einschlag, der sichtbar nacheinander zu zwei weiteren Gegnern springt. Die Gewitterwolke bekommt die vielen Himmelsblitze, die vorher der Kugelblitz hatte; der Kugelblitz ist jetzt eine knisternde Blitzkugel über dem Feld, aus der die Blitze in die Gegner schlagen und die am Ende zerplatzt. Gegenstände: Der Besser/Schlechter-Vergleich zählt jetzt alle Werte nach ihrer Größe – ein Teil mit vier oder fünf Boni wird nicht mehr schlechter eingestuft, nur weil ein anderes Teil etwas mehr Verteidigung hat; jeder Bonus zählt auch beim Itemlevel stärker. Seelensteine lassen mit 0,01 % ein legendäres Teil für deine Klasse fallen. Gruppe: Der Anführer schickt den Stand der Gruppe regelmäßig neu, damit auch das dritte bis achte Mitglied bei allen sicher angezeigt wird; im Turm der Verdammten zeigt die Gruppenanzeige alle im selben Durchgang (bis 20).</li>
@@ -809,6 +842,7 @@
 <script src="js/umzug.js"></script>
 <script src="js/waechter.js"></script>
 <script src="js/sprache.js"></script>
+<script src="js/titel.js"></script>
 <script src="js/daten/klassen.js"></script>
 <script src="js/daten/rangnamen.js"></script>
 <script src="js/daten/monster.js"></script>
@@ -887,10 +921,12 @@
 <script src="js/symbole-magier3.js"></script>
 <script src="js/feuerfeld.js"></script>
 <script src="js/flammenwoge.js"></script>
+<script src="js/klingenkreuz.js"></script>
 <script src="js/fernninja.js"></script>
 <script src="js/koerperaura.js"></script>
 <script src="js/schneesturm.js"></script>
 <script src="js/frostgefaengnis.js"></script>
+<script src="js/sturmgericht.js"></script>
 <script src="js/symbole-nekro2.js"></script>
 <script src="js/oberflaeche.js"></script>
 <script src="js/quests.js"></script>
@@ -946,7 +982,9 @@
 <script src="js/schmuckordnung.js"></script>
 <script src="js/klassensets.js"></script>
 <script src="js/turm.js"></script>
+<script src="js/endgame80.js"></script>
 <script src="js/nativ.js"></script>
 <script src="js/spiel.js"></script>
+<script src="js/einfuehrung.js"></script>
 </body>
 </html>

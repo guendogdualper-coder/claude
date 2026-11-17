@@ -3110,6 +3110,30 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .opt-row.no-tr { display: block; }
 .opt-seg.opt-langs { display: flex; flex-wrap: wrap; width: 100%; max-width: 100%; }
 .opt-seg.opt-langs button { flex: 1 1 calc(25% - 6px); }
+/* 15.46: Sprachen mit anderen Schriftzeichen – Systemschriften als Ersatz (kein Download; dieselben Listen wie I18N_FONTS
+   in js/sprache.js). Vietnamesisch ganz ohne Alegreya/Marcellus (ihnen fehlen ế, ữ …). Lange Wörter (Russisch,
+   Indonesisch) brechen notfalls um, statt Knöpfe und Fenster zu sprengen. */
+:root:lang(zh) {
+  --font-display: "Marcellus SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei", "WenQuanYi Zen Hei", serif;
+  --font-body: "Alegreya Sans", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei", "WenQuanYi Zen Hei", sans-serif;
+}
+:root:lang(ja) {
+  --font-display: "Marcellus SC", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", serif;
+  --font-body: "Alegreya Sans", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP", sans-serif;
+}
+:root:lang(ko) {
+  --font-display: "Marcellus SC", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", "NanumGothic", serif;
+  --font-body: "Alegreya Sans", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", "NanumGothic", sans-serif;
+}
+:root:lang(vi) {
+  --font-display: "Palatino Linotype", "Book Antiqua", Georgia, "Times New Roman", serif;
+  --font-body: "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", system-ui, sans-serif;
+}
+:root:lang(ko) body { word-break: keep-all; }
+/* lange Wörter nur umbrechen, wenn sie sonst überlaufen (break-word statt anywhere: schmale Reiter wie „Гильдия“ bleiben ganz) */
+:root:lang(ru) body, :root:lang(id) body, :root:lang(vi) body, :root:lang(ko) body { overflow-wrap: break-word; }
+/* Kyrillische Großbuchstaben sind breit, indonesische Wörter lang: „НАПЛЕЧНИКИ“, „TANGAN KEDUA“ passten nicht unter das Feld */
+:root:lang(ru) .item-tile .slot-label, :root:lang(id) .item-tile .slot-label { text-transform: none; letter-spacing: 0; }
 /* 13.10: Startbonus in der Buff-Leiste */
 .buff-ico.buff-event { background: radial-gradient(circle at 50% 40%, #6a4a14, #2a1a08); }
 .buff-ico.buff-event svg { width: 70%; height: 70%; margin: 15%; fill: #ffd34d; filter: drop-shadow(0 0 4px rgba(255, 211, 77, 0.8)); }

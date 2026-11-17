@@ -1157,7 +1157,10 @@ const SKILL_RENAMED = { giftpfeil: 'tarnung', klingensturm: 'hinterhalt', giftne
   leichtfuessigkeit: 'schattenkette',
   // 14.16: Bogen-Ninja – Splitterfalke (Flächenschaden am gewählten Ort) statt Rückensprung, Platz 4: Stufe, Rang,
   // Leistenplatz und Bücher (Tasche, Lager, Konto-Lager, Post, Handel) gehen mit
-  rueckensprung: 'splitterfalke' };
+  rueckensprung: 'splitterfalke',
+  // Krieger, Weg der Klinge: Klingenkreuz statt Sichelwelle, Platz 1: Stufe, Rang, Leistenplatz und Bücher gehen mit
+  // (der Dreifachschlag von 8.3 führt über die Kettenauflösung unten gleich zum Klingenkreuz)
+  sichelwelle: 'klingenkreuz' };
 // seit 13.76: Ketten auflösen (z. B. Seelenpfeil → Schädelsalve → Blutsauger), damit ein einziges Nachschlagen reicht
 for (const k of Object.keys(SKILL_RENAMED)) {
   let v = SKILL_RENAMED[k];
@@ -1170,6 +1173,7 @@ function fixSave(data) {
   // Version 5.2: Giftpfeil wurde durch Tarnung ersetzt
   // Version 6.3: Klingensturm wurde zu Hinterhalt, Giftnebel zu Blitzangriff
   // Version 8.3: Dreifachschlag → Sichelwelle, Sturmangriff → Sprungschlag, Schildstoß → Felsenfaust
+  // Klingenkreuz statt Sichelwelle (Bücher hier, Stufe und Rang über den Platz 1)
   // Version 8.5: Seelenpfeil → Schädelsalve, Seelensturm → Seelenkäfig, Fluch der Schwäche → Seelenschnitter
   // Version 9.6: Frostlanze → Eisstrahl (auch im Lager); Version 10.0: Seelenschnitter → Totenruf
   for (const it of data.inventory || []) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];

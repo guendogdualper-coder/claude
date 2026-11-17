@@ -117,6 +117,34 @@ function ikKriegerSichel(ctx, IK, x, y, r, d, ang, pal) {
   ctx.restore();
 }
 
+// Lichtschnitt als schlanke Sichel von (x0,y0) nach (x1,y1), Wölbung b (Vorzeichen = Seite);
+// pal = [Kern, Mitte, Rand], a = Deckkraft
+function ikKriegerSchnitt(ctx, IK, x0, y0, x1, y1, b, pal, a = 1) {
+  const mx = (x0 + x1) / 2;
+  const my = (y0 + y1) / 2;
+  const L = Math.hypot(x1 - x0, y1 - y0) || 1;
+  const nx = -(y1 - y0) / L;
+  const ny = (x1 - x0) / L;
+  const path = (c) => {
+    c.moveTo(x0, y0);
+    c.quadraticCurveTo(mx + nx * b, my + ny * b, x1, y1);
+    c.quadraticCurveTo(mx + nx * b * 0.25, my + ny * b * 0.25, x0, y0);
+    c.closePath();
+  };
+  ctx.save();
+  ctx.globalAlpha = a;
+  IK.glow(ctx, pal[1], 7, () => IK.fill(ctx, path, IK.lin(ctx, mx + nx * b * 0.2, my + ny * b * 0.2, mx + nx * b * 0.6, my + ny * b * 0.6, [[0, pal[2]], [0.55, pal[1]], [1, pal[0]]]), 0.7, 'rgba(14,30,70,0.85)'));
+  // heller Kern entlang der Schneide
+  ctx.strokeStyle = 'rgba(255,255,255,0.95)';
+  ctx.lineWidth = 0.9;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x0 + (x1 - x0) * 0.12, y0 + (y1 - y0) * 0.12);
+  ctx.quadraticCurveTo(mx + nx * b * 0.42, my + ny * b * 0.42, x1 - (x1 - x0) * 0.12, y1 - (y1 - y0) * 0.12);
+  ctx.stroke();
+  ctx.restore();
+}
+
 // Felszacke aus dem Boden: Fuß (x,y), Höhe h, Breite w, Neigung ang
 function ikKriegerZacke(ctx, IK, x, y, h, w, ang, pal = ['#e8c89a', '#8a6a44', '#2e2014']) {
   ctx.save();
@@ -141,7 +169,7 @@ function ikKriegerRiss(ctx, IK, pts, col, w = 1.2) {
 
 // Hintergrundthemen (Ultimates haben kein Element, einige Fertigkeiten brauchen eigene Farbe)
 Object.assign(SKILL_ART_THEME, {
-  sichelwelle: 'eis',
+  klingenkreuz: 'eis',
   kampfrausch: 'blut',
   sprungschlag: 'erde',
   schwertaura: 'licht',
@@ -155,27 +183,51 @@ Object.assign(SKILL_ART_THEME, {
 });
 
 Object.assign(SKILL_ART, {
-  // Sichelwelle: aufrechte blau-weiße Klingensichel rast über den Boden nach rechts, Lichtschleppe und Furche
-  sichelwelle(ctx, IK) {
-    // Furche am Boden
-    IK.fill(ctx, (c) => c.ellipse(-2, 13.5, 17, 2.6, 0, 0, Math.PI * 2), IK.lin(ctx, -18, 13, 16, 13, [[0, 'rgba(10,20,40,0)'], [0.6, 'rgba(10,20,40,0.85)'], [1, 'rgba(10,20,40,0.6)']]), 0);
+  // Klingenkreuz: zwei blau-weiße Lichtschnitte über Kreuz fliegen nach rechts, dahinter ein blasses Nachbild,
+  // Lichtschleppe und zwei Furchen im Boden, vorn springen Klingensplitter ab (keine Sterne)
+  klingenkreuz(ctx, IK) {
+    // zwei geritzte Furchen
+    for (const [y, a] of [[12.5, 0.85], [16, 0.7]]) {
+      ctx.save();
+      ctx.strokeStyle = IK.lin(ctx, -20, y, 6, y, [[0, 'rgba(10,20,40,0)'], [0.7, `rgba(10,18,36,${a})`], [1, 'rgba(10,18,36,0.2)']]);
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-20, y);
+      ctx.lineTo(6, y - 0.6);
+      ctx.stroke();
+      ctx.restore();
+    }
     // Lichtschleppe
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
-    for (const [y, len, w, a] of [[-6, 16, 1.6, 0.5], [0, 20, 2.4, 0.7], [6, 18, 2, 0.6], [11, 14, 1.4, 0.45]]) {
-      ctx.strokeStyle = IK.lin(ctx, 4 - len, y, 4, y, [[0, 'rgba(160,220,255,0)'], [1, `rgba(200,240,255,${a})`]]);
+    for (const [y, len, w, a] of [[-9, 13, 1.4, 0.45], [-2, 18, 2.2, 0.65], [5, 16, 1.8, 0.55], [11, 12, 1.3, 0.4]]) {
+      ctx.strokeStyle = IK.lin(ctx, -4 - len, y, -4, y, [[0, 'rgba(160,220,255,0)'], [1, `rgba(200,236,255,${a})`]]);
       ctx.lineWidth = w;
       ctx.lineCap = 'round';
       ctx.beginPath();
-      ctx.moveTo(4 - len - 2, y);
-      ctx.lineTo(4, y);
+      ctx.moveTo(-6 - len, y);
+      ctx.lineTo(-4, y);
       ctx.stroke();
     }
     ctx.restore();
-    ikKriegerSichel(ctx, IK, -6, 1, 16.5, 6.5, 0.36, ['#ffffff', '#9fdcff', '#2a6ad8']);
-    IK.light(ctx, 8, 1, 10, '#bfe8ff', 0.6);
-    // Funken, wo die Sichel über den Boden schrammt
-    IK.sparkles(ctx, 6, '#e6f6ff', 4, 6, 4, 13, 1.3);
+    const pal = ['#ffffff', '#9fdcff', '#2a6ad8'];
+    // blasses Nachbild
+    ikKriegerSchnitt(ctx, IK, 4, -13, -14, 11, 5, pal, 0.28);
+    ikKriegerSchnitt(ctx, IK, -14, -13, 4, 11, -5, pal, 0.28);
+    // das Kreuz
+    ikKriegerSchnitt(ctx, IK, 16, -16, -7, 14, 6.5, pal);
+    ikKriegerSchnitt(ctx, IK, -7, -16, 16, 14, -6.5, pal);
+    IK.light(ctx, 4.5, -1, 8, '#9fdcff', 0.55);
+    IK.light(ctx, 4.5, -1, 3.5, '#ffffff', 0.75);
+    // Klingensplitter (schmale Keile) springen nach vorn ab
+    for (const [x, y, ang, l] of [[17.5, -6, -0.5, 4.2], [19, 2, 0.15, 3.6], [16.5, 8.5, 0.7, 3.4], [13.5, -11.5, -0.95, 3]]) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(ang);
+      IK.glow(ctx, '#9fdcff', 4, () => IK.fill(ctx, (c) => { c.moveTo(-l, 0); c.lineTo(0, -0.9); c.lineTo(l, 0); c.lineTo(0, 0.9); c.closePath(); }, '#eef8ff', 0.5, 'rgba(14,30,70,0.8)'));
+      ctx.restore();
+    }
   },
 
   // Schwertwirbel: Schwert schräg in der Mitte, zwei leuchtende Wirbelspuren kreisen um die Figur

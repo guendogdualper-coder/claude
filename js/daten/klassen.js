@@ -27,11 +27,15 @@ const CLASSES = {
         description: 'Trifft ganze Gruppen auf einmal und stärkt seinen Angriff mit der Aura des Schwertes. Ideal zum Farmen.',
         skills: [
           {
-            // seit 8.3 (ersetzt den Dreifachschlag): Querhieb, dann das Schwert in den Boden – eine Klingenwelle rast nach vorn
-            id: 'sichelwelle', name: 'Sichelwelle', short: 'SI', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
-            type: 'wave', radius: 90, angle: 140, dmg: 0.8, waveDmg: 1.6, waveLen: 180, waveWidth: 64, knockback: 90,
-            anim: 'sichel', animDur: 0.62, lock: 0.42, color: '#e6eeff',
-            text: 'Ein weiter Querhieb, dann schlägst du das Schwert in den Boden: Eine Klingenwelle rast bis zu 180 weit nach vorn, trifft alle Gegner in ihrer Bahn und stößt sie zurück.'
+            // Klingenkreuz (ersetzt die Sichelwelle; Stufe, Rang, Leistenplatz und Bücher gehen über SKILL_RENAMED mit):
+            // zwei Hiebe über Kreuz (je dmg im Kegel vor der Figur), die Lichtschnitte werden zum Kreuz, ein Stoß schleudert
+            // es crossLen weit nach vorn (crossDmg auf alle in der Bahn, crossWidth breit, Rückstoß). Gesamtschaden wie die
+            // Sichelwelle (vorn 2 × 0,4 + 1,6, weiter weg 1,6), dafür mehr Rückstoß (100 statt 90) und 20 mehr Weite.
+            // Ablauf, 3D, 2D und Mitspieler in klingenkreuz.js
+            id: 'klingenkreuz', name: 'Klingenkreuz', short: 'KK', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
+            type: 'kreuz', radius: 85, angle: 130, dmg: 0.4, hits: 2, crossDmg: 1.6, crossLen: 200, crossWidth: 70, knockback: 100,
+            anim: 'kreuz', animDur: 0.75, lock: 0.48, color: '#e6eeff',
+            text: 'Zwei blitzschnelle Hiebe über Kreuz treffen die Gegner direkt vor dir. Ihre Lichtschnitte verschmelzen zu einem leuchtenden Klingenkreuz, das du mit einem Stoß nach vorn schleuderst: Es fliegt bis zu 200 weit, durchschneidet alle Gegner auf seiner Bahn, stößt sie zurück und zerbirst am Ende in Klingensplitter.'
           },
           {
             // seit 13.69 (Balance, docs/balance-klassen.md): Schaden 1,7 → 1,9, Welle der Sichelwelle 1,4 → 1,6

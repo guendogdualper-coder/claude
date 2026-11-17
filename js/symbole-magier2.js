@@ -3,7 +3,7 @@
 // Abgrenzung zum Schamanen: nichts fällt vom Himmel – Bodenbögen, waagrechte Zaps, Siegel am Boden.
 
 // Ultimates haben kein Element: Thema hier festlegen
-Object.assign(SKILL_ART_THEME, { donnerkrone: 'm_blitz', weltenbruch: 'm_erde' });
+Object.assign(SKILL_ART_THEME, { donnerkrone: 'm_blitz', sturmgericht: 'm_blitz', weltenbruch: 'm_erde' });
 
 // --- eigene Hilfen (Präfix ikMag2) ---------------------------------------------------------------
 
@@ -311,6 +311,42 @@ Object.assign(SKILL_ART, {
     IK.bolt(ctx, [[7.4, -15], [6.8, -12], [7.6, -8]], '#ffffff', 0.6, '#8a5aff');
     for (const [x, y] of [[-1.2, -19.6], [-7.4, -16.4], [7.6, -16.6], [-11.5, -14], [11.5, -14]]) IK.light(ctx, x, y, 4, '#ffffff', 0.8);
     IK.sparkles(ctx, 6, '#fff7b0', 9, 17, 0, -6, 1.1);
+  },
+
+  // Sturmgericht (Ultimate, ersetzt die Donnerkrone): dunkle, wirbelnde Gewitterballung oben, daraus fährt ein
+  // gewaltiger verästelter Blitz senkrecht in den Boden; unten gleißender Einschlag, glühende Risse, fliegendes Gestein
+  sturmgericht(ctx, IK) {
+    const gy = 15;
+    IK.light(ctx, 0.5, gy - 1, 14, '#ffe94a', 0.45);
+    IK.light(ctx, 0, -12, 20, '#8a5aff', 0.45);
+    // glühende Risse im Boden
+    const cracks = [[-17, 18.5], [-9, 21], [10, 20.5], [17.5, 17], [-14.5, 14], [15.5, 13]];
+    cracks.forEach(([x, y], i) => IK.bolt(ctx, IK.zigzag(0.5, gy, x, y, 3, 1.1, i + 31), '#ffd23a', 0.7, '#b07aff'));
+    // gewaltiger Blitz: dunkler Saum, gelber Mantel, weißer Kern, mit Ästen
+    const main = [[-1.5, -6], [3.2, -1.5], [-2.4, 2.5], [2.6, 7], [-1.6, 10.5], [0.5, gy]];
+    const branches = [[[3.2, -1.5], [8, 0.5], [10.5, 5], [14, 6.5]], [[-2.4, 2.5], [-7.5, 4.5], [-9.5, 9], [-13.5, 10]], [[2.6, 7], [6.5, 9.5], [7.5, 12.5]]];
+    const stroke = (pts, w) => {
+      IK.line(ctx, pts, '#ffe94a', w, 'rgba(42,16,110,0.95)');
+      IK.line(ctx, pts, '#ffffff', w * 0.4, null);
+    };
+    IK.glow(ctx, '#ffe94a', 5, () => {
+      for (const br of branches) stroke(br, 1.3);
+      stroke(main, 3);
+    });
+    // Gewitterballung: flache Unterseite, oben aufgetürmt, von unten angeleuchtet
+    const lobes = [[-14, -11, 5.5], [-8, -15, 6.5], [0, -17.5, 7.5], [8.5, -15.5, 6.5], [14.5, -11.5, 5.5], [-9, -8.5, 5], [-2, -9, 5.5], [5.5, -8.8, 5.2], [11, -8, 4.5]];
+    for (const [x, y, r] of lobes) {
+      IK.fill(ctx, (c) => c.arc(x, y, r, 0, Math.PI * 2),
+        IK.rad(ctx, x - r * 0.35, y - r * 0.55, 0, r * 1.15, [[0, '#9a90c8'], [0.4, '#5a5084'], [0.8, '#2a2448'], [1, '#141024']]), 0.8, 'rgba(10,6,24,0.95)');
+    }
+    IK.light(ctx, -1, -5.5, 6, '#fff1a8', 0.85);
+    // Bögen in der Wolke
+    IK.bolt(ctx, IK.zigzag(-10, -12, -3, -14, 3, 1, 41), '#e8dcff', 0.6, '#8a5aff');
+    IK.bolt(ctx, IK.zigzag(4, -15, 11, -12, 3, 1, 43), '#e8dcff', 0.6, '#8a5aff');
+    // Einschlag: Lichtblitz, Gesteinsbrocken
+    IK.light(ctx, 0.5, gy, 6, '#ffffff', 0.95);
+    for (const [x, y, r, sd] of [[-6.5, 10.5, 1.5, 3], [7, 11, 1.3, 6], [-11, 14, 1.1, 8], [12, 15.5, 1.1, 4]]) IK.rock(ctx, x, y, r, sd, ['#8a7e74', '#4a4038', '#1e1814']);
+    IK.sparkles(ctx, 6, '#fff7b0', 21, 12, 0.5, gy - 3, 1);
   },
 
   // Erdnova: Basaltsplitter mit Bernsteinadern fliegen waagrecht nach außen, Bernsteinrisse im Boden

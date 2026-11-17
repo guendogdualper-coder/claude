@@ -120,6 +120,8 @@ const OPT_TABS = [
   { id: 'konto', icon: '👤', label: 'Konto' }
 ];
 const OPT_TAB_KEY = 'seelenstein.optReiter';
+// seit 15.46: Vor dem Spielstart (Titelbildschirm, titel.js) fehlt „Figur und Spiel“ – das braucht eine Figur
+const optTabsNow = () => OPT_TABS.filter((t) => t.id !== 'spiel' || (typeof game !== 'undefined' && game.running));
 
 const options = {
   // seit 13.62: gewählter Reiter (aus dem Browser, sonst Grafik)
@@ -140,7 +142,8 @@ const options = {
 
   render() {
     const body = $('optsBody');
-    const tab = this.tab;
+    const tabs = optTabsNow();
+    const tab = tabs.some((t) => t.id === this.tab) ? this.tab : tabs[0].id;
     // seit 13.62: Bildlauf beim Neuzeichnen im selben Reiter behalten (z. B. nach einem Schalter weiter unten)
     const oldPane = body.querySelector('.opt-pane');
     const keepScroll = oldPane && oldPane.dataset.tab === tab ? oldPane.scrollTop : 0;
@@ -194,6 +197,7 @@ const options = {
         `<button type="button" class="btn btn-ghost" data-go="look">✂ Aussehen ändern</button>` +
         `<button type="button" class="btn btn-ghost" data-go="net">🌐 Server und Kanal</button>` +
         `<button type="button" class="btn btn-ghost" data-go="help">❓ Hilfe</button>` +
+        (typeof introStart === 'function' ? `<button type="button" class="btn btn-ghost" data-go="intro">🧭 Einführung</button>` : '') +
         `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
         `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
         `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>` +
@@ -201,7 +205,7 @@ const options = {
     }
     body.innerHTML =
       `<nav class="opt-tabs" role="tablist" aria-label="Kategorien">` +
-      OPT_TABS.map((t) => `<button type="button" role="tab" id="optTab-${t.id}" class="opt-tab${t.id === tab ? ' on' : ''}" aria-selected="${t.id === tab}" aria-controls="optPane" data-tab="${t.id}">` +
+      tabs.map((t) => `<button type="button" role="tab" id="optTab-${t.id}" class="opt-tab${t.id === tab ? ' on' : ''}" aria-selected="${t.id === tab}" aria-controls="optPane" data-tab="${t.id}">` +
         `<span class="opt-tab-ico" aria-hidden="true">${t.icon}</span><span class="opt-tab-name">${t.label}</span></button>`).join('') +
       `</nav><div class="opt-pane" id="optPane" role="tabpanel" aria-labelledby="optTab-${tab}" data-tab="${tab}">${pane}</div>`;
     const nav = body.querySelector('.opt-tabs');
@@ -263,6 +267,7 @@ const options = {
       if (go === 'look') ui.openLookPanel();
       if (go === 'net') ui.toggle('panelNet');
       if (go === 'help') ui.toggle('panelHelp');
+      if (go === 'intro') { ui.closePanels(); introStart(true); }
       if (go === 'start') {
         saveGame();
         if (netOnline()) netStop(true);

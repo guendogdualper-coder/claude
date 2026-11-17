@@ -6,7 +6,7 @@
 
 const FX3_TYPES = new Set(['ring', 'pillar', 'bolt', 'slash', 'impact', 'runes', 'warn', 'aim', 'beam', 'chain', 'tornado', 'swoosh', 'lightbeam', 'ultbeam', 'ultsigil',
   'sparks3', 'shards3', 'orbs3', 'column3', 'smoke3', 'bite3', 'claw3', 'dragon3', 'meteor3', 'shield3', 'cloud3', 'hands3',
-  'wave3', 'erupt3', 'crater3', 'cage3', 'reaper3']);
+  'erupt3', 'crater3', 'cage3', 'reaper3']);
 const FX3 = { group: null, tex: {}, pools: {}, live: new Set(), cam: { r: null, u: null, f: null }, geo: {} };
 
 // --- Texturen (weiß, die Farbe kommt vom Material) ----------------------------------------------
@@ -403,7 +403,7 @@ function fx3Make(kind) {
     // segD: dunkler Saum der Blitze des Blitzmagiers (n3Zap, magier-neu.js) – normal gemischt und vor den leuchtenden
     // Teilen gezeichnet (renderOrder unten), damit die Blitze auch auf hellem Boden zu sehen sind
     if (kind === 'segN' || kind === 'segD') o.material.blending = THREE.NormalBlending;
-  } else if (kind === 'strip' || kind === 'stripN') {
+  } else if (kind === 'strip' || kind === 'stripN' || kind === 'stripD') {
     const geo = new THREE.BufferGeometry();
     const n = (FX3_STRIP_N + 1) * 2;
     geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
@@ -416,7 +416,8 @@ function fx3Make(kind) {
     geo.setIndex(idx);
     o = new THREE.Mesh(geo, fx3Mat(null, true));
     // stripN (seit 10.3): normal gemischt, deckt auch auf hellem Gras (Schweif der Geistersense)
-    if (kind === 'stripN') o.material.blending = THREE.NormalBlending;
+    // stripD: dunkle Kontur unter leuchtenden Schnitten (Klingenkreuz), normal gemischt und vor ihnen gezeichnet
+    if (kind === 'stripN' || kind === 'stripD') o.material.blending = THREE.NormalBlending;
     o.frustumCulled = false;
   } else if (kind === 'cone' || kind === 'coneG') {
     // Zacken aus dem Boden: Fels/Knochen (fest) oder Kristall/Glut (leuchtend)
@@ -483,7 +484,7 @@ function fx3Make(kind) {
   } else {
     o = new THREE.Sprite(new THREE.SpriteMaterial({ map: fx3Texture('spark'), color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   }
-  o.renderOrder = kind === 'segD' ? 4 : 5;
+  o.renderOrder = kind === 'segD' || kind === 'stripD' ? 4 : 5;
   // ...Top (seit 8.5): Geist im Seelenkäfig, immer sichtbar (auch über dem gefangenen Gegner); Knochen darüber
   if (kind.endsWith('Top')) {
     o.material.depthTest = false;
@@ -718,48 +719,6 @@ function fx3Icicle(h, e, u, sz, fall) {
 }
 
 const FX3_DRAW = {
-  // Sichelwelle (seit 8.3): stahlweiße Klingensichel, aufrecht und 40° nach vorn gekippt, gleitet über den Boden;
-  // dahinter eine Lichtschleppe und eine dunkle Schnittfurche
-  wave3(h, e) {
-    const t = game.time - e.start;
-    const travel = e.dist / e.speed;
-    const d = Math.min(e.dist, t * e.speed);
-    const fade = t < travel ? 1 : Math.max(0, 1 - (t - travel) / 0.3);
-    const g = 0.7 + 0.3 * Math.min(1, t / 0.08);
-    const ang = Math.atan2(-e.dy, e.dx);
-    const mx = e.x + e.dx * d / 2;
-    const mz = e.y + e.dy * d / 2;
-    if (d > 2) {
-      const furrow = fx3Take(h, 'planeN');
-      fx3Strip2(furrow, mx, mz, d * U3 / 2, 0.12, 0.035, 'disc', ang);
-      fx3Color(furrow, '#2a2018', 0.55 * (t < travel ? 1 : Math.max(0, 1 - (t - travel) / (e.dur - travel))));
-      if (fade > 0) {
-        const trail = fx3Take(h, 'plane');
-        fx3Strip2(trail, mx, mz, d * U3 / 2, 0.45, 0.03, 'disc', ang);
-        fx3Color(trail, '#9fc8ff', 0.35 * fade);
-      }
-    }
-    if (fade <= 0) return;
-    _x3w1.set((e.x + e.dx * d) * U3, 0.3, (e.y + e.dy * d) * U3);
-    _x3w2.set(-e.dy, 0, e.dx);
-    _x3w3.set(e.dx * 0.64, 0.77, e.dy * 0.64).normalize();
-    const half = (e.w / 2) * U3 * g * 1.4;
-    const span = 2.3;
-    const rr = half / Math.sin(span / 2);
-    const a0 = Math.PI / 2 - span / 2;
-    const a1 = Math.PI / 2 + span / 2;
-    _x3w4.copy(_x3w1).addScaledVector(_x3w3, -rr * Math.cos(span / 2));
-    const layer = (r, w, from, to, color, op) => fx3Strip(fx3Take(h, 'strip'), _x3w4, _x3w2, _x3w3, r, w, from, to, color, op, true);
-    if (e.rank != null && e.rank >= 0) layer(rr + 0.08, 0.5, a0, a1, e.rankColor, 0.8 * fade);
-    layer(rr, 0.42, a0, a1, '#9fc8ff', 0.6 * fade);
-    layer(rr - 0.04, 0.26, a0, a1, e.color || '#e6eeff', fade);
-    layer(rr - 0.08, 0.09, a0 + 0.12, a1 - 0.12, '#ffffff', fade);
-    if (!(e.rank >= 0) && d > 12) {
-      _x3w4.addScaledVector(_x3w3.set(e.dx, 0, e.dy), -0.35);
-      _x3w3.set(e.dx * 0.64, 0.77, e.dy * 0.64).normalize();
-      layer(rr - 0.04, 0.22, a0, a1, e.color || '#e6eeff', 0.4 * fade);
-    }
-  },
   // Felsenfaust (seit 8.3): Riss mit Dornen läuft zum Ziel, dort bricht ein sechseckiger Pfeiler mit Felsfaust hervor
   erupt3(h, e) {
     const t = game.time - e.start;

@@ -56,11 +56,11 @@ function crescentPath(ctx, x0, y0, x1, y1, bulge) {
 
 const SKILL_ICONS = {
   // Krieger
-  // stehende Sichel mit Tempolinien über einer dunklen Furche
-  sichelwelle(ctx) {
-    iconLine(ctx, '#3a2a1c', 3, [[-17, 15], [17, 15]]);
-    for (const y of [-6, 1, 8]) iconLine(ctx, '#cfe0ff', 2, [[-18, y], [-9, y]]);
-    iconShape(ctx, crescentPath(ctx, -2, 13, 2, -17, 13), '#ffffff', '#9fc8ff', 2.5);
+  // Klingenkreuz: zwei Lichtschnitte über Kreuz mit Tempolinien (das gemalte Symbol steht in symbole-krieger.js)
+  klingenkreuz(ctx) {
+    for (const y of [-6, 1, 8]) iconLine(ctx, '#cfe0ff', 2, [[-19, y], [-11, y]]);
+    iconShape(ctx, crescentPath(ctx, 13, -14, -7, 14, 5), '#ffffff', '#9fc8ff', 2);
+    iconShape(ctx, crescentPath(ctx, -7, -14, 13, 14, -5), '#ffffff', '#9fc8ff', 2);
   },
   schwertwirbel(ctx) {
     ctx.lineCap = 'round';
@@ -656,18 +656,19 @@ function skillRankFrame(ctx, r, col) {
 // color: Grundfarbe der Schwungspuren; cast: beim Auslösen; hit: bei jedem Treffer.
 
 const SKILL_FX = {
-  // Sichelwelle (seit 8.3): stahlweiße Schnitte quer zur Welle, Riss bei schwerem Treffer
-  sichelwelle: {
+  // Klingenkreuz (statt der Sichelwelle, Ablauf in klingenkreuz.js): die Hiebe hinterlassen einen schrägen Schnitt am
+  // Gegner (in Richtung des Hiebs), das Kreuz einen Kreuzschnitt aus zwei stahlweißen Schnitten
+  klingenkreuz: {
     color: '#e6eeff',
-    cast(p) {
-      addEffect({ type: 'ring', follow: p, ox: 0, oy: 0, r: 34, dur: 0.25, color: '#e6eeff', width: 3 });
-      addEffect({ type: 'sparks3', x: p.x, y: feetY(p), h: 0.9, count: 6, color: '#e6eeff', speed: 1.6, up: 1, dur: 0.3 });
-    },
     hit(m, crit, heavy) {
       const c = bodyCenter(m);
-      const f = game.player.facing;
-      addEffect({ type: 'slash', x: c.x, y: c.y, ang: Math.atan2(f.y, f.x) + Math.PI / 2, len: 44, w: 6, dur: 0.2, color: '#ffffff' });
-      if (heavy || crit) addEffect({ type: 'decal', kind: 'crack', x: m.x, y: feetY(m), r: 18, dur: 1.2, color: '#2a1a10' });
+      if (!heavy) {
+        const a = typeof kkLastCut !== 'undefined' && kkLastCut === 2 ? -0.8 : 0.8;
+        addEffect({ type: 'slash', x: c.x, y: c.y, ang: a, len: 38, w: 5, dur: 0.2, color: '#ffffff' });
+        return;
+      }
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: 0.8, len: 44, w: 6, dur: 0.24, color: '#ffffff' });
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: -0.8, len: 44, w: 6, dur: 0.24, color: '#cfe0ff' });
     }
   },
   schwertwirbel: {
@@ -1246,7 +1247,7 @@ const ELEMENT3 = {
   knochen: { spark: '#f0e8d4', shard: '#e8e0c8' }
 };
 const SKILL_ELEMENT = {
-  sichelwelle: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
+  klingenkreuz: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
   sprungschlag: 'erde', felsenfaust: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
   kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
@@ -1261,9 +1262,9 @@ function skillSignature3(sk, p) {
   // Magier (seit 8.6): eigene Auftritte und Wirk-Effekte über SKILL_FX (magier.js)
   if (sk.el) return;
   const el = SKILL_ELEMENT[sk.id];
-  // Blitzdrache, Blizzard, Sichelwelle, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
+  // Blitzdrache, Blizzard, Klingenkreuz, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
   // ebenso seit 8.5 Schädelsalve, Seelenkäfig, Seelenschnitter und Totenbeschwörung
-  if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'wave' || sk.type === 'erupt' || sk.type === 'leap') return;
+  if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'kreuz' || sk.type === 'erupt' || sk.type === 'leap') return;
   if (sk.type === 'skulls' || sk.type === 'cage' || sk.type === 'reaper' || sk.type === 'summon') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;

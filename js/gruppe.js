@@ -8,7 +8,8 @@
 // levelGap (seit 13.92): höchstens so viele Stufen zwischen dem höchsten und dem niedrigsten Mitglied – sonst zogen
 // hohe Figuren niedrige über die geteilte Erfahrung in kurzer Zeit hoch
 // resync (seit 15.43): so oft schickt der Anführer den Stand der Gruppe erneut an alle (siehe partyTick)
-const PARTY = { max: 8, bonus: 0.1, dropAfter: 10, levelGap: 15, resync: 5 };
+// max (seit 15.46): 5 auf den normalen Karten (vorher 8); Instanzen haben eigene Grenzen, der Turm zeigt bis zu 10 Mitspieler
+const PARTY = { max: 5, bonus: 0.1, dropAfter: 10, levelGap: 15, resync: 5 };
 const PARTY_MODES = {
   gleich: { label: 'Gleich verteilen', text: 'Jeder in der Nähe bekommt seine EP plus 10 % je weiterem Mitglied.' },
   stufe: { label: 'Höhere Stufe bekommt mehr', text: 'Die EP der Gruppe werden nach Stufe aufgeteilt: Wer höher ist, bekommt mehr.' }

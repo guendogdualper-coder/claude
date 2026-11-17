@@ -272,7 +272,12 @@ function gearBoots3(A, g, t, metal0, boot0) {
   // Schmuck der Schiene (Sonne, Stern): seit 14.77 unten am Schienbein statt am Knie – am Knie steckte er hinter
   // Beintaschen und Rocksaum und nur die Strahlen stachen heraus (sah aus wie abgebrochene Teile)
   const kneeOrn = g.footZ0 != null ? 0.175 : g.hipY - g.legLen * 0.5 + 0.01;
-  const sole = (W, col) => W(roundBox(lr * 2.26, 0.012, z1 - z0 + 0.014, 0.005), col, { p: [0, 0.034, (z0 + z1) / 2], mat: 'glow' });
+  // seit 15.46 (Spielfiguren mit Schuhform, g.shoe): der Leuchtrand folgt der Sohle (Absatz hinten, aufgebogene Spitze);
+  // vorher stand eine flache Platte vorn unter der aufgebogenen Spitze heraus (rosa Zunge vor dem Schuh)
+  const sh = g.shoe;
+  const sole = (W, col) => sh && typeof soleGeo3 === 'function'
+    ? W(soleGeo3({ len: z1 - z0 + 0.03, w: lr * 2.4, spring: sh.spring, heel: sh.heel, thick: 0.011, point: sh.point }), col, { p: [0, sh.soleT - 0.008, (z0 + z1) / 2], mat: 'glow' })
+    : W(roundBox(lr * 2.26, 0.012, z1 - z0 + 0.014, 0.005), col, { p: [0, 0.034, (z0 + z1) / 2], mat: 'glow' });
   for (const [sx, bone] of [[1, BH.legL], [-1, BH.legR]]) {
     const x = sx * g.hipX;
     const W = frame3(A, bone, [x, 0, 0]);
@@ -283,7 +288,8 @@ function gearBoots3(A, g, t, metal0, boot0) {
         break;
       case 1:
         // umgeschlagene Stulpe
-        W(lathe3('cuffflare', [[1.15, 0], [1.45, 0.07], [1.38, 0.08], [0, 0.081]], 12), lighter(boot, 0.18), { p: [0, 0.19, 0], s: [lr, 1, lr], shade: 0.2 });
+        // unter Roben (seit 15.46) tiefer und enger: die weite Stulpe stach sonst beim gebeugten Knie vorn durch den Saum
+        W(lathe3('cuffflare', [[1.15, 0], [1.45, 0.07], [1.38, 0.08], [0, 0.081]], 12), lighter(boot, 0.18), { p: [0, g.robeFit && g.shoe ? 0.11 : 0.19, 0], s: g.robeFit && g.shoe ? [lr * 0.82, 0.8, lr * 0.82] : [lr, 1, lr], shade: 0.2 });
         break;
       case 2:
         // Schnürung vorn und eine Eisenkappe an der Spitze
@@ -557,7 +563,16 @@ function gearCape3(A, g, t, color, lining, metal0) {
   if (t < 0) return;
   const spec = capeSpec3(CAPE3[t], g);
   const top = [0, g.shY + 0.03, 0];
-  const W = frame3(A, BH.cape, top);
+  // seit 15.46: lange Umhänge (Stufe 8, 9) reichten bei den Spielfiguren mit dem tiefsten Punkt des Saums unter den Boden
+  // – im Figurenbild (ohne Boden) lagen Saumkordel und Perlen dann als Punkte unter den Füßen. Jetzt wird der Umhang
+  // senkrecht so weit gestaucht, dass der Saum mindestens 5 cm über dem Boden endet.
+  let fitY = 1;
+  if (g.oval) {
+    let low = 0;
+    for (let i = 0; i <= CAPE3_SEG * 2; i++) low = Math.min(low, capeAt3(spec, i / (CAPE3_SEG * 2), 1)[1]);
+    if (-low > top[1] - 0.05) fitY = (top[1] - 0.05) / -low;
+  }
+  const W = frame3(A, BH.cape, top, [0, 0, 0], [1, fitY, 1]);
   W(capeGeo3(spec, false), color, { shade: 0.3, top: lighter(color, 0.1), topK: 0.25 });
   W(capeGeo3(spec, true), lining || darker(color, 0.25), {});
   const metal = metal0 || TIER_METAL[t];
@@ -613,7 +628,7 @@ function gearCape3(A, g, t, color, lining, metal0) {
       // Königsmantel: Goldrand, Sonnenwappen auf dem Rücken, Hermelinkragen
       hem(GOLD3, { shine: 1 });
       const back = capeAt3(spec, 0.5, 0.4, -0.012);
-      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1], top[2] + back[2]], [0, Math.PI, 0]);
+      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1] * fitY, top[2] + back[2]], [0, Math.PI, 0]);
       sun3(Wb, [0, 0, 0], 0.08, 10, GOLD3, GLOW3[7]);
       W(torus3(0.16, 0.045, Math.PI * 2, 5, 16), '#f4f0e8', { p: [0, 0.03, 0], r: [Math.PI / 2 - 0.15, 0, 0], shade: 0.15 });
       for (let k = 0; k < 6; k++) {
@@ -626,7 +641,7 @@ function gearCape3(A, g, t, color, lining, metal0) {
       // Abgrundmantel: Leerenauge auf dem Rücken mit cyanfarbenen Rissen, Splitter hängen an den Fangspitzen,
       // ein Kragen aus Splittern im Nacken
       const back = capeAt3(spec, 0.5, 0.36, -0.012);
-      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1], top[2] + back[2]], [0, Math.PI, 0]);
+      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1] * fitY, top[2] + back[2]], [0, Math.PI, 0]);
       voidEye3(Wb, [0, 0, 0], 0.065);
       for (const [u0, v0, u1, v1] of [[0.44, 0.44, 0.32, 0.7], [0.56, 0.44, 0.7, 0.66], [0.32, 0.7, 0.26, 0.92], [0.7, 0.66, 0.78, 0.9], [0.5, 0.46, 0.52, 0.8]]) {
         for (let k = 0; k <= 4; k++) {
@@ -651,11 +666,12 @@ function gearCape3(A, g, t, color, lining, metal0) {
       // Strahlenkragen im Nacken
       for (let i = 0; i <= CAPE3_SEG; i++) {
         const u = i / CAPE3_SEG;
-        const v = 1 - capeEdge3(spec.edge, u, i, spec.len) / spec.len;
-        W(sphere3(0.011, 6, 4), i % 2 ? ROSEGOLD3 : PLATIN3, { p: capeAt3(spec, u, v - 0.01, -0.006), shine: 1 });
+        // seit 15.46 direkt auf dem Saum (capeAt3 enthält den Kronensaum schon; vorher hingen die Perlen um die
+        // Tiefe der Krone darunter in der Luft bzw. im Boden)
+        W(sphere3(0.011, 6, 4), i % 2 ? ROSEGOLD3 : PLATIN3, { p: capeAt3(spec, u, 0.99, -0.006), shine: 1 });
       }
       const back = capeAt3(spec, 0.5, 0.34, -0.012);
-      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1], top[2] + back[2]], [0, Math.PI, 0]);
+      const Wb = frame3(A, BH.cape, [top[0] + back[0], top[1] + back[1] * fitY, top[2] + back[2]], [0, Math.PI, 0]);
       nova3(Wb, [0, 0, 0], 0.1);
       const stars = [[0.3, 0.55], [0.38, 0.72], [0.55, 0.78], [0.68, 0.62], [0.75, 0.84]];
       stars.forEach(([u, v], k) => {

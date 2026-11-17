@@ -848,18 +848,11 @@ function remoteSkillFx(rp, d) {
       addEffect({ type: 'ring', x: rp.x, y: feetY(rp), r: 40, dur: 0.4, color: col, width: 6, grow: true });
       for (let k = 1; k <= 5; k++) later(k * 0.04, () => particles(rp.x, feetY(rp), { count: 3, color: ['#a88f62', col], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false }));
       break;
-    // Sichelwelle, Felsenfaust, Sprungschlag (seit 8.3): nur Optik, Treffer rechnet der Host
-    case 'wave': {
-      const spread = (sk.angle || 140) * Math.PI / 180;
-      const dir = { x: d.fx, y: d.fy };
-      later(0.12, () => {
-        vfxSweep(rp, sk.radius * 0.85, ang + spread / 2, ang - spread / 2, col, 0.22, 30);
-        if (blade) addEffect({ type: 'bladearc', follow: rp, ox: 0, oy: -14, len: sk.radius * 0.8, a0: ang + spread / 2, a1: ang - spread / 2, dur: 0.24, ...blade });
-      });
-      later(0.24, () => { rp.leap = { start: game.time, dur: 0.14, h: 10 }; });
-      later(0.4, () => waveFx(rp, d.x + d.fx * 28, d.y + d.fy * 28, dir, d.wl ?? sk.waveLen, sk, false, 0));
+    // Klingenkreuz, Felsenfaust, Sprungschlag (seit 8.3): nur Optik, Treffer rechnet der Host
+    // (Klingenkreuz statt Sichelwelle: Hiebe, Kreuz und Flug in klingenkreuz.js; ältere Mitspieler melden noch die Sichelwelle)
+    case 'kreuz':
+      if (typeof kreuzRemote === 'function') withRank(rk, () => kreuzRemote(rp, sk, d));
       break;
-    }
     case 'erupt': {
       const from = { x: d.x + d.fx * 22, y: d.y + d.fy * 22 };
       rp.leap = { start: game.time, dur: 0.2, h: 12 };

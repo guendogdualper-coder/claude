@@ -1127,8 +1127,9 @@ const _kaM = new THREE.Matrix4();
 const _kaV = new THREE.Vector3();
 const _kaR = new THREE.Vector3();
 // wie stark eine Zunge dem Knochen folgt (Rest: starr mit der Figur)
+// seit 15.46 auch die Gelenkknochen der Spielfiguren hinter den üblichen 14 (Unterarme, Schienbeine, Füße)
 function kaBoneFollow(b) {
-  return b === BH.armL || b === BH.armR || b === BH.handL || b === BH.handR || b === BH.legL || b === BH.legR ? 0.25 : 1;
+  return b === BH.armL || b === BH.armR || b === BH.handL || b === BH.handR || b === BH.legL || b === BH.legR || b >= 14 ? 0.25 : 1;
 }
 function kaBodyWisps3(h, w, a, A, k, L, t, q, seed) {
   const m = a.model;
