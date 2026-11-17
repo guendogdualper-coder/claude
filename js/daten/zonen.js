@@ -184,6 +184,9 @@ const SHADOW_RAID_DEFS = [
   ['moormutter', 'Moorthron der Veyla', 16, 'SWAMP', '#7ae0a8', { top: '#24382e', face: '#0c1612', line: '#5ab088' }, 'wisps']
 ];
 for (const row of SHADOW_RAID_DEFS) DUNGEONS.push(raidDungeon(row, [20, 16, 40, 0.12]));
+// seit 15.45: die vier Lv-80-Instanzen der Nebelküste und der Himmelsterrassen (daten/instanzen.js, INSTANCES82) – wieder
+// hinten angehängt, damit alle älteren Dungeons ihren Platz im Streifen behalten
+if (typeof INSTANCES82 !== 'undefined') DUNGEONS.push(...INSTANCES82);
 // seit 14.54: zweite Eingänge auf den Schattenkarten (entry2). Dungeons und Instanzen der Stufen 10–49 stehen beiden Seiten
 // offen; jede Seite betritt sie über ihren eigenen Eingang und kommt dort wieder heraus (dungeonEntranceFor, seiten.js)
 const SHADOW_ENTRIES = {

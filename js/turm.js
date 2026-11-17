@@ -1794,8 +1794,8 @@ function turmMiniLoot(m) {
   ui.loot('Gold', gold, lootIconUrl('gold'), '#ffd96a');
   ui.banner(`${m.name} ist gefallen!`, leg ? 'Ein legendäres Teil!' : got ? 'Ein episches Teil!' : 'Hüter besiegt');
 }
-// Wächter: zwei epische Teile (Lv 80), mit INST.legendary80 ein legendäres (über KS.quellen meist ein Teil des
-// Klassen-Sets), Splitter, Teile, Ätherkerne, mit Glück ein Seelenstein (Gegenstand) und Gold
+// Wächter: zwei epische Teile (Lv 80), mit INST.legendary80 ein legendäres (über KS.quellen2 meist ein Teil des
+// Klassen-Sets der zweiten Reihe), Splitter, Teile, Ätherkerne, mit Glück ein Seelenstein (Gegenstand) und Gold
 function turmFinalLoot(m) {
   const p = game.player;
   for (let k = 0; k < 2; k++) giveRarityItem(setTagItem(rollRarityItem(80, 3, null, k === 0 && Math.random() < 0.4 ? 'waffe' : null), m), m);
@@ -1830,9 +1830,9 @@ rewardKill = function (m) {
   }
   return _turmRewardKill(m);
 };
-// Legendäre Teile aus dem Turm gehören meist zum Klassen-Set (KS.quellen in klassensets.js); ein eigenes Set hat der
-// Turm nicht – die Kennung 'turm' bleibt darum an keinem Teil stehen
-if (typeof KS !== 'undefined' && KS.quellen) KS.quellen.add(TURM.id);
+// Legendäre Teile aus dem Turm gehören meist zum Klassen-Set (seit 15.45 zur zweiten Reihe, KS.quellen2 in
+// klassensets.js); ein eigenes Set hat der Turm nicht – die Kennung 'turm' bleibt darum an keinem Teil stehen
+if (typeof KS !== 'undefined') (KS.quellen2 || KS.quellen).add(TURM.id);
 if (typeof setIdOfMonster === 'function') {
   const _turmSetId = setIdOfMonster;
   setIdOfMonster = function (m) {
@@ -2150,7 +2150,7 @@ function turmWindowOpen(npc) {
   const checks = turmChecks();
   const ok = checks.every((c) => c.ok);
   const body = $('npcBody');
-  const S = typeof KLASSEN_SETS !== 'undefined' ? KLASSEN_SETS[p.classId] : null;
+  const S = typeof KLASSEN_SETS2 !== 'undefined' ? KLASSEN_SETS2[p.classId] : typeof KLASSEN_SETS !== 'undefined' ? KLASSEN_SETS[p.classId] : null;
   const lock = () => (instLockText(TURM.id) ? 'Sperre: ' + instLockText(TURM.id) : `Für dich frei. Die Sperre (${INST.lockMin} Min.) beginnt beim Betreten und gilt nur für den Turm.`);
   body.innerHTML =
     `<p class="quest-step raid-step">Gruppen-Instanz · ab Stufe ${TURM.level} · allein oder bis ${TURM.maxPlayers} Spieler</p><h3>${TURM.name}</h3>` +

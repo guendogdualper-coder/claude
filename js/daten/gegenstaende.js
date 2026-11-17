@@ -917,5 +917,22 @@ const ITEM_SETS = {
   leerenthron: {
     name: 'Leerenpanzer des Nihilor', from: 'Thron der Leere', color: '#b48cff',
     tiers: [[2, { atk: 30, hpSteal: 0.01 }], [4, { hp: 600, main: 9 }], [6, { critDmg: 0.08, dmgReduce: 0.03 }]]
+  },
+  // seit 15.45: die vier Lv-80-Instanzen der Nebelküste und der Himmelsterrassen (gleiche Stärke, eigene Schwerpunkte)
+  gezeitengrotte: {
+    name: 'Perlmutt der Gezeitenherrin', from: 'Gezeitengrotte', color: '#5fe8d8',
+    tiers: [[2, { atk: 30, regen: 0.003 }], [4, { hp: 600, main: 9 }], [6, { hpPct: 0.04, skillDmg: 0.04 }]]
+  },
+  nebelwrack: {
+    name: 'Nebelmantel des Geisterkapitäns', from: 'Nebelwrack', color: '#a8d8b0',
+    tiers: [[2, { atk: 30, resRanged: 0.04 }], [4, { hp: 600, main: 9 }], [6, { basicDmg: 0.05, dodge: 0.02 }]]
+  },
+  sonnentempel: {
+    name: 'Sonnenpanzer des Sonnenwächters', from: 'Sonnentempel', color: '#ffd36a',
+    tiers: [[2, { atk: 30, def: 20 }], [4, { hp: 600, main: 9 }], [6, { dmgReduce: 0.03, resist: 0.02 }]]
+  },
+  wolkenhort: {
+    name: 'Sturmschwingen des Sturmdrachen', from: 'Wolkenhort', color: '#bfe4ff',
+    tiers: [[2, { atk: 30, speed: 0.02 }], [4, { hp: 600, main: 9 }], [6, { atkSpeed: 0.05, crit: 0.02 }]]
   }
 };

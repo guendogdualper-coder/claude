@@ -981,7 +981,8 @@ const _mc = new THREE.Color();
 
 function v3UpdateMood(dt, x, y) {
   const zone = zoneAt(x, y);
-  const m = zone.dungeon ? MOOD3.dungeon : MOOD3[zone.id] || MOOD3.dorf;
+  // seit 15.45: Instanzen mit eigenem Licht (mood3, daten/instanzen.js), sonst das helle Dungeon-Licht
+  const m = zone.dungeon ? zone.dungeon.mood3 || MOOD3.dungeon : MOOD3[zone.id] || MOOD3.dorf;
   const k = Math.min(1, dt * 1.2);
   const s = moodState;
   s.sky.lerp(_mc.set(m.sky), k);

@@ -29,7 +29,8 @@ const K82_HIMMEL = new Set(['sonnenhof', 'himmelsterrassen']);
   add(GROUND.STRANDSAND, '#a29c88', '#c2bca6', [200, 194, 176]); // heller, kühler Strand
   add(GROUND.DUENENGRAS, '#647462', '#8a9882', [124, 140, 118]); // graugrünes Dünengras
   add(GROUND.GOLDGRAS, '#7e7a3e', '#a0944e', [186, 168, 98]);    // goldenes Gras der Hochebene
-  add(GROUND.HELLSTEIN, '#9c968a', '#bcb6a8', [214, 210, 198]);  // weißer Fels
+  // seit 15.45 etwas dunkler: in 3D blendeten die hellen Flecken stark (Bloom)
+  add(GROUND.HELLSTEIN, '#928a7c', '#aea696', [214, 210, 198]);  // weißer Fels
   if (typeof SOIL3 !== 'undefined') {
     SOIL3[GROUND.STRANDSAND] = 2;
     SOIL3[GROUND.DUENENGRAS] = 0;
@@ -51,8 +52,9 @@ if (typeof MOOD3 !== 'undefined') {
   Object.assign(MOOD3, {
     leuchtwacht: { sky: '#a6b4b0', sun: '#e8eee8', sunI: 0.74, hemi: '#d8e2de', ground: '#5a645a', hemiI: 0.6, near: 22, far: 54 },
     nebelkueste: { sky: '#9eaeaa', sun: '#e2e8e4', sunI: 0.7, hemi: '#d2dcd8', ground: '#525e56', hemiI: 0.58, near: 16, far: 44 },
-    sonnenhof: { sky: '#9ccaee', sun: '#fff4e2', sunI: 0.88, hemi: '#eef0e6', ground: '#7a7044', hemiI: 0.58 },
-    himmelsterrassen: { sky: '#94c6ee', sun: '#fff4e0', sunI: 0.9, hemi: '#eceee4', ground: '#787044', hemiI: 0.58, near: 34, far: 76 }
+    // seit 15.45 etwas gedämpft (Sonne 0,88/0,9 → 0,8, Himmelslicht heller Ton und 0,58 → 0,54): der weiße Stein blendete
+    sonnenhof: { sky: '#9ccaee', sun: '#fff4e2', sunI: 0.8, hemi: '#e4e4da', ground: '#7a7044', hemiI: 0.54 },
+    himmelsterrassen: { sky: '#94c6ee', sun: '#fff4e0', sunI: 0.8, hemi: '#e2e2d8', ground: '#787044', hemiI: 0.54, near: 34, far: 76 }
   });
 }
 // Musik: an der Küste die kühle, langsame Stimmung, auf den Terrassen die helle (eigene Kompositionen, musik.js)
@@ -76,8 +78,8 @@ if (typeof ROCK_STYLES !== 'undefined') {
   Object.assign(ROCK_STYLES, {
     leuchtwacht: ['#66706c', '#8c9692', null],
     nebelkueste: ['#5e6864', '#86908c', '#5a7266'],
-    sonnenhof: ['#d4cebe', '#f2eee4', null],
-    himmelsterrassen: ['#cec8b8', '#f0ece2', '#a8a04a']
+    sonnenhof: ['#ccc6b6', '#e6e2d8', null],
+    himmelsterrassen: ['#c4beae', '#e0dcd0', '#a8a04a']
   });
 }
 if (typeof DECO_COLORS !== 'undefined') {
@@ -504,7 +506,7 @@ if (typeof WZ_MAPS !== 'undefined') {
   const prev19 = WZ_MAPS[19];
   WZ_MAPS[19] = (wm, T) => {
     const town = wzTown(wm);
-    if (T.tier) wzMistLayer(wzMistMat('sonne1', '#fff0c8', 0.16, 0.025, 0.012, true), 2.2, 66);
+    if (T.tier) wzMistLayer(wzMistMat('sonne1', '#fff0c8', 0.1, 0.025, 0.012, true), 2.2, 66);
     wzWallBanners(wzSite(town.cx + 0.5, town.cy + 0.5, 90), wm, 4, '#c8902a', '#fff6e0', 10);
     if (prev19) prev19(wm, T);
   };

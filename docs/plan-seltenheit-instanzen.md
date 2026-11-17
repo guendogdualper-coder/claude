@@ -103,10 +103,18 @@ Stand: 2. 11. 2026, Wunsch des Spielers. Wird nach den laufenden Arbeiten (Stufe
 | Feuerberg | unten links | Aschenzitadelle | Feuer | 29 | Kael, Ishra, Vorr, Barak | Aschenkaiser Vulkhar |
 | Kristallabgrund (seit 13.85) | oben links | Spiegelgruft | Eis | – | Glimra, Korvald, Ysolde, Brakkar (76 → 79) | Aelthys, Herrin der Spiegel (80) |
 | Kristallabgrund (seit 13.85) | unten rechts | Thron der Leere | Tod | – | Nachtkralle, Xul, Gharon, Ritter Morvaine (76 → 79) | Nihilor, Fürst der Leere (80) |
+| Nebelküste (seit 15.45) | oben links | Gezeitengrotte | Gezeiten | – | Kragg, Orrun, Nyssa, Tharos (76 → 79) | Maelis, Herrin der Gezeiten (80) |
+| Nebelküste (seit 15.45) | unten rechts | Nebelwrack | Nebel | – | Grimmholt, Seraine, Ulgor, Quell (76 → 79) | Kapitän Haldor Nebelbart (80) |
+| Himmelsterrassen (seit 15.45) | oben links | Sonnentempel | Sonne | – | Sarik, Liora, Tharn, Aurex (76 → 79) | Solgar, der Sonnenwächter (80) |
+| Himmelsterrassen (seit 15.45) | unten rechts | Wolkenhort | Wind | – | Aeris, Kaelos, Hrodmar, Ventra (76 → 79) | Vindrakor, der Sturmdrache (80) |
 
   Die beiden Lv-80-Instanzen (seit 13.85, `INSTANCES80` in `js/daten/instanzen.js`) sind gleich gebaut, aber ab
   Stufe 75 (`minLevel`), Gegner in den Räumen Stufe 78–79 (`instLevel`), Steine 75 und 80; epische Beute Lv 70/80.
   Sie hängen hinten an `INSTANCES`, damit alle älteren Dungeons ihren Platz im Streifen behalten.
+  Die vier Lv-80-Instanzen der Karten 18 und 19 (seit 15.45, `INSTANCES82`) sind ebenso gebaut; sie hängen ganz
+  hinten an `DUNGEONS` (zonen.js), zwei neue Spalten im Dungeon-Streifen (x 1800–1919). Eigene Themen der Angriffe
+  (`INST_FX` gezeiten, nebel, sonne, wind), eigene Böden, Licht in 3D (`mood3`), Musik (`music`), Tore ohne neuen Weg
+  (`entry.road: false`, die Karten bleiben unverändert), Aussehen in js/instanzen82.js.
 
   *mit Halle und zwei Seitenräumen (Schatzkammer, Schrein); vorher hatte der Höllenthron 6, ein Endboss 2 Räume.
 - Grundriss (`instPlan`): unter der Halle ein Raster aus 4 × 8 Feldern, der Weg windet sich von unten nach oben

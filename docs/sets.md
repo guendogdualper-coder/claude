@@ -1,7 +1,7 @@
 # Set-Ausrüstung (seit 14.55)
 
-Jede Lv-60-Instanz, der Höllenthron (Thron der Unterwelt, Abaddor) und die beiden Lv-80-Instanzen im Kristallabgrund
-haben ein eigenes Set. Wer mehrere Teile desselben Sets anlegt, bekommt zusätzliche Boni in Stufen.
+Jede Lv-60-Instanz, der Höllenthron (Thron der Unterwelt, Abaddor), die beiden Lv-80-Instanzen im Kristallabgrund und
+(seit 15.45) die vier Lv-80-Instanzen der Nebelküste und der Himmelsterrassen haben ein eigenes Set. Wer mehrere Teile desselben Sets anlegt, bekommt zusätzliche Boni in Stufen.
 
 ## Regeln
 
@@ -66,6 +66,16 @@ Stufe 80 (Kristallabgrund, Teile Lv 70–80; etwa ×1,5):
 | Spiegelgruft | Spiegelglas der Herrin Aelthys | Angriff +30, Abwehr gegen Magie +4 % | Leben +600, Hauptwert +9 | Fertigkeitsschaden +5 %, Krit. Treffer +2 % |
 | Thron der Leere | Leerenpanzer des Nihilor | Angriff +30, Lebensraub +1 % | Leben +600, Hauptwert +9 | Krit. Schaden +8 %, Schadensreduktion +3 % |
 
+Stufe 80 (Nebelküste, Map 18, und Himmelsterrassen, Map 19, seit 15.45; Teile Lv 70–80, gleich stark, eigene
+Schwerpunkte):
+
+| Instanz | Ecke | Set | Farbe | 2 Teile | 4 Teile | 6 Teile |
+|---|---|---|---|---|---|---|
+| Gezeitengrotte | Nebelküste oben links | Perlmutt der Gezeitenherrin | #5fe8d8 | Angriff +30, Lebensregeneration +0,3 % | Leben +600, Hauptwert +9 | Max. Leben +4 %, Fertigkeitsschaden +4 % |
+| Nebelwrack | Nebelküste unten rechts | Nebelmantel des Geisterkapitäns | #a8d8b0 | Angriff +30, Abwehr gegen Fernkampf +4 % | Leben +600, Hauptwert +9 | Normaler Schaden +5 %, Ausweichen +2 % |
+| Sonnentempel | Himmelsterrassen oben links | Sonnenpanzer des Sonnenwächters | #ffd36a | Angriff +30, Verteidigung +20 | Leben +600, Hauptwert +9 | Schadensreduktion +3 %, Erlittener Schaden −2 % |
+| Wolkenhort | Himmelsterrassen unten rechts | Sturmschwingen des Sturmdrachen | #bfe4ff | Angriff +30, Lauftempo +2 % | Leben +600, Hauptwert +9 | Angriffstempo +5 %, Krit. Treffer +2 % |
+
 ## Einordnung der Werte
 
 - Eine epische Bonuszeile auf Lv 60 bringt etwa Angriff +10–48, Leben 200–1000, 2–6 % bei Prozent-Boni.
@@ -81,23 +91,47 @@ Neues Set: Eintrag in `ITEM_SETS` mit der Kennung der Instanz (`DUNGEONS[].id`),
 Neue Bonus-Schlüssel müssen in `playerStats` ausgewertet werden (alle aus `BONUS_TYPES`, `SPECIAL_BONUS_TYPES` und
 `main` sind es schon). Texte zusätzlich in js/sprachen/en.js.
 
-## Klassen-Sets (seit 15.40)
+## Klassen-Sets (seit 15.40, zweite Reihe seit 15.45)
 
-Je Klasse ein legendäres Lv-80-Set mit eigenem Aussehen (js/klassensets.js, `KLASSEN_SETS`, in `ITEM_SETS` mit `cls`).
+Je Klasse zwei legendäre Lv-80-Sets mit eigenem Aussehen (js/klassensets.js, `KLASSEN_SETS` und `KLASSEN_SETS2`, in
+`ITEM_SETS` mit `cls` und `reihe`). Die beiden Reihen haben eigene Kennungen und zählen getrennt; man kann sie mischen
+(z. B. 3 + 3 Teile: von jeder Reihe die Stufe für 2 Teile).
 
-| Klasse | Set | Merkmale in 3D |
-|---|---|---|
-| Krieger | Rüstung des Drachenkaisers | Obsidianhörner, Glutzacken auf den Schultern, Drachenschwingen im Rücken |
-| Ninja | Gewand des Mondschattens | Mondsichel an der Stirn, Sichelklingen auf den Schultern, Mondring im Rücken |
-| Schamane | Tracht des Sturmgeists | Federkrone, Federmantel, Geisterperlen, Schwingen |
-| Nekromant | Ornat des Seelenkönigs | Knochenkrone mit Seelenflamme, Schädel auf den Schultern, Rippen, Seelenfeuer |
-| Magier | Robe des Sternenwebers | Sternenkranz um den Hut, Sternbild auf der Brust, Sternenring im Rücken |
+Erste Reihe – aus Spiegelgruft, Thron der Leere und Thron der Unterwelt (`KS.quellen`):
 
-- **Woher:** legendäre Teile (Ewig, Lv 80) aus der Spiegelgruft, dem Thron der Leere und dem Thron der Unterwelt
-  gehören mit 70 % (`KS.chance`) zum Set der Klasse, für die das Teil gemacht ist (Teile ohne Klasse: zur eigenen),
-  sonst wie bisher zum Set der Instanz. In den Lv-80-Instanzen fällt ein legendäres Teil beim Boss mit 20 %
-  (`INST.legendary80`, vorher 6,5 %) und bei jedem Wächter mit 3 % (`INST.miniLegendary80`).
-- **Zählen:** nur für die Klasse des Sets (`setCounts`). Stufen bei 2, 4 und 6 Teilen, etwas über den
-  Lv-80-Instanz-Sets (z. B. Angriff +30–35, Leben +600–800, Hauptwert +12, zwei Prozentwerte).
-- **Aussehen:** Helm, Schultern, Rüstung und Umhang tragen je ein Merkmal (`KS_LOOK`, über `playerConfig3`);
-  Farbe wie bei allen Sets aus `ITEM_SETS[].color`. In 2D zeigt sich das Set nur in der Farbe.
+| Klasse | Set | Kennung | Farbe | Merkmale in 3D |
+|---|---|---|---|---|
+| Krieger | Rüstung des Drachenkaisers | drachenkaiser | #ff6a2a | Obsidianhörner, Glutzacken auf den Schultern, Drachenschwingen im Rücken |
+| Ninja | Gewand des Mondschattens | mondschatten | #8a6aff | Mondsichel an der Stirn, Sichelklingen auf den Schultern, Mondring im Rücken |
+| Schamane | Tracht des Sturmgeists | sturmgeist | #3fe0c8 | Federkrone, Federmantel, Geisterperlen, Schwingen |
+| Nekromant | Ornat des Seelenkönigs | seelenkoenig | #6fe88a | Knochenkrone mit Seelenflamme, Schädel auf den Schultern, Rippen, Seelenfeuer |
+| Magier | Robe des Sternenwebers | sternenweber | #6ab8ff | Sternenkranz um den Hut, Sternbild auf der Brust, Sternenring im Rücken |
+
+Zweite Reihe – aus Gezeitengrotte, Nebelwrack, Sonnentempel, Wolkenhort und dem Turm der Verdammten (`KS.quellen2`;
+der Turm trägt sich in js/turm.js selbst ein):
+
+| Klasse | Set | Kennung | Farbe | 2 Teile | 4 Teile | 6 Teile | Merkmale in 3D |
+|---|---|---|---|---|---|---|---|
+| Krieger | Rüstung des Sonnenlöwen | sonnenloewe | #f0b840 | Angriff +35, Abwehr gegen Nahkampf +4 % | Leben +800, Hauptwert +12 | Fertigkeitsschaden +6 %, Max. Leben +4 % | Goldkamm mit roter Federmähne, goldene Lamellen-Schultern mit Mähne, Wappenschild auf der Brust, Rundschild auf dem Rücken |
+| Ninja | Gewand des Nebelfuchses | nebelfuchs | #7ad8b0 | Angriff +35, Ausweichen +2 % | Leben +600, Hauptwert +12 | Normaler Schaden +6 %, Krit. Treffer +2 % | Fuchsohren und Fuchsmaske, Lack-Lamellen mit Kunai, gekreuzte Gurte mit Jadescheibe, zwei gekreuzte Klingen |
+| Schamane | Tracht des Gezeitenrufers | gezeitenrufer | #3ab8e0 | Angriff +30, Lebensregeneration +0,4 % | Leben +700, Hauptwert +12 | Fertigkeitsschaden +6 %, Max. Leben +4 % | Muschelkrone mit Perlen und Korallengeweih, Jakobsmuscheln, Perlenanhänger, Muschelhorn und Tang |
+| Nekromant | Ornat des Laternenfürsten | laternenfuerst | #9ad8c0 | Angriff +30, Abwehr gegen Magie +4 % | Leben +700, Hauptwert +12 | Fertigkeitsschaden +6 %, Krit. Schaden +6 % | Käfigkrone mit Geisterlicht, Laternen an den Schultern, Kette mit Schloss, Laternenstab und zerschlissene Bahnen |
+| Magier | Robe der Mittagssonne | mittagssonne | #ffcf5a | Angriff +30, Max. Mana +150 | Leben +600, Hauptwert +12 | Fertigkeitsschaden +7 %, Krit. Treffer +3 % | Krone aus Goldblättern mit Sonnenstein, Goldblätter auf den Schultern, Halskragen, Lichtprismen im Rücken |
+
+Werte der ersten Reihe: Krieger Angriff +35/Verteidigung +20 · Leben +800/Hauptwert +12 · Normaler Schaden +6 %/
+Schadensreduktion +4 %; Ninja Angriff +35/Krit. +2 % · Leben +600/Hauptwert +12 · Krit. Schaden +10 %/Angriffstempo
++5 %; Schamane Angriff +30/Mana +150 · Leben +700/Hauptwert +12 · Fertigkeitsschaden +7 %/Schadensreduktion +3 %;
+Nekromant Angriff +30/Lebensraub +1 % · Leben +700/Hauptwert +12 · Fertigkeitsschaden +7 %/Erlittener Schaden −2 %;
+Magier Angriff +30/Krit. +2 % · Leben +600/Hauptwert +12 · Fertigkeitsschaden +8 %/Krit. Schaden +6 %.
+
+- **Woher:** legendäre Teile (Ewig, Lv 80) aus den Quellen einer Reihe gehören mit 70 % (`KS.chance`) zum Set dieser
+  Reihe für die Klasse, für die das Teil gemacht ist (Teile ohne Klasse: zur eigenen), sonst wie bisher zum Set der
+  Instanz (der Turm hat kein eigenes Set: dort bleibt das Teil ohne Set). In den Lv-80-Instanzen fällt ein legendäres
+  Teil beim Boss mit 20 % (`INST.legendary80`) und bei jedem Wächter mit 3 % (`INST.miniLegendary80`); im Turm beim
+  Wächter mit 20 %, bei den Hütern mit 3 %.
+- **Zählen:** nur für die Klasse des Sets (`setCounts`), jede Reihe für sich. Stufen bei 2, 4 und 6 Teilen, etwas über
+  den Lv-80-Instanz-Sets (Angriff +30–35, Leben +600–800, Hauptwert +12, zwei Prozentwerte).
+- **Aussehen:** Helm, Schultern, Rüstung und Umhang tragen je ein Merkmal (`KS_LOOK`, `KS_LOOK2`, über
+  `playerConfig3`); je Platz das Merkmal der Reihe, zu der das angelegte Teil gehört. Farbe wie bei allen Sets aus
+  `ITEM_SETS[].color`. In 2D zeigt sich das Set nur in der Farbe.
+- **Eingang:** Das Fenster am Tor nennt das Set der Instanz und das Klassen-Set der Reihe, die dort fällt.

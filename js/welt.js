@@ -51,7 +51,10 @@ const GROUND = { GRASS: 0, MEADOW: 1, FOREST: 2, PATH: 3, WATER: 4, PLAZA: 5, SA
   // Karten 18 und 19 (Farben in karte82.js): STRANDSAND (heller Sand der Nebelküste), DUENENGRAS (graugrünes Gras der
   // Dünen), GOLDGRAS (goldenes Gras der Himmelsterrassen), HELLSTEIN (weißer Fels der Terrassen) – alle begehbar; das
   // Meer der Nebelküste ist gewöhnliches Wasser (WATER), nur dort graugrün gefärbt
-  STRANDSAND: 29, DUENENGRAS: 30, GOLDGRAS: 31, HELLSTEIN: 32 };
+  STRANDSAND: 29, DUENENGRAS: 30, GOLDGRAS: 31, HELLSTEIN: 32,
+  // seit 15.45: Böden der vier Instanzen dieser Karten (Farben in instanzen82.js): nasser Grottensand, dunkles
+  // Schiffsholz, Tempelmarmor, Wolkenstein – nur in den Instanz-Hallen
+  GROTTENSAND: 33, SCHIFFSHOLZ: 34, TEMPELMARMOR: 35, WOLKENSTEIN: 36 };
 // Gewässer, durch die man nicht laufen kann (zugefrorene Seen schon)
 const LIQUID = new Set([GROUND.WATER, GROUND.LAVA, GROUND.BOG, GROUND.ABGRUND, GROUND.WOLKEN, GROUND.KLUFT, GROUND.TREIBSAND, GROUND.BLUTSEE, GROUND.EISSPALTE]);
 // Objekte auf dem Boden (alle blockieren den Weg)
@@ -1915,6 +1918,8 @@ function layRoads(wm, ground, obj, deco, zoneIdx, roads) {
   for (const d of DUNGEONS) {
     const e = d.entry;
     if (!e || (e.map || 1) !== wm.id) continue;
+    // seit 15.45: Tore ohne eigenen Weg (Instanzen der Karten 18 und 19 – die Karte bleibt, wie sie war)
+    if (e.road === false) continue;
     if (e.corner) {
       const gx = e.corner[1] === 'r' ? rx + rw - 22 : rx + 22;
       const gy = e.corner[0] === 'b' ? ry + rh - 16 : ry + 16;

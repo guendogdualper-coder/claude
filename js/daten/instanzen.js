@@ -276,3 +276,113 @@ const INSTANCES80 = [
 ];
 for (const d of INSTANCES80) Object.assign(d, { minLevel: 75, instLevel: 78, inst60: true, rows: 2, stones: [75, 80] });
 INSTANCES.push(...INSTANCES80);
+
+// Lv-80-Instanzen der Nebelküste (Map 18) und der Himmelsterrassen (Map 19), seit 15.45: vier weitere Instanzen nach dem
+// Muster der Spiegelgruft (zwei Blöcke hoch, vier Wächter, versiegelter Boss, Stufe 76–80, Sperre 60 Minuten).
+// Sie hängen nicht an INSTANCES, sondern werden in zonen.js ganz hinten an DUNGEONS gehängt (INSTANCES82): alle älteren
+// Dungeons behalten so ihren Platz im Streifen. Eigene Themen der Fähigkeiten (INST_FX in instanzen.js): gezeiten
+// (Wasser, Perlmutt), nebel (Geisterlicht, Laternen), sonne (Gold, gleißendes Licht), wind (Böen, Blitze aus Wolken).
+// Aussehen: eigene Zeichnungen in 2D und eigene 3D-Modelle der Wächter und Bosse (instanzen82.js).
+// Gegner der Räume: [id, Vorlage (Werte und Bewegung), Name, Farbe des Geschosses]
+const INST82_MOBS = [
+  ['i_krabbenkrieger', 'riffscherer', 'Krabbenkrieger', null],
+  ['i_muschelwaechter', 'kristallgolem', 'Muschelwächter', null],
+  ['i_tiefseeschlange', 'riesenpython', 'Tiefseeschlange', null],
+  ['i_matrose', 'untoter', 'Ertrunkener Matrose', null],
+  ['i_nebelgeist', 'abgrundgeist', 'Nebelgeist', '#c8e8d0'],
+  ['i_rankenkrake', 'splitterspinne', 'Rankenkrake', null],
+  ['i_tempelwaechter', 'sonnenkoloss', 'Tempelwächter', null],
+  ['i_lichtfalke', 'nebelharpyie', 'Lichtfalke', '#fff0b0'],
+  ['i_sonnenpriester', 'leerenseherin', 'Sonnenpriester', '#ffe08a'],
+  ['i_sturmgreif', 'sonnenloewe', 'Sturmgreif', null],
+  ['i_windgeist', 'abgrundgeist', 'Windgeist', '#e8f6ff'],
+  ['i_wolkenriese', 'donnerriese', 'Wolkenriese', '#cfe8ff']
+];
+for (const [id, base, name, shot] of INST82_MOBS) {
+  const b = MONSTER_TYPES[base];
+  MONSTER_TYPES[id] = {
+    ...b, name, level: 78, look: base, lookScale: 1, hpMul: +((b.hpMul || 1) * 1.15).toFixed(2), atkMul: +((b.atkMul || 1) * 1.3).toFixed(2),
+    aggressive: true, dungeon: true, t3: null, inst82: true, ...(shot ? { shot } : {})
+  };
+}
+// Ult der neuen Themen
+Object.assign(INST_ULT_NAME, { gezeiten: 'Sturmflut', nebel: 'Nebelgrab', sonne: 'Mittagsglut', wind: 'Auge des Orkans' });
+// Wächter (Rang 0–3) und Boss (Rang 4) wie INST80_BOSSES: [id, Vorlage, Name, Titel, Thema, Rang, Größe, Farbe, Angriffe, –, Brut]
+// (Vorlage: Bewegung, Größe und Teile für den Schmied; das Aussehen kommt aus instanzen82.js)
+const INST82_BOSSES = [
+  // Gezeitengrotte (Nebelküste, oben links): Meeresgrotte, Wasser und Perlmutt
+  ['kragg', 'splitterspinne', 'Kragg, die Riffspinne', 'Ihre Beine schneiden wie Korallen', 'gezeiten', 0, 2.0, '#ff9a7a', ['charge', 'fan', 'spikes', 'buster'], null, 'i_krabbenkrieger'],
+  ['orrun', 'kristallgolem', 'Orrun, der Perlmutthüter', 'Er zieht euch in seine Schale', 'gezeiten', 1, 1.8, '#e8fff8', ['slam', 'pull', 'spikes', 'buster'], null, 'i_muschelwaechter'],
+  ['nyssa', 'leerenseherin', 'Nyssa, Stimme der Tiefe', 'Ihr Regen aus Salzwasser deckt die Halle', 'gezeiten', 2, 2.0, '#7af0e0', ['rain', 'ringout', 'volley', 'chain'], null, 'i_tiefseeschlange'],
+  ['tharos', 'untoter', 'Korallenritter Tharos', 'Der letzte Wächter vor der Herrin', 'gezeiten', 3, 2.1, '#ff8a6a', ['charge', 'cross', 'pools', 'line', 'buster'], null, 'i_krabbenkrieger'],
+  ['maelis', 'brandungsnaga', 'Maelis, Herrin der Gezeiten', 'Herrin der Gezeitengrotte', 'gezeiten', 4, 2.2, '#5fe8d8', ['rain', 'fan', 'pull', 'pools', 'ringout', 'volley', 'slam'], null, 'i_tiefseeschlange'],
+  // Nebelwrack (Nebelküste, unten rechts): gesunkenes Geisterschiff, Laternenlicht
+  ['grimmholt', 'untoter', 'Bootsmann Grimmholt', 'Er entert mit gezogenem Säbel', 'nebel', 0, 2.2, '#ffd88a', ['charge', 'fan', 'slam', 'buster'], null, 'i_matrose'],
+  ['seraine', 'abgrundgeist', 'Seraine, die Nebelwitwe', 'Ihre Irrlichter springen von Spieler zu Spieler', 'nebel', 1, 2.0, '#c8f0d8', ['chain', 'volley', 'ringout', 'rain'], null, 'i_nebelgeist'],
+  ['ulgor', 'splitterspinne', 'Ulgor, der Rankenkrake', 'Seine Ranken ziehen euch in die Tiefe', 'nebel', 2, 2.2, '#a8d8b0', ['pull', 'pools', 'spikes', 'slam'], null, 'i_rankenkrake'],
+  ['quell', 'leerenseherin', 'Steuermann Quell', 'Er hält das Wrack auf Kurs ins Nichts', 'nebel', 3, 2.1, '#ffe8a0', ['cross', 'rain', 'core', 'volley', 'leap'], null, 'i_nebelgeist'],
+  ['haldor', 'leerenritter', 'Kapitän Haldor Nebelbart', 'Herr des Nebelwracks', 'nebel', 4, 2.6, '#a8d8b0', ['cross', 'chain', 'pull', 'fan', 'rain', 'slam', 'leap'], null, 'i_matrose'],
+  // Sonnentempel (Himmelsterrassen, oben links): weißer Marmor und Gold
+  ['sarik', 'sonnenloewe', 'Goldmähne Sarik', 'Er springt aus dem gleißenden Licht', 'sonne', 0, 2.2, '#ffd36a', ['leap', 'fan', 'charge', 'spikes'], null, 'i_lichtfalke'],
+  ['liora', 'leerenseherin', 'Hohepriesterin Liora', 'Ihr Licht fällt in Säulen vom Himmel', 'sonne', 1, 2.0, '#fff0b0', ['rain', 'ringout', 'volley', 'chain'], null, 'i_sonnenpriester'],
+  ['tharn', 'sonnenkoloss', 'Marmorhüter Tharn', 'Sein Hammer zieht goldene Kreuze', 'sonne', 2, 1.7, '#ffd36a', ['slam', 'pull', 'cross', 'buster'], null, 'i_tempelwaechter'],
+  ['aurex', 'nebelharpyie', 'Aurex Lichtschwinge', 'Der letzte Wächter vor dem Koloss', 'sonne', 3, 2.1, '#ffe08a', ['fan', 'rain', 'charge', 'line', 'buster'], null, 'i_lichtfalke'],
+  ['solgar', 'sonnenkoloss', 'Solgar, der Sonnenwächter', 'Koloss des Sonnentempels', 'sonne', 4, 1.9, '#ffd36a', ['rain', 'cross', 'pull', 'slam', 'fan', 'spikes', 'charge'], null, 'i_tempelwaechter'],
+  // Wolkenhort (Himmelsterrassen, unten rechts): Himmelsinsel über den Wolken
+  ['aeris', 'nebelharpyie', 'Aeris, die Windläuferin', 'Sie reitet auf den Böen', 'wind', 0, 2.1, '#cfe8ff', ['leap', 'fan', 'volley', 'rain'], null, 'i_windgeist'],
+  ['kaelos', 'sonnenloewe', 'Kaelos, der Greifenfürst', 'Er stürzt aus den Wolken herab', 'wind', 1, 2.0, '#e8f4ff', ['charge', 'fan', 'leap', 'buster'], null, 'i_sturmgreif'],
+  ['hrodmar', 'donnerriese', 'Hrodmar Wolkenbart', 'Ein Riese, der Gewitter im Bart trägt', 'wind', 2, 1.25, '#bfe4ff', ['slam', 'pull', 'line', 'chain'], null, 'i_wolkenriese'],
+  ['ventra', 'abgrundgeist', 'Ventra, Herrin der Böen', 'Der letzte Wächter vor dem Drachen', 'wind', 3, 2.1, '#e8f6ff', ['chain', 'rain', 'cross', 'core', 'volley'], null, 'i_windgeist'],
+  ['vindrakor', 'kristallwyrm', 'Vindrakor, der Sturmdrache', 'Herr des Wolkenhorts', 'wind', 4, 1.15, '#bfe4ff', ['chain', 'rain', 'fan', 'pull', 'leap', 'ringout', 'line'], null, 'i_sturmgreif']
+];
+for (const [id, base, name, title, fx, rank, scale, color, moves, t3, summon] of INST82_BOSSES) {
+  const b = MONSTER_TYPES[base];
+  const R = INST_RANKS[rank];
+  const final = rank === 4;
+  const mat = (b.boss && b.boss.mat) || INST_MAT[base] || base;
+  MONSTER_TYPES[id] = {
+    name, level: 76 + rank, shape: b.shape, color: b.color, accent: b.accent, size: R.size, speed: Math.min(130, (b.speed || 100) + 10),
+    range: final ? 80 : 56, cooldown: final ? 1.8 : 1.6, aggressive: true, hpMul: R.hpMul, atkMul: R.atkMul, dungeon: true,
+    look: base, lookScale: scale, t3, inst82: true,
+    boss: { color, slam: final ? 210 : 150 + rank * 10, volley: final ? 12 : 8, shot: color, summon, mat },
+    inst: { rank, final, fx, title, moves, ult: final ? INST_ULT_NAME[fx] : null }
+  };
+}
+// Die vier Instanzen. Zusätzlich zu den Feldern der übrigen Instanzen:
+//   music  Stimmung der Musik (musik.js moodAt, vorhandene Stücke), mood3  Licht und Nebel in 3D (drei-kern.js)
+//   entry.road: false  kein neuer Weg zum Tor (die übrige Karte bleibt Kachel für Kachel, wie sie war)
+const INSTANCES82 = [
+  {
+    id: 'gezeitengrotte', name: 'Gezeitengrotte', theme: 'gezeiten', entry: { map: 18, corner: 'tl', road: false }, floor: 'GROTTENSAND', portal: '#5fe8d8',
+    wall: { top: '#4e8a86', face: '#0e2a2e', line: '#8ff0e8' }, ambient: { kind: 'blasen', tint: [10, 80, 90, 0.13] }, music: 'kalt',
+    mood3: { sky: '#123a40', sun: '#e0fff8', sunI: 0.78, hemi: '#c8ece8', ground: '#2e5a58', hemiI: 0.72, near: 20, far: 46 },
+    mobs: ['i_krabbenkrieger', 'i_muschelwaechter', 'i_tiefseeschlange'], minis: ['kragg', 'orrun', 'nyssa', 'tharos'], boss: 'maelis',
+    gate: { stone: '#5a8a88', top: '#e8f4f0', topK: 0.55, accent: '#5fe8d8', deep: '#062a30', mid: '#5fe8d8', core: '#f0fffc', motes: 'wisp', spin: 0.9, emblem: 'shell' },
+    text: 'Eine Grotte unter der Küste, in die bei Flut das Meer strömt. Krabben, Muschelwächter und Tiefseeschlangen dienen der Herrin der Gezeiten.'
+  },
+  {
+    id: 'nebelwrack', name: 'Nebelwrack', theme: 'nebel', entry: { map: 18, corner: 'br', road: false }, floor: 'SCHIFFSHOLZ', portal: '#a8d8b0',
+    wall: { top: '#46524a', face: '#121a16', line: '#ffd88a' }, ambient: { kind: 'nebelschwaden', tint: [30, 50, 40, 0.16] }, music: 'dunkel',
+    mood3: { sky: '#1e2a26', sun: '#e8f0dc', sunI: 0.78, hemi: '#c8d8c8', ground: '#3a463e', hemiI: 0.78, near: 16, far: 40 },
+    mobs: ['i_matrose', 'i_nebelgeist', 'i_rankenkrake'], minis: ['grimmholt', 'seraine', 'ulgor', 'quell'], boss: 'haldor',
+    gate: { stone: '#4a5650', top: '#7a8a80', accent: '#ffd88a', deep: '#0e1e18', mid: '#a8d8b0', core: '#fff4d0', motes: 'firefly', spin: 0.7, emblem: 'lantern' },
+    text: 'Ein Geisterschiff, gesunken vor der Nebelküste. In seinem Bauch leuchten noch die Laternen – ertrunkene Matrosen, Nebelgeister und Rankenkraken halten Wache für ihren Kapitän.'
+  },
+  {
+    id: 'sonnentempel', name: 'Sonnentempel', theme: 'sonne', entry: { map: 19, corner: 'tl', road: false }, floor: 'TEMPELMARMOR', portal: '#ffd36a',
+    wall: { top: '#e6dcc4', face: '#6a5634', line: '#ffd36a' }, ambient: { kind: 'goldstaub', tint: [90, 70, 10, 0.06] }, music: 'heiss',
+    mood3: { sky: '#2a2416', sun: '#fff6e8', sunI: 0.64, hemi: '#e0d8c8', ground: '#4a4030', hemiI: 0.6, near: 22, far: 50 },
+    mobs: ['i_tempelwaechter', 'i_lichtfalke', 'i_sonnenpriester'], minis: ['sarik', 'liora', 'tharn', 'aurex'], boss: 'solgar',
+    gate: { stone: '#d8d0bc', top: '#fff8e8', topK: 0.5, accent: '#ffd36a', deep: '#5a3a00', mid: '#ffd36a', core: '#fffbe8', motes: 'dust', spin: 1.0, emblem: 'sun' },
+    text: 'Ein Tempel aus weißem Marmor und Gold, in dem das Licht nie erlischt. Wächter aus Stein, Lichtfalken und Sonnenpriester hüten den Koloss der Sonne.'
+  },
+  {
+    id: 'wolkenhort', name: 'Wolkenhort', theme: 'wind', entry: { map: 19, corner: 'br', road: false }, floor: 'WOLKENSTEIN', portal: '#bfe4ff',
+    wall: { top: '#e4ecf6', face: '#46587a', line: '#bfe4ff' }, ambient: { kind: 'wolkenfetzen', tint: [70, 100, 150, 0.08] }, music: 'feld',
+    mood3: { sky: '#24324c', sun: '#f0f4ff', sunI: 0.68, hemi: '#d0dcf0', ground: '#3a4a64', hemiI: 0.62, near: 22, far: 50 },
+    mobs: ['i_sturmgreif', 'i_windgeist', 'i_wolkenriese'], minis: ['aeris', 'kaelos', 'hrodmar', 'ventra'], boss: 'vindrakor',
+    gate: { stone: '#c8d4e4', top: '#ffffff', topK: 0.6, accent: '#bfe4ff', deep: '#1a2c4e', mid: '#bfe4ff', core: '#ffffff', motes: 'snow', spin: 1.4, emblem: 'wing' },
+    text: 'Eine Himmelsinsel hoch über den Wolken, das Nest des Sturmdrachen. Greife, Windgeister und Wolkenriesen bewachen den Hort.'
+  }
+];
+for (const d of INSTANCES82) Object.assign(d, { minLevel: 75, instLevel: 78, inst60: true, rows: 2, stones: [75, 80] });

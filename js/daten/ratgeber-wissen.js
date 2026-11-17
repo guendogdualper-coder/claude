@@ -620,8 +620,41 @@ const RATGEBER_WISSEN = [
   {
     c: 'dungeons', q: 'Was sind Instanzen?',
     a: 'Große Gruppeninhalte ab Stufe 60: der <b>Thron der Unterwelt</b> im Feuerberg für 6–7 Spieler, acht Instanzen für 2–5 Spieler in den Ecken von Frostgipfel, Totenmoor, Donnerklamm und Feuerberg, ' +
-      'dazu zwei im Kristallabgrund ab Stufe 75. Erst fallen die Wächter, dann der Instanzboss. Legendäre Beute gibt es nur hier; die Beute der Lv-60-Instanzen gibt es je Spieler und Instanz einmal in 30 Minuten (gezählt ab dem Betreten).',
+      'dazu zwei im Kristallabgrund und je zwei auf der Nebelküste und den Himmelsterrassen ab Stufe 75 (allein oder bis 5 Spieler). Erst fallen die Wächter, dann der Instanzboss. Legendäre Beute gibt es nur hier; die Beute gibt es je Spieler und Instanz einmal in 60 Minuten (gezählt ab dem Betreten).',
     k: 'instanz instanzen hoellenthron thron der unterwelt abaddor legendaer stufe 60 75'
+  },
+  // seit 15.45: die vier Instanzen der Karten 18 und 19 (Daten: daten/instanzen.js, INSTANCES82)
+  {
+    c: 'dungeons', p: 2, q: 'Welche Instanzen gibt es auf der Nebelküste und den Himmelsterrassen?',
+    a: () => {
+      const list = typeof INSTANCES82 !== 'undefined' ? INSTANCES82 : [];
+      const ecke = { tl: 'oben links', br: 'unten rechts', tr: 'oben rechts', bl: 'unten links' };
+      const items = list.map((d) => {
+        const map = (WORLD_MAPS.find((m) => m.id === d.entry.map) || { name: '' }).name;
+        const S = ITEM_SETS[d.id];
+        return `<li><b>${d.name}</b> (${map}, ${ecke[d.entry.corner]}): Wächter ${d.minis.map((id) => MONSTER_TYPES[id].name).join(', ')}; Boss <b>${MONSTER_TYPES[d.boss].name}</b>${S ? `; Set <b>${S.name}</b>` : ''}</li>`;
+      }).join('');
+      return 'Vier Instanzen ab Stufe 75, allein oder bis 5 Spieler, mit einem Tor in den Ecken der beiden Karten:<ul>' + items + '</ul>' +
+        'Aufbau wie die Spiegelgruft: viele Räume voller Gegner, zwei Seelensteine, vier Wächter, oben der versiegelte Endboss mit seiner Ult (nur in den Lichtkreisen überlebt man sie). ' +
+        'Sperre 60 Minuten je Instanz. Legendäre Teile von hier gehören meist zur <b>zweiten Reihe der Klassen-Sets</b>, sonst zum Set der Instanz.';
+    },
+    k: 'gezeitengrotte nebelwrack sonnentempel wolkenhort instanz instanzen nebelkueste nebelküste himmelsterrassen stufe 80 maelis haldor solgar vindrakor kragg orrun nyssa tharos grimmholt seraine ulgor quell sarik liora tharn aurex aeris kaelos hrodmar ventra sturmdrache geisterkapitaen sonnenwaechter gezeitenherrin'
+  },
+  {
+    c: 'dungeons', q: 'Was sind Sets und Klassen-Sets, und wo bekomme ich sie?',
+    a: () => {
+      const p = typeof game !== 'undefined' ? game.player : null;
+      const cls = p ? p.classId : 'krieger';
+      const S1 = typeof KLASSEN_SETS !== 'undefined' ? KLASSEN_SETS[cls] : null;
+      const S2 = typeof KLASSEN_SETS2 !== 'undefined' ? KLASSEN_SETS2[cls] : null;
+      return 'Jede Instanz hat ein eigenes <b>Set</b>: epische und legendäre Teile ab Lv 60 von dort gehören dazu. Mehrere angelegte Teile desselben Sets geben Boni bei 2, 4 und 6 Teilen. ' +
+        'Dazu gibt es je Klasse zwei legendäre <b>Klassen-Sets</b> (Lv 80) mit eigenem Aussehen an Helm, Schultern, Rüstung und Umhang:<ul>' +
+        (S1 ? `<li><b>${S1.name}</b> – aus Spiegelgruft, Thron der Leere und Thron der Unterwelt</li>` : '') +
+        (S2 ? `<li><b>${S2.name}</b> – aus Gezeitengrotte, Nebelwrack, Sonnentempel, Wolkenhort und dem Turm der Verdammten</li>` : '') +
+        '</ul>Legendäre Teile aus diesen Quellen gehören meist (70 %) zum Klassen-Set ihrer Reihe. Beide Reihen zählen getrennt und nur für die eigene Klasse; man kann sie mischen. ' +
+        'Welches Set es in einer Instanz gibt, steht im Fenster am Tor.';
+    },
+    k: 'set sets setboni set-boni klassen-set klassenset klassensets reihe legendaer legendär aussehen drachenkaiser sonnenloewe sonnenlöwe mondschatten nebelfuchs sturmgeist gezeitenrufer seelenkoenig laternenfuerst sternenweber mittagssonne woher fundort'
   },
   // Turm der Verdammten (turm.js): die Zahlen kommen aus den Spieldaten
   {
@@ -653,7 +686,7 @@ const RATGEBER_WISSEN = [
   {
     c: 'dungeons', q: 'Was gibt es im Turm der Verdammten zu holen?',
     a: 'Gold für jede geschaffte Ebene. Die drei Hüter lassen mit etwas Glück ein episches Teil (Lv 70–80) fallen, selten ein legendäres. Der Wächter gibt 2 epische Teile (Lv 80), mit Glück ein legendäres (Lv 80) – ' +
-      'das gehört meist zum Set deiner Klasse –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile und manchmal einen Seelenstein als Gegenstand. Die echten Seelensteine der Ebenen 7 und 9 geben ihre gewohnte Beute. ' +
+      'das gehört meist zur zweiten Reihe der Klassen-Sets deiner Klasse –, dazu Seelensplitter, Ätherkerne, Schmiede-Teile und manchmal einen Seelenstein als Gegenstand. Die echten Seelensteine der Ebenen 7 und 9 geben ihre gewohnte Beute. ' +
       'Die Beute der Hüter und des Wächters gibt es je Sperre einmal.',
     k: 'turm der verdammten beute belohnung legendaer episch klassen-set aetherkern seelenstein gold sperre'
   },

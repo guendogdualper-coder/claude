@@ -110,7 +110,7 @@ const music = {
   moodAt(x, y) {
     const z = zoneAt(x, y);
     if (!z) return 'feld';
-    if (z.dungeon) return 'dunkel';
+    if (z.dungeon) return z.dungeon.music || 'dunkel'; // seit 15.45: Instanzen mit eigener Stimmung (music)
     if (z.safe) return 'dorf';
     const g = z.ground;
     if (g === 'SNOW' || g === 'ICE' || g === 'KRISTALL' || z.liquid === 'ICE') return 'kalt';

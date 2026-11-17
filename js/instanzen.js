@@ -40,7 +40,12 @@ const INST_FX = {
   gift: { col: '#8fe36a', hot: '#e8ffb0', spike: '#4a6a2a', smoke: '#6a9a3a', wind: '#8fe36a' },
   tod: { col: '#b48cff', hot: '#f0e0ff', spike: '#e8e0cc', smoke: '#5a3a8a', wind: '#c8a8ff' },
   sturm: { col: '#9fd0ff', hot: '#ffffff', spike: '#8a8f9a', smoke: '#3a4058', wind: '#cfe8ff' },
-  feuer: { col: '#ff7a2a', hot: '#ffd34d', spike: '#3a1a10', smoke: '#3a2018', wind: '#ff9a4a' }
+  feuer: { col: '#ff7a2a', hot: '#ffd34d', spike: '#3a1a10', smoke: '#3a2018', wind: '#ff9a4a' },
+  // seit 15.45: die vier Instanzen der Nebelküste und der Himmelsterrassen
+  gezeiten: { col: '#5fe8d8', hot: '#f0fffc', spike: '#e8f4f0', smoke: '#2e7a7a', wind: '#8ff0e8' },
+  nebel: { col: '#a8d8b0', hot: '#ffe8a0', spike: '#6a7a70', smoke: '#4a5a52', wind: '#c8d8d0' },
+  sonne: { col: '#ffd36a', hot: '#fffbe8', spike: '#f4ecd8', smoke: '#c8a050', wind: '#ffe8a8' },
+  wind: { col: '#bfe4ff', hot: '#ffffff', spike: '#e8f4ff', smoke: '#8aa0c0', wind: '#e8f6ff' }
 };
 
 // --- Instanzen finden -----------------------------------------------------------------------------------------
@@ -703,9 +708,9 @@ const instTheme = (m) => INST_FX[(m && m.type && m.type.inst && m.type.inst.fx) 
 function instWindup(m, delay) {
   const fx = m.type.inst.fx;
   const T = instTheme(m);
-  if (fx === 'eis' || fx === 'tod') addEffect({ type: 'orbs3', follow: m, count: 7, dur: delay, color: T.col });
-  else if (fx === 'gift') addEffect({ type: 'smoke3', follow: m, count: 9, dur: delay, color: T.smoke, op: 0.6, size: 1.4 });
-  else if (fx === 'sturm') addEffect({ type: 'cloud3', x: m.x, y: feetY(m), dur: delay + 0.6, color: '#232838' });
+  if (fx === 'eis' || fx === 'tod' || fx === 'gezeiten') addEffect({ type: 'orbs3', follow: m, count: 7, dur: delay, color: T.col });
+  else if (fx === 'gift' || fx === 'nebel') addEffect({ type: 'smoke3', follow: m, count: 9, dur: delay, color: T.smoke, op: 0.6, size: 1.4 });
+  else if (fx === 'sturm' || fx === 'wind') addEffect({ type: 'cloud3', x: m.x, y: feetY(m), dur: delay + 0.6, color: fx === 'wind' ? '#5a6a88' : '#232838' });
   else addEffect({ type: 'pillar', follow: m, dur: delay, color: T.col });
 }
 // seit 14.81: Bosse mit eigenem 3D-Modell (bosse3d.js) zeigen jeden Angriff mit eigener Pose und eigenen Effekten im
@@ -759,9 +764,9 @@ function instTelegraph(m, kind, circles, inner, delay) {
     for (const c of circles) {
       later(Math.max(0, delay - 0.45), () => {
         if (fx === 'eis') addEffect({ type: 'meteor3', pal: 'eis', x: c.x, y: c.y, fall: 0.45, dur: 0.5, size: 1.3 });
-        else if (fx === 'feuer') addEffect({ type: 'meteor3', x: c.x, y: c.y, fall: 0.45, dur: 0.5, size: 1.2 });
+        else if (fx === 'feuer' || fx === 'sonne') addEffect({ type: 'meteor3', x: c.x, y: c.y, fall: 0.45, dur: 0.5, size: 1.2 });
       });
-      if (fx === 'sturm') addEffect({ type: 'cloud3', x: c.x, y: c.y, dur: delay + 0.4, color: '#2a3048' });
+      if (fx === 'sturm' || fx === 'wind') addEffect({ type: 'cloud3', x: c.x, y: c.y, dur: delay + 0.4, color: fx === 'wind' ? '#4a5a78' : '#2a3048' });
     }
   }
   if (kind === 'chain') for (const c of circles) addEffect({ type: 'orbs3', x: c.x, y: c.y, count: 4, dur: delay, color: T.col });
@@ -772,13 +777,21 @@ function instTelegraph(m, kind, circles, inner, delay) {
 function instBurst(T, fx, c, big) {
   const r = c.r;
   if (fx === 'eis') addEffect({ type: 'shards3', x: c.x, y: c.y, r: r * 0.9, count: big ? 12 : 8, color: T.spike, glow: true, size: big ? 1.6 : 1.2, dur: 1.1 });
-  else if (fx === 'tod') {
+  else if (fx === 'gezeiten') {
+    // Wassersäule mit Gischt und Perlmuttsplittern
+    addEffect({ type: 'column3', x: c.x, y: c.y, r: r * 0.5, hgt: big ? 2.6 : 2, dur: 0.75, color: T.col, core: T.hot });
+    addEffect({ type: 'shards3', x: c.x, y: c.y, r: r * 0.85, count: big ? 10 : 6, color: T.spike, glow: true, size: 1.1, dur: 1 });
+  } else if (fx === 'nebel') {
+    // Nebel quillt auf, darin ein fahles Geisterlicht
+    addEffect({ type: 'smoke3', x: c.x, y: c.y, count: 8, dur: 1.2, color: T.smoke, op: 0.6, size: 1.4 });
+    addEffect({ type: 'column3', x: c.x, y: c.y, r: r * 0.45, hgt: 1.8, dur: 0.7, color: T.col, core: T.hot });
+  } else if (fx === 'tod') {
     addEffect({ type: 'shards3', x: c.x, y: c.y, r: r * 0.85, count: 8, color: T.spike, size: 1.3, dur: 1.1 });
     addEffect({ type: 'column3', x: c.x, y: c.y, r: r * 0.5, hgt: 2, dur: 0.7, color: T.col, core: T.hot });
   } else if (fx === 'gift') {
     addEffect({ type: 'smoke3', x: c.x, y: c.y, count: 8, dur: 1.2, color: T.smoke, op: 0.7, size: 1.3 });
     addEffect({ type: 'shards3', x: c.x, y: c.y, r: r * 0.8, count: 6, color: T.spike, size: 1, dur: 1 });
-  } else if (fx === 'sturm') {
+  } else if (fx === 'sturm' || fx === 'wind') {
     addEffect({ type: 'bolt', x: c.x, y: c.y, dur: 0.4, color: T.col });
     addEffect({ type: 'sparks3', x: c.x, y: c.y, h: 0.3, count: 12, color: T.col, speed: 3, up: 1.2, dur: 0.6 });
   } else {
@@ -1135,7 +1148,7 @@ function fx3Inst(h) {
       const a = i * 2.399 + t * (0.8 + charge * 2);
       const rr = R * (0.6 + 0.35 * Math.sin(i * 1.7 + t));
       const o = fx3Take(h, 'sprite');
-      fx3Map(o, I.fx === 'sturm' || I.fx === 'feuer' ? 'spark' : 'disc');
+      fx3Map(o, I.fx === 'sturm' || I.fx === 'feuer' || I.fx === 'sonne' || I.fx === 'wind' ? 'spark' : 'disc');
       o.position.set(x + Math.cos(a) * rr, 0.15 + ph * (I.final ? 3.2 : 2.2), z + Math.sin(a) * rr);
       const s = (0.12 + 0.08 * (1 - ph)) * (I.final ? 1.4 : 1);
       o.scale.set(s, s, 1);
@@ -1207,7 +1220,7 @@ function instGfGo(act) {
 // --- Aussehen, Speichern ---------------------------------------------------------------------------------------------
 (function instSetup() {
   if (typeof SAVE_FIELDS !== 'undefined' && !SAVE_FIELDS.includes('instLock')) SAVE_FIELDS.push('instLock');
-  const theme3 = { eis: 'frost', gift: 'rot', tod: 'cave', sturm: 'storm', feuer: 'fire' };
+  const theme3 = { eis: 'frost', gift: 'rot', tod: 'cave', sturm: 'storm', feuer: 'fire', gezeiten: 'jungle', nebel: 'rot', sonne: 'desert', wind: 'storm' };
   for (const d of instDefs()) {
     if (typeof RIFT_LOOK !== 'undefined' && d.gate) RIFT_LOOK[d.id] = { ...d.gate, id: d.id };
     if (typeof MON3_ZONE_THEME !== 'undefined') MON3_ZONE_THEME[d.id] = theme3[d.theme];
