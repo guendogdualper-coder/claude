@@ -4582,4 +4582,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Untuk skill-mu (sekarang {0}). Naik satu tingkat dari E{1} ke E{2}, bisa dibaca sejak Kebangkitan",
 "jetzt {0}": "sekarang {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Milik skill-mu yang berada di {0}. Buku menaikkannya satu tingkat (hingga E{1}).",
+"Den Knopf dafür findest du im Menü": "Tombolnya ada di menu",
+"Donnerkeile": "Tombak Petir",
+"Fertigkeit: Donnerkeile": "Skill: Tombak Petir",
 };

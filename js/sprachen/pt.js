@@ -4990,4 +4990,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Para a tua habilidade (agora {0}). Sobe-a um nível de E{1} a E{2}, legível a partir do despertar",
 "jetzt {0}": "agora {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Pertence à tua habilidade, que está em {0}. Um livro sobe-a um nível (até E{1}).",
+"Den Knopf dafür findest du im Menü": "O botão está no menu",
+"Donnerkeile": "Raios trovejantes",
+"Fertigkeit: Donnerkeile": "Habilidade: Raios trovejantes",
 };

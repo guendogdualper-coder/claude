@@ -371,8 +371,8 @@ function swingProgress(p, ago = 0) {
 function weaponAngle(kind, dir, p, ago = 0) {
   const t = swingProgress(p, ago);
   // Kraftpose: Waffe steil nach oben
-  // (auch Sturmgericht: das Zepter zum Himmel, Haltung 'sgruf')
-  if ((p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf') && t >= 0) return dir === 'side' ? -1.25 : -1.9;
+  // (auch die Ulti des Blitzmagiers: Zepter zum Himmel, Haltung 'dkruf', früher 'sgruf')
+  if ((p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf' || p.swingKind === 'dkruf') && t >= 0) return dir === 'side' ? -1.25 : -1.9;
   // Klingenkreuz: zwei Hiebe über Kreuz und ein Stoß (Winkel über den Ablauf, klingenkreuz.js)
   if (p.swingKind === 'kreuz' && t >= 0 && typeof kreuzAngle2d === 'function') return kreuzAngle2d(p, dir, t);
   // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
@@ -438,7 +438,7 @@ function drawPlayer(ctx, p) {
   }
   // Kraftpose beim Buffen: Arme hoch, kleiner Hüpfer (auch bei Mitspielern, über swingKind)
   // seit 14.61 auch die Wirk-Animation der Schwertaura (in 2D als Kraftpose mit beiden Armen oben)
-  const posing = (p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf') && p.swing > 0 && !p.riding;
+  const posing = (p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf' || p.swingKind === 'dkruf') && p.swing > 0 && !p.riding;
   const poseK = posing ? 1 - p.swing / (p.swingDur || 0.7) : 0;
   if (posing) leapH += Math.sin(Math.min(1, poseK * 1.6) * Math.PI) * 6;
   const ride = rideHeight(p) + leapH;

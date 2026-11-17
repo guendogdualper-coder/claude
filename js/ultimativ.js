@@ -100,8 +100,9 @@ function useUltimate() {
     addText(p.x, p.y - 34, 'Im Dorf wird nicht gekämpft', 'info');
     return;
   }
-  // Ultis mit Zielort (u.aim, Sturmgericht): erst zielen wie bei den Ortszaubern (kampf.js startAim/aimFire), beim
-  // zweiten Drücken oder Tippen auf den Boden wirken; der Zielkreis gilt dann für ULT_BAR statt einer Fertigkeit
+  // Ultis mit Zielort (u.aim; in 15.46–15.47 das Sturmgericht, derzeit keine): erst zielen wie bei den Ortszaubern
+  // (kampf.js startAim/aimFire), beim zweiten Drücken oder Tippen auf den Boden wirken; der Zielkreis gilt dann für
+  // ULT_BAR statt einer Fertigkeit
   if (u.aim && !(game.aim && game.aim.i === ULT_BAR && game.aim.go)) {
     if (game.aim && game.aim.i === ULT_BAR) aimFire();
     else startAim(ULT_BAR, u);
@@ -118,10 +119,10 @@ function useUltimate() {
   stealthCastEnd(p, sMul);
   p.ultCd = ULT_COOLDOWN;
   p.lastCombat = game.time;
-  // eigene Haltung (u.pose, z. B. Sturmgericht: Zepter zum Himmel), sonst die Kraftpose
+  // eigene Haltung (u.pose, z. B. Donnerkeile: Zepter zum Himmel, dann der Wurf), sonst die Kraftpose
   startSwing(p, u.pose || 'pose', u.poseDur || 0.7);
   p.poseColor = u.color;
-  // mit eigener Haltung ohne die Lichtringe der Kraftpose (das Sturmgericht zeigt den Zepterfaden)
+  // mit eigener Haltung ohne die Lichtringe der Kraftpose (die Donnerkeile zeigen ihren eigenen Aufbau)
   if (!u.pose) vfxPowerUp(p, u.color);
   ui.banner(u.name, 'Ultimative Attacke');
   flashScreen(u.color, 0.28);

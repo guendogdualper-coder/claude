@@ -4583,4 +4583,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "あなたのスキル用（現在 {0}）。E{1}～E{2} で1段階上がる。覚醒後に読める",
 "jetzt {0}": "現在 {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "あなたのスキル（現在 {0}）用。本で1段階上がる（E{1} まで）。",
+"Den Knopf dafür findest du im Menü": "ボタンはメニューにある",
+"Donnerkeile": "雷槍",
+"Fertigkeit: Donnerkeile": "スキル：雷槍",
 };

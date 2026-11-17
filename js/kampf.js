@@ -1042,7 +1042,9 @@ function basicTick(p) {
     const spd = arrow ? BOW_ARROW.speed : 480;
     spawnProjectile({ owner: 'player', x: p.x, y: p.y, target, dir: target ? null : { ...p.facing }, speed: spd, range: basic.range + 60 + (arrow && target ? spd * BOW_ARROW.chase : 0), mul: ar ? ar.mul : 1, color: col, radius: 5, style: basic.style, el: basic.el, basic: true, arrow: ar ? ar.sort : undefined,
       // seit 14.17: Pfeile mit Ziel fliegen durch alle anderen Monster und treffen nur das Ziel (focusOnly)
-      focusOnly: basic.style === 'arrow' });
+      focusOnly: basic.style === 'arrow',
+      // Blitzmagier (seit 15.48): kleiner Funkeneinschlag am Getroffenen (magier-neu.js)
+      afterHit: basic.el === 'blitz' && typeof blitzShotHit === 'function' ? blitzShotHit : undefined });
     // Bogen (seit 13.67): dunkler Schattenblitz am Bogen (fernninja.js)
     if (ar && typeof bowBasicFx === 'function') bowBasicFx(p);
     netSkillFx('_shot', basic.range, { c: col, st: basic.style, el: basic.el });
@@ -1422,7 +1424,7 @@ function aimFire(x, y) {
     return;
   }
   a.go = true;
-  // Ulti mit Zielort (ULT_BAR, Sturmgericht) oder Fertigkeit
+  // Ulti mit Zielort (ULT_BAR, u.aim) oder Fertigkeit
   if (a.i === ULT_BAR) useUltimate();
   else useSkill(a.i);
   cancelAim();

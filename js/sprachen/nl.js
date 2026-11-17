@@ -4979,4 +4979,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Voor je vaardigheid (nu {0}). Verhoogt haar één niveau van E{1} tot E{2}, leesbaar vanaf het ontwaken",
 "jetzt {0}": "nu {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Hoort bij je vaardigheid, die op {0} staat. Een boek verhoogt haar één niveau (tot E{1}).",
+"Den Knopf dafür findest du im Menü": "De knop daarvoor vind je in het menu",
+"Donnerkeile": "Donderkeilen",
+"Fertigkeit: Donnerkeile": "Vaardigheid: Donderkeilen",
 };

@@ -4987,4 +4987,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Para tu habilidad (ahora {0}). La sube un nivel de E{1} a E{2}, legible desde el despertar",
 "jetzt {0}": "ahora {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Pertenece a tu habilidad, que está en {0}. Un libro la sube un nivel (hasta E{1}).",
+"Den Knopf dafür findest du im Menü": "El botón está en el menú",
+"Donnerkeile": "Rayos del trueno",
+"Fertigkeit: Donnerkeile": "Habilidad: Rayos del trueno",
 };

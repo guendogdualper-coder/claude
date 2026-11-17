@@ -4990,4 +4990,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Pour ta compétence (actuellement {0}). L'élève d'un niveau de E{1} à E{2}, lisible dès l'éveil",
 "jetzt {0}": "actuellement {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Appartient à ta compétence, actuellement à {0}. Un livre l'élève d'un niveau (jusqu'à E{1}).",
+"Den Knopf dafür findest du im Menü": "Le bouton se trouve dans le menu",
+"Donnerkeile": "Carreaux de foudre",
+"Fertigkeit: Donnerkeile": "Compétence : Carreaux de foudre",
 };

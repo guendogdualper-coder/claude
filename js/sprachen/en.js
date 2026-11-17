@@ -6210,4 +6210,13 @@
 "Omni-Vampir {0}: Jeder deiner Treffer heilt dich um diesen Anteil des Schadens, je Treffer höchstens {1} % deines Lebens (nicht Schaden über Zeit und nicht deine Diener).": "Omni-vampire {0}: each of your hits heals you by this share of the damage, at most {1} % of your HP per hit (not damage over time and not your minions).",
 "Elementschaden +{0}: Alle Treffer deiner Fertigkeiten werden härter (nicht Grundangriff, Ulti und Brand über Zeit).": "Elemental damage +{0}: all hits of your skills hit harder (not basic attacks, ultimate or burn over time).",
 "Kritische Treffer +{0}, kritischer Schaden +{1}, Angriffstempo +{2}, Reichweite des Grundangriffs mit dem Bogen +{3}. Dunkle Schwingen und eine Schattenaura umgeben dich": "Critical hits +{0}, critical damage +{1}, attack speed +{2}, basic bow attack range +{3}. Dark wings and a shadow aura surround you",
+"Den Knopf dafür findest du im Menü": "You'll find the button for it in the menu",
+"Donnerkeile": "Thunderbolts",
+"Halte die Angriffstaste gedrückt, dann greift deine Figur immer weiter an. Steht ein Monster in der Nähe, aber außer Reichweite, läuft sie hin. Ein Linksklick auf ein Monster greift es ebenfalls an": "Hold the attack key and your character keeps attacking. If a monster is nearby but out of range, it walks over to it. Left-clicking a monster attacks it too",
+"Halte rechts den Angriffsknopf gedrückt, dann greift deine Figur immer weiter an. Steht ein Monster in der Nähe, aber außer Reichweite, läuft sie hin": "Hold the attack button on the right and your character keeps attacking. If a monster is nearby but out of range, it walks over to it",
+"Du reckst das Zepter und der Himmel grollt: Nacheinander schlagen vier Blitze vor dir ein und bleiben als riesige, knisternde Donnerkeile in der Luft stehen. Dann schleuderst du sie im Fächer nach vorn – sie durchschlagen alle Gegner auf ihrer Bahn, betäuben sie und stoßen sie zurück": "You raise your scepter and the sky rumbles: one after another, four lightning bolts strike in front of you and hang in the air as huge, crackling thunderbolts. Then you hurl them forward in a fan – they pierce every enemy in their path, stun them and knock them back",
+"{0} Donnerkeile bis {1} weit, je {2}× Angriff, {3} s betäubt; jeder Gegner wird höchstens zweimal getroffen": "{0} thunderbolts up to {1} far, each {2}× attack, {3} s stun; each enemy is hit at most twice",
+"{0} Donnerkeile bis {1} weit, je {2} Schaden, {3} s betäubt; jeder Gegner wird höchstens zweimal getroffen": "{0} thunderbolts up to {1} far, each {2} damage, {3} s stun; each enemy is hit at most twice",
+"Ultimativ: Donnerkeile": "Ultimate: Thunderbolts",
+"Fertigkeit: Donnerkeile": "Skill: Thunderbolts",
 };

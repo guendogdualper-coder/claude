@@ -4983,4 +4983,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Per la tua abilità (ora {0}). La alza di un livello da E{1} a E{2}, leggibile dal risveglio",
 "jetzt {0}": "ora {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Appartiene alla tua abilità, ora a {0}. Un libro la alza di un livello (fino a E{1}).",
+"Den Knopf dafür findest du im Menü": "Il pulsante si trova nel menu",
+"Donnerkeile": "Dardi del tuono",
+"Fertigkeit: Donnerkeile": "Abilità: Dardi del tuono",
 };

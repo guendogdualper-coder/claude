@@ -4986,4 +4986,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Yeteneğin için (şu an {0}). E{1}–E{2} arası bir seviye yükseltir, uyanıştan sonra okunur",
 "jetzt {0}": "şu an {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "{0} seviyesindeki yeteneğine ait. Bir kitap onu bir seviye yükseltir (E{1}'e kadar).",
+"Den Knopf dafür findest du im Menü": "Düğmesi menüde",
+"Donnerkeile": "Yıldırım Okları",
+"Fertigkeit: Donnerkeile": "Yetenek: Yıldırım Okları",
 };

@@ -4583,4 +4583,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "내 스킬용(현재 {0}). E{1}~E{2} 사이에서 한 단계 올림, 각성 후 읽을 수 있음",
 "jetzt {0}": "현재 {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "현재 {0}인 내 스킬용. 책 한 권으로 한 단계 오릅니다(E{1}까지).",
+"Den Knopf dafür findest du im Menü": "버튼은 메뉴에 있습니다",
+"Donnerkeile": "번개 창",
+"Fertigkeit: Donnerkeile": "스킬: 번개 창",
 };

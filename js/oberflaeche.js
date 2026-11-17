@@ -610,7 +610,7 @@ const ui = {
       }
       const sx = e.clientX;
       const sy = e.clientY;
-      // Ziehen zielt auch bei der Ulti mit Zielort (Sturmgericht)
+      // Ziehen zielt auch bei einer Ulti mit Zielort (u.aim)
       const ask = i === ULT_BAR && game.player ? ultimateOf(game.player) : sk;
       if (ask && ask.aim && e.pointerType !== 'mouse' && !skillTouchDirect(ask)) drag = { x: sx, y: sy, on: false };
       timer = setTimeout(() => {

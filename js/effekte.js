@@ -1608,6 +1608,9 @@ function drawMageShot2d(ctx, pr, ang) {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+  } else if (pr.el === 'blitz' && typeof mageShotBlitz2 === 'function') {
+    // seit 15.48: fliegender Blitzpfeil mit gezacktem Kanal (magier-neu.js)
+    mageShotBlitz2(ctx, pr);
   } else if (pr.el === 'blitz') {
     ctx.strokeStyle = E.hi;
     ctx.lineWidth = 1.4;
@@ -1636,8 +1639,8 @@ function drawProjectile(ctx, pr) {
   // die in diesem Bild einen Körper bekommen haben (pr.body3)
   if ((style === 'skullfire' || pr.body3 === game.time) && V3.on) return;
   ctx.save();
-  // Leuchtspur
-  if (pr.trail && pr.trail.length > 1) {
+  // Leuchtspur (nicht beim Blitzpfeil des Blitzmagiers: der zieht seinen eigenen Blitzkanal hinter sich her)
+  if (pr.trail && pr.trail.length > 1 && !(style === 'mage' && pr.el === 'blitz')) {
     ctx.globalCompositeOperation = 'lighter';
     ctx.strokeStyle = pr.color;
     for (let i = 1; i < pr.trail.length; i++) {

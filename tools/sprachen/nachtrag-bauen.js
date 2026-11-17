@@ -11,9 +11,13 @@ for (const f of process.argv.slice(2)) {
   for (let l of fs.readFileSync(f, 'utf8').split('\n')) {
     if (/^=== Ratgeber/.test(l)) { rg = true; continue; }
     if (/^===/.test(l)) rg = false;
+    // „Weggefallen …“/„Nicht mehr …“: alles bis zur nächsten Überschrift sind alte Texte
+    if (/^(Weggefallen|Nicht mehr)/.test(l)) { rg = true; continue; }
     if (rg) continue;
     l = l.replace(/\s{2,}\(.*\)\s*$/, '').trim();
     if (!l || SKIP.test(l) || /→.*,|^- /.test(l) || l.includes('Platzhalter')) continue;
+    // Kurzzeichen („DK“), Hinweiszeilen („Ebenfalls im Spiel …“, „… keine neuen Texte“)
+    if (/^[A-ZÄÖÜ]{1,4}$/.test(l) || /^Ebenfalls|keine neuen Texte/.test(l)) continue;
     if (!/[A-Za-zÄÖÜäöüß]{2}/.test(l)) continue;
     if (/^Weggefallen|^Eine Krone aus Blitzen|^je Blitz 1,4/.test(l)) continue;
     out.add(l.replace(/\{(\d+)\}/g, (_, n) => String(7 + Number(n))));

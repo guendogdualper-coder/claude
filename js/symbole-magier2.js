@@ -3,7 +3,7 @@
 // Abgrenzung zum Schamanen: nichts fällt vom Himmel – Bodenbögen, waagrechte Zaps, Siegel am Boden.
 
 // Ultimates haben kein Element: Thema hier festlegen
-Object.assign(SKILL_ART_THEME, { donnerkrone: 'm_blitz', sturmgericht: 'm_blitz', weltenbruch: 'm_erde' });
+Object.assign(SKILL_ART_THEME, { donnerkrone: 'm_blitz', sturmgericht: 'm_blitz', donnerkeile: 'm_blitz', weltenbruch: 'm_erde' });
 
 // --- eigene Hilfen (Präfix ikMag2) ---------------------------------------------------------------
 
@@ -311,6 +311,27 @@ Object.assign(SKILL_ART, {
     IK.bolt(ctx, [[7.4, -15], [6.8, -12], [7.6, -8]], '#ffffff', 0.6, '#8a5aff');
     for (const [x, y] of [[-1.2, -19.6], [-7.4, -16.4], [7.6, -16.6], [-11.5, -14], [11.5, -14]]) IK.light(ctx, x, y, 4, '#ffffff', 0.8);
     IK.sparkles(ctx, 6, '#fff7b0', 9, 17, 0, -6, 1.1);
+  },
+
+  // Donnerkeile (Ultimate, seit 15.48): vier riesige gezackte Blitze schießen im Fächer nach vorn (oben rechts), unten
+  // links der Magier mit erhobenem, gleißendem Zepter
+  donnerkeile(ctx, IK) {
+    IK.light(ctx, -7, 4, 14, '#8a5aff', 0.6);
+    const o = [-7.5, 3.5];
+    const ends = [[-5, -20.5], [6.5, -18], [15.5, -10.5], [19.5, -0.5]];
+    ends.forEach(([x, y], i) => {
+      const pts = IK.zigzag(o[0] + (x - o[0]) * 0.18, o[1] + (y - o[1]) * 0.18, x, y, 5, 1.9, 7 + i * 3);
+      IK.glow(ctx, '#ffe94a', 2, () => {
+        IK.line(ctx, pts, '#ffe94a', 2.4, 'rgba(36,12,96,0.95)');
+        IK.line(ctx, pts, '#ffffff', 0.8, null);
+      });
+      IK.light(ctx, x, y, 3.6, '#ffffff', 0.9);
+    });
+    // Magier mit erhobenem Zepter, daran der Ursprung der Blitze
+    ikMag2Mage(ctx, IK, -11.5, 19.5, 13, (c) => IK.lin(c, -7, -21, 7, 0, [[0, '#8a7ad0'], [0.35, '#4a3a8a'], [1, '#140c2a']]), '#fff7b0', 1.1);
+    IK.line(ctx, [[-9.6, 12.5], [-7.8, 5]], '#d8a84a', 1);
+    IK.light(ctx, o[0], o[1], 5.5, '#ffffff', 1);
+    IK.light(ctx, o[0], o[1], 9, '#ffe94a', 0.5);
   },
 
   // Sturmgericht (Ultimate, ersetzt die Donnerkrone): dunkle, wirbelnde Gewitterballung oben, daraus fährt ein

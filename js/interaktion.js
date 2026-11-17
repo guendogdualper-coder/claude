@@ -788,7 +788,9 @@ function remoteSkillFx(rp, d) {
   }
   if (d.s === '_shot') {
     snd.shot(rp, { style: d.st, el: d.el });
-    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? (typeof BOW_ARROW !== 'undefined' ? BOW_ARROW.speed : 620) : 480, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el });
+    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? (typeof BOW_ARROW !== 'undefined' ? BOW_ARROW.speed : 620) : 480, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el,
+      // Blitzmagier (seit 15.48): Funkeneinschlag wie beim eigenen Blitzpfeil
+      onRemoteHit: d.el === 'blitz' && typeof blitzShotHit === 'function' ? blitzShotHit : undefined });
     return;
   }
   const sk = skillById(d.s);

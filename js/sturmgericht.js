@@ -1,4 +1,6 @@
-// Sturmgericht: Ultimative Attacke des Magiers im Weg des Blitzes (ersetzt die Donnerkrone).
+// Sturmgericht: Ultimative Attacke des Magiers im Weg des Blitzes in 15.46/15.47 (ersetzte die Donnerkrone, seit 15.48
+// durch die Donnerkeile ersetzt, donnerkeile.js). Hier bleibt nur das Bild für Mitspieler mit älterer Version
+// (MAGE_ULT_FX) samt Licht (sgLight3, nutzen auch die Donnerkeile); die Treffer rechnete ULT_RUN.sturmgericht.
 // Ablauf: Der Magier reckt das Zepter zum Himmel, ein knisternder Faden steigt daraus auf. Über dem gewählten Ort
 // (Zielkreis wie bei den Ortszaubern, bis SG.range weit) ballt sich in SG.charge Sekunden eine dunkle, wirbelnde
 // Gewitterballung zusammen; aus ihr tasten Vorentladungen nach unten, vom Boden züngeln Funken hinauf, Staub wird
@@ -15,42 +17,6 @@ const SG = {
   jumps: 8, jumpAt: 1.3, jumpEvery: 0.3, jumpMul: 0.5, dur: 4.4, cloudY: 8.5, pose: 1.35
 };
 const SG_POSE = 'sgruf';
-
-// --- Treffer (eigener Spieler) ------------------------------------------------------------------------
-ULT_RUN.sturmgericht = function (p, u, pw) {
-  const pt = skillAimPoint(u);
-  let cx = pt.x;
-  let cy = pt.y;
-  const d = hyp(cx - p.x, cy - p.y);
-  if (d > SG.range) {
-    cx = p.x + (cx - p.x) / d * SG.range;
-    cy = p.y + (cy - p.y) / d * SG.range;
-  }
-  cx = Math.round(cx);
-  cy = Math.round(cy);
-  p.ultAt = { x: cx, y: cy };
-  faceTowards(cx, cy);
-  // stehen bleiben, solange das Zepter das Gewitter ruft
-  lockPlayer(p, SG.charge + 0.12);
-  input.walkTo = null;
-  sgShow(p, cx, cy, true, pw);
-  later(SG.charge, () => {
-    if (p.dead) return;
-    const struck = [];
-    for (const m of enemiesInCircle(cx, cy, SG.R)) {
-      // Mitte (bis SG.core) voller Schaden, nach außen bis zum Rand auf edgeMul abfallend
-      const dd = Math.max(0, hyp(m.x - cx, m.y - cy) - (m.r || 0) * 0.5);
-      const mul = dd <= SG.core ? SG.coreMul : SG.coreMul - (SG.coreMul - SG.edgeMul) * clamp01((dd - SG.core) / (SG.R - SG.core));
-      // Bosse: keine Betäubung (gegner.js) und kein Wegstoßen
-      const push = canLift(m) ? { knockback: 35, from: { x: cx, y: cy } } : {};
-      hitMonster(m, mul * pw, { stun: SG.stun, heavy: true, vfxColor: '#ffffff', ...push });
-      paraFx(m, SG.stun);
-      struck.push(m);
-    }
-    hitStop(0.1);
-    sgJumps(cx, cy, struck, p, pw);
-  });
-};
 
 // Mitspieler sehen das Schauspiel am gemeldeten Ort (ultRemoteFx → MAGE_ULT_FX); der Zepterfaden kommt vom
 // nächsten Magier in Reichweite

@@ -4583,4 +4583,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "用于你的技能（当前 {0}）。在 E{1}–E{2} 间提升一级，觉醒后可阅读",
 "jetzt {0}": "当前 {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "属于你当前为 {0} 的技能。一本书可提升一级（最高 E{1}）。",
+"Den Knopf dafür findest du im Menü": "按钮在菜单里",
+"Donnerkeile": "雷枪",
+"Fertigkeit: Donnerkeile": "技能：雷枪",
 };

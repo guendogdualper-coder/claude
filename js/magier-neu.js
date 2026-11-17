@@ -1966,3 +1966,52 @@ FX3_DRAW.mgrav3 = function (h, e) {
     n3Boulder(h, x + Math.cos(a) * sp * k, py, z + Math.sin(a) * sp * k, 0.18, k * 10 + i, fade);
   }
 };
+
+// --- Grundangriff des Blitzmagiers (seit 15.48): ein fliegender Blitzpfeil statt leuchtender Punkte ---------------
+// Treffer, Tempo und Reichweite bleiben wie beim Geschoss (kampf.js); nur das Bild: gleißende Spitze, dahinter ein
+// gezackter, flackernder Blitzkanal (bis zum Zepter, solange der Pfeil nah ist) mit einem Seitenast, kleine Bögen an
+// der Spitze, beim Treffer ein kleiner Funkeneinschlag (blitzShotHit). Auch die Schüsse der Mitspieler (drei-fx.js).
+// Sparsam: höchstens MAGE3_MAX Pfeile je Bild, auf Grafik „Niedrig“ ohne Saum, Ast und Bögen.
+const _bs3a = new THREE.Vector3();
+const _bs3b = new THREE.Vector3();
+function mageShotBlitz3(h, pr) {
+  const low = n3low();
+  const y = PROJECTILE_LIFT * U3 * 1.3;
+  const x = pr.x * U3;
+  const z = pr.y * U3;
+  const vl = hyp(pr.vx, pr.vy) || 1;
+  const dx = pr.vx / vl;
+  const dz = pr.vy / vl;
+  const sd = (pr.seed || 1) * 7 + Math.floor(game.time / 0.04);
+  // Kanal nach hinten: so lang wie der Weg seit dem Zepter, höchstens 1,6 Einheiten
+  const L = Math.min(1.9, Math.max(0.25, (pr.traveled || 0) * U3));
+  _bs3a.set(x, y, z);
+  _bs3b.set(x - dx * L, y + (pr.traveled < 50 ? 0.15 : 0), z - dz * L);
+  n3Zap(h, _bs3a, _bs3b, 0.045, 1, sd, { segs: low ? 4 : 7, jit: 0.15, branch: low ? 0 : 1, rim: !low, halo: false });
+  const fl = 0.8 + 0.2 * n2h(sd, 3);
+  fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.8 * fl, 0.8 * fl, pr.rank >= 0 ? SKILL_RANKS[pr.rank].color : '#ffe94a', 0.65);
+  fx3MageSprite(h, 'sprite', 'spark', x, y, z, 0.36 * fl, 0.36 * fl, '#ffffff', 1);
+  if (!low && n2h(sd, 5) < 0.6) {
+    _bs3b.set(x + (n2h(sd, 6) - 0.5) * 0.5, y + (n2h(sd, 7) - 0.5) * 0.4, z + (n2h(sd, 8) - 0.5) * 0.5);
+    n3Zap(h, _bs3a, _bs3b, 0.016, 0.9, sd + 11, { segs: 3, jit: 0.07, rim: false, halo: false, color: '#c8b0ff' });
+  }
+}
+// 2D: im verschobenen und gedrehten Bild (Spitze bei 0,0, Flugrichtung nach rechts)
+function mageShotBlitz2(ctx, pr) {
+  const sd = (pr.seed || (pr.seed = 1 + Math.random() * 9)) * 7 + Math.floor(game.time / 0.04);
+  const L = Math.min(56, Math.max(8, pr.traveled || 0));
+  blz2(ctx, 0, 0, -L, 0, 1.9, 1, sd, { segs: 6, jit: 5, branch: 1 });
+  if (n2h(sd, 5) < 0.6) blz2(ctx, 0, 0, (n2h(sd, 6) - 0.5) * 14, (n2h(sd, 7) - 0.5) * 14, 0.8, 0.9, sd + 11, { segs: 3, jit: 2, rim: false, color: '#c8b0ff' });
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'lighter';
+  glow2(ctx, 0, 0, 15, pr.rank >= 0 ? SKILL_RANKS[pr.rank].color : '#ffe94a', 0.7);
+  glow2(ctx, 0, 0, 7, '#ffffff', 1);
+}
+// kleiner Funkeneinschlag am Getroffenen (eigene Schüsse: afterHit, Mitspieler: onRemoteHit)
+function blitzShotHit(m) {
+  if (!m || m.dead) return;
+  const b = feetY(m);
+  const hgt = Math.max(0.5, figureHeight(m) * 0.5 * U3);
+  addEffect({ type: 'mkhit3', x: m.x, y: b, hgt, s: 0.5, dur: 0.26, seed: Math.random() * 90 });
+  if (!V3.on) particles(m.x, b - hgt * BLZ2_H, { count: 5, color: ['#ffffff', '#fff7b0', '#b89aff'], speed: [50, 140], life: [0.12, 0.26], size: [1.2, 2.4], shape: 'spark', drag: 4 });
+}

@@ -4988,4 +4988,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Dla twojej umiejętności (teraz {0}). Podnosi o poziom od E{1} do E{2}, od przebudzenia",
 "jetzt {0}": "teraz {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Należy do twojej umiejętności na poziomie {0}. Księga podnosi ją o poziom (do E{1}).",
+"Den Knopf dafür findest du im Menü": "Przycisk znajdziesz w menu",
+"Donnerkeile": "Gromowe pociski",
+"Fertigkeit: Donnerkeile": "Umiejętność: Gromowe pociski",
 };

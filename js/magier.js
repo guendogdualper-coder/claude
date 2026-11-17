@@ -1361,14 +1361,14 @@ const MAGE_ULTS = {
     text: 'Der Boden um dich gefriert zu einem Gletscher: Alle Gegner bis 260 weit erstarren 2 s im Eis, dann zerspringt es mit gewaltigem Schaden.',
     stats: '1,5× beim Einfrieren, 2 s eingefroren (Bosse nur verlangsamt), Zerspringen 4×'
   },
-  // Sturmgericht statt Donnerkrone (Ablauf, 3D, 2D und Haltung in sturmgericht.js; Werte in SG). Zielort wie bei den
-  // Ortszaubern (aim, range, radius → Zielkreis in useUltimate). Die Donnerkrone unten bleibt nur als Bild für
-  // Mitspieler mit älterer Version.
+  // Donnerkeile (seit 15.48, ersetzen das Sturmgericht, das der Gewitterwolke zu ähnlich war; Ablauf, 3D, 2D und
+  // Haltung in donnerkeile.js, Werte in DK). Richtung wie beim Blitzspeer: aufs Ziel, sonst in Blickrichtung.
+  // Sturmgericht (sturmgericht.js) und Donnerkrone (unten) bleiben nur als Bild für Mitspieler mit älterer Version.
   blitz: {
-    id: 'sturmgericht', name: 'Sturmgericht', short: 'SG', color: '#ffe94a',
-    text: 'Du reckst das Zepter zum Himmel: Über dem Zielort ballt sich in einer Sekunde ein Gewitter zusammen, dann schlägt ein gewaltiger Blitz ein. Er reißt den Boden auf, trifft in der Mitte am härtesten und betäubt alle Gegner ringsum. Danach springen Nachentladungen zwischen den Getroffenen hin und her.',
-    stats: 'Zielort bis 420 weit; Einschlag 8× Angriff in der Mitte, 5× am Rand (Radius 190), 1,5 s betäubt; 8 Nachentladungen je 0,5× in die Getroffenen',
-    aim: true, range: 420, radius: 190, pose: 'sgruf', poseDur: 1.35
+    id: 'donnerkeile', name: 'Donnerkeile', short: 'DK', color: '#ffe94a',
+    text: 'Du reckst das Zepter und der Himmel grollt: Nacheinander schlagen vier Blitze vor dir ein und bleiben als riesige, knisternde Donnerkeile in der Luft stehen. Dann schleuderst du sie im Fächer nach vorn – sie durchschlagen alle Gegner auf ihrer Bahn, betäuben sie und stoßen sie zurück.',
+    stats: '4 Donnerkeile bis 640 weit, je 4,5× Angriff, 1,5 s betäubt; jeder Gegner wird höchstens zweimal getroffen',
+    pose: 'dkruf', poseDur: 1.3
   },
   erde: {
     id: 'weltenbruch', name: 'Weltenbruch', short: 'WB', color: '#f0a830',
@@ -1424,7 +1424,7 @@ function eiszeitFx(x, fy, near, own = true) {
     }
   });
 }
-// Donnerkrone (bis zum Sturmgericht die Ulti des Blitzwegs): nur noch das Bild für Mitspieler mit älterer Version
+// Donnerkrone (bis 15.45 die Ulti des Blitzwegs): nur noch das Bild für Mitspieler mit älterer Version
 const DONNERKRONE_BOLTS = 10;
 function donnerkroneFx(owner) {
   addEffect({ type: 'mcrown3', follow: owner, dur: 2.4, color: '#ffe94a' });

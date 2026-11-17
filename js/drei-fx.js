@@ -1803,6 +1803,9 @@ function fx3MageBolt(h, pr) {
       pr.puffAt = t + 0.05;
       addEffect({ type: 'smoke3', x: pr.x - pr.vx * 8, y: pr.y - pr.vy * 8, count: 1, color: '#6a5a50', size: 0.3, op: 0.45, dur: 0.4 });
     }
+  } else if (pr.el === 'blitz' && typeof mageShotBlitz3 === 'function') {
+    // Grundangriff des Blitzmagiers (seit 15.48): fliegender Blitzpfeil mit Kanal (magier-neu.js)
+    mageShotBlitz3(h, pr);
   } else {
     // Grundangriff: Schein, Kern und eine kleine drehende Raute in der Elementfarbe
     fx3MageSprite(h, 'sprite', 'disc', x, y, z, 0.34, 0.34, pr.rank >= 0 ? SKILL_RANKS[pr.rank].color : E.main, 0.85);
@@ -1827,7 +1830,8 @@ function fx3Projectiles(h) {
     if (pr.style === 'arrow' && typeof bowProj3 === 'function') continue;
     // Schädel und Magier-Geschosse zeigen auch die Mitspieler (fremde Geschosse sonst nur gezeichnet)
     const skull = pr.style === 'skullfire';
-    const mage = MAGE3_STYLES.has(pr.style) && (pr.owner === 'player' || pr.style !== 'mage');
+    // (seit 15.48 auch der Blitzpfeil der Mitspieler: der Grundangriff des Blitzmagiers)
+    const mage = MAGE3_STYLES.has(pr.style) && (pr.owner === 'player' || pr.style !== 'mage' || pr.el === 'blitz');
     if ((pr.owner !== 'player' && !skull && !mage) || !v3InView(pr.x, pr.y, 40)) continue;
     if (skull && skulls < SKULL3_MAX) {
       skulls++;

@@ -4583,4 +4583,7 @@
 "Für deine Fertigkeit (jetzt {0}). Hebt sie um eine Stufe von E{1} bis E{2}, lesbar ab dem Erwecken": "Для вашего умения (сейчас {0}). Повышает на ступень от E{1} до E{2}, читается с пробуждения",
 "jetzt {0}": "сейчас {0}",
 "Gehört zu deiner Fertigkeit, die auf {0} steht. Ein Buch hebt sie um eine Stufe (bis E{1}).": "Относится к вашему умению на уровне {0}. Книга повышает его на ступень (до E{1}).",
+"Den Knopf dafür findest du im Menü": "Кнопка для этого — в меню",
+"Donnerkeile": "Громовые стрелы",
+"Fertigkeit: Donnerkeile": "Умение: Громовые стрелы",
 };
