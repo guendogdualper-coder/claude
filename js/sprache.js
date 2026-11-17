@@ -119,7 +119,8 @@ function trOne(d, t) {
   const m = t.match(I18N_EDGE);
   if (m && m[2] && (m[1] || m[3])) {
     hit = trLookup(d, m[2]);
-    if (hit !== undefined) return m[1] + hit + i18nTail(hit, m[3]);
+    // (Abkürzungen wie „Min.“ behalten ihren Punkt als Punkt)
+    if (hit !== undefined) return m[1] + hit + (m[3][0] === '.' && /(^|[^\p{L}])\p{L}{1,4}$/u.test(m[2]) ? m[3] : i18nTail(hit, m[3]));
   }
   const k = t.match(/^(.+?) \(([^()]+)\)([.:]?)$/);
   if (k) {

@@ -255,8 +255,23 @@ const musicFiles = {
           return null;
         });
       this.bytes.set(k, p);
+      this.trimBytes(k);
+    } else {
+      // zuletzt gebraucht ans Ende (für trimBytes)
+      this.bytes.delete(k);
+      this.bytes.set(k, p);
     }
     return p;
+  },
+
+  // seit 15.49: am Handy nur die Bytes der zuletzt gebrauchten drei Stimmungen behalten (je 1–1,7 MB; vorher alle, die
+  // je vorab geholt wurden). Nachladen kommt aus dem Speicher des Service Workers.
+  trimBytes(keep) {
+    if (typeof IS_PC !== 'undefined' && IS_PC) return;
+    for (const k of [...this.bytes.keys()]) {
+      if (this.bytes.size <= 3) break;
+      if (k !== keep && k !== this.wantK && (!this.cur || this.cur.k !== k)) this.bytes.delete(k);
+    }
   },
 
   // dekodieren (Kopie der Bytes, die bleiben für später im Speicher)

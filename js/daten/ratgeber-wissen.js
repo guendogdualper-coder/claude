@@ -1015,6 +1015,18 @@ const RATGEBER_WISSEN = [
     c: 'einstellungen', q: 'Wie ändere ich mein Aussehen?',
     a: 'Im Charakterfenster mit „Aussehen ändern“ oder unter Einstellungen → „Figur und Spiel“. Frisur, Haar-, Haut- und Augenfarbe, Augenform und Gesichtszeichen; Mitspieler sehen dein Aussehen.',
     k: 'aussehen frisur haare gesicht aendern look'
+  },
+  // seit 15.49 (retten.js)
+  {
+    c: 'einstellungen', p: 1, q: 'Meine Figur steckt fest oder kommt nicht mehr ins Spiel – was tun?',
+    a: () => `<b>Steckt sie im Spiel fest</b> (Wand, Wasser, außerhalb der Karte): Einstellungen → „Figur und Spiel“ → „Feststecken? In die Stadt zurück“. Nach ${typeof RETTEN !== 'undefined' ? RETTEN.count : 5} Sekunden bist du in der sicheren Stadt deiner Seite; Schaden bricht es ab, danach geht es erst in ${typeof RETTEN !== 'undefined' ? RETTEN.cd / 60000 : 10} Minuten wieder. In Instanz, Turm, Arena oder Dungeon geht der Fortschritt dort verloren, im Duell und in der Turnierarena geht es nicht.<br>` +
+      '<b>Kommt sie gar nicht mehr hinein:</b> In der Charakterauswahl auf 🛟 (oben links an der Karte des Charakters) tippen und „Charakter retten“ bestätigen. Sie erscheint dann in der sicheren Stadt, beschädigte Daten werden repariert – Gegenstände, Gold und Stufen bleiben. Mit Konto wird die Rettung auch im Konto gespeichert. Scheitert das Betreten trotzdem, zeigt das Spiel eine Meldung mit kurzem Fehlertext – schick uns davon ein Bildschirmfoto.',
+    k: 'feststecken stecken haengen haengt bug verbuggt kommt nicht rein retten rettung stadt zurueck wand wasser absturz abgestuerzt laden ladebild'
+  },
+  {
+    c: 'einstellungen', q: 'Die Welt ist plötzlich weg oder das Spiel ist abgestürzt.',
+    a: 'Auf Handys mit wenig Speicher kann das Gerät dem Spiel die 3D-Grafik wegnehmen. Das Spiel startet die Grafik dann selbst neu („Grafik wurde neu gestartet“ im Chat) und lädt notfalls neu – danach geht es direkt mit deinem Charakter weiter. Passiert das oft, hilft unter Einstellungen → Grafik eine niedrigere Qualität oder die 2D-Ansicht.',
+    k: 'welt weg schwarz blau grau leer abgestuerzt absturz grafik speicher handy iphone neu laden'
   }
 ];
 

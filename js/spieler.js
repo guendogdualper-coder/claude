@@ -1176,8 +1176,11 @@ function fixSave(data) {
   // Klingenkreuz statt Sichelwelle (Bücher hier, Stufe und Rang über den Platz 1)
   // Version 8.5: Seelenpfeil → Schädelsalve, Seelensturm → Seelenkäfig, Fluch der Schwäche → Seelenschnitter
   // Version 9.6: Frostlanze → Eisstrahl (auch im Lager); Version 10.0: Seelenschnitter → Totenruf
-  for (const it of data.inventory || []) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
-  for (const it of (data.storage && data.storage.items) || []) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
+  // seit 15.49 nur echte Listen (ein beschädigter Spielstand mit Tasche als Objekt warf hier und legte die ganze
+  // Charakterauswahl lahm – dann gab es nicht einmal „Charakter retten“, retten.js)
+  if (Array.isArray(data.inventory)) for (const it of data.inventory) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
+  const st = data.storage && Array.isArray(data.storage.items) ? data.storage.items : [];
+  for (const it of st) if (it && SKILL_RENAMED[it.book]) it.book = SKILL_RENAMED[it.book];
   return data;
 }
 
@@ -1202,7 +1205,16 @@ function readSlots() {
 }
 
 function writeSlots(st, quiet) {
-  try { localStorage.setItem(SLOTS_KEY, JSON.stringify(st)); } catch { /* privat */ }
+  try {
+    localStorage.setItem(SLOTS_KEY, JSON.stringify(st));
+  } catch (e) {
+    // privat oder Speicher voll: Der alte Stand bleibt vollständig erhalten (setItem schreibt ganz oder gar nicht).
+    // seit 15.49 einmal je Sitzung im Chat sagen, dass gerade nicht gespeichert werden kann (vorher stumm)
+    if (!writeSlots.warned && typeof ui !== 'undefined' && typeof game !== 'undefined' && game.running) {
+      writeSlots.warned = true;
+      ui.log('Der Spielstand konnte auf diesem Gerät nicht gespeichert werden (Speicher voll oder privates Fenster).', 'warn');
+    }
+  }
   if (!quiet && typeof cloudSoon === 'function') cloudSoon();
 }
 

@@ -841,38 +841,158 @@ function mergeFinish(r, skinned, keepArrays) {
 
 // --- Einrichten --------------------------------------------------------------------------------
 
-function v3Init() {
-  const canvas = document.getElementById('welt3d');
-  if (!canvas || !v3Supported()) return false;
-  try {
-    // Kantenglättung (MSAA) nur am PC und auf Bildschirmen mit niedriger Pixeldichte: auf Handys mit 2–3facher
-    // Dichte sieht man kaum Treppen, die Glättung kostet dort aber viel Grafikleistung (seit 9.9)
-    V3.gl = new THREE.WebGLRenderer({ canvas, antialias: IS_PC || (window.devicePixelRatio || 1) < 2, powerPreference: 'high-performance' });
-  } catch (e) {
-    return false;
-  }
-  V3.canvas = canvas;
-  canvas.hidden = false;
+// Zeichner für eine Zeichenfläche anlegen (beim Start und nach einem verlorenen Grafikkontext, v3CtxRebuild)
+function v3MakeRenderer(canvas) {
+  // Kantenglättung (MSAA) nur am PC und auf Bildschirmen mit niedriger Pixeldichte: auf Handys mit 2–3facher
+  // Dichte sieht man kaum Treppen, die Glättung kostet dort aber viel Grafikleistung (seit 9.9)
+  const gl = new THREE.WebGLRenderer({ canvas, antialias: IS_PC || (window.devicePixelRatio || 1) < 2, powerPreference: 'high-performance' });
   // Grafikkontext verloren (Speicherdruck, Treiber-Neustart; seit 11.0): beim Zurückkommen die Welt neu
-  // aufbauen und die Größe neu setzen, statt mit leerem (hellem) Bild weiterzulaufen
-  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); V3.lost = true; });
-  canvas.addEventListener('webglcontextrestored', () => {
-    V3.lost = false;
-    V3.sizeKey = null;
-    // seit 14.69 auch alle Figuren neu: ihre Modelle haben die Daten nach dem ersten Hochladen freigegeben und lassen
-    // sich nicht noch einmal hochladen (vorher blieb danach das ganze Spiel stehen, v3ResetFigures in drei-figuren.js)
-    V3.ctxGen = (V3.ctxGen || 0) + 1;
-    if (typeof v3ResetFigures === 'function') v3ResetFigures();
-    v3ClearChunks();
-    v3ApplyGraphics();
-  });
-  const gl = V3.gl;
+  // aufbauen und die Größe neu setzen, statt mit leerem (hellem) Bild weiterzulaufen. Kommt er nicht von selbst
+  // zurück (iOS unter Speicherdruck), holt ihn v3CtxStep zurück (seit 15.49)
+  canvas.addEventListener('webglcontextlost', v3CtxLost);
+  canvas.addEventListener('webglcontextrestored', v3CtxRestored);
   // seit 13.60: keine Fehlerabfrage nach jedem Übersetzen der Shader. Sie wartet jedes Mal, bis der Treiber fertig ist
   // (getProgramInfoLog/getProgramParameter) – das waren im Kampf bis zu 30 % der Rechenzeit und spürbare Hänger.
   gl.debug.checkShaderErrors = false;
   gl.shadowMap.enabled = true;
   // weiche Schatten (viele Proben) nur am PC; Handys nehmen die einfache Filterung
   gl.shadowMap.type = IS_PC ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  return gl;
+}
+
+// --- Verlorener Grafikkontext (seit 15.49) ------------------------------------------------------------------------
+// Spieler (iPhone, 3D): „Manchmal verschwindet der Charakter einfach und das Spiel ist abgestürzt“ – auf dem Bild nur
+// noch die blaugraue Fläche hinter der 3D-Welt, HUD, Namen und Minikarte liefen weiter. iOS nimmt einer Seite unter
+// Speicherdruck den Grafikkontext weg und gibt ihn oft nie zurück (kein webglcontextrestored). Bis 15.48 wartete das
+// Spiel darauf für immer. Jetzt in Stufen:
+//   1. nach CTX3.wait ms: three.js bittet um den Kontext (forceContextRestore, WEBGL_lose_context.restoreContext)
+//   2. nach weiteren CTX3.wait ms: neue Zeichenfläche und neuer Zeichner, die Welt wird neu gebaut (wie beim Zurückkommen)
+//   3. klappt das nicht, geht der Kontext zu oft verloren (CTX3.max in CTX3.span ms) oder hängen danach die Bilder:
+//      Spiel speichern und die Seite neu laden – danach geht es mit derselben Figur direkt weiter (retten.js)
+// Im Hintergrund (App nicht sichtbar) wird nur gewartet. Nach jedem Neustart der Grafik kurz im Chat: „Grafik wurde neu
+// gestartet“.
+const CTX3 = { wait: 2500, max: 3, span: 120000, timer: 0, stage: 0, lostAt: 0, history: [], watchUntil: 0, errs: 0 };
+function v3CtxLost(e) {
+  e.preventDefault();
+  // Ereignis der alten Zeichenfläche nach einem Neubau: nichts mehr zu tun
+  if (e.target !== V3.canvas) return;
+  V3.lost = true;
+  CTX3.lostAt = performance.now();
+  CTX3.stage = 0;
+  const now = Date.now();
+  CTX3.history = CTX3.history.filter((t) => now - t < CTX3.span);
+  CTX3.history.push(now);
+  console.warn('3D: Grafikkontext verloren (' + CTX3.history.length + '× in ' + CTX3.span / 1000 + ' s)');
+  clearTimeout(CTX3.timer);
+  CTX3.timer = setTimeout(v3CtxStep, CTX3.wait);
+}
+function v3CtxRestored(e) {
+  if (e && e.target !== V3.canvas) return;
+  v3CtxBack(false);
+}
+// nächste Stufe, solange der Kontext weg ist
+function v3CtxStep() {
+  clearTimeout(CTX3.timer);
+  if (!V3.lost) return;
+  // im Hintergrund nichts erzwingen (iOS gibt dort ohnehin keinen Kontext), beim Zurückkommen weiter
+  if (document.hidden) {
+    CTX3.timer = setTimeout(v3CtxStep, 1000);
+    return;
+  }
+  CTX3.stage++;
+  if (CTX3.history.length >= CTX3.max) {
+    v3CtxReload('Grafikkontext ' + CTX3.history.length + '× verloren');
+    return;
+  }
+  if (CTX3.stage === 1) {
+    try { V3.gl.forceContextRestore(); } catch (err) { /* nicht möglich: nächste Stufe */ }
+    CTX3.timer = setTimeout(v3CtxStep, CTX3.wait);
+    return;
+  }
+  if (CTX3.stage === 2 && v3CtxRebuild()) {
+    // gelungen? Sonst (wieder verloren, Bilder werfen Fehler) neu laden
+    CTX3.timer = setTimeout(() => { if (V3.lost) v3CtxStep(); }, CTX3.wait);
+    return;
+  }
+  v3CtxReload(CTX3.stage === 2 ? 'neuer Grafikkontext gescheitert' : 'Grafikkontext kommt nicht zurück');
+}
+// neue Zeichenfläche (gleiche Kennung, Klassen und Maße) und neuer Zeichner; die alte Fläche fliegt aus der Seite
+function v3CtxRebuild() {
+  const old = V3.canvas;
+  if (!old || !old.parentNode) return false;
+  const nc = old.cloneNode(false);
+  let gl = null;
+  try {
+    old.replaceWith(nc);
+    gl = v3MakeRenderer(nc);
+  } catch (err) {
+    console.warn('3D: neuer Grafikkontext gescheitert', err);
+    if (nc.parentNode && !old.parentNode) nc.replaceWith(old);
+    return false;
+  }
+  try { V3.gl.dispose(); } catch (err) { /* alter Kontext ist ohnehin weg */ }
+  V3.gl = gl;
+  V3.canvas = nc;
+  const ctx = gl.getContext();
+  if (ctx && ctx.isContextLost && ctx.isContextLost()) return false;
+  v3CtxBack(true);
+  return true;
+}
+// Kontext wieder da (von selbst, erbeten oder neu): alles, was seine Daten nach dem Hochladen freigegeben hat, neu bauen
+function v3CtxBack(fresh) {
+  clearTimeout(CTX3.timer);
+  V3.lost = false;
+  V3.sizeKey = null;
+  // seit 14.69 auch alle Figuren neu: ihre Modelle haben die Daten nach dem ersten Hochladen freigegeben und lassen
+  // sich nicht noch einmal hochladen (vorher blieb danach das ganze Spiel stehen, v3ResetFigures in drei-figuren.js)
+  V3.ctxGen = (V3.ctxGen || 0) + 1;
+  try {
+    if (typeof v3ResetFigures === 'function') v3ResetFigures();
+    // seit 15.49 auch die Wahrzeichen (wahrzeichen.js, ebenfalls freigegebene Daten): im nächsten Bild neu
+    if (typeof wzClear === 'function' && typeof WZ !== 'undefined') { wzClear(); WZ.key = null; }
+    v3ClearChunks();
+    v3ApplyGraphics();
+    if (typeof v3Resize === 'function') v3Resize();
+    // die Karte hinter dem Ladebild neu bauen, wenn man gerade spielt
+    if (game.running && V3.home && !V3.home.dungeon) FULL3.loading = { t0: performance.now(), key: V3.home.key, shown: false };
+  } catch (err) {
+    console.warn('3D: Neuaufbau nach Kontextverlust', err);
+  }
+  // ein paar Sekunden beobachten: werfen die Bilder danach laufend Fehler, hilft nur Neuladen (frameFailed, spiel.js)
+  CTX3.watchUntil = performance.now() + 8000;
+  CTX3.errs = 0;
+  console.warn('3D: Grafik ' + (fresh ? 'neu angelegt' : 'zurück'));
+  if (game.running && typeof ui !== 'undefined') ui.log('Grafik wurde neu gestartet.', 'info');
+}
+// Bildfehler kurz nach dem Neustart der Grafik zählen (aus frameFailed, spiel.js)
+function v3CtxFrameErr() {
+  if (performance.now() > CTX3.watchUntil) return;
+  if (++CTX3.errs >= 20) {
+    CTX3.watchUntil = 0;
+    v3CtxReload('Bildfehler nach Neustart der Grafik');
+  }
+}
+// letzte Stufe: speichern, neu laden und mit derselben Figur weiter (retten.js), sonst einfach neu laden
+function v3CtxReload(why) {
+  clearTimeout(CTX3.timer);
+  console.warn('3D: Seite wird neu geladen – ' + why);
+  if (typeof rettenNeuLaden === 'function') rettenNeuLaden('grafik', why);
+  else {
+    try { if (game.running) saveGame(); } catch (err) { /* trotzdem neu laden */ }
+    location.reload();
+  }
+}
+
+function v3Init() {
+  const canvas = document.getElementById('welt3d');
+  if (!canvas || !v3Supported()) return false;
+  try {
+    V3.gl = v3MakeRenderer(canvas);
+  } catch (e) {
+    return false;
+  }
+  V3.canvas = canvas;
+  canvas.hidden = false;
   V3.scene = new THREE.Scene();
   V3.scene.background = new THREE.Color('#9ec8e0');
   V3.scene.fog = new THREE.Fog('#9ec8e0', 30, 64);

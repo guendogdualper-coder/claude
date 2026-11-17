@@ -201,6 +201,8 @@ const options = {
         `<button type="button" class="btn btn-ghost" data-go="start">⏏ Charakter wechseln</button></div>` +
         `<p class="hint-text">HUD anpassen: alle Teile der Oberfläche (Lebensanzeige, Karte, Leiste, Chat …) verschieben und in der Größe ändern. ${IS_PC ? 'Esc öffnet und schließt diese Einstellungen.' : ''}</p>` +
         `<p class="hint-text">Version ${GAME_VERSION} · Dein Spielstand wird automatisch gespeichert.</p></section>` +
+        // seit 15.49: Feststecken? In die Stadt zurück (retten.js)
+        (typeof rettenOptHtml === 'function' && game.running ? rettenOptHtml() : '') +
         (typeof quitGameHtml === 'function' ? quitGameHtml() : '');
     }
     body.innerHTML =
@@ -268,7 +270,10 @@ const options = {
       if (go === 'net') ui.toggle('panelNet');
       if (go === 'help') ui.toggle('panelHelp');
       if (go === 'intro') { ui.closePanels(); introStart(true); }
+      if (go === 'stuck' && typeof rettenFeststecken === 'function') rettenFeststecken();
       if (go === 'start') {
+        // bewusst zur Auswahl: nach dem Neuladen nicht automatisch weiterspielen (retten.js)
+        if (typeof rettenWeiterAus === 'function') rettenWeiterAus();
         saveGame();
         if (netOnline()) netStop(true);
         // mit Konto: erst hochladen, dann zur Charakterauswahl

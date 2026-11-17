@@ -27,6 +27,9 @@ function gpSupported() {
 function gpApply() {
   const want = opts.graphics === 'plus' && !quality.noPost && gpSupported();
   if (GP.on && !want) gpWorldShadows(false);
+  // seit 15.49: ohne Plus die Bildpuffer freigeben (Halbfloat, am Handy zusammen 30–60 MB Grafikspeicher). Vorher
+  // blieben sie nach dem Wechsel auf eine niedrigere Stufe oder dem automatischen Abschalten (quality.noPost) belegt.
+  if (!want) gpFree();
   GP.on = want;
   GP.shadows = want && IS_PC && !quality.noShadow;
   GP.msaa = IS_PC;
@@ -96,6 +99,14 @@ function gpTarget(w, h, ms) {
     return r;
   }
   return new THREE.WebGLRenderTarget(w, h, o);
+}
+
+function gpFree() {
+  for (const n of ['main', 'half', 'h2', 'q1', 'q2', 'e1', 'e2', 's1', 's2']) {
+    if (_gp[n]) _gp[n].dispose();
+    _gp[n] = null;
+  }
+  _gp.key = '';
 }
 
 // Bildpuffer passend zur Zeichenfläche (bei jeder Größenänderung neu)

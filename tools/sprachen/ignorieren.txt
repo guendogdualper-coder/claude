@@ -429,3 +429,6 @@ broker bereit
 Deine Fertigkeit steht schon auf {0}. Bücher gelten nur für E{1}–E{2} – weiter geht es mit Schriftrollen (H) und Seelensteinen (L, V). Verkaufe es oder lege es fürs Zurücksetzen ins Lager
 Deine Fertigkeit steht auf {0}, höher geht es mit Büchern nicht – der Aufstieg nach Heroisch kostet eine Schriftrolle
 Deine Fertigkeit steht schon auf {0} – Bücher gelten nur für E{1}–E{2} (weiter mit Schriftrollen und Seelensteinen).
+in der Instanz Testa
+im Dungeon Testa
+Weiter mit Testa

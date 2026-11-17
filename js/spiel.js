@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.48';
+const GAME_VERSION = '15.49';
 
 const game = {
   world: null,
@@ -307,6 +307,12 @@ function frame(ts) {
 const frameErrs = new Set();
 function frameFailed(err) {
   const msg = String(err && err.message);
+  // seit 15.49: Fehler zählen, auch wiederholte – nach dem Betreten und nach einem Neustart der Grafik heißt „jedes Bild
+  // wirft“, dass das Spiel steht (retten.js repariert dann den Charakter, drei-kern.js lädt neu)
+  try {
+    if (typeof rettenBildFehler === 'function') rettenBildFehler(err);
+    if (typeof v3CtxFrameErr === 'function') v3CtxFrameErr();
+  } catch (e) { /* nur Zusatz */ }
   if (frameErrs.has(msg) || frameErrs.size > 20) return;
   frameErrs.add(msg);
   setTimeout(() => { throw err; });

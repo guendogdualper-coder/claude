@@ -51,7 +51,20 @@ function titelZu() {
   if (typeof ui !== 'undefined' && typeof $ === 'function' && $('panelOpts') && !$('panelOpts').hidden) ui.closePanels();
   el.classList.add('zu');
   document.body.classList.remove('titel-offen');
-  setTimeout(() => { el.hidden = true; }, 500);
+  // seit 15.49: nach dem Ausblenden ganz aus der Seite nehmen und das Bild freigeben (dekodiert 16–33 MB, am Handy
+  // knapp). Der Titel kommt in dieser Sitzung ohnehin nicht wieder (TITEL.key).
+  setTimeout(() => {
+    el.hidden = true;
+    titelFrei(el);
+  }, 500);
+}
+function titelFrei(el) {
+  try {
+    el.querySelectorAll('.titel-bild source').forEach((s) => s.remove());
+    const img = el.querySelector('.titel-bild img');
+    if (img) { img.removeAttribute('srcset'); img.removeAttribute('src'); }
+    el.remove();
+  } catch (e) { /* bleibt nur verborgen */ }
 }
 
 function titelSprachen(open) {

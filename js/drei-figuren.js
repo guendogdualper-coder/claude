@@ -7990,9 +7990,12 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null, live = false) {
   // Breite höchstens etwa halb so groß wie die Höhe: lange Waffen (Sense, Streitaxt) ragten in der Ruhehaltung weit
   // nach vorn und machten die Figur winzig; in der Bereitschaftspose (13.22) stehen sie aufrecht
   const half = Math.min(Math.max(-a.box.min.x, a.box.max.x, -a.box.min.z, a.box.max.z) * sc, top * (pose ? 1 : 0.42));
-  const dpr = Math.min(2, window.devicePixelRatio || 1) * 1.5;
-  const W = Math.min(1024, Math.round(w * dpr));
-  const H = Math.min(1024, Math.round(h * dpr));
+  // seit 15.49 am Handy kleiner (vorher wie am PC bis 1024² – Zielbild, Tiefenpuffer, Auslesepuffer, Hilfsfläche und
+  // Bilddaten zusammen gut 20 MB, beim lebenden Bild dauerhaft): einfache Pixeldichte, höchstens 512²
+  const dpr = IS_PC ? Math.min(2, window.devicePixelRatio || 1) * 1.5 : Math.min(1.5, window.devicePixelRatio || 1);
+  const cap = IS_PC ? 1024 : 512;
+  const W = Math.min(cap, Math.round(w * dpr));
+  const H = Math.min(cap, Math.round(h * dpr));
   const cam = P.cam;
   cam.aspect = W / H;
   const t = Math.tan((cam.fov * Math.PI) / 360);
@@ -8057,6 +8060,15 @@ function v3Portrait(canvas, who, yaw = -0.4, pose = null, live = false) {
   ctx.drawImage(P.img, 0, 0, w, h);
   return true;
 }
+// Puffer der Figurenbilder freigeben (beim nächsten Bild neu angelegt)
+function v3PortraitFree() {
+  const P = portrait3;
+  if (P.rt) P.rt.dispose();
+  P.rt = null;
+  P.buf = null;
+  P.img = null;
+  P.id = null;
+}
 // Lebende Figurenbilder (seit 15.46): etwa 12 Bilder je Sekunde (die Bewegung ist ruhig), nur sichtbare Flächen; nicht mehr eingehängte fallen
 // heraus, verborgene nach 5 s (öffnet man das Fenster wieder, meldet drawDoll das Bild neu an)
 const PORTRAIT_LIVE3 = new Map();
@@ -8070,6 +8082,8 @@ function portraitLive3(canvas, who, yaw) {
     if (!PORTRAIT_LIVE3.size || !V3.on) {
       portraitLiveOn3 = false;
       PORTRAIT_LIVE3.clear();
+      // seit 15.49: am Handy die Puffer des Figurenbilds freigeben, sobald keins mehr zu sehen ist
+      if (!IS_PC) v3PortraitFree();
       return;
     }
     requestAnimationFrame(tick);

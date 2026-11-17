@@ -255,20 +255,38 @@ const ui = {
       cv.width = 96;
       cv.height = 96;
       cv.className = 'char-pic';
-      drawClassPreview(cv, sv.classId, sv.path);
-      const way = sv.path != null ? classPath(sv.classId, sv.path).name : '';
+      // seit 15.49: ein beschädigter Spielstand darf die Auswahl nicht zerlegen (sonst gäbe es auch kein „Retten“)
+      try { drawClassPreview(cv, sv.classId, sv.path); } catch (e) { console.warn('Charakterbild', e); }
+      let way = '';
+      try { way = sv.path != null ? classPath(sv.classId, sv.path).name : ''; } catch (e) { way = ''; }
       const info = document.createElement('div');
       info.className = 'char-info';
-      // seit 14.54 mit dem Wappen der Seite (seiten.js)
-      const crest = sv.faction && typeof factionCrest === 'function' ? `<span class="rk-fac" title="${FACTIONS[sv.faction].title}">${factionCrest(sv.faction, 16)}</span>` : '';
-      info.innerHTML = `<strong>${crest}${escapeHtml(sv.name)}</strong><span>${CLASSES[sv.classId].name}${way ? ' · ' + way : ''}</span><b>Stufe ${sv.level}</b>`;
+      // seit 14.54 mit dem Wappen der Seite (seiten.js); unbekannte Seite: ohne Wappen
+      const fac = typeof FACTIONS !== 'undefined' && (sv.faction === 'licht' || sv.faction === 'schatten') ? FACTIONS[sv.faction] : null;
+      const crest = fac && typeof factionCrest === 'function' ? `<span class="rk-fac" title="${fac.title}">${factionCrest(sv.faction, 16)}</span>` : '';
+      info.innerHTML = `<strong>${crest}${escapeHtml(sv.name)}</strong><span>${CLASSES[sv.classId].name}${way ? ' · ' + escapeHtml(way) : ''}</span><b>Stufe ${escapeHtml(sv.level)}</b>`;
       const play = document.createElement('button');
       play.type = 'button';
       play.className = 'btn btn-primary char-play';
       play.textContent = 'Spielen';
       // der zuletzt gespielte behält die alte Kennung „Weiterspielen“
       if (k === last || (last == null && !box.querySelector('#btnContinue'))) play.id = 'btnContinue';
-      play.addEventListener('click', () => { const save = loadSave(k); if (save) startGame(save, k); });
+      // seit 15.49 nie mehr stumm: fehlt der Spielstand oder scheitert das Betreten, kommt eine Meldung mit „Charakter
+      // retten“ (retten.js; vorher passierte bei einem Fehler hier einfach nichts)
+      play.addEventListener('click', () => {
+        let save = null;
+        try {
+          save = loadSave(k);
+        } catch (e) {
+          if (typeof rettenLadeFehler === 'function') rettenLadeFehler(k, sv, e);
+          return;
+        }
+        if (!save) {
+          if (typeof rettenLadeFehler === 'function') rettenLadeFehler(k, sv, null);
+          return;
+        }
+        startGame(save, k);
+      });
       const del = document.createElement('button');
       del.type = 'button';
       del.className = 'char-del';
@@ -284,6 +302,17 @@ const ui = {
         card.append(ask);
       });
       card.append(cv, info, play, del);
+      // seit 15.49: Charakter retten (retten.js) – in die sichere Stadt, beschädigte Daten reparieren, ohne ins Spiel zu müssen
+      if (typeof charRescueAsk === 'function') {
+        const fix = document.createElement('button');
+        fix.type = 'button';
+        fix.className = 'char-fix';
+        fix.title = 'Charakter retten';
+        fix.setAttribute('aria-label', 'Charakter retten');
+        fix.textContent = '🛟';
+        fix.addEventListener('click', () => charRescueAsk(k));
+        card.append(fix);
+      }
       box.append(card);
     });
   },
