@@ -17,13 +17,25 @@ const sfx = {
     return this.on;
   },
 
-  // Audio-Graph (seit 9.4): Klänge (master) und Musik (music) laufen über einen gemeinsamen Hall (verb) und einen
-  // Begrenzer, damit viele Klänge gleichzeitig nicht verzerren. Die Musik läuft auch, wenn die Klänge aus sind.
+  // Audio-Graph (seit 9.4): Klänge (master) laufen über einen gemeinsamen Hall (verb) und einen Begrenzer, damit viele
+  // Klänge gleichzeitig nicht verzerren. Die Musik läuft auch, wenn die Klänge aus sind.
+  // Musik hat einen eigenen, sanften Begrenzer (mlim) neben dem der Klänge: Vorher lief sie mit durch den schnellen
+  // Begrenzer der Klänge (Verhältnis 8, 0,2 s), und jeder laute Treffer drückte die Musik für einen Moment um einige dB –
+  // im Kampf pumpte und hackte sie dadurch im Takt der Schläge. mlim greift nur bei hoher Musiklautstärke an den
+  // lautesten Stellen (ab −6 dBFS, 4:1), die Klänge ändern ihn nicht.
   graph() {
     if (!this.ctx) {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return null;
-      const c = (this.ctx = new AC());
+      // Puffergröße: am Handy „playback“ (größerer Puffer, Klänge kommen ein paar Hundertstel später, dafür reißt der
+      // Ton unter Last nicht ab – sonst hackt die Musik), am PC „balanced“. Ältere Browser kennen die Option nicht.
+      let c;
+      try {
+        c = new AC({ latencyHint: typeof IS_PC !== 'undefined' && IS_PC ? 'balanced' : 'playback' });
+      } catch (e) {
+        c = new AC();
+      }
+      this.ctx = c;
       const lim = c.createDynamicsCompressor();
       lim.threshold.value = -10;
       lim.knee.value = 6;
@@ -32,10 +44,17 @@ const sfx = {
       lim.release.value = 0.2;
       lim.connect(c.destination);
       this.out = lim;
+      const mlim = c.createDynamicsCompressor();
+      mlim.threshold.value = -6;
+      mlim.knee.value = 6;
+      mlim.ratio.value = 4;
+      mlim.attack.value = 0.01;
+      mlim.release.value = 0.35;
+      mlim.connect(c.destination);
       this.master = c.createGain();
       this.music = c.createGain();
       this.master.connect(lim);
-      this.music.connect(lim);
+      this.music.connect(mlim);
       // Hall: abklingendes Rauschen als Raumantwort (links und rechts leicht verschieden); seit 9.9 kürzer
       // (1,6 s, Handy 1,2 s) – die Faltung läuft ständig und kostet sonst viel Rechenzeit
       this.verb = c.createConvolver();
@@ -50,18 +69,52 @@ const sfx = {
       this.verbOut.gain.value = 0.55;
       this.verb.connect(this.verbOut);
       this.verbOut.connect(lim);
-      this.applyVolume();
+      this.applyVolume(true);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
     return this.ctx;
   },
 
-  applyVolume() {
+  // Lautstärke aus den Optionen; weich nachgeführt (30 ms), damit der Regler beim Ziehen nicht knackt
+  applyVolume(sofort) {
     if (!this.master) return;
     const v = typeof opts !== 'undefined' ? opts.volume : 0.7;
-    this.master.gain.value = 0.8 * v;
     const mv = typeof opts !== 'undefined' ? (opts.music === false ? 0 : opts.musicVol ?? 0.5) : 0.5;
-    this.music.gain.value = 1.2 * v * mv;
+    const t = this.ctx.currentTime;
+    for (const [g, val] of [[this.master.gain, 0.8 * v], [this.music.gain, 1.2 * v * mv]]) {
+      g.cancelScheduledValues(t);
+      if (sofort) {
+        g.value = val;
+        continue;
+      }
+      g.setValueAtTime(g.value, t);
+      g.setTargetAtTime(val, t, 0.03);
+    }
+  },
+
+  // Gleichmäßige Überblendung (gleiche Leistung) eines Lautstärke-Parameters: ab Zeit t in dur s von from (ohne
+  // Angabe: der aktuelle Wert) nach to, ansteigend als Sinus-, fallend als Kosinusbogen (aus 12 geraden Stücken,
+  // das können alle Browser gleich). Zwei gleichzeitige Blenden (alt fällt, neu steigt) halten so die Gesamtleistung
+  // konstant – kein Loch und kein Buckel in der Mitte. Eine laufende Blende wird an der aktuellen Stelle übernommen.
+  fade(param, t, dur, to, from) {
+    const c = this.ctx;
+    if (!c) return;
+    const now = c.currentTime;
+    const v0 = from == null ? param.value : from;
+    if (param.cancelAndHoldAtTime && from == null) param.cancelAndHoldAtTime(now);
+    else {
+      // ohne cancelAndHoldAtTime (Firefox): ab jetzt den aktuellen Wert halten, sonst springt er auf den Anfang
+      // des gerade abgebrochenen Stücks zurück
+      param.cancelScheduledValues(now);
+      param.setValueAtTime(v0, now);
+    }
+    param.setValueAtTime(v0, Math.max(now, t));
+    const n = 12;
+    for (let i = 1; i <= n; i++) {
+      const x = (i / n) * (Math.PI / 2);
+      const v = to >= v0 ? v0 + (to - v0) * Math.sin(x) : to + (v0 - to) * Math.cos(x);
+      param.linearRampToValueAtTime(Math.max(0, v), Math.max(now, t) + (dur * i) / n);
+    }
   },
 
   ac() {

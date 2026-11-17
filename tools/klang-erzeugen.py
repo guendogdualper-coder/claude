@@ -4,8 +4,9 @@
 Liste aller Klänge: tools/klang-liste.json (Prompt, Dauer, Schnitt, Rollen). Ablauf:
   1. roh   – fehlende Rohdateien bei ElevenLabs erzeugen (Schlüssel NUR aus der Umgebungsvariable ELK)
   2. bauen – Rohdateien schneiden, entrauschen (Stille vorn/hinten weg), Lautheit angleichen, als MP3 nach
-             snd/sfx/<id>.mp3 bzw. snd/musik/<id>.mp3 schreiben und js/daten/klang-dateien.js (Lage der Laute,
-             Schleifenpunkte der Musik) neu schreiben.
+             snd/sfx/<id>.mp3 bzw. snd/musik/<stimmung>.mp3 schreiben und js/daten/klang-dateien.js (Lage der Laute,
+             Schleifenpunkte der Musik) neu schreiben. Musik: Schleife auf Taktgrenzen mit vorbereiteter Naht,
+             −18 LUFS, MP3 VBR (Abschnitt „Musik“ unten; Prompts und Anleitung in docs/musik-prompts.md).
 
 Aufruf:
   ELK=… python3 tools/klang-erzeugen.py            # beides: fehlende roh erzeugen, dann bauen
@@ -14,7 +15,7 @@ Aufruf:
   … --neu                                          # vorhandene Rohdateien der genannten ids neu erzeugen
 Rohdateien liegen außerhalb des Repos (Standard ~/.cache/seelenstein-klang-roh, sonst --roh <ordner>).
 
-Braucht: python3 mit numpy, ffmpeg (libmp3lame), requests oder urllib.
+Braucht: python3 mit numpy und scipy, ffmpeg (libmp3lame), urllib.
 """
 import json
 import os
@@ -231,17 +232,218 @@ def baue_sfx(e, roh, ziel):
     return clips, teile_out
 
 
-# --- Musik: Schleife suchen und nahtlos machen ------------------------------------------------------------------
-def merkmale(x, hop):
-    """Je Rahmen: Tonklassen (Chroma, normiert), Klangfarbe (4 Bänder, log) und Anschlagstärke (spektraler Fluss)."""
-    n = 4096
-    w = np.hanning(n)
-    fr = np.arange(0, len(x) - n, hop)
-    spec = np.abs(np.fft.rfft(np.stack([x[i:i + n] * w for i in fr]), axis=1)).astype(np.float32)
+# --- Musik: Taktraster, Schleife auf Taktgrenzen, nahtlose Naht -----------------------------------------------------
+# Ablauf je Stück (baue_musik), neu gefasst nach 15.46 (vorher lagen mehrere Schleifen nicht auf Taktgrenzen und
+# stolperten bei jeder Wiederholung; die Dateien waren mit 96–128 kbit/s kodiert):
+#   1. Taktraster: genaues Tempo (Feld „bpm“ als Vorgabe, gesucht wird ±1,5 % darum) und Lage der Schläge aus der
+#      Anschlagshüllkurve. ElevenLabs hält das Tempo exakt; die Abweichung über das Stück wird mit ausgegeben.
+#   2. Schleife A–B: A und B liegen auf Schlägen, B − A ist eine ganze Zahl Takte („takt“ Schläge je Takt),
+#      bevorzugt ganze Phrasen („phrase“ Takte). Bewertet wird, wie gleich die Umgebung von A und B klingt
+#      (Harmonie, Klangfarbe, Pegel und Rhythmusmuster je Schlag); längere Schleifen werden bevorzugt. Stücke ohne
+#      festen Puls („bpm“: 0, frei schwebend) suchen Bild für Bild nach gleich klingenden Stellen.
+#      „schleife“: [A, B] in s (in der Rohdatei) legt die Punkte fest, dann wird nicht gesucht (reproduzierbar).
+#   3. Naht: kurz vor B geht der Körper über „blende“ s mit gleicher Leistung in das über, was vor A kommt (auf
+#      wenige Samples ausgerichtet; bei ähnlichem Material mit Korrelationsausgleich, damit kein Pegelbuckel
+#      entsteht); die letzten 60 ms vor B sind schon genau das Material vor A. Hinter B folgt ein Nachlauf (= Anfang
+#      der Schleife). So schleift die Datei sauber, gleich ob der Browser die Kodierverzögerung der MP3 entfernt
+#      (Chrome, Firefox) oder nicht (Safari, bis ≈ 50 ms): beide Schleifenpunkte verschieben sich gleich, und um B
+#      herum steht dasselbe Material wie um A herum.
+#   4. Lautheit der Schleife auf „lufs“ (Standard −18 LUFS), echte Spitze höchstens „tp“ (−1,5 dBTP; ein weicher
+#      Begrenzer greift nur, falls nötig), Kodierung MP3 VBR in LAME-Qualität „vbr“ (2 ≈ 190 kbit/s), 44,1 kHz Stereo.
+#      Danach wird die fertige Datei dekodiert und nachgemessen (Lautheit, echte Spitze, Lücke beim Dekodieren).
+def spektrum(m, n, hop):
+    """Betragsspektrum (Hann-Fenster) Bild für Bild, in Blöcken gerechnet (spart Speicher)."""
+    from numpy.lib.stride_tricks import sliding_window_view
+    w = np.hanning(n).astype(np.float32)
+    v = sliding_window_view(np.ascontiguousarray(m, dtype=np.float32), n)[::hop]
+    out = np.empty((len(v), n // 2 + 1), np.float32)
+    for s in range(0, len(v), 1024):
+        out[s:s + 1024] = np.abs(np.fft.rfft(v[s:s + 1024] * w, axis=1))
+    return out
+
+
+def fluss(m, hop, n=2048, glatt=0.25):
+    """Anschlagshüllkurve: positiver spektraler Fluss (log), gleitender Mittelwert (glatt s) abgezogen.
+    Bild i gehört zur Zeit i·hop (Fenstermitte; vorn um n/2 aufgefüllt)."""
+    out = [np.zeros(n // 2 // hop)]
+    prev = None
+    blk = 2048 * hop
+    for s in range(0, max(1, len(m) - n), blk):
+        sp = np.log(spektrum(m[s:s + blk + n], n, hop)[:blk // hop] + 1e-4)
+        d = np.diff(sp, axis=0, prepend=sp[:1] if prev is None else prev[None, :])
+        out.append(np.maximum(0, d).sum(axis=1))
+        prev = sp[-1]
+    f = np.concatenate(out)
+    k = max(1, int(glatt * SR / hop))
+    f = f - np.convolve(f, np.ones(k) / k, mode='same')
+    return np.maximum(0, f)
+
+
+def taktraster(mono, bpm, hop=128):
+    """Genaues Tempo und Phase des Schlagrasters. Gibt (Schlagdauer s, Phase s, BPM, Abweichung je Viertel in ms)."""
+    fps = SR / hop
+    o = fluss(mono, hop)
+    rand = int(2 * fps)
+    k = o[rand:-rand] - o[rand:-rand].mean()
+    n = 1 << (2 * len(k) - 1).bit_length()
+    F = np.fft.rfft(k, n)
+    ac = np.fft.irfft(F * np.conj(F))[:len(k)]
+    ac /= ac[0]
+    idx = np.arange(len(ac))
+    beste, bpm_g = -9.0, bpm
+    # Kammfilter: mittlere Autokorrelation bei allen Vielfachen der Schlagdauer (bis 60 % der Länge)
+    for b in np.arange(bpm * 0.985, bpm * 1.015, 0.002):
+        T = 60 / b * fps
+        v = np.interp(np.arange(1, int(len(ac) * 0.6 / T) + 1) * T, idx, ac).mean()
+        if v > beste:
+            beste, bpm_g = v, b
+    T = 60 / bpm_g
+    oi = np.arange(len(o))
+
+    def phase(lo, hi):
+        bp, bv = 0.0, -1.0
+        for ph in np.arange(0, T, 0.001):
+            v = np.interp(np.arange(lo + ph, hi, T) * fps, oi, o).mean()
+            if v > bv:
+                bv, bp = v, ph
+        return bp
+    dauer = len(mono) / SR
+    ph = phase(0, dauer)
+    drift = []
+    for q in range(4):
+        lo = q * dauer / 4
+        d = (lo + phase(lo, lo + dauer / 4) - ph) % T
+        drift.append(round(1000 * (d - T if d > T / 2 else d)))
+    if ph > T / 2:
+        ph -= T
+    return T, ph, float(bpm_g), drift
+
+
+def schlag_merkmale(x, beats, T, o, hop_o):
+    """Je Schlag: Tonklassen (Chroma), Klangfarbe (5 Bänder), Pegel (dB) und Rhythmusmuster (Anschläge in 4 Teilen)."""
+    mono = x.mean(axis=1)
+    hop, n = 512, 4096
+    sp = spektrum(mono, n, hop)
     f = np.fft.rfftfreq(n, 1 / SR)
     gut = (f > 60) & (f < 5000)
     pc = (np.round(12 * np.log2(f[gut] / 440)) % 12).astype(int)
-    ch = np.zeros((len(fr), 12), np.float32)
+    p2 = sp[:, gut] ** 2
+    ch = np.stack([p2[:, pc == k].sum(axis=1) for k in range(12)], 1)
+    band = np.stack([(sp[:, (f >= lo) & (f < hi)] ** 2).sum(axis=1) for lo, hi in
+                     [(30, 120), (120, 400), (400, 1500), (1500, 5000), (5000, 14000)]], 1)
+    fps = SR / hop
+    C, Bd, L, R = [], [], [], []
+    for b in beats:
+        # Bild k deckt k·hop … k·hop + n ab (Mitte k·hop + n/2)
+        i0 = max(0, int((b * SR - n / 2) / hop))
+        i1 = max(i0 + 1, int(((b + T) * SR - n / 2) / hop))
+        c = ch[i0:i1].mean(axis=0)
+        C.append(c / (np.linalg.norm(c) + 1e-9))
+        Bd.append(np.log(band[i0:i1].mean(axis=0) + 1e-9))
+        L.append(10 * np.log10(band[i0:i1].sum(axis=1).mean() + 1e-12))
+        r = [o[int((b + k * T / 4) * SR / hop_o):int((b + (k + 1) * T / 4) * SR / hop_o)].max(initial=0) for k in range(4)]
+        R.append(r)
+    C, Bd, L, R = np.array(C), np.array(Bd), np.array(L), np.array(R)
+    Bd = (Bd - Bd.mean(0)) / (Bd.std(0) + 1e-9)
+    Bd /= np.linalg.norm(Bd, axis=1, keepdims=True) + 1e-9
+    R = R - R.mean(axis=1, keepdims=True)
+    R /= np.linalg.norm(R, axis=1, keepdims=True) + 1e-9
+    return C, Bd, L, R
+
+
+def fein_ausrichten(mono, a, b, X, weit=0.015):
+    """B auf wenige Samples an A ausrichten: erst der Rhythmus (±weit s, bei festem Puls 15 ms; Anschläge 4 s vor
+    bis 2 s nach dem Punkt), dann die tiefen Schwingungen im Überblendbereich (±1,5 ms), damit sich Bass und
+    Grundtöne nicht auslöschen."""
+    from scipy.signal import butter, sosfiltfilt
+    hop = 64
+    w = int(weit * SR / hop)
+    v = int(min(4.0, a / SR - 0.05) * SR)
+    n = int(min(2.0, (len(mono) - b) / SR - 0.05) * SR) - w * hop
+    ea = fluss(mono[a - v:a + n], hop)
+    eb = fluss(mono[b - v - w * hop:b + n + w * hop], hop)
+    sc = [float(np.dot(ea, eb[w + l:w + l + len(ea)])) for l in range(-w, w + 1)]
+    k = int(np.argmax(sc))
+    # nur bei einem klaren gemeinsamen Schlag verschieben (Spitze nicht am Rand, deutlich über dem Mittel);
+    # bei festem Puls bleibt B so meist genau auf dem Raster
+    d1 = (k - w) * hop if 0 < k < 2 * w and sc[k] >= 1.8 * np.mean(sc) else 0
+    b += d1
+    sos = butter(4, 300, 'lowpass', fs=SR, output='sos')
+    r = int(0.0015 * SR)
+    pa = sosfiltfilt(sos, mono[a - X - r:a + r])[r:-r]
+    best, d2 = -9.0, 0
+    for d in range(-r, r + 1):
+        pb = sosfiltfilt(sos, mono[b + d - X - r:b + d + r])[r:-r]
+        c = float(np.dot(pa, pb) / (np.linalg.norm(pa) * np.linalg.norm(pb) + 1e-9))
+        if c > best:
+            best, d2 = c, d
+    return b + d2, d1 + d2
+
+
+def schleife_takt(x, e, ausgabe=False):
+    """Schleifenpunkte auf dem Taktraster suchen (siehe oben). Gibt (a, b in Samples, Info) zurück."""
+    mono = x.mean(axis=1)
+    dauer = len(mono) / SR
+    T, ph, bpm, drift = taktraster(mono, e['bpm'])
+    takt = e.get('takt', 4)
+    phrase = e.get('phrase', 4)
+    hop_o = 128
+    o = fluss(mono, hop_o)
+    beats = np.arange(ph if ph >= 0 else ph + T, dauer - T, T)
+    C, Bd, L, R = schlag_merkmale(x, beats, T, o, hop_o)
+    # Ähnlichkeit je Schlagpaar
+    S = C @ C.T + 0.4 * (Bd @ Bd.T) + 0.4 * (R @ R.T) - 0.04 * np.minimum(6, np.abs(L[:, None] - L[None, :]))
+    blende = e.get('blende', 2 * T)
+    # Umgebung: vor der Naht die Überblendung und ein Takt, danach ein Takt (mindestens 2 s). Beide Seiten müssen
+    # passen (das Schwächere zählt): vorn klingen beide Stellen gleichzeitig, hinten folgt A statt dem, was auf B folgte.
+    vor = int(np.ceil((blende + takt * T) / T))
+    nach = max(takt, int(np.ceil(2.0 / T)))
+    kand = []
+    for i in range(vor, len(beats)):
+        A = beats[i]
+        if A < max(e.get('a_von', 0.0), blende + 0.5) or A > e.get('a_bis', 40.0):
+            continue
+        for m in range(e.get('min_takte', 4), len(beats) // takt + 1):
+            j = i + m * takt
+            if j + nach > len(beats):
+                break
+            B = beats[j]
+            if B < e.get('b_von', 0) or B > dauer - e.get('ende_weg', 2.0):
+                continue
+            sv = float(S[np.arange(i - vor, i), np.arange(j - vor, j)].mean())
+            sn = float(S[np.arange(i, i + nach), np.arange(j, j + nach)].mean())
+            sim = min(sv, sn)
+            bonus = e.get('laenge_bonus', 0.003) * (B - A) + (0.03 if m % phrase == 0 else 0.0)
+            kand.append((sim + bonus, sim, i, j, m, sv, sn))
+    if not kand:
+        raise RuntimeError('keine Schleife auf dem Taktraster gefunden (a_von/a_bis/ende_weg prüfen)')
+    kand.sort(reverse=True)
+    if ausgabe:
+        gesehen = set()
+        for k in kand:
+            if k[4] in gesehen:
+                continue
+            gesehen.add(k[4])
+            print(f'    A {beats[k[2]]:7.3f}s  B {beats[k[3]]:7.3f}s  {k[4]:3d} Takte  Ähnlichkeit vor {k[5]:.2f} nach {k[6]:.2f}  Wert {k[0]:.3f}')
+            if len(gesehen) >= 6:
+                break
+    _, sim, i, j, m, _, _ = kand[0]
+    a = int(round(beats[i] * SR))
+    b = int(round((beats[i] + m * takt * T) * SR))
+    b, d = fein_ausrichten(mono, a, b, int(blende * SR))
+    info = {'bpm': round(bpm, 3), 'abweichung_ms': drift, 'takte': m, 'schlaege': m * takt, 'aehnlichkeit': round(sim, 3),
+            'feinabgleich_ms': round(1000 * d / SR, 2)}
+    return a, b, info
+
+
+def merkmale(x, hop):
+    """Je Rahmen: Tonklassen (Chroma, normiert), Klangfarbe (4 Bänder, log) und Anschlagstärke (spektraler Fluss)."""
+    n = 4096
+    spec = spektrum(x, n, hop)
+    f = np.fft.rfftfreq(n, 1 / SR)
+    gut = (f > 60) & (f < 5000)
+    pc = (np.round(12 * np.log2(f[gut] / 440)) % 12).astype(int)
+    ch = np.zeros((len(spec), 12), np.float32)
     for k in range(12):
         ch[:, k] = spec[:, gut][:, pc == k].sum(axis=1)
     ch /= np.linalg.norm(ch, axis=1, keepdims=True) + 1e-9
@@ -252,105 +454,168 @@ def merkmale(x, hop):
     return ch, band, flux
 
 
-def diag_summe(G, W):
-    """S[i, j] = Summe von G[i+k, j+k] für k = -W … W (gleitend entlang der Diagonalen)."""
-    from scipy.signal import fftconvolve
-    return fftconvolve(G, np.eye(2 * W + 1, dtype=np.float32), mode='same')
+def fenster_diag(G, k0, k1):
+    """S[i, j] = Mittel von G[i+k, j+k] für k = k0 … k1−1 (entlang der Diagonalen; außerhalb zählt 0)."""
+    D = np.zeros((G.shape[0] + 1, G.shape[1] + 1), np.float64)
+    for r in range(G.shape[0]):
+        D[r + 1, 1:] = G[r] + D[r, :-1]
+    n0, n1 = G.shape
+    i = np.arange(n0)[:, None]
+    j = np.arange(n1)[None, :]
+
+    def kum(k):
+        ii, jj = i + k, j + k
+        ok = (ii >= 0) & (jj >= 0)
+        ii, jj = np.clip(ii, -1, n0 - 1), np.clip(jj, -1, n1 - 1)
+        # über den Rand hinaus: auf die Diagonale zurückgehen
+        over = np.maximum(0, np.maximum(ii - (n0 - 1), jj - (n1 - 1)))
+        return np.where(ok, D[ii + 1 - over, jj + 1 - over], 0.0)
+    return (kum(k1 - 1) - kum(k0 - 1)) / (k1 - k0)
 
 
-def schleife(x, e):
-    """Schleifenpunkte A < B suchen: die Umgebung von A und B soll gleich klingen (Harmonie, Klangfarbe und
-    Rhythmus), dann passt die Überblendung. Danach Feinabgleich auf wenige Samples über die Wellenform."""
+def schleife_frei(x, e, ausgabe=False):
+    """Für Stücke ohne festen Puls: Stellen A < B suchen, deren Umgebung gleich klingt (Harmonie, Klangfarbe,
+    Pegel), Bild für Bild (20 ms). Wie bei schleife_takt müssen beide Seiten passen: vor der Naht die Überblendung
+    (+ 2 s), danach 3 s. Längere Schleifen werden bevorzugt."""
     mono = x.mean(axis=1)
     dt = 0.02
     hop = int(dt * SR)
     ch, band, flux = merkmale(mono, hop)
-    W = int(e.get('fenster', 3.0) / dt)
     dauer = len(mono) / SR
-    a_lo, a_hi = max(W, int(e.get('a_von', 4) / dt)), int(e.get('a_bis', 25) / dt)
-    b_lo, b_hi = int(e.get('b_von', 45) / dt), min(len(ch) - W - 1, int((dauer - e.get('ende_weg', 8)) / dt))
-    A0, A1, B0, B1 = a_lo - W, a_hi + W, b_lo - W, b_hi + W
-    Gc = ch[A0:A1] @ ch[B0:B1].T
+    blende = e.get('blende', 3.0)
+    Wv, Wn = int((blende + 2.0) / dt), int(3.0 / dt)
+    a_lo = max(Wv, int(max(e.get('a_von', 4), blende + 0.5) / dt))
+    a_hi = int(e.get('a_bis', 25) / dt)
+    b_lo, b_hi = int(e.get('b_von', 45) / dt), min(len(ch) - Wn - 1, int((dauer - e.get('ende_weg', 8)) / dt))
+    A0, A1, B0, B1 = a_lo - Wv, a_hi + Wn, b_lo - Wv, b_hi + Wn
     bn = (band - band.mean(0)) / (band.std(0) + 1e-9)
     bn /= np.linalg.norm(bn, axis=1, keepdims=True) + 1e-9
-    Gb = bn[A0:A1] @ bn[B0:B1].T
-    fz = (flux - flux.mean()) / (flux.std() + 1e-9)
-    Gf = np.outer(fz[A0:A1], fz[B0:B1]).astype(np.float32)
-    n = 2 * W + 1
-    S = (diag_summe(Gc, W) / n) + 0.3 * (diag_summe(Gb, W) / n) + 0.15 * np.tanh(diag_summe(Gf, W) / n)
-    S = S[W:W + (a_hi - a_lo), W:W + (b_hi - b_lo)]
-    # längere Schleifen leicht bevorzugen
-    S = S + e.get('laenge_bonus', 0.002) * ((np.arange(b_lo, b_hi)[None, :] - np.arange(a_lo, a_hi)[:, None]) * dt)
+    # Pegel: Summe der Bänder (dB) – große Unterschiede bestrafen
+    lv = 10 * np.log10(np.exp(band).sum(axis=1) + 1e-9)
+    G = (ch[A0:A1] @ ch[B0:B1].T + 0.3 * (bn[A0:A1] @ bn[B0:B1].T)
+         - 0.04 * np.minimum(6, np.abs(lv[A0:A1, None] - lv[None, B0:B1]))).astype(np.float32)
+    Sv = fenster_diag(G, -Wv, 0)[Wv:Wv + (a_hi - a_lo), Wv:Wv + (b_hi - b_lo)]
+    Sn = fenster_diag(G, 0, Wn)[Wv:Wv + (a_hi - a_lo), Wv:Wv + (b_hi - b_lo)]
+    sim = np.minimum(Sv, Sn)
+    lang = (np.arange(b_lo, b_hi)[None, :] - np.arange(a_lo, a_hi)[:, None]) * dt
+    S = np.where(lang >= e.get('min_laenge', 30.0), sim + e.get('laenge_bonus', 0.003) * lang, -9.0)
+    if ausgabe:
+        # beste Stelle je 5-s-Bereich der Schleifenlänge
+        for L0 in range(int(lang.min() // 5 * 5), int(lang.max()) + 1, 5):
+            msk = (lang >= L0) & (lang < L0 + 5)
+            if not msk.any():
+                continue
+            k = np.argmax(np.where(msk, sim, -9))
+            i, j = np.unravel_index(k, sim.shape)
+            print(f'    {L0:3d}–{L0 + 5:3d} s: A {(a_lo + i) * dt:7.2f}s  B {(b_lo + j) * dt:7.2f}s  vor {Sv[i, j]:.2f} nach {Sn[i, j]:.2f}')
     i, j = np.unravel_index(np.argmax(S), S.shape)
-    A, B = a_lo + i, b_lo + j
-    a, b = A * hop, B * hop
-    # Rhythmus abgleichen (±200 ms): Anschlagshüllkurve 6 s vor bis 2 s nach dem Punkt
-    b += rhythmus_versatz(mono, a, b)
-    # Feinabgleich (±6 ms) über die Wellenform, damit die Schwingungen zusammenpassen
-    r = int(0.006 * SR)
-    L = int(0.08 * SR)
-    ref = mono[a - L:a]
-    bestc, off = -9.0, 0
-    for d in range(-r, r + 1):
-        seg = mono[b + d - L:b + d]
-        c = float(np.dot(ref, seg) / (np.linalg.norm(ref) * np.linalg.norm(seg) + 1e-9))
-        if c > bestc:
-            bestc, off = c, d
-    return a, b + off, float(S[i, j]), bestc
+    a, b = (a_lo + i) * hop, (b_lo + j) * hop
+    # ohne festen Puls: leise Schläge (Handtrommel, Glocken) bis ±250 ms aufeinander legen, sonst doppeln sie sich
+    b, d = fein_ausrichten(mono, a, b, int(blende * SR), e.get('rhythmus_weit', 0.25))
+    info = {'bpm': 0, 'aehnlichkeit': round(float(sim[i, j]), 3), 'feinabgleich_ms': round(1000 * d / SR, 2)}
+    if ausgabe:
+        print(f'    gewählt: A {a / SR:7.3f}s  B {b / SR:7.3f}s  frei  Ähnlichkeit vor {Sv[i, j]:.2f} nach {Sn[i, j]:.2f}')
+    return a, b, info
 
 
-def anschlaege(s, hop):
-    n = 2048
-    w = np.hanning(n)
-    fr = np.arange(0, len(s) - n, hop)
-    sp = np.log(np.abs(np.fft.rfft(np.stack([s[i:i + n] * w for i in fr]), axis=1)) + 1e-4)
-    fl = np.concatenate([[0], np.maximum(0, np.diff(sp, axis=0)).sum(axis=1)])
-    fl -= np.convolve(fl, np.ones(40) / 40, mode='same')
-    return np.maximum(0, fl)
+def naht(x, a, b, X, R=None):
+    """Körper A..B; X Samples lang geht er mit gleicher Leistung in das über, was vor A kommt. Ist das Material
+    ähnlich (Korrelation r > 0), wird durch √(1 + 2·r·gₐ·gₑ) geteilt, sonst gäbe es in der Mitte einen Pegelbuckel.
+    Die Überblendung endet R Samples (60 ms) vor B; die letzten R Samples sind schon genau x[a−R:a]. So passt die
+    Naht auch dann Sample für Sample, wenn der Browser die Kodierverzögerung nicht entfernt (Safari: bis ≈ 2300
+    Samples später) – loopEnd landet dann noch im reinen A-Material."""
+    R = int(0.06 * SR) if R is None else R
+    body = x[a:b].astype(np.float64)
+    p, q = body[-X - R:-R].copy(), x[a - X - R:a - R].astype(np.float64)
+    r = max(0.0, float(np.sum(p * q) / (np.sqrt(np.sum(p * p) * np.sum(q * q)) + 1e-12)))
+    th = (np.arange(X) + 0.5) / X * (np.pi / 2)
+    go, gi = np.cos(th)[:, None], np.sin(th)[:, None]
+    body[-X - R:-R] = (p * go + q * gi) / np.sqrt(1 + 2 * r * go * gi)
+    body[-R:] = x[a - R:a]
+    return body.astype(np.float32), r
 
 
-def rhythmus_versatz(mono, a, b, vor=6.0, nach=2.0, weit=0.2):
-    hop = int(0.004 * SR)
-    lag = int(weit * SR / hop)
-    va, na = int(min(vor, a / SR - 0.05) * SR), int(nach * SR)
-    ea = anschlaege(mono[a - va:a + na], hop)
-    eb = anschlaege(mono[b - va - lag * hop:b + na + lag * hop], hop)
-    best, bl = -1e9, 0
-    for l in range(-lag, lag + 1):
-        seg = eb[lag + l:lag + l + len(ea)]
-        if len(seg) < len(ea):
-            continue
-        c = float(np.dot(ea, seg))
-        if c > best:
-            best, bl = c, l
-    return bl * hop
+def sanft_begrenzen(x, decke):
+    """Weicher Begrenzer für Musik: echte Spitze (4-fach überabgetastet) je 1 ms, Vorschau und Anstieg 5 ms,
+    Rückkehr 250 ms. Greift nur an Spitzen über der Decke – kein Pumpen, keine Verzerrung."""
+    from scipy.signal import resample_poly
+    from scipy.ndimage import minimum_filter1d, uniform_filter1d
+    blk = 44
+    nb = (len(x) + blk - 1) // blk
+    pk = np.zeros(nb)
+    stueck = blk * 20000
+    for s in range(0, len(x), stueck):
+        lo = max(0, s - 256)
+        up = np.abs(resample_poly(x[lo:s + stueck + 256], 4, 1, axis=0)).max(axis=1)
+        up = up[(s - lo) * 4:(s - lo) * 4 + min(stueck, len(x) - s) * 4]
+        m = len(up) // (blk * 4)
+        bl = up[:m * blk * 4].reshape(m, -1).max(axis=1)
+        if len(up) > m * blk * 4:
+            bl = np.append(bl, up[m * blk * 4:].max())
+        pk[s // blk:s // blk + len(bl)] = bl
+    g = np.minimum(1.0, decke / np.maximum(pk, 1e-9))
+    if g.min() >= 1.0:
+        return x, 0.0
+    v = 5
+    g = uniform_filter1d(minimum_filter1d(g, size=2 * v + 1, mode='nearest'), size=v + 1, mode='nearest')
+    k = np.exp(-1 / 250.0)
+    out = np.empty_like(g)
+    s = 1.0
+    for i in range(len(g)):
+        s = g[i] if g[i] < s else g[i] + (s - g[i]) * k
+        out[i] = s
+    gs = np.interp(np.arange(len(x)) / blk, np.arange(nb) + 0.5, out)
+    return (x * gs[:, None]).astype(np.float32), float(-20 * np.log10(out.min()))
 
 
-def baue_musik(e, roh, ziel):
+def schreibe_vbr(pfad, a, q=2, kanaele=2):
+    """MP3 mit variabler Bitrate (LAME-Qualität q: 0 beste … 9; 2 ≈ 190 kbit/s), mit Xing/LAME-Kopf (Länge und
+    Kodierverzögerung, damit Chrome und Firefox lückenlos dekodieren), ohne ID3-Daten."""
+    os.makedirs(os.path.dirname(pfad), exist_ok=True)
+    roh = np.ascontiguousarray(a, dtype=np.float32).tobytes()
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(SR), '-ac', str(kanaele), '-i', '-',
+                    '-c:a', 'libmp3lame', '-q:a', str(q), '-map_metadata', '-1', '-id3v2_version', '0',
+                    '-write_xing', '1', pfad], input=roh, check=True)
+
+
+def baue_musik(e, roh, ziel, ausgabe=False):
     x = lade(roh, 2)
     if 'schleife' in e:
-        a, b = int(e['schleife'][0] * SR), int(e['schleife'][1] * SR)
-        guete = (None, None)
+        a, b = int(round(e['schleife'][0] * SR)), int(round(e['schleife'][1] * SR))
+        info = {'fest': True}
+        if e.get('bpm'):
+            T = 60 / e['bpm']
+            info.update({'bpm': e['bpm'], 'schlaege': round((b - a) / SR / T, 3), 'takte': round((b - a) / SR / T / e.get('takt', 4), 3)})
+    elif e.get('bpm'):
+        a, b, info = schleife_takt(x, e, ausgabe)
     else:
-        a, b, s, c = schleife(x, e)
-        guete = (round(s, 3), round(c, 3))
-    X = int(e.get('blende', 2.5) * SR)
-    P = int(0.6 * SR)
-    X = min(X, a)
-    # Körper A..B; die letzten X Samples blenden (gleiche Leistung) in das über, was vor A kommt
-    body = x[a:b].copy()
-    t = np.linspace(0, np.pi / 2, X)[:, None]
-    body[-X:] = x[b - X:b] * np.cos(t) + x[a - X:a] * np.sin(t)
-    # Vorspiel (Anfang des Stücks bis A, sanft eingeblendet) + Körper + Nachlauf (= Anfang des Körpers)
+        a, b, info = schleife_frei(x, e, ausgabe)
+    X = min(int(e.get('blende', 2.0) * SR), a - int(0.06 * SR))
+    P = int(1.0 * SR)
+    body, r = naht(x, a, b, X)
+    info['korrelation'] = round(r, 3)
+    # Vorspiel (Anfang des Stücks bis A, 50 ms eingeblendet) + Körper + Nachlauf (= Anfang der Schleife)
     vor = x[:a].copy()
     fi = int(0.05 * SR)
     vor[:fi] *= np.linspace(0, 1, fi)[:, None]
-    nach = x[a:a + P]
-    y = np.concatenate([vor, body, nach])
-    g = 10 ** ((e.get('lufs', -19.0) - integriert(body)) / 20)
-    y = begrenzer(y * g, 0.89)
-    schreibe(ziel, y, e.get('kbps', 128), 2)
-    return {'loop': [round(float(a) / SR, 4), round(float(b) / SR, 4)], 'dur': round(len(y) / SR, 3)}, guete
+    y = np.concatenate([vor, body, x[a:a + P]])
+    ziel_l = e.get('lufs', -18.0)
+    decke = 10 ** (e.get('tp', -1.5) / 20)
+    g = 10 ** ((ziel_l - integriert(body)) / 20)
+    # Kodieren und nachmessen; MP3 hebt Spitzen etwas an – dann noch einmal mit tieferer Decke
+    for runde in range(3):
+        z, gr = sanft_begrenzen(y * g, decke * (0.94 if runde == 0 else 0.94 * 0.97 ** runde))
+        schreibe_vbr(ziel, z, e.get('vbr', 2))
+        d = lade(ziel, 2)
+        tp = 20 * np.log10(spitze(d) + 1e-12)
+        if tp <= e.get('tp', -1.5) + 0.05:
+            break
+    lz = integriert(d[a:b])
+    info.update({'lufs': round(float(lz), 2), 'tp_dbtp': round(float(tp), 2), 'begrenzt_db': round(gr, 2),
+                 'kbit_s': round(os.path.getsize(ziel) * 8 / (len(d) / SR) / 1000), 'luecke_samples': len(d) - len(y)})
+    # bytes: Dateigröße – das Spiel erkennt daran eine veraltete Fassung aus dem Speicher (klang-dateien.js)
+    return {'loop': [round(float(a) / SR, 4), round(float(b) / SR, 4)], 'dur': round(len(y) / SR, 3),
+            'bytes': os.path.getsize(ziel)}, info
 
 
 # --- ElevenLabs -------------------------------------------------------------------------------------------------
@@ -475,12 +740,14 @@ def main():
         if not os.path.exists(roh):
             print('fehlt (roh):', e['id'])
             continue
-        info, guete = baue_musik(e, roh, os.path.join(REPO, 'snd', 'musik', e['stimmung'] + '.mp3'))
-        daten['musik'][e['stimmung']] = info
-        print('musik', e['id'], '→', e['stimmung'], info, 'Güte', guete)
+        print('musik', e['id'], '→', e['stimmung'], flush=True)
+        eintrag, info = baue_musik(e, roh, os.path.join(REPO, 'snd', 'musik', e['stimmung'] + '.mp3'), ausgabe=True)
+        daten['musik'][e['stimmung']] = eintrag
+        print('   ', eintrag, info, flush=True)
     kopf = ('// Von tools/klang-erzeugen.py geschrieben (nicht von Hand ändern): Lage der Laute in snd/sfx/<id>.mp3\n'
             '// ([Start, Dauer] in s, „roles“: welche Laute zu welchem Ereignis gehören) und Schleifenpunkte der Musik\n'
-            '// snd/musik/<stimmung>.mp3 ([Anfang, Ende] der Schleife in s; davor ein Vorspiel, danach ein kurzer Nachlauf).\n')
+            '// snd/musik/<stimmung>.mp3 ([Anfang, Ende] der Schleife in s auf Taktgrenzen; davor ein Vorspiel, danach ein\n'
+            '// kurzer Nachlauf; „bytes“: Dateigröße, daran erkennt das Spiel eine veraltete Fassung aus dem Speicher).\n')
     with open(alt, 'w', encoding='utf8') as f:
         f.write(kopf)
         f.write('const SFX_FILES = ' + json.dumps(daten['sfx'], separators=(',', ':')) + ';\n')

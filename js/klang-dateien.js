@@ -10,7 +10,9 @@
 //
 // Musik (musicFiles): je Stimmung eine Datei snd/musik/<stimmung>.mp3 (Vorspiel, Schleife A–B, kurzer Nachlauf).
 // Geladen wird nur die gerade gebrauchte Stimmung, die der Umgebung wird vorab geholt (nur die Bytes). Wechsel
-// blenden weich über; solange eine Datei lädt oder wenn sie fehlt, spielt die im Browser erzeugte Musik (musik.js).
+// blenden gleichmäßig über (gleiche Leistung); die alte Datei spielt weiter, bis die neue dekodiert ist. Fehlt eine
+// Datei (oder lädt sie nach kurzer Wartezeit noch), spielt die im Browser erzeugte Musik (musik.js) – nie beides.
+// Die Schleifen liegen auf Taktgrenzen und sind in der Datei vorbereitet (tools/klang-erzeugen.py, docs/musik-prompts.md).
 //
 // Fehlt eine Datei oder lädt sie nicht (offline, ohne Speicher), bleibt alles beim erzeugten Klang – ohne Fehler.
 
@@ -30,10 +32,12 @@ function sndDecode(ctx, ab) {
   });
 }
 
-// Datei holen; 204 (vom Service Worker: offline und nicht gespeichert) gilt als fehlend
-function sndFetch(url) {
+// Datei holen; 204 (vom Service Worker: offline und nicht gespeichert) gilt als fehlend. frisch: am Speicher des
+// Browsers vorbei (nach einer veralteten Fassung)
+function sndFetch(url, frisch) {
   if (!window.fetch) return Promise.reject(new Error('kein fetch'));
-  return fetch(url).then((r) => (r.ok && r.status !== 204 ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))));
+  return fetch(url, frisch ? { cache: 'reload' } : undefined)
+    .then((r) => (r.ok && r.status !== 204 ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))));
 }
 
 const sfxFiles = {
@@ -220,23 +224,36 @@ const musicFiles = {
   bufs: new Map(),
   fail: new Set(),
   pos: new Map(),
+  alt: new Map(),
   cur: null,
 
   has(k) {
     return typeof MUSIC_FILES !== 'undefined' && !!MUSIC_FILES[k] && !this.fail.has(k);
   },
 
-  // nur die Bytes holen (Vorladen der Nachbargegenden)
+  // nur die Bytes holen (Vorladen der Nachbargegenden). Die Größe muss zu MUSIC_FILES passen: Der Service Worker
+  // liefert Musik zuerst aus seinem Speicher und holt eine neue Fassung erst im Hintergrund – nach einem Update käme
+  // sonst einmal die alte Datei mit den neuen Schleifenpunkten (falsche Naht). Dann kurz warten und neu holen.
   fetch(k) {
     if (!this.has(k)) return null;
     let p = this.bytes.get(k);
     if (!p) {
-      p = sndFetch('snd/musik/' + k + '.mp3').catch(() => {
-        this.bytes.delete(k);
-        this.fail.add(k);
-        setTimeout(() => this.fail.delete(k), 120000);
-        return null;
-      });
+      const M = MUSIC_FILES[k];
+      const n = this.alt.get(k) || 0;
+      p = sndFetch('snd/musik/' + k + '.mp3', n > 0)
+        .then((ab) => {
+          if (M.bytes && ab.byteLength !== M.bytes) throw new Error('veraltet');
+          return ab;
+        })
+        .catch((err) => {
+          this.bytes.delete(k);
+          this.fail.add(k);
+          const alt = err && err.message === 'veraltet';
+          if (alt) this.alt.set(k, n + 1);
+          // veraltet: nach 8 s bzw. 30 s neu (der Worker hat die neue Fassung dann meist), sonst nach 2 Minuten
+          setTimeout(() => this.fail.delete(k), alt && n < 2 ? (n ? 30000 : 8000) : 120000);
+          return null;
+        });
       this.bytes.set(k, p);
     }
     return p;
@@ -276,15 +293,29 @@ const musicFiles = {
     return !!(this.cur && this.cur.k === k);
   },
 
+  // Soll die erzeugte Musik schweigen? Ja, solange irgendeine Datei läuft (auch die alte, während die neue noch
+  // dekodiert wird) und kurz (MUSIC_FILE_WAIT), solange die gewünschte Datei noch lädt – dann setzt sie direkt ein.
+  busy(k, now) {
+    if (this.cur) return true;
+    return !!(this.pending && this.wantK === k && now - (this.pendingAt || 0) < MUSIC_FILE_WAIT);
+  },
+
   // Stimmung k gewünscht: Datei starten (sobald dekodiert); fade Überblendzeit in s
   want(k, fade = 2.5) {
     if (this.wantK === k && (this.playing(k) || this.pending)) return;
     this.wantK = k;
     if (!this.has(k)) {
+      this.pending = false;
       this.stop(fade);
       return;
     }
+    // zurück zur Stimmung, deren Datei noch läuft (die neue war noch nicht fertig): einfach weiterspielen
+    if (this.playing(k)) {
+      this.pending = false;
+      return;
+    }
     this.pending = true;
+    this.pendingAt = sfx.ctx ? sfx.ctx.currentTime : 0;
     this.decode(k).then((buf) => {
       if (this.wantK !== k) return;
       this.pending = false;
@@ -301,45 +332,46 @@ const musicFiles = {
     if (!c || !music.fileBus) return;
     const M = MUSIC_FILES[k];
     if (this.cur && this.cur.k === k) return;
-    this.stop(fade, true);
+    const t = c.currentTime + 0.05;
+    const dur = Math.max(0.1, fade);
+    // alte Datei fällt (Kosinus), neue steigt (Sinus) – gleichzeitig, gleiche Leistung
+    this.stop(dur, true, t);
     const src = c.createBufferSource();
     src.buffer = buf;
     src.loop = true;
-    // Schleifenpunkte aus der Datei; ein kleiner Versatz beim Dekodieren verschiebt beide gleich (Nachlauf = Anfang der Schleife)
+    // Schleifenpunkte aus der Datei. Entfernt der Browser die Kodierverzögerung der MP3 nicht (Safari), verschiebt
+    // sich der Inhalt um einige Hundertstel – um A und B herum steht in der Datei dasselbe, die Naht bleibt sauber.
     src.loopStart = M.loop[0];
     src.loopEnd = Math.min(buf.duration - 0.01, M.loop[1]);
     const g = c.createGain();
-    const t = c.currentTime + 0.05;
-    g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(1, t + Math.max(0.1, fade));
+    g.gain.value = 0;
+    sfx.fade(g.gain, t, dur, 1, 0);
     src.connect(g);
     g.connect(music.fileBus);
     // zurück in eine Gegend: dort weiter, wo das Stück aufgehört hat (innerhalb der Schleife), sonst von vorn
     let off = this.pos.get(k) || 0;
     if (off >= src.loopEnd) off = src.loopStart;
     src.start(t, off);
-    this.cur = { k, src, g, t0: t - off, M };
-    music.procFade(0, fade * 0.8);
+    this.cur = { k, src, g, t0: t - off, M, a: src.loopStart, b: src.loopEnd };
+    music.procFade(0, dur);
   },
 
-  stop(fade = 2, keepProc) {
+  stop(fade = 2, keepProc, at) {
     const c = sfx.ctx;
     const o = this.cur;
     this.cur = null;
     if (!o || !c) return;
+    const t = at || c.currentTime;
     // Stelle merken (innerhalb der Schleife)
-    const L = o.M.loop;
-    let p = c.currentTime - o.t0;
-    if (p > L[1]) p = L[0] + ((p - L[0]) % (L[1] - L[0]));
+    let p = t - o.t0;
+    if (p > o.b) p = o.a + ((p - o.a) % (o.b - o.a));
     this.pos.set(o.k, p);
-    const t = c.currentTime;
-    o.g.gain.cancelScheduledValues(t);
-    o.g.gain.setValueAtTime(Math.max(0.0001, o.g.gain.value), t);
-    o.g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.1, fade));
+    const dur = Math.max(0.1, fade);
+    sfx.fade(o.g.gain, t, dur, 0);
     try {
-      o.src.stop(t + fade + 0.1);
+      o.src.stop(t + dur + 0.1);
     } catch (e) { /* schon gestoppt */ }
-    if (!keepProc) music.procFade(1, fade * 0.6);
+    if (!keepProc) music.procFade(1, dur);
   },
 
   // Musik aus (Option) oder Tab im Hintergrund: Datei anhalten, erzeugte Musik übernimmt beim Wiedereinschalten

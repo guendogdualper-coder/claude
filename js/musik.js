@@ -10,9 +10,14 @@
 // Seit 14.40: in Prüfungs- und Turnierarena eigene, schnelle Kampfmusik (arenaBar, 160 BPM, unten).
 
 const MIDI = (n) => 440 * Math.pow(2, (n - 69) / 12);
-// Musikdateien (−19 LUFS) im Verhältnis zur erzeugten Musik: im Browser gemessen (Effektivwert am Musikausgang),
-// mit 0,8 liegen die Dateien 1–3 dB unter der erzeugten Musik und bleiben unter den Klängen
-const MUSIC_FILE_GAIN = 0.8;
+// Musikdateien im Verhältnis zur erzeugten Musik: im Browser gemessen (Effektivwert am Musikausgang). Früher lagen die
+// Dateien bei −19,4 LUFS (Faktor 0,8); seit dem Neubau einheitlich bei −18 LUFS, darum 0,7 – im Spiel gleich laut
+// wie vorher (1–3 dB unter der erzeugten Musik, unter den Klängen)
+const MUSIC_FILE_GAIN = 0.7;
+// Stimmung der Gegend wechselt erst, wenn die neue so lange (s) gilt; kurze Streifen und Taschen schalten nicht um
+const MOOD_HOLD = 4;
+// so lange (s) wartet die Musik beim ersten Mal auf ihre Datei, bevor die erzeugte Musik einspringt
+const MUSIC_FILE_WAIT = 2.5;
 
 const MOODS = {
   dorf: { root: 50, scale: [0, 2, 4, 7, 9], bpm: 70, chords: [[[0, 4, 7], [-3, 0, 4], [5, 9, 12], [0, 4, 7]], [[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]]],
@@ -64,14 +69,11 @@ const music = {
     this.timer = setInterval(() => this.tick(), 200);
   },
 
-  // erzeugte Musik ein- oder ausblenden (v 0…1, Dauer in s)
+  // erzeugte Musik ein- oder ausblenden (v 0…1, Dauer in s), gleichmäßig wie die Musikdateien (sfx.fade)
   procFade(v, dur) {
     const c = sfx.ctx;
     if (!c || !this.proc) return;
-    const g = this.proc.gain;
-    g.cancelScheduledValues(c.currentTime);
-    g.setValueAtTime(g.value, c.currentTime);
-    g.setTargetAtTime(v, c.currentTime, Math.max(0.05, dur / 3));
+    sfx.fade(this.proc.gain, c.currentTime + 0.05, Math.max(0.1, dur), v);
   },
 
   // Musik erlaubt (Option an, Lautstärke > 0, Spiel sichtbar)?
@@ -103,7 +105,35 @@ const music = {
       return 'boss';
     }
     if (this.key === 'boss' && this.bossRef && !this.bossRef.dead && now - (this.bossSeen || 0) < 4) return 'boss';
-    return this.moodAt(p.x, p.y);
+    return this.areaK || this.moodAt(p.x, p.y);
+  },
+
+  // Stimmung der Gegend mit Verzögerung (bei jedem tick, alle 200 ms): eine neue Stimmung gilt erst, wenn sie
+  // MOOD_HOLD s ohne Unterbrechung anliegt. Vorher schaltete schon eine 100 px schmale Tasche (Sumpfloch, Sandfleck)
+  // beim Durchlaufen die Musik um und gleich wieder zurück – das klang wie Stottern. Nach einem Sprung (Teleport,
+  // Portal, Instanz) oder beim Start gilt die neue Stimmung sofort.
+  areaTrack(now) {
+    const p = game.player;
+    if (!p || !game.running || !game.world) return;
+    const k = this.moodAt(p.x, p.y);
+    const jump = this.areaP && (p.x - this.areaP.x) ** 2 + (p.y - this.areaP.y) ** 2 > 1500 * 1500;
+    this.areaP = { x: p.x, y: p.y };
+    if (!this.areaK || jump) {
+      this.areaK = k;
+      this.areaCand = null;
+      return;
+    }
+    if (k === this.areaK) {
+      this.areaCand = null;
+      return;
+    }
+    if (k !== this.areaCand) {
+      this.areaCand = k;
+      this.areaSince = now;
+    } else if (now - this.areaSince >= MOOD_HOLD) {
+      this.areaK = k;
+      this.areaCand = null;
+    }
   },
 
   // Stimmung der Gegend an einem Ort (ohne Boss)
@@ -130,10 +160,19 @@ const music = {
       return;
     }
     const files = typeof musicFiles !== 'undefined' ? musicFiles : null;
+    this.areaTrack(c.currentTime);
     // alle 5 s die Musik der Nachbargegenden vorab holen (nur die Bytes)
     if (files && c.currentTime - (this.preAt || -99) > 5) {
       this.preAt = c.currentTime;
       files.prefetch(game.player);
+    }
+    // Hing das Spiel (Laden, Hintergrund, schwaches Handy), liegen die geplanten Takte schon in der Vergangenheit:
+    // verpasste Takte überspringen statt nachholen – sonst setzen alle ihre Töne auf einmal ein (Stolpern, Klumpen)
+    if (this.nextBar < c.currentTime + 0.05) {
+      const len = (60 / ((MOODS[this.key] || MOODS.dorf).bpm || 70)) * 4;
+      const miss = Math.ceil((c.currentTime + 0.1 - this.nextBar) / len);
+      this.bar += miss;
+      this.nextBar = c.currentTime + 0.1;
     }
     while (this.nextBar < c.currentTime + 1.2) {
       const k = this.mood();
@@ -152,8 +191,9 @@ const music = {
       } else if (files && !files.playing(k)) files.want(k, 2.5);
       const M = MOODS[k];
       if (this.bar % 8 === 0) this.prog = Math.floor(Math.random() * M.chords.length);
-      // läuft die Datei, plant die erzeugte Musik nichts (der Takt zählt aber weiter)
-      if (!files || !files.playing(k)) this.scheduleBar(M, this.nextBar);
+      // läuft eine Musikdatei (auch die alte, während die neue noch dekodiert wird) oder kommt die gewünschte gleich,
+      // plant die erzeugte Musik nichts (der Takt zählt aber weiter) – nie zwei Musiken übereinander
+      if (!files || !files.busy(k, c.currentTime)) this.scheduleBar(M, this.nextBar);
       this.nextBar += (60 / M.bpm) * 4;
       this.bar++;
     }
