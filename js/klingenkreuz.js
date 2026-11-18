@@ -1,24 +1,14 @@
-// Klingenkreuz (Krieger, Weg der Klinge, Platz 1 – ersetzt die Sichelwelle; Werte in daten/klassen.js).
-// Spielerwunsch: eine neue, wuchtige Krieger-Attacke, die aus dem Hieb selbst kommt – kein Wirbel (Schwertwirbel), kein
-// Sprung (Sprungschlag), keine Schwerter vom Himmel (Ulti Klingenhimmel). Zwei blitzschnelle Hiebe über Kreuz: ihre
-// Lichtschnitte bleiben vor dem Krieger in der Luft stehen und verschmelzen zu einem Kreuz, ein Stoß mit der Klinge
-// schleudert es nach vorn. Es fliegt dicht über dem Boden, ritzt zwei Furchen hinein, durchschneidet alle Gegner auf
-// seiner Bahn, stößt sie zurück und zerbirst am Ende in Klingensplitter.
+// Klingenkreuz (15.46–15.49 Krieger, Weg der Klinge, Platz 1; seit dem Aderlass nur noch die Ansicht für Mitspieler mit
+// älterer Version: sie melden 'klingenkreuz' bzw. 'sichelwelle', SKILL_RENAMED führt zum Aderlass, aderlassRemote ruft
+// kreuzRemoteOld). Zwei Hiebe über Kreuz, die Lichtschnitte verschmelzen zu einem Kreuz, ein Stoß schleudert es nach
+// vorn; es fliegt dicht über dem Boden, ritzt zwei Furchen und zerbirst am Ende in Klingensplitter. Nur Bild und Klang –
+// Treffer rechnet der Werfer selbst. Die Körperpose 'kreuz' (3D SKILL_POSE3.kreuz, 2D kreuzAngle2d) bleibt für dieselben
+// Mitspieler; kkKey2 und kkAxis3 nutzt auch aderlass.js.
 //
-// Ablauf (Sekunden ab dem Auslösen; die Figur steht bis sk.lock fest, Körper in SKILL_POSE3.kreuz bzw. kreuzAngle2d):
-//   0–0,09    Ausholen über die rechte Schulter, Licht sammelt sich an der Klinge
-//   0,13      1. Hieb von oben rechts nach unten links: trifft im Kegel vor der Figur (sk.dmg), erster Lichtschnitt
-//   0,26      Ausholen über die linke Schulter (mit zwei Waffen holt die linke Hand aus)
-//   0,30      2. Hieb von oben links nach unten rechts: trifft noch einmal, zweiter Schnitt – das Kreuz flammt auf
-//   0,36–0,42 das Kreuz zieht sich kurz zusammen, die Figur nimmt die Klinge zum Stoß zurück
-//   0,42      Stoß: das Kreuz fliegt los (KK.speed px/s, bis sk.crossLen weit; es fliegt wie der Sprungschlag über
-//             Wasser, Bäume und Felsen, nur Mauern, Häuser, der Kartenrand und das Dorf halten es auf – kkReach)
-//   Flug      jeder Gegner auf der Bahn wird einmal getroffen (sk.crossDmg, Rückstoß in Flugrichtung)
-//   Ende      das Kreuz bricht in seine vier Arme und zerbirst in Klingensplitter, die Furchen verblassen
-// Ränge (zusätzlich zu den allgemeinen Rang-Effekten aus rang-fx.js): Hülle in der Rangfarbe, je Rang 10 % größer;
-// ab Heroisch Nachbilder in der Rangfarbe, ab Legendär lodernde Kanten und mehr Splitter, Vollendet mit Glutspur
-// hinter dem Kreuz und Feuer im Zerbersten. Aura des Schwertes: Schnitte und Kreuz leuchten golden und lodern.
-// Kein Bodenring, keine Runen, keine Sterne. Mitspieler sehen dasselbe (kreuzRemote), Treffer rechnet nur der Werfer.
+// Ablauf (Sekunden ab dem Auslösen):
+//   0,13 / 0,30  zwei Hiebe, je ein Lichtschnitt     0,42  Stoß, das Kreuz fliegt (KK.speed px/s, Weite aus der Meldung)
+//   Ende         das Kreuz bricht in seine vier Arme und zerbirst in Klingensplitter
+// Ränge: Hülle in der Rangfarbe, ab Heroisch Nachbilder, ab Legendär lodernde Kanten, Vollendet Glutspur und Feuer.
 
 const KK = { cut1: 0.13, cut2: 0.3, launch: 0.42, speed: 520, burst: 0.55, fade: 0.9, lift: 0.86, ahead: 26, step: 24 };
 // main: Band, edge: Schein, deep: dunkle Kontur (passt zu den Umrisslinien der Figuren, deckt auch auf Schnee)
@@ -26,7 +16,8 @@ const KK_COL = {
   base: { main: '#a8dcff', edge: '#3a8cff', deep: '#101c48' },
   aura: { main: '#ffe08a', edge: '#ff9a1a', deep: '#3a1404' }
 };
-// zuletzt geschlagener Hieb (1 oder 2): Richtung des kleinen Schnitts am getroffenen Gegner (SKILL_FX.klingenkreuz)
+// Werte des alten Klingenkreuzes (die Daten in klassen.js gibt es nicht mehr)
+const KK_OLD = { id: 'klingenkreuz', radius: 85, angle: 130, dmg: 0.4, crossDmg: 1.6, crossLen: 200, crossWidth: 70, knockback: 100 };
 let kkLastCut = 1;
 
 // --- Ablauf (eigener Spieler und Mitspieler) ----------------------------------------------------------------
@@ -65,7 +56,7 @@ function kreuzFx(owner, sk, o) {
     dy /= dl;
     const x0 = owner.x + dx * KK.ahead;
     const y0 = owner.y + dy * KK.ahead;
-    const len = local ? kkReach(x0, y0, dx, dy, sk.crossLen) : want;
+    const len = want;
     const oy = feetY(owner) - owner.y;
     Object.assign(e, { t0: game.time - e.start, lx: x0, ly: y0 + oy, ldx: dx, ldy: dy, len, x: x0 + dx * len / 2, y: y0 + oy + dy * len / 2 });
     e.dur = e.t0 + len / KK.speed + KK.fade;
@@ -121,37 +112,13 @@ function kkSnd(p, what, x, y) {
   }
 }
 
-// Flugweite: bis zur ersten Mauer, Höhlenwand, zum ersten Haus, zum Kartenrand oder (außerhalb des Duells) zum Dorf
-// (hopBarrier wie der Sprungschlag) – über Wasser, Lava, Bäume und Felsen fliegt das Kreuz hinweg
-function kkReach(x, y, dx, dy, want) {
-  let len = 0;
-  for (let s = 6; s <= want; s += 6) {
-    const nx = x + dx * s;
-    const ny = y + dy * s;
-    if (hopBarrier(nx, ny) || (inVillage(nx, ny) && !duelFighting())) break;
-    len = s;
-  }
-  return len;
-}
-
-// Eigener Spieler: Richtung zum Ziel (sonst Blickrichtung), Flugweite für die Mitspieler
-SKILL_TYPES.kreuz = function (sk, pw) {
-  const p = game.player;
-  const dir = { ...aim(sk.crossLen) };
-  lockPlayer(p, sk.lock);
-  input.walkTo = null;
-  const len = kkReach(p.x + dir.x * KK.ahead, p.y + dir.y * KK.ahead, dir.x, dir.y, sk.crossLen);
-  kreuzFx(p, sk, { local: true, pw, len });
-  return { kl: Math.round(len) };
-};
-
-// Mitspieler (remoteSkillFx): nur Bild und Klang; ältere Mitspieler melden noch die Sichelwelle (wl statt kl)
-function kreuzRemote(rp, sk, d) {
+// Mitspieler mit älterer Version (aderlassRemote): Richtung und Weite aus der Meldung (Sichelwelle: wl statt kl)
+function kreuzRemoteOld(rp, d) {
   const fx = Number.isFinite(d.fx) ? d.fx : 1;
   const fy = Number.isFinite(d.fy) ? d.fy : 0;
   const dl = hyp(fx, fy) || 1;
-  const len = Number.isFinite(d.kl) ? d.kl : Number.isFinite(d.wl) ? d.wl : sk.crossLen;
-  kreuzFx(rp, sk, { local: false, len, dir: { x: fx / dl, y: fy / dl } });
+  const len = Number.isFinite(d.kl) ? d.kl : Number.isFinite(d.wl) ? d.wl : KK_OLD.crossLen;
+  kreuzFx(rp, KK_OLD, { local: false, len, dir: { x: fx / dl, y: fy / dl } });
 }
 
 // --- 3D ------------------------------------------------------------------------------------------------------

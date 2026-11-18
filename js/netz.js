@@ -993,6 +993,8 @@ function netPlayerState() {
     ...(game.allies.length ? { al: game.allies.map((a) => [Math.round(a.x), Math.round(a.y), a.tier, (a.attackAnim > 0 ? 1 : 0) | (a.moving ? 2 : 0) | (a.alpha ? 4 : 0) | (game.time < a.born + a.rise ? 8 : 0) | (a.altAttack ? 16 : 0), a.slot | 0, a.ghost ? a.typeId : 0]) } : {}),
     b: p.buffs.map((b) => [b.id, b.lvl || 1, Math.max(0, Math.round(b.until - game.time))]),
     sw: [p.swingSeq || 0, p.swingKind || 'combo', p.combo || 0, p.swingDur || 0.3], sp: p.spin > 0 ? 1 : 0,
+    // seit dem Aderlass-Update: betäubt von einem anderen Spieler (Sprungschlag) – Mitspieler sehen die Sterne
+    ...(typeof playerStunned === 'function' && playerStunned(p) ? { sn: 1 } : {}),
     // Weg (seit 8.6, beim Magier das Element) und Spielversion (Handel mit Magier-Gegenständen erst ab 8.6)
     pt: p.path | 0, v: GAME_VERSION
   };
@@ -1065,6 +1067,7 @@ function netApplyState(rp, s) {
   rp.dragonColor = DRAGON_COLORS[s.dc] ? s.dc : 'rot';
   rp.footSpeed = s.fs || 0; // Fußtempo für die Dungeon-Verfolgung (seit 8.5, ältere Clients senden es nicht)
   rp.invisible = !!s.iv;
+  rp.stunUntil = s.sn ? game.time + 0.4 : 0;
   rp.equipment = s.eq || {};
   rp.look = s.lk || null;
   // seit 14.65: anstößige Gildennamen gelten als keine Gilde (nicht anzeigen, nicht abgleichen)

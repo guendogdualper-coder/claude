@@ -1995,6 +1995,25 @@ function fx3Status(h) {
   if (p && p.toxin && p.toxin.until > t && !p.dead && v3InView(p.x, p.y, 60)) {
     fx3ToxinHaze(h, p.x, feetY(p), v3HeadHeight(p), Math.max(0.32, (p.r || 11) * U3 * 1.25), 0.7, t);
   }
+  // betäubt von einem anderen Spieler (Sprungschlag im PvP): kreisende Sterne wie bei Monstern, an der eigenen Figur
+  // und an Mitspielern (netPlayerState sn)
+  const stunned = (q) => q && !q.dead && v3InView(q.x, q.y, 60);
+  if (stunned(p) && typeof playerStunned === 'function' && playerStunned(p)) fx3StunStars(h, p, t);
+  for (const rp of net.players.values()) if (rp.stunUntil > t && stunned(rp) && !remoteHidden(rp)) fx3StunStars(h, rp, t);
+}
+function fx3StunStars(h, q, t) {
+  const x = q.x * U3;
+  const z = feetY(q) * U3;
+  const head = v3HeadHeight(q);
+  for (let i = 0; i < 3; i++) {
+    const a = t * 5 + i * 2.094;
+    const o = fx3Take(h, 'spriteStar');
+    fx3Map(o, 'star');
+    o.position.set(x + Math.cos(a) * 0.36, head - 0.06 + Math.sin(a * 2) * 0.04, z + Math.sin(a) * 0.26);
+    o.scale.set(0.22, 0.22, 1);
+    o.material.rotation = a;
+    fx3Color(o, '#ffe27a', 1);
+  }
 }
 
 // Gift aus der Ausrüstung (seit 14.15): ein dezenter grüner Dunst, der langsam am Körper aufsteigt und vergeht –

@@ -6408,7 +6408,8 @@ function poseWeaponGlow(a, color, op) {
 }
 
 const SKILL_POSE3 = {
-  // Klingenkreuz (statt der Sichelwelle): SKILL_POSE3.kreuz in klingenkreuz.js
+  // Aderlass (statt Klingenkreuz und Sichelwelle): SKILL_POSE3.aderlass in aderlass.js; SKILL_POSE3.kreuz (Mitspieler mit
+  // älterer Version) in klingenkreuz.js
 
   // Felsenfaust: Hopser, linke Faust über den Kopf, in den Boden rammen, halten, Aufwärtshaken, lösen
   felsenfaust(B, sw, kind, p, a) {
@@ -7430,7 +7431,7 @@ function syncPlayer3(p, dt) {
     B[BH.armR].rotation.set(-2.7 * k, 0, -0.3 * k);
     B[BH.head].rotation.x += -0.3 * k;
   } else if (sw >= 0 && Object.prototype.hasOwnProperty.call(SKILL_POSE3, p.swingKind)) {
-    // eigene Animationen (seit 8.3): Klingenkreuz, Felsenfaust, Sprungschlag; seit 8.5 Salve, Käfig, Schnitter
+    // eigene Animationen (seit 8.3): Aderlass, Felsenfaust, Sprungschlag; seit 8.5 Salve, Käfig, Schnitter
     SKILL_POSE3[p.swingKind](B, sw, kind, p, a);
   } else if (sw >= 0 && (p.swingKind === 'combo' || p.swingKind === 'cast') && basicKeys3(kind, p)) {
     // Grundangriff (seit 9.3): Schlüsselposen je Waffe und Kombo, ganzer Körper

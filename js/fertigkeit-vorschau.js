@@ -14,7 +14,7 @@
 
 const SKV = { el: null, i: -1, type: null, anchor: null, pinned: false, hideT: 0, timer: 0, html: '', busyUntil: 0, note: '' };
 // Zeilen, die Schaden zeigen (für die Hervorhebung oben)
-const SKV_DMG = new Set(['Schaden', 'Kreuz', 'Biss', 'Hieb', 'Feuerball', 'Faustschlag', 'Feueratem', 'Splitter', 'Bodenstampfer',
+const SKV_DMG = new Set(['Schaden', 'Letzter Hieb', 'Biss', 'Hieb', 'Feuerball', 'Faustschlag', 'Feueratem', 'Splitter', 'Bodenstampfer',
   'Pulse', 'Lanzen', 'Geister', 'Blitze', 'Schrei', 'Tornados', 'Zaps', 'Zum Schluss', 'Zerdrücken', 'Entladung', 'Explosion',
   'Auf dem Weg', 'Nachhall', 'Brand', 'Brand gesamt', 'Blutung', 'Felsen', 'Blitzspur', 'Seelenwelle', 'Zerspringen']);
 

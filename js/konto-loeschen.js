@@ -13,6 +13,7 @@
 //       lager/<uid>       Konto-Lager
 //       post/<uid>        alle Briefe an die Charaktere des Kontos
 //       meldezeit/<uid>   Zeitpunkt der letzten Meldung (Sperre gegen Massenmeldungen)
+//       feedback/<uid>    eigenes Feedback aus dem Spiel (bewerten.js) und feedbackzeit/<uid> (Sperre)
 //       rangliste/<uid>_<platz>  Einträge der Charaktere in der Bestenliste (bestenliste.js)
 //       konten/<uid>      Charakterplätze, Blockierliste
 //  3. Erst wenn das alles geklappt hat: das Konto selbst bei Firebase Auth löschen (accounts:delete).
@@ -147,10 +148,11 @@ async function kontoLoeschen(name, pass, step = () => {}) {
   for (let k = 0; k < KLD_RANK_SLOTS; k++) rl[`rangliste/${uid}_${k}`] = null;
   const rr = await kldDb('PATCH', '', idToken, { body: rl });
   if (!rr.ok && rr.status !== 401 && rr.status !== 403) throw kldError(`Die Einträge in der Bestenliste konnten nicht gelöscht werden (Fehler ${rr.status}).`, 'rangliste');
-  // Pfade ohne Regel (lager/post seit 13.63, meldezeit seit 13.77 – solange die Regeln in der Datenbank fehlen) lehnt der
+  // Pfade ohne Regel (lager/post seit 13.63, meldezeit seit 13.77, feedback/feedbackzeit – solange die Regeln in der Datenbank fehlen) lehnt der
   // Server ab: Dort konnte dann auch nie etwas gespeichert werden. konten/<uid> gibt es immer, dort zählt jeder Fehler.
   for (const [path, what, optional] of [['lager/' + uid, 'Das Konto-Lager konnte', true], ['post/' + uid, 'Die Post konnte', true],
-    ['meldezeit/' + uid, 'Die Meldesperre konnte', true], ['konten/' + uid, 'Die Charakterplätze im Konto konnten']]) {
+    ['meldezeit/' + uid, 'Die Meldesperre konnte', true], ['feedback/' + uid, 'Dein Feedback konnte', true],
+    ['feedbackzeit/' + uid, 'Die Feedbacksperre konnte', true], ['konten/' + uid, 'Die Charakterplätze im Konto konnten']]) {
     const r = await kldDb('DELETE', path, idToken);
     if (!r.ok && !(optional && (r.status === 401 || r.status === 403))) throw kldError(`${what} nicht gelöscht werden (Fehler ${r.status}).`, path);
   }

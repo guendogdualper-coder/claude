@@ -14,8 +14,10 @@
 //     8    Zwillingshüter  Ilmra und Varn zugleich
 //     9    Trugsteine      acht Steine, nur zwei sind echt; ein falscher ruft eine Strafwelle
 //     10   Schlüsseljagd   Glutwichte strömen herein und tragen Schlüssel; alle vier Tore öffnen
-//     11   Der Wächter     Kharzul, Wächter der Verdammten – bei 75 %, 50 % und 25 % „Seelenketten“: unverwundbar,
-//                          Kettensteine in den Toren, 25 s Zeit; geschafft = 6 s benommen, sonst schwerer Schlag
+//     11   Der Wächter     Kharzul, Wächter der Verdammten – seit 15.50 je Schwelle eine eigene Mechanik (kharzul.js):
+//                          75 % Totentanz (kreisende Arme aus Seelenfeuer), 50 % Verwandlung in seine wahre Gestalt
+//                          (schneller, neue Angriffe), 25 % Seelenbann (auseinanderlaufen). Die alten „Seelenketten“
+//                          (unverwundbar, Kettensteine in den Toren) sind aus; ihr Code bleibt für ältere Hosts im Kanal
 // - Mehrspieler wie in der Prüfungsarena: Die Hallen führt, wer die Monster führt (allein man selbst, im Kanal der
 //   Host, auch der Welt-Wächter). Mitspieler fragen per Nachricht (onSocial, k: 'vt…') und bekommen den Zustand der
 //   Halle (vts) und Ereignisse (vte) gemeldet; Belohnungen rechnet jedes Gerät für die eigene Figur.
@@ -44,8 +46,9 @@ const TURM = {
   stoneHp: 0.5, trugHp: 0.3, stoneWaves: [0.75, 0.5, 0.25], echt: 2,
   // Schlüsseljagd: Glutwichte gleichzeitig (allein, je weiterem Spieler), Abstand der Nachrücker, Tötungen je Schlüssel
   imps: 12, impsPer: 0.9, impGap: 0.5, keyFrom: 15, keyTo: 25, keyPer: 0.1,
-  // Wächter: Seelenketten bei diesen Anteilen, Zeit, Benommenheit, Schlag (Anteil am Höchstleben), Heilung
-  ketten: [0.75, 0.5, 0.25], kettenZeit: 25, benommen: 6, schlag: 0.6, heilung: 0.1, kettenHp: 0.9, perKette: 0.45, wichte: 20,
+  // Wächter: Seelenketten bei diesen Anteilen (seit 15.50 keine mehr, vorher 75/50/25 %: kharzul.js), Zeit,
+  // Benommenheit, Schlag (Anteil am Höchstleben), Heilung
+  ketten: [], kettenZeit: 25, benommen: 6, schlag: 0.6, heilung: 0.1, kettenHp: 0.9, perKette: 0.45, wichte: 20,
   // Belohnung je geschaffter Ebene (× Ebene)
   gold: 1200, xp: 20000,
   glut: '#ff6a2a', seele: '#8fe36a', gate: '#ff8a4a',
@@ -329,7 +332,7 @@ const TURM_BOSSE = [
   ['turm_hueter', 'Ossarn, der Kettenhüter', 'Hüter der sechsten Ebene', 'brute', 34, 14, 2.0, '#ff6a2a', ['slam', 'cross', 'charge', 'spikes'], 'lavagolem', 'feuer'],
   ['turm_ilmra', 'Ilmra, Hüterin der Glut', 'Zwillingshüterin – ihr Feuer fällt vom Himmel', 'humanoid', 28, 9, 1.8, '#ffb04a', ['rain', 'fan', 'volley', 'pools'], 'feuerdaemon', 'feuer'],
   ['turm_varn', 'Varn, Hüter der Asche', 'Zwillingshüter – seine Glefe zieht Kreuze', 'humanoid', 30, 11, 1.9, '#c8c0b8', ['charge', 'cross', 'slam', 'line'], 'untoter', 'tod'],
-  ['turm_waechter', 'Kharzul, Wächter der Verdammten', 'Er kettet sich an die vier Tore', 'demon', 46, 30, 2.4, '#8fe36a', ['fan', 'rain', 'pull', 'cross', 'leap', 'spikes', 'chain'], 'feuerdaemon', 'tod']
+  ['turm_waechter', 'Kharzul, Wächter der Verdammten', 'Ab der Hälfte zeigt er seine wahre Gestalt', 'demon', 46, 30, 2.4, '#8fe36a', ['fan', 'rain', 'pull', 'cross', 'leap', 'spikes', 'chain'], 'feuerdaemon', 'tod']
 ];
 for (const [id, name, title, shape, size, hpMul, atkMul, color, moves, mat, fx] of TURM_BOSSE) {
   MONSTER_TYPES[id] = {
@@ -2155,7 +2158,7 @@ function turmWindowOpen(npc) {
   body.innerHTML =
     `<p class="quest-step raid-step">Gruppen-Instanz · ab Stufe ${TURM.level} · allein oder bis ${TURM.maxPlayers} Spieler</p><h3>${TURM.name}</h3>` +
     '<p>Ein schwarzer Turm, in dem die Seelen der Verdammten gefangen sind. Elf Ebenen in einer einzigen Halle: fünf Wellen Verdammter, der Kettenhüter, vier Seelensteine, die Zwillingshüter, acht Trugsteine, die Schlüsseljagd auf die Glutwichte – und zuletzt <b>Kharzul, der Wächter der Verdammten</b>.</p>' +
-    '<p class="hint-text">Ebene 9: Nur zwei der acht Steine sind echt – ein falscher ruft eine Strafwelle. Ebene 10: Glutwichte lassen Schlüssel fallen; wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Der Wächter kettet sich bei 75 %, 50 % und 25 % an die Tore: Zerschlagt die Kettensteine in 25 Sekunden, dann ist er benommen – sonst trifft alle ein schwerer Schlag.</p>' +
+    '<p class="hint-text">Ebene 9: Nur zwei der acht Steine sind echt – ein falscher ruft eine Strafwelle. Ebene 10: Glutwichte lassen Schlüssel fallen; wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Der Wächter tanzt bei 75 % mit kreisendem Seelenfeuer (lauft in den Lücken mit), bei 50 % zeigt er seine wahre Gestalt – größer, viel schneller, mit neuen Angriffen – und ab 25 % brandmarkt er alle: lauft auseinander.</p>' +
     '<p class="hint-text">Wer fällt, steht nach wenigen Sekunden am Eingang der Halle wieder auf. Fallen alle zugleich, beginnt die Ebene von vorn. Leben und Schaden der Gegner wachsen mit der Zahl der Spieler.</p>' +
     '<ul class="raid-roles">' + checks.map((c) => `<li>${c.ok ? '✅' : '❌'} ${c.text}</li>`).join('') + '</ul>' +
     `<p class="inst-lock" data-turmlock>${lock()}</p>` +

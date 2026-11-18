@@ -27,15 +27,17 @@ const CLASSES = {
         description: 'Trifft ganze Gruppen auf einmal und stärkt seinen Angriff mit der Aura des Schwertes. Ideal zum Farmen.',
         skills: [
           {
-            // Klingenkreuz (ersetzt die Sichelwelle; Stufe, Rang, Leistenplatz und Bücher gehen über SKILL_RENAMED mit):
-            // zwei Hiebe über Kreuz (je dmg im Kegel vor der Figur), die Lichtschnitte werden zum Kreuz, ein Stoß schleudert
-            // es crossLen weit nach vorn (crossDmg auf alle in der Bahn, crossWidth breit, Rückstoß). Gesamtschaden wie die
-            // Sichelwelle (vorn 2 × 0,4 + 1,6, weiter weg 1,6), dafür mehr Rückstoß (100 statt 90) und 20 mehr Weite.
-            // Ablauf, 3D, 2D und Mitspieler in klingenkreuz.js
-            id: 'klingenkreuz', name: 'Klingenkreuz', short: 'KK', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
-            type: 'kreuz', radius: 85, angle: 130, dmg: 0.4, hits: 2, crossDmg: 1.6, crossLen: 200, crossWidth: 70, knockback: 100,
-            anim: 'kreuz', animDur: 0.75, lock: 0.48, color: '#e6eeff',
-            text: 'Zwei blitzschnelle Hiebe über Kreuz treffen die Gegner direkt vor dir. Ihre Lichtschnitte verschmelzen zu einem leuchtenden Klingenkreuz, das du mit einem Stoß nach vorn schleuderst: Es fliegt bis zu 200 weit, durchschneidet alle Gegner auf seiner Bahn, stößt sie zurück und zerbirst am Ende in Klingensplitter.'
+            // Aderlass (ersetzt das Klingenkreuz, davor die Sichelwelle; Stufe, Rang, Leistenplatz und Bücher gehen über
+            // SKILL_RENAMED mit): vier schnelle Hiebe im Kegel vor der Figur (hits × dmg, der vierte finDmg), jeder Treffer
+            // legt einen Stapel Blutung (bleed: dps je Stapel und Angriff, bis max Stapel, jeder neue frischt die Dauer auf;
+            // Bosse ja, PvP mit dem Deckel für Schaden über Zeit). Der letzte Hieb stößt zurück (finKnockback, wie vorher das
+            // Kreuz – ohne Rückstoß stand die Gruppe dauernd am Krieger, balance-sim: Überleben −10 bis −30 %). Mana und
+            // Abklingzeit wie bisher.
+            // Ablauf, 3D, 2D, Posen und Mitspieler in aderlass.js
+            id: 'aderlass', name: 'Aderlass', short: 'AL', kind: 'angriff', unlock: 1, mp: 8, cooldown: 3,
+            type: 'flurry', radius: 100, angle: 140, dmg: 0.32, hits: 3, finDmg: 0.56, finKnockback: 80, bleed: { dps: 0.042, duration: 6, max: 6 },
+            anim: 'aderlass', animDur: 0.72, lock: 0.5, color: '#ff8a8a',
+            text: 'Vier blitzschnelle Hiebe hintereinander treffen alle Gegner vor dir, der letzte am härtesten und stößt sie zurück. Jeder Treffer reißt eine Wunde: Die Blutung kostet 6 s lang Leben und stapelt sich bis zu sechsmal, jeder neue Treffer frischt sie auf.'
           },
           {
             // seit 13.69 (Balance, docs/balance-klassen.md): Schaden 1,7 → 1,9, Welle der Sichelwelle 1,4 → 1,6
@@ -55,9 +57,10 @@ const CLASSES = {
             // seit 13.85 mit Zielkreis (aim, aimMax = Sprungweite): Landeplatz frei wählbar wie bei einem Zauber
             // seit 14.2 am Handy ohne Zielkreis (touchDirect): Sprung direkt zum Ziel bzw. nächsten Gegner
             // seit 14.64 weiter und schneller: 190 → 260 weit, Flug 0,32 → 0,28 s, Hocke 0,07 → 0,06 s, Landehocke 0,14 → 0,12 s
-            type: 'leap', aim: true, touchDirect: true, aimMax: 260, distance: 260, radius: 80, dmg: 0.9, stun: 1.6, crater: 50,
+            // pvpStun: betäubt auch Spieler (Duell, Arena, Lichtwacht gegen Schatten) – dort kürzer und mit Schutz danach (PVP_STUN)
+            type: 'leap', aim: true, touchDirect: true, aimMax: 260, distance: 260, radius: 80, dmg: 0.9, stun: 1.6, pvpStun: true, crater: 50,
             crouch: 0.06, air: 0.28, recover: 0.12, anim: 'sprung', animDur: 0.48, color: '#c8a878',
-            text: 'Du springst bis zu 260 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt und leicht verletzt. Am PC wählst du den Landeplatz mit dem Zielkreis, am Handy springst du direkt zum Gegner.'
+            text: 'Du springst bis zu 260 weit nach vorn und schlägst beim Landen in den Boden: Die Erde gibt unter dir nach, alle Gegner im Umkreis werden 1,6 s betäubt (Spieler 1 s) und leicht verletzt. Am PC wählst du den Landeplatz mit dem Zielkreis, am Handy springst du direkt zum Gegner.'
           },
           {
             // seit 13.2 schon ab Stufe 3 (tauscht mit dem Schwertwirbel)

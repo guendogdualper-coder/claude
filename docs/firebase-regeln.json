@@ -84,6 +84,32 @@
         ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 60000)",
         ".validate": "newData.val() === now"
       }
+    },
+    "feedback": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && !newData.exists()",
+        "$id": {
+          ".write": "auth != null && auth.uid === $uid && !data.exists() && newData.exists()",
+          ".validate": "newData.hasChildren(['von', 'art', 'text', 'zeit']) && newData.parent().parent().parent().child('feedbackzeit/' + auth.uid).val() === now",
+          "von": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "figur": { ".validate": "newData.isString() && newData.val().length <= 40" },
+          "klasse": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "stufe": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 80" },
+          "art": { ".validate": "newData.isString() && newData.val().matches(/^(fehler|wunsch|lob)$/)" },
+          "sterne": { ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 5" },
+          "text": { ".validate": "newData.isString() && newData.val().length >= 10 && newData.val().length <= 1000" },
+          "geraet": { ".validate": "newData.isString() && newData.val().length <= 160" },
+          "version": { ".validate": "newData.isString() && newData.val().length <= 20" },
+          "zeit": { ".validate": "newData.val() === now" },
+          "$other": { ".validate": false }
+        }
+      }
+    },
+    "feedbackzeit": {
+      "$uid": {
+        ".write": "auth != null && auth.uid === $uid && (!newData.exists() || !data.exists() || data.val() < now - 600000)",
+        ".validate": "newData.val() === now"
+      }
     }
   }
 }

@@ -14,7 +14,8 @@ TikTok **und** Instagram folgt – dann für alle Charaktere des Kontos.
   };
   ```
   Erlaubt sind ganze Adressen (`https://…`) oder nur der Name (`'@seelenstein.online'` bzw. `'seelenstein.online'`).
-  **Ist einer der beiden Werte leer, ist die Sperre aus** (alle vier Seiten frei, keine Knöpfe – wie vor 14.84).
+  **Ist einer der beiden Werte leer, ist die Sperre aus** (alle vier Seiten frei, keine Knöpfe – wie vor 14.84), damit
+  niemand festsitzt, solange ein Profil fehlt.
 - **Vertrauen statt Prüfung:** Folgen lässt sich nicht prüfen. Zwei Knöpfe „Auf TikTok folgen“ / „Auf Instagram
   folgen“ öffnen das Profil in einem neuen Tab (`window.open`, als installierte Web-App öffnet das den Browser).
   Jeder Knopf wird beim Antippen gemerkt (Zeitpunkt); sind beide angetippt, sind Seite III und IV frei.
@@ -23,7 +24,13 @@ TikTok **und** Instagram folgt – dann für alle Charaktere des Kontos.
   Übernahme in `cloudExchange` über `sozialFromCloud`). Beim Abgleich gilt, was Gerät oder Konto schon kennt
   (Vereinigung je Knopf), also frei auf jedem Gerät und für jeden Charakter des Kontos. Die Firebase-Regeln für
   `konten` haben keine Feldprüfung, es ist keine Regeländerung nötig.
-- **Store-Apps ohne Sperre** (App-Store-Richtlinien), `sozialStoreApp()`:
+- **Store-Apps:** Bis 15.49 waren sie ohne Sperre. Auf Wunsch des Betreibers gilt die Sperre jetzt **auch in den Apps**
+  (Schalter `SOZIAL_AUCH_IN_APPS = true` oben in der Datei; `false` stellt den alten Zustand her). Die Knöpfe öffnen das
+  Profil über `externOeffnen(url)`: iPhone/iPad über das Capacitor-Plugin „Browser“ (In-App-Browser, wie `nativ.js` für
+  Links), Android-App (TWA) und Desktop-App über `window.open` (Custom Tab bzw. Standardbrowser). **Risiko:** Apple (App
+  Review Guideline 3.2.2) und Google erlauben nicht, Funktionen an „Folgen“ o. Ä. zu knüpfen – eine Ablehnung oder Sperre
+  der App ist möglich; das ist dem Betreiber bekannt. Die Erkennung der Store-Apps (`sozialStoreApp()`, unten) bleibt für
+  den Schalter erhalten:
   - iPhone/iPad: `window.Capacitor.isNativePlatform()` (wie `nativ.js`), außerdem Start-URL `?quelle=ios`
   - Android (TWA, Google Play): Start-URL `?quelle=play` (`android/twa-manifest.json`) oder Referrer `android-app://`
   - Windows: Electron im User-Agent (Desktop-App/MSIX, wie `optionen.js` `IS_DESKTOP_APP`), Start-URL `?quelle=desktop`,

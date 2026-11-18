@@ -297,6 +297,24 @@ Was die neuen Regeln sicherstellen:
 - Kontaktadresse: In `js/spielerschutz.js` (`KONTAKT_EMAIL`) und in `datenschutz.html` die Platzhalter durch die echte Adresse ersetzen.
   Dann bietet das Spiel Spielern ohne Konto beim Melden eine E-Mail an.
 
+### Feedback aus dem Spiel (bewerten.js)
+
+Spieler mit Konto können unter Einstellungen → Konto (und über einen seltenen Hinweis im Spiel) **Feedback senden**: Art
+(`fehler`, `wunsch`, `lob`), freiwillig 1–5 Sterne, Text 10–1000 Zeichen. Das Spiel schreibt in **einem** Vorgang nach
+`feedback/<uid>/<id>` und die Serverzeit nach `feedbackzeit/<uid>` (wie beim Melden). Dafür in der Firebase-Konsole →
+**Realtime Database** → **Regeln** den vollständigen Block aus `docs/firebase-regeln.json` einfügen → **Veröffentlichen**.
+Neu sind darin nur `feedback` und `feedbackzeit`:
+
+- `feedback/<uid>/<id>`: nur das eigene Konto, nur **neue** Einträge (kein Ändern), Pflichtfelder `von`, `art`, `text`,
+  `zeit`; erlaubt sind außerdem `figur`, `klasse`, `stufe` (1–80), `sterne` (1–5), `geraet` (≤ 160 Zeichen), `version`;
+  keine weiteren Felder; `zeit` = Serverzeit. Lesen kann niemand außer dir (Konsole/Dienstkonto). Ganz löschen darf nur
+  der Besitzer (`feedback/<uid>`, beim Löschen des Kontos über `konto-loeschen.js`).
+- `feedbackzeit/<uid>`: höchstens ein Feedback je 10 Minuten und Konto (das Spiel prüft das zusätzlich selbst).
+- Lesen: Firebase-Konsole → **Daten** → `feedback` → je Konto die Einträge mit `von` (Kontoname), `figur`, `klasse`,
+  `stufe`, `art`, `sterne`, `text`, `geraet` (App/Browser, 2D/3D, Bildschirm, User-Agent), `version`, `zeit`.
+  Erledigtes bitte löschen; in der Datenschutzerklärung sollte das Feedback erwähnt werden.
+- Ohne die neuen Regeln lehnt der Server jedes Feedback ab (das Spiel zeigt dann „Der Server hat das Feedback abgelehnt“).
+
 ### Grenzen beim Löschen
 
 - Kauft gerade jemand ein Angebot des gelöschten Kontos, rechnet der Käufer es ab; der Erlös-Brief landet dann unter `post/<alte uid>`,

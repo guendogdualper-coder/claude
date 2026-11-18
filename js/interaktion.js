@@ -850,10 +850,10 @@ function remoteSkillFx(rp, d) {
       addEffect({ type: 'ring', x: rp.x, y: feetY(rp), r: 40, dur: 0.4, color: col, width: 6, grow: true });
       for (let k = 1; k <= 5; k++) later(k * 0.04, () => particles(rp.x, feetY(rp), { count: 3, color: ['#a88f62', col], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false }));
       break;
-    // Klingenkreuz, Felsenfaust, Sprungschlag (seit 8.3): nur Optik, Treffer rechnet der Host
-    // (Klingenkreuz statt Sichelwelle: Hiebe, Kreuz und Flug in klingenkreuz.js; ältere Mitspieler melden noch die Sichelwelle)
-    case 'kreuz':
-      if (typeof kreuzRemote === 'function') withRank(rk, () => kreuzRemote(rp, sk, d));
+    // Aderlass, Felsenfaust, Sprungschlag (seit 8.3): nur Optik, Treffer rechnet der Host
+    // (Aderlass in aderlass.js; ältere Mitspieler melden noch Klingenkreuz oder Sichelwelle – deren Ansicht in klingenkreuz.js)
+    case 'flurry':
+      if (typeof aderlassRemote === 'function') withRank(rk, () => aderlassRemote(rp, sk, d));
       break;
     case 'erupt': {
       const from = { x: d.x + d.fx * 22, y: d.y + d.fy * 22 };

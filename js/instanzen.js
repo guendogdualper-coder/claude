@@ -469,6 +469,8 @@ function instBossTick(m, dt) {
     return false;
   }
   if (!m.dash && !m.cast && !instPlayers(m).length) return false;
+  // seit 15.50: eigene Angriffe (bossangriffe.js, z. B. Kharzul im Turm)
+  if (typeof bskHold === 'function' && bskHold(m, dt)) return true;
   if (m.dash) {
     const d = m.dash;
     const k = Math.min(1, (game.time - d.t0) / d.dur);
@@ -511,9 +513,15 @@ function instBossTick(m, dt) {
   }
   R.next -= dt * (1 + R.phase * 0.3);
   if (R.next > 0) return false;
-  R.next = Math.max(2.6, (I.final ? 4.4 : 5) - R.phase * 0.7);
-  const kind = R.forced || I.moves[R.step++ % I.moves.length];
+  // seit 15.50 etwas öfter (vorher 4,4 bzw. 5 s, höchstens alle 2,6 s)
+  R.next = Math.max(2.4, (I.final ? 4.0 : 4.6) - R.phase * 0.7);
+  // seit 15.50 aus einem gemischten Beutel (vorher immer dieselbe Reihenfolge), dazu eigene Angriffe (bossangriffe.js)
+  const kind = R.forced || (typeof bskNextMove === 'function' ? bskNextMove(m, R, I.moves) : I.moves[R.step++ % I.moves.length]);
   R.forced = null;
+  if (typeof bskIsOwn === 'function' && bskIsOwn(m, kind)) {
+    bskStart(m, kind);
+    return true;
+  }
   if (kind === 'volley') {
     instVolley(m);
     return false;

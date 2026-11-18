@@ -83,9 +83,12 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'start', q: 'Was ist die Tagesbelohnung?',
-    a: 'Einmal am Tag holst du dir eine Belohnung ab (Taste {k:daily} oder Knopf „Tagesbelohnung“). Sieben Tage in Folge bilden eine Reihe, jeder Tag gibt etwas Besseres, Tag 7 ist der große Preis mit einem Fertigkeitsbuch. ' +
-      'Wer einen Tag auslässt, beginnt wieder bei Tag 1. Die Mengen wachsen mit deiner Stufe.',
-    k: 'tagesbelohnung daily login belohnung taeglich jeden tag geschenk reihe streak'
+    a: 'Einmal am Tag holst du dir eine Belohnung ab (Taste {k:daily} oder Knopf „Tagesbelohnung“). Sieben Tage in Folge bilden eine Reihe: ' +
+      'Tag 1 Tränke (eine Größe größer), Tag 2 ein <b>Erfahrungsring</b> (+25 % Erfahrung für eine Stunde; auf Stufe 80 ein Ätherkern), Tag 3 Fertigkeitsbücher bzw. ab Stufe 40 Schriftrollen, ' +
+      'Tag 4 Verstärkungen und Switcher, Tag 5 Segensschriftrollen, Tag 6 seltene Schmiede-Teile (Seltene Verstärkung, Sternenstein, Ätherkern) und Tag 7 die <b>Heldentruhe</b> mit einem epischen Teil für deine Klasse. ' +
+      'Was genau drin ist, richtet sich nach deiner Stufe (1–19, 20–39, 40–59, 60–79, 80). Bogen-Ninjas bekommen zusätzlich Pfeile. Wer einen Tag auslässt, beginnt wieder bei Tag 1. ' +
+      'Für Bücher und das Teil brauchst du freie Plätze in der Tasche – sonst wartet die Belohnung, bis du Platz gemacht hast.',
+    k: 'tagesbelohnung daily login belohnung taeglich jeden tag geschenk reihe streak erfahrungsring heldentruhe truhe episch'
   },
   {
     c: 'start', p: 1, q: 'Gibt es ein Wiki zum Nachschlagen?',
@@ -421,12 +424,12 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'ausruestung', q: 'Wo bekomme ich Segensschriftrollen?',
-    a: () => `Nur selten aus Seelensteinen ab Stufe ${(typeof BLESSING !== 'undefined') ? BLESSING.stone : 35}. Händler verkaufen sie nicht.`,
+    a: () => `Selten aus Seelensteinen ab Stufe ${(typeof BLESSING !== 'undefined') ? BLESSING.stone : 35}, an Tag 5 der Tagesbelohnung und einmal je Charakter als Dank für dein Feedback. Händler verkaufen sie nicht.`,
     k: 'segensschriftrolle segen schriftrolle schutz bruch woher'
   },
   {
     c: 'ausruestung', q: 'Was sind Seelensplitter?',
-    a: 'Das Material, das der Schmied für jedes Plus braucht. Seelensteine geben viele (der Stein der Glut doppelt so viele), Monster nur ab und zu einen, die Tagesbelohnung an Tag 2.',
+    a: 'Das Material, das der Schmied für jedes Plus braucht. Seelensteine geben viele (der Stein der Glut doppelt so viele), Monster nur ab und zu einen, die Tagesbelohnung ein paar an Tag 5.',
     k: 'seelensplitter splitter schmied material woher'
   },
   {
@@ -645,9 +648,11 @@ const RATGEBER_WISSEN = [
   },
   {
     c: 'dungeons', q: 'Was sind Endbosse?',
-    a: 'Jede Map hat einen Endboss in einer großen Halle – gebaut für 5 Spieler: einer hält ihn (Tank), einer heilt, die anderen machen Schaden. Raus aus roten Kreisen, Kristalle zerstören, bei der Vernichtung in die grünen Lichtkreise. ' +
+    a: 'Jede Map hat einen Endboss in einer großen Halle – gebaut für 5 Spieler: einer hält ihn (Tank), einer heilt, die anderen machen Schaden. Raus aus roten Flächen, bevor sie sich gefüllt haben. ' +
+      'Jeder Endboss hat neben Stampfer, Meteoren, Sprung und Tankschlag eigene Angriffe aus seinem Thema – Fenris hetzt euch in Sprüngen, Ymir friert den Boden ein und tritt Lawinen los, Vritra spuckt Gift und umschlingt, Morrak ruft die Toten und fesselt eure Seelen (zu ihm laufen!), Tarkon ruft Gewitter im Schachbrett. ' +
+      'Bei Wellen tritt man in das Band, das schon aufgebrochen ist; bei Bahnen wechselt man nach der ersten Welle die Bahn. Kristalle schützen nur noch Lichkönig Morrak und Aelvyr, die Vernichtung (grüne Lichtkreise) kommt nur bei einigen Endbossen. ' +
       'Jeder in der Gruppe bekommt besondere Endboss-Ausrüstung, Seelensplitter, Aufwertungsteile und viel Gold.',
-    k: 'endboss raid boss halle gruppe 5 spieler tank heiler'
+    k: 'endboss raid boss halle gruppe 5 spieler tank heiler angriffe wellen bahnen lawine eisfeld gift fessel hetzjagd gewitter'
   },
   {
     c: 'dungeons', q: 'Was sind Instanzen?',
@@ -703,17 +708,18 @@ const RATGEBER_WISSEN = [
     k: 'turm der verdammten turm verdammte daemonenturm instanz gruppe stufe 80 seelenhain seelenwacht ebenen kharzul waechter zehn spieler'
   },
   {
-    c: 'dungeons', q: 'Wie funktionieren Trugsteine, Schlüsseljagd und Seelenketten im Turm?',
+    c: 'dungeons', q: 'Wie funktionieren Trugsteine, Schlüsseljagd und Kharzul im Turm?',
     a: () => {
       const T = (typeof TURM !== 'undefined') ? TURM : { keyFrom: 15, keyTo: 25, kettenZeit: 25, benommen: 6, schlag: 0.6, heilung: 0.1 };
       return '<ul><li><b>Trugsteine (Ebene 9):</b> Acht Steine stehen in der Halle, nur zwei sind echt – von außen sieht man es nicht. Ein falscher Stein zerplatzt und ruft eine Strafwelle; ' +
         'sind beide echten zerstört, ist die Ebene sofort geschafft.</li>' +
         `<li><b>Schlüsseljagd (Ebene 10):</b> Schwärme kleiner Glutwichte strömen herein. Etwa alle ${T.keyFrom}–${T.keyTo} besiegten Wichte fällt ein Schlüssel (er gehört der ganzen Gruppe). ` +
         'Wer mit einem Schlüssel an ein verschlossenes Tor tritt, öffnet es. Sind alle vier Tore offen, verschwinden die Wichte.</li>' +
-        `<li><b>Seelenketten (Wächter):</b> Bei 75 %, 50 % und 25 % wird Kharzul unverwundbar und kettet sich an die Tore. Zerschlagt die Kettensteine vor den Toren in ${T.kettenZeit} Sekunden: ` +
-        `Dann ist er ${T.benommen} Sekunden benommen und nimmt mehr Schaden. Schafft ihr es nicht, trifft alle ein Schlag in Höhe von ${Math.round(T.schlag * 100)} % ihres Höchstlebens und er heilt ${Math.round(T.heilung * 100)} %.</li></ul>`;
+        '<li><b>Kharzul (Ebene 11):</b> Bei 75 % beginnt der <b>Totentanz</b>: Er rammt die Hellebarde in die Mitte, vier Arme aus Seelenfeuer kreisen durch die Halle – lauft in den Lücken mit, er bleibt angreifbar. ' +
+        'Bei 50 % zeigt er seine <b>wahre Gestalt</b>: größer, schwarz-rot in Höllenfeuer, er läuft und schlägt viel schneller und hat vier neue Angriffe (Seelenschnitt vorn und hinten, Höllensprung, Kettensturm, Höllenfeuerwelle). ' +
+        'Ab 25 % kommt der <b>Seelenbann</b>: Jeder bekommt ein Brandmal, das nach 5 Sekunden alle anderen im Umkreis trifft – lauft auseinander.</li></ul>';
     },
-    k: 'turm trugsteine trugstein echt falsch strafwelle schluessel schluesseljagd glutwicht glutwichte tore tor oeffnen seelenketten kettenstein kettensteine kharzul waechter mechanik'
+    k: 'turm trugsteine trugstein echt falsch strafwelle schluessel schluesseljagd glutwicht glutwichte tore tor oeffnen kharzul waechter mechanik totentanz verwandlung wahre gestalt seelenbann brandmal'
   },
   {
     c: 'dungeons', q: 'Was gibt es im Turm der Verdammten zu holen?',
@@ -968,6 +974,20 @@ const RATGEBER_WISSEN = [
     c: 'konto', q: 'Wird mein Spielstand gespeichert?',
     a: 'Ja, automatisch – zwischendurch, beim Aufstieg und beim Schließen. Mit Konto zusätzlich in der Cloud: Auf dem Startbildschirm steht dann „☁ im Konto gespeichert“.',
     k: 'speichern spielstand gespeichert verloren cloud sicherung'
+  },
+  {
+    c: 'konto', p: 2, q: 'Wie kann ich euch Feedback geben oder einen Fehler melden?',
+    a: () => 'Einstellungen → Konto → „Feedback senden“: Wähle Fehler, Wunsch oder Lob, gib auf Wunsch 1–5 Sterne und schreib uns ein paar Sätze. Das geht mit Konto; lesen kann es nur der Betreiber. ' +
+      `Als Dankeschön gibt es einmal je Charakter ${(typeof feedbackDankText === 'function' && typeof game !== 'undefined' && game.player) ? feedbackDankText(game.player) : 'ein paar Tränke und eine Segensschriftrolle'}. ` +
+      'Spieler, die sich danebenbenehmen, meldest du dagegen über ihren Namen im Chat oder ihre Spielerkarte.',
+    k: 'feedback rueckmeldung fehler bug melden wunsch idee vorschlag lob kontakt schreiben entwickler support'
+  },
+  {
+    c: 'konto', q: 'Wo kann ich Seelenstein bewerten?',
+    a: () => ((typeof bewertenLink === 'function' && bewertenLink())
+      ? `In der App: Einstellungen → Konto → „Bewerten“ öffnet Seelenstein ${bewertenStoreOrt()}. Danke, das hilft uns sehr!`
+      : 'Bewerten geht in den Apps (App Store, Google Play, Microsoft Store): Einstellungen → Konto → „Bewerten“. Im Browser kannst du uns stattdessen Feedback schicken (Einstellungen → Konto → „Feedback senden“).'),
+    k: 'bewerten bewertung sterne rezension review app store google play microsoft store'
   },
   {
     c: 'konto', q: 'Wie lösche ich mein Konto?',

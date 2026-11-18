@@ -432,3 +432,12 @@ Deine Fertigkeit steht schon auf {0} – Bücher gelten nur für E{1}–E{2} (we
 in der Instanz Testa
 im Dungeon Testa
 Weiter mit Testa
+Google Play
+Microsoft Store
+Dein Feedback konnte
+Die Feedbacksperre konnte
+Bitte warte noch {0} {1} bis zum nächsten Feedback
+Als Dankeschön: {0} × Drachenblut, {1} × Mondtau (L) und {2} × Segensschriftrolle – einmal je Charakter
+{0} × Drachenblut, {1} × Mondtau (L) und {2} × Segensschriftrolle
+Als Dankeschön hast du bekommen: {0} × Drachenblut, {1} × Mondtau (L) und {2} × Segensschriftrolle
+Danke für dein Feedback! Dafür bekommst du {0} × Drachenblut, {1} × Mondtau (L) und {2} × Segensschriftrolle

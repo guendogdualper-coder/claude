@@ -3,9 +3,13 @@
 // auf diesem Gerät). Ob man wirklich folgt, lässt sich nicht prüfen; es geht auf Vertrauen: Beide Knöpfe öffnen das
 // Profil, wurden beide einmal angetippt, sind die Seiten frei.
 //
-// - Sind die beiden Profile unten leer, gibt es keine Sperre (alle vier Seiten frei, keine Knöpfe).
-// - In den Store-Apps (iPhone/iPad über Capacitor, Android-App über Google Play, Windows-App aus dem Microsoft Store
-//   bzw. die Desktop-App) gibt es keine Sperre (Richtlinien der App-Stores).
+// - Sind die beiden Profile unten leer (oder auch nur eines), gibt es keine Sperre (alle vier Seiten frei, keine Knöpfe).
+// - Store-Apps (iPhone/iPad über Capacitor, Android-App über Google Play, Windows-App aus dem Microsoft Store bzw. die
+//   Desktop-App): bis 15.49 ohne Sperre. Auf Wunsch des Betreibers gilt die Sperre jetzt auch dort (SOZIAL_AUCH_IN_APPS);
+//   die Knöpfe öffnen das Profil dann über den Weg der App für fremde Seiten (externOeffnen). Achtung: Apple
+//   (App Review Guideline 3.2.2) und Google untersagen, Funktionen an Aktionen wie „Folgen“ zu knüpfen – das Risiko
+//   einer Ablehnung oder Sperre der App ist dem Betreiber bekannt. SOZIAL_AUCH_IN_APPS = false stellt den alten
+//   Zustand wieder her (Store-Apps immer frei).
 // - Was schon auf Seite III/IV liegt (alte Spielstände), bleibt dort: ansehen und herausnehmen geht (anlegen,
 //   verkaufen, auf Seite I/II ziehen, ins Lager legen), Neues ablegen nicht. Neue Sachen (Beute, Kauf, Post, Handel,
 //   Lager, Belohnungen) passen nur auf freie Plätze von Seite I und II (bagFree in ausruestung.js).
@@ -18,6 +22,8 @@ const SOZIAL_PROFILE = {
   tiktok: 'https://www.tiktok.com/@seelenstein.online',
   instagram: 'https://www.instagram.com/seelenstein.online/'
 };
+// ► Sperre auch in den Store-Apps (true) oder dort alle Seiten frei (false, wie bis 15.49)
+const SOZIAL_AUCH_IN_APPS = true;
 const SOZIAL_SEITEN_FREI = 2; // so viele Seiten hat jeder Charakter immer
 const SOZIAL_KEY = 'seelenstein.sozial';
 const SOZIAL_NAMEN = { tiktok: 'TikTok', instagram: 'Instagram' };
@@ -53,8 +59,26 @@ function sozialStoreApp() {
   return ja;
 }
 
-// Gibt es die Sperre überhaupt? (beide Profile eingetragen, keine Store-App)
-const sozialSperreAn = () => !!(sozialUrl('tiktok') && sozialUrl('instagram')) && !sozialStoreApp();
+// Gibt es die Sperre überhaupt? (beide Profile eingetragen; in Store-Apps nur mit SOZIAL_AUCH_IN_APPS)
+const sozialSperreAn = () => !!(sozialUrl('tiktok') && sozialUrl('instagram')) && (SOZIAL_AUCH_IN_APPS || !sozialStoreApp());
+
+// Fremde Seite öffnen – im Browser ein neuer Tab, in der iPhone/iPad-App der In-App-Browser (Capacitor-Plugin
+// „Browser“, derselbe Weg wie nativ.js für Links), in der Android-App (TWA) ein Custom Tab bzw. die passende App, in
+// der Desktop-App der Standardbrowser (desktop/main.js setWindowOpenHandler). Auch bewerten.js nutzt das.
+function externOeffnen(url) {
+  if (!url) return false;
+  try {
+    const cap = window.Capacitor;
+    const B = cap && cap.Plugins && cap.Plugins.Browser;
+    if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform() && B && typeof B.open === 'function') {
+      const pr = B.open({ url, toolbarColor: '#12100C', presentationStyle: 'fullscreen' });
+      if (pr && typeof pr.catch === 'function') pr.catch(() => { try { window.open(url, '_blank', 'noopener'); } catch (e) { /* egal */ } });
+      return true;
+    }
+  } catch (e) { /* weiter mit window.open */ }
+  try { window.open(url, '_blank', 'noopener'); } catch (e) { /* Popup blockiert */ }
+  return true;
+}
 
 function sozialStand() {
   try {
@@ -95,11 +119,11 @@ function sozialFromCloud(raw) {
   if (!vorher && sozialFrei()) sozialNeuZeichnen();
 }
 
-// Knopf angetippt: Profil öffnen (neuer Tab; als installierte Web-App öffnet das den Browser) und merken
+// Knopf angetippt: Profil öffnen (neuer Tab bzw. Weg der App, externOeffnen) und merken
 function sozialFolgen(k) {
   const url = sozialUrl(k);
   if (!url) return;
-  try { window.open(url, '_blank', 'noopener'); } catch (e) { /* Popup blockiert: zählt trotzdem */ }
+  externOeffnen(url); // Popup blockiert: zählt trotzdem
   const s = sozialStand();
   const vorher = !!(s.tiktok && s.instagram);
   if (!s[k]) s[k] = Date.now();

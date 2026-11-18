@@ -1037,6 +1037,11 @@ const ui = {
       box.style.top = (r.top - bh - 6 > 4 ? r.top - bh - 6 : r.bottom + 6) + 'px';
     };
     const hide = () => { cur = null; box.hidden = true; };
+    // seit dem Aderlass-Update: Zustände am Ziel und am Boss werden jede Sekunde neu gezeichnet – der offene Hinweis
+    // zieht dann auf das neue Feld um (renderFx)
+    this.tipShow = show;
+    this.tipHide = hide;
+    this.tipCur = () => cur;
     document.addEventListener('pointerover', (e) => {
       if (e.pointerType !== 'mouse') return;
       const el = e.target.closest && e.target.closest('[data-tip]');
@@ -1211,6 +1216,23 @@ const ui = {
       $('bossFill').style.transform = `scaleX(${Math.max(0, boss.hp / boss.maxHp)})`;
       $('bossHp').textContent = `${Math.ceil(boss.hp).toLocaleString('de-DE')} / ${boss.maxHp.toLocaleString('de-DE')}`;
     });
+    // seit dem Aderlass-Update: Zustände am Boss (Blutung, Brand, Gift …) unter dem Balken – das Zielfenster ist bei
+    // einem Boss in der Nähe ausgeblendet, vorher sah man sie dort gar nicht
+    const bfx = boss && $('bossFx') ? targetEffects(boss) : [];
+    this.set('bossFx', bfx.map((e) => e.key).join('|'), () => { if ($('bossFx')) this.renderFx($('bossFx'), bfx); });
+  },
+
+  // Zustände als kleine Felder: Zeichen und Restzeit; Name, Stapel und Schaden im Hinweis (data-tip, initTips). Ist der
+  // Hinweis eines Feldes gerade offen, zieht er auf das neu gezeichnete Feld derselben Art um (sonst verschwände er
+  // jede Sekunde bzw. zeigte alte Zahlen)
+  renderFx(el, fx) {
+    const cur = this.tipCur ? this.tipCur() : null;
+    const kind = cur && el.contains(cur) ? cur.dataset.tfx : null;
+    el.innerHTML = fx.map((e) => `<span class="tfx tfx-${e.kind}" data-tfx="${e.kind}" data-tip="${escapeHtml(e.tip)}" aria-label="${escapeHtml(e.tip)}"><b>${e.icon}</b><em>${e.time}</em></span>`).join('');
+    if (!kind) return;
+    const n = el.querySelector(`[data-tfx="${kind}"]`);
+    if (n && this.tipShow) this.tipShow(n);
+    else if (this.tipHide) this.tipHide();
   },
 
   update() {
@@ -1273,23 +1295,27 @@ const ui = {
     const evDays = eventXpActive() ? Math.ceil((EVENT_XP.until - Date.now()) / 86400000) : 0;
     // Gift eines anderen Spielers (seit 14.15) als Debuff in der Leiste: „Vergiftet · 4 s · 312/s“
     const tox = p.toxin && p.toxin.until > game.time ? { left: Math.max(1, Math.ceil(p.toxin.until - game.time - 0.01)), dps: Math.round(p.toxin.dps) } : null;
+    // Blutung eines anderen Spielers (Aderlass im PvP, seit dem Aderlass-Update): „Blutung ×3 · 4 s · 210/s“
+    const bld = p.pvpBleed && p.pvpBleed.until > game.time ? { left: Math.max(1, Math.ceil(p.pvpBleed.until - game.time - 0.01)), dps: Math.round(p.pvpBleed.dps), stk: p.pvpBleed.stk || 1 } : null;
     // Erfahrungsring (seit 14.99): Restzeit in Minuten
     const ringMin = typeof epRingLeft === 'function' ? Math.ceil(epRingLeft(p) / 60) : 0;
-    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays + '|' + (tox ? tox.left + ':' + tox.dps : '') + '|' + ringMin, () => {
+    this.set('buffs', buffs.map(({ b, left }) => b.id + left).join('|') + '|' + shield + '|' + evDays + '|' + (tox ? tox.left + ':' + tox.dps : '') + '|' + (bld ? bld.left + ':' + bld.dps + ':' + bld.stk : '') + '|' + ringMin, () => {
       const ring = ringMin ? `<div class="buff-ico buff-ring${ringMin <= 5 ? ' ending' : ''}" style="--p:${Math.min(1, ringMin / EP_RING.minutes).toFixed(3)}" data-tip="${escapeHtml(`Erfahrungsring\n+${Math.round(EP_RING.mul * 100)} % Erfahrung\nnoch ${epRingTime(epRingLeft(p))} Spielzeit`)}">` +
         `<img src="${materialIconUrl('epring')}" alt="Erfahrungsring"><span>${ringMin >= 60 ? Math.floor(ringMin / 60) + ' h' : ringMin + ' m'}</span></div>` : '';
       const ev = evDays ? `<div class="buff-ico buff-event" style="--p:${(evDays / 22).toFixed(3)}" data-tip="${escapeHtml(`${EVENT_XP.name}\n+${Math.round(EVENT_XP.mul * 100)} % Erfahrung für alle Charaktere\nnoch ${evDays} ${evDays === 1 ? 'Tag' : 'Tage'} (bis 22.11.), bleibt auch beim Tod`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.6 6.2 6.7.6-5.1 4.4 1.6 6.6L12 16.8l-5.8 3.5 1.6-6.6-5.1-4.4 6.7-.6z"/></svg><span>${evDays} T</span></div>` : '';
       const debuff = tox ? `<div class="buff-ico buff-debuff" style="--p:${(tox.left / TOXIN.dur).toFixed(3)}" data-tip="${escapeHtml(`Vergiftet · ${tox.left} s · ${tox.dps}/s\nGift eines anderen Spielers`)}">` +
         `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.6 4.6 6.2 8.3 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.8 8.4 7.1 12 2.5z"/><circle cx="9.6" cy="14.2" r="1.3"/><circle cx="13.8" cy="16.6" r="1"/></svg><span>${tox.left} s</span></div>` : '';
-      $('buffList').innerHTML = ev + ring + debuff + buffs.map(({ b, left }) => {
+      const bleedIco = bld ? `<div class="buff-ico buff-debuff buff-bleed" style="--p:${Math.min(1, bld.left / 6).toFixed(3)}" data-tip="${escapeHtml(`Blutung${bld.stk > 1 ? ' ×' + bld.stk : ''} · ${bld.left} s · ${bld.dps}/s\nAderlass eines anderen Spielers`)}">` +
+        `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5c3.6 4.6 6.2 8.3 6.2 11.4a6.2 6.2 0 0 1-12.4 0C5.8 10.8 8.4 7.1 12 2.5z"/></svg><span>${bld.left} s</span></div>` : '';
+      $('buffList').innerHTML = ev + ring + debuff + bleedIco + buffs.map(({ b, left }) => {
         const sk = skillById(b.id);
         const icon = sk ? skillIconUrl(sk) : typeof segenIconUrl === 'function' ? segenIconUrl(b.id) : '';
         const extra = b.id === 'knochenpanzer' && shield ? `<em>${shield}</em>` : '';
         return `<div class="buff-ico${left <= 10 ? ' ending' : ''}" style="--p:${(left / b.duration).toFixed(3)}" data-tip="${escapeHtml(buffTip(b))}">` +
           `<img src="${icon}" alt="${b.name}">${extra}<span>${formatBuffTime(left)}</span></div>`;
       }).join('');
-      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0 || !!tox || ringMin > 0);
+      $('hud').classList.toggle('has-buffs', buffs.length > 0 || evDays > 0 || !!tox || !!bld || ringMin > 0);
     });
 
     if (typeof segenTick === 'function') segenTick();
@@ -1382,12 +1408,11 @@ const ui = {
       }
     }
 
-    // Zustände des Ziels (seit 13.41): Brand, Gift, Blutung, Verlangsamung, Betäubung, Eis und Flüche mit Restzeit
-    // und Schaden je Sekunde – wie die eigenen Buffs, nur am Ziel
+    // Zustände des Ziels (seit 13.41): Brand, Gift, Blutung, Verlangsamung, Betäubung, Eis und Flüche. Seit dem
+    // Aderlass-Update steht am Feld nur noch die Restzeit; Name, Stapel und Schaden zeigt der Hinweis beim Darüberfahren
+    // (PC) bzw. Antippen (Handy) – wie bei den eigenen Buffs
     const fx = t ? targetEffects(t) : [];
-    this.set('targetFx', fx.map((e) => e.key).join('|'), () => {
-      $('targetFx').innerHTML = fx.map((e) => `<span class="tfx tfx-${e.kind}" title="${e.tip}"><b>${e.icon}</b>${e.label}<em>${e.time}</em></span>`).join('');
-    });
+    this.set('targetFx', fx.map((e) => e.key).join('|'), () => this.renderFx($('targetFx'), fx));
 
     this.set('talk', game.nearNpc ? game.nearNpc.id : '', (v) => {
       $('btnTalk').hidden = !v || !input.touchUi;
@@ -2101,8 +2126,8 @@ function skillStats(sk, lvl) {
   // seit 13.87: Treffer je Wirken auch beim Blizzard des Schamanen (sk.ticks, blizzardFx)
   const hits = sk.hits > 1 ? sk.hits : sk.type === 'blizzard' ? sk.ticks || 8 : 0;
   if (sk.dmg && sk.type !== 'skulls' && sk.type !== 'cage' && sk.type !== 'sigil' && sk.type !== 'msnow' && sk.type !== 'bregen') out.push(['Schaden', hit(sk.dmg) + (hits > 1 ? ' ×' + hits : '')]);
-  // Klingenkreuz (statt der Sichelwelle): zwei Hiebe (Schaden ×2, oben) und das geschleuderte Kreuz (crossDmg, kreuzFx)
-  if (sk.crossDmg) out.push(['Kreuz', hit(sk.crossDmg)], ['Reichweite', String(sk.crossLen)]);
+  // Aderlass (statt des Klingenkreuzes): drei Hiebe (Schaden ×3, oben), der letzte Hieb und die Blutung je Stapel
+  if (typeof flurrySkillStats === 'function') flurrySkillStats(sk, lvl, out);
   // seit 13.87: Tarnung und Hinterhalt mit ihren Faktoren (nextHitMul, ambushMul in kampf.js)
   if (sk.nextHitMul) out.push(['Nächster Angriff', '×' + numDe(sk.nextHitMul) + ', sicher kritisch']);
   if (sk.ambushMul) {
@@ -2544,7 +2569,9 @@ function targetEffects(m) {
   const dot = (o, kind, icon, label) => {
     if (!o || o.until <= now) return;
     const d = Math.round(o.dps || 0);
-    out.push({ kind, icon, label: `${label} ${d}/s`, time: `${sec(o.until)} s`, tip: `${label}: ${d} Schaden je Sekunde, noch ${sec(o.until)} s`, key: kind + d + ':' + sec(o.until) });
+    // stapelnde Blutung (Aderlass): „Blutung ×4“
+    const stk = o.stk > 1 ? ` ×${o.stk}` : '';
+    out.push({ kind, icon, label: `${label}${stk} ${d}/s`, time: `${sec(o.until)} s`, tip: `${label}${stk}: ${d} Schaden je Sekunde, noch ${sec(o.until)} s`, key: kind + d + ':' + (o.stk || 0) + ':' + sec(o.until) });
   };
   dot(m.burn, 'burn', '🔥', 'Brand');
   dot(m.poison, 'poison', '☠', 'Gift');
@@ -2552,10 +2579,10 @@ function targetEffects(m) {
   // Gift aus der Ausrüstung (seit 14.15): „Vergiftet · 4 s · 312/s“
   if (m.toxin && m.toxin.until > now) {
     const d = Math.round(m.toxin.dps || 0);
-    out.push({ kind: 'toxin', icon: '☣', label: 'Vergiftet', time: `${sec(m.toxin.until)} s · ${d}/s`, tip: `Vergiftet: ${d} Schaden je Sekunde, noch ${sec(m.toxin.until)} s`, key: 'tox' + d + ':' + sec(m.toxin.until) });
+    out.push({ kind: 'toxin', icon: '☣', label: 'Vergiftet', time: `${sec(m.toxin.until)} s`, tip: `Vergiftet: ${d} Schaden je Sekunde, noch ${sec(m.toxin.until)} s`, key: 'tox' + d + ':' + sec(m.toxin.until) });
   }
   if (m.stun > 0) out.push({ kind: 'stun', icon: '💫', label: 'Betäubt', time: `${Math.max(0.1, m.stun).toFixed(1).replace('.', ',')} s`, tip: 'Betäubt: kann sich nicht bewegen und nicht angreifen', key: 'stun' + Math.ceil(m.stun * 10) });
-  if (m.frozen > now) out.push({ kind: 'frozen', icon: '❄', label: 'Eingefroren', time: `${sec(m.frozen)} s`, tip: 'Eingefroren', key: 'frz' + sec(m.frozen) });
+  if (m.frozen > now) out.push({ kind: 'frozen', icon: '❄', label: 'Eingefroren', time: `${sec(m.frozen)} s`, tip: 'Eingefroren: kann sich nicht bewegen und nicht angreifen', key: 'frz' + sec(m.frozen) });
   if (m.slow && m.slow.until > now && m.slow.mul < 1) {
     const pc = Math.round((1 - m.slow.mul) * 100);
     out.push({ kind: 'slow', icon: '🐌', label: `Langsam −${pc} %`, time: `${sec(m.slow.until)} s`, tip: `Verlangsamt um ${pc} %`, key: 'slow' + pc + ':' + sec(m.slow.until) });

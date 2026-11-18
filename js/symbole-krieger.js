@@ -169,7 +169,7 @@ function ikKriegerRiss(ctx, IK, pts, col, w = 1.2) {
 
 // Hintergrundthemen (Ultimates haben kein Element, einige Fertigkeiten brauchen eigene Farbe)
 Object.assign(SKILL_ART_THEME, {
-  klingenkreuz: 'eis',
+  aderlass: 'blut',
   kampfrausch: 'blut',
   sprungschlag: 'erde',
   schwertaura: 'licht',
@@ -183,51 +183,15 @@ Object.assign(SKILL_ART_THEME, {
 });
 
 Object.assign(SKILL_ART, {
-  // Klingenkreuz: zwei blau-weiße Lichtschnitte über Kreuz fliegen nach rechts, dahinter ein blasses Nachbild,
-  // Lichtschleppe und zwei Furchen im Boden, vorn springen Klingensplitter ab (keine Sterne)
-  klingenkreuz(ctx, IK) {
-    // zwei geritzte Furchen
-    for (const [y, a] of [[12.5, 0.85], [16, 0.7]]) {
-      ctx.save();
-      ctx.strokeStyle = IK.lin(ctx, -20, y, 6, y, [[0, 'rgba(10,20,40,0)'], [0.7, `rgba(10,18,36,${a})`], [1, 'rgba(10,18,36,0.2)']]);
-      ctx.lineWidth = 1.6;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-20, y);
-      ctx.lineTo(6, y - 0.6);
-      ctx.stroke();
-      ctx.restore();
-    }
-    // Lichtschleppe
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    for (const [y, len, w, a] of [[-9, 13, 1.4, 0.45], [-2, 18, 2.2, 0.65], [5, 16, 1.8, 0.55], [11, 12, 1.3, 0.4]]) {
-      ctx.strokeStyle = IK.lin(ctx, -4 - len, y, -4, y, [[0, 'rgba(160,220,255,0)'], [1, `rgba(200,236,255,${a})`]]);
-      ctx.lineWidth = w;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(-6 - len, y);
-      ctx.lineTo(-4, y);
-      ctx.stroke();
-    }
-    ctx.restore();
-    const pal = ['#ffffff', '#9fdcff', '#2a6ad8'];
-    // blasses Nachbild
-    ikKriegerSchnitt(ctx, IK, 4, -13, -14, 11, 5, pal, 0.28);
-    ikKriegerSchnitt(ctx, IK, -14, -13, 4, 11, -5, pal, 0.28);
-    // das Kreuz
-    ikKriegerSchnitt(ctx, IK, 16, -16, -7, 14, 6.5, pal);
-    ikKriegerSchnitt(ctx, IK, -7, -16, 16, 14, -6.5, pal);
-    IK.light(ctx, 4.5, -1, 8, '#9fdcff', 0.55);
-    IK.light(ctx, 4.5, -1, 3.5, '#ffffff', 0.75);
-    // Klingensplitter (schmale Keile) springen nach vorn ab
-    for (const [x, y, ang, l] of [[17.5, -6, -0.5, 4.2], [19, 2, 0.15, 3.6], [16.5, 8.5, 0.7, 3.4], [13.5, -11.5, -0.95, 3]]) {
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(ang);
-      IK.glow(ctx, '#9fdcff', 4, () => IK.fill(ctx, (c) => { c.moveTo(-l, 0); c.lineTo(0, -0.9); c.lineTo(l, 0); c.lineTo(0, 0.9); c.closePath(); }, '#eef8ff', 0.5, 'rgba(14,30,70,0.8)'));
-      ctx.restore();
-    }
+  // Aderlass: ein Schwert schräg, davor drei schnelle Schnitte hintereinander, darunter fallen Bluttropfen (keine Sterne)
+  aderlass(ctx, IK) {
+    IK.light(ctx, 2, 0, 19, '#ff3a4a', 0.32);
+    IK.glow(ctx, '#ff6a7a', 4, () => IK.sword(ctx, -12, 14, 26, 0.72, { light: '#ffffff', mid: '#eadde0', dark: '#8a6a74', dark2: '#4a3038' }));
+    const pal = ['#ffffff', '#ff9aa4', '#b0101e'];
+    ikKriegerSchnitt(ctx, IK, 17, -14, -15, -7, 4.6, pal);
+    ikKriegerSchnitt(ctx, IK, -15, -4, 16, 8, -5.2, pal);
+    ikKriegerSchnitt(ctx, IK, 15, 1, -13, 14, 4.6, pal, 0.85);
+    for (const [x, y, r] of [[-4, 18, 2.5], [5, 20, 1.9], [11, 16.5, 1.5]]) IK.drop(ctx, x, y, r, ['#ff8a9a', '#c8102a', '#4a0410']);
   },
 
   // Schwertwirbel: Schwert schräg in der Mitte, zwei leuchtende Wirbelspuren kreisen um die Figur

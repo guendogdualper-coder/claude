@@ -431,6 +431,20 @@ function stealthCastEnd(p, mul) {
   game.stats = playerStats(p);
 }
 
+// Stapelnde Blutung (seit dem Aderlass): per = Schaden je Sekunde eines Stapels. Je Treffer ein Stapel mehr (bis o.max),
+// jeder Treffer frischt die Dauer (o.duration) auf. Eine stärkere Blutung aus anderer Quelle (Blutlarve) bleibt erhalten.
+// Steine bluten nicht (wie bei opts.bleed in hitMonster).
+function bleedStackOn(m, per, o, by) {
+  if (!m || m.isStone || !(per > 0)) return;
+  const now = game.time;
+  const b = m.bleed && m.bleed.until > now ? m.bleed : null;
+  const own = b && b.stk ? b : null;
+  const stk = own ? Math.min(o.max || 1, own.stk + 1) : 1;
+  const p1 = own ? Math.max(own.per, per) : per;
+  const dps = Math.max(p1 * stk, b && !own ? b.dps : 0);
+  m.bleed = { dps, until: now + o.duration, tick: b ? b.tick : 0, by, stk, per: p1, max: o.max || 1 };
+}
+
 function hitMonster(m, mul, opts = {}) {
   if (m.dead) return 0;
   // Einschlagklang nach Element (klang-welt.js)
@@ -496,6 +510,8 @@ function hitMonster(m, mul, opts = {}) {
     if (opts.burn) m.burn = { dps: s.atk * opts.burn.dps * dotK, until: game.time + opts.burn.duration, tick: 0, by: p };
     // Blutung (seit 11.7, Nekromant): Schaden über Zeit wie Gift, rote Tropfen
     if (opts.bleed) m.bleed = { dps: s.atk * opts.bleed.dps * dotK, until: game.time + opts.bleed.duration, tick: 0, by: p };
+    // stapelnde Blutung (Aderlass): je Treffer ein Stapel bis max, jeder neue frischt die Dauer auf (bleedStackOn)
+    if (opts.bleedStack) bleedStackOn(m, s.atk * opts.bleedStack.dps * dotK, opts.bleedStack, p);
     if (opts.slow) setSlow(m, 1 - opts.slow.amount, opts.slow.duration);
   }
   // Gift aus der Ausrüstung (seit 14.15): jeder eigene Treffer, je Ziel einmal (nicht Diener, nicht Schaden über Zeit).
@@ -1642,7 +1658,7 @@ const SKILL_TYPES = {
     shakeScreen(2);
   },
 
-  // Klingenkreuz (Platz 1 des Weges der Klinge, statt der Sichelwelle): SKILL_TYPES.kreuz in klingenkreuz.js
+  // Aderlass (Platz 1 des Weges der Klinge, statt Klingenkreuz und Sichelwelle): SKILL_TYPES.flurry in aderlass.js
 
   // Felsenfaust (seit 8.3): Riss zum Ziel, Felspfeiler bricht unter ihm hervor und schleudert es hoch
   erupt(sk, pw) {
@@ -2107,7 +2123,7 @@ function dashStep(dt) {
     } else if (now >= d.until) p.dash = null;
     return;
   }
-  // kurze Sperre während einer Fertigkeit (Klingenkreuz, Felsenfaust)
+  // kurze Sperre während einer Fertigkeit (Aderlass, Felsenfaust) und Betäubung durch einen Spieler (pvpStunIn)
   if (d.lock) {
     if (game.time >= d.until || p.dead) p.dash = null;
     return;
@@ -2327,8 +2343,9 @@ function updateProjectiles(dt) {
 // Ausweichen und Blocken wirken im PvP halb (dodgeMul): mit guter Ausrüstung haben fast alle 45 % Ausweichen, das
 // halbierte jeden Kampf und machte ihn zum Würfelspiel.
 // Heilung und Lebensraub wirken im PvP zu 60 %. „Stark gegen Menschen“ zählt gegen Spieler, „Stark gegen Monster“ nicht.
-// Betäuben, Einfrieren und Wurf gehen im PvP nicht über das Netz (sie zählen dort nur als Schaden, duelMul) – die
-// Regel „halb so lang, danach 4 s Schutz“ hat deshalb nichts, worauf sie wirken könnte.
+// Betäuben, Einfrieren und Wurf gehen im PvP nicht über das Netz (sie zählen dort nur als Schaden, duelMul). Ausnahme
+// seit dem Aderlass-Update: Fertigkeiten mit pvpStun (Sprungschlag) betäuben auch Spieler, aber kürzer und mit Schutz
+// danach (PVP_STUN, pvpStunIn); stapelnde Blutung (bleedStack) wirkt wie das Gift als Schaden über Zeit mit Tick-Deckel.
 const PVP_DMG = {
   mulLow: 0.38, mulHigh: 0.3, mulFrom: 50, mulTo: 80,
   defMul: 2, armorMax: 0.6, otherMax: 0.5, maxReduce: 0.8, pad: 0.02, dodgeMul: 0.5,
@@ -2398,6 +2415,10 @@ function pvpOutgoing(mul, opts) {
   const d = { a: Math.round(raw), c: crit ? 1 : 0, l: p.level, at: pvpAttackKind(p, opts) };
   if (opts.ally) d.al = 1; // Treffer eines Dieners: kein Lebensraub für den Herrn
   if (!opts.ally && !opts.dot && s.poison > 0 && Math.random() < s.poison) d.pz = Math.max(1, Math.round((raw * TOXIN.share) / TOXIN.dur));
+  // seit dem Aderlass: stapelnde Blutung als roher Schaden je Sekunde und Stapel [je Stapel, Dauer, höchstens Stapel]
+  // (beim Getroffenen gedeckelt wie das Gift, pvpBleedIn); Betäubung nur bei Fertigkeiten mit pvpStun (pvpStunIn)
+  if (opts.bleedStack && !opts.ally) d.bl = [Math.max(1, Math.round(base * opts.bleedStack.dps * (s.skillDmg || 1))), opts.bleedStack.duration, opts.bleedStack.max || 1];
+  if (opts.stun > 0 && !opts.ally && opts.skill && typeof skillById === 'function' && (skillById(opts.skill) || {}).pvpStun) d.st = +opts.stun.toFixed(2);
   return d;
 }
 // Schaden, den ein Treffer d beim Getroffenen (Stufe level, Werte s) anrichtet. win: Liste der wirklich erlittenen
@@ -2438,7 +2459,61 @@ function pvpReceiveHit(d, src, fb) {
   // ausgewichen, geblockt oder vom Schild geschluckt zählt nicht zum Deckel in 1,5 s
   if (dealt > 0) p.pvpWin.push({ t: game.time, a: dealt });
   if (d.pz > 0 && !p.dead) pvpToxinIn(d, src, fb);
+  if (Array.isArray(d.bl) && !p.dead) pvpBleedIn(d, src, fb);
+  if (d.st > 0 && !p.dead) pvpStunIn(p, d.st);
   return dealt;
+}
+// Betäubung durch einen anderen Spieler (seit dem Aderlass-Update, nur Fertigkeiten mit pvpStun – Sprungschlag): so lang
+// wie bei Monstern × mul, höchstens max Sekunden, danach guard Sekunden Schutz vor der nächsten. Die Figur steht wie
+// während einer Fertigkeit fest (p.dash.lock: kein Laufen, kein Angriff, keine Fertigkeit, keine Ulti; Tränke gehen).
+const PVP_STUN = { mul: 0.65, max: 1, guard: 4 };
+function pvpStunIn(p, raw) {
+  const now = game.time;
+  if (now < (p.stunGuard || 0)) return;
+  const dur = Math.min(PVP_STUN.max, raw * PVP_STUN.mul);
+  if (!(dur > 0.05)) return;
+  // mitten im Sprung oder Sprint nicht (die Bewegung liefe sonst ins Leere)
+  if (p.dash && !p.dash.lock) return;
+  p.stunGuard = now + dur + PVP_STUN.guard;
+  p.dash = { lock: true, stun: true, until: Math.max(now + dur, p.dash ? p.dash.until : 0), rank: -1 };
+  input.walkTo = null;
+  if (p.channel && typeof stopChannel === 'function') stopChannel(p);
+  if (p.mcast && typeof mageCastCancel === 'function') mageCastCancel(p, '');
+  addText(p.x, p.y - 44, 'Betäubt', 'hurt');
+}
+// eigene Figur betäubt? (für die Sterne über dem Kopf, 3D und 2D, und für Mitspieler: netPlayerState sn)
+function playerStunned(p) {
+  return !!(p && p.dash && p.dash.stun && p.dash.until > game.time);
+}
+// Blutung eines anderen Spielers (Aderlass): je Stapel und Tick wie das Gift gerechnet, alle Stapel zusammen je Tick
+// höchstens toxinTick des Lebens; jeder Treffer ein Stapel mehr (bis zum Höchstwert) und frische Dauer
+function pvpBleedIn(d, src, fb) {
+  const p = game.player;
+  const s = game.stats;
+  const L = Math.max(1, d.l || 1);
+  const [raw, dur, max] = d.bl;
+  if (!(raw > 0) || !(dur > 0)) return;
+  const per = (raw * pvpMulAt(L) * (1 - Math.min(PVP_DMG.maxReduce, s.resHuman || 0))) / (1 + PVP_DMG.pad * p.level);
+  const old = p.pvpBleed && p.pvpBleed.until > game.time ? p.pvpBleed : null;
+  const stk = old ? Math.min(max || 1, old.stk + 1) : 1;
+  const per1 = old ? Math.max(old.per, per) : per;
+  const dps = Math.max(1, Math.round(Math.min(per1 * stk, s.maxHp * PVP_DMG.toxinTick)));
+  p.pvpBleed = { per: per1, stk, dps, until: game.time + Math.min(dur, 8), tick: old ? old.tick : 0, src, fb };
+}
+// jedes Bild (spiel.js): Blutung eines anderen Spielers ticken lassen; endet mit dem Kampf
+function playerBleedTick(p, dt) {
+  const t = p.pvpBleed;
+  if (!t) return;
+  if (p.dead || t.until <= game.time || !pvpActive()) {
+    p.pvpBleed = null;
+    return;
+  }
+  t.tick += dt;
+  if (t.tick < 1) return;
+  t.tick -= 1;
+  const before = p.hp;
+  damagePlayer(t.dps, t.src, { pvp: true, dot: true });
+  if (t.fb) t.fb(Math.max(0, Math.round(before - p.hp)));
 }
 // Gift eines anderen Spielers: je Tick höchstens 1,5 % des Lebens; PvP-Faktor, Abwehr gegen Menschen und Lebenspolster
 function pvpToxinIn(d, src, fb) {

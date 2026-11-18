@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.49';
+const GAME_VERSION = '15.50';
 
 const game = {
   world: null,
@@ -191,6 +191,8 @@ function updatePlayer(dt) {
   p.hp = Math.min(s.maxHp, p.hp + s.maxHp * rate * dt * pvpHealMul() * beset);
   // Gift eines anderen Spielers (Bonus Vergiftungschance, seit 14.15)
   if (p.toxin) playerToxinTick(p, dt);
+  // Blutung eines anderen Spielers (Aderlass, PvP)
+  if (p.pvpBleed) playerBleedTick(p, dt);
   p.mp = Math.min(s.maxMp, p.mp + s.maxMp * (calm ? 0.03 : 0.012) * dt);
 
   // Händlerin oder Schmied in der Nähe?

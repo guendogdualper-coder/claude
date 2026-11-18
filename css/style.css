@@ -3284,6 +3284,10 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
   background: rgba(0,0,0,.55); border: 1px solid rgba(255,255,255,.18); color: #f3e3b5; white-space: nowrap; }
 .tfx b { font-weight: 400; }
 .tfx em { font-style: normal; color: #fff; font-weight: 700; margin-left: 2px; }
+/* seit dem Aderlass-Update: am Feld nur Zeichen und Restzeit, Schaden im Hinweis (Maus darüber, am Handy antippen) */
+.tfx { pointer-events: auto; cursor: help; }
+#hud.touch .tfx { padding: 2px 7px 2px 5px; font-size: 12px; line-height: 18px; }
+.boss-bar .boss-fx { margin-top: 4px; }
 .tfx-burn { border-color: #ff7a2a; color: #ffd0a0; }
 .tfx-poison { border-color: #8fd16a; color: #d6f5c2; }
 .tfx-bleed { border-color: #d8343a; color: #ffc0c0; }
@@ -3295,6 +3299,9 @@ body.hud-edit .hud-edit-ctl button { width: 22px; height: 20px; border-radius: 4
 .buff-ico.buff-debuff { border-radius: 50%; background: radial-gradient(circle at 50% 40%, #2e5a1e, #10200a); box-shadow: 0 0 0 1px #5ec83a inset; }
 .buff-ico.buff-debuff svg { width: 70%; height: 70%; margin: 15%; fill: #7ee05a; filter: drop-shadow(0 0 3px rgba(126, 224, 90, 0.7)); }
 .buff-ico.buff-debuff span { color: #c8f5b0; }
+.buff-ico.buff-bleed { background: radial-gradient(circle at 50% 40%, #5a1018, #200408); box-shadow: 0 0 0 1px #d8343a inset; }
+.buff-ico.buff-bleed svg { fill: #e0303a; filter: drop-shadow(0 0 3px rgba(224, 48, 58, 0.7)); }
+.buff-ico.buff-bleed span { color: #ffc0c0; }
 .stats small.cap { color: var(--muted); font-size: 0.85em; white-space: nowrap; }
 .stats dd:has(small.cap) { white-space: nowrap; }
 

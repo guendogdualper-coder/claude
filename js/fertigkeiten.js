@@ -56,11 +56,12 @@ function crescentPath(ctx, x0, y0, x1, y1, bulge) {
 
 const SKILL_ICONS = {
   // Krieger
-  // Klingenkreuz: zwei Lichtschnitte über Kreuz mit Tempolinien (das gemalte Symbol steht in symbole-krieger.js)
-  klingenkreuz(ctx) {
-    for (const y of [-6, 1, 8]) iconLine(ctx, '#cfe0ff', 2, [[-19, y], [-11, y]]);
-    iconShape(ctx, crescentPath(ctx, 13, -14, -7, 14, 5), '#ffffff', '#9fc8ff', 2);
-    iconShape(ctx, crescentPath(ctx, -7, -14, 13, 14, -5), '#ffffff', '#9fc8ff', 2);
+  // Aderlass: drei schnelle Schnitte und Bluttropfen (das gemalte Symbol steht in symbole-krieger.js)
+  aderlass(ctx) {
+    iconShape(ctx, crescentPath(ctx, 15, -12, -15, -2, 4), '#ffe2e2', '#e0303a', 1.8);
+    iconShape(ctx, crescentPath(ctx, -14, -8, 12, 8, -4), '#ffe2e2', '#e0303a', 1.8);
+    iconShape(ctx, crescentPath(ctx, 12, 2, -14, 14, 4), '#ffe2e2', '#e0303a', 1.8);
+    for (const [x, y] of [[-4, 15], [4, 18]]) iconShape(ctx, () => { ctx.beginPath(); ctx.ellipse(x, y, 2, 2.6, 0, 0, Math.PI * 2); }, '#d02030', '#8a0a14', 1);
   },
   schwertwirbel(ctx) {
     ctx.lineCap = 'round';
@@ -656,19 +657,16 @@ function skillRankFrame(ctx, r, col) {
 // color: Grundfarbe der Schwungspuren; cast: beim Auslösen; hit: bei jedem Treffer.
 
 const SKILL_FX = {
-  // Klingenkreuz (statt der Sichelwelle, Ablauf in klingenkreuz.js): die Hiebe hinterlassen einen schrägen Schnitt am
-  // Gegner (in Richtung des Hiebs), das Kreuz einen Kreuzschnitt aus zwei stahlweißen Schnitten
-  klingenkreuz: {
-    color: '#e6eeff',
+  // Aderlass (statt des Klingenkreuzes, Ablauf in aderlass.js): je Hieb ein kurzer roter Schnitt am Gegner, der letzte
+  // breiter; Bluttropfen und Funken kommen aus adlblut3
+  aderlass: {
+    color: '#ff8a8a',
+    // leiser Rang-Auftritt (nur die Funkenspirale): alle 3 s Flammenflügel und Lichtsäule würden die schnellen Hiebe
+    // verdecken; den Rang zeigen die Hiebe selbst (Hülle, Nachschnitt, Blutnebel, Fächer – aderlass.js)
+    rankSoft: true,
     hit(m, crit, heavy) {
       const c = bodyCenter(m);
-      if (!heavy) {
-        const a = typeof kkLastCut !== 'undefined' && kkLastCut === 2 ? -0.8 : 0.8;
-        addEffect({ type: 'slash', x: c.x, y: c.y, ang: a, len: 38, w: 5, dur: 0.2, color: '#ffffff' });
-        return;
-      }
-      addEffect({ type: 'slash', x: c.x, y: c.y, ang: 0.8, len: 44, w: 6, dur: 0.24, color: '#ffffff' });
-      addEffect({ type: 'slash', x: c.x, y: c.y, ang: -0.8, len: 44, w: 6, dur: 0.24, color: '#cfe0ff' });
+      addEffect({ type: 'slash', x: c.x, y: c.y, ang: (Math.random() - 0.5) * 2.4, len: heavy ? 46 : 34, w: heavy ? 6 : 4, dur: 0.2, color: heavy ? '#ffd0d0' : '#ff8a8a' });
     }
   },
   schwertwirbel: {
@@ -1247,7 +1245,7 @@ const ELEMENT3 = {
   knochen: { spark: '#f0e8d4', shard: '#e8e0c8' }
 };
 const SKILL_ELEMENT = {
-  klingenkreuz: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
+  aderlass: 'klinge', schwertwirbel: 'klinge', wirbelklinge: 'klinge', hinterhalt: 'schatten', schwertaura: 'klinge',
   sprungschlag: 'erde', felsenfaust: 'erde', erdbeben: 'erde', starkerkoerper: 'erde',
   kampfrausch: 'feuer', drachengebruell: 'feuer', drachenkraft: 'feuer', kriegsschrei: 'feuer',
   tarnung: 'schatten', schattensprung: 'schatten', schattenmantel: 'schatten', laehmklinge: 'seele',
@@ -1262,9 +1260,9 @@ function skillSignature3(sk, p) {
   // Magier (seit 8.6): eigene Auftritte und Wirk-Effekte über SKILL_FX (magier.js)
   if (sk.el) return;
   const el = SKILL_ELEMENT[sk.id];
-  // Blitzdrache, Blizzard, Klingenkreuz, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
+  // Blitzdrache, Blizzard, Aderlass, Felsenfaust und Sprungschlag haben ihren eigenen Auftritt,
   // ebenso seit 8.5 Schädelsalve, Seelenkäfig, Seelenschnitter und Totenbeschwörung
-  if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'kreuz' || sk.type === 'erupt' || sk.type === 'leap') return;
+  if (!el || sk.type === 'dragon' || sk.type === 'blizzard' || sk.type === 'flurry' || sk.type === 'erupt' || sk.type === 'leap') return;
   if (sk.type === 'skulls' || sk.type === 'cage' || sk.type === 'reaper' || sk.type === 'summon') return;
   const c = ELEMENT3[el];
   const t = game.target && !game.target.dead && dist(game.target, p) < 400 ? game.target : null;

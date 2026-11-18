@@ -198,6 +198,8 @@ function populateDungeons(groupId) {
 function updateBoss(m, dt) {
   const p = game.player;
   const b = m.type.boss;
+  // seit 15.50: eigene Angriffe der Bosse (bossangriffe.js) – solange einer läuft, tut der Boss nichts anderes
+  if (typeof bskHold === 'function' && bskHold(m, dt)) return true;
   if (m.cast) {
     m.moving = false;
     if (game.time < m.cast.at) return true;
@@ -235,8 +237,11 @@ function updateBoss(m, dt) {
     ui.banner(m.name, 'ruft Verstärkung!');
   }
   if (m.bossCd > 0 || m.state !== 'chase') return false;
-  m.bossCd = 5.5;
+  // seit 15.50 öfter (vorher alle 5,5 s) und jeder dritte Angriff ein eigener (bossangriffe-bosse.js)
+  m.bossCd = 4.6;
   m.bossTurn = (m.bossTurn || 0) + 1;
+  const own = typeof bskDungeonMove === 'function' ? bskDungeonMove(m) : null;
+  if (own && bskStart(m, own)) return true;
   if (b.volley && m.bossTurn % 2 === 0) {
     // Salve: fächerförmig auf den Spieler, beim Eiskönig ringsum
     const tgt = m.target || p;
@@ -304,6 +309,8 @@ function updateRaidBoss(m, dt) {
   // niemand in der Halle: keine Angriffe (der Boss kehrt dann wie jedes Monster um)
   if (!m.dash && !m.cast && !raidPlayers(m).length) return false;
   if (typeof raidShieldTick === 'function') raidShieldTick(m, dt);
+  // seit 15.50: eigene Angriffe (bossangriffe.js) – Sprünge und Wirbel nach Plan, sonst stillhalten
+  if (typeof bskHold === 'function' && bskHold(m, dt)) return true;
   // Sturm- und Sprungbewegung des Bosses
   if (m.dash) {
     const d = m.dash;
@@ -330,7 +337,9 @@ function updateRaidBoss(m, dt) {
     raidResolve(m, c.kind, c.circles, c.inner);
     return true;
   }
-  // Kristall-Schild und Vernichtung (seit 11.0, endboss.js)
+  // Phasen-Angriffe der Bosse (seit 15.50, bossangriffe-bosse.js), Kristall-Schild und Vernichtung (seit 11.0,
+  // endboss.js; seit 15.50 nur noch bei Bossen, zu denen sie passen)
+  if (typeof bskPhase === 'function' && bskPhase(m)) return true;
   if (typeof raidMechanics === 'function' && raidMechanics(m, dt)) return true;
   // regelmäßig kleine Helfer, in der Raserei öfter
   if (game.time >= R.addAt) {
@@ -346,9 +355,15 @@ function updateRaidBoss(m, dt) {
   }
   R.next -= dt * (1 + R.phase * 0.35) * (m.form2 ? 1.45 : 1);
   if (R.next > 0) return false;
-  R.next = Math.max(2.4, 5 - R.phase * 0.9);
+  // seit 15.50 öfter (vorher 5 s, in der Raserei höchstens alle 2,4 s)
+  R.next = Math.max(1.8, 3.4 - R.phase * 0.6);
   const moves = (m.form2 && m.type.raid.moves2) || m.type.raid.moves || RAID_MOVES;
-  const kind = moves[R.step++ % moves.length];
+  // seit 15.50 aus einem gemischten Beutel mit den eigenen Angriffen des Bosses (vorher immer dieselbe Reihenfolge)
+  const kind = typeof bskNextMove === 'function' ? bskNextMove(m, R, moves) : moves[R.step++ % moves.length];
+  if (typeof bskIsOwn === 'function' && bskIsOwn(m, kind)) {
+    if (bskStart(m, kind)) return true;
+    return false;
+  }
   const tgt = m.target && !m.target.dead ? m.target : raidPlayers(m)[0] || m;
   const fy = (e) => feetY(e);
   let circles = [];

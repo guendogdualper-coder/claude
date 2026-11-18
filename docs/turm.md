@@ -29,7 +29,7 @@ Alle Ebenen spielen in derselben achteckigen Halle mit vier Toren (Nord, Ost, S�
 | 8 | Zwillingshüter | Ilmra, Hüterin der Glut, und Varn, Hüter der Asche, zugleich |
 | 9 | Trugsteine | acht gleiche Steine, zwei sind echt; ein falscher ruft eine Strafwelle; beide echten = geschafft |
 | 10 | Schlüsseljagd | Glutwichte strömen herein und lassen Schlüssel fallen; alle vier Tore öffnen |
-| 11 | Der Wächter | Kharzul, Wächter der Verdammten, mit den Seelenketten |
+| 11 | Der Wächter | Kharzul, Wächter der Verdammten: Totentanz (75 %), wahre Gestalt (50 %), Seelenbann (ab 25 %) |
 
 - **Verdammte:** Krieger, Schütze, ab Ebene 2 Hexer, ab Ebene 3 Schlächter, in Ebene 5 ein Hauptmann. Sie kommen aus
   den Toren.
@@ -38,10 +38,23 @@ Alle Ebenen spielen in derselben achteckigen Halle mit vier Toren (Nord, Ost, S�
   spätestens nach 25 Tötungen, dazwischen mit steigender Chance; je weiterem Spieler 10 % mehr Tötungen. Schlüssel
   gehören dem Durchgang. Wer mit einem Schlüssel an ein verschlossenes Tor tritt oder es antippt, öffnet es. Sind alle
   vier Tore offen, verschwinden die Wichte.
-- **Seelenketten:** Bei 75 %, 50 % und 25 % wird Kharzul unverwundbar, geht in die Mitte und kettet sich an die Tore.
-  Vor den Toren erscheinen Kettensteine: allein 2, zu zweit 3, ab drei Spielern 4. Die Gruppe hat 25 Sekunden.
-  - Geschafft: Er ist 6 Sekunden benommen und nimmt 25 % mehr Schaden.
-  - Nicht geschafft: Alle in der Halle verlieren 60 % ihres Höchstlebens, er heilt 10 %.
+- **Kharzul (seit 15.50, `js/kharzul.js`):** Die alten Seelenketten (bei 75/50/25 % unverwundbar, Kettensteine in den
+  Toren) sind aus. Jede Schwelle hat jetzt eine eigene Mechanik, alles mit Warnflächen angekündigt:
+  - **Erste Gestalt (100–50 %):** seine bisherigen Angriffe (Kegel, Glutregen, Sog, Kreuz, Sprung, Dornen,
+    Kettenblitz), in gemischter Reihenfolge.
+  - **75 % – Totentanz:** Er springt in die Mitte und rammt die Hellebarde in den Boden. Vier Arme aus Seelenfeuer
+    liegen 2,4 s als Warnfläche, dann kreisen sie 9 s lang durch die Halle (0,42 rad/s, Richtung zufällig). Wer in
+    einem Arm steht, nimmt alle 0,6 s Schaden (1,1 × Angriff). In den Lücken mitlaufen; Kharzul bleibt angreifbar.
+  - **50 % – Entfesselte Gestalt:** 2,6 s Verwandlung (Druckwelle im Umkreis 330, wirft weg). Danach ist er 30 %
+    größer, schwarz-rot mit Höllenfeuer statt Seelenfeuer (3D und 2D), läuft mit 178 statt 126, schlägt alle 1,05 s
+    statt 1,7 s zu, sein Angriffstakt ist etwa doppelt so schnell und er macht 20 % mehr Schaden. Er hat nur noch vier
+    neue Angriffe, kürzer angekündigt (1,0–1,1 s): **Seelenschnitt** (Bogenhieb vorn, 0,55 s später hinten),
+    **Höllensprung** (drei Sprünge im Abstand von 0,7 s), **Kettensturm** (Ketten auf bis zu drei Spieler, wer
+    getroffen wird, wird herangerissen und kurz festgehalten), **Höllenfeuerwelle** (vier Bänder nach außen, 0,45 s
+    Abstand).
+  - **25 % – Seelenbann:** Alle Spieler bekommen ein Brandmal (grüne Fläche, folgt dem Spieler). Nach 5 s explodiert
+    jedes und trifft alle anderen Spieler im Umkreis 150 (2,8 × Angriff je Brandmal) – auseinanderlaufen. Allein
+    harmlos. Danach kommt er immer wieder dran.
   - Alle 20 Sekunden ruft er einige Glutwichte (3, je zwei weitere Spieler einer mehr).
 - **Tod:** kein Verlust. Nach 8 Sekunden steht man am Eingang der Halle mit 60 % Leben wieder auf. Sind alle zugleich
   tot oder ist niemand mehr da, beginnt die Ebene von vorn. Nach 3 Minuten ohne Spieler endet der Durchgang.
@@ -60,7 +73,7 @@ Grundwerte gelten für einen Spieler. Je weiterem Spieler im Durchgang (gezählt
 | Leben der Hüter und des Wächters | +85 % | × 8,65 |
 | Schaden der Hüter und des Wächters | +5 % | × 1,45 |
 | Leben der Seelensteine | +50 % | × 5,5 |
-| Leben der Kettensteine | +45 % | × 5,05 |
+| Leben der Kettensteine (nur noch für ältere Hosts) | +45 % | × 5,05 |
 
 | Gegner | Leben (Faktor) | Angriff (Faktor) | Leben allein |
 |---|---|---|---|

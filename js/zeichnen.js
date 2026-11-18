@@ -373,8 +373,9 @@ function weaponAngle(kind, dir, p, ago = 0) {
   // Kraftpose: Waffe steil nach oben
   // (auch die Ulti des Blitzmagiers: Zepter zum Himmel, Haltung 'dkruf', früher 'sgruf')
   if ((p.swingKind === 'pose' || p.swingKind === 'schwertaura' || p.swingKind === 'sgruf' || p.swingKind === 'dkruf') && t >= 0) return dir === 'side' ? -1.25 : -1.9;
-  // Klingenkreuz: zwei Hiebe über Kreuz und ein Stoß (Winkel über den Ablauf, klingenkreuz.js)
-  if (p.swingKind === 'kreuz' && t >= 0 && typeof kreuzAngle2d === 'function') return kreuzAngle2d(p, dir, t);
+  // eigene Hiebfolgen (Aderlass; Klingenkreuz älterer Mitspieler): Winkel über den Ablauf (SWING2D_SKILL, aderlass.js)
+  const s2 = t >= 0 && typeof SWING2D_SKILL !== 'undefined' ? SWING2D_SKILL[p.swingKind] : null;
+  if (s2) return s2.ang(p, dir, t);
   // Bogen zeigt in Blickrichtung und zieht beim Schuss kurz zurück
   if (kind === 'bow') return localFacingAngle(dir) + (dir === 'side' ? 0 : 0.35) + (t >= 0 ? -Math.sin(t * Math.PI) * 0.15 : 0);
   if (kind === 'staff' || kind === 'bell' || kind === 'rod' || (kind === 'fan' && p.swingKind === 'cast')) {
@@ -461,9 +462,9 @@ function drawPlayer(ctx, p) {
     // Beidhändig: das zweite Schwert in der linken Hand, gegengleich zum ersten geschwungen
     if (isOffhand(shield)) {
       const left = handPosition(dir, frame, 'left');
-      // Klingenkreuz: von der Seite schlägt die zweite Waffe den zweiten Hieb (kreuzAngle2d)
-      const kk2 = p.swingKind === 'kreuz' && t >= 0 && dir === 'side' && typeof kreuzAngle2d === 'function';
-      const offAngle = kk2 ? kreuzAngle2d(p, dir, t, true) : dir === 'side' ? angle + 0.5 + (t >= 0 ? Math.sin(t * Math.PI) * 0.6 : 0) : Math.PI - angle;
+      // Aderlass und Klingenkreuz: von der Seite schlägt die zweite Waffe ihre eigenen Hiebe (SWING2D_SKILL)
+      const kk2 = swing2 && dir === 'side';
+      const offAngle = kk2 ? swing2.ang(p, dir, t, true) : dir === 'side' ? angle + 0.5 + (t >= 0 ? Math.sin(t * Math.PI) * 0.6 : 0) : Math.PI - angle;
       drawWeaponSprite(ctx, shield.kind, left.x + (dir === 'side' ? -4 : 0), left.y, offAngle, shield.tier);
       const ob = plusBand(shield.plus);
       if (ob >= 2) glow(ctx, left.x + Math.cos(offAngle) * 16, left.y + Math.sin(offAngle) * 16, 10 + ob * 3, glowColorOf(shield), 0.3 + ob * 0.08);
@@ -509,8 +510,8 @@ function drawPlayer(ctx, p) {
   const t = swingProgress(p);
   const fa = localFacingAngle(dir);
   const thrust = p.swingKind === 'combo' && p.combo === 2;
-  const kreuz = p.swingKind === 'kreuz' && t >= 0 && typeof kreuzLunge2d === 'function';
-  const lunge = kreuz ? kreuzLunge2d(p, t) : t >= 0 && melee && !posing ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
+  const swing2 = t >= 0 && typeof SWING2D_SKILL !== 'undefined' ? SWING2D_SKILL[p.swingKind] || null : null;
+  const lunge = swing2 ? swing2.lunge(p, t) : t >= 0 && melee && !posing ? Math.sin(t * Math.PI) * (thrust ? 6 : 3.5) : 0;
   if (thrust) {
     hand.x += Math.cos(fa) * lunge * 1.3;
     hand.y += Math.sin(fa) * lunge * 0.8;
@@ -560,8 +561,8 @@ function drawPlayer(ctx, p) {
   const gsz = lookSize(p.look);
   if (gsz !== 1) ctx.scale(gsz, gsz);
   ctx.translate(Math.cos(fa) * lunge, Math.sin(fa) * lunge * 0.6);
-  // Klingenkreuz: von der Seite lehnt sich die Figur ins Ausholen zurück und in die Hiebe hinein
-  if (kreuz && dir === 'side' && !p.riding) ctx.rotate(kreuzTilt2d(p, t));
+  // Aderlass und Klingenkreuz: von der Seite lehnt sich die Figur ins Ausholen zurück und in die Hiebe hinein
+  if (swing2 && dir === 'side' && !p.riding) ctx.rotate(swing2.tilt(p, t));
   // Getroffen: kurz nach hinten zucken
   const hurtK = p.hurtAt ? (game.time - p.hurtAt) / 0.28 : 1;
   if (hurtK < 1 && !p.riding) ctx.rotate(-Math.sin(hurtK * Math.PI) * 0.1);
@@ -729,6 +730,14 @@ function drawPlayer(ctx, p) {
 
   drawBuffLooks(ctx, p, fy, 'front');
   if (typeof bodyAura2 === 'function') bodyAura2(ctx, p, fy, ride, 'front');
+  // betäubt von einem anderen Spieler (Sprungschlag im PvP): kreisende Sterne wie bei Monstern (drawMonsterStatus)
+  if ((p === game.player && typeof playerStunned === 'function' && playerStunned(p)) || (p.remote && p.stunUntil > game.time)) {
+    ctx.fillStyle = '#ffe27a';
+    for (let k = 0; k < 3; k++) {
+      const a = game.time * 6 + k * 2.1;
+      circle(ctx, p.x + Math.cos(a) * 9, fy - ride - 46 + Math.sin(a) * 3, 2);
+    }
+  }
   drawGearSparkles(ctx, p, fy, { x: (flip ? -1 : 1) * hand.x, y: hand.y }, flip ? Math.PI - angle : angle, kind);
 
   if (p.classId === 'nekromant') {
@@ -1156,6 +1165,16 @@ function drawMonsterStatus(ctx, m) {
     ctx.fillStyle = m.burn ? 'rgba(255,140,60,0.85)' : m.poison && m.poison.color ? m.poison.color : 'rgba(140,220,90,0.85)';
     const k = (game.time * 2) % 1;
     circle(ctx, m.x - 5 + Math.sin(game.time * 5) * 3, fy - h * 0.4 - k * h * 0.5, 2);
+  }
+  // Blutung (seit dem Aderlass auch in 2D; in 3D zeichnet fx3Status die Tropfen): dunkelrote Tropfen rinnen am Körper
+  // herab, mehr bei mehr Stapeln
+  if (!V3.on && m.bleed && m.bleed.until > game.time) {
+    const n = Math.min(4, 1 + Math.floor(((m.bleed.stk || 2) - 1) / 2));
+    for (let i = 0; i < n; i++) {
+      const k = (game.time * 1.3 + i * 0.37) % 1;
+      ctx.fillStyle = i % 2 ? 'rgba(160,16,30,0.9)' : 'rgba(208,32,48,0.9)';
+      circle(ctx, m.x + (i - (n - 1) / 2) * 5, fy - h * 0.7 + k * h * 0.65, 1.8 * (1 - k * 0.4));
+    }
   }
 }
 
