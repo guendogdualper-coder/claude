@@ -5,6 +5,7 @@
 //   75 %  Totentanz: er springt in die Mitte und rammt die Hellebarde in den Boden. Vier Arme aus Seelenfeuer liegen
 //         2,4 s als Warnfläche, dann kreisen sie 9 s lang durch die Halle – in den Lücken mitlaufen. Er bleibt dabei
 //         angreifbar (kanalisiert in der Mitte).
+//         Die Arme reichen 780 (bis zum Umbau der Halle 640): so weit wie vorher bis kurz vor die Ecken der größeren Halle.
 //   50 %  Entfesselte Gestalt: 2,6 s Verwandlung (Druckwelle um ihn, Warnfläche), danach größer, schwarz-rot mit
 //         Höllenfeuer statt Seelenfeuer, läuft und schlägt deutlich schneller (Tempo 126 → 178, Schlag 1,7 → 1,05 s,
 //         Angriffstakt etwa doppelt so schnell), 20 % mehr Schaden und nur noch vier neue Angriffe, kürzer angekündigt
@@ -34,7 +35,7 @@ const kzF2 = (m) => !!m.kzForm;
 BSK_KITS.turm_waechter = {
   fx: 'kzseele',
   skills: [
-    { id: 'totentanz', t: 'tanz', name: 'Totentanz', phaseOnly: true, say: 'rammt die Hellebarde in den Boden – Seelenfeuer kreist durch die Halle! Lauft in den Lücken mit!', n: 4, R: 640, w: 52, d: 2.4, mul: 1.1 },
+    { id: 'totentanz', t: 'tanz', name: 'Totentanz', phaseOnly: true, say: 'rammt die Hellebarde in den Boden – Seelenfeuer kreist durch die Halle! Lauft in den Lücken mit!', n: 4, R: 780, w: 52, d: 2.4, mul: 1.1 },
     { id: 'verwandlung', t: 'morph', name: 'Entfesselte Gestalt', phaseOnly: true, say: 'zerreißt seine Ketten und zeigt seine wahre Gestalt – weg von ihm!', r: 330, mul: 2.4 },
     { id: 'seelenbann', t: 'bann', name: 'Seelenbann', say: 'brandmarkt eure Seelen – lauft auseinander!', bigSay: 'brandmarkt eure Seelen – lauft auseinander!', from: 0.25, ok: kzF2, r: 150, d: 5, mul: 2.4 },
     { id: 'seelenschnitt', t: 'sense', name: 'Seelenschnitt', say: 'schlitzt mit der Hellebarde – erst vorn, dann hinten!', fx: 'hoellenseele', ok: kzF2, d: 1.0, gap: 0.55, R: 345, mul: 3.4 },
@@ -71,7 +72,7 @@ BSK_T.tanz = {
     const cx = m.homeX;
     const cy = m.homeY + m.r * 0.8;
     const n = K.n || 4;
-    const R = K.R || 640;
+    const R = K.R || 780;
     const a0 = Math.random() * BSK_TAU;
     const z = [];
     for (let i = 0; i < n; i++) {

@@ -172,8 +172,16 @@ const RATGEBER_WISSEN = [
   {
     c: 'steuerung', q: 'Wie greife ich an und wähle ein Ziel?',
     a: 'Halte {k:attack} (am Handy den Angriffsknopf): Ist kein Monster in Reichweite, läufst du zum nächsten. {k:target} wählt das nächste Ziel. ' +
-      'Am PC greift ein Linksklick auf ein Monster an, ein Rechtsklick wählt es nur aus. Am Handy tippst du das Monster an.',
-    k: 'angreifen angriff ziel waehlen target anvisieren schlagen leertaste klick'
+      'Am PC greift ein Linksklick auf ein Monster an, ein Rechtsklick wählt es nur aus. Am Handy tippst du das Monster an. ' +
+      'Ein so gewähltes Ziel bleibt dein Fokus: Grundangriff und Fertigkeiten gehen auf es, solange es in Reichweite ist – auch ein Seelenstein, wenn seine Monster herbeieilen.',
+    k: 'angreifen angriff ziel waehlen target anvisieren schlagen leertaste klick fokus seelenstein'
+  },
+  {
+    c: 'steuerung', q: 'Was macht der AUTO-Knopf (Auto-Angriff)?',
+    a: 'Er schaltet den Auto-Angriff ein und aus (am PC rechts an der Leiste, am Handy links neben dem Lebenstrank, auch unter Einstellungen → Steuerung; gemerkt je Gerät). ' +
+      'Ist er an, klickst bzw. tippst du ein Monster oder einen Seelenstein einmal an: Deine Figur läuft hin und greift es immer weiter an, Fertigkeiten gehen auf dasselbe Ziel. ' +
+      'Schluss ist, wenn es besiegt ist, du ein anderes Ziel wählst, selbst läufst oder Esc drückst. Aus ist jeder Angriff wie gewohnt einzeln.',
+    k: 'auto angriff autoangriff automatisch dauerangriff weiter angreifen auto attack fokus klick antippen knopf'
   },
   {
     c: 'steuerung', q: 'Kann ich mit der Maus laufen?',
@@ -702,6 +710,7 @@ const RATGEBER_WISSEN = [
       return `Eine Gruppen-Instanz ab Stufe ${T.level} im <b>Seelenhain</b>: der schwarze Turm steht westlich des Lagers Seelenwacht am Weg. ` +
         `Allein oder mit bis zu ${T.maxPlayers} Spielern (beide Seiten gemeinsam, ohne Kampf untereinander) kämpft ihr euch in einer Halle durch ${T.ebenen} Ebenen: ` +
         'fünf Wellen Verdammter, der Kettenhüter, vier Seelensteine, die Zwillingshüter, acht Trugsteine, die Schlüsseljagd und zuletzt Kharzul, der Wächter der Verdammten. ' +
+        'Die Halle liegt im Glutschlund; ringsum sitzen auf den Rängen Ungeheuer, die toben, wenn ihr eine Ebene schafft – und auch, wenn alle fallen. ' +
         `Am Tor beginnst du einen Durchgang („nur meine Gruppe“ oder „offen für alle“) oder trittst einem laufenden bei. Wer fällt, steht nach ${T.respawn} Sekunden am Eingang der Halle wieder auf; ` +
         `fallen alle zugleich, beginnt die Ebene von vorn. Die Sperre dauert ${min} Minuten ab dem Betreten und gilt nur für den Turm.`;
     },
@@ -877,12 +886,14 @@ const RATGEBER_WISSEN = [
   {
     c: 'pruefung', p: 3, q: 'Was ist die Prüfungsarena?',
     a: () => `Bei <b>{n:arena}</b> (ab Stufe ${(typeof ARENA !== 'undefined') ? ARENA.minLevel : 5}) kämpfst du allein oder mit bis zu zwei Gruppenmitgliedern gegen Welle um Welle. Jede Welle ist stärker, ab Welle 4 kommen Elite-Monster, jede 5. Welle ein Wellenmeister. ` +
-      `Für jede geschaffte Welle gibt es Gold, ausgezahlt beim Verlassen. Du hast ${(typeof ARENA !== 'undefined') ? ARENA.lives : 3} Leben – beim letzten Tod ist das gesammelte Gold weg.`,
+      `Für jede geschaffte Welle gibt es Gold – je höher deine Stufe, desto mehr –, ausgezahlt beim Verlassen. Die Monster kommen in großen Schüben, eine Welle ist meist in unter einer Minute geschafft; auf den Rängen jubeln die Zuschauer. ` +
+      `Du hast ${(typeof ARENA !== 'undefined') ? ARENA.lives : 3} Leben – beim letzten Tod ist das gesammelte Gold weg.`,
     k: 'pruefungsarena arena herausforderung wellen allein gruppe gold arenameisterin'
   },
   {
     c: 'pruefung', q: 'Gibt es in der Prüfungsarena Beute?',
-    a: 'Die Monster geben volle Erfahrung und etwas Gold (weniger als draußen), aber keine Gegenstände, Steine, Tränke oder Materialien. Dazu kommt das Wellengold – zusammen bringt die Arena je Stunde deutlich mehr Gold als Farmen draußen.',
+    a: 'Die Monster geben volle Erfahrung und etwas Gold (weniger als draußen), aber keine Gegenstände, Steine, Tränke oder Materialien. Dazu kommt das Wellengold, das mit deiner Stufe steigt – zusammen bringt die Arena je Stunde mehr Gold als Farmen draußen, auf Stufe 80 etwa anderthalbmal so viel wie auf den Karten der Stufe 80. ' +
+      'Nach dem Lauf zeigt das Ergebnisfenster auch das Gold je Stunde.',
     k: 'arena beute erfahrung gold belohnung lohnt'
   },
   {

@@ -119,7 +119,11 @@
       </button>
       <button class="slot potion quick" id="quick1" type="button" title="Freier Platz 1"></button>
       <button class="slot potion quick" id="quick2" type="button" title="Freier Platz 2"></button>
-
+      <!-- Auto-Angriff an/aus (autoangriff.js): angeklicktes Ziel immer weiter angreifen -->
+      <button class="slot auto-atk" id="btnAuto" type="button" title="Auto-Angriff" aria-label="Auto-Angriff" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path class="ring" d="M17.4 5.2A8.6 8.6 0 1 1 9.3 3.8"/><path class="ring" d="M7.3 1.9l2.3 1.9-2 2.3"/><path class="blade" d="M9.4 14.6l6.3-6.3"/><path class="hilt" d="M7.6 12.2l4.2 4.2M8.5 15.5l-2 2"/></svg>
+        <span class="auto-lbl">AUTO</span>
+      </button>
     </div>
     <div class="xp" title="Erfahrung">
       <i id="xpFill"></i>
@@ -292,7 +296,8 @@
       <dt><kbd>6</kbd></dt><dd>Ultimative Attacke (ab Stufe 20, goldener Knopf über dem Angriff)</dd>
       <dt><kbd>9</kbd></dt><dd>Klassensegen (ab Stufe 10, runder Knopf neben der Ultimativen Attacke; 30 Minuten)</dd>
       <dt><kbd>Q</kbd> / <kbd>E</kbd></dt><dd>Drachenblut (Leben) / Mondtau (Mana)</dd>
-      <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen</dd>
+      <dt><kbd>Tab</kbd> oder Mausklick</dt><dd>Ziel wählen. Ein so gewähltes Ziel (auch ein Seelenstein) bleibt dein Fokus: Grundangriff und Fertigkeiten gehen auf es, solange es in Reichweite ist – auch wenn andere Monster näher stehen.</dd>
+      <dt>AUTO-Knopf</dt><dd>Auto-Angriff an/aus (rechts an der Leiste, auch unter Einstellungen → Steuerung). Ist er an, läuft deine Figur nach einem Linksklick auf ein Monster oder einen Seelenstein hin und greift es immer weiter an – bis es besiegt ist, du ein anderes Ziel wählst, selbst läufst oder <kbd>Esc</kbd> drückst.</dd>
       <dt><kbd>R</kbd></dt><dd>Aufsitzen und absteigen (Pferd oder Drache)</dd>
       <dt><kbd>Leertaste</kbd> auf dem Drachen</dt><dd>Im Flug ein Stück über die Bäume steigen, nochmal drücken zum Sinken (statt anzugreifen; auch <kbd>Bild↑</kbd> / <kbd>Bild↓</kbd> oder der Pfeil-Knopf neben dem Drachen-Knopf). Am Boden und im Dungeon greift die Leertaste wie gewohnt an.</dd>
       <dt><kbd>F</kbd></dt><dd>Mit Händlern, dem Schmied und allen Dorfbewohnern sprechen</dd>
@@ -304,7 +309,7 @@
       <dt><kbd>B</kbd></dt><dd>Beute: alles, was du aufgehoben hast, und der Weg in den Rucksack</dd>
       <dt><kbd>C</kbd> / <kbd>H</kbd> / <kbd>Esc</kbd></dt><dd>Charakter, Hilfe, Fenster schließen</dd>
     </dl>
-    <p>Am Handy: Berühre die linke Bildschirmhälfte an einer beliebigen Stelle und ziehe, um zu laufen. Rechts den Angriffsknopf gedrückt halten. Fertigkeiten und Tränke kannst du gleichzeitig antippen. Angreifen geht immer, auch ohne Gegner in der Nähe: Die Figur schlägt oder schießt dann in Blickrichtung.</p>
+    <p>Am Handy: Berühre die linke Bildschirmhälfte an einer beliebigen Stelle und ziehe, um zu laufen. Rechts den Angriffsknopf gedrückt halten. Fertigkeiten und Tränke kannst du gleichzeitig antippen. Angreifen geht immer, auch ohne Gegner in der Nähe: Die Figur schlägt oder schießt dann in Blickrichtung. Mit dem kleinen AUTO-Knopf links neben dem Lebenstrank schaltest du den Auto-Angriff ein: Dann greift deine Figur ein angetipptes Monster oder einen angetippten Seelenstein von selbst immer weiter an, bis du läufst oder ein anderes Ziel antippst.</p>
     <p>Auf dem fliegenden Drachen erscheinen am Handy links neben den Fertigkeiten zwei Knöpfe: Steigen und Sinken.</p>
     <h3>So kommst du voran</h3>
     <ul>
@@ -342,6 +347,7 @@
       <li>Einstellungen (Zahnrad oben rechts oder Taste O): Klänge und Lautstärke, Grafikqualität (Hoch, Mittel, Niedrig spart Akku), Kamera (Nah, Normal, Weit), Bildschirmwackeln, Schadenszahlen, Namen der Bewohner und Vibration; dazu Aussehen ändern, Server, Hilfe und zurück zum Startbildschirm.</li>
       <li>Aussehen: Bei der Erstellung wählst du Frisur (Kurz, Dutt, Lang, Stachelig, Pferdeschwanz, Glatze), Haarfarbe, Hautfarbe, Augenform, Augenfarbe und Gesichtszeichen; die Vorschau dreht sich beim Antippen. Später änderst du es im Charakterfenster mit „Aussehen ändern“. Mitspieler sehen dein Aussehen.</li>
       <li>Unter der Karte zeigt das Funkzeichen deinen Ping: im Kanal zum Host, allein zum Spielserver; ohne Internet steht dort „offline“.</li>
+      <li>Version 15.51 – Kein Ruckeln mehr in 2D: Fertigkeiten mit Rang (E bis V), vor allem beim Schamanen, ließen das Bild bei vielen Gegnern fast stehen bleiben – der Leuchtschein wird jetzt einmal je Bild berechnet und sieht gleich aus; auch die Geister des Totenrufs ruckeln nicht mehr. Fokus: Grundangriff und Fertigkeiten bleiben auf deinem angeklickten Ziel (auch Seelensteine), Geschosse fliegen durch andere Monster hindurch, die Klickauswahl ist genauer. Neu unten in der Leiste: der AUTO-Knopf für automatischen Angriff, auch in den Einstellungen. Turm der Verdammten und Arena: größere Hallen mit Rängen voller jubelnder Ungeheuer und hüpfender Zuschauer, kein leerer Kartenrand mehr, Wellen etwa halb so lang, mehr Gold je nach Stufe. Neue Musik für Turm, Kharzul, seine Verwandlung und die Arena. Bestenliste: Bei gleicher Stufe steht das höhere Ausrüstungslevel weiter oben. Die Server-Auswahl zeigt nur noch die Spielerzahl ohne „/100“. Taschenseiten III und IV: Der Haken kommt erst, wenn du mindestens 10 Sekunden auf dem Profil warst.</li>
       <li>Version 15.50 – Krieger (Weg der Klinge): „Aderlass“ ersetzt das Klingenkreuz – vier schnelle Hiebe hintereinander, jeder Treffer lässt das Ziel bluten (bis zu 6 Stapel, auch bei Bossen). Bücher, Stufe und Rang gehen automatisch über. Der Sprungschlag betäubt jetzt auch Spieler (1 Sekunde). Debuffs an Monstern und Bossen zeigen nur noch die Restzeit – den Schaden siehst du mit der Maus darüber oder durch Antippen, am Bossbalken stehen sie jetzt auch. Bosse: Jeder Karten-Endboss hat 2–3 eigene, passende Angriffe mit Warnflächen, Dungeon- und Instanzbosse bekommen eigene Angriffe dazu, und alle greifen öfter und abwechslungsreicher an. Tarkon, Ignar und Aelvyr treffen härter. Kharzul im Turm der Verdammten: Totentanz bei 75 %, bei 50 % verwandelt er sich in seine wahre Gestalt (schneller, stärker, vier neue Angriffe), Seelenbann bei 25 % – die Seelenketten sind weg. Tagesbelohnung neu und passend zur Stufe: Erfahrungsring am 2. Tag, Bücher, Schriftrollen, Verstärkungen und an Tag 7 eine Heldentruhe mit einem epischen Teil für deine Klasse – dafür weniger Gold und Splitter. Neu: Feedback direkt im Spiel senden (einmal je Charakter mit kleinem Dankeschön) und das Spiel im Store bewerten (Einstellungen → Konto). Taschenseiten III und IV werden jetzt auch in den Apps durch Folgen auf TikTok und Instagram freigeschaltet.</li>
       <li>Version 15.49 – Charakter retten: In der Charakterauswahl hat jeder Charakter jetzt einen Rettungsring (🛟). Er setzt ihn in die sichere Stadt seiner Seite, beendet Instanz, Turm, Arena, Reiten und Tod und repariert beschädigte Daten – Gegenstände, Gold und Stufen bleiben. Der „Spielen“-Knopf bleibt nie mehr stumm: Klappt das Betreten nicht, rettet das Spiel den Charakter selbst oder zeigt eine Meldung mit dem Fehler. Neu in den Einstellungen (Figur und Spiel): „Feststecken? In die Stadt zurück“ (5 Sekunden, bricht bei Schaden ab, alle 10 Minuten). Verschwindet am Handy die 3D-Welt (Grafikspeicher voll), startet das Spiel die Grafik selbst neu; stürzt es ab, geht es nach dem Neustart direkt mit demselben Charakter weiter. Außerdem braucht das Spiel am Handy weniger Speicher.</li>
       <li>Version 15.48 – Blitzmagier: neue Ulti „Donnerkeile“ statt des Sturmgerichts (war der Gewitterwolke zu ähnlich): Es grollt, viermal schlägt ein Blitz vom Himmel ein und bleibt als großer Donnerkeil stehen, dann schleudert der Magier alle vier im Fächer nach vorn – sie durchschlagen alle Gegner auf ihrer Bahn und betäuben sie 1,5 Sekunden. Der Grundangriff des Blitzmagiers ist jetzt ein echter kleiner Blitzpfeil statt leuchtender Punkte. Neues, hochwertigeres Titelbild: gemalter Abendhimmel, Berge im Dunst, Wiese, leuchtender Seelenstein und die fünf Klassen ohne harte Umrisslinien.</li>
@@ -955,6 +961,7 @@
 <script src="js/tagesbelohnung.js"></script>
 <script src="js/eingabe.js"></script>
 <script src="js/tasten.js"></script>
+<script src="js/autoangriff.js"></script>
 <script src="js/tipps.js"></script>
 <script src="js/netz-signal.js"></script>
 <script src="js/netz.js"></script>
@@ -996,6 +1003,7 @@
 <script src="js/bossangriffe.js"></script>
 <script src="js/bossangriffe-bosse.js"></script>
 <script src="js/kharzul.js"></script>
+<script src="js/tribuene.js"></script>
 <script src="js/nativ.js"></script>
 <script src="js/spiel.js"></script>
 <script src="js/einfuehrung.js"></script>

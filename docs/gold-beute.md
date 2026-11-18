@@ -136,3 +136,31 @@ Das Ergebnis: Farmen bringt jetzt spürbar Gold, etwa 1,8- bis 2-mal so viel wie
   Wenn das zu viel ist: `KILL_GOLD.per` senken.
 - Kein Mehrspieler-Test mit zwei echten Browsern gelaufen. Die Kill-Regeln (`netEligible`, Host und Client) sind
   unverändert; die Teilung ist nur einzeln geprüft.
+
+## Prüfungsarena: schnellere Wellen, Wellengold nach Stufe (Umbau „Turm und Arena mit Zuschauern“)
+
+Wunsch: „Die Wellen dauern z. B. bei Welle 12 viel zu lange, das soll schneller gehen, und man soll mehr Gold bekommen –
+ab hohem Level lohnt es sich nicht mehr.“
+
+**Gemessen** (echter Spielcode, Krieger · Klinge mit Ausrüstung +15 selten und der Spieler-KI aus
+`tools/balance-sim.js`, virtuelle Zeit, je Stufe 2–4 Läufe; Farmen: dieselbe Figur 15 Minuten auf der Karte ihrer Stufe,
+Monster und Seelensteine, mit Wegsuche). Ursache der langen Wellen: Welle 12 hatte 56 Monster (4 Elite) mit 1,39-fachem
+Leben, Schübe zu 4 alle 3 s (das letzte Monster nach rund 40 s); der Schaden reicht auf hohen Stufen nicht hinterher –
+Welle 12 dauerte auf Stufe 30 gut 60 s, auf Stufe 80 rund 170 s, und die Figur starb ab Welle 6–8 immer wieder.
+Pausen und Laufwege waren mit 1–3 s je Welle nicht die Ursache.
+
+**Neu** (`ARENA` in `js/herausforderung.js`): 12 + 2,2 × (Welle − 1) Monster, höchstens 36; Schübe zu 4 + Welle/2 alle
+2,5 s; ab Welle 9 je Welle +4,5 % Leben (vorher +6 %); Leben × 0,6 bis Stufe 30, sinkend bis × 0,46 ab Stufe 80;
+Pause 2,5 s. Wellengold = (200 + 20 × Stufe) × 0,66 … 0,76 (steigt ab Stufe 30 mit der Stufe) je Welle, Monster der
+Arena zahlen die Hälfte ihres alten Kill-Golds. Das Ergebnisfenster zeigt jetzt auch das Gold je Stunde.
+
+| Stufe | Welle 12 vorher → nachher | Farmen/h | Arena/h vorher → nachher (Lauf bis Welle 12) | Verhältnis zum Farmen |
+|---:|---:|---:|---:|---:|
+| 30 | 62 → 27 s | 156.000 | 777.000 → 740.000 | 5,0 → 4,7 |
+| 50 | 126 → 62 s | 199.000 | 690.000 → 707.000 | 3,5 → 3,5 |
+| 70 | 159 → 77 s | 518.000 | 815.000 → 960.000 | 1,6 → 1,9 |
+| 80 | 170 → 60 s | 744.000 | 877.000 → 1.144.000 | 1,2 → 1,5 |
+
+Mit Toden gerechnet (Lauf bis vor dem dritten Tod) bringt die Arena auf Stufe 80 jetzt etwa das 1,3-Fache des Farmens
+(vorher 1,1), auf Stufe 30 unverändert etwa das 5-Fache. Erfahrung je Stunde in der Arena steigt durch das Tempo um
+etwa 25–40 %.

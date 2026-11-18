@@ -7,6 +7,10 @@
 //   zusammen hinein, in der Halle gibt es keinen Kampf zwischen Spielern (sie liegt außerhalb aller Karten).
 // - Hallen: TURM.slots achteckige Hallen im ungenutzten Fels unter den Hallen der Turnierarena (wie die Prüfungsarena
 //   nach der Welt gebaut: turmBuild über generateWorld). Vier Tore (N, O, S, W) als eigene Figuren mit Zustand zu/offen.
+//   Seit dem Umbau „Turm und Arena mit Zuschauern“ ist die Halle gut ein Drittel größer (46 × 34 statt 38 × 30 Kacheln)
+//   und steht im Glutschlund: ringsum Ränge voller Ungeheuer, die jubeln (tribuene.js), dahinter verbrannter Grund mit
+//   Lavaadern und Felswände statt eines schwarzen Kastens. Jede Halle hat dafür ein großes Feld (150 × 120 Kacheln), so
+//   sieht man auch herausgezoomt keine Nachbarhalle. Boden: Basalt mit Rissen, Asche und Glutspalten (keine Ringe).
 // - Ebenen (alle in derselben Halle, 5 s Pause dazwischen):
 //     1–5  Ansturm         je eine Welle Verdammter, alle töten
 //     6    Der Hüter       Ossarn, der Kettenhüter
@@ -29,7 +33,11 @@ const TURM = {
   id: 'turm', name: 'Turm der Verdammten',
   level: 80,            // Mindeststufe und Stufe aller Gegner
   maxPlayers: 10,
-  slots: 4, slotW: 45, slotH: 37, hw: 19, hh: 15,
+  // Felder der Hallen (Kacheln): nebeneinander im Abstand pitch, oben ab DUNGEON_H + y0. Halbe Breite/Höhe der Halle
+  // hw/hh (bis zum Umbau 19/15 in Feldern zu 45 × 37 mit 4 Kacheln Abstand – Fläche jetzt × 1,37)
+  slots: 4, slotW: 150, slotH: 120, pitch: 150, y0: 310, hw: 23, hh: 17,
+  // Lage der Hallen (seit dem Umbau 2): Host und Mitspieler müssen dieselbe haben, sonst stünde man woanders
+  lage: 2,
   ebenen: 11,
   firstPause: 6,        // Sekunden bis Ebene 1
   pause: 5,             // Pause zwischen zwei Ebenen
@@ -81,27 +89,31 @@ const TURM_ZONE = {
 };
 ZONES.push(TURM_ZONE);
 const TURM_ZI = ZONES.length - 1;
-if (typeof MOOD3 !== 'undefined') MOOD3.turm = { sky: '#2a181c', sun: '#ffb48a', sunI: 0.62, hemi: '#c8a4a0', ground: '#2a1612', hemiI: 0.5, near: 26, far: 60 };
+// seit dem Umbau etwas weiter klar (near/far 34/88 statt 26/60) und röter: Ränge und Glutschlund sollen zu sehen sein
+if (typeof MOOD3 !== 'undefined') MOOD3.turm = { sky: '#341a18', sun: '#ffb48a', sunI: 0.62, hemi: '#c8a4a0', ground: '#2a1612', hemiI: 0.5, near: 34, far: 88 };
 if (typeof MON3_ZONE_THEME !== 'undefined') MON3_ZONE_THEME.turm = 'hell';
 
 // --- Lage ----------------------------------------------------------------------------------------------------------
-// Hallen: eine Reihe unter den Hallen der Turnierarena (die Turmwiese endet bei DUNGEON_H + 245)
+// Hallen: eine Reihe unter den Hallen der Turnierarena (die Turmwiese endet bei DUNGEON_H + 245), seit dem Umbau
+// weiter unten und weit auseinander (bis dahin DUNGEON_H + 262, Felder 45 × 37 im Abstand von 49 Kacheln)
 function turmSlotRect(s) {
-  const x = WORLD_W + 14 + s * (TURM.slotW + 4);
-  const y = DUNGEON_H + 262;
+  const x = WORLD_W + 14 + s * TURM.pitch;
+  const y = DUNGEON_H + TURM.y0;
   return { x, y, w: TURM.slotW, h: TURM.slotH, cx: x + TURM.slotW / 2, cy: y + TURM.slotH / 2 };
 }
-// Halle s, in der der Punkt (Pixel) liegt, sonst -1
+// Halle s, in deren Feld der Punkt (Pixel) liegt, sonst -1 (das Feld ist viel größer als die Halle: Ränge, Abgrund)
 function turmSlotAt(px, py) {
   const tx = px / TILE;
   const ty = py / TILE;
-  const y0 = DUNGEON_H + 262;
+  const y0 = DUNGEON_H + TURM.y0;
   if (tx < WORLD_W + 14 || ty < y0 || ty >= y0 + TURM.slotH) return -1;
-  const s = Math.floor((tx - WORLD_W - 14) / (TURM.slotW + 4));
+  const s = Math.floor((tx - WORLD_W - 14) / TURM.pitch);
   if (s < 0 || s >= TURM.slots) return -1;
   return tx < turmSlotRect(s).x + TURM.slotW ? s : -1;
 }
 const turmInside = (e) => !!e && turmSlotAt(e.x, e.y) >= 0;
+// Steht der Punkt (Pixel) auf dem Boden der Halle s (nicht im Fels drumherum)?
+const turmOnFloor = (s, px, py) => s >= 0 && turmInHall(s, Math.floor(px / TILE), Math.floor(py / TILE));
 const turmMonSlot = (m) => (m ? turmSlotAt(m.homeX ?? m.x, m.homeY ?? m.y) : -1);
 // Kachel in der Halle? Ein Achteck (breiter als hoch, wie der Bildschirm)
 function turmInHall(s, tx, ty) {
@@ -162,11 +174,15 @@ function turmBuild(w) {
           continue;
         }
         w.obj[i] = OBJ.NONE;
-        // dunkler Basalt, in der Mitte eine Plattenscheibe mit Aschering, Aschefelder und Risse
-        const e = hyp((x + 0.5 - R.cx) / TURM.hw, (y + 0.5 - R.cy) / TURM.hh);
+        // dunkler, rissiger Basalt mit Aschefeldern (weiche Flecken, keine Ringe); zur Wand hin mehr Risse. Glutspalten
+        // zeichnet tribuene.js auf den Boden.
+        const dx = x + 0.5 - R.cx;
+        const dy = y + 0.5 - R.cy;
         const h = tileHash(x, y);
-        w.ground[i] = e <= 0.2 ? G.FLAGSTONE : e <= 0.27 ? G.ASH : h % 6 === 0 ? G.ASH : G.BASALT;
-        if (w.ground[i] === G.BASALT && h % 23 === 0) w.deco[i] = DECO.CRACK;
+        const fleck = (tileHash(Math.floor((x + 7) / 3), Math.floor((y + 3) / 3)) + tileHash(Math.floor(x / 4), Math.floor((y + 9) / 4))) % 7;
+        w.ground[i] = fleck === 0 || (fleck === 1 && h % 3 === 0) ? G.ASH : G.BASALT;
+        const rand = Math.abs(dx) / TURM.hw + Math.abs(dy) / TURM.hh;
+        if (h % (rand > 1.1 ? 7 : 17) === 0) w.deco[i] = DECO.CRACK;
       }
     }
     // Glut: vier kleine Lavabecken in den schrägen Ecken (nicht begehbar, abseits der Wege)
@@ -178,13 +194,14 @@ function turmBuild(w) {
         if (turmInHall(s, tx + k * sx, ty - k * sy)) { w.ground[i] = G.LAVA; w.deco[i] = DECO.NONE; }
       }
     }
-    // Säulen im Kreis (blockieren, gezeichnet als Prop), Feuerbecken an der Wand
+    // Säulen im Kreis (blockieren, gezeichnet als Prop: schwere Basaltsäulen mit Ketten und Glutrissen), Feuerbecken
+    // an der Wand
     for (let k = 0; k < 8; k++) {
       const a = Math.PI / 8 + k * Math.PI / 4;
       const tx = Math.floor(R.cx + Math.cos(a) * 0.78 * TURM.hw);
       const ty = Math.floor(R.cy + Math.sin(a) * 0.78 * TURM.hh);
       w.obj[ty * MAP_W + tx] = OBJ.PILLAR;
-      w.props.push({ type: 'dpillar', roof: TURM.theme, ...P(tx + 0.5, ty + 0.75) });
+      w.props.push({ type: 'turmsaeule', roof: TURM.theme, ...P(tx + 0.5, ty + 0.75) });
     }
     for (let k = 0; k < 16; k++) {
       if (k % 4 === 0) continue; // nicht vor den Toren
@@ -193,6 +210,20 @@ function turmBuild(w) {
       w.props.push({ type: 'brazier', roof: TURM.glut, ...P(R.cx + Math.cos(a) * far * TURM.hw, R.cy + Math.sin(a) * far * TURM.hh + 0.4) });
     }
     for (const dx of [-6, 6]) w.props.push({ type: 'dbanner', roof: TURM.theme, ...P(R.cx + dx, R.cy - TURM.hh + 0.6) });
+    // Knochen: kleine Haufen an der Wand und zwischen den Säulen (nur Schmuck, sperren nichts)
+    for (let k = 0; k < 14; k++) {
+      const a = (k + 0.5) * Math.PI / 7 + ((tileHash(k, s) % 100) / 100 - 0.5) * 0.18;
+      // nicht vor den Toren und nicht in die Lavabecken
+      const g = ((a % (Math.PI / 2)) + Math.PI / 2) % (Math.PI / 2);
+      if (g < 0.22 || g > Math.PI / 2 - 0.22) continue;
+      const far = k % 3 === 0 ? 0.6 : 0.83 + (tileHash(s, k) % 7) / 100;
+      const at = turmPt(s, Math.cos(a) * far, Math.sin(a) * far);
+      const tx = Math.floor(at.x / TILE);
+      const ty = Math.floor(at.y / TILE);
+      const i = ty * MAP_W + tx;
+      if (!turmInHall(s, tx, ty) || w.obj[i] || w.ground[i] === G.LAVA) continue;
+      w.props.push({ type: 'turmknochen', roof: 'abc'[k % 3], ...P(at.x / TILE, at.y / TILE) });
+    }
     // die vier Tore (eigene Figuren, turmtor: Zustand zu/offen je Halle)
     for (let g = 0; g < 4; g++) {
       const at = turmGateAt(s, g);
@@ -886,7 +917,7 @@ function turmStartLevel(S, s) {
   } else if (D.art === 'b' || D.art === 'f') {
     const mid = turmMid(s);
     D.boss.forEach((id, k) => {
-      const at = D.boss.length > 1 ? { x: mid.x + (k ? 1 : -1) * 5 * TILE, y: mid.y } : mid;
+      const at = D.boss.length > 1 ? { x: mid.x + (k ? 1 : -1) * 6 * TILE, y: mid.y } : mid;
       S.boss.push(turmSpawn(S, s, id, 'boss', at, fighters));
     });
     S.total = S.boss.length;
@@ -1312,7 +1343,7 @@ function turmEnter(o) {
     cleared: 0, won: false, gold: 0, mobGold: 0, kills: 0, loot: new Map(), outSince: null, modeOff: null, gateAt: 0, fxAt: 0, time: 0 };
   ui.closePanels();
   ui.log('Das Tor des Turms öffnet sich …', 'info');
-  turmToHost(o && o.join != null ? { k: 'vtj', s: o.join | 0, l: p.level, pm } : { k: 'vtn', o: o && o.open ? 1 : 0, l: p.level, pm });
+  turmToHost(o && o.join != null ? { k: 'vtj', s: o.join | 0, l: p.level, pm, tl: TURM.lage } : { k: 'vtn', o: o && o.open ? 1 : 0, l: p.level, pm, tl: TURM.lage });
 }
 // Mitspieler: alte Monster einer Halle wegräumen (vom Host nicht mehr gemeldet)
 function turmPurge(s) {
@@ -1403,7 +1434,16 @@ function turmOnMsg(d) {
     return;
   }
   if (d.k === 'vtg') {
-    if (run && run.slot < 0) turmGo(d.s | 0, d.i | 0);
+    if (run && run.slot < 0) {
+      // ein Host mit der alten Lage der Hallen: man stünde nicht in seiner Halle
+      if ((d.tl | 0) !== TURM.lage) {
+        game.turmRun = null;
+        if (net.mode === 'client') netSocial('host', { k: 'vtv' });
+        ui.log('Der Host spielt eine ältere Version des Turms (die Hallen liegen anders). Wenn alle neu geladen haben, geht es hinein.', 'warn');
+        return;
+      }
+      turmGo(d.s | 0, d.i | 0);
+    }
     return;
   }
   if (d.k === 'vtx') {
@@ -1463,6 +1503,8 @@ function turmOnEvent(run, d) {
   const p = game.player;
   const here = turmSlotAt(p.x, p.y) === run.slot;
   const snd = (n) => { if (typeof sfx !== 'undefined' && sfx[n]) sfx[n](); };
+  // Zuschauer auf den Rängen (tribuene.js): jubeln bei geschafften Ebenen, Steinen, Toren – und wenn alle fallen
+  const jubel = (k, dur) => { if (here && typeof tribJubel === 'function') tribJubel(k, dur); };
   if (d.t === 'lv') {
     const e = d.e | 0;
     if (e <= run.cleared || !here) return;
@@ -1473,6 +1515,8 @@ function turmOnEvent(run, d) {
     gainXp(TURM.xp * e);
     ui.banner(`Ebene ${e} geschafft`, `+${turmFmt(g)} Gold`);
     addText(p.x, p.y - 52, `+${turmFmt(g)} Gold`, 'gold');
+    // nach einem Hüter tobt die Menge länger
+    jubel(1, TURM_EBENEN[e] && TURM_EBENEN[e].boss ? 9 : 6);
     snd('success');
     saveGame();
   } else if (d.t === 'st') {
@@ -1487,6 +1531,7 @@ function turmOnEvent(run, d) {
       ui.banner('Ein echter Stein!', `Echte Steine ${d.a}/${d.b}`);
       snd('success');
     }
+    jubel(0.6, 3);
     // echte Seelensteine geben ihre gewohnte Beute – jedem, der in der Halle steht. Die Monsterteile dazu sind die
     // des Seelenhains (das Gebiet der Hallen hat keine eigenen Monstergruppen)
     if (m && here && typeof _turmRewardKill === 'function') {
@@ -1505,6 +1550,7 @@ function turmOnEvent(run, d) {
     turmBurst(at.x, at.y - 20, TURM.glut);
     shakeScreen(5);
     snd('shatter');
+    jubel(0.6, 3);
   } else if (d.t === 'mech') {
     ui.banner('Seelenketten!', `Zerschlagt die ${d.n} Kettensteine vor den Toren – ${d.z} s`);
     shakeScreen(8);
@@ -1524,10 +1570,12 @@ function turmOnEvent(run, d) {
     }
   } else if (d.t === 'reset') {
     ui.banner('Alle gefallen', `Ebene ${d.e} beginnt von vorn`);
+    jubel(0.85, 5);
   } else if (d.t === 'win') {
     run.won = true;
     run.time = +d.z || 0;
     snd('success');
+    jubel(1, 16);
     ui.log(`${TURM.name}: Alle elf Ebenen geschafft! Die Halle bleibt noch kurz offen – verlasse den Turm über die Anzeige.`, 'level');
   }
 }
@@ -1545,13 +1593,16 @@ function turmSocial(pid, d) {
     if (host) reply({ k: 'vtl', r: turmList() });
     return;
   }
+  // seit dem Umbau liegen die Hallen woanders (TURM.lage): Geräte mit der alten Lage stünden in einer anderen Halle
+  const alt = (d.k === 'vtn' || d.k === 'vtj') && (d.tl | 0) !== TURM.lage;
+  if (alt && host) { reply({ k: 'vtx', r: 'Der Turm wurde umgebaut – bitte das Spiel neu laden (aktuelle Version), dann geht es hinein.' }); return; }
   if (d.k === 'vtn') {
     if (!host) return;
     if ((d.l | 0) < TURM.level) { reply({ k: 'vtx', r: `Der Turm öffnet sich erst ab Stufe ${TURM.level}.` }); return; }
     const s = turmAlloc(pid, !!d.o, Array.isArray(d.pm) ? d.pm.map(String) : null);
     if (s < 0) { reply({ k: 'vtx', r: 'Alle Hallen des Turms sind gerade belegt. Tritt einem laufenden Durchgang bei oder versuch es später.' }); return; }
     turmJoinHost(pid, s, d.l, d.pm);
-    reply({ k: 'vtg', s, i: turmHost.slots[s].id });
+    reply({ k: 'vtg', s, i: turmHost.slots[s].id, tl: TURM.lage });
     turmTellState(turmHost.slots[s], s);
     return;
   }
@@ -1560,7 +1611,7 @@ function turmSocial(pid, d) {
     const why = turmJoinHost(pid, d.s, d.l, d.pm);
     if (why) { reply({ k: 'vtx', r: why }); return; }
     const S = turmHost.slots[d.s | 0];
-    reply({ k: 'vtg', s: d.s | 0, i: S.id });
+    reply({ k: 'vtg', s: d.s | 0, i: S.id, tl: TURM.lage });
     turmTellState(S, d.s | 0);
     return;
   }
@@ -1665,8 +1716,15 @@ function turmTick() {
     return;
   }
   run.respawnAt = 0;
-  // Halle verlassen: wer nur über die Wand gerutscht ist, kommt zurück an den Eingang; sonst endet der Durchgang
-  if (here !== run.slot) {
+  // Halle verlassen: wer nur über die Wand gerutscht ist, kommt zurück an den Eingang; sonst endet der Durchgang.
+  // Seit dem Umbau ist das Feld der Halle viel größer als die Halle: wer im Fels des eigenen Felds steht (Sprung oder
+  // Teleport über die Wand), kommt ebenso an den Eingang
+  if (here === run.slot && !turmOnFloor(run.slot, p.x, p.y) && !canStand(p.x, p.y, p.r * 0.7, false)) {
+    const at = turmEntry(run.slot);
+    p.x = at.x;
+    p.y = at.y;
+    run.outSince = null;
+  } else if (here !== run.slot) {
     if (p.x / TILE >= WORLD_W && p.y / TILE >= DUNGEON_H + 250) {
       const at = turmEntry(run.slot);
       p.x = at.x;
@@ -1723,6 +1781,7 @@ function turmSeenTick(run) {
     if (boss) {
       shakeScreen(7);
       ui.banner(m.name, m.type.inst.title);
+      if (typeof tribJubel === 'function') tribJubel(0.7, 3.5);
     }
   }
 }
@@ -1885,6 +1944,8 @@ villageSpawn = function (p) {
     const run = game.turmRun;
     return run && run.slot >= 0 && p === game.player ? turmEntry(run.slot) : turmReturn();
   }
+  // gespeichert in einer Halle von vor dem Umbau (dort ist jetzt Fels): vor den Turm
+  if (p && p.x / TILE >= WORLD_W + 14 && p.y / TILE >= DUNGEON_H + 262 && p.y / TILE < DUNGEON_H + 299) return turmReturn();
   return _turmVillageSpawn(p);
 };
 if (typeof SAVE_FIELDS !== 'undefined' && !SAVE_FIELDS.includes('instLock')) SAVE_FIELDS.push('instLock');
@@ -2295,6 +2356,105 @@ if (typeof PROP_ART !== 'undefined') {
   };
   if (typeof PROP_BOUNDS !== 'undefined') PROP_BOUNDS.turmbau = { x: -84, y: -290, w: 168, h: 302 };
 }
+// Schmuck der Halle (seit dem Umbau): schwere Basaltsäule mit Glutrissen, Eisenbändern und Kettenresten; Knochenhaufen
+// (roof 'a' | 'b' | 'c' = drei Formen). Keine Ringe am Boden.
+if (typeof PROP_ART !== 'undefined') {
+  PROP_ART.turmsaeule = (ctx) => {
+    const st = '#3a3036';
+    const hi = '#54464e';
+    const lo = '#221a1e';
+    const glut = TURM.glut;
+    box(ctx, -17, -10, 34, 10, 2, lo);
+    box(ctx, -14, -16, 28, 7, 1.5, st);
+    // Schaft, links heller
+    poly(ctx, [[-11, -16], [11, -16], [9.5, -84], [-9.5, -84]], st);
+    poly(ctx, [[-11, -16], [-4, -16], [-3.5, -84], [-9.5, -84]], hi);
+    // Glutrisse
+    stroke(ctx, '#140a08', 2.4, [[-2, -22], [2, -34], [-1, -44], [3, -58]]);
+    stroke(ctx, glut, 1.1, [[-2, -22], [2, -34], [-1, -44], [3, -58]]);
+    stroke(ctx, '#140a08', 2, [[5, -66], [2, -74], [5, -80]]);
+    stroke(ctx, glut, 0.9, [[5, -66], [2, -74], [5, -80]]);
+    // Eisenbänder mit Kettenresten
+    for (const y of [-30, -64]) {
+      box(ctx, -12, y, 24, 4, 1, '#4e4c54');
+      for (let k = 0; k < 4; k++) oval(ctx, 9 + (k % 2), y + 6 + k * 4.2, 1.6, 2.4, '#6a6a74');
+    }
+    for (let k = 0; k < 3; k++) oval(ctx, -9, -60 + k * 4.4, 1.6, 2.4, '#5e5e68');
+    // Kapitell mit Dornen
+    box(ctx, -16, -92, 32, 9, 2, lo);
+    poly(ctx, [[-16, -92], [16, -92], [12, -98], [-12, -98]], hi);
+    for (const x of [-13, 0, 13]) poly(ctx, [[x - 4, -97], [x, -110 + Math.abs(x) * 0.25], [x + 4, -97]], x ? lo : st);
+  };
+  PROP_ART.turmknochen = (ctx, pr) => {
+    const bone = '#cfc6b4';
+    const dk = '#8a8070';
+    const v = pr && pr.roof;
+    if (v !== 'b') {
+      // Schädel mit zwei Knochen
+      stroke(ctx, dk, 3.6, [[-12, -2], [10, -7]]);
+      stroke(ctx, bone, 2.4, [[-12, -2], [10, -7]]);
+      stroke(ctx, dk, 3.6, [[-10, -8], [11, -1]]);
+      stroke(ctx, bone, 2.4, [[-10, -8], [11, -1]]);
+      oval(ctx, v === 'c' ? 6 : -1, -9, 6.5, 5.8, bone);
+      box(ctx, (v === 'c' ? 6 : -1) - 3.5, -5, 7, 3.4, 1, darker(bone, 0.1));
+      for (const x of [-2.4, 2.4]) oval(ctx, (v === 'c' ? 6 : -1) + x, -9.5, 1.6, 1.8, '#1a1210');
+    }
+    if (v !== 'a') {
+      // Rippen und ein Wirbelstrang
+      for (let k = 0; k < 4; k++) stroke(ctx, bone, 1.6, [[-14 + k * 4, -1], [-16 + k * 4, -8], [-12 + k * 4, -11]]);
+      stroke(ctx, dk, 1.4, [[-16, -2], [-2, -3]]);
+      oval(ctx, 2, -3, 3, 2, dk);
+    }
+  };
+  if (typeof PROP_BOUNDS !== 'undefined') {
+    PROP_BOUNDS.turmsaeule = { x: -20, y: -114, w: 40, h: 118 };
+    PROP_BOUNDS.turmknochen = { x: -20, y: -20, w: 40, h: 24 };
+  }
+}
+if (typeof PROP3 !== 'undefined') {
+  PROP3.turmsaeule = function (b, M) {
+    const st = '#3a3036';
+    const hi = '#54464e';
+    const lo = '#221a1e';
+    const glut = TURM.glut;
+    const R8 = Math.PI / 8;
+    b.add(wbox(1.05, 0.32, 1.05, 0.06), lo, { parent: M, p: [0, 0.16, 0], shade: 0.3, top: hi, topK: 0.3 });
+    b.add(wbox(0.86, 0.2, 0.86, 0.05), st, { parent: M, p: [0, 0.42, 0] });
+    b.add(lathe3('turmsaeule', [[0.36, 0], [0.38, 0.5], [0.35, 1.6], [0.31, 2.4], [0, 2.4]], 8), st, { parent: M, p: [0, 0.5, 0], r: [0, R8, 0], shade: 0.3, top: hi, topK: 0.25 });
+    // Glutrisse (leuchtend), schräg über den Schaft
+    for (const [x, y, z, rz] of [[0.2, 1.0, 0.3, 0.5], [-0.1, 1.5, 0.35, -0.4], [0.28, 2.2, 0.2, 0.3], [-0.3, 1.9, -0.18, 0.6]]) {
+      b.add(wbox(0.05, 0.42, 0.04, 0.015), glut, { parent: M, p: [x, y, z], r: [0, Math.atan2(x, z), rz], mat: 'glow', noShadow: true });
+    }
+    // zwei Eisenbänder mit hängenden Kettenresten
+    for (const y of [1.0, 2.15]) {
+      b.add(wbox(0.8, 0.12, 0.8, 0.03), '#4e4c54', { parent: M, p: [0, y, 0], r: [0, R8, 0], shine: 0.7 });
+      for (let k = 0; k < 4; k++) b.add(torus3(0.07, 0.022, Math.PI * 2, 4, 8), '#6a6a74', { parent: M, p: [0.42, y - 0.12 - k * 0.13, 0.16], r: [k % 2 ? 0 : Math.PI / 2, 0, 0], shine: 0.8, noShadow: true });
+    }
+    for (let k = 0; k < 5; k++) b.add(torus3(0.07, 0.022, Math.PI * 2, 4, 8), '#5e5e68', { parent: M, p: [-0.38, 2.0 - k * 0.13, -0.2], r: [k % 2 ? 0 : Math.PI / 2, 0, 0], shine: 0.8, noShadow: true });
+    // Kapitell mit Dornen
+    b.add(wbox(1.0, 0.28, 1.0, 0.06), lo, { parent: M, p: [0, 3.02, 0], top: hi, topK: 0.4 });
+    for (let k = 0; k < 4; k++) {
+      const a = k * Math.PI / 2 + Math.PI / 4;
+      b.add(horn3(0.55, 0.12, 5), k % 2 ? lo : st, { parent: M, p: [Math.cos(a) * 0.42, 3.15, Math.sin(a) * 0.42], r: [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35] });
+    }
+  };
+  PROP3.turmknochen = function (b, M, pr) {
+    const bone = '#d8cfbc';
+    const dk = '#8a8070';
+    const v = pr && pr.roof;
+    if (v !== 'b') {
+      const sx = v === 'c' ? 0.2 : 0;
+      b.add(sphere3(0.17, 8, 6), bone, { parent: M, p: [sx, 0.15, 0], s: [1, 0.9, 1.1] });
+      b.add(wbox(0.18, 0.1, 0.14, 0.03), bone, { parent: M, p: [sx, 0.06, 0.1] });
+      for (const x of [-0.06, 0.06]) b.add(sphere3(0.045, 6, 4), '#1a1210', { parent: M, p: [sx + x, 0.17, 0.15] });
+      for (const r of [0.5, -0.6]) b.add(limb3(0.55, 0.035, 0.035, 5), bone, { parent: M, p: [-0.05, 0.05, 0], r: [Math.PI / 2, r, 0], shade: 0.2 });
+    }
+    if (v !== 'a') {
+      for (let k = 0; k < 4; k++) b.add(torus3(0.16, 0.022, Math.PI * 0.9, 4, 8), bone, { parent: M, p: [-0.3 + k * 0.13, 0.06, -0.05], r: [0, Math.PI / 2, 0] });
+      b.add(limb3(0.5, 0.03, 0.03, 5), dk, { parent: M, p: [-0.42, 0.04, -0.05], r: [0, 0, Math.PI / 2] });
+    }
+  };
+}
 if (typeof PROP3 !== 'undefined') {
   PROP3.turmbau = function (b, M) {
     const st = '#3a3036';
@@ -2617,8 +2777,11 @@ if (typeof mapAreaAt === 'function') {
   mapAreaAt = function (tx, ty) {
     const s = turmSlotAt(tx * TILE, ty * TILE);
     if (s < 0) return _turmMapAreaAt(tx, ty);
+    // seit dem Umbau nur die Halle mit etwas Rand (das Feld drumherum ist Fels und Abgrund)
     const R = turmSlotRect(s);
-    return { key: 'v' + s, x: R.x, y: R.y, w: R.w, h: R.h, wm: null, dungeon: -1 };
+    const mw = Math.ceil(TURM.hw) + 4;
+    const mh = Math.ceil(TURM.hh) + 4;
+    return { key: 'v' + s, x: Math.floor(R.cx) - mw, y: Math.floor(R.cy) - mh, w: mw * 2, h: mh * 2, wm: null, dungeon: -1 };
   };
 }
 if (typeof regionRect3 === 'function') {
@@ -2630,12 +2793,25 @@ if (typeof regionRect3 === 'function') {
     return { r: [R.x, R.y, R.w, R.h], inset: 1, key: 'dv' + s };
   };
 }
-// Musik: düster wie in den Dungeons (bei Hütern und Wächter die Bossmusik, musik.js)
+// Musik (seit 15.51 eigene Stücke, tools/klang-synth/musik.py): in der Halle „turm“ (alle Ebenen, auch die Hüter),
+// solange Kharzul lebt „kharzul“, ab seiner Verwandlung „kharzul2“ (dasselbe Stück mit mehr Wucht, setzt an derselben
+// Stelle ein). Fehlt eine Datei, spielt die bisherige (Dungeon bzw. Boss: MUSIC_FALLBACK in klang-dateien.js)
 if (typeof music !== 'undefined' && music.moodAt) {
   const _turmMood = music.moodAt;
   music.moodAt = function (x, y) {
-    if (turmSlotAt(x, y) >= 0) return 'dunkel';
+    if (turmSlotAt(x, y) >= 0) return 'turm';
     return _turmMood.call(this, x, y);
+  };
+  const _turmMusicMood = music.mood;
+  music.mood = function () {
+    const p = game.player;
+    const s = p && game.running && game.world ? turmSlotAt(p.x, p.y) : -1;
+    if (s < 0) return _turmMusicMood.call(this);
+    for (const m of game.monsters) {
+      if (m.dead || m.typeId !== 'turm_waechter' || turmMonSlot(m) !== s) continue;
+      return m.kzForm || m.kzMorphAt != null || (typeof kzFormK === 'function' && kzFormK(m) > 0) ? 'kharzul2' : 'kharzul';
+    }
+    return 'turm';
   };
 }
 // Bossleiste: Hüter und Wächter der eigenen Halle immer, egal wie weit weg (das gewählte Ziel zuerst)

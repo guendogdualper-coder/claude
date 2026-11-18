@@ -3050,6 +3050,13 @@ function drawOverlay3(ctx) {
   const ground = (e) => e.ground || e.type === 'runes' || e.type === 'decal' || e.type === 'warn';
   // Ringe, Säulen, Blitze, Schnitte usw. stehen als 3D-Körper in der Szene (drei-fx.js)
   const skip = (e) => e.type === 'corpse' || e.type === 'afterimage' || FX3_TYPES.has(e.type);
+  // Schein der Effekte mit Rang (Bodenspuren, Geisterklingen, Magier-Siegel): einmal je Durchgang darunter
+  // (effekte.js, rankHaloPass – vorher ein Schatten je Strich, siehe dort)
+  const anchor = (c, e) => {
+    const o = effectOrigin(e);
+    return inView(o.x, o.y) && v3Anchor(c, o.x, o.y);
+  };
+  rankHaloPass(ctx, (e) => ground(e) && !skip(e), anchor);
   for (const e of game.effects) {
     if (!ground(e) || skip(e)) continue;
     const o = effectOrigin(e);
@@ -3065,6 +3072,7 @@ function drawOverlay3(ctx) {
     if (!v3Anchor(ctx, pr.x, pr.y)) continue;
     drawProjectile(ctx, pr);
   }
+  rankHaloPass(ctx, (e) => !ground(e) && !skip(e), anchor);
   for (const e of game.effects) {
     if (ground(e) || skip(e)) continue;
     const o = effectOrigin(e);
@@ -3072,6 +3080,7 @@ function drawOverlay3(ctx) {
     if (!v3Anchor(ctx, o.x, o.y)) continue; // seit 14.66: nicht neben/hinter der Kamera (riesig verzerrt)
     drawEffect(ctx, e);
   }
+  rankHaloPass(ctx, (e) => !ground(e) && !skip(e), anchor, true);
   // Auren und Ringe der Spieler
   const players = _ovPlayers;
   players.length = 0;

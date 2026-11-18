@@ -219,6 +219,12 @@ const SHOT_FILE = {
 const PLAYER_FILE = { levelup: ['stufe', 1.6], coin: ['gold', 1.3], item: ['beute', 1.1] };
 
 // --- Musik aus Dateien ------------------------------------------------------------------------------------------
+// Seit 15.51: Fehlt die Datei einer Stimmung (offline und nicht gespeichert, kaputt, veraltet), spielt die bisherige
+// Datei weiter (Turm → Dungeon, Kharzul → Boss); erst ohne jede Datei die erzeugte Musik (musik.js)
+const MUSIC_FALLBACK = { turm: 'dunkel', kharzul: 'boss', kharzul2: 'kharzul' };
+// Stücke im Gleichlauf (gleich lang, gleiche Schleife und gleiches Tempo): ein Wechsel setzt an derselben Stelle ein
+// (Kharzul ab seiner Verwandlung: dasselbe Stück mit mehr Wucht, tools/klang-synth/musik.py)
+const MUSIC_SYNC = { kharzul: 'kharzul2', kharzul2: 'kharzul' };
 const musicFiles = {
   bytes: new Map(),
   bufs: new Map(),
@@ -229,6 +235,15 @@ const musicFiles = {
 
   has(k) {
     return typeof MUSIC_FILES !== 'undefined' && !!MUSIC_FILES[k] && !this.fail.has(k);
+  },
+
+  // Datei für Stimmung k: ihre eigene oder, solange die fehlt, die bisherige (MUSIC_FALLBACK); null: keine Datei
+  fileFor(k) {
+    for (let i = 0; i < 4 && k; i++) {
+      if (this.has(k)) return k;
+      k = MUSIC_FALLBACK[k];
+    }
+    return null;
   },
 
   // nur die Bytes holen (Vorladen der Nachbargegenden). Die Größe muss zu MUSIC_FILES passen: Der Service Worker
@@ -303,9 +318,9 @@ const musicFiles = {
     }
   },
 
-  // läuft für diese Stimmung schon eine Datei?
+  // läuft für diese Stimmung schon eine Datei (ihre eigene oder ihr Ersatz)?
   playing(k) {
-    return !!(this.cur && this.cur.k === k);
+    return !!(this.cur && (this.cur.k === k || this.cur.k === this.fileFor(k)));
   },
 
   // Soll die erzeugte Musik schweigen? Ja, solange irgendeine Datei läuft (auch die alte, während die neue noch
@@ -319,7 +334,8 @@ const musicFiles = {
   want(k, fade = 2.5) {
     if (this.wantK === k && (this.playing(k) || this.pending)) return;
     this.wantK = k;
-    if (!this.has(k)) {
+    const f = this.fileFor(k);
+    if (!f) {
       this.pending = false;
       this.stop(fade);
       return;
@@ -331,14 +347,21 @@ const musicFiles = {
     }
     this.pending = true;
     this.pendingAt = sfx.ctx ? sfx.ctx.currentTime : 0;
-    this.decode(k).then((buf) => {
+    this.decode(f).then((buf) => {
       if (this.wantK !== k) return;
       this.pending = false;
+      // Datei fehlt (offline) oder ist kaputt: den Ersatz versuchen (MUSIC_FALLBACK)
+      const f2 = buf ? f : this.fileFor(k);
+      if (f2 && f2 !== f) {
+        this.wantK = null;
+        this.want(k, fade);
+        return;
+      }
       if (!buf || !music.allowed()) {
         this.stop(fade);
         return;
       }
-      this.start(k, buf, fade);
+      this.start(f, buf, fade);
     });
   },
 
@@ -349,6 +372,14 @@ const musicFiles = {
     if (this.cur && this.cur.k === k) return;
     const t = c.currentTime + 0.05;
     const dur = Math.max(0.1, fade);
+    // zurück in eine Gegend: dort weiter, wo das Stück aufgehört hat (innerhalb der Schleife), sonst von vorn;
+    // im Gleichlauf (MUSIC_SYNC) an derselben Stelle wie die laufende Datei
+    let off = this.pos.get(k) || 0;
+    const o = this.cur;
+    if (o && MUSIC_SYNC[k] === o.k) {
+      off = t - o.t0;
+      if (off > o.b) off = o.a + ((off - o.a) % (o.b - o.a));
+    }
     // alte Datei fällt (Kosinus), neue steigt (Sinus) – gleichzeitig, gleiche Leistung
     this.stop(dur, true, t);
     const src = c.createBufferSource();
@@ -363,8 +394,6 @@ const musicFiles = {
     sfx.fade(g.gain, t, dur, 1, 0);
     src.connect(g);
     g.connect(music.fileBus);
-    // zurück in eine Gegend: dort weiter, wo das Stück aufgehört hat (innerhalb der Schleife), sonst von vorn
-    let off = this.pos.get(k) || 0;
     if (off >= src.loopEnd) off = src.loopStart;
     src.start(t, off);
     this.cur = { k, src, g, t0: t - off, M, a: src.loopStart, b: src.loopEnd };
@@ -396,7 +425,8 @@ const musicFiles = {
     this.stop(0.4);
   },
 
-  // Nachbargegenden vorab holen (nur Bytes), Boss, wenn einer nahe ist
+  // Nachbargegenden vorab holen (nur Bytes), Boss, wenn einer nahe ist, und den Gleichlauf-Partner der laufenden
+  // Stimmung (Kharzul: die Fassung nach der Verwandlung)
   prefetch(p) {
     if (!p || typeof music === 'undefined' || !game.running || !game.world) return;
     const seen = new Set();
@@ -406,6 +436,10 @@ const musicFiles = {
       if (k) seen.add(k);
     }
     if (game.monsters.some((m) => !m.dead && m.type && (m.type.boss || m.type.raid) && (m.x - p.x) ** 2 + (m.y - p.y) ** 2 < 1700 * 1700)) seen.add('boss');
-    for (const k of seen) if (this.has(k)) this.fetch(k);
+    if (MUSIC_SYNC[music.key]) seen.add(MUSIC_SYNC[music.key]);
+    for (const k of seen) {
+      const f = this.fileFor(k);
+      if (f) this.fetch(f);
+    }
   }
 };

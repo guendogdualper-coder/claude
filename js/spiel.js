@@ -1,6 +1,6 @@
 // Spielzustand und Hauptschleife. Diese Datei wird als letzte geladen und startet alles.
 
-const GAME_VERSION = '15.50';
+const GAME_VERSION = '15.51';
 
 const game = {
   world: null,
@@ -132,8 +132,10 @@ function updatePlayer(dt) {
       // seit 13.85: kurz nach einem Angriff schaut die Figur weiter zum Ziel (holdFacing, kampf.js)
       if (!holdFacing(p)) p.facing = { x: mv.x / len, y: mv.y / len };
     }
+    // Auto-Angriff (Schalter an der Leiste, autoangriff.js): das angeklickte Ziel gilt als gehaltener Angriff
+    const auto = typeof autoAttackTick === 'function' ? autoAttackTick(p, mv) : null;
     // Leertaste, linke Maustaste auf einem Monster (PC) oder Angriffsknopf (Handy) gehalten: jeder Frame ist ein neuer Tipp
-    if (input.keys.has('Space') || input.mouseAttack || input.touchAttack) input.attackAt = game.time;
+    if (input.keys.has('Space') || input.mouseAttack || input.touchAttack || auto) input.attackAt = game.time;
     // Mausklick auf den Boden: dorthin laufen, bis Tasten, Steuerknüppel oder ein Angriff übernehmen
     if (mv.x || mv.y || game.time - input.attackAt < 0.45) input.walkTo = null;
     else if (input.walkTo) {
@@ -155,7 +157,8 @@ function updatePlayer(dt) {
       // seit 14.32 so weit wie Tab Ziele wählt (Reichweite + 200, cycleTarget): vorher lief die Figur zu einem mit Tab
       // gewählten Ziel über 420 nicht hin, der Bogen schoss ins Leere und der Pfeil fiel vor dem Ziel herunter
       const g = game.target && !game.target.dead && !game.target.hidden && dist(game.target, p) < Math.max(420, basicAttack(p).range + 200) ? game.target : null;
-      const t = (g && targetIsManual(g) ? g : null) || nearestEnemy(p, 260) || g;
+      // Auto-Angriff: immer zu seinem Ziel, auch wenn es weiter weg angeklickt wurde
+      const t = auto || (g && targetIsManual(g) ? g : null) || nearestEnemy(p, 260) || g;
       if (t && (dist(t, p) - t.r > basicAttack(p).range || inVillage(p.x, p.y))) {
         setTarget(t, targetIsManual(t));
         p.moving = moveToward(p, t.x, t.y, s.speed * dt, false);

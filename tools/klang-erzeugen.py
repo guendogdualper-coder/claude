@@ -14,6 +14,8 @@ Aufruf:
   ELK=… python3 tools/klang-erzeugen.py roh hieb_schwert dorf   # nur diese erzeugen (fehlende)
   … --neu                                          # vorhandene Rohdateien der genannten ids neu erzeugen
 Rohdateien liegen außerhalb des Repos (Standard ~/.cache/seelenstein-klang-roh, sonst --roh <ordner>).
+Seit 15.51 gibt es auch im Rechner erzeugte Musik (Turm, Kharzul, Arenen): Einträge mit „synth“ (Skript unter tools/)
+rechnet „roh“ ohne Netz und ohne Schlüssel mit diesem Skript (Rohdatei <roh>/musik/<id>.wav), „bauen“ wie alle anderen.
 
 Braucht: python3 mit numpy und scipy, ffmpeg (libmp3lame), urllib.
 """
@@ -691,6 +693,11 @@ def main():
                     continue
                 if e.get('quelle'):  # aus einer anderen Rohdatei geschnitten
                     continue
+                if e.get('synth'):  # im Rechner erzeugt (eigenes Skript, kein ElevenLabs)
+                    if not os.path.exists(os.path.join(roh_dir, art, e['id'] + '.wav')) or neu:
+                        print('rechne', art, e['id'], flush=True)
+                        subprocess.run([sys.executable, os.path.join(HIER, e['synth']), e['id'], '--roh', roh_dir], check=True)
+                    continue
                 ziel = os.path.join(roh_dir, art, e['id'] + '.mp3')
                 if os.path.exists(ziel) and not neu:
                     continue
@@ -736,7 +743,7 @@ def main():
     for e in liste['musik']:
         if e.get('aus') or not e.get('stimmung') or (nur and e['id'] not in nur):
             continue
-        roh = os.path.join(roh_dir, 'musik', e['id'] + '.mp3')
+        roh = os.path.join(roh_dir, 'musik', e['id'] + ('.wav' if e.get('synth') else '.mp3'))
         if not os.path.exists(roh):
             print('fehlt (roh):', e['id'])
             continue

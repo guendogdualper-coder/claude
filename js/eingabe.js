@@ -134,7 +134,7 @@ function setupInput() {
       }
       oneTouch = { id: e.pointerId, x: e.clientX, y: e.clientY };
       try { cv.setPointerCapture(e.pointerId); } catch (err) { /* Finger schon weg */ }
-      selectAt(e.clientX, e.clientY);
+      if (selectAt(e.clientX, e.clientY) === 'monster' && typeof autoAttackClick === 'function') autoAttackClick();
       return;
     }
     // seit 14.32: ein zweiter Finger auf dem Bild übernimmt das Drehen nicht (vorher riss er es dem ersten ab, und
@@ -186,6 +186,8 @@ function setupInput() {
       input.walkTo = null;
       input.mouseAttack = true;
       tapAttack();
+      // Auto-Angriff an (autoangriff.js): das Ziel wird weiter angegriffen, auch nach dem Loslassen
+      if (typeof autoAttackClick === 'function') autoAttackClick();
     } else if (!hit) {
       input.mouseWalk = true;
       walkToScreen(e.clientX, e.clientY, true);
@@ -227,7 +229,8 @@ function setupInput() {
       return;
     }
     if (!camDrag || e.pointerId !== camDrag.id) return;
-    if (!camDrag.moved) selectAt(e.clientX, e.clientY);
+    // Rechtsklick wählt nur aus; Antippen (Schulterblick) startet wie ein Linksklick den Auto-Angriff
+    if (!camDrag.moved && selectAt(e.clientX, e.clientY) === 'monster' && !camDrag.right && typeof autoAttackClick === 'function') autoAttackClick();
     camDrag = null;
   };
   cv.addEventListener('pointerup', endCamDrag);
@@ -279,14 +282,18 @@ function selectAt(clientX, clientY) {
       pcard.open(pid);
       return 'player';
     }
+    // Wer am besten unter dem Zeiger liegt, gewinnt (große Figuren etwas weiter um ihre Mitte). Vorher gewann der
+    // Letzte in der Liste, der knapp in Reichweite lag – ein Klick auf einen Seelenstein wählte so oft ein Monster
+    // daneben oder dahinter.
     let best = null;
-    let bestD = 40;
+    let bestS = Infinity;
     for (const m of game.monsters) {
       if (m.dead) continue;
       const h = figureHeight(m);
       const cy = m.isStone ? m.y - 18 : feetY(m) - h / 2;
       const d = hyp(m.x - w.x, cy - w.y);
-      if (d < Math.max(m.r + 10, h * 0.5) && d < bestD + h * 0.2) { best = m; bestD = d; }
+      const s = d - h * 0.2;
+      if (d < Math.max(m.r + 10, h * 0.5) && s < 40 && s < bestS) { best = m; bestS = s; }
     }
     if (best) {
       // seit 13.85 als bewusster Fokus (setTarget, kampf.js)
@@ -351,7 +358,7 @@ function setupTouch() {
     if (!moved && performance.now() - downAt < 300) {
       const w = game.aim ? screenToWorld(e.clientX, e.clientY) : null;
       if (w && isFinite(w.x) && isFinite(w.y)) aimFire(w.x, w.y);
-      else selectAt(e.clientX, e.clientY);
+      else if (selectAt(e.clientX, e.clientY) === 'monster' && typeof autoAttackClick === 'function') autoAttackClick();
     }
     stickId = null;
     knob.style.transform = '';
@@ -471,6 +478,8 @@ function cycleTarget() {
   TAB.seen.add(next.id);
   setTarget(next, true);
   faceTowards(next.x, next.y);
+  // läuft gerade ein Auto-Angriff, geht er mit Tab auf das neue Ziel über (sonst wählt Tab wie bisher nur aus)
+  if (typeof autoAttackRetarget === 'function') autoAttackRetarget(next);
 }
 
 function interact() {

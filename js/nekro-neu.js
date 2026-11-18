@@ -293,9 +293,10 @@ SKILL_TYPES.bonethrow = function (sk, pw, lvl) {
   input.walkTo = null;
   const dir = dirOf(p.facing.x, p.facing.y);
   const len = Math.max(40, wallFreeLength(p.x, p.y, dir, sk.range));
-  let hit = null;
-  let hu = Infinity;
-  for (const m of enemiesNear(p.x, p.y, len + sk.width)) {
+  // Fokus respektieren: beim bewusst gewählten Ziel (Klick, Antippen, Tab) fliegt der Knochen an anderen vorbei zu ihm
+  let hit = t && targetIsManual(t) ? t : null;
+  let hu = hit ? -Infinity : Infinity;
+  for (const m of hit ? [] : enemiesNear(p.x, p.y, len + sk.width)) {
     const u = (m.x - p.x) * dir.x + (m.y - p.y) * dir.y;
     if (u < 0 || u > len + (m.r || 0)) continue;
     if (Math.abs((m.x - p.x) * dir.y - (m.y - p.y) * dir.x) > sk.width + (m.r || 0)) continue;
@@ -377,7 +378,10 @@ MAGE2_REMOTE.gravehand = (rp, sk, d) => handFx(rp, d.tx, d.ty, sk, false, 0);
 // === Weg der Knochen: Blutlanzen (bis zu sechs Ziele) =============================================
 SKILL_TYPES.bloodlances = function (sk, pw, lvl) {
   const p = game.player;
-  const foes = enemiesNear(p.x, p.y, sk.range).filter((m) => dist(m, p) < sk.range + (m.r || 0)).sort((a, b) => dist(a, p) - dist(b, p)).slice(0, sk.count);
+  // Fokus respektieren: das bewusst gewählte Ziel (Klick, Antippen, Tab) bekommt die erste Lanze, dann die nächsten
+  const focus = targetIsManual(game.target) ? game.target : null;
+  const foes = enemiesNear(p.x, p.y, sk.range).filter((m) => dist(m, p) < sk.range + (m.r || 0))
+    .sort((a, b) => (b === focus) - (a === focus) || dist(a, p) - dist(b, p)).slice(0, sk.count);
   if (!foes.length) {
     addText(p.x, p.y - 34, 'Kein Ziel', 'info');
     return false;

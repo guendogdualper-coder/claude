@@ -955,8 +955,9 @@ function chainPlan(p, first, n, sk) {
 SKILL_TYPES.chainblink = function (sk, pw, lvl) {
   const p = game.player;
   let t = pickTarget(sk.range);
-  // nie zuerst auf einen Seelenstein, solange ein Monster in Reichweite ist
-  if (t && t.isStone) {
+  // nie zuerst auf einen Seelenstein, solange ein Monster in Reichweite ist – außer der Stein ist der bewusst gewählte
+  // Fokus (Klick, Antippen, Tab): dann beginnt die Kette bei ihm
+  if (t && t.isStone && !targetIsManual(t)) {
     const mob = enemiesNear(p.x, p.y, sk.range).filter((o) => !o.isStone && !o.hidden && dist(p, o) - (o.r || 0) <= sk.range).sort((a, b) => dist(a, p) - dist(b, p))[0];
     if (mob) t = mob;
   }

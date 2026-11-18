@@ -9,6 +9,11 @@
 // - Die Arenen liegen im ungenutzten Fels unter dem Dungeon-Streifen (östlich der Maps), ARENA.slots Hallen nebeneinander.
 //   Sie werden nach der Welt gebaut (arenaBuild über generateWorld): runde Halle mit Sandgrube, Säulen, Feuerbecken,
 //   Bannern und einem Ausgang (Weltentor mit arenaExit).
+// - seit dem Umbau „Turm und Arena mit Zuschauern“: Ränge mit jubelnden Zuschauern rund um die Halle, dahinter Mauer,
+//   Platz und Hügel statt eines schwarzen Kastens (tribuene.js). Dafür hat jede Halle ein großes Feld (150 × 120
+//   Kacheln, Halle unverändert 34 × 26) weiter unten im Fels – man sieht auch herausgezoomt keine Nachbarhalle mehr.
+//   Dazu kürzere Wellen (weniger, dafür schneller kommende Monster, auf hohen Stufen weniger Leben je Monster) und
+//   Wellengold, das mit der Stufe steigt (arenaGoldStep; Messung im Bericht des Umbaus).
 // - Wellen (arenaWave): Welle 1 schon viele, aber schwächere Monster aus den Gebieten deiner Stufe; danach mehr, höhere
 //   Stufe, mehr Leben und Schaden, ab Welle 4 Elite-Monster (dreifaches Leben), jede 5. Welle ein Dungeon-Boss als
 //   Wellenmeister (Stampfer, Salven, Verstärkung), ab Welle 8 jagen alle wie in Dungeons. Ab etwa Welle 10–15 wird es
@@ -25,14 +30,34 @@
 //   das Gold rechnen sie selbst aus ihrer Stufe und der Welle.
 
 const ARENA = {
-  slots: 8, cols: 4, slotW: 46, slotH: 38, hallW: 34, hallH: 26, corner: 7,
+  // Felder (Kacheln): vier nebeneinander im Abstand pitch, zwei Reihen ab DUNGEON_H + y0 im Abstand pitchY. Bis zum
+  // Umbau 46 × 38 mit 4 Kacheln Abstand ab DUNGEON_H + 14 (Halle hallW × hallH gleich geblieben)
+  slots: 8, cols: 4, slotW: 150, slotH: 120, pitch: 150, pitchY: 130, y0: 440, hallW: 34, hallH: 26, corner: 7,
+  // Lage der Hallen (seit dem Umbau 2): Host und Mitspieler müssen dieselbe haben
+  lage: 2,
   minLevel: 5,          // ab dieser Stufe
   firstPause: 3,        // Sekunden bis zur ersten Welle (seit 14.32: 3 statt 4; die Ankündigung „Welle 1“ bleibt)
-  pause: 3,             // Pause nach einer geschafften Welle (seit 14.32: 3 statt 6)
+  pause: 2.5,           // Pause nach einer geschafften Welle (seit 14.32: 3 statt 6, seit dem Umbau 2,5)
   lives: 3,             // seit 13.70: drei Leben je Lauf (beim dritten Tod ist das gesammelte Gold verloren)
   // seit 14.32: Schübe alle 3 s (vorher 10, 12, 14 … s) mit je etwa 4 Monstern (zu zweit 6, zu dritt 8). Höchstens 30
   // (zu zweit 40, zu dritt 48) leben gleichzeitig – vorher 50; was darüber liegt, rückt nach, sobald Platz ist
-  batchGap: 3, batchSize: 4,
+  // seit dem Umbau: alle 2,5 s, und je zwei Wellen ein Monster mehr je Schub (Welle 12: 10 je Schub) – vorher kamen in
+  // Welle 12 vierzehn Schübe zu 4, das letzte Monster erst nach rund 40 s
+  batchGap: 2.5, batchSize: 4, batchGrow: 2,
+  // Monster je Welle (allein): 12 + nPer × (Welle − 1), höchstens nMax (bis zum Umbau 12 + 4 × (Welle − 1), höchstens
+  // 60: Welle 12 hatte 56 Monster, jetzt 36). Ab Welle 9 je Welle strPer mehr Leben (vorher 0,06)
+  nPer: 2.2, nMax: 36, strPer: 0.045,
+  // Leben der Monster nach Stufe des Laufs (seit dem Umbau): bis Stufe 30 × 0,6, dann gleichmäßig weniger bis × 0,46
+  // ab Stufe 80. Gemessen mit echter Figur (Ausrüstung +15, selten) dauerte Welle 12 auf Stufe 80 rund 160 s, auf
+  // Stufe 30 rund 65 s – auf hohen Stufen wachsen die Monster schneller als die Figur. Jetzt etwa die Hälfte.
+  hpLv: [30, 0.6, 80, 0.46],
+  // Gold (seit dem Umbau): Wellengold = (200 + 20 × Stufe) × goldLv (bis Stufe 30 × 0,66, bis Stufe 80 steigend auf
+  // × 0,76) je Welle; Monster zahlen mobGold (die Hälfte) ihres alten Kill-Golds. Die Wellen sind gut doppelt so schnell –
+  // mit dem alten Gold brächte die Arena auf Stufe 30 das 8-Fache, auf Stufe 80 das 2-Fache des Farmens. Gemessen
+  // (echte Figur, +15 selten, Lauf bis Welle 12): Stufe 30 rund 0,74 Mio., 50 rund 0,71 Mio., 70 rund 0,96 Mio., 80 rund
+  // 1,14 Mio. Gold je Stunde (vorher 0,78/0,69/0,82/0,88) – auf Stufe 80 etwa das 1,5-Fache des Farmens auf den Karten
+  // der Stufe 80 (vorher 1,2), auf Stufe 30 wie bisher rund das 5-Fache (docs/gold-beute.md)
+  goldLv: [30, 0.66, 80, 0.76], mobGold: 0.5,
   maxAlive: 30, maxAliveDuo: 40, maxAliveTrio: 48,
   spawnStun: 0.35,      // so lange steht ein Monster beim Erscheinen (seit 14.32: 0,35 statt 0,7 s)
   // seit 14.40 bis zu drei Spieler je Halle (Mitglieder derselben Gruppe); 14.32–14.39 höchstens zwei
@@ -73,8 +98,8 @@ if (typeof MOOD3 !== 'undefined') MOOD3.arena = { sky: '#5e4a3a', sun: '#ffd8a8'
 function arenaSlotRect(s) {
   const c = s % ARENA.cols;
   const r = Math.floor(s / ARENA.cols);
-  const x = WORLD_W + 14 + c * (ARENA.slotW + 4);
-  const y = DUNGEON_H + 14 + r * (ARENA.slotH + 4);
+  const x = WORLD_W + 14 + c * ARENA.pitch;
+  const y = DUNGEON_H + ARENA.y0 + r * ARENA.pitchY;
   return { x, y, w: ARENA.slotW, h: ARENA.slotH, cx: x + ARENA.slotW / 2, cy: y + ARENA.slotH / 2 };
 }
 // Halle s, in der der Punkt (Pixel) liegt, sonst -1
@@ -89,6 +114,8 @@ function arenaSlotAt(px, py) {
   return -1;
 }
 const arenaInside = (e) => !!e && arenaSlotAt(e.x, e.y) >= 0;
+// Steht der Punkt (Pixel) auf dem Boden der Halle s (nicht im Fels des Felds drumherum)?
+const arenaOnFloor = (s, px, py) => s >= 0 && arenaInHall(s, Math.floor(px / TILE), Math.floor(py / TILE));
 // Kachel in der Halle? Ein Rechteck mit stark abgerundeten Ecken
 function arenaInHall(s, tx, ty) {
   const R = arenaSlotRect(s);
@@ -189,7 +216,13 @@ generateWorld = function () {
 // jede Welle +6 % Leben und +4 % Schaden). Vorher: Welle 1 schon Stufe −4 mit vollen Werten, Elite ab Welle 3.
 const ARENA_STR = [0, 0.6, 0.72, 0.82, 0.9, 0.95, 1.0, 1.05, 1.15];
 function arenaStr(w) {
-  return w < ARENA_STR.length ? ARENA_STR[Math.max(1, w)] : ARENA_STR[ARENA_STR.length - 1] + 0.06 * (w - ARENA_STR.length + 1);
+  return w < ARENA_STR.length ? ARENA_STR[Math.max(1, w)] : ARENA_STR[ARENA_STR.length - 1] + ARENA.strPer * (w - ARENA_STR.length + 1);
+}
+// Lebensfaktor nach Stufe des Laufs (ARENA.hpLv, seit dem Umbau)
+function arenaLvHp(L) {
+  const [l0, k0, l1, k1] = ARENA.hpLv;
+  const t = Math.max(0, Math.min(1, ((L | 0) - l0) / (l1 - l0)));
+  return k0 + (k1 - k0) * t;
 }
 function arenaWaveLevel(L, w) {
   const ml = w < 8 ? L - 8 + w : L + Math.floor((w - 8) / 2);
@@ -201,10 +234,12 @@ function arenaWave(L, w, players = 1) {
   const str = arenaStr(w);
   const pl = arenaPl(players);
   const sc = arenaScale(pl);
-  const n = Math.round(Math.min(60, 12 + 4 * (w - 1)) * (boss ? 0.6 : 1) * sc.n);
+  const n = Math.round(Math.min(ARENA.nMax, 12 + ARENA.nPer * (w - 1)) * (boss ? 0.6 : 1) * sc.n);
   // seit 14.32: Schübe von etwa 4 (zu zweit 6, zu dritt 8) Monstern alle 3 s; bis 14.31 waren es 2 + Welle/2 Schübe
-  // (höchstens 10) im Abstand von 10, 12, 14 … s – Welle 4 brauchte so 36 s, bis das letzte Monster kam, jetzt 15 s
-  const batches = Math.max(2, Math.ceil(n / (ARENA.batchSize * sc.n)));
+  // (höchstens 10) im Abstand von 10, 12, 14 … s – Welle 4 brauchte so 36 s, bis das letzte Monster kam, jetzt 15 s.
+  // Seit dem Umbau wachsen die Schübe mit der Welle (ARENA.batchGrow) und kommen alle 2,5 s; höchstens 30 leben (allein)
+  const size = ARENA.batchSize + Math.floor(w / ARENA.batchGrow);
+  const batches = Math.max(2, Math.ceil(n / (size * sc.n)));
   return {
     wave: w,
     ml: arenaWaveLevel(L, w),
@@ -215,10 +250,10 @@ function arenaWave(L, w, players = 1) {
     elites: w < 4 ? 0 : Math.round(Math.min(10, Math.floor(w / 3)) * sc.n),
     boss,
     bossHp: (4 + 0.4 * w) * sc.boss,
-    hpK: str * sc.hp,
+    hpK: str * sc.hp * arenaLvHp(L),
     atkK: (w <= 8 ? str : ARENA_STR[8] + 0.04 * (w - 8)) * sc.atk,
     batches,
-    // Abstände der Schübe in Sekunden (seit 14.32 gleichmäßig 3 s)
+    // Abstände der Schübe in Sekunden (seit 14.32 gleichmäßig 3 s, seit dem Umbau 2,5 s)
     gaps: Array.from({ length: batches - 1 }, () => ARENA.batchGap)
   };
 }
@@ -226,8 +261,15 @@ function arenaWave(L, w, players = 1) {
 // Stufe 50: 1.200, Stufe 80: 1.800), Welle w bringt Schritt × w. 13.70 zahlte fest 2.000 × Welle, das war vor allem auf
 // niedrigen Stufen viel zu viel (bis 16× normales Farmen); jetzt etwa das 2- bis 3-Fache (seit 14.75 mit dem höheren
 // Monstergold draußen etwa das 3-Fache, docs/gold-beute.md).
+// Seit dem Umbau mal ARENA.goldLv (mit der Stufe steigend; auf 10 gerundet): Stufe 10: 260, 30: 530, 50: 840,
+// 70: 1.180, 80: 1.370 – die Wellen sind gut doppelt so schnell, je Stunde gibt es auf hohen Stufen mehr als vorher.
 // Ausgezahlt wird beim Verlassen oder Aufgeben; wer alle drei Leben verliert, verliert das Gold dieses Laufs.
-const arenaGoldStep = (L) => 200 + 20 * Math.max(1, L | 0);
+function arenaGoldStep(L) {
+  L = Math.max(1, L | 0);
+  const [l0, k0, l1, k1] = ARENA.goldLv;
+  const k = k0 + (k1 - k0) * Math.max(0, Math.min(1, (L - l0) / (l1 - l0)));
+  return Math.round(((200 + 20 * L) * k) / 10) * 10;
+}
 function arenaGold(L, w) {
   return arenaGoldStep(L) * Math.max(1, w | 0);
 }
@@ -755,7 +797,7 @@ function arenaEnter(mates, join) {
   game.arenaRun = run;
   arenaInviteClose(false);
   if (run.mode === 'client') {
-    netSocial('host', join != null ? { k: 'arj', s: join | 0, l: p.level, pm } : { k: 'arq', l: p.level, pm, ...(mates.length ? { pn: mates[0], pi: mates } : {}) });
+    netSocial('host', join != null ? { k: 'arj', s: join | 0, l: p.level, pm, al: ARENA.lage } : { k: 'arq', l: p.level, pm, al: ARENA.lage, ...(mates.length ? { pn: mates[0], pi: mates } : {}) });
     ui.closePanels();
     ui.log(join != null ? 'Du gehst mit in die Halle …' : mates.length ? 'Der Arenameister bereitet eure Halle vor – deine Gruppe wird eingeladen …' : 'Der Arenameister bereitet deine Halle vor …', 'info');
     return;
@@ -962,6 +1004,8 @@ function arenaSummary(run, lost, best) {
     el.setAttribute('role', 'dialog');
     el.setAttribute('aria-label', 'Arena-Ergebnis');
     const total = info.mob + (info.lost ? 0 : info.wave);
+    // seit dem Umbau: Gold je Stunde (ab einer Minute Laufzeit) – zum Vergleich mit dem Farmen draußen
+    const perH = info.time >= 60 ? Math.round((total / info.time) * 3600) : 0;
     el.innerHTML = `<button class="x" type="button" aria-label="Schließen">✕</button>` +
       `<h3>${info.lost ? 'Arena verloren' : 'Arena beendet'}</h3><dl>` +
       `<dt>Zeit</dt><dd>${arenaClock(info.time)}</dd>` +
@@ -970,7 +1014,8 @@ function arenaSummary(run, lost, best) {
       `<dt>Erfahrung</dt><dd>+${arenaFmt(info.xp)} EP</dd>` +
       `<dt>Gold von Monstern</dt><dd class="g">+${arenaFmt(info.mob)}</dd>` +
       `<dt>Gold aus Wellen</dt><dd class="${info.lost && info.wave > 0 ? 'lost' : 'g'}">+${arenaFmt(info.wave)}</dd>` +
-      `<dt class="sum">Gold gesamt</dt><dd class="sum g">+${arenaFmt(total)}</dd></dl>`;
+      `<dt class="sum">Gold gesamt</dt><dd class="sum g">+${arenaFmt(total)}</dd>` +
+      (perH > 0 ? `<dt>Gold je Stunde</dt><dd class="g">${arenaFmt(perH)}</dd>` : '') + '</dl>';
     document.body.appendChild(el);
     let timer = 0;
     const close = () => {
@@ -1003,6 +1048,13 @@ function arenaOnMsg(d) {
   if (!p) return;
   if (d.k === 'arg') {
     if (!run || run.slot >= 0) return;
+    // ein Host mit der alten Lage der Hallen (vor dem Umbau): man stünde nicht in seiner Halle
+    if ((d.al | 0) !== ARENA.lage) {
+      game.arenaRun = null;
+      if (net.mode === 'client') netSocial('host', { k: 'arx' });
+      ui.log('Der Host spielt eine ältere Version der Arena (die Hallen liegen anders). Wenn alle neu geladen haben, geht es hinein.', 'warn');
+      return;
+    }
     // m: wer eingeladen ist (seit 14.40; Hosts mit 14.32–14.39 laden nur den ersten ein), j: man ist der wartenden
     // Halle seiner Gruppe beigetreten
     if (Array.isArray(d.m)) run.waitFor = d.m.map(String);
@@ -1062,6 +1114,7 @@ function arenaOnMsg(d) {
     run.nextBatch = 0;
     const W = arenaWave(run.level, run.wave);
     ui.banner(`Welle ${run.wave}`, W.boss ? 'Ein Wellenmeister erscheint!' : W.elites ? `${run.n} Monster, darunter Elite` : `${run.n} Monster`);
+    if (typeof tribJubel === 'function') tribJubel(0.45, 2);
   } else if (d.k === 'ars') {
     // ein Schub ist losgeschickt: wann der nächste kommt (t < 0: das war der letzte)
     run.nextBatch = +d.t >= 0 ? game.time + +d.t : 0;
@@ -1080,6 +1133,8 @@ function arenaOnMsg(d) {
     if (w > (A.best || 0)) A.best = w;
     ui.banner(`Welle ${w} geschafft`, `+${arenaFmt(g)} Gold gesammelt`);
     addText(p.x, p.y - 52, `+${arenaFmt(g)} Gold`, 'gold');
+    // die Zuschauer jubeln (tribuene.js), nach einem Wellenmeister besonders lange
+    if (typeof tribJubel === 'function') tribJubel(w % 5 === 0 ? 1 : 0.8, w % 5 === 0 ? 9 : 5);
     if (typeof sfx !== 'undefined' && sfx.success) sfx.success();
     vfxPillar(p, ARENA.gate, 1);
     saveGame();
@@ -1127,7 +1182,7 @@ function arenaHostRequest(pid, d) {
   if (inv >= 0) {
     const why = arenaJoin(pid, inv, d.l, pm);
     if (!why) {
-      reply({ k: 'arg', s: inv, j: 1 });
+      reply({ k: 'arg', s: inv, j: 1, al: ARENA.lage });
       return;
     }
   }
@@ -1143,7 +1198,7 @@ function arenaHostRequest(pid, d) {
     return;
   }
   const S = arenaHost.slots[s];
-  reply({ k: 'arg', s, m: S.invites.slice(), t: ARENA.inviteWait });
+  reply({ k: 'arg', s, m: S.invites.slice(), t: ARENA.inviteWait, al: ARENA.lage });
   for (const n of skip) reply({ k: 'arv', n, r: 'schon in der Arena' });
   if (S.invites.length) {
     arenaInvite(S, s);
@@ -1152,6 +1207,11 @@ function arenaHostRequest(pid, d) {
 }
 // Mitspieler ↔ Host (über onSocial)
 function arenaSocial(pid, d) {
+  // seit dem Umbau liegen die Hallen woanders (ARENA.lage): Geräte mit der alten Lage stünden in einer anderen Halle
+  if ((d.k === 'arq' || d.k === 'arj') && net.mode === 'host' && (d.al | 0) !== ARENA.lage) {
+    netSocial(pid, { k: 'arn', r: 'Die Arena wurde umgebaut – bitte das Spiel neu laden (aktuelle Version), dann geht es hinein.' });
+    return;
+  }
   if (d.k === 'arq') {
     if (net.mode !== 'host') return;
     arenaHostRequest(pid, d);
@@ -1161,7 +1221,7 @@ function arenaSocial(pid, d) {
   if (d.k === 'arj') {
     if (net.mode !== 'host') return;
     const why = arenaJoin(pid, d.s, d.l, Array.isArray(d.pm) ? d.pm.map(String) : null);
-    netSocial(pid, why ? { k: 'arn', r: why } : { k: 'arg', s: d.s | 0 });
+    netSocial(pid, why ? { k: 'arn', r: why } : { k: 'arg', s: d.s | 0, al: ARENA.lage });
     return;
   }
   if (d.k === 'ard') {
@@ -1208,6 +1268,7 @@ function arenaSeen(m) {
   if (boss) {
     shakeScreen(6);
     ui.banner(m.name, 'Wellenmeister');
+    if (typeof tribJubel === 'function' && run && arenaSlotAt(m.x, m.y) === run.slot) tribJubel(0.7, 3);
   }
 }
 function arenaSlotMonsters(s) {
@@ -1286,7 +1347,9 @@ function arenaTick() {
   // Halle verlassen (z. B. „In der Stadt neu starten“ nach einem Tod): Ende, das Gold wird ausgezahlt
   // seit 15.11: Wer nur aus der Halle gerutscht ist (Sprung- oder Teleportfertigkeit über die Wand), aber noch im
   // Arenabereich steht, wird in die Hallenmitte zurückgesetzt statt hinausgeworfen
-  if (here !== run.slot && run.phase !== 'wait' && p.x / TILE >= WORLD_W && p.y / TILE >= DUNGEON_H) {
+  // seit dem Umbau ist das Feld viel größer als die Halle: auch wer im Fels des eigenen Felds steht, kommt zurück
+  const offFloor = here === run.slot && !arenaOnFloor(run.slot, p.x, p.y) && !canStand(p.x, p.y, p.r * 0.7, false);
+  if (offFloor || (here !== run.slot && run.phase !== 'wait' && p.x / TILE >= WORLD_W && p.y / TILE >= DUNGEON_H)) {
     const R = arenaSlotRect(run.slot);
     p.x = (R.x + R.w / 2) * TILE;
     p.y = (R.y + R.h / 2) * TILE;
@@ -1303,6 +1366,18 @@ function arenaTick() {
     return;
   }
   arenaHud();
+}
+// Minikarte und große Karte (seit dem Umbau): nur die Halle mit etwas Rand, nicht das ganze Feld aus Fels
+if (typeof mapAreaAt === 'function') {
+  const _arenaMapAreaAt = mapAreaAt;
+  mapAreaAt = function (tx, ty) {
+    const s = arenaSlotAt(tx * TILE, ty * TILE);
+    if (s < 0) return _arenaMapAreaAt(tx, ty);
+    const R = arenaSlotRect(s);
+    const mw = ARENA.hallW / 2 + 4;
+    const mh = ARENA.hallH / 2 + 4;
+    return { key: 'a' + s, x: Math.floor(R.cx - mw), y: Math.floor(R.cy - mh), w: mw * 2, h: mh * 2, wm: null, dungeon: -1 };
+  };
 }
 const _arenaRaidWatch = raidWatch;
 raidWatch = function () {
@@ -1323,7 +1398,8 @@ function arenaKillReward(m) {
   // der Wellenmeister kommt in jeder Bosswelle genau einmal (nicht mal n): seine Belohnung bleibt ganz (seit 14.40)
   const k = run0 && !(m.type && m.type.boss) ? 1 / arenaScale(run0.players).n : 1;
   const xp = Math.max(1, Math.round(m.xp * MOB_XP_MUL * xpFactor(p.level, m.level) * k));
-  const gold = m.gold ? Math.round(randInt(m.gold[0], m.gold[1]) * k) : 0;
+  // seit dem Umbau nur ARENA.mobGold (die Hälfte): die Wellen sind viel schneller, das Gold steckt im Wellengold
+  const gold = m.gold ? Math.round(randInt(m.gold[0], m.gold[1]) * k * ARENA.mobGold) : 0;
   p.gold += gold;
   if (gold > 0) addText(m.x + 14, feetY(m) - 30, '+' + gold + ' Gold', 'gold');
   p.kills++;
@@ -1373,6 +1449,11 @@ rewardKill = function (m) {
 const _arenaVillageSpawn = villageSpawn;
 villageSpawn = function (p) {
   if (p && arenaInside(p)) return arenaReturn();
+  // gespeichert in einer Halle von vor dem Umbau (dort ist jetzt Fels): zum Arenameister bzw. in die Stadt
+  if (p && p.x / TILE >= WORLD_W + 14 && p.y / TILE >= DUNGEON_H + 14 && p.y / TILE < DUNGEON_H + 94) {
+    const r = p.arena && p.arena.ret;
+    return r && Number.isFinite(r.x) && Number.isFinite(r.y) && arenaSlotAt(r.x, r.y) < 0 ? { x: r.x, y: r.y } : { x: CENTER_X * TILE, y: (CENTER_Y + 1) * TILE };
+  }
   return _arenaVillageSpawn(p);
 };
 
@@ -1679,7 +1760,7 @@ function arenaRenderMaster(npc) {
     `<p>„Willkommen in der Prüfungsarena! Dort kämpfst du allein oder mit bis zu zwei Gruppenmitgliedern gegen Welle um Welle. Jede Welle ist stärker als die davor – erst viele Monster, dann Elite, und jede fünfte Welle ein Wellenmeister. Für jede Welle, die du schaffst, zahle ich dir Gold.“</p>` +
     `<p><strong>Gold je geschaffter Welle:</strong></p><ul class="reward-list">${rows}</ul>` +
     `<p>Bis Welle 10 zusammen: ${arenaFmt(arenaGoldSum(10, L))} Gold</p>` +
-    `<p class="hint-text">Die Monster kommen in Schüben nach der Uhr, nicht erst, wenn eines fällt. Sie geben volle Erfahrung und etwas Gold (weniger als draußen), aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
+    `<p class="hint-text">Je höher deine Stufe, desto mehr Gold je Welle. Die Monster kommen in großen Schüben nach der Uhr, nicht erst, wenn eines fällt – eine Welle ist schnell geschafft. Sie geben volle Erfahrung und etwas Gold (weniger als draußen), aber keine Gegenstände, Steine, Tränke oder Material.</p>` +
     `<p class="hint-text">Du hast ${ARENA.lives} Leben. Nach einem Tod startest du in der Arena neu; beim dritten Tod ist der Lauf vorbei und das gesammelte Gold verloren. Das Wellengold wird ausgezahlt, wenn du die Arena verlässt oder aufgibst.</p>` +
     `<p class="hint-text">Mit der Gruppe: Zu zweit kommen ${num(g2.n)}-mal so viele Monster mit ${pct(g2.hp)} % mehr Leben und ${pct(g2.atk)} % mehr Schaden, zu dritt ${num(g3.n)}-mal so viele mit ${pct(g3.hp)} % mehr Leben und ${pct(g3.atk)} % mehr Schaden. Wellengold, Erfahrung und Gold der Monster bekommt jeder so viel wie allein.</p>` +
     grp +

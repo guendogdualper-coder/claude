@@ -1455,6 +1455,10 @@ function updateAim() {
 function aimEnemyAt(pt, sk) {
   const p = game.player;
   const R = sk.aimR || sk.radius || 40;
+  // Fokus respektieren: liegt das bewusst gewählte Ziel (auch ein Seelenstein) im Kreis, gilt es vor allen anderen
+  const f = game.target;
+  if (targetIsManual(f) && !f.dead && !f.hidden && hyp(f.x - pt.x, f.y - pt.y) - (f.r || 0) <= R &&
+      dist(p, f) - (f.r || 0) <= aimReach(sk) + 20) return f;
   let best = null;
   let bd = Infinity;
   for (const m of enemiesNear(p.x, p.y, aimReach(sk) + 20)) {
@@ -1756,7 +1760,8 @@ const SKILL_TYPES = {
     const p = game.player;
     // seit 13.85 mit Zielkreis: hinter dem Gegner, der dem gewählten Punkt am nächsten ist (aimR um den Punkt)
     const t = sk.aim ? aimEnemyAt(skillAimPoint(sk), sk) : pickTarget(sk.range);
-    if (t && sk.aim && !targetIsManual(t)) setTarget(t, false);
+    // ein bewusst gewählter Fokus bleibt stehen, auch wenn der Kreis auf einem anderen Gegner lag
+    if (t && sk.aim && !targetIsManual(t) && !targetIsManual(game.target)) setTarget(t, false);
     if (!t) {
       addText(p.x, p.y - 34, 'Kein Ziel', 'info');
       return false;
@@ -2203,6 +2208,10 @@ function spawnProjectile(o) {
     const f = game.target;
     if (f && !f.dead && !f.hidden && !f.duelProxy) o.onlyHit = f;
   }
+  // Fokus respektieren: fliegt ein Geschoss zum bewusst gewählten Ziel (Klick, Antippen, Tab), trifft es nur dieses –
+  // Monster, die davor stehen (etwa die Welle eines Seelensteins), lassen es durch. Vorher fing das erste Monster auf
+  // dem Weg den Grundangriff der Zauberer und Steingeschoss/Eiskugel ab, obwohl der Fokus auf dem Stein lag.
+  if (o.owner === 'player' && o.target && !o.pierce && !o.turn && targetIsManual(o.target)) o.focusOnly = true;
   game.projectiles.push({
     hit: new Set(), traveled: 0, pierce: false, chain: 0, radius: 6, trail: [], rank: fxRank,
     ...o,

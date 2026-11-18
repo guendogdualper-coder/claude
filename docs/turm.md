@@ -21,6 +21,29 @@ Prüfungsarena über bestehende Funktionen ein). Prüfskript im Arbeitsordner: `
 Alle Ebenen spielen in derselben achteckigen Halle mit vier Toren (Nord, Ost, Süd, West). Zwischen zwei Ebenen liegen
 5 Sekunden Pause, vor Ebene 1 sind es 6. Alle Gegner haben Stufe 80.
 
+## Halle und Zuschauer (Umbau „Turm und Arena mit Zuschauern“)
+
+- **Größer:** 46 × 34 Kacheln statt 38 × 30 (`TURM.hw` 23, `TURM.hh` 17; Fläche × 1,37). Alles in der Halle hängt an
+  diesen Maßen und ist mitgewachsen: Säulen, Feuerbecken, Lavabecken, Seelensteine (Ring bei halbem Abstand), Eingang,
+  Tore und Erscheinungsorte vor den Toren. Die Zwillingshüter stehen 6 statt 5 Kacheln neben der Mitte.
+- **Kharzul:** Die Arme des Totentanzes reichen 780 statt 640 (`kharzul.js`), also wie vorher bis kurz vor die Ecken.
+  Höllenfeuerwelle, Seelenbann (Umkreis 150) und Höllensprung sind unverändert; in der größeren Halle ist etwas mehr
+  Platz zum Ausweichen und Auseinanderlaufen.
+- **Gestaltung:** rissiger Basalt mit Aschefeldern, Glutspalten von den Wänden her (nur Schmuck, nicht in der Mitte,
+  keine Falle), schwere Basaltsäulen mit Glutrissen, Eisenbändern und Kettenresten (`turmsaeule`), Knochenhaufen an den
+  Wänden (`turmknochen`, sperren nichts), Feuerbecken, Banner, die vier Lavabecken in den Ecken. Keine Bodenringe,
+  Runen oder Sterne (die frühere Plattenscheibe mit Aschering in der Mitte ist weg).
+- **Ränge:** Rund um die Halle sieben Reihen voller Ungeheuer (Gehörnte, Kapuzenschatten, Knochenwichte mit glühenden
+  Augen), oben eine Mauer mit Zinnen, Dornen und Feuerbecken, an den Toren Torhäuser. Die Zuschauer wippen und reißen die
+  Arme hoch; sie toben, wenn eine Ebene geschafft ist (nach einem Hüter länger), ein Stein oder Tor fällt, ein Hüter
+  erscheint, nach dem Sieg – und wenn alle fallen. Rein örtlich, nichts geht übers Netz (`js/tribuene.js`).
+- **Dahinter:** Halle und Ränge stehen im Glutschlund: verbrannter Grund mit Lavaadern und Felsnadeln, ringsum steigen
+  Felswände an.
+  Der schwarze Kasten um die Halle ist in 3D aus; auch herausgezoomt und gedreht sieht man kein Ende der Karte.
+- **Leistung:** In 3D ein Mesh für Ränge und Mauer, eins für Glut, je Zuschauerform ein InstancedMesh (Bewegung im
+  Shader). In 2D sind Ränge und Hintergrund in die Bodenblöcke gemalt, die Zuschauer kommen aus einem Bildbogen.
+  Grafik „Mittel“ 75 %, „Niedrig“ 40 % der Zuschauer.
+
 | Ebene | Name | Ziel |
 |---|---|---|
 | 1–5 | Ansturm | eine Welle Verdammter töten: allein 6, 7, 8, 10 und 12 Gegner, Stärke 80 % bis 112 % |
@@ -109,8 +132,14 @@ Die Werte der Verdammten gelten vor der Stärke der Ebene (Ebene 1: 80 %, Ebene 
 ## Technik
 
 - **Flächen:** Fuß des Turms auf Karte 17 (Kacheln x 92–100, y 535–545). Hallen im Fels östlich der Karten unter den
-  Hallen der Turnierarena (x ab `WORLD_W + 14`, y ab `DUNGEON_H + 262`, vier Felder zu 45 × 37 Kacheln mit 4 Kacheln
-  Abstand). Sonst bleibt die Welt Kachel für Kachel gleich.
+  Hallen der Turnierarena: seit dem Umbau vier Felder zu 150 × 120 Kacheln (x ab `WORLD_W + 14` im Abstand 150, y ab
+  `DUNGEON_H + 310`), die Halle in der Mitte, drumherum Ränge und Abgrund – so sieht man keine Nachbarhalle. Bis dahin
+  45 × 37 Kacheln ab `DUNGEON_H + 262` mit 4 Kacheln Abstand. Wer noch in einer alten Halle gespeichert war, steht nach
+  dem Laden vor dem Turm. Sonst bleibt die Welt Kachel für Kachel gleich.
+- **Lage der Hallen (`TURM.lage` = 2):** Anfragen `vtn`/`vtj` und die Zuteilung `vtg` tragen die Lage (`tl`). Ein Host
+  mit neuer Lage lehnt Geräte mit alter Lage ab („Der Turm wurde umgebaut – bitte das Spiel neu laden“), ein Gerät mit
+  neuer Lage geht nicht in die Halle eines alten Hosts. Sonst stünde man in verschiedenen Hallen.
+- **Abrutschen:** Wer im Fels des eigenen Felds landet (Sprung oder Teleport über die Wand), steht sofort am Eingang.
 - **Seelensteine der Hallen:** je Halle zwölf (acht im Saal, vier vor den Toren). Sie stehen von Anfang an in der Welt
   und liegen außerhalb ihrer Ebene tot da; der Host weckt sie.
 - **Mehrspieler:** Die Hallen führt der Host (allein man selbst). Nachrichten über `onSocial`, Kennung `vt` + Buchstabe:

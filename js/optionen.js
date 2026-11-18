@@ -13,7 +13,7 @@ const IS_PC = (() => {
     return false;
   }
 })();
-const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false };
+const OPT_DEFAULTS = { view: '3d', volume: 0.7, music: true, musicVol: 0.5, graphics: IS_PC ? 'plus' : 'mittel', fps: IS_PC ? '60' : 'auto', camera: 'normal', fog: IS_PC ? 'wenig' : 'normal', shake: true, vibrate: true, numbers: true, names: true, selfBar: false, selfBarSize: 1, dmeter: false, autoAttack: false };
 
 // Bildrate (seit 9.9): Auto = 60 Bilder/s, solange das Gerät es schafft, sonst gleichmäßig 30 (ruckelt nicht,
 // spart Akku und hält das Handy kühler); 30 = immer Akku sparen
@@ -181,8 +181,10 @@ const options = {
           `<button type="button" class="opt-switch${isFullscreen() ? ' on' : ''}" id="optFull" role="switch" aria-checked="${isFullscreen()}" aria-label="Vollbild"><i></i></button></div>` : '') + `</section>`;
     } else if (tab === 'steuerung') {
       pane = `<section class="opt-group"><h3>Steuerung</h3>` +
+        // Auto-Angriff (autoangriff.js): auch als AUTO-Knopf an der Leiste
+        sw('autoAttack', 'Auto-Angriff', `${IS_PC ? 'Linksklick auf ein Monster oder einen Seelenstein' : 'Ein Monster oder einen Seelenstein antippen'}: Deine Figur läuft hin und greift es mit dem Grundangriff immer weiter an, Fertigkeiten gehen auf dasselbe Ziel. Schluss ist, wenn es besiegt ist, du ein anderes Ziel wählst${IS_PC ? ', selbst läufst oder Esc drückst' : ' oder selbst läufst'}. Auch mit dem AUTO-Knopf an der Leiste. Aus: jeder Angriff wie gewohnt einzeln (gedrückt halten greift weiter an).`) +
         sw('vibrate', 'Vibration', 'Kurzes Rütteln beim Schmieden und Tauschen (wo das Gerät es kann).') +
-        (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. In 3D dreht und neigt Ziehen mit der rechten Maustaste die Kamera (mittlere Maustaste: zurück zur gewohnten Sicht), das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
+        (IS_PC ? `<div class="opt-row"><div class="opt-text"><strong>Maus</strong><small>Linksklick auf ein Monster greift an (gedrückt halten greift weiter an, mit Auto-Angriff immer weiter), Linksklick auf den Boden läuft dorthin (gedrückt halten folgt dem Mauszeiger), Rechtsklick wählt nur aus. In 3D dreht und neigt Ziehen mit der rechten Maustaste die Kamera (mittlere Maustaste: zurück zur gewohnten Sicht), das Mausrad zoomt. Leertaste gedrückt halten greift ebenfalls an.</small></div></div>` : '') + `</section>` +
         keyOptionsHtml('quick');
     } else if (tab === 'tasten') {
       pane = keyOptionsHtml('keys');
@@ -223,7 +225,9 @@ const options = {
     nav.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => this.setTab(b.dataset.tab)));
     body.querySelectorAll('[data-lang]').forEach((b) => b.addEventListener('click', () => setLang(b.dataset.lang)));
     body.querySelectorAll('[data-sw]').forEach((b) => b.addEventListener('click', () => {
-      setOpt(b.dataset.sw, !opts[b.dataset.sw]);
+      // Auto-Angriff: der AUTO-Knopf an der Leiste zieht gleich mit (autoangriff.js)
+      if (b.dataset.sw === 'autoAttack' && typeof autoAttackToggle === 'function') autoAttackToggle();
+      else setOpt(b.dataset.sw, !opts[b.dataset.sw]);
       if (b.dataset.sw === 'dmeter' && typeof dmeterApply === 'function') dmeterApply();
       this.render();
     }));

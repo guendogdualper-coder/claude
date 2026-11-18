@@ -119,11 +119,53 @@ function sozialFromCloud(raw) {
   if (!vorher && sozialFrei()) sozialNeuZeichnen();
 }
 
-// Knopf angetippt: Profil öffnen (neuer Tab bzw. Weg der App, externOeffnen) und merken
+// seit 15.51: Der Haken kommt erst, wenn man mindestens SOZIAL_MIN_MS auf dem Profil war – das Spiel merkt, wann es
+// verlassen wurde (Tab/App im Hintergrund, Fenster ohne Fokus) und wann man zurückkommt; in der iPhone/iPad-App zählt
+// die Zeit, bis der In-App-Browser geschlossen wird. Ob jemand wirklich folgt, lässt sich nicht prüfen (Instagram und
+// TikTok bieten dafür keine Schnittstelle) – das ist nur eine kleine Hürde gegen bloßes Antippen.
+const SOZIAL_MIN_MS = 10000;
+const sozialWeg = { k: null, auf: 0, weg: 0 };
+
+// Knopf angetippt: Profil öffnen (neuer Tab bzw. Weg der App, externOeffnen) und auf die Rückkehr warten
 function sozialFolgen(k) {
   const url = sozialUrl(k);
   if (!url) return;
-  externOeffnen(url); // Popup blockiert: zählt trotzdem
+  const s = sozialStand();
+  sozialWeg.k = s[k] ? null : k;
+  sozialWeg.auf = Date.now();
+  sozialWeg.weg = 0;
+  externOeffnen(url);
+}
+
+// Zurück im Spiel: lange genug auf dem Profil → Haken, sonst ein kurzer Hinweis
+function sozialZurueck(dauer) {
+  const k = sozialWeg.k;
+  if (!k) return;
+  if (dauer == null) {
+    if (!sozialWeg.weg) return; // nie weg gewesen (z. B. Fenster blockiert)
+    dauer = Date.now() - sozialWeg.weg;
+  }
+  sozialWeg.k = null;
+  sozialWeg.weg = 0;
+  if (dauer >= SOZIAL_MIN_MS) sozialHaken(k);
+  else if (typeof ui !== 'undefined' && ui.log) ui.log('Schau dir das Profil kurz an und folge uns – dann gibt es den Haken.', 'warn');
+}
+document.addEventListener('visibilitychange', () => {
+  if (!sozialWeg.k) return;
+  if (document.hidden) { if (!sozialWeg.weg) sozialWeg.weg = Date.now(); } else sozialZurueck();
+});
+window.addEventListener('blur', () => { if (sozialWeg.k && !sozialWeg.weg) sozialWeg.weg = Date.now(); });
+window.addEventListener('focus', () => { if (sozialWeg.k && sozialWeg.weg) sozialZurueck(); });
+// iPhone/iPad-App: der In-App-Browser liegt über dem Spiel, die Seite bleibt dabei sichtbar
+(function sozialBrowserZu() {
+  try {
+    const B = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Browser;
+    if (B && typeof B.addListener === 'function') B.addListener('browserFinished', () => { if (sozialWeg.k) sozialZurueck(Date.now() - sozialWeg.auf); });
+  } catch (e) { /* kein Plugin */ }
+})();
+
+// Haken setzen und merken
+function sozialHaken(k) {
   const s = sozialStand();
   const vorher = !!(s.tiktok && s.instagram);
   if (!s[k]) s[k] = Date.now();

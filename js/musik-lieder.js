@@ -64,6 +64,8 @@ const SONGS = {
 // Tonleiter (kleine Sekunde) mit Handtrommeln
 SONGS.kalt = { ...SONGS.wald, root: 64, bpm: 58, lead: { A: 'dizi', B: 'xiao' }, bells: true, zheng: 0.07 };
 SONGS.heiss = { ...SONGS.feld, root: 62, scale: [0, 1, 5, 7, 8], bpm: 80, lead: { A: 'erhu', B: 'dizi' }, drum: 'heiss', minorize: true };
+// Turm der Verdammten (seit 15.51 mit eigener Musikdatei): ohne Datei wie Moor und Dungeons
+SONGS.turm = SONGS.dunkel;
 
 // Lied in Takte zerlegen: je Takt Akkord und Melodietöne [Beginn in Schlägen, Stufe, Dauer]
 function compileSong(S) {

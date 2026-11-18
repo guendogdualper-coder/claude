@@ -339,7 +339,14 @@ SKILL_TYPES.shift = function (sk, pw, lvl) {
 // sonst weg vom nächsten Gegner (Flucht)
 function shiftPlan(p, sk) {
   // seit 13.93: Blitzschritt springt ohne Zielkreis immer in Blickrichtung (so weit es geht)
-  if (sk.facing) return { dir: { ...p.facing }, want: sk.distance };
+  // Fokus respektieren: im Stand mit bewusst gewähltem Ziel in Sprungweite geht er durch das Ziel hindurch
+  if (sk.facing) {
+    const f = game.target;
+    if (!p.moving && targetIsManual(f) && !f.dead && !f.hidden && dist(p, f) - (f.r || 0) <= sk.distance && dist(p, f) > 4) {
+      return { dir: unitVec(f.x - p.x, f.y - p.y), want: sk.distance };
+    }
+    return { dir: { ...p.facing }, want: sk.distance };
+  }
   // seit 13.85 mit Zielkreis (sk.aim): Richtung und Weite zum gewählten Ort (Eisschritt: Kreis beginnt hinter der
   // Figur, aimAway). Steht dort ein Gegner, schlägt der Blitzschritt wie bisher knapp hinter ihm ein.
   if (sk.aim) {

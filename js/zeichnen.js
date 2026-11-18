@@ -167,6 +167,8 @@ function render() {
 
   // Effekte am Boden liegen unter den Figuren
   const ground = (e) => e.ground || e.type === 'corpse' || e.type === 'afterimage' || e.type === 'runes' || e.type === 'decal' || e.type === 'warn' || e.type === 'aim';
+  // Schein der Effekte mit Rang: einmal je Durchgang darunter (effekte.js, rankHaloPass)
+  rankHaloPass(ctx, ground);
   for (const e of game.effects) if (ground(e)) drawEffect(ctx, e);
   drawDuelArena(ctx);
   for (const e of list) {
@@ -180,7 +182,9 @@ function render() {
     else drawNpc(ctx, e);
   }
   for (const pr of game.projectiles) drawProjectile(ctx, pr);
+  rankHaloPass(ctx, (e) => !ground(e));
   for (const e of game.effects) if (!ground(e)) drawEffect(ctx, e);
+  rankHaloPass(ctx, (e) => !ground(e), null, true);
   drawParticles(ctx);
   for (const e of list) if (!e.worldObj && !e.clone) drawLabel(ctx, e);
   drawTexts(ctx);
@@ -1055,13 +1059,32 @@ function drawNpcMarks(ctx, n) {
   }
 }
 
-// Geist des Totenrufs (seit 10.0): das Monster bleich und durchscheinend
+// Geist des Totenrufs (seit 10.0): das Monster bleich und durchscheinend.
+// Der Filter (grau, heller) liegt nicht mehr beim Zeichnen auf der Zeichenfläche: damit legte der Browser jeden
+// Zeichenbefehl der Figur (Schatten, Schlagschatten, Bild) über eine eigene bildschirmgroße Zwischenebene – bei fünf
+// Geistern dutzende je Bild, 3 Minuten lang. Jetzt wird das Bild jedes Monsters einmal bleich vorgerechnet
+// (ghostSprite) und nur noch kopiert; Schatten sind schwarz und sahen mit dem Filter ohnehin gleich aus.
+let ghostDraw = false;
 function drawGhostAlly(ctx, e) {
   ctx.save();
   ctx.globalAlpha = 0.65;
-  try { ctx.filter = 'grayscale(1) brightness(1.8)'; } catch (err) { /* ältere Browser */ }
-  drawMonster(ctx, e);
+  ghostDraw = true;
+  try {
+    drawMonster(ctx, e);
+  } finally {
+    ghostDraw = false;
+  }
   ctx.restore();
+}
+function ghostSprite(sp) {
+  if (!sp.ghostSp) {
+    const c = newCanvas(sp.img.width, sp.img.height);
+    const x = c.getContext('2d');
+    try { x.filter = 'grayscale(1) brightness(1.8)'; } catch (err) { /* ältere Browser: ohne Filter wie bisher */ }
+    x.drawImage(sp.img, 0, 0);
+    sp.ghostSp = { img: c, bounds: sp.bounds };
+  }
+  return sp.ghostSp;
 }
 
 function drawMonster(ctx, m) {
@@ -1102,7 +1125,8 @@ function drawMonster(ctx, m) {
   const float = m.type.shape === 'ghost' ? -6 + Math.sin(game.time * 2.5 + m.id) * 3 : 0;
   ctx.translate(m.x + lunge, fy + float);
   ctx.scale(1, breathe);
-  blitSprite(ctx, monsterSprite(m.typeId, frame), 0, 0, m.facing < 0, m.hitFlash);
+  const msp = monsterSprite(m.typeId, frame);
+  blitSprite(ctx, ghostDraw ? ghostSprite(msp) : msp, 0, 0, m.facing < 0, m.hitFlash);
   ctx.restore();
   if (frozen) drawIceBlock(ctx, m, fy + float, h);
 

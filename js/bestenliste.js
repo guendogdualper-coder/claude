@@ -7,7 +7,7 @@
 // - Schreiben (rankSync): nach jedem erfolgreichen Hochladen ins Konto (konto.js). Stufe, Rangpunkte, Name, Klasse oder Weg
 //   geändert → sofort; nur Erfahrung geändert → höchstens alle 5 Minuten. Gelöschte Charaktere (leerer Platz) verlieren
 //   ihren Eintrag beim nächsten Abgleich, ein gelöschtes Konto alle (konto-loeschen.js).
-// - Lesen (rankFetch): die besten 100 nach Stufe bzw. Rangpunkten (orderBy + limitToLast, braucht ".indexOn"), 60 s im
+// - Lesen (rankFetch): die besten 100 nach Stufe (bei gleicher Stufe nach Ausrüstungslevel GS) bzw. Rangpunkten (orderBy + limitToLast, braucht ".indexOn"), 60 s im
 //   Speicher. Unplausible Einträge (Stufe über 80, Rangpunkte, die es nicht geben kann, unbekannte Klasse) werden nicht
 //   gezeigt, Namen nur als Text (escapeHtml). Ohne Netz oder ohne eingespielte Regeln: freundliche Meldung im Fenster.
 
@@ -199,7 +199,8 @@ async function rankFetch(tab) {
     }
   }
   if (tab === 'pvp') list.sort((a, b) => b.rp - a.rp || b.level - a.level || b.xp - a.xp || a.at - b.at);
-  else list.sort((a, b) => b.level - a.level || b.xp - a.xp || b.rp - a.rp || a.at - b.at);
+  // seit 15.51: bei gleicher Stufe entscheidet das Ausrüstungslevel (GS), danach Erfahrung
+  else list.sort((a, b) => b.level - a.level || (b.gs || 0) - (a.gs || 0) || b.xp - a.xp || b.rp - a.rp || a.at - b.at);
   rank.cache[tab] = { at: Date.now(), list };
   return list;
 }
@@ -278,7 +279,8 @@ function rankOwnHtml(full, shown, tab) {
   const myId = rankMyId();
   if (myId && shown.some((e) => e.id === myId)) return '';
   const idx = myId ? full.findIndex((e) => e.id === myId) : -1;
-  const me = idx >= 0 ? full[idx] : { id: myId, name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.xp || 0, rp: rankPts(p) };
+  const me = idx >= 0 ? full[idx] : { id: myId, name: p.name, cls: p.classId, path: p.path != null ? p.path : null, level: p.level, xp: p.xp || 0, rp: rankPts(p),
+    gs: typeof gearLevelOf === 'function' ? Math.max(0, Math.min(300, gearLevelOf(p.equipment))) : 0 };
   const note = !myId ? '<p class="rk-note">Nur mit Konto kommst du in die Bestenliste.</p>'
     : idx < 0 && (tab !== 'pvp' || rankPts(p) > 0) ? `<p class="rk-note">Noch nicht unter den besten ${RANK.fetch}.</p>` : '';
   return `<div class="rk-own"><ol class="rk-list"><li class="rk-row rk-me"><span class="rk-place">${idx >= 0 ? idx + 1 : '–'}</span>` +

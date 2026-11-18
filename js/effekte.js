@@ -159,7 +159,182 @@ function rankLook(e) {
   for (const key of ['r', 'len', 'w', 'width']) if (typeof e[key] === 'number') e[key] *= s;
 }
 
+// Rang-Schein: Effekte mit Rang leuchten in der Rangfarbe (Schein der Breite 7 + 5 × Rang Bildpunkte).
+// Früher bekam dafür jeder einzelne Strich und jede Fläche einen eigenen Schatten (shadowBlur). Zusammen mit dem
+// Mischmodus 'lighter' baut der Browser dafür je Zeichenbefehl zwei bildschirmgroße Zwischenebenen – ein Treffer mit
+// Rang V auf 13 Gegner ergab so hunderte bildschirmgroße Ebenen je Bild (gemessen in 2D bis über 1 s je Bild, am
+// Handy ein Standbild; Spieler-Rückmeldung „Schamane ruckelt“). Jetzt zeichnet rankHaloPass alle Effekte mit Rang
+// eines Durchgangs einmal verkleinert (¼) in eine eigene Ebene, zeichnet deren Umriss einmal weich in der Rangfarbe
+// (derselbe Schatten wie vorher, nur einmal für alle) und legt ihn vergrößert unter die Effekte. Aussehen wie vorher:
+// gleiche Farbe, gleiche Breite, gleicher Mischmodus (Lichtwellen und Bodenspuren deckend, alles andere addierend).
+const RANK_HALO = { s: 0.25, a: null, b: null, ac: null, bc: null, drawing: false, part: null };
+// Effekte, deren Schein deckend (source-over) lag; alle anderen zeichnen mit 'lighter' und leuchteten addierend
+const RANK_HALO_OVER = { ring: 1 };
+// zeichnen nichts (Runenkreise gibt es seit 14.89 nicht mehr) – kein Schein
+const RANK_HALO_NONE = { runes: 1 };
+// Bodenspuren liegen deckend, nur der leuchtende Runenkreis (andere Arten) zeichnet mit 'lighter'
+const RANK_HALO_DECAL_OVER = new Set(['scorch', 'splash', 'crack', 'ring', 'rune']);
+function rankHaloMode(e) {
+  if (e.type === 'decal') return !e.kind || RANK_HALO_DECAL_OVER.has(e.kind) ? 1 : 0;
+  return RANK_HALO_OVER[e.type] ? 1 : 0;
+}
+// Anteile eines Effekts am Schein dieses Durchgangs: Bit 1 addierend, Bit 2 deckend. late: Schein nach den Effekten
+// (nur die Geisterklinge: ihr Lichtschein lag früher mit seinem Schatten über der Klinge, nicht darunter)
+function rankHaloModes(e, late) {
+  if (e.type === 'bladespin') return late ? 1 : 3;
+  if (late) return 0;
+  return rankHaloMode(e) ? 2 : 1;
+}
+// Reichweite eines Effekts mit Rang in Weltpixeln um seinen Ursprung (großzügig): [links, oben, rechts, unten].
+// Nur damit der fertige Schein nicht bildschirmgroß, sondern nur dort aufgetragen wird, wo Effekte sind.
+const _rhExt = [0, 0, 0, 0];
+function rankHaloExtent(e, x, y) {
+  const E = _rhExt;
+  let r = Math.max(e.r || 0, e.len || 0, e.R || 0, 30);
+  switch (e.type) {
+    case 'bolt': E[0] = x - 60; E[1] = y - 260; E[2] = x + 60; E[3] = y + 15; return E;
+    case 'chain':
+    case 'beam': {
+      // Kette: Zacken ±7 um die Gerade; Strahl: Bogen bis 36 über der Mitte
+      const x2 = e.follow2 ? e.follow2.x : e.x2;
+      const y2 = e.follow2 ? feetY(e.follow2) - 20 : e.y2;
+      const x1 = e.type === 'chain' ? e.x : x;
+      const y1 = e.type === 'chain' ? e.y : y;
+      const q = e.type === 'chain' ? 16 : 24;
+      E[0] = Math.min(x1, x2) - q; E[1] = Math.min(y1, y2) - q - (e.type === 'chain' ? 0 : 24); E[2] = Math.max(x1, x2) + q; E[3] = Math.max(y1, y2) + q;
+      return E;
+    }
+    // Schnitt: Linse der Länge len um den Mittelpunkt; Leuchtschweif: Bogen mit Radius r (Breite nach innen)
+    case 'slash': r = (e.len || 30) * 0.6 + 12; break;
+    case 'swoosh': r = (e.r || 30) + 12; break;
+    case 'pillar': E[0] = x - 40; E[1] = y - 110; E[2] = x + 40; E[3] = y + 30; return E;
+    case 'tornado': E[0] = x - r - 30; E[1] = y - 70 - r * 0.4; E[2] = x + r + 30; E[3] = y + r * 0.4 + 30; return E;
+    case 'bladearc':
+    case 'bladespin': r = (e.len || 30) * 2.2 + 30; break;
+    case 'nova3':
+    case 'sigil3': r = (e.R || 40) * 1.6 + 60; break;
+    case 'impact': r = (e.big ? 26 : 15) * 1.4 + 12; break;
+    case 'ring': {
+      // Lichtwelle bis 1,2 × r, Schein darum rund (glow), Funkenstriche flach
+      const q = (e.r || 30) * 1.25 + 12;
+      E[0] = x - q; E[1] = y - q; E[2] = x + q; E[3] = y + q;
+      return E;
+    }
+    case 'decal': {
+      // flach am Boden: Brandfleck und Riss halb so hoch wie breit, der Lichtfleck (ring, rune) rund mit 0,8 × r
+      const rr = (e.r || 30) + 12;
+      const ry = e.kind === 'ring' || e.kind === 'rune' || !e.kind ? rr : (e.r || 30) * 0.5 + 14;
+      E[0] = x - rr; E[1] = y - ry; E[2] = x + rr; E[3] = y + ry;
+      return E;
+    }
+    default: r = r * 1.4 + 40;
+  }
+  E[0] = x - r; E[1] = y - r; E[2] = x + r; E[3] = y + r;
+  return E;
+}
+// ctx: Zeichenfläche (Welt-Transformation gesetzt), pick(e): gehört der Effekt in diesen Durchgang,
+// anchor(ctx, e) (nur 3D): setzt die Transformation je Effekt und sagt, ob er gezeichnet wird,
+// late: Aufruf nach dem Zeichnen der Effekte (Teile, deren Schein darüber lag, siehe rankHaloModes)
+function rankHaloPass(ctx, pick, anchor, late = false) {
+  // Grafik „Niedrig“: ohne Schein (die Effekte selbst tragen die Rangfarbe weiter)
+  if (opts.graphics === 'niedrig') return;
+  const list = game.effects;
+  // Gruppen nach Rang (Farbe, Breite) und Mischmodus: Bit (rang * 2 + modus)
+  let groups = 0;
+  for (let i = 0; i < list.length; i++) {
+    const e = list[i];
+    if (!(e.rank >= 0 && e.rank < SKILL_RANKS.length) || RANK_HALO_NONE[e.type]) continue;
+    const md = rankHaloModes(e, late);
+    if (md && pick(e)) groups |= md << (e.rank * 2);
+  }
+  if (!groups) return;
+  const H = RANK_HALO;
+  const s = H.s;
+  const cv = ctx.canvas;
+  const w = Math.max(1, Math.ceil(cv.width * s));
+  const h = Math.max(1, Math.ceil(cv.height * s));
+  if (!H.a) {
+    H.a = newCanvas(w, h);
+    H.b = newCanvas(w, h);
+    H.ac = H.a.getContext('2d');
+    H.bc = H.b.getContext('2d');
+  }
+  if (H.a.width !== w || H.a.height !== h) {
+    H.a.width = H.b.width = w;
+    H.a.height = H.b.height = h;
+  }
+  const ac = H.ac;
+  const bc = H.bc;
+  const m = anchor ? null : ctx.getTransform();
+  for (let g = 0; g < SKILL_RANKS.length * 2; g++) {
+    if (!(groups & (1 << g))) continue;
+    const rank = g >> 1;
+    const mode = g & 1;
+    ac.setTransform(1, 0, 0, 1, 0, 0);
+    ac.globalAlpha = 1;
+    ac.globalCompositeOperation = 'source-over';
+    ac.clearRect(0, 0, w, h);
+    // Bereich (Bildpunkte der Zeichenfläche), in dem Effekte dieser Gruppe liegen, samt Breite des Scheins
+    const pad = 2 * (7 + 5 * rank) + 8;
+    let bx0 = Infinity;
+    let by0 = Infinity;
+    let bx1 = -Infinity;
+    let by1 = -Infinity;
+    H.drawing = true;
+    H.part = late ? 'late' : mode ? 'over' : 'add';
+    try {
+      for (let i = 0; i < list.length; i++) {
+        const e = list[i];
+        if (e.rank !== rank || RANK_HALO_NONE[e.type] || !(rankHaloModes(e, late) & (1 << mode)) || !pick(e)) continue;
+        let t = m;
+        if (anchor) {
+          if (!anchor(ctx, e)) continue;
+          t = ctx.getTransform();
+        }
+        ac.setTransform(t.a * s, t.b * s, t.c * s, t.d * s, t.e * s, t.f * s);
+        drawEffect(ac, e);
+        if (t.b || t.c || t.a <= 0 || t.d <= 0) {
+          bx0 = by0 = -Infinity;
+          bx1 = by1 = Infinity;
+        } else {
+          const o = effectOrigin(e);
+          const E = rankHaloExtent(e, o.x, o.y);
+          bx0 = Math.min(bx0, t.a * E[0] + t.e - pad);
+          by0 = Math.min(by0, t.d * E[1] + t.f - pad);
+          bx1 = Math.max(bx1, t.a * E[2] + t.e + pad);
+          by1 = Math.max(by1, t.d * E[3] + t.f + pad);
+        }
+      }
+    } finally {
+      H.drawing = false;
+      H.part = null;
+    }
+    // in Bildpunkten der kleinen Ebene, auf die Fläche begrenzt
+    const sx0 = Math.max(0, Math.floor(bx0 * s));
+    const sy0 = Math.max(0, Math.floor(by0 * s));
+    const sx1 = Math.min(w, Math.ceil(bx1 * s));
+    const sy1 = Math.min(h, Math.ceil(by1 * s));
+    if (sx1 <= sx0 || sy1 <= sy0) continue;
+    // weicher Umriss in der Rangfarbe: das Bild liegt links außerhalb, nur sein Schatten fällt in die Fläche
+    bc.setTransform(1, 0, 0, 1, 0, 0);
+    bc.clearRect(0, 0, w, h);
+    bc.shadowColor = SKILL_RANKS[rank].color;
+    bc.shadowBlur = (7 + 5 * rank) * s;
+    bc.shadowOffsetX = w + 16;
+    bc.drawImage(H.a, -w - 16, 0);
+    bc.shadowColor = 'rgba(0,0,0,0)';
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = mode ? 'source-over' : 'lighter';
+    ctx.drawImage(H.b, sx0, sy0, sx1 - sx0, sy1 - sy0, sx0 / s, sy0 / s, (sx1 - sx0) / s, (sy1 - sy0) / s);
+    ctx.restore();
+  }
+}
+
 function particles(x, y, o) {
+  // beim Vorzeichnen des Rang-Scheins (rankHaloPass) entstehen keine Teilchen – die kommen beim eigentlichen Zeichnen
+  if (RANK_HALO.drawing) return;
   if (fxRank >= 0 && !o.rankExtra) {
     // mehr Teilchen, dazu Funken in der Rangfarbe
     o = { ...o, count: (o.count || 8) * (1 + 0.25 * (fxRank + 1)) };
@@ -881,11 +1056,8 @@ function drawEffect(ctx, e) {
   ctx.globalAlpha = 1 - k;
   ctx.strokeStyle = e.color;
   ctx.fillStyle = e.color;
-  // Fertigkeit mit Rang: Schein in der Rangfarbe um alles, was sie zeichnet
-  if (e.rank >= 0) {
-    ctx.shadowColor = e.rankColor;
-    ctx.shadowBlur = 7 + 5 * e.rank;
-  }
+  // Fertigkeit mit Rang: der Schein in der Rangfarbe um alles, was sie zeichnet, liegt schon darunter
+  // (rankHaloPass, einmal je Bild statt eines Schattens je Strich)
   switch (e.type) {
     case 'swoosh': {
       // Leuchtschweif: vorn breit und hell, nach hinten spitz auslaufend
@@ -937,22 +1109,27 @@ function drawEffect(ctx, e) {
     case 'bladespin': {
       // Die Waffe selbst wirbelt als leuchtende Riesenklinge um die Figur, mit Nachbildern
       const turn = e.a0 + e.turns * Math.PI * 2 * easeOut(k) * (e.dir || 1);
+      // Rang-Schein in drei Teilen (rankHaloPass): Ring und Nachbilder addierend darunter, die Klinge deckend darunter,
+      // der Schein entlang der Klinge danach darüber – wie früher der Schatten je Strich in dieser Reihenfolge
+      const hp = RANK_HALO.drawing ? RANK_HALO.part : null;
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'lighter';
       ctx.strokeStyle = e.color;
       ctx.lineWidth = 3;
       ctx.globalAlpha = 0.35 * (1 - k);
-      ctx.beginPath();
-      ctx.ellipse(x, y, e.len, e.len * 0.5, 0, 0, Math.PI * 2);
-      ctx.stroke();
+      if (!hp || hp === 'add') {
+        ctx.beginPath();
+        ctx.ellipse(x, y, e.len, e.len * 0.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      }
       for (let b = 0; b < (e.count || 1); b++) {
         const base = turn + (b * Math.PI * 2) / (e.count || 1);
         for (let j = 5; j >= 0; j--) {
           const a = base - j * 0.32 * (e.dir || 1);
           ctx.globalCompositeOperation = j ? 'lighter' : 'source-over';
           ctx.globalAlpha = (j ? 0.45 * (1 - j / 6) : 1) * Math.min(1, (1 - k) * 2.5);
-          drawPhantomBlade(ctx, e, x, y, a);
-          if (!j) {
+          if (!hp || hp === (j ? 'add' : 'over')) drawPhantomBlade(ctx, e, x, y, a);
+          if (!j && (!hp || hp === 'late')) {
             // heller Schein entlang der Klinge
             ctx.globalCompositeOperation = 'lighter';
             ctx.globalAlpha = 0.5 * (1 - k);
@@ -1000,13 +1177,14 @@ function drawEffect(ctx, e) {
       ctx.lineWidth = e.big ? 3 : 2;
       ctx.globalAlpha = 1 - k;
       const rays = e.big ? 10 : 7;
+      // alle Strahlen in einem Pfad (sie berühren sich nicht – gleiches Bild, ein Zeichenbefehl statt zehn)
+      ctx.beginPath();
       for (let i = 0; i < rays; i++) {
         const a = i / rays * Math.PI * 2 + e.start * 7;
-        ctx.beginPath();
         ctx.moveTo(x + Math.cos(a) * r * 0.5, y + Math.sin(a) * r * 0.5);
         ctx.lineTo(x + Math.cos(a) * r * 1.4, y + Math.sin(a) * r * 1.4);
-        ctx.stroke();
       }
+      ctx.stroke();
       break;
     }
     case 'claw': {
@@ -1074,15 +1252,16 @@ function drawEffect(ctx, e) {
       ctx.lineWidth = Math.max(1, (e.width || 4) * 0.4 * (1 - k) + 0.8);
       ctx.lineCap = 'round';
       const n = 10;
+      // ein Pfad für alle Funkenstriche (berühren sich nicht)
+      ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const a = e.spin + (i / n) * Math.PI * 2;
         const c = Math.cos(a);
         const sn = Math.sin(a) * 0.62;
-        ctx.beginPath();
         ctx.moveTo(x + c * R * 0.72, y + sn * R * 0.72);
         ctx.lineTo(x + c * R, y + sn * R);
-        ctx.stroke();
       }
+      ctx.stroke();
       ctx.lineCap = 'butt';
       break;
     }

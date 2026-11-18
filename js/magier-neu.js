@@ -328,7 +328,10 @@ function chainStrike(owner, sk, t, pw, lvl) {
   const y0 = owner.y;
   const dir = t ? dirOf(t.x - x0, t.y - y0) : dirOf(owner.facing.x, owner.facing.y);
   const reach = sk.range + 40;
-  const first = chainFirst(x0, y0, dir, reach, enemiesNear(x0 + dir.x * reach / 2, y0 + dir.y * reach / 2, reach / 2 + 80));
+  // Fokus respektieren: der erste Blitz schlägt im bewusst gewählten Ziel ein (Klick, Antippen, Tab), auch wenn Monster
+  // davor stehen; erst die Sprünge gehen weiter zu den Nächsten
+  const focus = t && !t.dead && !t.hidden && targetIsManual(t) && dist(owner, t) - (t.r || 0) <= reach ? t : null;
+  const first = focus || chainFirst(x0, y0, dir, reach, enemiesNear(x0 + dir.x * reach / 2, y0 + dir.y * reach / 2, reach / 2 + 80));
   if (!first) {
     // ins Leere: der Blitz fährt in Blickrichtung und verpufft
     chainBoltFx(owner, null, { x: x0 + dir.x * reach, y: y0 + dir.y * reach }, 0);

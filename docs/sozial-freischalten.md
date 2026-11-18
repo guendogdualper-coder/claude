@@ -19,6 +19,10 @@ TikTok **und** Instagram folgt – dann für alle Charaktere des Kontos.
 - **Vertrauen statt Prüfung:** Folgen lässt sich nicht prüfen. Zwei Knöpfe „Auf TikTok folgen“ / „Auf Instagram
   folgen“ öffnen das Profil in einem neuen Tab (`window.open`, als installierte Web-App öffnet das den Browser).
   Jeder Knopf wird beim Antippen gemerkt (Zeitpunkt); sind beide angetippt, sind Seite III und IV frei.
+  Seit 15.51 zählt ein Knopf erst, wenn man mindestens 10 Sekunden auf dem Profil war (`SOZIAL_MIN_MS`): Das Spiel
+  merkt, wann es verlassen wurde (Tab/App im Hintergrund oder Fenster ohne Fokus) und wann man zurückkommt; in der
+  iPhone/iPad-App zählt die Zeit bis zum Schließen des In-App-Browsers (`browserFinished`). Zu kurz: Hinweis „Schau dir
+  das Profil kurz an …“, kein Haken. Ein echtes Folgen lässt sich nicht prüfen (keine Schnittstelle bei Instagram/TikTok).
 - **Wo gemerkt:** im Gerät (`localStorage` `seelenstein.sozial`) – gilt damit für alle Charakterplätze im Gerät.
   Mit Konto zusätzlich im Konto: Feld `sozial` in `/konten/<uid>` neben `blockiert` (`konto.js` cloudGet/cloudPut,
   Übernahme in `cloudExchange` über `sozialFromCloud`). Beim Abgleich gilt, was Gerät oder Konto schon kennt

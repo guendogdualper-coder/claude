@@ -3844,3 +3844,32 @@ body.skv-open .hover-tip { display: none !important; }
 .invite.duel-ask { flex-wrap: wrap; justify-content: center; max-width: min(520px, 94vw); pointer-events: auto; }
 .duel-opt { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .duel-opt input[type="number"] { width: 84px; padding: 3px 5px; border-radius: 5px; border: 1px solid var(--brass-dim); background: #14100b; color: #ffe9a8; font: inherit; }
+
+/* Auto-Angriff (autoangriff.js): kleiner runder Schalter an der Leiste. Aus: gedämpft; an: Glut und goldener Ring;
+   läuft gerade ein Auto-Angriff, dreht sich der Pfeil und der Rand glüht. Am PC hängt er rechts außen an der Leiste
+   (negativer Rand: die Leiste bleibt mittig, wo sie war), am Handy links neben dem Lebenstrank. */
+.auto-atk { display: grid; place-items: center; border-radius: 50%; background: radial-gradient(circle at 40% 32%, #4a3c28, #1d1712 72%); }
+.action-row > .auto-atk { flex: none; width: 42px; height: 42px; align-self: flex-end; margin: 0 -48px 5px 0; }
+.auto-atk svg { position: relative; z-index: 1; width: 24px; height: 24px; margin-bottom: 7px; fill: none; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.7)); }
+.auto-atk .ring { stroke: #8f8064; stroke-width: 2; }
+.auto-atk .blade { stroke: #c9bfa8; stroke-width: 2.4; }
+.auto-atk .hilt { stroke: #8a6a3a; stroke-width: 2.2; }
+.auto-atk .auto-lbl { position: absolute; left: 50%; bottom: 3px; z-index: 3; transform: translateX(-50%); padding: 1px 4px; border-radius: 6px; background: rgba(18, 12, 8, 0.8); color: var(--muted); font-size: 8.5px; font-weight: 700; letter-spacing: 0.06em; line-height: 1; }
+.auto-atk.on { border-color: #f0cf6a; background: radial-gradient(circle at 40% 32%, #9a4426, #3a140c 72%); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(240, 207, 106, 0.4), 0 0 12px rgba(240, 180, 90, 0.5); }
+.auto-atk.on .ring { stroke: #ffd96a; }
+.auto-atk.on .blade { stroke: #fff3d0; }
+.auto-atk.on .hilt { stroke: #e8c46a; }
+.auto-atk.on .auto-lbl { color: #ffe08a; }
+.auto-atk.run { animation: autoAtkGlow 0.9s ease-in-out infinite alternate; }
+.auto-atk.run .ring { transform-origin: 12px 12px; animation: autoAtkSpin 1.8s linear infinite; }
+@keyframes autoAtkSpin { to { transform: rotate(360deg); } }
+@keyframes autoAtkGlow {
+  from { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(240, 207, 106, 0.5), 0 0 8px rgba(255, 140, 60, 0.45); }
+  to { box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(255, 217, 106, 0.85), 0 0 18px rgba(255, 140, 60, 0.9); }
+}
+#hud.touch .action-row > .auto-atk { position: absolute; left: 33px; top: 159px; width: 34px; height: 34px; margin: 0; }
+#hud.touch .auto-atk svg { width: 20px; height: 20px; margin-bottom: 6px; }
+#hud.touch .auto-atk .auto-lbl { bottom: 2px; padding: 0 3px; font-size: 7.5px; }
+@media (prefers-reduced-motion: reduce) {
+  .auto-atk.run, .auto-atk.run .ring { animation: none; }
+}

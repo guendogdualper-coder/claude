@@ -822,10 +822,10 @@ const ui = {
         const here = mine && online;
         const busy = mine && net.mode === 'joining';
         const n = net.probes[sv.id + ch];
-        const info = here ? `${net.players.size + 1}/${NET_MAX} Spieler · du bist hier${net.mode === 'host' ? ' (deine Welt)' : ''}`
+        const info = here ? `${net.players.size + 1} Spieler · du bist hier${net.mode === 'host' ? ' (deine Welt)' : ''}`
           : busy ? 'verbinde …'
             : n === 0 ? 'leer · du eröffnest ihn'
-              : typeof n === 'number' ? `${n}/${NET_MAX} Spieler`
+              : typeof n === 'number' ? `${n} Spieler`
                 : n === '?' ? 'online' : 'prüfe …';
         const dot = here ? 'here' : typeof n === 'number' && n > 0 ? 'busy' : 'free';
         return `<div class="channel${here ? ' here' : ''}"><span class="ch-dot ${dot}"></span>` +
@@ -886,7 +886,8 @@ const ui = {
     $('netBadge').hidden = true;
     $('stNet').hidden = !on;
     // „Umweg“: Daten laufen über den Broker statt direkt (typisch, wenn beide im Mobilfunk sind)
-    if (on) $('stNet').textContent = `K${net.channel} · ${net.players.size + 1}/${NET_MAX}${net.hostConn && net.hostConn.via === 'relay' ? ' · Umweg' : ''}`;
+    // seit 15.51 nur die Zahl der Spieler, ohne Obergrenze
+    if (on) $('stNet').textContent = `K${net.channel} · 👥 ${net.players.size + 1}${net.hostConn && net.hostConn.via === 'relay' ? ' · Umweg' : ''}`;
     $('stNet').title = on ? `${serverName(net.server)} Kanal ${net.channel}` : '';
     $('btnNet').classList.toggle('on', on);
   },

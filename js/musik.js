@@ -8,6 +8,9 @@
 // harmonisches Moll, schnellerer Puls, treibender Achtelbass, große Trommeln, Bläserstöße, ein Chor und
 // alle vier Takte ein anschwellendes Rauschen. Ist der Boss besiegt, klingt ein kurzer Siegesakkord aus.
 // Seit 14.40: in Prüfungs- und Turnierarena eigene, schnelle Kampfmusik (arenaBar, 160 BPM, unten).
+// Seit 15.51 eigene Musikdateien (tools/klang-synth/musik.py): Turm der Verdammten (turm), Kharzul (kharzul, ab seiner
+// Verwandlung kharzul2 an derselben Stelle) und die Arenen (arena). Fehlt eine Datei, spielt die bisherige (Dungeon,
+// Boss, erzeugte Arenamusik: MUSIC_FALLBACK in klang-dateien.js).
 
 const MIDI = (n) => 440 * Math.pow(2, (n - 69) / 12);
 // Musikdateien im Verhältnis zur erzeugten Musik: im Browser gemessen (Effektivwert am Musikausgang). Früher lagen die
@@ -179,13 +182,15 @@ const music = {
       if (k !== this.key) {
         // Einstieg in den Bosskampf mit Schlag und Rauschen, Ende nach Sieg mit Siegesakkord (über fx, auch zur Datei)
         this.out = this.fx;
-        if (k === 'boss') this.impact(this.nextBar, 1);
+        if (k === 'boss' || (k === 'kharzul' && this.key !== 'kharzul2')) this.impact(this.nextBar, 1);
         else if (k === 'arena') this.arenaLv = -1; // Einstieg mit Schlag (arenaBar)
         else if (this.key === 'boss' && this.bossRef && this.bossRef.dead) this.victory(this.nextBar);
         this.out = this.proc;
         // Musikdatei der neuen Stimmung (Boss schnell, sonst weich überblendet)
         // seit 14.40 Arena: Musikdatei der Gegend in 1,5 s aus, erzeugte Arenamusik ein (und beim Verlassen zurück)
-        if (files) files.want(k, k === 'boss' || this.key === 'boss' ? 0.9 : k === 'arena' || this.key === 'arena' ? 1.5 : 2.5);
+        // seit 15.51 Kharzul wie der Boss; seine Verwandlung (kharzul → kharzul2) im Gleichlauf in 1,6 s
+        const sync = typeof MUSIC_SYNC !== 'undefined' && MUSIC_SYNC[k] === this.key;
+        if (files) files.want(k, sync ? 1.6 : MUSIC_BOSSY.has(k) || MUSIC_BOSSY.has(this.key) ? 0.9 : k === 'arena' || this.key === 'arena' ? 1.5 : 2.5);
         this.key = k;
         this.bar = 0;
       } else if (files && !files.playing(k)) files.want(k, 2.5);
@@ -610,6 +615,13 @@ Object.assign(MOODS, {
   arena: { root: 50, scale: [0, 2, 3, 5, 7, 8, 11], bpm: 160, arena: true, pad: 0.45, bright: 1500, pluck: 0, flute: 0, drum: 0, bells: 0,
     chords: [[[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [-5, -1, 2]], [[0, 3, 7], [1, 5, 8], [0, 3, 7], [-5, -1, 2]], [[0, 3, 7], [-7, -4, 0], [-4, 0, 3], [-5, -1, 2]]] }
 });
+// Seit 15.51 eigene Stimmungen für den Turm der Verdammten (turm.js) und Kharzul (kharzul.js) mit Musikdateien;
+// erzeugt (nur wenn gar keine Datei da ist) klingen sie wie Dungeon bzw. Bosskampf
+MOODS.turm = MOODS.dunkel;
+MOODS.kharzul = MOODS.boss;
+MOODS.kharzul2 = MOODS.boss;
+// Bosskämpfe: schneller Wechsel der Musikdatei (0,9 s)
+const MUSIC_BOSSY = new Set(['boss', 'kharzul', 'kharzul2']);
 Object.assign(music, {
   // Stufe der Arenamusik aus dem Lauf: 0 Pause/Warten, 1 Kampf, 2 Bosswelle (Turnierarena: immer Kampf)
   arenaLevel() {
