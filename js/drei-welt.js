@@ -1,0 +1,3030 @@
+// 3D-Welt: Bäume, Felsen, Häuser, Dorfmauer, Türme, Tore, Dorfschmuck, Brücken, Gras und Blumen.
+// Je Block (16 × 16 Kacheln) wird alles zu wenigen Meshes zusammengebacken: ein beleuchtetes mit
+// Umriss, eines für leuchtende Teile (Laternen, Glut, Feuer) und eines für Gras ohne Umriss.
+// Dicht bebaute Blöcke bekommen diese Meshes je Viertel (siehe objectJob).
+// Alle Formen sind weich abgerundet; Farben kommen aus denselben Tabellen wie im 2D-Spiel.
+
+const WALL3_ROOF = '#3e4656';
+const FROST_ROCK3 = '#3e4a5c';
+
+function worldLitMat() {
+  return mat3('worldLit', () => addFade(toonMat(), 0.45));
+}
+function worldGlowMat() {
+  return mat3('worldGlow', () => new THREE.MeshBasicMaterial({ vertexColors: true }));
+}
+// Gras, Klee, Blumen und kleiner Schmuck ohne Umriss. Seit 7.9 mit Wind: eine langsame Welle zieht
+// über die Wiese. Gras steht auf y ≈ 0, die Höhe darüber gibt den Ausschlag (Spitzen weit, Fuß fest),
+// dazu ein kleines Flattern, damit nicht alles im Gleichschritt geht. Die Zeit setzt renderDrei.
+function worldGrassMat() {
+  return mat3('worldGrass', () => {
+    const m = toonMat();
+    m.userData.uTime = { value: 0 };
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uTime = m.userData.uTime;
+      sh.vertexShader = sh.vertexShader
+        .replace('void main() {', 'uniform float uTime;\nvoid main() {')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+	vec4 wW = modelMatrix * vec4(transformed, 1.0);
+	float bend = clamp(wW.y, 0.0, 0.55) * 2.5;
+	bend *= bend;
+	float ph = dot(wW.xz, vec2(0.38, 0.22)) - uTime * 1.1;
+	float sway = sin(ph) * 0.65 + sin(ph * 2.7 + wW.x * 1.9 + wW.z * 1.3) * 0.25 + 0.3;
+	transformed.xz += vec2(0.06, 0.035) * sway * bend;
+	transformed.y -= 0.015 * sway * sway * bend;`);
+    };
+    m.customProgramCacheKey = () => 'grasswind';
+    return m;
+  });
+}
+function worldAuraMat() {
+  return mat3('worldAura', () => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }));
+}
+
+// Matrix für ein Objekt an (x, z) mit Drehung um die Hochachse und Größe
+function placeAt(x, z, rotY = 0, s = 1, y = 0) {
+  _q.setFromEuler(_e.set(0, rotY, 0));
+  return new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), _q.clone(), new THREE.Vector3(s, s, s));
+}
+
+// seit 14.28: Mauerstück entlang einer schrägen oder runden Mauer (welt.js wallLine), in Laufrichtung gestreckt.
+// Die Höhe schwankt je Kachel um 1 %, damit sich überlappende Dächer nicht flimmern.
+function wallLineAt(x, y, ln) {
+  _q.setFromEuler(_e.set(0, -ln.a, 0));
+  return new THREE.Matrix4().compose(new THREE.Vector3(x + 0.5 + ln.ox, 0, y + 0.5 + ln.oy), _q.clone(), new THREE.Vector3(ln.len, 1 + ((x + y) & 1) * 0.01, 1));
+}
+
+// --- Geschwungene Mauer (seit 15.29) ------------------------------------------------------------------------------
+// Schräge und runde Mauern laufen auf dem Kachelraster als Treppe. Seit 14.28 wurde jedes Stück in Laufrichtung
+// gedreht – an Rundungen passten die Stücke aber nicht aneinander (jedes hatte seinen eigenen Winkel und Versatz):
+// die Ringmauer sah aus wie einzelne, schief stehende Wände. Jetzt wird die Mauer entlang der Kette ihrer Kacheln
+// gezogen: jede Kachel trägt ein Stück von der Mitte zum Vorgänger bis zur Mitte zum Nachfolger, als weiche Kurve
+// über die eigene Kachelmitte (quadratische Kurve). Benachbarte Stücke teilen sich Endpunkt und Richtung – die Mauer
+// ist lückenlos und rund. Querschnitt wie die gerade Mauer: Sockel, Wand, Dach, dazu ein First.
+// Der Verlauf wird über fünf Kacheln der Kette geglättet (aus der Kacheltreppe wird ein Bogen); gerade Reihen bleiben
+// dabei gerade. Nur für Steinmauer (ohne Art) und Stützmauer ('terrasse'); gibt false zurück, wenn die Kachel eine
+// Kreuzung ist oder allein steht (dann das bisherige Stück).
+const WALL_SWEEP = {
+  stein: [[0.31, 0, 0.4, '#7a746a', 0.3, null], [0.21, 0.36, 1.26, '#dccaa4', 0.15, null], [0.37, 1.24, 1.4, WALL3_ROOF, 0, 0.15], [0.13, 1.38, 1.47, '#566074', 0, 0.2]],
+  terrasse: [[0.35, 0, 0.5, '#8a8a92', 0.3, 0.1], [0.37, 0.48, 0.58, '#f4f8fc', 0, null]]
+};
+function wallSweep3(b, w, x, y, i) {
+  const style = WALL_STYLE.get(i);
+  const prof = style ? WALL_SWEEP[style] : WALL_SWEEP.stein;
+  if (!prof) return false;
+  const isW = (xx, yy) => {
+    if (xx < 0 || yy < 0 || xx >= MAP_W || yy >= MAP_H) return false;
+    const k = yy * MAP_W + xx;
+    return w.obj[k] === OBJ.WALL && WALL_STYLE.get(k) === style;
+  };
+  // Nachbarn in der Kette: gerade Nachbarn, dazu schräge, die nicht schon über einen geraden erreichbar sind
+  const nbOf = (cx, cy) => {
+    const nb = [];
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) if (isW(cx + dx, cy + dy)) nb.push([cx + dx, cy + dy]);
+    for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) if (isW(cx + dx, cy + dy) && !isW(cx + dx, cy) && !isW(cx, cy + dy)) nb.push([cx + dx, cy + dy]);
+    return nb;
+  };
+  const nb = nbOf(x, y);
+  if (nb.length === 0 || nb.length > 2) return false;
+  // Kette drei Kacheln weit in beide Richtungen ablaufen; am Ende (Tor, Kreuzung) gerade weiterdenken
+  const lauf = (px, py, cx, cy) => {
+    const out = [];
+    for (let k = 0; k < 3; k++) {
+      const n = nbOf(cx, cy).filter(([qx, qy]) => qx !== px || qy !== py);
+      const nx = n.length === 1 ? n[0][0] : cx + (cx - px);
+      const ny = n.length === 1 ? n[0][1] : cy + (cy - py);
+      out.push([nx, ny]);
+      px = cx; py = cy; cx = nx; cy = ny;
+    }
+    return out;
+  };
+  const a0 = nb[0];
+  const b0 = nb.length === 2 ? nb[1] : [x - (a0[0] - x), y - (a0[1] - y)];
+  // Kette: … a3 a2 a1 a0 [x,y] b0 b1 b2 b3 …
+  const A = [a0].concat(lauf(x, y, a0[0], a0[1]).slice(0, 2));
+  const Bk = [b0].concat(lauf(x, y, b0[0], b0[1]).slice(0, 2));
+  const kette = [A[2], A[1], A[0], [x, y], Bk[0], Bk[1], Bk[2]];
+  // geglättete Mitte der Kacheln 2, 3, 4 der Kette (Gewichte 1 2 3 2 1): aus der Treppe wird ein Bogen
+  const glatt = (k) => {
+    let sx = 0;
+    let sz = 0;
+    let sw = 0;
+    for (let d = -2; d <= 2; d++) {
+      const q = kette[Math.max(0, Math.min(6, k + d))];
+      const g = 3 - Math.abs(d);
+      sx += (q[0] + 0.5) * g;
+      sz += (q[1] + 0.5) * g;
+      sw += g;
+    }
+    return [sx / sw, sz / sw];
+  };
+  const [pxm, pzm] = glatt(2);
+  const [cx, cz] = glatt(3);
+  const [nxm, nzm] = glatt(4);
+  const ax = (pxm + cx) / 2;
+  const az = (pzm + cz) / 2;
+  const bx = (cx + nxm) / 2;
+  const bz = (cz + nzm) / 2;
+  // gerades Stück: zwei Stützpunkte genügen
+  const gerade = Math.abs((bx - ax) * (cz - az) - (bz - az) * (cx - ax)) < 0.002;
+  const N = gerade ? 1 : 4;
+  const P = [];
+  for (let k = 0; k <= N; k++) {
+    const t = k / N;
+    const u = 1 - t;
+    const px = u * u * ax + 2 * u * t * cx + t * t * bx;
+    const pz = u * u * az + 2 * u * t * cz + t * t * bz;
+    let tx = 2 * u * (cx - ax) + 2 * t * (bx - cx);
+    let tz = 2 * u * (cz - az) + 2 * t * (bz - cz);
+    const tl = Math.sqrt(tx * tx + tz * tz) || 1;
+    tx /= tl;
+    tz /= tl;
+    P.push([px, pz, -tz, tx]);
+  }
+  for (const [hw, y0, y1, col, shade, top] of prof) {
+    const pos = [];
+    const idx = [];
+    // drei Bänder (links, rechts, oben) mit eigenen Ecken: weich entlang der Mauer, hart an den Kanten
+    const band = (fa, fb) => {
+      const base = pos.length / 3;
+      for (const [px, pz, nx, nz] of P) {
+        const [la, ya] = fa;
+        const [lb, yb] = fb;
+        pos.push(px + nx * la, ya, pz + nz * la, px + nx * lb, yb, pz + nz * lb);
+      }
+      for (let k = 0; k < N; k++) {
+        const o = base + k * 2;
+        idx.push(o, o + 2, o + 1, o + 1, o + 2, o + 3);
+      }
+    };
+    band([hw, y0], [hw, y1]);
+    band([-hw, y1], [-hw, y0]);
+    band([hw, y1], [-hw, y1]);
+    // Stirnflächen (am Endstück sichtbar; sonst liegen sie im Nachbarstück)
+    for (const k of [0, N]) {
+      const [px, pz, nx, nz] = P[k];
+      const o = pos.length / 3;
+      pos.push(px + nx * hw, y0, pz + nz * hw, px - nx * hw, y0, pz - nz * hw, px - nx * hw, y1, pz - nz * hw, px + nx * hw, y1, pz + nz * hw);
+      if (k) idx.push(o, o + 1, o + 2, o, o + 2, o + 3);
+      else idx.push(o, o + 2, o + 1, o, o + 3, o + 2);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    b.add(g, col, top != null ? { shade, top: lighter(col, top), topK: 0.5 } : { shade });
+  }
+  return true;
+}
+
+// Abgerundeter Quader für die Welt: aus der Entfernung reicht eine gröbere Rundung als bei Figuren
+const wbox = (w, h, d, r) => roundBox(w, h, d, r, r < 0.09 ? 1 : 2);
+// Winzige Leisten, Zinnen und Sprossen: einfacher Quader, die Rundung wäre kleiner als ein Pixel
+const tinyBox = (w, h, d) => geo3(`tb${w},${h},${d}`, () => new THREE.BoxGeometry(w, h, d));
+
+// Rundlicher Felsbrocken: Ikosaeder, mit Rauschen verbeult und glatt schattiert
+// (detail 0: Kiesel mit 20 statt 80 Dreiecken, so klein sieht man keine Kanten)
+function rockGeo(v, detail = 1) {
+  return geo3('rock' + v + (detail ? '' : 'k'), () => {
+    const g = smoothGeo(new THREE.IcosahedronGeometry(1, detail));
+    const pos = g.attributes.position;
+    const rnd = mulberry32(31 + v * 17);
+    const bumps = Array.from({ length: 7 }, () => [rnd() * 2 - 1, rnd() * 2 - 1, rnd() * 2 - 1, 0.12 + rnd() * 0.22]);
+    for (let i = 0; i < pos.count; i++) {
+      _v1.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+      let r = 0.92 + rnd() * 0.12;
+      for (const [bx, by, bz, a] of bumps) r += a * Math.max(0, _v1.x * bx + _v1.y * by + _v1.z * bz);
+      // oben etwas abgeflacht, unten im Boden
+      pos.setXYZ(i, _v1.x * r, Math.max(-0.25, _v1.y > 0.55 ? 0.55 + (_v1.y - 0.55) * 0.45 : _v1.y) * r * 0.8, _v1.z * r);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// --- Modelle (fügen ihre Teile in eine Bake3 ein; M = Matrix des Objekts) ------------------------
+
+const WORLD3 = {
+  tree(b, M, v, style) {
+    const bark = '#6b4a2e';
+    b.add(lathe3('trunk', [[0.3, 0], [0.19, 0.14], [0.15, 0.7], [0.12, 1.3], [0, 1.34]], 8), bark, { parent: M, shade: 0.35 });
+    b.add(limb3(0.6, 0.07, 0.05, 5), bark, { parent: M, p: [0.08, 1.0, 0], r: [0, 0, 2.2] });
+    const blossom = style === 'blossom';
+    const cols = blossom ? ['#d07896', '#e08aa6', '#f5b8cb'] : style === 'nagadschungel' ? ['#2e5a2a', '#3d7633', '#5a9a46'] : ['#2f6229', '#3d7633', '#5a9a46'];
+    // Kronenkugeln: die oberen sieht man ganz, die unteren stecken halb in der Krone
+    TREE_BLOBS[v].forEach(([x, y, r], k) => {
+      const top = y < -36;
+      b.add(top ? sphere3(1, 10, 7) : sphere3(1, 9, 6), top ? cols[2] : k % 2 ? cols[1] : cols[0], {
+        parent: M, p: [x / 32 * 1.1, -y / 32 * 1.1 + 0.25, ((k * 37) % 7 - 3) * 0.09], s: (r / 32) * 1.35, shade: 0.35
+      });
+    });
+    if (blossom) for (const [x, y, z] of [[-0.4, 1.9, 0.5], [0.3, 1.6, 0.6], [0.5, 2.2, 0.2], [-0.2, 2.4, 0.3]]) b.add(sphere3(0.07, 5, 4), '#ffffff', { parent: M, p: [x, y, z] });
+  },
+
+  pine(b, M, v, style) {
+    const snowy = style === 'frost';
+    b.add(lathe3('pinetrunk', [[0.18, 0], [0.13, 0.1], [0.1, 0.7], [0, 0.72]], 7), '#5a3f2a', { parent: M, shade: 0.3 });
+    const tiers = 4 + (v === 2 ? 1 : 0);
+    for (let k = 0; k < tiers; k++) {
+      const r = (0.85 - k * (0.62 / tiers)) * (v === 1 ? 0.9 : 1);
+      const y = 0.35 + k * 0.42;
+      const g = lathe3(`pinetier${r.toFixed(2)}`, [[0, -0.04], [r * 0.6, -0.02], [r, 0.06], [r * 0.95, 0.14], [r * 0.45, 0.48], [r * 0.12, 0.66], [0, 0.7]], 10);
+      b.add(g, snowy ? '#2a4a48' : k % 2 ? '#2a5c48' : '#245242', { parent: M, p: [0, y, 0], r: [0, k * 0.7, 0], shade: 0.4 });
+      if (snowy) b.add(lathe3(`pinesnow${r.toFixed(2)}`, [[0, 0.18], [r * 0.62, 0.2], [r * 0.5, 0.32], [r * 0.2, 0.55], [0, 0.71]], 10), '#f4f8fc', { parent: M, p: [0, y, 0] });
+    }
+  },
+
+  dead(b, M, v, style) {
+    const bark = style === 'vulkan' || style === 'titanenkamm' ? '#2a1e1a' : style === 'moor' ? '#3a3a2a' : '#4a3527';
+    const m = v === 1 ? -1 : 1;
+    b.add(lathe3('deadtrunk', [[0.24, 0], [0.15, 0.12], [0.1, 0.8], [0.05, 1.35], [0, 1.4]], 7), bark, { parent: M, shade: 0.3, r: [0, 0, 0.05 * m] });
+    const br = [[0.5, 0.06, 0.04, [0, 0.5, 0], [0, 0, -1.0 * m]], [0.42, 0.05, 0.03, [0, 0.75, 0], [0, 0, 0.9 * m]], [0.36, 0.04, 0.025, [0, 1.0, 0], [0.4, 0, -0.5 * m]]];
+    if (v === 2) br.push([0.3, 0.04, 0.025, [0, 0.3, 0], [0, 0, 1.1]]);
+    for (const [len, r1, r2, p, r] of br) b.add(limb3(len, r1, r2, 5), bark, { parent: M, p, r: [r[0] + Math.PI, r[1], r[2]] });
+    if (style === 'moor') for (const [x, y] of [[0.35 * m, 0.7], [-0.3 * m, 0.95]]) b.add(limb3(0.28, 0.04, 0.02, 5), '#5a7a4a', { parent: M, p: [x, y, 0.05] });
+    if (style === 'vulkan' || style === 'titanenkamm') b.add(limb3(0.4, 0.035, 0.02, 5), '#ff7a2a', { parent: M, p: [0.02, 0.85, 0.12], mat: 'glow' });
+  },
+
+  rock(b, M, v, style) {
+    const [grey, top, moss] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
+    // Frost: im hellen Schneelicht wirkt das 2D-Grau weiß, darum dunkler blaugrau (Schnee liegt obenauf)
+    const base = style === 'frost' ? FROST_ROCK3 : grey;
+    const s = [1, 0.85, 1.15][v];
+    const frost = style === 'frost';
+    b.add(rockGeo(v), base, { parent: M, s: [0.48 * s, 0.5 * s, 0.42 * s], p: [0, 0.12, 0], top: moss || top, topK: moss ? 0.8 : frost ? 0.3 : 0.6, shade: 0.45 });
+    // Frost (seit 8.4): blaugrauer Fels mit eigener Schneehaube und Schnee am Fuß statt einer weißen Kugel
+    if (frost) {
+      const rg = rockGeo(v);
+      if (!rg.boundingBox) rg.computeBoundingBox();
+      b.add(foliageGeo(v, 2), '#c8d8ea', { parent: M, p: [0.04, 0.07 + rg.boundingBox.max.y * 0.5 * s, -0.07], s: [0.32 * s, 0.13 * s, 0.26 * s], top: '#f4f8fc', topK: 1, ao: 0.3 });
+      b.add(cap3(1, Math.PI / 2, 0, Math.PI * 2, 10, 3), '#eef4fa', { parent: M, p: [0.1, -0.012, 0.12], s: [0.5 * s, 0.07, 0.4 * s], ao: 0, mat: 'detail' });
+    }
+    if (v === 2) b.add(rockGeo(1), base, { parent: M, s: [0.22, 0.24, 0.2], p: [0.45, 0.06, 0.15], top, topK: 0.45 });
+    if (style === 'vulkan' || style === 'titanenkamm') b.add(limb3(0.3, 0.025, 0.02, 5), '#ff7a2a', { parent: M, p: [-0.15, 0.42, 0.25], r: [0.3, 0, 1.2], mat: 'glow' });
+  },
+
+  // Haus: seit 13.91 in Varianten (welt.js look: Dach, Wand, Schornstein, Anbau, Tür) und begehbar (house3Open).
+  // Bis 13.90 hatte jedes Haus Steinsockel, Putzwände mit Balken, Papierfenster und das geschwungene Ziegeldach –
+  // so sieht heute ein Haus ohne look aus ('pagode' mit 'fachwerk'). shell: bei begehbaren Häusern kommen Dach und
+  // Vorderwand in diese Bake3 (eigenes Mesh, das v3SyncHouses ausblendet, solange man drinnen ist)
+  house(b, h, shell) {
+    if (h.enter) house3Open(b, shell || b, h);
+    else house3Closed(b, h);
+  },
+
+  // Dorfmauer je Kachel: Steinsockel, Putzwand mit Balken, kleines Ziegeldach obenauf
+  wall(b, x, z, vertical) {
+    const M = placeAt(x, z, vertical ? Math.PI / 2 : 0);
+    b.add(wbox(1.06, 0.4, 0.62, 0.08), '#7a746a', { parent: M, p: [0, 0.2, 0], shade: 0.3 });
+    b.add(wbox(1.06, 0.92, 0.42, 0.05), '#dccaa4', { parent: M, p: [0, 0.82, 0], shade: 0.15 });
+    b.add(wbox(1.12, 0.16, 0.72, 0.06), WALL3_ROOF, { parent: M, p: [0, 1.32, 0], top: lighter(WALL3_ROOF, 0.15), topK: 0.5 });
+    // seit 15.29 ein First auf dem Dach (wie bei der geschwungenen Mauer, wallSweep3)
+    b.add(wbox(1.12, 0.09, 0.26, 0.03), '#566074', { parent: M, p: [0, 1.425, 0], top: lighter('#566074', 0.2), topK: 0.5 });
+  },
+
+  // Mauerarten der Städte mit eigener Form (seit 14.16, welt.js WALL_STYLE)
+  // Palisade: angespitzte Pfähle mit zwei Querriegeln, ungleich hoch
+  palisade(b) {
+    const M = placeAt(0, 0);
+    for (let k = 0; k < 5; k++) {
+      const h = 1.32 + ((k * 7) % 3) * 0.08;
+      b.add(lathe3('pfahl' + h.toFixed(2), [[0.1, 0], [0.1, h - 0.18], [0.07, h - 0.08], [0, h]], 7), k % 2 ? '#7a5434' : '#86603c', { parent: M, p: [-0.42 + k * 0.21, 0, ((k * 5) % 3 - 1) * 0.02], shade: 0.3 });
+    }
+    for (const y of [0.42, 0.95]) b.add(wbox(1.08, 0.09, 0.08, 0.03), '#5a3a22', { parent: M, p: [0, y, 0.12] });
+  },
+  // Stützmauer einer Terrasse: niedriger Bruchstein, oben Schnee
+  terrasse(b) {
+    const M = placeAt(0, 0);
+    b.add(wbox(1.06, 0.5, 0.7, 0.06), '#8a8a92', { parent: M, p: [0, 0.25, 0], shade: 0.3, top: '#a2a2aa', topK: 0.4 });
+    b.add(wbox(1.08, 0.1, 0.74, 0.05), '#f4f8fc', { parent: M, p: [0, 0.53, 0] });
+  },
+  // Kristallwand: dunkler Sockel, darauf drei Kristallblöcke mit hellem Saum
+  kristall(b) {
+    const M = placeAt(0, 0);
+    b.add(wbox(1.06, 0.3, 0.62, 0.06), '#2e2850', { parent: M, p: [0, 0.15, 0], shade: 0.3 });
+    for (let k = 0; k < 3; k++) {
+      const h = 1.05 + (k % 2) * 0.18;
+      b.add(wbox(0.32, h, 0.36, 0.05), k % 2 ? '#6a5ac8' : '#7a6ad8', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h / 2, 0], shade: 0.2, top: '#c8bfff', topK: 0.7 });
+      b.add(tinyBox(0.04, h * 0.85, 0.37), '#d8d0ff', { parent: M, p: [-0.34 + k * 0.34, 0.3 + h * 0.48, 0], mat: 'glow' });
+    }
+  }
+};
+
+// --- Brücken (seit 14.76, docs/bruecken-74.md) ----------------------------------------------------------------------
+// Bis 14.73 bekam jede Brückenkachel ihr eigenes Stück mit Geländer auf beiden Seiten: Eine drei Kacheln breite Brücke
+// sah aus wie drei schmale Brücken nebeneinander, und am Ufer hing das letzte Stück in der Luft – der Boden fällt dort
+// zur Schlucht, zum Wolkenmeer oder zum Wasser hin ab (die Höhe wird zwischen den Kachelmitten gemittelt). Seit 14.76
+// wird jede Kachel nach ihren Nachbarn gebaut:
+//   - Belag in Laufrichtung (Bretter, Knüppel, Steinplatten, Eis, Licht) auf jeder Kachel;
+//   - Geländer nur an Kanten zum Abgrund/Wasser, Pfosten an den Enden des Geländers und jede zweite Kachel;
+//   - an jeder Kante zum Land ein Auflager (Widerlager), das bis unter die abfallende Uferkante reicht, mit Schwelle;
+//   - darunter je Art: Pfähle (Holz, Steg), Pfeiler und Brüstung (Stein), Eiszapfen (Eis), Leuchtsaum (Licht);
+//   - Hängebrücke: Pylone an den Enden, durchhängende Tragseile mit Hängern, Bretter mit Fugen.
+// Knicke L-förmiger Dämme und breite Brücken brauchen so nichts Besonderes: innen kein Geländer.
+const BRIDGE3 = {
+  holz: { deck: '#8a6440', seam: '#5a3f26', rail: '#6b4a2e', post: '#5a3a22', abut: '#7d746a', abutTop: '#918a80', beam: '#4a3220' },
+  seil: { deck: '#8a6440', seam: '#6a4a2e', rail: '#c8a878', post: '#5a3a22', abut: '#7a6a58', abutTop: '#8e7e6a', beam: '#4a3220' },
+  steg: { deck: '#6e5a40', seam: '#5e4c34', rail: null, post: '#3e3022', abut: '#4a4030', abutTop: '#5e5038', beam: '#3e3022' },
+  stein: { deck: '#5a5250', seam: '#4a4442', rail: '#3a3230', post: '#4a4240', abut: '#4e4644', abutTop: '#6a6260', beam: '#3a3230' },
+  licht: { deck: '#6a64b0', seam: '#a8a2f0', rail: '#d8d4ff', post: '#b8b0ff', abut: '#4a4488', abutTop: '#7a74c8', beam: '#3a3478' },
+  eis: { deck: '#cfe6f4', seam: '#a8cce0', rail: '#e8f4ff', post: '#bfe2f6', abut: '#9cc0d8', abutTop: '#e4f2fc', beam: '#8fb4cc' }
+};
+// Richtung einer Brückenkachel (true: Weg läuft waagrecht). Städte und Kartenformen merken sie sich (BRIDGE_DIR),
+// sonst wie bisher nach dem Weg links und rechts
+function bridgeDir3(x, y) {
+  const fix = bridgeDirAt(x, y);
+  if (fix !== undefined) return fix;
+  const w = game.world;
+  const way = (tx, ty) => groundAt(tx, ty) === GROUND.PATH || w.deco[ty * MAP_W + tx] === DECO.BRIDGE;
+  return way(x - 1, y) && way(x + 1, y);
+}
+// Nachbar einer Brückenkachel: 0 Brücke, 1 Land (auch Mauer, Haus, Baum), 2 Abgrund/Wasser/außerhalb
+function bridgeSide3(x, y) {
+  if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return 2;
+  const i = y * MAP_W + x;
+  if (game.world.deco[i] === DECO.BRIDGE) return 0;
+  return LIQUID.has(game.world.ground[i]) ? 2 : 1;
+}
+// Belag einer Kachel (Laufrichtung längs x)
+const tplBridgeDeck = (st) => bakeTemplate('bdeck:' + st, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'steg') {
+    // Knüppeldamm: vier Rundhölzer quer zum Weg auf zwei Längsbalken
+    for (const sz of [-0.3, 0.3]) b.add(tinyBox(1.06, 0.06, 0.1), C.beam, { p: [0, -0.02, sz] });
+    for (let k = 0; k < 4; k++) b.add(cyl3(0.12, 0.12, 1.04, 7), k % 2 ? C.deck : C.seam, { p: [-0.375 + k * 0.25, 0.06 + (k % 2) * 0.01, ((k * 3) % 2) * 0.03 - 0.015], r: [Math.PI / 2, 0, 0], shade: 0.3 });
+    return;
+  }
+  if (st === 'seil') {
+    // Bretter mit Fugen, darunter zwei Tragbalken
+    for (let k = -2; k <= 2; k++) b.add(wbox(0.18, 0.06, 1.0, 0.02), k % 2 ? '#7a5636' : C.deck, { p: [k * 0.21, 0.04, 0], shade: 0.3 });
+    for (const sz of [-0.36, 0.36]) b.add(tinyBox(1.06, 0.06, 0.06), C.beam, { p: [0, -0.02, sz] });
+    return;
+  }
+  if (st === 'stein') {
+    b.add(wbox(1.06, 0.24, 1.08, 0.04), C.deck, { p: [0, -0.04, 0], shade: 0.3, top: '#6e6664', topK: 0.5 });
+    b.add(tinyBox(0.03, 0.02, 1.0), C.seam, { p: [0.5, 0.085, 0] });
+    return;
+  }
+  if (st === 'licht') {
+    b.add(wbox(1.06, 0.08, 1.06, 0.03), C.deck, { p: [0, 0.03, 0], shade: 0.2, top: '#a8a2f0', topK: 0.8 });
+    b.add(tinyBox(0.04, 0.02, 0.9), C.seam, { p: [0, 0.075, 0], mat: 'glow' });
+    return;
+  }
+  if (st === 'eis') {
+    b.add(wbox(1.06, 0.14, 1.04, 0.04), C.deck, { p: [0, 0.03, 0], shade: 0.25, top: '#f2faff', topK: 0.7 });
+    b.add(wbox(1.06, 0.14, 0.86, 0.04), C.beam, { p: [0, -0.1, 0], shade: 0.35 });
+    return;
+  }
+  b.add(wbox(1.06, 0.1, 1.08, 0.03), C.deck, { p: [0, 0.03, 0], shade: 0.3 });
+  for (let k = -2; k <= 2; k++) b.add(tinyBox(0.025, 0.11, 1.06), C.seam, { p: [k * 0.21, 0.035, 0] });
+  for (const sz of [-0.38, 0.38]) b.add(tinyBox(1.06, 0.08, 0.08), C.beam, { p: [0, -0.06, sz] });
+});
+// Geländer an einer Kante (längs x, Mitte im Ursprung, 1 Kachel lang); Hängebrücke: nur das untere Seil (das obere
+// hängt durch und wird je Kachel gebaut)
+const tplBridgeRail = (st) => bakeTemplate('brail:' + st, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'seil') { b.add(tinyBox(1.04, 0.03, 0.03), '#b89868', { p: [0, 0.1, 0] }); return; }
+  if (st === 'stein') {
+    b.add(wbox(1.04, 0.3, 0.14, 0.04), C.rail, { p: [0, 0.22, 0], shade: 0.3 });
+    b.add(tinyBox(1.06, 0.05, 0.18), '#5e5654', { p: [0, 0.39, 0] });
+    b.add(tinyBox(1.04, 0.36, 0.06), C.beam, { p: [0, -0.3, 0] });
+    return;
+  }
+  if (st === 'licht') {
+    b.add(tinyBox(1.04, 0.05, 0.05), C.rail, { p: [0, 0.38, 0], mat: 'glow' });
+    b.add(tinyBox(1.04, 0.03, 0.03), C.post, { p: [0, 0.18, 0], mat: 'glow' });
+    return;
+  }
+  if (st === 'eis') {
+    b.add(tinyBox(1.04, 0.045, 0.045), C.rail, { p: [0, 0.4, 0] });
+    b.add(tinyBox(1.04, 0.03, 0.03), '#d4ecfa', { p: [0, 0.2, 0] });
+    return;
+  }
+  b.add(wbox(1.04, 0.07, 0.07, 0.03), C.rail, { p: [0, 0.44, 0] });
+  b.add(tinyBox(1.04, 0.04, 0.04), C.post, { p: [0, 0.22, 0] });
+});
+// Pfosten (big: am Ende eines Geländers – bei der Hängebrücke der Pylon)
+const tplBridgePost = (st, big) => bakeTemplate(`bpost:${st}:${big ? 1 : 0}`, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'seil') {
+    if (!big) return;
+    b.add(wbox(0.15, 1.2, 0.15, 0.04), C.post, { p: [0, 0.5, 0], shade: 0.35 });
+    b.add(wbox(0.22, 0.08, 0.22, 0.03), '#4a3220', { p: [0, 1.12, 0] });
+    b.add(tinyBox(0.05, 0.05, 0.05), '#c8a878', { p: [0, 1.0, 0] });
+    return;
+  }
+  if (st === 'steg') {
+    b.add(cyl3(0.05, 0.065, big ? 0.75 : 0.6, 6), C.post, { p: [0, big ? 0.17 : 0.1, 0], shade: 0.3 });
+    return;
+  }
+  if (st === 'stein') {
+    b.add(wbox(0.22, big ? 0.6 : 0.48, 0.22, 0.04), C.post, { p: [0, big ? 0.28 : 0.22, 0], shade: 0.3, top: '#6a6260', topK: 0.5 });
+    return;
+  }
+  if (st === 'licht') {
+    b.add(crystalGeo('body'), C.post, { p: [0, 0.04, 0], s: [0.06, big ? 0.48 : 0.38, 0.06], mat: 'glow' });
+    if (big) b.add(crystalGeo('tip'), '#e8e4ff', { p: [0, 0.52, 0], s: [0.06, 0.3, 0.06], mat: 'glow' });
+    return;
+  }
+  if (st === 'eis') {
+    b.add(crystalGeo('body'), C.post, { p: [0, 0.04, 0], s: [0.065, big ? 0.46 : 0.38, 0.065], top: '#f2faff', topK: 0.6 });
+    if (big) b.add(crystalGeo('tip'), '#f2faff', { p: [0, 0.5, 0], s: [0.065, 0.3, 0.065] });
+    return;
+  }
+  b.add(wbox(0.1, big ? 0.6 : 0.5, 0.1, 0.03), C.post, { p: [0, big ? 0.28 : 0.23, 0], shade: 0.3 });
+  if (big) b.add(wbox(0.14, 0.05, 0.14, 0.02), C.beam, { p: [0, 0.6, 0] });
+});
+// Auflager an einer Kante zum Land: reicht von der Kante (x = 0) 0,6 Kacheln ins Land und bis unter die Uferkante
+// (die Höhe dort ist die halbe Tiefe der Flüssigkeit), mit einer Schwelle an der Kante
+const tplBridgeAbut = (st, depth) => bakeTemplate(`babut:${st}:${depth}`, (b) => {
+  const C = BRIDGE3[st];
+  const d = depth * 0.55 + 0.3;
+  const glow = st === 'licht';
+  b.add(wbox(0.62, d, 1.06, 0.05), C.abut, { p: [0.27, 0.07 - d / 2, 0], shade: 0.45, top: C.abutTop, topK: 0.6 });
+  if (st === 'steg' || st === 'seil' || st === 'holz') b.add(tinyBox(0.14, 0.09, 1.06), C.beam, { p: [0.04, 0.06, 0] });
+  else b.add(tinyBox(0.1, 0.03, 1.04), glow ? '#d8d4ff' : C.abutTop, { p: [0.03, 0.085, 0], mat: glow ? 'glow' : undefined });
+});
+// unter dem Rand (Kante zum Abgrund): Pfahl, Eiszapfen oder Leuchtsaum, je Art
+const tplBridgeUnder = (st, depth) => bakeTemplate(`bunder:${st}:${depth}`, (b) => {
+  const C = BRIDGE3[st];
+  if (st === 'holz' || st === 'steg') {
+    const h = depth + 0.35;
+    b.add(cyl3(0.06, 0.07, h, 6), C.beam, { p: [0, -h / 2 + 0.02, 0], shade: 0.4 });
+  } else if (st === 'eis') {
+    for (const [px, s] of [[-0.25, 0.34], [0.2, 0.5]]) b.add(crystalGeo('tip'), '#d8eefa', { p: [px, -0.15, 0], s: [0.07, -s / 0.45, 0.07] });
+  } else if (st === 'licht') {
+    b.add(tinyBox(1.04, 0.03, 0.03), '#9890f0', { p: [0, -0.04, 0], mat: 'glow' });
+  }
+});
+// Pfeiler einer Steinbrücke (über die ganze Breite der Kachel, bis in die Flüssigkeit)
+const tplBridgePier = (depth) => bakeTemplate(`bpier:${depth}`, (b) => {
+  const h = depth + 0.4;
+  b.add(wbox(0.42, h, 1.06, 0.05), '#463e3c', { p: [0, -0.12 - h / 2, 0], shade: 0.45 });
+});
+const BRIDGE3_E = [[1, 0], [0, 1], [-1, 0], [0, -1]]; // Ost, Süd, West, Nord
+// Hängebrücke: Höhe des Tragseils an Stelle u (0 … 1) einer Spannweite von L Kacheln
+const ropeY3 = (u, L) => 1.02 - Math.min(0.62, 0.12 + L * 0.05) * (1 - (2 * u - 1) ** 2);
+// Eine Brückenkachel bauen (objectJob)
+function bridge3Tile(b, x, y, i, g, lowGfx) {
+  const st = bridgeStyleAt(i, g) || 'holz';
+  const C = BRIDGE3[st];
+  const horiz = bridgeDir3(x, y);
+  const depth = Math.round((LIQUID3_DEPTH[g] || WATER3_DEPTH) * 10) / 10;
+  b.addTemplate(tplBridgeDeck(st), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+  const side = BRIDGE3_E.map(([dx, dy]) => bridgeSide3(x + dx, y + dy));
+  const posts = new Set();
+  for (let k = 0; k < 4; k++) {
+    const [dx, dy] = BRIDGE3_E[k];
+    if (side[k] === 1) {
+      // Kante zum Land: Auflager (lokal +x zeigt ins Land)
+      b.addTemplate(tplBridgeAbut(st, depth), placeAt(x + 0.5 + dx * 0.5, y + 0.5 + dy * 0.5, Math.atan2(-dy, dx)));
+      continue;
+    }
+    if (side[k] !== 2) continue;
+    // Kante zum Abgrund/Wasser: Geländer längs der Kante (Richtung e), Pfosten an den Enden des Geländers
+    const [ex, ey] = [Math.abs(dy), Math.abs(dx)];
+    const rot = ex ? 0 : -Math.PI / 2;
+    const cx = x + 0.5 + dx * 0.47;
+    const cy = y + 0.5 + dy * 0.47;
+    if (C.rail) b.addTemplate(tplBridgeRail(st), placeAt(cx, cy, rot));
+    const railAt = (tx, ty) => bridgeSide3(tx, ty) === 0 && bridgeSide3(tx + dx, ty + dy) === 2;
+    // Spannweite längs der Kante (für Pfosten und das Tragseil der Hängebrücke)
+    let a = 0;
+    while (a < 80 && railAt(x - ex * (a + 1), y - ey * (a + 1))) a++;
+    let c = 0;
+    while (c < 80 && railAt(x + ex * (c + 1), y + ey * (c + 1))) c++;
+    const L = a + c + 1;
+    for (const [s, end] of [[-1, a === 0], [1, c === 0]]) {
+      // Pfosten: am Anfang und Ende des Geländers groß, dazwischen jede zweite Kachel (nur am Ende der Kachel, damit
+      // keiner doppelt steht)
+      if (!end && (s < 0 || (a & 1))) continue;
+      if (st === 'seil' && !end) continue;
+      const px = cx + ex * s * 0.47;
+      const py = cy + ey * s * 0.47;
+      const key = Math.round(px * 4) * 100000 + Math.round(py * 4);
+      if (posts.has(key)) continue;
+      posts.add(key);
+      b.addTemplate(tplBridgePost(st, end), placeAt(px, py, rot));
+    }
+    if (st === 'seil') {
+      // Tragseil vom Pylon durchhängend bis zur Mitte, dazu ein Hänger je Kachel
+      const M = placeAt(cx, cy, rot);
+      const y0 = ropeY3(a / L, L);
+      const y1 = ropeY3((a + 1) / L, L);
+      const ym = ropeY3((a + 0.5) / L, L);
+      b.add(tinyBox(1, 0.035, 0.035), '#c8a878', { parent: M, p: [0, (y0 + y1) / 2, 0], r: [0, 0, Math.atan2(y1 - y0, 1)], s: [hyp(1, y1 - y0), 1, 1] });
+      if (!lowGfx) b.add(tinyBox(0.02, 1, 0.02), '#a88858', { parent: M, p: [0, (ym + 0.08) / 2, 0], s: [1, ym - 0.08, 1] });
+    }
+    if (lowGfx) continue;
+    if (st === 'stein') continue;
+    if (st === 'holz' || st === 'steg') {
+      if ((x + y) & 1) continue;
+      b.addTemplate(tplBridgeUnder(st, depth), placeAt(cx - dx * 0.05, cy - dy * 0.05, rot));
+    } else if (st !== 'seil') b.addTemplate(tplBridgeUnder(st, depth), placeAt(cx, cy, rot));
+  }
+  // Steinbrücke: Pfeiler jede dritte Kachel längs des Weges (nicht direkt am Ufer)
+  if (st === 'stein' && !lowGfx && (horiz ? x : y) % 3 === 0 && !side.includes(1)) b.addTemplate(tplBridgePier(depth), placeAt(x + 0.5, y + 0.5, horiz ? 0 : Math.PI / 2));
+}
+
+// --- Häuser in Varianten und begehbare Häuser (seit 13.91, welt.js look/enter) ------------------------------------
+// Wandarten: Farbe der Wand, des Sockels, der Balken/Rahmen und der Fensterscheiben
+const HOUSE3_WALL = {
+  fachwerk: { face: '#e2d0aa', base: '#8a8478', trim: '#5a3a22', win: '#f3e2b0', inner: '#e8dcc0' },
+  stein: { face: '#a8a196', base: '#77716a', trim: '#5e584f', win: '#efd9a0', inner: '#d8cdb8' },
+  holz: { face: '#9a7044', base: '#7a746a', trim: '#5a3a22', win: '#f3e2b0', inner: '#c8a878' },
+  lehm: { face: '#d8b888', base: '#b0906a', trim: '#7a5a3a', win: '#f0d8a0', inner: '#e4cca0' }
+};
+const HOUSE3_FLOOR = '#9a7448';
+// Dreiseitiges Prisma (Giebel): Grundfläche x und z von -0,5 bis 0,5, First längs x in Höhe 1
+function prismGeo() {
+  return geo3('prism3', () => {
+    const A = [-0.5, 0, -0.5];
+    const B = [0.5, 0, -0.5];
+    const C = [0.5, 0, 0.5];
+    const D = [-0.5, 0, 0.5];
+    const E = [-0.5, 1, 0];
+    const F = [0.5, 1, 0];
+    const tris = [D, C, F, D, F, E, B, A, E, B, E, F, A, D, E, C, B, F, A, B, C, A, C, D];
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(tris.flat(), 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Dach über einem Grundriss (Mitte cx, cz; Breite W in x, Tiefe D in z) auf Höhe ry. Gibt die Höhe des Firsts zurück.
+function house3Roof(b, M, L, color, cx, cz, W, D, ry, wallC) {
+  const form = L.roof || 'pagode';
+  const dark = darker(color, 0.4);
+  if (form === 'pagode') {
+    b.add(roofGeo(W + 0.9, D + 0.8, 1.35, 0.42), color, { parent: M, p: [cx, ry - 0.06, cz], shade: 0.25, top: lighter(color, 0.18), topK: 0.6 });
+    b.add(wbox(Math.max(0.6, W - D + 0.6), 0.16, 0.2, 0.07), dark, { parent: M, p: [cx, ry + 1.25, cz] });
+    for (const sx of [-1, 1]) b.add(horn3(0.32, 0.07, 8), dark, { parent: M, p: [cx + sx * Math.max(0.3, (W - D) / 2 + 0.3), ry + 1.25, cz], r: [0, 0, -sx * 0.7] });
+    return 1.3;
+  }
+  if (form === 'walm') {
+    b.add(roofGeo(W + 0.7, D + 0.7, 1.15, 0.02), color, { parent: M, p: [cx, ry - 0.05, cz], shade: 0.25, top: lighter(color, 0.15), topK: 0.6 });
+    b.add(wbox(Math.max(0.4, W - D + 0.3), 0.12, 0.16, 0.05), dark, { parent: M, p: [cx, ry + 1.08, cz] });
+    return 1.1;
+  }
+  if (form === 'flach') {
+    b.add(wbox(W + 0.2, 0.18, D + 0.2, 0.05), lighter(wallC.face, 0.05), { parent: M, p: [cx, ry + 0.06, cz], shade: 0.2 });
+    b.add(wbox(W - 0.1, 0.04, D - 0.1, 0.02), color, { parent: M, p: [cx, ry + 0.16, cz], mat: 'detail' });
+    for (const sz of [-1, 1]) b.add(tinyBox(W + 0.24, 0.2, 0.12), wallC.face, { parent: M, p: [cx, ry + 0.25, cz + sz * (D / 2 + 0.04)] });
+    for (const sx of [-1, 1]) b.add(tinyBox(0.12, 0.2, D + 0.24), wallC.face, { parent: M, p: [cx + sx * (W / 2 + 0.04), ry + 0.25, cz] });
+    // Balkenköpfe unter der Dachkante und ein kleiner Aufbau
+    for (let k = 0; k < Math.floor(W / 0.7); k++) b.add(tinyBox(0.09, 0.09, 0.22), wallC.trim, { parent: M, p: [cx - W / 2 + 0.45 + k * 0.7, ry - 0.08, cz + D / 2 + 0.02] });
+    b.add(wbox(0.9, 0.4, 0.7, 0.05), wallC.face, { parent: M, p: [cx + W * 0.22, ry + 0.35, cz - D * 0.18], shade: 0.2 });
+    return 0.5;
+  }
+  // Satteldach: Giebel in Wandfarbe, zwei Dachflächen mit Überstand, First. 'sattel': First quer (längs x),
+  // 'giebel': Giebel nach vorn (First längs z)
+  const front = form === 'giebel';
+  const len = front ? D : W;
+  const span = front ? W : D;
+  const rise = Math.min(1.25, 0.45 + span * 0.24);
+  const RM = M.clone().multiply(placeAt(cx, cz, front ? -Math.PI / 2 : 0, 1, ry));
+  b.add(prismGeo(), wallC.face, { parent: RM, s: [len - 0.5, rise, span - 0.7], shade: 0.15 });
+  if (L.wall === 'fachwerk' || L.wall === 'holz') {
+    // Balken im Giebeldreieck (beide Enden)
+    for (const sx of [-1, 1]) {
+      const x = sx * (len - 0.5) / 2 + sx * 0.01;
+      b.add(tinyBox(0.04, rise * 0.85, 0.09), wallC.trim, { parent: RM, p: [x, rise * 0.42, 0] });
+      b.add(tinyBox(0.04, 0.08, (span - 0.7) * 0.7), wallC.trim, { parent: RM, p: [x, rise * 0.35, 0] });
+    }
+  }
+  const ov = 0.42;
+  const a = Math.atan2(rise, (span - 0.7) / 2);
+  const half = (span - 0.7) / 2 + ov;
+  const Ls = half / Math.cos(a);
+  for (const sz of [-1, 1]) {
+    const zc = sz * half / 2;
+    const yc = rise - Math.tan(a) * half / 2;
+    b.add(wbox(len + 0.6, 0.11, Ls + 0.04, 0.04), color, {
+      parent: RM, p: [0, yc + Math.cos(a) * 0.06, zc + sz * Math.sin(a) * 0.06], r: [sz * a, 0, 0], shade: 0.15, top: lighter(color, 0.15), topK: 0.6
+    });
+    // Ziegelreihen quer über die Dachfläche
+    for (let k = 1; k <= 3; k++) {
+      const t = k / 4;
+      b.add(tinyBox(len + 0.58, 0.03, 0.06), darker(color, 0.22), {
+        parent: RM, p: [0, rise - Math.tan(a) * half * t + Math.cos(a) * 0.125, sz * (half * t + Math.sin(a) * 0.125)], r: [sz * a, 0, 0]
+      });
+    }
+  }
+  b.add(wbox(len + 0.66, 0.12, 0.18, 0.04), dark, { parent: RM, p: [0, rise + 0.07, 0] });
+  return rise;
+}
+// Schornstein: Steinschaft vom Dachfuß bis über den First
+function house3Chimney(b, M, L, cx, cz, W, D, ry, rise) {
+  if (L.chimney == null) return;
+  const front = L.roof === 'giebel';
+  const x = front ? cx + (-W * 0.2) : cx + L.chimney * W * 0.75;
+  const z = front ? cz + L.chimney * D * 0.7 : cz - D * 0.18;
+  const h = rise + 0.55;
+  b.add(wbox(0.34, h, 0.34, 0.04), '#8a8276', { parent: M, p: [x, ry - 0.1 + h / 2, z], shade: 0.25 });
+  b.add(tinyBox(0.42, 0.08, 0.42), '#5e584f', { parent: M, p: [x, ry - 0.1 + h, z] });
+  b.add(tinyBox(0.2, 0.04, 0.2), '#2a2420', { parent: M, p: [x, ry - 0.05 + h, z] });
+}
+// Fenster in der Vorderseite (z = Fläche): Scheibe (leuchtet nachts), Sprossen, bei Stein Fensterläden
+function house3Window(b, M, L, wallC, x, y, z, ww, roof) {
+  const w = L.wall || 'fachwerk';
+  const hh = w === 'stein' || w === 'lehm' ? 0.38 : 0.45;
+  const wd = w === 'lehm' ? Math.min(ww, 0.36) : ww;
+  b.add(tinyBox(wd, hh, 0.06), wallC.win, { parent: M, p: [x, y, z], mat: 'glowWin' });
+  if (w === 'fachwerk') {
+    for (let gx = -1; gx <= 1; gx++) b.add(tinyBox(0.025, hh, 0.07), '#8a6a44', { parent: M, p: [x + gx * wd / 4, y, z + 0.01] });
+    b.add(tinyBox(wd, 0.025, 0.07), '#8a6a44', { parent: M, p: [x, y, z + 0.01] });
+    return;
+  }
+  b.add(tinyBox(wd + 0.08, 0.06, 0.1), wallC.trim, { parent: M, p: [x, y - hh / 2 - 0.02, z + 0.02] });
+  b.add(tinyBox(0.025, hh, 0.07), wallC.trim, { parent: M, p: [x, y, z + 0.01] });
+  if (w === 'stein' || w === 'holz') for (const sx of [-1, 1]) b.add(wbox(wd * 0.48, hh + 0.04, 0.04, 0.012), darker(roof, 0.1), { parent: M, p: [x + sx * (wd * 0.74 + 0.02), y, z + 0.02] });
+}
+// Wandschmuck auf einer Vorderseite von x0 bis x1 (Höhe 0,3 bis 0,3 + wh, Fläche bei z): Balken, Bretter, Ecksteine
+function house3Face(b, M, L, wallC, x0, x1, z, wh) {
+  const w = L.wall || 'fachwerk';
+  const y0 = 0.3;
+  if (w === 'fachwerk') {
+    const posts = Math.max(3, Math.round(x1 - x0) + 2);
+    for (let k = 0; k < posts; k++) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), wallC.trim, { parent: M, p: [x0 + ((x1 - x0) * k) / (posts - 1), y0 + wh / 2, z] });
+    b.add(tinyBox(x1 - x0 + 0.1, 0.12, 0.14), wallC.trim, { parent: M, p: [(x0 + x1) / 2, y0 + wh - 0.04, z] });
+    b.add(tinyBox(x1 - x0 + 0.1, 0.09, 0.14), wallC.trim, { parent: M, p: [(x0 + x1) / 2, y0 + 0.05, z] });
+    return;
+  }
+  if (w === 'holz') {
+    for (let y = y0 + 0.22; y < y0 + wh - 0.05; y += 0.26) b.add(tinyBox(x1 - x0, 0.025, 0.03), darker(wallC.face, 0.3), { parent: M, p: [(x0 + x1) / 2, y, z + 0.005] });
+    for (const x of [x0, x1]) b.add(wbox(0.16, wh + 0.05, 0.16, 0.04), wallC.trim, { parent: M, p: [x, y0 + wh / 2, z - 0.05] });
+    return;
+  }
+  if (w === 'stein') {
+    // Ecksteine abwechselnd hell, ein paar dunklere Steine in der Fläche
+    for (const x of [x0, x1]) for (let k = 0; k < 4; k++) b.add(tinyBox(0.26 - (k % 2) * 0.08, wh / 4 - 0.04, 0.05), k % 2 ? '#bcb4a6' : '#948c80', { parent: M, p: [x + (x === x0 ? 1 : -1) * (0.13 - (k % 2) * 0.04), y0 + wh * (k + 0.5) / 4, z + 0.01] });
+    for (let k = 0; k < Math.floor((x1 - x0) / 0.9); k++) b.add(tinyBox(0.3, 0.12, 0.03), k % 2 ? '#948c80' : '#b4ac9e', { parent: M, p: [x0 + 0.6 + k * 0.9, y0 + 0.25 + ((k * 37) % 5) * wh * 0.15, z + 0.01] });
+    return;
+  }
+  // Lehm: dunkler Streifen am Fuß
+  b.add(tinyBox(x1 - x0, 0.18, 0.03), darker(wallC.face, 0.18), { parent: M, p: [(x0 + x1) / 2, y0 + 0.09, z + 0.005] });
+}
+// Tür: zweiflüglig (Fachwerk wie bisher), Brettertür, Scheunentor (tor)
+function house3Door(b, M, L, wallC, x, z) {
+  if (L.tor) {
+    b.add(wbox(1.5, 1.35, 0.08, 0.03), '#5a3a22', { parent: M, p: [x, 0.3 + 0.68, z + 0.03] });
+    for (const sx of [-1, 1]) {
+      b.add(wbox(0.7, 1.25, 0.05, 0.02), '#7a5434', { parent: M, p: [x + sx * 0.36, 0.3 + 0.64, z + 0.07] });
+      b.add(tinyBox(0.06, 1.3, 0.06), '#4a2e1c', { parent: M, p: [x + sx * 0.36, 0.3 + 0.64, z + 0.1], r: [0, 0, sx * 0.48] });
+    }
+    b.add(tinyBox(1.6, 0.1, 0.12), wallC.trim, { parent: M, p: [x, 0.3 + 1.38, z + 0.04] });
+    return;
+  }
+  b.add(wbox(0.62, 1.05, 0.08, 0.03), '#4a2e1c', { parent: M, p: [x, 0.3 + 0.53, z + 0.03] });
+  if (L.wall && L.wall !== 'fachwerk') {
+    b.add(wbox(0.52, 0.95, 0.06, 0.02), L.wall === 'lehm' ? '#8a5a34' : '#6b4a2e', { parent: M, p: [x, 0.3 + 0.48, z + 0.07] });
+    b.add(sphere3(0.035, 6, 5), '#c9a35a', { parent: M, p: [x + 0.17, 0.3 + 0.5, z + 0.11] });
+    b.add(tinyBox(0.74, 0.08, 0.12), wallC.trim, { parent: M, p: [x, 0.3 + 1.09, z + 0.03] });
+  } else {
+    b.add(wbox(0.24, 0.92, 0.06, 0.02), '#6b4a2e', { parent: M, p: [x - 0.15, 0.3 + 0.5, z + 0.07] });
+    b.add(wbox(0.24, 0.92, 0.06, 0.02), '#6b4a2e', { parent: M, p: [x + 0.15, 0.3 + 0.5, z + 0.07] });
+  }
+}
+// Laternen: rote an den Ecken beim geschwungenen Dach, sonst eine kleine Lampe neben der Tür
+function house3Lamps(b, M, L, W, D, ry, doorX, z) {
+  if ((L.roof || 'pagode') === 'pagode') {
+    for (const sx of [-1, 1]) {
+      const p = [sx * (W / 2 - 0.05), ry - 0.25, D / 2 - 0.05];
+      b.add(limb3(0.12, 0.012, 0.012, 4), '#2a1c14', { parent: M, p: [p[0], p[1] + 0.14, p[2]] });
+      b.add(sphere3(0.12, 8, 6), '#ff6a3a', { parent: M, p, s: [1, 1.25, 1], mat: 'glow' });
+      b.add(tinyBox(0.18, 0.04, 0.18), '#c9a35a', { parent: M, p: [p[0], p[1] + 0.14, p[2]] });
+      b.add(tinyBox(0.18, 0.04, 0.18), '#c9a35a', { parent: M, p: [p[0], p[1] - 0.14, p[2]] });
+    }
+    return;
+  }
+  const x = doorX + (L.tor ? 1.0 : 0.6);
+  b.add(tinyBox(0.05, 0.05, 0.16), '#2a1c14', { parent: M, p: [x, 1.25, z + 0.08] });
+  b.add(wbox(0.14, 0.18, 0.14, 0.03), '#ffcf6a', { parent: M, p: [x, 1.16, z + 0.16], mat: 'glow' });
+  b.add(tinyBox(0.18, 0.04, 0.18), '#3a2a1c', { parent: M, p: [x, 1.27, z + 0.16] });
+}
+// Geschlossenes Haus (wie bisher, jetzt mit look)
+function house3Closed(b, h) {
+  const L = h.look || {};
+  const C = HOUSE3_WALL[L.wall] || HOUSE3_WALL.fachwerk;
+  const W = h.w;
+  const D = h.h;
+  // seit 14.16: Hütten im Pfahldorf stehen auf Pfählen über dem Boden und sind leicht schief (lean)
+  const M = placeAt(h.x + W / 2, h.y + D / 2, 0, 1, L.stilts ? 0.32 : 0);
+  if (L.stilts) {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.07, 0.08, 0.62, 6), '#3e3022', { parent: M, p: [sx * (W / 2 - 0.35), -0.2, sz * (D / 2 - 0.3)], shade: 0.3 });
+  }
+  if (L.lean) M.multiply(new THREE.Matrix4().makeRotationZ(L.lean));
+  // Anbau: niedriger Schuppen an einer Seite, das Haus selbst wird schmaler
+  const aw = L.annex ? 1.5 : 0;
+  const x0 = -W / 2 + (L.annex === 'w' ? aw : 0);
+  const x1 = W / 2 - (L.annex === 'e' ? aw : 0);
+  const mx = (x0 + x1) / 2;
+  const mW = x1 - x0;
+  const wallW = mW - 0.5;
+  const wallD = D - 0.7;
+  const wh = 1.55 * (L.tall || 1);
+  b.add(wbox(mW - 0.2, 0.3, D - 0.35, 0.08), C.base, { parent: M, p: [mx, 0.15, 0], shade: 0.3 });
+  b.add(wbox(wallW, wh, wallD, L.wall === 'lehm' ? 0.12 : 0.06), C.face, { parent: M, p: [mx, 0.3 + wh / 2, 0], shade: 0.18 });
+  const fz = wallD / 2;
+  house3Face(b, M, L, C, mx - wallW / 2, mx + wallW / 2, fz, wh);
+  if ((L.wall || 'fachwerk') === 'fachwerk') {
+    // Balken hinten und an den Seiten wie bisher
+    const posts = Math.max(3, Math.round(mW) + 1);
+    for (let k = 0; k < posts; k++) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), C.trim, { parent: M, p: [mx - wallW / 2 + (wallW * k) / (posts - 1), 0.3 + wh / 2, -fz] });
+    for (const x of [mx - wallW / 2, mx + wallW / 2]) b.add(wbox(0.14, wh + 0.05, 0.14, 0.04), C.trim, { parent: M, p: [x, 0.3 + wh / 2, 0] });
+    b.add(wbox(wallW + 0.1, 0.13, wallD + 0.1, 0.04), C.trim, { parent: M, p: [mx, 0.3 + wh - 0.02, 0] });
+  }
+  const doorX = L.door != null ? L.door - W / 2 : mx;
+  house3Door(b, M, L, C, doorX, fz);
+  // Fenster: gleichmäßig über die Vorderseite, nicht an der Tür
+  const n = Math.max(2, Math.round(wallW / 1.05));
+  for (let k = 0; k < n; k++) {
+    const x = mx - wallW / 2 + (wallW * (k + 0.5)) / n;
+    if (Math.abs(x - doorX) < (L.tor ? 1.15 : 0.62)) continue;
+    house3Window(b, M, L, C, x, 0.3 + wh * 0.62, fz + 0.03, Math.min(0.62, wallW / n - 0.3), h.roof);
+  }
+  const ry = 0.3 + wh;
+  const rise = house3Roof(b, M, L, h.roof, mx, 0, mW, D, ry, C);
+  house3Chimney(b, M, L, mx, 0, mW, D, ry, rise);
+  house3Lamps(b, M, L, W, D, ry, doorX, fz);
+  if (aw) {
+    // Anbau: niedrige Bretterwand, schräges Pultdach nach außen, Brennholz davor
+    const sx = L.annex === 'e' ? 1 : -1;
+    const ax = sx * (W / 2 - aw / 2);
+    const ah = wh * 0.62;
+    b.add(wbox(aw - 0.1, 0.22, D - 0.6, 0.05), C.base, { parent: M, p: [ax, 0.11, 0], shade: 0.3 });
+    b.add(wbox(aw - 0.25, ah, D - 1.0, 0.04), L.wall === 'lehm' ? C.face : '#8a6440', { parent: M, p: [ax, 0.22 + ah / 2, -0.05], shade: 0.2 });
+    for (let y = 0.4; y < ah; y += 0.24) b.add(tinyBox(aw - 0.25, 0.022, 0.03), '#5a3a22', { parent: M, p: [ax, y, D / 2 - 0.54] });
+    b.add(wbox(aw + 0.2, 0.09, D - 0.3, 0.03), h.roof, { parent: M, p: [ax + sx * 0.05, 0.22 + ah + 0.18, 0], r: [0, 0, -sx * 0.3], shade: 0.15, top: lighter(h.roof, 0.15), topK: 0.5 });
+    for (const [x, y] of [[-0.2, 0.12], [0.1, 0.12], [-0.05, 0.3]]) b.add(cyl3(0.09, 0.09, 0.55, 7), '#7a5434', { parent: M, p: [ax + x, y, D / 2 - 0.2], r: [Math.PI / 2, 0, 0], shade: 0.15 });
+  }
+}
+// Begehbares Haus: Mauern auf den Randkacheln (0,5 dick, Außenseite wie bei den übrigen Häusern 0,25 eingerückt),
+// Dielenboden, Möbel. In shell (ausblendbar): Dach, Schornstein, Lampen und die Vorderwand über dem Sockel.
+function house3Open(b, S, h) {
+  const L = h.look || {};
+  const C = HOUSE3_WALL[L.wall] || HOUSE3_WALL.fachwerk;
+  const W = h.w;
+  const D = h.h;
+  const M = placeAt(h.x + W / 2, h.y + D / 2);
+  const wh = 1.75 * (L.tall || 1);
+  const t = 0.5;
+  const zb = -D / 2 + 0.5;
+  const zf = D / 2 - 0.5;
+  const xl = -W / 2 + 0.5;
+  const xr = W / 2 - 0.5;
+  const d0 = h.enter.door - W / 2;
+  const d1 = d0 + 2;
+  // Boden: Dielen mit Fugen
+  b.add(wbox(W - 1.1, 0.06, D - 1.1, 0.02), HOUSE3_FLOOR, { parent: M, p: [0, 0.03, 0], top: lighter(HOUSE3_FLOOR, 0.08), topK: 0.5 });
+  for (let x = -W / 2 + 0.95; x < W / 2 - 0.6; x += 0.42) b.add(tinyBox(0.02, 0.01, D - 1.2), darker(HOUSE3_FLOOR, 0.3), { parent: M, p: [x, 0.062, 0], mat: 'detail' });
+  // Sockel rundum (vorn mit Lücke für die Tür), Rückwand, Seitenwände, Mauerkrone
+  b.add(wbox(W - 0.35, 0.3, t + 0.15, 0.06), C.base, { parent: M, p: [0, 0.15, zb], shade: 0.3 });
+  for (const x of [xl, xr]) b.add(wbox(t + 0.15, 0.3, D - 0.35, 0.06), C.base, { parent: M, p: [x, 0.15, 0], shade: 0.3 });
+  for (const [a, c] of [[-W / 2 + 0.2, d0], [d1, W / 2 - 0.2]]) if (c - a > 0.1) b.add(wbox(c - a, 0.3, t + 0.15, 0.06), C.base, { parent: M, p: [(a + c) / 2, 0.15, zf], shade: 0.3 });
+  b.add(wbox(2.2, 0.06, t + 0.3, 0.02), '#8a8478', { parent: M, p: [(d0 + d1) / 2, 0.03, zf + 0.05] });
+  b.add(wbox(W - 0.5, wh - 0.3, t, 0.05), C.face, { parent: M, p: [0, 0.3 + (wh - 0.3) / 2, zb], shade: 0.15 });
+  for (const x of [xl, xr]) b.add(wbox(t, wh - 0.3, D - 0.5, 0.05), C.face, { parent: M, p: [x, 0.3 + (wh - 0.3) / 2, 0], shade: 0.15 });
+  b.add(tinyBox(W - 0.42, 0.1, t + 0.08), C.trim, { parent: M, p: [0, wh, zb] });
+  for (const x of [xl, xr]) b.add(tinyBox(t + 0.08, 0.1, D - 0.42), C.trim, { parent: M, p: [x, wh, 0] });
+  // innen: heller Putz, zwei Fenster in der Rückwand, Balken an der Decke der Wände
+  b.add(tinyBox(W - 1.6, wh - 0.45, 0.03), C.inner, { parent: M, p: [0, 0.3 + (wh - 0.45) / 2 + 0.05, zb + t / 2 + 0.015] });
+  for (const sx of [-1, 1]) b.add(tinyBox(0.03, wh - 0.45, D - 1.6), C.inner, { parent: M, p: [sx * (W / 2 - 0.5 - t / 2 - 0.015), 0.3 + (wh - 0.45) / 2 + 0.05, 0] });
+  for (const x of [-0.42, 0.55]) {
+    b.add(tinyBox(0.5, 0.42, 0.04), C.win, { parent: M, p: [x, 1.15, zb + t / 2 + 0.035], mat: 'glowWin' });
+    b.add(tinyBox(0.58, 0.05, 0.08), C.trim, { parent: M, p: [x, 0.92, zb + t / 2 + 0.05] });
+  }
+  // Ecken außen
+  for (const x of [-W / 2 + 0.25, W / 2 - 0.25]) for (const z of [-D / 2 + 0.25, D / 2 - 0.25]) (z > 0 ? S : b).add(wbox(0.18, wh, 0.18, 0.04), C.trim, { parent: M, p: [x, wh / 2, z] });
+  // Vorderwand über dem Sockel (shell): links und rechts der Tür, Sturz über der Tür
+  const fz = zf + t / 2;
+  for (const [a, c] of [[-W / 2 + 0.25, d0], [d1, W / 2 - 0.25]]) {
+    if (c - a < 0.1) continue;
+    S.add(wbox(c - a, wh - 0.3, t, 0.05), C.face, { parent: M, p: [(a + c) / 2, 0.3 + (wh - 0.3) / 2, zf], shade: 0.15 });
+    house3Face(S, M, L, C, a + 0.08, c - 0.08, fz, wh - 0.3);
+    const n = Math.round((c - a) / 1.1);
+    for (let k = 0; k < n; k++) house3Window(S, M, L, C, a + ((c - a) * (k + 0.5)) / n, 0.3 + wh * 0.58, fz + 0.03, 0.5, h.roof);
+  }
+  S.add(wbox(d1 - d0, wh - 1.55, t, 0.04), C.face, { parent: M, p: [(d0 + d1) / 2, 1.55 + (wh - 1.55) / 2, zf] });
+  S.add(tinyBox(d1 - d0 + 0.2, 0.12, t + 0.1), C.trim, { parent: M, p: [(d0 + d1) / 2, 1.52, zf] });
+  for (const x of [d0 + 0.05, d1 - 0.05]) S.add(wbox(0.12, 1.55, t + 0.06, 0.03), C.trim, { parent: M, p: [x, 0.78, zf] });
+  S.add(tinyBox(W - 0.42, 0.1, t + 0.08), C.trim, { parent: M, p: [0, wh, zf] });
+  const rise = house3Roof(S, M, L, h.roof, 0, 0, W, D, wh, C);
+  house3Chimney(S, M, L, 0, 0, W, D, wh, rise);
+  house3Lamps(S, M, L, W, D, wh, (d0 + d1) / 2 + 0.5, fz);
+  // Möbel (welt.js HOUSE_ROOMS)
+  const room = HOUSE_ROOMS[h.enter.room];
+  if (!room) return;
+  for (const [kind, fx, fy, rot] of room.furn) {
+    const f = FURN3[kind];
+    if (f) f(b, M.clone().multiply(placeAt(fx - W / 2, fy - D / 2, rot || 0)));
+  }
+}
+// Möbel in begehbaren Häusern (Vorderseite nach Süden, Mitte am Boden)
+const FURN3 = {
+  kamin(b, M) {
+    b.add(wbox(1.15, 1.25, 0.5, 0.05), '#8a8276', { parent: M, p: [0, 0.68, -0.02], shade: 0.25 });
+    b.add(wbox(0.62, 0.52, 0.08, 0.03), '#1e1612', { parent: M, p: [0, 0.38, 0.22] });
+    b.add(tinyBox(1.3, 0.09, 0.6), '#6b4a2e', { parent: M, p: [0, 0.92, 0.02] });
+    b.add(wbox(0.62, 0.6, 0.4, 0.04), '#7a7268', { parent: M, p: [0, 1.55, -0.06] });
+    for (const sx of [-1, 1]) b.add(cyl3(0.05, 0.05, 0.42, 6), '#5a3a22', { parent: M, p: [sx * 0.08, 0.18, 0.12], r: [0, sx * 0.5, Math.PI / 2] });
+    b.add(sphere3(0.13, 8, 6), '#ff8a3a', { parent: M, p: [0, 0.27, 0.13], s: [1.5, 1.1, 0.8], mat: 'glow' });
+    b.add(sphere3(0.07, 6, 5), '#ffd27a', { parent: M, p: [0.04, 0.3, 0.18], mat: 'glow' });
+    for (const [x, c] of [[-0.35, '#c07a4a'], [0.38, '#5a6a8a']]) b.add(cyl3(0.06, 0.07, 0.16, 8), c, { parent: M, p: [x, 1.05, 0.05] });
+  },
+  regal(b, M) {
+    stShelf3(b, M, 1.15, 3, 0.42, 0.42, 0);
+    for (let k = 0; k < 5; k++) stBook3(b, M, -0.45 + k * 0.07, 0.44, 0.02, ['#7a2a2a', '#2a4a7a', '#4a6a3a', '#8a6a2a', '#5a3a6a'][k], 0.22, k === 4 ? 0.3 : 0);
+    for (let k = 0; k < 3; k++) stFlask3(b, M, 0.15 + k * 0.17, 0.86, 0.02, 0.9, ['#7ac85a', '#c8a03a', '#5ab8c8'][k]);
+    stCrate3(b, M, -0.3, 1.28, 0.02, 0.26, '#a07a4a');
+    b.add(cyl3(0.09, 0.07, 0.14, 8), '#c07a4a', { parent: M, p: [0.3, 1.35, 0.02] });
+  },
+  kraeuter(b, M) {
+    for (const sx of [-1, 1]) b.add(wbox(0.06, 1.45, 0.06, 0.02), '#5a3a22', { parent: M, p: [sx * 0.5, 0.72, 0] });
+    b.add(limb3(1.1, 0.025, 0.025, 5), '#6b4a2e', { parent: M, p: [-0.55, 1.38, 0], r: [0, 0, Math.PI / 2] });
+    for (let k = 0; k < 5; k++) {
+      const x = -0.38 + k * 0.19;
+      b.add(limb3(0.12, 0.008, 0.008, 3), '#4a3a22', { parent: M, p: [x, 1.38, 0], mat: 'detail' });
+      b.add(horn3(0.24, 0.06, 5), ['#6a9a46', '#8aa040', '#a8a04a'][k % 3], { parent: M, p: [x, 1.26, 0], r: [Math.PI, 0, 0], mat: 'detail' });
+    }
+    b.add(wbox(1.0, 0.08, 0.36, 0.02), '#8a6440', { parent: M, p: [0, 0.5, 0.02] });
+    for (const [x, c] of [[-0.3, '#d8c49a'], [0.05, '#6a9a46'], [0.32, '#b06a3a']]) b.add(cyl3(0.1, 0.07, 0.08, 8), c, { parent: M, p: [x, 0.58, 0.02] });
+  },
+  tisch(b, M) {
+    b.add(wbox(1.05, 0.07, 0.62, 0.02), '#9a7448', { parent: M, p: [0, 0.56, 0], top: '#b08c5c', topK: 0.4 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(tinyBox(0.07, 0.53, 0.07), '#5a3a22', { parent: M, p: [sx * 0.44, 0.27, sz * 0.24] });
+    for (const sx of [-1, 1]) {
+      b.add(cyl3(0.16, 0.14, 0.05, 10), '#8a6440', { parent: M, p: [sx * 0.75, 0.36, 0.05] });
+      for (let k = 0; k < 3; k++) b.add(tinyBox(0.04, 0.34, 0.04), '#5a3a22', { parent: M, p: [sx * 0.75 + Math.cos(k * 2.1) * 0.1, 0.17, 0.05 + Math.sin(k * 2.1) * 0.1] });
+    }
+    b.add(cyl3(0.05, 0.045, 0.12, 8), '#c8b088', { parent: M, p: [-0.25, 0.65, 0.05] });
+    b.add(cyl3(0.12, 0.07, 0.06, 10), '#7a5434', { parent: M, p: [0.15, 0.62, -0.05] });
+    b.add(cyl3(0.03, 0.03, 0.1, 6), '#f4ecd8', { parent: M, p: [0.35, 0.65, 0.12] });
+    b.add(sphere3(0.03, 5, 4), '#ffd27a', { parent: M, p: [0.35, 0.73, 0.12], s: [1, 1.5, 1], mat: 'glow' });
+  },
+  bett(b, M) {
+    b.add(wbox(0.86, 0.3, 1.6, 0.04), '#7a5434', { parent: M, p: [0, 0.18, 0], shade: 0.2 });
+    b.add(wbox(0.76, 0.12, 1.46, 0.05), '#ece4d2', { parent: M, p: [0, 0.38, 0.02] });
+    b.add(wbox(0.8, 0.09, 0.95, 0.04), '#7a3a4a', { parent: M, p: [0, 0.45, 0.3], top: '#8a4a5a', topK: 0.4 });
+    b.add(wbox(0.5, 0.11, 0.3, 0.05), '#f4f0e4', { parent: M, p: [0, 0.49, -0.55] });
+    b.add(wbox(0.86, 0.6, 0.08, 0.03), '#5a3a22', { parent: M, p: [0, 0.45, -0.78] });
+  },
+  fass(b, M) {
+    deco3Barrel(b, M, 0, 0, 1.0);
+  },
+  kiste(b, M) {
+    stCrate3(b, M, 0, 0, 0, 0.5, '#a07a4a');
+  },
+  krug(b, M) {
+    for (const [x, z, s, c] of [[-0.12, 0, 1.0, '#c07a4a'], [0.14, -0.08, 0.8, '#8a6a4a']]) {
+      b.add(lathe3('decoamph', [[0, 0], [0.08, 0], [0.18, 0.12], [0.2, 0.26], [0.12, 0.42], [0.07, 0.48], [0.09, 0.52], [0, 0.52]], 12), c, { parent: M, p: [x, 0.06, z], s: [s, s, s], shade: 0.3 });
+    }
+  },
+  teppich(b, M) {
+    b.add(tinyBox(2.1, 0.015, 1.4), '#8a3a3a', { parent: M, p: [0, 0.07, 0], mat: 'detail' });
+    b.add(tinyBox(1.8, 0.017, 1.1), '#a85a4a', { parent: M, p: [0, 0.072, 0], mat: 'detail' });
+    b.add(tinyBox(1.2, 0.019, 0.5), '#d8b060', { parent: M, p: [0, 0.074, 0], mat: 'detail' });
+  },
+  werkbank(b, M) {
+    b.add(wbox(1.6, 0.1, 0.55, 0.03), '#b08c5c', { parent: M, p: [0, 0.74, 0], top: '#c8a470', topK: 0.4 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(tinyBox(0.08, 0.7, 0.08), '#5a3a22', { parent: M, p: [sx * 0.7, 0.35, sz * 0.2] });
+    b.add(tinyBox(1.45, 0.05, 0.4), '#8a6440', { parent: M, p: [0, 0.22, 0] });
+    for (let k = 0; k < 3; k++) b.add(wbox(1.2, 0.05, 0.14, 0.01), '#d8b88a', { parent: M, p: [0, 0.27 + k * 0.05, -0.05 + k * 0.03] });
+    b.add(wbox(0.16, 0.14, 0.2, 0.02), '#4e535c', { parent: M, p: [0.62, 0.85, 0.12], shine: 0.6 });
+    // Werkzeug an der Wand: Säge, Hammer, Winkel
+    b.add(wbox(0.55, 0.16, 0.02, 0.01), '#a4adb8', { parent: M, p: [-0.4, 1.3, -0.25], shine: 0.8 });
+    b.add(tinyBox(0.14, 0.18, 0.04), '#6b4a2e', { parent: M, p: [-0.72, 1.3, -0.25] });
+    b.add(tinyBox(0.04, 0.4, 0.04), '#6b4a2e', { parent: M, p: [0.2, 1.25, -0.25] });
+    b.add(tinyBox(0.16, 0.07, 0.07), '#4e535c', { parent: M, p: [0.2, 1.45, -0.25] });
+    b.add(tinyBox(0.32, 0.03, 0.03), '#c9a35a', { parent: M, p: [0.55, 1.3, -0.25] });
+    b.add(tinyBox(0.03, 0.22, 0.03), '#c9a35a', { parent: M, p: [0.4, 1.2, -0.25] });
+  },
+  holz(b, M) {
+    PROP3.woodpile(b, M, { roof: '' });
+  }
+};
+// Dach und Vorderwand begehbarer Häuser aus- und einblenden (je Bild, aus renderDrei): weg, solange der eigene
+// Spieler drinnen ist, damit man ins Haus sieht
+function v3SyncHouses() {
+  const p = game.player;
+  const inside = p && game.running && !p.dead ? houseAt(p.x, p.y) : null;
+  for (const g of V3.objects.children) {
+    const sh = g.userData.shells;
+    if (!sh) continue;
+    for (const s of sh) s.visible = s.userData.house !== inside;
+  }
+}
+
+// --- Stände der Stadtleute (seit 12.0) -------------------------------------------------------------
+// Jede Rolle hat einen eigenen Stand hinter sich (Vorderseite nach Süden, zur Kamera; die Person steht davor).
+// Grundmaß: 2,2 breit, 1,1 tief. Gebaut aus Holzpodest, Pfosten, Tresen und gestreiftem Vordach; darauf die
+// Waren, an denen man die Rolle erkennt (Tränke, Waffenständer, Rüstungspuppen, Esse, Regale mit Kisten …).
+const ST3 = { wood: '#8a6440', woodD: '#5a3a22', woodL: '#b08c5c', iron: '#4e535c', steel: '#a4adb8', gold: '#d8b060', paper: '#efe4c4' };
+function stAwning3(b, M, w, d, y, c1, c2) {
+  const n = 7;
+  const tilt = 0.24;
+  for (let k = 0; k < n; k++) {
+    const x = -w / 2 + ((k + 0.5) * w) / n;
+    const c = k % 2 ? c1 : c2;
+    b.add(tinyBox(w / n + 0.005, 0.05, d), c, { parent: M, p: [x, y, 0], r: [tilt, 0, 0], shade: 0.15 });
+    // Zacken an der Vorderkante
+    b.add(horn3(0.16, (w / n) * 0.55, 4), c, { parent: M, p: [x, y - Math.sin(tilt) * d * 0.5 + 0.01, Math.cos(tilt) * d * 0.5], r: [Math.PI, Math.PI / 4, 0], s: [1, 1, 0.25] });
+  }
+  b.add(wbox(w + 0.06, 0.07, 0.07, 0.03), ST3.woodD, { parent: M, p: [0, y + Math.sin(tilt) * d * 0.5 + 0.02, -Math.cos(tilt) * d * 0.5] });
+}
+function stFrame3(b, M, o = {}) {
+  const w = o.w || 2.2;
+  b.add(wbox(w + 0.24, 0.08, 1.15, 0.03), '#7a5a3a', { parent: M, p: [0, 0.04, 0], shade: 0.2, top: '#8e6a46', topK: 0.5 });
+  for (const sx of [-1, 1]) {
+    b.add(wbox(0.1, 2.05, 0.1, 0.03), ST3.woodD, { parent: M, p: [sx * (w / 2 - 0.02), 1.02, -0.47] });
+    b.add(wbox(0.09, 1.72, 0.09, 0.03), ST3.woodD, { parent: M, p: [sx * (w / 2 - 0.02), 0.86, 0.46] });
+  }
+  if (o.awning) stAwning3(b, M, w + 0.3, 1.25, 1.84, o.awning[0], o.awning[1]);
+  if (o.counter !== false) {
+    b.add(wbox(w - 0.12, 0.68, 0.44, 0.04), ST3.wood, { parent: M, p: [0, 0.38, 0.28], shade: 0.25 });
+    b.add(wbox(w + 0.02, 0.06, 0.52, 0.02), ST3.woodL, { parent: M, p: [0, 0.74, 0.28] });
+    if (o.cloth) {
+      b.add(wbox(w - 0.3, 0.34, 0.03, 0.01), o.cloth, { parent: M, p: [0, 0.52, 0.515] });
+      b.add(tinyBox(w - 0.3, 0.04, 0.035), ST3.gold, { parent: M, p: [0, 0.36, 0.52] });
+    }
+  }
+  // Schild über dem Stand mit dem Zeichen der Rolle
+  if (o.sign) {
+    b.add(wbox(0.56, 0.4, 0.05, 0.02), '#3a2618', { parent: M, p: [0, 2.1, -0.47] });
+    b.add(wbox(0.48, 0.32, 0.03, 0.015), o.sign, { parent: M, p: [0, 2.1, -0.44] });
+  }
+}
+// Regal an der Rückwand: n Böden ab y0 im Abstand dy
+function stShelf3(b, M, w, n, y0, dy, z = -0.36) {
+  for (const sx of [-1, 1]) b.add(wbox(0.06, y0 + dy * (n - 1) + 0.12, 0.3, 0.02), ST3.woodD, { parent: M, p: [sx * w / 2, (y0 + dy * (n - 1) + 0.12) / 2, z] });
+  for (let k = 0; k < n; k++) b.add(wbox(w, 0.04, 0.3, 0.015), ST3.woodL, { parent: M, p: [0, y0 + k * dy, z] });
+  b.add(tinyBox(w, y0 + dy * (n - 1), 0.03), darker(ST3.wood, 0.25), { parent: M, p: [0, (y0 + dy * (n - 1)) / 2 + 0.05, z - 0.15] });
+}
+function stFlask3(b, M, x, y, z, s, c) {
+  b.add(sphere3(0.07 * s, 10, 8), c, { parent: M, p: [x, y + 0.07 * s, z], shine: 1, top: lighter(c, 0.35), topK: 0.5 });
+  b.add(cyl3(0.022 * s, 0.03 * s, 0.07 * s, 8), '#dfeef4', { parent: M, p: [x, y + 0.165 * s, z], shine: 1 });
+  b.add(cyl3(0.028 * s, 0.026 * s, 0.035 * s, 8), '#8a5a34', { parent: M, p: [x, y + 0.215 * s, z] });
+  b.add(sphere3(0.018 * s, 6, 4), '#ffffff', { parent: M, p: [x - 0.03 * s, y + 0.1 * s, z + 0.055 * s], mat: 'glow' });
+}
+function stSword3(b, M, x, y, z, len, rz = 0, blade = ST3.steel) {
+  const R = [0, 0, rz];
+  const at = (d) => [x - Math.sin(rz) * d, y + Math.cos(rz) * d, z];
+  b.add(wbox(0.06, len, 0.015, 0.006), blade, { parent: M, p: at(len / 2), r: R, shine: 1 });
+  b.add(wbox(0.2, 0.035, 0.04, 0.012), ST3.gold, { parent: M, p: at(-0.01), r: R, shine: 0.8 });
+  b.add(wbox(0.035, 0.16, 0.035, 0.012), '#4a2e1a', { parent: M, p: at(-0.1), r: R });
+  b.add(sphere3(0.03, 6, 5), ST3.gold, { parent: M, p: at(-0.19), shine: 0.8 });
+}
+function stAxe3(b, M, x, y, z, rz = 0) {
+  const at = (d) => [x - Math.sin(rz) * d, y + Math.cos(rz) * d, z];
+  b.add(limb3(0.78, 0.022, 0.022, 6), '#6b4a2e', { parent: M, p: at(0.78), r: [0, 0, rz] });
+  b.add(cap3(0.16, 1.3, 0, Math.PI, 8, 4), ST3.steel, { parent: M, p: at(0.66), r: [Math.PI / 2, 0, rz - Math.PI / 2], s: [1, 0.25, 1], shine: 1 });
+}
+function stShield3(b, M, x, y, z, r, c, boss = ST3.gold) {
+  b.add(cyl3(r, r, 0.05, 16), c, { parent: M, p: [x, y, z], r: [Math.PI / 2, 0, 0], shade: 0.2 });
+  b.add(torus3(r, 0.025, Math.PI * 2, 4, 18), ST3.iron, { parent: M, p: [x, y, z + 0.02], shine: 0.8 });
+  b.add(sphere3(r * 0.25, 8, 6), boss, { parent: M, p: [x, y, z + 0.03], s: [1, 1, 0.6], shine: 1 });
+}
+// Rüstungspuppe: Pfahl, Kreuz, Brustpanzer, Schulterstücke, Helm mit Busch
+function stDummy3(b, M, x, z, c, helm, plume) {
+  b.add(cyl3(0.16, 0.18, 0.06, 12), ST3.woodD, { parent: M, p: [x, 0.11, z] });
+  b.add(limb3(1.25, 0.03, 0.03, 6), ST3.woodD, { parent: M, p: [x, 1.38, z] });
+  b.add(ball(14), c, { parent: M, p: [x, 1.02, z], s: [0.21, 0.3, 0.14], shine: 0.9, shade: 0.25, top: lighter(c, 0.25), topK: 0.5 });
+  b.add(cyl3(0.2, 0.24, 0.16, 12), darker(c, 0.15), { parent: M, p: [x, 0.72, z], shine: 0.7 });
+  b.add(tinyBox(0.42, 0.04, 0.29), ST3.gold, { parent: M, p: [x, 0.8, z] });
+  for (const sx of [-1, 1]) b.add(cap3(0.12, 1.4, 0, Math.PI * 2, 10, 4), c, { parent: M, p: [x + sx * 0.22, 1.2, z], r: [0, 0, -sx * 0.5], shine: 0.9 });
+  b.add(cap3(0.13, 1.6, 0, Math.PI * 2, 12, 5), helm, { parent: M, p: [x, 1.42, z], shine: 1, top: lighter(helm, 0.25), topK: 0.5 });
+  b.add(wbox(0.18, 0.03, 0.05, 0.012), '#1a1410', { parent: M, p: [x, 1.45, z + 0.12] });
+  if (plume) b.add(horn3(0.24, 0.05, 6), plume, { parent: M, p: [x, 1.53, z - 0.03], r: [-0.6, 0, 0] });
+}
+function stCrate3(b, M, x, y, z, s, c = '#a07a4a', ry = 0) {
+  b.add(wbox(s, s * 0.9, s, 0.03), c, { parent: M, p: [x, y + s * 0.45, z], r: [0, ry, 0], shade: 0.2 });
+  for (const dy of [0.15, 0.75]) b.add(tinyBox(s + 0.01, 0.035, s + 0.01), '#5a3f26', { parent: M, p: [x, y + s * 0.9 * dy, z], r: [0, ry, 0] });
+}
+function stBarrel3(b, M, x, z, s = 1, c = '#8a5a34') {
+  b.add(lathe3('barrel', [[0, 0], [0.2, 0], [0.24, 0.12], [0.26, 0.27], [0.24, 0.42], [0.2, 0.54], [0, 0.54]], 14), c, { parent: M, p: [x, 0.08, z], s: [s, s, s], shade: 0.25 });
+  for (const y of [0.12, 0.42]) b.add(torus3(0.245, 0.018, Math.PI * 2, 4, 14), '#3a2a1c', { parent: M, p: [x, 0.08 + y * s, z], r: [Math.PI / 2, 0, 0], s: [s, s, s] });
+}
+function stSack3(b, M, x, z, s = 1, c = '#c8b088') {
+  b.add(ball(10), c, { parent: M, p: [x, 0.08 + 0.17 * s, z], s: [0.2 * s, 0.19 * s, 0.17 * s], shade: 0.25 });
+  b.add(horn3(0.1 * s, 0.07 * s, 6), c, { parent: M, p: [x, 0.08 + 0.33 * s, z] });
+  b.add(torus3(0.05 * s, 0.012, Math.PI * 2, 3, 8), '#6b4a2e', { parent: M, p: [x, 0.08 + 0.36 * s, z], r: [Math.PI / 2, 0, 0] });
+}
+function stBook3(b, M, x, y, z, c, h = 0.22, tilt = 0) {
+  b.add(wbox(0.05, h, 0.17, 0.008), c, { parent: M, p: [x, y + h / 2, z], r: [0, 0, tilt] });
+  b.add(tinyBox(0.052, 0.02, 0.172), ST3.gold, { parent: M, p: [x, y + h * 0.8, z], r: [0, 0, tilt] });
+}
+
+const STAND3 = {
+  // Händlerin: Tränke in vier Größen auf dem Tresen und im Regal, rot (Leben) und blau (Mana)
+  haendler(b, M) {
+    stFrame3(b, M, { awning: ['#6d3f7d', '#f0dca0'], cloth: '#6d3f7d', sign: '#e8c46a' });
+    stShelf3(b, M, 1.9, 3, 0.62, 0.42);
+    const sizes = [0.8, 0.95, 1.1, 1.3];
+    for (let k = 0; k < 8; k++) stFlask3(b, M, -0.84 + k * 0.24, 0.77, 0.36 + (k % 2) * 0.06, sizes[k % 4], k < 4 ? '#d83a3a' : '#3a6ad8');
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 7; k++) {
+      stFlask3(b, M, -0.78 + k * 0.26, 0.64 + row * 0.42, -0.34, 0.7 + (row % 2) * 0.2, ['#d83a3a', '#3a6ad8', '#e0a040'][(k + row) % 3]);
+    }
+    stFlask3(b, M, 0, 2.02, -0.4, 1.5, '#d83a3a');
+    stCrate3(b, M, 1.25, 0.08, 0.15, 0.38, '#a07a4a', 0.3);
+    for (let k = 0; k < 3; k++) stFlask3(b, M, 1.17 + k * 0.08, 0.43, 0.12 + (k % 2) * 0.08, 0.7, '#3a6ad8');
+  },
+  // Alchemist: brodelnder Kessel, Kräuterbündel unter dem Dach, Gläser, Mörser
+  alchemist(b, M) {
+    stFrame3(b, M, { awning: ['#3a6a4a', '#d8e8c0'], cloth: '#3a6a4a', sign: '#9fe08f' });
+    stShelf3(b, M, 1.0, 3, 0.62, 0.42, -0.36);
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) {
+      const c = ['#7ac85a', '#c8a03a', '#a05ad8', '#5ab8c8'][(k + row) % 4];
+      b.add(cyl3(0.07, 0.07, 0.18, 10), '#dfeef4', { parent: M, p: [-0.36 + k * 0.24, 0.73 + row * 0.42, -0.34], shine: 1 });
+      b.add(cyl3(0.06, 0.06, 0.12, 10), c, { parent: M, p: [-0.36 + k * 0.24, 0.7 + row * 0.42, -0.34], mat: 'glow' });
+      b.add(cyl3(0.075, 0.075, 0.03, 10), '#8a5a34', { parent: M, p: [-0.36 + k * 0.24, 0.835 + row * 0.42, -0.34] });
+    }
+    // Kessel neben dem Tresen auf glühenden Scheiten
+    const kx = 1.45, kz = 0.25;
+    for (let k = 0; k < 3; k++) b.add(limb3(0.5, 0.05, 0.05, 6), '#5a3a22', { parent: M, p: [kx + Math.cos(k * 2.1) * 0.25, 0.12, kz + Math.sin(k * 2.1) * 0.25], r: [Math.PI / 2, k * 2.1, 0] });
+    b.add(sphere3(0.16, 8, 6), '#ff7a2a', { parent: M, p: [kx, 0.12, kz], s: [1.4, 0.5, 1.4], mat: 'glow' });
+    b.add(cap3(0.32, 1.9, 0, Math.PI * 2, 14, 6), '#2e2a2a', { parent: M, p: [kx, 0.5, kz], r: [Math.PI, 0, 0], shine: 0.5 });
+    b.add(torus3(0.3, 0.035, Math.PI * 2, 5, 18), '#3a3434', { parent: M, p: [kx, 0.5, kz], r: [Math.PI / 2, 0, 0], shine: 0.6 });
+    b.add(cyl3(0.28, 0.28, 0.02, 16), '#6aff6a', { parent: M, p: [kx, 0.47, kz], mat: 'glow' });
+    for (const [dx, dz, r] of [[0.08, 0.05, 0.06], [-0.1, -0.06, 0.045], [0.02, -0.12, 0.035]]) b.add(sphere3(r, 8, 6), '#c8ffb0', { parent: M, p: [kx + dx, 0.5, kz + dz], mat: 'glow' });
+    // Kräuterbündel und Mörser
+    for (let k = 0; k < 6; k++) b.add(horn3(0.3, 0.07, 6), k % 2 ? '#6a9a46' : '#8aa040', { parent: M, p: [-0.9 + k * 0.36, 1.68, -0.1], r: [Math.PI, 0, (k % 3 - 1) * 0.12] });
+    b.add(lathe3('mortar', [[0, 0], [0.11, 0], [0.13, 0.1], [0.12, 0.14], [0.09, 0.14], [0.06, 0.05], [0, 0.05]], 12), '#9a948a', { parent: M, p: [0.55, 0.77, 0.32], shade: 0.2 });
+    b.add(limb3(0.2, 0.025, 0.03, 6), '#7a746a', { parent: M, p: [0.58, 1.0, 0.32], r: [0, 0, 0.4] });
+    for (let k = 0; k < 3; k++) b.add(ball(8), ['#c84a6a', '#e0c040', '#6ac8e0'][k], { parent: M, p: [-0.6 + k * 0.22, 0.81, 0.36], s: [0.06, 0.04, 0.06] });
+  },
+  // Waffenhändler: Ständer mit Schwertern und Äxten, Speere im Fass, Schilde an der Rückwand
+  waffen(b, M) {
+    stFrame3(b, M, { awning: ['#9a2f2a', '#efe0b8'], counter: false, sign: '#c0c8d0' });
+    b.add(tinyBox(2.1, 1.5, 0.04), darker(ST3.wood, 0.2), { parent: M, p: [0, 0.85, -0.5] });
+    stShield3(b, M, -0.6, 1.35, -0.46, 0.26, '#9a2f2a');
+    stShield3(b, M, 0.6, 1.35, -0.46, 0.26, '#2f5a7a');
+    stShield3(b, M, 0, 1.45, -0.46, 0.2, '#c9a35a', ST3.steel);
+    // Ständer: zwei Böcke mit Querstange, Schwerter mit der Spitze nach oben
+    for (const sx of [-1, 1]) b.add(wbox(0.07, 0.95, 0.3, 0.02), ST3.woodD, { parent: M, p: [sx * 0.75, 0.55, 0.1] });
+    b.add(limb3(1.56, 0.03, 0.03, 6), ST3.woodD, { parent: M, p: [-0.78, 0.6, 0.1], r: [0, 0, Math.PI / 2] });
+    b.add(limb3(1.56, 0.03, 0.03, 6), ST3.woodD, { parent: M, p: [-0.78, 0.25, 0.1], r: [0, 0, Math.PI / 2] });
+    for (let k = 0; k < 5; k++) stSword3(b, M, -0.56 + k * 0.28, 0.42, 0.13, 0.6 + (k % 2) * 0.12, (k - 2) * 0.04, k === 2 ? '#d8c070' : ST3.steel);
+    stAxe3(b, M, -1.0, 0.1, 0.32, 0.2);
+    // Speere im Fass
+    stBarrel3(b, M, 1.32, 0.2, 0.85);
+    for (let k = 0; k < 4; k++) {
+      const a = k * 1.6;
+      b.add(limb3(1.3, 0.02, 0.02, 5), '#6b4a2e', { parent: M, p: [1.32 + Math.cos(a) * 0.08, 1.5, 0.2 + Math.sin(a) * 0.08], r: [Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12] });
+      b.add(horn3(0.18, 0.04, 6), ST3.steel, { parent: M, p: [1.32 + Math.cos(a) * 0.08 - Math.cos(a) * 0.12 * 0.15, 1.5, 0.2 + Math.sin(a) * 0.08], r: [Math.sin(a) * 0.12, 0, Math.cos(a) * 0.12], shine: 1 });
+    }
+  },
+  // Rüstungshändler: drei Rüstungspuppen (Stahl, Bronze, Leder), Helme und Schilde
+  ruestung(b, M) {
+    stFrame3(b, M, { awning: ['#2f5a7a', '#efe0b8'], counter: false, sign: '#8a95a3' });
+    stDummy3(b, M, -0.7, -0.15, '#a4adb8', '#8a95a3', '#c8302a');
+    stDummy3(b, M, 0, -0.25, '#c9944a', '#b07a3a', '#2f5a7a');
+    stDummy3(b, M, 0.7, -0.15, '#7a5236', '#6a4a30', null);
+    // Tisch vorn rechts mit Helm und Stiefeln, Schild am Pfosten
+    b.add(wbox(0.5, 0.06, 0.36, 0.02), ST3.woodL, { parent: M, p: [1.25, 0.5, 0.3] });
+    for (const sx of [-1, 1]) b.add(wbox(0.05, 0.46, 0.3, 0.02), ST3.woodD, { parent: M, p: [1.25 + sx * 0.2, 0.27, 0.3] });
+    b.add(cap3(0.12, 1.6, 0, Math.PI * 2, 12, 5), '#a4adb8', { parent: M, p: [1.18, 0.53, 0.3], shine: 1 });
+    b.add(wbox(0.1, 0.12, 0.18, 0.03), '#6a4a30', { parent: M, p: [1.38, 0.6, 0.3] });
+    stShield3(b, M, -1.2, 0.55, 0.3, 0.24, '#2f5a7a');
+  },
+  // Schmied: gemauerte Esse mit Glut und Schornstein, Amboss, Löschfass, Werkzeug an der Wand
+  schmied(b, M) {
+    b.add(wbox(2.44, 0.08, 1.15, 0.03), '#6e685e', { parent: M, p: [0, 0.04, 0], shade: 0.2 });
+    // Esse links hinten
+    b.add(wbox(0.95, 0.75, 0.8, 0.06), '#7a746a', { parent: M, p: [-0.65, 0.42, -0.15], shade: 0.35, top: '#8a847a', topK: 0.5 });
+    b.add(wbox(0.7, 0.05, 0.55, 0.02), '#2a1a14', { parent: M, p: [-0.65, 0.8, -0.1] });
+    for (const [dx, dz] of [[-0.15, -0.05], [0.1, 0.05], [0.0, -0.18], [0.2, -0.12], [-0.2, 0.1]]) b.add(sphere3(0.08, 6, 4), '#ff6a1a', { parent: M, p: [-0.65 + dx, 0.83, -0.1 + dz], s: [1, 0.5, 1], mat: 'glow' });
+    b.add(sphere3(0.25, 8, 6), '#ffb040', { parent: M, p: [-0.65, 0.84, -0.1], s: [1.2, 0.25, 1], mat: 'glow' });
+    b.add(roundBox(0.85, 0.5, 0.65, 0.06), '#5a544c', { parent: M, p: [-0.65, 1.55, -0.2], shade: 0.3 });
+    b.add(wbox(0.4, 1.2, 0.4, 0.04), '#6e685e', { parent: M, p: [-0.65, 2.3, -0.25], shade: 0.3 });
+    // Dach über der Werkstatt
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.1, 1.95, 0.1, 0.03), ST3.woodD, { parent: M, p: [sx * 1.12, 0.98, sz * 0.47] });
+    b.add(roofGeo(2.7, 1.5, 0.5, 0.22), '#5a3a2e', { parent: M, p: [0.35, 1.95, 0], s: [0.7, 1, 1], shade: 0.2, top: lighter('#5a3a2e', 0.15), topK: 0.6 });
+    // Amboss auf dem Klotz, Hammer darauf
+    b.add(lathe3('stump', [[0.22, 0], [0.2, 0.25], [0, 0.26]], 12), '#6b4a2e', { parent: M, p: [0.45, 0.08, 0.2], s: [1.2, 1.5, 1.2], shade: 0.3 });
+    b.add(wbox(0.6, 0.16, 0.24, 0.04), '#4e535c', { parent: M, p: [0.45, 0.54, 0.2], shine: 0.8, top: '#7a808a', topK: 0.6 });
+    b.add(wbox(0.26, 0.14, 0.16, 0.03), '#40444c', { parent: M, p: [0.45, 0.42, 0.2] });
+    b.add(horn3(0.26, 0.08, 8), '#4e535c', { parent: M, p: [0.75, 0.54, 0.2], r: [0, 0, -Math.PI / 2], shine: 0.8 });
+    b.add(limb3(0.36, 0.02, 0.02, 5), '#6b4a2e', { parent: M, p: [0.3, 0.64, 0.12], r: [Math.PI / 2, 0.5, 0] });
+    b.add(wbox(0.1, 0.08, 0.16, 0.02), '#3a3e46', { parent: M, p: [0.36, 0.66, 0.06], r: [0, 0.5, 0] });
+    // Löschfass und Werkzeugbrett
+    stBarrel3(b, M, 1.0, -0.1, 0.9);
+    b.add(cyl3(0.2, 0.2, 0.02, 12), '#3a6a8a', { parent: M, p: [1.0, 0.56, -0.1], shine: 1 });
+    b.add(tinyBox(0.9, 0.7, 0.04), darker(ST3.wood, 0.2), { parent: M, p: [0.45, 1.25, -0.5] });
+    for (let k = 0; k < 4; k++) {
+      b.add(limb3(0.4, 0.018, 0.018, 5), '#6b4a2e', { parent: M, p: [0.15 + k * 0.2, 1.5, -0.46] });
+      b.add(wbox(0.12, 0.07, 0.07, 0.02), '#3a3e46', { parent: M, p: [0.15 + k * 0.2, 1.52, -0.46], r: [0, 0, k % 2 ? 0 : Math.PI / 2] });
+    }
+  },
+  // Lagerverwalter: Regale voller Kisten, Säcke und Fässer, Pult mit Buch und Tinte
+  lager(b, M) {
+    stFrame3(b, M, { awning: ['#7a5a3a', '#e0d0a8'], counter: false, sign: '#c9a35a' });
+    stShelf3(b, M, 2.0, 3, 0.1, 0.6, -0.3);
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 4; k++) {
+      if ((row + k) % 3 === 2) stSack3(b, M, -0.72 + k * 0.48, -0.3, 0.9, '#c8b088');
+      else stCrate3(b, M, -0.72 + k * 0.48, 0.12 + row * 0.6 - (row ? 0 : 0.04), -0.3, 0.38 + ((k + row) % 2) * 0.05, ['#a07a4a', '#8a6a3a', '#b08a52'][(k + row) % 3], (k - 1.5) * 0.08);
+    }
+    // vorn: Pult mit Buch, links Fässer und gestapelte Kisten
+    b.add(wbox(0.6, 0.08, 0.42, 0.02), ST3.woodL, { parent: M, p: [0.55, 0.8, 0.3], r: [0.25, 0, 0] });
+    b.add(wbox(0.5, 0.74, 0.34, 0.03), ST3.wood, { parent: M, p: [0.55, 0.4, 0.28], shade: 0.25 });
+    b.add(wbox(0.36, 0.04, 0.26, 0.01), '#7a2a24', { parent: M, p: [0.55, 0.86, 0.3], r: [0.25, 0, 0] });
+    b.add(wbox(0.32, 0.03, 0.22, 0.01), ST3.paper, { parent: M, p: [0.55, 0.885, 0.3], r: [0.25, 0, 0] });
+    b.add(cyl3(0.035, 0.04, 0.06, 8), '#1a1a2a', { parent: M, p: [0.82, 0.86, 0.2] });
+    b.add(horn3(0.16, 0.012, 4), '#f4f0e8', { parent: M, p: [0.82, 0.88, 0.2], r: [0.3, 0, 0.3] });
+    stBarrel3(b, M, -0.65, 0.3, 0.9);
+    stBarrel3(b, M, -1.1, 0.25, 0.8, '#7a4e2e');
+    stCrate3(b, M, 1.25, 0.08, 0.25, 0.4);
+    stCrate3(b, M, 1.25, 0.44, 0.25, 0.32, '#8a6a3a', 0.4);
+  },
+  // Dorfältester: großes Auftragsbrett mit Dach, Pult mit Schriftrolle, zwei Banner
+  aeltester(b, M) {
+    b.add(wbox(2.44, 0.08, 1.15, 0.03), '#7a5a3a', { parent: M, p: [0, 0.04, 0], shade: 0.2 });
+    for (const sx of [-1, 1]) b.add(wbox(0.12, 1.85, 0.12, 0.03), ST3.woodD, { parent: M, p: [sx * 0.75, 0.93, -0.3] });
+    b.add(wbox(1.5, 1.0, 0.08, 0.03), ST3.wood, { parent: M, p: [0, 1.15, -0.28], shade: 0.15 });
+    b.add(roofGeo(1.9, 0.55, 0.32, 0.12), '#7c3a2c', { parent: M, p: [0, 1.82, -0.3], shade: 0.2 });
+    const notes = [[-0.5, 1.4], [-0.15, 1.36], [0.22, 1.42], [0.52, 1.35], [-0.42, 0.95], [-0.05, 0.92], [0.35, 0.96]];
+    notes.forEach(([x, y], k) => {
+      b.add(tinyBox(0.24, 0.3, 0.02), k % 3 ? ST3.paper : '#f6ecc8', { parent: M, p: [x, y, -0.23], r: [0, 0, (k % 3 - 1) * 0.08] });
+      b.add(sphere3(0.022, 6, 4), k % 2 ? '#c8302a' : ST3.gold, { parent: M, p: [x, y + 0.12, -0.215] });
+    });
+    // Pult mit Schriftrolle
+    b.add(limb3(0.75, 0.05, 0.06, 6), ST3.woodD, { parent: M, p: [-0.8, 0.83, 0.3] });
+    b.add(wbox(0.42, 0.05, 0.32, 0.02), ST3.wood, { parent: M, p: [-0.8, 0.86, 0.3], r: [0.35, 0, 0] });
+    b.add(wbox(0.36, 0.02, 0.24, 0.01), ST3.paper, { parent: M, p: [-0.8, 0.9, 0.3], r: [0.35, 0, 0] });
+    for (const sx of [-1, 1]) b.add(cyl3(0.03, 0.03, 0.3, 8), '#c9a35a', { parent: M, p: [-0.8, 0.92 + sx * 0.04, 0.3 - sx * 0.11], r: [0, 0, Math.PI / 2] });
+    // Banner an Stangen links und rechts
+    for (const sx of [-1, 1]) {
+      b.add(limb3(2.3, 0.035, 0.035, 6), ST3.woodD, { parent: M, p: [sx * 1.12, 2.35, 0.1] });
+      b.add(sphere3(0.06, 8, 6), ST3.gold, { parent: M, p: [sx * 1.12, 2.4, 0.1], shine: 1 });
+      b.add(wbox(0.34, 0.9, 0.02, 0.01), '#9a2f2a', { parent: M, p: [sx * 1.12 - sx * 0.2, 1.8, 0.1], shade: 0.15 });
+      b.add(tinyBox(0.36, 0.05, 0.03), ST3.gold, { parent: M, p: [sx * 1.12 - sx * 0.2, 2.23, 0.1] });
+      b.add(sphere3(0.08, 8, 6), ST3.gold, { parent: M, p: [sx * 1.12 - sx * 0.2, 1.9, 0.12], s: [1, 1, 0.3] });
+    }
+  },
+  // Wegweiserin: Wegweiser mit Pfeilen, Kartentisch mit Karte und Globus, leuchtender Wegstein
+  teleport(b, M) {
+    b.add(wbox(2.44, 0.08, 1.15, 0.03), '#7a5a3a', { parent: M, p: [0, 0.04, 0], shade: 0.2 });
+    b.add(limb3(2.1, 0.05, 0.05, 6), ST3.woodD, { parent: M, p: [-0.85, 2.15, -0.15] });
+    [['#e8d8b0', 0.4, 1.85], ['#c9a35a', -0.6, 1.6], ['#e8d8b0', 1.9, 1.35], ['#c9a35a', 2.6, 1.1]].forEach(([c, a, y]) => {
+      b.add(wbox(0.6, 0.14, 0.04, 0.02), c, { parent: M, p: [-0.85 + Math.cos(a) * 0.28, y, -0.15 - Math.sin(a) * 0.28], r: [0, a, 0] });
+      b.add(horn3(0.14, 0.1, 4), c, { parent: M, p: [-0.85 + Math.cos(a) * 0.58, y, -0.15 - Math.sin(a) * 0.58], r: [0, a, -Math.PI / 2], s: [1, 1, 0.3] });
+    });
+    // Kartentisch
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.06, 0.66, 0.06, 0.02), ST3.woodD, { parent: M, p: [0.3 + sx * 0.42, 0.37, 0.15 + sz * 0.22] });
+    b.add(wbox(1.0, 0.06, 0.56, 0.02), ST3.wood, { parent: M, p: [0.3, 0.72, 0.15] });
+    b.add(wbox(0.8, 0.02, 0.44, 0.01), ST3.paper, { parent: M, p: [0.3, 0.76, 0.15] });
+    for (const [x, z, w, d, c] of [[0.1, 0.1, 0.24, 0.16, '#7aa94f'], [0.42, 0.2, 0.2, 0.12, '#7aa94f'], [0.5, 0.02, 0.16, 0.1, '#5a8ab0'], [0.0, 0.25, 0.14, 0.08, '#a08a6a']]) b.add(tinyBox(w, 0.012, d), c, { parent: M, p: [x, 0.775, z] });
+    b.add(sphere3(0.035, 6, 4), '#c8302a', { parent: M, p: [0.25, 0.8, 0.12] });
+    // Globus und Wegstein
+    b.add(limb3(0.36, 0.02, 0.03, 6), ST3.gold, { parent: M, p: [1.05, 1.12, -0.25] });
+    b.add(cyl3(0.12, 0.14, 0.05, 10), ST3.woodD, { parent: M, p: [1.05, 0.79, -0.25] });
+    b.add(sphere3(0.2, 14, 10), '#4a7ab0', { parent: M, p: [1.05, 1.2, -0.25], shine: 0.6 });
+    b.add(torus3(0.23, 0.012, Math.PI * 1.4, 4, 16), ST3.gold, { parent: M, p: [1.05, 1.2, -0.25], r: [0, Math.PI / 2, 0.4], shine: 1 });
+    b.add(ball(10), '#6aa04a', { parent: M, p: [1.12, 1.25, -0.08], s: [0.08, 0.1, 0.04] });
+    b.add(wbox(0.5, 0.65, 0.4, 0.08), '#8a8478', { parent: M, p: [-0.15, 0.4, -0.35], shade: 0.3 });
+    b.add(horn3(0.5, 0.13, 6), '#7ac8ff', { parent: M, p: [-0.15, 0.72, -0.35], mat: 'glow' });
+    b.add(sphere3(0.07, 8, 6), '#e8f8ff', { parent: M, p: [-0.15, 0.9, -0.35], mat: 'glow' });
+  },
+  // Jägerin: Gestell mit Fellen, Geweih am Pfahl, Bogenständer, Köcher, Zielscheibe
+  jaegerin(b, M) {
+    stFrame3(b, M, { awning: ['#4a6a3a', '#d8c8a0'], counter: false, sign: '#c8402f' });
+    b.add(limb3(1.9, 0.035, 0.035, 6), ST3.woodD, { parent: M, p: [-0.95, 1.55, -0.3], r: [0, 0, Math.PI / 2] });
+    [['#8a6a4a', -0.6], ['#9a9a90', 0], ['#6a4a2e', 0.6]].forEach(([c, x]) => {
+      b.add(ball(12), c, { parent: M, p: [x, 1.15, -0.32], s: [0.26, 0.38, 0.03], shade: 0.25 });
+      for (const sx of [-1, 1]) b.add(ball(6), c, { parent: M, p: [x + sx * 0.24, 0.85, -0.32], s: [0.08, 0.12, 0.03] });
+    });
+    // Bogenständer vorn links: zwei Bögen mit Sehne
+    b.add(wbox(0.5, 0.06, 0.2, 0.02), ST3.woodD, { parent: M, p: [-0.6, 0.12, 0.25] });
+    for (const dx of [-0.12, 0.12]) {
+      b.add(torus3(0.5, 0.022, Math.PI * 0.8, 4, 12), '#6b4a2e', { parent: M, p: [-0.6 + dx, 0.66, 0.15], r: [0, Math.PI / 2, Math.PI * 0.6], shine: 0.3 });
+      b.add(limb3(0.95, 0.006, 0.006, 4), '#efe6cc', { parent: M, p: [-0.6 + dx, 1.13, 0.31] });
+    }
+    // Köcher mit Pfeilen, Zielscheibe rechts
+    b.add(cyl3(0.09, 0.08, 0.5, 10), '#7a4a2a', { parent: M, p: [0.05, 0.33, 0.3], r: [0.15, 0, 0] });
+    for (let k = 0; k < 4; k++) b.add(horn3(0.12, 0.03, 4), k % 2 ? '#e8e0d0' : '#c8402f', { parent: M, p: [0.03 + (k % 2) * 0.05, 0.62, 0.32 + (k > 1 ? 0.04 : -0.02)] });
+    b.add(wbox(0.08, 0.95, 0.08, 0.03), ST3.woodD, { parent: M, p: [0.85, 0.48, 0.15] });
+    for (const [r, c, z] of [[0.36, '#e8d8a8', 0], [0.25, '#c8402f', 0.01], [0.12, '#e8d8a8', 0.02]]) b.add(cyl3(r, r, 0.06, 16), c, { parent: M, p: [0.85, 0.95, 0.22 + z], r: [Math.PI / 2, 0, 0] });
+    b.add(limb3(0.3, 0.012, 0.012, 4), '#6b4a2e', { parent: M, p: [0.92, 1.02, 0.32], r: [-1.1, 0, -0.6] });
+    // Geweih am rechten Pfosten
+    for (const sx of [-1, 1]) {
+      b.add(horn3(0.32, 0.03, 5), '#e8dcc0', { parent: M, p: [1.1, 1.65, -0.42], r: [0, 0, -sx * 0.6] });
+      b.add(horn3(0.16, 0.02, 4), '#e8dcc0', { parent: M, p: [1.1 + sx * 0.1, 1.75, -0.42], r: [0, 0, sx * 0.3] });
+    }
+    b.add(ball(8), '#6a4a2e', { parent: M, p: [1.1, 1.6, -0.42], s: [0.08, 0.1, 0.06] });
+  },
+  // Lehrmeister: Bücherregal, Pult mit offenem Buch und Kerze, Korb mit Schriftrollen
+  lehrmeister(b, M) {
+    stFrame3(b, M, { awning: ['#2a6a6a', '#efe0b8'], counter: false, sign: '#8ad0d0' });
+    stShelf3(b, M, 1.9, 4, 0.1, 0.42, -0.32);
+    const cols = ['#9a2f2a', '#2f5a7a', '#3a6a4a', '#6d3f7d', '#c9944a', '#5a3a22'];
+    for (let row = 0; row < 3; row++) for (let k = 0; k < 14; k++) {
+      if ((k + row * 3) % 9 === 8) continue;
+      stBook3(b, M, -0.86 + k * 0.13, 0.12 + row * 0.42, -0.3, cols[(k * 7 + row) % 6], 0.2 + ((k + row) % 3) * 0.04, (k + row) % 5 === 0 ? 0.25 : 0);
+    }
+    // Pult mit offenem Buch und Kerze
+    b.add(limb3(0.75, 0.05, 0.06, 6), ST3.woodD, { parent: M, p: [0.55, 0.83, 0.3] });
+    b.add(wbox(0.5, 0.05, 0.36, 0.02), ST3.wood, { parent: M, p: [0.55, 0.86, 0.3], r: [0.35, 0, 0] });
+    for (const sx of [-1, 1]) b.add(wbox(0.2, 0.015, 0.26, 0.005), ST3.paper, { parent: M, p: [0.55 + sx * 0.105, 0.9, 0.3], r: [0.35, 0, -sx * 0.12] });
+    b.add(cyl3(0.03, 0.03, 0.14, 8), '#f4ecd8', { parent: M, p: [0.85, 0.96, 0.22] });
+    b.add(horn3(0.07, 0.02, 6), '#ffcc55', { parent: M, p: [0.85, 1.03, 0.22], mat: 'glow' });
+    b.add(cyl3(0.2, 0.17, 0.3, 12), '#a07a4a', { parent: M, p: [-0.6, 0.23, 0.3], shade: 0.2 });
+    for (let k = 0; k < 4; k++) b.add(cyl3(0.035, 0.035, 0.36, 8), ST3.paper, { parent: M, p: [-0.65 + (k % 2) * 0.1, 0.45, 0.25 + (k > 1 ? 0.1 : 0)], r: [0.3 * (k % 2 ? 1 : -1), 0, 0.2] });
+  },
+  // Stallmeister: Koppelzaun mit Sattel, Tränke mit Wasser, Heu
+  stallmeister(b, M) {
+    for (let k = 0; k < 4; k++) b.add(wbox(0.09, 0.9, 0.09, 0.03), ST3.woodD, { parent: M, p: [-1.1 + k * 0.73, 0.45, -0.3] });
+    for (const y of [0.45, 0.78]) b.add(wbox(2.3, 0.07, 0.05, 0.02), ST3.wood, { parent: M, p: [0, y, -0.3] });
+    b.add(cap3(0.22, 1.2, 0, Math.PI * 2, 12, 4), '#6a3a20', { parent: M, p: [-0.3, 0.72, -0.3], s: [1, 0.6, 1.3], shine: 0.3 });
+    b.add(wbox(0.4, 0.3, 0.04, 0.02), '#8a2a1a', { parent: M, p: [-0.3, 0.65, -0.24] });
+    b.add(wbox(1.0, 0.3, 0.38, 0.04), ST3.wood, { parent: M, p: [0.5, 0.2, 0.2], shade: 0.25 });
+    b.add(tinyBox(0.9, 0.02, 0.28), '#4a8ab0', { parent: M, p: [0.5, 0.33, 0.2] });
+    for (const [x, y, z] of [[-0.85, 0.17, 0.2], [-0.85, 0.48, 0.2]]) {
+      b.add(wbox(0.5, 0.3, 0.36, 0.08), '#d8b45a', { parent: M, p: [x, y, z], shade: 0.2 });
+      for (const dx of [-0.1, 0.1]) b.add(tinyBox(0.03, 0.31, 0.37), '#7a5a2a', { parent: M, p: [x + dx, y, z] });
+    }
+  }
+};
+
+// Dorfschmuck und Bauten aus game.world.props
+const PROP3 = {
+  // Stand einer Stadtperson (seit 12.0), pr.roof ist die Rolle
+  stand(b, M, pr) {
+    (STAND3[pr.roof] || STAND3.haendler)(b, M);
+  },
+  well(b, M) {
+    b.add(lathe3('wellring', [[0.4, 0], [0.48, 0.02], [0.5, 0.3], [0.48, 0.42], [0.42, 0.44], [0.36, 0.4], [0.36, 0.1]], 18), '#8a8276', { parent: M, shade: 0.3 });
+    b.add(new THREE.CircleGeometry(0.37, 18).rotateX(-Math.PI / 2), '#3a7aa0', { parent: M, p: [0, 0.3, 0] });
+    for (const sx of [-1, 1]) b.add(wbox(0.1, 1.1, 0.1, 0.03), '#5a3a22', { parent: M, p: [sx * 0.42, 0.6, 0] });
+    b.add(limb3(0.95, 0.04, 0.04, 6), '#6b4a2e', { parent: M, p: [-0.47, 1.0, 0], r: [0, 0, Math.PI / 2] });
+    b.add(roofGeo(1.25, 0.8, 0.42, 0.18), '#7c3a2c', { parent: M, p: [0, 1.1, 0], shade: 0.2 });
+    b.add(lathe3('bucket', [[0.08, 0], [0.1, 0.16], [0, 0.17]], 10), '#6b4a2e', { parent: M, p: [0, 0.6, 0] });
+  },
+  lantern(b, M) {
+    b.add(wbox(0.42, 0.16, 0.42, 0.05), '#8a8478', { parent: M, p: [0, 0.08, 0], shade: 0.2 });
+    b.add(wbox(0.18, 0.55, 0.18, 0.05), '#9a9488', { parent: M, p: [0, 0.43, 0] });
+    b.add(wbox(0.42, 0.1, 0.42, 0.04), '#8a8478', { parent: M, p: [0, 0.74, 0] });
+    b.add(wbox(0.28, 0.26, 0.28, 0.05), '#ffd27a', { parent: M, p: [0, 0.92, 0], mat: 'glow' });
+    b.add(roofGeo(0.62, 0.62, 0.3, 0.1), '#7a746a', { parent: M, p: [0, 1.04, 0] });
+    b.add(sphere3(0.06, 8, 6), '#7a746a', { parent: M, p: [0, 1.36, 0] });
+  },
+  barrel(b, M) {
+    b.add(lathe3('barrel', [[0, 0], [0.2, 0], [0.24, 0.12], [0.26, 0.27], [0.24, 0.42], [0.2, 0.54], [0, 0.54]], 14), '#8a5a34', { parent: M, shade: 0.25 });
+    for (const y of [0.12, 0.42]) b.add(new THREE.TorusGeometry(0.245, 0.018, 4, 14).rotateX(Math.PI / 2), '#3a2a1c', { parent: M, p: [0, y, 0] });
+  },
+  crate(b, M) {
+    b.add(wbox(0.5, 0.46, 0.5, 0.05), '#a07a4a', { parent: M, p: [0, 0.23, 0], shade: 0.25 });
+    for (const y of [0.1, 0.36]) b.add(tinyBox(0.52, 0.04, 0.52), '#5a3f26', { parent: M, p: [0, y, 0] });
+  },
+  tower(b, M) {
+    b.add(wbox(1.25, 0.45, 1.25, 0.1), '#6e685e', { parent: M, p: [0, 0.22, 0], shade: 0.3 });
+    b.add(wbox(1.02, 1.5, 1.02, 0.06), '#dccaa4', { parent: M, p: [0, 1.18, 0], shade: 0.15 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.13, 1.52, 0.13, 0.04), '#5a3a22', { parent: M, p: [sx * 0.5, 1.18, sz * 0.5] });
+    b.add(wbox(1.06, 0.1, 1.06, 0.03), '#5a3a22', { parent: M, p: [0, 1.3, 0] });
+    b.add(wbox(0.32, 0.45, 0.06, 0.03), '#3a2a1c', { parent: M, p: [0, 1.1, 0.52] });
+    b.add(wbox(1.45, 0.16, 1.45, 0.05), '#6b4a2e', { parent: M, p: [0, 2.0, 0] });
+    for (let k = 0; k < 4; k++) {
+      for (let j = -2; j <= 2; j++) {
+        const a = (k * Math.PI) / 2;
+        b.add(tinyBox(0.05, 0.24, 0.05), '#5a3a22', { parent: M, p: [Math.cos(a) * 0.68 - Math.sin(a) * j * 0.3, 2.2, Math.sin(a) * 0.68 + Math.cos(a) * j * 0.3] });
+      }
+    }
+    b.add(roofGeo(1.9, 1.9, 0.85, 0.32), '#7c3a2c', { parent: M, p: [0, 2.3, 0], shade: 0.2, top: lighter('#7c3a2c', 0.15), topK: 0.6 });
+    b.add(sphere3(0.09, 8, 6), '#c9a35a', { parent: M, p: [0, 3.2, 0] });
+    for (const sx of [-1, 1]) b.add(sphere3(0.1, 8, 6), '#ff6a3a', { parent: M, p: [sx * 0.78, 2.05, 0.78], s: [1, 1.3, 1], mat: 'glow' });
+  },
+  gate(b, M) {
+    for (const sx of [-1, 1]) {
+      b.add(wbox(0.26, 2.45, 0.26, 0.07), '#9a2f2a', { parent: M, p: [sx * 1.88, 1.22, 0], shade: 0.25 });
+      b.add(wbox(0.4, 0.2, 0.4, 0.06), '#6e685e', { parent: M, p: [sx * 1.88, 0.1, 0] });
+    }
+    b.add(wbox(4.4, 0.22, 0.32, 0.08), '#9a2f2a', { parent: M, p: [0, 2.5, 0] });
+    b.add(wbox(4.0, 0.16, 0.24, 0.06), '#7a2420', { parent: M, p: [0, 2.15, 0] });
+    b.add(roofGeo(5.2, 0.95, 0.55, 0.3), WALL3_ROOF, { parent: M, p: [0, 2.6, 0], shade: 0.2, top: lighter(WALL3_ROOF, 0.15), topK: 0.6 });
+    b.add(wbox(3.3, 0.14, 0.18, 0.06), darker(WALL3_ROOF, 0.35), { parent: M, p: [0, 3.12, 0] });
+    b.add(wbox(1.15, 0.45, 0.08, 0.04), '#2a1c14', { parent: M, p: [0, 2.33, 0.18] });
+    b.add(wbox(1.0, 0.33, 0.06, 0.03), '#c9a35a', { parent: M, p: [0, 2.33, 0.21] });
+  },
+  // seit 14.16: Holzturm an der Palisade (vier Pfosten, Plattform mit Spitzen, Spitzdach)
+  holzturm(b, M) {
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.09, 0.11, 2.1, 7), '#6b4a2e', { parent: M, p: [sx * 0.42, 1.05, sz * 0.42], shade: 0.3 });
+    for (const sz of [-1, 1]) b.add(wbox(0.95, 0.07, 0.07, 0.02), '#4a3020', { parent: M, p: [0, 1.0, sz * 0.43], r: [0, 0, 0.75] });
+    b.add(wbox(1.3, 0.14, 1.3, 0.04), '#7a5434', { parent: M, p: [0, 2.05, 0], shade: 0.25 });
+    for (let k = 0; k < 4; k++) {
+      const a = (k * Math.PI) / 2;
+      for (let j = -2; j <= 2; j++) b.add(lathe3('spitze', [[0.05, 0], [0.05, 0.2], [0, 0.32]], 5), '#6b4a2e', { parent: M, p: [Math.cos(a) * 0.6 - Math.sin(a) * j * 0.27, 2.1, Math.sin(a) * 0.6 + Math.cos(a) * j * 0.27] });
+    }
+    b.add(lathe3('holzdach', [[0.95, 0], [0.9, 0.08], [0, 0.85]], 4), '#8a3a22', { parent: M, p: [0, 2.5, 0], r: [0, Math.PI / 4, 0], shade: 0.2 });
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(cyl3(0.04, 0.04, 0.4, 5), '#5a3a22', { parent: M, p: [sx * 0.5, 2.3, sz * 0.5] });
+  },
+  // Kristallpfeiler an der Kristallwand: Steinsockel, darauf ein hoher Kristall
+  kristallturm(b, M) {
+    b.add(wbox(0.95, 0.4, 0.95, 0.08), '#2e2850', { parent: M, p: [0, 0.2, 0], shade: 0.3 });
+    b.add(wbox(0.7, 0.22, 0.7, 0.05), '#4a4278', { parent: M, p: [0, 0.51, 0] });
+    b.add(crystalGeo('body'), '#8a7aff', { parent: M, p: [0, 0.6, 0], s: [0.26, 1.45, 0.26], shade: 0.2, top: '#d8d0ff', topK: 0.7 });
+    b.add(crystalGeo('tip'), '#b8a8ff', { parent: M, p: [0, 2.05, 0], s: [0.26, 1.1, 0.26], mat: 'glow' });
+    for (const [x, z, s] of [[0.28, 0.18, 0.6], [-0.26, -0.2, 0.5]]) b.add(crystalGeo('body'), '#7a6ad8', { parent: M, p: [x, 0.55, z], s: [0.12 * s, 0.8 * s, 0.12 * s], mat: 'glow' });
+  },
+  // Holztor über breiten Toren der Palisade: zwei hohe Pfosten, Querbalken mit Schädeln
+  holztor(b, M) {
+    for (const sx of [-1, 1]) {
+      b.add(lathe3('torpfahl', [[0.16, 0], [0.16, 2.5], [0.1, 2.65], [0, 2.85]], 7), '#6b4a2e', { parent: M, p: [sx * 1.88, 0, 0], shade: 0.3 });
+    }
+    b.add(wbox(4.3, 0.24, 0.26, 0.06), '#7a5434', { parent: M, p: [0, 2.3, 0], shade: 0.2 });
+    b.add(wbox(3.8, 0.14, 0.18, 0.04), '#5a3a22', { parent: M, p: [0, 1.85, 0] });
+    for (const x of [-0.95, 0, 0.95]) {
+      b.add(sphere3(0.16, 8, 6), '#e8e0c8', { parent: M, p: [x, 2.3, 0.18], s: [1, 0.9, 0.9] });
+      for (const ex of [-0.06, 0.06]) b.add(sphere3(0.035, 5, 4), '#2a1c14', { parent: M, p: [x + ex, 2.32, 0.31] });
+    }
+  },
+  // Treppe in einer Stützmauer (pr.w Kacheln breit): drei flache Stufen, die nach Norden ansteigen
+  treppe(b, M, pr) {
+    const w = (pr.w || 2) - 0.1;
+    const snow = String(pr.roof || '').includes('schnee');
+    for (let k = 0; k < 3; k++) {
+      const h = 0.06 + k * 0.06;
+      b.add(wbox(w, h, 0.34, 0.03), k % 2 ? '#8a8a92' : '#9a9aa2', { parent: M, p: [0, h / 2, 0.83 - k * 0.33], shade: 0.25, top: snow ? '#f4f8fc' : '#b0b0b8', topK: snow ? 0.8 : 0.4 });
+    }
+  },
+  stall(b, M, pr) {
+    const roof = pr.roof || '#9a2f2a';
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.08, 1.25, 0.08, 0.03), '#5a3a22', { parent: M, p: [sx * 0.68, 0.62, sz * 0.32] });
+    b.add(wbox(1.5, 0.45, 0.6, 0.05), '#8a6a44', { parent: M, p: [0, 0.32, 0.05], shade: 0.25 });
+    const goods = ['#c8402f', '#e8c46a', '#7aa94f', '#9fd0ff', '#e0644f'];
+    goods.forEach((c, k) => b.add(sphere3(0.09, 8, 6), c, { parent: M, p: [-0.5 + k * 0.25, 0.62, 0.12 + (k % 2) * 0.1] }));
+    for (let k = 0; k < 6; k++) {
+      b.add(tinyBox(0.29, 0.06, 0.92), k % 2 ? roof : lighter(roof, 0.45), { parent: M, p: [-0.72 + k * 0.29, 1.3, 0.05], r: [0.28, 0, 0] });
+    }
+  },
+  anvil(b, M) {
+    b.add(lathe3('stump', [[0.22, 0], [0.2, 0.25], [0, 0.26]], 12), '#6b4a2e', { parent: M, shade: 0.3 });
+    b.add(wbox(0.5, 0.14, 0.2, 0.04), '#5a5e66', { parent: M, p: [0, 0.34, 0] });
+    b.add(wbox(0.22, 0.12, 0.14, 0.03), '#4a4e56', { parent: M, p: [0, 0.24, 0] });
+    b.add(horn3(0.22, 0.07, 8), '#5a5e66', { parent: M, p: [0.25, 0.34, 0], r: [0, 0, -Math.PI / 2] });
+  },
+  board(b, M) {
+    for (const sx of [-1, 1]) b.add(wbox(0.09, 1.1, 0.09, 0.03), '#5a3a22', { parent: M, p: [sx * 0.45, 0.55, 0] });
+    b.add(wbox(1.05, 0.66, 0.07, 0.03), '#8a6a44', { parent: M, p: [0, 0.75, 0.03] });
+    b.add(roofGeo(1.3, 0.35, 0.22, 0.08), '#7c3a2c', { parent: M, p: [0, 1.1, 0] });
+    for (const [x, y, c] of [[-0.3, 0.88, '#efe6cc'], [0.02, 0.86, '#f3e2b0'], [0.3, 0.9, '#efe6cc'], [-0.18, 0.6, '#f3e2b0'], [0.15, 0.62, '#efe6cc']]) {
+      b.add(tinyBox(0.2, 0.24, 0.02), c, { parent: M, p: [x, y, 0.08] });
+    }
+  },
+  portal(b, M) {
+    b.add(lathe3('portalbase', [[0.62, 0], [0.62, 0.08], [0.5, 0.12], [0, 0.12]], 18), '#7a746a', { parent: M });
+    b.add(new THREE.CircleGeometry(0.46, 18).rotateX(-Math.PI / 2), '#9fd0ff', { parent: M, p: [0, 0.13, 0], mat: 'glow' });
+    for (const sx of [-1, 1]) b.add(wbox(0.18, 1.2, 0.18, 0.05), '#8a8478', { parent: M, p: [sx * 0.45, 0.6, 0] });
+    b.add(wbox(1.2, 0.18, 0.24, 0.06), '#6e685e', { parent: M, p: [0, 1.25, 0] });
+    b.add(sphere3(0.2, 12, 10), '#bfe4ff', { parent: M, p: [0, 0.78, 0], mat: 'glow' });
+  },
+  brazier(b, M, pr) {
+    const col = pr.roof || '#ff8a4a';
+    b.add(wbox(0.12, 0.5, 0.12, 0.04), '#4a4440', { parent: M, p: [0, 0.25, 0] });
+    b.add(wbox(0.42, 0.08, 0.42, 0.03), '#3a3430', { parent: M, p: [0, 0.04, 0] });
+    b.add(lathe3('bowl', [[0.1, 0], [0.32, 0.12], [0.36, 0.2], [0.3, 0.21], [0.1, 0.1], [0, 0.1]], 14), '#5a544c', { parent: M, p: [0, 0.5, 0] });
+    b.add(horn3(0.42, 0.2, 9), col, { parent: M, p: [0, 0.58, 0], mat: 'glow' });
+    b.add(horn3(0.26, 0.12, 9), '#fff2c0', { parent: M, p: [0, 0.6, 0], mat: 'glow' });
+  },
+  // --- Dungeon-Schmuck (seit 13.7), pr.roof = "Wand oben|Fugen|Portalfarbe" des Dungeons ---
+  // Säule: Sockel, leicht bauchiger Schaft mit Kanneluren, Kapitell und ein leuchtendes Band
+  dpillar(b, M, pr) {
+    const [top, line, glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.3);
+    b.add(wbox(0.92, 0.28, 0.92, 0.06), darker(stone, 0.15), { parent: M, p: [0, 0.14, 0], shade: 0.3 });
+    b.add(wbox(0.78, 0.14, 0.78, 0.04), stone, { parent: M, p: [0, 0.34, 0] });
+    b.add(lathe3('dpillar', [[0.3, 0], [0.33, 0.4], [0.32, 1.1], [0.28, 1.75], [0, 1.75]], 14), stone, { parent: M, p: [0, 0.4, 0], shade: 0.25 });
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      b.add(tinyBox(0.04, 1.6, 0.04), darker(stone, 0.25), { parent: M, p: [Math.cos(a) * 0.31, 1.22, Math.sin(a) * 0.31], mat: 'detail' });
+    }
+    b.add(new THREE.TorusGeometry(0.33, 0.04, 6, 18).rotateX(Math.PI / 2), glow, { parent: M, p: [0, 0.95, 0], mat: 'glow' });
+    b.add(wbox(0.86, 0.16, 0.86, 0.04), stone, { parent: M, p: [0, 2.2, 0] });
+    b.add(wbox(1.0, 0.18, 1.0, 0.05), darker(stone, 0.1), { parent: M, p: [0, 2.36, 0], top: line, topK: 0.2 });
+  },
+  // Banner an einer Stange mit Querholz, Tuch in der Portalfarbe, Zeichen in der Mitte
+  dbanner(b, M, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    b.add(wbox(0.4, 0.12, 0.4, 0.04), darker(lighter(top, 0.3), 0.1), { parent: M, p: [0, 0.06, 0] });
+    b.add(limb3(2.3, 0.045, 0.04, 8), '#3a2a1c', { parent: M, p: [0, 0.1, 0] });
+    b.add(limb3(0.95, 0.03, 0.03, 6), '#3a2a1c', { parent: M, p: [-0.47, 2.15, 0.02], r: [0, 0, -Math.PI / 2] });
+    const cloth = darker(glow, 0.35);
+    b.add(wbox(0.8, 1.3, 0.04, 0.02), cloth, { parent: M, p: [0, 1.48, 0.06], shade: 0.2 });
+    for (const sx of [-1, 1]) b.add(tinyBox(0.26, 0.3, 0.04), cloth, { parent: M, p: [sx * 0.27, 0.72, 0.06], r: [0, 0, sx * 0.25] });
+    b.add(wbox(0.84, 0.08, 0.06, 0.02), '#c9a35a', { parent: M, p: [0, 2.12, 0.07] });
+    b.add(sphere3(0.15, 10, 8), glow, { parent: M, p: [0, 1.6, 0.1], s: [1, 1, 0.35], mat: 'glow' });
+    b.add(new THREE.TorusGeometry(0.21, 0.025, 5, 16), '#e8c46a', { parent: M, p: [0, 1.6, 0.1] });
+    for (const sx of [-1, 1]) b.add(sphere3(0.06, 8, 6), '#c9a35a', { parent: M, p: [sx * 0.47, 2.15, 0.02] });
+  },
+  // Wächterstatue: Sockel, kniende Gestalt mit Kapuze, Schwert vor sich, leuchtende Augen
+  dstatue(b, M, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.38);
+    b.add(wbox(0.9, 0.36, 0.9, 0.06), darker(stone, 0.2), { parent: M, p: [0, 0.18, 0], shade: 0.3 });
+    b.add(wbox(0.74, 0.12, 0.74, 0.04), stone, { parent: M, p: [0, 0.42, 0] });
+    b.add(lathe3('dstatbody', [[0, 0], [0.34, 0], [0.32, 0.4], [0.26, 0.9], [0.18, 1.1], [0, 1.12]], 12), stone, { parent: M, p: [0, 0.48, 0], shade: 0.25 });
+    b.add(sphere3(0.2, 12, 10), stone, { parent: M, p: [0, 1.66, 0.02] });
+    b.add(cap3(0.25, 1.3, 0, Math.PI * 2, 12, 6), darker(stone, 0.12), { parent: M, p: [0, 1.62, -0.02], s: [1, 1.15, 1.05] });
+    for (const sx of [-1, 1]) {
+      b.add(sphere3(0.035, 6, 5), glow, { parent: M, p: [sx * 0.07, 1.67, 0.19], mat: 'glow' });
+      b.add(sphere3(0.16, 10, 8), stone, { parent: M, p: [sx * 0.3, 1.38, 0.02], s: [1, 0.8, 1] });
+      b.add(limb3(0.5, 0.07, 0.06, 7), stone, { parent: M, p: [sx * 0.26, 1.35, 0.1], r: [-0.9, 0, -sx * 0.2] });
+    }
+    b.add(wbox(0.07, 1.0, 0.02, 0.01), lighter(stone, 0.2), { parent: M, p: [0, 1.0, 0.42] });
+    b.add(wbox(0.3, 0.06, 0.06, 0.02), darker(stone, 0.2), { parent: M, p: [0, 1.5, 0.42] });
+    b.add(sphere3(0.06, 8, 6), glow, { parent: M, p: [0, 1.58, 0.42], mat: 'glow' });
+  },
+  // Thron des Bosses: Stufen, hohe Lehne mit Zacken, Armlehnen, leuchtender Stein oben
+  dthrone(b, M, pr) {
+    const [top, line, glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.25);
+    b.add(wbox(2.2, 0.18, 1.5, 0.05), darker(stone, 0.2), { parent: M, p: [0, 0.09, 0], shade: 0.3 });
+    b.add(wbox(1.8, 0.18, 1.2, 0.05), darker(stone, 0.1), { parent: M, p: [0, 0.27, -0.05] });
+    b.add(wbox(1.2, 0.5, 0.9, 0.06), stone, { parent: M, p: [0, 0.6, -0.1], shade: 0.2 });
+    b.add(wbox(1.3, 2.2, 0.26, 0.06), stone, { parent: M, p: [0, 1.5, -0.5], shade: 0.25, top: line, topK: 0.15 });
+    for (const sx of [-1, 0, 1]) b.add(horn3(0.5 - Math.abs(sx) * 0.15, 0.1, 6), darker(stone, 0.15), { parent: M, p: [sx * 0.45, 2.6, -0.5] });
+    for (const sx of [-1, 1]) {
+      b.add(wbox(0.22, 0.4, 0.9, 0.05), darker(stone, 0.12), { parent: M, p: [sx * 0.62, 1.0, -0.1] });
+      b.add(sphere3(0.12, 8, 6), '#c9a35a', { parent: M, p: [sx * 0.62, 1.24, 0.32] });
+    }
+    b.add(wbox(0.9, 0.08, 0.7, 0.03), darker(glow, 0.4), { parent: M, p: [0, 0.88, -0.05] });
+    b.add(sphere3(0.2, 12, 10), glow, { parent: M, p: [0, 2.35, -0.38], mat: 'glow' });
+    b.add(new THREE.TorusGeometry(0.28, 0.035, 6, 18), '#e8c46a', { parent: M, p: [0, 2.35, -0.36] });
+  },
+  // Schatztruhe mit offenem Deckel und Gold darin
+  dchest(b, M) {
+    b.add(wbox(1.0, 0.5, 0.62, 0.05), '#7a4a26', { parent: M, p: [0, 0.25, 0], shade: 0.25 });
+    for (const x of [-0.4, 0, 0.4]) b.add(tinyBox(0.07, 0.52, 0.64), '#c9a35a', { parent: M, p: [x, 0.25, 0] });
+    b.add(wbox(1.0, 0.1, 0.62, 0.03), '#5a3a1c', { parent: M, p: [0, 0.82, -0.36], r: [-1.15, 0, 0] });
+    b.add(wbox(0.9, 0.16, 0.5, 0.06), '#ffd34d', { parent: M, p: [0, 0.5, 0.02], mat: 'glow' });
+    for (let k = 0; k < 7; k++) b.add(sphere3(0.07, 8, 6), k % 3 ? '#ffd34d' : '#ff6a5a', { parent: M, p: [-0.35 + k * 0.11, 0.6, ((k * 37) % 5 - 2) * 0.06], s: [1, 0.5, 1], mat: k % 3 ? undefined : 'glow' });
+    b.add(wbox(0.16, 0.18, 0.04, 0.02), '#e8c46a', { parent: M, p: [0, 0.32, 0.32] });
+  },
+  // Goldhaufen: flache Münzstapel und ein paar Edelsteine
+  dgold(b, M) {
+    b.add(lathe3('goldpile', [[0, 0], [0.48, 0], [0.4, 0.1], [0.22, 0.22], [0, 0.26]], 12), '#e8b830', { parent: M, shade: 0.2 });
+    for (let k = 0; k < 6; k++) {
+      const a = k * 1.1;
+      b.add(new THREE.CylinderGeometry(0.08, 0.08, 0.03, 10), '#ffd34d', { parent: M, p: [Math.cos(a) * 0.4, 0.03, Math.sin(a) * 0.32], r: [0.3 * (k % 2), 0, 0.2] });
+    }
+    b.add(sphere3(0.08, 6, 5), '#5ad0ff', { parent: M, p: [0.1, 0.24, 0.05], mat: 'glow' });
+    b.add(sphere3(0.07, 6, 5), '#ff5a7a', { parent: M, p: [-0.15, 0.18, -0.08], mat: 'glow' });
+  },
+  // Schrein: runder Altar mit Stufen, darüber schwebt ein Kristall in der Portalfarbe
+  dshrine(b, M, pr) {
+    const [top, , glow] = String(pr.roof).split('|');
+    const stone = lighter(top, 0.18);
+    b.add(lathe3('dshrine', [[0, 0], [0.95, 0], [0.95, 0.14], [0.75, 0.16], [0.75, 0.3], [0.55, 0.32], [0.5, 0.9], [0.62, 0.95], [0.62, 1.02], [0, 1.02]], 18), stone, { parent: M, shade: 0.25 });
+    b.add(new THREE.TorusGeometry(0.52, 0.04, 6, 20).rotateX(Math.PI / 2), glow, { parent: M, p: [0, 0.6, 0], mat: 'glow' });
+    b.add(new THREE.OctahedronGeometry(0.42, 0), glow, { parent: M, p: [0, 1.85, 0], s: [0.7, 1.6, 0.7], mat: 'glow' });
+    b.add(new THREE.OctahedronGeometry(0.2, 0), '#ffffff', { parent: M, p: [0, 1.85, 0], s: [0.7, 1.5, 0.7], mat: 'glow' });
+    b.add(new THREE.TorusGeometry(0.62, 0.03, 6, 24).rotateX(Math.PI / 2 - 0.25), glow, { parent: M, p: [0, 1.85, 0], mat: 'glow' });
+    for (let k = 0; k < 4; k++) {
+      const a = (k / 4) * Math.PI * 2 + 0.4;
+      b.add(new THREE.OctahedronGeometry(0.08, 0), glow, { parent: M, p: [Math.cos(a) * 0.45, 1.35 + (k % 2) * 0.2, Math.sin(a) * 0.45], s: [0.7, 1.4, 0.7], mat: 'glow' });
+    }
+  },
+  horse(b, M) {
+    if (typeof horseParts3 === 'function') horseParts3(b, null, { saddle: '#8a2a1a', parent: M });
+  },
+  hay(b, M) {
+    for (const [x, y, z] of [[-0.3, 0.17, 0], [0.3, 0.17, 0], [0, 0.5, 0]]) {
+      b.add(wbox(0.55, 0.32, 0.38, 0.09), '#d8b45a', { parent: M, p: [x, y, z], shade: 0.2 });
+      for (const dx of [-0.1, 0.1]) b.add(tinyBox(0.03, 0.33, 0.39), '#7a5a2a', { parent: M, p: [x + dx, y, z] });
+    }
+  },
+  targets(b, M) {
+    b.add(wbox(0.08, 0.8, 0.08, 0.03), '#5a3a22', { parent: M, p: [0, 0.4, -0.05] });
+    const disc = (r, c, z) => b.add(new THREE.CylinderGeometry(r, r, 0.06, 16).rotateX(Math.PI / 2), c, { parent: M, p: [0, 0.82, z] });
+    disc(0.36, '#e8d8a8', 0);
+    disc(0.25, '#c8402f', 0.01);
+    disc(0.12, '#e8d8a8', 0.02);
+    b.add(limb3(0.3, 0.012, 0.012, 4), '#6b4a2e', { parent: M, p: [0.1, 0.92, 0.05], r: [-1.1, 0, -0.6] });
+  },
+  herbs(b, M) {
+    b.add(wbox(0.9, 0.2, 0.4, 0.05), '#6b4a2e', { parent: M, p: [0, 0.1, 0] });
+    for (let k = -2; k <= 2; k++) b.add(sphere3(0.11, 8, 6), k % 2 ? '#6a9a46' : '#8aa040', { parent: M, p: [k * 0.17, 0.26, 0], s: [1, 1.3, 1] });
+  }
+};
+
+// --- Stadtschmuck (seit 13.85, welt.js TOWN_DECO): ohne Kollision, Art und Stil in pr.roof ("Stil|schnee") --------
+// Kleine, sparsame Formen; Blüten, Halme und Schneekappen ohne Umriss ('detail'). Schnee als flache weiße Kuppen.
+const DECO3_SNOW = '#eef4fa';
+const deco3Snow = (pr) => String(pr.roof || '').includes('schnee');
+function deco3Cap(b, M, x, y, z, sx, sz) {
+  b.add(cap3(1, Math.PI / 2, 0, Math.PI * 2, 10, 3), DECO3_SNOW, { parent: M, p: [x, y, z], s: [sx, 0.06, sz], mat: 'detail', ao: 0 });
+}
+// Fass am Boden (stBarrel3 steht auf dem Tresenbrett)
+function deco3Barrel(b, M, x, z, s, c = '#8a5a34') {
+  b.add(lathe3('barrel', [[0, 0], [0.2, 0], [0.24, 0.12], [0.26, 0.27], [0.24, 0.42], [0.2, 0.54], [0, 0.54]], 14), c, { parent: M, p: [x, 0, z], s: [s, s, s], shade: 0.25 });
+  for (const y of [0.12, 0.42]) b.add(torus3(0.245, 0.018, Math.PI * 2, 4, 14), '#3a2a1c', { parent: M, p: [x, y * s, z], r: [Math.PI / 2, 0, 0], s: [s, s, s], mat: 'detail' });
+}
+// Sack am Boden (stSack3 steht auf dem Tresenbrett)
+function deco3Sack(b, M, x, z, s = 1, c = '#c8b088') {
+  b.add(ball(10), c, { parent: M, p: [x, 0.16 * s, z], s: [0.2 * s, 0.19 * s, 0.17 * s], shade: 0.25 });
+  b.add(horn3(0.1 * s, 0.07 * s, 6), c, { parent: M, p: [x, 0.32 * s, z] });
+  b.add(torus3(0.05 * s, 0.012, Math.PI * 2, 3, 8), '#6b4a2e', { parent: M, p: [x, 0.35 * s, z], r: [Math.PI / 2, 0, 0], mat: 'detail' });
+}
+Object.assign(PROP3, {
+  // Pflanzkübel: Holzkasten mit Blumen (Kazehana), Tonkrug mit Palme (Wüste), Steintrog mit dürrem Dornbusch,
+  // Baumstumpf-Kübel mit Farn (Wald), Bottich mit Tanne (Frost) oder mit leuchtenden Pilzen (Moor)
+  planter(b, M, pr) {
+    const style = String(pr.roof).split('|')[0];
+    const snow = deco3Snow(pr);
+    if (style === 'palme') {
+      b.add(lathe3('decopot', [[0, 0], [0.16, 0], [0.24, 0.12], [0.26, 0.26], [0.2, 0.4], [0.22, 0.44], [0, 0.44]], 12), '#c07a4a', { parent: M, shade: 0.3, top: '#d89a62', topK: 0.4 });
+      b.add(torus3(0.2, 0.025, Math.PI * 2, 4, 12), '#8a4a2a', { parent: M, p: [0, 0.3, 0], r: [Math.PI / 2, 0, 0], mat: 'detail' });
+      b.add(limb3(0.9, 0.035, 0.05, 6), '#8a6a44', { parent: M, p: [0.04, 1.3, 0], r: [0, 0, -0.08] });
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + 0.3;
+        b.add(horn3(0.62, 0.07, 5), k % 2 ? '#4a8a3a' : '#5a9a42', { parent: M, p: [0.1, 1.28, 0], r: [Math.sin(a) * 1.9, 0, -Math.cos(a) * 1.9], s: [1, 1, 0.35], mat: 'detail' });
+      }
+      return;
+    }
+    if (style === 'dorn') {
+      b.add(wbox(0.72, 0.3, 0.38, 0.06), '#8a8276', { parent: M, p: [0, 0.15, 0], shade: 0.3, top: '#a49c90', topK: 0.4 });
+      b.add(tinyBox(0.62, 0.02, 0.28), '#4a3a2a', { parent: M, p: [0, 0.3, 0] });
+      const twig = '#6a5a44';
+      for (const [x, a, L] of [[-0.18, -0.5, 0.42], [0, 0.1, 0.55], [0.2, 0.55, 0.4], [-0.05, -0.15, 0.36]]) {
+        b.add(limb3(L, 0.018, 0.012, 4), twig, { parent: M, p: [x + Math.sin(a) * L, 0.3 + Math.cos(a) * L, 0], r: [0, 0, a + Math.PI], mat: 'detail' });
+      }
+      for (const [x, y, z, c] of [[-0.22, 0.55, 0.02, '#7a8a5a'], [0.06, 0.72, -0.04, '#8a9a62'], [0.24, 0.52, 0.04, '#6a7a4e']]) b.add(sphere3(0.07, 6, 5), c, { parent: M, p: [x, y, z], mat: 'detail' });
+      return;
+    }
+    if (style === 'farn') {
+      b.add(lathe3('decostump', [[0, 0], [0.3, 0], [0.28, 0.06], [0.26, 0.32], [0.22, 0.34], [0, 0.32]], 10), '#6b4a2e', { parent: M, shade: 0.35, top: '#b08c5c', topK: 0.3 });
+      for (let k = 0; k < 7; k++) {
+        const a = (k / 7) * Math.PI * 2;
+        b.add(horn3(0.46, 0.06, 5), k % 2 ? '#3f7a34' : '#4f8a3c', { parent: M, p: [0, 0.32, 0], r: [Math.sin(a) * 1.0, 0, -Math.cos(a) * 1.0], s: [1, 1, 0.3], mat: 'detail' });
+      }
+      b.add(cyl3(0.025, 0.03, 0.12, 6), '#efe4c4', { parent: M, p: [0.28, 0.06, 0.18], mat: 'detail' });
+      b.add(cap3(0.07, Math.PI / 2, 0, Math.PI * 2, 8, 3), '#c8402f', { parent: M, p: [0.28, 0.12, 0.18], mat: 'detail' });
+      return;
+    }
+    // Holzkasten oder Bottich
+    const tub = style === 'tanne' || style === 'pilz';
+    if (tub) {
+      b.add(cyl3(0.3, 0.26, 0.34, 12), '#7a5434', { parent: M, p: [0, 0.17, 0], shade: 0.3 });
+      for (const y of [0.07, 0.27]) b.add(torus3(0.285, 0.016, Math.PI * 2, 4, 12), '#3a2a1c', { parent: M, p: [0, y, 0], r: [Math.PI / 2, 0, 0], mat: 'detail' });
+      b.add(cyl3(0.27, 0.27, 0.02, 12), '#4a3a2a', { parent: M, p: [0, 0.33, 0], mat: 'detail' });
+    } else {
+      b.add(wbox(0.8, 0.28, 0.34, 0.04), '#8a6440', { parent: M, p: [0, 0.14, 0], shade: 0.3 });
+      for (const sx of [-1, 1]) b.add(tinyBox(0.05, 0.3, 0.36), '#5a3a22', { parent: M, p: [sx * 0.38, 0.14, 0] });
+      b.add(tinyBox(0.72, 0.02, 0.26), '#4a3424', { parent: M, p: [0, 0.28, 0] });
+    }
+    if (style === 'tanne') {
+      for (const [y, r, h] of [[0.34, 0.26, 0.42], [0.58, 0.2, 0.36], [0.8, 0.13, 0.3]]) {
+        b.add(cyl3(0.01, r, h, 7), '#2f5a3a', { parent: M, p: [0, y + h / 2, 0], shade: 0.2 });
+        if (snow) b.add(cyl3(0.01, r * 0.8, h * 0.35, 7), DECO3_SNOW, { parent: M, p: [0, y + h * 0.82, 0], mat: 'detail' });
+      }
+      if (snow) deco3Cap(b, M, 0, 0.33, 0, 0.24, 0.24);
+      return;
+    }
+    if (style === 'pilz') {
+      for (const [x, z, h, r, c] of [[-0.1, 0.02, 0.16, 0.11, '#9a6ad8'], [0.1, -0.06, 0.24, 0.13, '#6aa8d8'], [0.05, 0.12, 0.1, 0.07, '#9a6ad8']]) {
+        b.add(cyl3(0.025, 0.03, h, 6), '#e8e0d0', { parent: M, p: [x, 0.33 + h / 2, z], mat: 'detail' });
+        b.add(cap3(r, Math.PI / 2, 0, Math.PI * 2, 8, 3), c, { parent: M, p: [x, 0.33 + h, z], s: [1, 0.7, 1], mat: 'glow' });
+      }
+      return;
+    }
+    // Blumen in drei Farben über grünen Büscheln
+    const cols = ['#d8403a', '#f0c84a', '#f4f0e4', '#c8509a'];
+    for (let k = 0; k < 6; k++) {
+      const x = -0.3 + k * 0.12;
+      const z = (k % 2 ? 0.05 : -0.05);
+      b.add(sphere3(0.08, 6, 5), k % 2 ? '#4f8a34' : '#5a9a3c', { parent: M, p: [x, 0.33, z], s: [1, 0.8, 1], mat: 'detail' });
+      b.add(sphere3(0.05, 6, 5), cols[k % 4], { parent: M, p: [x + 0.02, 0.44 + (k % 3) * 0.03, z], mat: 'detail' });
+    }
+  },
+  // Bank: Holz mit Lehne (die Front zeigt nach Süden) oder ein Steinblock; im Frost mit Schnee auf der Sitzfläche
+  bench(b, M, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'stein') {
+      for (const sx of [-1, 1]) b.add(wbox(0.24, 0.32, 0.36, 0.05), '#a49880', { parent: M, p: [sx * 0.5, 0.16, 0], shade: 0.3 });
+      b.add(wbox(1.4, 0.12, 0.46, 0.05), '#b8ac92', { parent: M, p: [0, 0.38, 0], top: '#cabea4', topK: 0.4 });
+    } else {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.add(wbox(0.07, 0.36, 0.07, 0.02), '#5a3a22', { parent: M, p: [sx * 0.55, 0.18, sz * 0.14] });
+      b.add(wbox(1.35, 0.07, 0.4, 0.02), '#9a7448', { parent: M, p: [0, 0.38, 0], top: '#b08c5c', topK: 0.4 });
+      for (const sx of [-1, 1]) b.add(wbox(0.07, 0.42, 0.06, 0.02), '#5a3a22', { parent: M, p: [sx * 0.55, 0.6, -0.17] });
+      b.add(wbox(1.35, 0.14, 0.05, 0.02), '#9a7448', { parent: M, p: [0, 0.72, -0.18] });
+    }
+    if (deco3Snow(pr)) deco3Cap(b, M, 0, 0.42, 0, 0.6, 0.18);
+  },
+  // Warenstapel: Fass, zwei Kisten und ein Sack (markt), Krüge und Säcke (krug), Erzkisten mit Glut (erz)
+  goods(b, M, pr) {
+    const style = String(pr.roof).split('|')[0];
+    if (style === 'krug') {
+      for (const [x, z, s, c] of [[-0.28, -0.05, 1.15, '#c07a4a'], [0.05, -0.18, 0.95, '#b06a3a'], [0.02, 0.2, 0.8, '#d0905a']]) {
+        b.add(lathe3('decoamph', [[0, 0], [0.08, 0], [0.18, 0.12], [0.2, 0.26], [0.12, 0.42], [0.07, 0.48], [0.09, 0.52], [0, 0.52]], 12), c, { parent: M, p: [x, 0, z], s: [s, s, s], shade: 0.3 });
+        b.add(torus3(0.06, 0.015, Math.PI, 3, 6), c, { parent: M, p: [x + 0.1 * s, 0.4 * s, z], r: [0, 0, -Math.PI / 2], mat: 'detail' });
+      }
+      deco3Sack(b, M, 0.36, 0.06, 1.0, '#d8c08a');
+      b.add(cyl3(0.1, 0.1, 0.62, 8), '#9a3a2a', { parent: M, p: [0.25, 0.1, 0.32], r: [0, 0, Math.PI / 2], shade: 0.2 });
+      for (const dx of [-0.2, 0, 0.2]) b.add(torus3(0.102, 0.012, Math.PI * 2, 3, 8), '#e8c46a', { parent: M, p: [0.25 + dx, 0.1, 0.32], r: [0, Math.PI / 2, 0], mat: 'detail' });
+      return;
+    }
+    if (style === 'erz') {
+      stCrate3(b, M, -0.15, 0, 0, 0.5, '#6a5a4a');
+      for (let k = 0; k < 5; k++) b.add(sphere3(0.09, 5, 4), k % 2 ? '#3a3632' : '#4a4440', { parent: M, p: [-0.3 + (k % 3) * 0.14, 0.48, -0.1 + Math.floor(k / 3) * 0.18], s: [1, 0.75, 1] });
+      b.add(sphere3(0.05, 5, 4), '#ff8a3a', { parent: M, p: [-0.12, 0.52, 0.02], mat: 'glow' });
+      deco3Barrel(b, M, 0.4, 0.05, 0.9, '#5a4a3a');
+      b.add(cyl3(0.2, 0.2, 0.02, 10), '#2a2420', { parent: M, p: [0.4, 0.49, 0.05], mat: 'detail' });
+      return;
+    }
+    deco3Barrel(b, M, -0.38, 0.02, 1.0);
+    stCrate3(b, M, 0.15, 0, -0.05, 0.46, '#a07a4a', 0.15);
+    stCrate3(b, M, 0.15, 0.42, -0.05, 0.36, '#b08c5c', -0.2);
+    deco3Sack(b, M, 0.0, 0.3, 0.85, '#c8b088');
+    if (deco3Snow(pr)) {
+      deco3Cap(b, M, -0.38, 0.54, 0.02, 0.2, 0.2);
+      deco3Cap(b, M, 0.15, 0.74, -0.05, 0.2, 0.2);
+    }
+  },
+  // Brennholz: gestapelte Scheite auf zwei Querhölzern
+  woodpile(b, M, pr) {
+    for (const z of [-0.18, 0.18]) b.add(wbox(0.9, 0.06, 0.08, 0.02), '#5a3a22', { parent: M, p: [0, 0.03, z] });
+    const rows = [[-0.3, -0.1, 0.1, 0.3], [-0.2, 0, 0.2], [-0.1, 0.1]];
+    rows.forEach((xs, j) => xs.forEach((x, k) => {
+      const y = 0.15 + j * 0.15;
+      b.add(cyl3(0.075, 0.075, 0.62, 7), (j + k) % 2 ? '#8a6440' : '#7a5434', { parent: M, p: [x, y, 0], r: [Math.PI / 2, 0, 0], shade: 0.15 });
+      b.add(cyl3(0.06, 0.06, 0.625, 7), '#d8b88a', { parent: M, p: [x, y, 0], r: [Math.PI / 2, 0, 0], mat: 'detail', s: [1, 1.0, 1] });
+    }));
+    if (deco3Snow(pr)) deco3Cap(b, M, 0, 0.5, 0, 0.26, 0.34);
+  },
+  // Säcke, an die Mauer gelehnt
+  sacks(b, M, pr) {
+    deco3Sack(b, M, -0.22, -0.08, 1.1, '#c8b088');
+    deco3Sack(b, M, 0.2, -0.04, 1.0, '#b8a07a');
+    deco3Sack(b, M, 0.0, 0.16, 0.9, '#d8c49a');
+    if (deco3Snow(pr)) deco3Cap(b, M, -0.2, 0.46, -0.08, 0.14, 0.12);
+  },
+  // Krüge (Wüste)
+  pots(b, M) {
+    for (const [x, z, s, c] of [[-0.2, 0, 1.2, '#c07a4a'], [0.18, -0.08, 0.9, '#b06a3a'], [0.12, 0.2, 0.7, '#d8a06a']]) {
+      b.add(lathe3('decoamph', [[0, 0], [0.08, 0], [0.18, 0.12], [0.2, 0.26], [0.12, 0.42], [0.07, 0.48], [0.09, 0.52], [0, 0.52]], 12), c, { parent: M, p: [x, 0, z], s: [s, s, s], shade: 0.3 });
+    }
+  },
+  // Totem der Orks: Pfahl mit Schädel, Hörnern und Fellbändern
+  totem(b, M) {
+    b.add(lathe3('decototem', [[0, 0], [0.12, 0], [0.1, 0.1], [0.09, 1.5], [0, 1.52]], 8), '#6b4a2e', { parent: M, shade: 0.3 });
+    b.add(sphere3(0.16, 8, 6), '#e8dcc0', { parent: M, p: [0, 1.42, 0.05], s: [1, 1.1, 1] });
+    for (const sx of [-1, 1]) {
+      b.add(sphere3(0.04, 5, 4), '#2a1c14', { parent: M, p: [sx * 0.06, 1.44, 0.18], mat: 'detail' });
+      b.add(horn3(0.32, 0.05, 6), '#d8ccb0', { parent: M, p: [sx * 0.12, 1.5, 0], r: [0, 0, -sx * 1.1] });
+    }
+    for (const [y, c] of [[0.85, '#8a2a1a'], [1.05, '#5a3a22']]) b.add(cyl3(0.11, 0.11, 0.08, 8), c, { parent: M, p: [0, y, 0], mat: 'detail' });
+  },
+  // Erzhaufen mit glühenden Brocken (Feuerberg)
+  ore(b, M) {
+    b.add(lathe3('decoore', [[0, 0], [0.42, 0], [0.32, 0.12], [0.16, 0.24], [0, 0.27]], 8), '#3a3430', { parent: M, shade: 0.3 });
+    for (let k = 0; k < 5; k++) b.add(sphere3(0.08, 5, 4), k % 2 ? '#4a4440' : '#2e2a28', { parent: M, p: [Math.cos(k * 1.3) * 0.26, 0.12, Math.sin(k * 1.3) * 0.2], s: [1, 0.8, 1] });
+    for (const [x, z] of [[0.08, 0.05], [-0.14, -0.08]]) b.add(sphere3(0.045, 5, 4), '#ff8a3a', { parent: M, p: [x, 0.24, z], mat: 'glow' });
+  },
+  // Wäscheleine (seit 13.91): zwei Pfosten, Leine, vier Tücher (eines in der Farbe der Stadt)
+  waesche(b, M, pr) {
+    for (const sx of [-1, 1]) b.add(wbox(0.07, 1.35, 0.07, 0.02), '#5a3a22', { parent: M, p: [sx * 0.78, 0.67, 0] });
+    b.add(limb3(1.56, 0.008, 0.008, 4), '#e8e0d0', { parent: M, p: [-0.78, 1.26, 0], r: [0, 0, Math.PI / 2], mat: 'detail' });
+    const cloth = [[-0.5, 0.34, 0.42, pr.roof || '#9a2f2a'], [-0.1, 0.3, 0.55, '#f4f0e4'], [0.26, 0.24, 0.36, '#8ab0d0'], [0.56, 0.2, 0.3, '#d8c49a']];
+    for (const [x, w, h, c] of cloth) {
+      b.add(wbox(w, h, 0.025, 0.01), c, { parent: M, p: [x, 1.25 - h / 2, 0], r: [0.05, 0, (x * 7) % 0.1 - 0.05], shade: 0.2 });
+      for (const dx of [-w / 2 + 0.03, w / 2 - 0.03]) b.add(tinyBox(0.025, 0.06, 0.035), '#c8a878', { parent: M, p: [x + dx, 1.26, 0] });
+    }
+  },
+  // Handkarren (seit 13.91): Ladefläche mit Brettern, zwei Speichenräder, Deichsel, Säcke und eine Kiste
+  karren(b, M, pr) {
+    b.add(wbox(1.1, 0.09, 0.66, 0.02), '#8a6440', { parent: M, p: [0, 0.48, 0], shade: 0.2, top: '#9a7448', topK: 0.4 });
+    for (const sz of [-1, 1]) b.add(wbox(1.1, 0.16, 0.05, 0.015), '#7a5434', { parent: M, p: [0, 0.6, sz * 0.32] });
+    b.add(wbox(0.05, 0.16, 0.66, 0.015), '#7a5434', { parent: M, p: [0.53, 0.6, 0] });
+    for (const sz of [-1, 1]) {
+      b.add(torus3(0.27, 0.035, Math.PI * 2, 4, 14), '#5a3a22', { parent: M, p: [0.05, 0.3, sz * 0.4] });
+      for (let k = 0; k < 3; k++) b.add(tinyBox(0.5, 0.03, 0.03), '#6b4a2e', { parent: M, p: [0.05, 0.3, sz * 0.4], r: [0, 0, k * Math.PI / 3] });
+      b.add(limb3(0.95, 0.025, 0.02, 5), '#6b4a2e', { parent: M, p: [-0.5, 0.5, sz * 0.25], r: [0, 0, -Math.PI / 2 - 0.35] });
+    }
+    b.add(limb3(0.86, 0.03, 0.03, 5), '#5a3a22', { parent: M, p: [0.05, 0.3, 0.43], r: [Math.PI / 2, 0, 0] });
+    b.add(ball(10), '#c8b088', { parent: M, p: [-0.3, 0.68, -0.1], s: [0.2, 0.18, 0.17], shade: 0.25 });
+    b.add(ball(10), '#b8a07a', { parent: M, p: [-0.15, 0.68, 0.05], s: [0.19, 0.16, 0.16] });
+    stCrate3(b, M, 0.25, 0.53, -0.02, 0.36, '#a07a4a', 0.2);
+    if (deco3Snow(pr)) deco3Cap(b, M, 0, 0.9, 0, 0.4, 0.26);
+  },
+  // Banner an der Mauer: Stange mit Querholz, Tuch in der Farbe der Stadt mit goldenem Rand und Zeichen
+  wallbanner(b, M, pr) {
+    const cloth = pr.roof || '#9a2f2a';
+    b.add(limb3(2.0, 0.04, 0.035, 6), '#3a2a1c', { parent: M, p: [0, 2.0, -0.1] });
+    b.add(limb3(0.8, 0.025, 0.025, 5), '#3a2a1c', { parent: M, p: [-0.4, 1.86, -0.06], r: [0, 0, -Math.PI / 2] });
+    b.add(wbox(0.66, 1.0, 0.035, 0.015), cloth, { parent: M, p: [0, 1.32, -0.04], shade: 0.25 });
+    for (const sx of [-1, 1]) b.add(tinyBox(0.22, 0.24, 0.035), cloth, { parent: M, p: [sx * 0.22, 0.76, -0.04], r: [0, 0, sx * 0.25] });
+    b.add(tinyBox(0.68, 0.05, 0.04), '#c9a35a', { parent: M, p: [0, 1.81, -0.03] });
+    b.add(sphere3(0.1, 8, 6), '#e8c46a', { parent: M, p: [0, 1.38, -0.01], s: [1, 1, 0.3] });
+    b.add(sphere3(0.05, 6, 5), cloth, { parent: M, p: [0, 1.38, 0.01], s: [1, 1, 0.3], mat: 'detail' });
+    for (const sx of [-1, 1]) b.add(sphere3(0.045, 6, 5), '#c9a35a', { parent: M, p: [sx * 0.4, 1.86, -0.06], mat: 'detail' });
+  }
+});
+
+// --- Gras, Klee und Blumen (seit 7.9) -------------------------------------------------------------
+// Flache Halme und Blätter mit Farbverlauf in den Ecken: am Fuß dunkel, an der Spitze hell. Die Normalen
+// zeigen nach oben, so wird Gras wie der Boden beleuchtet. Halme sind von beiden Seiten sichtbar,
+// Blätter und Blüten nur von oben (dorthin schaut die Kamera immer). Den Wind rechnet worldGrassMat.
+function flatGeo(key, make) {
+  return geo3('flat' + key, () => {
+    const pos = [];
+    const col = [];
+    const idx = [];
+    const B = {
+      v(x, y, z, c) {
+        pos.push(x, y, z);
+        col.push(c.r, c.g, c.b);
+        return pos.length / 3 - 1;
+      },
+      both(a, b, c) {
+        idx.push(a, b, c, a, c, b);
+      },
+      // Dreieck mit der Vorderseite nach oben
+      up(a, b, c) {
+        const ny = (pos[b * 3 + 2] - pos[a * 3 + 2]) * (pos[c * 3] - pos[a * 3]) - (pos[b * 3] - pos[a * 3]) * (pos[c * 3 + 2] - pos[a * 3 + 2]);
+        if (ny > 0) idx.push(a, b, c);
+        else idx.push(a, c, b);
+      }
+    };
+    make(B);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    const nor = new Float32Array(pos.length);
+    for (let i = 1; i < nor.length; i += 3) nor[i] = 1;
+    g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+    g.setIndex(idx);
+    return g;
+  });
+}
+
+// Farbverlauf eines Halms: Fuß dunkel und kühl, Mitte in der Grasfarbe, Spitze hell und gelblich
+const _gTip = new THREE.Color('#e4f0a0');
+const _gFoot = new THREE.Color('#1e3a2a');
+function grassShades(hex) {
+  const mid = new THREE.Color(hex);
+  return { foot: mid.clone().multiplyScalar(0.5).lerp(_gFoot, 0.25), mid, tip: mid.clone().lerp(_gTip, 0.32) };
+}
+
+// Ein Halm: zwei Ecken am Fuß, zwei in der Mitte, die Spitze; nach außen (Winkel a) gebogen
+function blade3(B, x, z, a, h, w, lean, c) {
+  const rx = Math.cos(a);
+  const rz = Math.sin(a);
+  const mx = x + rx * lean * 0.4;
+  const mz = z + rz * lean * 0.4;
+  const v0 = B.v(x + rz * w, 0, z - rx * w, c.foot);
+  const v1 = B.v(x - rz * w, 0, z + rx * w, c.foot);
+  const v2 = B.v(mx + rz * w * 0.7, h * 0.5, mz - rx * w * 0.7, c.mid);
+  const v3 = B.v(mx - rz * w * 0.7, h * 0.5, mz + rx * w * 0.7, c.mid);
+  const v4 = B.v(x + rx * lean, h, z + rz * lean, c.tip);
+  B.both(v0, v1, v3);
+  B.both(v0, v3, v2);
+  B.both(v2, v3, v4);
+}
+
+// Büschelformen: 'short' fünf kurze Halme, 'tall' lange Halme mit kurzen dazwischen, 'clover' drei Kleeblätter
+function tuftGeo(color, form) {
+  return flatGeo(`tuft${color}${form}`, (B) => {
+    const c = grassShades(color);
+    if (form === 'clover') {
+      // Herzförmige Blätter als Fächer vom Stiel aus, leicht nach außen gewölbt
+      for (let k = 0; k < 3; k++) {
+        const a = (k / 3) * Math.PI * 2 + 0.3;
+        const s = B.v(Math.cos(a) * 0.015, 0.05, Math.sin(a) * 0.015, c.foot);
+        const rim = [[-1.25, 0.05], [-0.6, 0.092], [0, 0.07], [0.6, 0.092], [1.25, 0.05]].map(([da, r], j) =>
+          B.v(Math.cos(a + da * 0.55) * r + Math.cos(a) * 0.015, 0.08 + (j % 2) * 0.012, Math.sin(a + da * 0.55) * r + Math.sin(a) * 0.015, j % 2 ? c.tip : c.mid));
+        for (let j = 0; j < 4; j++) B.up(s, rim[j], rim[j + 1]);
+      }
+      return;
+    }
+    const tall = form === 'tall';
+    const n = tall ? 6 : 5;
+    for (let k = 0; k < n; k++) {
+      const a = (k / n) * Math.PI * 2 + (k % 2) * 0.4;
+      const long = tall && k % 2 === 0;
+      const h = long ? 0.46 + (k % 3) * 0.05 : 0.24 + ((k * 7) % 5) * 0.035;
+      blade3(B, Math.cos(a) * 0.04, Math.sin(a) * 0.04, a, h, long ? 0.026 : 0.034, h * 0.4, c);
+    }
+  });
+}
+
+// Blume: dünner Stiel, fünf runde Blütenblätter (je ein Fächer), gelbe Mitte
+const _fStem = grassShades('#4a7a30');
+const _fGold = new THREE.Color('#f0c83a');
+function flowerGeo(color) {
+  return flatGeo('flower' + color, (B) => {
+    blade3(B, 0, 0, 0.6, 0.25, 0.012, 0.04, _fStem);
+    const hx = Math.cos(0.6) * 0.04;
+    const hz = Math.sin(0.6) * 0.04;
+    const outer = new THREE.Color(color);
+    const inner = outer.clone().multiplyScalar(0.78);
+    const cv = B.v(hx, 0.245, hz, inner);
+    const rim = [];
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      for (const [da, r] of [[-0.45, 0.07], [-0.2, 0.095], [0.2, 0.095], [0.45, 0.07]]) {
+        rim.push(B.v(hx + Math.cos(a + da) * r, 0.272, hz + Math.sin(a + da) * r, outer));
+      }
+      rim.push(B.v(hx + Math.cos(a + 0.63) * 0.03, 0.252, hz + Math.sin(a + 0.63) * 0.03, inner));
+    }
+    for (let k = 0; k < rim.length; k++) B.up(cv, rim[k], rim[(k + 1) % rim.length]);
+    const gv = B.v(hx, 0.28, hz, _fGold);
+    const ring = [0, 1, 2, 3].map((k) => B.v(hx + Math.cos(k * 1.571) * 0.027, 0.262, hz + Math.sin(k * 1.571) * 0.027, inner.clone().lerp(_fGold, 0.6)));
+    for (let k = 0; k < 4; k++) B.up(gv, ring[k], ring[(k + 1) % 4]);
+  });
+}
+
+// Grasfarbe je Boden; auf Wegen vereinzelt trockene Büschel. Seit 8.4 auch bereifte Halme im Schnee,
+// dürres Wüstengras auf Sand und totes graues Gras auf Asche, jeweils nur jede n-te Kachel (GRASS3_SPARSE)
+const GRASS3 = {
+  [GROUND.GRASS]: '#4f8a34', [GROUND.MEADOW]: '#62a040', [GROUND.FOREST]: '#2e5a2a', [GROUND.SWAMP]: '#4a5a34', [GROUND.PATH]: '#7a8a3e',
+  [GROUND.SNOW]: '#9aa88a', [GROUND.SAND]: '#a89a5a', [GROUND.ASH]: '#6a645a'
+};
+const GRASS3_SPARSE = { [GROUND.SNOW]: 9, [GROUND.SAND]: 12, [GROUND.ASH]: 14 };
+// dichtes Gras fast auf jeder Kachel (seit 14.54 als Liste, damit das Dämmergras der Schattenseite dazukommen kann)
+const GRASS3_DENSE = new Set([GROUND.GRASS, GROUND.MEADOW]);
+const CLOVER3 = '#3a8048';
+const FLOWER3 = { [DECO.FLOWER_RED]: '#e04a3a', [DECO.FLOWER_YELLOW]: '#f0c83a', [DECO.FLOWER_WHITE]: '#f4f0e8' };
+
+// Vorlagen der häufigen Objekte: einmal gebacken, danach nur noch verschoben und gedreht
+// Laubbäume mit eigenem Aussehen je Gebiet (seit 14.54 als Liste; die Schattenkarten tragen sich in schattenwelt.js ein)
+const TREE3_STYLED = new Set(['nagadschungel']);
+const tplTree = (kind, v, style) => bakeTemplate(`${kind}:${v}:${style}`, (b) => {
+  if (kind === 'blossom') WORLD3.tree(b, null, v, 'blossom');
+  else WORLD3[kind](b, null, v, style);
+});
+const tplWall = (style) => (style ? bakeTemplate('wall:' + style, (b) => WORLD3[style](b)) : bakeTemplate('wall', (b) => WORLD3.wall(b, 0, 0, false)));
+const tplTuft = (color, form) => bakeTemplate('tuft' + color + form, (b) => b.add(tuftGeo(color, form), null, { mat: 'grass' }));
+const tplFlower = (color, grass) => bakeTemplate('flower' + color + grass, (b) => {
+  b.add(flowerGeo(color), null, { mat: 'grass' });
+  b.add(tuftGeo(grass, 'short'), null, { p: [-0.25, 0, 0.25], s: 0.8, mat: 'grass' });
+});
+const tplPebble = (v, style) => bakeTemplate(`pebble:${v}:${style}`, (b) => {
+  const [base, top] = ROCK_STYLES[style] || ROCK_STYLES.wiesen;
+  b.add(rockGeo(v, 0), base, { s: [0.1, 0.07, 0.08], p: [0, 0.03, 0], top, topK: 0.5, mat: 'grass' });
+});
+// Schmuck ohne Kollision (seit 6.5, neu gebaut in 8.4): Baumstumpf, umgefallener Stamm, Pilze, Knochen, Busch,
+// Kristalle, toter Baum und Schneewehe. Jedes Teil in echter Größe, fest im Boden verankert (Büschel oder kleiner
+// Hügel am Fuß), mit dunkler Unterseite und heller Oberseite. Dünne Teile (Zweige, Beeren, Pilzpunkte, Jahresringe)
+// kommen ins Material 'detail' ohne Umriss, sonst wären sie nur schwarze Striche.
+
+// Ast, Wurzel oder Knochen zwischen zwei Punkten a → z (seit 8.4). Nie ein gedrehtes limb3: das hängt von y = 0
+// nach unten und landete so im Boden. rund: Kapsel, sonst ein schlanker Kegelstumpf (ein Drittel der Dreiecke).
+const _stD = new THREE.Vector3();
+const _stOne = new THREE.Vector3(1, 1, 1);
+function stick3(b, a, z, r1, r2, color, o = {}) {
+  _stD.set(z[0] - a[0], z[1] - a[1], z[2] - a[2]);
+  const len = Math.max(0.05, +_stD.length().toFixed(2));
+  const q = new THREE.Quaternion().setFromUnitVectors(_down, _stD.normalize());
+  const geo = o.round ? limb3(len, r1, r2, o.seg || 6) : lathe3(`stick${len},${r1},${r2}`, [[0, -len], [r2, -len], [r1, 0], [0, 0]], o.seg || 5);
+  b.add(geo, color, Object.assign({}, o, { m: new THREE.Matrix4().compose(new THREE.Vector3(a[0], a[1], a[2]), q, _stOne) }));
+}
+// Teil in einem gedrehten Unterkörper (Pilz, Kristall): Matrix M mal eigene Lage
+const atM3 = (M, p, r, s) => M.clone().multiply(partMatrix({ p, r, s }));
+
+// Laubwolke mit Ausbuchtungen (seit 8.4): Ikosaeder, an neun Stellen nach außen gewölbt, dazu feines Rauschen
+// für den Blattrand; unten abgeflacht. Für Moospolster und Schneehauben. foliageR gibt den Radius der
+// Wolke in einer Richtung (ohne Rauschen).
+const FOLIAGE3 = [];
+function foliageLobes(v) {
+  if (!FOLIAGE3[v]) {
+    const rnd = mulberry32(57 + v * 23);
+    FOLIAGE3[v] = Array.from({ length: 9 }, (_, k) => {
+      // sechs Ausbuchtungen rundum, drei oben
+      const a = (k < 6 ? k / 6 : (k - 6) / 3 + 0.15) * Math.PI * 2 + rnd() * 0.5;
+      const e = k < 6 ? 0.1 + rnd() * 0.35 : 0.75 + rnd() * 0.3;
+      return [Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e), 0.32 + rnd() * 0.12];
+    });
+  }
+  return FOLIAGE3[v];
+}
+function foliageR(v, x, y, z) {
+  let r = 0.74;
+  for (const [lx, ly, lz, a] of foliageLobes(v)) r += a * Math.pow(Math.max(0, x * lx + y * ly + z * lz), 7);
+  return r;
+}
+function foliageGeo(v, detail = 2) {
+  return geo3(`foliage${v},${detail}`, () => {
+    const g = smoothGeo(new THREE.IcosahedronGeometry(1, detail));
+    const pos = g.attributes.position;
+    const rnd = mulberry32(91 + v * 7);
+    for (let i = 0; i < pos.count; i++) {
+      _v1.set(pos.getX(i), pos.getY(i), pos.getZ(i)).normalize();
+      const r = foliageR(v, _v1.x, _v1.y, _v1.z) + (rnd() - 0.5) * 0.08;
+      let y = _v1.y * r;
+      if (y < -0.3) y = -0.3 + (y + 0.3) * 0.25;
+      pos.setXYZ(i, _v1.x * r, y, _v1.z * r);
+    }
+    g.computeVertexNormals();
+    return g;
+  });
+}
+// Laubbausch für Büsche (seit 8.4): kleine, leicht verbeulte Kugel mit Eckenfarben, unten dunkel, oben hell.
+// Mehrere davon überlappen sich; die Umrisse zwischen ihnen zeichnen die einzelnen Bausche wie bei den Baumkronen.
+function puffGeo(v, lo, hi) {
+  return geo3(`puff${v},${lo},${hi}`, () => {
+    const g = smoothGeo(new THREE.IcosahedronGeometry(1, 1));
+    const P = g.attributes.position;
+    const rnd = mulberry32(71 + v * 11);
+    for (let i = 0; i < P.count; i++) {
+      _v1.set(P.getX(i), P.getY(i), P.getZ(i)).normalize();
+      const r = 0.94 + rnd() * 0.12;
+      P.setXYZ(i, _v1.x * r, Math.max(-0.55, _v1.y * r * 0.92), _v1.z * r);
+    }
+    g.computeVertexNormals();
+    const N = g.attributes.normal;
+    const a = new THREE.Color(lo);
+    const b = new THREE.Color(hi);
+    const col = new Float32Array(P.count * 3);
+    for (let i = 0; i < P.count; i++) {
+      const t = Math.max(0, Math.min(1, (P.getY(i) + 0.1) / 0.9)) * 0.55 + Math.max(0, N.getY(i)) * 0.4;
+      _c.copy(a).lerp(b, Math.min(1, t));
+      col[i * 3] = _c.r;
+      col[i * 3 + 1] = _c.g;
+      col[i * 3 + 2] = _c.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    return g;
+  });
+}
+// Kristall (seit 8.4): sechseckiges Prisma (Radius 1, Höhe 1) und Pyramidenspitze (Höhe 0,45) ohne gemeinsame
+// Ecken: jede Facette hat ihre eigene Normale und fängt das Licht. Nie durch smoothGeo schicken.
+function crystalGeo(part, sides = 6) {
+  return geo3(`crystal${part}${sides}`, () => {
+    const pos = [];
+    for (let k = 0; k < sides; k++) {
+      const a0 = (k / sides) * Math.PI * 2;
+      const a1 = ((k + 1) / sides) * Math.PI * 2;
+      const x0 = Math.cos(a0);
+      const z0 = Math.sin(a0);
+      const x1 = Math.cos(a1);
+      const z1 = Math.sin(a1);
+      if (part === 'tip') pos.push(x0, 0, z0, 0, 0.45, 0, x1, 0, z1);
+      else pos.push(x0, 0, z0, x1, 1, z1, x1, 0, z1, x0, 0, z0, x0, 1, z0, x1, 1, z1);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  });
+}
+
+// Schneewehe (seit 8.4): Hügel auf einem Kreisgitter, auf der Windseite lang auslaufend, auf der anderen steil
+// abgebrochen; der Rand liegt knapp unter dem Boden, damit die Wehe aus dem Schnee herauswächst. Eckenfarben:
+// am Fuß bläulicher Schatten, oben auf dem Kamm reines Weiß (so hebt sie sich ohne Umriss vom Schnee ab).
+function driftGeo(v, lo, hi) {
+  return geo3(`drift${v},${lo},${hi}`, () => {
+    const S = 16;
+    const R = 4;
+    const th0 = v * 2.1 + 0.4;
+    const rnd = mulberry32(13 + v * 5);
+    const h = (r, a) => 0.2 * Math.pow(1 - r * r, 1.3) * (1 + 0.5 * Math.cos(a - th0)) * (v === 1 ? 1 + 0.4 * Math.cos(2 * a) : 1) - 0.012 * r;
+    const pos = [0, h(0, 0), 0];
+    const idx = [];
+    for (let j = 1; j <= R; j++) {
+      const r = j / R;
+      for (let k = 0; k < S; k++) {
+        const a = (k / S) * Math.PI * 2;
+        // Windseite: Kamm zum steilen Rand hin verschoben
+        const sk = 1 - 0.22 * Math.cos(a - th0) * r;
+        const n = j < R ? (rnd() - 0.5) * 0.06 : 0;
+        pos.push(Math.cos(a) * r * sk * (1 + n), h(r, a), Math.sin(a) * r * sk * (1 + n));
+      }
+    }
+    for (let k = 0; k < S; k++) idx.push(0, 1 + ((k + 1) % S), 1 + k);
+    for (let j = 1; j < R; j++) {
+      for (let k = 0; k < S; k++) {
+        const a = 1 + (j - 1) * S + k;
+        const b = 1 + (j - 1) * S + ((k + 1) % S);
+        idx.push(a, b, a + S, b, b + S, a + S);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    const top = Math.max(...pos.filter((_, i) => i % 3 === 1));
+    const a = new THREE.Color(lo);
+    const b = new THREE.Color(hi);
+    const col = [];
+    for (let i = 1; i < pos.length; i += 3) {
+      _c.copy(a).lerp(b, Math.max(0, Math.min(1, (pos[i] / top) * 2.2 - 0.05)));
+      col.push(_c.r, _c.g, _c.b);
+    }
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    return g;
+  });
+}
+
+// Flache Kleinteile (Normalen nach oben, nur von oben sichtbar): Scheibe, Ring, Blatt
+const discGeo = (n = 12) => flatGeo('disc' + n, (B) => {
+  const w = new THREE.Color('#ffffff');
+  const m = B.v(0, 0, 0, w);
+  const rim = Array.from({ length: n }, (_, k) => B.v(Math.cos((k / n) * Math.PI * 2), 0, Math.sin((k / n) * Math.PI * 2), w));
+  for (let k = 0; k < n; k++) B.up(m, rim[k], rim[(k + 1) % n]);
+});
+// Weicher Schein am Boden (für 'aura', additiv): innen die Farbe, zum Rand hin schwarz, also unsichtbar
+const haloGeo = (color) => flatGeo('halo' + color, (B) => {
+  const m = B.v(0, 0, 0, new THREE.Color(color));
+  const mid = new THREE.Color(color).multiplyScalar(0.45);
+  const black = new THREE.Color(0, 0, 0);
+  const ring = [];
+  const rim = [];
+  for (let k = 0; k < 12; k++) {
+    const a = (k / 12) * Math.PI * 2;
+    ring.push(B.v(Math.cos(a) * 0.5, 0, Math.sin(a) * 0.5, mid));
+    rim.push(B.v(Math.cos(a), 0, Math.sin(a), black));
+  }
+  for (let k = 0; k < 12; k++) {
+    const k2 = (k + 1) % 12;
+    B.up(m, ring[k], ring[k2]);
+    B.up(ring[k], rim[k], rim[k2]);
+    B.up(ring[k], rim[k2], ring[k2]);
+  }
+});
+const ringGeo = (inner, n = 14) => flatGeo(`ring${inner},${n}`, (B) => {
+  const w = new THREE.Color('#ffffff');
+  const o = [];
+  const i = [];
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
+    o.push(B.v(Math.cos(a), 0, Math.sin(a), w));
+    i.push(B.v(Math.cos(a) * inner, 0, Math.sin(a) * inner, w));
+  }
+  for (let k = 0; k < n; k++) {
+    const k2 = (k + 1) % n;
+    B.up(o[k], o[k2], i[k]);
+    B.up(i[k], o[k2], i[k2]);
+  }
+});
+// Blatt entlang +z (Länge 1): Mittelrippe hell, Rand dunkler; droop biegt die Spitze nach unten
+const leafGeo = (color, w = 0.38, droop = 0) => flatGeo(`leaf${color},${w},${droop}`, (B) => {
+  const c = grassShades(color);
+  const rib = [];
+  const left = [];
+  const right = [];
+  for (let k = 0; k <= 4; k++) {
+    const t = k / 4;
+    const y = droop * (0.5 * t - t * t);
+    const half = w * Math.sin(Math.PI * Math.pow(t, 0.8)) * 0.5;
+    rib.push(B.v(0, y + 0.01, t, k ? c.tip : c.foot));
+    if (k > 0 && k < 4) {
+      left.push(B.v(half, y - 0.01, t, c.mid));
+      right.push(B.v(-half, y - 0.01, t, c.mid));
+    }
+  }
+  for (let k = 0; k < 4; k++) {
+    for (const side of [left, right]) {
+      const e0 = k > 0 ? side[k - 1] : null;
+      const e1 = k < 3 ? side[k] : null;
+      if (e0 !== null && e1 !== null) {
+        B.up(rib[k], e0, e1);
+        B.up(rib[k], e1, rib[k + 1]);
+      } else B.up(rib[k], e0 !== null ? e0 : e1, rib[k + 1]);
+    }
+  }
+});
+
+// Farben je Gebiet: erst die Grundfarben, dann was das Gebiet ändert
+const DECO_BASE3 = {
+  wood: '#6b4a2e', cut: '#d8b080', ring: '#a07850', bush: '#356e2c', bushTop: '#7ab84a', berry: '#d8343a', blossom: '#f4f0e8',
+  moss: '#4f7a32', cap: '#c84a3a', capDot: '#f4f0e8', stem: '#efe6cc', fungus: '#d8b878', bone: '#e8e0c8', crystal: '#bfe8ff',
+  crystalBase: '#5a5a62', snow: '#f8fbff', snowShade: '#a8bcd6', tuft: '#4f8a34', glow: false, capGlow: false, snowy: false
+};
+const DECO_COLORS = {
+  wald: { bush: '#2f5a2a', bushTop: '#5a9a46', berry: '#3a3a6a', tuft: '#2e5a2a', moss: '#4a7a30' },
+  nagadschungel: { wood: '#5a3f2a', bush: '#2f6a3a', bushTop: '#5aa858', blossom: '#e0703a', cap: '#e0a03a', capDot: '#fff0c0', tuft: '#3d7633', moss: '#3d7a33' },
+  frost: { wood: '#5a4a3e', cut: '#c8b090', ring: '#8a6a4a', crystal: '#58b0ec', crystalBase: '#5a6a7c', snowy: true, tuft: '#8a9a78' },
+  moor: { wood: '#3a3428', moss: '#5a6a2a', cap: '#7ad86a', capGlow: true, bone: '#cfc8a8', tuft: '#4a5a34' },
+  orktal: { wood: '#a08a6a', cut: '#d8c8a8', bone: '#efe6cc', tuft: '#a89a5a', thorn: true },
+  sandwueste: { wood: '#a08a6a', cut: '#d8c8a8', bone: '#efe6cc', tuft: '#a89a5a', thorn: true },
+  oedland: { wood: '#6e5e54', bone: '#d8d4c8', crystal: '#e0404a', crystalBase: '#2a2024', glow: true, ember: '#e0404a', tuft: '#6a645a' },
+  vulkan: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ff7a2a', crystalBase: '#2a1a1a', glow: true, ember: '#ff7a2a', char: '#3a2a20', tuft: null },
+  titanenkamm: { wood: '#2a1a14', bone: '#d8ccb4', crystal: '#ffb04a', crystalBase: '#2e2628', glow: true, ember: '#ffb04a', char: '#3a2a20', tuft: null },
+  donnerklamm: { wood: '#4a4440', crystal: '#9fd0ff', crystalBase: '#3a3640', glow: true, tuft: '#8a8a5a' }
+};
+// Bodenfarbe des Gebiets für Hügel am Fuß (Sand unter dem Schädel, Schnee unter der Wehe)
+function decoSoil(style) {
+  const z = ZONES.find((zz) => zz.id === style);
+  const g = z && GROUND[z.ground] != null ? GROUND[z.ground] : GROUND.GRASS;
+  return GROUND_PALETTE[g][4];
+}
+
+// Größe je Art beim Setzen: die Vorlagen bleiben in Kachelmaß (Prüfung: nichts unter dem Boden, nichts über
+// 0,6 Kacheln vom Mittelpunkt), aus der Spielkamera muss jedes Teil auf einen Blick erkennbar sein
+const DECO_SIZE3 = {
+  [DECO.STUMP]: 1.3, [DECO.LOG]: 1.15, [DECO.MUSHROOM]: 1.75, [DECO.BONES]: 1.35, [DECO.SHRUB]: 1.2, [DECO.CRYSTAL]: 1.3,
+  [DECO.DEADTREE]: 1.3, [DECO.DRIFT]: 1.35
+};
+const tplDeco = (d, style, v, low) => bakeTemplate(`deco:${d}:${style}:${v}${low ? ':l' : ''}`, (b0) => {
+  const c = Object.assign({}, DECO_BASE3, DECO_COLORS[style] || {});
+  // niedrig: nur der Kern ohne Kleinteile, Gras und Schein (core: tragende Teile bleiben, dann als 'lit')
+  const b = !low ? b0 : {
+    add(g, col, o = {}) {
+      if (o.mat === 'detail' || o.mat === 'grass' || o.mat === 'aura') {
+        if (!o.core) return;
+        o = Object.assign({}, o, { mat: 'lit' });
+      }
+      b0.add(g, col, o);
+    }
+  };
+  const W = (g, col, o) => b.add(g, col, o);
+  const soil = decoSoil(style);
+  const bark = c.wood;
+  // Büschel am Fuß und flacher Hügel in Bodenfarbe: nichts schwebt auf der glatten Bodentextur
+  const tuft = (x, z, s = 1, form = 'short') => {
+    if (c.tuft) b.add(tuftGeo(c.tuft, form), null, { p: [x, 0, z], r: [0, x * 9 + z * 5, 0], s, mat: 'grass' });
+  };
+  const mound = (x, z, sx, sy, sz, col = soil) => b.add(cap3(1, Math.PI / 2, 0, Math.PI * 2, 10, 3), col, { p: [x, -0.012, z], s: [sx, sy, sz], mat: 'detail', ao: 0 });
+  const fungus = (p, ry, s) => b.add(sphere3(1, 8, 4), c.fungus, { p, r: [0, ry, 0], s: [s, s * 0.3, s * 0.75], top: lighter(c.fungus, 0.35), topK: 0.8, ao: 0.4 });
+  if (d === DECO.SHRUB) {
+    // Busch: fünf bis sechs Laubbausche, unten dunkel, oben hell, mit Umrissen dazwischen; Blätter zwischen den
+    // Bauschen. Wiese mit roten Beeren oder weißen Blüten, Wald mit dunklen Beeren, Dschungel mit großen hängenden
+    // Blättern und oranger Blüte
+    const jungle = style === 'nagadschungel';
+    const puffs = jungle
+      ? [[0, 0.13, 0, 0.13], [0.09, 0.1, 0.06, 0.1], [-0.08, 0.1, -0.05, 0.1]]
+      : [[[0, 0.2, 0, 0.19], [0.17, 0.14, 0.05, 0.15], [-0.16, 0.14, 0.07, 0.15], [0.04, 0.14, -0.16, 0.15], [-0.06, 0.13, 0.17, 0.14], [0.03, 0.34, 0.03, 0.13]],
+        [[0.08, 0.2, 0.02, 0.18], [-0.13, 0.18, -0.02, 0.17], [0.0, 0.14, 0.16, 0.14], [0.02, 0.14, -0.16, 0.14], [-0.04, 0.35, 0, 0.13]],
+        [[0, 0.22, 0, 0.2], [0.18, 0.15, -0.04, 0.15], [-0.15, 0.15, -0.08, 0.15], [-0.04, 0.13, 0.17, 0.14], [0.12, 0.13, 0.15, 0.12], [-0.05, 0.37, -0.02, 0.12]]][v];
+    puffs.forEach(([x, y, z, r], k) => b.add(puffGeo((v + k) % 3, darker(c.bush, 0.15), k === puffs.length - 1 && !jungle ? lighter(c.bushTop, 0.1) : c.bushTop), null, { p: [x * 1.12, y * 1.12, z * 1.12], r: [0, k * 1.3, 0], s: r * 1.12, ao: 0.3 }));
+    if (jungle) {
+      // Dschungel: große, hängende Blätter rundum (Elefantenohr) und eine orange Blüte
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2 + v;
+        b.add(leafGeo(k % 2 ? c.bush : darker(c.bush, 0.15), 0.55, 0.5), null, { p: [Math.cos(a) * 0.05, 0.2 + (k % 3) * 0.04, Math.sin(a) * 0.05], r: [-0.25, Math.PI / 2 - a, 0], s: 0.36 + (k % 3) * 0.04, mat: 'detail', order: 'YXZ' });
+      }
+      b.add(flowerGeo(c.blossom), null, { p: [0.02, 0.12, 0.03], s: 1.2, mat: 'detail' });
+    } else {
+      // Blätter in den Lücken zwischen den Bauschen brechen den Umriss auf
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2 + v * 0.5 + 0.4;
+        const R = 0.26 + (k % 2) * 0.03;
+        b.add(leafGeo(k % 3 ? c.bushTop : c.bush, 0.55), null, { p: [Math.cos(a) * R * 0.75, 0.16 + (k % 2) * 0.1, Math.sin(a) * R * 0.75], r: [0.25 - (k % 2) * 0.3, Math.PI / 2 - a, 0], s: 0.15, mat: 'detail', order: 'YXZ' });
+      }
+      const onPuff = (pf, a, e, out = 1.02) => [pf[0] + Math.cos(a) * Math.cos(e) * pf[3] * out, pf[1] + Math.sin(e) * pf[3] * 0.92 * out, pf[2] + Math.sin(a) * Math.cos(e) * pf[3] * out];
+      if (v === 0) {
+        // Beeren in kleinen Trauben auf den Bauschen
+        for (let k = 0; k < 3; k++) {
+          const pf = puffs[1 + k];
+          for (let j = 0; j < 2; j++) b.add(sphere3(0.032, 5, 3), c.berry, { p: onPuff(pf, k * 1.6 + j * 0.35 + 0.5, 0.55 + j * 0.15), mat: 'detail', top: lighter(c.berry, 0.4), topK: 0.6 });
+        }
+      } else if (v === 1 && style !== 'wald') {
+        // weiße Blüten auf der Krone
+        for (let k = 0; k < 5; k++) {
+          const at = onPuff(puffs[k], k * 1.9 + 0.3, 0.75, 0.98);
+          b.add(flowerGeo(c.blossom), null, { p: [at[0], at[1] - 0.245 * 0.6, at[2]], r: [0, k, 0], s: 0.6, mat: 'detail' });
+        }
+      }
+    }
+    tuft(0.24, 0.2, 0.8);
+    tuft(-0.26, 0.12, 0.7);
+  } else if (d === DECO.STUMP) {
+    // Baumstumpf: Wurzelfuß, helle Schnittfläche mit Jahresring, Wurzeln, die in den Boden laufen
+    const frost = style === 'frost';
+    b.add(lathe3('stump84', [[0.26, 0], [0.2, 0.05], [0.17, 0.12], [0.16, 0.24], [0.15, 0.27], [0.146, 0.272], [0, 0.272]], 12), bark, { shade: 0.4, ao: 0.3 });
+    b.add(discGeo(12), c.cut, { p: [0, 0.274, 0], s: [0.146, 1, 0.146] });
+    b.add(ringGeo(0.8), c.ring, { p: [0, 0.276, 0], s: [0.1, 1, 0.1], mat: 'detail' });
+    b.add(discGeo(6), darker(c.ring, 0.2), { p: [0.01, 0.276, -0.01], s: [0.022, 1, 0.022], mat: 'detail' });
+    for (let k = 0; k < 3; k++) {
+      const a = k * 2.1 + v * 0.7;
+      stick3(b, [Math.cos(a) * 0.12, 0.09, Math.sin(a) * 0.12], [Math.cos(a) * 0.36, -0.02, Math.sin(a) * 0.36], 0.06, 0.022, bark, { ao: 0.35 });
+    }
+    if (frost) {
+      // kleine Schneehaube und eine Wehe am Fuß: Holz und Wurzeln bleiben sichtbar, kein Schneeball
+      b.add(foliageGeo(v, 1), c.snowShade, { p: [0.025, 0.278, -0.015], s: [0.12, 0.05, 0.11], top: c.snow, topK: 1, ao: 0.25 });
+      mound(0.16, 0.1, 0.2, 0.06, 0.16, c.snow);
+    } else {
+      if (style === 'wald' && v === 1) b.add(foliageGeo(v, 1), c.moss, { p: [0.03, 0.28, 0.01], s: [0.12, 0.045, 0.11], top: lighter(c.moss, 0.3), topK: 0.6, mat: 'detail' });
+      if (style === 'wald' && v === 2) {
+        fungus([0.15, 0.13, 0.04], 0.3, 0.075);
+        fungus([0.13, 0.19, -0.07], -0.4, 0.06);
+      }
+      if (style === 'wiesen' && v === 2) {
+        // Axt steckt im Stumpf
+        b.add(tinyBox(0.13, 0.09, 0.02), '#9aa0aa', { p: [-0.01, 0.29, 0], r: [0, 0, 0.3] });
+        b.add(tinyBox(0.03, 0.05, 0.022), '#d8dce4', { p: [-0.07, 0.305, 0], r: [0, 0, 0.3] });
+        stick3(b, [0.03, 0.32, 0], [0.24, 0.5, 0.03], 0.024, 0.024, '#8a6038', { seg: 5 });
+      }
+      tuft(0.22, 0.16, 0.8);
+      tuft(-0.2, -0.18, 0.7, v === 1 ? 'tall' : 'short');
+    }
+  } else if (d === DECO.LOG) {
+    // liegender Stamm ganz auf der Kachel: Schnittflächen an beiden Enden, abgebrochener Ast, Moosstreifen, Baumpilze
+    const R = 0.12;
+    b.add(cyl3(R, R * 0.9, 0.84, 10), bark, { p: [0, R, 0], r: [0, 0, Math.PI / 2], ao: 0.5 });
+    // Enden: links (dick) Schnittfläche, rechts Schnittfläche oder hohl
+    b.add(discGeo(10), c.cut, { p: [-0.422, R, 0], r: [0, 0, Math.PI / 2], s: [R * 0.94, 1, R * 0.94] });
+    b.add(ringGeo(0.78), c.ring, { p: [-0.425, R, 0], r: [0, 0, Math.PI / 2], s: [R * 0.6, 1, R * 0.6], mat: 'detail' });
+    if (v === 1) {
+      b.add(discGeo(10), '#2a1a10', { p: [0.422, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.72, 1, R * 0.72] });
+      b.add(ringGeo(0.72), c.cut, { p: [0.423, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.88, 1, R * 0.88], mat: 'detail' });
+    } else {
+      b.add(discGeo(10), c.cut, { p: [0.422, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.85, 1, R * 0.85] });
+      b.add(ringGeo(0.75), c.ring, { p: [0.425, R, 0], r: [0, 0, -Math.PI / 2], s: [R * 0.5, 1, R * 0.5], mat: 'detail' });
+    }
+    // abgebrochener Seitenast mit Splitterspitze
+    const s0 = [0.1, R * 1.7, 0.05];
+    const s1 = [0.2, 0.36, 0.13];
+    stick3(b, s0, s1, 0.042, 0.03, bark, { ao: 0.3 });
+    stick3(b, s1, [0.215, 0.42, 0.14], 0.028, 0.006, lighter(bark, 0.15), { seg: 4 });
+    // Moosstreifen oben, Baumpilze an der Flanke
+    b.add(foliageGeo(v, 1), c.moss, { p: [-0.13, R * 1.9, -0.01], s: [0.24, 0.045, 0.085], top: lighter(c.moss, 0.3), topK: 0.6, mat: 'detail' });
+    if (style !== 'moor') {
+      fungus([0.02, R * 0.9, R * 0.92], 0, 0.06);
+      fungus([-0.06, R * 1.25, R * 0.82], 0.2, 0.045);
+    }
+    if (style === 'moor') {
+      // hängendes Moos an der Flanke, leuchtende Pilzchen oben
+      for (let k = 0; k < 3; k++) stick3(b, [-0.2 + k * 0.17, R * 1.7, R * 0.6], [-0.19 + k * 0.17, 0.02, R * 1.2], 0.026, 0.008, c.moss, { mat: 'detail', seg: 4 });
+      for (let k = 0; k < 3; k++) b.add(sphere3(0.035, 6, 4), c.cap, { p: [0.05 + k * 0.08, R * 1.95, -0.03 + (k % 2) * 0.05], s: [1, 0.6, 1], mat: 'glow' });
+    }
+    if (style === 'nagadschungel') {
+      // zwei Lianenringe mit Blättern
+      for (const x of [-0.24, 0.16]) {
+        b.add(torus3(R * 1.06, 0.014, Math.PI * 2, 3, 10), '#3d7a33', { p: [x, R, 0], r: [0, Math.PI / 2, 0], mat: 'detail' });
+        b.add(leafGeo(c.moss, 0.5), null, { p: [x, R * 2, 0], r: [-0.3, 0.8, 0], s: 0.14, mat: 'detail', order: 'YXZ' });
+      }
+    }
+    tuft(-0.42, 0.16, 0.8);
+    tuft(0.38, -0.15, 0.7, 'tall');
+  } else if (d === DECO.MUSHROOM) {
+    // drei Pilze mit Stiel und gewölbtem Hut und ein kleiner Knopf; Fliegenpilz mit weißen Punkten,
+    // im Moor leuchtende Hüte, im Dschungel hohe, schlanke orange Pilze
+    const tall = style === 'nagadschungel';
+    const stemCol = style === 'moor' ? '#6a665a' : c.stem;
+    const capMat = c.capGlow ? 'glow' : 'lit';
+    const stem = tall ? lathe3('mstemT', [[0.026, 0], [0.032, 0.02], [0.022, 0.15], [0.024, 0.2]], 6) : lathe3('mstem', [[0.03, 0], [0.036, 0.02], [0.026, 0.1], [0.03, 0.14]], 6);
+    const cap = tall
+      ? lathe3('mcapT', [[0.02, 0.185], [0.075, 0.195], [0.068, 0.24], [0.035, 0.29], [0, 0.305]], 9)
+      : lathe3('mcap', [[0.02, 0.125], [0.1, 0.135], [0.096, 0.175], [0.058, 0.21], [0, 0.22]], 9);
+    // Lage der Punkte auf dem Hut: Ring (Höhe, Neigung) und Mitte, knapp über der Oberfläche
+    const dotRing = tall ? [0.04, 0.287, 1.0] : [0.062, 0.21, 0.75];
+    const dotTop = tall ? 0.308 : 0.223;
+    const set = [[0, 0, 1.3, 0], [0.15, 0.07, 0.95, 0.28], [-0.12, 0.11, 0.7, -0.24], [0.04, -0.15, 0.45, 0.1]];
+    set.forEach(([x, z, s, tilt], k) => {
+      const ry = v * 2.1 + k;
+      const rx = Math.cos(ry) * x - Math.sin(ry) * z;
+      const rz = Math.sin(ry) * x + Math.cos(ry) * z;
+      const M = partMatrix({ p: [rx, 0, rz], r: [tilt * 0.5, ry, tilt], s });
+      W(stem, stemCol, { m: M.clone(), shade: 0.25 });
+      W(cap, c.cap, { m: M.clone(), mat: capMat, top: lighter(c.cap, 0.25), topK: 0.5, ao: 0.55 });
+      // Punkte auf dem Hut (Fliegenpilz), nicht bei den kleinen Knöpfen
+      if (!c.capGlow && k < 3) {
+        for (let j = 0; j < (tall ? 3 : 5); j++) {
+          const a = j * 2.4 + k;
+          const rr = j === 0 ? 0.012 : dotRing[0];
+          const y = j === 0 ? dotTop : dotRing[1];
+          const tiltOut = j === 0 ? 0 : dotRing[2];
+          W(discGeo(6), c.capDot, { m: atM3(M, [Math.cos(a) * rr, y, Math.sin(a) * rr], [0, -a, -tiltOut], [0.022, 1, 0.022]), mat: 'detail' });
+        }
+      }
+    });
+    if (c.capGlow) b.add(haloGeo(c.cap), null, { p: [0, 0.01, 0], s: [0.38, 1, 0.38], mat: 'aura' });
+    tuft(0.2, -0.05, 0.7);
+    tuft(-0.18, 0.2, 0.6);
+  } else if (d === DECO.BONES) {
+    const bone = c.bone;
+    const end = c.char || lighter(bone, 0.2);
+    const endK = c.char ? 0.45 : 0.4;
+    if (v === 0) {
+      // Ochsenschädel mit Hörnern, halb im Sand
+      mound(0, 0.02, 0.28, 0.05, 0.24);
+      b.add(sphere3(1, 8, 6), bone, { p: [0, 0.075, -0.03], s: [0.1, 0.075, 0.1], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });
+      b.add(sphere3(1, 7, 5), bone, { p: [0, 0.05, 0.09], s: [0.065, 0.05, 0.11], r: [0.15, 0, 0], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });
+      for (const sx of [-1, 1]) {
+        b.add(sphere3(1, 6, 4), '#2a2018', { p: [sx * 0.058, 0.098, 0.04], s: [0.03, 0.026, 0.03], mat: 'detail' });
+        b.add(sphere3(1, 5, 3), '#3a2a20', { p: [sx * 0.022, 0.065, 0.195], s: 0.012, mat: 'detail' });
+        stick3(b, [sx * 0.07, 0.1, -0.05], [sx * 0.17, 0.115, -0.06], 0.034, 0.029, bone, { seg: 6 });
+        coneAlong(W, horn3(1, 1, 5), [sx * 0.165, 0.115, -0.06], [sx * 0.35, 0.8, -0.25], 0.17, 0.029, bone, { top: end, topK: endK });
+      }
+      // ein loser Knochen daneben
+      stick3(b, [-0.24, 0.03, 0.14], [-0.06, 0.03, 0.24], 0.024, 0.02, bone, { seg: 5 });
+      b.add(sphere3(0.036, 5, 3), bone, { p: [-0.25, 0.032, 0.13] });
+      b.add(sphere3(0.03, 5, 3), bone, { p: [-0.055, 0.03, 0.245] });
+      tuft(0.22, 0.12, 0.7);
+    } else if (v === 1) {
+      // Brustkorb: Rippenbögen, nach hinten kleiner, Wirbelsäule obenauf, Schädel am Kopfende
+      const ribs = [0.15, 0.14, 0.12, 0.095];
+      ribs.forEach((r, k) => {
+        const x = -0.18 + k * 0.1;
+        b.add(torus3(r, 0.024, Math.PI * 0.82, 3, 9), bone, { p: [x, -0.015, 0], r: [0, Math.PI / 2, Math.PI * 0.09], ao: 0.4, top: lighter(bone, 0.2), topK: 0.5 });
+      });
+      stick3(b, [-0.24, ribs[0] - 0.02, 0], [0.13, ribs[3] - 0.02, 0], 0.03, 0.026, bone, { seg: 6 });
+      stick3(b, [0.13, ribs[3] - 0.02, 0], [0.34, 0.025, 0.04], 0.026, 0.018, bone, { seg: 5 });
+      for (let k = 0; k < 4; k++) b.add(sphere3(0.03, 5, 3), lighter(bone, 0.15), { p: [-0.18 + k * 0.1, ribs[k] + 0.005, 0], s: [0.8, 1, 1.2], mat: 'detail' });
+      // Schädel liegt vorn auf der Seite
+      b.add(sphere3(1, 7, 5), bone, { p: [-0.33, 0.055, 0.03], s: [0.075, 0.06, 0.07], shade: 0.3, top: lighter(bone, 0.2), topK: 0.5 });
+      b.add(sphere3(1, 5, 4), bone, { p: [-0.42, 0.04, 0.06], s: [0.07, 0.04, 0.05], r: [0, -0.3, 0], shade: 0.3 });
+      b.add(sphere3(1, 5, 4), '#2a2018', { p: [-0.37, 0.07, 0.085], s: 0.022, mat: 'detail' });
+      mound(-0.05, 0, 0.36, 0.035, 0.2);
+      tuft(0.1, 0.22, 0.7);
+    } else {
+      // zwei gekreuzte Röhrenknochen mit Gelenkköpfen und ein kleiner Schädel
+      const bones = [[[-0.24, 0.035, -0.1], [0.18, 0.035, 0.1]], [[-0.2, 0.08, 0.13], [0.2, 0.04, -0.1]]];
+      for (const [a, z] of bones) {
+        stick3(b, a, z, 0.028, 0.026, bone, { seg: 6, top: lighter(bone, 0.2), topK: 0.4 });
+        const dx = z[0] - a[0];
+        const dz = z[2] - a[2];
+        const l = hyp(dx, dz);
+        for (const p of [a, z]) for (const sd of [-1, 1]) b.add(sphere3(0.04, 5, 3), bone, { p: [p[0] - (dz / l) * sd * 0.03, p[1], p[2] + (dx / l) * sd * 0.03], top: end, topK: endK * 0.6 });
+      }
+      b.add(sphere3(1, 7, 5), bone, { p: [0.05, 0.065, -0.2], s: [0.075, 0.068, 0.08], shade: 0.3, top: lighter(bone, 0.25), topK: 0.5 });
+      b.add(sphere3(1, 5, 4), bone, { p: [0.05, 0.03, -0.13], s: [0.05, 0.03, 0.04], shade: 0.3 });
+      for (const sx of [-1, 1]) b.add(sphere3(1, 5, 4), '#2a2018', { p: [0.05 + sx * 0.03, 0.07, -0.135], s: 0.02, mat: 'detail' });
+      mound(0, 0, 0.3, 0.035, 0.26);
+      tuft(-0.22, -0.16, 0.7);
+    }
+  } else if (d === DECO.CRYSTAL) {
+    // Kristallgruppe: ein großer, drei schräge, zwei liegende Splitter auf einem Felsfuß, facettiert mit hellen
+    // Spitzen. Im Frost kräftig eisblau mit Umriss (durchscheinendes Eis verschwand auf dem Schnee und kostete zwei
+    // Zeichenaufrufe je Block), in Glut- und Zaubergebieten unten dunkler Obsidian, oben leuchtend, mit Schein am Boden
+    const glow = c.glow;
+    const tipCol = lighter(c.crystal, 0.45);
+    const gem = (p, tilt, yaw, r, h) => {
+      const M = new THREE.Matrix4().compose(new THREE.Vector3(...p), new THREE.Quaternion().setFromEuler(_e.set(0, yaw, -tilt, 'YXZ')), _stOne);
+      if (glow) {
+        W(crystalGeo('body'), c.crystalBase, { m: atM3(M, [0, 0, 0], null, [r, h * 0.45, r]), top: lighter(c.crystalBase, 0.2), topK: 0.6 });
+        W(crystalGeo('body'), c.crystal, { m: atM3(M, [0, h * 0.45, 0], null, [r * 0.98, h * 0.55, r * 0.98]), mat: 'glow', top: lighter(c.crystal, 0.3), topK: 0.9, ao: 0.4 });
+        W(crystalGeo('tip'), tipCol, { m: atM3(M, [0, h, 0], null, [r * 0.98, r * 1.6, r * 0.98]), mat: 'glow' });
+      } else {
+        W(crystalGeo('body'), c.crystal, { m: atM3(M, [0, 0, 0], null, [r, h, r]), shade: 0.3, top: lighter(c.crystal, 0.3), topK: 0.6 });
+        W(crystalGeo('tip'), tipCol, { m: atM3(M, [0, h, 0], null, [r, r * 1.6, r]) });
+      }
+    };
+    const rot = v * 1.3;
+    gem([0, 0.02, 0], 0.12, rot, 0.09, 0.52 - v * 0.05);
+    for (let k = 0; k < 3; k++) {
+      const a = rot + k * 2.1 + 0.4;
+      gem([Math.cos(a) * 0.09, 0.02, Math.sin(a) * 0.09], 0.5 + (k % 2) * 0.22, -a, 0.065 - k * 0.007, 0.34 - k * 0.05);
+    }
+    for (let k = 0; k < 2; k++) {
+      const a = rot + k * 3 + 1.5;
+      gem([Math.cos(a) * 0.21, 0.015, Math.sin(a) * 0.21], 1.3, -a, 0.035, 0.12);
+    }
+    b.add(rockGeo(v), c.crystalBase, { s: [0.2, 0.09, 0.18], p: [0, 0.01, 0], top: lighter(c.crystalBase, 0.2), topK: 0.5, shade: 0.3 });
+    for (let k = 0; k < 3; k++) {
+      const a = k * 2.3 + v;
+      b.add(rockGeo((v + k) % 3, 0), c.crystalBase, { s: [0.06, 0.045, 0.05], p: [Math.cos(a) * 0.25, 0.015, Math.sin(a) * 0.22], r: [0, a, 0], top: lighter(c.crystalBase, 0.25), topK: 0.5 });
+    }
+    if (glow) b.add(haloGeo(c.crystal), null, { p: [0, 0.012, 0], s: [0.45, 1, 0.45], mat: 'aura' });
+    else if (c.snowy) mound(0, 0, 0.3, 0.05, 0.26, c.snow);
+    else tuft(0.22, 0.14, 0.7);
+  } else if (d === DECO.DEADTREE) {
+    const thorn = c.thorn && v === 2;
+    if (thorn) {
+      // Dornbusch: trockene Zweige strahlen aus einem dunklen Kern, mit Gabeln an den Spitzen
+      const twig = darker(c.wood, 0.15);
+      b.add(sphere3(1, 7, 5), darker(twig, 0.35), { p: [0, 0.1, 0], s: [0.09, 0.07, 0.09] });
+      const rnd = mulberry32(5 + v);
+      for (let k = 0; k < 9; k++) {
+        const a = (k / 9) * Math.PI * 2 + rnd() * 0.4;
+        const e = 0.15 + (k % 3) * 0.32 + rnd() * 0.15;
+        const L = 0.3 + rnd() * 0.12;
+        const tip = [Math.cos(a) * Math.cos(e) * L, 0.08 + Math.sin(e) * L * 0.85, Math.sin(a) * Math.cos(e) * L];
+        stick3(b, [0, 0.1, 0], tip, 0.03, 0.012, twig, { mat: 'detail', core: true, seg: 4, ao: 0.3 });
+        const fa = a + (k % 2 ? 0.5 : -0.5);
+        stick3(b, [tip[0] * 0.6, 0.1 + (tip[1] - 0.1) * 0.6, tip[2] * 0.6], [tip[0] * 0.6 + Math.cos(fa) * 0.12, tip[1] * 0.6 + 0.1, tip[2] * 0.6 + Math.sin(fa) * 0.12], 0.016, 0.007, twig, { mat: 'detail', seg: 3 });
+      }
+      mound(0, 0, 0.22, 0.04, 0.2);
+      tuft(0.22, 0.14, 0.8);
+    } else if (v === 1) {
+      // liegender, gegabelter Ast mit Stein und dürrem Laub
+      const A = [-0.42, 0.05, -0.05];
+      const Z = [0.4, 0.045, 0.08];
+      stick3(b, A, Z, 0.055, 0.032, bark, { round: true, seg: 6, ao: 0.45 });
+      const at = (t, y = 0) => [A[0] + (Z[0] - A[0]) * t, A[1] + (Z[1] - A[1]) * t + y, A[2] + (Z[2] - A[2]) * t];
+      stick3(b, at(0.33), [-0.02, 0.03, -0.24], 0.034, 0.016, bark, { ao: 0.4 });
+      stick3(b, at(0.62), [0.3, 0.035, 0.26], 0.03, 0.014, bark, { ao: 0.4 });
+      stick3(b, at(0.8, 0.02), [0.3, 0.2, -0.06], 0.02, 0.008, bark, { mat: 'detail', seg: 4 });
+      b.add(discGeo(8), lighter(bark, 0.35), { p: [A[0] - 0.012, A[1], A[2] - 0.001], r: [0, 0.16, Math.PI / 2], s: [0.05, 1, 0.05] });
+      b.add(rockGeo(v), darker(soil, 0.35), { p: [0.05, 0.03, 0.16], s: [0.12, 0.08, 0.1], top: lighter(soil, 0.1), topK: 0.4, shade: 0.3 });
+      for (let k = 0; k < 2; k++) b.add(leafGeo(k ? '#8a6a3a' : '#a0703a', 0.5), null, { p: [-0.2 + k * 0.3, 0.012, 0.12 - k * 0.25], r: [0, k * 2 + 0.5, 0], s: 0.12, mat: 'detail' });
+      if (c.ember) stick3(b, at(0.15, 0.045), at(0.55, 0.04), 0.012, 0.012, c.ember, { mat: 'glow', seg: 4 });
+      tuft(-0.3, 0.16, 0.7);
+    } else {
+      // abgebrochener toter Baum: Stamm mit Wurzelfuß, Splitter am Bruch, zwei kahle Äste mit Gabel
+      const tallV = v === 2;
+      const H = tallV ? 0.9 : 0.72;
+      const lean = tallV ? 0.06 : 0;
+      b.add(lathe3(`snag${H}`, [[0.17, 0], [0.12, 0.06], [0.1, 0.2], [0.08, H * 0.75], [0.065, H], [0.03, H - 0.02], [0, H - 0.03]], 8), bark, { r: [0, 0, lean], shade: 0.35, ao: 0.3 });
+      const topAt = [-Math.sin(lean) * H, H, 0];
+      for (let k = 0; k < 3; k++) {
+        const a = k * 2.2 + v;
+        coneAlong(W, horn3(1, 1, 4), [topAt[0] + Math.cos(a) * 0.04, H - 0.04, Math.sin(a) * 0.04], [Math.cos(a) * 0.3, 1, Math.sin(a) * 0.3], 0.1 + (k === 0) * 0.07, 0.035, lighter(bark, 0.12), {});
+      }
+      const branches = tallV
+        ? [[0.62, 0.0, 0.34, 0.95], [0.48, 2.6, 0.3, 0.9], [0.32, 4.4, 0.24, 0.75]]
+        : [[0.44, 0.3, 0.34, 0.92], [0.32, 3.1, 0.28, 0.78]];
+      for (const [y0, a, L, up] of branches) {
+        const p0 = [-Math.sin(lean) * y0, y0, 0];
+        const p1 = [p0[0] + Math.cos(a) * L * 0.75, y0 + L * up * 0.75, Math.sin(a) * L * 0.75];
+        stick3(b, p0, p1, 0.04, 0.022, bark, { ao: 0.3 });
+        stick3(b, p1, [p1[0] + Math.cos(a + 0.5) * 0.14, p1[1] + 0.12, p1[2] + Math.sin(a + 0.5) * 0.14], 0.02, 0.008, bark, { mat: 'detail', seg: 4 });
+        stick3(b, p1, [p1[0] + Math.cos(a - 0.4) * 0.12, p1[1] - 0.02, p1[2] + Math.sin(a - 0.4) * 0.12], 0.018, 0.007, bark, { mat: 'detail', seg: 4 });
+        if (style === 'moor') stick3(b, [p1[0], p1[1] - 0.01, p1[2]], [p1[0] + 0.01, p1[1] - 0.2, p1[2]], 0.022, 0.006, c.moss, { mat: 'detail', seg: 4 });
+      }
+      for (let k = 0; k < 2; k++) {
+        const a = k * 2.6 + 1 + v;
+        stick3(b, [Math.cos(a) * 0.1, 0.07, Math.sin(a) * 0.1], [Math.cos(a) * 0.32, -0.02, Math.sin(a) * 0.32], 0.05, 0.018, bark, { ao: 0.3 });
+      }
+      // Glutader liegt auf dem Stamm (vorher zeigte sie in den Boden)
+      if (c.ember) stick3(b, [0.0, 0.05, 0.128], [-Math.sin(lean) * H * 0.85, H * 0.85, 0.07], 0.016, 0.012, c.ember, { mat: 'glow', seg: 4 });
+      tuft(0.2, 0.16, 0.8);
+      tuft(-0.18, -0.2, 0.7, 'tall');
+    }
+  } else if (d === DECO.DRIFT) {
+    // Schneewehe mit Steinen und trockenen Halmen (statt Schneebällen)
+    b.add(driftGeo(v, c.snowShade, c.snow), null, { s: [0.48, 1, 0.3], mat: 'detail', core: true, ao: 0.2 });
+    const rb = FROST_ROCK3;
+    const rt = '#9aaabb';
+    b.add(rockGeo(v), rb, { p: [0.18, 0.04, -0.04], s: [0.13, 0.12, 0.11], r: [0, v, 0], top: rt, topK: 0.35, shade: 0.4 });
+    if (v !== 1) b.add(rockGeo((v + 1) % 3, 0), rb, { p: [-0.26, 0.02, 0.1], s: [0.07, 0.06, 0.06], top: rt, topK: 0.35, shade: 0.3 });
+    tuft(-0.08, -0.16, 0.9, 'tall');
+    tuft(0.34, 0.12, 0.7);
+  }
+});
+const tplProp = (pr) => bakeTemplate(`prop:${pr.type}:${pr.roof || ''}`, (b) => PROP3[pr.type](b, null, pr));
+
+// --- Randkulisse (seit 8.4) -----------------------------------------------------------------------
+// Statt Felsen in Kniehöhe vor einem Nebelkasten schließt jede Map mit einer Wand ihres Gebiets ab, in Schichten:
+//   Saum  – innerste Randreihe: das Objekt des Gebiets (Baum, Tanne, Fels) etwas größer, dazu Büsche (mit Umriss)
+//   Wand  – hohe Stücke (Hecke, Tannen, Klippe, Säulen) auf dem Rand und gleich dahinter, ohne Umriss ('far')
+//   Ferne – große Massen auf der Böschung bis KUL3_OUT Kacheln draußen, zum Himmel hin eingefärbt
+// Im Süden steht die Kamera: dort bleibt alles unter der Sichtlinie zur Figur in der letzten begehbaren
+// Reihe (1,1 Einheiten je Reihe, mindestens 2,6); die Durchsicht um die Figur (addFade) bleibt.
+// Wand und Ferne haben eigene, sparsame Formen (Kugeln 7 × 5, Kegel mit 6–7 Seiten, Sechskantsäulen).
+// form: Bauart (KUL3_FORM), saum: [Art, Stil, Größe, jede n-te Kachel], alt: jedes n-te Wandstück anders
+// (Blütenhecke), far: Farbe des Horizonts unten (drei-fx.js)
+const BORDER3 = {
+  wiesen: { form: 'hecke', saum: [['tree', '', 1.15], ['blossom', '', 1.15, 5]], alt: 5, far: '#3d6e3a' },
+  wald: { form: 'tannen', saum: [['pine', 'wald', 1.3]], far: '#1e4034' },
+  nagadschungel: { form: 'dschungel', saum: [['tree', 'nagadschungel', 1.2]], far: '#2e5a2a' },
+  orktal: { form: 'sandstein', saum: [['rock', 'orktal', 2.2], ['dead', 'orktal', 1.4, 4]], far: '#a07a50' },
+  oedland: { form: 'asche', saum: [['rock', 'donnerklamm', 2.1], ['dead', 'oedland', 1.5, 3]], far: '#6e5a54' },
+  frost: { form: 'eis', saum: [['pine', 'frost', 1.25], ['rock', 'frost', 2.1, 3]], far: '#9fb4c8' },
+  moor: { form: 'weiden', saum: [['rock', 'moor', 2.0], ['dead', 'moor', 1.5, 4]], far: '#3e5034' },
+  vulkan: { form: 'basalt', saum: [['rock', 'vulkan', 2.1], ['dead', 'vulkan', 1.4, 4]], far: '#4a2a24' },
+  titanenkamm: { form: 'basalt', saum: [['rock', 'titanenkamm', 2.1], ['dead', 'titanenkamm', 1.4, 4]], far: '#4a2a26' }
+};
+for (const id in BORDER3) BORDER3[id].id = id;
+const kulStyle3 = (style) => BORDER3[style] || BORDER3.wiesen;
+// Höhe der Gebietsobjekte bei Größe 1 (für die Sichtlinie im Süden)
+const KUL3_HT = { tree: 3, blossom: 3, pine: 2.8, rock: 0.65, dead: 1.5 };
+
+// Tannenkegel (Stufen aus Kegeln mit 7 Seiten) mit kurzem Stamm
+function kulPine3(b, x, z, s, tiers, col, T, top, mat) {
+  b.add(lathe3('kultrunk', [[0.22, 0], [0.16, 1.2], [0, 1.25]], 5), T('#4a3424'), { p: [x, 0, z], s, mat });
+  for (let k = 0; k < tiers; k++) {
+    const r = 1.2 - k * (0.75 / tiers);
+    const g = lathe3(`kulpine${r.toFixed(2)}`, [[0, 0], [r, 0.18], [r * 0.45, 1.15], [0, 1.75]], 7);
+    b.add(g, T(col[k % 2]), { p: [x, (0.9 + k * 1.2) * s, z], s, r: [0, k * 0.9, 0], top: top && T(top), topK: 0.85, shade: 0.35, mat });
+  }
+}
+// Sechskantsäule mit flachen Seiten (Basalt), Fuß bei y = 0
+const kulCol3 = () => geo3('kulbasalt', () => {
+  const g = new THREE.CylinderGeometry(1, 1, 1, 6).translate(0, 0.5, 0).toNonIndexed();
+  g.computeVertexNormals();
+  return g;
+});
+// Krone aus Kugeln: die Wand steht nah an der Kamera und bekommt rundere Kugeln als die Ferne
+const kulBlob3 = (near) => (near ? sphere3(1, 8, 6) : sphere3(1, 7, 5));
+// Tafelberg-Schicht: flacher Kegelstumpf mit sieben Seiten, Fuß bei y = 0
+const kulMesa3 = () => geo3('kulmesa', () => {
+  const g = new THREE.CylinderGeometry(0.9, 1, 1, 7).translate(0, 0.5, 0).toNonIndexed();
+  g.computeVertexNormals();
+  return g;
+});
+
+// Bauarten: hw/hf = Höhe von Wand und Ferne bei Größe 1. wand/fern bekommen T (Farbe, in der Ferne zum
+// Himmel gemischt) und landen ohne Umriss im Mesh 'far'; busch steht im Saum und bekommt einen Umriss.
+const KUL3_FORM = {
+  // Map 1: Blütenhecke aus Kronenkugeln, jedes fünfte Stück blüht rosa
+  hecke: {
+    hw: 5.4, hf: 4.0,
+    wand(b, v, T, alt) {
+      const c = alt ? ['#c86a8a', '#e08aa6', '#f5b8cb'] : ['#2f6229', '#3d7633', '#5a9a46'];
+      const top = T(alt ? '#ffdce6' : '#86c262');
+      const m = v === 1 ? -1 : 1;
+      [[-0.75, 1.0, 0.1, 1.05], [0.72, 1.1, -0.1, 1.1], [0.05, 2.3, 0.15, 1.15], [-0.6, 3.4, -0.1, 0.95], [0.55, 3.5, 0.1, 0.9], [v === 2 ? 0.35 : -0.1, 4.55, 0, 0.75]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(true), T(c[Math.min(2, k >> 1)]), { p: [x * m, y, z], s: [r * 1.08, r, r * 0.92], top, topK: 0.45, shade: 0.3 }));
+      if (alt) for (const [x, y, z] of [[-0.5, 3.9, 0.75], [0.6, 2.9, 0.95], [0.1, 4.95, 0.55], [-0.9, 1.8, 0.9]]) b.add(sphere3(0.13, 4, 3), T('#ffffff'), { p: [x * m, y, z] });
+    },
+    fern(b, v, T) {
+      const c = ['#2a5a26', '#356c30', v === 2 ? '#e08aa6' : '#4e8c40'];
+      [[-0.7, 1.3, 0, 1.35], [0.75, 1.5, 0.1, 1.4], [0.0, 2.75, -0.1, 1.2]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(), T(c[k]), { p: [x, y, z], s: r, top: T(v === 2 && k === 2 ? '#f5b8cb' : '#7ab45a'), topK: 0.4, shade: 0.3 }));
+    },
+    busch(b, v) {
+      const c = v === 0 ? ['#d07896', '#f5b8cb'] : ['#3d7633', '#5a9a46'];
+      [[-0.28, 0.32, 0, 0.42], [0.26, 0.36, 0.06, 0.46], [0, 0.66, -0.04, 0.38]].forEach(([x, y, z, r], k) => b.add(kulBlob3(), c[k === 2 ? 1 : 0], { p: [x, y, z], s: r, shade: 0.3 }));
+    }
+  },
+  // Map 4: Tannenwall aus zwei, drei Tannen hintereinander
+  tannen: {
+    hw: 6.3, hf: 5.8,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      kulPine3(b, -0.55 * m, 0, 1, 4, ['#245242', '#2a5c48'], T, '#3e7a5e');
+      kulPine3(b, 0.65 * m, 0.25, v === 2 ? 0.7 : 0.82, 4, ['#2a5c48', '#245242'], T, '#3e7a5e');
+    },
+    fern(b, v, T) {
+      kulPine3(b, -0.4, 0, 1.15, 3, ['#1e4034', '#24493b'], T);
+      kulPine3(b, 0.7, 0.3, 0.8, 3, ['#24493b', '#1e4034'], T);
+    },
+    busch(b) {
+      kulPine3(b, 0, 0, 0.42, 2, ['#2a5c48', '#245242'], (c) => c, '#3e7a5e', 'lit');
+    }
+  },
+  // Map 2 außen: Dschungelwand aus Laubmassen, Lianen, Fächerblättern und roten Blüten
+  dschungel: {
+    hw: 4.9, hf: 4.0,
+    wand(b, v, T) {
+      const c = ['#2e5a2a', '#3d7633', '#4a8a3c'];
+      const m = v === 1 ? -1 : 1;
+      [[-0.7, 1.2, 0, 1.15], [0.7, 1.4, 0.1, 1.2], [-0.2, 2.8, -0.1, 1.2], [0.5, 3.9, 0.05, 0.95]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(true), T(c[k % 3]), { p: [x * m, y, z], s: [r * 1.1, r * 0.9, r], top: T('#6aa84e'), topK: 0.4, shade: 0.3 }));
+      for (const [x, y, l] of [[-0.45, 3.4, 2.4], [0.35, 2.9, 1.8]]) b.add(limb3(l, 0.05, 0.035, 4), T('#4a7a3a'), { p: [x * m, y, 1.0] });
+      b.add(sphere3(1, 6, 4), T('#5a9a46'), { p: [0.9 * m, 2.2, 0.85], s: [0.9, 0.1, 0.4], r: [0.5, 0.3 * m, 0.4 * m] });
+      if (v !== 2) for (const [x, y] of [[-0.9, 1.9], [0.2, 1.3]]) b.add(sphere3(1, 5, 4), T('#e04a3a'), { p: [x * m, y, 1.1], s: 0.16 });
+    },
+    fern(b, v, T) {
+      const c = ['#24502a', '#2e6030', '#3d7633'];
+      [[-0.7, 1.3, 0, 1.35], [0.75, 1.5, 0.1, 1.4], [0.0, 2.7, -0.1, 1.2]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(), T(c[k]), { p: [x, y, z], s: [r * 1.1, r * 0.9, r], top: T('#5a9a46'), topK: 0.4, shade: 0.3 }));
+    },
+    busch(b, v) {
+      for (let k = 0; k < 3; k++) b.add(sphere3(1, 6, 4), k % 2 ? '#5a9a46' : '#3d7633', { p: [Math.cos(k * 2.1) * 0.25, 0.35, Math.sin(k * 2.1) * 0.25], s: [0.55, 0.08, 0.24], r: [0, -k * 2.1, 0.5] });
+      if (v === 0) b.add(sphere3(1, 5, 4), '#e04a3a', { p: [0, 0.42, 0], s: 0.12 });
+    }
+  },
+  // Map 5: Sandsteinklippe aus drei Schichten, nach oben heller
+  sandstein: {
+    hw: 4.8, hf: 3.8,
+    wand(b, v, T) {
+      // flache Schichten übereinander, abwechselnd dunkler und heller, oben die hellste mit Kante
+      const m = v === 1 ? -1 : 1;
+      const c = ['#8a5a32', '#b47e4a', '#a06c3c'];
+      for (let k = 0; k < 3; k++) {
+        b.add(rockGeo((v + k) % 3), T(c[k]), { s: [1.5 - k * 0.12, 1.65, 1.2 - k * 0.1], p: [(k % 2 ? 0.12 : -0.1) * m, k * 1.45 - 0.15, (k % 2) * 0.08], top: T(k === 2 ? '#c8945c' : '#b88550'), topK: 0.35, shade: 0.5 });
+      }
+    },
+    fern(b, v, T) {
+      // Tafelberge: Schichten in wechselnden Farben, von oben als Ringe zu sehen
+      const c = ['#94643a', '#c48f58', '#a87444', '#d4a46a'];
+      const stack = (x, z, r, n, k0) => {
+        for (let k = 0; k < n; k++) b.add(kulMesa3(), T(c[(k + k0) % 4]), { p: [x, k * 1.05 - 0.2, z], s: [r * (1 - k * 0.2), 1.05, r * (0.9 - k * 0.18)], r: [0, k * 0.8 + v, 0], top: T('#e0b47a'), topK: 0.25, shade: 0.4 });
+      };
+      stack(-0.35, 0, 1.6, 3, v);
+      stack(1.0, 0.4, 0.95, 2, v + 1);
+    },
+    busch(b, v) {
+      b.add(rockGeo(v, 0), '#b08a5a', { s: [0.42, 0.5, 0.36], p: [0, 0.05, 0], top: '#d0aa7a', topK: 0.6, shade: 0.3 });
+      b.add(rockGeo((v + 1) % 3, 0), '#a07a50', { s: [0.28, 0.32, 0.25], p: [0.35, 0.02, 0.15], top: '#c29a6a', topK: 0.6 });
+    }
+  },
+  // Map 6: Aschenklippe mit Felsnadeln und Glutadern
+  asche: {
+    hw: 5.8, hf: 4.6,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      b.add(rockGeo(v), T('#5e4c48'), { s: [1.45, 2.0, 1.15], p: [0, -0.1, 0], top: T('#7a6862'), topK: 0.5, shade: 0.35 });
+      b.add(horn3(5.4, 0.85, 6), T('#6e5a56'), { p: [-0.4 * m, 0.3, -0.1], r: [0, 0, 0.08 * m], top: T('#8a766c'), topK: 0.4, shade: 0.4 });
+      b.add(horn3(3.8, 0.7, 6), T('#64524e'), { p: [0.6 * m, 0.3, 0.15], r: [0.1, 0, -0.12 * m], top: T('#8a766c'), topK: 0.4, shade: 0.4 });
+      if (v !== 1) b.add(limb3(2.2, 0.06, 0.03, 4), '#ff7a2a', { p: [-0.25 * m, 2.6, 0.45], r: [0.25, 0, 0.1 * m], mat: 'glow' });
+    },
+    fern(b, v, T) {
+      b.add(rockGeo(v, 0), T('#5e4c48'), { s: [1.8, 2.4, 1.5], p: [0, -0.1, 0], top: T('#7a6862'), topK: 0.5, shade: 0.35 });
+      b.add(horn3(4.4, 0.9, 6), T('#6e5a56'), { p: [0.3, 0.4, 0], r: [0, 0, -0.1], shade: 0.4 });
+    },
+    busch(b, v) {
+      for (let k = 0; k < 3; k++) b.add(limb3(0.6 - k * 0.1, 0.04, 0.02, 4), '#4a3a34', { p: [0, 0, 0], r: [Math.PI + Math.sin(k * 2.1 + v) * 0.6, 0, Math.cos(k * 2.1 + v) * 0.6] });
+      b.add(rockGeo(v, 0), '#5e4c48', { s: [0.3, 0.3, 0.26], p: [0.15, 0.02, 0.1], top: '#7a6862', topK: 0.5 });
+    }
+  },
+  // Map 7: Eisklippe mit Schneekappe und Eiszapfen, dazwischen verschneite Tannen
+  eis: {
+    hw: 6.3, hf: 5.0,
+    wand(b, v, T) {
+      if (v === 2) {
+        kulPine3(b, -0.5, 0, 1, 4, ['#2a4a48', '#2e5250'], T, '#f4f8fc');
+        kulPine3(b, 0.6, 0.25, 0.78, 4, ['#2e5250', '#2a4a48'], T, '#f4f8fc');
+        return;
+      }
+      b.add(rockGeo(v), T('#7aa6c8'), { s: [1.5, 4.2, 1.2], p: [-0.25, -0.2, 0], top: T('#f4f9fd'), topK: 0.95, shade: 0.4 });
+      b.add(rockGeo((v + 1) % 3), T('#8ab8d8'), { s: [1.05, 2.8, 0.95], p: [0.75, -0.1, 0.25], top: T('#f4f9fd'), topK: 0.95, shade: 0.35 });
+      for (const [x, z, l, a] of [[0.35, 0.7, 2.6, 0.25], [-0.9, 0.6, 1.8, -0.35]]) b.add(horn3(l, 0.3, 6), T('#bfe6f8'), { p: [x, 0, z], r: [0.15, 0, a] });
+    },
+    fern(b, v, T) {
+      if (v === 2) {
+        kulPine3(b, 0, 0, 1.1, 3, ['#2a4a48', '#2e5250'], T, '#f4f8fc');
+        return;
+      }
+      b.add(rockGeo(v, 0), T('#7aa6c8'), { s: [1.9, 3.8, 1.6], p: [0, -0.2, 0], top: T('#f4f9fd'), topK: 0.95, shade: 0.4 });
+      b.add(horn3(2.4, 0.35, 6), T('#bfe6f8'), { p: [0.9, 0, 0.5], r: [0.2, 0, -0.3] });
+    },
+    busch(b) {
+      kulPine3(b, 0, 0, 0.42, 2, ['#2a4a48', '#2e5250'], (c) => c, '#f4f8fc', 'lit');
+    }
+  },
+  // Map 8: Trauerweiden mit hängendem Moos
+  weiden: {
+    hw: 5.4, hf: 4.6,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      b.add(lathe3('kulweide', [[0.32, 0], [0.22, 1.6], [0.16, 3.0], [0, 3.1]], 6), T('#3a3a2a'), { p: [0.1 * m, 0, 0], shade: 0.3 });
+      [[-0.65, 3.4, 0, 1.1], [0.6, 3.6, 0.1, 1.15], [0.0, 4.5, -0.1, 0.95]]
+        .forEach(([x, y, z, r], k) => b.add(kulBlob3(), T(k === 1 ? '#4a5a3a' : '#3a4a30'), { p: [x * m, y, z], s: [r * 1.15, r * 1.2, r], top: T('#6a7e50'), topK: 0.45, shade: 0.4 }));
+      for (const [x, y, l] of [[-1.0, 2.7, 0.75], [-0.2, 2.75, 0.6], [0.8, 2.85, 0.85]]) b.add(sphere3(1, 5, 4), T('#6a8a52'), { p: [x * m, y, 0.8], s: [0.2, l, 0.16], shade: 0.4 });
+    },
+    fern(b, v, T) {
+      b.add(lathe3('kulweide', [[0.32, 0], [0.22, 1.6], [0.16, 3.0], [0, 3.1]], 6), T('#3a3a2a'), { p: [0, 0, 0] });
+      [[-0.6, 3.0, 0, 1.3], [0.65, 3.2, 0.1, 1.3]].forEach(([x, y, z, r]) => b.add(kulBlob3(), T('#3a4a30'), { p: [x, y, z], s: [r * 1.1, r * 1.15, r], top: T('#5a6e44'), topK: 0.4, shade: 0.4 }));
+    },
+    busch(b, v) {
+      for (let k = 0; k < 4; k++) b.add(horn3(0.7 + (k % 2) * 0.25, 0.04, 4), k % 2 ? '#6a7a4a' : '#4a5a3a', { p: [Math.cos(k * 1.7 + v) * 0.18, 0, Math.sin(k * 1.7 + v) * 0.18], r: [Math.sin(k * 1.7) * 0.2, 0, Math.cos(k * 1.7) * 0.2] });
+      b.add(sphere3(1, 5, 4), '#5a3a28', { p: [0.1, 0.8, 0], s: [0.05, 0.12, 0.05] });
+    }
+  },
+  // Map 9 und Titanenkamm: Basaltsäulen in Gruppen, unten glühende Fugen
+  basalt: {
+    hw: 7.0, hf: 5.6,
+    wand(b, v, T) {
+      const m = v === 1 ? -1 : 1;
+      [[-0.8, 0.1, 0.36, 5.0], [-0.25, -0.15, 0.4, 7.0], [0.3, 0.05, 0.38, 6.2], [0.85, -0.15, 0.34, 4.4], [-1.15, -0.3, 0.32, 3.0], [0.05, 0.5, 0.34, 2.6], [0.65, 0.5, 0.3, 1.8], [-0.6, 0.55, 0.3, 1.4]]
+        .forEach(([x, z, r, h], k) => b.add(kulCol3(), T(k % 2 ? '#3a2c2c' : '#463434'), { p: [x * m, -0.2, z], s: [r, h * (0.88 + ((k + v) % 3) * 0.08), r], r: [0, k, 0], top: T('#6a4c44'), topK: 0.9, shade: 0.45 }));
+      b.add(limb3(1.6, 0.06, 0.04, 4), '#ff7a2a', { p: [-0.8 * m, 0.1, 0.75], r: [0, 0, Math.PI / 2 * m], mat: 'glow' });
+    },
+    fern(b, v, T) {
+      [[-0.7, 0, 0.42, 4.4], [-0.1, -0.25, 0.46, 5.6], [0.5, 0.05, 0.42, 4.8], [1.0, -0.1, 0.38, 3.2], [0.2, 0.5, 0.38, 2.4]]
+        .forEach(([x, z, r, h], k) => b.add(kulCol3(), T(k % 2 ? '#3a2c2c' : '#463434'), { p: [x, -0.2, z], s: [r, h * (0.9 + ((k + v) % 3) * 0.08), r], r: [0, k, 0], top: T('#6a4c44'), topK: 0.9, shade: 0.45 }));
+    },
+    busch(b, v) {
+      [[-0.2, 0, 0.22, 0.9], [0.18, 0.1, 0.2, 0.6], [0, -0.2, 0.18, 0.4]]
+        .forEach(([x, z, r, h], k) => b.add(kulCol3(), '#463434', { p: [x, 0, z], s: [r, h + v * 0.1, r], r: [0, k, 0], top: '#6a4c44', topK: 0.9, shade: 0.4 }));
+    }
+  }
+};
+
+// Vorlagen der Randkulisse je Gebiet. Ferne: Farben zu 28 % zum Himmel des Gebiets gemischt (Luftperspektive)
+const tplKul = (B, part, v, alt) => bakeTemplate(`kul:${B.id}:${part}:${v}:${alt ? 1 : 0}`, (b) => {
+  const F = KUL3_FORM[B.form];
+  if (part === 'busch') {
+    F.busch(b, v);
+    return;
+  }
+  const sky = new THREE.Color((MOOD3[B.id] || MOOD3.dorf).sky);
+  const T = part === 'fern' ? (hex) => new THREE.Color(hex).lerp(sky, 0.28) : (hex) => hex;
+  // alles ohne eigenes Material ins Mesh 'far' (ohne Umriss)
+  const far = { add: (g, c, o = {}) => b.add(g, c, Object.assign({}, o, { mat: o.mat || 'far' })) };
+  F[part](far, v, T, alt);
+});
+
+// seit 15.20: Tannenpaar im Farbton der Karte (B.far) – die Tannenkulisse kennt sonst nur Grün; im Aschewald standen
+// im Waldinneren grüne Tannen hinter den verkohlten des Waldrands
+const tplKulTon = (B, v) => bakeTemplate(`kulton:${B.id}:${v}`, (b) => {
+  const base = new THREE.Color(B.far);
+  const T = (hex) => base.clone().lerp(new THREE.Color(hex), 0.1).multiplyScalar(1.12);
+  const far = { add: (g, c, o = {}) => b.add(g, c, Object.assign({}, o, { mat: o.mat || 'far' })) };
+  KUL3_FORM.tannen.wand(far, v, T);
+});
+const tplKulWald = (B, v) => (B !== BORDER3.wald && B.far ? tplKulTon(B, v) : tplKul(B, 'wand', v, false));
+
+// Ausrichtung je Seite (0 Nord, 1 Süd, 2 West, 3 Ost): Vorderseite (lokal +z) zur Map, Richtung nach außen
+const KUL3_ROT = [0, Math.PI, Math.PI / 2, -Math.PI / 2];
+const KUL3_NX = [0, 0, -1, 1];
+const KUL3_NZ = [-1, 1, 0, 0];
+const _kulP = new THREE.Vector3();
+const _kulS = new THREE.Vector3();
+// wie placeAt, aber mit eigener Höhe (sy), z. B. für Stücke unter der Sichtlinie
+function kulAt(x, z, rotY, s, sy, y) {
+  _q.setFromEuler(_e.set(0, rotY, 0));
+  return new THREE.Matrix4().compose(_kulP.set(x, y, z), _q, _kulS.set(s, s * sy, s));
+}
+
+// Randkulisse einer Kachel am oder hinter dem Rand der Map H. false: Kachel liegt im begehbaren Teil.
+function kulisse3(b, H, x, y, lowGfx) {
+  const dOut = homeOut3(H, x, y);
+  if (dOut > KUL3_OUT) return true;
+  // seit 14.70: Rand im Wolkenmeer oder offenen Meer (Kartenformen) – keine Wand, die Flüssigkeit läuft bis zum Horizont
+  if (H.voidG != null) return dOut > 0 || homeIn3(H, x, y) < MAP_BORDER;
+  const dIn = dOut ? 0 : homeIn3(H, x, y);
+  if (!dOut && dIn >= MAP_BORDER) return false;
+  // Seite und Reihe r ab dem begehbaren Teil (1 = Saum, 2–4 Rand, ab 5 draußen)
+  let side;
+  if (dOut) {
+    const ox = Math.max(H.x0 - x, x - (H.x1 - 1), 0);
+    const oy = Math.max(H.y0 - y, y - (H.y1 - 1), 0);
+    side = ox > oy ? (x < H.x0 ? 2 : 3) : y < H.y0 ? 0 : 1;
+  } else side = dIn === y - H.y0 ? 0 : dIn === H.y1 - 1 - y ? 1 : dIn === x - H.x0 ? 2 : 3;
+  // seit 14.79: Seite im offenen Meer (Schattenklippen, Norden; kartenrand.js) – wie oben keine Wand
+  if (H.side3 && rand3VoidSide(H, side)) return true;
+  const r = dOut ? MAP_BORDER + dOut : MAP_BORDER - dIn;
+  const along = side < 2 ? x : y;
+  const B = H.B;
+  const h = tileHash(x, y);
+  const v = h % 3;
+  // Im Süden unter der Sichtlinie der Kamera zur Figur in der letzten begehbaren Reihe (r = Reihen ab dort,
+  // höchstens 1,1 je Reihe) und flacher als die Kamera selbst, sonst füllen die nahen Stücke das halbe Bild;
+  // der Saum direkt vor der Figur bleibt hüfthoch
+  const cap = side !== 1 ? 99 : r === 1 ? 1.2 : Math.max(2.6, 0.75 * r);
+  const jx = ((h >> 5) % 5 - 2) * 0.06;
+  const jz = ((h >> 9) % 5 - 2) * 0.06;
+  const nx = KUL3_NX[side];
+  const nz = KUL3_NZ[side];
+  // eine Kachel weiter entlang des Randes (Stücke über zwei Kacheln)
+  const ax = side < 2 ? 0.5 : 0;
+  const az = side < 2 ? 0 : 0.5;
+  if (r === 1) {
+    // Saum: Gebietsobjekt auf jeder Kachel (Bäume und Tannen auf jeder zweiten), dahinter versetzt ein Busch.
+    // Im Süden nur, was niedrig bleibt (Felsen), sonst ein größerer Busch an seiner Stelle
+    const alt = B.saum[1];
+    const [kind, st, size] = alt && (h >> 6) % alt[3] === 0 ? alt : B.saum[0];
+    const s = size * (0.92 + ((h >> 12) % 16) / 100);
+    const rb = ((h >> 4) % 628) / 100;
+    // etwas nach außen gerückt, damit nichts in die begehbare Reihe ragt
+    const sx = x + 0.5 + jx + nx * 0.3;
+    const sz = y + 0.5 + jz + nz * 0.3;
+    if (kind === 'rock' || (s * KUL3_HT[kind] <= cap * 1.4 && !(KUL3_HT[kind] > 2 && along & 1))) b.addTemplate(tplTree(kind, v, st), placeAt(sx, sz, ((h >> 3) % 628) / 100, Math.min(s, cap / KUL3_HT[kind])));
+    else b.addTemplate(tplKul(B, 'busch', (v + 1) % 3), placeAt(sx, sz, rb + 1, 1.25 + ((h >> 15) % 4) * 0.06));
+    b.addTemplate(tplKul(B, 'busch', v), placeAt(x + 0.5 + ax + nx * 0.35, y + 0.5 + az + nz * 0.35, rb, 1.1 + ((h >> 15) % 4) * 0.12));
+    return true;
+  }
+  // Wand: auf dem Rand (r = 3) und gleich dahinter (r = 6) je ein Stück über zwei Kacheln, versetzt;
+  // Ferne: ab r = 8 je eine Masse über 2 × 2 Kacheln (niedrige Grafik: nur die erste Reihe)
+  let part = null;
+  if ((r === 3 && !(along & 1)) || (r === 6 && along & 1)) part = 'wand';
+  else if ((r === 8 || r === 10 || r === 12) && (along & 1) === ((r >> 1) & 1) && !(lowGfx && r > 8)) part = 'fern';
+  if (!part) return true;
+  const F = KUL3_FORM[B.form];
+  const far = part === 'fern';
+  // seit 14.79: je Art des Kartenrands kleiner und lichter, damit man über den Waldrand in die Landschaft sieht
+  const nk = typeof rand3Nah === 'function' ? rand3Nah(H, side, part, r, h) : 1;
+  if (!nk) return true;
+  const s = (far ? 1.2 : side === 1 ? 1.0 : 1.15) * (0.9 + ((h >> 12) % 20) / 100) * nk;
+  const out = far ? 0.5 : 0;
+  // seit 14.79 auf dem Hang, der nach außen weiter ansteigt (kartenrand.js)
+  const gx = x + 0.5 + ax + nx * out + jx;
+  const gz = y + 0.5 + az + nz * out + jz;
+  const gy = dOut ? (typeof rand3H === 'function' ? rand3H(H, gx, gz) : bermH3(dOut + out)) - 0.3 : -0.1;
+  const sy = Math.max(0.3, Math.min(1, (cap - gy) / ((far ? F.hf : F.hw) * s)));
+  const alt = B.alt && (h >> 4) % B.alt === 0;
+  const rot = KUL3_ROT[side] + (((h >> 7) % 9) - 4) * 0.06;
+  b.addTemplate(tplKul(B, part, v, alt), kulAt(gx, gz, rot, s, sy, gy));
+  return true;
+}
+
+// Kachel-Zahl gut verrühren: tileHash allein hat in den unteren Bits ein Gittermuster
+function mixHash(h) {
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  h = Math.imul(h ^ (h >>> 16), 0x45d9f3b);
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+// Ein Block mit allen Objekten, als Bauauftrag in Zeitscheiben (siehe v3UpdateChunks).
+// Gesammelt wird je Viertel (8 × 8 Kacheln). Steckt in einem Block viel (Dorf, dichter Wald), bekommt jedes
+// Viertel eigene Meshes: Die Sichtprüfung geht je Mesh, so fällt weg, was knapp außerhalb des Bildes liegt,
+// statt mit dem ganzen Block gezeichnet zu werden. Sonst bleibt es bei einem Mesh je Block.
+const QUARTER3 = CHUNK3 / 2;
+// ab so vielen Dreiecken einer Art im Block lohnt der zusätzliche Zeichenaufruf je Viertel
+const SPLIT3 = 20000;
+function* objectJob(cx, cy) {
+  const w = game.world;
+  const bakes = [0, 1, 2, 3].map(() => new Bake3(false));
+  const lowGfx = opts.graphics === 'niedrig';
+  const x0 = cx * CHUNK3;
+  const y0 = cy * CHUNK3;
+  // Map, in der man steht (seit 8.4): Rand und alles dahinter wird zur Randkulisse, auch jenseits der Weltgrenze
+  const H = V3.home && !V3.home.dungeon ? V3.home : null;
+  const x1 = H ? x0 + CHUNK3 : Math.min(MAP_W, x0 + CHUNK3);
+  const y1 = H ? y0 + CHUNK3 : Math.min(MAP_H, y0 + CHUNK3);
+  const bakeAt = (x, y) => bakes[(y - y0 >= QUARTER3 ? 2 : 0) + (x - x0 >= QUARTER3 ? 1 : 0)];
+  if (!towerTiles) towerTiles = new Set(w.props.filter((pr) => TOWER_TYPES.has(pr.type)).map((pr) => Math.floor(pr.y / TILE - 1) * MAP_W + Math.floor(pr.x / TILE)));
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const b = bakeAt(x, y);
+      if (H && kulisse3(b, H, x, y, lowGfx)) continue;
+      const i = y * MAP_W + x;
+      const o = w.obj[i];
+      const h = tileHash(x, y);
+      const style = ZONES[w.zoneIdx[i]].id;
+      const jx = ((h >> 5) % 5 - 2) * 0.05;
+      const jz = ((h >> 9) % 5 - 2) * 0.05;
+      const rot = ((h >> 3) % 628) / 100;
+      const sc = 0.9 + ((h >> 12) % 20) / 100;
+      if (o === OBJ.WALL) {
+        const ln = wallLine(w, i);
+        // seit 15.29: schräge und runde Steinmauern als durchgehender, geschwungener Zug (wallSweep3) statt einzeln
+        // gedrehter Stücke; gerade Stücke, Palisaden und Kristallwände wie bisher
+        if (!towerTiles.has(i) && !wallSweep3(b, w, x, y, i)) b.addTemplate(tplWall(WALL_STYLE.get(i)), ln ? wallLineAt(x, y, ln) : placeAt(x + 0.5, y + 0.5, wallVertical(w, i) ? Math.PI / 2 : 0));
+        continue;
+      }
+      const kind = OBJ_KIND[o];
+      if (kind) {
+        const st = kind === 'rock' || kind === 'dead' || kind === 'pine' ? style : kind === 'tree' && TREE3_STYLED.has(style) ? style : '';
+        // seit 14.70: im Inneren eines dichten Waldes der Kartenformen statt eines Baums je Kachel auf jeder 16.
+        // Kachel ein Tannenpaar der Randkulisse (sparsame Kegel ohne Umriss) – wirkt geschlossen, kostet wenig; in der
+        // zweiten Reihe vom Waldrand auf jeder vierten Kachel ein kleineres Tannenpaar
+        const dense = typeof formDense3 === 'function' ? formDense3(i) : 0;
+        // seit 14.73: Tannenkulisse des Gebiets, wo es eine hat (verkohlte Tannen im Aschewald), sonst die des Dunkelwalds
+        // seit 15.20: zuerst die Kulisse der Karte, auf der man steht (im Waldinneren gehört die Kachel nicht immer zum
+        // Gebiet des Waldes – im Aschewald standen dort sonst grüne Tannen zwischen den verkohlten)
+        const HB = V3.home && V3.home.B;
+        const ZB = dense ? BORDER3[ZONES[w.zoneIdx[i]].id] : null;
+        const DK = dense && HB && HB.form === 'tannen' ? HB : ZB && ZB.form === 'tannen' ? ZB : BORDER3.wald;
+        // seit 15.20: das Waldinnere ist geschlossen. Vorher stand dort nur auf jeder 16. Kachel ein großes, blasses
+        // Tannenpaar auf freier grüner Fläche („zwischen den Bäumen ist nur was Grünes“). Jetzt Tannenpaare im Abstand
+        // von zwei Kacheln (Grafik „Mittel“: drei) in wechselnder Höhe, der Boden darunter dunkel (tileSample);
+        // auf „Niedrig“ bleibt es bei der sparsamen Fassung.
+        const dq = opts.graphics === 'niedrig' ? 0 : opts.graphics === 'mittel' ? 3 : 2;
+        if (dense === 1) {
+          if (!dq) {
+            if (x % 4 || y % 4) continue;
+            b.addTemplate(tplKul(DK, 'fern', h % 3, false), kulAt(x + 2 + jx * 6, y + 2 + jz * 6, rot, 1.0 + ((h >> 12) % 12) / 100, 0.62, -0.1));
+            continue;
+          }
+          if (x % dq || y % dq) continue;
+          const hs = (h >> 12) % 40;
+          b.addTemplate(tplKulWald(DK, h % 3), kulAt(x + dq / 2 + jx * dq * 1.6, y + dq / 2 + jz * dq * 1.6, rot, (dq === 3 ? 0.72 : 0.5) + hs / 130, 0.66 + (hs % 7) * 0.03, -0.1));
+          continue;
+        }
+        if (dense === 2) {
+          if ((x | y) & 1) continue;
+          b.addTemplate(tplKulWald(DK, h % 3), kulAt(x + 1 + jx * 4, y + 1 + jz * 4, rot, 0.55 + ((h >> 12) % 10) / 100, 0.72, -0.1));
+          continue;
+        }
+        // Waldrand: auf Grafik „mittel“ und „niedrig“ (Handy) auf jeder zweiten Kachel ein Tannenpaar der Randkulisse
+        // statt eines Baums je Kachel (die Kacheln bleiben gesperrt)
+        if (dense === 3 && (opts.graphics === 'mittel' || opts.graphics === 'niedrig')) {
+          if ((x + y) & 1) continue;
+          b.addTemplate(tplKulWald(DK, h % 3), kulAt(x + 0.5 + jx, y + 0.55 + jz, rot, 0.5 + ((h >> 12) % 10) / 100, 0.7, -0.1));
+          continue;
+        }
+        b.addTemplate(tplTree(kind, h % 3, st), placeAt(x + 0.5 + jx, y + 0.55 + jz, rot, sc));
+        continue;
+      }
+      if (o) continue;
+      const g = w.ground[i];
+      const d = w.deco[i];
+      if (d === DECO.BRIDGE) {
+        // seit 14.76 nach den Nachbarn: Geländer nur außen, Auflager am Ufer, je Art eigene Bauweise (bridge3Tile)
+        bridge3Tile(b, x, y, i, g, lowGfx);
+        continue;
+      }
+      if (d >= DECO.STUMP) {
+        // seit 8.4 richtig modelliert und je Art auf Spielgröße gebracht (DECO_SIZE3) statt pauschal vergrößert
+        b.addTemplate(tplDeco(d, style, h % 3, lowGfx), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, sc * DECO_SIZE3[d]));
+        continue;
+      }
+      if (lowGfx) continue;
+      if (FLOWER3[d]) {
+        b.addTemplate(tplFlower(FLOWER3[d], GRASS3[g] || '#4f8a34'), placeAt(x + 0.5 + jx * 3, y + 0.5 + jz * 3, rot, 1));
+        continue;
+      }
+      if (d === DECO.PEBBLE) {
+        b.addTemplate(tplPebble(h % 3, style), placeAt(x + 0.5 + jx * 4, y + 0.5 + jz * 4, rot, 1));
+        continue;
+      }
+      // Gras (seit 7.9): auf Wiese und Grasland fast jede Kachel, manchmal hohe Halme und Klee; im Wald und
+      // Sumpf wie bisher jede vierte Kachel, auf Wegen nur hier und da ein kleines trockenes Büschel
+      const grass = GRASS3[g];
+      if (!grass) continue;
+      const m = mixHash(h);
+      const at = (k, s, r, form, col = grass) => {
+        const ox = ((m >> (k * 6)) & 7) / 7 - 0.5;
+        const oz = ((m >> (k * 6 + 3)) & 7) / 7 - 0.5;
+        b.addTemplate(tplTuft(col, form), placeAt(x + 0.5 + ox * 0.8, y + 0.5 + oz * 0.8, r, s));
+      };
+      if (GRASS3_DENSE.has(g)) {
+        if (((m >>> 24) & 15) < 2) continue;
+        at(0, 0.8 + ((h >> 14) % 6) / 10, rot, (m >>> 28) % 6 === 0 ? 'tall' : 'short');
+        if (d === DECO.TUFT || m & 0x40000) at(1, 0.65 + ((m >>> 22) & 3) * 0.1, rot + 2.1, 'short');
+        if (((m >>> 19) & 7) === 0) at(2, 0.9 + ((m >>> 22) & 3) * 0.1, rot + 1, 'clover', CLOVER3);
+      } else if (g === GROUND.PATH) {
+        if ((m >>> 26) % 9 === 0) at(0, 0.55 + ((m >>> 22) & 3) * 0.08, rot, 'short');
+      } else if (GRASS3_SPARSE[g]) {
+        if ((m >>> 26) % GRASS3_SPARSE[g] === 0 || (d === DECO.TUFT && (m >>> 26) % 4 === 1)) at(0, 0.6 + ((m >>> 22) & 3) * 0.1, rot, (m >>> 22) % 3 === 0 ? 'tall' : 'short');
+      } else if (d === DECO.TUFT || (m >>> 26) % 4 === 0) {
+        at(0, 0.8 + ((h >> 14) % 6) / 10, rot, (m >>> 22) % 5 === 0 ? 'tall' : 'short');
+        if (d === DECO.TUFT) at(1, 0.7, rot + 1, 'short');
+      }
+    }
+    if (y % 4 === 3) yield;
+  }
+  // begehbare Häuser (seit 13.91): Dach und Vorderwand in eine eigene Bake3, die ein eigenes Mesh wird
+  const shells = [];
+  for (const h of w.houses) {
+    const hx = h.x + h.w / 2;
+    const hy = h.y + h.h / 2;
+    if (hx >= x0 && hx < x1 && hy >= y0 && hy < y1 && !(H && homeOut3(H, Math.floor(hx), Math.floor(hy)))) {
+      const shell = h.enter ? new Bake3(false) : null;
+      WORLD3.house(bakeAt(Math.floor(hx), Math.floor(hy)), h, shell);
+      if (shell) shells.push({ h, shell });
+      yield;
+    }
+  }
+  // seit 14.38: auch zwischen den Gegenständen und beim Zusammenführen nach Rechenzeit abgeben (mergePartsSteps,
+  // drei-kern.js) – vorher liefen diese Teile am Stück und hielten beim Reiten einzelne Bilder 30–100 ms an
+  let propT = performance.now();
+  for (const pr of w.props) {
+    const px = pr.x * U3;
+    const py = pr.y * U3;
+    if (px < x0 || px >= x1 || py < y0 || py >= y1) continue;
+    if (performance.now() - propT > 3) {
+      yield;
+      propT = performance.now();
+    }
+    if (!PROP3[pr.type] || (H && homeOut3(H, Math.floor(px), Math.floor(py)))) continue;
+    // Stadtschmuck (seit 13.85): Kübel, einzelne Fässer und Kisten nur ab mittlerer Grafik
+    if (lowGfx && pr.fine) continue;
+    const back = TOWER_TYPES.has(pr.type) || pr.type === 'gate' || pr.type === 'holztor' ? 0.5 : pr.type === 'stall' ? 0.45 : pr.type === 'stand' || pr.type === 'dpillar' || pr.type === 'treppe' ? 0 : 0.25;
+    bakeAt(Math.floor(px), Math.floor(py)).addTemplate(tplProp(pr), placeAt(px, py - back, pr.rot || 0));
+  }
+  const group = new THREE.Group();
+  for (const key of ['lit', 'detail', 'glow', 'glowWin', 'grass', 'aura']) {
+    const lists = bakes.map((b) => b.lists[key] || []);
+    const total = lists.reduce((n, l) => n + partTris3(l), 0);
+    if (!total) continue;
+    for (const list of total > SPLIT3 ? lists : [lists.flat()]) {
+      if (!list.length) continue;
+      yield;
+      worldMesh(group, key, yield* mergePartsSteps(list, false, false, 3), lowGfx);
+    }
+  }
+  // Dach und Vorderwand begehbarer Häuser (seit 13.91): je Haus eine Gruppe, v3SyncHouses blendet sie aus
+  for (const { h, shell } of shells) {
+    const sg = new THREE.Group();
+    for (const key of ['lit', 'detail', 'glow', 'glowWin']) {
+      const list = shell.lists[key];
+      if (list && list.length) worldMesh(sg, key, yield* mergePartsSteps(list, false, false, 3), lowGfx);
+    }
+    sg.userData.house = h;
+    group.add(sg);
+    (group.userData.shells || (group.userData.shells = [])).push(sg);
+    yield;
+  }
+  // Randkulisse (seit 8.4): Wand und Ferne in einem eigenen Mesh ohne Umriss
+  const farList = bakes.flatMap((b) => b.lists.far || []);
+  if (farList.length) {
+    yield;
+    worldMesh(group, 'far', yield* mergePartsSteps(farList, false, false, 3), lowGfx);
+  }
+  return group;
+}
+
+// Dreiecke einer Teile-Liste aus Bake3 (Vorlagen und einzelne Formen)
+const partTris3 = (list) => list.reduce((n, it) => n + (it.tpl ? it.tpl.idx.length : it.geo.index ? it.geo.index.count : it.geo.attributes.position.count) / 3, 0);
+
+// Mesh(es) einer Art mit dem passenden Material in die Gruppe des Blocks
+function worldMesh(group, key, geo, lowGfx) {
+  // Randkulisse: beleuchtet und mit Durchsicht um die Figur, aber ohne Umriss und ohne Schattenempfang
+  if (key === 'far') {
+    group.add(new THREE.Mesh(geo, worldLitMat()));
+    return;
+  }
+  if (key === 'lit') {
+    // Schatten der Welt sind in den Boden gebacken; hier nur empfangen (z. B. von Figuren)
+    const m = new THREE.Mesh(geo, worldLitMat());
+    m.receiveShadow = true;
+    group.add(m);
+    if (!lowGfx) group.add(new THREE.Mesh(geo, mat3('worldOutline', () => outlineMat(0.022, false))));
+  } else if (key === 'glow') group.add(new THREE.Mesh(geo, worldGlowMat()));
+  else if (key === 'detail') {
+    // Kleinteile des Schmucks (seit 8.4): wie 'lit', aber ohne Umriss und ohne Wind
+    const m = new THREE.Mesh(geo, worldLitMat());
+    m.receiveShadow = true;
+    group.add(m);
+  } else if (key === 'glowWin') group.add(new THREE.Mesh(geo, mat3('worldWin', () => toonMat({ emissive: 0x6a4a20 }))));
+  else if (key === 'grass') {
+    const m = new THREE.Mesh(geo, worldGrassMat());
+    m.receiveShadow = true;
+    group.add(m);
+  } else group.add(new THREE.Mesh(geo, worldAuraMat()));
+}
+
+// Lichtquellen der Welt (einmal gesammelt): Laternen, Feuerbecken, Tore, Portale
+function v3CollectLights() {
+  if (lightSpots3.length || !game.world) return;
+  const w = game.world;
+  for (const pr of w.props) {
+    const x = pr.x * U3;
+    const z = pr.y * U3 - 0.25;
+    if (pr.type === 'lantern') lightSpots3.push({ x, y: 1.0, z, color: '#ffb860', power: 0.6, range: 5, flicker: 2 });
+    if (pr.type === 'stand' && pr.roof === 'schmied') lightSpots3.push({ x: pr.x * U3 + Math.cos(pr.rot || 0) * -0.65, y: 1.0, z: pr.y * U3 + Math.sin(pr.rot || 0) * 0.65, color: '#ff8a3a', power: 0.8, range: 4.5, flicker: 7 });
+    if (pr.type === 'brazier') lightSpots3.push({ x, y: 1.1, z, color: pr.roof || '#ff8a4a', power: 1.0, range: 6.5, flicker: 9 });
+    // seit 14.16: Teleportsteine und Kristallpfeiler der Städte mit eigener Form
+    if (pr.type === 'tpstein') lightSpots3.push({ x, y: 1.2, z, color: pr.roof || '#9fd8ff', power: 0.9, range: 5.5, flicker: 1 });
+    if (pr.type === 'kristallturm') lightSpots3.push({ x, y: 1.8, z: z - 0.25, color: '#b8a8ff', power: 0.45, range: 4, flicker: 1 });
+    // Dungeon-Schmuck (seit 13.7): Schrein, Thron und Schatz leuchten
+    if (pr.type === 'dshrine' || pr.type === 'dthrone') lightSpots3.push({ x, y: 1.6, z, color: String(pr.roof).split('|')[2], power: 0.8, range: 5.5, flicker: 2 });
+    if (pr.type === 'dchest') lightSpots3.push({ x, y: 0.9, z, color: '#ffd34d', power: 0.6, range: 4, flicker: 1 });
+  }
+  // Kamine in begehbaren Häusern (seit 13.91)
+  for (const h of w.houses) {
+    const room = h.enter && HOUSE_ROOMS[h.enter.room];
+    const k = room && room.furn.find((f) => f[0] === 'kamin');
+    if (k) lightSpots3.push({ x: h.x + k[1], y: 0.7, z: h.y + k[2] + 0.5, color: '#ff9a4a', power: 0.7, range: 4, flicker: 6 });
+  }
+  for (const n of w.npcs) {
+    if (n.id === 'weltentor') lightSpots3.push({ x: n.x * U3, y: 1.2, z: n.y * U3, color: '#7ab8ff', power: 0.55, range: 4.5 });
+    // Dungeon-Tor: Licht vor dem Wirbel (beleuchtet Podest und Stufen, ohne die Steine weiß zu waschen)
+    if (n.id === 'eingang') lightSpots3.push({ x: n.x * U3, y: 1.3, z: n.y * U3 + 1.4, color: DUNGEONS[n.dungeon].portal, power: 0.6, range: 5.5 });
+    if (n.id === 'ausgang') lightSpots3.push({ x: n.x * U3, y: 1.0, z: n.y * U3, color: DUNGEONS[n.dungeon].portal, power: 0.7, range: 5 });
+  }
+}

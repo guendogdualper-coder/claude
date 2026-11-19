@@ -1,0 +1,1281 @@
+// Aufträge, Reisen mit der Wegweiserin, Alchemist und Gespräche mit Dorfbewohnern.
+
+// Spielstand der Aufträge: Hauptkette (Index, angenommen, Fortschritt) und ein Jagdauftrag
+function questState() {
+  const p = game.player;
+  if (!p.quests) p.quests = { main: 0, accepted: false, progress: 0, hunt: null, hunts: 0, offers: null };
+  if (!p.quests.stable) p.quests.stable = { state: 'open', progress: 0, deadline: 0 };
+  // Alte Hauptkette (bis 11.1, 20 Aufträge) auf die Questreihe je Map umrechnen: weiter beim ersten Auftrag
+  // ab der Stufe des alten (alles erledigt: Heimkehr nach Kazehana vor dem Finale)
+  if (p.quests.chain !== 2) {
+    const q = p.quests;
+    const lvl = q.main < OLD_MAIN_LEVELS.length ? OLD_MAIN_LEVELS[q.main] : 70;
+    const done = q.main >= OLD_MAIN_LEVELS.length;
+    const idx = done ? mainQuestList().findIndex((m) => m.goal.type === 'talk' && m.goal.map === 1) : mainQuestList().findIndex((m) => m.level >= lvl);
+    q.main = Math.max(0, idx < 0 ? 0 : idx);
+    q.accepted = false;
+    q.progress = 0;
+    q.chain = 2;
+  }
+  return p.quests;
+}
+
+// Ältester einer Map (Bao in Kazehana, sonst der Lagerälteste) und die Map eines NPCs
+function npcMapId(n) {
+  const wm = mapOfTile(n.x / TILE, n.y / TILE);
+  return wm ? wm.id : 1;
+}
+function elderOf(mapId) {
+  return game.world.npcs.find((n) => n.id === 'aeltester' && npcMapId(n) === mapId) || null;
+}
+// Wo ein Hauptauftrag angenommen und abgegeben wird: beim Ältesten seiner Map; ein Reiseauftrag endet beim Ziel
+function questGiverMap(main, q) {
+  return main.goal.type === 'talk' && q.accepted ? main.goal.map : main.map;
+}
+function mapName(id) {
+  return (WORLD_MAPS.find((m) => m.id === id) || WORLD_MAPS[0]).name;
+}
+function elderPlace(mapId) {
+  const n = elderOf(mapId);
+  return `${n ? n.name : 'dem Ältesten'} (${mapName(mapId)})`;
+}
+
+// Nebenaufgaben der Wanderer: Zustand je Wanderer (open, active), Fortschritt und wie oft schon erledigt
+function sideState(key) {
+  const q = questState();
+  if (!q.side) q.side = {};
+  if (!q.side[key]) q.side[key] = { state: 'open', progress: 0, times: 0 };
+  return q.side[key];
+}
+// Alle Wanderer, auch die, die nachts schlafen (tag-nacht.js nimmt sie dann aus world.npcs). Seit 13.11:
+// vorher zählten nachts keine Kills für ihre Aufgaben, und die Aufgaben fehlten im Tracker und im Questfenster
+function allWanderers() {
+  const list = game.world.npcs.filter((n) => n.id === 'wanderer');
+  const hidden = typeof dayNight !== 'undefined' && dayNight.hidden ? dayNight.hidden : [];
+  for (const n of hidden) if (n.id === 'wanderer' && !list.includes(n)) list.push(n);
+  return list;
+}
+// Monster der aktuellen Nebenaufgabe (seit 13.10 wechselt es nach jeder Abgabe; vorher immer dasselbe)
+function sideMon(n, s = sideState(n.key)) {
+  return s.monster && MONSTER_TYPES[s.monster] ? s.monster : n.side.monster;
+}
+// nächstes Monster: ein anderes aus den Gebieten der Map des Wanderers (beim Sammeln nur solche mit Teilen)
+function nextSideMonster(n, s) {
+  const map = npcMapId(n);
+  const pool = [...new Set(ZONES.filter((z) => z.map === map && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])))]
+    .filter((id) => MONSTER_TYPES[id] && (n.side.kind !== 'collect' || MOB_MATS[id]) && id !== sideMon(n, s));
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : sideMon(n, s);
+}
+// seit 13.10 wächst die Menge langsamer (vorher 8 → 16 Hunde, jetzt höchstens 6 mehr)
+// seit 13.91: Bewohner der begehbaren Häuser (welt.js houseResidents) wollen weniger (side.base: 5 Teile, 10 Monster)
+function sideCount(n, s) {
+  if (n.side.base) return n.side.base + (n.side.kind === 'collect' ? Math.min(3, Math.floor(s.times / 2)) : Math.min(5, s.times));
+  return n.side.kind === 'collect' ? SIDE_COLLECT + Math.min(3, Math.floor(s.times / 2)) : SIDE_KILL + Math.min(6, s.times);
+}
+function sideHave(n, s) {
+  return n.side.kind === 'collect' ? (game.player.upmats[sideMon(n, s)] || 0) : s.progress;
+}
+function sideDone(n, s) {
+  return s.state === 'active' && sideHave(n, s) >= sideCount(n, s);
+}
+// Läuft eine Sammel-Aufgabe für dieses Monster? Dann fallen seine Teile viel öfter
+function sideCollecting(typeId) {
+  if (!game.player || !game.world) return false;
+  const q = questState();
+  return !!q.side && allWanderers().some((n) => n.side.kind === 'collect' && q.side[n.key] && sideMon(n, q.side[n.key]) === typeId && q.side[n.key].state === 'active');
+}
+
+function currentMainQuest() {
+  return mainQuestList()[questState().main] || null;
+}
+
+function goalDone(goal, progress) {
+  return progress >= goal.count;
+}
+
+// --- Fundorte: wo ein Monster oder ein Seelenstein zu finden ist (Gebiet und Map) ---------------
+
+function zoneMapName(z) {
+  // seit 14.96: Dungeons mit dem Eingang der eigenen Seite (Schatten: entry2 auf den Schattenkarten)
+  const map = z.map || (z.dungeon && z.dungeon.entry && (typeof dungeonMapFor === 'function' ? dungeonMapFor(z.dungeon) : z.dungeon.entry.map)) || 1;
+  return (WORLD_MAPS.find((m) => m.id === map) || WORLD_MAPS[0]).name;
+}
+function zonePlaceText(z) {
+  const map = zoneMapName(z);
+  return `${z.name}${z.dungeon ? ' (Dungeon)' : ''}${map !== z.name ? ` · Map ${map}` : ''}`;
+}
+function monsterPlaces(id) {
+  return ZONES.filter((z) => (z.groups && z.groups.some((g) => g[0] === id)) || (z.night && z.night.some((g) => g[0] === id)) || (z.dungeon && (z.dungeon.mobs.includes(id) || z.dungeon.boss === id)));
+}
+function monsterWhere(id) {
+  const zs = myZones(monsterPlaces(id));
+  return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
+}
+const myZones = (zs) => (typeof zonesForMe === 'function' ? zonesForMe(zs) : zs);
+function stoneWhere(level) {
+  const zs = myZones(ZONES.filter((z) => (z.stones && z.stones.some((s) => s[0] === level)) || (z.dungeon && z.dungeon.stones.includes(level))));
+  return zs.length ? zs.slice(0, 2).map(zonePlaceText).join(' oder ') : 'unbekannt';
+}
+function goalWhere(goal) {
+  if (goal.type === 'talk') return mapName(goal.map);
+  if (goal.type === 'raids') return 'die Endboss-Hallen aller Maps';
+  return goal.type === 'kill' ? monsterWhere(goal.monster) : stoneWhere(goal.level);
+}
+
+// Nächster noch nicht besiegter Endboss für das Finale
+function nextRaidBoss() {
+  const done = questState().raidsDone || [];
+  return raidBossList().find((id) => !done.includes(id)) || null;
+}
+
+function goalText(goal) {
+  if (goal.type === 'talk') return `Sprich mit ${elderPlace(goal.map)}`;
+  if (goal.type === 'raids') {
+    const next = nextRaidBoss();
+    return `Alle ${goal.count} Endbosse besiegen${next ? ` · als Nächstes ${MONSTER_TYPES[next].name}` : ''}`;
+  }
+  if (goal.type === 'kill') return `${goal.count} × ${MONSTER_TYPES[goal.monster].name} besiegen`;
+  return `${goal.count} × ${stoneType(goal.level).name} (Stufe ${goal.level}) zerstören`;
+}
+
+// Wird bei jedem besiegten Monster und jedem zerstörten Seelenstein aufgerufen
+function questEvent(kind, m) {
+  if (!game.player) return;
+  // Nachtjagden (seit 13.8, tag-nacht.js)
+  if (kind === 'kill' && typeof nightQuestKill === 'function') nightQuestKill(m);
+  const q = questState();
+  const main = currentMainQuest();
+  const matches = (goal) => (kind === 'kill' && goal.type === 'kill' && goal.monster === m.typeId)
+    || (kind === 'stone' && goal.type === 'stone' && goal.level === m.level);
+  // Finale: jeder Endboss zählt einmal
+  if (main && q.accepted && main.goal.type === 'raids' && kind === 'kill' && m.type && m.type.raidBoss && raidBossList().includes(m.typeId)) {
+    q.raidsDone = q.raidsDone || [];
+    if (!q.raidsDone.includes(m.typeId)) {
+      q.raidsDone.push(m.typeId);
+      q.progress = q.raidsDone.length;
+      ui.banner(`Endboss ${q.progress} von ${main.goal.count}`, m.name);
+      if (goalDone(main.goal, q.progress)) ui.log(`Alle Endbosse sind besiegt! Kehre zu ${elderPlace(main.map)} zurück.`, 'level');
+    }
+  }
+  if (main && q.accepted && !goalDone(main.goal, q.progress) && matches(main.goal)) {
+    q.progress++;
+    if (goalDone(main.goal, q.progress)) {
+      ui.banner('✔ Auftrag fertig', `${main.title} – abgeben bei ${elderPlace(questGiverMap(main, q))}`);
+      ui.log(`Auftrag „${main.title}“ fertig! Gib ihn bei ${elderPlace(questGiverMap(main, q))} ab.`, 'level');
+    }
+  }
+  const st = q.stable;
+  if (st.state === 'active' && kind === 'kill' && m.level >= STABLE_QUEST.minLevel) {
+    st.progress++;
+    if (st.progress >= STABLE_QUEST.count) {
+      st.state = 'done';
+      ui.banner('Prüfung bestanden', 'Kehre zu einem Stallmeister zurück');
+      ui.log('Du hast die Prüfung des Stallmeisters bestanden! Hol dir dein Pferd bei Jun in Kazehana oder beim Stallmeister in jedem Lager.', 'level');
+    }
+  }
+  if (kind === 'kill' && q.side) {
+    for (const n of allWanderers()) {
+      if (n.side.kind !== 'kill' || !q.side[n.key] || sideMon(n, q.side[n.key]) !== m.typeId) continue;
+      const s = q.side[n.key];
+      if (!s || s.state !== 'active' || s.progress >= sideCount(n, s)) continue;
+      s.progress++;
+      if (s.progress >= sideCount(n, s)) {
+        ui.banner('✔ Aufgabe fertig', `zurück zu ${n.name}`);
+        ui.log(`Nebenaufgabe von ${n.name} fertig! Gib sie bei ${n.name} ab (${mapName(npcMapId(n))}).`, 'level');
+      }
+    }
+  }
+  const h = q.hunt;
+  if (h && h.progress < h.count && kind === 'kill' && m.typeId === h.monster) {
+    h.progress++;
+    if (h.progress >= h.count) {
+      ui.banner('✔ Jagd fertig', `${MONSTER_TYPES[h.monster].name} – bei einer Jägerin abgeben`);
+      ui.log('Jagdauftrag fertig! Gib ihn bei einer Jägerin ab (in jeder Stadt und jedem Lager).', 'level');
+    }
+  }
+  ui.renderQuestTrack();
+}
+
+// Ausrufezeichen über Auftraggebern, wenn es etwas zu holen gibt:
+// 'main' (golden) für Hauptmissionen, 'side' (grün) für Nebenmissionen
+function questMarker(npcId, n) {
+  if (!game.player || !game.running) return false;
+  const q = questState();
+  if (npcId === 'wanderer' && n) {
+    const s = sideState(n.key);
+    return (s.state === 'open' || sideDone(n, s)) && 'side';
+  }
+  if (npcId === 'aeltester') {
+    const main = currentMainQuest();
+    if (!main) return false;
+    // nur der Älteste, bei dem es gerade weitergeht (seit 11.2)
+    if (n && npcMapId(n) !== questGiverMap(main, q)) return false;
+    if (!q.accepted) return game.player.level >= main.level && 'main';
+    return (main.goal.type === 'talk' || goalDone(main.goal, q.progress)) && 'main';
+  }
+  if (npcId === 'stallmeister') {
+    const st = q.stable;
+    return ((st.state === 'open' && game.player.level >= STABLE_QUEST.level) || st.state === 'done') && 'main';
+  }
+  if (npcId === 'jaegerin') return (!q.hunt || q.hunt.progress >= q.hunt.count) && 'side';
+  if (npcId === 'nachtwanderer' && n && typeof nightState === 'function') return nightState(n.key).state === 'open' && 'side';
+  return false;
+}
+
+// Tod während der Stallmeister-Prüfung (seit 14.18): bis zu STABLE_QUEST.lives Tode sind erlaubt, der nächste beendet sie
+function stableOnDeath() {
+  const st = questState().stable;
+  if (!st || st.state !== 'active') return;
+  st.deaths = (st.deaths || 0) + 1;
+  const left = STABLE_QUEST.lives - st.deaths;
+  if (left < 0) {
+    st.state = 'open';
+    st.progress = 0;
+    ui.banner('Prüfung gescheitert', STABLE_QUEST.title);
+    ui.log(`Du bist ${st.deaths}-mal gefallen. Sprich mit einem Stallmeister, um die Prüfung noch einmal zu beginnen.`, 'warn');
+  } else {
+    ui.log(left ? `Prüfung des Stallmeisters: Du darfst noch ${left}-mal fallen.` : 'Prüfung des Stallmeisters: Fällst du noch einmal, ist sie gescheitert.', 'warn');
+  }
+  ui.renderQuestTrack();
+}
+
+// Zeitlimit der Stallmeister-Prüfung (läuft über die Spielzeit, auch nach dem Neuladen)
+function questTick() {
+  const p = game.player;
+  const st = questState().stable;
+  if (st.state !== 'active' || p.playTime < st.deadline) return;
+  st.state = 'open';
+  st.progress = 0;
+  ui.banner('Zeit abgelaufen', STABLE_QUEST.title);
+  ui.log('Die 20 Minuten sind um. Sprich mit einem Stallmeister, um es noch einmal zu versuchen.', 'warn');
+  ui.renderQuestTrack();
+  saveGame();
+}
+
+// Dungeons betreten und verlassen
+// viaParty: über die Einladung eines Gruppenmitglieds (dann ohne Stufengrenze und ohne erneut einzuladen)
+function enterDungeon(k, viaParty = false) {
+  const p = game.player;
+  const dg = game.world.dungeons[k];
+  const htTest = dg.def.instanz && typeof htFree === 'function' && htFree();
+  // Testzeit der Instanzen (13.61): ohne Stufengrenze
+  const instTest = dg.def.inst60 && typeof instFree === 'function' && instFree();
+  if (!viaParty && !htTest && !instTest && p.level < dg.def.minLevel) return `${dg.def.name} kannst du ab Stufe ${dg.def.minLevel} betreten.`;
+  // Höllenthron: Gruppe, Stufe und Ausrüstung werden bei jedem geprüft (auch über die Einladung)
+  if (dg.def.instanz) {
+    const err = htEntryError();
+    if (err) return err;
+  }
+  // Lv-60-Instanzen (seit 13.58): Gruppe, Stufe 60 und Sperre (instanzen.js); beim Betreten beginnt die Sperre
+  if (dg.def.inst60) {
+    const err = instTryEnter(k);
+    if (err) return err;
+  }
+  moveThrough(dg.start, dg.def.portal);
+  ui.banner(dg.def.name, `Boss: ${MONSTER_TYPES[dg.def.boss].name} (Stufe ${MONSTER_TYPES[dg.def.boss].level})`);
+  // Die Gruppe kommt auf Wunsch mit
+  if (!viaParty) partyDungeonCall(k);
+  return null;
+}
+// --- Dungeon-Risse ---------------------------------------------------------------------------
+// Alle paar Minuten öffnet sich in deiner Nähe ein Riss, der 5 Minuten offen bleibt und direkt
+// in einen zufälligen Dungeon deiner Stufe führt. Ein Riss trägt einen Spieler hinein, dann schließt er sich.
+const RIFT = { first: 75, every: [140, 240], life: 300, minLevel: 10 };
+
+// seit 10.1 passend zur Stufe: nur Dungeons bis 8 Stufen darunter (und höchstens 2 darüber); gibt es keinen,
+// der nächstniedrigere. Maßstab ist deine Stufe, höchstens die Mitte des Gebiets, in dem der Riss erscheint.
+function riftDungeon(level, zone) {
+  const target = zone && zone.minLevel ? Math.min(level, zone.minLevel + 9) : level;
+  const all = DUNGEONS.map((d, k) => k).filter((k) => !DUNGEONS[k].raid && !DUNGEONS[k].instanz && !DUNGEONS[k].inst60 && DUNGEONS[k].minLevel <= Math.max(level, target + 2));
+  const ok = all.filter((k) => DUNGEONS[k].minLevel >= target - 8 && DUNGEONS[k].minLevel <= target + 2);
+  if (ok.length) return ok[randInt(0, ok.length - 1)];
+  if (!all.length) return -1;
+  // sonst der höchste darunter
+  return all.reduce((best, k) => (DUNGEONS[k].minLevel > DUNGEONS[best].minLevel ? k : best), all[0]);
+}
+
+function updateRifts() {
+  const p = game.player;
+  const w = game.world;
+  // seit 14.17: Dungeon-Eingänge ziehen alle 3 Stunden um (dungeon-wandern.js)
+  if (typeof updateDungeonEntrances === 'function') updateDungeonEntrances();
+  if (!p || p.dead || p.level < RIFT.minLevel) return;
+  if (w.npcs.some((n) => n.id === 'riss' && game.time > n.until)) {
+    w.npcs = w.npcs.filter((n) => n.id !== 'riss' || game.time <= n.until);
+    ui.log('Der Dungeon-Riss hat sich wieder geschlossen.', 'info');
+  }
+  if (game.riftAt == null) game.riftAt = game.time + RIFT.first;
+  if (game.time < game.riftAt) return;
+  const zone = zoneAt(p.x, p.y);
+  // im Dorf, im Lager oder schon im Dungeon: bald noch einmal versuchen
+  if (zone.dungeon || zone.safe || w.npcs.some((n) => n.id === 'riss')) {
+    game.riftAt = game.time + 30;
+    return;
+  }
+  game.riftAt = game.time + randInt(...RIFT.every);
+  const k = riftDungeon(p.level, zone);
+  if (k < 0) return;
+  const here = mapOfTile(p.x / TILE, p.y / TILE);
+  for (let tries = 0; tries < 50; tries++) {
+    const a = Math.random() * Math.PI * 2;
+    const d = (7 + Math.random() * 7) * TILE;
+    const x = p.x + Math.cos(a) * d;
+    const y = p.y + Math.sin(a) * d;
+    if (!canStand(x, y, 16, false) || inVillage(x, y) || zoneAt(x, y).dungeon || mapOfTile(x / TILE, y / TILE) !== here) continue;
+    w.npcs.push({ id: 'riss', name: 'Dungeon-Riss', x, y, r: 11, dungeon: k, until: game.time + RIFT.life, born: game.time });
+    partyShareRift(x, y, k, RIFT.life);
+    ui.banner('Ein Dungeon-Riss öffnet sich!', `${DUNGEONS[k].name} · 5 Minuten offen`);
+    ui.log(`Ganz in deiner Nähe flackert ein Riss in die ${DUNGEONS[k].name}. Er ist auf der Karte markiert.`, 'level');
+    addEffect({ type: 'ring', x, y: y + 9, r: 70, dur: 0.8, color: DUNGEONS[k].portal, width: 10, grow: true });
+    shakeScreen(3);
+    return;
+  }
+}
+
+// Allein schließt sich der Riss hinter dir; in einer Gruppe bleibt er offen, bis seine Zeit um ist
+function enterRift(n) {
+  const err = enterDungeon(n.dungeon);
+  if (err) return err;
+  if (!(game.party && game.party.members.length > 1)) game.world.npcs = game.world.npcs.filter((x) => x !== n);
+  return null;
+}
+
+function leaveDungeon(k) {
+  moveThrough(game.world.dungeons[k].entrance, '#9fd0ff');
+}
+function moveThrough(spot, color) {
+  const p = game.player;
+  addEffect({ type: 'ring', x: p.x, y: feetY(p), r: 40, dur: 0.5, color, width: 8, grow: true });
+  p.dash = null;
+  p.leap = null;
+  p.x = spot.x;
+  p.y = spot.y;
+  game.target = null;
+  game.allies.forEach((a) => { a.x = p.x; a.y = p.y; });
+  // seit 14.32: auf dem Drachen sofort in den passenden Zustand (im Dungeon am Boden, draußen fliegend), nicht erst
+  // im nächsten Bild – so steht man nach dem Eintritt nie fliegend in einem Dungeon
+  if (typeof dragonRideTick === 'function') dragonRideTick(p);
+  ui.closePanels();
+  vfxPillar(p, color, 1);
+  // kein heller Blitz mehr (seit 11.3): in 3D blendet warpFade dunkel über
+  if (!V3.on) flashScreen(color, 0.25);
+  saveGame();
+}
+
+// Seit 14.6 gibt es Verstärkung, Switcher, 5. Bonus, Sternenstein und Sternen-Switcher nur noch aus Seelensteinen:
+// stehen sie noch in einer Belohnung (Aufträge, alte Jagden im Spielstand), werden sie zu Seelensplittern
+// (BONUS_MAT_SPLINTERS je Stück, daten/gegenstaende.js). Andere Materialien (Schriftrollen …) bleiben.
+function stoneOnlyReward(reward) {
+  if (!reward || !reward.mats) return reward;
+  const out = { ...reward, mats: {} };
+  let sp = 0;
+  for (const [id, n] of Object.entries(reward.mats)) {
+    if (BONUS_MAT_SPLINTERS[id]) sp += BONUS_MAT_SPLINTERS[id] * n;
+    else out.mats[id] = n;
+  }
+  if (sp) out.splinters = (out.splinters || 0) + sp;
+  return out;
+}
+
+// Ein Ausrüstungsteil als Quest-Belohnung (seit 14.21, QUEST_GEAR): eigene Klasse, Waffe passend zum Weg
+function questGearItem(kind, slot) {
+  const p = game.player;
+  const g = QUEST_GEAR[kind] || QUEST_GEAR.side;
+  const tier = rarityTierFor(p.level);
+  // nur Plätze, die die Figur auch tragen kann (Köcher nur beim Bogen, Schild nur beim Krieger mit Einhandwaffe …)
+  let slots = lootSlots(EQUIP_SLOTS.map((sl) => sl.id), p.classId);
+  const wkind = questWeaponKind(p);
+  slots = slots.filter((sl) => (sl !== 'koecher' || wkind === 'bow') && (sl !== 'schild' || (offhandAllowsShield(p))));
+  slot = slot && slots.includes(slot) ? slot : slots[randInt(0, slots.length - 1)];
+  const item = makeItem(slot, tier, randInt(g.plus[0], g.plus[1]), p.classId, wkind);
+  return applyRarity(item, capRarity(rarityPick(g.rarity), tier));
+}
+function offhandAllowsShield(p) {
+  if (p.classId !== 'krieger') return false;
+  const w = p.equipment && p.equipment.waffe;
+  return !(w && WEAPON_KINDS[w.kind] && WEAPON_KINDS[w.kind].twoHanded && !p.titanGrip);
+}
+// Waffenart für die eigene Klasse und den eigenen Weg (nie die Waffe des anderen Wegs)
+function questWeaponKind(p) {
+  const need = typeof pathWeapon === 'function' ? pathWeapon(p) : null; // Weg mit fester Waffe (Ninja: Dolch oder Bogen)
+  if (need) return need;
+  const kinds = CLASS_WEAPON_KINDS[p.classId] || [];
+  const own = kinds.filter((k) => WEAPON_KINDS[k]?.path == null || WEAPON_KINDS[k].path === (p.path || 0));
+  const list = own.length ? own : kinds;
+  return list[randInt(0, list.length - 1)];
+}
+
+// big (seit 13.85): großer Lichteffekt wie beim Stufenaufstieg (Tagesbelohnung); Aufträge nur ein kleiner Blinker
+function giveReward(reward, xp, big = false) {
+  reward = stoneOnlyReward(reward);
+  const p = game.player;
+  const parts = [];
+  if (xp) parts.push(`${xp.toLocaleString('de-DE')} EP`);
+  if (reward.gold) {
+    p.gold += reward.gold;
+    parts.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
+  }
+  if (reward.potions) {
+    // seit 14.5 in der Größe passend zur Stufe (wie Beute und Tagesbelohnung), vorher immer klein
+    const sz = potionSizeFor(p.level).id;
+    for (const kind of ['hp', 'mp']) p.potions[potKey(kind, sz)] = (p.potions[potKey(kind, sz)] || 0) + reward.potions;
+    parts.push(`${reward.potions} × ${potionInfo('hp').name} (${sz})`, `${reward.potions} × ${potionInfo('mp').name} (${sz})`);
+  }
+  if (reward.scrolls) {
+    p.scrolls += reward.scrolls;
+    parts.push(`${reward.scrolls} × ${BLESSING.name}`);
+  }
+  if (reward.splinters) {
+    p.splinters += reward.splinters;
+    parts.push(`${reward.splinters} × Seelensplitter`);
+  }
+  if (reward.horse) {
+    p.horse = true;
+    p.horseTier = Math.max(1, p.horseTier || 0);
+    parts.push('ein eigenes Reitpferd');
+  }
+  if (reward.books) {
+    // Aufträge geben Bücher zu den eigenen Fertigkeiten
+    const got = addBooks(reward.books, null, classSkills(p).map((sk) => sk.id));
+    if (got.length) parts.push('Fertigkeitsbücher: ' + got.join(', '));
+  }
+  for (const [id, n] of Object.entries(reward.mats || {})) {
+    p.materials[id] = (p.materials[id] || 0) + n;
+    parts.push(`${n} × ${MATERIALS.find((m) => m.id === id).name}`);
+  }
+  for (const [slot, tier, plus] of reward.items || []) {
+    // seit 14.21: Waffen passend zum eigenen Weg (vorher immer die erste Waffenart der Klasse)
+    const item = makeItem(slot, tier, plus, p.classId, slot === 'waffe' ? questWeaponKind(p) : null);
+    if (addToBag(item)) parts.push(itemFullName(item));
+    else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
+  }
+  // seit 14.21: Ausrüstung für die eigene Klasse (immer oder mit Chance, QUEST_GEAR)
+  if (reward.gear && Math.random() < (QUEST_GEAR[reward.gear] || {}).chance) {
+    const item = questGearItem(reward.gear);
+    if (addToBag(item)) {
+      parts.push(itemFullName(item));
+      ui.loot(itemFullName(item), 1, itemIconUrl(item), itemColor(item));
+    } else ui.log(`Dein Inventar ist voll: ${itemFullName(item)} ist verloren.`, 'warn');
+  }
+  ui.log('Belohnung: ' + parts.join(', ') + '.', 'level');
+  if (big) vfxLevelUp(p);
+  else vfxQuestDone(p);
+  if (xp) gainXp(xp);
+  saveGame();
+  return parts;
+}
+
+// Tränke einer Belohnung mit echten Symbolen (seit 14.5; vorher nur Text bzw. ein grünes 🧪)
+function questPotionHtml(n, long) {
+  const sz = potionSizeFor(game.player ? game.player.level : 1).id;
+  const one = (kind) => `<img class="mini-icon" src="${potionIconUrl(kind, sz)}" alt=""> ${n} × ${long ? `${potionInfo(kind).name} (${sz})` : ''}`.trim();
+  return long ? `${one('hp')} und ${one('mp')}` : `${one('hp')} ${one('mp')}`;
+}
+function rewardHtml(reward, xp) {
+  reward = stoneOnlyReward(reward);
+  const li = [];
+  if (xp) li.push(`${xp.toLocaleString('de-DE')} Erfahrung`);
+  if (reward.gold) li.push(`${reward.gold.toLocaleString('de-DE')} Gold`);
+  if (reward.potions) li.push(questPotionHtml(reward.potions, true));
+  if (reward.scrolls) li.push(`${reward.scrolls} × ${BLESSING.name}`);
+  if (reward.splinters) li.push(`<img class="mini-icon" src="${lootIconUrl('splinter')}" alt=""> ${reward.splinters} × Seelensplitter`);
+  if (reward.horse) li.push(`<b class="reward-horse">Ein eigenes Reitpferd</b> (+${Math.round(HORSES[1].speed * 100)} % Lauftempo, Taste R oder Pferdeknopf)`);
+  if (reward.books) li.push(`<img class="mini-icon" src="${lootIconUrl('book')}" alt=""> ${reward.books} × Fertigkeitsbuch zu deinen Fertigkeiten`);
+  for (const [id, n] of Object.entries(reward.mats || {})) {
+    li.push(`<img class="mini-icon" src="${materialIconUrl(id)}" alt=""> ${n} × ${MATERIALS.find((m) => m.id === id).name}`);
+  }
+  for (const [slot, tier, plus] of reward.items || []) {
+    const item = makeItem(slot, tier, plus);
+    li.push(`<img class="mini-icon" src="${itemIconUrl(item)}" alt=""> ${itemFullName(item)} <small>(ab Stufe ${ITEM_TIERS[tier].level})</small>`);
+  }
+  if (reward.gear && QUEST_GEAR[reward.gear]) {
+    const g = QUEST_GEAR[reward.gear];
+    const lvl = ITEM_TIERS[rarityTierFor(game.player.level)].level;
+    li.push(`<b class="reward-gear">${g.chance >= 1 ? 'Ein Ausrüstungsteil' : `${Math.round(g.chance * 100)} % Chance auf ein Ausrüstungsteil`}</b> für deine Klasse <small>(Stufe ${lvl}, grün oder blau)</small>`);
+  }
+  return '<ul class="reward-list">' + li.map((x) => `<li>${x}</li>`).join('') + '</ul>';
+}
+
+// Jagdaufträge: drei Angebote mit Monstern nahe der eigenen Stufe
+// --- Abgeben (seit 13.36, seit 13.52 nur noch beim Auftraggeber) ---------------------------------
+// Erledigte Aufträge gibt man dort ab, wo man sie angenommen hat: Hauptaufträge beim Ältesten, Nebenaufgaben beim
+// Wanderer, Jagden bei einer Jägerin. Oben im NPC-Fenster erscheint dafür eine Leiste. Nachtjagden brauchen keine
+// Abgabe – ihre Belohnung kommt sofort, egal wo man ist. Alle NPCs sind seit 13.52 Tag und Nacht da.
+// Hauptaufträge ohne festes Teil geben seit 14.21 ein Ausrüstungsteil für die eigene Klasse
+function mainReward(main) {
+  if (!main || main.goal.type === 'talk' || (main.reward && main.reward.items)) return main ? main.reward || {} : {};
+  return { ...(main.reward || {}), gear: 'main' };
+}
+function finishMainQuest() {
+  const q = questState();
+  const main = currentMainQuest();
+  if (!main || !q.accepted || main.goal.type === 'talk' || !goalDone(main.goal, q.progress)) return false;
+  giveReward(mainReward(main), questXp(main.level, QUEST_XP[main.goal.type] || 0.25));
+  q.main++;
+  q.accepted = false;
+  q.progress = 0;
+  ui.banner('Belohnung erhalten', main.title);
+  return true;
+}
+// Sammelaufträge zählen wie drei Kills je Teil (seit 13.88 für die Erfahrung der Wiederholungen)
+function sideKills(n, s) {
+  return n.side.kind === 'collect' ? sideCount(n, s) * 3 : sideCount(n, s);
+}
+function sideReward(n, s = sideState(n.key)) {
+  const t = MONSTER_TYPES[sideMon(n, s)];
+  return { reward: { gold: t.level * 45, potions: 2, gear: 'side' }, xp: sideXp(t.level, sideKills(n, s), s.times || 0) };
+}
+// Jagden der Jägerin: die erste volle Erfahrung, danach wie jede Wiederholung (seit 13.88)
+function huntXp(h) {
+  return sideXp(h.level, h.count, questState().hunts || 0);
+}
+function finishSideQuest(n) {
+  const p = game.player;
+  const s = sideState(n.key);
+  if (s.state !== 'active' || !sideDone(n, s)) return false;
+  const mon = sideMon(n, s);
+  if (n.side.kind === 'collect') p.upmats[mon] -= sideCount(n, s);
+  const r = sideReward(n, s);
+  giveReward(r.reward, r.xp);
+  s.state = 'open';
+  s.progress = 0;
+  s.times++;
+  // nächstes Mal ein anderes Monster der Map
+  s.monster = nextSideMonster(n, s);
+  ui.banner('Nebenaufgabe erledigt', n.name);
+  return true;
+}
+// Lohn einer Jagd: Gold und (seit 14.6 statt einer Verstärkung oder eines Switchers) Seelensplitter
+function huntReward(h) {
+  return { gold: h.gold, splinters: 2 + Math.floor((h.level || 1) / 15), gear: 'hunt' };
+}
+function finishHunt() {
+  const q = questState();
+  const h = q.hunt;
+  if (!h || h.progress < h.count) return false;
+  giveReward(huntReward(h), huntXp(h));
+  q.hunt = null;
+  q.hunts++;
+  q.offers = null;
+  ui.banner('Jagd erledigt', 'Belohnung erhalten');
+  return true;
+}
+// Alles, was bei diesem NPC gerade abgegeben werden kann: { label, run } (ohne NPC: alles)
+function readyTurnIns(npc) {
+  const at = (ok) => !npc || ok;
+  const q = questState();
+  const out = [];
+  const main = currentMainQuest();
+  if (main && q.accepted && main.goal.type !== 'talk' && goalDone(main.goal, q.progress) &&
+    at(npc.id === 'aeltester' && npcMapId(npc) === questGiverMap(main, q))) {
+    out.push({ kind: 'Hauptauftrag', main: true, label: main.title, goal: goalText(main.goal), reward: main.reward, xp: questXp(main.level, QUEST_XP[main.goal.type] || 0.25), run: finishMainQuest });
+  }
+  for (const n of allWanderers()) {
+    const s = sideState(n.key);
+    if (s.state === 'active' && sideDone(n, s) && at(npc === n || npc.key === n.key)) {
+      const mon = sideMon(n, s);
+      const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name}` : `${sideCount(n, s)} × ${MONSTER_TYPES[mon].name} besiegt`;
+      const r = sideReward(n, s);
+      out.push({ kind: 'Nebenaufgabe', label: n.name, goal, reward: r.reward, xp: r.xp, run: () => finishSideQuest(n) });
+    }
+  }
+  const h = q.hunt;
+  if (h && h.progress >= h.count && at(npc.id === 'jaegerin')) out.push({ kind: 'Jagd', label: MONSTER_TYPES[h.monster].name, goal: `${h.count} × ${MONSTER_TYPES[h.monster].name} besiegt`, reward: { gold: h.gold }, xp: huntXp(h), run: finishHunt });
+  return out;
+}
+
+function huntOffers() {
+  const p = game.player;
+  // seit 14.18: nur Monster der Karte, auf der man den Auftrag annimmt (vorher nach Stufe aus der ganzen Welt –
+  // in der Rostschlucht gab es dann Aufträge für den Dunkelwald). Passt keins zur Stufe, die nächstliegenden der Karte.
+  const here = mapOfTile(p.x / TILE, p.y / TILE);
+  const local = new Set(ZONES.filter((z) => here && z.map === here.id && z.groups && !z.safe).flatMap((z) => z.groups.map((g) => g[0])));
+  const ok = ([id, t]) => !t.dungeon && !t.crystal && !t.raidBoss && !t.night && (!local.size || local.has(id));
+  const near = (a, b) => Math.abs(a[1].level - p.level) - Math.abs(b[1].level - p.level);
+  let types = Object.entries(MONSTER_TYPES).filter((e) => ok(e) && e[1].level <= p.level + 3 && e[1].level >= p.level - 6).sort(near);
+  if (types.length < 3) types = types.concat(Object.entries(MONSTER_TYPES).filter((e) => ok(e) && !types.includes(e)).sort(near)).slice(0, 3);
+  const pool = types.length ? types : [['hund', MONSTER_TYPES.hund]];
+  return pool.slice(0, 3).map(([id, t]) => {
+    const count = 15 + Math.floor(Math.random() * 3) * 5;
+    const level = Math.max(1, Math.min(p.level, t.level));
+    return { monster: id, count, progress: 0, level, gold: Math.round(t.level * 40 * count / 10), map: here ? here.id : 0 };
+  });
+}
+
+// Reiseziele der Wegweiserin: das Lager jeder Map (seit Version 6.2 ist jedes Gebiet eine eigene Map)
+let travelSpots = null;
+
+function travelTargets() {
+  if (travelSpots) return travelSpots;
+  // seit 15.25 auch die Karten, die später dazukamen (Schlangental, Donnerklamm, Kristallabgrund, Seelenhain,
+  // Nebelküste, Himmelsterrassen)
+  const spaeter = ['sandwueste', 'donnerklamm', 'kristallhang', 'seelenhain', 'nebelkueste', 'himmelsterrassen'].map((id) => ZONES.find((z) => z.id === id)).filter(Boolean);
+  travelSpots = ZONES.slice(1, RING_ZONES).concat(spaeter).map((zone) => {
+    if (zone.map === 1) return { zone, x: (CENTER_X + VILLAGE_HALF + 6) * TILE, y: (CENTER_Y + 0.5) * TILE };
+    const mp = game.world.maps.find((m) => m.id === zone.map);
+    return { zone, x: mp.spawn.x, y: mp.spawn.y };
+  });
+  return travelSort(travelSpots);
+}
+// Reiseziele nach Stufe (seit 15.03): niedrigste Karte oben, höchste unten; bei gleicher Startstufe die mit der
+// niedrigeren Höchststufe zuerst
+// Maßgeblich ist die Höchststufe einer Karte („Stufe 30–50“ steht unter „Stufe 40–49“), dann die Startstufe.
+const mapTopLevel = (z) => Number((String(z.levels || '').match(/(\d+)\D*$/) || [0, 0])[1]) || z.minLevel || 0;
+function travelSort(list) {
+  return list.sort((a, b) => mapTopLevel(a.zone) - mapTopLevel(b.zone) || a.zone.minLevel - b.zone.minLevel || a.zone.map - b.zone.map);
+}
+
+function travelCost(zone) {
+  return zone.minLevel * 25;
+}
+
+function travelTo(spot) {
+  const p = game.player;
+  const cost = travelCost(spot.zone);
+  if (p.gold < cost) return `Dir fehlen ${cost - p.gold} Gold für die Reise.`;
+  p.gold -= cost;
+  addEffect({ type: 'ring', x: p.x, y: feetY(p), r: 40, dur: 0.5, color: '#9fd0ff', width: 8, grow: true });
+  p.dash = null;
+  p.leap = null;
+  p.x = spot.x;
+  p.y = spot.y;
+  game.target = null;
+  game.allies.forEach((a) => { a.x = p.x; a.y = p.y; });
+  ui.closePanels();
+  vfxPillar(p, '#9fd0ff', 1);
+  if (!V3.on) flashScreen('#cfe8ff', 0.25);
+  if (typeof sfxFiles !== 'undefined') sfxFiles.play('portal', { vol: 0.7, rev: 0.3 });
+  saveGame();
+  return null;
+}
+
+// --- Fenster der Dorfbewohner ------------------------------------------------------------
+
+Object.assign(ui, {
+  // Auftragsliste rechts am Rand: jeder angenommene Auftrag mit Ziel, Fortschrittsbalken und Ort.
+  // Antippen der Überschrift klappt die Liste ein und aus.
+  renderQuestTrack() {
+    const el = $('questTrack');
+    if (!el || !game.player) return;
+    if (this.npcCur && !$('panelNpc').hidden) this.renderNpcQuests(this.npcCur);
+    const q = questState();
+    const main = currentMainQuest();
+    const rows = [];
+    // Der verfolgte Auftrag (goldener Pfeil, seit 8.8) zeigt darunter Ziel und Entfernung; antippen wählt ihn aus
+    if (typeof updateGuide === 'function') {
+      guide.t = -9;
+      updateGuide();
+    }
+    const tracked = typeof guide !== 'undefined' && guide.entry ? guide.entry.key : '';
+    const row = (cls, title, goal, have, need, where, extra = '', key = '', giver = '') => {
+      const done = have >= need;
+      const on = key && key === tracked;
+      rows.push(`<li class="ql-q ${cls}${done ? ' done' : ''}${on ? ' tracked' : ''}" data-guide="${key}"><b>${title}</b>` +
+        `<span class="ql-goal">${done ? (key === 'stable' ? 'Erfüllt – zurück zum Auftraggeber' : `<span class="ql-ready">✔ FERTIG</span> abgeben bei ${giver}`) : goal}${extra}</span>` +
+        `<span class="ql-bar"><i style="width:${Math.min(100, (have / need) * 100)}%"></i><em>${Math.min(have, need)}/${need}</em></span>` +
+        (done ? '' : `<span class="ql-where">📍 ${where}</span>`) + (on ? `<span class="ql-nav" id="qlNav">${guideText()}</span>` : '') + `</li>`);
+    };
+    // Hauptmissionen golden, Nebenmissionen grün
+    if (main && q.accepted) {
+      // Reiseauftrag: erfüllt, sobald du mit dem Ältesten dort sprichst
+      if (main.goal.type === 'talk') row('main', main.title, goalText(main.goal), 0, 1, `${mapName(main.goal.map)} · über das Weltentor`, '', 'main');
+      else row('main', main.title, goalText(main.goal), q.progress, main.goal.count, goalWhere(main.goal), '', 'main', elderPlace(questGiverMap(main, q)));
+    }
+    const st = q.stable;
+    if (st.state === 'active' || st.state === 'done') {
+      const left = Math.max(0, Math.ceil(st.deadline - game.player.playTime));
+      const time = st.state === 'active' ? ` · ⏱ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} · ❤ ${Math.max(0, STABLE_QUEST.lives - (st.deaths || 0))}` : '';
+      row('main', STABLE_QUEST.title, `${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} besiegen`, st.state === 'done' ? STABLE_QUEST.count : st.progress, STABLE_QUEST.count, 'jedes Gebiet ab Stufe ' + STABLE_QUEST.minLevel, time, 'stable');
+    }
+    if (q.side) for (const n of allWanderers()) {
+      if (!q.side[n.key] || q.side[n.key].state !== 'active') continue;
+      const s = q.side[n.key];
+      const mon = sideMon(n, s);
+      const t = MONSTER_TYPES[mon];
+      const goal = n.side.kind === 'collect' ? `${sideCount(n, s)} × ${MOB_MATS[mon].name} bringen` : `${sideCount(n, s)} × ${t.name} besiegen`;
+      row('side', n.name, goal, sideHave(n, s), sideCount(n, s), monsterWhere(mon), '', 'side:' + n.key, `${n.name} (${mapName(npcMapId(n))})`);
+    }
+    if (q.hunt) row('side', 'Jagd: ' + MONSTER_TYPES[q.hunt.monster].name, `${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name} besiegen`, q.hunt.progress, q.hunt.count, monsterWhere(q.hunt.monster), '', 'hunt', 'einer Jägerin');
+    // Nachtjagden (seit 13.63 auch hier; vorher standen sie nur im Questfenster)
+    if (typeof nightQuestList === 'function') for (const e of nightQuestList()) row('side', e.title, e.goal, e.have, e.need, e.where, '', e.key, e.giver);
+    el.innerHTML = rows.length ? `<button type="button" class="ql-head" aria-expanded="${!this.questLogClosed}">Aufträge <small>${rows.length}</small><span>${this.questLogClosed ? '▸' : '▾'}</span></button>` +
+      (this.questLogClosed ? '' : `<ul class="ql-list">${rows.join('')}</ul>`) : '';
+    el.hidden = !rows.length;
+    const head = el.querySelector('.ql-head');
+    if (head) head.addEventListener('click', () => { this.questLogClosed = !this.questLogClosed; this.renderQuestTrack(); });
+    // offenes Questfenster (seit 13.8) mit aktualisieren
+    const qw = $('panelQuests');
+    if (qw && !qw.hidden && typeof renderQuestWindow === 'function') renderQuestWindow();
+    for (const li of el.querySelectorAll('[data-guide]')) {
+      li.addEventListener('click', () => {
+        guide.pick = li.dataset.guide;
+        this.renderQuestTrack();
+      });
+    }
+  },
+
+  // Ältester (seit 11.2): vergibt die Aufträge seiner Map, nimmt sie ab und schickt am Ende eines Kapitels
+  // zum Ältesten der nächsten Map. Dort ist der Reiseauftrag erfüllt, sobald man ihn anspricht.
+  renderElder(npc) {
+    const p = game.player;
+    const q = questState();
+    const main = currentMainQuest();
+    const body = $('npcBody');
+    const here = npc ? npcMapId(npc) : 1;
+    if (!main) {
+      body.innerHTML = '<p>„Du hast alles getan, worum wir dich bitten konnten. Alle neun Endbosse sind gefallen, die Steine schweigen. Die ganze Welt steht in deiner Schuld, Held.“</p>';
+      return;
+    }
+    // angekommen: Reiseauftrag beim Ältesten der Ziel-Map erfüllen und gleich den ersten Auftrag hier zeigen
+    if (q.accepted && main.goal.type === 'talk' && main.goal.map === here) {
+      giveReward(main.reward, questXp(main.level, QUEST_XP.talk));
+      q.main++;
+      q.accepted = false;
+      q.progress = 0;
+      const next = mainQuestList()[q.main];
+      ui.banner(next ? next.chapterTitle : 'Angekommen', npc ? npc.name : '');
+      saveGame();
+      this.renderQuestTrack();
+      this.renderElder(npc);
+      return;
+    }
+    const giver = questGiverMap(main, q);
+    if (giver !== here) {
+      // nicht der richtige Älteste: sagen, wo es weitergeht
+      const chapter = mainQuestList().filter((m) => m.map === here);
+      const doneHere = chapter.length && mainQuestList().indexOf(chapter[chapter.length - 1]) < q.main;
+      // Karte ohne eigene Hauptaufträge (Seelenhain): kein „noch zu früh“
+      body.innerHTML = `<p>„${doneHere ? 'Was du hier für uns getan hast, vergessen wir nie.' : chapter.length ? 'Für meine Aufträge ist es noch zu früh.' : 'Hier bei uns gibt es keine großen Aufträge – nur Ruhe und Seelensteine, die gebrochen werden wollen.'} ` +
+        `Dein Weg führt dich jetzt zu ${elderPlace(giver)}. Das Weltentor bringt dich hin.“</p>` +
+        `<p class="quest-step">${main.chapterTitle} · ${main.title}</p>` +
+        (q.accepted ? `<p><strong>Ziel:</strong> ${goalText(main.goal)}</p>` : '');
+      return;
+    }
+    const xp = questXp(main.level, QUEST_XP[main.goal.type] || 0.25);
+    const inChapter = mainQuestList().filter((m) => m.chapter === main.chapter);
+    const step = inChapter.indexOf(main) + 1;
+    let action;
+    if (!q.accepted) {
+      action = p.level >= main.level
+        ? `<button type="button" class="btn btn-primary" data-quest="accept">${main.goal.type === 'talk' ? 'Aufbrechen' : 'Auftrag annehmen'}</button>`
+        : `<p class="hint-text">Komm wieder, wenn du Stufe ${main.level} erreicht hast.</p>`;
+    } else if (main.goal.type === 'talk') {
+      action = `<p class="hint-text">Reise durch das Weltentor nach ${mapName(main.goal.map)} und sprich dort mit ${elderPlace(main.goal.map)}.</p>`;
+    } else if (goalDone(main.goal, q.progress)) {
+      action = '<button type="button" class="btn btn-primary" data-quest="reward">Belohnung abholen</button>';
+    } else {
+      action = `<p class="hint-text">Fortschritt: ${q.progress} / ${main.goal.count}</p>`;
+    }
+    const bosses = main.goal.type === 'raids'
+      ? '<ul class="reward-list">' + raidBossList().map((id) => `<li>${(q.raidsDone || []).includes(id) ? '✔' : '✘'} ${MONSTER_TYPES[id].name} <small>(Stufe ${MONSTER_TYPES[id].level} · ${monsterWhere(id)})</small></li>`).join('') + '</ul>'
+      : '';
+    const where = main.goal.type === 'kill' || main.goal.type === 'stone' ? ` <small>📍 ${goalWhere(main.goal)}</small>` : '';
+    body.innerHTML =
+      `<p class="quest-step">${main.chapterTitle} · Auftrag ${step} von ${inChapter.length} · ab Stufe ${main.level}</p>` +
+      `<h3>${main.title}</h3><p>„${main.text}“</p>` +
+      `<p><strong>Ziel:</strong> ${goalText(main.goal)}${where}</p>` + bosses +
+      `<p><strong>Belohnung:</strong></p>${rewardHtml(mainReward(main), xp)}${action}`;
+    const btn = body.querySelector('[data-quest]');
+    if (btn) btn.addEventListener('click', () => {
+      const travel = main.goal.type === 'talk';
+      if (btn.dataset.quest === 'accept') {
+        q.accepted = true;
+        q.progress = main.goal.type === 'raids' ? (q.raidsDone || []).length : 0;
+        ui.log(`Neuer Auftrag: ${main.title}. ${goalText(main.goal)}.`, 'info');
+        if (travel) ui.banner(main.title, `Weiter nach ${mapName(main.goal.map)}`);
+      } else {
+        finishMainQuest();
+      }
+      saveGame();
+      this.renderQuestTrack();
+      if (travel && btn.dataset.quest === 'accept') ui.closePanels();
+      else this.renderElder(npc);
+    });
+  },
+
+  // Leiste oben im NPC-Fenster (seit 13.36): erledigte Aufträge abgeben – seit 13.52 nur beim eigenen Auftraggeber
+  renderNpcQuests(npc) {
+    const box = $('npcQuests');
+    if (!box) return;
+    this.npcCur = npc;
+    const gate = ['eingang', 'ausgang', 'riss', 'weltentor'].includes(npc.id);
+    const items = gate ? [] : readyTurnIns(npc);
+    if (!items.length) {
+      box.hidden = true;
+      box.innerHTML = '';
+      return;
+    }
+    // seit 13.38 als Karten: Art, Name, erfülltes Ziel, Belohnung und ein großer Knopf
+    const fmt = (n) => Math.round(n).toLocaleString('de-DE');
+    const rew = (it) => [it.reward && it.reward.gold ? `💰 ${fmt(it.reward.gold)} Gold` : '', it.xp ? `✨ ${fmt(it.xp)} EP` : '',
+      it.reward && it.reward.potions ? questPotionHtml(it.reward.potions, false) : ''].filter(Boolean).join(' · ');
+    box.innerHTML = (items.length ? `<div class="tq-head"><span class="tq-badge">✔</span><b>${items.length === 1 ? 'Ein Auftrag ist fertig' : items.length + ' Aufträge sind fertig'}</b>` +
+      `<small>Hier kannst du ${items.length === 1 ? 'ihn' : 'sie'} abgeben.</small></div>` : '') +
+      items.map((it, i) => `<div class="tq-card${it.main ? ' main' : ''}"><div class="tq-info"><span class="tq-kind">${it.kind}</span>` +
+        `<b class="tq-title">${it.label}</b><span class="tq-done">✔ FERTIG · abgabebereit</span>` +
+        `<small class="tq-goal">${it.goal}</small>${rew(it) ? `<small class="tq-reward">${rew(it)}</small>` : ''}</div>` +
+        `<button type="button" class="btn btn-primary tq-btn" data-turnin="${i}">Abgeben</button></div>`).join('');
+    box.hidden = false;
+    box.querySelectorAll('[data-turnin]').forEach((b) => b.addEventListener('click', () => {
+      const it = items[Number(b.dataset.turnin)];
+      if (it && it.run()) {
+        saveGame();
+        this.renderQuestTrack();
+      }
+      this.openNpc(npc);
+    }));
+  },
+
+  renderWanderer(n) {
+    const p = game.player;
+    const s = sideState(n.key);
+    const mon = sideMon(n, s);
+    const t = MONSTER_TYPES[mon];
+    const mat = MOB_MATS[mon];
+    const need = sideCount(n, s);
+    const collect = n.side.kind === 'collect';
+    const xp = sideReward(n, s).xp;
+    const reward = { gold: t.level * 45, potions: 2 };
+    const body = $('npcBody');
+    // seit 13.91: Bewohner der begehbaren Häuser sprechen von daheim aus (keine Wanderer, die weiterziehen)
+    const ask = n.resident
+      ? (collect
+        ? `„Schön, dass du hereinschaust! Für meine Arbeit fehlen mir ${need} × ${mat.name} (fällt von ${t.name}, draußen vor der Stadt). Solange du für mich sammelst, findest du es viel öfter.“`
+        : `„Draußen vor der Stadt treibt sich allerlei herum, ich trau mich kaum noch vor die Tür. Besiege ${need} × ${t.name}, und ich zahle dir etwas dafür.“`)
+      : collect
+        ? `„Ich brauche ${need} × ${mat.name} (fällt von ${t.name}). Solange du für mich sammelst, findest du es viel öfter.“`
+        : `„${t.name} machen die Gegend unsicher. Besiege ${need} von ihnen, dann kann ich weiterziehen.“`;
+    let action;
+    if (s.state === 'open') action = '<button type="button" class="btn btn-primary" data-side="accept">Aufgabe annehmen</button>';
+    else if (sideDone(n, s)) action = '<button type="button" class="btn btn-primary" data-side="reward">' + (collect ? `${need} × ${mat.name} abgeben` : 'Belohnung abholen') + '</button>';
+    else action = `<p class="hint-text">Fortschritt: ${Math.min(sideHave(n, s), need)} / ${need}</p><button type="button" class="btn btn-ghost" data-side="drop">Aufgabe abbrechen</button>`;
+    body.innerHTML = `<p class="quest-step">Nebenaufgabe · ${t.name} (Stufe ${t.level})${s.times ? ` · schon ${s.times}× erledigt` : ''}</p>` +
+      `<p>${ask}</p><p><strong>Ziel:</strong> ${collect ? `${need} × ${mat.name}` : `${need} × ${t.name} besiegen`} <small>📍 ${monsterWhere(mon)}</small></p>` +
+      `<p><strong>Belohnung:</strong></p>${rewardHtml(reward, xp)}${action}`;
+    const btn = body.querySelector('[data-side]');
+    if (btn) btn.addEventListener('click', () => {
+      if (btn.dataset.side === 'accept') {
+        s.state = 'active';
+        s.progress = 0;
+        ui.log(`Neue Nebenaufgabe von ${n.name}.`, 'info');
+      } else if (btn.dataset.side === 'drop') {
+        s.state = 'open';
+        s.progress = 0;
+      } else {
+        finishSideQuest(n);
+      }
+      saveGame();
+      this.renderQuestTrack();
+      this.renderWanderer(n);
+    });
+  },
+
+  renderHunter() {
+    const q = questState();
+    const body = $('npcBody');
+    const h = q.hunt;
+    if (h && h.progress >= h.count) {
+      const xp = huntXp(h);
+      const reward = huntReward(h);
+      body.innerHTML = `<p>„Saubere Arbeit! Hier ist dein Lohn.“</p>${rewardHtml(reward, xp)}` +
+        '<button type="button" class="btn btn-primary" data-hunt="reward">Belohnung abholen</button>';
+      body.querySelector('[data-hunt]').addEventListener('click', () => {
+        finishHunt();
+        this.renderQuestTrack();
+        this.renderHunter();
+      });
+      return;
+    }
+    if (h) {
+      body.innerHTML = `<p>„Du bist noch auf der Jagd: ${h.count} × ${MONSTER_TYPES[h.monster].name}. Bisher ${h.progress}.“</p>` +
+        '<button type="button" class="btn btn-ghost" data-hunt="drop">Auftrag abbrechen</button>';
+      body.querySelector('[data-hunt]').addEventListener('click', () => {
+        q.hunt = null;
+        q.offers = null;
+        this.renderQuestTrack();
+        this.renderHunter();
+      });
+      return;
+    }
+    // Angebote gelten für die Karte, auf der sie gemacht wurden (seit 14.18)
+    const pm = game.player ? mapOfTile(game.player.x / TILE, game.player.y / TILE) : null;
+    if (!q.offers || q.offers.some((o) => (o.map || 0) !== (pm ? pm.id : 0))) q.offers = huntOffers();
+    body.innerHTML = `<p>„Ich zahle gut für jede Bestie weniger da draußen. Such dir eine Jagd aus.“ <small class="hint-text">Erledigte Jagden: ${q.hunts}</small></p>` +
+      '<div class="hunt-list">' + q.offers.map((o, i) =>
+        `<div class="hunt-item"><strong>${o.count} × ${MONSTER_TYPES[o.monster].name}</strong> <small>Stufe ${MONSTER_TYPES[o.monster].level}</small>` +
+        `<span>${huntXp(o).toLocaleString('de-DE')} EP · ${o.gold.toLocaleString('de-DE')} Gold · ${huntReward(o).splinters} × Seelensplitter</span>` +
+        `<button type="button" class="mini-btn" data-offer="${i}">Annehmen</button></div>`
+      ).join('') + '</div>';
+    body.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
+      q.hunt = q.offers[Number(b.dataset.offer)];
+      q.offers = null;
+      ui.log(`Jagdauftrag: ${q.hunt.count} × ${MONSTER_TYPES[q.hunt.monster].name}.`, 'info');
+      saveGame();
+      this.renderQuestTrack();
+      this.closePanels();
+    }));
+  },
+
+  renderTravel() {
+    const p = game.player;
+    const body = $('npcBody');
+    body.innerHTML = '<p>„Mein Wegstein bringt dich an den Rand jedes Gebiets. Die Reise kostet ein wenig Gold.“</p>' +
+      `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="travel-list">` +
+      travelTargets().map((t, i) => {
+        const cost = travelCost(t.zone);
+        const low = p.level < t.zone.minLevel;
+        return `<div class="travel-item"><strong>${t.zone.name}</strong><small>${t.zone.levels}${low ? ' · noch zu gefährlich für dich' : ''}</small>` +
+          `<button type="button" class="mini-btn" data-travel="${i}" ${p.gold < cost ? 'disabled' : ''}>${cost.toLocaleString('de-DE')} Gold</button></div>`;
+      }).join('') + '</div><p id="travelMsg" class="form-error" hidden></p>';
+    body.querySelectorAll('[data-travel]').forEach((b) => b.addEventListener('click', () => {
+      const t = travelTargets()[Number(b.dataset.travel)];
+      const err = travelTo(t);
+      if (err) {
+        $('travelMsg').textContent = err;
+        $('travelMsg').hidden = false;
+      }
+    }));
+  },
+
+  renderAlchemist() {
+    const p = game.player;
+    const body = $('npcBody');
+    // seit 14.6 nur noch Fertigkeitsbücher: Verstärkung, Switcher, 5. Bonus und Sternenstein gibt es nur aus Seelensteinen
+    body.innerHTML = '<p>„Verstärkungen und Switcher? Die geben nur die Seelensteine her – dafür musst du selbst raus. Bei mir gibt es Wissen.“</p>' +
+      `<p>Dein Gold: <span class="price">${p.gold.toLocaleString('de-DE')}</span></p><div class="shop">` +
+      ALCHEMIST_WARES.map((w) => {
+        const book = w.id === 'book';
+        const m = book ? { id: 'book', name: 'Fertigkeitsbuch', text: 'Ein Buch zu einer zufälligen Fertigkeit deiner Klasse (für E1–E10).' } : MATERIALS.find((x) => x.id === w.id);
+        const have = book ? totalBooks(p, true) : p.materials[m.id] || 0;
+        return `<div class="shop-item"><img class="shop-icon" src="${book ? lootIconUrl('book') : materialIconUrl(m.id)}" alt=""><strong>${m.name} <span class="price">${w.price.toLocaleString('de-DE')} Gold</span></strong>` +
+          `<small>${m.text} Im Gepäck: <b>${have}</b></small>` +
+          `<div class="buy"><button class="mini-btn" type="button" data-mat="${m.id}" ${p.gold < w.price ? 'disabled' : ''}>Kaufen</button></div></div>`;
+      }).join('') + '</div><p id="shopMsg" class="form-error" hidden></p>' + gear.sellSectionHtml();
+    gear.wireSell(body, () => this.renderAlchemist());
+    body.querySelectorAll('[data-mat]').forEach((b) => b.addEventListener('click', () => {
+      const w = ALCHEMIST_WARES.find((x) => x.id === b.dataset.mat);
+      if (p.gold < w.price) return;
+      p.gold -= w.price;
+      if (w.id === 'book') {
+        if (bagFree(p) <= 0) { // seit 14.84: nur Seite I/II, solange III/IV gesperrt sind
+          p.gold += w.price;
+          ui.log('Deine Tasche ist voll.', 'warn');
+          return;
+        }
+        addBooks(1, null, ownClassSkillIds(p));
+      } else {
+        p.materials[w.id] = (p.materials[w.id] || 0) + 1;
+      }
+      saveGame();
+      this.renderAlchemist();
+    }));
+  },
+
+  // seit 14.39: Farbwahl der Glutschwinge – vier Farbmuster mit Vorschaubild, gewählt ist pick
+  // seit 14.67: Vorschaubilder zeigen das echte 3D-Modell (fertige Bilder, dragonPreviewUrl in figuren.js)
+  dragonColorPicker(pick) {
+    return '<div class="drg-colors" role="radiogroup">' + DRAGON_COLOR_IDS.map((id) => {
+      const c = DRAGON_COLORS[id];
+      return `<button type="button" class="drg-color${id === pick ? ' on' : ''}" data-dcol="${id}" role="radio" aria-checked="${id === pick}" style="--sw:${c.swatch};--gl:${c.glow}">` +
+        `<img src="${dragonPreviewUrl(id)}" alt="" width="160" height="108" decoding="async"><span>${c.name}</span></button>`;
+    }).join('') + '</div>';
+  },
+  // seit 14.67: eine Farbe groß (endgültig gewählt bzw. Rückfrage vor der endgültigen Wahl)
+  dragonColorCard(id) {
+    const c = DRAGON_COLORS[id] || DRAGON_COLORS.rot;
+    return `<div class="drg-color drg-one" style="--sw:${c.swatch};--gl:${c.glow}"><img src="${dragonPreviewUrl(id)}" alt="" width="160" height="108" decoding="async"><span>${c.name}</span></div>`;
+  },
+
+  renderStable() {
+    const p = game.player;
+    const st = questState().stable;
+    const body = $('npcBody');
+    const xp = questXp(STABLE_QUEST.level, 0.8);
+    let html;
+    if (st.state === 'finished' || p.horse) {
+      const war = HORSES[2];
+      const drg = HORSES[3];
+      const tier = p.horseTier || 1;
+      const pct = (h) => Math.round(h.speed * 100);
+      if (tier >= 3) {
+        html = '<p>„Deine Glutschwinge ist satt und ausgeruht. Sie trägt dich über Bäume, Felsen und Wasser – nur vor Mauern und Häusern macht sie halt.“</p>' +
+          `<p class="hint-text">${drg.name} +${pct(drg)} % · fliegt draußen in der Welt, nicht in Dungeons, Instanzen, Arenen und Duellen</p>` +
+          '<h3>Farbe deiner Glutschwinge</h3>';
+        // seit 14.67: die Farbe wird nur einmal gewählt (p.dragonColorLocked). Wer den Drachen vor 14.67 gekauft hat,
+        // behält seine Farbe und darf sie genau einmal noch bestätigen oder wechseln (aktuelle Farbe vorgewählt).
+        if (p.dragonColorLocked) {
+          html += this.dragonColorCard(dragonColorOf(p)) + '<p class="hint-text drg-note">Die Farbe ist endgültig gewählt.</p>';
+        } else if (this.dragonConfirm === 'set' && DRAGON_COLORS[this.dragonPick]) {
+          html += this.dragonColorCard(this.dragonPick) +
+            '<p class="drg-warn">Diese Wahl ist endgültig. Die Farbe lässt sich danach nicht mehr ändern.</p>' +
+            '<div class="drg-actions"><button type="button" class="btn btn-primary" data-dset="ok">Ja, diese Farbe festlegen</button>' +
+            '<button type="button" class="btn btn-ghost" data-dset="back">Zurück</button></div>';
+        } else {
+          if (!DRAGON_COLORS[this.dragonPick]) this.dragonPick = dragonColorOf(p);
+          html += '<p class="hint-text">Du darfst die Farbe noch ein einziges Mal festlegen – danach bleibt sie für immer. Deine jetzige Farbe ist vorgewählt.</p>' +
+            this.dragonColorPicker(this.dragonPick) +
+            '<button type="button" class="btn btn-primary" data-dset="ask">Farbe festlegen</button>';
+        }
+      } else {
+        if (tier >= 2) {
+          html = '<p>„Dein Kriegsross ist gesattelt und gepanzert. Kein Pferd im Land ist schneller.“</p>';
+        } else {
+          html = '<p>„Dein Reitpferd ist gut genährt und wartet auf dich. Steig mit dem Pferdeknopf oder Taste R auf.“</p>' +
+            `<h3>Kriegsross · ab Stufe ${war.level}</h3><p>„Ein Rappe aus meiner besten Zucht, in Rossharnisch mit Stirndorn und roter Schabracke. ` +
+            `Er legt ${Math.round(war.speed * 100)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
+            `<p class="hint-text">Reitpferd +${Math.round(HORSES[1].speed * 100)} % → ${war.name} +${Math.round(war.speed * 100)} %</p>` +
+            (p.level < war.level
+              ? `<p class="hint-text">Komm ab Stufe ${war.level} wieder.</p>`
+              : `<button type="button" class="btn btn-primary" data-buyhorse ${p.gold >= war.price ? '' : 'disabled'}>Kriegsross kaufen – ${war.price.toLocaleString('de-DE')} Gold</button>` +
+                (p.gold >= war.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
+        }
+        // seit 14.27: der Drache als dritte Stufe (Pferd muss vorhanden sein, Kriegsross nicht)
+        if (!DRAGON_COLORS[this.dragonPick]) this.dragonPick = dragonColorOf(p);
+        html += `<h3>Glutschwinge · ab Stufe ${drg.level}</h3><p>„Kein Pferd mehr, sondern ein Drache aus den Glutbergen – in Rot, Blau, Schwarz oder Weiß, mit großen Schwingen. ` +
+          `Er schwebt knapp über dem Boden und trägt dich über Bäume, Felsen, Wasser und Lava. Er legt ${pct(drg)} % auf dein Lauftempo zu Fuß drauf.“</p>` +
+          `<p class="hint-text">${HORSES[tier].name} +${pct(HORSES[tier])} % → ${drg.name} +${pct(drg)} % · fliegt nur draußen in der Welt</p>` +
+          (p.level < drg.level
+            ? `<p class="hint-text">Komm ab Stufe ${drg.level} wieder.</p>`
+            // seit 14.67: Farbe beim Kauf endgültig – erst wählen, dann nach Rückfrage kaufen
+            : this.dragonConfirm === 'buy' && p.gold >= drg.price
+              ? this.dragonColorCard(this.dragonPick) +
+                '<p class="drg-warn">Diese Wahl ist endgültig. Die Farbe deiner Glutschwinge lässt sich nach dem Kauf nicht mehr ändern.</p>' +
+                `<div class="drg-actions"><button type="button" class="btn btn-primary" data-buydragon>Ja, kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
+                '<button type="button" class="btn btn-ghost" data-dset="back">Andere Farbe</button></div>'
+              : '<p class="hint-text">Wähle die Farbe – sie gilt für immer und lässt sich später nicht mehr ändern:</p>' + this.dragonColorPicker(this.dragonPick) +
+                `<button type="button" class="btn btn-primary" data-dbuyask ${p.gold >= drg.price ? '' : 'disabled'}>Glutschwinge kaufen – ${drg.price.toLocaleString('de-DE')} Gold</button>` +
+                (p.gold >= drg.price ? '' : `<p class="hint-text">Du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>`));
+      }
+    } else if (p.level < STABLE_QUEST.level) {
+      html = `<p>„Pferde sind nichts für Anfänger. Komm wieder, wenn du Stufe ${STABLE_QUEST.level} erreicht hast.“</p>`;
+    } else {
+      let action;
+      if (st.state === 'open') action = '<button type="button" class="btn btn-primary" data-stable="start">Prüfung beginnen</button>';
+      else if (st.state === 'active') {
+        const left = Math.max(0, Math.ceil(st.deadline - p.playTime));
+        action = `<p class="hint-text">Fortschritt: ${st.progress} / ${STABLE_QUEST.count} · noch ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')} Minuten · ${Math.max(0, STABLE_QUEST.lives - (st.deaths || 0))} von ${STABLE_QUEST.lives} Leben übrig</p>` +
+          '<button type="button" class="btn btn-ghost" data-stable="drop">Prüfung abbrechen</button>';
+      } else {
+        const price = HORSES[1].price || 0;
+        action = `<p class="hint-text">Bestanden! Das Reitpferd kostet ${price.toLocaleString('de-DE')} Gold – du hast ${p.gold.toLocaleString('de-DE')} Gold.</p>` +
+          `<button type="button" class="btn btn-primary" data-stable="reward" ${p.gold >= price ? '' : 'disabled'}>Reitpferd kaufen – ${price.toLocaleString('de-DE')} Gold</button>`;
+      }
+      html = `<p class="quest-step main-quest">Hauptmission · ab Stufe ${STABLE_QUEST.level}</p><h3>${STABLE_QUEST.title}</h3><p>„${STABLE_QUEST.text}“</p>` +
+        `<p><strong>Ziel:</strong> ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in ${STABLE_QUEST.time / 60} Minuten besiegen – bis zu ${STABLE_QUEST.lives}-mal sterben ist erlaubt</p>` +
+        `<p class="hint-text">Danach kaufst du dein Reitpferd für ${(HORSES[1].price || 0).toLocaleString('de-DE')} Gold.</p>` +
+        `<p><strong>Belohnung:</strong></p>${rewardHtml(STABLE_QUEST.reward, xp)}${action}`;
+    }
+    body.innerHTML = html;
+    const buy = body.querySelector('[data-buyhorse]');
+    if (buy) buy.addEventListener('click', () => {
+      const war = HORSES[2];
+      if (p.level < war.level || p.gold < war.price) return;
+      p.gold -= war.price;
+      p.horseTier = 2;
+      game.stats = playerStats(p);
+      ui.banner('Ein Kriegsross!', `+${Math.round(war.speed * 100)} % Lauftempo – Pferdeknopf oder Taste R`);
+      ui.log(`Du hast ein Kriegsross gekauft (${war.price.toLocaleString('de-DE')} Gold). Es gibt +${Math.round(war.speed * 100)} % Lauftempo.`, 'level');
+      ui.updateHorseButton();
+      vfxLevelUp(p);
+      saveGame();
+      this.renderStable();
+    });
+    const buyD = body.querySelector('[data-buydragon]');
+    if (buyD) buyD.addEventListener('click', () => {
+      const drg = HORSES[3];
+      if (!p.horse || (p.horseTier || 1) >= 3 || p.level < drg.level || p.gold < drg.price) return;
+      p.gold -= drg.price;
+      p.horseTier = 3;
+      p.dragonColor = DRAGON_COLORS[this.dragonPick] ? this.dragonPick : 'rot';
+      // seit 14.67: beim Kauf gewählt = endgültig
+      p.dragonColorLocked = true;
+      this.dragonConfirm = null;
+      game.stats = playerStats(p);
+      ui.banner('Eine Glutschwinge!', `+${Math.round(drg.speed * 100)} % Lauftempo · fliegt über Bäume und Wasser – Pferdeknopf oder Taste R`);
+      ui.log(`Du hast eine Glutschwinge gekauft (${drg.price.toLocaleString('de-DE')} Gold). Sie gibt +${Math.round(drg.speed * 100)} % Lauftempo und fliegt über Bäume, Felsen und Wasser.`, 'level');
+      ui.updateHorseButton();
+      vfxLevelUp(p);
+      saveGame();
+      this.renderStable();
+    });
+    // seit 14.39: Farbmuster antippen = vormerken. seit 14.67 färbt das auch mit Drachen nicht mehr sofort um:
+    // erst „Farbe festlegen“ bzw. der Kauf mit Rückfrage legt die Farbe endgültig fest.
+    body.querySelectorAll('[data-dcol]').forEach((b) => b.addEventListener('click', () => {
+      const id = b.dataset.dcol;
+      if (!DRAGON_COLORS[id] || p.dragonColorLocked) return;
+      this.dragonPick = id;
+      this.renderStable();
+    }));
+    const buyAsk = body.querySelector('[data-dbuyask]');
+    if (buyAsk) buyAsk.addEventListener('click', () => {
+      if (p.gold < HORSES[3].price) return;
+      this.dragonConfirm = 'buy';
+      this.renderStable();
+    });
+    body.querySelectorAll('[data-dset]').forEach((b) => b.addEventListener('click', () => {
+      const act = b.dataset.dset;
+      if (act === 'back') this.dragonConfirm = null;
+      else if (act === 'ask' && !p.dragonColorLocked) this.dragonConfirm = 'set';
+      else if (act === 'ok' && hasDragon(p) && !p.dragonColorLocked && DRAGON_COLORS[this.dragonPick]) {
+        p.dragonColor = this.dragonPick;
+        p.dragonColorLocked = true;
+        this.dragonConfirm = null;
+        ui.log(`Deine Glutschwinge ist jetzt ${DRAGON_COLORS[p.dragonColor].name.toLowerCase()} – die Farbe ist endgültig.`, 'info');
+        saveGame();
+      }
+      this.renderStable();
+    }));
+    const btn = body.querySelector('[data-stable]');
+    if (btn) btn.addEventListener('click', () => {
+      const act = btn.dataset.stable;
+      if (act === 'start') {
+        st.state = 'active';
+        st.progress = 0;
+        st.deaths = 0;
+        st.deadline = p.playTime + STABLE_QUEST.time;
+        ui.log(`Die Prüfung läuft: ${STABLE_QUEST.count} Monster ab Stufe ${STABLE_QUEST.minLevel} in 20 Minuten.`, 'info');
+        ui.banner(STABLE_QUEST.title, 'Die Zeit läuft!');
+      } else if (act === 'drop') {
+        st.state = 'open';
+        st.progress = 0;
+      } else {
+        // seit 14.18: das Reitpferd kostet 100.000 Gold
+        const price = HORSES[1].price || 0;
+        if (p.gold < price) return;
+        p.gold -= price;
+        giveReward(STABLE_QUEST.reward, xp);
+        st.state = 'finished';
+        ui.banner('Ein eigenes Pferd!', 'Pferdeknopf oder Taste R zum Aufsteigen');
+        ui.updateHorseButton();
+      }
+      saveGame();
+      this.renderQuestTrack();
+      this.renderStable();
+    });
+  },
+
+  // Weltentor: Reise zwischen allen Maps, kostenlos. Jedes Gebiet ist eine eigene Map.
+  // Weltportal draußen (npc.to): führt nur in die Stadt einer Map
+  renderWorldGate(npc) {
+    const p = game.player;
+    const hm = mapOfTile(p.x / TILE, p.y / TILE);
+    const here = hm ? hm.id : 0;
+    const body = $('npcBody');
+    const list = npc && npc.to ? WORLD_MAPS.filter((m) => m.id === npc.to) : WORLD_MAPS.slice().sort((a, b) => mapTopLevel(a) - mapTopLevel(b) || a.minLevel - b.minLevel || a.id - b.id);
+    const intro = npc && npc.to
+      ? `<p>Ein uralter Steinring voller Licht. Er führt nach Map ${npc.to} · ${list[0].name}, direkt in die Stadt.</p>`
+      : '<p>Das Weltentor summt leise. Es bringt dich in andere Teile der Welt.</p>';
+    body.innerHTML = intro + '<div class="travel-list">' +
+      list.map((wm) => {
+        // Testzeit Höllenthron (hoellenthron.js): die Map mit dem Höllenportal ist ohne Stufengrenze erreichbar
+        // Testzeit (13.61): die Maps mit Instanzen (ab Stufe 40) sind ohne Stufengrenze erreichbar
+        const low = p.level < wm.minLevel && !(typeof htFree === 'function' && htFree() && wm.id === htMapId()) &&
+          !(typeof instFree === 'function' && instFree() && wm.minLevel >= 40);
+        const cur = wm.id === here;
+        return `<div class="travel-item"><strong>${wm.name}</strong><small>${wm.levels} · ${wm.text}${low ? ` Ab Stufe ${wm.minLevel}.` : ''}</small>` +
+          `<button type="button" class="mini-btn" data-map="${wm.id}" ${cur || low ? 'disabled' : ''}>${cur ? 'Du bist hier' : low ? `ab Stufe ${wm.minLevel}` : 'Reisen'}</button></div>`;
+      }).join('') + '</div>';
+    body.querySelectorAll('[data-map]').forEach((b) => b.addEventListener('click', () => {
+      const id = Number(b.dataset.map);
+      const wm = WORLD_MAPS.find((m) => m.id === id);
+      const spot = id === 1 ? { x: (CENTER_X + 6.8 * VS) * TILE, y: (CENTER_Y - 4 * VS) * TILE } : { ...game.world.maps.find((m) => m.id === id).spawn };
+      moveThrough(spot, '#7ab8ff');
+      ui.banner(wm.name, wm.levels);
+    }));
+  },
+
+  renderDungeon(npc) {
+    const p = game.player;
+    const dg = game.world.dungeons[npc.dungeon];
+    const boss = MONSTER_TYPES[dg.def.boss];
+    const body = $('npcBody');
+    if (npc.id === 'ausgang') {
+      body.innerHTML = `<p>Ein Steinkreis leuchtet sanft. Er bringt dich zurück zum Eingang von ${dg.def.name}.</p>` +
+        '<button type="button" class="btn btn-primary" data-dg="leave">Dungeon verlassen</button>';
+      body.querySelector('[data-dg]').addEventListener('click', () => leaveDungeon(npc.dungeon));
+      return;
+    }
+    if (dg.def.instanz) {
+      htRenderGate(body, npc, dg);
+      return;
+    }
+    if (dg.def.inst60) {
+      instRenderGate(body, npc, dg);
+      return;
+    }
+    const mobs = dg.def.mobs.map((id) => `${MONSTER_TYPES[id].name} (Stufe ${MONSTER_TYPES[id].level})`).join(', ');
+    const alive = game.monsters.find((m) => m.typeId === dg.def.boss);
+    const bossInfo = alive && alive.dead ? `ist besiegt und kehrt in ${Math.max(1, Math.ceil((alive.respawnAt - game.time) / 60))} Min. zurück` : 'wartet im letzten Raum';
+    const low = p.level < dg.def.minLevel;
+    if (dg.def.raid) {
+      // Endboss der Map
+      const alive2 = game.monsters.find((m) => m.typeId === dg.def.boss);
+      const state = alive2 && alive2.dead ? `ist besiegt und kehrt in ${Math.max(1, Math.ceil((alive2.respawnAt - game.time) / 60))} Min. zurück.` : 'wartet in seiner Halle.';
+      const party = game.party ? game.party.members.length : 1;
+      body.innerHTML = `<p class="quest-step raid-step">Endboss dieser Map · Stufe ${boss.level} · für 5 Spieler</p><h3>${boss.name}</h3>` +
+        `<p>Ein riesiger Gegner in der ${dg.def.name}. Er ${state}</p>` +
+        '<ul class="raid-roles"><li><b>Tank</b> hält den Boss und fängt den Tank-Schlag (rotes Zeichen über dem Kopf).</li>' +
+        '<li><b>Heiler</b> hält alle am Leben (Schamane: Heilung).</li><li><b>Schaden</b> (2–3 Spieler) bringen ihn zu Fall.</li></ul>' +
+        '<p class="hint-text">Mechaniken: rote Kreise am Boden = gleich schlägt es dort ein, raus da! Meteore fallen auf jeden Spieler. Der Linienangriff fährt zum Ziel. Bei der Nova ist nur der grüne Kreis direkt am Boss sicher. Er springt auf einzelne Spieler (Zeichen über dem Kopf) und rast im Sturmangriff quer durch die Halle. Alle 20 s ruft er kleine Helfer – die lassen oft Tränke, Splitter oder Verstärkungen fallen. Bei 70 % und 35 % Leben schreit er und wird schneller, unter 20 % gerät er in Raserei. Ohne Kampf heilt er sich voll.</p>' +
+        '<p class="hint-text"><b>Kristallschild</b> (bei 75 % und 40 %): Seelenkristalle erscheinen in der Halle – solange einer steht, ist der Boss unverwundbar und heilt sich. Zerstört alle, dann taumelt er 4 s und nimmt mehr Schaden. <b>Vernichtung</b> (bei 55 % und 20 %, danach alle 50 s): Der ganze Boden wird rot, nur die grünen Lichtkreise sind sicher – nach 5 s trifft alle anderen gewaltiger Schaden.</p>' +
+        '<p><b class="legend-text">Beute für jeden in der Gruppe:</b> drei Endboss-Teile (+0 mit vier Boni, darunter eine Waffe; legendär für ihre Stufe, auf Stufe 80 episch – ab +4 braucht der Schmied Teile aus der Map des Endbosses), Seltene Verstärkungen, Sternensteine, ab Stufe 30 ein Sternen-Switcher und sehr viel Gold.</p>' +
+        (party < 5 ? `<p class="form-error">Deine Gruppe hat ${party} von 5 Spielern – zu wenige ist es sehr gefährlich.</p>` : '') +
+        `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Halle betreten'}</button>`;
+      body.querySelector('[data-dg]').addEventListener('click', () => {
+        const err = enterDungeon(npc.dungeon);
+        if (err) ui.log(err, 'warn');
+      });
+      return;
+    }
+    const rift = npc.id === 'riss';
+    const left = rift ? Math.max(0, Math.ceil(npc.until - game.time)) : 0;
+    body.innerHTML = (rift ? `<p class="quest-step">Dungeon-Riss · schließt sich in ${formatBuffTime(left)}</p><p>Ein flackernder Riss in der Luft. Er führt direkt in die ${dg.def.name}. Allein schließt er sich, sobald du hindurchgehst; in einer Gruppe bleibt er offen, bis seine Zeit um ist.</p>` : '') +
+      `<p class="quest-step">Dungeon · ab Stufe ${dg.def.minLevel}</p><h3>${dg.def.name}</h3>` +
+      `<p>Drei Räume voller Monster: ${mobs}. Am Ende ${boss.name} (Stufe ${boss.level}), der ${bossInfo}.</p>` +
+      '<p class="hint-text">Bosse kündigen ihren Stampfer mit einem roten Kreis am Boden an: Raus da! Bei zwei Dritteln und einem Drittel Leben rufen sie Verstärkung. Beute: zwei Teile Ausrüstung +1 bis +4, Fertigkeitsbücher, Schmiede-Teile und viel Gold.</p>' +
+      (!rift && typeof entryMovable === 'function' && entryMovable(dg) ? `<p class="hint-text">Dieser Eingang zieht alle 3 Stunden an einen anderen Ort der Karte – nächster Umzug in ${entryNextShiftText()}.</p>` : '') +
+      `<button type="button" class="btn btn-primary" data-dg="enter" ${low ? 'disabled' : ''}>${low ? `Ab Stufe ${dg.def.minLevel}` : 'Betreten'}</button>`;
+    body.querySelector('[data-dg]').addEventListener('click', () => {
+      const err = rift ? enterRift(npc) : enterDungeon(npc.dungeon);
+      if (err) ui.log(err, 'warn');
+    });
+  },
+
+  renderTalk(npc) {
+    const lines = NPC_LINES[npc.id] || ['…'];
+    npc.line = ((npc.line ?? Math.floor(Math.random() * lines.length)) + 1) % lines.length;
+    $('npcBody').innerHTML = `<p>„${lines[npc.line]}“</p>`;
+  }
+});
+
+// --- Dorfbewohner laufen umher -------------------------------------------------------------
+
+function updateVillagers(dt) {
+  for (const n of game.world.npcs) {
+    if (!n.wander) continue;
+    n.moving = false;
+    if (game.time >= n.wanderAt) {
+      n.wx = n.homeX + (Math.random() - 0.5) * 5 * TILE;
+      n.wy = n.homeY + (Math.random() - 0.5) * 4 * TILE;
+      n.wanderAt = game.time + 3 + Math.random() * 5;
+    }
+    const dx = n.wx - n.x;
+    const dy = n.wy - n.y;
+    const len = hyp(dx, dy);
+    if (len < 3) continue;
+    // stehen bleiben, wenn man sich mit ihnen unterhält
+    if (game.nearNpc === n) continue;
+    const step = Math.min(len, 38 * dt);
+    const nx = n.x + dx / len * step;
+    const ny = n.y + dy / len * step;
+    // seit 13.91 nicht in die begehbaren Häuser (houseAt, welt.js)
+    if (canStand(nx, ny, 7, false) && inVillage(nx, ny) && !houseAt(nx, ny)) {
+      n.x = nx;
+      n.y = ny;
+      n.moving = true;
+      if (Math.abs(dx) > 1) n.facing = dx > 0 ? 1 : -1;
+    } else {
+      n.wanderAt = 0;
+    }
+  }
+}

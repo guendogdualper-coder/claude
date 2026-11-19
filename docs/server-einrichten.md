@@ -1,0 +1,55 @@
+# Eigenen Spielserver einrichten (netcup VPS)
+
+Server: `server.seelenstein.online` (DNS bei INWX, A-Eintrag auf 159.195.68.235; netcup-Name `v2202611449191550868.powersrv.de`), Debian 13. Seit 13.32 im Spiel als erster Vermittler eingetragen.
+
+Hinweis: Für `*.powersrv.de` stellt Let's Encrypt wegen der Grenze pro Domain oft keine Zertifikate aus, deshalb die eigene Domain.
+
+**Stufe 1 (jetzt):** Ein eigener MQTT-Vermittler (Mosquitto) läuft über `wss://v2202611449191550868.powersrv.de/mqtt` mit kostenlosem Let's-Encrypt-Zertifikat (Caddy). Das Spiel nutzt ihn zusätzlich zu den öffentlichen Brokern (HiveMQ, EMQX). Das macht Kanäle und Weiterleitung zuverlässiger, auch im Mobilfunknetz.
+
+**Stufe 2 (seit 13.33): Welt-Wächter.** Der Server öffnet das Spiel selbst (Chromium ohne Bildschirm, `?waechter=1&kanal=N`) und ist dauerhaft Host von Kanal 1 und 2. Er hat keine sichtbare Figur und zeichnet nichts. Monster, Seelensteine und Bosse laufen so weiter, auch wenn niemand online ist.
+- Ist beim Start ein Spieler Host, holt sich der Wächter die ganze Welt und bekommt den Kanal übergeben (`handover`). Alle anderen verbinden sich nach etwa 5 Sekunden mit ihm.
+- Fällt der Wächter aus, übernimmt wie bisher ein Spieler. Kommt der Wächter zurück, gibt der Spieler wieder an ihn ab.
+- Neue Spielversionen lädt der Wächter selbst (Prüfung alle 5 Minuten). Jede Nacht um 5 Uhr startet er frisch.
+
+Installation (einmalig, als root):
+```
+curl -fsSL https://raw.githubusercontent.com/guendogdualper-coder/claude/claude/app-entwicklung-hhewbj/server/waechter.sh | bash
+```
+Prüfen: `systemctl status 'seelenstein-waechter@*'`, Protokoll: `journalctl -u seelenstein-waechter@1 -f | grep waechter`
+
+## Schritte (einmalig, ca. 5 Minuten)
+
+1. **Mit dem Server verbinden.** Am Handy z. B. mit der App *Termius*: neuer Host, Adresse `159.195.68.235`, Benutzer `root`, Passwort aus der netcup-Mail. Am PC im Terminal: `ssh root@159.195.68.235`.
+2. **Passwort sofort ändern**, weil das alte in Screenshots/Chats zu sehen war:
+   ```
+   passwd
+   ```
+   Das neue Passwort nirgends teilen, auch nicht im Chat.
+3. **Einrichtung starten** (ein Befehl, lädt das Skript aus dem Spiel-Repository):
+   ```
+   curl -fsSL https://raw.githubusercontent.com/guendogdualper-coder/claude/claude/app-entwicklung-hhewbj/server/setup.sh | bash -s server.seelenstein.online
+   ```
+   Am Ende steht `FERTIG: https://…/health antwortet`.
+4. Kurz Bescheid geben. Dann wird der Vermittler im Spiel eingetragen und von außen geprüft.
+
+## Was das Skript macht
+
+- System aktualisieren, automatische Sicherheitsupdates
+- Firewall (ufw): nur 22 (SSH), 80 und 443
+- fail2ban gegen Passwort-Raten bei SSH
+- Mosquitto nur intern auf 127.0.0.1:9001 (WebSocket)
+- Caddy als HTTPS-Tür davor: `/mqtt` → Mosquitto, `/health` → „ok“
+
+## Prüfen
+
+- Im Browser: `https://server.seelenstein.online/health` → „ok“
+- Auf dem Server: `systemctl status mosquitto caddy`
+
+## Eigene Adresse seelenstein.online (seit 13.35)
+
+- DNS bei INWX: `seelenstein.online`, `www` und `server` zeigen als A-Eintrag auf `159.195.68.235`.
+- `setup.sh server.seelenstein.online` richtet in Caddy zusätzlich ein:
+  - `seelenstein.online` holt die Seiten von GitHub Pages (`guendogdualper-coder.github.io/claude`) und liefert sie unter der eigenen Adresse aus. Jede neue Version ist dort sofort live, ohne dass auf dem Server etwas zu tun ist.
+  - `www.seelenstein.online` leitet auf `seelenstein.online` weiter.
+- Spielstände: Browser speichern pro Adresse getrennt. `js/umzug.js` bringt Besucher der alten Adresse samt Charakteren, Konto und Einstellungen zur neuen Adresse (die Daten stehen nur im #-Teil der Adresse, der nie an einen Server geht). Installierte Apps zeigen einen Hinweis „Umziehen“. Der Umzug startet erst, wenn seelenstein.online das Spiel wirklich selbst ausliefert.
+- Der Welt-Wächter läuft weiter über die alte Adresse (`?waechter=1` zieht nicht um); das ist egal, weil alle denselben Server nutzen.

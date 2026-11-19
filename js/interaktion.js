@@ -1,0 +1,1000 @@
+// Mit anderen Spielern: antippen öffnet oben eine Karte mit Duell, Freundschaftsanfrage,
+// Gildeneinladung, Handeln und Betrachten. Anfragen erscheinen beim anderen als Einladung oben.
+// Alle Nachrichten laufen wie bei Freunden und Gilde über netSocial (Host reicht weiter).
+
+// arena: Radius des Kreises; pvpMul: Schaden zwischen Spielern; maxHit/maxCrit: höchstens dieser Anteil
+// des Lebens pro Treffer, damit niemand mit einem Schlag fällt und Duelle eine Weile dauern
+// seit 13.2 zählen im Duell die echten Werte: kein Deckel mehr bei großem Stufenabstand (Stufe 60 haut Stufe 10
+// mit einem Schlag um); bei ähnlicher Stufe (unter 10 Stufen Abstand) höchstens 35 % bzw. 50 % (krit.) je Treffer
+// seit 14.6: Spieler gegen Spieler 0,6 statt 0,7; ein Treffer höchstens 25 % (Krit 35 %) des Lebens statt 35/50 %
+// seit 14.15 steht die ganze Schadensrechnung zwischen Spielern in PVP (kampf.js): Faktor nach Stufe, doppelte Rüstung,
+// Lebenspolster, Deckel je Treffer und je 1,5 s – gemeinsam für Duell und Turnierarena
+const DUEL = { countdown: 3, maxTime: 210, arena: 400 };
+const TRADE_SLOTS = 8;
+
+// --- Spielerkarte oben in der Mitte -------------------------------------------------------------
+
+const pcard = {
+  pid: null,
+
+  open(pid) {
+    const rp = net.players.get(pid);
+    if (!rp) return;
+    this.pid = pid;
+    this.render();
+    $('playerCard').hidden = false;
+    $('hud').classList.add('card-open');
+  },
+
+  close() {
+    this.pid = null;
+    $('playerCard').hidden = true;
+    $('hud').classList.remove('card-open');
+  },
+
+  // jedes Bild: Karte schließen, wenn der Spieler weg ist; Leben nachführen
+  update() {
+    if (!this.pid) return;
+    const rp = net.players.get(this.pid);
+    if (!rp || rp.gone || !netOnline()) {
+      this.close();
+      return;
+    }
+    const fill = $('pcHp');
+    if (fill) fill.style.transform = `scaleX(${Math.max(0, rp.hp / Math.max(1, rp.maxHp))})`;
+  },
+
+  render() {
+    const p = game.player;
+    const rp = net.players.get(this.pid);
+    if (!rp) return;
+    const friend = isFriend(rp.name);
+    const canGuild = p.guild && p.guild.leader === p.name && rp.guild !== p.guild.name && !rp.guild;
+    const inDuel = game.duel && game.duel.pid === this.pid;
+    const inParty = !!game.party && game.party.members.includes(rp.name);
+    const canParty = !inParty && (!game.party || (game.party.leader === p.name && game.party.members.length < PARTY.max));
+    const btn = (act, label, icon, on = true, extra = '') => `<button type="button" class="pc-btn${extra}" data-pc="${act}" ${on ? '' : 'disabled'}>` +
+      `<svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg><span>${label}</span></button>`;
+    $('playerCard').innerHTML =
+      `<div class="pc-head"><canvas id="pcPortrait" width="72" height="72"></canvas>` +
+      `<div class="pc-info"><strong>${escapeHtml(rp.name)}</strong>` +
+      `<small>LVL ${rp.level} · ${CLASSES[rp.classId] ? CLASSES[rp.classId].name : '?'}${rp.guild ? ` · <b style="color:${guildColor(rp.guild)}">‹${escapeHtml(rp.guild)}›</b>` : ''}</small>` +
+      `<div class="pc-hp"><i id="pcHp"></i></div></div>` +
+      `<button type="button" class="pc-close" data-pc="close" aria-label="Schließen">×</button></div>` +
+      `<div class="pc-actions">` +
+      btn('duel', inDuel ? 'Im Duell' : 'Duell', '<path d="M5 3l8 8M3 5l2-2M19 3l-8 8M21 5l-2-2M8 13l-4 4 3 3 4-4M16 13l4 4-3 3-4-4"/>', !game.duel, ' red') +
+      btn('friend', friend ? 'Freund' : 'Freund', '<path d="M12 20s-7-4.3-8.9-8.7C1.7 8 3.6 4.5 7 4.5c1.9 0 3.3 1 5 2.8 1.7-1.8 3.1-2.8 5-2.8 3.4 0 5.3 3.5 3.9 6.8C19 15.7 12 20 12 20z"/>', !friend) +
+      btn('guild', 'Gilde', '<path d="M12 2.5l8 2.7v6c0 5.3-3.6 8.7-8 10.3-4.4-1.6-8-5-8-10.3v-6z"/><path d="M12 7v8M8 11h8"/>', !!canGuild) +
+      btn('party', inParty ? 'In Gruppe' : 'Gruppe', '<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2.5 19c.6-3.4 2.8-5.5 5.5-5.5s4.9 2.1 5.5 5.5M10.5 19c.6-3.4 2.8-5.5 5.5-5.5s4.9 2.1 5.5 5.5"/>', canParty) +
+      btn('trade', 'Handeln', '<path d="M4 8h13l-3-3M20 16H7l3 3"/>', !game.trade) +
+      btn('inspect', 'Betrachten', '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>') +
+      `</div>` +
+      // seit 14.20: Mitglieder der eigenen Gruppe: verlassen, entfernen (nur Anführer) und Gruppenfenster
+      (inParty ? `<div class="pc-mod pc-party">` +
+        `<button type="button" class="pc-mod-btn" data-pc="partywin"><span aria-hidden="true">👥</span><span>Gruppe</span></button>` +
+        (game.party.leader === p.name ? `<button type="button" class="pc-mod-btn" data-pc="kick"><span aria-hidden="true">✕</span><span>Aus der Gruppe entfernen</span></button>` : '') +
+        `<button type="button" class="pc-mod-btn" data-pc="leave"><span aria-hidden="true">⇥</span><span>Gruppe verlassen</span></button></div>` : '') +
+      // seit 13.77: Blockieren und Melden (spielerschutz.js)
+      (typeof isBlocked === 'function' ? `<div class="pc-mod">` +
+        `<button type="button" class="pc-mod-btn${isBlocked(rp.name) ? ' on' : ''}" data-pc="block"><span aria-hidden="true">⛔</span><span>${isBlocked(rp.name) ? 'Blockierung aufheben' : 'Blockieren'}</span></button>` +
+        `<button type="button" class="pc-mod-btn" data-pc="report"><span aria-hidden="true">⚑</span><span>Melden</span></button></div>` : '');
+    drawPortrait($('pcPortrait'), rp);
+    this.update();
+    $('playerCard').querySelectorAll('[data-pc]').forEach((b) => b.addEventListener('click', () => this.act(b.dataset.pc)));
+  },
+
+  act(a) {
+    const pid = this.pid;
+    const rp = net.players.get(pid);
+    if (a === 'close' || !rp) {
+      this.close();
+      return;
+    }
+    if (a === 'block') {
+      setBlocked(rp.name, !isBlocked(rp.name));
+      return;
+    }
+    if (a === 'report') {
+      openReport(rp.name);
+      return;
+    }
+    if (a === 'leave' || a === 'kick' || a === 'partywin') {
+      this.close();
+      if (a === 'leave') leaveParty();
+      else if (a === 'kick') kickParty(rp.name);
+      else { social.tab = 'gruppe'; social.open(); }
+      return;
+    }
+    if (a === 'friend') askFriend(pid);
+    if (a === 'guild') inviteGuild(pid);
+    if (a === 'party') inviteParty(pid);
+    if (a === 'inspect') netSocial(pid, { k: 'iq', n: game.player.name });
+    // seit 15.38: erst die Regeln wählen (Tränke, Goldeinsatz), dann geht die Anfrage raus
+    if (a === 'duel') duelAsk(pid, rp.name);
+    if (a === 'trade') {
+      netSocial(pid, { k: 'tq', n: game.player.name });
+      ui.log(`Handelsanfrage an ${rp.name} geschickt.`, 'info');
+    }
+    if (a === 'friend' || a === 'guild') ui.log(a === 'friend' ? `Freundschaftsanfrage an ${rp.name} geschickt.` : `Gildeneinladung an ${rp.name} geschickt.`, 'info');
+  }
+};
+
+// Einladung oben in der Mitte mit Annehmen / Ablehnen, verschwindet nach 20 Sekunden
+function inviteToast(text, onYes, onNo) {
+  const box = $('inviteToasts');
+  const row = document.createElement('div');
+  row.className = 'invite';
+  row.innerHTML = `<span>${text}</span><button type="button" class="mini-btn primary">Annehmen</button><button type="button" class="mini-btn">Ablehnen</button>`;
+  const [yes, no] = row.querySelectorAll('button');
+  let done = false;
+  const finish = (fn) => {
+    if (done) return;
+    done = true;
+    row.remove();
+    if (fn) fn();
+  };
+  yes.addEventListener('click', () => finish(onYes));
+  no.addEventListener('click', () => finish(onNo));
+  box.append(row);
+  setTimeout(() => finish(onNo), 20000);
+}
+
+// Nachrichten zu Betrachten, Handel und Duell
+function onInteract(pid, d) {
+  const p = game.player;
+  const rp = net.players.get(pid);
+  const name = escapeHtml(d.n || (rp && rp.name) || '?');
+  switch (d.k) {
+    // Betrachten: Ausrüstung und Werte schicken
+    case 'iq': {
+      const s = game.stats;
+      netSocial(pid, { k: 'ir', n: p.name, c: p.classId, l: p.level, path: p.path || 0, guild: p.guild ? p.guild.name : '', eq: p.equipment, s: { atk: s.atk, def: s.def, hp: s.maxHp, mp: s.maxMp, crit: s.crit } });
+      break;
+    }
+    case 'ir':
+      showInspect(d);
+      break;
+    // Handel
+    case 'tq':
+      if (game.trade) {
+        netSocial(pid, { k: 'tn', n: p.name, why: 'handelt gerade schon' });
+        break;
+      }
+      inviteToast(`<b>${name}</b> möchte mit dir handeln.`, () => {
+        netSocial(pid, { k: 'ta', n: p.name });
+        startTrade(pid, d.n);
+      }, () => netSocial(pid, { k: 'tn', n: p.name, why: 'hat abgelehnt' }));
+      break;
+    case 'ta':
+      if (!game.trade) startTrade(pid, d.n);
+      break;
+    case 'tn':
+      ui.log(`${d.n} ${d.why || 'hat abgelehnt'}.`, 'warn');
+      break;
+    case 'to':
+      if (game.trade && game.trade.pid === pid) {
+        game.trade.theirs = tradeOfferIn(d);
+        game.trade.okMine = false;
+        game.trade.okTheirs = false;
+        trade.render();
+      } else if (!game.trade) tradeEarly = { pid, d };
+      break;
+    case 'tk':
+      if (game.trade && game.trade.pid === pid && d.h === tradeHash(game.trade, true)) {
+        game.trade.okTheirs = true;
+        tradeMaybeFinish();
+        trade.render();
+      }
+      break;
+    case 'tx':
+      if (game.trade && game.trade.pid === pid) endTrade(`${d.n} hat den Handel abgebrochen.`);
+      break;
+    // Duell
+    case 'dq': {
+      if (game.duel) {
+        netSocial(pid, { k: 'dn', n: p.name, why: 'ist schon im Duell' });
+        break;
+      }
+      // seit 15.38: Regeln der Anfrage (np = ohne Tränke, w = Goldeinsatz); ältere Versionen schicken keine
+      const rules = duelRules(d);
+      if (rules.w > p.gold) {
+        netSocial(pid, { k: 'dn', n: p.name, why: 'hat nicht genug Gold für den Einsatz' });
+        ui.log(`${d.n || 'Jemand'} wollte ein Duell um ${rules.w.toLocaleString('de-DE')} Gold – so viel hast du nicht.`, 'info');
+        break;
+      }
+      inviteToast(`<b>${name}</b> fordert dich zum Duell heraus: ${duelRulesText(rules)}.`, () => {
+        if (rules.w > p.gold) { netSocial(pid, { k: 'dn', n: p.name, why: 'hat nicht genug Gold für den Einsatz' }); return; }
+        netSocial(pid, { k: 'da', n: p.name, np: rules.np ? 1 : 0, w: rules.w });
+        startDuel(pid, d.n, rules);
+      }, () => netSocial(pid, { k: 'dn', n: p.name, why: 'hat das Duell abgelehnt' }));
+      break;
+    }
+    case 'da': {
+      if (game.duel) break;
+      // nur die Regeln gelten, die der andere bestätigt hat (eine ältere Version bestätigt keine: dann ohne Einsatz)
+      const mine = DUEL_ASKED.get(pid) || { np: false, w: 0 };
+      const theirs = duelRules(d);
+      DUEL_ASKED.delete(pid);
+      const rules = { np: mine.np && theirs.np, w: theirs.w === mine.w ? Math.min(mine.w, p.gold) : 0 };
+      if (mine.w && !rules.w) ui.log('Der Einsatz wurde nicht bestätigt – dieses Duell geht um nichts.', 'warn');
+      startDuel(pid, d.n, rules);
+      break;
+    }
+    case 'dn':
+      ui.log(`${d.n} ${d.why}.`, 'warn');
+      break;
+    case 'dh':
+      duelReceive(pid, d);
+      break;
+    case 'dd':
+      if (game.duel && game.duel.pid === pid && game.duel.proxy) {
+        const m = game.duel.proxy;
+        // p: Gift-Tick (grüne Zahl, seit 14.15); sonst Treffer – dann wirkt auch der Lebensraub (zu 60 %)
+        if (d.p) { if (d.a > 0) addText(m.x, feetY(m) - 50, String(d.a), 'toxin'); break; }
+        addText(m.x, feetY(m) - 50, d.a > 0 ? String(d.a) : d.t, d.a > 0 ? (d.c ? 'crit' : 'dmg') : 'info');
+        if (!d.al && d.r > 0) pvpNoteDealt(d.r, d.a);
+        if (!d.al && d.a > 0) pvpLifeSteal(d.a);
+      }
+      break;
+    case 'de':
+      if (game.duel && game.duel.pid === pid) endDuel(d.draw ? null : p.name);
+      break;
+  }
+}
+
+// --- Betrachten -----------------------------------------------------------------------------------
+
+function showInspect(d) {
+  const who = { classId: d.c, path: d.path, level: d.l, name: d.n, equipment: d.eq || {}, buffs: [], x: 0, y: 0, r: 11 };
+  const slots = equipSlotsFor(d.c);
+  // Klasse aus einer neueren Version (seit 8.6): keine Puppe, nur der Name
+  const C = CLASSES[d.c];
+  const tiles = slots.map((sl) => gear.tile(who.equipment[sl.id], `data-insp="${sl.id}"`, sl.name, sl.id)).join('');
+  ui.closePanels();
+  $('inspectTitle').textContent = d.n;
+  $('inspectBody').innerHTML =
+    `<p class="quest-step">LVL ${d.l} · ${C ? C.name + ' · ' + (C.paths[d.path || 0] || C.paths[0]).name : 'Unbekannte Klasse'}${d.guild ? ` · ‹${escapeHtml(d.guild)}›` : ''}</p>` +
+    `<div class="inv-layout"><section class="inv-equip"><div class="equip-doll"><canvas id="inspDoll" class="doll"></canvas><div class="equip-grid">${tiles}</div></div>` +
+    `<p class="inv-sum">Angriff ${d.s.atk} · Verteidigung ${d.s.def}<br>Leben ${d.s.hp} · Mana ${d.s.mp} · Kritisch ${Math.round(d.s.crit * 100)} %</p></section>` +
+    `<section><div id="inspDetail" class="item-detail-wrap"><p class="hint-text">Tippe ein Teil an, um seine Werte und Boni zu sehen. Die Pfeile vergleichen es mit deiner Ausrüstung.</p></div></section></div>`;
+  $('panelInspect').hidden = false;
+  if (C) drawDoll($('inspDoll'), who);
+  $('inspectBody').querySelectorAll('[data-insp]').forEach((b) => b.addEventListener('click', () => {
+    const item = who.equipment[b.dataset.insp];
+    if (!item) return;
+    const bonuses = (item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('') +
+      (item.specials || []).map((x, i) => `<li class="special"><span class="bn">${6 + i}</span>${bonusText(x, true)}</li>`).join('');
+    $('inspDetail').innerHTML = `<div class="item-detail"><img src="${itemIconUrl(item)}" alt="">` +
+      `<div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
+      `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small>` +
+      `<span>${gear.statsList(item)}</span>` + (bonuses ? `<ul class="bonus-list">${bonuses}</ul>` : '<small class="hint-text">Keine Boni.</small>') + setInfoHtml(item) +
+      compareHtml(item, 'Im Vergleich zu deinem') + `</div></div>`;
+  }));
+}
+
+// --- Handel -----------------------------------------------------------------------------------------
+// Beide legen Gegenstände aus der Tasche und Gold hinein. Jede Änderung hebt die Bestätigungen auf.
+// Erst wenn beide dasselbe Angebot bestätigt haben, tauscht jeder auf seinem Gerät.
+
+function startTrade(pid, name) {
+  const rp = net.players.get(pid);
+  game.trade = { pid, name: name || (rp && rp.name) || '?', mine: { uids: [], counts: {}, gold: 0 }, theirs: { items: [], gold: 0 }, okMine: false, okTheirs: false };
+  // Angebot des anderen, das vor dem Öffnen ankam (seit 10.3), gleich übernehmen
+  const early = tradeEarly && tradeEarly.pid === pid ? tradeEarly.d : null;
+  tradeEarly = null;
+  if (early) game.trade.theirs = tradeOfferIn(early);
+  pcard.close();
+  ui.closePanels();
+  trade.page = 0;
+  trade.render();
+  $('panelTrade').hidden = false;
+  ui.log(`Handel mit ${game.trade.name} geöffnet.`, 'info');
+}
+
+// Eigene angebotene Sachen; Bücher mit der gewählten Anzahl (seit 10.3 handelbar, auch ein Teil des Stapels)
+function myOfferItems() {
+  const t = game.trade;
+  return t.mine.uids.map((u) => {
+    const it = game.player.inventory.find((x) => x.uid === u);
+    if (!it || !isBook(it)) return it;
+    return { ...it, count: Math.max(1, Math.min(it.count, t.mine.counts[u] || it.count)) };
+  }).filter(Boolean);
+}
+// Angebot des anderen lesen: Bücher älterer Versionen umbenennen, unbekannte weglassen (sonst bricht die Anzeige)
+let tradeEarly = null;
+function tradeOfferIn(d) {
+  const items = (d.items || []).filter(Boolean).map((it) => (it.book && SKILL_RENAMED[it.book] ? { ...it, book: SKILL_RENAMED[it.book] } : it))
+    .filter((it) => !it.book || (skillEntry(it.book) && it.count > 0));
+  return { items, gold: Math.max(0, Math.floor(d.gold || 0)) };
+}
+
+// Kurzer Fingerabdruck beider Angebote, aus Sicht eines Spielers (flip: aus Sicht des anderen)
+function tradeHash(t, flip) {
+  const key = (i) => i.uid + (i.book ? 'x' + i.count : '');
+  const mine = `${myOfferItems().map(key).join(',')}|${t.mine.gold}`;
+  const theirs = `${t.theirs.items.map(key).join(',')}|${t.theirs.gold}`;
+  return flip ? theirs + '#' + mine : mine + '#' + theirs;
+}
+
+function sendOffer() {
+  const t = game.trade;
+  t.okMine = false;
+  t.okTheirs = false;
+  netSocial(t.pid, { k: 'to', items: myOfferItems(), gold: t.mine.gold });
+  trade.render();
+}
+
+function tradeMaybeFinish() {
+  const t = game.trade;
+  if (!t || !t.okMine || !t.okTheirs) return;
+  const p = game.player;
+  const give = myOfferItems();
+  if (give.length !== t.mine.uids.length || p.gold < t.mine.gold) {
+    endTrade('Dein Angebot hat sich geändert. Der Handel wurde abgebrochen.');
+    return;
+  }
+  // abgeben: Gegenstände ganz, von Bücherstapeln die angebotene Anzahl
+  for (const g of give) {
+    const it = p.inventory.find((x) => x.uid === g.uid);
+    if (isBook(it) && it.count > g.count) it.count -= g.count;
+    else p.inventory.splice(p.inventory.indexOf(it), 1);
+  }
+  p.gold -= t.mine.gold;
+  // bekommen: Bücher kommen auf passende Stapel, Gegenstände mit neuer Kennung
+  let got = 0;
+  for (const it of t.theirs.items) {
+    if (it.book) {
+      giveBooks(p, it.book, it.count);
+      got += it.count;
+    } else {
+      const neu = { ...JSON.parse(JSON.stringify(it)), uid: newUid() };
+      delete neu.bagPos; // seit 14.84: Platz des anderen nicht übernehmen (gesperrte Seiten)
+      p.inventory.push(neu);
+      got++;
+    }
+  }
+  p.gold += t.theirs.gold;
+  saveGame();
+  ui.banner('Handel abgeschlossen', `${got} ${got === 1 ? 'Sache' : 'Sachen'} und ${t.theirs.gold.toLocaleString('de-DE')} Gold erhalten`);
+  endTrade(null);
+}
+
+// Magier-Gegenstände (seit 8.6: Zepter, Robe und Hut des Magiers, Bücher seiner Fertigkeiten) nur an Mitspieler
+// mit Version 8.6 oder neuer: ältere Spiele kennen die Waffenart und die Klasse nicht und würden abstürzen
+function mageItem(it) {
+  if (!it) return false;
+  if (it.book) { const e = skillEntry(it.book); return !!e && e.cls === 'magier'; }
+  return it.cls === 'magier' || it.kind === 'rod';
+}
+function tradeAllowed(t, it) {
+  if (!mageItem(it)) return true;
+  const rp = net.players.get(t.pid);
+  return !!(rp && rp.ver && !versionNewer('8.6', rp.ver));
+}
+
+function endTrade(msg) {
+  game.trade = null;
+  $('panelTrade').hidden = true;
+  if (msg) ui.log(msg, 'warn');
+}
+
+const trade = {
+  page: 0,
+
+  // Anzahl eines angebotenen Bücherstapels wählen
+  countHtml(t, p) {
+    const it = t.edit && t.mine.uids.includes(t.edit) ? p.inventory.find((x) => x.uid === t.edit) : null;
+    if (!isBook(it)) return '';
+    const n = Math.min(it.count, t.mine.counts[it.uid] || it.count);
+    return `<div class="trade-count"><img src="${bookIconUrl(it.book)}" alt=""><span>Fertigkeitsbuch „${skillEntry(it.book).sk.name}“: <b>${n}</b> von ${it.count}</span>` +
+      ['-10', '-1', '+1', '+10'].map((v) => `<button type="button" class="mini-btn" data-tcount="${v}">${v.replace('-', '−')}</button>`).join('') +
+      `<button type="button" class="mini-btn" data-tcount="all">Alle</button><button type="button" class="mini-btn" data-tcount="out">Herausnehmen</button></div>`;
+  },
+
+  render() {
+    const t = game.trade;
+    const p = game.player;
+    if (!t) return;
+    const body = $('tradeBody');
+    const mine = myOfferItems();
+    const slots = (items, attr) => {
+      let html = '';
+      for (let i = 0; i < TRADE_SLOTS; i++) html += gear.tile(items[i], items[i] && attr ? `${attr}="${items[i].uid}"` : '');
+      return html;
+    };
+    let bag = '';
+    for (const it of bagPageItems(p, this.page)) { // seit 14.20: dieselben Plätze wie im Rucksack
+      const picked = it && t.mine.uids.includes(it.uid);
+      bag += gear.tile(it, it ? `data-tbag="${it.uid}"${picked ? ' data-picked="1"' : ''}` : '');
+    }
+    const tabs = Array.from({ length: BAG_PAGES }, (_, k) => `<button type="button" class="bag-tab${k === this.page ? ' on' : ''}" data-tpage="${k}">${['I', 'II', 'III', 'IV'][k]}</button>`).join('');
+    // seit 14.84: nur nutzbare Plätze; was ich hergebe, macht nur auf Seite I/II einen nutzbaren Platz frei
+    const lay = bagLayout(p);
+    const room = bagFree(p, lay) + t.mine.uids.filter((u) => { const k = p.inventory.findIndex((x) => x.uid === u); return k >= 0 && !bagSlotLocked(lay.indexOf(k)); }).length;
+    const tooFull = t.theirs.items.length > room;
+    body.innerHTML =
+      `<div class="trade-cols">` +
+      `<section class="trade-side${t.okMine ? ' ok' : ''}"><h3>Dein Angebot ${t.okMine ? '<span class="trade-ok">✓ bestätigt</span>' : ''}</h3>` +
+      `<div class="trade-grid">${slots(mine, 'data-tmine')}</div>` +
+      `<label class="trade-gold">Gold <input id="tradeGold" type="number" min="0" max="${p.gold}" step="100" value="${t.mine.gold}" inputmode="numeric"></label>` +
+      `<div class="trade-goldbtns">${[1000, 10000, 100000, 1000000].map((v) => `<button type="button" class="mini-btn" data-tgold="${v}">+${v >= 1e6 ? '1 Mio.' : v.toLocaleString('de-DE')}</button>`).join('')}` +
+      `<button type="button" class="mini-btn" data-tgold="all">Alles</button><button type="button" class="mini-btn" data-tgold="0">0</button></div></section>` +
+      `<section class="trade-side${t.okTheirs ? ' ok' : ''}"><h3>${escapeHtml(t.name)} ${t.okTheirs ? '<span class="trade-ok">✓ bestätigt</span>' : ''}</h3>` +
+      `<div class="trade-grid">${slots(t.theirs.items, 'data-ttheirs')}</div>` +
+      `<p class="trade-gold">Gold <b>${t.theirs.gold.toLocaleString('de-DE')}</b></p></section></div>` +
+      `<p class="hint-text">Beide können anbieten: Tippe Sachen in deiner Tasche an – Ausrüstung, Fertigkeitsbücher (Anzahl wählbar) und Gold (höchstens ${TRADE_SLOTS} Plätze). Jede Änderung hebt beide Bestätigungen auf.</p>` +
+      `<div class="trade-bag"><div class="bag-tabs">${tabs}</div><div class="bag-grid">${bag}</div></div>` +
+      `<div id="tradeDetail" class="item-detail-wrap">${this.countHtml(t, p)}</div>` +
+      (tooFull ? `<p class="gear-msg warn">In deiner Tasche ist nicht genug Platz für das Angebot.</p>` : '') +
+      `<div class="trade-btns"><button type="button" class="btn btn-primary" id="tradeOk" ${t.okMine || tooFull ? 'disabled' : ''}>${t.okMine ? 'Warte auf ' + escapeHtml(t.name) : 'Handel bestätigen'}</button>` +
+      `<button type="button" class="btn btn-ghost" id="tradeCancel">Abbrechen</button></div>`;
+    body.querySelectorAll('[data-tbag]').forEach((b) => b.addEventListener('click', () => {
+      const uid = b.dataset.tbag;
+      const it = p.inventory.find((x) => x.uid === uid);
+      const i = t.mine.uids.indexOf(uid);
+      if (i >= 0) {
+        t.mine.uids.splice(i, 1);
+        if (t.edit === uid) t.edit = null;
+      } else if (!tradeAllowed(t, it)) {
+        $('tradeDetail').innerHTML = '<p class="gear-msg warn">Mitspieler braucht Version 8.6 für Magier-Gegenstände.</p>';
+        return;
+      } else if (t.mine.uids.length < TRADE_SLOTS) {
+        t.mine.uids.push(uid);
+        // Bücher: erst der ganze Stapel, die Anzahl lässt sich darunter ändern
+        if (isBook(it)) {
+          t.mine.counts[uid] = it.count;
+          t.edit = it.count > 1 ? uid : null;
+        }
+      }
+      sendOffer();
+    }));
+    body.querySelectorAll('[data-tmine]').forEach((b) => b.addEventListener('click', () => {
+      const uid = b.dataset.tmine;
+      const it = p.inventory.find((x) => x.uid === uid);
+      // Bücherstapel im Angebot: Anzahl ändern statt gleich herausnehmen
+      if (isBook(it) && it.count > 1 && t.edit !== uid) {
+        t.edit = uid;
+        this.render();
+        return;
+      }
+      t.mine.uids = t.mine.uids.filter((u) => u !== uid);
+      if (t.edit === uid) t.edit = null;
+      sendOffer();
+    }));
+    body.querySelectorAll('[data-tcount]').forEach((b) => b.addEventListener('click', () => {
+      const it = p.inventory.find((x) => x.uid === t.edit);
+      if (!it) return;
+      const v = b.dataset.tcount;
+      const cur = t.mine.counts[t.edit] || it.count;
+      if (v === 'out') {
+        t.mine.uids = t.mine.uids.filter((u) => u !== t.edit);
+        t.edit = null;
+      } else t.mine.counts[t.edit] = v === 'all' ? it.count : Math.max(1, Math.min(it.count, cur + Number(v)));
+      sendOffer();
+    }));
+    body.querySelectorAll('[data-tgold]').forEach((b) => b.addEventListener('click', () => {
+      const v = b.dataset.tgold;
+      t.mine.gold = v === 'all' ? p.gold : v === '0' ? 0 : Math.min(p.gold, t.mine.gold + Number(v));
+      sendOffer();
+    }));
+    body.querySelectorAll('[data-ttheirs]').forEach((b) => b.addEventListener('click', () => {
+      const item = t.theirs.items.find((x) => x.uid === b.dataset.ttheirs);
+      if (!item) return;
+      $('tradeDetail').innerHTML = isBook(item)
+        ? `<div class="item-detail"><img src="${bookIconUrl(item.book)}" alt=""><div class="item-info"><strong>Fertigkeitsbuch: ${skillEntry(item.book).sk.name} × ${item.count}</strong></div></div>`
+        : `<div class="item-detail"><img src="${itemIconUrl(item)}" alt=""><div class="item-info"><strong style="color:${itemColor(item)}">${itemFullName(item)}</strong>` + rarityLineHtml(item) +
+          `<small>${itemKindText(item)} · ab Stufe ${ITEM_TIERS[item.tier].level}</small><span>${gear.statsList(item)}</span>` +
+          `<ul class="bonus-list">${(item.bonuses || []).map((x, i) => `<li><span class="bn">${i + 1}</span>${bonusText(x)}</li>`).join('')}</ul>${setInfoHtml(item)}${compareHtml(item)}</div></div>`;
+    }));
+    body.querySelectorAll('[data-tpage]').forEach((b) => b.addEventListener('click', () => { this.page = Number(b.dataset.tpage); this.render(); }));
+    $('tradeGold').addEventListener('change', (e) => {
+      t.mine.gold = Math.max(0, Math.min(p.gold, Math.floor(Number(e.target.value) || 0)));
+      sendOffer();
+    });
+    $('tradeOk').addEventListener('click', () => {
+      // eingetipptes Gold zählt, auch wenn das Feld noch nicht verlassen wurde (iPhone)
+      const typed = Math.max(0, Math.min(p.gold, Math.floor(Number($('tradeGold').value) || 0)));
+      if (typed !== t.mine.gold) {
+        t.mine.gold = typed;
+        sendOffer();
+      }
+      t.okMine = true;
+      netSocial(t.pid, { k: 'tk', h: tradeHash(t, false) });
+      tradeMaybeFinish();
+      this.render();
+    });
+    $('tradeCancel').addEventListener('click', () => {
+      netSocial(t.pid, { k: 'tx', n: p.name });
+      endTrade(null);
+    });
+  }
+};
+
+// --- Duell ------------------------------------------------------------------------------------------
+// Nach 3 Sekunden Countdown greifen beide einander mit allen Angriffen und Fertigkeiten an.
+// Der Gegner steht dafür als "Monster" in der Zielliste (game.duel.proxy). Den Schaden berechnet der
+// Getroffene selbst mit seiner Verteidigung. Wer auf 1 Leben fällt, verliert; niemand stirbt.
+
+// Regeln eines Duells (seit 15.38): np = ohne Tränke, w = Goldeinsatz (der Verlierer zahlt ihn an den Sieger)
+const DUEL_WAGER_MAX = 10000000;
+const DUEL_ASKED = new Map(); // pid → Regeln der eigenen, noch offenen Anfrage
+function duelRules(d) {
+  const w = d && Number.isSafeInteger(d.w) && d.w > 0 ? Math.min(d.w, DUEL_WAGER_MAX) : 0;
+  return { np: !!(d && d.np), w };
+}
+function duelRulesText(r) {
+  return (r.np ? 'ohne Tränke' : 'mit Tränken') + (r.w ? ` · Einsatz ${r.w.toLocaleString('de-DE')} Gold` : ' · ohne Einsatz');
+}
+// Kleines Feld vor der Anfrage: Tränke erlaubt? Goldeinsatz?
+function duelAsk(pid, name) {
+  const box = $('inviteToasts');
+  if (!box) return;
+  box.querySelectorAll('.duel-ask').forEach((el) => el.remove());
+  const p = game.player;
+  const row = document.createElement('div');
+  row.className = 'invite duel-ask';
+  row.innerHTML = `<span>Duell gegen <b>${escapeHtml(name)}</b></span>` +
+    `<label class="duel-opt"><input type="checkbox" data-pot checked> Tränke erlaubt</label>` +
+    `<label class="duel-opt">Einsatz <input type="number" data-wager min="0" max="${Math.min(p.gold, DUEL_WAGER_MAX)}" step="100" value="0" inputmode="numeric"> Gold</label>` +
+    `<button type="button" class="mini-btn primary" data-go>Herausfordern</button><button type="button" class="mini-btn" data-x>Abbrechen</button>`;
+  row.querySelector('[data-x]').addEventListener('click', () => row.remove());
+  // Tasten im Zahlenfeld gehören dem Feld, nicht dem Spiel
+  row.querySelector('[data-wager]').addEventListener('keydown', (ev) => ev.stopPropagation());
+  row.querySelector('[data-go]').addEventListener('click', () => {
+    const w = Math.max(0, Math.min(Math.floor(Number(row.querySelector('[data-wager]').value) || 0), DUEL_WAGER_MAX));
+    if (w > p.gold) { ui.log('So viel Gold hast du nicht.', 'warn'); return; }
+    const rules = { np: !row.querySelector('[data-pot]').checked, w };
+    row.remove();
+    if (!net.players.get(pid)) return;
+    DUEL_ASKED.set(pid, rules);
+    netSocial(pid, { k: 'dq', n: p.name, np: rules.np ? 1 : 0, w: rules.w });
+    ui.log(`Duellanfrage an ${name} geschickt (${duelRulesText(rules)}).`, 'info');
+  });
+  box.append(row);
+}
+
+function startDuel(pid, name, rules) {
+  const p = game.player;
+  const rp = net.players.get(pid);
+  if (!rp) return;
+  pcard.close();
+  p.pvpRatio = 0;
+  game.duel = {
+    pid, name: name || rp.name, fightAt: game.time + DUEL.countdown, endAt: game.time + DUEL.countdown + DUEL.maxTime,
+    cx: (p.x + rp.x) / 2, cy: (p.y + rp.y) / 2, proxy: null, shown: DUEL.countdown + 1,
+    noPot: !!(rules && rules.np), wager: rules && rules.w > 0 ? rules.w : 0
+  };
+  ui.log(`Duell gegen ${game.duel.name}! Bleib im Kreis. Regeln: ${duelRulesText({ np: game.duel.noPot, w: game.duel.wager })}.`, 'level');
+}
+// Im Duell ohne Tränke: kein Trank, solange es läuft (usePotion in spieler.js fragt hier nach)
+function duelNoPotions() {
+  return !!(game.duel && game.duel.noPot);
+}
+
+function duelFighting() {
+  return !!(game.duel && game.duel.proxy && game.time >= game.duel.fightAt);
+}
+
+// jedes Bild: Countdown, Stellvertreter des Gegners nachführen, Kreis und Zeit prüfen
+function updateDuel() {
+  const d = game.duel;
+  if (!d) return;
+  const p = game.player;
+  const rp = net.players.get(d.pid);
+  if (!rp || rp.gone || !netOnline()) {
+    endDuel(null, 'Dein Gegner ist weg. Das Duell ist beendet.');
+    return;
+  }
+  const left = Math.ceil(d.fightAt - game.time);
+  if (left !== d.shown && left >= 0) {
+    d.shown = left;
+    ui.banner(left > 0 ? String(left) : 'Kampf!', left > 0 ? `Duell gegen ${d.name}` : 'Wer zuerst fällt, verliert');
+  }
+  if (game.time >= d.fightAt && !d.proxy) {
+    d.proxy = { id: 'duel', duelProxy: true, name: d.name, r: 11, level: rp.level, x: rp.x, y: rp.y, hp: rp.hp, maxHp: rp.maxHp, def: 0, dead: false, isStone: false, type: {}, stun: 0 };
+  }
+  if (d.proxy) {
+    // getarnter Gegner (seit 13.3): nicht anvisierbar, keine Markierung – Flächenangriffe treffen ihn trotzdem
+    Object.assign(d.proxy, { x: rp.x, y: rp.y, hp: rp.hp, maxHp: rp.maxHp, level: rp.level, dead: !!rp.dead, hidden: remoteHidden(rp) });
+    if (d.proxy.hidden && game.target === d.proxy) game.target = null;
+  }
+  if (game.time > d.endAt) {
+    netSocial(d.pid, { k: 'de', draw: 1 });
+    endDuel(null, 'Die Zeit ist um: unentschieden.');
+    return;
+  }
+  // Wer den Kreis verlässt, gibt auf
+  if (hyp(p.x - d.cx, p.y - d.cy) > DUEL.arena && game.time >= d.fightAt) duelLose('Du hast den Duellkreis verlassen.');
+}
+
+// Treffer auf den Stellvertreter: rohen Schaden an den Gegner schicken (pvpOutgoing, kampf.js).
+// Diener (opts.ally) treffen mit ihrem eigenen Angriffswert (opts.atk), im Duell nur halb und nie kritisch.
+function duelHit(m, mul, opts) {
+  const p = game.player;
+  if (!duelFighting()) return 0;
+  const d = pvpOutgoing(mul, opts);
+  netSocial(game.duel.pid, { k: 'dh', ...d });
+  vfxImpact(m, !!d.c, opts.vfxColor);
+  if (opts.skill) skillHitFx(opts.skill, m, !!d.c, opts.heavy);
+  p.lastCombat = game.time;
+  if (d.c) shakeScreen(4);
+  // geschätzter echter Schaden (Lebensentzug heilt davon), seit 14.15 aus den Rückmeldungen des Gegners
+  return Math.round(d.a * pvpDealtRatio(m));
+}
+
+// getroffen: mit eigenen Werten abrechnen (pvpReceiveHit, kampf.js); Gift-Ticks melden sich einzeln (p: 1)
+function duelReceive(pid, d) {
+  const g = game.duel;
+  const p = game.player;
+  if (!g || g.pid !== pid || !duelFighting() || p.dead) return;
+  const dealt = pvpReceiveHit(d, g.proxy, (a) => { if (game.duel && game.duel.pid === pid) netSocial(pid, { k: 'dd', a, p: 1 }); });
+  netSocial(pid, { k: 'dd', a: dealt, r: d.a, c: d.c, al: d.al ? 1 : 0, t: dealt ? '' : 'Abgewehrt' });
+}
+
+function duelLose(why) {
+  const g = game.duel;
+  if (!g) return;
+  netSocial(g.pid, { k: 'de' });
+  endDuel(g.name, why);
+}
+
+// winner: Name des Siegers oder null bei Unentschieden
+function endDuel(winner, why) {
+  const g = game.duel;
+  if (!g) return;
+  const p = game.player;
+  game.duel = null;
+  p.toxin = null;
+  if (game.target && game.target.duelProxy) game.target = null;
+  if (why) ui.log(why, 'info');
+  // Einsatz (seit 15.38): der Verlierer zahlt, der Sieger bekommt – bei Unentschieden behält jeder sein Gold
+  if (g.wager > 0 && winner) {
+    if (winner === p.name) {
+      p.gold += g.wager;
+      ui.loot('Gold', g.wager, lootIconUrl('gold'), '#ffd96a');
+      ui.log(`Einsatz gewonnen: ${g.wager.toLocaleString('de-DE')} Gold.`, 'level');
+    } else {
+      const pay = Math.min(p.gold, g.wager);
+      p.gold -= pay;
+      ui.log(`Einsatz verloren: ${pay.toLocaleString('de-DE')} Gold.`, 'warn');
+    }
+    saveGame();
+  }
+  if (winner === p.name) {
+    ui.banner('Sieg!', `Du hast das Duell gegen ${g.name} gewonnen`);
+    vfxPowerUp(p, '#ffd34d');
+    startSwing(p, 'pose', 0.7);
+    ui.chat('', `${p.name} hat das Duell gegen ${g.name} gewonnen.`);
+  } else if (winner) {
+    p.hp = Math.max(p.hp, Math.round(game.stats.maxHp * 0.1));
+    ui.banner('Niederlage', `${winner} hat das Duell gewonnen`);
+    ui.chat('', `${winner} hat das Duell gegen ${p.name} gewonnen.`);
+  } else {
+    ui.banner('Unentschieden', 'Das Duell ist vorbei');
+  }
+}
+
+// Duellkreis am Boden und ein Zeichen über dem Gegner. In 3D steht die Lichtwand als echtes Modell
+// (siehe syncDuel3), dann zeichnet das hier nur das Zeichen über dem Gegner.
+function drawDuelArena(ctx, marksOnly = false) {
+  const d = game.duel;
+  if (!d) return;
+  const t = game.time;
+  ctx.save();
+  if (!marksOnly) {
+    const R = DUEL.arena;
+    const ry = R * 0.62;
+    // Countdown: die Wand wächst aus dem Boden
+    const rise = Math.min(1, Math.max(0.15, 1 - (d.fightAt - t) / DUEL.countdown));
+    const wall = 70 * rise;
+    // Boden leicht rot getönt, Rand doppelt mit Lauflicht
+    const g = ctx.createRadialGradient(d.cx, d.cy, R * 0.3, d.cx, d.cy, R);
+    g.addColorStop(0, 'rgba(255,60,40,0)');
+    g.addColorStop(1, 'rgba(255,60,40,0.16)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, R, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // hintere Hälfte der Wand (hinter den Figuren, vorn ist sie durchsichtiger)
+    for (let k = 0; k < 72; k++) {
+      const a = (k / 72) * Math.PI * 2;
+      const x = d.cx + Math.cos(a) * R;
+      const y = d.cy + Math.sin(a) * ry;
+      const back = Math.sin(a) < 0;
+      const h = wall * (0.75 + 0.25 * Math.sin(a * 6 - t * 5));
+      const lg = ctx.createLinearGradient(x, y, x, y - h);
+      lg.addColorStop(0, `rgba(255,70,50,${back ? 0.5 : 0.28})`);
+      lg.addColorStop(1, 'rgba(255,70,50,0)');
+      ctx.strokeStyle = lg;
+      ctx.lineWidth = 9;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y - h);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#ff4a3a';
+    ctx.globalAlpha = 0.65 + 0.2 * Math.sin(t * 4);
+    ctx.lineWidth = 5;
+    ctx.setLineDash([22, 10]);
+    ctx.lineDashOffset = -t * 40;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, R, ry, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, R - 14, ry - 9, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = '#ff4a3a';
+  }
+  ctx.strokeStyle = '#ff4a3a';
+  const rp = net.players.get(d.pid);
+  // Ring und gekreuzte Schwerter nur, solange man den Gegner sieht (seit 13.3, sonst verriet das X den Ninja)
+  if (rp && !remoteHidden(rp)) {
+    const fy = feetY(rp);
+    ctx.globalAlpha = 0.8;
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(rp.x, fy, 20, 8, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    // gekreuzte Schwerter über dem Kopf
+    const y = fy - 84;
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#1a1210';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    for (const s of [1, -1]) {
+      ctx.beginPath();
+      ctx.moveTo(rp.x - 8 * s, y - 8);
+      ctx.lineTo(rp.x + 8 * s, y + 8);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#ffd34d';
+    ctx.lineWidth = 2.5;
+    for (const s of [1, -1]) {
+      ctx.beginPath();
+      ctx.moveTo(rp.x - 8 * s, y - 8);
+      ctx.lineTo(rp.x + 8 * s, y + 8);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// Antippen: liegt dort ein Mitspieler?
+function remotePlayerAt(wx, wy) {
+  let best = null;
+  let bestD = 26;
+  for (const [pid, rp] of net.players) {
+    if (rp.gone || remoteHidden(rp)) continue;
+    const d = hyp(rp.x - wx, feetY(rp) - 22 - rideHeight(rp) - wy);
+    if (d < bestD) { best = pid; bestD = d; }
+  }
+  return best;
+}
+
+// --- Angriffe der Mitspieler sichtbar machen ------------------------------------------------------
+// Nur Bild und Bewegung: Schaden machen sie auf ihrem eigenen Gerät, der Host verrechnet ihn.
+function remoteSkillFx(rp, d) {
+  if (!rp || !d) return;
+  rp.facing = { x: d.fx, y: d.fy };
+  const ang = Math.atan2(d.fy, d.fx);
+  const trim = CLASSES[rp.classId] ? CLASSES[rp.classId].trim : '#ffffff';
+  const target = { x: d.tx, y: d.ty };
+  if (d.s === '_segen') {
+    if (typeof segenShow === 'function') segenShow(rp, d.c);
+    return;
+  }
+  if (d.s === '_shot') {
+    snd.shot(rp, { style: d.st, el: d.el });
+    spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: d.st === 'arrow' ? (typeof BOW_ARROW !== 'undefined' ? BOW_ARROW.speed : 620) : 480, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: d.c || '#f0e0b0', radius: 5, style: d.st, el: d.el,
+      // auf den Fokus des Mitspielers (fo): durch die Monster davor hindurch wie bei ihm (updateProjectiles)
+      passTo: d.fo ? target : null,
+      // Blitzmagier (seit 15.48): Funkeneinschlag wie beim eigenen Blitzpfeil
+      onRemoteHit: d.el === 'blitz' && typeof blitzShotHit === 'function' ? blitzShotHit : undefined });
+    return;
+  }
+  const sk = skillById(d.s);
+  if (!sk) return;
+  // Rang-Effekte der Mitspieler in 3D (seit 12.6), nicht bei Kanal-Meldungen und Abbrüchen
+  // seit 14.61 leise (soft) bei Fertigkeiten mit eigener Wirk-Animation (Schwertaura)
+  const sfx = SKILL_FX[d.s];
+  if (Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length && !d.cx && d.bm !== 0 && d.bm !== 2 && typeof rankCast3 === 'function') rankCast3(rp, d.rk, !!(sfx && sfx.rankSoft));
+  // Eisstrahl (seit 9.6): Anfang, Richtung, Ende
+  if (sk.type === 'beam') {
+    if (d.bm === 1) snd.skill(sk, rp);
+    remoteBeam(rp, d);
+    return;
+  }
+  // neue Magier-Zauber (seit 11.5): eigene Darstellung in magier-neu.js
+  if (typeof MAGE2_REMOTE !== 'undefined' && MAGE2_REMOTE[sk.type]) {
+    // kein Klang bei Abbruch (cx) und bei Kanal-Meldungen (bm 2 = Richtung, 0 = Ende)
+    if (!d.cx && d.bm !== 0 && d.bm !== 2) snd.skill(sk, rp);
+    // Rang-Boni (docs/rang-boni.md): Bild mit den Werten und Extras des Rangs des Mitspielers (rankSkR, spieler.js)
+    const mrk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+    withRank(mrk, () => MAGE2_REMOTE[sk.type](rp, typeof rankSkR === 'function' ? rankSkR(sk, mrk) : sk, d));
+    return;
+  }
+  snd.skill(sk, rp);
+  // Rang aus dem Netz nur als gültige Zahl (sonst stünde SKILL_RANKS[rk] leer und das Bild hielte an)
+  const rk = Number.isInteger(d.rk) && d.rk >= 0 && d.rk < SKILL_RANKS.length ? d.rk : -1;
+  const col = skillColor(sk, trim);
+  const blade = MELEE_KINDS.has(weaponKindOf(rp)) ? playerBlade(rp) : null;
+  if (typeof ninjaFx3 === 'function') ninjaFx3(rp, sk, target, true);
+  if (typeof heilerFx3 === 'function' && heilerFx3(rp, sk, target, true)) return;
+  switch (sk.type) {
+    case 'cone': {
+      const spread = (sk.angle || 90) * Math.PI / 180;
+      const hits = sk.hits || 1;
+      for (let h = 0; h < Math.min(hits, 5); h++) {
+        later(h * (hits > 3 ? 0.17 : 0.13), () => {
+          const from = h % 2 ? ang + spread / 2 : ang - spread / 2;
+          const to = h % 2 ? ang - spread / 2 : ang + spread / 2;
+          if (sk.burn) {
+            const b = bodyCenter(rp);
+            particles(b.x + d.fx * 10, b.y + d.fy * 6, { count: 30, color: ['#ffd34d', '#ff9a4a', '#ff5a2a'], angle: ang, spread: spread / 2, speed: [sk.radius * 1.4, sk.radius * 3], life: [0.25, 0.5], size: [2.5, 5], shape: 'ember', drag: 3 });
+          } else {
+            vfxSweep(rp, sk.radius * 0.85, from, to, col, 0.3, 30);
+            if (blade) addEffect({ type: 'bladearc', follow: rp, ox: 0, oy: -14, len: sk.radius * 0.8, a0: from, a1: to, dur: 0.28, ...blade });
+          }
+        });
+      }
+      break;
+    }
+    case 'circle': {
+      const a = Math.random() * Math.PI * 2;
+      vfxSweep(rp, sk.radius * 0.85, a, a + Math.PI * 4, col, 0.45, 34);
+      if (blade && !(typeof ninjaOwns3 === 'function' && ninjaOwns3(sk.id))) addEffect({ type: 'bladespin', follow: rp, ox: 0, oy: -12, len: sk.radius * 0.9, a0: a, turns: 2, count: 2, dir: 1, dur: 0.6, color: col, ...blade });
+      addEffect({ type: 'ring', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.4, color: '#d8c8a8', width: 6 });
+      rp.spin = 0.5;
+      break;
+    }
+    case 'dash':
+      addEffect({ type: 'ring', x: rp.x, y: feetY(rp), r: 40, dur: 0.4, color: col, width: 6, grow: true });
+      for (let k = 1; k <= 5; k++) later(k * 0.04, () => particles(rp.x, feetY(rp), { count: 3, color: ['#a88f62', col], speed: [20, 60], life: [0.3, 0.5], size: [2, 4], drag: 3, glow: false }));
+      break;
+    // Aderlass, Felsenfaust, Sprungschlag (seit 8.3): nur Optik, Treffer rechnet der Host
+    // (Aderlass in aderlass.js; ältere Mitspieler melden noch Klingenkreuz oder Sichelwelle – deren Ansicht in klingenkreuz.js)
+    case 'flurry':
+      if (typeof aderlassRemote === 'function') withRank(rk, () => aderlassRemote(rp, sk, d));
+      break;
+    case 'erupt': {
+      const from = { x: d.x + d.fx * 22, y: d.y + d.fy * 22 };
+      rp.leap = { start: game.time, dur: 0.2, h: 12 };
+      eruptFx(rp, from, target, sk);
+      later(0.34, () => {
+        let m = null;
+        let best = 30;
+        for (const e of game.monsters) {
+          if (e.dead) continue;
+          const dd = dist(e, target);
+          if (dd <= best) { best = dd; m = e; }
+        }
+        if (canLift(m)) m.lift = { start: game.time, dur: 0.5, h: sk.launch * Math.min(1, 18 / (m.r || 18)) };
+        const me = game.player;
+        if (duelFighting() && game.duel.pid === rp.peerId && !me.dead && dist(me, target) <= 30) me.leap = { start: game.time, dur: 0.5, h: sk.launch };
+      });
+      break;
+    }
+    case 'leap': {
+      const reach = hyp(d.tx - d.x, d.ty - d.y);
+      const h = Math.max(44, Math.min(60, 44 + 0.08 * reach));
+      const t0 = game.time + sk.crouch;
+      const r = rp.r || 14;
+      rp.leap = { start: t0, dur: sk.air, h, slam: true };
+      rp.glide = { x0: d.x, y0: d.y, x1: d.tx, y1: d.ty, start: t0, dur: sk.air };
+      rp.glideHold = null;
+      particles(d.x, d.y + r * 0.8, { count: 12, color: ['#a88f62', '#c9b28a'], speed: [40, 120], life: [0.3, 0.6], size: [2.5, 4.5], shape: 'square', drag: 3, glow: false });
+      addEffect({ type: 'ring', x: d.tx, y: d.ty + r * 0.8, r: sk.radius, dur: 0.55, color: '#c8a878', width: 3 });
+      later(sk.crouch + sk.air, () => {
+        leapLandFx(d.tx, d.ty + r * 0.8, sk, dist(game.player, target) < 300);
+        for (const m of enemiesInCircle(d.tx, d.ty, sk.radius)) if (canLift(m)) m.lift = { start: game.time, dur: 0.25, h: 8 };
+      });
+      break;
+    }
+    case 'strike': {
+      const c = sk.color || col;
+      addEffect({ type: 'slash', x: target.x, y: target.y - 18, ang: 0.75, len: 58, w: 9, dur: 0.3, color: c });
+      later(0.07, () => addEffect({ type: 'slash', x: target.x, y: target.y - 18, ang: -0.75, len: 58, w: 9, dur: 0.3, color: c }));
+      break;
+    }
+    case 'projectile':
+      spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, aimAt: target, speed: sk.speed || 500, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, mul: 0, color: sk.color || col, radius: 7, style: sk.style, pierce: sk.pierce, passTo: d.fo ? target : null });
+      break;
+    // Nekromant, Weg der Seelen (seit 8.5): nur Optik, mit dem Rang des Wirkers. Alte IDs (8.4-Mitspieler, über
+    // SKILL_RENAMED) oder fehlende Felder zeigen nur Rune bzw. Säule.
+    case 'skulls':
+      if (d.s !== sk.id || !Array.isArray(d.ts)) {
+        vfxPillar(rp, col);
+        break;
+      }
+      withRank(rk, () => d.ts.forEach((pt, k) => {
+        if (!Array.isArray(pt)) return;
+        const [x, y] = pt;
+        const a = ang + (k - (d.ts.length - 1) / 2) * sk.fan;
+        later(k * 0.06, () => spawnProjectile({ owner: 'remote', x: rp.x, y: rp.y, dir: { x: Math.cos(a), y: Math.sin(a) }, turn: sk.turn, homeTo: { x, y }, speed: sk.speed, range: hyp(x - rp.x, y - rp.y) + 120, mul: 0, color: sk.color, radius: 8, style: 'skullfire' }));
+      }));
+      break;
+    case 'cage':
+      if (d.s !== sk.id) {
+        addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: 60, dur: 0.8, color: col });
+        break;
+      }
+      withRank(rk, () => cageFx(rp, d.tx, d.ty, sk, null));
+      break;
+    case 'reaper':
+      if (d.s !== sk.id) {
+        addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: 60, dur: 0.8, color: col });
+        break;
+      }
+      withRank(rk, () => reaperFx(rp, d.a ?? ang, sk));
+      break;
+    // Magier (seit 8.6): nur Optik mit dem Rang des Wirkers; fehlende Felder zeigen nur das Siegel an der Figur
+    case 'nova':
+      withRank(rk, () => novaFx(rp, d.x ?? rp.x, d.y ?? rp.y, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, false, 0, lvlFromRank(rk), { ts: d.ts }));
+      break;
+    case 'mbolt':
+      // Kettenblitz (instant): ganzer Blitz statt Geschoss (chainRemote, magier-neu.js)
+      if (sk.instant && typeof chainRemote === 'function') {
+        withRank(rk, () => chainRemote(rp, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, d));
+        break;
+      }
+      withRank(rk, () => spawnProjectile({ ...mageBolt(rp, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, null, 0, 1, false), dir: null, aimAt: target, range: hyp(d.tx - rp.x, d.ty - rp.y) + 60, passTo: d.fo ? target : null }));
+      break;
+    case 'shift':
+      if (!d.pre || !isFinite(d.x1) || !isFinite(d.y1)) {
+        addEffect({ type: 'sigil3', ground: true, el: sk.el, follow: rp, ox: 0, oy: 0, x: rp.x, y: feetY(rp), R: 40, flash: true, dur: 0.5 });
+        break;
+      }
+      withRank(rk, () => shiftFx(rp, { x: d.x0 ?? d.x, y: d.y0 ?? d.y }, { x: d.x1, y: d.y1 }, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, false, 0, 1));
+      // sofort am Ziel, ohne über den Bildschirm zu gleiten (wie der Hinterhalt)
+      rp.blinkHide = game.time + 0.14;
+      rp.glideHold = { x: d.x1, y: d.y1, until: game.time + 0.6 };
+      rp.x = rp.tx = d.x1;
+      rp.y = rp.ty = d.y1;
+      break;
+    case 'sigil':
+      withRank(rk, () => sigilFx(rp, target.x, target.y, typeof rankSkR === 'function' ? rankSkR(sk, rk) : sk, false, 0, 1));
+      break;
+    case 'vortex':
+      vortexFx(rp, sk);
+      break;
+    case 'dragon':
+      dragonFx(rp, target.x, target.y, sk);
+      break;
+    case 'blizzard':
+      blizzardFx(target.x, target.y, sk);
+      break;
+    case 'blast': {
+      const bolts = sk.fx === 'storm' ? 6 : 1;
+      if (sk.fx === 'poison') {
+        addEffect({ type: 'ring', x: target.x, y: target.y, r: sk.radius, dur: 0.5, color: '#8fd16a', width: 8, grow: true });
+        particles(target.x, target.y - 8, { count: 24, color: ['#8fd16a', '#5a8a3a'], speed: [30, 120], life: [0.8, 1.4], size: [5, 10], drag: 2, glow: false, jitter: sk.radius * 0.5 });
+        break;
+      }
+      for (let k = 0; k < bolts; k++) later(k * 0.08, () => addEffect({ type: 'bolt', x: target.x + (k ? rand(-sk.radius, sk.radius) * 0.7 : 0), y: target.y + (k ? rand(-sk.radius, sk.radius) * 0.4 : 0), dur: 0.45, color: '#cfe8ff' }));
+      later(0.12, () => addEffect({ type: 'ring', x: target.x, y: target.y, r: sk.radius, dur: 0.4, color: '#9fd0ff', width: 8 }));
+      break;
+    }
+    case 'drain':
+      addEffect({ type: 'beam', x: target.x, y: target.y - 18, follow2: rp, dur: 0.45, color: '#c43a5a' });
+      break;
+    case 'summon':
+      addEffect({ type: 'runes', follow: rp, ox: 0, oy: 8, r: 40, dur: 0.9, color: '#a7e37f' });
+      // seit 8.5: an jedem Platz bricht die Erde auf (ältere Clients schicken keine Punkte)
+      if (sk.tiers) {
+        const kind = (sk.tiers[d.k || 0] || sk.tiers[0]).kind;
+        (Array.isArray(d.pts) ? d.pts : []).forEach((pt, k) => Array.isArray(pt) && later(k * 0.12, () => allyRiseFx(pt[0], pt[1], kind)));
+      }
+      break;
+    case 'curse':
+      addEffect({ type: 'runes', follow: rp, ox: 0, oy: 0, r: sk.radius, dur: 0.8, color: sk.color || '#a774e0' });
+      break;
+    default:
+      // seit 14.61: eigene Wirk-Animation (Schwertaura: Pose über den Zustand, Lichtteich und Aura über remoteCast)
+      if (sfx && sfx.remoteCast) sfx.remoteCast(rp, rk);
+      // Buffs und Heilung: Lichtsäule (die Kraftpose kommt schon über den Zustand)
+      else vfxPillar(rp, col);
+  }
+}

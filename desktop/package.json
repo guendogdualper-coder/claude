@@ -1,0 +1,87 @@
+{
+  "name": "seelenstein-desktop",
+  "productName": "Seelenstein",
+  "version": "1.1.0",
+  "description": "Seelenstein – Fantasy-Rollenspiel in 3D als eigenständige Windows-App",
+  "author": "Meyzo",
+  "homepage": "https://seelenstein.online/",
+  "license": "UNLICENSED",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pruefen": "node --check main.js",
+    "bauen:installer": "electron-builder --win nsis --x64 --publish never",
+    "bauen:store": "electron-builder --win appx --x64 --publish never",
+    "bauen:linux-test": "electron-builder --linux dir --publish never"
+  },
+  "build": {
+    "appId": "online.seelenstein.desktop",
+    "productName": "Seelenstein",
+    "copyright": "© Meyzo",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "offline/**/*"
+    ],
+    "asar": true,
+    "publish": null,
+    "electronLanguages": [
+      "de",
+      "en-US",
+      "en-GB"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "executableName": "Seelenstein",
+      "target": [
+        "nsis",
+        "appx"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Seelenstein",
+      "uninstallDisplayName": "Seelenstein",
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "de_DE",
+        "en_US"
+      ],
+      "language": "1031",
+      "artifactName": "Seelenstein-Setup-${version}.${ext}"
+    },
+    "appx": {
+      "identityName": "Meyzo.Seelenstein",
+      "publisher": "CN=73683B8E-9A0F-4DBF-9181-D80B5281EF68",
+      "publisherDisplayName": "Meyzo",
+      "displayName": "Seelenstein",
+      "applicationId": "Seelenstein",
+      "backgroundColor": "#12100C",
+      "languages": [
+        "de-DE",
+        "en-US"
+      ],
+      "showNameOnTiles": false,
+      "artifactName": "Seelenstein-Store-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Game",
+      "target": [
+        "dir"
+      ]
+    }
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "electron-builder": "26.18.0"
+  }
+}

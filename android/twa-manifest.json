@@ -1,0 +1,43 @@
+{
+  "packageId": "de.seelenstein.spiel",
+  "host": "seelenstein.online",
+  "name": "Seelenstein",
+  "launcherName": "Seelenstein",
+  "display": "fullscreen",
+  "displayOverride": ["fullscreen", "standalone"],
+  "orientation": "landscape",
+  "themeColor": "#14110D",
+  "themeColorDark": "#14110D",
+  "navigationColor": "#12100C",
+  "navigationColorDark": "#12100C",
+  "navigationDividerColor": "#00000000",
+  "navigationDividerColorDark": "#00000000",
+  "backgroundColor": "#12100C",
+  "enableNotifications": false,
+  "startUrl": "/?quelle=play",
+  "iconUrl": "https://guendogdualper-coder.github.io/claude/icons/icon-512.png",
+  "maskableIconUrl": "https://guendogdualper-coder.github.io/claude/icons/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./seelenstein-upload.keystore",
+    "alias": "seelenstein"
+  },
+  "appVersion": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://seelenstein.online/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": false,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://seelenstein.online/",
+  "minSdkVersion": 24,
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
